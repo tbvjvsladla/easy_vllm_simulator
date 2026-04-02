@@ -107,7 +107,31 @@ docker exec -it <container-name> bash
 
 ```bash
 docker compose --profile debug up
+```
+
+별도 터미널에서 컨테이너에 접속:
+
+```bash
 docker exec -it vllm_server bash
+```
+
+#### 컨테이너 내부 검증 체크리스트
+
+```bash
+# 1) vLLM 설치 확인
+python -c "import vllm; print(vllm.__version__)"
+
+# 2) GPU 인식 확인
+python -c "import torch; print(torch.cuda.device_count(), torch.cuda.get_device_name(0))"
+
+# 3) 모델 볼륨 마운트 확인
+ls /app/models/
+
+# 4) 서빙 설정 파일 마운트 확인
+ls /app/configs/
+
+# 5) 수동 서빙 테스트 (모델 로딩 및 추론 확인)
+vllm serve /app/models/<모델디렉토리명> --host 0.0.0.0 --port 8000
 ```
 
 ### 이미지 재빌드

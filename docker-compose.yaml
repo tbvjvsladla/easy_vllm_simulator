@@ -27,12 +27,12 @@ services:
 
   vllm-serve:
     <<: *gpu-common
-    container_name: ${CONTAINER_NAME}
+    container_name: ${CONTAINER_NAME:-vllm-serve-container}
     profiles: [serve]
     ports:
-      - "${SERVING_PORT}:8000"
+      - "${SERVING_PORT:-8080}:8000"
     environment:
       TIKTOKEN_ENCODINGS_BASE: /encodings
     env_file:
-      - envs/.env.${CONFIG_FILE}
-    command: ["bash", "/app/configs/${CONFIG_FILE}.sh"]
+      - envs/.env.${CONFIG_FILE:-default}
+    command: ["bash", "/app/configs/${CONFIG_FILE:-default}.sh"]
