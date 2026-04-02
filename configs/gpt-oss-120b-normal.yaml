@@ -1,0 +1,9 @@
+# gpt-oss-120b 기본 서빙 설정 (vllm serve --config 용)
+model: /app/models/gpt-oss-120b
+host: 0.0.0.0
+port: 8000
+gpu-memory-utilization: 0.75
+max-model-len: 32768
+reasoning-parser: openai_gptoss
+tool-call-parser: openai
+enable-auto-tool-choice: true

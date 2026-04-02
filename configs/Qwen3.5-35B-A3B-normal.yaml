@@ -1,0 +1,9 @@
+# Qwen3.5-35B-A3B 기본 서빙 설정 (vllm serve --config 용)
+model: /app/models/Qwen3.5-35B-A3B
+host: 0.0.0.0
+port: 8000
+gpu-memory-utilization: 0.95
+max-model-len: 65536
+reasoning-parser: qwen3
+tool-call-parser: qwen3_coder
+enable-auto-tool-choice: true

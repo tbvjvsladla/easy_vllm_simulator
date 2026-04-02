@@ -1,0 +1,5 @@
+# OpenAI Codex skill discovery
+name: docker-claude-skill-package
+description: >
+  Docker and Docker Compose skill package for Claude. Dockerfile best practices, multi-stage builds, Compose orchestration, and container security patterns
+skills_directory: ./skills/source

@@ -1,0 +1,38 @@
+x-gpu-common: &gpu-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  runtime: nvidia
+  ipc: host
+  ulimits:
+    memlock: -1
+    stack: 67108864
+  volumes:
+    - /home/ash/ws_docker/coga_triton_server/model_repo/hf_model:/app/models
+    - /home/ash/ws_docker/coga_triton_server/model_repo/tiktoken_encodings:/encodings:ro
+    - ./configs:/app/configs:ro
+
+services:
+  vllm:
+    <<: *gpu-common
+    container_name: vllm_server # 디버그 모드일 시 컨테이름은 vllm_server로
+    profiles: [debug]
+    ports:
+      - "8081:8000" # 디버그 포트는 8081로 고정 -> 서빙 프로필이랑 포트가 겹치지 말 것!
+    environment:
+      TIKTOKEN_ENCODINGS_BASE: /encodings
+    command: ["bash"]
+    tty: true
+    stdin_open: true
+
+  vllm-serve:
+    <<: *gpu-common
+    container_name: ${CONTAINER_NAME}
+    profiles: [serve]
+    ports:
+      - "${SERVING_PORT}:8000"
+    environment:
+      TIKTOKEN_ENCODINGS_BASE: /encodings
+    env_file:
+      - envs/.env.${CONFIG_FILE}
+    command: ["bash", "/app/configs/${CONFIG_FILE}.sh"]

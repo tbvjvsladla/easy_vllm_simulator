@@ -1,0 +1,48 @@
+{
+  "name": "@openaec/docker-claude-skill-package",
+  "version": "1.1.0",
+  "description": "Docker & Docker Compose skill package for Claude — Dockerfile best practices, multi-stage builds, Compose orchestration, and container security patterns",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OpenAEC-Foundation/Docker-Claude-Skill-Package"
+  },
+  "keywords": [
+    "agent-skills",
+    "agentskills",
+    "claude-skills",
+    "docker",
+    "docker-compose",
+    "dockerfile",
+    "containers",
+    "devops",
+    "buildkit",
+    "deterministic"
+  ],
+  "agents": {
+    "skills": [
+      { "name": "docker-agents-generator", "path": "./skills/source/docker-agents/docker-agents-generator" },
+      { "name": "docker-agents-review", "path": "./skills/source/docker-agents/docker-agents-review" },
+      { "name": "docker-core-architecture", "path": "./skills/source/docker-core/docker-core-architecture" },
+      { "name": "docker-core-networking", "path": "./skills/source/docker-core/docker-core-networking" },
+      { "name": "docker-core-security", "path": "./skills/source/docker-core/docker-core-security" },
+      { "name": "docker-errors-build", "path": "./skills/source/docker-errors/docker-errors-build" },
+      { "name": "docker-errors-compose", "path": "./skills/source/docker-errors/docker-errors-compose" },
+      { "name": "docker-errors-networking", "path": "./skills/source/docker-errors/docker-errors-networking" },
+      { "name": "docker-errors-runtime", "path": "./skills/source/docker-errors/docker-errors-runtime" },
+      { "name": "docker-impl-build-optimization", "path": "./skills/source/docker-impl/docker-impl-build-optimization" },
+      { "name": "docker-impl-cicd", "path": "./skills/source/docker-impl/docker-impl-cicd" },
+      { "name": "docker-impl-compose-workflows", "path": "./skills/source/docker-impl/docker-impl-compose-workflows" },
+      { "name": "docker-impl-go-templates", "path": "./skills/source/docker-impl/docker-impl-go-templates" },
+      { "name": "docker-impl-production", "path": "./skills/source/docker-impl/docker-impl-production" },
+      { "name": "docker-impl-storage", "path": "./skills/source/docker-impl/docker-impl-storage" },
+      { "name": "docker-syntax-buildkit", "path": "./skills/source/docker-syntax/docker-syntax-buildkit" },
+      { "name": "docker-syntax-cli-containers", "path": "./skills/source/docker-syntax/docker-syntax-cli-containers" },
+      { "name": "docker-syntax-cli-images", "path": "./skills/source/docker-syntax/docker-syntax-cli-images" },
+      { "name": "docker-syntax-compose-resources", "path": "./skills/source/docker-syntax/docker-syntax-compose-resources" },
+      { "name": "docker-syntax-compose-services", "path": "./skills/source/docker-syntax/docker-syntax-compose-services" },
+      { "name": "docker-syntax-dockerfile", "path": "./skills/source/docker-syntax/docker-syntax-dockerfile" },
+      { "name": "docker-syntax-multistage", "path": "./skills/source/docker-syntax/docker-syntax-multistage" }
+    ]
+  }
+}

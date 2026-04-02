@@ -1,0 +1,12 @@
+.git
+.gitmodules
+.claude/
+.docker-skills/
+*.md
+LICENSE
+envs/
+configs/
+docker-compose.yaml
+.dockerignore
+.vscode/
+.idea/

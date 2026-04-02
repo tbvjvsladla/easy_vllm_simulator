@@ -1,0 +1,64 @@
+# 크로스 플랫폼 개행 문자 통일 (LF 기본)
+* text=auto eol=lf
+
+# 스크립트
+*.sh text eol=lf
+*.py text eol=lf
+
+# 설정 및 환경 파일
+*.env text eol=lf
+*.toml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.ini text eol=lf
+*.conf text eol=lf
+*.cfg text eol=lf
+
+# Docker
+Dockerfile* text eol=lf
+docker-compose*.yml text eol=lf
+docker-compose*.yaml text eol=lf
+.dockerignore text eol=lf
+
+# uv
+uv.lock text eol=lf
+
+# 문서
+*.md text eol=lf
+*.txt text eol=lf
+*.rst text eol=lf
+
+# 웹
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+
+# Jupyter 노트북
+*.ipynb text eol=lf
+
+# Windows 전용 (CRLF 유지)
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# 바이너리 (개행 변환 없음)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.svg binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.bz2 binary
+*.xz binary
+*.7z binary
+*.so binary
+*.dll binary
+*.exe binary
+*.whl binary
