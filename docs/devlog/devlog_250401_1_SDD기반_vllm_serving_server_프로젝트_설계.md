@@ -28,7 +28,7 @@ NGC에서 제공하는 공식 vLLM 컨테이너(`nvcr.io/nvidia/vllm`)는 업데
 
 ### 현재 작업 환경
 
-- **이전**: ARM Surface (GB10, aarch64, 128GB unified memory)
+- **이전**: ARM Surface
 - **현재**: Windows → WSL Ubuntu → RTX 4090 Blackwell
 
 ---
