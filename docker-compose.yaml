@@ -8,8 +8,8 @@ x-gpu-common: &gpu-common
     memlock: -1
     stack: 67108864
   volumes:
-    - /home/ash/ws_docker/coga_triton_server/model_repo/hf_model:/app/models
-    - /home/ash/ws_docker/coga_triton_server/model_repo/tiktoken_encodings:/encodings:ro
+    - /mnt/llm/Model/hugging_face_ver_model:/app/models:ro # 모델 폴더는 읽기모드로만
+    - /home/cona/ws_docker/model_repo/tiktoken_encodings:/encodings:ro
     - ./configs:/app/configs:ro
 
 services:

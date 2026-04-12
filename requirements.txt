@@ -1,4 +1,4 @@
-openai<2.25.0,>=1.99.1
+openai>=2.0.0
 fastapi
 uvicorn[standard]
 pydantic
@@ -9,7 +9,7 @@ transformers
 sentencepiece
 protobuf
 pillow
-compressed-tensors==0.13.0
+compressed-tensors==0.14.0.1
 outlines
 lm-format-enforcer
 xgrammar

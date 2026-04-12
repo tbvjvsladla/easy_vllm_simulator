@@ -2,7 +2,7 @@
 
 FROM nvcr.io/nvidia/pytorch:26.01-py3
 
-ARG VLLM_VERSION=0.18.1
+ARG VLLM_VERSION=0.19.0
 ARG CUDA_VERSION=130
 
 RUN cp /etc/pip/constraint.txt /etc/pip/constraint.txt.bak \
