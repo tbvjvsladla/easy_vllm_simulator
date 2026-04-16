@@ -2,6 +2,18 @@
 
 FROM nvcr.io/nvidia/pytorch:26.01-py3
 
+# 시스템 레벨 네트워크 디버깅 도구
+# - iproute2: ip 명령어 (ip addr, ip route)
+# - netcat-openbsd: nc 명령어 (포트 연결 체크)
+# - iputils-ping: ping
+# - dnsutils: nslookup, dig
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        iproute2 \
+        netcat-openbsd \
+        iputils-ping \
+        dnsutils \
+    && rm -rf /var/lib/apt/lists/*
+
 ARG VLLM_VERSION=0.19.0
 ARG CUDA_VERSION=130
 

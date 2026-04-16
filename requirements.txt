@@ -39,3 +39,4 @@ quack-kernels>=0.2.7
 setproctitle
 lark==1.2.2
 outlines_core==0.2.11
+ray[default]>=2.55.0,<3.0.0

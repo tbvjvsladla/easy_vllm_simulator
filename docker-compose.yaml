@@ -3,24 +3,37 @@ x-gpu-common: &gpu-common
     context: .
     dockerfile: Dockerfile
   runtime: nvidia
+  network_mode: host
   ipc: host
   ulimits:
     memlock: -1
     stack: 67108864
+  devices:
+    - /dev/infiniband:/dev/infiniband
   volumes:
     - /mnt/llm/Model/hugging_face_ver_model:/app/models:ro # 모델 폴더는 읽기모드로만
+    - /mnt/llm/quant_model:/app/quant_models:ro
     - /home/cona/ws_docker/model_repo/tiktoken_encodings:/encodings:ro
     - ./configs:/app/configs:ro
+  environment: &gpu-env
+    NCCL_IB_DISABLE: "0"
+    NCCL_IB_HCA: rocep1s0f1,roceP2p1s0f1
+    NCCL_SOCKET_IFNAME: enp1s0f1np1
+    GLOO_SOCKET_IFNAME: enp1s0f1np1
+    UCX_NET_DEVICES: enp1s0f1np1
+    OMPI_MCA_btl_tcp_if_include: enp1s0f1np1
+    TP_SOCKET_IFNAME: enp1s0f1np1
 
 services:
   vllm:
     <<: *gpu-common
     container_name: vllm_server # 디버그 모드일 시 컨테이름은 vllm_server로
     profiles: [debug]
-    ports:
-      - "8081:8000" # 디버그 포트는 8081로 고정 -> 서빙 프로필이랑 포트가 겹치지 말 것!
     environment:
+      <<: *gpu-env
       TIKTOKEN_ENCODINGS_BASE: /encodings
+      VLLM_HOST_IP: "192.168.100.10"
+      SERVING_PORT: "8081"
     command: ["bash"]
     tty: true
     stdin_open: true
@@ -29,10 +42,11 @@ services:
     <<: *gpu-common
     container_name: ${CONTAINER_NAME:-vllm-serve-container}
     profiles: [serve]
-    ports:
-      - "${SERVING_PORT:-8080}:8000"
     environment:
+      <<: *gpu-env
       TIKTOKEN_ENCODINGS_BASE: /encodings
+      VLLM_HOST_IP: ${VLLM_HOST_IP}
+      SERVING_PORT: ${SERVING_PORT:-8080}
     env_file:
       - envs/.env.${CONFIG_FILE:-default}
     command: ["bash", "/app/configs/${CONFIG_FILE:-default}.sh"]
