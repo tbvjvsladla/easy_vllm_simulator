@@ -16,13 +16,25 @@ x-gpu-common: &gpu-common
     - /home/cona/ws_docker/model_repo/tiktoken_encodings:/encodings:ro
     - ./configs:/app/configs:ro
   environment: &gpu-env
-    NCCL_IB_DISABLE: "0"
-    NCCL_IB_HCA: rocep1s0f1,roceP2p1s0f1
-    NCCL_SOCKET_IFNAME: enp1s0f1np1
-    GLOO_SOCKET_IFNAME: enp1s0f1np1
-    UCX_NET_DEVICES: enp1s0f1np1
-    OMPI_MCA_btl_tcp_if_include: enp1s0f1np1
-    TP_SOCKET_IFNAME: enp1s0f1np1
+    # ─────────────────────────────────────────────────────────
+    # RDMA (RoCE v2) 설정 — 실제 텐서 데이터가 흐르는 고속 경로
+    # ─────────────────────────────────────────────────────────
+    NCCL_IB_DISABLE: "0"                  # 0=RDMA 활성, 1=TCP로 fallback
+    NCCL_IB_HCA: rocep1s0f1,roceP2p1s0f1  # Domain 0/2 HCA 둘 다 지정 → NCCL 멀티레일로 ~200Gbps 활용
+
+    # ─────────────────────────────────────────────────────────
+    # TCP 소켓 인터페이스 — 초기화/제어 메시지용 (RDMA 보조)
+    # ─────────────────────────────────────────────────────────
+    NCCL_SOCKET_IFNAME: enp1s0f1np1,enP2p1s0f1np1 # NCCL bootstrap 및 RDMA 불가 시 fallback
+    GLOO_SOCKET_IFNAME: enp1s0f1np1,enP2p1s0f1np1 # vLLM/Ray 초기 핸드셰이크 (torch.distributed gloo 백엔드)
+    TP_SOCKET_IFNAME: enp1s0f1np1,enP2p1s0f1np1   # torch.distributed TCP 통신 인터페이스
+
+    # ─────────────────────────────────────────────────────────
+    # 기타 HPC 통신 레이어 — vLLM+Ray 조합에서는 실사용 빈도 낮으나
+    # Wi-Fi/10GbE 인터페이스 선택 방지용으로 명시 (안전장치)
+    # ─────────────────────────────────────────────────────────
+    UCX_NET_DEVICES: enp1s0f1np1,enP2p1s0f1np1              # UCX 프레임워크용 (OpenMPI 등에서 사용)
+    OMPI_MCA_btl_tcp_if_include: enp1s0f1np1,enP2p1s0f1np1  # OpenMPI TCP BTL 인터페이스 화이트리스트
 
 services:
   vllm:
@@ -32,6 +44,9 @@ services:
     environment:
       <<: *gpu-env
       TIKTOKEN_ENCODINGS_BASE: /encodings
+      # Ray/vLLM 노드 식별용 IP (메인=10, 서브=11)
+      # Nvidia공식 예제에서는 Ray/vLLM 노드연결에 Domain 0번 서브넷을 권장
+      # 제어 메세지가 송수신되는 IP라 보면 됨
       VLLM_HOST_IP: "192.168.100.10"
       SERVING_PORT: "8081"
     command: ["bash"]
