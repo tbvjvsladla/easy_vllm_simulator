@@ -53,15 +53,43 @@ services:
     tty: true
     stdin_open: true
 
-  vllm-serve:
+  # ─────────────────────────────────────────────────────────────────
+  # 마스터 노드 서빙 (Ray head + vLLM serve)
+  # ─────────────────────────────────────────────────────────────────
+  vllm-master-serve:
     <<: *gpu-common
-    container_name: ${CONTAINER_NAME:-vllm-serve-container}
-    profiles: [serve]
+    profiles: [master]
+    container_name: ${MASTER_CONTAINER_NAME:-vllm-master-serve-container}
     environment:
       <<: *gpu-env
       TIKTOKEN_ENCODINGS_BASE: /encodings
-      VLLM_HOST_IP: ${VLLM_HOST_IP}
+      NODE_ROLE: master
+      VLLM_HOST_IP: ${MASTER_HOST_IP}      # 자기 IP = master
+      HEAD_NODE_IP: ${MASTER_HOST_IP}      # head는 자기 자신
+      RAY_PORT: ${RAY_PORT:-6379}
+      SERVING_IP: ${SERVING_IP:-0.0.0.0}
       SERVING_PORT: ${SERVING_PORT:-8080}
+      SERVING_MODEL_NAME: ${SERVING_MODEL_NAME}
+      CONFIG_FILE: ${CONFIG_FILE:-default}
+    env_file:
+      - envs/.env.${CONFIG_FILE:-default}
+    command: ["bash", "/app/configs/${CONFIG_FILE:-default}.sh"]
+
+  # ─────────────────────────────────────────────────────────────────
+  # 슬레이브 노드 서빙 (Ray worker --block)
+  # ─────────────────────────────────────────────────────────────────
+  vllm-slave-serve:
+    <<: *gpu-common
+    profiles: [slave]
+    container_name: ${SLAVE_CONTAINER_NAME:-vllm-slave-serve-container}
+    environment:
+      <<: *gpu-env
+      TIKTOKEN_ENCODINGS_BASE: /encodings
+      NODE_ROLE: slave
+      VLLM_HOST_IP: ${SLAVE_HOST_IP}       # 자기 IP = slave
+      HEAD_NODE_IP: ${MASTER_HOST_IP}      # master에 접속
+      RAY_PORT: ${RAY_PORT:-6379}
+      CONFIG_FILE: ${CONFIG_FILE:-default}
     env_file:
       - envs/.env.${CONFIG_FILE:-default}
     command: ["bash", "/app/configs/${CONFIG_FILE:-default}.sh"]
