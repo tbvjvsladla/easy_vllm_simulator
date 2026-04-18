@@ -1,0 +1,14 @@
+# GLM-4.5-Air-FP8 서빙 설정 (vllm serve --config 용)
+# 106B total / 12B active, hybrid reasoning (thinking/non-thinking), MIT license
+model: /app/quant_models/GLM-4.5-Air-FP8
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+gpu-memory-utilization: 0.85
+host: 0.0.0.0
+max-model-len: 65536
+reasoning-parser: glm45
+tool-call-parser: glm45
+enable-auto-tool-choice: true
+trust-remote-code: true
+enforce-eager: true
+served-model-name: GLM-4.5-Air-FP8

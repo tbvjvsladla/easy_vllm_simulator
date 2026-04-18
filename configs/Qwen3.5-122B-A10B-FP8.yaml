@@ -10,3 +10,7 @@ tool-call-parser: qwen3_coder
 enable-auto-tool-choice: true
 trust-remote-code: true
 enforce-eager: true
+# ↓ 추가 권장 사항
+enable-prefix-caching: true      # 공식 recipe 권장
+language-model-only: true        # VL 인코더 스킵으로 메모리/로딩 속도 개선
+served-model-name: Qwen3.5-122B-A10B-FP8

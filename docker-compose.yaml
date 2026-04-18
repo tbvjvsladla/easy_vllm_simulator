@@ -70,7 +70,7 @@ services:
       CONFIG_FILE: ${CONFIG_FILE:-default}
     env_file:
       - envs/.env.${CONFIG_FILE:-default}
-    command: ["bash", "/app/configs/${CONFIG_FILE:-default}.sh"]
+    command: ["bash", "/app/configs/serve_runner.sh"]
 
   # ─────────────────────────────────────────────────────────────────
   # 슬레이브 노드 서빙 (Ray worker --block)
@@ -89,4 +89,4 @@ services:
       CONFIG_FILE: ${CONFIG_FILE:-default}
     env_file:
       - envs/.env.${CONFIG_FILE:-default}
-    command: ["bash", "/app/configs/${CONFIG_FILE:-default}.sh"]
+    command: ["bash", "/app/configs/serve_runner.sh"]
