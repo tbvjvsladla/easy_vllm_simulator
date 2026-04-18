@@ -39,17 +39,14 @@ x-gpu-common: &gpu-common
 services:
   vllm:
     <<: *gpu-common
-    container_name: vllm_server # 디버그 모드일 시 컨테이름은 vllm_server로
+    container_name: vllm_server
     profiles: [debug]
     environment:
       <<: *gpu-env
       TIKTOKEN_ENCODINGS_BASE: /encodings
-      # Ray/vLLM 노드 식별용 IP (메인=10, 서브=11)
-      # Nvidia공식 예제에서는 Ray/vLLM 노드연결에 Domain 0번 서브넷을 권장
-      # 제어 메세지가 송수신되는 IP라 보면 됨
-      VLLM_HOST_IP: "192.168.100.10"
-      SERVING_PORT: "8081"
-    command: ["bash"]
+      # ★ VLLM_HOST_IP 제거 — debug-init.sh가 런타임에 자동 감지
+      # ★ SERVING_PORT 제거 — 기본값 8081 사용, 필요 시 CLI로 덮어쓰기 가능
+    command: ["bash", "--rcfile", "/app/configs/debug-init.sh"]
     tty: true
     stdin_open: true
 
