@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         dnsutils \
     && rm -rf /var/lib/apt/lists/*
 
-ARG VLLM_VERSION=0.19.0
+ARG VLLM_VERSION=0.19.1
 ARG CUDA_VERSION=130
 
 RUN cp /etc/pip/constraint.txt /etc/pip/constraint.txt.bak \

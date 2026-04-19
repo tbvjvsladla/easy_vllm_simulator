@@ -5,11 +5,11 @@ pydantic
 prometheus-client
 py-cpuinfo
 tiktoken
-transformers
+transformers>=5.5.4
 sentencepiece
 protobuf
 pillow
-compressed-tensors==0.14.0.1
+compressed-tensors>=0.15.0
 outlines
 lm-format-enforcer
 xgrammar
