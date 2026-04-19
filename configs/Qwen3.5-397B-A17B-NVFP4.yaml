@@ -1,17 +1,14 @@
-# Qwen3.5-397B-A17B-NVFP4 서빙 설정 (vllm serve --config 용)
-# 397B total / 17B active, NVFP4 quantization (Blackwell SM121 hardware-accelerated)
-# 2노드 구성은 메모리 빡빡 — max-model-len, max-num-seqs를 보수적으로
+# Qwen3.5-397B-A17B-NVFP4 서빙 설정
 model: /app/quant_models/Qwen3.5-397B-A17B-NVFP4
 tensor-parallel-size: 2
 distributed-executor-backend: ray
-gpu-memory-utilization: 0.85
+gpu-memory-utilization: 0.70        # ← 0.85 → 0.75 (통합 메모리에서 VRAM 비중 축소)
 host: 0.0.0.0
-max-model-len: 32768
-max-num-seqs: 4
+max-model-len: 4096                 # ← 32768 → 8192 (KV cache 대폭 축소)
+max-num-seqs: 2                     # ← 4 → 2
+max-num-batched-tokens: 8192        # ← 추가 (Mamba block_size 대응)
 kv-cache-dtype: fp8_e4m3
 reasoning-parser: qwen3
 trust-remote-code: true
 enforce-eager: true
-enable-prefix-caching: true
-language-model-only: true
 served-model-name: Qwen3.5-397B-A17B-NVFP4
