@@ -1,0 +1,25 @@
+# gemma-4-31B-it 서빙 설정 (vllm serve --config 용)
+model: /app/models/Google/Gemma 4/gemma-4-31B-it
+served-model-name: gemma-4-31B-it
+host: 0.0.0.0
+port: 8000
+tensor-parallel-size: 1
+gpu-memory-utilization: 0.92
+max-model-len: 32768          # 31B Dense는 KV 캐시 여유가 부족하므로 32K로 제한
+dtype: bfloat16
+
+# Gemma 4 전용 파서 (필수)
+reasoning-parser: gemma4
+tool-call-parser: gemma4
+enable-auto-tool-choice: true
+
+# 성능 최적화
+async-scheduling: true
+enable-prefix-caching: true
+kv-cache-dtype: fp8          # 31B Dense는 필수 (안 쓰면 OOM 위험)
+
+# 멀티모달 설정 (텍스트 위주면 아예 꺼도 됨)
+limit-mm-per-prompt:
+  image: 2
+  audio: 0
+mm-processor-kwargs: '{"max_soft_tokens": 280}'

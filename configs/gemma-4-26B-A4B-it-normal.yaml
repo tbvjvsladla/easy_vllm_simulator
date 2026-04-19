@@ -1,0 +1,25 @@
+# gemma-4-26B-A4B-it 서빙 설정 (vllm serve --config 용)
+model: /app/models/Google/Gemma 4/gemma-4-26B-A4B-it
+served-model-name: gemma-4-26B-A4B-it
+host: 0.0.0.0
+port: 8000
+tensor-parallel-size: 1
+gpu-memory-utilization: 0.90
+max-model-len: 65536
+dtype: bfloat16
+
+# Gemma 4 전용 파서 (필수)
+reasoning-parser: gemma4
+tool-call-parser: gemma4
+enable-auto-tool-choice: true
+
+# 성능 최적화
+async-scheduling: true
+enable-prefix-caching: true
+kv-cache-dtype: fp8          # KV 캐시 메모리 절반으로 (대역폭 절약)
+
+# 멀티모달 설정 (이미지만 사용, 오디오 비활성화로 메모리 절약)
+limit-mm-per-prompt:
+  image: 2
+  audio: 0
+mm-processor-kwargs: '{"max_soft_tokens": 280}'
