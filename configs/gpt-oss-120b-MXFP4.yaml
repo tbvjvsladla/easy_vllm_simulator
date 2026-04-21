@@ -1,0 +1,13 @@
+# gpt-oss-120b-MXFP4 서빙 설정 (vllm serve --config 용)
+model: /app/models/OpenAI/gpt-oss-120b
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+gpu-memory-utilization: 0.75
+kv-cache-dtype: fp8
+host: 0.0.0.0
+max-model-len: 32768
+max-num-seqs: 16
+reasoning-parser: openai_gptoss
+tool-call-parser: openai
+enable-auto-tool-choice: true
+served-model-name: gpt-oss-120b-MXFP4
