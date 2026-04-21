@@ -3,7 +3,9 @@ model: /app/models/OpenAI/gpt-oss-120b
 host: 0.0.0.0
 port: 8000
 gpu-memory-utilization: 0.75
+kv-cache-dtype: fp8
 max-model-len: 32768
+max-num-seqs: 16
 reasoning-parser: openai_gptoss
 tool-call-parser: openai
 enable-auto-tool-choice: true
