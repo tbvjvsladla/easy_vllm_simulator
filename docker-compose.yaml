@@ -48,7 +48,7 @@ x-gpu-common: &gpu-common
     # ═════════════════════════════════════════════════════════════════════
     # GPU Direct RDMA (GDR) 힌트
     # ─────────────────────────────────────────────────────────────────────
-    # DGX Spark는 GPU↔CPU 간 C2C(345GB/s), CPU↔NIC 간 PCIe 구조.
+    # GPU↔CPU 간 C2C(345GB/s), CPU↔NIC 간 PCIe 구조.
     # HPC-X 플러그인 기본 정책상 GPU-NIC가 같은 PCI switch에 없으면
     # GDR을 Disable시킴 ("NET/IBext_v11 : GPU Direct RDMA Disabled" 로그).
     #
@@ -64,7 +64,7 @@ x-gpu-common: &gpu-common
     # Cross-NIC 정책
     # ─────────────────────────────────────────────────────────────────────
     # 기본값 2 (same-NIC 선호, 필요 시 cross 허용).
-    # DGX Spark는 rail-optimized 네트워크가 아니라 단일 케이블에 dual-domain
+    # rail-optimized 네트워크가 아니라 단일 케이블에 dual-domain
     # 구조이므로, 서로 다른 NIC 간 교차 통신을 적극 허용하는 것이 유리.
     # ═════════════════════════════════════════════════════════════════════
     NCCL_CROSS_NIC: "1"                         # 다른 NIC 간 ring/tree 허용
