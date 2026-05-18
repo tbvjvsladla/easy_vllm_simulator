@@ -10,7 +10,6 @@ sentencepiece
 protobuf
 pillow
 compressed-tensors>=0.15.0
-outlines
 lm-format-enforcer
 xgrammar
 msgspec
@@ -38,4 +37,12 @@ pybase64
 quack-kernels>=0.2.7
 setproctitle
 lark==1.2.2
-outlines_core==0.2.11
+outlines_core==0.2.14
+flashinfer-python==0.6.8.post1
+flashinfer-cubin==0.6.8.post1
+tilelang==0.1.9
+tokenspeed-mla==0.1.2
+fastsafetensors>=0.2.2
+numba==0.65.0
+apache-tvm-ffi==0.1.9
+nvidia-cutlass-dsl==4.4.2
