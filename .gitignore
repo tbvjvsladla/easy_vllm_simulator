@@ -12,6 +12,8 @@
 .codeium/
 .docker-skills/
 skills-lock.json
+CLAUDE.md
+CLAUDE.local.md
 
 # ===========================================
 # 환경 변수
@@ -87,3 +89,4 @@ Thumbs.db
 *.log
 *.orig
 temp/
+seed/
