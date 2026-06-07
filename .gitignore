@@ -4,6 +4,9 @@
 .agent/
 .agents/
 .claude/
+CLAUDE.md
+CLAUDE.local.md
+seed/
 .cursor/
 .windsurf/
 .taskmaster/
