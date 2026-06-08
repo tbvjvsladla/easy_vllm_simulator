@@ -90,3 +90,10 @@ Thumbs.db
 *.orig
 temp/
 seed/
+
+# ===========================================
+# docs — 작업 문서는 gitignore(브랜치 간 persist·통합, 빌딩블럭처럼).
+# 폴더 스켈레톤 + 각 폴더 example.md(작성·명명 규칙)만 추적·배포. 규칙: .claude/rules/docs.md
+# ===========================================
+docs/*/*
+!docs/*/example.md
