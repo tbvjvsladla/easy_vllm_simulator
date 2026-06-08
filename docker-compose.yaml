@@ -1,7 +1,7 @@
 x-gpu-common: &gpu-common
   build:
     context: .
-    dockerfile: Dockerfile
+    dockerfile: Dockerfile.source-build   # Phase 2: vLLM 0.22.1 소스빌드(torch 2.11 ABI 벽). prebuilt Dockerfile(0.18.0 앵커)은 보존.
   runtime: nvidia
   network_mode: host
   ipc: host

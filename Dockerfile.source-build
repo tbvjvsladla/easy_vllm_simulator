@@ -1,0 +1,68 @@
+# syntax=docker/dockerfile:1
+# =========================================================================
+# vLLM 0.22.1 SOURCE BUILD — Phase 2 멀티노드(2노드 DGX Spark, aarch64/GB10)
+# 단일노드 동결 레시피(docs/testlog/testlog_260608_1)를 멀티노드로 확장한 산출물.
+# 근거: SKILL.md §4.5(멀티노드)+§4.6(소스빌드), docs/devlog/devlog_260608_1.
+#
+# 핵심: _C 를 NGC torch 2.11a 에 맞춰 소스 컴파일 → prebuilt 의 C++ ABI undefined-symbol 벽 해소.
+# 커플링 규칙 그대로: vLLM 0.22.1 → torch 2.11.0 → NGC 26.03-py3(prefix 매칭). 빌드 방식만 변경.
+#
+# 단일노드 대비 멀티노드 추가분(보존 규칙 §4.5):
+#   A) 네트워크 디버그 apt(iproute2/netcat-openbsd/iputils-ping/dnsutils):
+#      serve_runner.sh 의 slave 가 nc 로 Ray head 포트 대기 → netcat 필수.
+#   B) ray==2.48.0: 2노드 Ray 분산 서빙(serve_runner.sh 의 ray start) 필수.
+#      vLLM 은 ray 를 코어 의존성으로 선언 안 함(`pip install -e .` 로 안 들어옴) →
+#      명시 설치. 핀 근거: vLLM 0.22.1 requirements/test/cuda.txt → ray==2.48.0.
+#   ※ harmony 오프라인 인코딩(/encodings + TIKTOKEN_*)은 서빙 단계(docker-compose + configs/*.sh)에서 처리.
+# =========================================================================
+ARG NGC_TAG=26.03-py3
+ARG VLLM_REF=v0.22.1
+ARG RAY_VERSION=2.48.0
+ARG BUILD_JOBS=18
+ARG TORCH_CUDA_ARCH=12.1a
+
+FROM nvcr.io/nvidia/pytorch:${NGC_TAG}
+
+ARG VLLM_REF
+ARG RAY_VERSION
+ARG BUILD_JOBS
+ARG TORCH_CUDA_ARCH
+ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH} \
+    MAX_JOBS=${BUILD_JOBS} \
+    CMAKE_BUILD_PARALLEL_LEVEL=${BUILD_JOBS} \
+    CCACHE_DIR=/root/.ccache CCACHE_MAXSIZE=30G CCACHE_COMPRESS=1 \
+    PATH=/usr/lib/ccache:/usr/local/bin:/usr/bin:/bin
+
+# ccache(빌드 가속) + 네트워크 디버그/통신 도구(멀티노드: slave 의 nc 대기에 netcat 필수). ninja/git 은 NGC 베이스 제공.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ccache \
+        iproute2 \
+        netcat-openbsd \
+        iputils-ping \
+        dnsutils \
+    && rm -rf /var/lib/apt/lists/*
+
+# NGC pip constraint 비우기(핀 충돌 회피)
+RUN cp /etc/pip/constraint.txt /etc/pip/constraint.txt.bak && : > /etc/pip/constraint.txt
+
+# vLLM 소스(고정 태그) + NGC torch 사용(torch 핀 제거)
+RUN git clone --branch ${VLLM_REF} --depth 1 https://github.com/vllm-project/vllm.git /workspace/vllm-src
+WORKDIR /workspace/vllm-src
+RUN python3 use_existing_torch.py
+
+# build-system.requires 수동 설치(--no-build-isolation 전제: setuptools<81, setuptools-rust, cmake, ninja, scm, wheel, jinja2)
+RUN pip install $(python3 -c "import tomllib;print(' '.join(tomllib.load(open('pyproject.toml','rb'))['build-system']['requires']))")
+
+# 패치: strip-hoist — NGC torch 2.11a 의 register_opaque_type 가 hoist kwarg 미지원(opaque 등록 기능은 유지)
+RUN sed -i 's/register_opaque_type(LayerName, typ="value", hoist=True)/register_opaque_type(LayerName, typ="value")  # patched: NGC torch 2.11a lacks hoist/' vllm/utils/torch_utils.py \
+    && grep -q 'typ="value")' vllm/utils/torch_utils.py
+
+# _C 소스 컴파일(NGC torch 에 맞춰) + 런타임 deps 설치. ccache 마운트로 재빌드 가속.
+RUN --mount=type=cache,target=/root/.ccache \
+    pip install --no-build-isolation -e .
+
+# [멀티노드 전용] ray — 2노드 Ray 분산 서빙(serve_runner.sh). vLLM 코어 dep 아님 → 명시 설치.
+RUN pip install ray==${RAY_VERSION}
+
+WORKDIR /workspace
+EXPOSE 8000
