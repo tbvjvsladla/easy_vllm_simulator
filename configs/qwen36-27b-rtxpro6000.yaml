@@ -1,0 +1,14 @@
+# Qwen3.6/Qwen3.6-27B 서빙 설정 (vllm-recipe-explorer 생성)
+# 레시피: quant=none max_model_len=32768 gpu_mem_util=0.9
+# ── VRAM 분해 (Phase 2 절대 KV 클램프 기준) ──
+#   weights: 51.1 GiB
+#   kv_cache: 4.306640423834324 GiB
+#   budget: 96.0 GiB
+model: /app/models/Qwen/Qwen3.6/Qwen3.6-27B
+host: 0.0.0.0
+port: 8000
+# gpu-memory-utilization 은 safety_margin(디바이스 풀 상한); 실제 KV 는 kv-cache-memory-bytes 절대 클램프가 제어
+gpu-memory-utilization: 0.9
+max-model-len: 32768
+max-num-seqs: 2
+kv-cache-memory-bytes: 4624219944

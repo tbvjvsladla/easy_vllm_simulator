@@ -1,15 +1,17 @@
+# 스켈레톤 — render_dockerfile.py(G2)가 manifest+버전해소값으로 채움
 x-gpu-common: &gpu-common
   build:
     context: .
     dockerfile: Dockerfile
+  image: {{ IMAGE_NAME }}:{{ IMAGE_TAG }}
   runtime: nvidia
   ipc: host
   ulimits:
     memlock: -1
     stack: 67108864
   volumes:
-    - ${NAS_MODEL_PATH:-/mnt/models}:/app/models:ro # 모델 폴더는 읽기모드로만 (호스트 경로는 NAS_MODEL_PATH env override)
-    - ${TIKTOKEN_ENCODINGS_PATH:-/opt/tiktoken_encodings}:/encodings:ro # 호스트 tiktoken 경로는 TIKTOKEN_ENCODINGS_PATH env override
+    - {{ NAS_MODEL_PATH }}:/app/models:ro # 모델 폴더는 읽기모드로만 (manifest.nas_model_path)
+    - ${TIKTOKEN_HOST_PATH}:/encodings:ro
     - ./configs:/app/configs:ro
 
 services:

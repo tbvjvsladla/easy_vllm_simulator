@@ -1,0 +1,13 @@
+# vllm-recipe-explorer 입력 스키마 (예시) — config.yaml 을 이 형식으로 채워 사용한다.
+# 폐쇄망 전제: 모델은 사람이 사전 다운로드해 NAS 에 둔 것만 read-only 로 참조한다(런타임 다운로드 금지).
+target_model:
+  path: /app/models/OpenAI/gpt-oss-20b   # configs/*.yaml 의 model: 과 동일한 컨테이너 경로
+nas_host_root: /mnt/models                 # /app/models 가 매핑되는 호스트 NAS 루트 (# 실제 NAS 경로로 교체)
+vram_budget_gb: 24                         # carve-out 가상 GPU 예산(예: RTX4090=24)
+safety_margin: 0.90                        # 하드게이트 임계(기본 0.90)
+kv_cache_dtype_bytes: 2                    # KV dtype 바이트(기본 2=fp16)
+# tensor_parallel_size: 1                  # (선택) 미지정 시 git 브랜치 자동(main→1, multi-node→2)
+serving:
+  config_name: gpt-oss-20b-rtx4090         # 생성될 3종 세트 base 이름
+  port: 8902
+  served_model_name: gpt-oss-20b

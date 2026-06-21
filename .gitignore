@@ -3,24 +3,50 @@
 # ===========================================
 .agent/
 .agents/
-.claude/
 .cursor/
 .windsurf/
 .taskmaster/
+.serena/
 .codex/
 .copilot/
 .codeium/
 .docker-skills/
 skills-lock.json
-CLAUDE.md
 CLAUDE.local.md
+
+# ===========================================
+# .claude 빌딩블럭 선별 추적 (배포 대상)
+#   .claude/* 전체 무시 → rules/·skills/ 디렉토리 재포함 → 그 안의 사적·산출 파일만 재제외.
+#   (재포함은 부모 디렉토리부터: 부모가 제외되면 자식은 다시 추적될 수 없다.)
+#   규칙 근거: docs/plan/plan_2026062205_1 §4
+# ===========================================
+.claude/*
+!.claude/rules/
+!.claude/skills/
+# 재제외 (재포함 이후에 와야 적용됨 / 주석은 반드시 별도 줄 — 패턴 뒤 인라인 # 은 리터럴로 취급됨)
+# 개인 로컬 설정(IP·allowlist)
+.claude/settings.local.json
+# 사용자 실값(추적은 config.example.yaml 만)
+.claude/skills/**/config.yaml
+# 실 서브노드 에이전트-카드(추적은 sub_node/CLAUDE.template.md)
+.claude/skills/**/sub_node/CLAUDE.md
+# 런타임 피드백/상태 로그(저자 누적 런 데이터 — 클론은 빈 상태로 시작, writer 가 mkdir)
+.claude/skills/**/feedback/
 
 # ===========================================
 # 환경 변수
 # ===========================================
 .env
 envs/.env
+envs/.env.*
 !envs/.env.example
+
+# ===========================================
+# 테라포밍 산출물 (스켈레톤 템플릿만 추적)
+#   manifest.yaml = 테라포밍이 채운 실값. 추적은 manifest.template.yaml.
+#   규칙 근거: docs/plan/plan_2026062205_1 §4·§6
+# ===========================================
+manifest.yaml
 
 # ===========================================
 # Python
