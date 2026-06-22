@@ -49,6 +49,21 @@ envs/.env.*
 manifest.yaml
 
 # ===========================================
+# 렌더/레시피 생성 산출물 (스켈레톤·템플릿만 추적 — 생성물은 비추적)
+#   render 파이프라인이 *.template → Dockerfile·compose·requirements 산출.
+#   모델별 configs(yaml=서빙인자 / sh=불편함해소)는 recipe-explorer 가 생성.
+#   ⚠ 답안노출 방지: 이 산출물은 working-tree에서만 존재(클론은 빈 상태로 시작·render로 재생성).
+#   규칙 근거: docs/plan/plan_2026062213_1 (단일노드 배포가능검증)
+# ===========================================
+/Dockerfile
+/Dockerfile.source-build
+/docker-compose.yaml
+/requirements.txt
+# 모델별 산출물 (범용 툴 configs/check_reqs.py 는 .py 라 미매칭 → 추적 유지)
+configs/*.yaml
+configs/*.sh
+
+# ===========================================
 # Python
 # ===========================================
 __pycache__/
