@@ -13,7 +13,8 @@ ARG VLLM_MANYLINUX={{ VLLM_MANYLINUX }}
 RUN cp /etc/pip/constraint.txt /etc/pip/constraint.txt.bak \
     && : > /etc/pip/constraint.txt
 
-RUN CPU_ARCH={{ CPU_ARCH }} \
+# CPU_ARCH 는 render-time 리터럴 baking 금지 → build-time $(uname -m) (헌법: manifest 스캔값과 로컬빌드 일치)
+RUN CPU_ARCH=$(uname -m) \
     && pip install --no-deps \
       "https://github.com/vllm-project/vllm/releases/download/v${VLLM_VERSION}/vllm-${VLLM_VERSION}+cu${CUDA_VERSION}-cp38-abi3-${VLLM_MANYLINUX}_${CPU_ARCH}.whl"
 

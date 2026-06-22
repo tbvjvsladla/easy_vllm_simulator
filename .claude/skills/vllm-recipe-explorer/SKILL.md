@@ -40,10 +40,15 @@ RTX4090=24GB carve-out)에 맞는 설정을 찾는다. 두 페이즈로 동작�
 - `kv_cache_dtype_bytes`: KV dtype 바이트(기본 2=fp16).
 - `test_device_total_gib`(Phase 2): 측정 하드웨어 total VRAM(GB10=121.69, torch.cuda 기준). consolidated
   메모리 라인이 없는 vLLM 빌드에서 overhead 유도(`gmu×total−weights−kv`)에 쓴다. DGX Spark는 nvidia-smi가 N/A.
-- `tensor_parallel_size`(선택): 미지정 시 git 브랜치 자동(`main`→1, `multi-node`→2, 기타→1).
+- `tensor_parallel_size`(선택): 미지정 시 git 브랜치 자동(`single-node`→1, `multi-node`→2, 기타→1).
 - `serving.{config_name, port, served_model_name}`: 생성될 3종 세트의 base 이름·포트·서빙명.
 
 **하드 제약**: 대상 모델이 NAS 경로에 없으면(디렉토리/`config.json` 부재) **다운로드하지 말고 비0 종료 + 중단·보고**.
+
+**NAS 마운트 불변식(포인터 원칙, 헌법 §배포·환경 교차참조)**: 컨테이너 NAS 마운트 경로를 스크립트에
+하드코딩하지 않는다 — 호스트 NAS 루트는 `config.yaml`의 `nas_host_root`에서 읽어 `/app/models`에 매핑한다
+(`run_trial`은 이미 이 값으로 파라미터화됨 — 정정 대상이 아니라 유지해야 할 불변식). 컨테이너 경로
+(`/app/models/...`) ↔ 호스트 경로 변환은 이 한 포인터로만 이뤄진다.
 
 ## 1. 결정론 / 확률론 경계 (하네스 엔지니어링)
 
@@ -154,6 +159,13 @@ python3 recipe.py generate --config config.yaml --recipe-id r3
    (`estimate_vram.max_feasible_max_len`이 천장 내 2의 거듭제곱 최대 길이를 결정론으로 계산).
 5. **tool / reasoning 파서** — **웹검색 권장**: 모델이 tool_call·reasoning을 지원하는지, vLLM 파서명이 무엇인지
    사람이 확인해 알려준다(예: `hermes`/`qwen3`). 미지원이면 N/A(스모크에서 스킵).
+   - **파서명은 공식 docs에서 얻은 뒤 반드시 빌드 이미지 레지스트리에 version-exact 확증한 후에만 emit한다(가정 금지)**:
+     reasoning 파서는 `vllm/reasoning/__init__.py`, tool 파서는 `vllm/entrypoints/openai/tool_parsers/__init__.py`에
+     실재하는 이름인지 대상 버전 이미지에서 직접 확인한다(예: gemma-4 reasoning/tool=`gemma4`,
+     gpt-oss reasoning=`openai_gptoss`/tool=`openai`(+`--enable-auto-tool-choice`)).
+   - **caveat — tool 채팅 템플릿 의존성**: gemma-4 tool은 `tool_chat_template_gemma4.jinja`(이미지 미포함)를
+     요구한다 → `.sh`에 tool 플래그를 무조건 emit하면 런타임 실패. reasoning이 기본 OFF면 **completion이 스모크
+     게이트**이고 파서는 config에 기록만 한다(`gen_recipe_set`의 경고 가드로 처리).
 6. **attention backend**(soft) — `FLASHINFER`/`FLASH_ATTN`/`FLASHMLA`. 폴백 후보 순서를 정한다.
 
 **변수 3계층**:
@@ -187,11 +199,22 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
 ```
 
 - **Phase 1 공식과 다름**: Phase 1은 `(…)/gmu`로 나눴다. Phase 2는 절대값 합이다. 혼동 금지.
-- `gpu-memory-utilization`은 **디바이스 풀 상한(=safety_margin)**으로만 emit한다(주석에 명기).
+- **`gpu-memory-utilization`은 반드시 명시적으로 emit한다**(절대 기본값에 의존 금지). 실 KV는 절대 클램프
+  (`--kv-cache-memory-bytes`)가 통제하고, gmu는 **디바이스 풀 상한**으로만 쓴다(주석에 명기). GB10 등 **통합메모리
+  호스트는 OS가 ~11GiB를 점유**하므로 vLLM 기본 `0.92`는 free 초과 OOM(`Free memory < desired gpu memory
+  utilization`)을 낸다 → **통합메모리 표준 기본 = `0.90`(=`safety_margin`)**.
 - `per_token_kv_bytes = 2 × num_hidden_layers × num_key_value_heads × head_dim × kv_dtype_bytes`
   (kv_dtype_bytes: KV quant 없으면 2, `fp8`이면 1).
 - `required_kv = per_token_kv_bytes × max_model_len × batch`,
   `max_safe_kv = int(budget×margin×GiB) − weights − overhead`.
+- **실측 KV가 공식을 이긴다(sparse/sliding-window/hybrid attention)**: 위 `per_token_kv_bytes` 공식은
+  full-attention 가정이라 sparse/sliding-window/hybrid 모델에서 KV를 **과대추정**한다(예: gemma-4 실측
+  ~34KB/token vs 공식 393KB = 11.5×; Qwen3.6 3.7×). 측정 트라이얼 로그에 per-token 실측
+  (`Available KV cache memory` / `kv_cache_tokens`)이 있으면 **그것이 정본**이고 공식은 폴백이다
+  (`recipe.py _resolve_clamp_kv`). 실측을 쓰면 같은 예산에서 batch가 크게 달라진다(공식 3 → 실측 39).
+- **절대 클램프 실측 절차(최소 2-트라이얼, §9.3 KV워크플로)**: ① **trial1 측정**(`kv_cache_memory_bytes=null`,
+  언클램프) → 로그에서 free_kv 실측 → ② `--kv-cache-memory-bytes`로 환산 → ③ **trial2 클램프 검증**.
+  언클램프 통과만으로는 수렴이 아니다 — 클램프 검증 트라이얼까지 통과해야 수렴 판정.
 - **overhead 실측 vs 유도(gotcha)**: weights·overhead는 측정 트라이얼(클램프 전 1회 로드)의 vLLM 로그에서
   얻는다. consolidated 라인(`model weights take …; non_torch …; reserved for KV Cache …`)이 있으면 직접 산출.
   **없는 빌드(예: 0.22.2 NGC)는 `Model loading took X GiB memory`(weights)·`Available KV cache memory`(kv)·
@@ -200,6 +223,13 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
   클램프 산정 → 클램프 검증 트라이얼**의 최소 2-트라이얼이다(언클램프 통과만으론 수렴 아님).
 - 루프의 free 변수 결정: **`kv_bytes = min(required_kv, max_safe_kv)`**.
   `required > safe`면 max_model_len·batch를 KV로 만족 불가 → **`vram_infeasible`(HITL)**.
+- **에어갭 인코딩 자산(gpt-oss harmony/tiktoken)**: gpt-oss류의 harmony/tiktoken o200k 인코딩은
+  이미지에 번들되지 않아 런타임 fetch가 필요한데 **폐쇄망에서 금지**다. → NAS에 flat `tiktoken_cache/`를
+  사전적재하고 컨테이너에 `/encodings:ro`로 마운트(`-v <host>:/encodings:ro`, compose 호스트경로 변수
+  `TIKTOKEN_HOST_PATH`)한 뒤, **정본 env `TIKTOKEN_ENCODINGS_BASE=/encodings` · `TIKTOKEN_RS_CACHE_DIR=/encodings`**
+  (+`TIKTOKEN_ENABLED`)를 둘 다 마운트 경로로 가리킨다. 구식 `TIKTOKEN_ENCODINGS_PATH`는 폐기 —
+  정본 동기화 대상 3곳(`docker-compose.template.yaml` · `config.example.yaml` · `run_trial.py`)을 맞춘다
+  (README straggler는 별도). gpt-oss 스모크가 최종 중재자(현재 미실행).
 
 ## 6. Phase 2 — 통합 trial-loop (`recipe.py simulate`)
 

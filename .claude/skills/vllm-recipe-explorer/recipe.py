@@ -81,7 +81,7 @@ def resolve_tp(cfg, repo_root):
     """tp 자동결정.
 
     CONTRACT: config 의 tensor_parallel_size 가 있으면 우선. 없으면
-    git -C <repo> rev-parse --abbrev-ref HEAD → main→1, multi-node→2, 기타→1.
+    git -C <repo> rev-parse --abbrev-ref HEAD → single-node→1, multi-node→2, 기타→1.
     """
     explicit = cfg.get("tensor_parallel_size")
     if explicit is not None:
@@ -99,7 +99,7 @@ def resolve_tp(cfg, repo_root):
             branch = out.stdout.strip()
     except Exception:
         branch = None
-    if branch == "main":
+    if branch == "single-node":
         return 1
     if branch == "multi-node":
         return 2
@@ -440,6 +440,9 @@ def cmd_simulate(args):
     _serving0 = cfg.get("serving") or {}
     if _serving0.get("served_model_name"):
         candidate.setdefault("served_model_name", _serving0.get("served_model_name"))
+    # gpu-memory-utilization = safety_margin(디바이스 풀 상한). 통합메모리(GB10)서 vLLM
+    # 기본 0.92 가 free 초과 OOM → margin 으로 명시(SKILL §5). 실 KV 는 절대 클램프가 제어.
+    candidate.setdefault("gpu_memory_utilization", margin)
 
     # 측정 하드웨어 total(torch.cuda 기준; DGX Spark 는 nvidia-smi N/A). consolidated 메모리
     # 라인이 없는 vLLM 빌드에서 overhead = gmu_trial×device_total − weights − kv 로 유도하는 데 쓴다.
@@ -466,6 +469,7 @@ def cmd_simulate(args):
         "mock_profile": args.mock_profile,
         "served_model_name": _serving.get("served_model_name"),
         "port": int(_serving["port"]) if _serving.get("port") is not None else None,
+        "nas_mount": nas_root,  # config.nas_host_root → run_trial NAS 마운트(하드코딩 /mnt/models 갭 수정)
     }
     opts = {k: v for k, v in opts.items() if v is not None}
 

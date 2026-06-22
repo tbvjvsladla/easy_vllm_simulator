@@ -55,11 +55,13 @@ MANIFEST_FIELDS=(topology cpu_arch cuda_version gpus_per_node nas_model_path ori
 # A2: 최소 기대 스킬(부재 시 FAIL). terraforming 등은 optional(있으면 검사, 없으면 보고만).
 EXPECTED_SKILLS=(vllm-recipe-explorer upstream-version-watch)
 
-# A7: 렌더 스텁 후보 경로(첫 번째 존재 항목 사용). 부재 시 레포 전체 검색 폴백.
-RENDER_STUB_CANDIDATES=(
-    render_dockerfile.py
-    scripts/render_dockerfile.py
+# A7: 렌더러 후보 경로(첫 번째 존재 항목 사용). 부재 시 레포 전체 검색 폴백.
+#   render 는 upstream-version-watch 소유(G2 구현). scripts/ 는 구(舊) 스텁 위치(이전됨).
+RENDER_CANDIDATES=(
+    .claude/skills/upstream-version-watch/scripts/render_dockerfile.py
     .claude/skills/terraforming/scripts/render_dockerfile.py
+    scripts/render_dockerfile.py
+    render_dockerfile.py
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -219,25 +221,25 @@ a6() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# A7 — 렌더 스텁: 존재 + 실행가능 + 실행 시 not-implemented 출력 + non-zero exit
+# A7 — 렌더러: 존재 + 실행가능 + --self-test 통과(G2 구현됨). (구 스텁 검사에서 격상)
 # ─────────────────────────────────────────────────────────────────────────────
 a7() {
-    local stub="" c out rc
-    for c in "${RENDER_STUB_CANDIDATES[@]}"; do [ -f "$c" ] && { stub="$c"; break; }; done
-    if [ -z "$stub" ]; then
+    local r="" c out rc
+    for c in "${RENDER_CANDIDATES[@]}"; do [ -f "$c" ] && { r="$c"; break; }; done
+    if [ -z "$r" ]; then
         # 폴백: 레포 전체에서 검색(무시 경로 제외).
-        stub="$(git ls-files --cached --others --exclude-standard '*render_dockerfile.py' 2>/dev/null | head -1)"
+        r="$(git ls-files --cached --others --exclude-standard '*render_dockerfile.py' 2>/dev/null | head -1)"
     fi
-    if [ -z "$stub" ] || [ ! -f "$stub" ]; then fail "A7 렌더 스텁: render_dockerfile.py 부재"; return; fi
-    if [ ! -x "$stub" ]; then fail "A7 렌더 스텁: $stub 실행권한 없음(chmod +x 필요)"; return; fi
-    out="$("./$stub" 2>&1)"; rc=$?
-    if [ "$rc" -eq 0 ]; then
-        fail "A7 렌더 스텁: $stub 가 exit 0 (스텁은 non-zero 여야 함)"; return
+    if [ -z "$r" ] || [ ! -f "$r" ]; then fail "A7 렌더러: render_dockerfile.py 부재"; return; fi
+    if [ ! -x "$r" ]; then fail "A7 렌더러: $r 실행권한 없음(chmod +x 필요)"; return; fi
+    out="$(python3 "$r" --self-test 2>&1)"; rc=$?
+    if [ "$rc" -ne 0 ]; then
+        fail "A7 렌더러: $r --self-test 실패(rc=$rc): $(echo "$out" | head -1)"; return
     fi
-    if echo "$out" | grep -qiE 'not.?implement|NotImplemented|미구현|G2'; then
-        pass "A7 렌더 스텁: $stub 존재·실행가능·미구현 메시지+non-zero(rc=$rc)"
+    if echo "$out" | grep -qiE 'self-test OK|render'; then
+        pass "A7 렌더러: $r 구현됨·self-test 통과(rc=0)"
     else
-        fail "A7 렌더 스텁: $stub non-zero 이나 미구현 메시지 없음 (out: $(echo "$out" | head -1))"
+        fail "A7 렌더러: $r self-test 출력 비정상 (out: $(echo "$out" | head -1))"
     fi
 }
 

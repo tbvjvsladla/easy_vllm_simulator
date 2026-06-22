@@ -16,7 +16,7 @@ patterns:
 
   - signature: "libcudart\\.so\\.\\d+: cannot open shared object file"
     class: requirements-fixable
-    note: "CUDA 런타임 .so 부재 → nvidia-cuda-runtime-cuN 보충 + LD_LIBRARY_PATH. (cu wheel ↔ 베이스 CUDA 메이저 차)."
+    note: "CUDA 런타임 .so 부재 → nvidia-cuda-runtime-cuN 보충 + LD_LIBRARY_PATH. (cu wheel ↔ 베이스 CUDA 메이저 차). cu12-on-cu13 forward-compat 취약: aarch64에서 cu129 wheel을 CUDA13.x 베이스에 얹는 forward-compat 의존이 깨질 수 있음(신호)."
 
   - signature: "([A-Za-z0-9_-]+): command not found"
     class: requirements-fixable

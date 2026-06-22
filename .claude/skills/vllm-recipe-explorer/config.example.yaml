@@ -3,10 +3,12 @@
 target_model:
   path: /app/models/OpenAI/gpt-oss-20b   # configs/*.yaml 의 model: 과 동일한 컨테이너 경로
 nas_host_root: /mnt/models                 # /app/models 가 매핑되는 호스트 NAS 루트 (# 실제 NAS 경로로 교체)
+# tiktoken_host_path: /mnt/models/tiktoken_cache   # (선택) gpt-oss 등 harmony/tiktoken 필요 모델용 호스트측 flat tiktoken 캐시 경로.
+                                           #         컨테이너 /encodings:ro 로 마운트됨. 폐쇄망 전제(사전적재) — 런타임 다운로드 없음.
 vram_budget_gb: 24                         # carve-out 가상 GPU 예산(예: RTX4090=24)
 safety_margin: 0.90                        # 하드게이트 임계(기본 0.90)
 kv_cache_dtype_bytes: 2                    # KV dtype 바이트(기본 2=fp16)
-# tensor_parallel_size: 1                  # (선택) 미지정 시 git 브랜치 자동(main→1, multi-node→2)
+# tensor_parallel_size: 1                  # (선택) 미지정 시 git 브랜치 자동(single-node→1, multi-node→2)
 serving:
   config_name: gpt-oss-20b-rtx4090         # 생성될 3종 세트 base 이름
   port: 8902

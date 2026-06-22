@@ -14,7 +14,7 @@ S1 resolve  → 대상 vLLM 버전 해소 (결정론적 스크립트)
    verify: 산출값(torch핀·NGC태그·CUDA·wheel URL·deps diff) 출력
    ── HITL 게이트 ① : 해소 결과를 사람이 확인한 뒤 S2 진행
 
-S2 patch    → main · multi-node 두 브랜치 패치
+S2 patch    → single-node · multi-node 두 브랜치 패치
    - Dockerfile ARG VLLM_VERSION · ARG CUDA_VERSION · FROM 태그 · manylinux 갱신
    - requirements.txt 갱신
    - multi-node 브랜치: 네트워크 디버그 apt · serve_runner.sh(Ray) · NCCL/RDMA env · /dev/infiniband은 보존(건드리지 않음)
@@ -40,16 +40,27 @@ S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
         · requirements-fixable → Loop-Until-Done(조정→재빌드→스모크), reconciliation_cap(기본 3) 한정. 소진→Model-C
         · source-build-class(torch 2.11+) → Phase 2 소스빌드 경로(SKILL.md §4.6, 검증됨): 인터랙티브 컨테이너에서
             _C를 NGC torch에 맞춰 컴파일(ABI 벽 해소) → 경험적·HITL 패치 루프(strip-hoist 등) → 스모크 →
-            Dockerfile.source-build 동결 → clean 재빌드 재현. 패치는 판단계층(codify 안함).
+            Dockerfile.source-build 동결 → clean 재빌드 재현. 패치는 판단계층(사전-codify 금지). 단 E2E 검증 후 키잉된 조건부 카탈로그로 졸업 가능(스킬 §4.6).
+            └ NGC 베이스 오버라이드 = 1급 Model-C 서브분기(베이스 torch의 ABI 결여 심볼로 source-build FAIL일 때):
+                ① classify=unknown → 정지(자동 행동 금지).
+                ② 후보 신규 NGC 베이스의 torch::stable 헤더(tensor_struct.h/ops.h)를 grep해 결여 심볼(예: layout()/6-arg from_blob)이
+                   **그 후보 베이스엔 존재함**을 사전 확증(현 베이스엔 부재가 빌드로그로 증명된 상태).
+                ③ 증거를 testlog에 기록 + 사람 승인 후 resolved.json의 NGC 태그만 오버라이드
+                   (특정 버전값은 manifest·resolved.json에서 — 헌법·workflow에 박지 않음. 26.05 등 하드코딩 금지).
+                ④ re-render → clean 재빌드 → 스모크. **무증거 오버라이드 금지.**
+                   (resolve_ngc_tag.py 단발 prefix-매칭은 유지; 오버라이드는 이 워크플로 HITL 레이어.)
         · multi-node 서빙 실패(OOM/NCCL-RDMA/Ray join timeout) → Model-C(HITL). 서브만 빌드 실패=환경 불일치→Model-C
         · unknown              → Model-C: LLM {proposed_class, evidence} 제시 → 사람 승인 전 무행동
    ── HITL 게이트 ③ : 스모크 결과(+분류·risk-memo)를 사람이 확인 (smoke-before-commit)
 
 S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 + 기록
    (origin은 사용자 환경 값(manifest.origin_url)에서 설정 — 없으면 로컬 전용·push 단계 생략.)
-   - main · multi-node 각 브랜치 로컬 커밋 = 기록/last-good 앵커(브랜치 핀 독립). 필요 시 태그(git tag last-good-<branch>).
+   - single-node · multi-node 각 브랜치 로컬 커밋 = 기록/last-good 앵커(브랜치 핀 독립). 필요 시 태그(git tag last-good-<branch>).
    - 브랜치 간 공유 빌딩블럭 동기화: scripts/sync_branches.sh(수동, 작업 종료 후 사람 질의).
    - 서브노드 전파: S2.5의 scripts/sync_to_sub.sh로 메인→서브 직접 rsync(검증됨). GitHub 경유 안 함.
+   - git 위생: 과거 추적되던 render 산출물(Dockerfile · docker-compose.yaml · configs/*.{yaml,sh} · envs/.env.*)은
+     worktree 삭제만으론 부족 → git rm + 커밋으로 HEAD에서도 제거해야 reset --hard가 되살리지 않음(엿본 정답/노이즈 방지).
+     configs/check_reqs.py는 엔진 = 유지. (.gitignore 규칙은 이미 올바름 — 재추가 말 것.)
    verify: docs/devlog·testlog에 버전·변경·스모크 결과·last-good 기록
    ── HITL 게이트 ④ : 최종 커밋(+서브 전파) 승인
 ```
@@ -64,14 +75,19 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 +
 
 ## 모델 / 안전 가드 (절대 규칙)
 
-- 스모크 모델이 NAS 경로에 없으면 → **다운로드하지 말고 즉시 중단·보고**.
+- 스모크 모델이 NAS 경로에 없으면 → **무인 자동 다운로드 금지**. 아래 결정트리로만 진행.
+- **모델 확보 결정트리** (헌법 §금지 1줄정책의 절차):
+  - **(0)** 서빙대상 모델 부재 → 다운로드 필요(0/1/2 분기).
+  - **(1)** 명시적 다운로드·관리 경로 **존재** → **사용자 승인 시** 그 경로에 영속(관리) 다운로드.
+  - **(2)** 관리 경로 **부재** → **사용자 승인 시** 컨테이너 내부 HF cache **임시(ephemeral)** 다운로드.
+  - (1)·(2) 모두 **hf_token 필요** → manifest 파일 포인터로 등록(원시 토큰 비추적). **무인 자동 다운로드 절대 금지.**
 - HITL 게이트 이전 자동 핀 변경/자동 커밋·서브 전파 금지.
 - 단계 건너뛴 부분 적용 상태로 빌드 금지(일관성).
 
 ## 실패 / 롤백
 
 - **last-good = 로컬 스모크-통과 커밋**. 미커밋분은 일회용.
-- 실패 시: `git reset --hard <last-good-commit>` (잔여 로컬 상태 0). `main`·`multi-node` 독립 롤백. (origin은 사용자 환경 값(`manifest.origin_url`)에서 설정: `git remote add origin <manifest.origin_url>`.)
+- 실패 시: `git reset --hard <last-good-commit>` (잔여 로컬 상태 0). `single-node`·`multi-node` 독립 롤백. (origin은 사용자 환경 값(`manifest.origin_url`)에서 설정: `git remote add origin <manifest.origin_url>`.)
 - 단일노드는 신버전 성공인데 멀티노드 실패 시 → 멀티노드만 롤백(브랜치 독립).
 
 ## 검증 모드 / 기록
@@ -84,7 +100,7 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 +
 ```text
 Step 1 작업환경 셋업 (CLAUDE.md + .claude/rules)            ← 현재
 Step 2 스킬 설계 (upstream-version-watch + 결정론적 scripts + config.yaml)
-Step 3 단일노드 검증 (main 브랜치 dry-run + 스모크)
+Step 3 단일노드 검증 (single-node 브랜치 dry-run + 스모크)
 Step 4 멀티노드 확장 (서브노드 동기화)
 Step 5 멀티노드 검증
 ```

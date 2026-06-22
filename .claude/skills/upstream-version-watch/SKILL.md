@@ -35,6 +35,9 @@ description: >-
   스모크에서 실패한다(`docs/testlog/testlog_260607_2`). → **소스 빌드 경로**(`§4.6`)로 전환: `_C`를 NGC torch에
   맞춰 직접 컴파일하면 ABI 벽이 해소된다. 0.22.1 검증 완료(`docs/testlog/testlog_260608_1`), 산출물 `Dockerfile.source-build`.
 - ②resolve 후 torch 핀으로 분기를 판정하고, **스모크가 최종 중재자**다(빌드 성공 ≠ 서빙).
+- **aarch64 트랙 가용성**: aarch64는 prebuilt wheel `cuNNN` 커버리지가 희소하고, cu129(CUDA12.9) wheel을 CUDA13.x 베이스에서 쓰는 것은
+  forward-compat 의존(brittle)이다 → 많은 경우 **wheel 트랙이 부재**해 **source-build가 사실상 1차/유일** 경로가 된다.
+  타겟 arch/cuda는 `manifest.yaml`(scan)에서 읽는다(헌법에 박지 않음).
 
 ## 1. 해소 (결정론적 — `scripts/`)
 
@@ -55,6 +58,8 @@ python3 scripts/regen_requirements.py --from-wheel-url <wheel URL> -o requiremen
 python3 scripts/check_smoke_model.py <config_name> --repo .
 # ⑥ 실패 분류 (빌드/스모크 실패 시): requirements-fixable(0)/source-build-class(1)/unknown(2)
 docker logs <c> 2>&1 | python3 scripts/classify_failure.py
+# ⑦ 빌드 트랙 제안 (proposer): torch핀 휴리스틱(2.10→wheel/2.11+→source) + SM arch(manifest scan)
+python3 scripts/resolve_build_track.py "$V"   # build_track.decision·source_build.torch_cuda_arch → resolved.json
 ```
 
 - ①torch 핀: vLLM `pyproject.toml` `[build-system].requires` 에서 추출.
@@ -64,6 +69,8 @@ docker logs <c> 2>&1 | python3 scripts/classify_failure.py
 - ④deps: **wheel METADATA Requires-Dist가 정본**(requirements/common.txt엔 서버 deps·extra가 없어 누락 — 예 `fastapi[standard]`→uvloop). extra는 그대로 두어 pip가 transitive 해소(Option A).
 - ⑤NAS: `configs/<config_name>.yaml`의 `model:` 경로를 `/app/models` 마운트 하에서 확인. 부재 시 다운로드 금지·중단.
 - ⑥분류: `failure_patterns.yaml`(시그니처→class)로 결정론 1차 분류. 미매칭=unknown→Model-C.
+- ⑦트랙 제안자(proposer): torch핀 휴리스틱(2.10→wheel / 2.11+→source) + SM arch(manifest scan)**만** 결정론, **최종은 스모크 중재**.
+  `build_track.decision`·`source_build.torch_cuda_arch`를 `resolved.json`에 채운다.
 
 ## 2. 레이어 bump 매핑 (제안 표)
 
@@ -140,13 +147,19 @@ docker logs <c> 2>&1 | python3 scripts/classify_failure.py
 > bjk110/spark_vllm_docker = 진단 힌트(벤더링 X). 검증: `docs/testlog/testlog_260608_1`. 산출물 `Dockerfile.source-build`.
 
 **절차 (인터랙티브 → 동결):**
-1. **resolve (동일)**: vLLM→torch핀→NGC 26.03(prefix 매칭). **커플링 규칙 그대로**(빌드방식만 변경). 선언 torch 충실(안정>성능).
+1. **resolve (동일)**: vLLM→torch핀→NGC 26.03(prefix 매칭). prefix-매칭은 **1차 후보**일 뿐 — 소스빌드 패치/베이스 유효성의 변별자는
+   **(NGC 베이스 / 실-링크 torch) × vLLM source version**이지 pyproject torch핀이 아니다(use_existing_torch가 pyproject 핀을 버리고 NGC torch를 링크하므로).
+   같은 torch핀이라도 vLLM source가 stable-ABI(`_C_stable_libtorch`: `torch::stable` layout()/6-arg from_blob)를 요구하면 prefix-매칭 alpha 베이스에
+   심볼이 없을 수 있다 → **더 새 NGC 베이스 승격**(절차 = `workflow.md` S3 Model-C 오버라이드). NGC torch ↔ PyPI torch 의존성 충돌은
+   `use_existing_torch.py`로 pyproject의 torch류 라인을 비활성화해 NGC torch를 그대로 링크(설치 순서/충돌 해소). 선언 torch 충실(안정>성능).
 2. **인터랙티브 컨테이너**: `docker run -d` NGC 26.03, env `TORCH_CUDA_ARCH_LIST=12.1a MAX_JOBS=N`, ccache(`PATH=/usr/lib/ccache:$PATH`), repo·NAS·ccache 마운트.
 3. **빌드 루프(무제한·HITL)**: `/etc/pip/constraint.txt` 비우기 → `git clone --branch v<버전> vllm` → `python3 use_existing_torch.py`(NGC torch 사용) →
    build-system.requires **수동 설치**(`--no-build-isolation` 전제) → `pip install --no-build-isolation -e .` 컴파일 →
    실패 시 `classify_failure` → LLM 패치 제안(bjk110 힌트) → **Model-C HITL** → 소스 패치 → ccache 증분 재컴파일.
 4. **서빙 스모크**: config.yaml 모델. `docker exec -d`로 serve(긴 로드 → 타임아웃·로그 안정). gpt-oss는 harmony 오프라인 인코딩 필요(아래).
 5. **동결 + 재현**: 성공 레시피 → `Dockerfile.source-build`. **clean 재빌드 + 스모크 = DONE**(인터랙티브 성공만으론 부족).
+   **빌드검증 불변식**: 빌드스테이지 검증은 `import vllm._C` 금지(빌드스테이지엔 `libcuda.so.1` 드라이버 부재 → 거짓실패) → `importlib.util.find_spec('vllm')`만 사용.
+   실 `_C` 로드/서빙은 **런타임 스모크가 최종 중재**. (이미 레포 루트 `Dockerfile.source-build.template:78`에 반영됨 — 집=루트 템플릿; `.claude/skills/`엔 없음.)
 
 **0.22.1 검증 레시피(`Dockerfile.source-build`에 동결):** NGC 26.03 → ccache → constraint 비우기 → clone v0.22.1 →
 `use_existing_torch` → build-system.requires 설치 → **strip-hoist 패치**(`register_opaque_type` hoist kwarg 제거) → `pip install -e .`.
@@ -158,6 +171,13 @@ docker logs <c> 2>&1 | python3 scripts/classify_failure.py
 - **gpt-oss harmony 오프라인**: 폐쇄망에서 vocab 다운로드 실패 → `/encodings`(o200k_base.tiktoken) 마운트 + `TIKTOKEN_ENCODINGS_BASE/RS_CACHE_DIR=/encodings`, `TIKTOKEN_ENABLED=true`(서빙 단계 docker-compose + `configs/<>.sh`가 처리).
 - **긴 serve는 `docker exec -d`**(detached): foreground는 harness 2분 타임아웃에 잘림. 폴링은 짧게 나눠.
 - **DONE = 스모크 + 동결 + clean 재빌드 재현**.
+
+**패치 졸업 라이프사이클 (발견 → 검증 → 조건부 임베드):**
+- **발견**: 신규 ABI 시그니처 충돌은 **HITL 판단계층 패치**(Model-C)다 — 사전-bake 금지(투기적 패치 금지).
+- **검증**: 특정 키에서 실제 스모크 PASS로 입증된 패치만 다음 단계로.
+- **조건부 임베드**: 검증된 패치를 **(NGC베이스 / 실-링크 torch) × 에러시그니처 × vLLM버전**으로 키잉한 조건부 패치로 `*.source-build.template`에 임베드 + **post-assert(fail-loud)**. 미인식 키 → **HITL-discovery 플레이스홀더 + 명시적 빌드 실패**(조용한 통과 금지). 키는 **pyproject torch핀이 아님**(step1 C2 동일 근거 — use_existing_torch가 핀을 버림).
+- **role화 보류**: `source_build_patches.yaml` + patch-resolver 페르소나로의 역할 분리는 **E2E testlog 존재 후**에 한다(투기적 설계 금지).
+- strip-hoist가 torch 2.12에서 자동 skip된 것은 **조건부 패치의 재사용 가능 패턴**이다(부재감지 = 적용여부 자동결정).
 
 ## 5. 금지
 
@@ -171,6 +191,7 @@ docker logs <c> 2>&1 | python3 scripts/classify_failure.py
 - `scripts/regen_requirements.py` — ④ requirements 재생성(wheel METADATA 기준, `--from-wheel-url`/`--use-installed`).
 - `scripts/check_smoke_model.py` — ⑤ no-download NAS 모델 실재 체크.
 - `scripts/classify_failure.py` + `failure_patterns.yaml` — ⑥ 실패 결정론 분류(미지→Model-C).
+- `scripts/resolve_build_track.py` — ⑦ 트랙 제안자(torch핀 휴리스틱 + SM arch만 결정론, 최종은 스모크 중재). `build_track.decision`·`source_build.torch_cuda_arch`를 `resolved.json`에 채움.
 - `scripts/sync_to_sub.sh` — 멀티노드 [전달]: 메인→서브 rsync(dry-run 기본/`--apply`, 체크섬, 빌딩블럭 제외).
 - `scripts/multinode_serve_smoke.sh` — 멀티노드 2노드 Ray 서빙+multi-smoke 오케스트레이션(`<config> [--build] [--keep-up]`).
 - `sub_node/CLAUDE.md` — 서브노드 빌드워커 CC 페르소나 정본(서브로 배포, sync 제외 보호).

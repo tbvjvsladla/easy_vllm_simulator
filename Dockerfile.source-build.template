@@ -1,0 +1,85 @@
+# syntax=docker/dockerfile:1
+# 스켈레톤(source-build 트랙) — render_dockerfile.py(G2)가 manifest+resolved로 채운다.
+#
+# 왜 source-build 인가 (torch 2.11+ 구간): prebuilt vLLM wheel 의 _C(public torch 빌드)가
+# NGC alpha torch 와 C++ ABI 불일치(_C.abi3.so 가 c10::cuda::CUDAStream::query() 를 요구하나
+# NGC libc10_cuda.so 에 부재) → import 단계 하드 월. _C 를 NGC torch 에 맞춰 직접 컴파일하면
+# undefined-symbol 이 사라진다. 검증: vLLM 0.22.1 (SKILL.md §4.6 / testlog_260608_1).
+# 빌드 STEP 은 0.22.1 동결 산출물(백업)을 정본으로 따르고, render 파라미터화 + torch핀 가드 +
+# build-verify 를 더한다. (P3 fidelity diff: ccache 설치·build-reqs as-is 정합 반영.)
+#
+# ⚠ 패치 가드: 검증된 torch핀에서만 빌드한다(아래 guard). 미인식 핀이면 빌드를 명시 실패시켜
+#   "false determinism"(상류가 그 줄을 바꿨거나 torch 핀이 다른데도 옛 패치를 박는 것)을 막는다.
+
+FROM nvcr.io/nvidia/pytorch:{{ NGC_TAG }}
+
+# ── torch핀 가드 (render-time: 검증된 핀=주석 / 미인식=빌드 실패. 카탈로그 codify는 P6) ──
+{{ SOURCE_BUILD_PATCH_GUARD }}
+
+ARG VLLM_REF={{ VLLM_REF }}
+ARG TORCH_CUDA_ARCH={{ TORCH_CUDA_ARCH }}
+ARG BUILD_JOBS=16
+
+ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH} \
+    MAX_JOBS=${BUILD_JOBS} \
+    CMAKE_BUILD_PARALLEL_LEVEL=${BUILD_JOBS} \
+    CCACHE_DIR=/root/.ccache CCACHE_MAXSIZE=30G CCACHE_COMPRESS=1 \
+    PATH=/usr/lib/ccache:/usr/local/bin:/usr/bin:/bin
+
+# ccache 설치(NGC 베이스엔 ccache 없음 — ninja/git 는 존재). 증분 재컴파일 가속.
+RUN apt-get update && apt-get install -y --no-install-recommends ccache && rm -rf /var/lib/apt/lists/*
+
+# NGC pip constraint 비우기(핀 충돌 회피)
+RUN cp /etc/pip/constraint.txt /etc/pip/constraint.txt.bak 2>/dev/null || true; : > /etc/pip/constraint.txt
+
+# 대상 태그 소스 클론 + NGC torch 사용(소스가 torch 핀을 재설치하지 않게 — 커플링 규칙 충실)
+RUN git clone --branch ${VLLM_REF} --depth 1 https://github.com/vllm-project/vllm.git /workspace/vllm-src
+WORKDIR /workspace/vllm-src
+RUN python3 use_existing_torch.py
+
+# build-system.requires 수동 설치(--no-build-isolation 전제: pip 가 자동설치 안 함).
+# 0.22.1 검증 레시피대로 as-is 설치(setuptools-rust/cmake/ninja/scm/wheel/jinja2 등 포함).
+# setuptools 는 vLLM 빌드가 <81 을 요구하므로 명시 조정.
+RUN pip install $(python3 -c "import tomllib;print(' '.join(tomllib.load(open('pyproject.toml','rb'))['build-system']['requires']))") "setuptools<81"
+
+# strip-hoist (torch 2.11a): NGC torch 의 register_opaque_type 가 hoist kwarg 를 안 받으면
+# 소스에서 그 kwarg 만 제거(opaque 등록 기능 유지). torch 2.10대/수용 시엔 no-op(자기적응).
+RUN python3 - <<'PY'
+import inspect, pathlib, re, sys
+try:
+    from torch._library.opaque_object import register_opaque_type
+    needs = "hoist" not in inspect.signature(register_opaque_type).parameters
+except Exception:
+    needs = False  # opaque_object 미존재(torch 2.10대) → 패치 불요
+if needs:
+    n = 0
+    for p in pathlib.Path(".").rglob("*.py"):
+        try:
+            s = p.read_text()
+        except Exception:
+            continue
+        if "register_opaque_type(" in s and "hoist" in s:
+            ns = re.sub(r",\s*hoist\s*=\s*[^,)]+", "", s)
+            if ns != s:
+                p.write_text(ns); n += 1; print(f"[patch] strip-hoist {p}")
+    print(f"[patch] strip-hoist applied to {n} file(s)")
+    if n == 0:
+        print("[patch][WARN] hoist 미수용인데 register_opaque_type(hoist=) 미발견 — 상류 변경 의심(P6 재검토)", file=sys.stderr)
+else:
+    print("[patch] strip-hoist skipped (register_opaque_type accepts hoist / opaque_object 부재)")
+PY
+
+# 소스 컴파일: _C 를 NGC torch 에 맞춰 빌드 → ABI 벽 원천 해소. deps 는 pyproject 에서(torch 보호됨).
+RUN --mount=type=cache,target=/root/.ccache \
+    pip install --no-build-isolation -e .
+
+# 빌드 검증(GPU 불요): vllm 패키지 설치만 확인. _C/import 는 libcuda.so.1(드라이버) 필요 →
+# 빌드타임 불가(GPU 미주입). 실제 _C 로드·서빙은 런타임(--gpus)에서 = 스모크가 최종 중재자.
+RUN python3 -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('vllm') else 1)" \
+    && echo "[build] vllm package present (런타임 _C 검증은 serve 단계)"
+
+WORKDIR /workspace
+EXPOSE 8000
+
+# 참고: gpt-oss harmony 오프라인 토크나이저(/encodings + TIKTOKEN_*)는 이미지에 굽지 않고
+#   서빙 단계(docker-compose + configs/<model>.sh)에서 마운트·주입한다(불편함-해소 .sh 레이어).

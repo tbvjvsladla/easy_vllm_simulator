@@ -9,7 +9,8 @@ CONTRACT(FROZEN) run_trial.py 절 준수. 한 candidate(lock-set)를 실제 서�
   /health 200 폴링(opts.timeout 기본 900s) → functional_smoke →
   docker logs 를 simlog_dir/trialNN_vllm.log 로 캡처 → parse_vllm_log →
   컨테이너 teardown(docker rm -f, 통합메모리 잔류 OOM 방지).
-  NAS 마운트 -v /mnt/models:/app/models:ro,
+  NAS 마운트 -v <nas_host_root>:/app/models:ro (호스트 경로는 config.nas_host_root →
+  opts.nas_mount/--nas-mount 로 주입; 하드코딩 금지 — 포인터 원칙. 기본값만 NAS_MOUNT 상수),
   --runtime nvidia --ipc host --ulimit memlock=-1.
   candidate 에서 VLLM_ATTENTION_BACKEND env · --kv-cache-memory-bytes ·
   --max-num-seqs(batch) · --kv-cache-dtype · --tool-call-parser/
@@ -44,8 +45,13 @@ import simlog_writer  # noqa: E402
 DEFAULT_IMAGE = "vllm-src-022:clean"
 DEFAULT_TIMEOUT = 900  # /health 200 폴링 타임아웃(초)
 DEFAULT_PORT = 8903
-NAS_MOUNT = "/mnt/models"  # 호스트 NAS 모델 루트(기본값 — config/manifest 로 override)
+# NAS_MOUNT 은 호스트 NAS 모델 루트의 **기본값일 뿐**이다. 실제 경로는
+# config.nas_host_root → opts.nas_mount(또는 --nas-mount)로 주입된다(포인터 원칙, 하드코딩 아님).
+NAS_MOUNT = "/mnt/models"  # default only — override via config.nas_host_root / --nas-mount
 CONTAINER_MODELS = "/app/models"  # 컨테이너 내 모델 마운트 경로(:ro)
+# 에어갭 인코딩 자산(tiktoken o200k 등) 컨테이너 마운트 경로(:ro). gpt-oss harmony/tiktoken
+# 자산은 이미지에 미번들 → 호스트 tiktoken_host_path 를 여기로 마운트해 사전적재(C8).
+CONTAINER_ENCODINGS = "/encodings"
 HEALTH_POLL_INTERVAL = 3.0  # /health 폴링 간격(초)
 
 
@@ -105,6 +111,13 @@ def _build_serve_args(candidate: dict) -> list:
     if candidate.get("batch") is not None:
         args += ["--max-num-seqs", str(int(candidate["batch"]))]
 
+    # ── gpu-memory-utilization (디바이스 풀 상한 = safety_margin) ───────
+    # 통합메모리(GB10)는 시스템이 일부 점유 → vLLM 기본 0.92 가 free 초과 OOM.
+    # SKILL §5: gmu 는 풀 상한(=margin)으로만 emit; 실제 KV 는 절대 클램프가 제어.
+    gmu = candidate.get("gpu_memory_utilization")
+    if gmu is not None:
+        args += ["--gpu-memory-utilization", str(float(gmu))]
+
     # ── weight quantization (lock; none/null 은 미지정) ─────────────────
     quant = candidate.get("quantization")
     if quant and str(quant).lower() != "none":
@@ -136,11 +149,28 @@ def _build_serve_args(candidate: dict) -> list:
     return args
 
 
-def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: int) -> list:
+def _needs_tiktoken(candidate: dict) -> bool:
+    """tiktoken 인코딩 자산이 필요한 모델인지(capability 기반).
+
+    gpt-oss harmony/tiktoken o200k 자산은 이미지에 미번들 → tool_call/reasoning 류
+    capability 가 있으면 에어갭 사전적재 자산을 마운트해야 한다(C8).
+    """
+    caps = candidate.get("model_capabilities") or {}
+    return bool(caps.get("tool_call") or caps.get("reasoning"))
+
+
+def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: int,
+                      nas_mount: str = NAS_MOUNT,
+                      tiktoken_host_path: "str | None" = None) -> list:
     """docker run -d 명령 리스트를 구성한다.
 
-    NAS read-only 마운트 · --runtime nvidia · --ipc host · --ulimit memlock=-1 ·
-    포트 매핑 · VLLM_ATTENTION_BACKEND env(soft) · 이미지 · serve 인자.
+    NAS read-only 마운트(nas_mount = config/manifest 의 nas_host_root, 기본 /mnt/models) ·
+    --runtime nvidia · --ipc host · --ulimit memlock=-1 · 포트 매핑 ·
+    VLLM_ATTENTION_BACKEND env(soft) · (에어갭) tiktoken 인코딩 마운트+env · 이미지 · serve 인자.
+
+    tiktoken_host_path(config.tiktoken_host_path): capability(tool_call/reasoning)가 tiktoken 을
+    요구하거나 경로가 명시되면 `-v <host>:/encodings:ro` + TIKTOKEN_ENCODINGS_BASE/
+    TIKTOKEN_RS_CACHE_DIR/TIKTOKEN_ENABLED env 를 추가(C8, gpt-oss 차단 해소).
     """
     cmd = [
         "docker", "run", "-d",
@@ -149,8 +179,22 @@ def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: in
         "--ipc", "host",
         "--ulimit", "memlock=-1",
         "-p", "%d:%d" % (int(port), DEFAULT_PORT),
-        "-v", "%s:%s:ro" % (NAS_MOUNT, CONTAINER_MODELS),
+        "-v", "%s:%s:ro" % (nas_mount, CONTAINER_MODELS),
     ]
+
+    # ── 에어갭 tiktoken 인코딩 자산(C8) ────────────────────────────────
+    # 마운트 opt-in = tiktoken_host_path 제공(env 주입에 자산 경로가 필요 → 경로 부재 시 마운트 불가).
+    # capability상 tiktoken(harmony/o200k)이 필요하나 경로 미설정이면 폐쇄망 스모크 실패 위험 → 경고만(중단 안 함).
+    if tiktoken_host_path:
+        cmd += ["-v", "%s:%s:ro" % (tiktoken_host_path, CONTAINER_ENCODINGS)]
+        cmd += ["-e", "TIKTOKEN_ENCODINGS_BASE=%s" % CONTAINER_ENCODINGS]
+        cmd += ["-e", "TIKTOKEN_RS_CACHE_DIR=%s" % CONTAINER_ENCODINGS]
+        cmd += ["-e", "TIKTOKEN_ENABLED=1"]
+    elif _needs_tiktoken(candidate):
+        sys.stderr.write(
+            "[run_trial] WARN: candidate가 tiktoken(harmony/o200k)을 요구하나 "
+            "tiktoken_host_path 미설정 — 폐쇄망 스모크 실패 가능"
+            "(config.tiktoken_host_path 설정 권장).\n")
 
     # ── VLLM_ATTENTION_BACKEND env (soft) ──────────────────────────────
     backend = candidate.get("attention_backend")
@@ -160,6 +204,48 @@ def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: in
     cmd += [image]
     cmd += _build_serve_args(candidate)
     return cmd
+
+
+def _audit_emitted(candidate: dict, docker_cmd: list) -> None:
+    """candidate 의 serve-관련 비-null 필드가 실제 emit 된 cmd 에 반영됐는지 전수 점검.
+
+    gmu 미emit(C5) 같은 "candidate 신규 필드를 serve cmd 에 빠뜨리는 회귀류"를 클래스로
+    차단(§9.3). 각 필드에 기대 플래그를 매핑하고, 비-null 인데 cmd 에 없으면 raise.
+    능력 게이팅(tool_call/reasoning)으로 **의도적 제외**되는 soft 필드는 면제한다.
+    """
+    cmd_str = " ".join(docker_cmd)
+    caps = candidate.get("model_capabilities") or {}
+
+    # (candidate 키, 기대 플래그) — 값-무관, 플래그 존재만 확인.
+    field_flags = [
+        ("gpu_memory_utilization", "--gpu-memory-utilization"),
+        ("max_model_len", "--max-model-len"),
+        ("batch", "--max-num-seqs"),
+        ("kv_cache_memory_bytes", "--kv-cache-memory-bytes"),
+        ("kv_cache_quant", "--kv-cache-dtype"),
+        ("attention_backend", "VLLM_ATTENTION_BACKEND="),
+    ]
+    # quantization: none/null 은 의도적 미emit.
+    quant = candidate.get("quantization")
+    if quant and str(quant).lower() != "none":
+        field_flags.append(("quantization", "--quantization"))
+    # tool_call_parser / reasoning_parser: 능력 있을 때만 emit(없으면 의도적 제외).
+    if candidate.get("tool_call_parser") and bool(caps.get("tool_call")):
+        field_flags.append(("tool_call_parser", "--tool-call-parser"))
+    if candidate.get("reasoning_parser") and bool(caps.get("reasoning")):
+        field_flags.append(("reasoning_parser", "--reasoning-parser"))
+
+    missing = []
+    for key, flag in field_flags:
+        if candidate.get(key) is not None and flag not in cmd_str:
+            missing.append("%s(기대 %s)" % (key, flag))
+
+    if missing:
+        raise RuntimeError(
+            "emit-audit 실패 — candidate 의 비-null serve 필드가 cmd 에 누락됨: "
+            + ", ".join(missing)
+            + " | 이 가드는 gmu 미emit 같은 회귀류 클래스를 차단한다(§9.3)."
+        )
 
 
 def _health_url(port: int) -> str:
@@ -318,7 +404,15 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
     # 이전 잔류 컨테이너 제거(이름 충돌·통합메모리 잔류 방지).
     _docker_teardown(container_name)
 
-    docker_cmd = _build_docker_cmd(candidate, image, container_name, port)
+    nas_mount = _opt(opts, "nas_mount", NAS_MOUNT)  # config/manifest nas_host_root 배선
+    tiktoken_host_path = _opt(opts, "tiktoken_host_path", None)  # config.tiktoken_host_path(C8)
+    docker_cmd = _build_docker_cmd(
+        candidate, image, container_name, port, nas_mount,
+        tiktoken_host_path=tiktoken_host_path,
+    )
+    # emit-audit: candidate 의 serve-관련 비-null 필드가 실제 cmd 에 반영됐는지 전수 점검
+    # (gmu 미emit 회귀류 클래스 차단 — §9.3). 누락 시 즉시 raise.
+    _audit_emitted(candidate, docker_cmd)
 
     load_ok = False
     vllm_profile = None
@@ -402,6 +496,16 @@ def _main(argv: "list[str] | None" = None) -> int:
     p.add_argument("--served-model-name", default=None, help="스모크용 served_model_name")
     p.add_argument("--container-name", default=None, help="컨테이너 이름(기본 vllm_trialNN)")
     p.add_argument(
+        "--nas-mount",
+        default=None,
+        help="호스트 NAS 모델 루트(config.nas_host_root; 기본 %s). terraforming CLI 배선" % NAS_MOUNT,
+    )
+    p.add_argument(
+        "--tiktoken-host-path",
+        default=None,
+        help="에어갭 tiktoken 인코딩 자산 호스트 경로(config.tiktoken_host_path) → /encodings:ro 마운트(C8)",
+    )
+    p.add_argument(
         "--dry-run",
         action="store_true",
         help="docker 없이 mock_profile/빈 결과를 반환(루프 테스트용)",
@@ -429,6 +533,10 @@ def _main(argv: "list[str] | None" = None) -> int:
     }
     if args.container_name:
         opts["container_name"] = args.container_name
+    if args.nas_mount:
+        opts["nas_mount"] = args.nas_mount
+    if args.tiktoken_host_path:
+        opts["tiktoken_host_path"] = args.tiktoken_host_path
 
     result = run_trial(candidate, args.simlog_dir, args.trial_number, opts=opts)
     print(json.dumps(result, ensure_ascii=False, indent=2))

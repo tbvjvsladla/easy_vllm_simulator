@@ -32,6 +32,11 @@ CLAUDE.local.md
 .claude/skills/**/sub_node/CLAUDE.md
 # 런타임 피드백/상태 로그(저자 누적 런 데이터 — 클론은 빈 상태로 시작, writer 가 mkdir)
 .claude/skills/**/feedback/
+# recipe-explorer Phase 1/2 per-run 산출물(모델별 생성물·답안노출 방지 — 추적은 config.example.yaml + 스크립트 엔진만)
+#   lockset.json=인터뷰 lock-set · candidates.json=LLM 후보 · parsed.json=config.json 파싱 산물
+.claude/skills/**/lockset.json
+.claude/skills/**/candidates.json
+.claude/skills/**/parsed.json
 
 # ===========================================
 # 환경 변수
@@ -59,6 +64,8 @@ manifest.yaml
 /Dockerfile.source-build
 /docker-compose.yaml
 /requirements.txt
+# S1 resolve 산출 스냅샷 (버전 bump마다 재생성 — 추적 안 함)
+/resolved.json
 # 모델별 산출물 (범용 툴 configs/check_reqs.py 는 .py 라 미매칭 → 추적 유지)
 configs/*.yaml
 configs/*.sh

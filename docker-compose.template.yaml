@@ -2,7 +2,7 @@
 x-gpu-common: &gpu-common
   build:
     context: .
-    dockerfile: Dockerfile
+    dockerfile: {{ DOCKERFILE }}   # 트랙별: Dockerfile(wheel) | Dockerfile.source-build(source)
   image: {{ IMAGE_NAME }}:{{ IMAGE_TAG }}
   runtime: nvidia
   ipc: host
@@ -10,8 +10,8 @@ x-gpu-common: &gpu-common
     memlock: -1
     stack: 67108864
   volumes:
-    - {{ NAS_MODEL_PATH }}:/app/models:ro # 모델 폴더는 읽기모드로만 (manifest.nas_model_path)
-    - ${TIKTOKEN_HOST_PATH}:/encodings:ro
+    - ${NAS_MODEL_PATH:-/mnt/models}:/app/models:ro # 호스트 NAS 루트(env; 테라포밍이 manifest.nas_model_path→env 전파). PII는 compose에 baking 안 함
+    - ${TIKTOKEN_HOST_PATH:-./tiktoken_cache}:/encodings:ro # tiktoken 평탄폴더(gpt-oss용). 변수명·기본값 align (P3 카탈로그)
     - ./configs:/app/configs:ro
 
 services:
@@ -23,6 +23,7 @@ services:
       - "8081:8000" # 디버그 포트는 8081로 고정 -> 서빙 프로필이랑 포트가 겹치지 말 것!
     environment:
       TIKTOKEN_ENCODINGS_BASE: /encodings
+      TIKTOKEN_RS_CACHE_DIR: /encodings
     command: ["bash"]
     tty: true
     stdin_open: true
@@ -35,6 +36,7 @@ services:
       - "${SERVING_PORT:-8080}:8000"
     environment:
       TIKTOKEN_ENCODINGS_BASE: /encodings
+      TIKTOKEN_RS_CACHE_DIR: /encodings
     env_file:
       - envs/.env.${CONFIG_FILE:-default}
     command: ["bash", "/app/configs/${CONFIG_FILE:-default}.sh"]
