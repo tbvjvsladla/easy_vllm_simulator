@@ -24,10 +24,24 @@ import sys, re, argparse, tempfile, zipfile, os, urllib.request
 BASE_PROVIDED = {"torch", "torchvision", "torchaudio", "torchao",
                  "setuptools", "numpy", "pip", "wheel"}
 
+# known-incompat 천장 — 시간드리프트(upstream 의 >= 범위가 최신으로 해소되며 깨지는 고정 회귀)를 영속 차단.
+#   {패키지명(소문자): 추가 제약}. parse_requires 가 Requires-Dist 스펙에 merge 한다.
+#   ⚠ REVIEW/EXPIRE: upstream 이 회귀를 고치면 여기서 제거할 것 — regen 마다 stdout·헤더에 표면화되어
+#   S1 게이트에서 운영자 재평가를 강제한다(전역-영속 핀이 미래 수정을 조용히 막는 역-드리프트 방지).
+KNOWN_INCOMPAT = {
+    # fastapi 0.137.0 include_router 리팩터(_IncludedRouter, .path 부재)가 prometheus-fastapi-instrumentator
+    # 와 충돌 → /health 500 (vLLM #45596, testlog 2026062220). regen 이 0.138+ 를 흡수하면 재발.
+    "fastapi": "<0.137.0",
+}
+
 
 def parse_requires(reqs):
-    """Requires-Dist 라인 목록 → requirements 라인(정렬, extra-조건부 제외, base 제외)."""
+    """Requires-Dist 라인 목록 → requirements 라인(정렬, extra-조건부 제외, base 제외, known-incompat 천장 merge).
+
+    반환: (lines, applied). applied = 적용된 KNOWN_INCOMPAT 천장 표면화용 리스트.
+    """
     out = []
+    applied = []
     for r in reqs:
         # '; extra == "x"' 같은 선택 extra 조건부는 건너뜀
         if ";" in r and "extra" in r.split(";", 1)[1]:
@@ -36,8 +50,13 @@ def parse_requires(reqs):
         name = re.split(r"[<>=!\[ ]", base, 1)[0].strip().lower()
         if not name or name in BASE_PROVIDED:
             continue
+        if name in KNOWN_INCOMPAT:
+            ceiling = KNOWN_INCOMPAT[name]
+            sep = "," if any(c in base for c in "<>=!~") else ""  # 기존 제약 있으면 콤마로 AND
+            base = base + sep + ceiling
+            applied.append(name + ceiling)
         out.append(base)
-    return sorted(set(out))
+    return sorted(set(out)), sorted(set(applied))
 
 
 def from_installed():
@@ -73,14 +92,20 @@ def main():
     else:
         reqs, src = from_wheel_url(a.from_wheel_url), a.from_wheel_url
 
-    lines = parse_requires(reqs)
+    lines, applied = parse_requires(reqs)
     hdr = ("# vLLM 런타임 의존성 — wheel 의 Requires-Dist(METADATA) 기준(권위 소스).\n"
            f"# source: {src}\n"
            "# base 제공분(torch/torchvision/torchaudio/setuptools)은 제외(--no-deps 보호).\n"
            "# extra(fastapi[standard] 등)는 그대로 — pip 가 빌드 시 transitive(uvicorn→uvloop) 해소.\n")
+    if applied:
+        hdr += ("# ⚠ KNOWN_INCOMPAT 천장 적용(시간드리프트 회귀 차단; upstream 수정 시 "
+                "regen_requirements.py KNOWN_INCOMPAT 에서 제거): " + "; ".join(applied) + "\n")
     with open(a.out, "w", encoding="utf-8") as f:
         f.write(hdr + "\n".join(lines) + "\n")
     print(f"[regen] {a.out} : {len(lines)} packages (source: {src})")
+    if applied:
+        print("[regen] ⚠ KNOWN_INCOMPAT 천장 적용: " + ", ".join(applied)
+              + " — S1 게이트서 재평가/만료 확인(KNOWN_INCOMPAT).")
 
 
 if __name__ == "__main__":

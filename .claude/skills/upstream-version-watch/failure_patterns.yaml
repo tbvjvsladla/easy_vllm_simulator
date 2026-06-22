@@ -22,6 +22,10 @@ patterns:
     class: requirements-fixable
     note: "누락 실행파일/패키지 → requirements.txt 추가 후 재빌드. 예: ray(멀티노드 분산 필수, wheel METADATA 미포함)→ray==2.48.0 추가(testlog_260607_8)."
 
+  - signature: "'_IncludedRouter' object has no attribute 'path'"
+    class: requirements-fixable
+    note: "fastapi>=0.137.0 의 include_router 리팩터(_IncludedRouter, .path 부재)가 prometheus-fastapi-instrumentator 와 충돌 → 모든 요청(/health 포함) 500 Internal Server Error (vLLM #45596). regen 이 최신 fastapi 를 흡수하는 시간드리프트로 발현(빌드는 통과·서빙 HTTP에서 발현) → requirements.txt 에 fastapi[standard]<0.137.0 핀. testlog 2026062220(gpt-oss-20b/0.18.0 wheel)."
+
   - signature: "No module named 'torch\\._opaque_base'"
     class: source-build-class
     note: "NGC torch 가 vLLM wheel 기대보다 이른/다른 빌드(torch 2.11 alpha). 소스빌드 필요."

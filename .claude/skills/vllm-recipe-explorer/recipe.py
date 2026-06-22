@@ -353,27 +353,36 @@ def _next_soft_value(candidate, target):
     return cands[0]
 
 
-def _enrich_overhead(profile, device_total_gib):
+def _enrich_overhead(profile, device_total_gib, gmu_fallback=None):
     """consolidated 메모리 라인이 없는 vLLM 빌드 보강: non_kv_overhead 를 유도한다.
 
     vLLM 메모리식: gmu × device_total = weights + non_kv_overhead + kv_available.
     → non_kv_overhead = gmu_trial × device_total − weights − kv_available
        (cuda_graph 는 잔차에 포함 = 보수적). profile 에 이미 non_kv_overhead_gib 가
        있으면(consolidated 라인 보유) 건드리지 않는다. profile 을 제자리 보강해 반환.
+
+    gmu_trial 은 우리가 --gpu-memory-utilization 으로 **설정한 알려진 입력**이다. 로그에서
+    파싱(parse_vllm_log)이 vLLM 버전별 로그 포맷 차로 못 잡으면(예: 0.18.0) gmu_fallback
+    (=candidate.gpu_memory_utilization)로 대체한다 — 로그 파싱에 의존하지 않는다.
     """
     if not isinstance(profile, dict):
         return profile
     if profile.get("non_kv_overhead_gib") is not None:
         return profile
     gmu = profile.get("gmu_trial")
+    gmu_from_log = gmu is not None
+    if gmu is None:
+        gmu = gmu_fallback  # 알려진 입력(우리가 설정한 gmu). 버전별 로그 포맷 비의존.
     w = profile.get("weights_gib")
     kv = profile.get("kv_cache_gib")
     if None in (gmu, w, kv) or not device_total_gib:
         return profile
-    overhead = gmu * float(device_total_gib) - w - kv
+    overhead = float(gmu) * float(device_total_gib) - w - kv
     if overhead > 0:
         profile["non_kv_overhead_gib"] = overhead
         profile["device_total_gib"] = float(device_total_gib)
+        profile["gmu_used"] = float(gmu)
+        profile["gmu_source"] = "log" if gmu_from_log else "known-input(candidate.gpu_memory_utilization)"
     return profile
 
 
@@ -470,6 +479,7 @@ def cmd_simulate(args):
         "served_model_name": _serving.get("served_model_name"),
         "port": int(_serving["port"]) if _serving.get("port") is not None else None,
         "nas_mount": nas_root,  # config.nas_host_root → run_trial NAS 마운트(하드코딩 /mnt/models 갭 수정)
+        "tiktoken_host_path": cfg.get("tiktoken_host_path"),  # config → run_trial /encodings:ro 마운트(C8 에어갭 자산 배선)
     }
     opts = {k: v for k, v in opts.items() if v is not None}
 
@@ -491,7 +501,8 @@ def cmd_simulate(args):
         trial = run_trial(candidate, run_dir, trial_number, opts)
         # consolidated 메모리 라인이 없는 빌드 보강: overhead 유도(제자리). dry-run mock 이
         # 이미 non_kv_overhead 를 주면 건드리지 않는다.
-        _enrich_overhead(trial.get("vllm_profile"), device_total_gib)
+        _enrich_overhead(trial.get("vllm_profile"), device_total_gib,
+                         gmu_fallback=candidate.get("gpu_memory_utilization"))
         final_trial = trial
 
         # ── per-trial simlog 증거 4종 기록(SKILL.md §6) ───────────────────

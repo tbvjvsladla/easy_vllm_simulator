@@ -159,10 +159,18 @@ python3 recipe.py generate --config config.yaml --recipe-id r3
    (`estimate_vram.max_feasible_max_len`이 천장 내 2의 거듭제곱 최대 길이를 결정론으로 계산).
 5. **tool / reasoning 파서** — **웹검색 권장**: 모델이 tool_call·reasoning을 지원하는지, vLLM 파서명이 무엇인지
    사람이 확인해 알려준다(예: `hermes`/`qwen3`). 미지원이면 N/A(스모크에서 스킵).
-   - **파서명은 공식 docs에서 얻은 뒤 반드시 빌드 이미지 레지스트리에 version-exact 확증한 후에만 emit한다(가정 금지)**:
-     reasoning 파서는 `vllm/reasoning/__init__.py`, tool 파서는 `vllm/entrypoints/openai/tool_parsers/__init__.py`에
-     실재하는 이름인지 대상 버전 이미지에서 직접 확인한다(예: gemma-4 reasoning/tool=`gemma4`,
-     gpt-oss reasoning=`openai_gptoss`/tool=`openai`(+`--enable-auto-tool-choice`)).
+   - **파서명은 공식 docs에서 얻은 뒤 반드시 빌드 이미지에 version-exact 확증한 후에만 emit한다(가정 금지)**:
+     레지스트리 경로·등록명이 vLLM 버전마다 다르다 — reasoning은 `vllm/reasoning/`, tool은 버전에 따라
+     `vllm/entrypoints/openai/tool_parsers/` 또는 `vllm/tool_parsers/`. **정적 grep + 실서빙 수용**으로 확증한다
+     (import-기반 레지스트리 열거는 lazy-registration이라 0.18.0에서 거짓-빈값 → 비의존). 예: gemma-4 reasoning/tool=`gemma4`;
+     gpt-oss reasoning=`openai_gptoss`(0.18.0 실서빙 실증).
+   - **caveat — gpt-oss tool 처리는 빌드별 상이**: 0.18.0 은 tool 호출이 **vLLM harmony 내장**이라 `--tool-call-parser`가
+     불요/미등록(tool 레지스트리=`kimi_k2` only)이고 vLLM이 `--enable-auto-tool-choice`를 무시하고 항상 tool use를 켠다
+     (서빙 로그 명시) → 무효 파서 플래그를 주면 serve 크래시. tool capability=false로 두고 **completion+reasoning을 스모크
+     게이트**로(다른 빌드의 `openai` tool 파서 경로와 구분 — 대상 이미지서 확증).
+   - **caveat — reasoning 분리필드명 버전차 + 추론모델 max_tokens**: 응답의 분리 reasoning 필드명이 버전마다 다르다
+     (구=`reasoning_content`, 0.18.0/harmony=`reasoning`) → `functional_smoke`는 둘 다 수용. **추론모델은 completion
+     스모크에도 max_tokens 충분히** 줘야 한다(analysis 채널이 토큰 소진 → content 전 length 절단; `functional_smoke` 64→1024).
    - **caveat — tool 채팅 템플릿 의존성**: gemma-4 tool은 `tool_chat_template_gemma4.jinja`(이미지 미포함)를
      요구한다 → `.sh`에 tool 플래그를 무조건 emit하면 런타임 실패. reasoning이 기본 OFF면 **completion이 스모크
      게이트**이고 파서는 config에 기록만 한다(`gen_recipe_set`의 경고 가드로 처리).
@@ -207,11 +215,12 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
   (kv_dtype_bytes: KV quant 없으면 2, `fp8`이면 1).
 - `required_kv = per_token_kv_bytes × max_model_len × batch`,
   `max_safe_kv = int(budget×margin×GiB) − weights − overhead`.
-- **실측 KV가 공식을 이긴다(sparse/sliding-window/hybrid attention)**: 위 `per_token_kv_bytes` 공식은
-  full-attention 가정이라 sparse/sliding-window/hybrid 모델에서 KV를 **과대추정**한다(예: gemma-4 실측
-  ~34KB/token vs 공식 393KB = 11.5×; Qwen3.6 3.7×). 측정 트라이얼 로그에 per-token 실측
-  (`Available KV cache memory` / `kv_cache_tokens`)이 있으면 **그것이 정본**이고 공식은 폴백이다
-  (`recipe.py _resolve_clamp_kv`). 실측을 쓰면 같은 예산에서 batch가 크게 달라진다(공식 3 → 실측 39).
+- **측정 per-token KV가 정본(`<<` 또는 `≈` 공식)**: 위 `per_token_kv_bytes` 공식은 full-attention 가정이다.
+  → **full-attention 모델은 측정 ≈ 공식**(예: gpt-oss-20b 측정 ~48KB/token = 공식과 일치 → batch 그대로),
+  **sparse/sliding-window/hybrid 만 공식이 KV를 과대추정**(gemma-4 실측 ~34KB vs 공식 393KB = 11.5×; Qwen3.6 3.7×).
+  즉 공식이 *항상* 과대추정은 아니다 — 측정 트라이얼 로그의 per-token 실측(`Available KV cache memory`/`kv_cache_tokens`)이
+  있으면 **그것이 정본**(`<<` 또는 `≈`), 공식은 폴백(`recipe.py _resolve_clamp_kv`). 실측을 쓰면 같은 예산에서
+  batch가 달라진다(gemma-4 공식 3 → 실측 39; gpt-oss는 ≈라 batch 8 유지).
 - **절대 클램프 실측 절차(최소 2-트라이얼, §9.3 KV워크플로)**: ① **trial1 측정**(`kv_cache_memory_bytes=null`,
   언클램프) → 로그에서 free_kv 실측 → ② `--kv-cache-memory-bytes`로 환산 → ③ **trial2 클램프 검증**.
   언클램프 통과만으로는 수렴이 아니다 — 클램프 검증 트라이얼까지 통과해야 수렴 판정.

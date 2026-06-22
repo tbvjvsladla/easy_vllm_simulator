@@ -95,11 +95,12 @@ def _check_completion(choice: dict) -> bool:
 
 
 def _check_reasoning(choice: dict) -> bool:
-    """reasoning 검사 = message.reasoning_content 분리 필드가 비어있지 않게 존재."""
+    """reasoning 검사 = 분리된 reasoning 필드가 비어있지 않게 존재.
+    필드명은 vLLM 버전별로 다르다: reasoning_content(구) vs reasoning(신 — gpt-oss harmony/0.18.0). 둘 다 수용."""
     msg = choice.get("message") if isinstance(choice, dict) else None
     if not isinstance(msg, dict):
         return False
-    rc = msg.get("reasoning_content")
+    rc = msg.get("reasoning_content") or msg.get("reasoning")
     return isinstance(rc, str) and rc.strip() != ""
 
 
@@ -154,7 +155,9 @@ def smoke(
             {
                 "model": served_model_name,
                 "messages": [{"role": "user", "content": _COMPLETION_PROMPT}],
-                "max_tokens": 64,
+                # reasoning 모델은 analysis 채널이 토큰을 소모 → content(최종 채널) 도달 전 length 절단됨.
+                # 능력에 reasoning 있으면 충분히 줘 finish_reason=stop 유도(없으면 짧게).
+                "max_tokens": 1024 if want_reasoning else 256,
                 "temperature": 0.0,
             },
             timeout=timeout,

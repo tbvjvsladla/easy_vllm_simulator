@@ -66,6 +66,8 @@ manifest.yaml
 /requirements.txt
 # S1 resolve 산출 스냅샷 (버전 bump마다 재생성 — 추적 안 함)
 /resolved.json
+# tiktoken 에어갭 자산(gpt-oss harmony o200k — URL 다운로드본, 호스트 자산·배포물 아님)
+/tiktoken_cache/
 # 모델별 산출물 (범용 툴 configs/check_reqs.py 는 .py 라 미매칭 → 추적 유지)
 configs/*.yaml
 configs/*.sh

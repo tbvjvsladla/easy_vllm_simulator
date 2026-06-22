@@ -67,6 +67,7 @@ python3 scripts/resolve_build_track.py "$V"   # build_track.decision·source_bui
   읽어 torch 핀과 매칭(skopeo 불필요). **접두어 매칭은 필요조건이지 충분조건 아님** — 스모크가 최종 중재자.
 - ③wheel: 실제 Release 자산명에서 `cuXXX`·`manylinux_X_YY`·arch를 읽어 URL 구성(추측 금지).
 - ④deps: **wheel METADATA Requires-Dist가 정본**(requirements/common.txt엔 서버 deps·extra가 없어 누락 — 예 `fastapi[standard]`→uvloop). extra는 그대로 두어 pip가 transitive 해소(Option A).
+  - **known-incompat 천장(불변식)**: regen 은 `KNOWN_INCOMPAT` 천장 테이블 적용 **후**가 정본 — 시간드리프트(upstream `>=` 가 최신으로 해소되며 깨진 고정 회귀)를 영속 차단한다(예 `fastapi<0.137.0` / vLLM #45596: 0.137 include_router 리팩터 × prometheus-instrumentator → /health 500). regen 마다 적용 override 를 **stdout·헤더에 표면화**해 S1 게이트서 재평가/만료를 강제(전역-영속 핀의 역-드리프트 방지). `failure_patterns.yaml` 분류기가 사후 탐지하면 regen 이 예방으로 닫는다.
 - ⑤NAS: `configs/<config_name>.yaml`의 `model:` 경로를 `/app/models` 마운트 하에서 확인. 부재 시 다운로드 금지·중단.
 - ⑥분류: `failure_patterns.yaml`(시그니처→class)로 결정론 1차 분류. 미매칭=unknown→Model-C.
 - ⑦트랙 제안자(proposer): torch핀 휴리스틱(2.10→wheel / 2.11+→source) + SM arch(manifest scan)**만** 결정론, **최종은 스모크 중재**.
