@@ -14,7 +14,11 @@ x-gpu-common: &gpu-common
     - /mnt/llm/Model/hugging_face_ver_model:/app/models:ro # 모델 폴더는 읽기모드로만
     - /mnt/llm/quant_model:/app/quant_models:ro
     - /home/cona/ws_docker/model_repo/tiktoken_encodings:/encodings:ro
+    # 이 파일 위치 = output/multi/(산출물 통로). ./configs = output/multi/configs(모델별 config 산출물).
+    # serve_runner.sh·debug-init.sh(추적 소스 빌딩블럭)는 repo 루트 configs/ 에서 overlay(단일 소스 유지). 근거: plan_2026062312_1
     - ./configs:/app/configs:ro
+    - ../../configs/serve_runner.sh:/app/configs/serve_runner.sh:ro
+    - ../../configs/debug-init.sh:/app/configs/debug-init.sh:ro
   environment: &gpu-env
     # ═════════════════════════════════════════════════════════════════════
     # NCCL 디버그 로그 설정

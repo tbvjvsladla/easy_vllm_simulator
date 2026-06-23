@@ -74,7 +74,7 @@
 
 - **작업 문서(`docs/<type>/*.md`)는 gitignore** → working-dir 단일 사본이 브랜치 전환에도 persist.
   따라서 `single-node`·`multi-node` 문서는 **자동 통합·동일**. (이 gitignore-persist는 문서 작업파일 전용 메커니즘이다.)
-  구현체(`Dockerfile`·`docker-compose.yaml`·`configs/`·`envs/`)는 반대로 브랜치별 독립(통합 안 함).
+  구현체(`Dockerfile`·`docker-compose.yaml`·`configs/`·`envs/`)는 반대로 브랜치별 독립(통합 안 함) — 산출물은 `output/<topology>/`(single|multi) 통로에 두어 혼재 차단(CLAUDE.md "산출물 통로 불변식").
 - **빌딩블럭(`.claude/`·`CLAUDE.md`)은 위와 다르다 — 이제 git-tracked**(배포 대상)이므로 브랜치 전환에 persist되지 않는다.
   브랜치 간 동일성은 `scripts/sync_branches.sh`로 **수동 동기화**해 유지한다(작업 종료 후 사람 질의).
 - **추적·배포되는 것 = 폴더 스켈레톤 + 각 폴더 `example.md` 1개씩만**(역할+명명규칙). 외부 배포 시

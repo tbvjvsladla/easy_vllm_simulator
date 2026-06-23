@@ -58,8 +58,9 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 +
    - single-node · multi-node 각 브랜치 로컬 커밋 = 기록/last-good 앵커(브랜치 핀 독립). 필요 시 태그(git tag last-good-<branch>).
    - 브랜치 간 공유 빌딩블럭 동기화: scripts/sync_branches.sh(수동, 작업 종료 후 사람 질의).
    - 서브노드 전파: S2.5의 scripts/sync_to_sub.sh로 메인→서브 직접 rsync(검증됨). GitHub 경유 안 함.
-   - git 위생: 과거 추적되던 render 산출물(Dockerfile · docker-compose.yaml · configs/*.{yaml,sh} · envs/.env.*)은
-     worktree 삭제만으론 부족 → git rm + 커밋으로 HEAD에서도 제거해야 reset --hard가 되살리지 않음(엿본 정답/노이즈 방지).
+   - 산출물 통로(single/multi 혼재 차단): render 산출물(Dockerfile · docker-compose.yaml · configs/*.{yaml,sh} · envs/.env.* · requirements.txt)은
+     **`output/<topology>/`(single|multi)** 에 둔다 — 통로 껍데기 `.gitkeep`만 추적·생성물 비추적(CLAUDE.md "산출물 통로 불변식" · plan_2026062312_1). 예외: multi 손작성 컨테이너 정의는 output/multi/에 추적(정본).
+   - git 위생: 과거 루트-추적 산출물은 worktree 삭제만으론 부족 → git rm + 커밋으로 HEAD에서도 제거해야 reset --hard가 되살리지 않음(엿본 정답/노이즈 방지).
      configs/check_reqs.py는 엔진 = 유지. (.gitignore 규칙은 이미 올바름 — 재추가 말 것.)
    verify: docs/devlog·testlog에 버전·변경·스모크 결과·last-good 기록
    ── HITL 게이트 ④ : 최종 커밋(+서브 전파) 승인

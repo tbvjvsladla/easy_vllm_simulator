@@ -77,6 +77,19 @@ configs/*.sh
 !configs/debug-init.sh
 
 # ===========================================
+# output/ 통로 — single/multi 산출물 경계분리 (혼재 차단)
+#   통로 껍데기(.gitkeep)만 추적 / 생성물(모델 config·env·렌더 Dockerfile 등)은 비추적.
+#   생성물이 켜켜이 쌓여도 통로(single|multi)가 갈려 서로 침범 못 함.
+#   예외: multi-node 손작성 컨테이너 정의는 *.template 졸업 전까지 정본 → 추적 유지(Plan 2서 ignore 강등).
+#   규칙 근거: docs/plan/plan_2026062312_1
+# ===========================================
+output/*/*
+!output/*/.gitkeep
+!output/multi/Dockerfile
+!output/multi/Dockerfile.source-build
+!output/multi/docker-compose.yaml
+
+# ===========================================
 # Python
 # ===========================================
 __pycache__/
