@@ -14,94 +14,30 @@ x-gpu-common: &gpu-common
     - /mnt/llm/Model/hugging_face_ver_model:/app/models:ro # 모델 폴더는 읽기모드로만
     - /mnt/llm/quant_model:/app/quant_models:ro
     - /home/cona/ws_docker/model_repo/tiktoken_encodings:/encodings:ro
-    # 이 파일 위치 = output/multi/(산출물 통로). ./configs = output/multi/configs(모델별 config 산출물).
-    # serve_runner.sh·debug-init.sh(추적 소스 빌딩블럭)는 repo 루트 configs/ 에서 overlay(단일 소스 유지). 근거: plan_2026062312_1
+    # 통로 self-containment(plan_2026062321_1 I1/I2): 컨테이너는 통로(output/multi/)만 마운트 — `../../`(통로 밖) reach-out 금지.
+    # ./configs = output/multi/configs = 모델 트리플릿 + render-materialize 된 러너 스크립트(serve_runner.sh·debug-init.sh).
+    #   러너 스크립트 정본 = repo-root configs/(tracked); render_dockerfile.py --materialize-configs --topology multi 가 통로로 복사(생성본·gitignored).
+    #   ⚠ 과거 `../../configs/*.sh` 런타임 오버레이는 RO 부모 안 중첩마운트로 컨테이너 시작 불가 → 폐기(plan_2026062321_1 §1).
     - ./configs:/app/configs:ro
-    - ../../configs/serve_runner.sh:/app/configs/serve_runner.sh:ro
-    - ../../configs/debug-init.sh:/app/configs/debug-init.sh:ro
-  environment: &gpu-env
-    # ═════════════════════════════════════════════════════════════════════
-    # NCCL 디버그 로그 설정
-    # 문제 진단 시 필수. 프로덕션에서는 제거 가능하지만 남겨두면
-    # 어느 경로(IB/Socket)로 통신하는지 즉시 확인 가능하므로 유지 권장.
-    # ═════════════════════════════════════════════════════════════════════
-    NCCL_DEBUG: "INFO"                          # INFO/WARN/TRACE 중 선택
-    NCCL_DEBUG_SUBSYS: "INIT,NET,GRAPH,ENV"     # 관심 서브시스템만 필터링
 
-    # ═════════════════════════════════════════════════════════════════════
-    # RDMA (RoCE v2) 핵심 설정 — 실제 텐서 데이터가 흐르는 고속 경로
-    # ─────────────────────────────────────────────────────────────────────
-    # [이전 설정의 문제점]
-    # NCCL_IB_HCA: rocep1s0f1,roceP2p1s0f1
-    #   → '=' prefix 없이 두 HCA를 나열하면 NCCL이 prefix 매칭으로 처리하고,
-    #     경로 선택이 꼬여서 GDR 비활성 + 성능 저하 발생했음
-    #
-    # [개선 사항]
-    # 1) '=' prefix 추가 → NVIDIA 공식 문서 권장 (정확 매칭 보장)
-    # 2) GID_INDEX 명시 → RoCE v2 dynamic selection 실패 방지
-    # 3) MERGE_NICS 명시 → Dual-port NIC을 하나의 논리 디바이스로 aggregate
-    # 4) QPS_PER_CONNECTION 증가 → 멀티레일 활용도 증가
-    # ═════════════════════════════════════════════════════════════════════
-    NCCL_IB_DISABLE: "0"                        # 0=RDMA 활성, 1=TCP fallback
-    NCCL_IB_HCA: "=rocep1s0f1,roceP2p1s0f1"     # Domain 0/2 HCA 둘 다 (정확 매칭)
-    NCCL_IB_GID_INDEX: "3"                      # RoCE v2 = GID 3 (ib_write_bw로 확인됨)
-    NCCL_IB_MERGE_NICS: "1"                     # Dual-port NIC aggregate (기본값이지만 명시)
-    NCCL_IB_QPS_PER_CONNECTION: "4"             # 멀티레일 routing entropy 증가
-    NCCL_IB_SPLIT_DATA_ON_QPS: "0"              # round-robin 모드 (latency 유리)
-
-    # ═════════════════════════════════════════════════════════════════════
-    # GPU Direct RDMA (GDR) 힌트
-    # ─────────────────────────────────────────────────────────────────────
-    # GPU↔CPU 간 C2C(345GB/s), CPU↔NIC 간 PCIe 구조.
-    # HPC-X 플러그인 기본 정책상 GPU-NIC가 같은 PCI switch에 없으면
-    # GDR을 Disable시킴 ("NET/IBext_v11 : GPU Direct RDMA Disabled" 로그).
-    #
-    # GDR_C2C=1로 설정하면 C2C 경유 CPU를 통해서도 GDR 시도를 허용.
-    # (실제로 HPC-X가 최종 활성화할지는 플러그인이 결정하지만,
-    #  힌트를 주지 않으면 NCCL이 GDR 시도 자체를 안 함)
-    # ═════════════════════════════════════════════════════════════════════
-    NCCL_NET_GDR_LEVEL: "SYS"                   # 시스템 전반 GDR 허용
-    NCCL_NET_GDR_C2C: "1"                       # C2C 경유 GDR 활성 (DGX Spark 핵심)
-    NCCL_NET_GDR_READ: "1"                      # GDR로 읽기도 허용
-
-    # ═════════════════════════════════════════════════════════════════════
-    # Cross-NIC 정책
-    # ─────────────────────────────────────────────────────────────────────
-    # 기본값 2 (same-NIC 선호, 필요 시 cross 허용).
-    # rail-optimized 네트워크가 아니라 단일 케이블에 dual-domain
-    # 구조이므로, 서로 다른 NIC 간 교차 통신을 적극 허용하는 것이 유리.
-    # ═════════════════════════════════════════════════════════════════════
-    NCCL_CROSS_NIC: "1"                         # 다른 NIC 간 ring/tree 허용
-
-    # ═════════════════════════════════════════════════════════════════════
-    # TCP 소켓 인터페이스 — 초기화/제어 메시지용 (RDMA 보조)
-    # ─────────────────────────────────────────────────────────────────────
-    # [이전 설정의 문제점]
-    # NCCL_SOCKET_IFNAME: enp1s0f1np1,enP2p1s0f1np1  (두 인터페이스 나열)
-    #   → bootstrap 경로가 분산되면 제어 핸드셰이크 지연 가능
-    #
-    # [개선 사항]
-    # Bootstrap은 단일 인터페이스로 충분하며, 경로 단순화 시 안정성 증가.
-    # 실제 대용량 텐서 데이터는 위의 NCCL_IB_HCA로 흐르므로 성능 영향 없음.
-    # ═════════════════════════════════════════════════════════════════════
-    NCCL_SOCKET_IFNAME: "enp1s0f1np1"           # NCCL bootstrap용 단일 인터페이스
-    GLOO_SOCKET_IFNAME: "enp1s0f1np1"           # vLLM/Ray 초기 핸드셰이크 (gloo)
-    TP_SOCKET_IFNAME: "enp1s0f1np1"             # torch.distributed TCP 통신
-
-    # ═════════════════════════════════════════════════════════════════════
-    # 기타 HPC 통신 레이어 — vLLM+Ray 조합에서 실사용 빈도 낮으나
-    # Wi-Fi/10GbE 인터페이스 선택 방지용으로 명시 (안전장치)
-    # ═════════════════════════════════════════════════════════════════════
-    UCX_NET_DEVICES: "enp1s0f1np1"              # UCX 프레임워크용 (OpenMPI 등)
-    OMPI_MCA_btl_tcp_if_include: "enp1s0f1np1"  # OpenMPI TCP BTL 화이트리스트
+# ═════════════════════════════════════════════════════════════════════════════
+# NCCL/RDMA 통신 env (이전 `environment: &gpu-env` 인라인 17개) → manifest-driven 렌더로 이관 (Plan 2 S3).
+#   각 서비스가 `env_file: envs/.env.interconnect` 로 주입. 이 파일은 render_dockerfile.py --nccl-envfile 가
+#   manifest.interconnect(①환경값) + NCCL_PRESETS[dgx-spark-gb10](②프리셋) + 불변(③) 으로 생성(비추적 생성물).
+#   검증 정본/회귀 oracle: .claude/skills/upstream-version-watch/fixtures/nccl_env_dgx-spark-gb10.golden (208.2 Gb/s).
+#   ⚠ &gpu-env 앵커는 NCCL 17개가 유일 키였어서 제거 시 빈(null) 매핑 → `<<: *gpu-env` 머지가 brittle.
+#     따라서 앵커 선언 + 3서비스의 `<<: *gpu-env` 를 동반 삭제(서비스별 비-NCCL env 는 인라인 유지).
+#   근거: docs/plan/plan_2026062316_1 (Plan 2) · D1 envfile 분리 · 인터뷰 seed_8970559bf926.
+# ═════════════════════════════════════════════════════════════════════════════
 
 services:
   vllm:
     <<: *gpu-common
     container_name: vllm_server
     profiles: [debug]
+    env_file:
+      - envs/.env.interconnect             # NCCL/RDMA (manifest-driven, Plan 2). debug 는 모델 config 불요
     environment:
-      <<: *gpu-env
       TIKTOKEN_ENCODINGS_BASE: /encodings
       # ★ VLLM_HOST_IP 제거 — debug-init.sh가 런타임에 자동 감지
       # ★ SERVING_PORT 제거 — 기본값 8081 사용, 필요 시 CLI로 덮어쓰기 가능
@@ -117,7 +53,6 @@ services:
     profiles: [master]
     container_name: ${MASTER_CONTAINER_NAME:-vllm-master-serve-container}
     environment:
-      <<: *gpu-env
       TIKTOKEN_ENCODINGS_BASE: /encodings
       NODE_ROLE: master
       VLLM_HOST_IP: ${MASTER_HOST_IP}      # 자기 IP = master
@@ -128,6 +63,7 @@ services:
       SERVING_MODEL_NAME: ${SERVING_MODEL_NAME}
       CONFIG_FILE: ${CONFIG_FILE:-default}
     env_file:
+      - envs/.env.interconnect             # NCCL/RDMA (manifest-driven, Plan 2). 먼저=충돌 시 per-model 우선
       - envs/.env.${CONFIG_FILE:-default}
     command: ["bash", "/app/configs/serve_runner.sh"]
 
@@ -139,7 +75,6 @@ services:
     profiles: [slave]
     container_name: ${SLAVE_CONTAINER_NAME:-vllm-slave-serve-container}
     environment:
-      <<: *gpu-env
       TIKTOKEN_ENCODINGS_BASE: /encodings
       NODE_ROLE: slave
       VLLM_HOST_IP: ${SLAVE_HOST_IP}       # 자기 IP = slave
@@ -147,5 +82,6 @@ services:
       RAY_PORT: ${RAY_PORT:-6379}
       CONFIG_FILE: ${CONFIG_FILE:-default}
     env_file:
+      - envs/.env.interconnect             # NCCL/RDMA (manifest-driven, Plan 2)
       - envs/.env.${CONFIG_FILE:-default}
     command: ["bash", "/app/configs/serve_runner.sh"]

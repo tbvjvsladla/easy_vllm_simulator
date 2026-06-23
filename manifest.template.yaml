@@ -40,12 +40,17 @@ interconnect:
   platform_preset: <key>       # 렌더 튜닝상수(NCCL GDR/QPS/CROSS_NIC 등) 프리셋 키. 예: dgx-spark-gb10
 
 # === 멀티노드 전용 — topology: multi 일 때만 채운다 (전부 인터뷰) ===
-# 각 항목: role(main|sub) · host(IP 또는 호스트명) · ssh_user(passwordless SSH 계정).
+# 각 항목: role(main|sub) · host(IP 또는 호스트명) · ssh_user(passwordless SSH 계정) · work_dir(레포 작업경로).
 # 단일노드면 이 목록은 비워둔다.
+# work_dir: 그 노드에서 레포가 사는 절대경로. sync_to_sub.sh·multinode_*smoke.sh 가 여기서 해소(하드코딩 금지 — 포인터 원칙).
+#   서브 work_dir 기본값 = 메인 work_dir 와 동일(R2, plan_2026062320_1). 미지정 시 스크립트가 로컬 $REPO 로 유도.
+#   ⚠ 서브 work_dir 신설은 반드시 HITL(sync_to_sub.sh --provision 승인) — 자동 경로 신설 금지(R2).
 nodes:
   - role: main
     host: <IP_or_hostname>        # 인터뷰 — 메인 노드 주소
     ssh_user: <user>              # 인터뷰 — SSH 계정
+    work_dir: <abs_path>          # 메인 레포 루트(예 /home/<user>/ws_docker/easy_vllm_simulator). 미지정 시 로컬 $REPO.
   - role: sub
     host: <IP_or_hostname>        # 인터뷰 — 서브 노드 주소
     ssh_user: <user>              # 인터뷰 — SSH 계정
+    work_dir: <abs_path>          # 서브 작업환경. 기본값=메인 work_dir 와 동일(R2). ⚠ 신설은 HITL 후(자동신설 금지).

@@ -71,7 +71,7 @@ x-gpu-common: &gpu-common
 ### 프로젝트 구조
 
 ```
-vllm_serving_server/
+easy_vllm_simulator/
 ├── Dockerfile
 ├── docker-compose.yaml
 ├── requirements.txt

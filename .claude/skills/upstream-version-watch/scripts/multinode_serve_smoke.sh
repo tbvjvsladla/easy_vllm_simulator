@@ -20,17 +20,35 @@ REPO="$(cd "$SDIR/../../../.." && pwd)"
 cd "$REPO"
 EF="output/multi/envs/.env.${CONFIG}"   # 산출물 통로 분리(plan_2026062312_1): compose·env 는 output/multi/ 아래
 [ -f "$EF" ] || { echo "[mn] FAIL: $EF 없음"; exit 3; }
+# 통로 self-containment 전제(plan_2026062321_1 I1/I2): 러너 스크립트가 통로에 materialize 됐는지 fail-loud.
+for s in serve_runner.sh debug-init.sh; do
+  [ -f "output/multi/configs/$s" ] || { echo "[mn] FAIL: 통로 미완결 — output/multi/configs/$s 부재. 먼저 'render_dockerfile.py --materialize-configs --topology multi' 실행(후 sync_to_sub.sh --apply)"; exit 3; }
+done
 val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }
 MC=$(val MASTER_CONTAINER_NAME); PORT=$(val SERVING_PORT)
 MODEL=$(val SERVING_MODEL_NAME); SLAVE_IP=$(val SLAVE_HOST_IP)
-SSH_USER="${SSH_USER:-$(val SSH_USER)}"; SSH_USER="${SSH_USER:-$(id -un)}"  # env-file > env > 현재 사용자(하드코딩 금지)
+
+# ── 서브 식별자/경로 해소(단일계약): env-file > manifest nodes[sub] > 폴백. 옛 고정 서브경로 하드코딩 제거 ──
+_mf_sub() {  # field → nodes[role=sub].field (role 정확매칭 — 'subordinate' 등 접두 오인 방지)
+  local manifest="$REPO/output/multi/manifest.yaml"
+  [ -f "$manifest" ] || return 1
+  awk -v field="$1" '
+    /^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { in_sub=1; next }
+    /^[[:space:]]*-[[:space:]]*role:/             { in_sub=0 }
+    in_sub && $0 ~ "^[[:space:]]*" field ":" { sub("^[[:space:]]*" field ":[[:space:]]*",""); sub(/[[:space:]]*#.*/,""); gsub(/[ "\r]/,""); print; exit }
+  ' "$manifest"
+}
+SLAVE_IP="${SLAVE_IP:-$(_mf_sub host)}"                                              # env-file > manifest
+SSH_USER="${SSH_USER:-$(val SSH_USER)}"; SSH_USER="${SSH_USER:-$(_mf_sub ssh_user)}"; SSH_USER="${SSH_USER:-$(id -un)}"  # env-file > manifest > 현재 사용자
 SUB_HOST="${SUB_HOST:-${SSH_USER}@${SLAVE_IP}}"
 SSH="ssh -o BatchMode=yes -o ConnectTimeout=8"
-SUB_CD="cd ~/ws_docker/vllm_serving_server &&"
-echo "[mn] config=$CONFIG master=$MC port=$PORT model=$MODEL sub=$SUB_HOST"
+SUB_WORK_DIR="${SUB_WORK_DIR:-$(_mf_sub work_dir)}"; SUB_WORK_DIR="${SUB_WORK_DIR:-$REPO}"  # env > manifest > 메인 REPO(R2 기본값=동일)
+case "$SUB_WORK_DIR" in *[[:space:]]*) echo "[mn] FAIL: SUB_WORK_DIR 공백 — 원격 cd 임베드 불가: '$SUB_WORK_DIR'"; exit 3;; esac
+SUB_CD="cd $SUB_WORK_DIR &&"   # bash -lc '...' 단일인용 컨텍스트 임베드 — 무공백 보장(위 가드)
+echo "[mn] config=$CONFIG master=$MC port=$PORT model=$MODEL sub=$SUB_HOST sub_work_dir=$SUB_WORK_DIR"
 
 # ── NAS pre-flight (다운로드 금지) ──
-python3 "$SDIR/check_smoke_model.py" "$CONFIG" --repo "$REPO" || { echo "[mn] STOP: 스모크 모델 부재 — 다운로드 금지, 중단"; exit 3; }
+python3 "$SDIR/check_smoke_model.py" "$CONFIG" --repo "$REPO" --topology multi || { echo "[mn] STOP: 스모크 모델 부재 — 다운로드 금지, 중단"; exit 3; }
 
 # ── 빌드(옵션, 양 노드 병렬) ──
 if [ "$BUILD" = "1" ]; then

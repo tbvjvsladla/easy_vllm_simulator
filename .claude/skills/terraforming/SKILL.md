@@ -62,6 +62,11 @@ NAS·CUDA)을 먼저 알아야 한다. terraforming 은 이를 **스캔(자동�
 ### 1.6 manifest 기입 (HITL)
 검증 통과 시 `scan_node.py --emit-manifest` 가 topology+interconnect 블록 산출 → **사람 확인 후** `output/<topology>/manifest.yaml` 반영. **무증거 기입 금지.**
 
+### 1.7 서브 work_dir 프로비저닝 게이트 (HITL — R2 불변식, plan_2026062320_1)
+서브노드에 메인 산출물을 복제하려면 서브 작업경로(`nodes[role=sub].work_dir`)가 있어야 한다. **기본값 = 메인 work_dir 와 동일**(예 main `~/ws_docker/easy_vllm_simulator` → sub 동일 경로). 그러나:
+- **경로 신설은 반드시 HITL** — `sync_to_sub.sh --apply` 는 서브 work_dir 부재 시 **정지 + "이 경로를 신설할까요?" 질의**(exit 5). 사람 승인(`--provision`) 시에만 `mkdir -p` 후 전송.
+- **HITL 없는 자동 경로 신설 절대 금지.** 경로값은 manifest 에서만 해소(하드코딩 금지 — 포인터 원칙).
+
 ## 2. 결정론 vs 판단 분리
 | 결정론 (`scripts/scan_node.py`) | 판단 (이 페르소나) |
 |---|---|
@@ -75,6 +80,7 @@ NAS·CUDA)을 먼저 알아야 한다. terraforming 은 이를 **스캔(자동�
 
 ## 4. 금지
 - 사용자 승인 없는 자동스캔 / 서브노드 무단 프로빙.
+- **HITL 없는 서브 work_dir 자동 신설**(R2 위반 — §1.7. 부재 시 정지·질의, `--provision` 승인 전 무신설).
 - 성능(ib_write_bw) 미검증 멀티-ready manifest 기입(fail-closed 위반).
 - 무증거 manifest 오버라이드 / topology를 브랜치와 어긋나게 기입(3자-일치 위반).
 - SSH 키 교환·물리망 구성 대행(Case A — 검증·가이드까지만).

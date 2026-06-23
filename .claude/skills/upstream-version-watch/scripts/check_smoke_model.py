@@ -10,7 +10,10 @@
 3. 컨테이너 경로의 /app/models 를 호스트 루트로 치환 → 실재(isdir) 확인.
 
 종료코드: 0=존재 / 2=모델 부재(보고) / 3=설정 파싱 실패.
-사용: python3 check_smoke_model.py <config_name> [--repo .]
+사용: python3 check_smoke_model.py <config_name> --topology {single|multi} [--repo .]
+      python3 check_smoke_model.py <config_name> --base output/multi [--repo .]
+산출물 통로(plan_2026062312_1): configs/·docker-compose.yaml 는 output/<topology>/ 아래에 있다.
+  → --topology 또는 --base 로 그 통로를 명시한다(루트 경로 폴백 금지 — fail-loud, single·multi 양쪽 정합).
 """
 import sys, os, re, argparse
 
@@ -38,10 +41,24 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("config_name")
     ap.add_argument("--repo", default=".")
+    ap.add_argument("--topology", choices=["single", "multi"],
+                    help="산출물 통로 output/<topology>/ 선택")
+    ap.add_argument("--base",
+                    help="configs/·docker-compose.yaml 을 담은 디렉토리 직접 지정(--topology 보다 우선)")
     a = ap.parse_args()
 
-    cfg = os.path.join(a.repo, "configs", f"{a.config_name}.yaml")
-    compose = os.path.join(a.repo, "docker-compose.yaml")
+    # 산출물 통로 해소: --base 우선, 없으면 output/<topology>/. 둘 다 없으면 fail-loud(루트 폴백 금지).
+    if a.base:
+        base = a.base if os.path.isabs(a.base) else os.path.join(a.repo, a.base)
+    elif a.topology:
+        base = os.path.join(a.repo, "output", a.topology)
+    else:
+        print("[NAS-check] FAIL: --topology {single|multi} 또는 --base 필요 "
+              "(configs·compose 는 output/<topology>/ 통로에 있음 — plan_2026062312_1)", file=sys.stderr)
+        sys.exit(3)
+
+    cfg = os.path.join(base, "configs", f"{a.config_name}.yaml")
+    compose = os.path.join(base, "docker-compose.yaml")
 
     if not os.path.exists(cfg):
         print(f"[NAS-check] FAIL: 트리플릿 yaml 없음 — {cfg}", file=sys.stderr)
@@ -49,6 +66,10 @@ def main():
     model_ctr = read_model_path(cfg)
     if not model_ctr:
         print(f"[NAS-check] FAIL: {cfg} 에 model: 없음", file=sys.stderr)
+        sys.exit(3)
+    if not os.path.exists(compose):
+        print(f"[NAS-check] FAIL: docker-compose.yaml 없음 — {compose} "
+              "(render 산출물 통로 확인 — output/<topology>/)", file=sys.stderr)
         sys.exit(3)
     host_root = read_app_models_host_root(compose)
     if not host_root:

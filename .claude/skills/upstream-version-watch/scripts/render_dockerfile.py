@@ -34,9 +34,40 @@ import sys
 import os
 import re
 import json
+import shutil
 import argparse
 
 IMAGE_NAME = "easy-vllm"
+
+# 통로 self-containment(plan_2026062321_1 I1/I2): 컨테이너가 쓰는 러너 스크립트 정본은 repo-root configs/(tracked).
+# render 가 이를 output/<topology>/configs/ 로 materialize(복사)해 통로를 완결시킨다(런타임 mount-overlay·통로 밖 마운트 금지).
+RUNNER_SCRIPTS = ("serve_runner.sh", "debug-init.sh")
+
+# ── NCCL/RDMA 통신 env (Plan 2: docker-compose 하드코딩 17개 → manifest-driven 렌더) ──────────
+#   3-tier taxonomy: ①환경값 = manifest.interconnect(hca_devices/gid_index/socket_iface)
+#                     ②프리셋 = NCCL_PRESETS[platform_preset]  ③불변 = NCCL_INVARIANTS.
+#   배포 기준 = dgx-spark-gb10 단일 프리셋. 다른 플랫폼은 배포자 코드에이전트가 확장(선반영 금지·Karpathy B2).
+#   미지 platform_preset → fail-loud(KeyError, 무증거 추측 금지). 회귀 oracle:
+#     .claude/skills/upstream-version-watch/fixtures/nccl_env_dgx-spark-gb10.golden (검증 208.2 Gb/s).
+NCCL_PRESETS = {
+    "dgx-spark-gb10": {                 # devlog_250422 검증 튜닝(20→47 tok/s · 2.35x)
+        "NCCL_IB_MERGE_NICS": "1",
+        "NCCL_IB_QPS_PER_CONNECTION": "4",
+        "NCCL_IB_SPLIT_DATA_ON_QPS": "0",
+        "NCCL_NET_GDR_LEVEL": "SYS",
+        "NCCL_NET_GDR_C2C": "1",
+        "NCCL_NET_GDR_READ": "1",
+        "NCCL_CROSS_NIC": "1",
+    },
+}
+NCCL_INVARIANTS = {                     # ③ universal — 인터커넥트 무관 디버그/안전
+    "NCCL_DEBUG": "INFO",
+    "NCCL_DEBUG_SUBSYS": "INIT,NET,GRAPH,ENV",
+    "NCCL_IB_DISABLE": "0",            # RoCE 상존 전제(dgx-spark). 비-RDMA 프리셋 생기면 ②로 이동(seam)
+}
+# socket_iface 한 값을 참조하는 ① env 키들(NCCL bootstrap·gloo·torch·UCX·OpenMPI).
+_IFACE_ENV_KEYS = ("NCCL_SOCKET_IFNAME", "GLOO_SOCKET_IFNAME", "TP_SOCKET_IFNAME",
+                   "UCX_NET_DEVICES", "OMPI_MCA_btl_tcp_if_include")
 
 # source-build 가드 키: (NGC 베이스 태그, vLLM 버전) 튜플.
 #   변별자는 torch 핀이 아니라 **NGC 베이스(=실-링크 torch) × vLLM source 버전**이다.
@@ -65,7 +96,11 @@ def load_manifest(path: str) -> dict:
         with open(path, encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
     except Exception:
-        return _load_yaml_flat(path)
+        d = _load_yaml_flat(path)
+        ic = _parse_interconnect_block(path)   # 폴백: 중첩 interconnect 블록 보강(Plan 2 — flat 파서가 못 읽음)
+        if ic:
+            d["interconnect"] = ic
+        return d
 
 
 def _load_yaml_flat(path: str) -> dict:
@@ -102,6 +137,39 @@ def _strip_inline_comment(val: str) -> str:
         elif ch == "#" and not in_q and i > 0 and val[i - 1] == " ":
             return val[:i]
     return val
+
+
+def _parse_interconnect_block(path: str) -> dict:
+    """stdlib 폴백 전용: manifest 의 중첩 `interconnect:` 블록만 파싱(pyyaml 부재 시).
+    flat 파서(_load_yaml_flat)가 들여쓰기를 스킵하므로 interconnect 를 별도로 보강한다.
+    list(`[a, b]`)·scalar·null 처리. 다른 최상위 키를 만나면 블록 종료."""
+    ic: dict = {}
+    in_block = False
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            raw = line.rstrip("\n")
+            if not raw.strip() or raw.lstrip().startswith("#"):
+                continue
+            indent = len(raw) - len(raw.lstrip(" \t"))
+            stripped = raw.strip()
+            if indent == 0:                       # 최상위 키 — interconnect 진입/이탈
+                in_block = stripped.startswith("interconnect:")
+                continue
+            if not in_block or stripped.startswith("-") or ":" not in stripped:
+                continue
+            key, val = stripped.split(":", 1)
+            key = key.strip()
+            val = _strip_inline_comment(val).strip()
+            if val.startswith("[") and val.endswith("]"):
+                inner = val[1:-1].strip()
+                ic[key] = [x.strip().strip("'\"") for x in inner.split(",") if x.strip()] if inner else []
+            elif val in ("", "null", "~"):
+                ic[key] = None
+            else:
+                if (val[0] == val[-1]) and val[0] in ("'", '"'):
+                    val = val[1:-1]
+                ic[key] = val
+    return ic
 
 
 # ── 컨텍스트 빌드 ─────────────────────────────────────────────────────────────
@@ -162,6 +230,91 @@ def build_context(manifest: dict, resolved: dict) -> dict:
         "CUDA_VERSION": str(wheel.get("cuda", "") or ""),
         "VLLM_MANYLINUX": str(wheel.get("manylinux", "") or ""),
     }
+
+
+# ── NCCL envfile 빌드 (Plan 2 — manifest.interconnect + preset → 17 KEY=VALUE) ───────────────
+def build_nccl_env(manifest: dict) -> dict:
+    """manifest.interconnect + NCCL_PRESETS + NCCL_INVARIANTS → NCCL env 17개 dict.
+    결정론적 lookup·문자열포맷만(확률 추론 없음). 결손/미지 키는 fail-loud."""
+    ic = manifest.get("interconnect")
+    if not ic:
+        raise ValueError("manifest.interconnect 부재 — NCCL 렌더 불가(fail-loud, 무증거 진행 금지)")
+
+    hca = ic.get("hca_devices")
+    gid = ic.get("gid_index")
+    iface = ic.get("socket_iface")
+    for name, v in (("hca_devices", hca), ("gid_index", gid), ("socket_iface", iface)):
+        if v is None or v == "" or v == []:
+            raise ValueError(f"manifest.interconnect.{name} 결손 — fail-loud")
+
+    hca_list = [h.strip() for h in hca.split(",") if h.strip()] if isinstance(hca, str) else list(hca)
+
+    env: dict = {}
+    # ① 환경값 (manifest.interconnect)
+    env["NCCL_IB_HCA"] = "=" + ",".join(hca_list)   # "=" prefix = NCCL 정확매칭(prefix-매칭 경로꼬임 방지)
+    env["NCCL_IB_GID_INDEX"] = str(gid)
+    for k in _IFACE_ENV_KEYS:
+        env[k] = str(iface)
+    # ② 프리셋 (platform_preset 역참조 — 미지키 fail-loud)
+    preset_key = ic.get("platform_preset")
+    if preset_key not in NCCL_PRESETS:
+        raise KeyError(f"platform_preset '{preset_key}' 미정의 — 알려진 {sorted(NCCL_PRESETS)} "
+                       f"(fail-loud; 확장은 배포자 코드에이전트가 NCCL_PRESETS 에 추가)")
+    env.update(NCCL_PRESETS[preset_key])
+    # ③ 불변
+    env.update(NCCL_INVARIANTS)
+    return env
+
+
+def render_nccl_envfile(manifest: dict) -> str:
+    """build_nccl_env → flat KEY=VALUE envfile 문자열(키 정렬=결정론). compose 가 env_file 로 참조."""
+    env = build_nccl_env(manifest)
+    preset_key = manifest["interconnect"].get("platform_preset")
+    header = [
+        "# .env.interconnect — manifest-driven NCCL/RDMA env (render_dockerfile.py 생성·비추적).",
+        f"# 원천: manifest.interconnect(①환경값) + NCCL_PRESETS[{preset_key}](②프리셋) + NCCL_INVARIANTS(③불변).",
+        "# 회귀 oracle: fixtures/nccl_env_dgx-spark-gb10.golden (집합 동치). 손수정 금지 — manifest/preset 을 고칠 것.",
+        "",
+    ]
+    body = [f"{k}={env[k]}" for k in sorted(env)]
+    return "\n".join(header + body) + "\n"
+
+
+def _parse_env_pairs(text: str) -> dict:
+    """KEY=VALUE envfile → dict(주석·공백·빈줄 무시, 첫 '='로 split). 집합 동치 비교용."""
+    out: dict = {}
+    for line in text.splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        k, _, v = s.partition("=")
+        out[k.strip()] = v.strip()
+    return out
+
+
+# ── 통로 materialize (plan_2026062321_1 — 통로 self-containment) ───────────────
+def _repo_root() -> str:
+    """이 스크립트(.claude/skills/upstream-version-watch/scripts/) 기준 repo 루트(4단계 상위)."""
+    return os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
+
+
+def materialize_configs(repo: str, topology: str) -> list:
+    """repo-root configs/ 의 러너 스크립트(정본) → output/<topology>/configs/ 복사(통로 self-containment, I1/I2).
+    멱등(덮어쓰기) · 실행권한 보존 · 정본 부재 시 fail-loud. 반환: 복사한 대상 경로 리스트.
+    compose 가 통로(`./configs`)만 단일 마운트하면 되도록 통로를 완결시킨다(런타임 mount-overlay 폐기)."""
+    src_dir = os.path.join(repo, "configs")
+    dst_dir = os.path.join(repo, "output", topology, "configs")
+    os.makedirs(dst_dir, exist_ok=True)
+    copied = []
+    for name in RUNNER_SCRIPTS:
+        src = os.path.join(src_dir, name)
+        if not os.path.isfile(src):
+            raise FileNotFoundError(f"러너 스크립트 정본 부재: {src} (repo-root configs/ — tracked 빌딩블럭)")
+        dst = os.path.join(dst_dir, name)
+        shutil.copyfile(src, dst)
+        shutil.copymode(src, dst)   # 실행권한 보존
+        copied.append(dst)
+    return copied
 
 
 # ── 렌더 ─────────────────────────────────────────────────────────────────────
@@ -234,17 +387,100 @@ def _self_test() -> None:
     assert "exit 1" in out_bad, "guard(fail-loud) for (26.03, 0.23.0)"
     print("[render] self-test OK — source-build 렌더 + (NGC베이스×vLLM버전) 키 가드(검증x2/fail-loud) 정상")
 
+    # ── NCCL envfile 회귀(Plan 2 S2): golden 대비 KEY=VALUE 집합 동치 + fail-loud ──
+    golden_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "..", "fixtures", "nccl_env_dgx-spark-gb10.golden")
+    with open(golden_path, encoding="utf-8") as f:
+        golden = _parse_env_pairs(f.read())
+    man_ic = {"interconnect": {"type": "RoCE v2",
+                               "hca_devices": ["rocep1s0f1", "roceP2p1s0f1"],
+                               "gid_index": 3, "socket_iface": "enp1s0f1np1",
+                               "bandwidth_gbps": 208.2, "platform_preset": "dgx-spark-gb10"}}
+    rendered = _parse_env_pairs(render_nccl_envfile(man_ic))
+    if rendered != golden:
+        only_r = {k: rendered[k] for k in rendered if golden.get(k) != rendered[k]}
+        only_g = {k: golden[k] for k in golden if rendered.get(k) != golden[k]}
+        raise AssertionError(f"NCCL 렌더 != golden(집합 동치 위반)\n  rendered-side={only_r}\n  golden-side={only_g}")
+    assert len(rendered) == 17, f"NCCL 17키 기대, got {len(rendered)}"
+    # fail-loud ①: 미지 platform_preset → KeyError
+    try:
+        build_nccl_env({"interconnect": {**man_ic["interconnect"], "platform_preset": "no-such-preset"}})
+        raise AssertionError("미지 platform_preset 인데 통과(fail-loud 위반)")
+    except KeyError:
+        pass
+    # fail-loud ②: interconnect 필드 결손 → ValueError
+    try:
+        build_nccl_env({"interconnect": {"platform_preset": "dgx-spark-gb10"}})
+        raise AssertionError("interconnect 필드 결손인데 통과(fail-loud 위반)")
+    except ValueError:
+        pass
+    print("[render] NCCL self-test OK — .env.interconnect 17키 == golden 집합 동치 · 미지preset/결손 fail-loud 정상")
+
+    # ── materialize self-test (plan_2026062321_1): 정본 → 통로 복사 멱등·실행권한·fail-loud ──
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        os.makedirs(os.path.join(td, "configs"))
+        os.makedirs(os.path.join(td, "output", "multi"))
+        for name in RUNNER_SCRIPTS:
+            p = os.path.join(td, "configs", name)
+            with open(p, "w", encoding="utf-8") as f:
+                f.write(f"#!/bin/bash\n# {name}\n")
+            os.chmod(p, 0o755)
+        copied = materialize_configs(td, "multi")
+        assert len(copied) == len(RUNNER_SCRIPTS), "materialize 복사 수"
+        for name in RUNNER_SCRIPTS:
+            dst = os.path.join(td, "output", "multi", "configs", name)
+            assert os.path.isfile(dst), f"materialize 대상 부재: {name}"
+            assert os.access(dst, os.X_OK), f"실행권한 미보존: {name}"
+        materialize_configs(td, "multi")  # 멱등(재호출 OK)
+        os.remove(os.path.join(td, "configs", RUNNER_SCRIPTS[0]))
+        try:
+            materialize_configs(td, "multi")
+            raise AssertionError("정본 부재인데 통과(fail-loud 위반)")
+        except FileNotFoundError:
+            pass
+    print("[render] materialize self-test OK — 러너 스크립트 통로 복사(멱등·권한·fail-loud) 정상")
+
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="render_dockerfile.py — G2 결정론 렌더러")
-    ap.add_argument("--self-test", action="store_true", help="내장 self-test(A7 게이트)")
+    ap.add_argument("--self-test", action="store_true", help="내장 self-test(A7 게이트 + NCCL 회귀)")
+    ap.add_argument("--nccl-envfile", action="store_true",
+                    help="NCCL .env.interconnect 렌더(manifest.interconnect 소비, Plan 2)")
+    ap.add_argument("--materialize-configs", action="store_true",
+                    help="러너 스크립트(serve_runner/debug-init)를 output/<topology>/configs/ 로 복사(통로 self-containment, plan_2026062321_1)")
+    ap.add_argument("--topology", choices=["single", "multi"], help="--materialize-configs 대상 통로")
+    ap.add_argument("--repo", help="repo 루트(미지정 시 스크립트 위치 기준 자동)")
     ap.add_argument("--template", help="템플릿 경로")
     ap.add_argument("--manifest", default="manifest.yaml")
     ap.add_argument("--resolved", default="resolved.json")
     ap.add_argument("-o", "--out", help="출력 파일(미지정 시 stdout)")
     a = ap.parse_args()
 
-    if a.self_test or not a.template:
+    if a.self_test:
+        _self_test()
+        return
+
+    if a.nccl_envfile:
+        out = render_nccl_envfile(load_manifest(a.manifest))
+        if a.out:
+            with open(a.out, "w", encoding="utf-8") as f:
+                f.write(out)
+            print(f"[render] NCCL envfile → {a.out} ({len(_parse_env_pairs(out))} keys)", file=sys.stderr)
+        else:
+            sys.stdout.write(out)
+        return
+
+    if a.materialize_configs:
+        if not a.topology:
+            print("[render] FAIL: --materialize-configs 에는 --topology {single|multi} 필요", file=sys.stderr)
+            sys.exit(2)
+        copied = materialize_configs(a.repo or _repo_root(), a.topology)
+        for c in copied:
+            print(f"[render] materialize → {c}", file=sys.stderr)
+        return
+
+    if not a.template:
         _self_test()
         return
 
