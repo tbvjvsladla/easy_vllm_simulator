@@ -26,8 +26,17 @@ hf_token_env_file: ""             # model_source: hf 일 때만. 토큰 등 시�
 # === 사용자 git remote (선택) ===
 origin_url: ""                    # optional — 사용자 환경의 git remote URL. 없으면 빈 문자열(로컬 전용)
 
-# === 인터커넥트 (자동탐지 + fallback 질문) ===
-interconnect: <connectx7|generic-ethernet>   # ibstat/lspci 로 RDMA 탐지 후, 불명확하면 인터뷰. 멀티노드 NCCL/Ray 입력
+# === 인터커넥트 (멀티노드 고속망 정체성 — 테라포밍 진입 스캔이 자동탐지) ===
+# 탐지원: /sys/class/infiniband(HCA) + show_gids(RoCE v2 GID·IP·iface). ibstat 미설치 환경 대비 sysfs 우선.
+# 단일노드면 type: generic-ethernet, 나머지 비움. 환경정체성 필드만 — NCCL 튜닝상수(GDR/QPS 등)는 platform_preset 으로 렌더 프리셋에서.
+# 근거: docs/plan/plan_2026062312_1(통로) · plan_2026062311_1(진입루틴) · CLAUDE.md 산출물 통로 불변식.
+interconnect:
+  type: <RoCE v2 | infiniband | generic-ethernet>   # 자동탐지(show_gids VER); 불명확 시 인터뷰
+  hca_devices: []              # 자동탐지(/sys/class/infiniband). 예: [rocep1s0f1, roceP2p1s0f1]
+  gid_index: <int|null>        # 자동탐지(show_gids RoCE v2 + IPv4 행의 INDEX). 예: 3
+  socket_iface: <name>         # NCCL/Gloo bootstrap iface. 예: enp1s0f1np1
+  bandwidth_gbps: <num|null>   # ib_write_bw 합산 실측(성능 게이트 기준선). 예: 218. 미측정=null
+  platform_preset: <key>       # 렌더 튜닝상수(NCCL GDR/QPS/CROSS_NIC 등) 프리셋 키. 예: dgx-spark-gb10
 
 # === 멀티노드 전용 — topology: multi 일 때만 채운다 (전부 인터뷰) ===
 # 각 항목: role(main|sub) · host(IP 또는 호스트명) · ssh_user(passwordless SSH 계정).
