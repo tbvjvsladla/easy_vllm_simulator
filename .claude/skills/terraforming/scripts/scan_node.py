@@ -223,6 +223,90 @@ def emit_manifest_block(result: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def evaluate_gate(*, declared, ic_present, peer_given, peer_reachable, bandwidth, bw_floor,
+                  branch=None, branch_topo=None, mani_topo=None, mani_path="manifest.yaml",
+                  peer_ip=None):
+    """결정론 게이트 판정 — **순수 함수**(I/O 없음 → --self-test 회귀 대상). 반환 (assertion, gate, exit_code).
+    3자-일치 단언(branch↔manifest↔scan) + α/γ(구조)/γ(성능 fail-closed)/multi-ready 판정을 한 곳에 codify."""
+    mism: list[str] = []     # blocking(혼재/위험)
+    warns: list[str] = []    # 비blocking(정보)
+    if declared in ("single", "multi"):
+        if branch_topo and branch_topo != declared:
+            mism.append(f"declared={declared} ≠ git branch({branch})⇒{branch_topo}")
+        if declared == "multi" and not ic_present:
+            mism.append("declared=multi 인데 스캔: RoCE v2 미탐지")
+        if declared == "single" and ic_present:
+            warns.append("single 선언 + RoCE 하드웨어 존재 — 멀티 가능 머신의 단일노드 운용(정상·정보)")
+        if mani_topo and branch_topo and mani_topo != branch_topo:
+            mism.append(f"manifest({mani_path}) topology={mani_topo} ≠ branch⇒{branch_topo}")
+    assertion = {
+        "git_branch": branch, "branch_implies": branch_topo,
+        "manifest_path": mani_path, "manifest_topology": mani_topo, "declared": declared,
+        "scan_interconnect_present": ic_present,
+        "consistent": not mism, "mismatches": mism, "warnings": warns,
+    }
+    exit_code = 0
+    if declared == "single":
+        gate = {"branch": "alpha", "status": "ok" if not mism else "blocked", "mismatches": mism,
+                "note": "single-node: interconnect 스캔 skip(실패 아님)" if not mism else "일관성 단언 실패 → blocked"}
+        if mism:
+            exit_code = 2
+    elif declared == "multi":
+        struct_block = []
+        if not ic_present:
+            struct_block.append("RoCE v2 미탐지")
+        if peer_given and not peer_reachable:
+            struct_block.append(f"peer {peer_ip} 미도달")
+        struct_block += mism
+        if struct_block:                                   # γ: 구조/일관성 미충족
+            gate = {"branch": "gamma", "status": "blocked", "reasons": struct_block,
+                    "note": "멀티-ready manifest 미생성. 구조/일관성 확보 후 재실행."}
+            exit_code = 2
+        elif bandwidth is None:                            # 구조 충족, 성능 측정 대기
+            pend = [] if peer_given else ["peer-ip 미지정(도달성 미검증)"]
+            gate = {"branch": "multi-ready-candidate", "status": "pending-perf", "pending": pend,
+                    "note": f"구조 충족. ib_write_bw 합산 ≥{bw_floor}Gb/s 측정(--bandwidth-gbps) 후 ready."}
+        elif bandwidth < bw_floor:                         # γ: 성능 미달(fail-closed)
+            gate = {"branch": "gamma", "status": "blocked",
+                    "reasons": [f"대역폭 {bandwidth}Gb/s < 합격선 {bw_floor}Gb/s"],
+                    "note": "성능 미달 → 멀티-ready 거부(fail-closed). 오설정 점검(케이블 수/GID/MTU/GDR)."}
+            exit_code = 2
+        else:                                              # multi-ready: 구조+성능 통과
+            gate = {"branch": "multi-ready", "status": "ok", "bandwidth_gbps": bandwidth,
+                    "note": f"구조+성능 통과(대역폭 {bandwidth} ≥ {bw_floor}Gb/s). 멀티-ready."}
+    else:  # auto — 보고만
+        gate = {"branch": "auto", "status": "report-only",
+                "note": "토폴로지 미선언 — single/multi 명시 시 게이트 판정. 스캔 사실만 보고."}
+    return assertion, gate, exit_code
+
+
+def _self_test() -> int:
+    """게이트 5분기 회귀 — 실 2노드 라이브 검증(testlog_2026062314_1)을 fixture로 고정(#4). 하드웨어 불요."""
+    F = 180.0
+    cases = [
+        # name, kwargs, (expect_gate, expect_exit, expect_consistent)
+        ("multi-ready(구조+성능)", dict(declared="multi", ic_present=True, peer_given=True, peer_reachable=True, bandwidth=208.2, bw_floor=F, branch_topo="multi", mani_topo="multi"), ("multi-ready", 0, True)),
+        ("multi γ(성능 fail-closed)", dict(declared="multi", ic_present=True, peer_given=True, peer_reachable=True, bandwidth=100.0, bw_floor=F, branch_topo="multi", mani_topo="multi"), ("gamma", 2, True)),
+        ("multi γ(peer 미도달)", dict(declared="multi", ic_present=True, peer_given=True, peer_reachable=False, bandwidth=208.2, bw_floor=F, branch_topo="multi", mani_topo="multi", peer_ip="x"), ("gamma", 2, True)),
+        ("multi γ(no RoCE)", dict(declared="multi", ic_present=False, peer_given=True, peer_reachable=True, bandwidth=208.2, bw_floor=F, branch_topo="multi", mani_topo="multi"), ("gamma", 2, False)),
+        ("multi pending-perf", dict(declared="multi", ic_present=True, peer_given=True, peer_reachable=True, bandwidth=None, bw_floor=F, branch_topo="multi", mani_topo="multi"), ("multi-ready-candidate", 0, True)),
+        ("single α", dict(declared="single", ic_present=False, peer_given=False, peer_reachable=None, bandwidth=None, bw_floor=F, branch_topo="single", mani_topo="single"), ("alpha", 0, True)),
+        ("single α + RoCE(경고 비blocking)", dict(declared="single", ic_present=True, peer_given=False, peer_reachable=None, bandwidth=None, bw_floor=F, branch_topo="single", mani_topo="single"), ("alpha", 0, True)),
+        ("single on multi-branch(혼재차단)", dict(declared="single", ic_present=True, peer_given=False, peer_reachable=None, bandwidth=None, bw_floor=F, branch_topo="multi", mani_topo="multi"), ("alpha", 2, False)),
+        ("manifest≠branch(혼재차단)", dict(declared="multi", ic_present=True, peer_given=True, peer_reachable=True, bandwidth=208.2, bw_floor=F, branch_topo="multi", mani_topo="single"), ("gamma", 2, False)),
+    ]
+    passed = 0
+    for name, kw, (eg, ec, econ) in cases:
+        a, g, code = evaluate_gate(**kw)
+        ok = (g["branch"] == eg and code == ec and a["consistent"] == econ)
+        passed += ok
+        print(f"  [{'PASS' if ok else 'FAIL'}] {name}: gate={g['branch']} exit={code} consistent={a['consistent']}"
+              + ("" if ok else f"  ← 기대 ({eg},{ec},{econ})"))
+    n = len(cases)
+    print(f"self-test: {passed}/{n} {'PASS' if passed == n else 'FAIL'}")
+    return 0 if passed == n else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="terraforming 결정론 스캔 코어 (사실만)")
     ap.add_argument("--topology", choices=["single", "multi", "auto"], default="auto",
@@ -239,7 +323,12 @@ def main() -> int:
                     help="검증 통과 시 manifest topology+interconnect 블록을 stdout 끝에 출력")
     ap.add_argument("--manifest", default=None,
                     help="manifest 실값 경로(기본=브랜치 파생 output/<topology>/manifest.yaml). plan_2026062315_1")
+    ap.add_argument("--self-test", action="store_true",
+                    help="게이트 5분기 결정론 회귀(하드웨어 불요 — 라이브 검증 고정, #4)")
     args = ap.parse_args()
+
+    if args.self_test:
+        return _self_test()
 
     ic = detect_interconnect()
     if args.bandwidth_gbps is not None:
@@ -258,67 +347,21 @@ def main() -> int:
         result["peer_check"] = {"ip": args.peer_ip, "port": args.peer_port,
                                 "reachable": peer_reachable(args.peer_ip, args.peer_port)}
 
-    # ── 3자-일치 단언 (branch ↔ manifest.topology ↔ scan) — 혼재 차단 ──
+    # ── 3자-일치 단언 + α/γ 게이트 (결정론 — evaluate_gate 순수함수, --self-test 회귀) ──
     branch = git_branch()
     branch_topo = {"single-node": "single", "multi-node": "multi"}.get(branch or "")
     # manifest 실값은 브랜치 파생 통로 output/<topology>/manifest.yaml (plan_2026062315_1).
     mani_path = args.manifest or (f"output/{branch_topo}/manifest.yaml" if branch_topo else "manifest.yaml")
     mani_topo = read_manifest_topology(mani_path)
-    mism: list[str] = []     # blocking(혼재/위험)
-    warns: list[str] = []    # 비blocking(정보)
-    if args.topology in ("single", "multi"):
-        if branch_topo and branch_topo != args.topology:
-            mism.append(f"declared={args.topology} ≠ git branch({branch})⇒{branch_topo}")
-        if args.topology == "multi" and not result["interconnect_present"]:
-            mism.append("declared=multi 인데 스캔: RoCE v2 미탐지")
-        if args.topology == "single" and result["interconnect_present"]:
-            # 멀티 가능 머신을 단일노드로 운용 = 정상(시나리오: 메인/서브 각자 단일 서빙). blocking 아님.
-            warns.append("single 선언 + RoCE 하드웨어 존재 — 멀티 가능 머신의 단일노드 운용(정상·정보)")
-        if mani_topo and branch_topo and mani_topo != branch_topo:
-            mism.append(f"manifest({mani_path}) topology={mani_topo} ≠ branch⇒{branch_topo}")
-    result["consistency_assertion"] = {
-        "git_branch": branch, "branch_implies": branch_topo,
-        "manifest_path": mani_path, "manifest_topology": mani_topo, "declared": args.topology,
-        "scan_interconnect_present": result["interconnect_present"],
-        "consistent": not mism, "mismatches": mism, "warnings": warns,
-    }
-
-    # ── α/γ 토폴로지 게이트 (fail-closed) ───────────────────────────────
-    exit_code = 0
-    if args.topology == "single":
-        result["gate"] = {"branch": "alpha", "status": "ok" if not mism else "blocked",
-                          "mismatches": mism,
-                          "note": "single-node: interconnect 스캔 skip(실패 아님)" if not mism
-                                  else "일관성 단언 실패 → blocked"}
-        if mism:
-            exit_code = 2
-    elif args.topology == "multi":
-        bw = ic["bandwidth_gbps"]
-        struct_block = []
-        if not result["interconnect_present"]:
-            struct_block.append("RoCE v2 미탐지")
-        if args.peer_ip and not result["peer_check"]["reachable"]:
-            struct_block.append(f"peer {args.peer_ip} 미도달")
-        struct_block += mism
-        if struct_block:                                   # γ: 구조/일관성 미충족
-            result["gate"] = {"branch": "gamma", "status": "blocked", "reasons": struct_block,
-                              "note": "멀티-ready manifest 미생성. 구조/일관성 확보 후 재실행."}
-            exit_code = 2
-        elif bw is None:                                   # 구조 충족, 성능 측정 대기
-            pend = [] if args.peer_ip else ["peer-ip 미지정(도달성 미검증)"]
-            result["gate"] = {"branch": "multi-ready-candidate", "status": "pending-perf", "pending": pend,
-                              "note": f"구조 충족. ib_write_bw 합산 ≥{args.bw_floor}Gb/s 측정(--bandwidth-gbps) 후 ready."}
-        elif bw < args.bw_floor:                           # γ: 성능 미달(fail-closed)
-            result["gate"] = {"branch": "gamma", "status": "blocked",
-                              "reasons": [f"대역폭 {bw}Gb/s < 합격선 {args.bw_floor}Gb/s"],
-                              "note": "성능 미달 → 멀티-ready 거부(fail-closed). 오설정 점검(케이블 수/GID/MTU/GDR)."}
-            exit_code = 2
-        else:                                              # multi-ready: 구조+성능 통과
-            result["gate"] = {"branch": "multi-ready", "status": "ok", "bandwidth_gbps": bw,
-                              "note": f"구조+성능 통과(대역폭 {bw} ≥ {args.bw_floor}Gb/s). 멀티-ready."}
-    else:  # auto — 보고만(게이트 판정 안 함)
-        result["gate"] = {"branch": "auto", "status": "report-only",
-                          "note": "토폴로지 미선언 — single/multi 명시 시 게이트 판정. 스캔 사실만 보고."}
+    peer_reach = result.get("peer_check", {}).get("reachable")
+    assertion, gate, exit_code = evaluate_gate(
+        declared=args.topology, ic_present=result["interconnect_present"],
+        peer_given=bool(args.peer_ip), peer_reachable=peer_reach,
+        bandwidth=ic["bandwidth_gbps"], bw_floor=args.bw_floor,
+        branch=branch, branch_topo=branch_topo, mani_topo=mani_topo,
+        mani_path=mani_path, peer_ip=args.peer_ip)
+    result["consistency_assertion"] = assertion
+    result["gate"] = gate
 
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
