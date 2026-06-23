@@ -41,8 +41,8 @@ tiktoken 기반 토크나이저를 사용하는 모델(GPT 계열 등)은 인코
 x-gpu-common: &gpu-common
   # ...
   volumes:
-    - ${NAS_MODEL_PATH:-/mnt/models}:/app/models                                   # <-- NAS_MODEL_PATH env 로 지정
-    - ${TIKTOKEN_ENCODINGS_PATH:-/opt/tiktoken_encodings}:/encodings:ro            # <-- TIKTOKEN_ENCODINGS_PATH env 로 지정
+    - /home/ash/ws_docker/coga_triton_server/model_repo/hf_model:/app/models          # <-- 변경 필수
+    - /home/ash/ws_docker/coga_triton_server/model_repo/tiktoken_encodings:/encodings:ro  # <-- 변경 필수
     - ./configs:/app/configs:ro
 ```
 
@@ -71,7 +71,7 @@ x-gpu-common: &gpu-common
 ### 프로젝트 구조
 
 ```
-vllm_serving_server/
+easy_vllm_simulator/
 ├── Dockerfile
 ├── docker-compose.yaml
 ├── requirements.txt

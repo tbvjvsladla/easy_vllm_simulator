@@ -10,7 +10,7 @@
 > - `{{ SSH_USER }}` ← `nodes[].ssh_user`
 > - `{{ INTERCONNECT }}`·`{{ INTERCONNECT_IFACE }}`·`{{ INTERCONNECT_MTU }}` ← `interconnect` (탐지값)
 > - `{{ RAY_PORT }}` ← Ray head 포트(기본 6379) · `{{ CPU_ARCH }}` ← `cpu_arch`(uname -m)
-> - `{{ GPU_MODEL }}` ← 노드 GPU(예: 탐지값) · `{{ WORKSPACE_PATH }}` ← 서브 작업공간 경로
+> - `{{ GPU_MODEL }}` ← 노드 GPU(예: 탐지값) · `{{ WORKSPACE_PATH }}` ← `nodes[role=sub].work_dir`(서브 작업경로; 기본값=메인과 동일, R2)
 > - `{{ NAS_MOUNT }}` ← `nas_model_path` (컨테이너 내 read-only 마운트, 기본 `/mnt/models`)
 >
 > **메인↔서브 통신 구성(how)**: 메인노드 CC(오케스트레이터)가 서브노드 CC(이 페르소나)를

@@ -29,7 +29,7 @@ S2.5 sync   → (multi-node 전용) 메인 검증코드 → 서브 직접 전달
    - 서브는 메인 전달 코드로 생존. 서브 자작 envs/configs는 메인이 아카이브.
 
 S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
-   - ⑤ NAS 체크: check_smoke_model.py <config_name> — 모델 부재면 중단·보고(다운로드 금지)
+   - ⑤ NAS 체크: check_smoke_model.py <config_name> --topology <single|multi> — 모델 부재면 중단·보고(다운로드 금지). --topology 필수(산출물 통로 output/<topology>/)
    - (단일노드) 빌드: docker compose --profile debug build · 서빙: --profile serve up → 프롬프트 1회 → 비어있지 않은 완성
    - (multi-node) 2노드 Ray 서빙: scripts/multinode_serve_smoke.sh <config> [--build]
        NAS체크 → 양노드 병렬빌드 → master(메인)+slave(서브) Ray클러스터 → 엔드포인트 health 폴링 → master 엔드포인트 추론

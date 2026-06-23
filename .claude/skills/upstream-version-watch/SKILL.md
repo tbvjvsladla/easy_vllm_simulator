@@ -54,8 +54,8 @@ python3 scripts/resolve_wheel.py "$V" --arch "$ARCH"          # cuda 미지정 �
 # ④ requirements 재생성 — wheel METADATA(Requires-Dist) 기준 (권위 소스, requirements/*.txt 아님)
 python3 scripts/regen_requirements.py --from-wheel-url <wheel URL> -o requirements.txt   # 빌드 전(호스트)
 # (컨테이너 내부 정합: python3 scripts/regen_requirements.py --use-installed -o requirements.txt)
-# ⑤ no-download NAS 체크 (스모크 전): 모델 부재면 비0+중단·보고
-python3 scripts/check_smoke_model.py <config_name> --repo .
+# ⑤ no-download NAS 체크 (스모크 전): 모델 부재면 비0+중단·보고. --topology 필수(산출물 통로 output/<topology>/, plan_2026062312_1)
+python3 scripts/check_smoke_model.py <config_name> --topology <single|multi> --repo .
 # ⑥ 실패 분류 (빌드/스모크 실패 시): requirements-fixable(0)/source-build-class(1)/unknown(2)
 docker logs <c> 2>&1 | python3 scripts/classify_failure.py
 # ⑦ 빌드 트랙 제안 (proposer): torch핀 휴리스틱(2.10→wheel/2.11+→source) + SM arch(manifest scan)

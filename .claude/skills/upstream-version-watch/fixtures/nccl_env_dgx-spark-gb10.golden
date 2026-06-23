@@ -1,0 +1,31 @@
+# nccl_env_dgx-spark-gb10.golden — 검증된 NCCL/RDMA 통신 env 17개 (독립 회귀 oracle + institutional memory)
+#
+# 원천: output/multi/docker-compose.yaml &gpu-env 앵커 (Plan 2 S0 — 구현 前 추출 = 렌더러와 독립성 보장).
+# 검증 정본: devlog_250422 (git f3583f0) — 이 NCCL 튜닝이 20→47 tok/s (2.35x) · ib_write_bw 208.2 Gb/s 달성.
+# 용도: render_dockerfile.py --self-test 가 dgx-spark-gb10 manifest 로 렌더한 .env.interconnect 와 비교하는 golden.
+# 비교 규칙: KEY=VALUE 집합 동치 (순서·공백·주석 무시) — 텍스트 순서가 아니라 컨테이너 주입 값이 기준.
+# ⚠ 추적 대상(빌딩블럭). 값에 IP/NAS 없음(디바이스/iface명·숫자뿐) → 추적금지-PII 무위반 (Plan 2 D3).
+# ⚠ 이 17개 값은 hard-won 튜닝 — 무증거 변경 금지(헌법). taxonomy 재분류도 새 증거 필요.
+
+# ── ③ 불변 (render 상수) ──
+NCCL_DEBUG=INFO
+NCCL_DEBUG_SUBSYS=INIT,NET,GRAPH,ENV
+NCCL_IB_DISABLE=0
+
+# ── ① 환경값 (manifest.interconnect: hca_devices / gid_index / socket_iface) ──
+NCCL_IB_HCA==rocep1s0f1,roceP2p1s0f1
+NCCL_IB_GID_INDEX=3
+NCCL_SOCKET_IFNAME=enp1s0f1np1
+GLOO_SOCKET_IFNAME=enp1s0f1np1
+TP_SOCKET_IFNAME=enp1s0f1np1
+UCX_NET_DEVICES=enp1s0f1np1
+OMPI_MCA_btl_tcp_if_include=enp1s0f1np1
+
+# ── ② 프리셋 (NCCL_PRESETS["dgx-spark-gb10"]) ──
+NCCL_IB_MERGE_NICS=1
+NCCL_IB_QPS_PER_CONNECTION=4
+NCCL_IB_SPLIT_DATA_ON_QPS=0
+NCCL_NET_GDR_LEVEL=SYS
+NCCL_NET_GDR_C2C=1
+NCCL_NET_GDR_READ=1
+NCCL_CROSS_NIC=1
