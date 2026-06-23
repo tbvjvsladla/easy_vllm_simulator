@@ -1,8 +1,9 @@
 # 환경 매니페스트 (템플릿) — 테라포밍 스킬과 version-watch/recipe 스킬 사이의 단일 계약 인터페이스.
 #
-# 사용법: 이 파일을 manifest.yaml 로 복사해 채운다(채운 manifest.yaml 은 gitignore — 사용자 실값).
+# 사용법: 테라포밍이 이 템플릿을 채워 **output/<topology>/manifest.yaml**(브랜치 파생 통로, gitignore — 사용자 실값)로 산출한다.
+#   topology=브랜치 결정(single-node=single / multi-node=multi) → 브랜치 빈번 전환 시 재작성 0(전환=그 통로 manifest 읽음). 근거: plan_2026062315_1.
 # 테라포밍 스킬이 <auto: ...> 필드는 자동탐지로 제안하고, <interview> 필드는 사람에게 물어 채운다.
-# 헌법(CLAUDE.md)·스킬은 환경 구체값(노드·NAS·origin)을 여기서 읽는다 — 헌법에 하드코딩하지 않는다.
+# 헌법(CLAUDE.md)·스킬은 환경 구체값(노드·NAS·origin)을 output/<topology>/manifest.yaml 에서 읽는다 — 헌법에 하드코딩하지 않는다.
 #
 # ⚠️ target_gpu_budget_gib 는 여기 두지 않는다 — recipe-explorer 의 config.yaml(런 단위 노브)에 있다.
 

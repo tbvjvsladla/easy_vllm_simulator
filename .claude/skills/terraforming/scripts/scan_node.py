@@ -237,6 +237,8 @@ def main() -> int:
                     help="성능게이트 합산 합격선(Gb/s). 기본 180(=200Gbps 풀대역폭의 ~90%, devlog 218 기준).")
     ap.add_argument("--emit-manifest", action="store_true",
                     help="검증 통과 시 manifest topology+interconnect 블록을 stdout 끝에 출력")
+    ap.add_argument("--manifest", default=None,
+                    help="manifest 실값 경로(기본=브랜치 파생 output/<topology>/manifest.yaml). plan_2026062315_1")
     args = ap.parse_args()
 
     ic = detect_interconnect()
@@ -259,19 +261,26 @@ def main() -> int:
     # ── 3자-일치 단언 (branch ↔ manifest.topology ↔ scan) — 혼재 차단 ──
     branch = git_branch()
     branch_topo = {"single-node": "single", "multi-node": "multi"}.get(branch or "")
-    mism: list[str] = []
+    # manifest 실값은 브랜치 파생 통로 output/<topology>/manifest.yaml (plan_2026062315_1).
+    mani_path = args.manifest or (f"output/{branch_topo}/manifest.yaml" if branch_topo else "manifest.yaml")
+    mani_topo = read_manifest_topology(mani_path)
+    mism: list[str] = []     # blocking(혼재/위험)
+    warns: list[str] = []    # 비blocking(정보)
     if args.topology in ("single", "multi"):
         if branch_topo and branch_topo != args.topology:
             mism.append(f"declared={args.topology} ≠ git branch({branch})⇒{branch_topo}")
         if args.topology == "multi" and not result["interconnect_present"]:
             mism.append("declared=multi 인데 스캔: RoCE v2 미탐지")
         if args.topology == "single" and result["interconnect_present"]:
-            mism.append("declared=single 인데 스캔: RoCE v2 탐지(멀티 가능 환경 — 의도 확인)")
+            # 멀티 가능 머신을 단일노드로 운용 = 정상(시나리오: 메인/서브 각자 단일 서빙). blocking 아님.
+            warns.append("single 선언 + RoCE 하드웨어 존재 — 멀티 가능 머신의 단일노드 운용(정상·정보)")
+        if mani_topo and branch_topo and mani_topo != branch_topo:
+            mism.append(f"manifest({mani_path}) topology={mani_topo} ≠ branch⇒{branch_topo}")
     result["consistency_assertion"] = {
         "git_branch": branch, "branch_implies": branch_topo,
-        "manifest_topology": read_manifest_topology(), "declared": args.topology,
+        "manifest_path": mani_path, "manifest_topology": mani_topo, "declared": args.topology,
         "scan_interconnect_present": result["interconnect_present"],
-        "consistent": not mism, "mismatches": mism,
+        "consistent": not mism, "mismatches": mism, "warnings": warns,
     }
 
     # ── α/γ 토폴로지 게이트 (fail-closed) ───────────────────────────────
