@@ -1,0 +1,28 @@
+# upstream-version-watch 스킬 입력 (예시). 실제 사용 시 config.yaml 로 복사해 채운다.
+#
+# === 색인 트리거 ===
+# vLLM 버전 하나면 충분. cuda·manylinux·wheel URL 은 지정하지 않는다 —
+# resolve_wheel.py 가 GitHub Release 자산에서 자동 도출해 Dockerfile ARG 를 채운다. arch 는 $(uname -m).
+target_vllm_version: "0.18.0"        # Phase 1 안정 앵커(torch 2.10, prebuilt 동작 검증된 구간)
+
+# === 스모크 대상 (트리플릿 config_name 으로 지정) ===
+# 스모크는 기존 서빙 트리플릿으로 컨테이너를 띄워 검증한다:
+#   docker compose --env-file envs/.env.<config_name> --profile serve up
+# config_name 은 세 파일의 공통 키:
+#   envs/.env.<config_name>  ·  configs/<config_name>.yaml  ·  configs/<config_name>.sh
+# 모델 경로는 configs/<config_name>.yaml 의 model:(/app/models/<벤더>/<모델>) 에 있고,
+# docker-compose 가 NAS 루트를 /app/models 로 마운트한다.
+# ⚠️ 하드 제약: 그 모델이 NAS 경로에 없으면 스킬은 중단·보고하며 절대 다운로드하지 않는다.
+# (트리플릿이 없으면 기존 트리플릿을 본떠 생성 후 사용)
+smoke:
+  single_node:
+    config_name: "kanana-safeguard-8b-normal"   # 작고 빠른 스모크(트리플릿 존재). 버전별 신규 인자 의존 없음
+  multi_node:                                    # Phase 2(멀티노드 확장)에서 사용
+    config_name: "Qwen3.5-397B-A17B-NVFP4-normal"
+
+# NGC 태그 프로빙 시작점(YY.MM, 최신). resolve_ngc_tag.py --start 로 전달.
+ngc_probe_start: "26.05"
+
+# Loop-Until-Done 재조정 캡: requirements-fixable 실패(조정→재빌드→스모크)의 최대 반복.
+# 소진 시 무한루프 대신 Model-C HITL("소스빌드 필요? Y/N")로 분기.
+reconciliation_cap: 3

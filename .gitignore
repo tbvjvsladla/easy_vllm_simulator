@@ -3,25 +3,78 @@
 # ===========================================
 .agent/
 .agents/
-.claude/
-CLAUDE.md
-CLAUDE.local.md
-seed/
 .cursor/
 .windsurf/
 .taskmaster/
+.serena/
 .codex/
 .copilot/
 .codeium/
 .docker-skills/
 skills-lock.json
+CLAUDE.local.md
+
+# ===========================================
+# .claude 빌딩블럭 선별 추적 (배포 대상)
+#   .claude/* 전체 무시 → rules/·skills/ 디렉토리 재포함 → 그 안의 사적·산출 파일만 재제외.
+#   (재포함은 부모 디렉토리부터: 부모가 제외되면 자식은 다시 추적될 수 없다.)
+#   규칙 근거: docs/plan/plan_2026062205_1 §4
+# ===========================================
+.claude/*
+!.claude/rules/
+!.claude/skills/
+# 재제외 (재포함 이후에 와야 적용됨 / 주석은 반드시 별도 줄 — 패턴 뒤 인라인 # 은 리터럴로 취급됨)
+# 개인 로컬 설정(IP·allowlist)
+.claude/settings.local.json
+# 사용자 실값(추적은 config.example.yaml 만)
+.claude/skills/**/config.yaml
+# 실 서브노드 에이전트-카드(추적은 sub_node/CLAUDE.template.md)
+.claude/skills/**/sub_node/CLAUDE.md
+# 런타임 피드백/상태 로그(저자 누적 런 데이터 — 클론은 빈 상태로 시작, writer 가 mkdir)
+.claude/skills/**/feedback/
+# recipe-explorer Phase 1/2 per-run 산출물(모델별 생성물·답안노출 방지 — 추적은 config.example.yaml + 스크립트 엔진만)
+#   lockset.json=인터뷰 lock-set · candidates.json=LLM 후보 · parsed.json=config.json 파싱 산물
+.claude/skills/**/lockset.json
+.claude/skills/**/candidates.json
+.claude/skills/**/parsed.json
 
 # ===========================================
 # 환경 변수
 # ===========================================
 .env
 envs/.env
+envs/.env.*
 !envs/.env.example
+
+# ===========================================
+# 테라포밍 산출물 (스켈레톤 템플릿만 추적)
+#   manifest.yaml = 테라포밍이 채운 실값. 추적은 manifest.template.yaml.
+#   규칙 근거: docs/plan/plan_2026062205_1 §4·§6
+# ===========================================
+manifest.yaml
+
+# ===========================================
+# 렌더/레시피 생성 산출물 (스켈레톤·템플릿만 추적 — 생성물은 비추적)
+#   render 파이프라인이 *.template → Dockerfile·compose·requirements 산출.
+#   모델별 configs(yaml=서빙인자 / sh=불편함해소)는 recipe-explorer 가 생성.
+#   ⚠ 답안노출 방지: 이 산출물은 working-tree에서만 존재(클론은 빈 상태로 시작·render로 재생성).
+#   규칙 근거: docs/plan/plan_2026062213_1 (단일노드 배포가능검증)
+# ===========================================
+# ── 멀티노드 분기(branch-specific .gitignore) ──
+#   single-node는 /Dockerfile·/Dockerfile.source-build·/docker-compose.yaml 도 ignore(렌더 산출물)하지만,
+#   multi-node는 손작성 Ray/NCCL/네트워크-디버그 구현이 *.template 변환의 유일 원천이라 **추적 유지**한다
+#   (멀티노드 렌더 템플릿으로 졸업한 뒤 ignore 로 전환). 근거: docs/plan/plan_2026062307_1 §1 레이어2/3b.
+/requirements.txt
+# S1 resolve 산출 스냅샷 (버전 bump마다 재생성 — 추적 안 함)
+/resolved.json
+# tiktoken 에어갭 자산(gpt-oss harmony o200k — URL 다운로드본, 호스트 자산·배포물 아님)
+/tiktoken_cache/
+# 모델별 산출물 (범용 툴 configs/check_reqs.py 는 .py 라 미매칭 → 추적 유지)
+configs/*.yaml
+configs/*.sh
+# 멀티노드 토폴로지 인프라(generic Ray 런너·init — 모델별 산출물 아님 → 재포함해 추적 유지)
+!configs/serve_runner.sh
+!configs/debug-init.sh
 
 # ===========================================
 # Python
@@ -90,6 +143,7 @@ Thumbs.db
 *.log
 *.orig
 temp/
+seed/
 
 # ===========================================
 # docs — 작업 문서는 gitignore(브랜치 간 persist·통합, 빌딩블럭처럼).

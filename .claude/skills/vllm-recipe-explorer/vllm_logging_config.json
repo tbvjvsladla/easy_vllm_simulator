@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  "formatters": {
+    "vllm": {
+      "class": "logging.Formatter",
+      "datefmt": "%m-%d %H:%M:%S",
+      "format": "%(levelname)s %(asctime)s %(filename)s:%(lineno)d %(message)s"
+    }
+  },
+  "handlers": {
+    "console": {
+      "class": "logging.StreamHandler",
+      "formatter": "vllm",
+      "level": "INFO",
+      "stream": "ext://sys.stdout"
+    },
+    "file": {
+      "class": "logging.FileHandler",
+      "formatter": "vllm",
+      "level": "INFO",
+      "filename": "/app/simlog/vllm.log",
+      "mode": "w",
+      "encoding": "utf-8"
+    }
+  },
+  "loggers": {
+    "vllm": {
+      "handlers": ["console", "file"],
+      "level": "INFO",
+      "propagate": false
+    }
+  },
+  "root": {
+    "handlers": ["console", "file"],
+    "level": "INFO"
+  }
+}

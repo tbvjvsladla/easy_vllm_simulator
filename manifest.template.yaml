@@ -1,0 +1,41 @@
+# 환경 매니페스트 (템플릿) — 테라포밍 스킬과 version-watch/recipe 스킬 사이의 단일 계약 인터페이스.
+#
+# 사용법: 이 파일을 manifest.yaml 로 복사해 채운다(채운 manifest.yaml 은 gitignore — 사용자 실값).
+# 테라포밍 스킬이 <auto: ...> 필드는 자동탐지로 제안하고, <interview> 필드는 사람에게 물어 채운다.
+# 헌법(CLAUDE.md)·스킬은 환경 구체값(노드·NAS·origin)을 여기서 읽는다 — 헌법에 하드코딩하지 않는다.
+#
+# ⚠️ target_gpu_budget_gib 는 여기 두지 않는다 — recipe-explorer 의 config.yaml(런 단위 노브)에 있다.
+
+# === 토폴로지 / 하드웨어 (대부분 자동탐지) ===
+topology: <single|multi>          # 자동탐지 제안 + 사람확인(인터뷰). 멀티 = 아래 nodes[] 사용
+cpu_arch: "<auto: uname -m>"      # 자동탐지(aarch64 | x86_64). NGC 베이스·manylinux 선정 입력
+cuda_version: "<auto: nvcc 또는 인터뷰>"   # 자동탐지(nvcc --version), 실패 시 인터뷰. 예: "129"
+gpus_per_node: <int>              # 노드당 GPU 수(탈-DGX 일반화 — tp 산정 입력). 예: 1
+
+# === 폐쇄망 모델 루트 (인터뷰) ===
+nas_model_path: /mnt/models       # 사람이 사전 다운로드한 모델을 둔 호스트 NAS 루트(read-only 마운트원). 환경마다 다름
+
+# === 모델 확보 정책 (인터뷰 — 헌법 HF 다운로드 양립 결정트리) ===
+# nas  = 사람이 사전 다운로드해 NAS에 둔 모델을 read-only 마운트(기본·권장, 폐쇄망 정본).
+# hf   = HuggingFace 에서 확보. 반드시 HITL 확인 후, NAS 저장 권장 / 명시 지시 시 컨테이너 임시 다운로드.
+# 불변식: 서빙 런타임은 어떤 경우든 로컬 read-only 마운트에서 로드한다(런타임 다운로드 없음).
+model_source: <nas|hf>            # 자동탐지(NAS에 스모크 모델 존재 여부) 제안 + 사람확인
+hf_token_env_file: ""             # model_source: hf 일 때만. 토큰 등 시크릿이 담긴 env 파일 경로(예: envs/.env, gitignored).
+                                  # ⚠ 토큰 raw 값은 manifest 에 두지 않는다 — 시크릿은 envs/.env 에. 여긴 포인터만.
+
+# === 사용자 git remote (선택) ===
+origin_url: ""                    # optional — 사용자 환경의 git remote URL. 없으면 빈 문자열(로컬 전용)
+
+# === 인터커넥트 (자동탐지 + fallback 질문) ===
+interconnect: <connectx7|generic-ethernet>   # ibstat/lspci 로 RDMA 탐지 후, 불명확하면 인터뷰. 멀티노드 NCCL/Ray 입력
+
+# === 멀티노드 전용 — topology: multi 일 때만 채운다 (전부 인터뷰) ===
+# 각 항목: role(main|sub) · host(IP 또는 호스트명) · ssh_user(passwordless SSH 계정).
+# 단일노드면 이 목록은 비워둔다.
+nodes:
+  - role: main
+    host: <IP_or_hostname>        # 인터뷰 — 메인 노드 주소
+    ssh_user: <user>              # 인터뷰 — SSH 계정
+  - role: sub
+    host: <IP_or_hostname>        # 인터뷰 — 서브 노드 주소
+    ssh_user: <user>              # 인터뷰 — SSH 계정

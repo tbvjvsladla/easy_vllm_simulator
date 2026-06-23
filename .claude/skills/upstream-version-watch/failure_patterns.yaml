@@ -1,0 +1,39 @@
+# A3 — 실패 시그니처 분류 레지스트리 (결정론적 1차 분류기)
+#
+# class:
+#   requirements-fixable : 범위 내. Loop-Until-Done(조정→재빌드→스모크)로 해결. (cap=config.reconciliation_cap)
+#   source-build-class   : 범위 밖(Phase 2). propose Y/N 로 에스컬레이트(소스빌드 '필요' 감지까지가 스킬 책임).
+#
+# 매칭 안 됨 → unknown → Model-C(LLM이 {proposed_class, evidence} 제시 → 사람 승인 후 행동).
+# 신규 패턴은 에이전트가 diff 제안 → 사람 승인 후 이 파일에 codify(확률론→결정론 이전).
+#
+# 시딩 근거: docs/testlog/testlog_260607_2(0.22.1 ABI), testlog_260607_3(0.18.0 uvloop).
+
+patterns:
+  - signature: "ModuleNotFoundError: No module named '([^']+)'"
+    class: requirements-fixable
+    note: "누락 라이브러리 → requirements.txt 추가 후 재빌드. 예: uvloop(=fastapi[standard] 누락)."
+
+  - signature: "libcudart\\.so\\.\\d+: cannot open shared object file"
+    class: requirements-fixable
+    note: "CUDA 런타임 .so 부재 → nvidia-cuda-runtime-cuN 보충 + LD_LIBRARY_PATH. (cu wheel ↔ 베이스 CUDA 메이저 차). cu12-on-cu13 forward-compat 취약: aarch64에서 cu129 wheel을 CUDA13.x 베이스에 얹는 forward-compat 의존이 깨질 수 있음(신호)."
+
+  - signature: "([A-Za-z0-9_-]+): command not found"
+    class: requirements-fixable
+    note: "누락 실행파일/패키지 → requirements.txt 추가 후 재빌드. 예: ray(멀티노드 분산 필수, wheel METADATA 미포함)→ray==2.48.0 추가(testlog_260607_8)."
+
+  - signature: "'_IncludedRouter' object has no attribute 'path'"
+    class: requirements-fixable
+    note: "fastapi>=0.137.0 의 include_router 리팩터(_IncludedRouter, .path 부재)가 prometheus-fastapi-instrumentator 와 충돌 → 모든 요청(/health 포함) 500 Internal Server Error (vLLM #45596). regen 이 최신 fastapi 를 흡수하는 시간드리프트로 발현(빌드는 통과·서빙 HTTP에서 발현) → requirements.txt 에 fastapi[standard]<0.137.0 핀. testlog 2026062220(gpt-oss-20b/0.18.0 wheel)."
+
+  - signature: "No module named 'torch\\._opaque_base'"
+    class: source-build-class
+    note: "NGC torch 가 vLLM wheel 기대보다 이른/다른 빌드(torch 2.11 alpha). 소스빌드 필요."
+
+  - signature: "register_opaque_type\\(\\) got an unexpected keyword argument 'hoist'"
+    class: source-build-class
+    note: "torch 2.11 alpha private API 불일치. 조건부 HAS_OPAQUE_TYPE 패치로 import 는 우회되나, torch 2.11 alpha 구간 신호 → 후속 C++ ABI 월 동반. 소스빌드 영역."
+
+  - signature: "undefined symbol: .*"
+    class: source-build-class
+    note: "컴파일된 _C 가 베이스 torch 의 C++ ABI 와 불일치. requirements 로 불가 — 소스빌드(NGC torch 에 맞춰 _C 컴파일) 필요."

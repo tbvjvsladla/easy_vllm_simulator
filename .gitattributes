@@ -29,6 +29,18 @@ uv.lock text eol=lf
 *.txt text eol=lf
 *.rst text eol=lf
 
+# 스켈레톤 템플릿 (개행 LF 보장 — 기본 규칙에 더해 명시)
+*.template      text eol=lf
+*.template.yaml text eol=lf
+
+# 릴리스 아카이브(git archive)에서 제외 — 추적되지만 배포 tarball엔 불필요
+docs/                       export-ignore
+.claude/settings.local.json export-ignore
+
+# GitHub 언어통계 보정 — 템플릿은 스캐폴딩이므로 통계에서 제외
+*.template      linguist-generated=true
+*.template.yaml linguist-generated=true
+
 # 웹
 *.html text eol=lf
 *.css text eol=lf
