@@ -73,6 +73,17 @@ configs/*.yaml
 configs/*.sh
 
 # ===========================================
+# output/ 통로 — single/multi 산출물 경계분리 (혼재 차단)
+#   통로 껍데기(.gitkeep)만 추적 / 생성물(렌더 Dockerfile·compose·모델 config·env)은 비추적.
+#   생성물이 켜켜이 쌓여도 통로(single|multi)가 갈려 서로 침범 못 함.
+#   single-node는 output/single/ 로 렌더(render_dockerfile.py -o output/single/...).
+#   (multi-node 브랜치는 output/multi/ 손작성 정의를 추적 예외로 둠 — 거긴 브랜치별 .gitignore.)
+#   규칙 근거: docs/plan/plan_2026062312_1 · CLAUDE.md 산출물 통로 불변식
+# ===========================================
+output/*/*
+!output/*/.gitkeep
+
+# ===========================================
 # Python
 # ===========================================
 __pycache__/

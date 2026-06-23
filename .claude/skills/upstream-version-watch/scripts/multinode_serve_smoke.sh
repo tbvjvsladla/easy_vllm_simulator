@@ -18,7 +18,7 @@ for a in "$@"; do [ "$a" = "--build" ] && BUILD=1; [ "$a" = "--keep-up" ] && KEE
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$SDIR/../../../.." && pwd)"
 cd "$REPO"
-EF="envs/.env.${CONFIG}"
+EF="output/multi/envs/.env.${CONFIG}"   # 산출물 통로 분리(plan_2026062312_1): compose·env 는 output/multi/ 아래
 [ -f "$EF" ] || { echo "[mn] FAIL: $EF 없음"; exit 3; }
 val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }
 MC=$(val MASTER_CONTAINER_NAME); PORT=$(val SERVING_PORT)
@@ -35,8 +35,8 @@ python3 "$SDIR/check_smoke_model.py" "$CONFIG" --repo "$REPO" || { echo "[mn] ST
 # ── 빌드(옵션, 양 노드 병렬) ──
 if [ "$BUILD" = "1" ]; then
   echo "[mn] 양 노드 빌드(병렬)..."
-  docker compose --env-file "$EF" --profile master build >/tmp/mn_build_master.log 2>&1 & BPID=$!
-  $SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose --env-file $EF --profile slave build'" >/tmp/mn_build_slave.log 2>&1 & SPID=$!
+  docker compose -f output/multi/docker-compose.yaml --env-file "$EF" --profile master build >/tmp/mn_build_master.log 2>&1 & BPID=$!
+  $SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose -f output/multi/docker-compose.yaml --env-file $EF --profile slave build'" >/tmp/mn_build_slave.log 2>&1 & SPID=$!
   wait $BPID; MR=$?; wait $SPID; SR=$?
   if [ $MR -eq 0 ] && [ $SR -eq 0 ]; then echo "[mn] 빌드 OK(양 노드)";
   else echo "[mn] FAIL: 빌드(master=$MR slave=$SR). tail:"; tail -6 /tmp/mn_build_master.log /tmp/mn_build_slave.log; exit 2; fi
@@ -44,9 +44,9 @@ fi
 
 # ── Ray 클러스터 기동 (master 먼저=head, slave 합류) ──
 echo "[mn] master 기동(Ray head + serve)..."
-docker compose --env-file "$EF" --profile master up -d >/dev/null 2>&1
+docker compose -f output/multi/docker-compose.yaml --env-file "$EF" --profile master up -d >/dev/null 2>&1
 echo "[mn] slave 기동(Ray worker, SSH)..."
-$SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose --env-file $EF --profile slave up -d'" >/dev/null 2>&1
+$SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose -f output/multi/docker-compose.yaml --env-file $EF --profile slave up -d'" >/dev/null 2>&1
 
 # ── 준비 폴링: 엔드포인트 health(거짓양성 회피) ──
 echo "[mn] 엔드포인트 :$PORT health 폴링(2노드 분산 로드, 최대 15분)..."
@@ -72,8 +72,8 @@ fi
 # ── 정리 ──
 if [ "$KEEP" != "1" ]; then
   echo "[mn] 정리(양 노드 down)..."
-  docker compose --env-file "$EF" --profile master down >/dev/null 2>&1
-  $SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose --env-file $EF --profile slave down'" >/dev/null 2>&1
+  docker compose -f output/multi/docker-compose.yaml --env-file "$EF" --profile master down >/dev/null 2>&1
+  $SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose -f output/multi/docker-compose.yaml --env-file $EF --profile slave down'" >/dev/null 2>&1
 fi
 echo "[mn] 종료코드 $RESULT"
 exit $RESULT

@@ -48,7 +48,7 @@ SSH_OPTS="ssh -o BatchMode=yes -o ConnectTimeout=8"
 MODE="dryrun"
 [ "${1:-}" = "--apply" ] && MODE="apply"
 
-EXCLUDES=(--exclude '.git' --exclude '.claude' --exclude 'seed' --exclude 'docs' --exclude '__pycache__' --exclude 'CLAUDE.md')
+EXCLUDES=(--exclude '.git' --exclude '.claude' --exclude 'seed' --exclude 'docs' --exclude '__pycache__' --exclude 'CLAUDE.md' --exclude 'output/single')  # output/single = single-node 통로(서브 불필요). 멀티 빌드입력 output/multi 는 전송. plan_2026062312_1
 RSYNC=(rsync -az --delete -e "$SSH_OPTS" "${EXCLUDES[@]}")
 
 # ── pre-flight: SSH 도달성 ──
@@ -70,7 +70,7 @@ echo "[sync] APPLY  $SRC → $SUB_HOST:$DEST"
 # ── 전송 후 체크섬 검증(핵심 빌드 입력) ──
 echo "[sync] 체크섬 검증..."
 fail=0
-for f in Dockerfile Dockerfile.source-build docker-compose.yaml requirements.txt; do
+for f in output/multi/Dockerfile output/multi/Dockerfile.source-build output/multi/docker-compose.yaml output/multi/requirements.txt; do
     [ -f "${SRC}${f}" ] || { echo "  ⏭  ${f}: 로컬 부재 — 검증 생략(소스빌드/prebuilt 브랜치 차이)"; continue; }
     L=$(md5sum "${SRC}${f}" 2>/dev/null | awk '{print $1}')
     R=$($SSH_OPTS "$SUB_HOST" "md5sum ~/ws_docker/vllm_serving_server/${f} 2>/dev/null" | awk '{print $1}')
