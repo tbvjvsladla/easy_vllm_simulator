@@ -21,15 +21,15 @@ SRC="${SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)/}"
 
 # ── SUB_HOST 해소: 환경변수 우선, 없으면 manifest.yaml nodes[] (role: sub) ──
 _resolve_sub_host_from_manifest() {
-    # 테라포밍이 채운 레포 루트 manifest.yaml 에서 role=sub 노드의 ssh_user@host 를 추출.
-    local manifest="${SRC%/}/manifest.yaml"
+    # 테라포밍이 채운 manifest 실값(output/multi 통로)에서 role=sub 노드의 ssh_user@host 를 추출(plan_2026062315_1).
+    local manifest="${SRC%/}/output/multi/manifest.yaml"
     [ -f "$manifest" ] || return 1
     # nodes: 블록에서 role: sub 항목의 host/ssh_user 를 순차 파싱(외부 yq 의존 없이 awk).
     awk '
         /^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub/ { in_sub=1; host=""; user=""; next }
         /^[[:space:]]*-[[:space:]]*role:/             { in_sub=0 }
-        in_sub && /^[[:space:]]*host:/    { sub(/^[[:space:]]*host:[[:space:]]*/, ""); gsub(/[ "\r]/, ""); host=$0 }
-        in_sub && /^[[:space:]]*ssh_user:/{ sub(/^[[:space:]]*ssh_user:[[:space:]]*/, ""); gsub(/[ "\r]/, ""); user=$0 }
+        in_sub && /^[[:space:]]*host:/    { sub(/^[[:space:]]*host:[[:space:]]*/, ""); sub(/[[:space:]]*#.*/, ""); gsub(/[ "\r]/, ""); host=$0 }
+        in_sub && /^[[:space:]]*ssh_user:/{ sub(/^[[:space:]]*ssh_user:[[:space:]]*/, ""); sub(/[[:space:]]*#.*/, ""); gsub(/[ "\r]/, ""); user=$0 }
         in_sub && host != "" && user != "" { print user "@" host; exit }
     ' "$manifest"
 }
