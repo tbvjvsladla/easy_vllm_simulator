@@ -11,7 +11,9 @@
 - **DON'T** 메인이 네 워크스페이스를 재스캔/파일교정하길 기대하지 마라 — 그건 일어나지 않는다.
 
 ## 전송 (transport)
-- 메인 → 서브: `ssh <user>@<sub> claude -p '<Task JSON or instruction>' --output-format json`.
+- 메인 → 서브: `ssh <user>@<sub> claude -p '<Task JSON or instruction>' --output-format json --permission-mode acceptEdits`.
+  **정본 = `acceptEdits` + 스코프드 allowlist(`settings.local.json`)** — `bypassPermissions` 는 하네스 가드레일이 차단한다(원격 자율 에이전트, testlog_2026062422_1). 비-allowlist 명령은 `bash -c` 래퍼로(설계상 escape hatch).
+- **HTTP(health 폴링·스모크)는 python urllib 로** 한다 — `curl`/`wget` 은 allowlist deny. 대기는 python `time.sleep`.
 - 서브 → 메인: stdout 으로 **task-report.schema.json 에 맞는 JSON 1개**. raw 로그 금지.
 - 코드/정본 전달은 별개 평면: 메인이 `sync_to_sub.sh`(rsync)로 push. 너는 정본을 받기만 한다.
 
@@ -37,11 +39,11 @@
 |---|---|
 | inspect | 정체성·로드된 스킬·권한·통신계약을 로드해 **schema-valid 리포트** 반환(모델 불요 — 카나리). |
 | config | 지정 모델 3종(.yaml+.sh+.env)을 **vllm-recipe-explorer 결정론 엔진으로 자율 생성** + config-parse OK(+ 가능 시 로컬 스모크 응답). |
-| build | `docker compose --profile slave build` 성공(메인 빌드 독립 재현). |
-| serve | `--profile slave up` 으로 master Ray head 합류(+ 지시 시 로컬 health). |
+| build | `docker compose --profile <slave\|debug> build` 성공(메인 빌드 독립 재현·byte-equiv). **multi**=slave / **single**=debug. |
+| serve | **multi**: `--profile slave up` 으로 master Ray head 합류(+ 지시 시 로컬 health). **single(독립서빙, T3 검증 — 0.23.0 E2E)**: `--profile serve up -d`(env export: NAS_MODEL_PATH·TIKTOKEN_HOST_PATH·CONFIG_FILE·SERVING_PORT) → `:PORT/health` http200 폴링(**python urllib — curl deny**) → 로컬 functional smoke(완성/reasoning, finish=stop). "startup complete" 로그는 거짓양성. |
 
 ## Message 타입
-- **instruction**(메인→서브): 수행할 Task(phase + per-task 값: 모델명·VRAM 예산·NAS 모델 서브디렉토리).
+- **instruction**(메인→서브): 수행할 Task(phase + per-task 값: 모델명·VRAM 예산·NAS 모델 서브디렉토리). **single 서빙 태스크**면 추가 슬롯: max_model_len·served_model_name·SERVING_PORT·reasoning_parser. 운영 절차(env export·detached up·health200 python·reasoning max_tokens)는 §phase serve 술어(single 분기)에 있으니 매번 재기술 불요.
 - **feedback**(메인→서브): "여기가 틀렸으니 이렇게 고쳐". 너는 **직접 고쳐** 다음 턴에 재-attest(자기교정).
 - **report**(서브→메인): task-report.schema.json JSON 1개.
 

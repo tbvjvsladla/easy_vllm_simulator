@@ -56,7 +56,8 @@ RTX4090=24GB carve-out)에 맞는 설정을 찾는다. 두 페이즈로 동작�
 |----------|------|------|
 | config.json 파싱 | **결정론 스크립트** | `parse_model_config.py` — text_config 중첩·safetensors 헤더 실측 |
 | 후보 **생성**(brainstorm) | **LLM (이 단계만 확률론)** | 3축 조합 다양성이 가치(Generate&Filter의 Generator) |
-| VRAM 추정 | **결정론 스크립트** | `estimate_vram.py` — plan §8 공식 리터럴 준수 |
+| VRAM 추정 **공식**(per-token KV) | **결정론 — 단 상한(upper bound)** | `estimate_vram.py` full-attention 가정 공식. sliding-window/GQA서 **과대추정**(gemma 8×·gpt-oss 1.9×) → OOM 보수 게이트엔 유효, near-max batch엔 **부정확** |
+| VRAM **실측 분해**(near-max 정본) | **결정론 — 측정 정본** | serve KV log(`kv_cache_tokens`/`max_concurrency`) 또는 Phase-2. **near-max batch·절대 KV 클램프는 측정으로만**(공식 batch 금지 — §5·헌법 near-max 따름정리) |
 | 하드 안전 게이트(margin) | **결정론** | 예산×margin 초과 후보 탈락(zero tolerance) |
 | Judge 랭킹(headroom→context) | **결정론** 정렬 | 품질·속도 인자 없음 |
 | 3종 세트 생성 | **결정론** 템플릿 | 기존 워크스페이스 스키마 준수 |
@@ -232,6 +233,10 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
 - **절대 클램프 실측 절차(최소 2-트라이얼, §9.3 KV워크플로)**: ① **trial1 측정**(`kv_cache_memory_bytes=null`,
   언클램프) → 로그에서 free_kv 실측 → ② `--kv-cache-memory-bytes`로 환산 → ③ **trial2 클램프 검증**.
   언클램프 통과만으로는 수렴이 아니다 — 클램프 검증 트라이얼까지 통과해야 수렴 판정.
+- **Phase-1.5 — serve KV-log 경량 측정**(전체 trial-loop 불요): 절대클램프(공식 상한 또는 보수값)로 **1회 serve(`--profile serve up -d`)** →
+  `docker logs` 에서 `reserved … GiB … kv_cache_memory_bytes` + `GPU KV cache … N tokens` + `max_concurrency=X` grep →
+  **실측 per-token = clamp_bytes ÷ kv_cache_tokens** · **near-max batch = floor(max_concurrency)**(= kv_cache_tokens ÷ max_model_len). clamp 유지·batch 만 상향.
+  공식이 못 주는 near-max 를 *1회 serve* 로 얻는 측정경로다(E2E gpt-oss: clamp 69GiB→2,825,636 tokens→max_concurrency 86.23→**batch 86**, formula 46의 ~2배). 로그 키명은 vLLM 버전 따라 변할 수 있어 **fail-soft**(라인 부재 시 null→HITL 또는 Phase-2 폴백). (Phase-2 full trial-loop = 절대클램프 *수렴*까지, Phase-1.5 = batch *상향*만 — 둘 다 측정 정본.)
 - **overhead 실측 vs 유도(gotcha)**: weights·overhead는 측정 트라이얼(클램프 전 1회 로드)의 vLLM 로그에서
   얻는다. consolidated 라인(`model weights take …; non_torch …; reserved for KV Cache …`)이 있으면 직접 산출.
   **없는 빌드(예: 0.22.2 NGC)는 `Model loading took X GiB memory`(weights)·`Available KV cache memory`(kv)·

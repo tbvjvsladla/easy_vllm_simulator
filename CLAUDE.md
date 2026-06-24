@@ -26,8 +26,10 @@
 - **커플링 보강 원칙**: prefix-매칭은 필요조건일 뿐 — source-build에서 alpha 베이스가 stable-ABI 심볼 결여 시 **더 새 NGC 베이스 승격이 정당**(전방호환). 절차 = `.claude/rules/workflow.md` S3, 키잉 = 스킬 §4.6.
 - **이미지 네이밍 불변식**: `easy-vllm:{vllm}-cu{cuda}-{arch}-{track}`(예 `0.23.0-cu132-aarch64-source`). 모델-키잉 금지(과거 난립 원인) — 한 이미지가 모든 모델을 서빙. 태그 산정 = `render_dockerfile.py`.
 - **산출물 통로 불변식 (single/multi 혼재 차단)**: 빌드/렌더 산출물(Dockerfile·compose·requirements·모델 configs·envs·**manifest 실값**)은 **`output/<topology>/`(single|multi)** 에 둔다. **통로 껍데기(`.gitkeep`)만 추적·생성물 비추적** → 단일/멀티 산출물이 켜켜이 쌓여도 경로 격리로 서로 침범 못 함. **topology 는 브랜치가 결정**(single-node=single, multi-node=multi) → manifest 실값도 `output/<topology>/manifest.yaml` 통로 분리, **브랜치 빈번 전환 시 재작성 0**(전환=그 통로 manifest를 읽음). 빌드 = `docker compose -f output/<topology>/docker-compose.yaml …`. 예외: multi 손작성 컨테이너 정의는 `*.template` 졸업 전까지 추적(정본 — Plan 2서 ignore 강등). 근거: `docs/plan/plan_2026062312_1`(통로)·`plan_2026062315_1`(manifest 이관).
+- **serve-time env 통로 불변식 (결함#2 codify)**: serve 변수치환값(`NAS_MODEL_PATH`·`TIKTOKEN_HOST_PATH`)은 `render_dockerfile.py --materialize-env` 가 manifest 에서 `output/<topology>/.env` 로 **materialize** 한다(렌더 표준 단계 — 스킬 `upstream-version-watch` §2.5). compose 기본값(`${NAS_MODEL_PATH:-/mnt/models}`)에 의존하면 serve 가 모델을 못 찾는다(testlog_2026062422_1). **해소 우선순위 = env-주입 > manifest 정본 > 리터럴 default** (`check_smoke_model.py`·render materialize 동일 — 포인터 원칙 연장).
 - **통합메모리 gmu 따름정리**: 통합메모리 호스트(GB10 등)에서는 gpu-memory-utilization을 반드시 명시 emit — 기본 0.92는 통합메모리에서 OOM(스킬 `vllm-recipe-explorer` §5).
 - **인코딩 자산 따름정리**: 모델 가중치뿐 아니라 런타임 인코딩 자산(tiktoken o200k/harmony)도 에어갭 사전적재 대상(스킬 `vllm-recipe-explorer` §5).
+- **near-max batch 측정 따름정리**: per-token KV 공식(`estimate_vram`, full-attention 가정)은 sliding-window/GQA 모델서 KV를 **과대추정하는 상한**일 뿐 — near-max batch·절대 KV 클램프는 **측정(serve KV log 또는 Phase-2)으로만** 산정한다(formula-우선 batch 금지 → 과소산정·용량낭비). 근거: 0.23.0 E2E(gemma 공식 8× · gpt-oss 1.9× 과대 — gpt-oss는 full-attention 아님). 스킬 `vllm-recipe-explorer` §1·§5.
 - **빌드 입력**: `CPU_ARCH=$(uname -m)` · `CUDA_VERSION`(예 129) · GitHub Releases pre-built wheel.
   wheel은 `pip install --no-deps`로 설치하고, **그 전에 `/etc/pip/constraint.txt`를 비운다**(NGC 핀 충돌 회피).
 - **주변 의존성 원천**: vLLM의 `requirements/{common,cuda,build}.txt` + `pyproject.toml`. `requirements.txt`에 반영.
@@ -61,6 +63,7 @@
 - **상향(서브→메인) = 문서기반 only**: 서브가 자기개선을 `docs/` 규약(YYYYMMDDHH_seq)으로 발행 → 경로를 A2A 리포트로 전달 → 메인이 `fetch_sub_docs.sh` 미러로 열람 → **HITL 재저작**(메인 템플릿/헌법/스킬). patch/bundle/staging/apply-check 추출층 없음.
 - **PII 격리**: 회수가 문서기반(코드/설정 미추출)이라 서브 `CLAUDE.md`의 bake 정체성(PII)이 **메인 추적물로 유입되지 않는다** — `포인터 원칙`의 연장. 서브 헌법은 서브에 잔류.
 - **single-node 확장기능**: single-node=기본 독립운용. sub-control("서브 제어 + 수행피드백 수신")은 single-node가 획득하는 **'확장기능'**(헌법 기재). **활성 게이트=결정론**: `output/single/manifest.yaml` `nodes[]`에 sub 존재 여부(`sync_to_sub.sh` 가 읽어 판정). 현재 single manifest 는 `nodes:[]` → **dormant**(독립 self-containment 보존). (HW탐지 결과를 single 통로로 채우는 전달 메커니즘은 **미구현·파킹** — plan_2026062411_1 §5.)
+  - **라이브 형태 = A2A 모델서빙 위임(T3 검증, 0.23.0 E2E)**: 활성 시 메인이 서브에 A2A 태스크 발급(`ssh sub claude -p … --permission-mode acceptEdits`) → 서브가 자작 recipe + `--profile serve up -d` + 로컬 스모크 → push-attestation 1개 반환. 메인은 **리포트만 관측**(디스크 재스캔 X — A2A 경계). 실행평면 노드별 독립(교차검증). 절차 = 서브 `comms.md` serve 술어(single 분기).
 
 ## build / 검증 커맨드
 

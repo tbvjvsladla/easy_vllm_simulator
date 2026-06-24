@@ -90,6 +90,24 @@ python3 scripts/resolve_build_track.py "$V"   # build_track.decision·source_bui
 > 그래서 Dockerfile에 하드코딩하지 않고 `ARG VLLM_MANYLINUX`·`ARG CUDA_VERSION`으로 격리,
 > ③`resolve_wheel.py`가 GitHub 자산에서 실재 검증한 값으로 채운다. arch 는 빌드 시점 `$(uname -m)`.
 
+## 2.5. render — 통로 산출 (호출 순서 · 결함#2 codify)
+
+**render 는 단일 호출이 아니라 시퀀스다** — 빠뜨리면 serve 단계서 잠복 실패(NAS 미전파). `render_dockerfile.py` 를 아래 순서로 부른다(전부 `--topology <single|multi>` · `--manifest output/<t>/manifest.yaml`):
+
+```bash
+# ① 컨테이너 정본(트랙별 Dockerfile + compose + requirements)
+python3 scripts/render_dockerfile.py --template <Dockerfile[.source-build].template> --manifest … --resolved resolved.json -o output/<t>/Dockerfile[.source-build]
+python3 scripts/render_dockerfile.py --template docker-compose.template.yaml          --manifest … --resolved resolved.json -o output/<t>/docker-compose.yaml
+python3 scripts/regen_requirements.py --from-wheel-url <…> -o output/<t>/requirements.txt
+# ② (multi 전용) 러너 스크립트 통로 materialize
+python3 scripts/render_dockerfile.py --materialize-configs --topology <t>
+# ③ serve-time env 통로 materialize (필수 — 누락 시 compose 가 /mnt/models 기본 마운트 → 모델 못 찾음. testlog_2026062422_1 결함#2)
+python3 scripts/render_dockerfile.py --materialize-env --topology <t>
+```
+
+- **③ materialize-env 가 정본**: manifest.nas_model_path + tiktoken_cache → `output/<t>/.env`(compose 변수치환). serve 가 의존하는 `NAS_MODEL_PATH`·`TIKTOKEN_HOST_PATH` 를 manifest 에서 박는다. 헌법 `serve-time env 통로 불변식` 참조. nas_model_path 부재면 fail-loud(무증거 진행 금지).
+- 단계 독립: ③의 fail-loud 가 ①(template render)를 막지 않는다(각 호출 분리). dormant single(`nodes:[]`)도 manifest 의 nas_model_path 만 있으면 ③ 성립.
+
 ## 3. 산출 — 사실/판단 분리 (하네스 엔지니어링)
 
 - **사실(결정론)**: change-summary·layer-bump-proposal의 사실 행(torch핀·NGC태그·wheel URL·requirements delta·
@@ -178,6 +196,7 @@ python3 scripts/resolve_build_track.py "$V"   # build_track.decision·source_bui
 - **검증**: 특정 키에서 실제 스모크 PASS로 입증된 패치만 다음 단계로.
 - **조건부 임베드**: 검증된 패치를 **(NGC베이스 / 실-링크 torch) × 에러시그니처 × vLLM버전**으로 키잉한 조건부 패치로 `*.source-build.template`에 임베드 + **post-assert(fail-loud)**. 미인식 키 → **HITL-discovery 플레이스홀더 + 명시적 빌드 실패**(조용한 통과 금지). 키는 **pyproject torch핀이 아님**(step1 C2 동일 근거 — use_existing_torch가 핀을 버림).
 - **role화 보류**: `source_build_patches.yaml` + patch-resolver 페르소나로의 역할 분리는 **E2E testlog 존재 후**에 한다(투기적 설계 금지).
+  - **게이트 상태(2026-06-24)**: E2E testlog **충족**(testlog_2026062217_1 0.23.0 source 26.05 · testlog_2026062422_1 듀얼모델 E2E 26.05 재검증). **단 파일추출은 보류** — `VALIDATED_SOURCE_BUILD_KEYS` 2키 frozen-set + fail-loud 가드가 현재 충분하다. 추출 트리거 = 인라인 셋 비대화(3번째+ 키) 또는 패치-바디 다양화. 지금 2키짜리 YAML+resolver 는 오버엔지니어링(Karpathy B2/B3). patch-body 는 판단계층 유지(사전-codify 금지 — formula 위험과 동류).
 - strip-hoist가 torch 2.12에서 자동 skip된 것은 **조건부 패치의 재사용 가능 패턴**이다(부재감지 = 적용여부 자동결정).
 
 ## 5. 금지
