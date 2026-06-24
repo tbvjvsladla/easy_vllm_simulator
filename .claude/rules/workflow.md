@@ -17,6 +17,8 @@ S1 resolve  → 대상 vLLM 버전 해소 (결정론적 스크립트)
 S2 patch    → single-node · multi-node 두 브랜치 패치
    - Dockerfile ARG VLLM_VERSION · ARG CUDA_VERSION · FROM 태그 · manylinux 갱신
    - requirements.txt 갱신
+   - render 는 시퀀스(스킬 §2.5): template(Dockerfile/compose)+regen_requirements + (multi)materialize-configs + materialize-env
+     (--materialize-env → output/<t>/.env: serve-time NAS_MODEL_PATH/TIKTOKEN_HOST_PATH manifest 전파. 누락 시 serve 가 /mnt/models 기본마운트로 실패 — 결함#2)
    - multi-node 브랜치: 네트워크 디버그 apt · serve_runner.sh(Ray) · NCCL/RDMA env · /dev/infiniband은 보존(건드리지 않음)
    - multi-node: .gitignore에 빌딩블럭(CLAUDE.md/seed/) 제외 정렬. (빌딩블럭은 gitignored→브랜치 전환 persist, cross-branch 동기화 불필요)
    verify: 변경 라인이 S1 해소값에 직결(Karpathy B3)
@@ -31,6 +33,7 @@ S2.5 sync   → (multi-node 전용) 메인 검증코드 → 서브 직접 전달
 S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
    - ⑤ NAS 체크: check_smoke_model.py <config_name> --topology <single|multi> — 모델 부재면 중단·보고(다운로드 금지). --topology 필수(산출물 통로 output/<topology>/)
    - (단일노드) 빌드: docker compose --profile debug build · 서빙: --profile serve up → 프롬프트 1회 → 비어있지 않은 완성
+   - near-max batch(요구 시): 서빙 docker logs 의 kv_cache_tokens/max_concurrency 로 실측 near-max 산출(Phase-1.5, 스킬 §5) → recipe max-num-seqs 보강. 공식 batch 금지(헌법 near-max 따름정리).
    - (multi-node) 2노드 Ray 서빙: scripts/multinode_serve_smoke.sh <config> [--build]
        NAS체크 → 양노드 병렬빌드 → master(메인)+slave(서브) Ray클러스터 → 엔드포인트 health 폴링 → master 엔드포인트 추론
        준비판정 = :PORT/health http200 (master 로그 "startup complete"는 거짓양성 — grep 금지)
