@@ -317,6 +317,34 @@ def materialize_configs(repo: str, topology: str) -> list:
     return copied
 
 
+def materialize_env(repo: str, topology: str, manifest: dict) -> str:
+    """manifest.nas_model_path → output/<topology>/.env (프로젝트-레벨 compose 변수치환용).
+
+    docker compose 가 docker-compose.yaml 의 ${NAS_MODEL_PATH}·${TIKTOKEN_HOST_PATH} 치환에 쓰는
+    프로젝트 .env 를 manifest 에서 생성한다. 이게 없으면 serve 가 compose 기본값(/mnt/models)을 마운트해
+    모델을 못 찾는다(check_smoke_model.py 도 동일 정본=manifest 직독). PII(NAS 경로) 포함 → output/* gitignored.
+    근거: testlog_2026062422_1 결함#2(serve-time NAS 미전파). nas_model_path 부재 시 fail-loud(무증거 진행 금지)."""
+    nas = str(manifest.get("nas_model_path", "")).strip()
+    if not nas:
+        raise ValueError(
+            "manifest.nas_model_path 부재 — output/%s/.env materialize 불가. "
+            "serve 가 compose 기본값 /mnt/models 를 마운트해 모델을 못 찾는다. manifest 를 채울 것." % topology)
+    tiktoken = os.path.join(repo, "tiktoken_cache")
+    dst_dir = os.path.join(repo, "output", topology)
+    os.makedirs(dst_dir, exist_ok=True)
+    dst = os.path.join(dst_dir, ".env")
+    body = (
+        "# 프로젝트-레벨 env (compose 변수치환) — render_dockerfile.py --materialize-env 가 manifest 에서 생성.\n"
+        "# docker compose 가 docker-compose.yaml 의 ${NAS_MODEL_PATH}·${TIKTOKEN_HOST_PATH} 치환에 사용.\n"
+        "# gitignored(output/* — PII). 손수정 금지 — manifest.nas_model_path 를 고칠 것.\n"
+        "NAS_MODEL_PATH=%s\n"
+        "TIKTOKEN_HOST_PATH=%s\n"
+    ) % (nas, tiktoken)
+    with open(dst, "w", encoding="utf-8") as f:
+        f.write(body)
+    return dst
+
+
 # ── 렌더 ─────────────────────────────────────────────────────────────────────
 def _substitute(text: str, context: dict) -> str:
     for key, val in context.items():
@@ -449,7 +477,9 @@ def main() -> None:
                     help="NCCL .env.interconnect 렌더(manifest.interconnect 소비, Plan 2)")
     ap.add_argument("--materialize-configs", action="store_true",
                     help="러너 스크립트(serve_runner/debug-init)를 output/<topology>/configs/ 로 복사(통로 self-containment, plan_2026062321_1)")
-    ap.add_argument("--topology", choices=["single", "multi"], help="--materialize-configs 대상 통로")
+    ap.add_argument("--materialize-env", action="store_true",
+                    help="output/<topology>/.env 를 manifest(nas_model_path)+tiktoken_cache 에서 생성(serve-time NAS 마운트 정합, 결함#2)")
+    ap.add_argument("--topology", choices=["single", "multi"], help="--materialize-configs/--materialize-env 대상 통로")
     ap.add_argument("--repo", help="repo 루트(미지정 시 스크립트 위치 기준 자동)")
     ap.add_argument("--template", help="템플릿 경로")
     ap.add_argument("--manifest", default="manifest.yaml")
@@ -478,6 +508,14 @@ def main() -> None:
         copied = materialize_configs(a.repo or _repo_root(), a.topology)
         for c in copied:
             print(f"[render] materialize → {c}", file=sys.stderr)
+        return
+
+    if a.materialize_env:
+        if not a.topology:
+            print("[render] FAIL: --materialize-env 에는 --topology {single|multi} 필요", file=sys.stderr)
+            sys.exit(2)
+        env_path = materialize_env(a.repo or _repo_root(), a.topology, load_manifest(a.manifest))
+        print(f"[render] materialize env → {env_path}", file=sys.stderr)
         return
 
     if not a.template:

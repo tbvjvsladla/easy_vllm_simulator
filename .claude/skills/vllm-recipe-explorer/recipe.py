@@ -106,6 +106,31 @@ def resolve_tp(cfg, repo_root):
     return 1
 
 
+def _git_branch(repo_root):
+    """현재 git 브랜치명(실패 시 "")."""
+    try:
+        import subprocess
+
+        out = subprocess.run(
+            ["git", "-C", repo_root, "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+        )
+        return out.stdout.strip() if out.returncode == 0 else ""
+    except Exception:
+        return ""
+
+
+def output_root(repo_root):
+    """3종 세트 출력 루트 = output/<topology>/ (산출물 통로 self-containment, 결함#3 — testlog_2026062422_1).
+
+    topology = 브랜치 파생(multi-node→multi, 그 외→single). gen_recipe_set 이 그 하위 configs/·envs/ 에 생성 →
+    docker compose 가 마운트하는 통로(output/<t>/configs)와 정합. (이전엔 REPO_ROOT 직하 configs/ 로 떨어져
+    통로 밖이라 수동 복사 필요했음.)"""
+    topology = "multi" if _git_branch(repo_root) == "multi-node" else "single"
+    return os.path.join(repo_root, "output", topology)
+
+
 def _cfg_common(cfg):
     """estimate/generate 공통 입력값 추출(스키마 결함은 즉시 중단)."""
     target = cfg.get("target_model") or {}
@@ -178,6 +203,12 @@ def cmd_estimate(args):
     print(
         "[recipe] generate 로 선택: "
         f"python3 recipe.py generate --config {args.config} --recipe-id <rN>",
+        file=sys.stderr,
+    )
+    print(
+        "[recipe] ⚠ Phase-1(estimate→generate)은 near-max batch(max-num-seqs)·절대 KV 클램프(kv-cache-memory-bytes)를 "
+        "emit하지 않는다(공식 per-token이 sliding-window/GQA에서 부정확 — 결함#4). near-max batch는 simulate(Phase-2) "
+        "또는 serve 로그의 kv_cache_tokens/max_concurrency 측정으로만 산정하라(SKILL §5).",
         file=sys.stderr,
     )
 
@@ -253,7 +284,7 @@ def cmd_generate(args):
             parsed,
             recipe,
             name,
-            REPO_ROOT,
+            output_root(REPO_ROOT),
             port,
             served_model_name,
             force=args.force,
@@ -718,7 +749,7 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
 
     try:
         paths = generate(
-            parsed, recipe, name, REPO_ROOT, port, served_model_name, force=args.force,
+            parsed, recipe, name, output_root(REPO_ROOT), port, served_model_name, force=args.force,
         )
     except FileExistsError as e:
         _die(f"{e} (덮어쓰려면 --force)")

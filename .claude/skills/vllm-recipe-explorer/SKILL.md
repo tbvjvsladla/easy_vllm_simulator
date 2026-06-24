@@ -128,8 +128,13 @@ python3 recipe.py generate --config config.yaml --recipe-id r3
 ```
 
 - `.last_ranking.json`에서 `r3`을 찾아 `gen_recipe_set.py`로 **3종 세트**를 생성(기존 워크스페이스 스키마 준수):
+  - **출력 통로 = `output/<topology>/{configs,envs}/`**(topology=브랜치 파생, `recipe.py output_root`). compose 가
+    마운트하는 통로와 정합(결함#3, `testlog_2026062422_1` — 이전엔 REPO_ROOT 직하 configs/ 라 통로 밖→수동 복사 필요했음).
   - `configs/<name>.yaml` — `model: <container_path>`, `host 0.0.0.0`, `port 8000`,
     `gpu-memory-utilization`/`max-model-len`, `quantization`은 **native/none이 아닐 때만** 추가.
+    ⚠ **Phase-1(estimate→generate)은 `max-num-seqs`(near-max batch)·`kv-cache-memory-bytes`(절대클램프)를 emit하지 않는다**
+    (rank_recipes 는 batch 미산정 — 결함#4). 이 둘은 **Phase-2(simulate) 측정 산물**이다. near-max batch·carve-out 클램프가
+    필요하면 **Phase-2 또는 serve 로그 측정**으로 보강해야 한다(§5 — 공식 batch 는 OOM/낭비 위험). Phase-1 산출은 gmu+max_len 까지의 "추정 시작점".
   - `configs/<name>.sh` — 기존 `gpt-oss-20b-normal.sh` 구조(TIKTOKEN 가드 + `vllm serve --config ... --served-model-name`).
   - `envs/.env.<name>` — `COMPOSE_PROJECT_NAME·CONTAINER_NAME·VERSION·NVIDIA_VISIBLE_DEVICES·SERVING_IP/PORT·
     TIKTOKEN_ENABLED·SERVING_MODEL_NAME·CONFIG_FILE`.
@@ -215,12 +220,15 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
   (kv_dtype_bytes: KV quant 없으면 2, `fp8`이면 1).
 - `required_kv = per_token_kv_bytes × max_model_len × batch`,
   `max_safe_kv = int(budget×margin×GiB) − weights − overhead`.
-- **측정 per-token KV가 정본(`<<` 또는 `≈` 공식)**: 위 `per_token_kv_bytes` 공식은 full-attention 가정이다.
-  → **full-attention 모델은 측정 ≈ 공식**(예: gpt-oss-20b 측정 ~48KB/token = 공식과 일치 → batch 그대로),
-  **sparse/sliding-window/hybrid 만 공식이 KV를 과대추정**(gemma-4 실측 ~34KB vs 공식 393KB = 11.5×; Qwen3.6 3.7×).
-  즉 공식이 *항상* 과대추정은 아니다 — 측정 트라이얼 로그의 per-token 실측(`Available KV cache memory`/`kv_cache_tokens`)이
-  있으면 **그것이 정본**(`<<` 또는 `≈`), 공식은 폴백(`recipe.py _resolve_clamp_kv`). 실측을 쓰면 같은 예산에서
-  batch가 달라진다(gemma-4 공식 3 → 실측 39; gpt-oss는 ≈라 batch 8 유지).
+- **측정 per-token KV가 정본 — 공식은 거의 항상 과대추정(upper bound)**: 위 `per_token_kv_bytes` 공식은
+  **full-attention 가정**이라 sliding-window/GQA/hybrid attention(현대 모델 대다수)에서 per-token 을 **과대추정** →
+  feasible batch 를 **과소추정**한다. 0.23.0 듀얼모델 E2E 직접측정(`testlog_2026062422_1`):
+  **gemma-4** 공식 393KB vs 실측 ~50KB(@max_len 32768) = ~8× 과대 · **gpt-oss-20b** 공식 48KB vs 실측 **26KB**(@32768) = **1.9× 과대**.
+  ⚠ **"full-attention 이라 공식≈측정" 가정 금지** — gpt-oss-20b 는 GQA/sliding 이라 공식과 어긋난다(과거 "gpt-oss ~48KB 일치" 주장은
+  **미검증 formula** 였고, 0.23.0 의 직접 측정 `kv_cache_tokens`(clamp 69GiB→2,825,636 tokens→26KB, `max_concurrency` 86.23)로 반증).
+  → **near-max batch 는 어떤 모델이든 측정으로만 산정**한다: Phase-2 trial-loop 또는 serve 로그의 `kv_cache_tokens`/`max_concurrency`.
+  공식 기반 batch 는 위험 — 공식이 per-token 을 *과소*추정하면 OOM, *과대*추정하면(대다수) 용량 낭비(gpt-oss formula batch 46 = 실측 near-max 86 의 53%).
+  측정 정본 우선순위: trial 로그 per-token(`Available KV cache memory`/`kv_cache_tokens`) > 공식 폴백(`recipe.py _resolve_clamp_kv`).
 - **절대 클램프 실측 절차(최소 2-트라이얼, §9.3 KV워크플로)**: ① **trial1 측정**(`kv_cache_memory_bytes=null`,
   언클램프) → 로그에서 free_kv 실측 → ② `--kv-cache-memory-bytes`로 환산 → ③ **trial2 클램프 검증**.
   언클램프 통과만으로는 수렴이 아니다 — 클램프 검증 트라이얼까지 통과해야 수렴 판정.
