@@ -195,7 +195,7 @@ python3 scripts/resolve_build_track.py "$V"   # build_track.decision·source_bui
 - `scripts/resolve_build_track.py` — ⑦ 트랙 제안자(torch핀 휴리스틱 + SM arch만 결정론, 최종은 스모크 중재). `build_track.decision`·`source_build.torch_cuda_arch`를 `resolved.json`에 채움.
 - `scripts/sync_to_sub.sh` — 멀티노드 [전달]: 메인→서브 rsync(dry-run 기본/`--apply`, 체크섬, 빌딩블럭 제외).
 - `scripts/multinode_serve_smoke.sh` — 멀티노드 2노드 Ray 서빙+multi-smoke 오케스트레이션(`<config> [--build] [--keep-up]`).
-- `sub_node/CLAUDE.md` — 서브노드 빌드워커 CC 페르소나 정본(서브로 배포, sync 제외 보호).
+- (서브노드 빌드워커 CC 페르소나·Agent_Card·통신프로토콜은 **`terraforming_subnode` 스킬이 소유·렌더** — plan_2026062408_1 에서 `sub_node/` 이전. 이 스킬은 `sync_to_sub.sh`(전달)·`multinode_serve_smoke.sh`(서빙 스모크) 제어평면만 보유.)
 - `<repo>/Dockerfile.source-build` — Phase 2 소스빌드 동결 산출물(§4.6, 0.22.1 검증). prebuilt `Dockerfile`과 별도.
 - `config.example.yaml` — 입력 스키마(트리거·스모크 config_name·`reconciliation_cap`).
 - `reference.md` — (필요 시 생성) torch↔NGC 매핑 테이블 폴백 + 레이어 매핑 상세.

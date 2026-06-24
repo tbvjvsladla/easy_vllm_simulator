@@ -32,7 +32,7 @@ ENVI="output/multi/envs/.env.interconnect"
 CTR_M="${CTR_M:-vllm_comms_m}"; CTR_S="${CTR_S:-vllm_comms_s}"   # compose run --name (1회성 --rm; compose container_name 비의존 — up -d 대화형 즉시종료 회피)
 MASTER_PORT="${MASTER_PORT:-29500}"     # torch.distributed rendezvous 포트
 EXEC_TMO="${EXEC_TMO:-240}"             # exec 워치독 초 — 한쪽-join/rendezvous 멈춤 시 유한시간 FAIL(NCCL 120s + 외곽)
-[ -f "$MANIFEST" ] || { echo "[cs] FAIL: $MANIFEST 없음 — terraforming 으로 채우세요"; exit 3; }
+[ -f "$MANIFEST" ] || { echo "[cs] FAIL: $MANIFEST 없음 — terraforming_subnode 으로 채우세요"; exit 3; }
 [ -f "$COMPOSE" ]  || { echo "[cs] FAIL: $COMPOSE 없음 — render 산출물 통로 확인"; exit 3; }
 [ -f "$ENVI" ]     || { echo "[cs] FAIL: $ENVI 없음 — render_dockerfile.py --nccl-envfile 로 먼저 생성(Plan 2)"; exit 3; }
 # 통로 self-containment 전제(plan_2026062321_1 I1/I2): 러너 스크립트가 통로에 materialize 됐는지 fail-loud.
