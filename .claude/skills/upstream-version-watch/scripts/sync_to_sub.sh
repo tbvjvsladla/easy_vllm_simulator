@@ -9,6 +9,8 @@
 # 제외(전송·삭제 양쪽에서 보호): .git(서브 git 상태) · .claude(스킬=메인 전용 빌딩블럭) ·
 #   seed(빌딩블럭) · docs(빌드 불필요) · __pycache__(캐시).
 # 전송 대상: Dockerfile · docker-compose.yaml · requirements.txt · configs/ · envs/ · README.md.
+# + (overlay, plan_2026062408_1) 서브 에이전트 환경: output/multi/sub_provision/ → 서브 루트
+#   (CLAUDE.md·Agent_Card.json·.claude/{settings.local.json,rules,schemas,skills/vllm-recipe-explorer}·tasks/). render_sub_env.py 선행.
 #
 # 사용:
 #   bash sync_to_sub.sh                       # DRY-RUN (무엇이 바뀔지 미리보기)
@@ -63,6 +65,8 @@ fi
 [ -z "${SUB_WORK_DIR:-}" ] && SUB_WORK_DIR="${SRC%/}"
 DEST="${DEST:-${SUB_WORK_DIR}/}"
 SSH_OPTS="ssh -o BatchMode=yes -o ConnectTimeout=8"
+STAGING="${SRC%/}/output/multi/sub_provision"           # 서브 에이전트환경 렌더 스테이징(render_sub_env.py 산출)
+OVERLAY_EXCLUDES=(--exclude '__pycache__' --exclude '*.pyc')  # 오버레이도 바이트코드 제외(메인 rsync와 정합, delivery-3)
 
 MODE="dryrun"; PROVISION=0
 for a in "$@"; do
@@ -70,7 +74,7 @@ for a in "$@"; do
     [ "$a" = "--provision" ] && PROVISION=1
 done
 
-EXCLUDES=(--exclude '.git' --exclude '.claude' --exclude 'seed' --exclude 'docs' --exclude '__pycache__' --exclude 'CLAUDE.md' --exclude 'output/single')  # output/single = single-node 통로(서브 불필요). 멀티 빌드입력 output/multi 는 전송. plan_2026062312_1
+EXCLUDES=(--exclude '.git' --exclude '.claude' --exclude 'seed' --exclude 'docs' --exclude '__pycache__' --exclude 'CLAUDE.md' --exclude 'Agent_Card.json' --exclude 'tasks' --exclude 'output/single' --exclude 'output/multi/sub_provision' --exclude 'output/multi/manifest.yaml')  # output/single=서브 불필요 · sub_provision=서브 에이전트환경 스테이징(아래 오버레이로 별도 전달) · manifest.yaml=메인 단일계약(서브 미전달, D10·포인터원칙) · 서브 에이전트환경(.claude·CLAUDE.md·Agent_Card.json·tasks)은 --delete 로부터 보호. plan_2026062312_1·plan_2026062408_1
 RSYNC=(rsync -az --delete -e "$SSH_OPTS" "${EXCLUDES[@]}")
 
 # ── pre-flight: SSH 도달성 ──
@@ -81,7 +85,14 @@ fi
 if [ "$MODE" = "dryrun" ]; then
     echo "[sync] DRY-RUN  $SRC → $SUB_HOST:$DEST  (실제 전송 안 함 — --apply 로 실행)"
     "${RSYNC[@]}" --dry-run --itemize-changes "$SRC" "$SUB_HOST:$DEST"
-    echo "[sync] (위는 미리보기. 변경 사항을 사람이 확인 후 --apply)"
+    # delivery-1: 에이전트 환경 오버레이도 미리보기(HITL 안전 게이트가 persona/권한/스킬 변경까지 보이게).
+    if [ -d "$STAGING" ]; then
+        echo "[sync] DRY-RUN 에이전트 환경 오버레이 미리보기: $STAGING/ → $SUB_HOST:$SUB_WORK_DIR/  (--delete 없음)"
+        rsync -an --itemize-changes "${OVERLAY_EXCLUDES[@]}" -e "$SSH_OPTS" "$STAGING/" "$SUB_HOST:$SUB_WORK_DIR/"
+    else
+        echo "[sync] (info) 스테이징 없음($STAGING) — 오버레이 미리보기 생략. render_sub_env.py --topology multi 선행."
+    fi
+    echo "[sync] (위는 미리보기 — 메인 rsync + 에이전트 환경 오버레이. 사람이 확인 후 --apply)"
     exit 0
 fi
 
@@ -115,4 +126,26 @@ for f in output/multi/Dockerfile output/multi/Dockerfile.source-build output/mul
         echo "  ❌ ${f}: main=$L sub=$R (불일치)"; fail=1
     fi
 done
-[ "$fail" -eq 0 ] && echo "[sync] 완료 — 핵심 빌드 입력 체크섬 일치" || { echo "[sync] FAIL: 체크섬 불일치"; exit 2; }
+[ "$fail" -eq 0 ] && echo "[sync] 핵심 빌드 입력 체크섬 일치" || { echo "[sync] FAIL: 체크섬 불일치"; exit 2; }
+
+# ── 서브 에이전트 환경 오버레이 (plan_2026062408_1): 렌더된 sub_provision/ → 서브 워크스페이스 루트 ──
+# 메인 rsync(--delete) **이후**에 둔다(overlay 파일이 지워지지 않게). overlay 는 --delete 없음(가산만).
+# 전달 7-아티팩트: CLAUDE.md·Agent_Card.json·.claude/{settings.local.json,rules/comms.md,schemas/task-report.schema.json,skills/vllm-recipe-explorer}·tasks/.
+# 빌딩블럭 스킬(terraforming_subnode·upstream-version-watch)은 스테이징에 없으므로 전달되지 않는다(런타임블럭만).
+if [ -d "$STAGING" ]; then
+    # 여기 도달 = apply 모드(dryrun 은 위에서 exit). 오버레이 = 가산(--delete 없음).
+    echo "[sync] 서브 에이전트 환경 오버레이: $STAGING/ → $SUB_HOST:$SUB_WORK_DIR/  (--delete 없음)"
+    rsync -az "${OVERLAY_EXCLUDES[@]}" -e "$SSH_OPTS" "$STAGING/" "$SUB_HOST:$SUB_WORK_DIR/"
+    efail=0
+    # delivery-2: 7-아티팩트 대표 체크섬 — 렌더3 + 정적2(comms·schema) + 런타임블럭2(recipe.py·SKILL.md).
+    # schema 는 push-attestation 계약(sub 가 이 스키마로 자기검증)이라 반드시 검증.
+    for f in CLAUDE.md Agent_Card.json .claude/settings.local.json .claude/rules/comms.md .claude/schemas/task-report.schema.json .claude/skills/vllm-recipe-explorer/recipe.py .claude/skills/vllm-recipe-explorer/SKILL.md; do
+        L=$(md5sum "$STAGING/$f" 2>/dev/null | awk '{print $1}')
+        R=$($SSH_OPTS "$SUB_HOST" "md5sum '$SUB_WORK_DIR/$f' 2>/dev/null" | awk '{print $1}')
+        if [ -n "$L" ] && [ "$L" = "$R" ]; then echo "  ✅ $f"; else echo "  ❌ $f: main=$L sub=$R (불일치)"; efail=1; fi
+    done
+    [ "$efail" -eq 0 ] && echo "[sync] 에이전트 환경 오버레이 완료 — 7종 대표 체크섬 검증(렌더3·정적2·런타임블럭2)" || { echo "[sync] FAIL: 에이전트 환경 체크섬 불일치"; exit 2; }
+else
+    echo "[sync] (info) 스테이징 없음($STAGING) — 에이전트 환경 오버레이 생략. 먼저 'python3 .claude/skills/terraforming_subnode/scripts/render_sub_env.py --topology multi' 실행."
+fi
+echo "[sync] 완료."

@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://easy-vllm/sub_node/task-report.schema.json",
+  "title": "Sub-node Task Report (A2A-concept)",
+  "description": "메인↔서브 A2A-개념 통신의 회신 산출물. 서브 빌드워커가 ssh claude -p 한 턴마다 이 스키마에 맞는 JSON 1개를 반환한다. 메인은 이 리포트를 검증하며 서브 워크스페이스를 재스캔하지 않는다(push-attestation). 정적계약(양 노드 동일) — terraforming_subnode 가 서브 .claude/schemas/ 로 복제.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_id", "context_id", "turn", "phase", "status", "self_verification"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "A2A Task id. 한 작업 단위(메인이 발급)."
+    },
+    "context_id": {
+      "type": "string",
+      "description": "A2A contextId. 멀티턴 피드백 루프를 묶는 스레드 id. tasks/<context_id>.json 으로 영속(파일=세션)."
+    },
+    "turn": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "이 contextId 안에서 몇 번째 턴인지. max-turns(reconciliation_cap, 기본 3) 초과 시 status=failed 로 종료하고 메인이 Model-C(HITL)."
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["inspect", "config", "build", "serve"],
+      "description": "inspect=부트스트랩/카나리(모델 없이 정체성·환경 self-report) · config=자율 모델 triplet 저작(vllm-recipe-explorer) · build=컨테이너 빌드 · serve=Ray worker 합류."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["submitted", "working", "input-required", "completed", "failed", "canceled", "unknown"],
+      "description": "A2A TaskState. completed=성공술어 충족 · input-required=메인 피드백 대기 · failed=실패(failure_class 참조) · unknown=판정 애매 → 메인 Model-C."
+    },
+    "duration_sec": {
+      "type": "number",
+      "minimum": 0,
+      "description": "이 턴 수행 소요(초)."
+    },
+    "artifacts": {
+      "type": "array",
+      "description": "이 턴에 생성/변경한 산출물(A2A Artifact). 경로+sha256 로 자기-귀속. 메인은 이 목록으로 결과를 확인(디스크 재스캔 대신).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind"],
+        "properties": {
+          "path": {"type": "string", "description": "workspace-상대 경로. 예: configs/<model>.yaml"},
+          "sha256": {"type": "string", "description": "파일 sha256(소문자 hex). 메인이 무결성 대조."},
+          "kind": {"type": "string", "enum": ["triplet-yaml", "triplet-sh", "triplet-env", "image", "log", "report", "other"]}
+        }
+      }
+    },
+    "messages": {
+      "type": "array",
+      "description": "A2A Message history(선택). role=user(메인 지시/피드백) | agent(서브). 보통 tasks/<context_id>.json 에 누적, 리포트엔 이번 턴 요약만.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "text"],
+        "properties": {
+          "role": {"type": "string", "enum": ["user", "agent"]},
+          "text": {"type": "string"}
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "에러 요약(있으면). raw 로그 금지 — 한두 줄 요약."
+    },
+    "failure_class": {
+      "type": "string",
+      "enum": ["none", "requirements-fixable", "source-build-class", "resource_oom", "nccl_rdma_connectivity", "ray_join_timeout", "unknown"],
+      "description": "실패 분류(2-부 계약). 빌드클래스 {requirements-fixable, source-build-class} = 메인 failure_patterns.yaml/classify_failure.py 와 정렬(결정론 시그니처). 멀티노드 서빙클래스 {resource_oom, nccl_rdma_connectivity, ray_join_timeout} = 결정론 시그니처 없이 workflow.md S3 의 Model-C(HITL) 라우팅 전용. 애매하면 unknown + notes → 메인 Model-C(HITL)."
+    },
+    "self_verification": {
+      "type": "object",
+      "description": "push-attestation 의 핵심. 서브가 보고 전에 스스로 돌린 검증 결과. 메인은 이 블록을 신뢰·검증하며 서브 디스크를 재스캔하지 않는다.",
+      "additionalProperties": false,
+      "required": ["checks_run"],
+      "properties": {
+        "checks_run": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "실제로 돌린 검증 이름. 예: [identity, skills_loaded, permissions, config_parse, schema_valid, runner_syntax, checksum, smoke]"
+        },
+        "config_parse_ok": {"type": "boolean", "description": "생성/변경한 yaml·env 가 파싱되는가."},
+        "schema_valid": {"type": "boolean", "description": "이 리포트 자신이 task-report.schema.json 에 유효한가(자기검증)."},
+        "runner_syntax_ok": {"type": "boolean", "description": "serve_runner.sh 등 셸 문법(bash -n) 통과."},
+        "checksums": {
+          "type": "array",
+          "items": {"type": "object", "additionalProperties": false, "properties": {"path": {"type": "string"}, "sha256": {"type": "string"}}},
+          "description": "정본/산출물 무결성 대조용 sha256."
+        },
+        "identity_ok": {"type": "boolean", "description": "(inspect) 페르소나가 자기 노드정체성을 정확히 로드했는가."},
+        "skills_loaded": {"type": "array", "items": {"type": "string"}, "description": "(inspect) 로드 확인된 스킬(예: vllm-recipe-explorer)."},
+        "smoke": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "(config/serve) 로컬 스모크 결과. 성공술어의 최종 증거 — '린트 통과 ≠ 서빙됨'.",
+          "properties": {
+            "ran": {"type": "boolean"},
+            "passed": {"type": "boolean"},
+            "finish_reason": {"type": "string"},
+            "sample": {"type": "string", "description": "비어있지 않은 완성 응답 샘플(짧게)."}
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "메인이 알아야 할 한두 줄(예: NGC pull 시간, ray status GPU 수, 피드백 요청 근거)."
+    }
+  }
+}

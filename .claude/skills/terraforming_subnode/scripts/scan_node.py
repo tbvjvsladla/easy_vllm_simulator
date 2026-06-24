@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""scan_node.py — terraforming 진입 루틴의 **결정론 스캔 코어** (판단 X, 사실만).
+"""scan_node.py — terraforming_subnode진입 루틴의 **결정론 스캔 코어** (판단 X, 사실만).
 
 근거: docs/plan/plan_2026062311_1(진입 루틴 §2.3 스캔 인벤토리 · §2.4 성능게이트 · §2.5 α/γ 종료),
       plan_2026062312_1(output/ 통로), CLAUDE.md(결정론 스크립트 원칙 · 산출물 통로 불변식).
 
 위치: 사용자 승인(HITL) 직후 호출되는 **deterministic** 단계. 5-전제조건 인터뷰·승인 게이트는
-      terraforming 스킬(판단계층)이 담당하고, 이 스크립트는 그 뒤 "스캔→파싱→게이트 판정"만 한다.
+      terraforming_subnode스킬(판단계층)이 담당하고, 이 스크립트는 그 뒤 "스캔→파싱→게이트 판정"만 한다.
 
 핵심 설계:
   - **ibstat 비의존**: 일부 환경(GB10)엔 ibstat 미설치 → `/sys/class/infiniband`(HCA) + `show_gids`(RoCE v2 GID/IP/iface)로 탐지.
@@ -308,10 +308,10 @@ def _self_test() -> int:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="terraforming 결정론 스캔 코어 (사실만)")
+    ap = argparse.ArgumentParser(description="terraforming_subnode결정론 스캔 코어 (사실만)")
     ap.add_argument("--topology", choices=["single", "multi", "auto"], default="auto",
                     help="선언 토폴로지(인터뷰 결정). auto=스캔으로 추정(보고만, 게이트는 single/multi 명시 시)")
-    ap.add_argument("--peer-ip", help="multi: 서브노드 IP(도달성 체크). 예: 192.168.100.11")
+    ap.add_argument("--peer-ip", help="multi: 서브노드 IP(도달성 체크). 예: 203.0.113.11")
     ap.add_argument("--peer-port", type=int, default=22, help="도달성 체크 포트(기본 22=SSH)")
     ap.add_argument("--compose", default="output/multi/docker-compose.yaml",
                     help="교차검증할 docker-compose 경로")

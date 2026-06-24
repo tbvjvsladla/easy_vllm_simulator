@@ -52,14 +52,13 @@ MUST_IGNORED=(
 # A6: manifest.template.yaml 에 있어야 하는 필드명.
 MANIFEST_FIELDS=(topology cpu_arch cuda_version gpus_per_node nas_model_path origin_url nodes interconnect)
 
-# A2: 최소 기대 스킬(부재 시 FAIL). terraforming 등은 optional(있으면 검사, 없으면 보고만).
+# A2: 최소 기대 스킬(부재 시 FAIL). terraforming_subnode 등은 optional(있으면 검사, 없으면 보고만).
 EXPECTED_SKILLS=(vllm-recipe-explorer upstream-version-watch)
 
 # A7: 렌더러 후보 경로(첫 번째 존재 항목 사용). 부재 시 레포 전체 검색 폴백.
 #   render 는 upstream-version-watch 소유(G2 구현). scripts/ 는 구(舊) 스텁 위치(이전됨).
 RENDER_CANDIDATES=(
     .claude/skills/upstream-version-watch/scripts/render_dockerfile.py
-    .claude/skills/terraforming/scripts/render_dockerfile.py
     scripts/render_dockerfile.py
     render_dockerfile.py
 )
@@ -125,9 +124,9 @@ a2() {
     for e in "${EXPECTED_SKILLS[@]}"; do
         if [ ! -s ".claude/skills/$e/SKILL.md" ]; then echo "  - 기대 스킬 누락: $e"; ok=0; fi
     done
-    # terraforming(optional): 없으면 보고만.
-    if [ ! -e ".claude/skills/terraforming/SKILL.md" ]; then
-        echo "  - (info) optional 스킬 terraforming 아직 없음 — FAIL 아님"
+    # terraforming_subnode(optional): 없으면 보고만.
+    if [ ! -e ".claude/skills/terraforming_subnode/SKILL.md" ]; then
+        echo "  - (info) optional 스킬 terraforming_subnode 아직 없음 — FAIL 아님"
     fi
     [ "$ok" -eq 1 ] && pass "A2 스킬 목록: SKILL.md 전수 유효(헤더+기대 스킬 존재)" \
                     || fail "A2 스킬 목록: 위 문제 존재"

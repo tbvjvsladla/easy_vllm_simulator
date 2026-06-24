@@ -64,7 +64,7 @@
 
 ## 계획 게이트 (체화 규율)
 
-- container-gen · serving-strategy · branch-sync · terraforming 작업은 반드시 `docs/plan/` 문서를 **먼저 발행**하고
+- container-gen · serving-strategy · branch-sync · terraforming_subnode 작업은 반드시 `docs/plan/` 문서를 **먼저 발행**하고
   **사람 검토(HITL)** 후 진행한다. 테라포밍된 환경에서도 이 문서 발행 규칙대로 작업하는 것이 **정본**이며
   루틴화한다(self-improving tooling). 문서 규약 상세: `.claude/rules/docs.md`.
 
@@ -89,7 +89,7 @@
 
 ## 스킬 / 도구 경계
 
-- **커스텀(3-스킬 계층)**: `terraforming`(오케스트레이터 — 환경탐지 → `manifest.yaml`(스킬 간 단일 계약) 생성 → `upstream-version-watch`·`vllm-recipe-explorer` 호출; **설계됨·미구현(P5)**) → `upstream-version-watch`(버전해소 + render + 소스빌드 + 빌드/스모크) · `vllm-recipe-explorer`(모델 yaml/sh/env + VRAM/KV trial + tiktoken 사전적재). 결정론 vs 판단 분리는 각 스킬 내부.
+- **커스텀(3-스킬 계층 · 빌딩블럭 vs 런타임블럭)**: `terraforming_subnode`(멀티노드 서브노드 진입 + **서브 에이전트 환경 구축** — 환경탐지→`manifest.yaml`(스킬 간 단일 계약) 생성, 그리고 A2A-개념 서브 페르소나·`Agent_Card.json`·통신프로토콜·**런타임블럭 스킬**을 메인에서 렌더해 서브에 전달; plan_2026062408_1) → `upstream-version-watch`(버전해소 + render + 소스빌드 + 빌드/스모크) · `vllm-recipe-explorer`(모델 yaml/sh/env + VRAM/KV trial + tiktoken 사전적재). **분류**: 빌딩블럭(`terraforming_subnode`·`upstream-version-watch`)=메인 전용(서브 전달 ✗) · 런타임블럭(`vllm-recipe-explorer`)=서브 복제(서브가 동일 결정론 엔진을 자기 모델에 자율 실행). 결정론 vs 판단 분리는 각 스킬 내부.
 - **외부**: Docker 작성/문법검사 보조 — 후보 `netresearch/docker-development-skill` (설치정책 거쳐 도입).
 - **MCP**: 현재 없음. (멀티노드 서브노드 직접 SSH 제어 = 구현됨: `.claude/skills/upstream-version-watch/scripts/sync_to_sub.sh` rsync 전달 +
   서브 빌드워커 CC `ssh sub bash -lc "claude -p"`. SKILL.md §4.5 / workflow.md S2.5·S3.)

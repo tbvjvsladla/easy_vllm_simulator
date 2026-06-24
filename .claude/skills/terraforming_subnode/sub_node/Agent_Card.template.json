@@ -1,0 +1,76 @@
+{
+  "_template_note": "추적되는 PII-free 템플릿. terraforming_subnode/render_sub_env.py 가 manifest 값을 {{ }} 에 채워 서브 워크스페이스 루트의 Agent_Card.json(gitignored)으로 렌더. A2A AgentCard 차용 — HTTP 서버 없음(전송=ssh claude -p).",
+  "name": "easy-vllm sub build-worker @ {{ SUB_HOST }}",
+  "description": "멀티노드 slave(Ray worker) 노드의 코드에이전트. 메인 오케스트레이터의 A2A-개념 Task 를 자율 수행: 컨테이너 빌드, Ray worker 합류, 자기 모델 서빙 triplet 자율 저작(vllm-recipe-explorer), 자기검증한 JSON 리포트 반환.",
+  "version": "1.0.0",
+  "protocol": "A2A-concept over SSH (claude -p, no HTTP/JSON-RPC server)",
+  "url": "ssh://{{ SSH_USER }}@{{ SUB_HOST }}",
+  "provider": {
+    "organization": "easy-vllm (self-hosted, closed network)",
+    "url": ""
+  },
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "stateTransitionHistory": true
+  },
+  "defaultInputModes": ["application/json", "text/plain"],
+  "defaultOutputModes": ["application/json"],
+  "securitySchemes": {
+    "ssh-key": {
+      "type": "ssh",
+      "description": "Case A passwordless SSH (사전조건). 메인이 ssh {{ SSH_USER }}@{{ SUB_HOST }} 로 비대화 호출."
+    }
+  },
+  "node_identity": {
+    "role": "sub",
+    "host": "{{ SUB_HOST }}",
+    "hostname": "{{ SUB_HOSTNAME }}",
+    "master_host": "{{ MASTER_HOST }}",
+    "ray_port": "{{ RAY_PORT }}",
+    "interconnect": "{{ INTERCONNECT }}",
+    "interconnect_iface": "{{ INTERCONNECT_IFACE }}",
+    "interconnect_mtu": "{{ INTERCONNECT_MTU }}",
+    "gid_index": "{{ GID_INDEX }}",
+    "hca_devices": "{{ HCA_DEVICES }}",
+    "platform_preset": "{{ PLATFORM_PRESET }}",
+    "cpu_arch": "{{ CPU_ARCH }}",
+    "gpu_model": "{{ GPU_MODEL }}",
+    "workspace_path": "{{ WORKSPACE_PATH }}",
+    "nas_mount": "{{ NAS_MOUNT }}"
+  },
+  "skills": [
+    {
+      "id": "inspect",
+      "name": "Inspect / bootstrap canary",
+      "description": "모델 없이 정체성·로드된 스킬·권한·통신계약을 self-report. terraforming_subnode 완료 게이트(model-less 카나리 라운드트립)에 사용.",
+      "tags": ["bootstrap", "canary", "model-less", "health"],
+      "inputModes": ["text/plain"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "config",
+      "name": "Autonomous serving-triplet authoring",
+      "description": "지정 모델의 서빙 3종(.yaml+.sh+.env)을 vllm-recipe-explorer 결정론 엔진으로 자율 생성. per-task 값(모델명·VRAM 예산·NAS 서브디렉토리)은 Task Message 에서 읽는다.",
+      "tags": ["recipe", "triplet", "vllm-recipe-explorer", "autonomous"],
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "build",
+      "name": "Container build (slave)",
+      "description": "docker compose --profile slave build — 메인 정본 빌드를 독립 재현(교차검증).",
+      "tags": ["docker", "build", "cross-validate"],
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "serve",
+      "name": "Ray worker join (slave)",
+      "description": "docker compose --profile slave up — serve_runner.sh 가 master Ray head 에 worker 로 합류. API 서빙은 master 가 한다.",
+      "tags": ["ray", "serve", "nccl", "rdma"],
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    }
+  ]
+}

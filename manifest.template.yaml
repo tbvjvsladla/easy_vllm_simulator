@@ -12,6 +12,7 @@ topology: <single|multi>          # 자동탐지 제안 + 사람확인(인터뷰
 cpu_arch: "<auto: uname -m>"      # 자동탐지(aarch64 | x86_64). NGC 베이스·manylinux 선정 입력
 cuda_version: "<auto: nvcc 또는 인터뷰>"   # 자동탐지(nvcc --version), 실패 시 인터뷰. 예: "129"
 gpus_per_node: <int>              # 노드당 GPU 수(탈-DGX 일반화 — tp 산정 입력). 예: 1
+gpu_model: "<auto: nvidia-smi --query-gpu=name>"   # 노드 GPU 모델명(서브 페르소나 정체성 bake). 예: "NVIDIA GB10". 미탐지 시 빈값 → 렌더러가 arch×count 로 폴백
 
 # === 폐쇄망 모델 루트 (인터뷰) ===
 nas_model_path: /mnt/models       # 사람이 사전 다운로드한 모델을 둔 호스트 NAS 루트(read-only 마운트원). 환경마다 다름
@@ -36,6 +37,7 @@ interconnect:
   hca_devices: []              # 자동탐지(/sys/class/infiniband). 예: [rocep1s0f1, roceP2p1s0f1]
   gid_index: <int|null>        # 자동탐지(show_gids RoCE v2 + IPv4 행의 INDEX). 예: 3
   socket_iface: <name>         # NCCL/Gloo bootstrap iface. 예: enp1s0f1np1
+  mtu: <int|null>              # iface MTU(서브 정체성 bake; RoCE 보통 9000). 미지정 시 렌더러 기본 9000
   bandwidth_gbps: <num|null>   # ib_write_bw 합산 실측(성능 게이트 기준선). 예: 218. 미측정=null
   platform_preset: <key>       # 렌더 튜닝상수(NCCL GDR/QPS/CROSS_NIC 등) 프리셋 키. 예: dgx-spark-gb10
 
