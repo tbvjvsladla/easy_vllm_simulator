@@ -8,9 +8,11 @@ __pycache__/
 *.py[cod]
 *.so
 
-# ── A2A 런타임 세션 상태(파일=세션 — 추적 안 함) ──
-tasks/*.json
+# ── A2A 런타임 세션 상태 + per-run 스크립트 스크래치(파일=세션 — 추적 안 함) ──
+tasks/*
 !tasks/.gitkeep
+# ── tiktoken 에어갭 자산(gpt-oss o200k — 서브가 사전적재/자체복구. 호스트 자산·배포물 아님, 메인 .gitignore 정합) ──
+tiktoken_cache/
 
 # ── 런타임블럭(vllm-recipe-explorer) per-run 산출물 — 서브가 자기 모델에 생성 ──
 .claude/skills/**/config.yaml
