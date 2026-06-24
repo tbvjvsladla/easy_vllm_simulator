@@ -1,7 +1,10 @@
 x-gpu-common: &gpu-common
+  # 이미지 네이밍 불변식(easy-vllm:{vllm}-cu{cuda}-{arch}-{track}) — 콤보별 .env 가 IMAGE_TAG/BUILD_DOCKERFILE 선택.
+  #   build 시 이 태그로 태깅 · up 시 재사용(한 이미지가 모든 모델 서빙). 콤보②③(0.23.0 source)는 같은 이미지 공유.
+  image: ${IMAGE_TAG:-easy-vllm:0.23.0-cu132-aarch64-source}
   build:
     context: .
-    dockerfile: Dockerfile.source-build   # Phase 2: vLLM 0.22.1 소스빌드(torch 2.11 ABI 벽). prebuilt Dockerfile(0.18.0 앵커)은 보존.
+    dockerfile: ${BUILD_DOCKERFILE:-Dockerfile.source-build}   # 콤보①=Dockerfile(0.18.0 wheel) · ②③=Dockerfile.source-build(기본·torch 2.11 ABI 벽)
   runtime: nvidia
   network_mode: host
   ipc: host

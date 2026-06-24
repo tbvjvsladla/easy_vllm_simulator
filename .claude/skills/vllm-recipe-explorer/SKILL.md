@@ -252,6 +252,12 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
   (+`TIKTOKEN_ENABLED`)를 둘 다 마운트 경로로 가리킨다. 구식 `TIKTOKEN_ENCODINGS_PATH`는 폐기 —
   정본 동기화 대상 3곳(`docker-compose.template.yaml` · `config.example.yaml` · `run_trial.py`)을 맞춘다
   (README straggler는 별도). gpt-oss 스모크가 최종 중재자(현재 미실행).
+- **MoE 백엔드 on sm_121a(GB10/Blackwell) 따름정리**: 대형 MoE(예 Qwen3-Next-80B 512-expert)를 신규 아키(sm_121a)서 서빙 시
+  기본 `moe_backend=auto`는 **flashinfer_cutlass** 를 고른다 → 그 CUTLASS MoE 커널이 sm_121a용 prebuilt 부재 →
+  런타임 nvcc JIT(수십 커널)가 **고병렬=OOM-kill / 저병렬(MAX_JOBS↓)=단일커널 30분+ stall** 로 둘 다 막힌다.
+  → **`--moe-backend triton`** 명시(in-process Triton fused MoE, nvcc 불요)로 회피. Ray 분산이면 master serve 에만 줘도
+  엔진config 가 slave 워커로 전파된다. 근거: 멀티노드 0.23.0 E2E combo③(testlog_2026062501_1, att1–4). 값은 `MoEBackend`
+  Literal(config/kernel.py) 참조. (FlashInfer 커널 캐시 `/root/.cache/flashinfer` 볼륨 영속화 시 재컴파일 회피 — 후속.)
 
 ## 6. Phase 2 — 통합 trial-loop (`recipe.py simulate`)
 

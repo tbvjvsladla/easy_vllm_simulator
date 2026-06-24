@@ -67,9 +67,11 @@ echo "[mn] slave 기동(Ray worker, SSH)..."
 $SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose -f output/multi/docker-compose.yaml --env-file $EF --profile slave up -d'" >/dev/null 2>&1
 
 # ── 준비 폴링: 엔드포인트 health(거짓양성 회피) ──
-echo "[mn] 엔드포인트 :$PORT health 폴링(2노드 분산 로드, 최대 15분)..."
+# READY_MAX(폴링 횟수×5s) 환경변수로 조정 가능 — 대형모델(예 Qwen3-Next-80B bf16 151GB CIFS 로드 ~11분
+#   + KV/compile setup)은 기본 15분(180회)으로 부족 → READY_MAX=360(30분) 등으로 연장(testlog_2026062501_1 결함).
+echo "[mn] 엔드포인트 :$PORT health 폴링(2노드 분산 로드; READY_MAX=${READY_MAX:-180}회×5s ≈ $(( ${READY_MAX:-180} * 5 / 60 ))분)..."
 READY=0
-for i in $(seq 1 180); do
+for i in $(seq 1 "${READY_MAX:-180}"); do
   [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' http://localhost:$PORT/health 2>/dev/null)" = "200" ] && { echo "[mn] READY ~$((i*5))s"; READY=1; break; }
   docker ps --filter name="$MC" --filter status=running -q | grep -q . || { echo "[mn] master EXITED"; docker logs "$MC" 2>&1 | tail -12; break; }
   docker logs "$MC" 2>&1 | grep -qiE "CUDA out of memory|NCCL error|did not join|RuntimeError" && { echo "[mn] FAILURE(serve)"; docker logs "$MC" 2>&1 | grep -iE "out of memory|NCCL error|did not join|RuntimeError" | tail -3; break; }

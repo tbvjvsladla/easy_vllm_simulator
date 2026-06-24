@@ -28,6 +28,11 @@ COPY requirements.txt /tmp/requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r /tmp/requirements.txt
 
+# [멀티노드 전용] ray — 2노드 Ray 분산 서빙(serve_runner.sh 의 ray start). vLLM 0.18.0 reqs 미선언 →
+#   명시 설치(prebuilt wheel 은 --no-deps 라 더더욱 안 들어옴). netcat 등 네트워크 도구는 위 apt 에서 설치됨.
+ARG RAY_VERSION=2.48.0
+RUN pip install ray==${RAY_VERSION}
+
 WORKDIR /workspace
 
 EXPOSE 8000
