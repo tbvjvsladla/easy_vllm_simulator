@@ -47,6 +47,21 @@
   `CPU_ARCH`는 빌드타임 `$(uname -m)`(리터럴 baking 금지) · NAS 경로는 `${NAS_MODEL_PATH}` env(추적물에 PII 비박음).
 - **2-브랜치 배포**: `single-node`(단일) · `multi-node`(분산) 모두 배포 대상. 공유 빌딩블럭은 `scripts/sync_branches.sh`로 동일하게 유지.
 
+## 메인↔서브 양방향 싱크 / 서브개선 role (D12)
+
+> 근거: `seed_e34dfbb6ec23` · `docs/plan/plan_2026062411_1`. 절차 상세 = `.claude/rules/workflow.md`(양방향 브랜치싱크).
+
+- **메인의 지속적 서브개선 role (1급)**: 메인은 서브노드 **작업환경·헌법의 저작·수정권**을 보유한다 — 단 행사 방식은
+  **템플릿→렌더→배달 파이프라인**(`render_sub_env.py`→`sync_to_sub.sh`)이지 **서브 디스크 재스캔이 아니다**.
+  서브 *모델작업·triplet*은 서브 자율(런타임블럭) · 서브 *insight*는 문서로 회수 → 메인이 산출한 업데이트로 지속 개선(self-improving tooling).
+- **A2A 경계(정밀)**: 메인 관측 = (a) push-attestation 리포트 + (b) 서브 `docs/` 로컬 미러 **열람**(`fetch_sub_docs.sh`).
+  메인은 서브 **작업코드/설정을 재스캔·직접교정하지 않는다**. env/헌법 수정은 위 하향 파이프라인으로만(저작권위 ↔ 재스캔금지 공존).
+- **서브 git = 로컬 전용**: 서브 워크스페이스는 `git init` 된 로컬 레포(`single`·`multi` 두 브랜치). **origin 영구 미설정**(push/pull/fetch/remote/clone deny — 방어심층, 진짜 구속은 "원격 없음" + 페르소나). git 역할 = 브랜치전환(모델로드 전략 분기) + 로컬 history/롤백 — **회수 vehicle 아님**.
+- **하향(메인→서브)**: 브랜치별 rsync 배달 + **스크립트저작 `[sync]` 커밋**(main-canonical, 겹침=sub-yields). dirty 트리면 **fail-closed**(배달 거부 → 서브가 commit/stash로 clean화 후 ready 어테스트. **스크립트 auto-stash 금지**).
+- **상향(서브→메인) = 문서기반 only**: 서브가 자기개선을 `docs/` 규약(YYYYMMDDHH_seq)으로 발행 → 경로를 A2A 리포트로 전달 → 메인이 `fetch_sub_docs.sh` 미러로 열람 → **HITL 재저작**(메인 템플릿/헌법/스킬). patch/bundle/staging/apply-check 추출층 없음.
+- **PII 격리**: 회수가 문서기반(코드/설정 미추출)이라 서브 `CLAUDE.md`의 bake 정체성(PII)이 **메인 추적물로 유입되지 않는다** — `포인터 원칙`의 연장. 서브 헌법은 서브에 잔류.
+- **single-node 확장기능**: single-node=기본 독립운용. sub-control("서브 제어 + 수행피드백 수신")은 single-node가 획득하는 **'확장기능'**(헌법 기재). **활성 게이트=결정론**: `output/single/manifest.yaml` `nodes[]`에 sub 존재 여부(`sync_to_sub.sh` 가 읽어 판정). 현재 single manifest 는 `nodes:[]` → **dormant**(독립 self-containment 보존). (HW탐지 결과를 single 통로로 채우는 전달 메커니즘은 **미구현·파킹** — plan_2026062411_1 §5.)
+
 ## build / 검증 커맨드
 
 - 산출물 통로: 빌드/서빙 산출물은 `output/<topology>/`(single|multi)에 위치 — 단일/멀티 혼재 차단. 통로 껍데기만 추적·생성물 비추적(plan_2026062312_1).
@@ -91,8 +106,7 @@
 
 - **커스텀(3-스킬 계층 · 빌딩블럭 vs 런타임블럭)**: `terraforming_subnode`(멀티노드 서브노드 진입 + **서브 에이전트 환경 구축** — 환경탐지→`manifest.yaml`(스킬 간 단일 계약) 생성, 그리고 A2A-개념 서브 페르소나·`Agent_Card.json`·통신프로토콜·**런타임블럭 스킬**을 메인에서 렌더해 서브에 전달; plan_2026062408_1) → `upstream-version-watch`(버전해소 + render + 소스빌드 + 빌드/스모크) · `vllm-recipe-explorer`(모델 yaml/sh/env + VRAM/KV trial + tiktoken 사전적재). **분류**: 빌딩블럭(`terraforming_subnode`·`upstream-version-watch`)=메인 전용(서브 전달 ✗) · 런타임블럭(`vllm-recipe-explorer`)=서브 복제(서브가 동일 결정론 엔진을 자기 모델에 자율 실행). 결정론 vs 판단 분리는 각 스킬 내부.
 - **외부**: Docker 작성/문법검사 보조 — 후보 `netresearch/docker-development-skill` (설치정책 거쳐 도입).
-- **MCP**: 현재 없음. (멀티노드 서브노드 직접 SSH 제어 = 구현됨: `.claude/skills/upstream-version-watch/scripts/sync_to_sub.sh` rsync 전달 +
-  서브 빌드워커 CC `ssh sub bash -lc "claude -p"`. SKILL.md §4.5 / workflow.md S2.5·S3.)
+- **MCP**: 현재 없음. (멀티노드 서브노드 직접 SSH 제어 = 구현됨: `.claude/skills/upstream-version-watch/scripts/sync_to_sub.sh` = **브랜치-aware 하향 오케스트레이터**(rsync 배달 + 스크립트저작 `[sync]` 커밋 + fail-closed dirty 핸드셰이크 + 멱등 git-init) · `fetch_sub_docs.sh` = **상향 문서회수 미러** · 서브 빌드워커 CC `ssh sub bash -lc "claude -p"`. SKILL.md §4.5 / workflow.md S2.5·S3 · 양방향 싱크 D12절차.)
 - 참고: 기존 `configs/check_reqs.py`(의존성 차이 분석 스크립트)를 결정론적 resolve 기반으로 재활용.
 
 ## 문서 발행 / 참조

@@ -1,0 +1,50 @@
+# 서브노드 로컬 git .gitignore (terraforming_subnode 렌더 — D12)
+# 메인 .gitignore 의 서브 적용판: 빌딩블럭·코드는 추적(브랜치 격리·[sync] 캡처), 휘발/생성물은 무시.
+# 서브 git 은 로컬 전용(origin 영구 없음) — PII 안전. 상향 회수는 문서기반(fetch_sub_docs.sh).
+# 정본: 메인 .claude/skills/terraforming_subnode/sub_node/gitignore.template (placeholder 없음 — 그대로 복제).
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.so
+
+# ── A2A 런타임 세션 상태(파일=세션 — 추적 안 함) ──
+tasks/*.json
+!tasks/.gitkeep
+
+# ── 런타임블럭(vllm-recipe-explorer) per-run 산출물 — 서브가 자기 모델에 생성 ──
+.claude/skills/**/config.yaml
+.claude/skills/**/feedback/
+.claude/skills/**/lockset.json
+.claude/skills/**/candidates.json
+.claude/skills/**/parsed.json
+
+# ── 모델별 산출물(서브 자작 configs/envs) — 메인 회수는 문서기반(이 파일들 회수 안 함) ──
+configs/*.yaml
+configs/*.sh
+!configs/serve_runner.sh
+!configs/debug-init.sh
+envs/.env
+envs/.env.*
+!envs/.env.example
+
+# ── output/ 통로 — single/multi 경계분리(pathway isolation) ──
+output/*/*
+!output/*/.gitkeep
+!output/multi/Dockerfile
+!output/multi/Dockerfile.source-build
+!output/multi/docker-compose.yaml
+
+# ── docs — 작업문서 gitignore-persist(브랜치 전환 persist), 스켈레톤(example.md)만 추적 ──
+docs/*/*
+!docs/*/example.md
+
+# ── 상향 회수 미러(메인 전용 — 서브엔 와선 안 되나 방어심층으로 무시) ──
+sync_staging/
+
+# ── 임시/로그 ──
+*.tmp
+*.bak
+*.log
+*.orig
+*~
