@@ -1,35 +1,42 @@
 #!/bin/bash
-# 메인노드 → 서브노드 코드 동기화 (rsync over SSH/ConnectX-7).
+# 메인노드 → 서브노드 **브랜치-aware 하향 싱크 오케스트레이터** (D12).
 #
-# 멀티노드 확장의 [전달] 단계. 메인에서 검증된 런타임 소스를 서브로 직접 전송한다(GitHub 경유 X).
-# 메인/서브 코드는 완전 동일해야 하므로 --delete 로 정합(stray 제거). 빌딩블럭/VCS/캐시는 제외·보호.
+# 멀티노드 확장의 [하향 배달] 단계. 메인 검증 런타임을 서브로 직접 전송(GitHub 경유 X)하고,
+# 서브 **로컬 git**(single·multi 두 브랜치, origin 영구 없음)에 **스크립트저작 `[sync]` 커밋**으로 박는다.
+# 상향(서브 자기개선 회수)은 별도·문서기반: fetch_sub_docs.sh. (plan_2026062411_1 · workflow.md §양방향 브랜치싱크)
 #
-# HITL 안전장치: 기본은 DRY-RUN(미리보기만). 실제 전송은 명시적으로 --apply 를 줘야 한다.
+# 흐름:
+#   B0 멱등 self-bootstrap — 서브 .git 부재 시: git init + base(.gitignore) 커밋 + multi·single 브랜치 생성,
+#                            그리고 multi 브랜치 초기 전체 배달(+커밋). single=base(dormant). **첫 init=HITL(--apply)**.
+#   B1 per-branch 증분(--branch) — dirty 체크(fail-closed) → checkout → render → rsync(빌드+오버레이) → [sync] 커밋.
+#        겹침 = main-canonical(sub-yields). 서브 [improve] history 는 git 에 잔존.
+#   single 확장 게이트(D12 Gap B) — output/single/manifest.yaml nodes[] 에 sub 있으면 활성, 없으면 **dormant(배달 skip)**.
 #
-# 제외(전송·삭제 양쪽에서 보호): .git(서브 git 상태) · .claude(스킬=메인 전용 빌딩블럭) ·
-#   seed(빌딩블럭) · docs(빌드 불필요) · __pycache__(캐시).
-# 전송 대상: Dockerfile · docker-compose.yaml · requirements.txt · configs/ · envs/ · README.md.
-# + (overlay, plan_2026062408_1) 서브 에이전트 환경: output/multi/sub_provision/ → 서브 루트
-#   (CLAUDE.md·Agent_Card.json·.claude/{settings.local.json,rules,schemas,skills/vllm-recipe-explorer}·tasks/). render_sub_env.py 선행.
+# HITL 안전장치: 기본 DRY-RUN(미리보기). 실제 변경은 --apply. **스크립트 auto-stash 금지**(서브가 스스로 clean 화).
+# 제외(빌드 rsync --delete 보호): .git · .claude · seed · docs · __pycache__ · CLAUDE.md · Agent_Card.json · tasks ·
+#   .gitignore(오버레이로 전달) · 비대상 토폴로지 output · sub_provision(오버레이) · manifest.yaml(D10·서브 미전달).
 #
 # 사용:
-#   bash sync_to_sub.sh                       # DRY-RUN (무엇이 바뀔지 미리보기)
-#   bash sync_to_sub.sh --apply               # 실제 전송 + 체크섬 검증 (work_dir 부재 시 R2 게이트로 정지)
-#   bash sync_to_sub.sh --apply --provision   # 사람 승인: 서브 work_dir 부재 시 신설(mkdir) 후 전송
-# 환경변수 override: SUB_HOST(<ssh_user>@<host>) · SRC(기본 레포루트) · DEST · SUB_WORK_DIR.
-# SUB_HOST·SUB_WORK_DIR 미지정 시 manifest.yaml 의 nodes[] (role: sub) 에서 ssh_user/host·work_dir 를 읽어 해소한다.
-# DEST 미지정 시 = 서브 work_dir(기본값=메인 레포 경로와 동일, R2/plan_2026062320_1).
-# ⚠ R2 불변식: 서브 work_dir 신설은 반드시 HITL(--provision) — HITL 없는 자동 경로 신설 금지.
+#   bash sync_to_sub.sh                          # DRY-RUN (bootstrap/증분 계획 + rsync 미리보기)
+#   bash sync_to_sub.sh --apply                  # 실행 (기본 --branch multi)
+#   bash sync_to_sub.sh --apply --provision      # 서브 work_dir 부재 시 신설(HITL)
+#   bash sync_to_sub.sh --apply --branch single  # single 브랜치 타겟(확장 dormant 면 skip)
+#   bash sync_to_sub.sh --apply --branch both    # multi 후 single
+# 환경변수 override: SUB_HOST(<ssh_user>@<host>) · SRC · SUB_WORK_DIR · SYNC_GIT_NAME · SYNC_GIT_EMAIL.
+# SUB_HOST·SUB_WORK_DIR 미지정 시 output/multi/manifest.yaml nodes[](role:sub)에서 해소(서브는 multi manifest 에만 정의).
 set -euo pipefail
 
 SRC="${SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)/}"
+SSH_OPTS="ssh -o BatchMode=yes -o ConnectTimeout=8"
+GIT_NAME="${SYNC_GIT_NAME:-easy-vllm sync (main)}"      # [sync] 커밋 = 스크립트저작 표식
+GIT_EMAIL="${SYNC_GIT_EMAIL:-sync@easy-vllm.local}"
+MAX_DELETE="${MAX_DELETE:-50}"     # --delete 안전캡(방어심층): 미검토 대량삭제는 fail-closed(rsync 비-0). override 가능.
+RENDER="$SRC.claude/skills/terraforming_subnode/scripts/render_sub_env.py"
 
-# ── SUB_HOST 해소: 환경변수 우선, 없으면 manifest.yaml nodes[] (role: sub) ──
+# ── manifest 해소(서브 접속·work_dir = 항상 multi 통로 manifest. single 은 nodes:[] 라 서브 미정의) ──
 _resolve_sub_host_from_manifest() {
-    # 테라포밍이 채운 manifest 실값(output/multi 통로)에서 role=sub 노드의 ssh_user@host 를 추출(plan_2026062315_1).
     local manifest="${SRC%/}/output/multi/manifest.yaml"
     [ -f "$manifest" ] || return 1
-    # nodes: 블록에서 role: sub 항목의 host/ssh_user 를 순차 파싱(외부 yq 의존 없이 awk).
     awk '
         /^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { in_sub=1; host=""; user=""; next }
         /^[[:space:]]*-[[:space:]]*role:/             { in_sub=0 }
@@ -38,8 +45,6 @@ _resolve_sub_host_from_manifest() {
         in_sub && host != "" && user != "" { print user "@" host; exit }
     ' "$manifest"
 }
-
-# ── SUB_WORK_DIR 해소: 환경변수 우선, 없으면 manifest nodes[sub].work_dir, 그래도 없으면 메인 레포 경로(R2 기본값=동일) ──
 _resolve_sub_work_dir_from_manifest() {
     local manifest="${SRC%/}/output/multi/manifest.yaml"
     [ -f "$manifest" ] || return 1
@@ -49,103 +54,204 @@ _resolve_sub_work_dir_from_manifest() {
         in_sub && /^[[:space:]]*work_dir:/ { sub(/^[[:space:]]*work_dir:[[:space:]]*/, ""); sub(/[[:space:]]*#.*/, ""); gsub(/[ "\r]/, ""); print; exit }
     ' "$manifest"
 }
+# single 확장 활성? = output/single/manifest.yaml nodes[] 에 role:sub 가 있나(D12 Gap B 결정론 게이트).
+_single_extension_active() {
+    local manifest="${SRC%/}/output/single/manifest.yaml"
+    [ -f "$manifest" ] || return 1
+    awk '/^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { found=1 } END { exit(found?0:1) }' "$manifest"
+}
 
+[ -z "${SUB_HOST:-}" ]     && SUB_HOST="$(_resolve_sub_host_from_manifest || true)"
+[ -z "${SUB_WORK_DIR:-}" ] && SUB_WORK_DIR="$(_resolve_sub_work_dir_from_manifest || true)"
+[ -z "${SUB_WORK_DIR:-}" ] && SUB_WORK_DIR="${SRC%/}"
 if [ -z "${SUB_HOST:-}" ]; then
-    SUB_HOST="$(_resolve_sub_host_from_manifest || true)"
-fi
-if [ -z "${SUB_HOST:-}" ]; then
-    echo "[sync] FAIL: 서브노드 주소 미해소 — 환경변수 SUB_HOST(<ssh_user>@<host>)를 지정하거나" >&2
-    echo "             manifest.yaml 의 nodes[] (role: sub) 를 테라포밍으로 채우세요." >&2
+    echo "[sync] FAIL: 서브노드 주소 미해소 — SUB_HOST(<ssh_user>@<host>) 지정 또는 manifest nodes[](role:sub) 채우기." >&2
     exit 4
 fi
-if [ -z "${SUB_WORK_DIR:-}" ]; then
-    SUB_WORK_DIR="$(_resolve_sub_work_dir_from_manifest || true)"
-fi
-# 폴백: manifest 미지정 → 메인 레포 경로와 동일(R2 기본값). 옛 고정 서브경로 하드코딩 제거.
-[ -z "${SUB_WORK_DIR:-}" ] && SUB_WORK_DIR="${SRC%/}"
-DEST="${DEST:-${SUB_WORK_DIR}/}"
-SSH_OPTS="ssh -o BatchMode=yes -o ConnectTimeout=8"
-STAGING="${SRC%/}/output/multi/sub_provision"           # 서브 에이전트환경 렌더 스테이징(render_sub_env.py 산출)
-OVERLAY_EXCLUDES=(--exclude '__pycache__' --exclude '*.pyc')  # 오버레이도 바이트코드 제외(메인 rsync와 정합, delivery-3)
+DEST="${SUB_WORK_DIR}/"
 
-MODE="dryrun"; PROVISION=0
-for a in "$@"; do
-    [ "$a" = "--apply" ]     && MODE="apply"
-    [ "$a" = "--provision" ] && PROVISION=1
+MODE="dryrun"; PROVISION=0; BRANCH="multi"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --apply)     MODE="apply" ;;
+        --provision) PROVISION=1 ;;
+        --branch)    shift; BRANCH="${1:-multi}" ;;
+        --branch=*)  BRANCH="${1#*=}" ;;
+        *) echo "[sync] (warn) 미지 인자: $1" >&2 ;;
+    esac
+    shift
 done
+case "$BRANCH" in multi|single|both) ;; *) echo "[sync] FAIL: --branch 는 multi|single|both" >&2; exit 6 ;; esac
 
-EXCLUDES=(--exclude '.git' --exclude '.claude' --exclude 'seed' --exclude 'docs' --exclude '__pycache__' --exclude 'CLAUDE.md' --exclude 'Agent_Card.json' --exclude 'tasks' --exclude 'output/single' --exclude 'output/multi/sub_provision' --exclude 'output/multi/manifest.yaml')  # output/single=서브 불필요 · sub_provision=서브 에이전트환경 스테이징(아래 오버레이로 별도 전달) · manifest.yaml=메인 단일계약(서브 미전달, D10·포인터원칙) · 서브 에이전트환경(.claude·CLAUDE.md·Agent_Card.json·tasks)은 --delete 로부터 보호. plan_2026062312_1·plan_2026062408_1
-RSYNC=(rsync -az --delete -e "$SSH_OPTS" "${EXCLUDES[@]}")
+# 타겟 브랜치 목록
+TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);; both) TARGETS=(multi single);; esac
 
-# ── pre-flight: SSH 도달성 ──
+# ── 토폴로지별 빌드 rsync 제외(비대상 output·오버레이·manifest·빌딩블럭 보호) ──
+_build_excludes() {  # $1=topology
+    local other; [ "$1" = "multi" ] && other="single" || other="multi"
+    EXCL=(--exclude '.git' --exclude '.claude' --exclude 'seed' --exclude 'docs' --exclude '__pycache__'
+          --exclude 'CLAUDE.md' --exclude 'Agent_Card.json' --exclude 'tasks' --exclude '.gitignore'
+          --exclude 'sync_staging'    # 메인 전용 상향 회수 미러(fetch_sub_docs.sh 산출) — 서브로 절대 역전파 금지(순환 차단)
+          --exclude "output/${other}" --exclude "output/${1}/sub_provision" --exclude "output/${1}/manifest.yaml")
+}
+OVERLAY_EXCLUDES=(--exclude '__pycache__' --exclude '*.pyc')
+
+# ── 서브 git 헬퍼 ──
+sub_run()  { $SSH_OPTS "$SUB_HOST" "cd '$SUB_WORK_DIR' && $1"; }
+sub_has_git() { $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR/.git' ]" 2>/dev/null; }
+sub_dirty() { sub_run "git status --porcelain 2>/dev/null"; }
+sub_commit() { sub_run "git -c user.name='$GIT_NAME' -c user.email='$GIT_EMAIL' commit -q -m \"$1\""; }
+sub_branch_current() { sub_run "git rev-parse --abbrev-ref HEAD 2>/dev/null"; }
+
+render_topology() { python3 "$RENDER" --topology "$1" >/dev/null; }
+staging_dir()     { echo "${SRC%/}/output/$1/sub_provision"; }
+
+# 빌드 콘텐츠 rsync(--delete, 토폴로지별 제외). dry 면 --dry-run.
+deliver_build() {  # $1=topology $2=dry(0/1)
+    _build_excludes "$1"
+    local opts=(-az --delete)
+    if [ "$2" = "1" ]; then opts+=(--dry-run --itemize-changes); else opts+=(--max-delete="$MAX_DELETE"); fi
+    rsync "${opts[@]}" "${EXCL[@]}" -e "$SSH_OPTS" "$SRC" "$SUB_HOST:$DEST"
+}
+# dry-run 빌드 미리보기 — 삭제(--delete) 라인을 head 절단 **이전에 전량 보장 노출**(HITL 게이트 ③ '삭제 0' 신뢰성, review major).
+preview_build() {  # $1=topology
+    local out ndel
+    out="$(deliver_build "$1" 1)"
+    ndel="$(printf '%s\n' "$out" | grep -c '^\*deleting' || true)"
+    echo "    ⚠ 삭제 예정(--delete): ${ndel}건  (0이어야 정상 — 비0이면 아래 DEL 목록 정독 · --max-delete=$MAX_DELETE 캡)"
+    [ "${ndel:-0}" -gt 0 ] && { printf '%s\n' "$out" | grep '^\*deleting' | sed 's/^/      DEL /' || true; }
+    echo "    전송/생성 미리보기(최대 40줄):"
+    printf '%s\n' "$out" | grep -v '^\*deleting' | sed 's/^/      /' | head -40 || true
+}
+# 에이전트환경 오버레이 rsync(가산 — --delete 없음: 서브 자작 .claude 산출물·세션상태 보호가 목적).
+# 트레이드오프(review nit): 메인이 런타임블럭에서 파일을 '제거'하면 서브에 stale 잔존 가능(동명 파일은 덮어씀 → 흔치 않음).
+#   런타임블럭 정리가 필요하면 별도 정합(scoped --delete)으로 다룬다 — 기본은 안전한 가산.
+deliver_overlay() {  # $1=topology $2=dry
+    local st; st="$(staging_dir "$1")"
+    [ -d "$st" ] || { echo "[sync] (info) 스테이징 없음($st) — render 선행 필요"; return 0; }
+    local dry=(); [ "$2" = "1" ] && dry=(--dry-run --itemize-changes)
+    rsync -az "${dry[@]}" "${OVERLAY_EXCLUDES[@]}" -e "$SSH_OPTS" "$st/" "$SUB_HOST:$DEST"
+}
+# 체크섬 검증(빌드 핵심입력 + 오버레이 대표). 불일치 시 비-0.
+verify_checksums() {  # $1=topology
+    local st; st="$(staging_dir "$1")"; local fail=0 L R f
+    for f in "output/$1/Dockerfile" "output/$1/Dockerfile.source-build" "output/$1/docker-compose.yaml" "output/$1/requirements.txt"; do
+        [ -f "${SRC}${f}" ] || continue
+        L=$(md5sum "${SRC}${f}" | awk '{print $1}'); R=$($SSH_OPTS "$SUB_HOST" "md5sum '${SUB_WORK_DIR}/${f}' 2>/dev/null" | awk '{print $1}')
+        [ -n "$L" ] && [ "$L" = "$R" ] && echo "  ✅ ${f}" || { echo "  ❌ ${f}: main=$L sub=$R"; fail=1; }
+    done
+    for f in CLAUDE.md Agent_Card.json .claude/settings.local.json .claude/rules/comms.md .claude/rules/docs.md \
+             .claude/schemas/task-report.schema.json .gitignore .claude/skills/vllm-recipe-explorer/recipe.py; do
+        [ -f "$st/$f" ] || continue
+        L=$(md5sum "$st/$f" | awk '{print $1}'); R=$($SSH_OPTS "$SUB_HOST" "md5sum '$SUB_WORK_DIR/$f' 2>/dev/null" | awk '{print $1}')
+        [ -n "$L" ] && [ "$L" = "$R" ] && echo "  ✅ $f" || { echo "  ❌ $f: main=$L sub=$R"; fail=1; }
+    done
+    return $fail
+}
+
+# ── pre-flight ──
 if ! $SSH_OPTS "$SUB_HOST" 'echo ok' >/dev/null 2>&1; then
     echo "[sync] FAIL: $SUB_HOST 에 SSH 불가 (키 인증·네트워크 확인)"; exit 3
 fi
+HAS_GIT=0; sub_has_git && HAS_GIT=1
+SINGLE_ACTIVE=0; _single_extension_active && SINGLE_ACTIVE=1
 
+# ═══════════════════════ DRY-RUN(계획 미리보기) ═══════════════════════
 if [ "$MODE" = "dryrun" ]; then
-    echo "[sync] DRY-RUN  $SRC → $SUB_HOST:$DEST  (실제 전송 안 함 — --apply 로 실행)"
-    "${RSYNC[@]}" --dry-run --itemize-changes "$SRC" "$SUB_HOST:$DEST"
-    # delivery-1: 에이전트 환경 오버레이도 미리보기(HITL 안전 게이트가 persona/권한/스킬 변경까지 보이게).
-    if [ -d "$STAGING" ]; then
-        echo "[sync] DRY-RUN 에이전트 환경 오버레이 미리보기: $STAGING/ → $SUB_HOST:$SUB_WORK_DIR/  (--delete 없음)"
-        rsync -an --itemize-changes "${OVERLAY_EXCLUDES[@]}" -e "$SSH_OPTS" "$STAGING/" "$SUB_HOST:$SUB_WORK_DIR/"
+    echo "[sync] DRY-RUN  $SRC → $SUB_HOST:$DEST"
+    echo "  서브 git: $([ $HAS_GIT = 1 ] && echo '존재(증분 싱크)' || echo '부재 → B0 멱등 self-bootstrap(git init + multi·single 브랜치 + 초기 커밋)')"
+    echo "  타겟 브랜치: ${TARGETS[*]}   single 확장: $([ $SINGLE_ACTIVE = 1 ] && echo '활성' || echo 'dormant(single manifest nodes[] 비어있음 → 배달 skip)')"
+    if [ $HAS_GIT = 1 ]; then
+        for t in "${TARGETS[@]}"; do
+            if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then echo "  --- [single] dormant → skip ---"; continue; fi
+            echo "  --- [$t] dirty 체크(fail-closed) → checkout → render → rsync(빌드+오버레이) → [sync] 커밋 ---"
+            render_topology "$t"
+            preview_build "$t"
+            echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | head -40 || true
+        done
     else
-        echo "[sync] (info) 스테이징 없음($STAGING) — 오버레이 미리보기 생략. render_sub_env.py --topology multi 선행."
+        echo "  --- B0 bootstrap 미리보기(multi 초기 전체 배달) ---"
+        render_topology multi
+        preview_build multi
     fi
-    echo "[sync] (위는 미리보기 — 메인 rsync + 에이전트 환경 오버레이. 사람이 확인 후 --apply)"
+    echo "[sync] (위는 미리보기 — 변경 없음. 사람 확인 후 --apply. 첫 init 도 --apply 게이트.)"
     exit 0
 fi
 
-# ── apply ──
-# R2 HITL 게이트: 서브 work_dir 부재 시 자동신설 금지 — 사람 승인(--provision) 전 정지.
+# ═══════════════════════ APPLY ═══════════════════════
+# R2 HITL 게이트: 서브 work_dir 부재 시 자동신설 금지(--provision 필요).
 if ! $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
     if [ "$PROVISION" != "1" ]; then
         echo "[sync] STOP(R2): 서브 작업경로 부재 — $SUB_HOST:$SUB_WORK_DIR" >&2
-        echo "       ❓ 서브노드에 이 경로를 신설할까요? 사람 승인 시 아래로 재실행:" >&2
-        echo "          bash sync_to_sub.sh --apply --provision" >&2
-        echo "       (HITL 없는 자동 경로 신설 금지 — 헌법 R2/plan_2026062320_1)" >&2
+        echo "       ❓ 신설하려면: bash sync_to_sub.sh --apply --provision (HITL — 자동 경로 신설 금지)" >&2
         exit 5
     fi
-    echo "[sync] PROVISION(사람 승인됨): mkdir -p $SUB_HOST:$SUB_WORK_DIR"
-    $SSH_OPTS "$SUB_HOST" "mkdir -p '$SUB_WORK_DIR'" || { echo "[sync] FAIL: 서브 work_dir 신설 실패"; exit 5; }
+    sub_run_mk() { $SSH_OPTS "$SUB_HOST" "mkdir -p '$SUB_WORK_DIR'"; }
+    echo "[sync] PROVISION(승인됨): mkdir -p $SUB_HOST:$SUB_WORK_DIR"; sub_run_mk || { echo "[sync] FAIL: work_dir 신설 실패"; exit 5; }
 fi
 
-echo "[sync] APPLY  $SRC → $SUB_HOST:$DEST"
-"${RSYNC[@]}" "$SRC" "$SUB_HOST:$DEST"
+# ── B0 멱등 self-bootstrap (서브 .git 부재 시) ──
+if [ $HAS_GIT = 0 ]; then
+    echo "[sync] B0 BOOTSTRAP — 서브 git init + multi·single 브랜치 (로컬 전용·origin 없음)"
+    render_topology multi
+    st="$(staging_dir multi)"
+    # base = .gitignore 만(서브 로컬 추적규칙). 이후 multi 에만 전체 배달 → single 은 base(dormant) 로 격리.
+    rsync -az -e "$SSH_OPTS" "$st/.gitignore" "$SUB_HOST:$DEST.gitignore"
+    sub_run "git init -q"
+    sub_run "git add .gitignore"
+    sub_commit "[sync] bootstrap base (.gitignore) — D12 서브 로컬 git"
+    sub_run "git branch -m multi"     # 기본 브랜치명 → multi
+    sub_run "git branch single"       # single = base(.gitignore) — dormant
+    sub_run "git checkout -q multi"
+    # multi 초기 전체 배달
+    deliver_build multi 0
+    deliver_overlay multi 0
+    sub_run "git add -A"
+    sub_commit "[sync] multi initial delivery — D12 bootstrap"
+    echo "[sync] 체크섬 검증(multi)..."; verify_checksums multi || { echo "[sync] FAIL: bootstrap 체크섬 불일치"; exit 2; }
+    # origin 부재 불변식 확증
+    REMOTES="$(sub_run 'git remote' || true)"
+    [ -z "$REMOTES" ] && echo "[sync] ✅ origin 0 (로컬 전용 확증)" || { echo "[sync] FAIL: 서브에 원격 존재($REMOTES) — D12 위반"; exit 7; }
+    echo "[sync] B0 완료 — multi=populated, single=base(dormant). 브랜치: $(sub_run 'git branch | tr -d "\n"')"
+    # bootstrap 이 multi 를 이미 채움 → TARGETS 에서 multi 제거. 남은 타겟(single, --branch both/single)이 있으면 B1 로 진행.
+    NEWT=(); for x in "${TARGETS[@]}"; do [ "$x" = "multi" ] || NEWT+=("$x"); done
+    TARGETS=("${NEWT[@]:-}"); [ -z "${TARGETS[*]:-}" ] && TARGETS=()
+    [ ${#TARGETS[@]} -eq 0 ] && { echo "[sync] 완료."; exit 0; }
+    echo "[sync] bootstrap 후 잔여 타겟 B1 진행: ${TARGETS[*]}"
+fi
 
-# ── 전송 후 체크섬 검증(핵심 빌드 입력) ──
-echo "[sync] 체크섬 검증..."
-fail=0
-for f in output/multi/Dockerfile output/multi/Dockerfile.source-build output/multi/docker-compose.yaml output/multi/requirements.txt; do
-    [ -f "${SRC}${f}" ] || { echo "  ⏭  ${f}: 로컬 부재 — 검증 생략(소스빌드/prebuilt 브랜치 차이)"; continue; }
-    L=$(md5sum "${SRC}${f}" 2>/dev/null | awk '{print $1}')
-    R=$($SSH_OPTS "$SUB_HOST" "md5sum '${SUB_WORK_DIR}/${f}' 2>/dev/null" | awk '{print $1}')
-    if [ -n "$L" ] && [ "$L" = "$R" ]; then
-        echo "  ✅ ${f}: $L"
+# ── B1 per-branch 증분 싱크 ──
+for t in "${TARGETS[@]}"; do
+    if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then
+        echo "[sync] [single] DORMANT — single manifest nodes[] 비어있음(확장 비활성). 배달 skip(브랜치는 base 유지)."
+        continue
+    fi
+    echo "[sync] [$t] 증분 싱크 시작"
+    # (1) dirty 체크 — fail-closed (스크립트 auto-stash 금지)
+    DIRT="$(sub_dirty || true)"
+    if [ -n "$DIRT" ]; then
+        echo "[sync] STOP(fail-closed): 서브 트리 dirty — 배달 거부(클로버 방지)." >&2
+        echo "$DIRT" | head -20 | sed 's/^/    /' >&2
+        echo "  → 서브가 'git add -A && git commit'(또는 git stash)로 clean 화 후 'ready-for-sync' 어테스트 → 재시도." >&2
+        echo "  (정본: 메인은 너 대신 stash 하지 않는다 — workflow.md §양방향 브랜치싱크 B1-1.)" >&2
+        exit 8
+    fi
+    # (2) checkout
+    sub_run "git checkout -q $t" || { echo "[sync] FAIL: 서브 checkout $t 실패"; exit 8; }
+    # (3) render + (4) rsync(빌드 + 오버레이)  — 겹침=main-canonical
+    render_topology "$t"
+    deliver_build "$t" 0
+    deliver_overlay "$t" 0
+    echo "[sync] 체크섬 검증($t)..."; verify_checksums "$t" || { echo "[sync] FAIL: 체크섬 불일치($t)"; exit 2; }
+    # (5) [sync] 스크립트저작 커밋 (변경분만)
+    sub_run "git add -A"
+    if sub_run "git diff --cached --quiet"; then
+        echo "[sync] [$t] 변경 없음 — 커밋 skip."
     else
-        echo "  ❌ ${f}: main=$L sub=$R (불일치)"; fail=1
+        sub_commit "[sync] $t branch update ($(date -u +%Y%m%dT%H%M%SZ)) — main-canonical"
+        echo "[sync] [$t] [sync] 커밋 완료: $(sub_run 'git log -1 --oneline')"
     fi
 done
-[ "$fail" -eq 0 ] && echo "[sync] 핵심 빌드 입력 체크섬 일치" || { echo "[sync] FAIL: 체크섬 불일치"; exit 2; }
-
-# ── 서브 에이전트 환경 오버레이 (plan_2026062408_1): 렌더된 sub_provision/ → 서브 워크스페이스 루트 ──
-# 메인 rsync(--delete) **이후**에 둔다(overlay 파일이 지워지지 않게). overlay 는 --delete 없음(가산만).
-# 전달 7-아티팩트: CLAUDE.md·Agent_Card.json·.claude/{settings.local.json,rules/comms.md,schemas/task-report.schema.json,skills/vllm-recipe-explorer}·tasks/.
-# 빌딩블럭 스킬(terraforming_subnode·upstream-version-watch)은 스테이징에 없으므로 전달되지 않는다(런타임블럭만).
-if [ -d "$STAGING" ]; then
-    # 여기 도달 = apply 모드(dryrun 은 위에서 exit). 오버레이 = 가산(--delete 없음).
-    echo "[sync] 서브 에이전트 환경 오버레이: $STAGING/ → $SUB_HOST:$SUB_WORK_DIR/  (--delete 없음)"
-    rsync -az "${OVERLAY_EXCLUDES[@]}" -e "$SSH_OPTS" "$STAGING/" "$SUB_HOST:$SUB_WORK_DIR/"
-    efail=0
-    # delivery-2: 7-아티팩트 대표 체크섬 — 렌더3 + 정적2(comms·schema) + 런타임블럭2(recipe.py·SKILL.md).
-    # schema 는 push-attestation 계약(sub 가 이 스키마로 자기검증)이라 반드시 검증.
-    for f in CLAUDE.md Agent_Card.json .claude/settings.local.json .claude/rules/comms.md .claude/schemas/task-report.schema.json .claude/skills/vllm-recipe-explorer/recipe.py .claude/skills/vllm-recipe-explorer/SKILL.md; do
-        L=$(md5sum "$STAGING/$f" 2>/dev/null | awk '{print $1}')
-        R=$($SSH_OPTS "$SUB_HOST" "md5sum '$SUB_WORK_DIR/$f' 2>/dev/null" | awk '{print $1}')
-        if [ -n "$L" ] && [ "$L" = "$R" ]; then echo "  ✅ $f"; else echo "  ❌ $f: main=$L sub=$R (불일치)"; efail=1; fi
-    done
-    [ "$efail" -eq 0 ] && echo "[sync] 에이전트 환경 오버레이 완료 — 7종 대표 체크섬 검증(렌더3·정적2·런타임블럭2)" || { echo "[sync] FAIL: 에이전트 환경 체크섬 불일치"; exit 2; }
-else
-    echo "[sync] (info) 스테이징 없음($STAGING) — 에이전트 환경 오버레이 생략. 먼저 'python3 .claude/skills/terraforming_subnode/scripts/render_sub_env.py --topology multi' 실행."
-fi
-echo "[sync] 완료."
+# 서브를 기본 운용 브랜치(multi)로 복귀 — 멀티노드 서브의 active role(single 은 dormant/확장).
+sub_run "git checkout -q multi" >/dev/null 2>&1 || true
+echo "[sync] 완료. (현재 서브 브랜치: $(sub_branch_current))"

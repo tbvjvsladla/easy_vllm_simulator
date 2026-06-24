@@ -5,14 +5,19 @@
 노드정체성(nodes[]·interconnect·hw)을 PII-free 템플릿 `{{ ... }}` 에 치환해 **서브노드 에이전트 환경**을
 gitignored 스테이징 트리 `output/<topology>/sub_provision/` 로 렌더한다(서브 워크스페이스 루트 미러).
 
-산출 스테이징 레이아웃(= 서브 워크스페이스에 오버레이될 7-아티팩트):
+산출 스테이징 레이아웃(= 서브 워크스페이스에 오버레이될 아티팩트):
   CLAUDE.md                              ← CLAUDE.template.md         (렌더)
   Agent_Card.json                        ← Agent_Card.template.json   (렌더)
   .claude/settings.local.json            ← settings.local.template.json (렌더, 스코프드)
   .claude/rules/comms.md                 ← comms.md                   (복제·정적계약)
+  .claude/rules/docs.md                  ← .claude/rules/docs.md      (복제·문서규약 테라포밍, D12)
   .claude/schemas/task-report.schema.json← task-report.schema.json    (복제·정적계약)
   .claude/skills/vllm-recipe-explorer/   ← 런타임블럭(git-tracked만 복제 — config.yaml/feedback/lockset 제외)
+  .gitignore                             ← gitignore.template         (복제·서브 로컬git 추적규칙, D12)
+  docs/{plan,devlog,testlog}/example.md  ← 메인 docs/*/example.md     (복제·발행 스켈레톤, D12)
   tasks/.gitkeep                         ← 런타임 상태 스캐폴드(빈 디렉토리)
+
+D12: --topology {single|multi} 로 양 토폴로지 렌더(서브 로컬 git 양 브랜치). {{ TOPOLOGY }} 치환으로 페르소나가 브랜치 맥락 인지.
 
 전달은 sync_to_sub.sh --provision(별도). 이 스크립트는 렌더까지만(결정론).
 stdlib 만. PII(실 manifest)는 읽되 gitignored 스테이징으로만 쓴다(추적물엔 안 씀).
@@ -20,6 +25,7 @@ stdlib 만. PII(실 manifest)는 읽되 gitignored 스테이징으로만 쓴다(
 """
 from __future__ import annotations
 import argparse
+import glob
 import json
 import os
 import re
@@ -27,11 +33,16 @@ import shutil
 import subprocess
 import sys
 
+# docs.md 가 규정하는 발행 문서 4종(서브 docs 스켈레톤 계약 — self-test 가 강제).
+DOC_TYPES = ("plan", "devlog", "testlog", "simlog")
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL_DIR = os.path.dirname(HERE)                       # .claude/skills/terraforming_subnode
 SUBNODE_DIR = os.path.join(SKILL_DIR, "sub_node")       # 템플릿·정적자산 보관
 REPO = os.path.abspath(os.path.join(SKILL_DIR, "..", "..", ".."))  # repo root
 RUNTIME_BLOCK = os.path.join(REPO, ".claude", "skills", "vllm-recipe-explorer")
+DOCS_RULES = os.path.join(REPO, ".claude", "rules", "docs.md")     # 문서규약(정적계약 — 서브 테라포밍, D12)
+MAIN_DOCS = os.path.join(REPO, "docs")                              # docs/*/example.md 발행 스켈레톤 원천(D12)
 
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Z_]+)\s*\}\}")
 # 템플릿 전용 머리말(렌더 산출물에서 제거) — md 템플릿의 "이건 템플릿이다" 메타 블록.
@@ -109,6 +120,8 @@ def build_placeholders(data: dict) -> tuple[dict, list[str]]:
         "WORKSPACE_PATH": work_dir,
         "NAS_MOUNT": data.get("nas_model_path", ""),
         "CPU_ARCH": cpu_arch,
+        "TOPOLOGY": data.get("topology", ""),   # D12: 서브 브랜치 맥락(single|multi) — main() 이 manifest 누락 시 --topology 로 채움
+
         "INTERCONNECT": ic.get("type", ""),
         "INTERCONNECT_IFACE": ic.get("socket_iface", ""),
         # ── 폴백 있는 항목(이식성) ──
@@ -173,13 +186,17 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
     _render_file("Agent_Card.template.json", "Agent_Card.json", "json")
     _render_file("settings.local.template.json", ".claude/settings.local.json", "json")
 
-    # 2) 복제 정적계약 2종
+    # 2) 복제 정적계약 (comms·schema·docs규약)
     shutil.copyfile(os.path.join(SUBNODE_DIR, "comms.md"), os.path.join(claude, "rules", "comms.md"))
     schema_dst = os.path.join(claude, "schemas", "task-report.schema.json")
     shutil.copyfile(os.path.join(SUBNODE_DIR, "task-report.schema.json"), schema_dst)
     with open(schema_dst, encoding="utf-8") as f:
         json.load(f)
     produced += [".claude/rules/comms.md", ".claude/schemas/task-report.schema.json"]
+    # D12: 문서규약 테라포밍 — 서브가 동일 발행규약(docs.md)으로 insight 문서 발행 → 상향 문서기반 회수
+    if os.path.isfile(DOCS_RULES):
+        shutil.copyfile(DOCS_RULES, os.path.join(claude, "rules", "docs.md"))
+        produced.append(".claude/rules/docs.md")
 
     # 3) 런타임블럭 복제(git-tracked 만 — config.yaml/feedback/lockset/__pycache__ 제외)
     if copy_runtime_block:
@@ -191,6 +208,24 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
     with open(os.path.join(out_dir, "tasks", ".gitkeep"), "w") as f:
         f.write("")
     produced.append("tasks/.gitkeep")
+
+    # 5) 서브 로컬 git .gitignore (D12 — placeholder 없는 정적자산 그대로 복제)
+    gi_src = os.path.join(SUBNODE_DIR, "gitignore.template")
+    if os.path.isfile(gi_src):
+        shutil.copyfile(gi_src, os.path.join(out_dir, ".gitignore"))
+        produced.append(".gitignore")
+
+    # 6) docs/ 발행 스켈레톤 (D12 — 메인 docs/*/example.md 복제. 서브가 동일 규약으로 insight 발행)
+    if os.path.isdir(MAIN_DOCS):
+        n_docs = 0
+        for ex in sorted(glob.glob(os.path.join(MAIN_DOCS, "*", "example.md"))):
+            dtype = os.path.basename(os.path.dirname(ex))     # plan|devlog|testlog|simlog
+            dst = os.path.join(out_dir, "docs", dtype, "example.md")
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copyfile(ex, dst)
+            n_docs += 1
+        if n_docs:
+            produced.append(f"docs/*/example.md ({n_docs} skeletons)")
 
     return {"out_dir": out_dir, "produced": produced}
 
@@ -270,8 +305,9 @@ def _self_test() -> int:
     ph, missing = build_placeholders(data)
     c1 = not missing and ph["SUB_HOST"] == "203.0.113.11" and ph["MASTER_HOST"] == "203.0.113.10" \
         and ph["INTERCONNECT_IFACE"] == "testif0" and ph["INTERCONNECT_MTU"] == "9000" \
-        and ph["GPU_MODEL"] == "TEST-GPU" and ph["NAS_MOUNT"] == "/srv/test-models"
-    print(f"  [{'PASS' if c1 else 'FAIL'}] manifest 파싱 + placeholders (missing={missing})")
+        and ph["GPU_MODEL"] == "TEST-GPU" and ph["NAS_MOUNT"] == "/srv/test-models" \
+        and ph["TOPOLOGY"] == "multi"
+    print(f"  [{'PASS' if c1 else 'FAIL'}] manifest 파싱 + placeholders (missing={missing}, topology={ph.get('TOPOLOGY')})")
     ok &= c1
 
     # (2) 폴백: gpu_model/mtu 누락 시 기본값
@@ -288,13 +324,21 @@ def _self_test() -> int:
     print(f"  [{'PASS' if c3 else 'FAIL'}] 필수 누락 감지(fail-loud) → missing={missing3[:3]}...")
     ok &= c3
 
-    # (4) 전체 렌더 → 미치환 0 + JSON 유효 + 7 아티팩트 구조
+    # (4) 전체 렌더 → 미치환 0 + JSON 유효 + 아티팩트 구조(+ D12 신규: .gitignore·docs규약·docs스켈레톤)
     out = os.path.join(tmp, "sub_provision")
     try:
         res = render_tree(ph, out, copy_runtime_block=False)  # 런타임블럭 복제는 git 의존 → self-test 제외
-        expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
-                  ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json", "tasks/.gitkeep"]
-        have = all(os.path.exists(os.path.join(out, p)) for p in expect)
+        base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
+                       ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json", "tasks/.gitkeep",
+                       ".claude/rules/docs.md", ".gitignore"]
+        have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
+        missing_art = [p for p in base_expect if not os.path.exists(os.path.join(out, p))]
+        # docs 스켈레톤: docs.md 계약 4종(DOC_TYPES) 전부 렌더됐나(simlog 누락 회귀 차단 — review)
+        rendered_doc_types = {os.path.basename(os.path.dirname(p))
+                              for p in glob.glob(os.path.join(out, "docs", "*", "example.md"))}
+        docs_contract_ok = set(DOC_TYPES).issubset(rendered_doc_types)
+        if not docs_contract_ok:
+            missing_art.append("docs/{%s}/example.md" % ",".join(sorted(set(DOC_TYPES) - rendered_doc_types)))
         # 렌더 산출물에 미치환 placeholder 0
         leftover = []
         for p in ("CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json"):
@@ -304,11 +348,33 @@ def _self_test() -> int:
         for p in ("Agent_Card.json", ".claude/settings.local.json", ".claude/schemas/task-report.schema.json"):
             with open(os.path.join(out, p), encoding="utf-8") as f:
                 json.load(f)
-        c4 = have and not leftover
-        print(f"  [{'PASS' if c4 else 'FAIL'}] 전체 렌더(미치환={leftover}, 구조완비={have})")
+        # settings: 로컬 git allow + 원격 deny 정합(D12-02)
+        with open(os.path.join(out, ".claude/settings.local.json"), encoding="utf-8") as f:
+            st = json.load(f)
+        allow, deny = st["permissions"]["allow"], st["permissions"]["deny"]
+        git_ok = ("Bash(git commit:*)" in allow and "Bash(git checkout:*)" in allow
+                  and "Bash(git commit:*)" not in deny
+                  and all(f"Bash(git {r}:*)" in deny for r in ("push", "pull", "fetch", "remote", "clone")))
+        c4 = have and not leftover and git_ok and docs_contract_ok
+        print(f"  [{'PASS' if c4 else 'FAIL'}] 전체 렌더(미치환={leftover}, 누락아티팩트={missing_art}, git권한정합={git_ok}, docs계약4종={sorted(rendered_doc_types)})")
         ok &= c4
     except SystemExit as e:
         print(f"  [FAIL] 렌더 예외: {e}")
+        ok = False
+
+    # (5) D12 dual-topology: single 토폴로지 렌더(브랜치 맥락 single) — TOPOLOGY 치환 정합
+    data5 = parse_manifest(mpath); data5["topology"] = "single"
+    ph5, _ = build_placeholders(data5)
+    out5 = os.path.join(tmp, "sub_provision_single")
+    try:
+        render_tree(ph5, out5, copy_runtime_block=False)
+        with open(os.path.join(out5, "CLAUDE.md"), encoding="utf-8") as f:
+            claude_single = f.read()
+        c5 = ph5["TOPOLOGY"] == "single" and "single" in claude_single and not _unrendered(claude_single)
+        print(f"  [{'PASS' if c5 else 'FAIL'}] dual-topology single 렌더(TOPOLOGY={ph5['TOPOLOGY']}, 페르소나 반영={'single' in claude_single})")
+        ok &= c5
+    except SystemExit as e:
+        print(f"  [FAIL] single 렌더 예외: {e}")
         ok = False
 
     # (템플릿 PII-free 는 scripts/smoke_clone.sh A4 가 추적물 전반에서 단일 게이트로 검사 — 여기 중복/리터럴 미보유)
@@ -320,7 +386,7 @@ def _self_test() -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description="terraforming_subnode 서브 에이전트 환경 렌더러 (결정론)")
     ap.add_argument("--topology", choices=["single", "multi"], default="multi",
-                    help="산출물 통로(output/<topology>/). 서브 에이전트 환경은 multi 전용.")
+                    help="산출물 통로(output/<topology>/) + 서브 브랜치 맥락. D12: single·multi 양쪽 렌더 가능(서브 로컬 git 양 브랜치).")
     ap.add_argument("--manifest", default=None, help="manifest 경로(기본 output/<topology>/manifest.yaml)")
     ap.add_argument("--out", default=None, help="스테이징 출력(기본 output/<topology>/sub_provision)")
     ap.add_argument("--no-runtime-block", action="store_true", help="런타임블럭(vllm-recipe-explorer) 복제 생략(디버그)")
@@ -336,6 +402,7 @@ def main() -> int:
         print(f"[render] FAIL: manifest 없음 — {manifest} (terraforming_subnode 스캔/인터뷰로 먼저 채우세요)", file=sys.stderr)
         return 3
     data = parse_manifest(manifest)
+    data.setdefault("topology", args.topology)   # D12: manifest 에 topology 없으면 --topology 로 채움(브랜치 맥락 보장)
     ph, missing = build_placeholders(data)
     if missing:
         print(f"[render] FAIL: manifest 필수 필드 누락 {missing} — 무증거 빈 정체성 렌더 금지.", file=sys.stderr)

@@ -82,6 +82,17 @@
   - `.gitignore`: `docs/*/*` (작업문서 무시) + `!docs/*/example.md` (스켈레톤만 추적).
   - **simlog도 동일 규칙으로 자동 처리**: run 디렉토리 전 산출물(`docs/simlog/<run>/*`)은 `docs/*/*`에
     걸려 무시, `docs/simlog/example.md`만 추적. simlog 전용 추가 규칙 불필요(별도 패턴 넣지 말 것).
-- 서브노드 rsync 전파에서도 docs 제외(빌드 불필요 — `sync_to_sub.sh`의 `--exclude docs`). simlog의
-  대용량 trial 로그도 이 제외로 서브에 전파되지 않는다(빌드 입력 아님).
+- 서브노드 **하향(빌드) rsync** 전파에서는 docs 제외(빌드 불필요 — `sync_to_sub.sh`의 `--exclude docs`). simlog의
+  대용량 trial 로그도 이 제외로 서브에 하향 전파되지 않는다(빌드 입력 아님).
 - 빌딩블럭(`.claude/`·`CLAUDE.md`)은 이 docs 규약의 대상 문서가 아니다(헌법·스킬이 관리). 추적·배포는 되며 브랜치 동기화는 `sync_branches.sh`. `seed/`는 비추적(사적 부트스트랩 이력).
+
+### 서브노드 docs 테라포밍 + 상향 회수 (D12)
+
+> 근거: `seed_e34dfbb6ec23` · `plan_2026062411_1`. 절차 = `.claude/rules/workflow.md` §"메인↔서브 양방향 브랜치싱크" B2.
+
+- **규약 테라포밍**: 서브노드도 **동일한 docs 발행 규약**(이 파일)을 따른다 — 같은 명명(`docs/<type>/<type>_YYYYMMDDHH_seq_주제.md`),
+  같은 4종(plan/devlog/testlog/simlog), 같은 gitignore-persist(`docs/*/*` ignore · `!docs/*/example.md` 추적). docs 스켈레톤은 `render_sub_env.py` 가 서브 env 에 렌더.
+- **상향 회수(서브→메인) = 문서기반 only**: 서브가 자기개선 insight 를 자기 `docs/` 에 발행 → A2A 리포트로 **경로 전달** → 메인이
+  `fetch_sub_docs.sh` 로 서브 `docs/` 만 로컬 gitignored 미러(`sync_staging/sub_docs/`)로 rsync → 메인 **열람** → **HITL 재저작**.
+  (이는 하향 빌드 rsync 의 `--exclude docs` 와 별개 평면 — 빌드엔 docs 불요, **회수엔 docs 가 유일 채널**. patch/코드 추출 없음.)
+- **PII**: 회수가 문서기반(코드/설정 미추출)이라 서브 헌법의 bake 정체성이 메인 추적물로 유입되지 않는다(헌법 §메인↔서브 D12-09).

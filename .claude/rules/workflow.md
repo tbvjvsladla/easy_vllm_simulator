@@ -69,6 +69,35 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 +
 > 초기에는 위 4개 게이트를 모두 사람이 통과시킨다(최대 HITL).
 > 단계가 안정화되면 하나씩 자동화 영역으로 이전한다(incremental trust).
 
+## 메인↔서브 양방향 브랜치싱크 (D12 절차 · 멀티노드 전용)
+
+> 근거: `seed_e34dfbb6ec23` · `docs/plan/plan_2026062411_1`. "항상 참" 요약 = 루트 `CLAUDE.md` §"메인↔서브 양방향 싱크 / 서브개선 role".
+> 트리거 = 사람의 싱크 지시(자동 폴링·cron·webhook 없음 — 헌법 트리거 정책 동일). 스크립트 = `.claude/skills/upstream-version-watch/scripts/{sync_to_sub.sh,fetch_sub_docs.sh}`.
+
+### B0 멱등 self-bootstrap (서브 git 최초 1회)
+- 서브 `.git` 부재 시: 초기 rsync 후 `sync_to_sub.sh` 가 서브에서 `git init` + `single`·`multi` 브랜치 생성 + 초기 commit.
+- **첫 init 은 HITL**(dry-run 노출 → `--apply` 게이트). 이후 멱등(`.git` 있으면 skip). 서브 git = **로컬 전용·origin 영구 미설정**.
+
+### B1 하향(메인→서브) 4단 — 브랜치별, fail-closed
+1. **dirty 체크(fail-closed)**: 서브 `git status --porcelain` 이 비어있지 않으면 **배달 거부**(non-zero exit). **스크립트 auto-stash 금지.**
+   → 서브가 스스로 commit/stash 로 clean 화 후 "ready-for-sync" 어테스트(핸드셰이크). 그 뒤 재시도.
+2. **checkout**: 대상 토폴로지 브랜치(`single`|`multi`)로 서브 checkout(`--branch`).
+3. **rsync(브랜치-타겟 콘텐츠)**: `render_sub_env.py --topology <t>` 산출 + 토폴로지 산출물(`output/<t>/`)을 서브로 배달.
+   겹침 = **main-canonical(sub-yields)** — 메인 정본이 이긴다. 서브 `[improve]` history 는 git 에 잔존(덮어쓰되 history 보존).
+4. **스크립트저작 `[sync]` 커밋**: 배달 후 `sync_to_sub.sh` 가 서브에서 `git add -A && git commit -m "[sync] …"` 를 **스크립트로** 저작(에이전트 아님).
+- dry-run 우선(무엇이 떨어지나·삭제 0 미리보기) → `--apply`.
+
+### B2 상향(서브→메인) = 문서기반 회수 only
+1. 서브가 자기개선 insight 를 **docs 규약**(`.claude/rules/docs.md`, `YYYYMMDDHH_seq`)으로 발행(서브 로컬 `[improve]` 커밋).
+2. 서브가 A2A 리포트(`notes`/`artifacts`)로 **그 문서 경로**를 메인에 전달.
+3. 메인이 **`fetch_sub_docs.sh`** 로 서브 `docs/` 만 로컬 gitignored 미러(`sync_staging/sub_docs/`)로 rsync — **에이전트 직접 SSH 재스캔 아님**.
+4. 메인이 미러 문서를 **열람** → **HITL 재저작**: 메인 템플릿(`sub_node/*.template`)·헌법·스킬에 반영. **자동 머지 없음**(안전 > 자동화).
+- patch/format-patch/git-bundle/staging/apply-check 추출층 **없음**(전부 문서기반으로 붕괴 — plan_2026062411_1 D12-06·13).
+
+### B3 경계 (A2A — CLAUDE.md 와 정합)
+- 메인 관측 = push-attestation 리포트 + 미러 `docs/` 열람. **서브 작업코드/설정 재스캔·직접교정 금지.**
+- 메인 수정권(env/헌법)은 **하향 파이프라인으로만** 행사(템플릿→렌더→배달). 서브 모델작업·triplet 은 서브 자율.
+
 ## 트리거 (수동)
 
 - 재빌드/bump 트리거는 **사람의 "업데이트" 지시**뿐. 자동 폴링·cron·webhook 없음.
