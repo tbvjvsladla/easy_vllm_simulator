@@ -13,10 +13,8 @@
 #   single 확장 게이트(D12 Gap B) — output/single/manifest.yaml nodes[] 에 sub 있으면 활성, 없으면 **dormant(배달 skip)**.
 #
 # HITL 안전장치: 기본 DRY-RUN(미리보기). 실제 변경은 --apply. **스크립트 auto-stash 금지**(서브가 스스로 clean 화).
-# 빌드 배달(S4 Band2-only · plan_2026062417_1): rsync 소스 = output/<t>/ 서브트리만 → 루트 Band1(템플릿·scripts·resolved.json) 구조적 배제.
-#   output/<t>/ 내 keying: Band2(configs/{serve_runner,debug-init}.sh · envs/.env.interconnect · Dockerfile·compose·requirements·.dockerignore·.gitkeep) 전파 ·
-#   Band3(모델 트리플렛 configs/<m>.{sh,yaml}·envs/.env.<m>) keying 배제 · manifest.yaml(D10)·sub_provision(overlay) 배제 · 미분류=fail-loud(assert_band_classification).
-#   에이전트 환경(CLAUDE.md·.claude·docs·.gitignore)은 deliver_overlay/bootstrap 소관(빌드 배달과 분리).
+# 제외(빌드 rsync --delete 보호): .git · .claude · seed · docs · __pycache__ · CLAUDE.md · Agent_Card.json · tasks ·
+#   .gitignore(오버레이로 전달) · 비대상 토폴로지 output · sub_provision(오버레이) · manifest.yaml(D10·서브 미전달).
 #
 # 사용:
 #   bash sync_to_sub.sh                          # DRY-RUN (bootstrap/증분 계획 + rsync 미리보기)
@@ -32,8 +30,7 @@ SRC="${SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)/}"
 SSH_OPTS="ssh -o BatchMode=yes -o ConnectTimeout=8"
 GIT_NAME="${SYNC_GIT_NAME:-easy-vllm sync (main)}"      # [sync] 커밋 = 스크립트저작 표식
 GIT_EMAIL="${SYNC_GIT_EMAIL:-sync@easy-vllm.local}"
-MAX_DELETE="${MAX_DELETE:-50}"     # (레거시) --delete 안전캡. S4 는 아래 ALLOW_DELETE 삭제brake 가 1차 게이트.
-ALLOW_DELETE="${ALLOW_DELETE:-0}"  # (S4 d-rsync-2) 삭제 前 brake: 삭제예정 > 이 값이면 *삭제 前* fail-closed. 의도된 정리만 명시 override.
+MAX_DELETE="${MAX_DELETE:-50}"     # --delete 안전캡(방어심층): 미검토 대량삭제는 fail-closed(rsync 비-0). override 가능.
 RENDER="$SRC.claude/skills/terraforming_subnode/scripts/render_sub_env.py"
 
 # ── manifest 해소(서브 접속·work_dir = 항상 multi 통로 manifest. single 은 nodes:[] 라 서브 미정의) ──
@@ -89,89 +86,13 @@ case "$BRANCH" in multi|single|both) ;; *) echo "[sync] FAIL: --branch 는 multi
 # 타겟 브랜치 목록
 TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);; both) TARGETS=(multi single);; esac
 
-# ── S4 Band2 빌드킷 keying(전파 = output/<t>/ 의 Band2 만 · plan_2026062417_1 rev3 R1) ──
-# Band1(루트 템플릿·scripts·resolved.json)은 rsync 소스가 output/<t>/ 라 구조적으로 빠지고,
-# Band3(모델 recipe = <model>.{sh,yaml}·모델 env)는 아래 keying 으로 빠진다. 미분류는 assert_band_classification 가 fail-loud.
-# ⚠ 정본 주의(d12-1): 서브 gitignore.template 의 `!configs/serve_runner.sh` 는 *루트* configs/ 대상이라 이 allowlist 와
-#   *동치 아님*. output/<t>/ Band2 추적은 gitignore.template 의 output/ 예외(!output/<t>/configs/serve_runner.sh 등)가 관할.
-BAND2_CONFIGS=(serve_runner.sh debug-init.sh)        # topology-keyed 분산서빙 인프라(Band2, 멀티)
-BAND2_ENVS=(.env.interconnect .env.cluster)          # topology/network-keyed env(Band2): NCCL(.interconnect) + 클러스터배포(.cluster=S6 materialize)
-BAND2_TOP=(Dockerfile Dockerfile.source-build docker-compose.yaml requirements.txt .gitkeep)  # 최상위 빌드킷(Band2)
-
-_band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = output/<t>/.
-    FILT=(--exclude='/manifest.yaml' --exclude='/sub_provision' --exclude='/.env')   # D10 manifest·serve-time .env(node-local host config·PII, render --materialize-env 산출) 미전달 · 에이전트환경=overlay
-    local f
-    FILT+=(--include='/configs/')
-    for f in "${BAND2_CONFIGS[@]}"; do FILT+=(--include="/configs/$f"); done
-    FILT+=(--exclude='/configs/*')                # 나머지 configs(모델 트리플렛 Band3) 배제
-    FILT+=(--include='/envs/')
-    for f in "${BAND2_ENVS[@]}"; do FILT+=(--include="/envs/$f"); done
-    FILT+=(--exclude='/envs/*')                   # 나머지 envs(모델 env Band3) 배제
-    # (d-rsync-3) 최상위는 default-include 가 아니라 명시 allowlist + terminal exclude → stray Band1/secret/log·.dockerignore(§1.3 불요) 누출 차단
-    for f in "${BAND2_TOP[@]}"; do FILT+=(--include="/$f"); done
-    FILT+=(--exclude='/*')
-}
-
-# ── S4 fail-loud band 분류 단언(plan ⊕rev3 keying linter) ──
-# output/<t>/ 의 (a) 최상위 (b) configs/ (c) envs/ 모든 항목이 Band2(allowlist) 또는 Band3(완전 모델 트리플렛
-# .sh+.yaml / .env.<model>)로 명확 분류되는지 + (멀티) Band2 인프라가 소스에 실재하는지 검증. 미분류/누락 → 비-0.
-assert_band_classification() {  # $1=topology → 0=ok, 1=미분류·누락
-    local odir="${SRC%/}/output/$1" cdir="${SRC%/}/output/$1/configs" edir="${SRC%/}/output/$1/envs" bad=0 f b ok stem
-    local nullsave; nullsave="$(shopt -p nullglob dotglob || true)"; shopt -s nullglob dotglob
-    local -A _b2c _b2e _b2top
-    for b in "${BAND2_CONFIGS[@]}"; do _b2c["$b"]=1; done
-    for b in "${BAND2_ENVS[@]}"; do _b2e["$b"]=1; done
-    for b in "${BAND2_TOP[@]}" configs envs manifest.yaml sub_provision .env; do _b2top["$b"]=1; done
-
-    # (a) (d-cg-4) 최상위 — 빌드킷·서브디렉토리·의도적 제외(manifest/sub_provision) 외 미지 항목 fail-loud
-    for f in "$odir"/*; do
-        b="$(basename "$f")"
-        [ -n "${_b2top[$b]:-}" ] && continue
-        echo "[sync] FAIL(S4 미분류 top-level): output/$1/$b — Band2 빌드킷이면 BAND2_TOP 추가 · Band3/생성물이면 _band2_filters 에 --exclude 추가." >&2; bad=1
-    done
-
-    # (b) configs/
-    for f in "$cdir"/*; do
-        [ -f "$f" ] || continue                                          # (d-band-1) 디렉토리/비정규 skip
-        b="$(basename "$f")"; [ "$b" = ".gitkeep" ] && continue
-        [ -n "${_b2c[$b]:-}" ] && continue                              # Band2 인프라(allowlist)
-        ok=0
-        case "$b" in                                                     # (d-band-2) 짝의 .sh 가 Band2 면 Band3 로 green-light 안 함(stem 충돌 차단)
-            *.sh)   stem="${b%.sh}";   [ -f "$cdir/$stem.yaml" ] && ok=1 || true ;;
-            *.yaml) stem="${b%.yaml}"; { [ -f "$cdir/$stem.sh" ] && [ -z "${_b2c[$stem.sh]:-}" ]; } && ok=1 || true ;;
-        esac
-        [ "$ok" = 1 ] && continue
-        echo "[sync] FAIL(S4 미분류): output/$1/configs/$b — Band2 인프라면 BAND2_CONFIGS 추가 · Band3 모델이면 .sh+.yaml 짝 확인." >&2; bad=1
-    done
-
-    # (c) envs/
-    for f in "$edir"/*; do
-        [ -f "$f" ] || continue
-        b="$(basename "$f")"; [ "$b" = ".gitkeep" ] && continue
-        [ -n "${_b2e[$b]:-}" ] && continue                              # Band2 네트워크 env(allowlist)
-        ok=0
-        case "$b" in
-            .env.*) stem="${b#.env.}"; { { [ -f "$cdir/$stem.sh" ] || [ -f "$cdir/$stem.yaml" ]; } && [ -z "${_b2c[$stem.sh]:-}" ]; } && ok=1 || true ;;  # 모델 env → Band3
-        esac
-        [ "$ok" = 1 ] && continue
-        echo "[sync] FAIL(S4 미분류): output/$1/envs/$b — Band2면 BAND2_ENVS 추가 · Band3 모델 env 면 configs 짝 확인." >&2; bad=1
-    done
-
-    # (d-bcf-4) 양방향 enforcement: Band2 config 와 짝맞는 .env.<base> 가 있으면 BAND2_ENVS 등록 필수(아니면 모델로 오분류·drop)
-    for b in "${BAND2_CONFIGS[@]}"; do
-        stem="${b%.*}"
-        if [ -f "$edir/.env.$stem" ] && [ -z "${_b2e[.env.$stem]:-}" ]; then
-            echo "[sync] FAIL(S4 양방향): output/$1/envs/.env.$stem 가 Band2 config '$b' 와 짝이나 BAND2_ENVS 미등록." >&2; bad=1
-        fi
-    done
-
-    # (d-rsync-1) 멀티: 소스 Band2 인프라 부재 시 fail-closed(빈 소스가 --delete 로 서브 Band2 인프라 wipe 방지)
-    if [ "$1" = "multi" ]; then
-        for b in "${BAND2_CONFIGS[@]}"; do [ -f "$cdir/$b" ] || { echo "[sync] FAIL(S4 통로미완결): output/$1/configs/$b 부재 — 'render_dockerfile.py --materialize-configs --topology $1' 선행." >&2; bad=1; }; done
-        for b in "${BAND2_ENVS[@]}"; do [ -f "$edir/$b" ] || { echo "[sync] FAIL(S4 통로미완결): output/$1/envs/$b 부재 — render(NCCL/cluster envfile, S6) 선행." >&2; bad=1; }; done
-    fi
-
-    eval "$nullsave"; return $bad
+# ── 토폴로지별 빌드 rsync 제외(비대상 output·오버레이·manifest·빌딩블럭 보호) ──
+_build_excludes() {  # $1=topology
+    local other; [ "$1" = "multi" ] && other="single" || other="multi"
+    EXCL=(--exclude '.git' --exclude '.claude' --exclude 'seed' --exclude 'docs' --exclude '__pycache__'
+          --exclude 'CLAUDE.md' --exclude 'Agent_Card.json' --exclude 'tasks' --exclude '.gitignore'
+          --exclude 'sync_staging'    # 메인 전용 상향 회수 미러(fetch_sub_docs.sh 산출) — 서브로 절대 역전파 금지(순환 차단)
+          --exclude "output/${other}" --exclude "output/${1}/sub_provision" --exclude "output/${1}/manifest.yaml")
 }
 OVERLAY_EXCLUDES=(--exclude '__pycache__' --exclude '*.pyc')
 
@@ -185,33 +106,19 @@ sub_branch_current() { sub_run "git rev-parse --abbrev-ref HEAD 2>/dev/null"; }
 render_topology() { python3 "$RENDER" --topology "$1" >/dev/null; }
 staging_dir()     { echo "${SRC%/}/output/$1/sub_provision"; }
 
-# 빌드 콘텐츠 rsync(S4): 소스 = output/<t>/ 서브트리만(루트 Band1 구조적 배제) + Band2 keying. dry 면 --dry-run.
-# --delete 이중 스코프(d-rsync-5): (a) dst=output/<t>/ 한정 → 서브 루트·.claude·docs 불가침(별 평면) ·
-#   (b) 그 안에서도 exclude 된 Band3(configs/*·envs/* − allowlist)·중첩 dir 는 *보호*(삭제 대상 아님) → 서브 자작 트리플렛 보존
-#   = full mirror 아님. stale main-origin Band3 잔재 회수는 gate③ cleanup 소관(루트 Band1 leak 과 동일 평면).
+# 빌드 콘텐츠 rsync(--delete, 토폴로지별 제외). dry 면 --dry-run.
 deliver_build() {  # $1=topology $2=dry(0/1)
-    _band2_filters
-    local src="${SRC%/}/output/$1/" dst="${DEST}output/$1/"
-    if [ "$2" = "1" ]; then
-        rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_OPTS" "$src" "$SUB_HOST:$dst"
-        return
-    fi
-    # apply: (d-rsync-2) 삭제 前 brake — dry-run 으로 삭제예정 세고 ALLOW_DELETE 초과 시 *삭제 前* fail-closed(부분삭제 0)
-    sub_run "mkdir -p 'output/$1'"
-    local ndel
-    ndel="$(rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_OPTS" "$src" "$SUB_HOST:$dst" 2>/dev/null | grep -c '^\*deleting' || true)"
-    if [ "${ndel:-0}" -gt "${ALLOW_DELETE:-0}" ]; then
-        echo "[sync] STOP(S4 삭제brake): $1 삭제예정 ${ndel}건 > ALLOW_DELETE=${ALLOW_DELETE:-0} — 삭제 前 fail-closed(부분삭제 없음). 의도된 정리면 ALLOW_DELETE=${ndel} 로 재실행." >&2
-        return 9
-    fi
-    rsync -az --delete --max-delete="${ALLOW_DELETE:-0}" "${FILT[@]}" -e "$SSH_OPTS" "$src" "$SUB_HOST:$dst"
+    _build_excludes "$1"
+    local opts=(-az --delete)
+    if [ "$2" = "1" ]; then opts+=(--dry-run --itemize-changes); else opts+=(--max-delete="$MAX_DELETE"); fi
+    rsync "${opts[@]}" "${EXCL[@]}" -e "$SSH_OPTS" "$SRC" "$SUB_HOST:$DEST"
 }
 # dry-run 빌드 미리보기 — 삭제(--delete) 라인을 head 절단 **이전에 전량 보장 노출**(HITL 게이트 ③ '삭제 0' 신뢰성, review major).
 preview_build() {  # $1=topology
     local out ndel
     out="$(deliver_build "$1" 1)"
     ndel="$(printf '%s\n' "$out" | grep -c '^\*deleting' || true)"
-    echo "    ⚠ 삭제 예정(--delete): ${ndel}건  (0이어야 정상 — apply 는 ALLOW_DELETE=${ALLOW_DELETE:-0} 초과 시 *삭제 前* fail-closed. 의도된 정리면 ALLOW_DELETE=${ndel})"
+    echo "    ⚠ 삭제 예정(--delete): ${ndel}건  (0이어야 정상 — 비0이면 아래 DEL 목록 정독 · --max-delete=$MAX_DELETE 캡)"
     [ "${ndel:-0}" -gt 0 ] && { printf '%s\n' "$out" | grep '^\*deleting' | sed 's/^/      DEL /' || true; }
     echo "    전송/생성 미리보기(최대 40줄):"
     printf '%s\n' "$out" | grep -v '^\*deleting' | sed 's/^/      /' | head -40 || true
@@ -257,16 +164,14 @@ if [ "$MODE" = "dryrun" ]; then
     if [ $HAS_GIT = 1 ]; then
         for t in "${TARGETS[@]}"; do
             if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then echo "  --- [single] dormant → skip ---"; continue; fi
-            echo "  --- [$t] dirty 체크(fail-closed) → checkout → render → band단언 → rsync(빌드+오버레이) → [sync] 커밋 ---"
+            echo "  --- [$t] dirty 체크(fail-closed) → checkout → render → rsync(빌드+오버레이) → [sync] 커밋 ---"
             render_topology "$t"
-            assert_band_classification "$t" || echo "  [$t] ⚠ S4 미분류 파일 존재(위 FAIL) — --apply 시 배달 거부. 분류 후 재시도."
             preview_build "$t"
             echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | head -40 || true
         done
     else
-        echo "  --- B0 bootstrap 미리보기(multi 초기 Band2 배달) ---"
+        echo "  --- B0 bootstrap 미리보기(multi 초기 전체 배달) ---"
         render_topology multi
-        assert_band_classification multi || echo "  ⚠ S4 미분류(multi, 위 FAIL) — --apply 시 거부."
         preview_build multi
     fi
     echo "[sync] (위는 미리보기 — 변경 없음. 사람 확인 후 --apply. 첫 init 도 --apply 게이트.)"
@@ -298,8 +203,7 @@ if [ $HAS_GIT = 0 ]; then
     sub_run "git branch -m multi"     # 기본 브랜치명 → multi
     sub_run "git branch single"       # single = base(.gitignore) — dormant
     sub_run "git checkout -q multi"
-    # multi 초기 Band2 배달 (S4 band 단언 = 하드 게이트)
-    assert_band_classification multi || { echo "[sync] STOP(S4): multi band 분류 실패 — bootstrap 중단(위 FAIL 분류 후 재시도)." >&2; exit 9; }
+    # multi 초기 전체 배달
     deliver_build multi 0
     deliver_overlay multi 0
     sub_run "git add -A"
@@ -334,9 +238,8 @@ for t in "${TARGETS[@]}"; do
     fi
     # (2) checkout
     sub_run "git checkout -q $t" || { echo "[sync] FAIL: 서브 checkout $t 실패"; exit 8; }
-    # (3) render + band단언(S4 하드 게이트) + (4) rsync(빌드 + 오버레이)  — 겹침=main-canonical
+    # (3) render + (4) rsync(빌드 + 오버레이)  — 겹침=main-canonical
     render_topology "$t"
-    assert_band_classification "$t" || { echo "[sync] STOP(S4): $t band 분류 실패 — 배달 거부(위 FAIL 분류 후 재시도)." >&2; exit 9; }
     deliver_build "$t" 0
     deliver_overlay "$t" 0
     echo "[sync] 체크섬 검증($t)..."; verify_checksums "$t" || { echo "[sync] FAIL: 체크섬 불일치($t)"; exit 2; }
