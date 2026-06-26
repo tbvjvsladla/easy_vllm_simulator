@@ -7,8 +7,7 @@
 
 ```text
 S1 resolve  → 대상 vLLM 버전 해소 (결정론적 스크립트)
-   - vLLM pyproject.toml [build-system].requires 에 명시된 torch 버전 확인
-   - 그 torch 버전과 NVIDIA_PYTORCH_BUILD_VERSION 접두어가 일치하는 NGC PyTorch 베이스 태그 선정
+   - torch핀 추출(pyproject [build-system].requires) → 접두어매칭 NGC 베이스 태그 선정 + 빌드트랙(torch세대 → wheel/source) 판정: 절차·결정론 스크립트 = 스킬 upstream-version-watch §1, 트랙분기 근거 = 스킬 §0.5 (여기 재서술 안 함 — 레이어 커플링 규칙)
    - CUDA_VERSION · CPU_ARCH($(uname -m)) · wheel URL 확정
    - 주변 의존성: vLLM requirements/{common,cuda,build}.txt + pyproject.toml 로 requirements.txt 재생성
    verify: 산출값(torch핀·NGC태그·CUDA·wheel URL·deps diff) 출력
@@ -45,9 +44,10 @@ S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
             _C를 NGC torch에 맞춰 컴파일(ABI 벽 해소) → 경험적·HITL 패치 루프(strip-hoist 등) → 스모크 →
             Dockerfile.source-build 동결 → clean 재빌드 재현. 패치는 판단계층(사전-codify 금지). 단 E2E 검증 후 키잉된 조건부 카탈로그로 졸업 가능(스킬 §4.6).
             └ NGC 베이스 오버라이드 = 1급 Model-C 서브분기(베이스 torch의 ABI 결여 심볼로 source-build FAIL일 때):
+              (source-build 맥락·헤더grep 기법의 스킬-홈 = 스킬 upstream-version-watch §4.6 ↔ S3 = 절차-홈, 상호참조)
                 ① classify=unknown → 정지(자동 행동 금지).
-                ② 후보 신규 NGC 베이스의 torch::stable 헤더(tensor_struct.h/ops.h)를 grep해 결여 심볼(예: layout()/6-arg from_blob)이
-                   **그 후보 베이스엔 존재함**을 사전 확증(현 베이스엔 부재가 빌드로그로 증명된 상태).
+                ② **참조-그라운디드 해결**: 후보 신규 NGC 베이스의 torch::stable 헤더(tensor_struct.h/ops.h)를 grep해 결여 심볼(예: layout()/6-arg from_blob)이
+                   **그 후보 베이스엔 존재함**을 사전 확증(현 베이스엔 부재가 빌드로그로 증명된 상태) — 자기추론 전 권위참조(헤더·빌드로그), 토큰 증가는 정확도를 사므로 장려.
                 ③ 증거를 testlog에 기록 + 사람 승인 후 resolved.json의 NGC 태그만 오버라이드
                    (특정 버전값은 manifest·resolved.json에서 — 헌법·workflow에 박지 않음. 26.05 등 하드코딩 금지).
                 ④ re-render → clean 재빌드 → 스모크. **무증거 오버라이드 금지.**

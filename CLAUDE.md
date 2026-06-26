@@ -23,16 +23,16 @@
   **접두어**가 일치하는 NGC PyTorch 베이스 태그를 선정한다.
   (접미어 `+해시`·빌드메타는 무시. 예: vLLM 0.21.0 → torch 2.11.0 → `nvcr.io/nvidia/pytorch:26.03-py3`)
 - **빌드트랙 따름정리**: torch 2.10대 → prebuilt wheel · torch 2.11+ → NGC alpha와 prebuilt `_C`의 C++ ABI 충돌(하드 ABI 벽) → **소스빌드 1차 트랙**. 트랙 판정 = 스킬 `upstream-version-watch` §0.5, 최종 중재 = 스모크.
-- **커플링 보강 원칙**: prefix-매칭은 필요조건일 뿐 — source-build에서 alpha 베이스가 stable-ABI 심볼 결여 시 **더 새 NGC 베이스 승격이 정당**(전방호환). 절차 = `.claude/rules/workflow.md` S3, 키잉 = 스킬 §4.6.
+- **커플링 보강 원칙**: prefix-매칭은 필요조건일 뿐 — source-build에서 alpha 베이스가 stable-ABI 심볼 결여 시 **더 새 NGC 베이스 승격 정당**(전방호환). 절차·키잉 상세 = `.claude/rules/workflow.md` S3 · 스킬 §4.6.
 - **이미지 네이밍 불변식**: `easy-vllm:{vllm}-cu{cuda}-{arch}-{track}`(예 `0.23.0-cu132-aarch64-source`). 모델-키잉 금지(과거 난립 원인) — 한 이미지가 모든 모델을 서빙. 태그 산정 = `render_dockerfile.py`.
 - **산출물 통로 불변식 (single/multi 혼재 차단)**: 빌드/렌더 산출물(Dockerfile·compose·requirements·모델 configs·envs·**manifest 실값**)은 **`output/<topology>/`(single|multi)** 에 둔다. **통로 껍데기(`.gitkeep`)만 추적·생성물 비추적** → 단일/멀티 산출물이 켜켜이 쌓여도 경로 격리로 서로 침범 못 함. **topology 는 브랜치가 결정**(single-node=single, multi-node=multi) → manifest 실값도 `output/<topology>/manifest.yaml` 통로 분리, **브랜치 빈번 전환 시 재작성 0**(전환=그 통로 manifest를 읽음). 빌드 = `docker compose -f output/<topology>/docker-compose.yaml …`. 예외: multi 손작성 컨테이너 정의는 `*.template` 졸업 전까지 추적(정본 — Plan 2서 ignore 강등). 근거: `docs/plan/plan_2026062312_1`(통로)·`plan_2026062315_1`(manifest 이관).
-- **serve-time env 통로 불변식 (결함#2 codify)**: serve 변수치환값(`NAS_MODEL_PATH`·`TIKTOKEN_HOST_PATH`)은 `render_dockerfile.py --materialize-env` 가 manifest 에서 `output/<topology>/.env` 로 **materialize** 한다(렌더 표준 단계 — 스킬 `upstream-version-watch` §2.5). compose 기본값(`${NAS_MODEL_PATH:-/mnt/models}`)에 의존하면 serve 가 모델을 못 찾는다(testlog_2026062422_1). **해소 우선순위 = env-주입 > manifest 정본 > 리터럴 default** (`check_smoke_model.py`·render materialize 동일 — 포인터 원칙 연장).
-- **통합메모리 gmu 따름정리**: 통합메모리 호스트(GB10 등)에서는 gpu-memory-utilization을 반드시 명시 emit — 기본 0.92는 통합메모리에서 OOM(스킬 `vllm-recipe-explorer` §5).
-- **인코딩 자산 따름정리**: 모델 가중치뿐 아니라 런타임 인코딩 자산(tiktoken o200k/harmony)도 에어갭 사전적재 대상(스킬 `vllm-recipe-explorer` §5).
-- **near-max batch 측정 따름정리**: per-token KV 공식(`estimate_vram`, full-attention 가정)은 sliding-window/GQA 모델서 KV를 **과대추정하는 상한**일 뿐 — near-max batch·절대 KV 클램프는 **측정(serve KV log 또는 Phase-2)으로만** 산정한다(formula-우선 batch 금지 → 과소산정·용량낭비). 근거: 0.23.0 E2E(gemma 공식 8× · gpt-oss 1.9× 과대 — gpt-oss는 full-attention 아님). 스킬 `vllm-recipe-explorer` §1·§5.
+- **serve-time env 통로 불변식 (결함#2 codify)**: serve 변수치환값(`NAS_MODEL_PATH`·`TIKTOKEN_HOST_PATH`) **해소 우선순위 = env-주입 > manifest 정본 > 리터럴 default**(포인터 원칙 연장 — `check_smoke_model.py`·render materialize 동일). materialize 절차(`render_dockerfile.py --materialize-env` → `output/<topology>/.env`) 상세 = 스킬 `upstream-version-watch` §2.5.
+- **통합메모리 gmu 따름정리**: 통합메모리 호스트(GB10 등)는 gpu-memory-utilization 명시 emit 필수(기본 0.92 OOM). 상세 = 스킬 `vllm-recipe-explorer` §5.
+- **인코딩 자산 따름정리**: 런타임 인코딩 자산(tiktoken o200k/harmony)도 가중치와 함께 에어갭 사전적재 대상 — 상세 = 스킬 `vllm-recipe-explorer` §5.
+- **near-max batch 측정 따름정리**: near-max batch·절대 KV 클램프는 **측정(serve KV log 또는 Phase-2)으로만** 산정한다 — per-token KV 공식은 과대추정 상한일 뿐(**측정 > 공식**, formula-우선 batch 금지). 숫자증거·상세 = 스킬 `vllm-recipe-explorer` §1·§5.
 - **빌드 입력**: `CPU_ARCH=$(uname -m)` · `CUDA_VERSION`(예 129) · GitHub Releases pre-built wheel.
-  wheel은 `pip install --no-deps`로 설치하고, **그 전에 `/etc/pip/constraint.txt`를 비운다**(NGC 핀 충돌 회피).
-- **주변 의존성 원천**: vLLM의 `requirements/{common,cuda,build}.txt` + `pyproject.toml`. `requirements.txt`에 반영.
+  wheel은 `pip install --no-deps`로 설치하고, **그 전에 `/etc/pip/constraint.txt`를 비운다**(NGC 핀 충돌 회피). 상세 = 스킬 `upstream-version-watch`.
+- **주변 의존성 원천**: vLLM `requirements/{common,cuda,build}.txt` + `pyproject.toml` → `requirements.txt` 재생성(절차 = `.claude/rules/workflow.md` S1).
 - **모델**: 폐쇄망 전제. 사람이 사전 다운로드해 NAS에 둔 모델을 read-only 마운트. 런타임 다운로드 없음.
 
 ## 버전 핀 / 트리거 정책
@@ -59,8 +59,8 @@
 - **A2A 경계(정밀)**: 메인 관측 = (a) push-attestation 리포트 + (b) 서브 `docs/` 로컬 미러 **열람**(`fetch_sub_docs.sh`).
   메인은 서브 **작업코드/설정을 재스캔·직접교정하지 않는다**. env/헌법 수정은 위 하향 파이프라인으로만(저작권위 ↔ 재스캔금지 공존).
 - **서브 git = 로컬 전용**: 서브 워크스페이스는 `git init` 된 로컬 레포(`single`·`multi` 두 브랜치). **origin 영구 미설정**(push/pull/fetch/remote/clone deny — 방어심층, 진짜 구속은 "원격 없음" + 페르소나). git 역할 = 브랜치전환(모델로드 전략 분기) + 로컬 history/롤백 — **회수 vehicle 아님**.
-- **하향(메인→서브)**: 브랜치별 rsync 배달 + **스크립트저작 `[sync]` 커밋**(main-canonical, 겹침=sub-yields). dirty 트리면 **fail-closed**(배달 거부 → 서브가 commit/stash로 clean화 후 ready 어테스트. **스크립트 auto-stash 금지**).
-- **상향(서브→메인) = 문서기반 only**: 서브가 자기개선을 `docs/` 규약(YYYYMMDDHH_seq)으로 발행 → 경로를 A2A 리포트로 전달 → 메인이 `fetch_sub_docs.sh` 미러로 열람 → **HITL 재저작**(메인 템플릿/헌법/스킬). patch/bundle/staging/apply-check 추출층 없음.
+- **하향(메인→서브)**: 브랜치별 rsync 배달 + 스크립트저작 `[sync]` 커밋(main-canonical, 겹침=sub-yields), dirty 트리=**fail-closed**(auto-stash 금지). 절차 = workflow.md B1.
+- **상향(서브→메인) = 문서기반 only**: 서브 insight 를 `docs/` 규약으로 발행 → A2A 리포트로 경로 전달 → 메인 `fetch_sub_docs.sh` 미러 열람 → **HITL 재저작**(메인 템플릿/헌법/스킬). patch/추출층 없음. 절차 = workflow.md B2.
 - **PII 격리**: 회수가 문서기반(코드/설정 미추출)이라 서브 `CLAUDE.md`의 bake 정체성(PII)이 **메인 추적물로 유입되지 않는다** — `포인터 원칙`의 연장. 서브 헌법은 서브에 잔류.
 - **single-node 확장기능**: single-node=기본 독립운용. sub-control("서브 제어 + 수행피드백 수신")은 single-node가 획득하는 **'확장기능'**(헌법 기재). **활성 게이트=결정론**: `output/single/manifest.yaml` `nodes[]`에 sub 존재 여부(`sync_to_sub.sh` 가 읽어 판정). 현재 single manifest 는 `nodes:[]` → **dormant**(독립 self-containment 보존). (HW탐지 결과를 single 통로로 채우는 전달 메커니즘은 **미구현·파킹** — plan_2026062411_1 §5.)
   - **라이브 형태 = A2A 모델서빙 위임(T3 검증, 0.23.0 E2E)**: 활성 시 메인이 서브에 A2A 태스크 발급(`ssh sub claude -p … --permission-mode acceptEdits`) → 서브가 자작 recipe + `--profile serve up -d` + 로컬 스모크 → push-attestation 1개 반환. 메인은 **리포트만 관측**(디스크 재스캔 X — A2A 경계). 실행평면 노드별 독립(교차검증). 절차 = 서브 `comms.md` serve 술어(single 분기).
@@ -95,28 +95,24 @@
   `sub_node/CLAUDE.md` 실값)은 **비추적**. 브랜치 간 공유 콘텐츠는 `scripts/sync_branches.sh`로
   동기화한다(수동 — 모든 작업 종료 후 사람 질의로 실행).
 - 버전 문자열 해소(torch 핀·NGC 태그)를 **확률론적 추론으로 처리 금지** → **결정론적 스크립트**로(하네스 엔지니어링).
+- **참조-그라운디드 해결**: 오류복구·진단 시 자기추론보다 **권위 참조**(업스트림 소스·이미지 내부·모델 config/chat_template·런타임 로그·레지스트리/헤더) 우선 — 위 결정론 해소의 error-recovery 연장. 상세는 각 스킬 error-recovery. (정확도 위해 토큰 증가 허용)
 - 업스트림 핀/베이스 이미지를 가드레일·기록 없이 임의 변경 금지.
 - 요청 범위 밖 기능·추상화 선반영 금지(Karpathy B2·B3).
 
 ## 롤백
 
-- **last-good 앵커 = 로컬 스모크-통과 커밋**. 미커밋 작업분은 일회용.
-- 실패 시: `git reset --hard <last-good-commit>`로 복귀(잔여 로컬 상태 0). `single-node`·`multi-node` 독립 롤백.
-  복귀 기준이 더 필요하면 통과분에 태그(예: `git tag last-good-<branch>`)를 둔다.
-- (참고) origin은 사용자 환경 값(`manifest.origin_url`)에서 설정: `git remote add origin <manifest.origin_url>`.
+- **last-good 앵커 = 로컬 스모크-통과 커밋**. 미커밋 작업분은 일회용 · `single-node`·`multi-node` 독립 롤백.
+- 절차(`git reset --hard <last-good>`·`git tag last-good-<branch>`·origin = `manifest.origin_url`) 상세 = `.claude/rules/workflow.md` §실패/롤백.
 
 ## 스킬 / 도구 경계
 
-- **커스텀(3-스킬 계층 · 빌딩블럭 vs 런타임블럭)**: `terraforming_subnode`(멀티노드 서브노드 진입 + **서브 에이전트 환경 구축** — 환경탐지→`manifest.yaml`(스킬 간 단일 계약) 생성, 그리고 A2A-개념 서브 페르소나·`Agent_Card.json`·통신프로토콜·**런타임블럭 스킬**을 메인에서 렌더해 서브에 전달; plan_2026062408_1) → `upstream-version-watch`(버전해소 + render + 소스빌드 + 빌드/스모크) · `vllm-recipe-explorer`(모델 yaml/sh/env + VRAM/KV trial + tiktoken 사전적재). **분류**: 빌딩블럭(`terraforming_subnode`·`upstream-version-watch`)=메인 전용(서브 전달 ✗) · 런타임블럭(`vllm-recipe-explorer`)=서브 복제(서브가 동일 결정론 엔진을 자기 모델에 자율 실행). 결정론 vs 판단 분리는 각 스킬 내부.
+- **커스텀(3-스킬 계층 · 빌딩블럭 vs 런타임블럭)**: `terraforming_subnode`(서브노드 진입 + 서브 에이전트 환경 구축 — `manifest.yaml` 생성·서브 페르소나/런타임블럭 렌더 배달; plan_2026062408_1) · `upstream-version-watch`(버전해소 + render + 소스빌드 + 빌드/스모크) · `vllm-recipe-explorer`(모델 yaml/sh/env + VRAM/KV trial + tiktoken 사전적재). **분류**: 빌딩블럭(`terraforming_subnode`·`upstream-version-watch`)=메인 전용(서브 전달 ✗) · 런타임블럭(`vllm-recipe-explorer`)=서브 복제(자기 모델에 자율 실행). 각 스킬 상세 = 해당 SKILL.md frontmatter. 결정론 vs 판단 분리는 각 스킬 내부.
 - **외부**: Docker 작성/문법검사 보조 — 후보 `netresearch/docker-development-skill` (설치정책 거쳐 도입).
 - **MCP**: 현재 없음. (멀티노드 서브노드 직접 SSH 제어 = 구현됨: `.claude/skills/upstream-version-watch/scripts/sync_to_sub.sh` = **브랜치-aware 하향 오케스트레이터**(rsync 배달 + 스크립트저작 `[sync]` 커밋 + fail-closed dirty 핸드셰이크 + 멱등 git-init) · `fetch_sub_docs.sh` = **상향 문서회수 미러** · 서브 빌드워커 CC `ssh sub bash -lc "claude -p"`. SKILL.md §4.5 / workflow.md S2.5·S3 · 양방향 싱크 D12절차.)
 - 참고: 기존 `configs/check_reqs.py`(의존성 차이 분석 스크립트)를 결정론적 resolve 기반으로 재활용.
 
 ## 문서 발행 / 참조
 
-- **3종 문서 역할**: `docs/plan/`=착수 전 계획(HITL 검토) · `docs/devlog/`=작업 내역 서사 · `docs/testlog/`=빌드/검증 증거·판정.
-- **명명 규칙**: `docs/<type>/<type>_<YYYYMMDDHH>_<seq>_<주제>.md` (type별 서브디렉토리+접두사 · 절대일시 YYYYMMDDHH(시각까지) · 일련번호 seq · 한국어 밑줄 주제).
-- **브랜치 통합 모델**: 작업 문서(`docs/<type>/*.md`)는 **gitignore → 브랜치 전환에 persist·자동 통합**(빌딩블럭과 동일). 추적·배포는 **폴더 스켈레톤 + 각 폴더 `example.md` 1개**만. 구현체(Dockerfile/compose/configs/envs)는 브랜치별 독립(통합 안 함).
-- **문서 작성 규약 상세**: `.claude/rules/docs.md` (역할·명명·구조·통합모델 명문화).
+- **3종 문서 역할**: `docs/plan/`(착수 전 계획·HITL) · `docs/devlog/`(작업 서사) · `docs/testlog/`(검증 증거·판정). 명명 = `docs/<type>/<type>_<YYYYMMDDHH>_<seq>_<주제>.md`. 역할·명명·구조·브랜치 통합모델 상세 = `.claude/rules/docs.md`.
 - 전파 워크플로 규칙: `.claude/rules/workflow.md`.
 - 부트스트랩 근거: 비추적 `seed/` 참조(GUIDE·question-catalog·REFERENCES·Seed) — 배포본엔 부재 가능.
