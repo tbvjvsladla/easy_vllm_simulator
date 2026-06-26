@@ -67,7 +67,7 @@
     {
       "id": "serve",
       "name": "Serve — Ray worker (multi) / standalone API (single)",
-      "description": "multi: docker compose --profile slave up — master Ray head 에 worker 합류(API 는 master). single(독립서빙, T3 검증 0.23.0 E2E): --profile serve up -d → :PORT/health 200(python urllib, curl deny) → 로컬 functional smoke(완성/reasoning) → push-attestation. 현재 브랜치로 분기.",
+      "description": "multi: docker compose --profile slave up — master Ray head 에 worker 합류(API 는 master). single(독립서빙, T3 검증 0.23.0 E2E): standalone API 직접 서빙(절차 정본 = comms.md §phase serve 술어 single 분기 — detached up→health200(python urllib)→functional smoke→push-attestation). 현재 브랜치로 분기.",
       "tags": ["ray", "serve", "nccl", "rdma", "standalone", "single-node"],
       "inputModes": ["application/json"],
       "outputModes": ["application/json"]

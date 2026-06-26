@@ -25,7 +25,7 @@
 ## 브랜치 인식 (D12 — 너의 작업공간은 로컬 git 레포다)
 - 작업공간은 `git init` 된 **로컬 전용 레포**(원격 없음). 현재 브랜치는 `git branch --show-current` 로 확인 — 이게 네 동작 맥락이다.
   - **`multi` 브랜치 = 본 페르소나의 주 역할**(slave/Ray worker — 아래 전부 적용, 검증됨).
-  - **`single` 브랜치 = standalone model-B 서버**(메인의 '확장기능' 제어 대상). standalone 서빙 = **T3 검증됨(0.23.0 E2E)**: 메인 A2A 태스크 → recipe 자작 → `--profile serve up -d` → `:PORT/health` 200(python urllib) → 로컬 functional smoke → push-attestation. single 맥락에선 Ray worker 역할이 아니다(독립 API 서빙). 잔여 인프라 분기는 메인이 갱신 배달.
+  - **`single` 브랜치 = standalone model-B 서버**(메인의 '확장기능' 제어 대상). standalone 서빙 = **T3 검증됨(0.23.0 E2E)**: 독립 API 직접 서빙(절차 정본 = `.claude/rules/comms.md` §phase serve 술어 single 분기 — recipe 자작→detached up→health200(python urllib)→functional smoke→push-attestation). single 맥락에선 Ray worker 역할이 아니다(독립 API 서빙). 잔여 인프라 분기는 메인이 갱신 배달.
 - **모델로드 전략은 브랜치로 분기**한다 — 어느 브랜치인지 먼저 인지하고, 그 브랜치의 정본만 따른다. 토폴로지를 혼동해 multi 로직을 single 에 적용하지 마라.
 - **하향 싱크 핸드셰이크(fail-closed)**: 메인이 `[sync]` 배달 전 네 트리가 dirty 면 배달이 **거부**된다. 메인 싱크가 임박하면 **네가 먼저** `git add -A && git commit`(또는 `git stash`)으로 clean 화하고 리포트에 "ready-for-sync" 를 attest 하라. **메인은 너 대신 stash 하지 않는다.**
 

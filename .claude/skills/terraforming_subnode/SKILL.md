@@ -88,10 +88,13 @@ description: >-
 | `.claude/settings.local.json` | **스코프드** 권한(블랭킷 ✗) | 렌더(gitignored) |
 | `.claude/skills/vllm-recipe-explorer/` | 런타임블럭(git-tracked만) | 복제 |
 | `.claude/rules/comms.md` | 통신 정적계약 | 복제 |
+| `.claude/rules/docs.md` | 문서발행 규약(D12 — 서브 동일 규약 발행 → 상향 문서기반 회수) | 복제(메인 `.claude/rules/docs.md`) |
 | `.claude/schemas/task-report.schema.json` | 자기검증 스키마 | 복제 |
+| `.gitignore` | 서브 로컬 git 추적규칙(D12 — docs persist·생성물 무시) | 복제(`sub_node/gitignore.template`) |
+| `docs/{plan,devlog,testlog,simlog}/example.md` | 발행 스켈레톤(D12 — 서브 insight 문서) | 복제(메인 docs/*/example.md) |
 | `tasks/` | 런타임 상태 스캐폴드(파일=세션) | 빈 디렉토리 |
 
-추적 템플릿·정적자산은 `sub_node/`(CLAUDE.template.md·Agent_Card.template.json·settings.local.template.json·comms.md·task-report.schema.json) — **PII-free**(IP·호스트 비박음, 렌더 시 manifest 에서 치환).
+추적 템플릿·정적자산은 `sub_node/`(CLAUDE.template.md·Agent_Card.template.json·settings.local.template.json·comms.md·task-report.schema.json·gitignore.template) — **PII-free**(IP·호스트 비박음, 렌더 시 manifest 에서 치환). (`docs.md`·`docs/*/example.md` 는 메인 정본을 D12 복제 — sub_node/ 외부 원천.)
 
 ### 2.3 렌더-온-메인 → 전달 (결정론 + HITL)
 - **렌더**(결정론): `python3 scripts/render_sub_env.py --topology multi` → manifest 노드정체성을 템플릿에 치환,
@@ -115,14 +118,14 @@ description: >-
 ## 3. 결정론 vs 판단 분리
 | 결정론 (스크립트) | 판단 (이 페르소나) |
 |---|---|
-| `scan_node.py`(스캔·게이트·3자-일치·manifest 블록) · `render_sub_env.py`(manifest→7아티팩트 렌더/복제·미치환/필수 검증) · sync_to_sub 체크섬 | 5-전제조건 인터뷰 · 사용자 승인 · ib_write_bw 오케스트레이션 · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 · 모호 시 중단·질의 |
+| `scan_node.py`(스캔·게이트·3자-일치·manifest 블록) · `render_sub_env.py`(manifest→10아티팩트 렌더/복제·미치환/필수 검증) · sync_to_sub 체크섬 | 5-전제조건 인터뷰 · 사용자 승인 · ib_write_bw 오케스트레이션 · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 · 모호 시 중단·질의 |
 
 회귀 고정: `python3 scripts/scan_node.py --self-test`(게이트 9케이스) · `python3 scripts/render_sub_env.py --self-test`(렌더 4케이스). 둘 다 하드웨어 불요.
 
 ## 4. 보조 파일
 - `scripts/scan_node.py` — 결정론 스캔 코어(`--topology`·`--peer-ip`·`--bandwidth-gbps`·`--bw-floor`·`--emit-manifest`·`--self-test`).
 - `scripts/render_sub_env.py` — 결정론 렌더러(manifest→`output/multi/sub_provision/` 스테이징·`--self-test`).
-- `sub_node/` — 추적 PII-free 템플릿·정적계약: `CLAUDE.template.md`·`Agent_Card.template.json`·`settings.local.template.json`·`comms.md`·`task-report.schema.json`.
+- `sub_node/` — 추적 PII-free 템플릿·정적계약: `CLAUDE.template.md`·`Agent_Card.template.json`·`settings.local.template.json`·`comms.md`·`task-report.schema.json`·`gitignore.template`.
 - 메인↔서브 [전달]·[서빙 스모크]는 `upstream-version-watch`(`sync_to_sub.sh` — `--provision` 에 에이전트환경 오버레이 포함 · `multinode_serve_smoke.sh`).
 
 ## 5. 금지
