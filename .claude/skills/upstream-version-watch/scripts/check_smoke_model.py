@@ -27,12 +27,13 @@ def read_model_path(config_yaml):
     return None
 
 
-def read_app_models_host_token(compose_yaml):
-    # `- <token>:/app/models[:ro]` 의 <token> 추출. token 은 리터럴 경로 또는 env-var 구문
+def read_app_models_host_token(compose_yaml, container_root="/app/models"):
+    # `- <token>:<container_root>[:ro]` 의 <token> 추출. token 은 리터럴 경로 또는 env-var 구문
     # `${NAS_MODEL_PATH:-/mnt/models}`(테라포밍이 manifest.nas_model_path→env 로 주입) 일 수 있다.
+    # container_root 는 모델 컨테이너 경로의 마운트 prefix(/app/models | /app/quant_models 등 2차 마운트).
     with open(compose_yaml, encoding="utf-8") as f:
         for line in f:
-            m = re.search(r"-\s*(\S+):/app/models(?::[a-z]+)?\s*(?:#.*)?$", line)
+            m = re.search(r"-\s*(\S+):" + re.escape(container_root) + r"(?::[a-z]+)?\s*(?:#.*)?$", line)
             if m:
                 return m.group(1)
     return None
@@ -103,17 +104,20 @@ def main():
         print(f"[NAS-check] FAIL: docker-compose.yaml 없음 — {compose} "
               "(render 산출물 통로 확인 — output/<topology>/)", file=sys.stderr)
         sys.exit(3)
-    token = read_app_models_host_token(compose)
+    # 컨테이너 마운트 prefix 도출(/app/models | /app/quant_models 등 2차 마운트 지원).
+    parts = model_ctr.split("/")
+    container_root = "/".join(parts[:3]) if len(parts) >= 3 else "/app/models"
+    token = read_app_models_host_token(compose, container_root)
     if not token:
-        print(f"[NAS-check] FAIL: docker-compose 에서 /app/models 호스트 마운트 못 찾음", file=sys.stderr)
+        print(f"[NAS-check] FAIL: docker-compose 에서 {container_root} 호스트 마운트 못 찾음", file=sys.stderr)
         sys.exit(3)
     host_root = resolve_app_models_host_root(token, base)
     if not host_root:
-        print(f"[NAS-check] FAIL: /app/models 호스트 루트 해소 실패(token={token}) — "
+        print(f"[NAS-check] FAIL: {container_root} 호스트 루트 해소 실패(token={token}) — "
               "manifest.nas_model_path 또는 NAS_MODEL_PATH env 확인", file=sys.stderr)
         sys.exit(3)
 
-    host_path = model_ctr.replace("/app/models", host_root, 1)
+    host_path = model_ctr.replace(container_root, host_root, 1)
     if os.path.isdir(host_path):
         print(f"[NAS-check] OK: {a.config_name} → {host_path} 존재")
         sys.exit(0)
