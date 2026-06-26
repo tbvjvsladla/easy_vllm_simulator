@@ -59,9 +59,13 @@ _SAFETENSORS_DTYPE_ELEM_BYTES: dict[str, int] = {
 }
 
 
-def _resolve_host_path(model_path: str, nas_host_root: str) -> str:
-    """컨테이너 경로(/app/models/...)면 NAS 루트로 치환. 그 외는 그대로."""
-    prefix = "/app/models"
+def _resolve_host_path(model_path: str, nas_host_root: str,
+                       nas_container_root: str = "/app/models") -> str:
+    """컨테이너 경로(nas_container_root/...)면 NAS 루트로 치환. 그 외는 그대로.
+
+    nas_container_root: 컨테이너 마운트 경로 prefix(기본 /app/models). quant_model 등
+    2차 마운트(/app/quant_models)를 쓰면 config 에서 override(산출물 통로/마운트 불변식)."""
+    prefix = nas_container_root.rstrip("/")
     if model_path == prefix or model_path.startswith(prefix + "/"):
         rel = model_path[len(prefix):].lstrip("/")
         return os.path.join(nas_host_root, rel)
@@ -242,16 +246,18 @@ def _count_params_from_headers(host_path: str) -> int | None:
     return total if total > 0 else None
 
 
-def parse(model_path: str, nas_host_root: str = DEFAULT_NAS_HOST_ROOT) -> dict:
+def parse(model_path: str, nas_host_root: str = DEFAULT_NAS_HOST_ROOT,
+          nas_container_root: str = "/app/models") -> dict:
     """config.json 을 결정론으로 파싱해 정규화 dict 를 반환.
 
-    model_path: 컨테이너 경로(/app/models/<Org>/<Name>) 또는 호스트 경로.
-    nas_host_root: /app/models 가 매핑되는 호스트 NAS 루트.
+    model_path: 컨테이너 경로(<nas_container_root>/<Org>/<Name>) 또는 호스트 경로.
+    nas_host_root: nas_container_root 가 매핑되는 호스트 NAS 루트.
+    nas_container_root: 컨테이너 마운트 prefix(기본 /app/models · quant_model 마운트면 /app/quant_models).
     """
     warnings: list[str] = []
 
     # 1) host_path 해소 + 디렉토리/config.json 존재 검사. 부재 → 명시적 에러(다운로드 금지).
-    host_path = _resolve_host_path(model_path, nas_host_root)
+    host_path = _resolve_host_path(model_path, nas_host_root, nas_container_root)
     if not os.path.isdir(host_path):
         raise FileNotFoundError(
             f"모델 디렉토리 없음: {host_path} "

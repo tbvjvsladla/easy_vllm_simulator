@@ -144,18 +144,20 @@ def _cfg_common(cfg):
     budget = float(budget)
     margin = float(cfg.get("safety_margin", DEFAULT_SAFETY_MARGIN))
     kv_bytes = int(cfg.get("kv_cache_dtype_bytes", DEFAULT_KV_BYTES))
-    return model_path, nas_root, budget, margin, kv_bytes
+    # 컨테이너 마운트 prefix(기본 /app/models). quant_model 2차 마운트면 /app/quant_models 로 override.
+    container_root = cfg.get("nas_container_root", "/app/models")
+    return model_path, nas_root, budget, margin, kv_bytes, container_root
 
 
 def cmd_estimate(args):
     cfg = load_config(args.config)
-    model_path, nas_root, budget, margin, kv_bytes = _cfg_common(cfg)
+    model_path, nas_root, budget, margin, kv_bytes, container_root = _cfg_common(cfg)
     tp = resolve_tp(cfg, REPO_ROOT)
 
     # ① parse(결정론) — NAS 부재/디렉토리·config.json 부재 → traceback 금지,
     # config 오류와 동일한 [recipe] 중단: 클린 어보트로 통일(model_config_unparseable).
     try:
-        parsed = parse(model_path, nas_host_root=nas_root)
+        parsed = parse(model_path, nas_host_root=nas_root, nas_container_root=container_root)
     except FileNotFoundError as e:
         _die(str(e))
     except ValueError as e:
@@ -257,11 +259,11 @@ def cmd_generate(args):
     port = int(port)
 
     # parse 결과(컨테이너 경로 등)는 generate 가 사용 → 다시 parse 하여 재현성 확보.
-    model_path, nas_root, budget, margin, kv_bytes = _cfg_common(cfg)
+    model_path, nas_root, budget, margin, kv_bytes, container_root = _cfg_common(cfg)
     tp = snapshot.get("tp", resolve_tp(cfg, REPO_ROOT))
     # parse 재실행 — NAS 부재/해소 실패 시 traceback 금지(클린 어보트로 통일).
     try:
-        parsed = parse(model_path, nas_host_root=nas_root)
+        parsed = parse(model_path, nas_host_root=nas_root, nas_container_root=container_root)
     except FileNotFoundError as e:
         _die(str(e))
     except ValueError as e:
@@ -459,12 +461,12 @@ def _resolve_clamp_kv(parsed, candidate, profile, budget, margin, kv_dtype_bytes
 
 def cmd_simulate(args):
     cfg = load_config(args.config)
-    model_path, nas_root, budget, margin, kv_bytes_cfg = _cfg_common(cfg)
+    model_path, nas_root, budget, margin, kv_bytes_cfg, container_root = _cfg_common(cfg)
     tp = resolve_tp(cfg, REPO_ROOT)
 
     # parse(결정론) — NAS 부재/해소 실패 시 traceback 금지(클린 어보트로 통일).
     try:
-        parsed = parse(model_path, nas_host_root=nas_root)
+        parsed = parse(model_path, nas_host_root=nas_root, nas_container_root=container_root)
     except FileNotFoundError as e:
         _die(str(e))
     except ValueError as e:
