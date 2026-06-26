@@ -226,7 +226,7 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
   feasible batch 를 **과소추정**한다. 0.23.0 듀얼모델 E2E 직접측정(`testlog_2026062422_1`):
   **gemma-4** 공식 393KB vs 실측 ~50KB(@max_len 32768) = ~8× 과대 · **gpt-oss-20b** 공식 48KB vs 실측 **26KB**(@32768) = **1.9× 과대**.
   ⚠ **"full-attention 이라 공식≈측정" 가정 금지** — gpt-oss-20b 는 GQA/sliding 이라 공식과 어긋난다(과거 "gpt-oss ~48KB 일치" 주장은
-  **미검증 formula** 였고, 0.23.0 의 직접 측정 `kv_cache_tokens`(clamp 69GiB→2,825,636 tokens→26KB, `max_concurrency` 86.23)로 반증).
+  **미검증 formula** 였고, 0.23.0 의 직접 측정 `kv_cache_tokens`(아래 Phase-1.5 항의 실측 수치)로 반증).
   → **near-max batch 는 어떤 모델이든 측정으로만 산정**한다: Phase-2 trial-loop 또는 serve 로그의 `kv_cache_tokens`/`max_concurrency`.
   공식 기반 batch 는 위험 — 공식이 per-token 을 *과소*추정하면 OOM, *과대*추정하면(대다수) 용량 낭비(gpt-oss formula batch 46 = 실측 near-max 86 의 53%).
   측정 정본 우선순위: trial 로그 per-token(`Available KV cache memory`/`kv_cache_tokens`) > 공식 폴백(`recipe.py _resolve_clamp_kv`).
@@ -236,7 +236,7 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
 - **Phase-1.5 — serve KV-log 경량 측정**(전체 trial-loop 불요): 절대클램프(공식 상한 또는 보수값)로 **1회 serve(`--profile serve up -d`)** →
   `docker logs` 에서 `reserved … GiB … kv_cache_memory_bytes` + `GPU KV cache … N tokens` + `max_concurrency=X` grep →
   **실측 per-token = clamp_bytes ÷ kv_cache_tokens** · **near-max batch = floor(max_concurrency)**(= kv_cache_tokens ÷ max_model_len). clamp 유지·batch 만 상향.
-  공식이 못 주는 near-max 를 *1회 serve* 로 얻는 측정경로다(E2E gpt-oss: clamp 69GiB→2,825,636 tokens→max_concurrency 86.23→**batch 86**, formula 46의 ~2배). 로그 키명은 vLLM 버전 따라 변할 수 있어 **fail-soft**(라인 부재 시 null→HITL 또는 Phase-2 폴백). (Phase-2 full trial-loop = 절대클램프 *수렴*까지, Phase-1.5 = batch *상향*만 — 둘 다 측정 정본.)
+  공식이 못 주는 near-max 를 *1회 serve* 로 얻는 측정경로다(E2E gpt-oss: clamp 69GiB→2,825,636 tokens→max_concurrency 86.23→**batch 86**, 공식 46의 ~2배). 로그 키명은 vLLM 버전 따라 변할 수 있어 **fail-soft**(라인 부재 시 null→HITL 또는 Phase-2 폴백). (Phase-2 full trial-loop = 절대클램프 *수렴*까지, Phase-1.5 = batch *상향*만 — 둘 다 측정 정본.)
 - **overhead 실측 vs 유도(gotcha)**: weights·overhead는 측정 트라이얼(클램프 전 1회 로드)의 vLLM 로그에서
   얻는다. consolidated 라인(`model weights take …; non_torch …; reserved for KV Cache …`)이 있으면 직접 산출.
   **없는 빌드(예: 0.22.2 NGC)는 `Model loading took X GiB memory`(weights)·`Available KV cache memory`(kv)·
@@ -252,12 +252,18 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
   (+`TIKTOKEN_ENABLED`)를 둘 다 마운트 경로로 가리킨다. 구식 `TIKTOKEN_ENCODINGS_PATH`는 폐기 —
   정본 동기화 대상 3곳(`docker-compose.template.yaml` · `config.example.yaml` · `run_trial.py`)을 맞춘다
   (README straggler는 별도). gpt-oss 스모크가 최종 중재자(현재 미실행).
-- **MoE 백엔드 on sm_121a(GB10/Blackwell) 따름정리**: 대형 MoE(예 Qwen3-Next-80B 512-expert)를 신규 아키(sm_121a)서 서빙 시
-  기본 `moe_backend=auto`는 **flashinfer_cutlass** 를 고른다 → 그 CUTLASS MoE 커널이 sm_121a용 prebuilt 부재 →
-  런타임 nvcc JIT(수십 커널)가 **고병렬=OOM-kill / 저병렬(MAX_JOBS↓)=단일커널 30분+ stall** 로 둘 다 막힌다.
-  → **`--moe-backend triton`** 명시(in-process Triton fused MoE, nvcc 불요)로 회피. Ray 분산이면 master serve 에만 줘도
-  엔진config 가 slave 워커로 전파된다. 근거: 멀티노드 0.23.0 E2E combo③(testlog_2026062501_1, att1–4). 값은 `MoEBackend`
-  Literal(config/kernel.py) 참조. (FlashInfer 커널 캐시 `/root/.cache/flashinfer` 볼륨 영속화 시 재컴파일 회피 — 후속.)
+- **MoE 백엔드 on sm_121a(GB10/Blackwell) 따름정리 (dtype 조건부)**: 대형 MoE를 신규 아키(sm_121a)서 서빙할 때
+  올바른 moe-backend 는 **MoE 가중치 dtype 에 종속**한다 — bf16 교훈을 NVFP4 에 이식하지 말 것.
+  - **bf16 MoE**(예 Qwen3-Next-80B): 기본 `moe_backend=auto`는 **flashinfer_cutlass** 를 고른다 → 그 CUTLASS MoE 커널이
+    sm_121a용 prebuilt 부재 → 런타임 nvcc JIT(수십 커널)가 **고병렬=OOM-kill / 저병렬(MAX_JOBS↓)=단일커널 30분+ stall** 로
+    둘 다 막힌다. → **`--moe-backend triton`** 명시(in-process Triton fused MoE, nvcc 불요)로 회피. Ray 분산이면 master serve
+    에만 줘도 엔진config 가 slave 워커로 전파된다. 근거: 멀티노드 0.23.0 E2E combo③(testlog_2026062501_1, att1–4).
+  - **NVFP4(W4A4) MoE**(예 Qwen3.5-122B-A10B-NVFP4): **triton 은 미지원** — `--moe-backend triton` 을 주면 엔진 init 에서
+    `ValueError: moe_backend='triton' is not supported for NvFP4 MoE` 로 즉사한다(supported = cutlass/flashinfer_* /marlin/emulation).
+    → **플래그를 생략**하고 `moe_backend=auto` 의 vLLM NVFP4 oracle 선택에 위임하면 **FLASHINFER_CUTLASS**(NvFp4 변종 =
+    `FlashInferCutlassNvFp4LinearKernel`, sm_121a prebuilt 존재)를 골라 서빙된다(이번 세션 122B-NVFP4 2노드 serve PASS —
+    testlog_2026062614_1 §2). bf16 의 triton 교훈을 NVFP4 에 무비판 이식하면 attempt-1 처럼 즉사한다.
+  - 값은 `MoEBackend` Literal(config/kernel.py) 참조. (FlashInfer 커널 캐시 `/root/.cache/flashinfer` 볼륨 영속화 시 재컴파일 회피 — 후속.)
 
 ## 6. Phase 2 — 통합 trial-loop (`recipe.py simulate`)
 
@@ -284,6 +290,13 @@ run_trial(candidate)            # docker run -d → /health 200 폴링 → funct
   → 반복 (cap 소진 시 HITL)
 ```
 
+- **참조-그라운디드 해결 (`functional`·`unknown` 복구 — 자기추론 금지)**: `functional` 폴백 소진 또는 `unknown`(시그니처 미매칭)에
+  도달하면 re-strategize/halt **전에** 권위 참조를 먼저 조회한다(헌법 "버전 문자열 해소를 확률론으로 처리 금지"의 error-recovery 연장 —
+  여기서 토큰을 더 쓰는 것은 *권장*된다: 자기추론보다 정확도를 산다). 조회 순서: ① **전체 `trialNN_vllm.log`**(루프는 regex excerpt 만
+  파싱하므로 원문 전체를 읽어 실패 시그니처·oracle 경고 확인) → ② 모델 `config.json`/`chat_template`(파서·능력·아키 가정 검증) →
+  ③ **빌드 이미지의 실제 vLLM 버전 + 레지스트리 정적 grep**(§4 step-5 파서확증 기법을 *초기 emit 뿐 아니라 복구 루프에서도* 재실행 —
+  버전-exact 등록명·지원 dtype 확인; 이번 NVFP4 `triton` 미지원도 oracle supported-list 로 식별 — §5) → ④ vLLM oracle 소스
+  (예 `config/kernel.py` `MoEBackend`·선택 로직). 참조로도 미해소면 그제서야 Model-C HITL.
 - **준비 판정 = `:PORT/health` HTTP 200**. 로그의 "startup complete" grep 금지(거짓양성 — workflow S3와 동일).
 - **수렴 시**: `configs/<name>.yaml`(VRAM 분해 주석 + `max-num-seqs`·`kv-cache-memory-bytes`·`kv-cache-dtype`),
   `configs/<name>.sh`(`VLLM_ATTENTION_BACKEND` export + tool/reasoning 파서 플래그), `envs/.env.<name>`을 생성.

@@ -123,8 +123,8 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
   단 `config.yaml`의 `reconciliation_cap`(기본 3) 한정. 캡 소진 시 무한루프 금지 → Model-C로.
 - **source-build-class**: 범위 밖(Phase 2). **propose Y/N**으로 "소스빌드 필요 — 진행?"을 사람에게 보고·확인.
   스킬은 소스빌드를 수행하지 않고, 다른 NGC 태그로 폴백 루프도 돌지 않는다.
-- **unknown (Model-C)**: LLM이 `{proposed_class, evidence}`를 제시 → **사람 승인 전 무행동**.
-  사람이 승인하고 codify를 원하면, 에이전트가 `failure_patterns.yaml` 추가 **diff를 제안**(직접 편집 금지) → 승인 시 반영(확률론→결정론 이전).
+- **unknown (Model-C)**: **참조-그라운디드 해결** — class 제안 전 자기추론보다 **권위 소스**를 먼저 조회한다(여기서의 토큰 증가는 정확도를 사므로 권장): wheel METADATA(Requires-Dist) · NGC 이미지 라벨(`docker buildx imagetools inspect`) · 컨테이너 내부 torch 버전 + `torch::stable` 헤더(`tensor_struct.h`/`ops.h`의 `layout()`/6-arg `from_blob` 존재) · 빌드/serve 로그 · `failure_patterns.yaml`. 그 위에 LLM이 `{proposed_class, evidence}`를 제시 → **사람 승인 전 무행동**.
+  사람이 승인하고 codify를 원하면, 에이전트가 `failure_patterns.yaml` 추가 **diff를 제안**(직접 편집 금지) → 승인 시 반영(확률론→결정론 이전). (참조-그라운디드 해결 = 헌법 "버전 문자열 해소 확률론 금지"의 error-recovery 연장.)
 
 ## 4. 적용
 
@@ -169,7 +169,8 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 1. **resolve (동일)**: vLLM→torch핀→NGC 26.03(prefix 매칭). prefix-매칭은 **1차 후보**일 뿐 — 소스빌드 패치/베이스 유효성의 변별자는
    **(NGC 베이스 / 실-링크 torch) × vLLM source version**이지 pyproject torch핀이 아니다(use_existing_torch가 pyproject 핀을 버리고 NGC torch를 링크하므로).
    같은 torch핀이라도 vLLM source가 stable-ABI(`_C_stable_libtorch`: `torch::stable` layout()/6-arg from_blob)를 요구하면 prefix-매칭 alpha 베이스에
-   심볼이 없을 수 있다 → **더 새 NGC 베이스 승격**(절차 = `workflow.md` S3 Model-C 오버라이드). NGC torch ↔ PyPI torch 의존성 충돌은
+   심볼이 없을 수 있다 → **더 새 NGC 베이스 승격**. 오버라이드 전 **참조-그라운디드 해결**: 후보 NGC 베이스의 `torch::stable` 헤더(`tensor_struct.h`/`ops.h`)를
+   grep해 결여 심볼(`layout()`/6-arg `from_blob`)이 **그 후보 베이스엔 존재함**을 사전 증명한 뒤에만 승격(무증거 오버라이드 금지). 절차 정본·HITL 레이어 = **`workflow.md` S3 Model-C NGC 오버라이드**. NGC torch ↔ PyPI torch 의존성 충돌은
    `use_existing_torch.py`로 pyproject의 torch류 라인을 비활성화해 NGC torch를 그대로 링크(설치 순서/충돌 해소). 선언 torch 충실(안정>성능).
 2. **인터랙티브 컨테이너**: `docker run -d` NGC 26.03, env `TORCH_CUDA_ARCH_LIST=12.1a MAX_JOBS=N`, ccache(`PATH=/usr/lib/ccache:$PATH`), repo·NAS·ccache 마운트.
 3. **빌드 루프(무제한·HITL)**: `/etc/pip/constraint.txt` 비우기 → `git clone --branch v<버전> vllm` → `python3 use_existing_torch.py`(NGC torch 사용) →
@@ -196,7 +197,7 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 - **검증**: 특정 키에서 실제 스모크 PASS로 입증된 패치만 다음 단계로.
 - **조건부 임베드**: 검증된 패치를 **(NGC베이스 / 실-링크 torch) × 에러시그니처 × vLLM버전**으로 키잉한 조건부 패치로 `*.source-build.template`에 임베드 + **post-assert(fail-loud)**. 미인식 키 → **HITL-discovery 플레이스홀더 + 명시적 빌드 실패**(조용한 통과 금지). 키는 **pyproject torch핀이 아님**(step1 C2 동일 근거 — use_existing_torch가 핀을 버림).
 - **role화 보류**: `source_build_patches.yaml` + patch-resolver 페르소나로의 역할 분리는 **E2E testlog 존재 후**에 한다(투기적 설계 금지).
-  - **게이트 상태(2026-06-24)**: E2E testlog **충족**(testlog_2026062217_1 0.23.0 source 26.05 · testlog_2026062422_1 듀얼모델 E2E 26.05 재검증). **단 파일추출은 보류** — `VALIDATED_SOURCE_BUILD_KEYS` 2키 frozen-set + fail-loud 가드가 현재 충분하다. 추출 트리거 = 인라인 셋 비대화(3번째+ 키) 또는 패치-바디 다양화. 지금 2키짜리 YAML+resolver 는 오버엔지니어링(Karpathy B2/B3). patch-body 는 판단계층 유지(사전-codify 금지 — formula 위험과 동류).
+  - **파일추출 보류 불변식**: `VALIDATED_SOURCE_BUILD_KEYS` 2키 frozen-set + fail-loud 가드가 현재 충분 — 별도 `source_build_patches.yaml`+resolver 는 오버엔지니어링(Karpathy B2/B3). **추출 트리거 = 인라인 셋 비대화(3번째+ 키)** 또는 패치-바디 다양화. patch-body 는 판단계층 유지(사전-codify 금지 — formula 위험과 동류). 근거 E2E(날짜 박힌 게이트 판정 서사) = devlog/testlog 인용: `testlog_2026062217_1`(0.23.0 source 26.05) · `testlog_2026062422_1`(듀얼모델 E2E 26.05 재검증).
 - strip-hoist가 torch 2.12에서 자동 skip된 것은 **조건부 패치의 재사용 가능 패턴**이다(부재감지 = 적용여부 자동결정).
 
 ## 5. 금지
@@ -217,4 +218,4 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 - (서브노드 빌드워커 CC 페르소나·Agent_Card·통신프로토콜은 **`terraforming_subnode` 스킬이 소유·렌더** — plan_2026062408_1 에서 `sub_node/` 이전. 이 스킬은 `sync_to_sub.sh`(전달)·`multinode_serve_smoke.sh`(서빙 스모크) 제어평면만 보유.)
 - `<repo>/Dockerfile.source-build` — Phase 2 소스빌드 동결 산출물(§4.6, 0.22.1 검증). prebuilt `Dockerfile`과 별도.
 - `config.example.yaml` — 입력 스키마(트리거·스모크 config_name·`reconciliation_cap`).
-- `reference.md` — (필요 시 생성) torch↔NGC 매핑 테이블 폴백 + 레이어 매핑 상세.
+- `reference.md` — **온디맨드 생성(현재 미존재 · 선택적 폴백)**: 결정론 스크립트(①②③)가 정본이라 평시 불요. 스크립트 부재·오프라인 등 폴백이 필요할 때만 torch↔NGC 매핑 테이블 + 레이어 매핑 상세를 생성한다(파일 없음 = 의존성 누락 아님).
