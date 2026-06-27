@@ -41,7 +41,7 @@ IMAGE_NAME = "easy-vllm"
 
 # 통로 self-containment(plan_2026062321_1 I1/I2): 컨테이너가 쓰는 러너 스크립트 정본은 repo-root configs/(tracked).
 # render 가 이를 output/<topology>/configs/ 로 materialize(복사)해 통로를 완결시킨다(런타임 mount-overlay·통로 밖 마운트 금지).
-RUNNER_SCRIPTS = ("serve_runner.sh", "debug-init.sh")
+RUNNER_SCRIPTS = ("serve_runner.sh", "debug-init.sh", "arm_patch.sh")
 
 # ── NCCL/RDMA 통신 env (Plan 2: docker-compose 하드코딩 17개 → manifest-driven 렌더) ──────────
 #   3-tier taxonomy: ①환경값 = manifest.interconnect(hca_devices/gid_index/socket_iface)

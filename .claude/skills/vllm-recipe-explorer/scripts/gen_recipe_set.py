@@ -91,12 +91,12 @@ def _build_yaml(parsed, recipe, served_model_name):
     lines.append("model: {}".format(container_path))
     lines.append("host: 0.0.0.0")
     lines.append("port: 8000")
-    # gpu-memory-utilization: Phase 2 에서는 safety_margin(디바이스 풀 상한)이며
-    # 실제 KV 는 kv-cache-memory-bytes 절대 클램프가 제어한다.
+    # KV 절대클램프 따름정리(헌법, E2E 실증 corrected): gpu-memory-utilization 은 **항상 emit**.
+    # clamp(kv-cache-memory-bytes)가 KV 사이징·이식성을 제어하지만, gmu 는 startup free-memory 검증(free ≥ gmu×total)
+    # + 총 메모리 cap 에 여전히 쓰인다(vLLM 은 gmu 를 *KV 사이징*에만 무시 — config/cache.py). 통합메모리(GB10 free/total≈0.91)는
+    # 기본 0.92 가 startup OOM → gmu ≤ 0.90 명시 필수. 이식성은 절대 clamp 가 준다(gmu-derived KV 는 호스트 VRAM 차이로 비이식).
     if kv_bytes is not None:
-        lines.append(
-            "# gpu-memory-utilization 은 safety_margin(디바이스 풀 상한); "
-            "실제 KV 는 kv-cache-memory-bytes 절대 클램프가 제어")
+        lines.append("# gpu-memory-utilization = startup free-memory 게이트 + 총 cap(통합메모리 ≤0.90); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어")
     lines.append("gpu-memory-utilization: {}".format(gmu))
     lines.append("max-model-len: {}".format(max_model_len))
     # max-num-seqs(batch) 줄: recipe 에 batch 있을 때만.
@@ -143,6 +143,12 @@ def _build_sh(name, served_model_name, recipe=None):
     lines.append("    export TIKTOKEN_ENCODINGS_BASE=/encodings")
     lines.append("    export TIKTOKEN_RS_CACHE_DIR=/encodings")
     lines.append("fi")
+    lines.append("")
+    # 모델구동 런타임 패치 arming (configs/${CONFIG_FILE}_patch.py 존재 시; 메인 저작 arm_patch.sh).
+    # 단일노드/모드2 의 serve 진입은 이 .sh 이므로 여기서 arm 한다(멀티는 serve_runner 가 양노드 arm).
+    # arm_patch.sh 가 .pth 를 써 engine+로컬 TP worker 전체에 패치 적용. 헌법 모델구동 런타임 패치 따름정리.
+    lines.append("# 모델구동 런타임 패치 arming (configs/${CONFIG_FILE}_patch.py 존재 시; 메인 저작 arm_patch.sh)")
+    lines.append('if [ -f /app/configs/arm_patch.sh ]; then source /app/configs/arm_patch.sh; fi')
     lines.append("")
     # attention backend export: recipe 에 attention_backend 있을 때만.
     if attn_backend is not None:

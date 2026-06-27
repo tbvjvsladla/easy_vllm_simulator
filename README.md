@@ -32,7 +32,7 @@
 | **폐쇄망 / 에어갭 불변식** | 폐쇄망 전제. 모델은 사람이 사전 다운로드해 NAS에 두고 **read-only 마운트**한다. **런타임 다운로드 없음.** |
 | **결정론 산출물 = `resolved.json`** | 결정론 해소(torch핀·NGC태그·CUDA·wheel URL·`build_track.decision`·`torch_cuda_arch`)의 단일 진실원. `resolve_*` 스크립트가 쓰고 `render_dockerfile.py --resolved`가 소비하며, NGC 베이스 오버라이드도 여기 NGC 태그만 고친다. 비추적. (확률론적 핀 추론 **금지** — §무엇인가/철학.) |
 | **requirements 천장(KNOWN_INCOMPAT)** | `regen_requirements.py`는 wheel `Requires-Dist`(권위 소스) 위에 **알려진 비호환 천장**(예 `fastapi<0.137.0`)을 적용해 업스트림 `>=` 시간드리프트 회귀를 차단하고, 적용분을 stdout으로 surface해 S1 재평가에 노출한다. 상류 수정 시 천장 제거. |
-| **통합메모리 gmu 따름정리** | 통합메모리 호스트(GB10 등)에서는 `gpu-memory-utilization`을 반드시 명시 emit — 기본 0.92는 통합메모리에서 OOM. |
+| **KV 절대클램프 따름정리 (이식성)** | 최종 recipe 는 **`kv-cache-memory-bytes`**(측정된 GPU당 절대값 = KV·이식성) + **`gpu-memory-utilization`**(통합메모리 ≤0.90 = startup free-memory 게이트·총cap; 기본 0.92는 통합메모리 startup OOM)를 **함께** emit. vLLM 은 클램프 시 gmu 를 KV 사이징에만 무시. |
 | **인코딩 자산 따름정리** | 모델 가중치뿐 아니라 런타임 인코딩 자산(tiktoken o200k/harmony)도 에어갭 사전적재 대상. |
 | **near-max batch 측정 따름정리** | per-token KV 공식은 full-attention 가정 → sliding-window/GQA/hybrid 모델서 KV를 **과대추정하는 상한**일 뿐. near-max batch·절대 KV 클램프는 **측정으로만**(Phase-1.5 serve KV-log 또는 Phase-2 trial-loop) 산정. formula-우선 batch 금지. |
 | **MoE 백엔드 따름정리** (sm_121a) | 대형 MoE를 신규 아키(GB10/Blackwell **sm_121a**)서 서빙 시 기본 `moe_backend=auto`는 `flashinfer_cutlass`를 골라 sm_121a용 prebuilt 부재 → 런타임 nvcc JIT가 OOM/단일커널 stall. **`--moe-backend triton`**(in-process, nvcc 불요) 명시로 우회. Ray 분산이면 master serve에만 줘도 slave 워커로 전파(검증: 멀티노드 0.23.0 E2E combo③). |

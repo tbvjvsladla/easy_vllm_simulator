@@ -163,6 +163,7 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 
 > torch 2.11+ 구간(prebuilt ABI 벽). **`_C`를 NGC torch에 맞춰 직접 컴파일** → ABI 벽 해소.
 > **경험적·판단계층·임시 가교** 성격: 패치는 결정론 카탈로그에 codify하지 않는다(소스빌드는 곧 prebuilt가 따라잡음).
+> 런타임 패치(스킬 `vllm-recipe-explorer` §5 · plan_2026062711_1 Part1)와 **거버넌스 공유**(판단계층·참조-그라운디드·사전-codify 금지·HITL) — 단 *빌드타임*이라 추적 `Dockerfile.source-build`에 **동결**(런타임 패치는 휘발/비추적). 평면별 지속성 비대칭 = 레이어드 적응 메타원칙 산물(plan_2026062711_1 Part 3).
 > bjk110/spark_vllm_docker = 진단 힌트(벤더링 X). 검증: `docs/testlog/testlog_260608_1`. 산출물 `Dockerfile.source-build`.
 
 **절차 (인터랙티브 → 동결):**
@@ -192,10 +193,10 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 - **긴 serve는 `docker exec -d`**(detached): foreground는 harness 2분 타임아웃에 잘림. 폴링은 짧게 나눠.
 - **DONE = 스모크 + 동결 + clean 재빌드 재현**.
 
-**패치 졸업 라이프사이클 (발견 → 검증 → 조건부 임베드):**
+**패치 검증 → 동결(재현성) 라이프사이클 (발견 → 검증 → Dockerfile 동결):** *(이미지 clean-재빌드 재현 위한 동결이지 카탈로그 '졸업'이 아님 — plan_2026062711_1 Part 3)*
 - **발견**: 신규 ABI 시그니처 충돌은 **HITL 판단계층 패치**(Model-C)다 — 사전-bake 금지(투기적 패치 금지).
 - **검증**: 특정 키에서 실제 스모크 PASS로 입증된 패치만 다음 단계로.
-- **조건부 임베드**: 검증된 패치를 **(NGC베이스 / 실-링크 torch) × 에러시그니처 × vLLM버전**으로 키잉한 조건부 패치로 `*.source-build.template`에 임베드 + **post-assert(fail-loud)**. 미인식 키 → **HITL-discovery 플레이스홀더 + 명시적 빌드 실패**(조용한 통과 금지). 키는 **pyproject torch핀이 아님**(step1 C2 동일 근거 — use_existing_torch가 핀을 버림).
+- **재현성 동결(조건부 임베드)**: 검증된 패치를 **(NGC베이스 / 실-링크 torch) × 에러시그니처 × vLLM버전**으로 키잉한 조건부 패치로 `*.source-build.template`에 임베드 + **post-assert(fail-loud)** — *별도 카탈로그가 아니라 이미지 clean-재빌드 재현을 위한 동결*(판단계층 patch-body 는 사전-codify 금지 유지). 미인식 키 → **HITL-discovery 플레이스홀더 + 명시적 빌드 실패**(조용한 통과 금지). 키는 **pyproject torch핀이 아님**(step1 C2 동일 근거 — use_existing_torch가 핀을 버림).
 - **role화 보류**: `source_build_patches.yaml` + patch-resolver 페르소나로의 역할 분리는 **E2E testlog 존재 후**에 한다(투기적 설계 금지).
   - **파일추출 보류 불변식**: `VALIDATED_SOURCE_BUILD_KEYS` 2키 frozen-set + fail-loud 가드가 현재 충분 — 별도 `source_build_patches.yaml`+resolver 는 오버엔지니어링(Karpathy B2/B3). **추출 트리거 = 인라인 셋 비대화(3번째+ 키)** 또는 패치-바디 다양화. patch-body 는 판단계층 유지(사전-codify 금지 — formula 위험과 동류). 근거 E2E(날짜 박힌 게이트 판정 서사) = devlog/testlog 인용: `testlog_2026062217_1`(0.23.0 source 26.05) · `testlog_2026062422_1`(듀얼모델 E2E 26.05 재검증).
 - strip-hoist가 torch 2.12에서 자동 skip된 것은 **조건부 패치의 재사용 가능 패턴**이다(부재감지 = 적용여부 자동결정).

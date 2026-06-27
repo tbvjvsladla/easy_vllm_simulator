@@ -213,10 +213,13 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
 ```
 
 - **Phase 1 공식과 다름**: Phase 1은 `(…)/gmu`로 나눴다. Phase 2는 절대값 합이다. 혼동 금지.
-- **`gpu-memory-utilization`은 반드시 명시적으로 emit한다**(절대 기본값에 의존 금지). 실 KV는 절대 클램프
-  (`--kv-cache-memory-bytes`)가 통제하고, gmu는 **디바이스 풀 상한**으로만 쓴다(주석에 명기). GB10 등 **통합메모리
-  호스트는 OS가 ~11GiB를 점유**하므로 vLLM 기본 `0.92`는 free 초과 OOM(`Free memory < desired gpu memory
-  utilization`)을 낸다 → **통합메모리 표준 기본 = `0.90`(=`safety_margin`)**.
+- **최종 recipe 는 gpu-memory-utilization + kv-cache-memory-bytes 를 함께 emit한다 (KV 절대클램프 따름정리, E2E 실증)**:
+  KV 는 측정된 절대 클램프(`--kv-cache-memory-bytes`)가 제어하며 이게 **이식성**을 준다(gmu-derived KV 는 호스트 VRAM 차이로 비이식).
+  **단 gmu 도 필수** — vLLM 은 클램프 설정 시 gmu 를 *KV 사이징*에만 무시(`config/cache.py`)하고, **startup free-memory
+  검증(`free ≥ gmu×total`)+총-cap 엔 여전히 사용**. GB10 등 통합메모리(free/total≈0.91)는 OS ~11GiB 점유로 기본 `0.92`가
+  startup OOM(`Free memory < desired GPU memory utilization`) → **통합메모리 gmu ≤ `0.90`(=`safety_margin`) 명시 필수**.
+  ∴ gmu=startup/총-cap 게이트, clamp=KV 사이징·이식성. (클램프 미산정 degraded = gmu-derived KV = 비이식, Phase-2 측정 보강.)
+  이식성 = 선언된 절대 필요량(weights+overhead+kv) 이상 GPU서 동일 구동(작은 GPU 자동맞춤 ✗, GPU당 값이라 TP 의존).
 - `per_token_kv_bytes = 2 × num_hidden_layers × num_key_value_heads × head_dim × kv_dtype_bytes`
   (kv_dtype_bytes: KV quant 없으면 2, `fp8`이면 1).
 - `required_kv = per_token_kv_bytes × max_model_len × batch`,

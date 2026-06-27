@@ -94,7 +94,7 @@ TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);
 # Band3(모델 recipe = <model>.{sh,yaml}·모델 env)는 아래 keying 으로 빠진다. 미분류는 assert_band_classification 가 fail-loud.
 # ⚠ 정본 주의(d12-1): 서브 gitignore.template 의 `!configs/serve_runner.sh` 는 *루트* configs/ 대상이라 이 allowlist 와
 #   *동치 아님*. output/<t>/ Band2 추적은 gitignore.template 의 output/ 예외(!output/<t>/configs/serve_runner.sh 등)가 관할.
-BAND2_CONFIGS=(serve_runner.sh debug-init.sh)        # topology-keyed 분산서빙 인프라(Band2, 멀티)
+BAND2_CONFIGS=(serve_runner.sh debug-init.sh arm_patch.sh)   # topology-keyed 분산서빙 인프라(Band2, 멀티). arm_patch.sh=모델구동 패치 arming(제네릭 결정론·양노드)
 BAND2_ENVS=(.env.interconnect .env.cluster)          # topology/network-keyed env(Band2): NCCL(.interconnect) + 클러스터배포(.cluster=S6 materialize)
 BAND2_TOP=(Dockerfile Dockerfile.source-build docker-compose.yaml requirements.txt .gitkeep)  # 최상위 빌드킷(Band2)
 
@@ -103,6 +103,7 @@ _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = ou
     local f
     FILT+=(--include='/configs/')
     for f in "${BAND2_CONFIGS[@]}"; do FILT+=(--include="/configs/$f"); done
+    FILT+=(--include='/configs/*_patch.py')       # model-keyed 런타임 패치: 슬레이브도 마운트·arm 필요(트리플렛과 비대칭 특례 — 헌법 패치 전파)
     FILT+=(--exclude='/configs/*')                # 나머지 configs(모델 트리플렛 Band3) 배제
     FILT+=(--include='/envs/')
     for f in "${BAND2_ENVS[@]}"; do FILT+=(--include="/envs/$f"); done
@@ -137,6 +138,7 @@ assert_band_classification() {  # $1=topology → 0=ok, 1=미분류·누락
         [ -n "${_b2c[$b]:-}" ] && continue                              # Band2 인프라(allowlist)
         ok=0
         case "$b" in                                                     # (d-band-2) 짝의 .sh 가 Band2 면 Band3 로 green-light 안 함(stem 충돌 차단)
+            *_patch.py) stem="${b%_patch.py}"; { [ -f "$cdir/$stem.sh" ] || [ -f "$cdir/$stem.yaml" ]; } && ok=1 || true ;;  # model-keyed 런타임 패치(슬레이브 배달 특례 — 헌법 패치 전파)
             *.sh)   stem="${b%.sh}";   [ -f "$cdir/$stem.yaml" ] && ok=1 || true ;;
             *.yaml) stem="${b%.yaml}"; { [ -f "$cdir/$stem.sh" ] && [ -z "${_b2c[$stem.sh]:-}" ]; } && ok=1 || true ;;
         esac
