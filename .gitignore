@@ -75,6 +75,7 @@ configs/*.sh
 # 멀티노드 토폴로지 인프라(generic Ray 런너·init — 모델별 산출물 아님 → 재포함해 추적 유지)
 !configs/serve_runner.sh
 !configs/debug-init.sh
+!configs/arm_patch.sh
 
 # ===========================================
 # output/ 통로 — single/multi 산출물 경계분리 (혼재 차단)

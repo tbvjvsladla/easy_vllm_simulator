@@ -18,6 +18,7 @@ S2 patch    → single-node · multi-node 두 브랜치 패치
    - requirements.txt 갱신
    - render 는 시퀀스(스킬 §2.5): template(Dockerfile/compose)+regen_requirements + (multi)materialize-configs + materialize-env
      (--materialize-env → output/<t>/.env: serve-time NAS_MODEL_PATH/TIKTOKEN_HOST_PATH manifest 전파. 누락 시 serve 가 /mnt/models 기본마운트로 실패 — 결함#2)
+   - 모델구동 런타임 패치(필요 시): 에이전트가 참조-그라운디드로 configs/<model>_patch.py 생성(휘발·비추적) + arm_patch.sh(materialize-configs 에 포함)가 serve_runner/생성.sh 에서 자동 arm. 헌법 모델구동 런타임 패치 따름정리.
    - multi-node 브랜치: 네트워크 디버그 apt · serve_runner.sh(Ray) · NCCL/RDMA env · /dev/infiniband은 보존(건드리지 않음)
    - multi-node: .gitignore에 빌딩블럭(CLAUDE.md/seed/) 제외 정렬. (빌딩블럭은 gitignored→브랜치 전환 persist, cross-branch 동기화 불필요)
    verify: 변경 라인이 S1 해소값에 직결(Karpathy B3)
@@ -28,11 +29,14 @@ S2.5 sync   → (multi-node 전용) 메인 검증코드 → 서브 직접 전달
      서브 노드 접속값(host·ssh_user)은 manifest.yaml `nodes[]`에서 읽는다.
      제외: .git/.claude/seed/docs/__pycache__/CLAUDE.md (빌딩블럭·서브 빌드워커 페르소나 보호). GitHub 경유 X.
    - 서브는 메인 전달 코드로 생존. 서브 자작 envs/configs는 메인이 아카이브.
+   - 모델구동 런타임 패치(configs/<model>_patch.py · arm_patch.sh)도 output/<topology>/ 에 있어 이 rsync 로 함께 하향 배달(서브 슬레이브가 마운트·arm). 서브는 패치 저작 ✗(상향은 docs 탐지보고만 — D12-06·13). 헌법 패치 전파.
 
 S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
    - ⑤ NAS 체크: check_smoke_model.py <config_name> --topology <single|multi> — 모델 부재면 중단·보고(다운로드 금지). --topology 필수(산출물 통로 output/<topology>/)
    - (단일노드) 빌드: docker compose --profile debug build · 서빙: --profile serve up → 프롬프트 1회 → 비어있지 않은 완성
    - near-max batch(요구 시): 서빙 docker logs 의 kv_cache_tokens/max_concurrency 로 실측 near-max 산출(Phase-1.5, 스킬 §5) → recipe max-num-seqs 보강. 공식 batch 금지(헌법 near-max 따름정리).
+   - KV 이식성: 최종 recipe 는 측정된 GPU당 kv-cache-memory-bytes(절대값) + gpu-memory-utilization 을 **함께** emit. clamp=KV·이식성, gmu=startup free-memory 게이트+총cap(통합메모리 ≤0.90; vLLM 은 KV 사이징에만 gmu 무시 — E2E 실증). 헌법 KV 절대클램프 따름정리.
+   - 모델구동 런타임 패치: 구동불가 모델은 stock 이미지 + 런타임 패치(휘발·재유도, 비추적 configs/<model>_patch.py + arm_patch.sh)로 해결. carry-forward 안 함 — 재-serve 시 재유도, S3 스모크가 게이트. 헌법 모델구동 런타임 패치 따름정리.
    - (multi-node) 2노드 Ray 서빙: scripts/multinode_serve_smoke.sh <config> [--build]
        NAS체크 → 양노드 병렬빌드 → master(메인)+slave(서브) Ray클러스터 → 엔드포인트 health 폴링 → master 엔드포인트 추론
        준비판정 = :PORT/health http200 (master 로그 "startup complete"는 거짓양성 — grep 금지)
@@ -42,7 +46,7 @@ S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
         · requirements-fixable → Loop-Until-Done(조정→재빌드→스모크), reconciliation_cap(기본 3) 한정. 소진→Model-C
         · source-build-class(torch 2.11+) → Phase 2 소스빌드 경로(SKILL.md §4.6, 검증됨): 인터랙티브 컨테이너에서
             _C를 NGC torch에 맞춰 컴파일(ABI 벽 해소) → 경험적·HITL 패치 루프(strip-hoist 등) → 스모크 →
-            Dockerfile.source-build 동결 → clean 재빌드 재현. 패치는 판단계층(사전-codify 금지). 단 E2E 검증 후 키잉된 조건부 카탈로그로 졸업 가능(스킬 §4.6).
+            Dockerfile.source-build 동결 → clean 재빌드 재현. 패치는 판단계층(사전-codify 금지). 검증된 패치는 *재현성* 위해 Dockerfile.source-build 에 동결(**카탈로그 졸업 아님** — plan_2026062711_1 Part 3 · 스킬 §4.6).
             └ NGC 베이스 오버라이드 = 1급 Model-C 서브분기(베이스 torch의 ABI 결여 심볼로 source-build FAIL일 때):
               (source-build 맥락·헤더grep 기법의 스킬-홈 = 스킬 upstream-version-watch §4.6 ↔ S3 = 절차-홈, 상호참조)
                 ① classify=unknown → 정지(자동 행동 금지).

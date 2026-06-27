@@ -26,6 +26,14 @@ set -e
 MODEL_SH="/app/configs/${CONFIG_FILE}.sh"
 MODEL_YAML="/app/configs/${CONFIG_FILE}.yaml"
 
+# ─── 모델구동 런타임 패치 arming (양노드 공통 · ray start 前) ───
+# configs/${CONFIG_FILE}_patch.py 가 있으면 site-packages 에 .pth 를 써서 engine+Ray worker 전체에
+# 패치를 자동 적용한다(메인 저작 제네릭 결정론 메커니즘 — 헌법 모델구동 런타임 패치 따름정리).
+# master·slave 둘 다 ray start 전에 호출돼야 양 노드 워커가 패치를 먹는다.
+if [ -f /app/configs/arm_patch.sh ]; then
+    source /app/configs/arm_patch.sh
+fi
+
 # ═════════════════════════════════════════════════════════════════════
 # MASTER 노드 분기
 # ═════════════════════════════════════════════════════════════════════

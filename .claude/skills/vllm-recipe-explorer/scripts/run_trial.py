@@ -217,6 +217,8 @@ def _audit_emitted(candidate: dict, docker_cmd: list) -> None:
     caps = candidate.get("model_capabilities") or {}
 
     # (candidate 키, 기대 플래그) — 값-무관, 플래그 존재만 확인.
+    # gpu-memory-utilization 은 항상 필수 — startup free-memory 게이트(free ≥ gmu×total) + 총 cap.
+    # vLLM 은 클램프 설정 시 gmu 를 *KV 사이징*에만 무시(config/cache.py)할 뿐, startup 검증엔 여전히 쓴다(E2E 실증).
     field_flags = [
         ("gpu_memory_utilization", "--gpu-memory-utilization"),
         ("max_model_len", "--max-model-len"),

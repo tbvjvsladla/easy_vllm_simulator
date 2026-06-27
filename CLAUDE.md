@@ -16,6 +16,13 @@
   헌법에 박지 않고 `manifest.yaml`의 `topology`·`nodes[]`에서 읽는다(테라포밍이 자동탐지+인터뷰로 채움).
 - **브랜치**: `single-node` = 단일노드 전용 · `multi-node` = 분산 전용. 두 브랜치는 버전 핀이 독립.
 
+## 레이어드 적응 원칙 (기초레이어 우선 — 가장 먼저)
+
+- **헌법(철학)=기초레이어=단일 진실원천.** 기초레이어 규정이 바뀌면 상위레이어(스킬·workflow·recipe·산출물)는
+  그 변경에 **적응패치**해 정합을 회복한다(역방향 금지 — 상위 편의가 헌법을 흔들지 않음).
+- 운영: 기초레이어 변경 시 **상위 전 레이어 conformance 스윕**(부분수정 방치 금지 — 정합 회복까지가 1건).
+  근거: `docs/plan/plan_2026062711_1`(첫 적용 = 모델구동 패치 + KV 이식성).
+
 ## 핵심 사실 (항상 보유)
 
 - **레이어 커플링 규칙(가장 중요)**: 대상 vLLM 버전의 `pyproject.toml` `[build-system].requires`에
@@ -27,7 +34,8 @@
 - **이미지 네이밍 불변식**: `easy-vllm:{vllm}-cu{cuda}-{arch}-{track}`(예 `0.23.0-cu132-aarch64-source`). 모델-키잉 금지(과거 난립 원인) — 한 이미지가 모든 모델을 서빙. 태그 산정 = `render_dockerfile.py`.
 - **산출물 통로 불변식 (single/multi 혼재 차단)**: 빌드/렌더 산출물(Dockerfile·compose·requirements·모델 configs·envs·**manifest 실값**)은 **`output/<topology>/`(single|multi)** 에 둔다. **통로 껍데기(`.gitkeep`)만 추적·생성물 비추적** → 단일/멀티 산출물이 켜켜이 쌓여도 경로 격리로 서로 침범 못 함. **topology 는 브랜치가 결정**(single-node=single, multi-node=multi) → manifest 실값도 `output/<topology>/manifest.yaml` 통로 분리, **브랜치 빈번 전환 시 재작성 0**(전환=그 통로 manifest를 읽음). 빌드 = `docker compose -f output/<topology>/docker-compose.yaml …`. 예외: multi 손작성 컨테이너 정의는 `*.template` 졸업 전까지 추적(정본 — Plan 2서 ignore 강등). 근거: `docs/plan/plan_2026062312_1`(통로)·`plan_2026062315_1`(manifest 이관).
 - **serve-time env 통로 불변식 (결함#2 codify)**: serve 변수치환값(`NAS_MODEL_PATH`·`TIKTOKEN_HOST_PATH`) **해소 우선순위 = env-주입 > manifest 정본 > 리터럴 default**(포인터 원칙 연장 — `check_smoke_model.py`·render materialize 동일). materialize 절차(`render_dockerfile.py --materialize-env` → `output/<topology>/.env`) 상세 = 스킬 `upstream-version-watch` §2.5.
-- **통합메모리 gmu 따름정리**: 통합메모리 호스트(GB10 등)는 gpu-memory-utilization 명시 emit 필수(기본 0.92 OOM). 상세 = 스킬 `vllm-recipe-explorer` §5.
+- **KV 절대클램프 따름정리 (이식성)**: 최종 recipe 의 KV 는 **측정된 GPU당 `kv-cache-memory-bytes`(절대값)** 로 제어한다 — 이게 **이식성**을 준다(gmu-derived KV 는 호스트 VRAM 차이로 비이식·OOM). **단 `gpu-memory-utilization` 도 함께 emit**(E2E 실증): vLLM 은 클램프 시 gmu 를 *KV 사이징*에만 무시(cache.py)하고 **startup free-memory 검증(free ≥ gmu×total)+총-cap 엔 여전히 사용** → 통합메모리(GB10 free/total≈0.91)는 기본 0.92 가 startup OOM 이라 **gmu ≤ 0.90 명시 필수**. ∴ gmu=startup/cap 게이트, clamp=KV·이식성. 시뮬레이터의 3종 산출물 = "**타겟 GPU 구동가능 환경의 시뮬레이션**". 이식성 = 선언된 절대 필요량 이상 GPU서 동일 구동(작은 GPU 자동맞춤 ✗, GPU당 값이라 TP 의존). 상세 = 스킬 `vllm-recipe-explorer` §5 · `plan_2026062711_1` Part 2.
+- **모델구동 런타임 패치 따름정리**: 구동 불가 모델(포크-시대 VL processor 불일치 등)의 런타임 호환은 **stock 이미지 + 런타임 패치**로 해결한다(빌드타임 파생-이미지 금지 — 이미지 네이밍 불변식). 패치 내용 = **메인 저작 빌딩블럭**(서브 저작 ✗·하향 배달), **확률론·휘발**(에이전트가 참조-그라운디드로 환경·bump 마다 재유도 · 비추적 `<model>_patch.py` · 카탈로그 없음 · carry-forward ✗). **결정론 메커니즘 = arming**(serve_runner/단일진입의 `<model>_patch.py` 자동탐지 .pth → 모든 프로세스 적용; 메인 저작). 정본 = 방법론(스킬)+지식(docs). 단 source-build 패치는 *빌드타임*이라 추적 `Dockerfile.source-build`에 동결(평면별 지속성 비대칭). 상세 = 스킬 `vllm-recipe-explorer` §5 · `plan_2026062711_1` Part 1·3.
 - **인코딩 자산 따름정리**: 런타임 인코딩 자산(tiktoken o200k/harmony)도 가중치와 함께 에어갭 사전적재 대상 — 상세 = 스킬 `vllm-recipe-explorer` §5.
 - **near-max batch 측정 따름정리**: near-max batch·절대 KV 클램프는 **측정(serve KV log 또는 Phase-2)으로만** 산정한다 — per-token KV 공식은 과대추정 상한일 뿐(**측정 > 공식**, formula-우선 batch 금지). 숫자증거·상세 = 스킬 `vllm-recipe-explorer` §1·§5.
 - **빌드 입력**: `CPU_ARCH=$(uname -m)` · `CUDA_VERSION`(예 129) · GitHub Releases pre-built wheel.
@@ -61,6 +69,7 @@
 - **서브 git = 로컬 전용**: 서브 워크스페이스는 `git init` 된 로컬 레포(`single`·`multi` 두 브랜치). **origin 영구 미설정**(push/pull/fetch/remote/clone deny — 방어심층, 진짜 구속은 "원격 없음" + 페르소나). git 역할 = 브랜치전환(모델로드 전략 분기) + 로컬 history/롤백 — **회수 vehicle 아님**.
 - **하향(메인→서브)**: 브랜치별 rsync 배달 + 스크립트저작 `[sync]` 커밋(main-canonical, 겹침=sub-yields), dirty 트리=**fail-closed**(auto-stash 금지). 절차 = workflow.md B1.
 - **상향(서브→메인) = 문서기반 only**: 서브 insight 를 `docs/` 규약으로 발행 → A2A 리포트로 경로 전달 → 메인 `fetch_sub_docs.sh` 미러 열람 → **HITL 재저작**(메인 템플릿/헌법/스킬). patch/추출층 없음. 절차 = workflow.md B2.
+- **패치 전파(D12 연장)**: 모델구동 런타임 패치(`<model>_patch.py`)는 **메인 저작 → 하향 배달**(`sync_to_sub.sh` set; 슬레이브가 받는 *최초 model-keyed 파일*). 서브는 **패치 코드 저작 ✗** — "패치 필요" 탐지를 docs insight 로 상향 보고만(상향 코드/패치 추출층 없음 — D12-06·13). arming 관용구도 메인 배달분(서브 즉흥 저작 ✗).
 - **PII 격리**: 회수가 문서기반(코드/설정 미추출)이라 서브 `CLAUDE.md`의 bake 정체성(PII)이 **메인 추적물로 유입되지 않는다** — `포인터 원칙`의 연장. 서브 헌법은 서브에 잔류.
 - **single-node 확장기능**: single-node=기본 독립운용. sub-control("서브 제어 + 수행피드백 수신")은 single-node가 획득하는 **'확장기능'**(헌법 기재). **활성 게이트=결정론**: `output/single/manifest.yaml` `nodes[]`에 sub 존재 여부(`sync_to_sub.sh` 가 읽어 판정). 현재 single manifest 는 `nodes:[]` → **dormant**(독립 self-containment 보존). (HW탐지 결과를 single 통로로 채우는 전달 메커니즘은 **미구현·파킹** — plan_2026062411_1 §5.)
   - **라이브 형태 = A2A 모델서빙 위임(T3 검증, 0.23.0 E2E)**: 활성 시 메인이 서브에 A2A 태스크 발급(`ssh sub claude -p … --permission-mode acceptEdits`) → 서브가 자작 recipe + `--profile serve up -d` + 로컬 스모크 → push-attestation 1개 반환. 메인은 **리포트만 관측**(디스크 재스캔 X — A2A 경계). 실행평면 노드별 독립(교차검증). 절차 = 서브 `comms.md` serve 술어(single 분기).
