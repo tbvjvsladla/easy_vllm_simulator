@@ -67,6 +67,7 @@ services:
       CONFIG_FILE: ${CONFIG_FILE:-default}
     env_file:
       - envs/.env.interconnect             # NCCL/RDMA (manifest-driven, Plan 2). 먼저=충돌 시 per-model 우선
+      - envs/.env.cluster                  # Ray 클러스터-배포 (manifest.nodes-driven, S6): MASTER/SLAVE IP·RAY 튜닝
       - envs/.env.${CONFIG_FILE:-default}
     command: ["bash", "/app/configs/serve_runner.sh"]
 
@@ -86,5 +87,6 @@ services:
       CONFIG_FILE: ${CONFIG_FILE:-default}
     env_file:
       - envs/.env.interconnect             # NCCL/RDMA (manifest-driven, Plan 2)
+      - envs/.env.cluster                  # Ray 클러스터-배포 (manifest.nodes-driven, S6)
       - envs/.env.${CONFIG_FILE:-default}
     command: ["bash", "/app/configs/serve_runner.sh"]
