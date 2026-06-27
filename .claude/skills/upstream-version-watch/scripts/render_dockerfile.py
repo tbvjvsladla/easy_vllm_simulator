@@ -69,6 +69,24 @@ NCCL_INVARIANTS = {                     # ③ universal — 인터커넥트 무�
 _IFACE_ENV_KEYS = ("NCCL_SOCKET_IFNAME", "GLOO_SOCKET_IFNAME", "TP_SOCKET_IFNAME",
                    "UCX_NET_DEVICES", "OMPI_MCA_btl_tcp_if_include")
 
+# ── Ray 클러스터-배포 env (S6 env-split: 모델 env 인라인 중복 → manifest-driven 렌더) ──────────
+#   3-tier(NCCL 동형): ①환경값 = manifest.nodes[](main/sub host·ssh_user) → MASTER/SLAVE_HOST_IP·SSH_USER
+#                       ②프리셋 = CLUSTER_PRESETS[platform_preset](통합메모리 풀 보호 RAY/alloc 튜닝)
+#                       ③불변 = CLUSTER_INVARIANTS(RAY_PORT).
+#   `.env.cluster` = Band2(토폴로지-keyed, 서브 전파). 모델 env(.env.<model>)는 Band3(모델/컨테이너명·포트만).
+#   미지 platform_preset → fail-loud. 회귀 oracle: fixtures/cluster_env_dgx-spark-gb10.golden(RFC5737 합성 노드값=PII-free).
+CLUSTER_PRESETS = {
+    "dgx-spark-gb10": {                 # 통합메모리 풀 보호(전례 Qwen3-Next/122B serve 검증)
+        "RAY_memory_usage_threshold": "0.99",
+        "RAY_memory_monitor_refresh_ms": "0",
+        "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+        "RAY_OBJECT_STORE_MEMORY": "2000000000",   # serve_runner 가 --object-store-memory CLI 로 소비(Ray env 미인식)
+    },
+}
+CLUSTER_INVARIANTS = {                  # ③ universal — 클러스터 포트
+    "RAY_PORT": "6379",
+}
+
 # source-build 가드 키: (NGC 베이스 태그, vLLM 버전) 튜플.
 #   변별자는 torch 핀이 아니라 **NGC 베이스(=실-링크 torch) × vLLM source 버전**이다.
 #   use_existing_torch.py 가 pyproject torch 핀을 버리고 NGC torch 를 링크하므로,
@@ -100,6 +118,9 @@ def load_manifest(path: str) -> dict:
         ic = _parse_interconnect_block(path)   # 폴백: 중첩 interconnect 블록 보강(Plan 2 — flat 파서가 못 읽음)
         if ic:
             d["interconnect"] = ic
+        nodes = _parse_nodes_block(path)       # 폴백: 중첩 nodes[] 블록 보강(S6 — .env.cluster 가 소비)
+        if nodes:
+            d["nodes"] = nodes
         return d
 
 
@@ -170,6 +191,42 @@ def _parse_interconnect_block(path: str) -> dict:
                     val = val[1:-1]
                 ic[key] = val
     return ic
+
+
+def _parse_nodes_block(path: str) -> list:
+    """stdlib 폴백 전용: manifest 의 중첩 `nodes:` 블록만 파싱(pyyaml 부재 시).
+    각 `- role: X` 가 새 노드 시작, 하위 `key: val` 누적. 다른 최상위 키를 만나면 종료.
+    (render_sub_env.parse_manifest 와 동일 원칙 — 이 스크립트 전용 미니파서.)"""
+    nodes: list = []
+    in_block = False
+    cur: dict = {}
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            raw = line.rstrip("\n")
+            if not raw.strip() or raw.lstrip().startswith("#"):
+                continue
+            indent = len(raw) - len(raw.lstrip(" \t"))
+            stripped = raw.strip()
+            if indent == 0:                       # 최상위 키 — nodes 진입/이탈
+                in_block = stripped.startswith("nodes:")
+                continue
+            if not in_block:
+                continue
+            if stripped.startswith("- "):         # 새 노드 항목 (- role: main)
+                if cur:
+                    nodes.append(cur)
+                cur = {}
+                stripped = stripped[2:].strip()    # '- ' 제거 후 첫 key:val 처리
+            if ":" not in stripped:
+                continue
+            key, val = stripped.split(":", 1)
+            val = _strip_inline_comment(val).strip()
+            if (val and val[0] == val[-1]) and val[0] in ("'", '"'):
+                val = val[1:-1]
+            cur[key.strip()] = val
+    if cur:
+        nodes.append(cur)
+    return nodes
 
 
 # ── 컨텍스트 빌드 ─────────────────────────────────────────────────────────────
@@ -274,6 +331,56 @@ def render_nccl_envfile(manifest: dict) -> str:
         "# .env.interconnect — manifest-driven NCCL/RDMA env (render_dockerfile.py 생성·비추적).",
         f"# 원천: manifest.interconnect(①환경값) + NCCL_PRESETS[{preset_key}](②프리셋) + NCCL_INVARIANTS(③불변).",
         "# 회귀 oracle: fixtures/nccl_env_dgx-spark-gb10.golden (집합 동치). 손수정 금지 — manifest/preset 을 고칠 것.",
+        "",
+    ]
+    body = [f"{k}={env[k]}" for k in sorted(env)]
+    return "\n".join(header + body) + "\n"
+
+
+# ── 클러스터 envfile 빌드 (S6 — manifest.nodes + preset → 8 KEY=VALUE) ────────────────────────
+def build_cluster_env(manifest: dict) -> dict:
+    """manifest.nodes[] + CLUSTER_PRESETS + CLUSTER_INVARIANTS → Ray 클러스터-배포 env 8개 dict.
+    결정론적 lookup·문자열포맷만. 결손/미지 키 fail-loud(무증거 진행 금지)."""
+    nodes = manifest.get("nodes")
+    if not nodes:
+        raise ValueError("manifest.nodes[] 부재 — .env.cluster 렌더 불가(fail-loud, 무증거 진행 금지)")
+    by_role: dict = {}
+    for n in nodes:
+        r = str(n.get("role", "")).strip()
+        if r:
+            by_role[r] = n
+    main, sub = by_role.get("main"), by_role.get("sub")
+    if not main or not sub:
+        raise ValueError(f"manifest.nodes[] 에 role=main·sub 둘 다 필요(멀티 분산) — got roles={sorted(by_role)}")
+    master_ip = str(main.get("host", "")).strip()
+    slave_ip = str(sub.get("host", "")).strip()
+    ssh_user = str(main.get("ssh_user", "") or sub.get("ssh_user", "")).strip()
+    if not master_ip or not slave_ip or not ssh_user:
+        raise ValueError(f"nodes[] host/ssh_user 결손 — master={master_ip!r} slave={slave_ip!r} ssh_user={ssh_user!r}")
+    env: dict = {}
+    # ① 환경값 (manifest.nodes)
+    env["MASTER_HOST_IP"] = master_ip
+    env["SLAVE_HOST_IP"] = slave_ip
+    env["SSH_USER"] = ssh_user
+    # ② 프리셋 (platform_preset 역참조 — NCCL 과 동일 키, 미지 fail-loud)
+    preset_key = (manifest.get("interconnect") or {}).get("platform_preset")
+    if preset_key not in CLUSTER_PRESETS:
+        raise KeyError(f"platform_preset '{preset_key}' 미정의 — 알려진 {sorted(CLUSTER_PRESETS)} "
+                       f"(fail-loud; 확장은 배포자 코드에이전트가 CLUSTER_PRESETS 에 추가)")
+    env.update(CLUSTER_PRESETS[preset_key])
+    # ③ 불변
+    env.update(CLUSTER_INVARIANTS)
+    return env
+
+
+def render_cluster_envfile(manifest: dict) -> str:
+    """build_cluster_env → flat KEY=VALUE envfile 문자열(키 정렬=결정론). compose master/slave 가 env_file 로 참조."""
+    env = build_cluster_env(manifest)
+    preset_key = (manifest.get("interconnect") or {}).get("platform_preset")
+    header = [
+        "# .env.cluster — manifest-driven Ray 클러스터-배포 env (render_dockerfile.py --cluster-envfile 생성·비추적).",
+        f"# 원천: manifest.nodes[](①환경값) + CLUSTER_PRESETS[{preset_key}](②프리셋) + CLUSTER_INVARIANTS(③불변).",
+        "# Band2(토폴로지-keyed, 서브 전파). 손수정 금지 — manifest.nodes/preset 을 고칠 것.",
         "",
     ]
     body = [f"{k}={env[k]}" for k in sorted(env)]
@@ -444,6 +551,33 @@ def _self_test() -> None:
         pass
     print("[render] NCCL self-test OK — .env.interconnect 17키 == golden 집합 동치 · 미지preset/결손 fail-loud 정상")
 
+    # ── 클러스터 envfile 회귀(S6): golden 대비 집합 동치 + fail-loud (노드값=RFC5737 합성=PII-free) ──
+    cgolden_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "..", "fixtures", "cluster_env_dgx-spark-gb10.golden")
+    with open(cgolden_path, encoding="utf-8") as f:
+        cgolden = _parse_env_pairs(f.read())
+    man_nodes = {"interconnect": {"platform_preset": "dgx-spark-gb10"},
+                 "nodes": [{"role": "main", "host": "198.51.100.10", "ssh_user": "deployer"},
+                           {"role": "sub", "host": "198.51.100.11", "ssh_user": "deployer"}]}
+    crendered = _parse_env_pairs(render_cluster_envfile(man_nodes))
+    if crendered != cgolden:
+        only_r = {k: crendered[k] for k in crendered if cgolden.get(k) != crendered[k]}
+        only_g = {k: cgolden[k] for k in cgolden if crendered.get(k) != cgolden[k]}
+        raise AssertionError(f"cluster 렌더 != golden(집합 동치 위반)\n  rendered-side={only_r}\n  golden-side={only_g}")
+    assert len(crendered) == 8, f"cluster 8키 기대, got {len(crendered)}"
+    try:                                   # fail-loud ①: 미지 platform_preset → KeyError
+        build_cluster_env({**man_nodes, "interconnect": {"platform_preset": "no-such"}})
+        raise AssertionError("미지 platform_preset 인데 통과(fail-loud 위반)")
+    except KeyError:
+        pass
+    try:                                   # fail-loud ②: sub 노드 결손 → ValueError
+        build_cluster_env({"interconnect": {"platform_preset": "dgx-spark-gb10"},
+                           "nodes": [{"role": "main", "host": "198.51.100.10", "ssh_user": "deployer"}]})
+        raise AssertionError("sub 노드 결손인데 통과(fail-loud 위반)")
+    except ValueError:
+        pass
+    print("[render] cluster self-test OK — .env.cluster 8키 == golden 집합 동치 · 미지preset/노드결손 fail-loud 정상")
+
     # ── materialize self-test (plan_2026062321_1): 정본 → 통로 복사 멱등·실행권한·fail-loud ──
     import tempfile
     with tempfile.TemporaryDirectory() as td:
@@ -475,6 +609,8 @@ def main() -> None:
     ap.add_argument("--self-test", action="store_true", help="내장 self-test(A7 게이트 + NCCL 회귀)")
     ap.add_argument("--nccl-envfile", action="store_true",
                     help="NCCL .env.interconnect 렌더(manifest.interconnect 소비, Plan 2)")
+    ap.add_argument("--cluster-envfile", action="store_true",
+                    help="Ray .env.cluster 렌더(manifest.nodes[]+CLUSTER_PRESETS 소비, S6 env-split)")
     ap.add_argument("--materialize-configs", action="store_true",
                     help="러너 스크립트(serve_runner/debug-init)를 output/<topology>/configs/ 로 복사(통로 self-containment, plan_2026062321_1)")
     ap.add_argument("--materialize-env", action="store_true",
@@ -497,6 +633,16 @@ def main() -> None:
             with open(a.out, "w", encoding="utf-8") as f:
                 f.write(out)
             print(f"[render] NCCL envfile → {a.out} ({len(_parse_env_pairs(out))} keys)", file=sys.stderr)
+        else:
+            sys.stdout.write(out)
+        return
+
+    if a.cluster_envfile:
+        out = render_cluster_envfile(load_manifest(a.manifest))
+        if a.out:
+            with open(a.out, "w", encoding="utf-8") as f:
+                f.write(out)
+            print(f"[render] cluster envfile → {a.out} ({len(_parse_env_pairs(out))} keys)", file=sys.stderr)
         else:
             sys.stdout.write(out)
         return

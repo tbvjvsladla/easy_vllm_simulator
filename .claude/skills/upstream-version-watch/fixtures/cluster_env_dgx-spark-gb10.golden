@@ -1,0 +1,11 @@
+# cluster_env_dgx-spark-gb10.golden — render_cluster_envfile self-test oracle (S6 env-split).
+# 집합 동치 비교용(_parse_env_pairs 가 주석/빈줄 무시). 노드값=RFC5737(198.51.100.0/24) 합성 = PII-free.
+# 원천: man_nodes(합성) + CLUSTER_PRESETS[dgx-spark-gb10] + CLUSTER_INVARIANTS. 손수정 시 self-test 동기화 필수.
+MASTER_HOST_IP=198.51.100.10
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+RAY_OBJECT_STORE_MEMORY=2000000000
+RAY_PORT=6379
+RAY_memory_monitor_refresh_ms=0
+RAY_memory_usage_threshold=0.99
+SLAVE_HOST_IP=198.51.100.11
+SSH_USER=deployer
