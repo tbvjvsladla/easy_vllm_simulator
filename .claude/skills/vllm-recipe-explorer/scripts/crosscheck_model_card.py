@@ -210,7 +210,9 @@ def crosscheck(model_dir: str) -> dict:
             flagged.append({"pkg": kw, "spec": "(README 언급)", "src": "README.md", "why": why})
     if flagged:
         recs.append("novel-arch special-dep 발견 → serving 전 **vLLM dry-init(모델 클래스 import) + 해당 op 가용성** 확인"
-                    "(예: DSA SparseAttnIndexer→DeepGEMM). 미설치면 헌법 '모델구동 런타임 패치' 또는 빌드타임 동결.")
+                    "(예: DSA SparseAttnIndexer→DeepGEMM). 분류(3+1+1 따름정리): **native lib/커널 = 빌드-바깥** → "
+                    "upstream-version-watch `build_patches/`(patch.py ✗ — 몽키패치로 native 설치 불가) · "
+                    "**Python 코드불일치 = `<model>_patch.py`**. 빌드-바깥은 recipe-explorer 발견·핸드오프만.")
     checks.append({"name": "special_deps", "verdict": "WARN" if flagged else "info", "flagged": flagged})
 
     # ── 3. 컨텍스트 / 4. 아키 / 5. reasoning (정보 합치) ──

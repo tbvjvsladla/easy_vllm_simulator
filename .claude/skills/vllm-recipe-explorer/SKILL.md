@@ -98,6 +98,10 @@ python3 scripts/crosscheck_model_card.py <path> [--json]   # MISMATCH 시 비0 �
 
 - **HF 원본 모델카드(번들 `README.md`) + `inference/requirements.txt` + config.json + safetensors dtype 실측**을 교차대조 → config.json **단독** 파싱이 놓치는 사실을 serving *전* 노출(폐쇄망 — 번들 README = HF 원본 카드, 네트워크 호출 없음).
 - 잡는 것: **① coarse quant 라벨 함정**(config `quant_method:fp8` 인데 실측 experts=FP4 혼합 — 카드가 `FP4+FP8 Mixed` 명시) · **② novel-arch special-dep**(DeepGEMM·tilelang·flash_attn… → "vLLM dry-init/op 가용성 확인" 권고) · 정밀도·파라미터·컨텍스트·아키·reasoning 카드 합치.
+- **special-dep 분류·핸드오프 (발견≠소유 — per-model 3+1+1, plan_2026062812_1)**: special-dep 발견 시 분류한다 —
+  · **빌드-바깥 의존**(native lib/커널: DeepGEMM·tilelang·flash_attn…) = **patch.py ✗ · recipe-explorer 자체수정 ✗**(Python 몽키패치로 native lib 설치 불가) → **`upstream-version-watch` 핸드오프**(빌드 평면 — `build_patches/<NN>-*.sh` 모듈에 동결; 메인) / **서브면 docs insight 상향**(D12, 서브는 빌드평면 미보유).
+  · **런타임-코드 불일치**(Python processor/config shim) = `<model>_patch.py`(§5, recipe-explorer 유도).
+  recipe-explorer 는 빌드-바깥을 **탐지·분류·핸드오프까지만**(어떻게 이미지에 넣을지는 upstream-version-watch 책임).
 - **근거(실증)**: config coarse `fp8` + `du` 아티팩트만 봐 DeepSeek-V4-Flash 를 순수FP8/298GB/인피저블로 오판 → 카드·실측은 `FP4+FP8 mixed`/149GiB(적합). 카드 우선 참조가 오판·DeepGEMM-class 함정 차단(헌법 §금지 "참조-그라운디드" 연장 · plan_2026062811_2 item③).
 - MISMATCH/WARN 은 **HITL surface**(자동 무시 금지). parse 직후·estimate 전에 돈다.
 
