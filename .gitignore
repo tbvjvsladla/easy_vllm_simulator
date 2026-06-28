@@ -13,6 +13,10 @@
 .docker-skills/
 skills-lock.json
 CLAUDE.local.md
+# wiki-desk 라이브 도서관(__llm-wiki) — 비추적: init이 생성하는 산출물 + 비추적 docs를 인덱싱한
+#   파생물(추적 시 incoherent) + path-reference 로컬상태 종속. gitignore-persist로 브랜치 통합.
+#   스킬 자체(.claude/skills/wiki-desk/)는 추적. 근거 plan_2026062809_1.
+/__llm-wiki/
 
 # ===========================================
 # .claude 빌딩블럭 선별 추적 (배포 대상)

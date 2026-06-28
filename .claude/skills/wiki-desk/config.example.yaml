@@ -1,0 +1,58 @@
+# wiki-desk — adaptive-init contract (TEMPLATE / example)
+# This is the SHIPPED skeleton. The live values for a given project are an
+# `init answers` file (see fixtures/project_init_answers.yaml) consumed by
+# scripts/init_wiki_desk.py, which writes __llm-wiki/config.yaml (untracked).
+#
+# Path-reference principle: __llm-wiki stores metadata + path references + edges
+# + concise summaries — NEVER raw copies of source bodies.
+
+project:
+  name: <project-name>
+  purpose: path-reference second brain for project work-history (self-improvement loop)
+
+wiki:
+  mode: path-reference
+  raw_copy: false
+
+# Roots indexed as path-reference sources. Be SPECIFIC (per-folder), so simlog
+# can be handled as directory-nodes and so the constitution / .claude / output
+# are never pulled in.
+document_roots:
+  - docs/devlog
+  - docs/testlog
+  - docs/plan
+  - docs/simlog
+  - sync_staging/sub_docs   # sub-node doc mirror (D12); absent until fetch_sub_docs.sh runs → graceful skip
+  - seed                    # bootstrap lineage; absent in distributed clones → graceful skip
+
+# Authority = the relevance/precedence weight of a document TYPE.
+# (This project: execution-truth > plan-intent — a devlog of what actually ran
+#  outranks the plan that was only intended.)
+authority_order:
+  devlog: 100     # what actually happened — highest-value loop input
+  testlog: 85     # verification evidence (smoke pass = done)
+  sub-doc: 70     # sub-node insight mirror
+  plan: 55        # strategy/intent (frequently diverges from execution)
+  simlog: 40      # raw simulation evidence (testlog cites it)
+  seed: 25        # bootstrap lineage (never overrides the constitution)
+
+registry:
+  include_extensions: [.md, .yaml, .yml, .json, .txt]
+  # Exclude generated/source-tree/vendored-noise dirs. `output`, `__llm-wiki`, the
+  # wiki source trees, and vendored third-party material under seed/ are excluded so
+  # the library indexes work-history, not artifacts, its own source, or a stray CLAUDE.md.
+  exclude_dirs: [__llm-wiki, .git, __pycache__, .pytest_cache, temp, dist, output, llm-wiki, wiki-desk, node_modules, <vendored-subtrees>]
+  exclude_basenames: [example.md]          # per-folder tracked skeleton, not content
+  dir_node_roots: [docs/simlog]            # index each run DIR as one node (run-summary granularity)
+  dir_node_anchor: run_summary.json        # hash/summary anchor inside a run dir (tolerate absence)
+
+# What the librarian returns FIRST, by query intent.
+retrieval:
+  completion_first: [testlog, simlog, devlog]   # "did it work / is it verified"
+  intent_first: [devlog, plan, sub-doc, seed]    # "what approach / strategy"
+  min_authority: 25     # negative-honesty gate: nothing below this is surfaced as evidence
+  min_score: 1          # negative-honesty gate: require at least this query-token overlap
+
+lifecycle:
+  warm_start_policy: incremental shelving on librarian invocation; durable packet per active thread
+  archive_policy: keep path reference, mark lifecycle_state=archived when a source is removed

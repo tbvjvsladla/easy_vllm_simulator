@@ -42,6 +42,7 @@
   wheel은 `pip install --no-deps`로 설치하고, **그 전에 `/etc/pip/constraint.txt`를 비운다**(NGC 핀 충돌 회피). 상세 = 스킬 `upstream-version-watch`.
 - **주변 의존성 원천**: vLLM `requirements/{common,cuda,build}.txt` + `pyproject.toml` → `requirements.txt` 재생성(절차 = `.claude/rules/workflow.md` S1).
 - **모델**: 폐쇄망 전제. 사람이 사전 다운로드해 NAS에 둔 모델을 read-only 마운트. 런타임 다운로드 없음.
+- **자기개선 루프 사서(wiki-desk) 따름정리**: docs 작업이력은 path-reference 도서관 `__llm-wiki`(루트·비추적·메인 단독)로 관리하고, 사서(`wiki-desk`)가 **결정론 관계그래프**(cites/realizes/evidences)에 기반해 **authority-ranked 정제맥락**을 발현한다(단순 검색기 ✗ — 인터뷰 의도 해석 → Seed 수렴 가속). **사용 시점(언제 사서를 부르나)**: 우로보로스 인터뷰 착수·`docs/plan/` 작성·모델 서빙전략 수립·vLLM bump·토폴로지 변경 시 → 사서 발동(관련 thread warm-start → 선행 devlog/testlog 증거 우선 소비) · 새 doc 발행 시 → warm-start 증분 입고(inline·cron 0; in-contract=고정 roots 결정론 자동입고·out-of-contract=에이전트/HITL 판단으로 contract 수정). **불변식**: 원본 비복사(path-ref·`raw/` 금지) · **ROOT 헌법(`/CLAUDE.md`/`/.claude/`) 비인덱싱**(by-root 제외 — 벤더 서브트리도 제외; 반-확증편향: 도서관=중립 증거기반, 헌법=로그를 본 사람의 *출력*이지 입력 ✗) · authority=**실행진실>계획의도**(devlog100>testlog85>sub-doc70>plan55>simlog40>seed25) · v1 결정론 엣지만(의미 contradicts/supersedes 파킹) · 음성정직(증거 없으면 경로 날조 ✗). 상세 = 스킬 `wiki-desk` SKILL.md · `plan_2026062809_1`.
 
 ## 버전 핀 / 트리거 정책
 
@@ -115,7 +116,7 @@
 
 ## 스킬 / 도구 경계
 
-- **커스텀(3-스킬 계층 · 빌딩블럭 vs 런타임블럭)**: `terraforming_subnode`(서브노드 진입 + 서브 에이전트 환경 구축 — `manifest.yaml` 생성·서브 페르소나/런타임블럭 렌더 배달; plan_2026062408_1) · `upstream-version-watch`(버전해소 + render + 소스빌드 + 빌드/스모크) · `vllm-recipe-explorer`(모델 yaml/sh/env + VRAM/KV trial + tiktoken 사전적재). **분류**: 빌딩블럭(`terraforming_subnode`·`upstream-version-watch`)=메인 전용(서브 전달 ✗) · 런타임블럭(`vllm-recipe-explorer`)=서브 복제(자기 모델에 자율 실행). 각 스킬 상세 = 해당 SKILL.md frontmatter. 결정론 vs 판단 분리는 각 스킬 내부.
+- **커스텀(4-스킬 계층 · 빌딩블럭 vs 런타임블럭)**: `terraforming_subnode`(서브노드 진입 + 서브 에이전트 환경 구축 — `manifest.yaml` 생성·서브 페르소나/런타임블럭 렌더 배달; plan_2026062408_1) · `upstream-version-watch`(버전해소 + render + 소스빌드 + 빌드/스모크) · `vllm-recipe-explorer`(모델 yaml/sh/env + VRAM/KV trial + tiktoken 사전적재) · `wiki-desk`(docs 작업이력 path-reference 도서관 `__llm-wiki` + 사서 — 결정론 관계그래프·authority-ranked 정제맥락 발현; plan_2026062809_1). **분류**: 빌딩블럭(`terraforming_subnode`·`upstream-version-watch`·`wiki-desk`)=메인 전용(서브 전달 ✗ — `wiki-desk`는 *substrate 사서 아종*: 능동 저작/해소 도구가 아닌 메타-지식 기층, 중앙 단일 도서관·서브 인스턴스 ✗) · 런타임블럭(`vllm-recipe-explorer`)=서브 복제(자기 모델에 자율 실행). 각 스킬 상세 = 해당 SKILL.md frontmatter. 결정론 vs 판단 분리는 각 스킬 내부.
 - **외부**: Docker 작성/문법검사 보조 — 후보 `netresearch/docker-development-skill` (설치정책 거쳐 도입).
 - **MCP**: 현재 없음. (멀티노드 서브노드 직접 SSH 제어 = 구현됨: `.claude/skills/upstream-version-watch/scripts/sync_to_sub.sh` = **브랜치-aware 하향 오케스트레이터**(rsync 배달 + 스크립트저작 `[sync]` 커밋 + fail-closed dirty 핸드셰이크 + 멱등 git-init) · `fetch_sub_docs.sh` = **상향 문서회수 미러** · 서브 빌드워커 CC `ssh sub bash -lc "claude -p"`. SKILL.md §4.5 / workflow.md S2.5·S3 · 양방향 싱크 D12절차.)
 - 참고: 기존 `configs/check_reqs.py`(의존성 차이 분석 스크립트)를 결정론적 resolve 기반으로 재활용.
