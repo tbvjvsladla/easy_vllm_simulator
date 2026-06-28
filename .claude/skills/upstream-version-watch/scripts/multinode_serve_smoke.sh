@@ -30,6 +30,16 @@ val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }
 MC=$(val MASTER_CONTAINER_NAME); PORT=$(val SERVING_PORT)
 MODEL=$(val SERVING_MODEL_NAME); SLAVE_IP=$(val SLAVE_HOST_IP)
 
+# ── 이미지 정체성 전달(멀티 = 클러스터-와이드: 슬레이브가 마스터와 동일 이미지여야) ──
+#   콤보 EF 에서 IMAGE_TAG/VLLM_REPO/VLLM_REF '만' 읽어 슬레이브 compose 보간에 전달한다(빌드-평면 인프라).
+#   마스터는 --env-file $EF 로 자동 획득. 슬레이브는 EFC(Band2)만 받으므로 비-기본 이미지 변종(예 포크 …-source-sm12x)을
+#   못 봐 stock 으로 빌드/기동하는 불일치가 난다 → 이 3개만 명시 전달.
+#   ⚠ 모델 serve config(CONFIG_FILE)는 전달 안 함 → 슬레이브 Band2-only 보존(슬레이브 컨테이너 env 는 compose env_file=
+#     .env.interconnect+.env.cluster 만, CONFIG_FILE=default 유지). 값에 공백 없음(URL/태그/SHA) → 무인용 prefix 안전.
+#   근거: plan_2026062818_1 §S2.5 R10 · 슬레이브 Band2-only(plan_2026062811_2).
+IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF)
+SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${VREPO:+VLLM_REPO=$VREPO }${VREF:+VLLM_REF=$VREF}"
+
 # ── 서브 식별자/경로 해소(단일계약): env-file > manifest nodes[sub] > 폴백. 옛 고정 서브경로 하드코딩 제거 ──
 _mf_sub() {  # field → nodes[role=sub].field (role 정확매칭 — 'subordinate' 등 접두 오인 방지)
   local manifest="$REPO/output/multi/manifest.yaml"
@@ -56,7 +66,7 @@ python3 "$SDIR/check_smoke_model.py" "$CONFIG" --repo "$REPO" --topology multi |
 if [ "$BUILD" = "1" ]; then
   echo "[mn] 양 노드 빌드(병렬)..."
   docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master build >/tmp/mn_build_master.log 2>&1 & BPID=$!
-  $SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave build'" >/tmp/mn_build_slave.log 2>&1 & SPID=$!
+  $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave build'" >/tmp/mn_build_slave.log 2>&1 & SPID=$!
   wait $BPID; MR=$?; wait $SPID; SR=$?
   if [ $MR -eq 0 ] && [ $SR -eq 0 ]; then echo "[mn] 빌드 OK(양 노드)";
   else echo "[mn] FAIL: 빌드(master=$MR slave=$SR). tail:"; tail -6 /tmp/mn_build_master.log /tmp/mn_build_slave.log; exit 2; fi
@@ -66,7 +76,7 @@ fi
 echo "[mn] master 기동(Ray head + serve)..."
 docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master up -d >/dev/null 2>&1
 echo "[mn] slave 기동(Ray worker, SSH)..."
-$SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave up -d'" >/dev/null 2>&1
+$SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave up -d'" >/dev/null 2>&1
 
 # ── 준비 폴링: 엔드포인트 health(거짓양성 회피) ──
 # READY_MAX(폴링 횟수×5s) 환경변수로 조정 가능 — 대형모델(예 Qwen3-Next-80B bf16 151GB CIFS 로드 ~11분
@@ -95,7 +105,7 @@ fi
 if [ "$KEEP" != "1" ]; then
   echo "[mn] 정리(양 노드 down)..."
   docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master down >/dev/null 2>&1
-  $SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave down'" >/dev/null 2>&1
+  $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave down'" >/dev/null 2>&1
 fi
 echo "[mn] 종료코드 $RESULT"
 exit $RESULT

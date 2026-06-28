@@ -145,7 +145,7 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 3. **sync to sub**: `scripts/sync_to_sub.sh`(기본 dry-run → `--apply`). 검증된 rsync, 체크섬 검증,
    `.git/.claude/seed/docs/__pycache__/CLAUDE.md` 제외(빌딩블럭·서브 페르소나 보호).
 4. **multi-smoke**: `scripts/multinode_serve_smoke.sh <config_name> [--build] [--keep-up]`.
-   NAS체크 → (양 노드 병렬 빌드) → master+slave 기동(Ray 클러스터) → **엔드포인트 health 폴링** → master 엔드포인트 추론 → 정리.
+   NAS체크 → (양 노드 병렬 빌드) → master+slave 기동(Ray 클러스터) → **엔드포인트 health 폴링** → master 엔드포인트 추론 → 정리. **변종이미지 시 build-plane ≠ serve-plane**: 이미지 정체(`IMAGE_TAG`·`VLLM_REPO`/`VLLM_REF` build-arg)는 클러스터-wide **Band2** 라 슬레이브 compose 보간에도 forward(슬레이브가 변종 이미지를 직접 빌드+기동) · 모델 serve config(`CONFIG_FILE`·트리플렛)는 **Band3** 라 슬레이브 미forward → `multinode_serve_smoke.sh` 는 슬레이브에 `IMAGE_TAG`/`VLLM_REPO`/`VLLM_REF` 만 forward(`CONFIG_FILE` ✗). ∴ 슬레이브 Band2-only = **serve-plane 불변식**(build-plane 아님). 헌법 "변종이미지 build-plane ≠ serve-plane 따름정리" · `workflow.md` S2.5.
 
 **학습 (반드시 적용):**
 - **빌딩블럭은 gitignored → 브랜치 전환에도 persist**(워킹디렉토리 단일 사본). cross-branch 동기화·cherry-pick **불필요**. 단 multi-node `.gitignore`도 `.claude/`+`CLAUDE.md`+`seed/` 제외하도록 정렬(실수 추적 방지).
@@ -171,7 +171,7 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
    **(NGC 베이스 / 실-링크 torch) × vLLM source version**이지 pyproject torch핀이 아니다(use_existing_torch가 pyproject 핀을 버리고 NGC torch를 링크하므로).
    같은 torch핀이라도 vLLM source가 stable-ABI(`_C_stable_libtorch`: `torch::stable` layout()/6-arg from_blob)를 요구하면 prefix-매칭 alpha 베이스에
    심볼이 없을 수 있다 → **더 새 NGC 베이스 승격**. 오버라이드 전 **참조-그라운디드 해결**: 후보 NGC 베이스의 `torch::stable` 헤더(`tensor_struct.h`/`ops.h`)를
-   grep해 결여 심볼(`layout()`/6-arg `from_blob`)이 **그 후보 베이스엔 존재함**을 사전 증명한 뒤에만 승격(무증거 오버라이드 금지). 절차 정본·HITL 레이어 = **`workflow.md` S3 Model-C NGC 오버라이드**. NGC torch ↔ PyPI torch 의존성 충돌은
+   grep해 결여 심볼(`layout()`/6-arg `from_blob`)이 **그 후보 베이스엔 존재함**을 사전 증명한 뒤에만 승격(무증거 오버라이드 금지). 절차 정본·HITL 레이어 = **`workflow.md` S3 Model-C NGC 오버라이드**(repo-축 형제 = **vLLM source-repo 오버라이드** = fork SHA 핀 `VLLM_REPO`/`VLLM_REF` build-arg — arch-wall 로 stock vLLM 이 모델에 **구조적 불가**일 때 동일 거버넌스의 1급 핀-오버라이드 → `resolved.json` `source_build_variants` · `…-source-sm12x` superset 변종 트랙(전 모델 유지·모델-키잉 ✗). 헌법 "아치-enablement 변종 트랙 따름정리"). NGC torch ↔ PyPI torch 의존성 충돌은
    `use_existing_torch.py`로 pyproject의 torch류 라인을 비활성화해 NGC torch를 그대로 링크(설치 순서/충돌 해소). 선언 torch 충실(안정>성능).
 2. **인터랙티브 컨테이너**: `docker run -d` NGC 26.03, env `TORCH_CUDA_ARCH_LIST=12.1a MAX_JOBS=N`, ccache(`PATH=/usr/lib/ccache:$PATH`), repo·NAS·ccache 마운트.
 3. **빌드 루프(무제한·HITL)**: `/etc/pip/constraint.txt` 비우기 → `git clone --branch v<버전> vllm` → `python3 use_existing_torch.py`(NGC torch 사용) →
@@ -203,10 +203,10 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 
 ## 4.7. 빌드-바깥 의존 패치 (모델구동 빌드타임 — `build_patches/`)
 
-> §4.6과 **다른 범주**: §4.6 = vLLM **빌드 자체**의 ABI 수정(inline·torch/NGC-keyed). §4.7 = **모델이 요구하는 native 의존**(lib/커널) 추가 — 예 **DeepGEMM**(DeepSeek-V4 DSA `SparseAttnIndexer` 가 요구, 미설치 시 하드 RuntimeError). per-model 3+1+1 의 "빌드-바깥 패치" 슬롯(plan_2026062812_1). 빌드평면·동결·재현·HITL 거버넌스는 §4.6과 공유.
+> §4.6과 **다른 범주**: §4.6 = vLLM **빌드 자체**의 ABI 수정(inline·torch/NGC-keyed). §4.7 = **모델이 요구하는 native 의존**(lib/커널) 추가 — 예 **DeepGEMM**(DeepSeek-V4 DSA `SparseAttnIndexer` 가 요구, 미설치 시 하드 RuntimeError). per-model 3+1+1 의 "빌드-바깥 패치" 슬롯(plan_2026062812_1). 빌드평면·동결·재현·HITL 거버넌스는 §4.6과 공유. **도커 패치 범위 LADDER 의 최하단**(deps-patch=build_patches → source-gate-patch(sed) → **vLLM source-repo 오버라이드**(fork SHA 핀 `VLLM_REPO`/`VLLM_REF`, §4.6 repo-축 형제) → checkpoint-swap): build_patches 로도 stock vLLM 이 **구조적 불가**(arch-wall, 예 GB10 sm_121 DeepSeek-V4)면 위 사다리로 에스컬레이션(fork 핀 = 1급 HITL 오버라이드, 절차 정본 = `workflow.md` S3). 헌법 "아치-enablement 변종 트랙 따름정리".
 
 - **발견 ≠ 소유 (intake)**: 발견은 `vllm-recipe-explorer` crosscheck(special-dep 경보) — **메인**이면 직접 핸드오프, **서브**면 docs insight 상향(D12, 서브는 빌드평면 미보유). upstream-version-watch 가 **이미지에 넣는 책임**(어떻게)을 진다. **patch.py ✗**(native lib 은 Python 몽키패치 불가).
-- **모듈화 (Dockerfile bloat 차단)**: 패치 = **repo-root `build_patches/<NN>-<name>.sh`** 모듈(추적 빌딩블럭·빌드 컨텍스트 `.`·`sync_branches` 공유). 각자 self-contained = 헤더(what/why/model-trigger/plan-ref) + 설치·컴파일 + **검증(fail-loud)**. `Dockerfile.source-build` 는 **단일 thin 스탠자**: `COPY build_patches/ /tmp/build_patches/` + `RUN for p in $(ls /tmp/build_patches/*.sh|sort); do bash "$p"||exit 1; done`. → **패치 추가 = 파일 drop(Dockerfile 무수정)** · 폴더 listing = self-documenting 레지스트리(카탈로그 ✗).
+- **모듈화 (Dockerfile bloat 차단)**: 패치 = **`output/<topology>/build_patches/<NN>-<name>.sh`** 모듈(추적 빌딩블럭 — .gitignore output 예외 · **빌드 컨텍스트=output/<t>/**(compose build.context `.` = compose 파일 위치 기준) · **통로 격리로 single/multi 혼재 차단**(산출물 통로 불변식) · 서브 전달=`sync_to_sub`(output/<t>/ native)). 각자 self-contained = 헤더(what/why/model-trigger/plan-ref) + 설치·컴파일 + **검증(fail-loud)**. `Dockerfile.source-build` 는 **단일 thin 스탠자**: `COPY build_patches/ /tmp/build_patches/`(컨텍스트=output/<t>/ 상대) + `RUN for p in $(ls /tmp/build_patches/*.sh|sort); do bash "$p"||exit 1; done`. → **패치 추가 = 파일 drop(Dockerfile 무수정)** · 폴더 listing = self-documenting 레지스트리(카탈로그 ✗).
 - **절차 (probe → 모듈 → 동결)**: ① probe(인터랙티브 컨테이너서 설치·컴파일·작동확인 — sm arch 지원 포함) → ② `build_patches/<NN>-<name>.sh` 저작 → ③ clean 재빌드 + 서빙 스모크 = **DONE**(인터랙티브만으론 부족, §4.6 동일). 중간삽입 필요한 드문 케이스만 `Dockerfile.source-build` inline-marker(`# build-patch:<name> START/END`) fallback.
 - **이미지 네이밍 불변식 보존**: 빌드-바깥 lib 은 범용(flashinfer 처럼) — DSA 안 쓰는 모델은 무시. 모델-키잉 이미지 ✗. 첫 사례 = `10-deepgemm.sh`(DeepSeek-V4-Flash).
 
