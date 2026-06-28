@@ -1,312 +1,340 @@
 # easy-vllm
 
-> **Upstream-tracking, version-managed vLLM container & serving-strategy generator — a portable skeleton + generation engine.**
-
-`easy-vllm`(= `easy_vllm_simulator`)은 **완성품 컨테이너가 아니라 "스켈레톤 + 생성엔진"** 이다. 누구든 이 레포를 클론한 뒤 자기 환경을 **테라포밍**(manifest 채우기)하면, 업스트림 vLLM 릴리즈를 추적해 **NGC PyTorch 베이스 기반 커스텀 vLLM 컨테이너 + 모델별 서빙전략**을 자기 환경에서 **결정론적으로** 생성한다. 환경 구체값(노드·네트워크·NAS 경로)은 헌법에 박지 않고 **manifest 포인터**로만 읽으므로 이식 가능하다 — clone → terraform → "vLLM X로 업데이트" → resolve → render → build → 스모크.
-
----
-
-## 무엇인가 / 철학
-
-이 워크스페이스의 Claude는 **임의 사용자 환경에서 NGC 기반 vLLM 컨테이너와 서빙전략을 생성하는 이식 가능한 코드 에이전트**다. 사람이 신규 vLLM을 감지해 "업데이트"를 지시하면, 에이전트가 업스트림(진실의 원천)을 독해하고 컨테이너 레이어를 결정론적으로 해소·렌더·빌드·검증한다.
-
-- **진실의 원천(업스트림)** = vLLM — https://github.com/vllm-project/vllm. "버전" = GitHub Release 태그이며 **pre-release도 추적 대상**이다.
-- **관리 대상(산출물)** = 커스텀 Docker 컨테이너 = **NGC PyTorch 베이스 + vLLM(prebuilt wheel 또는 소스빌드) + 주변 의존성**.
-- **배포 단위 = 스켈레톤 + 생성엔진(완성품 아님)**. 추적·배포되는 것은 헌법(`CLAUDE.md`)·규칙(`.claude/rules/`)·스킬(`.claude/skills/`)·템플릿·폴더 통로뿐이고, 실제 빌드 산출물은 각 환경에서 생성된다.
-- **포인터 원칙**: 노드 IP·호스트명·인터커넥트·NAS 경로·origin 같은 환경 구체값은 **헌법에 두지 않고** `output/<topology>/manifest.yaml`(테라포밍이 생성)에서 읽는다. 추적되는 스켈레톤은 루트 `manifest.template.yaml`(빈칸)뿐 — **PII는 추적물에 baking되지 않는다**.
-- **결정론 vs 판단 분리**: 버전 문자열 해소(torch 핀·NGC 태그·wheel URL)는 확률론적 추론이 아니라 **결정론적 스크립트**가 처리하고(하네스 엔지니어링), LLM은 risk-memo·후보 브레인스토밍·인터뷰 같은 판단계층만 담당한다. 결정론 해소의 산출물은 `resolved.json`(아래)이다.
+> **새 LLM이 나올 때마다 반복되는 "추론엔진 호환 대기 → 소스빌드 → 비패턴 땜질 패치" 의 고통을, 코드에이전트와의 대화 한 줄로 바꿉니다.**
+>
+> *Upstream-tracking vLLM container & serving-strategy generator — a portable skeleton + generation engine.*
 
 ---
 
-## 핵심 불변식
+## 이게 왜 필요한가요?
 
-| 불변식 / 따름정리 | 내용 |
+자체 호스팅으로 LLM을 띄워 본 분이라면 이 장면이 익숙할 겁니다.
+
+```text
+  새 모델이 나온다              vLLM 호환이 안정화되기까지 시차          그 사이 당신이 떠안는 것
+  ───────────────              ─────────────────────────────          ──────────────────────
+   🎉 DeepSeek-V4-Flash   ──▶   ⏳ 며칠 ~ 몇 주                   ──▶    😱 vLLM을 소스로 직접 빌드
+   🎉 Qwen3.5-122B               · prebuilt wheel 아직 없음               😱 C++ ABI 벽 뚫기
+   🎉 gpt-oss-120b               · 내 GPU 아키텍처 미지원                 😱 매번 다른 비패턴 땜질 패치
+                                 · "auto" 가 OOM 내고 호스트째 다운        😱 OOM·NCCL·랑데부 디버깅
+```
+
+문제는 이 작업이 **매번 다르다**는 데 있습니다. 모델마다, vLLM 버전마다, GPU 아키텍처마다 막히는 지점과 푸는 방법이 달라서 — 한 번 성공한 노하우를 다음에 그대로 못 씁니다. 그래서 비전공자에게는 진입장벽이고, 전문가에게도 매번 반복되는 소모전입니다.
+
+**easy-vllm 은 이 반복 노동을 코드에이전트에게 위임합니다.**
+
+```text
+  easy-vllm 을 켜면
+  ─────────────────
+   git clone  ─▶  코드에이전트에게 "이 프로젝트 어떻게 써?" 한마디
+        └─▶  ① 내 환경 테라포밍  ─▶  ② 컨테이너 빌드(wheel 또는 source)
+             ─▶  ③ 서빙전략 인터뷰  ─▶  ④ 자기개선 루프 (쓸수록 똑똑해짐)
+
+   당신은 갈림길(HITL 게이트)에서 "확인" 만 누릅니다.
+   torch 핀·NGC 베이스 태그·KV 클램프 같은 무거운 계산은 결정론 스크립트가 대신합니다.
+```
+
+> 💡 **핵심 아이디어 하나**: easy-vllm 은 *완성된 컨테이너*가 아니라 **"스켈레톤 + 생성엔진"** 입니다. 당신이 클론한 건 빈 골격과 엔진이고, *당신 환경에 맞는 실제 컨테이너는 당신 손에서 생성*됩니다. 그래서 노드 IP·NAS 경로 같은 개인정보가 레포에 박히지 않고, 누구의 환경으로도 이식됩니다.
+
+---
+
+## 개발자의 편지 — 범용성에 관하여
+
+> 이 프로젝트를 만들면서 제가 지킨 원칙 하나를 먼저 고백하고 싶습니다.
+>
+> 저는 **하드코딩을 의도적으로 억제**했습니다. CPU 아키텍처는 빌드타임에 `$(uname -m)` 으로 읽고, GPU·노드·NAS 경로는 전부 `manifest` 라는 포인터에서 읽습니다. 그래서 이 프로젝트는 특정 머신에 묶여 있지 않습니다.
+>
+> 제 바람은 이렇습니다 — **일반 PC 한 대든, NVLink 없이 RTX Pro 6000 을 여러 대 꽂은 서버든, 코드에이전트가 그 하드웨어 환경을 *스스로 파악하고 적응* 하기를** 기대합니다. 그게 "코드에이전트를 생성엔진으로 둔다"는 설계의 핵심입니다.
+>
+> 다만 정직하게 밝힙니다. **지금까지의 실증은 전부 NVIDIA DGX Spark(GB10, aarch64) 1~2대에서 이뤄졌습니다.** 일반 x86 PC나 비-NVLink 멀티GPU 환경은 *설계상 지원하지만 아직 검증되지 않았습니다.* 이 README의 모든 `실제로 이렇게 검증됨` 박스는 DGX Spark 실측이며, 그 밖의 환경은 코드에이전트의 적응력에 기대고 있는 *가설*입니다.
+>
+> 그러니 이 글을 읽는 당신이 다른 하드웨어에서 이걸 돌려본다면 — 그 자체가 이 프로젝트의 다음 챕터입니다.
+
+---
+
+## 큰 그림 — 한 사이클
+
+아래가 당신이 겪게 될 전체 흐름입니다. 이 README는 이 그림을 따라 **한 편의 이야기**로 진행됩니다.
+
+```mermaid
+flowchart LR
+    A["git clone"] --> B["① 테라포밍<br/>내 환경 파악"]
+    B --> C["② 빌드<br/>wheel or source"]
+    C --> D["③ 서빙 인터뷰<br/>레시피 수렴"]
+    D --> E["④ 자기개선<br/>쓸수록 똑똑해짐"]
+    E -.->|"새 모델·새 vLLM 버전이 나오면"| B
+```
+
+핵심은 마지막 점선입니다. **한 바퀴 돌고 끝이 아니라, 새 모델·새 버전이 나올 때마다 다시 돌면서 시스템이 누적적으로 더 똑똑해집니다**(여정 ④).
+
+> 📖 **이 문서를 읽는 법**: 아래부터는 *방금 `git clone` 을 마친 한 명의 개발자(=당신)* 와 *코드에이전트* 의 대화로 진행됩니다. 대화 속 에이전트의 판단·수치는 **실제 작업 이력(devlog/testlog)에서 가져온 것**입니다. 꾸며낸 시나리오가 아닙니다.
+
+---
+
+## 여정 0 — "이 프로젝트 어떻게 써요?"
+
+클론을 마치고, 레포 안에서 코드에이전트(Claude Code)를 켭니다. 첫 질문은 누구나 똑같습니다.
+
+> 👤 **당신**: 이 프로젝트 어떻게 쓰면 돼?
+>
+> 🤖 **에이전트**: 먼저 *당신 환경*부터 봅니다. 이 프로젝트는 제가 당신 하드웨어에 맞춰 vLLM 컨테이너를 직접 설계하는 구조라서요. 순서는 이렇습니다 —
+> 1. **테라포밍**: 당신 노드·GPU·NAS 경로를 `manifest` 에 채웁니다. (단일노드면 5분, 멀티노드면 제가 스캔·인터뷰합니다)
+> 2. **빌드**: 띄우려는 vLLM 버전을 알려주시면, prebuilt wheel 로 갈지 소스빌드로 갈지를 *제가 결정론적으로 판정* 하고 컨테이너를 빌드합니다.
+> 3. **서빙 인터뷰**: 어떤 모델을 어떤 GPU 예산으로 띄울지 정하면, 제가 레시피를 인터뷰로 좁혀 실제로 띄워보고 검증합니다.
+> 4. 그리고 쓰실수록 시스템이 **스스로 개선**됩니다.
+>
+> 어디부터 시작할까요? 당신 환경이 **노드 한 대**인가요, **여러 대**인가요?
+
+이 한 번의 교환이 전체 여정의 지도입니다. 이제 하나씩 따라가 봅시다.
+
+---
+
+## 여정 1 — 테라포밍: 내 환경을 시스템에 알려주기
+
+"테라포밍"이란 *빈 골격(스켈레톤)에 당신 환경의 실제 값을 채워 넣는 일*입니다. 그 값은 `manifest.yaml` 이라는 한 파일에 모입니다. 추적되는 건 빈칸짜리 `manifest.template.yaml` 뿐이고, 당신이 채운 실값(`output/<topology>/manifest.yaml`)은 git에 올라가지 않습니다 — **개인정보가 레포에 새지 않습니다.**
+
+### 단일노드 — 5분이면 끝
+
+> 👤 **당신**: 노드 한 대야. RTX 한 장.
+>
+> 🤖 **에이전트**: 그러면 간단합니다. `output/single/manifest.yaml` 에 GPU 모델·CUDA·NAS 경로만 채우면 됩니다. `nodes[]` 는 비워두세요 — 그러면 시스템이 **dormant(독립 운용)** 모드로, 외부 노드 없이 자기 완결적으로 동작합니다.
+
+단일노드 테라포밍은 사실상 *manifest 채우기 한 번*입니다. `topology`·`cpu_arch`·`cuda_version`·`gpu_model`·`nas_model_path` 정도가 핵심 키입니다. 끝나면 바로 여정 2(빌드)로 갑니다.
+
+### 멀티노드 — 에이전트가 스캔하고 인터뷰합니다 (1-1)
+
+노드가 둘 이상이면 이야기가 달라집니다. 메인노드와 서브노드가 어떻게 연결돼 있고, 인터커넥트가 분산 서빙을 감당할 만큼 빠른지를 *실측* 해야 하니까요. 이때 **`terraforming_subnode`** 스킬이 발동합니다.
+
+```text
+   메인노드 (당신이 앉아 있는 곳)                     서브노드 (서브노드에도 코드에이전트 설치 필수)
+   ┌───────────────────────────────┐                  ┌─────────────────────────┐
+   │  코드에이전트 (오케스트레이터)  │                  │  코드에이전트 (원격 일꾼) │
+   │  · 5-전제 인터뷰               │  ── SSH ──▶     │  · scan_node.py 실행    │
+   │  · 성능 게이트 판정            │  ◀─ 리포트 ──    │  · 자기 환경 self-검증   │
+   │  · manifest 생성              │                   │                        │
+   │  · 서브 에이전트 환경 렌더·배달 │  ══ RoCE v2 ══▶  │  Ray worker (TP=2)     │
+   └───────────────────────────────┘  고속 인터커넥트   └────────────────────────┘
+```
+
+에이전트는 절대 무단으로 남의 노드를 스캔하지 않습니다. 먼저 **5가지 전제조건**을 인터뷰합니다 — ①고속 인터커넥트 연결 ②네트워크 구성 ③SSH 구성 ④서브노드에 Claude Code 설치 ⑤서브 Claude Code 모델 연결. 당신이 *명시적으로 승인* 한 뒤에야 스캔이 시작됩니다.
+
+> 👤 **당신**: 두 대야. ConnectX-7 으로 연결돼 있고, SSH 도 된다. 스캔해도 좋아.
+>
+> 🤖 **에이전트**: (`scan_node.py` 실행) 탐지했습니다 — `cpu_arch=aarch64`, `cuda_version=132`, `gpus_per_node=1`, 인터커넥트 `RoCE v2`(`gid_index=3`). compose의 NCCL 설정과도 교차검증해 `all_match=TRUE`. 이제 성능 게이트를 확인합니다. `ib_write_bw` 로 실측하겠습니다.
+>
+> 🤖 **에이전트**: 포트별로 104.2 + 104.0 = **합산 208.2 Gb/s**. 합격선(포트당 ≥100, 합산 ≥180)을 넘었습니다 → **multi-ready**. manifest 에 기입할까요?
+
+여기서 중요한 설계가 하나 있습니다. **성능이 합격선에 못 미치면 에이전트는 fail-closed 로 멈춥니다** — manifest 를 만들지 않고, 비정상 종료합니다. "느린데 일단 진행"을 코드가 막습니다. 검증 안 된 분산 구성으로 나아가다 한밤중에 OOM 으로 깨는 일을 방지하는 거죠.
+
+manifest 가 확정되면, 에이전트는 **서브노드의 작업환경 자체를 렌더해서 배달**합니다 — 서브 전용 페르소나(`CLAUDE.md`)·능력카드(`Agent_Card.json`)·스코프드 권한·런타임 스킬·통신 프로토콜. 이 템플릿들은 전부 **PII-free**(IP·호스트명이 안 박힘)이고, 배달 시점에 manifest 값으로 치환됩니다. 마지막으로 **모델 없는 카나리 태스크**를 한 번 보내 서브가 새 환경을 제대로 로드했는지 확인합니다.
+
+> ✅ **실제로 이렇게 검증됨** (DGX Spark ×2 / `testlog_2026062314_1`)
+> - 스캔 → 성능게이트 → manifest 생성의 **5개 게이트 분기를 전부 라이브 검증**: α(단일) / γ-blocked(peer 미도달) / γ-blocked(대역폭 100<180, fail-closed) / multi-ready / 3자-일치 단언. **판정: PASS.**
+> - `ib_write_bw` 실측 **합산 208.2 Gb/s**(104.2+104.0), 200Gbps 풀대역폭의 ~90%.
+> - 메인↔서브 양방향 싱크(D12): dirty 트리면 **배달 거부(fail-closed)**, 서브 git 은 origin 영구 미설정(로컬 전용). 6개 종료조건 라이브 PASS.
+
+> 🤖 그래서 다음은 자연히 — *이 환경 위에 어떤 vLLM 컨테이너를 올릴까* 입니다.
+
+---
+
+## 여정 2 — 빌드: wheel 의 쉬운 길, source 의 어려운 길
+
+이제 vLLM 버전을 정합니다. easy-vllm 의 가장 똑똑한 부분이 여기서 드러납니다 — **에이전트가 "쉬운 길로 갈 수 있는지, 어려운 길로 가야 하는지"를 추측이 아니라 결정론으로 판정** 합니다.
+
+판정의 근거는 **레이어 커플링**입니다. vLLM 버전이 요구하는 torch 버전이 정해져 있고, torch 버전이 베이스 이미지(NGC PyTorch)와 빌드 방식을 결정합니다.
+
+```text
+   레이어 커플링 — 위에서 아래로 결정론으로 흐른다
+   ──────────────────────────────────────────
+   vLLM 버전          (당신이 지정)          예) 0.18.0          예) 0.23.0
+       │  pyproject.toml [build-system].requires
+       ▼
+   torch 핀                                 2.10.0             2.11.0
+       │  접두어 매칭
+       ▼
+   NGC PyTorch 베이스 태그                    26.01-py3          26.03-py3 …(→ 26.05 로 오버라이드)
+       │  torch 세대로 분기
+       ▼
+   빌드 트랙          ──────────────▶         🟢 prebuilt wheel   🔴 소스빌드 (ABI 벽)
+                                                  "쉬운 길"            "어려운 길"
+```
+
+### 쉬운 길 — prebuilt wheel (torch 2.10대)
+
+> 👤 **당신**: vLLM 0.18.0 으로 gpt-oss-20b 띄우고 싶어.
+>
+> 🤖 **에이전트**: 0.18.0 은 torch **2.10.0** 을 요구합니다 → ABI 벽 없음 → **prebuilt wheel 트랙**. NGC 베이스는 접두어 매칭으로 `26.01-py3`. wheel(`vllm-0.18.0+cu130-...aarch64.whl`)을 `pip install --no-deps` 로 설치하고(그 전에 `/etc/pip/constraint.txt` 를 비워 NGC 핀 충돌을 피합니다), 빌드하면 끝입니다.
+
+이게 "정규 path" 입니다. 막힘이 적습니다. 그래도 폐쇄망 특유의 자잘한 함정은 있습니다 — tiktoken 인코딩 파일 경로가 틀려 404 가 나거나, 의존성이 시간이 흐르며 깨지는(예: fastapi 0.138 이 `/health` 를 500 으로 만든) 경우. 에이전트는 이것들도 참조-그라운디드로 잡아냅니다.
+
+> ✅ **실제로 이렇게 검증됨** (`devlog_2026062221_1`)
+> - 이미지 `easy-vllm:0.18.0-cu130-aarch64-wheel` (32.8GB), 의존성 59개 재생성.
+> - tiktoken 404 → 경로 교정(sha256 검증) · fastapi 0.138 회귀 → `<0.137.0` 천장 핀.
+> - **2 trial 만에 수렴** → 스모크 PASS.
+
+### 어려운 길 — 소스빌드 (torch 2.11+)
+
+> 👤 **당신**: 이번엔 vLLM 0.23.0 으로 가자.
+>
+> 🤖 **에이전트**: 0.23.0 은 torch **2.11.0** 을 요구합니다. 여기서 문제가 생깁니다 — NGC 의 torch 는 alpha 빌드라 prebuilt `_C`(vLLM 의 C++ 확장)와 **C++ ABI 가 충돌** 합니다. 이게 **"하드 ABI 벽"** 입니다. prebuilt wheel 을 깔면 *빌드는 되지만 서빙 시점에 조용히* 깨집니다. 그래서 **소스빌드 트랙**으로 갑니다.
+
+이 "ABI 벽"이 바로 비전공자가 혼자 만나면 가장 고통스러운 지점입니다. 버전 문자열만 봐서는 아무 경고도 없거든요. 실제로 어떻게 풀렸는지 보시죠.
+
+<details>
+<summary>📂 <b>ABI 벽을 뚫은 실제 과정</b> (펼쳐 보기 — 이게 이 프로젝트가 당신 대신 해주는 일입니다)</summary>
+
+> 🤖 **에이전트**: 접두어 매칭으로 NGC `26.03` 을 골라 빌드했습니다. 485초 컴파일 후 실패했습니다:
+> ```
+> error: class "torch::stable::Tensor" has no member "layout"
+> error: no instance of overloaded function "torch::stable::from_blob" matches
+> ```
+> 26.03 의 torch 에 이 stable-ABI 심볼이 *없습니다*. 추측으로 베이스를 바꾸지 않겠습니다 — **후보 베이스의 헤더를 직접 grep 해서 심볼이 존재함을 먼저 증명** 합니다.
+>
+> | API | 26.03 (torch 2.11.0a0) | 26.05 (torch 2.12.0a0) |
+> |---|---|---|
+> | `Tensor::layout()` | **부재** | **있음** (`tensor_struct.h:440`) |
+> | `from_blob` 오버로드 | 불일치 | **있음** (`ops.h:690/741/787`) |
+>
+> 26.05 에 심볼이 있음을 확인했습니다. 이 증거를 testlog 에 남기고, **당신 승인 후** `resolved.json` 의 NGC 태그만 26.05 로 오버라이드하겠습니다. (헌법: 무증거 오버라이드 금지)
+
+이게 **"증거기반 오버라이드"** 입니다. 결정론 스크립트가 단발 추천(26.03)을 하고, 그게 실패하면 에이전트가 *권위 있는 참조(헤더 파일)를 직접 읽어* 다음 수를 증명한 뒤, 사람의 승인을 받아 한 줄만 고칩니다.
+
+</details>
+
+> ✅ **실제로 이렇게 검증됨** (`testlog_2026062217_1`)
+> - 0.23.0 → torch 2.11.0 → 소스빌드, NGC `26.03` 빌드 실패 → 증거기반 `26.05` 오버라이드 → 성공.
+> - 빌드 버전 `vllm-0.23.1.dev0+g0fc695fc6.d20260622.cu132`, `TORCH_CUDA_ARCH=12.1a`, 이미지 `easy-vllm:0.23.0-cu132-aarch64-source`(49.9GB). 런타임 `import vllm._C` OK — **ABI 벽 해소**.
+
+### 어려운 길의 끝 — 포크 SHA 핀 (이렇게까지도 해냅니다)
+
+가장 극단적인 경우도 있습니다. **모델 아키텍처를 stock vLLM 이 구조적으로 못 띄우는** 상황(arch-wall)입니다. 이때 패치 범위는 사다리처럼 확장됩니다: *deps 패치 → 소스-게이트 패치 → vLLM 소스-repo 오버라이드(포크 SHA 핀) → 체크포인트 교체.*
+
+<details>
+<summary>🔬 <b>DeepSeek-V4-Flash on GB10 sm_121 — 6번의 실패 끝에</b></summary>
+
+DeepSeek-V4-Flash 를 GB10(sm_121)에 띄우려 하자 stock vLLM 이 이중 하드월에 막혔습니다 — (1) sparse-MLA 어텐션이 `major∈[9,10]` 만 허용 (2) MXFP4 MoE 가 `auto → MARLIN-repack → 통합메모리 OOM → 호스트째 하드다운`. **6번 연속 실패** 하고 호스트가 다운됐습니다.
+
+해법은 커뮤니티 포크였습니다 — `jasl/vllm` PR#41834(SM12x 지원). 에이전트는 *태그명이 아니라 SHA(`c766cbc6...`)로 핀*(force-push 면역)하고, `VLLM_REPO`/`VLLM_REF` 빌드-arg 로 같은 Dockerfile 이 stock/포크로 분기하게 했습니다. 새 트랙 `easy-vllm:0.23.0-cu132-aarch64-source-sm12x`(기존 모델은 유지하는 superset 변종).
+
+그래도 두 고비가 더 있었습니다 — `--moe-backend humming`(auto 는 포크에서도 repack-OOM) 명시, 그리고 GB10 의 통합메모리가 클럭 텔레메트리를 노출 안 해서 생긴 NVML 크래시를 잡는 **빌드-바깥 패치**(`40-humming-nvml-gb10.sh`). 마침내 **serve#8 에서 서빙 성공** — KV 386,512 토큰(11.8×), 추론 응답 정상, 호스트 다운 0.
+
+</details>
+
+> 🤖 컨테이너가 떴습니다. 이제 *이 모델을 당신 GPU 예산에 가장 잘 맞게 어떻게 띄울지* 를 정할 차례입니다.
+
+---
+
+## 여정 3 — 서빙전략 인터뷰: 띄울 수 있다 ≠ 잘 띄운다
+
+컨테이너가 빌드됐다고 끝이 아닙니다. 같은 모델도 *KV 캐시를 얼마나 줄지, 컨텍스트 길이를 얼마로 할지, 배치를 얼마나 받을지* 에 따라 OOM 이 나기도, VRAM 을 절반만 쓰기도 합니다. 이걸 **`vllm-recipe-explorer`** 스킬이 인터뷰로 좁힙니다.
+
+핵심 철학은 **"측정 > 공식"** 입니다. per-token KV 공식은 full-attention 을 가정해서, sliding-window·GQA 모델에선 KV 를 *크게 과대추정* 합니다. 그래서 공식으로 배치를 정하지 않고 — *실제로 한 번 띄워서 로그를 읽어* 정합니다.
+
+```mermaid
+flowchart LR
+    P1["<b>Phase 1</b><br/>공식 추정<br/>3축 후보 →<br/>예산 하드게이트 →<br/>랭킹"] --> P15["<b>Phase 1.5</b><br/>1회 serve →<br/>KV-log 측정<br/>(near-max batch)"]
+    P15 --> P2["<b>Phase 2</b><br/>trial-loop →<br/>절대 KV 클램프<br/>수렴"]
+    P2 --> SM{{"스모크<br/>health 200 +<br/>비어있지 않은 완성"}}
+```
+
+3축은 `quantization × max-model-len × gpu-memory-utilization` 이고, 인터뷰는 당신에게 멀티턴으로 묻습니다 — **타겟 GPU/VRAM 예산**(0순위·필수), weight/KV 양자화, 배치·컨텍스트, tool/reasoning 파서, 어텐션 백엔드. 모르면 에이전트가 결정론 값을 제안합니다.
+
+### 본류 — gemma-4-12b 가 깔끔하게 수렴한 과정
+
+> 👤 **당신**: gemma-4-12b-it 를, GB10 예산(121.69 GiB)에, 컨텍스트 65536, 배치는 *유휴 VRAM 을 KV 로 최대* 로.
+>
+> 🤖 **에이전트**: (Phase 1.5 — 한 번 띄워 측정) 실측했습니다 — weights 22.83 GiB, overhead 3.77, **KV 가용 82.92 GiB**, `kv_cache_tokens` 2,613,867. 백엔드는 gemma 의 이종 head_dim 때문에 `TRITON_ATTN`. 로그의 `max_concurrency` 가 **39.88×** 네요.
+>
+> 🤖 **에이전트**: 공식대로면 배치 3 이 나왔겠지만, 측정값은 **배치 39** 입니다(공식이 ~11.5× 과대추정했습니다). Phase 2 로 절대 KV 클램프를 수렴시키겠습니다 → `kv-cache-memory-bytes 87064835597`(≈81 GiB), `gpu-memory-utilization 0.90`.
+
+여기서 **gmu 0.90** 이 왜 0.92(기본값)가 아닌지가 중요합니다. GB10 의 통합메모리는 OS가 ~11GiB 를 점유해서, 기본 0.92 면 *시작도 못 하고 OOM* 으로 죽습니다. 그래서 에이전트는 **절대 KV 클램프(이식성)** 와 **gmu(시작 게이트) 를 함께** emit 합니다.
+
+> ✅ **실제로 이렇게 검증됨** (`testlog_2026062217_2` / simlog `2026062217_1`)
+> - 2 trial 수렴. 최종: `max-model-len 65536` · `max-num-seqs 39`(측정) · `kv-cache-memory-bytes 87064835597` · `gmu 0.90`.
+> - 스모크: `"Hello there!"`, `finish_reason=stop`. **판정: 합격.**
+
+### 더 어려운 사례들 — 그리고 가장 중요한 교훈
+
+<details>
+<summary>🔬 <b>DeepSeek-V4-Flash 최적화 — 실패가 다음 성공을 증명하다</b></summary>
+
+DeepSeek-V4-Flash 를 더 최적화하는 과정에서, `gmu 0.90` 으로 올리자 KV 가 31.42 GiB 로 풍선처럼 부풀어 **메모리 워치독이 SIGKILL(137)** 로 컨테이너를 죽였습니다(호스트는 워치독이 보호). 이 실패가 오히려 *절대 KV 클램프가 옳다는 증거* 가 됐습니다 — `gmu 0.80` + `enforce-eager` + `kv-cache-memory-bytes 17179869184`(16GiB)로 재유도하니 **serve#10 PASS**(추론과 답 '391' 분리). 함수호출까지 붙여 serve#11 PASS(`get_weather(Seoul)` tool_calls + reasoning 협업).
+
+곁들인 함정 하나: 실행 중인 컨테이너에 yaml 만 고치고 `compose up -d` 하면 **변경이 무시**됩니다. recipe 만 바꿨을 땐 반드시 `down → up` 으로 재생성해야 합니다.
+
+</details>
+
+<details>
+<summary>🔬 <b>Qwen3.5-122B-NVFP4 — "carry-forward 금지" 가 살린 사례</b></summary>
+
+이전에 Qwen3-Next-80B(bf16)를 띄울 때 `--moe-backend triton` 이 정답이었습니다. 그래서 122B-NVFP4 에도 그대로 가져왔더니 — **실패**: `moe_backend='triton' is not supported for NvFP4 MoE`. 플래그를 빼서 `auto` 에 맡기니 vLLM 이 `FLASHINFER_CUTLASS` 를 골라 **PASS**.
+
+교훈: **모델별 서빙전략은 carry-forward 금지.** 한 모델의 정답(triton)이 다른 모델(NVFP4)엔 독입니다. 정답은 *모델×하드웨어마다* reference-grounded 로 재확정해야 합니다.
+
+</details>
+
+> ✅ **실제로 이렇게 검증됨** — 멀티노드 진성 분산 서빙(Ray TP=2, 한 모델을 두 노드가 함께 서빙) **3 조합 3/3 PASS**: ① 0.18.0/wheel × gpt-oss-120b(near-max 176) ② 0.23.0/source × gpt-oss-120b(near-max 150, 양노드 core byte-identical → layer-cache 재사용) ③ 0.23.0/source × Qwen3-Next-80B(`--moe-backend triton` 으로 sm_121a JIT-OOM 우회).
+
+> 🤖 이제 한 사이클이 끝났습니다. 그런데 — 당신이 이 시스템을 *쓸수록*, 시스템 자체가 더 나아집니다. 그게 마지막 여정입니다.
+
+---
+
+## 여정 4 — 자기개선 루프: 쓸수록 똑똑해지는 이유
+
+대부분의 도구는 처음 상태 그대로입니다. easy-vllm 은 다릅니다. **당신이 코드에이전트와 코웍한 한 번 한 번이, 다음 작업을 더 쉽게 만드는 자산으로 쌓입니다.** 세 가지 메커니즘이 맞물려 돕니다.
+
+```text
+   자기개선 루프 — 실행에서 배운 것이 위로 흐른다
+   ──────────────────────────────────────────
+
+        ┌─────────────────────────────────────────────────┐
+        │   기초레이어 = 헌법(철학) = 단일 진실원천          │  ◀── 새 교훈이 "따름정리" 로 codify
+        └─────────────────────────────────────────────────┘
+                  │  변경되면 (위→아래로만)
+                  ▼  conformance 스윕 = 정합 회복까지가 "1건"
+        ┌───────────────────────────────────────────────────┐
+        │   상위레이어 = 스킬 · workflow · recipe · 산출물    │
+        └───────────────────────────────────────────────────┘
+                  ▲
+                  │  실제로 띄워본 작업이 devlog/testlog 로 남고
+        ┌──────────────────────────────────────────────────┐
+        │   사서(wiki-desk) = 작업이력 관계그래프            │  ── 다음 인터뷰 때 관련 맥락을 빠르게 떠올림
+        └──────────────────────────────────────────────────┘
+```
+
+**① 레이어드 적응** — 헌법(철학)이 기초레이어이고 단일 진실원천입니다. 새 교훈을 얻으면 그것을 헌법에 **따름정리(corollary)** 로 적습니다. 그러면 상위레이어(스킬·workflow·recipe)가 그 변경에 *적응 패치* 해 정합을 회복합니다 — 그것도 **부분수정 방치 없이, 정합이 완전히 돌아올 때까지가 작업 1건**입니다. (역방향은 금지: 상위의 편의가 헌법을 흔들지 못합니다.)
+
+> 흥미로운 실화: 이 "정합 회복까지 1건" 원칙이 *코드화된 바로 그 순간*, 적대검증이 에이전트 자신의 부분수정(생산자만 고치고 소비자를 빠뜨림)을 잡아냈습니다. **원칙이 만들어지자마자 자기 저자를 단속한** 셈입니다.
+
+**② 사서(wiki-desk)** — 모든 작업이력(plan/devlog/testlog/simlog)을 **결정론 관계그래프**(누가 무엇을 실현/증거/인용하는지)로 엮습니다. 새 작업을 시작할 때, 사서가 *"이 모델·이 버전에서 전에 뭐가 됐고 뭐가 실패했는지"* 를 권위 순으로 떠올려 줍니다 — 단순 검색기가 아니라 인터뷰 의도를 해석해 수렴을 가속합니다. 권위는 **실행진실 > 계획의도**(`devlog 100 > testlog 85 > plan 55 …`). 그리고 의도적으로 **헌법은 인덱싱하지 않습니다** — 도서관이 헌법에 정렬되면 도전이 불가능해지니까요(반-확증편향). 도서관은 중립 증거기반, 헌법은 그 증거를 본 사람의 *출력*입니다.
+
+> 📌 이 README 를 쓰면서도 사서를 불렀습니다. 설치·검증 시점엔 **61개 문서 / 137개 관계** 였는데, 지금은 **75개 / 190개** 로 자라 있습니다. *쓸수록 쌓인다* 는 말이 그대로 데이터로 보입니다.
+
+**③ 메인↔서브 개선 role** — 멀티노드에서 서브노드가 얻은 통찰은 *문서로만* 회수됩니다(코드/설정 추출 없음). 메인이 그 문서를 읽고(HITL), 템플릿→렌더→배달 파이프라인으로 서브 환경을 다시 개선합니다. 이게 "self-improving tooling" 입니다 — 서브의 개인정보는 메인 추적물로 새지 않으면서도, 배운 것은 시스템에 환원됩니다.
+
+이 루프 덕분에, *모델구동 런타임 패치*(stock 이미지에 휘발성 몽키패치를 arming)나 *per-model 3+1+1 아티팩트 패턴* 같은 노하우가 — 일회성 땜질로 끝나지 않고 — **재현 가능한 방법론**으로 굳습니다. 처음에 말한 "매번 다른 비패턴 땜질"의 정반대입니다.
+
+---
+
+## 닫는 글
+
+여기까지가 한 사이클입니다 — **clone → 테라포밍 → 빌드 → 서빙 인터뷰 → 자기개선**. 그리고 새 모델이나 새 vLLM 버전이 나오면, 당신은 다시 "vLLM X로 업데이트" 한마디로 이 사이클을 돕니다. 매번 조금씩 더 쉬워지면서요.
+
+이 모든 흐름을 떠받치는 안전 가드 셋만 기억하시면 됩니다:
+
+- 🔒 **스모크 통과 전 done 없음** — 실제로 띄워 비어있지 않은 응답을 받아야 "됐다"입니다. ("lint 통과 ≠ 서빙됨")
+- 🔒 **무인 자동 다운로드 없음** — 폐쇄망 전제. 모델은 사람이 NAS 에 미리 두고 read-only 마운트, 부재 시 *사용자 승인 게이트* 후에만.
+- 🔒 **결정론은 스크립트가, 판단은 에이전트가** — torch 핀·NGC 태그 같은 버전 해소는 확률적 추론이 아니라 결정론 스크립트가 처리하고, 사람은 HITL 게이트에서 확인합니다.
+
+### 더 깊이 들어가려면
+
+이 README 는 *여정* 을 보여줍니다. 각 단계의 *규칙과 절차의 정본* 은 아래에 있습니다.
+
+| 문서 | 무엇 |
 | --- | --- |
-| **레이어 커플링 규칙** (가장 중요) | 대상 vLLM의 `pyproject.toml` `[build-system].requires`에 **명시된 torch 버전**을 먼저 읽고, 그 torch 버전과 NGC 컨테이너 `NVIDIA_PYTORCH_BUILD_VERSION` **접두어**가 일치하는 NGC PyTorch 베이스 태그를 선정한다(접미어 `+해시`·빌드메타 무시). 예: vLLM 0.21.0 → torch 2.11.0 → `nvcr.io/nvidia/pytorch:26.03-py3`. |
-| **빌드트랙 따름정리** | torch **2.10대 → prebuilt wheel** · torch **2.11+ → 소스빌드 1차 트랙**. 2.11+에서는 NGC alpha와 prebuilt `_C`의 C++ ABI 충돌(**하드 ABI 벽**)이 발생한다. 트랙 판정 = 결정론 제안, **최종 중재 = 스모크**. |
-| **커플링 보강 원칙** | prefix-매칭은 필요조건일 뿐 — 소스빌드에서 alpha 베이스가 stable-ABI 심볼을 결여하면 **더 새 NGC 베이스 승격이 정당**(전방호환). 단 **무증거 오버라이드 금지**(아래 §전파 워크플로 Model-C). |
-| **이미지 네이밍 불변식** | `easy-vllm:{vllm}-cu{cuda}-{arch}-{track}` (예 `0.23.0-cu132-aarch64-source`). **모델-키잉 금지**(과거 태그 난립 원인) — **한 이미지가 모든 모델을 서빙**. 태그는 `render_dockerfile.py`가 산정. |
-| **산출물 통로 불변식** | 빌드/렌더 산출물(Dockerfile·compose·requirements·configs·envs·**materialize된 manifest 실값**)은 **`output/<topology>/`(single\|multi)** 에 둔다. **통로 껍데기(`.gitkeep`)만 추적·생성물 비추적** → single/multi 산출물이 켜켜이 쌓여도 경로 격리로 충돌 0. **topology는 브랜치가 결정**(single-node=single, multi-node=multi)이므로 브랜치 빈번 전환 시 재작성 0(전환 = 그 통로 manifest를 읽음). |
-| **manifest 포인터 원칙** | 환경 실값은 `output/<topology>/manifest.yaml`(비추적, 테라포밍 산출)에서만 읽는다. 추적 스켈레톤 = 루트 `manifest.template.yaml`. NAS 기본값 `/mnt/models`(manifest override). `CPU_ARCH`는 빌드타임 `$(uname -m)`(리터럴 baking 금지). |
-| **serve-time env 통로 불변식** | serve 변수치환값(`NAS_MODEL_PATH`·`TIKTOKEN_HOST_PATH`)은 `render_dockerfile.py --materialize-env`가 manifest에서 `output/<topology>/.env`로 **materialize**한다(렌더 표준 단계). compose 기본값(`${NAS_MODEL_PATH:-/mnt/models}`)에 의존하면 serve가 모델을 못 찾는다. 해소 우선순위 = **env-주입 > manifest 정본 > 리터럴 default**. |
-| **폐쇄망 / 에어갭 불변식** | 폐쇄망 전제. 모델은 사람이 사전 다운로드해 NAS에 두고 **read-only 마운트**한다. **런타임 다운로드 없음.** |
-| **결정론 산출물 = `resolved.json`** | 결정론 해소(torch핀·NGC태그·CUDA·wheel URL·`build_track.decision`·`torch_cuda_arch`)의 단일 진실원. `resolve_*` 스크립트가 쓰고 `render_dockerfile.py --resolved`가 소비하며, NGC 베이스 오버라이드도 여기 NGC 태그만 고친다. 비추적. (확률론적 핀 추론 **금지** — §무엇인가/철학.) |
-| **requirements 천장(KNOWN_INCOMPAT)** | `regen_requirements.py`는 wheel `Requires-Dist`(권위 소스) 위에 **알려진 비호환 천장**(예 `fastapi<0.137.0`)을 적용해 업스트림 `>=` 시간드리프트 회귀를 차단하고, 적용분을 stdout으로 surface해 S1 재평가에 노출한다. 상류 수정 시 천장 제거. |
-| **KV 절대클램프 따름정리 (이식성)** | 최종 recipe 는 **`kv-cache-memory-bytes`**(측정된 GPU당 절대값 = KV·이식성) + **`gpu-memory-utilization`**(통합메모리 ≤0.90 = startup free-memory 게이트·총cap; 기본 0.92는 통합메모리 startup OOM)를 **함께** emit. vLLM 은 클램프 시 gmu 를 KV 사이징에만 무시. |
-| **인코딩 자산 따름정리** | 모델 가중치뿐 아니라 런타임 인코딩 자산(tiktoken o200k/harmony)도 에어갭 사전적재 대상. |
-| **near-max batch 측정 따름정리** | per-token KV 공식은 full-attention 가정 → sliding-window/GQA/hybrid 모델서 KV를 **과대추정하는 상한**일 뿐. near-max batch·절대 KV 클램프는 **측정으로만**(Phase-1.5 serve KV-log 또는 Phase-2 trial-loop) 산정. formula-우선 batch 금지. |
-| **MoE 백엔드 따름정리** (sm_121a) | 대형 MoE를 신규 아키(GB10/Blackwell **sm_121a**)서 서빙 시 기본 `moe_backend=auto`는 `flashinfer_cutlass`를 골라 sm_121a용 prebuilt 부재 → 런타임 nvcc JIT가 OOM/단일커널 stall. **`--moe-backend triton`**(in-process, nvcc 불요) 명시로 우회. Ray 분산이면 master serve에만 줘도 slave 워커로 전파(검증: 멀티노드 0.23.0 E2E combo③). |
-
----
-
-## 토폴로지 & 브랜치
-
-토폴로지는 헌법에 박지 않고 사용자 환경(`manifest.yaml`의 `topology`·`nodes[]`)이 결정한다. 두 브랜치 모두 배포 대상이며 **버전 핀이 독립**이다.
-
-| 브랜치 | 용도 | 산출물 통로 |
-| --- | --- | --- |
-| `single-node` | 단일노드(기본 독립운용) | `output/single/` |
-| `multi-node` | 분산(다노드) 전용 | `output/multi/` |
-
-- **single-node 확장기능 (sub-control)**: 단일노드의 기본은 **독립 self-containment**다. 단 single-node는 "서브 제어 + 수행피드백 수신"이라는 **확장기능**을 획득할 수 있다 — **활성 게이트는 결정론적**: `output/single/manifest.yaml`의 `nodes[]`에 `role:sub`가 있으면 활성, 없으면 **dormant**(`sync_to_sub.sh`가 읽어 판정). 활성 시 라이브 형태 = **A2A 모델서빙 위임**(메인이 `ssh sub claude -p`로 태스크 발급 → 서브가 자작 recipe + `--profile serve up -d` + 로컬 스모크 → push-attestation 1개 반환; 메인은 리포트만 관측). 0.23.0 듀얼모델 E2E에서 **T3 검증**(§검증 이력).
-- **독립 핀 / 독립 롤백**: 단일노드는 신버전 성공인데 멀티노드가 실패하면 **멀티노드만 롤백**(`git reset --hard <last-good-commit>`).
-- **공유 빌딩블럭 동기화**: 두 브랜치의 공유 빌딩블럭(`CLAUDE.md`·`.claude/`)은 `scripts/sync_branches.sh`로 동일하게 유지한다(수동 — 모든 작업 종료 후 사람 질의로 실행).
-- **문서는 브랜치 통합**: 작업 문서(`docs/<type>/*.md`)는 gitignore되어 브랜치 전환에 persist → 단일/멀티 문서가 자동 통합·동일.
-
----
-
-## 스킬 (생성엔진)
-
-3개 커스텀 스킬이 생성엔진을 이룬다. **빌딩블럭**(메인 전용, 서브 전달 ✗)과 **런타임블럭**(서브 복제)으로 분류된다. 각 스킬은 영속 입력 `config.yaml`(아래 §사용법)을 진입 계약으로 읽는다.
-
-| 스킬 | 분류 | 역할 |
-| --- | --- | --- |
-| **`terraforming_subnode`** | 빌딩블럭 (메인 전용) | 멀티노드 **서브노드 진입 + 서브 에이전트 환경 구축** 오케스트레이터. 5-전제조건 인터뷰 → 사용자 승인 → `scan_node.py` 결정론 스캔(cpu_arch/cuda/gpu/interconnect) → 성능게이트(`ib_write_bw`) → `manifest.yaml` 생성(스킬 간 단일 계약). 그리고 메인에서 서브 페르소나 `CLAUDE.md`·`Agent_Card.json`·스코프드 `settings.local.json`·런타임블럭·통신프로토콜을 렌더해 전달, **model-less 카나리**로 검증. 싱글노드엔 발동 안 함(서브 부재). |
-| **`upstream-version-watch`** | 빌딩블럭 (메인 전용) | 버전 해소(`resolve_torch_pin` → `resolve_ngc_tag` → `resolve_build_track` → `resolve_wheel` → `regen_requirements`, 산출 = **`resolved.json`**) + render(`render_dockerfile.py` 시퀀스) + 소스빌드(Phase-2) + 빌드/스모크 + 실패분류(`classify_failure.py`). **제안만** 하고 실제 핀 변경·빌드·push는 HITL 게이트 전파 워크플로를 따른다. |
-| **`vllm-recipe-explorer`** | **런타임블럭 (서브 복제)** | 폐쇄망 고정 모델 1개의 `config.json`을 결정론 파싱 → (quantization × max-model-len × gpu-memory-utilization) 3축 후보 → VRAM 추정·하드게이트·랭킹 → 3종 세트(.yaml+.sh+.env) 생성. **측정 3층**: Phase-1(공식 추정) → **Phase-1.5**(1회 `--profile serve up -d` → serve KV-log `kv_cache_tokens`/`max_concurrency` grep → near-max batch, 풀 루프 없이) → Phase-2(trial-loop로 **절대 KV 클램프 `--kv-cache-memory-bytes`** 수렴). + tiktoken 사전적재. 서브가 동일 결정론 엔진을 자기 모델에 자율 실행. |
-
-> 결정론(스크립트)과 판단(LLM)의 분리는 각 스킬 **내부**에 둔다. 자율성 = 누가 실행하느냐, 방법 = 어디서나 결정론.
-
----
-
-## 전파 워크플로 (S1–S4)
-
-사람이 "vLLM X로 업데이트"를 지시하면(자동 폴링·webhook·cron 없음 — **완전 수동 트리거**) 에이전트는 4단계를 각각 verify와 **HITL 게이트**를 동반해 실행한다.
-
-```text
-S1 resolve  → 대상 vLLM 버전 결정론 해소 → resolved.json
-   torch 핀(pyproject [build-system].requires) → NGC 베이스(접두어 매칭)
-   → CUDA_VERSION · CPU_ARCH=$(uname -m) · wheel URL · requirements 재생성(+KNOWN_INCOMPAT 천장)
-   verify: torch핀·NGC태그·CUDA·wheel URL·deps diff 출력
-   ── HITL 게이트 ① : 해소 결과 사람 확인
-
-S2 patch    → single-node · multi-node 두 브랜치 패치
-   Dockerfile ARG(VLLM_VERSION/CUDA_VERSION/FROM/manylinux) · requirements.txt
-   render 시퀀스: template + regen_requirements + (multi)materialize-configs + materialize-env
-   verify: 변경 라인이 S1 해소값(resolved.json)에 직결
-   ── HITL 게이트 ② : 각 브랜치 diff 사람 검토
-
-S2.5 sync   → (multi 전용) 메인 검증코드 → 서브 직접 rsync-over-SSH
-   sync_to_sub.sh (dry-run → --apply, 체크섬). GitHub 경유 X.
-
-S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
-   check_smoke_model.py(부재면 중단·보고, 다운로드 X)
-   (single) docker compose --profile debug build → --profile serve up → 프롬프트 1회 → 비어있지 않은 완성
-   (multi)  multinode_serve_smoke.sh <config> [--build]  (준비판정 = master :PORT/health http200)
-   실패 시 classify_failure.py 로 분기(아래)
-   ── HITL 게이트 ③ : 스모크 결과(+분류·risk-memo) 사람 확인
-
-S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 + 기록
-   브랜치별 독립 핀 커밋(필요 시 git tag last-good-<branch>)
-   ── HITL 게이트 ④ : 최종 커밋(+서브 전파) 승인
-```
-
-**S3 실패 분기 (`classify_failure.py`)**
-
-- `requirements-fixable` → Loop-Until-Done(조정→재빌드→스모크, `reconciliation_cap` 기본 3). 소진 → Model-C.
-- `source-build-class`(torch 2.11+) → Phase-2 소스빌드(인터랙티브 컨테이너서 `_C`를 NGC torch에 맞춰 컴파일 → ABI 벽 해소 → HITL 패치 루프 → 스모크 → `Dockerfile.source-build` 동결 → clean 재빌드 재현).
-- **NGC 베이스 오버라이드** = 1급 Model-C 서브분기: 후보 신규 베이스의 `torch::stable` 헤더를 grep해 **결여 심볼이 그 후보엔 존재함**을 사전 확증 + testlog 기록 + 사람 승인 후 `resolved.json`의 NGC 태그만 오버라이드. **무증거 오버라이드 금지**(하드코딩 버전 금지).
-- `unknown` / multi-node 서빙 실패(OOM/NCCL-RDMA/Ray join timeout) → Model-C: LLM이 `{proposed_class, evidence}` 제시 → 사람 승인 전 무행동.
-
-> **계획 게이트(체화 규율)**: container-gen · serving-strategy · branch-sync · terraforming_subnode 작업은 반드시 `docs/plan/` 문서를 **먼저 발행**하고 사람 검토(HITL) 후 진행한다. 테라포밍된 환경에서도 이 규칙대로가 정본.
-
----
-
-## 멀티노드 / A2A
-
-멀티노드는 **Ray TP=2 진성 분산 서빙**이다 — master(메인) = Ray head + serve, slave(서브) = Ray worker. 한 모델을 두 노드가 NCCL/RoCE GDR 인터노드 텐서 통신으로 함께 서빙한다.
-
-- **드라이버**: `multinode_serve_smoke.sh <config> [--build] [--keep-up]`. 준비판정 = master `:PORT/health`(PORT=`SERVING_PORT`) **http200 폴링**(로그 "startup complete"는 거짓양성 → grep 금지). 폴링 한도는 `READY_MAX` env로 조정(대형모델 CIFS 로드 대비). model-less 통신 검증은 `multinode_comms_smoke.sh`(torch.distributed NCCL all-reduce, socket-fallback = FAIL). 양방향 연결대기(master는 `ray status` 2-GPU 등록, slave는 head 포트 `nc -z`)가 랑데부를 fail-closed로 처리.
-
-### A2A 경계 (Agent2Agent, 서버 없음)
-
-서버를 띄우지 않고 SSH 단발로 메인↔서브가 협력한다 — 전송 = `ssh <user>@<sub> claude -p '<Task>' --output-format json --permission-mode acceptEdits`.
-
-- **역할**: 메인 = 클라이언트(Task 발급·리포트 검증·피드백) · 서브 = 원격 에이전트(Task 자율 수행 → **self-verified 리포트 1개** 반환). `acceptEdits`가 정본(`bypassPermissions`는 하네스 가드레일로 차단).
-- **검증 = push-attestation**: 서브가 자체검증(config-parse·schema·`bash -n`·체크섬·로컬 스모크)해 `self_verification`에 담는다. **메인은 리포트만 검증 — 서브 디스크 재스캔·직접교정 금지.** "lint passed ≠ served".
-- **(b) 아티팩트모델**: 서브는 **개발산출물만 전파받고 실행결과물(빌드 이미지 + slave 컨테이너)을 자체 생산**. 결합서빙의 신뢰성·랑데부를 위해 검증된 `multinode_serve_smoke.sh`(ssh-bash 오케스트레이션)를 쓰되, 이는 서브의 자기생산이지 디스크 재스캔이 아니다(A2A 경계 유지).
-- **경계(B3 정밀)**: 서브는 모델별 `configs/`·`envs/`만 저작. 컨테이너 정본(Dockerfile/requirements/compose/serve_runner)·빌딩블럭(`.claude/`·`CLAUDE.md`·`Agent_Card.json`)은 off-limits.
-
-### D12 — 메인↔서브 양방향 싱크
-
-- **서브 git = 로컬 전용, origin 영구 미설정**: 서브는 `git init`된 로컬 레포(`single`·`multi` 두 브랜치). push/pull/fetch/remote/clone deny(방어심층). git 역할 = 브랜치전환 + 로컬 history/롤백(회수 vehicle 아님).
-- **하향(메인→서브) 4단, fail-closed** (`sync_to_sub.sh`): ① dirty 체크 — 서브 `git status --porcelain` 비어있지 않으면 **배달 거부**(스크립트 auto-stash 금지, 서브가 commit/stash로 clean화 후 ready 어테스트) → ② 토폴로지 브랜치 checkout → ③ rsync(겹침 = main-canonical, sub-yields, 서브 `[improve]` history 보존) → ④ **스크립트저작 `[sync]` 커밋**. dry-run 우선 → `--apply`.
-- **상향(서브→메인) = 문서기반 회수 only** (`fetch_sub_docs.sh`): 서브가 자기개선 insight를 자기 `docs/`에 발행 → A2A 리포트로 경로 전달 → 메인이 서브 `docs/`만 로컬 gitignored 미러(`sync_staging/sub_docs/`)로 rsync → **열람** → **HITL 재저작**. patch/bundle/staging 추출층 없음 · 자동 머지 없음.
-- **PII 격리**: 회수가 문서기반(코드/설정 미추출)이라 서브 `CLAUDE.md`의 bake 정체성(PII)이 메인 추적물로 유입되지 않는다(포인터 원칙의 연장).
-
----
-
-## 레포 구조
-
-추적되는 것은 **스켈레톤 + 생성엔진**뿐이다. 실제 빌드 산출물은 `output/<topology>/` 통로에서 생성·비추적된다.
-
-```text
-easy_vllm_simulator/
-├── CLAUDE.md                       # 헌법 (항상 보유할 사실)
-├── README.md                       # 이 문서
-├── manifest.template.yaml          # 추적되는 환경 스켈레톤(빈칸). 실값은 output/<t>/manifest.yaml(비추적)
-├── .gitignore / .gitattributes / .dockerignore
-│
-├── .claude/
-│   ├── rules/
-│   │   ├── workflow.md             # 전파 4단계(S1–S4) + D12 양방향 싱크 절차
-│   │   └── docs.md                 # 문서 4종 규약
-│   └── skills/
-│       ├── terraforming_subnode/   # [빌딩블럭] SKILL.md + scripts(scan_node, render_sub_env)
-│       │   └── sub_node/           #   서브 에이전트 템플릿(PII-free): CLAUDE.template.md, Agent_Card.template.json,
-│       │                           #   settings.local.template.json, comms.md, task-report.schema.json, gitignore.template
-│       ├── upstream-version-watch/ # [빌딩블럭] SKILL.md + config.example.yaml (영속 입력 스켈레톤)
-│       │   └── scripts/            #   resolve_torch_pin / resolve_ngc_tag / resolve_build_track / resolve_wheel
-│       │                           #   regen_requirements / render_dockerfile / check_smoke_model / classify_failure
-│       │                           #   multinode_serve_smoke.sh / multinode_comms_smoke.sh / sync_to_sub.sh / fetch_sub_docs.sh
-│       └── vllm-recipe-explorer/   # [런타임블럭, 서브 복제] recipe.py + scripts(estimate_vram, parse_model_config,
-│                                   #   gen_recipe_set, run_trial, parse_vllm_log, rank_recipes, simlog_writer …) + config.example.yaml
-│
-├── configs/                        # serve_runner.sh(Ray master/slave) + debug-init.sh 만 추적
-│                                   #   (모델별 configs/*.{yaml,sh} 는 output/<t>/configs/ 로 — 루트는 gitignore)
-├── envs/                           # .env.example 만 추적 (실 .env.* 는 output/<t>/envs/ 로 — 비추적)
-├── scripts/
-│   ├── sync_branches.sh            # 브랜치 간 빌딩블럭 수동 동기화
-│   └── smoke_clone.sh              # 배포가능성 read-only 게이트
-│
-├── docs/                           # 스켈레톤 = 폴더 + 폴더당 example.md 1개만 추적
-│   └── plan/ devlog/ testlog/ simlog/   #   각 example.md 추적 · 실 작업문서(docs/*/*)는 gitignore(브랜치 persist)
-│
-└── output/                         # 산출물 통로 — 통로 껍데기만 추적, 생성물 비추적
-    ├── single/.gitkeep             #   (single 산출물 전부 gitignored: Dockerfile·compose·requirements·configs·envs·manifest)
-    └── multi/
-        ├── .gitkeep
-        ├── Dockerfile              #   multi 손작성 컨테이너 정의 = *.template 졸업 전까지 추적(정본)
-        ├── Dockerfile.source-build
-        └── docker-compose.yaml
-```
-
-> **비추적**(생성물/사적): `output/<t>/{Dockerfile.source-build,docker-compose.yaml,requirements.txt,manifest.yaml,.env,configs/*,envs/.env.*,sub_provision/**}`(single 전부 · multi 일부), 루트 `requirements.txt`·`resolved.json`·`tiktoken_cache/`·`seed/`·`sync_staging/`, `.claude/settings.local.json`·`skills/*/config.yaml`·`sub_node/CLAUDE.md` 실값.
-> render 템플릿(`Dockerfile[.source-build].template`·`docker-compose.template.yaml`·requirements regen)은 `upstream-version-watch`의 `render_dockerfile.py` 렌더 계약이 소유·소비한다(위 추적 트리의 스켈레톤이 아니라 스킬 평면).
-
----
-
-## 사용법
-
-### 0. 클론 → 테라포밍
-
-```bash
-git clone <repo> && cd easy_vllm_simulator
-# 멀티노드면: terraforming_subnode 스킬 발동(5-전제조건 인터뷰 → 승인 → scan → manifest 생성)
-#   → output/<topology>/manifest.yaml 채움 (노드·인터커넥트·NAS 경로·origin)
-# 싱글노드면: output/single/manifest.yaml 채움.
-#   서브는 manifest nodes[] 가 비면 dormant(기본 독립운용);
-#   sub-control 확장을 켜려면 nodes[] 에 role:sub 기입(sync_to_sub.sh 가 읽어 결정론 게이트)
-```
-
-### 0.5. 입력 계약 — `config.yaml` (영속)
-
-각 스킬의 **실제 사람 진입점**은 영속 `config.yaml`이다(스킬별 `config.example.yaml`에서 저작, 비추적). "vLLM X로 업데이트"를 지시하기 **전에** 이걸 채운다.
-
-```yaml
-# upstream-version-watch/config.yaml (예시 키)
-target_vllm_version: "0.23.0"
-ngc_probe_start: "26.05"                 # NGC 태그 프로빙 시작점(newest→oldest)
-smoke:
-  single_node: { config_name: "gemma-4-12b-it-dgxspark" }
-  multi_node:  { config_name: "gpt-oss-120b-source" }
-nas_model_path: "/mnt/llm/Model/hugging_face_ver_model"
-
-# vllm-recipe-explorer/config.yaml (예시 키)
-target_model: { path: "/app/models/OpenAI/gpt-oss-120b" }
-vram_budget_gb: 121.69
-safety_margin: 0.08
-```
-
-### 1. 버전 지시 → 결정론 해소 → 렌더
-
-```bash
-# 사람이 신규 vLLM 감지(모델 구동 실패 또는 GitHub 확인) → "vLLM X로 업데이트" 지시
-# upstream-version-watch 스킬:
-#   resolve(torch핀 → NGC 베이스 접두어매칭 → CUDA/arch/wheel URL → requirements 재생성) → resolved.json
-#   ── HITL 게이트 ① 해소값 확인 ──
-#   render_dockerfile.py 시퀀스: template(--resolved resolved.json) + regen_requirements
-#     + (multi) --materialize-configs + --materialize-env  → output/<topology>/.env
-#   ── HITL 게이트 ② 브랜치 diff 검토 ──
-```
-
-### 2. 빌드 → 스모크 (단일노드)
-
-```bash
-# NAS 체크 (부재면 중단·보고, 다운로드 금지)
-python .claude/skills/upstream-version-watch/scripts/check_smoke_model.py <config> --topology single
-
-# 빌드 (디버그)
-docker compose -f output/single/docker-compose.yaml --profile debug build
-
-# 서빙 + 스모크: vllm serve /app/models/<모델디렉토리> → 프롬프트 1회 → 비어있지 않은 완성 1회
-docker compose -f output/single/docker-compose.yaml \
-  --env-file output/single/envs/.env.<config> --profile serve up
-```
-
-### 3. 빌드 → 스모크 (멀티노드, Ray 2노드 분산)
-
-```bash
-# master(메인) + slave(서브) Ray 클러스터 build → up → master :PORT/health http200 폴링 → 엔드포인트 추론
-bash .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh <config> --build
-# 대형모델(긴 CIFS 로드)이면 폴링 연장: READY_MAX=360 bash …
-```
-
-**합격 신호(스모크)** = `vllm serve /app/models/<모델디렉토리>` 후 **프롬프트 1회 → 비어있지 않은 완성 응답 1회**. 단일노드·멀티노드 **양쪽** 스모크가 통과해야 bump 완료. 통과분만 last-good 커밋으로 남긴다(smoke-before-commit).
-
-> 모델별 서빙전략(.yaml/.sh/.env)이 필요하면 `vllm-recipe-explorer` 스킬로 VRAM 예산에 맞춘 레시피를 생성·검증한다: **Phase-1 추정 → Phase-1.5(1회 serve로 KV-log 측정 → near-max batch) → Phase-2(trial-loop로 절대 KV 클램프 수렴)**.
-
----
-
-## 검증 이력 (validated)
-
-> 하드웨어: 2× **NVIDIA DGX Spark**(GB10 superchip, **aarch64**, **sm_121a**, 128GB 통합메모리/노드, **CUDA 13.2**). 폐쇄망 NAS(CIFS, 42T) read-only 사전적재. 인터커넥트 **RoCE v2 / NCCL GPU Direct RDMA(DMABUF)**. aarch64/cu13x prebuilt wheel 부재 → torch 2.11+ **소스빌드 트랙 강제**(ABI 벽).
-
-### 단일노드 듀얼모델 E2E (vLLM 0.23.0 source-build) — **VERDICT: PASS**
-
-- vLLM **0.23.0** → torch **2.11.0** → 소스빌드. NGC 베이스는 접두어매칭으로 `26.03`이나 **증거기반 오버라이드 → `nvcr.io/nvidia/pytorch:26.05-py3`**(26.03이 stable-ABI 심볼 `layout()`/6-arg `from_blob` 결여로 빌드 FAIL → workflow S3 Model-C 오버라이드). `TORCH_CUDA_ARCH=12.1a`. 이미지 `easy-vllm:0.23.0-cu132-aarch64-source`.
-- **교차검증 빌드**: 양 노드 독립 clean-build → **byte-equivalent** vLLM `0.23.1.dev0+g0fc695fc6`, 런타임 `import vllm._C` OK(ABI 벽 해소) 양쪽.
-- **메인 = gemma-4-12B-it** (`--profile serve up`): health 200 → 비어있지 않은 완성, `finish_reason=stop`, **PASS**. max-model-len 32768, **max-num-seqs 52(측정 near-max)**.
-- **서브 = gpt-oss-20b** (A2A 자율, **T3 검증**): 메인이 `ssh sub claude -p … acceptEdits`로 태스크 발급 → 서브가 자작 recipe + 서빙 + 스모크 + tiktoken o200k 자가복구 → push-attestation 1개 반환, 메인은 리포트만 관측. **PASS**. max-num-seqs **86(측정)**.
-- **measurement > formula 재강화**: gemma per-token KV 측정 vs 공식 · gpt-oss(GQA, full-attention 아님) 공식 1.9× 과대. vLLM `max_concurrency` 로그가 near-max batch 진실의 원천.
-
-### 멀티노드 진성 분산 서빙 E2E (3 조합) — **VERDICT: 3/3 PASS**
-
-> 드라이버 `multinode_serve_smoke.sh <config> --build --keep-up`. 합격 = 양노드 독립빌드 → master `:PORT/health` 200 → 엔드포인트 실추론 비어있지않음(`finish_reason=stop`) + **2노드 Ray TP=2 NCCL 확인**.
-
-| 조합 | vLLM / 트랙 × 모델 | 결과 | 핵심 |
-| --- | --- | --- | --- |
-| ① | **0.18.0 / wheel** × gpt-oss-120b(MXFP4) | ✅ PASS | NGC 26.01, torch 2.10.0, ray 2.48.0. NCCL 2.29.2+cu13.1, NET/IB GDR(DMABUF). near-max **176**(concurrency 178.74×). |
-| ② | **0.23.0 / source** × gpt-oss-120b(MXFP4) | ✅ PASS | NGC 26.05, torch 2.11.0. 단일노드 source core byte-identical → layer-cache 재사용. NCCL 2.30.4+cu13.2. near-max **150**(152.71×). |
-| ③ | **0.23.0 / source** × Qwen3-Next-80B-A3B(bf16, 512-expert MoE, 151GB) | ✅ PASS (att4) | 최난도. sm_121a에서 FlashInfer CUTLASS MoE 커널 JIT가 OOM/30분 stall → **`--moe-backend triton`**(in-process MoE, nvcc JIT 0)로 우회 후 PASS. READY ~865s, near-max **6**(bf16 가중치 74GiB/노드 지배 → 작은 KV, 예상대로). |
-
-- **멀티노드 codified fixes**: `--moe-backend triton`(sm_121a MoE 따름정리) · `READY_MAX` env(대형모델 health-poll 연장) · serve_runner `--object-store-memory` CLI 플래그(Ray가 env var 무시) · 통합메모리 bf16 near-max는 공식 아닌 측정.
-
----
-
-## 문서 규약
-
-작업 산출 문서는 `docs/<type>/<type>_<YYYYMMDDHH>_<seq>_<주제>.md` 명명을 따른다(절대일시 시각까지, seq 1부터, 한국어 밑줄 주제). 추적·배포되는 것은 **폴더 스켈레톤 + 폴더당 `example.md` 1개**뿐이고, 실제 작업문서는 gitignore되어 브랜치 전환에 persist·자동 통합된다.
-
-| type | 역할 | 시점 |
-| --- | --- | --- |
-| `plan/` | 계획서 — 단계/Phase 작업의 설계·접근. **HITL 검토 대상** | 착수 **전** |
-| `devlog/` | 작업 로그 — 수행 내역·결정·전파의 **서사** | 작업 중·후 |
-| `testlog/` | 검증 로그 — 빌드/스모크/실험의 **증거와 판정** | 검증 결과 |
-| `simlog/` | 시뮬레이션 증거 vault — `recipe.py simulate` **한 run = 디렉토리 1개**(파일 아님) | trial run |
-
-> 참조 체인: `simlog`(원시 증거) → `testlog`(인용·종합·판정) → `devlog`(서사). 상세 규약 = `.claude/rules/docs.md`.
-
----
-
-## 안전 / 가드
-
-- **무인 자동 다운로드 절대 금지** — 서빙대상 모델 부재 시 **사용자 승인 게이트** 후에만: (관리 경로 존재 → 그 경로 영속 다운로드) / (부재 → 컨테이너 내부 HF cache 임시). `hf_token`은 manifest 파일 포인터로 등록(원시 토큰 비추적).
-- **임의 설치 금지** — 외부/공식 스킬·플러그인·MCP는 사용자 검수 없이 설치 금지(propose → review → install).
-- **smoke-before-commit** — 컨테이너 변경은 스모크 통과(testlog 증거) 전 **done 선언 금지**. 로컬 빌드+스모크 통과 코드만 last-good 커밋으로 남긴다. last-good 앵커 = 로컬 스모크-통과 커밋, 미커밋분은 일회용(`git reset --hard <last-good-commit>`로 복귀, 브랜치 독립).
-- **계획 게이트** — container-gen·serving-strategy·branch-sync·terraforming_subnode 작업은 `docs/plan/` 문서를 먼저 발행하고 사람 검토(HITL) 후 진행.
-- **결정론 강제** — 버전 문자열 해소(torch 핀·NGC 태그)를 확률론적 추론으로 처리 금지. 업스트림 핀/베이스 이미지를 가드레일·기록 없이 임의 변경 금지. 요청 범위 밖 기능·추상화 선반영 금지.
-
----
-
-> 근거 헌법: [`CLAUDE.md`](./CLAUDE.md) · 전파 절차: [`.claude/rules/workflow.md`](./.claude/rules/workflow.md) · 문서 규약: [`.claude/rules/docs.md`](./.claude/rules/docs.md)
+| [`CLAUDE.md`](./CLAUDE.md) | 헌법 — 항상 보유하는 사실·불변식·모든 따름정리의 단일 진실원천 |
+| [`.claude/rules/workflow.md`](./.claude/rules/workflow.md) | 전파 워크플로 — 버전 업데이트 S1~S4 4단계 + HITL 게이트 + 메인↔서브 싱크 |
+| [`.claude/rules/docs.md`](./.claude/rules/docs.md) | 문서 4종(plan/devlog/testlog/simlog) 작성 규약 |
+| `.claude/skills/` | 생성엔진 — `terraforming_subnode` · `upstream-version-watch` · `vllm-recipe-explorer` · `wiki-desk` |
+
+> *검증 환경: 2× NVIDIA DGX Spark(GB10 superchip, aarch64, sm_121a, 128GB 통합메모리/노드, CUDA 13.2), 폐쇄망 NAS read-only, RoCE v2 / NCCL GPU Direct RDMA. 그 밖의 하드웨어는 코드에이전트의 적응에 기대는 미실증 영역입니다 — 「개발자의 편지」 참고.*
