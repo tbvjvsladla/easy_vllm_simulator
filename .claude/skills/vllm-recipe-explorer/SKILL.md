@@ -55,6 +55,7 @@ RTX4090=24GB carve-out)에 맞는 설정을 찾는다. 두 페이즈로 동작�
 | 구성요소 | 방식 | 비고 |
 |----------|------|------|
 | config.json 파싱 | **결정론 스크립트** | `parse_model_config.py` — text_config 중첩·safetensors 헤더 실측 |
+| **모델카드 교차검증**(①.5) | **결정론** | `crosscheck_model_card.py` — 번들 README(HF 원본카드)+inference/reqs+dtype 실측 ↔ config 합치. coarse-quant 함정·special-dep(DeepGEMM류) 사전경보. MISMATCH=비0(게이트) |
 | 후보 **생성**(brainstorm) | **LLM (이 단계만 확률론)** | 3축 조합 다양성이 가치(Generate&Filter의 Generator) |
 | VRAM 추정 **공식**(per-token KV) | **결정론 — 단 상한(upper bound)** | `estimate_vram.py` full-attention 가정 공식. sliding-window/GQA서 **과대추정**(gemma 8×·gpt-oss 1.9×) → OOM 보수 게이트엔 유효, near-max batch엔 **부정확** |
 | VRAM **실측 분해**(near-max 정본) | **결정론 — 측정 정본** | serve KV log(`kv_cache_tokens`/`max_concurrency`) 또는 Phase-2. **near-max batch·절대 KV 클램프는 측정으로만**(공식 batch 금지 — §5·헌법 near-max 따름정리) |
@@ -88,6 +89,17 @@ python3 scripts/parse_model_config.py <path> [--nas-root R] [--json] > parsed.js
   bpw로 native weight를 나눈 best-effort(quant 축은 native 고정). `native_weight_bytes`는 index
   `total_size`(없으면 파일 크기 합), `disk_bpw`는 최대 safetensors 헤더의 온디스크 dtype 실측(폴백·보고용).
 - 디렉토리/`config.json` 부재 → 명시적 에러(비0 종료, 다운로드 금지).
+
+### ①.5 모델카드 교차검증 (결정론 · serving 착수 전 필수 루틴)
+
+```bash
+python3 scripts/crosscheck_model_card.py <path> [--json]   # MISMATCH 시 비0 종료(게이트)
+```
+
+- **HF 원본 모델카드(번들 `README.md`) + `inference/requirements.txt` + config.json + safetensors dtype 실측**을 교차대조 → config.json **단독** 파싱이 놓치는 사실을 serving *전* 노출(폐쇄망 — 번들 README = HF 원본 카드, 네트워크 호출 없음).
+- 잡는 것: **① coarse quant 라벨 함정**(config `quant_method:fp8` 인데 실측 experts=FP4 혼합 — 카드가 `FP4+FP8 Mixed` 명시) · **② novel-arch special-dep**(DeepGEMM·tilelang·flash_attn… → "vLLM dry-init/op 가용성 확인" 권고) · 정밀도·파라미터·컨텍스트·아키·reasoning 카드 합치.
+- **근거(실증)**: config coarse `fp8` + `du` 아티팩트만 봐 DeepSeek-V4-Flash 를 순수FP8/298GB/인피저블로 오판 → 카드·실측은 `FP4+FP8 mixed`/149GiB(적합). 카드 우선 참조가 오판·DeepGEMM-class 함정 차단(헌법 §금지 "참조-그라운디드" 연장 · plan_2026062811_2 item③).
+- MISMATCH/WARN 은 **HITL surface**(자동 무시 금지). parse 직후·estimate 전에 돈다.
 
 ### ② LLM 후보 생성 (이 단계만 확률론)
 
@@ -322,6 +334,7 @@ run_trial(candidate)            # docker run -d → /health 200 폴링 → funct
 Phase 1:
 - `scripts/quant_table.py` — quant 바이트 테이블(whichllm 벤더링·출처 주석) + `vllm_quant_bpw`/`dtype_bpw` 해소 함수.
 - `scripts/parse_model_config.py` — `config.json` 결정론 파서(text_config 중첩·safetensors 헤더 실측, +CLI).
+- `scripts/crosscheck_model_card.py` — **HF 원본 모델카드(번들 README)+inference/reqs+config+dtype 교차검증**(①.5; coarse-quant 함정·special-dep 사전경보, MISMATCH=비0 종료·폐쇄망·stdlib).
 - `scripts/estimate_vram.py` — VRAM 추정기. Phase 1 `estimate()`(공식 `/gmu`) + Phase 2 절대 클램프 함수
   (`per_token_kv_bytes`/`required_kv_bytes`/`max_safe_kv_bytes`/`max_feasible_max_len`/`estimate_absolute`).
 - `scripts/rank_recipes.py` — `auto_candidates`·하드게이트·Judge 랭킹·리포트 렌더(+CLI).

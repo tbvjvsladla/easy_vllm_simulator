@@ -56,7 +56,7 @@ python3 "$SDIR/check_smoke_model.py" "$CONFIG" --repo "$REPO" --topology multi |
 if [ "$BUILD" = "1" ]; then
   echo "[mn] 양 노드 빌드(병렬)..."
   docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master build >/tmp/mn_build_master.log 2>&1 & BPID=$!
-  $SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose -f output/multi/docker-compose.yaml --env-file $EFC --env-file $EF --profile slave build'" >/tmp/mn_build_slave.log 2>&1 & SPID=$!
+  $SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave build'" >/tmp/mn_build_slave.log 2>&1 & SPID=$!
   wait $BPID; MR=$?; wait $SPID; SR=$?
   if [ $MR -eq 0 ] && [ $SR -eq 0 ]; then echo "[mn] 빌드 OK(양 노드)";
   else echo "[mn] FAIL: 빌드(master=$MR slave=$SR). tail:"; tail -6 /tmp/mn_build_master.log /tmp/mn_build_slave.log; exit 2; fi
@@ -66,7 +66,7 @@ fi
 echo "[mn] master 기동(Ray head + serve)..."
 docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master up -d >/dev/null 2>&1
 echo "[mn] slave 기동(Ray worker, SSH)..."
-$SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose -f output/multi/docker-compose.yaml --env-file $EFC --env-file $EF --profile slave up -d'" >/dev/null 2>&1
+$SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave up -d'" >/dev/null 2>&1
 
 # ── 준비 폴링: 엔드포인트 health(거짓양성 회피) ──
 # READY_MAX(폴링 횟수×5s) 환경변수로 조정 가능 — 대형모델(예 Qwen3-Next-80B bf16 151GB CIFS 로드 ~11분
@@ -95,7 +95,7 @@ fi
 if [ "$KEEP" != "1" ]; then
   echo "[mn] 정리(양 노드 down)..."
   docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master down >/dev/null 2>&1
-  $SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose -f output/multi/docker-compose.yaml --env-file $EFC --env-file $EF --profile slave down'" >/dev/null 2>&1
+  $SSH "$SUB_HOST" "bash -lc '$SUB_CD docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave down'" >/dev/null 2>&1
 fi
 echo "[mn] 종료코드 $RESULT"
 exit $RESULT

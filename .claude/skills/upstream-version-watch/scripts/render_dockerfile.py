@@ -81,6 +81,9 @@ CLUSTER_PRESETS = {
         "RAY_memory_monitor_refresh_ms": "0",
         "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
         "RAY_OBJECT_STORE_MEMORY": "2000000000",   # serve_runner 가 --object-store-memory CLI 로 소비(Ray env 미인식)
+        "MAX_JOBS": "4",                # serve-time MoE 커널 JIT(sm_121a, 多expert) nvcc 병렬 cap — 동시 컴파일 OOM 방지(122b attempt-3 실증).
+                                        #   슬레이브도 model shard 로드·JIT 하므로 Band2(cluster)서 양노드 도달해야 함(plan_2026062811_2 — 슬레이브 Band2-only 완결).
+                                        #   이미지 ENV 기본 16 override. 비-MoE 모델엔 no-op(안전 보수 상수). 모델별 override 필요시 .env.<model>(master) 에서.
     },
 }
 CLUSTER_INVARIANTS = {                  # ③ universal — 클러스터 포트
@@ -564,7 +567,7 @@ def _self_test() -> None:
         only_r = {k: crendered[k] for k in crendered if cgolden.get(k) != crendered[k]}
         only_g = {k: cgolden[k] for k in cgolden if crendered.get(k) != cgolden[k]}
         raise AssertionError(f"cluster 렌더 != golden(집합 동치 위반)\n  rendered-side={only_r}\n  golden-side={only_g}")
-    assert len(crendered) == 8, f"cluster 8키 기대, got {len(crendered)}"
+    assert len(crendered) == 9, f"cluster 9키 기대, got {len(crendered)}"   # 8→9: MAX_JOBS Band2 재귀속(plan_2026062811_2)
     try:                                   # fail-loud ①: 미지 platform_preset → KeyError
         build_cluster_env({**man_nodes, "interconnect": {"platform_preset": "no-such"}})
         raise AssertionError("미지 platform_preset 인데 통과(fail-loud 위반)")
@@ -576,7 +579,7 @@ def _self_test() -> None:
         raise AssertionError("sub 노드 결손인데 통과(fail-loud 위반)")
     except ValueError:
         pass
-    print("[render] cluster self-test OK — .env.cluster 8키 == golden 집합 동치 · 미지preset/노드결손 fail-loud 정상")
+    print("[render] cluster self-test OK — .env.cluster 9키 == golden 집합 동치 · 미지preset/노드결손 fail-loud 정상")
 
     # ── materialize self-test (plan_2026062321_1): 정본 → 통로 복사 멱등·실행권한·fail-loud ──
     import tempfile

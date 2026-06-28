@@ -30,6 +30,7 @@ S2.5 sync   → (multi-node 전용) 메인 검증코드 → 서브 직접 전달
      제외: .git/.claude/seed/docs/__pycache__/CLAUDE.md (빌딩블럭·서브 빌드워커 페르소나 보호). GitHub 경유 X.
    - 서브는 메인 전달 코드로 생존. 서브 자작 envs/configs는 메인이 아카이브.
    - 모델구동 런타임 패치(configs/<model>_patch.py · arm_patch.sh)도 output/<topology>/ 에 있어 이 rsync 로 함께 하향 배달(서브 슬레이브가 마운트·arm). 서브는 패치 저작 ✗(상향은 docs 탐지보고만 — D12-06·13). 헌법 패치 전파.
+   - **모델 트리플렛(`<model>.{yaml,sh}` · `.env.<model>`)은 서브로 전달하지 않는다(Band3 — sync_to_sub 구조적 배제, `<model>_patch.py` 만 특례)**. 멀티 TP **슬레이브 = Band2-only**(Ray worker): `.env.cluster`(MoE-JIT MAX_JOBS 포함)+`.env.interconnect` 만으로 기동 → 모델 트리오 불요. **트리플렛을 메인→서브 직접 rsync 로 밀어넣는 우회 금지**(슬레이브가 `.env.<model>` 의존하면 미완결 신호). 헌법 "모델 트리플렛 전파 불변식" · `plan_2026062811_2` · `devlog_2026062418_1`.
 
 S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
    - ⑤ NAS 체크: check_smoke_model.py <config_name> --topology <single|multi> — 모델 부재면 중단·보고(다운로드 금지). --topology 필수(산출물 통로 output/<topology>/)
