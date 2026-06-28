@@ -1,0 +1,46 @@
+# wiki-desk init answers — easy_vllm_simulator (THIS project)
+# Deterministic input for scripts/init_wiki_desk.py. Generated __llm-wiki is untracked.
+# Authority encodes this project's "execution-truth > plan-intent" philosophy.
+
+project:
+  name: easy_vllm_simulator
+  purpose: path-reference librarian over docs/ work-history to close the self-improvement loop (relationship building → refined context surfacing → Seed convergence)
+
+wiki:
+  mode: path-reference
+  raw_copy: false
+
+document_roots:
+  - docs/devlog
+  - docs/testlog
+  - docs/plan
+  - docs/simlog
+  - sync_staging/sub_docs
+  - seed
+
+authority_order:
+  devlog: 100
+  testlog: 85
+  sub-doc: 70
+  plan: 55
+  simlog: 40
+  seed: 25
+
+registry:
+  include_extensions: [.md, .yaml, .yml, .json, .txt]
+  # exclude generated/source-tree/vendored-noise dirs so the library indexes work-history,
+  # not artifacts, its own source, or vendored third-party material (incl. any stray CLAUDE.md).
+  exclude_dirs: [__llm-wiki, .git, __pycache__, .pytest_cache, temp, dist, output, llm-wiki, wiki-desk, node_modules, "안드레카파시 클로드", claude-md-management]
+  exclude_basenames: [example.md]
+  dir_node_roots: [docs/simlog]
+  dir_node_anchor: run_summary.json
+
+retrieval:
+  completion_first: [testlog, simlog, devlog]
+  intent_first: [devlog, plan, sub-doc, seed]
+  min_authority: 25
+  min_score: 1
+
+lifecycle:
+  warm_start_policy: incremental shelving on librarian invocation; durable packet per active thread
+  archive_policy: keep path reference, mark lifecycle_state=archived when a source is removed
