@@ -201,6 +201,15 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
   - **파일추출 보류 불변식**: `VALIDATED_SOURCE_BUILD_KEYS` 2키 frozen-set + fail-loud 가드가 현재 충분 — 별도 `source_build_patches.yaml`+resolver 는 오버엔지니어링(Karpathy B2/B3). **추출 트리거 = 인라인 셋 비대화(3번째+ 키)** 또는 패치-바디 다양화. patch-body 는 판단계층 유지(사전-codify 금지 — formula 위험과 동류). 근거 E2E(날짜 박힌 게이트 판정 서사) = devlog/testlog 인용: `testlog_2026062217_1`(0.23.0 source 26.05) · `testlog_2026062422_1`(듀얼모델 E2E 26.05 재검증).
 - strip-hoist가 torch 2.12에서 자동 skip된 것은 **조건부 패치의 재사용 가능 패턴**이다(부재감지 = 적용여부 자동결정).
 
+## 4.7. 빌드-바깥 의존 패치 (모델구동 빌드타임 — `build_patches/`)
+
+> §4.6과 **다른 범주**: §4.6 = vLLM **빌드 자체**의 ABI 수정(inline·torch/NGC-keyed). §4.7 = **모델이 요구하는 native 의존**(lib/커널) 추가 — 예 **DeepGEMM**(DeepSeek-V4 DSA `SparseAttnIndexer` 가 요구, 미설치 시 하드 RuntimeError). per-model 3+1+1 의 "빌드-바깥 패치" 슬롯(plan_2026062812_1). 빌드평면·동결·재현·HITL 거버넌스는 §4.6과 공유.
+
+- **발견 ≠ 소유 (intake)**: 발견은 `vllm-recipe-explorer` crosscheck(special-dep 경보) — **메인**이면 직접 핸드오프, **서브**면 docs insight 상향(D12, 서브는 빌드평면 미보유). upstream-version-watch 가 **이미지에 넣는 책임**(어떻게)을 진다. **patch.py ✗**(native lib 은 Python 몽키패치 불가).
+- **모듈화 (Dockerfile bloat 차단)**: 패치 = **repo-root `build_patches/<NN>-<name>.sh`** 모듈(추적 빌딩블럭·빌드 컨텍스트 `.`·`sync_branches` 공유). 각자 self-contained = 헤더(what/why/model-trigger/plan-ref) + 설치·컴파일 + **검증(fail-loud)**. `Dockerfile.source-build` 는 **단일 thin 스탠자**: `COPY build_patches/ /tmp/build_patches/` + `RUN for p in $(ls /tmp/build_patches/*.sh|sort); do bash "$p"||exit 1; done`. → **패치 추가 = 파일 drop(Dockerfile 무수정)** · 폴더 listing = self-documenting 레지스트리(카탈로그 ✗).
+- **절차 (probe → 모듈 → 동결)**: ① probe(인터랙티브 컨테이너서 설치·컴파일·작동확인 — sm arch 지원 포함) → ② `build_patches/<NN>-<name>.sh` 저작 → ③ clean 재빌드 + 서빙 스모크 = **DONE**(인터랙티브만으론 부족, §4.6 동일). 중간삽입 필요한 드문 케이스만 `Dockerfile.source-build` inline-marker(`# build-patch:<name> START/END`) fallback.
+- **이미지 네이밍 불변식 보존**: 빌드-바깥 lib 은 범용(flashinfer 처럼) — DSA 안 쓰는 모델은 무시. 모델-키잉 이미지 ✗. 첫 사례 = `10-deepgemm.sh`(DeepSeek-V4-Flash).
+
 ## 5. 금지
 
 - 사람 승인(HITL 게이트) 없는 핀 변경·자동 push.
