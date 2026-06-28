@@ -31,6 +31,7 @@ S2.5 sync   → (multi-node 전용) 메인 검증코드 → 서브 직접 전달
    - 서브는 메인 전달 코드로 생존. 서브 자작 envs/configs는 메인이 아카이브.
    - 모델구동 런타임 패치(configs/<model>_patch.py · arm_patch.sh)도 output/<topology>/ 에 있어 이 rsync 로 함께 하향 배달(서브 슬레이브가 마운트·arm). 서브는 패치 저작 ✗(상향은 docs 탐지보고만 — D12-06·13). 헌법 패치 전파.
    - **모델 트리플렛(`<model>.{yaml,sh}` · `.env.<model>`)은 서브로 전달하지 않는다(Band3 — sync_to_sub 구조적 배제, `<model>_patch.py` 만 특례)**. 멀티 TP **슬레이브 = Band2-only**(Ray worker): `.env.cluster`(MoE-JIT MAX_JOBS 포함)+`.env.interconnect` 만으로 기동 → 모델 트리오 불요. **트리플렛을 메인→서브 직접 rsync 로 밀어넣는 우회 금지**(슬레이브가 `.env.<model>` 의존하면 미완결 신호). 헌법 "모델 트리플렛 전파 불변식" · `plan_2026062811_2` · `devlog_2026062418_1`.
+   - **변종 이미지 = 클러스터-와이드(build-plane ≠ serve-plane)**: 비-기본 이미지 변종(예 `…-source-sm12x` 포크)을 서빙할 땐 슬레이브도 *같은 이미지*를 빌드·기동해야 한다. `multinode_serve_smoke.sh` 가 콤보 EF에서 **이미지 정체성(IMAGE_TAG·VLLM_REPO·VLLM_REF)만** 읽어 슬레이브 compose 보간(build+up)에 전달한다(Band2 인프라). **모델 serve config(CONFIG_FILE)는 미전달 → 슬레이브 컨테이너 env_file=`.env.cluster`+`.env.interconnect`만 유지(Band2-only serve 보존)**. 즉 슬레이브 Band2-only는 serve-plane 불변식이지 build-plane이 아님. 헌법 "변종이미지 build-plane ≠ serve-plane 따름정리" · `testlog_2026062823_1`.
 
 S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
    - ⑤ NAS 체크: check_smoke_model.py <config_name> --topology <single|multi> — 모델 부재면 중단·보고(다운로드 금지). --topology 필수(산출물 통로 output/<topology>/)
@@ -57,6 +58,11 @@ S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
                    (특정 버전값은 manifest·resolved.json에서 — 헌법·workflow에 박지 않음. 26.05 등 하드코딩 금지).
                 ④ re-render → clean 재빌드 → 스모크. **무증거 오버라이드 금지.**
                    (resolve_ngc_tag.py 단발 prefix-매칭은 유지; 오버라이드는 이 워크플로 HITL 레이어.)
+        · stock-구조적-불가(arch-wall: 대상 모델이 stock vLLM서 sm_xxx 하드월로 토큰 1개 전 사망 — 예 GB10 sm_121 DeepSeek-V4 = 어텐션 major∈[9,10] + MXFP4 오라클 비-repack 백엔드 전무→MARLIN-repack→통합메모리 OOM·호스트 하드다운)
+            → **vLLM 소스-repo 오버라이드 = 1급 Model-C 서브분기**(NGC 베이스 오버라이드와 동일 HITL 핀-오버라이드 메커니즘, repo 축. 도커 패치 범위 사다리: deps-패치 → 소스-게이트 패치 → **소스-repo 오버라이드(포크 핀)** → 체크포인트-교체):
+                ① 참조-그라운디드 확증(빌드 前): 후보 포크(예 jasl/vllm PR#41834)의 소스 직독으로 (a) stock 하드월 해소 (b) 비-repack 경로 존재하나 **명시 선택 필요**(oracle 직독 — auto=walled fallback=MARLIN-repack) 사전 확증. 커뮤니티 검증(동일 HW)도 증거. 자기추론 전 권위참조.
+                ② testlog 기록 + 사람 승인 후 resolved.json `source_build_variants`에 `VLLM_REPO`/`VLLM_REF`(**SHA 핀** — force-push 면역, 태그명 금지) + 새 아치-트랙(`…-source-sm12x`, superset·모델-키잉 ✗) 기입.
+                ③ Dockerfile build-arg 파라미터화(`ARG VLLM_REPO`/`VLLM_REF` 기본=stock · blobless clone + SHA checkout) + compose `build.args` → 같은 Dockerfile이 stock/포크 분기. 멀티=클러스터-와이드 이미지(S2.5 슬레이브 이미지-정체성 전달). clean 빌드(양노드) → 스모크. **무증거 오버라이드 금지.** 헌법 "아치-enablement 변종 트랙 따름정리".
         · multi-node 서빙 실패(OOM/NCCL-RDMA/Ray join timeout) → Model-C(HITL). 서브만 빌드 실패=환경 불일치→Model-C
         · unknown              → Model-C: LLM {proposed_class, evidence} 제시 → 사람 승인 전 무행동
    ── HITL 게이트 ③ : 스모크 결과(+분류·risk-memo)를 사람이 확인 (smoke-before-commit)

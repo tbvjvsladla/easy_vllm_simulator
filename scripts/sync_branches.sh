@@ -34,6 +34,8 @@ ALLOWLIST=(
     manifest.template.yaml
     .gitattributes
 )
+#   build_patches/ 는 여기 없다 — output/<topology>/build_patches/ 통로에 격리(산출물 통로 불변식, single/multi 혼재 차단).
+#   토폴로지별 독립이라 cross-branch 동기 대상 아님(서브 전달은 sync_to_sub 가 output/<t>/ 로 함). §4.7 · 3+1+1.
 #   docs 스켈레톤은 각 폴더 example.md 만(작업 문서 본체는 제외).
 DOCS_GLOB="docs/*/example.md"
 

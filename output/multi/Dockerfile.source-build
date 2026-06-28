@@ -18,6 +18,11 @@ FROM nvcr.io/nvidia/pytorch:26.05-py3
 # ── torch핀 가드 (render-time: 검증된 핀=주석 / 미인식=빌드 실패. 카탈로그 codify는 P6) ──
 RUN echo "[guard] source-build key (26.05-py3 x vLLM 0.23.0): validated patch set ((ngc_base x vllm_version) keyed) — proceeding."
 
+# VLLM_REPO/VLLM_REF: 빌드-arg 파라미터화 — 기본 = stock(vllm-project @ v0.23.0). 콤보 env 가 오버라이드해
+#   포크 변종을 같은 Dockerfile 로 빌드한다(예 DeepSeek-V4 SM12x: jasl/vllm @ c766cbc6 → 이미지 …-source-sm12x).
+#   이미지-네이밍 불변식: track=source-sm12x 는 아치-enablement(superset), 모델-키잉 아님.
+#   근거: plan_2026062818_1 §2 · workflow.md S3 핀-오버라이드(NGC 베이스 오버라이드의 vLLM-repo 축 확장).
+ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
 ARG VLLM_REF=v0.23.0
 ARG TORCH_CUDA_ARCH=12.1a
 ARG BUILD_JOBS=16
@@ -34,8 +39,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends ccache && rm -r
 # NGC pip constraint 비우기(핀 충돌 회피)
 RUN cp /etc/pip/constraint.txt /etc/pip/constraint.txt.bak 2>/dev/null || true; : > /etc/pip/constraint.txt
 
-# 대상 태그 소스 클론 + NGC torch 사용(소스가 torch 핀을 재설치하지 않게 — 커플링 규칙 충실)
-RUN git clone --branch ${VLLM_REF} --depth 1 https://github.com/vllm-project/vllm.git /workspace/vllm-src
+# 대상 ref 소스 클론 + NGC torch 사용(소스가 torch 핀을 재설치하지 않게 — 커플링 규칙 충실).
+# blobless 풀-히스토리 클론 + ref checkout: tag(v0.23.0)·임의 SHA(포크 force-push 면역 — SHA=content-addressed) 양쪽 지원.
+# (옛 `--branch <ref> --depth 1` 은 raw SHA checkout 불가 → 포크 핀 위해 교체.)
+RUN git clone --filter=blob:none ${VLLM_REPO} /workspace/vllm-src \
+ && git -C /workspace/vllm-src checkout --detach ${VLLM_REF} \
+ && echo "[clone] HEAD=$(git -C /workspace/vllm-src rev-parse HEAD) (${VLLM_REPO} @ ${VLLM_REF})"
 WORKDIR /workspace/vllm-src
 RUN python3 use_existing_torch.py
 
@@ -92,6 +101,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 ARG RAY_VERSION=2.48.0
 RUN pip install ray==${RAY_VERSION}
+
+# ═════════════════════════════════════════════════════════════════════════════
+# [빌드-바깥 의존 패치] build_patches 모듈 — upstream-version-watch §4.7 · 헌법 3+1+1 따름정리.
+#   build_patches/<NN>-*.sh (컨텍스트=output/multi/ 상대) 를 정렬 적용(모델구동 native lib/커널 — 예 DeepGEMM=DeepSeek-V4 DSA).
+#   패치 추가 = 폴더에 파일 drop(이 스탠자 무수정 → Dockerfile bloat 차단). core(_C 컴파일) 뒤 = 캐시 보존. fail-loud.
+#   build_patches 는 output/<t>/ 통로에 격리(산출물 통로 불변식 — single/multi 혼재 차단). plan_2026062812_1.
+# ═════════════════════════════════════════════════════════════════════════════
+COPY build_patches/ /tmp/build_patches/
+RUN for p in $(ls /tmp/build_patches/*.sh 2>/dev/null | sort); do echo "[build-patch] applying $p"; bash "$p" || exit 1; done
 
 WORKDIR /workspace
 EXPOSE 8000

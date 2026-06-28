@@ -271,8 +271,8 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
   (+`TIKTOKEN_ENABLED`)를 둘 다 마운트 경로로 가리킨다. 구식 `TIKTOKEN_ENCODINGS_PATH`는 폐기 —
   정본 동기화 대상 3곳(`docker-compose.template.yaml` · `config.example.yaml` · `run_trial.py`)을 맞춘다
   (README straggler는 별도). gpt-oss 스모크가 최종 중재자(현재 미실행).
-- **MoE 백엔드 on sm_121a(GB10/Blackwell) 따름정리 (dtype 조건부)**: 대형 MoE를 신규 아키(sm_121a)서 서빙할 때
-  올바른 moe-backend 는 **MoE 가중치 dtype 에 종속**한다 — bf16 교훈을 NVFP4 에 이식하지 말 것.
+- **MoE 백엔드 on sm_121a(GB10/Blackwell) 따름정리 (모델별 서빙전략 독립 — 헌법 §모델별 서빙전략 독립 따름정리의 §5 실현, carry-forward 금지)**: 대형 MoE를 신규 아키(sm_121a)서 서빙할 때
+  올바른 moe-backend 는 **(모델×quant×하드웨어)에 종속**한다 — 한 모델의 교훈(bf16→triton·NVFP4→triton금지·122B→auto통함)은 **그 (모델×quant×하드웨어)에 context-bounded**, 전역 금지/전역 신뢰 ✗(carry-forward 금지). 맥락이 갈리면 양쪽 다 참 → (모델×하드웨어)마다 oracle/소스 독해로 재확립한다(아래 dtype 케이스가 그 실증).
   - **bf16 MoE**(예 Qwen3-Next-80B): 기본 `moe_backend=auto`는 **flashinfer_cutlass** 를 고른다 → 그 CUTLASS MoE 커널이
     sm_121a용 prebuilt 부재 → 런타임 nvcc JIT(수십 커널)가 **고병렬=OOM-kill / 저병렬(MAX_JOBS↓)=단일커널 30분+ stall** 로
     둘 다 막힌다. → **`--moe-backend triton`** 명시(in-process Triton fused MoE, nvcc 불요)로 회피. Ray 분산이면 master serve
@@ -282,6 +282,7 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
     → **플래그를 생략**하고 `moe_backend=auto` 의 vLLM NVFP4 oracle 선택에 위임하면 **FLASHINFER_CUTLASS**(NvFp4 변종 =
     `FlashInferCutlassNvFp4LinearKernel`, sm_121a prebuilt 존재)를 골라 서빙된다(이번 세션 122B-NVFP4 2노드 serve PASS —
     testlog_2026062614_1 §2). bf16 의 triton 교훈을 NVFP4 에 무비판 이식하면 attempt-1 처럼 즉사한다.
+  - **arch-walled 환경에선 `auto` 자체를 무비판 신뢰 ✗ (carry-forward 금지의 핵심)**: 122B-NVFP4 는 `auto`가 마침 FLASHINFER_CUTLASS 를 골라 통했으나 그 "auto 가 통한다"마저 context-bounded 다 — arch-wall 에선 `auto` 폴백이 **MARLIN-repack → 통합메모리 OOM(호스트 하드다운)** 일 수 있다. ∴ MXFP4 대형 MoE(예 DeepSeek-V4 on sm_121)는 비-repack 경로 **`--moe-backend humming` 을 oracle 독해로 명시**한다(`auto` 위임 ✗). 근거 = 헌법 §모델별 서빙전략 독립 따름정리 · `testlog_2026062823_1`.
   - 값은 `MoEBackend` Literal(config/kernel.py) 참조. (FlashInfer 커널 캐시 `/root/.cache/flashinfer` 볼륨 영속화 시 재컴파일 회피 — 후속.)
 
 ## 6. Phase 2 — 통합 trial-loop (`recipe.py simulate`)

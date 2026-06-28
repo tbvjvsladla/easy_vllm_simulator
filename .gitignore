@@ -93,6 +93,10 @@ output/*/*
 !output/multi/Dockerfile
 !output/multi/Dockerfile.source-build
 !output/multi/docker-compose.yaml
+# 빌드-바깥 패치 모듈(build_patches/<NN>-*.sh) — 손작성 빌드입력·정본(컨테이너 정의와 동급 추적).
+#   통로(output/<t>/) 격리로 single/multi 혼재 차단(산출물 통로 불변식). upstream-version-watch §4.7 · 3+1+1.
+!output/multi/build_patches/
+!output/multi/build_patches/*
 
 # ===========================================
 # Python

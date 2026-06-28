@@ -110,6 +110,7 @@ _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = ou
     FILT+=(--exclude='/envs/*')                   # 나머지 envs(모델 env Band3) 배제
     # (d-rsync-3) 최상위는 default-include 가 아니라 명시 allowlist + terminal exclude → stray Band1/secret/log·.dockerignore(§1.3 불요) 누출 차단
     for f in "${BAND2_TOP[@]}"; do FILT+=(--include="/$f"); done
+    FILT+=(--include='/build_patches/' --include='/build_patches/**')   # 빌드-바깥 패치 모듈 디렉토리(Band2 빌드입력·서브 빌드가 COPY — §4.7·3+1+1)
     FILT+=(--exclude='/*')
 }
 
@@ -122,7 +123,7 @@ assert_band_classification() {  # $1=topology → 0=ok, 1=미분류·누락
     local -A _b2c _b2e _b2top
     for b in "${BAND2_CONFIGS[@]}"; do _b2c["$b"]=1; done
     for b in "${BAND2_ENVS[@]}"; do _b2e["$b"]=1; done
-    for b in "${BAND2_TOP[@]}" configs envs manifest.yaml sub_provision .env; do _b2top["$b"]=1; done
+    for b in "${BAND2_TOP[@]}" configs envs build_patches manifest.yaml sub_provision .env; do _b2top["$b"]=1; done
 
     # (a) (d-cg-4) 최상위 — 빌드킷·서브디렉토리·의도적 제외(manifest/sub_provision) 외 미지 항목 fail-loud
     for f in "$odir"/*; do
