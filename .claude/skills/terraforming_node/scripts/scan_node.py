@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""scan_node.py — terraforming_subnode진입 루틴의 **결정론 스캔 코어** (판단 X, 사실만).
+"""scan_node.py — terraforming_node진입 루틴의 **결정론 스캔 코어** (판단 X, 사실만).
 
 근거: docs/plan/plan_2026062311_1(진입 루틴 §2.3 스캔 인벤토리 · §2.4 성능게이트 · §2.5 α/γ 종료),
       plan_2026062312_1(output/ 통로), CLAUDE.md(결정론 스크립트 원칙 · 산출물 통로 불변식).
 
 위치: 사용자 승인(HITL) 직후 호출되는 **deterministic** 단계. 5-전제조건 인터뷰·승인 게이트는
-      terraforming_subnode스킬(판단계층)이 담당하고, 이 스크립트는 그 뒤 "스캔→파싱→게이트 판정"만 한다.
+      terraforming_node스킬(판단계층)이 담당하고, 이 스크립트는 그 뒤 "스캔→파싱→게이트 판정"만 한다.
 
 핵심 설계:
   - **ibstat 비의존**: 일부 환경(GB10)엔 ibstat 미설치 → `/sys/class/infiniband`(HCA) + `show_gids`(RoCE v2 GID/IP/iface)로 탐지.
@@ -207,18 +207,28 @@ def emit_manifest_block(result: dict) -> str:
     """검증된 스캔 결과 → manifest.yaml 에 기입할 topology+interconnect YAML 블록(문자열)."""
     ic = result["interconnect"]
     hcas = "[" + ", ".join(ic["hca_devices"]) + "]"
+    topo = "multi" if result["topology_declared"] == "multi" else "single"
+    # None-가드(plan_2026063009_1): 프로브 실패(예: nvidia-smi PATH 미노출 — 그라운딩 세션 시나리오)로
+    # None 인 필드는 YAML null 로 emit. bare 'None' 문자열 누수 차단 — Bug2 클래스 형제필드(cuda_version·gpus_per_node) 포함.
+    cuda = f'"{result["cuda_version"]}"' if result["cuda_version"] is not None else "null"
+    gpus = result["gpus_per_node"] if result["gpus_per_node"] is not None else "null"
     lines = [
-        f"topology: {'multi' if result['topology_declared']=='multi' else 'single'}",
+        f"topology: {topo}",
         f"cpu_arch: \"{result['cpu_arch']}\"",
-        f"cuda_version: \"{result['cuda_version']}\"",
-        f"gpus_per_node: {result['gpus_per_node']}",
+        f"cuda_version: {cuda}",
+        f"gpus_per_node: {gpus}",
+    ]
+    if topo == "single":
+        # single dormant 게이트를 결정론으로 동결(sub-control 확장기능 비활성 — 헌법 §single-node 확장기능).
+        lines.append("nodes: []  # 단일노드 dormant: sub-control 확장기능 비활성")
+    lines += [
         "interconnect:",
         f"  type: {ic['type']}",
         f"  hca_devices: {hcas}",
-        f"  gid_index: {ic['gid_index']}",
-        f"  socket_iface: {ic['socket_iface']}",
+        f"  gid_index: {ic['gid_index'] if ic['gid_index'] is not None else 'null'}",
+        f"  socket_iface: {ic['socket_iface'] if ic['socket_iface'] is not None else 'null'}",
         f"  bandwidth_gbps: {ic['bandwidth_gbps'] if ic['bandwidth_gbps'] is not None else 'null'}",
-        f"  platform_preset: {ic['platform_preset'] or '<set: e.g. dgx-spark-gb10>'}",
+        f"  platform_preset: {ic['platform_preset'] or 'null  # set: e.g. dgx-spark-gb10'}",
     ]
     return "\n".join(lines) + "\n"
 
@@ -280,8 +290,15 @@ def evaluate_gate(*, declared, ic_present, peer_given, peer_reachable, bandwidth
     return assertion, gate, exit_code
 
 
+def emit_gate(emit_manifest: bool, topology: str) -> int:
+    """fail-closed: --emit-manifest 는 **명시 토폴로지(single|multi)** 필요 — auto면 거부(비0 종료 3).
+    토폴로지는 terraforming_node 진입의 **인터뷰**로 선언한다(브랜치/스캔 추론으로 manifest 기입 금지).
+    순수함수 → --self-test 회귀. 근거: plan_2026063009_1 D3(토폴로지 인터뷰 fail-closed 게이트)."""
+    return 3 if (emit_manifest and topology == "auto") else 0
+
+
 def _self_test() -> int:
-    """게이트 5분기 회귀 — 실 2노드 라이브 검증(testlog_2026062314_1)을 fixture로 고정(#4). 하드웨어 불요."""
+    """결정론 회귀(게이트 9분기 + emit_gate 4 + emit-block None-leak 2 = 15) — 실 2노드 라이브 검증(testlog_2026062314_1) fixture 고정(#4). 하드웨어 불요."""
     F = 180.0
     cases = [
         # name, kwargs, (expect_gate, expect_exit, expect_consistent)
@@ -303,12 +320,43 @@ def _self_test() -> int:
         print(f"  [{'PASS' if ok else 'FAIL'}] {name}: gate={g['branch']} exit={code} consistent={a['consistent']}"
               + ("" if ok else f"  ← 기대 ({eg},{ec},{econ})"))
     n = len(cases)
+    # emit_gate fail-closed 회귀(plan_2026063009_1 D3): --emit-manifest 는 명시 토폴로지 필요.
+    eg_cases = [
+        ("emit+auto → 거부(fail-closed)", (True, "auto"), 3),
+        ("emit+single → 통과", (True, "single"), 0),
+        ("emit+multi → 통과", (True, "multi"), 0),
+        ("no-emit+auto → 통과(보고만)", (False, "auto"), 0),
+    ]
+    for name, (em, topo), expect in eg_cases:
+        got = emit_gate(em, topo)
+        ok = got == expect
+        passed += ok
+        n += 1
+        print(f"  [{'PASS' if ok else 'FAIL'}] {name}: emit_gate={got}" + ("" if ok else f"  ← 기대 {expect}"))
+    # emit_manifest_block None-leak 회귀(plan_2026063009_1 — Bug2 클래스: gid/iface/preset/gpus/cuda None→null).
+    # stdlib만 사용(yaml 비의존): bare 'None' 누수 0 + single 시 nodes:[] 동결 + 필수 키 존재로 검증.
+    emit_cases = [
+        ("single GPU-less(전필드 None)", {"topology_declared": "single", "cpu_arch": "x86_64", "cuda_version": None,
+            "gpus_per_node": None, "interconnect": {"type": "generic-ethernet", "hca_devices": [], "gid_index": None,
+            "socket_iface": None, "bandwidth_gbps": None, "platform_preset": None}}, True),
+        ("multi RoCE(채워짐)", {"topology_declared": "multi", "cpu_arch": "aarch64", "cuda_version": "132",
+            "gpus_per_node": 1, "interconnect": {"type": "roce-v2", "hca_devices": ["mlx5_0"], "gid_index": 3,
+            "socket_iface": "enp1s0f0", "bandwidth_gbps": 208.2, "platform_preset": "dgx-spark-gb10"}}, False),
+    ]
+    for name, res, want_single in emit_cases:
+        blk = emit_manifest_block(res)
+        no_none = "None" not in blk                                  # bare Python None 누수 0
+        nodes_ok = ("nodes: []" in blk) if want_single else ("nodes:" not in blk)
+        ok = no_none and nodes_ok and "topology:" in blk
+        passed += ok
+        n += 1
+        print(f"  [{'PASS' if ok else 'FAIL'}] emit:{name}: no-None={no_none} nodes-gate={nodes_ok}")
     print(f"self-test: {passed}/{n} {'PASS' if passed == n else 'FAIL'}")
     return 0 if passed == n else 1
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="terraforming_subnode결정론 스캔 코어 (사실만)")
+    ap = argparse.ArgumentParser(description="terraforming_node결정론 스캔 코어 (사실만)")
     ap.add_argument("--topology", choices=["single", "multi", "auto"], default="auto",
                     help="선언 토폴로지(인터뷰 결정). auto=스캔으로 추정(보고만, 게이트는 single/multi 명시 시)")
     ap.add_argument("--peer-ip", help="multi: 서브노드 IP(도달성 체크). 예: 203.0.113.11")
@@ -318,17 +366,26 @@ def main() -> int:
     ap.add_argument("--bandwidth-gbps", type=float, default=None,
                     help="cross-node ib_write_bw 합산 실측(Gb/s). 성능게이트 입력. 미지정 시 perf pending.")
     ap.add_argument("--bw-floor", type=float, default=180.0,
-                    help="성능게이트 합산 합격선(Gb/s). 기본 180(=200Gbps 풀대역폭의 ~90%, devlog 218 기준).")
+                    help="성능게이트 합산 합격선(Gb/s). 기본 180(=200Gbps 풀대역폭의 ~90%%, devlog 218 기준).")
     ap.add_argument("--emit-manifest", action="store_true",
-                    help="검증 통과 시 manifest topology+interconnect 블록을 stdout 끝에 출력")
+                    help="검증 통과 시 manifest topology+interconnect 블록을 stdout 끝에 출력. "
+                         "--topology single|multi 명시 필수(auto면 fail-closed 거부 — plan_2026063009_1 D3)")
     ap.add_argument("--manifest", default=None,
                     help="manifest 실값 경로(기본=브랜치 파생 output/<topology>/manifest.yaml). plan_2026062315_1")
     ap.add_argument("--self-test", action="store_true",
-                    help="게이트 5분기 결정론 회귀(하드웨어 불요 — 라이브 검증 고정, #4)")
+                    help="결정론 회귀(게이트+emit_gate+emit-block YAML, 하드웨어 불요 — 라이브 검증 고정, #4)")
     args = ap.parse_args()
 
     if args.self_test:
         return _self_test()
+
+    # ── fail-closed: 토폴로지 인터뷰 게이트(plan_2026063009_1 D3) — emit 전 명시 선언 필수 ──
+    eg = emit_gate(args.emit_manifest, args.topology)
+    if eg:
+        print("[scan] FAIL: --emit-manifest 에는 --topology single|multi 명시 필요 — "
+              "토폴로지는 terraforming_node 진입의 인터뷰로 선언한다(브랜치/스캔 추론으로 manifest 기입 금지).",
+              file=sys.stderr)
+        return eg
 
     ic = detect_interconnect()
     if args.bandwidth_gbps is not None:

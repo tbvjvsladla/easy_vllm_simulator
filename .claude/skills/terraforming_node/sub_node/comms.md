@@ -1,7 +1,7 @@
 # comms.md — 메인↔서브 통신 계약 (A2A-개념, 서버 없음)
 
 > 서브노드 `.claude/rules/comms.md` 로 복제되는 **정적 계약**(양 노드 동일 · PII-free · 추적).
-> terraforming_subnode 가 서브에 전달. 서브 CC 가 매 턴 자동 로드(.claude/rules/ auto-load)해 이 규약을 지킨다.
+> terraforming_node 가 서브에 전달. 서브 CC 가 매 턴 자동 로드(.claude/rules/ auto-load)해 이 규약을 지킨다.
 > A2A(Agent2Agent) 개념을 **차용**하되 HTTP/JSON-RPC 서버는 안 띄운다 — 전송은 `ssh claude -p` 단발.
 
 ## 역할 (누가 무엇을)

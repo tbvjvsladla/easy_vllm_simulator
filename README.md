@@ -103,7 +103,7 @@ flowchart LR
 
 ### 멀티노드 — 에이전트가 스캔하고 인터뷰합니다 (1-1)
 
-노드가 둘 이상이면 이야기가 달라집니다. 메인노드와 서브노드가 어떻게 연결돼 있고, 인터커넥트가 분산 서빙을 감당할 만큼 빠른지를 *실측* 해야 하니까요. 이때 **`terraforming_subnode`** 스킬이 발동합니다.
+노드가 둘 이상이면 이야기가 달라집니다. 메인노드와 서브노드가 어떻게 연결돼 있고, 인터커넥트가 분산 서빙을 감당할 만큼 빠른지를 *실측* 해야 하니까요. 이때 **`terraforming_node`** 스킬이 발동합니다.
 
 ```text
    메인노드 (당신이 앉아 있는 곳)                     서브노드 (서브노드에도 코드에이전트 설치 필수)
@@ -335,6 +335,6 @@ DeepSeek-V4-Flash 를 더 최적화하는 과정에서, `gmu 0.90` 으로 올리
 | [`CLAUDE.md`](./CLAUDE.md) | 헌법 — 항상 보유하는 사실·불변식·모든 따름정리의 단일 진실원천 |
 | [`.claude/rules/workflow.md`](./.claude/rules/workflow.md) | 전파 워크플로 — 버전 업데이트 S1~S4 4단계 + HITL 게이트 + 메인↔서브 싱크 |
 | [`.claude/rules/docs.md`](./.claude/rules/docs.md) | 문서 4종(plan/devlog/testlog/simlog) 작성 규약 |
-| `.claude/skills/` | 생성엔진 — `terraforming_subnode` · `upstream-version-watch` · `vllm-recipe-explorer` · `wiki-desk` |
+| `.claude/skills/` | 생성엔진 — `terraforming_node` · `upstream-version-watch` · `vllm-recipe-explorer` · `wiki-desk` |
 
 > *검증 환경: 2× NVIDIA DGX Spark(GB10 superchip, aarch64, sm_121a, 128GB 통합메모리/노드, CUDA 13.2), 폐쇄망 NAS read-only, RoCE v2 / NCCL GPU Direct RDMA. 그 밖의 하드웨어는 코드에이전트의 적응에 기대는 미실증 영역입니다 — 「개발자의 편지」 참고.*

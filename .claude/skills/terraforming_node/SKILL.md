@@ -1,36 +1,60 @@
 ---
-name: terraforming_subnode
+name: terraforming_node
 description: >-
-  멀티노드 **서브노드**를 스캔·인터뷰해 manifest.yaml(스킬 간 단일 계약)을 채우고, 메인↔서브 연결·성능을
-  검증한 뒤 **서브노드 코드에이전트(Claude Code) 작업환경을 구축**하는 오케스트레이터. 싱글노드엔 발동 안 함.
-  구축물 = 메인에서 렌더해 전달하는 5+아티팩트(서브 페르소나 CLAUDE.md·Agent_Card.json·스코프드
-  settings.local.json·런타임블럭 vllm-recipe-explorer·A2A-개념 통신프로토콜) + model-less 카나리 검증.
-  "테라포밍", "서브노드 셋업", "노드 스캔", "멀티노드 구성 검증", "메인 서브 연결 확인", "manifest 생성",
-  "인터커넥트 점검", "서브 에이전트 환경 구축", "서브 코드에이전트 셋업" 같은 지시에 발동.
-  무단 스캔 금지 — 5-전제조건 인터뷰 + 사용자 승인 후 스캔. 성능 미검증 멀티 진행은 fail-closed로 차단.
+  **토폴로지-중립 진입(온보딩) 오케스트레이터** — fresh-clone/미테라포밍 환경에서 능동 발동해 **첫 동작으로
+  토폴로지(① 단일노드 ② N대 멀티노드)를 인터뷰로 확정**하고, 그에 따라 노드를 스캔·manifest.yaml(스킬 간
+  단일 계약)을 채운다. **single → 단일노드 온보딩**(manifest nodes:[], sub-control dormant) · **multi →
+  서브노드 스캔·연결/성능 검증 + 서브 코드에이전트(Claude Code) 작업환경 구축**(메인 렌더→전달→model-less 카나리).
+  "이제 뭐해야해", "환경 셋업", "온보딩", "테라포밍", "노드 스캔", "단일/멀티 결정", "manifest 생성",
+  "서브노드 셋업", "인터커넥트 점검", "서브 에이전트 환경 구축", "서브 코드에이전트 셋업" 같은 지시·fresh-clone 감지에 발동.
+  **무단 스캔 금지** — 토폴로지 인터뷰 → (multi면 5-전제조건 인터뷰) → 사용자 승인 후 스캔. 토폴로지 미선언 시
+  emit fail-closed. 성능 미검증 멀티 진행은 fail-closed로 차단.
 ---
 
-# terraforming_subnode
+# terraforming_node
 
-멀티노드 분산 vLLM 을 쓰려면 (1) 서브노드 환경 구체값(토폴로지·노드·인터커넥트·NAS·CUDA)을 알아야 하고,
-(2) 서브노드의 **코드에이전트가 메인과 A2A-개념으로 협업할 작업환경**이 있어야 한다. terraforming_subnode 는
-**둘 다** 책임진다 — 진입 루틴(스캔+인터뷰 → `manifest.yaml`)과 **서브 에이전트 환경 구축**(메인에서 렌더 →
-서브 전달 → 카나리 검증). **싱글노드엔 발동하지 않는다**(서브가 없으므로). 이후 `upstream-version-watch`·
-`vllm-recipe-explorer` 와 협력한다.
+**모든 환경 셋업의 토폴로지-중립 진입점**이다. vLLM 컨테이너·서빙 작업에 앞서 이 노드(들)의 환경 구체값
+(토폴로지·노드·인터커넥트·NAS·CUDA)을 알아야 하고, 멀티면 서브노드 코드에이전트의 A2A 협업 작업환경도
+있어야 한다. terraforming_node 는 **먼저 토폴로지를 인터뷰로 확정**(§0.5)한 뒤 분기한다:
 
-> **구현 범위 = 멀티노드 진입 루틴 + 서브 에이전트 환경 구축**(plan_2026062311_1 진입·라이브 testlog_2026062314_1 / plan_2026062408_1 환경구축).
+- **single** → 단일노드 온보딩(§1S: 스캔 → `manifest.yaml`(nodes:[]) → 완료). 서브가 없으니 §1·§2 는 N/A.
+- **multi** → 진입 루틴(§1: 5-전제조건 인터뷰 + 스캔 + 연결/성능 검증) + **서브 에이전트 환경 구축**(§2: 메인 렌더 → 서브 전달 → 카나리).
+
+이후 `upstream-version-watch`(컨테이너 빌드) · `vllm-recipe-explorer`(서빙전략) 와 **파이프라인 의존순서**로 협력한다(헌법 §스킬 오케스트레이션 / 진입 척추).
+
+> **구현 범위 = 토폴로지 진입 인터뷰 + (single)단일 온보딩 + (multi)서브노드 진입·환경구축**(plan_2026062311_1 진입·라이브 testlog_2026062314_1 / plan_2026062408_1 환경구축 / **plan_2026063009_1 토폴로지-중립 재스코프**).
 > 환경탐지 전반·하위스킬 호출 오케스트레이션은 점진 확장(헌법 §스킬 경계).
 
 > 설계 원칙(하네스 엔지니어링): **스캔·게이트·렌더·일치단언은 결정론 스크립트**(`scripts/scan_node.py`·`scripts/render_sub_env.py`),
 > **인터뷰·승인·HITL 판정은 페르소나(이 문서)**. 둘을 섞지 않는다.
 
 ## 0. 전제 / 입력
-- **멀티노드 전용**: topology=multi 에서만 발동. single 이면 서브가 없어 이 스킬은 비활성(α).
-- **SSH = Case A**: 메인↔서브 패스워드리스 SSH는 **사전조건**(검증만, 키 교환·물리망 설정은 안 함).
-- 계약 스켈레톤 = `manifest.template.yaml`(루트, 추적). **실값 = `output/multi/manifest.yaml`**(비추적, 통로 분리, plan_2026062315_1). **서브엔 manifest 를 전달하지 않는다**(메인 단일계약 — render-on-main, D10).
+- **토폴로지-중립 진입**: single·multi **공통** 발동. (과거 "multi 전용·single 비활성(α)"는 plan_2026063009_1 에서 폐기 — single 진입점 부재 = chicken-and-egg 갭이었음: "single이냐 multi이냐"를 묻는 주체가 multi일 때만 발동했음.) **첫 동작 = 토폴로지 인터뷰(§0.5)**. 이하 §1(진입 루틴)·§2(서브 환경구축)는 **topology=multi 분기**, single 은 §0.5→§1S 로 짧게 완결.
+- **SSH = Case A**(multi 한정): 메인↔서브 패스워드리스 SSH는 **사전조건**(검증만, 키 교환·물리망 설정은 안 함).
+- 계약 스켈레톤 = `manifest.template.yaml`(루트, 추적). **실값 = `output/<topology>/manifest.yaml`**(브랜치 파생 통로 — single=`output/single/`·multi=`output/multi/`; 비추적, plan_2026062315_1). **(multi) 서브엔 manifest 를 전달하지 않는다**(메인 단일계약 — render-on-main, D10).
 - 검증 정본 = `devlog_250422`(git f3583f0, in-history) 실측 + seed PDF(repo-외부).
 
-## 1. 멀티노드 진입 루틴 (절차)
+## 0.5 토폴로지 진입 인터뷰 게이트 (판단 — **첫 동작**, fail-closed)
+
+> **chicken-and-egg 차단(plan_2026063009_1 D2·D3·D4)**: "이 HW가 single이냐 multi이냐"는 **스캔보다 먼저 인터뷰로 결정**한다. 브랜치는 작업공간 선택기일 뿐 토폴로지를 *결정*하지 않는다(브랜치⇒토폴로지 추론 금지 — 이게 갭의 직접원인이었음).
+
+- **0.5.1 fresh-clone 능동 발동**(헌법 §스킬 오케스트레이션 척추): 미테라포밍 신호 = `config.yaml` 부재 **AND** `output/single/manifest.yaml` 부재 **AND** `output/multi/manifest.yaml` 부재. 감지 시 일반 오리엔테이션("뭐 할까요?")보다 **온보딩을 능동 제안**한다. 단 능동성 고도 = **제안**(감지→제안→사용자 응답→인터뷰→승인→스캔) — 자동 스캔 ✗("무단 스캔 금지" 보존).
+- **0.5.2 토폴로지 인터뷰**(가장 먼저): *"이 HW 환경은 ① 단일노드(이 머신 1대)인가, ② N대 PC를 고속망으로 묶은 멀티노드(DGX Spark식 병렬)인가?"* 사용자 선언이 `scan_node.py --topology <답>` 의 `declared` 입력이 된다.
+- **0.5.3 fail-closed(D3)**: 토폴로지 미선언 시 스캔/emit 금지. 결정론 백스톱 = `scan_node.py --emit-manifest` 가 `--topology auto`면 **거부(비0 종료 3 — `emit_gate`, --self-test 회귀)**. 추정 토폴로지로 manifest 기입 불가.
+- **0.5.4 브랜치 ≠ 토폴로지(D4)**: 선언 토폴로지가 현재 git 브랜치와 어긋나면(예: `single-node` 브랜치인데 "multi" 선언) → `evaluate_gate` 3자-일치 단언이 **fail-closed(blocked·비0)** + **HITL 브랜치전환 안내**(`git checkout <single-node|multi-node>` 후 재개 — 스크립트 자동전환 ✗: 워킹파일을 바꾸는 행위라 사람이 한다). 정렬 후 진행.
+- **0.5.5 분기**: **single** → §1S 단일노드 온보딩(짧음) · **multi** → §1 멀티노드 진입 루틴(5-전제조건 인터뷰부터).
+- **0.5.6 드리프트 가드(D7, 경량)**: 온보딩 단계상태를 추적한다 — `토폴로지 결정 → 스캔 → 게이트 → manifest`(single) / `+ 5-전제조건 → 성능 → 서브 환경구축 → 카나리`(multi). 사이드퀘스트(예: GPU/드라이버 디버깅) 후 **미완 단계로 복귀**(미완을 사람 머릿속에만 두지 않음). 범용 워크플로 todo 시스템은 범위 밖(헌법 파킹).
+
+## 1S. 단일노드 온보딩 (topology=single — 짧은 경로)
+
+> §0.5 에서 single 확정 시. 서브가 없으므로 §1(5-전제조건/성능)·§2(서브 환경구축)는 **N/A**.
+
+- **스캔**(결정론): `python3 scripts/scan_node.py --topology single` — interconnect 검증 skip(=α 정상).
+- **게이트**: α — RoCE 하드웨어가 있어도 비blocking 경고(멀티 가능 머신의 단일 운용은 정상).
+- **manifest 기입**(HITL): `--emit-manifest --topology single` 블록(YAML-valid · **single 시 `nodes: []` 도 결정론 emit** — dormant 게이트 동결, 수기 의존 ✗) → **사람 확인 후** `output/single/manifest.yaml` 반영. `nodes: []` → **sub-control dormant**(독립 self-containment 보존 — 헌법 §single-node 확장기능). **무증거 기입 금지.**
+- 온보딩 완료 → 파이프라인 다음 단계(`upstream-version-watch` 컨테이너 빌드).
+
+## 1. 멀티노드 진입 루틴 (topology=multi — §0.5 에서 multi 확정 후)
 
 > 핵심 불변식: **무단 자동스캔 금지** — "인터뷰 → 사용자 승인 → 스캔" 순서. **성능 미검증 멀티 진행 금지(fail-closed)**.
 
@@ -57,6 +81,7 @@ description: >-
   도메인별 측정 → 합산. 결과를 `scan_node.py --bandwidth-gbps <합산>` 으로 주입해 게이트 최종판정.
 
 ### 1.5 토폴로지 게이트 + 3자-일치 단언 (결정론 — `scan_node.evaluate_gate`)
+> **토폴로지 무관 공통**: α(single) 분기·3자-일치 단언은 §1S 단일 경로도 사용한다 — 본 절은 §1(multi) 아래 있으나 게이트 로직 자체는 양 토폴로지 공통(single 독자도 참조).
 - **α**(topology=single): interconnect 검증 skip(정상). RoCE 하드웨어 존재해도 비blocking 경고.
 - **multi-ready**(topology=multi): RoCE 존재 + peer 도달 + 대역폭 합격선 → ready.
 - **γ fail-closed**(multi): RoCE 부재 / peer 미도달 / 대역폭 미달 → **멀티-ready manifest 미생성 + blocked + 비0 종료**.
@@ -77,7 +102,7 @@ description: >-
 > **메인에서 렌더해(render-on-main) 서브로 전달하고 카나리로 검증**한다.
 
 ### 2.1 스킬 분류학 (결정론↔자율성 충돌 해소)
-- **빌딩블럭**(메인 전용, 서브 전달 ✗): `terraforming_subnode`·`upstream-version-watch`.
+- **빌딩블럭**(메인 전용, 서브 전달 ✗): `terraforming_node`·`upstream-version-watch`.
 - **런타임블럭**(서브 복제 ✓): `vllm-recipe-explorer`. 서브가 **동일 결정론 엔진**을 자기 모델에 자율 실행 → 자율=실행 주체, 방법=결정론(헌법 "확률론 추론 금지" 보존).
 
 ### 2.2 구축 5+아티팩트 (서브 워크스페이스 레이아웃)
@@ -118,9 +143,9 @@ description: >-
 ## 3. 결정론 vs 판단 분리
 | 결정론 (스크립트) | 판단 (이 페르소나) |
 |---|---|
-| `scan_node.py`(스캔·게이트·3자-일치·manifest 블록) · `render_sub_env.py`(manifest→10아티팩트 렌더/복제·미치환/필수 검증) · sync_to_sub 체크섬 | 5-전제조건 인터뷰 · 사용자 승인 · ib_write_bw 오케스트레이션 · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 · 모호 시 중단·질의 |
+| `scan_node.py`(스캔·게이트·3자-일치·manifest 블록·**emit_gate=토폴로지 미선언 emit fail-closed**) · `render_sub_env.py`(manifest→10아티팩트 렌더/복제·미치환/필수 검증) · sync_to_sub 체크섬 | **토폴로지 진입 인터뷰(§0.5)** · fresh-clone 온보딩 능동제안 · 5-전제조건 인터뷰 · 사용자 승인 · 브랜치≠토폴로지 시 브랜치전환 안내 · ib_write_bw 오케스트레이션 · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 · 모호 시 중단·질의 |
 
-회귀 고정: `python3 scripts/scan_node.py --self-test`(게이트 9케이스) · `python3 scripts/render_sub_env.py --self-test`(렌더 4케이스). 둘 다 하드웨어 불요.
+회귀 고정: `python3 scripts/scan_node.py --self-test`(게이트 9 + emit_gate fail-closed 4 + emit-block None-leak 2 = 15케이스) · `python3 scripts/render_sub_env.py --self-test`(렌더 4케이스). 둘 다 하드웨어 불요.
 
 ## 4. 보조 파일
 - `scripts/scan_node.py` — 결정론 스캔 코어(`--topology`·`--peer-ip`·`--bandwidth-gbps`·`--bw-floor`·`--emit-manifest`·`--self-test`).
@@ -132,13 +157,14 @@ description: >-
 - 사용자 승인 없는 자동스캔 / 서브노드 무단 프로빙.
 - **HITL 없는 서브 work_dir 자동 신설**(R2 — §1.7). 성능(ib_write_bw) 미검증 멀티-ready 기입(fail-closed).
 - 무증거 manifest 오버라이드 / topology를 브랜치와 어긋나게 기입(3자-일치 위반).
-- **빌딩블럭 스킬(terraforming_subnode·upstream-version-watch)·manifest 를 서브에 전달 금지**(런타임블럭·렌더 산출물만 — 2.1/2.3).
+- **빌딩블럭 스킬(terraforming_node·upstream-version-watch)·manifest 를 서브에 전달 금지**(런타임블럭·렌더 산출물만 — 2.1/2.3).
 - **무증거 빈 정체성 렌더 금지**(render_sub_env.py 필수 필드 누락 시 fail-loud) · 템플릿에 IP·호스트 baking 금지(PII-free).
 - **카나리(§2.5) 미통과 시 done 선언 금지** · 서브 워크스페이스 재스캔으로 "검증" 대체 금지(push-attestation 위반).
 - SSH 키 교환·물리망 구성 대행(Case A — 검증·가이드까지만).
 
 ## 6. 참조
 - 진입 루틴: `docs/plan/plan_2026062311_1` · `testlog_2026062314_1` · `devlog_2026062314_1`.
+- **토폴로지-중립 재스코프**(개명 `terraforming_subnode`→`terraforming_node` · single 진입·토폴로지 인터뷰 게이트(§0.5)·fresh-clone 능동발동·드리프트 가드·scan `emit_gate` fail-closed): `docs/plan/plan_2026063009_1` · 그라운딩 `seed/session_record_2026063008`.
 - 에이전트 환경 구축: `docs/plan/plan_2026062408_1`(개명+A2A) · 시드 `seed_9507ae1edc40` · 인터뷰 `interview_20260623_220341`.
 - 통로/이관: `plan_2026062312_1`(output/) · `plan_2026062315_1`(manifest) · CLAUDE.md "산출물 통로 불변식".
 - 다음(설계됨): docker-compose NCCL → manifest-driven 렌더(Plan 2) · recipe-explorer Phase-2 서브 자율 깊이(D8) · 하위스킬 호출 오케스트레이션 전반.

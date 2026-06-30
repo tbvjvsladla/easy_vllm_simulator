@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""render_sub_env.py — terraforming_subnode 의 **결정론 렌더러** (판단 X, 치환만).
+"""render_sub_env.py — terraforming_node 의 **결정론 렌더러** (판단 X, 치환만).
 
 역할(plan_2026062408_1 G1·D10=render-on-main): 메인에서 `output/<topology>/manifest.yaml` 의
 노드정체성(nodes[]·interconnect·hw)을 PII-free 템플릿 `{{ ... }}` 에 치환해 **서브노드 에이전트 환경**을
@@ -37,7 +37,7 @@ import sys
 DOC_TYPES = ("plan", "devlog", "testlog", "simlog")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SKILL_DIR = os.path.dirname(HERE)                       # .claude/skills/terraforming_subnode
+SKILL_DIR = os.path.dirname(HERE)                       # .claude/skills/terraforming_node
 SUBNODE_DIR = os.path.join(SKILL_DIR, "sub_node")       # 템플릿·정적자산 보관
 REPO = os.path.abspath(os.path.join(SKILL_DIR, "..", "..", ".."))  # repo root
 RUNTIME_BLOCK = os.path.join(REPO, ".claude", "skills", "vllm-recipe-explorer")
@@ -384,7 +384,7 @@ def _self_test() -> int:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="terraforming_subnode 서브 에이전트 환경 렌더러 (결정론)")
+    ap = argparse.ArgumentParser(description="terraforming_node 서브 에이전트 환경 렌더러 (결정론)")
     ap.add_argument("--topology", choices=["single", "multi"], default="multi",
                     help="산출물 통로(output/<topology>/) + 서브 브랜치 맥락. D12: single·multi 양쪽 렌더 가능(서브 로컬 git 양 브랜치).")
     ap.add_argument("--manifest", default=None, help="manifest 경로(기본 output/<topology>/manifest.yaml)")
@@ -399,7 +399,7 @@ def main() -> int:
     manifest = args.manifest or os.path.join(REPO, "output", args.topology, "manifest.yaml")
     out_dir = args.out or os.path.join(REPO, "output", args.topology, "sub_provision")
     if not os.path.isfile(manifest):
-        print(f"[render] FAIL: manifest 없음 — {manifest} (terraforming_subnode 스캔/인터뷰로 먼저 채우세요)", file=sys.stderr)
+        print(f"[render] FAIL: manifest 없음 — {manifest} (terraforming_node 스캔/인터뷰로 먼저 채우세요)", file=sys.stderr)
         return 3
     data = parse_manifest(manifest)
     data.setdefault("topology", args.topology)   # D12: manifest 에 topology 없으면 --topology 로 채움(브랜치 맥락 보장)

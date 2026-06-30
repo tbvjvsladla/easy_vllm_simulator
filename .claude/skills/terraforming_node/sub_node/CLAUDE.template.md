@@ -1,10 +1,10 @@
 <!-- TEMPLATE-ONLY:START -->
-# CLAUDE.md (템플릿) — 서브노드 빌드워커 (terraforming_subnode 렌더 입력)
+# CLAUDE.md (템플릿) — 서브노드 빌드워커 (terraforming_node 렌더 입력)
 
-> **추적 PII-free 스켈레톤 템플릿.** `terraforming_subnode/scripts/render_sub_env.py` 가
+> **추적 PII-free 스켈레톤 템플릿.** `terraforming_node/scripts/render_sub_env.py` 가
 > `output/<topology>/manifest.yaml` 값을 아래 placeholder 에 치환해 실제 `CLAUDE.md`(gitignored)를
 > **서브노드 워크스페이스 루트**에 렌더한다. **이 템플릿은 IP·호스트명을 직접 담지 않는다**(PII-free 배포 계약).
-> 정본: 메인 `.claude/skills/terraforming_subnode/sub_node/CLAUDE.template.md`. (이 블록은 렌더 시 제거됨.)
+> 정본: 메인 `.claude/skills/terraforming_node/sub_node/CLAUDE.template.md`. (이 블록은 렌더 시 제거됨.)
 > placeholder ← manifest: SUB_HOST←nodes[sub].host · SUB_HOSTNAME←(없으면 host) · MASTER_HOST←nodes[main].host ·
 > SSH_USER←nodes[].ssh_user · INTERCONNECT/INTERCONNECT_IFACE/INTERCONNECT_MTU/GID_INDEX/HCA_DEVICES/PLATFORM_PRESET←interconnect ·
 > RAY_PORT←6379(기본) · CPU_ARCH←cpu_arch · GPU_MODEL←gpu_model · WORKSPACE_PATH←nodes[sub].work_dir · NAS_MOUNT←nas_model_path · TOPOLOGY←topology.

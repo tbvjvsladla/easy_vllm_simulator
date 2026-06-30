@@ -1,5 +1,5 @@
 {
-  "_template_note": "추적되는 PII-free 템플릿. terraforming_subnode/render_sub_env.py 가 manifest 값을 {{ }} 에 채워 서브 워크스페이스 루트의 Agent_Card.json(gitignored)으로 렌더. A2A AgentCard 차용 — HTTP 서버 없음(전송=ssh claude -p).",
+  "_template_note": "추적되는 PII-free 템플릿. terraforming_node/render_sub_env.py 가 manifest 값을 {{ }} 에 채워 서브 워크스페이스 루트의 Agent_Card.json(gitignored)으로 렌더. A2A AgentCard 차용 — HTTP 서버 없음(전송=ssh claude -p).",
   "name": "easy-vllm sub build-worker @ {{ SUB_HOST }}",
   "description": "멀티노드 slave(Ray worker) 또는 single 독립서빙 노드의 코드에이전트. 메인 오케스트레이터의 A2A-개념 Task 를 자율 수행: 컨테이너 빌드, (multi)Ray worker 합류 / (single)standalone API 서빙+로컬 스모크, 자기 모델 서빙 triplet 자율 저작(vllm-recipe-explorer), 자기검증한 JSON 리포트 반환.",
   "version": "1.0.0",
@@ -43,7 +43,7 @@
     {
       "id": "inspect",
       "name": "Inspect / bootstrap canary",
-      "description": "모델 없이 정체성·로드된 스킬·권한·통신계약을 self-report. terraforming_subnode 완료 게이트(model-less 카나리 라운드트립)에 사용.",
+      "description": "모델 없이 정체성·로드된 스킬·권한·통신계약을 self-report. terraforming_node 완료 게이트(model-less 카나리 라운드트립)에 사용.",
       "tags": ["bootstrap", "canary", "model-less", "health"],
       "inputModes": ["text/plain"],
       "outputModes": ["application/json"]
