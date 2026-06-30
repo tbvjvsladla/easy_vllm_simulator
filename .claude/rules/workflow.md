@@ -58,7 +58,7 @@ S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
                    (특정 버전값은 manifest·resolved.json에서 — 헌법·workflow에 박지 않음. 26.05 등 하드코딩 금지).
                 ④ re-render → clean 재빌드 → 스모크. **무증거 오버라이드 금지.**
                    (resolve_ngc_tag.py 단발 prefix-매칭은 유지; 오버라이드는 이 워크플로 HITL 레이어.)
-        · stock-구조적-불가(arch-wall: 대상 모델이 stock vLLM서 sm_xxx 하드월로 토큰 1개 전 사망 — 예 GB10 sm_121 DeepSeek-V4 = 어텐션 major∈[9,10] + MXFP4 오라클 비-repack 백엔드 전무→MARLIN-repack→통합메모리 OOM·호스트 하드다운)
+        · stock-구조적-불가(arch-wall: 대상 모델이 stock vLLM서 sm_xxx 하드월로 토큰 1개 전 사망 — 예 GB10 sm_121 DeepSeek-V4 = 어텐션 major∈[9,10] + MXFP4 오라클 비-repack 백엔드 전무→MARLIN-repack→통합메모리 OOM·호스트 하드다운). **반응적 진입**(빌드/스모크 실패 後) — 동일 처방의 **예방적 진입**(빌드 前 외부검증 발견) = §escalation 역루프.
             → **vLLM 소스-repo 오버라이드 = 1급 Model-C 서브분기**(NGC 베이스 오버라이드와 동일 HITL 핀-오버라이드 메커니즘, repo 축. 도커 패치 범위 사다리: deps-패치 → 소스-게이트 패치 → **소스-repo 오버라이드(포크 핀)** → 체크포인트-교체):
                 ① 참조-그라운디드 확증(빌드 前): 후보 포크(예 jasl/vllm PR#41834)의 소스 직독으로 (a) stock 하드월 해소 (b) 비-repack 경로 존재하나 **명시 선택 필요**(oracle 직독 — auto=walled fallback=MARLIN-repack) 사전 확증. 커뮤니티 검증(동일 HW)도 증거. 자기추론 전 권위참조.
                 ② testlog 기록 + 사람 승인 후 resolved.json `source_build_variants`에 `VLLM_REPO`/`VLLM_REF`(**SHA 핀** — force-push 면역, 태그명 금지) + 새 아치-트랙(`…-source-sm12x`, superset·모델-키잉 ✗) 기입.
@@ -82,6 +82,17 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 +
 
 > 초기에는 위 4개 게이트를 모두 사람이 통과시킨다(최대 HITL).
 > 단계가 안정화되면 하나씩 자동화 영역으로 이전한다(incremental trust).
+
+## escalation 역루프 (서빙전략 수립 중 "현 vLLM 불가" 발견 → 버전 bump 요청)
+
+> 헌법 §escalation 역루프 따름정리 · `plan_2026063009_2`. 스킬 홈 = `vllm-recipe-explorer` §5.5(발견·핸드오프) ↔ `upstream-version-watch` §3.6(수신·3출구). 여기 = **절차-홈**(두 진입의 관계 · 분기 배치).
+
+- **두 진입의 관계 (escalation ↔ arch-wall classify)**: 같은 "stock vLLM 구조적 불가"라도 **발견 시점·진입**이 다르다 —
+  - **escalation**(본 절) = **서빙전략 수립 시(빌드 *前*)** `vllm-recipe-explorer`가 config + 외부 교차검증(HF 카드·GitHub)으로 *미리* 발견 → 승인 → upstream이 버전핀 처방(빌드 *하기 전에* 올바른 이미지를 정함) = **예방적**(외부 리서치로 빌드 낭비 회피).
+  - **arch-wall classify**(S3 `classify_failure`의 `stock-구조적-불가`) = **빌드/스모크 실패 *後*** 사후 분류로 발견 → 동일한 vLLM 소스-repo 오버라이드(포크 SHA 핀) 처방 = **반응적**(실패 신호 기반).
+  - ∴ **둘은 같은 처방(3출구)으로 수렴**하되 진입만 다르다. 처방 머신리(S1–S3 표준 bump · §4.6 포크핀 · 음성정직)는 **공유**.
+- **분기 절차**: 서빙전략 수립 중 "현 vLLM 불가" 발견(오프라인 증상 + 외부 확증 **둘 다** — 단일 신호 ✗) → **사용자 명시 승인** → `upstream-version-watch` §3.6 수신 → **3출구**((i) 공식 bump→S1–S3 · (ii) 포크핀→§4.6/S3 arch-wall · (iii) 음성정직 보고) → 처방 출구가 (i)/(ii)면 S1–S3(render+build+스모크, HITL 게이트) → rebuild 이미지로 recipe 재개. **무승인 자동 escalate ✗**(트리거 정책). 순환은 `reconciliation_cap` 한정 → 소진 시 Model-C(무한 bump ✗). 최종 중재=스모크(린트·이슈글 ≠ 서빙됨).
+- **서브 인스턴스(물리 에어갭)**: 외부검색 불가 → 증상만 docs 상향 보고(D12 — `<model>_patch.py`/special-dep 탐지 상향과 동형), 메인이 외부검색·처방(`vllm-recipe-explorer` §5.5).
 
 ## 메인↔서브 양방향 브랜치싱크 (D12 절차 · 멀티노드 전용)
 
@@ -116,6 +127,7 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 +
 
 - 재빌드/bump 트리거는 **사람의 "업데이트" 지시**뿐. 자동 폴링·cron·webhook 없음.
 - 신규 버전 감지는 사람의 역할(모델 구동 실패 또는 GitHub 확인).
+  - **예외**: escalation 역루프(§escalation 역루프)에선 서빙전략 수립 중 *감지(발견)*가 `vllm-recipe-explorer`(에이전트) 측일 수 있다 — 단 실행은 승인 게이트(무인 자동 bump ✗). 감지 주체만 다르고 무인 자동실행 없음은 보존.
 
 ## 모델 / 안전 가드 (절대 규칙)
 
