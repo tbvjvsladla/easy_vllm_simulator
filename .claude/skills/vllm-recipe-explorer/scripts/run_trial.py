@@ -500,7 +500,7 @@ def _main(argv: "list[str] | None" = None) -> int:
     p.add_argument(
         "--nas-mount",
         default=None,
-        help="호스트 NAS 모델 루트(config.nas_host_root; 기본 %s). terraforming_subnode CLI 배선" % NAS_MOUNT,
+        help="호스트 NAS 모델 루트(config.nas_host_root; 기본 %s). terraforming_node CLI 배선" % NAS_MOUNT,
     )
     p.add_argument(
         "--tiktoken-host-path",

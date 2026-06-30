@@ -45,8 +45,17 @@
 - **빌드 입력**: `CPU_ARCH=$(uname -m)` · `CUDA_VERSION`(예 129) · GitHub Releases pre-built wheel.
   wheel은 `pip install --no-deps`로 설치하고, **그 전에 `/etc/pip/constraint.txt`를 비운다**(NGC 핀 충돌 회피). 상세 = 스킬 `upstream-version-watch`.
 - **주변 의존성 원천**: vLLM `requirements/{common,cuda,build}.txt` + `pyproject.toml` → `requirements.txt` 재생성(절차 = `.claude/rules/workflow.md` S1).
-- **모델**: 폐쇄망 전제. 사람이 사전 다운로드해 NAS에 둔 모델을 read-only 마운트. 런타임 다운로드 없음.
+- **모델 획득 모드 따름정리 (폐쇄망/개방망 = *모델 weights 획득/검색* 한정 · plan_2026063009_1 D8)**: 폐쇄망/개방망은 **모델 다운로드/검색에만** 적용되는 *획득 모드* 구분이지 외부접속 전반의 차단이 아니다. **폐쇄망** = 사람이 사전 다운로드해 NAS에 둔 모델을 read-only 마운트(무단 HF 다운로드·런타임 다운로드 ✗) · **개방망** = 사용자가 HF 다운로드를 **사전승인**한 모드 — 모델 부재 시 `workflow.md §모델/안전` 결정트리의 **per-event 승인 게이트**로 다운로드((1)관리경로 영속/(2)컨테이너 캐시 임시). '사전승인'은 *모드* 허가일 뿐 매 건 포괄 무인허가 ✗. **그러나 *서빙전략 수립*(백엔드·양자화·버전 적합성·모델 호환)은 항상 외부 교차검증(HF 모델카드·vLLM GitHub) 의무** — 폐쇄망이 전략수립의 외부접속까지 막지 않는다(결정론 스크립트의 stdlib offline 제약과는 *별개 평면*). = *"참조-그라운디드 해결"*에 외부 소스를 1급 편입. escalation(recipe→upstream) 상세 = `plan_2026063009_2`(B부).
 - **자기개선 루프 사서(wiki-desk) 따름정리**: docs 작업이력은 path-reference 도서관 `__llm-wiki`(루트·비추적·메인 단독)로 관리하고, 사서(`wiki-desk`)가 **결정론 관계그래프**(cites/realizes/evidences)에 기반해 **authority-ranked 정제맥락**을 발현한다(단순 검색기 ✗ — 인터뷰 의도 해석 → Seed 수렴 가속). **사용 시점(언제 사서를 부르나)**: 우로보로스 인터뷰 착수·`docs/plan/` 작성·모델 서빙전략 수립·vLLM bump·토폴로지 변경 시 → 사서 발동(관련 thread warm-start → 선행 devlog/testlog 증거 우선 소비) · 새 doc 발행 시 → warm-start 증분 입고(inline·cron 0; in-contract=고정 roots 결정론 자동입고·out-of-contract=에이전트/HITL 판단으로 contract 수정). **불변식**: 원본 비복사(path-ref·`raw/` 금지) · **ROOT 헌법(`/CLAUDE.md`/`/.claude/`) 비인덱싱**(by-root 제외 — 벤더 서브트리도 제외; 반-확증편향: 도서관=중립 증거기반, 헌법=로그를 본 사람의 *출력*이지 입력 ✗) · authority=**실행진실>계획의도**(devlog100>testlog85>sub-doc70>plan55>simlog40>seed25) · v1 결정론 엣지만(의미 contradicts/supersedes 파킹) · 음성정직(증거 없으면 경로 날조 ✗). 상세 = 스킬 `wiki-desk` SKILL.md · `plan_2026062809_1`.
+
+## 스킬 오케스트레이션 / 진입 척추 (파이프라인 순서 · fresh-clone 능동발동 · escalation)
+
+> 근거: `docs/plan/plan_2026063009_1`(A부 — 진입/순서) · `plan_2026063009_2`(B부 — escalation, codify 예정). 그라운딩 = `seed/session_record_2026063008`(첫 테라포밍 배포본에서 밟은 진입 갭 2건).
+
+- **파이프라인 의존순서**: `terraforming_node`(토폴로지·환경 온보딩) → `upstream-version-watch`(컨테이너 빌드) → `vllm-recipe-explorer`(모델 서빙전략). "우선순위"는 **의존순서**(앞 단계가 뒤의 전제)이지 충돌 승자가 아니다. 테라포밍 완료 후 "빌드할 이미지가 없거나 빌드할까?" = upstream 발동지점(**제안만 — 실제 빌드/bump는 완전 수동·사람 지시**) · 서빙전략 지시 = recipe 발동지점.
+- **fresh-clone 능동발동**: 미테라포밍 신호(`config.yaml` 부재 ∧ `output/single/manifest.yaml` 부재 ∧ `output/multi/manifest.yaml` 부재) 감지 시, "이제 뭐해야해" 류 발화에 **일반 오리엔테이션보다 온보딩(`terraforming_node`)을 능동 제안**한다. 능동성 고도 = **제안**(감지→제안→인터뷰→승인→스캔). "완전 수동" 트리거 정책은 *vLLM bump* 한정이지 온보딩이 아니며, "무단 스캔 금지"는 스캔이 인터뷰+승인 뒤이므로 보존(지적1 해소).
+- **토폴로지는 인터뷰로 결정**(브랜치⇒토폴로지 추론 ✗): `terraforming_node` 첫 동작 = 토폴로지(single/multi) 인터뷰. 브랜치는 작업공간 선택기일 뿐. 미선언 시 emit fail-closed(scan `emit_gate`) · 브랜치≠토폴로지 시 HITL 브랜치전환. 상세 = 스킬 `terraforming_node` §0.5(지적2 해소).
+- **escalation 역루프(recipe→upstream · 승인 게이트) — B부 codify 예정(forward-ref · 본 A부 *미활성*)**: 새 모델이 현 vLLM 컨테이너로 *구조적으로* 안 뜰 때 `vllm-recipe-explorer`가 외부 교차검증으로 **발견**→사용자 승인→`upstream-version-watch`가 버전핀 **소유**·처방. 기존 *"발견 ≠ 소유"*(per-model 3+1+1 따름정리)의 **버전 bump 축 일반화**. **운영 세부(3출구 등)·활성화는 `plan_2026063009_2`(B부)에서 codify** — 그 전엔 활성 정책 아님.
 
 ## 버전 핀 / 트리거 정책
 
@@ -77,7 +86,7 @@
 - **패치 전파(D12 연장)**: 모델구동 런타임 패치(`<model>_patch.py`)는 **메인 저작 → 하향 배달**(`sync_to_sub.sh` set; 슬레이브가 받는 *최초 model-keyed 파일*). 서브는 **패치 코드 저작 ✗** — "패치 필요" 탐지를 docs insight 로 상향 보고만(상향 코드/패치 추출층 없음 — D12-06·13). arming 관용구도 메인 배달분(서브 즉흥 저작 ✗).
 - **모델 트리플렛 전파 불변식 (D12-연장 · plan_2026062811_2)**: 모델 트리플렛(`<model>.{yaml,sh}` · `.env.<model>`)은 **메인→서브 직접 전파 절대 금지**. `sync_to_sub.sh` 가 Band3 으로 구조적 배제하고 **`<model>_patch.py` 만 비대칭 특례**(위 줄). 트리플렛은 **마스터(메인 자기 master role)가 보유·서빙**하거나 **서브 자율(recipe-explorer)이 저작**한다(메인은 "어떻게 만들지" 지침만 — A2A). **멀티 TP 슬레이브 = Band2-only**(Ray worker — vllm serve·트리플렛 불요): `.env.cluster`(Band2, render preset에 MoE-JIT `MAX_JOBS` 포함)+`.env.interconnect` 만으로 기동 → 서브에 모델 트리오 전달 불요. **검출**: 슬레이브가 `.env.<model>`(Band3)에 의존하면 *미완결*(직접 rsync 우회 유혹). 근거: `devlog_2026062418_1`(3-band R1·CRITICAL d-bcf-1) · `plan_2026062811_2`.
 - **PII 격리**: 회수가 문서기반(코드/설정 미추출)이라 서브 `CLAUDE.md`의 bake 정체성(PII)이 **메인 추적물로 유입되지 않는다** — `포인터 원칙`의 연장. 서브 헌법은 서브에 잔류.
-- **single-node 확장기능**: single-node=기본 독립운용. sub-control("서브 제어 + 수행피드백 수신")은 single-node가 획득하는 **'확장기능'**(헌법 기재). **활성 게이트=결정론**: `output/single/manifest.yaml` `nodes[]`에 sub 존재 여부(`sync_to_sub.sh` 가 읽어 판정). 현재 single manifest 는 `nodes:[]` → **dormant**(독립 self-containment 보존). (HW탐지 결과를 single 통로로 채우는 전달 메커니즘은 **미구현·파킹** — plan_2026062411_1 §5.)
+- **single-node 확장기능**: single-node=기본 독립운용. sub-control("서브 제어 + 수행피드백 수신")은 single-node가 획득하는 **'확장기능'**(헌법 기재). **활성 게이트=결정론**: `output/single/manifest.yaml` `nodes[]`에 sub 존재 여부(`sync_to_sub.sh` 가 읽어 판정). 현재 single manifest 는 `nodes:[]` → **dormant**(독립 self-containment 보존). (단일 manifest 기입은 이제 `terraforming_node` §1S 단일 온보딩이 담당 — plan_2026063009_1. 단 single-node 가 *sub-control* 확장기능을 HW탐지 전달로 활성화하는 메커니즘은 여전히 **미구현·파킹** — plan_2026062411_1 §5.)
   - **라이브 형태 = A2A 모델서빙 위임(T3 검증, 0.23.0 E2E)**: 활성 시 메인이 서브에 A2A 태스크 발급(`ssh sub claude -p … --permission-mode acceptEdits`) → 서브가 자작 recipe + `--profile serve up -d` + 로컬 스모크 → push-attestation 1개 반환. 메인은 **리포트만 관측**(디스크 재스캔 X — A2A 경계). 실행평면 노드별 독립(교차검증). 절차 = 서브 `comms.md` serve 술어(single 분기).
 
 ## build / 검증 커맨드
@@ -97,7 +106,7 @@
 
 ## 계획 게이트 (체화 규율)
 
-- container-gen · serving-strategy · branch-sync · terraforming_subnode 작업은 반드시 `docs/plan/` 문서를 **먼저 발행**하고
+- container-gen · serving-strategy · branch-sync · terraforming_node 작업은 반드시 `docs/plan/` 문서를 **먼저 발행**하고
   **사람 검토(HITL)** 후 진행한다. 테라포밍된 환경에서도 이 문서 발행 규칙대로 작업하는 것이 **정본**이며
   루틴화한다(self-improving tooling). 문서 규약 상세: `.claude/rules/docs.md`.
 
@@ -110,7 +119,7 @@
   `sub_node/CLAUDE.md` 실값)은 **비추적**. 브랜치 간 공유 콘텐츠는 `scripts/sync_branches.sh`로
   동기화한다(수동 — 모든 작업 종료 후 사람 질의로 실행).
 - 버전 문자열 해소(torch 핀·NGC 태그)를 **확률론적 추론으로 처리 금지** → **결정론적 스크립트**로(하네스 엔지니어링).
-- **참조-그라운디드 해결**: 오류복구·진단 시 자기추론보다 **권위 참조**(업스트림 소스·이미지 내부·모델 config/chat_template·런타임 로그·레지스트리/헤더) 우선 — 위 결정론 해소의 error-recovery 연장. 상세는 각 스킬 error-recovery. (정확도 위해 토큰 증가 허용)
+- **참조-그라운디드 해결**: 오류복구·진단 시 자기추론보다 **권위 참조**(업스트림 소스·이미지 내부·모델 config/chat_template·런타임 로그·레지스트리/헤더 · **서빙전략 수립 시 HF 모델카드·vLLM GitHub issue/release** — §모델 획득 모드 따름정리로 1급 편입) 우선 — 위 결정론 해소의 error-recovery 연장. 상세는 각 스킬 error-recovery. (정확도 위해 토큰 증가 허용)
 - 업스트림 핀/베이스 이미지를 가드레일·기록 없이 임의 변경 금지.
 - 요청 범위 밖 기능·추상화 선반영 금지(Karpathy B2·B3).
 
@@ -121,7 +130,7 @@
 
 ## 스킬 / 도구 경계
 
-- **커스텀(4-스킬 계층 · 빌딩블럭 vs 런타임블럭)**: `terraforming_subnode`(서브노드 진입 + 서브 에이전트 환경 구축 — `manifest.yaml` 생성·서브 페르소나/런타임블럭 렌더 배달; plan_2026062408_1) · `upstream-version-watch`(버전해소 + render + 소스빌드 + 빌드/스모크) · `vllm-recipe-explorer`(모델 yaml/sh/env + VRAM/KV trial + tiktoken 사전적재) · `wiki-desk`(docs 작업이력 path-reference 도서관 `__llm-wiki` + 사서 — 결정론 관계그래프·authority-ranked 정제맥락 발현; plan_2026062809_1). **분류**: 빌딩블럭(`terraforming_subnode`·`upstream-version-watch`·`wiki-desk`)=메인 전용(서브 전달 ✗ — `wiki-desk`는 *substrate 사서 아종*: 능동 저작/해소 도구가 아닌 메타-지식 기층, 중앙 단일 도서관·서브 인스턴스 ✗) · 런타임블럭(`vllm-recipe-explorer`)=서브 복제(자기 모델에 자율 실행). 각 스킬 상세 = 해당 SKILL.md frontmatter. 결정론 vs 판단 분리는 각 스킬 내부.
+- **커스텀(4-스킬 계층 · 빌딩블럭 vs 런타임블럭)**: `terraforming_node`(**토폴로지-중립 진입/온보딩** — 첫 동작=토폴로지 인터뷰 → single 단일온보딩 / multi 서브노드 진입+서브 에이전트 환경 구축; `manifest.yaml` 생성·서브 렌더 배달; plan_2026062408_1·plan_2026063009_1) · `upstream-version-watch`(버전해소 + render + 소스빌드 + 빌드/스모크) · `vllm-recipe-explorer`(모델 yaml/sh/env + VRAM/KV trial + tiktoken 사전적재) · `wiki-desk`(docs 작업이력 path-reference 도서관 `__llm-wiki` + 사서 — 결정론 관계그래프·authority-ranked 정제맥락 발현; plan_2026062809_1). **분류**: 빌딩블럭(`terraforming_node`·`upstream-version-watch`·`wiki-desk`)=메인 전용(서브 전달 ✗ — `wiki-desk`는 *substrate 사서 아종*: 능동 저작/해소 도구가 아닌 메타-지식 기층, 중앙 단일 도서관·서브 인스턴스 ✗) · 런타임블럭(`vllm-recipe-explorer`)=서브 복제(자기 모델에 자율 실행). 각 스킬 상세 = 해당 SKILL.md frontmatter. 결정론 vs 판단 분리는 각 스킬 내부.
 - **외부**: Docker 작성/문법검사 보조 — 후보 `netresearch/docker-development-skill` (설치정책 거쳐 도입).
 - **MCP**: 현재 없음. (멀티노드 서브노드 직접 SSH 제어 = 구현됨: `.claude/skills/upstream-version-watch/scripts/sync_to_sub.sh` = **브랜치-aware 하향 오케스트레이터**(rsync 배달 + 스크립트저작 `[sync]` 커밋 + fail-closed dirty 핸드셰이크 + 멱등 git-init) · `fetch_sub_docs.sh` = **상향 문서회수 미러** · 서브 빌드워커 CC `ssh sub bash -lc "claude -p"`. SKILL.md §4.5 / workflow.md S2.5·S3 · 양방향 싱크 D12절차.)
 - 참고: 기존 `configs/check_reqs.py`(의존성 차이 분석 스크립트)를 결정론적 resolve 기반으로 재활용.

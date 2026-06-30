@@ -1,7 +1,7 @@
 ---
 name: vllm-recipe-explorer
 description: >-
-  폐쇄망에서 고정된 한 모델의 config.json을 결정론적으로 파싱하고, (quantization × max-model-len ×
+  폐쇄망(모델 획득 한정)에서 고정된 한 모델의 config.json을 결정론적으로 파싱하고, (quantization × max-model-len ×
   gpu-memory-utilization) 3축 레시피 후보를 결정론 VRAM 추정 → 예산×안전마진 하드게이트 →
   headroom→context 랭킹으로 제시하고, 사람이 고른 레시피를 DGX Spark 서빙용 3종 세트(.yaml+.sh+.env)로
   생성한다(Phase 1, 추정). Phase 2는 멀티턴 인터뷰로 lock/soft/free 변수를 정하고 실서빙 trial-loop로
@@ -163,7 +163,7 @@ python3 recipe.py generate --config config.yaml --recipe-id r3
 
 - **모델 자체 다운로드 금지.** NAS 경로에 없으면 비0 종료 + 명확한 중단·보고. 런타임 다운로드 없음.
 - 호스트 `python3`(3.12, PyYAML 6) 단독 실행. **whichllm 패키지를 import 하지 말 것**(값은 벤더링).
-- stdlib + yaml만 사용. **외부 네트워크 호출 금지**(폐쇄망 전제 — 인터뷰의 웹검색은 사람이 수행해 결과를 주입).
+- stdlib + yaml만 사용. **결정론 스크립트는 외부 네트워크 호출 금지**(스크립트 평면 offline — config/번들 README 로컬 파싱). **단 이는 *스크립트* 제약이지 *에이전트 전략수립* 제약이 아니다** — 서빙전략의 외부 교차검증(HF 모델카드·vLLM GitHub)은 허용·의무(헌법 §모델 획득 모드 따름정리 · escalation = `plan_2026063009_2` B부). "폐쇄망"=*모델획득* 한정이지 외부접속 전반 차단 ✗.
 - 결정/게이트/랭킹/분류는 결정론 스크립트가 책임진다(LLM은 후보 탐색·인터뷰만).
 - **Phase 2 teardown(필수)**: 트라이얼은 끝날 때마다 `docker rm -f`로 컨테이너를 제거한다.
   DGX Spark는 **통합메모리**라 잔류 컨테이너가 다음 트라이얼을 OOM으로 떨어뜨린다(`run_trial`의 `finally`가 보장).
@@ -179,8 +179,8 @@ python3 recipe.py generate --config config.yaml --recipe-id r3
 3. **KV quant?** — `null`(fp16, 2바이트) 또는 `fp8`(1바이트). KV 캐시를 절반으로 줄여 더 긴 context/batch 확보.
 4. **batch**(=동시요청수, `--max-num-seqs`) → 정한 뒤 **max-model-len** — *최대 가능값을 제안*한다
    (`estimate_vram.max_feasible_max_len`이 천장 내 2의 거듭제곱 최대 길이를 결정론으로 계산).
-5. **tool / reasoning 파서** — **웹검색 권장**: 모델이 tool_call·reasoning을 지원하는지, vLLM 파서명이 무엇인지
-   사람이 확인해 알려준다(예: `hermes`/`qwen3`). 미지원이면 N/A(스모크에서 스킵).
+5. **tool / reasoning 파서** — **외부 교차검증**(§3 L166 — HF 모델카드·docs, *에이전트 수행*): 모델이 tool_call·reasoning을 지원하는지, vLLM 파서명이 무엇인지
+   에이전트가 확인한다(예: `hermes`/`qwen3`; 폐쇄망=모델획득 한정이라 전략수립 외부검증 허용). 미지원이면 N/A(스모크에서 스킵).
    - **파서명은 공식 docs에서 얻은 뒤 반드시 빌드 이미지에 version-exact 확증한 후에만 emit한다(가정 금지)**:
      레지스트리 경로·등록명이 vLLM 버전마다 다르다 — reasoning은 `vllm/reasoning/`, tool은 버전에 따라
      `vllm/entrypoints/openai/tool_parsers/` 또는 `vllm/tool_parsers/`. **정적 grep + 실서빙 수용**으로 확증한다

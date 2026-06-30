@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://easy-vllm/sub_node/task-report.schema.json",
   "title": "Sub-node Task Report (A2A-concept)",
-  "description": "메인↔서브 A2A-개념 통신의 회신 산출물. 서브 빌드워커가 ssh claude -p 한 턴마다 이 스키마에 맞는 JSON 1개를 반환한다. 메인은 이 리포트를 검증하며 서브 워크스페이스를 재스캔하지 않는다(push-attestation). 정적계약(양 노드 동일) — terraforming_subnode 가 서브 .claude/schemas/ 로 복제.",
+  "description": "메인↔서브 A2A-개념 통신의 회신 산출물. 서브 빌드워커가 ssh claude -p 한 턴마다 이 스키마에 맞는 JSON 1개를 반환한다. 메인은 이 리포트를 검증하며 서브 워크스페이스를 재스캔하지 않는다(push-attestation). 정적계약(양 노드 동일) — terraforming_node 가 서브 .claude/schemas/ 로 복제.",
   "type": "object",
   "additionalProperties": false,
   "required": ["task_id", "context_id", "turn", "phase", "status", "self_verification"],

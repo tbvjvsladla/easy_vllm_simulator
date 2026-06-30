@@ -1,7 +1,7 @@
-# 서브노드 로컬 git .gitignore (terraforming_subnode 렌더 — D12)
+# 서브노드 로컬 git .gitignore (terraforming_node 렌더 — D12)
 # 메인 .gitignore 의 서브 적용판: 빌딩블럭·코드는 추적(브랜치 격리·[sync] 캡처), 휘발/생성물은 무시.
 # 서브 git 은 로컬 전용(origin 영구 없음) — PII 안전. 상향 회수는 문서기반(fetch_sub_docs.sh).
-# 정본: 메인 .claude/skills/terraforming_subnode/sub_node/gitignore.template (placeholder 없음 — 그대로 복제).
+# 정본: 메인 .claude/skills/terraforming_node/sub_node/gitignore.template (placeholder 없음 — 그대로 복제).
 
 # ── Python ──
 __pycache__/
