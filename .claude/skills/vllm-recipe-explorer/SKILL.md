@@ -13,7 +13,7 @@ description: >-
 
 # vllm-recipe-explorer
 
-> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_2026063018_1)**: 작업(estimate/generate/simulate = 서빙전략 deliverable) 전 **턴 시작 시 Flag 확인 필수**. 미발급(`output/<topology>/manifest.yaml` 부재 · `terraforming.complete/branch_verified != true` · model_source 미설정) 시 **info-only**: 모델 HF조회·개념·절차 설명 OK / **환경특정 deliverable(TP·recipe·serve 명령) 생성 ✗**(음성정직 — HW사실 없이 근거 있어보이는 답 *날조* 금지 = 보고된 버그) → 정본 redirect 템플릿으로 `terraforming_node` 유도. **결정론 백스톱** = `recipe.py` main() 의 `_require_terraform_flag`(estimate/generate/simulate 비0종료; **A2A 서브는 `EASY_VLLM_SKIP_FLAG_GATE`** — 서브엔 manifest 부재). TP = manifest(`len(nodes)×gpus_per_node`) 배선(§manifest→서빙전략 배선 불변식 — git 브랜치 폴백 ✗) · 가드 tp>GPU·kv_heads%tp.
+> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_2026063018_1)**: 작업(estimate/generate/simulate = 서빙전략 deliverable) 전 **턴 시작 시 Flag 확인 필수**. 미발급(`output/<topology>/manifest.yaml` 부재 · `terraforming.complete/branch_verified != true` · model_source 미설정) 시 **info-only**: 모델 HF조회·개념·절차 설명 OK / **환경특정 deliverable(TP·recipe·serve 명령) 생성 ✗**(음성정직 — HW사실 없이 근거 있어보이는 답 *날조* 금지 = 보고된 버그) → 정본 redirect 템플릿으로 `terraforming_node` 유도. **결정론 백스톱** = `recipe.py` main() 의 `_require_terraform_flag`(estimate/generate/simulate 비0종료·**fail-closed**; **서브 면제 = 양성 위임 키 `.claude/a2a_delegation.json`** — 메인이 동질성 검증 후 발급, 메인 키와 UNIQUE, *부재로 면제 ✗*; 1차 / `EASY_VLLM_A2A_DELEGATED` 테스트 override 2차 — 헌법 §A2A-위임 Flag 따름정리·plan_2026063021_2). TP = manifest(`len(nodes)×gpus_per_node`) 배선(§manifest→서빙전략 배선 불변식 — git 브랜치 폴백 ✗) · 가드 tp>GPU·kv_heads%tp.
 
 고정된 **한 모델**을 여러 서빙 레시피로 비교해 **타깃 GPU 예산**(예: RTX PRO 6000=96GB,
 RTX4090=24GB carve-out)에 맞는 설정을 찾는다. 두 페이즈로 동작한다.

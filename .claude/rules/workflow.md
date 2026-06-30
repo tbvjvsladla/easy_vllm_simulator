@@ -8,7 +8,7 @@
 > "항상 참" 요약 = 루트 `CLAUDE.md` §테라포밍-완수 Flag 게이트 따름정리. 여기 = **절차-홈**.
 
 - **2-모드**: **init**(미테라포밍 — `terraforming_node` 인터뷰 → *real* init-plan 발행(HITL) → 스캔 → **topology 확정 + branch↔topology 3자일치(§1.5)** 완수 시*에만* manifest 에 완수 attestation = **Flag** 기입; 보수적 — 미검증이면 미발급) → **runtime**(Flag 발급 후 3 런타임 스킬 작업 가능).
-- **진입 전제**: 아래 S1–S4·escalation·B0–B3 등 **모든 작업 절차는 Flag 를 전제**한다. Flag 부재 시 `upstream`·`recipe`·`adversarial` 의 *작업 스크립트* 진입은 **`manifest_contract.py`(Phase 1 구현 예정) 확인 → 비0종료**(결정론 백스톱)이고, 에이전트는 **info-only**(정보·조언·모델 HF조회 OK / 환경특정 deliverable ✗) + **redirect 템플릿**으로 terraforming 유도(페르소나 — *말로 새는* generic 명령 봉쇄). `wiki-desk` 는 게이트 밖(헌법 루프계열).
+- **진입 전제**: 아래 S1–S4·escalation·B0–B3 등 **모든 작업 절차는 Flag 를 전제**한다. Flag 부재 시 `upstream`·`recipe`·`adversarial` 의 *작업 스크립트* 진입은 **`recipe.py _require_terraform_flag`·`run_bench.sh`(`manifest_contract.py --require-flag`) 확인 → 비0종료**(결정론 백스톱·operative[plan_2026063021_2]; **서브는 A2A 위임 키 `.claude/a2a_delegation.json`** 양성 확인 = fail-closed)이고, 에이전트는 **info-only**(정보·조언·모델 HF조회 OK / 환경특정 deliverable ✗) + **redirect 템플릿**으로 terraforming 유도(페르소나 — *말로 새는* generic 명령 봉쇄). `wiki-desk` 는 게이트 밖(헌법 루프계열).
 - **redirect 템플릿(정본)**: *"HW스캔이 덜 되어(Flag 미발행) HW 스펙(GPU·OS)을 알기 어려워 모델 `<HF URL>` 의 정확한 서빙전략을 세우기 어렵습니다. `terraforming_node` 로 ① HW스캔 + ② 모델 다운로드 전략(관리 NAS 경로? 컨테이너 임시 다운로드(컨테이너 down 시 삭제)? 특정 경로 저장·마운트?)을 먼저 정합시다."*
 - 절차 상세 = 스킬 `terraforming_node` §0.5 · 각 런타임 스킬 SKILL.md §0.
 

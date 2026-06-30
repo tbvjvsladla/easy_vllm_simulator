@@ -45,7 +45,22 @@ from estimate_vram import (  # noqa: E402
 import simlog_writer  # noqa: E402
 
 # --- 영속 경로 (SKILL_ROOT 기준 동적 도출 — 이식 가능, 하드코딩 금지) ---
-REPO_ROOT = os.path.abspath(os.path.join(SKILL_ROOT, os.pardir, os.pardir, os.pardir))
+def _repo_root(skill_root):
+    """git toplevel 로 repo 루트 해소(스테이징 하위서도 실 repo 루트로 escape — run_bench.sh 와 동형, 레이아웃 비의존).
+    실패(비-git) 시 abspath 3-up 폴백. WARN-3(adversarial-verify): 스테이징 사본 실행 시 abspath 가 스테이징 dir 를
+    repo_root 로 오인 → 그 안의 위임 키로 메인 게이트 우회 가능했음. git toplevel 은 그 경계를 넘어 실 repo 로 해소."""
+    try:
+        import subprocess
+        out = subprocess.run(["git", "-C", skill_root, "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True)
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout.strip()
+    except Exception:
+        pass
+    return os.path.abspath(os.path.join(skill_root, os.pardir, os.pardir, os.pardir))
+
+
+REPO_ROOT = _repo_root(SKILL_ROOT)
 FEEDBACK_DIR = os.path.join(SKILL_ROOT, "feedback")
 LAST_RANKING_PATH = os.path.join(FEEDBACK_DIR, ".last_ranking.json")
 FEEDBACK_JSONL_PATH = os.path.join(FEEDBACK_DIR, "recipe_feedback.jsonl")
@@ -146,18 +161,32 @@ def _total_gpus(man):
 
 
 def _require_terraform_flag(repo_root):
-    """헌법 §테라포밍-완수 Flag 게이트 — Flag 미발급 시 info-only(작업 거부·비0종료). 강제 2층의 *결정론 백스톱*.
+    """헌법 §테라포밍-완수/A2A-위임 Flag 게이트 (**fail-closed**) — 면제 없으면 info-only(작업 거부·비0종료). 강제 2층의 *결정론 백스톱*.
 
-    `EASY_VLLM_SKIP_FLAG_GATE` 설정 시 우회 — A2A 서브 컨텍스트(main 이 dispatch 시 설정; 서브엔 manifest 부재)
-    및 테스트용. (recipe = 서브 복제 런타임블럭 → main-only `manifest_contract.py` 미import, 자체 리더로 동일 게이트.)
+    면제 2경로(plan_2026063021_2 §A2A-위임 Flag 따름정리):
+      (1차·결정론) 서브 A2A 위임 *양성 키* `.claude/a2a_delegation.json` 존재 — 메인이 클러스터 HW 동질성 검증 후
+                   발급·전달한 증표(메인 키 `terraforming.complete` 와 **UNIQUE**). *부재로 면제하는 fail-open ✗*.
+      (2차·테스트) `EASY_VLLM_A2A_DELEGATED` env — 명시 override(개명: 옛 EASY_VLLM_SKIP_FLAG_GATE).
+    그 외엔 메인 manifest Flag(complete·branch_verified·HW·model_source) 검사. (recipe = 서브 복제 런타임블럭 →
+    main-only `manifest_contract.py` 미import, 자체 리더로 동일 계약.)
     """
-    if os.environ.get("EASY_VLLM_SKIP_FLAG_GATE"):
+    if os.environ.get("EASY_VLLM_A2A_DELEGATED") == "1":  # (2차) 명시 테스트 override (정확히 "1" — '0'/'false' 오인 차단)
         return
+    keyp = os.path.join(repo_root, ".claude", "a2a_delegation.json")  # (1차) 서브 A2A 위임 양성 키
+    if os.path.isfile(keyp):                          # 존재 + 내용·역할 검증(D8: 손상/외부 파일로 메인 게이트 우회 차단)
+        try:
+            with open(keyp, encoding="utf-8") as kf:
+                kd = json.load(kf)
+            if kd.get("delegation") == "main_cluster_flag" and kd.get("issued_to") == "sub":
+                return
+        except Exception:
+            pass  # 손상/비유효 키 → 면제 안 함(fail-closed 진행)
     man, mpath, _topo = _read_manifest(repo_root)
     if not man:
         _die(
-            "manifest 부재(%s) — 테라포밍 미완. terraforming_node 로 HW스캔 + 모델획득 모드(managed|ephemeral|custom)를 "
-            "먼저 정하세요(info-only). HW 사실 없이 서빙전략 deliverable 생성 ✗. [A2A/서브: EASY_VLLM_SKIP_FLAG_GATE=1]" % mpath,
+            "manifest 부재(%s) ∧ A2A 위임 키 부재 — 테라포밍 미완(fail-closed). terraforming_node 로 HW스캔 + "
+            "모델획득 모드(managed|ephemeral|custom)를 먼저 정하세요(info-only). HW 사실 없이 서빙전략 deliverable 생성 ✗. "
+            "[A2A/서브: 메인이 동질성 검증 후 .claude/a2a_delegation.json 발급 — 테스트는 EASY_VLLM_A2A_DELEGATED=1]" % mpath,
             code=4,
         )
     terra = man.get("terraforming") or {}
@@ -981,7 +1010,7 @@ def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
     # 헌법 §테라포밍-완수 Flag 게이트 — deliverable 산출 서브커맨드는 Flag 전제(미발급 시 info-only·비0종료).
-    # EASY_VLLM_SKIP_FLAG_GATE 우회(A2A 서브·테스트). 강제 2층의 결정론 백스톱.
+    # 면제 2경로: .claude/a2a_delegation.json(서브 A2A 위임 양성키·1차) 또는 EASY_VLLM_A2A_DELEGATED(테스트 override·2차). fail-closed 결정론 백스톱.
     if getattr(args, "command", None) in ("estimate", "generate", "simulate"):
         _require_terraform_flag(REPO_ROOT)
     args.func(args)

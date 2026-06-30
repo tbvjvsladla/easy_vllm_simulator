@@ -136,6 +136,8 @@ def build_placeholders(data: dict) -> tuple[dict, list[str]]:
         "PLATFORM_PRESET": ic.get("platform_preset") or "",
         "RAY_PORT": data.get("ray_port") or "6379",
         "GPU_MODEL": data.get("gpu_model") or (f"{gpus}x-{cpu_arch}" if gpus and cpu_arch else cpu_arch or "unknown-gpu"),
+        # A2A 위임 키 발급 판정용(plan_2026063021_2 D5/D7) — nodes[sub].hw_verified(동질성 검증 통과 표식). 템플릿 치환엔 미사용.
+        "SUB_HW_VERIFIED": (sub.get("hw_verified") or ""),
     }
     # 필수(누락 시 fail-loud — 무증거/빈 정체성 렌더 금지)
     required = ["SUB_HOST", "MASTER_HOST", "SSH_USER", "WORKSPACE_PATH", "NAS_MOUNT",
@@ -210,6 +212,23 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
             dst_skill = os.path.join(claude, "skills", name)
             n = _copy_tracked(rb, dst_skill)
             produced.append(f".claude/skills/{name}/ ({n} tracked files)")
+
+    # 3.5) A2A 위임 키 (plan_2026063021_2 D5/D7) — 서브 HW 동질성 검증(nodes[sub].hw_verified=true) 통과 시에만 발급.
+    #   메인 키(terraforming.complete@manifest)와 UNIQUE. 최소 attestation(HW사실/전체 manifest ✗ → D10 보존).
+    #   recipe.py·run_bench.sh 가 이 파일 존재로 서브 게이트 면제(fail-closed 양성 키). 미검증이면 미발급 → 서브 info-only.
+    if str(ph.get("SUB_HW_VERIFIED", "")).strip().lower() == "true":
+        deleg = {
+            "delegation": "main_cluster_flag",
+            "issued_to": "sub",   # 역할 단언(D8·WARN-1): recipe.py·run_bench.sh 가 이 값으로 메인 키 오용 차단
+            "topology": ph.get("TOPOLOGY", ""),
+            "note": ("Sub operates under main-node terraforming Flag (A2A delegation). "
+                     "HW homogeneity verified by main (plan_2026063021_2). "
+                     "Do NOT create manually on a main/standalone node."),
+        }
+        with open(os.path.join(claude, "a2a_delegation.json"), "w", encoding="utf-8") as f:
+            json.dump(deleg, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        produced.append(".claude/a2a_delegation.json")
 
     # 4) tasks/ 스캐폴드(빈 디렉토리 — git keep)
     with open(os.path.join(out_dir, "tasks", ".gitkeep"), "w") as f:
@@ -383,6 +402,26 @@ def _self_test() -> int:
     except SystemExit as e:
         print(f"  [FAIL] single 렌더 예외: {e}")
         ok = False
+
+    # (6) A2A 위임 키(plan_2026063021_2 D5/D7): nodes[sub].hw_verified=true → 키 발급 / 부재 → 미발급(fail-closed).
+    data6 = parse_manifest(mpath)
+    ph6a, _ = build_placeholders(data6)                       # 기본 fixture(sub hw_verified 없음) → 미발급
+    out6a = os.path.join(tmp, "sub_provision_nokey")
+    render_tree(ph6a, out6a, copy_runtime_block=False)
+    key6a_absent = not os.path.exists(os.path.join(out6a, ".claude", "a2a_delegation.json"))
+    _node(data6, "sub")["hw_verified"] = "true"               # 동질성 검증 통과 주입 → 발급
+    ph6b, _ = build_placeholders(data6)
+    out6b = os.path.join(tmp, "sub_provision_key")
+    render_tree(ph6b, out6b, copy_runtime_block=False)
+    keyp = os.path.join(out6b, ".claude", "a2a_delegation.json")
+    key6b_ok = False
+    if os.path.exists(keyp):
+        with open(keyp, encoding="utf-8") as f:
+            _kd = json.load(f)
+        key6b_ok = _kd.get("delegation") == "main_cluster_flag" and _kd.get("issued_to") == "sub"
+    c6 = key6a_absent and key6b_ok
+    print(f"  [{'PASS' if c6 else 'FAIL'}] A2A 위임 키: hw_verified 부재→미발급({key6a_absent}) · =true→발급+유효({key6b_ok})")
+    ok &= c6
 
     # (템플릿 PII-free 는 scripts/smoke_clone.sh A4 가 추적물 전반에서 단일 게이트로 검사 — 여기 중복/리터럴 미보유)
     shutil.rmtree(tmp, ignore_errors=True)

@@ -64,6 +64,29 @@ _single_extension_active() {
     awk '/^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { found=1 } END { exit(found?0:1) }' "$manifest"
 }
 
+# ── A2A-위임 전파 게이트 (plan_2026063021_2 D5 · New-2) ──
+# 서브 위임 키의 *권위* = output/<t>/manifest.yaml 의 nodes[sub].hw_verified(메인이 동질성 검증 후 기입).
+# render_sub_env 가 이 값으로 키를 렌더 → 게이트가 권위(소스)를 검사 = egg-free(같은 sync 가 배달하는 키를 검사하지 않음).
+# 미검증 → 빌드 전파 거부 + HITL(무인 자동 서브-스캔 ✗ — "열쇠 분실=사고"). 검증 path = 운영자가 terraforming --peer-ssh 구동.
+_resolve_sub_hw_verified() {  # $1=topology → nodes[sub].hw_verified 값 출력(없으면 빈줄)
+    local manifest="${SRC%/}/output/$1/manifest.yaml"
+    [ -f "$manifest" ] || return 1
+    awk '
+        /^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { in_sub=1; next }
+        /^[[:space:]]*-[[:space:]]*role:/ { in_sub=0 }
+        in_sub && /^[[:space:]]*hw_verified:/ { sub(/^[[:space:]]*hw_verified:[[:space:]]*/, ""); sub(/[[:space:]]*#.*/, ""); gsub(/[ "\r]/, ""); print; exit }
+    ' "$manifest"
+}
+assert_sub_delegation_authorized() {  # $1=topology → 0=인가(hw_verified:true), 1=거부(키 미발급)
+    local hv; hv="$(_resolve_sub_hw_verified "$1" 2>/dev/null || true)"
+    [ "$hv" = "true" ] && return 0
+    echo "[sync] STOP(A2A-위임 게이트): output/$1/manifest.yaml 의 nodes[sub].hw_verified != true (got '${hv:-<none>}')" >&2
+    echo "  → 서브 HW 동질성 미검증 = 위임 키 미발급 → 빌드 전파 거부(fail-closed)." >&2
+    echo "  → 검증 path(HITL): python3 .claude/skills/terraforming_node/scripts/scan_node.py --topology $1 --peer-ssh <user@sub> --emit-manifest" >&2
+    echo "     → 동질성 통과 시 nodes[sub].hw_verified:true 기입(사람 확인) → 재실행. (무인 자동 서브-스캔 ✗ — '열쇠 분실=사고'.)" >&2
+    return 1
+}
+
 [ -z "${SUB_HOST:-}" ]     && SUB_HOST="$(_resolve_sub_host_from_manifest || true)"
 [ -z "${SUB_WORK_DIR:-}" ] && SUB_WORK_DIR="$(_resolve_sub_work_dir_from_manifest || true)"
 [ -z "${SUB_WORK_DIR:-}" ] && SUB_WORK_DIR="${SRC%/}"
@@ -238,7 +261,7 @@ verify_checksums() {  # $1=topology
     done
     for f in CLAUDE.md Agent_Card.json .claude/settings.local.json .claude/rules/comms.md .claude/rules/docs.md \
              .claude/schemas/task-report.schema.json .gitignore .claude/skills/vllm-recipe-explorer/recipe.py \
-             .claude/skills/adversarial-benchmark/scripts/verdict_rule.py; do
+             .claude/skills/adversarial-benchmark/scripts/verdict_rule.py .claude/a2a_delegation.json; do
         [ -f "$st/$f" ] || continue
         L=$(md5sum "$st/$f" | awk '{print $1}'); R=$($SSH_OPTS "$SUB_HOST" "md5sum '$SUB_WORK_DIR/$f' 2>/dev/null" | awk '{print $1}')
         [ -n "$L" ] && [ "$L" = "$R" ] && echo "  ✅ $f" || { echo "  ❌ $f: main=$L sub=$R"; fail=1; }
@@ -264,6 +287,11 @@ if [ "$MODE" = "dryrun" ]; then
             echo "  --- [$t] dirty 체크(fail-closed) → checkout → render → band단언 → rsync(빌드+오버레이) → [sync] 커밋 ---"
             render_topology "$t"
             assert_band_classification "$t" || echo "  [$t] ⚠ S4 미분류 파일 존재(위 FAIL) — --apply 시 배달 거부. 분류 후 재시도."
+            if [ "$(_resolve_sub_hw_verified "$t" 2>/dev/null || true)" = "true" ]; then
+                echo "    A2A-위임 게이트: nodes[sub].hw_verified=true ✓ (위임 키 발급·전파 허용)"
+            else
+                echo "    ⚠ A2A-위임 게이트: nodes[sub].hw_verified≠true → --apply 시 빌드 전파 거부(terraforming --peer-ssh 동질성 검증 먼저)"
+            fi
             preview_build "$t"
             echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | head -40 || true
         done
@@ -304,6 +332,7 @@ if [ $HAS_GIT = 0 ]; then
     sub_run "git checkout -q multi"
     # multi 초기 Band2 배달 (S4 band 단언 = 하드 게이트)
     assert_band_classification multi || { echo "[sync] STOP(S4): multi band 분류 실패 — bootstrap 중단(위 FAIL 분류 후 재시도)." >&2; exit 9; }
+    assert_sub_delegation_authorized multi || { echo "[sync] STOP(A2A-위임): multi bootstrap 거부 — 위 HITL path 수행 후 재시도." >&2; exit 10; }
     deliver_build multi 0
     deliver_overlay multi 0
     sub_run "git add -A"
@@ -338,9 +367,10 @@ for t in "${TARGETS[@]}"; do
     fi
     # (2) checkout
     sub_run "git checkout -q $t" || { echo "[sync] FAIL: 서브 checkout $t 실패"; exit 8; }
-    # (3) render + band단언(S4 하드 게이트) + (4) rsync(빌드 + 오버레이)  — 겹침=main-canonical
+    # (3) render + band단언(S4 하드 게이트) + A2A-위임 게이트(D5) + (4) rsync(빌드 + 오버레이)  — 겹침=main-canonical
     render_topology "$t"
     assert_band_classification "$t" || { echo "[sync] STOP(S4): $t band 분류 실패 — 배달 거부(위 FAIL 분류 후 재시도)." >&2; exit 9; }
+    assert_sub_delegation_authorized "$t" || { echo "[sync] STOP(A2A-위임): $t 빌드 전파 거부 — 위 HITL path 수행 후 재시도." >&2; exit 10; }
     deliver_build "$t" 0
     deliver_overlay "$t" 0
     echo "[sync] 체크섬 검증($t)..."; verify_checksums "$t" || { echo "[sync] FAIL: 체크섬 불일치($t)"; exit 2; }
