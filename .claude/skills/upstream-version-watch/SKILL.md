@@ -126,6 +126,18 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 - **unknown (Model-C)**: **참조-그라운디드 해결** — class 제안 전 자기추론보다 **권위 소스**를 먼저 조회한다(여기서의 토큰 증가는 정확도를 사므로 권장): wheel METADATA(Requires-Dist) · NGC 이미지 라벨(`docker buildx imagetools inspect`) · 컨테이너 내부 torch 버전 + `torch::stable` 헤더(`tensor_struct.h`/`ops.h`의 `layout()`/6-arg `from_blob` 존재) · 빌드/serve 로그 · `failure_patterns.yaml`. 그 위에 LLM이 `{proposed_class, evidence}`를 제시 → **사람 승인 전 무행동**.
   사람이 승인하고 codify를 원하면, 에이전트가 `failure_patterns.yaml` 추가 **diff를 제안**(직접 편집 금지) → 승인 시 반영(확률론→결정론 이전). (참조-그라운디드 해결 = 헌법 "버전 문자열 해소 확률론 금지"의 error-recovery 연장.)
 
+## 3.6. escalation 수신 — recipe 핸드오프 → 버전핀 소유·3출구 (발견≠소유의 버전-bump 축)
+
+> `vllm-recipe-explorer` §5.5가 "현 vLLM 불가"를 외부 교차검증으로 **발견**하고 사용자 승인을 거쳐 넘긴 핸드오프의 **수신점**. recipe는 발견·핸드오프까지, **버전핀 소유·처방·rebuild는 본 스킬**(발견≠소유 — §4.7 intake 의 *버전-bump 축 형제*; §4.7=lib-축 *진입*이나 그 사다리 상단은 §3.6(ii)와 동일 fork-pin으로 수렴 — 처방 머신리 공유). 헌법 §escalation 역루프 따름정리 · `plan_2026063009_2` · 절차-홈 `workflow.md` §escalation 역루프.
+
+- **진입(승인 완료 전제)**: recipe가 첨부한 증거(오프라인 증상 + 외부 확증: HF 모델카드·vLLM GitHub issue/release/PR) 수신 → **버전해소 리서치**(release 노트·머지 PR·포크 — §1 GitHub 추적 근육 재사용) → **3출구 판정**. 무승인/무증거 수신 ✗(트리거 정책·무증거 오버라이드 금지).
+- **3출구 → 기존 경로 매핑**:
+  - **(i) 공식 bump** — 모델이 더 새 *공식* vLLM release에서 지원 → **표준 bump 경로**(`workflow.md` S1–S3, HITL 게이트). 가장 단순한 출구.
+  - **(ii) 커스텀/포크핀** — 모델카드가 포크·미머지 PR 지목(예 jasl/vllm PR) → **§4.6 source-repo 오버라이드**(fork **SHA 핀** `VLLM_REPO`/`VLLM_REF` build-arg) + `…-source-<변종>` superset 변종 트랙(`resolved.json` `source_build_variants`). 거버넌스 = 아치-enablement 변종 트랙 따름정리(클러스터-와이드 이미지·**기존모델 회귀 재스모크**·단일 변종-트랙·무증거 오버라이드 금지). 절차 정본 = `workflow.md` S3 arch-wall 분기.
+  - **(iii) 음성정직** — vLLM이 아직 미지원(공식·포크 모두 부재), transformers-only → *"현재 vLLM으로 서빙 불가"* 보고(없는 길 날조 ✗). 사용자가 transformers 폴백/대기를 결정.
+- **최종 중재 = 스모크**(린트·이슈글 ≠ 서빙됨): (i)/(ii) 출구는 render+build+S3 스모크 통과가 done. **순환 차단** — rebuild 후도 미구동이면 `config.yaml`의 `reconciliation_cap` 한정 재진입 → 소진 시 Model-C(무한 bump ✗).
+- **완료 후 recipe 재개 신호**: rebuild된 이미지로 `vllm-recipe-explorer`가 전략수립(§2–§6) 재진입. 핀 변경·push는 §4·`workflow.md` HITL 게이트.
+
 ## 4. 적용
 
 - 핀 변경·빌드·스모크·push는 핀 정책(`CLAUDE.md`)과 `.claude/rules/workflow.md`의 전파 4단계

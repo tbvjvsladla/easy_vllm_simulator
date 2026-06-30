@@ -50,17 +50,18 @@
 
 ## 스킬 오케스트레이션 / 진입 척추 (파이프라인 순서 · fresh-clone 능동발동 · escalation)
 
-> 근거: `docs/plan/plan_2026063009_1`(A부 — 진입/순서) · `plan_2026063009_2`(B부 — escalation, codify 예정). 그라운딩 = `seed/session_record_2026063008`(첫 테라포밍 배포본에서 밟은 진입 갭 2건).
+> 근거: `docs/plan/plan_2026063009_1`(A부 — 진입/순서) · `plan_2026063009_2`(B부 — escalation 역루프, codify 완료). 그라운딩 = `seed/session_record_2026063008`(첫 테라포밍 배포본에서 밟은 진입 갭 2건).
 
 - **파이프라인 의존순서**: `terraforming_node`(토폴로지·환경 온보딩) → `upstream-version-watch`(컨테이너 빌드) → `vllm-recipe-explorer`(모델 서빙전략). "우선순위"는 **의존순서**(앞 단계가 뒤의 전제)이지 충돌 승자가 아니다. 테라포밍 완료 후 "빌드할 이미지가 없거나 빌드할까?" = upstream 발동지점(**제안만 — 실제 빌드/bump는 완전 수동·사람 지시**) · 서빙전략 지시 = recipe 발동지점.
 - **fresh-clone 능동발동**: 미테라포밍 신호(`config.yaml` 부재 ∧ `output/single/manifest.yaml` 부재 ∧ `output/multi/manifest.yaml` 부재) 감지 시, "이제 뭐해야해" 류 발화에 **일반 오리엔테이션보다 온보딩(`terraforming_node`)을 능동 제안**한다. 능동성 고도 = **제안**(감지→제안→인터뷰→승인→스캔). "완전 수동" 트리거 정책은 *vLLM bump* 한정이지 온보딩이 아니며, "무단 스캔 금지"는 스캔이 인터뷰+승인 뒤이므로 보존(지적1 해소).
 - **토폴로지는 인터뷰로 결정**(브랜치⇒토폴로지 추론 ✗): `terraforming_node` 첫 동작 = 토폴로지(single/multi) 인터뷰. 브랜치는 작업공간 선택기일 뿐. 미선언 시 emit fail-closed(scan `emit_gate`) · 브랜치≠토폴로지 시 HITL 브랜치전환. 상세 = 스킬 `terraforming_node` §0.5(지적2 해소).
-- **escalation 역루프(recipe→upstream · 승인 게이트) — B부 codify 예정(forward-ref · 본 A부 *미활성*)**: 새 모델이 현 vLLM 컨테이너로 *구조적으로* 안 뜰 때 `vllm-recipe-explorer`가 외부 교차검증으로 **발견**→사용자 승인→`upstream-version-watch`가 버전핀 **소유**·처방. 기존 *"발견 ≠ 소유"*(per-model 3+1+1 따름정리)의 **버전 bump 축 일반화**. **운영 세부(3출구 등)·활성화는 `plan_2026063009_2`(B부)에서 codify** — 그 전엔 활성 정책 아님.
+- **escalation 역루프 따름정리 (recipe→upstream · 승인 게이트 · "발견≠소유"의 버전-bump 축 일반화)**: 새 모델이 현 vLLM 컨테이너로 *구조적으로* 안 뜰 때(arch/quant 미지원·serve init 즉사·transformers-only 폴백), `vllm-recipe-explorer`가 **외부 교차검증**(HF 모델카드·vLLM GitHub issue/release/PR — §모델 획득 모드 따름정리·§참조-그라운디드로 1급 편입)으로 *"현 vLLM 불가"*를 **발견**하고, **사용자 명시 승인 게이트**를 거쳐 `upstream-version-watch`로 **핸드오프**한다. upstream이 버전핀을 **소유**·처방·rebuild → recipe 재개. 이는 forward 의존순서(terraforming→upstream→recipe)의 **통제된 역방향 예외**(무승인 자동 escalate ✗ — 트리거 정책). **3출구**(upstream 처방): **(i) 공식 bump**(더 새 release 지원 → 표준 bump `workflow.md` S1–S3) · **(ii) 커스텀/포크핀**(모델카드가 포크·미머지 PR 지목 → 아치-enablement 변종 트랙 `VLLM_REPO`/`VLLM_REF` SHA핀·`…-source-<변종>` superset) · **(iii) 음성정직**(공식·포크 모두 미지원 → "현 vLLM 서빙 불가" 보고, 없는 길 날조 ✗ — 사용자가 transformers 폴백/대기 결정). **드문 예외 경로**: 대다수 신규 모델은 그냥 뜸 → escalation은 오프라인 증상이 "못 띄움"을 가리킬 때만 발동(매 서빙요청 외부리서치 ✗). **오발 방지**: 오프라인 증상 + 외부 확증 **둘 다** 요구(단일 신호 escalate ✗) · 승인 게이트 인간 백스톱 · 최종 중재=스모크(린트/이슈글 ≠ 서빙됨). **순환 차단**: rebuild 후도 미구동이면 `reconciliation_cap` 한정 재진입 → 소진 시 Model-C(무한 bump ✗). **서브 인스턴스**(물리 에어갭): 외부검색 불가 → 증상만 docs 상향 보고(D12 패치탐지 상향과 동형), 메인이 외부검색·처방. cross-ref = `per-model 3+1+1 따름정리`(발견≠소유 원형)·`모델별 서빙전략 독립 따름정리`(새 모델=더 새 vLLM 요구 가능)·`아치-enablement 변종 트랙 따름정리`((ii) 머신리). 상세 = 스킬 `vllm-recipe-explorer` §5.5 · `upstream-version-watch` §3.6 · `.claude/rules/workflow.md` §escalation 역루프 · `plan_2026063009_2`.
 
 ## 버전 핀 / 트리거 정책
 
 - **완전 수동**: 사람이 신규 vLLM을 감지(모델 구동 실패 또는 GitHub 확인) → "업데이트" 지시 → 에이전트 실행.
   자동 폴링·webhook·cron 없음. patch/minor/major 무관하게 항상 사람 지시로 시작.
+  - **예외(escalation 역루프 — 감지 주체만 에이전트, 실행은 불변)**: escalation 역루프에선 *발견(감지)*이 `vllm-recipe-explorer`(에이전트) 측일 수 있다(서빙전략 수립 중 오프라인 증상 + 외부 교차검증). **단 upstream 실행(bump/빌드)은 여전히 명시 승인 게이트** — 무인 자동 bump ✗(이 "완전 수동"의 핵심속성=무인 자동실행 없음은 보존). 상세 = §스킬 오케스트레이션 척추 §escalation 역루프 따름정리.
 - **config.yaml(영속)** 이 대상 버전 · 단일/멀티노드 스모크 모델명 · NAS 경로를 지정(스킬에서 사용, Step 2).
 
 ## 배포 / 환경 (manifest)

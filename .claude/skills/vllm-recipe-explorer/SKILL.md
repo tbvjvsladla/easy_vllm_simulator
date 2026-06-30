@@ -285,6 +285,16 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
   - **arch-walled 환경에선 `auto` 자체를 무비판 신뢰 ✗ (carry-forward 금지의 핵심)**: 122B-NVFP4 는 `auto`가 마침 FLASHINFER_CUTLASS 를 골라 통했으나 그 "auto 가 통한다"마저 context-bounded 다 — arch-wall 에선 `auto` 폴백이 **MARLIN-repack → 통합메모리 OOM(호스트 하드다운)** 일 수 있다. ∴ MXFP4 대형 MoE(예 DeepSeek-V4 on sm_121)는 비-repack 경로 **`--moe-backend humming` 을 oracle 독해로 명시**한다(`auto` 위임 ✗). 근거 = 헌법 §모델별 서빙전략 독립 따름정리 · `testlog_2026062823_1`.
   - 값은 `MoEBackend` Literal(config/kernel.py) 참조. (FlashInfer 커널 캐시 `/root/.cache/flashinfer` 볼륨 영속화 시 재컴파일 회피 — 후속.)
 
+## 5.5 escalation — "현 vLLM 불가" 발견 → upstream 핸드오프 (버전-bump 축 · 발견≠소유)
+
+> §①.5/`upstream-version-watch` §4.7(빌드-바깥 **native dep** 추가 = *같은* vLLM 버전에 lib 보강)와 **다른 축**: 여기는 **vLLM 버전 자체가 모델을 못 받는** 경우(공식 미지원·포크 필요·transformers-only). 둘 다 *"발견≠소유→upstream 핸드오프"* 지만 §5.5는 **버전핀/포크 축**이다(§①.5/§4.7은 lib-축 *진입* — 단 §4.7 사다리 상단은 §3.6(ii)와 **동일 fork-pin으로 수렴**: 경계서 처방 머신리 공유). 헌법 §escalation 역루프 따름정리 · `plan_2026063009_2` · 절차-홈 `workflow.md` §escalation 역루프.
+
+- **드문 예외 경로**: 대다수 신규 모델은 현 컨테이너로 그냥 뜬다 → **매 서빙요청마다 외부리서치 ✗**. escalation은 **오프라인 증상이 "못 띄움"을 가리킬 때만** 발동.
+- **발견 술어(둘 다 요구 — 오발 방지)**: ① **오프라인 증상** — config arch/quant 미지원, serve init 즉사(아키 미등록), transformers-only 폴백 신호 · ② **외부 교차검증 확증** — HF 모델카드(커스텀 vLLM·포크 지목 여부) + vLLM GitHub issue/release/PR("이 모델 아직 미지원" 게시·머지 PR). **단일 신호로 escalate ✗**(증상만/소문만 금지). 외부검색은 §3 L166·§①.5 카드 교차검증 근육의 연장(폐쇄망=모델획득 한정이라 전략수립 외부검증 허용·의무 — 헌법 §모델 획득 모드 따름정리).
+- **핸드오프(recipe는 소유 ✗)**: 위 둘이 "현 vLLM 불가"를 가리키면 → 사용자에게 *"이건 vLLM 측 문제 → upstream에 버전핀을 넘길까요?"* **명시 승인 요청** → 승인 시 `upstream-version-watch` §3.6으로 핸드오프(증거=증상+외부 확증 첨부). **recipe-explorer는 버전핀 변경·이미지 빌드를 하지 않는다**(소유 아님 — upstream의 3출구가 처방·rebuild). rebuild된 이미지로 recipe가 전략수립(§2–§6) 재진입.
+- **carry-forward 금지 정합**: escalation 판정도 **모델×하드웨어마다 재확정**(이전 모델의 "됐다/안 됐다"를 전가 ✗ — 헌법 §모델별 서빙전략 독립 따름정리). 새 모델이 더 새 vLLM을 요구할 수 있다는 게 본 루프의 동기다.
+- **런타임블럭/서브 주의**: 외부검색은 **메인 인스턴스** 전제다. 물리 에어갭 서브는 외부검색이 *물리적으로* 불가(환경제약이지 규칙 아님) → 서브는 **증상만 docs insight 상향 보고**(D12 — `<model>_patch.py` 탐지 상향과 동형), 메인이 외부검색·처방한다. 전략수립은 메인+사용자 동석 전제.
+
 ## 6. Phase 2 — 통합 trial-loop (`recipe.py simulate`)
 
 ```bash
