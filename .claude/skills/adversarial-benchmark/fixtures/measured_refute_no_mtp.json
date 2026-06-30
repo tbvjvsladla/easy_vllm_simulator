@@ -1,0 +1,19 @@
+{
+  "decode_tps": 15.0,
+  "decode_tps_mean": 14.8,
+  "output_throughput": 14.5,
+  "total_token_throughput": 120.0,
+  "ttft_ms_median": 950.0,
+  "ttft_ms_mean": 1100.0,
+  "itl_ms_median": 66.6,
+  "tpot_ms_median": 66.6,
+  "accept_len": 1.0,
+  "spec_on": false,
+  "completed": 8,
+  "failed": 0,
+  "max_concurrency": 1,
+  "num_prompts": 8,
+  "engine_gen_throughput_max": 15.2,
+  "client_engine_agreement": {"engine_max": 15.2, "client_decode_tps": 15.0, "ratio": 1.01},
+  "measurement_ok": true
+}

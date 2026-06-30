@@ -12,7 +12,7 @@ gitignored 스테이징 트리 `output/<topology>/sub_provision/` 로 렌더한�
   .claude/rules/comms.md                 ← comms.md                   (복제·정적계약)
   .claude/rules/docs.md                  ← .claude/rules/docs.md      (복제·문서규약 테라포밍, D12)
   .claude/schemas/task-report.schema.json← task-report.schema.json    (복제·정적계약)
-  .claude/skills/vllm-recipe-explorer/   ← 런타임블럭(git-tracked만 복제 — config.yaml/feedback/lockset 제외)
+  .claude/skills/{vllm-recipe-explorer,adversarial-benchmark}/ ← 런타임블럭(git-tracked만 복제 — config.yaml/feedback/lockset 제외)
   .gitignore                             ← gitignore.template         (복제·서브 로컬git 추적규칙, D12)
   docs/{plan,devlog,testlog}/example.md  ← 메인 docs/*/example.md     (복제·발행 스켈레톤, D12)
   tasks/.gitkeep                         ← 런타임 상태 스캐폴드(빈 디렉토리)
@@ -40,7 +40,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL_DIR = os.path.dirname(HERE)                       # .claude/skills/terraforming_node
 SUBNODE_DIR = os.path.join(SKILL_DIR, "sub_node")       # 템플릿·정적자산 보관
 REPO = os.path.abspath(os.path.join(SKILL_DIR, "..", "..", ".."))  # repo root
-RUNTIME_BLOCK = os.path.join(REPO, ".claude", "skills", "vllm-recipe-explorer")
+# 런타임블럭(서브 복제) — git-tracked 만 복제. 다중(plan_2026063014_1: adversarial-benchmark 추가 = 2번째 런타임블럭).
+#   adversarial-benchmark 의 (b) 외부검색 arm 은 서브에서 미수행(에어갭) — 서브는 (a) 루프라인-only + 증상 상향(SKILL.md §7).
+RUNTIME_BLOCKS = [
+    os.path.join(REPO, ".claude", "skills", "vllm-recipe-explorer"),
+    os.path.join(REPO, ".claude", "skills", "adversarial-benchmark"),
+]
 DOCS_RULES = os.path.join(REPO, ".claude", "rules", "docs.md")     # 문서규약(정적계약 — 서브 테라포밍, D12)
 MAIN_DOCS = os.path.join(REPO, "docs")                              # docs/*/example.md 발행 스켈레톤 원천(D12)
 
@@ -200,9 +205,11 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
 
     # 3) 런타임블럭 복제(git-tracked 만 — config.yaml/feedback/lockset/__pycache__ 제외)
     if copy_runtime_block:
-        dst_skill = os.path.join(claude, "skills", "vllm-recipe-explorer")
-        n = _copy_tracked(RUNTIME_BLOCK, dst_skill)
-        produced.append(f".claude/skills/vllm-recipe-explorer/ ({n} tracked files)")
+        for rb in RUNTIME_BLOCKS:
+            name = os.path.basename(rb)
+            dst_skill = os.path.join(claude, "skills", name)
+            n = _copy_tracked(rb, dst_skill)
+            produced.append(f".claude/skills/{name}/ ({n} tracked files)")
 
     # 4) tasks/ 스캐폴드(빈 디렉토리 — git keep)
     with open(os.path.join(out_dir, "tasks", ".gitkeep"), "w") as f:

@@ -99,7 +99,7 @@ BAND2_ENVS=(.env.interconnect .env.cluster)          # topology/network-keyed en
 BAND2_TOP=(Dockerfile Dockerfile.source-build docker-compose.yaml requirements.txt .gitkeep)  # 최상위 빌드킷(Band2)
 
 _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = output/<t>/.
-    FILT=(--exclude='/manifest.yaml' --exclude='/sub_provision' --exclude='/.env')   # D10 manifest·serve-time .env(node-local host config·PII, render --materialize-env 산출) 미전달 · 에이전트환경=overlay
+    FILT=(--exclude='/manifest.yaml' --exclude='/sub_provision' --exclude='/.env' --exclude='/benchlog')   # D10 manifest·serve-time .env(node-local host config·PII, render --materialize-env 산출) 미전달 · benchlog=adversarial-benchmark 생성 증거(빌드입력 아님, plan_2026063014_1) · 에이전트환경=overlay
     local f
     FILT+=(--include='/configs/')
     for f in "${BAND2_CONFIGS[@]}"; do FILT+=(--include="/configs/$f"); done
@@ -123,7 +123,7 @@ assert_band_classification() {  # $1=topology → 0=ok, 1=미분류·누락
     local -A _b2c _b2e _b2top
     for b in "${BAND2_CONFIGS[@]}"; do _b2c["$b"]=1; done
     for b in "${BAND2_ENVS[@]}"; do _b2e["$b"]=1; done
-    for b in "${BAND2_TOP[@]}" configs envs build_patches manifest.yaml sub_provision .env; do _b2top["$b"]=1; done
+    for b in "${BAND2_TOP[@]}" configs envs build_patches manifest.yaml sub_provision .env benchlog; do _b2top["$b"]=1; done
 
     # (a) (d-cg-4) 최상위 — 빌드킷·서브디렉토리·의도적 제외(manifest/sub_provision) 외 미지 항목 fail-loud
     for f in "$odir"/*; do
@@ -237,7 +237,8 @@ verify_checksums() {  # $1=topology
         [ -n "$L" ] && [ "$L" = "$R" ] && echo "  ✅ ${f}" || { echo "  ❌ ${f}: main=$L sub=$R"; fail=1; }
     done
     for f in CLAUDE.md Agent_Card.json .claude/settings.local.json .claude/rules/comms.md .claude/rules/docs.md \
-             .claude/schemas/task-report.schema.json .gitignore .claude/skills/vllm-recipe-explorer/recipe.py; do
+             .claude/schemas/task-report.schema.json .gitignore .claude/skills/vllm-recipe-explorer/recipe.py \
+             .claude/skills/adversarial-benchmark/scripts/verdict_rule.py; do
         [ -f "$st/$f" ] || continue
         L=$(md5sum "$st/$f" | awk '{print $1}'); R=$($SSH_OPTS "$SUB_HOST" "md5sum '$SUB_WORK_DIR/$f' 2>/dev/null" | awk '{print $1}')
         [ -n "$L" ] && [ "$L" = "$R" ] && echo "  ✅ $f" || { echo "  ❌ $f: main=$L sub=$R"; fail=1; }
