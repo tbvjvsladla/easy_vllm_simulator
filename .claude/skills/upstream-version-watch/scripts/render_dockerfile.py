@@ -439,17 +439,21 @@ def materialize_env(repo: str, topology: str, manifest: dict) -> str:
         raise ValueError(
             "manifest.nas_model_path 부재 — output/%s/.env materialize 불가. "
             "serve 가 compose 기본값 /mnt/models 를 마운트해 모델을 못 찾는다. manifest 를 채울 것." % topology)
-    tiktoken = os.path.join(repo, "tiktoken_cache")
+    # tiktoken·quant 도 manifest 정본 우선(env > manifest > 리터럴 default — 헌법 §serve-time env 통로 불변식).
+    # plan_2026063018_1: P1 이 manifest 에 tiktoken_host_path·quant_model_path 필드 추가 → 여기서 .env 로 materialize.
+    tiktoken = str(manifest.get("tiktoken_host_path", "") or "").strip() or os.path.join(repo, "tiktoken_cache")
+    quant = str(manifest.get("quant_model_path", "") or "").strip() or nas  # 미설정 시 NAS 루트 폴백
     dst_dir = os.path.join(repo, "output", topology)
     os.makedirs(dst_dir, exist_ok=True)
     dst = os.path.join(dst_dir, ".env")
     body = (
         "# 프로젝트-레벨 env (compose 변수치환) — render_dockerfile.py --materialize-env 가 manifest 에서 생성.\n"
-        "# docker compose 가 docker-compose.yaml 의 ${NAS_MODEL_PATH}·${TIKTOKEN_HOST_PATH} 치환에 사용.\n"
-        "# gitignored(output/* — PII). 손수정 금지 — manifest.nas_model_path 를 고칠 것.\n"
+        "# docker compose 가 docker-compose.yaml 의 ${NAS_MODEL_PATH}·${QUANT_MODEL_PATH}·${TIKTOKEN_HOST_PATH} 치환에 사용.\n"
+        "# gitignored(output/* — PII). 손수정 금지 — manifest(nas_model_path·quant_model_path·tiktoken_host_path)를 고칠 것.\n"
         "NAS_MODEL_PATH=%s\n"
+        "QUANT_MODEL_PATH=%s\n"
         "TIKTOKEN_HOST_PATH=%s\n"
-    ) % (nas, tiktoken)
+    ) % (nas, quant, tiktoken)
     with open(dst, "w", encoding="utf-8") as f:
         f.write(body)
     return dst

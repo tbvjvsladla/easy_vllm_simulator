@@ -24,7 +24,18 @@ esac; done
 REPO="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 if [ -z "$TOPO" ]; then
   BR="$(git -C "$REPO" rev-parse --abbrev-ref HEAD 2>/dev/null || echo)"
-  case "$BR" in multi-node) TOPO=multi;; single-node) TOPO=single;; *) TOPO=multi;; esac
+  case "$BR" in multi-node) TOPO=multi;; single-node) TOPO=single;; *) TOPO=single;; esac  # unknown→single(recipe.py _read_manifest 와 정합·보수적)
+fi
+
+# 헌법 §테라포밍-완수 Flag 게이트 (plan_2026063018_1) — 결정론 백스톱. bench·verdict 는 돌고 있는 serve
+# 전제(전이적 게이트)이나 직접 진입도 Flag 확인 → 미발급이면 info-only(작업 거부). manifest_contract 부재(서브
+# 에어갭 — terraforming_node 는 main-only) 또는 EASY_VLLM_SKIP_FLAG_GATE 설정 시 우회(서브는 A2A 권한 전제).
+MC="$REPO/.claude/skills/terraforming_node/scripts/manifest_contract.py"
+if [ -z "${EASY_VLLM_SKIP_FLAG_GATE:-}" ] && [ -f "$MC" ]; then
+  if ! python3 "$MC" --topology "$TOPO" --repo "$REPO" --require-flag >/dev/null 2>&1; then
+    echo "[run_bench] 테라포밍-완수 Flag 미발급 — info-only. terraforming_node 로 HW스캔·검증 먼저(또는 EASY_VLLM_SKIP_FLAG_GATE=1)." >&2
+    exit 4
+  fi
 fi
 EF="$REPO/output/$TOPO/envs/.env.$CONFIG"
 [ -f "$EF" ] || { echo "[run_bench] envfile 없음: $EF" >&2; exit 2; }

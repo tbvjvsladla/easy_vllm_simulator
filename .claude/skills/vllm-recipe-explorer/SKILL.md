@@ -8,10 +8,12 @@ description: >-
   절대 KV 클램프(--kv-cache-memory-bytes)를 수렴시켜 검증된 레시피를 낸다. "레시피 추천",
   "서빙 레시피", "VRAM 예산에 맞춰", "이 모델 어떤 설정으로 띄울까", "RTX4090 예산 레시피",
   "gpu memory 예산", "recipe", "실제로 띄워서 검증", "KV 캐시 튜닝", "batch/동시요청", "tool/reasoning 파서",
-  "attention backend" 같은 지시에 발동. tp는 git 브랜치 자동결정.
+  "attention backend" 같은 지시에 발동. tp는 manifest(len(nodes)×gpus_per_node) 자동결정(git 브랜치 ✗). 테라포밍-완수 Flag 없으면 info-only.
 ---
 
 # vllm-recipe-explorer
+
+> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_2026063018_1)**: 작업(estimate/generate/simulate = 서빙전략 deliverable) 전 **턴 시작 시 Flag 확인 필수**. 미발급(`output/<topology>/manifest.yaml` 부재 · `terraforming.complete/branch_verified != true` · model_source 미설정) 시 **info-only**: 모델 HF조회·개념·절차 설명 OK / **환경특정 deliverable(TP·recipe·serve 명령) 생성 ✗**(음성정직 — HW사실 없이 근거 있어보이는 답 *날조* 금지 = 보고된 버그) → 정본 redirect 템플릿으로 `terraforming_node` 유도. **결정론 백스톱** = `recipe.py` main() 의 `_require_terraform_flag`(estimate/generate/simulate 비0종료; **A2A 서브는 `EASY_VLLM_SKIP_FLAG_GATE`** — 서브엔 manifest 부재). TP = manifest(`len(nodes)×gpus_per_node`) 배선(§manifest→서빙전략 배선 불변식 — git 브랜치 폴백 ✗) · 가드 tp>GPU·kv_heads%tp.
 
 고정된 **한 모델**을 여러 서빙 레시피로 비교해 **타깃 GPU 예산**(예: RTX PRO 6000=96GB,
 RTX4090=24GB carve-out)에 맞는 설정을 찾는다. 두 페이즈로 동작한다.
@@ -40,15 +42,15 @@ RTX4090=24GB carve-out)에 맞는 설정을 찾는다. 두 페이즈로 동작�
 - `kv_cache_dtype_bytes`: KV dtype 바이트(기본 2=fp16).
 - `test_device_total_gib`(Phase 2): 측정 하드웨어 total VRAM(GB10=121.69, torch.cuda 기준). consolidated
   메모리 라인이 없는 vLLM 빌드에서 overhead 유도(`gmu×total−weights−kv`)에 쓴다. DGX Spark는 nvidia-smi가 N/A.
-- `tensor_parallel_size`(선택): 미지정 시 git 브랜치 자동(`single-node`→1, `multi-node`→2, 기타→1).
+- `tensor_parallel_size`(선택): 미지정 시 **manifest 배선**(`len(nodes)×gpus_per_node` · nodes 비면 topology=single→1 · 최종폴백 1 — **git 브랜치 폴백 ✗**: 브랜치⇒TP 가 보고된 버그였음). 명시 override > manifest > 1. 상세 = §0.0 · 헌법 §manifest→서빙전략 배선 불변식.
 - `serving.{config_name, port, served_model_name}`: 생성될 3종 세트의 base 이름·포트·서빙명.
 
 **하드 제약**: 대상 모델이 NAS 경로에 없으면(디렉토리/`config.json` 부재) **다운로드하지 말고 비0 종료 + 중단·보고**.
 
-**NAS 마운트 불변식(포인터 원칙, 헌법 §배포·환경 교차참조)**: 컨테이너 NAS 마운트 경로를 스크립트에
-하드코딩하지 않는다 — 호스트 NAS 루트는 `config.yaml`의 `nas_host_root`에서 읽어 `/app/models`에 매핑한다
-(`run_trial`은 이미 이 값으로 파라미터화됨 — 정정 대상이 아니라 유지해야 할 불변식). 컨테이너 경로
-(`/app/models/...`) ↔ 호스트 경로 변환은 이 한 포인터로만 이뤄진다.
+**NAS 마운트 불변식(포인터 원칙, 헌법 §배포·§manifest→서빙전략 배선 불변식·§serve-time env 통로 불변식)**: 컨테이너 NAS 마운트 경로를 스크립트에
+하드코딩하지 않는다 — 호스트 NAS 루트 해소(recipe 호스트파싱 평면) = `config.yaml.nas_host_root > env(NAS_MODEL_PATH) > manifest.nas_model_path > DEFAULT(/mnt/models)`
+(`_cfg_common`·`run_trial` 파라미터화 — 유지해야 할 불변식) → `/app/models`에 매핑. 컨테이너 경로
+(`/app/models/...`) ↔ 호스트 경로 변환은 이 4-tier 포인터로만 이뤄진다(manifest = 단일 권위).
 
 ## 1. 결정론 / 확률론 경계 (하네스 엔지니어링)
 
@@ -71,7 +73,7 @@ RTX4090=24GB carve-out)에 맞는 설정을 찾는다. 두 페이즈로 동작�
 
 ## 2. 파이프라인
 
-`recipe.py`(오케스트레이터)가 함수 import로 조립한다. tp는 git 브랜치 자동(또는 config 우선).
+`recipe.py`(오케스트레이터)가 함수 import로 조립한다. tp는 **manifest 배선 자동**(config override > manifest `len(nodes)×gpus_per_node` > 1 · **git 브랜치 ✗** — §0.0·헌법 §manifest→서빙전략 배선 불변식).
 
 ### ① parse (결정론)
 
