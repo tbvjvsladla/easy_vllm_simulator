@@ -184,6 +184,111 @@ def peer_reachable(ip: str, port: int = 22, timeout: int = 5) -> bool:
         return False
 
 
+# ── 서브 HW 수집 + 메인↔서브 동질성 단언 (plan_2026063021_2 · D2/D3) ──
+# render-on-main: terraforming(메인)이 SSH로 서브 HW를 실측하고 동질성을 단언한다(서브 자가스캔 ✗·terraforming_node 영구 main-only).
+# 5종 2등급: cpu_arch·gpu_model·gpus_per_node = 정확일치(하드블록) / cuda·driver = major 하드·minor/patch 경고.
+# 근거: 양 노드가 *같은 컨테이너 이미지* 구동(컨테이너가 CUDA 추상화) + Ray TP 노드대칭 → 앞 3종 병렬정합성 직결,
+#       뒤 2종은 호스트 드라이버 호환 floor(소분류 drift 허용). 동질 GPU only — 혼종 클러스터 범위 밖(헌법 §A2A-위임 Flag 따름정리).
+def scan_gpu_model() -> str | None:
+    ln = _run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"]).strip().splitlines()
+    return ln[0].strip() if ln else None
+
+
+def scan_driver_version() -> str | None:
+    ln = _run(["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"]).strip().splitlines()
+    return ln[0].strip() if ln else None
+
+
+def collect_local_hw() -> dict:
+    """메인(로컬) HW 동질성 비교용 5종(cuda 는 raw 'X.Y' — 버전 튜플 비교용)."""
+    m = re.search(r"release\s+(\d+\.\d+)", _run(["nvcc", "--version"]))
+    return {
+        "cpu_arch": scan_cpu_arch(),
+        "gpu_model": scan_gpu_model(),
+        "gpus_per_node": scan_gpus_per_node(),
+        "cuda": m.group(1) if m else None,
+        "driver": scan_driver_version(),
+    }
+
+
+# 서브 HW 를 단일 SSH 라운드로 수집(printf KEY=VAL — nvidia-smi/nvcc 실패해도 빈값 graceful, SSH 자체 실패만 {}).
+_PEER_HW_PROBE = (
+    "printf 'ARCH=%s\\n' \"$(uname -m)\"; "
+    "printf 'GPUS=%s\\n' \"$(nvidia-smi -L 2>/dev/null | grep -c '^GPU ')\"; "
+    "printf 'MODEL=%s\\n' \"$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)\"; "
+    "printf 'DRIVER=%s\\n' \"$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)\"; "
+    "printf 'CUDA=%s\\n' \"$(nvcc --version 2>/dev/null | grep -oE 'release [0-9]+\\.[0-9]+' | grep -oE '[0-9]+\\.[0-9]+')\""
+)
+
+
+def collect_peer_hw(ssh_target: str, ssh_opts: list[str] | None = None) -> dict:
+    """SSH로 서브 HW 5종 수집(단일 라운드). SSH/원격 실패 → {} (assert_homogeneity 가 fail-closed 블록).
+    프로브를 **stdin 으로 login shell(`bash -ls`) 에 투입** — `ssh host bash -lc <PROBE>` 는 ssh 가 argv 를 공백조인해
+    원격 로그인셸이 `bash -lc <첫단어>` 로 첫 printf 만 먹고 나머지는 비-login 셸로 흘려(PATH 누락 — uname/nvcc 유실) 깨진다.
+    stdin 투입은 인용 함정·PATH 누락 양쪽을 회피한다(라이브 E2E 발견 — plan_2026063021_2)."""
+    opts = ssh_opts or ["-o", "BatchMode=yes", "-o", "ConnectTimeout=8"]
+    text = ""
+    try:
+        out = subprocess.run(["ssh", *opts, ssh_target, "bash", "-ls"],
+                             input=_PEER_HW_PROBE, capture_output=True, text=True, timeout=25)
+        text = out.stdout if out.returncode == 0 else ""
+    except Exception:
+        text = ""
+    if not text.strip():
+        return {}
+    kv: dict = {}
+    for ln in text.splitlines():
+        if "=" in ln:
+            k, _, v = ln.partition("=")
+            kv[k.strip()] = v.strip()
+    g = kv.get("GPUS", "")
+    return {
+        "cpu_arch": kv.get("ARCH") or None,
+        "gpu_model": kv.get("MODEL") or None,
+        "gpus_per_node": int(g) if g.isdigit() else None,
+        "cuda": kv.get("CUDA") or None,
+        "driver": kv.get("DRIVER") or None,
+    }
+
+
+def _ver_tuple(s):
+    """버전 문자열 → (major, minor) int 튜플. 미상 → None."""
+    if not s:
+        return None
+    nums = re.findall(r"\d+", str(s))
+    return tuple(int(x) for x in nums[:2]) if nums else None
+
+
+def assert_homogeneity(local: dict, peer: dict) -> dict:
+    """메인↔서브 HW 동질성 단언(순수함수 → --self-test 회귀). 5종 2등급.
+    정확일치(하드): cpu_arch·gpu_model·gpus_per_node / 버전(major 하드·minor 경고): cuda·driver.
+    반환 {verified, blocks[], warns[], detail{}}. peer 미수집 = 검증불가 = 블록(fail-closed)."""
+    if not peer:
+        return {"verified": False, "warns": [], "detail": {},
+                "blocks": ["서브 HW 수집 실패(SSH/nvidia-smi 미도달) — 동질성 미검증(fail-closed)"]}
+    blocks: list[str] = []
+    warns: list[str] = []
+    detail: dict = {}
+    for f in ("cpu_arch", "gpu_model", "gpus_per_node"):
+        lv, pv = local.get(f), peer.get(f)
+        detail[f] = {"main": lv, "sub": pv, "match": (lv == pv and lv is not None)}
+        if lv is None or pv is None:   # None==None 은 '동질'이 아니라 '수집 실패' — cuda/driver 와 동형 가드(WARN-4)
+            blocks.append(f"{f} 미상(하드): main={lv} sub={pv} — 수집 실패(None==None 은 동질 아님)")
+        elif lv != pv:
+            blocks.append(f"{f} 불일치(하드): main={lv} ≠ sub={pv}")
+    for f in ("cuda", "driver"):
+        lv, pv = local.get(f), peer.get(f)
+        lt, pt = _ver_tuple(lv), _ver_tuple(pv)
+        detail[f] = {"main": lv, "sub": pv, "major_match": bool(lt and pt and lt[0] == pt[0])}
+        if not lt or not pt:
+            blocks.append(f"{f} 버전 미상(main={lv} sub={pv}) — 검증 불가(하드)")
+        elif lt[0] != pt[0]:
+            blocks.append(f"{f} major 불일치(하드): main={lv} ≠ sub={pv}")
+        elif lt != pt:
+            warns.append(f"{f} minor/patch drift(허용·경고): main={lv} sub={pv}")
+    return {"verified": not blocks, "blocks": blocks, "warns": warns, "detail": detail}
+
+
 def git_branch() -> str | None:
     """현재 git 브랜치(3자-일치 단언용). 실패 시 None."""
     out = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip()
@@ -366,6 +471,29 @@ def _self_test() -> int:
         passed += ok
         n += 1
         print(f"  [{'PASS' if ok else 'FAIL'}] emit:{name}: no-None={no_none} nodes-gate={nodes_ok} attest={attest_ok}")
+    # 동질성 단언 회귀(plan_2026063021_2 D3 — 5종 2등급: arch/gpu/count 하드 · cuda/driver major-하드·minor-경고).
+    HL = {"cpu_arch": "aarch64", "gpu_model": "NVIDIA GB10", "gpus_per_node": 1, "cuda": "13.2", "driver": "565.57.01"}
+    homo_cases = [
+        ("동질 pass", HL, dict(HL), True),
+        ("arch 불일치 → block", HL, {**HL, "cpu_arch": "x86_64"}, False),
+        ("gpu_model 불일치 → block", HL, {**HL, "gpu_model": "NVIDIA RTX 5090"}, False),
+        ("gpus_per_node 불일치 → block", HL, {**HL, "gpus_per_node": 2}, False),
+        ("cuda minor drift → warn-pass", HL, {**HL, "cuda": "13.1"}, True),
+        ("cuda major 불일치 → block", HL, {**HL, "cuda": "12.9"}, False),
+        ("driver minor drift → warn-pass", HL, {**HL, "driver": "565.90.07"}, True),
+        ("gpu_model 미상(None) → block(WARN-4)", HL, {**HL, "gpu_model": None}, False),
+        ("peer 수집실패 → block", HL, {}, False),
+    ]
+    for name, loc, peer, want_verified in homo_cases:
+        h = assert_homogeneity(loc, peer)
+        ok = (h["verified"] == want_verified)
+        if not want_verified:
+            ok = ok and len(h["blocks"]) >= 1
+        if "warn-pass" in name:
+            ok = ok and not h["blocks"] and len(h["warns"]) >= 1
+        passed += ok
+        n += 1
+        print(f"  [{'PASS' if ok else 'FAIL'}] homo:{name}: verified={h['verified']} blocks={len(h['blocks'])} warns={len(h['warns'])}")
     print(f"self-test: {passed}/{n} {'PASS' if passed == n else 'FAIL'}")
     return 0 if passed == n else 1
 
@@ -376,6 +504,8 @@ def main() -> int:
                     help="선언 토폴로지(인터뷰 결정). auto=스캔으로 추정(보고만, 게이트는 single/multi 명시 시)")
     ap.add_argument("--peer-ip", help="multi: 서브노드 IP(도달성 체크). 예: 203.0.113.11")
     ap.add_argument("--peer-port", type=int, default=22, help="도달성 체크 포트(기본 22=SSH)")
+    ap.add_argument("--peer-ssh", help="multi: 서브 SSH 타겟(user@host) — 서브 HW 실측 + 메인↔서브 동질성 단언(D2/D3). "
+                                       "미지정 시 동질성 미검증 → nodes[sub].hw_verified 미발급 → 서브 위임 키 미발급(fail-closed).")
     ap.add_argument("--compose", default="output/multi/docker-compose.yaml",
                     help="교차검증할 docker-compose 경로")
     ap.add_argument("--bandwidth-gbps", type=float, default=None,
@@ -435,11 +565,34 @@ def main() -> int:
     result["consistency_assertion"] = assertion
     result["gate"] = gate
 
+    # ── 서브 HW 동질성 단언 (multi · --peer-ssh — plan_2026063021_2 D2/D3) ──
+    # 통과 시 nodes[role=sub].hw_verified 발급(서브 위임 키의 전제) · 하드 블록 시 게이트 blocked(fail-closed).
+    if args.peer_ssh and args.topology == "multi":
+        local_hw = collect_local_hw()
+        peer_hw = collect_peer_hw(args.peer_ssh)
+        homo = assert_homogeneity(local_hw, peer_hw)
+        result["homogeneity"] = {"local": local_hw, "peer": peer_hw, **homo}
+        if homo["blocks"]:
+            result["gate"]["status"] = "blocked"
+            result["gate"].setdefault("reasons", []).extend(homo["blocks"])
+            result["gate"]["note"] = "서브 HW 동질성 미충족(fail-closed) — " + result["gate"].get("note", "")
+            exit_code = 2
+
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
     if args.emit_manifest and result["gate"]["status"] == "ok" and args.topology in ("single", "multi"):
         sys.stdout.write("\n# ===== manifest 기입 블록 (검증 통과 — 사람 확인 후 manifest.yaml 반영) =====\n")
         sys.stdout.write(emit_manifest_block(result))
+        if result.get("homogeneity", {}).get("verified"):
+            ph = result["homogeneity"]["peer"]
+            sys.stdout.write(
+                "\n# ===== nodes[role=sub] 병합 (서브 HW 동질성 검증 통과 — HITL · plan_2026063021_2 D3) =====\n"
+                "#   nodes 의 '- role: sub' 항목에 아래를 추가 → render_sub_env 가 이 hw_verified 로 서브 위임 키 발급 판정:\n"
+                "#       hw_verified: true\n"
+                f"#       gpu_model: \"{ph.get('gpu_model')}\"\n"
+                f"#       driver_version: \"{ph.get('driver')}\"\n"
+                f"#       cuda_version_raw: \"{ph.get('cuda')}\"\n"
+            )
     return exit_code
 
 

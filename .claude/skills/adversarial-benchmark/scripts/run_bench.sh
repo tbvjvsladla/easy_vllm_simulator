@@ -27,15 +27,24 @@ if [ -z "$TOPO" ]; then
   case "$BR" in multi-node) TOPO=multi;; single-node) TOPO=single;; *) TOPO=single;; esac  # unknown→single(recipe.py _read_manifest 와 정합·보수적)
 fi
 
-# 헌법 §테라포밍-완수 Flag 게이트 (plan_2026063018_1) — 결정론 백스톱. bench·verdict 는 돌고 있는 serve
-# 전제(전이적 게이트)이나 직접 진입도 Flag 확인 → 미발급이면 info-only(작업 거부). manifest_contract 부재(서브
-# 에어갭 — terraforming_node 는 main-only) 또는 EASY_VLLM_SKIP_FLAG_GATE 설정 시 우회(서브는 A2A 권한 전제).
+# 헌법 §테라포밍-완수/A2A-위임 Flag 게이트 (plan_2026063018_1·plan_2026063021_2) — 결정론 백스톱(**fail-closed**).
+# 면제 2경로(recipe.py _require_terraform_flag 와 동형): (1차) 서브 A2A 위임 *양성 키* .claude/a2a_delegation.json 존재
+#   (메인이 동질성 검증 후 발급, 메인 키와 UNIQUE) · (2차) EASY_VLLM_A2A_DELEGATED env(테스트 override).
+# 그 외 메인이면 manifest_contract --require-flag. 키·MC·Flag 모두 부재 = fail-closed info-only(옛 [ -f $MC ]-부재 skip 은 fail-open 이었음).
 MC="$REPO/.claude/skills/terraforming_node/scripts/manifest_contract.py"
-if [ -z "${EASY_VLLM_SKIP_FLAG_GATE:-}" ] && [ -f "$MC" ]; then
+KEY="$REPO/.claude/a2a_delegation.json"
+KEY_OK=0   # 존재 + 내용·역할 검증(D8: 손상/외부 파일로 게이트 우회 차단 — WARN-1)
+[ -f "$KEY" ] && python3 -c "import json,sys;d=json.load(open('$KEY'));sys.exit(0 if d.get('delegation')=='main_cluster_flag' and d.get('issued_to')=='sub' else 1)" 2>/dev/null && KEY_OK=1
+if [ "$KEY_OK" = 1 ] || [ "${EASY_VLLM_A2A_DELEGATED:-}" = "1" ]; then
+  : # 유효 A2A 위임 키(내용·역할 검증) 또는 명시 테스트 override(정확히 "1" — '0'/'false' 오인 차단) → 면제
+elif [ -f "$MC" ]; then
   if ! python3 "$MC" --topology "$TOPO" --repo "$REPO" --require-flag >/dev/null 2>&1; then
-    echo "[run_bench] 테라포밍-완수 Flag 미발급 — info-only. terraforming_node 로 HW스캔·검증 먼저(또는 EASY_VLLM_SKIP_FLAG_GATE=1)." >&2
+    echo "[run_bench] 테라포밍-완수 Flag 미발급 — info-only. terraforming_node 로 HW스캔·검증 먼저(또는 EASY_VLLM_A2A_DELEGATED=1)." >&2
     exit 4
   fi
+else
+  echo "[run_bench] A2A 위임 키·테라포밍 Flag 모두 부재 — info-only(fail-closed). terraforming_node 로 검증 먼저(또는 EASY_VLLM_A2A_DELEGATED=1)." >&2
+  exit 4
 fi
 EF="$REPO/output/$TOPO/envs/.env.$CONFIG"
 [ -f "$EF" ] || { echo "[run_bench] envfile 없음: $EF" >&2; exit 2; }

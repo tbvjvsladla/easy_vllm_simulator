@@ -34,6 +34,12 @@
 - **DON'T** "파일 만들었음"으로 completed 선언하지 마라 — **린트 통과 ≠ 서빙됨**. 성공술어를 만족해야 completed.
 - 메인은 네 디스크가 아니라 **네 리포트**를 검증한다. 그러니 **정직하게** attest 하라(허위 attest = 신뢰 붕괴).
 
+## A2A 위임 — Flag 게이트 면제 (네가 할 일: 없음 / 키를 임의 생성·복구 ✗)
+- 메인이 클러스터 HW 스캔 + 메인↔서브 동질성 검증을 통과시키면 너에게 **위임 키** `.claude/a2a_delegation.json` 를 발급·전달한다(메인 키 `terraforming.complete` 와 **UNIQUE**·HW사실 없는 최소 증표).
+- `vllm-recipe-explorer`(recipe.py)·`adversarial-benchmark`(run_bench.sh)는 이 키 존재로 테라포밍 Flag 게이트를 **자동 면제**(fail-closed *양성* 키). 너는 아무 env 도 export 할 필요 없다.
+- **키를 직접 만들거나 복구하지 마라** — 키는 *메인의 동질성 검증 증표*다(by-design). 키가 없으면 그건 "메인이 아직 검증 안 했다" → `status=input-required` 로 **"A2A 위임 키 부재"** 보고(메인이 `terraforming_node --peer-ssh` 로 검증·재발급). 테스트 한정 override = `EASY_VLLM_A2A_DELEGATED=1`.
+- 리포트의 `self_verification.delegation_acknowledged` 로 위임 인지를 echo(A2A 루프 닫음). 헌법 §A2A-위임 Flag 따름정리.
+
 ## phase 별 성공술어 (B4 — 검증될 때까지 루프)
 | phase | completed 조건 |
 |---|---|
@@ -43,10 +49,10 @@
 | serve | **multi**: `--profile slave up` 으로 master Ray head 합류(+ 지시 시 로컬 health). **single(독립서빙, T3 검증 — 0.23.0 E2E)**: `--profile serve up -d`(env export: NAS_MODEL_PATH·TIKTOKEN_HOST_PATH·CONFIG_FILE·SERVING_PORT) → `:PORT/health` http200 폴링(**python urllib — curl deny**) → 로컬 functional smoke(완성/reasoning, finish=stop). "startup complete" 로그는 거짓양성. |
 
 ## Message 타입
-- **instruction**(메인→서브): 수행할 Task(phase + per-task 값: 모델명·VRAM 예산·NAS 모델 서브디렉토리). **single 서빙 태스크**면 추가 슬롯: max_model_len·served_model_name·SERVING_PORT·reasoning_parser. 운영 절차(env export·detached up·health200 python·reasoning max_tokens)는 §phase serve 술어(single 분기)에 있으니 매번 재기술 불요.
+- **instruction**(메인→서브): 수행할 Task(phase + per-task 값: 모델명·VRAM 예산·NAS 모델 서브디렉토리). **single 서빙 태스크**면 추가 슬롯: max_model_len·served_model_name·SERVING_PORT·reasoning_parser. 운영 절차(env export·detached up·health200 python·reasoning max_tokens)는 §phase serve 술어(single 분기)에 있으니 매번 재기술 불요. **신규 vLLM build-job**(메인 upstream 발동분)은 빌드-잡 인가를 패킷에 담아 전달하되, *전파 자체*는 메인이 네 위임 키를 확인한 뒤에만 한다(§A2A 위임 — `sync_to_sub` 전파 게이트).
 - **feedback**(메인→서브): "여기가 틀렸으니 이렇게 고쳐". 너는 **직접 고쳐** 다음 턴에 재-attest(자기교정).
 - **report**(서브→메인): task-report.schema.json JSON 1개.
 
 ## 경계 (B3 Surgical)
 - 너는 **모델별 `configs/`·`envs/` 만** 자작한다. 컨테이너 정본(Dockerfile/requirements/compose/serve_runner)·빌딩블럭(.claude/, CLAUDE.md, Agent_Card.json)은 **건드리지 않는다**.
-- per-task 값은 Task Message 에서 읽는다 — manifest 는 서브에 없다(메인이 다 조리해 보냄).
+- per-task 값은 Task Message 에서 읽는다 — manifest 는 서브에 없다(메인이 다 조리해 보냄). 단 **A2A 위임 키 `.claude/a2a_delegation.json` 는 예외**(메인이 동질성 검증 후 발급하는 *양성* 게이트 면제 키 — §A2A 위임).
