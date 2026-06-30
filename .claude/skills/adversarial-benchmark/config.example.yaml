@@ -1,0 +1,26 @@
+# adversarial-benchmark 입력 스키마 (예시) — config.yaml 을 이 형식으로 채워 사용한다.
+# 이 스킬은 *돌고 있는* vLLM serve 를 적대적으로 검증한다(기동 안 함 — recipe-explorer/compose 가 기동).
+
+serving:
+  config_name: deepseek-v4-flash      # 검증 대상 트리플렛 키(.env.<config>/configs/<config>.yaml 와 동일)
+# topology: multi                     # (선택) 미지정 시 git 브랜치 파생(single-node→single, multi-node→multi)
+
+# === 루브릭 (3중 방어막) ===
+# reference_tps:                      # (선택) E = 외부 현실-달성치. 미지정 시 검증기(Devil's Advocate)가 외부검색(HF카드·포럼·PR).
+# target_tps:                         # (선택) c = 사용자 선언 목표(백스톱). E·expected 모두 불가할 때 사용.
+tolerance: 0.15                       # PASS 허용오차(M ≥ primary×(1−tol))
+realistic_fraction: 0.35              # MBU 보정(batch=1 MoE 통상 0.25~0.4). expected_achievable = fraction × R_token
+reconciliation_cap: 3                 # 루브릭 못 충족 시 재탐색 루프 상한(소진→escalation/음성정직)
+
+# === 모델 (루프라인 입력) — 보통 serving config 에서 자동 해소 ===
+# model_path: /app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash   # configs/<config>.yaml 의 model: 과 동일(미지정 시 거기서 읽음)
+# nas_host_root: /mnt/models          # /app/models 매핑 호스트 NAS 루트(미지정 시 manifest.nas_model_path)
+spec_supported: true                  # 모델이 speculative(MTP) 지원 — off 면 강제함수("enable MTP" 처방)
+
+# === 벤치 파라미터 (vllm bench serve) ===
+bench:
+  concurrency: 1                      # 단일스트림 디코드(=루프라인 비교). throughput 용 near-max 는 별도 run.
+  input_len: 1024
+  output_len: 256
+  num_prompts: 16
+  warmups: 2                          # 콜드 JIT(예 flashinfer SM120 첫요청) 폐기
