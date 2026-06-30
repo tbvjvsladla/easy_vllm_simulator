@@ -19,9 +19,12 @@ x-gpu-common: &gpu-common
   devices:
     - /dev/infiniband:/dev/infiniband
   volumes:
-    - /mnt/llm/Model/hugging_face_ver_model:/app/models:ro # 모델 폴더는 읽기모드로만
-    - /mnt/llm/quant_model:/app/quant_models:ro
-    - /home/cona/ws_docker/model_repo/tiktoken_encodings:/encodings:ro
+    # 포인터 원칙(헌법 §배포·§manifest→서빙전략 배선): PII·환경경로 비추적 — manifest → output/multi/.env 로 materialize.
+    # 기본값(/mnt/models)은 플레이스홀더; render_dockerfile.py --materialize-env 가 manifest 실값(NAS_MODEL_PATH·
+    # QUANT_MODEL_PATH·TIKTOKEN_HOST_PATH)으로 .env 를 채워 compose 변수치환(serve-time env 통로 불변식).
+    - ${NAS_MODEL_PATH:-/mnt/models}:/app/models:ro       # 모델 폴더 read-only (managed/custom 마운트원)
+    - ${QUANT_MODEL_PATH:-/mnt/models}:/app/quant_models:ro
+    - ${TIKTOKEN_HOST_PATH:-/mnt/models}:/encodings:ro
     # 통로 self-containment(plan_2026062321_1 I1/I2): 컨테이너는 통로(output/multi/)만 마운트 — `../../`(통로 밖) reach-out 금지.
     # ./configs = output/multi/configs = 모델 트리플릿 + render-materialize 된 러너 스크립트(serve_runner.sh·debug-init.sh).
     #   러너 스크립트 정본 = repo-root configs/(tracked); render_dockerfile.py --materialize-configs --topology multi 가 통로로 복사(생성본·gitignored).

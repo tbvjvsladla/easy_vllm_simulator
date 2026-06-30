@@ -212,7 +212,17 @@ def emit_manifest_block(result: dict) -> str:
     # None 인 필드는 YAML null 로 emit. bare 'None' 문자열 누수 차단 — Bug2 클래스 형제필드(cuda_version·gpus_per_node) 포함.
     cuda = f'"{result["cuda_version"]}"' if result["cuda_version"] is not None else "null"
     gpus = result["gpus_per_node"] if result["gpus_per_node"] is not None else "null"
+    import datetime
+    scanned_at = datetime.datetime.now().strftime("%Y%m%d%H")
+    # 테라포밍 완수 Flag (attestation · plan_2026063018_1 · 헌법 §테라포밍-완수 Flag 게이트):
+    # 이 emit 는 evaluate_gate status==ok(§1.5 3자일치 + α/γ 통과) 시에만 호출되므로 complete:true·branch_verified:true 기입.
+    # 보수적 — 게이트 미통과면 emit 자체가 안 됨(미발급). model_source(인터뷰) 는 별도 — manifest_contract 가 함께 요구.
     lines = [
+        "# 테라포밍 완수 Flag (attestation · plan_2026063018_1) — scan §1.5 3자일치 통과 시 기입(보수적).",
+        "terraforming:",
+        "  complete: true",
+        "  branch_verified: true   # git 브랜치 ↔ topology ↔ scan 3자일치 단언 통과",
+        f"  scanned_at: \"{scanned_at}\"",
         f"topology: {topo}",
         f"cpu_arch: \"{result['cpu_arch']}\"",
         f"cuda_version: {cuda}",
@@ -229,6 +239,10 @@ def emit_manifest_block(result: dict) -> str:
         f"  socket_iface: {ic['socket_iface'] if ic['socket_iface'] is not None else 'null'}",
         f"  bandwidth_gbps: {ic['bandwidth_gbps'] if ic['bandwidth_gbps'] is not None else 'null'}",
         f"  platform_preset: {ic['platform_preset'] or 'null  # set: e.g. dgx-spark-gb10'}",
+    ]
+    lines += [
+        "# ⚠ 인터뷰 확정 필드(이 scan 블록엔 없음 — 별도 추가): model_source(managed|ephemeral|custom)·nas_model_path.",
+        "#   manifest_contract 게이트가 valid model_source 를 요구 — 미설정 시 info-only 유지(Flag complete 만으론 불충분).",
     ]
     return "\n".join(lines) + "\n"
 
@@ -347,10 +361,11 @@ def _self_test() -> int:
         blk = emit_manifest_block(res)
         no_none = "None" not in blk                                  # bare Python None 누수 0
         nodes_ok = ("nodes: []" in blk) if want_single else ("nodes:" not in blk)
-        ok = no_none and nodes_ok and "topology:" in blk
+        attest_ok = ("terraforming:" in blk) and ("complete: true" in blk) and ("branch_verified: true" in blk)
+        ok = no_none and nodes_ok and "topology:" in blk and attest_ok   # Flag attestation 기입 검증(plan_2026063018_1)
         passed += ok
         n += 1
-        print(f"  [{'PASS' if ok else 'FAIL'}] emit:{name}: no-None={no_none} nodes-gate={nodes_ok}")
+        print(f"  [{'PASS' if ok else 'FAIL'}] emit:{name}: no-None={no_none} nodes-gate={nodes_ok} attest={attest_ok}")
     print(f"self-test: {passed}/{n} {'PASS' if passed == n else 'FAIL'}")
     return 0 if passed == n else 1
 

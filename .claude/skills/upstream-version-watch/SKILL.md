@@ -12,6 +12,8 @@ description: >-
 업스트림 vLLM을 추적해 **최신 버전 감지(사람 지시) → 변경 독해 → 레이어 bump 제안**까지 수행한다.
 이 스킬은 **제안한다.** 실제 적용은 핀 정책(`CLAUDE.md`)과 HITL 게이트(`.claude/rules/workflow.md`)를 따른다.
 
+> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_2026063018_1)**: 컨테이너 빌드·렌더·bump(작업) 전 **Flag 확인 필수**. 미발급 시 **info-only**: vLLM GitHub 릴리즈 조회·버전해소 *설명* OK / **렌더·빌드·bump ✗** → "빌드는 HW(arch·cuda)·모델경로(manifest)를 알아야 — `terraforming_node` 먼저"로 redirect. 빌드 시 manifest `model_source`(managed|ephemeral|custom)로 compose 분기(P4). **결정론 백스톱** = 빌드/렌더 작업 *前* 에이전트가 `python3 .claude/skills/terraforming_node/scripts/manifest_contract.py --topology <t> --require-flag` 실행(workflow S3 게이트). upstream 은 main-only 빌딩블럭·다단계 빌드라 단일 작업스크립트 진입점이 분산 → recipe(replicated, main() 베이크-인)와 달리 **S3 워크플로 게이트가 정본**.
+
 > 설계 원칙(하네스 엔지니어링): **버전 문자열 해소는 결정론적 스크립트**(`scripts/`)가, 변경 요약·
 > 리스크 판단은 모델이 한다. 버전·태그를 추측(확률론)으로 단정하지 않는다.
 

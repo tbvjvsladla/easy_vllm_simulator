@@ -3,6 +3,15 @@
 > 이 파일은 다단계 절차 규칙이다. "항상 참인 사실"은 루트 `CLAUDE.md`에 있다.
 > 사람이 "vLLM X로 업데이트" 지시를 내렸을 때 에이전트가 실행하는 절차를 정의한다.
 
+## init/runtime 2-모드 · 테라포밍-완수 Flag 게이트 (모든 런타임 절차의 진입 전제 · plan_2026063018_1)
+
+> "항상 참" 요약 = 루트 `CLAUDE.md` §테라포밍-완수 Flag 게이트 따름정리. 여기 = **절차-홈**.
+
+- **2-모드**: **init**(미테라포밍 — `terraforming_node` 인터뷰 → *real* init-plan 발행(HITL) → 스캔 → **topology 확정 + branch↔topology 3자일치(§1.5)** 완수 시*에만* manifest 에 완수 attestation = **Flag** 기입; 보수적 — 미검증이면 미발급) → **runtime**(Flag 발급 후 3 런타임 스킬 작업 가능).
+- **진입 전제**: 아래 S1–S4·escalation·B0–B3 등 **모든 작업 절차는 Flag 를 전제**한다. Flag 부재 시 `upstream`·`recipe`·`adversarial` 의 *작업 스크립트* 진입은 **`manifest_contract.py`(Phase 1 구현 예정) 확인 → 비0종료**(결정론 백스톱)이고, 에이전트는 **info-only**(정보·조언·모델 HF조회 OK / 환경특정 deliverable ✗) + **redirect 템플릿**으로 terraforming 유도(페르소나 — *말로 새는* generic 명령 봉쇄). `wiki-desk` 는 게이트 밖(헌법 루프계열).
+- **redirect 템플릿(정본)**: *"HW스캔이 덜 되어(Flag 미발행) HW 스펙(GPU·OS)을 알기 어려워 모델 `<HF URL>` 의 정확한 서빙전략을 세우기 어렵습니다. `terraforming_node` 로 ① HW스캔 + ② 모델 다운로드 전략(관리 NAS 경로? 컨테이너 임시 다운로드(컨테이너 down 시 삭제)? 특정 경로 저장·마운트?)을 먼저 정합시다."*
+- 절차 상세 = 스킬 `terraforming_node` §0.5 · 각 런타임 스킬 SKILL.md §0.
+
 ## 런타임 전파 4단계 (각 단계 = verify 동반)
 
 ```text
@@ -34,7 +43,7 @@ S2.5 sync   → (multi-node 전용) 메인 검증코드 → 서브 직접 전달
    - **변종 이미지 = 클러스터-와이드(build-plane ≠ serve-plane)**: 비-기본 이미지 변종(예 `…-source-sm12x` 포크)을 서빙할 땐 슬레이브도 *같은 이미지*를 빌드·기동해야 한다. `multinode_serve_smoke.sh` 가 콤보 EF에서 **이미지 정체성(IMAGE_TAG·VLLM_REPO·VLLM_REF)만** 읽어 슬레이브 compose 보간(build+up)에 전달한다(Band2 인프라). **모델 serve config(CONFIG_FILE)는 미전달 → 슬레이브 컨테이너 env_file=`.env.cluster`+`.env.interconnect`만 유지(Band2-only serve 보존)**. 즉 슬레이브 Band2-only는 serve-plane 불변식이지 build-plane이 아님. 헌법 "변종이미지 build-plane ≠ serve-plane 따름정리" · `testlog_2026062823_1`.
 
 S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
-   - ⑤ NAS 체크: check_smoke_model.py <config_name> --topology <single|multi> — 모델 부재면 중단·보고(다운로드 금지). --topology 필수(산출물 통로 output/<topology>/)
+   - ⑤ NAS 체크: check_smoke_model.py <config_name> --topology <single|multi> — 모델 부재면 **중단·보고** 후 §모델/안전 결정트리(사용자 승인 게이트)로만 진행. **무인 자동 다운로드 ✗** — *모든 모드 공통* 시퀀스(부재→중단·보고→승인 게이트→모드별 위치 다운로드: managed=관리경로 영속 / ephemeral=임시 / custom=지정경로 영속). --topology 필수(산출물 통로 output/<topology>/)
    - (단일노드) 빌드: docker compose --profile debug build · 서빙: --profile serve up → 프롬프트 1회 → 비어있지 않은 완성
    - near-max batch(요구 시): 서빙 docker logs 의 kv_cache_tokens/max_concurrency 로 실측 near-max 산출(Phase-1.5, 스킬 §5) → recipe max-num-seqs 보강. 공식 batch 금지(헌법 near-max 따름정리).
    - KV 이식성: 최종 recipe 는 측정된 GPU당 kv-cache-memory-bytes(절대값) + gpu-memory-utilization 을 **함께** emit. clamp=KV·이식성, gmu=startup free-memory 게이트+총cap(통합메모리 ≤0.90; vLLM 은 KV 사이징에만 gmu 무시 — E2E 실증). 헌법 KV 절대클램프 따름정리.
@@ -131,13 +140,14 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 +
 
 ## 모델 / 안전 가드 (절대 규칙)
 
-- **획득 모드(헌법 §모델 획득 모드 따름정리 · plan_2026063009_1 D8)**: 폐쇄망/개방망은 *모델 weights 획득/검색* 한정 구분이다(외부접속 전반 차단 ✗). 모델이 NAS에 **사전적재**돼 있으면 **폐쇄망**(read-only 마운트·다운로드 ✗). 부재 시 다운로드(=**개방망** 행위)는 **사용자 승인 필수**, 아래 결정트리로만. **단 *서빙전략 수립*의 외부 교차검증(HF 모델카드·vLLM GitHub)은 획득 모드와 무관하게 항상 허용·의무**(결정론 스크립트의 stdlib offline 과는 별개 평면 · escalation = `plan_2026063009_2`).
+- **획득 모드(헌법 §모델 획득 모드 따름정리 3종 · plan_2026063009_1 D8 · plan_2026063018_1)**: manifest `model_source` 3종(**managed**=관리 NAS 사전적재·read-only 마운트·무단 HF 다운로드 ✗ / **ephemeral**=컨테이너 임시 다운로드·컨테이너 down 시 삭제·**다수 기본** / **custom**=사용자 지정 경로 저장·볼륨마운트)이 *모델 weights 획득* 정책이다(외부접속 전반 차단 ✗). 다운로드(=**개방망** 행위)는 **사용자 승인 필수**, 아래 결정트리로만. **단 *서빙전략 수립*의 외부 교차검증(HF 모델카드·vLLM GitHub)은 획득 모드와 무관하게 항상 허용·의무**(결정론 스크립트의 stdlib offline 과는 별개 평면 · escalation = `plan_2026063009_2`).
 - 스모크 모델이 NAS 경로에 없으면 → **무인 자동 다운로드 금지**. 아래 결정트리로만 진행.
-- **모델 확보 결정트리** (헌법 §금지 1줄정책의 절차 · (1)·(2) = **개방망** 다운로드 케이스):
-  - **(0)** 서빙대상 모델 부재 → 다운로드 필요(0/1/2 분기).
-  - **(1)** 명시적 다운로드·관리 경로 **존재** → **사용자 승인 시** 그 경로에 영속(관리) 다운로드[개방망-영속].
-  - **(2)** 관리 경로 **부재** → **사용자 승인 시** 컨테이너 내부 HF cache **임시(ephemeral)** 다운로드[개방망-임시].
-  - (1)·(2) 모두 **hf_token 필요** → manifest 파일 포인터로 등록(원시 토큰 비추적). **무인 자동 다운로드 절대 금지.**
+- **모델 확보 결정트리** (헌법 §금지·§모델 획득 모드 따름정리 3종의 절차 · 다운로드 = **개방망** 케이스 · 분기 = manifest `model_source` 기본위치):
+  - **(0)** 서빙대상 모델 부재 → 다운로드 필요(아래 모드별 분기).
+  - **managed** → **사용자 승인 시** 관리 NAS 경로에 **영속** 다운로드[개방망-영속].
+  - **ephemeral** → **사용자 승인 시** 컨테이너 내부 HF cache **임시** 다운로드(컨테이너 down→삭제)[개방망-임시].
+  - **custom** → **사용자 승인 시** 사용자 지정 경로에 **영속** 다운로드 + 볼륨마운트[개방망-영속].
+  - 모두 **hf_token 필요 시** → manifest 파일 포인터로 등록(원시 토큰 비추적). **무인 자동 다운로드 절대 금지.**
 - HITL 게이트 이전 자동 핀 변경/자동 커밋·서브 전파 금지.
 - 단계 건너뛴 부분 적용 상태로 빌드 금지(일관성).
 

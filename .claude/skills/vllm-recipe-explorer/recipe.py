@@ -78,32 +78,28 @@ def load_config(config_path):
 
 
 def resolve_tp(cfg, repo_root):
-    """tp 자동결정.
+    """tp 결정 (헌법 §manifest→서빙전략 배선 불변식 · roofline.py:196-209 패턴).
 
-    CONTRACT: config 의 tensor_parallel_size 가 있으면 우선. 없으면
-    git -C <repo> rev-parse --abbrev-ref HEAD → single-node→1, multi-node→2, 기타→1.
+    config.tensor_parallel_size(명시 override) > manifest(nodes 있으면 len(nodes)×gpus_per_node ·
+    nodes 비면 topology=single→1) > 최종폴백 1. **git 브랜치 폴백 없음** — 브랜치⇒TP 추론이 보고된 버그였음
+    (1-GPU 머신이 multi-node 브랜치면 TP=2). manifest = HW사실 단일 권위.
     """
     explicit = cfg.get("tensor_parallel_size")
     if explicit is not None:
         return int(explicit)
-    branch = None
+    man, _mpath, topo = _read_manifest(repo_root)
+    gpus = man.get("gpus_per_node") or 1
     try:
-        import subprocess
-
-        out = subprocess.run(
-            ["git", "-C", repo_root, "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True,
-            text=True,
-        )
-        if out.returncode == 0:
-            branch = out.stdout.strip()
-    except Exception:
-        branch = None
-    if branch == "single-node":
+        gpus = max(1, int(gpus))
+    except (TypeError, ValueError):
+        gpus = 1
+    nodes = man.get("nodes") or []
+    if nodes:
+        return max(1, len(nodes)) * gpus
+    mtopo = man.get("topology") or topo
+    if (mtopo or "").startswith("single"):
         return 1
-    if branch == "multi-node":
-        return 2
-    return 1
+    return 1  # 최종폴백(안전·과대구독 ✗; multi 인데 nodes 비면 manifest 미완 신호)
 
 
 def _git_branch(repo_root):
@@ -121,6 +117,88 @@ def _git_branch(repo_root):
         return ""
 
 
+def _read_manifest(repo_root):
+    """output/<topology>/manifest.yaml 로드 → (manifest_dict, path, topology). 부재/오류 시 ({}, path, topo).
+
+    topology = 현재 git 브랜치가 선택하는 *통로*(multi-node→multi, 그 외→single). recipe 는 서브 복제
+    런타임블럭이라 main-only `manifest_contract.py` 를 import 하지 않고 자체 리더로 동일 계약을 읽는다.
+    """
+    topo = "multi" if _git_branch(repo_root) == "multi-node" else "single"
+    mpath = os.path.join(repo_root, "output", topo, "manifest.yaml")
+    if not os.path.isfile(mpath):
+        return {}, mpath, topo
+    try:
+        with open(mpath, "r", encoding="utf-8") as f:
+            return (yaml.safe_load(f) or {}), mpath, topo
+    except Exception:
+        return {}, mpath, topo
+
+
+def _total_gpus(man):
+    """가용 GPU 합 = gpus_per_node × max(1,len(nodes)); single(nodes:[]) → gpus_per_node."""
+    gpus = man.get("gpus_per_node") or 1
+    try:
+        gpus = max(1, int(gpus))
+    except (TypeError, ValueError):
+        gpus = 1
+    nodes = man.get("nodes") or []
+    return max(1, len(nodes)) * gpus if nodes else gpus
+
+
+def _require_terraform_flag(repo_root):
+    """헌법 §테라포밍-완수 Flag 게이트 — Flag 미발급 시 info-only(작업 거부·비0종료). 강제 2층의 *결정론 백스톱*.
+
+    `EASY_VLLM_SKIP_FLAG_GATE` 설정 시 우회 — A2A 서브 컨텍스트(main 이 dispatch 시 설정; 서브엔 manifest 부재)
+    및 테스트용. (recipe = 서브 복제 런타임블럭 → main-only `manifest_contract.py` 미import, 자체 리더로 동일 게이트.)
+    """
+    if os.environ.get("EASY_VLLM_SKIP_FLAG_GATE"):
+        return
+    man, mpath, _topo = _read_manifest(repo_root)
+    if not man:
+        _die(
+            "manifest 부재(%s) — 테라포밍 미완. terraforming_node 로 HW스캔 + 모델획득 모드(managed|ephemeral|custom)를 "
+            "먼저 정하세요(info-only). HW 사실 없이 서빙전략 deliverable 생성 ✗. [A2A/서브: EASY_VLLM_SKIP_FLAG_GATE=1]" % mpath,
+            code=4,
+        )
+    terra = man.get("terraforming") or {}
+    if terra.get("complete") is not True or terra.get("branch_verified") is not True:
+        _die(
+            "테라포밍 완수 Flag 미발급(terraforming.complete/branch_verified != true) — "
+            "terraforming_node 로 스캔·branch↔topology 3자일치 검증 완수 먼저(info-only).",
+            code=4,
+        )
+    # manifest_contract.evaluate_contract 와 **동일 계약**(약한 게이트 금지 — 통합검증 BLOCK):
+    # Flag 켜졌어도 필수 HW사실·획득모드 없으면 거부(scan 은 model_source 없이 complete 를 emit → 게이트가 집행).
+    missing = [k for k in ("topology", "gpus_per_node") if not man.get(k)]
+    if missing:
+        _die("Flag true 이나 필수 HW필드 누락(%s) — terraforming_node 스캔 완수 먼저(info-only)." % ", ".join(missing), code=5)
+    ms = man.get("model_source")
+    if ms not in ("managed", "ephemeral", "custom"):
+        _die("model_source 미설정/오류(%r) — terraforming_node 에서 획득모드(managed|ephemeral|custom) 지정 먼저(info-only)." % ms, code=5)
+
+
+def _guard_tp(tp, repo_root):
+    """가드(헌법 §manifest→서빙전략 배선 불변식): tp 가 가용 GPU 합 초과 시 비0종료(서빙 전 결정론 조기탐지)."""
+    man, _, _ = _read_manifest(repo_root)
+    tot = _total_gpus(man)
+    if tp > tot:
+        _die(
+            "tp=%d 가 가용 GPU 합 %d 초과(GPU 초과) — config.tensor_parallel_size 또는 "
+            "manifest(gpus_per_node·nodes) 확인." % (tp, tot),
+            code=6,
+        )
+
+
+def _guard_kv_heads(parsed, tp):
+    """가드: num_key_value_heads 가 tp 로 나눠떨어지지 않으면 비0종료(KV-head 비분할 — vLLM serve 즉사 조기탐지)."""
+    kvh = parsed.get("num_key_value_heads")
+    try:
+        if kvh and tp and int(kvh) % int(tp) != 0:
+            _die("num_key_value_heads=%s 가 tp=%d 로 나눠떨어지지 않음(KV-head 비분할) — tp 조정 필요." % (kvh, tp), code=6)
+    except (TypeError, ValueError):
+        pass
+
+
 def output_root(repo_root):
     """3종 세트 출력 루트 = output/<topology>/ (산출물 통로 self-containment, 결함#3 — testlog_2026062422_1).
 
@@ -131,13 +209,23 @@ def output_root(repo_root):
     return os.path.join(repo_root, "output", topology)
 
 
-def _cfg_common(cfg):
-    """estimate/generate 공통 입력값 추출(스키마 결함은 즉시 중단)."""
+def _cfg_common(cfg, repo_root):
+    """estimate/generate 공통 입력값 추출(스키마 결함은 즉시 중단).
+
+    NAS 경로 해소(헌법 §manifest→서빙전략 배선 불변식 · recipe 호스트파싱 평면):
+      config.nas_host_root > env(NAS_MODEL_PATH) > manifest.nas_model_path > DEFAULT(/mnt/models).
+    """
     target = cfg.get("target_model") or {}
     model_path = target.get("path")
     if not model_path:
         _die("config.target_model.path 누락")
-    nas_root = cfg.get("nas_host_root", DEFAULT_NAS_HOST_ROOT)
+    _man, _mpath, _topo = _read_manifest(repo_root)
+    nas_root = (
+        cfg.get("nas_host_root")
+        or os.environ.get("NAS_MODEL_PATH")
+        or _man.get("nas_model_path")
+        or DEFAULT_NAS_HOST_ROOT
+    )
     budget = cfg.get("vram_budget_gb")
     if budget is None:
         _die("config.vram_budget_gb 누락")
@@ -151,8 +239,9 @@ def _cfg_common(cfg):
 
 def cmd_estimate(args):
     cfg = load_config(args.config)
-    model_path, nas_root, budget, margin, kv_bytes, container_root = _cfg_common(cfg)
+    model_path, nas_root, budget, margin, kv_bytes, container_root = _cfg_common(cfg, REPO_ROOT)
     tp = resolve_tp(cfg, REPO_ROOT)
+    _guard_tp(tp, REPO_ROOT)
 
     # ① parse(결정론) — NAS 부재/디렉토리·config.json 부재 → traceback 금지,
     # config 오류와 동일한 [recipe] 중단: 클린 어보트로 통일(model_config_unparseable).
@@ -162,6 +251,7 @@ def cmd_estimate(args):
         _die(str(e))
     except ValueError as e:
         _die(f"모델 config 해소 실패: {e}")
+    _guard_kv_heads(parsed, tp)
 
     # 후보: --candidates json 또는 --auto(결정론 기본 그리드).
     if args.candidates:
@@ -259,7 +349,7 @@ def cmd_generate(args):
     port = int(port)
 
     # parse 결과(컨테이너 경로 등)는 generate 가 사용 → 다시 parse 하여 재현성 확보.
-    model_path, nas_root, budget, margin, kv_bytes, container_root = _cfg_common(cfg)
+    model_path, nas_root, budget, margin, kv_bytes, container_root = _cfg_common(cfg, REPO_ROOT)
     tp = snapshot.get("tp", resolve_tp(cfg, REPO_ROOT))
     # parse 재실행 — NAS 부재/해소 실패 시 traceback 금지(클린 어보트로 통일).
     try:
@@ -461,8 +551,9 @@ def _resolve_clamp_kv(parsed, candidate, profile, budget, margin, kv_dtype_bytes
 
 def cmd_simulate(args):
     cfg = load_config(args.config)
-    model_path, nas_root, budget, margin, kv_bytes_cfg, container_root = _cfg_common(cfg)
+    model_path, nas_root, budget, margin, kv_bytes_cfg, container_root = _cfg_common(cfg, REPO_ROOT)
     tp = resolve_tp(cfg, REPO_ROOT)
+    _guard_tp(tp, REPO_ROOT)
 
     # parse(결정론) — NAS 부재/해소 실패 시 traceback 금지(클린 어보트로 통일).
     try:
@@ -889,6 +980,10 @@ def build_parser():
 def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
+    # 헌법 §테라포밍-완수 Flag 게이트 — deliverable 산출 서브커맨드는 Flag 전제(미발급 시 info-only·비0종료).
+    # EASY_VLLM_SKIP_FLAG_GATE 우회(A2A 서브·테스트). 강제 2층의 결정론 백스톱.
+    if getattr(args, "command", None) in ("estimate", "generate", "simulate"):
+        _require_terraform_flag(REPO_ROOT)
     args.func(args)
 
 
