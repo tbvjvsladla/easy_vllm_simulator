@@ -40,6 +40,15 @@ MODEL=$(val SERVING_MODEL_NAME); SLAVE_IP=$(val SLAVE_HOST_IP)
 IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF)
 SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${VREPO:+VLLM_REPO=$VREPO }${VREF:+VLLM_REF=$VREF}"
 
+# ── 마운트 vars 전달(결함#2b · plan_2026070119_1): materialize-env 산출(output/multi/.env)은 compose 가
+#   --env-file 사용 시 auto-load 하지 않는다(--env-file 이 기본 .env 자동로드를 대체) → NAS/quant/tiktoken 마운트가
+#   docker-compose.yaml 의 ${NAS_MODEL_PATH:-/mnt/models} 기본으로 폴백 → 컨테이너가 모델을 못 찾음(serve 즉사).
+#   해소: 마운트 경로를 shell-env(compose 보간 최고 우선순위)로 명시 주입 — 마스터(env prefix)·슬레이브(ssh prefix) 동일.
+#   경로값에 공백 없음(SLAVE_IMGVARS 와 동형) → 무인용 prefix 안전. 헌법 serve-time env 통로 불변식.
+PENV_FILE="output/multi/.env"
+MOUNTVARS=""
+[ -f "$PENV_FILE" ] && MOUNTVARS="$(grep -E '^(NAS_MODEL_PATH|QUANT_MODEL_PATH|TIKTOKEN_HOST_PATH)=' "$PENV_FILE" | tr '\n' ' ')"
+
 # ── 서브 식별자/경로 해소(단일계약): env-file > manifest nodes[sub] > 폴백. 옛 고정 서브경로 하드코딩 제거 ──
 _mf_sub() {  # field → nodes[role=sub].field (role 정확매칭 — 'subordinate' 등 접두 오인 방지)
   local manifest="$REPO/output/multi/manifest.yaml"
@@ -74,9 +83,9 @@ fi
 
 # ── Ray 클러스터 기동 (master 먼저=head, slave 합류) ──
 echo "[mn] master 기동(Ray head + serve)..."
-docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master up -d >/dev/null 2>&1
+env $MOUNTVARS docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master up -d >/dev/null 2>&1
 echo "[mn] slave 기동(Ray worker, SSH)..."
-$SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave up -d'" >/dev/null 2>&1
+$SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $MOUNTVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave up -d'" >/dev/null 2>&1
 
 # ── 준비 폴링: 엔드포인트 health(거짓양성 회피) ──
 # READY_MAX(폴링 횟수×5s) 환경변수로 조정 가능 — 대형모델(예 Qwen3-Next-80B bf16 151GB CIFS 로드 ~11분
