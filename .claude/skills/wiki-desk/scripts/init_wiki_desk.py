@@ -58,6 +58,12 @@ SEEDISH_RE = re.compile(r"(seed_[0-9a-f]{6,}|interview_\d{8}_\d{6})")
 # A plan is `realizes` (vs generic `cites`) only when named on a 계획/대상 line —
 # the docs convention's "this is the plan this work realizes" header label.
 REALIZE_LABEL_RE = re.compile(r"(계획|대상)")
+# Retroactive supersede banner (docs.md §3 소급 배너 — literal, deterministic).
+# "⚠ SUPERSEDED-IN-PART by `<doc>`" (partial) / "⛔ SUPERSEDED by `<doc>`" (full).
+# HEADER-scoped: banners live in the doc header; body text merely *quoting* the
+# convention (e.g. a devlog narrating that it added a banner) must not create edges.
+SUPERSEDE_RE = re.compile(r"SUPERSEDED(-IN-PART)?\s+by\b")
+SUPERSEDE_HEADER_LINES = 12
 
 
 def read_answers(path: Path) -> dict[str, Any]:
@@ -278,6 +284,17 @@ def extract_edges(entries: list[dict[str, Any]], bodies: dict[str, str]) -> list
             tid = by_stem.get(m.group(1))
             if tid:
                 add(sid, tid, "cites", m.group(0))
+        # superseded-by: retroactive banner in the doc HEADER (docs.md §3 — 앵커링 방지).
+        # Direction: this doc (overturned) → the superseding doc. Still v1-deterministic:
+        # the banner literal is the grep-grounded evidence, no inference.
+        for line in body.splitlines()[:SUPERSEDE_HEADER_LINES]:
+            sm = SUPERSEDE_RE.search(line)
+            if not sm:
+                continue
+            for m in CITE_TOKEN_RE.finditer(line[sm.end():]):
+                tid = by_stem.get(f"{m.group(1)}_{m.group(2)}_{m.group(3)}")
+                if tid:
+                    add(sid, tid, "superseded-by", _cap(line.strip()))
 
     # part-of: a source nested under another source's dir-node path
     dir_nodes = [e for e in entries if e["document_type"] == "simlog"]
@@ -295,8 +312,8 @@ def extract_edges(entries: list[dict[str, Any]], bodies: dict[str, str]) -> list
             for b in ids[i + 1:]:
                 add(a, b, "same-thread", "topic-slug")
                 add(b, a, "same-thread", "topic-slug")
-    # drop a `cites` edge shadowed by a stronger evidences/realizes on the same pair
-    strong = {(e["from"], e["to"]) for e in edges if e["edge_type"] in ("evidences", "realizes")}
+    # drop a `cites` edge shadowed by a stronger evidences/realizes/superseded-by on the same pair
+    strong = {(e["from"], e["to"]) for e in edges if e["edge_type"] in ("evidences", "realizes", "superseded-by")}
     edges = [e for e in edges if not (e["edge_type"] == "cites" and (e["from"], e["to"]) in strong)]
     return edges
 
@@ -363,7 +380,7 @@ def write_wiki(wiki_root: Path, answers: dict[str, Any], entries: list[dict[str,
 
     # edge graph
     eg = ["# Relationship Edge Graph (deterministic)", "",
-          f"> {len(edges)} edges over {len(entries)} sources. Types: cites/realizes/evidences/part-of/same-thread.",
+          f"> {len(edges)} edges over {len(entries)} sources. Types: cites/realizes/evidences/part-of/same-thread/superseded-by.",
           "> Every edge is grep-grounded (evidence token shown); no inference.", "",
           "| from | edge | to | evidence |", "|---|---|---|---|"]
     for e in sorted(edges, key=lambda x: (x["edge_type"], x["from"])):

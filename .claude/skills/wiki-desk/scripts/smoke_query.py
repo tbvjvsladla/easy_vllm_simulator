@@ -54,6 +54,12 @@ def render_node(e: dict[str, Any], edges: list[dict[str, Any]], by_id: dict[str,
              f"authority: {e['authority_rank']} | confidence: {e['confidence']} | "
              f"summary: {e['topical_summary']}"]
     rel = edges_of(e["source_id"], edges)
+    # anchoring guard: a doc carrying a retroactive supersede banner surfaces WITH a warning —
+    # authority rank is unchanged (v1), but the reader is told newer verdicts override this one.
+    sup = [r for r in rel if r["dir"] == "→" and r["edge_type"] == "superseded-by"]
+    if sup:
+        tgts = ", ".join(f"`{by_id.get(r['other'], {}).get('source_path', r['other'])}`" for r in sup)
+        lines.append(f"    ⚠ SUPERSEDED(부분/전체) — 후속 판정 우선: {tgts} (이 노드의 결론을 그대로 이월하지 말 것)")
     for r in rel:
         tgt = by_id.get(r["other"], {})
         lines.append(f"    {r['dir']} {r['edge_type']}: `{tgt.get('source_path', r['other'])}` "

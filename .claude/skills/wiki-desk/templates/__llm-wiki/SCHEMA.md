@@ -52,7 +52,7 @@ out_edges:       [ {to, edge_type, evidence} ]
 ```yaml
 from:       source_id
 to:         source_id
-edge_type:  cites | realizes | evidences | part-of | same-thread
+edge_type:  cites | realizes | evidences | part-of | same-thread | superseded-by (문서 헤더의 소급 배너 literal grep — docs.md §3 · 판정 반전 표시, 여전히 결정론)
 evidence:   string   # the literal token/path that grounds this edge (no inference)
 ```
 
