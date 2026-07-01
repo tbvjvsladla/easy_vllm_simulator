@@ -97,9 +97,11 @@ CLUSTER_INVARIANTS = {                  # ③ universal — 클러스터 포트
 #     (26.03-py3, 0.22.1)=성공(strip-hoist·setuptools-rust 수동·use_existing_torch),
 #     (26.05-py3, 0.23.0)=성공(torch 2.12, strip-hoist 자동 skip) — E2E 검증,
 #     (26.03-py3, 0.23.0)=FAIL(torch 2.11, Tensor::layout() 부재) ← 옛 '0.23.0 동일 torch2.11 캐리' 가정의 반증.
+#     (26.05-py3, 0.24.0)=검증(torch 2.11.0 핀·NGC 26.05 동일, source-build 레시피 byte-동일 — 0.23.0 twin.
+#         0.24.0=#43477 DeepSeek-V4 SM120 네이티브 stock. strip-hoist 자동 skip(torch 2.12). plan_2026070119_1, 스모크 최종중재).
 #   미인식 키는 빌드를 명시적으로 실패시킨다(false determinism 방지 — plan rev3 §5 / SKILL.md §4.6 HITL 발견 루프 유도).
 #   P6: 이 인라인 셋을 source_build_patches.yaml + 패치-리졸버 페르소나로 승급.
-VALIDATED_SOURCE_BUILD_KEYS = {("26.03-py3", "0.22.1"), ("26.05-py3", "0.23.0")}
+VALIDATED_SOURCE_BUILD_KEYS = {("26.03-py3", "0.22.1"), ("26.05-py3", "0.23.0"), ("26.05-py3", "0.24.0")}
 
 _PLACEHOLDER_RE = re.compile(r"\{\{\s*[A-Z0-9_]+\s*\}\}")
 
