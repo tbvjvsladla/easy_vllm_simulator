@@ -18,7 +18,7 @@ FROM nvcr.io/nvidia/pytorch:26.05-py3
 # ── torch핀 가드 (render-time: 검증된 핀=주석 / 미인식=빌드 실패. 카탈로그 codify는 P6) ──
 RUN echo "[guard] source-build key (26.05-py3 x vLLM 0.24.0): validated patch set ((ngc_base x vllm_version) keyed) — proceeding."
 
-# VLLM_REPO/VLLM_REF: 빌드-arg 파라미터화 — 기본 = stock(vllm-project @ v0.23.0). 콤보 env 가 오버라이드해
+# VLLM_REPO/VLLM_REF: 빌드-arg 파라미터화 — 기본 = stock(vllm-project, 버전은 아래 ARG VLLM_REF 참조). 콤보 env 가 오버라이드해
 #   포크 변종을 같은 Dockerfile 로 빌드한다(예 DeepSeek-V4 SM12x: jasl/vllm @ c766cbc6 → 이미지 …-source-sm12x).
 #   이미지-네이밍 불변식: track=source-sm12x 는 아치-enablement(superset), 모델-키잉 아님.
 #   근거: plan_2026062818_1 §2 · workflow.md S3 핀-오버라이드(NGC 베이스 오버라이드의 vLLM-repo 축 확장).
@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ccache && rm -r
 RUN cp /etc/pip/constraint.txt /etc/pip/constraint.txt.bak 2>/dev/null || true; : > /etc/pip/constraint.txt
 
 # 대상 ref 소스 클론 + NGC torch 사용(소스가 torch 핀을 재설치하지 않게 — 커플링 규칙 충실).
-# blobless 풀-히스토리 클론 + ref checkout: tag(v0.23.0)·임의 SHA(포크 force-push 면역 — SHA=content-addressed) 양쪽 지원.
+# blobless 풀-히스토리 클론 + ref checkout: 버전 tag·임의 SHA(포크 force-push 면역 — SHA=content-addressed) 양쪽 지원.
 # (옛 `--branch <ref> --depth 1` 은 raw SHA checkout 불가 → 포크 핀 위해 교체.)
 RUN git clone --filter=blob:none ${VLLM_REPO} /workspace/vllm-src \
  && git -C /workspace/vllm-src checkout --detach ${VLLM_REF} \

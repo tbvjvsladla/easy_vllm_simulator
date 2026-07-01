@@ -29,14 +29,14 @@ S2 patch    → single-node · multi-node 두 브랜치 패치
      (--materialize-env → output/<t>/.env: serve-time NAS_MODEL_PATH/TIKTOKEN_HOST_PATH manifest 전파. 누락 시 serve 가 /mnt/models 기본마운트로 실패 — 결함#2)
    - 모델구동 런타임 패치(필요 시): 에이전트가 참조-그라운디드로 configs/<model>_patch.py 생성(휘발·비추적) + arm_patch.sh(materialize-configs 에 포함)가 serve_runner/생성.sh 에서 자동 arm. 헌법 모델구동 런타임 패치 따름정리.
    - multi-node 브랜치: 네트워크 디버그 apt · serve_runner.sh(Ray) · NCCL/RDMA env · /dev/infiniband은 보존(건드리지 않음)
-   - multi-node: .gitignore에 빌딩블럭(CLAUDE.md/seed/) 제외 정렬. (빌딩블럭은 gitignored→브랜치 전환 persist, cross-branch 동기화 불필요)
+   - multi-node: .gitignore 정렬 확인(산출물 통로·사적 파일 재제외 구조 유지). 빌딩블럭(CLAUDE.md·.claude/)은 **git-tracked**(배포 대상) — 브랜치 간 동일성은 scripts/sync_branches.sh 수동 동기화(S4·헌법 §금지).
    verify: 변경 라인이 S1 해소값에 직결(Karpathy B3)
    ── HITL 게이트 ② : 각 브랜치 diff를 사람이 검토
 
 S2.5 sync   → (multi-node 전용) 메인 검증코드 → 서브 직접 전달
-   - scripts/sync_to_sub.sh (기본 dry-run → --apply): rsync over SSH(인터커넥트는 manifest.interconnect), 체크섬 검증.
+   - .claude/skills/upstream-version-watch/scripts/sync_to_sub.sh (기본 dry-run → --apply): rsync over SSH(인터커넥트는 manifest.interconnect), 체크섬 검증.
      서브 노드 접속값(host·ssh_user)은 manifest.yaml `nodes[]`에서 읽는다.
-     제외: .git/.claude/seed/docs/__pycache__/CLAUDE.md (빌딩블럭·서브 빌드워커 페르소나 보호). GitHub 경유 X.
+     빌딩블럭(.git/seed/docs/메인 CLAUDE.md 등)은 제외하되 **런타임블럭·위임키는 선별 오버레이 배달**(recipe.py·adversarial scripts·task-report.schema.json·a2a_delegation.json — 서브 렌더 페르소나 보호와 공존, 스크립트 실체 기준). GitHub 경유 X.
    - 서브는 메인 전달 코드로 생존. 서브 자작 envs/configs는 메인이 아카이브.
    - 모델구동 런타임 패치(configs/<model>_patch.py · arm_patch.sh)도 output/<topology>/ 에 있어 이 rsync 로 함께 하향 배달(서브 슬레이브가 마운트·arm). 서브는 패치 저작 ✗(상향은 docs 탐지보고만 — D12-06·13). 헌법 패치 전파.
    - **모델 트리플렛(`<model>.{yaml,sh}` · `.env.<model>`)은 서브로 전달하지 않는다(Band3 — sync_to_sub 구조적 배제, `<model>_patch.py` 만 특례)**. 멀티 TP **슬레이브 = Band2-only**(Ray worker): `.env.cluster`(MoE-JIT MAX_JOBS 포함)+`.env.interconnect` 만으로 기동 → 모델 트리오 불요. **트리플렛을 메인→서브 직접 rsync 로 밀어넣는 우회 금지**(슬레이브가 `.env.<model>` 의존하면 미완결 신호). 헌법 "모델 트리플렛 전파 불변식" · `plan_2026062811_2` · `devlog_2026062418_1`.
@@ -48,7 +48,7 @@ S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
    - near-max batch(요구 시): 서빙 docker logs 의 kv_cache_tokens/max_concurrency 로 실측 near-max 산출(Phase-1.5, 스킬 §5) → recipe max-num-seqs 보강. 공식 batch 금지(헌법 near-max 따름정리).
    - KV 이식성: 최종 recipe 는 측정된 GPU당 kv-cache-memory-bytes(절대값) + gpu-memory-utilization 을 **함께** emit. clamp=KV·이식성, gmu=startup free-memory 게이트+총cap(통합메모리 ≤0.90; vLLM 은 KV 사이징에만 gmu 무시 — E2E 실증). 헌법 KV 절대클램프 따름정리.
    - 모델구동 런타임 패치: 구동불가 모델은 stock 이미지 + 런타임 패치(휘발·재유도, 비추적 configs/<model>_patch.py + arm_patch.sh)로 해결. carry-forward 안 함 — 재-serve 시 재유도, S3 스모크가 게이트. 헌법 모델구동 런타임 패치 따름정리.
-   - (multi-node) 2노드 Ray 서빙: scripts/multinode_serve_smoke.sh <config> [--build]
+   - (multi-node) 2노드 Ray 서빙: .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh <config> [--build]
        NAS체크 → 양노드 병렬빌드 → master(메인)+slave(서브) Ray클러스터 → 엔드포인트 health 폴링 → master 엔드포인트 추론
        준비판정 = :PORT/health http200 (master 로그 "startup complete"는 거짓양성 — grep 금지)
        reasoning 모델은 max_tokens 충분히(finish_reason=stop)
@@ -80,11 +80,11 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 +
    (origin은 사용자 환경 값(manifest.origin_url)에서 설정 — 없으면 로컬 전용·push 단계 생략.)
    - single-node · multi-node 각 브랜치 로컬 커밋 = 기록/last-good 앵커(브랜치 핀 독립). 필요 시 태그(git tag last-good-<branch>).
    - 브랜치 간 공유 빌딩블럭 동기화: scripts/sync_branches.sh(수동, 작업 종료 후 사람 질의).
-   - 서브노드 전파: S2.5의 scripts/sync_to_sub.sh로 메인→서브 직접 rsync(검증됨). GitHub 경유 안 함.
+   - 서브노드 전파: S2.5의 .claude/skills/upstream-version-watch/scripts/sync_to_sub.sh로 메인→서브 직접 rsync(검증됨). GitHub 경유 안 함.
    - 산출물 통로(single/multi 혼재 차단): render 산출물(Dockerfile · docker-compose.yaml · configs/*.{yaml,sh} · envs/.env.* · requirements.txt)은
      **`output/<topology>/`(single|multi)** 에 둔다 — 통로 껍데기 `.gitkeep`만 추적·생성물 비추적(CLAUDE.md "산출물 통로 불변식" · plan_2026062312_1). 예외: multi 손작성 컨테이너 정의는 output/multi/에 추적(정본).
    - git 위생: 과거 루트-추적 산출물은 worktree 삭제만으론 부족 → git rm + 커밋으로 HEAD에서도 제거해야 reset --hard가 되살리지 않음(엿본 정답/노이즈 방지).
-     configs/check_reqs.py는 엔진 = 유지. (.gitignore 규칙은 이미 올바름 — 재추가 말 것.)
+     (.gitignore 규칙은 이미 올바름 — 재추가 말 것. 의존성 재생성 엔진 = .claude/skills/upstream-version-watch/scripts/regen_requirements.py — wheel METADATA 권위)
    verify: docs/devlog·testlog에 버전·변경·스모크 결과·last-good 기록
    ── HITL 게이트 ④ : 최종 커밋(+서브 전파) 승인
 ```
@@ -105,7 +105,7 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 +
 
 ## 메인↔서브 양방향 브랜치싱크 (D12 절차 · 멀티노드 전용)
 
-> 근거: `seed_e34dfbb6ec23` · `docs/plan/plan_2026062411_1`. "항상 참" 요약 = 루트 `CLAUDE.md` §"메인↔서브 양방향 싱크 / 서브개선 role".
+> 근거: `docs/plan/plan_2026062411_1`(D12). "항상 참" 요약 = 루트 `CLAUDE.md` §"메인↔서브 양방향 싱크 / 서브개선 role".
 > 트리거 = 사람의 싱크 지시(자동 폴링·cron·webhook 없음 — 헌법 트리거 정책 동일). 스크립트 = `.claude/skills/upstream-version-watch/scripts/{sync_to_sub.sh,fetch_sub_docs.sh}`.
 
 ### B0 멱등 self-bootstrap (서브 git 최초 1회)
@@ -162,10 +162,10 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 +
 - 컨테이너 변경은 S3 스모크 통과 전 done 금지(Karpathy B4).
 - 빌드/검증 로그를 `docs/testlog/`에, 버전 전파 작업 내역을 `docs/devlog/`에 남긴다.
 
-## 부트스트랩 5단계 (이 에이전트를 만드는 메타 절차 — 참조)
+## 부트스트랩 5단계 (이 에이전트를 만드는 메타 절차 — 완료된 기록·참조용)
 
 ```text
-Step 1 작업환경 셋업 (CLAUDE.md + .claude/rules)            ← 현재
+Step 1 작업환경 셋업 (CLAUDE.md + .claude/rules)
 Step 2 스킬 설계 (upstream-version-watch + 결정론적 scripts + config.yaml)
 Step 3 단일노드 검증 (single-node 브랜치 dry-run + 스모크)
 Step 4 멀티노드 확장 (서브노드 동기화)
