@@ -3,6 +3,8 @@
 
 vLLM 의 pyproject.toml `[build-system].requires` 에서 torch 버전을 추출한다.
 출력(JSON): {vllm_version, torch_spec, torch_pin, torch_prefix, source_url}
+  + ==/=== 정확 핀 부재(범위 스펙, 예 torch>=2.12,<2.13) 시 fail-loud 필드 추가:
+    {torch_specifier, range_bounds:{lower,upper}, warning} — 침묵 null 전파 금지.
 
 확률론적 추론 금지 — 버전 문자열은 업스트림 원본에서 직접 읽는다(하네스 엔지니어링).
 사용: python3 resolve_torch_pin.py 0.21.0
@@ -26,6 +28,16 @@ def norm_prefix(v: str):
         return ".".join(map(str, Version(v).release))
     except InvalidVersion:
         return v
+
+
+def pick_bound(versions, newest: bool):
+    """범위 스펙 경계 선택 — 하한은 최대(newest), 상한은 최소. 파싱 불가 시 첫 값(결정론)."""
+    if not versions:
+        return None
+    try:
+        return sorted(versions, key=Version)[-1 if newest else 0]
+    except InvalidVersion:
+        return versions[0]
 
 
 def main():
@@ -68,13 +80,23 @@ def main():
     for s in torch_req.specifier:
         if s.operator in ("==", "==="):
             pin = s.version
-    print(json.dumps({
+    out = {
         "vllm_version": a.vllm_version,
         "torch_spec": str(torch_req.specifier),
         "torch_pin": pin,
         "torch_prefix": norm_prefix(pin) if pin else None,
         "source_url": used_url,
-    }, ensure_ascii=False, indent=2))
+    }
+    if pin is None:
+        # 범위 스펙 (예 torch>=2.12,<2.13) — 정확 핀 부재를 침묵 null 로 전파하지 않는다 (fail-loud)
+        lowers = [s.version for s in torch_req.specifier if s.operator in (">=", ">", "~=")]
+        uppers = [s.version for s in torch_req.specifier if s.operator in ("<=", "<")]
+        out["torch_specifier"] = str(torch_req.specifier)
+        out["range_bounds"] = {"lower": pick_bound(lowers, newest=True),
+                               "upper": pick_bound(uppers, newest=False)}
+        out["warning"] = ("범위 스펙 감지 — 정확 핀 부재. 하한/상한을 NGC 매칭 후보로 제시"
+                          "(범위 교차), null 전파 아님")
+    print(json.dumps(out, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

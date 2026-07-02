@@ -9,6 +9,9 @@
 #   REFUTE: M <  primary × (1 − tol)
 #   establish 실패(E·target·expected 모두 부재/불가) → failure_axis=establish → (c) 사용자 백스톱.
 # like-with-like: spec on 서브는 R_token, off 서브는 R_fp 기준(루프라인이 이미 accept_len 반영해 산출).
+# E-search 상태 표면(--e-search hit|empty|no): 외부검색(E) 시도 여부를 출력에 *기록*한다 —
+#   roofline-only 강등(reference/target 부재)이 침묵으로 지나가지 않게 warning 필드로 표면화(self-preference 차단).
+#   verdict 자체는 불변(warning-only — 결정론 게이트 보존). 서브 에어갭 = --e-search empty 로 음성정직 기록.
 # CONTRACT: 출력 verdict JSON. stdlib only.
 import argparse, json, sys
 
@@ -30,6 +33,8 @@ def main():
     ap.add_argument("--target-tps", type=float, help="c: 사용자 선언 목표(백스톱)")
     ap.add_argument("--tolerance", type=float, default=0.15, help="PASS 허용오차(기본 15%)")
     ap.add_argument("--spec-supported", action="store_true", help="모델이 speculative(MTP) 지원 — off 면 강제함수")
+    ap.add_argument("--e-search", choices=["hit", "empty", "no"], default="no",
+                    help="외부검색(E) 상태: hit=시도·발견 / empty=시도·빈손 / no=미시도(기본). 출력에 기록(판정 불변)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
@@ -52,6 +57,7 @@ def main():
             "reason": "측정 실패(completed=%s failed=%s decode_tps=%s) — 재측정 필요" % (
                 m.get("completed"), m.get("failed"), M),
             "measured_decode_tps": M, "rubric": None,
+            "e_search": args.e_search,
         }, ensure_ascii=False, indent=2))
         return
 
@@ -72,6 +78,7 @@ def main():
             "structural_or_strategy": None,
             "reason": "루브릭 못 세움: E(외부검색) 부재 ∧ c(사용자) 부재 ∧ expected 산출 불가 → (c) 사용자 백스톱 필요",
             "measured_decode_tps": M, "rubric": None,
+            "e_search": args.e_search,
             "ask_user": "동일 HW(%s, tp=%s)에서 이 모델의 정상 디코드 t/s 레퍼런스를 제공해 주세요." % (
                 r.get("gpu_model"), r.get("tp")),
         }, ensure_ascii=False, indent=2))
@@ -111,6 +118,15 @@ def main():
             sos = "strategy"
             notes.append("처방 후보: recipe serve-config 재탐색(백엔드·플래그·KV).")
 
+    # --- E-search 상태 표면: roofline-only 강등 시 warning (판정 불변 — warning-only) ---
+    roofline_primary = args.reference_tps is None and args.target_tps is None  # primary=expected 인 경우
+    warning = None
+    if roofline_primary:
+        if args.e_search == "no":
+            warning = "E-not-attempted: 판정이 roofline-only로 강등됨 — 메인 인스턴스는 외부검색(E) 수행 후 판정(서브 에어갭만 예외·--e-search empty 로 기록)"
+        elif args.e_search == "empty":
+            warning = "E-attempted-empty: 외부 레퍼런스 부재 기록됨 — roofline-only 판정(음성정직)"
+
     out = {
         "verdict": verdict,
         "failure_axis": axis,
@@ -122,11 +138,14 @@ def main():
                    "tolerance": tol, "ratio_M_over_primary": ratio,
                    "R_fp": R_fp, "R_token": R_token, "expected_achievable": expected,
                    "reference_E": args.reference_tps, "target_c": args.target_tps},
+        "e_search": args.e_search,
         "reasons": reasons,
         "refuted_claims": refuted_claims,
         "diagnosis_hint": notes,
         "note": "게이트=결정론(이 규칙). LLM Devil's Advocate 는 E 외부검색·정성 진단·재탐색힌트만 보탠다(최종 structural/strategy = LLM+HITL).",
     }
+    if warning is not None:
+        out["warning"] = warning
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
 

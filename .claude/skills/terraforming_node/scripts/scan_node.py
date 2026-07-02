@@ -398,7 +398,9 @@ def evaluate_gate(*, declared, ic_present, peer_given, peer_reachable, bandwidth
         elif bandwidth < bw_floor:                         # γ: 성능 미달(fail-closed)
             gate = {"branch": "gamma", "status": "blocked",
                     "reasons": [f"대역폭 {bandwidth}Gb/s < 합격선 {bw_floor}Gb/s"],
-                    "note": "성능 미달 → 멀티-ready 거부(fail-closed). 오설정 점검(케이블 수/GID/MTU/GDR)."}
+                    "note": ("성능 미달 → 멀티-ready 거부(fail-closed). 오설정 점검(케이블 수/GID/MTU/GDR). "
+                             f"합격선 {bw_floor}은 200Gbps 플랫폼 파생 기본값 — 저속-그러나-정상 링크(예 100GbE)면 "
+                             "불가가 아니라 `--bw-floor <합산 line-rate×0.9>` 재설정 대상(HITL·시도-우선, SKILL §1.4).")}
             exit_code = 2
         else:                                              # multi-ready: 구조+성능 통과
             gate = {"branch": "multi-ready", "status": "ok", "bandwidth_gbps": bandwidth,
@@ -575,7 +577,9 @@ def main() -> int:
         if homo["blocks"]:
             result["gate"]["status"] = "blocked"
             result["gate"].setdefault("reasons", []).extend(homo["blocks"])
-            result["gate"]["note"] = "서브 HW 동질성 미충족(fail-closed) — " + result["gate"].get("note", "")
+            result["gate"]["note"] = ("서브 HW 동질성 미충족(fail-closed) — 표기 드리프트(동일 GPU 다른 문자열) 등 "
+                                      "오탐 판단 시 HITL 우회 = manifest nodes[sub].hw_verified 수동 기입이 권위"
+                                      "(plan_2026063021_2 D3) — ") + result["gate"].get("note", "")
             exit_code = 2
 
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)

@@ -5,6 +5,7 @@
 #   source-build-class   : 범위 밖(Phase 2). propose Y/N 로 에스컬레이트(소스빌드 '필요' 감지까지가 스킬 책임).
 #
 # 매칭 안 됨 → unknown → Model-C(LLM이 {proposed_class, evidence} 제시 → 사람 승인 후 행동).
+# 순서 = 우선순위: classify_failure.py 는 첫 매치에서 종료(스코프 좁은 시그니처를 넓은 폴백보다 앞에).
 # 신규 패턴은 에이전트가 diff 제안 → 사람 승인 후 이 파일에 codify(확률론→결정론 이전).
 #
 # 시딩 근거: docs/testlog/testlog_260607_2(0.22.1 ABI), testlog_260607_3(0.18.0 uvloop).
@@ -34,6 +35,10 @@ patterns:
     class: source-build-class
     note: "torch 2.11 alpha private API 불일치. 조건부 HAS_OPAQUE_TYPE 패치로 import 는 우회되나, torch 2.11 alpha 구간 신호 → 후속 C++ ABI 월 동반. 소스빌드 영역."
 
+  - signature: "vllm[^\\n]*undefined symbol: \\S+"
+    class: source-build-class
+    note: "vLLM-스코프(같은 줄에 vllm 문맥 — 예: vllm/_C.abi3.so ImportError): 컴파일된 _C 가 베이스 torch 의 C++ ABI 와 불일치. requirements 로 불가 — 소스빌드(NGC torch 에 맞춰 _C 컴파일) 필요."
+
   - signature: "undefined symbol: .*"
     class: source-build-class
-    note: "컴파일된 _C 가 베이스 torch 의 C++ ABI 와 불일치. requirements 로 불가 — 소스빌드(NGC torch 에 맞춰 _C 컴파일) 필요."
+    note: "폴백(같은 줄에 vllm 문맥 없음 — 위 vLLM-스코프 미매칭). 비-vLLM lib 의 undefined symbol 이면 build_patches 평면 재분류 + 해당 repo 확인 — 소스빌드-불가 단정 금지. evidence 라인의 .so 경로로 발원 lib(예 DeepGEMM/flashinfer 등 build_patches 설치물)를 먼저 식별할 것."

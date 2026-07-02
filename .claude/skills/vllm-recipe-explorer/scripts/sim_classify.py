@@ -73,7 +73,12 @@ def classify(trial_result: dict, budget_gib: float, safety_margin: float) -> dic
                 return result
         result["failure_class"] = "unknown"
         result["adjust_target"] = None
-        result["note"] = "load 실패이나 알려진 OOM 시그니처 미매칭 → Model-C(HITL)."
+        log_path = trial_result.get("log_path")
+        result["note"] = (
+            "load 실패이나 알려진 OOM 시그니처 미매칭 → Model-C(HITL). "
+            "시그니처 미매칭 = 미지 실패이지 불가 아님"
+            + (f" (raw log: {log_path})" if log_path else "")
+        )
         return result
 
     # ── load OK: VRAM 천장 점검 ────────────────────────────────────────

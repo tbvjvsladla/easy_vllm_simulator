@@ -7,6 +7,8 @@ failure_patterns.yaml 의 signature(정규식)로 빌드/스모크 실패 로그
   unknown              → Model-C(LLM 제안 + 사람 승인)
 
 출력(JSON): {class, matched_signature, note, evidence}
+  evidence = 매칭 스팬을 포함한 로그 원문 라인 '전체'(중복 제거, 최대 5줄) — 사람 게이트가
+  분류의 발원(예: undefined symbol 의 .so 경로가 vllm/_C 인지 비-vLLM lib 인지)을 직접 검증.
 사용: docker logs <c> 2>&1 | python3 classify_failure.py
       python3 classify_failure.py --log /path/to/build.log
 종료코드: 0=requirements-fixable, 1=source-build-class, 2=unknown(=Model-C 필요).
@@ -39,6 +41,27 @@ def load_patterns(path):
     return pats
 
 
+def matched_lines(text, pattern, max_lines=5, max_chars=1000):
+    """매칭 스팬을 포함한 로그 원문 라인 '전체'(들)를 evidence 로 추출.
+
+    m.group(0) 은 정규식 매치 구간만이라 라인 앞부분(예: ImportError 의 .so 경로)이
+    잘림 → 라인 경계로 확장해 사람 게이트가 발원 lib 을 식별할 수 있게 한다.
+    """
+    lines, seen = [], set()
+    for m in re.finditer(pattern, text):
+        start = text.rfind("\n", 0, m.start()) + 1
+        end = text.find("\n", m.end())
+        if end == -1:
+            end = len(text)
+        line = text[start:end].strip()
+        if line and line not in seen:
+            seen.add(line)
+            lines.append(line)
+        if len(lines) >= max_lines:
+            break
+    return "\n".join(lines)[:max_chars]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--log", help="로그 파일(미지정 시 stdin)")
@@ -52,7 +75,8 @@ def main():
         m = re.search(p["signature"], text)
         if m:
             out = {"class": p["class"], "matched_signature": p["signature"],
-                   "note": p.get("note", ""), "evidence": m.group(0)[:200]}
+                   "note": p.get("note", ""),
+                   "evidence": matched_lines(text, p["signature"]) or m.group(0)[:200]}
             print(json.dumps(out, ensure_ascii=False, indent=2))
             sys.exit(0 if p["class"] == "requirements-fixable" else 1)
 

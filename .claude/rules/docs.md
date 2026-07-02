@@ -39,16 +39,28 @@
 ### devlog/ — 작업 로그 (작업 **중·후**)
 - **역할**: 실제 수행한 **작업 내역·결정·전파의 서사**("무엇을 했나").
 - **담는 것**: 작업 흐름, 핵심 사건/결정(+근거), 교훈, **최종 상태**(미커밋·다음 작업 명시).
+- **원시맥락 범주(다음 세션 warm-start 용 — plan_2026070208_1 Phase 2)**: 서사 요약만으로는 다음 세션이
+  복구 못 하는 것들을 명시 수록한다 — **시도-폐기 경로**(무엇을 시도했고 왜 버렸나 · 음성결과 포함),
+  핵심 **재현 커맨드 verbatim**, verbatim 에러 시그니처(가변 로그는 simlog 인용).
+- **미완결 세션 devlog 필수 섹션 = "최종 상태 + 재개 지침"**(devlog_2026070207_1 §8 관행의 codify):
+  ① 디스크/노드 실상태(이미지 태그·미커밋 분류·관련 파일 목록) ② 의사결정 대기 항목(후보별 정확 SHA/값)
+  ③ **재개 커맨드 verbatim**(+진단 grep 패턴) ④ 예상 벽. 완결 세션은 ①만으로 충분.
 
 ### testlog/ — 검증 로그 (검증 **결과·증거**)
 - **역할**: 빌드/스모크/실험의 **증거와 판정**("동작을 확인했나").
-- **담는 것**: 목적, 전제(resolve값), 실행 커맨드, 관측(로그·수치), **합격/실패 판정**, 실패 시 근본원인.
+- **담는 것**: 목적, 전제(resolve값), 실행 커맨드, 관측(로그·수치), **합격/실패 판정**, 실패 시 근본원인,
+  **환경 스냅샷**(이미지 태그·핵심 env 실값·판정 시점 config — trial 스윕이면 per-trial config 는 simlog run
+  에 사본 적재하고 여기엔 run 경로 인용; "S2가 정확히 어떤 yaml/플래그였나"를 미래 세션이 복원 가능해야 함).
 
-### simlog/ — 시뮬레이션 증거 vault (`recipe.py simulate` 산출)
-- **역할**: VRAM 시뮬레이터 trial-loop **한 run의 원시 증거 적재함**("실측이 정확히 무엇이었나").
+### simlog/ — serve/시뮬레이션 원시증거 vault (모든 trial-loop run 산출)
+- **역할**: trial-loop **한 run의 원시 증거 적재함**("실측이 정확히 무엇이었나").
   testlog가 사람용 종합 보고서라면, simlog는 그 보고서가 인용하는 **기계 생성 raw 증거**다.
-- **구조**: 파일 1개가 아니라 **run 디렉토리 1개**(`simlog_writer.py`가 기록). 한 run = candidate set의
-  trial 반복 + 조정 이력 + 최종 요약. 폴더 내용(trial NN은 `01`부터):
+  **적용 범위 = `recipe.py simulate` 산출 + 수동 serve 스윕/bump 난항의 trial 반복**(plan_2026070208_1 Phase 2
+  확장 — 2026070207_1 run 의 serve_logs·key_files_snapshot 관행 승격): 반복 serve 실험이면 어느 평면이든
+  per-trial 원시증거를 run 디렉토리로 남긴다. **per-trial config 사본(그 시점 yaml/플래그) 필수** — 과거
+  trial 설정이 in-place 변이로 유실되지 않게(Band3 gitignored 대비).
+- **구조**: 파일 1개가 아니라 **run 디렉토리 1개**(`simlog_writer.py`가 기록 — 수동 스윕은 에이전트가 동형
+  구조로 적재: serve 로그 + 그 시점 config/키파일 스냅샷 + 요약). simulate run 폴더 내용(trial NN은 `01`부터):
   - `trialNN_vllm.log` — 컨테이너 docker logs 원문(`VLLM_LOGGING_CONFIG_PATH`로 `/app/simlog`에 캡처).
   - `trialNN_profile.json` — `parse_vllm_log` 실측(weights/kv/overhead GiB, 백엔드 등).
   - `trialNN_candidate.yaml` — 그 trial의 lock-set + 설정한 `kv_cache_memory_bytes`.
@@ -68,6 +80,23 @@
 - **참조 체인**: `simlog`(원시 증거) → `testlog`(인용·종합 보고서·판정) → `devlog`(서사). simlog는 사람이
   직접 읽기보다 testlog가 경로로 인용하는 증거 저장소다. (simulate run이면 testlog 본문에 simlog run 경로 명기.)
 - **사실 우선**: 절대 날짜·결정론적 값(torch 핀·NGC 태그·스모크 결과)을 명시. 추측은 "확인 필요"로 표기.
+  가변 파일(헌법·스킬·코드)의 라인번호 인용 시 **literal 인용구(또는 커밋 SHA) 병기**(라인번호 단독 금지 — rot).
+- **소급 배너(판정 반전 시 의무 — 앵커링 방지 · plan_2026070208_1 Phase 2)**: 후속 문서가 선행 문서의
+  **판정**(PASS/FAIL·가용/비가용·"정본" 선언)을 뒤집으면, 뒤집는 문서를 쓰는 에이전트가 **선행 문서 헤더에
+  1줄 배너를 추가**한다(과거 기록 위조가 아니라 주석 — plan_2026063021_1 배너 선례의 정형화):
+  ```
+  > ⚠ SUPERSEDED-IN-PART by `docs/<type>/<뒤집는 문서>.md` — <뒤집힌 판정 1줄>   (부분 반전)
+  > ⛔ SUPERSEDED by `docs/<type>/<후속 문서>.md`                                  (문서 전체 대체)
+  ```
+  트리거는 **판정의 반전만**(보완·추가·상세화는 cites 로 충분 — 배너 남발 금지). wiki-desk 가 이 리터럴을
+  결정론 grep 해 `superseded-by` 엣지로 색인하고 발현 시 경고를 병기한다(v1 결정론 규율 유지).
+- **판정 어휘(앵커링 방지)**: 단정 판정에는 **유효맥락 한정자**를 병기한다 — 예 "cudagraph 비가용
+  [맥락: 포크 c766cbc6 · GB10 · 2026-06-29 시점]". 무기한 어휘("정본"·"전역 금지")는 헌법/스킬 codify 를
+  거친 것에만 허용(맥락-바운드 교훈을 전역화하지 않기 — 헌법 carry-forward 금지 따름정리의 문서 축).
+- **후속 갱신 클로저**: "후속 확인 예정" 류 마커는 체크박스로 쓴다 — `- [ ] 후속: <무엇>`. 닫힐 때 해소
+  문서 경로를 채워 `- [x] 후속: <무엇> → <해소 문서 경로>` 로 닫는다(영구 미결 잔존 방지).
+- **PARKED 장부**: 파킹/미결 항목은 devlog "최종 상태" 섹션에 결정론 접두사 `- PARKED:` 로 표기
+  (grep 한 방으로 전 미결 수집 — 별도 이슈트래커 없이 문서-분산 장부).
 - **검증 게이트 정합**: 컨테이너 변경은 스모크 통과(testlog 증거) 전 done 금지. last-good 커밋 시
   `docs/devlog·testlog`에 버전·변경·스모크 결과·last-good를 기록(workflow S4).
 
@@ -89,7 +118,7 @@
 
 ### 서브노드 docs 테라포밍 + 상향 회수 (D12)
 
-> 근거: `seed_e34dfbb6ec23` · `plan_2026062411_1`. 절차 = `.claude/rules/workflow.md` §"메인↔서브 양방향 브랜치싱크" B2.
+> 근거: `plan_2026062411_1`(D12). 절차 = `.claude/rules/workflow.md` §"메인↔서브 양방향 브랜치싱크" B2.
 
 - **규약 테라포밍**: 서브노드도 **동일한 docs 발행 규약**(이 파일)을 따른다 — 같은 명명(`docs/<type>/<type>_YYYYMMDDHH_seq_주제.md`),
   같은 4종(plan/devlog/testlog/simlog), 같은 gitignore-persist(`docs/*/*` ignore · `!docs/*/example.md` 추적). docs 스켈레톤은 `render_sub_env.py` 가 서브 env 에 렌더.

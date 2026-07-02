@@ -29,6 +29,8 @@ CLAUDE.local.md
 # 재제외 (재포함 이후에 와야 적용됨 / 주석은 반드시 별도 줄 — 패턴 뒤 인라인 # 은 리터럴로 취급됨)
 # 개인 로컬 설정(IP·allowlist)
 .claude/settings.local.json
+# PII 금지 term 목록(smoke_clone.sh·scan_forbidden_strings.py 공유 입력 — 실 PII 리터럴 보유, 배포 제외)
+.claude/pii_terms.txt
 # 사용자 실값(추적은 config.example.yaml 만)
 .claude/skills/**/config.yaml
 # 실 서브노드 에이전트-카드(추적은 sub_node/CLAUDE.template.md)

@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """② torch 핀 → 매칭 NGC PyTorch 베이스 태그 (결정론적, docker buildx)
 
-NGC 컨테이너 config env 의 PYTORCH_BUILD_VERSION 접두어가 torch 핀 접두어와
-일치하는 '최신' 태그를 찾는다. PoC 근거: docs/testlog/testlog_260607_*.
+NGC 컨테이너 config env 의 PYTORCH_BUILD_VERSION 을 release-튜플로 정규화해
+torch 핀과 **완전일치**(튜플 동등)하는 '최신' 태그를 찾는다 — 이것이 1차 매칭.
+완전일치가 없으면 **튜플-접두어 매칭**(짧은 쪽이 긴 쪽의 접두어 — 예 핀 2.11 ↔
+베이스 2.11.0)을 2차 후보로 `prefix_candidates` 에 수집해 함께 낸다(최종 중재=스모크).
+매칭 베이스 없음 ≠ 빌드 불가 — 후속 절차는 exit-4 에러 메시지 참조.
+PoC 근거: docs/testlog/testlog_260607_*.
 skopeo 불필요 — `docker buildx imagetools inspect` (익명, 레이어 pull 없음).
 
-출력(JSON): {torch_prefix, matched_tag, build_version, cuda_version, image, probed}
+출력(JSON): {torch_prefix, matched_tag, build_version, cuda_version, image, probed, prefix_candidates}
 사용:
   python3 resolve_ngc_tag.py 2.11.0 --start 26.05 --months 18 --arch arm64
   python3 resolve_ngc_tag.py 2.11.0 --candidates 26.03-py3,26.01-py3
@@ -21,6 +25,22 @@ def norm(v: str):
         return ".".join(map(str, Version(v).release))
     except InvalidVersion:
         return v
+
+
+def release_tuple(v: str):
+    """'2.11.0a0+xxx' → (2, 11, 0). 파싱 불가 시 None."""
+    try:
+        return Version(v).release
+    except InvalidVersion:
+        return None
+
+
+def is_tuple_prefix(a, b):
+    """짧은 쪽 release-튜플이 긴 쪽의 접두어인가 (동등 튜플 제외 — 그건 1차 완전일치)."""
+    if a is None or b is None or a == b:
+        return False
+    short, long_ = (a, b) if len(a) <= len(b) else (b, a)
+    return len(short) < len(long_) and long_[: len(short)] == short
 
 
 def inspect_env(tag: str, arch: str):
@@ -80,7 +100,9 @@ def main():
               file=sys.stderr)
         sys.exit(2)
 
+    target_tuple = release_tuple(a.torch_pin)
     probed = []
+    prefix_candidates = []  # 2차: 튜플-접두어 매칭 후보 (최종 중재=스모크)
     for tag in cands:
         env = inspect_env(tag, a.arch)
         if env is None:
@@ -89,17 +111,26 @@ def main():
         bv = env.get("PYTORCH_BUILD_VERSION") or env.get("PYTORCH_VERSION")
         bp = norm(bv) if bv else None
         probed.append({"tag": tag, "build_version": bv, "prefix": bp})
-        if bp == target:  # newest→oldest 이므로 첫 매칭 = 최신 매칭
+        if bp == target:  # 1차: release-튜플 완전일치. newest→oldest 이므로 첫 매칭 = 최신 매칭
             print(json.dumps({
                 "torch_pin": a.torch_pin, "torch_prefix": target,
                 "matched_tag": tag, "build_version": bv,
                 "cuda_version": env.get("CUDA_VERSION"),
                 "image": f"{IMAGE}:{tag}", "arch": a.arch, "probed": probed,
+                "prefix_candidates": prefix_candidates,
             }, ensure_ascii=False, indent=2))
             return
+        if is_tuple_prefix(target_tuple, release_tuple(bv) if bv else None):
+            # 2차: 튜플-접두어 매칭 (예 핀 2.11 ↔ 베이스 2.11.0) — 자동 채택하지 않고 후보로만 수집
+            prefix_candidates.append({"tag": tag, "build_version": bv,
+                                      "note": "prefix-match — 최종 중재=스모크"})
 
-    print(json.dumps({"error": "매칭 NGC 태그 없음", "torch_prefix": target, "probed": probed},
-                     ensure_ascii=False, indent=2), file=sys.stderr)
+    print(json.dumps({
+        "error": ("매칭 NGC 태그 없음(완전일치) — 매칭 베이스 없음 ≠ 빌드 불가 — "
+                  "후속: NGC release-notes 매트릭스 확인 + 더 새 베이스 승격 검토"
+                  "(workflow S3 ⑥ §4.6 전방호환·HITL)"),
+        "torch_prefix": target, "prefix_candidates": prefix_candidates, "probed": probed,
+    }, ensure_ascii=False, indent=2), file=sys.stderr)
     sys.exit(4)
 
 

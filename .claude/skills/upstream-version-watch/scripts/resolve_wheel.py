@@ -50,7 +50,8 @@ def main():
             default_cands.append({"name": name, "cuda": None, "manylinux": d.group(1),
                                   "variant": "default(release-CUDA, 파일명에 cuXXX 없음)"})
     if not cands and not default_cands:
-        print(json.dumps({"error": "arch 매칭 wheel 자산 없음(+cu/무접미어 모두)",
+        print(json.dumps({"error": ("arch 매칭 wheel 자산 없음(+cu/무접미어 모두) — "
+                                    "자산 명명 스킴 변경 가능성 — vLLM release 페이지를 사람이 재확인"),
                           "arch": a.arch, "assets": assets},
                          ensure_ascii=False, indent=2), file=sys.stderr)
         sys.exit(4)
@@ -58,8 +59,23 @@ def main():
     if a.cuda:
         chosen = next((c for c in cands if c["cuda"] == str(a.cuda)), None)
         if chosen is None:
-            print(json.dumps({"error": f"cu{a.cuda} 자산 없음", "available": cands,
-                              "default_variants": default_cands},
+            # 정확일치 부재 ≠ 설치 불가 — 같은 major 의 인접 minor 후보를 전방호환 힌트로 제시
+            req = str(a.cuda)
+            nearest = []
+            if req.isdigit() and len(req) >= 2:
+                req_major, req_minor = int(req[:-1]), int(req[-1])
+                nearest = sorted(
+                    (c for c in cands
+                     if c["cuda"].isdigit() and len(c["cuda"]) >= 2
+                     and int(c["cuda"][:-1]) == req_major),
+                    key=lambda c: abs(int(c["cuda"][-1]) - req_minor))
+            print(json.dumps({"error": f"cu{a.cuda} 정확일치 자산 없음", "available": cands,
+                              "default_variants": default_cands,
+                              "forward_compat_hint": {
+                                  "nearest_cu_candidates": nearest,
+                                  "note": ("CUDA minor 전방호환으로 동작하는 경우 많음 — "
+                                           "사전 기각 금지, 설치 시도 후 스모크/classify_failure 가 중재"),
+                              }},
                              ensure_ascii=False, indent=2), file=sys.stderr)
             sys.exit(5)
     elif cands:

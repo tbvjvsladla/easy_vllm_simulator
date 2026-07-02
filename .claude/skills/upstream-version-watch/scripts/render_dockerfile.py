@@ -59,6 +59,10 @@ NCCL_PRESETS = {
         "NCCL_NET_GDR_READ": "1",
         "NCCL_CROSS_NIC": "1",
     },
+    # 튜닝 0 프리셋 — 비-DGX 플랫폼의 "시도→comms 스모크 중재" 경로(전방호환 시도-우선 따름정리 ·
+    # plan_2026070208_1 [C]#3). ①환경값(manifest.interconnect)+③불변만 방출 = NCCL 기본값으로 일단 돌려본다.
+    # 성능 튜닝은 스모크 통과 후 플랫폼 프리셋으로 승격(무증거 튜닝 금지는 유지).
+    "generic": {},
 }
 NCCL_INVARIANTS = {                     # ③ universal — 인터커넥트 무관 디버그/안전
     "NCCL_DEBUG": "INFO",
@@ -85,6 +89,8 @@ CLUSTER_PRESETS = {
                                         #   슬레이브도 model shard 로드·JIT 하므로 Band2(cluster)서 양노드 도달해야 함(plan_2026062811_2 — 슬레이브 Band2-only 완결).
                                         #   이미지 ENV 기본 16 override. 비-MoE 모델엔 no-op(안전 보수 상수). 모델별 override 필요시 .env.<model>(master) 에서.
     },
+    # 튜닝 0 — NCCL_PRESETS["generic"] 과 동형(③불변 RAY_PORT 만 방출). 비-DGX "시도→스모크 중재" 경로.
+    "generic": {},
 }
 CLUSTER_INVARIANTS = {                  # ③ universal — 클러스터 포트
     "RAY_PORT": "6379",
@@ -244,15 +250,28 @@ def _compact_cuda(cuda: str) -> str:
     return cuda
 
 
+# HITL 우회(전방호환 시도-우선 · plan_2026070208_1 [C]#1): 사람이 명시 승인한 시도-빌드에서만
+# 가드를 WARN 으로 강등(main --allow-unvalidated). 기본 = fail-loud(false determinism 방지 불변).
+ALLOW_UNVALIDATED = False
+
+
 def _patch_guard(ngc_tag: str, vllm_version: str) -> str:
     key = (ngc_tag, vllm_version)
     if key in VALIDATED_SOURCE_BUILD_KEYS:
         return (f'RUN echo "[guard] source-build key ({ngc_tag} x vLLM {vllm_version}): '
                 f'validated patch set ((ngc_base x vllm_version) keyed) — proceeding."')
+    if ALLOW_UNVALIDATED:
+        return (
+            'RUN echo "WARN: source-build key (' + ngc_tag + ' x vLLM ' + vllm_version + ') is UNVALIDATED — attempt-build under HITL override (--allow-unvalidated)." && \\\n'
+            '    echo "  -> arbiter = smoke (workflow S3). REQUIRED: record this attempt in docs/testlog/." && \\\n'
+            '    echo "  -> on smoke PASS: codify the key into VALIDATED_SOURCE_BUILD_KEYS (SKILL.md §4.6)."'
+        )
     return (
         'RUN echo "ERROR: source-build key (' + ngc_tag + ' x vLLM ' + vllm_version + ') has NO validated patch set." && \\\n'
+        '    echo "  -> this is UNVALIDATED, not IMPOSSIBLE — 미검증이지 불가 판정 아님(시도-우선 따름정리)." && \\\n'
         '    echo "  -> run SKILL.md §4.6 HITL discovery loop, then graduate the verified" && \\\n'
         '    echo "     patches into Dockerfile.source-build.template ((ngc_base x vllm_version) guarded, P6 catalog)." && \\\n'
+        '    echo "  -> or: human-approved attempt-build via render --allow-unvalidated (WARN + testlog 의무)." && \\\n'
         '    echo "  -> refusing to build on unvalidated determinism (plan rev3 §5)." && exit 1'
     )
 
@@ -321,7 +340,8 @@ def build_nccl_env(manifest: dict) -> dict:
     preset_key = ic.get("platform_preset")
     if preset_key not in NCCL_PRESETS:
         raise KeyError(f"platform_preset '{preset_key}' 미정의 — 알려진 {sorted(NCCL_PRESETS)} "
-                       f"(fail-loud; 확장은 배포자 코드에이전트가 NCCL_PRESETS 에 추가)")
+                       f"(fail-loud·오타 방지; 미검증 플랫폼은 'generic'(튜닝 0)으로 일단 기동→comms 스모크 중재, "
+                       f"검증 후 전용 프리셋으로 승격)")
     env.update(NCCL_PRESETS[preset_key])
     # ③ 불변
     env.update(NCCL_INVARIANTS)
@@ -371,7 +391,8 @@ def build_cluster_env(manifest: dict) -> dict:
     preset_key = (manifest.get("interconnect") or {}).get("platform_preset")
     if preset_key not in CLUSTER_PRESETS:
         raise KeyError(f"platform_preset '{preset_key}' 미정의 — 알려진 {sorted(CLUSTER_PRESETS)} "
-                       f"(fail-loud; 확장은 배포자 코드에이전트가 CLUSTER_PRESETS 에 추가)")
+                       f"(fail-loud·오타 방지; 미검증 플랫폼은 'generic'(튜닝 0)으로 일단 기동→스모크 중재, "
+                       f"검증 후 전용 프리셋으로 승격)")
     env.update(CLUSTER_PRESETS[preset_key])
     # ③ 불변
     env.update(CLUSTER_INVARIANTS)
@@ -630,7 +651,16 @@ def main() -> None:
     ap.add_argument("--manifest", default="manifest.yaml")
     ap.add_argument("--resolved", default="resolved.json")
     ap.add_argument("-o", "--out", help="출력 파일(미지정 시 stdout)")
+    ap.add_argument("--allow-unvalidated", action="store_true",
+                    help="미검증 (NGC×vLLM) 키의 source-build 가드를 WARN 으로 강등(사람 승인 전제 시도-빌드 — "
+                         "스모크가 중재·testlog 기록 의무·통과 시 키 codify. 기본=fail-loud 유지)")
     a = ap.parse_args()
+
+    if a.allow_unvalidated:
+        global ALLOW_UNVALIDATED
+        ALLOW_UNVALIDATED = True
+        print("[render] --allow-unvalidated: source-build 가드 WARN 강등(HITL 시도-빌드 — testlog 기록 의무)",
+              file=sys.stderr)
 
     if a.self_test:
         _self_test()

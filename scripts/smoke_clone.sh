@@ -20,7 +20,16 @@ cd "$ROOT"
 # ─────────────────────────────────────────────────────────────────────────────
 
 # PII 금지 리터럴(A4). 추적/미추적-비무시 후보 전반에서 0 매치여야 한다.
-PII_REGEX='(192\.168\.|coga[-_]|spark-a73e|spark-bdc9|naver\.com|/mnt/llm|/home/|tbvjvsladla)'
+#   실값은 비추적 공유 term 파일(.claude/pii_terms.txt, 1줄 1리터럴·# 주석)에서 로드 —
+#   scan_forbidden_strings.py 와 단일 소스 공유(두 사본 드리프트 제거·포인터 원칙, plan_2026070208_1 Phase 1).
+#   파일 부재(배포 스켈레톤) 시 generic 폴백(사설 IP 접두)만 — 배포별 실값은 term 파일로 주입.
+PII_TERMS_FILE=".claude/pii_terms.txt"
+if [ -f "$PII_TERMS_FILE" ]; then
+    PII_REGEX="($(grep -v '^[[:space:]]*#' "$PII_TERMS_FILE" | grep -v '^[[:space:]]*$' \
+        | sed -e 's/[.[\*^$()+?{|]/\\&/g' | paste -sd'|' -))"
+else
+    PII_REGEX='(192\.168\.)'
+fi
 
 # 헌법·rules 가 참조하는 "문서화된 생성 산출물"(gitignore 대상이라 부재가 정상 — dangling 예외 허용).
 DOC_GENERATED_ARTIFACTS=(
@@ -30,6 +39,8 @@ DOC_GENERATED_ARTIFACTS=(
     Dockerfile.source-build
     docker-compose.yaml
     .claude/settings.local.json
+    .claude/a2a_delegation.json
+    .claude/pii_terms.txt
 )
 
 # A5: 반드시 "추적 가능(미무시)"+존재 해야 하는 빌딩블럭.

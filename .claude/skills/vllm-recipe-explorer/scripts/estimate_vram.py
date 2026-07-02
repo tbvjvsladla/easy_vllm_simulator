@@ -24,6 +24,7 @@ from quant_table import (  # noqa: E402
     FRAMEWORK_OVERHEAD_BYTES,
     is_offline_only_quant,
     vllm_quant_bpw,
+    vllm_quant_bpw_or_none,
 )
 
 GIB = 1024 ** 3  # 단위 통일: GiB = 1024**3 (추정·예산 둘 다)
@@ -106,7 +107,16 @@ def estimate(
         # fp8·bitsandbytes 는 온라인 양자화 가능하므로 차단 대상이 아니다.
         if is_offline_only_quant(quantization):
             result["warning"] = "offline_quant_on_non_prequantized_checkpoint"
-        bpw = vllm_quant_bpw(quantization, serve_bpw)
+        # 미지 quant 키(테이블 미등록)면 ValueError traceback 으로 죽지 않고(=크래시-음성 금지)
+        # graceful 변종으로 error dict 반환 — parse_model_config 의 동일 처리와 정합.
+        bpw, _qwarn = vllm_quant_bpw_or_none(quantization, serve_bpw)
+        if bpw is None:
+            result["error"] = "unknown_quant_method"
+            result["note"] = (
+                "quant 테이블 미등록 ≠ vLLM 미지원 — vLLM 소스/HF 카드로 외부 확인 필요(HITL surface)"
+            )
+            result["gate_pass"] = False
+            return result
         weight_bytes = float(num_params) * bpw
 
     # ── KV_cache ───────────────────────────────────────────────────────
