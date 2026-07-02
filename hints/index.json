@@ -14,6 +14,18 @@
   ],
   "hints": [
     {
+      "tag": "hint/0.18.0/gpt-oss-120b/gb10",
+      "vllm": "0.18.0",
+      "model": "gpt-oss-120b",
+      "arch": "gb10",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "0.18.0 prebuilt wheel 로 gpt-oss-120b(MXFP4)를 2×GB10 분산서빙 — MXFP4 auto=TRITON+Marlin(humming 불요·모델별 전략 독립 실증)",
+      "anchor": "6458b66b9068f0b8ba6a5abb34c605aa8f2ed73c",
+      "related": "-",
+      "status": "active",
+      "last_verified": "2026-07-03"
+    },
+    {
       "tag": "hint/0.23.0/deepseek-v4-flash/gb10",
       "vllm": "0.23.0",
       "model": "deepseek-v4-flash",
