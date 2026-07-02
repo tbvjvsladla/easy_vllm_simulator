@@ -163,6 +163,14 @@ def _brief_of(body: str) -> str:
     return ""
 
 
+def _parse_tag_body(name: str) -> tuple[str, str, str]:
+    """태그 오브젝트 본문에서 (brief, topology, related) 파싱 — reindex 용."""
+    _, _, body = git("cat-file", "tag", name).stdout.partition("\n\n")
+    mt = re.search(r"topology:(.+?) · date:", body)
+    mr = re.search(r"related:\s*(.+)", body)
+    return _brief_of(body), (mt.group(1).strip() if mt else ""), (mr.group(1).strip() if mr else "")
+
+
 # ── create ──────────────────────────────────────────────────────────────────
 def cmd_create(a: argparse.Namespace) -> int:
     vllm, model, arch = validate_name(a.tag, a.allow_new_slug)
@@ -273,29 +281,30 @@ def cmd_finalize(a: argparse.Namespace) -> int:
     })
     idx["hints"].sort(key=lambda e: e["tag"])
     _save_index(idx)
-
-    _readme_add_row(a.tag, vllm, model, arch, a.topology, a.related or "", brief)
+    _readme_regen(idx["hints"])
     print("[hint_tag] index.json + README 부록 인덱스 갱신 완료.")
     return 0
 
 
-def _readme_add_row(tag, vllm, model, arch, topo, related, brief) -> None:
+def _readme_row(e: dict) -> str:
+    return (f"| `{e['tag']}` | {e['vllm']} | {e['model']} | {e['arch']} | "
+            f"{e.get('topology','')} | {e.get('status','active')} | "
+            f"{e.get('superseded_by') or e.get('related') or '—'} | "
+            f"{e.get('last_verified','')} | {e.get('brief','')} |")
+
+
+def _readme_regen(hints: list[dict]) -> None:
+    """README 부록 인덱스 행 전량 재생성(index = 진실원천). 마커 앞에 정렬 삽입."""
     if not README_FILE.is_file():
         return
-    lines = README_FILE.read_text(encoding="utf-8").splitlines()
-    row_key = f"| `{tag}` |"
-    row = (f"| `{tag}` | {vllm} | {model} | {arch} | {topo} | active | "
-           f"{related or '—'} | {date.today().isoformat()} | {brief} |")
-    out, added = [], False
-    for ln in lines:
-        if ln.startswith(row_key):
-            continue  # 같은 태그 기존 행 제거(멱등 — 재-finalize 시 중복 방지)
-        if ln.strip() == README_MARKER and not added:
-            out.append(row)
-            added = True
+    out = []
+    for ln in README_FILE.read_text(encoding="utf-8").splitlines():
+        if ln.startswith("| `hint/"):
+            continue  # 기존 hint 행 전부 제거
+        if ln.strip() == README_MARKER:
+            out.extend(_readme_row(e) for e in hints)
         out.append(ln)
-    if added:
-        README_FILE.write_text("\n".join(out) + "\n", encoding="utf-8")
+    README_FILE.write_text("\n".join(out) + "\n", encoding="utf-8")
 
 
 # ── verify ──────────────────────────────────────────────────────────────────
@@ -401,6 +410,40 @@ def cmd_reverify(a: argparse.Namespace) -> int:
     die(f"[hint_tag] FAIL: {a.tag} 가 index 에 없음.")
 
 
+# ── reindex (태그 = 진실원천 → index.json + README 재생성) ────────────────────
+def cmd_reindex(a: argparse.Namespace) -> int:
+    """전 hint 태그에서 index.json + README 부록을 재생성한다(브랜치 간 드리프트 정합).
+    currency 필드(status·superseded_by·last_verified·큐레이트 related)는 기존 index 에서 보존."""
+    tags = sorted(existing_hint_tags())
+    idx = _load_index()
+    prev = {e["tag"]: e for e in idx["hints"]}
+    hints = []
+    for t in tags:
+        _, vllm, model, arch = t.split("/")
+        anchor = git("rev-list", "-1", t).stdout.strip()
+        brief, topology, related = _parse_tag_body(t)
+        p = prev.get(t, {})
+        e = {
+            "tag": t, "vllm": vllm, "model": model, "arch": arch,
+            "topology": topology or p.get("topology", ""),
+            "brief": brief or p.get("brief", ""),
+            "anchor": anchor,
+            "related": p.get("related") or related,  # 큐레이트(finalize) 우선, 없으면 본문 파싱
+            "status": p.get("status", "active"),
+            "last_verified": p.get("last_verified", date.today().isoformat()),
+        }
+        if p.get("superseded_by"):
+            e["superseded_by"] = p["superseded_by"]
+        hints.append(e)
+    idx["hints"] = hints
+    _save_index(idx)
+    _readme_regen(hints)
+    dropped = sorted(set(prev) - set(tags))
+    print(f"[hint_tag] reindex: {len(hints)} 태그 → index.json + README 재생성(currency 보존)."
+          + (f"  제거(태그없음): {dropped}" if dropped else ""))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="hint/<vllm>/<model>/<arch> 레시피-힌트 태그 관리")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -444,6 +487,9 @@ def main() -> int:
     r = sub.add_parser("reverify", help="핀 자산 reachability + last_verified 스탬프")
     r.add_argument("--tag", required=True)
     r.set_defaults(fn=cmd_reverify)
+
+    ri = sub.add_parser("reindex", help="전 hint 태그에서 index.json+README 재생성(브랜치 드리프트 정합·currency 보존)")
+    ri.set_defaults(fn=cmd_reindex)
 
     args = ap.parse_args()
     return args.fn(args)
