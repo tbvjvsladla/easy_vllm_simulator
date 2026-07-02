@@ -45,7 +45,7 @@
   자기오판 반증 = adversarial-benchmark 탄생 계기) · GUIDE 374742. **성능 baseline 인용 규약**: 동일 HW·
   동일 모델·MTP on/off(R_fp/R_token like-with-like) 명시와 함께 기록.
 - **deepseek-ai/DeepGEMM**: `github.com/deepseek-ai/DeepGEMM` (+`nv_dev` 브랜치·issues) — DS4/DSA 계열
-  타겟인 동안 semi-stable(빌드-바깥 패치 3+1+1 의 +1 의존 원천 — build_patches/10-deepgemm.sh).
+  타겟인 동안 semi-stable(빌드-바깥 패치 3+1+1 의 +1 의존 원천 — output/<topology>/build_patches/ 의 deepgemm 모듈).
 - **인코딩 자산 고정 URL**(에어갭 사전적재 따름정리): o200k_base →
   `openaipublic.blob.core.windows.net/encodings/o200k_base.tiktoken` (harmony 계열 동일 host).
 
