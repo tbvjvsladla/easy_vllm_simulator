@@ -1,0 +1,41 @@
+{
+  "_note": "hint 태그 기계-인덱스 (plan_2026070222_1). 레시피 본문은 annotated 태그 오브젝트에만 존재([A]=B) — 이 파일엔 메타/포인터/currency 만. hint_tag.py 가 갱신. 태그 자체(git tag -l 'hint/*')가 단일 진실원천이며 이 인덱스는 재생성 가능.",
+  "schema": [
+    "tag",
+    "vllm",
+    "model",
+    "arch",
+    "topology",
+    "brief",
+    "anchor",
+    "related",
+    "status",
+    "last_verified"
+  ],
+  "hints": [
+    {
+      "tag": "hint/0.23.0/deepseek-v4-flash/gb10",
+      "vllm": "0.23.0",
+      "model": "deepseek-v4-flash",
+      "arch": "gb10",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "jasl/vllm SM12x 포크(PR#41834 @c766cbc6) + humming 으로 공식 MXFP4 DeepSeek-V4-Flash 를 2×GB10 서빙 — Route B(포크핀 변종 트랙 …-source-sm12x)",
+      "anchor": "f65901508a376c667dd06e95b2ca71ca4979e23b",
+      "related": "hint/0.24.0/deepseek-v4-flash/gb10",
+      "status": "active",
+      "last_verified": "2026-07-03"
+    },
+    {
+      "tag": "hint/0.24.0/deepseek-v4-flash/gb10",
+      "vllm": "0.24.0",
+      "model": "deepseek-v4-flash",
+      "arch": "gb10",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "true stock vLLM 0.24.0 이 DeepSeek-V4-Flash 를 2×GB10 서빙 — nv_dev peel(벽 1개만 하드웨어·나머지 SW-fixable · 지도이지 정답 아님)",
+      "anchor": "c74c30d18e1a597fc88dedfa7dcb051449b6783c",
+      "related": "hint/0.23.0/deepseek-v4-flash/gb10",
+      "status": "active",
+      "last_verified": "2026-07-03"
+    }
+  ]
+}
