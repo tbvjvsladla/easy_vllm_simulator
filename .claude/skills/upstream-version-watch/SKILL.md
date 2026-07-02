@@ -125,7 +125,7 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
   단 `config.yaml`의 `reconciliation_cap`(기본 3) 한정. 캡 소진 시 무한루프 금지 → Model-C로.
 - **source-build-class**: 범위 밖(Phase 2). **propose Y/N**으로 "소스빌드 필요 — 진행?"을 사람에게 보고·확인.
   스킬은 소스빌드를 수행하지 않고, 다른 NGC 태그로 폴백 루프도 돌지 않는다.
-- **unknown (Model-C)**: **참조-그라운디드 해결** — class 제안 전 자기추론보다 **권위 소스**를 먼저 조회한다(여기서의 토큰 증가는 정확도를 사므로 권장): wheel METADATA(Requires-Dist) · NGC 이미지 라벨(`docker buildx imagetools inspect`) · 컨테이너 내부 torch 버전 + `torch::stable` 헤더(`tensor_struct.h`/`ops.h`의 `layout()`/6-arg `from_blob` 존재) · 빌드/serve 로그 · `failure_patterns.yaml`. 그 위에 LLM이 `{proposed_class, evidence}`를 제시 → **사람 승인 전 무행동**.
+- **unknown (Model-C)**: **참조-그라운디드 해결** — class 제안 전 자기추론보다 **권위 소스**를 먼저 조회한다(여기서의 토큰 증가는 정확도를 사므로 권장): wheel METADATA(Requires-Dist) · NGC 이미지 라벨(`docker buildx imagetools inspect`) · 컨테이너 내부 torch 버전 + `torch::stable` 헤더(`tensor_struct.h`/`ops.h`의 `layout()`/6-arg `from_blob` 존재) · 빌드/serve 로그 · `failure_patterns.yaml` · **외부 소스(메인 한정)** — vLLM GitHub release/issue/PR + NGC 매트릭스(`.claude/rules/references.md` §1·§2 템플릿; 서브 에어갭 = 증상 상향만). 그 위에 LLM이 `{proposed_class, evidence, external_sources}`를 제시(**`external_sources` 빈 값이면 보고서에 "외부 미조회" 라벨 강제 표기** — 자기추론-only 부정 결론 차단) → **사람 승인 전 무행동**.
   사람이 승인하고 codify를 원하면, 에이전트가 `failure_patterns.yaml` 추가 **diff를 제안**(직접 편집 금지) → 승인 시 반영(확률론→결정론 이전). (참조-그라운디드 해결 = 헌법 "버전 문자열 해소 확률론 금지"의 error-recovery 연장.)
 
 ## 3.6. escalation 수신 — recipe 핸드오프 → 버전핀 소유·3출구 (발견≠소유의 버전-bump 축)
@@ -136,7 +136,7 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 - **3출구 → 기존 경로 매핑**:
   - **(i) 공식 bump** — 모델이 더 새 *공식* vLLM release에서 지원 → **표준 bump 경로**(`workflow.md` S1–S3, HITL 게이트). 가장 단순한 출구.
   - **(ii) 커스텀/포크핀** — 모델카드가 포크·미머지 PR 지목(예 jasl/vllm PR) → **§4.6 source-repo 오버라이드**(fork **SHA 핀** `VLLM_REPO`/`VLLM_REF` build-arg) + `…-source-<변종>` superset 변종 트랙(`resolved.json` `source_build_variants`). 거버넌스 = 아치-enablement 변종 트랙 따름정리(클러스터-와이드 이미지·**기존모델 회귀 재스모크**·단일 변종-트랙·무증거 오버라이드 금지). 절차 정본 = `workflow.md` S3 arch-wall 분기.
-  - **(iii) 음성정직** — vLLM이 아직 미지원(공식·포크 모두 부재), transformers-only → *"현재 vLLM으로 서빙 불가"* 보고(없는 길 날조 ✗). 사용자가 transformers 폴백/대기를 결정.
+  - **(iii) 음성정직** — vLLM이 아직 미지원(공식·포크 모두 부재), transformers-only → *"현재 vLLM으로 서빙 불가"* 보고(없는 길 날조 ✗). 사용자가 transformers 폴백/대기를 결정. **단 "공식·포크 모두 부재" 선언은 `.claude/rules/references.md` §5 최소범위 레시피 수행 + testlog "탐색 증거"(검색어·URL·일자) 기록 후에만 허용** — 가장 강한 부정 결론엔 가장 강한 증거("찾을 수 있는 길을 덜 찾고 포기" 방어 · plan_2026070208_1; 3출구 중 (i)/(ii)는 증거 요건이 이미 강한데 (iii)만 없던 비대칭 해소).
 - **최종 중재 = 스모크**(린트·이슈글 ≠ 서빙됨): (i)/(ii) 출구는 render+build+S3 스모크 통과가 done. **순환 차단** — rebuild 후도 미구동이면 `config.yaml`의 `reconciliation_cap` 한정 재진입 → 소진 시 Model-C(무한 bump ✗).
 - **완료 후 recipe 재개 신호**: rebuild된 이미지로 `vllm-recipe-explorer`가 전략수립(§2–§6) 재진입. 핀 변경·push는 §4·`workflow.md` HITL 게이트.
 
@@ -242,4 +242,4 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 - (서브노드 빌드워커 CC 페르소나·Agent_Card·통신프로토콜은 **`terraforming_node` 스킬이 소유·렌더** — plan_2026062408_1 에서 `sub_node/` 이전. 이 스킬은 `sync_to_sub.sh`(전달)·`multinode_serve_smoke.sh`(서빙 스모크) 제어평면만 보유.)
 - `<repo>/Dockerfile.source-build` — Phase 2 소스빌드 동결 산출물(§4.6, 0.22.1 검증). prebuilt `Dockerfile`과 별도.
 - `config.example.yaml` — 입력 스키마(트리거·스모크 config_name·`reconciliation_cap`).
-- `reference.md` — **온디맨드 생성(현재 미존재 · 선택적 폴백)**: 결정론 스크립트(①②③)가 정본이라 평시 불요. 스크립트 부재·오프라인 등 폴백이 필요할 때만 torch↔NGC 매핑 테이블 + 레이어 매핑 상세를 생성한다(파일 없음 = 의존성 누락 아님).
+- 외부 레퍼런스 = **`.claude/rules/references.md`(추적 레지스트리 — plan_2026070208_1 로 승격·시딩됨)**: ID→URL 정규화 템플릿(release·PR/issue·compare API)·스크립트-소유 포인터·HW-스코프·부정판정 최소범위 레시피. 외부검색 전 1차 조회(warm-start) → 미스 시 신규 검색 → load-bearing 히트 재입고(자기증식). (구 `reference.md` 온디맨드-폴백 예약은 이 레지스트리로 대체 — torch↔NGC 매핑 정본은 여전히 결정론 스크립트 ①②③.)

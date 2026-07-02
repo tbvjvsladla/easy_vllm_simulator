@@ -138,7 +138,12 @@ python3 recipe.py estimate --config config.yaml --auto
 ### ③.5 HITL — 사람이 rN 선택
 
 리포트를 사람이 보고 통과 후보 중 하나의 `recipe_id`(예: `r3`)를 고른다. 무feasible(전부 FAIL)이면
-예산 상향/마진 완화/모델 변경을 보고한다(자동 강행 금지).
+예산 상향/마진 완화/모델 변경을 보고한다(자동 강행 금지). **단 "전부 FAIL" 보고 전 의무 2단계**
+(공식-only 인피저블 선언 금지 — §1 공식은 sliding-window/GQA 서 최대 8× 과대추정하는 상한일 뿐 ·
+near-max 따름정리의 KV 축 대칭 · plan_2026070208_1): (a) **측정 보강 제안을 기본 경로로** — Phase-1.5
+1회 serve 또는 Phase-2 trial 로 실측 per-token KV 확인을 먼저 제안하고, (b) **외부 교차검증** —
+`.claude/rules/references.md` §5 레시피(HF 카드·동일 HW 커뮤니티 구동 사례)로 "정말 못 띄우는 모델인지"
+확인·기록(testlog "탐색 증거"). 둘 다 없이 인피저블 단정 ✗ (DeepSeek-V4-Flash 오판 실증 — §0 crosscheck 계기).
 
 ### ④ generate (결정론 3종 세트) + 되먹임 로그
 
@@ -328,7 +333,11 @@ run_trial(candidate)            # docker run -d → /health 200 폴링 → funct
   파싱하므로 원문 전체를 읽어 실패 시그니처·oracle 경고 확인) → ② 모델 `config.json`/`chat_template`(파서·능력·아키 가정 검증) →
   ③ **빌드 이미지의 실제 vLLM 버전 + 레지스트리 정적 grep**(§4 step-5 파서확증 기법을 *초기 emit 뿐 아니라 복구 루프에서도* 재실행 —
   버전-exact 등록명·지원 dtype 확인; 이번 NVFP4 `triton` 미지원도 oracle supported-list 로 식별 — §5) → ④ vLLM oracle 소스
-  (예 `config/kernel.py` `MoEBackend`·선택 로직). 참조로도 미해소면 그제서야 Model-C HITL.
+  (예 `config/kernel.py` `MoEBackend`·선택 로직) → ⑤ **외부 교차검증(메인 한정 — 로컬 소스 소진 시 의무)**:
+  `.claude/rules/references.md` §5 부정판정 최소범위 레시피(HF 카드 vLLM 절·discussions + vLLM issue/PR 모델
+  클래스명 검색)를 수행하고 **검색어·URL·일자를 testlog "탐색 증거" 섹션에 기록** — ⑤ 수행·기록 없이
+  "이 조합은 불가" 부정 보고 금지(자기추론-only 부정 결론 차단 · plan_2026070208_1; 서브 에어갭 = ⑤ 생략
+  + 증상 docs 상향만 — D12). ①–⑤ 로도 미해소면 그제서야 Model-C HITL.
 - **준비 판정 = `:PORT/health` HTTP 200**. 로그의 "startup complete" grep 금지(거짓양성 — workflow S3와 동일).
 - **수렴 시**: `configs/<name>.yaml`(VRAM 분해 주석 + `max-num-seqs`·`kv-cache-memory-bytes`·`kv-cache-dtype`),
   `configs/<name>.sh`(`VLLM_ATTENTION_BACKEND` export + tool/reasoning 파서 플래그), `envs/.env.<name>`을 생성.

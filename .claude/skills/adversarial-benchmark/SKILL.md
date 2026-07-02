@@ -52,7 +52,11 @@ description: >-
 - **(a) 결정론 루프라인 = 척추(매번 먼저)**: `roofline.py` → `R_fp`(forward-pass/sec 상한, 100% MBU 낙관 천장)·
   `R_token = accept_len × R_fp`(speculative)·`expected_achievable = realistic_fraction × R_token`. **의심 임계**(SLA 아님).
 - **(b) 외부 레퍼런스 E = 목표치**: 검증기(Devil's Advocate)가 **외부검색 수행** — 동일 HW 에서 남들이 내는 실제 달성치
-  (HF 카드·포럼·vLLM PR). 혼자 루프라인을 안 믿고 E 로 정밀화. **E 가 진짜 판별자**(측정>공식).
+  (HF 카드·포럼·vLLM PR — **1차 진입점 = `.claude/rules/references.md` §3·§4 warm-start → 미스 시 신규 검색 →
+  히트 baseline 재입고**). 혼자 루프라인을 안 믿고 E 로 정밀화. **E 가 진짜 판별자**(측정>공식). **메인은 E
+  검색을 시도·기록한 후에만 판정 진입** — `verdict_rule.py --e-search {hit,empty,no}` 로 상태를 결정론 게이트에
+  전달(빈손이면 `empty` 로 *기록된* roofline-only 강등 = 음성정직 / 미시도 `no` 는 출력에 경고 표기 — silent
+  강등 차단 · plan_2026070208_1; 서브 에어갭 = `no`+증상 상향이 설계).
 - **(c) 사용자 = 최종 백스톱**: (a)·(b) 둘 다 루브릭을 못 세울 때만. `verdict_rule` 이 `NEEDS_RUBRIC`(axis=establish) 반환 → 사람에게 레퍼런스 요청.
 
 **spec-aware(중요)**: no-MTP 서브는 `R_fp` 와, MTP 서브는 `R_token` 와 비교(like-with-like). speculative 면 token/s 가 단일패스 천장 `R_fp` 를 *초과* 가능 → 섞으면 M-vs-R 무의미(dogfood BLOCK 교훈).
@@ -73,7 +77,8 @@ description: >-
      ② serve 가동 확인(:PORT/health 200) — 미가동이면 중단(기동 안 함)
      ③ run_bench.sh → parse_bench.py (warmup 폐기 + engine 교차)  → M
      ④ Devil's Advocate (다중 렌즈, LLM): E 외부검색 + 주장 공격(메인전용)
-     ⑤ verdict_rule.py (결정론 게이트):
+        — 메인은 ④의 E 검색(references.md warm-start 포함) 수행·기록 후에만 ⑤ 진입(미시도 ⑤ 직행 ✗)
+     ⑤ verdict_rule.py (결정론 게이트, --e-search 로 E 상태 기록):
           PASS  → done-게이트 클리어 ✅
           REFUTE→ 기각 리포트 + next_strategy_hint
                   → recipe-explorer 자극(전략 폐기·재탐색) → 재 serve → ②로 (cap 한정)
