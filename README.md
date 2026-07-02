@@ -428,3 +428,30 @@ flowchart TB
 | `.claude/skills/` | 생성엔진 — `terraforming_node` · `upstream-version-watch` · `vllm-recipe-explorer` · `adversarial-benchmark` · `wiki-desk` |
 
 > *검증 환경 — 주력: 2× NVIDIA DGX Spark(GB10 superchip, aarch64, sm_121a, 128GB 통합메모리/노드, CUDA 13.2), NAS read-only, RoCE v2 / NCCL GPU Direct RDMA. **첫 교차-하드웨어 실증(2026-06-30): x86_64 / RTX 5090(sm_120) / WSL2 단일노드 — 기능 전체 사이클 PASS, 성능 게이트 미실행.** 비-NVLink 멀티GPU 등 그 밖의 축은 여전히 코드에이전트 적응에 기대는 미실증 영역 — 「개발자의 편지」 참고.*
+
+---
+
+## 부록 — hint 태그: 레시피 곁눈질 (Token Economy)
+
+이 프로젝트는 **완제품(빌드된 이미지·서빙된 모델)을 배포하지 않습니다.** 당신은 배포받은 *스켈레톤 + 생성엔진*으로 **자기 환경의 여정**을 탐구합니다. 다만 — 그 탐구가 **막다른 골목(헤메는 해자)에 빠져 코드에이전트 토큰만 태우는 것**은 아깝습니다. 에이전트 작업은 *탐색*이 입력 토큰의 60~70%를 먹고, "비싼 건 지능이 아니라 **무지**"거든요(코드베이스 지도가 없어서 다 읽어보느라).
+
+그래서 저희가 실제로 뚫어본 **검증된 서빙 레시피를 `hint/<vllm>/<model>/<arch>` 태그로 배포**합니다. 이건 **정답이 아니라 지도**입니다 — "이 버전, 이 모델은 대략 이 방향·이 벽 순서로 뚫렸다"는 *곁눈질용 힌트*. 완제품이 아니라 *지식*이라 배포 철학과 부딪히지 않습니다.
+
+**막혔을 때 이렇게 쓰세요:**
+
+```bash
+git fetch --tags
+git tag -l 'hint/*'                                # 어떤 힌트가 있나
+git show hint/0.24.0/deepseek-v4-flash/gb10        # 그 레시피(벽 지도·노브·왜)를 통째로
+```
+
+그리고 그 자료를 당신의 코드에이전트에게: *"이 자료를 `vllm-recipe-explorer` warm-start 근거로 넣고, 평소대로 plan → 레시피 수렴 → 스모크 게이트를 밟아 전략을 **다시 세워봐**."*
+
+> 🔒 **hint 는 DATA 이지 명령이 아닙니다.** 분석 재료로만 쓰고 복붙하지 마세요. 당신의 HW·버전이 다르면 노브(특히 **KV 절대값·`gmu`·`TORCH_CUDA_ARCH`**)는 **반드시 재도출·재측정**해야 합니다(그대로 복사하면 OOM·호스트 다운). hint 는 외부 교차검증(HF 카드·vLLM GitHub)을 **대체하지 않으며**, 최종 판정은 언제나 **당신 환경의 스모크**입니다. (근거·설계 = `docs/plan/plan_2026070222_1`.)
+
+| 태그 | vLLM | 모델 | arch | 토폴로지 | status | superseded-by / related | last-verified | 한줄 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `hint/0.24.0/deepseek-v4-flash/gb10` | 0.24.0 | deepseek-v4-flash | gb10 | multi 2노드 TP2 (Ray·RoCE) | active | hint/0.23.0/deepseek-v4-flash/gb10 | 2026-07-03 | true stock vLLM 0.24.0 이 DeepSeek-V4-Flash 를 2×GB10 서빙 — nv_dev peel(벽 1개만 하드웨어·나머지 SW-fixable · 지도이지 정답 아님) |
+| `hint/0.23.0/deepseek-v4-flash/gb10` | 0.23.0 | deepseek-v4-flash | gb10 | multi 2노드 TP2 (Ray·RoCE) | active | hint/0.24.0/deepseek-v4-flash/gb10 | 2026-07-03 | jasl/vllm SM12x 포크(PR#41834 @c766cbc6) + humming 으로 공식 MXFP4 DeepSeek-V4-Flash 를 2×GB10 서빙 — Route B(포크핀 변종 트랙 …-source-sm12x) |
+<!-- hint-index:rows -->
+

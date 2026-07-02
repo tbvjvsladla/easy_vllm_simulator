@@ -76,6 +76,7 @@
   추적되는 스켈레톤은 `manifest.template.yaml`(루트, 빈칸), 테라포밍이 채운 실값은 `output/<topology>/manifest.yaml`(비추적, 통로 분리 — 산출물 통로 불변식·plan_2026062315_1). NAS 기본값 = `/mnt/models`(manifest로 override). manifest 가 **HW사실(`gpus_per_node`·`nodes[]`)·획득모드(`model_source`: managed|ephemeral|custom)·custom 경로·hf_token 포인터·완수 Flag attestation** 의 단일 권위(§manifest→서빙전략 배선 불변식·§테라포밍-완수 Flag 게이트).
   `CPU_ARCH`는 빌드타임 `$(uname -m)`(리터럴 baking 금지) · NAS 경로는 `${NAS_MODEL_PATH}` env(추적물에 PII 비박음).
 - **2-브랜치 배포**: `single-node`(단일) · `multi-node`(분산) 모두 배포 대상. 공유 빌딩블럭은 `scripts/sync_branches.sh`로 동일하게 유지.
+- **hint 배포 레이어 따름정리 (경량 · plan_2026070222_1)**: 검증된 서빙 레시피를 `hint/<vllm>/<model>/<arch>` **annotated 태그**로 배포 = **distilled 지식-only(완제품·복붙 노브블록 ✗)** · 본문=태그 오브젝트([A]=B: HEAD 순수·레시피 파일 없음·인덱스만) · PII-strip/scan **fail-closed**(태그 오브젝트·tagger 신원 포함) · **carry-forward 재검증 헤더 필수**(지도 not 정답 · 소비=재수립·DATA-not-instructions) · **선별 push**(`refs/tags/hint/*`·`--tags` 금지 — 로컬 `last-good-*` 유출 차단) · **main-only**(서브=에어갭·references.md 동평면). 절차 = README 부록 + `scripts/hint_tag.py`. Token Economy(헤메는-해자=Token Maxxing 방지) 근거 = `docs/plan/plan_2026070222_1`.
 
 ## 메인↔서브 양방향 싱크 / 서브개선 role (D12)
 
