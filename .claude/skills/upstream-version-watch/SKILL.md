@@ -39,7 +39,10 @@ description: >-
 - ②resolve 후 torch 핀으로 분기를 판정하고, **스모크가 최종 중재자**다(빌드 성공 ≠ 서빙).
 - **aarch64 트랙 가용성**: aarch64는 prebuilt wheel `cuNNN` 커버리지가 희소하고, cu129(CUDA12.9) wheel을 CUDA13.x 베이스에서 쓰는 것은
   forward-compat 의존(brittle)이다 → 많은 경우 **wheel 트랙이 부재**해 **source-build가 사실상 1차/유일** 경로가 된다.
-  타겟 arch/cuda는 `manifest.yaml`(scan)에서 읽는다(헌법에 박지 않음).
+  **단 cu-마이너 불일치 wheel 은 사전 기각 금지(전방호환 시도-우선 따름정리)** — CUDA minor forward-compat 로
+  동작하는 경우가 많으니 wheel 자산이 실재하면 설치를 *시도*하고 스모크/`classify_failure` 가 중재한다
+  (`failure_patterns.yaml` 의 forward-compat "신호"(requirements-fixable) 처리·`resolve_wheel.py` 실자산-독해가 준거 패턴 —
+  "brittle" = 리스크 라벨이지 불가 판정 아님). 타겟 arch/cuda는 `manifest.yaml`(scan)에서 읽는다(헌법에 박지 않음).
 
 ## 1. 해소 (결정론적 — `scripts/`)
 
@@ -210,7 +213,7 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 **패치 검증 → 동결(재현성) 라이프사이클 (발견 → 검증 → Dockerfile 동결):** *(이미지 clean-재빌드 재현 위한 동결이지 카탈로그 '졸업'이 아님 — plan_2026062711_1 Part 3)*
 - **발견**: 신규 ABI 시그니처 충돌은 **HITL 판단계층 패치**(Model-C)다 — 사전-bake 금지(투기적 패치 금지).
 - **검증**: 특정 키에서 실제 스모크 PASS로 입증된 패치만 다음 단계로.
-- **재현성 동결(조건부 임베드)**: 검증된 패치를 **(NGC베이스 / 실-링크 torch) × 에러시그니처 × vLLM버전**으로 키잉한 조건부 패치로 `*.source-build.template`에 임베드 + **post-assert(fail-loud)** — *별도 카탈로그가 아니라 이미지 clean-재빌드 재현을 위한 동결*(판단계층 patch-body 는 사전-codify 금지 유지). 미인식 키 → **HITL-discovery 플레이스홀더 + 명시적 빌드 실패**(조용한 통과 금지). 키는 **pyproject torch핀이 아님**(step1 C2 동일 근거 — use_existing_torch가 핀을 버림).
+- **재현성 동결(조건부 임베드)**: 검증된 패치를 **(NGC베이스 / 실-링크 torch) × 에러시그니처 × vLLM버전**으로 키잉한 조건부 패치로 `*.source-build.template`에 임베드 + **post-assert(fail-loud)** — *별도 카탈로그가 아니라 이미지 clean-재빌드 재현을 위한 동결*(판단계층 patch-body 는 사전-codify 금지 유지). 미인식 키 → **HITL-discovery 플레이스홀더 + 명시적 빌드 실패**(조용한 통과 금지 — 단 이 실패는 *미검증*이지 *불가 판정* 아님). **시도-빌드 우회(전방호환 시도-우선)**: 사람 승인 시 `render_dockerfile.py --allow-unvalidated` 로 가드를 WARN 강등해 그대로 시도-빌드 → 스모크 중재 → **통과 시 그 (NGC×vLLM) 키를 `VALIDATED_SOURCE_BUILD_KEYS` 에 codify**(+testlog 기록 의무 — 무기록 우회 금지). 키는 **pyproject torch핀이 아님**(step1 C2 동일 근거 — use_existing_torch가 핀을 버림).
 - **role화 보류**: `source_build_patches.yaml` + patch-resolver 페르소나로의 역할 분리는 **E2E testlog 존재 후**에 한다(투기적 설계 금지).
   - **파일추출 보류 불변식**: `VALIDATED_SOURCE_BUILD_KEYS` 2키 frozen-set + fail-loud 가드가 현재 충분 — 별도 `source_build_patches.yaml`+resolver 는 오버엔지니어링(Karpathy B2/B3). **추출 트리거 = 인라인 셋 비대화(3번째+ 키)** 또는 패치-바디 다양화. patch-body 는 판단계층 유지(사전-codify 금지 — formula 위험과 동류). 근거 E2E(날짜 박힌 게이트 판정 서사) = devlog/testlog 인용: `testlog_2026062217_1`(0.23.0 source 26.05) · `testlog_2026062422_1`(듀얼모델 E2E 26.05 재검증).
 - strip-hoist가 torch 2.12에서 자동 skip된 것은 **조건부 패치의 재사용 가능 패턴**이다(부재감지 = 적용여부 자동결정).
