@@ -111,6 +111,43 @@ RUN pip install ray==${RAY_VERSION}
 COPY build_patches/ /tmp/build_patches/
 RUN for p in $(ls /tmp/build_patches/*.sh 2>/dev/null | sort); do echo "[build-patch] applying $p"; bash "$p" || exit 1; done
 
+# [flashinfer swa_topk_lens + nvcc 런타임 PATH · plan_2026070213_1 T-A/T-A2/T-A3] 2-part fix (소스 독해 확증):
+#   (1) vLLM 0.24.0 deepseek_v4 sparse-MLA(flashinfer_sparse.py:760·879) 가 trtllm_batch_decode_sparse_mla_dsv4(swa_topk_lens=...)
+#       호출 → pinned flashinfer 0.6.12 엔 부재(0.6.13 도 부재 · 0.6.14 서 추가 — mla/_core.py 시그니처 diff). → 0.6.14 로 bump.
+#   (2) attn __init__ 가드(flashinfer_sparse.py:563 → vllm.utils.flashinfer.has_flashinfer_sparse_mla_sm120 → has_flashinfer())
+#       는 `flashinfer_cubin 패키지 부재 AND nvcc(PATH) 부재`면 False → "requires FlashInfer's sparse MLA decode API"(T-A2 실증).
+#       근본: 이 Dockerfile line34 가 ccache 위해 PATH 를 재정의하며 /usr/local/cuda/bin 을 누락 → 런타임 nvcc 미발견.
+#       해소: 아래 ENV 로 /usr/local/cuda/bin 재노출 → has_flashinfer()=True + sm_121a sparse-MLA 커널 런타임 JIT(프리빌트 cubin 부재).
+#   (2b) flashinfer 는 flashinfer-cubin 버전이 flashinfer-python 과 정확히 일치할 것을 강제(jit/env.py _get_cubin_dir):
+#       stale flashinfer-cubin(0.6.12) 잔존 + python 0.6.14 → "version does not match" 빌드실패(T-A3 실증). GB10 sm_121a
+#       프리빌트 cubin 어차피 부재 → cubin/jit-cache 제거 후 런타임 JIT(nvcc). (빌드는 CUDA_HOME 로 nvcc 찾으므로 line34 무영향.)
+#   flashinfer-python=py3-none-any(무컴파일). build_patches(위) 뒤 = nv_dev DeepGEMM 캐시 보존. 최종중재 = serve 스모크.
+RUN pip install --no-cache-dir "flashinfer-python==0.6.14" \
+ && (pip uninstall -y flashinfer-cubin flashinfer-jit-cache 2>/dev/null || true) \
+ && python3 -c "import inspect,flashinfer.mla._core as m; assert 'swa_topk_lens' in inspect.signature(m.trtllm_batch_decode_sparse_mla_dsv4).parameters; print('[flashinfer] 0.6.14 swa_topk_lens 파라미터 확인 OK')"
+
+# [DSA sparse-indexer topk sm_121a · plan_2026070213_1 T-A7] 소스-게이트 패치(vLLM editable install → /workspace/vllm-src 편집 런타임 반영).
+#   stock 0.24.0 sparse_attn_indexer 는 topk_tokens∈(512,1024,2048) & SM90+ 서 _C.cooperative_topk 선택 → 그 launch_cooperative_cluster
+#   가 sm_121a(GB10)서 "invalid argument" 실패(serve#T-A4~A6 실증, cooperative_topk.cu:46). 비-cooperative 형제 persistent_topk 로 폴백
+#   (cooperative_topk.cu 주석: ">32 rows 는 persistent_topk"; 커뮤니티 포크는 여기를 Triton 으로 교체 — 우린 stock persistent 우선 시도).
+#   build_patches(위) 뒤 = nv_dev DeepGEMM 캐시 보존. fail-loud(anchor 미발견 시 빌드중단). 최종중재 = serve 스모크.
+RUN python3 - <<'PY'
+import pathlib, sys
+f = pathlib.Path("/workspace/vllm-src/vllm/model_executor/layers/sparse_attn_indexer.py")
+s = f.read_text()
+if "has_device_capability(120)" in s:
+    print("[dsa-indexer] already patched — skip"); sys.exit(0)
+anchor = "        if use_cooperative_topk:\n"
+if anchor not in s:
+    sys.stderr.write("[dsa-indexer] FAIL: anchor 'if use_cooperative_topk:' 미발견 — 상류 sparse_attn_indexer 변경 의심\n"); sys.exit(1)
+guard = ("        # [GB10 sm_121a · plan_2026070213_1] cooperative_topk cooperative-cluster launch 실패 → persistent_topk 폴백\n"
+         "        if current_platform.has_device_capability(120):\n"
+         "            use_cooperative_topk = False\n")
+f.write_text(s.replace(anchor, guard + anchor, 1))
+print("[dsa-indexer] patched: sm120+ forces persistent_topk (비-cooperative)")
+PY
+ENV PATH=/usr/local/cuda/bin:${PATH}
+
 WORKDIR /workspace
 EXPOSE 8000
 
