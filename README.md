@@ -431,7 +431,116 @@ flowchart TB
 
 ---
 
-## 부록 — hint 태그: 레시피 곁눈질 (Token Economy)
+## 부록 A — 검증된 모델 서빙·사용 매뉴얼 (코드에이전트 없이)
+
+여기까지의 여정은 *코드에이전트가 당신 환경에 맞춰 빌드·검증* 하는 이야기였습니다. 하지만 — **에이전트가 어떤 모델의 한 사이클(테라포밍 → 빌드 → 서빙 인터뷰 → (선택)성능검증)을 이미 끝내 둔 뒤** 라면, 그 모델을 *날마다 띄우고·접속하고·내리는 운용* 은 에이전트가 필요 없습니다. **그냥 `docker` 와 `curl`** 이면 됩니다. 에이전트도, 토큰도 안 씁니다. 이 부록이 그 **운용 매뉴얼**입니다.
+
+> 🔑 **역할 구분**: 에이전트는 *레시피를 만들고 검증* 합니다(창의적·비결정론적 작업). 당신은 그 검증된 레시피를 *운용* 합니다(반복적·결정론적 작업). 아래 명령들은 전부 사람이 직접 실행하는 것입니다 — `multinode_serve_smoke.sh` 같은 스크립트도 *코드에이전트가 아니라 bash* 입니다.
+
+### 전제 — "이미 검증된 레시피" 란
+
+이 매뉴얼은 아래가 **이미 갖춰진 모델**에만 적용됩니다(=에이전트가 한 사이클을 끝낸 상태):
+
+- ✅ 테라포밍 완수(manifest 에 완수 표식) · ✅ 노드에 이미지 빌드됨 · ✅ config 3종 세트(`output/<topology>/envs/.env.<config>` + `configs/<config>.{yaml,sh}`) 존재.
+
+아직 검증 전이라면(새 모델·새 vLLM 버전·HW 변경) 노브(KV·`gmu`·TP·백엔드)를 다시 도출해야 하니 **여정 2~4(에이전트)로 돌아가세요.** 이 부록은 "탐색"이 아니라 "운전"입니다.
+
+### 0) 내 서빙 자산 확인
+
+```bash
+ls output/*/envs/.env.*                 # 검증된 config 목록 (파일명의 .env.<config> 가 config 이름)
+docker images | grep easy-vllm          # 노드에 빌드된 이미지
+# 엔드포인트 포트·모델명은 그 config 의 .env 에 들어 있습니다:
+grep -E '^SERVING_(IP|PORT|MODEL_NAME)=' output/multi/envs/.env.deepseek-v4-flash
+#   SERVING_PORT=8941  ·  SERVING_MODEL_NAME=deepseek-v4-flash-dspark  ← 접속에 쓸 값
+```
+
+### 1) 띄우기 (up)
+
+**단일노드** — 로컬 compose 한 번이면 자기 완결적으로 뜹니다:
+
+```bash
+docker compose -f output/single/docker-compose.yaml \
+  --env-file output/single/envs/.env.<config> --profile serve up -d
+```
+
+**멀티노드(2노드 Ray)** — 마스터(로컬)+슬레이브(서브 SSH) *둘 다* 떠야 하므로, 제공된 결정론 스크립트가 **NAS 체크 → 양노드 기동 → health 폴링 → 스모크** 를 한 번에 처리합니다(이미 빌드된 이미지면 `--build` 없이 재사용):
+
+```bash
+READY_MAX=300 bash .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh <config> --keep-up
+#   --keep-up : 스모크 후 컨테이너 유지(빼면 스모크 뒤 자동 정리)
+#   2노드 분산 로드는 수 분(모델 크기·shard 수에 비례) 걸립니다 → "READY ~Ns" + "SMOKE PASS" 가 뜨면 완료.
+```
+
+> ✅ **실제 예시** — 이 README 를 쓰던 세션에서 셧다운됐던 `deepseek-v4-flash`(vLLM 0.24.0, 2×GB10)를 정확히 위 한 줄로 재기동했습니다: 이미지 재사용(빌드 생략) → `READY ~735s` → `SMOKE PASS content='4' fr=stop` → `:8941` 라이브. 코드에이전트 미개입, 검증본 레시피(nv_dev·humming·enforce-eager·MTP, `testlog_2026070213_1`) 그대로.
+
+### 2) 접속·사용 (connect & use)
+
+`<PORT>` = `SERVING_PORT`, `<MODEL>` = `SERVING_MODEL_NAME`(0단계에서 확인). OpenAI 호환 API 라 기존 OpenAI 클라이언트가 그대로 붙습니다.
+
+```bash
+curl -s localhost:<PORT>/health          # HTTP 200 이면 준비 완료
+curl -s localhost:<PORT>/v1/models       # 서빙 중인 모델명 확인
+```
+
+```bash
+# 채팅 완성 (OpenAI 호환)
+curl -s localhost:<PORT>/v1/chat/completions -H 'Content-Type: application/json' -d '{
+  "model": "<MODEL>",
+  "messages": [{"role":"user","content":"안녕, 자기소개 해줘"}],
+  "max_tokens": 256
+}'
+```
+
+```python
+# Python (openai SDK) — 로컬 서빙은 API 키를 검사하지 않으니 아무 문자열이나 넣습니다
+from openai import OpenAI
+client = OpenAI(base_url="http://localhost:<PORT>/v1", api_key="not-needed")
+r = client.chat.completions.create(
+    model="<MODEL>",
+    messages=[{"role": "user", "content": "안녕"}],
+)
+print(r.choices[0].message.content)
+```
+
+> 🌐 **원격 접속**: `SERVING_IP=0.0.0.0`(기본)이면 LAN 의 다른 기기에서도 붙을 수 있습니다 — `localhost` 대신 **마스터노드 IP**(manifest `nodes[main].host`, 예 `192.168.100.10`)를 쓰세요. reasoning 모델은 `reasoning` 필드가 따로 오고, 툴콜은 `tool_calls` 로 옵니다(응답에 `finish_reason` 확인).
+
+### 3) 상태·로그
+
+```bash
+docker ps --filter name=<config>                 # 컨테이너 상태(Up/Exited)
+docker logs -f <MASTER_CONTAINER_NAME>           # 실시간 로그(.env 의 MASTER_CONTAINER_NAME)
+docker logs <MASTER_CONTAINER_NAME> 2>&1 | tail -30   # 최근 로그만
+```
+
+### 4) 내리기 (down)
+
+**단일노드**:
+
+```bash
+docker compose -f output/single/docker-compose.yaml \
+  --env-file output/single/envs/.env.<config> --profile serve down
+```
+
+**멀티노드** — 마스터(로컬)와 슬레이브(서브) 를 각각 내립니다:
+
+```bash
+# 마스터(로컬)
+docker compose -f output/multi/docker-compose.yaml \
+  --env-file output/multi/envs/.env.cluster --env-file output/multi/envs/.env.<config> --profile master down
+# 슬레이브(서브노드 — manifest nodes[sub].host / ssh_user)
+ssh <sub_user>@<sub_host> 'cd <repo_path> && docker compose -f output/multi/docker-compose.yaml \
+  --env-file output/multi/envs/.env.cluster --profile slave down'
+```
+
+> 🔒 **운용 가드**
+> - **모델이 노드에 있어야 합니다** — `managed`/`custom` 은 사전 적재(read-only 마운트), `ephemeral` 은 컨테이너가 받되 *사용자 승인 게이트* 후에만. 부재 시 스크립트가 **NAS 체크에서 멈추고 보고**합니다(무인 자동 다운로드 없음).
+> - **config(yaml) 를 손댔다면** `compose up -d` 가 bind-mount 변경을 반영 못 할 수 있습니다 — **`down → up`** 으로 재기동하세요(전례: 재서빙 함정).
+> - **"됐다"의 기준은 스모크** — health 200 + *비어있지 않은 완성 응답 1회*. lint·기동만으로 done 이 아닙니다(헌법 검증 게이트).
+
+---
+
+## 부록 B — hint 태그: 레시피 곁눈질 (Token Economy)
 
 이 프로젝트는 **완제품(빌드된 이미지·서빙된 모델)을 배포하지 않습니다.** 당신은 배포받은 *스켈레톤 + 생성엔진*으로 **자기 환경의 여정**을 탐구합니다. 다만 — 그 탐구가 **막다른 골목(헤메는 해자)에 빠져 코드에이전트 토큰만 태우는 것**은 아깝습니다. 에이전트 작업은 *탐색*이 입력 토큰의 60~70%를 먹고, "비싼 건 지능이 아니라 **무지**"거든요(코드베이스 지도가 없어서 다 읽어보느라).
 
