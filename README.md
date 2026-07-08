@@ -2,7 +2,7 @@
 
 > **새 LLM이 나올 때마다 반복되는 "추론엔진 호환 대기 → 소스빌드 → 비패턴 땜질 패치" 의 고통을, 코드에이전트와의 대화 한 줄로 바꿉니다.**
 >
-> *Upstream-tracking vLLM container & serving-strategy generator — a portable skeleton + generation engine.*
+> *Upstream-tracking vLLM container & serving-strategy generator — a portable skeleton + generation engine + 타겟-GPU 서빙 시뮬레이터.*
 
 ---
 
@@ -297,6 +297,26 @@ flowchart LR
 > - 2 trial 수렴. 최종: `max-model-len 65536` · `max-num-seqs 39`(측정) · `kv-cache-memory-bytes 87064835597` · `gmu 0.90`.
 > - 스모크: `"Hello there!"`, `finish_reason=stop`. **판정: 합격.**
 
+### 타겟 GPU 시뮬레이션 — 손에 없는 하드웨어를 위해 미리 검증하기
+
+지금까지의 예시는 전부 *실제로 꽂혀 있는 GPU*(GB10)에 맞춰 KV 를 클램프했습니다. 그런데 어떤 상황은
+**아직 손에 없는 GPU**(고객이 살 서버, 다음 분기에 들어올 카드, 데모용으로 잠깐 빌린 인스턴스)를 대상으로
+서빙 전략을 미리 확정해야 합니다. **이 지점에서 easy-vllm 은 진짜로 "시뮬레이터"가 됩니다** — 측정은
+지금 있는 하드웨어에서 하고, **클램프만 타겟 예산으로 이식**합니다.
+
+> 👤 **당신**: gemma-4-12b-it 를 RTX PRO 6000(96GiB) 에 띄운다고 치고 레시피 만들어줘. 나는 지금 GB10 밖에 없어.
+>
+> 🤖 **에이전트**: RTX PRO 6000 스펙을 확인하겠습니다 — 웹검색: 96GB GDDR7, discrete(통합메모리 아님), Blackwell. `references.md` 에 등재하고 승인해 주시면, 이제부터 Phase-2 측정은 **당신의 GB10 에서 실측**하되(weights·per-token-KV 는 GPU 종류와 무관한 불변량), **클램프 산정은 96GiB × 0.9 예산으로** 합니다.
+>
+> (Phase-2 트라이얼) weights 22.83 GiB · overhead 3.34 GiB 실측 → `max_safe_kv = 96×0.9 − 22.83 − 3.34 ≈ 60.2 GiB`. 호스트(GB10, 121.69GiB) 예산이었다면 batch **52** 가 나왔겠지만, 타겟(96GiB)에선 batch **36** 으로 줄어듭니다 — 이게 이식성의 핵심입니다: *더 작은 카드를 흉내내면 진짜로 더 작은 숫자가 나옵니다.*
+
+생성된 yaml 에는 **정직성 헤더**가 자동으로 박힙니다 — "이 값은 host(GB10)에서 측정하고 target(RTX PRO 6000) 예산으로 이식한 것입니다. host≠target 아키텍처면 margin 은 쿠션이지 정량보증이 아니니, 가능하면 타겟에서 재측정하세요." **지도 not 정답** 원칙이 KV 클램프에도 그대로 적용됩니다 — 타겟 예산 산정식(`per_card_VRAM × gmu − weights − overhead`)과 통합메모리 GPU 는 `gmu ≤ 0.90` 하드클램프가 자동 적용된다는 것만 기억하면 됩니다.
+
+> ✅ **실제로 이렇게 검증됨** (`testlog_2026070811_1` · `testlog_2026070813_1`, 2026-07-08)
+> - **GB10 한 대로 RTX PRO 6000(96GiB) · RTX 4080(16GiB) · RTX 4070(12GiB) 세 개의 서로 다른 타겟을 시뮬레이션**, 전부 실제 컨테이너로 띄워 health 200 + 완성 응답 확보. 같은 GB10 물리 예산(121.69GiB)인데 타겟에 따라 batch 가 52 → 55 → 2 로 완전히 다르게 산출됐습니다 — 숫자를 복붙하지 않고 매번 다시 계산한다는 증거입니다.
+> - single-node 양노드(메인·서브)가 **각자 다른 모델·다른 타겟 GPU**를 동시에 시뮬레이션(메인=gemma-3-1b-it/RTX4080 managed · 서브=MiniCPM5-1B/RTX4070 ephemeral) — 노드 간 텐서패브릭 없이 완전 독립으로, 사용자가 한 턴에 묶어 보낸 메인/서브 혼재 HITL 결정도 교차오염 없이 정확히 분기됐습니다.
+> - 라이브 테스트가 실버그 하나를 그 자리에서 잡았습니다 — single 토폴로지에서 sub-control 관리 피어(2노드)가 TP 워커로 오카운트돼 타겟 TP 가 잘못 2 로 계산되던 문제. 유닛테스트로는 안 보이고 **실측으로만 드러나는** 결함이었습니다.
+
 ### 더 어려운 사례들 — 그리고 가장 중요한 교훈
 
 <details>
@@ -427,7 +447,7 @@ flowchart TB
 | [`.claude/rules/docs.md`](./.claude/rules/docs.md) | 문서 4종(plan/devlog/testlog/simlog) 작성 규약 |
 | `.claude/skills/` | 생성엔진 — `terraforming_node` · `upstream-version-watch` · `vllm-recipe-explorer` · `adversarial-benchmark` · `wiki-desk` |
 
-> *검증 환경 — 주력: 2× NVIDIA DGX Spark(GB10 superchip, aarch64, sm_121a, 128GB 통합메모리/노드, CUDA 13.2), NAS read-only, RoCE v2 / NCCL GPU Direct RDMA. **첫 교차-하드웨어 실증(2026-06-30): x86_64 / RTX 5090(sm_120) / WSL2 단일노드 — 기능 전체 사이클 PASS, 성능 게이트 미실행.** 비-NVLink 멀티GPU 등 그 밖의 축은 여전히 코드에이전트 적응에 기대는 미실증 영역 — 「개발자의 편지」 참고.*
+> *검증 환경 — 주력: 2× NVIDIA DGX Spark(GB10 superchip, aarch64, sm_121a, 128GB 통합메모리/노드, CUDA 13.2), NAS read-only, RoCE v2 / NCCL GPU Direct RDMA. **첫 교차-하드웨어 실증(2026-06-30): x86_64 / RTX 5090(sm_120) / WSL2 단일노드 — 기능 전체 사이클 PASS, 성능 게이트 미실행.** **타겟-GPU 시뮬레이션(2026-07-08): 물리 GB10 한 대로 RTX PRO 6000(96GiB)·RTX 4080(16GiB)·RTX 4070(12GiB) 를 대상으로 절대 KV 클램프 이식 3건 라이브 검증(「여정 3」타겟 GPU 시뮬레이션 참고) — 실카드 부재 상태에서도 OOM-세이프 서빙 전략 확정 가능.** 비-NVLink 멀티GPU 등 그 밖의 축은 여전히 코드에이전트 적응에 기대는 미실증 영역 — 「개발자의 편지」 참고.*
 
 ---
 
