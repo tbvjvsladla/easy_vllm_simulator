@@ -38,6 +38,42 @@
       "last_verified": "2026-07-03"
     },
     {
+      "tag": "hint/0.23.0/gemma-3-1b-it/gb10-sim-rtx4080",
+      "vllm": "0.23.0",
+      "model": "gemma-3-1b-it",
+      "arch": "gb10-sim-rtx4080",
+      "topology": "single 1노드(managed 획득모드, 결합-HITL 분기 테스트 메인측)",
+      "brief": "target_gpu=RTX 4080(16GiB) 시뮬레이션 — batch 미최대화 자기검증(trial01 batch=20→실측 재계산 batch=55) 사례",
+      "anchor": "ef54240222544b58fe0bf28b8593c74e44101efa",
+      "related": "hint/0.23.0/gemma-4-12b-it/gb10-sim-rtxpro6000",
+      "status": "active",
+      "last_verified": "2026-07-08"
+    },
+    {
+      "tag": "hint/0.23.0/gemma-4-12b-it/gb10-sim-rtxpro6000",
+      "vllm": "0.23.0",
+      "model": "gemma-4-12b-it",
+      "arch": "gb10-sim-rtxpro6000",
+      "topology": "single 1노드(sub-control 양노드 독립 서빙, 메인·서브 동일 레시피)",
+      "brief": "target_gpu=RTX PRO 6000(96GiB) 시뮬레이션 — 실 GB10(121.69GiB) 측정치를 96GiB 예산으로 이식(host≠target 절대 KV 클램프), batch 52(host)→36(target) 축소 실증",
+      "anchor": "ef54240222544b58fe0bf28b8593c74e44101efa",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-07-08"
+    },
+    {
+      "tag": "hint/0.23.0/minicpm5-1b/gb10-sim-rtx4070",
+      "vllm": "0.23.0",
+      "model": "minicpm5-1b",
+      "arch": "gb10-sim-rtx4070",
+      "topology": "single 1노드(ephemeral 획득모드, 결합-HITL 분기 테스트 서브측)",
+      "brief": "target_gpu=RTX 4070(12GiB) 시뮬레이션 — ephemeral HF 다운로드 + parse_vllm_log.py 로그포맷 갭(FROZEN 파일 미수정, HITL 수동 클램프 산정)",
+      "anchor": "ef54240222544b58fe0bf28b8593c74e44101efa",
+      "related": "hint/0.23.0/gemma-3-1b-it/gb10-sim-rtx4080",
+      "status": "active",
+      "last_verified": "2026-07-08"
+    },
+    {
       "tag": "hint/0.24.0/deepseek-v4-flash/gb10",
       "vllm": "0.24.0",
       "model": "deepseek-v4-flash",
