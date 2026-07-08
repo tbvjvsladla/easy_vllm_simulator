@@ -67,6 +67,26 @@
 - 호환성: sm_121 arch-wall 계보 = PR#41834(SM12x 포크) → #43477(0.24.0 stock SM120 enablement) —
   버전별 stock 가능 여부는 릴리즈노트 문장 단위로 재확인(carry-forward ✗).
 
+### NVIDIA RTX PRO 6000 (Blackwell · discrete · sm_120)
+- per-card VRAM (GiB): 96
+- 근거: 공개 스펙(96GB GDDR7, Blackwell 아키텍처, discrete — 통합메모리 아님) · 사용자 HITL 확인
+  (δ 1-1 타겟-GPU 인터뷰, 2026-07-08 — `docs/plan/plan_2026070809_3` 인수 시나리오 첫 실사용).
+- 등재 사유: γ(타겟-GPU 이식형 KV 클램프)의 첫 실 타겟 지정 요청 — `references.md` §4 웹취득 규율의
+  자기증식 루프 첫 발동. (single-node 브랜치에서 최초 등재, 공유 빌딩블럭 정합을 위해 포팅.)
+
+### NVIDIA GeForce RTX 4080 (Ada Lovelace · discrete · sm_89)
+- per-card VRAM (GiB): 16
+- 근거: 공개 스펙(16GB GDDR6X, 256-bit, Ada Lovelace, discrete — 통합메모리 아님) · 사용자 HITL 확인
+  (δ 1-2 타겟-GPU 인터뷰, 2026-07-08 — 결합-HITL 단일턴 분기 테스트의 메인측 결정).
+- 등재 사유: γ 두 번째 실 타겟 지정 요청(단일 턴에 메인·서브 결정이 묶여 온 첫 사례 — `plan_2026070809_4` 1-2).
+
+### NVIDIA GeForce RTX 4070 (Ada Lovelace · discrete · sm_89)
+- per-card VRAM (GiB): 12
+- 근거: 공개 스펙(12GB GDDR6X, 192-bit, Ada Lovelace, discrete — 통합메모리 아님) · 사용자 HITL 확인
+  (δ 1-2 타겟-GPU 인터뷰, 2026-07-08 — 결합-HITL 단일턴 분기 테스트의 서브측 결정).
+- 등재 사유: 위와 동일 이벤트의 서브측 반쪽 — 메인/서브 두 GPU 스펙 확인이 사용자의 **단일 결합 메시지**로
+  동시 도착해, 메인이 이를 "메인용/서브용"으로 분기해 각각 처리했다(δ 1-2 릴레이 분기 실증의 근거자료).
+
 *(새 GPU 로 테라포밍하면 그 gpu_model 섹션을 신설 — 첫 escalation/벤치/**recipe 타겟-GPU 예산 산정**에서 채운다.)*
 
 ## 5. 부정판정 최소범위 레시피 (음성정직 (iii)·"현 vLLM 불가" 선언의 최소 탐색)

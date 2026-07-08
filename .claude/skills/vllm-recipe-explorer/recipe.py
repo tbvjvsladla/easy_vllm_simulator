@@ -230,10 +230,18 @@ def resolve_target_gpu_budget(cfg, tp):
 
 
 def _target_tp(cfg, repo_root):
-    """타겟 TP = target_gpu.cards_per_node × node_count(manifest — 노드 수는 GPU 종류 무관, §4.3)."""
+    """타겟 TP = target_gpu.cards_per_node × node_count(§4.3).
+    node_count 는 **multi 토폴로지에서만** manifest.nodes[] 길이(분산 TP 워커 수 — RoCE 로 텐서 분할).
+    **single 토폴로지의 nodes[] 는 agent-plane 관리 피어(sub-control) 이지 TP 워커가 아니다**(각 노드
+    완전 독립 서빙 — CLAUDE.md §single-node 확장기능 "노드 간 추론통신/텐서패브릭 없음") → node_count=1 고정.
+    (δ 1-1 라이브 E2E 발견 — single 토폴로지에서 2노드가 TP=2 로 오카운트되는 실버그였음. 이 branch 는
+    multi 토폴로지 전용이라 원래도 no-op 이나, 공유 빌딩블럭 정합을 위해 동일 수정 포팅.)
+    """
     tgt = cfg.get("target_gpu") or {}
     cards_per_node = int(tgt.get("cards_per_node", 1))
     man, _, _ = _read_manifest(repo_root)
+    if (man.get("topology") or "").startswith("single"):
+        return cards_per_node
     nodes = man.get("nodes") or []
     node_count = max(1, len(nodes))
     return cards_per_node * node_count
