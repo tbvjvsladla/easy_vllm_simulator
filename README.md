@@ -589,6 +589,9 @@ git tag -l --format='%(contents)' hint/0.24.0/deepseek-v4-flash/gb10 > seed/hint
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `hint/0.18.0/gpt-oss-120b/gb10` | 0.18.0 | gpt-oss-120b | gb10 | multi 2노드 TP2 (Ray·RoCE) | active | - | 2026-07-03 | 0.18.0 prebuilt wheel 로 gpt-oss-120b(MXFP4)를 2×GB10 분산서빙 — MXFP4 auto=TRITON+Marlin(humming 불요·모델별 전략 독립 실증) |
 | `hint/0.23.0/deepseek-v4-flash/gb10` | 0.23.0 | deepseek-v4-flash | gb10 | multi 2노드 TP2 (Ray·RoCE) | active | hint/0.24.0/deepseek-v4-flash/gb10 | 2026-07-03 | jasl/vllm SM12x 포크(PR#41834 @c766cbc6) + humming 으로 공식 MXFP4 DeepSeek-V4-Flash 를 2×GB10 서빙 — Route B(포크핀 변종 트랙 …-source-sm12x) |
+| `hint/0.23.0/gemma-3-1b-it/gb10-sim-rtx4080` | 0.23.0 | gemma-3-1b-it | gb10-sim-rtx4080 | single 1노드(managed 획득모드, 결합-HITL 분기 테스트 메인측) | active | hint/0.23.0/gemma-4-12b-it/gb10-sim-rtxpro6000 | 2026-07-08 | target_gpu=RTX 4080(16GiB) 시뮬레이션 — batch 미최대화 자기검증(trial01 batch=20→실측 재계산 batch=55) 사례 |
+| `hint/0.23.0/gemma-4-12b-it/gb10-sim-rtxpro6000` | 0.23.0 | gemma-4-12b-it | gb10-sim-rtxpro6000 | single 1노드(sub-control 양노드 독립 서빙, 메인·서브 동일 레시피) | active | — | 2026-07-08 | target_gpu=RTX PRO 6000(96GiB) 시뮬레이션 — 실 GB10(121.69GiB) 측정치를 96GiB 예산으로 이식(host≠target 절대 KV 클램프), batch 52(host)→36(target) 축소 실증 |
+| `hint/0.23.0/minicpm5-1b/gb10-sim-rtx4070` | 0.23.0 | minicpm5-1b | gb10-sim-rtx4070 | single 1노드(ephemeral 획득모드, 결합-HITL 분기 테스트 서브측) | active | hint/0.23.0/gemma-3-1b-it/gb10-sim-rtx4080 | 2026-07-08 | target_gpu=RTX 4070(12GiB) 시뮬레이션 — ephemeral HF 다운로드 + parse_vllm_log.py 로그포맷 갭(FROZEN 파일 미수정, HITL 수동 클램프 산정) |
 | `hint/0.24.0/deepseek-v4-flash/gb10` | 0.24.0 | deepseek-v4-flash | gb10 | multi 2노드 TP2 (Ray·RoCE) | active | hint/0.23.0/deepseek-v4-flash/gb10 | 2026-07-03 | true stock vLLM 0.24.0 이 DeepSeek-V4-Flash 를 2×GB10 서빙 — nv_dev peel(벽 1개만 하드웨어·나머지 SW-fixable · 지도이지 정답 아님) |
 <!-- hint-index:rows -->
 
