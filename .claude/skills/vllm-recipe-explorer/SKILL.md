@@ -57,7 +57,7 @@ RTX4090=24GB carve-out)에 맞는 설정을 찾는다. 두 페이즈로 동작�
 | 구성요소 | 방식 | 비고 |
 |----------|------|------|
 | config.json 파싱 | **결정론 스크립트** | `parse_model_config.py` — text_config 중첩·safetensors 헤더 실측 |
-| **모델카드 교차검증**(①.5) | **결정론** | `crosscheck_model_card.py` — 번들 README(HF 원본카드)+inference/reqs+dtype 실측 ↔ config 합치. coarse-quant 함정·special-dep(DeepGEMM류) 사전경보. MISMATCH=비0(게이트) |
+| **모델카드 교차검증**(①.5) | **결정론** | `crosscheck_model_card.py` — 번들 README(HF 원본카드)+inference/reqs+dtype 실측 ↔ config 합치 + 외부(HF API) 파라미터-총계 이중검증(managed/ephemeral). coarse-quant 함정·special-dep(DeepGEMM류) 사전경보·`du -sh` 오염 방지. MISMATCH=비0(게이트) |
 | 후보 **생성**(brainstorm) | **LLM (이 단계만 확률론)** | 3축 조합 다양성이 가치(Generate&Filter의 Generator) |
 | VRAM 추정 **공식**(per-token KV) | **결정론 — 단 상한(upper bound)** | `estimate_vram.py` full-attention 가정 공식. sliding-window/GQA서 **과대추정**(gemma 8×·gpt-oss 1.9×) → OOM 보수 게이트엔 유효, near-max batch엔 **부정확** |
 | VRAM **실측 분해**(near-max 정본) | **결정론 — 측정 정본** | serve KV log(`kv_cache_tokens`/`max_concurrency`) 또는 Phase-2. **near-max batch·절대 KV 클램프는 측정으로만**(공식 batch 금지 — §5·헌법 near-max 따름정리) |
@@ -95,11 +95,19 @@ python3 scripts/parse_model_config.py <path> [--nas-root R] [--json] > parsed.js
 ### ①.5 모델카드 교차검증 (결정론 · serving 착수 전 필수 루틴)
 
 ```bash
-python3 scripts/crosscheck_model_card.py <path> [--json]   # MISMATCH 시 비0 종료(게이트)
+python3 scripts/crosscheck_model_card.py <path> [--hf-repo-id <org/name>] [--json]   # managed(로컬) — MISMATCH 시 비0 종료(게이트)
+python3 scripts/crosscheck_model_card.py --ephemeral-estimate --hf-repo-id <org/name> [--json]   # ephemeral(다운로드 전 사전추정)
 ```
 
 - **HF 원본 모델카드(번들 `README.md`) + `inference/requirements.txt` + config.json + safetensors dtype 실측**을 교차대조 → config.json **단독** 파싱이 놓치는 사실을 serving *전* 노출(로컬 파싱 — 번들 README = HF 원본 카드, 네트워크 호출 없음).
 - 잡는 것: **① coarse quant 라벨 함정**(config `quant_method:fp8` 인데 실측 experts=FP4 혼합 — 카드가 `FP4+FP8 Mixed` 명시) · **② novel-arch special-dep**(DeepGEMM·tilelang·flash_attn… → "vLLM dry-init/op 가용성 확인" 권고) · 정밀도·파라미터·컨텍스트·아키·reasoning 카드 합치.
+- **③ 외부(HF API) VRAM 이중검증 (plan_2026070814_1)**: `du -sh` 류 디렉토리 전체크기가 `.git`(HF LFS 캐시) 오염으로
+  실제 가중치의 최대 2배까지 부풀 수 있음이 실증됨(2026-07-08, gemma-4-E2B-it 20GB→실 9.54GiB) — **모델 용량 판단에
+  `du -sh` 를 근거로 쓰지 않는다**(항상 `parse_model_config.py` 실측 또는 이 외부검증 경유). `--hf-repo-id` 지정 시
+  HF 공개 API(`GET /api/models/<repo_id>` — 모델 다운로드 없이 `safetensors.total` 조회)로 로컬 실측(managed)과
+  대조하거나, `--ephemeral-estimate`(다운로드 전, 로컬 파일 없이) 로 파라미터 총계만으로 사전추정한다. 조회 실패는
+  음성정직(verdict=UNAVAILABLE — 대체값 날조 금지, 로컬 실측만으로 진행). **ephemeral 다운로드 승인 요청 시 이
+  사전추정 결과(대략 GiB)를 사용자에게 함께 제시할 것.**
 - **special-dep 분류·핸드오프 (발견≠소유 — per-model 3+1+1, plan_2026062812_1)**: special-dep 발견 시 분류한다 —
   · **빌드-바깥 의존**(native lib/커널: DeepGEMM·tilelang·flash_attn…) = **patch.py ✗ · recipe-explorer 자체수정 ✗**(Python 몽키패치로 native lib 설치 불가) → **`upstream-version-watch` 핸드오프**(빌드 평면 — `build_patches/<NN>-*.sh` 모듈에 동결; 메인) / **서브면 docs insight 상향**(D12, 서브는 빌드평면 미보유).
   · **런타임-코드 불일치**(Python processor/config shim) = `<model>_patch.py`(§5, recipe-explorer 유도).
@@ -383,7 +391,7 @@ run_trial(candidate)            # docker run -d → /health 200 폴링 → funct
 Phase 1:
 - `scripts/quant_table.py` — quant 바이트 테이블(whichllm 벤더링·출처 주석) + `vllm_quant_bpw`/`dtype_bpw` 해소 함수.
 - `scripts/parse_model_config.py` — `config.json` 결정론 파서(text_config 중첩·safetensors 헤더 실측, +CLI).
-- `scripts/crosscheck_model_card.py` — **HF 원본 모델카드(번들 README)+inference/reqs+config+dtype 교차검증**(①.5; coarse-quant 함정·special-dep 사전경보, MISMATCH=비0 종료·로컬-only·stdlib).
+- `scripts/crosscheck_model_card.py` — **HF 원본 모델카드(번들 README)+inference/reqs+config+dtype 교차검증**(①.5; coarse-quant 함정·special-dep 사전경보, MISMATCH=비0 종료·stdlib) + **외부(HF API) VRAM 이중검증**(`fetch_hf_safetensors_total`/`crosscheck_external_vram` — 유일하게 예외적 네트워크 호출, plan_2026070814_1).
 - `scripts/estimate_vram.py` — VRAM 추정기. Phase 1 `estimate()`(공식 `/gmu`) + Phase 2 절대 클램프 함수
   (`per_token_kv_bytes`/`required_kv_bytes`/`max_safe_kv_bytes`/`max_feasible_max_len`/`estimate_absolute`).
 - `scripts/rank_recipes.py` — `auto_candidates`·하드게이트·Judge 랭킹·리포트 렌더(+CLI).
