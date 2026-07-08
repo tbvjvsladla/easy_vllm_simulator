@@ -4,7 +4,7 @@
 > 과거 작업(docs 코퍼스 98건 채굴 · plan_2026070208_1 Phase 3)이 실제로 인용한 외부 소스에서 유도했다.
 > **URL 저장소가 아니다** — 실인용의 지배 형태는 축약 ID(PR#41834, forum 370309)이므로 이 파일의 1차
 > 기능은 **ID→URL 정규화 템플릿 + 검색 레시피(진입점)**다.
-> **평면**: 메인 전용(서브=물리 에어갭 → 열람 불가; 서브는 증상 docs 상향 — D12). 추적 빌딩블럭(배포 대상).
+> **평면**: 메인 전용(빌딩블럭 전파 축 — 파일 배치는 메인 고정) · **egress-restricted 서브**는 열람 불가 → 증상 상향(D12) · **egress-online+A2A 위임 서브**는 조건부 열람(이중게이트 — `plan_2026070809_2`). 추적 빌딩블럭(배포 대상).
 > **자기증식 루프**: 외부검색 전 이 레지스트리 warm-start → 미스 시 신규 검색 → load-bearing 히트는
 > 여기(stable/HW-스코프) 또는 docs(one-off 주장)로 입고.
 
@@ -25,7 +25,7 @@
 | vLLM `#{n}` (PR/issue) | `github.com/vllm-project/vllm/{pull\|issues}/{n}` | arch 지원 시점·버그·포크 PR 확인 |
 | vLLM `v{ver}` 릴리즈 | `github.com/vllm-project/vllm/releases/tag/v{ver}` | bump 1차 근거(사람용 — 예: #43477 SM120 enablement 인용) |
 | 포크 `behind_by` 판정 | `api.github.com/repos/vllm-project/vllm/compare/v{ver}...{fork_sha}` | **포크 졸업/유지 결정론 증거**(behind_by/ahead_by/merge_base — testlog_2026070207_1 기법) |
-| HF 모델카드 | `huggingface.co/{org}/{model}` (+`/discussions`, `/blob/main/config.json`) | **오프라인-우선**: 1차 = 모델 디렉토리 번들 README.md(=카드 원본, plan_2026062811_2 루틴) · 온라인은 2차 |
+| HF 모델카드 | `huggingface.co/{org}/{model}` (+`/discussions`, `/blob/main/config.json`) | **로컬 번들 우선**: 1차 = 모델 디렉토리 번들 README.md(=카드 원본, plan_2026062811_2 루틴) · 온라인은 2차 |
 | HF discussions `#{n}` | `huggingface.co/{org}/{model}/discussions/{n}` | "stock OOB 미동작" 커뮤니티 보고 클래스(예: DS4 #28 → build_patch 유지 근거) |
 | NVIDIA forum `{id}` | `forums.developer.nvidia.com/t/{id}` | 동일-HW 성능/배포 스레드 역참조 |
 | GitHub raw 파일 | `raw.githubusercontent.com/{org}/{repo}/{ref}/{path}` | 소스 직독 범용(pyproject·requirements·백엔드 oracle — §2 ③의 일반형) |
@@ -46,10 +46,19 @@
   동일 모델·MTP on/off(R_fp/R_token like-with-like) 명시와 함께 기록.
 - **deepseek-ai/DeepGEMM**: `github.com/deepseek-ai/DeepGEMM` (+`nv_dev` 브랜치·issues) — DS4/DSA 계열
   타겟인 동안 semi-stable(빌드-바깥 패치 3+1+1 의 +1 의존 원천 — output/<topology>/build_patches/ 의 deepgemm 모듈).
-- **인코딩 자산 고정 URL**(에어갭 사전적재 따름정리): o200k_base →
+- **인코딩 자산 고정 URL**(에어갭 사전적재 따름정리 — 명칭=런타임 마운트 순수성, 환경 offline 아님): o200k_base →
   `openaipublic.blob.core.windows.net/encodings/o200k_base.tiktoken` (harmony 계열 동일 host).
 
 ## 4. HW-스코프 섹션 (manifest `gpu_model` 키 — 자기 HW 항목만 조회)
+
+> **GPU-스펙 웹취득 규율 (자기증식 — plan_2026070809_1)**: 미지 GPU 카드(manifest `gpu_model` 이 아래에
+> 미등재)를 만나면 → **웹검색(1급 리서치·에이전트 의무)** 으로 per-card VRAM·arch(sm_xx)·통합/discrete
+> 여부를 조회 → **HITL 확인** → 아래에 해당 `gpu_model` 섹션 신설·입고(§0 "자기증식 루프"의 GPU-스펙 축).
+> 조회는 획득모드와 무관하게 항상 허용·의무(모델획득 격리와 별개 평면 — CLAUDE.md §모델 획득 모드 따름정리).
+> **소비 배선(γ, `plan_2026070809_3`)**: 각 GPU 섹션에 `per-card VRAM (GiB): <num>` 라인이 있으면
+> `recipe.py resolve_target_gpu_budget()`(`_lookup_gpu_spec`)이 역룩업으로 읽어 타겟 예산에 대입한다
+> (값 채우기·웹취득 규율 자체는 위 α 소관 — γ 는 소비만). 미등재 시 `config.target_gpu.per_card_vram_gib`
+> 명시로 우회(quick-win). 헤더에 "통합메모리" 포함 시 `target_gmu≤0.90` 하드클램프 자동 적용.
 
 ### NVIDIA GB10 (sm_121 · aarch64 · 통합메모리)
 - 추적 issue: vLLM `#41063` (GB10 tracking — GB10 타겟인 동안 semi-stable; 10-layer 디버그 patch-matrix).
@@ -58,7 +67,7 @@
 - 호환성: sm_121 arch-wall 계보 = PR#41834(SM12x 포크) → #43477(0.24.0 stock SM120 enablement) —
   버전별 stock 가능 여부는 릴리즈노트 문장 단위로 재확인(carry-forward ✗).
 
-*(새 GPU 로 테라포밍하면 그 gpu_model 섹션을 신설 — 첫 escalation/벤치에서 채운다.)*
+*(새 GPU 로 테라포밍하면 그 gpu_model 섹션을 신설 — 첫 escalation/벤치/**recipe 타겟-GPU 예산 산정**에서 채운다.)*
 
 ## 5. 부정판정 최소범위 레시피 (음성정직 (iii)·"현 vLLM 불가" 선언의 최소 탐색)
 
@@ -69,7 +78,7 @@
 1. vLLM releases 최신 N개(기본 3) 노트에서 모델/arch 키워드 grep (§1 릴리즈 템플릿).
 2. vLLM GitHub issue/PR 검색 — **모델 클래스명**(config.json `architectures`, 예 `Qwen3_5MoeForConditionalGeneration`)
    + 모델명 양쪽 (§1 PR/issue 템플릿; arch 지원 시점 확인의 실증 패턴 — testlog_2026062718_1).
-3. HF 모델카드 vLLM 절 + discussions 탭 ("OOB 미동작" 보고 클래스) — 오프라인 번들 README 1차.
+3. HF 모델카드 vLLM 절 + discussions 탭 ("OOB 미동작" 보고 클래스) — 로컬 번들 README 1차.
 4. 알려진 포크/enablement PR 검색 (아치-enablement 변종 트랙 후보 — escalation 3출구 (ii) 증거 클래스).
 5. (성능 축이면) §4 HW-스코프 + §3 포럼 카테고리에서 동일-HW baseline.
 
@@ -77,4 +86,4 @@
 
 - `upstream-version-watch`: §1 릴리즈/compare 템플릿(S1 resolve·포크 거버넌스) · §2 포인터 · §5 레시피((iii) 출구).
 - `vllm-recipe-explorer`: §1 HF 템플릿(모델카드 교차검증 — 획득모드 무관 항상 의무) · §5 레시피(§5.5 발견 술어·§6 복구 ⑤단계·Phase-1 인피저블).
-- `adversarial-benchmark`: §3 포럼·§4 HW-스코프 = E 검색 1차 진입점(E-arm 메인전용) → 히트 baseline 재입고.
+- `adversarial-benchmark`: §3 포럼·§4 HW-스코프 = E 검색 1차 진입점(E-arm = 이중게이트(A2A 위임 키 ∧ egress-online) 조건부 서브 자율) → 히트 baseline 재입고.

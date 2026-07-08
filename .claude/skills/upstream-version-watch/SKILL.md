@@ -128,14 +128,14 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
   단 `config.yaml`의 `reconciliation_cap`(기본 3) 한정. 캡 소진 시 무한루프 금지 → Model-C로.
 - **source-build-class**: 범위 밖(Phase 2). **propose Y/N**으로 "소스빌드 필요 — 진행?"을 사람에게 보고·확인.
   스킬은 소스빌드를 수행하지 않고, 다른 NGC 태그로 폴백 루프도 돌지 않는다.
-- **unknown (Model-C)**: **참조-그라운디드 해결** — class 제안 전 자기추론보다 **권위 소스**를 먼저 조회한다(여기서의 토큰 증가는 정확도를 사므로 권장): wheel METADATA(Requires-Dist) · NGC 이미지 라벨(`docker buildx imagetools inspect`) · 컨테이너 내부 torch 버전 + `torch::stable` 헤더(`tensor_struct.h`/`ops.h`의 `layout()`/6-arg `from_blob` 존재) · 빌드/serve 로그 · `failure_patterns.yaml` · **외부 소스(메인 한정)** — vLLM GitHub release/issue/PR + NGC 매트릭스(`.claude/rules/references.md` §1·§2 템플릿; 서브 에어갭 = 증상 상향만). 그 위에 LLM이 `{proposed_class, evidence, external_sources}`를 제시(**`external_sources` 빈 값이면 보고서에 "외부 미조회" 라벨 강제 표기** — 자기추론-only 부정 결론 차단) → **사람 승인 전 무행동**.
+- **unknown (Model-C)**: **참조-그라운디드 해결** — class 제안 전 자기추론보다 **권위 소스**를 먼저 조회한다(여기서의 토큰 증가는 정확도를 사므로 권장): wheel METADATA(Requires-Dist) · NGC 이미지 라벨(`docker buildx imagetools inspect`) · 컨테이너 내부 torch 버전 + `torch::stable` 헤더(`tensor_struct.h`/`ops.h`의 `layout()`/6-arg `from_blob` 존재) · 빌드/serve 로그 · `failure_patterns.yaml` · **외부 소스(메인 한정 — upstream 은 빌드평면·메인 불변)** — vLLM GitHub release/issue/PR + NGC 매트릭스(`.claude/rules/references.md` §1·§2 템플릿; egress-restricted 서브 = 증상 상향만). 그 위에 LLM이 `{proposed_class, evidence, external_sources}`를 제시(**`external_sources` 빈 값이면 보고서에 "외부 미조회" 라벨 강제 표기** — 자기추론-only 부정 결론 차단) → **사람 승인 전 무행동**.
   사람이 승인하고 codify를 원하면, 에이전트가 `failure_patterns.yaml` 추가 **diff를 제안**(직접 편집 금지) → 승인 시 반영(확률론→결정론 이전). (참조-그라운디드 해결 = 헌법 "버전 문자열 해소 확률론 금지"의 error-recovery 연장.)
 
 ## 3.6. escalation 수신 — recipe 핸드오프 → 버전핀 소유·3출구 (발견≠소유의 버전-bump 축)
 
 > `vllm-recipe-explorer` §5.5가 "현 vLLM 불가"를 외부 교차검증으로 **발견**하고 사용자 승인을 거쳐 넘긴 핸드오프의 **수신점**. recipe는 발견·핸드오프까지, **버전핀 소유·처방·rebuild는 본 스킬**(발견≠소유 — §4.7 intake 의 *버전-bump 축 형제*; §4.7=lib-축 *진입*이나 그 사다리 상단은 §3.6(ii)와 동일 fork-pin으로 수렴 — 처방 머신리 공유). 헌법 §escalation 역루프 따름정리 · `plan_2026063009_2` · 절차-홈 `workflow.md` §escalation 역루프.
 
-- **진입(승인 완료 전제)**: recipe가 첨부한 증거(오프라인 증상 + 외부 확증: HF 모델카드·vLLM GitHub issue/release/PR) 수신 → **버전해소 리서치**(release 노트·머지 PR·포크 — §1 GitHub 추적 근육 재사용) → **3출구 판정**. 무승인/무증거 수신 ✗(트리거 정책·무증거 오버라이드 금지).
+- **진입(승인 완료 전제)**: recipe가 첨부한 증거(구동불가 증상 + 외부 확증: HF 모델카드·vLLM GitHub issue/release/PR) 수신 → **버전해소 리서치**(release 노트·머지 PR·포크 — §1 GitHub 추적 근육 재사용) → **3출구 판정**. 무승인/무증거 수신 ✗(트리거 정책·무증거 오버라이드 금지).
 - **3출구 → 기존 경로 매핑**:
   - **(i) 공식 bump** — 모델이 더 새 *공식* vLLM release에서 지원 → **표준 bump 경로**(`workflow.md` S1–S3, HITL 게이트). 가장 단순한 출구.
   - **(ii) 커스텀/포크핀** — 모델카드가 포크·미머지 PR 지목(예 jasl/vllm PR) → **§4.6 source-repo 오버라이드**(fork **SHA 핀** `VLLM_REPO`/`VLLM_REF` build-arg) + `…-source-<변종>` superset 변종 트랙(`resolved.json` `source_build_variants`). 거버넌스 = 아치-enablement 변종 트랙 따름정리(클러스터-와이드 이미지·**기존모델 회귀 재스모크**·단일 변종-트랙·무증거 오버라이드 금지). 절차 정본 = `workflow.md` S3 arch-wall 분기.
@@ -194,7 +194,7 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 3. **빌드 루프(무제한·HITL)**: `/etc/pip/constraint.txt` 비우기 → `git clone --branch v<버전> vllm` → `python3 use_existing_torch.py`(NGC torch 사용) →
    build-system.requires **수동 설치**(`--no-build-isolation` 전제) → `pip install --no-build-isolation -e .` 컴파일 →
    실패 시 `classify_failure` → LLM 패치 제안(bjk110 힌트) → **Model-C HITL** → 소스 패치 → ccache 증분 재컴파일.
-4. **서빙 스모크**: config.yaml 모델. `docker exec -d`로 serve(긴 로드 → 타임아웃·로그 안정). gpt-oss는 harmony 오프라인 인코딩 필요(아래).
+4. **서빙 스모크**: config.yaml 모델. `docker exec -d`로 serve(긴 로드 → 타임아웃·로그 안정). gpt-oss는 harmony 사전적재(런타임-fetch 미의존) 인코딩 필요(아래).
 5. **동결 + 재현**: 성공 레시피 → `Dockerfile.source-build`. **clean 재빌드 + 스모크 = DONE**(인터랙티브 성공만으론 부족).
    **빌드검증 불변식**: 빌드스테이지 검증은 `import vllm._C` 금지(빌드스테이지엔 `libcuda.so.1` 드라이버 부재 → 거짓실패) → `importlib.util.find_spec('vllm')`만 사용.
    실 `_C` 로드/서빙은 **런타임 스모크가 최종 중재**. (이미 레포 루트 `Dockerfile.source-build.template:78`에 반영됨 — 집=루트 템플릿; `.claude/skills/`엔 없음.)
@@ -206,7 +206,7 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 - **소스컴파일이 ABI 벽 해소의 핵심**: prebuilt `_C`(public torch 빌드)는 NGC alpha torch와 ABI 불일치 → 소스로 NGC torch에 맞춰 컴파일하면 undefined-symbol 없음.
 - **`--no-build-isolation` → build-system.requires 수동 설치**: pip가 자동 설치 안 함. 누락 시 `ModuleNotFoundError`(예 `setuptools_rust`)=requirements-fixable. setuptools는 vLLM 핀(<81)로 조정됨.
 - **strip-hoist**(torch 2.11a): `register_opaque_type(LayerName, typ="value", hoist=True)` → `hoist` 제거. NGC torch 2.11a 시그니처에 hoist 없음. 소스 패치=Model-C HITL.
-- **gpt-oss harmony 오프라인**: 폐쇄망에서 vocab 다운로드 실패 → `/encodings`(o200k_base.tiktoken) 마운트 + `TIKTOKEN_ENCODINGS_BASE/RS_CACHE_DIR=/encodings`, `TIKTOKEN_ENABLED=true`(서빙 단계 docker-compose + `configs/<>.sh`가 처리).
+- **gpt-oss harmony 사전적재**: 컨테이너가 런타임에 vocab 을 fetch 하지 않도록(read-only 마운트 불변식) → `/encodings`(o200k_base.tiktoken) 마운트 + `TIKTOKEN_ENCODINGS_BASE/RS_CACHE_DIR=/encodings`, `TIKTOKEN_ENABLED=true`(서빙 단계 docker-compose + `configs/<>.sh`가 처리).
 - **긴 serve는 `docker exec -d`**(detached): foreground는 harness 2분 타임아웃에 잘림. 폴링은 짧게 나눠.
 - **DONE = 스모크 + 동결 + clean 재빌드 재현**.
 

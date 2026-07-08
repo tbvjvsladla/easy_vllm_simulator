@@ -160,6 +160,98 @@ def _total_gpus(man):
     return max(1, len(nodes)) * gpus if nodes else gpus
 
 
+# ===========================================================================
+# 타겟-GPU 이식형 예산 (host≠target — plan_2026070809_3 §4). config-time 의도(manifest 와 직교).
+# target_gpu 미정의 시 아래 함수들은 전부 무영향(기존 host 흐름 완전 보존 — 회귀 0).
+# ===========================================================================
+
+REFERENCES_MD_PATH = os.path.join(REPO_ROOT, ".claude", "rules", "references.md")
+
+
+def _lookup_gpu_spec(gpu_model, references_path=None):
+    """references.md §4 HW-스코프에서 gpu_model 매칭 섹션의 per-card VRAM(GiB)·통합메모리 여부를 역룩업.
+
+    관례: `### <아무 텍스트>{gpu_model}<아무 텍스트>` 헤더 섹션 안에 `per-card VRAM (GiB): <num>` 라인이
+    있으면 그 값을 쓴다(값 채우기는 α 웹취득 소관 — 여기는 소비 배선만). 헤더에 '통합메모리' 포함 시 unified.
+    미등재/파일부재 → (None, None)(quick-win 우회: config.target_gpu.per_card_vram_gib 명시 유도).
+    """
+    path = references_path or REFERENCES_MD_PATH
+    if not gpu_model or not os.path.isfile(path):
+        return None, None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            text = f.read()
+    except OSError:
+        return None, None
+    import re as _re
+    key = _re.escape(gpu_model.strip())
+    m = _re.search(r"^###\s.*" + key + r".*$", text, _re.IGNORECASE | _re.MULTILINE)
+    if not m:
+        return None, None
+    start = m.end()
+    nxt = _re.search(r"^#{1,3}\s", text[start:], _re.MULTILINE)
+    section = text[start: start + nxt.start()] if nxt else text[start:]
+    is_unified = "통합메모리" in m.group(0)
+    vm = _re.search(r"per-card VRAM\s*\(GiB\)\s*:\s*([\d.]+)", section)
+    per_card = float(vm.group(1)) if vm else None
+    return per_card, is_unified
+
+
+def resolve_target_gpu_budget(cfg, tp):
+    """target_gpu 블록(config-time 의도, §4.1) → (per_card_vram_gib, target_gmu, gpu_model).
+
+    산정식(§4.2): kv_clamp_perGPU = per_card_VRAM×target_gmu − weights_total/TP − overhead_total/TP.
+    이 함수는 (budget_gib, margin) 만 해소한다 — `/TP` 분할은 `_resolve_clamp_kv(tp_divisor=tp)` 가 적용.
+    통합메모리 타겟은 target_gmu>0.90 을 0.90 으로 하드클램프+경고(§4.4). discrete 는 in-scope·하드클램프 없음.
+    """
+    tgt = cfg.get("target_gpu") or {}
+    gpu_model = tgt.get("gpu_model")
+    if not gpu_model:
+        _die("config.target_gpu.gpu_model 누락(타겟 GPU 이식 경로엔 필수 — plan_2026070809_3 §4.1)")
+    target_gmu = float(tgt.get("target_gmu", 0.90))
+    per_card_vram_gib = tgt.get("per_card_vram_gib")
+    looked_up, is_unified = _lookup_gpu_spec(gpu_model)
+    if per_card_vram_gib is None:
+        per_card_vram_gib = looked_up
+    if per_card_vram_gib is None:
+        _die(
+            "target_gpu.gpu_model=%r 의 per-card VRAM 을 references.md §4 에서 찾지 못함 — "
+            "config.target_gpu.per_card_vram_gib 를 명시하세요(quick-win 우회, plan_2026070809_3 §6)." % gpu_model
+        )
+    per_card_vram_gib = float(per_card_vram_gib)
+    if is_unified and target_gmu > 0.90:
+        print(
+            "[recipe] 경고: 통합메모리 타겟(gpu_model=%s)은 target_gmu ≤ 0.90 하드클램프 — %.2f → 0.90 하향"
+            "(HITL 재확인 요망)." % (gpu_model, target_gmu),
+            file=sys.stderr,
+        )
+        target_gmu = 0.90
+    return per_card_vram_gib, target_gmu, gpu_model
+
+
+def _target_tp(cfg, repo_root):
+    """타겟 TP = target_gpu.cards_per_node × node_count(manifest — 노드 수는 GPU 종류 무관, §4.3)."""
+    tgt = cfg.get("target_gpu") or {}
+    cards_per_node = int(tgt.get("cards_per_node", 1))
+    man, _, _ = _read_manifest(repo_root)
+    nodes = man.get("nodes") or []
+    node_count = max(1, len(nodes))
+    return cards_per_node * node_count
+
+
+def _reject_target_gpu_phase1(cfg, cmd_name):
+    """Phase-1 라우팅 게이트(§4.1·§7 합격기준1): target_gpu 정의 시 gmu-only 종료 거부 →
+    Phase-2(simulate) 측정경로 강제. target_gpu 미정의 시 무변경(기존 host 흐름 회귀 0)."""
+    if cfg.get("target_gpu"):
+        _die(
+            "config.target_gpu 정의됨 — Phase-1(%s)은 gmu-only 라 절대 KV 클램프를 emit 하지 않는다"
+            "(헌법 §KV 절대클램프 따름정리 · plan_2026070809_3 §2). "
+            "`recipe.py simulate --config <config> --candidate <lockset.json>` 로 "
+            "Phase-2 측정경로를 사용하세요(타겟 예산은 config.target_gpu 가 그대로 소비됨)." % cmd_name,
+            code=7,
+        )
+
+
 def _require_terraform_flag(repo_root):
     """헌법 §테라포밍-완수/A2A-위임 Flag 게이트 (**fail-closed**) — 면제 없으면 info-only(작업 거부·비0종료). 강제 2층의 *결정론 백스톱*.
 
@@ -268,6 +360,7 @@ def _cfg_common(cfg, repo_root):
 
 def cmd_estimate(args):
     cfg = load_config(args.config)
+    _reject_target_gpu_phase1(cfg, "estimate")
     model_path, nas_root, budget, margin, kv_bytes, container_root = _cfg_common(cfg, REPO_ROOT)
     tp = resolve_tp(cfg, REPO_ROOT)
     _guard_tp(tp, REPO_ROOT)
@@ -346,6 +439,7 @@ def _find_recipe(snapshot, recipe_id):
 
 def cmd_generate(args):
     cfg = load_config(args.config)
+    _reject_target_gpu_phase1(cfg, "generate")
 
     if not os.path.isfile(LAST_RANKING_PATH):
         _die(
@@ -392,8 +486,8 @@ def cmd_generate(args):
     recipe_warning = recipe.get("warning")
     if recipe_warning == "offline_quant_on_non_prequantized_checkpoint":
         print(
-            "[recipe] 경고: %s 는 비prequantized 체크포인트에 오프라인 전용 quant(%s) — "
-            "`vllm serve` 시 사전양자화 가중치 부재로 서빙 실패 가능. "
+            "[recipe] 경고: %s 는 비prequantized 체크포인트에 사전양자화 전용 quant(%s) — "
+            "`vllm serve` 시 사전양자화 가중치 부재로 서빙 실패 가능(네트워크 무관). "
             "(fp8·bitsandbytes 는 온라인 양자화 가능.)"
             % (args.recipe_id, recipe.get("quantization")),
             file=sys.stderr,
@@ -538,18 +632,24 @@ def _enrich_overhead(profile, device_total_gib, gmu_fallback=None):
     return profile
 
 
-def _resolve_clamp_kv(parsed, candidate, profile, budget, margin, kv_dtype_bytes):
+def _resolve_clamp_kv(parsed, candidate, profile, budget, margin, kv_dtype_bytes, tp_divisor=1):
     """실측 profile(weights/overhead) 로 절대 KV 클램프 = min(required, max_safe) 산정.
 
     OOM-critical 경로 — 순수 결정론(확률론 금지). 반환 dict:
       kv  : 산정된 클램프 바이트(성공). weights/overhead 실측 부재면 None(+fail None).
       fail: 구조적 불가(vram_infeasible) 시 final_class dict, 아니면 None.
       note: 산정 근거 문자열.
+
+    tp_divisor(기본 1 — 회귀 0): >1 이면 타겟-GPU 이식 경로(plan_2026070809_3 §4.2) — host 측정
+    weights_total/overhead_total(GPU-불변 기하량)을 타겟 TP 로 나눠 per-GPU 클램프를 산정한다.
     """
     weights_b = _profile_bytes(profile, "weights_gib")
     overhead_b = _profile_bytes(profile, "non_kv_overhead_gib")
     if weights_b is None or overhead_b is None:
         return {"kv": None, "fail": None, "note": "weights/overhead 실측 부재."}
+    if tp_divisor and tp_divisor > 1:
+        weights_b = weights_b / tp_divisor
+        overhead_b = overhead_b / tp_divisor
     max_len = int(candidate["max_model_len"])
     batch = int(candidate.get("batch", 1))
     # required_kv: 측정 트라이얼이 per-token KV(kv_available/kv_tokens)를 주면 그 측정값을 쓴다.
@@ -583,6 +683,26 @@ def cmd_simulate(args):
     model_path, nas_root, budget, margin, kv_bytes_cfg, container_root = _cfg_common(cfg, REPO_ROOT)
     tp = resolve_tp(cfg, REPO_ROOT)
     _guard_tp(tp, REPO_ROOT)
+
+    # ── 타겟-GPU 이식형 예산 (host≠target — plan_2026070809_3 §4) ──
+    # target_gpu 미정의 시 tp_divisor=1·budget/margin 무변경(기존 host 흐름 완전 보존).
+    tp_divisor = 1
+    if cfg.get("target_gpu"):
+        ttp = _target_tp(cfg, REPO_ROOT)
+        if ttp != tp:
+            _die(
+                "측정 TP(%d) ≠ 타겟 TP(%d, cards_per_node×node_count) — 1→N 외삽 금지(plan_2026070809_3 §4.3). "
+                "config.tensor_parallel_size 를 타겟에 맞추거나 manifest nodes[]/target_gpu.cards_per_node 를 "
+                "정합시키세요." % (tp, ttp),
+                code=6,
+            )
+        budget, margin, target_gpu_model = resolve_target_gpu_budget(cfg, tp)
+        tp_divisor = tp
+        print(
+            "[recipe] 타겟-GPU 이식 경로 활성: gpu_model=%s per_card_vram_gib=%.2f target_gmu=%.2f TP=%d(÷%d)"
+            % (target_gpu_model, budget, margin, tp, tp_divisor),
+            file=sys.stderr,
+        )
 
     # parse(결정론) — NAS 부재/해소 실패 시 traceback 금지(클린 어보트로 통일).
     try:
@@ -689,7 +809,7 @@ def cmd_simulate(args):
             if candidate.get("kv_cache_memory_bytes") is None:
                 res = _resolve_clamp_kv(
                     parsed, candidate, trial.get("vllm_profile") or {},
-                    budget, margin, kv_dtype_bytes,
+                    budget, margin, kv_dtype_bytes, tp_divisor=tp_divisor,
                 )
                 record = {
                     "trial_number": trial_number,
@@ -744,7 +864,7 @@ def cmd_simulate(args):
             # 결정론 KV 재산정(helper): weights/overhead 실측 → kv = min(required, max_safe).
             res = _resolve_clamp_kv(
                 parsed, candidate, trial.get("vllm_profile") or {},
-                budget, margin, kv_dtype_bytes,
+                budget, margin, kv_dtype_bytes, tp_divisor=tp_divisor,
             )
             if res["fail"] is not None:
                 final_class = res["fail"]
@@ -859,6 +979,8 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
         "attention_backend": candidate.get("attention_backend"),
         "tool_call_parser": candidate.get("tool_call_parser"),
         "reasoning_parser": candidate.get("reasoning_parser"),
+        # target_gpu 활성 시 gen_recipe_set 이 트리플렛 헤더에 이식 정직성 주석을 단다(§4.9, plan_2026070809_3).
+        "target_gpu": cfg.get("target_gpu"),
         "vram_breakdown": {
             "weights_gib": weights_gib,
             "kv_gib": kv_gib,

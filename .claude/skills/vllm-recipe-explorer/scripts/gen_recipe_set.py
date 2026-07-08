@@ -88,6 +88,13 @@ def _build_yaml(parsed, recipe, served_model_name):
         quant, max_model_len, gmu))
     # VRAM 분해 주석 블록(vram_breakdown 있을 때만).
     lines.extend(_build_vram_breakdown_block(breakdown))
+    # 타겟-GPU 이식 정직성 주석(recipe.target_gpu 있을 때만 — §4.9, plan_2026070809_3).
+    target_gpu = recipe.get("target_gpu")
+    if target_gpu:
+        lines.append("# ── 타겟-GPU 이식 클램프 (host≠target, gpu_model={}) ──".format(
+            target_gpu.get("gpu_model")))
+        lines.append("# host-측정 weights/overhead 이전값. target≠host arch 면 target-margin 이 쿠션(정량보증 아님).")
+        lines.append("# 가능하면 타겟에서 재측정(Phase-2)을 권장. per-token-KV·weights 는 GPU-불변, overhead 는 런타임 성질 일부 포함.")
     lines.append("model: {}".format(container_path))
     lines.append("host: 0.0.0.0")
     lines.append("port: 8000")
