@@ -12,8 +12,17 @@
 DeepSeek-V4-Flash 를 순수 FP8/298GB/인피저블로 **오판** → 모델카드 README 가 `FP4+FP8 Mixed(experts FP4)`
 명시했고 `inference/requirements.txt` 가 `tilelang` 명시. 카드 우선 참조 시 오판·DeepGEMM-class 함정 조기 포착.
 
-결정론(stdlib only). **네트워크 호출 없음**(번들 README = HF 원본 카드 — 모델과 함께 받음). 헌법 §금지 "참조-그라운디드".
+결정론(stdlib only). 로컬 카드/config/safetensors 교차검증은 **네트워크 호출 없음**(번들 README = HF 원본
+카드 — 모델과 함께 받음). 헌법 §금지 "참조-그라운디드".
 **MISMATCH 1건 이상이면 비0 종료(게이트)** — parse 직후 필수 루틴(SKILL.md §2 ①).
+
+**외부 VRAM 교차검증 (plan_2026070814_1)**: `fetch_hf_safetensors_total`/`crosscheck_external_vram` 은
+예외적으로 네트워크 호출(HF 공개 API `GET /api/models/<repo_id>` — 모델 자체는 받지 않고 `safetensors.total`
+파라미터 총계만 조회)을 한다. 동기: `du -sh` 류 디렉토리 전체크기가 `.git`(HF LFS 캐시) 오염으로 실제
+가중치보다 2배 가까이 부풀 수 있음이 실증됨(2026-07-08, gemma-4-E2B-it 20GB→실 9.54GiB) — 로컬 실측
+(managed)이든 다운로드 전 사전추정(ephemeral)이든 외부 권위 소스로 **이중검증**한다(헌법 "서빙전략 수립의
+외부 교차검증은 획득모드와 무관하게 항상 허용·의무"). 조회 실패는 음성정직(대체값 날조 금지) — verdict
+"UNAVAILABLE"로 기록하고 로컬 실측만으로 진행(managed) 또는 사용자에게 명시 보고(ephemeral).
 """
 
 from __future__ import annotations
@@ -25,7 +34,14 @@ import os
 import re
 import struct
 import sys
+import urllib.error
+import urllib.request
 from collections import Counter
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from quant_table import dtype_bpw  # noqa: E402
+
+HF_API_BASE = "https://huggingface.co/api/models"
 
 # novel-arch serving 에서 엔진(vLLM)에 별도 설치/op 가 필요한 special 커널·라이브러리.
 # 발견 시 "vLLM dry-init / op 가용성 확인" 권고(예: DeepSeek-V4 DSA 가 DeepGEMM 요구 → SparseAttnIndexer RuntimeError).
@@ -159,7 +175,63 @@ def read_inference_deps(model_dir: str) -> list:
     return deps
 
 
-def crosscheck(model_dir: str) -> dict:
+def fetch_hf_safetensors_total(repo_id: str, timeout: float = 8.0) -> dict:
+    """HF 공개 API 로 안전텐서 파라미터 총계를 조회(모델 자체는 받지 않음 — plan_2026070814_1).
+
+    반환: {"ok": True, "total": int, "parameters": {dtype: count}} 또는
+          {"ok": False, "reason": str}(조회 실패 — 음성정직, 대체값 날조 금지).
+    """
+    if not repo_id:
+        return {"ok": False, "reason": "repo_id 미지정"}
+    url = f"{HF_API_BASE}/{repo_id}"
+    try:
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        return {"ok": False, "reason": f"HTTP {e.code}({url})"}
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        return {"ok": False, "reason": f"네트워크 오류: {e}({url})"}
+    except (json.JSONDecodeError, ValueError) as e:
+        return {"ok": False, "reason": f"응답 파싱 실패: {e}"}
+    st = data.get("safetensors")
+    if not isinstance(st, dict) or "total" not in st:
+        return {"ok": False, "reason": "응답에 safetensors.total 필드 없음(비공개/게이트/구형 포맷 가능)"}
+    return {"ok": True, "total": int(st["total"]), "parameters": st.get("parameters") or {}}
+
+
+def crosscheck_external_vram(local_num_params: "int | None", local_native_weight_bytes: "int | None",
+                              repo_id: "str | None", tolerance: float = 0.05) -> dict:
+    """로컬 실측(managed) 또는 사전추정(ephemeral) vs 외부(HF API) 파라미터 총계 대조.
+
+    tolerance(기본 5%) 초과 시 verdict=MISMATCH. 외부 조회 자체가 실패하면 verdict=UNAVAILABLE
+    (음성정직 — 로컬 실측만으로 진행 가능이지 MISMATCH 아님).
+    """
+    ext = fetch_hf_safetensors_total(repo_id) if repo_id else {"ok": False, "reason": "repo_id 미지정"}
+    if not ext.get("ok"):
+        return {"verdict": "UNAVAILABLE", "reason": ext.get("reason"), "repo_id": repo_id,
+                "local_num_params": local_num_params, "external_total": None}
+    ext_total = ext["total"]
+    if local_num_params is None:
+        # ephemeral(로컬 실측 없음): 외부 총계를 사전추정치로 그대로 채택 — 대조 대상 없음(OK로 보고).
+        est_bytes = None
+        if ext.get("parameters"):
+            est_bytes = sum(int(cnt) * dtype_bpw(dt)[0] for dt, cnt in ext["parameters"].items())
+        return {"verdict": "OK", "mode": "ephemeral-estimate", "repo_id": repo_id,
+                "external_total": ext_total, "external_native_weight_bytes_est": est_bytes,
+                "external_native_weight_gib_est": round(est_bytes / 2**30, 2) if est_bytes else None}
+    diff = abs(local_num_params - ext_total)
+    rel = diff / ext_total if ext_total else 1.0
+    verdict = "MISMATCH" if rel > tolerance else "OK"
+    return {"verdict": verdict, "mode": "managed-doublecheck", "repo_id": repo_id,
+            "local_num_params": local_num_params, "external_total": ext_total,
+            "relative_diff": round(rel, 4),
+            "note": (f"로컬 실측({local_num_params:,}) vs 외부({ext_total:,}) 오차 {rel:.1%} "
+                     f"{'허용범위 초과 — 로컬 파일 재확인 필요' if verdict == 'MISMATCH' else '(허용범위 내)'}")}
+
+
+def crosscheck(model_dir: str, hf_repo_id: "str | None" = None,
+               local_num_params: "int | None" = None) -> dict:
     if not os.path.isdir(model_dir):
         raise FileNotFoundError(f"모델 디렉토리 부재(다운로드 금지): {model_dir}")
     cfg_path = os.path.join(model_dir, "config.json")
@@ -228,6 +300,18 @@ def crosscheck(model_dir: str) -> dict:
         recs.append("reasoning 모델 — 스모크 max_tokens 충분히(finish_reason=stop) · reasoning-parser 검토.")
     checks.append({"name": "reasoning", "verdict": "info", "is_reasoning": is_reasoning})
 
+    # ── 6. 외부(HF API) VRAM 이중검증 (managed — plan_2026070814_1) ──
+    # du -sh 류 디렉토리 전체크기의 .git 오염 실증(2026-07-08) 대응. hf_repo_id 미지정 시 스킵(info).
+    if hf_repo_id:
+        extv = crosscheck_external_vram(local_num_params, None, hf_repo_id)
+        ev_verdict = extv["verdict"] if extv["verdict"] in ("MISMATCH",) else ("info" if extv["verdict"] == "UNAVAILABLE" else "OK")
+        checks.append({"name": "external_vram", "verdict": ev_verdict, **extv})
+        if extv["verdict"] == "MISMATCH":
+            recs.append(f"외부(HF API) 파라미터 총계와 로컬 실측 불일치({extv.get('note')}) — "
+                        f"로컬 safetensors 파일이 손상/변형됐을 가능성. 재검증 필요.")
+    else:
+        checks.append({"name": "external_vram", "verdict": "info", "reason": "hf_repo_id 미지정 — 외부 이중검증 스킵"})
+
     mismatches = [c for c in checks if c.get("verdict") == "MISMATCH"]
     return {
         "model": name,
@@ -264,6 +348,13 @@ def _human(r: dict) -> str:
             L.append(f"  · arch: {c['config']} / {c['model_type']} | 카드={c['card_keywords']}")
         elif c["name"] == "reasoning":
             L.append(f"  · reasoning: {c['is_reasoning']}")
+        elif c["name"] == "external_vram":
+            if c["verdict"] == "info" and c.get("reason"):
+                L.append(f"  · external_vram: {c['reason']}")
+            elif c["verdict"] == "info":
+                L.append(f"  · external_vram: 조회불가({c.get('reason')}) — 로컬 실측만으로 진행")
+            else:
+                L.append(f"  {mark} external_vram: {c.get('note', c)}")
     if r["recommendations"]:
         L.append("  권고:")
         L += [f"   → {x}" for x in r["recommendations"]]
@@ -271,12 +362,48 @@ def _human(r: dict) -> str:
 
 
 def main():
-    ap = argparse.ArgumentParser(description="HF 원본 모델카드(번들 README) 교차검증 — config 단독파싱 함정 차단(폐쇄망·결정론).")
-    ap.add_argument("path", help="모델 디렉토리(호스트 경로 또는 /app/models/<Org>/<Name>)")
+    ap = argparse.ArgumentParser(description="HF 원본 모델카드(번들 README) 교차검증 — config 단독파싱 함정 차단(결정론).")
+    ap.add_argument("path", nargs="?", default=None,
+                    help="모델 디렉토리(호스트 경로 또는 /app/models/<Org>/<Name>) — managed 모드.")
+    ap.add_argument("--hf-repo-id", default=None,
+                    help="HF repo id(예 google/gemma-3-1b-it) — managed: 로컬 실측 이중검증. "
+                         "--ephemeral-estimate 와 함께 쓰면 그게 곧 repo_id.")
+    ap.add_argument("--ephemeral-estimate", action="store_true",
+                    help="로컬 디렉토리 없이(다운로드 전) --hf-repo-id 만으로 외부 파라미터 총계 사전추정.")
     ap.add_argument("--json", action="store_true", help="JSON 출력")
     a = ap.parse_args()
+
+    if a.ephemeral_estimate:
+        if not a.hf_repo_id:
+            print("[crosscheck] STOP: --ephemeral-estimate 는 --hf-repo-id 필수", file=sys.stderr)
+            sys.exit(3)
+        r = crosscheck_external_vram(None, None, a.hf_repo_id)
+        if a.json:
+            print(json.dumps(r, ensure_ascii=False, indent=2))
+        else:
+            print(f"# ephemeral 사전추정: {a.hf_repo_id} → {r['verdict']}")
+            if r["verdict"] == "OK":
+                print(f"  파라미터 총계: {r['external_total']:,} · 예상 가중치: "
+                      f"{r.get('external_native_weight_gib_est')} GiB(dtype 혼합 시 근사)")
+            else:
+                print(f"  조회 실패: {r.get('reason')}")
+        sys.exit(0 if r["verdict"] != "UNAVAILABLE" else 4)
+
+    if not a.path:
+        print("[crosscheck] STOP: managed 모드는 모델 디렉토리 경로 필수(또는 --ephemeral-estimate)", file=sys.stderr)
+        sys.exit(3)
+
+    local_num_params = None
+    if a.hf_repo_id:
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            from parse_model_config import parse as _parse_model_config
+            local_num_params = _parse_model_config(a.path).get("num_params")
+        except Exception as e:  # noqa: BLE001 — 이중검증은 best-effort, parse 실패해도 나머지 체크는 진행
+            print(f"[crosscheck] WARN: num_params 재측정 실패({e}) — external_vram 체크 스킵", file=sys.stderr)
+
     try:
-        r = crosscheck(a.path)
+        r = crosscheck(a.path, hf_repo_id=a.hf_repo_id, local_num_params=local_num_params)
     except FileNotFoundError as e:
         print(f"[crosscheck] STOP: {e}", file=sys.stderr)
         sys.exit(3)
