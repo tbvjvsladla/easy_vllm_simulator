@@ -60,6 +60,14 @@ def resolve_topology(repo, explicit):
     return None  # 불명 — 호출자가 --topology 명시해야
 
 
+def effective_model_source(node, top_level_ms):
+    """per-node model_source 해소 규칙(결정론 — plan_2026070809_2 §4.4):
+    node.model_source(있으면) > top-level model_source > None(오류, 호출자 판단)."""
+    if isinstance(node, dict) and node.get("model_source"):
+        return node["model_source"]
+    return top_level_ms
+
+
 def manifest_tp(man, topology):
     """manifest 파생 TP (roofline.py:196-209 패턴). config override·최종폴백 1 은 호출자 책임.
     nodes 있으면 len(nodes)×gpus_per_node · nodes 비면 topology=single→1 · 그 외 None."""
@@ -116,6 +124,34 @@ def evaluate_contract(man, topology):
         res["reason"] = "model_source 미설정/오류: %r (기대 %s)" % (ms, "|".join(VALID_MODES))
         res["exit_code"] = EXIT_MISSING_FIELD
         return res
+
+    # per-node model_source override 검증 (single-node sub-control 한정 — plan_2026070809_2 §4.4).
+    # 해소규칙: node.model_source(있으면) > top-level ms. 멀티는 override 있어도 무시 대상(단일 정책)이라 WARN.
+    node_warnings = []
+    bad_node_sources = []
+    for idx, node in enumerate(res["nodes"]):
+        if not isinstance(node, dict):
+            continue
+        node_ms = node.get("model_source")
+        if node_ms is None:
+            continue
+        if node_ms not in VALID_MODES:
+            bad_node_sources.append(
+                "nodes[%d](%s).model_source=%r" % (idx, node.get("role", "?"), node_ms))
+        elif topology == "multi":
+            node_warnings.append(
+                "nodes[%d](%s).model_source override 는 single-node sub-control 한정 — "
+                "multi 는 무시(단일 정책)" % (idx, node.get("role", "?")))
+    if bad_node_sources:
+        res["reason"] = "per-node model_source 오류: %s (기대 %s)" % (
+            "; ".join(bad_node_sources), "|".join(VALID_MODES))
+        res["exit_code"] = EXIT_MISSING_FIELD
+        return res
+    res["node_warnings"] = node_warnings
+    res["effective_model_source"] = {
+        (node.get("role") or "node%d" % i): effective_model_source(node, ms)
+        for i, node in enumerate(res["nodes"]) if isinstance(node, dict)
+    }
 
     res["flag"] = True
     res["reason"] = "Flag valid (complete + branch_verified + HW사실 + model_source)"
@@ -175,6 +211,37 @@ def _self_test():
     chk("flag-but-bad-model-source",
         {**base_ok, "model_source": "nas"},
         "single", False, EXIT_MISSING_FIELD)
+
+    # per-node model_source override 회귀(plan_2026070809_2 §4.4 — valid-override · bad-override).
+    single_sub_control = {
+        "topology": "single", "gpus_per_node": 1, "model_source": "managed",
+        "nas_model_path": "/mnt/models",
+        "nodes": [{"role": "main"}, {"role": "sub", "model_source": "ephemeral"}],
+        "terraforming": {"complete": True, "branch_verified": True},
+    }
+    r = evaluate_contract(single_sub_control, "single")
+    ok = (r["flag"] is True and r.get("effective_model_source", {}).get("sub") == "ephemeral"
+          and r.get("effective_model_source", {}).get("main") == "managed")
+    cases.append(("valid-override(single sub-control)", ok, r["reason"], r.get("manifest_tp")))
+
+    bad_override = {
+        "topology": "single", "gpus_per_node": 1, "model_source": "managed",
+        "nas_model_path": "/mnt/models",
+        "nodes": [{"role": "main"}, {"role": "sub", "model_source": "nas-bogus"}],
+        "terraforming": {"complete": True, "branch_verified": True},
+    }
+    r = evaluate_contract(bad_override, "single")
+    ok = (r["flag"] is False and r["exit_code"] == EXIT_MISSING_FIELD)
+    cases.append(("bad-override(invalid per-node model_source)", ok, r["reason"], r.get("manifest_tp")))
+
+    multi_override_warn = {
+        "topology": "multi", "gpus_per_node": 1, "model_source": "ephemeral",
+        "nodes": [{"role": "main"}, {"role": "sub", "model_source": "managed"}],
+        "terraforming": {"complete": True, "branch_verified": True},
+    }
+    r = evaluate_contract(multi_override_warn, "multi")
+    ok = (r["flag"] is True and len(r.get("node_warnings", [])) >= 1)
+    cases.append(("multi-override(WARN, 무시 대상)", ok, r["reason"], r.get("manifest_tp")))
 
     # TP 파생 회귀 (roofline 패턴)
     tp_cases = [

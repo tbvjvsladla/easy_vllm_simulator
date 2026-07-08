@@ -11,7 +11,10 @@
 # like-with-like: spec on 서브는 R_token, off 서브는 R_fp 기준(루프라인이 이미 accept_len 반영해 산출).
 # E-search 상태 표면(--e-search hit|empty|no): 외부검색(E) 시도 여부를 출력에 *기록*한다 —
 #   roofline-only 강등(reference/target 부재)이 침묵으로 지나가지 않게 warning 필드로 표면화(self-preference 차단).
-#   verdict 자체는 불변(warning-only — 결정론 게이트 보존). 서브 에어갭 = --e-search empty 로 음성정직 기록.
+#   verdict 자체는 불변(warning-only — 결정론 게이트 보존). egress-restricted 서브 = --e-search empty 로
+#   음성정직 기록(egress-online+A2A 위임 서브는 --e-search hit 자율 시도 — plan_2026070809_2 이중게이트).
+# 노드간 VRAM 밸런스 축(--node-vram-gib, plan_2026070809_3 §4.8): decode-tps 축과 **직교** — 미지정 시 비활성
+#   (기존 판정 완전 보존). balance_dev=(max-min)/max > --balance-tol(기본 0.10) → REFUTE(failure_axis="balance").
 # CONTRACT: 출력 verdict JSON. stdlib only.
 import argparse, json, sys
 
@@ -35,6 +38,11 @@ def main():
     ap.add_argument("--spec-supported", action="store_true", help="모델이 speculative(MTP) 지원 — off 면 강제함수")
     ap.add_argument("--e-search", choices=["hit", "empty", "no"], default="no",
                     help="외부검색(E) 상태: hit=시도·발견 / empty=시도·빈손 / no=미시도(기본). 출력에 기록(판정 불변)")
+    ap.add_argument("--node-vram-gib", default=None,
+                    help="멀티노드 노드별 measured VRAM used(GiB), 쉼표구분(예: 60.1,66.8). "
+                         "밸런스 축(plan_2026070809_3 §4.8) — 미지정 시 비활성(기존 decode-tps 판정 완전 보존).")
+    ap.add_argument("--balance-tol", type=float, default=0.10,
+                    help="노드간 VRAM 밸런스 허용편차(기본 0.10=10%%)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
@@ -123,7 +131,7 @@ def main():
     warning = None
     if roofline_primary:
         if args.e_search == "no":
-            warning = "E-not-attempted: 판정이 roofline-only로 강등됨 — 메인 인스턴스는 외부검색(E) 수행 후 판정(서브 에어갭만 예외·--e-search empty 로 기록)"
+            warning = "E-not-attempted: 판정이 roofline-only로 강등됨 — 메인 인스턴스는 외부검색(E) 수행 후 판정(egress-restricted 서브만 예외·--e-search empty 로 기록)"
         elif args.e_search == "empty":
             warning = "E-attempted-empty: 외부 레퍼런스 부재 기록됨 — roofline-only 판정(음성정직)"
 
@@ -146,6 +154,37 @@ def main():
     }
     if warning is not None:
         out["warning"] = warning
+
+    # --- 노드간 VRAM 밸런스 축 (직교 — plan_2026070809_3 §4.8) ---
+    if args.node_vram_gib:
+        try:
+            node_vals = [float(x) for x in args.node_vram_gib.split(",") if x.strip() != ""]
+        except ValueError:
+            sys.stderr.write("[verdict] ERROR --node-vram-gib 파싱 실패: %r\n" % args.node_vram_gib)
+            sys.exit(2)
+        if len(node_vals) < 2:
+            sys.stderr.write("[verdict] ERROR --node-vram-gib 은 2개 이상 노드값 필요(멀티노드 전용)\n")
+            sys.exit(2)
+        mx, mn = max(node_vals), min(node_vals)
+        balance_dev = (mx - mn) / mx if mx else 0.0
+        balance_pass = balance_dev <= args.balance_tol
+        out["balance"] = {
+            "node_vram_gib": node_vals, "max_gib": mx, "min_gib": mn,
+            "balance_dev": round(balance_dev, 4), "tolerance": args.balance_tol,
+            "pass": balance_pass,
+        }
+        if not balance_pass:
+            out["verdict"] = "REFUTE"
+            out["failure_axis"] = "balance"
+            out["refuted_claims"].append({
+                "claim": "멀티노드 VRAM 배분이 균형적이다(≤%d%% 편차)" % int(args.balance_tol * 100),
+                "reason": "balance_dev=%.4f > tolerance=%.2f (max=%.2fGiB min=%.2fGiB)" % (
+                    balance_dev, args.balance_tol, mx, mn),
+                "evidence": out["balance"],
+            })
+            out["diagnosis_hint"].append(
+                "노드간 VRAM 편차 초과 → recipe-explorer 재탐색(per-GPU 클램프 재산정 — plan_2026070809_3 §4.8).")
+
     print(json.dumps(out, ensure_ascii=False, indent=2))
 
 

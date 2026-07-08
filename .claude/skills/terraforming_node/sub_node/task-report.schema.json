@@ -5,11 +5,15 @@
   "description": "메인↔서브 A2A-개념 통신의 회신 산출물. 서브 빌드워커가 ssh claude -p 한 턴마다 이 스키마에 맞는 JSON 1개를 반환한다. 메인은 이 리포트를 검증하며 서브 워크스페이스를 재스캔하지 않는다(push-attestation). 정적계약(양 노드 동일) — terraforming_node 가 서브 .claude/schemas/ 로 복제.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["task_id", "context_id", "turn", "phase", "status", "self_verification"],
+  "required": ["task_id", "context_id", "turn", "phase", "status", "self_verification", "node_id"],
   "properties": {
     "task_id": {
       "type": "string",
       "description": "A2A Task id. 한 작업 단위(메인이 발급)."
+    },
+    "node_id": {
+      "type": "string",
+      "description": "이 리포트를 낸 노드 식별(예 sub-<host> 또는 manifest nodes[] role+host). 턴제 릴레이(메인=메시지브로커)가 사용자에게 출처를 표기할 때 이 값을 쓴다 — plan_2026070809_2 §4.5."
     },
     "context_id": {
       "type": "string",
@@ -110,6 +114,23 @@
     "notes": {
       "type": "string",
       "description": "메인이 알아야 할 한두 줄(예: NGC pull 시간, ray status GPU 수, 피드백 요청 근거)."
+    },
+    "hitl": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "턴제 릴레이(비둘기)의 HITL 출처 라벨 — plan_2026070809_2 §4.5. 메인은 서브가 스스로 표면화한 것만 릴레이(디스크 재스캔 ✗).",
+      "properties": {
+        "needed": {"type": "boolean", "description": "이 턴에 사용자 HITL 이 필요한가."},
+        "source": {
+          "type": "string",
+          "enum": ["main", "sub-relay"],
+          "description": "HITL 출처 — 사용자가 메인 HITL 과 서브(릴레이) HITL 을 혼동 없이 각 노드에 정확히 지시하도록 라벨링."
+        },
+        "prompt": {
+          "type": "string",
+          "description": "사용자에게 표면화할 질의(서브가 스스로 올린 것만 — messages/status:input-required 와 정합, 메인 재스캔 ✗)."
+        }
+      }
     }
   }
 }

@@ -184,6 +184,96 @@ def peer_reachable(ip: str, port: int = 22, timeout: int = 5) -> bool:
         return False
 
 
+# ── 외부 egress 스캔 (축 B — plan_2026070809_2 §4.2 · 인터커넥트 축 A 와 직교) ──
+# "서브=물리 에어갭" 전역 상수를 폐기하고 manifest 사실로 대체하는 신규 축. render-on-main 동형
+# (메인이 SSH 로 서브를 실측 — 서브 자가스캔 ✗). 결과는 attestation(fail-open) — model_env 만 fail-closed(§4.2).
+_EGRESS_PEER_PROBE = (
+    "(curl -sS -o /dev/null -w '%{{http_code}}' --max-time {timeout} https://{hf_host} 2>/dev/null || echo 000); "
+    "echo; "
+    "(timeout {timeout} bash -c '</dev/tcp/{gw_host}/{gw_port}' 2>/dev/null && echo OK || echo FAIL)"
+)
+
+
+def scan_egress(hf_host: str = "huggingface.co", gw_host: str = "8.8.8.8", gw_port: int = 443,
+                timeout: int = 5) -> dict:
+    """로컬(메인) 외부 egress 프로브 — (i) HF 엔드포인트 HTTPS HEAD (ii) 일반 게이트웨이 TCP connect.
+    둘 다 성공 = online, 아니면 restricted(보수적). stdlib 만(urllib+socket) — 결정론 최소권한.
+    반환은 attestation 용(non-blocking) — evaluate_gate 의 egress_self/egress_peer 입력."""
+    import socket
+    import urllib.error
+    import urllib.request
+
+    hf_ok = False
+    try:
+        req = urllib.request.Request(f"https://{hf_host}", method="HEAD")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            hf_ok = 200 <= resp.status < 500
+    except (urllib.error.URLError, OSError, ValueError):
+        hf_ok = False
+
+    gw_ok = False
+    try:
+        with socket.create_connection((gw_host, gw_port), timeout=timeout):
+            gw_ok = True
+    except OSError:
+        gw_ok = False
+
+    return {"egress": "online" if (hf_ok and gw_ok) else "restricted",
+            "hf_reachable": hf_ok, "gateway_reachable": gw_ok}
+
+
+def collect_peer_egress(ssh_target: str, hf_host: str = "huggingface.co", gw_host: str = "8.8.8.8",
+                        gw_port: int = 443, timeout: int = 5,
+                        ssh_opts: list[str] | None = None) -> dict:
+    """서브 egress 를 SSH 로 실측(render-on-main — collect_peer_hw 와 동형: stdin bash -ls 로 인용/PATH 함정 회피).
+    SSH/원격 실패 → restricted(보수적 — fail-open 이되 미검증은 restricted 로 귀속)."""
+    opts = ssh_opts or ["-o", "BatchMode=yes", "-o", "ConnectTimeout=8"]
+    probe = _EGRESS_PEER_PROBE.format(timeout=timeout, hf_host=hf_host, gw_host=gw_host, gw_port=gw_port)
+    text = ""
+    try:
+        out = subprocess.run(["ssh", *opts, ssh_target, "bash", "-ls"],
+                             input=probe, capture_output=True, text=True, timeout=timeout * 2 + 10)
+        text = out.stdout if out.returncode == 0 else ""
+    except Exception:
+        text = ""
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    hf_code = lines[0] if len(lines) > 0 else "000"
+    hf_ok = hf_code.isdigit() and 200 <= int(hf_code) < 500
+    gw_ok = lines[1] == "OK" if len(lines) > 1 else False
+    return {"egress": "online" if (hf_ok and gw_ok) else "restricted",
+            "hf_reachable": hf_ok, "gateway_reachable": gw_ok}
+
+
+def check_model_env(model_source: str | None, egress: str | None,
+                    nas_reachable: bool | None = None, hf_token_present: bool | None = None) -> dict:
+    """모델 제반환경 판정(§4.2 fail-closed 축 — egress attestation 과 달리 이건 blocking).
+    managed: nas_reachable 이 명시 False 일 때만 block(미측정 None 은 정보부족≠실패로 통과).
+    ephemeral/custom: egress==restricted ∧ hf_token_present 가 명시 False 일 때만 block(다운로드 물리 불가)."""
+    if model_source == "managed":
+        if nas_reachable is False:
+            return {"ok": False, "reason": "managed: 서브 모델 NAS 경로 도달 불가(fail-closed)"}
+        return {"ok": True, "reason": None}
+    if model_source in ("ephemeral", "custom"):
+        if egress == "restricted" and hf_token_present is False:
+            return {"ok": False,
+                    "reason": f"{model_source}: HF_TOKEN 부재 ∧ egress-restricted → 다운로드 물리 불가(fail-closed)"}
+        return {"ok": True, "reason": None}
+    return {"ok": True, "reason": None}
+
+
+def read_manifest_field(path: str, key: str) -> str | None:
+    """manifest.yaml 의 top-level 'key: value' 플랫 grep(pyyaml 비의존 — read_manifest_topology 와 동형)."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            for ln in f:
+                s = ln.strip()
+                if s.startswith(key + ":"):
+                    return s.split(":", 1)[1].split("#", 1)[0].strip().strip('"')
+    except OSError:
+        pass
+    return None
+
+
 # ── 서브 HW 수집 + 메인↔서브 동질성 단언 (plan_2026063021_2 · D2/D3) ──
 # render-on-main: terraforming(메인)이 SSH로 서브 HW를 실측하고 동질성을 단언한다(서브 자가스캔 ✗·terraforming_node 영구 main-only).
 # 5종 2등급: cpu_arch·gpu_model·gpus_per_node = 정확일치(하드블록) / cuda·driver = major 하드·minor/patch 경고.
@@ -354,9 +444,12 @@ def emit_manifest_block(result: dict) -> str:
 
 def evaluate_gate(*, declared, ic_present, peer_given, peer_reachable, bandwidth, bw_floor,
                   branch=None, branch_topo=None, mani_topo=None, mani_path="manifest.yaml",
-                  peer_ip=None):
+                  peer_ip=None, egress_self=None, egress_peer=None,
+                  model_env_ok=None, model_env_reason=None):
     """결정론 게이트 판정 — **순수 함수**(I/O 없음 → --self-test 회귀 대상). 반환 (assertion, gate, exit_code).
-    3자-일치 단언(branch↔manifest↔scan) + α/γ(구조)/γ(성능 fail-closed)/multi-ready 판정을 한 곳에 codify."""
+    3자-일치 단언(branch↔manifest↔scan) + α/γ(구조)/γ(성능 fail-closed)/multi-ready 판정을 한 곳에 codify.
+    egress_self/egress_peer: attestation 뿐(불일치=경고·fail-open — 서브 능력차는 정상, plan_2026070809_2 §4.2).
+    model_env_ok=False: **blocking**(모델 제반환경 불충족 — 서브=에어갭 전역상수를 대체하는 유일한 fail-closed 축)."""
     mism: list[str] = []     # blocking(혼재/위험)
     warns: list[str] = []    # 비blocking(정보)
     if declared in ("single", "multi"):
@@ -368,17 +461,24 @@ def evaluate_gate(*, declared, ic_present, peer_given, peer_reachable, bandwidth
             warns.append("single 선언 + RoCE 하드웨어 존재 — 멀티 가능 머신의 단일노드 운용(정상·정보)")
         if mani_topo and branch_topo and mani_topo != branch_topo:
             mism.append(f"manifest({mani_path}) topology={mani_topo} ≠ branch⇒{branch_topo}")
+    if egress_self and egress_peer and egress_self != egress_peer:
+        warns.append(f"egress 능력차(정보·fail-open): main={egress_self} sub={egress_peer} — 서브는 자동 격하(루프라인-only)")
+    model_block = (model_env_reason or "모델 제반환경 불충족(fail-closed)") if model_env_ok is False else None
     assertion = {
         "git_branch": branch, "branch_implies": branch_topo,
         "manifest_path": mani_path, "manifest_topology": mani_topo, "declared": declared,
         "scan_interconnect_present": ic_present,
+        "egress_self": egress_self, "egress_peer": egress_peer,
         "consistent": not mism, "mismatches": mism, "warnings": warns,
     }
     exit_code = 0
     if declared == "single":
-        gate = {"branch": "alpha", "status": "ok" if not mism else "blocked", "mismatches": mism,
-                "note": "single-node: interconnect 스캔 skip(실패 아님)" if not mism else "일관성 단언 실패 → blocked"}
-        if mism:
+        blockers = list(mism)
+        if model_block:
+            blockers.append(model_block)
+        gate = {"branch": "alpha", "status": "ok" if not blockers else "blocked", "mismatches": blockers,
+                "note": "single-node: interconnect 스캔 skip(실패 아님)" if not blockers else "일관성 단언 실패 → blocked"}
+        if blockers:
             exit_code = 2
     elif declared == "multi":
         struct_block = []
@@ -386,6 +486,8 @@ def evaluate_gate(*, declared, ic_present, peer_given, peer_reachable, bandwidth
             struct_block.append("RoCE v2 미탐지")
         if peer_given and not peer_reachable:
             struct_block.append(f"peer {peer_ip} 미도달")
+        if model_block:
+            struct_block.append(model_block)
         struct_block += mism
         if struct_block:                                   # γ: 구조/일관성 미충족
             gate = {"branch": "gamma", "status": "blocked", "reasons": struct_block,
@@ -496,6 +598,47 @@ def _self_test() -> int:
         passed += ok
         n += 1
         print(f"  [{'PASS' if ok else 'FAIL'}] homo:{name}: verified={h['verified']} blocks={len(h['blocks'])} warns={len(h['warns'])}")
+    # check_model_env 순수함수 회귀(§4.2 fail-closed 축 — managed/ephemeral/custom 3분기).
+    cme_cases = [
+        ("managed+NAS도달 → ok", ("managed", "online", True, None), True),
+        ("managed+NAS미도달 → block", ("managed", "online", False, None), False),
+        ("managed+NAS미측정(None) → ok(정보부족≠실패)", ("managed", "online", None, None), True),
+        ("ephemeral+egress-restricted+토큰부재 → block", ("ephemeral", "restricted", None, False), False),
+        ("ephemeral+egress-restricted+토큰존재 → ok", ("ephemeral", "restricted", None, True), True),
+        ("ephemeral+egress-online+토큰부재 → ok(온라인이라 무관)", ("ephemeral", "online", None, False), True),
+        ("custom+egress-restricted+토큰부재 → block", ("custom", "restricted", None, False), False),
+    ]
+    for name, args4, want_ok in cme_cases:
+        r = check_model_env(*args4)
+        ok = (r["ok"] == want_ok)
+        passed += ok
+        n += 1
+        print(f"  [{'PASS' if ok else 'FAIL'}] model_env:{name}: ok={r['ok']}" + ("" if ok else f"  ← 기대 {want_ok}"))
+    # evaluate_gate egress/model-env 통합 회귀(§4.2 — egress 는 warn-only·model_env 는 block).
+    gate_egress_cases = [
+        ("egress-restricted+model-ok → pass(egress 는 attestation 뿐)",
+         dict(declared="single", ic_present=False, peer_given=False, peer_reachable=None, bandwidth=None,
+              bw_floor=F, branch_topo="single", mani_topo="single",
+              egress_self="online", egress_peer="restricted", model_env_ok=True),
+         ("alpha", 0, True)),
+        ("model-env-missing → block(fail-closed)",
+         dict(declared="single", ic_present=False, peer_given=False, peer_reachable=None, bandwidth=None,
+              bw_floor=F, branch_topo="single", mani_topo="single",
+              model_env_ok=False, model_env_reason="ephemeral: HF_TOKEN 부재 ∧ egress-restricted"),
+         ("alpha", 2, True)),
+        ("multi+model-env-missing → gamma block",
+         dict(declared="multi", ic_present=True, peer_given=True, peer_reachable=True, bandwidth=208.2,
+              bw_floor=F, branch_topo="multi", mani_topo="multi", model_env_ok=False,
+              model_env_reason="managed: NAS 미도달"),
+         ("gamma", 2, True)),
+    ]
+    for name, kw, (eg, ec, econ) in gate_egress_cases:
+        a, g, code = evaluate_gate(**kw)
+        ok = (g["branch"] == eg and code == ec and a["consistent"] == econ)
+        passed += ok
+        n += 1
+        print(f"  [{'PASS' if ok else 'FAIL'}] gate-egress:{name}: gate={g['branch']} exit={code}"
+              + ("" if ok else f"  ← 기대 ({eg},{ec},{econ})"))
     print(f"self-test: {passed}/{n} {'PASS' if passed == n else 'FAIL'}")
     return 0 if passed == n else 1
 
@@ -519,6 +662,11 @@ def main() -> int:
                          "--topology single|multi 명시 필수(auto면 fail-closed 거부 — plan_2026063009_1 D3)")
     ap.add_argument("--manifest", default=None,
                     help="manifest 실값 경로(기본=브랜치 파생 output/<topology>/manifest.yaml). plan_2026062315_1")
+    ap.add_argument("--check-egress", action="store_true",
+                    help="외부 egress 스캔(축 B — plan_2026070809_2 §4.2). 로컬(메인) HF/게이트웨이 도달성 프로브 + "
+                         "(--peer-ssh 동반 시) 서브 egress 실측 + manifest model_source 기반 모델 제반환경 판정.")
+    ap.add_argument("--model-source", choices=["managed", "ephemeral", "custom"], default=None,
+                    help="모델 제반환경 판정용 override(기본=manifest model_source 읽음).")
     ap.add_argument("--self-test", action="store_true",
                     help="결정론 회귀(게이트+emit_gate+emit-block YAML, 하드웨어 불요 — 라이브 검증 고정, #4)")
     args = ap.parse_args()
@@ -558,12 +706,37 @@ def main() -> int:
     mani_path = args.manifest or (f"output/{branch_topo}/manifest.yaml" if branch_topo else "manifest.yaml")
     mani_topo = read_manifest_topology(mani_path)
     peer_reach = result.get("peer_check", {}).get("reachable")
+
+    # ── 외부 egress 스캔 (축 B — plan_2026070809_2 §4.2, 인터커넥트 축 A 와 병렬·독립) ──
+    egress_self = egress_peer = None
+    model_env_result = None
+    if args.check_egress:
+        es = scan_egress()
+        egress_self = es["egress"]
+        result["egress"] = {"self": es}
+        if args.peer_ssh and args.topology == "multi":
+            ep = collect_peer_egress(args.peer_ssh)
+            egress_peer = ep["egress"]
+            result["egress"]["peer"] = ep
+        model_source = args.model_source or read_manifest_field(mani_path, "model_source")
+        if model_source:
+            nas_path = read_manifest_field(mani_path, "nas_model_path")
+            nas_reachable = os.path.isdir(nas_path) if (model_source == "managed" and nas_path) else None
+            hf_token_env_file = read_manifest_field(mani_path, "hf_token_env_file")
+            hf_token_present = (bool(hf_token_env_file) and os.path.isfile(hf_token_env_file)) \
+                if model_source in ("ephemeral", "custom") else None
+            model_env_result = check_model_env(model_source, egress_self, nas_reachable, hf_token_present)
+            result["model_env"] = model_env_result
+
     assertion, gate, exit_code = evaluate_gate(
         declared=args.topology, ic_present=result["interconnect_present"],
         peer_given=bool(args.peer_ip), peer_reachable=peer_reach,
         bandwidth=ic["bandwidth_gbps"], bw_floor=args.bw_floor,
         branch=branch, branch_topo=branch_topo, mani_topo=mani_topo,
-        mani_path=mani_path, peer_ip=args.peer_ip)
+        mani_path=mani_path, peer_ip=args.peer_ip,
+        egress_self=egress_self, egress_peer=egress_peer,
+        model_env_ok=(model_env_result["ok"] if model_env_result else None),
+        model_env_reason=(model_env_result["reason"] if model_env_result else None))
     result["consistency_assertion"] = assertion
     result["gate"] = gate
 

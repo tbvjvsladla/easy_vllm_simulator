@@ -1,6 +1,6 @@
 """quant_table.py — quant 바이트 테이블 (whichllm 벤더링) + 해소 함수.
 
-이 모듈은 whichllm 패키지를 import 하지 않는다(폐쇄망·결정론 원칙).
+이 모듈은 whichllm 패키지를 import 하지 않는다(로컬-only·결정론 원칙).
 대신 whichllm 소스에서 값/공식을 **복사(벤더링)** 하고 출처 주석을 단다.
 
 벤더링 출처:
@@ -105,7 +105,7 @@ VLLM_QUANT_BYTES: dict[str, float] = {
 # ---------------------------------------------------------------------------
 # OFFLINE_ONLY_QUANT — '사전양자화된 체크포인트'를 요구하는 quant 방식(온라인 양자화 불가).
 # vLLM 에서 awq/gptq(및 Marlin 변종)는 런타임 온라인 양자화가 불가능하므로 bf16 native
-# 체크포인트에 이 quant 를 지정하면 서빙이 실패한다(폐쇄망에선 더욱). 반대로 fp8·
+# 체크포인트에 이 quant 를 지정하면 서빙이 실패한다(네트워크와 무관 — 사전양자화 가중치 자체의 부재). 반대로 fp8·
 # bitsandbytes 는 bf16 체크포인트를 로드 시 온라인 양자화할 수 있어 제외한다.
 # 결정론 계층(estimate)이 비prequantized 체크포인트에 이 quant 를 만나면 경고를 단다.
 # 출처: SKILL.md §2 ② (LLM 후보 생성 시 awq/gptq 경고 — 결정론 계층으로 끌어내림).
@@ -117,7 +117,7 @@ OFFLINE_ONLY_QUANT: frozenset[str] = frozenset({
 
 
 def is_offline_only_quant(quant: "str | None") -> bool:
-    """quant 가 사전양자화 체크포인트를 요구하는 오프라인 전용 방식인지 판정."""
+    """quant 가 사전양자화 체크포인트를 요구하는(런타임 온라인 양자화 불가) 방식인지 판정."""
     if quant is None:
         return False
     return quant.strip().lower() in OFFLINE_ONLY_QUANT

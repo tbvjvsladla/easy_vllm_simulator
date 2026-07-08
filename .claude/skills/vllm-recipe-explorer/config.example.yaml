@@ -1,14 +1,20 @@
 # vllm-recipe-explorer 입력 스키마 (예시) — config.yaml 을 이 형식으로 채워 사용한다.
-# 폐쇄망 전제: 모델은 사람이 사전 다운로드해 NAS 에 둔 것만 read-only 로 참조한다(런타임 다운로드 금지).
+# 모델획득 격리 전제: 모델은 사람이 사전 다운로드해 NAS 에 둔 것만 read-only 로 참조한다(런타임 다운로드 금지).
 target_model:
   path: /app/models/OpenAI/gpt-oss-20b   # configs/*.yaml 의 model: 과 동일한 컨테이너 경로
 nas_host_root: /mnt/models                 # /app/models 가 매핑되는 호스트 NAS 루트 (# 실제 NAS 경로로 교체)
 # tiktoken_host_path: /mnt/models/tiktoken_cache   # (선택) gpt-oss 등 harmony/tiktoken 필요 모델용 호스트측 flat tiktoken 캐시 경로.
-                                           #         컨테이너 /encodings:ro 로 마운트됨. 폐쇄망 전제(사전적재) — 런타임 다운로드 없음.
-vram_budget_gb: 24                         # carve-out 가상 GPU 예산(예: RTX4090=24)
+                                           #         컨테이너 /encodings:ro 로 마운트됨. 사전적재 전제 — 런타임 다운로드 없음.
+vram_budget_gb: 24                         # carve-out 가상 GPU 예산(예: RTX4090=24) — host 흐름(target_gpu 미정의 시).
 safety_margin: 0.90                        # 하드게이트 임계(기본 0.90)
 kv_cache_dtype_bytes: 2                    # KV dtype 바이트(기본 2=fp16)
-# tensor_parallel_size: 1                  # (선택) 미지정 시 git 브랜치 자동(single-node→1, multi-node→2)
+# tensor_parallel_size: 1                  # (선택) 미지정 시 manifest(nodes×gpus_per_node) 자동결정(git 브랜치 추론 아님 — CLAUDE.md §manifest→서빙전략 배선 불변식)
+# target_gpu:                              # (선택) host≠target 이식 경로 — 있으면 Phase-1(estimate/generate) 거부,
+#                                           #   Phase-2(simulate) 강제(plan_2026070809_3). vram_budget_gb 와 상호배타적 의도.
+#   gpu_model: "NVIDIA RTX PRO 6000"        #   references.md §4 테이블 역룩업 키(per-card VRAM 해소)
+#   per_card_vram_gib: 96                   #   (선택) 테이블 미등재/오버라이드 시 명시(quick-win 우회)
+#   cards_per_node: 1                       #   기본 1. N장은 명시(타겟 TP = cards_per_node × manifest node 수)
+#   target_gmu: 0.90                        #   기본 0.90. 통합메모리 타겟은 gmu>0.90 이면 자동 0.90 하드클램프.
 serving:
   config_name: gpt-oss-20b-rtx4090         # 생성될 3종 세트 base 이름
   port: 8902

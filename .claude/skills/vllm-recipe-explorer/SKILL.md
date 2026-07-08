@@ -1,7 +1,7 @@
 ---
 name: vllm-recipe-explorer
 description: >-
-  폐쇄망(모델 획득 한정)에서 고정된 한 모델의 config.json을 결정론적으로 파싱하고, (quantization × max-model-len ×
+  모델획득 격리 환경(외부접속 전반 차단 아님)에서 고정된 한 모델의 config.json을 결정론적으로 파싱하고, (quantization × max-model-len ×
   gpu-memory-utilization) 3축 레시피 후보를 결정론 VRAM 추정 → 예산×안전마진 하드게이트 →
   headroom→context 랭킹으로 제시하고, 사람이 고른 레시피를 DGX Spark 서빙용 3종 세트(.yaml+.sh+.env)로
   생성한다(Phase 1, 추정). Phase 2는 멀티턴 인터뷰로 lock/soft/free 변수를 정하고 실서빙 trial-loop로
@@ -84,7 +84,7 @@ python3 scripts/parse_model_config.py <path> [--nas-root R] [--json] > parsed.js
 - `/app/models/...` 입력은 `nas_host_root`로 치환해 호스트 NAS에서 읽는다(컨테이너 경로 ↔ 호스트 경로 매핑).
 - **text_config 중첩 처리**: `text_config`가 있으면 아키텍처 필드를 그쪽 우선·top-level fallback으로 읽는다
   (`vision_config`는 무시). 예: Qwen3.5-35B-A3B는 전 필드가 `text_config` 아래.
-- **num_params 산출(폐쇄망 로컬, 결정론)**: 비prequantized 모델은 **index가 가리키는 정본 샤드들의
+- **num_params 산출(로컬 파싱, 결정론)**: 비prequantized 모델은 **index가 가리키는 정본 샤드들의
   safetensors 헤더에서 텐서별 numel(shape 곱)을 합산** — 저장 dtype과 무관한 정확한 파라미터 수다
   (config `torch_dtype`이 거짓이거나[Motif-2.6B: 디스크 fp32지만 bf16 모델], 한 디렉토리에 복수 정밀도
   체크포인트가 공존해도[LFM2-8B-A1B: BF16+F32 두 벌] 정확). prequantized(mxfp4 등)는 `quant_method_native`
@@ -98,7 +98,7 @@ python3 scripts/parse_model_config.py <path> [--nas-root R] [--json] > parsed.js
 python3 scripts/crosscheck_model_card.py <path> [--json]   # MISMATCH 시 비0 종료(게이트)
 ```
 
-- **HF 원본 모델카드(번들 `README.md`) + `inference/requirements.txt` + config.json + safetensors dtype 실측**을 교차대조 → config.json **단독** 파싱이 놓치는 사실을 serving *전* 노출(폐쇄망 — 번들 README = HF 원본 카드, 네트워크 호출 없음).
+- **HF 원본 모델카드(번들 `README.md`) + `inference/requirements.txt` + config.json + safetensors dtype 실측**을 교차대조 → config.json **단독** 파싱이 놓치는 사실을 serving *전* 노출(로컬 파싱 — 번들 README = HF 원본 카드, 네트워크 호출 없음).
 - 잡는 것: **① coarse quant 라벨 함정**(config `quant_method:fp8` 인데 실측 experts=FP4 혼합 — 카드가 `FP4+FP8 Mixed` 명시) · **② novel-arch special-dep**(DeepGEMM·tilelang·flash_attn… → "vLLM dry-init/op 가용성 확인" 권고) · 정밀도·파라미터·컨텍스트·아키·reasoning 카드 합치.
 - **special-dep 분류·핸드오프 (발견≠소유 — per-model 3+1+1, plan_2026062812_1)**: special-dep 발견 시 분류한다 —
   · **빌드-바깥 의존**(native lib/커널: DeepGEMM·tilelang·flash_attn…) = **patch.py ✗ · recipe-explorer 자체수정 ✗**(Python 몽키패치로 native lib 설치 불가) → **`upstream-version-watch` 핸드오프**(빌드 평면 — `build_patches/<NN>-*.sh` 모듈에 동결; 메인) / **서브면 docs insight 상향**(D12, 서브는 빌드평면 미보유).
@@ -113,7 +113,7 @@ python3 scripts/crosscheck_model_card.py <path> [--json]   # MISMATCH 시 비0 �
 brainstorm 한다.
 
 - `quantization`: prequantized면 **native 고정**(`quant_method_native`). 비prequantized면 `{none, fp8}`
-  (오프라인 사전양자화 전제로 `awq`/`gptq`를 제안할 땐 **경고 표기** — 폐쇄망에서 런타임 양자화 불가).
+  (비prequantized 체크포인트에 `awq`/`gptq`를 제안할 땐 **경고 표기** — 런타임 양자화 불가(fp8·bitsandbytes 는 온라인 양자화 가능)).
 - `max-model-len`: **4096부터 `max_position_embeddings`까지 2의 거듭제곱**(§9.1 규칙). `max_position` 미상이면
   `[4096, 8192, 16384, 32768]`.
 - `gpu-memory-utilization`: 0.80~0.95(기본 그리드 `[0.85, 0.90, 0.95]`).
@@ -170,7 +170,7 @@ python3 recipe.py generate --config config.yaml --recipe-id r3
 
 - **모델 자체 다운로드 금지.** NAS 경로에 없으면 비0 종료 + 명확한 중단·보고. 런타임 다운로드 없음.
 - 호스트 `python3`(3.12, PyYAML 6) 단독 실행. **whichllm 패키지를 import 하지 말 것**(값은 벤더링).
-- stdlib + yaml만 사용. **결정론 스크립트는 외부 네트워크 호출 금지**(스크립트 평면 offline — config/번들 README 로컬 파싱). **단 이는 *스크립트* 제약이지 *에이전트 전략수립* 제약이 아니다** — 서빙전략의 외부 교차검증(HF 모델카드·vLLM GitHub)은 허용·의무(헌법 §모델 획득 모드 따름정리 · escalation = `plan_2026063009_2` B부). "폐쇄망"=*모델획득* 한정이지 외부접속 전반 차단 ✗.
+- stdlib + yaml만 사용. **(b) 소비자 파서(quant_table/estimate_vram)는 로컬 config 파싱만 하는 순수 stdlib — 모델획득 평면 격리이지 환경 offline 이 아니다**(대조적으로 upstream 의 resolver(resolve_wheel/torch_pin/ngc_tag)는 GitHub API·레지스트리를 라이브 조회 = 환경 online 전제). **단 이는 *스크립트* 제약이지 *에이전트 전략수립* 제약이 아니다** — 서빙전략의 외부 교차검증(HF 모델카드·vLLM GitHub)은 허용·의무(헌법 §모델 획득 모드 따름정리 · escalation = `plan_2026063009_2` B부). **모델획득 격리 한정**이지 외부접속 전반 차단 ✗.
 - 결정/게이트/랭킹/분류는 결정론 스크립트가 책임진다(LLM은 후보 탐색·인터뷰만).
 - **Phase 2 teardown(필수)**: 트라이얼은 끝날 때마다 `docker rm -f`로 컨테이너를 제거한다.
   DGX Spark는 **통합메모리**라 잔류 컨테이너가 다음 트라이얼을 OOM으로 떨어뜨린다(`run_trial`의 `finally`가 보장).
@@ -181,13 +181,16 @@ python3 recipe.py generate --config config.yaml --recipe-id r3
 실서빙 trial-loop 전에 LLM이 사람과 **멀티턴 인터뷰**로 변수를 확정한다. **타깃 GPU가 0순위**(예산이
 모든 게이트의 기준). 순서대로 묻되, 사람이 모르면 결정론 산출값을 제안한다.
 
-1. **타깃 GPU / VRAM 예산** (필수, 0순위) — 예: RTX PRO 6000 96GB. → `config.yaml`의 `vram_budget_gb`.
-2. **weight quant?** — prequantized면 native 고정. 비prequantized면 `none`/`fp8`(awq/gptq는 폐쇄망 경고).
+1. **타깃 GPU / VRAM 예산** (필수, 0순위) — 예: RTX PRO 6000 96GB. → `config.yaml`의 `vram_budget_gb`(스칼라,
+   하위호환) 또는 host≠target 이식이면 구조화 `target_gpu` 블록(§5 "타겟-GPU 이식형 예산" 참조 — `plan_2026070809_3`).
+   **이전 전제**: host 에서 측정한 attention backend 와 타겟이 동일해야 KV 레이아웃·overhead 가 유효 이전된다 —
+   트리플렛 헤더에 명시 pin(`gen_recipe_set.py` 가 이미 `attention_backend` 를 emit).
+2. **weight quant?** — prequantized면 native 고정. 비prequantized면 `none`/`fp8`(awq/gptq는 비prequantized 경고).
 3. **KV quant?** — `null`(fp16, 2바이트) 또는 `fp8`(1바이트). KV 캐시를 절반으로 줄여 더 긴 context/batch 확보.
 4. **batch**(=동시요청수, `--max-num-seqs`) → 정한 뒤 **max-model-len** — *최대 가능값을 제안*한다
    (`estimate_vram.max_feasible_max_len`이 천장 내 2의 거듭제곱 최대 길이를 결정론으로 계산).
 5. **tool / reasoning 파서** — **외부 교차검증**(§3 L166 — HF 모델카드·docs, *에이전트 수행*): 모델이 tool_call·reasoning을 지원하는지, vLLM 파서명이 무엇인지
-   에이전트가 확인한다(예: `hermes`/`qwen3`; 폐쇄망=모델획득 한정이라 전략수립 외부검증 허용). 미지원이면 N/A(스모크에서 스킵).
+   에이전트가 확인한다(예: `hermes`/`qwen3`; 모델획득 격리 한정이라 전략수립 외부검증 허용). 미지원이면 N/A(스모크에서 스킵).
    - **파서명은 공식 docs에서 얻은 뒤 반드시 빌드 이미지에 version-exact 확증한 후에만 emit한다(가정 금지)**:
      레지스트리 경로·등록명이 vLLM 버전마다 다르다 — reasoning은 `vllm/reasoning/`, tool은 버전에 따라
      `vllm/entrypoints/openai/tool_parsers/` 또는 `vllm/tool_parsers/`. **정적 grep + 실서빙 수용**으로 확증한다
@@ -243,6 +246,26 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
   startup OOM(`Free memory < desired GPU memory utilization`) → **통합메모리 gmu ≤ `0.90`(=`safety_margin`) 명시 필수**.
   ∴ gmu=startup/총-cap 게이트, clamp=KV 사이징·이식성. (클램프 미산정 degraded = gmu-derived KV = 비이식, Phase-2 측정 보강.)
   이식성 = 선언된 절대 필요량(weights+overhead+kv) 이상 GPU서 동일 구동(작은 GPU 자동맞춤 ✗, GPU당 값이라 TP 의존).
+- **타겟-GPU 이식형 예산 (host≠target — `plan_2026070809_3`)**: 사용자가 산출 host 와 **다른** 타겟 GPU 를
+  명시하면(config `target_gpu` 블록, 아래) Phase-1(estimate/generate) 의 gmu-only 종료를 **거부**하고 Phase-2
+  측정경로를 강제한다(target_gpu 미정의 시 기존 host 흐름 완전 보존 — 회귀 0).
+  ```yaml
+  target_gpu:                    # (선택) 있으면 이식형 타겟 예산 경로 활성
+    gpu_model: "NVIDIA RTX PRO 6000"   # references.md §4 테이블 역룩업 키(per-card VRAM 해소)
+    per_card_vram_gib: 96              # (선택) 테이블 미등재/오버라이드 시 사용자 명시
+    cards_per_node: 1                  # 기본 1. N장은 명시.
+    target_gmu: 0.90                   # 기본 0.90. 통합메모리 타겟은 gmu≤0.90 하드클램프.
+  ```
+  **per-GPU 산정식**(동질 클러스터, TP=`cards_per_node`×node_count — manifest `len(nodes)`):
+  ```
+  kv_clamp_perGPU = per_card_VRAM_bytes(gpu_model, references.md §4 역룩업) × target_gmu
+                    − weights_total/TP − overhead_total/TP
+  ```
+  `weights_total`·`overhead_total` = host 측정값(GPU-불변 기하량 — overhead 는 런타임 성질 일부 포함해 정량보증은
+  아니고 target-margin 쿠션, target≠host arch 면 가능하면 타겟서 재측정 권장). **1→N 외삽 금지** — 멀티노드
+  타겟은 양노드 실측(측정 TP == 타겟 TP 강제). 통합메모리 타겟만 `target_gmu>0.90` 거부·0.90 하향+HITL, discrete
+  는 in-scope(하드클램프 없음). batch 는 이 산정식이 아니라 §근처 measured `max_concurrency` 로만(formula 금지,
+  동일 원칙). 트리플렛은 host↔target **동일 attention backend**를 이전 전제로 헤더에 명시(아래 §4 lock-set 참조).
 - `per_token_kv_bytes = 2 × num_hidden_layers × num_key_value_heads × head_dim × kv_dtype_bytes`
   (kv_dtype_bytes: KV quant 없으면 2, `fp8`이면 1).
 - `required_kv = per_token_kv_bytes × max_model_len × batch`,
@@ -271,8 +294,8 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
   클램프 산정 → 클램프 검증 트라이얼**의 최소 2-트라이얼이다(언클램프 통과만으론 수렴 아님).
 - 루프의 free 변수 결정: **`kv_bytes = min(required_kv, max_safe_kv)`**.
   `required > safe`면 max_model_len·batch를 KV로 만족 불가 → **`vram_infeasible`(HITL)**.
-- **에어갭 인코딩 자산(gpt-oss harmony/tiktoken)**: gpt-oss류의 harmony/tiktoken o200k 인코딩은
-  이미지에 번들되지 않아 런타임 fetch가 필요한데 **폐쇄망에서 금지**다. → NAS에 flat `tiktoken_cache/`를
+- **사전적재 인코딩 자산(gpt-oss harmony/tiktoken)**: gpt-oss류의 harmony/tiktoken o200k 인코딩은
+  이미지에 번들되지 않아 런타임 fetch가 필요한데 **read-only 마운트 불변식상 런타임 fetch 는 금지**다(사전적재 원칙 — CLAUDE.md §인코딩 자산 따름정리). → NAS에 flat `tiktoken_cache/`를
   사전적재하고 컨테이너에 `/encodings:ro`로 마운트(`-v <host>:/encodings:ro`, compose 호스트경로 변수
   `TIKTOKEN_HOST_PATH`)한 뒤, **정본 env `TIKTOKEN_ENCODINGS_BASE=/encodings` · `TIKTOKEN_RS_CACHE_DIR=/encodings`**
   (+`TIKTOKEN_ENABLED`)를 둘 다 마운트 경로로 가리킨다. 구식 `TIKTOKEN_ENCODINGS_PATH`는 폐기 —
@@ -296,11 +319,11 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
 
 > §①.5/`upstream-version-watch` §4.7(빌드-바깥 **native dep** 추가 = *같은* vLLM 버전에 lib 보강)와 **다른 축**: 여기는 **vLLM 버전 자체가 모델을 못 받는** 경우(공식 미지원·포크 필요·transformers-only). 둘 다 *"발견≠소유→upstream 핸드오프"* 지만 §5.5는 **버전핀/포크 축**이다(§①.5/§4.7은 lib-축 *진입* — 단 §4.7 사다리 상단은 §3.6(ii)와 **동일 fork-pin으로 수렴**: 경계서 처방 머신리 공유). 헌법 §escalation 역루프 따름정리 · `plan_2026063009_2` · 절차-홈 `workflow.md` §escalation 역루프.
 
-- **드문 예외 경로**: 대다수 신규 모델은 현 컨테이너로 그냥 뜬다 → **매 서빙요청마다 외부리서치 ✗**. escalation은 **오프라인 증상이 "못 띄움"을 가리킬 때만** 발동.
-- **발견 술어(둘 다 요구 — 오발 방지)**: ① **오프라인 증상** — config arch/quant 미지원, serve init 즉사(아키 미등록), transformers-only 폴백 신호 · ② **외부 교차검증 확증** — HF 모델카드(커스텀 vLLM·포크 지목 여부) + vLLM GitHub issue/release/PR("이 모델 아직 미지원" 게시·머지 PR). **단일 신호로 escalate ✗**(증상만/소문만 금지). 외부검색은 §3 L166·§①.5 카드 교차검증 근육의 연장(폐쇄망=모델획득 한정이라 전략수립 외부검증 허용·의무 — 헌법 §모델 획득 모드 따름정리).
+- **드문 예외 경로**: 대다수 신규 모델은 현 컨테이너로 그냥 뜬다 → **매 서빙요청마다 외부리서치 ✗**. escalation은 **구동불가 증상이 "못 띄움"을 가리킬 때만** 발동.
+- **발견 술어(둘 다 요구 — 오발 방지)**: ① **구동불가 증상** — config arch/quant 미지원, serve init 즉사(아키 미등록), transformers-only 폴백 신호 · ② **외부 교차검증 확증** — HF 모델카드(커스텀 vLLM·포크 지목 여부) + vLLM GitHub issue/release/PR("이 모델 아직 미지원" 게시·머지 PR). **단일 신호로 escalate ✗**(증상만/소문만 금지). 외부검색은 §3 L166·§①.5 카드 교차검증 근육의 연장(모델획득 격리 한정이라 전략수립 외부검증 허용·의무 — 헌법 §모델 획득 모드 따름정리).
 - **핸드오프(recipe는 소유 ✗)**: 위 둘이 "현 vLLM 불가"를 가리키면 → 사용자에게 *"이건 vLLM 측 문제 → upstream에 버전핀을 넘길까요?"* **명시 승인 요청** → 승인 시 `upstream-version-watch` §3.6으로 핸드오프(증거=증상+외부 확증 첨부). **recipe-explorer는 버전핀 변경·이미지 빌드를 하지 않는다**(소유 아님 — upstream의 3출구가 처방·rebuild). rebuild된 이미지로 recipe가 전략수립(§2–§6) 재진입.
 - **carry-forward 금지 정합**: escalation 판정도 **모델×하드웨어마다 재확정**(이전 모델의 "됐다/안 됐다"를 전가 ✗ — 헌법 §모델별 서빙전략 독립 따름정리). 새 모델이 더 새 vLLM을 요구할 수 있다는 게 본 루프의 동기다.
-- **런타임블럭/서브 주의**: 외부검색은 **메인 인스턴스** 전제다. 물리 에어갭 서브는 외부검색이 *물리적으로* 불가(환경제약이지 규칙 아님) → 서브는 **증상만 docs insight 상향 보고**(D12 — `<model>_patch.py` 탐지 상향과 동형), 메인이 외부검색·처방한다. 전략수립은 메인+사용자 동석 전제.
+- **런타임블럭/서브 주의**: 외부검색은 **이중게이트**(A2A 위임 키 ∧ egress-online) 조건부다. egress-restricted 서브는 외부검색이 물리 불가(egress-online+위임 서브는 자율) → restricted 시 서브는 **증상만 docs insight 상향 보고**(D12 — `<model>_patch.py` 탐지 상향과 동형), 메인이 외부검색·처방한다. 전략수립은 메인+사용자 동석 전제(단 서브 자율 시 서브+사용자).
 
 ## 6. Phase 2 — 통합 trial-loop (`recipe.py simulate`)
 
@@ -336,8 +359,8 @@ run_trial(candidate)            # docker run -d → /health 200 폴링 → funct
   (예 `config/kernel.py` `MoEBackend`·선택 로직) → ⑤ **외부 교차검증(메인 한정 — 로컬 소스 소진 시 의무)**:
   `.claude/rules/references.md` §5 부정판정 최소범위 레시피(HF 카드 vLLM 절·discussions + vLLM issue/PR 모델
   클래스명 검색)를 수행하고 **검색어·URL·일자를 testlog "탐색 증거" 섹션에 기록** — ⑤ 수행·기록 없이
-  "이 조합은 불가" 부정 보고 금지(자기추론-only 부정 결론 차단 · plan_2026070208_1; 서브 에어갭 = ⑤ 생략
-  + 증상 docs 상향만 — D12). ①–⑤ 로도 미해소면 그제서야 Model-C HITL.
+  "이 조합은 불가" 부정 보고 금지(자기추론-only 부정 결론 차단 · plan_2026070208_1; egress-restricted 서브 = ⑤ 생략
+  + 증상 상향 · egress-online+위임 서브 = ⑤ 자율 수행 — D12). ①–⑤ 로도 미해소면 그제서야 Model-C HITL.
 - **준비 판정 = `:PORT/health` HTTP 200**. 로그의 "startup complete" grep 금지(거짓양성 — workflow S3와 동일).
 - **수렴 시**: `configs/<name>.yaml`(VRAM 분해 주석 + `max-num-seqs`·`kv-cache-memory-bytes`·`kv-cache-dtype`),
   `configs/<name>.sh`(`VLLM_ATTENTION_BACKEND` export + tool/reasoning 파서 플래그), `envs/.env.<name>`을 생성.
@@ -360,7 +383,7 @@ run_trial(candidate)            # docker run -d → /health 200 폴링 → funct
 Phase 1:
 - `scripts/quant_table.py` — quant 바이트 테이블(whichllm 벤더링·출처 주석) + `vllm_quant_bpw`/`dtype_bpw` 해소 함수.
 - `scripts/parse_model_config.py` — `config.json` 결정론 파서(text_config 중첩·safetensors 헤더 실측, +CLI).
-- `scripts/crosscheck_model_card.py` — **HF 원본 모델카드(번들 README)+inference/reqs+config+dtype 교차검증**(①.5; coarse-quant 함정·special-dep 사전경보, MISMATCH=비0 종료·폐쇄망·stdlib).
+- `scripts/crosscheck_model_card.py` — **HF 원본 모델카드(번들 README)+inference/reqs+config+dtype 교차검증**(①.5; coarse-quant 함정·special-dep 사전경보, MISMATCH=비0 종료·로컬-only·stdlib).
 - `scripts/estimate_vram.py` — VRAM 추정기. Phase 1 `estimate()`(공식 `/gmu`) + Phase 2 절대 클램프 함수
   (`per_token_kv_bytes`/`required_kv_bytes`/`max_safe_kv_bytes`/`max_feasible_max_len`/`estimate_absolute`).
 - `scripts/rank_recipes.py` — `auto_candidates`·하드게이트·Judge 랭킹·리포트 렌더(+CLI).

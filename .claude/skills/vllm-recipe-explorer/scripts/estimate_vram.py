@@ -100,7 +100,7 @@ def estimate(
             result["gate_pass"] = False
             return result
         # awq/gptq(및 Marlin 변종)는 '사전양자화 체크포인트'를 요구한다(런타임 온라인
-        # 양자화 불가, 폐쇄망에선 더욱). bf16 native 체크포인트에 이 quant 를 지정한
+        # 양자화 불가 — 비prequantized 체크포인트라 사전양자화 가중치 자체가 부재; 네트워크 유무 무관). bf16 native 체크포인트에 이 quant 를 지정한
         # 레시피는 weight=num_params*0.5 로 예산을 통과해도 실제 `vllm serve` 에서
         # 사전양자화 가중치가 없어 서빙이 실패한다(오도된 feasible). 결정론 계층에서
         # 경고를 달아 LLM 산문 지시에만 의존하지 않게 한다(SKILL.md §2 ②를 결정론으로).

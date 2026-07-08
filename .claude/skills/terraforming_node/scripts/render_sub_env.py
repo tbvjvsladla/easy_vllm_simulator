@@ -41,7 +41,9 @@ SKILL_DIR = os.path.dirname(HERE)                       # .claude/skills/terrafo
 SUBNODE_DIR = os.path.join(SKILL_DIR, "sub_node")       # 템플릿·정적자산 보관
 REPO = os.path.abspath(os.path.join(SKILL_DIR, "..", "..", ".."))  # repo root
 # 런타임블럭(서브 복제) — git-tracked 만 복제. 다중(plan_2026063014_1: adversarial-benchmark 추가 = 2번째 런타임블럭).
-#   adversarial-benchmark 의 (b) 외부검색 arm 은 서브에서 미수행(에어갭) — 서브는 (a) 루프라인-only + 증상 상향(SKILL.md §7).
+#   adversarial-benchmark 의 (b) 외부검색 arm = 이중게이트(A2A 위임 키 ∧ egress-online) 통과 시 서브 자율,
+#   미통과 시 미수행+증상 상향 — 서브는 (a) 루프라인-only 판정(SKILL.md §7). 렌더 시 서브 env 에 egress
+#   attestation 을 반영해 서브 페르소나가 자기 능력을 정확히 로드한다(plan_2026070809_2).
 RUNTIME_BLOCKS = [
     os.path.join(REPO, ".claude", "skills", "vllm-recipe-explorer"),
     os.path.join(REPO, ".claude", "skills", "adversarial-benchmark"),

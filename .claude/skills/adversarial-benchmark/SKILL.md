@@ -18,7 +18,7 @@ description: >-
 **런타임블럭 검증 스킬**. 동기 = self-preference 사건(에이전트가 DeepSeek 15 t/s 를 "천장"으로 자기-선호 →
 사용자 외부 레퍼런스가 반증; testlog_2026063004_1). **기능 스모크는 *작동*만, 이 스킬은 *성능*을 별도 게이트.**
 
-> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_2026063018_1)**: bench·verdict 는 *돌고 있는 serve* 전제 — 그 serve 자체가 recipe/upstream(=Flag)을 거쳤다(**전이적 게이트**). 직접 진입 시에도 Flag 확인: 미발급이면 **info-only**(루프라인 개념 설명 OK / bench·verdict ✗) → "벤치할 serve 가 없음 — recipe/upstream(테라포밍 Flag) 먼저". **결정론 백스톱** = `run_bench.sh` 진입 `manifest_contract.py --require-flag`. 서브 에어갭은 (b)외부검색 불가 → 루프라인-only 판정 + 증상 docs 상향(D12 동형 · 서브 면제 = 양성 위임 키 `.claude/a2a_delegation.json` 1차 / `EASY_VLLM_A2A_DELEGATED` 2차 — `run_bench.sh` **fail-closed**(키·MC·Flag 모두 부재 → exit4; 옛 MC-부재 skip=fail-open 교정) · 헌법 §A2A-위임 Flag 따름정리·plan_2026063021_2).
+> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_2026063018_1)**: bench·verdict 는 *돌고 있는 serve* 전제 — 그 serve 자체가 recipe/upstream(=Flag)을 거쳤다(**전이적 게이트**). 직접 진입 시에도 Flag 확인: 미발급이면 **info-only**(루프라인 개념 설명 OK / bench·verdict ✗) → "벤치할 serve 가 없음 — recipe/upstream(테라포밍 Flag) 먼저". **결정론 백스톱** = `run_bench.sh` 진입 `manifest_contract.py --require-flag`. (b) 외부검색 arm = **이중게이트**(A2A 위임 키 ∧ egress-online) 통과 서브 자율, 미통과 시 루프라인-only 판정 + 증상 docs 상향(메인 릴레이 · D12 동형 — 위임 키 확인 = `.claude/a2a_delegation.json` 1차 / `EASY_VLLM_A2A_DELEGATED` 2차 — `run_bench.sh` **fail-closed**(키·MC·Flag 모두 부재 → exit4; 옛 MC-부재 skip=fail-open 교정) · 헌법 §A2A-위임 Flag 따름정리·plan_2026063021_2·plan_2026070809_2).
 
 > 설계 원칙(하네스 엔지니어링): **측정·루프라인·게이트는 결정론 스크립트**(`scripts/`). LLM 은 **외부검색(E)·
 > 정성 진단·재탐색 힌트**만 생산해 결정론 게이트에 투입한다. PASS/REFUTE 는 규칙이 결정(LLM 다수결 아님).
@@ -40,7 +40,7 @@ description: >-
 | 루프라인 (a) R_fp/R_token | **결정론** | `roofline.py` — manifest(gpu_model→대역폭 lookup·interconnect·topology) + 모델 config/safetensors index(NAS) |
 | 성능 측정 M | **결정론** | `run_bench.sh`(`vllm bench serve`) → `parse_bench.py`(+engine-log 교차) |
 | PASS/REFUTE 게이트 | **결정론** | `verdict_rule.py` — R·E·M 비교(임계·tolerance·3중 우선순위) |
-| **외부검색 (b) E** | **LLM (메인전용)** | HF 모델카드·해외포럼·vLLM PR/issue → 현실 달성치. 서브는 미수행→상향보고 |
+| **외부검색 (b) E** | **LLM (이중게이트 조건부 서브 자율)** | HF 모델카드·해외포럼·vLLM PR/issue → 현실 달성치. 미통과 서브는 미수행→상향보고 |
 | 적대 판정·진단·재탐색 힌트 | **LLM Devil's Advocate (다중 렌즈)** | "기각인가? 왜? 다음 무엇을?" — 게이트엔 *증거*만 투입 |
 | 구조적 vs 전략소진 최종분류 | **LLM 제안 + HITL** | cap=결정론, 분류=LLM+HITL |
 
@@ -56,10 +56,23 @@ description: >-
   히트 baseline 재입고**). 혼자 루프라인을 안 믿고 E 로 정밀화. **E 가 진짜 판별자**(측정>공식). **메인은 E
   검색을 시도·기록한 후에만 판정 진입** — `verdict_rule.py --e-search {hit,empty,no}` 로 상태를 결정론 게이트에
   전달(빈손이면 `empty` 로 *기록된* roofline-only 강등 = 음성정직 / 미시도 `no` 는 출력에 경고 표기 — silent
-  강등 차단 · plan_2026070208_1; 서브 에어갭 = `no`+증상 상향이 설계).
+  강등 차단 · plan_2026070208_1; egress-restricted 서브 = `no`+증상 상향이 설계, egress-online+위임 서브는 검색 시도).
 - **(c) 사용자 = 최종 백스톱**: (a)·(b) 둘 다 루브릭을 못 세울 때만. `verdict_rule` 이 `NEEDS_RUBRIC`(axis=establish) 반환 → 사람에게 레퍼런스 요청.
 
 **spec-aware(중요)**: no-MTP 서브는 `R_fp` 와, MTP 서브는 `R_token` 와 비교(like-with-like). speculative 면 token/s 가 단일패스 천장 `R_fp` 를 *초과* 가능 → 섞으면 M-vs-R 무의미(dogfood BLOCK 교훈).
+
+## 2.5 노드간 VRAM 밸런스 (멀티노드 — γ, `plan_2026070809_3`)
+
+decode-tps 축(§2)과 **직교**한 별도 루브릭 축. recipe-explorer 가 산정만 하고(§4 · per-GPU 클램프 ÷TP),
+**이 스킬이 밸런스를 게이트**한다.
+
+- **산정식**: `balance_dev = (max_node_used_gib − min_node_used_gib) / max_node_used_gib`.
+- **판정**: `balance_dev > 0.10` → **REFUTE**(`failure_axis="balance"`) → recipe-explorer **loop-back**(재탐색,
+  헌법 §적대적 성능 검증 따름정리 "기각→재탐색·cap 한정"). `≤ 0.10` → 밸런스 축 PASS.
+- **입력**: `multinode_serve_smoke.sh` 양노드 measured VRAM(노드별 used) → `verdict_rule.py --node-vram-gib
+  <n1,n2,...> --balance-tol 0.10`(기본 0.10). 결정론 유지(LLM 다수결 ✗ — §서두 설계 원칙).
+- **기본 비활성**: `--node-vram-gib` 미지정 시 balance 축은 판정에 관여하지 않음(기존 decode-tps 전용 판정
+  완전 보존 — 단일노드·기존 멀티노드 호출 회귀 0).
 
 ## 3. 두 실패축 (반드시 구분)
 
@@ -76,7 +89,7 @@ description: >-
      ① roofline.py (결정론, spec-aware)               → R_fp/R_token/expected
      ② serve 가동 확인(:PORT/health 200) — 미가동이면 중단(기동 안 함)
      ③ run_bench.sh → parse_bench.py (warmup 폐기 + engine 교차)  → M
-     ④ Devil's Advocate (다중 렌즈, LLM): E 외부검색 + 주장 공격(메인전용)
+     ④ Devil's Advocate (다중 렌즈, LLM): E 외부검색 + 주장 공격(이중게이트 조건부 서브 자율)
         — 메인은 ④의 E 검색(references.md warm-start 포함) 수행·기록 후에만 ⑤ 진입(미시도 ⑤ 직행 ✗)
      ⑤ verdict_rule.py (결정론 게이트, --e-search 로 E 상태 기록):
           PASS  → done-게이트 클리어 ✅
@@ -91,7 +104,7 @@ description: >-
 ## 5. 측정 — `vllm bench serve` (§7 plan)
 
 `run_bench.sh <config> [--topology] [--concurrency N] [--input-len N] [--output-len N] [--num-prompts N] [--warmups N]`:
-- 돌고 있는 serve 의 컨테이너(`MASTER_CONTAINER_NAME`/`CONTAINER_NAME`)에서 `vllm bench serve`(client-side 토크나이저=마운트 모델 경로, airgap-safe) 실행 → `--save-result` JSON 회수 + `docker logs` 교차캡처.
+- 돌고 있는 serve 의 컨테이너(`MASTER_CONTAINER_NAME`/`CONTAINER_NAME`)에서 `vllm bench serve`(client-side 토크나이저=마운트 모델 경로, 네트워크 불요) 실행 → `--save-result` JSON 회수 + `docker logs` 교차캡처.
 - **정본 디코드 지표 = `1000 / median_tpot_ms`**(단일스트림 warm; output_throughput 은 콜드 TTFT 에 끌려 과소 — `--num-warmups` 로 폐기). `accept_len` 은 bench JSON 의 `spec_decode_acceptance_length` 직독.
 - 교차검증: `parse_bench.py` 가 engine-log `generation throughput` 최대값과 client decode_tps 비교(괴리 = 콜드/warmup 의심).
 - **버전-exact 확증**: `vllm bench serve` 존재·플래그를 이미지에서 확인 후 사용(가정 금지 — 파서명 caveat 동형).
@@ -101,7 +114,7 @@ description: >-
 
 표적 주장 = *"이 서빙은 production/agent-ready 다(충분히 빠르고 일관적)."* 렌즈는 **서로 다른 실패모드**(같은 회의론 N개 ✗):
 - **루프라인 렌즈**: M ≪ R 인가?(no-MTP↔R_fp · MTP↔R_token) comm-bound 인가(RDMA)?
-- **레퍼런스 렌즈(외부검색 b)**: 동일 HW 서 남들 E 는? 포럼·PR·HF카드 대조 → E 산출(메인전용).
+- **레퍼런스 렌즈(외부검색 b)**: 동일 HW 서 남들 E 는? 포럼·PR·HF카드 대조 → E 산출(이중게이트 조건부 서브 자율).
 - **일관성 렌즈**: 콜드 vs warm 격차? batch 키우면 무너지나?
 - **회귀 렌즈(carry-forward 금지)**: 이 전략이 *이전 모델*의 검증된 성능을 깨나?
 - 렌즈들의 *증거*를 합의 통합 → **결정론 `verdict_rule.py` 에 투입**(게이트 결정은 규칙 — LLM 다수결 아님).
@@ -113,14 +126,14 @@ description: >-
 ## 7. 스킬 경계 / 인터페이스
 
 - **↔ recipe-explorer**: recipe 의 측정·serve 인프라(§5 Phase-1.5·simlog·`multinode_serve_smoke.sh`)를 **소비**, 위에 적대 루브릭/게이트만 얹는다. 기각 시 `next_strategy_hint` 로 recipe 재탐색 **자극**(recipe 가 전략 폐기·재생성 — feasibility 탐색은 recipe, performance 목표는 이 스킬이 주입). **recipe 측정/serve 재구현 금지**.
-- **↔ upstream-version-watch**: "루브릭 못 충족 + 구조적" → **escalation 역루프** 핸드오프(오프라인 증상 M≪expected + 외부 확증 = 적대 증거). upstream 이 버전핀/rebuild 소유(승인 게이트). 헌법 §escalation 역루프.
+- **↔ upstream-version-watch**: "루브릭 못 충족 + 구조적" → **escalation 역루프** 핸드오프(구동불가 증상 M≪expected + 외부 확증 = 적대 증거). upstream 이 버전핀/rebuild 소유(승인 게이트). 헌법 §escalation 역루프.
 - **↔ wiki-desk**: 진입 시 warm-start(이전 동일 모델/HW 성능 증거 우선소비). 새 testlog 발행 시 입고.
-- **블럭 분류 = 런타임블럭(서브 복제)**: 서브가 자기 모델에 자율 실행. **단 (b) 외부검색 arm 은 메인전용**(서브 에어갭 → (a) 루프라인-only 판정 + 증상 docs 상향 보고; D12·escalation 서브 인스턴스 동형). 발견≠소유의 *성능-검증 축*.
+- **블럭 분류 = 런타임블럭(서브 복제)**: 서브가 자기 모델에 자율 실행. **(b) 외부검색 arm = 이중게이트(A2A 위임 키 ∧ egress-online) 통과 시 서브 자율, 미통과 시 루프라인-only 판정 + 증상 docs 상향 보고**(메인 릴레이 · D12·escalation 서브 인스턴스 동형). 발견≠소유의 *성능-검증 축*.
 
 ## 8. 안전 / 금지
 
 - **serve 를 기동하지 않는다**(돌고 있는 serve 검증만). 미가동 시 중단·보고.
-- 모델 자동 다운로드 금지(NAS 부재면 중단). 결정론 스크립트는 외부 네트워크 호출 없음 — **단 검증기 (b) 외부검색(서빙전략 외부 교차검증)은 허용·의무**(헌법 §모델 획득 모드 따름정리; 폐쇄망=모델획득 한정).
+- 모델 자동 다운로드 금지(NAS 부재면 중단). 결정론 스크립트는 외부 네트워크 호출 없음 — **단 검증기 (b) 외부검색(서빙전략 외부 교차검증)은 허용·의무**(헌법 §모델 획득 모드 따름정리; 모델획득 격리 한정).
 - 무승인 자동 escalate/rebuild ✗(escalation 은 승인 게이트). 무한 기각·무한 루프 ✗(cap → Model-C).
 - 게이트(PASS/REFUTE)는 결정론 규칙 — LLM 다수결로 결정하지 않는다.
 
