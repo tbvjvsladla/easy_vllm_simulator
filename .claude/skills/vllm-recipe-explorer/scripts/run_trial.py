@@ -87,8 +87,9 @@ def _build_serve_args(candidate: dict) -> list:
     """candidate(lock-set) → `vllm serve` 인자 리스트.
 
     모델 경로는 candidate.model_path_container(없으면 parse 출력 키) → 폴백 NAS 마운트.
-    --kv-cache-memory-bytes / --max-num-seqs / --kv-cache-dtype /
-    --quantization / --tool-call-parser(+--enable-auto-tool-choice) / --reasoning-parser
+    --kv-cache-memory-bytes / --max-num-seqs / --max-num-batched-tokens / --kv-cache-dtype /
+    --gdn-prefill-backend / --enforce-eager / --language-model-only / --quantization /
+    --tool-call-parser(+--enable-auto-tool-choice) / --reasoning-parser
     를 구성한다. soft 변수는 능력 게이팅(model_capabilities)을 존중.
     """
     model_path = (
@@ -111,12 +112,45 @@ def _build_serve_args(candidate: dict) -> list:
     if candidate.get("batch") is not None:
         args += ["--max-num-seqs", str(int(candidate["batch"]))]
 
+    # ── max-num-batched-tokens (lock; KV 프로파일링 더미배치 상한) ────────
+    # 미설정 시 vLLM 기본값이 max_model_len 에 연동돼(긴 ctx 모델일수록) 시동 시 KV 캐시
+    # 프로파일링 더미 forward pass 가 커진다. GDN/hybrid-attention 계열(Qwen3.5/3.6)은 특히
+    # mamba 캐시 정렬 제약으로 이 값을 명시해야 한다는 보고 다수 + DGX Spark 공식 레시피가
+    # 명시값(8192) 사용 — 참조-그라운디드 확인 후 candidate 에 설정.
+    if candidate.get("max_num_batched_tokens") is not None:
+        args += ["--max-num-batched-tokens", str(int(candidate["max_num_batched_tokens"]))]
+
     # ── gpu-memory-utilization (디바이스 풀 상한 = safety_margin) ───────
     # 통합메모리(GB10)는 시스템이 일부 점유 → vLLM 기본 0.92 가 free 초과 OOM.
     # SKILL §5: gmu 는 풀 상한(=margin)으로만 emit; 실제 KV 는 절대 클램프가 제어.
     gmu = candidate.get("gpu_memory_utilization")
     if gmu is not None:
         args += ["--gpu-memory-utilization", str(float(gmu))]
+
+    # ── gdn-prefill-backend (lock; GDN 커널 JIT 컴파일 백엔드 선택) ────────
+    # FlashInfer GDN JIT 컴파일이 기본으로 전 CPU 코어를 동시 사용(코어당 ~3GB) → GB10 같은
+    # 코어수 많은 호스트에서 RAM 폭주(vllm-project/vllm 커뮤니티 보고 — H100 에서도 재현,
+    # RFC #39287 로 프로젝트가 인지 중). 검증된 우회책 = triton 백엔드(FlashInfer JIT 회피,
+    # CUDA 그래프 정상 유지). 참조-그라운디드 확인 후 candidate 에 명시 설정.
+    gdn_backend = candidate.get("gdn_prefill_backend")
+    if gdn_backend:
+        args += ["--gdn-prefill-backend", str(gdn_backend)]
+
+    # ── enforce-eager (lock; CUDA 그래프 캡처 생략) ──────────────────────
+    # GDN/hybrid-attention MoE 계열(Qwen3.5/3.6 등)의 CUDA 그래프 캡처 단계 메모리 폭증은
+    # vLLM 상류 미해결 이슈(vllm-project/vllm#38486 — "cuda graph takes too much memory for
+    # qwen 3.5", 유일 검증된 우회책 = enforce-eager). 참조-그라운디드 확인 후에만 candidate 에
+    # 명시 설정할 것(carry-forward 금지 — 모델×아키텍처별 재확인, 헌법 §모델별 서빙전략 독립).
+    if candidate.get("enforce_eager"):
+        args += ["--enforce-eager"]
+
+    # ── language-model-only (lock; 멀티모달 비전 인코더 완전 비활성화) ────
+    # `--limit-mm-per-prompt` 를 전 모달리티 0 으로 설정하는 것과 동일(vLLM
+    # MultiModalConfig.language_model_only). 비전 인코더 캐시/더미 프로파일링 자체를
+    # 건너뛰어 그 단계의 메모리 사용을 제거 — 텍스트 전용 스모크에 한해 안전(모델이
+    # VL 계열이라도 텍스트만 검증하면 비전 경로 자체가 불필요).
+    if candidate.get("language_model_only"):
+        args += ["--language-model-only"]
 
     # ── weight quantization (lock; none/null 은 미지정) ─────────────────
     quant = candidate.get("quantization")
@@ -201,6 +235,12 @@ def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: in
     if backend:
         cmd += ["-e", "VLLM_ATTENTION_BACKEND=%s" % str(backend)]
 
+    # ── extra_env (진단 전용 — 임의 env var 통과) ──────────────────────
+    # 정식 candidate 스키마 필드가 아님(감사 대상 아님) — 실패지점 함수단위 추적
+    # 등 ad-hoc 디버깅(VLLM_LOGGING_LEVEL=DEBUG·VLLM_TRACE_FUNCTION=1 등)에 한정 사용.
+    for k, v in (candidate.get("extra_env") or {}).items():
+        cmd += ["-e", "%s=%s" % (str(k), str(v))]
+
     cmd += [image]
     cmd += _build_serve_args(candidate)
     return cmd
@@ -223,10 +263,20 @@ def _audit_emitted(candidate: dict, docker_cmd: list) -> None:
         ("gpu_memory_utilization", "--gpu-memory-utilization"),
         ("max_model_len", "--max-model-len"),
         ("batch", "--max-num-seqs"),
+        ("max_num_batched_tokens", "--max-num-batched-tokens"),
         ("kv_cache_memory_bytes", "--kv-cache-memory-bytes"),
         ("kv_cache_quant", "--kv-cache-dtype"),
         ("attention_backend", "VLLM_ATTENTION_BACKEND="),
     ]
+    # enforce_eager: false/미설정은 의도적 미emit(CUDA 그래프 기본 활성 유지).
+    if candidate.get("enforce_eager"):
+        field_flags.append(("enforce_eager", "--enforce-eager"))
+    # language_model_only: false/미설정은 의도적 미emit(멀티모달 기본 활성 유지).
+    if candidate.get("language_model_only"):
+        field_flags.append(("language_model_only", "--language-model-only"))
+    # gdn_prefill_backend: 미설정은 의도적 미emit(vLLM 기본 선택 유지).
+    if candidate.get("gdn_prefill_backend"):
+        field_flags.append(("gdn_prefill_backend", "--gdn-prefill-backend"))
     # quantization: none/null 은 의도적 미emit.
     quant = candidate.get("quantization")
     if quant and str(quant).lower() != "none":
