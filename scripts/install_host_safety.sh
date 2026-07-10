@@ -99,9 +99,12 @@ fi
 # ── ④ kdump (선택 — 재부팅 필요 고지) ───────────────────────────────────
 #   Ubuntu 24.04 kdump-tools 는 noninteractive 설치 시 USE_KDUMP=0 + crashkernel=1G-:0M
 #   (플레이스홀더 = 0M 예약)로 남아 kdump 가 절대 ready 안 된다 → 명시 활성화·크기지정 필수.
-KDUMP_CRASH_MB="${KDUMP_CRASH_MB:-512}"   # aarch64 GB10 crashkernel 예약(MB) — env 로 조정 가능
+#   aarch64(GB10)는 low-mem 예약이 "not ready" 를 자주 유발 → `,high`(고메모리 우선 예약)가 권장
+#   (참조: docs.kernel.org/arch/arm64/kdump.html — high 성공 시 low 128M 자동). 커널은 cmdline 의
+#   **마지막** crashkernel= 를 채택하므로 dual-param(99-정렬 함정)을 피해 **단일 값**으로 교정한다.
+KDUMP_CRASHKERNEL="${KDUMP_CRASHKERNEL:-512M,high}"   # env 로 전체 스펙 조정 가능(예 256M,high · 1G-:512M)
 if [ "$WITH_KDUMP" = "1" ]; then
-  say "④ kdump-tools 설치 + 활성화(USE_KDUMP=1) + crashkernel=${KDUMP_CRASH_MB}M 예약 (**재부팅 1회 필요**)"
+  say "④ kdump-tools 설치 + 활성화(USE_KDUMP=1) + crashkernel=${KDUMP_CRASHKERNEL} 예약 (**재부팅 1회 필요**)"
   if [ "$APPLY" = "1" ]; then
     DEBIAN_FRONTEND=noninteractive apt-get install -y kdump-tools >/dev/null 2>&1 || { say "  ✗ kdump-tools 설치 실패"; FAIL=1; }
     if command -v kdump-config >/dev/null 2>&1; then
@@ -111,16 +114,23 @@ if [ "$WITH_KDUMP" = "1" ]; then
       else
         echo 'USE_KDUMP=1' >> /etc/default/kdump-tools
       fi
-      # (b) 실제 crashkernel 예약(kdump-tools 기본 0M 플레이스홀더를 99- 오버라이드로 교정 — 99 정렬=마지막, 커널은 마지막 crashkernel= 채택)
-      cat > /etc/default/grub.d/99-easy-vllm-kdump.cfg <<EOF
-# easy-vllm host-safety (plan_2026071019_1 §3) — 실제 crashkernel 예약(기본 0M 교정, 조정=KDUMP_CRASH_MB)
-GRUB_CMDLINE_LINUX_DEFAULT="\$GRUB_CMDLINE_LINUX_DEFAULT crashkernel=${KDUMP_CRASH_MB}M"
+      # (b) crashkernel 을 **단일 파라미터**로 교정. 옛 잘못정렬 오버라이드(99-/zz-) 제거 후,
+      #     kdump-tools.cfg 의 플레이스홀더 값 자체를 sed 로 실값으로 치환(dual-param 마지막-승 함정 회피).
+      rm -f /etc/default/grub.d/99-easy-vllm-kdump.cfg /etc/default/grub.d/zz-easy-vllm-kdump.cfg
+      KT=/etc/default/grub.d/kdump-tools.cfg
+      if [ -f "$KT" ] && grep -q 'crashkernel=' "$KT"; then
+        sed -i "s|crashkernel=[^ \"]*|crashkernel=${KDUMP_CRASHKERNEL}|g" "$KT"
+      else
+        # kdump-tools.cfg 에 crashkernel 부재 → 마지막 정렬(zz-, 'z'>'k')로 예약(승리 보장)
+        cat > /etc/default/grub.d/zz-easy-vllm-kdump.cfg <<EOF
+GRUB_CMDLINE_LINUX_DEFAULT="\$GRUB_CMDLINE_LINUX_DEFAULT crashkernel=${KDUMP_CRASHKERNEL}"
 EOF
+      fi
       if command -v update-grub >/dev/null 2>&1; then update-grub >/dev/null 2>&1
       elif command -v update-grub2 >/dev/null 2>&1; then update-grub2 >/dev/null 2>&1
       else grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1; fi
       systemctl enable kdump-tools >/dev/null 2>&1
-      say "  ✓ USE_KDUMP=1 · crashkernel=${KDUMP_CRASH_MB}M(99-grub) · update-grub 완료 — **재부팅 후** ready"
+      say "  ✓ USE_KDUMP=1 · crashkernel=${KDUMP_CRASHKERNEL}(단일) · update-grub 완료 — **재부팅 후** ready"
       say "  ⚠ 재부팅 후 검증: kdump-config show | grep 'current state' → 'ready to kdump' 필요(plan §8 Phase2)"
     fi
   fi
