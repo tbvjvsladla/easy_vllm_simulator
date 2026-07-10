@@ -37,6 +37,7 @@ from feedback_log import append as feedback_append  # noqa: E402
 # Phase 2 시뮬레이터(통합 trial-loop) 조립용 import.
 from run_trial import run_trial  # noqa: E402
 from sim_classify import classify as sim_classify  # noqa: E402
+from preload_ram_gate import gate as preload_ram_gate  # noqa: E402
 from estimate_vram import (  # noqa: E402
     GIB,
     required_kv_bytes,
@@ -777,6 +778,38 @@ def cmd_simulate(args):
             f"kv_bytes={candidate.get('kv_cache_memory_bytes')}",
             file=sys.stderr,
         )
+
+        # ── 로드-전 RAM 게이트 (plan_2026071019_1 §2.6 — 사고 #5 교훈: ckpt 66.97GiB >
+        #    가용 45.80GiB 인데 무게이트 로드 → 하드다운). 실 docker 경로에서만 발동 —
+        #    dry-run/mock 은 결정론 루프 테스트 계약 보존. 매 trial 전 재측정(트라이얼 간
+        #    메모리 상태 변동). 크기 미상이면 게이트 내부에서 경고 후 생략(음성정직).
+        if not opts.get("dry_run") and not opts.get("mock_profile"):
+            _g = preload_ram_gate(parsed.get("native_weight_bytes"), tp=tp)
+            if not _g["ok"]:
+                # 거부도 결정론 판정 → simlog run 계약(docs.md: 수렴 여부·trial_count·최종
+                # candidate 필수) 준수: run_summary.json 을 refused-gate 로 기록 후 종료(다른
+                # 종단 실패의 _simulate_hitl summary 패턴과 대칭 — 사후분석 복원성 보존).
+                simlog_writer.write_summary(run_dir, {
+                    "run_id": run_id,
+                    "converged": False,
+                    "failure_class": "preload_ram_gate_refused",
+                    "note": ("MemAvailable=%sMiB < required=%sMiB (ckpt÷tp=%d+floor) "
+                             "@trial %d — 잔존 컨테이너/페이지캐시 정리 후 재시도"
+                             % (_g["avail_after_mib"], _g["required_mib"], tp, trial_number)),
+                    "trial_count": len(correction_history),
+                    "candidate": candidate,
+                    "ram_gate": _g,
+                    "correction_history": correction_history,
+                })
+                _die(
+                    "로드-전 RAM 게이트 거부(trial %d): MemAvailable=%sMiB < required=%sMiB "
+                    "(ckpt÷tp+floor) — 잔존 컨테이너/페이지캐시 정리 후 재시도. "
+                    "헌법 호스트 안전체계 따름정리 · plan_2026071019_1 §2.6 · "
+                    "run_summary=%s"
+                    % (trial_number, _g["avail_after_mib"], _g["required_mib"],
+                       os.path.join(run_dir, "run_summary.json")),
+                    code=7,
+                )
 
         # ── 실서빙(또는 dry-run/mock) 트라이얼 ──────────────────────────────
         trial = run_trial(candidate, run_dir, trial_number, opts)

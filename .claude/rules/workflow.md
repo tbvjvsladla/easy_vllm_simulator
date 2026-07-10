@@ -44,12 +44,14 @@ S2.5 sync   → (multi-node 전용) 메인 검증코드 → 서브 직접 전달
 
 S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
    - ⑤ NAS 체크: check_smoke_model.py <config_name> --topology <single|multi> — 모델 부재면 **중단·보고** 후 §모델/안전 결정트리(사용자 승인 게이트)로만 진행. **무인 자동 다운로드 ✗** — *모든 모드 공통* 시퀀스(부재→중단·보고→승인 게이트→모드별 위치 다운로드: managed=관리경로 영속 / ephemeral=임시 / custom=지정경로 영속). --topology 필수(산출물 통로 output/<topology>/)
-   - (단일노드) 빌드: docker compose --profile debug build · 서빙: --profile serve up → 프롬프트 1회 → 비어있지 않은 완성
+   - ⑤.5 로드-전 RAM 게이트: check_smoke_model.py 가 모델 실재 확인 직후 결정론 판정 — 체크포인트(index total_size — du ✗)÷TP + floor(10GiB) vs MemAvailable → 부족 시 vllm-drop-caches 1회 자동 → 재측정 → 부족 지속 = 기동 거부(exit 7). recipe simulate 경로는 recipe.py 가 매 trial 전 동형 게이트. 헌법 호스트 안전체계 따름정리.
+   - (단일노드) 빌드: docker compose --profile debug build · 서빙: --profile serve up → 프롬프트 1회 → 비어있지 않은 완성 (전제: easy-vllm-memwatch systemd active — 미설치 노드는 terraforming §1S 호스트 안전체계 스텝 선행)
+   - ⚠ 빌드 평면 커버리지: mem_watchdog 은 컨테이너-레벨이라 **빌드(buildkit·cicc·MoE-JIT)는 못 잡는다**(빌드 평면 백스톱 = 프로세스-레벨 earlyoom). **대형 소스빌드는 기존 serve 를 down 후 수행**(동시 가동 시 빌드-OOM 트립이 무고한 serve 를 오킬). 헌법 호스트 안전체계 따름정리.
    - near-max batch(요구 시): 서빙 docker logs 의 kv_cache_tokens/max_concurrency 로 실측 near-max 산출(Phase-1.5, 스킬 §5) → recipe max-num-seqs 보강. 공식 batch 금지(헌법 near-max 따름정리).
    - KV 이식성: 최종 recipe 는 측정된 GPU당 kv-cache-memory-bytes(절대값) + gpu-memory-utilization 을 **함께** emit. clamp=KV·이식성, gmu=startup free-memory 게이트+총cap(통합메모리 ≤0.90; vLLM 은 KV 사이징에만 gmu 무시 — E2E 실증). 헌법 KV 절대클램프 따름정리.
    - 모델구동 런타임 패치: 구동불가 모델은 stock 이미지 + 런타임 패치(휘발·재유도, 비추적 configs/<model>_patch.py + arm_patch.sh)로 해결. carry-forward 안 함 — 재-serve 시 재유도, S3 스모크가 게이트. 헌법 모델구동 런타임 패치 따름정리.
    - (multi-node) 2노드 Ray 서빙: .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh <config> [--build]
-       NAS체크 → 양노드 병렬빌드 → master(메인)+slave(서브) Ray클러스터 → 엔드포인트 health 폴링 → master 엔드포인트 추론
+       NAS체크(+⑤.5 RAM게이트) → 양노드 병렬빌드 → **협역 워치독 양노드 사이드 기동(자동 — §2.3 계층 2층, --no-watchdog 로만 생략)** → master(메인)+slave(서브) Ray클러스터 → 엔드포인트 health 폴링 → master 엔드포인트 추론 → (down 시) 워치독 PID-kill + drop-caches
        준비판정 = :PORT/health http200 (master 로그 "startup complete"는 거짓양성 — grep 금지)
        reasoning 모델은 max_tokens 충분히(finish_reason=stop)
    verify: 스모크 통과
@@ -151,6 +153,7 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 +
   - **ephemeral/custom 사용자 승인 요청 시**: `crosscheck_model_card.py --ephemeral-estimate --hf-repo-id <repo>`
     로 HF 공개 API 파라미터-총계 사전추정(다운로드 없음, plan_2026070814_1)을 **함께 제시**한다 — "대략 몇
     GiB인지 모른 채 승인"을 방지(조회 실패 시 음성정직 보고, 대체값 날조 금지).
+- **호스트 안전체계(헌법 §호스트 안전체계 따름정리 · plan_2026071019_1)**: mem_watchdog systemd 상시·earlyoom·sudoers 단일 헬퍼(`vllm-drop-caches`)·kdump 의 **설치 = HITL sudo**(`install_host_safety.sh --apply` — 실행 주체는 사람, terraforming §1S/§1.5H 스텝). **가동(상시 데몬) = "무인 자동실행 없음" 원칙의 명시 예외**(관측+보호킬 한정 — bump/다운로드의 완전-수동 속성과 별개 평면). 정리 루틴: 페이지캐시 드랍 = 게이트/teardown 자동 지점 + 수동 · docker 찌꺼기 = `cleanup_docker.py` dry-run 표 → **사람 승인 후 --apply**(트리거 = bump S4 종료 + 세션말 질의 — 자동 주기 ✗).
 - HITL 게이트 이전 자동 핀 변경/자동 커밋·서브 전파 금지.
 - 단계 건너뛴 부분 적용 상태로 빌드 금지(일관성).
 

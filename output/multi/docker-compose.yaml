@@ -13,6 +13,9 @@ x-gpu-common: &gpu-common
   runtime: nvidia
   network_mode: host
   ipc: host
+  # OOM킬러 우선희생 지정(plan_2026071019_1 §2.4) — 통합메모리 압박 시 커널이 wireplumber 류가
+  # 아니라 vLLM 컨테이너를 먼저 잡게(사고 #5 OOM킬러 4h 오발 교정. 계층 방어의 커널층).
+  oom_score_adj: 800
   ulimits:
     memlock: -1
     stack: 67108864

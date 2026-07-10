@@ -5,15 +5,16 @@
 # 준비 판정은 **엔드포인트 health(http 200)** 폴링 — master 로그의 "Application startup complete" 는
 # 조기 컴포넌트에서도 떠 거짓양성이 나므로 쓰지 않는다(testlog_260607_7 §3 학습).
 #
-# 사용: bash multinode_serve_smoke.sh <config_name> [--build] [--keep-up]
+# 사용: bash multinode_serve_smoke.sh <config_name> [--build] [--keep-up] [--no-watchdog]
 #   --build   : 서빙 전 양 노드 이미지 빌드(병렬, 최소병렬 원칙)
-#   --keep-up : 스모크 후 컨테이너 유지(기본은 정리/down)
-# 종료코드: 0=스모크 통과, 2=미준비/스모크 실패, 3=NAS/설정 실패.
+#   --keep-up : 스모크 후 컨테이너 유지(기본은 정리/down — 워치독도 함께 유지)
+#   --no-watchdog : 협역 워치독 사이드 기동 생략(plan_2026071019_1 §2.3 — 진단 시)
+# 종료코드: 0=스모크 통과, 2=미준비/스모크 실패, 3=NAS/설정 실패(7=RAM 게이트 거부 포함 시 3으로 수렴).
 set -uo pipefail
 
-CONFIG="${1:?사용: multinode_serve_smoke.sh <config_name> [--build] [--keep-up]}"; shift || true
-BUILD=0; KEEP=0
-for a in "$@"; do [ "$a" = "--build" ] && BUILD=1; [ "$a" = "--keep-up" ] && KEEP=1; done
+CONFIG="${1:?사용: multinode_serve_smoke.sh <config_name> [--build] [--keep-up] [--no-watchdog]}"; shift || true
+BUILD=0; KEEP=0; WATCHDOG=1
+for a in "$@"; do [ "$a" = "--build" ] && BUILD=1; [ "$a" = "--keep-up" ] && KEEP=1; [ "$a" = "--no-watchdog" ] && WATCHDOG=0; done
 
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$SDIR/../../../.." && pwd)"
@@ -68,8 +69,36 @@ case "$SUB_WORK_DIR" in *[[:space:]]*) echo "[mn] FAIL: SUB_WORK_DIR 공백 — 
 SUB_CD="cd $SUB_WORK_DIR &&"   # bash -lc '...' 단일인용 컨텍스트 임베드 — 무공백 보장(위 가드)
 echo "[mn] config=$CONFIG master=$MC port=$PORT model=$MODEL sub=$SUB_HOST sub_work_dir=$SUB_WORK_DIR"
 
-# ── NAS pre-flight (다운로드 금지) ──
-python3 "$SDIR/check_smoke_model.py" "$CONFIG" --repo "$REPO" --topology multi || { echo "[mn] STOP: 스모크 모델 부재 — 다운로드 금지, 중단"; exit 3; }
+# ── NAS pre-flight + 로드-전 RAM 게이트(메인) — 다운로드 금지 · plan_2026071019_1 §2.6 ──
+#   rc 구분(2=모델부재 / 7=RAM게이트 거부 / 3=설정) — exit 7 을 '모델 부재·다운로드 금지'로 오귀속 금지.
+NAS_OUT=$(python3 "$SDIR/check_smoke_model.py" "$CONFIG" --repo "$REPO" --topology multi --emit-gate-params 2>&1); NAS_RC=$?
+printf '%s\n' "$NAS_OUT"
+case "$NAS_RC" in
+  0) : ;;
+  7) echo "[mn] STOP: 로드-전 RAM 게이트 거부(메인) — 모델은 실재하나 가용 RAM 부족. 잔존 컨테이너/페이지캐시 정리 후 재시도(§모델 확보 결정트리 아님 — 다운로드 불요)"; exit 3 ;;
+  2) echo "[mn] STOP: 스모크 모델 부재 — 다운로드 금지, 중단"; exit 3 ;;
+  *) echo "[mn] STOP: NAS/설정 확인 실패(rc=$NAS_RC)"; exit 3 ;;
+esac
+
+# ── 슬레이브 노드 동일-문턱 RAM 게이트(예방 대칭 — 하드다운 #2=DS4 serve#1 '서브'였음 · §2.6) ──
+#   메인이 emit 한 required_mib(같은 NAS·같은 ckpt÷TP)를 슬레이브 /proc/meminfo 에 비교. 슬레이브는
+#   config/게이트 모듈 의존 없이 순수 MemAvailable 만 필요(부족 시 drop-caches 1회 재측정 후 판정).
+REQ_MIB=$(printf '%s\n' "$NAS_OUT" | grep -oE 'required_mib=[0-9]+' | head -1 | cut -d= -f2)
+if [ -n "$REQ_MIB" ]; then
+  _slave_avail(){ $SSH "$SUB_HOST" "awk '/MemAvailable:/{print int(\$2/1024)}' /proc/meminfo" 2>/dev/null; }
+  SLAVE_AVAIL=$(_slave_avail)
+  if [ -n "$SLAVE_AVAIL" ] && [ "$SLAVE_AVAIL" -lt "$REQ_MIB" ]; then
+    $SSH "$SUB_HOST" "[ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches" >/dev/null 2>&1
+    SLAVE_AVAIL=$(_slave_avail)   # drop 후 재측정
+  fi
+  if [ -z "$SLAVE_AVAIL" ]; then
+    echo "[mn] ⚠ 슬레이브 MemAvailable 조회 실패 — 슬레이브 게이트 생략(상시 워치독 층만 커버)"
+  elif [ "$SLAVE_AVAIL" -lt "$REQ_MIB" ]; then
+    echo "[mn] STOP: 슬레이브 로드-전 RAM 게이트 거부 — MemAvailable=${SLAVE_AVAIL}MiB < required=${REQ_MIB}MiB. 슬레이브 잔존 컨테이너/페이지캐시 정리 후 재시도(하드다운 #2 서브노드 예방)"; exit 3
+  else
+    echo "[mn] 슬레이브 RAM-gate PASS: MemAvailable=${SLAVE_AVAIL}MiB ≥ required=${REQ_MIB}MiB"
+  fi
+fi
 
 # ── 빌드(옵션, 양 노드 병렬) ──
 if [ "$BUILD" = "1" ]; then
@@ -79,6 +108,22 @@ if [ "$BUILD" = "1" ]; then
   wait $BPID; MR=$?; wait $SPID; SR=$?
   if [ $MR -eq 0 ] && [ $SR -eq 0 ]; then echo "[mn] 빌드 OK(양 노드)";
   else echo "[mn] FAIL: 빌드(master=$MR slave=$SR). tail:"; tail -6 /tmp/mn_build_master.log /tmp/mn_build_slave.log; exit 2; fi
+fi
+
+# ── 협역 워치독(계층 2층 — plan_2026071019_1 §2.3): 컨테이너 기동 *전* 폴링 개시(로드 구간 커버) ──
+#   필터 = 컨테이너명 공통 접두(mn-<config> — master/slave 양쪽 부분일치). 정지는 PID 기반만
+#   (**pkill -f 금지** — 자기참조 부모셸 사망 exit144 선례, devlog_2026062718_1).
+WD_MAIN_PID=""; WD_SUB_PID=""
+if [ "$WATCHDOG" = "1" ]; then
+  WFILTER="${MC%-master}"
+  bash "$REPO/scripts/mem_watchdog.sh" "$WFILTER" "${WATCHDOG_THRESH_MIB:-10240}" 2 >/tmp/mn_watchdog_master.log 2>&1 & WD_MAIN_PID=$!
+  echo "[mn] 워치독(master) pid=$WD_MAIN_PID filter=$WFILTER thresh=${WATCHDOG_THRESH_MIB:-10240}MiB (/tmp/mn_watchdog_master.log)"
+  if $SSH "$SUB_HOST" "bash -lc '[ -f $SUB_WORK_DIR/scripts/mem_watchdog.sh ]'" 2>/dev/null; then
+    WD_SUB_PID=$($SSH "$SUB_HOST" "bash -lc '$SUB_CD nohup bash scripts/mem_watchdog.sh $WFILTER ${WATCHDOG_THRESH_MIB:-10240} 2 >/tmp/mn_watchdog_slave.log 2>&1 & echo \$!'")
+    echo "[mn] 워치독(slave) pid=${WD_SUB_PID:-?} (원격 /tmp/mn_watchdog_slave.log)"
+  else
+    echo "[mn] ⚠ 서브에 scripts/mem_watchdog.sh 부재 — 슬레이브 워치독 생략(상시 systemd 층만. render_sub_env/sync_to_sub 재배달 필요)"
+  fi
 fi
 
 # ── Ray 클러스터 기동 (master 먼저=head, slave 합류) ──
@@ -99,6 +144,12 @@ for i in $(seq 1 "${READY_MAX:-180}"); do
   sleep 5
 done
 
+# 미준비 진단 보강: 워치독 트립 = 마진 결함 증거(plan_2026071019_1 §5 판정축)를 표면화.
+if [ "$READY" != "1" ] && [ "$WATCHDOG" = "1" ]; then
+  grep -h "TRIP" /tmp/mn_watchdog_master.log 2>/dev/null | tail -3 | sed 's/^/[mn] watchdog(master): /'
+  $SSH "$SUB_HOST" "grep -h TRIP /tmp/mn_watchdog_slave.log 2>/dev/null | tail -3" 2>/dev/null | sed 's/^/[mn] watchdog(slave): /'
+fi
+
 # ── multi-smoke (master 엔드포인트, reasoning 모델 대비 max_tokens 충분히) ──
 RESULT=2
 if [ "$READY" = "1" ]; then
@@ -115,6 +166,13 @@ if [ "$KEEP" != "1" ]; then
   echo "[mn] 정리(양 노드 down)..."
   docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master down >/dev/null 2>&1
   $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave down'" >/dev/null 2>&1
+  # 워치독 정지 = PID 기반만(pkill -f 금지) → 잔여 페이지캐시 드랍(§4.1 ② — 헬퍼 설치 시 best-effort).
+  [ -n "$WD_MAIN_PID" ] && kill "$WD_MAIN_PID" 2>/dev/null
+  [ -n "$WD_SUB_PID" ] && $SSH "$SUB_HOST" "kill $WD_SUB_PID" 2>/dev/null
+  [ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches >/dev/null 2>&1
+  $SSH "$SUB_HOST" "[ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches" >/dev/null 2>&1
+elif [ -n "$WD_MAIN_PID" ]; then
+  echo "[mn] --keep-up: 워치독 유지(master pid=$WD_MAIN_PID · slave pid=${WD_SUB_PID:-없음}) — 정지는 kill <pid> 로만"
 fi
 echo "[mn] 종료코드 $RESULT"
 exit $RESULT
