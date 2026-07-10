@@ -97,12 +97,32 @@ EOF
 fi
 
 # ── ④ kdump (선택 — 재부팅 필요 고지) ───────────────────────────────────
+#   Ubuntu 24.04 kdump-tools 는 noninteractive 설치 시 USE_KDUMP=0 + crashkernel=1G-:0M
+#   (플레이스홀더 = 0M 예약)로 남아 kdump 가 절대 ready 안 된다 → 명시 활성화·크기지정 필수.
+KDUMP_CRASH_MB="${KDUMP_CRASH_MB:-512}"   # aarch64 GB10 crashkernel 예약(MB) — env 로 조정 가능
 if [ "$WITH_KDUMP" = "1" ]; then
-  say "④ kdump-tools 설치 (crashkernel 예약 — **재부팅 1회 필요**, RAM 수백 MB 상시 점유)"
+  say "④ kdump-tools 설치 + 활성화(USE_KDUMP=1) + crashkernel=${KDUMP_CRASH_MB}M 예약 (**재부팅 1회 필요**)"
   if [ "$APPLY" = "1" ]; then
     DEBIAN_FRONTEND=noninteractive apt-get install -y kdump-tools >/dev/null 2>&1 || { say "  ✗ kdump-tools 설치 실패"; FAIL=1; }
-    kdump-config show 2>&1 | sed 's/^/[host-safety]   /'
-    say "  ⚠ 'Not ready' 면 재부팅 후 'kdump-config show' 재확인(ready 필요 — plan §8 Phase2 합격기준)"
+    if command -v kdump-config >/dev/null 2>&1; then
+      # (a) USE_KDUMP=1 (noninteractive 기본 0 교정)
+      if grep -qE '^USE_KDUMP=' /etc/default/kdump-tools 2>/dev/null; then
+        sed -i 's/^USE_KDUMP=.*/USE_KDUMP=1/' /etc/default/kdump-tools
+      else
+        echo 'USE_KDUMP=1' >> /etc/default/kdump-tools
+      fi
+      # (b) 실제 crashkernel 예약(kdump-tools 기본 0M 플레이스홀더를 99- 오버라이드로 교정 — 99 정렬=마지막, 커널은 마지막 crashkernel= 채택)
+      cat > /etc/default/grub.d/99-easy-vllm-kdump.cfg <<EOF
+# easy-vllm host-safety (plan_2026071019_1 §3) — 실제 crashkernel 예약(기본 0M 교정, 조정=KDUMP_CRASH_MB)
+GRUB_CMDLINE_LINUX_DEFAULT="\$GRUB_CMDLINE_LINUX_DEFAULT crashkernel=${KDUMP_CRASH_MB}M"
+EOF
+      if command -v update-grub >/dev/null 2>&1; then update-grub >/dev/null 2>&1
+      elif command -v update-grub2 >/dev/null 2>&1; then update-grub2 >/dev/null 2>&1
+      else grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1; fi
+      systemctl enable kdump-tools >/dev/null 2>&1
+      say "  ✓ USE_KDUMP=1 · crashkernel=${KDUMP_CRASH_MB}M(99-grub) · update-grub 완료 — **재부팅 후** ready"
+      say "  ⚠ 재부팅 후 검증: kdump-config show | grep 'current state' → 'ready to kdump' 필요(plan §8 Phase2)"
+    fi
   fi
 else
   say "④ kdump: 건너뜀(--with-kdump 로 활성 — 스트레스 게이트 전 필수, plan §3)"
