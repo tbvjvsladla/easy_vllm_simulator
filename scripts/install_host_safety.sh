@@ -8,16 +8,21 @@
 set -uo pipefail
 
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APPLY=0; WITH_KDUMP=0
+APPLY=0; WITH_KDUMP=0; EARLYOOM_DEB=""
 TARGET_USER="${SUDO_USER:-$(id -un)}"
 for a in "$@"; do
   case "$a" in
     --apply) APPLY=1 ;;
     --with-kdump) WITH_KDUMP=1 ;;
     --user=*) TARGET_USER="${a#--user=}" ;;
-    *) echo "[host-safety] 알 수 없는 인자: $a (사용: --apply [--with-kdump] [--user=<name>])"; exit 1 ;;
+    --earlyoom-deb=*) EARLYOOM_DEB="${a#--earlyoom-deb=}" ;;
+    *) echo "[host-safety] 알 수 없는 인자: $a (사용: --apply [--with-kdump] [--earlyoom-deb=<path>] [--user=<name>])"; exit 1 ;;
   esac
 done
+# 오프라인 earlyoom: --earlyoom-deb 미지정 시 레포 루트의 earlyoom_*.deb 자동탐지(offline apt 대비).
+if [ -z "$EARLYOOM_DEB" ]; then
+  for d in "$SDIR/.."/earlyoom_*.deb; do [ -f "$d" ] && { EARLYOOM_DEB="$d"; break; }; done
+fi
 
 say(){ echo "[host-safety] $*"; }
 FAIL=0
@@ -68,10 +73,16 @@ if [ "$APPLY" = "1" ]; then
 fi
 
 # ── ③ earlyoom (최후선) ─────────────────────────────────────────────────
-say "③ earlyoom: apt 설치 + '-m 4(≈4.9GiB<워치독10GiB — 워치독 선발화) --prefer vLLM 계열 --avoid 핵심데몬'"
+say "③ earlyoom: $([ -n "$EARLYOOM_DEB" ] && echo "로컬 .deb($EARLYOOM_DEB)" || echo "apt") 설치 + '-m 4(≈4.9GiB<워치독10GiB — 워치독 선발화) --prefer vLLM 계열 --avoid 핵심데몬'"
 if [ "$APPLY" = "1" ]; then
   if ! command -v earlyoom >/dev/null 2>&1; then
-    apt-get install -y earlyoom >/dev/null 2>&1 || { say "  ✗ earlyoom apt 설치 실패"; FAIL=1; }
+    if [ -n "$EARLYOOM_DEB" ] && [ -f "$EARLYOOM_DEB" ]; then
+      # 오프라인 우선: 사전 다운로드 .deb(예 GB10 airgap). dpkg 실패 시 apt 폴백.
+      dpkg -i "$EARLYOOM_DEB" >/dev/null 2>&1 || apt-get install -y earlyoom >/dev/null 2>&1 \
+        || { say "  ✗ earlyoom 설치 실패(.deb+apt 모두)"; FAIL=1; }
+    else
+      apt-get install -y earlyoom >/dev/null 2>&1 || { say "  ✗ earlyoom apt 설치 실패(오프라인이면 --earlyoom-deb=<path> 지정)"; FAIL=1; }
+    fi
   fi
   if command -v earlyoom >/dev/null 2>&1; then
     cat > /etc/default/earlyoom <<'EOF'
