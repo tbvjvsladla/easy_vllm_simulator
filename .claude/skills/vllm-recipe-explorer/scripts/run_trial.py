@@ -212,6 +212,9 @@ def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: in
         "--runtime", "nvidia",
         "--ipc", "host",
         "--ulimit", "memlock=-1",
+        # OOM킬러 우선희생 지정(plan_2026071019_1 §2.4) — 사고 #5 에서 커널이 wireplumber 만
+        # 죽이고 70GiB 진범을 못 잡은 오발 교정. 커널이 트라이얼 컨테이너를 먼저 잡게 한다.
+        "--oom-score-adj", "800",
         "-p", "%d:%d" % (int(port), DEFAULT_PORT),
         "-v", "%s:%s:ro" % (nas_mount, CONTAINER_MODELS),
     ]
@@ -355,6 +358,80 @@ def _docker_teardown(container_name: str) -> None:
         pass
 
 
+def _memwatch_script_path():
+    """레포/스테이징 루트의 scripts/mem_watchdog.sh — 메인·서브 동일 상대 레이아웃."""
+    root = os.path.abspath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
+    p = os.path.join(root, "scripts", "mem_watchdog.sh")
+    return p if os.path.isfile(p) else None
+
+
+def _start_memwatch(container_name: str, simlog_dir: str, trial_number: int,
+                    thresh_mib: int = 10240):
+    """트라이얼 협역 워치독 사이드 기동(plan_2026071019_1 §2.3 — 계층 방어 2층).
+
+    systemd 상시(광역) 인스턴스와 병행(임계 동급·필터 협역 — 로그가 simlog 에 남아
+    trial 증거로 편입). 스크립트 부재/기동 실패 시 경고 후 (None, None) — fail-open,
+    상시층이 최후 커버(δ2-1 "미기동이 유일한 실패 원인" 교훈의 역: 기동을 코드가 보장).
+    반환 (Popen|None, 로그파일핸들|None).
+    """
+    script = _memwatch_script_path()
+    if not script:
+        print("[run_trial] ⚠ scripts/mem_watchdog.sh 부재 — 협역 워치독 생략(상시 systemd 층만)",
+              file=sys.stderr)
+        return None, None
+    log_p = os.path.join(simlog_dir, "trial%02d_memwatch.log" % int(trial_number))
+    fh = open(log_p, "w", encoding="utf-8")
+    try:
+        proc = subprocess.Popen(
+            ["bash", script, container_name, str(int(thresh_mib)), "2"],
+            stdout=fh, stderr=subprocess.STDOUT,
+        )
+        return proc, fh
+    except Exception as e:  # noqa: BLE001
+        print("[run_trial] ⚠ 협역 워치독 기동 실패(%s) — 상시 systemd 층만" % e, file=sys.stderr)
+        try:
+            fh.close()
+        except Exception:  # noqa: BLE001
+            pass
+        return None, None
+
+
+def _stop_memwatch(proc, fh) -> None:
+    """PID(핸들) 기반 정지 — **pkill -f 금지**(자기참조 매칭 부모셸 사망 exit144 선례,
+    devlog_2026062718_1). 예외 흡수."""
+    try:
+        if proc is not None:
+            proc.terminate()
+            proc.wait(timeout=5)
+    except Exception:  # noqa: BLE001
+        try:
+            proc.kill()
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        if fh is not None:
+            fh.close()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _drop_caches_best_effort() -> None:
+    """teardown 후 페이지캐시 드랍(plan_2026071019_1 §4.1 자동 지점 ②).
+
+    GB10 통합메모리는 페이지캐시가 CUDA 와 물리풀 경쟁 — 다음 로드의 MemAvailable 을
+    미리 회복. sudoers 단일 헬퍼(install_host_safety.sh)가 설치된 경우에만, 실패 무해.
+    """
+    helper = "/usr/local/sbin/vllm-drop-caches"
+    if not os.path.exists(helper):
+        return
+    try:
+        subprocess.run(["sudo", "-n", helper], stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=30)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def _error_excerpt(log_text: str, limit: int = 2000) -> str:
     """로그 텍스트의 마지막 일부를 error_excerpt 로 잘라낸다(실패 진단용)."""
     if not log_text:
@@ -466,6 +543,13 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
     # (gmu 미emit 회귀류 클래스 차단 — §9.3). 누락 시 즉시 raise.
     _audit_emitted(candidate, docker_cmd)
 
+    # 협역 워치독(계층 2층·§2.3) — docker run *전* 기동해 가중치 로드 구간부터 커버.
+    # 사고 #5 는 로드 시작 직후 폭주였음(14:56 로드 → 압박). 로그 = trialNN_memwatch.log.
+    wd_proc, wd_fh = _start_memwatch(
+        container_name, simlog_dir, trial_number,
+        thresh_mib=int(_opt(opts, "memwatch_thresh_mib", 10240)),
+    )
+
     load_ok = False
     vllm_profile = None
     functional = None
@@ -518,6 +602,9 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
     finally:
         # 통합메모리 잔류 OOM 방지: 어떤 경로로 끝나든 컨테이너 강제 제거.
         _docker_teardown(container_name)
+        # 워치독은 teardown 완료까지 커버 후 PID 기반 정지(§2.3) → 페이지캐시 드랍(§4.1 ②).
+        _stop_memwatch(wd_proc, wd_fh)
+        _drop_caches_best_effort()
 
     return {
         "trial_number": int(trial_number),

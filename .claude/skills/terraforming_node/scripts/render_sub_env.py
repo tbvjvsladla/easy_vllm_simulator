@@ -237,6 +237,23 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
         f.write("")
     produced.append("tasks/.gitkeep")
 
+    # 4.5) 호스트 안전체계 파일(plan_2026071019_1 §2.2 — 서브 동일 설치, 실행은 서브에서 사용자 HITL sudo)
+    #   레포 루트 scripts/ 4파일을 스테이징 동일 상대경로로 복제 — sync_to_sub 오버레이가 그대로 배달.
+    #   multinode_serve_smoke.sh 슬레이브 워치독·run_trial 협역 워치독이 이 레이아웃(scripts/mem_watchdog.sh)을 참조.
+    for rel, mode in (("scripts/mem_watchdog.sh", 0o755),
+                      ("scripts/install_host_safety.sh", 0o755),
+                      ("scripts/systemd/easy-vllm-memwatch.service", 0o644),
+                      ("scripts/host/vllm-drop-caches.sh", 0o755)):
+        src = os.path.join(REPO, rel)
+        if not os.path.isfile(src):
+            print(f"[render_sub_env] ⚠ 호스트 안전체계 원본 부재 — 복제 생략: {rel}", file=sys.stderr)
+            continue
+        dst = os.path.join(out_dir, rel)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copyfile(src, dst)
+        os.chmod(dst, mode)
+        produced.append(rel)
+
     # 5) 서브 로컬 git .gitignore (D12 — placeholder 없는 정적자산 그대로 복제)
     gi_src = os.path.join(SUBNODE_DIR, "gitignore.template")
     if os.path.isfile(gi_src):
@@ -358,7 +375,10 @@ def _self_test() -> int:
         res = render_tree(ph, out, copy_runtime_block=False)  # 런타임블럭 복제는 git 의존 → self-test 제외
         base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json", "tasks/.gitkeep",
-                       ".claude/rules/docs.md", ".gitignore"]
+                       ".claude/rules/docs.md", ".gitignore",
+                       # 호스트 안전체계(plan_2026071019_1 §2.2 — 서브 배달 셋 회귀 고정)
+                       "scripts/mem_watchdog.sh", "scripts/install_host_safety.sh",
+                       "scripts/host/vllm-drop-caches.sh"]
         have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
         missing_art = [p for p in base_expect if not os.path.exists(os.path.join(out, p))]
         # docs 스켈레톤: docs.md 계약 4종(DOC_TYPES) 전부 렌더됐나(simlog 누락 회귀 차단 — review)

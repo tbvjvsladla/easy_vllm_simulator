@@ -33,6 +33,11 @@ ALLOWLIST=(
     scripts/smoke_clone.sh
     scripts/hint_tag.py
     scripts/templates
+    scripts/mem_watchdog.sh
+    scripts/install_host_safety.sh
+    scripts/cleanup_docker.py
+    scripts/systemd
+    scripts/host
     manifest.template.yaml
     .gitattributes
 )

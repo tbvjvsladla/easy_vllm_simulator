@@ -261,7 +261,8 @@ verify_checksums() {  # $1=topology
     done
     for f in CLAUDE.md Agent_Card.json .claude/settings.local.json .claude/rules/comms.md .claude/rules/docs.md \
              .claude/schemas/task-report.schema.json .gitignore .claude/skills/vllm-recipe-explorer/recipe.py \
-             .claude/skills/adversarial-benchmark/scripts/verdict_rule.py .claude/a2a_delegation.json; do
+             .claude/skills/adversarial-benchmark/scripts/verdict_rule.py .claude/a2a_delegation.json \
+             scripts/mem_watchdog.sh scripts/install_host_safety.sh; do
         [ -f "$st/$f" ] || continue
         L=$(md5sum "$st/$f" | awk '{print $1}'); R=$($SSH_OPTS "$SUB_HOST" "md5sum '$SUB_WORK_DIR/$f' 2>/dev/null" | awk '{print $1}')
         [ -n "$L" ] && [ "$L" = "$R" ] && echo "  ✅ $f" || { echo "  ❌ $f: main=$L sub=$R"; fail=1; }
