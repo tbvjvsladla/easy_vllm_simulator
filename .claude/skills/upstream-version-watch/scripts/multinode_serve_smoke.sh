@@ -119,7 +119,11 @@ if [ "$WATCHDOG" = "1" ]; then
   bash "$REPO/scripts/mem_watchdog.sh" "$WFILTER" "${WATCHDOG_THRESH_MIB:-10240}" 2 >/tmp/mn_watchdog_master.log 2>&1 & WD_MAIN_PID=$!
   echo "[mn] 워치독(master) pid=$WD_MAIN_PID filter=$WFILTER thresh=${WATCHDOG_THRESH_MIB:-10240}MiB (/tmp/mn_watchdog_master.log)"
   if $SSH "$SUB_HOST" "bash -lc '[ -f $SUB_WORK_DIR/scripts/mem_watchdog.sh ]'" 2>/dev/null; then
-    WD_SUB_PID=$($SSH "$SUB_HOST" "bash -lc '$SUB_CD nohup bash scripts/mem_watchdog.sh $WFILTER ${WATCHDOG_THRESH_MIB:-10240} 2 >/tmp/mn_watchdog_slave.log 2>&1 & echo \$!'")
+    # ⚠ 원격 백그라운드 detach 3-FD 필수(plan_2026071107_1 §hang-fix): nohup 프로세스가 SSH 채널의 stdin 을
+    #   놓지 않으면 ssh 가 EOF 대기로 매달려 command-substitution 이 영영 안 끝난다(2026-07-11 1M 빌드런서
+    #   서빙단계 2h 블록 실증 — 슬레이브 워치독은 정상 기동했으나 ssh 만 hang). 해소 = 원격 '</dev/null'(stdin 분리)
+    #   + 클라이언트 'ssh -n'(로컬 stdin 미독). stdout/stderr 는 이미 로그파일로 분리돼 있었음(stdin 이 유일 누락).
+    WD_SUB_PID=$($SSH -n "$SUB_HOST" "bash -lc '$SUB_CD nohup bash scripts/mem_watchdog.sh $WFILTER ${WATCHDOG_THRESH_MIB:-10240} 2 </dev/null >/tmp/mn_watchdog_slave.log 2>&1 & echo \$!'")
     echo "[mn] 워치독(slave) pid=${WD_SUB_PID:-?} (원격 /tmp/mn_watchdog_slave.log)"
   else
     echo "[mn] ⚠ 서브에 scripts/mem_watchdog.sh 부재 — 슬레이브 워치독 생략(상시 systemd 층만. render_sub_env/sync_to_sub 재배달 필요)"
