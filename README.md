@@ -174,6 +174,56 @@ manifest 가 확정되면, 에이전트는 메인노드에서 랜더링한 결�
 > - **A2A 위임 키 fail-closed 결정적 입증**: 서브에 키가 있을 때 → 서브 레시피 스킬 정상 구동(자율 서빙 보존) / 키를 빼면 → 즉시 거부(exit 4). *"검증 안 된 서브가 조용히 서빙하는 일"* 을 코드가 막습니다.
 > - 라이브 테스트가 실결함 3건을 그 자리에서 잡아 수정(SSH probe 버그 · manifest 획득모드 미마이그레이션 · 서브 stale manifest). **판정: PASS.**
 
+### 여정 1의 마지막 스텝 — 호스트 안전체계 (선택 · 메인·서브 각각 sudo)
+
+manifest 에 *완수 표식* 이 찍히면 테라포밍의 표준 절차는 끝난 겁니다(단일이든 멀티든). 에이전트는 마지막으로 **딱 하나를 권유** 합니다 — 강제가 아니라 Y/N 선택입니다.
+
+> 🤖 **에이전트**: 끝으로 **호스트 안전체계**를 설치하시겠어요? 시스템에서 *상시 도는* 보호 장치라 부담이 될 수 있어, 일부러 **맨 마지막 선택조항**으로 뺐습니다.
+> - **mem_watchdog** — 메모리를 상시 지켜보다가 위험 수위를 넘으면 **문제 컨테이너를 먼저 죽여** 호스트를 살립니다. GB10 같은 **통합메모리** 머신은 GPU 메모리가 시스템 메모리와 한 몸이라 *GPU OOM = 호스트째 다운* 인데, 그 직전에 개입합니다(여정 3에서 KV 풍선을 SIGKILL 로 잡아 호스트를 지킨 그 장치예요). earlyoom 이 그 뒤를 받치는 최후선입니다.
+> - **kdump**(`--with-kdump`) — 그래도 시스템이 멎으면 **사후 분석용 커널 덤프(vmcore)** 를 남겨 원인을 추적하게 합니다(crashkernel RAM 예약 + 재부팅 1회).
+> - **discrete GPU(일반 PC)** 라면 GPU OOM 이 호스트를 죽이진 않으니 **부담 없이 건너뛰어도** 됩니다.
+
+**이 둘이 실제로 어떻게 지켜주는지** — 메모리가 튀는 순간의 흐름입니다. 평시엔 워치독이 막고(1차), 그걸 뚫려도 kdump 가 증거를 남깁니다(2차).
+
+```mermaid
+flowchart TD
+    START(["🟢 vLLM 서빙 가동 중"]) --> SPIKE{"⚠️ 메모리 압박 급상승<br/>KV 풍선 · 대형 prefill · MoE-JIT"}
+
+    SPIKE -- "위험 수위 관측" --> WD["👁️ mem_watchdog<br/>systemd 상시 · MemAvailable 폴링<br/>oom_score_adj 800 로 커널도 컨테이너 조준"]
+    WD -- "문제 컨테이너만 SIGKILL" --> KILL["🎯 해당 컨테이너 정리<br/>→ 메모리 즉시 회수"]
+    KILL --> SURVIVE(["🟢 호스트 생존 → 곧바로 재서빙<br/>— 대부분의 경우"])
+
+    SPIKE -. "워치독보다 빠른 프로세스 폭주" .-> EO["🧯 earlyoom<br/>프로세스-레벨 최후선"]
+    EO -. "최고점유 프로세스 kill" .-> SURVIVE
+
+    SPIKE == "급작 이산폴트 등 워치독 우회 (드묾)" ==> DOWN["🔴 호스트 하드다운"]
+    DOWN -- "crashkernel 예약영역서 캡처 커널 부팅" --> KDUMP["💾 kdump → vmcore<br/>/var/crash 저장"]
+    KDUMP --> ANALYZE(["🔁 재부팅 후 사후분석<br/>근본원인 추적 · 증거 보존"])
+
+    subgraph L1 ["1차 방어 — 예방 (호스트를 살린다)"]
+        WD
+        KILL
+        EO
+    end
+    subgraph L2 ["2차 방어 — 사후 (증거를 남긴다)"]
+        KDUMP
+    end
+```
+
+> 🛡️ 요컨대 — **평시엔 호스트가 살아남고, 최악의 경우에도 원인 분석용 덤프가 남습니다.** 통합메모리 환경의 *'한밤중 원인불명 하드다운'* 을 앞단에서 **예방** 하고, 그마저 뚫려도 *미궁에 빠지지 않게* 뒷단에서 **증거를 보존** 하는 2단 방어입니다. (근거·실측 = `docs/plan/plan_2026071019_1`, 768k 크래시 포렌식.)
+
+**설치는 당신이 직접 `sudo` 로 실행** 합니다 — 에이전트는 안전체계를 **무인 sudo 로 깔지 않습니다**(무엇을·왜·트레이드오프까지 설명하고, 승인·검증까지가 에이전트의 몫). 기본은 dry-run 이라 `--apply` 없이 먼저 돌려 무엇이 설치될지 볼 수 있고, 멱등이라 재실행도 안전합니다.
+
+```bash
+sudo bash scripts/install_host_safety.sh --apply                # ① 워치독 systemd + ② vllm-drop-caches 헬퍼 + ③ earlyoom
+sudo bash scripts/install_host_safety.sh --apply --with-kdump   # + ④ kdump (재부팅 1회 필요)
+systemctl is-active easy-vllm-memwatch                          # 확인 → active
+```
+
+> ⚠ **멀티노드면 메인·서브 노드에서 *각각* 실행** 합니다. 메인의 코드에이전트가 서브에 대신 sudo 를 걸어주지 않습니다(A2A 경계 — 서브의 관리 권한은 서브에서 사람이 행사). 서브노드에 SSH 로 들어가 위 명령을 **똑같이 한 번 더** 돌리고, 검증(`systemctl is-active …`)도 노드별로 따로 합니다. (설치 스크립트는 렌더 배달로 서브에도 이미 가 있습니다.)
+
+설치하지 않아도(N) **테라포밍은 유효** 하고 서빙도 정상 진행됩니다 — 다만 *통합메모리* 노드라면 이후 서빙 기동 직전에 에이전트가 "워치독 미설치" 를 채팅으로 한 줄 귀띔하는 게 전부입니다(시끄러운 로그 배너는 없습니다).
+
 > 🤖 그래서 다음은 자연히 — *이 환경 위에 어떤 vLLM 컨테이너를 올릴까* 입니다.
 
 ---
@@ -272,16 +322,70 @@ DeepSeek-V4-Flash 를 GB10(sm_121)에 띄우려 하자 stock vLLM 이 이중 하
 
 컨테이너가 빌드됐다고 끝이 아닙니다. 같은 모델도 *KV 캐시를 얼마나 줄지, 컨텍스트 길이를 얼마로 할지, 배치를 얼마나 받을지* 에 따라 OOM 이 나기도, VRAM 을 절반만 쓰기도 합니다. 이걸 **`vllm-recipe-explorer`** 스킬이 인터뷰로 좁힙니다.
 
-핵심 철학은 **"측정 > 공식"** 입니다. per-token KV 공식은 full-attention 을 가정해서, sliding-window·GQA 모델에선 KV 를 *크게 과대추정* 합니다. 그래서 공식으로 배치를 정하지 않고 — *실제로 한 번 띄워서 로그를 읽어* 정합니다.
+핵심 철학은 **"측정 > 공식"** 입니다. per-token KV 공식은 full-attention 을 가정해서, sliding-window·GQA 모델(요즘 대부분)에선 KV 를 *크게 과대추정* 합니다(gemma 8×·gpt-oss 1.9× 실측). 그래서 공식으로 배치를 못 박지 않고 — *실제로 한 번 띄워서 로그를 읽어* 정합니다.
+
+### 왜 이름이 "시뮬레이터"인가
+
+프로젝트 이름의 **simulator** 는 여기서 나옵니다. 이 스킬의 진짜 힘은 **"지금 손에 없는 GPU"를 대상으로 서빙 전략을 미리 확정** 하는 데 있습니다.
+
+비결은 vLLM 의 **`--kv-cache-memory-bytes`** — GPU당 KV 캐시를 *바이트 절대값* 으로 못 박는 인자입니다. 서빙에 드는 메모리는 결국 `weights + overhead + KV` 세 덩어리인데, 이 중 **weights·per-token-KV·overhead 는 GPU 종류와 무관한 불변량** 입니다(*모델* 이 정하지, *카드* 가 정하지 않습니다). 그래서:
+
+1. **측정은 지금 있는 하드웨어에서** — 한 번 실서빙해 `weights`·`overhead`·`per-token-KV` 를 실측하고,
+2. **클램프는 타겟 GPU 예산으로 이식** — `kv_clamp = 타겟_VRAM × gmu − weights − overhead`.
+
+즉 GB10 한 대만 있어도 *"RTX PRO 6000(96GiB) 에 이 모델을 어떻게 띄울까"* 를 **실제 컨테이너로 검증** 할 수 있습니다. 더 작은 카드를 지정하면 *진짜로 더 작은 배치·KV 숫자* 가 나옵니다 — 복붙이 아니라 매번 다시 계산하니까요. **타겟을 안 정하면 그냥 지금 이 호스트 GPU 가 타겟** 이 됩니다. (자세한 실증은 아래 「타겟 GPU 시뮬레이션」.)
+
+### 익스플로러가 묻는 것 — 인터뷰 항목과 그 이유
+
+이 스킬은 결정론 계산(VRAM 추정·하드게이트·랭킹·OOM 분류)은 스크립트에 맡기고, **판단이 필요한 것만 당신에게 묻습니다.** 각 질문이 *왜* 있는지:
+
+| 묻는 것 | 왜 묻는지 | 모르면(기본값) |
+|---|---|---|
+| **① 타겟 GPU / VRAM 예산** *(0순위·필수)* | 예산이 **모든 하드게이트의 기준선**. 여기서 시뮬레이터 분기(호스트 GPU ↔ 타겟 GPU)가 갈립니다 | 스킵 → **지금 이 호스트 GPU** |
+| **② weight 양자화** | 이미 양자화된 모델(prequantized)이면 그대로 고정, 아니면 `none`/`fp8` — VRAM 을 절반까지 좌우 | prequantized면 native 자동 고정 |
+| **③ KV 양자화** | `fp8` 이면 KV 캐시가 절반(2B→1B) → **더 긴 컨텍스트·더 큰 배치** 확보 | `null`(fp16) |
+| **④ 배치(동시요청) + 컨텍스트 길이** | 이 둘이 **KV 사이징을 결정**. 배치는 공식이 아니라 *측정된 near-max* 로, 컨텍스트는 천장 내 최대값을 제안 | 결정론 최대값 제안 |
+| **⑤ tool / reasoning 파서** | 모델이 함수호출·추론을 지원하는지 + **vLLM 파서명이 버전마다 달라서**(가정 금지 — 이미지에서 version-exact 확증) | 외부 카드로 확인, 미지원이면 스킵 |
+| **⑥ 어텐션 백엔드** | `FLASHINFER`/`FLASH_ATTN`/`FLASHMLA` — 실패 시 다음 후보로 자동 교체할 폴백 순서 | 폴백 후보 순서 제안 |
+| **⑦ 벤치마크** *(질문 아님·고지)* | 서빙 성공 직후 **경량 상태 스냅샷(속도·용량)** 을 자동으로 한 번 띄웁니다(여정 4) — 강력 거부 구문만 *세션 한정* 으로 끕니다 | 기본 ON |
+| **⑧ 용처** | *"어디에 연결해 쓰실 건가요?"*(OpenWebUI·Hermes Agent·직접 API) → 서빙 완료 후 **연결 방법을 채팅으로 안내** | 무답 → OpenAI 호환 curl 예시만 |
+| **⑨ 컨테이너 유지 / down** | 서빙을 살려둘지, 테스트만 하고 내릴지 | **유지** |
+
+> 💡 ①~⑥ 은 *레시피(KV 클램프)를 결정하는 변수* 이고, ⑦~⑨ 는 *서빙 경험* 항목입니다. 앞은 숫자를 좁히고, 뒤는 "띄운 다음"을 매끄럽게 합니다. 모르는 항목은 전부 에이전트가 결정론 값·기본값을 제안하니, 그냥 "확인"만 눌러도 됩니다.
+
+그럼 이 인터뷰가 돌리는 파이프라인 — **익스플로러의 실제 동작** 은 이렇습니다:
 
 ```mermaid
-flowchart LR
-    P1["<b>Phase 1</b><br/>공식 추정<br/>3축 후보 →<br/>예산 하드게이트 →<br/>랭킹"] --> P15["<b>Phase 1.5</b><br/>1회 serve →<br/>KV-log 측정<br/>(near-max batch)"]
-    P15 --> P2["<b>Phase 2</b><br/>trial-loop →<br/>절대 KV 클램프<br/>수렴"]
-    P2 --> SM{{"스모크<br/>health 200 +<br/>비어있지 않은 완성"}}
+flowchart TD
+    CFG["📄 config.json + safetensors index<br/>(NAS 실측 · du 아님)"] --> XCHK["🔍 모델카드 교차검증<br/>quant 라벨 함정 · special-dep 사전경보"]
+
+    subgraph P1 ["Phase 1 — 추정·랭킹 (실서빙 없음)"]
+        direction TB
+        XCHK --> GEN["🎲 3축 후보 생성<br/>quant × max-len × gmu"]
+        GEN --> EST["📐 결정론 VRAM 추정<br/>weights/tp + KV + overhead"]
+        EST --> GATE{"예산 × 안전마진<br/>하드게이트"}
+        GATE -- "초과 후보 탈락" --> RANK["🏅 랭킹 headroom → context"]
+    end
+    RANK --> PICK(["🧑 HITL — 후보 rN 선택 + 인터뷰"])
+
+    subgraph P2 ["Phase 2 — 실서빙 trial-loop · 측정이 공식을 이긴다"]
+        direction TB
+        TRIAL["🚀 run_trial · 컨테이너 실기동<br/>/health 200 → 기능 스모크 → 로그 실측"]
+        TRIAL --> CLS{"결정론 분류<br/>sim_classify"}
+        CLS -- "vram_oom" --> ADJ["🔧 KV 클램프 재산정<br/>min(required, safe)"]
+        CLS -- "functional 실패" --> FB["↩️ soft 변수 다음 후보 폴백"]
+        ADJ -- "재시도 (cap 3)" --> TRIAL
+        FB -- "재시도 (cap 3)" --> TRIAL
+        CLS -- "infeasible · unknown" --> HALT(["🧑 HITL 중단·보고 + simlog"])
+    end
+    PICK --> TRIAL
+    CLS == "none = 수렴" ==> DONE["✅ 절대 KV 클램프 확정<br/>kv-cache-memory-bytes + gmu 함께 emit (이식성)"]
+    DONE --> SET["📦 3종 세트 .yaml + .sh + .env<br/>+ simlog 원시증거"]
+
+    TGT["🎯 타겟 GPU 지정 (선택)"] -. "측정=호스트 · 클램프=타겟 예산<br/>weights·per-token-KV 는 불변량" .-> PICK
 ```
 
-3축은 `quantization × max-model-len × gpu-memory-utilization` 이고, 인터뷰는 당신에게 멀티턴으로 묻습니다 — **타겟 GPU/VRAM 예산**(0순위·필수), weight/KV 양자화, 배치·컨텍스트, tool/reasoning 파서, 어텐션 백엔드. 모르면 에이전트가 결정론 값을 제안합니다.
+> 🔑 그림의 핵심 두 가지 — **(왼쪽 아래) 타겟 GPU 를 지정하면 측정은 호스트에서 하고 클램프만 타겟 예산으로 이식** 되고(=시뮬레이터), **(가운데 루프) 공식이 아니라 *실제로 띄운 로그* 로 KV 를 수렴** 시킵니다(측정 &gt; 공식). 최종 레시피는 `kv-cache-memory-bytes`(이식성) 와 `gmu`(시작 게이트) 를 *함께* 냅니다.
 
 ### 본류 — gemma-4-12b 가 깔끔하게 수렴한 과정
 
@@ -344,6 +448,28 @@ DeepSeek-V4-Flash 를 더 최적화하는 과정에서, `gmu 0.90` 으로 올리
 ---
 
 ## 여정 4 — 성능 적대검증: 잘 띄운다 ≠ 빠르게 띄운다
+
+여정 3에서 레시피가 수렴하고 컨테이너가 떴습니다. 이제 **성능** 을 따집니다. 그 전에 — 이 검증 스킬(`adversarial-benchmark`)에 개발자로서 제가 일부러 넣은 고집 하나와, 벤치마크가 *두 단(段)* 으로 나뉜다는 점을 먼저 짚겠습니다.
+
+> 💌 **개발자의 편지 — 왜 "스킵해"라고 해도 경량 벤치는 도는가**
+>
+> 서빙이 뜨면 저는 에이전트가 **묻지 않고도 경량 벤치를 한 번 돌리게** 해뒀습니다. 당신이 "아 됐어, 스킵해" 라고 가볍게 넘겨도요. 무례하게 굴려는 게 아니라 — 이건 **시스템 안정성과 직결된 확인** 이라, *개발자로서의 제 의지* 로 기본값을 "수행"으로 뒀습니다.
+>
+> 이유는 단순합니다. "떴다"만 보고 넘어가면 KV가 잘못 잡혀 *반쪽 속도로 도는 서빙* 이나 near-max 배치에서 무너질 구성을 **아무도 모른 채 출고** 하게 됩니다. 몇십 초짜리 경량 측정 한 번이면 속도·용량 현재치가 5줄 표로 눈앞에 뜨는데, 건너뛰어 얻는 건 없죠.
+>
+> 그래서 **가벼운 스킵("스킵해"·묵시적 넘어감)은 무시하고 경량 벤치를 수행** 합니다. 정말 끄고 싶다면 *"어떤 경우에도 절대 돌리지 마"* 급의 분명한 거부를 주세요 — 그때만, 그것도 **이번 세션에 한해서만** 억제합니다(다음 세션엔 다시 기본 ON). 안정성 확인을 *영구히* 끄는 스위치는 일부러 안 만들었습니다.
+
+**벤치마크는 두 단입니다** — 자동으로 도는 *경량(lite)* 과, 당신이 승인해야 끝까지 가는 *딥(full 적대검증)*:
+
+| | **경량(lite) 벤치** | **딥(full) 적대검증** |
+|---|---|---|
+| **언제** | 서빙 성공 직후 **자동**(기본 ON) | 당신이 **명시 승인** 할 때 — 예: *"커뮤니티에선 이 정도 나온다는데 검증해줘"* |
+| **무엇을** | 속도 2종(gen t/s·콜드 TTFT) + 용량 3종(GPU VRAM·KV·시스템 RAM) → **5줄 스냅샷 표** | `vllm bench serve` 로 **동시요청 변주(1/4/8/16…)** 케이스별 성능 표 |
+| **판정** | **없음 — inform-only**(보여주기만, 이상하면 "딥 검증 권유" 까지) | **PASS / REFUTE 결정론 게이트** — 아래 3중 방어막 |
+| **기각되면** | (판정 안 함) | 여정 3 레시피를 **다시 자극 → 전략 폐기·재탐색**(될 때까지, cap 한정) |
+| **멀티노드** | 서브를 **SSH 읽기전용 probe** → 노드별 병합 표(Main·Sub) | + **노드간 VRAM 밸런스**(격차 >10% 면 REFUTE) |
+
+한 줄로 — **경량은 "지금 상태를 보여주는" 자동 스냅샷**, **딥은 "충분히 빠른지 적대적으로 따지는" 게이트** 입니다. 승인하면 딥은 *기대 이하 성능을 당신이 눈치채기 전에* 잡아내고, 잡히면 레시피를 다시 굴립니다.
 
 스모크가 통과해도 끝이 아닙니다. *충분히 빠른가요?* 여기 이 프로젝트가 뼈아프게 배운 실화가 있습니다.
 
@@ -590,7 +716,7 @@ git tag -l --format='%(contents)' hint/0.24.0/deepseek-v4-flash/gb10 > seed/hint
 | `hint/0.18.0/gpt-oss-120b/gb10` | 0.18.0 | gpt-oss-120b | gb10 | multi 2노드 TP2 (Ray·RoCE) | active | - | 2026-07-03 | 0.18.0 prebuilt wheel 로 gpt-oss-120b(MXFP4)를 2×GB10 분산서빙 — MXFP4 auto=TRITON+Marlin(humming 불요·모델별 전략 독립 실증) |
 | `hint/0.23.0/deepseek-v4-flash/gb10` | 0.23.0 | deepseek-v4-flash | gb10 | multi 2노드 TP2 (Ray·RoCE) | active | hint/0.24.0/deepseek-v4-flash/gb10 | 2026-07-03 | jasl/vllm SM12x 포크(PR#41834 @c766cbc6) + humming 으로 공식 MXFP4 DeepSeek-V4-Flash 를 2×GB10 서빙 — Route B(포크핀 변종 트랙 …-source-sm12x) |
 | `hint/0.23.0/gemma-3-1b-it/gb10-sim-rtx4080` | 0.23.0 | gemma-3-1b-it | gb10-sim-rtx4080 | single 1노드(managed 획득모드, 결합-HITL 분기 테스트 메인측) | active | hint/0.23.0/gemma-4-12b-it/gb10-sim-rtxpro6000 | 2026-07-08 | target_gpu=RTX 4080(16GiB) 시뮬레이션 — batch 미최대화 자기검증(trial01 batch=20→실측 재계산 batch=55) 사례 |
-| `hint/0.23.0/gemma-4-12b-it/gb10-sim-rtxpro6000` | 0.23.0 | gemma-4-12b-it | gb10-sim-rtxpro6000 | single 1노드(sub-control 양노드 독립 서빙, 메인·서브 동일 레시피) | active | - | 2026-07-08 | target_gpu=RTX PRO 6000(96GiB) 시뮬레이션 — 실 GB10(121.69GiB) 측정치를 96GiB 예산으로 이식(host≠target 절대 KV 클램프), batch 52(host)→36(target) 축소 실증 |
+| `hint/0.23.0/gemma-4-12b-it/gb10-sim-rtxpro6000` | 0.23.0 | gemma-4-12b-it | gb10-sim-rtxpro6000 | single 1노드(sub-control 양노드 독립 서빙, 메인·서브 동일 레시피) | active | — | 2026-07-08 | target_gpu=RTX PRO 6000(96GiB) 시뮬레이션 — 실 GB10(121.69GiB) 측정치를 96GiB 예산으로 이식(host≠target 절대 KV 클램프), batch 52(host)→36(target) 축소 실증 |
 | `hint/0.23.0/minicpm5-1b/gb10-sim-rtx4070` | 0.23.0 | minicpm5-1b | gb10-sim-rtx4070 | single 1노드(ephemeral 획득모드, 결합-HITL 분기 테스트 서브측) | active | hint/0.23.0/gemma-3-1b-it/gb10-sim-rtx4080 | 2026-07-08 | target_gpu=RTX 4070(12GiB) 시뮬레이션 — ephemeral HF 다운로드 + parse_vllm_log.py 로그포맷 갭(FROZEN 파일 미수정, HITL 수동 클램프 산정) |
 | `hint/0.24.0/deepseek-v4-flash/gb10` | 0.24.0 | deepseek-v4-flash | gb10 | multi 2노드 TP2 (Ray·RoCE) | active | hint/0.23.0/deepseek-v4-flash/gb10 | 2026-07-03 | true stock vLLM 0.24.0 이 DeepSeek-V4-Flash 를 2×GB10 서빙 — nv_dev peel(벽 1개만 하드웨어·나머지 SW-fixable · 지도이지 정답 아님) |
 | `hint/0.24.0/gpt-oss-120b/gb10x2-sim-rtxpro6000x2` | 0.24.0 | gpt-oss-120b | gb10x2-sim-rtxpro6000x2 | multi 실 2노드 Ray TP2(main+sub GB10) — target=2xRTX PRO 6000 프로젝션 | active | docs/devlog/devlog_2026070908_1_델타2-2_gpt-oss-120b_최종해결_및_4시나리오_전량PASS.md,docs/testlog/testlog_2026070908_1_델타2-2_gpt-oss-120b_2xRTXPRO6000모사_실2노드_검증.md | 2026-07-09 | gpt-oss-120b(MXFP4 MoE, 60.77GiB) — 실 2노드 TP=2 Ray 분산서빙, 2xRTX PRO 6000(96GiB x2) 타겟 KV클램프 이식. 0.24.0 moe-backend=auto 회귀(TP=2 CompilationError) → marlin 전환 + gmu 0.8. |
