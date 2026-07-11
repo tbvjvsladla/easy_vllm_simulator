@@ -102,7 +102,9 @@ fi
 #   aarch64(GB10)는 low-mem 예약이 "not ready" 를 자주 유발 → `,high`(고메모리 우선 예약)가 권장
 #   (참조: docs.kernel.org/arch/arm64/kdump.html — high 성공 시 low 128M 자동). 커널은 cmdline 의
 #   **마지막** crashkernel= 를 채택하므로 dual-param(99-정렬 함정)을 피해 **단일 값**으로 교정한다.
-KDUMP_CRASHKERNEL="${KDUMP_CRASHKERNEL:-512M,high}"   # env 로 전체 스펙 조정 가능(예 256M,high · 1G-:512M)
+#   [P4 · testlog_2026071111_1 §0]: 512M→2G,high — 124GiB 호스트서 512M 는 crash-kernel makedumpfile OOM
+#     으로 vmcore 저장 실패(2026-07-11 실증 vmcore 0). kdump-config 자체 권고 1660M · NVIDIA Tegra r36=2G.
+KDUMP_CRASHKERNEL="${KDUMP_CRASHKERNEL:-2G,high}"   # env 로 조정 가능. 2G = 128GiB 호스트 vmcore 저장 여유
 if [ "$WITH_KDUMP" = "1" ]; then
   say "④ kdump-tools 설치 + 활성화(USE_KDUMP=1) + crashkernel=${KDUMP_CRASHKERNEL} 예약 (**재부팅 1회 필요**)"
   if [ "$APPLY" = "1" ]; then
@@ -113,6 +115,11 @@ if [ "$WITH_KDUMP" = "1" ]; then
         sed -i 's/^USE_KDUMP=.*/USE_KDUMP=1/' /etc/default/kdump-tools
       else
         echo 'USE_KDUMP=1' >> /etc/default/kdump-tools
+      fi
+      # (a2) KDUMP_SKIP_VMCORE=0 (P4 · testlog_2026071111_1 §0 — BSP 가 =1 이면 vmcore 저장 스킵 = 2026-07-11
+      #      vmcore 0 근본원인. 존재하는 =1 만 뒤집음; 부재 시 append 금지 — 비표준 노브 신설 위험).
+      if grep -qE '^KDUMP_SKIP_VMCORE=' /etc/default/kdump-tools 2>/dev/null; then
+        sed -i 's/^KDUMP_SKIP_VMCORE=.*/KDUMP_SKIP_VMCORE=0/' /etc/default/kdump-tools
       fi
       # (b) crashkernel 을 **단일 파라미터**로 교정. 옛 잘못정렬 오버라이드(99-/zz-) 제거 후,
       #     kdump-tools.cfg 의 플레이스홀더 값 자체를 sed 로 실값으로 치환(dual-param 마지막-승 함정 회피).
@@ -130,8 +137,17 @@ EOF
       elif command -v update-grub2 >/dev/null 2>&1; then update-grub2 >/dev/null 2>&1
       else grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1; fi
       systemctl enable kdump-tools >/dev/null 2>&1
-      say "  ✓ USE_KDUMP=1 · crashkernel=${KDUMP_CRASHKERNEL}(단일) · update-grub 완료 — **재부팅 후** ready"
-      say "  ⚠ 재부팅 후 검증: kdump-config show | grep 'current state' → 'ready to kdump' 필요(plan §8 Phase2)"
+      # (c) hang→panic 승격 (P4 — 22분 무음 non-panic hang 은 crash_kexec 미발동 → vmcore 0. hung_task·
+      #     softlockup 을 panic 으로 올려 kexec 경로 진입. panic=10 = 패닉 후 10s 자동재부팅).
+      cat > /etc/sysctl.d/99-easy-vllm-kdump-trigger.conf <<'EOF'
+kernel.hung_task_panic=1
+kernel.hung_task_timeout_secs=60
+kernel.softlockup_panic=1
+kernel.panic=10
+EOF
+      sysctl -p /etc/sysctl.d/99-easy-vllm-kdump-trigger.conf >/dev/null 2>&1
+      say "  ✓ USE_KDUMP=1 · KDUMP_SKIP_VMCORE=0 · crashkernel=${KDUMP_CRASHKERNEL} · hang→panic sysctl · update-grub — **재부팅 후** ready"
+      say "  ⚠ 재부팅 후 검증: kdump-config show|grep 'current state'→'ready' + grep -i crash /proc/iomem(~2G 예약) + (scratch)echo c>/proc/sysrq-trigger 로 vmcore 실착지"
     fi
   fi
 else
