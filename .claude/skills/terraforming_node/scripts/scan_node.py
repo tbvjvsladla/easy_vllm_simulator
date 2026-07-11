@@ -438,6 +438,8 @@ def emit_manifest_block(result: dict) -> str:
     lines += [
         "# ⚠ 인터뷰 확정 필드(이 scan 블록엔 없음 — 별도 추가): model_source(managed|ephemeral|custom)·nas_model_path.",
         "#   manifest_contract 게이트가 valid model_source 를 요구 — 미설정 시 info-only 유지(Flag complete 만으론 불충분).",
+        "# ⚠ host_safety.installed(true|false): terraforming 세션 최종 Y/N 답변 후 기입(scan 무증거 기입 ✗ · Flag 와 독립 —",
+        "#   안전체계 미설치여도 Flag valid. 헌법 §호스트 안전체계 따름정리 선택화 · plan_2026071115_1).",
     ]
     return "\n".join(lines) + "\n"
 

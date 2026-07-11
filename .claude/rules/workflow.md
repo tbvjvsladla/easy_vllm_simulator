@@ -36,7 +36,7 @@ S2 patch    → single-node · multi-node 두 브랜치 패치
 S2.5 sync   → (multi-node 전용) 메인 검증코드 → 서브 직접 전달
    - .claude/skills/upstream-version-watch/scripts/sync_to_sub.sh (기본 dry-run → --apply): rsync over SSH(인터커넥트는 manifest.interconnect), 체크섬 검증.
      서브 노드 접속값(host·ssh_user)은 manifest.yaml `nodes[]`에서 읽는다.
-     빌딩블럭(.git/seed/docs/메인 CLAUDE.md 등)은 제외하되 **런타임블럭·위임키는 선별 오버레이 배달**(recipe.py·adversarial scripts·task-report.schema.json·a2a_delegation.json — 서브 렌더 페르소나 보호와 공존, 스크립트 실체 기준). GitHub 경유 X.
+     빌딩블럭(.git/seed/docs/메인 CLAUDE.md 등)은 제외하되 **런타임블럭·위임키는 선별 오버레이 배달**(recipe.py·adversarial scripts(**lite_bench.sh·lite_metrics.py 포함** — git-tracked 자동 전파, `render_sub_env._copy_tracked`)·task-report.schema.json·a2a_delegation.json — 서브 렌더 페르소나 보호와 공존, 스크립트 실체 기준). GitHub 경유 X.
    - 서브는 메인 전달 코드로 생존. 서브 자작 envs/configs는 메인이 아카이브.
    - 모델구동 런타임 패치(configs/<model>_patch.py · arm_patch.sh)도 output/<topology>/ 에 있어 이 rsync 로 함께 하향 배달(서브 슬레이브가 마운트·arm). 서브는 패치 저작 ✗(상향은 docs 탐지보고만 — D12-06·13). 헌법 패치 전파.
    - **모델 트리플렛(`<model>.{yaml,sh}` · `.env.<model>`)은 서브로 전달하지 않는다(Band3 — sync_to_sub 구조적 배제, `<model>_patch.py` 만 특례)**. 멀티 TP **슬레이브 = Band2-only**(Ray worker): `.env.cluster`(MoE-JIT MAX_JOBS 포함)+`.env.interconnect` 만으로 기동 → 모델 트리오 불요. **트리플렛을 메인→서브 직접 rsync 로 밀어넣는 우회 금지**(슬레이브가 `.env.<model>` 의존하면 미완결 신호). 헌법 "모델 트리플렛 전파 불변식" · `plan_2026062811_2` · `devlog_2026062418_1`.
@@ -44,8 +44,8 @@ S2.5 sync   → (multi-node 전용) 메인 검증코드 → 서브 직접 전달
 
 S3 smoke    → NAS 체크 + 로컬 빌드 + 실-서빙 스모크
    - ⑤ NAS 체크: check_smoke_model.py <config_name> --topology <single|multi> — 모델 부재면 **중단·보고** 후 §모델/안전 결정트리(사용자 승인 게이트)로만 진행. **무인 자동 다운로드 ✗** — *모든 모드 공통* 시퀀스(부재→중단·보고→승인 게이트→모드별 위치 다운로드: managed=관리경로 영속 / ephemeral=임시 / custom=지정경로 영속). --topology 필수(산출물 통로 output/<topology>/)
-   - ⑤.5 로드-전 RAM 게이트: check_smoke_model.py 가 모델 실재 확인 직후 결정론 판정 — 체크포인트(index total_size — du ✗)÷TP + floor(10GiB) vs MemAvailable → 부족 시 vllm-drop-caches 1회 자동 → 재측정 → 부족 지속 = 기동 거부(exit 7). recipe simulate 경로는 recipe.py 가 매 trial 전 동형 게이트. 헌법 호스트 안전체계 따름정리.
-   - (단일노드) 빌드: docker compose --profile debug build · 서빙: --profile serve up → 프롬프트 1회 → 비어있지 않은 완성 (전제: easy-vllm-memwatch systemd active — 미설치 노드는 terraforming §1S 호스트 안전체계 스텝 선행)
+   - ⑤.5 로드-전 RAM 게이트: check_smoke_model.py 가 모델 실재 확인 직후 결정론 판정 — 체크포인트(index total_size — du ✗)÷TP + floor(10GiB) vs MemAvailable → 부족 시 vllm-drop-caches 1회 자동 → 재측정 → 부족 지속 = 기동 거부(exit 7). recipe simulate 경로는 recipe.py 가 매 trial 전 동형 게이트. (**안전체계 opt-out 노드 = `vllm-drop-caches` 헬퍼 부재 → drop skip·음성정직 보고, 부족 시 거부 exit 7 로직 보존** — `preload_ram_gate.try_drop_caches` 기구현 graceful, plan_2026071115_1 §2.5.) 헌법 호스트 안전체계 따름정리.
+   - (단일노드) 빌드: docker compose --profile debug build · 서빙: --profile serve up → 프롬프트 1회 → 비어있지 않은 완성 (권장: easy-vllm-memwatch systemd active — **opt-out 노드는 채팅 1줄 경고 후 진행** · 헌법 §호스트 안전체계 따름정리 선택화 · 하네스 협역 워치독은 설치 무관 작동 · plan_2026071115_1)
    - ⚠ 빌드 평면 커버리지: mem_watchdog 은 컨테이너-레벨이라 **빌드(buildkit·cicc·MoE-JIT)는 못 잡는다**(빌드 평면 백스톱 = 프로세스-레벨 earlyoom). **대형 소스빌드는 기존 serve 를 down 후 수행**(동시 가동 시 빌드-OOM 트립이 무고한 serve 를 오킬). 헌법 호스트 안전체계 따름정리.
    - near-max batch(요구 시): 서빙 docker logs 의 kv_cache_tokens/max_concurrency 로 실측 near-max 산출(Phase-1.5, 스킬 §5) → recipe max-num-seqs 보강. 공식 batch 금지(헌법 near-max 따름정리).
    - KV 이식성: 최종 recipe 는 측정된 GPU당 kv-cache-memory-bytes(절대값) + gpu-memory-utilization 을 **함께** emit. clamp=KV·이식성, gmu=startup free-memory 게이트+총cap(통합메모리 ≤0.90; vLLM 은 KV 사이징에만 gmu 무시 — E2E 실증). 헌법 KV 절대클램프 따름정리.
@@ -153,7 +153,7 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 +
   - **ephemeral/custom 사용자 승인 요청 시**: `crosscheck_model_card.py --ephemeral-estimate --hf-repo-id <repo>`
     로 HF 공개 API 파라미터-총계 사전추정(다운로드 없음, plan_2026070814_1)을 **함께 제시**한다 — "대략 몇
     GiB인지 모른 채 승인"을 방지(조회 실패 시 음성정직 보고, 대체값 날조 금지).
-- **호스트 안전체계(헌법 §호스트 안전체계 따름정리 · plan_2026071019_1)**: mem_watchdog systemd 상시·earlyoom·sudoers 단일 헬퍼(`vllm-drop-caches`)·kdump 의 **설치 = HITL sudo**(`install_host_safety.sh --apply` — 실행 주체는 사람, terraforming §1S/§1.5H 스텝). **가동(상시 데몬) = "무인 자동실행 없음" 원칙의 명시 예외**(관측+보호킬 한정 — bump/다운로드의 완전-수동 속성과 별개 평면). 정리 루틴: 페이지캐시 드랍 = 게이트/teardown 자동 지점 + 수동 · docker 찌꺼기 = `cleanup_docker.py` dry-run 표 → **사람 승인 후 --apply**(트리거 = bump S4 종료 + 세션말 질의 — 자동 주기 ✗).
+- **호스트 안전체계(헌법 §호스트 안전체계 따름정리 · plan_2026071019_1·plan_2026071115_1)**: mem_watchdog systemd 상시·earlyoom·sudoers 단일 헬퍼(`vllm-drop-caches`)·kdump 의 **설치 = terraforming 세션 최종 선택조항**(Flag 발급 *후* Y/N · 보험판매 톤 · 강제·차단 ✗) → **HITL sudo**(`install_host_safety.sh --apply` — 실행 주체는 사람, terraforming §2.6). **Flag 와 독립**(미설치도 Flag valid) · opt-out = manifest `host_safety.installed:false` + 통합메모리 노드만 서빙 시 채팅 1줄 경고(serve 배너 코드 ✗). **가동(상시 데몬) = "무인 자동실행 없음" 원칙의 명시 예외**(관측+보호킬 한정 — bump/다운로드의 완전-수동 속성과 별개 평면). 정리 루틴: 페이지캐시 드랍 = 게이트/teardown 자동 지점 + 수동 · docker 찌꺼기 = `cleanup_docker.py` dry-run 표 → **사람 승인 후 --apply**(트리거 = bump S4 종료 + 세션말 질의 — 자동 주기 ✗).
 - HITL 게이트 이전 자동 핀 변경/자동 커밋·서브 전파 금지.
 - 단계 건너뛴 부분 적용 상태로 빌드 금지(일관성).
 

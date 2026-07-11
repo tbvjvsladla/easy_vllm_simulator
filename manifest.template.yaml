@@ -22,6 +22,15 @@ terraforming:
   branch_verified: false          # git 브랜치 ↔ topology ↔ scan 3자일치 단언(§1.5) 통과 여부
   scanned_at: ""                  # 검증 스캔 시각(YYYYMMDDHH 또는 ISO)
 
+# === 호스트 안전체계 설치 여부 (terraforming 세션 최종 선택조항 — 헌법 §호스트 안전체계 따름정리 · plan_2026071115_1) ===
+# Flag(terraforming.complete)와 **독립** — 안전체계 미설치여도 Flag valid(요건에서 명시 분리 · §테라포밍-완수 Flag 게이트).
+# 값은 terraforming 세션 최종 Y/N 답변 후에만 기입한다(scan 무증거 기입 ✗ — model_source 와 동형 인터뷰 필드).
+#   Y = install_host_safety.sh --apply(HITL sudo) 실행 + installed:true / N = 중립 기록 installed:false(차단 없음).
+#   opt-out(false) + 통합메모리 노드면 이후 서빙 기동 시 에이전트 채팅 1줄 경고(코드 배너 ✗ · discrete 무경고).
+# 멀티는 노드별 독립 선택 → nodes[].host_safety.installed 로 per-node 기입(아래 nodes[] 주석 참조).
+host_safety:
+  installed: <true|false>          # 세션 최종 Y/N 답변 후 기입(미답=미기입 빈 스켈레톤). 하네스 협역 워치독은 설치와 무관하게 작동.
+
 # === 모델 확보 정책 3종 (인터뷰 — 헌법 §모델 획득 모드 따름정리 3종 · 결정트리 · plan_2026063018_1) ===
 # managed   = 사람이 사전 다운로드해 관리 NAS 경로(nas_model_path)에 둔 모델을 read-only 마운트(관리 NAS read-only 마운트 기본·권장 — 무단 다운로드 없음).
 # ephemeral = 컨테이너 내부 HF 캐시에 임시 다운로드(컨테이너 down→삭제). **다수 기본** — NAS 미보유 환경.
@@ -72,8 +81,10 @@ nodes:
     ssh_user: <user>              # 인터뷰 — SSH 계정
     work_dir: <abs_path>          # 메인 레포 루트(예 /home/<user>/ws_docker/easy_vllm_simulator). 미지정 시 로컬 $REPO.
     # model_source: managed        # (선택) 노드 override. 없으면 클러스터 기본 상속.
+    # host_safety: { installed: true }   # (선택·멀티) 노드별 독립 Y/N 기록. 없으면 top-level host_safety 상속.
   - role: sub
     host: <IP_or_hostname>        # 인터뷰 — 서브 노드 주소
     ssh_user: <user>              # 인터뷰 — SSH 계정
     work_dir: <abs_path>          # 서브 작업환경. 기본값=메인 work_dir 와 동일(R2). ⚠ 신설은 HITL 후(자동신설 금지).
     # model_source: ephemeral      # (선택) single sub-control: 메인 managed·서브 ephemeral 같은 노드별 분기
+    # host_safety: { installed: false }  # (선택·멀티) 서브 노드 안전체계 Y/N(서브에서 사용자 실행 — A2A 경계, 메인 sudo 대행 ✗).
