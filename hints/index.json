@@ -57,7 +57,7 @@
       "topology": "single 1노드(sub-control 양노드 독립 서빙, 메인·서브 동일 레시피)",
       "brief": "target_gpu=RTX PRO 6000(96GiB) 시뮬레이션 — 실 GB10(121.69GiB) 측정치를 96GiB 예산으로 이식(host≠target 절대 KV 클램프), batch 52(host)→36(target) 축소 실증",
       "anchor": "ef54240222544b58fe0bf28b8593c74e44101efa",
-      "related": "-",
+      "related": "",
       "status": "active",
       "last_verified": "2026-07-08"
     },
@@ -96,6 +96,18 @@
       "related": "docs/devlog/devlog_2026070908_1_델타2-2_gpt-oss-120b_최종해결_및_4시나리오_전량PASS.md,docs/testlog/testlog_2026070908_1_델타2-2_gpt-oss-120b_2xRTXPRO6000모사_실2노드_검증.md",
       "status": "active",
       "last_verified": "2026-07-09"
+    },
+    {
+      "tag": "hint/0.24.0/hy3/gb10",
+      "vllm": "0.24.0",
+      "model": "hy3",
+      "arch": "gb10",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "Tencent Hy3-295B(21B active + 3.8B MTP) NVFP4-W4A16 를 2×GB10 에이전트-레디 서빙 — MARLIN NvFp4(W4A16 강제·cutlass/flashinfer 거부) + MTP spec-1 + fp8 KV 절대클램프 + enforce-eager + no-autotune + :opensource 파서패치. master(Ray head+API 동거)가 타이트 → memwatch 바닥 완화 필요.",
+      "anchor": "012d5407bc757b525ac7da39d404023c85fc3480",
+      "related": "hint/0.24.0/deepseek-v4-flash/gb10",
+      "status": "active",
+      "last_verified": "2026-07-12"
     },
     {
       "tag": "hint/0.24.0/qwen3.6-35b-a3b/gb10-sim-h200x2",
