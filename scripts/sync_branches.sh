@@ -34,6 +34,7 @@ ALLOWLIST=(
     scripts/hint_tag.py
     scripts/templates
     scripts/mem_watchdog.sh
+    scripts/engine_liveness_watchdog.sh
     scripts/install_host_safety.sh
     scripts/cleanup_docker.py
     scripts/systemd

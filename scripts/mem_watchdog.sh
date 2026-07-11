@@ -8,7 +8,9 @@
 #   name_filter : docker ps --filter name=<filter> 부분일치(예: slave / master / vllm_trial)
 #   생략 또는 '@vllm' = 광역 모드 — 이미지/이름에 vllm 이 포함된 전 컨테이너(trial 포함).
 #     (systemd 상시 인스턴스용 — δ2-1 사고에서 name_filter 가 vllm_trial01 을 미커버한 갭의 교정.)
-# env: MEMWATCH_HEARTBEAT_SEC(기본 60, 0=끔 — MemAvailable 시계열 1줄/주기, 트립 전조 사후분석용)
+# env: MEMWATCH_HEARTBEAT_SEC(기본 15, 0=끔 — MemAvailable 시계열 1줄/주기 + 직전주기 MIN 병기, 트립
+#      전조 사후분석용. 60→15 하향 근거: 2026-07-11 768k 크래시서 60s HB 가 임계-하 최종접근을 가림
+#      (마지막 샘플 11099MiB 후 무음) → testlog_2026071111_1 §0 P2, 재현 반증가능성 확보)
 #      MEMWATCH_PIDFILE(지정 시 자기 PID 기록 — 하네스가 PID 기반으로 정리)
 # 정지: kill <pid> 로만. **pkill -f mem_watchdog 금지** — 호출자 자신의 명령줄을 매칭해
 #      부모 셸이 죽는 자기참조 버그 선례(exit 144, devlog_2026062718_1).
@@ -25,7 +27,7 @@ set -u
 FILTER="${1:-@vllm}"
 THRESH_MIB="${2:-10240}"   # MemAvailable < 10 GiB → trip
 INTERVAL="${3:-1}"
-HB_SEC="${MEMWATCH_HEARTBEAT_SEC:-60}"
+HB_SEC="${MEMWATCH_HEARTBEAT_SEC:-15}"
 [ -n "${MEMWATCH_PIDFILE:-}" ] && echo "$$" > "$MEMWATCH_PIDFILE"
 ts(){ date -u +%FT%TZ; }
 targets(){
@@ -39,12 +41,15 @@ targets(){
 }
 echo "[mem-watchdog] start filter='$FILTER' threshold=${THRESH_MIB}MiB interval=${INTERVAL}s heartbeat=${HB_SEC}s pid=$$ $(ts)"
 last_hb=0
+min_since_hb=999999999   # 직전 HB 이후 1s-폴 최저치(P2 — 임계-하 순간 dip 을 60s HB 가 놓치지 않게, testlog_2026071111_1 §0)
 while true; do
   avail_mib=$(( $(awk '/MemAvailable:/{print $2}' /proc/meminfo) / 1024 ))
+  [ "$avail_mib" -lt "$min_since_hb" ] && min_since_hb=$avail_mib
   now=$(date +%s)
   if [ "$HB_SEC" -gt 0 ] && [ $(( now - last_hb )) -ge "$HB_SEC" ]; then
-    echo "[mem-watchdog] HB MemAvailable=${avail_mib}MiB $(ts)"
+    echo "[mem-watchdog] HB MemAvailable=${avail_mib}MiB min=${min_since_hb}MiB $(ts)"
     last_hb=$now
+    min_since_hb=$avail_mib
   fi
   if [ "$avail_mib" -lt "$THRESH_MIB" ]; then
     ids=$(targets)
