@@ -80,24 +80,27 @@ def read_app_models_host_token(compose_yaml, container_root="/app/models"):
     return None
 
 
-def read_manifest_nas_root(base):
-    """<base>/manifest.yaml 의 nas_model_path (정본 호스트 NAS 루트, terraforming scan). 없으면 None."""
+def read_manifest_field(base, field="nas_model_path"):
+    """<base>/manifest.yaml 의 <field> (정본 호스트 루트, terraforming scan). 없으면 None.
+    field = 마운트 토큰 env-var 의 소문자형: NAS_MODEL_PATH→nas_model_path(/app/models) ·
+    QUANT_MODEL_PATH→quant_model_path(/app/quant_models 2차 마운트) — 마운트마다 정본 필드가 다르다."""
     mpath = os.path.join(base, "manifest.yaml")
     if not os.path.isfile(mpath):
         return None
     with open(mpath, encoding="utf-8") as f:
         for line in f:
-            m = re.match(r"\s*nas_model_path\s*:\s*(\S+)", line)
+            m = re.match(r"\s*" + re.escape(field) + r"\s*:\s*(\S+)", line)
             if m:
                 return m.group(1).strip().strip("'\"")
     return None
 
 
 def resolve_app_models_host_root(token, base):
-    """compose 토큰 → 실제 호스트 NAS 루트. 서브-소비자(serve-time)와 동일 우선순위로 해소:
-    env(NAS_MODEL_PATH 런타임 주입) > manifest.nas_model_path(정본) > compose default.
+    """compose 토큰 → 실제 호스트 루트. 서브-소비자(serve-time)와 동일 우선순위로 해소:
+    env(런타임 주입) > manifest.<var 소문자>(정본) > compose default.
     token 이 ${VAR:-default} 면 그 구문을 해소(리터럴 default 의 stray '}' 버그 회피).
-    리터럴 경로 토큰이면 그대로 반환."""
+    ⚠ 2차 마운트(/app/quant_models = ${QUANT_MODEL_PATH:-…})는 nas_model_path 가 아니라 quant_model_path 를
+      정본으로 읽어야 한다 → manifest 필드를 var 이름에서 도출(var.lower()). 리터럴 경로 토큰이면 그대로 반환."""
     m = re.fullmatch(r"\$\{(\w+)(?::-([^}]*))?\}", token or "")
     if not m:                       # 리터럴 경로(env-var 아님)
         return token
@@ -105,7 +108,7 @@ def resolve_app_models_host_root(token, base):
     env_val = os.environ.get(var)
     if env_val:
         return env_val             # 런타임 주입값(serve-time 과 동일)
-    man = read_manifest_nas_root(base)
+    man = read_manifest_field(base, var.lower())   # var-aware: QUANT_MODEL_PATH→quant_model_path 정본
     if man:
         return man                 # 정본 = manifest(env 미주입 시 serve 가 받아야 할 값)
     return default or None         # compose default(/mnt/models) — 최후
