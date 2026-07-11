@@ -110,6 +110,38 @@ decode-tps 축(§2)과 **직교**한 별도 루브릭 축. recipe-explorer 가 �
 - **버전-exact 확증**: `vllm bench serve` 존재·플래그를 이미지에서 확인 후 사용(가정 금지 — 파서명 caveat 동형).
 - 콜드 JIT(예 flashinfer SM120 첫 요청) → warmup 폐기로 흡수.
 
+## 5.5 경량(lite) 모드 — inform-only · 기본 ON (plan_2026071115_1 · Phase B)
+
+> full 적대 게이트(§2·§4·§6·§8 loop-until-done)와 **다른 모드**. lite 는 **서빙이 성공하면 자동으로 도는
+> 가벼운 상태-스냅샷**이다 — 배포 사용자가 "일단 떴다" 다음 곧바로 *속도·용량 현재치*를 눈으로 확인하게 해
+> Convenience/Experiences(검증 투명성)를 올린다. **소유 = adversarial-benchmark**(D4 — explorer 는 트리거·핸드오프만, D5).
+
+- **기본 ON (D7)**: serve 성공(`recipe-explorer` 서빙 완료) 직후 **자동 수행**. 가벼운 스킵 시그널("스킵해"·묵시적
+  넘어감)에도 **수행한다** — 경량 벤치는 시스템 안정성과 직결되어 *개발자 의지*로 기본 실행이다. **억제 = 강력 거부
+  구문**("무조건 어떠한 경우에서라도 구동하지 마" 급)만, 그리고 **세션 한정**(D25 — config/manifest 영구 기록 ✗;
+  매 세션 기본 ON 복귀). 영구 opt-out 불허(안정성=프로젝트 신뢰성 직결 · NG-4).
+- **inform-only (D8 · NG-6)**: **PASS/FAIL 판정 없음 · 자동 loop-back 없음**. `verdict_rule.py` 에 투입하지 않는다
+  (done-게이트는 오직 full 경로 §6·§8 소유 — 기능≠성능 따름정리 불변, lite 는 done-게이트가 **아니다**). lite 출력이
+  커뮤니티/레퍼런스 대비 **심각한 괴리**로 보이면 → **이상징후 안내 + full 승격 권유**까지만(자동 재탐색 ✗).
+- **괴리 판단 = 에이전트 재량 (D18 · NG-3)**: `references.md` §4 HW-스코프 baseline·포럼 수치 대비 *정성 판단*.
+  **정량 threshold 금지**(커뮤니티 자료 신뢰성은 가변 — "A 유저가 이만큼 냈다"가 늘 신뢰되진 않음). 결정론 게이트화 ✗.
+- **측정 사양 (D12·D23·D26)**: `lite_bench.sh <config>` — cold(무-warmup 단일요청→cold TTFT 별도 1줄) + warm
+  burst(**N=3**·conc=1·warmup 1 제외, `config bench.lite_burst_n`/`--burst-n` 조정) 2회 `vllm bench serve`. **5종 메트릭**:
+  gen tokens/sec(warm, =1000/median_tpot) · cold-start TTFT · GPU VRAM 점유(GiB+%) · KV cache 점유(GiB+%) · 시스템 RAM(GiB+%).
+  산정·표 렌더 = 결정론 `lite_metrics.py`(확률론 산정 ✗). 통합메모리(GB10)는 nvidia-smi 메모리 N/A → **serve-log VRAM
+  분해 폴백**, 그도 없으면 값 없이 "N/A(source)" 음성정직(대체값 날조 ✗). engine-log KV 라인 부재 시 fail-soft null.
+- **출력 (D29·D32)**: **single = 채팅 5행 표**(메트릭|값 · 용량은 GiB+% 병기 · cold TTFT 별도 행). **multi = 병합 표 1개**
+  — 용량 3종 열=**Main|Sub**(per-node), 속도·cold TTFT 는 마스터 엔드포인트 기준 1행(D19 — 신분차는 명령체계뿐, 관측은 평등).
+- **멀티 수집 (D19·D22 · A2A 정합)**: per-node 평등 수집. 서브 = **SSH 읽기전용 probe**(`nvidia-smi`/`/proc/meminfo` —
+  `multinode_serve_smoke.sh` 패턴 재사용). 이 읽기전용 런타임 관측은 **health 폴링과 동형 평면**이지 "서브 작업코드/설정
+  재스캔 금지"(A2A 경계 §7)와 **다른 평면**이다. 서브 probe 실패 시 graceful — 마스터 단독 + 실패 음성정직 표기.
+- **down 시나리오 (D21)**: "테스트만 하고 down" 케이스도 serve → **lite 수행** → 결과 표시 → down(라이브 엔드포인트가
+  있는 동안 측정). 용처 매뉴얼은 생략(recipe-explorer §6.5 — 용처 없는 케이스).
+- **자동 핸드오프 = 헌법 명시 예외**: recipe→adversarial **lite 한정** 자동 수행은 "무인 자동실행 없음" 트리거 정책의
+  **명시 예외**다(안전망 데몬 예외와 동형 — 관측·inform-only 한정). 헌법 §경량 벤치 자동 핸드오프 따름정리 참조.
+  **full 벤치(§6·§8)·bump·다운로드의 완전-수동 속성은 불변**. Flag 게이트: lite 는 이미 Flag-게이트된 serve 위에서
+  돈다(§0.0 전이적) + `lite_bench.sh` 가 `run_bench.sh` 와 동형 **fail-closed 백스톱**(키·MC·Flag 부재 exit 4).
+
 ## 6. 적대적 검증기 — Devil's Advocate (다중 렌즈, LLM)
 
 표적 주장 = *"이 서빙은 production/agent-ready 다(충분히 빠르고 일관적)."* 렌즈는 **서로 다른 실패모드**(같은 회의론 N개 ✗):
@@ -128,7 +160,8 @@ decode-tps 축(§2)과 **직교**한 별도 루브릭 축. recipe-explorer 가 �
 - **↔ recipe-explorer**: recipe 의 측정·serve 인프라(§5 Phase-1.5·simlog·`multinode_serve_smoke.sh`)를 **소비**, 위에 적대 루브릭/게이트만 얹는다. 기각 시 `next_strategy_hint` 로 recipe 재탐색 **자극**(recipe 가 전략 폐기·재생성 — feasibility 탐색은 recipe, performance 목표는 이 스킬이 주입). **recipe 측정/serve 재구현 금지**.
 - **↔ upstream-version-watch**: "루브릭 못 충족 + 구조적" → **escalation 역루프** 핸드오프(구동불가 증상 M≪expected + 외부 확증 = 적대 증거). upstream 이 버전핀/rebuild 소유(승인 게이트). 헌법 §escalation 역루프.
 - **↔ wiki-desk**: 진입 시 warm-start(이전 동일 모델/HW 성능 증거 우선소비). 새 testlog 발행 시 입고.
-- **블럭 분류 = 런타임블럭(서브 복제)**: 서브가 자기 모델에 자율 실행. **(b) 외부검색 arm = 이중게이트(A2A 위임 키 ∧ egress-online) 통과 시 서브 자율, 미통과 시 루프라인-only 판정 + 증상 docs 상향 보고**(메인 릴레이 · D12·escalation 서브 인스턴스 동형). 발견≠소유의 *성능-검증 축*.
+- **블럭 분류 = 런타임블럭(서브 복제)**: 서브가 자기 모델에 자율 실행. **(b) 외부검색 arm = 이중게이트(A2A 위임 키 ∧ egress-online) 통과 시 서브 자율, 미통과 시 루프라인-only 판정 + 증상 docs 상향 보고**(메인 릴레이 · D12·escalation 서브 인스턴스 동형). 발견≠소유의 *성능-검증 축*. lite 스크립트(`lite_bench.sh`·`lite_metrics.py`)도 이 런타임블럭에 속해 **git-tracked 로 서브 자동 전파**(sync_to_sub 명시 추가 불요 — `render_sub_env` `_copy_tracked`).
+- **lite 멀티 수집의 A2A 관측 평면 (§5.5)**: 서브 `nvidia-smi`/`/proc/meminfo` **읽기전용 probe** 는 health 폴링과 **동형 관측 평면**이지 A2A 경계의 "서브 작업코드/설정 재스캔·직접교정 금지"와 **다른 평면**이다(관측 ≠ 재스캔·교정). 실패 시 마스터 단독 + 음성정직.
 
 ## 8. 안전 / 금지
 
@@ -140,7 +173,9 @@ decode-tps 축(§2)과 **직교**한 별도 루브릭 축. recipe-explorer 가 �
 ## 9. 보조 파일
 
 - `scripts/roofline.py` — (a) spec-aware R_fp/R_token/expected (결정론, manifest+config/index).
-- `scripts/run_bench.sh` — 돌고 있는 serve 에 `vllm bench serve` → 결과 JSON + engine-log 캡처.
+- `scripts/run_bench.sh` — 돌고 있는 serve 에 `vllm bench serve` → 결과 JSON + engine-log 캡처(full 경로).
+- `scripts/lite_bench.sh` — 경량 inform-only 벤치 오케스트레이터(§5.5): cold+warm(N=3·conc1) `vllm bench serve` + per-node nvidia-smi/proc·meminfo + master engine-log KV + multi SSH 읽기전용 probe → raw JSON. `run_bench.sh` 의 Flag/A2A 게이트·envfile 해소 재사용. 서브 복제(런타임블럭 · git-tracked 자동 전파).
+- `scripts/lite_metrics.py` — lite 5종 메트릭 결정론 파서/렌더러(§5.5): raw JSON+bench JSON+engine-log → GiB/% 산정 + single 5행/multi 병합표 렌더. **verdict_rule 미투입(inform-only)** · 통합메모리 nvidia-smi N/A 폴백·음성정직.
 - `scripts/parse_bench.py` — bench JSON(+engine-log) → 측정 M(decode_tps=1000/median_tpot, accept_len, 교차검증).
 - `scripts/verdict_rule.py` — 결정론 PASS/REFUTE 게이트(3중 우선순위 E>c>expected, like-with-like, spec-off 강제함수).
 - `fixtures/` — verdict 단위검증 fixture(REFUTE 등).

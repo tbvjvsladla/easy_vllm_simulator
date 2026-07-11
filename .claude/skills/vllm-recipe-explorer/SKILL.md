@@ -189,7 +189,10 @@ python3 recipe.py generate --config config.yaml --recipe-id r3
 실서빙 trial-loop 전에 LLM이 사람과 **멀티턴 인터뷰**로 변수를 확정한다. **타깃 GPU가 0순위**(예산이
 모든 게이트의 기준). 순서대로 묻되, 사람이 모르면 결정론 산출값을 제안한다.
 
-1. **타깃 GPU / VRAM 예산** (필수, 0순위) — 예: RTX PRO 6000 96GB. → `config.yaml`의 `vram_budget_gb`(스칼라,
+1. **타깃 GPU / VRAM 예산** (필수, 0순위 · 폴백 명문화 D10) — *"따로 시뮬레이션 타겟 GPU 가 있나요?"* 물어
+   분기한다: **스킵/"호스트" 답변 → 호스트 GPU 기준**(manifest HW사실, 기존 흐름) · **명시 타겟 → `config.target_gpu`**
+   (γ 시뮬레이터 모드, `plan_2026070809_3` 기구현 — **VRAM 수준 한정** 시뮬레이션, 호스트≠타겟 아키텍처는 무관).
+   예: RTX PRO 6000 96GB. → `config.yaml`의 `vram_budget_gb`(스칼라,
    하위호환) 또는 host≠target 이식이면 구조화 `target_gpu` 블록(§5 "타겟-GPU 이식형 예산" 참조 — `plan_2026070809_3`).
    **이전 전제**: host 에서 측정한 attention backend 와 타겟이 동일해야 KV 레이아웃·overhead 가 유효 이전된다 —
    트리플렛 헤더에 명시 pin(`gen_recipe_set.py` 가 이미 `attention_backend` 를 emit).
@@ -235,6 +238,25 @@ python3 recipe.py generate --config config.yaml --recipe-id r3
   "reasoning_parser": null, "reasoning_parser_candidates": [],
   "model_capabilities": { "tool_call": false, "reasoning": false } }
 ```
+
+### 4.5 서빙 UX 인터뷰 4항목 (Convenience 보강 · plan_2026071115_1 · Phase C)
+
+Phase 2 인터뷰(§4)의 기술변수(lock/soft/free) 확정과 **별개로**, 서빙 경험을 매끄럽게 하는 **4항목**을 함께
+수집한다. **이 4항목은 lock/soft/free 변수가 아니다** — lockset 표·`lockset.json`·`run_trial` serve-args 에 넣지
+않는다(서빙전략 산물이지 KV 클램프 변수 아님). 판단계층(인터뷰)이라 코드 변경 최소.
+
+| 항목 | 질문 요지 | 기본값(무답) | 분기 |
+|------|-----------|--------------|------|
+| ① 타겟 GPU | (§4 item 1 재참조) "따로 시뮬 타겟 GPU 있나요?" | **호스트 GPU** | 명시 타겟 → γ 시뮬레이터 모드(VRAM 한정) |
+| ② 벤치마크 | **질문 아님** — lite 기본 ON 고지 | lite 자동 수행 | 강력 거부 구문만 → **세션 한정** 억제(가벼운 "스킵해"는 무시·수행) |
+| ③ 용처 | "서빙되면 어디에 연결해 쓰실 건가요? (예: OpenWebUI·Hermes Agent·직접 API…)" | 무답/"아몰랑" → curl 예시만 | 열린 목록 — 어떤 답이든 외부검색 시도 |
+| ④ 컨테이너 | "서빙 후 유지할까요, 테스트만 하고 내릴까요?" | **유지** | down → §6.5 시퀀스(serve→lite→표시→down) |
+
+- ①·③·④ 는 **서빙 *전* 사전 수집**(D11) → ③ 용처 매뉴얼은 **서빙 *후*** 팝업(§6.5, 2-phase). ② 는 질문이 아니라
+  **고지**(lite 는 adversarial-benchmark 소유·기본 ON — §6.5 핸드오프).
+- **컨테이너 기본 = 유지**(D-현행 관행 명문화): 서빙 성공 후 컨테이너를 살려 둔다(§3 Phase-2 teardown 은 *trial-loop*
+  통합메모리 OOM 보호용 per-trial 정리이지 최종 serve 유지와 별개 평면 — 최종 serve 유지/down 은 compose `--profile
+  serve` 수명). down 은 사용자 명시 시에만, **down 전 lite 필수**(§6.5).
 
 ## 5. Phase 2 — 절대 KV 클램프 (가장 중요)
 
@@ -351,6 +373,7 @@ python3 recipe.py simulate --config config.yaml --candidate lockset.json \
 run_trial(candidate)            # docker run -d → /health 200 폴링 → functional_smoke → logs → parse_vllm_log → teardown
   → sim_classify(trial, budget, margin)
       none           → 수렴. gen_recipe_set 3종 세트 + simlog write_summary + feedback(converged=True, 실측)
+                       → 최종 serve-up 후 §6.5 마무리(lite 벤치 자동 핸드오프 · opt-out 경고 1줄 · 용처 팝업/유지·down)
       vram_oom       → 조정: kv_cache_memory_bytes = min(required, max_safe)  [실측 weights/overhead 기반]
       functional     → 조정: 실패한 soft 변수를 *_candidates 다음 후보로 폴백
       vram_infeasible→ HITL 즉시 중단(KV로 못 푸는 구조적 초과)
@@ -377,6 +400,35 @@ run_trial(candidate)            # docker run -d → /health 200 폴링 → funct
   `correction_history.jsonl`(조정 이력), `run_summary.json`. 빌드/검증 판정은 `docs/testlog/`에 별도 기록(`.claude/rules/docs.md`).
 - **feedback_log**: invocation당 1행, Phase 2 필드(`batch, kv_cache_memory_bytes, attention_backend,
   tool_call_parser, reasoning_parser, converged, trial_count, correction_history`)를 실측 채움.
+
+## 6.5 서빙 완료 마무리 — lite 벤치 핸드오프 + 용처 연결 매뉴얼 (Convenience/Experiences · plan_2026071115_1 · Phase C)
+
+Phase 2 수렴(§6 `none`) + 최종 serve-up 성공 후, **최종 서빙유지 판정의 주체는 recipe-explorer**(런타임 스킬 중
+서빙을 기동·유지·종료하는 최종 권위). 그 마무리 단계에서 다음을 순서대로 수행한다.
+
+- **① lite 벤치 자동 핸드오프 (D5 — 트리거·핸드오프만)**: 서빙 성공 직후 **adversarial-benchmark 의 lite 모드**
+  (`lite_bench.sh`)로 핸드오프해 5종 상태 스냅샷을 자동 수행한다. **lite 소유 = adversarial-benchmark**(§5.5) —
+  recipe 는 *측정을 재구현하지 않고* 트리거만 한다. lite = inform-only(D8) · 기본 ON(가벼운 스킵 무시·강력 거부
+  구문만 세션 한정 억제 D7/D25). 헌법 §경량 벤치 자동 핸드오프 따름정리(명시 예외 — 관측·inform-only 한정)를 근거로 한다.
+  괴리 의심 시 lite 는 **이상징후 안내 + full 승격 권유**까지(자동 loop-back ✗). 사용자가 "커뮤니티에서 이 정도
+  나온다는데 검증해줘" 류 HITL 을 주면 그때 **full 벤치**(§6·loop-until-done·verdict_rule 게이트 — 기존 그대로)로 승격.
+- **② opt-out 노드 서빙 경고 재확인 (Phase A 연동 · D31·NG-5)**: opt-out+통합메모리 경고의 **발화 시점 정본은
+  terraforming §2.6 ③**(각 serve *기동 직전*). 이 마무리 단계(유지 결정)에서는 그 리스크를 **재고지**한다 — manifest
+  `host_safety.installed` 를 읽어 **통합메모리 노드 ∧ `installed:false`** 면 **에이전트 채팅 1줄**("워치독 미설치 —
+  통합메모리라 OOM 시 호스트 다운 위험, `install_host_safety.sh` 로 보강 가능"). **discrete 노드·installed:true 는
+  무경고 · serve 스크립트/로그 배너 코드변경 ✗**(시끄러운 경험 방지 — 페르소나 행동).
+- **③ 서빙유지 / down 분기**:
+  - **유지(기본)**: 서빙 완료 선언 → **용처 연결 매뉴얼 팝업**(아래 ④) → 서빙 유지.
+  - **down(사용자 명시 "테스트만")**: serve → **lite 수행** → 결과 표시 → **down**. **용처 매뉴얼 생략**(D21 — 라이브
+    엔드포인트 없음·용처 자체 부재).
+- **④ 용처 연결 매뉴얼 팝업 (D6·D9·D20·D27 · 벤치 루프가 돌았다면 승인 후)**: 채팅 **info-only 팝업**(파일 산출물
+  없음). **살아있는 엔드포인트 실값**(host:port/v1·서빙 모델명) 반영.
+  - **깊이 = 연결 방식만**(D20·NG-2): 대상 도구(OpenWebUI·Hermes Agent 등)의 **엔드포인트/API 필드 설정법** 중심.
+    대상 도구는 **타 지역·타 서버 소재 가능**(이 프로젝트 PC 에선 설치유무 불가지) → **설치 가이드·설치 탐지 ✗**.
+    도구 미설치로 보여도 공식 문서 링크 1줄만 덧붙인다.
+  - **외부검색 평면**: 획득모드와 무관하게 허용(서빙전략 외부 교차검증과 **동일 평면** — 모델획득 격리와 별개 · §3 「모델획득 격리 한정이지 외부접속 전반 차단 ✗」).
+    검색 실패 시 **음성정직 + curl 기본 안내 폴백**. **egress-restricted 서브 = 메인 릴레이**(기존 D12 경계).
+  - **무답/"아몰랑" (D9)**: 외부검색 생략 — **OpenAI-호환 엔드포인트 curl 예시만** 제시.
 
 ## 7. 범위 (Phase 1 / Phase 2)
 
