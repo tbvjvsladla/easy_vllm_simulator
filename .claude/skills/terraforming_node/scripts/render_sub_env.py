@@ -14,7 +14,7 @@ gitignored 스테이징 트리 `output/<topology>/sub_provision/` 로 렌더한�
   .claude/schemas/task-report.schema.json← task-report.schema.json    (복제·정적계약)
   .claude/skills/{vllm-recipe-explorer,adversarial-benchmark}/ ← 런타임블럭(git-tracked만 복제 — config.yaml/feedback/lockset 제외)
   .gitignore                             ← gitignore.template         (복제·서브 로컬git 추적규칙, D12)
-  docs/{plan,devlog,testlog}/example.md  ← 메인 docs/*/example.md     (복제·발행 스켈레톤, D12)
+  docs/{plan,devlog,testlog,simlog,benchmark}/example.md ← 메인 docs/*/example.md (복제·발행 스켈레톤, D12)
   tasks/.gitkeep                         ← 런타임 상태 스캐폴드(빈 디렉토리)
 
 D12: --topology {single|multi} 로 양 토폴로지 렌더(서브 로컬 git 양 브랜치). {{ TOPOLOGY }} 치환으로 페르소나가 브랜치 맥락 인지.
@@ -33,8 +33,9 @@ import shutil
 import subprocess
 import sys
 
-# docs.md 가 규정하는 발행 문서 4종(서브 docs 스켈레톤 계약 — self-test 가 강제).
-DOC_TYPES = ("plan", "devlog", "testlog", "simlog")
+# docs.md 가 규정하는 발행 문서 5종(서브 docs 스켈레톤 계약 — self-test 가 강제).
+#   benchmark = full-런 계측 vault(서브도 adversarial-benchmark 런타임블럭 실행 → report/인증서 발행 가능, plan_2026071510_1).
+DOC_TYPES = ("plan", "devlog", "testlog", "simlog", "benchmark")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL_DIR = os.path.dirname(HERE)                       # .claude/skills/terraforming_node
@@ -264,7 +265,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
     if os.path.isdir(MAIN_DOCS):
         n_docs = 0
         for ex in sorted(glob.glob(os.path.join(MAIN_DOCS, "*", "example.md"))):
-            dtype = os.path.basename(os.path.dirname(ex))     # plan|devlog|testlog|simlog
+            dtype = os.path.basename(os.path.dirname(ex))     # plan|devlog|testlog|simlog|benchmark
             dst = os.path.join(out_dir, "docs", dtype, "example.md")
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copyfile(ex, dst)
@@ -381,7 +382,7 @@ def _self_test() -> int:
                        "scripts/host/vllm-drop-caches.sh"]
         have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
         missing_art = [p for p in base_expect if not os.path.exists(os.path.join(out, p))]
-        # docs 스켈레톤: docs.md 계약 4종(DOC_TYPES) 전부 렌더됐나(simlog 누락 회귀 차단 — review)
+        # docs 스켈레톤: docs.md 계약 5종(DOC_TYPES) 전부 렌더됐나(simlog·benchmark 누락 회귀 차단 — review)
         rendered_doc_types = {os.path.basename(os.path.dirname(p))
                               for p in glob.glob(os.path.join(out, "docs", "*", "example.md"))}
         docs_contract_ok = set(DOC_TYPES).issubset(rendered_doc_types)
@@ -404,7 +405,7 @@ def _self_test() -> int:
                   and "Bash(git commit:*)" not in deny
                   and all(f"Bash(git {r}:*)" in deny for r in ("push", "pull", "fetch", "remote", "clone")))
         c4 = have and not leftover and git_ok and docs_contract_ok
-        print(f"  [{'PASS' if c4 else 'FAIL'}] 전체 렌더(미치환={leftover}, 누락아티팩트={missing_art}, git권한정합={git_ok}, docs계약4종={sorted(rendered_doc_types)})")
+        print(f"  [{'PASS' if c4 else 'FAIL'}] 전체 렌더(미치환={leftover}, 누락아티팩트={missing_art}, git권한정합={git_ok}, docs계약5종={sorted(rendered_doc_types)})")
         ok &= c4
     except SystemExit as e:
         print(f"  [FAIL] 렌더 예외: {e}")
