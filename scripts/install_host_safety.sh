@@ -99,14 +99,17 @@ fi
 # ── ④ kdump (선택 — 재부팅 필요 고지) ───────────────────────────────────
 #   Ubuntu 24.04 kdump-tools 는 noninteractive 설치 시 USE_KDUMP=0 + crashkernel=1G-:0M
 #   (플레이스홀더 = 0M 예약)로 남아 kdump 가 절대 ready 안 된다 → 명시 활성화·크기지정 필수.
-#   aarch64(GB10)는 low-mem 예약이 "not ready" 를 자주 유발 → `,high`(고메모리 우선 예약)가 권장
-#   (참조: docs.kernel.org/arch/arm64/kdump.html — high 성공 시 low 128M 자동). 커널은 cmdline 의
-#   **마지막** crashkernel= 를 채택하므로 dual-param(99-정렬 함정)을 피해 **단일 값**으로 교정한다.
+#   aarch64(GB10)는 low-mem 예약이 "not ready" 를 자주 유발 → `,high`(고메모리 우선) 권장. ★커널 6.17
+#   업데이트 실증(2026-07-15 Phase0 · plan_2026071512_1): `,high` **단독이 예약 실패**(addr 0x·/proc/iomem
+#   0-0, 양노드 — GRUB/cmdline 엔 2G,high 있으나 커널 미예약) → 참조-그라운디드(docs.kernel.org/arch/arm64/kdump
+#   · 6.17 CMA 변경, Phoronix): **high + 명시 `,low` 병기 필수**(자동 low 128M 이 6.17서 실패). ∴ 옛 "단일 값"
+#   교정을 high+low 병기로 대체(SUPERSEDES 단일-값 접근 for 커널 6.17+).
 #   [P4 · testlog_2026071111_1 §0]: 512M→2G,high — 124GiB 호스트서 512M 는 crash-kernel makedumpfile OOM
 #     으로 vmcore 저장 실패(2026-07-11 실증 vmcore 0). kdump-config 자체 권고 1660M · NVIDIA Tegra r36=2G.
 KDUMP_CRASHKERNEL="${KDUMP_CRASHKERNEL:-2G,high}"   # env 로 조정 가능. 2G = 128GiB 호스트 vmcore 저장 여유
+KDUMP_CRASHKERNEL_LOW="${KDUMP_CRASHKERNEL_LOW:-256M}"   # aarch64 커널 6.17: high 단독 예약 실패 → 명시 low 병기(참조 arm64 kdump). ""=끔(x86/구커널).
 if [ "$WITH_KDUMP" = "1" ]; then
-  say "④ kdump-tools 설치 + 활성화(USE_KDUMP=1) + crashkernel=${KDUMP_CRASHKERNEL} 예약 (**재부팅 1회 필요**)"
+  say "④ kdump-tools 설치 + 활성화(USE_KDUMP=1) + crashkernel=${KDUMP_CRASHKERNEL}${KDUMP_CRASHKERNEL_LOW:+ + ${KDUMP_CRASHKERNEL_LOW},low} 예약 (**재부팅 1회 필요** · 커널 6.17 high+low)"
   if [ "$APPLY" = "1" ]; then
     DEBIAN_FRONTEND=noninteractive apt-get install -y kdump-tools >/dev/null 2>&1 || { say "  ✗ kdump-tools 설치 실패"; FAIL=1; }
     if command -v kdump-config >/dev/null 2>&1; then
@@ -121,18 +124,17 @@ if [ "$WITH_KDUMP" = "1" ]; then
       if grep -qE '^KDUMP_SKIP_VMCORE=' /etc/default/kdump-tools 2>/dev/null; then
         sed -i 's/^KDUMP_SKIP_VMCORE=.*/KDUMP_SKIP_VMCORE=0/' /etc/default/kdump-tools
       fi
-      # (b) crashkernel 을 **단일 파라미터**로 교정. 옛 잘못정렬 오버라이드(99-/zz-) 제거 후,
-      #     kdump-tools.cfg 의 플레이스홀더 값 자체를 sed 로 실값으로 치환(dual-param 마지막-승 함정 회피).
-      rm -f /etc/default/grub.d/99-easy-vllm-kdump.cfg /etc/default/grub.d/zz-easy-vllm-kdump.cfg
+      # (b) crashkernel 교정 — aarch64 커널 6.17: high + 명시 low 병기(위 주석 · high 단독 예약실패 실증).
+      #     idempotent: kdump-tools.cfg 의 crashkernel 토큰 전부 제거(중복-high 함정 회피) 후, 우리 zz-
+      #     (최후정렬 'z'>'k'=권위)에 high+low emit. 재실행 안전(zz- 덮어쓰기·kdump-tools 스트립).
+      CK="crashkernel=${KDUMP_CRASHKERNEL}"
+      [ -n "$KDUMP_CRASHKERNEL_LOW" ] && CK="$CK crashkernel=${KDUMP_CRASHKERNEL_LOW},low"
+      rm -f /etc/default/grub.d/99-easy-vllm-kdump.cfg
       KT=/etc/default/grub.d/kdump-tools.cfg
-      if [ -f "$KT" ] && grep -q 'crashkernel=' "$KT"; then
-        sed -i "s|crashkernel=[^ \"]*|crashkernel=${KDUMP_CRASHKERNEL}|g" "$KT"
-      else
-        # kdump-tools.cfg 에 crashkernel 부재 → 마지막 정렬(zz-, 'z'>'k')로 예약(승리 보장)
-        cat > /etc/default/grub.d/zz-easy-vllm-kdump.cfg <<EOF
-GRUB_CMDLINE_LINUX_DEFAULT="\$GRUB_CMDLINE_LINUX_DEFAULT crashkernel=${KDUMP_CRASHKERNEL}"
+      [ -f "$KT" ] && sed -i 's/ *crashkernel=[^ "]*//g' "$KT"   # kdump-tools 의 crashkernel 제거(권위=우리 zz-)
+      cat > /etc/default/grub.d/zz-easy-vllm-kdump.cfg <<EOF
+GRUB_CMDLINE_LINUX_DEFAULT="\$GRUB_CMDLINE_LINUX_DEFAULT $CK"
 EOF
-      fi
       if command -v update-grub >/dev/null 2>&1; then update-grub >/dev/null 2>&1
       elif command -v update-grub2 >/dev/null 2>&1; then update-grub2 >/dev/null 2>&1
       else grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1; fi
@@ -146,8 +148,8 @@ kernel.softlockup_panic=1
 kernel.panic=10
 EOF
       sysctl -p /etc/sysctl.d/99-easy-vllm-kdump-trigger.conf >/dev/null 2>&1
-      say "  ✓ USE_KDUMP=1 · KDUMP_SKIP_VMCORE=0 · crashkernel=${KDUMP_CRASHKERNEL} · hang→panic sysctl · update-grub — **재부팅 후** ready"
-      say "  ⚠ 재부팅 후 검증: kdump-config show|grep 'current state'→'ready' + grep -i crash /proc/iomem(~2G 예약) + (scratch)echo c>/proc/sysrq-trigger 로 vmcore 실착지"
+      say "  ✓ USE_KDUMP=1 · KDUMP_SKIP_VMCORE=0 · $CK · hang→panic sysctl · update-grub — **재부팅 후** ready"
+      say "  ⚠ 재부팅 후 검증: kdump-config show|grep 'current state'→'ready' + grep -i crash /proc/iomem(**비-0 예약** — 0x0-0x0=여전히 실패) + (scratch)echo c>/proc/sysrq-trigger 로 vmcore 실착지"
     fi
   fi
 else
