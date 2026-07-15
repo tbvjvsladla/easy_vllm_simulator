@@ -87,6 +87,12 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋 + 서브 전파 +
      **`output/<topology>/`(single|multi)** 에 둔다 — 통로 껍데기 `.gitkeep`만 추적·생성물 비추적(CLAUDE.md "산출물 통로 불변식" · plan_2026062312_1). 예외: multi 손작성 컨테이너 정의는 output/multi/에 추적(정본).
    - git 위생: 과거 루트-추적 산출물은 worktree 삭제만으론 부족 → git rm + 커밋으로 HEAD에서도 제거해야 reset --hard가 되살리지 않음(엿본 정답/노이즈 방지).
      (.gitignore 규칙은 이미 올바름 — 재추가 말 것. 의존성 재생성 엔진 = .claude/skills/upstream-version-watch/scripts/regen_requirements.py — wheel METADATA 권위)
+   - hint 태그 발동(전작업 완료 후 · main-only · 헌법 hint 따름정리 §발동 시점): 커밋·문서·서브전파까지 **모두 끝난 뒤 최후**에,
+     새 (vllm×model×arch) 서빙성공이면 `python3 scripts/hint_tag.py match --vllm <v> --model <m> --arch <a>` 로
+     3/3 정확일치 부재(=신규 후보) 확인 → **에이전트 발행 제안(Y/N)** → Y: create(스캐폴드)→judgment 저작→finalize(PII fail-closed·
+     README/index 로컬 자동 갱신)→verify **로컬까지**. 앵커=해당 토폴로지 build-plane last-good 커밋. **push(hint 태그·single/multi 브랜치
+     공통)는 사용자 소관 — 루틴 자동 `git push` ✗**(무인 자동 태깅 ✗ · 브랜치 push 는 hint 루틴 대상 아님). 중복 triple=reverify 스탬프만.
+     절차 원천 = `docs/plan/plan_2026070222_1`(설계)·`plan_2026071607_1`(발동 패턴화).
    verify: docs/devlog·testlog에 버전·변경·스모크 결과·last-good 기록
    ── HITL 게이트 ④ : 최종 커밋(+서브 전파) 승인
 ```

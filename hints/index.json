@@ -120,6 +120,18 @@
       "related": "docs/devlog/devlog_2026070907_1_델타2-1_Qwen3.6-35B-A3B_최종해결_E2E_PASS.md,docs/testlog/testlog_2026070820_1_델타2-1_Qwen3.6-35B-A3B_H200x2_재시도_FAIL.md",
       "status": "active",
       "last_verified": "2026-07-09"
+    },
+    {
+      "tag": "hint/0.25.1/deepseek-v4-flash/gb10",
+      "vllm": "0.25.1",
+      "model": "deepseek-v4-flash",
+      "arch": "gb10",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "stock vLLM 0.25.1 = DSpark GB10 arch-wall(flashinfer decode_dsv4 page_block64 vs C128A) → jasl SM12x 포크 변종(b5c0d43b) + MATMUL_DECODE 성능레버로 DeepSeek-V4-Flash-DSpark 를 2×GB10 서빙(36.2 t/s · verdict PASS)",
+      "anchor": "6a1c70d753d234017c35a2df0f79c0fa65458794",
+      "related": "hint/0.24.0/deepseek-v4-flash/gb10",
+      "status": "active",
+      "last_verified": "2026-07-16"
     }
   ]
 }
