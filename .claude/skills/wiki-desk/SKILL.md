@@ -33,7 +33,7 @@ Invoke the librarian — read its metadata first, then act — when:
   surface prior devlog/testlog evidence so the Seed converges faster;
 - **devising a model serving strategy / bumping a vLLM version / changing topology** → query the
   library for what already worked (and what failed) on that model/version;
-- **a new doc is written** (plan/devlog/testlog/simlog) → shelve it (warm-start incremental);
+- **a new doc is written** (plan/devlog/testlog/simlog/benchmark) → shelve it (warm-start incremental);
 - **asked "what do we know about X / where is the evidence for Y"** → topical query with edges.
 
 ## Operating model

@@ -142,6 +142,26 @@ decode-tps 축(§2)과 **직교**한 별도 루브릭 축. recipe-explorer 가 �
   **full 벤치(§6·§8)·bump·다운로드의 완전-수동 속성은 불변**. Flag 게이트: lite 는 이미 Flag-게이트된 serve 위에서
   돈다(§0.0 전이적) + `lite_bench.sh` 가 `run_bench.sh` 와 동형 **fail-closed 백스톱**(키·MC·Flag 부재 exit 4).
 
+## 5.6 full-모드 종결 발행 — report + 인증서 (편지 패턴 A·B · plan_2026071510_1)
+
+> lite(§5.5)와 다른 **full 경로의 종결 산출물**. full 적대 게이트(§4 loop-until-done)가 **종결**(cap 소진 or PASS)되면,
+> 판정과 **별개로** 사람용 report + (PASS시)기계용 인증서를 `docs/benchmark/`(5번째 문서형 · docs.md §benchmark)에 발행한다.
+
+- **부하 스윕(client-load · reload 0)** — `sweep_bench.sh <config> [--topology] [--levels 1,2,4,8,16]`: 단일 running
+  serve 에 **동시성만** 변화(reload 0 — 벤치마커 "기동 안 함" 불변식 보존). **판정점(동시성=1) 강제 포함** → verdict
+  재사용(재측정 0). **적응 상한 클램프 + 절삭 로그**(레벨 실패 시 상위 중단·"레벨 N 절삭" 기록 — silent truncation ✗).
+  각 레벨 = `run_bench.sh` 메커니즘 재사용(Flag/A2A 게이트 전이). config-space(batch×maxlen) reload 는 이 스윕 **밖**(Max/explorer 소관).
+- **사람용 report(항상)** — `render_report.py --sweep-index <sweep_index.json> --verdict-json <verdict> [--roofline-json]`
+  → `docs/benchmark/report_<model>_<gpu>_<vllm>.md`. **PASS/FAIL 무관 발행**("왜 느렸나"도 사람이 봐야). **inform-only**
+  (verdict 를 *표시만* — 판정권한 ✗·verdict_rule 독점) · 결정론 렌더(LLM 표·숫자 저작 ✗) · N/A fail-soft.
+- **기계용 인증서(PASS시만)** — `publish_benchmark_record.py --sweep-index … --verdict-json …`
+  → `docs/benchmark/benchmark_<model>_<gpu>_<vllm>.yaml`. **flat 계약**(중첩 ✗ — 소비자 stdlib 독해) + **carry-forward
+  재검증 헤더**(강한키=model/gpu/vllm/quant/topology/tp 정확일치 + 소프트지문=driver/cuda/image/max-len/kv-bytes/gmu/moe
+  불일치 시 stale). verdict≠PASS 면 **미발행**(report 만).
+- **비용 규율(편지 B.5)**: 재탐색 루프 **내부는 값싼 단일점 판정** 유지 · 스윕·리치리포트는 **종결 1회**만. 오케스트레이션은
+  **에이전트 매개**(스킬↔스킬 직접호출 ✗ — §7). full 런은 사람-트리거이므로 종결 발행은 최소 예외면(inform-only·결정론 —
+  lite 자동핸드오프와 동형 평면, 헌법 §경량벤치 자동핸드오프 따름정리). **done-게이트는 여전히 verdict(§6) 독점** · lite 는 발행 안 함(채팅 표만).
+
 ## 6. 적대적 검증기 — Devil's Advocate (다중 렌즈, LLM)
 
 표적 주장 = *"이 서빙은 production/agent-ready 다(충분히 빠르고 일관적)."* 렌즈는 **서로 다른 실패모드**(같은 회의론 N개 ✗):
@@ -170,6 +190,31 @@ decode-tps 축(§2)과 **직교**한 별도 루브릭 축. recipe-explorer 가 �
 - 무승인 자동 escalate/rebuild ✗(escalation 은 승인 게이트). 무한 기각·무한 루프 ✗(cap → Model-C).
 - 게이트(PASS/REFUTE)는 결정론 규칙 — LLM 다수결로 결정하지 않는다.
 
+## 8.5 Max 모드 — HW 안전-최대 컨텍스트 envelope 특성화 (별도 오퍼레이션 · **구현됨** · plan_2026071510_1)
+
+> **별도 오퍼레이션 — 벤치마커 native 모드(§2·§4 적대검증)가 아니다.** 벤치마커의 *측정 인프라만* 공유하고,
+> 진입·트리거·안전게이트는 전부 별도. **Max 가 기동/reload 를 소유**하므로 벤치마커 본체 "기동 안 함" 불변식은 보존.
+> **라이브 E2E 는 후속**(실 스텝업 = 실제 하드다운 위험 → 드라이버 안전 재검증과 함께 신중히). 결정론 로직은 dry-run+fixture 검증됨.
+
+- **정체성 = 별도 오퍼레이션(벤치마커 인프라만 공유)**: Max 는 config 를 **재서빙(reload)** 하며 탐색하므로 벤치마커
+  "기동 안 함" 불변식과 충돌 → 서브모드 ✗. 측정 라이브러리(`run_bench`·`verdict_rule`·render 계열)만 재사용하고
+  진입·트리거 완전 별도(미래 soak-stress 스킬과 동형 배치). 코드는 `adversarial-benchmark/scripts/` 동거(인프라 재사용)·정체성 별도.
+- **축 = 컨텍스트(max-model-len) 안전측 스텝업(옵션 A)**: `max_envelope.sh <config> [--levels 131072,262144,393216,524288]
+  --confirm-risk`. 낮은 컨텍스트→높은 컨텍스트 오름차순 재서빙, 각 레벨 serve+smoke 통과=안전·기록·상향 / 실패·트립=**직전이
+  안전상한**·중단(안전측 적응 클램프·절삭 로그). 컨텍스트 축은 weights 불변이라 KV/prefill 위험을 **워치독+스모크가 관측**
+  (하드다운 봉투 512k안전/768k치명과 동형 — testlog_2026071113_1 안전측 프로브를 재사용 오퍼레이션으로 일반화). batch 축은
+  full(§5.6) client-load 스윕이 부분 커버. **default 상한 = 524288(검증된 안전상한)** — 초과 probe 는 --levels 명시로만.
+- **목적**: HW **안전-최대** envelope 특성화 — explorer("용처-최적 config *선택*") ↔ Max("절대-최대 config *특성화*"). 중복 ✗.
+- **트리거(완전 옵트인 · 자동 아님)**: **전작업 완료** 후에만 — 서빙 확정 + 문서(report/인증서) 발행 + wiki 등록까지 끝난
+  지점에서 **에이전트가 챗 경고톤 Y/N**("Max 벤치? — reload 반복·통합메모리 하드다운 위험") → 승인 시에만 스크립트 실행.
+  **"무인 자동실행 없음" 유지** · **선-기록 후-위험**(각 레벨 결과를 다음 시도 전 기록 — 하드다운이 진행분 소실 안 하게).
+- **안전 이중 게이트**: (1) 스크립트 `--confirm-risk` 명시(무심코 실행 차단·미명시 exit 5) (2) 에이전트 챗 Y/N. + serve+smoke =
+  `multinode_serve_smoke.sh`(협역 워치독 자동 arming + 로드-전 RAM 게이트 내장) · per-level config 스냅샷 + EXIT-트랩 원복.
+  헌법 §호스트 안전체계 따름정리 정합(**파킹된 드라이버 580.159.03 안전 재검증의 실행 vehicle**).
+- **산출물**: `max_envelope.sh` → `max_index.json` → `render_max_report.py` → `docs/benchmark/max_envelope_<model>_<gpu>_<vllm>.md`
+  (안전상한·레벨별 결과·절삭 로그 · **inform-only** 특성화 표시 · 판정 게이트 아님). single-node serve+smoke = 후속(현재 multi 우선).
+- 근거: `seed/letter_2026071516_1` · `plan_2026071510_1` · 헌법 §호스트 안전체계 따름정리 · `testlog_2026071113_1`(안전측 프로브).
+
 ## 9. 보조 파일
 
 - `scripts/roofline.py` — (a) spec-aware R_fp/R_token/expected (결정론, manifest+config/index).
@@ -178,5 +223,17 @@ decode-tps 축(§2)과 **직교**한 별도 루브릭 축. recipe-explorer 가 �
 - `scripts/lite_metrics.py` — lite 5종 메트릭 결정론 파서/렌더러(§5.5): raw JSON+bench JSON+engine-log → GiB/% 산정 + single 5행/multi 병합표 렌더. **verdict_rule 미투입(inform-only)** · 통합메모리 nvidia-smi N/A 폴백·음성정직.
 - `scripts/parse_bench.py` — bench JSON(+engine-log) → 측정 M(decode_tps=1000/median_tpot, accept_len, 교차검증).
 - `scripts/verdict_rule.py` — 결정론 PASS/REFUTE 게이트(3중 우선순위 E>c>expected, like-with-like, spec-off 강제함수).
-- `fixtures/` — verdict 단위검증 fixture(REFUTE 등).
+- `scripts/sweep_bench.sh` — full-모드 client-load 부하 스윕(§5.6): 동시성 레벨 × `run_bench.sh` 재사용(reload 0)·
+  판정점(1) 강제포함·적응 상한 클램프+절삭 로그 → `sweep_index.json`(meta+per-level measured). `--dry-run` 지원. 런타임블럭.
+- `scripts/render_report.py` — 사람용 보고서 결정론 렌더러(§5.6 · inform-only · **항상** 발행 · N/A fail-soft):
+  sweep_index+verdict → `docs/benchmark/report_<model>_<gpu>_<vllm>.md`(부하 곡선·루프라인·환경 스냅샷). LLM 표저작 ✗. 런타임블럭.
+- `scripts/publish_benchmark_record.py` — 인증서(flat 계약) 발행(§5.6 · **PASS시만**): sweep_index+verdict →
+  `docs/benchmark/benchmark_<model>_<gpu>_<vllm>.yaml`(flat·carry-forward 재검증 헤더·강한키+소프트지문). stdlib only. 런타임블럭.
+- `scripts/max_envelope.sh` — **Max 오퍼레이션**(§8.5 · 별도 오퍼레이션): 컨텍스트(max-model-len) 안전측 스텝업 재서빙 →
+  안전상한 특성화. **이중 게이트**(`--confirm-risk` 미명시 exit 5 + 에이전트 챗 Y/N) · serve+smoke=`multinode_serve_smoke.sh`
+  (워치독/RAM게이트 내장) · per-level config 스냅샷+EXIT-트랩 원복 · 선-기록 후-위험 · `--dry-run` 지원 → `max_index.json`. 런타임블럭.
+- `scripts/render_max_report.py` — Max envelope 보고서 결정론 렌더러(§8.5 · inform-only · N/A fail-soft): max_index →
+  `docs/benchmark/max_envelope_<model>_<gpu>_<vllm>.md`(안전상한·레벨별·절삭 로그). stdlib only. 런타임블럭.
+- `fixtures/` — verdict 단위검증(`measured_refute_no_mtp.json`) + full-모드 발행 검증(`roofline_sample.json`·`measured_pass.json`·
+  `sweep_index_sample.json`) + Max 발행 검증(`max_index_sample.json`) — render/publish 결정론 체인 라이브-불요 검증.
 - `config.example.yaml` — 입력 스키마.

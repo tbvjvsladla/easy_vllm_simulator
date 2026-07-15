@@ -1,0 +1,53 @@
+{
+  "config": "deepseek-v4-flash",
+  "topology": "multi",
+  "generated_utc": "2026-07-15T10:30:00Z",
+  "verdict_point_level": 1,
+  "input_len": 1024,
+  "meta": {
+    "model": "deepseek-v4-flash",
+    "gpu_model": "NVIDIA GB10",
+    "gpu_key": "GB10",
+    "vllm_version": "0.24.0",
+    "quantization": "NA",
+    "topology": "multi",
+    "tensor_parallel_size": "2",
+    "driver_version": "580.159.03",
+    "cuda_version": "132",
+    "image_tag": "easy-vllm:0.24.0-cu132-aarch64-source-sm12x",
+    "max_model_len": "524288",
+    "max_num_seqs": "16",
+    "kv_cache_memory_bytes": "17179869184",
+    "kv_cache_dtype": "auto",
+    "gpu_memory_utilization": "0.80",
+    "moe_backend": "humming",
+    "enforce_eager": "true",
+    "serving_model_name": "deepseek-v4-flash",
+    "model_path": "/app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash"
+  },
+  "levels": [
+    {"level": 1, "status": "ok", "bench_json": "level_01/bench_deepseek-v4-flash.json",
+     "measured": {"decode_tps": 24.3, "output_throughput": 23.8, "total_token_throughput": 190.0,
+                  "ttft_ms_median": 210.0, "itl_ms_median": 41.1, "tpot_ms_median": 41.1,
+                  "completed": 16, "failed": 0, "max_concurrency": 1, "spec_on": true, "accept_len": 1.85,
+                  "measurement_ok": true}},
+    {"level": 2, "status": "ok", "bench_json": "level_02/bench_deepseek-v4-flash.json",
+     "measured": {"decode_tps": 23.1, "output_throughput": 44.9, "total_token_throughput": 360.0,
+                  "ttft_ms_median": 260.0, "itl_ms_median": 43.3, "tpot_ms_median": 43.3,
+                  "completed": 16, "failed": 0, "max_concurrency": 2, "spec_on": true, "accept_len": 1.80,
+                  "measurement_ok": true}},
+    {"level": 4, "status": "ok", "bench_json": "level_04/bench_deepseek-v4-flash.json",
+     "measured": {"decode_tps": 21.0, "output_throughput": 82.5, "total_token_throughput": 660.0,
+                  "ttft_ms_median": 380.0, "itl_ms_median": 47.6, "tpot_ms_median": 47.6,
+                  "completed": 16, "failed": 0, "max_concurrency": 4, "spec_on": true, "accept_len": 1.72,
+                  "measurement_ok": true}},
+    {"level": 8, "status": "ok", "bench_json": "level_08/bench_deepseek-v4-flash.json",
+     "measured": {"decode_tps": 17.4, "output_throughput": 132.0, "total_token_throughput": 1050.0,
+                  "ttft_ms_median": 720.0, "itl_ms_median": 57.5, "tpot_ms_median": 57.5,
+                  "completed": 16, "failed": 0, "max_concurrency": 8, "spec_on": true, "accept_len": 1.60,
+                  "measurement_ok": true}}
+  ],
+  "truncated": [
+    "level 16 truncated: run_bench exit 3 (serve health-drop/게이트/bench 실패 — 상위 레벨 중단)"
+  ]
+}

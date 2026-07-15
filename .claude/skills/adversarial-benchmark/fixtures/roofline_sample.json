@@ -1,0 +1,7 @@
+{
+  "R_fp": 30.0,
+  "R_token": 45.0,
+  "expected_achievable": 15.75,
+  "gpu_model": "NVIDIA GB10",
+  "tp": 2
+}

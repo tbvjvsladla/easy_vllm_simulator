@@ -1,0 +1,28 @@
+{
+  "config": "deepseek-v4-flash",
+  "topology": "multi",
+  "axis": "max-model-len",
+  "generated_utc": "2026-07-15T11:00:00Z",
+  "safe_ceiling_max_model_len": 393216,
+  "original_max_model_len": 524288,
+  "meta": {
+    "model": "deepseek-v4-flash",
+    "gpu_model": "NVIDIA GB10",
+    "gpu_key": "GB10",
+    "vllm_version": "0.24.0",
+    "topology": "multi",
+    "tensor_parallel_size": "2",
+    "driver_version": "580.159.03",
+    "quantization": "NA",
+    "moe_backend": "humming",
+    "image_tag": "easy-vllm:0.24.0-cu132-aarch64-source-sm12x"
+  },
+  "safe_levels": [
+    {"max_model_len": 131072, "serve_smoke_exit": 0, "status": "safe"},
+    {"max_model_len": 262144, "serve_smoke_exit": 0, "status": "safe"},
+    {"max_model_len": 393216, "serve_smoke_exit": 0, "status": "safe"}
+  ],
+  "truncated": [
+    "max-model-len 524288 unsafe: serve+smoke exit 2 → 직전 안전상한=393216, 상위 중단"
+  ]
+}

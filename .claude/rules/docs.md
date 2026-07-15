@@ -1,6 +1,6 @@
-# docs.md — 문서 작성 규약 (plan · devlog · testlog · simlog)
+# docs.md — 문서 작성 규약 (plan · devlog · testlog · simlog · benchmark)
 
-> 이 파일은 워크스페이스의 **문서 4종 역할·명명·구조 규칙**이다. "항상 참인 사실"은 루트 `CLAUDE.md`,
+> 이 파일은 워크스페이스의 **문서 5종 역할·명명·구조 규칙**이다. "항상 참인 사실"은 루트 `CLAUDE.md`,
 > 다단계 전파 절차는 `.claude/rules/workflow.md`. 이 규약은 기존 `docs/` 관행을 명문화한 것이다(헌법).
 > 모든 작업 산출 문서는 아래 규칙을 따른다.
 
@@ -28,7 +28,16 @@
   ```
   - 예: `docs/simlog/2026062121_1_vLLM0.22.1_KV클램프_시뮬/`
 
-## 2. 3종 역할 (무엇을 · 언제 · 어디에)
+- **benchmark 도 예외 — 산출물 종류가 파일 접두사**(`report_`/`benchmark_`). full-런 자동 발행물이라
+  `<type>_<YYYYMMDDHH>_` 대신 **대상 조합**을 파일명에 담는다(재발행 시 덮어쓰기 = 최신 계측 1개 유지).
+  run 디렉토리 아님(평면 파일). 정본 = 스킬 `adversarial-benchmark` full 모드.
+  ```
+  docs/benchmark/report_<model>_<gpu>_<vllm>.md      ← 사람용 (항상 · PASS/FAIL 무관)
+  docs/benchmark/benchmark_<model>_<gpu>_<vllm>.yaml ← 인증서 (PASS시만)
+  ```
+  - 예: `docs/benchmark/report_deepseek-v4-flash_GB10_0.24.0.md`
+
+## 2. 5종 역할 (무엇을 · 언제 · 어디에)
 
 ### plan/ — 계획서 (작업 **착수 전**)
 - **역할**: 단계/Phase 작업의 계획·설계·접근방식. **사람 검토(HITL) 대상** — 실행 전 합의용.
@@ -70,6 +79,19 @@
 - **vLLM 로깅**: 컨테이너에 `vllm_logging_config.json`(simlog_writer 템플릿)을 `VLLM_LOGGING_CONFIG_PATH`로
   주입해 로그를 simlog 경로 파일핸들러로 떨군다.
 
+### benchmark/ — full-런 성능 계측 vault (사람용 report + 기계용 인증서)
+- **역할**: adversarial-benchmark **full 모드** 종결 시 자동 발행되는 계측 vault(simlog 자매 — raw 계층 위 report 계층). 두 산출물 공존:
+  - ① **사람용 report**(`report_*.md`, **항상**·PASS/FAIL 무관) = 부하 스윕 곡선(client-load·reload 0)·루프라인
+    컨텍스트·환경 스냅샷. **inform-only**(verdict 를 *표시만* — 판정 권한 ✗) · 결정론 `render_report.py`(LLM 표저작 ✗) · N/A fail-soft.
+  - ② **기계용 인증서**(`benchmark_*.yaml`, **PASS시만**) = "이 모델을 이 HW/config 서 테스트·통과했다"는 **flat
+    계약**(중첩 ✗ — 소비자 stdlib 독해) · **carry-forward 재검증 헤더**(강한키=model/gpu/vllm/quant/topology/tp 정확일치 +
+    소프트지문=driver/cuda/image/max-len/kv-bytes/gmu/moe 불일치 시 stale) 필수 · 결정론 `publish_benchmark_record.py`.
+  - ③ **Max envelope 보고서**(`max_envelope_*.md`, **Max 오퍼레이션 실행시**) = HW 안전-최대 컨텍스트(max-model-len)
+    특성화 · **inform-only**. Max = 벤치마커 인프라 공유 **별도 오퍼레이션**(native 모드 ✗ · 이중 게이트) · 결정론 `render_max_report.py`(SKILL.md §8.5).
+- **testlog 와 경계**: benchmark=**inform-only 계측 렌더**(판정 ✗·verdict_rule 독점) ↔ testlog=**사람용 판정 서사**.
+- **비용 규율**: 스윕/리치리포트는 재탐색 루프 매회차 ✗ · **종결 1회**(루프 내부는 값싼 단일점). lite 모드는
+  발행 ✗(채팅 표만). 근거 = `seed/letter_2026071516_1` · `plan_2026071510_1`.
+
 ## 3. 작성 원칙
 
 - **분리**: 한 작업의 *서사*는 devlog, 그 *검증 증거/판정*은 testlog로 분리. 계획은 plan.
@@ -77,8 +99,9 @@
 - **적용 범위**: plan은 단계/Phase 등 큰 작업에 작성(소규모 작업은 생략 가능). devlog는 의미 있는
   작업마다 남긴다. testlog는 빌드/스모크/검증을 수행했을 때 남긴다.
 - **상호 참조**: 본문에 관련 문서 경로를 명기(devlog → 해당 testlog, plan → Seed/근거 등).
-- **참조 체인**: `simlog`(원시 증거) → `testlog`(인용·종합 보고서·판정) → `devlog`(서사). simlog는 사람이
-  직접 읽기보다 testlog가 경로로 인용하는 증거 저장소다. (simulate run이면 testlog 본문에 simlog run 경로 명기.)
+- **참조 체인**: `simlog`/bench JSON(원시 증거) → `benchmark report`(inform-only 계측 렌더) →
+  `testlog`(인용·종합 보고서·판정) → `devlog`(서사). simlog·benchmark 는 사람이 직접 읽기보다 testlog가
+  경로로 인용하는 증거·계측 저장소다. (simulate run이면 testlog 본문에 simlog run 경로 명기.)
 - **사실 우선**: 절대 날짜·결정론적 값(torch 핀·NGC 태그·스모크 결과)을 명시. 추측은 "확인 필요"로 표기.
   가변 파일(헌법·스킬·코드)의 라인번호 인용 시 **literal 인용구(또는 커밋 SHA) 병기**(라인번호 단독 금지 — rot).
 - **소급 배너(판정 반전 시 의무 — 앵커링 방지 · plan_2026070208_1 Phase 2)**: 후속 문서가 선행 문서의
@@ -110,8 +133,9 @@
 - **추적·배포되는 것 = 폴더 스켈레톤 + 각 폴더 `example.md` 1개씩만**(역할+명명규칙). 외부 배포 시
   CLAUDE.md/.claude의 문서 규칙이 참조하는 폴더 구조가 항상 함께 존재하도록 보장.
   - `.gitignore`: `docs/*/*` (작업문서 무시) + `!docs/*/example.md` (스켈레톤만 추적).
-  - **simlog도 동일 규칙으로 자동 처리**: run 디렉토리 전 산출물(`docs/simlog/<run>/*`)은 `docs/*/*`에
-    걸려 무시, `docs/simlog/example.md`만 추적. simlog 전용 추가 규칙 불필요(별도 패턴 넣지 말 것).
+  - **simlog·benchmark 도 동일 규칙으로 자동 처리**: 산출물(`docs/simlog/<run>/*` · `docs/benchmark/report_*.md`·
+    `docs/benchmark/benchmark_*.yaml`)은 `docs/*/*`에 걸려 무시, `example.md`만 추적. **전용 추가 규칙 불필요**
+    (별도 패턴 넣지 말 것 — 편지 A.2.1 "새 폴더마다 전용 gitignore 규칙 추가 금지"). 검증: `git add --dry-run docs/benchmark/` = example.md 만.
 - 서브노드 **하향(빌드) rsync** 전파에서는 docs 제외(빌드 불필요 — `sync_to_sub.sh`의 `--exclude docs`). simlog의
   대용량 trial 로그도 이 제외로 서브에 하향 전파되지 않는다(빌드 입력 아님).
 - 빌딩블럭(`.claude/`·`CLAUDE.md`)은 이 docs 규약의 대상 문서가 아니다(헌법·스킬이 관리). 추적·배포는 되며 브랜치 동기화는 `sync_branches.sh`. `seed/`는 비추적(사적 부트스트랩 이력).
@@ -121,7 +145,7 @@
 > 근거: `plan_2026062411_1`(D12). 절차 = `.claude/rules/workflow.md` §"메인↔서브 양방향 브랜치싱크" B2.
 
 - **규약 테라포밍**: 서브노드도 **동일한 docs 발행 규약**(이 파일)을 따른다 — 같은 명명(`docs/<type>/<type>_YYYYMMDDHH_seq_주제.md`),
-  같은 4종(plan/devlog/testlog/simlog), 같은 gitignore-persist(`docs/*/*` ignore · `!docs/*/example.md` 추적). docs 스켈레톤은 `render_sub_env.py` 가 서브 env 에 렌더.
+  같은 5종(plan/devlog/testlog/simlog/benchmark), 같은 gitignore-persist(`docs/*/*` ignore · `!docs/*/example.md` 추적). docs 스켈레톤은 `render_sub_env.py` 가 서브 env 에 렌더.
 - **상향 회수(서브→메인) = 문서기반 only**: 서브가 자기개선 insight 를 자기 `docs/` 에 발행 → A2A 리포트로 **경로 전달** → 메인이
   `fetch_sub_docs.sh` 로 서브 `docs/` 만 로컬 gitignored 미러(`sync_staging/sub_docs/`)로 rsync → 메인 **열람** → **HITL 재저작**.
   (이는 하향 빌드 rsync 의 `--exclude docs` 와 별개 평면 — 빌드엔 docs 불요, **회수엔 docs 가 유일 채널**. patch/코드 추출 없음.)
