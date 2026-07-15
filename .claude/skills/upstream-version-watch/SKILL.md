@@ -147,6 +147,10 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 
 - 핀 변경·빌드·스모크·push는 핀 정책(`CLAUDE.md`)과 `.claude/rules/workflow.md`의 전파 4단계
   (S1 resolve → S2 patch → S3 smoke → S4 push) 및 단계별 HITL 게이트를 따른다.
+- **hint 태그 발동(bump closer · 전작업 완료 후)**: bump 사이클이 서빙성공+커밋+문서+전파까지 끝난 S4 종결부에서,
+  새 `(vllm×model×arch)` 면 hint 태그 발행을 **제안(Y/N)** 한다(무인 자동 태깅 ✗ · push 는 전부 사용자 소관 —
+  브랜치 push 도 루틴 대상 아님). 절차·엔진 = `scripts/hint_tag.py`(루트) · 헌법 §hint 배포 레이어 따름정리 §발동 시점 ·
+  절차-홈 `workflow.md` S4 · 설계 `plan_2026070222_1`·`plan_2026071607_1`. main-only(references.md 동평면 — 서브 미전파).
 
 ## 4.5. 멀티노드 경로 (검증됨 — docs/testlog/testlog_260607_7)
 
