@@ -16,14 +16,20 @@
 FROM nvcr.io/nvidia/pytorch:26.05-py3
 
 # ── torch핀 가드 (render-time: 검증된 핀=주석 / 미인식=빌드 실패. 카탈로그 codify는 P6) ──
-RUN echo "[guard] source-build key (26.05-py3 x vLLM 0.24.0): validated patch set ((ngc_base x vllm_version) keyed) — proceeding."
+#   [0.25.1 bump · plan_2026071512_1] torch 핀 2.11.0 재검증(=0.24.0 동일 · pyproject 직독) → NGC 26.05 carry-forward
+#   가 torch-핀-매칭 *증거기반*(무증거 아님). 버전-특정 소스-게이트 패치(아래 flashinfer/DSA)는 fail-loud anchor 로
+#   self-refute(0.25.1 upstream 수정 시 anchor 불일치→빌드중단=L4 "패치 불필요" 신호). 최종중재=serve 스모크.
+RUN echo "[guard] source-build key (26.05-py3 x vLLM 0.25.1): torch 2.11.0 re-verified (=0.24.0 pin) — proceeding."
 
 # VLLM_REPO/VLLM_REF: 빌드-arg 파라미터화 — 기본 = stock(vllm-project, 버전은 아래 ARG VLLM_REF 참조). 콤보 env 가 오버라이드해
 #   포크 변종을 같은 Dockerfile 로 빌드한다(예 DeepSeek-V4 SM12x: jasl/vllm @ c766cbc6 → 이미지 …-source-sm12x).
 #   이미지-네이밍 불변식: track=source-sm12x 는 아치-enablement(superset), 모델-키잉 아님.
 #   근거: plan_2026062818_1 §2 · workflow.md S3 핀-오버라이드(NGC 베이스 오버라이드의 vLLM-repo 축 확장).
 ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
-ARG VLLM_REF=v0.24.0
+# [L3 stock 포크졸업 적대검증 · plan_2026071512_1] 기본 = stock v0.25.1 먼저 시도(0.24.0이 이미 SM120 stock
+#   enablement #43477 → stock 서빙 실증). stock 스모크 실패(arch-wall) 시에만 콤보 env 가 포크(jasl/vllm@SHA)로
+#   오버라이드 → …-source-sm12x 변종(반응적, 무증거 포크 금지). carry-forward 금지 — 스모크가 졸업 여부 중재.
+ARG VLLM_REF=v0.25.1
 ARG TORCH_CUDA_ARCH=12.1a
 ARG BUILD_JOBS=16
 
@@ -111,9 +117,15 @@ RUN pip install ray==${RAY_VERSION}
 COPY build_patches/ /tmp/build_patches/
 RUN for p in $(ls /tmp/build_patches/*.sh 2>/dev/null | sort); do echo "[build-patch] applying $p"; bash "$p" || exit 1; done
 
-# [flashinfer swa_topk_lens + nvcc 런타임 PATH · plan_2026070213_1 T-A/T-A2/T-A3] 2-part fix (소스 독해 확증):
-#   (1) vLLM 0.24.0 deepseek_v4 sparse-MLA(flashinfer_sparse.py:760·879) 가 trtllm_batch_decode_sparse_mla_dsv4(swa_topk_lens=...)
-#       호출 → pinned flashinfer 0.6.12 엔 부재(0.6.13 도 부재 · 0.6.14 서 추가 — mla/_core.py 시그니처 diff). → 0.6.14 로 bump.
+# [flashinfer 0.6.14 · 0.25.1 변종 트랙 · plan_2026071512_1 R5 — 딥리서치 결론] jasl 포크 requirements 정렬:
+#   ⚠ [맥락: DSpark · GB10 sm_121a · 2026-07-15] stock v0.25.1 은 DSpark 를 GB10(SM121)서 서빙 불가 = arch-wall.
+#     근거: stock requirements 는 flashinfer 0.6.13 핀인데 DSV4 코드가 swa_topk_lens(0.6.14 API) 사용 = 불일치(빌드↔런타임
+#     모순). 0.6.14 로 올려도 sparse_mla_sm120 decode_dsv4 가 page_block_size==64 요구(C128A ratio128 레이어 미매칭 →
+#     paged_attention fall-through "num_tokens>64" assertion). stock 은 Triton sparse-MLA 미업스트림(탈출구 無 · vllm#45317).
+#   ∴ 변종 트랙 = jasl/vllm PR#41834(SM12x Triton sparse-MLA) @ SHA b5c0d43b967c(tag sm120-pr-41834-stable-preview-20260711).
+#     이 포크 = **v0.25.1 베이스(behind_by 19)** + SM12x 346커밋 + **released deps(flashinfer 0.6.14 python+cubin 짝맞춤)** +
+#     검증(GSM8K 0.96). torch 2.11.0 = NGC 26.05 동일. 콤보 env(.env.deepseek-v4-flash-dspark) 가 VLLM_REPO/REF 오버라이드.
+#   (참고) 포크는 flashinfer sparse_mla_sm120(stock 경로) 대신 SM12x Triton sparse-MLA 를 쓰므로 위 decode_dsv4 벽 회피.
 #   (2) attn __init__ 가드(flashinfer_sparse.py:563 → vllm.utils.flashinfer.has_flashinfer_sparse_mla_sm120 → has_flashinfer())
 #       는 `flashinfer_cubin 패키지 부재 AND nvcc(PATH) 부재`면 False → "requires FlashInfer's sparse MLA decode API"(T-A2 실증).
 #       근본: 이 Dockerfile line34 가 ccache 위해 PATH 를 재정의하며 /usr/local/cuda/bin 을 누락 → 런타임 nvcc 미발견.
@@ -124,19 +136,21 @@ RUN for p in $(ls /tmp/build_patches/*.sh 2>/dev/null | sort); do echo "[build-p
 #   flashinfer-python=py3-none-any(무컴파일). build_patches(위) 뒤 = nv_dev DeepGEMM 캐시 보존. 최종중재 = serve 스모크.
 RUN pip install --no-cache-dir "flashinfer-python==0.6.14" \
  && (pip uninstall -y flashinfer-cubin flashinfer-jit-cache 2>/dev/null || true) \
- && python3 -c "import inspect,flashinfer.mla._core as m; assert 'swa_topk_lens' in inspect.signature(m.trtllm_batch_decode_sparse_mla_dsv4).parameters; print('[flashinfer] 0.6.14 swa_topk_lens 파라미터 확인 OK')"
+ && python3 -c "import inspect,flashinfer.mla._core as m; assert 'swa_topk_lens' in inspect.signature(m.trtllm_batch_decode_sparse_mla_dsv4).parameters; print('[flashinfer] 0.6.14 swa_topk_lens 파라미터 확인 OK (jasl 포크 requirements/cuda.txt 정렬 — cubin도 0.6.14)')"
 
 # [DSA sparse-indexer topk sm_121a · plan_2026070213_1 T-A7] 소스-게이트 패치(vLLM editable install → /workspace/vllm-src 편집 런타임 반영).
 #   stock 0.24.0 sparse_attn_indexer 는 topk_tokens∈(512,1024,2048) & SM90+ 서 _C.cooperative_topk 선택 → 그 launch_cooperative_cluster
 #   가 sm_121a(GB10)서 "invalid argument" 실패(serve#T-A4~A6 실증, cooperative_topk.cu:46). 비-cooperative 형제 persistent_topk 로 폴백
 #   (cooperative_topk.cu 주석: ">32 rows 는 persistent_topk"; 커뮤니티 포크는 여기를 Triton 으로 교체 — 우린 stock persistent 우선 시도).
 #   build_patches(위) 뒤 = nv_dev DeepGEMM 캐시 보존. fail-loud(anchor 미발견 시 빌드중단). 최종중재 = serve 스모크.
+#   [0.25.1 변종·2026-07-15] jasl 포크는 use_cooperative_topk 정의에 `not is_device_capability_family(120)` 네이티브 내장
+#   (SM12x서 persistent_topk 강제 — 우리 stock 이식 목표를 포크가 이미 구현). ∴ 그 서명 감지 시 self-refute skip(중복 금지·strip-hoist 동형).
 RUN python3 - <<'PY'
 import pathlib, sys
 f = pathlib.Path("/workspace/vllm-src/vllm/model_executor/layers/sparse_attn_indexer.py")
 s = f.read_text()
-if "has_device_capability(120)" in s:
-    print("[dsa-indexer] already patched — skip"); sys.exit(0)
+if "has_device_capability(120)" in s or "is_device_capability_family(120)" in s:
+    print("[dsa-indexer] already patched/native — skip (포크/상류가 SM12x cooperative_topk 네이티브 비활성)"); sys.exit(0)
 anchor = "        if use_cooperative_topk:\n"
 if anchor not in s:
     sys.stderr.write("[dsa-indexer] FAIL: anchor 'if use_cooperative_topk:' 미발견 — 상류 sparse_attn_indexer 변경 의심\n"); sys.exit(1)
