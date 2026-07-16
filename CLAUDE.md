@@ -157,6 +157,6 @@
 
 ## 문서 발행 / 참조
 
-- **3+2종 문서 역할**: `docs/plan/`(착수 전 계획·HITL) · `docs/devlog/`(작업 서사) · `docs/testlog/`(검증 증거·판정) + `docs/simlog/`(run 디렉토리 = 기계생성 원시증거 vault) + `docs/benchmark/`(full-런 계측 vault = 사람용 report[항상]+기계용 인증서[PASS시]·inform-only). 명명 = `docs/<type>/<type>_<YYYYMMDDHH>_<seq>_<주제>.md`(simlog 는 run 폴더 · benchmark 는 `report_/benchmark_<model>_<gpu>_<vllm>` 평면파일). 역할·명명·구조·브랜치 통합모델 상세 = `.claude/rules/docs.md`.
+- **3+2+1종 문서 역할**: `docs/plan/`(착수 전 계획·HITL) · `docs/devlog/`(작업 서사) · `docs/testlog/`(검증 증거·판정) + `docs/simlog/`(run 디렉토리 = 기계생성 원시증거 vault) + `docs/benchmark/`(full-런 계측 vault = 사람용 report[항상]+기계용 인증서[PASS시]·inform-only) + **`docs/report/`**(배포자 대상 아웃바운드 공지 — 앞 5종과 직교: 사람이 자유 발행·트리거 ✗·wiki 색인 ✗·메인 전용 · *유일하게 산출물째 git-추적*(배포돼야 도달) · 단일파일 반응형 HTML 권장 · PII 금지). 명명 = `docs/<type>/<type>_<YYYYMMDDHH>_<seq>_<주제>.md`(simlog 는 run 폴더 · benchmark 는 `report_/benchmark_<model>_<gpu>_<vllm>` 평면파일 · report 는 `<주제-슬러그>.html` 날짜 ✗). 역할·명명·구조·브랜치 통합모델 상세 = `.claude/rules/docs.md`.
 - 전파 워크플로 규칙: `.claude/rules/workflow.md`.
 - 부트스트랩 근거: 비추적 `seed/`(카파시 규칙·워크플로 패턴·session_record 등 — 배포본엔 부재 가능) + 추적 `docs/plan/` 체인(wiki-desk 색인이 안정 앵커).

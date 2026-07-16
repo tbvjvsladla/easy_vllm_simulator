@@ -1,6 +1,6 @@
-# docs.md — 문서 작성 규약 (plan · devlog · testlog · simlog · benchmark)
+# docs.md — 문서 작성 규약 (plan · devlog · testlog · simlog · benchmark · report)
 
-> 이 파일은 워크스페이스의 **문서 5종 역할·명명·구조 규칙**이다. "항상 참인 사실"은 루트 `CLAUDE.md`,
+> 이 파일은 워크스페이스의 **문서 6종 역할·명명·구조 규칙**이다. "항상 참인 사실"은 루트 `CLAUDE.md`,
 > 다단계 전파 절차는 `.claude/rules/workflow.md`. 이 규약은 기존 `docs/` 관행을 명문화한 것이다(헌법).
 > 모든 작업 산출 문서는 아래 규칙을 따른다.
 
@@ -37,7 +37,13 @@
   ```
   - 예: `docs/benchmark/report_deepseek-v4-flash_GB10_0.24.0.md`
 
-## 2. 5종 역할 (무엇을 · 언제 · 어디에)
+- **report 도 예외 — 주제 슬러그만**(날짜·seq 없음). 사람이 자유 발행하는 아웃바운드 공지라
+  README 처럼 **갱신·덮어쓰기로 최신본 1개**를 유지한다(시점 기록이 목적 아님 — 산출물 성격이 명명을 정한다).
+  ```
+  docs/report/<주제-슬러그>.<html|md>   ← kebab-case (예: rtxpro6000-benchmark-explorer.html)
+  ```
+
+## 2. 6종 역할 (무엇을 · 언제 · 어디에)
 
 ### plan/ — 계획서 (작업 **착수 전**)
 - **역할**: 단계/Phase 작업의 계획·설계·접근방식. **사람 검토(HITL) 대상** — 실행 전 합의용.
@@ -92,6 +98,17 @@
 - **비용 규율**: 스윕/리치리포트는 재탐색 루프 매회차 ✗ · **종결 1회**(루프 내부는 값싼 단일점). lite 모드는
   발행 ✗(채팅 표만). 근거 = `seed/letter_2026071516_1` · `plan_2026071510_1`.
 
+### report/ — 배포자 대상 공지 채널 (앞 5종과 직교 — 아웃바운드)
+- **역할**: 메인테이너가 **배포자(클론 사용자)에게 알리고 싶은 내용**을 자유롭게 싣는 채널. 앞 5종이
+  *에이전트가 발행하는 내부 작업이력*이라면, report 는 ***사람이 외부로 내보내는 공지***다.
+- **트리거 없음**: 루틴·워크플로·스킬에 등록하지 않는다(자동 발행 ✗ — 사람이 내킬 때). **wiki-desk 색인 대상
+  ✗**(작업이력 그래프의 노드가 아님) · **서브 미전파**(메인 전용 평면 — `references.md` 와 동형).
+- **형식**: **단일파일 self-contained 반응형 HTML 권장**(강제 ✗ — 다양한 html 자유 발행). 외부 CDN·폰트·
+  fetch 0 · `viewport`+`@media` · 넓은 표는 `overflow-x:auto`. 참고 예제 = `seed/rtxpro6000-benchmark-explorer.html`
+  (비추적 seed — 배포본엔 부재 가능).
+- **⚠ 유일한 추적 예외**(§4) + **PII 금지**(추적·배포물이므로 — 게이트 = `smoke_clone.sh` A4, 확장자 무관 전수 grep).
+- 상세 규정 = `docs/report/example.md` · 근거 = `docs/plan/plan_2026071617_1`.
+
 ## 3. 작성 원칙
 
 - **분리**: 한 작업의 *서사*는 devlog, 그 *검증 증거/판정*은 testlog로 분리. 계획은 plan.
@@ -130,12 +147,18 @@
   구현체(`Dockerfile`·`docker-compose.yaml`·`configs/`·`envs/`)는 반대로 브랜치별 독립(통합 안 함) — 산출물은 `output/<topology>/`(single|multi) 통로에 두어 혼재 차단(CLAUDE.md "산출물 통로 불변식").
 - **빌딩블럭(`.claude/`·`CLAUDE.md`)은 위와 다르다 — 이제 git-tracked**(배포 대상)이므로 브랜치 전환에 persist되지 않는다.
   브랜치 간 동일성은 `scripts/sync_branches.sh`로 **수동 동기화**해 유지한다(작업 종료 후 사람 질의).
-- **추적·배포되는 것 = 폴더 스켈레톤 + 각 폴더 `example.md` 1개씩만**(역할+명명규칙). 외부 배포 시
-  CLAUDE.md/.claude의 문서 규칙이 참조하는 폴더 구조가 항상 함께 존재하도록 보장.
+- **추적·배포되는 것 = 폴더 스켈레톤 + 각 폴더 `example.md` 1개씩만**(역할+명명규칙 · **report/ 는 예외 —
+  산출물째 추적**, 아래). 외부 배포 시 CLAUDE.md/.claude의 문서 규칙이 참조하는 폴더 구조가 항상 함께 존재하도록 보장.
   - `.gitignore`: `docs/*/*` (작업문서 무시) + `!docs/*/example.md` (스켈레톤만 추적).
   - **simlog·benchmark 도 동일 규칙으로 자동 처리**: 산출물(`docs/simlog/<run>/*` · `docs/benchmark/report_*.md`·
     `docs/benchmark/benchmark_*.yaml`)은 `docs/*/*`에 걸려 무시, `example.md`만 추적. **전용 추가 규칙 불필요**
     (별도 패턴 넣지 말 것 — 편지 A.2.1 "새 폴더마다 전용 gitignore 규칙 추가 금지"). 검증: `git add --dry-run docs/benchmark/` = example.md 만.
+  - **⚠ report/ = 유일한 추적 예외**(`!docs/report/*`): 산출물째 추적·배포한다. 무시하면 클론에 안 실려
+    **"배포자에게 알린다"는 목적이 성립 못 한다**(도달 0). 이는 **바로 위 "전용 규칙 추가 금지"의 명시
+    예외** — 그 금지는 산출물을 *무시*하려는 폴더(simlog·benchmark)가 이미 `docs/*/*` 로 커버되니 중복을
+    막는 것이고, report 는 **요구가 정반대(추적)** 라 전용 예외가 유일한 수단이다. **정합 위반으로 오인해
+    제거 ✗.** 대가 = gitignore-persist 상실(브랜치 자동 통합 ✗) → `sync_branches.sh` 로 동기화(빌딩블럭 동형).
+    검증: `git add --dry-run docs/report/` = html 포함 전부.
 - 서브노드 **하향(빌드) rsync** 전파에서는 docs 제외(빌드 불필요 — `sync_to_sub.sh`의 `--exclude docs`). simlog의
   대용량 trial 로그도 이 제외로 서브에 하향 전파되지 않는다(빌드 입력 아님).
 - 빌딩블럭(`.claude/`·`CLAUDE.md`)은 이 docs 규약의 대상 문서가 아니다(헌법·스킬이 관리). 추적·배포는 되며 브랜치 동기화는 `sync_branches.sh`. `seed/`는 비추적(사적 부트스트랩 이력).
@@ -146,6 +169,9 @@
 
 - **규약 테라포밍**: 서브노드도 **동일한 docs 발행 규약**(이 파일)을 따른다 — 같은 명명(`docs/<type>/<type>_YYYYMMDDHH_seq_주제.md`),
   같은 5종(plan/devlog/testlog/simlog/benchmark), 같은 gitignore-persist(`docs/*/*` ignore · `!docs/*/example.md` 추적). docs 스켈레톤은 `render_sub_env.py` 가 서브 env 에 렌더.
+  **report/ 는 서브에 렌더하지 않는다 — 메인 전용**(배포자 대상 아웃바운드 공지 = 빌딩블럭 전파 축,
+  `references.md` 동형). 서브 docs 는 *상향 insight 회수* 채널이라 성격이 다르다. 배제 배선 = `render_sub_env.py`
+  의 `DOC_TYPES`(5종) 필터 — glob 이 6번째 폴더를 자동 흡수하지 않게 고정.
 - **상향 회수(서브→메인) = 문서기반 only**: 서브가 자기개선 insight 를 자기 `docs/` 에 발행 → A2A 리포트로 **경로 전달** → 메인이
   `fetch_sub_docs.sh` 로 서브 `docs/` 만 로컬 gitignored 미러(`sync_staging/sub_docs/`)로 rsync → 메인 **열람** → **HITL 재저작**.
   (이는 하향 빌드 rsync 의 `--exclude docs` 와 별개 평면 — 빌드엔 docs 불요, **회수엔 docs 가 유일 채널**. patch/코드 추출 없음.)

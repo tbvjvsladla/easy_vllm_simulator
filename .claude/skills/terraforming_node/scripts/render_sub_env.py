@@ -262,10 +262,15 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
         produced.append(".gitignore")
 
     # 6) docs/ 발행 스켈레톤 (D12 — 메인 docs/*/example.md 복제. 서브가 동일 규약으로 insight 발행)
+    #    DOC_TYPES 필터 필수: glob 이 메인의 비-발행 폴더를 자동 흡수하면 안 된다.
+    #    실례 = docs/report/(배포자 대상 아웃바운드 공지) = 메인 전용 평면 — 서브 발행 대상 ✗.
+    #    docs.md §서브노드 docs 테라포밍 · plan_2026071617_1.
     if os.path.isdir(MAIN_DOCS):
         n_docs = 0
         for ex in sorted(glob.glob(os.path.join(MAIN_DOCS, "*", "example.md"))):
             dtype = os.path.basename(os.path.dirname(ex))     # plan|devlog|testlog|simlog|benchmark
+            if dtype not in DOC_TYPES:
+                continue                                       # 메인 전용 폴더(report 등) 미전파
             dst = os.path.join(out_dir, "docs", dtype, "example.md")
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copyfile(ex, dst)

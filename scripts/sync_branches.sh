@@ -46,8 +46,11 @@ ALLOWLIST=(
 #   생성-데이터(태그에서 재생성 가능)라 여기 미포함 — P4서 재생성/수동. plan_2026070222_1 §4.
 #   build_patches/ 는 여기 없다 — output/<topology>/build_patches/ 통로에 격리(산출물 통로 불변식, single/multi 혼재 차단).
 #   토폴로지별 독립이라 cross-branch 동기 대상 아님(서브 전달은 sync_to_sub 가 output/<t>/ 로 함). §4.7 · 3+1+1.
-#   docs 스켈레톤은 각 폴더 example.md 만(작업 문서 본체는 제외).
-DOCS_GLOB="docs/*/example.md"
+#   docs 스켈레톤은 각 폴더 example.md 만(작업 문서 본체는 제외) + docs/report/ 는 산출물째(추적 예외 —
+#   docs.md §4·§report: 배포자 대상 공지라 산출물이 배포돼야 도달. gitignore-persist 를 못 받으니 여기서 동기).
+#   ⚠ git ls-tree 는 pathspec 글롭·:(glob) 매직을 지원하지 않는다(빈 결과 → 침묵 no-op).
+#   과거 DOCS_GLOB="docs/*/example.md" 가 정확히 그 침묵 실패였음 → docs/ 를 열거해 grep 으로 거른다.
+DOCS_FILTER='(/example\.md$|^docs/report/)'
 
 MODE="dryrun"
 [ "${1:-}" = "--apply" ] && MODE="apply"
@@ -77,10 +80,10 @@ for p in "${ALLOWLIST[@]}"; do
         echo "[sync-branches] (skip) 정본 $SRC_BRANCH 에 없음: $p"
     fi
 done
-# docs example.md 스켈레톤(글롭 확장은 git 트리 기준)
+# docs 스켈레톤 + report 산출물(정본 트리 열거 → grep 필터. ls-tree 글롭 미지원 회피 — 위 주석)
 while IFS= read -r f; do
     [ -n "$f" ] && PATHS+=("$f")
-done < <(git ls-tree -r --name-only "$SRC_BRANCH" -- "$DOCS_GLOB" 2>/dev/null || true)
+done < <(git ls-tree -r --name-only "$SRC_BRANCH" -- docs/ 2>/dev/null | grep -E "$DOCS_FILTER" || true)
 
 if [ "${#PATHS[@]}" -eq 0 ]; then
     echo "[sync-branches] FAIL: 복사할 allowlist 경로가 정본에 하나도 없습니다."; exit 2
