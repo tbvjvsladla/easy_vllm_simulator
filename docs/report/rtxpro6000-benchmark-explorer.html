@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RTX PRO 6000 — 9-Model Serving Benchmark Explorer</title>
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#131822; --panel2:#1b222e; --line:#28303d;
+    --tx:#e6edf3; --tx2:#9aa7b8; --tx3:#6b7686;
+    --accent:#4dd0e1; --accent2:#7c9cff;
+    --pass:#3fb950; --refute:#e3a008;
+    --ctx256:#a371f7; --ctx128:#f0883e;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:14px;line-height:1.5}
+  a{color:var(--accent)}
+  .wrap{max-width:1240px;margin:0 auto;padding:20px 18px 60px}
+  header{border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:18px}
+  h1{font-size:20px;margin:0 0 6px;letter-spacing:-.01em}
+  h1 .accent{color:var(--accent)}
+  .sub{color:var(--tx2);font-size:12.5px}
+  .sub b{color:var(--tx)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chip{font-family:var(--mono);font-size:11px;color:var(--tx2);background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:3px 10px}
+
+  .layout{display:grid;grid-template-columns:270px 1fr;gap:18px;align-items:start}
+  @media(max-width:860px){.layout{grid-template-columns:1fr}}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin:0 0 10px;font-weight:600}
+  .grp{margin-bottom:16px}
+  .grp:last-child{margin-bottom:0}
+
+  .presets{display:flex;flex-wrap:wrap;gap:6px}
+  .preset{cursor:pointer;font-size:12px;background:var(--panel2);border:1px solid var(--line);color:var(--tx);border-radius:8px;padding:6px 9px;transition:.12s}
+  .preset:hover{border-color:var(--accent);color:var(--accent)}
+
+  label.lbl{display:block;font-size:11px;color:var(--tx2);margin:0 0 5px}
+  select{width:100%;background:var(--panel2);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:7px 8px;font-family:var(--sans);font-size:13px}
+  .seg{display:flex;gap:5px;flex-wrap:wrap}
+  .seg button{flex:1;min-width:52px;cursor:pointer;background:var(--panel2);border:1px solid var(--line);color:var(--tx2);border-radius:7px;padding:6px 4px;font-size:12px;transition:.12s}
+  .seg button.on{background:var(--accent);color:#00252b;border-color:var(--accent);font-weight:600}
+
+  /* preview */
+  .preview{display:flex;flex-direction:column;gap:16px}
+  .metricbar{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .metrichead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:12px}
+  .metrichead .t{font-size:13px;color:var(--tx2)}
+  .metrichead .t b{color:var(--tx);font-size:14px}
+  .metrichead .u{font-family:var(--mono);font-size:11px;color:var(--tx3)}
+  .bars{display:flex;flex-direction:column;gap:9px}
+  .brow{display:grid;grid-template-columns:150px 1fr 74px;gap:10px;align-items:center;cursor:pointer}
+  .brow:hover .bname{color:var(--accent)}
+  .bname{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .btrack{background:var(--panel2);border-radius:6px;height:22px;overflow:hidden;position:relative}
+  .bfill{height:100%;border-radius:6px;transition:width .35s cubic-bezier(.2,.8,.2,1);min-width:2px}
+  .bval{font-family:var(--mono);font-size:12px;text-align:right;color:var(--tx)}
+  .ctxbadge{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;border-radius:5px;padding:1px 6px;vertical-align:middle}
+  .c256{background:rgba(163,113,247,.16);color:var(--ctx256);border:1px solid rgba(163,113,247,.4)}
+  .c128{background:rgba(240,136,62,.15);color:var(--ctx128);border:1px solid rgba(240,136,62,.4)}
+  .vbadge{font-family:var(--mono);font-size:10px;font-weight:700;border-radius:5px;padding:1px 6px}
+  .vpass{background:rgba(63,185,80,.14);color:var(--pass);border:1px solid rgba(63,185,80,.4)}
+  .vrefute{background:rgba(227,160,8,.14);color:var(--refute);border:1px solid rgba(227,160,8,.4)}
+
+  /* table */
+  .tblwrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:760px}
+  th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{color:var(--tx3);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;background:var(--panel)}
+  td:first-child,th:first-child{text-align:left}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:var(--panel2)}
+  tbody tr.sel{background:rgba(77,208,225,.09);box-shadow:inset 3px 0 0 var(--accent)}
+  td .num{font-family:var(--mono)}
+  .muted{color:var(--tx3)}
+
+  /* detail */
+  .detail{background:linear-gradient(180deg,var(--panel),#10151d);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .detail .dh{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px}
+  .detail .dname{font-size:15px;font-weight:600}
+  .detail .dfull{font-family:var(--mono);font-size:11px;color:var(--tx2)}
+  .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px}
+  .stat .k{font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+  .stat .v{font-family:var(--mono);font-size:16px;color:var(--tx);font-weight:600}
+  .stat .v small{font-size:11px;color:var(--tx2);font-weight:400}
+  .dnote{margin-top:12px;font-size:12px;color:var(--tx2);background:rgba(227,160,8,.07);border-left:3px solid var(--refute);border-radius:0 8px 8px 0;padding:8px 12px}
+  .dnote.ok{background:rgba(63,185,80,.06);border-color:var(--pass)}
+
+  /* prompt */
+  .promptbox{margin-top:20px;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .pbar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .pbar .t{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3)}
+  .copy{cursor:pointer;background:var(--accent);color:#00252b;border:none;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:600}
+  .copy.done{background:var(--pass);color:#04220b}
+  #prompt{margin:0;padding:14px;font-family:var(--sans);font-size:13px;color:var(--tx);white-space:pre-wrap;line-height:1.6}
+  .foot{margin-top:22px;color:var(--tx3);font-size:11px;text-align:center;line-height:1.7}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="accent">RTX PRO 6000</span> — 9-모델 서빙 벤치마크 익스플로러</h1>
+    <div class="sub">단일 GPU · <b>96&nbsp;GiB</b> discrete (sm_120) · <b>TP=1</b> · vLLM <b>0.25.x</b> · MTP off · 단일스트림 정본(<code style="font-family:var(--mono)">1000/median_tpot</code>). 모두 <b>최대-context 전략</b>으로 로드 — 단, 실제 native 상한은 모델마다 다름(<span class="ctxbadge c256">256K</span>&nbsp;7종 · <span class="ctxbadge c128">128K</span>&nbsp;2종).</div>
+    <div class="chips">
+      <span class="chip">bf16 / NVFP4 / MXFP4</span>
+      <span class="chip">ephemeral (in-container HF)</span>
+      <span class="chip">decode = 활성 파라미터 지배</span>
+      <span class="chip">MoE ≫ dense (~6×)</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- CONTROLS -->
+    <aside class="panel">
+      <div class="grp">
+        <h2>프리셋</h2>
+        <div class="presets" id="presets"></div>
+      </div>
+      <div class="grp">
+        <h2>지표 (막대)</h2>
+        <label class="lbl" for="metric">시각화할 값</label>
+        <select id="metric"></select>
+      </div>
+      <div class="grp">
+        <h2>정렬</h2>
+        <label class="lbl" for="sort">기준</label>
+        <select id="sort"></select>
+        <div style="height:8px"></div>
+        <div class="seg" id="dir">
+          <button data-dir="desc" class="on">▼ 내림</button>
+          <button data-dir="asc">▲ 오름</button>
+        </div>
+      </div>
+      <div class="grp">
+        <h2>Verdict 필터</h2>
+        <div class="seg" id="verdict">
+          <button data-v="all" class="on">전체</button>
+          <button data-v="PASS">PASS</button>
+          <button data-v="REFUTE">REFUTE</button>
+        </div>
+      </div>
+      <div class="grp">
+        <h2>Context 필터</h2>
+        <div class="seg" id="ctxf">
+          <button data-c="all" class="on">전체</button>
+          <button data-c="256">256K</button>
+          <button data-c="128">128K</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- PREVIEW -->
+    <main class="preview">
+      <section class="metricbar">
+        <div class="metrichead">
+          <div class="t"><b id="mtitle"></b> <span id="mhint" class="muted" style="font-size:12px"></span></div>
+          <div class="u" id="munit"></div>
+        </div>
+        <div class="bars" id="bars"></div>
+      </section>
+
+      <section id="detail" class="detail"></section>
+
+      <section class="tblwrap">
+        <table>
+          <thead><tr>
+            <th>모델</th><th>타입</th><th>가중치</th><th>Context</th><th>decode t/s</th><th>MBU</th>
+            <th>동시성@ctx</th><th>총 KV토큰</th><th>throughput(total)</th><th>soak max°C</th><th>throttle</th><th>verdict</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+
+  <!-- PROMPT -->
+  <div class="promptbox">
+    <div class="pbar"><span class="t">Prompt output — 현재 뷰를 Claude 에 물어보기</span>
+      <button class="copy" id="copy">Copy Prompt</button></div>
+    <p id="prompt"></p>
+  </div>
+
+  <div class="foot">
+    출처: adversarial-benchmark full 스윕(sync·const@N·throughput 6레벨) + soak-stress-benchmark(온도 CSV). R_fp = roofline 이론천장(100% MBU) · MBU = 측정/R_fp.<br>
+    <span class="legend">
+      <span><span class="ctxbadge c256">256K</span> 262144</span>
+      <span><span class="ctxbadge c128">128K</span> 131072</span>
+      <span><span class="vbadge vpass">PASS</span> 성능 게이트 통과</span>
+      <span><span class="vbadge vrefute">REFUTE</span> 기대 이하(맥락 caveat)</span>
+    </span>
+  </div>
+</div>
+
+<script>
+const M = [
+  {name:"gemma-4-31b", full:"google/gemma-4-31B", type:"dense VLM", active:"31B", weights:59.0, ctx:262144, verdict:"PASS", decode:25.1, rfp:28.65, conc:1.82, out64:400, tot64:3641, smax:93, savg:88.8, throttle:0, note:"chat-template 필수(번들 부재). cudagraph 유지."},
+  {name:"hyperclovax-think-32b", full:"naver-hyperclovax/HyperCLOVAX-SEED-Think-32B", type:"dense reasoning", active:"32B", weights:62.3, ctx:131072, verdict:"PASS", decode:24.0, rfp:26.9, conc:1.19, out64:465, tot64:4229, smax:93, savg:87.0, throttle:0, note:"reasoning-parser deepseek_r1 · trust-remote-code. native 상한 128K."},
+  {name:"qwen3.5-122b-a10b-nvfp4", full:"nvidia/Qwen3.5-122B-A10B-NVFP4", type:"MoE NVFP4 VLM", active:"10B", weights:72.3, ctx:262144, verdict:"REFUTE", decode:24.9, rfp:117.6, conc:4.42, out64:822, tot64:7468, smax:74, savg:62.0, throttle:0, note:"host RAM 60GiB 제약 → enforce-eager+text-only 강제 → 20% MBU 저효율. NVFP4→flashinfer_cutlass(triton 금지). 대형-RAM 호스트+cudagraph 면 상향 여지."},
+  {name:"qwen3.6-27b", full:"Qwen/Qwen3.6-27B", type:"dense hybrid VLM", active:"27B", weights:50.2, ctx:262144, verdict:"PASS", decode:29.6, rfp:32.25, conc:3.79, out64:453, tot64:4113, smax:96, savg:86.0, throttle:7.1, note:"하이브리드 Mamba → max-num-seqs 512(기본 1024 는 cudagraph ValueError). 92% MBU. 소크 스로틀 7.1%(dense 고전력)."},
+  {name:"qwen3.6-35b-a3b", full:"Qwen/Qwen3.6-35B-A3B", type:"MoE hybrid VLM", active:"3B", weights:64.7, ctx:262144, verdict:"PASS", decode:181.5, rfp:229.65, conc:7.12, out64:1603, tot64:14558, smax:94, savg:82.8, throttle:1.1, note:"★ 최속. flashinfer_cutlass(bf16 MoE sm_120 정상 — GB10 triton 교훈 미적용). 활성 3B 라 dense 27B 대비 6배."},
+  {name:"gemma-4-26b-a4b", full:"google/gemma-4-26B-A4B-it", type:"MoE SWA VLM", active:"4B", weights:48.6, ctx:262144, verdict:"PASS", decode:150.3, rfp:301.9, conc:9.48, out64:1799, tot64:16381, smax:90, savg:84.5, throttle:0, note:"★ 최다 동시성(9.48x)·최대 처리량(16.4k tot). SWA 하이브리드(Mamba 아님). flashinfer_cutlass."},
+  {name:"gpt-oss-120b", full:"openai/gpt-oss-120b", type:"MoE MXFP4", active:"~5B", weights:66.2, ctx:131072, verdict:"REFUTE", decode:62.6, rfp:290.85, conc:6.03, out64:1221, tot64:15979, smax:91, savg:82.6, throttle:0, note:"mxfp4 auto→MARLIN(flashinfer_trtllm sm_120 미지원) → 22% MBU 천장. harmony o200k_base.tiktoken 사전적재 필수. native 상한 128K."},
+  {name:"exaone-4.5-33b", full:"LGAI-EXAONE/EXAONE-4.5-33B", type:"dense reasoning VLM(SWA)", active:"33B", weights:63.2, ctx:262144, verdict:"PASS", decode:24.13, rfp:26.08, conc:2.24, out64:499, tot64:4521, smax:91, savg:87.9, throttle:0, note:"Exaone4_5 dense VLM · SWA 하이브리드(48 sliding + 16 full · Mamba 아님→max-num-seqs 무제약). 92.5% MBU cudagraph 고효율. reasoning qwen3·tool hermes · text-only."},
+  {name:"nemotron-3-super-120b-a12b-nvfp4", full:"nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4", type:"MoE 하이브리드 NVFP4", active:"12B", weights:69.5, ctx:262144, verdict:"REFUTE", decode:16.75, rfp:130.62, conc:10.94, out64:231, tot64:2107, smax:91, savg:80.0, throttle:3.9, note:"NemotronH LatentMoE(Mamba2+MoE+Attn 하이브리드·512e/22tok). host RAM 60GiB → enforce-eager 강제(cudagraph capture 워치독 트립·88층×512e 커널 JIT cicc 폭증→MAX_JOBS=4) → 12.8% MBU. 외부 동일-HW=69.9 t/s(cudagraph·충분RAM·Millstone). flashinfer_cutlass. KV 12GiB 절대클램프→conc 10.94x. 대형-RAM 호스트면 ~70 상향."}
+];
+M.forEach(m=>{ m.mbu = m.rfp ? +(m.decode/m.rfp*100).toFixed(0) : 0; m.kv = Math.round(m.conc*m.ctx); });
+
+const METRICS = [
+  {key:"decode", label:"단일스트림 decode 속도", unit:"tokens/sec", fmt:v=>v.toFixed(1), hint:"1000/median_tpot"},
+  {key:"tot64", label:"최대 처리량 (throughput @conc64)", unit:"total tokens/sec", fmt:v=>v.toLocaleString(), hint:"aggregate"},
+  {key:"mbu", label:"MBU (커널 효율)", unit:"% of R_fp 천장", fmt:v=>v+"%", hint:"측정/roofline"},
+  {key:"ctx", label:"최대 context (native 상한)", unit:"tokens", fmt:v=>v.toLocaleString(), hint:"max-model-len"},
+  {key:"conc", label:"최대 동시성 @context", unit:"× (max_concurrency)", fmt:v=>v.toFixed(2)+"x", hint:"KV pool / ctx"},
+  {key:"kv", label:"총 KV 풀 용량", unit:"tokens", fmt:v=>v.toLocaleString(), hint:"동시성 × context"},
+  {key:"weights", label:"가중치 GPU 로드", unit:"GiB", fmt:v=>v.toFixed(1)+" GiB", hint:""},
+  {key:"savg", label:"소크 평균 온도", unit:"°C (1h 지속부하)", fmt:v=>v.toFixed(1)+"°C", hint:""}
+];
+
+const PRESETS = [
+  {name:"⚡ 속도 왕", metric:"decode", sort:"decode", dir:"desc", v:"all", c:"all"},
+  {name:"🚀 처리량 왕", metric:"tot64", sort:"tot64", dir:"desc", v:"all", c:"all"},
+  {name:"📏 Context 비교", metric:"ctx", sort:"ctx", dir:"desc", v:"all", c:"all"},
+  {name:"🎯 효율(MBU)", metric:"mbu", sort:"mbu", dir:"desc", v:"all", c:"all"},
+  {name:"✅ PASS만", metric:"decode", sort:"decode", dir:"desc", v:"PASS", c:"all"},
+  {name:"🔥 소크 발열", metric:"savg", sort:"smax", dir:"desc", v:"all", c:"all"}
+];
+
+const state = {metric:"decode", sort:"decode", dir:"desc", v:"all", c:"all", sel:"qwen3.6-35b-a3b"};
+
+// build controls
+const mSel=document.getElementById("metric"), sSel=document.getElementById("sort");
+METRICS.forEach(m=>{ mSel.add(new Option(m.label,m.key)); });
+const SORTS=[["decode","decode t/s"],["tot64","throughput(total)"],["mbu","MBU"],["ctx","context"],["conc","동시성"],["kv","총 KV토큰"],["weights","가중치"],["smax","소크 max°C"],["throttle","스로틀%"]];
+SORTS.forEach(([k,l])=>sSel.add(new Option(l,k)));
+mSel.value=state.metric; sSel.value=state.sort;
+
+const pWrap=document.getElementById("presets");
+PRESETS.forEach(p=>{const b=document.createElement("button");b.className="preset";b.textContent=p.name;
+  b.onclick=()=>{Object.assign(state,{metric:p.metric,sort:p.sort,dir:p.dir,v:p.v,c:p.c});syncControls();updateAll();};pWrap.appendChild(b);});
+
+function seg(id,attr,key){document.querySelectorAll(`#${id} button`).forEach(b=>{
+  b.onclick=()=>{state[key]=b.dataset[attr];document.querySelectorAll(`#${id} button`).forEach(x=>x.classList.remove("on"));b.classList.add("on");updateAll();};});}
+seg("dir","dir","dir"); seg("verdict","v","v"); seg("ctxf","c","c");
+mSel.onchange=()=>{state.metric=mSel.value;updateAll();};
+sSel.onchange=()=>{state.sort=sSel.value;updateAll();};
+
+function syncControls(){
+  mSel.value=state.metric; sSel.value=state.sort;
+  const set=(id,attr,val)=>document.querySelectorAll(`#${id} button`).forEach(b=>b.classList.toggle("on",b.dataset[attr]===val));
+  set("dir","dir",state.dir); set("verdict","v",state.v); set("ctxf","c",state.c);
+}
+
+function filtered(){
+  return M.filter(m=>(state.v==="all"||m.verdict===state.v) &&
+    (state.c==="all"||(state.c==="256"&&m.ctx===262144)||(state.c==="128"&&m.ctx===131072)));
+}
+function sorted(){
+  const arr=filtered().slice();
+  arr.sort((a,b)=>{const d=a[state.sort]-b[state.sort];return state.dir==="asc"?d:-d;});
+  return arr;
+}
+function ctxBadge(ctx){const k=ctx===262144?["c256","256K"]:["c128","128K"];return `<span class="ctxbadge ${k[0]}">${k[1]}</span>`;}
+function vBadge(v){return `<span class="vbadge ${v==="PASS"?"vpass":"vrefute"}">${v}</span>`;}
+
+function renderBars(){
+  const met=METRICS.find(x=>x.key===state.metric);
+  document.getElementById("mtitle").textContent=met.label;
+  document.getElementById("munit").textContent=met.unit;
+  document.getElementById("mhint").textContent=met.hint?"· "+met.hint:"";
+  const rows=sorted(); const max=Math.max(...rows.map(m=>m[state.metric]))||1;
+  const bars=document.getElementById("bars"); bars.innerHTML="";
+  rows.forEach(m=>{
+    const w=Math.max(2,m[state.metric]/max*100);
+    const col=m.verdict==="PASS"?"var(--pass)":"var(--refute)";
+    const div=document.createElement("div"); div.className="brow"; if(m.name===state.sel)div.style.opacity=1;
+    div.innerHTML=`<div class="bname">${m.name} ${ctxBadge(m.ctx)}</div>
+      <div class="btrack"><div class="bfill" style="width:${w}%;background:linear-gradient(90deg,${col},${col}bb)"></div></div>
+      <div class="bval">${met.fmt(m[state.metric])}</div>`;
+    div.onclick=()=>{state.sel=m.name;updateAll();};
+    bars.appendChild(div);
+  });
+}
+
+function renderTable(){
+  const rows=sorted(); const tb=document.getElementById("tbody"); tb.innerHTML="";
+  rows.forEach(m=>{
+    const tr=document.createElement("tr"); if(m.name===state.sel)tr.className="sel";
+    tr.innerHTML=`<td>${m.name}</td><td class="muted">${m.type}<br><span style="font-size:10px">활성 ${m.active}</span></td>
+      <td class="num">${m.weights.toFixed(1)}<small class="muted">GiB</small></td>
+      <td>${ctxBadge(m.ctx)} <span class="num muted" style="font-size:10px">${(m.ctx/1024)+"K"}</span></td>
+      <td class="num" style="color:var(--accent)">${m.decode.toFixed(1)}</td>
+      <td class="num">${m.mbu}%</td>
+      <td class="num">${m.conc.toFixed(2)}x</td>
+      <td class="num muted">${(m.kv/1000).toFixed(0)}K</td>
+      <td class="num">${m.tot64.toLocaleString()}</td>
+      <td class="num">${m.smax}°</td>
+      <td class="num ${m.throttle>0?'':'muted'}">${m.throttle}%</td>
+      <td>${vBadge(m.verdict)}</td>`;
+    tr.onclick=()=>{state.sel=m.name;updateAll();};
+    tb.appendChild(tr);
+  });
+}
+
+function renderDetail(){
+  const m=M.find(x=>x.name===state.sel)||M[0];
+  const d=document.getElementById("detail");
+  d.innerHTML=`<div class="dh"><div><div class="dname">${m.name} ${ctxBadge(m.ctx)} ${vBadge(m.verdict)}</div>
+      <div class="dfull">${m.full}</div></div>
+      <div class="dfull">${m.type} · 활성 ${m.active} · ${m.weights.toFixed(1)} GiB</div></div>
+    <div class="dgrid">
+      <div class="stat"><div class="k">decode</div><div class="v">${m.decode.toFixed(1)} <small>t/s</small></div></div>
+      <div class="stat"><div class="k">MBU (효율)</div><div class="v">${m.mbu}<small>% of ${m.rfp}</small></div></div>
+      <div class="stat"><div class="k">max context</div><div class="v">${(m.ctx/1024)}K <small>${m.ctx.toLocaleString()}</small></div></div>
+      <div class="stat"><div class="k">동시성 @ctx</div><div class="v">${m.conc.toFixed(2)}<small>x · KV ${(m.kv/1000).toFixed(0)}K tok</small></div></div>
+      <div class="stat"><div class="k">throughput @64</div><div class="v">${(m.tot64/1000).toFixed(1)}k <small>tot t/s</small></div></div>
+      <div class="stat"><div class="k">소크 (1h)</div><div class="v">${m.savg.toFixed(0)}°<small>avg · max ${m.smax}° · thr ${m.throttle}%</small></div></div>
+    </div>
+    <div class="dnote ${m.verdict==="PASS"?"ok":""}">${m.verdict==="REFUTE"?"⚠ ":""}${m.note}</div>`;
+}
+
+function updatePrompt(){
+  const rows=sorted(); const met=METRICS.find(x=>x.key===state.metric);
+  const top=rows[0], sel=M.find(x=>x.name===state.sel);
+  const n256=M.filter(m=>m.ctx===262144).length, n128=M.filter(m=>m.ctx===131072).length;
+  let f=[]; if(state.v!=="all")f.push(`verdict=${state.v}`); if(state.c!=="all")f.push(`context=${state.c}K`);
+  const parts=[];
+  parts.push(`RTX PRO 6000(96GiB·TP1·vLLM 0.25.1·단일스트림) 에서 서빙·벤치한 ${rows.length}종 LLM 결과를 보고 있다`);
+  parts.push(`${met.label}(${met.unit}) 기준 ${state.dir==="desc"?"내림차순":"오름차순"} 정렬${f.length?" ("+f.join(", ")+" 필터)":""}`);
+  parts.push(`현재 1위 = ${top?top.name+" "+met.fmt(top[state.metric]):"—"}`);
+  parts.push(`상세로 보는 모델 = ${sel.name}(${sel.type}, 활성 ${sel.active}, decode ${sel.decode} t/s, MBU ${sel.mbu}%, context ${(sel.ctx/1024)}K, verdict ${sel.verdict})`);
+  const q=`위 데이터에서, 모든 모델이 "최대 context 전략"으로 로드했지만 실제 native 상한은 256K ${n256}종 / 128K ${n128}종으로 갈린다. `+
+    `(a) ${sel.name} 의 decode 속도(${sel.decode} t/s)와 MBU(${sel.mbu}%)가 이 하드웨어에서 타당한지, `+
+    `(b) MoE(활성 3-4B)가 dense 대비 ~6배 빠른 이유, (c) REFUTE 3종(qwen3.5-122b·nemotron-120b = host RAM 60GiB→enforce-eager 강제 · gpt-oss = MARLIN mxfp4)의 host-RAM/backend 개선 여지를 설명해줘.`;
+  document.getElementById("prompt").textContent=parts.join(". ")+".\n\n"+q;
+}
+
+function updateAll(){renderBars();renderTable();renderDetail();updatePrompt();}
+
+document.getElementById("copy").onclick=()=>{
+  navigator.clipboard.writeText(document.getElementById("prompt").textContent).then(()=>{
+    const b=document.getElementById("copy");b.textContent="Copied!";b.classList.add("done");
+    setTimeout(()=>{b.textContent="Copy Prompt";b.classList.remove("done");},1400);
+  });
+};
+
+syncControls(); updateAll();
+</script>
+</body>
+</html>
