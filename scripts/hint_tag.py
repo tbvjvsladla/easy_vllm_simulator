@@ -5,8 +5,8 @@ Design: docs/plan/plan_2026070222_1. The deployment "hint" layer distributes
 distilled serving-recipe KNOWLEDGE as annotated git tags — never finished products.
 
 [A]=B residence: the recipe body lives in the tag ANNOTATION. HEAD stays a pure
-skeleton+engine (no recipe files at HEAD); HEAD carries only an index (README 부록 +
-hints/index.json). Retrieved by `git fetch --tags` + `git show <tag>`.
+skeleton+engine (no recipe files at HEAD); HEAD carries only an index (HINTS.md
+카탈로그 + hints/index.json). Retrieved by `git fetch --tags` + `git show <tag>`.
 
 Deterministic here (script) / judgment there (agent):
   - validates names (shape + `git check-ref-format`), one canonical model-slug/family,
@@ -16,7 +16,7 @@ Deterministic here (script) / judgment there (agent):
     inside the pushed tag object (pii_terms.txt literals — single source shared with
     scan_forbidden_strings.py — plus generic private-IP/email/path/host patterns),
   - enforces the B1 backstop (absolute host-scoped numbers require a re-measure caveat),
-  - tags, indexes (index.json + README row), verifies, and pushes ONLY refs/tags/hint/*
+  - tags, indexes (index.json + HINTS.md row), verifies, and pushes ONLY refs/tags/hint/*
     (never --tags, which would leak local last-good-* rollback anchors to a public origin).
 The agent authors the judgment slots (context / wall-map / serve-knob why / re-verify).
 
@@ -34,7 +34,7 @@ from datetime import date
 from pathlib import Path
 
 TAG_SHAPE = re.compile(r"^hint/[^/]+/[^/]+/[^/]+$")
-README_MARKER = "<!-- hint-index:rows -->"
+HINTS_MARKER = "<!-- hint-index:rows -->"
 
 # Canonical model-slug per family (hardening #5 — prevents slug sprawl that would break
 # `git tag -l 'hint/*/<slug>/*'`). Value = accepted spellings (canonical MUST be first-listed
@@ -73,7 +73,9 @@ def repo_root() -> Path:
 ROOT = repo_root()
 PII_TERMS_FILE = ROOT / ".claude" / "pii_terms.txt"
 INDEX_FILE = ROOT / "hints" / "index.json"
-README_FILE = ROOT / "README.md"
+# hint 카탈로그(부록 표)의 홈 = 전용 HINTS.md(README 는 링크 참조만 — 21+ 행이 README 를
+# 비대하게 만들던 문제 교정, plan_2026070222_1 Token Economy 의 문서 축 연장).
+HINTS_FILE = ROOT / "HINTS.md"
 TEMPLATE_FILE = ROOT / "scripts" / "templates" / "hint_recipe.template.md"
 DRAFTS_DIR = ROOT / "hints" / ".drafts"
 
@@ -281,30 +283,30 @@ def cmd_finalize(a: argparse.Namespace) -> int:
     })
     idx["hints"].sort(key=lambda e: e["tag"])
     _save_index(idx)
-    _readme_regen(idx["hints"])
-    print("[hint_tag] index.json + README 부록 인덱스 갱신 완료.")
+    _hints_regen(idx["hints"])
+    print("[hint_tag] index.json + HINTS.md 카탈로그 인덱스 갱신 완료.")
     return 0
 
 
-def _readme_row(e: dict) -> str:
+def _hints_row(e: dict) -> str:
     return (f"| `{e['tag']}` | {e['vllm']} | {e['model']} | {e['arch']} | "
             f"{e.get('topology','')} | {e.get('status','active')} | "
             f"{e.get('superseded_by') or e.get('related') or '—'} | "
             f"{e.get('last_verified','')} | {e.get('brief','')} |")
 
 
-def _readme_regen(hints: list[dict]) -> None:
-    """README 부록 인덱스 행 전량 재생성(index = 진실원천). 마커 앞에 정렬 삽입."""
-    if not README_FILE.is_file():
+def _hints_regen(hints: list[dict]) -> None:
+    """HINTS.md 카탈로그 행 전량 재생성(index = 진실원천). 마커 앞에 정렬 삽입."""
+    if not HINTS_FILE.is_file():
         return
     out = []
-    for ln in README_FILE.read_text(encoding="utf-8").splitlines():
+    for ln in HINTS_FILE.read_text(encoding="utf-8").splitlines():
         if ln.startswith("| `hint/"):
             continue  # 기존 hint 행 전부 제거
-        if ln.strip() == README_MARKER:
-            out.extend(_readme_row(e) for e in hints)
+        if ln.strip() == HINTS_MARKER:
+            out.extend(_hints_row(e) for e in hints)
         out.append(ln)
-    README_FILE.write_text("\n".join(out) + "\n", encoding="utf-8")
+    HINTS_FILE.write_text("\n".join(out) + "\n", encoding="utf-8")
 
 
 # ── verify ──────────────────────────────────────────────────────────────────
@@ -410,9 +412,9 @@ def cmd_reverify(a: argparse.Namespace) -> int:
     die(f"[hint_tag] FAIL: {a.tag} 가 index 에 없음.")
 
 
-# ── reindex (태그 = 진실원천 → index.json + README 재생성) ────────────────────
+# ── reindex (태그 = 진실원천 → index.json + HINTS.md 재생성) ──────────────────
 def cmd_reindex(a: argparse.Namespace) -> int:
-    """전 hint 태그에서 index.json + README 부록을 재생성한다(브랜치 간 드리프트 정합).
+    """전 hint 태그에서 index.json + HINTS.md 카탈로그를 재생성한다(브랜치 간 드리프트 정합).
     currency 필드(status·superseded_by·last_verified·큐레이트 related)는 기존 index 에서 보존."""
     tags = sorted(existing_hint_tags())
     idx = _load_index()
@@ -437,9 +439,9 @@ def cmd_reindex(a: argparse.Namespace) -> int:
         hints.append(e)
     idx["hints"] = hints
     _save_index(idx)
-    _readme_regen(hints)
+    _hints_regen(hints)
     dropped = sorted(set(prev) - set(tags))
-    print(f"[hint_tag] reindex: {len(hints)} 태그 → index.json + README 재생성(currency 보존)."
+    print(f"[hint_tag] reindex: {len(hints)} 태그 → index.json + HINTS.md 재생성(currency 보존)."
           + (f"  제거(태그없음): {dropped}" if dropped else ""))
     return 0
 
@@ -488,7 +490,7 @@ def main() -> int:
     r.add_argument("--tag", required=True)
     r.set_defaults(fn=cmd_reverify)
 
-    ri = sub.add_parser("reindex", help="전 hint 태그에서 index.json+README 재생성(브랜치 드리프트 정합·currency 보존)")
+    ri = sub.add_parser("reindex", help="전 hint 태그에서 index.json+HINTS.md 재생성(브랜치 드리프트 정합·currency 보존)")
     ri.set_defaults(fn=cmd_reindex)
 
     args = ap.parse_args()

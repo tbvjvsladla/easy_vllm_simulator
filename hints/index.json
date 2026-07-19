@@ -57,7 +57,7 @@
       "topology": "single 1노드(sub-control 양노드 독립 서빙, 메인·서브 동일 레시피)",
       "brief": "target_gpu=RTX PRO 6000(96GiB) 시뮬레이션 — 실 GB10(121.69GiB) 측정치를 96GiB 예산으로 이식(host≠target 절대 KV 클램프), batch 52(host)→36(target) 축소 실증",
       "anchor": "ef54240222544b58fe0bf28b8593c74e44101efa",
-      "related": "",
+      "related": "-",
       "status": "active",
       "last_verified": "2026-07-08"
     },
@@ -122,6 +122,30 @@
       "last_verified": "2026-07-09"
     },
     {
+      "tag": "hint/0.25.0/mistral-small-4-119b/rtxpro6000",
+      "vllm": "0.25.0",
+      "model": "mistral-small-4-119b",
+      "arch": "rtxpro6000",
+      "topology": "single 1노드",
+      "brief": "Mistral-Small-4-119B-2603-NVFP4(Pixtral MoE+MLA·A6B) 를 단일 RTX PRO 6000 서빙 — Mistral 네이티브 포맷(--*-format mistral·tekken) + TRITON_MLA + host RAM 60GiB 제약(MAX_JOBS=4·KV클램프·enforce-eager). 256K 기능 PASS·성능 host-constrained REFUTE.",
+      "anchor": "781e250c6785a4fe5719953eb093aa028cad57df",
+      "related": "testlog_2026071620_1,testlog_2026071621_1",
+      "status": "active",
+      "last_verified": "2026-07-19"
+    },
+    {
+      "tag": "hint/0.25.0/nemotron-3-super-120b-a12b-nvfp4/rtxpro6000",
+      "vllm": "0.25.0",
+      "model": "nemotron-3-super-120b-a12b-nvfp4",
+      "arch": "rtxpro6000",
+      "topology": "single 1노드",
+      "brief": "NemotronH LatentMoE(Mamba2+MoE+Attn·A12B) NVFP4 를 단일 RTX PRO 6000(96GiB·host RAM 60GiB) 서빙 — 커널 JIT host RAM 폭증(MAX_JOBS=4) + KV 절대클램프(프로파일링 skip) + enforce-eager. 256K PASS(기능)·성능 host-constrained REFUTE.",
+      "anchor": "781e250c6785a4fe5719953eb093aa028cad57df",
+      "related": "testlog_2026071617_1,testlog_2026071619_1",
+      "status": "active",
+      "last_verified": "2026-07-19"
+    },
+    {
       "tag": "hint/0.25.1/deepseek-v4-flash/gb10",
       "vllm": "0.25.1",
       "model": "deepseek-v4-flash",
@@ -132,6 +156,114 @@
       "related": "hint/0.24.0/deepseek-v4-flash/gb10",
       "status": "active",
       "last_verified": "2026-07-16"
+    },
+    {
+      "tag": "hint/0.25.1/exaone-4.5-33b/rtxpro6000",
+      "vllm": "0.25.1",
+      "model": "exaone-4.5-33b",
+      "arch": "rtxpro6000",
+      "topology": "single 1노드 TP1",
+      "brief": "LGAI-EXAONE/EXAONE-4.5-33B (Exaone4_5 dense VLM, SWA 하이브리드 64층=16 full+48 sliding(window 4096), bf16 ~64GiB) — RTX PRO 6000(96GiB discrete sm_120) TP1 최대-context(256K) M=24.1 t/s · verdict PASS(92.5% MBU)",
+      "anchor": "ef0b5442ee6b71a5e5cc1feba5be4d5ff3f4f29e",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-07-19"
+    },
+    {
+      "tag": "hint/0.25.1/gemma-4-26b-a4b/rtxpro6000",
+      "vllm": "0.25.1",
+      "model": "gemma-4-26b-a4b",
+      "arch": "rtxpro6000",
+      "topology": "single 1노드 TP1",
+      "brief": "google/gemma-4-26B-A4B-it (Gemma4 MoE VLM SWA 하이브리드 30층=5 full+25 sliding, 128exp, bf16 ~49GiB, active 4B) — RTX PRO 6000 TP1 최대-context(256K) M=150.3 t/s · verdict PASS",
+      "anchor": "ef0b5442ee6b71a5e5cc1feba5be4d5ff3f4f29e",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-07-19"
+    },
+    {
+      "tag": "hint/0.25.1/gemma-4-31b/rtxpro6000",
+      "vllm": "0.25.1",
+      "model": "gemma-4-31b",
+      "arch": "rtxpro6000",
+      "topology": "single 1노드 TP1",
+      "brief": "google/gemma-4-31B (Gemma4 dense VLM 31B, bf16 ~65GiB) — RTX PRO 6000 TP1 최대-context(256K) M=25.1 t/s · verdict PASS",
+      "anchor": "ef0b5442ee6b71a5e5cc1feba5be4d5ff3f4f29e",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-07-19"
+    },
+    {
+      "tag": "hint/0.25.1/gpt-oss-120b/rtxpro6000",
+      "vllm": "0.25.1",
+      "model": "gpt-oss-120b",
+      "arch": "rtxpro6000",
+      "topology": "single 1노드 TP1",
+      "brief": "openai/gpt-oss-120b (GptOss MoE 128exp/4tok, MXFP4, SWA sliding_window 128, ~66GiB, harmony reasoning, text-only) — RTX PRO 6000 TP1 128K(native 상한) M=62.6 t/s · verdict REFUTE(MARLIN mxfp4 커널 천장)",
+      "anchor": "ef0b5442ee6b71a5e5cc1feba5be4d5ff3f4f29e",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-07-19"
+    },
+    {
+      "tag": "hint/0.25.1/hyperclovax-think-32b/rtxpro6000",
+      "vllm": "0.25.1",
+      "model": "hyperclovax-think-32b",
+      "arch": "rtxpro6000",
+      "topology": "single 1노드 TP1",
+      "brief": "naver-hyperclovax/HyperCLOVAX-SEED-Think-32B (dense reasoning 32B, bf16 ~66GiB) — RTX PRO 6000 TP1 M=24.0 t/s · verdict PASS",
+      "anchor": "ef0b5442ee6b71a5e5cc1feba5be4d5ff3f4f29e",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-07-19"
+    },
+    {
+      "tag": "hint/0.25.1/minicpm5-1b-base/rtxpro6000",
+      "vllm": "0.25.1",
+      "model": "minicpm5-1b-base",
+      "arch": "rtxpro6000",
+      "topology": "single 1노드 TP1",
+      "brief": "MiniCPM5-1B-Base (dense 1B, bf16 ~2GiB) — RTX PRO 6000(96GiB discrete sm_120) TP1 서빙 M=467 t/s · verdict PASS(벽 없음)",
+      "anchor": "ef0b5442ee6b71a5e5cc1feba5be4d5ff3f4f29e",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-07-19"
+    },
+    {
+      "tag": "hint/0.25.1/qwen3.5-122b-a10b-nvfp4/rtxpro6000",
+      "vllm": "0.25.1",
+      "model": "qwen3.5-122b-a10b-nvfp4",
+      "arch": "rtxpro6000",
+      "topology": "single 1노드 TP1",
+      "brief": "nvidia/Qwen3.5-122B-A10B-NVFP4 (Qwen3.5 MoE VLM 하이브리드, NVFP4 W4A4, 가중치 ~78GiB, active 10B) — RTX PRO 6000(96GiB, host RAM 60GiB) TP1 최대-context(256K) M=24.1 t/s · verdict REFUTE(host-constrained·수용)",
+      "anchor": "ef0b5442ee6b71a5e5cc1feba5be4d5ff3f4f29e",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-07-19"
+    },
+    {
+      "tag": "hint/0.25.1/qwen3.6-27b/rtxpro6000",
+      "vllm": "0.25.1",
+      "model": "qwen3.6-27b",
+      "arch": "rtxpro6000",
+      "topology": "single 1노드 TP1",
+      "brief": "Qwen/Qwen3.6-27B (Qwen3.5 dense VLM 하이브리드 48층=12 full+36 linear, bf16 ~52GiB) — RTX PRO 6000 TP1 최대-context(256K) M=29.6 t/s · verdict PASS(92% MBU)",
+      "anchor": "ef0b5442ee6b71a5e5cc1feba5be4d5ff3f4f29e",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-07-19"
+    },
+    {
+      "tag": "hint/0.25.1/qwen3.6-35b-a3b/rtxpro6000",
+      "vllm": "0.25.1",
+      "model": "qwen3.6-35b-a3b",
+      "arch": "rtxpro6000",
+      "topology": "single 1노드 TP1",
+      "brief": "Qwen/Qwen3.6-35B-A3B (Qwen3.5 MoE VLM 하이브리드 40층=10 full+30 linear, bf16 ~67GiB, active 3B) — RTX PRO 6000 TP1 최대-context(256K) M=181.5 t/s · verdict PASS(79% MBU)",
+      "anchor": "ef0b5442ee6b71a5e5cc1feba5be4d5ff3f4f29e",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-07-19"
     }
   ]
 }
