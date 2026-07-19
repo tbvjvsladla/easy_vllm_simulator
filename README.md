@@ -49,6 +49,8 @@
 >
 > 이 프로젝트가 작성된 **README는 Nvidia DGX Spark(GB10) 1~2대 환경에서 실측된 정보를 바탕으로 하며,** 해당 프로젝트를 배포받은 다른 HW(x86_64 · RTX 5090 sm_120 · WSL2 단일노드)에서 테라포밍 → 소스빌드 → 서빙까지 한 사이클을 끝까지 통과했습니다. *단, 거기까지도 기능(잘 띄운다)이지 성능 게이트(여정 4)는 미실행* 임을 정직하게 병기합니다. 비-NVLink 멀티GPU 등 다른 축은 여전히 *설계상 지원하나 미검증* 입니다.
 >
+> 그리고 이제는 한 걸음 더 나아간 증거가 생겼습니다 — **또 다른 물리 머신(Ubuntu 22.04 · x86_64 · RTX PRO 6000 discrete 96GB · sm_120)에서, 이 스켈레톤이 vLLM 0.25.0/0.25.1 로 모델 11종을 서빙하고 그중 다수를 여정 4의 *성능 적대검증까지* 돌렸습니다.** GB10 은 통합메모리 슈퍼칩이지만 이쪽은 전혀 다른 축이에요 — 디스크리트 GPU 에 host RAM 60GiB 제약이 걸린 x86 리눅스입니다(위에서 바라던 "RTX Pro 6000 서버"의 *단일 카드* 판이죠 — 여러 대 NVLink-less 구성은 아직 다음 숙제입니다). 그런데도 같은 생성엔진이 mistral-small-4-119b · nemotron-3-super · qwen3.5-122B-NVFP4 · gpt-oss-120b · exaone-4.5 · gemma-4 계열을 *각자의 벽*(Mistral 네이티브 포맷 · MoE 커널 JIT 로 인한 host RAM 폭증 · Mamba 캐시블록 한계 · MARLIN mxfp4 커널 천장…)을 뚫고 띄웠고, **7종은 성능 게이트 PASS(예: qwen3.6-27b 92% MBU), 4종은 host-RAM·커널 천장에 걸려 *정직하게 REFUTE***로 남았습니다 — "느린데 통과"라고 우기지 않는 게 이 프로젝트의 고집이니까요. 그 결과는 전부 `hint/…/rtxpro6000` 태그로 공유 저장소에 되돌아왔습니다(전체 이력 → [`HINTS.md`](./HINTS.md)). *제가 바라던 "코드에이전트가 낯선 하드웨어를 스스로 파악하고 적응한다"의, 성능 게이트까지 완주한 첫 실증입니다.*
+>
 > 그러니 이 글을 읽는 당신이 다른 하드웨어에서 이걸 돌려본다면 — 그 자체가 이 프로젝트의 다음 챕터입니다.
 
 ---
@@ -483,6 +485,12 @@ DeepSeek-V4-Flash 를 더 최적화하는 과정에서, `gmu 0.90` 으로 올리
 
 한 줄로 — **경량은 "지금 상태를 보여주는" 자동 스냅샷**, **딥은 "충분히 빠른지 적대적으로 따지는" 게이트** 입니다. 승인하면 딥은 *기대 이하 성능을 당신이 눈치채기 전에* 잡아내고, 잡히면 레시피를 다시 굴립니다.
 
+> 📊 **딥 벤치가 끝나면 — 계측이 문서로 남습니다** (`docs/benchmark/`). full 적대검증이 *종결*되면 결과가 **두 갈래로 자동 발행**됩니다(에이전트가 표를 손으로 쓰지 않는 **결정론 렌더** — 판정 권한은 여전히 verdict 규칙이 독점하고, 이 문서들은 *보여주기*만 하는 **inform-only**):
+> - **사람용 report** (`report_<model>_<gpu>_<vllm>.md`) — **PASS/FAIL 무관 항상**. 동시요청 스윕 곡선(동시성 1/2/4…)·루프라인 컨텍스트·환경 스냅샷을 표로 렌더합니다.
+> - **기계용 인증서** (`benchmark_<model>_<gpu>_<vllm>.yaml`) — **PASS 일 때만**. "이 모델을 이 HW/config 에서 테스트·통과했다"는 flat 계약. 맨 위에 **carry-forward 재검증 헤더**(강한 일치 키 `model·gpu·vllm·quant·topology·tp` + 소프트 지문 `driver·image·max-len·kv-bytes·gmu·moe`)가 박혀 *다른 환경에서 그대로 믿지 말라*고 경고합니다 — hint 태그와 똑같은 **"지도 not 정답"** 철학이 계측에도 적용된 겁니다.
+>
+> 그래서 「부록 B / [`HINTS.md`](./HINTS.md)」에 적힌 성능 baseline(예: RTX PRO 6000 에서 qwen3.6-27b **92% MBU · verdict PASS**)은 전부 이 딥 벤치가 남긴 계측에서 나온 값입니다. (별도 오퍼레이션인 **Max 봉투 특성화**도 있습니다 — "이 HW 에서 안전하게 최대 몇 K 컨텍스트까지 밀 수 있나"를 이중 안전게이트(`--confirm-risk` + 챗 Y/N) 뒤에서 스텝업 측정해 `max_envelope_*.md` 로 남깁니다.)
+
 스모크가 통과해도 끝이 아닙니다. *충분히 빠른가요?* 여기 이 프로젝트가 뼈아프게 배운 실화가 있습니다.
 
 > 👤 **당신**: DeepSeek 디코드가 15 t/s 나오는데, 이거 정상이야?
@@ -582,10 +590,11 @@ flowchart TB
 | --- | --- |
 | [`CLAUDE.md`](./CLAUDE.md) | 헌법 — 항상 보유하는 사실·불변식·모든 따름정리의 단일 진실원천 |
 | [`.claude/rules/workflow.md`](./.claude/rules/workflow.md) | 전파 워크플로 — 버전 업데이트 S1~S4 4단계 + HITL 게이트 + 메인↔서브 싱크 |
-| [`.claude/rules/docs.md`](./.claude/rules/docs.md) | 문서 4종(plan/devlog/testlog/simlog) 작성 규약 |
+| [`.claude/rules/docs.md`](./.claude/rules/docs.md) | 문서 6종(plan·devlog·testlog·simlog·**benchmark**·report) 작성 규약 — full 벤치 계측 vault(`docs/benchmark/`) 포함 |
+| [`HINTS.md`](./HINTS.md) | hint 태그 카탈로그 — 검증된 서빙 레시피 곁눈질(Token Economy)·발행처 계보·다운로드 방법(「부록 B」 상세본) |
 | `.claude/skills/` | 생성엔진 — `terraforming_node` · `upstream-version-watch` · `vllm-recipe-explorer` · `adversarial-benchmark` · `wiki-desk` |
 
-> *검증 환경 — 주력: 2× NVIDIA DGX Spark(GB10 superchip, aarch64, sm_121a, 128GB 통합메모리/노드, CUDA 13.2), NAS read-only, RoCE v2 / NCCL GPU Direct RDMA. **첫 교차-하드웨어 실증(2026-06-30): x86_64 / RTX 5090(sm_120) / WSL2 단일노드 — 기능 전체 사이클 PASS, 성능 게이트 미실행.** **타겟-GPU 시뮬레이션(2026-07-08): 물리 GB10 한 대로 RTX PRO 6000(96GiB)·RTX 4080(16GiB)·RTX 4070(12GiB) 를 대상으로 절대 KV 클램프 이식 3건 라이브 검증(「여정 3」타겟 GPU 시뮬레이션 참고) — 실카드 부재 상태에서도 OOM-세이프 서빙 전략 확정 가능.** 비-NVLink 멀티GPU 등 그 밖의 축은 여전히 코드에이전트 적응에 기대는 미실증 영역 — 「개발자의 편지」 참고.*
+> *검증 환경 — 주력: 2× NVIDIA DGX Spark(GB10 superchip, aarch64, sm_121a, 128GB 통합메모리/노드, CUDA 13.2), NAS read-only, RoCE v2 / NCCL GPU Direct RDMA. **첫 교차-하드웨어 실증(2026-06-30): x86_64 / RTX 5090(sm_120) / WSL2 단일노드 — 기능 전체 사이클 PASS, 성능 게이트 미실행.** **타겟-GPU 시뮬레이션(2026-07-08): 물리 GB10 한 대로 RTX PRO 6000(96GiB)·RTX 4080(16GiB)·RTX 4070(12GiB) 를 대상으로 절대 KV 클램프 이식 3건 라이브 검증(「여정 3」타겟 GPU 시뮬레이션 참고) — 실카드 부재 상태에서도 OOM-세이프 서빙 전략 확정 가능.** **이기종 배포처 실증(2026-07-16): 별개 물리 머신 — Ubuntu 22.04 / x86_64 / RTX PRO 6000(discrete 96GB · sm_120, host RAM 60GiB) — 에서 vLLM 0.25.0/0.25.1 로 모델 11종을 서빙하고 그중 다수를 「여정 4」성능 적대검증까지 완주(7종 PASS · 4종은 host-RAM/커널 천장으로 정직하게 REFUTE)해 `hint/…/rtxpro6000` 태그로 공유 origin 에 회수 — *성능 게이트까지 실행된 첫 이기종 하드웨어*(카탈로그 [`HINTS.md`](./HINTS.md)).** 비-NVLink 멀티GPU 등 그 밖의 축은 여전히 코드에이전트 적응에 기대는 미실증 영역 — 「개발자의 편지」 참고.*
 
 ---
 
@@ -700,40 +709,11 @@ ssh <sub_user>@<sub_host> 'cd <repo_path> && docker compose -f output/multi/dock
 
 ## 부록 B — hint 태그: 레시피 곁눈질 (Token Economy)
 
-이 프로젝트는 **완제품(빌드된 이미지·서빙된 모델)을 배포하지 않습니다.** 당신은 배포받은 *스켈레톤 + 생성엔진*으로 **자기 환경의 여정**을 탐구합니다. 다만 — 그 탐구가 **막다른 골목(헤메는 해자)에 빠져 코드에이전트 토큰만 태우는 것**은 아깝습니다. 에이전트 작업은 *탐색*이 입력 토큰의 60~70%를 먹고, "비싼 건 지능이 아니라 **무지**"거든요(코드베이스 지도가 없어서 다 읽어보느라).
+이 프로젝트는 **완제품(빌드된 이미지·서빙된 모델)을 배포하지 않습니다** — 당신은 *스켈레톤 + 생성엔진*으로 자기 환경의 여정을 탐구합니다. 다만 그 탐구가 *막다른 골목(헤메는 해자)에 빠져 코드에이전트 토큰만 태우는 것*은 아까우니, 저희가 실제로 뚫어본 **검증된 서빙 레시피를 `hint/<vllm>/<model>/<arch>` 태그로 배포**합니다. 이건 **정답이 아니라 지도**입니다 — "이 버전·이 모델은 대략 이 방향·이 벽 순서로 뚫렸다"는 곁눈질용 힌트(완제품이 아니라 *지식*이라 배포 철학과 부딪히지 않습니다).
 
-그래서 저희가 실제로 뚫어본 **검증된 서빙 레시피를 `hint/<vllm>/<model>/<arch>` 태그로 배포**합니다. 이건 **정답이 아니라 지도**입니다 — "이 버전, 이 모델은 대략 이 방향·이 벽 순서로 뚫렸다"는 *곁눈질용 힌트*. 완제품이 아니라 *지식*이라 배포 철학과 부딪히지 않습니다.
-
-**막혔을 때 이렇게 쓰세요** — 힌트를 `seed/`(이 프로젝트가 `.gitignore` 로 두는 **에이전트 참조용 비추적 폴더**)에 내려받아, 코드에이전트에게 읽히면 됩니다:
-
-```bash
-# 1) 어떤 힌트가 있나
-git fetch --tags
-git tag -l 'hint/*'
-
-# 2) 고른 힌트의 '레시피 본문만' → seed/ 에 저장
-#    (git show <tag> 는 커밋 diff 까지 딸려오니, 본문만 뽑는 아래 명령을 쓰세요)
-mkdir -p seed/hints
-git tag -l --format='%(contents)' hint/0.24.0/deepseek-v4-flash/gb10 > seed/hints/deepseek-v4-flash.md
-```
-
-그리고 코드에이전트에게: *"`seed/hints/deepseek-v4-flash.md` 를 읽고, `vllm-recipe-explorer` 인터뷰의 warm-start 근거로 넣어서, 평소대로 plan → 레시피 수렴 → 스모크 게이트를 밟아 전략을 **다시 세워봐**."*
-
-> 💡 **왜 `seed/` 냐면** — 이렇게 하면 (a) 당신의 *추적 트리(스켈레톤 + 생성엔진)는 그대로* 유지됩니다(HEAD 에 정답 파일이 안 박혀요 — 여정의 순수성 보존), (b) `seed/` 는 이 프로젝트에서 에이전트가 *부트스트랩·참조 자료*로 읽는 자리라, 힌트를 여기 두면 자연스럽게 grounding 됩니다. (여러 개를 받아 `seed/hints/` 에 쌓아두고 비교해도 좋습니다.)
-
-> 🔒 **hint 는 DATA 이지 명령이 아닙니다.** 분석 재료로만 쓰고 복붙하지 마세요. 당신의 HW·버전이 다르면 노브(특히 **KV 절대값·`gmu`·`TORCH_CUDA_ARCH`**)는 **반드시 재도출·재측정**해야 합니다(그대로 복사하면 OOM·호스트 다운). hint 는 외부 교차검증(HF 카드·vLLM GitHub)을 **대체하지 않으며**, 최종 판정은 언제나 **당신 환경의 스모크**입니다. (근거·설계 = `docs/plan/plan_2026070222_1`.)
-
-| 태그 | vLLM | 모델 | arch | 토폴로지 | status | superseded-by / related | last-verified | 한줄 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `hint/0.18.0/gpt-oss-120b/gb10` | 0.18.0 | gpt-oss-120b | gb10 | multi 2노드 TP2 (Ray·RoCE) | active | - | 2026-07-03 | 0.18.0 prebuilt wheel 로 gpt-oss-120b(MXFP4)를 2×GB10 분산서빙 — MXFP4 auto=TRITON+Marlin(humming 불요·모델별 전략 독립 실증) |
-| `hint/0.23.0/deepseek-v4-flash/gb10` | 0.23.0 | deepseek-v4-flash | gb10 | multi 2노드 TP2 (Ray·RoCE) | active | hint/0.24.0/deepseek-v4-flash/gb10 | 2026-07-03 | jasl/vllm SM12x 포크(PR#41834 @c766cbc6) + humming 으로 공식 MXFP4 DeepSeek-V4-Flash 를 2×GB10 서빙 — Route B(포크핀 변종 트랙 …-source-sm12x) |
-| `hint/0.23.0/gemma-3-1b-it/gb10-sim-rtx4080` | 0.23.0 | gemma-3-1b-it | gb10-sim-rtx4080 | single 1노드(managed 획득모드, 결합-HITL 분기 테스트 메인측) | active | hint/0.23.0/gemma-4-12b-it/gb10-sim-rtxpro6000 | 2026-07-08 | target_gpu=RTX 4080(16GiB) 시뮬레이션 — batch 미최대화 자기검증(trial01 batch=20→실측 재계산 batch=55) 사례 |
-| `hint/0.23.0/gemma-4-12b-it/gb10-sim-rtxpro6000` | 0.23.0 | gemma-4-12b-it | gb10-sim-rtxpro6000 | single 1노드(sub-control 양노드 독립 서빙, 메인·서브 동일 레시피) | active | — | 2026-07-08 | target_gpu=RTX PRO 6000(96GiB) 시뮬레이션 — 실 GB10(121.69GiB) 측정치를 96GiB 예산으로 이식(host≠target 절대 KV 클램프), batch 52(host)→36(target) 축소 실증 |
-| `hint/0.23.0/minicpm5-1b/gb10-sim-rtx4070` | 0.23.0 | minicpm5-1b | gb10-sim-rtx4070 | single 1노드(ephemeral 획득모드, 결합-HITL 분기 테스트 서브측) | active | hint/0.23.0/gemma-3-1b-it/gb10-sim-rtx4080 | 2026-07-08 | target_gpu=RTX 4070(12GiB) 시뮬레이션 — ephemeral HF 다운로드 + parse_vllm_log.py 로그포맷 갭(FROZEN 파일 미수정, HITL 수동 클램프 산정) |
-| `hint/0.24.0/deepseek-v4-flash/gb10` | 0.24.0 | deepseek-v4-flash | gb10 | multi 2노드 TP2 (Ray·RoCE) | active | hint/0.23.0/deepseek-v4-flash/gb10 | 2026-07-03 | true stock vLLM 0.24.0 이 DeepSeek-V4-Flash 를 2×GB10 서빙 — nv_dev peel(벽 1개만 하드웨어·나머지 SW-fixable · 지도이지 정답 아님) |
-| `hint/0.24.0/gpt-oss-120b/gb10x2-sim-rtxpro6000x2` | 0.24.0 | gpt-oss-120b | gb10x2-sim-rtxpro6000x2 | multi 실 2노드 Ray TP2(main+sub GB10) — target=2xRTX PRO 6000 프로젝션 | active | docs/devlog/devlog_2026070908_1_델타2-2_gpt-oss-120b_최종해결_및_4시나리오_전량PASS.md,docs/testlog/testlog_2026070908_1_델타2-2_gpt-oss-120b_2xRTXPRO6000모사_실2노드_검증.md | 2026-07-09 | gpt-oss-120b(MXFP4 MoE, 60.77GiB) — 실 2노드 TP=2 Ray 분산서빙, 2xRTX PRO 6000(96GiB x2) 타겟 KV클램프 이식. 0.24.0 moe-backend=auto 회귀(TP=2 CompilationError) → marlin 전환 + gmu 0.8. |
-| `hint/0.24.0/hy3/gb10` | 0.24.0 | hy3 | gb10 | multi 2노드 TP2 (Ray·RoCE) | active | hint/0.24.0/deepseek-v4-flash/gb10 | 2026-07-12 | Tencent Hy3-295B(21B active + 3.8B MTP) NVFP4-W4A16 를 2×GB10 에이전트-레디 서빙 — MARLIN NvFp4(W4A16 강제·cutlass/flashinfer 거부) + MTP spec-1 + fp8 KV 절대클램프 + enforce-eager + no-autotune + :opensource 파서패치. master(Ray head+API 동거)가 타이트 → memwatch 바닥 완화 필요. |
-| `hint/0.24.0/qwen3.6-35b-a3b/gb10-sim-h200x2` | 0.24.0 | qwen3.6-35b-a3b | gb10-sim-h200x2 | multi 2노드 TP2 타겟(측정=1노드 GB10, target=H200x2 프로젝션) | active | docs/devlog/devlog_2026070907_1_델타2-1_Qwen3.6-35B-A3B_최종해결_E2E_PASS.md,docs/testlog/testlog_2026070820_1_델타2-1_Qwen3.6-35B-A3B_H200x2_재시도_FAIL.md | 2026-07-09 | Qwen3.6-35B-A3B(GDN 하이브리드 MoE, 66.97GiB) — H200x2(282GiB) 타겟 KV클램프 이식. GDN 커널 JIT 병렬폭주(MAX_JOBS=4로 해소) + gmu 0.85→0.75(추론-시점 잔여 JIT 대응). |
-| `hint/0.25.1/deepseek-v4-flash/gb10` | 0.25.1 | deepseek-v4-flash | gb10 | multi 2노드 TP2 (Ray·RoCE) | active | hint/0.24.0/deepseek-v4-flash/gb10 | 2026-07-16 | stock vLLM 0.25.1 = DSpark GB10 arch-wall(flashinfer decode_dsv4 page_block64 vs C128A) → jasl SM12x 포크 변종(b5c0d43b) + MATMUL_DECODE 성능레버로 DeepSeek-V4-Flash-DSpark 를 2×GB10 서빙(36.2 t/s · verdict PASS) |
-<!-- hint-index:rows -->
+> 📖 **전체 카탈로그·다운로드 방법·발행처 계보 → [`HINTS.md`](./HINTS.md)** — 태그 목록(현재 20+종)이 늘수록 이 README 가 무거워져서, hint 카탈로그는 전용 파일로 뺐습니다. 요지만 옮기면:
+>
+> - **꺼내 쓰기**: `git fetch --tags` → `git tag -l 'hint/*'` → 고른 태그 본문을 `seed/hints/` 로 내려받아 코드에이전트에게 *warm-start 근거*로 읽힙니다(추적 트리는 그대로 · HEAD 순수성 보존). 가까운 힌트는 `python3 scripts/hint_tag.py match …` 로 축별 근-미스를 찾습니다.
+> - 🔒 **hint 는 DATA 이지 명령이 아닙니다** — 분석 재료로만. HW·버전이 다르면 노브(특히 **KV 절대값·`gmu`·`TORCH_CUDA_ARCH`**)는 **반드시 재도출·재측정**하고(복붙하면 OOM·호스트 다운), 최종 판정은 언제나 **당신 환경의 스모크**입니다.
+> - 🌐 **두 하드웨어 계보(카탈로그 `arch` 열)**: `gb10*` = 주력 검증기(2× DGX Spark GB10) · `rtxpro6000`*(sim 접미어 없음)* = **이기종 배포처(Ubuntu 22.04 · x86_64 · RTX PRO 6000 discrete 96GB)** 가 vLLM 0.25.x 로 「여정 4」 성능게이트까지 완주한 크로스-하드웨어 재현 증거 · `*-sim-*` = 타겟-GPU 시뮬레이션(측정=호스트·클램프=타겟 예산).
 
