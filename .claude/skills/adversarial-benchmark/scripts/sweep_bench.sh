@@ -94,7 +94,7 @@ for L in "${SORTED[@]}"; do
 done
 
 # ── sweep_index.json 조립 + meta 추출(결정론 · stdlib · fail-soft N/A) ──────────
-CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$CFGYAML" EF="$EF" MANIFEST="$MANIFEST" \
+CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$CFGYAML" EF="$EF" MANIFEST="$MANIFEST" AGENT_CARD="$REPO/Agent_Card.json" \
 SWEEPDIR="$SWEEPDIR" VLLM_VER="$VLLM_VER" COMPLETED="${COMPLETED[*]:-}" ILEN="$ILEN" python3 - <<'PY'
 import json, os, re, glob, datetime
 
@@ -124,7 +124,19 @@ if not vllm:
     m = re.search(r"vLLM[\s]*([0-9]+\.[0-9]+\.[0-9]+)", cfgtext)
     vllm = m.group(1) if m else "NA"
 
-gpu_model = grep_yaml(mftext, "gpu_model") or "NA"
+# gpu_model: manifest > Agent_Card.json(node_identity) > NA.
+#   ⚠ 서브 노드에는 manifest.yaml 이 **설계상 부재**(D10 — sync_to_sub 가 manifest 를 배달하지 않는다; 서브 정체성은
+#   메인이 render_sub_env.py 로 렌더한 Agent_Card.json 에 산다). 폴백이 없으면 서브에서 돈 full 벤치의
+#   인증서 강한키 gpu 가 "NA" 로 발행돼 carry-forward 재검증이 무력화된다(plan_2026072217_1 실측).
+#   Agent_Card 의 gpu_model 은 메인의 HW 동질성 스캔 산물이므로 날조가 아니라 **A2A attestation** 이다.
+gpu_model = grep_yaml(mftext, "gpu_model")
+if not gpu_model:
+    try:
+        with open(os.environ.get("AGENT_CARD", ""), encoding="utf-8") as _f:
+            gpu_model = (json.load(_f).get("node_identity") or {}).get("gpu_model") or None
+    except Exception:
+        gpu_model = None
+gpu_model = gpu_model or "NA"
 gpu_key = re.sub(r"[^A-Za-z0-9]", "", gpu_model.replace("NVIDIA", "")) or "NA"  # "NVIDIA GB10" → "GB10"
 # tp: config tensor-parallel-size > manifest nodes*gpus_per_node > 1
 tp = grep_yaml(cfgtext, "tensor-parallel-size")
