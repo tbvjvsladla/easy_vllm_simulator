@@ -218,6 +218,18 @@
       "last_verified": "2026-07-19"
     },
     {
+      "tag": "hint/0.25.1/laguna-s-2.1/gb10",
+      "vllm": "0.25.1",
+      "model": "laguna-s-2.1",
+      "arch": "gb10",
+      "topology": "single",
+      "brief": "Laguna-S-2.1-NVFP4(117.6B-A8B MoE, poolside) 단일 GB10 서빙 · DFlash speculative decoding 유무 양노드 대조 검증",
+      "anchor": "f12644b8e0eadcfc8b834b2bfc0a282fefc7c57c",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-07-22"
+    },
+    {
       "tag": "hint/0.25.1/minicpm5-1b-base/rtxpro6000",
       "vllm": "0.25.1",
       "model": "minicpm5-1b-base",
