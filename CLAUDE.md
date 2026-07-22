@@ -160,3 +160,15 @@
 - **3+2+1종 문서 역할**: `docs/plan/`(착수 전 계획·HITL) · `docs/devlog/`(작업 서사) · `docs/testlog/`(검증 증거·판정) + `docs/simlog/`(run 디렉토리 = 기계생성 원시증거 vault) + `docs/benchmark/`(full-런 계측 vault = 사람용 report[항상]+기계용 인증서[PASS시]·inform-only) + **`docs/report/`**(배포자 대상 아웃바운드 공지 — 앞 5종과 직교: 사람이 자유 발행·트리거 ✗·wiki 색인 ✗·메인 전용 · *유일하게 산출물째 git-추적*(배포돼야 도달) · 단일파일 반응형 HTML 권장 · PII 금지). 명명 = `docs/<type>/<type>_<YYYYMMDDHH>_<seq>_<주제>.md`(simlog 는 run 폴더 · benchmark 는 `report_/benchmark_<model>_<gpu>_<vllm>` 평면파일 · report 는 `<주제-슬러그>.html` 날짜 ✗). 역할·명명·구조·브랜치 통합모델 상세 = `.claude/rules/docs.md`.
 - 전파 워크플로 규칙: `.claude/rules/workflow.md`.
 - 부트스트랩 근거: 비추적 `seed/`(카파시 규칙·워크플로 패턴·session_record 등 — 배포본엔 부재 가능) + 추적 `docs/plan/` 체인(wiki-desk 색인이 안정 앵커).
+
+<!-- BEGIN HERMES-CLAUDE-CONTROL OPTIONAL -->
+## Optional Hermes-Claude Control Integration (선택 · 메인테이너 로컬 전용 · control-plane 한정)
+
+> 배포자 참고(먼저 읽기): 이 절은 메인테이너 개인의 **선택적** 제어면(claude-code-control)에 대한 안내다.
+> 관련 아티팩트(`agent-card.json`·`.hermes-claude-control/`·`.claude/rules/hermes-claude-control.md`·
+> `.claude/schemas/hermes-control-*`·`.claude/templates/hermes-control-*`)는 **메인테이너 로컬에만** 존재하며
+> **이 배포본에는 없다**(git 비추적). **당신의 체크아웃에 claude-code-control 스킬이나 이 아티팩트가 없으면
+> 이 절 전체를 무시하라** — 제품 동작·헌법·`.claude/skills/*` 의미에 아무 영향이 없다.
+
+이 프로젝트는 선택적으로 `.hermes-claude-control/` 기반 메인 Hermes Agent ↔ Claude Code 제어 contract를 가질 수 있다. 이 통합은 `agent-card.json` capability가 **명시 호출될 때만** 적용되며, 기존 제품 작업 헌법과 `.claude/skills/*` 의미를 대체하지 않는다. run-history·runtime 상태는 실행 이력이므로 git 추적하지 않는다. 경계 정책 상세 = `docs/report/claude-control-main-only-local-overlay-policy.md`.
+<!-- END HERMES-CLAUDE-CONTROL OPTIONAL -->
