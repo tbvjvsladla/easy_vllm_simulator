@@ -26,6 +26,18 @@
       "last_verified": "2026-07-03"
     },
     {
+      "tag": "hint/0.22.0/solar-open2-250b-nota-nvfp4/gb10",
+      "vllm": "0.22.0",
+      "model": "solar-open2-250b-nota-nvfp4",
+      "arch": "gb10",
+      "topology": "multi 2노드 TP2",
+      "brief": "Solar-Open2-250B NVFP4(하이브리드 KDA MoE)를 stock 미지원 → UpstageAI 포크 SHA 핀으로 2x GB10 TP=2 서빙; MoE=FLASHINFER_CUTLASS 명시 · JIT 병렬도 1이 호스트 RAM 벽의 열쇠",
+      "anchor": "b54b12f20a216696ef9b3232dfa52f927c199652",
+      "related": "hint/0.25.1/deepseek-v4-flash/gb10, hint/0.25.1/laguna-s-2.1/gb10",
+      "status": "active",
+      "last_verified": "2026-07-25"
+    },
+    {
       "tag": "hint/0.23.0/deepseek-v4-flash/gb10",
       "vllm": "0.23.0",
       "model": "deepseek-v4-flash",
