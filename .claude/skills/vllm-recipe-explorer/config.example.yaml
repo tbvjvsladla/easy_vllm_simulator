@@ -10,7 +10,7 @@ safety_margin: 0.90                        # 하드게이트 임계(기본 0.90)
 kv_cache_dtype_bytes: 2                    # KV dtype 바이트(기본 2=fp16)
 # tensor_parallel_size: 1                  # (선택) 미지정 시 manifest(nodes×gpus_per_node) 자동결정(git 브랜치 추론 아님 — CLAUDE.md §manifest→서빙전략 배선 불변식)
 # target_gpu:                              # (선택) host≠target 이식 경로 — 있으면 Phase-1(estimate/generate) 거부,
-#                                           #   Phase-2(simulate) 강제(plan_2026070809_3). vram_budget_gb 와 상호배타적 의도.
+#                                           #   Phase-2(simulate) 강제(plan_26070809_47_07). vram_budget_gb 와 상호배타적 의도.
 #   gpu_model: "NVIDIA RTX PRO 6000"        #   references.md §4 테이블 역룩업 키(per-card VRAM 해소)
 #   per_card_vram_gib: 96                   #   (선택) 테이블 미등재/오버라이드 시 명시(quick-win 우회)
 #   cards_per_node: 1                       #   기본 1. N장은 명시(타겟 TP = cards_per_node × manifest node 수)

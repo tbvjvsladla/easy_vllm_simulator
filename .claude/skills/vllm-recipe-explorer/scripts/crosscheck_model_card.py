@@ -8,7 +8,7 @@
   · special 커널/엔진 의존(DeepGEMM·tilelang·flash_attn …) — novel-arch 구동 사전경보
   · 정밀도·파라미터·컨텍스트·아키 카드값 ↔ config/실측 dtype 합치
 
-동기(실증, plan_2026062811_2 item③): config.json `quant_method:fp8`(coarse) + `du` 아티팩트만 봐
+동기(실증, plan_26062811_30_33 item③): config.json `quant_method:fp8`(coarse) + `du` 아티팩트만 봐
 DeepSeek-V4-Flash 를 순수 FP8/298GB/인피저블로 **오판** → 모델카드 README 가 `FP4+FP8 Mixed(experts FP4)`
 명시했고 `inference/requirements.txt` 가 `tilelang` 명시. 카드 우선 참조 시 오판·DeepGEMM-class 함정 조기 포착.
 
@@ -16,7 +16,7 @@ DeepSeek-V4-Flash 를 순수 FP8/298GB/인피저블로 **오판** → 모델카�
 카드 — 모델과 함께 받음). 헌법 §금지 "참조-그라운디드".
 **MISMATCH 1건 이상이면 비0 종료(게이트)** — parse 직후 필수 루틴(SKILL.md §2 ①).
 
-**외부 VRAM 교차검증 (plan_2026070814_1)**: `fetch_hf_safetensors_total`/`crosscheck_external_vram` 은
+**외부 VRAM 교차검증 (plan_26070814)**: `fetch_hf_safetensors_total`/`crosscheck_external_vram` 은
 예외적으로 네트워크 호출(HF 공개 API `GET /api/models/<repo_id>` — 모델 자체는 받지 않고 `safetensors.total`
 파라미터 총계만 조회)을 한다. 동기: `du -sh` 류 디렉토리 전체크기가 `.git`(HF LFS 캐시) 오염으로 실제
 가중치보다 2배 가까이 부풀 수 있음이 실증됨(2026-07-08, gemma-4-E2B-it 20GB→실 9.54GiB) — 로컬 실측
@@ -176,7 +176,7 @@ def read_inference_deps(model_dir: str) -> list:
 
 
 def fetch_hf_safetensors_total(repo_id: str, timeout: float = 8.0) -> dict:
-    """HF 공개 API 로 안전텐서 파라미터 총계를 조회(모델 자체는 받지 않음 — plan_2026070814_1).
+    """HF 공개 API 로 안전텐서 파라미터 총계를 조회(모델 자체는 받지 않음 — plan_26070814).
 
     반환: {"ok": True, "total": int, "parameters": {dtype: count}} 또는
           {"ok": False, "reason": str}(조회 실패 — 음성정직, 대체값 날조 금지).
@@ -300,7 +300,7 @@ def crosscheck(model_dir: str, hf_repo_id: "str | None" = None,
         recs.append("reasoning 모델 — 스모크 max_tokens 충분히(finish_reason=stop) · reasoning-parser 검토.")
     checks.append({"name": "reasoning", "verdict": "info", "is_reasoning": is_reasoning})
 
-    # ── 6. 외부(HF API) VRAM 이중검증 (managed — plan_2026070814_1) ──
+    # ── 6. 외부(HF API) VRAM 이중검증 (managed — plan_26070814) ──
     # du -sh 류 디렉토리 전체크기의 .git 오염 실증(2026-07-08) 대응. hf_repo_id 미지정 시 스킵(info).
     if hf_repo_id:
         extv = crosscheck_external_vram(local_num_params, None, hf_repo_id)

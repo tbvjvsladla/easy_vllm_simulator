@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""preload_ram_gate.py — 로드-전 가용 RAM 결정론 게이트 (plan_2026071019_1 §2.6).
+"""preload_ram_gate.py — 로드-전 가용 RAM 결정론 게이트 (plan_26071019 §2.6).
 
-사고 #5 직접 교훈(devlog_2026070820_1: "Checkpoint size: 66.97 GiB. Available RAM: 45.80 GiB"
+사고 #5 직접 교훈(devlog_26070820: "Checkpoint size: 66.97 GiB. Available RAM: 45.80 GiB"
 인데 그대로 로드 시작 → 호스트 하드다운): 체크포인트를 로드하기 *전에* 결정론으로 거부한다.
 
   required_mib = ceil(checkpoint_bytes / tp / MiB) + floor_mib
   MemAvailable < required → drop-caches 헬퍼(sudo -n, 설치돼 있으면) 1회 → 재측정 → 부족 지속 = 거부
 
 - 체크포인트 크기 권위 = parse_model_config._native_weight_bytes(index total_size — **du 금지**,
-  testlog_2026070814_1 .git-부풀림 결함). 크기 미상(None)이면 **경고 후 게이트 생략**(음성정직 —
+  testlog_26070814 .git-부풀림 결함). 크기 미상(None)이면 **경고 후 게이트 생략**(음성정직 —
   거짓 크기로 false-block 하지 않는다).
 - tp 분할: Ray TP=N 이면 노드당 로드는 ≈ 전체/N (DSpark 실측 77.7GiB/node @ TP=2 정합).
 - floor 기본 10240MiB = mem_watchdog 상시 임계와 동일(게이트 통과 직후 워치독 존이 침식되지 않게).
@@ -82,7 +82,7 @@ def gate(checkpoint_bytes, tp=1, floor_mib=10240, auto_drop=True, log=None):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="로드-전 가용 RAM 게이트 (plan_2026071019_1 §2.6)")
+    ap = argparse.ArgumentParser(description="로드-전 가용 RAM 게이트 (plan_26071019 §2.6)")
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--model-host-path", help="모델 디렉토리(호스트 경로) — index total_size 산출")
     src.add_argument("--checkpoint-bytes", type=int, help="체크포인트 바이트 직접 지정")

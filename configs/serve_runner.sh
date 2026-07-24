@@ -89,7 +89,7 @@ elif [ "${NODE_ROLE}" = "slave" ]; then
     # 모델 트리플렛(<model>.sh/.yaml = model-keyed Band3)은 slave 에 불요 — master 가 보유·서빙(인스턴스=클러스터).
     # (S0: 과거 slave 가 ${MODEL_SH} 를 source 했으나 NCCL env 는 이미 env_file 로 분리됨 → 교차-band 런타임 의존 제거.)
     # RAY OOM/alloc env(RAY_memory_usage_threshold·RAY_memory_monitor_refresh_ms·PYTORCH_CUDA_ALLOC_CONF)도
-    #   env_file(.env.<config>)로 주입되어 ray start 前 도달(plan_2026062500_1 §4.2).
+    #   env_file(.env.<config>)로 주입되어 ray start 前 도달(plan_26062500 §4.2).
 
     # ─── 1) Master의 Ray head 포트 대기 (최대 5분) ───
     echo "[slave] Waiting for master Ray head at ${HEAD_NODE_IP}:${RAY_PORT} (max 5 min)..."

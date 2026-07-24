@@ -1,7 +1,7 @@
 #!/bin/bash
-# 모델리스 2노드 통신 스모크 (R1·D3, plan_2026062320_1 S3) — 서빙 대상 모델 없이 main↔sub NCCL/RDMA 검증.
+# 모델리스 2노드 통신 스모크 (R1·D3, plan_26062320 S3) — 서빙 대상 모델 없이 main↔sub NCCL/RDMA 검증.
 #
-# Plan 2(plan_2026062316_1) S4 의 "올바른 형태": 모델·트리플릿·NAS 의존 0 으로
+# Plan 2(plan_26062316) S4 의 "올바른 형태": 모델·트리플릿·NAS 의존 0 으로
 #   debug 프로파일을 `compose run --rm`(모델리스)로 양 노드에서 직접 실행해 torch.distributed(NCCL) all-reduce 로
 #   ① 클러스터(2-rank) 형성 ② 노드간 집합통신 정확성 ③ RDMA 경로(NET/IB·GDR) 사용 ④ 대역폭(증거) 검증.
 # NCCL/RDMA env 는 compose env_file(envs/.env.interconnect — manifest-driven, Plan 2)로 주입된다 →
@@ -35,7 +35,7 @@ EXEC_TMO="${EXEC_TMO:-240}"             # exec 워치독 초 — 한쪽-join/ren
 [ -f "$MANIFEST" ] || { echo "[cs] FAIL: $MANIFEST 없음 — terraforming_node 으로 채우세요"; exit 3; }
 [ -f "$COMPOSE" ]  || { echo "[cs] FAIL: $COMPOSE 없음 — render 산출물 통로 확인"; exit 3; }
 [ -f "$ENVI" ]     || { echo "[cs] FAIL: $ENVI 없음 — render_dockerfile.py --nccl-envfile 로 먼저 생성(Plan 2)"; exit 3; }
-# 통로 self-containment 전제(plan_2026062321_1 I1/I2): 러너 스크립트가 통로에 materialize 됐는지 fail-loud.
+# 통로 self-containment 전제(plan_26062321 I1/I2): 러너 스크립트가 통로에 materialize 됐는지 fail-loud.
 for s in serve_runner.sh debug-init.sh; do
   [ -f "output/multi/configs/$s" ] || { echo "[cs] FAIL: 통로 미완결 — output/multi/configs/$s 부재. 먼저 'render_dockerfile.py --materialize-configs --topology multi' 실행(후 sync_to_sub.sh --apply)"; exit 3; }
 done

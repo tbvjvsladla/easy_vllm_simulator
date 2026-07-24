@@ -12,7 +12,7 @@
 
 ## 전송 (transport)
 - 메인 → 서브: `ssh <user>@<sub> claude -p '<Task JSON or instruction>' --output-format json --permission-mode acceptEdits`.
-  **정본 = `acceptEdits` + 스코프드 allowlist(`settings.local.json`)** — `bypassPermissions` 는 하네스 가드레일이 차단한다(원격 자율 에이전트, testlog_2026062422_1). 비-allowlist 명령은 `bash -c` 래퍼로(설계상 escape hatch).
+  **정본 = `acceptEdits` + 스코프드 allowlist(`settings.local.json`)** — `bypassPermissions` 는 하네스 가드레일이 차단한다(원격 자율 에이전트, testlog_26062422). 비-allowlist 명령은 `bash -c` 래퍼로(설계상 escape hatch).
 - **HTTP(health 폴링·스모크)는 python urllib 로** 한다 — `curl`/`wget` 은 allowlist deny. 대기는 python `time.sleep`.
 - 서브 → 메인: stdout 으로 **task-report.schema.json 에 맞는 JSON 1개**. raw 로그 금지.
 - 코드/정본 전달은 별개 평면: 메인이 `sync_to_sub.sh`(rsync)로 push. 너는 정본을 받기만 한다.

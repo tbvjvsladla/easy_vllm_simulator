@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""cleanup_docker.py — docker 찌꺼기 결정론 정리 (plan_2026071019_1 §4.2).
+"""cleanup_docker.py — docker 찌꺼기 결정론 정리 (plan_26071019 §4.2).
 
 무차별 prune 금지: ccache 빌드캐시는 의도적 자산(재빌드 2분 vs 풀빌드 수시간 —
-devlog_2026070213_1 cost-smart peel), 구버전 이미지 일부는 롤백 앵커. 따라서
+devlog_26070213 cost-smart peel), 구버전 이미지 일부는 롤백 앵커. 따라서
 ① 보존리스트를 결정론 산출(IMAGE_TAG env·resolved.json·Dockerfile FROM·가동 컨테이너)
 ② 삭제 후보를 dry-run 표(용량 포함)로 제시 ③ --apply 는 사람 승인 후에만.
 

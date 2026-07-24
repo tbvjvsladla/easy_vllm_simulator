@@ -7,7 +7,7 @@ description: >-
   (loop-until-done). "서빙 성능 검증해줘", "벤치마크 돌려줘", "이 모델 너무 느린데", "디코드 속도 정상이야?",
   "기대 이하 성능 검증", "성능 게이트" 같은 지시에 발동. 측정=`vllm bench serve`(결정론), 적대 판정=LLM.
   실서빙을 기동하지 않는다(돌고 있는 serve 를 검증 — 기동은 recipe-explorer/compose). 근거: 적대적 검증
-  패턴(Pattern 3) + 목표달성까지 반복(Pattern 6) · plan_2026063014_1 · self-preference 사건 testlog_2026063004_1.
+  패턴(Pattern 3) + 목표달성까지 반복(Pattern 6) · plan_26063014 · self-preference 사건 testlog_26063004.
 ---
 
 # adversarial-benchmark
@@ -16,9 +16,9 @@ description: >-
 3중 루브릭으로 무장한 **Devil's Advocate**가 적대적으로 공격해 **기대 이하 성능을 사람이 눈치채기 전에
 게이트에서 차단**하고, 기각 시 recipe-explorer 를 **자극해 전략을 폐기·재탐색**시키는(loop-until-done)
 **런타임블럭 검증 스킬**. 동기 = self-preference 사건(에이전트가 DeepSeek 15 t/s 를 "천장"으로 자기-선호 →
-사용자 외부 레퍼런스가 반증; testlog_2026063004_1). **기능 스모크는 *작동*만, 이 스킬은 *성능*을 별도 게이트.**
+사용자 외부 레퍼런스가 반증; testlog_26063004). **기능 스모크는 *작동*만, 이 스킬은 *성능*을 별도 게이트.**
 
-> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_2026063018_1)**: bench·verdict 는 *돌고 있는 serve* 전제 — 그 serve 자체가 recipe/upstream(=Flag)을 거쳤다(**전이적 게이트**). 직접 진입 시에도 Flag 확인: 미발급이면 **info-only**(루프라인 개념 설명 OK / bench·verdict ✗) → "벤치할 serve 가 없음 — recipe/upstream(테라포밍 Flag) 먼저". **결정론 백스톱** = `run_bench.sh` 진입 `manifest_contract.py --require-flag`. (b) 외부검색 arm = **이중게이트**(A2A 위임 키 ∧ egress-online) 통과 서브 자율, 미통과 시 루프라인-only 판정 + 증상 docs 상향(메인 릴레이 · D12 동형 — 위임 키 확인 = `.claude/a2a_delegation.json` 1차 / `EASY_VLLM_A2A_DELEGATED` 2차 — `run_bench.sh` **fail-closed**(키·MC·Flag 모두 부재 → exit4; 옛 MC-부재 skip=fail-open 교정) · 헌법 §A2A-위임 Flag 따름정리·plan_2026063021_2·plan_2026070809_2).
+> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_26063018)**: bench·verdict 는 *돌고 있는 serve* 전제 — 그 serve 자체가 recipe/upstream(=Flag)을 거쳤다(**전이적 게이트**). 직접 진입 시에도 Flag 확인: 미발급이면 **info-only**(루프라인 개념 설명 OK / bench·verdict ✗) → "벤치할 serve 가 없음 — recipe/upstream(테라포밍 Flag) 먼저". **결정론 백스톱** = `run_bench.sh` 진입 `manifest_contract.py --require-flag`. (b) 외부검색 arm = **이중게이트**(A2A 위임 키 ∧ egress-online) 통과 서브 자율, 미통과 시 루프라인-only 판정 + 증상 docs 상향(메인 릴레이 · D12 동형 — 위임 키 확인 = `.claude/a2a_delegation.json` 1차 / `EASY_VLLM_A2A_DELEGATED` 2차 — `run_bench.sh` **fail-closed**(키·MC·Flag 모두 부재 → exit4; 옛 MC-부재 skip=fail-open 교정) · 헌법 §A2A-위임 Flag 따름정리·plan_26063021_14_37·plan_26070809_46_57).
 
 > 설계 원칙(하네스 엔지니어링): **측정·루프라인·게이트는 결정론 스크립트**(`scripts/`). LLM 은 **외부검색(E)·
 > 정성 진단·재탐색 힌트**만 생산해 결정론 게이트에 투입한다. PASS/REFUTE 는 규칙이 결정(LLM 다수결 아님).
@@ -56,12 +56,12 @@ description: >-
   히트 baseline 재입고**). 혼자 루프라인을 안 믿고 E 로 정밀화. **E 가 진짜 판별자**(측정>공식). **메인은 E
   검색을 시도·기록한 후에만 판정 진입** — `verdict_rule.py --e-search {hit,empty,no}` 로 상태를 결정론 게이트에
   전달(빈손이면 `empty` 로 *기록된* roofline-only 강등 = 음성정직 / 미시도 `no` 는 출력에 경고 표기 — silent
-  강등 차단 · plan_2026070208_1; egress-restricted 서브 = `no`+증상 상향이 설계, egress-online+위임 서브는 검색 시도).
+  강등 차단 · plan_26070208; egress-restricted 서브 = `no`+증상 상향이 설계, egress-online+위임 서브는 검색 시도).
 - **(c) 사용자 = 최종 백스톱**: (a)·(b) 둘 다 루브릭을 못 세울 때만. `verdict_rule` 이 `NEEDS_RUBRIC`(axis=establish) 반환 → 사람에게 레퍼런스 요청.
 
 **spec-aware(중요)**: no-MTP 서브는 `R_fp` 와, MTP 서브는 `R_token` 와 비교(like-with-like). speculative 면 token/s 가 단일패스 천장 `R_fp` 를 *초과* 가능 → 섞으면 M-vs-R 무의미(dogfood BLOCK 교훈).
 
-## 2.5 노드간 VRAM 밸런스 (멀티노드 — γ, `plan_2026070809_3`)
+## 2.5 노드간 VRAM 밸런스 (멀티노드 — γ, `plan_26070809_47_07`)
 
 decode-tps 축(§2)과 **직교**한 별도 루브릭 축. recipe-explorer 가 산정만 하고(§4 · per-GPU 클램프 ÷TP),
 **이 스킬이 밸런스를 게이트**한다.
@@ -110,7 +110,7 @@ decode-tps 축(§2)과 **직교**한 별도 루브릭 축. recipe-explorer 가 �
 - **버전-exact 확증**: `vllm bench serve` 존재·플래그를 이미지에서 확인 후 사용(가정 금지 — 파서명 caveat 동형).
 - 콜드 JIT(예 flashinfer SM120 첫 요청) → warmup 폐기로 흡수.
 
-## 5.5 경량(lite) 모드 — inform-only · 기본 ON (plan_2026071115_1 · Phase B)
+## 5.5 경량(lite) 모드 — inform-only · 기본 ON (plan_26071115 · Phase B)
 
 > full 적대 게이트(§2·§4·§6·§8 loop-until-done)와 **다른 모드**. lite 는 **서빙이 성공하면 자동으로 도는
 > 가벼운 상태-스냅샷**이다 — 배포 사용자가 "일단 떴다" 다음 곧바로 *속도·용량 현재치*를 눈으로 확인하게 해
@@ -142,7 +142,7 @@ decode-tps 축(§2)과 **직교**한 별도 루브릭 축. recipe-explorer 가 �
   **full 벤치(§6·§8)·bump·다운로드의 완전-수동 속성은 불변**. Flag 게이트: lite 는 이미 Flag-게이트된 serve 위에서
   돈다(§0.0 전이적) + `lite_bench.sh` 가 `run_bench.sh` 와 동형 **fail-closed 백스톱**(키·MC·Flag 부재 exit 4).
 
-## 5.6 full-모드 종결 발행 — report + 인증서 (편지 패턴 A·B · plan_2026071510_1)
+## 5.6 full-모드 종결 발행 — report + 인증서 (편지 패턴 A·B · plan_26071510)
 
 > lite(§5.5)와 다른 **full 경로의 종결 산출물**. full 적대 게이트(§4 loop-until-done)가 **종결**(cap 소진 or PASS)되면,
 > 판정과 **별개로** 사람용 report + (PASS시)기계용 인증서를 `docs/benchmark/`(5번째 문서형 · docs.md §benchmark)에 발행한다.
@@ -190,7 +190,7 @@ decode-tps 축(§2)과 **직교**한 별도 루브릭 축. recipe-explorer 가 �
 - 무승인 자동 escalate/rebuild ✗(escalation 은 승인 게이트). 무한 기각·무한 루프 ✗(cap → Model-C).
 - 게이트(PASS/REFUTE)는 결정론 규칙 — LLM 다수결로 결정하지 않는다.
 
-## 8.5 Max 모드 — HW 안전-최대 컨텍스트 envelope 특성화 (별도 오퍼레이션 · **구현됨** · plan_2026071510_1)
+## 8.5 Max 모드 — HW 안전-최대 컨텍스트 envelope 특성화 (별도 오퍼레이션 · **구현됨** · plan_26071510)
 
 > **별도 오퍼레이션 — 벤치마커 native 모드(§2·§4 적대검증)가 아니다.** 벤치마커의 *측정 인프라만* 공유하고,
 > 진입·트리거·안전게이트는 전부 별도. **Max 가 기동/reload 를 소유**하므로 벤치마커 본체 "기동 안 함" 불변식은 보존.
@@ -202,7 +202,7 @@ decode-tps 축(§2)과 **직교**한 별도 루브릭 축. recipe-explorer 가 �
 - **축 = 컨텍스트(max-model-len) 안전측 스텝업(옵션 A)**: `max_envelope.sh <config> [--levels 131072,262144,393216,524288]
   --confirm-risk`. 낮은 컨텍스트→높은 컨텍스트 오름차순 재서빙, 각 레벨 serve+smoke 통과=안전·기록·상향 / 실패·트립=**직전이
   안전상한**·중단(안전측 적응 클램프·절삭 로그). 컨텍스트 축은 weights 불변이라 KV/prefill 위험을 **워치독+스모크가 관측**
-  (하드다운 봉투 512k안전/768k치명과 동형 — testlog_2026071113_1 안전측 프로브를 재사용 오퍼레이션으로 일반화). batch 축은
+  (하드다운 봉투 512k안전/768k치명과 동형 — testlog_26071113 안전측 프로브를 재사용 오퍼레이션으로 일반화). batch 축은
   full(§5.6) client-load 스윕이 부분 커버. **default 상한 = 524288(검증된 안전상한)** — 초과 probe 는 --levels 명시로만.
 - **목적**: HW **안전-최대** envelope 특성화 — explorer("용처-최적 config *선택*") ↔ Max("절대-최대 config *특성화*"). 중복 ✗.
 - **트리거(완전 옵트인 · 자동 아님)**: **전작업 완료** 후에만 — 서빙 확정 + 문서(report/인증서) 발행 + wiki 등록까지 끝난
@@ -213,7 +213,7 @@ decode-tps 축(§2)과 **직교**한 별도 루브릭 축. recipe-explorer 가 �
   헌법 §호스트 안전체계 따름정리 정합(**파킹된 드라이버 580.159.03 안전 재검증의 실행 vehicle**).
 - **산출물**: `max_envelope.sh` → `max_index.json` → `render_max_report.py` → `docs/benchmark/max_envelope_<model>_<gpu>_<vllm>.md`
   (안전상한·레벨별 결과·절삭 로그 · **inform-only** 특성화 표시 · 판정 게이트 아님). single-node serve+smoke = 후속(현재 multi 우선).
-- 근거: `seed/letter_2026071516_1` · `plan_2026071510_1` · 헌법 §호스트 안전체계 따름정리 · `testlog_2026071113_1`(안전측 프로브).
+- 근거: `seed/letter_2026071516_1` · `plan_26071510` · 헌법 §호스트 안전체계 따름정리 · `testlog_26071113`(안전측 프로브).
 
 ## 9. 보조 파일
 

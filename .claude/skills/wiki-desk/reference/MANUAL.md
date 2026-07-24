@@ -35,7 +35,7 @@ durable packet is written to `__llm-wiki/warm-start/<thread>.md`.
 
 ```bash
 python3 .claude/skills/wiki-desk/scripts/smoke_query.py --wiki-root __llm-wiki \
-  --query "<question or a doc stem like devlog_2026062412_1>" [--report reports/smoke_report.generated.md]
+  --query "<question or a doc stem like devlog_26062412>" [--report reports/smoke_report.generated.md]
 ```
 
 A passing response returns referenced source paths, document types, authority ranks, confidence,

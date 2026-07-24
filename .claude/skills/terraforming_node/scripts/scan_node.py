@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """scan_node.py — terraforming_node진입 루틴의 **결정론 스캔 코어** (판단 X, 사실만).
 
-근거: docs/plan/plan_2026062311_1(진입 루틴 §2.3 스캔 인벤토리 · §2.4 성능게이트 · §2.5 α/γ 종료),
-      plan_2026062312_1(output/ 통로), CLAUDE.md(결정론 스크립트 원칙 · 산출물 통로 불변식).
+근거: docs/plan/plan_26062311(진입 루틴 §2.3 스캔 인벤토리 · §2.4 성능게이트 · §2.5 α/γ 종료),
+      plan_26062312(output/ 통로), CLAUDE.md(결정론 스크립트 원칙 · 산출물 통로 불변식).
 
 위치: 사용자 승인(HITL) 직후 호출되는 **deterministic** 단계. 5-전제조건 인터뷰·승인 게이트는
       terraforming_node스킬(판단계층)이 담당하고, 이 스크립트는 그 뒤 "스캔→파싱→게이트 판정"만 한다.
@@ -184,7 +184,7 @@ def peer_reachable(ip: str, port: int = 22, timeout: int = 5) -> bool:
         return False
 
 
-# ── 외부 egress 스캔 (축 B — plan_2026070809_2 §4.2 · 인터커넥트 축 A 와 직교) ──
+# ── 외부 egress 스캔 (축 B — plan_26070809_46_57 §4.2 · 인터커넥트 축 A 와 직교) ──
 # "서브=물리 에어갭" 전역 상수를 폐기하고 manifest 사실로 대체하는 신규 축. render-on-main 동형
 # (메인이 SSH 로 서브를 실측 — 서브 자가스캔 ✗). 결과는 attestation(fail-open) — model_env 만 fail-closed(§4.2).
 _EGRESS_PEER_PROBE = (
@@ -274,7 +274,7 @@ def read_manifest_field(path: str, key: str) -> str | None:
     return None
 
 
-# ── 서브 HW 수집 + 메인↔서브 동질성 단언 (plan_2026063021_2 · D2/D3) ──
+# ── 서브 HW 수집 + 메인↔서브 동질성 단언 (plan_26063021_14_37 · D2/D3) ──
 # render-on-main: terraforming(메인)이 SSH로 서브 HW를 실측하고 동질성을 단언한다(서브 자가스캔 ✗·terraforming_node 영구 main-only).
 # 5종 2등급: cpu_arch·gpu_model·gpus_per_node = 정확일치(하드블록) / cuda·driver = major 하드·minor/patch 경고.
 # 근거: 양 노드가 *같은 컨테이너 이미지* 구동(컨테이너가 CUDA 추상화) + Ray TP 노드대칭 → 앞 3종 병렬정합성 직결,
@@ -315,7 +315,7 @@ def collect_peer_hw(ssh_target: str, ssh_opts: list[str] | None = None) -> dict:
     """SSH로 서브 HW 5종 수집(단일 라운드). SSH/원격 실패 → {} (assert_homogeneity 가 fail-closed 블록).
     프로브를 **stdin 으로 login shell(`bash -ls`) 에 투입** — `ssh host bash -lc <PROBE>` 는 ssh 가 argv 를 공백조인해
     원격 로그인셸이 `bash -lc <첫단어>` 로 첫 printf 만 먹고 나머지는 비-login 셸로 흘려(PATH 누락 — uname/nvcc 유실) 깨진다.
-    stdin 투입은 인용 함정·PATH 누락 양쪽을 회피한다(라이브 E2E 발견 — plan_2026063021_2)."""
+    stdin 투입은 인용 함정·PATH 누락 양쪽을 회피한다(라이브 E2E 발견 — plan_26063021_14_37)."""
     opts = ssh_opts or ["-o", "BatchMode=yes", "-o", "ConnectTimeout=8"]
     text = ""
     try:
@@ -403,17 +403,17 @@ def emit_manifest_block(result: dict) -> str:
     ic = result["interconnect"]
     hcas = "[" + ", ".join(ic["hca_devices"]) + "]"
     topo = "multi" if result["topology_declared"] == "multi" else "single"
-    # None-가드(plan_2026063009_1): 프로브 실패(예: nvidia-smi PATH 미노출 — 그라운딩 세션 시나리오)로
+    # None-가드(plan_26063009_44_23): 프로브 실패(예: nvidia-smi PATH 미노출 — 그라운딩 세션 시나리오)로
     # None 인 필드는 YAML null 로 emit. bare 'None' 문자열 누수 차단 — Bug2 클래스 형제필드(cuda_version·gpus_per_node) 포함.
     cuda = f'"{result["cuda_version"]}"' if result["cuda_version"] is not None else "null"
     gpus = result["gpus_per_node"] if result["gpus_per_node"] is not None else "null"
     import datetime
     scanned_at = datetime.datetime.now().strftime("%Y%m%d%H")
-    # 테라포밍 완수 Flag (attestation · plan_2026063018_1 · 헌법 §테라포밍-완수 Flag 게이트):
+    # 테라포밍 완수 Flag (attestation · plan_26063018 · 헌법 §테라포밍-완수 Flag 게이트):
     # 이 emit 는 evaluate_gate status==ok(§1.5 3자일치 + α/γ 통과) 시에만 호출되므로 complete:true·branch_verified:true 기입.
     # 보수적 — 게이트 미통과면 emit 자체가 안 됨(미발급). model_source(인터뷰) 는 별도 — manifest_contract 가 함께 요구.
     lines = [
-        "# 테라포밍 완수 Flag (attestation · plan_2026063018_1) — scan §1.5 3자일치 통과 시 기입(보수적).",
+        "# 테라포밍 완수 Flag (attestation · plan_26063018) — scan §1.5 3자일치 통과 시 기입(보수적).",
         "terraforming:",
         "  complete: true",
         "  branch_verified: true   # git 브랜치 ↔ topology ↔ scan 3자일치 단언 통과",
@@ -439,7 +439,7 @@ def emit_manifest_block(result: dict) -> str:
         "# ⚠ 인터뷰 확정 필드(이 scan 블록엔 없음 — 별도 추가): model_source(managed|ephemeral|custom)·nas_model_path.",
         "#   manifest_contract 게이트가 valid model_source 를 요구 — 미설정 시 info-only 유지(Flag complete 만으론 불충분).",
         "# ⚠ host_safety.installed(true|false): terraforming 세션 최종 Y/N 답변 후 기입(scan 무증거 기입 ✗ · Flag 와 독립 —",
-        "#   안전체계 미설치여도 Flag valid. 헌법 §호스트 안전체계 따름정리 선택화 · plan_2026071115_1).",
+        "#   안전체계 미설치여도 Flag valid. 헌법 §호스트 안전체계 따름정리 선택화 · plan_26071115).",
     ]
     return "\n".join(lines) + "\n"
 
@@ -450,7 +450,7 @@ def evaluate_gate(*, declared, ic_present, peer_given, peer_reachable, bandwidth
                   model_env_ok=None, model_env_reason=None):
     """결정론 게이트 판정 — **순수 함수**(I/O 없음 → --self-test 회귀 대상). 반환 (assertion, gate, exit_code).
     3자-일치 단언(branch↔manifest↔scan) + α/γ(구조)/γ(성능 fail-closed)/multi-ready 판정을 한 곳에 codify.
-    egress_self/egress_peer: attestation 뿐(불일치=경고·fail-open — 서브 능력차는 정상, plan_2026070809_2 §4.2).
+    egress_self/egress_peer: attestation 뿐(불일치=경고·fail-open — 서브 능력차는 정상, plan_26070809_46_57 §4.2).
     model_env_ok=False: **blocking**(모델 제반환경 불충족 — 서브=에어갭 전역상수를 대체하는 유일한 fail-closed 축)."""
     mism: list[str] = []     # blocking(혼재/위험)
     warns: list[str] = []    # 비blocking(정보)
@@ -518,12 +518,12 @@ def evaluate_gate(*, declared, ic_present, peer_given, peer_reachable, bandwidth
 def emit_gate(emit_manifest: bool, topology: str) -> int:
     """fail-closed: --emit-manifest 는 **명시 토폴로지(single|multi)** 필요 — auto면 거부(비0 종료 3).
     토폴로지는 terraforming_node 진입의 **인터뷰**로 선언한다(브랜치/스캔 추론으로 manifest 기입 금지).
-    순수함수 → --self-test 회귀. 근거: plan_2026063009_1 D3(토폴로지 인터뷰 fail-closed 게이트)."""
+    순수함수 → --self-test 회귀. 근거: plan_26063009_44_23 D3(토폴로지 인터뷰 fail-closed 게이트)."""
     return 3 if (emit_manifest and topology == "auto") else 0
 
 
 def _self_test() -> int:
-    """결정론 회귀(게이트 9분기 + emit_gate 4 + emit-block None-leak 2 = 15) — 실 2노드 라이브 검증(testlog_2026062314_1) fixture 고정(#4). 하드웨어 불요."""
+    """결정론 회귀(게이트 9분기 + emit_gate 4 + emit-block None-leak 2 = 15) — 실 2노드 라이브 검증(testlog_26062314) fixture 고정(#4). 하드웨어 불요."""
     F = 180.0
     cases = [
         # name, kwargs, (expect_gate, expect_exit, expect_consistent)
@@ -545,7 +545,7 @@ def _self_test() -> int:
         print(f"  [{'PASS' if ok else 'FAIL'}] {name}: gate={g['branch']} exit={code} consistent={a['consistent']}"
               + ("" if ok else f"  ← 기대 ({eg},{ec},{econ})"))
     n = len(cases)
-    # emit_gate fail-closed 회귀(plan_2026063009_1 D3): --emit-manifest 는 명시 토폴로지 필요.
+    # emit_gate fail-closed 회귀(plan_26063009_44_23 D3): --emit-manifest 는 명시 토폴로지 필요.
     eg_cases = [
         ("emit+auto → 거부(fail-closed)", (True, "auto"), 3),
         ("emit+single → 통과", (True, "single"), 0),
@@ -558,7 +558,7 @@ def _self_test() -> int:
         passed += ok
         n += 1
         print(f"  [{'PASS' if ok else 'FAIL'}] {name}: emit_gate={got}" + ("" if ok else f"  ← 기대 {expect}"))
-    # emit_manifest_block None-leak 회귀(plan_2026063009_1 — Bug2 클래스: gid/iface/preset/gpus/cuda None→null).
+    # emit_manifest_block None-leak 회귀(plan_26063009_44_23 — Bug2 클래스: gid/iface/preset/gpus/cuda None→null).
     # stdlib만 사용(yaml 비의존): bare 'None' 누수 0 + single 시 nodes:[] 동결 + 필수 키 존재로 검증.
     emit_cases = [
         ("single GPU-less(전필드 None)", {"topology_declared": "single", "cpu_arch": "x86_64", "cuda_version": None,
@@ -573,11 +573,11 @@ def _self_test() -> int:
         no_none = "None" not in blk                                  # bare Python None 누수 0
         nodes_ok = ("nodes: []" in blk) if want_single else ("nodes:" not in blk)
         attest_ok = ("terraforming:" in blk) and ("complete: true" in blk) and ("branch_verified: true" in blk)
-        ok = no_none and nodes_ok and "topology:" in blk and attest_ok   # Flag attestation 기입 검증(plan_2026063018_1)
+        ok = no_none and nodes_ok and "topology:" in blk and attest_ok   # Flag attestation 기입 검증(plan_26063018)
         passed += ok
         n += 1
         print(f"  [{'PASS' if ok else 'FAIL'}] emit:{name}: no-None={no_none} nodes-gate={nodes_ok} attest={attest_ok}")
-    # 동질성 단언 회귀(plan_2026063021_2 D3 — 5종 2등급: arch/gpu/count 하드 · cuda/driver major-하드·minor-경고).
+    # 동질성 단언 회귀(plan_26063021_14_37 D3 — 5종 2등급: arch/gpu/count 하드 · cuda/driver major-하드·minor-경고).
     HL = {"cpu_arch": "aarch64", "gpu_model": "NVIDIA GB10", "gpus_per_node": 1, "cuda": "13.2", "driver": "565.57.01"}
     homo_cases = [
         ("동질 pass", HL, dict(HL), True),
@@ -661,11 +661,11 @@ def main() -> int:
                     help="성능게이트 합산 합격선(Gb/s). 기본 180(=200Gbps 풀대역폭의 ~90%%, devlog 218 기준).")
     ap.add_argument("--emit-manifest", action="store_true",
                     help="검증 통과 시 manifest topology+interconnect 블록을 stdout 끝에 출력. "
-                         "--topology single|multi 명시 필수(auto면 fail-closed 거부 — plan_2026063009_1 D3)")
+                         "--topology single|multi 명시 필수(auto면 fail-closed 거부 — plan_26063009_44_23 D3)")
     ap.add_argument("--manifest", default=None,
-                    help="manifest 실값 경로(기본=브랜치 파생 output/<topology>/manifest.yaml). plan_2026062315_1")
+                    help="manifest 실값 경로(기본=브랜치 파생 output/<topology>/manifest.yaml). plan_26062315")
     ap.add_argument("--check-egress", action="store_true",
-                    help="외부 egress 스캔(축 B — plan_2026070809_2 §4.2). 로컬(메인) HF/게이트웨이 도달성 프로브 + "
+                    help="외부 egress 스캔(축 B — plan_26070809_46_57 §4.2). 로컬(메인) HF/게이트웨이 도달성 프로브 + "
                          "(--peer-ssh 동반 시) 서브 egress 실측 + manifest model_source 기반 모델 제반환경 판정.")
     ap.add_argument("--model-source", choices=["managed", "ephemeral", "custom"], default=None,
                     help="모델 제반환경 판정용 override(기본=manifest model_source 읽음).")
@@ -676,7 +676,7 @@ def main() -> int:
     if args.self_test:
         return _self_test()
 
-    # ── fail-closed: 토폴로지 인터뷰 게이트(plan_2026063009_1 D3) — emit 전 명시 선언 필수 ──
+    # ── fail-closed: 토폴로지 인터뷰 게이트(plan_26063009_44_23 D3) — emit 전 명시 선언 필수 ──
     eg = emit_gate(args.emit_manifest, args.topology)
     if eg:
         print("[scan] FAIL: --emit-manifest 에는 --topology single|multi 명시 필요 — "
@@ -704,12 +704,12 @@ def main() -> int:
     # ── 3자-일치 단언 + α/γ 게이트 (결정론 — evaluate_gate 순수함수, --self-test 회귀) ──
     branch = git_branch()
     branch_topo = {"single-node": "single", "multi-node": "multi"}.get(branch or "")
-    # manifest 실값은 브랜치 파생 통로 output/<topology>/manifest.yaml (plan_2026062315_1).
+    # manifest 실값은 브랜치 파생 통로 output/<topology>/manifest.yaml (plan_26062315).
     mani_path = args.manifest or (f"output/{branch_topo}/manifest.yaml" if branch_topo else "manifest.yaml")
     mani_topo = read_manifest_topology(mani_path)
     peer_reach = result.get("peer_check", {}).get("reachable")
 
-    # ── 외부 egress 스캔 (축 B — plan_2026070809_2 §4.2, 인터커넥트 축 A 와 병렬·독립) ──
+    # ── 외부 egress 스캔 (축 B — plan_26070809_46_57 §4.2, 인터커넥트 축 A 와 병렬·독립) ──
     egress_self = egress_peer = None
     model_env_result = None
     if args.check_egress:
@@ -742,7 +742,7 @@ def main() -> int:
     result["consistency_assertion"] = assertion
     result["gate"] = gate
 
-    # ── 서브 HW 동질성 단언 (multi · --peer-ssh — plan_2026063021_2 D2/D3) ──
+    # ── 서브 HW 동질성 단언 (multi · --peer-ssh — plan_26063021_14_37 D2/D3) ──
     # 통과 시 nodes[role=sub].hw_verified 발급(서브 위임 키의 전제) · 하드 블록 시 게이트 blocked(fail-closed).
     if args.peer_ssh and args.topology == "multi":
         local_hw = collect_local_hw()
@@ -754,7 +754,7 @@ def main() -> int:
             result["gate"].setdefault("reasons", []).extend(homo["blocks"])
             result["gate"]["note"] = ("서브 HW 동질성 미충족(fail-closed) — 표기 드리프트(동일 GPU 다른 문자열) 등 "
                                       "오탐 판단 시 HITL 우회 = manifest nodes[sub].hw_verified 수동 기입이 권위"
-                                      "(plan_2026063021_2 D3) — ") + result["gate"].get("note", "")
+                                      "(plan_26063021_14_37 D3) — ") + result["gate"].get("note", "")
             exit_code = 2
 
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
@@ -765,7 +765,7 @@ def main() -> int:
         if result.get("homogeneity", {}).get("verified"):
             ph = result["homogeneity"]["peer"]
             sys.stdout.write(
-                "\n# ===== nodes[role=sub] 병합 (서브 HW 동질성 검증 통과 — HITL · plan_2026063021_2 D3) =====\n"
+                "\n# ===== nodes[role=sub] 병합 (서브 HW 동질성 검증 통과 — HITL · plan_26063021_14_37 D3) =====\n"
                 "#   nodes 의 '- role: sub' 항목에 아래를 추가 → render_sub_env 가 이 hw_verified 로 서브 위임 키 발급 판정:\n"
                 "#       hw_verified: true\n"
                 f"#       gpu_model: \"{ph.get('gpu_model')}\"\n"

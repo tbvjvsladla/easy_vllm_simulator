@@ -39,7 +39,7 @@ import argparse
 
 IMAGE_NAME = "easy-vllm"
 
-# 통로 self-containment(plan_2026062321_1 I1/I2): 컨테이너가 쓰는 러너 스크립트 정본은 repo-root configs/(tracked).
+# 통로 self-containment(plan_26062321 I1/I2): 컨테이너가 쓰는 러너 스크립트 정본은 repo-root configs/(tracked).
 # render 가 이를 output/<topology>/configs/ 로 materialize(복사)해 통로를 완결시킨다(런타임 mount-overlay·통로 밖 마운트 금지).
 RUNNER_SCRIPTS = ("serve_runner.sh", "debug-init.sh", "arm_patch.sh")
 
@@ -60,7 +60,7 @@ NCCL_PRESETS = {
         "NCCL_CROSS_NIC": "1",
     },
     # 튜닝 0 프리셋 — 비-DGX 플랫폼의 "시도→comms 스모크 중재" 경로(전방호환 시도-우선 따름정리 ·
-    # plan_2026070208_1 [C]#3). ①환경값(manifest.interconnect)+③불변만 방출 = NCCL 기본값으로 일단 돌려본다.
+    # plan_26070208 [C]#3). ①환경값(manifest.interconnect)+③불변만 방출 = NCCL 기본값으로 일단 돌려본다.
     # 성능 튜닝은 스모크 통과 후 플랫폼 프리셋으로 승격(무증거 튜닝 금지는 유지).
     "generic": {},
 }
@@ -86,7 +86,7 @@ CLUSTER_PRESETS = {
         "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
         "RAY_OBJECT_STORE_MEMORY": "2000000000",   # serve_runner 가 --object-store-memory CLI 로 소비(Ray env 미인식)
         "MAX_JOBS": "4",                # serve-time MoE 커널 JIT(sm_121a, 多expert) nvcc 병렬 cap — 동시 컴파일 OOM 방지(122b attempt-3 실증).
-                                        #   슬레이브도 model shard 로드·JIT 하므로 Band2(cluster)서 양노드 도달해야 함(plan_2026062811_2 — 슬레이브 Band2-only 완결).
+                                        #   슬레이브도 model shard 로드·JIT 하므로 Band2(cluster)서 양노드 도달해야 함(plan_26062811_30_33 — 슬레이브 Band2-only 완결).
                                         #   이미지 ENV 기본 16 override. 비-MoE 모델엔 no-op(안전 보수 상수). 모델별 override 필요시 .env.<model>(master) 에서.
     },
     # 튜닝 0 — NCCL_PRESETS["generic"] 과 동형(③불변 RAY_PORT 만 방출). 비-DGX "시도→스모크 중재" 경로.
@@ -104,7 +104,7 @@ CLUSTER_INVARIANTS = {                  # ③ universal — 클러스터 포트
 #     (26.05-py3, 0.23.0)=성공(torch 2.12, strip-hoist 자동 skip) — E2E 검증,
 #     (26.03-py3, 0.23.0)=FAIL(torch 2.11, Tensor::layout() 부재) ← 옛 '0.23.0 동일 torch2.11 캐리' 가정의 반증.
 #     (26.05-py3, 0.24.0)=검증(torch 2.11.0 핀·NGC 26.05 동일, source-build 레시피 byte-동일 — 0.23.0 twin.
-#         0.24.0=#43477 DeepSeek-V4 SM120 네이티브 stock. strip-hoist 자동 skip(torch 2.12). plan_2026070119_1, 스모크 최종중재).
+#         0.24.0=#43477 DeepSeek-V4 SM120 네이티브 stock. strip-hoist 자동 skip(torch 2.12). plan_26070119, 스모크 최종중재).
 #   미인식 키는 빌드를 명시적으로 실패시킨다(false determinism 방지 — plan rev3 §5 / SKILL.md §4.6 HITL 발견 루프 유도).
 #   P6: 이 인라인 셋을 source_build_patches.yaml + 패치-리졸버 페르소나로 승급.
 VALIDATED_SOURCE_BUILD_KEYS = {("26.03-py3", "0.22.1"), ("26.05-py3", "0.23.0"), ("26.05-py3", "0.24.0")}
@@ -250,7 +250,7 @@ def _compact_cuda(cuda: str) -> str:
     return cuda
 
 
-# HITL 우회(전방호환 시도-우선 · plan_2026070208_1 [C]#1): 사람이 명시 승인한 시도-빌드에서만
+# HITL 우회(전방호환 시도-우선 · plan_26070208 [C]#1): 사람이 명시 승인한 시도-빌드에서만
 # 가드를 WARN 으로 강등(main --allow-unvalidated). 기본 = fail-loud(false determinism 방지 불변).
 ALLOW_UNVALIDATED = False
 
@@ -425,7 +425,7 @@ def _parse_env_pairs(text: str) -> dict:
     return out
 
 
-# ── 통로 materialize (plan_2026062321_1 — 통로 self-containment) ───────────────
+# ── 통로 materialize (plan_26062321 — 통로 self-containment) ───────────────
 def _repo_root() -> str:
     """이 스크립트(.claude/skills/upstream-version-watch/scripts/) 기준 repo 루트(4단계 상위)."""
     return os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
@@ -456,14 +456,14 @@ def materialize_env(repo: str, topology: str, manifest: dict) -> str:
     docker compose 가 docker-compose.yaml 의 ${NAS_MODEL_PATH}·${TIKTOKEN_HOST_PATH} 치환에 쓰는
     프로젝트 .env 를 manifest 에서 생성한다. 이게 없으면 serve 가 compose 기본값(/mnt/models)을 마운트해
     모델을 못 찾는다(check_smoke_model.py 도 동일 정본=manifest 직독). PII(NAS 경로) 포함 → output/* gitignored.
-    근거: testlog_2026062422_1 결함#2(serve-time NAS 미전파). nas_model_path 부재 시 fail-loud(무증거 진행 금지)."""
+    근거: testlog_26062422 결함#2(serve-time NAS 미전파). nas_model_path 부재 시 fail-loud(무증거 진행 금지)."""
     nas = str(manifest.get("nas_model_path", "")).strip()
     if not nas:
         raise ValueError(
             "manifest.nas_model_path 부재 — output/%s/.env materialize 불가. "
             "serve 가 compose 기본값 /mnt/models 를 마운트해 모델을 못 찾는다. manifest 를 채울 것." % topology)
     # tiktoken·quant 도 manifest 정본 우선(env > manifest > 리터럴 default — 헌법 §serve-time env 통로 불변식).
-    # plan_2026063018_1: P1 이 manifest 에 tiktoken_host_path·quant_model_path 필드 추가 → 여기서 .env 로 materialize.
+    # plan_26063018: P1 이 manifest 에 tiktoken_host_path·quant_model_path 필드 추가 → 여기서 .env 로 materialize.
     tiktoken = str(manifest.get("tiktoken_host_path", "") or "").strip() or os.path.join(repo, "tiktoken_cache")
     quant = str(manifest.get("quant_model_path", "") or "").strip() or nas  # 미설정 시 NAS 루트 폴백
     dst_dir = os.path.join(repo, "output", topology)
@@ -594,7 +594,7 @@ def _self_test() -> None:
         only_r = {k: crendered[k] for k in crendered if cgolden.get(k) != crendered[k]}
         only_g = {k: cgolden[k] for k in cgolden if crendered.get(k) != cgolden[k]}
         raise AssertionError(f"cluster 렌더 != golden(집합 동치 위반)\n  rendered-side={only_r}\n  golden-side={only_g}")
-    assert len(crendered) == 9, f"cluster 9키 기대, got {len(crendered)}"   # 8→9: MAX_JOBS Band2 재귀속(plan_2026062811_2)
+    assert len(crendered) == 9, f"cluster 9키 기대, got {len(crendered)}"   # 8→9: MAX_JOBS Band2 재귀속(plan_26062811_30_33)
     try:                                   # fail-loud ①: 미지 platform_preset → KeyError
         build_cluster_env({**man_nodes, "interconnect": {"platform_preset": "no-such"}})
         raise AssertionError("미지 platform_preset 인데 통과(fail-loud 위반)")
@@ -608,7 +608,7 @@ def _self_test() -> None:
         pass
     print("[render] cluster self-test OK — .env.cluster 9키 == golden 집합 동치 · 미지preset/노드결손 fail-loud 정상")
 
-    # ── materialize self-test (plan_2026062321_1): 정본 → 통로 복사 멱등·실행권한·fail-loud ──
+    # ── materialize self-test (plan_26062321): 정본 → 통로 복사 멱등·실행권한·fail-loud ──
     import tempfile
     with tempfile.TemporaryDirectory() as td:
         os.makedirs(os.path.join(td, "configs"))
@@ -642,7 +642,7 @@ def main() -> None:
     ap.add_argument("--cluster-envfile", action="store_true",
                     help="Ray .env.cluster 렌더(manifest.nodes[]+CLUSTER_PRESETS 소비, S6 env-split)")
     ap.add_argument("--materialize-configs", action="store_true",
-                    help="러너 스크립트(serve_runner/debug-init)를 output/<topology>/configs/ 로 복사(통로 self-containment, plan_2026062321_1)")
+                    help="러너 스크립트(serve_runner/debug-init)를 output/<topology>/configs/ 로 복사(통로 self-containment, plan_26062321)")
     ap.add_argument("--materialize-env", action="store_true",
                     help="output/<topology>/.env 를 manifest(nas_model_path)+tiktoken_cache 에서 생성(serve-time NAS 마운트 정합, 결함#2)")
     ap.add_argument("--topology", choices=["single", "multi"], help="--materialize-configs/--materialize-env 대상 통로")

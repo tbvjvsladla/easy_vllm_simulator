@@ -7,35 +7,35 @@
 ## 1. 공통 명명 규칙 (결정론적)
 
 ```
-경로:  docs/<type>/<type>_<YYYYMMDDHH>_<seq>_<주제>.md
+경로:  docs/<type>/<type>_<YYMMDDHH>[_<MM>_<SS>]_<주제>.md
 ```
 
 - **type** ∈ `plan` · `devlog` · `testlog`. **type별 서브디렉토리 + 파일명 접두사**를 모두 둔다
   (예: `docs/devlog/devlog_...`). 평면(`docs/파일.md`) 배치 금지.
-- **YYYYMMDDHH**: 작성 일시 절대표기(예 `2026060814` = 2026-06-08 14시). 시각(HH)까지 기록. 상대날짜(오늘/어제) 금지.
-- **seq**: 같은 일시·같은 type 내 일련번호, `1`부터 증가. (같은 시각 2번째 devlog → `_2_`.)
+- **YYMMDDHH**: 작성 일시 절대표기 · **2자리 연도**(예 `26060814` = 2026-06-08 14시, KST). 시각(HH)까지. 상대날짜 금지.
+- **충돌 시에만 `_MM_SS`**: 같은 `YYMMDDHH`(같은 type)에 2건 이상일 때 **그때만** 분·초를 뒤에 붙여 구분(예 `_46_53`). 단건이면 시간토큰만(구 `_seq_` 폐지). MM_SS 복원 우선순위 = 본문·원시로그 명시시각 > 파일 mtime > 증거불명 시 `_00_<n>`(inferred).
 - **주제**: 한국어, 밑줄(`_`) 구분, 내용 식별 가능하게 간결히. 버전·대상 포함 권장
   (예: `Phase2_소스빌드_vLLM0.22.1_검증`).
 - 예시:
-  - `docs/plan/plan_2026060721_7_Phase2_소스빌드_vLLM0.22.1_실행계획.md`
-  - `docs/devlog/devlog_2026060812_2_멀티노드_소스빌드_확장_검증.md`
-  - `docs/testlog/testlog_2026060812_2_멀티노드_소스빌드_vLLM0.22.1_검증.md`
+  - `docs/plan/plan_26060721_Phase2_소스빌드_vLLM0.22.1_실행계획.md` (단건 = 시간토큰만)
+  - `docs/devlog/devlog_26060812_<MM>_<SS>_멀티노드_소스빌드_확장_검증.md` (동일 YYMMDDHH 충돌 시)
+  - `docs/testlog/testlog_26060812_<MM>_<SS>_멀티노드_소스빌드_vLLM0.22.1_검증.md` (동일 YYMMDDHH 충돌 시)
 
 - **simlog만 예외 — 파일이 아니라 폴더 1개 = 1 run**(다중 산출물 vault). `<type>_` 파일 접두사 없이
-  **run 디렉토리**를 만든다. seq·주제 규칙은 동일.
+  **run 디렉토리**를 만든다. `_MM_SS` 충돌 규칙·주제 규칙은 동일.
   ```
-  경로:  docs/simlog/<YYYYMMDDHH>_<seq>_<주제>/   ← run 디렉토리 (파일 아님)
+  경로:  docs/simlog/<YYMMDDHH>[_<MM>_<SS>]_<주제>/   ← run 디렉토리 (파일 아님)
   ```
-  - 예: `docs/simlog/2026062121_1_vLLM0.22.1_KV클램프_시뮬/`
+  - 예: `docs/simlog/26062121_vLLM0.22.1_KV클램프_시뮬/`
 
 - **benchmark 도 예외 — 산출물 종류가 파일 접두사**(`report_`/`benchmark_`). full-런 자동 발행물이라
-  `<type>_<YYYYMMDDHH>_` 대신 **대상 조합**을 파일명에 담는다(재발행 시 덮어쓰기 = 최신 계측 1개 유지).
+  **`<YYMMDDHH>` 시간토큰 + 대상 조합**을 파일명에 담는다(동일 측정 재발행=덮어쓰기 · 동일 YYMMDDHH 다른 측정=`_MM_SS`). 시간토큰 SSOT=`scripts/doc_naming.py`(generated_utc→KST).
   run 디렉토리 아님(평면 파일). 정본 = 스킬 `adversarial-benchmark` full 모드.
   ```
-  docs/benchmark/report_<model>_<gpu>_<vllm>.md      ← 사람용 (항상 · PASS/FAIL 무관)
-  docs/benchmark/benchmark_<model>_<gpu>_<vllm>.yaml ← 인증서 (PASS시만)
+  docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md   ← 사람용 (항상 · PASS/FAIL 무관)
+  docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml    ← 인증서 (PASS시만)
   ```
-  - 예: `docs/benchmark/report_deepseek-v4-flash_GB10_0.24.0.md`
+  - 예: `docs/benchmark/bench_report_26071520_deepseek-v4-flash-dspark_GB10_NA.md`
 
 - **report 도 예외 — 주제 슬러그만**(날짜·seq 없음). 사람이 자유 발행하는 아웃바운드 공지라
   README 처럼 **갱신·덮어쓰기로 최신본 1개**를 유지한다(시점 기록이 목적 아님 — 산출물 성격이 명명을 정한다).
@@ -49,15 +49,15 @@
 - **역할**: 단계/Phase 작업의 계획·설계·접근방식. **사람 검토(HITL) 대상** — 실행 전 합의용.
 - **시점**: 실행 이전. (부트스트랩: `docs/plan` 작성 → 사람 검토 → 실행 → 기록 → 다음.)
 - **담는 것**: 목표·범위, 결정론적 해소값 설계, 단계별 절차, 리스크, 검증(합격) 기준.
-- **두 무게, 한 장르 (plan_2026063018_1 · 로그=에이전트 철학)**: ① *스킬·헌법 개발*(우리) = **무거운** plan(전 섹션). ② **배포자 온보딩**(`terraforming_node` init-mode)도 **같은 `docs/plan/` 장르**로 발행한다(경량 별도장르 ✗ — wiki-desk 색인·습관화 = 자기개선 루프 수동 기둥 첫 접점). 다만 비전공 배포자 부담을 줄이기 위해 **에이전트가 인터뷰 답에서 대신 초안**(토폴로지·획득모드·스캔할일·branch정합·완료 시 Flag)하고 **배포자가 자기-HITL 승인** — *무게가 아니라 경험*을 매끄럽게(약간의 강요는 의도된 철학). 온보딩 plan 의 실제 깊이는 작업 복잡도에 비례(단일노드 스캔이면 짧음).
+- **두 무게, 한 장르 (plan_26063018 · 로그=에이전트 철학)**: ① *스킬·헌법 개발*(우리) = **무거운** plan(전 섹션). ② **배포자 온보딩**(`terraforming_node` init-mode)도 **같은 `docs/plan/` 장르**로 발행한다(경량 별도장르 ✗ — wiki-desk 색인·습관화 = 자기개선 루프 수동 기둥 첫 접점). 다만 비전공 배포자 부담을 줄이기 위해 **에이전트가 인터뷰 답에서 대신 초안**(토폴로지·획득모드·스캔할일·branch정합·완료 시 Flag)하고 **배포자가 자기-HITL 승인** — *무게가 아니라 경험*을 매끄럽게(약간의 강요는 의도된 철학). 온보딩 plan 의 실제 깊이는 작업 복잡도에 비례(단일노드 스캔이면 짧음).
 
 ### devlog/ — 작업 로그 (작업 **중·후**)
 - **역할**: 실제 수행한 **작업 내역·결정·전파의 서사**("무엇을 했나").
 - **담는 것**: 작업 흐름, 핵심 사건/결정(+근거), 교훈, **최종 상태**(미커밋·다음 작업 명시).
-- **원시맥락 범주(다음 세션 warm-start 용 — plan_2026070208_1 Phase 2)**: 서사 요약만으로는 다음 세션이
+- **원시맥락 범주(다음 세션 warm-start 용 — plan_26070208 Phase 2)**: 서사 요약만으로는 다음 세션이
   복구 못 하는 것들을 명시 수록한다 — **시도-폐기 경로**(무엇을 시도했고 왜 버렸나 · 음성결과 포함),
   핵심 **재현 커맨드 verbatim**, verbatim 에러 시그니처(가변 로그는 simlog 인용).
-- **미완결 세션 devlog 필수 섹션 = "최종 상태 + 재개 지침"**(devlog_2026070207_1 §8 관행의 codify):
+- **미완결 세션 devlog 필수 섹션 = "최종 상태 + 재개 지침"**(devlog_26070207 §8 관행의 codify):
   ① 디스크/노드 실상태(이미지 태그·미커밋 분류·관련 파일 목록) ② 의사결정 대기 항목(후보별 정확 SHA/값)
   ③ **재개 커맨드 verbatim**(+진단 grep 패턴) ④ 예상 벽. 완결 세션은 ①만으로 충분.
 
@@ -70,8 +70,8 @@
 ### simlog/ — serve/시뮬레이션 원시증거 vault (모든 trial-loop run 산출)
 - **역할**: trial-loop **한 run의 원시 증거 적재함**("실측이 정확히 무엇이었나").
   testlog가 사람용 종합 보고서라면, simlog는 그 보고서가 인용하는 **기계 생성 raw 증거**다.
-  **적용 범위 = `recipe.py simulate` 산출 + 수동 serve 스윕/bump 난항의 trial 반복**(plan_2026070208_1 Phase 2
-  확장 — 2026070207_1 run 의 serve_logs·key_files_snapshot 관행 승격): 반복 serve 실험이면 어느 평면이든
+  **적용 범위 = `recipe.py simulate` 산출 + 수동 serve 스윕/bump 난항의 trial 반복**(plan_26070208 Phase 2
+  확장 — 26070207 run 의 serve_logs·key_files_snapshot 관행 승격): 반복 serve 실험이면 어느 평면이든
   per-trial 원시증거를 run 디렉토리로 남긴다. **per-trial config 사본(그 시점 yaml/플래그) 필수** — 과거
   trial 설정이 in-place 변이로 유실되지 않게(Band3 gitignored 대비).
 - **구조**: 파일 1개가 아니라 **run 디렉토리 1개**(`simlog_writer.py`가 기록 — 수동 스윕은 에이전트가 동형
@@ -96,7 +96,7 @@
     특성화 · **inform-only**. Max = 벤치마커 인프라 공유 **별도 오퍼레이션**(native 모드 ✗ · 이중 게이트) · 결정론 `render_max_report.py`(SKILL.md §8.5).
 - **testlog 와 경계**: benchmark=**inform-only 계측 렌더**(판정 ✗·verdict_rule 독점) ↔ testlog=**사람용 판정 서사**.
 - **비용 규율**: 스윕/리치리포트는 재탐색 루프 매회차 ✗ · **종결 1회**(루프 내부는 값싼 단일점). lite 모드는
-  발행 ✗(채팅 표만). 근거 = `seed/letter_2026071516_1` · `plan_2026071510_1`.
+  발행 ✗(채팅 표만). 근거 = `seed/letter_2026071516_1` · `plan_26071510`.
 
 ### report/ — 배포자 대상 공지 채널 (앞 5종과 직교 — 아웃바운드)
 - **역할**: 메인테이너가 **배포자(클론 사용자)에게 알리고 싶은 내용**을 자유롭게 싣는 채널. 앞 5종이
@@ -107,7 +107,7 @@
   fetch 0 · `viewport`+`@media` · 넓은 표는 `overflow-x:auto`. 참고 예제 = `seed/rtxpro6000-benchmark-explorer.html`
   (비추적 seed — 배포본엔 부재 가능).
 - **⚠ 유일한 추적 예외**(§4) + **PII 금지**(추적·배포물이므로 — 게이트 = `smoke_clone.sh` A4, 확장자 무관 전수 grep).
-- 상세 규정 = `docs/report/example.md` · 근거 = `docs/plan/plan_2026071617_1`.
+- 상세 규정 = `docs/report/example.md` · 근거 = `docs/plan/plan_26071617`.
 
 ## 3. 작성 원칙
 
@@ -121,9 +121,9 @@
   경로로 인용하는 증거·계측 저장소다. (simulate run이면 testlog 본문에 simlog run 경로 명기.)
 - **사실 우선**: 절대 날짜·결정론적 값(torch 핀·NGC 태그·스모크 결과)을 명시. 추측은 "확인 필요"로 표기.
   가변 파일(헌법·스킬·코드)의 라인번호 인용 시 **literal 인용구(또는 커밋 SHA) 병기**(라인번호 단독 금지 — rot).
-- **소급 배너(판정 반전 시 의무 — 앵커링 방지 · plan_2026070208_1 Phase 2)**: 후속 문서가 선행 문서의
+- **소급 배너(판정 반전 시 의무 — 앵커링 방지 · plan_26070208 Phase 2)**: 후속 문서가 선행 문서의
   **판정**(PASS/FAIL·가용/비가용·"정본" 선언)을 뒤집으면, 뒤집는 문서를 쓰는 에이전트가 **선행 문서 헤더에
-  1줄 배너를 추가**한다(과거 기록 위조가 아니라 주석 — plan_2026063021_1 배너 선례의 정형화):
+  1줄 배너를 추가**한다(과거 기록 위조가 아니라 주석 — plan_26063021_40_16 배너 선례의 정형화):
   ```
   > ⚠ SUPERSEDED-IN-PART by `docs/<type>/<뒤집는 문서>.md` — <뒤집힌 판정 1줄>   (부분 반전)
   > ⛔ SUPERSEDED by `docs/<type>/<후속 문서>.md`                                  (문서 전체 대체)
@@ -165,7 +165,7 @@
 
 ### 서브노드 docs 테라포밍 + 상향 회수 (D12)
 
-> 근거: `plan_2026062411_1`(D12). 절차 = `.claude/rules/workflow.md` §"메인↔서브 양방향 브랜치싱크" B2.
+> 근거: `plan_26062411`(D12). 절차 = `.claude/rules/workflow.md` §"메인↔서브 양방향 브랜치싱크" B2.
 
 - **규약 테라포밍**: 서브노드도 **동일한 docs 발행 규약**(이 파일)을 따른다 — 같은 명명(`docs/<type>/<type>_YYYYMMDDHH_seq_주제.md`),
   같은 5종(plan/devlog/testlog/simlog/benchmark), 같은 gitignore-persist(`docs/*/*` ignore · `!docs/*/example.md` 추적). docs 스켈레톤은 `render_sub_env.py` 가 서브 env 에 렌더.

@@ -1,6 +1,6 @@
 #!/bin/bash
 # engine_liveness_watchdog.sh — 엔진-행(SW-hang) 검출 → 컨테이너 graceful kill (계층 방어 심층층).
-#   근거: 2026-07-11 768k prefill 크래시(testlog_2026071111_1 §0). 마스터가 768k 요청 수락(POST 200) 직후
+#   근거: 2026-07-11 768k prefill 크래시(testlog_26071111 §0). 마스터가 768k 요청 수락(POST 200) 직후
 #   즉시 교착 — 메모리는 정상(11099MiB, 워치독 임계 위)인데 forward 가 멈춤(prompt/gen throughput 0,
 #   /metrics 무응답) → ~22분 무음 후 호스트 wedge. RAM 워치독(mem_watchdog)은 MemAvailable 만 봐서
 #   이 "메모리-정상-엔진-교착" 서브클래스를 **구조적으로 못 잡는다**. 이 워치독이 그 갭을 메운다:

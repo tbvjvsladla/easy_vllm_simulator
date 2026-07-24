@@ -162,7 +162,7 @@ def _total_gpus(man):
 
 
 # ===========================================================================
-# 타겟-GPU 이식형 예산 (host≠target — plan_2026070809_3 §4). config-time 의도(manifest 와 직교).
+# 타겟-GPU 이식형 예산 (host≠target — plan_26070809_47_07 §4). config-time 의도(manifest 와 직교).
 # target_gpu 미정의 시 아래 함수들은 전부 무영향(기존 host 흐름 완전 보존 — 회귀 0).
 # ===========================================================================
 
@@ -208,7 +208,7 @@ def resolve_target_gpu_budget(cfg, tp):
     tgt = cfg.get("target_gpu") or {}
     gpu_model = tgt.get("gpu_model")
     if not gpu_model:
-        _die("config.target_gpu.gpu_model 누락(타겟 GPU 이식 경로엔 필수 — plan_2026070809_3 §4.1)")
+        _die("config.target_gpu.gpu_model 누락(타겟 GPU 이식 경로엔 필수 — plan_26070809_47_07 §4.1)")
     target_gmu = float(tgt.get("target_gmu", 0.90))
     per_card_vram_gib = tgt.get("per_card_vram_gib")
     looked_up, is_unified = _lookup_gpu_spec(gpu_model)
@@ -217,7 +217,7 @@ def resolve_target_gpu_budget(cfg, tp):
     if per_card_vram_gib is None:
         _die(
             "target_gpu.gpu_model=%r 의 per-card VRAM 을 references.md §4 에서 찾지 못함 — "
-            "config.target_gpu.per_card_vram_gib 를 명시하세요(quick-win 우회, plan_2026070809_3 §6)." % gpu_model
+            "config.target_gpu.per_card_vram_gib 를 명시하세요(quick-win 우회, plan_26070809_47_07 §6)." % gpu_model
         )
     per_card_vram_gib = float(per_card_vram_gib)
     if is_unified and target_gmu > 0.90:
@@ -254,7 +254,7 @@ def _reject_target_gpu_phase1(cfg, cmd_name):
     if cfg.get("target_gpu"):
         _die(
             "config.target_gpu 정의됨 — Phase-1(%s)은 gmu-only 라 절대 KV 클램프를 emit 하지 않는다"
-            "(헌법 §KV 절대클램프 따름정리 · plan_2026070809_3 §2). "
+            "(헌법 §KV 절대클램프 따름정리 · plan_26070809_47_07 §2). "
             "`recipe.py simulate --config <config> --candidate <lockset.json>` 로 "
             "Phase-2 측정경로를 사용하세요(타겟 예산은 config.target_gpu 가 그대로 소비됨)." % cmd_name,
             code=7,
@@ -264,7 +264,7 @@ def _reject_target_gpu_phase1(cfg, cmd_name):
 def _require_terraform_flag(repo_root):
     """헌법 §테라포밍-완수/A2A-위임 Flag 게이트 (**fail-closed**) — 면제 없으면 info-only(작업 거부·비0종료). 강제 2층의 *결정론 백스톱*.
 
-    면제 2경로(plan_2026063021_2 §A2A-위임 Flag 따름정리):
+    면제 2경로(plan_26063021_14_37 §A2A-위임 Flag 따름정리):
       (1차·결정론) 서브 A2A 위임 *양성 키* `.claude/a2a_delegation.json` 존재 — 메인이 클러스터 HW 동질성 검증 후
                    발급·전달한 증표(메인 키 `terraforming.complete` 와 **UNIQUE**). *부재로 면제하는 fail-open ✗*.
       (2차·테스트) `EASY_VLLM_A2A_DELEGATED` env — 명시 override(개명: 옛 EASY_VLLM_SKIP_FLAG_GATE).
@@ -330,7 +330,7 @@ def _guard_kv_heads(parsed, tp):
 
 
 def output_root(repo_root):
-    """3종 세트 출력 루트 = output/<topology>/ (산출물 통로 self-containment, 결함#3 — testlog_2026062422_1).
+    """3종 세트 출력 루트 = output/<topology>/ (산출물 통로 self-containment, 결함#3 — testlog_26062422).
 
     topology = 브랜치 파생(multi-node→multi, 그 외→single). gen_recipe_set 이 그 하위 configs/·envs/ 에 생성 →
     docker compose 가 마운트하는 통로(output/<t>/configs)와 정합. (이전엔 REPO_ROOT 직하 configs/ 로 떨어져
@@ -649,7 +649,7 @@ def _resolve_clamp_kv(parsed, candidate, profile, budget, margin, kv_dtype_bytes
       fail: 구조적 불가(vram_infeasible) 시 final_class dict, 아니면 None.
       note: 산정 근거 문자열.
 
-    tp_divisor(기본 1 — 회귀 0): >1 이면 타겟-GPU 이식 경로(plan_2026070809_3 §4.2) — host 측정
+    tp_divisor(기본 1 — 회귀 0): >1 이면 타겟-GPU 이식 경로(plan_26070809_47_07 §4.2) — host 측정
     weights_total/overhead_total(GPU-불변 기하량)을 타겟 TP 로 나눠 per-GPU 클램프를 산정한다.
     """
     weights_b = _profile_bytes(profile, "weights_gib")
@@ -693,14 +693,14 @@ def cmd_simulate(args):
     tp = resolve_tp(cfg, REPO_ROOT)
     _guard_tp(tp, REPO_ROOT)
 
-    # ── 타겟-GPU 이식형 예산 (host≠target — plan_2026070809_3 §4) ──
+    # ── 타겟-GPU 이식형 예산 (host≠target — plan_26070809_47_07 §4) ──
     # target_gpu 미정의 시 tp_divisor=1·budget/margin 무변경(기존 host 흐름 완전 보존).
     tp_divisor = 1
     if cfg.get("target_gpu"):
         ttp = _target_tp(cfg, REPO_ROOT)
         if ttp != tp:
             _die(
-                "측정 TP(%d) ≠ 타겟 TP(%d, cards_per_node×node_count) — 1→N 외삽 금지(plan_2026070809_3 §4.3). "
+                "측정 TP(%d) ≠ 타겟 TP(%d, cards_per_node×node_count) — 1→N 외삽 금지(plan_26070809_47_07 §4.3). "
                 "config.tensor_parallel_size 를 타겟에 맞추거나 manifest nodes[]/target_gpu.cards_per_node 를 "
                 "정합시키세요." % (tp, ttp),
                 code=6,
@@ -779,7 +779,7 @@ def cmd_simulate(args):
             file=sys.stderr,
         )
 
-        # ── 로드-전 RAM 게이트 (plan_2026071019_1 §2.6 — 사고 #5 교훈: ckpt 66.97GiB >
+        # ── 로드-전 RAM 게이트 (plan_26071019 §2.6 — 사고 #5 교훈: ckpt 66.97GiB >
         #    가용 45.80GiB 인데 무게이트 로드 → 하드다운). 실 docker 경로에서만 발동 —
         #    dry-run/mock 은 결정론 루프 테스트 계약 보존. 매 trial 전 재측정(트라이얼 간
         #    메모리 상태 변동). 크기 미상이면 게이트 내부에서 경고 후 생략(음성정직).
@@ -804,7 +804,7 @@ def cmd_simulate(args):
                 _die(
                     "로드-전 RAM 게이트 거부(trial %d): MemAvailable=%sMiB < required=%sMiB "
                     "(ckpt÷tp+floor) — 잔존 컨테이너/페이지캐시 정리 후 재시도. "
-                    "헌법 호스트 안전체계 따름정리 · plan_2026071019_1 §2.6 · "
+                    "헌법 호스트 안전체계 따름정리 · plan_26071019 §2.6 · "
                     "run_summary=%s"
                     % (trial_number, _g["avail_after_mib"], _g["required_mib"],
                        os.path.join(run_dir, "run_summary.json")),
@@ -1020,7 +1020,7 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
         "attention_backend": candidate.get("attention_backend"),
         "tool_call_parser": candidate.get("tool_call_parser"),
         "reasoning_parser": candidate.get("reasoning_parser"),
-        # target_gpu 활성 시 gen_recipe_set 이 트리플렛 헤더에 이식 정직성 주석을 단다(§4.9, plan_2026070809_3).
+        # target_gpu 활성 시 gen_recipe_set 이 트리플렛 헤더에 이식 정직성 주석을 단다(§4.9, plan_26070809_47_07).
         "target_gpu": cfg.get("target_gpu"),
         "vram_breakdown": {
             "weights_gib": weights_gib,

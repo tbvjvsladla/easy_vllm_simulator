@@ -3,17 +3,17 @@
 > 이 `example.md`는 **추적되는 스켈레톤**이다(폴더 구조 + 작성 규칙 배포용). 실제 산출물(report md·
 > 인증서 yaml)은 이 폴더에 추가되되 **git 추적 대상이 아니다**(gitignore `docs/*/*` — 브랜치 간
 > persist·통합, `docs/simlog/` 와 동일 규칙). 발행 정본: 스킬 `adversarial-benchmark` full 모드.
-> 근거: `seed/letter_2026071516_1` · `docs/plan/plan_2026071510_1`.
+> 근거: `seed/letter_2026071516_1` · `docs/plan/plan_26071510`.
 
 ## 역할 (5번째 문서형 — simlog 자매)
 
 adversarial-benchmark **full 모드** 종결 시 자동 발행되는 **계측 vault**. 두 산출물이 공존한다:
 
-1. **사람용 report** (`report_<model>_<gpu>_<vllm>.md`) — **모든 full 런에 발행**(PASS/FAIL 무관).
+1. **사람용 report** (`bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`) — **모든 full 런에 발행**(PASS/FAIL 무관).
    부하별 곡선(동시성 스윕)·루프라인 컨텍스트·환경 스냅샷을 사람이 읽는 표로 렌더. **inform-only** —
    verdict 를 *표시만* 한다(판정 권한 없음). 렌더 = 결정론 `render_report.py`(LLM 표저작 ✗).
 
-2. **기계용 인증서** (`benchmark_<model>_<gpu>_<vllm>.yaml`) — **PASS 일 때만 발행**.
+2. **기계용 인증서** (`benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`) — **PASS 일 때만 발행**.
    "이 모델을 이 HW/config 에서 테스트했고 통과했다"는 flat 계약 기록. **carry-forward 재검증 헤더** 필수
    (지도≠정답 — 소비 전 재확인). 발행 = 결정론 `publish_benchmark_record.py`.
 
@@ -35,8 +35,8 @@ adversarial-benchmark **full 모드** 종결 시 자동 발행되는 **계측 va
 ## 명명 규칙
 
 ```
-docs/benchmark/report_<model>_<gpu>_<vllm>.md        ← full 사람용 report (항상)
-docs/benchmark/benchmark_<model>_<gpu>_<vllm>.yaml   ← full 인증서 (PASS시만)
+docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md   ← full 사람용 report (항상)
+docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml    ← full 인증서 (PASS시만)
 docs/benchmark/max_envelope_<model>_<gpu>_<vllm>.md  ← Max 안전상한 특성화 (Max 실행시)
 ```
 - `<model>` = config_name(트리플렛 키, 예 `deepseek-v4-flash`) · `<gpu>` = manifest gpu_model 정규화(예 `GB10`) ·

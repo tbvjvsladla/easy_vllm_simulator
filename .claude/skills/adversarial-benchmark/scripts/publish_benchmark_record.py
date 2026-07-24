@@ -7,7 +7,7 @@
   - **carry-forward 재검증 헤더** 필수: 강한 일치 키(정확일치 실패=무효) + 소프트 지문(불일치=stale 경고).
   - **N/A fail-soft**: 결측은 N/A 원문(날조 ✗). 판정 권한 없음 — verdict 결과를 *기록*할 뿐.
 
-입력: sweep_index.json(meta) + verdict_rule.py JSON. 출력: docs/benchmark/benchmark_<model>_<gpu>_<vllm>.yaml.
+입력: sweep_index.json(meta) + verdict_rule.py JSON. 출력: docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml (시간토큰=doc_naming SSOT).
 verdict != PASS 면 **미발행**(exit 0, 메시지만 — report 는 render_report.py 가 별도로 항상 발행).
 
 stdlib only(yaml 라이브러리 비의존 — flat 보장 위해 직접 emit). 종료: 0=성공/미발행 · 2=입력 오류.
@@ -114,7 +114,10 @@ def main():
 
     y = build_yaml(index, verdict)
     meta = index.get("meta", {})
-    fname = "benchmark_%s_%s_%s.yaml" % (meta.get("model", "NA"), meta.get("gpu_key", "NA"), meta.get("vllm_version", "NA"))
+    import sys as _s, os as _o; _s.path.insert(0, _o.path.dirname(_o.path.abspath(__file__)))
+    from doc_naming import bench_filename
+    _outdir = a.out_dir or os.path.join(repo_root(a.sweep_index), "docs", "benchmark")
+    fname = bench_filename("benchmark", meta, index.get("generated_utc"), (None if a.stdout else _outdir), "yaml")
     if a.stdout:
         sys.stdout.write(y)
         return

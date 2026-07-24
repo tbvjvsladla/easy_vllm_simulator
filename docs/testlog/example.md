@@ -21,9 +21,9 @@
 
 ## 파일명 규칙
 ```
-docs/testlog/testlog_<YYYYMMDDHH>_<seq>_<주제>.md
+docs/testlog/testlog_<YYMMDDHH>[_<MM>_<SS>]_<주제>.md
 ```
 - `YYYYMMDDHH`: 작성 일시 절대표기 (예 `2026060814` = 2026-06-08 14시). 상대날짜 금지.
 - `seq`: 같은 일시·같은 type 내 일련번호(1부터).
 - `주제`: 한국어, 밑줄(`_`) 구분, 버전·대상 포함 권장.
-- 예: `testlog_2026060814_1_멀티노드_소스빌드_vLLM0.22.1_검증.md`
+- 예: `testlog_26060814_멀티노드_소스빌드_vLLM0.22.1_검증.md`

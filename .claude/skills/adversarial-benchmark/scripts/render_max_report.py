@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """render_max_report.py — Max 모드 HW 안전-최대 컨텍스트 envelope 보고서 결정론 렌더러.
 
-Max(별도 오퍼레이션 · plan_2026071510_1 §Max)의 max_envelope.sh 산출 max_index.json 을 사람이 읽는
+Max(별도 오퍼레이션 · plan_26071510 §Max)의 max_envelope.sh 산출 max_index.json 을 사람이 읽는
 envelope 보고서로 렌더한다. full-모드 render_report.py 와 동형 규율:
   - **inform-only**: 안전상한을 *특성화 표시*만(판정 게이트 아님). - **결정론**(LLM 표저작 ✗). - **N/A fail-soft**.
   - **carry-forward 재검증 배너**(지도≠정답 — 드라이버/HW 바뀌면 봉투 재측정).
 
-출력: docs/benchmark/max_envelope_<model>_<gpu>_<vllm>.md.
+출력: docs/benchmark/max_envelope_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md (시간토큰=doc_naming SSOT).
 stdlib only. 종료: 0=성공 · 2=입력 오류.
 """
 import argparse, json, os, sys
@@ -90,7 +90,7 @@ def build_md(idx):
     A("")
     A("---")
     A("_Max = 별도 오퍼레이션(벤치마커 측정 인프라만 공유 · native 모드 아님) · 결정론 렌더 `render_max_report.py`(LLM 표저작 ✗) · "
-      "안전 = 헌법 §호스트 안전체계 따름정리 · plan_2026071510_1._")
+      "안전 = 헌법 §호스트 안전체계 따름정리 · plan_26071510._")
     return "\n".join(L) + "\n"
 
 
@@ -103,7 +103,10 @@ def main():
     idx = load(a.max_index, "max-index")
     md = build_md(idx)
     meta = idx.get("meta", {})
-    fname = "max_envelope_%s_%s_%s.md" % (meta.get("model", "NA"), meta.get("gpu_key", "NA"), meta.get("vllm_version", "NA"))
+    import sys as _s, os as _o; _s.path.insert(0, _o.path.dirname(_o.path.abspath(__file__)))
+    from doc_naming import bench_filename
+    _outdir = a.out_dir or os.path.join(repo_root(a.max_index), "docs", "benchmark")
+    fname = bench_filename("max_envelope", meta, idx.get("generated_utc"), (None if a.stdout else _outdir), "md")
     if a.stdout:
         sys.stdout.write(md); return
     outdir = a.out_dir or os.path.join(repo_root(a.max_index), "docs", "benchmark")

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """hint_tag.py — manage hint/<vllm>/<model>/<arch> recipe-hint tags.
 
-Design: docs/plan/plan_2026070222_1. The deployment "hint" layer distributes
+Design: docs/plan/plan_26070222. The deployment "hint" layer distributes
 distilled serving-recipe KNOWLEDGE as annotated git tags — never finished products.
 
 [A]=B residence: the recipe body lives in the tag ANNOTATION. HEAD stays a pure
@@ -74,7 +74,7 @@ ROOT = repo_root()
 PII_TERMS_FILE = ROOT / ".claude" / "pii_terms.txt"
 INDEX_FILE = ROOT / "hints" / "index.json"
 # hint 카탈로그(부록 표)의 홈 = 전용 HINTS.md(README 는 링크 참조만 — 21+ 행이 README 를
-# 비대하게 만들던 문제 교정, plan_2026070222_1 Token Economy 의 문서 축 연장).
+# 비대하게 만들던 문제 교정, plan_26070222 Token Economy 의 문서 축 연장).
 HINTS_FILE = ROOT / "HINTS.md"
 TEMPLATE_FILE = ROOT / "scripts" / "templates" / "hint_recipe.template.md"
 DRAFTS_DIR = ROOT / "hints" / ".drafts"

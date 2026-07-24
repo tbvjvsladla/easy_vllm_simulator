@@ -3,7 +3,7 @@
 #
 # 멀티노드 확장의 [하향 배달] 단계. 메인 검증 런타임을 서브로 직접 전송(GitHub 경유 X)하고,
 # 서브 **로컬 git**(single·multi 두 브랜치, origin 영구 없음)에 **스크립트저작 `[sync]` 커밋**으로 박는다.
-# 상향(서브 자기개선 회수)은 별도·문서기반: fetch_sub_docs.sh. (plan_2026062411_1 · workflow.md §양방향 브랜치싱크)
+# 상향(서브 자기개선 회수)은 별도·문서기반: fetch_sub_docs.sh. (plan_26062411 · workflow.md §양방향 브랜치싱크)
 #
 # 흐름:
 #   B0 멱등 self-bootstrap — 서브 .git 부재 시: git init + base(.gitignore) 커밋 + multi·single 브랜치 생성,
@@ -13,7 +13,7 @@
 #   single 확장 게이트(D12 Gap B) — output/single/manifest.yaml nodes[] 에 sub 있으면 활성, 없으면 **dormant(배달 skip)**.
 #
 # HITL 안전장치: 기본 DRY-RUN(미리보기). 실제 변경은 --apply. **스크립트 auto-stash 금지**(서브가 스스로 clean 화).
-# 빌드 배달(S4 Band2-only · plan_2026062417_1): rsync 소스 = output/<t>/ 서브트리만 → 루트 Band1(템플릿·scripts·resolved.json) 구조적 배제.
+# 빌드 배달(S4 Band2-only · plan_26062417): rsync 소스 = output/<t>/ 서브트리만 → 루트 Band1(템플릿·scripts·resolved.json) 구조적 배제.
 #   output/<t>/ 내 keying: Band2(configs/{serve_runner,debug-init}.sh · envs/.env.interconnect · Dockerfile·compose·requirements·.dockerignore·.gitkeep) 전파 ·
 #   Band3(모델 트리플렛 configs/<m>.{sh,yaml}·envs/.env.<m>) keying 배제 · manifest.yaml(D10)·sub_provision(overlay) 배제 · 미분류=fail-loud(assert_band_classification).
 #   에이전트 환경(CLAUDE.md·.claude·docs·.gitignore)은 deliver_overlay/bootstrap 소관(빌드 배달과 분리).
@@ -64,7 +64,7 @@ _single_extension_active() {
     awk '/^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { found=1 } END { exit(found?0:1) }' "$manifest"
 }
 
-# ── A2A-위임 전파 게이트 (plan_2026063021_2 D5 · New-2) ──
+# ── A2A-위임 전파 게이트 (plan_26063021_14_37 D5 · New-2) ──
 # 서브 위임 키의 *권위* = output/<t>/manifest.yaml 의 nodes[sub].hw_verified(메인이 동질성 검증 후 기입).
 # render_sub_env 가 이 값으로 키를 렌더 → 게이트가 권위(소스)를 검사 = egg-free(같은 sync 가 배달하는 키를 검사하지 않음).
 # 미검증 → 빌드 전파 거부 + HITL(무인 자동 서브-스캔 ✗ — "열쇠 분실=사고"). 검증 path = 운영자가 terraforming --peer-ssh 구동.
@@ -112,7 +112,7 @@ case "$BRANCH" in multi|single|both) ;; *) echo "[sync] FAIL: --branch 는 multi
 # 타겟 브랜치 목록
 TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);; both) TARGETS=(multi single);; esac
 
-# ── S4 Band2 빌드킷 keying(전파 = output/<t>/ 의 Band2 만 · plan_2026062417_1 rev3 R1) ──
+# ── S4 Band2 빌드킷 keying(전파 = output/<t>/ 의 Band2 만 · plan_26062417 rev3 R1) ──
 # Band1(루트 템플릿·scripts·resolved.json)은 rsync 소스가 output/<t>/ 라 구조적으로 빠지고,
 # Band3(모델 recipe = <model>.{sh,yaml}·모델 env)는 아래 keying 으로 빠진다. 미분류는 assert_band_classification 가 fail-loud.
 # ⚠ 정본 주의(d12-1): 서브 gitignore.template 의 `!configs/serve_runner.sh` 는 *루트* configs/ 대상이라 이 allowlist 와
@@ -126,7 +126,7 @@ BAND2_TOP=(Dockerfile Dockerfile.source-build Dockerfile.source-build-upstage do
 #   **벤더**명이며 stock 0.22.0 의 superset. Band3 모델 트리플렛은 계속 배제.
 
 _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = output/<t>/.
-    FILT=(--exclude='/manifest.yaml' --exclude='/sub_provision' --exclude='/.env' --exclude='/benchlog' --exclude='/cache')   # D10 manifest·serve-time .env(node-local host config·PII, render --materialize-env 산출) 미전달 · benchlog=adversarial-benchmark 생성 증거(빌드입력 아님, plan_2026063014_1) · cache=노드-로컬 JIT/컴파일 캐시(torch.compile AOT·flashinfer autotune — 컨테이너가 root 로 생성, 노드마다 자기 것을 쌓는다. 빌드입력 ✗·전파 ✗, plan_2026072217_1) · 에이전트환경=overlay
+    FILT=(--exclude='/manifest.yaml' --exclude='/sub_provision' --exclude='/.env' --exclude='/benchlog' --exclude='/cache')   # D10 manifest·serve-time .env(node-local host config·PII, render --materialize-env 산출) 미전달 · benchlog=adversarial-benchmark 생성 증거(빌드입력 아님, plan_26063014) · cache=노드-로컬 JIT/컴파일 캐시(torch.compile AOT·flashinfer autotune — 컨테이너가 root 로 생성, 노드마다 자기 것을 쌓는다. 빌드입력 ✗·전파 ✗, plan_26072217) · 에이전트환경=overlay
     local f
     FILT+=(--include='/configs/')
     for f in "${BAND2_CONFIGS[@]}"; do FILT+=(--include="/configs/$f"); done

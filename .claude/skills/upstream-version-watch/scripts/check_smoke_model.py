@@ -12,9 +12,9 @@
 종료코드: 0=존재(+RAM 게이트 통과) / 2=모델 부재(보고) / 3=설정 파싱 실패 / 7=로드-전 RAM 게이트 거부.
 사용: python3 check_smoke_model.py <config_name> --topology {single|multi} [--repo .] [--no-ram-gate]
       python3 check_smoke_model.py <config_name> --base output/multi [--repo .]
-산출물 통로(plan_2026062312_1): configs/·docker-compose.yaml 는 output/<topology>/ 아래에 있다.
+산출물 통로(plan_26062312): configs/·docker-compose.yaml 는 output/<topology>/ 아래에 있다.
   → --topology 또는 --base 로 그 통로를 명시한다(루트 경로 폴백 금지 — fail-loud, single·multi 양쪽 정합).
-로드-전 RAM 게이트(plan_2026071019_1 §2.6): 모델 실재 확인 후 체크포인트(index total_size)÷TP+floor
+로드-전 RAM 게이트(plan_26071019 §2.6): 모델 실재 확인 후 체크포인트(index total_size)÷TP+floor
   vs MemAvailable 을 결정론 판정(부족 시 drop-caches 1회 자동 → 재측정 → 거부 exit7). 게이트 소유는
   recipe-explorer(preload_ram_gate.py — 발견≠소유), 여기는 serve-평면 소비자. TP 미해소 시 경고 후
   게이트 생략(음성정직 — 거짓 TP 로 false-block 하지 않음).
@@ -40,7 +40,7 @@ def read_config_tp(config_yaml):
 def read_manifest_tp(base):
     """<base>/manifest.yaml 에서 TP = gpus_per_node × 노드 수(role: 라인 수, nodes 비면 1).
     **topology=single 이면 노드 배수 = 1 고정** — single 의 nodes[role=sub]는 sub-control 피어이지
-    텐서 워커가 아님(δ1-2 `_target_tp` 오인 버그와 동일 클래스 차단 — devlog_2026070813_1 PARKED).
+    텐서 워커가 아님(δ1-2 `_target_tp` 오인 버그와 동일 클래스 차단 — devlog_26070813 PARKED).
     해소 실패 시 None(게이트 생략 신호 — manifest→서빙전략 배선 불변식의 serve-평면 소비)."""
     mpath = os.path.join(base, "manifest.yaml")
     if not os.path.isfile(mpath):
@@ -123,7 +123,7 @@ def main():
     ap.add_argument("--base",
                     help="configs/·docker-compose.yaml 을 담은 디렉토리 직접 지정(--topology 보다 우선)")
     ap.add_argument("--no-ram-gate", action="store_true",
-                    help="로드-전 RAM 게이트 생략(plan_2026071019_1 §2.6 — 진단/강제 시)")
+                    help="로드-전 RAM 게이트 생략(plan_26071019 §2.6 — 진단/강제 시)")
     ap.add_argument("--emit-gate-params", action="store_true",
                     help="게이트 통과 시 stdout 에 'GATE_PARAMS required_mib=<n>' 출력"
                          "(멀티노드 스모크가 슬레이브 노드 동일-문턱 검사에 재사용 — §2.6 예방 대칭)")
@@ -136,7 +136,7 @@ def main():
         base = os.path.join(a.repo, "output", a.topology)
     else:
         print("[NAS-check] FAIL: --topology {single|multi} 또는 --base 필요 "
-              "(configs·compose 는 output/<topology>/ 통로에 있음 — plan_2026062312_1)", file=sys.stderr)
+              "(configs·compose 는 output/<topology>/ 통로에 있음 — plan_26062312)", file=sys.stderr)
         sys.exit(3)
 
     cfg = os.path.join(base, "configs", f"{a.config_name}.yaml")
@@ -169,7 +169,7 @@ def main():
     host_path = model_ctr.replace(container_root, host_root, 1)
     if os.path.isdir(host_path):
         print(f"[NAS-check] OK: {a.config_name} → {host_path} 존재")
-        # ── 로드-전 RAM 게이트(plan_2026071019_1 §2.6 — serve 평면) ──
+        # ── 로드-전 RAM 게이트(plan_26071019 §2.6 — serve 평면) ──
         if not a.no_ram_gate:
             # serve TP 정본 = 트리플렛 명시값 > manifest GPU 수(config override > manifest 불변식).
             tp = read_config_tp(cfg)

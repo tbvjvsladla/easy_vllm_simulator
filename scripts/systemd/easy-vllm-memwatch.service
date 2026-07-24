@@ -1,4 +1,4 @@
-# easy-vllm-memwatch.service — mem_watchdog 상시(광역) 인스턴스 (plan_2026071019_1 §2.2 계층 방어 1층).
+# easy-vllm-memwatch.service — mem_watchdog 상시(광역) 인스턴스 (plan_26071019 §2.2 계층 방어 1층).
 # 설치 = scripts/install_host_safety.sh (HITL sudo). ExecStart 는 /usr/local/sbin 설치본을 가리킴
 # (레포 경로 비의존 — 포인터 원칙: 갱신은 installer 재실행).
 # 하네스 협역 인스턴스(run_trial.py·multinode_serve_smoke.sh)와 병행 — 임계 동급이나 필터가 넓어

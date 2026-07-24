@@ -12,7 +12,7 @@ description: >-
 업스트림 vLLM을 추적해 **최신 버전 감지(사람 지시) → 변경 독해 → 레이어 bump 제안**까지 수행한다.
 이 스킬은 **제안한다.** 실제 적용은 핀 정책(`CLAUDE.md`)과 HITL 게이트(`.claude/rules/workflow.md`)를 따른다.
 
-> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_2026063018_1)**: 컨테이너 빌드·렌더·bump(작업) 전 **Flag 확인 필수**. 미발급 시 **info-only**: vLLM GitHub 릴리즈 조회·버전해소 *설명* OK / **렌더·빌드·bump ✗** → "빌드는 HW(arch·cuda)·모델경로(manifest)를 알아야 — `terraforming_node` 먼저"로 redirect. 빌드 시 manifest `model_source`(managed|ephemeral|custom)로 compose 분기(P4). **결정론 백스톱** = 빌드/렌더 작업 *前* 에이전트가 `python3 .claude/skills/terraforming_node/scripts/manifest_contract.py --topology <t> --require-flag` 실행(workflow S3 게이트). upstream 은 main-only 빌딩블럭·다단계 빌드라 단일 작업스크립트 진입점이 분산 → recipe(replicated, main() 베이크-인)와 달리 **S3 워크플로 게이트가 정본**.
+> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_26063018)**: 컨테이너 빌드·렌더·bump(작업) 전 **Flag 확인 필수**. 미발급 시 **info-only**: vLLM GitHub 릴리즈 조회·버전해소 *설명* OK / **렌더·빌드·bump ✗** → "빌드는 HW(arch·cuda)·모델경로(manifest)를 알아야 — `terraforming_node` 먼저"로 redirect. 빌드 시 manifest `model_source`(managed|ephemeral|custom)로 compose 분기(P4). **결정론 백스톱** = 빌드/렌더 작업 *前* 에이전트가 `python3 .claude/skills/terraforming_node/scripts/manifest_contract.py --topology <t> --require-flag` 실행(workflow S3 게이트). upstream 은 main-only 빌딩블럭·다단계 빌드라 단일 작업스크립트 진입점이 분산 → recipe(replicated, main() 베이크-인)와 달리 **S3 워크플로 게이트가 정본**.
 
 > 설계 원칙(하네스 엔지니어링): **버전 문자열 해소는 결정론적 스크립트**(`scripts/`)가, 변경 요약·
 > 리스크 판단은 모델이 한다. 버전·태그를 추측(확률론)으로 단정하지 않는다.
@@ -59,7 +59,7 @@ python3 scripts/resolve_wheel.py "$V" --arch "$ARCH"          # cuda 미지정 �
 # ④ requirements 재생성 — wheel METADATA(Requires-Dist) 기준 (권위 소스, requirements/*.txt 아님)
 python3 scripts/regen_requirements.py --from-wheel-url <wheel URL> -o requirements.txt   # 빌드 전(호스트)
 # (컨테이너 내부 정합: python3 scripts/regen_requirements.py --use-installed -o requirements.txt)
-# ⑤ no-download NAS 체크 (스모크 전): 모델 부재면 비0+중단·보고. --topology 필수(산출물 통로 output/<topology>/, plan_2026062312_1)
+# ⑤ no-download NAS 체크 (스모크 전): 모델 부재면 비0+중단·보고. --topology 필수(산출물 통로 output/<topology>/, plan_26062312)
 python3 scripts/check_smoke_model.py <config_name> --topology <single|multi> --repo .
 # ⑥ 실패 분류 (빌드/스모크 실패 시): requirements-fixable(0)/source-build-class(1)/unknown(2)
 docker logs <c> 2>&1 | python3 scripts/classify_failure.py
@@ -106,7 +106,7 @@ python3 scripts/render_dockerfile.py --template docker-compose.template.yaml    
 python3 scripts/regen_requirements.py --from-wheel-url <…> -o output/<t>/requirements.txt
 # ② (multi 전용) 러너 스크립트 통로 materialize
 python3 scripts/render_dockerfile.py --materialize-configs --topology <t>
-# ③ serve-time env 통로 materialize (필수 — 누락 시 compose 가 /mnt/models 기본 마운트 → 모델 못 찾음. testlog_2026062422_1 결함#2)
+# ③ serve-time env 통로 materialize (필수 — 누락 시 compose 가 /mnt/models 기본 마운트 → 모델 못 찾음. testlog_26062422 결함#2)
 python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 ```
 
@@ -133,13 +133,13 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 
 ## 3.6. escalation 수신 — recipe 핸드오프 → 버전핀 소유·3출구 (발견≠소유의 버전-bump 축)
 
-> `vllm-recipe-explorer` §5.5가 "현 vLLM 불가"를 외부 교차검증으로 **발견**하고 사용자 승인을 거쳐 넘긴 핸드오프의 **수신점**. recipe는 발견·핸드오프까지, **버전핀 소유·처방·rebuild는 본 스킬**(발견≠소유 — §4.7 intake 의 *버전-bump 축 형제*; §4.7=lib-축 *진입*이나 그 사다리 상단은 §3.6(ii)와 동일 fork-pin으로 수렴 — 처방 머신리 공유). 헌법 §escalation 역루프 따름정리 · `plan_2026063009_2` · 절차-홈 `workflow.md` §escalation 역루프.
+> `vllm-recipe-explorer` §5.5가 "현 vLLM 불가"를 외부 교차검증으로 **발견**하고 사용자 승인을 거쳐 넘긴 핸드오프의 **수신점**. recipe는 발견·핸드오프까지, **버전핀 소유·처방·rebuild는 본 스킬**(발견≠소유 — §4.7 intake 의 *버전-bump 축 형제*; §4.7=lib-축 *진입*이나 그 사다리 상단은 §3.6(ii)와 동일 fork-pin으로 수렴 — 처방 머신리 공유). 헌법 §escalation 역루프 따름정리 · `plan_26063009_19_14` · 절차-홈 `workflow.md` §escalation 역루프.
 
 - **진입(승인 완료 전제)**: recipe가 첨부한 증거(구동불가 증상 + 외부 확증: HF 모델카드·vLLM GitHub issue/release/PR) 수신 → **버전해소 리서치**(release 노트·머지 PR·포크 — §1 GitHub 추적 근육 재사용) → **3출구 판정**. 무승인/무증거 수신 ✗(트리거 정책·무증거 오버라이드 금지).
 - **3출구 → 기존 경로 매핑**:
   - **(i) 공식 bump** — 모델이 더 새 *공식* vLLM release에서 지원 → **표준 bump 경로**(`workflow.md` S1–S3, HITL 게이트). 가장 단순한 출구.
   - **(ii) 커스텀/포크핀** — 모델카드가 포크·미머지 PR 지목(예 jasl/vllm PR) → **§4.6 source-repo 오버라이드**(fork **SHA 핀** `VLLM_REPO`/`VLLM_REF` build-arg) + `…-source-<변종>` superset 변종 트랙(`resolved.json` `source_build_variants`). 거버넌스 = 아치-enablement 변종 트랙 따름정리(클러스터-와이드 이미지·**기존모델 회귀 재스모크**·단일 변종-트랙·무증거 오버라이드 금지). 절차 정본 = `workflow.md` S3 arch-wall 분기.
-  - **(iii) 음성정직** — vLLM이 아직 미지원(공식·포크 모두 부재), transformers-only → *"현재 vLLM으로 서빙 불가"* 보고(없는 길 날조 ✗). 사용자가 transformers 폴백/대기를 결정. **단 "공식·포크 모두 부재" 선언은 `.claude/rules/references.md` §5 최소범위 레시피 수행 + testlog "탐색 증거"(검색어·URL·일자) 기록 후에만 허용** — 가장 강한 부정 결론엔 가장 강한 증거("찾을 수 있는 길을 덜 찾고 포기" 방어 · plan_2026070208_1; 3출구 중 (i)/(ii)는 증거 요건이 이미 강한데 (iii)만 없던 비대칭 해소).
+  - **(iii) 음성정직** — vLLM이 아직 미지원(공식·포크 모두 부재), transformers-only → *"현재 vLLM으로 서빙 불가"* 보고(없는 길 날조 ✗). 사용자가 transformers 폴백/대기를 결정. **단 "공식·포크 모두 부재" 선언은 `.claude/rules/references.md` §5 최소범위 레시피 수행 + testlog "탐색 증거"(검색어·URL·일자) 기록 후에만 허용** — 가장 강한 부정 결론엔 가장 강한 증거("찾을 수 있는 길을 덜 찾고 포기" 방어 · plan_26070208; 3출구 중 (i)/(ii)는 증거 요건이 이미 강한데 (iii)만 없던 비대칭 해소).
 - **최종 중재 = 스모크**(린트·이슈글 ≠ 서빙됨): (i)/(ii) 출구는 render+build+S3 스모크 통과가 done. **순환 차단** — rebuild 후도 미구동이면 `config.yaml`의 `reconciliation_cap` 한정 재진입 → 소진 시 Model-C(무한 bump ✗).
 - **완료 후 recipe 재개 신호**: rebuild된 이미지로 `vllm-recipe-explorer`가 전략수립(§2–§6) 재진입. 핀 변경·push는 §4·`workflow.md` HITL 게이트.
 
@@ -150,7 +150,7 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 - **hint 태그 발동(bump closer · 전작업 완료 후)**: bump 사이클이 서빙성공+커밋+문서+전파까지 끝난 S4 종결부에서,
   새 `(vllm×model×arch)` 면 hint 태그 발행을 **제안(Y/N)** 한다(무인 자동 태깅 ✗ · push 는 전부 사용자 소관 —
   브랜치 push 도 루틴 대상 아님). 절차·엔진 = `scripts/hint_tag.py`(루트) · 헌법 §hint 배포 레이어 따름정리 §발동 시점 ·
-  절차-홈 `workflow.md` S4 · 설계 `plan_2026070222_1`·`plan_2026071607_1`. main-only(references.md 동평면 — 서브 미전파).
+  절차-홈 `workflow.md` S4 · 설계 `plan_26070222`·`plan_26071607`. main-only(references.md 동평면 — 서브 미전파).
 
 ## 4.5. 멀티노드 경로 (검증됨 — docs/testlog/testlog_260607_7)
 
@@ -184,7 +184,7 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 
 > torch 2.11+ 구간(prebuilt ABI 벽). **`_C`를 NGC torch에 맞춰 직접 컴파일** → ABI 벽 해소.
 > **경험적·판단계층·임시 가교** 성격: 패치는 결정론 카탈로그에 codify하지 않는다(소스빌드는 곧 prebuilt가 따라잡음).
-> 런타임 패치(스킬 `vllm-recipe-explorer` §5 · plan_2026062711_1 Part1)와 **거버넌스 공유**(판단계층·참조-그라운디드·사전-codify 금지·HITL) — 단 *빌드타임*이라 추적 `Dockerfile.source-build`에 **동결**(런타임 패치는 휘발/비추적). 평면별 지속성 비대칭 = 레이어드 적응 메타원칙 산물(plan_2026062711_1 Part 3).
+> 런타임 패치(스킬 `vllm-recipe-explorer` §5 · plan_26062711 Part1)와 **거버넌스 공유**(판단계층·참조-그라운디드·사전-codify 금지·HITL) — 단 *빌드타임*이라 추적 `Dockerfile.source-build`에 **동결**(런타임 패치는 휘발/비추적). 평면별 지속성 비대칭 = 레이어드 적응 메타원칙 산물(plan_26062711 Part 3).
 > bjk110/spark_vllm_docker = 진단 힌트(벤더링 X). 검증: `docs/testlog/testlog_260608_1`. 산출물 `Dockerfile.source-build`.
 
 **절차 (인터랙티브 → 동결):**
@@ -214,17 +214,17 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 - **긴 serve는 `docker exec -d`**(detached): foreground는 harness 2분 타임아웃에 잘림. 폴링은 짧게 나눠.
 - **DONE = 스모크 + 동결 + clean 재빌드 재현**.
 
-**패치 검증 → 동결(재현성) 라이프사이클 (발견 → 검증 → Dockerfile 동결):** *(이미지 clean-재빌드 재현 위한 동결이지 카탈로그 '졸업'이 아님 — plan_2026062711_1 Part 3)*
+**패치 검증 → 동결(재현성) 라이프사이클 (발견 → 검증 → Dockerfile 동결):** *(이미지 clean-재빌드 재현 위한 동결이지 카탈로그 '졸업'이 아님 — plan_26062711 Part 3)*
 - **발견**: 신규 ABI 시그니처 충돌은 **HITL 판단계층 패치**(Model-C)다 — 사전-bake 금지(투기적 패치 금지).
 - **검증**: 특정 키에서 실제 스모크 PASS로 입증된 패치만 다음 단계로.
 - **재현성 동결(조건부 임베드)**: 검증된 패치를 **(NGC베이스 / 실-링크 torch) × 에러시그니처 × vLLM버전**으로 키잉한 조건부 패치로 `*.source-build.template`에 임베드 + **post-assert(fail-loud)** — *별도 카탈로그가 아니라 이미지 clean-재빌드 재현을 위한 동결*(판단계층 patch-body 는 사전-codify 금지 유지). 미인식 키 → **HITL-discovery 플레이스홀더 + 명시적 빌드 실패**(조용한 통과 금지 — 단 이 실패는 *미검증*이지 *불가 판정* 아님). **시도-빌드 우회(전방호환 시도-우선)**: 사람 승인 시 `render_dockerfile.py --allow-unvalidated` 로 가드를 WARN 강등해 그대로 시도-빌드 → 스모크 중재 → **통과 시 그 (NGC×vLLM) 키를 `VALIDATED_SOURCE_BUILD_KEYS` 에 codify**(+testlog 기록 의무 — 무기록 우회 금지). 키는 **pyproject torch핀이 아님**(step1 C2 동일 근거 — use_existing_torch가 핀을 버림).
 - **role화 보류**: `source_build_patches.yaml` + patch-resolver 페르소나로의 역할 분리는 **E2E testlog 존재 후**에 한다(투기적 설계 금지).
-  - **파일추출 보류 불변식**: `VALIDATED_SOURCE_BUILD_KEYS` 2키 frozen-set + fail-loud 가드가 현재 충분 — 별도 `source_build_patches.yaml`+resolver 는 오버엔지니어링(Karpathy B2/B3). **추출 트리거 = 인라인 셋 비대화(3번째+ 키)** 또는 패치-바디 다양화. patch-body 는 판단계층 유지(사전-codify 금지 — formula 위험과 동류). 근거 E2E(날짜 박힌 게이트 판정 서사) = devlog/testlog 인용: `testlog_2026062217_1`(0.23.0 source 26.05) · `testlog_2026062422_1`(듀얼모델 E2E 26.05 재검증).
+  - **파일추출 보류 불변식**: `VALIDATED_SOURCE_BUILD_KEYS` 2키 frozen-set + fail-loud 가드가 현재 충분 — 별도 `source_build_patches.yaml`+resolver 는 오버엔지니어링(Karpathy B2/B3). **추출 트리거 = 인라인 셋 비대화(3번째+ 키)** 또는 패치-바디 다양화. patch-body 는 판단계층 유지(사전-codify 금지 — formula 위험과 동류). 근거 E2E(날짜 박힌 게이트 판정 서사) = devlog/testlog 인용: `testlog_26062217_25_17`(0.23.0 source 26.05) · `testlog_26062422`(듀얼모델 E2E 26.05 재검증).
 - strip-hoist가 torch 2.12에서 자동 skip된 것은 **조건부 패치의 재사용 가능 패턴**이다(부재감지 = 적용여부 자동결정).
 
 ## 4.7. 빌드-바깥 의존 패치 (모델구동 빌드타임 — `build_patches/`)
 
-> §4.6과 **다른 범주**: §4.6 = vLLM **빌드 자체**의 ABI 수정(inline·torch/NGC-keyed). §4.7 = **모델이 요구하는 native 의존**(lib/커널) 추가 — 예 **DeepGEMM**(DeepSeek-V4 DSA `SparseAttnIndexer` 가 요구, 미설치 시 하드 RuntimeError). per-model 3+1+1 의 "빌드-바깥 패치" 슬롯(plan_2026062812_1). 빌드평면·동결·재현·HITL 거버넌스는 §4.6과 공유. **도커 패치 범위 LADDER 의 최하단**(deps-patch=build_patches → source-gate-patch(sed) → **vLLM source-repo 오버라이드**(fork SHA 핀 `VLLM_REPO`/`VLLM_REF`, §4.6 repo-축 형제) → checkpoint-swap): build_patches 로도 stock vLLM 이 **구조적 불가**(arch-wall, 예 GB10 sm_121 DeepSeek-V4)면 위 사다리로 에스컬레이션(fork 핀 = 1급 HITL 오버라이드, 절차 정본 = `workflow.md` S3). 헌법 "아치-enablement 변종 트랙 따름정리".
+> §4.6과 **다른 범주**: §4.6 = vLLM **빌드 자체**의 ABI 수정(inline·torch/NGC-keyed). §4.7 = **모델이 요구하는 native 의존**(lib/커널) 추가 — 예 **DeepGEMM**(DeepSeek-V4 DSA `SparseAttnIndexer` 가 요구, 미설치 시 하드 RuntimeError). per-model 3+1+1 의 "빌드-바깥 패치" 슬롯(plan_26062812). 빌드평면·동결·재현·HITL 거버넌스는 §4.6과 공유. **도커 패치 범위 LADDER 의 최하단**(deps-patch=build_patches → source-gate-patch(sed) → **vLLM source-repo 오버라이드**(fork SHA 핀 `VLLM_REPO`/`VLLM_REF`, §4.6 repo-축 형제) → checkpoint-swap): build_patches 로도 stock vLLM 이 **구조적 불가**(arch-wall, 예 GB10 sm_121 DeepSeek-V4)면 위 사다리로 에스컬레이션(fork 핀 = 1급 HITL 오버라이드, 절차 정본 = `workflow.md` S3). 헌법 "아치-enablement 변종 트랙 따름정리".
 
 - **발견 ≠ 소유 (intake)**: 발견은 `vllm-recipe-explorer` crosscheck(special-dep 경보) — **메인**이면 직접 핸드오프, **서브**면 docs insight 상향(D12, 서브는 빌드평면 미보유). upstream-version-watch 가 **이미지에 넣는 책임**(어떻게)을 진다. **patch.py ✗**(native lib 은 Python 몽키패치 불가).
 - **모듈화 (Dockerfile bloat 차단)**: 패치 = **`output/<topology>/build_patches/<NN>-<name>.sh`** 모듈(추적 빌딩블럭 — .gitignore output 예외 · **빌드 컨텍스트=output/<t>/**(compose build.context `.` = compose 파일 위치 기준) · **통로 격리로 single/multi 혼재 차단**(산출물 통로 불변식) · 서브 전달=`sync_to_sub`(output/<t>/ native)). 각자 self-contained = 헤더(what/why/model-trigger/plan-ref) + 설치·컴파일 + **검증(fail-loud)**. `Dockerfile.source-build` 는 **단일 thin 스탠자**: `COPY build_patches/ /tmp/build_patches/`(컨텍스트=output/<t>/ 상대) + `RUN for p in $(ls /tmp/build_patches/*.sh|sort); do bash "$p"||exit 1; done`. → **패치 추가 = 파일 drop(Dockerfile 무수정)** · 폴더 listing = self-documenting 레지스트리(카탈로그 ✗).
@@ -246,7 +246,7 @@ python3 scripts/render_dockerfile.py --materialize-env --topology <t>
 - `scripts/resolve_build_track.py` — ⑦ 트랙 제안자(torch핀 휴리스틱 + SM arch만 결정론, 최종은 스모크 중재). `build_track.decision`·`source_build.torch_cuda_arch`를 `resolved.json`에 채움.
 - `scripts/sync_to_sub.sh` — 멀티노드 [전달]: 메인→서브 rsync(dry-run 기본/`--apply`, 체크섬, 빌딩블럭 제외).
 - `scripts/multinode_serve_smoke.sh` — 멀티노드 2노드 Ray 서빙+multi-smoke 오케스트레이션(`<config> [--build] [--keep-up]`).
-- (서브노드 빌드워커 CC 페르소나·Agent_Card·통신프로토콜은 **`terraforming_node` 스킬이 소유·렌더** — plan_2026062408_1 에서 `sub_node/` 이전. 이 스킬은 `sync_to_sub.sh`(전달)·`multinode_serve_smoke.sh`(서빙 스모크) 제어평면만 보유.)
+- (서브노드 빌드워커 CC 페르소나·Agent_Card·통신프로토콜은 **`terraforming_node` 스킬이 소유·렌더** — plan_26062408 에서 `sub_node/` 이전. 이 스킬은 `sync_to_sub.sh`(전달)·`multinode_serve_smoke.sh`(서빙 스모크) 제어평면만 보유.)
 - `<repo>/Dockerfile.source-build` — Phase 2 소스빌드 동결 산출물(§4.6, 0.22.1 검증). prebuilt `Dockerfile`과 별도.
 - `config.example.yaml` — 입력 스키마(트리거·스모크 config_name·`reconciliation_cap`).
-- 외부 레퍼런스 = **`.claude/rules/references.md`(추적 레지스트리 — plan_2026070208_1 로 승격·시딩됨)**: ID→URL 정규화 템플릿(release·PR/issue·compare API)·스크립트-소유 포인터·HW-스코프·부정판정 최소범위 레시피. 외부검색 전 1차 조회(warm-start) → 미스 시 신규 검색 → load-bearing 히트 재입고(자기증식). (구 `reference.md` 온디맨드-폴백 예약은 이 레지스트리로 대체 — torch↔NGC 매핑 정본은 여전히 결정론 스크립트 ①②③.)
+- 외부 레퍼런스 = **`.claude/rules/references.md`(추적 레지스트리 — plan_26070208 로 승격·시딩됨)**: ID→URL 정규화 템플릿(release·PR/issue·compare API)·스크립트-소유 포인터·HW-스코프·부정판정 최소범위 레시피. 외부검색 전 1차 조회(warm-start) → 미스 시 신규 검색 → load-bearing 히트 재입고(자기증식). (구 `reference.md` 온디맨드-폴백 예약은 이 레지스트리로 대체 — torch↔NGC 매핑 정본은 여전히 결정론 스크립트 ①②③.)

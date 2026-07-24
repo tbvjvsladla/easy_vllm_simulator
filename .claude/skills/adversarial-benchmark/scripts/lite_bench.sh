@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lite_bench.sh — 경량(lite) inform-only 벤치 오케스트레이터 (adversarial-benchmark §5.5 · plan_2026071115_1)
+# lite_bench.sh — 경량(lite) inform-only 벤치 오케스트레이터 (adversarial-benchmark §5.5 · plan_26071115)
 #
 # lite = 기본 ON(서빙 성공 시 자동 수행) · inform-only(PASS/FAIL·자동 loop-back ✗ — verdict_rule 미투입).
 # 돌고 있는 serve 를 경량 측정한다(기동 안 함 — run_bench.sh 와 동일 경계). full 벤치는 run_bench.sh.
