@@ -119,7 +119,11 @@ TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);
 #   *동치 아님*. output/<t>/ Band2 추적은 gitignore.template 의 output/ 예외(!output/<t>/configs/serve_runner.sh 등)가 관할.
 BAND2_CONFIGS=(serve_runner.sh debug-init.sh arm_patch.sh)   # topology-keyed 분산서빙 인프라(Band2, 멀티). arm_patch.sh=모델구동 패치 arming(제네릭 결정론·양노드)
 BAND2_ENVS=(.env.interconnect .env.cluster)          # topology/network-keyed env(Band2): NCCL(.interconnect) + 클러스터배포(.cluster=S6 materialize)
-BAND2_TOP=(Dockerfile Dockerfile.source-build docker-compose.yaml requirements.txt .gitkeep)  # 최상위 빌드킷(Band2)
+BAND2_TOP=(Dockerfile Dockerfile.source-build Dockerfile.source-build-upstage docker-compose.yaml requirements.txt .gitkeep)  # 최상위 빌드킷(Band2)
+# ↑ Dockerfile.source-build-upstage = Solar-Open2 변종 트랙(UpstageAI 포크 @ v0.22.0-solar-open2).
+#   Band2 편입 근거 = **빌드-평면**: 멀티는 클러스터-와이드 이미지라 슬레이브도 동일 이미지를 빌드해야 한다
+#   (헌법 변종이미지 build-plane ≠ serve-plane 따름정리 · workflow.md S2.5). 모델-키잉 ✗ — track 은 포크
+#   **벤더**명이며 stock 0.22.0 의 superset. Band3 모델 트리플렛은 계속 배제.
 
 _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = output/<t>/.
     FILT=(--exclude='/manifest.yaml' --exclude='/sub_provision' --exclude='/.env' --exclude='/benchlog' --exclude='/cache')   # D10 manifest·serve-time .env(node-local host config·PII, render --materialize-env 산출) 미전달 · benchlog=adversarial-benchmark 생성 증거(빌드입력 아님, plan_2026063014_1) · cache=노드-로컬 JIT/컴파일 캐시(torch.compile AOT·flashinfer autotune — 컨테이너가 root 로 생성, 노드마다 자기 것을 쌓는다. 빌드입력 ✗·전파 ✗, plan_2026072217_1) · 에이전트환경=overlay

@@ -32,14 +32,18 @@ MC=$(val MASTER_CONTAINER_NAME); PORT=$(val SERVING_PORT)
 MODEL=$(val SERVING_MODEL_NAME); SLAVE_IP=$(val SLAVE_HOST_IP)
 
 # ── 이미지 정체성 전달(멀티 = 클러스터-와이드: 슬레이브가 마스터와 동일 이미지여야) ──
-#   콤보 EF 에서 IMAGE_TAG/VLLM_REPO/VLLM_REF '만' 읽어 슬레이브 compose 보간에 전달한다(빌드-평면 인프라).
+#   콤보 EF 에서 IMAGE_TAG/BUILD_DOCKERFILE/VLLM_REPO/VLLM_REF '만' 읽어 슬레이브 compose 보간에 전달한다(빌드-평면 인프라).
 #   마스터는 --env-file $EF 로 자동 획득. 슬레이브는 EFC(Band2)만 받으므로 비-기본 이미지 변종(예 포크 …-source-sm12x)을
-#   못 봐 stock 으로 빌드/기동하는 불일치가 난다 → 이 3개만 명시 전달.
+#   못 봐 stock 으로 빌드/기동하는 불일치가 난다 → 이 4개만 명시 전달.
+#   ⚠ BUILD_DOCKERFILE 누락 결함(Solar-Open2 가 최초 노출, 2026-07-24): 슬레이브 build 는 --env-file $EFC(Band2)
+#     만 받으므로 BUILD_DOCKERFILE 이 compose 기본값(Dockerfile.source-build)으로 폴백 → 변종 트랙(예
+#     Dockerfile.source-build-upstage)서 **슬레이브만 다른 Dockerfile 로 빌드**. 종전 콤보는 전부
+#     BUILD_DOCKERFILE=Dockerfile.source-build(=기본값)이라 잠복했다. 이미지 정체성의 일부이므로 동반 전달.
 #   ⚠ 모델 serve config(CONFIG_FILE)는 전달 안 함 → 슬레이브 Band2-only 보존(슬레이브 컨테이너 env 는 compose env_file=
 #     .env.interconnect+.env.cluster 만, CONFIG_FILE=default 유지). 값에 공백 없음(URL/태그/SHA) → 무인용 prefix 안전.
 #   근거: plan_2026062818_1 §S2.5 R10 · 슬레이브 Band2-only(plan_2026062811_2).
-IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF)
-SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${VREPO:+VLLM_REPO=$VREPO }${VREF:+VLLM_REF=$VREF}"
+IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF); BDF=$(val BUILD_DOCKERFILE)
+SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VREPO:+VLLM_REPO=$VREPO }${VREF:+VLLM_REF=$VREF}"
 
 # ── 마운트 vars 전달(결함#2b · plan_2026070119_1): materialize-env 산출(output/multi/.env)은 compose 가
 #   --env-file 사용 시 auto-load 하지 않는다(--env-file 이 기본 .env 자동로드를 대체) → NAS/quant/tiktoken 마운트가
