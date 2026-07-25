@@ -13,7 +13,7 @@
 - **type** ∈ `plan` · `devlog` · `testlog`. **type별 서브디렉토리 + 파일명 접두사**를 모두 둔다
   (예: `docs/devlog/devlog_...`). 평면(`docs/파일.md`) 배치 금지.
 - **YYMMDDHH**: 작성 일시 절대표기 · **2자리 연도**(예 `26060814` = 2026-06-08 14시, KST). 시각(HH)까지. 상대날짜 금지.
-- **충돌 시에만 `_MM_SS`**: 같은 `YYMMDDHH`(같은 type)에 2건 이상일 때 **그때만** 분·초를 뒤에 붙여 구분(예 `_46_53`). 단건이면 시간토큰만(구 `_seq_` 폐지). MM_SS 복원 우선순위 = 본문·원시로그 명시시각 > 파일 mtime > 증거불명 시 `_00_<n>`(inferred).
+- **충돌 시에만 `_MM_SS`**: 같은 `YYMMDDHH`(같은 type)에 2건 이상일 때 **그때만** 분·초를 뒤에 붙여 구분(예 `_46_53`). 단건이면 시간토큰만(구 `_seq_` 폐지). 같은 type/hour의 기본형과 해당 `_MM_SS`형이 모두 점유됐으면 제3 형식을 만들거나 덮어쓰지 않고 `NamingCollisionExhausted`로 fail-closed한다.
 - **주제**: 한국어, 밑줄(`_`) 구분, 내용 식별 가능하게 간결히. 버전·대상 포함 권장
   (예: `Phase2_소스빌드_vLLM0.22.1_검증`).
 - 예시:
@@ -28,7 +28,7 @@
   ```
   - 예: `docs/simlog/26062121_vLLM0.22.1_KV클램프_시뮬/`
 
-- **benchmark 도 예외 — 산출물 종류가 파일 접두사**(`report_`/`benchmark_`). full-런 자동 발행물이라
+- **benchmark 도 예외 — 산출물 종류가 파일 접두사**(`bench_report_`/`benchmark_`). full-런 자동 발행물이라
   **`<YYMMDDHH>` 시간토큰 + 대상 조합**을 파일명에 담는다(동일 측정 재발행=덮어쓰기 · 동일 YYMMDDHH 다른 측정=`_MM_SS`). 시간토큰 SSOT=`scripts/doc_naming.py`(generated_utc→KST).
   run 디렉토리 아님(평면 파일). 정본 = 스킬 `adversarial-benchmark` full 모드.
   ```
@@ -87,7 +87,7 @@
 
 ### benchmark/ — full-런 성능 계측 vault (사람용 report + 기계용 인증서)
 - **역할**: adversarial-benchmark **full 모드** 종결 시 자동 발행되는 계측 vault(simlog 자매 — raw 계층 위 report 계층). 두 산출물 공존:
-  - ① **사람용 report**(`report_*.md`, **항상**·PASS/FAIL 무관) = 부하 스윕 곡선(client-load·reload 0)·루프라인
+  - ① **사람용 report**(`bench_report_*.md`, **항상**·PASS/FAIL 무관) = 부하 스윕 곡선(client-load·reload 0)·루프라인
     컨텍스트·환경 스냅샷. **inform-only**(verdict 를 *표시만* — 판정 권한 ✗) · 결정론 `render_report.py`(LLM 표저작 ✗) · N/A fail-soft.
   - ② **기계용 인증서**(`benchmark_*.yaml`, **PASS시만**) = "이 모델을 이 HW/config 서 테스트·통과했다"는 **flat
     계약**(중첩 ✗ — 소비자 stdlib 독해) · **carry-forward 재검증 헤더**(강한키=model/gpu/vllm/quant/topology/tp 정확일치 +
@@ -150,7 +150,7 @@
 - **추적·배포되는 것 = 폴더 스켈레톤 + 각 폴더 `example.md` 1개씩만**(역할+명명규칙 · **report/ 는 예외 —
   산출물째 추적**, 아래). 외부 배포 시 CLAUDE.md/.claude의 문서 규칙이 참조하는 폴더 구조가 항상 함께 존재하도록 보장.
   - `.gitignore`: `docs/*/*` (작업문서 무시) + `!docs/*/example.md` (스켈레톤만 추적).
-  - **simlog·benchmark 도 동일 규칙으로 자동 처리**: 산출물(`docs/simlog/<run>/*` · `docs/benchmark/report_*.md`·
+  - **simlog·benchmark 도 동일 규칙으로 자동 처리**: 산출물(`docs/simlog/<run>/*` · `docs/benchmark/bench_report_*.md`·
     `docs/benchmark/benchmark_*.yaml`)은 `docs/*/*`에 걸려 무시, `example.md`만 추적. **전용 추가 규칙 불필요**
     (별도 패턴 넣지 말 것 — 편지 A.2.1 "새 폴더마다 전용 gitignore 규칙 추가 금지"). 검증: `git add --dry-run docs/benchmark/` = example.md 만.
   - **⚠ report/ = 유일한 추적 예외**(`!docs/report/*`): 산출물째 추적·배포한다. 무시하면 클론에 안 실려
@@ -167,7 +167,7 @@
 
 > 근거: `plan_26062411`(D12). 절차 = `.claude/rules/workflow.md` §"메인↔서브 양방향 브랜치싱크" B2.
 
-- **규약 테라포밍**: 서브노드도 **동일한 docs 발행 규약**(이 파일)을 따른다 — 같은 명명(`docs/<type>/<type>_YYYYMMDDHH_seq_주제.md`),
+- **규약 테라포밍**: 서브노드도 **동일한 docs 발행 규약**(이 파일)을 따른다 — 같은 명명(`docs/<type>/<type>_YYMMDDHH[_MM_SS]_주제.md`, §1 참조 — 구 `_seq_` 표기는 폐지됨),
   같은 5종(plan/devlog/testlog/simlog/benchmark), 같은 gitignore-persist(`docs/*/*` ignore · `!docs/*/example.md` 추적). docs 스켈레톤은 `render_sub_env.py` 가 서브 env 에 렌더.
   **report/ 는 서브에 렌더하지 않는다 — 메인 전용**(배포자 대상 아웃바운드 공지 = 빌딩블럭 전파 축,
   `references.md` 동형). 서브 docs 는 *상향 insight 회수* 채널이라 성격이 다르다. 배제 배선 = `render_sub_env.py`
@@ -176,3 +176,29 @@
   `fetch_sub_docs.sh` 로 서브 `docs/` 만 로컬 gitignored 미러(`sync_staging/sub_docs/`)로 rsync → 메인 **열람** → **HITL 재저작**.
   (이는 하향 빌드 rsync 의 `--exclude docs` 와 별개 평면 — 빌드엔 docs 불요, **회수엔 docs 가 유일 채널**. patch/코드 추출 없음.)
 - **PII**: 회수가 문서기반(코드/설정 미추출)이라 서브 헌법의 bake 정체성이 메인 추적물로 유입되지 않는다(헌법 §메인↔서브 D12-09).
+
+## 5. Hybrid evidence publisher (plan_26072506 Phase 2)
+
+명명 SSOT는 루트 `scripts/doc_naming.py`다. `scripts/evidence_publisher.py`는 이를 import하며,
+required-evidence 계산과 최종 판정은 각각 `completion_gate.required_evidence_for()`와
+`completion_gate.py verify`에 위임한다. 동일 규칙을 publisher 안에 복제하지 않는다.
+
+### 5.1 CLI 계약
+
+| 서브커맨드 | 역할과 fail-closed 계약 |
+|---|---|
+| `init` | task class별 required evidence, deterministic scaffold, `docs/_evidence/<topic>.json` publication record를 만든다. 재실행은 파일명을 재사용하고 기존 narrative/raw를 덮어쓰지 않으며 누락된 scaffold만 복구한다. |
+| `append-raw` | repo-relative regular UTF-8 evidence만 append-only/atomic하게 누적한다. absolute/escape/symlink/FIFO/empty/wrong-type 입력은 stable JSON exit 2로 거부한다. benchmark report/certificate는 이 경로로 받지 않는다. |
+| `set-narrative` | 명시적인 `--narrative-file` 입력만 provenance와 함께 scaffold의 narrative marker 사이에 넣는다. publisher가 산문을 생성하는 경로는 없다. |
+| `publish-benchmark` | full benchmark FAIL은 `bench_report`만 발행하고 certificate를 금지한다. PASS certificate도 사용자가 제공한 parse 가능한 flat artifact만 복사하며, 누락 시 합성하지 않는다. |
+| `record-capacity-rejection` | capacity rejection의 검증된 raw gate-evidence 포인터를 기록한다. |
+| `finalize` | publication record로 work manifest를 조립한 뒤 completion gate의 JSON/exit code를 그대로 중계한다. identity/link/PII/verdict/promotion을 자체 판정하지 않는다. |
+| `--self-test` | 임시 repository에서 init→raw→finalize 결정론 왕복을 검증한다. |
+
+### 5.2 결정론과 Sonnet 저작 경계
+
+Publisher가 스스로 만드는 것은 명시 CLI 입력의 순수 함수인 파일명, scaffold header, provenance metadata,
+publication record와 raw-log entry뿐이다. 시각도 벽시계에서 추측하지 않고 `--generated-utc` 또는
+`--recorded-utc`로 받는다. Narrative, 측정 수치, identity, verdict, benchmark certificate와 raw evidence는
+절대 합성하지 않는다. 명시 입력이 없으면 placeholder 또는 pending blocker로 남고 promotion side effect는
+일어나지 않는다. `docs/_evidence/`는 기존 `docs/*/*` ignore 규칙에 포함되므로 전용 gitignore 규칙을 추가하지 않는다.
