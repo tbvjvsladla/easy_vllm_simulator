@@ -10,13 +10,14 @@ branch-sync side effects, gated in a later phase).
 
 Design (post-review):
   - Schema-shape validation is a small GENERIC Draft-07-subset engine (validate_against_schema)
-    driven entirely by the two .schema.json files loaded from disk at import time -- there is no
+    driven entirely by the three .schema.json files loaded from disk at import time -- there is no
     second, hand-duplicated list of "which fields must look like what". It implements exactly the
-    keywords those two schema files use: $ref (local), type (incl. union types and correct
+    keywords those schema files use: $ref (local), type (incl. union types and correct
     bool-vs-int/number handling), required, properties, additionalProperties (both the `false`
-    and the `{schema}` forms), enum, const, minimum, minLength, items, allOf, if/then/else (the
-    last three drive completion-manifest.schema.json's `state == 'promotion-ready' iff
-    eligible_for_promotion == true` cross-field invariant).
+    and the `{schema}` forms), enum, const, minimum, minLength, minItems, items, allOf, if/then/
+    else (the last three drive completion-manifest.schema.json's `state == 'promotion-ready' iff
+    eligible_for_promotion == true` and side-effect-authorization.schema.json's analogous
+    `authorization_state`/`allowed`/`exit_code` cross-field invariants -- Phase 3, plan_26072506).
   - Business/operational logic (which evidence keys are required for which task_class, the
     promotion-capped set, the certificate field-name mapping) stays as small Python data tables
     -- these are the "operational matrices" the plan explicitly allows outside the schema; they
@@ -72,12 +73,14 @@ permitted this phase; see testlog design-rationale).
 from __future__ import annotations
 
 import argparse
+import datetime
 import errno
 import hashlib
 import json
 import os
 import re
 import stat
+import subprocess
 import sys
 import urllib.parse
 from pathlib import Path
@@ -93,6 +96,20 @@ def _load_schema(filename: str) -> dict:
 
 WORK_SCHEMA = _load_schema("work-manifest.schema.json")
 COMPLETION_SCHEMA = _load_schema("completion-manifest.schema.json")
+SIDE_EFFECT_SCHEMA = _load_schema("side-effect-authorization.schema.json")
+
+# Phase 3 (plan_26072506): the single source of truth for which side-effect actions this gate
+# knows about -- mirrored (not hand-duplicated business logic, just the same literal values) by
+# work-manifest.schema.json's executionApproval.allowed_actions.items.enum and
+# side-effect-authorization.schema.json's action enum; TestActionEnumParity in
+# tests/harness/test_promotion_side_effects.py guards against drift between the three. The
+# hint_* actions (vertical slice 2A) are the scripts/hint_tag.py subcommands that mutate git
+# tags/hints/index.json/HINTS.md or push to a remote -- `match` stays deliberately absent (it is
+# read-only and ungated by design, never wired to this gate).
+ALLOWED_ACTIONS = (
+    "sync_to_sub", "sync_branches",
+    "hint_create", "hint_finalize", "hint_verify", "hint_reindex", "hint_push", "hint_reverify",
+)
 
 
 # =============================================================================
@@ -188,6 +205,11 @@ def validate_against_schema(instance, schema: dict, root_schema: dict | None = N
     if isinstance(instance, (int, float)) and not isinstance(instance, bool) and "minimum" in schema and instance < schema["minimum"]:
         label = path or "$"
         violations.append((f"SCHEMA_MINIMUM_VIOLATION:{label}", f"{label}: {instance!r} < minimum {schema['minimum']}"))
+
+    if isinstance(instance, list) and "minItems" in schema and len(instance) < schema["minItems"]:
+        label = path or "$"
+        violations.append((f"SCHEMA_MIN_ITEMS_VIOLATION:{label}",
+                           f"{label}: length {len(instance)} < minItems {schema['minItems']}"))
 
     if isinstance(instance, dict):
         props = schema.get("properties", {})
@@ -959,34 +981,65 @@ def _bare_result(code: str, message: str) -> dict:
     }
 
 
-def _emit(obj: dict, exit_code: int) -> None:
-    obj.setdefault("certificate", None)
+def _emit_with_schema(obj: dict, exit_code: int, schema: dict) -> None:
+    """Shared stable-JSON-on-stdout / real-process-exit primitive behind both `verify`
+    (COMPLETION_SCHEMA, via _emit below) and `authorize` (SIDE_EFFECT_SCHEMA, via
+    _emit_authorization) -- one place that prints+validates+exits, two schema-specific thin
+    wrappers so each subcommand keeps self-validating its OWN output contract."""
     obj["exit_code"] = exit_code
-    violations = validate_against_schema(obj, COMPLETION_SCHEMA)
+    violations = validate_against_schema(obj, schema)
     assert not violations, (
-        "completion_gate: internal bug -- own output violates completion-manifest.schema.json: "
+        f"completion_gate: internal bug -- own output violates {schema.get('title', '?')}.schema.json: "
         + "; ".join(f"{c}: {m}" for c, m in violations)
     )
     print(json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2))
     raise SystemExit(exit_code)
 
 
-def _load_manifest(path: Path):
+def _emit(obj: dict, exit_code: int) -> None:
+    obj.setdefault("certificate", None)
+    _emit_with_schema(obj, exit_code, COMPLETION_SCHEMA)
+
+
+class _ManifestLoadError(Exception):
+    """Carries a stable (reason_code, message) pair for a manifest read/parse failure, so the two
+    callers (_load_manifest for `verify`'s COMPLETION_SCHEMA-shaped errors, and `authorize`'s
+    SIDE_EFFECT_SCHEMA-shaped errors) can each wrap it into their own output shape instead of one
+    read/parse path being hardwired to a single output schema."""
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+def _read_manifest_text(path: Path) -> str:
     try:
         with open(path, "r", encoding="utf-8") as f:
-            text = f.read()
+            return f.read()
     except FileNotFoundError:
-        _emit(_bare_result("MANIFEST_FILE_NOT_FOUND", f"manifest file not found: {path}"), 2)
+        raise _ManifestLoadError("MANIFEST_FILE_NOT_FOUND", f"manifest file not found: {path}")
     except IsADirectoryError:
-        _emit(_bare_result("MANIFEST_IS_A_DIRECTORY", f"manifest path is a directory, not a file: {path}"), 2)
+        raise _ManifestLoadError("MANIFEST_IS_A_DIRECTORY", f"manifest path is a directory, not a file: {path}")
     except UnicodeDecodeError as e:
-        _emit(_bare_result("MANIFEST_INVALID_UTF8", f"manifest file is not valid UTF-8: {e}"), 2)
+        raise _ManifestLoadError("MANIFEST_INVALID_UTF8", f"manifest file is not valid UTF-8: {e}")
     except OSError as e:
-        _emit(_bare_result("MANIFEST_IO_ERROR", f"could not read manifest file {path}: {e}"), 2)
+        raise _ManifestLoadError("MANIFEST_IO_ERROR", f"could not read manifest file {path}: {e}")
+
+
+def _parse_manifest_json(text: str):
     try:
         return json.loads(text)
     except json.JSONDecodeError as e:
-        _emit(_bare_result("MANIFEST_INVALID_JSON", f"manifest is not valid JSON: {e}"), 2)
+        raise _ManifestLoadError("MANIFEST_INVALID_JSON", f"manifest is not valid JSON: {e}")
+
+
+def _load_manifest(path: Path):
+    try:
+        text = _read_manifest_text(path)
+        return _parse_manifest_json(text)
+    except _ManifestLoadError as e:
+        _emit(_bare_result(e.code, e.message), 2)
 
 
 def _find_repo_root(start: Path) -> Path | None:
@@ -995,6 +1048,268 @@ def _find_repo_root(start: Path) -> Path | None:
         if (candidate / ".git").exists():
             return candidate
     return None
+
+
+def _echo_task_class_and_identity(manifest):
+    """Extracts the two fields a schema-invalid manifest can still safely echo back (used by both
+    cmd_verify's and cmd_authorize's schema-violation branches) -- only values that themselves
+    satisfy the OUTPUT schema's typing are returned; anything else becomes None rather than making
+    the error envelope itself schema-invalid."""
+    task_class_value = manifest.get("task_class") if isinstance(manifest, dict) else None
+    identity_value = manifest.get("identity") if isinstance(manifest, dict) else None
+    task_class_echo = task_class_value if isinstance(task_class_value, str) else None
+    identity_echo = identity_value if isinstance(identity_value, dict) else None
+    return task_class_echo, identity_echo
+
+
+def _resolve_repo_root(args: argparse.Namespace, on_not_found) -> Path:
+    """Shared repo-root resolution for both `verify` and `authorize`: explicit --repo-root
+    trusts the caller directly (no .git requirement -- needed for hermetic clean-checkout
+    testing, where a `git checkout-index` export has no .git); otherwise auto-detect from this
+    script's own location. on_not_found(code, message) is called (and expected to raise
+    SystemExit, via the caller's own output-schema-shaped emit) when auto-detection fails."""
+    if args.repo_root:
+        return Path(args.repo_root).resolve()
+    found = _find_repo_root(Path(__file__))
+    if found is None:
+        on_not_found("REPO_ROOT_NOT_FOUND",
+                      "cannot locate repo root (.git not found) from script location; "
+                      "pass --repo-root explicitly")
+        raise AssertionError("on_not_found must raise SystemExit")  # pragma: no cover -- defensive only
+    return found
+
+
+_UTC_TIMESTAMP_RE = re.compile(
+    r'^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,6})?Z$'
+)
+
+
+def _is_valid_utc_timestamp(value) -> bool:
+    """Deterministic UTC-only ISO8601 check: exact `YYYY-MM-DDTHH:MM:SS[.ffffff]Z` form (no other
+    timezone offset accepted -- 'valid UTC', not merely 'valid ISO8601') plus a real calendar-date
+    check (rejects e.g. 2026-02-30) -- a hand-rolled regex + datetime() construction rather than
+    `datetime.fromisoformat`/a dependency, matching this file's existing preference for
+    deterministic, dependency-free parsers (e.g. the Markdown link scanner) over library quirks."""
+    if not isinstance(value, str):
+        return False
+    m = _UTC_TIMESTAMP_RE.match(value)
+    if not m:
+        return False
+    year, month, day, hour, minute, second = (int(g) for g in m.groups())
+    try:
+        datetime.datetime(year, month, day, hour, minute, second)
+    except ValueError:
+        return False
+    return True
+
+
+# =============================================================================
+# `authorize` subcommand (Phase 3, plan_26072506 vertical slice 1) -- side-effect-authorization
+# output schema (SIDE_EFFECT_SCHEMA), entirely separate from `verify`'s completion-manifest output.
+# =============================================================================
+
+def _authorize_bare_result(mode, action, code: str, message: str) -> dict:
+    return {
+        "schema_version": SCHEMA_VERSION, "mode": mode, "action": action, "task_class": None,
+        "authorization_state": None, "allowed": False,
+        "reason_codes": [code], "messages": {code: message}, "identity": None,
+    }
+
+
+def _emit_authorization(obj: dict, exit_code: int) -> None:
+    obj.setdefault("messages", {})
+    _emit_with_schema(obj, exit_code, SIDE_EFFECT_SCHEMA)
+
+
+# Maps resolve_and_stat_evidence's status vocabulary (also used for evidence.*.path in `verify`)
+# onto authorize's EXECUTION_APPROVAL_PLAN_PATH_* reason codes -- "ok" never appears here (the
+# caller branches on status == "ok" separately, before consulting this table).
+_PLAN_PATH_STATUS_TO_REASON_CODE = {
+    "repo_escape": "EXECUTION_APPROVAL_PLAN_PATH_ESCAPES_REPO",
+    "symlink": "EXECUTION_APPROVAL_PLAN_PATH_CONTAINS_SYMLINK",
+    "not_found": "EXECUTION_APPROVAL_PLAN_PATH_NOT_FOUND",
+    "not_a_directory": "EXECUTION_APPROVAL_PLAN_PATH_NOT_FOUND",
+    "wrong_type": "EXECUTION_APPROVAL_PLAN_PATH_WRONG_TYPE",
+    "os_error": "EXECUTION_APPROVAL_PLAN_PATH_UNREADABLE",
+}
+
+
+def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, repo_root: Path) -> None:
+    try:
+        text = _read_manifest_text(manifest_path)
+        manifest = _parse_manifest_json(text)
+    except _ManifestLoadError as e:
+        _emit_authorization(_authorize_bare_result(mode, action, e.code, e.message), 2)
+
+    shape_violations = validate_against_schema(manifest, WORK_SCHEMA)
+    if shape_violations:
+        task_class_echo, identity_echo = _echo_task_class_and_identity(manifest)
+        _emit_authorization({
+            "schema_version": SCHEMA_VERSION, "mode": mode, "action": action,
+            "task_class": task_class_echo, "authorization_state": None, "allowed": False,
+            "reason_codes": sorted(code for code, _ in shape_violations),
+            "messages": {code: msg for code, msg in shape_violations},
+            "identity": identity_echo,
+        }, 2)
+
+    # From here `manifest` is guaranteed to conform to work-manifest.schema.json -- every direct
+    # key/index access below is safe (same exhaustiveness argument as cmd_verify).
+    task_class = manifest["task_class"]
+    identity = manifest["identity"]
+    evidence = manifest.get("evidence") or {}
+    execution_approval = manifest.get("execution_approval")
+
+    reason_codes: list[str] = []
+    messages: dict[str, str] = {}
+
+    def add_reason(code: str, message: str) -> None:
+        reason_codes.append(code)
+        messages[code] = message
+
+    def fail(exit_code: int) -> None:
+        _emit_authorization({
+            "schema_version": SCHEMA_VERSION, "mode": mode, "action": action,
+            "task_class": task_class, "authorization_state": None, "allowed": False,
+            "reason_codes": sorted(reason_codes), "messages": messages,
+            "identity": identity,
+        }, exit_code)
+
+    if execution_approval is None:
+        add_reason("EXECUTION_APPROVAL_ABSENT", "manifest has no execution_approval block")
+        fail(1)
+
+    # Every required key below is guaranteed present by the schema-shape pass above (execution_
+    # approval, when present at all, is fully-formed per executionApproval's own `required`).
+    plan_path_str = execution_approval["plan_path"]
+
+    if _is_absolute_path_string(plan_path_str):
+        add_reason("EXECUTION_APPROVAL_PLAN_PATH_ABSOLUTE",
+                   f"execution_approval.plan_path {plan_path_str!r} must be relative to the "
+                   f"manifest, not absolute")
+        fail(2)
+
+    approved_at_utc = execution_approval["approved_at_utc"]
+    if not _is_valid_utc_timestamp(approved_at_utc):
+        add_reason("EXECUTION_APPROVAL_TIMESTAMP_INVALID",
+                   f"execution_approval.approved_at_utc {approved_at_utc!r} is not a valid UTC "
+                   f"timestamp (expected YYYY-MM-DDTHH:MM:SS[.ffffff]Z)")
+        fail(2)
+
+    plan_evidence = evidence.get("plan")
+    if plan_evidence and plan_evidence.get("path") and plan_evidence["path"] != plan_path_str:
+        add_reason("EXECUTION_APPROVAL_PLAN_PATH_MISMATCH",
+                   f"execution_approval.plan_path {plan_path_str!r} does not match "
+                   f"evidence.plan.path {plan_evidence['path']!r}")
+        fail(2)
+
+    repo_root_fd = os.open(str(repo_root), os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        manifest_dir = manifest_path.resolve().parent
+        r = resolve_and_stat_evidence(repo_root_fd, repo_root, manifest_dir, plan_path_str, expect_dir=False)
+        if r["status"] != "ok":
+            code = _PLAN_PATH_STATUS_TO_REASON_CODE.get(r["status"], "EXECUTION_APPROVAL_PLAN_PATH_UNREADABLE")
+            add_reason(code,
+                       f"execution_approval.plan_path {plan_path_str!r} could not be resolved as a "
+                       f"safe, existing, non-empty regular file (status={r['status']})")
+            fail(2)
+    finally:
+        os.close(repo_root_fd)
+
+    if execution_approval["approved"] is not True:
+        add_reason("EXECUTION_APPROVAL_NOT_APPROVED", "execution_approval.approved is not true")
+        fail(1)
+
+    if action not in execution_approval["allowed_actions"]:
+        add_reason("EXECUTION_APPROVAL_ACTION_NOT_ALLOWED",
+                   f"action {action!r} is not in execution_approval.allowed_actions "
+                   f"{execution_approval['allowed_actions']!r}")
+        fail(1)
+
+    _emit_authorization({
+        "schema_version": SCHEMA_VERSION, "mode": mode, "action": action,
+        "task_class": task_class, "authorization_state": "execution-approved", "allowed": True,
+        "reason_codes": [], "messages": {},
+        "identity": identity,
+    }, 0)
+
+
+def _cmd_authorize_promotion(mode: str, action: str, manifest_path: Path, repo_root: Path) -> None:
+    """Reuses the real `verify` evaluation for promotion decisions -- runs it as a real subprocess
+    (this same script, `verify` subcommand) rather than re-deriving/duplicating its heavily-
+    reviewed state-machine logic in a second code path. No execution_approval is consulted or
+    required; the only question is whether verify itself reached state == 'promotion-ready' with
+    eligible_for_promotion == true. This function has no side effects of its own beyond spawning
+    that read-only subprocess -- a denied/invalid result here causes no filesystem mutation."""
+    verify_cmd = [sys.executable, str(Path(__file__).resolve()), "verify",
+                  "--manifest", str(manifest_path), "--repo-root", str(repo_root)]
+    try:
+        proc = subprocess.run(verify_cmd, capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        _emit_authorization(_authorize_bare_result(
+            mode, action, "PROMOTION_GATE_VERIFY_UNAVAILABLE",
+            f"could not execute internal verify evaluation: {e}"), 2)
+
+    try:
+        verify_out = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        _emit_authorization(_authorize_bare_result(
+            mode, action, "PROMOTION_GATE_VERIFY_UNREADABLE",
+            f"internal verify subprocess (exit={proc.returncode}) did not produce parseable JSON "
+            f"stdout; stderr={proc.stderr.strip()[:500]!r}"), 2)
+
+    task_class_echo = verify_out.get("task_class") if isinstance(verify_out.get("task_class"), str) else None
+    identity_echo = verify_out.get("identity") if isinstance(verify_out.get("identity"), dict) else None
+    verify_reason_codes = [c for c in (verify_out.get("reason_codes") or []) if isinstance(c, str)]
+    verify_messages = verify_out.get("messages") if isinstance(verify_out.get("messages"), dict) else {}
+
+    eligible = (
+        proc.returncode == 0
+        and verify_out.get("exit_code") == 0
+        and verify_out.get("state") == "promotion-ready"
+        and verify_out.get("eligible_for_promotion") is True
+    )
+
+    if eligible:
+        _emit_authorization({
+            "schema_version": SCHEMA_VERSION, "mode": mode, "action": action,
+            "task_class": task_class_echo, "authorization_state": "promotion-ready", "allowed": True,
+            "reason_codes": [], "messages": {},
+            "identity": identity_echo,
+        }, 0)
+
+    invalid_input = proc.returncode == 2 or verify_out.get("exit_code") == 2
+    wrap_code = "PROMOTION_GATE_INVALID_MANIFEST" if invalid_input else "PROMOTION_GATE_NOT_ELIGIBLE"
+    wrap_message = (
+        "underlying verify evaluation reported invalid input -- see other reason codes for detail"
+        if invalid_input else
+        f"underlying verify state={verify_out.get('state')!r} eligible_for_promotion="
+        f"{verify_out.get('eligible_for_promotion')!r} -- promotion side effects blocked"
+    )
+    messages = dict(verify_messages)
+    messages[wrap_code] = wrap_message
+    _emit_authorization({
+        "schema_version": SCHEMA_VERSION, "mode": mode, "action": action,
+        "task_class": task_class_echo, "authorization_state": None, "allowed": False,
+        "reason_codes": sorted(set(verify_reason_codes) | {wrap_code}),
+        "messages": messages,
+        "identity": identity_echo,
+    }, 2 if invalid_input else 1)
+
+
+def cmd_authorize(args: argparse.Namespace) -> None:
+    mode = args.mode
+    action = args.action
+    manifest_path = Path(args.manifest)
+
+    def _on_repo_root_not_found(code: str, message: str) -> None:
+        _emit_authorization(_authorize_bare_result(mode, action, code, message), 2)
+
+    repo_root = _resolve_repo_root(args, _on_repo_root_not_found)
+
+    if mode == "promotion":
+        _cmd_authorize_promotion(mode, action, manifest_path, repo_root)
+    else:
+        _cmd_authorize_experimental(mode, action, manifest_path, repo_root)
 
 
 def cmd_verify(args: argparse.Namespace) -> None:
@@ -1395,10 +1710,21 @@ class _GateArgumentParser(argparse.ArgumentParser):
     """Overrides argparse's default usage-error handling (prose to stderr + bare exit 2) so that
     malformed CLI invocations (missing subcommand, missing --manifest, unrecognized arguments)
     honor the same stable-JSON-on-stdout / exit-2 contract as manifest/input errors, rather than
-    being a second, inconsistent error-reporting path (small contract fix, second review cycle)."""
+    being a second, inconsistent error-reporting path (small contract fix, second review cycle).
+
+    `add_subparsers()` propagates this same class to every subparser (argparse defaults
+    `parser_class` to `type(self)`), so `self.prog` distinguishes WHICH subcommand's invocation
+    failed ("completion_gate.py authorize" vs "completion_gate.py verify" vs the bare top-level
+    "completion_gate.py" for e.g. a missing subcommand entirely) -- routing each usage error to
+    that subcommand's OWN output schema (Phase 3: authorize's CLI errors must conform to
+    SIDE_EFFECT_SCHEMA, not COMPLETION_SCHEMA, or a caller parsing `authorize` output would see a
+    completion-manifest-shaped error envelope missing mode/action/authorization_state/allowed)."""
 
     def error(self, message: str) -> None:
-        _emit(_bare_result("CLI_USAGE_ERROR", f"invalid command-line invocation: {message}"), 2)
+        code, msg = "CLI_USAGE_ERROR", f"invalid command-line invocation: {message}"
+        if self.prog.rsplit(" ", 1)[-1] == "authorize":
+            _emit_authorization(_authorize_bare_result(None, None, code, msg), 2)
+        _emit(_bare_result(code, msg), 2)
 
 
 def main() -> None:
@@ -1411,6 +1737,12 @@ def main() -> None:
     v.add_argument("--manifest", required=True, help="path to a work-manifest JSON file")
     v.add_argument("--repo-root", help="override repo root detection (bypasses .git lookup -- for hermetic tests)")
     v.set_defaults(func=cmd_verify)
+    a = sub.add_parser("authorize", help="decide whether ONE side-effect action is authorized for a work-manifest")
+    a.add_argument("--manifest", required=True, help="path to a work-manifest JSON file")
+    a.add_argument("--mode", required=True, choices=["experimental", "promotion"])
+    a.add_argument("--action", required=True, choices=list(ALLOWED_ACTIONS))
+    a.add_argument("--repo-root", help="override repo root detection (bypasses .git lookup -- for hermetic tests)")
+    a.set_defaults(func=cmd_authorize)
     args = ap.parse_args()
     args.func(args)
 

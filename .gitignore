@@ -31,6 +31,7 @@ CLAUDE.local.md
 .claude/schemas/*
 !.claude/schemas/work-manifest.schema.json
 !.claude/schemas/completion-manifest.schema.json
+!.claude/schemas/side-effect-authorization.schema.json
 # 재제외 (재포함 이후에 와야 적용됨 / 주석은 반드시 별도 줄 — 패턴 뒤 인라인 # 은 리터럴로 취급됨)
 # 개인 로컬 설정(IP·allowlist)
 .claude/settings.local.json

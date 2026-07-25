@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://easy-vllm-simulator.local/schemas/side-effect-authorization.schema.json",
+  "title": "side-effect-authorization",
+  "description": "Phase 3 (plan_26072506) OUTPUT contract: the stable JSON scripts/completion_gate.py prints to stdout for `authorize --manifest <path> --mode experimental|promotion --action <action>`. Decides whether ONE requested side-effect action is currently authorized for a work-manifest -- a separate question from completion-manifest.schema.json's 3-state completion lifecycle (runtime-ready/evidence-complete/promotion-ready). `authorization_state` is a 2-value vocabulary PLUS null: 'execution-approved' (experimental mode only -- plan section 4.3's PRE-RUNTIME side-effect authorization: plan + HITL + scoped manifest, granted via the manifest's own execution_approval block) and 'promotion-ready' (promotion mode only -- reuses/re-executes the real `verify` evaluation and requires completion-manifest state=='promotion-ready' AND eligible_for_promotion==true). null means not authorized, for either reason: malformed/schema-invalid input or a scoped policy block (denied but well-formed) -- the two are distinguished by exit_code and reason_codes, never by a separate token. Every field this document (scripts/completion_gate.py:_emit_authorization) ever includes is declared below and self-validated against this very schema before being printed (additionalProperties:false).",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "mode",
+    "action",
+    "authorization_state",
+    "allowed",
+    "reason_codes",
+    "identity",
+    "exit_code"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "description": "authorization_state == 'execution-approved' implies allowed, exit_code==0, and mode=='experimental' (this label is exclusive to experimental mode).",
+      "if": { "properties": { "authorization_state": { "const": "execution-approved" } }, "required": ["authorization_state"] },
+      "then": { "properties": { "allowed": { "const": true }, "exit_code": { "const": 0 }, "mode": { "const": "experimental" } } }
+    },
+    {
+      "description": "authorization_state == 'promotion-ready' implies allowed, exit_code==0, and mode=='promotion' (this label is exclusive to promotion mode).",
+      "if": { "properties": { "authorization_state": { "const": "promotion-ready" } }, "required": ["authorization_state"] },
+      "then": { "properties": { "allowed": { "const": true }, "exit_code": { "const": 0 }, "mode": { "const": "promotion" } } }
+    },
+    {
+      "description": "allowed == true implies exit_code == 0.",
+      "if": { "properties": { "allowed": { "const": true } }, "required": ["allowed"] },
+      "then": { "properties": { "exit_code": { "const": 0 } } }
+    },
+    {
+      "description": "exit_code == 0 implies allowed == true.",
+      "if": { "properties": { "exit_code": { "const": 0 } }, "required": ["exit_code"] },
+      "then": { "properties": { "allowed": { "const": true } } }
+    },
+    {
+      "description": "authorization_state == null implies allowed == false and exit_code in {1, 2} -- never a success code without a named authorization_state.",
+      "if": { "properties": { "authorization_state": { "const": null } }, "required": ["authorization_state"] },
+      "then": { "properties": { "allowed": { "const": false }, "exit_code": { "enum": [1, 2] } } }
+    },
+    {
+      "description": "exit_code == 1 (valid-but-not-approved / policy-block) implies authorization_state == null and allowed == false.",
+      "if": { "properties": { "exit_code": { "const": 1 } }, "required": ["exit_code"] },
+      "then": { "properties": { "authorization_state": { "const": null }, "allowed": { "const": false } } }
+    },
+    {
+      "description": "exit_code == 2 (invalid input/schema) implies authorization_state == null and allowed == false.",
+      "if": { "properties": { "exit_code": { "const": 2 } }, "required": ["exit_code"] },
+      "then": { "properties": { "authorization_state": { "const": null }, "allowed": { "const": false } } }
+    }
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "mode": {
+      "description": "Echo of --mode. null only when a CLI usage error occurred before --mode could even be parsed (e.g. missing --mode entirely).",
+      "type": ["string", "null"],
+      "enum": ["experimental", "promotion", null]
+    },
+    "action": {
+      "description": "Echo of --action. null only when a CLI usage error occurred before --action could even be parsed. hint_* values gate hint_tag.py's mutating or evidence-validating commands; read-only match remains ungated.",
+      "type": ["string", "null"],
+      "enum": [
+        "sync_to_sub", "sync_branches",
+        "hint_create", "hint_finalize", "hint_verify", "hint_reindex", "hint_push", "hint_reverify",
+        null
+      ]
+    },
+    "task_class": {
+      "description": "Echo of the input manifest's task_class, when it could be determined (absent/malformed manifests may leave this null).",
+      "type": ["string", "null"]
+    },
+    "authorization_state": {
+      "type": ["string", "null"],
+      "enum": ["execution-approved", "promotion-ready", null]
+    },
+    "allowed": { "type": "boolean" },
+    "reason_codes": {
+      "description": "Deterministic, sorted (lexicographic) list of stable machine-readable codes. Never contains prose.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "messages": {
+      "description": "Human-readable prose, one entry per reason_code, keyed by code.",
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "identity": {
+      "type": ["object", "null"],
+      "description": "Echo of the input manifest's identity block (experimental mode) or the underlying verify evaluation's identity echo (promotion mode)."
+    },
+    "exit_code": {
+      "description": "Mirrors the process exit code actually used (0=allowed, 1=policy-block/valid-but-not-approved, 2=invalid-input).",
+      "type": "integer",
+      "enum": [0, 1, 2]
+    }
+  }
+}

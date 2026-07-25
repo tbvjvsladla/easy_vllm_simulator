@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "task_class": "harness_change",
+  "identity": {
+    "model": "x",
+    "gpu": "GB10",
+    "vllm": "0.22.0",
+    "quant": null,
+    "topology": "single",
+    "tp": 1
+  },
+  "evidence": {
+    "plan": null,
+    "devlog": null,
+    "testlog": null,
+    "simlog": null,
+    "bench_report": null,
+    "certificate": null
+  },
+  "pii_scan": {
+    "passed": true,
+    "scanned_paths": []
+  },
+  "execution_approval": {
+    "approved": true,
+    "approved_by": "coag-ash",
+    "approved_at_utc": "2026-07-25T05:00:00Z",
+    "plan_path": "targets/empty_file.md",
+    "allowed_actions": ["sync_to_sub", "sync_branches"]
+  }
+}

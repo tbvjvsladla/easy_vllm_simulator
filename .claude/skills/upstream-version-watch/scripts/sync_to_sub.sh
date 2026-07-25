@@ -19,16 +19,100 @@
 #   에이전트 환경(CLAUDE.md·.claude·docs·.gitignore)은 deliver_overlay/bootstrap 소관(빌드 배달과 분리).
 #
 # 사용:
-#   bash sync_to_sub.sh                          # DRY-RUN (bootstrap/증분 계획 + rsync 미리보기)
-#   bash sync_to_sub.sh --apply                  # 실행 (기본 --branch multi)
-#   bash sync_to_sub.sh --apply --provision      # 서브 work_dir 부재 시 신설(HITL)
-#   bash sync_to_sub.sh --apply --branch single  # single 브랜치 타겟(확장 dormant 면 skip)
-#   bash sync_to_sub.sh --apply --branch both    # multi 후 single
+#   bash sync_to_sub.sh --mode experimental --manifest <work.json>             # 승인된 실험 DRY-RUN
+#   bash sync_to_sub.sh --mode promotion --manifest <work.json> --apply          # promotion-ready 실행
+#   bash sync_to_sub.sh --mode promotion --manifest <work.json> --apply --provision
+#   bash sync_to_sub.sh --mode promotion --manifest <work.json> --apply --branch single|both
 # 환경변수 override: SUB_HOST(<ssh_user>@<host>) · SRC · SUB_WORK_DIR · SYNC_GIT_NAME · SYNC_GIT_EMAIL.
 # SUB_HOST·SUB_WORK_DIR 미지정 시 output/multi/manifest.yaml nodes[](role:sub)에서 해소(서브는 multi manifest 에만 정의).
 set -euo pipefail
 
-SRC="${SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)/}"
+usage() {
+    cat <<'EOF'
+사용법: sync_to_sub.sh --mode <experimental|promotion> --manifest <path> [--apply] [--provision] [--branch multi|single|both]
+
+  --mode       side-effect authorization mode (required)
+  --manifest   work-manifest JSON; relative paths use the caller's original CWD (required)
+  --apply      execute delivery (default: dry-run)
+  --provision  allow missing remote work directory creation with --apply
+  --branch     multi, single, or both (default: multi)
+  --help, -h   print this help without repo, manifest, host, or transport checks
+EOF
+}
+
+# Parse before repo/topology/host/transport discovery.  Missing required gate flags are
+# intentionally forwarded to completion_gate.py so its stable authorization JSON is the sole
+# fail-closed machine contract.
+ORIGINAL_CWD="$(pwd)"
+GATE_MODE=""; HAVE_MODE=0
+MANIFEST_ARG=""; HAVE_MANIFEST=0
+MODE="dryrun"; PROVISION=0; BRANCH="multi"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --help|-h) usage; exit 0 ;;
+        --mode)
+            [ $# -ge 2 ] || { echo "[sync] FAIL: --mode requires a value" >&2; exit 2; }
+            GATE_MODE="$2"; HAVE_MODE=1; shift 2 ;;
+        --manifest)
+            [ $# -ge 2 ] || { echo "[sync] FAIL: --manifest requires a path" >&2; exit 2; }
+            MANIFEST_ARG="$2"; HAVE_MANIFEST=1; shift 2 ;;
+        --apply) MODE="apply"; shift ;;
+        --provision) PROVISION=1; shift ;;
+        --branch)
+            [ $# -ge 2 ] || { echo "[sync] FAIL: --branch requires multi|single|both" >&2; exit 2; }
+            BRANCH="$2"; shift 2 ;;
+        --branch=*) BRANCH="${1#*=}"; shift ;;
+        *) echo "[sync] FAIL: unknown argument: $1" >&2; exit 2 ;;
+    esac
+done
+case "$BRANCH" in multi|single|both) ;; *) echo "[sync] FAIL: --branch must be multi|single|both" >&2; exit 6 ;; esac
+
+# Gate location is immutable and derived from this script, never from caller-controlled SRC.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+GATE_SCRIPT="$REPO_ROOT/scripts/completion_gate.py"
+RESOLVED_MANIFEST=""
+if [ "$HAVE_MANIFEST" -eq 1 ]; then
+    case "$MANIFEST_ARG" in
+        /*) RESOLVED_MANIFEST="$MANIFEST_ARG" ;;
+        *) RESOLVED_MANIFEST="$ORIGINAL_CWD/$MANIFEST_ARG" ;;
+    esac
+fi
+
+gate_cmd=(python3 "$GATE_SCRIPT" authorize --action sync_to_sub --repo-root "$REPO_ROOT")
+[ "$HAVE_MANIFEST" -eq 0 ] || gate_cmd+=(--manifest "$RESOLVED_MANIFEST")
+[ "$HAVE_MODE" -eq 0 ] || gate_cmd+=(--mode "$GATE_MODE")
+if gate_stdout="$("${gate_cmd[@]}")"; then gate_exit=0; else gate_exit=$?; fi
+
+gate_allowed="false"
+if [ -n "$gate_stdout" ]; then
+    gate_allowed="$(printf '%s' "$gate_stdout" | python3 -c '
+import json, sys
+try:
+    print("true" if json.load(sys.stdin).get("allowed") is True else "false")
+except Exception:
+    print("false")
+' 2>/dev/null || printf false)"
+fi
+if [ "$gate_exit" -ne 0 ] || [ "$gate_allowed" != "true" ]; then
+    if [ -n "$gate_stdout" ]; then
+        printf '%s\n' "$gate_stdout"
+        [ "$gate_exit" -eq 0 ] && exit 1
+        exit "$gate_exit"
+    fi
+    python3 -c '
+import json
+print(json.dumps({
+ "schema_version":1,"mode":None,"action":"sync_to_sub","task_class":None,
+ "authorization_state":None,"allowed":False,
+ "reason_codes":["SYNC_TO_SUB_GATE_OUTPUT_UNREADABLE"],
+ "messages":{"SYNC_TO_SUB_GATE_OUTPUT_UNREADABLE":"completion gate produced no parseable JSON"},
+ "identity":None,"exit_code":2}, ensure_ascii=False, sort_keys=True, indent=2))
+'
+    exit 2
+fi
+
+# Authorization passed. Existing source override and all operational discovery begin only here.
+SRC="${SRC:-$REPO_ROOT/}"
 SSH_OPTS="ssh -o BatchMode=yes -o ConnectTimeout=8"
 GIT_NAME="${SYNC_GIT_NAME:-easy-vllm sync (main)}"      # [sync] 커밋 = 스크립트저작 표식
 GIT_EMAIL="${SYNC_GIT_EMAIL:-sync@easy-vllm.local}"
@@ -95,19 +179,6 @@ if [ -z "${SUB_HOST:-}" ]; then
     exit 4
 fi
 DEST="${SUB_WORK_DIR}/"
-
-MODE="dryrun"; PROVISION=0; BRANCH="multi"
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --apply)     MODE="apply" ;;
-        --provision) PROVISION=1 ;;
-        --branch)    shift; BRANCH="${1:-multi}" ;;
-        --branch=*)  BRANCH="${1#*=}" ;;
-        *) echo "[sync] (warn) 미지 인자: $1" >&2 ;;
-    esac
-    shift
-done
-case "$BRANCH" in multi|single|both) ;; *) echo "[sync] FAIL: --branch 는 multi|single|both" >&2; exit 6 ;; esac
 
 # 타겟 브랜치 목록
 TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);; both) TARGETS=(multi single);; esac
