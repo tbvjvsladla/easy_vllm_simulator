@@ -1,0 +1,4 @@
+verdict: PASS
+model: solar-open2-250b
+nested:
+  bad: true

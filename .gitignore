@@ -20,13 +20,17 @@ CLAUDE.local.md
 
 # ===========================================
 # .claude 빌딩블럭 선별 추적 (배포 대상)
-#   .claude/* 전체 무시 → rules/·skills/ 디렉토리 재포함 → 그 안의 사적·산출 파일만 재제외.
+#   .claude/* 전체 무시 → rules/·skills/·schemas/ 디렉토리 재포함 → 그 안의 사적·산출 파일만 재제외.
 #   (재포함은 부모 디렉토리부터: 부모가 제외되면 자식은 다시 추적될 수 없다.)
-#   규칙 근거: docs/plan/plan_2026062205_1 §4
+#   규칙 근거: docs/plan/plan_2026062205_1 §4, docs/plan/plan_26072506_* Phase 1
 # ===========================================
 .claude/*
 !.claude/rules/
 !.claude/skills/
+!.claude/schemas/
+.claude/schemas/*
+!.claude/schemas/work-manifest.schema.json
+!.claude/schemas/completion-manifest.schema.json
 # 재제외 (재포함 이후에 와야 적용됨 / 주석은 반드시 별도 줄 — 패턴 뒤 인라인 # 은 리터럴로 취급됨)
 # 개인 로컬 설정(IP·allowlist)
 .claude/settings.local.json
@@ -197,3 +201,10 @@ hints/.drafts/
 
 # 호스트 안전체계 오프라인 패키지(아치별 바이너리 — 추적 안 함, 운영자가 각 노드에 스테이징)
 earlyoom_*.deb
+
+# ===========================================
+# completion_gate 하네스 테스트 런타임 스크래치 (plan_26072506 Phase 1 리뷰 교정)
+#   test_completion_gate.py 의 심볼릭링크/FIFO 하네시티 테스트가 setUp/tearDown 에서 만들고
+#   지우는 임시 디렉토리 — 정상 종료 시 항상 비어있지만, 크래시로 잔존해도 커밋에 안 실리게 방어.
+# ===========================================
+tests/harness/fixtures/completion/_runtime_scratch/

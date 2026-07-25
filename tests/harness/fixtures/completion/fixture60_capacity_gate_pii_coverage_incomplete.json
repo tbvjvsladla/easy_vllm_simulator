@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "task_class": "capacity_rejection",
+  "identity": {
+    "model": "qwen3.5-397b-a17b-nvfp4",
+    "gpu": "GB10",
+    "vllm": "0.23.0",
+    "quant": "NVFP4",
+    "topology": "multi",
+    "tp": 2
+  },
+  "capacity_rejection": {
+    "rejected": true,
+    "gate_evidence": "targets/gate_evidence.txt",
+    "reason": "checkpoint total_size / tp + floor > MemAvailable (pre-load RAM gate, exit 7)"
+  },
+  "evidence": {
+    "plan": {
+      "path": "targets/plan.md"
+    },
+    "devlog": null,
+    "testlog": {
+      "path": "targets/testlog.md"
+    },
+    "simlog": null,
+    "bench_report": null,
+    "certificate": null
+  },
+  "pii_scan": {
+    "passed": true,
+    "scanned_paths": [
+      "targets/plan.md",
+      "targets/testlog.md"
+    ]
+  }
+}

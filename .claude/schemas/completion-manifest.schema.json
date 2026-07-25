@@ -1,0 +1,334 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://easy-vllm-simulator.local/schemas/completion-manifest.schema.json",
+  "title": "completion-manifest",
+  "description": "Phase 1 (plan_26072506) OUTPUT contract: the stable JSON scripts/completion_gate.py prints to stdout for `verify --manifest <path>`. state is the single source of truth for completion state; prose docs must not self-judge state. Invariant: state == 'promotion-ready' if and only if eligible_for_promotion == true; this is machine-enforced by allOf/if/then below. state is a strict 3-value named-lifecycle vocabulary (runtime-ready | evidence-complete | promotion-ready) PLUS null. null is NOT a 4th named lifecycle state -- it is the pre-lifecycle/invalid-input sentinel meaning 'has not yet reached runtime-ready', for either reason: malformed/schema-invalid input (exit_code=2) or a well-formed manifest whose runtime/capacity_rejection tier is not yet satisfied (exit_code=1). The two cases are distinguished by exit_code and reason_codes, never by a separate state token -- completion_gate.py emits exactly the same 3 non-null state values plus this one sentinel, never anything else. Every field this document (scripts/completion_gate.py:_emit) ever includes is declared below and self-validated against this very schema before being printed (additionalProperties:false at every level -- an internal bug that produces a field this schema doesn't know about is a programmer error, not swallowed as an exit-2 result).",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "state",
+    "eligible_for_promotion",
+    "reason_codes",
+    "checked_evidence",
+    "identity",
+    "exit_code"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "description": "state == 'promotion-ready' implies eligible_for_promotion == true",
+      "if": {
+        "properties": {
+          "state": {
+            "const": "promotion-ready"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "eligible_for_promotion": {
+            "const": true
+          }
+        }
+      }
+    },
+    {
+      "description": "eligible_for_promotion == true implies state == 'promotion-ready'",
+      "if": {
+        "properties": {
+          "eligible_for_promotion": {
+            "const": true
+          }
+        },
+        "required": [
+          "eligible_for_promotion"
+        ]
+      },
+      "then": {
+        "properties": {
+          "state": {
+            "const": "promotion-ready"
+          }
+        }
+      }
+    },
+    {
+      "description": "OUTPUT_SCHEMA_EXIT_STATE_GAP fix: state == 'promotion-ready' implies exit_code == 0 -- the prior state<->eligible_for_promotion biconditional alone still left exit_code free to contradict both (e.g. promotion-ready + eligible=true + exit_code=1 was schema-valid).",
+      "if": {
+        "properties": {
+          "state": {
+            "const": "promotion-ready"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "exit_code": {
+            "const": 0
+          }
+        }
+      }
+    },
+    {
+      "description": "OUTPUT_SCHEMA_EXIT_STATE_GAP fix: exit_code == 0 implies state == 'promotion-ready' and eligible_for_promotion == true (e.g. evidence-complete + eligible=false + exit_code=0 was schema-valid before this rule).",
+      "if": {
+        "properties": {
+          "exit_code": {
+            "const": 0
+          }
+        },
+        "required": [
+          "exit_code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "state": {
+            "const": "promotion-ready"
+          },
+          "eligible_for_promotion": {
+            "const": true
+          }
+        }
+      }
+    },
+    {
+      "description": "OUTPUT_SCHEMA_EXIT_STATE_GAP fix: state in {runtime-ready, evidence-complete} implies exit_code == 1 and eligible_for_promotion == false -- neither named non-promotion state may ever carry a success or invalid-input exit code.",
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "runtime-ready",
+              "evidence-complete"
+            ]
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "exit_code": {
+            "const": 1
+          },
+          "eligible_for_promotion": {
+            "const": false
+          }
+        }
+      }
+    },
+    {
+      "description": "OUTPUT_SCHEMA_EXIT_STATE_GAP fix: state == null implies eligible_for_promotion == false and exit_code in {1, 2} -- the pre-lifecycle sentinel is never a success exit code.",
+      "if": {
+        "properties": {
+          "state": {
+            "const": null
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "eligible_for_promotion": {
+            "const": false
+          },
+          "exit_code": {
+            "enum": [
+              1,
+              2
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "OUTPUT_SCHEMA_EXIT_STATE_GAP fix: exit_code == 2 implies state == null -- invalid-input is always pre-lifecycle, never a named state.",
+      "if": {
+        "properties": {
+          "exit_code": {
+            "const": 2
+          }
+        },
+        "required": [
+          "exit_code"
+        ]
+      },
+      "then": {
+        "properties": {
+          "state": {
+            "const": null
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "task_class": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "state": {
+      "description": "Strict 3-value named-lifecycle vocabulary (runtime-ready, evidence-complete, promotion-ready) plus the null pre-lifecycle sentinel. See top-level description for the null-is-not-a-4th-state rationale.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "runtime-ready",
+        "evidence-complete",
+        "promotion-ready",
+        null
+      ]
+    },
+    "eligible_for_promotion": {
+      "type": "boolean"
+    },
+    "reason_codes": {
+      "description": "Deterministic, sorted (lexicographic) list of stable machine-readable codes. Never contains prose.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "messages": {
+      "description": "Human-readable prose, one entry per reason_code, keyed by code -- deliberately NOT interleaved into reason_codes so consumers can pattern-match codes without prose language dependence.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "checked_evidence": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "required",
+          "path",
+          "exists"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "required": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exists": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "type": {
+            "description": "Filesystem type actually observed for this evidence item, from the same hardened dir_fd/O_NOFOLLOW stat used to compute the hash/fingerprint below. null when the path could not be resolved at all (missing/escaped/symlink).",
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "file",
+              "dir",
+              null
+            ]
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tree_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "identity_checked": {
+            "type": "boolean"
+          },
+          "identity_match": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "identity": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Echo of the input manifest's identity block, for downstream consumers that only read the gate's output."
+    },
+    "certificate": {
+      "description": "Present only when evidence.certificate was declared and its path resolved to a real regular file; carries what was actually parsed from the flat-YAML artifact on disk (never the manifest's own claims -- there are none, evidence.certificate has no identity sub-object per work-manifest.schema.json). null when no certificate evidence was checked.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "parsed": {
+          "type": "boolean"
+        },
+        "identity": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "verdict": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "benchmark_mode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "identity_match": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "exit_code": {
+      "description": "Mirrors the process exit code actually used for this evaluation (0=success/promotion-ready, 1=policy-block, 2=invalid-input). Included so JSON-only consumers (that did not capture $?) can still branch.",
+      "type": "integer",
+      "enum": [
+        0,
+        1,
+        2
+      ]
+    }
+  }
+}

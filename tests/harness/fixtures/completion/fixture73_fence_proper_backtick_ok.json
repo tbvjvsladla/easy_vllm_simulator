@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "task_class": "model_serving_strategy",
+  "identity": {
+    "model": "solar-open2-250b",
+    "gpu": "GB10",
+    "vllm": "0.22.0",
+    "quant": "NVFP4",
+    "topology": "multi",
+    "tp": 2
+  },
+  "runtime": {
+    "health_ok": true,
+    "functional_smoke_passed": true,
+    "identity": {
+      "model": "solar-open2-250b",
+      "gpu": "GB10",
+      "vllm": "0.22.0",
+      "quant": "NVFP4",
+      "topology": "multi",
+      "tp": 2
+    },
+    "containers": [
+      {
+        "name": "mn-solar-open2-250b-master",
+        "restart_count": 0,
+        "oom_killed": false
+      }
+    ]
+  },
+  "evidence": {
+    "plan": {
+      "path": "targets/plan_fence_proper_backtick_ok.md"
+    },
+    "devlog": {
+      "path": "targets/devlog.md"
+    },
+    "testlog": {
+      "path": "targets/testlog.md"
+    },
+    "simlog": {
+      "path": "targets/simlog_run"
+    },
+    "bench_report": null,
+    "certificate": null
+  },
+  "pii_scan": {
+    "passed": true,
+    "scanned_paths": [
+      "targets/plan_fence_proper_backtick_ok.md",
+      "targets/devlog.md",
+      "targets/testlog.md",
+      "targets/simlog_run"
+    ]
+  }
+}

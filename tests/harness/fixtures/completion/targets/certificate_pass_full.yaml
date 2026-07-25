@@ -1,0 +1,10 @@
+schema_version: 1
+record_type: benchmark_certificate
+verdict: PASS
+model: solar-open2-250b
+gpu_model: GB10
+vllm_version: 0.22.0
+quantization: NVFP4
+topology: multi
+tensor_parallel_size: 2
+benchmark_mode: full

@@ -1,0 +1,1 @@
+# dummy gate evidence: pre-load RAM gate decision (tests/harness fixture data)
