@@ -1,0 +1,141 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://easy-vllm-simulator.local/schemas/agent-control-result.schema.json",
+  "title": "agent-control-result",
+  "description": "Phase 6 (plan_26072506) provider-neutral OUTPUT contract: the stable JSON scripts/agent_control.py prints to stdout for `invoke --request <path>`. status/exit_code/reason_codes are a fixed, single-source-of-truth table (see scripts/agent_control.py module docstring): 0/completed/[], 2/invalid_request/REQUEST_SCHEMA_INVALID, 3/model_safety_blocked/{MISSING_MODEL_METADATA|OPUS_FALLBACK|MIXED_MODEL_USAGE}, 4/execution_failed/{NONZERO_EXIT|IS_ERROR}, 5/malformed_output/MALFORMED_JSON, 124/timeout/TIMEOUT. model_used never trusts the request's own model field -- it echoes only model ids the provider's own wrapper metadata actually reported.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "provider",
+    "intent",
+    "status",
+    "exit_code",
+    "model_requested",
+    "model_used",
+    "reason_codes",
+    "output"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "provider": {
+      "description": "Provider-neutral orchestrator identifier. Phase 6 scope is Claude Code only.",
+      "type": "string",
+      "enum": ["claude_code"]
+    },
+    "intent": {
+      "type": "string",
+      "enum": ["delegate", "probe", "bootstrap_canary"]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "invalid_request",
+        "model_safety_blocked",
+        "execution_failed",
+        "malformed_output",
+        "timeout"
+      ]
+    },
+    "exit_code": {
+      "type": "integer",
+      "enum": [0, 2, 3, 4, 5, 124]
+    },
+    "model_requested": {
+      "type": "string"
+    },
+    "model_used": {
+      "description": "Model ids actually reported by the provider's own wrapper metadata; [] when the provider never got far enough to report any.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reason_codes": {
+      "description": "[] on success (status == completed); one or more stable codes otherwise.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "REQUEST_SCHEMA_INVALID",
+          "NONZERO_EXIT",
+          "IS_ERROR",
+          "MALFORMED_JSON",
+          "TIMEOUT",
+          "MISSING_MODEL_METADATA",
+          "OPUS_FALLBACK",
+          "MIXED_MODEL_USAGE",
+          "REQUESTED_MODEL_NOT_SONNET",
+          "UNEXPECTED_MODEL_USAGE",
+          "PROVIDER_RESULT_INVALID",
+          "PERMISSION_DENIED"
+        ]
+      }
+    },
+    "output": {
+      "description": "Provider-neutral agent text on completed results; null on every fail-closed result.",
+      "type": ["string", "null"],
+      "minLength": 1
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "status": {"const": "completed"},
+        "exit_code": {"const": 0},
+        "model_used": {"minItems": 1},
+        "reason_codes": {"maxItems": 0},
+        "output": {"type": "string", "minLength": 1}
+      }
+    },
+    {
+      "properties": {
+        "status": {"const": "invalid_request"},
+        "exit_code": {"const": 2},
+        "model_used": {"maxItems": 0},
+        "reason_codes": {"const": ["REQUEST_SCHEMA_INVALID"]},
+        "output": {"const": null}
+      }
+    },
+    {
+      "properties": {
+        "status": {"const": "model_safety_blocked"},
+        "exit_code": {"const": 3},
+        "reason_codes": {
+          "minItems": 1,
+          "items": {"enum": ["MISSING_MODEL_METADATA", "OPUS_FALLBACK", "MIXED_MODEL_USAGE", "REQUESTED_MODEL_NOT_SONNET", "UNEXPECTED_MODEL_USAGE"]}
+        },
+        "output": {"const": null}
+      }
+    },
+    {
+      "properties": {
+        "status": {"const": "execution_failed"},
+        "exit_code": {"const": 4},
+        "reason_codes": {"minItems": 1, "items": {"enum": ["NONZERO_EXIT", "IS_ERROR", "PERMISSION_DENIED"]}},
+        "output": {"const": null}
+      }
+    },
+    {
+      "properties": {
+        "status": {"const": "malformed_output"},
+        "exit_code": {"const": 5},
+        "reason_codes": {"minItems": 1, "items": {"enum": ["MALFORMED_JSON", "PROVIDER_RESULT_INVALID"]}},
+        "output": {"const": null}
+      }
+    },
+    {
+      "properties": {
+        "status": {"const": "timeout"},
+        "exit_code": {"const": 124},
+        "model_used": {"maxItems": 0},
+        "reason_codes": {"const": ["TIMEOUT"]},
+        "output": {"const": null}
+      }
+    }
+  ]
+}

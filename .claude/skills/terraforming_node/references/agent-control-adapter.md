@@ -1,39 +1,78 @@
 # agent-control adapter — provider 전용 실행문법 경계 (조건부 reference)
 
-> **이 파일이 유일한 provider-specific 평면이다.** 5개 SKILL.md 본문·다른 reference 는 "서브 코드에이전트를
-> 호출한다"는 **의도**만 적고, 실제 CLI 문법(provider 이름·플래그·권한모드)은 여기서만 해소한다.
-> plan_26072506 Phase 5 §"Claude 전용 명령이 adapter 외부에 남지 않음" · Phase 6 이 이 경계를
-> `scripts/agent_control.py` + `scripts/providers/claude_code.py` 로 코드화한다(스키마·result metadata 검증).
-> 계약 테스트 = `tests/harness/test_skill_contracts.py::TestClaudeCommandsIsolatedToAdapter`.
+> **이 파일과 `scripts/providers/`만 provider-specific 평면이다.** 5개 public SKILL 본문과 다른 reference는
+> 위임 의도만 선언한다. 실행은 provider-neutral `scripts/agent_control.py`가 request schema를 검증한 뒤
+> adapter로 라우팅한다. 정본 계약: `agent-control-request.schema.json`, `agent-control-result.schema.json`.
 
-## 1. provider-neutral 의도 (본문이 쓰는 어휘)
+## 1. provider-neutral request
 
-| 의도 | 뜻 | 성공 판정 |
-|---|---|---|
-| `delegate(task)` | 서브 노드 코드에이전트에 Task 1개를 비대화로 위임 | `task-report.schema.json` 유효 JSON 1개 회신 |
-| `probe(reachable)` | 서브 코드에이전트가 모델에 실제 도달하는지 확인 | 위임 1회가 오류 없이 리포트 반환 |
-| `bootstrap_canary()` | 모델 없이 환경만 검증하는 라운드트립 | `phase=inspect · status=completed` + `self_verification` |
+필수 필드:
+
+- `schema_version: 1`
+- `provider: "claude_code"`
+- `intent: delegate | probe | bootstrap_canary`
+- `model: "sonnet"`
+- `task`: 비어 있지 않은 instruction
+- `target`: `main/local` 또는 `sub/ssh`, 명시적 `work_dir`; SSH는 `host` 필수
+- `timeout_seconds`, `max_turns`: 유한한 실행 경계
+- `capabilities`: provider-neutral least-privilege 목록(`read`, `execute`, `edit`, `write`)
+
+예시:
+
+```json
+{
+  "schema_version": 1,
+  "provider": "claude_code",
+  "intent": "probe",
+  "model": "sonnet",
+  "task": "Read CLAUDE.md and return one bounded JSON verdict. Do not edit.",
+  "target": {
+    "role": "main",
+    "transport": "local",
+    "work_dir": "/workspace/easy_vllm_simulator"
+  },
+  "timeout_seconds": 180,
+  "max_turns": 8,
+  "capabilities": ["read"]
+}
+```
+
+실행:
+
+```bash
+python3 scripts/agent_control.py invoke --request /path/to/request.json
+```
 
 ## 2. Claude Code adapter (현재 유일 구현)
 
-전송 = SSH 단발 호출(HTTP/JSON-RPC 서버 없음). 정본 권한모드 = `acceptEdits` + 스코프드 allowlist
-(`.claude/settings.local.json` — 렌더 산출물). `bypassPermissions` 는 하네스 가드레일이 차단한다(testlog_26062422).
+`claude_code.py`만 generic capability를 Claude tool 이름으로 변환하고 다음 provider argv를 생성한다.
+이 명령은 구현 계약 설명용이며 운영 호출자는 직접 복제하지 않고 위 orchestrator를 사용한다.
 
 ```bash
-# delegate / probe — 한 턴 = JSON 리포트 1개
-ssh <ssh_user>@<sub_host> claude -p '<Task JSON or instruction>' --output-format json
-
-# bootstrap canary (§2.5) — 모델 없이 환경만
-ssh <sub_host> claude -p '<inspect bootstrap>' --output-format json
+claude -p '<task>' --model sonnet --output-format json --max-turns <N> --allowedTools <TOOLS>
 ```
 
-- **`cd <work_dir>` 선행 필수**: 서브 워크스페이스에서 실행해야 페르소나(`CLAUDE.md`)·런타임블럭이 로드된다.
-  루트 밖에서 부르면 페르소나 미로드로 주입-거부가 난다.
-- **login shell PATH**: 긴 작업은 `ssh <sub> 'bash -lc "..."'` 로 감싼다. **긴 빌드는 위임하지 말고**
-  SSH 백그라운드로 직접 돌린다(위임 호출은 harness 타임아웃에 걸린다).
-- 모델 핀은 서브 `settings.local.json` 이 소유한다(메인이 플래그로 강제하지 않는다 — 렌더 시 결정).
+- main은 explicit `work_dir`에서 local subprocess로 실행한다.
+- sub는 `ssh -- <user@host> 'cd <quoted-work_dir> && <quoted-provider-command>'`로 실행한다.
+- `bypassPermissions`와 `--dangerously-skip-permissions`는 어떤 경로에서도 허용하지 않는다.
+- `capabilities`는 adapter 내부에서만 `Read`, `Bash`, `Edit`, `Write`로 매핑한다.
+- 긴 build/serve는 agent-control에 위임하지 않고 별도 감독 실행계약을 사용한다.
 
-## 3. 다른 provider 를 붙일 때
+## 3. result와 fail-closed 판정
 
-같은 §1 의도 3개를 만족하는 어댑터를 추가하고, 본문(SKILL.md)은 손대지 않는다. placeholder 어댑터는
-만들지 않는다(Phase 6 범위: Claude adapter 하나만).
+성공은 provider exit 0만으로 판정하지 않는다. wrapper가 `is_error=false`, `subtype=success`, 비어 있지 않은
+`result`, Sonnet-only `modelUsage`를 모두 제공해야 한다. 다음은 stable structured nonzero result로 차단한다.
+
+- request/target/bounds/capability 위반
+- non-Sonnet 요청 또는 Opus/unknown/mixed model metadata
+- model metadata 누락
+- provider nonzero, timeout, malformed JSON
+- wrapper success-shape 또는 provider result schema 위반
+
+stdout은 항상 `agent-control-result.schema.json`의 정렬된 JSON이다. 성공 시 `output`에 agent text를 보존하고,
+실패 시 `output=null`이다.
+
+## 4. 다른 provider를 붙일 때
+
+동일 provider-neutral request/result를 구현하는 adapter만 추가한다. public skill 본문은 수정하지 않는다.
+placeholder adapter는 만들지 않는다(Phase 6 범위는 Claude Code adapter 하나뿐이다).

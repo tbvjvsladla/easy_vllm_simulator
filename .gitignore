@@ -34,6 +34,8 @@ CLAUDE.local.md
 !.claude/schemas/completion-manifest.schema.json
 !.claude/schemas/side-effect-authorization.schema.json
 !.claude/schemas/policy-registry.schema.json
+!.claude/schemas/agent-control-request.schema.json
+!.claude/schemas/agent-control-result.schema.json
 .claude/policies/*
 !.claude/policies/registry.yaml
 !.claude/policies/evidence_manifest.json
