@@ -10,7 +10,7 @@
   ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh": "0a626c750e5d86b6f814cc7ccc1cd16615eec2fb84ddd4e71188ac93971a0489",
   ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py": "b515439489df5f5cc699e0f23b69ea556e8ae69444703345e6c4dd8dbf1ae49d",
   ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py": "83b238595d8e6ea22ceece1ca636692799fe3a69ffd8e5ee09b7e5ef5531c771",
-  ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh": "06505ef08913470a4efe2d6bcd33055e4f1015da8e6e675d53f843507b6350ef",
+  ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh": "d2930f1d6da108a0447efd043a2ef9bcad4236a49996f80c3252194f5ea7ce3d",
   ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py": "58b02bce35ad76ab64f50eb356951c175bc5c7e4600e6c15411aa75bdba25313",
   ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml": "3d132ab38531ab35bbaf20b377212916431a2db99d65afddfb847fdae071c607",
   ".claude/skills/vllm-recipe-explorer/recipe.py": "7bbd226081eb9a9121188a802dc33563def2382069318f2e6e7e0b7a4c4f686a",

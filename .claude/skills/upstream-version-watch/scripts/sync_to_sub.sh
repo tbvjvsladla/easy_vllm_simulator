@@ -292,13 +292,99 @@ assert_band_classification() {  # $1=topology → 0=ok, 1=미분류·누락
         fi
     done
 
-    # (d-rsync-1) 멀티: 소스 Band2 인프라 부재 시 fail-closed(빈 소스가 --delete 로 서브 Band2 인프라 wipe 방지)
+    # (d-rsync-1) every active topology requires the canonical Band2 runner set.  Dormant
+    # single is skipped by the caller before render/classification.  Multi additionally
+    # requires its network env set.
+    for b in "${BAND2_CONFIGS[@]}"; do [ -f "$cdir/$b" ] || { echo "[sync] FAIL(S4 통로미완결): output/$1/configs/$b 부재 — canonical materialize 선행." >&2; bad=1; }; done
     if [ "$1" = "multi" ]; then
-        for b in "${BAND2_CONFIGS[@]}"; do [ -f "$cdir/$b" ] || { echo "[sync] FAIL(S4 통로미완결): output/$1/configs/$b 부재 — 'render_dockerfile.py --materialize-configs --topology $1' 선행." >&2; bad=1; }; done
         for b in "${BAND2_ENVS[@]}"; do [ -f "$edir/$b" ] || { echo "[sync] FAIL(S4 통로미완결): output/$1/envs/$b 부재 — render(NCCL/cluster envfile, S6) 선행." >&2; bad=1; }; done
     fi
 
     eval "$nullsave"; return $bad
+}
+
+# Executable runner integrity is metadata, not merely content.  rsync -a preserves the
+# source mode, so reject a stale/materialized 0644/0664 source before transport and verify
+# the remote destination after delivery.  Active single and multi both require all runners;
+# dormant single is skipped before materialization.
+normalize_canonical_runner_modes() {
+    local canonical="${SRC%/}/.claude/skills/upstream-version-watch/assets/configs" runner mode bad=0
+    for runner in "${BAND2_CONFIGS[@]}"; do
+        if [ ! -f "$canonical/$runner" ]; then
+            echo "[sync] FAIL(canonical runner mode): missing $canonical/$runner" >&2
+            bad=1
+            continue
+        fi
+        chmod 0755 "$canonical/$runner" || { echo "[sync] FAIL(canonical runner mode): chmod 0755 failed: $runner" >&2; bad=1; continue; }
+        mode="$(stat -c '%a' "$canonical/$runner" 2>/dev/null || true)"
+        if [ "$mode" != "755" ]; then
+            echo "[sync] FAIL(canonical runner mode): $runner mode=${mode:-missing} after normalization" >&2
+            bad=1
+        fi
+    done
+    return $bad
+}
+
+assert_source_runner_modes() {  # $1=topology -- exact canonical bytes + exact 0755
+    local topology="$1" cdir="${SRC%/}/output/$1/configs" canonical="${SRC%/}/.claude/skills/upstream-version-watch/assets/configs" runner mode canonical_mode bad=0
+    for runner in "${BAND2_CONFIGS[@]}"; do
+        if [ ! -f "$canonical/$runner" ]; then
+            echo "[sync] FAIL(source runner bytes): canonical asset missing: .claude/skills/upstream-version-watch/assets/configs/$runner" >&2
+            bad=1
+        else
+            canonical_mode="$(stat -c '%a' "$canonical/$runner" 2>/dev/null || true)"
+            if [ "$canonical_mode" != "755" ]; then
+                echo "[sync] FAIL(canonical runner mode): .claude/skills/upstream-version-watch/assets/configs/$runner mode=${canonical_mode:-missing}, expected=755" >&2
+                bad=1
+            else
+                echo "[sync] canonical runner mode: .claude/skills/upstream-version-watch/assets/configs/$runner=755"
+            fi
+        fi
+        if [ ! -f "$cdir/$runner" ]; then
+            echo "[sync] FAIL(source runner bytes): materialized runner missing: output/$topology/configs/$runner" >&2
+            bad=1
+        elif ! cmp -s "$canonical/$runner" "$cdir/$runner"; then
+            echo "[sync] FAIL(source runner bytes): output/$topology/configs/$runner differs from canonical asset" >&2
+            bad=1
+        else
+            echo "[sync] source runner bytes: output/$topology/configs/$runner=canonical"
+        fi
+        mode="$(stat -c '%a' "$cdir/$runner" 2>/dev/null || true)"
+        if [ "$mode" != "755" ]; then
+            echo "[sync] FAIL(source runner mode): output/$topology/configs/$runner mode=${mode:-missing}, expected=755" >&2
+            bad=1
+        else
+            echo "[sync] source runner mode: output/$topology/configs/$runner=755"
+        fi
+    done
+    return $bad
+}
+
+verify_destination_runner_modes() {  # $1=topology -- exact canonical bytes + exact 0755
+    local topology="$1" cdir="${SRC%/}/output/$1/configs" canonical="${SRC%/}/.claude/skills/upstream-version-watch/assets/configs" runner mode expected actual bad=0
+    for runner in "${BAND2_CONFIGS[@]}"; do
+        if [ ! -f "$cdir/$runner" ]; then
+            echo "[sync] FAIL(destination runner bytes): source materialized runner missing: output/$topology/configs/$runner" >&2
+            bad=1
+            continue
+        fi
+        expected="$(sha256sum "$canonical/$runner" 2>/dev/null | awk '{print $1}')"
+        actual="$(sub_run "sha256sum 'output/$topology/configs/$runner' 2>/dev/null" | awk '{print $1}' || true)"
+        if [ -z "$expected" ] || [ "$actual" != "$expected" ]; then
+            echo "[sync] FAIL(destination runner bytes): output/$topology/configs/$runner sha256=${actual:-missing}, canonical=${expected:-missing}" >&2
+            bad=1
+        else
+            echo "  ✅ destination runner bytes output/$topology/configs/$runner=canonical"
+        fi
+        mode="$(sub_run "stat -c '%a' 'output/$topology/configs/$runner' 2>/dev/null" || true)"
+        if [ "$mode" != "755" ]; then
+            echo "[sync] FAIL(destination runner mode): output/$topology/configs/$runner mode=${mode:-missing}, expected=755" >&2
+            bad=1
+        else
+            echo "  ✅ destination runner mode output/$topology/configs/$runner=755"
+        fi
+    done
+    return $bad
 }
 OVERLAY_EXCLUDES=(--exclude '__pycache__' --exclude '*.pyc')
 
@@ -309,7 +395,12 @@ sub_dirty() { sub_run "git status --porcelain 2>/dev/null"; }
 sub_commit() { sub_run "git -c user.name='$GIT_NAME' -c user.email='$GIT_EMAIL' commit -q -m \"$1\""; }
 sub_branch_current() { sub_run "git rev-parse --abbrev-ref HEAD 2>/dev/null"; }
 
-render_topology() { python3 "$RENDER" --topology "$1" >/dev/null; }
+render_topology() {
+    normalize_canonical_runner_modes || return 9
+    python3 "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.py" \
+        --materialize-configs --repo "${SRC%/}" --topology "$1" >/dev/null
+    python3 "$RENDER" --topology "$1" >/dev/null
+}
 staging_dir()     { echo "${SRC%/}/output/$1/sub_provision"; }
 
 # 빌드 콘텐츠 rsync(S4): 소스 = output/<t>/ 서브트리만(루트 Band1 구조적 배제) + Band2 keying. dry 면 --dry-run.
@@ -372,6 +463,17 @@ verify_checksums() {  # $1=topology
     return $fail
 }
 
+# Complete source-side preflight.  It is deliberately local/read-only with respect to the
+# destination and must run before provision, git init, checkout, rsync, or ref movement.
+preflight_topology() {  # $1=active topology
+    local t="$1"
+    render_topology "$t" || return 9
+    assert_band_classification "$t" || return 9
+    assert_source_runner_modes "$t" || return 9
+    assert_sub_delegation_authorized "$t" || return 10
+    validate_runtime_patches "$t" || return 9
+}
+
 # ── pre-flight ──
 if ! $SSH_OPTS "$SUB_HOST" 'echo ok' >/dev/null 2>&1; then
     echo "[sync] FAIL: $SUB_HOST 에 SSH 불가 (키 인증·네트워크 확인)"; exit 3
@@ -390,6 +492,7 @@ if [ "$MODE" = "dryrun" ]; then
             echo "  --- [$t] dirty 체크(fail-closed) → checkout → render → band단언 → rsync(빌드+오버레이) → [sync] 커밋 ---"
             render_topology "$t"
             assert_band_classification "$t" || echo "  [$t] ⚠ S4 미분류 파일 존재(위 FAIL) — --apply 시 배달 거부. 분류 후 재시도."
+            assert_source_runner_modes "$t" || echo "  [$t] ⚠ runner source mode 오류 — --apply 시 배달 거부. canonical materialize 후 재시도."
             if [ "$(_resolve_sub_hw_verified "$t" 2>/dev/null || true)" = "true" ]; then
                 echo "    A2A-위임 게이트: nodes[sub].hw_verified=true ✓ (위임 키 발급·전파 허용)"
             else
@@ -402,6 +505,7 @@ if [ "$MODE" = "dryrun" ]; then
         echo "  --- B0 bootstrap 미리보기(multi 초기 Band2 배달) ---"
         render_topology multi
         assert_band_classification multi || echo "  ⚠ S4 미분류(multi, 위 FAIL) — --apply 시 거부."
+        assert_source_runner_modes multi || echo "  ⚠ runner source integrity 오류(multi) — --apply 시 remote mutation 전에 거부."
         preview_build multi
     fi
     echo "[sync] (위는 미리보기 — 변경 없음. 사람 확인 후 --apply. 첫 init 도 --apply 게이트.)"
@@ -409,6 +513,25 @@ if [ "$MODE" = "dryrun" ]; then
 fi
 
 # ═══════════════════════ APPLY ═══════════════════════
+# Resolve and validate every source topology required by this invocation before any remote
+# filesystem/ref/working-tree mutation. Bootstrap always creates multi, even when only single
+# was requested. Dormant single remains skipped.
+PRECHECK_TARGETS=()
+[ $HAS_GIT = 0 ] && PRECHECK_TARGETS+=(multi)
+for t in "${TARGETS[@]}"; do
+    if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then continue; fi
+    seen=0
+    for p in "${PRECHECK_TARGETS[@]:-}"; do [ "$p" = "$t" ] && seen=1; done
+    [ $seen = 1 ] || PRECHECK_TARGETS+=("$t")
+done
+for t in "${PRECHECK_TARGETS[@]}"; do
+    preflight_topology "$t" || {
+        rc=$?
+        echo "[sync] STOP(source preflight): $t failed before remote mutation" >&2
+        exit "${rc:-9}"
+    }
+done
+
 # R2 HITL 게이트: 서브 work_dir 부재 시 자동신설 금지(--provision 필요).
 if ! $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
     if [ "$PROVISION" != "1" ]; then
@@ -423,8 +546,8 @@ fi
 # ── B0 멱등 self-bootstrap (서브 .git 부재 시) ──
 if [ $HAS_GIT = 0 ]; then
     echo "[sync] B0 BOOTSTRAP — 서브 git init + multi·single 브랜치 (로컬 전용·origin 없음)"
-    render_topology multi
     st="$(staging_dir multi)"
+    # Complete multi source preflight already passed before optional provision and this branch.
     # base = .gitignore 만(서브 로컬 추적규칙). 이후 multi 에만 전체 배달 → single 은 base(dormant) 로 격리.
     rsync -az -e "$SSH_OPTS" "$st/.gitignore" "$SUB_HOST:$DEST.gitignore"
     sub_run "git init -q"
@@ -433,14 +556,13 @@ if [ $HAS_GIT = 0 ]; then
     sub_run "git branch -m multi"     # 기본 브랜치명 → multi
     sub_run "git branch single"       # single = base(.gitignore) — dormant
     sub_run "git checkout -q multi"
-    # multi 초기 Band2 배달 (S4 band 단언 = 하드 게이트)
-    assert_band_classification multi || { echo "[sync] STOP(S4): multi band 분류 실패 — bootstrap 중단(위 FAIL 분류 후 재시도)." >&2; exit 9; }
-    assert_sub_delegation_authorized multi || { echo "[sync] STOP(A2A-위임): multi bootstrap 거부 — 위 HITL path 수행 후 재시도." >&2; exit 10; }
+    # multi 초기 Band2 배달.  Source gates above already passed before remote mutation.
     deliver_build multi 0
     deliver_overlay multi 0
+    echo "[sync] 체크섬 검증(multi)..."; verify_checksums multi || { echo "[sync] FAIL: bootstrap 체크섬 불일치 — commit 전 중단"; exit 2; }
+    verify_destination_runner_modes multi || { echo "[sync] FAIL: bootstrap runner destination integrity 불일치 — commit 전 중단"; exit 2; }
     sub_run "git add -A"
     sub_commit "[sync] multi initial delivery — D12 bootstrap"
-    echo "[sync] 체크섬 검증(multi)..."; verify_checksums multi || { echo "[sync] FAIL: bootstrap 체크섬 불일치"; exit 2; }
     # origin 부재 불변식 확증
     REMOTES="$(sub_run 'git remote' || true)"
     [ -z "$REMOTES" ] && echo "[sync] ✅ origin 0 (로컬 전용 확증)" || { echo "[sync] FAIL: 서브에 원격 존재($REMOTES) — D12 위반"; exit 7; }
@@ -468,15 +590,14 @@ for t in "${TARGETS[@]}"; do
         echo "  (정본: 메인은 너 대신 stash 하지 않는다 — workflow.md §양방향 브랜치싱크 B1-1.)" >&2
         exit 8
     fi
-    # (2) checkout
+    # (2) checkout — complete source preflight ran globally before this mutation.
     sub_run "git checkout -q $t" || { echo "[sync] FAIL: 서브 checkout $t 실패"; exit 8; }
-    # (3) render + band단언(S4 하드 게이트) + A2A-위임 게이트(D5) + (4) rsync(빌드 + 오버레이)  — 겹침=main-canonical
-    render_topology "$t"
-    assert_band_classification "$t" || { echo "[sync] STOP(S4): $t band 분류 실패 — 배달 거부(위 FAIL 분류 후 재시도)." >&2; exit 9; }
-    assert_sub_delegation_authorized "$t" || { echo "[sync] STOP(A2A-위임): $t 빌드 전파 거부 — 위 HITL path 수행 후 재시도." >&2; exit 10; }
+    # (3) rsync(빌드 + 오버레이) — render/band/runner/delegation/runtime-patch
+    # source checks all passed before checkout; deliver_build repeats patch validation.
     deliver_build "$t" 0
     deliver_overlay "$t" 0
     echo "[sync] 체크섬 검증($t)..."; verify_checksums "$t" || { echo "[sync] FAIL: 체크섬 불일치($t)"; exit 2; }
+    verify_destination_runner_modes "$t" || { echo "[sync] FAIL: runner destination mode 불일치($t)"; exit 2; }
     # (5) [sync] 스크립트저작 커밋 (변경분만)
     sub_run "git add -A"
     if sub_run "git diff --cached --quiet"; then
