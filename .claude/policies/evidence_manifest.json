@@ -3,7 +3,7 @@
   ".claude/skills/adversarial-benchmark/scripts/run_bench.sh": "96569acd6933504a613e43bbd644c216ee096838aa766273abaa2700eab89c04",
   ".claude/skills/terraforming_node/scripts/manifest_contract.py": "d26deb644d90b1a6a05ce9b055ee737c0f750883b282ccd0018ebadb176ca4c8",
   ".claude/skills/terraforming_node/scripts/render_sub_env.py": "3807f188b2eb64fd94c96232ea7fd533c8b4aadbb2dec1c0b1d3697ea6d14c23",
-  ".claude/skills/terraforming_node/scripts/scan_node.py": "fc32bcdffe889eb1bd9605b0dc5a8ede779ed69e1671b32e4271ced5e4552b85",
+  ".claude/skills/terraforming_node/scripts/scan_node.py": "2c9875401c1e2eacb057d21e7b80c12a62d4b2e896b0e6dbb7755cef4021b6a2",
   ".claude/skills/upstream-version-watch/scripts/check_smoke_model.py": "87f5661fc88e33d42f5bb870db7e9a6073877c76c41555d0d50f6ed563c606f4",
   ".claude/skills/upstream-version-watch/scripts/classify_failure.py": "43cea3c2c9bf52bea3b62d96bed734eac958e483e67686a91853d61dcf15aeb5",
   ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh": "0a626c750e5d86b6f814cc7ccc1cd16615eec2fb84ddd4e71188ac93971a0489",

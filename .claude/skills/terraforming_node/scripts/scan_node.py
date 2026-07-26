@@ -18,7 +18,9 @@ stdlib 만 사용. 출력 = JSON(stdout). 종료코드: 0=정상(α 또는 multi
 """
 from __future__ import annotations
 import argparse
+import ipaddress
 import json
+import math
 import os
 import platform
 import re
@@ -27,6 +29,21 @@ import subprocess
 import sys
 
 IPV4_RE = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+TOKEN_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
+PRESET_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+CUDA_RE = re.compile(r"^[0-9]{2,4}$")
+HOST_LABEL_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
+
+
+def valid_host(value) -> bool:
+    if not isinstance(value, str) or not value or len(value) > 253:
+        return False
+    try:
+        ipaddress.ip_address(value)
+        return True
+    except ValueError:
+        labels = value[:-1].split(".") if value.endswith(".") else value.split(".")
+        return bool(labels) and all(HOST_LABEL_RE.fullmatch(label) for label in labels)
 
 
 def _run(cmd: list[str], timeout: int = 10) -> str:
@@ -119,12 +136,20 @@ def detect_interconnect() -> dict:
     for r in v2_sorted:               # IPv4 오름차순 순서 보존 dedup → [rocep1s0f1, roceP2p1s0f1]
         if r["hca"] not in hca_devices:
             hca_devices.append(r["hca"])
-    gid_idx = sorted({r["gid_index"] for r in v2})
+    raw_gid_indices = [row.get("gid_index") for row in v2]
+    if all(isinstance(value, int) and not isinstance(value, bool) and value >= 0
+           for value in raw_gid_indices):
+        gid_idx = sorted(set(raw_gid_indices))
+        gid_idx = gid_idx[0] if len(gid_idx) == 1 else gid_idx
+    else:
+        # Preserve a structured invalid fact. The emission gate and staleness
+        # consumer reject it without a traceback or fabricated replacement.
+        gid_idx = "invalid"
     return {
         "type": "RoCE v2",
         "hca_devices": hca_devices,
         # GID 인덱스가 행마다 동일하면 단일값, 아니면 리스트(가드)
-        "gid_index": gid_idx[0] if len(gid_idx) == 1 else gid_idx,
+        "gid_index": gid_idx,
         # bootstrap iface = 최저 IPv4(Domain 0) 의 iface → enp1s0f1np1 (compose 와 정합)
         "socket_iface": v2_sorted[0]["iface"],
         "bandwidth_gbps": None,  # ib_write_bw 측정 전까지 null
@@ -407,6 +432,8 @@ def emit_manifest_block(result: dict) -> str:
     # None 인 필드는 YAML null 로 emit. bare 'None' 문자열 누수 차단 — Bug2 클래스 형제필드(cuda_version·gpus_per_node) 포함.
     cuda = f'"{result["cuda_version"]}"' if result["cuda_version"] is not None else "null"
     gpus = result["gpus_per_node"] if result["gpus_per_node"] is not None else "null"
+    gpu_model = json.dumps(result["gpu_model"], ensure_ascii=False) \
+        if isinstance(result.get("gpu_model"), str) and result["gpu_model"].strip() else "null"
     import datetime
     scanned_at = datetime.datetime.now().strftime("%Y%m%d%H")
     # 테라포밍 완수 Flag (attestation · plan_26063018 · 헌법 §테라포밍-완수 Flag 게이트):
@@ -422,10 +449,16 @@ def emit_manifest_block(result: dict) -> str:
         f"cpu_arch: \"{result['cpu_arch']}\"",
         f"cuda_version: {cuda}",
         f"gpus_per_node: {gpus}",
+        f"gpu_model: {gpu_model}",
     ]
     if topo == "single":
         # single dormant 게이트를 결정론으로 동결(sub-control 확장기능 비활성 — 헌법 §single-node 확장기능).
         lines.append("nodes: []  # 단일노드 dormant: sub-control 확장기능 비활성")
+    elif topo == "multi":
+        lines.append("nodes:")
+        for node in result.get("nodes", []):
+            lines.append(f"  - role: {node['role']}")
+            lines.append(f"    host: \"{node['host']}\"")
     lines += [
         "interconnect:",
         f"  type: {ic['type']}",
@@ -486,18 +519,26 @@ def evaluate_gate(*, declared, ic_present, peer_given, peer_reachable, bandwidth
         struct_block = []
         if not ic_present:
             struct_block.append("RoCE v2 미탐지")
-        if peer_given and not peer_reachable:
+        if not peer_given:
+            struct_block.append("peer-ip 미지정(도달성 미검증)")
+        elif not peer_reachable:
             struct_block.append(f"peer {peer_ip} 미도달")
         if model_block:
             struct_block.append(model_block)
+        if (isinstance(bw_floor, bool) or not isinstance(bw_floor, (int, float))
+                or not math.isfinite(bw_floor) or bw_floor < 0):
+            struct_block.append("대역폭 합격선이 finite non-negative number가 아님")
+        if bandwidth is not None and (
+                isinstance(bandwidth, bool) or not isinstance(bandwidth, (int, float))
+                or not math.isfinite(bandwidth) or bandwidth < 0):
+            struct_block.append("대역폭 측정값이 finite non-negative number가 아님")
         struct_block += mism
         if struct_block:                                   # γ: 구조/일관성 미충족
             gate = {"branch": "gamma", "status": "blocked", "reasons": struct_block,
                     "note": "멀티-ready manifest 미생성. 구조/일관성 확보 후 재실행."}
             exit_code = 2
         elif bandwidth is None:                            # 구조 충족, 성능 측정 대기
-            pend = [] if peer_given else ["peer-ip 미지정(도달성 미검증)"]
-            gate = {"branch": "multi-ready-candidate", "status": "pending-perf", "pending": pend,
+            gate = {"branch": "multi-ready-candidate", "status": "pending-perf", "pending": [],
                     "note": f"구조 충족. ib_write_bw 합산 ≥{bw_floor}Gb/s 측정(--bandwidth-gbps) 후 ready."}
         elif bandwidth < bw_floor:                         # γ: 성능 미달(fail-closed)
             gate = {"branch": "gamma", "status": "blocked",
@@ -520,6 +561,86 @@ def emit_gate(emit_manifest: bool, topology: str) -> int:
     토폴로지는 terraforming_node 진입의 **인터뷰**로 선언한다(브랜치/스캔 추론으로 manifest 기입 금지).
     순수함수 → --self-test 회귀. 근거: plan_26063009_44_23 D3(토폴로지 인터뷰 fail-closed 게이트)."""
     return 3 if (emit_manifest and topology == "auto") else 0
+
+
+def emission_blockers(result: dict) -> list[str]:
+    """Canonical scan facts that forbid a `complete:true` manifest emission."""
+    blockers = []
+    for field in ("cpu_arch", "cuda_version", "gpu_model"):
+        if not isinstance(result.get(field), str) or not result[field].strip():
+            blockers.append(field)
+    if result.get("cpu_arch") not in ("aarch64", "x86_64", "amd64"):
+        blockers.append("cpu_arch")
+    if isinstance(result.get("cuda_version"), str) and not CUDA_RE.fullmatch(result["cuda_version"]):
+        blockers.append("cuda_version")
+    count = result.get("gpus_per_node")
+    if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+        blockers.append("gpus_per_node")
+    if result.get("topology_declared") not in ("single", "multi"):
+        blockers.append("topology_declared")
+    interconnect = result.get("interconnect")
+    if not isinstance(interconnect, dict):
+        blockers.append("interconnect")
+        return sorted(blockers)
+    bandwidth = interconnect.get("bandwidth_gbps")
+    if ("bandwidth_gbps" not in interconnect
+            or (bandwidth is not None and (
+                isinstance(bandwidth, bool) or not isinstance(bandwidth, (int, float))
+                or not math.isfinite(bandwidth) or bandwidth < 0))):
+        blockers.append("interconnect.bandwidth_gbps")
+    if interconnect.get("type") not in ("generic-ethernet", "RoCE v2"):
+        blockers.append("interconnect.type")
+    hcas = interconnect.get("hca_devices")
+    if (not isinstance(hcas, list)
+            or any(not isinstance(item, str) or not TOKEN_RE.fullmatch(item) for item in hcas)):
+        blockers.append("interconnect.hca_devices")
+    gid_index = interconnect.get("gid_index")
+    gid_scalar_valid = (
+        gid_index is None
+        or (isinstance(gid_index, int) and not isinstance(gid_index, bool) and gid_index >= 0)
+    )
+    gid_list_valid = (
+        isinstance(gid_index, list) and len(gid_index) >= 2
+        and all(isinstance(item, int) and not isinstance(item, bool) and item >= 0
+                for item in gid_index)
+        and gid_index == sorted(set(gid_index))
+    )
+    if "gid_index" not in interconnect or not (gid_scalar_valid or gid_list_valid):
+        blockers.append("interconnect.gid_index")
+    socket_iface = interconnect.get("socket_iface")
+    if ("socket_iface" not in interconnect or
+            (socket_iface is not None and (
+                not isinstance(socket_iface, str) or not TOKEN_RE.fullmatch(socket_iface)))):
+        blockers.append("interconnect.socket_iface")
+    preset = interconnect.get("platform_preset")
+    if ("platform_preset" not in interconnect or
+            (preset is not None and (
+                not isinstance(preset, str) or not PRESET_RE.fullmatch(preset)))):
+        blockers.append("interconnect.platform_preset")
+    if interconnect.get("type") == "RoCE v2":
+        if not isinstance(hcas, list) or not hcas:
+            blockers.append("interconnect.hca_devices")
+        if gid_index is None:
+            blockers.append("interconnect.gid_index")
+        if socket_iface is None:
+            blockers.append("interconnect.socket_iface")
+    if result.get("topology_declared") == "multi":
+        nodes = result.get("nodes")
+        roles = [node.get("role") for node in nodes if isinstance(node, dict)] \
+            if isinstance(nodes, list) else []
+        if roles.count("main") != 1 or roles.count("sub") < 1:
+            blockers.append("nodes.roster")
+        if isinstance(nodes, list):
+            for index, node in enumerate(nodes):
+                if not isinstance(node, dict):
+                    blockers.append("nodes[%d]" % index)
+                    continue
+                if node.get("role") not in ("main", "sub"):
+                    blockers.append("nodes[%d].role" % index)
+                host = node.get("host")
+                if not valid_host(host):
+                    blockers.append("nodes[%d].host" % index)
+    return sorted(set(blockers))
 
 
 def _self_test() -> int:
@@ -565,13 +686,15 @@ def _self_test() -> int:
             "gpus_per_node": None, "interconnect": {"type": "generic-ethernet", "hca_devices": [], "gid_index": None,
             "socket_iface": None, "bandwidth_gbps": None, "platform_preset": None}}, True),
         ("multi RoCE(채워짐)", {"topology_declared": "multi", "cpu_arch": "aarch64", "cuda_version": "132",
-            "gpus_per_node": 1, "interconnect": {"type": "roce-v2", "hca_devices": ["mlx5_0"], "gid_index": 3,
+            "gpus_per_node": 1, "nodes": [{"role": "main", "host": "node-a"}, {"role": "sub", "host": "node-b"}],
+            "interconnect": {"type": "RoCE v2", "hca_devices": ["mlx5_0"], "gid_index": 3,
             "socket_iface": "enp1s0f0", "bandwidth_gbps": 208.2, "platform_preset": "dgx-spark-gb10"}}, False),
     ]
     for name, res, want_single in emit_cases:
         blk = emit_manifest_block(res)
         no_none = "None" not in blk                                  # bare Python None 누수 0
-        nodes_ok = ("nodes: []" in blk) if want_single else ("nodes:" not in blk)
+        nodes_ok = (("nodes: []" in blk) if want_single else
+                    ("nodes:" in blk and "role: main" in blk and "role: sub" in blk))
         attest_ok = ("terraforming:" in blk) and ("complete: true" in blk) and ("branch_verified: true" in blk)
         ok = no_none and nodes_ok and "topology:" in blk and attest_ok   # Flag attestation 기입 검증(plan_26063018)
         passed += ok
@@ -645,6 +768,21 @@ def _self_test() -> int:
     return 0 if passed == n else 1
 
 
+def build_local_scan_result(ic: dict, compose: str, topology: str) -> dict:
+    """Build the canonical local scan envelope consumed by staleness_gate.py."""
+    return {
+        "cpu_arch": scan_cpu_arch(),
+        "cuda_version": scan_cuda_version(),
+        "gpus_per_node": scan_gpus_per_node(),
+        "gpu_model": scan_gpu_model(),
+        "interconnect": {k: v for k, v in ic.items() if not k.startswith("_")},
+        "scan_detail": {k: v for k, v in ic.items() if k.startswith("_")},
+        "cross_validation": cross_validate(ic, compose),
+        "topology_declared": topology,
+        "interconnect_present": ic["type"] != "generic-ethernet",
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="terraforming_node결정론 스캔 코어 (사실만)")
     ap.add_argument("--topology", choices=["single", "multi", "auto"], default="auto",
@@ -687,16 +825,12 @@ def main() -> int:
     ic = detect_interconnect()
     if args.bandwidth_gbps is not None:
         ic["bandwidth_gbps"] = args.bandwidth_gbps   # cross-node ib_write_bw 실측 주입
-    result = {
-        "cpu_arch": scan_cpu_arch(),
-        "cuda_version": scan_cuda_version(),
-        "gpus_per_node": scan_gpus_per_node(),
-        "interconnect": {k: v for k, v in ic.items() if not k.startswith("_")},
-        "scan_detail": {k: v for k, v in ic.items() if k.startswith("_")},
-        "cross_validation": cross_validate(ic, args.compose),
-        "topology_declared": args.topology,
-        "interconnect_present": ic["type"] != "generic-ethernet",
-    }
+    result = build_local_scan_result(ic, args.compose, args.topology)
+    if args.topology == "multi" and args.peer_ip:
+        result["nodes"] = [
+            {"role": "main", "host": platform.node() or "localhost"},
+            {"role": "sub", "host": args.peer_ip},
+        ]
     if args.peer_ip:
         result["peer_check"] = {"ip": args.peer_ip, "port": args.peer_port,
                                 "reachable": peer_reachable(args.peer_ip, args.peer_port)}
@@ -755,6 +889,14 @@ def main() -> int:
             result["gate"]["note"] = ("서브 HW 동질성 미충족(fail-closed) — 표기 드리프트(동일 GPU 다른 문자열) 등 "
                                       "오탐 판단 시 HITL 우회 = manifest nodes[sub].hw_verified 수동 기입이 권위"
                                       "(plan_26063021_14_37 D3) — ") + result["gate"].get("note", "")
+            exit_code = 2
+
+    if args.emit_manifest and result["gate"]["status"] == "ok":
+        incomplete = emission_blockers(result)
+        if incomplete:
+            result["gate"]["status"] = "blocked"
+            result["gate"].setdefault("reasons", []).append(
+                "완수 manifest 발행 금지: scan facts 불완전(%s)" % ",".join(incomplete))
             exit_code = 2
 
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)

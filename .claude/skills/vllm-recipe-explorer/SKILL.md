@@ -13,456 +13,95 @@ description: >-
 
 # vllm-recipe-explorer
 
-> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_26063018)**: 작업(estimate/generate/simulate = 서빙전략 deliverable) 전 **턴 시작 시 Flag 확인 필수**. 미발급(`output/<topology>/manifest.yaml` 부재 · `terraforming.complete/branch_verified != true` · model_source 미설정) 시 **info-only**: 모델 HF조회·개념·절차 설명 OK / **환경특정 deliverable(TP·recipe·serve 명령) 생성 ✗**(음성정직 — HW사실 없이 근거 있어보이는 답 *날조* 금지 = 보고된 버그) → 정본 redirect 템플릿으로 `terraforming_node` 유도. **결정론 백스톱** = `recipe.py` main() 의 `_require_terraform_flag`(estimate/generate/simulate 비0종료·**fail-closed**; **서브 면제 = 양성 위임 키 `.claude/a2a_delegation.json`** — 메인이 동질성 검증 후 발급, 메인 키와 UNIQUE, *부재로 면제 ✗*; 1차 / `EASY_VLLM_A2A_DELEGATED` 테스트 override 2차 — 헌법 §A2A-위임 Flag 따름정리·plan_26063021_14_37). TP = manifest(`len(nodes)×gpus_per_node`) 배선(§manifest→서빙전략 배선 불변식 — git 브랜치 폴백 ✗) · 가드 tp>GPU·kv_heads%tp.
+> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_26063018)**: 작업(estimate/generate/simulate = 서빙전략 deliverable) 전 **턴 시작 시 Flag 확인 필수**. 미발급(`output/<topology>/manifest.yaml` 부재 · `terraforming.complete/branch_verified != true` · model_source 미설정) 시 **info-only**: 모델 HF조회·개념·절차 설명 OK / **환경특정 deliverable(TP·recipe·serve 명령) 생성 ✗**(음성정직 — HW사실 없이 근거 있어보이는 답 *날조* 금지 = 보고된 버그) → 정본 redirect 템플릿으로 `terraforming_node` 유도. **결정론 백스톱** = `recipe.py` main() 의 `_require_terraform_flag`(estimate/generate/simulate 비0종료·**fail-closed**; **서브 면제 = 양성 위임 키 `.claude/a2a_delegation.json`** — 메인이 동질성 검증 후 발급, 메인 키와 UNIQUE, *부재로 면제 ✗*; 1차 / `EASY_VLLM_A2A_DELEGATED` 테스트 override 2차). TP = manifest(`len(nodes)×gpus_per_node`) 배선(git 브랜치 폴백 ✗) · 가드 tp>GPU·kv_heads%tp.
 
-고정된 **한 모델**을 여러 서빙 레시피로 비교해 **타깃 GPU 예산**(예: RTX PRO 6000=96GB,
-RTX4090=24GB carve-out)에 맞는 설정을 찾는다. 두 페이즈로 동작한다.
+고정된 **한 모델**을 여러 서빙 레시피로 비교해 **타깃 GPU 예산**에 맞는 설정을 찾는다. 두 페이즈로 동작한다.
 
-- **Phase 1 (추정·추천)**: `config.json` 결정론 파싱 → LLM 후보 생성(탐색) → 결정론 VRAM 추정·하드게이트·
-  랭킹 → 리포트 → HITL 선택 → 3종 세트 생성 + 되먹임 로그. *실서빙 없음(추정만).*
-- **Phase 2 (실서빙 검증)**: 멀티턴 인터뷰로 lock/soft/free 변수 lock-set 확정 → **실서빙 trial-loop**
-  (run_trial→sim_classify→조정→반복, cap 기본 3)로 **절대 KV 클램프**를 실측 수렴 → 수렴 시 동일 3종 세트
-  생성 + simlog 증거 발행. *실제 컨테이너를 띄워 `/health` + 기능 스모크로 검증한다.*
+- **Phase 1 (추정·추천)**: `config.json` 결정론 파싱 → LLM 후보 생성(탐색) → 결정론 VRAM 추정·하드게이트·랭킹 → 리포트 → HITL 선택 → 3종 세트 생성 + 되먹임 로그. *실서빙 없음(추정만).*
+- **Phase 2 (실서빙 검증)**: 멀티턴 인터뷰로 lock/soft/free lock-set 확정 → **실서빙 trial-loop**로 **절대 KV 클램프**를 실측 수렴 → 수렴 시 동일 3종 세트 + simlog 증거. *실제 컨테이너를 띄워 `/health` + 기능 스모크로 검증한다.*
 
 > 설계 원칙(하네스 엔지니어링): **결정/게이트/랭킹/분류는 결정론 스크립트**(`scripts/`)가 책임진다.
 > LLM은 후보 '생성'(탐색)과 인터뷰만 한다. OOM-critical 경로(VRAM 추정·게이트·OOM 분류)를 확률론으로
 > 단정하지 않는다. whichllm 패키지를 import 하지 않는다 — 값/공식은 소스에서 **복사(벤더링)**하고 출처 주석을 단다.
 
-근거: `docs/plan/plan_2026060819_1_whichllm_vLLM레시피탐색스킬_설계계획.md`(Phase 1 승인본),
-`docs/plan/plan_2026062121_1_..._VRAM시뮬레이터_설계계획.md`(Phase 2), Seed `seed_e02364cce49d`.
+## Contract
 
-## 0. 입력 (config.yaml)
+- **Goal** — 한 모델 × 이 하드웨어에서 **실서빙되는** 레시피(3종 세트 .yaml+.sh+.env)를 만들고, KV 를 측정 기반 절대 클램프로 고정해 이식 가능하게 한다.
+- **When to invoke** — "이 모델 어떤 설정으로 띄울까" · VRAM 예산 맞춤 · KV/batch/파서/backend 튜닝 · 실서빙 검증 요청. Flag 미발급이면 info-only 로만.
+- **Inputs** — `config.yaml`(모델 경로·예산·margin·serving 이름) · 모델 `config.json`+safetensors(NAS) · `output/<topology>/manifest.yaml`(TP·NAS·host_safety) · Phase 2 는 `lockset.json`.
+- **Outputs** — `output/<t>/configs/<name>.{yaml,sh}` + `envs/.env.<name>` · `feedback/.last_ranking.json` · Phase 2 는 `docs/simlog/<run_id>/` 원시증거 + 수렴 레시피 · 라이브 serve.
+- **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 9단계(순서 고정).
+- **State transitions** — serve `/health` 200 + 기능 스모크 통과로 `runtime-ready` 를 만든다. `evidence-complete`/`promotion-ready` 는 `scripts/completion_gate.py` 소유(이 문서가 자체 판정 ✗).
+- **HITL/safety boundaries** — 모델 자동 다운로드 ✗ · 전부-FAIL 인피저블 단정 전 측정·외부검증 2단계 의무 · cap 소진/`vram_infeasible`/`unknown` 은 즉시 Model-C · per-trial teardown 필수.
+- **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
+- **Deterministic commands** — `recipe.py {estimate,generate,simulate}` · `scripts/parse_model_config.py` · `crosscheck_model_card.py` · `estimate_vram.py` · `rank_recipes.py` · `gen_recipe_set.py` · `run_trial.py` · `sim_classify.py` · `parse_vllm_log.py` · `functional_smoke.py` · `preload_ram_gate.py` · `simlog_writer.py`.
+- **Handoff contract** — 입력 ← `terraforming_node`(Flag·TP·NAS) · 빌드 필요/버전 불가 → `upstream-version-watch`(§4.7 native dep · §3.6 escalation) · 서빙 성공 → `adversarial-benchmark` lite(자동) / full(HITL).
+- **Owns (state)** — `serving-triplet` · `kv-clamp` · `lockset.json` · `serve-lifecycle`
 
-사람이 미리 작성한 `config.yaml`(영속)을 읽는다. 없으면 `config.example.yaml`을 참고해 요청한다.
+## Mandatory procedural spine
 
-- `target_model.path`: 대상 모델의 **컨테이너 경로**(`/app/models/<Org>/<Name>`, `configs/*.yaml`의 `model:`과 동일).
-- `nas_host_root`: `/app/models`가 매핑되는 호스트 NAS 루트(기본 `/mnt/models` — 실제 값은 `config.yaml`).
-- `vram_budget_gb`: carve-out 가상 GPU 예산(예: RTX4090=24).
-- `safety_margin`: 하드게이트 임계(기본 0.90).
-- `kv_cache_dtype_bytes`: KV dtype 바이트(기본 2=fp16).
-- `test_device_total_gib`(Phase 2): 측정 하드웨어 total VRAM(GB10=121.69, torch.cuda 기준). consolidated
-  메모리 라인이 없는 vLLM 빌드에서 overhead 유도(`gmu×total−weights−kv`)에 쓴다. DGX Spark는 nvidia-smi가 N/A.
-- `tensor_parallel_size`(선택): 미지정 시 **manifest 배선**(`len(nodes)×gpus_per_node` · nodes 비면 topology=single→1 · 최종폴백 1 — **git 브랜치 폴백 ✗**: 브랜치⇒TP 가 보고된 버그였음). 명시 override > manifest > 1. 상세 = §0.0 · 헌법 §manifest→서빙전략 배선 불변식.
-- `serving.{config_name, port, served_model_name}`: 생성될 3종 세트의 base 이름·포트·서빙명.
+필수 순서다 — 파싱→교차검증→게이트→(측정)→emit 의 순서가 OOM·오판을 막는 장치다(건너뛰지 않는다).
 
-**하드 제약**: 대상 모델이 NAS 경로에 없으면(디렉토리/`config.json` 부재) **다운로드하지 말고 비0 종료 + 중단·보고**.
+1. **Flag 확인**(§0.0) — 미발급이면 info-only redirect 로 종료.
+2. **parse**(결정론) — `parse_model_config.py`. 모델 부재면 **다운로드 금지·비0 종료·중단·보고**.
+3. **모델카드 교차검증** — `crosscheck_model_card.py`. MISMATCH=게이트(비0), special-dep 경보는 분류 후 핸드오프(`references/parse-and-crosscheck.md` §3).
+4. **후보 생성**(LLM 탐색 — 이 단계만 확률론) 또는 `--auto` 결정론 그리드.
+5. **rank + 하드게이트**(결정론) → 리포트 → **HITL 로 `recipe_id` 선택**. 전부 FAIL 이면 인피저블 단정 전 2단계 의무.
+6. **generate**(Phase 1 종료 가능 지점) — 3종 세트 emit. `max-num-seqs`·`kv-cache-memory-bytes` 는 여기서 emit 하지 않는다(측정 산물).
+7. **Phase 2 인터뷰 → lock-set**(`references/phase2-interview.md`) — 타깃 GPU 0순위, soft 변수 `*_candidates` 채움.
+8. **trial-loop**(`recipe.py simulate`) — 로드-전 RAM 게이트 → run_trial → `sim_classify` → 조정 → 반복(cap 3). 최소 2-트라이얼(측정→클램프 검증)로 **절대 KV 클램프 수렴**(`references/kv-clamp.md`).
+9. **마무리**(`references/serving-closeout.md`) — lite 벤치 핸드오프 → opt-out 경고 → 유지/down 분기 → 용처 매뉴얼 → (S4 종결 후) hint 제안.
 
-**NAS 마운트 불변식(포인터 원칙, 헌법 §배포·§manifest→서빙전략 배선 불변식·§serve-time env 통로 불변식)**: 컨테이너 NAS 마운트 경로를 스크립트에
-하드코딩하지 않는다 — 호스트 NAS 루트 해소(recipe 호스트파싱 평면) = `config.yaml.nas_host_root > env(NAS_MODEL_PATH) > manifest.nas_model_path > DEFAULT(/mnt/models)`
-(`_cfg_common`·`run_trial` 파라미터화 — 유지해야 할 불변식) → `/app/models`에 매핑. 컨테이너 경로
-(`/app/models/...`) ↔ 호스트 경로 변환은 이 4-tier 포인터로만 이뤄진다(manifest = 단일 권위).
+## Failure → reference routing
 
-## 1. 결정론 / 확률론 경계 (하네스 엔지니어링)
-
-| 구성요소 | 방식 | 비고 |
-|----------|------|------|
-| config.json 파싱 | **결정론 스크립트** | `parse_model_config.py` — text_config 중첩·safetensors 헤더 실측 |
-| **모델카드 교차검증**(①.5) | **결정론** | `crosscheck_model_card.py` — 번들 README(HF 원본카드)+inference/reqs+dtype 실측 ↔ config 합치 + 외부(HF API) 파라미터-총계 이중검증(managed/ephemeral). coarse-quant 함정·special-dep(DeepGEMM류) 사전경보·`du -sh` 오염 방지. MISMATCH=비0(게이트) |
-| 후보 **생성**(brainstorm) | **LLM (이 단계만 확률론)** | 3축 조합 다양성이 가치(Generate&Filter의 Generator) |
-| VRAM 추정 **공식**(per-token KV) | **결정론 — 단 상한(upper bound)** | `estimate_vram.py` full-attention 가정 공식. sliding-window/GQA서 **과대추정**(gemma 8×·gpt-oss 1.9×) → OOM 보수 게이트엔 유효, near-max batch엔 **부정확** |
-| VRAM **실측 분해**(near-max 정본) | **결정론 — 측정 정본** | serve KV log(`kv_cache_tokens`/`max_concurrency`) 또는 Phase-2. **near-max batch·절대 KV 클램프는 측정으로만**(공식 batch 금지 — §5·헌법 near-max 따름정리) |
-| 하드 안전 게이트(margin) | **결정론** | 예산×margin 초과 후보 탈락(zero tolerance) |
-| Judge 랭킹(headroom→context) | **결정론** 정렬 | 품질·속도 인자 없음 |
-| 3종 세트 생성 | **결정론** 템플릿 | 기존 워크스페이스 스키마 준수 |
-| **인터뷰**(타깃 GPU·quant·batch·파서…) | **LLM (확률론)** | Phase 2. soft 변수에 `*_candidates` 폴백 리스트를 채움 |
-| **VRAM 로그 파싱**(실측 분해) | **결정론** | `parse_vllm_log.py` — 정규식, 라인 부재 시 null |
-| **트라이얼 분류**(OOM/infeasible/functional) | **결정론** | `sim_classify.py` — 알려진 OOM 정규식 + 천장 점검 |
-| **KV 클램프 재산정**(min(required,safe)) | **결정론** | `recipe.py simulate` 루프 — 실측 weights/overhead 기반 |
-
-→ "**결정의 책임은 결정론 계층이 진다. 탐색·인터뷰만 LLM.**"
-
-## 2. 파이프라인
-
-`recipe.py`(오케스트레이터)가 함수 import로 조립한다. tp는 **manifest 배선 자동**(config override > manifest `len(nodes)×gpus_per_node` > 1 · **git 브랜치 ✗** — §0.0·헌법 §manifest→서빙전략 배선 불변식).
-
-### ① parse (결정론)
-
-```bash
-python3 scripts/parse_model_config.py <path> [--nas-root R] [--json] > parsed.json
-```
-
-- `/app/models/...` 입력은 `nas_host_root`로 치환해 호스트 NAS에서 읽는다(컨테이너 경로 ↔ 호스트 경로 매핑).
-- **text_config 중첩 처리**: `text_config`가 있으면 아키텍처 필드를 그쪽 우선·top-level fallback으로 읽는다
-  (`vision_config`는 무시). 예: Qwen3.5-35B-A3B는 전 필드가 `text_config` 아래.
-- **num_params 산출(로컬 파싱, 결정론)**: 비prequantized 모델은 **index가 가리키는 정본 샤드들의
-  safetensors 헤더에서 텐서별 numel(shape 곱)을 합산** — 저장 dtype과 무관한 정확한 파라미터 수다
-  (config `torch_dtype`이 거짓이거나[Motif-2.6B: 디스크 fp32지만 bf16 모델], 한 디렉토리에 복수 정밀도
-  체크포인트가 공존해도[LFM2-8B-A1B: BF16+F32 두 벌] 정확). prequantized(mxfp4 등)는 `quant_method_native`
-  bpw로 native weight를 나눈 best-effort(quant 축은 native 고정). `native_weight_bytes`는 index
-  `total_size`(없으면 파일 크기 합), `disk_bpw`는 최대 safetensors 헤더의 온디스크 dtype 실측(폴백·보고용).
-- 디렉토리/`config.json` 부재 → 명시적 에러(비0 종료, 다운로드 금지).
-
-### ①.5 모델카드 교차검증 (결정론 · serving 착수 전 필수 루틴)
-
-```bash
-python3 scripts/crosscheck_model_card.py <path> [--hf-repo-id <org/name>] [--json]   # managed(로컬) — MISMATCH 시 비0 종료(게이트)
-python3 scripts/crosscheck_model_card.py --ephemeral-estimate --hf-repo-id <org/name> [--json]   # ephemeral(다운로드 전 사전추정)
-```
-
-- **HF 원본 모델카드(번들 `README.md`) + `inference/requirements.txt` + config.json + safetensors dtype 실측**을 교차대조 → config.json **단독** 파싱이 놓치는 사실을 serving *전* 노출(로컬 파싱 — 번들 README = HF 원본 카드, 네트워크 호출 없음).
-- 잡는 것: **① coarse quant 라벨 함정**(config `quant_method:fp8` 인데 실측 experts=FP4 혼합 — 카드가 `FP4+FP8 Mixed` 명시) · **② novel-arch special-dep**(DeepGEMM·tilelang·flash_attn… → "vLLM dry-init/op 가용성 확인" 권고) · 정밀도·파라미터·컨텍스트·아키·reasoning 카드 합치.
-- **③ 외부(HF API) VRAM 이중검증 (plan_26070814)**: `du -sh` 류 디렉토리 전체크기가 `.git`(HF LFS 캐시) 오염으로
-  실제 가중치의 최대 2배까지 부풀 수 있음이 실증됨(2026-07-08, gemma-4-E2B-it 20GB→실 9.54GiB) — **모델 용량 판단에
-  `du -sh` 를 근거로 쓰지 않는다**(항상 `parse_model_config.py` 실측 또는 이 외부검증 경유). `--hf-repo-id` 지정 시
-  HF 공개 API(`GET /api/models/<repo_id>` — 모델 다운로드 없이 `safetensors.total` 조회)로 로컬 실측(managed)과
-  대조하거나, `--ephemeral-estimate`(다운로드 전, 로컬 파일 없이) 로 파라미터 총계만으로 사전추정한다. 조회 실패는
-  음성정직(verdict=UNAVAILABLE — 대체값 날조 금지, 로컬 실측만으로 진행). **ephemeral 다운로드 승인 요청 시 이
-  사전추정 결과(대략 GiB)를 사용자에게 함께 제시할 것.**
-- **special-dep 분류·핸드오프 (발견≠소유 — per-model 3+1+1, plan_26062812)**: special-dep 발견 시 분류한다 —
-  · **빌드-바깥 의존**(native lib/커널: DeepGEMM·tilelang·flash_attn…) = **patch.py ✗ · recipe-explorer 자체수정 ✗**(Python 몽키패치로 native lib 설치 불가) → **`upstream-version-watch` 핸드오프**(빌드 평면 — `build_patches/<NN>-*.sh` 모듈에 동결; 메인) / **서브면 docs insight 상향**(D12, 서브는 빌드평면 미보유).
-  · **런타임-코드 불일치**(Python processor/config shim) = `<model>_patch.py`(§5, recipe-explorer 유도).
-  recipe-explorer 는 빌드-바깥을 **탐지·분류·핸드오프까지만**(어떻게 이미지에 넣을지는 upstream-version-watch 책임).
-- **근거(실증)**: config coarse `fp8` + `du` 아티팩트만 봐 DeepSeek-V4-Flash 를 순수FP8/298GB/인피저블로 오판 → 카드·실측은 `FP4+FP8 mixed`/149GiB(적합). 카드 우선 참조가 오판·DeepGEMM-class 함정 차단(헌법 §금지 "참조-그라운디드" 연장 · plan_26062811_30_33 item③).
-- MISMATCH/WARN 은 **HITL surface**(자동 무시 금지). parse 직후·estimate 전에 돈다.
-
-### ② LLM 후보 생성 (이 단계만 확률론)
-
-모델 특성(`is_moe`, `num_params`, `max_position_embeddings`, prequantized 여부 등)을 고려해 3축 조합을
-brainstorm 한다.
-
-- `quantization`: prequantized면 **native 고정**(`quant_method_native`). 비prequantized면 `{none, fp8}`
-  (비prequantized 체크포인트에 `awq`/`gptq`를 제안할 땐 **경고 표기** — 런타임 양자화 불가(fp8·bitsandbytes 는 온라인 양자화 가능)).
-- `max-model-len`: **4096부터 `max_position_embeddings`까지 2의 거듭제곱**(§9.1 규칙). `max_position` 미상이면
-  `[4096, 8192, 16384, 32768]`.
-- `gpu-memory-utilization`: 0.80~0.95(기본 그리드 `[0.85, 0.90, 0.95]`).
-
-생성 후보를 `candidates.json`으로 저장 → `recipe.py estimate --candidates candidates.json`로 투입한다.
-LLM 후보 없이 결정론 기본 그리드만 쓰려면 `--auto`(데카르트 곱)를 사용한다.
-
-### ③ rank (결정론 하드게이트 + Judge) → 리포트
-
-```bash
-python3 recipe.py estimate --config config.yaml --auto
-# 또는: python3 recipe.py estimate --config config.yaml --candidates candidates.json
-```
-
-- 각 후보 → `estimate_vram.py`로 **`(weight_bytes/tp + KV_cache + overhead) / gpu_memory_utilization`** 추정
-  (plan §8 공식 리터럴). KV·overhead는 `/tp` 하지 않음 = 멀티노드 보수적 과대추정 → OOM 게이트에 안전.
-- **하드게이트**: `estimated_total_gib ≤ vram_budget_gb × safety_margin` 초과 후보 전부 탈락(zero tolerance).
-- **Judge**: 통과 후보를 `headroom_gib` 내림차 → `max_model_len` 내림차로 정렬(id 보존).
-- 리포트 표 컬럼: `id, quant, max_len, gmu, est_vram_gib, headroom_gib, PASS/FAIL` + 헤더(모델 id·num_params·
-  budget·margin·tp·경고). ranked 결과는 `feedback/.last_ranking.json`에 저장(generate가 id로 참조).
-
-### ③.5 HITL — 사람이 rN 선택
-
-리포트를 사람이 보고 통과 후보 중 하나의 `recipe_id`(예: `r3`)를 고른다. 무feasible(전부 FAIL)이면
-예산 상향/마진 완화/모델 변경을 보고한다(자동 강행 금지). **단 "전부 FAIL" 보고 전 의무 2단계**
-(공식-only 인피저블 선언 금지 — §1 공식은 sliding-window/GQA 서 최대 8× 과대추정하는 상한일 뿐 ·
-near-max 따름정리의 KV 축 대칭 · plan_26070208): (a) **측정 보강 제안을 기본 경로로** — Phase-1.5
-1회 serve 또는 Phase-2 trial 로 실측 per-token KV 확인을 먼저 제안하고, (b) **외부 교차검증** —
-`.claude/rules/references.md` §5 레시피(HF 카드·동일 HW 커뮤니티 구동 사례)로 "정말 못 띄우는 모델인지"
-확인·기록(testlog "탐색 증거"). 둘 다 없이 인피저블 단정 ✗ (DeepSeek-V4-Flash 오판 실증 — §0 crosscheck 계기).
-
-### ④ generate (결정론 3종 세트) + 되먹임 로그
-
-```bash
-python3 recipe.py generate --config config.yaml --recipe-id r3
-```
-
-- `.last_ranking.json`에서 `r3`을 찾아 `gen_recipe_set.py`로 **3종 세트**를 생성(기존 워크스페이스 스키마 준수):
-  - **출력 통로 = `output/<topology>/{configs,envs}/`**(topology=브랜치 파생, `recipe.py output_root`). compose 가
-    마운트하는 통로와 정합(결함#3, `testlog_26062422` — 이전엔 REPO_ROOT 직하 configs/ 라 통로 밖→수동 복사 필요했음).
-  - `configs/<name>.yaml` — `model: <container_path>`, `host 0.0.0.0`, `port 8000`,
-    `gpu-memory-utilization`/`max-model-len`, `quantization`은 **native/none이 아닐 때만** 추가.
-    ⚠ **Phase-1(estimate→generate)은 `max-num-seqs`(near-max batch)·`kv-cache-memory-bytes`(절대클램프)를 emit하지 않는다**
-    (rank_recipes 는 batch 미산정 — 결함#4). 이 둘은 **Phase-2(simulate) 측정 산물**이다. near-max batch·carve-out 클램프가
-    필요하면 **Phase-2 또는 serve 로그 측정**으로 보강해야 한다(§5 — 공식 batch 는 OOM/낭비 위험). Phase-1 산출은 gmu+max_len 까지의 "추정 시작점".
-  - `configs/<name>.sh` — 기존 `gpt-oss-20b-normal.sh` 구조(TIKTOKEN 가드 + `vllm serve --config ... --served-model-name`).
-  - `envs/.env.<name>` — `COMPOSE_PROJECT_NAME·CONTAINER_NAME·VERSION·NVIDIA_VISIBLE_DEVICES·SERVING_IP/PORT·
-    TIKTOKEN_ENABLED·SERVING_MODEL_NAME·CONFIG_FILE`.
-  - 기존 파일이 있으면 `--force` 없이는 덮어쓰지 말고 에러.
-- `feedback_log.py`가 invocation당 1행(JSONL)으로 append한다(추정 필드 채움 + 실측 nullable 예약).
-  생성된 `configs/<name>.yaml`은 수정 없이 `vllm serve --config`로 사용 가능하다.
+| 실패 신호 | 라우팅 대상 (정확 경로) |
+|---|---|
+| trial 실패의 class 판정(vram_oom / functional / vram_infeasible / unknown) | `.claude/skills/vllm-recipe-explorer/scripts/sim_classify.py` |
+| KV 가 안 맞음 · 클램프 산정 · 타겟-GPU 이식 예산 · MoE backend 즉사 | `.claude/skills/vllm-recipe-explorer/references/kv-clamp.md` |
+| lock/soft 변수·파서명·backend 폴백 순서를 다시 정해야 함 | `.claude/skills/vllm-recipe-explorer/references/phase2-interview.md` |
+| `functional`·`unknown` 복구 절차 · 수렴 후 마무리 시퀀스 | `.claude/skills/vllm-recipe-explorer/references/serving-closeout.md` |
+| 파싱·교차검증·랭킹 입력이 의심스러움(coarse quant·du 오염·text_config) | `.claude/skills/vllm-recipe-explorer/references/parse-and-crosscheck.md` |
+| 기동 전 호스트 RAM 여유 부족 | `.claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py` |
+| 모델이 요구하는 native lib(DeepGEMM 류) — 빌드평면 소유 | `.claude/skills/upstream-version-watch/references/source-build.md` |
 
 ## 3. 안전 (절대 규칙)
 
 - **모델 자체 다운로드 금지.** NAS 경로에 없으면 비0 종료 + 명확한 중단·보고. 런타임 다운로드 없음.
+- **ephemeral 다운로드 승인 요청 시 이** 사전추정 결과(대략 GiB)를 사용자에게 함께 제시할 것.
 - 호스트 `python3`(3.12, PyYAML 6) 단독 실행. **whichllm 패키지를 import 하지 말 것**(값은 벤더링).
-- stdlib + yaml만 사용. **(b) 소비자 파서(quant_table/estimate_vram)는 로컬 config 파싱만 하는 순수 stdlib — 모델획득 평면 격리이지 환경 offline 이 아니다**(대조적으로 upstream 의 resolver(resolve_wheel/torch_pin/ngc_tag)는 GitHub API·레지스트리를 라이브 조회 = 환경 online 전제). **단 이는 *스크립트* 제약이지 *에이전트 전략수립* 제약이 아니다** — 서빙전략의 외부 교차검증(HF 모델카드·vLLM GitHub)은 허용·의무(헌법 §모델 획득 모드 따름정리 · escalation = `plan_26063009_19_14` B부). **모델획득 격리 한정**이지 외부접속 전반 차단 ✗.
+- stdlib + yaml만 사용. **(b) 소비자 파서(quant_table/estimate_vram)는 로컬 config 파싱만 하는 순수 stdlib — 모델획득 평면 격리이지 환경 offline 이 아니다**(대조적으로 upstream 의 resolver 는 GitHub API·레지스트리를 라이브 조회 = 환경 online 전제). **단 이는 *스크립트* 제약이지 *에이전트 전략수립* 제약이 아니다** — 서빙전략의 외부 교차검증(HF 모델카드·vLLM GitHub)은 허용·의무(헌법 §모델 획득 모드 따름정리 · escalation = `plan_26063009_19_14` B부). **모델획득 격리 한정**이지 외부접속 전반 차단 ✗.
 - 결정/게이트/랭킹/분류는 결정론 스크립트가 책임진다(LLM은 후보 탐색·인터뷰만).
-- **Phase 2 teardown(필수)**: 트라이얼은 끝날 때마다 `docker rm -f`로 컨테이너를 제거한다.
-  DGX Spark는 **통합메모리**라 잔류 컨테이너가 다음 트라이얼을 OOM으로 떨어뜨린다(`run_trial`의 `finally`가 보장).
-- 빌딩블럭(`.claude/`)은 gitignored 유지 — 외부/공식 스킬·플러그인은 propose→review→install.
-
-## 4. Phase 2 — 멀티턴 인터뷰 → lock-set
-
-실서빙 trial-loop 전에 LLM이 사람과 **멀티턴 인터뷰**로 변수를 확정한다. **타깃 GPU가 0순위**(예산이
-모든 게이트의 기준). 순서대로 묻되, 사람이 모르면 결정론 산출값을 제안한다.
-
-1. **타깃 GPU / VRAM 예산** (필수, 0순위 · 폴백 명문화 D10) — *"따로 시뮬레이션 타겟 GPU 가 있나요?"* 물어
-   분기한다: **스킵/"호스트" 답변 → 호스트 GPU 기준**(manifest HW사실, 기존 흐름) · **명시 타겟 → `config.target_gpu`**
-   (γ 시뮬레이터 모드, `plan_26070809_47_07` 기구현 — **VRAM 수준 한정** 시뮬레이션, 호스트≠타겟 아키텍처는 무관).
-   예: RTX PRO 6000 96GB. → `config.yaml`의 `vram_budget_gb`(스칼라,
-   하위호환) 또는 host≠target 이식이면 구조화 `target_gpu` 블록(§5 "타겟-GPU 이식형 예산" 참조 — `plan_26070809_47_07`).
-   **이전 전제**: host 에서 측정한 attention backend 와 타겟이 동일해야 KV 레이아웃·overhead 가 유효 이전된다 —
-   트리플렛 헤더에 명시 pin(`gen_recipe_set.py` 가 이미 `attention_backend` 를 emit).
-2. **weight quant?** — prequantized면 native 고정. 비prequantized면 `none`/`fp8`(awq/gptq는 비prequantized 경고).
-3. **KV quant?** — `null`(fp16, 2바이트) 또는 `fp8`(1바이트). KV 캐시를 절반으로 줄여 더 긴 context/batch 확보.
-4. **batch**(=동시요청수, `--max-num-seqs`) → 정한 뒤 **max-model-len** — *최대 가능값을 제안*한다
-   (`estimate_vram.max_feasible_max_len`이 천장 내 2의 거듭제곱 최대 길이를 결정론으로 계산).
-5. **tool / reasoning 파서** — **외부 교차검증**(§3 L166 — HF 모델카드·docs, *에이전트 수행*): 모델이 tool_call·reasoning을 지원하는지, vLLM 파서명이 무엇인지
-   에이전트가 확인한다(예: `hermes`/`qwen3`; 모델획득 격리 한정이라 전략수립 외부검증 허용). 미지원이면 N/A(스모크에서 스킵).
-   - **파서명은 공식 docs에서 얻은 뒤 반드시 빌드 이미지에 version-exact 확증한 후에만 emit한다(가정 금지)**:
-     레지스트리 경로·등록명이 vLLM 버전마다 다르다 — reasoning은 `vllm/reasoning/`, tool은 버전에 따라
-     `vllm/entrypoints/openai/tool_parsers/` 또는 `vllm/tool_parsers/`. **정적 grep + 실서빙 수용**으로 확증한다
-     (import-기반 레지스트리 열거는 lazy-registration이라 0.18.0에서 거짓-빈값 → 비의존). 예: gemma-4 reasoning/tool=`gemma4`;
-     gpt-oss reasoning=`openai_gptoss`(0.18.0 실서빙 실증).
-   - **caveat — gpt-oss tool 처리는 빌드별 상이**: 0.18.0 은 tool 호출이 **vLLM harmony 내장**이라 `--tool-call-parser`가
-     불요/미등록(tool 레지스트리=`kimi_k2` only)이고 vLLM이 `--enable-auto-tool-choice`를 무시하고 항상 tool use를 켠다
-     (서빙 로그 명시) → 무효 파서 플래그를 주면 serve 크래시. tool capability=false로 두고 **completion+reasoning을 스모크
-     게이트**로(다른 빌드의 `openai` tool 파서 경로와 구분 — 대상 이미지서 확증).
-   - **caveat — reasoning 분리필드명 버전차 + 추론모델 max_tokens**: 응답의 분리 reasoning 필드명이 버전마다 다르다
-     (구=`reasoning_content`, 0.18.0/harmony=`reasoning`) → `functional_smoke`는 둘 다 수용. **추론모델은 completion
-     스모크에도 max_tokens 충분히** 줘야 한다(analysis 채널이 토큰 소진 → content 전 length 절단; `functional_smoke` 64→1024).
-   - **caveat — tool 채팅 템플릿 의존성**: gemma-4 tool은 `tool_chat_template_gemma4.jinja`(이미지 미포함)를
-     요구한다 → `.sh`에 tool 플래그를 무조건 emit하면 런타임 실패. reasoning이 기본 OFF면 **completion이 스모크
-     게이트**이고 파서는 config에 기록만 한다(`gen_recipe_set`의 경고 가드로 처리).
-6. **attention backend**(soft) — `FLASHINFER`/`FLASH_ATTN`/`FLASHMLA`. 폴백 후보 순서를 정한다.
-
-**변수 3계층**:
-
-| 계층 | 의미 | 키 |
-|------|------|----|
-| **lock** | 인터뷰로 고정, 루프가 안 바꿈 | `quantization, max_model_len, batch, kv_cache_quant` |
-| **soft** | 실패 시 `*_candidates` 순서로 폴백 | `attention_backend, tool_call_parser, reasoning_parser` |
-| **free** | 루프가 결정론으로 산정 | `kv_cache_memory_bytes` |
-
-인터뷰 산물 = **lock-set JSON**(`lockset.json`). soft 변수마다 순서있는 `*_candidates` 폴백 리스트와
-`model_capabilities: {tool_call, reasoning}`(웹검색 산물)을 채워 `recipe.py simulate`에 투입한다.
-
-```json
-{ "id": "s1", "quantization": "none", "max_model_len": 32768, "batch": 8,
-  "kv_cache_quant": null, "kv_cache_memory_bytes": null,
-  "attention_backend": "FLASHINFER", "attention_backend_candidates": ["FLASHINFER", "FLASH_ATTN"],
-  "tool_call_parser": null, "tool_call_parser_candidates": [],
-  "reasoning_parser": null, "reasoning_parser_candidates": [],
-  "model_capabilities": { "tool_call": false, "reasoning": false } }
-```
-
-### 4.5 서빙 UX 인터뷰 4항목 (Convenience 보강 · plan_26071115 · Phase C)
-
-Phase 2 인터뷰(§4)의 기술변수(lock/soft/free) 확정과 **별개로**, 서빙 경험을 매끄럽게 하는 **4항목**을 함께
-수집한다. **이 4항목은 lock/soft/free 변수가 아니다** — lockset 표·`lockset.json`·`run_trial` serve-args 에 넣지
-않는다(서빙전략 산물이지 KV 클램프 변수 아님). 판단계층(인터뷰)이라 코드 변경 최소.
-
-| 항목 | 질문 요지 | 기본값(무답) | 분기 |
-|------|-----------|--------------|------|
-| ① 타겟 GPU | (§4 item 1 재참조) "따로 시뮬 타겟 GPU 있나요?" | **호스트 GPU** | 명시 타겟 → γ 시뮬레이터 모드(VRAM 한정) |
-| ② 벤치마크 | **질문 아님** — lite 기본 ON 고지 | lite 자동 수행 | 강력 거부 구문만 → **세션 한정** 억제(가벼운 "스킵해"는 무시·수행) |
-| ③ 용처 | "서빙되면 어디에 연결해 쓰실 건가요? (예: OpenWebUI·Hermes Agent·직접 API…)" | 무답/"아몰랑" → curl 예시만 | 열린 목록 — 어떤 답이든 외부검색 시도 |
-| ④ 컨테이너 | "서빙 후 유지할까요, 테스트만 하고 내릴까요?" | **유지** | down → §6.5 시퀀스(serve→lite→표시→down) |
-
-- ①·③·④ 는 **서빙 *전* 사전 수집**(D11) → ③ 용처 매뉴얼은 **서빙 *후*** 팝업(§6.5, 2-phase). ② 는 질문이 아니라
-  **고지**(lite 는 adversarial-benchmark 소유·기본 ON — §6.5 핸드오프).
-- **컨테이너 기본 = 유지**(D-현행 관행 명문화): 서빙 성공 후 컨테이너를 살려 둔다(§3 Phase-2 teardown 은 *trial-loop*
-  통합메모리 OOM 보호용 per-trial 정리이지 최종 serve 유지와 별개 평면 — 최종 serve 유지/down 은 compose `--profile
-  serve` 수명). down 은 사용자 명시 시에만, **down 전 lite 필수**(§6.5).
-
-## 5. Phase 2 — 절대 KV 클램프 (가장 중요)
-
-vLLM 인자 **`--kv-cache-memory-bytes`**(GPU당 KV 바이트, 정수)로 KV 캐시를 **절대값으로 고정**한다.
-이 인자를 주면 **`gpu-memory-utilization`은 무시**된다(분율이 아니라 절대 바이트가 제어).
-
-```text
-Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu로 나누지 않음
-검증 게이트     = (weights + overhead + kv_bytes) ≤ budget_gib × safety_margin × GiB
-```
-
-- **Phase 1 공식과 다름**: Phase 1은 `(…)/gmu`로 나눴다. Phase 2는 절대값 합이다. 혼동 금지.
-- **최종 recipe 는 gpu-memory-utilization + kv-cache-memory-bytes 를 함께 emit한다 (KV 절대클램프 따름정리, E2E 실증)**:
-  KV 는 측정된 절대 클램프(`--kv-cache-memory-bytes`)가 제어하며 이게 **이식성**을 준다(gmu-derived KV 는 호스트 VRAM 차이로 비이식).
-  **단 gmu 도 필수** — vLLM 은 클램프 설정 시 gmu 를 *KV 사이징*에만 무시(`config/cache.py`)하고, **startup free-memory
-  검증(`free ≥ gmu×total`)+총-cap 엔 여전히 사용**. GB10 등 통합메모리(free/total≈0.91)는 OS ~11GiB 점유로 기본 `0.92`가
-  startup OOM(`Free memory < desired GPU memory utilization`) → **통합메모리 gmu ≤ `0.90`(=`safety_margin`) 명시 필수**.
-  ∴ gmu=startup/총-cap 게이트, clamp=KV 사이징·이식성. (클램프 미산정 degraded = gmu-derived KV = 비이식, Phase-2 측정 보강.)
-  이식성 = 선언된 절대 필요량(weights+overhead+kv) 이상 GPU서 동일 구동(작은 GPU 자동맞춤 ✗, GPU당 값이라 TP 의존).
-- **타겟-GPU 이식형 예산 (host≠target — `plan_26070809_47_07`)**: 사용자가 산출 host 와 **다른** 타겟 GPU 를
-  명시하면(config `target_gpu` 블록, 아래) Phase-1(estimate/generate) 의 gmu-only 종료를 **거부**하고 Phase-2
-  측정경로를 강제한다(target_gpu 미정의 시 기존 host 흐름 완전 보존 — 회귀 0).
-  ```yaml
-  target_gpu:                    # (선택) 있으면 이식형 타겟 예산 경로 활성
-    gpu_model: "NVIDIA RTX PRO 6000"   # references.md §4 테이블 역룩업 키(per-card VRAM 해소)
-    per_card_vram_gib: 96              # (선택) 테이블 미등재/오버라이드 시 사용자 명시
-    cards_per_node: 1                  # 기본 1. N장은 명시.
-    target_gmu: 0.90                   # 기본 0.90. 통합메모리 타겟은 gmu≤0.90 하드클램프.
-  ```
-  **per-GPU 산정식**(동질 클러스터, TP=`cards_per_node`×node_count — manifest `len(nodes)`):
-  ```
-  kv_clamp_perGPU = per_card_VRAM_bytes(gpu_model, references.md §4 역룩업) × target_gmu
-                    − weights_total/TP − overhead_total/TP
-  ```
-  `weights_total`·`overhead_total` = host 측정값(GPU-불변 기하량 — overhead 는 런타임 성질 일부 포함해 정량보증은
-  아니고 target-margin 쿠션, target≠host arch 면 가능하면 타겟서 재측정 권장). **1→N 외삽 금지** — 멀티노드
-  타겟은 양노드 실측(측정 TP == 타겟 TP 강제). 통합메모리 타겟만 `target_gmu>0.90` 거부·0.90 하향+HITL, discrete
-  는 in-scope(하드클램프 없음). batch 는 이 산정식이 아니라 §근처 measured `max_concurrency` 로만(formula 금지,
-  동일 원칙). 트리플렛은 host↔target **동일 attention backend**를 이전 전제로 헤더에 명시(아래 §4 lock-set 참조).
-- `per_token_kv_bytes = 2 × num_hidden_layers × num_key_value_heads × head_dim × kv_dtype_bytes`
-  (kv_dtype_bytes: KV quant 없으면 2, `fp8`이면 1).
-- `required_kv = per_token_kv_bytes × max_model_len × batch`,
-  `max_safe_kv = int(budget×margin×GiB) − weights − overhead`.
-- **측정 per-token KV가 정본 — 공식은 거의 항상 과대추정(upper bound)**: 위 `per_token_kv_bytes` 공식은
-  **full-attention 가정**이라 sliding-window/GQA/hybrid attention(현대 모델 대다수)에서 per-token 을 **과대추정** →
-  feasible batch 를 **과소추정**한다. 0.23.0 듀얼모델 E2E 직접측정(`testlog_26062422`):
-  **gemma-4** 공식 393KB vs 실측 ~50KB(@max_len 32768) = ~8× 과대 · **gpt-oss-20b** 공식 48KB vs 실측 **26KB**(@32768) = **1.9× 과대**.
-  ⚠ **"full-attention 이라 공식≈측정" 가정 금지** — gpt-oss-20b 는 GQA/sliding 이라 공식과 어긋난다(과거 "gpt-oss ~48KB 일치" 주장은
-  **미검증 formula** 였고, 0.23.0 의 직접 측정 `kv_cache_tokens`(아래 Phase-1.5 항의 실측 수치)로 반증).
-  → **near-max batch 는 어떤 모델이든 측정으로만 산정**한다: Phase-2 trial-loop 또는 serve 로그의 `kv_cache_tokens`/`max_concurrency`.
-  공식 기반 batch 는 위험 — 공식이 per-token 을 *과소*추정하면 OOM, *과대*추정하면(대다수) 용량 낭비(gpt-oss formula batch 46 = 실측 near-max 86 의 53%).
-  측정 정본 우선순위: trial 로그 per-token(`Available KV cache memory`/`kv_cache_tokens`) > 공식 폴백(`recipe.py _resolve_clamp_kv`).
-- **절대 클램프 실측 절차(최소 2-트라이얼, §9.3 KV워크플로)**: ① **trial1 측정**(`kv_cache_memory_bytes=null`,
-  언클램프) → 로그에서 free_kv 실측 → ② `--kv-cache-memory-bytes`로 환산 → ③ **trial2 클램프 검증**.
-  언클램프 통과만으로는 수렴이 아니다 — 클램프 검증 트라이얼까지 통과해야 수렴 판정.
-- **Phase-1.5 — serve KV-log 경량 측정**(전체 trial-loop 불요): 절대클램프(공식 상한 또는 보수값)로 **1회 serve(`--profile serve up -d`)** →
-  `docker logs` 에서 `reserved … GiB … kv_cache_memory_bytes` + `GPU KV cache … N tokens` + `max_concurrency=X` grep →
-  **실측 per-token = clamp_bytes ÷ kv_cache_tokens** · **near-max batch = floor(max_concurrency)**(= kv_cache_tokens ÷ max_model_len). clamp 유지·batch 만 상향.
-  공식이 못 주는 near-max 를 *1회 serve* 로 얻는 측정경로다(E2E gpt-oss: clamp 69GiB→2,825,636 tokens→max_concurrency 86.23→**batch 86**, 공식 46의 ~2배). 로그 키명은 vLLM 버전 따라 변할 수 있어 **fail-soft**(라인 부재 시 null→HITL 또는 Phase-2 폴백). (Phase-2 full trial-loop = 절대클램프 *수렴*까지, Phase-1.5 = batch *상향*만 — 둘 다 측정 정본.)
-- **overhead 실측 vs 유도(gotcha)**: weights·overhead는 측정 트라이얼(클램프 전 1회 로드)의 vLLM 로그에서
-  얻는다. consolidated 라인(`model weights take …; non_torch …; reserved for KV Cache …`)이 있으면 직접 산출.
-  **없는 빌드(예: 0.22.2 NGC)는 `Model loading took X GiB memory`(weights)·`Available KV cache memory`(kv)·
-  `--gpu-memory-utilization=X`(gmu)만 있으므로** overhead를 **유도**: `overhead = gmu_trial × test_device_total −
-  weights − kv_available`(vLLM 메모리식 역산, `recipe.py _enrich_overhead`). 그래서 수렴은 **측정 트라이얼 →
-  클램프 산정 → 클램프 검증 트라이얼**의 최소 2-트라이얼이다(언클램프 통과만으론 수렴 아님).
-- 루프의 free 변수 결정: **`kv_bytes = min(required_kv, max_safe_kv)`**.
-  `required > safe`면 max_model_len·batch를 KV로 만족 불가 → **`vram_infeasible`(HITL)**.
-- **사전적재 인코딩 자산(gpt-oss harmony/tiktoken)**: gpt-oss류의 harmony/tiktoken o200k 인코딩은
-  이미지에 번들되지 않아 런타임 fetch가 필요한데 **read-only 마운트 불변식상 런타임 fetch 는 금지**다(사전적재 원칙 — CLAUDE.md §인코딩 자산 따름정리). → NAS에 flat `tiktoken_cache/`를
-  사전적재하고 컨테이너에 `/encodings:ro`로 마운트(`-v <host>:/encodings:ro`, compose 호스트경로 변수
-  `TIKTOKEN_HOST_PATH`)한 뒤, **정본 env `TIKTOKEN_ENCODINGS_BASE=/encodings` · `TIKTOKEN_RS_CACHE_DIR=/encodings`**
-  (+`TIKTOKEN_ENABLED`)를 둘 다 마운트 경로로 가리킨다. 구식 `TIKTOKEN_ENCODINGS_PATH`는 폐기 —
-  정본 동기화 대상 3곳(`docker-compose.template.yaml` · `config.example.yaml` · `run_trial.py`)을 맞춘다
-  (README straggler는 별도). gpt-oss 스모크가 최종 중재자(현재 미실행).
-- **MoE 백엔드 on sm_121a(GB10/Blackwell) 따름정리 (모델별 서빙전략 독립 — 헌법 §모델별 서빙전략 독립 따름정리의 §5 실현, carry-forward 금지)**: 대형 MoE를 신규 아키(sm_121a)서 서빙할 때
-  올바른 moe-backend 는 **(모델×quant×하드웨어)에 종속**한다 — 한 모델의 교훈(bf16→triton·NVFP4→triton금지·122B→auto통함)은 **그 (모델×quant×하드웨어)에 context-bounded**, 전역 금지/전역 신뢰 ✗(carry-forward 금지). 맥락이 갈리면 양쪽 다 참 → (모델×하드웨어)마다 oracle/소스 독해로 재확립한다(아래 dtype 케이스가 그 실증).
-  - **bf16 MoE**(예 Qwen3-Next-80B): 기본 `moe_backend=auto`는 **flashinfer_cutlass** 를 고른다 → 그 CUTLASS MoE 커널이
-    sm_121a용 prebuilt 부재 → 런타임 nvcc JIT(수십 커널)가 **고병렬=OOM-kill / 저병렬(MAX_JOBS↓)=단일커널 30분+ stall** 로
-    둘 다 막힌다. → **`--moe-backend triton`** 명시(in-process Triton fused MoE, nvcc 불요)로 회피. Ray 분산이면 master serve
-    에만 줘도 엔진config 가 slave 워커로 전파된다. 근거: 멀티노드 0.23.0 E2E combo③(testlog_26062501, att1–4).
-  - **NVFP4(W4A4) MoE**(예 Qwen3.5-122B-A10B-NVFP4): **triton 은 미지원** — `--moe-backend triton` 을 주면 엔진 init 에서
-    `ValueError: moe_backend='triton' is not supported for NvFP4 MoE` 로 즉사한다(supported = cutlass/flashinfer_* /marlin/emulation).
-    → **플래그를 생략**하고 `moe_backend=auto` 의 vLLM NVFP4 oracle 선택에 위임하면 **FLASHINFER_CUTLASS**(NvFp4 변종 =
-    `FlashInferCutlassNvFp4LinearKernel`, sm_121a prebuilt 존재)를 골라 서빙된다(이번 세션 122B-NVFP4 2노드 serve PASS —
-    testlog_26062614 §2). bf16 의 triton 교훈을 NVFP4 에 무비판 이식하면 attempt-1 처럼 즉사한다.
-  - **arch-walled 환경에선 `auto` 자체를 무비판 신뢰 ✗ (carry-forward 금지의 핵심)**: 122B-NVFP4 는 `auto`가 마침 FLASHINFER_CUTLASS 를 골라 통했으나 그 "auto 가 통한다"마저 context-bounded 다 — arch-wall 에선 `auto` 폴백이 **MARLIN-repack → 통합메모리 OOM(호스트 하드다운)** 일 수 있다. ∴ MXFP4 대형 MoE(예 DeepSeek-V4 on sm_121)는 비-repack 경로 **`--moe-backend humming` 을 oracle 독해로 명시**한다(`auto` 위임 ✗). 근거 = 헌법 §모델별 서빙전략 독립 따름정리 · `testlog_26062823`.
-  - 값은 `MoEBackend` Literal(config/kernel.py) 참조. (FlashInfer 커널 캐시 `/root/.cache/flashinfer` 볼륨 영속화 시 재컴파일 회피 — 후속.)
+- **Phase 2 teardown(필수)**: 트라이얼은 끝날 때마다 `docker rm -f` 로 컨테이너를 제거한다(통합메모리 잔류 OOM 방지 — `run_trial` 의 `finally` 가 보장).
+- 빌딩블럭(`.claude/`)은 추적 대상 — 외부/공식 스킬·플러그인은 propose→review→install.
 
 ## 5.5 escalation — "현 vLLM 불가" 발견 → upstream 핸드오프 (버전-bump 축 · 발견≠소유)
 
-> §①.5/`upstream-version-watch` §4.7(빌드-바깥 **native dep** 추가 = *같은* vLLM 버전에 lib 보강)와 **다른 축**: 여기는 **vLLM 버전 자체가 모델을 못 받는** 경우(공식 미지원·포크 필요·transformers-only). 둘 다 *"발견≠소유→upstream 핸드오프"* 지만 §5.5는 **버전핀/포크 축**이다(§①.5/§4.7은 lib-축 *진입* — 단 §4.7 사다리 상단은 §3.6(ii)와 **동일 fork-pin으로 수렴**: 경계서 처방 머신리 공유). 헌법 §escalation 역루프 따름정리 · `plan_26063009_19_14` · 절차-홈 `workflow.md` §escalation 역루프.
+> `upstream-version-watch` §4.7(빌드-바깥 **native dep** 추가 = *같은* vLLM 버전에 lib 보강)와 **다른 축**: 여기는 **vLLM 버전 자체가 모델을 못 받는** 경우(공식 미지원·포크 필요·transformers-only). 헌법 §escalation 역루프 따름정리 · 절차-홈 `workflow.md` §escalation 역루프.
 
-- **드문 예외 경로**: 대다수 신규 모델은 현 컨테이너로 그냥 뜬다 → **매 서빙요청마다 외부리서치 ✗**. escalation은 **구동불가 증상이 "못 띄움"을 가리킬 때만** 발동.
-- **발견 술어(둘 다 요구 — 오발 방지)**: ① **구동불가 증상** — config arch/quant 미지원, serve init 즉사(아키 미등록), transformers-only 폴백 신호 · ② **외부 교차검증 확증** — HF 모델카드(커스텀 vLLM·포크 지목 여부) + vLLM GitHub issue/release/PR("이 모델 아직 미지원" 게시·머지 PR). **단일 신호로 escalate ✗**(증상만/소문만 금지). 외부검색은 §3 L166·§①.5 카드 교차검증 근육의 연장(모델획득 격리 한정이라 전략수립 외부검증 허용·의무 — 헌법 §모델 획득 모드 따름정리).
-- **핸드오프(recipe는 소유 ✗)**: 위 둘이 "현 vLLM 불가"를 가리키면 → 사용자에게 *"이건 vLLM 측 문제 → upstream에 버전핀을 넘길까요?"* **명시 승인 요청** → 승인 시 `upstream-version-watch` §3.6으로 핸드오프(증거=증상+외부 확증 첨부). **recipe-explorer는 버전핀 변경·이미지 빌드를 하지 않는다**(소유 아님 — upstream의 3출구가 처방·rebuild). rebuild된 이미지로 recipe가 전략수립(§2–§6) 재진입.
-- **carry-forward 금지 정합**: escalation 판정도 **모델×하드웨어마다 재확정**(이전 모델의 "됐다/안 됐다"를 전가 ✗ — 헌법 §모델별 서빙전략 독립 따름정리). 새 모델이 더 새 vLLM을 요구할 수 있다는 게 본 루프의 동기다.
-- **런타임블럭/서브 주의**: 외부검색은 **이중게이트**(A2A 위임 키 ∧ egress-online) 조건부다. egress-restricted 서브는 외부검색이 물리 불가(egress-online+위임 서브는 자율) → restricted 시 서브는 **증상만 docs insight 상향 보고**(D12 — `<model>_patch.py` 탐지 상향과 동형), 메인이 외부검색·처방한다. 전략수립은 메인+사용자 동석 전제(단 서브 자율 시 서브+사용자).
-
-## 6. Phase 2 — 통합 trial-loop (`recipe.py simulate`)
-
-```bash
-# 배선/수렴 검증(docker 없이): mock-profile 의 vllm_profile+functional 로 결정론 테스트.
-python3 recipe.py simulate --config config.yaml --candidate lockset.json \
-  --dry-run --mock-profile mock.json --run-id 2026062122_1_qwen_sim --cap 3
-
-# 실서빙(컨테이너 띄움): NAS 모델 존재 전제, 이미지 vllm-src-022:clean.
-python3 recipe.py simulate --config config.yaml --candidate lockset.json \
-  --image vllm-src-022:clean --topic qwen36-27b --cap 3
-```
-
-루프(cap 기본 3 = reconciliation_cap, workflow S3와 동일):
-
-```text
-run_trial(candidate)            # docker run -d → /health 200 폴링 → functional_smoke → logs → parse_vllm_log → teardown
-  → sim_classify(trial, budget, margin)
-      none           → 수렴. gen_recipe_set 3종 세트 + simlog write_summary + feedback(converged=True, 실측)
-                       → 최종 serve-up 후 §6.5 마무리(lite 벤치 자동 핸드오프 · opt-out 경고 1줄 · 용처 팝업/유지·down)
-      vram_oom       → 조정: kv_cache_memory_bytes = min(required, max_safe)  [실측 weights/overhead 기반]
-      functional     → 조정: 실패한 soft 변수를 *_candidates 다음 후보로 폴백
-      vram_infeasible→ HITL 즉시 중단(KV로 못 푸는 구조적 초과)
-      unknown        → HITL 즉시 중단(알려진 시그니처 미매칭)
-  → 반복 (cap 소진 시 HITL)
-```
-
-- **참조-그라운디드 해결 (`functional`·`unknown` 복구 — 자기추론 금지)**: `functional` 폴백 소진 또는 `unknown`(시그니처 미매칭)에
-  도달하면 re-strategize/halt **전에** 권위 참조를 먼저 조회한다(헌법 "버전 문자열 해소를 확률론으로 처리 금지"의 error-recovery 연장 —
-  여기서 토큰을 더 쓰는 것은 *권장*된다: 자기추론보다 정확도를 산다). 조회 순서: ① **전체 `trialNN_vllm.log`**(루프는 regex excerpt 만
-  파싱하므로 원문 전체를 읽어 실패 시그니처·oracle 경고 확인) → ② 모델 `config.json`/`chat_template`(파서·능력·아키 가정 검증) →
-  ③ **빌드 이미지의 실제 vLLM 버전 + 레지스트리 정적 grep**(§4 step-5 파서확증 기법을 *초기 emit 뿐 아니라 복구 루프에서도* 재실행 —
-  버전-exact 등록명·지원 dtype 확인; 이번 NVFP4 `triton` 미지원도 oracle supported-list 로 식별 — §5) → ④ vLLM oracle 소스
-  (예 `config/kernel.py` `MoEBackend`·선택 로직) → ⑤ **외부 교차검증(메인 한정 — 로컬 소스 소진 시 의무)**:
-  `.claude/rules/references.md` §5 부정판정 최소범위 레시피(HF 카드 vLLM 절·discussions + vLLM issue/PR 모델
-  클래스명 검색)를 수행하고 **검색어·URL·일자를 testlog "탐색 증거" 섹션에 기록** — ⑤ 수행·기록 없이
-  "이 조합은 불가" 부정 보고 금지(자기추론-only 부정 결론 차단 · plan_26070208; egress-restricted 서브 = ⑤ 생략
-  + 증상 상향 · egress-online+위임 서브 = ⑤ 자율 수행 — D12). ①–⑤ 로도 미해소면 그제서야 Model-C HITL.
-- **준비 판정 = `:PORT/health` HTTP 200**. 로그의 "startup complete" grep 금지(거짓양성 — workflow S3와 동일).
-- **수렴 시**: `configs/<name>.yaml`(VRAM 분해 주석 + `max-num-seqs`·`kv-cache-memory-bytes`·`kv-cache-dtype`),
-  `configs/<name>.sh`(`VLLM_ATTENTION_BACKEND` export + tool/reasoning 파서 플래그), `envs/.env.<name>`을 생성.
-- **미수렴(cap 소진/infeasible/unknown)** → **Model-C HITL** 보고: 증거 simlog 경로 제시, 비0 종료(3).
-- **증거 발행**: `docs/simlog/<run_id>/`에 `trialNN_vllm.log`·`_profile.json`·`_candidate.yaml`·`_smoke.json`,
-  `correction_history.jsonl`(조정 이력), `run_summary.json`. 빌드/검증 판정은 `docs/testlog/`에 별도 기록(`.claude/rules/docs.md`).
-- **feedback_log**: invocation당 1행, Phase 2 필드(`batch, kv_cache_memory_bytes, attention_backend,
-  tool_call_parser, reasoning_parser, converged, trial_count, correction_history`)를 실측 채움.
-
-## 6.5 서빙 완료 마무리 — lite 벤치 핸드오프 + 용처 연결 매뉴얼 (Convenience/Experiences · plan_26071115 · Phase C)
-
-Phase 2 수렴(§6 `none`) + 최종 serve-up 성공 후, **최종 서빙유지 판정의 주체는 recipe-explorer**(런타임 스킬 중
-서빙을 기동·유지·종료하는 최종 권위). 그 마무리 단계에서 다음을 순서대로 수행한다.
-
-- **① lite 벤치 자동 핸드오프 (D5 — 트리거·핸드오프만)**: 서빙 성공 직후 **adversarial-benchmark 의 lite 모드**
-  (`lite_bench.sh`)로 핸드오프해 5종 상태 스냅샷을 자동 수행한다. **lite 소유 = adversarial-benchmark**(§5.5) —
-  recipe 는 *측정을 재구현하지 않고* 트리거만 한다. lite = inform-only(D8) · 기본 ON(가벼운 스킵 무시·강력 거부
-  구문만 세션 한정 억제 D7/D25). 헌법 §경량 벤치 자동 핸드오프 따름정리(명시 예외 — 관측·inform-only 한정)를 근거로 한다.
-  괴리 의심 시 lite 는 **이상징후 안내 + full 승격 권유**까지(자동 loop-back ✗). 사용자가 "커뮤니티에서 이 정도
-  나온다는데 검증해줘" 류 HITL 을 주면 그때 **full 벤치**(§6·loop-until-done·verdict_rule 게이트 — 기존 그대로)로 승격.
-- **② opt-out 노드 서빙 경고 재확인 (Phase A 연동 · D31·NG-5)**: opt-out+통합메모리 경고의 **발화 시점 정본은
-  terraforming §2.6 ③**(각 serve *기동 직전*). 이 마무리 단계(유지 결정)에서는 그 리스크를 **재고지**한다 — manifest
-  `host_safety.installed` 를 읽어 **통합메모리 노드 ∧ `installed:false`** 면 **에이전트 채팅 1줄**("워치독 미설치 —
-  통합메모리라 OOM 시 호스트 다운 위험, `install_host_safety.sh` 로 보강 가능"). **discrete 노드·installed:true 는
-  무경고 · serve 스크립트/로그 배너 코드변경 ✗**(시끄러운 경험 방지 — 페르소나 행동).
-- **③ 서빙유지 / down 분기**:
-  - **유지(기본)**: 서빙 완료 선언 → **용처 연결 매뉴얼 팝업**(아래 ④) → 서빙 유지.
-  - **down(사용자 명시 "테스트만")**: serve → **lite 수행** → 결과 표시 → **down**. **용처 매뉴얼 생략**(D21 — 라이브
-    엔드포인트 없음·용처 자체 부재).
-- **④ 용처 연결 매뉴얼 팝업 (D6·D9·D20·D27 · 벤치 루프가 돌았다면 승인 후)**: 채팅 **info-only 팝업**(파일 산출물
-  없음). **살아있는 엔드포인트 실값**(host:port/v1·서빙 모델명) 반영.
-  - **깊이 = 연결 방식만**(D20·NG-2): 대상 도구(OpenWebUI·Hermes Agent 등)의 **엔드포인트/API 필드 설정법** 중심.
-    대상 도구는 **타 지역·타 서버 소재 가능**(이 프로젝트 PC 에선 설치유무 불가지) → **설치 가이드·설치 탐지 ✗**.
-    도구 미설치로 보여도 공식 문서 링크 1줄만 덧붙인다.
-  - **외부검색 평면**: 획득모드와 무관하게 허용(서빙전략 외부 교차검증과 **동일 평면** — 모델획득 격리와 별개 · §3 「모델획득 격리 한정이지 외부접속 전반 차단 ✗」).
-    검색 실패 시 **음성정직 + curl 기본 안내 폴백**. **egress-restricted 서브 = 메인 릴레이**(기존 D12 경계).
-  - **무답/"아몰랑" (D9)**: 외부검색 생략 — **OpenAI-호환 엔드포인트 curl 예시만** 제시.
-- **⑤ hint 태그 발동 신호 (신규모델 closer · 전작업 완료 후 · main-only)**: ①~④(lite·용처 등) 마무리가 끝나고
-  workflow S4(커밋·문서·전파)까지 종결된 **최후**에, 이 서빙이 **새 `(vllm×model×arch)` 조합**이면(=이전에 hint 태그
-  없던 모델/버전/HW) hint 태그 발행을 **제안(Y/N)** 한다. **recipe 는 트리거·신호만** — 엔진(`scripts/hint_tag.py`)·발행
-  소유·push 는 workflow S4/헌법 §hint 배포 레이어 따름정리 §발동 시점(무인 자동 태깅 ✗ · **모든 push=사용자 소관**,
-  브랜치 push 도 루틴 대상 아님). egress-restricted 서브 = 발행 ✗(main-only) · 증상만 상향(D12). 절차 원천 =
-  `plan_26070222`·`plan_26071607`.
+- **드문 예외 경로**: 대다수 신규 모델은 현 컨테이너로 그냥 뜬다 → **매 서빙요청마다 외부리서치 ✗**. 구동불가 증상이 "못 띄움"을 가리킬 때만 발동.
+- **발견 술어(둘 다 요구 — 오발 방지)**: ① **구동불가 증상**(config arch/quant 미지원, serve init 즉사, transformers-only 폴백 신호) ∧ ② **외부 교차검증 확증**(HF 모델카드의 포크 지목 + vLLM GitHub issue/release/PR). **단일 신호로 escalate ✗**.
+- **핸드오프(recipe는 소유 ✗)**: 사용자에게 *"이건 vLLM 측 문제 → upstream 에 버전핀을 넘길까요?"* **명시 승인 요청** → 승인 시 `upstream-version-watch` §escalation 으로 핸드오프(증거 첨부). **버전핀 변경·이미지 빌드를 하지 않는다**. rebuild 된 이미지로 전략수립 재진입.
+- **carry-forward 금지 정합**: escalation 판정도 **모델×하드웨어마다 재확정**(이전 모델의 "됐다/안 됐다" 전가 ✗).
+- **런타임블럭/서브 주의**: 외부검색은 **이중게이트**(A2A 위임 키 ∧ egress-online) 조건부다. restricted 서브는 **증상만 docs insight 상향 보고**(D12), 메인이 외부검색·처방한다.
 
 ## 7. 범위 (Phase 1 / Phase 2)
 
-- **Phase 1 (In)**: config.json 파싱 → 후보 생성 → 결정론 VRAM 추정·하드게이트·랭킹 → 리포트 → HITL → 3종 세트
-  → 되먹임 로그(추정 채움). *실서빙 없음.*
-- **Phase 2 (In)**: 멀티턴 인터뷰 → lock-set → 실서빙 trial-loop(절대 KV 클램프 수렴) → 검증된 3종 세트 + simlog 증거.
-- **Out (명시적 제외)**: 품질/정확도 측정·랭킹(영구 밖) · 속도/레이턴시 벤치(별도 스킬) · `tensor-parallel-size` 축 자동탐색
-  · 멀티노드 2-node Ray 서빙(workflow S3, 별도 경로). `kv-cache-dtype`는 Phase 2에서 KV quant lock으로 편입됨.
+- **Phase 1 (In)**: 파싱 → 후보 생성 → 결정론 추정·하드게이트·랭킹 → 리포트 → HITL → 3종 세트 → 되먹임 로그. *실서빙 없음.*
+- **Phase 2 (In)**: 인터뷰 → lock-set → 실서빙 trial-loop(절대 KV 클램프 수렴) → 검증된 3종 세트 + simlog 증거.
+- **Out (명시적 제외)**: 품질/정확도 측정·랭킹(영구 밖) · 속도/레이턴시 벤치(=`adversarial-benchmark`) · `tensor-parallel-size` 축 자동탐색 · 멀티노드 2-node Ray 서빙(workflow S3).
 
 ## 8. 보조 파일
 
-Phase 1:
-- `scripts/quant_table.py` — quant 바이트 테이블(whichllm 벤더링·출처 주석) + `vllm_quant_bpw`/`dtype_bpw` 해소 함수.
-- `scripts/parse_model_config.py` — `config.json` 결정론 파서(text_config 중첩·safetensors 헤더 실측, +CLI).
-- `scripts/crosscheck_model_card.py` — **HF 원본 모델카드(번들 README)+inference/reqs+config+dtype 교차검증**(①.5; coarse-quant 함정·special-dep 사전경보, MISMATCH=비0 종료·stdlib) + **외부(HF API) VRAM 이중검증**(`fetch_hf_safetensors_total`/`crosscheck_external_vram` — 유일하게 예외적 네트워크 호출, plan_26070814).
-- `scripts/estimate_vram.py` — VRAM 추정기. Phase 1 `estimate()`(공식 `/gmu`) + Phase 2 절대 클램프 함수
-  (`per_token_kv_bytes`/`required_kv_bytes`/`max_safe_kv_bytes`/`max_feasible_max_len`/`estimate_absolute`).
-- `scripts/rank_recipes.py` — `auto_candidates`·하드게이트·Judge 랭킹·리포트 렌더(+CLI).
-- `scripts/gen_recipe_set.py` — 3종 세트(.yaml+.sh+.env) 생성기. Phase 2 키(batch·KV 클램프·파서·VRAM 분해 주석) 반영(+CLI).
-- `scripts/feedback_log.py` — 되먹임 로그 JSONL 라이터. Phase 2 nullable 필드 예약(+CLI).
+**Phase 1 스크립트**: `scripts/quant_table.py` · `parse_model_config.py` · `crosscheck_model_card.py`(모델카드 교차검증 + 외부 HF API VRAM 이중검증 — 유일한 예외적 네트워크 호출) · `estimate_vram.py` · `rank_recipes.py` · `gen_recipe_set.py` · `feedback_log.py`.
 
-Phase 2:
-- `scripts/parse_vllm_log.py` — vLLM 서빙 로그 → 실측 메모리 분해(weights/kv/overhead/total, 토큰수, backend; +CLI).
-- `scripts/functional_smoke.py` — OpenAI 호환 `/v1/chat/completions` 기능 스모크(완성·tool_call·reasoning, 능력 게이팅, `--mock`).
-- `scripts/sim_classify.py` — 트라이얼 결정론 분류기(OOM 정규식 + 천장 점검 → failure_class/adjust_target; +CLI).
-- `scripts/run_trial.py` — 단일 트라이얼 실행기(docker run→/health→스모크→logs→parse→teardown, `--dry-run`/`--mock-profile`; +CLI).
-- `scripts/simlog_writer.py` — simlog 라이터(`new_run_dir`/`write_trial`/`append_correction`/`write_summary`) + `vllm_logging_config.json` 템플릿.
+**Phase 2 스크립트**: `scripts/parse_vllm_log.py` · `functional_smoke.py` · `sim_classify.py` · `run_trial.py` · `preload_ram_gate.py` · `simlog_writer.py`(+`vllm_logging_config.json`).
 
-오케스트레이터 / 입력:
-- `recipe.py` — `estimate`/`generate`(Phase 1) + `simulate`(Phase 2 통합 trial-loop) 서브커맨드, tp 브랜치 자동.
-- `config.example.yaml` — 입력 스키마(주석). `config.yaml` — 실사용 입력. `lockset.json` — Phase 2 인터뷰 산물.
+**오케스트레이터 / 입력**: `recipe.py`(`estimate`/`generate`/`simulate`) · `config.example.yaml` · `config.yaml` · `lockset.json`.
+
+**조건부 references(필요할 때만 연다)**
+- `references/parse-and-crosscheck.md` — config 입력·결정론 경계표·parse/crosscheck/후보/rank/generate 상세.
+- `references/phase2-interview.md` — lock/soft/free 인터뷰 질문지·파서 caveat·lock-set 스키마·UX 4항목.
+- `references/kv-clamp.md` — 절대 KV 클램프·타겟-GPU 이식 예산·측정 vs 공식·인코딩 사전적재·MoE 백엔드·런타임 패치.
+- `references/serving-closeout.md` — trial-loop 배선·참조-그라운디드 복구·마무리(lite/용처/hint) 시퀀스.
+
+근거: `docs/plan/plan_2026060819_1`(Phase 1 승인본) · `plan_2026062121_1`(Phase 2) · Seed `seed_e02364cce49d`.

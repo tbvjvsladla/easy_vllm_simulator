@@ -25,6 +25,39 @@ adaptation.
 > Building-block, main-only (one central librarian; sub-node knowledge is recovered via the
 > doc-mirror, not a second library). The live `__llm-wiki/` is untracked; this skill is tracked.
 
+## Contract
+
+- **Goal** — index the project's own work-history as path references + a deterministic edge graph, and surface authority-ranked prior evidence without copying source bodies.
+- **When to invoke** — as a **sidecar** at three loop points only: work-start **discovery**, a new **failure**, and evidence **publication** (shelving). Never as a step of the serving chain.
+- **Inputs** — `docs/{devlog,testlog,plan,simlog}` + `sync_staging/sub_docs` + `seed` (graceful skip if absent) · a question or a doc stem.
+- **Outputs** — `__llm-wiki/` registry + edge graph (untracked) · authority-ranked answers with source paths · lint/scan reports.
+- **Mandatory procedural spine** — see §Mandatory procedural spine below (orientation before answering).
+- **State transitions** — advances **none**. The librarian informs `execution-approved` planning and `evidence-complete` shelving, but never judges a state; `scripts/completion_gate.py` owns every state verdict.
+- **HITL/safety boundaries** — no raw-body copies · no constitution/`.claude/` indexing (anti-confirmation-bias) · no web research · no cron/background ingestion · **negative honesty**: answer "no evidence" rather than fabricate a path.
+- **Failure → reference routing** — see §Failure → reference routing below.
+- **Deterministic commands** — `scripts/init_wiki_desk.py`(init/`--incremental`) · `scripts/smoke_query.py` · `scripts/lint_wiki.py` · `scripts/scan_raw_copy.py`.
+- **Handoff contract** — **sidecar / non-owner**: it *cites* what other skills own. Benchmark report, certificate and verdict are owned by `adversarial-benchmark`; manifest/Flag by `terraforming_node`; image identity by `upstream-version-watch`; serving triplet by `vllm-recipe-explorer`. wiki-desk shelves and points at them, and never (re)publishes or judges them.
+- **Owns (state)** — `wiki-index` · `doc-edge-graph`
+
+## Mandatory procedural spine
+
+1. **Orient** — read `__llm-wiki/index.md` → `SCHEMA.md` → `sources/source-registry.md` → `relationships/edge-graph.md` → `concepts/document-universe-hierarchy-map.md` (in that order; scripts read `sources/registry.json`).
+2. **Warm-start** — run the incremental shelving pass so the registry matches disk before answering.
+3. **Query** — resolve intent (completion vs intent) → search metadata + edges first, never raw bodies → rank by intent → authority → relevance.
+4. **Traverse** — follow `realizes`/`evidences`/`same-thread` edges to surface supporting plan/testlog/simlog; open a body only when the summary is insufficient.
+5. **Answer or refuse** — if nothing clears the authority/score gate, return the negative verdict; never fabricate a path.
+6. **Shelve** — after new docs are published, re-run the incremental pass and lint the graph.
+
+## Failure → reference routing
+
+| 실패 신호 | 라우팅 대상 (정확 경로) |
+|---|---|
+| Dead path-ref · stale sha256 · orphan node · authority out of range | `.claude/skills/wiki-desk/scripts/lint_wiki.py` |
+| Query returns nothing / library looks unbuilt or drifted | `.claude/skills/wiki-desk/reference/MANUAL.md` |
+| Target environment has no document system yet (init interview) | `.claude/skills/wiki-desk/reference/INIT_GUIDE.md` |
+| Raw source bodies suspected inside the library | `.claude/skills/wiki-desk/scripts/scan_raw_copy.py` |
+| Reporting a field observation about the librarian itself | `.claude/skills/wiki-desk/reference/FIELD_REPORT_TEMPLATE.md` |
+
 ## When to use (invocation timing)
 
 Invoke the librarian — read its metadata first, then act — when:

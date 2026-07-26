@@ -28,6 +28,42 @@ description: >-
 > 설계 원칙(하네스 엔지니어링): **스캔·게이트·렌더·일치단언은 결정론 스크립트**(`scripts/scan_node.py`·`scripts/render_sub_env.py`),
 > **인터뷰·승인·HITL 판정은 페르소나(이 문서)**. 둘을 섞지 않는다.
 
+## Contract
+
+- **Goal** — 토폴로지를 인터뷰로 확정하고 노드 사실을 스캔해 `output/<topology>/manifest.yaml` + 테라포밍-완수 Flag 를 발급한다(멀티면 서브 에이전트 작업환경까지).
+- **When to invoke** — fresh-clone(미테라포밍) 감지 · HW/네트워크/manifest 변경 · `scripts/staleness_gate.py` 가 preflight 필요를 반환할 때. **조건부 preflight** 이지 매 작업 상시단계가 아니다.
+- **Inputs** — 사용자 인터뷰 답(토폴로지·모델 획득 모드·multi 5-전제조건) · 노드 실측 스캔 · 현재 git 브랜치 · (선택) 이전 attestation.
+- **Outputs** — `output/<topology>/manifest.yaml`(HITL 반영) · Flag attestation · (multi) `output/multi/sub_provision/` 스테이징 + 카나리 리포트.
+- **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 7단계(순서 고정).
+- **State transitions** — 산출물 자체는 상태가 아니라 `execution-approved` 의 **전제**(HW 사실·Flag)를 만든다. runtime-ready/evidence-complete/promotion-ready 판정은 `scripts/completion_gate.py` 소유.
+- **HITL/safety boundaries** — 무단 스캔 ✗ · 무증거 manifest 기입 ✗ · 서브 work_dir 자동 신설 ✗ · 에이전트 무인 sudo ✗(§5 금지).
+- **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
+- **Deterministic commands** — `scripts/staleness_gate.py`(조건부 preflight 트리거) · `scripts/scan_node.py`(스캔·게이트·3자일치·emit) · `scripts/render_sub_env.py`(서브 환경 렌더) · `scripts/manifest_contract.py`(Flag 리더).
+- **Handoff contract** — Flag 발급 → `upstream-version-watch`(컨테이너 빌드) → `vllm-recipe-explorer`(서빙전략). 서브 전달차는 `upstream-version-watch/scripts/sync_to_sub.sh` 단일 경로.
+- **Owns (state)** — `manifest.yaml` · `terraforming-flag` · `a2a-delegation-key` · `sub-agent-env`
+
+## Mandatory procedural spine
+
+필수 순서다 — 앞 단계의 증거 없이 뒤 단계로 가지 않는다(무단 스캔·무증거 기입 차단이 이 순서에서 나온다).
+
+1. **staleness 판정(조건부 preflight 진입)** — `python3 .claude/skills/terraforming_node/scripts/staleness_gate.py --topology <single|multi> --repo . --now <YYYY-MM-DD> [--observed <scan.json>]`. exit 0(`FRESH`)이면 재진입 불요 — 여기서 끝낸다. exit 4 면 reason code(`MANIFEST_ABSENT`/`FLAG_ABSENT`/`HW_DRIFT`/`ATTESTATION_STALE`)가 아래 단계의 착수 근거다.
+2. **토폴로지 인터뷰**(§0.5.2) — 스캔보다 먼저. 미선언 시 emit fail-closed(§0.5.3), 브랜치 불일치 시 HITL 브랜치 전환(§0.5.4).
+3. **모델 획득 모드 인터뷰**(§0.5.7) → **0차 init-plan 발행 + 자기-HITL 승인**(§0.5.8).
+4. **스캔**(single=§1S · multi=§1.1 5-전제조건 인터뷰 → §1.2 사용자 승인 → §1.3 스캔 → §1.4 성능 게이트).
+5. **게이트 + 3자-일치 단언**(§1.5) → 통과 시에만 **manifest + Flag 기입**(§1.6 / §1S, HITL).
+6. **(multi) 서브 에이전트 환경** — 렌더 → 전달 → **model-less 카나리**(§2.3–§2.5). 카나리 미통과 시 done 선언 ✗.
+7. **호스트 안전체계 세션 최종 Y/N**(§2.6) — Flag 발급 **이후**의 독립 선택조항.
+
+## Failure → reference routing
+
+| 실패 신호 | 라우팅 대상 (정확 경로) |
+|---|---|
+| 재진입이 필요한지 불명(HW·manifest·attestation 변화 판정) | `.claude/skills/terraforming_node/scripts/staleness_gate.py` |
+| 스캔/게이트/3자-일치 blocked(비0 종료) · emit fail-closed | `.claude/skills/terraforming_node/scripts/scan_node.py` |
+| 서브 환경 렌더 실패(미치환 placeholder·필수 필드 누락) | `.claude/skills/terraforming_node/scripts/render_sub_env.py` |
+| 서브 위임/카나리의 provider 실행문법이 필요 | `.claude/skills/terraforming_node/references/agent-control-adapter.md` |
+| Flag 미발급이라 런타임 스킬이 info-only 로 떨어짐 | `.claude/skills/terraforming_node/scripts/manifest_contract.py` |
+
 ## 0. 전제 / 입력
 - **토폴로지-중립 진입**: single·multi **공통** 발동. (과거 "multi 전용·single 비활성(α)"는 plan_26063009_44_23 에서 폐기 — single 진입점 부재 = chicken-and-egg 갭이었음: "single이냐 multi이냐"를 묻는 주체가 multi일 때만 발동했음.) **첫 동작 = 토폴로지 인터뷰(§0.5)**. 이하 §1(진입 루틴)·§2(서브 환경구축)는 **topology=multi 분기**, single 은 §0.5→§1S 로 짧게 완결.
 - **SSH = Case A**(multi 한정): 메인↔서브 패스워드리스 SSH는 **사전조건**(검증만, 키 교환·물리망 설정은 안 함).
@@ -66,7 +102,8 @@ description: >-
 ### 1.1 5-전제조건 인터뷰 (판단 — 사람에게 묻는다)
 자동스캔 전에 멀티턴으로 확인:
 ①메인↔서브 **고속 RDMA 인터커넥트(예: ConnectX-7)** 연결 ②**네트워크** 구성 완료 ③메인↔서브 **SSH**(Case A) 구성 완료
-④서브노드 **Claude Code 설치** ⑤서브 Claude Code **모델 연결**(로그인/API key — `claude -p` 실제 도달).
+④서브노드 **코드에이전트 CLI 설치** ⑤서브 코드에이전트 **모델 연결**(로그인/API key — `probe(reachable)` 실제 도달).
+provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해소한다(본문 inline ✗).
 
 ### 1.2 사용자 승인 게이트 (판단)
 인터뷰 응답 수집 → 사용자가 **명시 승인**해야 스캔 시작.
@@ -137,14 +174,14 @@ description: >-
 - **단일 전달차**: 코드+에이전트환경 모두 sync_to_sub.sh 한 경로. dry-run 기본 → 사람 검토 후 --apply.
 
 ### 2.4 A2A-개념 협업 계약 (서버 없음)
-- 메인=client(Task 발급·리포트 검증·피드백) · 서브=remote(자율 수행·자기검증 리포트 1개). A2A 어휘 차용, HTTP 서버 ✗(전송=`ssh claude -p`).
+- 메인=client(Task 발급·리포트 검증·피드백) · 서브=remote(자율 수행·자기검증 리포트 1개). A2A 어휘 차용, HTTP 서버 ✗(전송=SSH 단발 `delegate(task)` — provider 문법은 `references/agent-control-adapter.md`).
 - **검증 = push-attestation**: 서브가 self-verification(config-parse·schema·runner 문법·checksum·**로컬 스모크**)을 리포트에 담아 회신 → **메인은 리포트만 검증, 서브 워크스페이스 재스캔 ✗**.
 - **성공술어**: phase 별(comms.md). 예: config = triplet 생성 + 로컬 스모크 응답("린트 통과 ≠ 서빙됨").
 - **상태=파일**: `tasks/<context_id>.json`("파일=세션"). **max-turns=3**(reconciliation_cap) 소진 → status=failed → 메인 **Model-C(HITL)**.
 - per-task 휘발값(모델명·예산·NAS 서브디렉토리)은 **Task Message** 로(manifest 복제 아님).
 
 ### 2.5 완료 게이트 — model-less 카나리 라운드트립 (R1 정합)
-전달 후 메인이 **모델 없이** 부트스트랩 Task 1회: `ssh <sub> claude -p '<inspect bootstrap>' --output-format json`
+전달 후 메인이 **모델 없이** 부트스트랩 Task 1회(`bootstrap_canary()` — 실행문법 = `references/agent-control-adapter.md` §2)
 → 서브가 새 CLAUDE.md+런타임블럭+settings+comms 로드, **phase=inspect·status=completed + self_verification** 의 schema-valid 리포트 반환.
 이로써 "구성된 환경이 프로토콜대로 작동함"을 전체로서 증명(권한행·skill YAML·페르소나 비준수 포착 — 체크섬이 못 잡는 것). 실패 시 max-turns→Model-C. **카나리 미통과 시 done 선언 금지.**
 
@@ -169,11 +206,13 @@ description: >-
 ## 3. 결정론 vs 판단 분리
 | 결정론 (스크립트) | 판단 (이 페르소나) |
 |---|---|
-| `scan_node.py`(스캔·게이트·3자-일치·manifest 블록·**emit_gate=토폴로지 미선언 emit fail-closed**) · `render_sub_env.py`(manifest→10아티팩트 렌더/복제·미치환/필수 검증) · sync_to_sub 체크섬 · `install_host_safety.sh`(설치·검증 — 실행 트리거는 HITL) | **토폴로지 진입 인터뷰(§0.5)** · fresh-clone 온보딩 능동제안 · 5-전제조건 인터뷰 · 사용자 승인 · 브랜치≠토폴로지 시 브랜치전환 안내 · ib_write_bw 오케스트레이션 · **호스트 안전체계 세션 최종 Y/N 설명·승인(§2.6 — 보험판매 톤 선택조항)** · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 · 모호 시 중단·질의 |
+| **`staleness_gate.py`(조건부 preflight 트리거 — manifest/Flag/HW드리프트/attestation 나이 3축, `--now` 주입·벽시계 ✗)** · `scan_node.py`(스캔·게이트·3자-일치·manifest 블록·**emit_gate=토폴로지 미선언 emit fail-closed**) · `render_sub_env.py`(manifest→10아티팩트 렌더/복제·미치환/필수 검증) · sync_to_sub 체크섬 · `install_host_safety.sh`(설치·검증 — 실행 트리거는 HITL) | **토폴로지 진입 인터뷰(§0.5)** · fresh-clone 온보딩 능동제안 · 5-전제조건 인터뷰 · 사용자 승인 · 브랜치≠토폴로지 시 브랜치전환 안내 · ib_write_bw 오케스트레이션 · **호스트 안전체계 세션 최종 Y/N 설명·승인(§2.6 — 보험판매 톤 선택조항)** · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 · 모호 시 중단·질의 |
 
-회귀 고정: `python3 scripts/scan_node.py --self-test`(게이트 9 + emit_gate fail-closed 4 + emit-block None-leak 2 = 15케이스) · `python3 scripts/render_sub_env.py --self-test`(렌더 4케이스). 둘 다 하드웨어 불요.
+회귀 고정: `python3 scripts/staleness_gate.py --self-test`(3축 판정·결정론·음성정직 10케이스) · `python3 scripts/scan_node.py --self-test`(게이트 9 + emit_gate fail-closed 4 + emit-block None-leak 2 = 15케이스) · `python3 scripts/render_sub_env.py --self-test`(렌더 4케이스). 둘 다 하드웨어 불요.
 
 ## 4. 보조 파일
+- `scripts/staleness_gate.py` — **조건부 preflight 결정론 트리거**(`--topology`·`--repo`·`--observed`·`--now`·`--max-age-days`·`--self-test`). 3축(manifest/Flag · HW 드리프트 · attestation 나이) → 안정 reason code. 미평가 축은 `skipped:*` 로 음성정직 표기(조용한 통과 ✗).
+- `references/agent-control-adapter.md` — **provider 전용 실행문법 경계**(서브 위임·카나리). 본문은 의도만, 문법은 여기서만.
 - `scripts/scan_node.py` — 결정론 스캔 코어(`--topology`·`--peer-ip`·`--bandwidth-gbps`·`--bw-floor`·`--emit-manifest`·`--self-test`).
 - `scripts/render_sub_env.py` — 결정론 렌더러(manifest→`output/multi/sub_provision/` 스테이징·`--self-test`).
 - `sub_node/` — 추적 PII-free 템플릿·정적계약: `CLAUDE.template.md`·`Agent_Card.template.json`·`settings.local.template.json`·`comms.md`·`task-report.schema.json`·`gitignore.template`.
