@@ -1205,7 +1205,8 @@ def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, rep
     repo_root_fd = os.open(str(repo_root), os.O_RDONLY | os.O_DIRECTORY)
     try:
         manifest_dir = manifest_path.resolve().parent
-        r = resolve_and_stat_evidence(repo_root_fd, repo_root, manifest_dir, plan_path_str, expect_dir=False)
+        r = resolve_and_stat_evidence(repo_root_fd, repo_root, manifest_dir, plan_path_str,
+                                      expect_dir=False, capture_content=True)
         if r["status"] != "ok":
             code = _PLAN_PATH_STATUS_TO_REASON_CODE.get(r["status"], "EXECUTION_APPROVAL_PLAN_PATH_UNREADABLE")
             add_reason(code,
@@ -1214,6 +1215,37 @@ def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, rep
             fail(2)
     finally:
         os.close(repo_root_fd)
+
+    plan_bytes = r["content_bytes"]
+    plan_blob_sha1 = hashlib.sha1(
+        b"blob " + str(len(plan_bytes)).encode("ascii") + b"\0" + plan_bytes).hexdigest()
+    if r["sha256"] != execution_approval["plan_sha256"]:
+        add_reason("EXECUTION_APPROVAL_PLAN_DIGEST_MISMATCH",
+                   "execution_approval.plan_sha256 does not match the resolved plan bytes")
+        fail(2)
+    if plan_blob_sha1 != execution_approval["plan_blob_sha1"]:
+        add_reason("EXECUTION_APPROVAL_PLAN_BLOB_MISMATCH",
+                   "execution_approval.plan_blob_sha1 does not match the resolved plan Git blob")
+        fail(2)
+    expected_atoms = [
+        f"approved_by: {execution_approval['approved_by']}",
+        f"approved_at_utc: {execution_approval['approved_at_utc']}",
+        *[f"allowed_action: {value}" for value in execution_approval["allowed_actions"]],
+    ]
+    if execution_approval["approval_atoms"] != expected_atoms:
+        add_reason("EXECUTION_APPROVAL_ATOMS_INVALID",
+                   "approval_atoms must exactly equal the deterministic atoms derived from approver, time, and actions")
+        fail(2)
+    try:
+        plan_lines = plan_bytes.decode("utf-8").splitlines()
+    except UnicodeDecodeError:
+        add_reason("EXECUTION_APPROVAL_PLAN_UTF8_INVALID", "execution approval plan must be valid UTF-8")
+        fail(2)
+    required_lines = [execution_approval["approval_anchor"], *expected_atoms]
+    if any(line not in plan_lines for line in required_lines):
+        add_reason("EXECUTION_APPROVAL_PLAN_ATOMS_MISSING",
+                   "resolved plan does not contain the exact approval anchor and derived approval atoms")
+        fail(2)
 
     if execution_approval["approved"] is not True:
         add_reason("EXECUTION_APPROVAL_NOT_APPROVED", "execution_approval.approved is not true")

@@ -137,7 +137,7 @@
   문서 경로를 채워 `- [x] 후속: <무엇> → <해소 문서 경로>` 로 닫는다(영구 미결 잔존 방지).
 - **PARKED 장부**: 파킹/미결 항목은 devlog "최종 상태" 섹션에 결정론 접두사 `- PARKED:` 로 표기
   (grep 한 방으로 전 미결 수집 — 별도 이슈트래커 없이 문서-분산 장부).
-- **검증 게이트 정합**: 컨테이너 변경은 스모크 통과(testlog 증거) 전 done 금지. last-good 커밋 시
+- **검증 게이트 정합**: done 선언 게이트는 workflow.md §검증 모드/기록 을 따른다(스모크 증거 필수). last-good 커밋 시
   `docs/devlog·testlog`에 버전·변경·스모크 결과·last-good를 기록(workflow S4).
 
 ## 4. 보관 / 전파 (브랜치 통합 모델)
@@ -146,7 +146,7 @@
   따라서 `single-node`·`multi-node` 문서는 **자동 통합·동일**. (이 gitignore-persist는 문서 작업파일 전용 메커니즘이다.)
   구현체(`Dockerfile`·`docker-compose.yaml`·`configs/`·`envs/`)는 반대로 브랜치별 독립(통합 안 함) — 산출물은 `output/<topology>/`(single|multi) 통로에 두어 혼재 차단(CLAUDE.md "산출물 통로 불변식").
 - **빌딩블럭(`.claude/`·`CLAUDE.md`)은 위와 다르다 — 이제 git-tracked**(배포 대상)이므로 브랜치 전환에 persist되지 않는다.
-  브랜치 간 동일성은 `scripts/sync_branches.sh`로 **수동 동기화**해 유지한다(작업 종료 후 사람 질의).
+  동기화 수단은 헌법 §배포/환경(manifest) "2-브랜치 배포" 참조.
 - **추적·배포되는 것 = 폴더 스켈레톤 + 각 폴더 `example.md` 1개씩만**(역할+명명규칙 · **report/ 는 예외 —
   산출물째 추적**, 아래). 외부 배포 시 CLAUDE.md/.claude의 문서 규칙이 참조하는 폴더 구조가 항상 함께 존재하도록 보장.
   - `.gitignore`: `docs/*/*` (작업문서 무시) + `!docs/*/example.md` (스켈레톤만 추적).
@@ -175,7 +175,7 @@
 - **상향 회수(서브→메인) = 문서기반 only**: 서브가 자기개선 insight 를 자기 `docs/` 에 발행 → A2A 리포트로 **경로 전달** → 메인이
   `fetch_sub_docs.sh` 로 서브 `docs/` 만 로컬 gitignored 미러(`sync_staging/sub_docs/`)로 rsync → 메인 **열람** → **HITL 재저작**.
   (이는 하향 빌드 rsync 의 `--exclude docs` 와 별개 평면 — 빌드엔 docs 불요, **회수엔 docs 가 유일 채널**. patch/코드 추출 없음.)
-- **PII**: 회수가 문서기반(코드/설정 미추출)이라 서브 헌법의 bake 정체성이 메인 추적물로 유입되지 않는다(헌법 §메인↔서브 D12-09).
+- **PII**: 회수 채널이 코드/설정을 추출하지 않는 문서기반이라는 점 자체가 격리 메커니즘이다 — 근거·범위는 헌법 §메인↔서브 D12-09 "PII 격리" 참조.
 
 ## 5. Hybrid evidence publisher (plan_26072506 Phase 2)
 

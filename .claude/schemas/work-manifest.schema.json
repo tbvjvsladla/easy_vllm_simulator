@@ -55,7 +55,8 @@
       "properties": {
         "rejected": { "type": "boolean" },
         "gate_evidence": { "type": "string", "minLength": 1 },
-        "reason": { "type": "string" }
+        "reason": { "type": "string" },
+        "recorded_utc": { "type": "string", "minLength": 1 }
       }
     },
     "benchmark": {
@@ -140,13 +141,20 @@
     "executionApproval": {
       "description": "All five fields are required whenever this block is present at all -- there is no partially-filled approval. plan_path is resolved through the same hardened, symlink-rejecting, repo-containment path resolver as every evidence.*.path (relative to the manifest's own directory, never CWD, and never an absolute string); when evidence.plan is also declared, plan_path must equal evidence.plan.path exactly. approved_at_utc must be an exact YYYY-MM-DDTHH:MM:SS[.ffffff]Z UTC timestamp -- validated by scripts/completion_gate.py:_is_valid_utc_timestamp (a regex + real calendar-date check), not by this schema (no `format` keyword is implemented by the generic validator). allowed_actions is the scope of side-effect actions this specific approval covers -- `scripts/completion_gate.py authorize --mode experimental --action <x>` requires <x> to be a member.",
       "type": "object",
-      "required": ["approved", "approved_by", "approved_at_utc", "plan_path", "allowed_actions"],
+      "required": ["approved", "approved_by", "approved_at_utc", "plan_path", "plan_sha256", "plan_blob_sha1", "approval_anchor", "approval_atoms", "allowed_actions"],
       "additionalProperties": false,
       "properties": {
         "approved": { "type": "boolean" },
         "approved_by": { "type": "string", "minLength": 1 },
         "approved_at_utc": { "type": "string", "minLength": 1 },
         "plan_path": { "type": "string", "minLength": 1 },
+        "plan_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "plan_blob_sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "approval_anchor": { "type": "string", "const": "## Execution approval" },
+        "approval_atoms": {
+          "type": "array", "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
         "allowed_actions": {
           "type": "array",
           "minItems": 1,

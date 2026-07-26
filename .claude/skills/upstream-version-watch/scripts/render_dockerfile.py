@@ -107,7 +107,12 @@ CLUSTER_INVARIANTS = {                  # ③ universal — 클러스터 포트
 #         0.24.0=#43477 DeepSeek-V4 SM120 네이티브 stock. strip-hoist 자동 skip(torch 2.12). plan_26070119, 스모크 최종중재).
 #   미인식 키는 빌드를 명시적으로 실패시킨다(false determinism 방지 — plan rev3 §5 / SKILL.md §4.6 HITL 발견 루프 유도).
 #   P6: 이 인라인 셋을 source_build_patches.yaml + 패치-리졸버 페르소나로 승급.
-VALIDATED_SOURCE_BUILD_KEYS = {("26.03-py3", "0.22.1"), ("26.05-py3", "0.23.0"), ("26.05-py3", "0.24.0")}
+VALIDATED_SOURCE_BUILD_KEYS = {
+    ("26.03-py3", "0.22.1"),
+    ("26.05-py3", "0.23.0"),
+    ("26.05-py3", "0.24.0"),
+    ("26.05-py3", "0.25.1"),  # tracked output/multi freeze; exact pair must remain synchronized
+}
 
 _PLACEHOLDER_RE = re.compile(r"\{\{\s*[A-Z0-9_]+\s*\}\}")
 

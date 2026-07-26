@@ -14,25 +14,20 @@ skopeo 불필요 — `docker buildx imagetools inspect` (익명, 레이어 pull 
   python3 resolve_ngc_tag.py 2.11.0 --start 26.05 --months 18 --arch arm64
   python3 resolve_ngc_tag.py 2.11.0 --candidates 26.03-py3,26.01-py3
 """
-import sys, json, argparse, subprocess
-from packaging.version import Version, InvalidVersion
+import sys, json, argparse, subprocess, re
 
 IMAGE = "nvcr.io/nvidia/pytorch"
 
 
 def norm(v: str):
-    try:
-        return ".".join(map(str, Version(v).release))
-    except InvalidVersion:
-        return v
+    release = release_tuple(v)
+    return ".".join(map(str, release)) if release is not None else v
 
 
 def release_tuple(v: str):
     """'2.11.0a0+xxx' → (2, 11, 0). 파싱 불가 시 None."""
-    try:
-        return Version(v).release
-    except InvalidVersion:
-        return None
+    match = re.match(r"^\s*v?(\d+(?:\.\d+)*)", str(v))
+    return tuple(int(part) for part in match.group(1).split(".")) if match else None
 
 
 def is_tuple_prefix(a, b):

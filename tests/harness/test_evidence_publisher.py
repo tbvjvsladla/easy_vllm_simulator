@@ -596,6 +596,196 @@ class TestInitIdempotency(unittest.TestCase):
         self.assertEqual(plan_path.read_text(encoding="utf-8"), "# survives\n")
         self.assertEqual(out2["created_now"], ["devlog"])
 
+    def test_flagless_rerun_preserves_prior_benchmark_fail_verdict(self):
+        code, out, err = init_publication(
+            self.repo_root, "benchmark보존", "full_benchmark", benchmark_mode="full", benchmark_verdict="FAIL")
+        self.assertEqual(code, 0, msg=f"out={out} err={err}")
+        record_path = self.repo_root / out["record_path"]
+        self.assertEqual(json.loads(record_path.read_text())["benchmark"],
+                         {"mode": "full", "verdict": "FAIL"})
+        code2, out2, err2 = init_publication(self.repo_root, "benchmark보존", "full_benchmark")
+        self.assertEqual(code2, 0, msg=f"out={out2} err={err2}")
+        self.assertEqual(json.loads(record_path.read_text())["benchmark"],
+                         {"mode": "full", "verdict": "FAIL"})
+
+    def test_flagless_rerun_preserves_pass_certificate_requirement(self):
+        code, out, err = init_publication(
+            self.repo_root, "pass_certificate", "full_benchmark",
+            benchmark_mode="full", benchmark_verdict="PASS")
+        self.assertEqual(code, 0, msg=f"out={out} err={err}")
+        record_path = self.repo_root / out["record_path"]
+        code2, out2, err2 = init_publication(self.repo_root, "pass_certificate", "full_benchmark")
+        self.assertEqual(code2, 0, msg=f"out={out2} err={err2}")
+        record = json.loads(record_path.read_text())
+        self.assertEqual(record["benchmark"], {"mode": "full", "verdict": "PASS"})
+        self.assertIn("certificate", record["required_evidence"])
+        self.assertIn("certificate", out2["pending_evidence"])
+
+    def test_malformed_identity_and_conditions_fail_before_scaffolds_or_record(self):
+        before = sorted(str(p.relative_to(self.repo_root)) for p in self.repo_root.rglob("*") if p.is_file())
+        code, out, _ = init_publication(self.repo_root, "bad_identity", "harness_change", identity={})
+        self.assertEqual(code, 2)
+        self.assertIn("INIT_INPUT_SCHEMA_INVALID", out["reason_codes"])
+        code2, out2, _ = init_publication(
+            self.repo_root, "bad_conditions", "harness_change",
+            conditions={"actual_trial": "yes", "unknown": True})
+        self.assertEqual(code2, 2)
+        self.assertIn("INIT_INPUT_SCHEMA_INVALID", out2["reason_codes"])
+        after = sorted(str(p.relative_to(self.repo_root)) for p in self.repo_root.rglob("*") if p.is_file()
+                       and not p.name.startswith("_scratch_"))
+        before = [p for p in before if not Path(p).name.startswith("_scratch_")]
+        self.assertEqual(after, before)
+
+    def test_persisted_publication_record_unknown_top_level_field_is_rejected(self):
+        code, out, err = init_publication(self.repo_root, "unknown_record_field", "harness_change")
+        self.assertEqual(code, 0, msg=f"out={out} err={err}")
+        record_path = self.repo_root / out["record_path"]
+        record = json.loads(record_path.read_text())
+        record["dangerous_unknown"] = {"path": "../../outside"}
+        record_path.write_text(json.dumps(record), encoding="utf-8")
+        code2, out2, err2 = init_publication(self.repo_root, "unknown_record_field", "harness_change")
+        self.assertEqual(code2, 2, msg=f"out={out2} err={err2}")
+        self.assertIn("PUBLICATION_RECORD_UNKNOWN_FIELDS", out2["reason_codes"])
+
+    def test_minimal_persisted_record_is_rejected_before_append_raw_mutation(self):
+        code, out, err = init_publication(self.repo_root, "malformed", "minor_patch")
+        self.assertEqual(code, 0, msg=f"out={out} err={err}")
+        record_path = self.repo_root / out["record_path"]
+        malformed = {"task_class": "minor_patch", "identity": {}}
+        record_path.write_text(json.dumps(malformed), encoding="utf-8")
+        before = record_path.read_bytes()
+        (self.repo_root / "verify.txt").write_text("verification\n", encoding="utf-8")
+        code2, out2, err2 = append_raw(
+            self.repo_root, "malformed", "verification", "verify.txt")
+        self.assertEqual(code2, 2, msg=f"out={out2} err={err2}")
+        self.assertIn("PUBLICATION_RECORD_MISSING_FIELDS", out2["reason_codes"])
+        self.assertEqual(record_path.read_bytes(), before)
+        self.assertFalse((self.repo_root / "docs" / "_evidence" /
+                          "malformed.verification.raw.jsonl").exists())
+
+    def test_unknown_nested_scaffolded_kind_is_rejected_before_append_raw_mutation(self):
+        code, out, err = init_publication(self.repo_root, "nested", "minor_patch")
+        self.assertEqual(code, 0, msg=f"out={out} err={err}")
+        record_path = self.repo_root / out["record_path"]
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        record["scaffolded"]["unexpected_kind"] = "attacker.txt"
+        record_path.write_text(json.dumps(record), encoding="utf-8")
+        before = record_path.read_bytes()
+        (self.repo_root / "test.txt").write_text("raw\n", encoding="utf-8")
+        code2, out2, err2 = append_raw(self.repo_root, "nested", "testlog", "test.txt")
+        self.assertEqual(code2, 2, msg=f"out={out2} err={err2}")
+        self.assertIn("PUBLICATION_RECORD_SCAFFOLDED_KEYS_INVALID", out2["reason_codes"])
+        self.assertEqual(record_path.read_bytes(), before)
+        self.assertFalse((self.repo_root / "docs" / "_evidence" / "nested.testlog.raw.jsonl").exists())
+
+    def test_top_level_null_record_is_rejected_without_init_overwrite(self):
+        evidence_dir = self.repo_root / "docs" / "_evidence"
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        record_path = evidence_dir / "nullrecord.json"
+        record_path.write_text("null\n", encoding="utf-8")
+        before = record_path.read_bytes()
+        code, out, err = init_publication(self.repo_root, "nullrecord", "minor_patch")
+        self.assertEqual(code, 2, msg=f"out={out} err={err}")
+        self.assertIn("PUBLICATION_RECORD_NOT_AN_OBJECT", out["reason_codes"])
+        self.assertEqual(record_path.read_bytes(), before)
+
+    def test_publication_id_must_match_selected_topic_before_append_mutation(self):
+        code, out, err = init_publication(self.repo_root, "topic_b", "minor_patch")
+        self.assertEqual(code, 0, msg=f"out={out} err={err}")
+        record_path = self.repo_root / out["record_path"]
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        record["publication_id"] = "topic_a"
+        record_path.write_text(json.dumps(record), encoding="utf-8")
+        before = record_path.read_bytes()
+        (self.repo_root / "verify.txt").write_text("ok\n", encoding="utf-8")
+        code2, out2, err2 = append_raw(self.repo_root, "topic_b", "verification", "verify.txt")
+        self.assertEqual(code2, 2, msg=f"out={out2} err={err2}")
+        self.assertIn("PUBLICATION_RECORD_TOPIC_MISMATCH", out2["reason_codes"])
+        self.assertEqual(record_path.read_bytes(), before)
+        self.assertFalse((self.repo_root / "docs" / "_evidence" /
+                          "topic_b.verification.raw.jsonl").exists())
+
+    def test_hostile_raw_log_path_is_rejected_before_record_or_sidecar_mutation(self):
+        topic = "raw_path_binding"
+        code, out, err = init_publication(self.repo_root, topic, "minor_patch")
+        self.assertEqual(code, 0, msg=f"out={out} err={err}")
+        record_path = self.repo_root / out["record_path"]
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        record["raw_log_paths"]["plan"] = "../../outside.jsonl"
+        record_path.write_text(json.dumps(record), encoding="utf-8")
+        before = record_path.read_bytes()
+        (self.repo_root / "verify.txt").write_text("ok\n", encoding="utf-8")
+        code2, out2, err2 = append_raw(self.repo_root, topic, "verification", "verify.txt")
+        self.assertEqual(code2, 2, msg=f"out={out2} err={err2}")
+        self.assertIn("PUBLICATION_RECORD_RAW_LOG_PATH_MISMATCH:plan", out2["reason_codes"])
+        self.assertEqual(record_path.read_bytes(), before)
+        self.assertFalse((self.repo_root / "docs" / "_evidence" /
+                          f"{topic}.verification.raw.jsonl").exists())
+
+    def test_derived_record_fields_must_match_task_contract_before_rerun_mutation(self):
+        cases = [
+            ("required", "required_evidence", [], "PUBLICATION_RECORD_REQUIRED_EVIDENCE_MISMATCH"),
+            ("orgroup", "or_group_scaffolded", ["devlog"], "PUBLICATION_RECORD_OR_GROUP_MISMATCH"),
+            ("capacity", "capacity_rejection_required", True,
+             "PUBLICATION_RECORD_CAPACITY_FLAG_MISMATCH"),
+        ]
+        for suffix, field, hostile_value, expected_code in cases:
+            with self.subTest(field=field):
+                topic = f"semantic_{suffix}"
+                code, out, err = init_publication(
+                    self.repo_root, topic, "full_benchmark",
+                    benchmark_mode="full", benchmark_verdict="PASS")
+                self.assertEqual(code, 0, msg=f"out={out} err={err}")
+                record_path = self.repo_root / out["record_path"]
+                record = json.loads(record_path.read_text(encoding="utf-8"))
+                record[field] = hostile_value
+                record_path.write_text(json.dumps(record), encoding="utf-8")
+                before = record_path.read_bytes()
+                code2, out2, err2 = init_publication(
+                    self.repo_root, topic, "full_benchmark",
+                    benchmark_mode="full", benchmark_verdict="PASS")
+                self.assertEqual(code2, 2, msg=f"out={out2} err={err2}")
+                self.assertIn(expected_code, out2["reason_codes"])
+                self.assertEqual(record_path.read_bytes(), before)
+
+    def test_scaffolded_null_and_missing_key_are_rejected_without_init_overwrite(self):
+        for mutation in ("null", "missing"):
+            topic = f"scaffold_{mutation}"
+            code, out, err = init_publication(self.repo_root, topic, "minor_patch")
+            self.assertEqual(code, 0, msg=f"out={out} err={err}")
+            record_path = self.repo_root / out["record_path"]
+            record = json.loads(record_path.read_text(encoding="utf-8"))
+            if mutation == "null":
+                record["scaffolded"] = None
+            else:
+                record["scaffolded"].pop("plan")
+            record_path.write_text(json.dumps(record), encoding="utf-8")
+            before = record_path.read_bytes()
+            code2, out2, err2 = init_publication(self.repo_root, topic, "minor_patch")
+            self.assertEqual(code2, 2, msg=f"out={out2} err={err2}")
+            expected = ("PUBLICATION_RECORD_FIELD_NOT_AN_OBJECT:scaffolded" if mutation == "null"
+                        else "PUBLICATION_RECORD_SCAFFOLDED_KEYS_INVALID")
+            self.assertIn(expected, out2["reason_codes"])
+            self.assertEqual(record_path.read_bytes(), before)
+
+    def test_rerun_rejects_immutable_identity_time_and_benchmark_rebinding(self):
+        code, out, err = init_publication(
+            self.repo_root, "immutable_binding", "full_benchmark",
+            generated_utc="2026-07-25T01:00:00Z", benchmark_mode="full",
+            benchmark_verdict="FAIL", identity=IDENTITY)
+        self.assertEqual(code, 0, msg=f"out={out} err={err}")
+        record_path = self.repo_root / out["record_path"]
+        before = record_path.read_bytes()
+        rebound_identity = dict(IDENTITY)
+        rebound_identity["model"] = "different-model"
+        code2, out2, _ = init_publication(
+            self.repo_root, "immutable_binding", "full_benchmark",
+            generated_utc="2026-07-25T02:00:00Z", benchmark_mode="full",
+            benchmark_verdict="PASS", identity=rebound_identity)
+        self.assertEqual(code2, 2)
+        self.assertIn("INIT_IMMUTABLE_REBIND", out2["reason_codes"])
+        self.assertEqual(record_path.read_bytes(), before)
+
 
 # =============================================================================
 # Section E/F -- `append-raw`: happy path (simlog copy + non-dir JSONL sidecar), atomicity, and
@@ -898,8 +1088,34 @@ class TestRecordCapacityRejection(_PublisherRepoTestCase):
         out = json.loads(proc.stdout)
         self.assertEqual(proc.returncode, 0, msg=f"out={out} err={proc.stderr}")
         record = json.loads((self.repo_root / "docs" / "_evidence" / "용량거부기록.json").read_text(encoding="utf-8"))
-        self.assertEqual(record["capacity_rejection"]["gate_evidence"], "gate_exit7.txt")
+        self.assertEqual(record["capacity_rejection"]["gate_evidence"], "용량거부기록_capacity_gate.txt")
+        self.assertTrue((self.repo_root / "docs" / "_evidence" /
+                         record["capacity_rejection"]["gate_evidence"]).is_file())
         self.assertTrue(record["capacity_rejection"]["rejected"])
+
+    def test_recorded_capacity_rejection_can_finalize(self):
+        init_publication(self.repo_root, "용량거부완료", "capacity_rejection")
+        (self.repo_root / "plan.md").write_text("# capacity rejection plan\n", encoding="utf-8")
+        code, out, err = set_narrative(self.repo_root, "용량거부완료", "plan", "plan.md")
+        self.assertEqual(code, 0, msg=f"out={out} err={err}")
+        (self.repo_root / "devlog.md").write_text("# deterministic capacity result\n", encoding="utf-8")
+        code_d, out_d, err_d = set_narrative(
+            self.repo_root, "용량거부완료", "devlog", "devlog.md")
+        self.assertEqual(code_d, 0, msg=f"out={out_d} err={err_d}")
+        (self.repo_root / "gate.txt").write_text("RAM gate: exit 7\n", encoding="utf-8")
+        args = ["record-capacity-rejection", "--topic", "용량거부완료",
+                "--gate-evidence-src", "gate.txt", "--reason", "capacity floor exceeded",
+                "--recorded-utc", "2026-07-25T02:10:00Z"]
+        code2, out2, err2 = run_publisher(args, self.repo_root)
+        self.assertEqual(code2, 0, msg=f"out={out2} err={err2}")
+        code3, out3, err3 = finalize(
+            self.repo_root, "용량거부완료",
+            pii_scan={"passed": True,
+                      "scanned_paths": manifest_relative_evidence_paths(self.repo_root, "용량거부완료")
+                      + ["용량거부완료_capacity_gate.txt"]})
+        self.assertEqual(code3, 1, msg=f"out={out3} err={err3}")
+        self.assertEqual(out3["state"], "evidence-complete")
+        self.assertIn("TASK_CLASS_CAPS_BELOW_PROMOTION:capacity_rejection", out3["reason_codes"])
 
     def test_wrong_task_class_rejected(self):
         init_publication(self.repo_root, "잘못된태스크", "model_serving_strategy")
@@ -964,6 +1180,26 @@ class TestPublishBenchmarkFail(_PublisherRepoTestCase):
 
 
 class TestPublishBenchmarkPass(_PublisherRepoTestCase):
+    def test_verdict_transition_recomputes_required_evidence_atomically(self):
+        topic = "벤치전이"
+        code0, out0, err0 = init_publication(
+            self.repo_root, topic, "full_benchmark", benchmark_mode="full")
+        self.assertEqual(code0, 0, msg=f"out={out0} err={err0}")
+        self.assertNotIn("certificate", out0["required_evidence"])
+        (self.repo_root / "report_src.md").write_text("# report\n", encoding="utf-8")
+        (self.repo_root / "cert.yaml").write_text(VALID_FLAT_CERTIFICATE, encoding="utf-8")
+        code1, out1, err1 = publish_benchmark(
+            self.repo_root, topic, "PASS", "report_src.md", certificate_src="cert.yaml")
+        self.assertEqual(code1, 0, msg=f"out={out1} err={err1}")
+        record_path = self.repo_root / "docs" / "_evidence" / f"{topic}.json"
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        self.assertIn("certificate", record["required_evidence"])
+        code2, out2, err2 = publish_benchmark(self.repo_root, topic, "FAIL", "report_src.md")
+        self.assertEqual(code2, 0, msg=f"out={out2} err={err2}")
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        self.assertNotIn("certificate", record["required_evidence"])
+        self.assertIsNone(record["scaffolded"]["certificate"])
+
     def test_pass_without_certificate_src_does_not_synthesize_one(self):
         init_publication(self.repo_root, "벤치PASS1", "full_benchmark", benchmark_mode="full",
                           benchmark_verdict="PASS")
@@ -1050,6 +1286,13 @@ def finalize(repo_root, topic, pii_scan=None, runtime=None, capacity_rejection_e
     return run_publisher(args, repo_root)
 
 
+def finalize_with_raw_json(repo_root, topic, flag, raw_json):
+    p = repo_root / f"_scratch_{flag}.json"
+    p.write_text(raw_json, encoding="utf-8")
+    cli_flag = f"--{flag.replace('_', '-')}-json"
+    return run_publisher(["finalize", "--topic", topic, cli_flag, str(p)], repo_root)
+
+
 HEALTHY_RUNTIME = {
     "health_ok": True, "functional_smoke_passed": True,
     "identity": IDENTITY,
@@ -1058,6 +1301,23 @@ HEALTHY_RUNTIME = {
 
 
 class TestFinalizeDelegatesToCompletionGate(_PublisherRepoTestCase):
+    def test_malformed_cli_json_shapes_are_rejected_before_work_manifest_write(self):
+        cases = [
+            ("finalize_pii_null", "minor_patch", "pii_scan", "null"),
+            ("finalize_runtime_list", "minor_patch", "runtime", "[]"),
+            ("finalize_capacity_null", "capacity_rejection", "capacity_rejection", "null"),
+        ]
+        for topic, task_class, flag, raw in cases:
+            with self.subTest(flag=flag):
+                code, out, err = init_publication(self.repo_root, topic, task_class)
+                self.assertEqual(code, 0, msg=f"out={out} err={err}")
+                manifest_path = self.repo_root / "docs" / "_evidence" / f"{topic}.work-manifest.json"
+                self.assertFalse(manifest_path.exists())
+                code2, out2, err2 = finalize_with_raw_json(self.repo_root, topic, flag, raw)
+                self.assertEqual(code2, 2, msg=f"out={out2} err={err2}")
+                self.assertIn("FINALIZE_WORK_MANIFEST_SCHEMA_INVALID", out2["reason_codes"])
+                self.assertFalse(manifest_path.exists())
+
     def test_minor_patch_reaches_evidence_complete_but_capped(self):
         init_publication(self.repo_root, "파이널마이너", "minor_patch")
         (self.repo_root / "verify.txt").write_text("py_compile OK\n", encoding="utf-8")

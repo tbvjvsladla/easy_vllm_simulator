@@ -116,6 +116,19 @@ class TestExperimentalPositive(unittest.TestCase):
         self.assertEqual(code, 0, msg=f"out={out}\nstderr={err}")
         self.assertTrue(out.get("allowed"), msg=f"out={out}")
 
+    def test_fabricated_plan_bytes_are_rejected_despite_approval_flags(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            shutil.copytree(FIXTURES_DIR, root, dirs_exist_ok=True)
+            manifest = root / "authorize_experimental_positive.json"
+            (root / "targets/plan.md").write_text(
+                "# fabricated plan\nNo approval section or scoped approval atoms.\n", encoding="utf-8")
+            code, out, err = run_authorize_path(
+                manifest, "experimental", "sync_to_sub", repo_root=root)
+            self.assertEqual(code, 2, msg=f"out={out}\nstderr={err}")
+            self.assertFalse(out.get("allowed"), msg=f"out={out}")
+            self.assertIn("EXECUTION_APPROVAL_PLAN_DIGEST_MISMATCH", out.get("reason_codes", []))
+
 
 # =============================================================================
 # Section C -- experimental mode: missing / false / unscoped approval (exit1, valid-but-not-approved)
@@ -234,6 +247,13 @@ class TestExperimentalPlanPathSymlinkAndEscape(_ScratchTestCase):
                 "approved": True, "approved_by": "coag-ash",
                 "approved_at_utc": "2026-07-25T05:00:00Z",
                 "plan_path": plan_path_rel,
+                "plan_sha256": "0" * 64,
+                "plan_blob_sha1": "0" * 40,
+                "approval_anchor": "## Execution approval",
+                "approval_atoms": [
+                    "approved_by: coag-ash", "approved_at_utc: 2026-07-25T05:00:00Z",
+                    "allowed_action: sync_to_sub", "allowed_action: sync_branches",
+                ],
                 "allowed_actions": ["sync_to_sub", "sync_branches"],
             },
         }

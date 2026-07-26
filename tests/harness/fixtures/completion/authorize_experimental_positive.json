@@ -10,7 +10,9 @@
     "tp": 1
   },
   "evidence": {
-    "plan": { "path": "targets/plan.md" },
+    "plan": {
+      "path": "targets/plan.md"
+    },
     "devlog": null,
     "testlog": null,
     "simlog": null,
@@ -19,13 +21,27 @@
   },
   "pii_scan": {
     "passed": true,
-    "scanned_paths": ["targets/plan.md"]
+    "scanned_paths": [
+      "targets/plan.md"
+    ]
   },
   "execution_approval": {
     "approved": true,
     "approved_by": "coag-ash",
     "approved_at_utc": "2026-07-25T05:00:00Z",
     "plan_path": "targets/plan.md",
-    "allowed_actions": ["sync_to_sub", "sync_branches"]
+    "allowed_actions": [
+      "sync_to_sub",
+      "sync_branches"
+    ],
+    "plan_sha256": "7c7b47bc2a1dc9a84d4484071f510725f7e5ffccd1418c4176d043fd36a13b27",
+    "plan_blob_sha1": "7b86fd7ca0cea00af6d2675e9d905f31cc043055",
+    "approval_anchor": "## Execution approval",
+    "approval_atoms": [
+      "approved_by: coag-ash",
+      "approved_at_utc: 2026-07-25T05:00:00Z",
+      "allowed_action: sync_to_sub",
+      "allowed_action: sync_branches"
+    ]
   }
 }

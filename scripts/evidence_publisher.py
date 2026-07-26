@@ -35,6 +35,7 @@ import errno
 import fcntl
 import json
 import os
+import re
 import stat
 import subprocess
 import sys
@@ -61,6 +62,10 @@ required_evidence_for = gate.required_evidence_for
 # script has no basis for.
 SCAFFOLDABLE_KINDS = ("plan", "devlog", "testlog", "simlog", "report")
 DATED_KINDS = ("plan", "devlog", "testlog")
+ALL_EVIDENCE_KINDS = {
+    "plan", "devlog", "testlog", "simlog", "report", "verification", "commit",
+    "bench_report", "certificate",
+}
 
 # capacity_rejection's required_evidence_for() only ever returns ("plan",) -- the devlog/testlog
 # OR-group (completion_gate.py's own special case, not part of the reused matrix) is a convenience
@@ -112,8 +117,7 @@ def _record_path(repo_root: Path, topic: str) -> Path:
 # `{"scaffolded": [...]}`) must never reach one of those calls raw and surface as an uncaught
 # AttributeError/TypeError traceback. Checked once, at the single load choke point every
 # subcommand goes through (_load_record), rather than re-guarded ad hoc at each call site.
-_RECORD_OBJECT_OR_NULL_FIELDS = ("scaffolded", "narrative_status", "raw_log_paths",
-                                 "benchmark", "conditions", "capacity_rejection")
+_RECORD_OBJECT_OR_NULL_FIELDS = ("capacity_rejection",)
 
 # P2-FINAL-02: cmd_finalize indexes record["task_class"]/record["identity"] UNCONDITIONALLY (no
 # `.get()`) -- a persisted record missing either key (e.g. a bare `{}`, or an object some other
@@ -123,7 +127,9 @@ _RECORD_OBJECT_OR_NULL_FIELDS = ("scaffolded", "narrative_status", "raw_log_path
 # INIT_IDENTITY_NOT_AN_OBJECT in cmd_init), so requiring them at the SAME single load choke point
 # closes the gap without weakening any legitimate record.
 _RECORD_REQUIRED_STRING_FIELDS = ("task_class",)
-_RECORD_REQUIRED_OBJECT_FIELDS = ("identity",)
+_RECORD_REQUIRED_OBJECT_FIELDS = (
+    "identity", "conditions", "benchmark", "scaffolded", "narrative_status", "raw_log_paths",
+)
 
 
 def _validate_record_shape(record) -> tuple[str, str] | None:
@@ -133,6 +139,55 @@ def _validate_record_shape(record) -> tuple[str, str] | None:
     if not isinstance(record, dict):
         return ("PUBLICATION_RECORD_NOT_AN_OBJECT",
                 f"publication record must be a JSON object, got {type(record).__name__}")
+    allowed_fields = {
+        "schema_version", "publication_id", "task_class", "generated_utc", "identity", "conditions",
+        "benchmark", "required_evidence", "or_group_scaffolded", "capacity_rejection_required",
+        "scaffolded", "narrative_status", "raw_log_paths", "capacity_rejection",
+    }
+    unknown_fields = set(record) - allowed_fields
+    missing_fields = allowed_fields - set(record)
+    if unknown_fields:
+        return ("PUBLICATION_RECORD_UNKNOWN_FIELDS",
+                f"publication record contains unknown fields {sorted(unknown_fields)}")
+    if missing_fields:
+        return ("PUBLICATION_RECORD_MISSING_FIELDS",
+                f"publication record is missing producer fields {sorted(missing_fields)}")
+    if not isinstance(record.get("publication_id"), str) or not record["publication_id"]:
+        return ("PUBLICATION_RECORD_PUBLICATION_ID_INVALID",
+                "publication_id must be a non-empty string")
+    if (not isinstance(record.get("generated_utc"), str) or
+            re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", record["generated_utc"]) is None):
+        return ("PUBLICATION_RECORD_GENERATED_UTC_INVALID",
+                "generated_utc must be a UTC second timestamp")
+    for field in ("schema_version", "task_class", "identity", "conditions", "benchmark", "capacity_rejection"):
+        if field == "capacity_rejection" and record[field] is None:
+            continue
+        errors = gate.validate_against_schema(
+            record[field], gate.WORK_SCHEMA["properties"][field], gate.WORK_SCHEMA, field)
+        if errors:
+            return ("PUBLICATION_RECORD_SCHEMA_INVALID", errors[0][0])
+    for field in ("required_evidence", "or_group_scaffolded"):
+        if (not isinstance(record[field], list) or
+                any(not isinstance(value, str) or value not in ALL_EVIDENCE_KINDS for value in record[field])):
+            return (f"PUBLICATION_RECORD_FIELD_INVALID:{field}",
+                    f"{field} must be a list of canonical evidence-kind strings")
+    if not isinstance(record["capacity_rejection_required"], bool):
+        return ("PUBLICATION_RECORD_CAPACITY_FLAG_INVALID",
+                "capacity_rejection_required must be boolean")
+    expected_required = required_evidence_for(
+        record["task_class"], record["conditions"], record["benchmark"].get("verdict"))
+    expected_or_group = (list(CAPACITY_REJECTION_OR_GROUP)
+                         if record["task_class"] == "capacity_rejection" else [])
+    expected_capacity_required = record["task_class"] == "capacity_rejection"
+    if record["required_evidence"] != expected_required:
+        return ("PUBLICATION_RECORD_REQUIRED_EVIDENCE_MISMATCH",
+                "required_evidence does not match task_class/conditions/benchmark verdict")
+    if record["or_group_scaffolded"] != expected_or_group:
+        return ("PUBLICATION_RECORD_OR_GROUP_MISMATCH",
+                "or_group_scaffolded does not match the task-class producer contract")
+    if record["capacity_rejection_required"] != expected_capacity_required:
+        return ("PUBLICATION_RECORD_CAPACITY_FLAG_MISMATCH",
+                "capacity_rejection_required does not match task_class")
     for field in _RECORD_REQUIRED_STRING_FIELDS:
         if field not in record:
             return (f"PUBLICATION_RECORD_MISSING_FIELD:{field}",
@@ -160,20 +215,55 @@ def _validate_record_shape(record) -> tuple[str, str] | None:
     # time any command re-validates it as a path, rather than surfacing a stable reject here.
     scaffolded = record.get("scaffolded")
     if isinstance(scaffolded, dict):
+        allowed_scaffolded = set(ALL_EVIDENCE_KINDS)
+        actual_keys = set(scaffolded)
+        if actual_keys != allowed_scaffolded:
+            unknown = actual_keys - allowed_scaffolded
+            missing = allowed_scaffolded - actual_keys
+            return ("PUBLICATION_RECORD_SCAFFOLDED_KEYS_INVALID",
+                    f"scaffolded must contain the complete producer key set; "
+                    f"unknown={sorted(unknown)} missing={sorted(missing)}")
         for kind, value in scaffolded.items():
-            if value is not None and not isinstance(value, str):
+            if value is not None and (not isinstance(value, str) or not value):
                 return (f"PUBLICATION_RECORD_SCAFFOLDED_VALUE_NOT_A_STRING:{kind}",
-                        f"publication record field 'scaffolded.{kind}' must be a string path "
-                        f"(or null), got {type(value).__name__}")
-    # narrative_status[kind] is unconditionally `.get("status")`'d by cmd_finalize -- a non-object
-    # entry (e.g. a bare string) would raise an AttributeError rather than a stable reject.
+                        f"publication record field 'scaffolded.{kind}' must be a non-empty string path or null, "
+                        f"got {type(value).__name__}")
     narrative_status = record.get("narrative_status")
     if isinstance(narrative_status, dict):
+        unknown = set(narrative_status) - set(SCAFFOLDABLE_KINDS)
+        if unknown:
+            return ("PUBLICATION_RECORD_NARRATIVE_STATUS_UNKNOWN_KEYS",
+                    f"narrative_status contains unknown evidence kinds {sorted(unknown)}")
+        expected_entry_keys = {"status", "author", "generated_utc", "source"}
         for kind, value in narrative_status.items():
             if not isinstance(value, dict):
                 return (f"PUBLICATION_RECORD_NARRATIVE_STATUS_VALUE_NOT_AN_OBJECT:{kind}",
                         f"publication record field 'narrative_status.{kind}' must be a JSON "
                         f"object, got {type(value).__name__}")
+            if set(value) != expected_entry_keys or value.get("status") != "authored":
+                return (f"PUBLICATION_RECORD_NARRATIVE_STATUS_SHAPE_INVALID:{kind}",
+                        f"narrative_status.{kind} must be the complete producer-emitted authored entry")
+            if any(not isinstance(value[key], str) or not value[key]
+                   for key in ("author", "generated_utc", "source")):
+                return (f"PUBLICATION_RECORD_NARRATIVE_STATUS_FIELD_INVALID:{kind}",
+                        f"narrative_status.{kind} provenance fields must be non-empty strings")
+            if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", value["generated_utc"]) is None:
+                return (f"PUBLICATION_RECORD_NARRATIVE_STATUS_TIME_INVALID:{kind}",
+                        f"narrative_status.{kind}.generated_utc must be a UTC second timestamp")
+    raw_log_paths = record.get("raw_log_paths")
+    if isinstance(raw_log_paths, dict):
+        unknown = set(raw_log_paths) - set(APPEND_RAW_KINDS)
+        if unknown:
+            return ("PUBLICATION_RECORD_RAW_LOG_PATHS_UNKNOWN_KEYS",
+                    f"raw_log_paths contains unknown evidence kinds {sorted(unknown)}")
+        for key, value in record["raw_log_paths"].items():
+            if not isinstance(value, str) or not value:
+                return (f"PUBLICATION_RECORD_RAW_LOG_PATH_INVALID:{key}",
+                        f"raw_log_paths.{key} must be a nonempty string")
+            expected_path = f"docs/_evidence/{record['publication_id']}.{key}.raw.jsonl"
+            if value != expected_path:
+                return (f"PUBLICATION_RECORD_RAW_LOG_PATH_MISMATCH:{key}",
+                        f"raw_log_paths.{key} must equal the producer-derived sidecar path")
     return None
 
 
@@ -220,12 +310,15 @@ def _load_record(repo_root: Path, topic: str) -> dict | None:
     except json.JSONDecodeError as e:
         _emit(_bare_error("PUBLICATION_RECORD_INVALID_JSON",
                           f"publication record for topic {topic!r} is not valid JSON: {e}"), 2)
-    if record is None:
-        return None  # JSON null -- same "no publication yet" sentinel _require_record treats absence as
-    violation = _validate_record_shape(record)
-    if violation:
-        code, message = violation
+    shape_error = _validate_record_shape(record)
+    if shape_error:
+        code, message = shape_error
         _emit(_bare_error(code, f"publication record for topic {topic!r}: {message}"), 2)
+    if record["publication_id"] != topic:
+        _emit(_bare_error(
+            "PUBLICATION_RECORD_TOPIC_MISMATCH",
+            f"publication record selected as topic {topic!r} declares publication_id "
+            f"{record['publication_id']!r}"), 2)
     return record
 
 
@@ -945,17 +1038,21 @@ def cmd_record_capacity_rejection(args: argparse.Namespace) -> None:
                           f"topic {args.topic!r} was initialized with task_class="
                           f"{record.get('task_class')!r}, not 'capacity_rejection'"), 2)
 
-    _resolve_src(repo_root, args.gate_evidence_src, "CAPACITY_REJECTION_GATE_EVIDENCE")
+    gate_content, _gate_sha256 = _resolve_src(
+        repo_root, args.gate_evidence_src, "CAPACITY_REJECTION_GATE_EVIDENCE")
+    gate_basename = f"{args.topic}_capacity_gate.txt"
+    _write_evidence_dir_file(repo_root, gate_basename, gate_content,
+                              "CAPACITY_REJECTION_GATE_EVIDENCE")
 
     record["capacity_rejection"] = {
-        "rejected": True, "gate_evidence": args.gate_evidence_src, "reason": args.reason,
+        "rejected": True, "gate_evidence": gate_basename, "reason": args.reason,
         "recorded_utc": args.recorded_utc,
     }
     _save_record(repo_root, args.topic, record)
 
     _emit({
         "schema_version": SCHEMA_VERSION, "ok": True, "reason_codes": [], "messages": {},
-        "publication_id": args.topic, "gate_evidence": args.gate_evidence_src, "rejected": True,
+        "publication_id": args.topic, "gate_evidence": gate_basename, "rejected": True,
     }, 0)
 
 
@@ -1200,6 +1297,16 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
         pending_certificate = False
 
     record["benchmark"] = {"mode": "full", "verdict": args.verdict}
+    # Keep the persisted producer-derived contract canonical in the same commit as the verdict.
+    # Otherwise an init-without-verdict -> publish PASS transition would add certificate to the
+    # required matrix semantically while leaving required_evidence stale, making the next load
+    # reject the publisher's own record.
+    record["required_evidence"] = required_evidence_for(
+        record["task_class"], record["conditions"], args.verdict)
+    record["or_group_scaffolded"] = (
+        list(CAPACITY_REJECTION_OR_GROUP)
+        if record["task_class"] == "capacity_rejection" else [])
+    record["capacity_rejection_required"] = record["task_class"] == "capacity_rejection"
     _save_record(repo_root, args.topic, record)
 
     _emit({
@@ -1289,6 +1396,15 @@ def cmd_finalize(args: argparse.Namespace) -> None:
     elif runtime is not None:
         manifest["runtime"] = runtime
 
+    # Fail closed before persisting the producer artifact. completion_gate remains the sole
+    # contract implementation: this calls its generic schema engine against the exact manifest
+    # that would otherwise be written, rather than duplicating PII/runtime/capacity rules here.
+    preflight_errors = gate.validate_against_schema(
+        manifest, gate.WORK_SCHEMA, gate.WORK_SCHEMA, "$")
+    if preflight_errors:
+        details = "; ".join(f"{path}: {message}" for path, message in preflight_errors)
+        _emit(_bare_error("FINALIZE_WORK_MANIFEST_SCHEMA_INVALID", details), 2)
+
     manifest_basename = "%s.work-manifest.json" % args.topic
     manifest_bytes = json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2).encode("utf-8")
     _write_evidence_dir_file(repo_root, manifest_basename, manifest_bytes, "WORK_MANIFEST")
@@ -1319,13 +1435,24 @@ def cmd_init(args: argparse.Namespace) -> None:
     if not isinstance(conditions, dict):
         _emit(_bare_error("INIT_CONDITIONS_NOT_AN_OBJECT",
                           f"--conditions-json must contain a JSON object, got {type(conditions).__name__}"), 2)
+    identity_errors = gate.validate_against_schema(
+        identity, gate.WORK_SCHEMA["definitions"]["identity"], gate.WORK_SCHEMA, "$.identity")
+    conditions_errors = gate.validate_against_schema(
+        conditions, gate.WORK_SCHEMA["properties"]["conditions"], gate.WORK_SCHEMA, "$.conditions")
+    if identity_errors or conditions_errors:
+        details = [f"{path}: {message}" for path, message in identity_errors + conditions_errors]
+        _emit(_bare_error("INIT_INPUT_SCHEMA_INVALID", "; ".join(details)), 2)
 
     task_class_choices = gate.WORK_SCHEMA["properties"]["task_class"]["enum"]
     if args.task_class not in task_class_choices:
         _emit(_bare_error("INIT_UNSUPPORTED_TASK_CLASS",
                           f"task_class must be one of {task_class_choices}, got {args.task_class!r}"), 2)
 
-    verdict = args.benchmark_verdict
+    prior = _load_record(repo_root, args.topic) or {}
+    prior_benchmark_value = prior.get("benchmark")
+    prior_benchmark_for_required = prior_benchmark_value if isinstance(prior_benchmark_value, dict) else {}
+    verdict = (args.benchmark_verdict if args.benchmark_verdict is not None
+               else prior_benchmark_for_required.get("verdict"))
     required = required_evidence_for(args.task_class, conditions, verdict)
 
     or_group_scaffolded = list(CAPACITY_REJECTION_OR_GROUP) if args.task_class == "capacity_rejection" else []
@@ -1336,7 +1463,24 @@ def cmd_init(args: argparse.Namespace) -> None:
                           "task_class/conditions require a 'report' evidence item -- pass --report-slug "
                           "(kebab-case, no date token per docs.md's report/ exception)"), 2)
 
-    prior = _load_record(repo_root, args.topic) or {}
+    if prior:
+        immutable = {
+            "task_class": args.task_class,
+            "generated_utc": args.generated_utc,
+            "identity": identity,
+            "conditions": conditions,
+        }
+        mismatches = [field for field, value in immutable.items() if prior.get(field) != value]
+        prior_benchmark_for_rebind = prior.get("benchmark")
+        if isinstance(prior_benchmark_for_rebind, dict):
+            for field, value in (("mode", args.benchmark_mode), ("verdict", args.benchmark_verdict)):
+                if value is not None and prior_benchmark_for_rebind.get(field) not in (None, value):
+                    mismatches.append(f"benchmark.{field}")
+        if mismatches:
+            _emit(_bare_error(
+                "INIT_IMMUTABLE_REBIND",
+                "existing publication identity/time/conditions/benchmark cannot be rebound: "
+                + ", ".join(sorted(mismatches))), 2)
     prior_scaffolded = prior.get("scaffolded", {})
 
     kinds_to_scaffold = [k for k in required if k in SCAFFOLDABLE_KINDS]
@@ -1371,6 +1515,13 @@ def cmd_init(args: argparse.Namespace) -> None:
 
     pending_evidence = sorted(set(required) - set(SCAFFOLDABLE_KINDS))
 
+    prior_benchmark = prior.get("benchmark", {"mode": None, "verdict": None})
+    if not isinstance(prior_benchmark, dict):
+        prior_benchmark = {"mode": None, "verdict": None}
+    benchmark = {
+        "mode": args.benchmark_mode if args.benchmark_mode is not None else prior_benchmark.get("mode"),
+        "verdict": verdict if args.benchmark_verdict is not None else prior_benchmark.get("verdict"),
+    }
     record = {
         "schema_version": SCHEMA_VERSION,
         "publication_id": args.topic,
@@ -1378,7 +1529,7 @@ def cmd_init(args: argparse.Namespace) -> None:
         "generated_utc": args.generated_utc,
         "identity": identity,
         "conditions": conditions,
-        "benchmark": {"mode": args.benchmark_mode, "verdict": verdict},
+        "benchmark": benchmark,
         "required_evidence": required,
         "or_group_scaffolded": or_group_scaffolded,
         "capacity_rejection_required": capacity_rejection_required,

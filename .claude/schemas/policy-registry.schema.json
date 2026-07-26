@@ -1,0 +1,234 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://easy-vllm-simulator.local/schemas/policy-registry.schema.json",
+  "title": "policy-registry",
+  "description": "Phase 4 (plan_26072506 S4.6) SHAPE contract for .claude/policies/registry.yaml -- the single source of truth a duplicated rule collapses to (CLAUDE.md/workflow.md/docs.md/references.md cite a policy_id instead of restating it). Schema version 2 (review-cycle1 remediation, subagent-summary-0/1-20260725_203232): every policy is structurally canonical -- explicit `clauses` (stable clause_id + statement, one per distinct invariant/HITL/fail-closed/exception the policy carries) replace a single flat prose paragraph as the thing evidence binds to, and `evidence` entries are objects {path, supports:[clause_id...]} instead of bare path strings, so a claim of support is machine-checkable against a specific clause rather than merely 'this path exists'. `registry.yaml` itself is now plain JSON text (a valid YAML 1.2 subset) -- this schema, and every consumer, parses it with the stdlib `json` module only; PyYAML is not a dependency anywhere in this project. Validated here by the same small generic Draft-07-subset engine scripts/completion_gate.py already implements (validate_against_schema) -- there is no second, hand-duplicated copy of these constraints. Cross-field/regex-shaped rules this validator's keyword subset cannot express (policy_id/clause_id pattern; exactly one of origin_failure/universal_invariant; remove_when substantive content; ISO-8601 date shape and ordering; next_review_due == last_reviewed_at + 90 days; explicit --as-of driven due/overdue/90-day-unreproduced evaluation; retired requires retirement_reason or a non-dangling superseded_by; superseded_by has no cycle; active/candidate cannot carry retirement metadata; every clause_id is supported by at least one evidence entry, and every evidence path is tracked, exists, and its supports[] entries all resolve to real clause_ids; removal eligibility requires removal_evidence.status == contract_e2e_green with a resolving path) are Python-level checks in scripts/policy_registry.py (the shared validator/auditor CLI) and tests/harness/test_policy_registry.py, not schema keywords -- deliberately, since this validator implements only $ref/type/required/properties/additionalProperties/enum/const/minLength/minimum/minItems/items/allOf/if-then-else (no pattern, no oneOf/anyOf).",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "policies"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "policies": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/policy"
+      }
+    }
+  },
+  "definitions": {
+    "policy": {
+      "type": "object",
+      "description": "One registry entry. Exactly one of origin_failure/universal_invariant must be present for an active or candidate entry (Python-level, see module description) -- both are declared optional here so the schema can accept either shape. `statement` is a short (one-line) human label/summary; the substantive, individually-evidenced content lives in `clauses`.",
+      "required": [
+        "policy_id",
+        "owner",
+        "statement",
+        "scope",
+        "clauses",
+        "evidence",
+        "added_at",
+        "last_reproduced",
+        "remove_when",
+        "status",
+        "review"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "policy_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "origin_failure": {
+          "type": "string",
+          "minLength": 1
+        },
+        "universal_invariant": {
+          "type": "string",
+          "minLength": 1
+        },
+        "clauses": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/clause"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/evidence_entry"
+          }
+        },
+        "added_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "last_reproduced": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "remove_when": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "candidate",
+            "retired"
+          ]
+        },
+        "review": {
+          "$ref": "#/definitions/review"
+        },
+        "superseded_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retirement_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "removal_evidence": {
+          "$ref": "#/definitions/removal_evidence"
+        }
+      }
+    },
+    "clause": {
+      "type": "object",
+      "description": "One distinct invariant/HITL boundary/fail-closed rule/exception this policy carries. clause_id is stable (Python-level pattern: `<POLICY_ID>.C<n>`) so evidence entries and the baseline contract fixture can reference it durably even if the statement prose is later reworded.",
+      "required": [
+        "clause_id",
+        "statement"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "clause_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "evidence_entry": {
+      "type": "object",
+      "description": "A truthful, tracked, repo-relative implementation/test path plus the specific clause_id(s) it actually demonstrates, plus the exact executable assertion_ids within that path that back the claim -- an evidence entry that does not name which clause it supports, whose path is unrelated to the clause it claims, or whose assertion_ids are not real identifiers found in that exact path, is not admissible (Python-level, scripts/policy_registry.py: supports[] and assertion_ids[] must both be nonempty; every supports[] entry must resolve to a real clause_id on this same policy; every assertion_ids[] entry must be an exact AST-derived unittest method/function name (.py), anchored shell function/variable/long-option name (.sh), anchored YAML mapping key (.yaml/.yml), or exact heading text (.md) found in the evidence path's own content -- never a substring match; the path itself must resolve through the exact-listed, digest-locked .claude/policies/evidence_manifest.json with no symlink at any path component).",
+      "required": [
+        "path",
+        "supports",
+        "assertion_ids"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "supports": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "assertion_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "required": [
+        "state",
+        "last_reviewed_at",
+        "next_review_due",
+        "reviewer"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "current",
+            "due",
+            "overdue"
+          ]
+        },
+        "last_reviewed_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "next_review_due": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviewer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "removal_evidence": {
+      "type": "object",
+      "description": "Optional. Only meaningful for a `retired` policy that a future cycle wants to actually delete from this file -- removal is eligible only when status == contract_e2e_green with a path that resolves (Python-level, scripts/policy_registry.py check-removal).",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "not_attempted",
+            "contract_e2e_green"
+          ]
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

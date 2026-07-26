@@ -18,6 +18,7 @@ dependencies is out of scope).
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -136,7 +137,14 @@ def _write_experimental_manifest(
     test_promotion_side_effects.py's experimental-mode fixtures, adapted to a real on-disk plan.md
     (execution_approval.plan_path must resolve as a safe, existing, non-empty regular file)."""
     manifest_dir = repo / "manifests"
-    _write_text_evidence(manifest_dir / "evidence" / "plan.md", "# plan\n\nisolated sync-branches test plan.\n")
+    approved_at = "2026-07-25T05:00:00Z"
+    plan_lines = ["# plan", "", "isolated sync-branches test plan.",
+                  "## Execution approval", "approved_by: coag-ash",
+                  f"approved_at_utc: {approved_at}",
+                  *[f"allowed_action: {value}" for value in allowed_actions]]
+    plan_path = manifest_dir / "evidence" / "plan.md"
+    _write_text_evidence(plan_path, "\n".join(plan_lines) + "\n")
+    plan_bytes = plan_path.read_bytes()
     manifest: dict = {
         "schema_version": 1, "task_class": "harness_change", "identity": dict(IDENTITY),
         "evidence": {
@@ -148,8 +156,14 @@ def _write_experimental_manifest(
     if include_approval:
         manifest["execution_approval"] = {
             "approved": approved, "approved_by": "coag-ash",
-            "approved_at_utc": "2026-07-25T05:00:00Z",
+            "approved_at_utc": approved_at,
             "plan_path": "evidence/plan.md",
+            "plan_sha256": hashlib.sha256(plan_bytes).hexdigest(),
+            "plan_blob_sha1": hashlib.sha1(
+                b"blob " + str(len(plan_bytes)).encode("ascii") + b"\0" + plan_bytes).hexdigest(),
+            "approval_anchor": "## Execution approval",
+            "approval_atoms": ["approved_by: coag-ash", f"approved_at_utc: {approved_at}",
+                               *[f"allowed_action: {value}" for value in allowed_actions]],
             "allowed_actions": list(allowed_actions),
         }
     manifest_path = manifest_dir / name
