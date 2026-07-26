@@ -72,7 +72,133 @@ class TestTopologyNeutralPolicyTrust(unittest.TestCase):
         self.assertTrue(data.get("ngc_base", {}).get("tag"))
         for name in ("arm_patch.sh", "serve_runner.sh", "debug-init.sh"):
             path = SHARED / "assets/configs" / name
-            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o755, name)
+            # Git records executable semantics, not exact group/other write bits.  Production
+            # preflight normalizes the synchronized source to exact 0755 before materialization.
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode) & 0o111, 0o111, name)
+
+    def test_sync_to_sub_runner_modes_fail_closed_at_source_and_destination(self):
+        sync_path = SHARED / "scripts/sync_to_sub.sh"
+        source = sync_path.read_text(encoding="utf-8")
+
+        def bash_function(name):
+            match = re.search(r"^" + re.escape(name) + r"\s*\(\)\s*\{", source, re.MULTILINE)
+            self.assertIsNotNone(match, name)
+            assert match is not None
+            depth = 0
+            for index in range(match.end() - 1, len(source)):
+                if source[index] == "{":
+                    depth += 1
+                elif source[index] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        return source[match.start():index + 1]
+            self.fail(f"unterminated bash function: {name}")
+
+        source_check = bash_function("assert_source_runner_modes")
+        destination_check = bash_function("verify_destination_runner_modes")
+        normalize_modes = bash_function("normalize_canonical_runner_modes")
+        runner_array = re.search(r"^BAND2_CONFIGS=.*$", source, re.MULTILINE)
+        self.assertIsNotNone(runner_array)
+        assert runner_array is not None
+        self.assertIn('assert_source_runner_modes "$t"', source)
+        self.assertIn('verify_destination_runner_modes "$t"', source)
+        self.assertIn('--materialize-configs --repo "${SRC%/}" --topology "$1"', source)
+        dry_bootstrap = source[source.index('echo "  --- B0 bootstrap 미리보기'):source.index('# ═══════════════════════ APPLY')]
+        self.assertLess(dry_bootstrap.index("assert_source_runner_modes multi"),
+                        dry_bootstrap.index("preview_build multi"))
+        apply_bootstrap = source[source.index("if [ $HAS_GIT = 0 ]"):source.index("# ── B1 per-branch")]
+        self.assertLess(apply_bootstrap.index("verify_destination_runner_modes multi"),
+                        apply_bootstrap.index('sub_commit "[sync] multi initial delivery'))
+        apply_flow = source[source.index("# ═══════════════════════ APPLY"):]
+        self.assertLess(apply_flow.index('preflight_topology "$t"'),
+                        apply_flow.index('mkdir -p \'$SUB_WORK_DIR\''))
+        self.assertLess(apply_flow.index('preflight_topology "$t"'),
+                        apply_flow.index('sub_run "git checkout -q $t"'))
+        preflight = bash_function("preflight_topology")
+        self.assertIn('validate_runtime_patches "$t"', preflight)
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            local = root / "local/output/multi/configs"
+            canonical = root / "local/.claude/skills/upstream-version-watch/assets/configs"
+            remote = root / "remote/output/multi/configs"
+            local.mkdir(parents=True)
+            canonical.mkdir(parents=True)
+            remote.mkdir(parents=True)
+            for name in ("arm_patch.sh", "serve_runner.sh", "debug-init.sh"):
+                (local / name).write_text("#!/bin/sh\n", encoding="utf-8")
+                (canonical / name).write_text("#!/bin/sh\n", encoding="utf-8")
+                (remote / name).write_text("#!/bin/sh\n", encoding="utf-8")
+                (local / name).chmod(0o755)
+                (canonical / name).chmod(0o755)
+                (remote / name).chmod(0o755)
+            for name in ("arm_patch.sh", "serve_runner.sh", "debug-init.sh"):
+                (canonical / name).chmod(0o775)
+            normalize_script = f'''set -uo pipefail
+{runner_array.group(0)}
+SRC={str(root / "local")!r}/
+{normalize_modes}
+normalize_canonical_runner_modes
+'''
+            normalized = subprocess.run(["bash", "-c", normalize_script], text=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertEqual(normalized.returncode, 0, normalized.stderr)
+            for name in ("arm_patch.sh", "serve_runner.sh", "debug-init.sh"):
+                self.assertEqual(stat.S_IMODE((canonical / name).stat().st_mode), 0o755, name)
+            script = f'''set -uo pipefail
+{runner_array.group(0)}
+SRC={str(root / "local")!r}/
+REMOTE_ROOT={str(root / "remote")!r}
+sub_run() {{ (cd "$REMOTE_ROOT" && eval "$1"); }}
+{source_check}
+{destination_check}
+assert_source_runner_modes multi || exit $?
+verify_destination_runner_modes multi
+'''
+            green = subprocess.run(["bash", "-c", script], text=True,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertEqual(green.returncode, 0, green.stderr)
+            (canonical / "serve_runner.sh").chmod(0o644)
+            red_canonical_mode = subprocess.run(["bash", "-c", script], text=True,
+                                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertNotEqual(red_canonical_mode.returncode, 0)
+            self.assertIn("canonical runner mode", red_canonical_mode.stderr)
+            (canonical / "serve_runner.sh").chmod(0o755)
+            (local / "arm_patch.sh").unlink()
+            red_source_missing = subprocess.run(["bash", "-c", script], text=True,
+                                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertNotEqual(red_source_missing.returncode, 0)
+            self.assertIn("materialized runner missing", red_source_missing.stderr)
+            shutil.copy2(canonical / "arm_patch.sh", local / "arm_patch.sh")
+            (local / "serve_runner.sh").write_text("#!/bin/sh\n# stale\n", encoding="utf-8")
+            red_source_bytes = subprocess.run(["bash", "-c", script], text=True,
+                                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertNotEqual(red_source_bytes.returncode, 0)
+            self.assertIn("source runner bytes", red_source_bytes.stderr)
+            shutil.copy2(canonical / "serve_runner.sh", local / "serve_runner.sh")
+            (local / "serve_runner.sh").chmod(0o664)
+            red_source = subprocess.run(["bash", "-c", script], text=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertNotEqual(red_source.returncode, 0)
+            self.assertIn("source runner mode", red_source.stderr)
+            (local / "serve_runner.sh").chmod(0o755)
+            (remote / "debug-init.sh").write_text("#!/bin/sh\n# stale\n", encoding="utf-8")
+            red_destination_bytes = subprocess.run(["bash", "-c", script], text=True,
+                                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertNotEqual(red_destination_bytes.returncode, 0)
+            self.assertIn("destination runner bytes", red_destination_bytes.stderr)
+            shutil.copy2(canonical / "debug-init.sh", remote / "debug-init.sh")
+            (remote / "arm_patch.sh").unlink()
+            red_destination_missing = subprocess.run(["bash", "-c", script], text=True,
+                                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertNotEqual(red_destination_missing.returncode, 0)
+            self.assertIn("destination runner bytes", red_destination_missing.stderr)
+            shutil.copy2(canonical / "arm_patch.sh", remote / "arm_patch.sh")
+            (remote / "debug-init.sh").chmod(0o664)
+            red_destination = subprocess.run(["bash", "-c", script], text=True,
+                                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertNotEqual(red_destination.returncode, 0)
+            self.assertIn("destination runner mode", red_destination.stderr)
 
     def test_production_canonical_cli_consumes_shared_resolution_fail_closed(self):
         with tempfile.TemporaryDirectory() as td:

@@ -37,6 +37,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SYNC_TO_SUB_REL = Path(".claude") / "skills" / "upstream-version-watch" / "scripts" / "sync_to_sub.sh"
 SYNC_TO_SUB_SRC = REPO_ROOT / SYNC_TO_SUB_REL
+RENDER_DOCKERFILE_SRC = REPO_ROOT / ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py"
+RUNNER_ASSET_DIR = REPO_ROOT / ".claude/skills/upstream-version-watch/assets/configs"
+RUNNER_NAMES = ("serve_runner.sh", "debug-init.sh", "arm_patch.sh")
 COMPLETION_GATE_SRC = REPO_ROOT / "scripts" / "completion_gate.py"
 SCHEMA_SRC_DIR = REPO_ROOT / ".claude" / "schemas"
 SCHEMA_NAMES = (
@@ -93,6 +96,13 @@ def _build_isolated_repo(root_tmp: Path) -> Path:
     script_dir = repo / SYNC_TO_SUB_REL.parent
     script_dir.mkdir(parents=True)
     shutil.copy(SYNC_TO_SUB_SRC, script_dir / "sync_to_sub.sh")
+    shutil.copy(RENDER_DOCKERFILE_SRC, script_dir / "render_dockerfile.py")
+
+    runner_dir = repo / ".claude" / "skills" / "upstream-version-watch" / "assets" / "configs"
+    runner_dir.mkdir(parents=True)
+    for name in RUNNER_NAMES:
+        shutil.copy(RUNNER_ASSET_DIR / name, runner_dir / name)
+        (runner_dir / name).chmod(0o755)
 
     (repo / "scripts").mkdir()
     shutil.copy(COMPLETION_GATE_SRC, repo / "scripts" / "completion_gate.py")
