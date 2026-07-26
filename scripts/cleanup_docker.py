@@ -27,8 +27,12 @@ def _run(cmd, timeout=60):
         return 1, str(e)
 
 
-def preserve_set():
-    """보존 이미지 참조 결정론 수집 — 절대 삭제 금지 목록."""
+def preserve_set(canonical_only=False):
+    """Collect deterministic never-delete refs.
+
+    ``canonical_only`` is used by policy verification so branch-local delivered outputs cannot
+    become trust inputs; production cleanup may additionally preserve refs from delivered outputs.
+    """
     keep, why = set(), {}
 
     def add(ref, reason):
@@ -38,7 +42,7 @@ def preserve_set():
             why.setdefault(ref, reason)
 
     # ① envs/.env.* 의 IMAGE_TAG= (easy-vllm:<tag> 조립은 compose 관례 — 값이 full ref 인 경우도 수용)
-    for topo in ("multi", "single"):
+    for topo in (() if canonical_only else ("multi", "single")):
         envdir = os.path.join(REPO, "output", topo, "envs")
         if os.path.isdir(envdir):
             for fn in os.listdir(envdir):
@@ -52,9 +56,12 @@ def preserve_set():
                     v = m.group(1)
                     add(v if ":" in v or "/" in v else "easy-vllm:" + v, "env %s/%s" % (topo, fn))
     # ② resolved.json (루트/output) 의 image/tag 류 문자열
-    for p in (os.path.join(REPO, "resolved.json"),
-              os.path.join(REPO, "output", "multi", "resolved.json"),
-              os.path.join(REPO, "output", "single", "resolved.json")):
+    resolved_candidates = () if canonical_only else (
+        os.path.join(REPO, "resolved.json"),
+        os.path.join(REPO, "output", "multi", "resolved.json"),
+        os.path.join(REPO, "output", "single", "resolved.json"),
+    )
+    for p in resolved_candidates:
         if os.path.isfile(p):
             try:
                 blob = json.load(open(p, encoding="utf-8"))
@@ -62,14 +69,56 @@ def preserve_set():
                 continue
             for s in re.findall(r'"((?:easy-vllm|nvcr\.io/nvidia/pytorch)[^"]*)"', json.dumps(blob)):
                 add(s, "resolved.json")
-    # ③ Dockerfile FROM (NGC 현행 베이스)
-    for topo in ("multi", "single"):
+    # ③ Canonical shared templates are the topology-neutral authority; delivered outputs are
+    # optional additional keep hints. Ignore unresolved template FROM tokens fail-closed.
+    canonical = os.path.join(
+        REPO, ".claude", "skills", "upstream-version-watch", "templates")
+    resolution_path = os.path.join(
+        REPO, ".claude", "skills", "upstream-version-watch", "assets",
+        "current-production-resolution.json")
+    try:
+        with open(resolution_path, encoding="utf-8") as fh:
+            resolution = json.load(fh)
+        ngc_tag = resolution["ngc_base"]["tag"]
+        if not isinstance(ngc_tag, str) or not ngc_tag.strip():
+            raise ValueError("empty ngc_base.tag")
+        add("nvcr.io/nvidia/pytorch:" + ngc_tag.strip(), "shared production resolution")
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError(f"canonical shared production resolution invalid: {exc}") from exc
+    canonical_dockerfiles = [
+        (os.path.join(canonical, "Dockerfile.template"), "shared/Dockerfile.template"),
+        (os.path.join(canonical, "Dockerfile.source-build.template"),
+         "shared/Dockerfile.source-build.template"),
+    ]
+    for path, label in canonical_dockerfiles:
+        try:
+            with open(path, encoding="utf-8", errors="strict") as fh:
+                text = fh.read()
+        except (OSError, UnicodeError) as exc:
+            raise RuntimeError(f"canonical shared template invalid ({label}): {exc}") from exc
+        if not text.strip() or not re.search(r"^FROM\s+\S+", text, re.M):
+            raise RuntimeError(f"canonical shared template invalid ({label}): missing FROM instruction")
+        for m in re.finditer(r"^FROM\s+(\S+)", text, re.M):
+            ref = m.group(1)
+            if not ref.startswith("$") and "{{" not in ref:
+                add(ref, "FROM %s" % label)
+
+    # Delivered branch outputs are optional preservation hints only; malformed/missing hints cannot
+    # replace or hide mandatory canonical validation above.
+    dockerfiles = []
+    for topo in (() if canonical_only else ("multi", "single")):
         for dfn in ("Dockerfile", "Dockerfile.source-build"):
-            p = os.path.join(REPO, "output", topo, dfn)
-            if os.path.isfile(p):
-                for m in re.finditer(r"^FROM\s+(\S+)", open(p, encoding="utf-8", errors="replace").read(), re.M):
-                    if not m.group(1).startswith("$"):
-                        add(m.group(1), "FROM %s/%s" % (topo, dfn))
+            dockerfiles.append((os.path.join(REPO, "output", topo, dfn),
+                                "%s/%s" % (topo, dfn)))
+    for path, label in dockerfiles:
+        if not os.path.isfile(path):
+            continue
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            text = fh.read()
+        for m in re.finditer(r"^FROM\s+(\S+)", text, re.M):
+            ref = m.group(1)
+            if not ref.startswith("$") and "{{" not in ref:
+                add(ref, "FROM %s" % label)
     # ④ 가동/존재 컨테이너의 이미지
     rc, out = _run(["docker", "ps", "-a", "--format", "{{.Image}}"])
     if rc == 0:
@@ -86,7 +135,7 @@ def list_images():
     return [json.loads(l) for l in out.splitlines() if l.strip()]
 
 
-def main():
+def main(canonical_only=False):
     ap = argparse.ArgumentParser(description="docker 찌꺼기 결정론 정리 (dry-run 기본)")
     ap.add_argument("--apply", action="store_true", help="dry-run 표의 항목을 실제 삭제(사람 승인 후)")
     ap.add_argument("--cache-age-hours", type=int, default=336,
@@ -95,7 +144,7 @@ def main():
                     help="추가 보존 이미지 ref(반복 지정 가능)")
     args = ap.parse_args()
 
-    keep, why = preserve_set()
+    keep, why = preserve_set(canonical_only=canonical_only)
     for k in args.keep:
         keep.add(k)
         why.setdefault(k, "--keep 수동")

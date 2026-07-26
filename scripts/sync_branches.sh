@@ -261,6 +261,12 @@ fi
 # ── apply: 정본 콘텐츠를 working-dir 로 가져온다(커밋은 사람이) ──
 echo "[sync-branches] APPLY  $SRC_BRANCH → $DST_BRANCH (working-dir 갱신)"
 git checkout "$SRC_BRANCH" -- "${PATHS[@]}"
+# Git records only the executable bit; shared-repository umasks can materialize 0775.
+# Normalize canonical runner assets so production copies and review exports are exactly 0755.
+for runner in arm_patch.sh debug-init.sh serve_runner.sh; do
+    runner_path=".claude/skills/upstream-version-watch/assets/configs/$runner"
+    [ ! -f "$runner_path" ] || chmod 0755 "$runner_path"
+done
 echo "[sync-branches] 완료 — 공유 빌딩블럭을 working-dir 에 반영했습니다(스테이징됨)."
 echo "[sync-branches] 다음(사람): 변경 검토 후 직접 커밋하세요. 예:"
 echo "[sync-branches]   git status && git diff --cached"

@@ -119,6 +119,8 @@ GIT_EMAIL="${SYNC_GIT_EMAIL:-sync@easy-vllm.local}"
 MAX_DELETE="${MAX_DELETE:-50}"     # (레거시) --delete 안전캡. S4 는 아래 ALLOW_DELETE 삭제brake 가 1차 게이트.
 ALLOW_DELETE="${ALLOW_DELETE:-0}"  # (S4 d-rsync-2) 삭제 前 brake: 삭제예정 > 이 값이면 *삭제 前* fail-closed. 의도된 정리만 명시 override.
 RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
+PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
+PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
 
 # ── manifest 해소(서브 접속·work_dir = 항상 multi 통로 manifest. single 은 nodes:[] 라 서브 미정의) ──
 _resolve_sub_host_from_manifest() {
@@ -201,7 +203,8 @@ _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = ou
     local f
     FILT+=(--include='/configs/')
     for f in "${BAND2_CONFIGS[@]}"; do FILT+=(--include="/configs/$f"); done
-    FILT+=(--include='/configs/*_patch.py')       # model-keyed 런타임 패치: 슬레이브도 마운트·arm 필요(트리플렛과 비대칭 특례 — 헌법 패치 전파)
+    FILT+=(--include='/configs/*_patch.py')       # model-keyed 런타임 패치: cryptographic provenance 검증 후 전달
+    FILT+=(--include='/configs/*_patch.provenance.json')
     FILT+=(--exclude='/configs/*')                # 나머지 configs(모델 트리플렛 Band3) 배제
     FILT+=(--include='/envs/')
     for f in "${BAND2_ENVS[@]}"; do FILT+=(--include="/envs/$f"); done
@@ -210,6 +213,28 @@ _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = ou
     for f in "${BAND2_TOP[@]}"; do FILT+=(--include="/$f"); done
     FILT+=(--include='/build_patches/' --include='/build_patches/**')   # 빌드-바깥 패치 모듈 디렉토리(Band2 빌드입력·서브 빌드가 COPY — §4.7·3+1+1)
     FILT+=(--exclude='/*')
+}
+
+validate_runtime_patches() {  # $1=topology; every patch must bind current patch/model/resolution bytes
+    local topology="$1" cdir="${SRC%/}/output/$1/configs" edir="${SRC%/}/output/$1/envs"
+    local patch sidecar found=0
+    for patch in "$cdir"/*_patch.py; do
+        [ -f "$patch" ] || continue
+        if [ "$found" = 0 ]; then
+            [ -f "$PATCH_VALIDATOR" ] || { echo "[sync] FAIL(runtime patch): validator missing: $PATCH_VALIDATOR" >&2; return 1; }
+            [ -f "$PATCH_RESOLUTION" ] || { echo "[sync] FAIL(runtime patch): canonical resolution missing" >&2; return 1; }
+            found=1
+        fi
+        python3 "$PATCH_VALIDATOR" verify --patch "$patch" --topology "$topology" \
+            --config-dir "$cdir" --env-dir "$edir" --resolution "$PATCH_RESOLUTION" || return 1
+    done
+    # Orphan sidecars are stale authority too: never deliver one without its exact patch.
+    for sidecar in "$cdir"/*_patch.provenance.json; do
+        [ -f "$sidecar" ] || continue
+        patch="${sidecar%.provenance.json}.py"
+        [ -f "$patch" ] || { echo "[sync] FAIL(runtime patch): orphan provenance $sidecar" >&2; return 1; }
+    done
+    return 0
 }
 
 # ── S4 fail-loud band 분류 단언(plan ⊕rev3 keying linter) ──
@@ -237,7 +262,8 @@ assert_band_classification() {  # $1=topology → 0=ok, 1=미분류·누락
         [ -n "${_b2c[$b]:-}" ] && continue                              # Band2 인프라(allowlist)
         ok=0
         case "$b" in                                                     # (d-band-2) 짝의 .sh 가 Band2 면 Band3 로 green-light 안 함(stem 충돌 차단)
-            *_patch.py) stem="${b%_patch.py}"; { [ -f "$cdir/$stem.sh" ] || [ -f "$cdir/$stem.yaml" ]; } && ok=1 || true ;;  # model-keyed 런타임 패치(슬레이브 배달 특례 — 헌법 패치 전파)
+            *_patch.py) stem="${b%_patch.py}"; { [ -f "$cdir/$stem.sh" ] || [ -f "$cdir/$stem.yaml" ]; } && [ -f "$cdir/${stem}_patch.provenance.json" ] && ok=1 || true ;;
+            *_patch.provenance.json) stem="${b%_patch.provenance.json}"; [ -f "$cdir/${stem}_patch.py" ] && ok=1 || true ;;
             *.sh)   stem="${b%.sh}";   [ -f "$cdir/$stem.yaml" ] && ok=1 || true ;;
             *.yaml) stem="${b%.yaml}"; { [ -f "$cdir/$stem.sh" ] && [ -z "${_b2c[$stem.sh]:-}" ]; } && ok=1 || true ;;
         esac
@@ -291,6 +317,7 @@ staging_dir()     { echo "${SRC%/}/output/$1/sub_provision"; }
 #   (b) 그 안에서도 exclude 된 Band3(configs/*·envs/* − allowlist)·중첩 dir 는 *보호*(삭제 대상 아님) → 서브 자작 트리플렛 보존
 #   = full mirror 아님. stale main-origin Band3 잔재 회수는 gate③ cleanup 소관(루트 Band1 leak 과 동일 평면).
 deliver_build() {  # $1=topology $2=dry(0/1)
+    validate_runtime_patches "$1" || return 9
     _band2_filters
     local src="${SRC%/}/output/$1/" dst="${DEST}output/$1/"
     if [ "$2" = "1" ]; then

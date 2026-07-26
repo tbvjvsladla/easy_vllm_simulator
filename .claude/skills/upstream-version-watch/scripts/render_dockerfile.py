@@ -32,6 +32,7 @@ VALIDATED_SOURCE_BUILD_KEYS 는 P6 카탈로그(source_build_patches.yaml) 승�
 
 import sys
 import os
+import stat
 import re
 import json
 import shutil
@@ -39,9 +40,21 @@ import argparse
 
 IMAGE_NAME = "easy-vllm"
 
-# 통로 self-containment(plan_26062321 I1/I2): 컨테이너가 쓰는 러너 스크립트 정본은 repo-root configs/(tracked).
-# render 가 이를 output/<topology>/configs/ 로 materialize(복사)해 통로를 완결시킨다(런타임 mount-overlay·통로 밖 마운트 금지).
+# Topology-neutral policy/production SSOT. Delivered root configs/ and output/<topology>/ are
+# derivatives only; both branches consume these synchronized source assets.
+SKILL_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+SHARED_ASSET_DIR = os.path.join(SKILL_ROOT, "assets", "configs")
+SHARED_TEMPLATE_DIR = os.path.join(SKILL_ROOT, "templates")
+SHARED_RESOLUTION = os.path.join(SKILL_ROOT, "assets", "current-production-resolution.json")
 RUNNER_SCRIPTS = ("serve_runner.sh", "debug-init.sh", "arm_patch.sh")
+_SHARED_TEMPLATES = {
+    ("single", "dockerfile"): "Dockerfile.template",
+    ("multi", "dockerfile"): "Dockerfile.template",
+    ("single", "source-build"): "Dockerfile.source-build.template",
+    ("multi", "source-build"): "Dockerfile.source-build.template",
+    ("single", "compose"): "docker-compose.single.template.yaml",
+    ("multi", "compose"): "docker-compose.multi.template.yaml",
+}
 
 # ── NCCL/RDMA 통신 env (Plan 2: docker-compose 하드코딩 17개 → manifest-driven 렌더) ──────────
 #   3-tier taxonomy: ①환경값 = manifest.interconnect(hca_devices/gid_index/socket_iface)
@@ -437,20 +450,23 @@ def _repo_root() -> str:
 
 
 def materialize_configs(repo: str, topology: str) -> list:
-    """repo-root configs/ 의 러너 스크립트(정본) → output/<topology>/configs/ 복사(통로 self-containment, I1/I2).
-    멱등(덮어쓰기) · 실행권한 보존 · 정본 부재 시 fail-loud. 반환: 복사한 대상 경로 리스트.
-    compose 가 통로(`./configs`)만 단일 마운트하면 되도록 통로를 완결시킨다(런타임 mount-overlay 폐기)."""
-    src_dir = os.path.join(repo, "configs")
+    """Shared canonical runner assets → output/<topology>/configs/.
+
+    Idempotent, mode-preserving, and fail-closed when the synchronized source is absent.
+    """
+    if topology not in ("single", "multi"):
+        raise ValueError(f"unknown topology: {topology!r}")
+    src_dir = SHARED_ASSET_DIR
     dst_dir = os.path.join(repo, "output", topology, "configs")
     os.makedirs(dst_dir, exist_ok=True)
     copied = []
     for name in RUNNER_SCRIPTS:
         src = os.path.join(src_dir, name)
         if not os.path.isfile(src):
-            raise FileNotFoundError(f"러너 스크립트 정본 부재: {src} (repo-root configs/ — tracked 빌딩블럭)")
+            raise FileNotFoundError(f"shared runner source missing: {src}")
         dst = os.path.join(dst_dir, name)
         shutil.copyfile(src, dst)
-        shutil.copymode(src, dst)   # 실행권한 보존
+        os.chmod(dst, 0o755)
         copied.append(dst)
     return copied
 
@@ -520,6 +536,34 @@ def render(template_path: str, manifest: dict, version_resolution: dict) -> str:
     if "vllm-${VLLM_VERSION}+cu${CUDA_VERSION}" in text and not ctx.get("CUDA_VERSION"):
         raise ValueError("wheel 트랙인데 resolved.wheel.cuda 부재 → wheel URL 불완전")
     return out
+
+
+def load_shared_resolution() -> dict:
+    try:
+        with open(SHARED_RESOLUTION, encoding="utf-8") as fh:
+            value = json.load(fh)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"shared production resolution unreadable: {exc}") from exc
+    if not isinstance(value, dict) or not value.get("ngc_base", {}).get("tag"):
+        raise ValueError("shared production resolution lacks ngc_base.tag")
+    return value
+
+
+def render_shared(kind: str, topology: str, manifest: dict,
+                  version_resolution: dict | None = None) -> str:
+    """Render a synchronized canonical source for an explicit synthetic topology.
+
+    Checked-out branch identity is never consulted. Unknown topology/kind, a missing source, or
+    unresolved placeholders fail closed.
+    """
+    key = (topology, kind)
+    if key not in _SHARED_TEMPLATES:
+        raise ValueError(f"unknown topology/artifact kind: {topology!r}/{kind!r}")
+    path = os.path.join(SHARED_TEMPLATE_DIR, _SHARED_TEMPLATES[key])
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"shared template missing: {path}")
+    resolution = version_resolution if version_resolution is not None else load_shared_resolution()
+    return render(path, manifest, resolution)
 
 
 # ── self-test (A7 게이트가 호출) ──────────────────────────────────────────────
@@ -613,29 +657,28 @@ def _self_test() -> None:
         pass
     print("[render] cluster self-test OK — .env.cluster 9키 == golden 집합 동치 · 미지preset/노드결손 fail-loud 정상")
 
-    # ── materialize self-test (plan_26062321): 정본 → 통로 복사 멱등·실행권한·fail-loud ──
+    # ── materialize self-test: shared SSOT → 통로 복사 멱등·실행권한·fail-loud ──
     import tempfile
     with tempfile.TemporaryDirectory() as td:
-        os.makedirs(os.path.join(td, "configs"))
         os.makedirs(os.path.join(td, "output", "multi"))
-        for name in RUNNER_SCRIPTS:
-            p = os.path.join(td, "configs", name)
-            with open(p, "w", encoding="utf-8") as f:
-                f.write(f"#!/bin/bash\n# {name}\n")
-            os.chmod(p, 0o755)
         copied = materialize_configs(td, "multi")
         assert len(copied) == len(RUNNER_SCRIPTS), "materialize 복사 수"
         for name in RUNNER_SCRIPTS:
             dst = os.path.join(td, "output", "multi", "configs", name)
             assert os.path.isfile(dst), f"materialize 대상 부재: {name}"
-            assert os.access(dst, os.X_OK), f"실행권한 미보존: {name}"
-        materialize_configs(td, "multi")  # 멱등(재호출 OK)
-        os.remove(os.path.join(td, "configs", RUNNER_SCRIPTS[0]))
+            assert stat.S_IMODE(os.stat(dst).st_mode) == 0o755, f"exact 0755 미보존: {name}"
+        materialize_configs(td, "multi")
+        global SHARED_ASSET_DIR
+        original_assets = SHARED_ASSET_DIR
         try:
-            materialize_configs(td, "multi")
-            raise AssertionError("정본 부재인데 통과(fail-loud 위반)")
-        except FileNotFoundError:
-            pass
+            SHARED_ASSET_DIR = os.path.join(td, "missing-shared-assets")
+            try:
+                materialize_configs(td, "multi")
+                raise AssertionError("shared source 부재인데 통과(fail-loud 위반)")
+            except FileNotFoundError:
+                pass
+        finally:
+            SHARED_ASSET_DIR = original_assets
     print("[render] materialize self-test OK — 러너 스크립트 통로 복사(멱등·권한·fail-loud) 정상")
 
 
@@ -652,9 +695,11 @@ def main() -> None:
                     help="output/<topology>/.env 를 manifest(nas_model_path)+tiktoken_cache 에서 생성(serve-time NAS 마운트 정합, 결함#2)")
     ap.add_argument("--topology", choices=["single", "multi"], help="--materialize-configs/--materialize-env 대상 통로")
     ap.add_argument("--repo", help="repo 루트(미지정 시 스크립트 위치 기준 자동)")
-    ap.add_argument("--template", help="템플릿 경로")
+    ap.add_argument("--template", help="legacy caller-provided template path")
+    ap.add_argument("--canonical-kind", choices=["dockerfile", "source-build", "compose"],
+                    help="render synchronized canonical source (requires explicit --topology)")
     ap.add_argument("--manifest", default="manifest.yaml")
-    ap.add_argument("--resolved", default="resolved.json")
+    ap.add_argument("--resolved", help="legacy caller-provided resolution; canonical rendering forbids it")
     ap.add_argument("-o", "--out", help="출력 파일(미지정 시 stdout)")
     ap.add_argument("--allow-unvalidated", action="store_true",
                     help="미검증 (NGC×vLLM) 키의 source-build 가드를 WARN 으로 강등(사람 승인 전제 시도-빌드 — "
@@ -708,17 +753,24 @@ def main() -> None:
         print(f"[render] materialize env → {env_path}", file=sys.stderr)
         return
 
-    if not a.template:
+    if a.canonical_kind:
+        if not a.topology or a.template or a.resolved:
+            print("[render] FAIL: --canonical-kind requires --topology and forbids --template/--resolved",
+                  file=sys.stderr)
+            sys.exit(2)
+        manifest = load_manifest(a.manifest)
+        out = render_shared(a.canonical_kind, a.topology, manifest)
+    elif a.template:
+        manifest = load_manifest(a.manifest)
+        resolved = load_resolved(a.resolved or "resolved.json")
+        out = render(a.template, manifest, resolved)
+    else:
         _self_test()
         return
-
-    manifest = load_manifest(a.manifest)
-    resolved = load_resolved(a.resolved)
-    out = render(a.template, manifest, resolved)
     if a.out:
         with open(a.out, "w", encoding="utf-8") as f:
             f.write(out)
-        print(f"[render] {a.template} → {a.out} ({len(out)} bytes)", file=sys.stderr)
+        print(f"[render] deterministic render → {a.out} ({len(out)} bytes)", file=sys.stderr)
     else:
         sys.stdout.write(out)
 

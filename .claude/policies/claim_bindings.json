@@ -309,7 +309,7 @@
         ]
       },
       {
-        "path": "output/multi/docker-compose.yaml",
+        "path": ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml",
         "assertion_ids": [
           "oom_score_adj"
         ]
@@ -730,6 +730,13 @@
         ]
       },
       {
+        "path": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py",
+        "assertion_ids": [
+          "stamp",
+          "verify"
+        ]
+      },
+      {
         "path": "tests/harness/test_policy_claim_predicates.py",
         "assertion_ids": [
           "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C2"
@@ -738,7 +745,7 @@
     ],
     "RUNTIME_PATCH_NO_CARRY_FORWARD.C3": [
       {
-        "path": "configs/arm_patch.sh",
+        "path": ".claude/skills/upstream-version-watch/assets/configs/arm_patch.sh",
         "assertion_ids": [
           "_cfg",
           "_patch"
@@ -946,6 +953,12 @@
     ],
     "TERRAFORM_FLAG_GATE.C4": [
       {
+        "path": ".claude/skills/wiki-desk/scripts/smoke_query.py",
+        "assertion_ids": [
+          "main"
+        ]
+      },
+      {
         "path": "tests/harness/test_policy_claim_predicates.py",
         "assertion_ids": [
           "predicate_TERRAFORM_FLAG_GATE_C4"
@@ -982,7 +995,7 @@
         ]
       },
       {
-        "path": "output/multi/docker-compose.yaml",
+        "path": ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml",
         "assertion_ids": [
           "VLLM_REF",
           "VLLM_REPO"

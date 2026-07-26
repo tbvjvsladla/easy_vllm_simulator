@@ -75,7 +75,7 @@
           ]
         },
         {
-          "path": "output/multi/docker-compose.yaml",
+          "path": ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C1"
           ],
@@ -255,7 +255,7 @@
           ]
         },
         {
-          "path": "output/multi/docker-compose.yaml",
+          "path": ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml",
           "supports": [
             "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C2"
           ],
@@ -838,7 +838,7 @@
       ],
       "evidence": [
         {
-          "path": "configs/arm_patch.sh",
+          "path": ".claude/skills/upstream-version-watch/assets/configs/arm_patch.sh",
           "supports": [
             "RUNTIME_PATCH_NO_CARRY_FORWARD.C3"
           ],
@@ -856,6 +856,16 @@
           "assertion_ids": [
             "_band2_filters",
             "BAND2_CONFIGS"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py",
+          "supports": [
+            "RUNTIME_PATCH_NO_CARRY_FORWARD.C2"
+          ],
+          "assertion_ids": [
+            "stamp",
+            "verify"
           ]
         },
         {
@@ -1177,6 +1187,15 @@
           ],
           "assertion_ids": [
             "predicate_TERRAFORM_FLAG_GATE_C3"
+          ]
+        },
+        {
+          "path": ".claude/skills/wiki-desk/scripts/smoke_query.py",
+          "supports": [
+            "TERRAFORM_FLAG_GATE.C4"
+          ],
+          "assertion_ids": [
+            "main"
           ]
         },
         {

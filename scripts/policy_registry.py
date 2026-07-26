@@ -1840,17 +1840,18 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
         else:
             validate_bound_artifact(name, item, "regression_evidence", "arch_variant_regression", pfx)
 
-    dockerfile_path = repo_root / "output/multi/Dockerfile.source-build"
+    dockerfile_rel = ".claude/skills/upstream-version-watch/templates/Dockerfile.source-build.template"
+    dockerfile_path = repo_root / dockerfile_rel
     try:
         dockerfile = dockerfile_path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
-        fail("ARCH_VARIANT_DOCKERFILE_UNREADABLE", str(exc), "output/multi/Dockerfile.source-build")
+        fail("ARCH_VARIANT_DOCKERFILE_UNREADABLE", str(exc), dockerfile_rel)
         dockerfile = ""
     required_docker = ("ARG VLLM_REPO=", "ARG VLLM_REF=", "--filter=blob:none",
                        "checkout --detach ${VLLM_REF}")
     if dockerfile and not all(token in dockerfile for token in required_docker):
-        fail("ARCH_VARIANT_SOURCE_OVERRIDE_UNWIRED", "source Dockerfile lacks pinned repo/ref checkout wiring",
-             "output/multi/Dockerfile.source-build")
+        fail("ARCH_VARIANT_SOURCE_OVERRIDE_UNWIRED", "source template lacks pinned repo/ref checkout wiring",
+             dockerfile_rel)
 
     try:
         workflow = (repo_root / ".claude/rules/workflow.md").read_text(encoding="utf-8")

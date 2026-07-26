@@ -70,6 +70,15 @@ def _read(rel_path: str) -> str:
     return (REPO_ROOT / rel_path).read_text(encoding="utf-8")
 
 
+def _shared_asset(name: str) -> str:
+    return _read(f".claude/skills/upstream-version-watch/assets/configs/{name}")
+
+
+def _rendered(kind: str, topology: str = "multi") -> str:
+    manifest = {"cpu_arch": "aarch64", "nas_model_path": "/models"}
+    return render_dockerfile.render_shared(kind, topology, manifest)
+
+
 def _import(rel_dir: str, name: str):
     d = str(REPO_ROOT / rel_dir)
     if d not in sys.path:
@@ -180,7 +189,7 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C1():
     assert "script" in launch and "container_name" in launch, (
         "watchdog Popen must bind the resolved script and this trial's container identity")
 
-    compose = _read("output/multi/docker-compose.yaml")
+    compose = _rendered("compose")
     assert "oom_score_adj: 800" in compose, "container oom_score_adj must be 800 (kernel OOM-killer targeting)"
 
     ihs = _read("scripts/install_host_safety.sh")
@@ -302,9 +311,9 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C3():
     # NEW atom: absence from serve logs/scripts -- no tracked serve-facing script in this repo
     # actually carries a code-level banner for this warning (real absence, not just documentation).
     banned_phrase = "워치독 미설치 상태"
-    for rel in ("configs/serve_runner.sh", "configs/debug-init.sh", "configs/arm_patch.sh",
-                "output/multi/docker-compose.yaml"):
-        assert banned_phrase not in _read(rel), f"{rel} must never carry a serve-script banner for this warning"
+    for text in (_shared_asset("serve_runner.sh"), _shared_asset("debug-init.sh"),
+                 _shared_asset("arm_patch.sh"), _rendered("compose")):
+        assert banned_phrase not in text, "shared runtime sources must never carry a serve-script banner for this warning"
 
 
 def predicate_HOST_SAFETY_LAYERED_DEFENSE_C4():
@@ -455,8 +464,8 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C8():
     # (a) a real, currently-tracked preserved ref (the Dockerfile FROM base) never appears as a
     # deletion candidate, (b) an unrelated debris image genuinely does, and (c) `docker rmi` is
     # never invoked at all without --apply.
-    real_keep, _real_why = cleanup_docker.preserve_set()
-    dockerfile_from = re.search(r"^FROM\s+(\S+)", _read("output/multi/Dockerfile"), re.M).group(1)
+    real_keep, _real_why = cleanup_docker.preserve_set(canonical_only=True)
+    dockerfile_from = re.search(r"^FROM\s+(\S+)", _rendered("dockerfile"), re.M).group(1)
     assert dockerfile_from in real_keep, (
         "preserve_set() must really collect the tracked Dockerfile's FROM base as a preserved ref")
 
@@ -484,7 +493,7 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C8():
         cleanup_docker._run = fake_run
         sys.argv = ["cleanup_docker.py"]
         sys.stdout = stdout_capture
-        cleanup_docker.main()
+        cleanup_docker.main(canonical_only=True)
     finally:
         cleanup_docker.list_images, cleanup_docker._run = orig_list_images, orig_run
         sys.argv, sys.stdout = orig_argv, orig_stdout
@@ -554,7 +563,7 @@ def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C2():
     CONFIG_FILE env_file entry). Note: the plain `CONFIG_FILE` environment variable IS still set
     on the slave (defaulting to the neutral literal "default") -- what must be absent is an
     env_file PATH keyed off it (i.e. `envs/.env.${CONFIG_FILE}`), which only the master loads."""
-    compose = _read("output/multi/docker-compose.yaml")
+    compose = _rendered("compose")
     m = re.search(r"vllm-slave-serve:.*?(?=\n  vllm|\Z)", compose, re.S)
     assert m, "vllm-slave-serve service block not found"
     slave_block = m.group(0)
@@ -630,7 +639,7 @@ rsync -a --itemize-changes "${{FILT[@]}}" "{srcdir}/" "{dstdir}/"
 def predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C2():
     """C2: a multi-node TP slave is Band2-only -- must boot from .env.cluster (incl. MoE-JIT
     MAX_JOBS) + .env.interconnect alone."""
-    compose = _read("output/multi/docker-compose.yaml")
+    compose = _rendered("compose")
     m = re.search(r"vllm-slave-serve:.*?(?=\n  vllm|\Z)", compose, re.S)
     slave_block = m.group(0)
     env_files = re.findall(r"- envs/(\.env\.\S+)", slave_block)
@@ -1083,7 +1092,7 @@ def predicate_MODEL_ACQUISITION_TERNARY_GATE_C1():
     # no top-level (Docker-managed, persists across `down`) `volumes:` block anywhere in the file --
     # so an ephemeral in-container HF-cache download lives solely in the container's writable layer
     # and is destroyed when the container is removed.
-    compose = _read("output/multi/docker-compose.yaml")
+    compose = _rendered("compose")
     assert re.search(r"NAS_MODEL_PATH.*:/app/models:ro", compose), (
         "managed/custom model mount must be read-only")
     assert "(managed/custom 마운트원)" in compose, (
@@ -1455,7 +1464,7 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1():
 
     # NEW atom -- the arming script itself resolves the patch's identity from a runtime env var
     # (CONFIG_FILE), never a name baked in at image-build time -- one stock script serves any model.
-    arm_src = _read("configs/arm_patch.sh")
+    arm_src = _shared_asset("arm_patch.sh")
     assert '_cfg="${CONFIG_FILE:-default}"' in arm_src and '_patch="/app/configs/${_cfg}_patch.py"' in arm_src, (
         "the patch path must be resolved from a runtime env var, never a name baked in at build time")
 
@@ -1474,7 +1483,7 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1():
     assert not any("configs" in r for r in reincludes), (
         "output/<topology>/configs/ (where the compose bind-mount and the runtime patch actually "
         "live) must have NO re-inclusion carve-out -- proving it is genuinely, structurally untracked")
-    compose = _read("output/multi/docker-compose.yaml")
+    compose = _rendered("compose")
     assert "- ./configs:/app/configs:ro" in compose, (
         "the container must bind-mount the SAME blanket-ignored configs/ directory the patch lives in")
 
@@ -1513,37 +1522,34 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C2():
     assert dryrun_call and apply_call, (
         "both the dry-run and --apply rsync invocations must pull FROM the sub's docs/ subtree only")
 
-    # NEW atom -- "re-derived per environment rather than carried forward": run the REAL
-    # `_band2_filters` wildcard against a synthetic tree carrying TWO DIFFERENT model-keyed patch
-    # files (standing in for two different environments/bump-cycles) and prove BOTH travel --
-    # the mechanism re-admits whatever the CURRENT environment freshly authored, generically, rather
-    # than locking onto one carried-forward name.
-    band2_configs = _extract_bash_array(src, "BAND2_CONFIGS")
-    band2_envs = _extract_bash_array(src, "BAND2_ENVS")
+    # "re-derived per environment rather than carried forward" is enforced by the production
+    # cryptographic provenance validator, not inferred from a wildcard filename. Stamp binds patch
+    # bytes + topology + current model inputs + canonical production resolution; any drift rejects.
+    validator = REPO_ROOT / ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
+    resolution = REPO_ROOT / ".claude/skills/upstream-version-watch/assets/current-production-resolution.json"
     fn = _extract_bash_function(src, "_band2_filters")
     with tempfile.TemporaryDirectory() as tmp:
-        srcdir = Path(tmp) / "src" / "output" / "multi"
-        dstdir = Path(tmp) / "dst"
-        (srcdir / "configs").mkdir(parents=True)
-        (srcdir / "envs").mkdir(parents=True)
-        dstdir.mkdir()
-        (srcdir / "configs" / "serve_runner.sh").write_text("x")
-        (srcdir / "configs" / "modelA_patch.py").write_text("# patch for environment A")
-        (srcdir / "configs" / "modelB_patch.py").write_text("# patch for environment B (different bump cycle)")
-        script = f"""
-set -e
-{band2_configs}
-{band2_envs}
-{fn}
-_band2_filters
-rsync -a --itemize-changes "${{FILT[@]}}" "{srcdir}/" "{dstdir}/"
-"""
-        proc = _run_bash(script)
-        assert proc.returncode == 0, proc.stderr
-        delivered = {str(p.relative_to(dstdir)) for p in dstdir.rglob("*") if p.is_file()}
-        assert "configs/modelA_patch.py" in delivered and "configs/modelB_patch.py" in delivered, (
-            "the wildcard must re-admit ANY currently-present model-keyed patch, not a single "
-            "carried-forward name -- proving per-environment re-derivation, not carry-forward reuse")
+        root = Path(tmp); configs = root / "configs"; envs = root / "envs"
+        configs.mkdir(); envs.mkdir()
+        patch = configs / "modelA_patch.py"
+        patch.write_text("# freshly derived patch\n", encoding="utf-8")
+        (configs / "modelA.yaml").write_text("model: A\nversion: current\n", encoding="utf-8")
+        (envs / ".env.modelA").write_text("MODEL=A\n", encoding="utf-8")
+        common = ["--patch", str(patch), "--topology", "multi", "--config-dir", str(configs),
+                  "--env-dir", str(envs), "--resolution", str(resolution)]
+        stamped = subprocess.run([sys.executable, str(validator), "stamp", *common],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        assert stamped.returncode == 0, stamped.stderr
+        verified = subprocess.run([sys.executable, str(validator), "verify", *common],
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        assert verified.returncode == 0, verified.stderr
+        patch.write_text("# stale carried-forward patch with no current derivation\n", encoding="utf-8")
+        stale = subprocess.run([sys.executable, str(validator), "verify", *common],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        assert stale.returncode != 0, "stale patch bytes must fail closed despite a generic *_patch.py name"
+
+    assert 'validate_runtime_patches "$1"' in src
+    assert "*_patch.provenance.json" in fn, "rsync filter must transfer provenance with the patch"
 
 
 def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C3():
@@ -1555,7 +1561,7 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C3():
     before either role does anything else (ray head start/model source on master, ray worker join
     on slave), so container startup genuinely invokes arming rather than the mechanism merely
     existing, unreferenced, on disk."""
-    src = _read("configs/arm_patch.sh")
+    src = _shared_asset("arm_patch.sh")
     guard = src.index('if [ -f "$_patch" ]; then')
     purelib = src.index('sysconfig.get_paths()["purelib"]')
     writable = src.index('[ -w "$_sp" ]')
@@ -1568,7 +1574,7 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C3():
     # NEW atom -- "container startup/serve runner actually invokes arming": ordering-sensitive proof
     # against the REAL, tracked serve_runner.sh that arming is sourced before either role's own
     # startup action -- arming after ray start would miss the Ray/TP workers entirely.
-    runner = _read("configs/serve_runner.sh")
+    runner = _shared_asset("serve_runner.sh")
     arm_guard_idx = runner.index('if [ -f /app/configs/arm_patch.sh ]; then')
     arm_source_idx = runner.index("source /app/configs/arm_patch.sh")
     master_branch_idx = runner.index('if [ "${NODE_ROLE}" = "master" ]; then')
@@ -1587,7 +1593,7 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C3():
     # NEW atom -- this really is the script docker-compose's container `command:` executes for BOTH
     # the master and slave services (not merely a script that exists on disk, unreferenced) -- the
     # ordering proven above is only real if THIS is the actual entrypoint.
-    compose = _read("output/multi/docker-compose.yaml")
+    compose = _rendered("compose")
     master_cmd = re.search(r"vllm-master-serve:.*?command:\s*(\[.*?\])", compose, re.S).group(1)
     slave_cmd = re.search(r"vllm-slave-serve:.*?command:\s*(\[.*?\])", compose, re.S).group(1)
     assert "/app/configs/serve_runner.sh" in master_cmd and "/app/configs/serve_runner.sh" in slave_cmd, (
@@ -1624,7 +1630,7 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C4():
 
     # NEW atom -- "frozen into the tracked Dockerfile.source-build": inspect the REAL, buildable
     # artifact docker-compose's Dockerfile.source-build target actually is, not the abstract catalog.
-    dockerfile = _read("output/multi/Dockerfile.source-build")
+    dockerfile = _rendered("source-build")
     from_idx = dockerfile.index("FROM nvcr.io/nvidia/pytorch:")
     from_line_end = dockerfile.index("\n", from_idx)
     ngc_tag = dockerfile[from_idx:from_line_end].split(":", 1)[1].strip()
@@ -2589,7 +2595,8 @@ def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C4():
 
 def _arch_contract_repo(tmp: str) -> Path:
     root = Path(tmp)
-    for rel in (".claude/policies/arch_variant_ledger.json", "output/multi/Dockerfile.source-build",
+    for rel in (".claude/policies/arch_variant_ledger.json",
+                ".claude/skills/upstream-version-watch/templates/Dockerfile.source-build.template",
                 ".claude/policies/evidence_manifest.json", ".claude/policies/tracked_index.json",
                 ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json",
                 "docs/plan/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md",
@@ -2666,7 +2673,7 @@ def predicate_ARCH_WALL_VARIANT_LADDER_C1():
             "deps-패치 → **소스-repo 오버라이드(포크 핀)** → 체크포인트-교체"))
         assert "ARCH_VARIANT_LADDER_ORDER_MISSING" in _arch_codes(root)
         shutil.copy2(REPO_ROOT / ".claude/rules/workflow.md", workflow)
-        dockerfile = root / "output/multi/Dockerfile.source-build"
+        dockerfile = root / ".claude/skills/upstream-version-watch/templates/Dockerfile.source-build.template"
         dockerfile.write_text(dockerfile.read_text().replace("checkout --detach ${VLLM_REF}", "checkout main"))
         assert "ARCH_VARIANT_SOURCE_OVERRIDE_UNWIRED" in _arch_codes(root)
 
