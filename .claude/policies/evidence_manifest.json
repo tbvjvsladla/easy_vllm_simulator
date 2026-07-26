@@ -22,7 +22,7 @@
   "scripts/hint_tag.py": "255d64f3d06e91f3371d354ee2f909d407441e29886a1ef960e85c1892dbe755",
   "scripts/install_host_safety.sh": "147b99892fceea48b50f2c82eeb3aab9936d09ae2e3723e18a182f397564e993",
   "scripts/mem_watchdog.sh": "b5fd4723c4276bbea3f0f281b51ad8a4467fd3850ad3186470a4ce1c59f24c1b",
-  "scripts/sync_branches.sh": "e5b95f135ef2fa31b009a8b142dbaa86ffb1dd61090c0ca5cb22d7ae71fc2166",
+  "scripts/sync_branches.sh": "fc6f4543253287757cce54bd37ee8492f4c0b90901fce46ab724a2c60c77373f",
   "tests/harness/test_policy_claim_predicates.py": "2146ed5b3e17b784c8a0425d4c9eefb2ba2d49a59399b3cc1e6288914fa59bdb",
   "tests/harness/test_policy_clause_companion_evidence.py": "e899d59aba550325bed6cf309098db057e8649da7939496771e1ffc1c3a363a1"
 }

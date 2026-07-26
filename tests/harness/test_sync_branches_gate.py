@@ -442,6 +442,7 @@ class TestApprovedApplyPositiveControl(_IsolatedSyncRepoTestCase):
     def test_approved_experimental_apply_copies_allowlisted_claude_md(self):
         manifest = _write_experimental_manifest(self.repo, "approved_apply.json")
         before = _snapshot(self.repo)
+        before_head = _git(self.repo, "rev-parse", "HEAD").stdout
         self.assertEqual((self.repo / "CLAUDE.md").read_text(encoding="utf-8"), STALE_MULTI_CLAUDE_MD)
 
         code, out, err = _run_sync(self.repo, "--mode", "experimental", "--manifest", manifest, "--apply")
@@ -454,13 +455,58 @@ class TestApprovedApplyPositiveControl(_IsolatedSyncRepoTestCase):
         status_after = _git(self.repo, "status", "--porcelain").stdout
         self.assertIn("CLAUDE.md", status_after, msg=f"status={status_after!r}")
         # HEAD must never move -- sync_branches.sh only stages, it never commits.
-        self.assertEqual(_git(self.repo, "rev-parse", "HEAD").stdout, _git(self.repo, "rev-parse", "HEAD").stdout)
+        self.assertEqual(_git(self.repo, "rev-parse", "HEAD").stdout, before_head)
+
+    def test_head_oracle_detects_auto_commit_mutant(self):
+        manifest = _write_experimental_manifest(self.repo, "auto_commit_mutant.json")
+        script = self.repo / "scripts" / "sync_branches.sh"
+        text = script.read_text(encoding="utf-8")
+        needle = 'echo "[sync-branches] 완료 — 공유 빌딩블럭을 working-dir 에 반영했습니다(스테이징됨)."'
+        mutant = (
+            'git -c user.name="Mutant" -c user.email="mutant@example.invalid" '
+            'commit -q -m "forbidden auto commit"\n' + needle
+        )
+        self.assertIn(needle, text)
+        script.write_text(text.replace(needle, mutant, 1), encoding="utf-8")
+        before_head = _git(self.repo, "rev-parse", "HEAD").stdout
+
+        code, out, err = _run_sync(
+            self.repo, "--mode", "experimental", "--manifest", manifest, "--apply"
+        )
+        self.assertEqual(code, 0, msg=f"out={out}\nerr={err}")
+        self.assertNotEqual(_git(self.repo, "rev-parse", "HEAD").stdout, before_head,
+                            msg="negative control must prove that the pre/post HEAD oracle detects an auto-commit")
 
     def test_promotion_ready_apply_also_works(self):
         manifest = _write_promotion_manifest_full_pass(self.repo)
         code, out, err = _run_sync(self.repo, "--mode", "promotion", "--manifest", manifest, "--apply")
         self.assertEqual(code, 0, msg=f"out={out}\nerr={err}")
         self.assertEqual((self.repo / "CLAUDE.md").read_text(encoding="utf-8"), MAIN_CLAUDE_MD)
+
+
+class TestPhase7SharedAllowlistContract(unittest.TestCase):
+    def test_phase1_through_phase6_shared_roots_are_explicitly_allowlisted(self):
+        text = SYNC_BRANCHES_SRC.read_text(encoding="utf-8")
+        block = text.split("ALLOWLIST=(", 1)[1].split("\n)", 1)[0]
+        entries = {line.strip() for line in block.splitlines()
+                   if line.strip() and not line.lstrip().startswith("#")}
+        required = {
+            ".claude/schemas", ".claude/policies", ".gitignore", "tests",
+            "scripts/completion_gate.py", "scripts/doc_naming.py",
+            "scripts/evidence_publisher.py", "scripts/harness_verify.py",
+            "scripts/policy_registry.py", "scripts/agent_control.py", "scripts/providers",
+            "docs/plan/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md",
+        }
+        self.assertEqual(set(), required - entries,
+                         msg=f"Phase1-6 shared paths missing from allowlist: {sorted(required - entries)}")
+        self.assertIn(
+            "immutable historical policy trust source; evidence input only, never an active execution plan",
+            text,
+        )
+        self.assertNotIn(
+            "docs/plan/plan_26072506_하네스_루프_구조개선_Sonnet_E2E.md", entries,
+            msg="the active execution plan must not be branch-synced",
+        )
 
 
 # =============================================================================

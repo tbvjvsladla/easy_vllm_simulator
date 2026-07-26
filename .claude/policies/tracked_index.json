@@ -4,12 +4,12 @@
     "ambient_git": "git index is provenance authority",
     "gitless_export": "snapshot plus content digests is export-trust input, not independent proof"
   },
-  "base_tree_sha1": "01dae5bb1ab3e841be59b6c5640d9adfc6f95219",
+  "base_tree_sha1": "8d47b05c3aab36a59d22e4eef4bb98136f0b7768",
   "entries": {
     ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json": "12cfcd32c3e8826a2180e1b860cdf2fc61cd857d",
     ".claude/policies/arch_variant_ledger.json": "0bc8c33e5ccca585f0bb20c83dd48946054738f7",
     ".claude/policies/claim_bindings.json": "6827e881d89314d67c1b30bcf93495b3c322c8cf",
-    ".claude/policies/evidence_manifest.json": "4f593d4aa4059c55e0a24f540bb0fdec6e7d8857",
+    ".claude/policies/evidence_manifest.json": "0e247e4733edade7de265ee3c178adc253093458",
     ".claude/policies/governed_prose_snapshot.json": "cf7de50b103803eeaab1c96a6288c6285bb67807",
     ".claude/policies/registry.yaml": "e85fdb4f046ba52f5149b32d51d50e726524e992",
     ".claude/rules/docs.md": "1f8db9c43e7698518d9de0e5b7a7baa9bdd94330",
@@ -163,7 +163,7 @@
     "scripts/policy_registry.py": "329cf167bc651dea704a4b4895cec26e6c0ab38a",
     "scripts/providers/claude_code.py": "d9b202ee2a82b3db07965bd7b36a5a49fc882eec",
     "scripts/smoke_clone.sh": "ae2b25a91a38f0467b37ff71d628efeb44106745",
-    "scripts/sync_branches.sh": "42bbc5499e28eaeeb4ce531e76fc7f28c3c18837",
+    "scripts/sync_branches.sh": "020d4a615fccff8b4dbcf48b32780cdeff613000",
     "scripts/systemd/easy-vllm-memwatch.service": "a51777326b9c9d024496ee5c07af38f4df7d1592",
     "scripts/templates/hint_recipe.template.md": "14fd93d9aeb26cdb2b4564d1e325fb5e8142ec11",
     "tests/__init__.py": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
@@ -369,7 +369,7 @@
     "tests/harness/test_promotion_side_effects.py": "86d3322552f8530b9566ef24e11c624d245e69e5",
     "tests/harness/test_schema_meta_validation.py": "f5759fb8080064d54c8e85c128255e057db50a98",
     "tests/harness/test_skill_contracts.py": "a118951b90fcb4665e0fa70c7e2678b17d717827",
-    "tests/harness/test_sync_branches_gate.py": "1893c3f8841dd83d2a5ca734342cec02be1e76a6",
+    "tests/harness/test_sync_branches_gate.py": "7336dd7b23dc25581f252dac006f7bf78ed0ab47",
     "tests/harness/test_sync_to_sub_gate.py": "39f7a343b37b89ffa18f38bf64cb71c3907666b1",
     "tests/harness/test_tracked_index.py": "e7d3a9b99b8684fe673847402b56cd0dfb9d4b04"
   }

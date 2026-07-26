@@ -37,7 +37,18 @@ ALLOWLIST=(
     CLAUDE.md
     .claude/rules
     .claude/skills
+    .claude/schemas
+    .claude/policies
+    .gitignore
+    tests
     scripts/sync_branches.sh
+    scripts/completion_gate.py
+    scripts/doc_naming.py
+    scripts/evidence_publisher.py
+    scripts/harness_verify.py
+    scripts/policy_registry.py
+    scripts/agent_control.py
+    scripts/providers
     scripts/smoke_clone.sh
     scripts/hint_tag.py
     scripts/templates
@@ -49,6 +60,8 @@ ALLOWLIST=(
     scripts/host
     manifest.template.yaml
     .gitattributes
+    # immutable historical policy trust source; evidence input only, never an active execution plan
+    docs/plan/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md
 )
 #   hint_tag.py·templates = hint 배포 레이어 엔진(빌딩블럭 · 브랜치 동일). hints/index.json·HINTS.md
 #   카탈로그 표(구 README 부록)는 생성-데이터(태그에서 재생성 가능)라 여기 미포함 — reindex 재생성/수동
