@@ -127,7 +127,7 @@ if not vllm:
 # gpu_model: manifest > Agent_Card.json(node_identity) > NA.
 #   ⚠ 서브 노드에는 manifest.yaml 이 **설계상 부재**(D10 — sync_to_sub 가 manifest 를 배달하지 않는다; 서브 정체성은
 #   메인이 render_sub_env.py 로 렌더한 Agent_Card.json 에 산다). 폴백이 없으면 서브에서 돈 full 벤치의
-#   인증서 강한키 gpu 가 "NA" 로 발행돼 carry-forward 재검증이 무력화된다(plan_2026072217_1 실측).
+#   인증서 강한키 gpu 가 "NA" 로 발행돼 carry-forward 재검증이 무력화된다(plan_26072217 실측).
 #   Agent_Card 의 gpu_model 은 메인의 HW 동질성 스캔 산물이므로 날조가 아니라 **A2A attestation** 이다.
 gpu_model = grep_yaml(mftext, "gpu_model")
 if not gpu_model:

@@ -43,17 +43,18 @@ TYPE_HINTS = [
     ("seed", "seed", "bootstrap-lineage"),
 ]
 
-# A doc stem = "<type>_<YYYYMMDDHH>_<seq>" (plan/devlog/testlog) or, for simlog,
-# the run-dir name "<YYYYMMDDHH>_<seq>" (NO type prefix).
-STEM_RE = re.compile(r"(plan|devlog|testlog)_(\d{10})_(\d+)")
-SIMLOG_RE = re.compile(r"(\d{10})_(\d+)")
+# A doc stem = "<type>_<YYMMDDHH>[_MM_SS]" (plan/devlog/testlog) or, for simlog,
+# the run-dir name "<YYMMDDHH>[_MM_SS]" (NO type prefix). 2026-07-25 canon (docs.md §1).
+_TT = r"\d{8}(?:_\d{2}_\d{2})?"   # YYMMDDHH + optional _MM_SS collision suffix
+STEM_RE = re.compile(r"(plan|devlog|testlog)_(" + _TT + r")(?!\d)")
+SIMLOG_RE = re.compile(r"^(" + _TT + r")(?!\d)")
 # plan/devlog/testlog citation tokens: bare stem, backticked, or `docs/<type>/`-prefixed
 # (topic suffix, if present, is ignored). Brace-glob is supported for simlog only.
 CITE_TOKEN_RE = re.compile(
-    r"(?:docs/(?:plan|devlog|testlog)/)?(plan|devlog|testlog)_(\d{10})_(\d+)"
+    r"(?:docs/(?:plan|devlog|testlog)/)?(plan|devlog|testlog)_(" + _TT + r")(?!\d)"
 )
-# simlog citations: `docs/simlog/<YYYYMMDDHH>_<seq>` with optional brace-glob {1,2,3}.
-SIMLOG_CITE_RE = re.compile(r"docs/simlog/(\d{10})_(\{[\d,]+\}|\d+)")
+# simlog citations: `docs/simlog/<YYMMDDHH>[_MM_SS]` (one run-dir per citation).
+SIMLOG_CITE_RE = re.compile(r"docs/simlog/(" + _TT + r")(?!\d)")
 SEEDISH_RE = re.compile(r"(seed_[0-9a-f]{6,}|interview_\d{8}_\d{6})")
 # A plan is `realizes` (vs generic `cites`) only when named on a 계획/대상 line —
 # the docs convention's "this is the plan this work realizes" header label.
@@ -121,18 +122,18 @@ def stem_of(source_path: str, doc_type: str) -> str | None:
     base = source_path.rsplit("/", 1)[-1]
     if doc_type == "simlog":
         m = SIMLOG_RE.match(base)
-        return f"{m.group(1)}_{m.group(2)}" if m else None
+        return m.group(1) if m else None
     m = STEM_RE.match(base)
-    return f"{m.group(1)}_{m.group(2)}_{m.group(3)}" if m else None
+    return f"{m.group(1)}_{m.group(2)}" if m else None
 
 
 def topic_slug(source_path: str, doc_type: str) -> str | None:
     base = source_path.rsplit("/", 1)[-1]
     base = base[:-3] if base.endswith(".md") else base
     if doc_type == "simlog":
-        m = re.match(r"\d{10}_\d+_(.+)", base)
+        m = re.match(r"\d{8}(?:_\d{2}_\d{2})?_(.+)", base)
     else:
-        m = re.match(r"(?:plan|devlog|testlog)_\d{10}_\d+_(.+)", base)
+        m = re.match(r"(?:plan|devlog|testlog)_\d{8}(?:_\d{2}_\d{2})?_(.+)", base)
     return m.group(1) if m else None
 
 
@@ -250,7 +251,7 @@ def extract_edges(entries: list[dict[str, Any]], bodies: dict[str, str]) -> list
             if REALIZE_LABEL_RE.search(line):
                 for m in CITE_TOKEN_RE.finditer(line):
                     if m.group(1) == "plan":
-                        out.add(f"plan_{m.group(2)}_{m.group(3)}")
+                        out.add(f"plan_{m.group(2)}")
         return out
 
     for e in entries:
@@ -261,7 +262,7 @@ def extract_edges(entries: list[dict[str, Any]], bodies: dict[str, str]) -> list
         rset = realize_targets(body) if s_type in ("devlog", "testlog") else set()
         # plan/devlog/testlog citations
         for m in CITE_TOKEN_RE.finditer(body):
-            target_stem = f"{m.group(1)}_{m.group(2)}_{m.group(3)}"
+            target_stem = f"{m.group(1)}_{m.group(2)}"
             tid = by_stem.get(target_stem)
             if not tid:
                 continue
@@ -275,10 +276,9 @@ def extract_edges(entries: list[dict[str, Any]], bodies: dict[str, str]) -> list
                 add(sid, tid, "cites", tok)
         # simlog directory citations (brace-glob expands to runs)
         for m in SIMLOG_CITE_RE.finditer(body):
-            for num in _expand_brace(m.group(2)):
-                tid = by_stem.get(f"{m.group(1)}_{num}")
-                if tid and by_id[tid]["document_type"] == "simlog":
-                    add(tid, sid, "evidences", m.group(0))
+            tid = by_stem.get(m.group(1))
+            if tid and by_id[tid]["document_type"] == "simlog":
+                add(tid, sid, "evidences", m.group(0))
         # seed_/interview_ lineage tokens (only if such a node is registered)
         for m in SEEDISH_RE.finditer(body):
             tid = by_stem.get(m.group(1))
@@ -292,7 +292,7 @@ def extract_edges(entries: list[dict[str, Any]], bodies: dict[str, str]) -> list
             if not sm:
                 continue
             for m in CITE_TOKEN_RE.finditer(line[sm.end():]):
-                tid = by_stem.get(f"{m.group(1)}_{m.group(2)}_{m.group(3)}")
+                tid = by_stem.get(f"{m.group(1)}_{m.group(2)}")
                 if tid:
                     add(sid, tid, "superseded-by", _cap(line.strip()))
 

@@ -3,7 +3,7 @@
 
 Terms come from an UNTRACKED shared term file (default: <repo>/.claude/pii_terms.txt,
 one literal per line, '#' comments) so no PII literal ever bakes into this tracked,
-distributable script (pointer principle — plan_2026070208_1 Phase 1). The file is
+distributable script (pointer principle — plan_26070208 Phase 1). The file is
 shared with scripts/smoke_clone.sh (A4): single source, no cross-copy drift.
 When the term file is absent (fresh deployment skeleton), the generic patterns
 below still guard private-IP leaks; deployments inject their own literals by

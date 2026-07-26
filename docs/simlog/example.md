@@ -12,13 +12,14 @@
 
 ## 명명 규칙 (simlog만 예외 — 파일이 아니라 run 디렉토리)
 ```
-docs/simlog/<YYYYMMDDHH>_<seq>_<주제>/
+docs/simlog/<YYMMDDHH>[_<MM>_<SS>]_<주제>/
 ```
 - `<type>_` 파일 접두사 없음. **run 1개 = 디렉토리 1개**.
-- `YYYYMMDDHH`: 작성 일시 절대표기 (예 `2026062121` = 2026-06-21 21시). 상대날짜 금지.
-- `seq`: 같은 일시 내 일련번호(1부터).
+- `YYMMDDHH`: 작성 일시 절대표기 · 2자리 연도 (예 `26062121` = 2026-06-21 21시). 상대날짜 금지.
+- `_MM_SS`: 같은 `YYMMDDHH`에 충돌 시에만 분·초 접미(구 `_seq_` 표기는 폐지됨).
 - `주제`: 한국어, 밑줄(`_`) 구분, 버전·대상 포함 권장.
-- 예: `docs/simlog/2026062121_1_vLLM0.22.1_KV클램프_시뮬/`
+- 예: `docs/simlog/26062121_vLLM0.22.1_KV클램프_시뮬/`
+- 명명 SSOT(결정론 헬퍼): `scripts/doc_naming.py`(`simlog_dirname` — evidence_publisher.py가 소비).
 
 ## 수동 serve 스윕 run 내용 (에이전트가 동형 구조로 적재)
 - `serve_logs/` — trial 별 docker logs 원문(`trialNN_<svc>.log`).

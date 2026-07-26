@@ -88,7 +88,7 @@ def _build_yaml(parsed, recipe, served_model_name):
         quant, max_model_len, gmu))
     # VRAM 분해 주석 블록(vram_breakdown 있을 때만).
     lines.extend(_build_vram_breakdown_block(breakdown))
-    # 타겟-GPU 이식 정직성 주석(recipe.target_gpu 있을 때만 — §4.9, plan_2026070809_3).
+    # 타겟-GPU 이식 정직성 주석(recipe.target_gpu 있을 때만 — §4.9, plan_26070809_47_07).
     target_gpu = recipe.get("target_gpu")
     if target_gpu:
         lines.append("# ── 타겟-GPU 이식 클램프 (host≠target, gpu_model={}) ──".format(

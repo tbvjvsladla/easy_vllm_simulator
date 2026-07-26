@@ -12,8 +12,8 @@
 # E-search 상태 표면(--e-search hit|empty|no): 외부검색(E) 시도 여부를 출력에 *기록*한다 —
 #   roofline-only 강등(reference/target 부재)이 침묵으로 지나가지 않게 warning 필드로 표면화(self-preference 차단).
 #   verdict 자체는 불변(warning-only — 결정론 게이트 보존). egress-restricted 서브 = --e-search empty 로
-#   음성정직 기록(egress-online+A2A 위임 서브는 --e-search hit 자율 시도 — plan_2026070809_2 이중게이트).
-# 노드간 VRAM 밸런스 축(--node-vram-gib, plan_2026070809_3 §4.8): decode-tps 축과 **직교** — 미지정 시 비활성
+#   음성정직 기록(egress-online+A2A 위임 서브는 --e-search hit 자율 시도 — plan_26070809_46_57 이중게이트).
+# 노드간 VRAM 밸런스 축(--node-vram-gib, plan_26070809_47_07 §4.8): decode-tps 축과 **직교** — 미지정 시 비활성
 #   (기존 판정 완전 보존). balance_dev=(max-min)/max > --balance-tol(기본 0.10) → REFUTE(failure_axis="balance").
 # CONTRACT: 출력 verdict JSON. stdlib only.
 import argparse, json, sys
@@ -40,7 +40,7 @@ def main():
                     help="외부검색(E) 상태: hit=시도·발견 / empty=시도·빈손 / no=미시도(기본). 출력에 기록(판정 불변)")
     ap.add_argument("--node-vram-gib", default=None,
                     help="멀티노드 노드별 measured VRAM used(GiB), 쉼표구분(예: 60.1,66.8). "
-                         "밸런스 축(plan_2026070809_3 §4.8) — 미지정 시 비활성(기존 decode-tps 판정 완전 보존).")
+                         "밸런스 축(plan_26070809_47_07 §4.8) — 미지정 시 비활성(기존 decode-tps 판정 완전 보존).")
     ap.add_argument("--balance-tol", type=float, default=0.10,
                     help="노드간 VRAM 밸런스 허용편차(기본 0.10=10%%)")
     ap.add_argument("--json", action="store_true")
@@ -155,7 +155,7 @@ def main():
     if warning is not None:
         out["warning"] = warning
 
-    # --- 노드간 VRAM 밸런스 축 (직교 — plan_2026070809_3 §4.8) ---
+    # --- 노드간 VRAM 밸런스 축 (직교 — plan_26070809_47_07 §4.8) ---
     if args.node_vram_gib:
         try:
             node_vals = [float(x) for x in args.node_vram_gib.split(",") if x.strip() != ""]
@@ -183,7 +183,7 @@ def main():
                 "evidence": out["balance"],
             })
             out["diagnosis_hint"].append(
-                "노드간 VRAM 편차 초과 → recipe-explorer 재탐색(per-GPU 클램프 재산정 — plan_2026070809_3 §4.8).")
+                "노드간 VRAM 편차 초과 → recipe-explorer 재탐색(per-GPU 클램프 재산정 — plan_26070809_47_07 §4.8).")
 
     print(json.dumps(out, ensure_ascii=False, indent=2))
 

@@ -1,0 +1,6 @@
+verdict: PASS
+model: solar-open2-250b
+vllm_version: 0.22.0
+quantization: NVFP4
+topology: multi
+benchmark_mode: full

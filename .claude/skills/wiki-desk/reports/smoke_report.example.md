@@ -9,9 +9,9 @@
 
 ## A. Direct lookup (path-reference accuracy + edge)
 
-- Query: `devlog_2026062412_1`
-- Returns: `docs/devlog/devlog_2026062412_1_*.md` (authority 100) → **realizes** `plan_2026062411_1`
-  + ← **evidences** `testlog_2026062412_1`. PASS.
+- Query: `devlog_26062412`
+- Returns: `docs/devlog/devlog_26062412_*.md` (authority 100) → **realizes** `plan_26062411`
+  + ← **evidences** `testlog_26062412`. PASS.
 
 ## B. Topical traversal
 

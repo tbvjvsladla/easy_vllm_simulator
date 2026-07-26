@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# max_envelope.sh — Max 모드: HW 안전-최대 컨텍스트 envelope 특성화 (plan_2026071510_1 §Max)
+# max_envelope.sh — Max 모드: HW 안전-최대 컨텍스트 envelope 특성화 (plan_26071510 §Max)
 #
 # ★ 별도 오퍼레이션 — 벤치마커의 *측정 인프라만* 공유(run_bench/verdict/render 재사용), 벤치마커 native
 #   모드(§2·§4 적대검증)가 아니다. 벤치마커 본체 "기동 안 함" 불변식 보존 — **Max 가 기동/reload 를 소유**.
@@ -10,7 +10,7 @@
 #   - **이중 게이트**: (1) 스크립트 `--confirm-risk` 명시 (2) 에이전트가 전작업완료 후 챗 경고톤 Y/N(선-기록 후-위험).
 #   - serve+smoke = `multinode_serve_smoke.sh`(협역 워치독 자동 arming + 로드-전 RAM 게이트 내장).
 #   - **선-기록 후-위험**: 각 레벨 결과를 *다음 레벨 시도 전* 디스크에 기록(하드다운이 진행분 소실 안 하게).
-#   - **안전측 default 상한 = 524288(512k, 검증된 안전상한 testlog_2026071113_1)** — 초과 probe 는 --levels 명시로만
+#   - **안전측 default 상한 = 524288(512k, 검증된 안전상한 testlog_26071113)** — 초과 probe 는 --levels 명시로만
 #     (768k 등 known-fatal 은 사용자가 하드다운 위험을 명시 수용해야 진입).
 # 사용: max_envelope.sh <config> [--topology single|multi] [--levels 131072,262144,393216,524288]
 #        [--confirm-risk] [--dry-run] [--out-dir DIR]
@@ -42,7 +42,7 @@ if [ "$CONFIRM" != 1 ] && [ "$DRYRUN" != 1 ]; then
   cat >&2 <<'WARN'
 [max_envelope] ⚠⚠ 위험 오퍼레이션 — 실행 거부(--confirm-risk 미명시).
   Max 는 config 를 **재서빙(reload)** 하며 컨텍스트를 안전측으로 스텝업합니다.
-  통합메모리(GB10) 호스트에서 고컨텍스트 prefill 은 **호스트 하드다운 위험**이 있습니다(하드다운 계보 768k · testlog_2026071111_1).
+  통합메모리(GB10) 호스트에서 고컨텍스트 prefill 은 **호스트 하드다운 위험**이 있습니다(하드다운 계보 768k · testlog_26071111).
   선행 필수(선-기록 후-위험): 서빙 확정 · 문서(report/인증서) 발행 · wiki 등록 완료 + 호스트 안전체계 설치 권장.
   실행하려면: max_envelope.sh <config> --confirm-risk   (에이전트는 챗 경고톤 Y/N 승인 후에만 이 플래그를 붙일 것)
 WARN

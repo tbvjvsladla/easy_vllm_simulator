@@ -1,0 +1,1 @@
+- 어떤 규칙 설명 (policy:not-a-valid-id) 참조. 두 번째 (policy:ALSO_BAD-ID!) 참조.

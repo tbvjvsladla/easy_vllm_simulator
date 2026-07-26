@@ -1,0 +1,184 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://easy-vllm-simulator.local/schemas/work-manifest.schema.json",
+  "title": "work-manifest",
+  "description": "Phase 1 (plan_26072506) INPUT contract consumed by scripts/completion_gate.py. Declares a unit of work's task class, HW/model identity, runtime state, evidence artifact paths, benchmark verdict, and PII scan result. This file is executed, not merely descriptive: scripts/completion_gate.py loads it at runtime and walks every declared keyword (type/required/properties/additionalProperties/enum/const/minimum/minLength/minItems/items/$ref) with a small generic Draft-07-subset validator -- there is no second, hand-duplicated copy of these constraints. Strong identity is 6 keys: model, gpu, vllm, quant, topology, tp (compared in full wherever identity is cross-checked -- runtime.identity, and the actual parsed certificate artifact). Certificate identity is NOT self-asserted here (see evidence.certificate) -- trust for certificate identity comes only from parsing the real flat-YAML certificate artifact on disk (scripts/completion_gate.py:parse_flat_certificate), never from manifest-declared fields.",
+  "type": "object",
+  "required": ["schema_version", "task_class", "identity", "evidence", "pii_scan"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "task_class": {
+      "type": "string",
+      "description": "Maps to the required_evidence table in plan_26072506 section 4.4 (scripts/completion_gate.py REQUIRED_EVIDENCE + required_evidence_for()).",
+      "enum": [
+        "model_serving_strategy",
+        "full_benchmark",
+        "harness_change",
+        "capacity_rejection",
+        "minor_patch",
+        "read_only_audit"
+      ]
+    },
+    "identity": { "$ref": "#/definitions/identity" },
+    "runtime": {
+      "description": "Live service state at manifest-authoring time, for runtime-backed task classes (everything except capacity_rejection, which substitutes capacity_rejection for this block entirely). Reaching runtime-ready requires health_ok=true, no oom_killed container, functional_smoke_passed=true, AND identity present matching the top-level identity on all 6 strong fields -- structural shape here is intentionally permissive (all sub-fields optional in the schema); which sub-fields are mandatory for which task_class/state is operational policy enforced in scripts/completion_gate.py, not duplicated schema constraints.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "health_ok": { "type": "boolean" },
+        "functional_smoke_passed": { "type": "boolean" },
+        "identity": { "$ref": "#/definitions/identity" },
+        "containers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "restart_count", "oom_killed"],
+            "additionalProperties": true,
+            "properties": {
+              "name": { "type": "string" },
+              "restart_count": { "type": "integer", "minimum": 0 },
+              "oom_killed": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "capacity_rejection": {
+      "description": "Substitutes for `runtime` when a task is rejected pre-serve by a deterministic capacity/RAM gate (e.g. Qwen3.5-397B). gate_evidence is a repo-relative path to the raw gate decision (exit code / log); resolved through the same hardened, symlink-rejecting path resolver as evidence.*.path and must be a real non-empty regular file.",
+      "type": "object",
+      "required": ["rejected", "gate_evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "rejected": { "type": "boolean" },
+        "gate_evidence": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string" },
+        "recorded_utc": { "type": "string", "minLength": 1 }
+      }
+    },
+    "benchmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "type": ["string", "null"], "enum": ["lite", "full", null] },
+        "verdict": { "type": ["string", "null"], "enum": ["PASS", "REFUTE", "FAIL", null] }
+      }
+    },
+    "conditions": {
+      "description": "Task-class-specific dynamic-evidence-matrix switches (plan_26072506 required behaviors D3, D6). actual_trial: harness_change also requires simlog when true. report_requested: read_only_audit requires evidence.report when true (otherwise empty evidence may terminate at evidence-complete).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "actual_trial": { "type": "boolean" },
+        "report_requested": { "type": "boolean" }
+      }
+    },
+    "evidence": {
+      "description": "One entry per evidence kind. Paths are resolved relative to the manifest file's own directory (never CWD), through a hardened dir_fd/O_NOFOLLOW resolver that rejects symlinks at any path component and enforces the expected filesystem type (regular non-empty file for all kinds except simlog, which must be a real directory). null means 'not produced'. Which keys are REQUIRED for a given task_class/conditions/verdict combination is the dynamic evidence matrix in scripts/completion_gate.py (required_evidence_for()), not a schema-level constraint (JSON Schema draft-07 core keywords -- the only ones this validator implements -- cannot express task_class-conditional requiredness without if/then/else, which is out of scope this phase).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "plan": { "$ref": "#/definitions/evidenceItem" },
+        "devlog": { "$ref": "#/definitions/evidenceItem" },
+        "testlog": { "$ref": "#/definitions/evidenceItem" },
+        "simlog": { "$ref": "#/definitions/evidenceItem" },
+        "bench_report": { "$ref": "#/definitions/evidenceItem" },
+        "certificate": { "$ref": "#/definitions/evidenceItem" },
+        "verification": { "$ref": "#/definitions/evidenceItem" },
+        "commit": { "$ref": "#/definitions/evidenceItem" },
+        "report": { "$ref": "#/definitions/evidenceItem" }
+      }
+    },
+    "pii_scan": {
+      "type": "object",
+      "required": ["passed"],
+      "additionalProperties": false,
+      "properties": {
+        "passed": { "type": "boolean" },
+        "scanned_paths": {
+          "description": "Every evidence path required for the state/promotion being claimed must appear here (compared as literal evidence.<key>.path strings) -- coverage is enforced by scripts/completion_gate.py, not by this schema (schema only constrains item type).",
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "execution_approval": {
+      "description": "Phase 3 (plan_26072506) OPTIONAL block: a PRE-RUNTIME side-effect authorization (plan section 4.3's 'execution-approved' concept -- plan + HITL + scoped manifest). This is NOT a 4th completion-manifest lifecycle state (see completion-manifest.schema.json, unchanged by this phase) -- it is consumed only by `scripts/completion_gate.py authorize --mode experimental`, which grants a narrowly scoped pre-promotion side effect (e.g. an experimental main->sub sync) independently of runtime/evidence/promotion state. Absent entirely means 'not approved for anything' (scripts/completion_gate.py: EXECUTION_APPROVAL_ABSENT).",
+      "$ref": "#/definitions/executionApproval"
+    },
+    "promotion_target": {
+      "description": "Phase 3 review-remediation OPTIONAL block: binds this manifest's promotion authorization to ONE specific hint-tag side effect (scripts/hint_tag.py). Generic completion-gate promotion (sync_to_sub, sync_branches, and `authorize --mode promotion` in general) remains valid without this block -- it is required ONLY by scripts/hint_tag.py's own gated subcommands, layered on top of (never inside) the shared completion_gate.py state machine. When present, hint_tag.py cross-checks tag/topology/anchor for an EXACT match against the requesting command's own --tag/--topology/resolved commit SHA, and cross-checks the manifest's own `identity` block against the tag's <vllm>/<model> segments and derived topology class -- enforced entirely in scripts/hint_tag.py, not by this schema (this generic Draft-07-subset validator has no pattern/format keyword support -- exact string equality and full-length checks are done in Python).",
+      "$ref": "#/definitions/promotionTarget"
+    }
+  },
+  "definitions": {
+    "identity": {
+      "description": "Strong identity: 6 keys, all required (quant's value may be null -- e.g. an unquantized/bf16 model -- but the key itself must be present). Cross-checked in full (all 6 fields) wherever identity is compared: runtime.identity against this block, and the actual parsed certificate artifact's mapped fields against this block.",
+      "type": "object",
+      "required": ["model", "gpu", "vllm", "quant", "topology", "tp"],
+      "additionalProperties": false,
+      "properties": {
+        "model": { "type": "string", "minLength": 1 },
+        "gpu": { "type": "string", "minLength": 1 },
+        "vllm": { "type": "string", "minLength": 1 },
+        "quant": { "type": ["string", "null"] },
+        "topology": { "type": "string", "enum": ["single", "multi"] },
+        "tp": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "evidenceItem": {
+      "description": "No identity sub-object on any evidence kind, including certificate -- manifest-self-asserted evidence identity cannot establish trust (plan_26072506 required behavior B3). additionalProperties:false makes it a schema violation (invalid-input, exit 2) to even attempt one.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "executionApproval": {
+      "description": "All five fields are required whenever this block is present at all -- there is no partially-filled approval. plan_path is resolved through the same hardened, symlink-rejecting, repo-containment path resolver as every evidence.*.path (relative to the manifest's own directory, never CWD, and never an absolute string); when evidence.plan is also declared, plan_path must equal evidence.plan.path exactly. approved_at_utc must be an exact YYYY-MM-DDTHH:MM:SS[.ffffff]Z UTC timestamp -- validated by scripts/completion_gate.py:_is_valid_utc_timestamp (a regex + real calendar-date check), not by this schema (no `format` keyword is implemented by the generic validator). allowed_actions is the scope of side-effect actions this specific approval covers -- `scripts/completion_gate.py authorize --mode experimental --action <x>` requires <x> to be a member.",
+      "type": "object",
+      "required": ["approved", "approved_by", "approved_at_utc", "plan_path", "plan_sha256", "plan_blob_sha1", "approval_anchor", "approval_atoms", "allowed_actions"],
+      "additionalProperties": false,
+      "properties": {
+        "approved": { "type": "boolean" },
+        "approved_by": { "type": "string", "minLength": 1 },
+        "approved_at_utc": { "type": "string", "minLength": 1 },
+        "plan_path": { "type": "string", "minLength": 1 },
+        "plan_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "plan_blob_sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "approval_anchor": { "type": "string", "const": "## Execution approval" },
+        "approval_atoms": {
+          "type": "array", "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allowed_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "sync_to_sub", "sync_branches",
+              "hint_create", "hint_finalize", "hint_verify", "hint_reindex", "hint_push", "hint_reverify"
+            ]
+          }
+        }
+      }
+    },
+    "promotionTarget": {
+      "description": "Phase 3 review-remediation: the exact hint-tag side effect this manifest's promotion authorization is scoped to. All four fields are required whenever this block is present at all -- there is no partially-filled target. `kind` is a fixed discriminant (only 'hint' side effects consume this block today). `tag` is the full hint/<vllm>/<model>/<arch> tag string. `topology` is the exact --topology string the hint command was invoked with (free text, e.g. 'multi 2노드 TP2' -- NOT the 6-key strong-identity topology enum, compared separately). `anchor` is the full 40-hex commit SHA the hint tag points at (scripts/hint_tag.py resolves it via `git rev-parse --verify`, never a short/abbreviated form, so this schema documents the expected length; exact-match comparison against the resolved commit happens in scripts/hint_tag.py, not this schema).",
+      "type": "object",
+      "required": ["kind", "tag", "topology", "anchor"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "const": "hint" },
+        "tag": { "type": "string", "minLength": 1 },
+        "topology": { "type": "string", "minLength": 1 },
+        "anchor": { "type": "string", "minLength": 40 }
+      }
+    }
+  }
+}

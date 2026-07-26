@@ -212,7 +212,7 @@ def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: in
         "--runtime", "nvidia",
         "--ipc", "host",
         "--ulimit", "memlock=-1",
-        # OOM킬러 우선희생 지정(plan_2026071019_1 §2.4) — 사고 #5 에서 커널이 wireplumber 만
+        # OOM킬러 우선희생 지정(plan_26071019 §2.4) — 사고 #5 에서 커널이 wireplumber 만
         # 죽이고 70GiB 진범을 못 잡은 오발 교정. 커널이 트라이얼 컨테이너를 먼저 잡게 한다.
         "--oom-score-adj", "800",
         "-p", "%d:%d" % (int(port), DEFAULT_PORT),
@@ -368,7 +368,7 @@ def _memwatch_script_path():
 
 def _start_memwatch(container_name: str, simlog_dir: str, trial_number: int,
                     thresh_mib: int = 10240):
-    """트라이얼 협역 워치독 사이드 기동(plan_2026071019_1 §2.3 — 계층 방어 2층).
+    """트라이얼 협역 워치독 사이드 기동(plan_26071019 §2.3 — 계층 방어 2층).
 
     systemd 상시(광역) 인스턴스와 병행(임계 동급·필터 협역 — 로그가 simlog 에 남아
     trial 증거로 편입). 스크립트 부재/기동 실패 시 경고 후 (None, None) — fail-open,
@@ -399,7 +399,7 @@ def _start_memwatch(container_name: str, simlog_dir: str, trial_number: int,
 
 def _stop_memwatch(proc, fh) -> None:
     """PID(핸들) 기반 정지 — **pkill -f 금지**(자기참조 매칭 부모셸 사망 exit144 선례,
-    devlog_2026062718_1). 예외 흡수."""
+    devlog_26062718). 예외 흡수."""
     try:
         if proc is not None:
             proc.terminate()
@@ -417,7 +417,7 @@ def _stop_memwatch(proc, fh) -> None:
 
 
 def _drop_caches_best_effort() -> None:
-    """teardown 후 페이지캐시 드랍(plan_2026071019_1 §4.1 자동 지점 ②).
+    """teardown 후 페이지캐시 드랍(plan_26071019 §4.1 자동 지점 ②).
 
     GB10 통합메모리는 페이지캐시가 CUDA 와 물리풀 경쟁 — 다음 로드의 MemAvailable 을
     미리 회복. sudoers 단일 헬퍼(install_host_safety.sh)가 설치된 경우에만, 실패 무해.

@@ -1,0 +1,1468 @@
+{
+  "schema_version": 2,
+  "policies": [
+    {
+      "policy_id": "HOST_SAFETY_LAYERED_DEFENSE",
+      "owner": "terraforming_node",
+      "statement": "Unified-memory nodes are protected from host hard-down by layered defense that is only partly installation-independent -- opt-out changes what infrastructure is absent, never what the pre-load RAM gate itself still refuses.",
+      "scope": [
+        "multi-node",
+        "single-node"
+      ],
+      "origin_failure": "plan_26071019",
+      "clauses": [
+        {
+          "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C1",
+          "statement": "Layered defense = a systemd-resident mem_watchdog (broad @vllm filter) plus a harness-scoped watchdog instance auto-started by run_trial/multinode_serve_smoke.sh, container oom_score_adj=800, earlyoom as a process-level backstop, and a pre-load RAM gate that compares checkpoint total_size/TP plus a floor against MemAvailable."
+        },
+        {
+          "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C2",
+          "statement": "Installation is offered only as a terraforming session-final opt-in choice, surfaced after the completion Flag has already been issued, in an informative rather than mandatory tone, via human-executed sudo (install_host_safety.sh --apply), identically on main and sub."
+        },
+        {
+          "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C3",
+          "statement": "Host-safety installation status is independent of the completion Flag -- the Flag stays valid whether or not host-safety is installed. An opt-out node is recorded as host_safety.installed:false in the manifest (a neutral record, not a rebuke) and gets exactly one chat-only warning line, only when serving on unified memory, with no serve-script or log banner code change."
+        },
+        {
+          "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C4",
+          "statement": "Only the harness-scoped watchdog is guaranteed installation-independent: it keeps protecting an opt-out node's trials regardless of whether the systemd-resident watchdog was ever installed. The systemd-resident watchdog and the installed vllm-drop-caches helper may both be genuinely absent on an opt-out node -- when the helper is missing, try_drop_caches is skipped and truthfully reported, but the gate's own refusal (exit code 7 on insufficient memory) is preserved either way."
+        },
+        {
+          "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C5",
+          "statement": "The standing watchdog daemon (observation plus protective-kill only, deployed via install_host_safety) is a deliberate, explicit exception to the project's 'no unattended autorun' trigger policy -- it never triggers a build, bump, or model download, which stay fully manual."
+        },
+        {
+          "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C6",
+          "statement": "sudo delegation for page-cache drops uses exactly one fixed helper path via a single sudoers NOPASSWD entry; watchdog shutdown is PID-based only -- a blanket process-name kill is forbidden because it can match and kill its own invoking shell."
+        },
+        {
+          "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C7",
+          "statement": "Optional --with-kdump (default off) installs and enables kdump-tools with an explicit crashkernel reservation (high plus an explicit low reservation on aarch64 kernel 6.17, where a high-only reservation silently fails) plus hang-to-panic sysctl promotion, so a hard host crash preserves a vmcore for post-mortem diagnosis, verified only after the one required reboot; because it requires that reboot to take effect, it stays an explicit HITL opt-in flag rather than the installer's unconditional default."
+        },
+        {
+          "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C8",
+          "statement": "A separate cleanup routine (scripts/cleanup_docker.py) reclaims docker image/cache debris: it always prints a dry-run table of deletion candidates against a deterministic preserve-set first, and only deletes once a human explicitly re-invokes it with --apply; it is never a periodic/scheduled job -- its trigger points are the end of a version-bump S4 commit step and an end-of-session human query."
+        }
+      ],
+      "evidence": [
+        {
+          "path": "scripts/mem_watchdog.sh",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C1",
+            "HOST_SAFETY_LAYERED_DEFENSE.C6"
+          ],
+          "assertion_ids": [
+            "targets",
+            "FILTER",
+            "THRESH_MIB"
+          ]
+        },
+        {
+          "path": "scripts/install_host_safety.sh",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C1",
+            "HOST_SAFETY_LAYERED_DEFENSE.C2",
+            "HOST_SAFETY_LAYERED_DEFENSE.C5",
+            "HOST_SAFETY_LAYERED_DEFENSE.C6",
+            "HOST_SAFETY_LAYERED_DEFENSE.C7"
+          ],
+          "assertion_ids": [
+            "APPLY",
+            "KDUMP_CRASHKERNEL",
+            "KDUMP_CRASHKERNEL_LOW",
+            "TARGET_USER",
+            "say"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C1"
+          ],
+          "assertion_ids": [
+            "oom_score_adj"
+          ]
+        },
+        {
+          "path": ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C1",
+            "HOST_SAFETY_LAYERED_DEFENSE.C4"
+          ],
+          "assertion_ids": [
+            "gate",
+            "try_drop_caches",
+            "mem_available_mib"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C1",
+            "HOST_SAFETY_LAYERED_DEFENSE.C4"
+          ],
+          "assertion_ids": [
+            "_mf_sub",
+            "REQ_MIB"
+          ]
+        },
+        {
+          "path": ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C1"
+          ],
+          "assertion_ids": [
+            "_start_memwatch"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/scan_node.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C3"
+          ],
+          "assertion_ids": [
+            "emit_manifest_block"
+          ]
+        },
+        {
+          "path": "scripts/cleanup_docker.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C8"
+          ],
+          "assertion_ids": [
+            "preserve_set",
+            "main"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C1"
+          ],
+          "assertion_ids": [
+            "predicate_HOST_SAFETY_LAYERED_DEFENSE_C1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C2"
+          ],
+          "assertion_ids": [
+            "predicate_HOST_SAFETY_LAYERED_DEFENSE_C2"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C3"
+          ],
+          "assertion_ids": [
+            "predicate_HOST_SAFETY_LAYERED_DEFENSE_C3"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C4"
+          ],
+          "assertion_ids": [
+            "predicate_HOST_SAFETY_LAYERED_DEFENSE_C4"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C5"
+          ],
+          "assertion_ids": [
+            "predicate_HOST_SAFETY_LAYERED_DEFENSE_C5"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C6"
+          ],
+          "assertion_ids": [
+            "predicate_HOST_SAFETY_LAYERED_DEFENSE_C6"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C7"
+          ],
+          "assertion_ids": [
+            "predicate_HOST_SAFETY_LAYERED_DEFENSE_C7"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C8"
+          ],
+          "assertion_ids": [
+            "predicate_HOST_SAFETY_LAYERED_DEFENSE_C8"
+          ]
+        }
+      ],
+      "remove_when": "Removable only via an HITL-approved superseding plan that documents a replacement host-hard-down defense mechanism for unified-memory nodes (e.g. a kernel-level cgroup memory ceiling that makes the userspace watchdog redundant), verified by a repeat of the DSpark stress-gate scenario that originally motivated this policy.",
+      "added_at": "2026-07-25",
+      "last_reproduced": null,
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer",
+        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    },
+    {
+      "policy_id": "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE",
+      "owner": "upstream-version-watch",
+      "statement": "Image identity is cluster-wide on the build plane; model serve configuration stays Band2-only on the serve plane -- the two planes are independent.",
+      "scope": [
+        "multi-node"
+      ],
+      "origin_failure": "plan_26062818",
+      "clauses": [
+        {
+          "clause_id": "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C1",
+          "statement": "A non-default image variant (e.g. a '...-source-sm12x' fork build) is cluster-wide on the build plane: every node, including Band2-only slaves, must build and run the exact same image identity (IMAGE_TAG / VLLM_REPO / VLLM_REF)."
+        },
+        {
+          "clause_id": "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C2",
+          "statement": "This is strictly a build-plane invariant -- it does not relax the separate serve-plane invariant that a TP slave's runtime env stays Band2-only (.env.cluster + .env.interconnect, no per-model CONFIG_FILE)."
+        },
+        {
+          "clause_id": "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C3",
+          "statement": "The two planes are independent: a slave can and must build a cluster-wide variant image while still receiving zero model-serve configuration at the container env_file level."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+          "supports": [
+            "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C1",
+            "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C2",
+            "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C3"
+          ],
+          "assertion_ids": [
+            "IMG",
+            "SLAVE_IMGVARS"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml",
+          "supports": [
+            "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C2"
+          ],
+          "assertion_ids": [
+            "VLLM_REPO",
+            "VLLM_REF"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C1"
+          ],
+          "assertion_ids": [
+            "predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C2"
+          ],
+          "assertion_ids": [
+            "predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C2"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C3"
+          ],
+          "assertion_ids": [
+            "predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C3"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if the project drops per-node image-variant builds entirely (e.g. a future registry-push-based distribution model replaces node-local compose build), documented in a superseding plan and re-verified against a live multi-node variant smoke.",
+      "added_at": "2026-07-25",
+      "last_reproduced": null,
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer",
+        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    },
+    {
+      "policy_id": "MODEL_TRIPLET_NO_SUB_PROPAGATION",
+      "owner": "upstream-version-watch",
+      "statement": "The per-model triplet is structurally excluded from main-to-sub propagation; a TP slave is Band2-only.",
+      "scope": [
+        "multi-node"
+      ],
+      "origin_failure": "plan_26062811_30_33",
+      "clauses": [
+        {
+          "clause_id": "MODEL_TRIPLET_NO_SUB_PROPAGATION.C1",
+          "statement": "The per-model triplet (<model>.{yaml,sh} and .env.<model>) is never propagated main-to-sub -- it is structurally excluded from sync_to_sub.sh's delivery set (the runtime patch <model>_patch.py is the sole model-keyed exception)."
+        },
+        {
+          "clause_id": "MODEL_TRIPLET_NO_SUB_PROPAGATION.C2",
+          "statement": "A multi-node TP slave is Band2-only: it must boot from .env.cluster (including MoE-JIT MAX_JOBS) plus .env.interconnect alone."
+        },
+        {
+          "clause_id": "MODEL_TRIPLET_NO_SUB_PROPAGATION.C3",
+          "statement": "A slave that depends on .env.<model> to start is itself the signal that this invariant has been violated by a direct-rsync workaround, which is explicitly forbidden."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "supports": [
+            "MODEL_TRIPLET_NO_SUB_PROPAGATION.C1",
+            "MODEL_TRIPLET_NO_SUB_PROPAGATION.C2",
+            "MODEL_TRIPLET_NO_SUB_PROPAGATION.C3"
+          ],
+          "assertion_ids": [
+            "_band2_filters",
+            "BAND2_CONFIGS",
+            "BAND2_ENVS"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "MODEL_TRIPLET_NO_SUB_PROPAGATION.C1"
+          ],
+          "assertion_ids": [
+            "predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "MODEL_TRIPLET_NO_SUB_PROPAGATION.C2"
+          ],
+          "assertion_ids": [
+            "predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C2"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "MODEL_TRIPLET_NO_SUB_PROPAGATION.C3"
+          ],
+          "assertion_ids": [
+            "predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C3"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if the TP slave role is redesigned to consume per-model config directly (a structural change to the Band2/Band3 split), documented in a superseding plan and re-verified by a live multi-node TP serve.",
+      "added_at": "2026-07-25",
+      "last_reproduced": null,
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer",
+        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    },
+    {
+      "policy_id": "HINT_TAG_ACTIVATION_GATE",
+      "owner": "upstream-version-watch",
+      "statement": "Validated recipes are distilled into knowledge-only hint tags, published main-only with fail-closed PII scanning and a carry-forward revalidation header, and selectively pushed so local rollback anchors never leak.",
+      "scope": [
+        "multi-node",
+        "single-node"
+      ],
+      "origin_failure": "plan_26070222",
+      "clauses": [
+        {
+          "clause_id": "HINT_TAG_ACTIVATION_GATE.C1",
+          "statement": "Validated recipes are published as hint/<vllm>/<model>/<arch> annotated git tags containing distilled knowledge only -- never a finished, copy-paste-ready recipe payload; the tag body is itself the sole object (HEAD-only, no recipe files, index only)."
+        },
+        {
+          "clause_id": "HINT_TAG_ACTIVATION_GATE.C2",
+          "statement": "PII strip/scan over the full tag object AND the tagger identity that ships inside the pushed tag is fail-closed -- a scan failure blocks tag creation and finalization outright."
+        },
+        {
+          "clause_id": "HINT_TAG_ACTIVATION_GATE.C3",
+          "statement": "Every hint carries a mandatory carry-forward revalidation header (a map, not an answer) so a stale hint can never be treated as an executable recipe without re-verification against the consumer's own smoke."
+        },
+        {
+          "clause_id": "HINT_TAG_ACTIVATION_GATE.C4",
+          "statement": "Publication is main-only -- a building-block propagation axis, the same plane as references.md, independent of sub egress state -- sub nodes never author or publish hints."
+        },
+        {
+          "clause_id": "HINT_TAG_ACTIVATION_GATE.C5",
+          "statement": "Push is selective (refs/tags/hint/* only, --tags is forbidden) specifically to prevent local last-good-* rollback tags from leaking to a public origin."
+        },
+        {
+          "clause_id": "HINT_TAG_ACTIVATION_GATE.C6",
+          "statement": "Activation is proposal-only, after all prior work for the (vllm, model, arch) combination is finished (serving confirmed, docs/benchmark evidence published, sub propagation done) -- the agent proposes (Y/N), unattended auto-tagging is never allowed, and every push (hint tags AND branch pushes) remains the user's exclusive decision. A duplicate triple gets a reverify stamp only, never a fresh tag."
+        }
+      ],
+      "evidence": [
+        {
+          "path": "scripts/hint_tag.py",
+          "supports": [
+            "HINT_TAG_ACTIVATION_GATE.C1",
+            "HINT_TAG_ACTIVATION_GATE.C2",
+            "HINT_TAG_ACTIVATION_GATE.C3",
+            "HINT_TAG_ACTIVATION_GATE.C4",
+            "HINT_TAG_ACTIVATION_GATE.C5",
+            "HINT_TAG_ACTIVATION_GATE.C6"
+          ],
+          "assertion_ids": [
+            "_tag_object_body",
+            "scan_text",
+            "_build_evidence_footer",
+            "cmd_push",
+            "cmd_match",
+            "validate_name"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HINT_TAG_ACTIVATION_GATE.C1"
+          ],
+          "assertion_ids": [
+            "predicate_HINT_TAG_ACTIVATION_GATE_C1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HINT_TAG_ACTIVATION_GATE.C2"
+          ],
+          "assertion_ids": [
+            "predicate_HINT_TAG_ACTIVATION_GATE_C2"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HINT_TAG_ACTIVATION_GATE.C3"
+          ],
+          "assertion_ids": [
+            "predicate_HINT_TAG_ACTIVATION_GATE_C3"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HINT_TAG_ACTIVATION_GATE.C4"
+          ],
+          "assertion_ids": [
+            "predicate_HINT_TAG_ACTIVATION_GATE_C4"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HINT_TAG_ACTIVATION_GATE.C5"
+          ],
+          "assertion_ids": [
+            "predicate_HINT_TAG_ACTIVATION_GATE_C5"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "HINT_TAG_ACTIVATION_GATE.C6"
+          ],
+          "assertion_ids": [
+            "predicate_HINT_TAG_ACTIVATION_GATE_C6"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if the hint-tag distribution layer itself is retired in favor of a different recipe-sharing mechanism, documented in a superseding plan and re-verified against the existing hints/index.json contract.",
+      "added_at": "2026-07-25",
+      "last_reproduced": null,
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer",
+        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    },
+    {
+      "policy_id": "LAST_GOOD_ROLLBACK_ANCHOR",
+      "owner": "upstream-version-watch",
+      "statement": "The rollback anchor is always the last local commit that passed smoke; single-node and multi-node roll back independently.",
+      "scope": [
+        "multi-node",
+        "single-node"
+      ],
+      "universal_invariant": "This is a foundational reproducibility guarantee from the project's original bootstrap design (smoke-before-commit, Karpathy B4), not a fix derived from any single incident -- every version-bump cycle depends on it, so it is declared a universal invariant rather than backfilling a speculative incident citation.",
+      "clauses": [
+        {
+          "clause_id": "LAST_GOOD_ROLLBACK_ANCHOR.C1",
+          "statement": "The rollback anchor is always the last local commit that passed smoke -- never a partially-applied or uncommitted working tree, which is treated as disposable."
+        },
+        {
+          "clause_id": "LAST_GOOD_ROLLBACK_ANCHOR.C2",
+          "statement": "single-node and multi-node roll back independently -- a multi-node-only failure never reverts a passing single-node state."
+        },
+        {
+          "clause_id": "LAST_GOOD_ROLLBACK_ANCHOR.C3",
+          "statement": "Recovery restores the working tree to that anchor commit; origin, when configured, comes from the user's own environment value (manifest.origin_url) -- there is no hardcoded remote."
+        }
+      ],
+      "evidence": [
+        {
+          "path": "scripts/hint_tag.py",
+          "supports": [
+            "LAST_GOOD_ROLLBACK_ANCHOR.C1",
+            "LAST_GOOD_ROLLBACK_ANCHOR.C3"
+          ],
+          "assertion_ids": [
+            "cmd_push"
+          ]
+        },
+        {
+          "path": "scripts/sync_branches.sh",
+          "supports": [
+            "LAST_GOOD_ROLLBACK_ANCHOR.C2"
+          ],
+          "assertion_ids": [
+            "ALLOWLIST",
+            "GATE_MODE"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "LAST_GOOD_ROLLBACK_ANCHOR.C1"
+          ],
+          "assertion_ids": [
+            "predicate_LAST_GOOD_ROLLBACK_ANCHOR_C1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "LAST_GOOD_ROLLBACK_ANCHOR.C2"
+          ],
+          "assertion_ids": [
+            "predicate_LAST_GOOD_ROLLBACK_ANCHOR_C2"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "LAST_GOOD_ROLLBACK_ANCHOR.C3"
+          ],
+          "assertion_ids": [
+            "predicate_LAST_GOOD_ROLLBACK_ANCHOR_C3"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if local git commits stop being the system of record for deployability (e.g. a future promotion-manifest-only rollback model fully replaces commit-based anchoring), documented in a superseding plan.",
+      "added_at": "2026-07-25",
+      "last_reproduced": null,
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer",
+        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    },
+    {
+      "policy_id": "MODEL_ACQUISITION_TERNARY_GATE",
+      "owner": "terraforming_node",
+      "statement": "Model-weight acquisition follows exactly one of three manifest-declared modes, each fetch gated by per-event user approval, with external strategy cross-checks always required regardless of mode.",
+      "scope": [
+        "multi-node",
+        "single-node"
+      ],
+      "origin_failure": "plan_26063018",
+      "clauses": [
+        {
+          "clause_id": "MODEL_ACQUISITION_TERNARY_GATE.C1",
+          "statement": "model_source has exactly three modes: managed (pre-staged on a read-only NAS, no unauthorized HF download), ephemeral (downloaded into the container's HF cache, deleted on container down -- the majority default), and custom (downloaded once to a user-specified path, volume-mounted)."
+        },
+        {
+          "clause_id": "MODEL_ACQUISITION_TERNARY_GATE.C2",
+          "statement": "Any external fetch (download) requires per-event user approval through the acquisition decision tree only -- selecting a mode is not a standing blanket authorization for unattended downloads."
+        },
+        {
+          "clause_id": "MODEL_ACQUISITION_TERNARY_GATE.C3",
+          "statement": "External cross-check of a serving strategy against the HF model card and vLLM GitHub is always required regardless of acquisition mode -- that obligation sits on a separate plane from acquisition-mode gating and is never blocked by acquisition isolation."
+        },
+        {
+          "clause_id": "MODEL_ACQUISITION_TERNARY_GATE.C4",
+          "statement": "An hf_token, when needed, is registered as a manifest file pointer only -- the raw token itself is never tracked."
+        },
+        {
+          "clause_id": "MODEL_ACQUISITION_TERNARY_GATE.C5",
+          "statement": "For ephemeral/custom approval requests, a pre-download size estimate (crosscheck_model_card.py --ephemeral-estimate, no download performed) must accompany the approval ask; a failed lookup is reported honestly, never replaced by a fabricated substitute value."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/skills/vllm-recipe-explorer/scripts/crosscheck_model_card.py",
+          "supports": [
+            "MODEL_ACQUISITION_TERNARY_GATE.C3",
+            "MODEL_ACQUISITION_TERNARY_GATE.C5"
+          ],
+          "assertion_ids": [
+            "fetch_hf_safetensors_total",
+            "crosscheck_external_vram",
+            "crosscheck"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+          "supports": [
+            "MODEL_ACQUISITION_TERNARY_GATE.C1"
+          ],
+          "assertion_ids": [
+            "VALID_MODES",
+            "effective_model_source"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/check_smoke_model.py",
+          "supports": [
+            "MODEL_ACQUISITION_TERNARY_GATE.C2"
+          ],
+          "assertion_ids": [
+            "main",
+            "read_manifest_field"
+          ]
+        },
+        {
+          "path": "manifest.template.yaml",
+          "supports": [
+            "MODEL_ACQUISITION_TERNARY_GATE.C4"
+          ],
+          "assertion_ids": [
+            "hf_token_env_file"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "MODEL_ACQUISITION_TERNARY_GATE.C1"
+          ],
+          "assertion_ids": [
+            "predicate_MODEL_ACQUISITION_TERNARY_GATE_C1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "MODEL_ACQUISITION_TERNARY_GATE.C2"
+          ],
+          "assertion_ids": [
+            "predicate_MODEL_ACQUISITION_TERNARY_GATE_C2"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "MODEL_ACQUISITION_TERNARY_GATE.C3"
+          ],
+          "assertion_ids": [
+            "predicate_MODEL_ACQUISITION_TERNARY_GATE_C3"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "MODEL_ACQUISITION_TERNARY_GATE.C4"
+          ],
+          "assertion_ids": [
+            "predicate_MODEL_ACQUISITION_TERNARY_GATE_C4"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "MODEL_ACQUISITION_TERNARY_GATE.C5"
+          ],
+          "assertion_ids": [
+            "predicate_MODEL_ACQUISITION_TERNARY_GATE_C5"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if the manifest model_source ternary is replaced by a different acquisition-policy model, documented in a superseding plan and re-verified against the model-acquisition decision tree's three exit branches.",
+      "added_at": "2026-07-25",
+      "last_reproduced": null,
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer",
+        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    },
+    {
+      "policy_id": "KV_ABSOLUTE_CLAMP_PORTABILITY",
+      "owner": "vllm-recipe-explorer",
+      "statement": "A final serving recipe sizes KV cache by a measured, absolute per-target-GPU byte value, config-time target intent stays orthogonal to manifest-observed hardware facts, and porting to a different GPU transfers the host-measured invariants rather than approximating them.",
+      "scope": [
+        "multi-node",
+        "single-node"
+      ],
+      "origin_failure": "plan_26070809_47_07",
+      "clauses": [
+        {
+          "clause_id": "KV_ABSOLUTE_CLAMP_PORTABILITY.C1",
+          "statement": "A final serving recipe controls KV cache sizing by a measured, absolute per-target-GPU kv-cache-memory-bytes value, never by a gpu-memory-utilization ratio alone -- gmu-derived KV sizing does not survive a host-to-target VRAM difference and can OOM."
+        },
+        {
+          "clause_id": "KV_ABSOLUTE_CLAMP_PORTABILITY.C2",
+          "statement": "gpu-memory-utilization is still emitted alongside it, but only as the startup free-memory gate and total cap (clamped to <= 0.90 on unified-memory targets); vLLM itself ignores gmu for KV sizing once the absolute byte value is set."
+        },
+        {
+          "clause_id": "KV_ABSOLUTE_CLAMP_PORTABILITY.C3",
+          "statement": "When porting host-measured weights/overhead/per-token-KV to a different target GPU, the budget is the target GPU's VRAM times its target_gmu -- an invariant transfer, not an approximation, and not a reversal of any prior verdict."
+        },
+        {
+          "clause_id": "KV_ABSOLUTE_CLAMP_PORTABILITY.C4",
+          "statement": "Target hardware is config-time intent, declared in vllm-recipe-explorer's own config.yaml -- orthogonal to manifest-observed hardware facts: what manifest.yaml physically scans on this node is a different plane from what config.yaml declares as the porting destination."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+          "supports": [
+            "KV_ABSOLUTE_CLAMP_PORTABILITY.C1",
+            "KV_ABSOLUTE_CLAMP_PORTABILITY.C2",
+            "KV_ABSOLUTE_CLAMP_PORTABILITY.C3",
+            "KV_ABSOLUTE_CLAMP_PORTABILITY.C4"
+          ],
+          "assertion_ids": [
+            "resolve_target_gpu_budget",
+            "_lookup_gpu_spec",
+            "_target_tp",
+            "_reject_target_gpu_phase1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "KV_ABSOLUTE_CLAMP_PORTABILITY.C1"
+          ],
+          "assertion_ids": [
+            "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "KV_ABSOLUTE_CLAMP_PORTABILITY.C2"
+          ],
+          "assertion_ids": [
+            "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C2"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "KV_ABSOLUTE_CLAMP_PORTABILITY.C3"
+          ],
+          "assertion_ids": [
+            "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C3"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "KV_ABSOLUTE_CLAMP_PORTABILITY.C4"
+          ],
+          "assertion_ids": [
+            "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C4"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if vLLM's own KV-cache sizing contract changes such that gpu-memory-utilization becomes sufficient on its own for portable, safe sizing across heterogeneous target GPUs, documented in a superseding plan and re-verified by a fresh host-to-target KV trial.",
+      "added_at": "2026-07-25",
+      "last_reproduced": null,
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer",
+        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    },
+    {
+      "policy_id": "RUNTIME_PATCH_NO_CARRY_FORWARD",
+      "owner": "vllm-recipe-explorer",
+      "statement": "A model that cannot boot on stock is fixed with a volatile, main-authored runtime patch, re-derived per environment rather than carried forward, with a source-build-time exception frozen for reproducibility.",
+      "scope": [
+        "multi-node",
+        "single-node"
+      ],
+      "origin_failure": "plan_26062711",
+      "clauses": [
+        {
+          "clause_id": "RUNTIME_PATCH_NO_CARRY_FORWARD.C1",
+          "statement": "A model that cannot boot on the current stock image is fixed with a stock image plus a volatile, untracked runtime patch (<model>_patch.py), never by baking a derived image -- that would violate the image-naming invariant (one image serves every model)."
+        },
+        {
+          "clause_id": "RUNTIME_PATCH_NO_CARRY_FORWARD.C2",
+          "statement": "The patch is authored main-side only and delivered downward; it is re-derived per environment or version bump rather than carried forward."
+        },
+        {
+          "clause_id": "RUNTIME_PATCH_NO_CARRY_FORWARD.C3",
+          "statement": "Deterministic arming (.pth auto-apply via arm_patch.sh / serve_runner) applies the patch at container start."
+        },
+        {
+          "clause_id": "RUNTIME_PATCH_NO_CARRY_FORWARD.C4",
+          "statement": "A source-build-time patch is the one exception: because it is baked at build time, it is frozen into the tracked Dockerfile.source-build for reproducibility instead of staying volatile."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/skills/upstream-version-watch/assets/configs/arm_patch.sh",
+          "supports": [
+            "RUNTIME_PATCH_NO_CARRY_FORWARD.C3"
+          ],
+          "assertion_ids": [
+            "_cfg",
+            "_patch"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "supports": [
+            "RUNTIME_PATCH_NO_CARRY_FORWARD.C1",
+            "RUNTIME_PATCH_NO_CARRY_FORWARD.C2"
+          ],
+          "assertion_ids": [
+            "_band2_filters",
+            "BAND2_CONFIGS"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py",
+          "supports": [
+            "RUNTIME_PATCH_NO_CARRY_FORWARD.C2"
+          ],
+          "assertion_ids": [
+            "stamp",
+            "verify"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py",
+          "supports": [
+            "RUNTIME_PATCH_NO_CARRY_FORWARD.C4"
+          ],
+          "assertion_ids": [
+            "build_context",
+            "_patch_guard"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "RUNTIME_PATCH_NO_CARRY_FORWARD.C1"
+          ],
+          "assertion_ids": [
+            "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "RUNTIME_PATCH_NO_CARRY_FORWARD.C2"
+          ],
+          "assertion_ids": [
+            "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C2"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "RUNTIME_PATCH_NO_CARRY_FORWARD.C3"
+          ],
+          "assertion_ids": [
+            "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C3"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "RUNTIME_PATCH_NO_CARRY_FORWARD.C4"
+          ],
+          "assertion_ids": [
+            "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C4"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if the project adopts per-model derived images as the sanctioned distribution unit (a reversal of the image-naming invariant), documented in a superseding plan and re-verified against a live runtime-patch serve.",
+      "added_at": "2026-07-25",
+      "last_reproduced": null,
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer",
+        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    },
+    {
+      "policy_id": "SUB_SYNC_DIRTY_FAIL_CLOSED",
+      "owner": "upstream-version-watch",
+      "statement": "Delivery to a sub node checks working-tree cleanliness first and refuses on dirty rather than auto-stashing.",
+      "scope": [
+        "multi-node"
+      ],
+      "origin_failure": "plan_26062411",
+      "clauses": [
+        {
+          "clause_id": "SUB_SYNC_DIRTY_FAIL_CLOSED.C1",
+          "statement": "Before sync_to_sub.sh delivers anything to a sub node, it checks the sub's working-tree cleanliness (git status --porcelain)."
+        },
+        {
+          "clause_id": "SUB_SYNC_DIRTY_FAIL_CLOSED.C2",
+          "statement": "If it is not clean, delivery is refused with a non-zero exit rather than auto-stashing the sub's changes."
+        },
+        {
+          "clause_id": "SUB_SYNC_DIRTY_FAIL_CLOSED.C3",
+          "statement": "The sub must self-resolve (commit or stash) and attest 'ready-for-sync' before delivery is retried."
+        },
+        {
+          "clause_id": "SUB_SYNC_DIRTY_FAIL_CLOSED.C4",
+          "statement": "This fail-closed handshake protects in-progress sub-authored work from being silently overwritten by a main-canonical push."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "supports": [
+            "SUB_SYNC_DIRTY_FAIL_CLOSED.C1",
+            "SUB_SYNC_DIRTY_FAIL_CLOSED.C2",
+            "SUB_SYNC_DIRTY_FAIL_CLOSED.C3",
+            "SUB_SYNC_DIRTY_FAIL_CLOSED.C4"
+          ],
+          "assertion_ids": [
+            "sub_dirty",
+            "sub_commit"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "SUB_SYNC_DIRTY_FAIL_CLOSED.C1"
+          ],
+          "assertion_ids": [
+            "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "SUB_SYNC_DIRTY_FAIL_CLOSED.C2"
+          ],
+          "assertion_ids": [
+            "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C2"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "SUB_SYNC_DIRTY_FAIL_CLOSED.C3"
+          ],
+          "assertion_ids": [
+            "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C3"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "SUB_SYNC_DIRTY_FAIL_CLOSED.C4"
+          ],
+          "assertion_ids": [
+            "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C4"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if the main-to-sub delivery mechanism is redesigned around a conflict-free merge model that makes dirty-tree rejection unnecessary, documented in a superseding plan and re-verified by a live dirty-sub delivery attempt.",
+      "added_at": "2026-07-25",
+      "last_reproduced": null,
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer",
+        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    },
+    {
+      "policy_id": "SUB_GIT_LOCAL_ONLY",
+      "owner": "upstream-version-watch",
+      "statement": "A sub node's git workspace never has a remote -- it exists only for local branch selection and history.",
+      "scope": [
+        "multi-node"
+      ],
+      "origin_failure": "plan_26062411",
+      "clauses": [
+        {
+          "clause_id": "SUB_GIT_LOCAL_ONLY.C1",
+          "statement": "A sub node's git workspace is local-only: origin is permanently unconfigured."
+        },
+        {
+          "clause_id": "SUB_GIT_LOCAL_ONLY.C2",
+          "statement": "push/pull/fetch/remote/clone are denied at the persona layer, backed by the structural fact that no remote exists."
+        },
+        {
+          "clause_id": "SUB_GIT_LOCAL_ONLY.C3",
+          "statement": "git on a sub node exists only to switch between the single/multi branches for model-load-strategy selection and to keep local history/rollback -- it is never a recovery or publication vehicle back to main."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "supports": [
+            "SUB_GIT_LOCAL_ONLY.C1",
+            "SUB_GIT_LOCAL_ONLY.C2",
+            "SUB_GIT_LOCAL_ONLY.C3"
+          ],
+          "assertion_ids": [
+            "sub_has_git",
+            "sub_branch_current"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "SUB_GIT_LOCAL_ONLY.C1"
+          ],
+          "assertion_ids": [
+            "predicate_SUB_GIT_LOCAL_ONLY_C1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "SUB_GIT_LOCAL_ONLY.C2"
+          ],
+          "assertion_ids": [
+            "predicate_SUB_GIT_LOCAL_ONLY_C2"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "SUB_GIT_LOCAL_ONLY.C3"
+          ],
+          "assertion_ids": [
+            "predicate_SUB_GIT_LOCAL_ONLY_C3"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if sub nodes are given a sanctioned path back to a shared remote (a structural change to the main/sub topology's trust model), documented in a superseding plan and re-verified by a live sub-node git audit.",
+      "added_at": "2026-07-25",
+      "last_reproduced": null,
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer",
+        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    },
+    {
+      "policy_id": "TERRAFORM_FLAG_GATE",
+      "owner": "terraforming_node",
+      "statement": "terraforming_node runs first and only writes a conservative completion Flag on genuine completion; without it the three runtime skills stay info-only, enforced two-layered, with wiki-desk explicitly exempt.",
+      "scope": [
+        "multi-node",
+        "single-node"
+      ],
+      "origin_failure": "plan_26063018",
+      "clauses": [
+        {
+          "clause_id": "TERRAFORM_FLAG_GATE.C1",
+          "statement": "terraforming_node runs first; a completion Flag attestation is written into the manifest only on genuine completion (topology confirmed, branch-topology match verified) -- conservatively fail-closed, never issued speculatively."
+        },
+        {
+          "clause_id": "TERRAFORM_FLAG_GATE.C2",
+          "statement": "Flag absence keeps the three runtime skills (upstream, recipe, adversarial) info-only: informational/advisory answers and HF lookups are fine, but no environment-specific deliverable may be generated -- fabricating a plausible answer without real HW facts is exactly what this blocks."
+        },
+        {
+          "clause_id": "TERRAFORM_FLAG_GATE.C3",
+          "statement": "Enforcement is two-layered: a deterministic script-level non-zero exit (_require_terraform_flag in recipe.py, run_bench.sh via manifest_contract.py --require-flag) plus a persona-level redirect template so a verbal generic command cannot leak past it."
+        },
+        {
+          "clause_id": "TERRAFORM_FLAG_GATE.C4",
+          "statement": "wiki-desk (the self-improvement-loop librarian) is explicitly exempt from this gate -- outside it, always available, regardless of Flag state."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+          "supports": [
+            "TERRAFORM_FLAG_GATE.C1",
+            "TERRAFORM_FLAG_GATE.C3"
+          ],
+          "assertion_ids": [
+            "evaluate_contract",
+            "resolve_topology"
+          ]
+        },
+        {
+          "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+          "supports": [
+            "TERRAFORM_FLAG_GATE.C1",
+            "TERRAFORM_FLAG_GATE.C2",
+            "TERRAFORM_FLAG_GATE.C3"
+          ],
+          "assertion_ids": [
+            "_require_terraform_flag",
+            "_guard_tp"
+          ]
+        },
+        {
+          "path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+          "supports": [
+            "TERRAFORM_FLAG_GATE.C2",
+            "TERRAFORM_FLAG_GATE.C3"
+          ],
+          "assertion_ids": [
+            "KEY_OK",
+            "MC"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_clause_companion_evidence.py",
+          "supports": [
+            "TERRAFORM_FLAG_GATE.C4"
+          ],
+          "assertion_ids": [
+            "TestTerraformFlagGateCompanion.test_wiki_desk_scripts_never_reference_the_flag_gate"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "TERRAFORM_FLAG_GATE.C1"
+          ],
+          "assertion_ids": [
+            "predicate_TERRAFORM_FLAG_GATE_C1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "TERRAFORM_FLAG_GATE.C2"
+          ],
+          "assertion_ids": [
+            "predicate_TERRAFORM_FLAG_GATE_C2"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "TERRAFORM_FLAG_GATE.C3"
+          ],
+          "assertion_ids": [
+            "predicate_TERRAFORM_FLAG_GATE_C3"
+          ]
+        },
+        {
+          "path": ".claude/skills/wiki-desk/scripts/smoke_query.py",
+          "supports": [
+            "TERRAFORM_FLAG_GATE.C4"
+          ],
+          "assertion_ids": [
+            "main"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "TERRAFORM_FLAG_GATE.C4"
+          ],
+          "assertion_ids": [
+            "predicate_TERRAFORM_FLAG_GATE_C4"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if the init/runtime two-mode gate is replaced by a different completion-attestation contract, documented in a superseding plan and re-verified against both the deterministic script gate and the persona redirect behavior.",
+      "added_at": "2026-07-25",
+      "last_reproduced": null,
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer",
+        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    },
+    {
+      "policy_id": "A2A_DELEGATION_KEY_FAIL_CLOSED",
+      "owner": "terraforming_node",
+      "statement": "A sub node stays info-only until main issues a positive, UNIQUE delegation key after asserting HW homogeneity, fail-closed at two enforcement points.",
+      "scope": [
+        "multi-node"
+      ],
+      "origin_failure": "plan_26063021_14_37",
+      "clauses": [
+        {
+          "clause_id": "A2A_DELEGATION_KEY_FAIL_CLOSED.C1",
+          "statement": "A sub node (A2A peer) stays info-only until it holds a positive delegation key that main issues only after asserting HW homogeneity (cpu_arch, gpu_model, gpus_per_node match exactly -- homogeneous GPUs only)."
+        },
+        {
+          "clause_id": "A2A_DELEGATION_KEY_FAIL_CLOSED.C2",
+          "statement": "Absence of the key is never treated as exemption (that would be fail-open); the sub never self-scans to grant itself a key; terraforming_node stays permanently main-only."
+        },
+        {
+          "clause_id": "A2A_DELEGATION_KEY_FAIL_CLOSED.C3",
+          "statement": "Enforcement is fail-closed at two points: the multi-node sync_to_sub propagation gate, and the single-node sub-control serve gate in recipe.py / run_bench.sh."
+        },
+        {
+          "clause_id": "A2A_DELEGATION_KEY_FAIL_CLOSED.C4",
+          "statement": "The main completion Flag and the sub delegation key are deliberately distinct, UNIQUE credentials -- one never substitutes for the other across the plane boundary."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/skills/terraforming_node/scripts/scan_node.py",
+          "supports": [
+            "A2A_DELEGATION_KEY_FAIL_CLOSED.C1"
+          ],
+          "assertion_ids": [
+            "assert_homogeneity"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "supports": [
+            "A2A_DELEGATION_KEY_FAIL_CLOSED.C1"
+          ],
+          "assertion_ids": [
+            "build_placeholders",
+            "parse_manifest"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "supports": [
+            "A2A_DELEGATION_KEY_FAIL_CLOSED.C2",
+            "A2A_DELEGATION_KEY_FAIL_CLOSED.C3"
+          ],
+          "assertion_ids": [
+            "assert_sub_delegation_authorized",
+            "assert_band_classification"
+          ]
+        },
+        {
+          "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+          "supports": [
+            "A2A_DELEGATION_KEY_FAIL_CLOSED.C2",
+            "A2A_DELEGATION_KEY_FAIL_CLOSED.C3",
+            "A2A_DELEGATION_KEY_FAIL_CLOSED.C4"
+          ],
+          "assertion_ids": [
+            "_require_terraform_flag",
+            "_guard_tp"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "A2A_DELEGATION_KEY_FAIL_CLOSED.C1"
+          ],
+          "assertion_ids": [
+            "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "A2A_DELEGATION_KEY_FAIL_CLOSED.C2"
+          ],
+          "assertion_ids": [
+            "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C2"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "A2A_DELEGATION_KEY_FAIL_CLOSED.C3"
+          ],
+          "assertion_ids": [
+            "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C3"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "A2A_DELEGATION_KEY_FAIL_CLOSED.C4"
+          ],
+          "assertion_ids": [
+            "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C4"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if the A2A trust model is redesigned around a different credential scheme, documented in a superseding plan and re-verified by a live key-present / key-absent A2A delegation test on heterogeneous and homogeneous hardware.",
+      "added_at": "2026-07-25",
+      "last_reproduced": null,
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer",
+        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    },
+    {
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "owner": "upstream-version-watch",
+      "statement": "An arch-walled model may only be enabled by expanding Docker patch scope along one fixed, single-active-track ladder, each rung HITL-approved with reference-grounded evidence and regression-re-smoked before promotion.",
+      "scope": [
+        "multi-node",
+        "single-node"
+      ],
+      "origin_failure": "plan_26062818",
+      "clauses": [
+        {
+          "clause_id": "ARCH_WALL_VARIANT_LADDER.C1",
+          "statement": "When stock vLLM is structurally incapable (an arch-wall) of serving a target model, Docker patch scope may only expand along one fixed ladder: dependency patch, then source-gate patch, then a vLLM source-repo override pinned to a fork commit SHA (VLLM_REPO/VLLM_REF build-arg), then checkpoint replacement."
+        },
+        {
+          "clause_id": "ARCH_WALL_VARIANT_LADDER.C2",
+          "statement": "The result is a superset variant image (e.g. '...-source-sm12x'), never a model-keyed image."
+        },
+        {
+          "clause_id": "ARCH_WALL_VARIANT_LADDER.C3",
+          "statement": "Only one variant track may be active at a time."
+        },
+        {
+          "clause_id": "ARCH_WALL_VARIANT_LADDER.C4",
+          "statement": "Every override requires HITL approval backed by reference-grounded evidence -- never speculative."
+        },
+        {
+          "clause_id": "ARCH_WALL_VARIANT_LADDER.C5",
+          "statement": "Promotion requires a regression re-smoke of existing models on the new track before it becomes the default."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py",
+          "supports": [
+            "ARCH_WALL_VARIANT_LADDER.C1",
+            "ARCH_WALL_VARIANT_LADDER.C4"
+          ],
+          "assertion_ids": [
+            "inspect_env",
+            "gen_candidates"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/classify_failure.py",
+          "supports": [
+            "ARCH_WALL_VARIANT_LADDER.C1",
+            "ARCH_WALL_VARIANT_LADDER.C2",
+            "ARCH_WALL_VARIANT_LADDER.C3",
+            "ARCH_WALL_VARIANT_LADDER.C5"
+          ],
+          "assertion_ids": [
+            "load_patterns",
+            "matched_lines"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "ARCH_WALL_VARIANT_LADDER.C1"
+          ],
+          "assertion_ids": [
+            "predicate_ARCH_WALL_VARIANT_LADDER_C1"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "ARCH_WALL_VARIANT_LADDER.C2"
+          ],
+          "assertion_ids": [
+            "predicate_ARCH_WALL_VARIANT_LADDER_C2"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "ARCH_WALL_VARIANT_LADDER.C3"
+          ],
+          "assertion_ids": [
+            "predicate_ARCH_WALL_VARIANT_LADDER_C3"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "ARCH_WALL_VARIANT_LADDER.C4"
+          ],
+          "assertion_ids": [
+            "predicate_ARCH_WALL_VARIANT_LADDER_C4"
+          ]
+        },
+        {
+          "path": ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json",
+          "supports": [
+            "ARCH_WALL_VARIANT_LADDER.C4"
+          ],
+          "assertion_ids": [
+            "kind",
+            "result",
+            "approved_by",
+            "variant_id"
+          ]
+        },
+        {
+          "path": "tests/harness/test_policy_claim_predicates.py",
+          "supports": [
+            "ARCH_WALL_VARIANT_LADDER.C5"
+          ],
+          "assertion_ids": [
+            "predicate_ARCH_WALL_VARIANT_LADDER_C5"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if stock vLLM upstream closes the underlying arch-wall class this ladder exists to work around (verified by a clean stock build/smoke on the previously-walled architecture), documented in a superseding plan.",
+      "added_at": "2026-07-25",
+      "last_reproduced": null,
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer",
+        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    }
+  ]
+}

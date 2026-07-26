@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "source_build_variants": {
+    "_note": "Canonical tracked arch-enablement variant ledger. Runtime resolved.json may mirror this but is not the policy trust anchor.",
+    "_deprecation_0.24.0": "deepseek-v4-flash-sm12x fork variant is SUPERSEDED at vLLM 0.24.0 by stock native SM12x support; preserve the 0.23.0 last-good rollback anchor.",
+    "deepseek-v4-flash-sm12x": {
+      "variant_id": "source-sm12x-vllm-0.23.0",
+      "architecture": "sm12x",
+      "vllm_repo": "https://github.com/jasl/vllm.git",
+      "vllm_ref": "c766cbc6fff2946dc81a2f7d4dbf6f4cd39c242b",
+      "tag": "sm120-pr-41834-stable-preview-20260626",
+      "image_tag": "easy-vllm:0.23.0-cu132-aarch64-source-sm12x",
+      "track": "source-sm12x",
+      "evidence": {
+        "path": ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json",
+        "sha256": "57f5b4a72a2bd0c965ce7844ec42f177078ba133f341d7d4ed0f34ae7ce2636e"
+      },
+      "status": "SUPERSEDED@0.24.0; retained only as the 0.23.0 last-good rollback anchor"
+    }
+  }
+}

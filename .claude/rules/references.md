@@ -1,17 +1,17 @@
 # references.md — 외부 레퍼런스 레지스트리 (ID→URL 정규화 + 검색 진입점)
 
 > **역할**: 외부 교차검증(참조-그라운디드 해결·escalation·adversarial E)의 **1차 조회 대상**.
-> 과거 작업(docs 코퍼스 98건 채굴 · plan_2026070208_1 Phase 3)이 실제로 인용한 외부 소스에서 유도했다.
+> 과거 작업(docs 코퍼스 98건 채굴 · plan_26070208 Phase 3)이 실제로 인용한 외부 소스에서 유도했다.
 > **URL 저장소가 아니다** — 실인용의 지배 형태는 축약 ID(PR#41834, forum 370309)이므로 이 파일의 1차
 > 기능은 **ID→URL 정규화 템플릿 + 검색 레시피(진입점)**다.
-> **평면**: 메인 전용(빌딩블럭 전파 축 — 파일 배치는 메인 고정) · **egress-restricted 서브**는 열람 불가 → 증상 상향(D12) · **egress-online+A2A 위임 서브**는 조건부 열람(이중게이트 — `plan_2026070809_2`). 추적 빌딩블럭(배포 대상).
+> **평면**: 메인 전용(빌딩블럭 전파 축 — 파일 배치는 메인 고정) · **egress-restricted 서브**는 열람 불가 → 증상 상향(D12) · **egress-online+A2A 위임 서브**는 조건부 열람(이중게이트 — `plan_26070809_46_57`). 추적 빌딩블럭(배포 대상).
 > **자기증식 루프**: 외부검색 전 이 레지스트리 warm-start → 미스 시 신규 검색 → load-bearing 히트는
 > 여기(stable/HW-스코프) 또는 docs(one-off 주장)로 입고.
 
 ## 0. 설계 원칙 (등재 규율)
 
 - **stable 만 live-URL 등재**(release-notes 인덱스·카테고리·repo). **one-off**(특정 버그의 특정 issue·
-  커뮤니티 launch-script)는 URL 등재 ✗ — rot 실증(hazyumps 404, plan_2026062818_1) — 대신 **"인용시점
+  커뮤니티 launch-script)는 URL 등재 ✗ — rot 실증(hazyumps 404, plan_26062818) — 대신 **"인용시점
   핵심 주장 1줄 + 인용 doc 경로"**로 docs 에 남긴다(wiki-desk 가 색인 — 그게 실효 보존 메커니즘).
 - **스크립트-소유 템플릿은 중복 저작 금지** — 정본=코드, 여기엔 포인터만(§2).
 - **음성정직**: 조회 실패(404·계정벽)면 실패로 기록 — 대체 URL 날조 ✗.
@@ -24,8 +24,8 @@
 |---|---|---|
 | vLLM `#{n}` (PR/issue) | `github.com/vllm-project/vllm/{pull\|issues}/{n}` | arch 지원 시점·버그·포크 PR 확인 |
 | vLLM `v{ver}` 릴리즈 | `github.com/vllm-project/vllm/releases/tag/v{ver}` | bump 1차 근거(사람용 — 예: #43477 SM120 enablement 인용) |
-| 포크 `behind_by` 판정 | `api.github.com/repos/vllm-project/vllm/compare/v{ver}...{fork_sha}` | **포크 졸업/유지 결정론 증거**(behind_by/ahead_by/merge_base — testlog_2026070207_1 기법) |
-| HF 모델카드 | `huggingface.co/{org}/{model}` (+`/discussions`, `/blob/main/config.json`) | **로컬 번들 우선**: 1차 = 모델 디렉토리 번들 README.md(=카드 원본, plan_2026062811_2 루틴) · 온라인은 2차 |
+| 포크 `behind_by` 판정 | `api.github.com/repos/vllm-project/vllm/compare/v{ver}...{fork_sha}` | **포크 졸업/유지 결정론 증거**(behind_by/ahead_by/merge_base — testlog_26070207 기법) |
+| HF 모델카드 | `huggingface.co/{org}/{model}` (+`/discussions`, `/blob/main/config.json`) | **로컬 번들 우선**: 1차 = 모델 디렉토리 번들 README.md(=카드 원본, plan_26062811_30_33 루틴) · 온라인은 2차 |
 | HF discussions `#{n}` | `huggingface.co/{org}/{model}/discussions/{n}` | "stock OOB 미동작" 커뮤니티 보고 클래스(예: DS4 #28 → build_patch 유지 근거) |
 | NVIDIA forum `{id}` | `forums.developer.nvidia.com/t/{id}` | 동일-HW 성능/배포 스레드 역참조 |
 | GitHub raw 파일 | `raw.githubusercontent.com/{org}/{repo}/{ref}/{path}` | 소스 직독 범용(pyproject·requirements·백엔드 oracle — §2 ③의 일반형) |
@@ -51,11 +51,11 @@
 
 ## 4. HW-스코프 섹션 (manifest `gpu_model` 키 — 자기 HW 항목만 조회)
 
-> **GPU-스펙 웹취득 규율 (자기증식 — plan_2026070809_1)**: 미지 GPU 카드(manifest `gpu_model` 이 아래에
+> **GPU-스펙 웹취득 규율 (자기증식 — plan_26070809_46_53)**: 미지 GPU 카드(manifest `gpu_model` 이 아래에
 > 미등재)를 만나면 → **웹검색(1급 리서치·에이전트 의무)** 으로 per-card VRAM·arch(sm_xx)·통합/discrete
 > 여부를 조회 → **HITL 확인** → 아래에 해당 `gpu_model` 섹션 신설·입고(§0 "자기증식 루프"의 GPU-스펙 축).
 > 조회는 획득모드와 무관하게 항상 허용·의무(모델획득 격리와 별개 평면 — CLAUDE.md §모델 획득 모드 따름정리).
-> **소비 배선(γ, `plan_2026070809_3`)**: 각 GPU 섹션에 `per-card VRAM (GiB): <num>` 라인이 있으면
+> **소비 배선(γ, `plan_26070809_47_07`)**: 각 GPU 섹션에 `per-card VRAM (GiB): <num>` 라인이 있으면
 > `recipe.py resolve_target_gpu_budget()`(`_lookup_gpu_spec`)이 역룩업으로 읽어 타겟 예산에 대입한다
 > (값 채우기·웹취득 규율 자체는 위 α 소관 — γ 는 소비만). 미등재 시 `config.target_gpu.per_card_vram_gib`
 > 명시로 우회(quick-win). 헤더에 "통합메모리" 포함 시 `target_gmu≤0.90` 하드클램프 자동 적용.
@@ -70,7 +70,7 @@
 ### NVIDIA RTX PRO 6000 (Blackwell · discrete · sm_120)
 - per-card VRAM (GiB): 96
 - 근거: 공개 스펙(96GB GDDR7, Blackwell 아키텍처, discrete — 통합메모리 아님) · 사용자 HITL 확인
-  (δ 1-1 타겟-GPU 인터뷰, 2026-07-08 — `docs/plan/plan_2026070809_3` 인수 시나리오 첫 실사용).
+  (δ 1-1 타겟-GPU 인터뷰, 2026-07-08 — `docs/plan/plan_26070809_47_07` 인수 시나리오 첫 실사용).
 - 등재 사유: γ(타겟-GPU 이식형 KV 클램프)의 첫 실 타겟 지정 요청 — `references.md` §4 웹취득 규율의
   자기증식 루프 첫 발동. (single-node 브랜치에서 최초 등재, 공유 빌딩블럭 정합을 위해 포팅.)
 
@@ -78,7 +78,7 @@
 - per-card VRAM (GiB): 16
 - 근거: 공개 스펙(16GB GDDR6X, 256-bit, Ada Lovelace, discrete — 통합메모리 아님) · 사용자 HITL 확인
   (δ 1-2 타겟-GPU 인터뷰, 2026-07-08 — 결합-HITL 단일턴 분기 테스트의 메인측 결정).
-- 등재 사유: γ 두 번째 실 타겟 지정 요청(단일 턴에 메인·서브 결정이 묶여 온 첫 사례 — `plan_2026070809_4` 1-2).
+- 등재 사유: γ 두 번째 실 타겟 지정 요청(단일 턴에 메인·서브 결정이 묶여 온 첫 사례 — `plan_26070809_47_11` 1-2).
 
 ### NVIDIA GeForce RTX 4070 (Ada Lovelace · discrete · sm_89)
 - per-card VRAM (GiB): 12
@@ -90,7 +90,7 @@
 ### NVIDIA H200 (Hopper · discrete · HBM3e)
 - per-card VRAM (GiB): 141
 - 근거: 공개 스펙(141GB HBM3e, 4.8TB/s 대역폭, discrete — 통합메모리 아님, Hopper 아키텍처) · 사용자 HITL
-  확인(δ 2-1 타겟-GPU 인터뷰, 2026-07-08 — `plan_2026070809_4` multi(Ray) 단일모델 메인드라이브 시나리오).
+  확인(δ 2-1 타겟-GPU 인터뷰, 2026-07-08 — `plan_26070809_47_11` multi(Ray) 단일모델 메인드라이브 시나리오).
 - 등재 사유: γ 의 첫 **멀티노드**(TP=2) 타겟-GPU 시뮬레이션 지정 — 노드당 1장×2노드 = 총 282GiB 예산으로
   Qwen3.6-35B-A3B(실측 66.97GiB) 서빙 전략 검증.
 
@@ -104,7 +104,7 @@
 
 1. vLLM releases 최신 N개(기본 3) 노트에서 모델/arch 키워드 grep (§1 릴리즈 템플릿).
 2. vLLM GitHub issue/PR 검색 — **모델 클래스명**(config.json `architectures`, 예 `Qwen3_5MoeForConditionalGeneration`)
-   + 모델명 양쪽 (§1 PR/issue 템플릿; arch 지원 시점 확인의 실증 패턴 — testlog_2026062718_1).
+   + 모델명 양쪽 (§1 PR/issue 템플릿; arch 지원 시점 확인의 실증 패턴 — testlog_26062718).
 3. HF 모델카드 vLLM 절 + discussions 탭 ("OOB 미동작" 보고 클래스) — 로컬 번들 README 1차.
 4. 알려진 포크/enablement PR 검색 (아치-enablement 변종 트랙 후보 — escalation 3출구 (ii) 증거 클래스).
 5. (성능 축이면) §4 HW-스코프 + §3 포럼 카테고리에서 동일-HW baseline.

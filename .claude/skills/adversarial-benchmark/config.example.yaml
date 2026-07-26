@@ -24,4 +24,4 @@ bench:
   output_len: 256
   num_prompts: 16
   warmups: 2                          # 콜드 JIT(예 flashinfer SM120 첫요청) 폐기
-  lite_burst_n: 3                     # (선택·lite 모드) 경량 벤치 warm burst N(기본 3·warmup 1 제외·cold TTFT 별도). lite_bench.sh --burst-n 로도 override. plan_2026071115_1 D26
+  lite_burst_n: 3                     # (선택·lite 모드) 경량 벤치 warm burst N(기본 3·warmup 1 제외·cold TTFT 별도). lite_bench.sh --burst-n 로도 override. plan_26071115 D26

@@ -8,7 +8,7 @@
   - **N/A fail-soft**: 결측 필드는 "N/A" 원문 기록(대체값 날조 ✗).
 
 입력: sweep_bench.sh 산출 sweep_index.json(meta + per-level measured) + verdict_rule.py JSON(판정점 결과).
-출력: docs/benchmark/report_<model>_<gpu>_<vllm>.md (기본) — 부하 스윕 곡선·루프라인 컨텍스트·환경 스냅샷.
+출력: docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md (기본 · 시간토큰=doc_naming SSOT) — 부하 스윕 곡선·루프라인 컨텍스트·환경 스냅샷.
 
 stdlib only. 종료: 0=성공 · 2=입력 오류.
 """
@@ -173,7 +173,10 @@ def main():
 
     md = build_md(index, verdict, roofline)
     meta = index.get("meta", {})
-    fname = "report_%s_%s_%s.md" % (meta.get("model", "NA"), meta.get("gpu_key", "NA"), meta.get("vllm_version", "NA"))
+    import sys as _s, os as _o; _s.path.insert(0, _o.path.dirname(_o.path.abspath(__file__)))
+    from doc_naming import bench_filename
+    _outdir = a.out_dir or os.path.join(repo_root(a.sweep_index), "docs", "benchmark")
+    fname = bench_filename("bench_report", meta, index.get("generated_utc"), (None if a.stdout else _outdir), "md")
 
     if a.stdout:
         sys.stdout.write(md)

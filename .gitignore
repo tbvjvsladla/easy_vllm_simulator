@@ -13,19 +13,38 @@
 .docker-skills/
 skills-lock.json
 CLAUDE.local.md
-# wiki-desk 라이브 도서관(__llm-wiki) — 비추적: init 생성물 + 비추적 docs 인덱싱 파생물(추적 시 incoherent).
-#   gitignore-persist로 브랜치 통합. 스킬(.claude/skills/wiki-desk/)은 추적. 근거 plan_2026062809_1.
+# wiki-desk 라이브 도서관(__llm-wiki) — 비추적: init이 생성하는 산출물 + 비추적 docs를 인덱싱한
+#   파생물(추적 시 incoherent) + path-reference 로컬상태 종속. gitignore-persist로 브랜치 통합.
+#   스킬 자체(.claude/skills/wiki-desk/)는 추적. 근거 plan_2026062809_1.
 /__llm-wiki/
 
 # ===========================================
 # .claude 빌딩블럭 선별 추적 (배포 대상)
-#   .claude/* 전체 무시 → rules/·skills/ 디렉토리 재포함 → 그 안의 사적·산출 파일만 재제외.
+#   .claude/* 전체 무시 → rules/·skills/·schemas/ 디렉토리 재포함 → 그 안의 사적·산출 파일만 재제외.
 #   (재포함은 부모 디렉토리부터: 부모가 제외되면 자식은 다시 추적될 수 없다.)
-#   규칙 근거: docs/plan/plan_2026062205_1 §4
+#   규칙 근거: docs/plan/plan_2026062205_1 §4, docs/plan/plan_26072506_* Phase 1
 # ===========================================
 .claude/*
 !.claude/rules/
 !.claude/skills/
+!.claude/schemas/
+!.claude/policies/
+.claude/schemas/*
+!.claude/schemas/work-manifest.schema.json
+!.claude/schemas/completion-manifest.schema.json
+!.claude/schemas/side-effect-authorization.schema.json
+!.claude/schemas/policy-registry.schema.json
+!.claude/schemas/agent-control-request.schema.json
+!.claude/schemas/agent-control-result.schema.json
+.claude/policies/*
+!.claude/policies/registry.yaml
+!.claude/policies/evidence_manifest.json
+!.claude/policies/tracked_index.json
+!.claude/policies/claim_bindings.json
+!.claude/policies/governed_prose_snapshot.json
+!.claude/policies/arch_variant_ledger.json
+!.claude/policies/arch_variant_evidence/
+!.claude/policies/arch_variant_evidence/*.json
 # 재제외 (재포함 이후에 와야 적용됨 / 주석은 반드시 별도 줄 — 패턴 뒤 인라인 # 은 리터럴로 취급됨)
 # 개인 로컬 설정(IP·allowlist)
 .claude/settings.local.json
@@ -65,9 +84,10 @@ manifest.yaml
 #   ⚠ 답안노출 방지: 이 산출물은 working-tree에서만 존재(클론은 빈 상태로 시작·render로 재생성).
 #   규칙 근거: docs/plan/plan_2026062213_1 (단일노드 배포가능검증)
 # ===========================================
-/Dockerfile
-/Dockerfile.source-build
-/docker-compose.yaml
+# ── 멀티노드 분기(branch-specific .gitignore) ──
+#   single-node는 /Dockerfile·/Dockerfile.source-build·/docker-compose.yaml 도 ignore(렌더 산출물)하지만,
+#   multi-node는 손작성 Ray/NCCL/네트워크-디버그 구현이 *.template 변환의 유일 원천이라 **추적 유지**한다
+#   (멀티노드 렌더 템플릿으로 졸업한 뒤 ignore 로 전환). 근거: docs/plan/plan_2026062307_1 §1 레이어2/3b.
 /requirements.txt
 # S1 resolve 산출 스냅샷 (버전 bump마다 재생성 — 추적 안 함)
 /resolved.json
@@ -76,17 +96,27 @@ manifest.yaml
 # 모델별 산출물 (범용 툴 configs/check_reqs.py 는 .py 라 미매칭 → 추적 유지)
 configs/*.yaml
 configs/*.sh
+# 멀티노드 토폴로지 인프라(generic Ray 런너·init — 모델별 산출물 아님 → 재포함해 추적 유지)
+!configs/serve_runner.sh
+!configs/debug-init.sh
+!configs/arm_patch.sh
 
 # ===========================================
 # output/ 통로 — single/multi 산출물 경계분리 (혼재 차단)
-#   통로 껍데기(.gitkeep)만 추적 / 생성물(렌더 Dockerfile·compose·모델 config·env)은 비추적.
+#   통로 껍데기(.gitkeep)만 추적 / 생성물(모델 config·env·렌더 Dockerfile 등)은 비추적.
 #   생성물이 켜켜이 쌓여도 통로(single|multi)가 갈려 서로 침범 못 함.
-#   single-node는 output/single/ 로 렌더(render_dockerfile.py -o output/single/...).
-#   (multi-node 브랜치는 output/multi/ 손작성 정의를 추적 예외로 둠 — 거긴 브랜치별 .gitignore.)
-#   규칙 근거: docs/plan/plan_2026062312_1 · CLAUDE.md 산출물 통로 불변식
+#   예외: multi-node 손작성 컨테이너 정의는 *.template 졸업 전까지 정본 → 추적 유지(Plan 2서 ignore 강등).
+#   규칙 근거: docs/plan/plan_2026062312_1
 # ===========================================
 output/*/*
 !output/*/.gitkeep
+!output/multi/Dockerfile
+!output/multi/Dockerfile.source-build
+!output/multi/docker-compose.yaml
+# 빌드-바깥 패치 모듈(build_patches/<NN>-*.sh) — 손작성 빌드입력·정본(컨테이너 정의와 동급 추적).
+#   통로(output/<t>/) 격리로 single/multi 혼재 차단(산출물 통로 불변식). upstream-version-watch §4.7 · 3+1+1.
+!output/multi/build_patches/
+!output/multi/build_patches/*
 
 # ===========================================
 # Python
@@ -172,6 +202,11 @@ docs/*/*
 !docs/report/*
 
 # ===========================================
+# D12 상향 회수 미러 (fetch_sub_docs.sh 산출 — 서브 docs/ 로컬 작업본, gitignored)
+# ===========================================
+sync_staging/
+
+# ===========================================
 # hint 배포 레이어 (plan_2026070222_1)
 #   hints/index.json = 추적(HEAD 기계-인덱스, 본문 없음) / hints/.drafts/ = hint_tag.py create 스캐폴드(비추적).
 #   레시피 본문은 annotated 태그 오브젝트에만 존재([A]=B) — HEAD엔 레시피 파일 없음.
@@ -180,3 +215,11 @@ hints/.drafts/
 
 # 호스트 안전체계 오프라인 패키지(아치별 바이너리 — 추적 안 함, 운영자가 각 노드에 스테이징)
 earlyoom_*.deb
+
+# ===========================================
+# completion_gate 하네스 테스트 런타임 스크래치 (plan_26072506 Phase 1 리뷰 교정)
+#   test_completion_gate.py 의 심볼릭링크/FIFO 하네시티 테스트가 setUp/tearDown 에서 만들고
+#   지우는 임시 디렉토리 — 정상 종료 시 항상 비어있지만, 크래시로 잔존해도 커밋에 안 실리게 방어.
+# ===========================================
+tests/harness/fixtures/completion/_runtime_scratch/
+tests/harness/fixtures/policy_registry/removal_artifacts/_runtime_scratch/

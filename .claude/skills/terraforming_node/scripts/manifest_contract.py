@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""manifest_contract.py — 테라포밍-완수 Flag 게이트의 결정론 리더 (plan_2026063018_1).
+"""manifest_contract.py — 테라포밍-완수 Flag 게이트의 결정론 리더 (plan_26063018).
 
 헌법 §테라포밍-완수 Flag 게이트 따름정리의 **결정론 백스톱**. 3 런타임 스킬
 (upstream-version-watch · vllm-recipe-explorer · adversarial-benchmark)의 *작업 스크립트*가
@@ -61,7 +61,7 @@ def resolve_topology(repo, explicit):
 
 
 def effective_model_source(node, top_level_ms):
-    """per-node model_source 해소 규칙(결정론 — plan_2026070809_2 §4.4):
+    """per-node model_source 해소 규칙(결정론 — plan_26070809_46_57 §4.4):
     node.model_source(있으면) > top-level model_source > None(오류, 호출자 판단)."""
     if isinstance(node, dict) and node.get("model_source"):
         return node["model_source"]
@@ -125,7 +125,7 @@ def evaluate_contract(man, topology):
         res["exit_code"] = EXIT_MISSING_FIELD
         return res
 
-    # per-node model_source override 검증 (single-node sub-control 한정 — plan_2026070809_2 §4.4).
+    # per-node model_source override 검증 (single-node sub-control 한정 — plan_26070809_46_57 §4.4).
     # 해소규칙: node.model_source(있으면) > top-level ms. 멀티는 override 있어도 무시 대상(단일 정책)이라 WARN.
     node_warnings = []
     bad_node_sources = []
@@ -212,7 +212,7 @@ def _self_test():
         {**base_ok, "model_source": "nas"},
         "single", False, EXIT_MISSING_FIELD)
 
-    # per-node model_source override 회귀(plan_2026070809_2 §4.4 — valid-override · bad-override).
+    # per-node model_source override 회귀(plan_26070809_46_57 §4.4 — valid-override · bad-override).
     single_sub_control = {
         "topology": "single", "gpus_per_node": 1, "model_source": "managed",
         "nas_model_path": "/mnt/models",

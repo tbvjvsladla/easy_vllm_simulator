@@ -22,7 +22,7 @@
 - 이미지: easy-vllm:<vllm>-cu<cuda>-<arch>-source (양노드 빌드됨) · build_patches: 10-,20-,40-
 - 미커밋: output/multi/build_patches/15-foo.sh (신규 · 미스모크)
 ### N.2 의사결정 대기 (후보별 정확 값)
-- 후보A = upstream nv_dev(SHA `abc1234def...`) / 후보B = 포크 유지 — 판단 근거 = testlog_<YYYYMMDDHH>_<seq> §3
+- 후보A = upstream nv_dev(SHA `abc1234def...`) / 후보B = 포크 유지 — 판단 근거 = testlog_<YYMMDDHH>[_MM_SS] §3
 ### N.3 재개 커맨드 (verbatim)
     READY_MAX=300 bash .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh <config> --build --keep-up
     # 크래시 진단: docker logs <svc> 2>&1 | grep -nE "undefined symbol|CUDA error"
@@ -36,9 +36,10 @@
 
 ## 파일명 규칙
 ```
-docs/devlog/devlog_<YYYYMMDDHH>_<seq>_<주제>.md
+docs/devlog/devlog_<YYMMDDHH>[_<MM>_<SS>]_<주제>.md
 ```
-- `YYYYMMDDHH`: 작성 일시 절대표기 (예 `2026060814` = 2026-06-08 14시). 상대날짜 금지.
-- `seq`: 같은 일시·같은 type 내 일련번호(1부터).
+- `YYMMDDHH`: 작성 일시 절대표기 · 2자리 연도 (예 `26060814` = 2026-06-08 14시). 상대날짜 금지.
+- `_MM_SS`: 같은 `YYMMDDHH`(같은 type)에 충돌 시에만 분·초 접미(구 `_seq_` 표기는 폐지됨).
 - `주제`: 한국어, 밑줄(`_`) 구분, 버전·대상 포함 권장.
-- 예: `devlog_2026060814_1_멀티노드_소스빌드_확장_검증.md`
+- 예: `devlog_26060814_멀티노드_소스빌드_확장_검증.md`
+- 명명 SSOT(결정론 헬퍼): `scripts/doc_naming.py`(`dated_doc_basename` — evidence_publisher.py가 소비).

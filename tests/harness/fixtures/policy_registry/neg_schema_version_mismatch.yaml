@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "policies": [
+    {
+      "policy_id": "TEST_BASE",
+      "owner": "test",
+      "statement": "A concise baseline statement for fixture testing purposes only.",
+      "scope": [
+        "single-node"
+      ],
+      "origin_failure": "plan_test",
+      "clauses": [
+        {
+          "clause_id": "TEST_BASE.C1",
+          "statement": "The baseline clause mentions a genuine violation keyword for relevance matching against scripts/policy_registry.py's own content."
+        }
+      ],
+      "evidence": [
+        {
+          "path": "scripts/policy_registry.py",
+          "supports": [
+            "TEST_BASE.C1"
+          ],
+          "assertion_ids": [
+            "evaluate_lifecycle"
+          ]
+        }
+      ],
+      "added_at": "2026-01-01",
+      "last_reproduced": null,
+      "remove_when": "Removable only once this fixture template itself is deleted from the test suite entirely.",
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-07-25",
+        "next_review_due": "2026-10-23",
+        "reviewer": "maintainer"
+      }
+    }
+  ]
+}

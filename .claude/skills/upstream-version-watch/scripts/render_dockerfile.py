@@ -32,6 +32,7 @@ VALIDATED_SOURCE_BUILD_KEYS 는 P6 카탈로그(source_build_patches.yaml) 승�
 
 import sys
 import os
+import stat
 import re
 import json
 import shutil
@@ -39,9 +40,21 @@ import argparse
 
 IMAGE_NAME = "easy-vllm"
 
-# 통로 self-containment(plan_2026062321_1 I1/I2): 컨테이너가 쓰는 러너 스크립트 정본은 repo-root configs/(tracked).
-# render 가 이를 output/<topology>/configs/ 로 materialize(복사)해 통로를 완결시킨다(런타임 mount-overlay·통로 밖 마운트 금지).
+# Topology-neutral policy/production SSOT. Delivered root configs/ and output/<topology>/ are
+# derivatives only; both branches consume these synchronized source assets.
+SKILL_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+SHARED_ASSET_DIR = os.path.join(SKILL_ROOT, "assets", "configs")
+SHARED_TEMPLATE_DIR = os.path.join(SKILL_ROOT, "templates")
+SHARED_RESOLUTION = os.path.join(SKILL_ROOT, "assets", "current-production-resolution.json")
 RUNNER_SCRIPTS = ("serve_runner.sh", "debug-init.sh", "arm_patch.sh")
+_SHARED_TEMPLATES = {
+    ("single", "dockerfile"): "Dockerfile.template",
+    ("multi", "dockerfile"): "Dockerfile.template",
+    ("single", "source-build"): "Dockerfile.source-build.template",
+    ("multi", "source-build"): "Dockerfile.source-build.template",
+    ("single", "compose"): "docker-compose.single.template.yaml",
+    ("multi", "compose"): "docker-compose.multi.template.yaml",
+}
 
 # ── NCCL/RDMA 통신 env (Plan 2: docker-compose 하드코딩 17개 → manifest-driven 렌더) ──────────
 #   3-tier taxonomy: ①환경값 = manifest.interconnect(hca_devices/gid_index/socket_iface)
@@ -60,7 +73,7 @@ NCCL_PRESETS = {
         "NCCL_CROSS_NIC": "1",
     },
     # 튜닝 0 프리셋 — 비-DGX 플랫폼의 "시도→comms 스모크 중재" 경로(전방호환 시도-우선 따름정리 ·
-    # plan_2026070208_1 [C]#3). ①환경값(manifest.interconnect)+③불변만 방출 = NCCL 기본값으로 일단 돌려본다.
+    # plan_26070208 [C]#3). ①환경값(manifest.interconnect)+③불변만 방출 = NCCL 기본값으로 일단 돌려본다.
     # 성능 튜닝은 스모크 통과 후 플랫폼 프리셋으로 승격(무증거 튜닝 금지는 유지).
     "generic": {},
 }
@@ -86,7 +99,7 @@ CLUSTER_PRESETS = {
         "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
         "RAY_OBJECT_STORE_MEMORY": "2000000000",   # serve_runner 가 --object-store-memory CLI 로 소비(Ray env 미인식)
         "MAX_JOBS": "4",                # serve-time MoE 커널 JIT(sm_121a, 多expert) nvcc 병렬 cap — 동시 컴파일 OOM 방지(122b attempt-3 실증).
-                                        #   슬레이브도 model shard 로드·JIT 하므로 Band2(cluster)서 양노드 도달해야 함(plan_2026062811_2 — 슬레이브 Band2-only 완결).
+                                        #   슬레이브도 model shard 로드·JIT 하므로 Band2(cluster)서 양노드 도달해야 함(plan_26062811_30_33 — 슬레이브 Band2-only 완결).
                                         #   이미지 ENV 기본 16 override. 비-MoE 모델엔 no-op(안전 보수 상수). 모델별 override 필요시 .env.<model>(master) 에서.
     },
     # 튜닝 0 — NCCL_PRESETS["generic"] 과 동형(③불변 RAY_PORT 만 방출). 비-DGX "시도→스모크 중재" 경로.
@@ -104,10 +117,15 @@ CLUSTER_INVARIANTS = {                  # ③ universal — 클러스터 포트
 #     (26.05-py3, 0.23.0)=성공(torch 2.12, strip-hoist 자동 skip) — E2E 검증,
 #     (26.03-py3, 0.23.0)=FAIL(torch 2.11, Tensor::layout() 부재) ← 옛 '0.23.0 동일 torch2.11 캐리' 가정의 반증.
 #     (26.05-py3, 0.24.0)=검증(torch 2.11.0 핀·NGC 26.05 동일, source-build 레시피 byte-동일 — 0.23.0 twin.
-#         0.24.0=#43477 DeepSeek-V4 SM120 네이티브 stock. strip-hoist 자동 skip(torch 2.12). plan_2026070119_1, 스모크 최종중재).
+#         0.24.0=#43477 DeepSeek-V4 SM120 네이티브 stock. strip-hoist 자동 skip(torch 2.12). plan_26070119, 스모크 최종중재).
 #   미인식 키는 빌드를 명시적으로 실패시킨다(false determinism 방지 — plan rev3 §5 / SKILL.md §4.6 HITL 발견 루프 유도).
 #   P6: 이 인라인 셋을 source_build_patches.yaml + 패치-리졸버 페르소나로 승급.
-VALIDATED_SOURCE_BUILD_KEYS = {("26.03-py3", "0.22.1"), ("26.05-py3", "0.23.0"), ("26.05-py3", "0.24.0")}
+VALIDATED_SOURCE_BUILD_KEYS = {
+    ("26.03-py3", "0.22.1"),
+    ("26.05-py3", "0.23.0"),
+    ("26.05-py3", "0.24.0"),
+    ("26.05-py3", "0.25.1"),  # tracked output/multi freeze; exact pair must remain synchronized
+}
 
 _PLACEHOLDER_RE = re.compile(r"\{\{\s*[A-Z0-9_]+\s*\}\}")
 
@@ -250,7 +268,7 @@ def _compact_cuda(cuda: str) -> str:
     return cuda
 
 
-# HITL 우회(전방호환 시도-우선 · plan_2026070208_1 [C]#1): 사람이 명시 승인한 시도-빌드에서만
+# HITL 우회(전방호환 시도-우선 · plan_26070208 [C]#1): 사람이 명시 승인한 시도-빌드에서만
 # 가드를 WARN 으로 강등(main --allow-unvalidated). 기본 = fail-loud(false determinism 방지 불변).
 ALLOW_UNVALIDATED = False
 
@@ -425,27 +443,30 @@ def _parse_env_pairs(text: str) -> dict:
     return out
 
 
-# ── 통로 materialize (plan_2026062321_1 — 통로 self-containment) ───────────────
+# ── 통로 materialize (plan_26062321 — 통로 self-containment) ───────────────
 def _repo_root() -> str:
     """이 스크립트(.claude/skills/upstream-version-watch/scripts/) 기준 repo 루트(4단계 상위)."""
     return os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
 
 
 def materialize_configs(repo: str, topology: str) -> list:
-    """repo-root configs/ 의 러너 스크립트(정본) → output/<topology>/configs/ 복사(통로 self-containment, I1/I2).
-    멱등(덮어쓰기) · 실행권한 보존 · 정본 부재 시 fail-loud. 반환: 복사한 대상 경로 리스트.
-    compose 가 통로(`./configs`)만 단일 마운트하면 되도록 통로를 완결시킨다(런타임 mount-overlay 폐기)."""
-    src_dir = os.path.join(repo, "configs")
+    """Shared canonical runner assets → output/<topology>/configs/.
+
+    Idempotent, mode-preserving, and fail-closed when the synchronized source is absent.
+    """
+    if topology not in ("single", "multi"):
+        raise ValueError(f"unknown topology: {topology!r}")
+    src_dir = SHARED_ASSET_DIR
     dst_dir = os.path.join(repo, "output", topology, "configs")
     os.makedirs(dst_dir, exist_ok=True)
     copied = []
     for name in RUNNER_SCRIPTS:
         src = os.path.join(src_dir, name)
         if not os.path.isfile(src):
-            raise FileNotFoundError(f"러너 스크립트 정본 부재: {src} (repo-root configs/ — tracked 빌딩블럭)")
+            raise FileNotFoundError(f"shared runner source missing: {src}")
         dst = os.path.join(dst_dir, name)
         shutil.copyfile(src, dst)
-        shutil.copymode(src, dst)   # 실행권한 보존
+        os.chmod(dst, 0o755)
         copied.append(dst)
     return copied
 
@@ -456,14 +477,14 @@ def materialize_env(repo: str, topology: str, manifest: dict) -> str:
     docker compose 가 docker-compose.yaml 의 ${NAS_MODEL_PATH}·${TIKTOKEN_HOST_PATH} 치환에 쓰는
     프로젝트 .env 를 manifest 에서 생성한다. 이게 없으면 serve 가 compose 기본값(/mnt/models)을 마운트해
     모델을 못 찾는다(check_smoke_model.py 도 동일 정본=manifest 직독). PII(NAS 경로) 포함 → output/* gitignored.
-    근거: testlog_2026062422_1 결함#2(serve-time NAS 미전파). nas_model_path 부재 시 fail-loud(무증거 진행 금지)."""
+    근거: testlog_26062422 결함#2(serve-time NAS 미전파). nas_model_path 부재 시 fail-loud(무증거 진행 금지)."""
     nas = str(manifest.get("nas_model_path", "")).strip()
     if not nas:
         raise ValueError(
             "manifest.nas_model_path 부재 — output/%s/.env materialize 불가. "
             "serve 가 compose 기본값 /mnt/models 를 마운트해 모델을 못 찾는다. manifest 를 채울 것." % topology)
     # tiktoken·quant 도 manifest 정본 우선(env > manifest > 리터럴 default — 헌법 §serve-time env 통로 불변식).
-    # plan_2026063018_1: P1 이 manifest 에 tiktoken_host_path·quant_model_path 필드 추가 → 여기서 .env 로 materialize.
+    # plan_26063018: P1 이 manifest 에 tiktoken_host_path·quant_model_path 필드 추가 → 여기서 .env 로 materialize.
     tiktoken = str(manifest.get("tiktoken_host_path", "") or "").strip() or os.path.join(repo, "tiktoken_cache")
     quant = str(manifest.get("quant_model_path", "") or "").strip() or nas  # 미설정 시 NAS 루트 폴백
     dst_dir = os.path.join(repo, "output", topology)
@@ -515,6 +536,34 @@ def render(template_path: str, manifest: dict, version_resolution: dict) -> str:
     if "vllm-${VLLM_VERSION}+cu${CUDA_VERSION}" in text and not ctx.get("CUDA_VERSION"):
         raise ValueError("wheel 트랙인데 resolved.wheel.cuda 부재 → wheel URL 불완전")
     return out
+
+
+def load_shared_resolution() -> dict:
+    try:
+        with open(SHARED_RESOLUTION, encoding="utf-8") as fh:
+            value = json.load(fh)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"shared production resolution unreadable: {exc}") from exc
+    if not isinstance(value, dict) or not value.get("ngc_base", {}).get("tag"):
+        raise ValueError("shared production resolution lacks ngc_base.tag")
+    return value
+
+
+def render_shared(kind: str, topology: str, manifest: dict,
+                  version_resolution: dict | None = None) -> str:
+    """Render a synchronized canonical source for an explicit synthetic topology.
+
+    Checked-out branch identity is never consulted. Unknown topology/kind, a missing source, or
+    unresolved placeholders fail closed.
+    """
+    key = (topology, kind)
+    if key not in _SHARED_TEMPLATES:
+        raise ValueError(f"unknown topology/artifact kind: {topology!r}/{kind!r}")
+    path = os.path.join(SHARED_TEMPLATE_DIR, _SHARED_TEMPLATES[key])
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"shared template missing: {path}")
+    resolution = version_resolution if version_resolution is not None else load_shared_resolution()
+    return render(path, manifest, resolution)
 
 
 # ── self-test (A7 게이트가 호출) ──────────────────────────────────────────────
@@ -594,7 +643,7 @@ def _self_test() -> None:
         only_r = {k: crendered[k] for k in crendered if cgolden.get(k) != crendered[k]}
         only_g = {k: cgolden[k] for k in cgolden if crendered.get(k) != cgolden[k]}
         raise AssertionError(f"cluster 렌더 != golden(집합 동치 위반)\n  rendered-side={only_r}\n  golden-side={only_g}")
-    assert len(crendered) == 9, f"cluster 9키 기대, got {len(crendered)}"   # 8→9: MAX_JOBS Band2 재귀속(plan_2026062811_2)
+    assert len(crendered) == 9, f"cluster 9키 기대, got {len(crendered)}"   # 8→9: MAX_JOBS Band2 재귀속(plan_26062811_30_33)
     try:                                   # fail-loud ①: 미지 platform_preset → KeyError
         build_cluster_env({**man_nodes, "interconnect": {"platform_preset": "no-such"}})
         raise AssertionError("미지 platform_preset 인데 통과(fail-loud 위반)")
@@ -608,29 +657,28 @@ def _self_test() -> None:
         pass
     print("[render] cluster self-test OK — .env.cluster 9키 == golden 집합 동치 · 미지preset/노드결손 fail-loud 정상")
 
-    # ── materialize self-test (plan_2026062321_1): 정본 → 통로 복사 멱등·실행권한·fail-loud ──
+    # ── materialize self-test: shared SSOT → 통로 복사 멱등·실행권한·fail-loud ──
     import tempfile
     with tempfile.TemporaryDirectory() as td:
-        os.makedirs(os.path.join(td, "configs"))
         os.makedirs(os.path.join(td, "output", "multi"))
-        for name in RUNNER_SCRIPTS:
-            p = os.path.join(td, "configs", name)
-            with open(p, "w", encoding="utf-8") as f:
-                f.write(f"#!/bin/bash\n# {name}\n")
-            os.chmod(p, 0o755)
         copied = materialize_configs(td, "multi")
         assert len(copied) == len(RUNNER_SCRIPTS), "materialize 복사 수"
         for name in RUNNER_SCRIPTS:
             dst = os.path.join(td, "output", "multi", "configs", name)
             assert os.path.isfile(dst), f"materialize 대상 부재: {name}"
-            assert os.access(dst, os.X_OK), f"실행권한 미보존: {name}"
-        materialize_configs(td, "multi")  # 멱등(재호출 OK)
-        os.remove(os.path.join(td, "configs", RUNNER_SCRIPTS[0]))
+            assert stat.S_IMODE(os.stat(dst).st_mode) == 0o755, f"exact 0755 미보존: {name}"
+        materialize_configs(td, "multi")
+        global SHARED_ASSET_DIR
+        original_assets = SHARED_ASSET_DIR
         try:
-            materialize_configs(td, "multi")
-            raise AssertionError("정본 부재인데 통과(fail-loud 위반)")
-        except FileNotFoundError:
-            pass
+            SHARED_ASSET_DIR = os.path.join(td, "missing-shared-assets")
+            try:
+                materialize_configs(td, "multi")
+                raise AssertionError("shared source 부재인데 통과(fail-loud 위반)")
+            except FileNotFoundError:
+                pass
+        finally:
+            SHARED_ASSET_DIR = original_assets
     print("[render] materialize self-test OK — 러너 스크립트 통로 복사(멱등·권한·fail-loud) 정상")
 
 
@@ -642,14 +690,16 @@ def main() -> None:
     ap.add_argument("--cluster-envfile", action="store_true",
                     help="Ray .env.cluster 렌더(manifest.nodes[]+CLUSTER_PRESETS 소비, S6 env-split)")
     ap.add_argument("--materialize-configs", action="store_true",
-                    help="러너 스크립트(serve_runner/debug-init)를 output/<topology>/configs/ 로 복사(통로 self-containment, plan_2026062321_1)")
+                    help="러너 스크립트(serve_runner/debug-init)를 output/<topology>/configs/ 로 복사(통로 self-containment, plan_26062321)")
     ap.add_argument("--materialize-env", action="store_true",
                     help="output/<topology>/.env 를 manifest(nas_model_path)+tiktoken_cache 에서 생성(serve-time NAS 마운트 정합, 결함#2)")
     ap.add_argument("--topology", choices=["single", "multi"], help="--materialize-configs/--materialize-env 대상 통로")
     ap.add_argument("--repo", help="repo 루트(미지정 시 스크립트 위치 기준 자동)")
-    ap.add_argument("--template", help="템플릿 경로")
+    ap.add_argument("--template", help="legacy caller-provided template path")
+    ap.add_argument("--canonical-kind", choices=["dockerfile", "source-build", "compose"],
+                    help="render synchronized canonical source (requires explicit --topology)")
     ap.add_argument("--manifest", default="manifest.yaml")
-    ap.add_argument("--resolved", default="resolved.json")
+    ap.add_argument("--resolved", help="legacy caller-provided resolution; canonical rendering forbids it")
     ap.add_argument("-o", "--out", help="출력 파일(미지정 시 stdout)")
     ap.add_argument("--allow-unvalidated", action="store_true",
                     help="미검증 (NGC×vLLM) 키의 source-build 가드를 WARN 으로 강등(사람 승인 전제 시도-빌드 — "
@@ -703,17 +753,24 @@ def main() -> None:
         print(f"[render] materialize env → {env_path}", file=sys.stderr)
         return
 
-    if not a.template:
+    if a.canonical_kind:
+        if not a.topology or a.template or a.resolved:
+            print("[render] FAIL: --canonical-kind requires --topology and forbids --template/--resolved",
+                  file=sys.stderr)
+            sys.exit(2)
+        manifest = load_manifest(a.manifest)
+        out = render_shared(a.canonical_kind, a.topology, manifest)
+    elif a.template:
+        manifest = load_manifest(a.manifest)
+        resolved = load_resolved(a.resolved or "resolved.json")
+        out = render(a.template, manifest, resolved)
+    else:
         _self_test()
         return
-
-    manifest = load_manifest(a.manifest)
-    resolved = load_resolved(a.resolved)
-    out = render(a.template, manifest, resolved)
     if a.out:
         with open(a.out, "w", encoding="utf-8") as f:
             f.write(out)
-        print(f"[render] {a.template} → {a.out} ({len(out)} bytes)", file=sys.stderr)
+        print(f"[render] deterministic render → {a.out} ({len(out)} bytes)", file=sys.stderr)
     else:
         sys.stdout.write(out)
 

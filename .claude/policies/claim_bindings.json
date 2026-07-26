@@ -1,0 +1,1027 @@
+{
+  "schema_version": 1,
+  "bindings": {
+    "A2A_DELEGATION_KEY_FAIL_CLOSED.C1": [
+      {
+        "path": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+        "assertion_ids": [
+          "build_placeholders",
+          "parse_manifest"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/scan_node.py",
+        "assertion_ids": [
+          "assert_homogeneity"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C1"
+        ]
+      }
+    ],
+    "A2A_DELEGATION_KEY_FAIL_CLOSED.C2": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "assert_band_classification",
+          "assert_sub_delegation_authorized"
+        ]
+      },
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+        "assertion_ids": [
+          "_guard_tp",
+          "_require_terraform_flag"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C2"
+        ]
+      }
+    ],
+    "A2A_DELEGATION_KEY_FAIL_CLOSED.C3": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "assert_band_classification",
+          "assert_sub_delegation_authorized"
+        ]
+      },
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+        "assertion_ids": [
+          "_guard_tp",
+          "_require_terraform_flag"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C3"
+        ]
+      }
+    ],
+    "A2A_DELEGATION_KEY_FAIL_CLOSED.C4": [
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+        "assertion_ids": [
+          "_guard_tp",
+          "_require_terraform_flag"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C4"
+        ]
+      }
+    ],
+    "ARCH_WALL_VARIANT_LADDER.C1": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/classify_failure.py",
+        "assertion_ids": [
+          "load_patterns",
+          "matched_lines"
+        ]
+      },
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py",
+        "assertion_ids": [
+          "gen_candidates",
+          "inspect_env"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_ARCH_WALL_VARIANT_LADDER_C1"
+        ]
+      }
+    ],
+    "ARCH_WALL_VARIANT_LADDER.C2": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/classify_failure.py",
+        "assertion_ids": [
+          "load_patterns",
+          "matched_lines"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_ARCH_WALL_VARIANT_LADDER_C2"
+        ]
+      }
+    ],
+    "ARCH_WALL_VARIANT_LADDER.C3": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/classify_failure.py",
+        "assertion_ids": [
+          "load_patterns",
+          "matched_lines"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_ARCH_WALL_VARIANT_LADDER_C3"
+        ]
+      }
+    ],
+    "ARCH_WALL_VARIANT_LADDER.C4": [
+      {
+        "path": ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json",
+        "assertion_ids": [
+          "approved_by",
+          "kind",
+          "result",
+          "variant_id"
+        ]
+      },
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py",
+        "assertion_ids": [
+          "gen_candidates",
+          "inspect_env"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_ARCH_WALL_VARIANT_LADDER_C4"
+        ]
+      }
+    ],
+    "ARCH_WALL_VARIANT_LADDER.C5": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/classify_failure.py",
+        "assertion_ids": [
+          "load_patterns",
+          "matched_lines"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_ARCH_WALL_VARIANT_LADDER_C5"
+        ]
+      }
+    ],
+    "HINT_TAG_ACTIVATION_GATE.C1": [
+      {
+        "path": "scripts/hint_tag.py",
+        "assertion_ids": [
+          "_build_evidence_footer",
+          "_tag_object_body",
+          "cmd_match",
+          "cmd_push",
+          "scan_text",
+          "validate_name"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HINT_TAG_ACTIVATION_GATE_C1"
+        ]
+      }
+    ],
+    "HINT_TAG_ACTIVATION_GATE.C2": [
+      {
+        "path": "scripts/hint_tag.py",
+        "assertion_ids": [
+          "_build_evidence_footer",
+          "_tag_object_body",
+          "cmd_match",
+          "cmd_push",
+          "scan_text",
+          "validate_name"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HINT_TAG_ACTIVATION_GATE_C2"
+        ]
+      }
+    ],
+    "HINT_TAG_ACTIVATION_GATE.C3": [
+      {
+        "path": "scripts/hint_tag.py",
+        "assertion_ids": [
+          "_build_evidence_footer",
+          "_tag_object_body",
+          "cmd_match",
+          "cmd_push",
+          "scan_text",
+          "validate_name"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HINT_TAG_ACTIVATION_GATE_C3"
+        ]
+      }
+    ],
+    "HINT_TAG_ACTIVATION_GATE.C4": [
+      {
+        "path": "scripts/hint_tag.py",
+        "assertion_ids": [
+          "_build_evidence_footer",
+          "_tag_object_body",
+          "cmd_match",
+          "cmd_push",
+          "scan_text",
+          "validate_name"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HINT_TAG_ACTIVATION_GATE_C4"
+        ]
+      }
+    ],
+    "HINT_TAG_ACTIVATION_GATE.C5": [
+      {
+        "path": "scripts/hint_tag.py",
+        "assertion_ids": [
+          "_build_evidence_footer",
+          "_tag_object_body",
+          "cmd_match",
+          "cmd_push",
+          "scan_text",
+          "validate_name"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HINT_TAG_ACTIVATION_GATE_C5"
+        ]
+      }
+    ],
+    "HINT_TAG_ACTIVATION_GATE.C6": [
+      {
+        "path": "scripts/hint_tag.py",
+        "assertion_ids": [
+          "_build_evidence_footer",
+          "_tag_object_body",
+          "cmd_match",
+          "cmd_push",
+          "scan_text",
+          "validate_name"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HINT_TAG_ACTIVATION_GATE_C6"
+        ]
+      }
+    ],
+    "HOST_SAFETY_LAYERED_DEFENSE.C1": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+        "assertion_ids": [
+          "REQ_MIB",
+          "_mf_sub"
+        ]
+      },
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py",
+        "assertion_ids": [
+          "gate",
+          "mem_available_mib",
+          "try_drop_caches"
+        ]
+      },
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py",
+        "assertion_ids": [
+          "_start_memwatch"
+        ]
+      },
+      {
+        "path": ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml",
+        "assertion_ids": [
+          "oom_score_adj"
+        ]
+      },
+      {
+        "path": "scripts/install_host_safety.sh",
+        "assertion_ids": [
+          "APPLY",
+          "KDUMP_CRASHKERNEL",
+          "KDUMP_CRASHKERNEL_LOW",
+          "TARGET_USER",
+          "say"
+        ]
+      },
+      {
+        "path": "scripts/mem_watchdog.sh",
+        "assertion_ids": [
+          "FILTER",
+          "THRESH_MIB",
+          "targets"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C1"
+        ]
+      }
+    ],
+    "HOST_SAFETY_LAYERED_DEFENSE.C2": [
+      {
+        "path": "scripts/install_host_safety.sh",
+        "assertion_ids": [
+          "APPLY",
+          "KDUMP_CRASHKERNEL",
+          "KDUMP_CRASHKERNEL_LOW",
+          "TARGET_USER",
+          "say"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C2"
+        ]
+      }
+    ],
+    "HOST_SAFETY_LAYERED_DEFENSE.C3": [
+      {
+        "path": ".claude/skills/terraforming_node/scripts/scan_node.py",
+        "assertion_ids": [
+          "emit_manifest_block"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C3"
+        ]
+      }
+    ],
+    "HOST_SAFETY_LAYERED_DEFENSE.C4": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+        "assertion_ids": [
+          "REQ_MIB",
+          "_mf_sub"
+        ]
+      },
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py",
+        "assertion_ids": [
+          "gate",
+          "mem_available_mib",
+          "try_drop_caches"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C4"
+        ]
+      }
+    ],
+    "HOST_SAFETY_LAYERED_DEFENSE.C5": [
+      {
+        "path": "scripts/install_host_safety.sh",
+        "assertion_ids": [
+          "APPLY",
+          "KDUMP_CRASHKERNEL",
+          "KDUMP_CRASHKERNEL_LOW",
+          "TARGET_USER",
+          "say"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C5"
+        ]
+      }
+    ],
+    "HOST_SAFETY_LAYERED_DEFENSE.C6": [
+      {
+        "path": "scripts/install_host_safety.sh",
+        "assertion_ids": [
+          "APPLY",
+          "KDUMP_CRASHKERNEL",
+          "KDUMP_CRASHKERNEL_LOW",
+          "TARGET_USER",
+          "say"
+        ]
+      },
+      {
+        "path": "scripts/mem_watchdog.sh",
+        "assertion_ids": [
+          "FILTER",
+          "THRESH_MIB",
+          "targets"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C6"
+        ]
+      }
+    ],
+    "HOST_SAFETY_LAYERED_DEFENSE.C7": [
+      {
+        "path": "scripts/install_host_safety.sh",
+        "assertion_ids": [
+          "APPLY",
+          "KDUMP_CRASHKERNEL",
+          "KDUMP_CRASHKERNEL_LOW",
+          "TARGET_USER",
+          "say"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C7"
+        ]
+      }
+    ],
+    "HOST_SAFETY_LAYERED_DEFENSE.C8": [
+      {
+        "path": "scripts/cleanup_docker.py",
+        "assertion_ids": [
+          "main",
+          "preserve_set"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C8"
+        ]
+      }
+    ],
+    "KV_ABSOLUTE_CLAMP_PORTABILITY.C1": [
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+        "assertion_ids": [
+          "_lookup_gpu_spec",
+          "_reject_target_gpu_phase1",
+          "_target_tp",
+          "resolve_target_gpu_budget"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C1"
+        ]
+      }
+    ],
+    "KV_ABSOLUTE_CLAMP_PORTABILITY.C2": [
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+        "assertion_ids": [
+          "_lookup_gpu_spec",
+          "_reject_target_gpu_phase1",
+          "_target_tp",
+          "resolve_target_gpu_budget"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C2"
+        ]
+      }
+    ],
+    "KV_ABSOLUTE_CLAMP_PORTABILITY.C3": [
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+        "assertion_ids": [
+          "_lookup_gpu_spec",
+          "_reject_target_gpu_phase1",
+          "_target_tp",
+          "resolve_target_gpu_budget"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C3"
+        ]
+      }
+    ],
+    "KV_ABSOLUTE_CLAMP_PORTABILITY.C4": [
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+        "assertion_ids": [
+          "_lookup_gpu_spec",
+          "_reject_target_gpu_phase1",
+          "_target_tp",
+          "resolve_target_gpu_budget"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C4"
+        ]
+      }
+    ],
+    "LAST_GOOD_ROLLBACK_ANCHOR.C1": [
+      {
+        "path": "scripts/hint_tag.py",
+        "assertion_ids": [
+          "cmd_push"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_LAST_GOOD_ROLLBACK_ANCHOR_C1"
+        ]
+      }
+    ],
+    "LAST_GOOD_ROLLBACK_ANCHOR.C2": [
+      {
+        "path": "scripts/sync_branches.sh",
+        "assertion_ids": [
+          "ALLOWLIST",
+          "GATE_MODE"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_LAST_GOOD_ROLLBACK_ANCHOR_C2"
+        ]
+      }
+    ],
+    "LAST_GOOD_ROLLBACK_ANCHOR.C3": [
+      {
+        "path": "scripts/hint_tag.py",
+        "assertion_ids": [
+          "cmd_push"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_LAST_GOOD_ROLLBACK_ANCHOR_C3"
+        ]
+      }
+    ],
+    "MODEL_ACQUISITION_TERNARY_GATE.C1": [
+      {
+        "path": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+        "assertion_ids": [
+          "VALID_MODES",
+          "effective_model_source"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_MODEL_ACQUISITION_TERNARY_GATE_C1"
+        ]
+      }
+    ],
+    "MODEL_ACQUISITION_TERNARY_GATE.C2": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/check_smoke_model.py",
+        "assertion_ids": [
+          "main",
+          "read_manifest_field"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_MODEL_ACQUISITION_TERNARY_GATE_C2"
+        ]
+      }
+    ],
+    "MODEL_ACQUISITION_TERNARY_GATE.C3": [
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/scripts/crosscheck_model_card.py",
+        "assertion_ids": [
+          "crosscheck",
+          "crosscheck_external_vram",
+          "fetch_hf_safetensors_total"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_MODEL_ACQUISITION_TERNARY_GATE_C3"
+        ]
+      }
+    ],
+    "MODEL_ACQUISITION_TERNARY_GATE.C4": [
+      {
+        "path": "manifest.template.yaml",
+        "assertion_ids": [
+          "hf_token_env_file"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_MODEL_ACQUISITION_TERNARY_GATE_C4"
+        ]
+      }
+    ],
+    "MODEL_ACQUISITION_TERNARY_GATE.C5": [
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/scripts/crosscheck_model_card.py",
+        "assertion_ids": [
+          "crosscheck",
+          "crosscheck_external_vram",
+          "fetch_hf_safetensors_total"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_MODEL_ACQUISITION_TERNARY_GATE_C5"
+        ]
+      }
+    ],
+    "MODEL_TRIPLET_NO_SUB_PROPAGATION.C1": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "BAND2_CONFIGS",
+          "BAND2_ENVS",
+          "_band2_filters"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C1"
+        ]
+      }
+    ],
+    "MODEL_TRIPLET_NO_SUB_PROPAGATION.C2": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "BAND2_CONFIGS",
+          "BAND2_ENVS",
+          "_band2_filters"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C2"
+        ]
+      }
+    ],
+    "MODEL_TRIPLET_NO_SUB_PROPAGATION.C3": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "BAND2_CONFIGS",
+          "BAND2_ENVS",
+          "_band2_filters"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C3"
+        ]
+      }
+    ],
+    "RUNTIME_PATCH_NO_CARRY_FORWARD.C1": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "BAND2_CONFIGS",
+          "_band2_filters"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1"
+        ]
+      }
+    ],
+    "RUNTIME_PATCH_NO_CARRY_FORWARD.C2": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "BAND2_CONFIGS",
+          "_band2_filters"
+        ]
+      },
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py",
+        "assertion_ids": [
+          "stamp",
+          "verify"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C2"
+        ]
+      }
+    ],
+    "RUNTIME_PATCH_NO_CARRY_FORWARD.C3": [
+      {
+        "path": ".claude/skills/upstream-version-watch/assets/configs/arm_patch.sh",
+        "assertion_ids": [
+          "_cfg",
+          "_patch"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C3"
+        ]
+      }
+    ],
+    "RUNTIME_PATCH_NO_CARRY_FORWARD.C4": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py",
+        "assertion_ids": [
+          "_patch_guard",
+          "build_context"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C4"
+        ]
+      }
+    ],
+    "SUB_GIT_LOCAL_ONLY.C1": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "sub_branch_current",
+          "sub_has_git"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_SUB_GIT_LOCAL_ONLY_C1"
+        ]
+      }
+    ],
+    "SUB_GIT_LOCAL_ONLY.C2": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "sub_branch_current",
+          "sub_has_git"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_SUB_GIT_LOCAL_ONLY_C2"
+        ]
+      }
+    ],
+    "SUB_GIT_LOCAL_ONLY.C3": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "sub_branch_current",
+          "sub_has_git"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_SUB_GIT_LOCAL_ONLY_C3"
+        ]
+      }
+    ],
+    "SUB_SYNC_DIRTY_FAIL_CLOSED.C1": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "sub_commit",
+          "sub_dirty"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C1"
+        ]
+      }
+    ],
+    "SUB_SYNC_DIRTY_FAIL_CLOSED.C2": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "sub_commit",
+          "sub_dirty"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C2"
+        ]
+      }
+    ],
+    "SUB_SYNC_DIRTY_FAIL_CLOSED.C3": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "sub_commit",
+          "sub_dirty"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C3"
+        ]
+      }
+    ],
+    "SUB_SYNC_DIRTY_FAIL_CLOSED.C4": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": [
+          "sub_commit",
+          "sub_dirty"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C4"
+        ]
+      }
+    ],
+    "TERRAFORM_FLAG_GATE.C1": [
+      {
+        "path": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+        "assertion_ids": [
+          "evaluate_contract",
+          "resolve_topology"
+        ]
+      },
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+        "assertion_ids": [
+          "_guard_tp",
+          "_require_terraform_flag"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_TERRAFORM_FLAG_GATE_C1"
+        ]
+      }
+    ],
+    "TERRAFORM_FLAG_GATE.C2": [
+      {
+        "path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+        "assertion_ids": [
+          "KEY_OK",
+          "MC"
+        ]
+      },
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+        "assertion_ids": [
+          "_guard_tp",
+          "_require_terraform_flag"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_TERRAFORM_FLAG_GATE_C2"
+        ]
+      }
+    ],
+    "TERRAFORM_FLAG_GATE.C3": [
+      {
+        "path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+        "assertion_ids": [
+          "KEY_OK",
+          "MC"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+        "assertion_ids": [
+          "evaluate_contract",
+          "resolve_topology"
+        ]
+      },
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+        "assertion_ids": [
+          "_guard_tp",
+          "_require_terraform_flag"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_TERRAFORM_FLAG_GATE_C3"
+        ]
+      }
+    ],
+    "TERRAFORM_FLAG_GATE.C4": [
+      {
+        "path": ".claude/skills/wiki-desk/scripts/smoke_query.py",
+        "assertion_ids": [
+          "main"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_TERRAFORM_FLAG_GATE_C4"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_clause_companion_evidence.py",
+        "assertion_ids": [
+          "TestTerraformFlagGateCompanion.test_wiki_desk_scripts_never_reference_the_flag_gate"
+        ]
+      }
+    ],
+    "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C1": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+        "assertion_ids": [
+          "IMG",
+          "SLAVE_IMGVARS"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1"
+        ]
+      }
+    ],
+    "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C2": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+        "assertion_ids": [
+          "IMG",
+          "SLAVE_IMGVARS"
+        ]
+      },
+      {
+        "path": ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml",
+        "assertion_ids": [
+          "VLLM_REF",
+          "VLLM_REPO"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C2"
+        ]
+      }
+    ],
+    "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C3": [
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+        "assertion_ids": [
+          "IMG",
+          "SLAVE_IMGVARS"
+        ]
+      },
+      {
+        "path": "tests/harness/test_policy_claim_predicates.py",
+        "assertion_ids": [
+          "predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C3"
+        ]
+      }
+    ]
+  }
+}

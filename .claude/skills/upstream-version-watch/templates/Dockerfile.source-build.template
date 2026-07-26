@@ -1,0 +1,169 @@
+# syntax=docker/dockerfile:1
+# 스켈레톤(source-build 트랙) — render_dockerfile.py(G2)가 manifest+resolved로 채운다.
+#
+# 왜 source-build 인가 (torch 2.11+ 구간): prebuilt vLLM wheel 의 _C(public torch 빌드)가
+# NGC alpha torch 와 C++ ABI 불일치(_C.abi3.so 가 c10::cuda::CUDAStream::query() 를 요구하나
+# NGC libc10_cuda.so 에 부재) → import 단계 하드 월. _C 를 NGC torch 에 맞춰 직접 컴파일하면
+# undefined-symbol 이 사라진다. 검증: vLLM 0.23.0 단노드 E2E(easy-vllm:0.23.0-cu132-aarch64-source).
+#
+# ⚠ 멀티노드판 = 단노드 source recipe(아래 CORE, byte-동일)로 _C 컴파일 레이어까지 그대로 둬
+#   기존 easy-vllm:0.23.0-cu132-aarch64-source 이미지의 docker layer-cache 를 재사용하고,
+#   분산서빙 전용 런타임 의존(netcat·ray)만 빌드 끝에 append 한다(plan_2026062500_1 §4.3).
+#
+# ⚠ 패치 가드: 검증된 torch핀에서만 빌드한다(아래 guard). 미인식 핀이면 빌드를 명시 실패시켜
+#   "false determinism"(상류가 그 줄을 바꿨거나 torch 핀이 다른데도 옛 패치를 박는 것)을 막는다.
+
+FROM nvcr.io/nvidia/pytorch:{{ NGC_TAG }}
+
+# ── torch핀 가드 (render-time: 검증된 핀=주석 / 미인식=빌드 실패. 카탈로그 codify는 P6) ──
+#   [0.25.1 bump · plan_2026071512_1] torch 핀 2.11.0 재검증(=0.24.0 동일 · pyproject 직독) → NGC 26.05 carry-forward
+#   가 torch-핀-매칭 *증거기반*(무증거 아님). 버전-특정 소스-게이트 패치(아래 flashinfer/DSA)는 fail-loud anchor 로
+#   self-refute(0.25.1 upstream 수정 시 anchor 불일치→빌드중단=L4 "패치 불필요" 신호). 최종중재=serve 스모크.
+{{ SOURCE_BUILD_PATCH_GUARD }}
+
+# VLLM_REPO/VLLM_REF: 빌드-arg 파라미터화 — 기본 = stock(vllm-project, 버전은 아래 ARG VLLM_REF 참조). 콤보 env 가 오버라이드해
+#   포크 변종을 같은 Dockerfile 로 빌드한다(예 DeepSeek-V4 SM12x: jasl/vllm @ c766cbc6 → 이미지 …-source-sm12x).
+#   이미지-네이밍 불변식: track=source-sm12x 는 아치-enablement(superset), 모델-키잉 아님.
+#   근거: plan_2026062818_1 §2 · workflow.md S3 핀-오버라이드(NGC 베이스 오버라이드의 vLLM-repo 축 확장).
+ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
+# [L3 stock 포크졸업 적대검증 · plan_2026071512_1] 기본 = stock v0.25.1 먼저 시도(0.24.0이 이미 SM120 stock
+#   enablement #43477 → stock 서빙 실증). stock 스모크 실패(arch-wall) 시에만 콤보 env 가 포크(jasl/vllm@SHA)로
+#   오버라이드 → …-source-sm12x 변종(반응적, 무증거 포크 금지). carry-forward 금지 — 스모크가 졸업 여부 중재.
+ARG VLLM_REF={{ VLLM_REF }}
+ARG TORCH_CUDA_ARCH=12.1a
+ARG BUILD_JOBS=16
+
+ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH} \
+    MAX_JOBS=${BUILD_JOBS} \
+    CMAKE_BUILD_PARALLEL_LEVEL=${BUILD_JOBS} \
+    CCACHE_DIR=/root/.ccache CCACHE_MAXSIZE=30G CCACHE_COMPRESS=1 \
+    PATH=/usr/lib/ccache:/usr/local/bin:/usr/bin:/bin
+
+# ccache 설치(NGC 베이스엔 ccache 없음 — ninja/git 는 존재). 증분 재컴파일 가속.
+RUN apt-get update && apt-get install -y --no-install-recommends ccache && rm -rf /var/lib/apt/lists/*
+
+# NGC pip constraint 비우기(핀 충돌 회피)
+RUN cp /etc/pip/constraint.txt /etc/pip/constraint.txt.bak 2>/dev/null || true; : > /etc/pip/constraint.txt
+
+# 대상 ref 소스 클론 + NGC torch 사용(소스가 torch 핀을 재설치하지 않게 — 커플링 규칙 충실).
+# blobless 풀-히스토리 클론 + ref checkout: 버전 tag·임의 SHA(포크 force-push 면역 — SHA=content-addressed) 양쪽 지원.
+# (옛 `--branch <ref> --depth 1` 은 raw SHA checkout 불가 → 포크 핀 위해 교체.)
+RUN git clone --filter=blob:none ${VLLM_REPO} /workspace/vllm-src \
+ && git -C /workspace/vllm-src checkout --detach ${VLLM_REF} \
+ && echo "[clone] HEAD=$(git -C /workspace/vllm-src rev-parse HEAD) (${VLLM_REPO} @ ${VLLM_REF})"
+WORKDIR /workspace/vllm-src
+RUN python3 use_existing_torch.py
+
+# build-system.requires 수동 설치(--no-build-isolation 전제: pip 가 자동설치 안 함).
+# 0.22.1 검증 레시피대로 as-is 설치(setuptools-rust/cmake/ninja/scm/wheel/jinja2 등 포함).
+# setuptools 는 vLLM 빌드가 <81 을 요구하므로 명시 조정.
+RUN pip install $(python3 -c "import tomllib;print(' '.join(tomllib.load(open('pyproject.toml','rb'))['build-system']['requires']))") "setuptools<81"
+
+# strip-hoist (torch 2.11a): NGC torch 의 register_opaque_type 가 hoist kwarg 를 안 받으면
+# 소스에서 그 kwarg 만 제거(opaque 등록 기능 유지). torch 2.10대/수용 시엔 no-op(자기적응).
+RUN python3 - <<'PY'
+import inspect, pathlib, re, sys
+try:
+    from torch._library.opaque_object import register_opaque_type
+    needs = "hoist" not in inspect.signature(register_opaque_type).parameters
+except Exception:
+    needs = False  # opaque_object 미존재(torch 2.10대) → 패치 불요
+if needs:
+    n = 0
+    for p in pathlib.Path(".").rglob("*.py"):
+        try:
+            s = p.read_text()
+        except Exception:
+            continue
+        if "register_opaque_type(" in s and "hoist" in s:
+            ns = re.sub(r",\s*hoist\s*=\s*[^,)]+", "", s)
+            if ns != s:
+                p.write_text(ns); n += 1; print(f"[patch] strip-hoist {p}")
+    print(f"[patch] strip-hoist applied to {n} file(s)")
+    if n == 0:
+        print("[patch][WARN] hoist 미수용인데 register_opaque_type(hoist=) 미발견 — 상류 변경 의심(P6 재검토)", file=sys.stderr)
+else:
+    print("[patch] strip-hoist skipped (register_opaque_type accepts hoist / opaque_object 부재)")
+PY
+
+# 소스 컴파일: _C 를 NGC torch 에 맞춰 빌드 → ABI 벽 원천 해소. deps 는 pyproject 에서(torch 보호됨).
+RUN --mount=type=cache,target=/root/.ccache \
+    pip install --no-build-isolation -e .
+
+# 빌드 검증(GPU 불요): vllm 패키지 설치만 확인. _C/import 는 libcuda.so.1(드라이버) 필요 →
+# 빌드타임 불가(GPU 미주입). 실제 _C 로드·서빙은 런타임(--gpus)에서 = 스모크가 최종 중재자.
+RUN python3 -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('vllm') else 1)" \
+    && echo "[build] vllm package present (런타임 _C 검증은 serve 단계)"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# [멀티노드 전용 append] 분산서빙 런타임 의존 — 위 CORE(단노드 byte-동일) 뒤에 둬서
+#   _C 컴파일 레이어 캐시를 보존(plan_2026062500_1 §4.3).
+#   A) 네트워크 디버그/통신: serve_runner.sh 의 slave 가 nc 로 Ray head 포트 대기 → netcat 필수.
+#   B) ray: 2노드 Ray 분산 서빙(serve_runner.sh 의 ray start). vLLM 코어 dep 아님 → 명시 설치.
+#      핀: ray==2.48.0(멀티 0.22.1 검증치 — 0.23.0 reqs 미선언, Phase0 워크플로 재확인).
+# ═════════════════════════════════════════════════════════════════════════════
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        iproute2 netcat-openbsd iputils-ping dnsutils \
+    && rm -rf /var/lib/apt/lists/*
+ARG RAY_VERSION=2.48.0
+RUN pip install ray==${RAY_VERSION}
+
+# ═════════════════════════════════════════════════════════════════════════════
+# [빌드-바깥 의존 패치] build_patches 모듈 — upstream-version-watch §4.7 · 헌법 3+1+1 따름정리.
+#   build_patches/<NN>-*.sh (컨텍스트=output/multi/ 상대) 를 정렬 적용(모델구동 native lib/커널 — 예 DeepGEMM=DeepSeek-V4 DSA).
+#   패치 추가 = 폴더에 파일 drop(이 스탠자 무수정 → Dockerfile bloat 차단). core(_C 컴파일) 뒤 = 캐시 보존. fail-loud.
+#   build_patches 는 output/<t>/ 통로에 격리(산출물 통로 불변식 — single/multi 혼재 차단). plan_2026062812_1.
+# ═════════════════════════════════════════════════════════════════════════════
+COPY build_patches/ /tmp/build_patches/
+RUN for p in $(ls /tmp/build_patches/*.sh 2>/dev/null | sort); do echo "[build-patch] applying $p"; bash "$p" || exit 1; done
+
+# [flashinfer 0.6.14 · 0.25.1 변종 트랙 · plan_2026071512_1 R5 — 딥리서치 결론] jasl 포크 requirements 정렬:
+#   ⚠ [맥락: DSpark · GB10 sm_121a · 2026-07-15] stock v0.25.1 은 DSpark 를 GB10(SM121)서 서빙 불가 = arch-wall.
+#     근거: stock requirements 는 flashinfer 0.6.13 핀인데 DSV4 코드가 swa_topk_lens(0.6.14 API) 사용 = 불일치(빌드↔런타임
+#     모순). 0.6.14 로 올려도 sparse_mla_sm120 decode_dsv4 가 page_block_size==64 요구(C128A ratio128 레이어 미매칭 →
+#     paged_attention fall-through "num_tokens>64" assertion). stock 은 Triton sparse-MLA 미업스트림(탈출구 無 · vllm#45317).
+#   ∴ 변종 트랙 = jasl/vllm PR#41834(SM12x Triton sparse-MLA) @ SHA b5c0d43b967c(tag sm120-pr-41834-stable-preview-20260711).
+#     이 포크 = **v0.25.1 베이스(behind_by 19)** + SM12x 346커밋 + **released deps(flashinfer 0.6.14 python+cubin 짝맞춤)** +
+#     검증(GSM8K 0.96). torch 2.11.0 = NGC 26.05 동일. 콤보 env(.env.deepseek-v4-flash-dspark) 가 VLLM_REPO/REF 오버라이드.
+#   (참고) 포크는 flashinfer sparse_mla_sm120(stock 경로) 대신 SM12x Triton sparse-MLA 를 쓰므로 위 decode_dsv4 벽 회피.
+#   (2) attn __init__ 가드(flashinfer_sparse.py:563 → vllm.utils.flashinfer.has_flashinfer_sparse_mla_sm120 → has_flashinfer())
+#       는 `flashinfer_cubin 패키지 부재 AND nvcc(PATH) 부재`면 False → "requires FlashInfer's sparse MLA decode API"(T-A2 실증).
+#       근본: 이 Dockerfile line34 가 ccache 위해 PATH 를 재정의하며 /usr/local/cuda/bin 을 누락 → 런타임 nvcc 미발견.
+#       해소: 아래 ENV 로 /usr/local/cuda/bin 재노출 → has_flashinfer()=True + sm_121a sparse-MLA 커널 런타임 JIT(프리빌트 cubin 부재).
+#   (2b) flashinfer 는 flashinfer-cubin 버전이 flashinfer-python 과 정확히 일치할 것을 강제(jit/env.py _get_cubin_dir):
+#       stale flashinfer-cubin(0.6.12) 잔존 + python 0.6.14 → "version does not match" 빌드실패(T-A3 실증). GB10 sm_121a
+#       프리빌트 cubin 어차피 부재 → cubin/jit-cache 제거 후 런타임 JIT(nvcc). (빌드는 CUDA_HOME 로 nvcc 찾으므로 line34 무영향.)
+#   flashinfer-python=py3-none-any(무컴파일). build_patches(위) 뒤 = nv_dev DeepGEMM 캐시 보존. 최종중재 = serve 스모크.
+RUN pip install --no-cache-dir "flashinfer-python==0.6.14" \
+ && (pip uninstall -y flashinfer-cubin flashinfer-jit-cache 2>/dev/null || true) \
+ && python3 -c "import inspect,flashinfer.mla._core as m; assert 'swa_topk_lens' in inspect.signature(m.trtllm_batch_decode_sparse_mla_dsv4).parameters; print('[flashinfer] 0.6.14 swa_topk_lens 파라미터 확인 OK (jasl 포크 requirements/cuda.txt 정렬 — cubin도 0.6.14)')"
+
+# [DSA sparse-indexer topk sm_121a · plan_2026070213_1 T-A7] 소스-게이트 패치(vLLM editable install → /workspace/vllm-src 편집 런타임 반영).
+#   stock 0.24.0 sparse_attn_indexer 는 topk_tokens∈(512,1024,2048) & SM90+ 서 _C.cooperative_topk 선택 → 그 launch_cooperative_cluster
+#   가 sm_121a(GB10)서 "invalid argument" 실패(serve#T-A4~A6 실증, cooperative_topk.cu:46). 비-cooperative 형제 persistent_topk 로 폴백
+#   (cooperative_topk.cu 주석: ">32 rows 는 persistent_topk"; 커뮤니티 포크는 여기를 Triton 으로 교체 — 우린 stock persistent 우선 시도).
+#   build_patches(위) 뒤 = nv_dev DeepGEMM 캐시 보존. fail-loud(anchor 미발견 시 빌드중단). 최종중재 = serve 스모크.
+#   [0.25.1 변종·2026-07-15] jasl 포크는 use_cooperative_topk 정의에 `not is_device_capability_family(120)` 네이티브 내장
+#   (SM12x서 persistent_topk 강제 — 우리 stock 이식 목표를 포크가 이미 구현). ∴ 그 서명 감지 시 self-refute skip(중복 금지·strip-hoist 동형).
+RUN python3 - <<'PY'
+import pathlib, sys
+f = pathlib.Path("/workspace/vllm-src/vllm/model_executor/layers/sparse_attn_indexer.py")
+s = f.read_text()
+if "has_device_capability(120)" in s or "is_device_capability_family(120)" in s:
+    print("[dsa-indexer] already patched/native — skip (포크/상류가 SM12x cooperative_topk 네이티브 비활성)"); sys.exit(0)
+anchor = "        if use_cooperative_topk:\n"
+if anchor not in s:
+    sys.stderr.write("[dsa-indexer] FAIL: anchor 'if use_cooperative_topk:' 미발견 — 상류 sparse_attn_indexer 변경 의심\n"); sys.exit(1)
+guard = ("        # [GB10 sm_121a · plan_2026070213_1] cooperative_topk cooperative-cluster launch 실패 → persistent_topk 폴백\n"
+         "        if current_platform.has_device_capability(120):\n"
+         "            use_cooperative_topk = False\n")
+f.write_text(s.replace(anchor, guard + anchor, 1))
+print("[dsa-indexer] patched: sm120+ forces persistent_topk (비-cooperative)")
+PY
+ENV PATH=/usr/local/cuda/bin:${PATH}
+
+WORKDIR /workspace
+EXPOSE 8000
+
+# 참고: gpt-oss harmony 오프라인 토크나이저(/encodings + TIKTOKEN_*)는 이미지에 굽지 않고
+#   서빙 단계(docker-compose + configs/<model>.sh)에서 마운트·주입한다(불편함-해소 .sh 레이어).

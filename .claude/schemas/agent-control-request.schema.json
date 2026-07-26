@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://easy-vllm-simulator.local/schemas/agent-control-request.schema.json",
+  "title": "agent-control-request",
+  "description": "Phase 6 (plan_26072506) provider-neutral INPUT contract for scripts/agent_control.py. Vocabulary mirrors .claude/skills/terraforming_node/references/agent-control-adapter.md section 1. provider is the ONLY place the literal token 'claude' may appear, as an enum VALUE (never as a field name). model is intentionally NOT constrained to 'sonnet' here -- Sonnet-only enforcement is a runtime safety check the adapter performs against the provider's own result metadata, not a request-schema constraint.",
+  "type": "object",
+  "required": ["schema_version", "provider", "intent", "model", "task", "target", "timeout_seconds", "max_turns", "capabilities"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "provider": {
+      "description": "Provider-neutral orchestrator identifier. Phase 6 scope is Claude Code only.",
+      "type": "string",
+      "enum": ["claude_code"]
+    },
+    "intent": {
+      "description": "Provider-neutral intent vocabulary (agent-control-adapter.md section 1).",
+      "type": "string",
+      "enum": ["delegate", "probe", "bootstrap_canary"]
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target": {
+      "type": "object",
+      "required": ["role", "transport"],
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["main", "sub"]
+        },
+        "transport": {
+          "type": "string",
+          "enum": ["local", "ssh"]
+        },
+        "host": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ssh_user": {
+          "type": "string",
+          "minLength": 1
+        },
+        "work_dir": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3600
+    },
+    "max_turns": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "capabilities": {
+      "description": "Provider-neutral least-privilege capabilities mapped only inside the selected provider adapter.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["read", "execute", "edit", "write"]
+      }
+    }
+  }
+}

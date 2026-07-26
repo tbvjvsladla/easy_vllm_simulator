@@ -8,7 +8,7 @@
 # 사용: bash multinode_serve_smoke.sh <config_name> [--build] [--keep-up] [--no-watchdog]
 #   --build   : 서빙 전 양 노드 이미지 빌드(병렬, 최소병렬 원칙)
 #   --keep-up : 스모크 후 컨테이너 유지(기본은 정리/down — 워치독도 함께 유지)
-#   --no-watchdog : 협역 워치독 사이드 기동 생략(plan_2026071019_1 §2.3 — 진단 시)
+#   --no-watchdog : 협역 워치독 사이드 기동 생략(plan_26071019 §2.3 — 진단 시)
 # 종료코드: 0=스모크 통과, 2=미준비/스모크 실패, 3=NAS/설정 실패(7=RAM 게이트 거부 포함 시 3으로 수렴).
 set -uo pipefail
 
@@ -19,11 +19,11 @@ for a in "$@"; do [ "$a" = "--build" ] && BUILD=1; [ "$a" = "--keep-up" ] && KEE
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$SDIR/../../../.." && pwd)"
 cd "$REPO"
-EF="output/multi/envs/.env.${CONFIG}"   # 산출물 통로 분리(plan_2026062312_1): compose·env 는 output/multi/ 아래
+EF="output/multi/envs/.env.${CONFIG}"   # 산출물 통로 분리(plan_26062312): compose·env 는 output/multi/ 아래
 [ -f "$EF" ] || { echo "[mn] FAIL: $EF 없음"; exit 3; }
 EFC="output/multi/envs/.env.cluster"    # Ray 클러스터-배포 env(Band2, S6 env-split). compose 보간(${MASTER_HOST_IP}·${SLAVE_HOST_IP}·${RAY_PORT})에 필요.
 [ -f "$EFC" ] || { echo "[mn] FAIL: $EFC 없음 — 'render_dockerfile.py --cluster-envfile --topology multi --manifest output/multi/manifest.yaml -o $EFC' 선행(S6)"; exit 3; }
-# 통로 self-containment 전제(plan_2026062321_1 I1/I2): 러너 스크립트가 통로에 materialize 됐는지 fail-loud.
+# 통로 self-containment 전제(plan_26062321 I1/I2): 러너 스크립트가 통로에 materialize 됐는지 fail-loud.
 for s in serve_runner.sh debug-init.sh; do
   [ -f "output/multi/configs/$s" ] || { echo "[mn] FAIL: 통로 미완결 — output/multi/configs/$s 부재. 먼저 'render_dockerfile.py --materialize-configs --topology multi' 실행(후 sync_to_sub.sh --apply)"; exit 3; }
 done
@@ -32,16 +32,20 @@ MC=$(val MASTER_CONTAINER_NAME); PORT=$(val SERVING_PORT)
 MODEL=$(val SERVING_MODEL_NAME); SLAVE_IP=$(val SLAVE_HOST_IP)
 
 # ── 이미지 정체성 전달(멀티 = 클러스터-와이드: 슬레이브가 마스터와 동일 이미지여야) ──
-#   콤보 EF 에서 IMAGE_TAG/VLLM_REPO/VLLM_REF '만' 읽어 슬레이브 compose 보간에 전달한다(빌드-평면 인프라).
+#   콤보 EF 에서 IMAGE_TAG/BUILD_DOCKERFILE/VLLM_REPO/VLLM_REF '만' 읽어 슬레이브 compose 보간에 전달한다(빌드-평면 인프라).
 #   마스터는 --env-file $EF 로 자동 획득. 슬레이브는 EFC(Band2)만 받으므로 비-기본 이미지 변종(예 포크 …-source-sm12x)을
-#   못 봐 stock 으로 빌드/기동하는 불일치가 난다 → 이 3개만 명시 전달.
+#   못 봐 stock 으로 빌드/기동하는 불일치가 난다 → 이 4개만 명시 전달.
+#   ⚠ BUILD_DOCKERFILE 누락 결함(Solar-Open2 가 최초 노출, 2026-07-24): 슬레이브 build 는 --env-file $EFC(Band2)
+#     만 받으므로 BUILD_DOCKERFILE 이 compose 기본값(Dockerfile.source-build)으로 폴백 → 변종 트랙(예
+#     Dockerfile.source-build-upstage)서 **슬레이브만 다른 Dockerfile 로 빌드**. 종전 콤보는 전부
+#     BUILD_DOCKERFILE=Dockerfile.source-build(=기본값)이라 잠복했다. 이미지 정체성의 일부이므로 동반 전달.
 #   ⚠ 모델 serve config(CONFIG_FILE)는 전달 안 함 → 슬레이브 Band2-only 보존(슬레이브 컨테이너 env 는 compose env_file=
 #     .env.interconnect+.env.cluster 만, CONFIG_FILE=default 유지). 값에 공백 없음(URL/태그/SHA) → 무인용 prefix 안전.
-#   근거: plan_2026062818_1 §S2.5 R10 · 슬레이브 Band2-only(plan_2026062811_2).
-IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF)
-SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${VREPO:+VLLM_REPO=$VREPO }${VREF:+VLLM_REF=$VREF}"
+#   근거: plan_26062818 §S2.5 R10 · 슬레이브 Band2-only(plan_26062811_30_33).
+IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF); BDF=$(val BUILD_DOCKERFILE)
+SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VREPO:+VLLM_REPO=$VREPO }${VREF:+VLLM_REF=$VREF}"
 
-# ── 마운트 vars 전달(결함#2b · plan_2026070119_1): materialize-env 산출(output/multi/.env)은 compose 가
+# ── 마운트 vars 전달(결함#2b · plan_26070119): materialize-env 산출(output/multi/.env)은 compose 가
 #   --env-file 사용 시 auto-load 하지 않는다(--env-file 이 기본 .env 자동로드를 대체) → NAS/quant/tiktoken 마운트가
 #   docker-compose.yaml 의 ${NAS_MODEL_PATH:-/mnt/models} 기본으로 폴백 → 컨테이너가 모델을 못 찾음(serve 즉사).
 #   해소: 마운트 경로를 shell-env(compose 보간 최고 우선순위)로 명시 주입 — 마스터(env prefix)·슬레이브(ssh prefix) 동일.
@@ -69,7 +73,7 @@ case "$SUB_WORK_DIR" in *[[:space:]]*) echo "[mn] FAIL: SUB_WORK_DIR 공백 — 
 SUB_CD="cd $SUB_WORK_DIR &&"   # bash -lc '...' 단일인용 컨텍스트 임베드 — 무공백 보장(위 가드)
 echo "[mn] config=$CONFIG master=$MC port=$PORT model=$MODEL sub=$SUB_HOST sub_work_dir=$SUB_WORK_DIR"
 
-# ── NAS pre-flight + 로드-전 RAM 게이트(메인) — 다운로드 금지 · plan_2026071019_1 §2.6 ──
+# ── NAS pre-flight + 로드-전 RAM 게이트(메인) — 다운로드 금지 · plan_26071019 §2.6 ──
 #   rc 구분(2=모델부재 / 7=RAM게이트 거부 / 3=설정) — exit 7 을 '모델 부재·다운로드 금지'로 오귀속 금지.
 NAS_OUT=$(python3 "$SDIR/check_smoke_model.py" "$CONFIG" --repo "$REPO" --topology multi --emit-gate-params 2>&1); NAS_RC=$?
 printf '%s\n' "$NAS_OUT"
@@ -110,9 +114,9 @@ if [ "$BUILD" = "1" ]; then
   else echo "[mn] FAIL: 빌드(master=$MR slave=$SR). tail:"; tail -6 /tmp/mn_build_master.log /tmp/mn_build_slave.log; exit 2; fi
 fi
 
-# ── 협역 워치독(계층 2층 — plan_2026071019_1 §2.3): 컨테이너 기동 *전* 폴링 개시(로드 구간 커버) ──
+# ── 협역 워치독(계층 2층 — plan_26071019 §2.3): 컨테이너 기동 *전* 폴링 개시(로드 구간 커버) ──
 #   필터 = 컨테이너명 공통 접두(mn-<config> — master/slave 양쪽 부분일치). 정지는 PID 기반만
-#   (**pkill -f 금지** — 자기참조 부모셸 사망 exit144 선례, devlog_2026062718_1).
+#   (**pkill -f 금지** — 자기참조 부모셸 사망 exit144 선례, devlog_26062718).
 WD_MAIN_PID=""; WD_SUB_PID=""
 if [ "$WATCHDOG" = "1" ]; then
   WFILTER="${MC%-master}"
@@ -139,7 +143,7 @@ $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $MOUNTVARS docker compose -f 
 
 # ── 준비 폴링: 엔드포인트 health(거짓양성 회피) ──
 # READY_MAX(폴링 횟수×5s) 환경변수로 조정 가능 — 대형모델(예 Qwen3-Next-80B bf16 151GB CIFS 로드 ~11분
-#   + KV/compile setup)은 기본 15분(180회)으로 부족 → READY_MAX=360(30분) 등으로 연장(testlog_2026062501_1 결함).
+#   + KV/compile setup)은 기본 15분(180회)으로 부족 → READY_MAX=360(30분) 등으로 연장(testlog_26062501 결함).
 echo "[mn] 엔드포인트 :$PORT health 폴링(2노드 분산 로드; READY_MAX=${READY_MAX:-180}회×5s ≈ $(( ${READY_MAX:-180} * 5 / 60 ))분)..."
 READY=0
 for i in $(seq 1 "${READY_MAX:-180}"); do
@@ -149,7 +153,7 @@ for i in $(seq 1 "${READY_MAX:-180}"); do
   sleep 5
 done
 
-# 미준비 진단 보강: 워치독 트립 = 마진 결함 증거(plan_2026071019_1 §5 판정축)를 표면화.
+# 미준비 진단 보강: 워치독 트립 = 마진 결함 증거(plan_26071019 §5 판정축)를 표면화.
 if [ "$READY" != "1" ] && [ "$WATCHDOG" = "1" ]; then
   grep -h "TRIP" /tmp/mn_watchdog_master.log 2>/dev/null | tail -3 | sed 's/^/[mn] watchdog(master): /'
   $SSH "$SUB_HOST" "grep -h TRIP /tmp/mn_watchdog_slave.log 2>/dev/null | tail -3" 2>/dev/null | sed 's/^/[mn] watchdog(slave): /'

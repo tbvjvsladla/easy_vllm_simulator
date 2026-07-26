@@ -11,9 +11,10 @@
 
 ## 파일명 규칙
 ```
-docs/plan/plan_<YYYYMMDDHH>_<seq>_<주제>.md
+docs/plan/plan_<YYMMDDHH>[_<MM>_<SS>]_<주제>.md
 ```
-- `YYYYMMDDHH`: 작성 일시 절대표기 (예 `2026060814` = 2026-06-08 14시). 상대날짜 금지.
-- `seq`: 같은 일시·같은 type 내 일련번호(1부터).
+- `YYMMDDHH`: 작성 일시 절대표기 · 2자리 연도 (예 `26060814` = 2026-06-08 14시). 상대날짜 금지.
+- `_MM_SS`: 같은 `YYMMDDHH`(같은 type)에 충돌 시에만 분·초 접미(구 `_seq_` 표기는 폐지됨).
 - `주제`: 한국어, 밑줄(`_`) 구분, 버전·대상 포함 권장.
-- 예: `plan_2026060814_1_멀티노드_소스빌드_확장_계획.md`
+- 예: `plan_26060814_멀티노드_소스빌드_확장_계획.md`
+- 명명 SSOT(결정론 헬퍼): `scripts/doc_naming.py`(`dated_doc_basename` — evidence_publisher.py가 소비).

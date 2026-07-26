@@ -5,7 +5,7 @@ lite 모드(inform-only·기본 ON)의 **결정론 계층**: lite_bench.sh 가 �
 (warm/cold bench JSON · engine log · per-node nvidia-smi/proc·meminfo readings)을 받아
 5종 메트릭을 산정하고 채팅용 표로 렌더한다. **확률론 산정 금지**(헌법 §금지 — 결정론 스크립트).
 
-5종 메트릭(plan_2026071115_1 D12):
+5종 메트릭(plan_26071115 D12):
   속도 2종: gen tokens/sec(warm, =1000/median_tpot_ms — adversarial §5 정본) · cold-start TTFT(별도 1줄)
   용량 3종: GPU VRAM 점유(GiB+%) · KV cache 점유(GiB+%) · 시스템 RAM 점유(GiB+%)
 

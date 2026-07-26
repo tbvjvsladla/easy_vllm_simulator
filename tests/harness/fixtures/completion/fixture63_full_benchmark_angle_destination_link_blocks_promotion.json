@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "task_class": "full_benchmark",
+  "identity": {
+    "model": "solar-open2-250b",
+    "gpu": "GB10",
+    "vllm": "0.22.0",
+    "quant": "NVFP4",
+    "topology": "multi",
+    "tp": 2
+  },
+  "runtime": {
+    "health_ok": true,
+    "functional_smoke_passed": true,
+    "identity": {
+      "model": "solar-open2-250b",
+      "gpu": "GB10",
+      "vllm": "0.22.0",
+      "quant": "NVFP4",
+      "topology": "multi",
+      "tp": 2
+    },
+    "containers": [
+      {
+        "name": "mn-solar-open2-250b-master",
+        "restart_count": 0,
+        "oom_killed": false
+      },
+      {
+        "name": "vllm-slave-serve-container",
+        "restart_count": 0,
+        "oom_killed": false
+      }
+    ]
+  },
+  "evidence": {
+    "plan": {
+      "path": "targets/plan_links_angle_destination_broken.md"
+    },
+    "devlog": {
+      "path": "targets/devlog.md"
+    },
+    "testlog": {
+      "path": "targets/testlog.md"
+    },
+    "simlog": {
+      "path": "targets/simlog_run"
+    },
+    "bench_report": {
+      "path": "targets/bench_report.md"
+    },
+    "certificate": {
+      "path": "targets/certificate_pass_full.yaml"
+    }
+  },
+  "benchmark": {
+    "mode": "full",
+    "verdict": "PASS"
+  },
+  "pii_scan": {
+    "passed": true,
+    "scanned_paths": [
+      "targets/plan_links_angle_destination_broken.md",
+      "targets/devlog.md",
+      "targets/testlog.md",
+      "targets/simlog_run",
+      "targets/bench_report.md",
+      "targets/certificate_pass_full.yaml"
+    ]
+  }
+}

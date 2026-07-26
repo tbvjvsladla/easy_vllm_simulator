@@ -2,7 +2,7 @@
 """Path-reference retrieval / smoke over __llm-wiki/sources/registry.json.
 
 Two retrieval modes, both authority-ranked and EDGE-TRAVERSABLE:
-  • direct lookup  — the query names a doc stem (e.g. devlog_2026062412_1):
+  • direct lookup  — the query names a doc stem (e.g. devlog_26062412):
                      return that node's path/authority/confidence + its edges.
   • topical        — score active entries by query-token overlap, gate by
                      min_authority/min_score, rank by intent → authority → score,
@@ -20,7 +20,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-STEM_RE = re.compile(r"(?:plan|devlog|testlog)_\d{10}_\d+|(?<!\d)\d{10}_\d+(?!\d)")
+STEM_RE = re.compile(r"(?:plan|devlog|testlog)_\d{8}(?:_\d{2}_\d{2})?(?!\d)|(?<!\d)\d{8}(?:_\d{2}_\d{2})?(?!\d)")
 TOKEN_RE = re.compile(r"[0-9A-Za-z가-힣.]+")
 COMPLETION_HINTS = {"됐", "검증", "통과", "성공", "실패", "오류", "스모크", "evidence",
                     "verify", "verified", "pass", "fail", "smoke", "result", "확인"}

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "task_class": "model_serving_strategy",
+  "identity": {
+    "model": "solar-open2-250b",
+    "gpu": "GB10",
+    "vllm": "0.22.0",
+    "quant": "NVFP4",
+    "topology": "multi",
+    "tp": 2
+  },
+  "runtime": {
+    "health_ok": true,
+    "containers": []
+  },
+  "evidence": {
+    "plan": {},
+    "devlog": null,
+    "testlog": null,
+    "simlog": null,
+    "bench_report": null,
+    "certificate": null
+  },
+  "pii_scan": {
+    "passed": true
+  }
+}

@@ -3,7 +3,7 @@
 #
 # 멀티노드 확장의 [하향 배달] 단계. 메인 검증 런타임을 서브로 직접 전송(GitHub 경유 X)하고,
 # 서브 **로컬 git**(single·multi 두 브랜치, origin 영구 없음)에 **스크립트저작 `[sync]` 커밋**으로 박는다.
-# 상향(서브 자기개선 회수)은 별도·문서기반: fetch_sub_docs.sh. (plan_2026062411_1 · workflow.md §양방향 브랜치싱크)
+# 상향(서브 자기개선 회수)은 별도·문서기반: fetch_sub_docs.sh. (plan_26062411 · workflow.md §양방향 브랜치싱크)
 #
 # 흐름:
 #   B0 멱등 self-bootstrap — 서브 .git 부재 시: git init + base(.gitignore) 커밋 + multi·single 브랜치 생성,
@@ -13,28 +13,114 @@
 #   single 확장 게이트(D12 Gap B) — output/single/manifest.yaml nodes[] 에 sub 있으면 활성, 없으면 **dormant(배달 skip)**.
 #
 # HITL 안전장치: 기본 DRY-RUN(미리보기). 실제 변경은 --apply. **스크립트 auto-stash 금지**(서브가 스스로 clean 화).
-# 빌드 배달(S4 Band2-only · plan_2026062417_1): rsync 소스 = output/<t>/ 서브트리만 → 루트 Band1(템플릿·scripts·resolved.json) 구조적 배제.
+# 빌드 배달(S4 Band2-only · plan_26062417): rsync 소스 = output/<t>/ 서브트리만 → 루트 Band1(템플릿·scripts·resolved.json) 구조적 배제.
 #   output/<t>/ 내 keying: Band2(configs/{serve_runner,debug-init}.sh · envs/.env.interconnect · Dockerfile·compose·requirements·.dockerignore·.gitkeep) 전파 ·
 #   Band3(모델 트리플렛 configs/<m>.{sh,yaml}·envs/.env.<m>) keying 배제 · manifest.yaml(D10)·sub_provision(overlay) 배제 · 미분류=fail-loud(assert_band_classification).
 #   에이전트 환경(CLAUDE.md·.claude·docs·.gitignore)은 deliver_overlay/bootstrap 소관(빌드 배달과 분리).
 #
 # 사용:
-#   bash sync_to_sub.sh                          # DRY-RUN (bootstrap/증분 계획 + rsync 미리보기)
-#   bash sync_to_sub.sh --apply                  # 실행 (기본 --branch multi)
-#   bash sync_to_sub.sh --apply --provision      # 서브 work_dir 부재 시 신설(HITL)
-#   bash sync_to_sub.sh --apply --branch single  # single 브랜치 타겟(확장 dormant 면 skip)
-#   bash sync_to_sub.sh --apply --branch both    # multi 후 single
+#   bash sync_to_sub.sh --mode experimental --manifest <work.json>             # 승인된 실험 DRY-RUN
+#   bash sync_to_sub.sh --mode promotion --manifest <work.json> --apply          # promotion-ready 실행
+#   bash sync_to_sub.sh --mode promotion --manifest <work.json> --apply --provision
+#   bash sync_to_sub.sh --mode promotion --manifest <work.json> --apply --branch single|both
 # 환경변수 override: SUB_HOST(<ssh_user>@<host>) · SRC · SUB_WORK_DIR · SYNC_GIT_NAME · SYNC_GIT_EMAIL.
 # SUB_HOST·SUB_WORK_DIR 미지정 시 output/multi/manifest.yaml nodes[](role:sub)에서 해소(서브는 multi manifest 에만 정의).
 set -euo pipefail
 
-SRC="${SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)/}"
+usage() {
+    cat <<'EOF'
+사용법: sync_to_sub.sh --mode <experimental|promotion> --manifest <path> [--apply] [--provision] [--branch multi|single|both]
+
+  --mode       side-effect authorization mode (required)
+  --manifest   work-manifest JSON; relative paths use the caller's original CWD (required)
+  --apply      execute delivery (default: dry-run)
+  --provision  allow missing remote work directory creation with --apply
+  --branch     multi, single, or both (default: multi)
+  --help, -h   print this help without repo, manifest, host, or transport checks
+EOF
+}
+
+# Parse before repo/topology/host/transport discovery.  Missing required gate flags are
+# intentionally forwarded to completion_gate.py so its stable authorization JSON is the sole
+# fail-closed machine contract.
+ORIGINAL_CWD="$(pwd)"
+GATE_MODE=""; HAVE_MODE=0
+MANIFEST_ARG=""; HAVE_MANIFEST=0
+MODE="dryrun"; PROVISION=0; BRANCH="multi"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --help|-h) usage; exit 0 ;;
+        --mode)
+            [ $# -ge 2 ] || { echo "[sync] FAIL: --mode requires a value" >&2; exit 2; }
+            GATE_MODE="$2"; HAVE_MODE=1; shift 2 ;;
+        --manifest)
+            [ $# -ge 2 ] || { echo "[sync] FAIL: --manifest requires a path" >&2; exit 2; }
+            MANIFEST_ARG="$2"; HAVE_MANIFEST=1; shift 2 ;;
+        --apply) MODE="apply"; shift ;;
+        --provision) PROVISION=1; shift ;;
+        --branch)
+            [ $# -ge 2 ] || { echo "[sync] FAIL: --branch requires multi|single|both" >&2; exit 2; }
+            BRANCH="$2"; shift 2 ;;
+        --branch=*) BRANCH="${1#*=}"; shift ;;
+        *) echo "[sync] FAIL: unknown argument: $1" >&2; exit 2 ;;
+    esac
+done
+case "$BRANCH" in multi|single|both) ;; *) echo "[sync] FAIL: --branch must be multi|single|both" >&2; exit 6 ;; esac
+
+# Gate location is immutable and derived from this script, never from caller-controlled SRC.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+GATE_SCRIPT="$REPO_ROOT/scripts/completion_gate.py"
+RESOLVED_MANIFEST=""
+if [ "$HAVE_MANIFEST" -eq 1 ]; then
+    case "$MANIFEST_ARG" in
+        /*) RESOLVED_MANIFEST="$MANIFEST_ARG" ;;
+        *) RESOLVED_MANIFEST="$ORIGINAL_CWD/$MANIFEST_ARG" ;;
+    esac
+fi
+
+gate_cmd=(python3 "$GATE_SCRIPT" authorize --action sync_to_sub --repo-root "$REPO_ROOT")
+[ "$HAVE_MANIFEST" -eq 0 ] || gate_cmd+=(--manifest "$RESOLVED_MANIFEST")
+[ "$HAVE_MODE" -eq 0 ] || gate_cmd+=(--mode "$GATE_MODE")
+if gate_stdout="$("${gate_cmd[@]}")"; then gate_exit=0; else gate_exit=$?; fi
+
+gate_allowed="false"
+if [ -n "$gate_stdout" ]; then
+    gate_allowed="$(printf '%s' "$gate_stdout" | python3 -c '
+import json, sys
+try:
+    print("true" if json.load(sys.stdin).get("allowed") is True else "false")
+except Exception:
+    print("false")
+' 2>/dev/null || printf false)"
+fi
+if [ "$gate_exit" -ne 0 ] || [ "$gate_allowed" != "true" ]; then
+    if [ -n "$gate_stdout" ]; then
+        printf '%s\n' "$gate_stdout"
+        [ "$gate_exit" -eq 0 ] && exit 1
+        exit "$gate_exit"
+    fi
+    python3 -c '
+import json
+print(json.dumps({
+ "schema_version":1,"mode":None,"action":"sync_to_sub","task_class":None,
+ "authorization_state":None,"allowed":False,
+ "reason_codes":["SYNC_TO_SUB_GATE_OUTPUT_UNREADABLE"],
+ "messages":{"SYNC_TO_SUB_GATE_OUTPUT_UNREADABLE":"completion gate produced no parseable JSON"},
+ "identity":None,"exit_code":2}, ensure_ascii=False, sort_keys=True, indent=2))
+'
+    exit 2
+fi
+
+# Authorization passed. Existing source override and all operational discovery begin only here.
+SRC="${SRC:-$REPO_ROOT/}"
 SSH_OPTS="ssh -o BatchMode=yes -o ConnectTimeout=8"
 GIT_NAME="${SYNC_GIT_NAME:-easy-vllm sync (main)}"      # [sync] 커밋 = 스크립트저작 표식
 GIT_EMAIL="${SYNC_GIT_EMAIL:-sync@easy-vllm.local}"
 MAX_DELETE="${MAX_DELETE:-50}"     # (레거시) --delete 안전캡. S4 는 아래 ALLOW_DELETE 삭제brake 가 1차 게이트.
 ALLOW_DELETE="${ALLOW_DELETE:-0}"  # (S4 d-rsync-2) 삭제 前 brake: 삭제예정 > 이 값이면 *삭제 前* fail-closed. 의도된 정리만 명시 override.
 RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
+PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
+PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
 
 # ── manifest 해소(서브 접속·work_dir = 항상 multi 통로 manifest. single 은 nodes:[] 라 서브 미정의) ──
 _resolve_sub_host_from_manifest() {
@@ -64,7 +150,7 @@ _single_extension_active() {
     awk '/^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { found=1 } END { exit(found?0:1) }' "$manifest"
 }
 
-# ── A2A-위임 전파 게이트 (plan_2026063021_2 D5 · New-2) ──
+# ── A2A-위임 전파 게이트 (plan_26063021_14_37 D5 · New-2) ──
 # 서브 위임 키의 *권위* = output/<t>/manifest.yaml 의 nodes[sub].hw_verified(메인이 동질성 검증 후 기입).
 # render_sub_env 가 이 값으로 키를 렌더 → 게이트가 권위(소스)를 검사 = egg-free(같은 sync 가 배달하는 키를 검사하지 않음).
 # 미검증 → 빌드 전파 거부 + HITL(무인 자동 서브-스캔 ✗ — "열쇠 분실=사고"). 검증 path = 운영자가 terraforming --peer-ssh 구동.
@@ -96,37 +182,29 @@ if [ -z "${SUB_HOST:-}" ]; then
 fi
 DEST="${SUB_WORK_DIR}/"
 
-MODE="dryrun"; PROVISION=0; BRANCH="multi"
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --apply)     MODE="apply" ;;
-        --provision) PROVISION=1 ;;
-        --branch)    shift; BRANCH="${1:-multi}" ;;
-        --branch=*)  BRANCH="${1#*=}" ;;
-        *) echo "[sync] (warn) 미지 인자: $1" >&2 ;;
-    esac
-    shift
-done
-case "$BRANCH" in multi|single|both) ;; *) echo "[sync] FAIL: --branch 는 multi|single|both" >&2; exit 6 ;; esac
-
 # 타겟 브랜치 목록
 TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);; both) TARGETS=(multi single);; esac
 
-# ── S4 Band2 빌드킷 keying(전파 = output/<t>/ 의 Band2 만 · plan_2026062417_1 rev3 R1) ──
+# ── S4 Band2 빌드킷 keying(전파 = output/<t>/ 의 Band2 만 · plan_26062417 rev3 R1) ──
 # Band1(루트 템플릿·scripts·resolved.json)은 rsync 소스가 output/<t>/ 라 구조적으로 빠지고,
 # Band3(모델 recipe = <model>.{sh,yaml}·모델 env)는 아래 keying 으로 빠진다. 미분류는 assert_band_classification 가 fail-loud.
 # ⚠ 정본 주의(d12-1): 서브 gitignore.template 의 `!configs/serve_runner.sh` 는 *루트* configs/ 대상이라 이 allowlist 와
 #   *동치 아님*. output/<t>/ Band2 추적은 gitignore.template 의 output/ 예외(!output/<t>/configs/serve_runner.sh 등)가 관할.
 BAND2_CONFIGS=(serve_runner.sh debug-init.sh arm_patch.sh)   # topology-keyed 분산서빙 인프라(Band2, 멀티). arm_patch.sh=모델구동 패치 arming(제네릭 결정론·양노드)
 BAND2_ENVS=(.env.interconnect .env.cluster)          # topology/network-keyed env(Band2): NCCL(.interconnect) + 클러스터배포(.cluster=S6 materialize)
-BAND2_TOP=(Dockerfile Dockerfile.source-build docker-compose.yaml requirements.txt .gitkeep)  # 최상위 빌드킷(Band2)
+BAND2_TOP=(Dockerfile Dockerfile.source-build Dockerfile.source-build-upstage docker-compose.yaml requirements.txt .gitkeep)  # 최상위 빌드킷(Band2)
+# ↑ Dockerfile.source-build-upstage = Solar-Open2 변종 트랙(UpstageAI 포크 @ v0.22.0-solar-open2).
+#   Band2 편입 근거 = **빌드-평면**: 멀티는 클러스터-와이드 이미지라 슬레이브도 동일 이미지를 빌드해야 한다
+#   (헌법 변종이미지 build-plane ≠ serve-plane 따름정리 · workflow.md S2.5). 모델-키잉 ✗ — track 은 포크
+#   **벤더**명이며 stock 0.22.0 의 superset. Band3 모델 트리플렛은 계속 배제.
 
 _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = output/<t>/.
-    FILT=(--exclude='/manifest.yaml' --exclude='/sub_provision' --exclude='/.env' --exclude='/benchlog' --exclude='/cache')   # D10 manifest·serve-time .env(node-local host config·PII, render --materialize-env 산출) 미전달 · benchlog=adversarial-benchmark 생성 증거(빌드입력 아님, plan_2026063014_1) · cache=노드-로컬 JIT/컴파일 캐시(torch.compile AOT·flashinfer autotune — 컨테이너가 root 로 생성, 노드마다 자기 것을 쌓는다. 빌드입력 ✗·전파 ✗, plan_2026072217_1) · 에이전트환경=overlay
+    FILT=(--exclude='/manifest.yaml' --exclude='/sub_provision' --exclude='/.env' --exclude='/benchlog' --exclude='/cache')   # D10 manifest·serve-time .env(node-local host config·PII, render --materialize-env 산출) 미전달 · benchlog=adversarial-benchmark 생성 증거(빌드입력 아님, plan_26063014) · cache=노드-로컬 JIT/컴파일 캐시(torch.compile AOT·flashinfer autotune — 컨테이너가 root 로 생성, 노드마다 자기 것을 쌓는다. 빌드입력 ✗·전파 ✗, plan_26072217) · 에이전트환경=overlay
     local f
     FILT+=(--include='/configs/')
     for f in "${BAND2_CONFIGS[@]}"; do FILT+=(--include="/configs/$f"); done
-    FILT+=(--include='/configs/*_patch.py')       # model-keyed 런타임 패치: 슬레이브도 마운트·arm 필요(트리플렛과 비대칭 특례 — 헌법 패치 전파)
+    FILT+=(--include='/configs/*_patch.py')       # model-keyed 런타임 패치: cryptographic provenance 검증 후 전달
+    FILT+=(--include='/configs/*_patch.provenance.json')
     FILT+=(--exclude='/configs/*')                # 나머지 configs(모델 트리플렛 Band3) 배제
     FILT+=(--include='/envs/')
     for f in "${BAND2_ENVS[@]}"; do FILT+=(--include="/envs/$f"); done
@@ -135,6 +213,28 @@ _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = ou
     for f in "${BAND2_TOP[@]}"; do FILT+=(--include="/$f"); done
     FILT+=(--include='/build_patches/' --include='/build_patches/**')   # 빌드-바깥 패치 모듈 디렉토리(Band2 빌드입력·서브 빌드가 COPY — §4.7·3+1+1)
     FILT+=(--exclude='/*')
+}
+
+validate_runtime_patches() {  # $1=topology; every patch must bind current patch/model/resolution bytes
+    local topology="$1" cdir="${SRC%/}/output/$1/configs" edir="${SRC%/}/output/$1/envs"
+    local patch sidecar found=0
+    for patch in "$cdir"/*_patch.py; do
+        [ -f "$patch" ] || continue
+        if [ "$found" = 0 ]; then
+            [ -f "$PATCH_VALIDATOR" ] || { echo "[sync] FAIL(runtime patch): validator missing: $PATCH_VALIDATOR" >&2; return 1; }
+            [ -f "$PATCH_RESOLUTION" ] || { echo "[sync] FAIL(runtime patch): canonical resolution missing" >&2; return 1; }
+            found=1
+        fi
+        python3 "$PATCH_VALIDATOR" verify --patch "$patch" --topology "$topology" \
+            --config-dir "$cdir" --env-dir "$edir" --resolution "$PATCH_RESOLUTION" || return 1
+    done
+    # Orphan sidecars are stale authority too: never deliver one without its exact patch.
+    for sidecar in "$cdir"/*_patch.provenance.json; do
+        [ -f "$sidecar" ] || continue
+        patch="${sidecar%.provenance.json}.py"
+        [ -f "$patch" ] || { echo "[sync] FAIL(runtime patch): orphan provenance $sidecar" >&2; return 1; }
+    done
+    return 0
 }
 
 # ── S4 fail-loud band 분류 단언(plan ⊕rev3 keying linter) ──
@@ -162,7 +262,8 @@ assert_band_classification() {  # $1=topology → 0=ok, 1=미분류·누락
         [ -n "${_b2c[$b]:-}" ] && continue                              # Band2 인프라(allowlist)
         ok=0
         case "$b" in                                                     # (d-band-2) 짝의 .sh 가 Band2 면 Band3 로 green-light 안 함(stem 충돌 차단)
-            *_patch.py) stem="${b%_patch.py}"; { [ -f "$cdir/$stem.sh" ] || [ -f "$cdir/$stem.yaml" ]; } && ok=1 || true ;;  # model-keyed 런타임 패치(슬레이브 배달 특례 — 헌법 패치 전파)
+            *_patch.py) stem="${b%_patch.py}"; { [ -f "$cdir/$stem.sh" ] || [ -f "$cdir/$stem.yaml" ]; } && [ -f "$cdir/${stem}_patch.provenance.json" ] && ok=1 || true ;;
+            *_patch.provenance.json) stem="${b%_patch.provenance.json}"; [ -f "$cdir/${stem}_patch.py" ] && ok=1 || true ;;
             *.sh)   stem="${b%.sh}";   [ -f "$cdir/$stem.yaml" ] && ok=1 || true ;;
             *.yaml) stem="${b%.yaml}"; { [ -f "$cdir/$stem.sh" ] && [ -z "${_b2c[$stem.sh]:-}" ]; } && ok=1 || true ;;
         esac
@@ -216,6 +317,7 @@ staging_dir()     { echo "${SRC%/}/output/$1/sub_provision"; }
 #   (b) 그 안에서도 exclude 된 Band3(configs/*·envs/* − allowlist)·중첩 dir 는 *보호*(삭제 대상 아님) → 서브 자작 트리플렛 보존
 #   = full mirror 아님. stale main-origin Band3 잔재 회수는 gate③ cleanup 소관(루트 Band1 leak 과 동일 평면).
 deliver_build() {  # $1=topology $2=dry(0/1)
+    validate_runtime_patches "$1" || return 9
     _band2_filters
     local src="${SRC%/}/output/$1/" dst="${DEST}output/$1/"
     if [ "$2" = "1" ]; then

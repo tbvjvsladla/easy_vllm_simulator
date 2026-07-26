@@ -13,7 +13,7 @@
     },
     "node_id": {
       "type": "string",
-      "description": "이 리포트를 낸 노드 식별(예 sub-<host> 또는 manifest nodes[] role+host). 턴제 릴레이(메인=메시지브로커)가 사용자에게 출처를 표기할 때 이 값을 쓴다 — plan_2026070809_2 §4.5."
+      "description": "이 리포트를 낸 노드 식별(예 sub-<host> 또는 manifest nodes[] role+host). 턴제 릴레이(메인=메시지브로커)가 사용자에게 출처를 표기할 때 이 값을 쓴다 — plan_26070809_46_57 §4.5."
     },
     "context_id": {
       "type": "string",
@@ -96,7 +96,7 @@
           "description": "정본/산출물 무결성 대조용 sha256."
         },
         "identity_ok": {"type": "boolean", "description": "(inspect) 페르소나가 자기 노드정체성을 정확히 로드했는가."},
-        "delegation_acknowledged": {"type": "boolean", "description": "A2A 위임 키(.claude/a2a_delegation.json) 인지 echo — 메인이 위임 인가를 확인(plan_2026063021_2 · A2A 패킷 루프 닫음). 서브 런타임블럭은 이 양성 키 하에 Flag 게이트 자동 면제(fail-closed). 키 부재면 false + status=input-required(메인이 terraforming --peer-ssh 로 검증·재발급)."},
+        "delegation_acknowledged": {"type": "boolean", "description": "A2A 위임 키(.claude/a2a_delegation.json) 인지 echo — 메인이 위임 인가를 확인(plan_26063021_14_37 · A2A 패킷 루프 닫음). 서브 런타임블럭은 이 양성 키 하에 Flag 게이트 자동 면제(fail-closed). 키 부재면 false + status=input-required(메인이 terraforming --peer-ssh 로 검증·재발급)."},
         "skills_loaded": {"type": "array", "items": {"type": "string"}, "description": "(inspect) 로드 확인된 스킬(예: vllm-recipe-explorer)."},
         "smoke": {
           "type": "object",
@@ -118,7 +118,7 @@
     "hitl": {
       "type": "object",
       "additionalProperties": false,
-      "description": "턴제 릴레이(비둘기)의 HITL 출처 라벨 — plan_2026070809_2 §4.5. 메인은 서브가 스스로 표면화한 것만 릴레이(디스크 재스캔 ✗).",
+      "description": "턴제 릴레이(비둘기)의 HITL 출처 라벨 — plan_26070809_46_57 §4.5. 메인은 서브가 스스로 표면화한 것만 릴레이(디스크 재스캔 ✗).",
       "properties": {
         "needed": {"type": "boolean", "description": "이 턴에 사용자 HITL 이 필요한가."},
         "source": {

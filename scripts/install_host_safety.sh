@@ -1,5 +1,5 @@
 #!/bin/bash
-# install_host_safety.sh — 호스트 안전체계 결정론 설치자 (plan_2026071019_1 §2.2·§2.5·§3·§4.1).
+# install_host_safety.sh — 호스트 안전체계 결정론 설치자 (plan_26071019 §2.2·§2.5·§3·§4.1).
 #   설치물: ① mem_watchdog 상시 systemd 유닛(광역 @vllm) ② vllm-drop-caches 헬퍼 + sudoers 단일
 #   NOPASSWD 엔트리 ③ earlyoom(최후선 — 워치독의 워치독) ④ (--with-kdump) kdump-tools.
 #   실행 주체 = 사람(HITL sudo — terraforming "호스트 안전체계" 스텝): sudo bash scripts/install_host_safety.sh --apply
@@ -86,7 +86,7 @@ if [ "$APPLY" = "1" ]; then
   fi
   if command -v earlyoom >/dev/null 2>&1; then
     cat > /etc/default/earlyoom <<'EOF'
-# easy-vllm host-safety (plan_2026071019_1 §2.5) — 워치독(10GiB)보다 낮은 최후선(≈4%).
+# easy-vllm host-safety (plan_26071019 §2.5) — 워치독(10GiB)보다 낮은 최후선(≈4%).
 # prefer = vLLM 계열 우선 희생 · avoid = 시스템 핵심 보호.
 EARLYOOM_ARGS="-m 4 -r 3600 --prefer '(VLLM|EngineCor|ray::|vllm)' --avoid '(systemd|sshd|dockerd|containerd|journald|earlyoom|easy-vllm-memw)'"
 EOF
@@ -100,11 +100,11 @@ fi
 #   Ubuntu 24.04 kdump-tools 는 noninteractive 설치 시 USE_KDUMP=0 + crashkernel=1G-:0M
 #   (플레이스홀더 = 0M 예약)로 남아 kdump 가 절대 ready 안 된다 → 명시 활성화·크기지정 필수.
 #   aarch64(GB10)는 low-mem 예약이 "not ready" 를 자주 유발 → `,high`(고메모리 우선) 권장. ★커널 6.17
-#   업데이트 실증(2026-07-15 Phase0 · plan_2026071512_1): `,high` **단독이 예약 실패**(addr 0x·/proc/iomem
+#   업데이트 실증(2026-07-15 Phase0 · plan_26071512): `,high` **단독이 예약 실패**(addr 0x·/proc/iomem
 #   0-0, 양노드 — GRUB/cmdline 엔 2G,high 있으나 커널 미예약) → 참조-그라운디드(docs.kernel.org/arch/arm64/kdump
 #   · 6.17 CMA 변경, Phoronix): **high + 명시 `,low` 병기 필수**(자동 low 128M 이 6.17서 실패). ∴ 옛 "단일 값"
 #   교정을 high+low 병기로 대체(SUPERSEDES 단일-값 접근 for 커널 6.17+).
-#   [P4 · testlog_2026071111_1 §0]: 512M→2G,high — 124GiB 호스트서 512M 는 crash-kernel makedumpfile OOM
+#   [P4 · testlog_26071111 §0]: 512M→2G,high — 124GiB 호스트서 512M 는 crash-kernel makedumpfile OOM
 #     으로 vmcore 저장 실패(2026-07-11 실증 vmcore 0). kdump-config 자체 권고 1660M · NVIDIA Tegra r36=2G.
 KDUMP_CRASHKERNEL="${KDUMP_CRASHKERNEL:-2G,high}"   # env 로 조정 가능. 2G = 128GiB 호스트 vmcore 저장 여유
 KDUMP_CRASHKERNEL_LOW="${KDUMP_CRASHKERNEL_LOW:-256M}"   # aarch64 커널 6.17: high 단독 예약 실패 → 명시 low 병기(참조 arm64 kdump). ""=끔(x86/구커널).
@@ -119,7 +119,7 @@ if [ "$WITH_KDUMP" = "1" ]; then
       else
         echo 'USE_KDUMP=1' >> /etc/default/kdump-tools
       fi
-      # (a2) KDUMP_SKIP_VMCORE=0 (P4 · testlog_2026071111_1 §0 — BSP 가 =1 이면 vmcore 저장 스킵 = 2026-07-11
+      # (a2) KDUMP_SKIP_VMCORE=0 (P4 · testlog_26071111 §0 — BSP 가 =1 이면 vmcore 저장 스킵 = 2026-07-11
       #      vmcore 0 근본원인. 존재하는 =1 만 뒤집음; 부재 시 append 금지 — 비표준 노브 신설 위험).
       if grep -qE '^KDUMP_SKIP_VMCORE=' /etc/default/kdump-tools 2>/dev/null; then
         sed -i 's/^KDUMP_SKIP_VMCORE=.*/KDUMP_SKIP_VMCORE=0/' /etc/default/kdump-tools

@@ -1,7 +1,7 @@
 # 환경 매니페스트 (템플릿) — 테라포밍 스킬과 version-watch/recipe 스킬 사이의 단일 계약 인터페이스.
 #
 # 사용법: 테라포밍이 이 템플릿을 채워 **output/<topology>/manifest.yaml**(브랜치 파생 통로, gitignore — 사용자 실값)로 산출한다.
-#   topology=브랜치 결정(single-node=single / multi-node=multi) → 브랜치 빈번 전환 시 재작성 0(전환=그 통로 manifest 읽음). 근거: plan_2026062315_1.
+#   topology=브랜치 결정(single-node=single / multi-node=multi) → 브랜치 빈번 전환 시 재작성 0(전환=그 통로 manifest 읽음). 근거: plan_26062315.
 # 테라포밍 스킬이 <auto: ...> 필드는 자동탐지로 제안하고, <interview> 필드는 사람에게 물어 채운다.
 # 헌법(CLAUDE.md)·스킬은 환경 구체값(노드·NAS·origin)을 output/<topology>/manifest.yaml 에서 읽는다 — 헌법에 하드코딩하지 않는다.
 #
@@ -14,7 +14,7 @@ cuda_version: "<auto: nvcc 또는 인터뷰>"   # 자동탐지(nvcc --version), 
 gpus_per_node: <int>              # 노드당 GPU 수(탈-DGX 일반화 — tp 산정 입력). 예: 1
 gpu_model: "<auto: nvidia-smi --query-gpu=name>"   # 노드 GPU 모델명(서브 페르소나 정체성 bake). 예: "NVIDIA GB10". 미탐지 시 빈값 → 렌더러가 arch×count 로 폴백
 
-# === 테라포밍 완수 Flag (attestation · plan_2026063018_1 · 헌법 §테라포밍-완수 Flag 게이트 따름정리) ===
+# === 테라포밍 완수 Flag (attestation · plan_26063018 · 헌법 §테라포밍-완수 Flag 게이트 따름정리) ===
 # scan_node 가 §1.5(topology 확정 + branch↔topology 3자일치) 통과 시에만 complete:true 기입(보수적 — 미검증이면 false 유지).
 # manifest_contract.py 게이트 입력: complete != true → 3 런타임 스킬(upstream·recipe·adversarial) info-only.
 terraforming:
@@ -22,7 +22,7 @@ terraforming:
   branch_verified: false          # git 브랜치 ↔ topology ↔ scan 3자일치 단언(§1.5) 통과 여부
   scanned_at: ""                  # 검증 스캔 시각(YYYYMMDDHH 또는 ISO)
 
-# === 호스트 안전체계 설치 여부 (terraforming 세션 최종 선택조항 — 헌법 §호스트 안전체계 따름정리 · plan_2026071115_1) ===
+# === 호스트 안전체계 설치 여부 (terraforming 세션 최종 선택조항 — 헌법 §호스트 안전체계 따름정리 · plan_26071115) ===
 # Flag(terraforming.complete)와 **독립** — 안전체계 미설치여도 Flag valid(요건에서 명시 분리 · §테라포밍-완수 Flag 게이트).
 # 값은 terraforming 세션 최종 Y/N 답변 후에만 기입한다(scan 무증거 기입 ✗ — model_source 와 동형 인터뷰 필드).
 #   Y = install_host_safety.sh --apply(HITL sudo) 실행 + installed:true / N = 중립 기록 installed:false(차단 없음).
@@ -31,7 +31,7 @@ terraforming:
 host_safety:
   installed: <true|false>          # 세션 최종 Y/N 답변 후 기입(미답=미기입 빈 스켈레톤). 하네스 협역 워치독은 설치와 무관하게 작동.
 
-# === 모델 확보 정책 3종 (인터뷰 — 헌법 §모델 획득 모드 따름정리 3종 · 결정트리 · plan_2026063018_1) ===
+# === 모델 확보 정책 3종 (인터뷰 — 헌법 §모델 획득 모드 따름정리 3종 · 결정트리 · plan_26063018) ===
 # managed   = 사람이 사전 다운로드해 관리 NAS 경로(nas_model_path)에 둔 모델을 read-only 마운트(관리 NAS read-only 마운트 기본·권장 — 무단 다운로드 없음).
 # ephemeral = 컨테이너 내부 HF 캐시에 임시 다운로드(컨테이너 down→삭제). **다수 기본** — NAS 미보유 환경.
 # custom    = 사용자 지정 경로에 모델 저장·볼륨마운트("이 모델은 이 경로에"). custom_model_paths 매핑 사용.
@@ -41,7 +41,7 @@ nas_model_path: /mnt/models       # managed 모드 관리 NAS 루트(read-only �
 custom_model_paths: {}            # custom 모드: {모델디렉토리명: 호스트 절대경로} 매핑 → 그 경로를 볼륨마운트.
 hf_token_env_file: ""             # ephemeral/custom 다운로드 시 HF 토큰이 담긴 env 파일 경로(gitignored). ⚠ raw 토큰 비추적 — 여긴 포인터만.
 
-# === 노드 외부 egress (terraforming egress 스캔이 검증 — 서브 능력 = manifest 사실 따름정리 · plan_2026070809_2 §4.1) ===
+# === 노드 외부 egress (terraforming egress 스캔이 검증 — 서브 능력 = manifest 사실 따름정리 · plan_26070809_46_57 §4.1) ===
 network:
   egress: <online|restricted>     # 클러스터 기본(메인 실측). terraforming --check-egress 결과. 미검증 시 restricted(보수적).
                                     # nodes[].egress 로 노드별 override 가능(멀티: 서브 SSH 실측 — scan_node.py collect_peer_egress).
@@ -56,7 +56,7 @@ origin_url: ""                    # optional — 사용자 환경의 git remote 
 # === 인터커넥트 (멀티노드 고속망 정체성 — 테라포밍 진입 스캔이 자동탐지) ===
 # 탐지원: /sys/class/infiniband(HCA) + show_gids(RoCE v2 GID·IP·iface). ibstat 미설치 환경 대비 sysfs 우선.
 # 단일노드면 type: generic-ethernet, 나머지 비움. 환경정체성 필드만 — NCCL 튜닝상수(GDR/QPS 등)는 platform_preset 으로 렌더 프리셋에서.
-# 근거: docs/plan/plan_2026062312_1(통로) · plan_2026062311_1(진입루틴) · CLAUDE.md 산출물 통로 불변식.
+# 근거: docs/plan/plan_26062312(통로) · plan_26062311(진입루틴) · CLAUDE.md 산출물 통로 불변식.
 interconnect:
   type: <RoCE v2 | infiniband | generic-ethernet>   # 자동탐지(show_gids VER); 불명확 시 인터뷰
   hca_devices: []              # 자동탐지(/sys/class/infiniband). 예: [rocep1s0f1, roceP2p1s0f1]
@@ -70,9 +70,9 @@ interconnect:
 # 각 항목: role(main|sub) · host(IP 또는 호스트명) · ssh_user(passwordless SSH 계정) · work_dir(레포 작업경로).
 # 단일노드면 이 목록은 비워둔다.
 # work_dir: 그 노드에서 레포가 사는 절대경로. sync_to_sub.sh·multinode_*smoke.sh 가 여기서 해소(하드코딩 금지 — 포인터 원칙).
-#   서브 work_dir 기본값 = 메인 work_dir 와 동일(R2, plan_2026062320_1). 미지정 시 스크립트가 로컬 $REPO 로 유도.
+#   서브 work_dir 기본값 = 메인 work_dir 와 동일(R2, plan_26062320). 미지정 시 스크립트가 로컬 $REPO 로 유도.
 #   ⚠ 서브 work_dir 신설은 반드시 HITL(sync_to_sub.sh --provision 승인) — 자동 경로 신설 금지(R2).
-# per-node model_source override(선택 — single-node sub-control 한정. plan_2026070809_2 §4.4):
+# per-node model_source override(선택 — single-node sub-control 한정. plan_26070809_46_57 §4.4):
 #   해소규칙 = node.model_source(있으면) > 클러스터 기본 model_source(위) > (오류). 멀티는 override 있어도 무시(단일 정책·WARN).
 #   target_gpu 등 config-평면 필드는 여기 두지 않음 — recipe-explorer 의 config.yaml 소관(γ, manifest 와 직교).
 nodes:

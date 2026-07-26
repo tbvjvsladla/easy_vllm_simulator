@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """render_sub_env.py — terraforming_node 의 **결정론 렌더러** (판단 X, 치환만).
 
-역할(plan_2026062408_1 G1·D10=render-on-main): 메인에서 `output/<topology>/manifest.yaml` 의
+역할(plan_26062408 G1·D10=render-on-main): 메인에서 `output/<topology>/manifest.yaml` 의
 노드정체성(nodes[]·interconnect·hw)을 PII-free 템플릿 `{{ ... }}` 에 치환해 **서브노드 에이전트 환경**을
 gitignored 스테이징 트리 `output/<topology>/sub_provision/` 로 렌더한다(서브 워크스페이스 루트 미러).
 
@@ -34,17 +34,17 @@ import subprocess
 import sys
 
 # docs.md 가 규정하는 발행 문서 5종(서브 docs 스켈레톤 계약 — self-test 가 강제).
-#   benchmark = full-런 계측 vault(서브도 adversarial-benchmark 런타임블럭 실행 → report/인증서 발행 가능, plan_2026071510_1).
+#   benchmark = full-런 계측 vault(서브도 adversarial-benchmark 런타임블럭 실행 → report/인증서 발행 가능, plan_26071510).
 DOC_TYPES = ("plan", "devlog", "testlog", "simlog", "benchmark")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL_DIR = os.path.dirname(HERE)                       # .claude/skills/terraforming_node
 SUBNODE_DIR = os.path.join(SKILL_DIR, "sub_node")       # 템플릿·정적자산 보관
 REPO = os.path.abspath(os.path.join(SKILL_DIR, "..", "..", ".."))  # repo root
-# 런타임블럭(서브 복제) — git-tracked 만 복제. 다중(plan_2026063014_1: adversarial-benchmark 추가 = 2번째 런타임블럭).
+# 런타임블럭(서브 복제) — git-tracked 만 복제. 다중(plan_26063014: adversarial-benchmark 추가 = 2번째 런타임블럭).
 #   adversarial-benchmark 의 (b) 외부검색 arm = 이중게이트(A2A 위임 키 ∧ egress-online) 통과 시 서브 자율,
 #   미통과 시 미수행+증상 상향 — 서브는 (a) 루프라인-only 판정(SKILL.md §7). 렌더 시 서브 env 에 egress
-#   attestation 을 반영해 서브 페르소나가 자기 능력을 정확히 로드한다(plan_2026070809_2).
+#   attestation 을 반영해 서브 페르소나가 자기 능력을 정확히 로드한다(plan_26070809_46_57).
 RUNTIME_BLOCKS = [
     os.path.join(REPO, ".claude", "skills", "vllm-recipe-explorer"),
     os.path.join(REPO, ".claude", "skills", "adversarial-benchmark"),
@@ -139,7 +139,7 @@ def build_placeholders(data: dict) -> tuple[dict, list[str]]:
         "PLATFORM_PRESET": ic.get("platform_preset") or "",
         "RAY_PORT": data.get("ray_port") or "6379",
         "GPU_MODEL": data.get("gpu_model") or (f"{gpus}x-{cpu_arch}" if gpus and cpu_arch else cpu_arch or "unknown-gpu"),
-        # A2A 위임 키 발급 판정용(plan_2026063021_2 D5/D7) — nodes[sub].hw_verified(동질성 검증 통과 표식). 템플릿 치환엔 미사용.
+        # A2A 위임 키 발급 판정용(plan_26063021_14_37 D5/D7) — nodes[sub].hw_verified(동질성 검증 통과 표식). 템플릿 치환엔 미사용.
         "SUB_HW_VERIFIED": (sub.get("hw_verified") or ""),
     }
     # 필수(누락 시 fail-loud — 무증거/빈 정체성 렌더 금지)
@@ -216,7 +216,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
             n = _copy_tracked(rb, dst_skill)
             produced.append(f".claude/skills/{name}/ ({n} tracked files)")
 
-    # 3.5) A2A 위임 키 (plan_2026063021_2 D5/D7) — 서브 HW 동질성 검증(nodes[sub].hw_verified=true) 통과 시에만 발급.
+    # 3.5) A2A 위임 키 (plan_26063021_14_37 D5/D7) — 서브 HW 동질성 검증(nodes[sub].hw_verified=true) 통과 시에만 발급.
     #   메인 키(terraforming.complete@manifest)와 UNIQUE. 최소 attestation(HW사실/전체 manifest ✗ → D10 보존).
     #   recipe.py·run_bench.sh 가 이 파일 존재로 서브 게이트 면제(fail-closed 양성 키). 미검증이면 미발급 → 서브 info-only.
     if str(ph.get("SUB_HW_VERIFIED", "")).strip().lower() == "true":
@@ -225,7 +225,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
             "issued_to": "sub",   # 역할 단언(D8·WARN-1): recipe.py·run_bench.sh 가 이 값으로 메인 키 오용 차단
             "topology": ph.get("TOPOLOGY", ""),
             "note": ("Sub operates under main-node terraforming Flag (A2A delegation). "
-                     "HW homogeneity verified by main (plan_2026063021_2). "
+                     "HW homogeneity verified by main (plan_26063021_14_37). "
                      "Do NOT create manually on a main/standalone node."),
         }
         with open(os.path.join(claude, "a2a_delegation.json"), "w", encoding="utf-8") as f:
@@ -238,7 +238,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
         f.write("")
     produced.append("tasks/.gitkeep")
 
-    # 4.5) 호스트 안전체계 파일(plan_2026071019_1 §2.2 — 서브 동일 설치, 실행은 서브에서 사용자 HITL sudo)
+    # 4.5) 호스트 안전체계 파일(plan_26071019 §2.2 — 서브 동일 설치, 실행은 서브에서 사용자 HITL sudo)
     #   레포 루트 scripts/ 4파일을 스테이징 동일 상대경로로 복제 — sync_to_sub 오버레이가 그대로 배달.
     #   multinode_serve_smoke.sh 슬레이브 워치독·run_trial 협역 워치독이 이 레이아웃(scripts/mem_watchdog.sh)을 참조.
     for rel, mode in (("scripts/mem_watchdog.sh", 0o755),
@@ -264,7 +264,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
     # 6) docs/ 발행 스켈레톤 (D12 — 메인 docs/*/example.md 복제. 서브가 동일 규약으로 insight 발행)
     #    DOC_TYPES 필터 필수: glob 이 메인의 비-발행 폴더를 자동 흡수하면 안 된다.
     #    실례 = docs/report/(배포자 대상 아웃바운드 공지) = 메인 전용 평면 — 서브 발행 대상 ✗.
-    #    docs.md §서브노드 docs 테라포밍 · plan_2026071617_1.
+    #    docs.md §서브노드 docs 테라포밍 · plan_26071617.
     if os.path.isdir(MAIN_DOCS):
         n_docs = 0
         for ex in sorted(glob.glob(os.path.join(MAIN_DOCS, "*", "example.md"))):
@@ -382,7 +382,7 @@ def _self_test() -> int:
         base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json", "tasks/.gitkeep",
                        ".claude/rules/docs.md", ".gitignore",
-                       # 호스트 안전체계(plan_2026071019_1 §2.2 — 서브 배달 셋 회귀 고정)
+                       # 호스트 안전체계(plan_26071019 §2.2 — 서브 배달 셋 회귀 고정)
                        "scripts/mem_watchdog.sh", "scripts/install_host_safety.sh",
                        "scripts/host/vllm-drop-caches.sh"]
         have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
@@ -431,7 +431,7 @@ def _self_test() -> int:
         print(f"  [FAIL] single 렌더 예외: {e}")
         ok = False
 
-    # (6) A2A 위임 키(plan_2026063021_2 D5/D7): nodes[sub].hw_verified=true → 키 발급 / 부재 → 미발급(fail-closed).
+    # (6) A2A 위임 키(plan_26063021_14_37 D5/D7): nodes[sub].hw_verified=true → 키 발급 / 부재 → 미발급(fail-closed).
     data6 = parse_manifest(mpath)
     ph6a, _ = build_placeholders(data6)                       # 기본 fixture(sub hw_verified 없음) → 미발급
     out6a = os.path.join(tmp, "sub_provision_nokey")

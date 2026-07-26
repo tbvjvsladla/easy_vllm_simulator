@@ -27,7 +27,7 @@ if [ -z "$TOPO" ]; then
   case "$BR" in multi-node) TOPO=multi;; single-node) TOPO=single;; *) TOPO=single;; esac  # unknown→single(recipe.py _read_manifest 와 정합·보수적)
 fi
 
-# 헌법 §테라포밍-완수/A2A-위임 Flag 게이트 (plan_2026063018_1·plan_2026063021_2) — 결정론 백스톱(**fail-closed**).
+# 헌법 §테라포밍-완수/A2A-위임 Flag 게이트 (plan_26063018·plan_26063021_14_37) — 결정론 백스톱(**fail-closed**).
 # 면제 2경로(recipe.py _require_terraform_flag 와 동형): (1차) 서브 A2A 위임 *양성 키* .claude/a2a_delegation.json 존재
 #   (메인이 동질성 검증 후 발급, 메인 키와 UNIQUE) · (2차) EASY_VLLM_A2A_DELEGATED env(테스트 override).
 # 그 외 메인이면 manifest_contract --require-flag. 키·MC·Flag 모두 부재 = fail-closed info-only(옛 [ -f $MC ]-부재 skip 은 fail-open 이었음).

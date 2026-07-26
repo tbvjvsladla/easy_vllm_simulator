@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "task_class": "capacity_rejection",
+  "identity": {
+    "model": "solar-open2-250b",
+    "gpu": "GB10",
+    "vllm": "0.22.0",
+    "quant": "NVFP4",
+    "topology": "multi",
+    "tp": 2
+  },
+  "capacity_rejection": {
+    "rejected": true,
+    "gate_evidence": "../../../../../../etc/passwd"
+  },
+  "evidence": {
+    "plan": {
+      "path": "targets/plan.md"
+    },
+    "devlog": {
+      "path": "targets/devlog.md"
+    },
+    "testlog": null,
+    "simlog": null,
+    "bench_report": null,
+    "certificate": null
+  },
+  "pii_scan": {
+    "passed": true
+  }
+}
