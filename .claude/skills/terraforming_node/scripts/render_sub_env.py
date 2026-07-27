@@ -13,6 +13,7 @@ gitignored 스테이징 트리 `output/<topology>/sub_provision/` 로 렌더한�
   .claude/rules/docs.md                  ← .claude/rules/docs.md      (복제·문서규약 테라포밍, D12)
   .claude/schemas/task-report.schema.json← task-report.schema.json    (복제·정적계약)
   .claude/skills/{vllm-recipe-explorer,adversarial-benchmark}/ ← 런타임블럭(git-tracked만 복제 — config.yaml/feedback/lockset 제외)
+  .claude/skills/wiki-desk/reference/references.md ← recipe의 on-demand 정적 reference dependency
   .gitignore                             ← gitignore.template         (복제·서브 로컬git 추적규칙, D12)
   docs/{plan,devlog,testlog,simlog,benchmark}/example.md ← 메인 docs/*/example.md (복제·발행 스켈레톤, D12)
   tasks/.gitkeep                         ← 런타임 상태 스캐폴드(빈 디렉토리)
@@ -51,6 +52,7 @@ RUNTIME_BLOCKS = [
 ]
 DOCS_RULES = os.path.join(REPO, ".claude", "rules", "docs.md")     # 문서규약(정적계약 — 서브 테라포밍, D12)
 MAIN_DOCS = os.path.join(REPO, "docs")                              # docs/*/example.md 발행 스켈레톤 원천(D12)
+RECIPE_REFERENCE = os.path.join(REPO, ".claude", "skills", "wiki-desk", "reference", "references.md")
 
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Z_]+)\s*\}\}")
 # 템플릿 전용 머리말(렌더 산출물에서 제거) — md 템플릿의 "이건 템플릿이다" 메타 블록.
@@ -207,6 +209,16 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
     if os.path.isfile(DOCS_RULES):
         shutil.copyfile(DOCS_RULES, os.path.join(claude, "rules", "docs.md"))
         produced.append(".claude/rules/docs.md")
+
+    # recipe.py resolves GPU/source-verification facts from this on-demand dependency.  Copy only
+    # the dependency, not the main-only wiki-desk capability, so sub runtime closure stays minimal.
+    if not os.path.isfile(RECIPE_REFERENCE):
+        raise SystemExit(f"[render] FAIL: recipe reference dependency missing: {RECIPE_REFERENCE}")
+    recipe_ref_rel = ".claude/skills/wiki-desk/reference/references.md"
+    recipe_ref_dst = os.path.join(out_dir, recipe_ref_rel)
+    os.makedirs(os.path.dirname(recipe_ref_dst), exist_ok=True)
+    shutil.copyfile(RECIPE_REFERENCE, recipe_ref_dst)
+    produced.append(recipe_ref_rel)
 
     # 3) 런타임블럭 복제(git-tracked 만 — config.yaml/feedback/lockset/__pycache__ 제외)
     if copy_runtime_block:
@@ -381,7 +393,7 @@ def _self_test() -> int:
         res = render_tree(ph, out, copy_runtime_block=False)  # 런타임블럭 복제는 git 의존 → self-test 제외
         base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json", "tasks/.gitkeep",
-                       ".claude/rules/docs.md", ".gitignore",
+                       ".claude/rules/docs.md", ".claude/skills/wiki-desk/reference/references.md", ".gitignore",
                        # 호스트 안전체계(plan_26071019 §2.2 — 서브 배달 셋 회귀 고정)
                        "scripts/mem_watchdog.sh", "scripts/install_host_safety.sh",
                        "scripts/host/vllm-drop-caches.sh"]
