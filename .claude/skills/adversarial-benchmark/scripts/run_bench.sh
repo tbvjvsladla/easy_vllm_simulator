@@ -81,7 +81,7 @@ docker exec "$CTR" bash -lc "cd /tmp && vllm bench serve \
   --backend openai-chat --base-url http://localhost:$INPORT --endpoint /v1/chat/completions \
   --model '$MODEL_NAME' --tokenizer '$MODEL_PATH' --trust-remote-code \
   --dataset-name random --random-input-len $ILEN --random-output-len $OLEN --random-range-ratio 0 \
-  --num-prompts $NPROMPTS --max-concurrency $CONC --request-rate inf --ignore-eos --num-warmups $WARMUPS \
+  --num-prompts $NPROMPTS --max-concurrency $CONC --request-rate inf --ignore-eos --num-warmups $WARMUPS --temperature 0 \
   --save-result --result-dir /tmp --result-filename '$RFN'" \
   || { echo "[run_bench] vllm bench serve 실패" >&2; docker exec "$CTR" bash -lc "tail -5 /tmp/$RFN 2>/dev/null" || true; exit 4; }
 
