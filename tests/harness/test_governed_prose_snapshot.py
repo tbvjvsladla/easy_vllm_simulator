@@ -7,11 +7,13 @@ TestNoVerbatimPolicyStatementInProse's whole-registry-statement substring check
 (test_constitution_references.py) are deliberately diagnostic-only, not semantic proof -- a
 reviewer's own paraphrase of a governed rule, sharing few tokens with the registry's own
 statement, sails past both. `.claude/policies/governed_prose_snapshot.json` records one exact
-SHA256 per governed file (CLAUDE.md, workflow.md, docs.md, references.md, full byte content) --
-ANY drift from that snapshot is flagged, including a purely-prose paraphrase that adds no
-forbidden token and cites no policy at all. This is explicitly documented as a CHANGE-REVIEW
-TRIPWIRE, not independent proof that the new prose is semantically equivalent or non-duplicative --
-see scripts/policy_registry.py module docstring.
+SHA256 per governed file (CLAUDE.md, workflow.md, docs.md, and the on-demand external reference,
+full byte content). Phase 10 relocated `.claude/rules/references.md` out of the unconditional rules
+tier, but the replacement remains governed because recipe.py consumes it at runtime. ANY drift from
+that snapshot is flagged, including a purely-prose paraphrase that adds no forbidden token and
+cites no policy at all. This is explicitly documented as a CHANGE-REVIEW TRIPWIRE, not independent
+proof that the new prose is semantically equivalent or non-duplicative -- see
+scripts/policy_registry.py module docstring.
 
 Runner: stdlib `unittest`.
 """
@@ -32,8 +34,12 @@ SNAPSHOT_PATH = REPO_ROOT / ".claude" / "policies" / "governed_prose_snapshot.js
 sys.path.insert(0, str(SCRIPTS_DIR))
 import policy_registry as pr  # noqa: E402
 
-GOVERNED_LABELS = ["CLAUDE.md", ".claude/rules/workflow.md", ".claude/rules/docs.md",
-                   ".claude/rules/references.md"]
+GOVERNED_LABELS = [
+    "CLAUDE.md",
+    ".claude/rules/workflow.md",
+    ".claude/rules/docs.md",
+    ".claude/skills/wiki-desk/reference/references.md",
+]
 
 
 class TestGovernedProseSnapshotShape(unittest.TestCase):

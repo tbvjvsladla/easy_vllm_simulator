@@ -13,7 +13,7 @@
   ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh": "d2930f1d6da108a0447efd043a2ef9bcad4236a49996f80c3252194f5ea7ce3d",
   ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py": "58b02bce35ad76ab64f50eb356951c175bc5c7e4600e6c15411aa75bdba25313",
   ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml": "3d132ab38531ab35bbaf20b377212916431a2db99d65afddfb847fdae071c607",
-  ".claude/skills/vllm-recipe-explorer/recipe.py": "7bbd226081eb9a9121188a802dc33563def2382069318f2e6e7e0b7a4c4f686a",
+  ".claude/skills/vllm-recipe-explorer/recipe.py": "e521f675e2a2b2694075f771549ce3ab25c78113bf0da3e7d781d08409a93655",
   ".claude/skills/vllm-recipe-explorer/scripts/crosscheck_model_card.py": "c025811a19f6277b9096a62b680ba105b40616ea4a5a620b10bf8a1aa9fc25fc",
   ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py": "9cbf615b4c7d52f0f76837578ed7cf59ce6545df87143080e44c111a817a1ecf",
   ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py": "c7abb8881504a2c3ff6f3da016dde91418d84d5d06c7766ffaaddc4c084711a9",
@@ -24,7 +24,7 @@
   "scripts/hint_tag.py": "255d64f3d06e91f3371d354ee2f909d407441e29886a1ef960e85c1892dbe755",
   "scripts/install_host_safety.sh": "147b99892fceea48b50f2c82eeb3aab9936d09ae2e3723e18a182f397564e993",
   "scripts/mem_watchdog.sh": "b5fd4723c4276bbea3f0f281b51ad8a4467fd3850ad3186470a4ce1c59f24c1b",
-  "scripts/sync_branches.sh": "5b73e2d1b6e5066397f9764123fdd9d7399c8433d84f8592d4e95b0bb18ec263",
+  "scripts/sync_branches.sh": "a91bb8613182f9d89f632ec8ce04e75ca2c4f238c390d33cb5f85379518ad90a",
   "tests/harness/test_policy_claim_predicates.py": "ddb8db2fbe147969b2fcb18a8b7204e817367a68fce0f76e2c2a0628b9e439d9",
   "tests/harness/test_policy_clause_companion_evidence.py": "e899d59aba550325bed6cf309098db057e8649da7939496771e1ffc1c3a363a1",
   "tests/harness/test_runtime_patch_provenance.py": "60b3bcae3b7de90e412cda52d2e3fe3325a7b5c8a53e373d38079df44718b9ba"

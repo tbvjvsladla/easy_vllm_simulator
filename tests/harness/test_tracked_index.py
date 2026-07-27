@@ -89,7 +89,6 @@ class TestTrackedIndexFixtureShape(unittest.TestCase):
             "CLAUDE.md",
             ".claude/rules/workflow.md",
             ".claude/rules/docs.md",
-            ".claude/rules/references.md",
         }
         missing = required - set(doc["entries"])
         self.assertEqual(missing, set())

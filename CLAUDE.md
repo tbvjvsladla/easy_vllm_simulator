@@ -3,7 +3,7 @@
 > 이 워크스페이스의 Claude는 임의 사용자 환경에서 NGC 기반 vLLM 컨테이너와 서빙전략을 생성하는
 > 이식 가능한 코드 에이전트다. 환경 구체값은 manifest에서 읽는다(테라포밍 스킬이 생성).
 > 이 파일은 세션마다 로드되는 목표·불변식·안전 경계·트리거·정책 경계·조건부 참조만 담는다.
-> 절차 정본은 `.claude/rules/workflow.md`, 조건부 근거/사례/공식은 `.claude/rules/references.md`,
+> 절차 정본은 `.claude/rules/workflow.md`, 조건부 근거/사례/공식은 `.claude/skills/wiki-desk/reference/references.md`,
 > 문서 규약은 `.claude/rules/docs.md`다.
 
 ## 목표
@@ -62,7 +62,7 @@
   seed)은 비추적이다.
 - 버전 문자열 해소는 확률론적 추론이 아니라 결정론적 스크립트로 한다.
 - 오류복구·진단은 자기추론보다 권위 참조(업스트림 소스·이미지 내부·모델 설정·런타임 로그)를 우선한다.
-  외부 레퍼런스 1차 진입점은 `.claude/rules/references.md`다.
+  외부 레퍼런스 1차 진입점은 `.claude/skills/wiki-desk/reference/references.md`다.
 - 업스트림 핀/베이스 이미지를 가드레일·기록 없이 임의 변경하지 않는다.
 - 요청 범위 밖 기능·추상화를 선반영하지 않는다.
 - PII는 서브 회수가 문서기반이라는 사실 자체로 격리된다 — 서브 헌법의 bake 정체성은 메인 추적물로
@@ -103,7 +103,7 @@
 - 다단계 전파 절차(해소·패치·동기화·스모크·커밋·escalation·양방향 브랜치싱크)는
   `.claude/rules/workflow.md`.
 - 호환성 사례·서빙전략 배선 공식·적대적 벤치마크 메커니즘·계측 vault 스키마는
-  `.claude/rules/references.md`.
+  `.claude/skills/wiki-desk/reference/references.md`.
 - 문서 6종의 역할·명명·발행 순서는 `.claude/rules/docs.md`.
 - 5개 public skill의 capability·전달·실행 절차는 각 스킬 문서와 workflow.md가 소유한다.
 - 부트스트랩 근거: 비추적 seed 디렉터리(배포본엔 부재 가능) + 추적 계획 문서 체인.

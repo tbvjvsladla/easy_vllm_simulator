@@ -63,7 +63,7 @@ description: >-
 - **진입(승인 완료 전제)**: recipe가 첨부한 증거(구동불가 증상 + 외부 확증: HF 모델카드·vLLM GitHub issue/release/PR) 수신 → **버전해소 리서치**(release 노트·머지 PR·포크) → **3출구 판정**. 무승인/무증거 수신 ✗.
 - **(i) 공식 bump** — 모델이 더 새 *공식* vLLM release 에서 지원 → **표준 bump 경로**(`workflow.md` S1–S3, HITL 게이트). 가장 단순한 출구.
 - **(ii) 커스텀/포크핀** — 모델카드가 포크·미머지 PR 지목 → **source-repo 오버라이드**(fork **SHA 핀** `VLLM_REPO`/`VLLM_REF` build-arg) + `…-source-<변종>` superset 변종 트랙(`resolved.json` `source_build_variants`). 거버넌스 = 아치-enablement 변종 트랙 따름정리(클러스터-와이드 이미지·**기존모델 회귀 재스모크**·단일 변종-트랙·무증거 오버라이드 금지). 절차 정본 = `workflow.md` S3 arch-wall 분기 · 사다리 상세 = `references/source-build.md` §5.
-- **(iii) 음성정직** — 공식·포크 모두 부재, transformers-only → *"현재 vLLM으로 서빙 불가"* 보고(없는 길 날조 ✗). **단 이 선언은 `.claude/rules/references.md` §5 최소범위 레시피 수행 + testlog "탐색 증거"(검색어·URL·일자) 기록 후에만 허용** — 가장 강한 부정 결론엔 가장 강한 증거.
+- **(iii) 음성정직** — 공식·포크 모두 부재, transformers-only → *"현재 vLLM으로 서빙 불가"* 보고(없는 길 날조 ✗). **단 이 선언은 `.claude/skills/wiki-desk/reference/references.md` §5 최소범위 레시피 수행 + testlog "탐색 증거"(검색어·URL·일자) 기록 후에만 허용** — 가장 강한 부정 결론엔 가장 강한 증거.
 - **최종 중재 = 스모크**(린트·이슈글 ≠ 서빙됨). **순환 차단** — rebuild 후도 미구동이면 `reconciliation_cap` 한정 재진입 → 소진 시 Model-C(무한 bump ✗). 완료 후 rebuild 이미지로 `vllm-recipe-explorer` 재진입.
 
 ## hint 태그 발동 (bump closer)
@@ -101,4 +101,4 @@ hint 태그 발행을 **제안(Y/N)** 한다(**무인 자동 태깅 ✗** · **p
 **기타**
 - (서브노드 CC 페르소나·Agent_Card·통신프로토콜은 **`terraforming_node` 소유·렌더** — 이 스킬은 `sync_to_sub.sh`·`multinode_serve_smoke.sh` 제어평면만.)
 - `<repo>/Dockerfile.source-build` — Phase 2 소스빌드 동결 산출물. `config.example.yaml` — 입력 스키마.
-- 외부 레퍼런스 = **`.claude/rules/references.md`**(ID→URL 정규화·HW-스코프·부정판정 최소범위 레시피). 외부검색 전 1차 조회(warm-start).
+- 외부 레퍼런스 = **`.claude/skills/wiki-desk/reference/references.md`**(ID→URL 정규화·HW-스코프·부정판정 최소범위 레시피). 외부검색 전 1차 조회(warm-start).

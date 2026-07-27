@@ -338,8 +338,10 @@ def citation_violations(text: str, registry_doc: dict, source_label: str | None 
 # registry's own statement (a reviewer's OWN prose restating a rule in different words) sails past
 # both checks even though it duplicates governed semantics.
 # `.claude/policies/governed_prose_snapshot.json` records one exact SHA256 per governed file
-# (CLAUDE.md, workflow.md, docs.md, references.md, in full -- byte content, no normalization
-# ambiguity). governed_prose_snapshot_violations flags ANY drift from that snapshot -- including
+# (CLAUDE.md, workflow.md, docs.md, and the on-demand external reference, in full -- byte content,
+# no normalization ambiguity). Phase 10 moved the rare reference out of the always-loaded rules
+# tier, but it remains governed because recipe.py consumes its GPU table at runtime.
+# governed_prose_snapshot_violations flags ANY drift from that snapshot -- including
 # purely-prose edits that add no forbidden token and cite no policy at all. This is DELIBERATELY
 # NOT itself semantic proof of anything -- it is a change-review TRIPWIRE: any edit to a governed
 # file must be paired with a deliberate, reviewed snapshot update (see
@@ -351,7 +353,7 @@ GOVERNED_PROSE_FILES = {
     "CLAUDE.md": "CLAUDE.md",
     ".claude/rules/workflow.md": ".claude/rules/workflow.md",
     ".claude/rules/docs.md": ".claude/rules/docs.md",
-    ".claude/rules/references.md": ".claude/rules/references.md",
+    ".claude/skills/wiki-desk/reference/references.md": ".claude/skills/wiki-desk/reference/references.md",
 }
 
 

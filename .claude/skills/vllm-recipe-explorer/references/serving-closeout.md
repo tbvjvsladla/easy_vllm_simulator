@@ -36,7 +36,7 @@ run_trial(candidate)            # docker run -d → /health 200 폴링 → funct
   ② 모델 `config.json`/`chat_template`(파서·능력·아키 가정 검증) →
   ③ **빌드 이미지의 실제 vLLM 버전 + 레지스트리 정적 grep**(파서확증 기법을 *복구 루프에서도* 재실행) →
   ④ vLLM oracle 소스(예 `config/kernel.py` `MoEBackend`·선택 로직) →
-  ⑤ **외부 교차검증(메인 한정 — 로컬 소스 소진 시 의무)**: `.claude/rules/references.md` §5 부정판정 최소범위 레시피를
+  ⑤ **외부 교차검증(메인 한정 — 로컬 소스 소진 시 의무)**: `.claude/skills/wiki-desk/reference/references.md` §5 부정판정 최소범위 레시피를
   수행하고 **검색어·URL·일자를 testlog "탐색 증거" 섹션에 기록** — ⑤ 수행·기록 없이 "이 조합은 불가" 부정 보고 금지
   (egress-restricted 서브 = ⑤ 생략 + 증상 상향 · egress-online+위임 서브 = ⑤ 자율 수행). ①–⑤ 로도 미해소면 그제서야 Model-C HITL.
 - **수렴 시**: `configs/<name>.yaml`(VRAM 분해 주석 + `max-num-seqs`·`kv-cache-memory-bytes`·`kv-cache-dtype`),

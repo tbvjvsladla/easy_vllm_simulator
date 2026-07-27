@@ -151,6 +151,7 @@ no cron/background ingestion · no web research · no semantic-judgment edges (v
 
 ## Deeper references (read on demand)
 
+- `reference/references.md` — 외부 ID→URL 정규화, HW scope 표, 호환성/성능 공식과 부정판정 최소범위 레시피.
 - `reference/INIT_GUIDE.md` — adaptive-init interview contract (slots, edge slot, authority design).
 - `reference/MANUAL.md` — install, init, warm-start, query, lint, scans, field report.
 - `templates/__llm-wiki/SCHEMA.md` — the metadata + edge schema (copied into the live library).
