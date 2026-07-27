@@ -7,6 +7,8 @@
 .windsurf/
 .taskmaster/
 .serena/
+# Claude/Hermes control runtime overlay — maintainer-local only; never distribute or sync.
+/.hermes-claude-control/
 .codex/
 .copilot/
 .codeium/
@@ -45,13 +47,6 @@ CLAUDE.local.md
 !.claude/policies/arch_variant_ledger.json
 !.claude/policies/arch_variant_evidence/
 !.claude/policies/arch_variant_evidence/*.json
-# 헌법 소유 실행면 — production validator와 clause predicate만 추적한다.
-!.claude/policies/runtime/
-!.claude/policies/runtime/**
-!.claude/policies/predicates/
-!.claude/policies/predicates/**
-!.claude/policies/provenance/
-!.claude/policies/provenance/**
 # 재제외 (재포함 이후에 와야 적용됨 / 주석은 반드시 별도 줄 — 패턴 뒤 인라인 # 은 리터럴로 취급됨)
 # 개인 로컬 설정(IP·allowlist)
 .claude/settings.local.json
@@ -194,11 +189,16 @@ Thumbs.db
 temp/
 seed/
 
+# Phase-7 branch/sub sync authorization artifacts — local execution records, never distributable.
+/.p7_sync_*
+
 # ===========================================
 # docs — 작업 문서는 gitignore(브랜치 간 persist·통합, 빌딩블럭처럼).
 # 폴더 스켈레톤 + 각 폴더 example.md(작성·명명 규칙)만 추적·배포. 규칙: .claude/rules/docs.md
 # ===========================================
 docs/*/*
+# evidence_publisher local state/JSONL sidecars; regenerated per publication run.
+docs/_evidence/
 !docs/*/example.md
 # ⚠ docs/report/ = 유일한 추적 예외(6번째 문서형 — 배포자 대상 공지). 산출물째 배포한다:
 #   무시하면 클론에 안 실려 "배포자에게 알린다"는 목적 자체가 성립 못 함(도달 0).
