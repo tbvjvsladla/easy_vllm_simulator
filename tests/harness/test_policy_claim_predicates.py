@@ -2060,6 +2060,94 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
         "run_bench.sh must invoke the exact command just executed above, verbatim")
     assert '테라포밍-완수 Flag 미발급 — info-only' in run_bench_src, (
         "run_bench.sh must fall back to an info-only refusal, never a fabricated deliverable")
+    # Execute the production script itself against hermetic fake curl/docker/vllm commands.  The
+    # fake docker executes the real inner `bash -c` payload, while fake vllm records only argv it
+    # actually receives.  This rejects source-text decoys (comments/heredocs/separate commands)
+    # and contradictory duplicate options, not merely absence of a convenient literal substring.
+    with tempfile.TemporaryDirectory() as bench_tmp:
+        bench_root = Path(bench_tmp)
+        script_dir = bench_root / ".claude/skills/adversarial-benchmark/scripts"
+        script_dir.mkdir(parents=True)
+        shutil.copy2(REPO_ROOT / ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+                     script_dir / "run_bench.sh")
+        (bench_root / "output/single/envs").mkdir(parents=True)
+        (bench_root / "output/single/configs").mkdir(parents=True)
+        (bench_root / "output/single/envs/.env.fixture").write_text(
+            "SERVING_PORT=18000\nSERVING_MODEL_NAME=fixture-model\n"
+            "CONTAINER_NAME=fixture-container\nCONFIG_FILE=fixture\n", encoding="utf-8")
+        (bench_root / "output/single/configs/fixture.yaml").write_text(
+            "model: /fixture/model\n", encoding="utf-8")
+        (bench_root / "output/single/manifest.yaml").write_text(
+            "topology: single\n", encoding="utf-8")
+        contract = bench_root / ".claude/skills/terraforming_node/scripts/manifest_contract.py"
+        contract.parent.mkdir(parents=True)
+        contract.write_text("# hermetic gate fixture; fake python3 returns success\n", encoding="utf-8")
+
+        fake_bin = bench_root / "fake-bin"
+        fake_bin.mkdir()
+        capture = bench_root / "vllm-argv.json"
+        route_capture = bench_root / "docker-route.json"
+        fake_python = fake_bin / "python3"
+        fake_python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        fake_curl = fake_bin / "curl"
+        fake_curl.write_text("#!/bin/sh\nprintf 200\n", encoding="utf-8")
+        fake_vllm = fake_bin / "vllm"
+        fake_vllm.write_text(
+            f"#!{sys.executable}\n"
+            "import json, os, pathlib, sys\n"
+            "args = sys.argv[1:]\n"
+            "record = {'argv': args, 'docker_route': os.environ.get('VLLM_FAKE_DOCKER_ROUTE')}\n"
+            "with pathlib.Path(os.environ['VLLM_ARGV_CAPTURE']).open('a') as fh:\n"
+            "    fh.write(json.dumps(record) + '\\n')\n"
+            "out = pathlib.Path(args[args.index('--result-dir') + 1]) / args[args.index('--result-filename') + 1]\n"
+            "out.write_text('{}')\n", encoding="utf-8")
+        fake_docker = fake_bin / "docker"
+        fake_docker.write_text(
+            f"#!{sys.executable}\n"
+            "import json, os, pathlib, secrets, subprocess, sys\n"
+            "args = sys.argv[1:]\n"
+            "if args[0] == 'ps':\n"
+            "    print('fixture-container-id')\n"
+            "elif args[0] == 'logs':\n"
+            "    pass\n"
+            "elif args[0] == 'exec' and args[2:4] == ['bash', '-lc']:\n"
+            "    nonce = secrets.token_hex(32)\n"
+            "    route = {'nonce': nonce, 'container': args[1], 'shell': args[2:4]}\n"
+            "    with pathlib.Path(os.environ['VLLM_DOCKER_ROUTE_CAPTURE']).open('a') as fh:\n"
+            "        fh.write(json.dumps(route) + '\\n')\n"
+            "    child_env = os.environ.copy()\n"
+            "    child_env['VLLM_FAKE_DOCKER_ROUTE'] = nonce\n"
+            "    subprocess.run(['/bin/bash', '-c', args[4]], check=True, env=child_env)\n"
+            "elif args[0] == 'exec' and args[2] == 'cat':\n"
+            "    sys.stdout.write(pathlib.Path(args[3]).read_text())\n"
+            "else:\n"
+            "    raise SystemExit('unexpected docker argv: ' + repr(args))\n", encoding="utf-8")
+        for fake in (fake_python, fake_curl, fake_vllm, fake_docker):
+            fake.chmod(0o755)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["VLLM_ARGV_CAPTURE"] = str(capture)
+        env["VLLM_DOCKER_ROUTE_CAPTURE"] = str(route_capture)
+        completed = subprocess.run(
+            ["bash", str(script_dir / "run_bench.sh"), "fixture", "--topology", "single",
+             "--concurrency", "1", "--input-len", "16", "--output-len", "8",
+             "--num-prompts", "1", "--warmups", "0"],
+            cwd=bench_root, env=env, text=True, capture_output=True)
+        assert completed.returncode == 0, completed.stdout + completed.stderr
+        captures = [json.loads(line) for line in capture.read_text(encoding="utf-8").splitlines()]
+        routes = [json.loads(line) for line in route_capture.read_text(encoding="utf-8").splitlines()]
+        assert len(routes) == 1 and routes[0]["container"] == "fixture-container" \
+            and routes[0]["shell"] == ["bash", "-lc"], routes
+        assert len(captures) == 1 and captures[0]["docker_route"] == routes[0]["nonce"], (
+            "exactly one vllm invocation must execute through docker exec bash -lc; "
+            f"routes={routes!r} captures={captures!r}")
+        bench_argv = captures[0]["argv"]
+        assert bench_argv[:2] == ["bench", "serve"], bench_argv
+        temp_positions = [i for i, arg in enumerate(bench_argv) if arg == "--temperature"]
+        assert len(temp_positions) == 1 and bench_argv[temp_positions[0] + 1] == "0", (
+            "the actually executed vllm bench serve argv must contain exactly one greedy "
+            f"temperature pin; argv={bench_argv!r}")
 
     # upstream: same documented backstop entrypoint, executed for real in a fresh hermetic
     # Flag-absent repo (upstream has no single script gate of its own -- SKILL.md documents this
