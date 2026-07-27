@@ -69,7 +69,7 @@ case "$BRANCH" in multi|single|both) ;; *) echo "[sync] FAIL: --branch must be m
 
 # Gate location is immutable and derived from this script, never from caller-controlled SRC.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-GATE_SCRIPT="$REPO_ROOT/scripts/completion_gate.py"
+GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.py"
 RESOLVED_MANIFEST=""
 if [ "$HAVE_MANIFEST" -eq 1 ]; then
     case "$MANIFEST_ARG" in
@@ -113,7 +113,8 @@ fi
 
 # Authorization passed. Existing source override and all operational discovery begin only here.
 SRC="${SRC:-$REPO_ROOT/}"
-SSH_OPTS="ssh -o BatchMode=yes -o ConnectTimeout=8"
+CANONICAL_SRC="${SRC%/}/"
+SSH_OPTS="${SYNC_SSH_COMMAND:-ssh -o BatchMode=yes -o ConnectTimeout=8}"
 GIT_NAME="${SYNC_GIT_NAME:-easy-vllm sync (main)}"      # [sync] 커밋 = 스크립트저작 표식
 GIT_EMAIL="${SYNC_GIT_EMAIL:-sync@easy-vllm.local}"
 MAX_DELETE="${MAX_DELETE:-50}"     # (레거시) --delete 안전캡. S4 는 아래 ALLOW_DELETE 삭제brake 가 1차 게이트.
@@ -193,6 +194,7 @@ TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);
 BAND2_CONFIGS=(serve_runner.sh debug-init.sh arm_patch.sh)   # topology-keyed 분산서빙 인프라(Band2, 멀티). arm_patch.sh=모델구동 패치 arming(제네릭 결정론·양노드)
 BAND2_ENVS=(.env.interconnect .env.cluster)          # topology/network-keyed env(Band2): NCCL(.interconnect) + 클러스터배포(.cluster=S6 materialize)
 BAND2_TOP=(Dockerfile Dockerfile.source-build Dockerfile.source-build-upstage docker-compose.yaml requirements.txt .gitkeep)  # 최상위 빌드킷(Band2)
+BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)          # owner-local provenance-bound runtime patches; wildcard authority 금지
 # ↑ Dockerfile.source-build-upstage = Solar-Open2 변종 트랙(UpstageAI 포크 @ v0.22.0-solar-open2).
 #   Band2 편입 근거 = **빌드-평면**: 멀티는 클러스터-와이드 이미지라 슬레이브도 동일 이미지를 빌드해야 한다
 #   (헌법 변종이미지 build-plane ≠ serve-plane 따름정리 · workflow.md S2.5). 모델-키잉 ✗ — track 은 포크
@@ -203,8 +205,9 @@ _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = ou
     local f
     FILT+=(--include='/configs/')
     for f in "${BAND2_CONFIGS[@]}"; do FILT+=(--include="/configs/$f"); done
-    FILT+=(--include='/configs/*_patch.py')       # model-keyed 런타임 패치: cryptographic provenance 검증 후 전달
-    FILT+=(--include='/configs/*_patch.provenance.json')
+    for f in "${BAND2_RUNTIME_PATCH_STEMS[@]}"; do
+        FILT+=(--include="/configs/${f}_patch.py" --include="/configs/${f}_patch.provenance.json")
+    done
     FILT+=(--exclude='/configs/*')                # 나머지 configs(모델 트리플렛 Band3) 배제
     FILT+=(--include='/envs/')
     for f in "${BAND2_ENVS[@]}"; do FILT+=(--include="/envs/$f"); done
@@ -243,9 +246,13 @@ validate_runtime_patches() {  # $1=topology; every patch must bind current patch
 assert_band_classification() {  # $1=topology → 0=ok, 1=미분류·누락
     local odir="${SRC%/}/output/$1" cdir="${SRC%/}/output/$1/configs" edir="${SRC%/}/output/$1/envs" bad=0 f b ok stem
     local nullsave; nullsave="$(shopt -p nullglob dotglob || true)"; shopt -s nullglob dotglob
-    local -A _b2c _b2e _b2top
+    local -A _b2c _b2e _b2top _b2p
     for b in "${BAND2_CONFIGS[@]}"; do _b2c["$b"]=1; done
     for b in "${BAND2_ENVS[@]}"; do _b2e["$b"]=1; done
+    for b in "${BAND2_RUNTIME_PATCH_STEMS[@]}"; do
+        _b2p["${b}_patch.py"]=1
+        _b2p["${b}_patch.provenance.json"]=1
+    done
     for b in "${BAND2_TOP[@]}" configs envs build_patches manifest.yaml sub_provision .env benchlog cache tiktoken_cache; do _b2top["$b"]=1; done
 
     # (a) (d-cg-4) 최상위 — 빌드킷·서브디렉토리·의도적 제외(manifest/sub_provision) 외 미지 항목 fail-loud
@@ -260,6 +267,7 @@ assert_band_classification() {  # $1=topology → 0=ok, 1=미분류·누락
         [ -f "$f" ] || continue                                          # (d-band-1) 디렉토리/비정규 skip
         b="$(basename "$f")"; [ "$b" = ".gitkeep" ] && continue
         [ -n "${_b2c[$b]:-}" ] && continue                              # Band2 인프라(allowlist)
+        [ -n "${_b2p[$b]:-}" ] && continue                              # owner-local provenance-bound runtime patch
         ok=0
         case "$b" in                                                     # (d-band-2) 짝의 .sh 가 Band2 면 Band3 로 green-light 안 함(stem 충돌 차단)
             *_patch.py) stem="${b%_patch.py}"; { [ -f "$cdir/$stem.sh" ] || [ -f "$cdir/$stem.yaml" ]; } && [ -f "$cdir/${stem}_patch.provenance.json" ] && ok=1 || true ;;
@@ -389,7 +397,28 @@ verify_destination_runner_modes() {  # $1=topology -- exact canonical bytes + ex
 OVERLAY_EXCLUDES=(--exclude '__pycache__' --exclude '*.pyc')
 # Explicit migration tombstones only. Overlay remains additive for every other path; this narrow
 # list closes known source relocations after the replacement has been delivered and verified.
-OVERLAY_STALE_PATHS=(.claude/rules/references.md)
+OVERLAY_STALE_PATHS=(
+    .claude/rules/references.md
+    scripts/install_host_safety.sh
+    scripts/mem_watchdog.sh
+    scripts/host/vllm-drop-caches.sh
+    scripts/systemd/easy-vllm-memwatch.service
+    scripts/smoke_clone.sh
+    scripts/sync_branches.sh
+)
+OVERLAY_RELOCATION_STALE_PATHS=(
+    .claude/rules/references.md
+    scripts/install_host_safety.sh
+    scripts/mem_watchdog.sh
+    scripts/host/vllm-drop-caches.sh
+    scripts/systemd/easy-vllm-memwatch.service
+)
+# Main-only orchestration has no sub runtime replacement.  Deletion is retirement and therefore
+# requires an explicit active-consumer audit before these exact paths are removed.
+OVERLAY_RETIREMENT_STALE_PATHS=(
+    scripts/smoke_clone.sh
+    scripts/sync_branches.sh
+)
 
 # ── 서브 git 헬퍼 ──
 sub_run()  { $SSH_OPTS "$SUB_HOST" "cd '$SUB_WORK_DIR' && $1"; }
@@ -400,11 +429,233 @@ sub_branch_current() { sub_run "git rev-parse --abbrev-ref HEAD 2>/dev/null"; }
 
 render_topology() {
     normalize_canonical_runner_modes || return 9
+    local output_dir="${SRC%/}/output/$1"
+    local build_assets="${SRC%/}/.claude/skills/upstream-version-watch/assets/build_plane"
+    mkdir -p "$output_dir/configs" "$output_dir/envs" || return 9
+    install -m 0644 "$build_assets/requirements.txt" "$output_dir/requirements.txt" || return 9
+    install -m 0644 "$build_assets/Dockerfile.source-build-upstage" "$output_dir/Dockerfile.source-build-upstage" || return 9
+    if [ "$1" = "multi" ]; then
+        install -m 0644 "$build_assets"/runtime_patches/* "$output_dir/configs/" || return 9
+        install -m 0644 "$build_assets"/model_inputs/configs/* "$output_dir/configs/" || return 9
+        install -m 0644 "$build_assets"/model_inputs/envs/.env.* "$output_dir/envs/" || return 9
+    fi
     python3 "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.py" \
-        --materialize-configs --repo "${SRC%/}" --topology "$1" >/dev/null
-    python3 "$RENDER" --topology "$1" >/dev/null
+        --materialize-configs --repo "${SRC%/}" --topology "$1" >/dev/null || return 9
+    if [ "$1" = "multi" ]; then
+        python3 "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.py" \
+            --nccl-envfile --manifest "$output_dir/manifest.yaml" --out "$output_dir/envs/.env.interconnect" >/dev/null || return 9
+        python3 "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.py" \
+            --cluster-envfile --manifest "$output_dir/manifest.yaml" --out "$output_dir/envs/.env.cluster" >/dev/null || return 9
+    fi
+    python3 "$RENDER" --topology "$1" >/dev/null || return 9
+    if [ "$1" != "multi" ] && [ -d "$output_dir/envs" ] \
+        && [ -z "$(find "$output_dir/envs" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+        rmdir "$output_dir/envs" || return 9
+    fi
 }
 staging_dir()     { echo "${SRC%/}/output/$1/sub_provision"; }
+
+TRANSACTIONAL_SRC=""
+REMOTE_TX_DIRS=()
+REMOTE_TX_BRANCHES=()
+REMOTE_TX_HEADS=()
+REMOTE_TX_BOOTSTRAPS=()
+REMOTE_TX_ACTIVE=0
+REMOTE_ORIGINAL_BRANCH=""
+PROVISIONED_BY_SYNC=0
+BOOTSTRAP_TX_PREPARED=0
+cleanup_transactional_source() {
+    if [ -n "$TRANSACTIONAL_SRC" ] && [ -d "$TRANSACTIONAL_SRC" ]; then
+        rm -rf -- "$TRANSACTIONAL_SRC"
+    fi
+}
+
+validate_inventory_relative_path() { # $1=repo-relative path
+    local rel="$1"
+    if [[ "$rel" =~ [[:space:][:cntrl:]] ]]; then
+        echo "[sync] FAIL: rollback line protocol forbids whitespace/control path: $rel" >&2
+        return 9
+    fi
+    case "$rel" in ''|/*|../*|*/../*|*/..)
+        echo "[sync] FAIL: unsafe rollback path: $rel" >&2; return 9;;
+    esac
+}
+
+validate_inventory_tree() { # $1=root
+    local root="$1" path rel
+    [ -d "$root" ] || return 0
+    while IFS= read -r -d '' path; do
+        rel="${path#"$root/"}"
+        validate_inventory_relative_path "$rel" || return 9
+        if [ -d "$path" ] && [ -z "$(find "$path" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+            echo "[sync] FAIL: empty directories are undeclared transfer artifacts: $path" >&2
+            return 9
+        fi
+    done < <(find "$root" -mindepth 1 -print0)
+}
+
+validate_remote_deletion_tree() { # $1=topology
+    local root="${DEST}output/$1"
+    $SSH_OPTS "$SUB_HOST" "python3 -c 'import os,sys
+root=sys.argv[1]
+if not os.path.isdir(root): raise SystemExit(0)
+for base,dirs,files in os.walk(root):
+ for name in dirs+files:
+  raw=os.fsencode(name)
+  if any(byte<=32 or byte==127 for byte in raw): raise SystemExit(9)
+ for name in dirs:
+  path=os.path.join(base,name)
+  if not os.listdir(path): raise SystemExit(9)
+' '$root'" || { echo "[sync] FAIL: destination deletion inventory has whitespace/control path or empty directory" >&2; return 9; }
+}
+
+build_remote_touch_inventory() { # $1=topology $2=output file
+    local t="$1" out="$2" st rel line scan
+    st="$(staging_dir "$t")"
+    : >"$out"
+    validate_inventory_tree "$st" || return 9
+    validate_inventory_tree "${SRC}output/$t" || return 9
+    if [ -d "$st" ]; then
+        while IFS= read -r -d '' rel; do printf '%s\n' "${rel#"$st/"}" >>"$out"; done \
+            < <(find "$st" \( -type f -o -type l \) -print0)
+    fi
+    if [ -d "${SRC}output/$t" ]; then
+        while IFS= read -r -d '' rel; do printf 'output/%s/%s\n' "$t" "${rel#"${SRC}output/$t/"}" >>"$out"; done \
+            < <(find "${SRC}output/$t" \( -type f -o -type l \) -print0)
+    fi
+    printf '%s\n' "${OVERLAY_STALE_PATHS[@]}" >>"$out"
+    # If deletion was explicitly authorized, inventory those destination-only Band2 paths too.
+    if [ "${ALLOW_DELETE:-0}" -gt 0 ]; then
+        validate_remote_deletion_tree "$t" || return 9
+        _band2_filters
+        scan="$(mktemp "${TMPDIR:-/tmp}/easy-vllm-delete-scan.XXXXXX")"
+        if ! rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_OPTS" \
+            "${SRC}output/$t/" "$SUB_HOST:${DEST}output/$t/" >"$scan" 2>&1; then
+            echo "[sync] FAIL: deletion inventory dry-run failed" >&2
+            rm -f "$scan"; return 9
+        fi
+        while IFS= read -r line; do
+            case "$line" in
+                \*deleting*) rel="${line#\*deleting}"; rel="${rel#${rel%%[![:space:]]*}}";
+                    [ -n "$rel" ] && printf 'output/%s/%s\n' "$t" "${rel%/}" >>"$out" ;;
+            esac
+        done <"$scan"
+        rm -f "$scan"
+    fi
+    LC_ALL=C sort -u -o "$out" "$out"
+    while IFS= read -r rel; do validate_inventory_relative_path "$rel" || return 9; done <"$out"
+}
+
+begin_remote_transaction() { # $1=topology $2=bootstrap(0/1)
+    local t="$1" bootstrap="$2" list part tx head branch inv_t
+    list="$(mktemp "${TMPDIR:-/tmp}/easy-vllm-sync-paths.XXXXXX")"
+    : >"$list"
+    for inv_t in "${PRECHECK_TARGETS[@]}"; do
+        part="$(mktemp "${TMPDIR:-/tmp}/easy-vllm-sync-paths-part.XXXXXX")"
+        build_remote_touch_inventory "$inv_t" "$part" \
+            || { rm -f "$list" "$part"; return 9; }
+        cat "$part" >>"$list"; rm -f "$part"
+    done
+    LC_ALL=C sort -u -o "$list" "$list"
+    tx="/tmp/easy-vllm-sync-rollback.$$.${#REMOTE_TX_DIRS[@]}"
+    if [ "$bootstrap" = "1" ]; then head=""; branch="multi";
+    else head="$(sub_run "git rev-parse '$t'")"; branch="$t"; fi
+    if ! $SSH_OPTS "$SUB_HOST" "set -eu; umask 077; tx='$tx'; rm -rf -- \"\$tx\"; mkdir -p \"\$tx/backup\"; cat >\"\$tx/paths\"; : >\"\$tx/dirs\"; : >\"\$tx/existing-dirs\"; if [ -d '$SUB_WORK_DIR' ]; then : >\"\$tx/workdir-existed\"; [ '$bootstrap' != 1 ] || cp -a -- '$SUB_WORK_DIR' \"\$tx/workdir-backup\"; cd '$SUB_WORK_DIR'; while IFS= read -r p; do d=\$(dirname \"\$p\"); while [ \"\$d\" != . ]; do printf '%s\\n' \"\$d\" >>\"\$tx/dirs\"; [ ! -d \"\$d\" ] || printf '%s %s\\n' \"\$(stat -c '%a' \"\$d\")\" \"\$d\" >>\"\$tx/existing-dirs\"; d=\$(dirname \"\$d\"); done; if [ -e \"\$p\" ] || [ -L \"\$p\" ]; then mkdir -p \"\$tx/backup/\$(dirname \"\$p\")\"; cp -a -- \"\$p\" \"\$tx/backup/\$p\"; fi; done <\"\$tx/paths\"; elif [ '$bootstrap' = 1 ]; then : >\"\$tx/workdir-absent\"; else exit 9; fi; sort -u -o \"\$tx/dirs\" \"\$tx/dirs\"; sort -u -k2,2 -o \"\$tx/existing-dirs\" \"\$tx/existing-dirs\"" <"$list"; then
+        rm -f "$list"
+        if ! $SSH_OPTS "$SUB_HOST" "rm -rf -- '$tx'"; then
+            echo "[sync] CRITICAL: failed transaction creation left recovery path $SUB_HOST:$tx" >&2
+        fi
+        return 9
+    fi
+    rm -f "$list"
+    REMOTE_TX_DIRS+=("$tx"); REMOTE_TX_BRANCHES+=("$branch"); REMOTE_TX_HEADS+=("$head"); REMOTE_TX_BOOTSTRAPS+=("$bootstrap")
+    REMOTE_TX_ACTIVE=1
+    echo "[sync] remote rollback transaction prepared: branch=$branch paths=$($SSH_OPTS "$SUB_HOST" "wc -l < '$tx/paths'")"
+}
+
+rollback_remote_transactions() {
+    [ ${#REMOTE_TX_DIRS[@]} -gt 0 ] || return 0
+    echo "[sync] ROLLBACK: restoring ${#REMOTE_TX_DIRS[@]} remote transaction(s)" >&2
+    local i tx branch head fail=0 root_tx="${REMOTE_TX_DIRS[0]}"
+    if [ "${REMOTE_TX_BOOTSTRAPS[0]}" = "1" ]; then
+        $SSH_OPTS "$SUB_HOST" "set -eu; if [ -f '$root_tx/workdir-absent' ]; then rm -rf -- '$SUB_WORK_DIR'; elif [ -f '$root_tx/workdir-existed' ]; then rm -rf -- '$SUB_WORK_DIR'; mkdir -p -- \"\$(dirname '$SUB_WORK_DIR')\"; cp -a -- '$root_tx/workdir-backup' '$SUB_WORK_DIR'; else echo '[sync] FAIL: bootstrap transaction lacks workdir origin marker' >&2; exit 9; fi" || fail=1
+    else
+        for ((i=${#REMOTE_TX_DIRS[@]}-1; i>=0; i--)); do
+            tx="${REMOTE_TX_DIRS[$i]}"; branch="${REMOTE_TX_BRANCHES[$i]}"; head="${REMOTE_TX_HEADS[$i]}"
+            $SSH_OPTS "$SUB_HOST" "set -eu; cd '$SUB_WORK_DIR'; git reset --hard; git checkout -q '$branch'; git reset --hard '$head'; while IFS= read -r p; do rm -rf -- \"\$p\"; done <'$tx/paths'" || fail=1
+        done
+        if [ -z "$REMOTE_ORIGINAL_BRANCH" ]; then
+            fail=1
+        else
+            $SSH_OPTS "$SUB_HOST" "set -eu; cd '$SUB_WORK_DIR'; git reset --hard; git checkout -q '$REMOTE_ORIGINAL_BRANCH'; git reset --hard; while IFS= read -r p; do rm -rf -- \"\$p\"; [ ! -e '$root_tx/backup/'\"\$p\" ] && [ ! -L '$root_tx/backup/'\"\$p\" ] || { mkdir -p \"\$(dirname \"\$p\")\"; cp -a -- '$root_tx/backup/'\"\$p\" \"\$p\"; }; done <'$root_tx/paths'; tac '$root_tx/dirs' | while IFS= read -r d; do cut -d' ' -f2- '$root_tx/existing-dirs' | grep -Fqx \"\$d\" || rmdir -- \"\$d\" 2>/dev/null || true; done; while read -r m d; do chmod \"\$m\" \"\$d\"; done <'$root_tx/existing-dirs'" || fail=1
+        fi
+    fi
+    if [ "$fail" -ne 0 ]; then
+        echo "[sync] CRITICAL: rollback failed; recovery backups retained:" >&2
+        for tx in "${REMOTE_TX_DIRS[@]}"; do printf '  %s:%s\n' "$SUB_HOST" "$tx" >&2; done
+        return 11
+    fi
+    for tx in "${REMOTE_TX_DIRS[@]}"; do
+        $SSH_OPTS "$SUB_HOST" "rm -rf -- '$tx'" || echo "[sync] WARNING: rollback succeeded but backup cleanup failed: $SUB_HOST:$tx" >&2
+    done
+    REMOTE_TX_DIRS=(); REMOTE_TX_BRANCHES=(); REMOTE_TX_HEADS=(); REMOTE_TX_BOOTSTRAPS=(); REMOTE_TX_ACTIVE=0
+}
+
+finalize_remote_transactions() {
+    local tx
+    # Commits are already successful. Backup cleanup is best-effort and must never trigger an
+    # impossible partial rollback after one transaction backup has been removed.
+    REMOTE_TX_ACTIVE=0
+    for tx in "${REMOTE_TX_DIRS[@]:-}"; do
+        [ -z "$tx" ] || $SSH_OPTS "$SUB_HOST" "rm -rf -- '$tx'" \
+            || echo "[sync] WARNING: successful sync left recovery backup: $SUB_HOST:$tx" >&2
+    done
+    REMOTE_TX_DIRS=(); REMOTE_TX_BRANCHES=(); REMOTE_TX_HEADS=(); REMOTE_TX_BOOTSTRAPS=()
+}
+
+transactional_exit() {
+    local rc="$1"; trap - EXIT
+    if [ "$rc" -ne 0 ] && [ "$REMOTE_TX_ACTIVE" = "1" ]; then
+        rollback_remote_transactions || rc=11
+    fi
+    cleanup_transactional_source
+    exit "$rc"
+}
+prepare_transactional_source() {
+    # Rendering is intentionally destructive/idempotent inside its output root.  Never point it at
+    # the caller's canonical working tree: dry-run must be byte/mode read-only, and apply preflight
+    # must not overwrite local generated/dirty files before remote dirty-tree rejection.
+    TRANSACTIONAL_SRC="$(mktemp -d "${TMPDIR:-/tmp}/easy-vllm-sync-source.XXXXXX")"
+    chmod 0700 "$TRANSACTIONAL_SRC"
+    trap 'transactional_exit $?' EXIT
+    trap 'exit 130' INT TERM
+    mkdir -p "$TRANSACTIONAL_SRC/output"
+    if ! git -C "$CANONICAL_SRC" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        echo "[sync] FAIL: canonical SRC must be a Git checkout; filesystem fallback is forbidden" >&2
+        return 9
+    fi
+    # Git index bytes/modes are the accepted control/build-plane authority. Mutable or untracked
+    # output files never enter the snapshot. The sole filesystem exception is manifest.yaml: it is
+    # topology input (possibly PII), is explicitly copied mode 0600, deterministically renders the
+    # transaction, and is excluded from remote delivery by _band2_filters.
+    if ! git -C "$CANONICAL_SRC" diff --quiet -- .claude CLAUDE.md .gitignore output/multi output/single; then
+        echo "[sync] info: canonical worktree drift detected; filesystem bytes are excluded in favor of index authority"
+    fi
+    git -C "$CANONICAL_SRC" ls-files -z -- .claude CLAUDE.md .gitignore output/multi output/single \
+        | git -C "$CANONICAL_SRC" checkout-index -z --stdin --prefix="$TRANSACTIONAL_SRC/"
+    local topology
+    for topology in multi single; do
+        [ -f "${CANONICAL_SRC}output/$topology/manifest.yaml" ] || continue
+        mkdir -p "$TRANSACTIONAL_SRC/output/$topology"
+        install -m 0600 "${CANONICAL_SRC}output/$topology/manifest.yaml" \
+            "$TRANSACTIONAL_SRC/output/$topology/manifest.yaml"
+    done
+    SRC="$TRANSACTIONAL_SRC/"
+    RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
+    PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
+    PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
+    echo "[sync] transactional source prepared (canonical tree remains read-only): $TRANSACTIONAL_SRC"
+}
 
 # 빌드 콘텐츠 rsync(S4): 소스 = output/<t>/ 서브트리만(루트 Band1 구조적 배제) + Band2 keying. dry 면 --dry-run.
 # --delete 이중 스코프(d-rsync-5): (a) dst=output/<t>/ 한정 → 서브 루트·.claude·docs 불가침(별 평면) ·
@@ -420,8 +671,12 @@ deliver_build() {  # $1=topology $2=dry(0/1)
     fi
     # apply: (d-rsync-2) 삭제 前 brake — dry-run 으로 삭제예정 세고 ALLOW_DELETE 초과 시 *삭제 前* fail-closed(부분삭제 0)
     sub_run "mkdir -p 'output/$1'"
-    local ndel
-    ndel="$(rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_OPTS" "$src" "$SUB_HOST:$dst" 2>/dev/null | grep -c '^\*deleting' || true)"
+    local ndel dry_out
+    if ! dry_out="$(rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_OPTS" "$src" "$SUB_HOST:$dst" 2>&1)"; then
+        echo "[sync] FAIL: deletion brake dry-run failed before apply" >&2
+        return 9
+    fi
+    ndel="$(printf '%s\n' "$dry_out" | awk '/^\*deleting/{n++} END{print n+0}')"
     if [ "${ndel:-0}" -gt "${ALLOW_DELETE:-0}" ]; then
         echo "[sync] STOP(S4 삭제brake): $1 삭제예정 ${ndel}건 > ALLOW_DELETE=${ALLOW_DELETE:-0} — 삭제 前 fail-closed(부분삭제 없음). 의도된 정리면 ALLOW_DELETE=${ndel} 로 재실행." >&2
         return 9
@@ -446,14 +701,44 @@ deliver_overlay() {  # $1=topology $2=dry
     [ -d "$st" ] || { echo "[sync] (info) 스테이징 없음($st) — render 선행 필요"; return 0; }
     local dry=(); [ "$2" = "1" ] && dry=(--dry-run --itemize-changes)
     rsync -az "${dry[@]}" "${OVERLAY_EXCLUDES[@]}" -e "$SSH_OPTS" "$st/" "$SUB_HOST:$DEST"
+    if [ "$2" = "1" ]; then
+        local stale
+        for stale in "${OVERLAY_STALE_PATHS[@]}"; do
+            sub_run "[ ! -e '$stale' ] || printf '*deleting %s\\n' '$stale'"
+        done
+    fi
+}
+
+# Apply exact tombstones only after replacement checksums and modes have passed.  This function is
+# deliberately separate from additive rsync so a failed replacement can never delete the fallback.
+apply_overlay_tombstones() {
     local stale
     for stale in "${OVERLAY_STALE_PATHS[@]}"; do
-        if [ "$2" = "1" ]; then
-            sub_run "[ ! -e '$stale' ] || printf '*deleting %s\\n' '$stale'"
+        sub_run "rm -f -- '$stale'"
+    done
+}
+
+verify_destination_retirement_consumers() {
+    local stale hits fail=0 scan_py scan_q stale_q
+    scan_py=$'# retirement_consumer_scan\nimport os,re,sys\nstale=sys.argv[1]\nowner=".claude/skills/upstream-version-watch/"+stale\nchars=set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-")\nneedle=re.compile(r"(?<![A-Za-z0-9_.-])"+re.escape(stale)+r"(?![A-Za-z0-9_./-])")\nhits=[]\ndef scan(path):\n if os.path.islink(path): raise RuntimeError("active scanner refuses symlink: "+path)\n data=open(path,"rb").read().decode("utf-8","replace")\n for lineno,line in enumerate(data.splitlines(),1):\n  for match in needle.finditer(line):\n   lo,hi=match.start(),match.end()\n   while lo and line[lo-1] in chars: lo-=1\n   while hi<len(line) and line[hi] in chars: hi+=1\n   token=line[lo:hi]\n   while token.startswith("./"): token=token[2:]\n   if token!=owner: hits.append(f"{path}:{lineno}:{line}")\nroots=[".claude","CLAUDE.md"]\nif os.path.exists("HINTS.md"): roots.append("HINTS.md")\nfor root in roots:\n if os.path.isdir(root):\n  for base,dirs,files in os.walk(root,onerror=lambda e: (_ for _ in ()).throw(e)):\n   dirs[:]=[d for d in dirs if d!=".git"]\n   for name in files: scan(os.path.join(base,name))\n elif os.path.exists(root): scan(root)\nprint("\\n".join(hits),end="")'
+    printf -v scan_q '%q' "$scan_py"
+    for stale in "${OVERLAY_RETIREMENT_STALE_PATHS[@]}"; do
+        printf -v stale_q '%q' "$stale"
+        if hits="$(sub_run "python3 -c $scan_q $stale_q")"; then
+            :
         else
-            sub_run "rm -f -- '$stale'"
+            echo "[sync] FAIL(retirement consumer): scanner/transport failed for $stale" >&2
+            return 98
+        fi
+        if [ -n "$hits" ]; then
+            echo "[sync] FAIL(retirement consumer): $stale is still referenced on active sub surfaces:" >&2
+            printf '%s\n' "$hits" | sed 's/^/    /' >&2
+            fail=1
+        else
+            echo "  ✅ retirement consumer audit: $stale has no active sub consumer"
         fi
     done
+    return $fail
 }
 # 체크섬 검증(빌드 핵심입력 + 오버레이 대표). 불일치 시 비-0.
 verify_checksums() {  # $1=topology
@@ -466,10 +751,32 @@ verify_checksums() {  # $1=topology
     for f in CLAUDE.md Agent_Card.json .claude/settings.local.json .claude/rules/comms.md .claude/rules/docs.md \
              .claude/schemas/task-report.schema.json .gitignore .claude/skills/vllm-recipe-explorer/recipe.py \
              .claude/skills/adversarial-benchmark/scripts/verdict_rule.py .claude/skills/wiki-desk/reference/references.md .claude/a2a_delegation.json \
-             scripts/mem_watchdog.sh scripts/install_host_safety.sh; do
+             .claude/runtime/host_safety/mem_watchdog.sh \
+             .claude/runtime/host_safety/install_host_safety.sh \
+             .claude/runtime/host_safety/host/vllm-drop-caches.sh \
+             .claude/runtime/host_safety/systemd/easy-vllm-memwatch.service; do
         [ -f "$st/$f" ] || continue
         L=$(md5sum "$st/$f" | awk '{print $1}'); R=$($SSH_OPTS "$SUB_HOST" "md5sum '$SUB_WORK_DIR/$f' 2>/dev/null" | awk '{print $1}')
         [ -n "$L" ] && [ "$L" = "$R" ] && echo "  ✅ $f" || { echo "  ❌ $f: main=$L sub=$R"; fail=1; }
+    done
+    return $fail
+}
+
+verify_destination_host_safety_modes() {
+    local fail=0 f expected mode
+    for f in \
+        .claude/runtime/host_safety/mem_watchdog.sh \
+        .claude/runtime/host_safety/install_host_safety.sh \
+        .claude/runtime/host_safety/host/vllm-drop-caches.sh \
+        .claude/runtime/host_safety/systemd/easy-vllm-memwatch.service; do
+        case "$f" in *.service) expected=644;; *) expected=755;; esac
+        mode="$($SSH_OPTS "$SUB_HOST" "stat -c '%a' '$SUB_WORK_DIR/$f' 2>/dev/null" || true)"
+        if [ "$mode" != "$expected" ]; then
+            echo "  ❌ destination host-safety mode $f=${mode:-missing}, expected=$expected" >&2
+            fail=1
+        else
+            echo "  ✅ destination host-safety mode $f=$expected"
+        fi
     done
     return $fail
 }
@@ -490,7 +797,9 @@ if ! $SSH_OPTS "$SUB_HOST" 'echo ok' >/dev/null 2>&1; then
     echo "[sync] FAIL: $SUB_HOST 에 SSH 불가 (키 인증·네트워크 확인)"; exit 3
 fi
 HAS_GIT=0; sub_has_git && HAS_GIT=1
+[ "$HAS_GIT" = "0" ] || REMOTE_ORIGINAL_BRANCH="$(sub_branch_current)"
 SINGLE_ACTIVE=0; _single_extension_active && SINGLE_ACTIVE=1
+prepare_transactional_source
 
 # ═══════════════════════ DRY-RUN(계획 미리보기) ═══════════════════════
 if [ "$MODE" = "dryrun" ]; then
@@ -550,14 +859,19 @@ if ! $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
         echo "       ❓ 신설하려면: bash sync_to_sub.sh --apply --provision (HITL — 자동 경로 신설 금지)" >&2
         exit 5
     fi
-    sub_run_mk() { $SSH_OPTS "$SUB_HOST" "mkdir -p '$SUB_WORK_DIR'"; }
+    begin_remote_transaction multi 1 || { echo "[sync] FAIL: provision 전 rollback transaction 생성 실패"; exit 9; }
+    BOOTSTRAP_TX_PREPARED=1
+    sub_run_mk() { $SSH_OPTS "$SUB_HOST" "mkdir -- '$SUB_WORK_DIR' && : >'${REMOTE_TX_DIRS[0]}/provisioned'"; }
     echo "[sync] PROVISION(승인됨): mkdir -p $SUB_HOST:$SUB_WORK_DIR"; sub_run_mk || { echo "[sync] FAIL: work_dir 신설 실패"; exit 5; }
+    PROVISIONED_BY_SYNC=1
 fi
 
 # ── B0 멱등 self-bootstrap (서브 .git 부재 시) ──
 if [ $HAS_GIT = 0 ]; then
     echo "[sync] B0 BOOTSTRAP — 서브 git init + multi·single 브랜치 (로컬 전용·origin 없음)"
     st="$(staging_dir multi)"
+    [ "$BOOTSTRAP_TX_PREPARED" = "1" ] || begin_remote_transaction multi 1 \
+        || { echo "[sync] FAIL: bootstrap rollback transaction 생성 실패"; exit 9; }
     # Complete multi source preflight already passed before optional provision and this branch.
     # base = .gitignore 만(서브 로컬 추적규칙). 이후 multi 에만 전체 배달 → single 은 base(dormant) 로 격리.
     rsync -az -e "$SSH_OPTS" "$st/.gitignore" "$SUB_HOST:$DEST.gitignore"
@@ -572,6 +886,9 @@ if [ $HAS_GIT = 0 ]; then
     deliver_overlay multi 0
     echo "[sync] 체크섬 검증(multi)..."; verify_checksums multi || { echo "[sync] FAIL: bootstrap 체크섬 불일치 — commit 전 중단"; exit 2; }
     verify_destination_runner_modes multi || { echo "[sync] FAIL: bootstrap runner destination integrity 불일치 — commit 전 중단"; exit 2; }
+    verify_destination_host_safety_modes || { echo "[sync] FAIL: bootstrap host-safety mode 불일치 — tombstone 전 중단"; exit 2; }
+    verify_destination_retirement_consumers || { echo "[sync] FAIL: bootstrap retirement consumer 존재 — tombstone 전 중단"; exit 2; }
+    apply_overlay_tombstones
     sub_run "git add -A"
     sub_commit "[sync] multi initial delivery — D12 bootstrap"
     # origin 부재 불변식 확증
@@ -581,7 +898,7 @@ if [ $HAS_GIT = 0 ]; then
     # bootstrap 이 multi 를 이미 채움 → TARGETS 에서 multi 제거. 남은 타겟(single, --branch both/single)이 있으면 B1 로 진행.
     NEWT=(); for x in "${TARGETS[@]}"; do [ "$x" = "multi" ] || NEWT+=("$x"); done
     TARGETS=("${NEWT[@]:-}"); [ -z "${TARGETS[*]:-}" ] && TARGETS=()
-    [ ${#TARGETS[@]} -eq 0 ] && { echo "[sync] 완료."; exit 0; }
+    [ ${#TARGETS[@]} -eq 0 ] && { finalize_remote_transactions; echo "[sync] 완료."; exit 0; }
     echo "[sync] bootstrap 후 잔여 타겟 B1 진행: ${TARGETS[*]}"
 fi
 
@@ -601,7 +918,8 @@ for t in "${TARGETS[@]}"; do
         echo "  (정본: 메인은 너 대신 stash 하지 않는다 — workflow.md §양방향 브랜치싱크 B1-1.)" >&2
         exit 8
     fi
-    # (2) checkout — complete source preflight ran globally before this mutation.
+    # (2) transaction before checkout — complete source preflight ran globally before mutation.
+    begin_remote_transaction "$t" 0 || { echo "[sync] FAIL: $t rollback transaction 생성 실패"; exit 9; }
     sub_run "git checkout -q $t" || { echo "[sync] FAIL: 서브 checkout $t 실패"; exit 8; }
     # (3) rsync(빌드 + 오버레이) — render/band/runner/delegation/runtime-patch
     # source checks all passed before checkout; deliver_build repeats patch validation.
@@ -609,6 +927,9 @@ for t in "${TARGETS[@]}"; do
     deliver_overlay "$t" 0
     echo "[sync] 체크섬 검증($t)..."; verify_checksums "$t" || { echo "[sync] FAIL: 체크섬 불일치($t)"; exit 2; }
     verify_destination_runner_modes "$t" || { echo "[sync] FAIL: runner destination mode 불일치($t)"; exit 2; }
+    verify_destination_host_safety_modes || { echo "[sync] FAIL: host-safety mode 불일치($t) — tombstone 전 중단"; exit 2; }
+    verify_destination_retirement_consumers || { echo "[sync] FAIL: retirement consumer 존재($t) — tombstone 전 중단"; exit 2; }
+    apply_overlay_tombstones
     # (5) [sync] 스크립트저작 커밋 (변경분만)
     sub_run "git add -A"
     if sub_run "git diff --cached --quiet"; then
@@ -619,5 +940,7 @@ for t in "${TARGETS[@]}"; do
     fi
 done
 # 서브를 기본 운용 브랜치(multi)로 복귀 — 멀티노드 서브의 active role(single 은 dormant/확장).
-sub_run "git checkout -q multi" >/dev/null 2>&1 || true
+sub_run "git checkout -q multi" >/dev/null 2>&1 \
+    || { echo "[sync] FAIL: 최종 multi branch 복귀 실패" >&2; exit 8; }
+finalize_remote_transactions
 echo "[sync] 완료. (현재 서브 브랜치: $(sub_branch_current))"

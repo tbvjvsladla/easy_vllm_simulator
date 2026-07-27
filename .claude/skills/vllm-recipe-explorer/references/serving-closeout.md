@@ -73,5 +73,5 @@ Phase 2 수렴(`none`) + 최종 serve-up 성공 후, **최종 서빙유지 판�
   - **무답/"아몰랑"**: 외부검색 생략 — **OpenAI-호환 엔드포인트 curl 예시만**.
 - **⑤ hint 태그 발동 신호 (신규모델 closer · 전작업 완료 후 · main-only)**: ①~④ 마무리가 끝나고 workflow S4(커밋·문서·전파)까지
   종결된 **최후**에, 이 서빙이 **새 `(vllm×model×arch)` 조합**이면 hint 태그 발행을 **제안(Y/N)** 한다. **recipe 는 트리거·신호만** —
-  엔진(`scripts/hint_tag.py`)·발행 소유·push 는 workflow S4/헌법 §hint 배포 레이어 따름정리(무인 자동 태깅 ✗ · 모든 push=사용자 소관).
+  엔진(`.claude/skills/upstream-version-watch/scripts/hint_tag.py`)·발행 소유·push 는 workflow S4/헌법 §hint 배포 레이어 따름정리(무인 자동 태깅 ✗ · 모든 push=사용자 소관).
   egress-restricted 서브 = 발행 ✗(main-only) · 증상만 상향.

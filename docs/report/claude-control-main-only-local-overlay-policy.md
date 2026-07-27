@@ -12,7 +12,7 @@
 1. `claude-code-control` 스킬 본체는 Hermes의 로컬 스킬 디렉터리에만 설치한다.
 2. 프로젝트에 설치되는 Agent Card, control contract, 실행 상태와 스키마도 Git 비추적 로컬 파일로 유지한다.
 3. 이 로컬 오버레이는 브랜치에 속하지 않으므로 `single-node`와 `multi-node` 전환 시 같은 working tree에서 자연스럽게 지속된다.
-4. 통합 아티팩트를 `scripts/sync_branches.sh`의 동기화 대상에 추가하지 않는다.
+4. 통합 아티팩트를 `.claude/skills/upstream-version-watch/scripts/sync_branches.sh`의 동기화 대상에 추가하지 않는다.
 5. `render_sub_env.py`와 `sync_to_sub.sh`의 서브노드 전파 경로에도 통합 아티팩트를 추가하지 않는다.
 6. Git push 결과와 서브노드 staging 결과를 각각 독립 검증한다. **Git 비추적만으로 rsync 전파까지 자동 차단된다고 간주하지 않는다.**
 
@@ -64,7 +64,7 @@ Maintainer-local overlay (branch 밖)
 
 ### 3.1 브랜치 경계
 
-`scripts/sync_branches.sh`는 source branch의 **Git 추적 allowlist**를 destination branch로 복사한다. 대표 대상은 다음과 같다.
+`.claude/skills/upstream-version-watch/scripts/sync_branches.sh`는 source branch의 **Git 추적 allowlist**를 destination branch로 복사한다. 대표 대상은 다음과 같다.
 
 - `CLAUDE.md`
 - `.claude/rules`
@@ -223,8 +223,8 @@ $HERMES_HOME/skills/.../claude-code-control/     # 개인 Hermes 설치, 프로�
 `docs/report/`는 추적 예외이므로 이 정책 문서는 기존 브랜치 동기화 도구를 사용한다. 정본이 `single-node`, 대상이 `multi-node`라면 대상 브랜치를 checkout한 상태에서 명시적으로 다음 변수를 사용한다.
 
 ```bash
-SRC_BRANCH=single-node DST_BRANCH=multi-node bash scripts/sync_branches.sh
-SRC_BRANCH=single-node DST_BRANCH=multi-node bash scripts/sync_branches.sh --apply
+SRC_BRANCH=single-node DST_BRANCH=multi-node bash .claude/skills/upstream-version-watch/scripts/sync_branches.sh
+SRC_BRANCH=single-node DST_BRANCH=multi-node bash .claude/skills/upstream-version-watch/scripts/sync_branches.sh --apply
 ```
 
 첫 명령은 dry-run이고 두 번째 명령은 working tree를 갱신한다. 커밋과 push는 사람이 diff를 검토한 뒤 수행한다.

@@ -31,10 +31,11 @@ description: >-
 - **Inputs** — `config.yaml`(모델 경로·예산·margin·serving 이름) · 모델 `config.json`+safetensors(NAS) · `output/<topology>/manifest.yaml`(TP·NAS·host_safety) · Phase 2 는 `lockset.json`.
 - **Outputs** — `output/<t>/configs/<name>.{yaml,sh}` + `envs/.env.<name>` · `feedback/.last_ranking.json` · Phase 2 는 `docs/simlog/<run_id>/` 원시증거 + 수렴 레시피 · 라이브 serve.
 - **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 9단계(순서 고정).
-- **State transitions** — serve `/health` 200 + 기능 스모크 통과로 `runtime-ready` 를 만든다. `evidence-complete`/`promotion-ready` 는 `scripts/completion_gate.py` 소유(이 문서가 자체 판정 ✗).
+- **State transitions** — serve `/health` 200 + 기능 스모크 통과로 `runtime-ready` 를 만든다. `evidence-complete`/`promotion-ready` 는 `.claude/policies/runtime/completion_gate.py` 소유(이 문서가 자체 판정 ✗).
 - **HITL/safety boundaries** — 모델 자동 다운로드 ✗ · 전부-FAIL 인피저블 단정 전 측정·외부검증 2단계 의무 · cap 소진/`vram_infeasible`/`unknown` 은 즉시 Model-C · per-trial teardown 필수.
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
 - **Deterministic commands** — `recipe.py {estimate,generate,simulate}` · `scripts/parse_model_config.py` · `crosscheck_model_card.py` · `estimate_vram.py` · `rank_recipes.py` · `gen_recipe_set.py` · `run_trial.py` · `sim_classify.py` · `parse_vllm_log.py` · `functional_smoke.py` · `preload_ram_gate.py` · `simlog_writer.py`.
+- **Dormant optional diagnostic** — `.claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh`는 명시적으로 사람이 호출할 때만 쓰는 휴면 진단도구다. 현재 `recipe.py simulate`·`run_trial.py`·serve smoke에 자동 배선되지 않았으며, 배선된 안전장치나 completion 근거로 간주하지 않는다.
 - **Handoff contract** — 입력 ← `terraforming_node`(Flag·TP·NAS) · 빌드 필요/버전 불가 → `upstream-version-watch`(§4.7 native dep · §3.6 escalation) · 서빙 성공 → `adversarial-benchmark` lite(자동) / full(HITL).
 - **Owns (state)** — `serving-triplet` · `kv-clamp` · `lockset.json` · `serve-lifecycle`
 

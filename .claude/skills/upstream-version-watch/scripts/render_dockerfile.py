@@ -567,6 +567,11 @@ def render_shared(kind: str, topology: str, manifest: dict,
 
 
 # ── self-test (A7 게이트가 호출) ──────────────────────────────────────────────
+def _require(condition, message):
+    if not condition:
+        raise AssertionError(message)
+
+
 def _self_test() -> None:
     tpl = ("FROM nvcr.io/nvidia/pytorch:{{ NGC_TAG }}\n"
            "{{ SOURCE_BUILD_PATCH_GUARD }}\n"
@@ -579,26 +584,26 @@ def _self_test() -> None:
              "build_track": {"decision": "source-build"},
              "source_build": {"torch_cuda_arch": "12.1a"}}
     out_a = _substitute(tpl, build_context(man, res_a))
-    assert "{{" not in out_a, "leftover placeholder"
-    assert "26.03-py3" in out_a, "ngc tag (a)"
-    assert "0.22.1-cu132-aarch64-source" in out_a, f"image tag (a): {out_a!r}"
-    assert "validated patch set" in out_a, "guard(validated) for (26.03, 0.22.1)"
+    _require("{{" not in out_a, "leftover placeholder")
+    _require("26.03-py3" in out_a, "ngc tag (a)")
+    _require("0.22.1-cu132-aarch64-source" in out_a, f"image tag (a): {out_a!r}")
+    _require("validated patch set" in out_a, "guard(validated) for (26.03, 0.22.1)")
     # success 픽스처 ②: E2E 검증 (NGC 26.05, vLLM 0.23.0) — pyproject torch핀은 2.11.0이나 실-링크 torch는 2.12
     res_b = {"vllm_version": "0.23.0", "torch": {"pin": "2.11.0"},
              "ngc_base": {"tag": "26.05-py3", "cuda_version": "13.2.0.046"},
              "build_track": {"decision": "source-build"},
              "source_build": {"torch_cuda_arch": "12.1a"}}
     out_b = _substitute(tpl, build_context(man, res_b))
-    assert "26.05-py3" in out_b, "ngc tag (b)"
-    assert "0.23.0-cu132-aarch64-source" in out_b, f"image tag (b): {out_b!r}"
-    assert "validated patch set" in out_b, "guard(validated) for (26.05, 0.23.0)"
+    _require("26.05-py3" in out_b, "ngc tag (b)")
+    _require("0.23.0-cu132-aarch64-source" in out_b, f"image tag (b): {out_b!r}")
+    _require("validated patch set" in out_b, "guard(validated) for (26.05, 0.23.0)")
     # fail-loud 픽스처: (NGC 26.03, vLLM 0.23.0) = testlog 가 FAIL 로 증명 → 가드가 빌드 실패시켜야 함
     res_bad = {"vllm_version": "0.23.0", "torch": {"pin": "2.11.0"},
                "ngc_base": {"tag": "26.03-py3", "cuda_version": "13.2.0.046"},
                "build_track": {"decision": "source-build"},
                "source_build": {"torch_cuda_arch": "12.1a"}}
     out_bad = _substitute(tpl, build_context(man, res_bad))
-    assert "exit 1" in out_bad, "guard(fail-loud) for (26.03, 0.23.0)"
+    _require("exit 1" in out_bad, "guard(fail-loud) for (26.03, 0.23.0)")
     print("[render] self-test OK — source-build 렌더 + (NGC베이스×vLLM버전) 키 가드(검증x2/fail-loud) 정상")
 
     # ── NCCL envfile 회귀(Plan 2 S2): golden 대비 KEY=VALUE 집합 동치 + fail-loud ──
@@ -615,7 +620,7 @@ def _self_test() -> None:
         only_r = {k: rendered[k] for k in rendered if golden.get(k) != rendered[k]}
         only_g = {k: golden[k] for k in golden if rendered.get(k) != golden[k]}
         raise AssertionError(f"NCCL 렌더 != golden(집합 동치 위반)\n  rendered-side={only_r}\n  golden-side={only_g}")
-    assert len(rendered) == 17, f"NCCL 17키 기대, got {len(rendered)}"
+    _require(len(rendered) == 17, f"NCCL 17키 기대, got {len(rendered)}")
     # fail-loud ①: 미지 platform_preset → KeyError
     try:
         build_nccl_env({"interconnect": {**man_ic["interconnect"], "platform_preset": "no-such-preset"}})
@@ -643,7 +648,7 @@ def _self_test() -> None:
         only_r = {k: crendered[k] for k in crendered if cgolden.get(k) != crendered[k]}
         only_g = {k: cgolden[k] for k in cgolden if crendered.get(k) != cgolden[k]}
         raise AssertionError(f"cluster 렌더 != golden(집합 동치 위반)\n  rendered-side={only_r}\n  golden-side={only_g}")
-    assert len(crendered) == 9, f"cluster 9키 기대, got {len(crendered)}"   # 8→9: MAX_JOBS Band2 재귀속(plan_26062811_30_33)
+    _require(len(crendered) == 9, f"cluster 9키 기대, got {len(crendered)}")   # 8→9: MAX_JOBS Band2 재귀속(plan_26062811_30_33)
     try:                                   # fail-loud ①: 미지 platform_preset → KeyError
         build_cluster_env({**man_nodes, "interconnect": {"platform_preset": "no-such"}})
         raise AssertionError("미지 platform_preset 인데 통과(fail-loud 위반)")
@@ -662,11 +667,11 @@ def _self_test() -> None:
     with tempfile.TemporaryDirectory() as td:
         os.makedirs(os.path.join(td, "output", "multi"))
         copied = materialize_configs(td, "multi")
-        assert len(copied) == len(RUNNER_SCRIPTS), "materialize 복사 수"
+        _require(len(copied) == len(RUNNER_SCRIPTS), "materialize 복사 수")
         for name in RUNNER_SCRIPTS:
             dst = os.path.join(td, "output", "multi", "configs", name)
-            assert os.path.isfile(dst), f"materialize 대상 부재: {name}"
-            assert stat.S_IMODE(os.stat(dst).st_mode) == 0o755, f"exact 0755 미보존: {name}"
+            _require(os.path.isfile(dst), f"materialize 대상 부재: {name}")
+            _require(stat.S_IMODE(os.stat(dst).st_mode) == 0o755, f"exact 0755 미보존: {name}")
         materialize_configs(td, "multi")
         global SHARED_ASSET_DIR
         original_assets = SHARED_ASSET_DIR

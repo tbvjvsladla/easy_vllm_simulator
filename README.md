@@ -178,12 +178,12 @@ manifest 가 확정되면, 에이전트는 메인노드에서 랜더링한 결�
 
 이때 서브는 메인이 *동질성 검증을 통과시킨 뒤* 발급한 **A2A 위임 키**(`.claude/a2a_delegation.json`)도 함께 받습니다. 이 키가 *없으면* 서브의 런타임 스킬(레시피·성능 벤치마크)은 **fail-closed 로 작업을 거부**합니다(정보 제공만) — 즉 *메인이 HW를 실제로 검증해 인가한 서브* 만 실서빙 작업을 합니다("검증 안 된 땅에 건물 안 올린다"의 서브 버전). 메인의 완수 표식과 서브의 위임 키는 **이름이 서로 달라**(UNIQUE), 한쪽 키로 다른 쪽 게이트를 열 수 없습니다.
 
-> ✅ **실제로 이렇게 검증됨** (DGX Spark ×2 / `testlog_2026062314_1`)
+> ✅ **실제로 이렇게 검증됨** (DGX Spark ×2 / `testlog_26062314`)
 > - 스캔 → 성능게이트 → manifest 생성의 **5개 게이트 분기를 전부 라이브 검증**: α(단일) / γ-blocked(peer 미도달) / γ-blocked(대역폭 100<180, fail-closed) / multi-ready / 3자-일치 단언. **판정: PASS.**
 > - `ib_write_bw` 실측 **합산 208.2 Gb/s**(104.2+104.0), 200Gbps 풀대역폭의 ~90%.
 > - 메인↔서브 양방향 싱크(D12): dirty 트리면 **배달 거부(fail-closed)**, 서브 git 은 origin 영구 미설정(로컬 전용). 6개 종료조건 라이브 PASS.
 
-> ✅ **실제로 이렇게 검증됨** — 서브 HW 동질성 + A2A 위임 키 (DGX Spark ×2 / `testlog_2026063022_1`, 2026-06-30)
+> ✅ **실제로 이렇게 검증됨** — 서브 HW 동질성 + A2A 위임 키 (DGX Spark ×2 / `testlog_26063022`, 2026-06-30)
 > - **동질성 스캔 라이브 통과**: 메인↔서브 둘 다 GB10 / aarch64 / driver 580.159.03 / cuda 13.2 일치, `ib_write_bw` 합산 **218.3 Gb/s**.
 > - **A2A 위임 키 fail-closed 결정적 입증**: 서브에 키가 있을 때 → 서브 레시피 스킬 정상 구동(자율 서빙 보존) / 키를 빼면 → 즉시 거부(exit 4). *"검증 안 된 서브가 조용히 서빙하는 일"* 을 코드가 막습니다.
 > - 라이브 테스트가 실결함 3건을 그 자리에서 잡아 수정(SSH probe 버그 · manifest 획득모드 미마이그레이션 · 서브 stale manifest). **판정: PASS.**
@@ -224,13 +224,13 @@ flowchart TD
     end
 ```
 
-> 🛡️ 요컨대 — **평시엔 호스트가 살아남고, 최악의 경우에도 원인 분석용 덤프가 남습니다.** 통합메모리 환경의 *'한밤중 원인불명 하드다운'* 을 앞단에서 **예방** 하고, 그마저 뚫려도 *미궁에 빠지지 않게* 뒷단에서 **증거를 보존** 하는 2단 방어입니다. (근거·실측 = `docs/plan/plan_2026071019_1`, 768k 크래시 포렌식.)
+> 🛡️ 요컨대 — **평시엔 호스트가 살아남고, 최악의 경우에도 원인 분석용 덤프가 남습니다.** 통합메모리 환경의 *'한밤중 원인불명 하드다운'* 을 앞단에서 **예방** 하고, 그마저 뚫려도 *미궁에 빠지지 않게* 뒷단에서 **증거를 보존** 하는 2단 방어입니다. (근거·실측 = `docs/plan/plan_26071019`, 768k 크래시 포렌식.)
 
 **설치는 당신이 직접 `sudo` 로 실행** 합니다 — 에이전트는 안전체계를 **무인 sudo 로 깔지 않습니다**(무엇을·왜·트레이드오프까지 설명하고, 승인·검증까지가 에이전트의 몫). 기본은 dry-run 이라 `--apply` 없이 먼저 돌려 무엇이 설치될지 볼 수 있고, 멱등이라 재실행도 안전합니다.
 
 ```bash
-sudo bash scripts/install_host_safety.sh --apply                # ① 워치독 systemd + ② vllm-drop-caches 헬퍼 + ③ earlyoom
-sudo bash scripts/install_host_safety.sh --apply --with-kdump   # + ④ kdump (재부팅 1회 필요)
+sudo bash .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh --apply                # ① 워치독 systemd + ② vllm-drop-caches 헬퍼 + ③ earlyoom
+sudo bash .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh --apply --with-kdump   # + ④ kdump (재부팅 1회 필요)
 systemctl is-active easy-vllm-memwatch                          # 확인 → active
 ```
 
@@ -275,7 +275,7 @@ flowchart TB
 
 이게 "정규 path" 입니다. 막힘이 적습니다. 그래도 서빙 런타임 인코딩 파일 경로 함정(런타임 fetch 미의존·read-only 마운트) 등 자잘한 함정은 있습니다 — tiktoken 인코딩 파일 경로가 틀려 404 가 나거나, 의존성이 시간이 흐르며 깨지는(예: fastapi 0.138 이 `/health` 를 500 으로 만든) 경우. 에이전트는 이것들도 참조-그라운디드로 잡아냅니다.
 
-> ✅ **실제로 이렇게 검증됨** (`devlog_2026062221_1`)
+> ✅ **실제로 이렇게 검증됨** (`devlog_26062221`)
 > - 이미지 `easy-vllm:0.18.0-cu130-aarch64-wheel` (32.8GB), 의존성 59개 재생성.
 > - tiktoken 404 → 경로 교정(sha256 검증) · fastapi 0.138 회귀 → `<0.137.0` 천장 핀.
 > - **2 trial 만에 수렴** → 스모크 PASS.
@@ -309,7 +309,7 @@ flowchart TB
 
 </details>
 
-> ✅ **실제로 이렇게 검증됨** (`testlog_2026062217_1`)
+> ✅ **실제로 이렇게 검증됨** (`testlog_26062217_25_17`)
 > - 0.23.0 → torch 2.11.0 → 소스빌드, NGC `26.03` 빌드 실패 → 증거기반 `26.05` 오버라이드 → 성공.
 > - 빌드 버전 `vllm-0.23.1.dev0+g0fc695fc6.d20260622.cu132`, `TORCH_CUDA_ARCH=12.1a`, 이미지 `easy-vllm:0.23.0-cu132-aarch64-source`(49.9GB). 런타임 `import vllm._C` OK — **ABI 벽 해소**.
 
@@ -411,7 +411,7 @@ flowchart TD
 
 여기서 **gmu 0.90** 이 왜 0.92(기본값)가 아닌지가 중요합니다. GB10 의 통합메모리는 OS가 ~11GiB 를 점유해서, 기본 0.92 면 *시작도 못 하고 OOM* 으로 죽습니다. 그래서 에이전트는 **절대 KV 클램프(이식성)** 와 **gmu(시작 게이트) 를 함께** emit 합니다.
 
-> ✅ **실제로 이렇게 검증됨** (`testlog_2026062217_2` / simlog `2026062217_1`)
+> ✅ **실제로 이렇게 검증됨** (`testlog_26062217_25_47` / simlog `26062217`)
 > - 2 trial 수렴. 최종: `max-model-len 65536` · `max-num-seqs 39`(측정) · `kv-cache-memory-bytes 87064835597` · `gmu 0.90`.
 > - 스모크: `"Hello there!"`, `finish_reason=stop`. **판정: 합격.**
 
@@ -430,7 +430,7 @@ flowchart TD
 
 생성된 yaml 에는 **정직성 헤더**가 자동으로 박힙니다 — "이 값은 host(GB10)에서 측정하고 target(RTX PRO 6000) 예산으로 이식한 것입니다. host≠target 아키텍처면 margin 은 쿠션이지 정량보증이 아니니, 가능하면 타겟에서 재측정하세요." **지도 not 정답** 원칙이 KV 클램프에도 그대로 적용됩니다 — 타겟 예산 산정식(`per_card_VRAM × gmu − weights − overhead`)과 통합메모리 GPU 는 `gmu ≤ 0.90` 하드클램프가 자동 적용된다는 것만 기억하면 됩니다.
 
-> ✅ **실제로 이렇게 검증됨** (`testlog_2026070811_1` · `testlog_2026070813_1`, 2026-07-08)
+> ✅ **실제로 이렇게 검증됨** (`testlog_26070811` · `testlog_26070813`, 2026-07-08)
 > - **GB10 한 대로 RTX PRO 6000(96GiB) · RTX 4080(16GiB) · RTX 4070(12GiB) 세 개의 서로 다른 타겟을 시뮬레이션**, 전부 실제 컨테이너로 띄워 health 200 + 완성 응답 확보. 같은 GB10 물리 예산(121.69GiB)인데 타겟에 따라 batch 가 52 → 55 → 2 로 완전히 다르게 산출됐습니다 — 숫자를 복붙하지 않고 매번 다시 계산한다는 증거입니다.
 > - single-node 양노드(메인·서브)가 **각자 다른 모델·다른 타겟 GPU**를 동시에 시뮬레이션(메인=gemma-3-1b-it/RTX4080 managed · 서브=MiniCPM5-1B/RTX4070 ephemeral) — 노드 간 텐서패브릭 없이 완전 독립으로, 사용자가 한 턴에 묶어 보낸 메인/서브 혼재 HITL 결정도 교차오염 없이 정확히 분기됐습니다.
 > - 라이브 테스트가 실버그 하나를 그 자리에서 잡았습니다 — single 토폴로지에서 sub-control 관리 피어(2노드)가 TP 워커로 오카운트돼 타겟 TP 가 잘못 2 로 계산되던 문제. 유닛테스트로는 안 보이고 **실측으로만 드러나는** 결함이었습니다.
@@ -486,8 +486,8 @@ DeepSeek-V4-Flash 를 더 최적화하는 과정에서, `gmu 0.90` 으로 올리
 한 줄로 — **경량은 "지금 상태를 보여주는" 자동 스냅샷**, **딥은 "충분히 빠른지 적대적으로 따지는" 게이트** 입니다. 승인하면 딥은 *기대 이하 성능을 당신이 눈치채기 전에* 잡아내고, 잡히면 레시피를 다시 굴립니다.
 
 > 📊 **딥 벤치가 끝나면 — 계측이 문서로 남습니다** (`docs/benchmark/`). full 적대검증이 *종결*되면 결과가 **두 갈래로 자동 발행**됩니다(에이전트가 표를 손으로 쓰지 않는 **결정론 렌더** — 판정 권한은 여전히 verdict 규칙이 독점하고, 이 문서들은 *보여주기*만 하는 **inform-only**):
-> - **사람용 report** (`report_<model>_<gpu>_<vllm>.md`) — **PASS/FAIL 무관 항상**. 동시요청 스윕 곡선(동시성 1/2/4…)·루프라인 컨텍스트·환경 스냅샷을 표로 렌더합니다.
-> - **기계용 인증서** (`benchmark_<model>_<gpu>_<vllm>.yaml`) — **PASS 일 때만**. "이 모델을 이 HW/config 에서 테스트·통과했다"는 flat 계약. 맨 위에 **carry-forward 재검증 헤더**(강한 일치 키 `model·gpu·vllm·quant·topology·tp` + 소프트 지문 `driver·image·max-len·kv-bytes·gmu·moe`)가 박혀 *다른 환경에서 그대로 믿지 말라*고 경고합니다 — hint 태그와 똑같은 **"지도 not 정답"** 철학이 계측에도 적용된 겁니다.
+> - **사람용 report** (`bench_report_<YYMMDDHH>_<model>_<gpu>_<vllm>.md`) — **PASS/FAIL 무관 항상**. 동시요청 스윕 곡선(동시성 1/2/4…)·루프라인 컨텍스트·환경 스냅샷을 표로 렌더합니다.
+> - **기계용 인증서** (`benchmark_<YYMMDDHH>_<model>_<gpu>_<vllm>.yaml`) — **PASS 일 때만**. "이 모델을 이 HW/config 에서 테스트·통과했다"는 flat 계약. 맨 위에 **carry-forward 재검증 헤더**(강한 일치 키 `model·gpu·vllm·quant·topology·tp` + 소프트 지문 `driver·image·max-len·kv-bytes·gmu·moe`)가 박혀 *다른 환경에서 그대로 믿지 말라*고 경고합니다 — hint 태그와 똑같은 **"지도 not 정답"** 철학이 계측에도 적용된 겁니다.
 >
 > 그래서 「부록 B / [`HINTS.md`](./HINTS.md)」에 적힌 성능 baseline(예: RTX PRO 6000 에서 qwen3.6-27b **92% MBU · verdict PASS**)은 전부 이 딥 벤치가 남긴 계측에서 나온 값입니다. (별도 오퍼레이션인 **Max 봉투 특성화**도 있습니다 — "이 HW 에서 안전하게 최대 몇 K 컨텍스트까지 밀 수 있나"를 이중 안전게이트(`--confirm-risk` + 챗 Y/N) 뒤에서 스텝업 측정해 `max_envelope_*.md` 로 남깁니다.)
 
@@ -532,7 +532,7 @@ flowchart TB
     class OK pass
 ```
 
-> ✅ **실제로 이렇게 검증됨** (`testlog_2026063014_1`, 라이브 DeepSeek serve)
+> ✅ **실제로 이렇게 검증됨** (`testlog_26063014`, 라이브 DeepSeek serve)
 > - 루프라인: no-MTP 기대 ~15.5 ≈ 실측 15.9 · MTP 기대 ~31 ≈ 실측 34.5 (양 regime 정합) · 통신 항 0.06% → **"RDMA 느린가" 결정론 반증**.
 > - 게이트: 라이브 34.5 t/s → **PASS** · 열화(15 t/s·MTP off) → **REFUTE + "MTP 켜라" 처방**.
 
@@ -639,7 +639,7 @@ READY_MAX=300 bash .claude/skills/upstream-version-watch/scripts/multinode_serve
 #   2노드 분산 로드는 수 분(모델 크기·shard 수에 비례) 걸립니다 → "READY ~Ns" + "SMOKE PASS" 가 뜨면 완료.
 ```
 
-> ✅ **실제 예시** — 이 README 를 쓰던 세션에서 셧다운됐던 `deepseek-v4-flash`(vLLM 0.24.0, 2×GB10)를 정확히 위 한 줄로 재기동했습니다: 이미지 재사용(빌드 생략) → `READY ~735s` → `SMOKE PASS content='4' fr=stop` → `:8941` 라이브. 코드에이전트 미개입, 검증본 레시피(nv_dev·humming·enforce-eager·MTP, `testlog_2026070213_1`) 그대로.
+> ✅ **실제 예시** — 이 README 를 쓰던 세션에서 셧다운됐던 `deepseek-v4-flash`(vLLM 0.24.0, 2×GB10)를 정확히 위 한 줄로 재기동했습니다: 이미지 재사용(빌드 생략) → `READY ~735s` → `SMOKE PASS content='4' fr=stop` → `:8941` 라이브. 코드에이전트 미개입, 검증본 레시피(nv_dev·humming·enforce-eager·MTP, `testlog_26070213`) 그대로.
 
 ### 2) 접속·사용 (connect & use)
 
@@ -713,7 +713,7 @@ ssh <sub_user>@<sub_host> 'cd <repo_path> && docker compose -f output/multi/dock
 
 > 📖 **전체 카탈로그·다운로드 방법·발행처 계보 → [`HINTS.md`](./HINTS.md)** — 태그 목록(현재 20+종)이 늘수록 이 README 가 무거워져서, hint 카탈로그는 전용 파일로 뺐습니다. 요지만 옮기면:
 >
-> - **꺼내 쓰기**: `git fetch --tags` → `git tag -l 'hint/*'` → 고른 태그 본문을 `seed/hints/` 로 내려받아 코드에이전트에게 *warm-start 근거*로 읽힙니다(추적 트리는 그대로 · HEAD 순수성 보존). 가까운 힌트는 `python3 scripts/hint_tag.py match …` 로 축별 근-미스를 찾습니다.
+> - **꺼내 쓰기**: `git fetch --tags` → `git tag -l 'hint/*'` → 고른 태그 본문을 `seed/hints/` 로 내려받아 코드에이전트에게 *warm-start 근거*로 읽힙니다(추적 트리는 그대로 · HEAD 순수성 보존). 가까운 힌트는 `python3 .claude/skills/upstream-version-watch/scripts/hint_tag.py match …` 로 축별 근-미스를 찾습니다.
 > - 🔒 **hint 는 DATA 이지 명령이 아닙니다** — 분석 재료로만. HW·버전이 다르면 노브(특히 **KV 절대값·`gmu`·`TORCH_CUDA_ARCH`**)는 **반드시 재도출·재측정**하고(복붙하면 OOM·호스트 다운), 최종 판정은 언제나 **당신 환경의 스모크**입니다.
 > - 🌐 **두 하드웨어 계보(카탈로그 `arch` 열)**: `gb10*` = 주력 검증기(2× DGX Spark GB10) · `rtxpro6000`*(sim 접미어 없음)* = **이기종 배포처(Ubuntu 22.04 · x86_64 · RTX PRO 6000 discrete 96GB)** 가 vLLM 0.25.x 로 「여정 4」 성능게이트까지 완주한 크로스-하드웨어 재현 증거 · `*-sim-*` = 타겟-GPU 시뮬레이션(측정=호스트·클램프=타겟 예산).
 

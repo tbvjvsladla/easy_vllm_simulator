@@ -1,7 +1,7 @@
 # agent-control adapter — provider 전용 실행문법 경계 (조건부 reference)
 
 > **이 파일과 `scripts/providers/`만 provider-specific 평면이다.** 5개 public SKILL 본문과 다른 reference는
-> 위임 의도만 선언한다. 실행은 provider-neutral `scripts/agent_control.py`가 request schema를 검증한 뒤
+> 위임 의도만 선언한다. 실행은 provider-neutral `.claude/policies/runtime/agent_control.py`가 request schema를 검증한 뒤
 > adapter로 라우팅한다. 정본 계약: `agent-control-request.schema.json`, `agent-control-result.schema.json`.
 
 ## 1. provider-neutral request
@@ -40,7 +40,7 @@
 실행:
 
 ```bash
-python3 scripts/agent_control.py invoke --request /path/to/request.json
+python3 .claude/policies/runtime/agent_control.py invoke --request /path/to/request.json
 ```
 
 ## 2. Claude Code adapter (현재 유일 구현)

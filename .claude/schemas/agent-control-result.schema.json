@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://easy-vllm-simulator.local/schemas/agent-control-result.schema.json",
   "title": "agent-control-result",
-  "description": "Phase 6 (plan_26072506) provider-neutral OUTPUT contract: the stable JSON scripts/agent_control.py prints to stdout for `invoke --request <path>`. status/exit_code/reason_codes are a fixed, single-source-of-truth table (see scripts/agent_control.py module docstring): 0/completed/[], 2/invalid_request/REQUEST_SCHEMA_INVALID, 3/model_safety_blocked/{MISSING_MODEL_METADATA|OPUS_FALLBACK|MIXED_MODEL_USAGE}, 4/execution_failed/{NONZERO_EXIT|IS_ERROR}, 5/malformed_output/MALFORMED_JSON, 124/timeout/TIMEOUT. model_used never trusts the request's own model field -- it echoes only model ids the provider's own wrapper metadata actually reported.",
+  "description": "Phase 6 (plan_26072506) provider-neutral OUTPUT contract: the stable JSON .claude/policies/runtime/agent_control.py prints to stdout for `invoke --request <path>`. status/exit_code/reason_codes are a fixed, single-source-of-truth table (see .claude/policies/runtime/agent_control.py module docstring): 0/completed/[], 2/invalid_request/REQUEST_SCHEMA_INVALID, 3/model_safety_blocked/{MISSING_MODEL_METADATA|OPUS_FALLBACK|MIXED_MODEL_USAGE}, 4/execution_failed/{NONZERO_EXIT|IS_ERROR}, 5/malformed_output/MALFORMED_JSON, 124/timeout/TIMEOUT. model_used never trusts the request's own model field -- it echoes only model ids the provider's own wrapper metadata actually reported.",
   "type": "object",
   "required": [
     "schema_version",

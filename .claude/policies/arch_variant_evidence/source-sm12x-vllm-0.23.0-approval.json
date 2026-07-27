@@ -10,7 +10,7 @@
   "architecture": "sm12x",
   "image_tag": "easy-vllm:0.23.0-cu132-aarch64-source-sm12x",
   "source_evidence": "plan_26062818 §3 R1 primary-source fork inspection and same-hardware community evidence",
-  "source_path": "docs/plan/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md",
-  "source_sha256": "080a19036b7d191f9c17f1665fd4c2c5b8b463206bda3e944c0aab921a7c33e8",
+  "source_path": ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md",
+  "source_sha256": "a6788c3440acc92d7148a87140e9e19d48df5c8c77ce8fd742c1b405754c1b9d",
   "approved_scope": "historical 0.23.0 rollback variant; serving smoke remains final arbitration"
 }

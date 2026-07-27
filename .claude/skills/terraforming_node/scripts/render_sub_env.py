@@ -15,7 +15,7 @@ gitignored 스테이징 트리 `output/<topology>/sub_provision/` 로 렌더한�
   .claude/skills/{vllm-recipe-explorer,adversarial-benchmark}/ ← 런타임블럭(git-tracked만 복제 — config.yaml/feedback/lockset 제외)
   .claude/skills/wiki-desk/reference/references.md ← recipe의 on-demand 정적 reference dependency
   .gitignore                             ← gitignore.template         (복제·서브 로컬git 추적규칙, D12)
-  docs/{plan,devlog,testlog,simlog,benchmark}/example.md ← 메인 docs/*/example.md (복제·발행 스켈레톤, D12)
+  docs/{plan,devlog,testlog,simlog,benchmark}/example.md ← terraforming owner templates (복제·발행 스켈레톤, D12)
   tasks/.gitkeep                         ← 런타임 상태 스캐폴드(빈 디렉토리)
 
 D12: --topology {single|multi} 로 양 토폴로지 렌더(서브 로컬 git 양 브랜치). {{ TOPOLOGY }} 치환으로 페르소나가 브랜치 맥락 인지.
@@ -51,7 +51,7 @@ RUNTIME_BLOCKS = [
     os.path.join(REPO, ".claude", "skills", "adversarial-benchmark"),
 ]
 DOCS_RULES = os.path.join(REPO, ".claude", "rules", "docs.md")     # 문서규약(정적계약 — 서브 테라포밍, D12)
-MAIN_DOCS = os.path.join(REPO, "docs")                              # docs/*/example.md 발행 스켈레톤 원천(D12)
+DOC_SKELETONS = os.path.join(SKILL_DIR, "templates", "document_skeletons")  # 배포 포함 docs/*/example.md 정본(D12)
 RECIPE_REFERENCE = os.path.join(REPO, ".claude", "skills", "wiki-desk", "reference", "references.md")
 
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Z_]+)\s*\}\}")
@@ -250,17 +250,24 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
         f.write("")
     produced.append("tasks/.gitkeep")
 
-    # 4.5) 호스트 안전체계 파일(plan_26071019 §2.2 — 서브 동일 설치, 실행은 서브에서 사용자 HITL sudo)
-    #   레포 루트 scripts/ 4파일을 스테이징 동일 상대경로로 복제 — sync_to_sub 오버레이가 그대로 배달.
-    #   multinode_serve_smoke.sh 슬레이브 워치독·run_trial 협역 워치독이 이 레이아웃(scripts/mem_watchdog.sh)을 참조.
-    for rel, mode in (("scripts/mem_watchdog.sh", 0o755),
-                      ("scripts/install_host_safety.sh", 0o755),
-                      ("scripts/systemd/easy-vllm-memwatch.service", 0o644),
-                      ("scripts/host/vllm-drop-caches.sh", 0o755)):
-        src = os.path.join(REPO, rel)
+    # 4.5) 호스트 안전체계(plan_26071019 §2.2).
+    #   canonical source는 terraforming skill이 소유하고, 서브에는 헌법 runtime asset으로
+    #   materialize한다. root scripts/에 대한 숨은 source/runtime 의존성을 만들지 않는다.
+    host_safety_src = os.path.join(
+        REPO, ".claude", "skills", "terraforming_node", "scripts", "host_safety")
+    host_safety_files = (
+        ("mem_watchdog.sh", "mem_watchdog.sh", 0o755),
+        ("install_host_safety.sh", "install_host_safety.sh", 0o755),
+        ("systemd/easy-vllm-memwatch.service", "systemd/easy-vllm-memwatch.service", 0o644),
+        ("host/vllm-drop-caches.sh", "host/vllm-drop-caches.sh", 0o755),
+    )
+    for source_rel, delivered_rel, mode in host_safety_files:
+        src = os.path.join(host_safety_src, source_rel)
         if not os.path.isfile(src):
-            print(f"[render_sub_env] ⚠ 호스트 안전체계 원본 부재 — 복제 생략: {rel}", file=sys.stderr)
-            continue
+            raise SystemExit(
+                "[render_sub_env] HOST_SAFETY_SOURCE_MISSING: "
+                f"canonical terraforming asset absent: {source_rel}")
+        rel = os.path.join(".claude", "runtime", "host_safety", delivered_rel)
         dst = os.path.join(out_dir, rel)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copyfile(src, dst)
@@ -273,22 +280,17 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
         shutil.copyfile(gi_src, os.path.join(out_dir, ".gitignore"))
         produced.append(".gitignore")
 
-    # 6) docs/ 발행 스켈레톤 (D12 — 메인 docs/*/example.md 복제. 서브가 동일 규약으로 insight 발행)
-    #    DOC_TYPES 필터 필수: glob 이 메인의 비-발행 폴더를 자동 흡수하면 안 된다.
-    #    실례 = docs/report/(배포자 대상 아웃바운드 공지) = 메인 전용 평면 — 서브 발행 대상 ✗.
-    #    docs.md §서브노드 docs 테라포밍 · plan_26071617.
-    if os.path.isdir(MAIN_DOCS):
-        n_docs = 0
-        for ex in sorted(glob.glob(os.path.join(MAIN_DOCS, "*", "example.md"))):
-            dtype = os.path.basename(os.path.dirname(ex))     # plan|devlog|testlog|simlog|benchmark
-            if dtype not in DOC_TYPES:
-                continue                                       # 메인 전용 폴더(report 등) 미전파
-            dst = os.path.join(out_dir, "docs", dtype, "example.md")
-            os.makedirs(os.path.dirname(dst), exist_ok=True)
-            shutil.copyfile(ex, dst)
-            n_docs += 1
-        if n_docs:
-            produced.append(f"docs/*/example.md ({n_docs} skeletons)")
+    # 6) docs/ 발행 스켈레톤.  `docs/`는 release archive에서 제외되므로 canonical sources are
+    #    terraforming-owned templates, not repository documentation. Every required type is explicit
+    #    and missing authority fails closed; report and other main-only folders cannot be globbed in.
+    for dtype in DOC_TYPES:
+        ex = os.path.join(DOC_SKELETONS, dtype, "example.md")
+        if not os.path.isfile(ex):
+            raise SystemExit(f"[render] FAIL: docs skeleton missing: {ex}")
+        dst = os.path.join(out_dir, "docs", dtype, "example.md")
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copyfile(ex, dst)
+    produced.append(f"docs/*/example.md ({len(DOC_TYPES)} skeletons)")
 
     return {"out_dir": out_dir, "produced": produced}
 
@@ -394,9 +396,11 @@ def _self_test() -> int:
         base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json", "tasks/.gitkeep",
                        ".claude/rules/docs.md", ".claude/skills/wiki-desk/reference/references.md", ".gitignore",
-                       # 호스트 안전체계(plan_26071019 §2.2 — 서브 배달 셋 회귀 고정)
-                       "scripts/mem_watchdog.sh", "scripts/install_host_safety.sh",
-                       "scripts/host/vllm-drop-caches.sh"]
+                       # 호스트 안전체계: canonical terraforming source → constitution runtime delivery
+                       ".claude/runtime/host_safety/mem_watchdog.sh",
+                       ".claude/runtime/host_safety/install_host_safety.sh",
+                       ".claude/runtime/host_safety/systemd/easy-vllm-memwatch.service",
+                       ".claude/runtime/host_safety/host/vllm-drop-caches.sh"]
         have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
         missing_art = [p for p in base_expect if not os.path.exists(os.path.join(out, p))]
         # docs 스켈레톤: docs.md 계약 5종(DOC_TYPES) 전부 렌더됐나(simlog·benchmark 누락 회귀 차단 — review)
@@ -463,7 +467,7 @@ def _self_test() -> int:
     print(f"  [{'PASS' if c6 else 'FAIL'}] A2A 위임 키: hw_verified 부재→미발급({key6a_absent}) · =true→발급+유효({key6b_ok})")
     ok &= c6
 
-    # (템플릿 PII-free 는 scripts/smoke_clone.sh A4 가 추적물 전반에서 단일 게이트로 검사 — 여기 중복/리터럴 미보유)
+    # (템플릿 PII-free 는 upstream-version-watch owner-local smoke_clone.sh A4가 단일 게이트로 검사)
     shutil.rmtree(tmp, ignore_errors=True)
     print(f"self-test: {'PASS' if ok else 'FAIL'}")
     return 0 if ok else 1
