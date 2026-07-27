@@ -166,7 +166,9 @@ def _total_gpus(man):
 # target_gpu 미정의 시 아래 함수들은 전부 무영향(기존 host 흐름 완전 보존 — 회귀 0).
 # ===========================================================================
 
-REFERENCES_MD_PATH = os.path.join(REPO_ROOT, ".claude", "rules", "references.md")
+REFERENCES_MD_PATH = os.path.join(
+    REPO_ROOT, ".claude", "skills", "wiki-desk", "reference", "references.md"
+)
 
 
 def _lookup_gpu_spec(gpu_model, references_path=None):

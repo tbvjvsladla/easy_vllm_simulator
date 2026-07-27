@@ -10,7 +10,7 @@
 - **(a) 결정론 루프라인 = 척추(매번 먼저)**: `roofline.py` → `R_fp`(forward-pass/sec 상한, 100% MBU 낙관 천장)·
   `R_token = accept_len × R_fp`(speculative)·`expected_achievable = realistic_fraction × R_token`. **의심 임계**(SLA 아님).
 - **(b) 외부 레퍼런스 E = 목표치**: 검증기(Devil's Advocate)가 **외부검색 수행** — 동일 HW 에서 남들이 내는 실제 달성치
-  (HF 카드·포럼·vLLM PR — **1차 진입점 = `.claude/rules/references.md` §3·§4 warm-start → 미스 시 신규 검색 →
+  (HF 카드·포럼·vLLM PR — **1차 진입점 = `.claude/skills/wiki-desk/reference/references.md` §3·§4 warm-start → 미스 시 신규 검색 →
   히트 baseline 재입고**). 혼자 루프라인을 안 믿고 E 로 정밀화. **E 가 진짜 판별자**(측정>공식). **메인은 E 검색을
   시도·기록한 후에만 판정 진입** — `verdict_rule.py --e-search {hit,empty,no}` 로 상태를 결정론 게이트에 전달
   (빈손이면 `empty` 로 *기록된* roofline-only 강등 = 음성정직 / 미시도 `no` 는 출력에 경고 표기 — silent 강등 차단;

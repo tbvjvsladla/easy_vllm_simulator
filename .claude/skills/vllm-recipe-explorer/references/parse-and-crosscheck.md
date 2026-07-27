@@ -104,7 +104,7 @@ python3 recipe.py estimate --config config.yaml --auto
 - **③.5 HITL**: 사람이 `recipe_id`(예 `r3`)를 고른다. 무feasible(전부 FAIL)이면 예산 상향/마진 완화/모델 변경을 보고(자동 강행 금지).
   **단 "전부 FAIL" 보고 전 의무 2단계**(공식-only 인피저블 선언 금지 — 공식은 최대 8× 과대추정하는 상한일 뿐):
   (a) **측정 보강 제안을 기본 경로로** — Phase-1.5 1회 serve 또는 Phase-2 trial 로 실측 per-token KV 확인을 먼저 제안,
-  (b) **외부 교차검증** — `.claude/rules/references.md` §5 레시피로 "정말 못 띄우는 모델인지" 확인·기록(testlog "탐색 증거").
+  (b) **외부 교차검증** — `.claude/skills/wiki-desk/reference/references.md` §5 레시피로 "정말 못 띄우는 모델인지" 확인·기록(testlog "탐색 증거").
   둘 다 없이 인피저블 단정 ✗.
 
 ## 6. ④ generate (결정론 3종 세트) + 되먹임 로그

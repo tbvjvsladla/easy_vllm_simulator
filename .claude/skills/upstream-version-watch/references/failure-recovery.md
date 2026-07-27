@@ -37,7 +37,7 @@ class 제안 전 **자기추론보다 권위 소스를 먼저 조회한다**(여
 3. 컨테이너 내부 torch 버전 + `torch::stable` 헤더(`tensor_struct.h`/`ops.h` 의 `layout()`/6-arg `from_blob` 존재)
 4. 빌드/serve 로그 · `failure_patterns.yaml`
 5. **외부 소스(메인 한정 — upstream 은 빌드평면·메인 불변)**: vLLM GitHub release/issue/PR + NGC 매트릭스
-   (`.claude/rules/references.md` §1·§2 템플릿; egress-restricted 서브 = 증상 상향만)
+   (`.claude/skills/wiki-desk/reference/references.md` §1·§2 템플릿; egress-restricted 서브 = 증상 상향만)
 
 그 위에 LLM 이 `{proposed_class, evidence, external_sources}` 를 제시한다 — **`external_sources` 빈 값이면
 보고서에 "외부 미조회" 라벨 강제 표기**(자기추론-only 부정 결론 차단) → **사람 승인 전 무행동**.

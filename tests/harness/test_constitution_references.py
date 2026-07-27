@@ -1,5 +1,9 @@
 """tests/harness/test_constitution_references.py -- TDD suite for the constitution/rules ⇄
-policy-registry cross-reference contract (plan_26072506 Phase 4).
+policy-registry cross-reference contract (plan_26072506 Phase 4; tracked-set narrowed to 3 files
+by the Phase 10 context-budget correction cycle -- .claude/rules/references.md was removed from
+the unconditional/always-loaded rules tier and relocated to the on-demand skill reference
+.claude/skills/wiki-desk/reference/references.md; see test_context_budget.py for the
+relocation/budget contract).
 
 Runner: stdlib `unittest` (matches the rest of tests/harness/ -- see test_completion_gate.py's
 docstring for the same pytest-unavailable rationale).
@@ -13,14 +17,14 @@ Scope (plan_26072506 Phase 4 rules):
     here as a CONCRETE denylist of implementation-command/provider-CLI syntax (pip install, docker
     compose ... --profile, vllm serve, git reset/tag, ssh ... claude -p, --permission-mode), not a
     brittle prose-similarity threshold (that would over- or under-fire on paraphrase).
-  - duplicated rules collapse to a single `policy:<ID>` citation; the four tracked
+  - duplicated rules collapse to a single `policy:<ID>` citation; the three tracked
     constitution/rules files never restate a policy's full statement verbatim, and every citation
     they make resolves to a real, non-retired registry entry.
   - every `active` registry entry is actually cited at least once (no orphan policies) --
     otherwise the "single source of truth" registry is dead weight nobody points at.
 
-Hermetic design: the tracked-file set is a fixed, explicit 4-path list (CLAUDE.md +
-.claude/rules/{workflow,docs,references}.md) -- never `git ls-files` (a gitless clean-index
+Hermetic design: the tracked-file set is a fixed, explicit 3-path list (CLAUDE.md +
+.claude/rules/{workflow,docs}.md) -- never `git ls-files` (a gitless clean-index
 checkout export has no `.git` to query) and never a raw `Path.glob("*.md")` (would silently pick
 up the maintainer-local, untracked `.claude/rules/hermes-claude-control.md` on a real machine but
 not on a fresh clone -- the exact `NON_HERMETIC_TDD_FIXTURES` class of bug test_completion_gate.py
@@ -45,12 +49,10 @@ import policy_registry as pr  # noqa: E402 -- the one shared citation broad-capt
 CONSTITUTION_PATH = REPO_ROOT / "CLAUDE.md"
 WORKFLOW_PATH = REPO_ROOT / ".claude" / "rules" / "workflow.md"
 DOCS_RULE_PATH = REPO_ROOT / ".claude" / "rules" / "docs.md"
-REFERENCES_PATH = REPO_ROOT / ".claude" / "rules" / "references.md"
 TRACKED_FILES = {
     "CLAUDE.md": CONSTITUTION_PATH,
     ".claude/rules/workflow.md": WORKFLOW_PATH,
     ".claude/rules/docs.md": DOCS_RULE_PATH,
-    ".claude/rules/references.md": REFERENCES_PATH,
 }
 RULES_TIER_FILES = {k: v for k, v in TRACKED_FILES.items() if k != "CLAUDE.md"}
 
@@ -74,7 +76,7 @@ CLAUDE_MD_DENYLIST = {
     "--permission-mode": re.compile(r"--permission-mode\b"),
 }
 
-# Softer-tier denylist for workflow.md/docs.md/references.md: procedural detail is legitimate
+# Softer-tier denylist for workflow.md/docs.md: procedural detail is legitimate
 # there (that's the file's role), but bare ecosystem-tool (git) incantations and Claude-specific
 # CLI syntax are not -- a named project script (e.g. `sync_to_sub.sh --apply`) is this project's
 # own interface and never matches these patterns in the first place, so no separate allowlist
@@ -173,9 +175,9 @@ def _load_registry():
 # =============================================================================
 
 class TestTrackedFileEnumeration(unittest.TestCase):
-    def test_exactly_four_tracked_constitution_files(self):
+    def test_exactly_three_tracked_constitution_files(self):
         self.assertEqual(set(TRACKED_FILES), {
-            "CLAUDE.md", ".claude/rules/workflow.md", ".claude/rules/docs.md", ".claude/rules/references.md",
+            "CLAUDE.md", ".claude/rules/workflow.md", ".claude/rules/docs.md",
         })
 
     def test_each_tracked_file_exists_and_is_nonempty(self):
@@ -207,7 +209,7 @@ class TestNoBareProviderSyntaxInRules(unittest.TestCase):
 
 
 # =============================================================================
-# Section C -- duplicated rules collapse to a single canonical statement (registry), the four
+# Section C -- duplicated rules collapse to a single canonical statement (registry), the three
 # tracked files only cite `policy:<ID>` instead of restating it
 # =============================================================================
 

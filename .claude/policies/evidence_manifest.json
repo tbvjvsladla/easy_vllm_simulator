@@ -13,7 +13,7 @@
   ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh": "d2930f1d6da108a0447efd043a2ef9bcad4236a49996f80c3252194f5ea7ce3d",
   ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py": "58b02bce35ad76ab64f50eb356951c175bc5c7e4600e6c15411aa75bdba25313",
   ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml": "3d132ab38531ab35bbaf20b377212916431a2db99d65afddfb847fdae071c607",
-  ".claude/skills/vllm-recipe-explorer/recipe.py": "7bbd226081eb9a9121188a802dc33563def2382069318f2e6e7e0b7a4c4f686a",
+  ".claude/skills/vllm-recipe-explorer/recipe.py": "e521f675e2a2b2694075f771549ce3ab25c78113bf0da3e7d781d08409a93655",
   ".claude/skills/vllm-recipe-explorer/scripts/crosscheck_model_card.py": "c025811a19f6277b9096a62b680ba105b40616ea4a5a620b10bf8a1aa9fc25fc",
   ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py": "9cbf615b4c7d52f0f76837578ed7cf59ce6545df87143080e44c111a817a1ecf",
   ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py": "c7abb8881504a2c3ff6f3da016dde91418d84d5d06c7766ffaaddc4c084711a9",
