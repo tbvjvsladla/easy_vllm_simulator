@@ -387,6 +387,9 @@ verify_destination_runner_modes() {  # $1=topology -- exact canonical bytes + ex
     return $bad
 }
 OVERLAY_EXCLUDES=(--exclude '__pycache__' --exclude '*.pyc')
+# Explicit migration tombstones only. Overlay remains additive for every other path; this narrow
+# list closes known source relocations after the replacement has been delivered and verified.
+OVERLAY_STALE_PATHS=(.claude/rules/references.md)
 
 # ── 서브 git 헬퍼 ──
 sub_run()  { $SSH_OPTS "$SUB_HOST" "cd '$SUB_WORK_DIR' && $1"; }
@@ -443,6 +446,14 @@ deliver_overlay() {  # $1=topology $2=dry
     [ -d "$st" ] || { echo "[sync] (info) 스테이징 없음($st) — render 선행 필요"; return 0; }
     local dry=(); [ "$2" = "1" ] && dry=(--dry-run --itemize-changes)
     rsync -az "${dry[@]}" "${OVERLAY_EXCLUDES[@]}" -e "$SSH_OPTS" "$st/" "$SUB_HOST:$DEST"
+    local stale
+    for stale in "${OVERLAY_STALE_PATHS[@]}"; do
+        if [ "$2" = "1" ]; then
+            sub_run "[ ! -e '$stale' ] || printf '*deleting %s\\n' '$stale'"
+        else
+            sub_run "rm -f -- '$stale'"
+        fi
+    done
 }
 # 체크섬 검증(빌드 핵심입력 + 오버레이 대표). 불일치 시 비-0.
 verify_checksums() {  # $1=topology
@@ -454,7 +465,7 @@ verify_checksums() {  # $1=topology
     done
     for f in CLAUDE.md Agent_Card.json .claude/settings.local.json .claude/rules/comms.md .claude/rules/docs.md \
              .claude/schemas/task-report.schema.json .gitignore .claude/skills/vllm-recipe-explorer/recipe.py \
-             .claude/skills/adversarial-benchmark/scripts/verdict_rule.py .claude/a2a_delegation.json \
+             .claude/skills/adversarial-benchmark/scripts/verdict_rule.py .claude/skills/wiki-desk/reference/references.md .claude/a2a_delegation.json \
              scripts/mem_watchdog.sh scripts/install_host_safety.sh; do
         [ -f "$st/$f" ] || continue
         L=$(md5sum "$st/$f" | awk '{print $1}'); R=$($SSH_OPTS "$SUB_HOST" "md5sum '$SUB_WORK_DIR/$f' 2>/dev/null" | awk '{print $1}')
