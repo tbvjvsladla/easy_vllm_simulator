@@ -199,7 +199,7 @@ BAND2_TOP=(Dockerfile Dockerfile.source-build Dockerfile.source-build-upstage do
 #   **벤더**명이며 stock 0.22.0 의 superset. Band3 모델 트리플렛은 계속 배제.
 
 _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = output/<t>/.
-    FILT=(--exclude='/manifest.yaml' --exclude='/sub_provision' --exclude='/.env' --exclude='/benchlog' --exclude='/cache')   # D10 manifest·serve-time .env(node-local host config·PII, render --materialize-env 산출) 미전달 · benchlog=adversarial-benchmark 생성 증거(빌드입력 아님, plan_26063014) · cache=노드-로컬 JIT/컴파일 캐시(torch.compile AOT·flashinfer autotune — 컨테이너가 root 로 생성, 노드마다 자기 것을 쌓는다. 빌드입력 ✗·전파 ✗, plan_26072217) · 에이전트환경=overlay
+    FILT=(--exclude='/manifest.yaml' --exclude='/sub_provision' --exclude='/.env' --exclude='/benchlog' --exclude='/cache' --exclude='/tiktoken_cache')   # D10 manifest·serve-time .env(node-local host config·PII, render --materialize-env 산출) 미전달 · benchlog=adversarial-benchmark 생성 증거(빌드입력 아님, plan_26063014) · cache/tiktoken_cache=노드-로컬 JIT·tokenizer 캐시(빌드입력 ✗·전파 ✗, plan_26072217) · 에이전트환경=overlay
     local f
     FILT+=(--include='/configs/')
     for f in "${BAND2_CONFIGS[@]}"; do FILT+=(--include="/configs/$f"); done
@@ -246,7 +246,7 @@ assert_band_classification() {  # $1=topology → 0=ok, 1=미분류·누락
     local -A _b2c _b2e _b2top
     for b in "${BAND2_CONFIGS[@]}"; do _b2c["$b"]=1; done
     for b in "${BAND2_ENVS[@]}"; do _b2e["$b"]=1; done
-    for b in "${BAND2_TOP[@]}" configs envs build_patches manifest.yaml sub_provision .env benchlog cache; do _b2top["$b"]=1; done
+    for b in "${BAND2_TOP[@]}" configs envs build_patches manifest.yaml sub_provision .env benchlog cache tiktoken_cache; do _b2top["$b"]=1; done
 
     # (a) (d-cg-4) 최상위 — 빌드킷·서브디렉토리·의도적 제외(manifest/sub_provision) 외 미지 항목 fail-loud
     for f in "$odir"/*; do

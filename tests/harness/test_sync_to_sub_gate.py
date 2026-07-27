@@ -502,6 +502,13 @@ class TestPromotionDeniedZeroMutation(_IsolatedSyncToSubRepoTestCase):
 # =============================================================================
 
 class TestPromotionReadyReachesPreflight(_IsolatedSyncToSubRepoTestCase):
+    def test_tiktoken_cache_is_classified_and_excluded_from_build_delivery(self):
+        text = SYNC_TO_SUB_SRC.read_text(encoding="utf-8")
+        self.assertIn("--exclude='/tiktoken_cache'", text)
+        classifier = text.split("local -A _b2c _b2e _b2top", 1)[1].split("# (a)", 1)[0]
+        self.assertIn("tiktoken_cache", classifier,
+                      msg="generated tokenizer cache must be accepted by fail-loud classification")
+
     def test_full_pass_manifest_reaches_dryrun_preview_via_fake_transport(self):
         manifest = _write_promotion_manifest_full_pass(self.repo)
         code, out, err = self._run_sync(
