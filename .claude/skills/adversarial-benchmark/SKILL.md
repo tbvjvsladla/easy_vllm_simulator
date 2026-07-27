@@ -30,7 +30,7 @@ description: >-
 - **Inputs** — `config.yaml`(대상 config_name·`reference_tps`/`target_tps`/`tolerance`/`realistic_fraction`) · 라이브 serve(`:PORT/health` 200) · manifest(gpu_model·interconnect·topology) · 모델 config/safetensors index.
 - **Outputs** — `verdict.json`(PASS/REFUTE/NEEDS_RUBRIC/INVALID + failure_axis + next_strategy_hint) · lite 채팅 표(inform-only) · full 종결 시 `docs/benchmark/` report(항상) + 인증서(PASS시만).
 - **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 7단계(순서 고정).
-- **State transitions** — full PASS + 인증서로 `promotion-ready` 의 성능 조건을 채운다(lite 는 어떤 상태도 진행시키지 않는다). 최종 상태 판정은 `scripts/completion_gate.py` 소유.
+- **State transitions** — full PASS + 인증서로 `promotion-ready` 의 성능 조건을 채운다(lite 는 어떤 상태도 진행시키지 않는다). 최종 상태 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
 - **HITL/safety boundaries** — **serve 를 기동하지 않는다**(미가동 시 중단·보고) · 모델 자동 다운로드 ✗ · 무승인 escalate/rebuild ✗ · 무한 기각 ✗(cap → Model-C) · 게이트는 규칙(LLM 다수결 ✗).
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
 - **Deterministic commands** — `scripts/roofline.py` · `run_bench.sh` · `parse_bench.py` · `verdict_rule.py` · `lite_bench.sh` · `lite_metrics.py` · `sweep_bench.sh` · `render_report.py` · `publish_benchmark_record.py` · `max_envelope.sh` · `render_max_report.py`.
@@ -94,7 +94,7 @@ description: >-
 - `scripts/lite_bench.sh` · `scripts/lite_metrics.py` — lite 오케스트레이터 + 5종 메트릭 렌더(inform-only).
 - `scripts/sweep_bench.sh` · `scripts/render_report.py` · `scripts/publish_benchmark_record.py` — full 종결 스윕·report·인증서.
 - `scripts/max_envelope.sh` · `scripts/render_max_report.py` — **Max 오퍼레이션**(별도 정체성).
-- `scripts/doc_naming.py` — 발행 명명 SSOT.
+- `.claude/skills/wiki-desk/scripts/doc_naming.py` — 발행 명명 SSOT.
 
 **조건부 references(필요할 때만 연다)**
 - `references/rubric-and-lenses.md` — 3중 방어막·밸런스 축·`vllm bench serve` 측정 사양·Devil's Advocate 렌즈·config 입력.

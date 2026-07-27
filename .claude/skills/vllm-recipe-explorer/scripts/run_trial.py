@@ -359,11 +359,15 @@ def _docker_teardown(container_name: str) -> None:
 
 
 def _memwatch_script_path():
-    """레포/스테이징 루트의 scripts/mem_watchdog.sh — 메인·서브 동일 상대 레이아웃."""
+    """Resolve the owner-local canonical source, then the rendered sub runtime asset."""
     root = os.path.abspath(os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
-    p = os.path.join(root, "scripts", "mem_watchdog.sh")
-    return p if os.path.isfile(p) else None
+    candidates = (
+        os.path.join(root, ".claude", "skills", "terraforming_node", "scripts",
+                     "host_safety", "mem_watchdog.sh"),
+        os.path.join(root, ".claude", "runtime", "host_safety", "mem_watchdog.sh"),
+    )
+    return next((p for p in candidates if os.path.isfile(p)), None)
 
 
 def _start_memwatch(container_name: str, simlog_dir: str, trial_number: int,
@@ -377,7 +381,7 @@ def _start_memwatch(container_name: str, simlog_dir: str, trial_number: int,
     """
     script = _memwatch_script_path()
     if not script:
-        print("[run_trial] ⚠ scripts/mem_watchdog.sh 부재 — 협역 워치독 생략(상시 systemd 층만)",
+        print("[run_trial] ⚠ host-safety mem_watchdog asset 부재 — 협역 워치독 생략(상시 systemd 층만)",
               file=sys.stderr)
         return None, None
     log_p = os.path.join(simlog_dir, "trial%02d_memwatch.log" % int(trial_number))

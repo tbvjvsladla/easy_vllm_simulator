@@ -1,0 +1,12 @@
+{
+  "canonical_resolution_sha256": "c2db0744567b168ac812b10964c16c884bc06e6538e983c838444873d4aa99a8",
+  "model_inputs_sha256": {
+    "envs/.env.exaone45-33b": "a1034c3d846b6b376137d6248d23f97a785f2fb29dfaaabdbada8129541bf460",
+    "exaone45-33b.sh": "9a542c15ec2282e6d30678adfeba8e466484eb3e720e894cc34e095adc1da846",
+    "exaone45-33b.yaml": "d1416081c837370bf7d90d07e465ed263135e1d9e9b1ba8afd4ae27134f1970c"
+  },
+  "model_stem": "exaone45-33b",
+  "patch_sha256": "45a81fc6b5036f30df2103f6b07e59c3613eb8e888abfd10250b48eefdb8b041",
+  "schema_version": 1,
+  "topology": "multi"
+}

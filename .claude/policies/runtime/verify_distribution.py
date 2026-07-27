@@ -1,0 +1,457 @@
+#!/usr/bin/env python3
+"""Fail-closed acceptance for the five-skill self-contained distribution.
+
+This is a production distribution contract, not a development test runner.  It proves that a
+fresh gitless checkout contains exactly the five public skills, no top-level tests/scripts
+control plane, no trust artifact pointing back to those removed roots, and that each public
+skill's deterministic entry path still starts or returns its documented pre-terraform gate.
+"""
+from __future__ import annotations
+
+import argparse
+import ast
+import hashlib
+import json
+import os
+import re
+import stat
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[3]
+EXPECTED_SKILLS = {
+    "adversarial-benchmark",
+    "terraforming_node",
+    "upstream-version-watch",
+    "vllm-recipe-explorer",
+    "wiki-desk",
+}
+TRUST_FILES = (
+    ".claude/policies/registry.yaml",
+    ".claude/policies/claim_bindings.json",
+    ".claude/policies/evidence_manifest.json",
+    ".claude/policies/tracked_index.json",
+)
+LOCAL_TOMBSTONES = {
+    "scripts/agent_control.py", "scripts/cleanup_docker.py", "scripts/completion_gate.py",
+    "scripts/doc_naming.py", "scripts/engine_liveness_watchdog.sh",
+    "scripts/evidence_publisher.py", "scripts/harness_verify.py", "scripts/hint_tag.py",
+    "scripts/host/vllm-drop-caches.sh", "scripts/install_host_safety.sh",
+    "scripts/mem_watchdog.sh", "scripts/policy_registry.py", "scripts/providers/claude_code.py",
+    "scripts/smoke_clone.sh", "scripts/sync_branches.sh",
+    "scripts/systemd/easy-vllm-memwatch.service",
+    "scripts/templates/hint_recipe.template.md",
+}
+LOCAL_REPLACEMENTS = {
+    ".claude/policies/runtime/agent_control.py",
+    ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py",
+    ".claude/policies/runtime/completion_gate.py",
+    ".claude/skills/wiki-desk/scripts/doc_naming.py",
+    ".claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh",
+    ".claude/policies/runtime/evidence_publisher.py",
+    ".claude/policies/runtime/harness_verify.py",
+    ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
+    ".claude/skills/terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh",
+    ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
+    ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
+    ".claude/policies/runtime/policy_registry.py",
+    ".claude/policies/runtime/providers/claude_code.py",
+    ".claude/skills/upstream-version-watch/scripts/smoke_clone.sh",
+    ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+    ".claude/skills/terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service",
+    ".claude/skills/upstream-version-watch/templates/hint_recipe.template.md",
+}
+SUB_TOMBSTONES = {
+    ".claude/rules/references.md", "scripts/install_host_safety.sh",
+    "scripts/mem_watchdog.sh", "scripts/host/vllm-drop-caches.sh",
+    "scripts/systemd/easy-vllm-memwatch.service", "scripts/smoke_clone.sh",
+    "scripts/sync_branches.sh",
+}
+SUB_RELOCATION_TOMBSTONES = {
+    ".claude/rules/references.md", "scripts/install_host_safety.sh",
+    "scripts/mem_watchdog.sh", "scripts/host/vllm-drop-caches.sh",
+    "scripts/systemd/easy-vllm-memwatch.service",
+}
+SUB_RETIREMENT_TOMBSTONES = {"scripts/smoke_clone.sh", "scripts/sync_branches.sh"}
+
+
+def _child_python() -> list[str]:
+    """Preserve security-relevant interpreter flags for the production runtime self-test."""
+    flags = []
+    if sys.flags.isolated:
+        flags.append("-I")
+    if sys.flags.no_site:
+        flags.append("-S")
+    if sys.flags.optimize:
+        flags.append("-" + "O" * sys.flags.optimize)
+    if sys.flags.dont_write_bytecode:
+        flags.append("-B")
+    return [sys.executable, *flags]
+
+
+def _run(name: str, argv: list[str], expected: set[int], cwd: Path = REPO,
+         env_overrides: dict[str, str] | None = None) -> dict:
+    env = os.environ.copy()
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    if env_overrides:
+        env.update(env_overrides)
+    try:
+        proc = subprocess.run(argv, cwd=cwd, env=env, text=True, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE, timeout=180)
+        return {"name": name, "ok": proc.returncode in expected, "rc": proc.returncode,
+                "expected_rc": sorted(expected), "stdout_tail": proc.stdout[-1000:],
+                "stderr_tail": proc.stderr[-1000:]}
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"name": name, "ok": False, "rc": None, "expected_rc": sorted(expected),
+                "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _walk_strings(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, list):
+        for item in value:
+            yield from _walk_strings(item)
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            yield from _walk_strings(key)
+            yield from _walk_strings(item)
+
+
+def _shell_array(text: str, name: str) -> set[str]:
+    match = re.search(rf"(?m)^{re.escape(name)}=\(\n(.*?)^\)$", text, re.DOTALL)
+    if match is None:
+        return set()
+    return {line.split("#", 1)[0].strip().strip("'\"")
+            for line in match.group(1).splitlines()
+            if line.split("#", 1)[0].strip()}
+
+
+def _ordered_between(text: str, marker: str, end_marker: str,
+                     tokens: tuple[str, ...]) -> bool:
+    start = text.find(marker)
+    end = text.find(end_marker, start + len(marker))
+    if start < 0 or end < 0:
+        return False
+    block = text[start:end]
+    cursor = 0
+    positions = []
+    for token in tokens:
+        cursor = block.find(token, cursor)
+        if cursor < 0:
+            return False
+        positions.append(cursor)
+        cursor += len(token)
+    return positions == sorted(positions)
+
+
+def _active_retirement_consumers() -> list[str]:
+    hits: list[str] = []
+    roots = [REPO / ".claude/rules", REPO / "CLAUDE.md", REPO / "HINTS.md"]
+    token_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-")
+    for root in roots:
+        files = sorted(root.rglob("*")) if root.is_dir() else [root]
+        for file in files:
+            if not file.is_file():
+                continue
+            try:
+                text = file.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            for stale in sorted(SUB_RETIREMENT_TOMBSTONES):
+                pattern = re.compile(rf"(?<![A-Za-z0-9_.-]){re.escape(stale)}(?![A-Za-z0-9_./-])")
+                owner = f".claude/skills/upstream-version-watch/{stale}"
+                for match in pattern.finditer(text):
+                    lo, hi = match.start(), match.end()
+                    while lo and text[lo - 1] in token_chars:
+                        lo -= 1
+                    while hi < len(text) and text[hi] in token_chars:
+                        hi += 1
+                    token = text[lo:hi]
+                    while token.startswith("./"):
+                        token = token[2:]
+                    if token != owner:
+                        hits.append(str(file.relative_to(REPO)))
+                        break
+                if hits and hits[-1] == str(file.relative_to(REPO)):
+                    break
+    return hits
+
+
+def verify() -> dict:
+    checks: list[dict] = []
+    for root_name in ("tests", "scripts"):
+        checks.append({"name": f"root_absent:{root_name}",
+                       "ok": not (REPO / root_name).exists()})
+
+    skills = {p.parent.name for p in (REPO / ".claude/skills").glob("*/SKILL.md")}
+    checks.append({"name": "exact_public_skill_set", "ok": skills == EXPECTED_SKILLS,
+                   "actual": sorted(skills), "expected": sorted(EXPECTED_SKILLS)})
+
+    for rel in TRUST_FILES:
+        path = REPO / rel
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            stale = sorted({s for s in _walk_strings(doc)
+                            if s.startswith("tests/") or s.startswith("scripts/")})
+            checks.append({"name": f"trust_owner_paths:{rel}", "ok": not stale,
+                           "stale_root_paths": stale})
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            checks.append({"name": f"trust_owner_paths:{rel}", "ok": False,
+                           "error": f"{type(exc).__name__}: {exc}"})
+
+    try:
+        tracked = json.loads((REPO / ".claude/policies/tracked_index.json")
+                             .read_text(encoding="utf-8"))["entries"]
+        drift = []
+        for rel, expected in sorted(tracked.items()):
+            path = REPO / rel
+            if path.is_symlink() or not path.is_file():
+                drift.append(f"{rel}:missing-or-symlink")
+                continue
+            data = path.read_bytes()
+            actual = hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+            if actual != expected:
+                drift.append(f"{rel}:{actual}!={expected}")
+        checks.append({"name": "tracked_index_all_entry_bytes", "ok": not drift,
+                       "drift": drift})
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        checks.append({"name": "tracked_index_all_entry_bytes", "ok": False,
+                       "error": f"{type(exc).__name__}: {exc}"})
+
+    bare_asserts = []
+    for path in sorted((REPO / ".claude").rglob("*.py")):
+        rel = str(path.relative_to(REPO))
+        try:
+            if path.is_symlink():
+                raise OSError("shipped Python symlink is forbidden")
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
+            bare_asserts.extend(f"{rel}:{node.lineno}" for node in ast.walk(tree)
+                                if isinstance(node, ast.Assert))
+        except (OSError, UnicodeError, SyntaxError) as exc:
+            bare_asserts.append(f"{rel}:{type(exc).__name__}:{exc}")
+    checks.append({"name": "shipped_python_has_no_bare_assert",
+                   "ok": not bare_asserts, "violations": bare_asserts})
+
+    local_sync = REPO / ".claude/skills/upstream-version-watch/scripts/sync_branches.sh"
+    sub_sync = REPO / ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh"
+    try:
+        local_text = local_sync.read_text(encoding="utf-8")
+        local_actual = _shell_array(local_text, "ROOT_RELOCATION_TOMBSTONES")
+        replacements = _shell_array(local_text, "ROOT_RELOCATION_REPLACEMENTS")
+        local_order = ("git checkout ", "source→destination Git object/mode mismatch",
+                       "materialized replacement byte/mode mismatch", "git rm --ignore-unmatch")
+        checks += [
+            {"name": "local_exact_relocation_tombstones",
+             "ok": local_actual == LOCAL_TOMBSTONES,
+             "actual": sorted(local_actual), "expected": sorted(LOCAL_TOMBSTONES)},
+            {"name": "local_exact_relocation_replacements",
+             "ok": replacements == LOCAL_REPLACEMENTS and len(replacements) == len(local_actual),
+             "actual": sorted(replacements), "expected": sorted(LOCAL_REPLACEMENTS)},
+            {"name": "local_replacement_integrity_before_tombstone",
+             "ok": _ordered_between(local_text, "# ── apply:",
+                                    "echo \"[sync-branches] 완료", local_order)},
+        ]
+    except (OSError, UnicodeError) as exc:
+        checks.append({"name": "local_exact_relocation_tombstones", "ok": False,
+                       "error": f"{type(exc).__name__}: {exc}"})
+
+    try:
+        sub_text = sub_sync.read_text(encoding="utf-8")
+        sub_actual = _shell_array(sub_text, "OVERLAY_STALE_PATHS")
+        sub_relocations = _shell_array(sub_text, "OVERLAY_RELOCATION_STALE_PATHS")
+        sub_retirements = _shell_array(sub_text, "OVERLAY_RETIREMENT_STALE_PATHS")
+        additive_match = re.search(r"(?ms)^deliver_overlay\(\).*?^}\n", sub_text)
+        additive_body = additive_match.group(0) if additive_match else ""
+        order = ("verify_checksums ", "verify_destination_runner_modes ",
+                 "verify_destination_host_safety_modes", "verify_destination_retirement_consumers",
+                 "apply_overlay_tombstones", "git add -A")
+        checks += [
+            {"name": "sub_exact_relocation_tombstones", "ok": sub_actual == SUB_TOMBSTONES,
+             "actual": sorted(sub_actual), "expected": sorted(SUB_TOMBSTONES)},
+            {"name": "sub_relocation_retirement_partition",
+             "ok": (sub_relocations == SUB_RELOCATION_TOMBSTONES
+                    and sub_retirements == SUB_RETIREMENT_TOMBSTONES
+                    and sub_relocations.isdisjoint(sub_retirements)
+                    and sub_relocations | sub_retirements == SUB_TOMBSTONES),
+             "actual": {"relocations": sorted(sub_relocations),
+                        "retirements": sorted(sub_retirements)}},
+            {"name": "sub_additive_overlay_has_no_apply_delete",
+             "ok": bool(additive_body) and "rm -f" not in additive_body},
+            {"name": "sub_bootstrap_replacement_before_tombstone",
+             "ok": _ordered_between(sub_text, "# multi 초기 Band2 배달",
+                                    "# ── B1 per-branch 증분 싱크", order)},
+            {"name": "sub_incremental_replacement_before_tombstone",
+             "ok": _ordered_between(sub_text, "# (3) rsync(빌드 + 오버레이)",
+                                    "# 서브를 기본 운용 브랜치", order)},
+            {"name": "sub_render_uses_transactional_source",
+             "ok": all(token in sub_text for token in (
+                 "prepare_transactional_source", "mktemp -d", "CANONICAL_SRC",
+                 'SRC="$TRANSACTIONAL_SRC/"'))
+             and sub_text.find("prepare_transactional_source\n")
+             < sub_text.find("# ═══════════════════════ DRY-RUN")},
+            {"name": "sub_transactional_source_uses_git_index",
+             "ok": ("checkout-index -z --stdin" in sub_text
+                    and "filesystem bytes are excluded in favor of index authority" in sub_text
+                    and "ls-files -z -- .claude CLAUDE.md .gitignore output/multi output/single" in sub_text
+                    and 'install -m 0600 "${CANONICAL_SRC}output/$topology/manifest.yaml"' in sub_text
+                    and '"${CANONICAL_SRC}output/$topology/"' not in sub_text)},
+            {"name": "sub_runtime_patch_transfer_is_owner_allowlisted",
+             "ok": ("BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)" in sub_text
+                    and "--include='/configs/*_patch.py'" not in sub_text
+                    and '"$build_assets"/runtime_patches/*' in sub_text)},
+            {"name": "sub_retirement_consumer_audit_before_tombstone",
+             "ok": (sub_text.count("verify_destination_retirement_consumers ||") == 2
+                    and "retirement_consumer_scan" in sub_text
+                    and 'owner=".claude/skills/upstream-version-watch/"+stale' in sub_text
+                    and 'while lo and line[lo-1] in chars' in sub_text
+                    and "scanner/transport failed for $stale" in sub_text)},
+            {"name": "no_active_sub_retirement_consumers",
+             "ok": not _active_retirement_consumers(),
+             "details": _active_retirement_consumers()},
+            {"name": "sub_invocation_rollback_transaction",
+             "ok": all(token in sub_text for token in (
+                 "begin_remote_transaction multi 1", 'begin_remote_transaction "$t" 0',
+                 "rollback_remote_transactions", "finalize_remote_transactions",
+                 "workdir-absent", "workdir-backup",
+                 "trap 'transactional_exit $?' EXIT", "rollback failed; recovery backups retained",
+                 "rollback_remote_transactions || rc=11"))},
+            {"name": "sub_transaction_precedes_remote_mutation",
+             "ok": (_ordered_between(sub_text, "# (2) transaction before checkout",
+                                     "# (3) rsync(빌드 + 오버레이)",
+                                     ('begin_remote_transaction "$t" 0', 'git checkout -q $t'))
+                    and _ordered_between(sub_text, "# R2 HITL 게이트",
+                                         "# ── B0 멱등 self-bootstrap",
+                                         ("begin_remote_transaction multi 1", "sub_run_mk")))},
+            {"name": "sub_deletion_inventory_and_brake_fail_closed",
+             "ok": all(token in sub_text for token in (
+                 "deletion inventory dry-run failed", "deletion brake dry-run failed before apply",
+                 "validate_remote_deletion_tree"))},
+            {"name": "sub_path_protocol_closed",
+             "ok": all(token in sub_text for token in (
+                 "validate_inventory_relative_path", "[[:space:][:cntrl:]]",
+                 "empty directories are undeclared transfer artifacts"))},
+            {"name": "sub_cleanup_is_postsuccess_best_effort",
+             "ok": _ordered_between(sub_text, "finalize_remote_transactions()",
+                                    "transactional_exit()",
+                                    ("REMOTE_TX_ACTIVE=0", "successful sync left recovery backup"))},
+        ]
+    except (OSError, UnicodeError) as exc:
+        checks.append({"name": "sub_relocation_contract", "ok": False,
+                       "error": f"{type(exc).__name__}: {exc}"})
+
+    skeleton_root = REPO / ".claude/skills/terraforming_node/templates/document_skeletons"
+    skeletons = [skeleton_root / kind / "example.md"
+                 for kind in ("plan", "devlog", "testlog", "simlog", "benchmark")]
+    checks.append({"name": "terraform_owner_doc_skeletons",
+                   "ok": all(p.is_file() and p.stat().st_size > 0 for p in skeletons),
+                   "paths": [str(p.relative_to(REPO)) for p in skeletons]})
+    build_asset_root = REPO / ".claude/skills/upstream-version-watch/assets/build_plane"
+    build_assets = [
+        build_asset_root / "requirements.txt",
+        build_asset_root / "Dockerfile.source-build-upstage",
+        *[build_asset_root / "runtime_patches" / f"{stem}_patch{suffix}"
+          for stem in ("exaone45-33b", "hy3") for suffix in (".py", ".provenance.json")],
+        *[build_asset_root / "model_inputs/configs" / f"{stem}.{suffix}"
+          for stem in ("exaone45-33b", "hy3") for suffix in ("sh", "yaml")],
+        *[build_asset_root / "model_inputs/envs" / f".env.{stem}"
+          for stem in ("exaone45-33b", "hy3")],
+    ]
+    checks.append({"name": "upstream_owner_build_plane_assets",
+                   "ok": all(p.is_file() and not p.is_symlink() and p.stat().st_size > 0
+                             and stat.S_IMODE(p.stat().st_mode) & 0o111 == 0 for p in build_assets),
+                   "paths": [str(p.relative_to(REPO)) for p in build_assets]})
+    provenance = REPO / ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md"
+    checks.append({"name": "shipped_arch_approval_provenance",
+                   "ok": provenance.is_file() and provenance.stat().st_size > 0})
+    terraforming_contract = REPO / ".claude/skills/terraforming_node/SKILL.md"
+    skeleton_text = "\n".join(p.read_text(encoding="utf-8") for p in skeletons if p.is_file())
+    terraforming_text = terraforming_contract.read_text(encoding="utf-8")
+    checks += [
+        {"name": "owner_host_safety_documentation",
+         "ok": ".claude/skills/terraforming_node/scripts/host_safety/" in terraforming_text
+               and "호스트 안전체계(레포 루트 `scripts/`)" not in terraforming_text},
+        {"name": "owner_doc_naming_documentation",
+         "ok": "`scripts/doc_naming.py`" not in skeleton_text
+               and ".claude/skills/wiki-desk/scripts/doc_naming.py" in skeleton_text},
+    ]
+
+    checks += [
+        _run("terraform_scan_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/scan_node.py", "--self-test"], {0}),
+        _run("terraform_render_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/render_sub_env.py", "--self-test"], {0}),
+        _run("runtime_regression_selftest", [*_child_python(),
+             ".claude/policies/runtime/runtime_selftest.py"], {0}),
+        _run("gitless_hint_match", [sys.executable,
+             ".claude/skills/upstream-version-watch/scripts/hint_tag.py", "match",
+             "--vllm", "0.24.0", "--model", "deepseek-v4-flash", "--arch", "gb10"],
+             {0}, env_overrides={"PATH": "/nonexistent"}),
+    ]
+    for filename in ("resolve_torch_pin.py", "resolve_ngc_tag.py", "resolve_build_track.py",
+                     "resolve_wheel.py", "render_dockerfile.py", "regen_requirements.py",
+                     "classify_failure.py", "check_smoke_model.py"):
+        checks.append(_run(f"upstream_help:{filename}", [sys.executable,
+                           f".claude/skills/upstream-version-watch/scripts/{filename}", "--help"], {0}))
+    checks += [
+        _run("recipe_info_only_gate", [sys.executable,
+             ".claude/skills/vllm-recipe-explorer/recipe.py", "estimate", "--auto"], {4}),
+        _run("benchmark_info_only_gate", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/run_bench.sh", "freshclone-probe"], {4}),
+        _run("benchmark_verdict_fixture", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py", "--measured",
+             ".claude/skills/adversarial-benchmark/fixtures/measured_pass.json", "--roofline",
+             ".claude/skills/adversarial-benchmark/fixtures/roofline_sample.json"], {0}),
+    ]
+
+    with tempfile.TemporaryDirectory(prefix="easy-vllm-wiki-distribution.") as wiki:
+        checks += [
+            _run("wiki_init", [sys.executable, ".claude/skills/wiki-desk/scripts/init_wiki_desk.py",
+                 "--project-root", str(REPO), "--wiki-root", wiki, "--answers",
+                 ".claude/skills/wiki-desk/fixtures/project_init_answers.yaml"], {0}),
+            _run("wiki_lint", [sys.executable, ".claude/skills/wiki-desk/scripts/lint_wiki.py",
+                 "--project-root", str(REPO), "--wiki-root", wiki], {0}),
+            _run("wiki_query_negative_honesty", [sys.executable,
+                 ".claude/skills/wiki-desk/scripts/smoke_query.py", "--wiki-root", wiki,
+                 "--query", "terraforming manifest"], {0, 2}),
+        ]
+
+    policy_runner = REPO / ".claude/policies/runtime/policy_registry.py"
+    if policy_runner.is_file():
+        checks.append(_run("policy_registry_verify", [sys.executable, str(policy_runner),
+                           "verify", "--as-of", "2026-07-27", "--repo-root", str(REPO)], {0}))
+    else:
+        checks.append({"name": "policy_registry_verify", "ok": False,
+                       "error": "missing .claude/policies/runtime/policy_registry.py"})
+
+    predicate_dir = REPO / ".claude/policies/predicates"
+    if predicate_dir.is_dir():
+        checks.append(_run("production_claim_predicates", [sys.executable,
+                           str(predicate_dir / "claim_predicates.py")], {0}))
+        checks.append(_run("production_companion_predicates", [sys.executable, "-m", "unittest",
+                           "discover", "-s", str(predicate_dir), "-p", "*_predicate.py"], {0}))
+    else:
+        checks.append({"name": "production_claim_predicates", "ok": False,
+                       "error": "missing .claude/policies/predicates"})
+
+    return {"schema_version": 1, "repo": str(REPO),
+            "verdict": "PASS" if all(c.get("ok") for c in checks) else "FAIL",
+            "checks": checks}
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--json-out")
+    args = ap.parse_args(argv)
+    result = verify()
+    text = json.dumps(result, ensure_ascii=False, indent=2)
+    print(text)
+    if args.json_out:
+        Path(args.json_out).write_text(text + "\n", encoding="utf-8")
+    return 0 if result["verdict"] == "PASS" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

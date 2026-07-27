@@ -1,0 +1,16 @@
+# exaone45-33b (LG/EXAONE-4.5-33B) 서빙 설정 — vLLM 0.23.0 (source-build) × 2x GB10 TP=2 over Ray
+# 모델: LG EXAONE-4.5-33B (Exaone4_5_ForConditionalGeneration, dense 33B, bf16 64.0GiB, 2샤드).
+# arch = vLLM-native(레지스트리 확증) → NO trust-remote-code. S6 env-split 검증 E2E 2026-06-27.
+# recipe estimate r10: 36/36 PASS. weights 64→32GiB/node @TP=2(헤드룸 큼).
+model: /app/models/LG/EXAONE-4.5/EXAONE-4.5-33B
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+# KV 절대클램프 따름정리(이식성): KV 는 측정된 GPU당 절대값(kv-cache-memory-bytes)으로 제어 → 이식가능(gmu-derived KV 는 호스트 VRAM 차이로 비이식).
+# ⚠ gmu 도 함께 필수(E2E 실증): vLLM 은 클램프 시 gmu 를 *KV 사이징*엔 무시하나 **startup free-memory 검증**(free ≥ gmu×total)엔 여전히 사용 →
+#   통합메모리(GB10 free/total≈0.91)서 기본 0.92 가 startup OOM. ∴ gmu=startup 게이트(통합메모리 ≤0.90), clamp=KV 제어·이식성.
+# 측정(serve1 gmu0.85 트라이얼): weights 30.36GiB/GPU · Available KV 69.32GiB(binding) · overhead ~3.76GiB → 68GiB(73014444032 B) 클램프(1.32GiB 버퍼).
+gpu-memory-utilization: 0.85
+kv-cache-memory-bytes: 73014444032
+kv-cache-dtype: auto
+enforce-eager: true
+max-model-len: 32768

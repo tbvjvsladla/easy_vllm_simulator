@@ -16,7 +16,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C1"
         ]
@@ -38,7 +38,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C2"
         ]
@@ -60,7 +60,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C3"
         ]
@@ -75,7 +75,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C4"
         ]
@@ -97,7 +97,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_ARCH_WALL_VARIANT_LADDER_C1"
         ]
@@ -112,7 +112,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_ARCH_WALL_VARIANT_LADDER_C2"
         ]
@@ -127,7 +127,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_ARCH_WALL_VARIANT_LADDER_C3"
         ]
@@ -151,7 +151,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_ARCH_WALL_VARIANT_LADDER_C4"
         ]
@@ -166,7 +166,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_ARCH_WALL_VARIANT_LADDER_C5"
         ]
@@ -174,7 +174,7 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C1": [
       {
-        "path": "scripts/hint_tag.py",
+        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
         "assertion_ids": [
           "_build_evidence_footer",
           "_tag_object_body",
@@ -185,7 +185,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HINT_TAG_ACTIVATION_GATE_C1"
         ]
@@ -193,7 +193,7 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C2": [
       {
-        "path": "scripts/hint_tag.py",
+        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
         "assertion_ids": [
           "_build_evidence_footer",
           "_tag_object_body",
@@ -204,7 +204,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HINT_TAG_ACTIVATION_GATE_C2"
         ]
@@ -212,7 +212,7 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C3": [
       {
-        "path": "scripts/hint_tag.py",
+        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
         "assertion_ids": [
           "_build_evidence_footer",
           "_tag_object_body",
@@ -223,7 +223,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HINT_TAG_ACTIVATION_GATE_C3"
         ]
@@ -231,7 +231,7 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C4": [
       {
-        "path": "scripts/hint_tag.py",
+        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
         "assertion_ids": [
           "_build_evidence_footer",
           "_tag_object_body",
@@ -242,7 +242,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HINT_TAG_ACTIVATION_GATE_C4"
         ]
@@ -250,7 +250,7 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C5": [
       {
-        "path": "scripts/hint_tag.py",
+        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
         "assertion_ids": [
           "_build_evidence_footer",
           "_tag_object_body",
@@ -261,7 +261,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HINT_TAG_ACTIVATION_GATE_C5"
         ]
@@ -269,7 +269,7 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C6": [
       {
-        "path": "scripts/hint_tag.py",
+        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
         "assertion_ids": [
           "_build_evidence_footer",
           "_tag_object_body",
@@ -280,7 +280,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HINT_TAG_ACTIVATION_GATE_C6"
         ]
@@ -315,7 +315,7 @@
         ]
       },
       {
-        "path": "scripts/install_host_safety.sh",
+        "path": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
         "assertion_ids": [
           "APPLY",
           "KDUMP_CRASHKERNEL",
@@ -325,7 +325,7 @@
         ]
       },
       {
-        "path": "scripts/mem_watchdog.sh",
+        "path": ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
         "assertion_ids": [
           "FILTER",
           "THRESH_MIB",
@@ -333,7 +333,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HOST_SAFETY_LAYERED_DEFENSE_C1"
         ]
@@ -341,7 +341,7 @@
     ],
     "HOST_SAFETY_LAYERED_DEFENSE.C2": [
       {
-        "path": "scripts/install_host_safety.sh",
+        "path": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
         "assertion_ids": [
           "APPLY",
           "KDUMP_CRASHKERNEL",
@@ -351,7 +351,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HOST_SAFETY_LAYERED_DEFENSE_C2"
         ]
@@ -365,7 +365,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HOST_SAFETY_LAYERED_DEFENSE_C3"
         ]
@@ -388,7 +388,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HOST_SAFETY_LAYERED_DEFENSE_C4"
         ]
@@ -396,7 +396,7 @@
     ],
     "HOST_SAFETY_LAYERED_DEFENSE.C5": [
       {
-        "path": "scripts/install_host_safety.sh",
+        "path": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
         "assertion_ids": [
           "APPLY",
           "KDUMP_CRASHKERNEL",
@@ -406,7 +406,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HOST_SAFETY_LAYERED_DEFENSE_C5"
         ]
@@ -414,7 +414,7 @@
     ],
     "HOST_SAFETY_LAYERED_DEFENSE.C6": [
       {
-        "path": "scripts/install_host_safety.sh",
+        "path": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
         "assertion_ids": [
           "APPLY",
           "KDUMP_CRASHKERNEL",
@@ -424,7 +424,7 @@
         ]
       },
       {
-        "path": "scripts/mem_watchdog.sh",
+        "path": ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
         "assertion_ids": [
           "FILTER",
           "THRESH_MIB",
@@ -432,7 +432,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HOST_SAFETY_LAYERED_DEFENSE_C6"
         ]
@@ -440,7 +440,7 @@
     ],
     "HOST_SAFETY_LAYERED_DEFENSE.C7": [
       {
-        "path": "scripts/install_host_safety.sh",
+        "path": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
         "assertion_ids": [
           "APPLY",
           "KDUMP_CRASHKERNEL",
@@ -450,7 +450,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HOST_SAFETY_LAYERED_DEFENSE_C7"
         ]
@@ -458,14 +458,14 @@
     ],
     "HOST_SAFETY_LAYERED_DEFENSE.C8": [
       {
-        "path": "scripts/cleanup_docker.py",
+        "path": ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py",
         "assertion_ids": [
           "main",
           "preserve_set"
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HOST_SAFETY_LAYERED_DEFENSE_C8"
         ]
@@ -482,7 +482,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C1"
         ]
@@ -499,7 +499,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C2"
         ]
@@ -516,7 +516,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C3"
         ]
@@ -533,7 +533,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C4"
         ]
@@ -541,13 +541,13 @@
     ],
     "LAST_GOOD_ROLLBACK_ANCHOR.C1": [
       {
-        "path": "scripts/hint_tag.py",
+        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
         "assertion_ids": [
           "cmd_push"
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_LAST_GOOD_ROLLBACK_ANCHOR_C1"
         ]
@@ -555,14 +555,14 @@
     ],
     "LAST_GOOD_ROLLBACK_ANCHOR.C2": [
       {
-        "path": "scripts/sync_branches.sh",
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
         "assertion_ids": [
           "ALLOWLIST",
           "GATE_MODE"
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_LAST_GOOD_ROLLBACK_ANCHOR_C2"
         ]
@@ -570,13 +570,13 @@
     ],
     "LAST_GOOD_ROLLBACK_ANCHOR.C3": [
       {
-        "path": "scripts/hint_tag.py",
+        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
         "assertion_ids": [
           "cmd_push"
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_LAST_GOOD_ROLLBACK_ANCHOR_C3"
         ]
@@ -591,7 +591,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_MODEL_ACQUISITION_TERNARY_GATE_C1"
         ]
@@ -606,7 +606,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_MODEL_ACQUISITION_TERNARY_GATE_C2"
         ]
@@ -622,7 +622,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_MODEL_ACQUISITION_TERNARY_GATE_C3"
         ]
@@ -636,7 +636,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_MODEL_ACQUISITION_TERNARY_GATE_C4"
         ]
@@ -652,7 +652,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_MODEL_ACQUISITION_TERNARY_GATE_C5"
         ]
@@ -668,7 +668,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C1"
         ]
@@ -684,7 +684,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C2"
         ]
@@ -700,7 +700,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C3"
         ]
@@ -715,7 +715,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1"
         ]
@@ -737,7 +737,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C2"
         ]
@@ -752,7 +752,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C3"
         ]
@@ -767,7 +767,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C4"
         ]
@@ -782,7 +782,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_SUB_GIT_LOCAL_ONLY_C1"
         ]
@@ -797,7 +797,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_SUB_GIT_LOCAL_ONLY_C2"
         ]
@@ -812,7 +812,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_SUB_GIT_LOCAL_ONLY_C3"
         ]
@@ -827,7 +827,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C1"
         ]
@@ -842,7 +842,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C2"
         ]
@@ -857,7 +857,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C3"
         ]
@@ -872,7 +872,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C4"
         ]
@@ -894,7 +894,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_TERRAFORM_FLAG_GATE_C1"
         ]
@@ -916,7 +916,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_TERRAFORM_FLAG_GATE_C2"
         ]
@@ -945,7 +945,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_TERRAFORM_FLAG_GATE_C3"
         ]
@@ -959,13 +959,13 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_TERRAFORM_FLAG_GATE_C4"
         ]
       },
       {
-        "path": "tests/harness/test_policy_clause_companion_evidence.py",
+        "path": ".claude/policies/predicates/companion_predicate.py",
         "assertion_ids": [
           "TestTerraformFlagGateCompanion.test_wiki_desk_scripts_never_reference_the_flag_gate"
         ]
@@ -980,7 +980,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1"
         ]
@@ -1002,7 +1002,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C2"
         ]
@@ -1017,7 +1017,7 @@
         ]
       },
       {
-        "path": "tests/harness/test_policy_claim_predicates.py",
+        "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C3"
         ]

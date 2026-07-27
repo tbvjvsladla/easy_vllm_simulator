@@ -1,0 +1,39 @@
+# hy3 서빙 설정 — Tencent Hy3-NVFP4-W4A16 (HYV3ForCausalLM, 295B MoE · 21B active + 3.8B MTP) × stock vLLM 0.24.0 × 2x GB10 TP=2 Ray
+# 모델: /app/quant_models/Hy3-NVFP4-W4A16 (별도 quant_model NAS → QUANT_MODEL_PATH=/mnt/llm/quant_model).
+#   가중치 168.41GiB(index total_size) → ~84GiB/node @TP=2. arch native(0.24.0 레지스트리 HYV3ForCausalLM 확인) → NO trust-remote-code.
+#   experts-only NVFP4(W4A16) + 비-expert BF16(attn·dense MLP·shared_mlp·router·lm_head·embed). 80층 + MTP 1층 · 192 experts top-8 + 1 shared.
+# 근거: plan_2026071119_1(참조-그라운디드 4소스) · 동일-HW tonyd2wild 2x-DGX-Spark 레시피(×2 검증) · 로컬 HF 카드 번들.
+#
+# ★ MoE 백엔드 = MARLIN NvFp4 (auto 가 선택 — 플래그 미지정). W4A16(weight-only)이라 flashinfer_trtllm/cutlass/cutedsl(W4A4)은
+#   'kernel does not support QuantKey(u8, scale(f8e4m3))' 로 거부 → vLLM 이 MARLIN NvFp4 커널을 auto-선택(카드·소스 확인).
+#   ⚠ 예전 Qwen3.5-122B-NVFP4(W4A4)의 flashinfer_cutlass 정답을 이월하면 실패(모델별 서빙전략 독립 따름정리 — carry-forward ✗). 스모크가 중재.
+model: /app/quant_models/Hy3-NVFP4-W4A16
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+# ⚠ load-format 미지정(기본 mmap 로더) — fastsafetensors 는 로드 중 호스트버퍼 스파이크로 슬레이브 통합메모리 OOM
+#   유발(2026-07-11 serve#1: shard 6/50 서 slave MemAvail 9841MiB<10240 → worker 사망). 카드의 fastsafetensors 는
+#   275GB B300 기준 — 동일-HW tonyd2wild 2x-GB10 레시피는 기본 로더 사용(메모리 절약). 환경별 재확정(carry-forward ✗).
+# 통합메모리 클램프(0.92+ = startup OOM — tonyd2wild·헌법 ≤0.90). gmu=startup free-memory 게이트 + 총-cap.
+gpu-memory-utilization: 0.90
+# 사용자 결정 — fp8_e4m3 KV(용량 ~180K 토큰풀, tonyd2wild ×2 검증). ⚠ 카드 경고: 미보정 fp8 KV 가 영어맥락 중국어혼출 증폭 가능성.
+kv-cache-dtype: fp8_e4m3
+# tonyd2wild 검증값(256K native 는 2x GB10 미탑재 — VRAM 제약).
+max-model-len: 131072
+# 초기 batch. near-max 는 serve KV-log 실측 후 조정(공식 batch 금지 — 헌법 near-max 따름정리).
+max-num-seqs: 6
+# GB10: cudagraph 미검증 → eager(tonyd2wild). decode 오버헤드는 MTP 가 상쇄, 실 t/s = adversarial-benchmark 게이트가 측정.
+enforce-eager: true
+# cross-node RoCE(NVLink 부재) — custom all-reduce 비활성(멀티노드 공통).
+disable-custom-all-reduce: true
+# 에이전트-레디(Hermes agent + OpenWebUI): reasoning + tool-call 파서(0.24.0 네이티브 hy_v3 등록 — vllm/{reasoning,tool_parsers}/__init__ 소스 직독 확인).
+#   ⚠ :opensource 특수토큰 미스매치(체크포인트 vocab = <think:opensource>/<tool_calls:opensource>… 만, bare 부재) →
+#      파서가 bare 토큰 하드코딩 → 미패치 시 __init__ RuntimeError. hy3_patch.py(:opensource 스왑) 런타임 패치 필수(arm_patch.sh 가 arm).
+reasoning-parser: hy_v3
+tool-call-parser: hy_v3
+enable-auto-tool-choice: true
+# KV 절대클램프(이식성·안전 — 헌법 KV 절대클램프 따름정리) = serve#2 실측 후 확정(Phase-1.5).
+#   실측(serve#2, gmu 0.90 언클램프): Available KV=19.32 GiB → 250,096 tokens 이지만 할당 후 여유 master 10.2/slave 7.4 GiB
+#   → 10.24 GiB 워치독 TRIP(11:41:29 docker kill, exit137). pre-KV 여유 = master 29.5/slave 26.7 GiB.
+#   ∴ 12 GiB 로 클램프 → slave 여유 ~14.7 GiB(워치독 위 4.5 GiB 마진·추론 스파이크 흡수) · ~155K tokens(>max-len 131072).
+#   gmu 0.90 은 startup free-memory 게이트+총-cap 용으로 함께 유지(클램프 설정 시 vLLM 은 KV 사이징에만 gmu 무시).
+kv-cache-memory-bytes: 12884901888

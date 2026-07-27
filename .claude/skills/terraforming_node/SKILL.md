@@ -35,7 +35,7 @@ description: >-
 - **Inputs** — 사용자 인터뷰 답(토폴로지·모델 획득 모드·multi 5-전제조건) · 노드 실측 스캔 · 현재 git 브랜치 · (선택) 이전 attestation.
 - **Outputs** — `output/<topology>/manifest.yaml`(HITL 반영) · Flag attestation · (multi) `output/multi/sub_provision/` 스테이징 + 카나리 리포트.
 - **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 7단계(순서 고정).
-- **State transitions** — 산출물 자체는 상태가 아니라 `execution-approved` 의 **전제**(HW 사실·Flag)를 만든다. runtime-ready/evidence-complete/promotion-ready 판정은 `scripts/completion_gate.py` 소유.
+- **State transitions** — 산출물 자체는 상태가 아니라 `execution-approved` 의 **전제**(HW 사실·Flag)를 만든다. runtime-ready/evidence-complete/promotion-ready 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
 - **HITL/safety boundaries** — 무단 스캔 ✗ · 무증거 manifest 기입 ✗ · 서브 work_dir 자동 신설 ✗ · 에이전트 무인 sudo ✗(§5 금지).
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
 - **Deterministic commands** — `scripts/staleness_gate.py`(조건부 preflight 트리거) · `scripts/scan_node.py`(스캔·게이트·3자일치·emit) · `scripts/render_sub_env.py`(서브 환경 렌더) · `scripts/manifest_contract.py`(Flag 리더).
@@ -197,11 +197,11 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
   - "768k prefill 사건에서 워치독이 컨테이너를 먼저 정리해 호스트를 지킨 실적이 있습니다 — 설치하면 이 보호막이 상시 작동합니다."
   - "kdump 가 있으면 시스템이 멈춰도 사후 분석용 덤프가 남아 원인을 추적할 수 있습니다."
   - (통합메모리 GPU 한정) "이 GPU 는 시스템 메모리를 공유해 GPU OOM 이 곧 호스트 다운입니다 — 워치독이 그 직전에 개입합니다."
-- **② Y 분기(설치)**: 승인 시 **사용자 실행** `sudo bash scripts/install_host_safety.sh --apply [--with-kdump]`(dry-run 선행 가능 — 무엇을·왜·트레이드오프 고지) → **에이전트 무인 sudo 실행 ✗**(실행 주체는 사람). 검증(결정론): `systemctl is-active easy-vllm-memwatch` = active · `sudo -n /usr/local/sbin/vllm-drop-caches` 무암호 동작. 설치 계층 = mem_watchdog systemd 상시(관측+보호킬 — "무인 자동실행 없음" 원칙의 **명시 예외**) · earlyoom 최후선 · sudoers 단일 헬퍼(`vllm-drop-caches` 경로 1개만 NOPASSWD) · (선택) kdump(**재부팅 1회** + crashkernel RAM 예약). → manifest `host_safety.installed: true`.
+- **② Y 분기(설치)**: 승인 시 **사용자 실행** `sudo bash .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh --apply [--with-kdump]`(dry-run 선행 가능 — 무엇을·왜·트레이드오프 고지) → **에이전트 무인 sudo 실행 ✗**(실행 주체는 사람). 검증(결정론): `systemctl is-active easy-vllm-memwatch` = active · `sudo -n /usr/local/sbin/vllm-drop-caches` 무암호 동작. 설치 계층 = mem_watchdog systemd 상시(관측+보호킬 — "무인 자동실행 없음" 원칙의 **명시 예외**) · earlyoom 최후선 · sudoers 단일 헬퍼(`vllm-drop-caches` 경로 1개만 NOPASSWD) · (선택) kdump(**재부팅 1회** + crashkernel RAM 예약). → manifest `host_safety.installed: true`.
 - **③ N 분기(미설치·opt-out)**: **차단 없음** — 서빙은 정상 진행. manifest `host_safety.installed: false`(중립 기록 — 비난 톤 ✗). 재권유는 **세션당 1회 이하**(시끄러움 방지).
   - **통합메모리 노드 한정 후속 경고**: opt-out + 통합메모리(GPU OOM=호스트 하드다운 위험) 노드는, 이후 서빙 기동 직전 **에이전트 채팅창 1줄** 안내만 한다("워치독 미설치 상태 — 통합메모리라 OOM 시 호스트 다운 위험, `install_host_safety.sh` 로 언제든 보강 가능"). **serve 스크립트/로그 배너 코드변경 ✗**(시끄러운 경험 방지 — D31·NG-5). **discrete GPU 노드는 무경고.**
 - **④ 파급 정밀화(opt-out 이어도 보호 일부 유지)**: 하네스 **협역 워치독**(`run_trial`·`multinode_serve_smoke.sh` 자동 기동)은 레포 내장 스크립트라 **설치와 무관하게 계속 작동**(opt-out 사용자도 trial 중 보호 유지). 로드-전 RAM 게이트(⑤.5)의 `vllm-drop-caches` 자동 드랍만 헬퍼 부재로 skip 되며, 게이트는 이를 **음성정직으로 보고**(드랍 없이 재측정 → 부족 시 기동 거부 exit 7 유지 — `preload_ram_gate.try_drop_caches` 기구현 graceful).
-- **⑤ 멀티노드 변형**: 양노드(메인+서브) 각각 동일 Y/N. **서브 설치는 렌더 배달분**(`scripts/install_host_safety.sh` — §2 오버레이 셋 포함)으로 **서브에서 사용자가 실행**(A2A 경계 — 메인 sudo 대행 ✗). manifest `nodes[].host_safety.installed` 로 **노드별 독립** 기록.
+- **⑤ 멀티노드 변형**: 양노드(메인+서브) 각각 동일 Y/N. **서브 설치는 렌더 배달분**(`.claude/runtime/host_safety/install_host_safety.sh` — §2 오버레이 셋 포함)으로 **서브에서 사용자가 실행**(A2A 경계 — 메인 sudo 대행 ✗). manifest `nodes[].host_safety.installed` 로 **노드별 독립** 기록.
 
 ## 3. 결정론 vs 판단 분리
 | 결정론 (스크립트) | 판단 (이 페르소나) |
@@ -217,7 +217,7 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 - `scripts/render_sub_env.py` — 결정론 렌더러(manifest→`output/multi/sub_provision/` 스테이징·`--self-test`).
 - `sub_node/` — 추적 PII-free 템플릿·정적계약: `CLAUDE.template.md`·`Agent_Card.template.json`·`settings.local.template.json`·`comms.md`·`task-report.schema.json`·`gitignore.template`.
 - 메인↔서브 [전달]·[서빙 스모크]는 `upstream-version-watch`(`sync_to_sub.sh` — `--provision` 에 에이전트환경 오버레이 포함 · `multinode_serve_smoke.sh`).
-- 호스트 안전체계(레포 루트 `scripts/`): `install_host_safety.sh`(결정론 설치자 — HITL sudo) · `mem_watchdog.sh`(광역/협역 이중 모드) · `systemd/easy-vllm-memwatch.service` · `host/vllm-drop-caches.sh`. 근거 = plan_26071019.
+- 호스트 안전체계 정본(`.claude/skills/terraforming_node/scripts/host_safety/`): `install_host_safety.sh`(결정론 설치자 — HITL sudo) · `mem_watchdog.sh`(광역/협역 이중 모드) · `systemd/easy-vllm-memwatch.service` · `host/vllm-drop-caches.sh`. 서브 materialization은 `.claude/runtime/host_safety/`가 소유한다. 근거 = plan_26071019.
 
 ## 5. 금지
 - 사용자 승인 없는 자동스캔 / 서브노드 무단 프로빙.

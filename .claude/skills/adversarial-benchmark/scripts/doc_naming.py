@@ -38,25 +38,30 @@ def bench_filename(kind, meta, generated_utc, out_dir, ext):
             base = "%s_%s_%s_%s_%s.%s" % (kind, yymmddhh, mm, ss, combo, ext)
     return base
 
+def _require(condition, message):
+    if not condition:
+        raise AssertionError(message)
+
+
 def _self_test():
     import tempfile
-    assert kst_tokens("2026-07-24T16:22:29Z") == ("26072501", "22", "29")
-    assert kst_tokens("2026-07-15T11:00:33Z") == ("26071520", "00", "33")
-    assert kst_tokens("2026-07-15T21:21:33Z") == ("26071606", "21", "33")
-    assert kst_tokens(None) == ("NA", "00", "00")
-    assert kst_tokens("garbage") == ("NA", "00", "00")
+    _require(kst_tokens("2026-07-24T16:22:29Z") == ("26072501", "22", "29"), "KST conversion 1")
+    _require(kst_tokens("2026-07-15T11:00:33Z") == ("26071520", "00", "33"), "KST conversion 2")
+    _require(kst_tokens("2026-07-15T21:21:33Z") == ("26071606", "21", "33"), "KST conversion 3")
+    _require(kst_tokens(None) == ("NA", "00", "00"), "None timestamp fallback")
+    _require(kst_tokens("garbage") == ("NA", "00", "00"), "invalid timestamp fallback")
     d = tempfile.mkdtemp()
     meta = {"model": "solar-open2-250b", "gpu_key": "GB10", "vllm_version": "0.22.0"}
     n1 = bench_filename("bench_report", meta, "2026-07-24T16:22:29Z", d, "md")
-    assert n1 == "bench_report_26072501_solar-open2-250b_GB10_0.22.0.md", n1
+    _require(n1 == "bench_report_26072501_solar-open2-250b_GB10_0.22.0.md", n1)
     open(_os.path.join(d, n1), "w").write("measured_utc: 2026-07-24T16:22:29Z\n")
-    assert bench_filename("bench_report", meta, "2026-07-24T16:22:29Z", d, "md") == n1  # republish -> overwrite
+    _require(bench_filename("bench_report", meta, "2026-07-24T16:22:29Z", d, "md") == n1, "republish must overwrite")
     n2 = bench_filename("bench_report", meta, "2026-07-24T16:45:00Z", d, "md")          # diff measurement, same hour
-    assert n2 == "bench_report_26072501_45_00_solar-open2-250b_GB10_0.22.0.md", n2
+    _require(n2 == "bench_report_26072501_45_00_solar-open2-250b_GB10_0.22.0.md", n2)
     c = bench_filename("benchmark", meta, "2026-07-24T16:22:29Z", None, "yaml")
-    assert c == "benchmark_26072501_solar-open2-250b_GB10_0.22.0.yaml", c
+    _require(c == "benchmark_26072501_solar-open2-250b_GB10_0.22.0.yaml", c)
     mx = bench_filename("max_envelope", meta, None, None, "md")
-    assert mx == "max_envelope_NA_solar-open2-250b_GB10_0.22.0.md", mx
+    _require(mx == "max_envelope_NA_solar-open2-250b_GB10_0.22.0.md", mx)
     print("[doc_naming] self-test PASS")
 
 if __name__ == "__main__":

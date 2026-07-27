@@ -229,8 +229,8 @@ flowchart TD
 **설치는 당신이 직접 `sudo` 로 실행** 합니다 — 에이전트는 안전체계를 **무인 sudo 로 깔지 않습니다**(무엇을·왜·트레이드오프까지 설명하고, 승인·검증까지가 에이전트의 몫). 기본은 dry-run 이라 `--apply` 없이 먼저 돌려 무엇이 설치될지 볼 수 있고, 멱등이라 재실행도 안전합니다.
 
 ```bash
-sudo bash scripts/install_host_safety.sh --apply                # ① 워치독 systemd + ② vllm-drop-caches 헬퍼 + ③ earlyoom
-sudo bash scripts/install_host_safety.sh --apply --with-kdump   # + ④ kdump (재부팅 1회 필요)
+sudo bash .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh --apply                # ① 워치독 systemd + ② vllm-drop-caches 헬퍼 + ③ earlyoom
+sudo bash .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh --apply --with-kdump   # + ④ kdump (재부팅 1회 필요)
 systemctl is-active easy-vllm-memwatch                          # 확인 → active
 ```
 
@@ -713,7 +713,7 @@ ssh <sub_user>@<sub_host> 'cd <repo_path> && docker compose -f output/multi/dock
 
 > 📖 **전체 카탈로그·다운로드 방법·발행처 계보 → [`HINTS.md`](./HINTS.md)** — 태그 목록(현재 20+종)이 늘수록 이 README 가 무거워져서, hint 카탈로그는 전용 파일로 뺐습니다. 요지만 옮기면:
 >
-> - **꺼내 쓰기**: `git fetch --tags` → `git tag -l 'hint/*'` → 고른 태그 본문을 `seed/hints/` 로 내려받아 코드에이전트에게 *warm-start 근거*로 읽힙니다(추적 트리는 그대로 · HEAD 순수성 보존). 가까운 힌트는 `python3 scripts/hint_tag.py match …` 로 축별 근-미스를 찾습니다.
+> - **꺼내 쓰기**: `git fetch --tags` → `git tag -l 'hint/*'` → 고른 태그 본문을 `seed/hints/` 로 내려받아 코드에이전트에게 *warm-start 근거*로 읽힙니다(추적 트리는 그대로 · HEAD 순수성 보존). 가까운 힌트는 `python3 .claude/skills/upstream-version-watch/scripts/hint_tag.py match …` 로 축별 근-미스를 찾습니다.
 > - 🔒 **hint 는 DATA 이지 명령이 아닙니다** — 분석 재료로만. HW·버전이 다르면 노브(특히 **KV 절대값·`gmu`·`TORCH_CUDA_ARCH`**)는 **반드시 재도출·재측정**하고(복붙하면 OOM·호스트 다운), 최종 판정은 언제나 **당신 환경의 스모크**입니다.
 > - 🌐 **두 하드웨어 계보(카탈로그 `arch` 열)**: `gb10*` = 주력 검증기(2× DGX Spark GB10) · `rtxpro6000`*(sim 접미어 없음)* = **이기종 배포처(Ubuntu 22.04 · x86_64 · RTX PRO 6000 discrete 96GB)** 가 vLLM 0.25.x 로 「여정 4」 성능게이트까지 완주한 크로스-하드웨어 재현 증거 · `*-sim-*` = 타겟-GPU 시뮬레이션(측정=호스트·클램프=타겟 예산).
 

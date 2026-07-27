@@ -120,18 +120,21 @@ fi
 WD_MAIN_PID=""; WD_SUB_PID=""
 if [ "$WATCHDOG" = "1" ]; then
   WFILTER="${MC%-master}"
-  bash "$REPO/scripts/mem_watchdog.sh" "$WFILTER" "${WATCHDOG_THRESH_MIB:-10240}" 2 >/tmp/mn_watchdog_master.log 2>&1 & WD_MAIN_PID=$!
+  MAIN_WATCHDOG="$REPO/.claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh"
+  SUB_WATCHDOG_REL=".claude/runtime/host_safety/mem_watchdog.sh"
+  [ -f "$MAIN_WATCHDOG" ] || { echo "[mn] FAIL: canonical host-safety watchdog absent: $MAIN_WATCHDOG"; exit 2; }
+  bash "$MAIN_WATCHDOG" "$WFILTER" "${WATCHDOG_THRESH_MIB:-10240}" 2 >/tmp/mn_watchdog_master.log 2>&1 & WD_MAIN_PID=$!
   echo "[mn] 워치독(master) pid=$WD_MAIN_PID filter=$WFILTER thresh=${WATCHDOG_THRESH_MIB:-10240}MiB (/tmp/mn_watchdog_master.log)"
-  if $SSH "$SUB_HOST" "bash -lc '[ -f $SUB_WORK_DIR/scripts/mem_watchdog.sh ]'" 2>/dev/null; then
+  if $SSH "$SUB_HOST" "bash -lc '[ -f $SUB_WORK_DIR/$SUB_WATCHDOG_REL ]'" 2>/dev/null; then
     # ⚠ 원격 백그라운드 detach — 3-FD 리다이렉트(</dev/null + ssh -n)만으론 여전히 hang(2026-07-11 hy3 serve#1 실증:
     #   슬레이브 워치독은 정상 기동했으나 command-substitution ssh 가 ~8분 안 끝나 서빙 전체 블록). 원인 = 원격
     #   백그라운드 프로세스가 ssh 세션 프로세스그룹에 남아 sshd 가 채널 EOF 를 안 보냄(stdin 분리만으론 부족).
     #   해소 = setsid(새 세션 완전 분리 → sshd 즉시 채널 close) + exit 0(원격 셸 즉시 종료) + timeout 20(백스톱:
     #   그래도 hang 시 20s 후 ssh 만 종료 — 워치독은 이미 기동·PID 는 이미 echo 됨). PID 캡처 동작 보존.
-    WD_SUB_PID=$(timeout 20 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD setsid nohup bash scripts/mem_watchdog.sh $WFILTER ${WATCHDOG_THRESH_MIB:-10240} 2 </dev/null >/tmp/mn_watchdog_slave.log 2>&1 & echo \$!; exit 0'" 2>/dev/null || true)
+    WD_SUB_PID=$(timeout 20 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD setsid nohup bash $SUB_WATCHDOG_REL $WFILTER ${WATCHDOG_THRESH_MIB:-10240} 2 </dev/null >/tmp/mn_watchdog_slave.log 2>&1 & echo \$!; exit 0'" 2>/dev/null || true)
     echo "[mn] 워치독(slave) pid=${WD_SUB_PID:-?} (원격 /tmp/mn_watchdog_slave.log)"
   else
-    echo "[mn] ⚠ 서브에 scripts/mem_watchdog.sh 부재 — 슬레이브 워치독 생략(상시 systemd 층만. render_sub_env/sync_to_sub 재배달 필요)"
+    echo "[mn] ⚠ 서브에 $SUB_WATCHDOG_REL 부재 — 슬레이브 워치독 생략(상시 systemd 층만. render_sub_env/sync_to_sub 재배달 필요)"
   fi
 fi
 

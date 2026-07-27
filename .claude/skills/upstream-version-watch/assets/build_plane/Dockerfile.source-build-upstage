@@ -1,0 +1,153 @@
+# syntax=docker/dockerfile:1
+# Dockerfile.source-build-upstage — source-build 트랙 **변종**: UpstageAI/vllm 포크 핀(solar_open2 enablement).
+#
+# 왜 별도 파일인가 (Dockerfile.source-build 재사용 불가 이유 — 3개 fail-loud 스탠자가 0.22.0 서 빌드중단):
+#   (1) `COPY build_patches/` + 적용 루프 — 10-deepgemm/20-triton-kernels/30-mxfp4-triton-sm121/
+#       40-humming-nvml-gb10 은 DeepSeek-V4 DSA·MXFP4·humming 전용. 0.22.0 엔 humming NVFP4 경로 자체가
+#       없고(oracle/nvfp4.py AVAILABLE_BACKENDS 에 HUMMING 부재) anchor 불일치 → exit 1.
+#   (2) flashinfer 0.6.14 + `swa_topk_lens in trtllm_batch_decode_sparse_mla_dsv4` assert — DSV4 sparse-MLA 전용.
+#       Upstage 포크 requirements/cuda.txt 는 flashinfer 0.6.11.post2 핀 → assert 불성립.
+#   (3) sparse_attn_indexer.py DSA topk 소스-게이트 패치 — DeepSeek DSA 전용. anchor 미발견 → exit 1.
+#   ∴ CORE(_C 컴파일 레이어까지 byte-동일 — layer-cache 재사용) + 멀티노드 append(netcat·ray) 만 계승하고
+#     위 3개는 제외한다. `ENV PATH=/usr/local/cuda/bin` 은 **계승**(nvcc 런타임 노출 = flashinfer sm_121a JIT 전제).
+#
+# 대상: nota-ai/Solar-Open2-250B-Nota-NVFP4 (SolarOpen2ForCausalLM · compressed-tensors nvfp4-pack-quantized W4A4 g16
+#   · 48층 하이브리드 = GQA 12층 + KDA 선형어텐션 36층 · MoE 320 routed + 1 shared, top-8).
+#   stock vLLM 미지원(v0.25.1·main registry 에 SolarOpen2 부재 · upstream PR/issue 0건 · v0.26.x 미존재)
+#   → 소스-repo 오버라이드(포크 SHA 핀) = workflow.md S3 arch-wall 사다리 3단계. 헌법 아치-enablement 변종 트랙 따름정리.
+#
+# 이미지 네이밍: easy-vllm:0.22.0-cu132-aarch64-source-upstage
+#   track=`source-upstage` = **포크 벤더**명(모델명 아님) = stock 0.22.0 의 superset(0.22.0 이 서빙하던 모델 전부 +
+#   solar_open2). 모델-키잉 ✗ — 헌법 이미지 네이밍 불변식 준수.
+#
+# 커플링 증거(무증거 오버라이드 ✗):
+#   · resolve_torch_pin.py 0.22.0 → torch ==2.11.0 · 0.25.1 → torch ==2.11.0 (동일) ⟹ NGC 26.05-py3 재사용 정당.
+#   · fork pyproject [build-system].requires 직독 = "torch == 2.11.0" (raw.githubusercontent @ SHA).
+#   · api.github.com compare v0.22.0...UpstageAI:vllm:<SHA> → ahead_by=1, behind_by=0 (릴리즈 태그 위 커밋 1개).
+#   · fork registry.py:216 `"SolarOpen2ForCausalLM": ("solar_open2", "SolarOpen2ForCausalLM"),`
+#   · fork solar_open2.py → vllm 내장 Triton KDA(layers.fla.ops.kda / layers.mamba.gdn.kimi_gdn_linear_attn)
+#     사용 · 외부 fla-core 의존 ✗ · arch 가드 ✗ ⟹ sm_121 선형어텐션 arch-wall 리스크 낮음.
+
+FROM nvcr.io/nvidia/pytorch:26.05-py3
+
+# ── torch핀 가드 (증거기반 carry-forward: 0.22.0 pyproject 직독 결과가 0.25.1 과 동일 핀) ──
+RUN echo "[guard] source-build-upstage key (26.05-py3 x vLLM 0.22.0+solar-open2): torch 2.11.0 verified via pyproject — proceeding."
+
+# VLLM_REPO/VLLM_REF: 기본값을 **포크 SHA 핀**으로 둔다(이 파일은 변종 전용 Dockerfile).
+#   ⚠ `v0.22.0-solar-open2` 는 tag 가 아니라 **branch**(mutable · api tags 목록에 부재) → 반드시 SHA 핀.
+#      force-push 면역 = content-addressed SHA. 태그명/브랜치명 핀 금지(헌법 변종 트랙 따름정리).
+ARG VLLM_REPO=https://github.com/UpstageAI/vllm.git
+ARG VLLM_REF=00907fc9b982f973808a0193ad0f8c61fbb62854
+ARG TORCH_CUDA_ARCH=12.1a
+ARG BUILD_JOBS=16
+
+ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH} \
+    MAX_JOBS=${BUILD_JOBS} \
+    CMAKE_BUILD_PARALLEL_LEVEL=${BUILD_JOBS} \
+    CCACHE_DIR=/root/.ccache CCACHE_MAXSIZE=30G CCACHE_COMPRESS=1 \
+    PATH=/usr/lib/ccache:/usr/local/bin:/usr/bin:/bin
+
+# ccache 설치(NGC 베이스엔 ccache 없음 — ninja/git 는 존재). 증분 재컴파일 가속.
+RUN apt-get update && apt-get install -y --no-install-recommends ccache && rm -rf /var/lib/apt/lists/*
+
+# NGC pip constraint 비우기(핀 충돌 회피)
+RUN cp /etc/pip/constraint.txt /etc/pip/constraint.txt.bak 2>/dev/null || true; : > /etc/pip/constraint.txt
+
+# 대상 ref 소스 클론 + NGC torch 사용(소스가 torch 핀을 재설치하지 않게 — 커플링 규칙 충실).
+# blobless 풀-히스토리 클론 + SHA detach checkout(포크 force-push 면역).
+RUN git clone --filter=blob:none ${VLLM_REPO} /workspace/vllm-src \
+ && git -C /workspace/vllm-src checkout --detach ${VLLM_REF} \
+ && echo "[clone] HEAD=$(git -C /workspace/vllm-src rev-parse HEAD) (${VLLM_REPO} @ ${VLLM_REF})"
+WORKDIR /workspace/vllm-src
+
+# [fail-loud] 포크가 실제로 solar_open2 를 등록하는지 클론 직후 확인 — 잘못된 ref 를 45분 빌드 뒤에 발견하지 않게.
+RUN grep -q '"SolarOpen2ForCausalLM"' vllm/model_executor/models/registry.py \
+ && test -f vllm/model_executor/models/solar_open2.py \
+ && test -f vllm/v1/sample/logits_processor/solar_open2.py \
+ && echo "[verify] solar_open2 registry+model+logits_processor 확인 OK ($(git rev-parse --short HEAD))"
+
+RUN python3 use_existing_torch.py
+
+# build-system.requires 수동 설치(--no-build-isolation 전제: pip 가 자동설치 안 함).
+RUN pip install $(python3 -c "import tomllib;print(' '.join(tomllib.load(open('pyproject.toml','rb'))['build-system']['requires']))") "setuptools<81"
+
+# strip-hoist (torch 2.11a): NGC torch 의 register_opaque_type 가 hoist kwarg 를 안 받으면
+# 소스에서 그 kwarg 만 제거(opaque 등록 기능 유지). 수용 시엔 no-op(자기적응).
+RUN python3 - <<'PY'
+import inspect, pathlib, re, sys
+try:
+    from torch._library.opaque_object import register_opaque_type
+    needs = "hoist" not in inspect.signature(register_opaque_type).parameters
+except Exception:
+    needs = False  # opaque_object 미존재(torch 2.10대) → 패치 불요
+if needs:
+    n = 0
+    for p in pathlib.Path(".").rglob("*.py"):
+        try:
+            s = p.read_text()
+        except Exception:
+            continue
+        if "register_opaque_type(" in s and "hoist" in s:
+            ns = re.sub(r",\s*hoist\s*=\s*[^,)]+", "", s)
+            if ns != s:
+                p.write_text(ns); n += 1; print(f"[patch] strip-hoist {p}")
+    print(f"[patch] strip-hoist applied to {n} file(s)")
+    if n == 0:
+        print("[patch][WARN] hoist 미수용인데 register_opaque_type(hoist=) 미발견 — 상류 변경 의심", file=sys.stderr)
+else:
+    print("[patch] strip-hoist skipped (register_opaque_type accepts hoist / opaque_object 부재)")
+PY
+
+# 소스 컴파일: _C 를 NGC torch 에 맞춰 빌드 → ABI 벽 원천 해소. deps 는 pyproject/requirements 에서(torch 보호됨).
+#   포크 requirements/cuda.txt 가 flashinfer-python/cubin 0.6.11.post2 (짝맞춤) + nvidia-cutlass-dsl[cu13]==4.5.2
+#   (= FLASHINFER_B12X 의 cute_dsl 전제) 를 함께 설치한다. 포크 requirements = 권위(수동 오버라이드 ✗).
+RUN --mount=type=cache,target=/root/.ccache \
+    pip install --no-build-isolation -e .
+
+# 빌드 검증(GPU 불요): vllm 패키지 설치만 확인. _C/import 는 libcuda.so.1(드라이버) 필요 →
+# 빌드타임 불가(GPU 미주입). 실제 _C 로드·서빙은 런타임(--gpus)에서 = 스모크가 최종 중재자.
+RUN python3 -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('vllm') else 1)" \
+    && echo "[build] vllm package present (런타임 _C 검증은 serve 단계)"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# [멀티노드 전용 append] 분산서빙 런타임 의존 — CORE 뒤에 둬서 _C 컴파일 레이어 캐시를 보존.
+#   A) netcat: serve_runner.sh 의 slave 가 nc 로 Ray head 포트 대기.
+#   B) ray: 2노드 Ray 분산 서빙. 핀 2.48.0 (기존 트랙과 동일 — 검증치).
+# ═════════════════════════════════════════════════════════════════════════════
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        iproute2 netcat-openbsd iputils-ping dnsutils \
+    && rm -rf /var/lib/apt/lists/*
+ARG RAY_VERSION=2.48.0
+RUN pip install ray==${RAY_VERSION}
+
+# [nvcc 런타임 노출 — Dockerfile.source-build 에서 계승(필수)]
+#   위 ENV 가 ccache 위해 PATH 를 재정의하며 /usr/local/cuda/bin 을 누락 → 런타임 nvcc 미발견.
+#   flashinfer 는 프리빌트 cubin 부재 아치(sm_121a)서 nvcc 로 런타임 JIT 하므로 재노출 필수.
+#   (FLASHINFER_CUTLASS / FLASHINFER_B12X 선택가능성의 전제.)
+ENV PATH=/usr/local/cuda/bin:${PATH}
+
+# [진단 리포트 — 비-fatal] 빌드타임엔 libcuda.so.1 부재라 has_flashinfer_*() 가 실패할 수 있으므로
+#   **fail-loud 가 아니라 report-only**. NVFP4 MoE 백엔드 판정점(FLASHINFER_CUTLASS / FLASHINFER_B12X)의
+#   전제 심볼이 이미지에 실재하는지를 serve 前에 알기 위한 관측(스모크가 최종 중재).
+RUN python3 - <<'PY' || true
+import importlib, importlib.util
+def has(mod, attr=None):
+    try:
+        m = importlib.import_module(mod)
+        return (attr is None) or hasattr(m, attr)
+    except Exception as e:
+        return f"IMPORT_FAIL({type(e).__name__})"
+for pkg in ("flashinfer-python", "flashinfer-cubin", "nvidia-cutlass-dsl"):
+    try:
+        from importlib.metadata import version
+        print(f"[diag] {pkg} == {version(pkg)}")
+    except Exception as e:
+        print(f"[diag] {pkg} : NOT INSTALLED ({type(e).__name__})")
+print("[diag] flashinfer.fused_moe.cutlass_fused_moe :", has("flashinfer.fused_moe", "cutlass_fused_moe"))
+print("[diag] flashinfer.fused_moe.b12x_fused_moe    :", has("flashinfer.fused_moe", "b12x_fused_moe"))
+print("[diag] flashinfer.fp4_quantize               :", has("flashinfer", "fp4_quantize"))
+print("[diag] vllm solar_open2 module spec          :", bool(importlib.util.find_spec("vllm.model_executor.models.solar_open2")))
+PY
+
+WORKDIR /workspace
+EXPOSE 8000

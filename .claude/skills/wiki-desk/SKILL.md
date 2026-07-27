@@ -32,7 +32,7 @@ adaptation.
 - **Inputs** — `docs/{devlog,testlog,plan,simlog}` + `sync_staging/sub_docs` + `seed` (graceful skip if absent) · a question or a doc stem.
 - **Outputs** — `__llm-wiki/` registry + edge graph (untracked) · authority-ranked answers with source paths · lint/scan reports.
 - **Mandatory procedural spine** — see §Mandatory procedural spine below (orientation before answering).
-- **State transitions** — advances **none**. The librarian informs `execution-approved` planning and `evidence-complete` shelving, but never judges a state; `scripts/completion_gate.py` owns every state verdict.
+- **State transitions** — advances **none**. The librarian informs `execution-approved` planning and `evidence-complete` shelving, but never judges a state; `.claude/policies/runtime/completion_gate.py` owns every state verdict.
 - **HITL/safety boundaries** — no raw-body copies · no constitution/`.claude/` indexing (anti-confirmation-bias) · no web research · no cron/background ingestion · **negative honesty**: answer "no evidence" rather than fabricate a path.
 - **Failure → reference routing** — see §Failure → reference routing below.
 - **Deterministic commands** — `scripts/init_wiki_desk.py`(init/`--incremental`) · `scripts/smoke_query.py` · `scripts/lint_wiki.py` · `scripts/scan_raw_copy.py`.

@@ -1,7 +1,7 @@
 # docs.md — 문서 발행 계약
 
 > 목표: 계획·작업·검증·계측·공지를 역할별로 분리하고 재현 가능한 이름과 evidence chain으로 남긴다.
-> 상세 생성/검증은 owner 스킬과 `scripts/doc_naming.py`·`scripts/evidence_publisher.py`가 소유한다.
+> 상세 생성/검증은 owner 스킬의 `.claude/skills/wiki-desk/scripts/doc_naming.py`와 헌법 runtime의 `.claude/policies/runtime/evidence_publisher.py`가 소유한다.
 
 ## 명명 SSOT
 
@@ -9,7 +9,7 @@
 - **충돌 시에만 `_MM_SS`**를 붙인다. 같은 type/hour의 기본형과 해당 충돌형이 점유되면 새 형식/덮어쓰기 없이 `NamingCollisionExhausted`로 fail-closed한다.
 - 주제는 간결한 한국어 `_` slug. 평면 `docs/파일.md`, 상대날짜, `_seq_`는 금지한다.
 - simlog: `docs/simlog/<YYMMDDHH>[_<MM>_<SS>]_<주제>/` (run 디렉터리).
-- benchmark: `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`는 항상, `docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`은 PASS 때만 발행한다. report prefix 정본은 `bench_report_`; timestamp/collision은 `scripts/doc_naming.py`.
+- benchmark: `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`는 항상, `docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`은 PASS 때만 발행한다. report prefix 정본은 `bench_report_`; timestamp/collision은 `.claude/skills/wiki-desk/scripts/doc_naming.py`.
 - outbound report: `docs/report/<kebab-case-topic>.<html|md>`; 날짜 없이 최신본을 갱신한다.
 
 ## compact document matrix
@@ -37,7 +37,7 @@
 |---|---|---|---|
 | `docs/{plan,devlog,testlog,simlog,benchmark}/*` | 작업 산출물 ignored; `example.md`만 tracked | 브랜치 전환에 working copy 유지; build rsync 제외 | `.gitignore`의 `docs/*/*` + `!docs/*/example.md` |
 | `docs/report/*` | **유일한 tracked docs 산출물 예외** | main-only; branch sync 대상 | `!docs/report/*`, PII gate |
-| `.claude/`·`CLAUDE.md` | tracked building blocks | `scripts/sync_branches.sh` | 이 문서 산출물 규약 밖 |
+| `.claude/`·`CLAUDE.md` | tracked building blocks | `.claude/skills/upstream-version-watch/scripts/sync_branches.sh` | 이 문서 산출물 규약 밖 |
 | `seed/` | private/untracked | 배포본에 없을 수 있음 | 근거 pointer만 허용 |
 
 simlog·benchmark에 폴더별 ignore 예외를 더하지 않는다. report는 tracked allowlist 행 하나로 평탄화하며, `docs/report/` 전체가 배포된다.

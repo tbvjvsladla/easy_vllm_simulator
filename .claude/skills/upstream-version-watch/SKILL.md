@@ -24,7 +24,7 @@ description: >-
 - **Inputs** — `config.yaml`(대상 버전·스모크 config_name·`ngc_probe_start`·`reconciliation_cap`) · `output/<topology>/manifest.yaml`(HW 사실·model_source) · 실패 시 빌드/serve 로그.
 - **Outputs** — `resolved.json`(torch핀·NGC태그·wheel·build_track·변종) · `output/<t>/{Dockerfile*,docker-compose.yaml,requirements.txt,.env}` · bump 제안표 + risk-memo · 스모크 판정.
 - **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 8단계(순서 고정).
-- **State transitions** — Flag(전제) → 스모크 PASS 로 이미지의 `runtime-ready` 근거를 만든다. `evidence-complete`/`promotion-ready` 판정은 `scripts/completion_gate.py` 소유(이 문서가 자체 판정 ✗).
+- **State transitions** — Flag(전제) → 스모크 PASS 로 이미지의 `runtime-ready` 근거를 만든다. `evidence-complete`/`promotion-ready` 판정은 `.claude/policies/runtime/completion_gate.py` 소유(이 문서가 자체 판정 ✗).
 - **HITL/safety boundaries** — 핀 변경·빌드·push 는 workflow S1–S4 HITL 게이트 · 스모크 모델 자동 다운로드 ✗ · 무증거 NGC/repo 오버라이드 ✗ · 추측 단정 ✗("확인 필요").
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
 - **Deterministic commands** — `scripts/resolve_torch_pin.py` · `resolve_ngc_tag.py` · `resolve_wheel.py` · `regen_requirements.py` · `resolve_build_track.py` · `render_dockerfile.py` · `check_smoke_model.py` · `classify_failure.py` · `sync_to_sub.sh` · `multinode_serve_smoke.sh`.
@@ -70,7 +70,7 @@ description: >-
 
 **전작업 완료 후** — bump 사이클이 **서빙성공+커밋+문서+전파까지 끝난** S4 종결부에서, 새 `(vllm×model×arch)` 면
 hint 태그 발행을 **제안(Y/N)** 한다(**무인 자동 태깅 ✗** · **push 는 전부 사용자 소관** — **브랜치 push 도 루틴 대상 아님**).
-절차·엔진 = `scripts/hint_tag.py`(루트) · 헌법 §hint 배포 레이어 따름정리 §발동 시점 · 절차-홈 `workflow.md` S4 ·
+절차·엔진 = `.claude/skills/upstream-version-watch/scripts/hint_tag.py` · 헌법 §hint 배포 레이어 따름정리 §발동 시점 · 절차-홈 `workflow.md` S4 ·
 설계 `plan_26070222`·`plan_26071607`. main-only(서브 미전파).
 
 ## 금지

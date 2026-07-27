@@ -53,4 +53,4 @@
   kv-bytes/gmu/moe 불일치 시 stale). verdict≠PASS 면 **미발행**(report 만).
 - **비용 규율**: 재탐색 루프 **내부는 값싼 단일점 판정** 유지 · 스윕·리치리포트는 **종결 1회**만. 오케스트레이션은
   **에이전트 매개**(스킬↔스킬 직접호출 ✗). **done-게이트는 여전히 verdict 독점** · lite 는 발행 안 함(채팅 표만).
-- 발행 경로·명명 SSOT = `scripts/doc_naming.py`(generated_utc→KST) · 증거 계약은 `scripts/completion_gate.py` 가 판정.
+- 발행 경로·명명 SSOT = `.claude/skills/wiki-desk/scripts/doc_naming.py`(generated_utc→KST) · 증거 계약은 `.claude/policies/runtime/completion_gate.py` 가 판정.

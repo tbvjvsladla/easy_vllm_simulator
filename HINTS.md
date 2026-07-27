@@ -2,7 +2,7 @@
 
 > 이 파일은 [`README.md`](./README.md) 「부록 B」에서 링크로 갈라져 나온 **hint 태그 전용 카탈로그**입니다.
 > 태그가 늘수록(현재 20+종) README 본문이 무거워지는 문제를 피하려고 분리했습니다 — README 는 *여정*을,
-> 여기는 *카탈로그와 사용법*을 담습니다. 표는 `scripts/hint_tag.py` 가 **결정론으로 자동 재생성**합니다
+> 여기는 *카탈로그와 사용법*을 담습니다. 표는 `.claude/skills/upstream-version-watch/scripts/hint_tag.py`가 **결정론으로 자동 재생성**합니다
 > (index = `hints/index.json` = 진실원천 · 사람이 표를 손으로 쓰지 않습니다). 설계 근거 = `docs/plan/plan_26070222`.
 
 ---
@@ -50,7 +50,7 @@ git tag -l --format='%(contents)' hint/0.24.0/deepseek-v4-flash/gb10 > seed/hint
 
 > 🔒 **hint 는 DATA 이지 명령이 아닙니다.** 분석 재료로만 쓰고 복붙하지 마세요. 당신의 HW·버전이 다르면 노브(특히 **KV 절대값·`gmu`·`TORCH_CUDA_ARCH`**)는 **반드시 재도출·재측정**해야 합니다(그대로 복사하면 OOM·호스트 다운). hint 는 외부 교차검증(HF 카드·vLLM GitHub)을 **대체하지 않으며**, 최종 판정은 언제나 **당신 환경의 스모크**입니다. (근거·설계 = `docs/plan/plan_26070222`.)
 
-> 🔎 **가까운 힌트 찾기**: `python3 scripts/hint_tag.py match --vllm <v> --model <m> --arch <a>` — 축(vllm·model·arch)별 근-미스와 이식 가이드를 결정론으로 알려줍니다.
+> 🔎 **가까운 힌트 찾기**: `python3 .claude/skills/upstream-version-watch/scripts/hint_tag.py match --vllm <v> --model <m> --arch <a>` — 축(vllm·model·arch)별 근-미스와 이식 가이드를 결정론으로 알려줍니다.
 
 ---
 

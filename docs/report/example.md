@@ -28,7 +28,7 @@
   무시*하려는 폴더(simlog·benchmark)가 `docs/*/*` 로 이미 커버되니 중복 규칙을 막으려는 것 —
   report 는 **요구가 정반대(추적)** 라 전용 예외가 유일한 수단. **정합 위반으로 오인해 제거 ✗.**
 - **대가**: 추적물이라 `docs/` 의 *gitignore-persist 로 브랜치 자동 통합* 성질을 **못 받는다** →
-  빌딩블럭(`CLAUDE.md`·`.claude/`)과 동형으로 `scripts/sync_branches.sh` 수동 동기화로 양 브랜치 동일성 유지.
+  빌딩블럭(`CLAUDE.md`·`.claude/`)과 동형으로 `.claude/skills/upstream-version-watch/scripts/sync_branches.sh` 수동 동기화로 양 브랜치 동일성 유지.
 
 ## 명명 규칙
 
@@ -59,6 +59,6 @@ docs/report/<주제-슬러그>.<html|md>
 report 는 **클론에 실려 나가는** 파일이다 — 노드 IP·호스트명·NAS 실경로·계정 등 환경 구체값을 박지 않는다
 (헌법 §포인터 원칙). 시각화는 호스트 정보가 섞이기 쉬우니 특히 주의.
 
-- 게이트: `scripts/smoke_clone.sh` **A4** 가 추적/비무시 트리를 **확장자 무관 전수 grep** 하므로
+- 게이트: `.claude/skills/upstream-version-watch/scripts/smoke_clone.sh` **A4** 가 추적/비무시 트리를 **확장자 무관 전수 grep** 하므로
   `.html` 도 자동 커버된다(`.claude/pii_terms.txt` 리터럴 + private-IP 패턴).
 - HW **스펙**(GPU 모델·VRAM·측정치)은 PII 가 아니다 — 예제처럼 자유롭게 실어도 된다.

@@ -180,24 +180,29 @@ def resolve(torch_pin, sm_arch):
 
 
 # ── self-test ────────────────────────────────────────────────────────────────
+def _require(condition, message):
+    if not condition:
+        raise AssertionError(message)
+
+
 def _self_test():
     # track 제안 휴리스틱
-    assert resolve("2.11.0", None)["build_track"]["decision"] == "source-build"
-    assert resolve("2.11.0a0+a6c236b", None)["build_track"]["decision"] == "source-build"
-    assert resolve("2.12.0", None)["build_track"]["decision"] == "source-build"
-    assert resolve("2.10.0", None)["build_track"]["decision"] == "wheel"
-    assert resolve("2.9.1", None)["build_track"]["decision"] == "wheel"
+    _require(resolve("2.11.0", None)["build_track"]["decision"] == "source-build", "2.11 source build")
+    _require(resolve("2.11.0a0+a6c236b", None)["build_track"]["decision"] == "source-build", "2.11 alpha source build")
+    _require(resolve("2.12.0", None)["build_track"]["decision"] == "source-build", "2.12 source build")
+    _require(resolve("2.10.0", None)["build_track"]["decision"] == "wheel", "2.10 wheel")
+    _require(resolve("2.9.1", None)["build_track"]["decision"] == "wheel", "2.9 wheel")
     # arbiter 는 항상 smoke
-    assert resolve("2.11.0", None)["build_track"]["arbiter"] == "smoke"
+    _require(resolve("2.11.0", None)["build_track"]["arbiter"] == "smoke", "smoke arbiter")
     # SM arch 결정론 매핑
-    assert map_torch_cuda_arch("sm_121a") == "12.1a"
-    assert map_torch_cuda_arch("121a") == "12.1a"
-    assert map_torch_cuda_arch("sm_90a") == "9.0a"
-    assert map_torch_cuda_arch("89") == "8.9"
-    assert map_torch_cuda_arch("12.1a") == "12.1a"
-    assert map_torch_cuda_arch(None) is None
+    _require(map_torch_cuda_arch("sm_121a") == "12.1a", "sm_121a mapping")
+    _require(map_torch_cuda_arch("121a") == "12.1a", "121a mapping")
+    _require(map_torch_cuda_arch("sm_90a") == "9.0a", "sm_90a mapping")
+    _require(map_torch_cuda_arch("89") == "8.9", "89 mapping")
+    _require(map_torch_cuda_arch("12.1a") == "12.1a", "12.1a mapping")
+    _require(map_torch_cuda_arch(None) is None, "None arch mapping")
     # 파싱 실패 → 보수적 source-build
-    assert resolve("garbage", None)["build_track"]["decision"] == "source-build"
+    _require(resolve("garbage", None)["build_track"]["decision"] == "source-build", "invalid version fail-closed")
     print("[build_track] self-test OK — track 제안(wheel/source) + torch_cuda_arch 결정론 매핑 정상")
 
 

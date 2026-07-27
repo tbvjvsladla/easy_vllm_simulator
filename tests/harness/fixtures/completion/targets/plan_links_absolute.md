@@ -1,3 +1,0 @@
-# Plan
-
-[abs](/etc/passwd)
