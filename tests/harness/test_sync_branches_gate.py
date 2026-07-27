@@ -439,6 +439,113 @@ class TestApplyDenialZeroChanges(_IsolatedSyncRepoTestCase):
 # =============================================================================
 
 class TestApprovedApplyPositiveControl(_IsolatedSyncRepoTestCase):
+    def test_newline_canonical_report_is_copied_from_source(self):
+        report_rel = "docs/report/canonical\nnotice.md"
+        self.assertEqual(_git(self.repo, "checkout", "-q", "main").returncode, 0)
+        report = self.repo / report_rel
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text("canonical report bytes\n", encoding="utf-8")
+        _git(self.repo, "add", report_rel)
+        commit = _git(self.repo, "commit", "-q", "-m", "add newline canonical report")
+        self.assertEqual(commit.returncode, 0, msg=commit.stderr)
+
+        self.assertEqual(_git(self.repo, "checkout", "-q", "multi-node").returncode, 0)
+        report = self.repo / report_rel
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text("stale destination report\n", encoding="utf-8")
+        _git(self.repo, "add", report_rel)
+        commit = _git(self.repo, "commit", "-q", "-m", "add stale newline report")
+        self.assertEqual(commit.returncode, 0, msg=commit.stderr)
+
+        manifest = _write_experimental_manifest(self.repo, "approved_newline_report_copy.json")
+        code, out, err = _run_sync(
+            self.repo, "--mode", "experimental", "--manifest", manifest, "--apply")
+
+        self.assertEqual(code, 0, msg=f"out={out}\nerr={err}")
+        self.assertEqual(report.read_text(encoding="utf-8"), "canonical report bytes\n")
+
+    def test_destination_only_docs_skeleton_is_removed(self):
+        obsolete = self.repo / "docs" / "retired" / "example.md"
+        obsolete.parent.mkdir(parents=True, exist_ok=True)
+        obsolete.write_text("retired skeleton\n", encoding="utf-8")
+        _git(self.repo, "add", str(obsolete.relative_to(self.repo)))
+        commit = _git(self.repo, "commit", "-q", "-m", "add retired docs skeleton")
+        self.assertEqual(commit.returncode, 0, msg=commit.stderr)
+
+        manifest = _write_experimental_manifest(self.repo, "approved_skeleton_delete.json")
+        code, out, err = _run_sync(
+            self.repo, "--mode", "experimental", "--manifest", manifest, "--apply")
+
+        self.assertEqual(code, 0, msg=f"out={out}\nerr={err}")
+        self.assertFalse(obsolete.exists(), msg="source-absent docs skeleton must be removed")
+        self.assertIn("D  docs/retired/example.md",
+                      _git(self.repo, "status", "--porcelain").stdout)
+
+    def test_newline_path_does_not_delete_c_quoted_outside_scope_collision(self):
+        stale_rel = "tests/obsolete\ncase.py"
+        stale = self.repo / stale_rel
+        stale.parent.mkdir(parents=True, exist_ok=True)
+        stale.write_text("stale shared test\n", encoding="utf-8")
+        _git(self.repo, "add", stale_rel)
+        commit = _git(self.repo, "commit", "-q", "-m", "add newline stale shared test")
+        self.assertEqual(commit.returncode, 0, msg=commit.stderr)
+
+        quoted_rel = _git(self.repo, "ls-files", "--", stale_rel).stdout.strip()
+        self.assertNotEqual(quoted_rel, stale_rel, msg="probe requires Git C-quoting")
+        victim = self.repo / quoted_rel
+        victim.parent.mkdir(parents=True, exist_ok=True)
+        victim.write_text("outside mirror victim\n", encoding="utf-8")
+        _git(self.repo, "add", quoted_rel)
+        commit = _git(self.repo, "commit", "-q", "-m", "add outside-scope quote collision")
+        self.assertEqual(commit.returncode, 0, msg=commit.stderr)
+
+        manifest = _write_experimental_manifest(self.repo, "approved_newline_apply.json")
+        code, out, err = _run_sync(
+            self.repo, "--mode", "experimental", "--manifest", manifest, "--apply")
+
+        self.assertEqual(code, 0, msg=f"out={out}\nerr={err}")
+        self.assertFalse(stale.exists(), msg="newline-bearing shared stale path must be removed")
+        self.assertEqual(victim.read_text(encoding="utf-8"), "outside mirror victim\n",
+                         msg="C-quoted outside-scope collision must remain byte-preserved")
+
+    def test_approved_apply_removes_destination_only_shared_report(self):
+        obsolete = self.repo / "docs" / "report" / "obsolete.md"
+        obsolete.parent.mkdir(parents=True, exist_ok=True)
+        obsolete.write_text("stale shared report\n", encoding="utf-8")
+        _git(self.repo, "add", str(obsolete.relative_to(self.repo)))
+        commit = _git(self.repo, "commit", "-q", "-m", "add destination-only stale report")
+        self.assertEqual(commit.returncode, 0, msg=commit.stderr)
+
+        manifest = _write_experimental_manifest(self.repo, "approved_report_delete.json")
+        code, out, err = _run_sync(
+            self.repo, "--mode", "experimental", "--manifest", manifest, "--apply")
+
+        self.assertEqual(code, 0, msg=f"out={out}\nerr={err}")
+        self.assertFalse(obsolete.exists(), msg="source-absent shared report must be removed")
+        self.assertIn("D  docs/report/obsolete.md",
+                      _git(self.repo, "status", "--porcelain").stdout)
+
+    def test_approved_apply_stages_deletion_of_destination_only_shared_file(self):
+        obsolete = self.repo / ".claude" / "rules" / "obsolete.md"
+        obsolete.parent.mkdir(parents=True, exist_ok=True)
+        obsolete.write_text("stale destination-only rule\n", encoding="utf-8")
+        _git(self.repo, "add", str(obsolete.relative_to(self.repo)))
+        commit = _git(self.repo, "commit", "-q", "-m", "add destination-only stale rule")
+        self.assertEqual(commit.returncode, 0, msg=commit.stderr)
+        self.assertTrue(obsolete.exists())
+
+        manifest = _write_experimental_manifest(self.repo, "approved_delete_apply.json")
+        code, out, err = _run_sync(
+            self.repo, "--mode", "experimental", "--manifest", manifest, "--apply")
+
+        self.assertEqual(code, 0, msg=f"out={out}\nerr={err}")
+        self.assertFalse(obsolete.exists(), msg="source-absent shared rule must be removed")
+        status = _git(self.repo, "status", "--porcelain").stdout
+        self.assertIn("D  .claude/rules/obsolete.md", status)
+        self.assertEqual(_git(self.repo, "rev-parse", "HEAD").stdout.strip(),
+                         _git(self.repo, "rev-parse", "multi-node").stdout.strip(),
+                         msg="sync must stage only; it must not commit or move refs")
+
     def test_approved_experimental_apply_copies_allowlisted_claude_md(self):
         manifest = _write_experimental_manifest(self.repo, "approved_apply.json")
         before = _snapshot(self.repo)

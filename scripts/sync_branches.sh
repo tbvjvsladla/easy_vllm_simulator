@@ -63,16 +63,29 @@ ALLOWLIST=(
     # immutable historical policy trust source; evidence input only, never an active execution plan
     docs/plan/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md
 )
+# These directory roots are shared control-plane mirrors, not topology-local overlays. A path
+# tracked on the destination under one of these roots but absent from the source must be staged for
+# deletion; `git checkout <source> -- <dir>` updates existing paths but does not remove such stale
+# destination-only files.
+MIRROR_DIRS=(
+    .claude/rules
+    .claude/skills
+    .claude/schemas
+    .claude/policies
+    tests
+    scripts/providers
+    scripts/templates
+    scripts/systemd
+    scripts/host
+    docs/report
+)
 #   hint_tag.py·templates = hint 배포 레이어 엔진(빌딩블럭 · 브랜치 동일). hints/index.json·HINTS.md
 #   카탈로그 표(구 README 부록)는 생성-데이터(태그에서 재생성 가능)라 여기 미포함 — reindex 재생성/수동
 #   git 동기(README 와 동형 취급 · 태그는 브랜치 무관 전역이라 재생성 결과 동일). plan_26070222 §4.
 #   build_patches/ 는 여기 없다 — output/<topology>/build_patches/ 통로에 격리(산출물 통로 불변식, single/multi 혼재 차단).
 #   토폴로지별 독립이라 cross-branch 동기 대상 아님(서브 전달은 sync_to_sub 가 output/<t>/ 로 함). §4.7 · 3+1+1.
-#   docs 스켈레톤은 각 폴더 example.md 만(작업 문서 본체는 제외) + docs/report/ 는 산출물째(추적 예외 —
-#   docs.md §4·§report: 배포자 대상 공지라 산출물이 배포돼야 도달. gitignore-persist 를 못 받으니 여기서 동기).
-#   ⚠ git ls-tree 는 pathspec 글롭·:(glob) 매직을 지원하지 않는다(빈 결과 → 침묵 no-op).
-#   과거 DOCS_GLOB="docs/*/example.md" 가 정확히 그 침묵 실패였음 → docs/ 를 열거해 grep 으로 거른다.
-DOCS_FILTER='(/example\.md$|^docs/report/)'
+#   docs skeletons are each `example.md`; docs/report is shared as a complete subtree. Both source
+#   enumeration and destination-only deletion use NUL-delimited Git output below.
 
 usage() {
     cat <<'EOF'
@@ -239,14 +252,41 @@ for p in "${ALLOWLIST[@]}"; do
         echo "[sync-branches] (skip) 정본 $SRC_BRANCH 에 없음: $p"
     fi
 done
-# docs 스켈레톤 + report 산출물(정본 트리 열거 → grep 필터. ls-tree 글롭 미지원 회피 — 위 주석)
-while IFS= read -r f; do
-    [ -n "$f" ] && PATHS+=("$f")
-done < <(git ls-tree -r --name-only "$SRC_BRANCH" -- docs/ 2>/dev/null | grep -E "$DOCS_FILTER" || true)
+# docs skeletons + report artifacts (canonical tree enumeration, NUL-safe for all Git path bytes).
+while IFS= read -r -d '' f; do
+    case "$f" in
+        docs/report/*|docs/*/example.md) PATHS+=("$f") ;;
+    esac
+done < <(git ls-tree -r -z --name-only "$SRC_BRANCH" -- docs/ 2>/dev/null)
 
 if [ "${#PATHS[@]}" -eq 0 ]; then
     echo "[sync-branches] FAIL: 복사할 allowlist 경로가 정본에 하나도 없습니다."; exit 2
 fi
+
+# Resolve every destination-only tracked path before the first mutation. This is an exact mirror
+# only for MIRROR_DIRS; topology outputs/configs and ignored work documents are intentionally not
+# included. Source object lookup prevents a stale local file from laundering itself as authority.
+DELETE_PATHS=()
+for mirror_dir in "${MIRROR_DIRS[@]}"; do
+    while IFS= read -r -d '' dest_path; do
+        [ -n "$dest_path" ] || continue
+        if ! git cat-file -e "$SRC_BRANCH:$dest_path" 2>/dev/null; then
+            DELETE_PATHS+=("$dest_path")
+        fi
+    done < <(git ls-files -z -- "$mirror_dir")
+done
+# docs/report is already covered above. Mirror only skeleton names elsewhere under docs/; active
+# plans and other generated documentation remain branch-local and cannot enter DELETE_PATHS.
+while IFS= read -r -d '' dest_path; do
+    case "$dest_path" in
+        docs/report/*) ;;
+        docs/*/example.md)
+            if ! git cat-file -e "$SRC_BRANCH:$dest_path" 2>/dev/null; then
+                DELETE_PATHS+=("$dest_path")
+            fi
+            ;;
+    esac
+done < <(git ls-files -z -- docs/)
 
 if [ "$SYNC_ACTION" = "dryrun" ]; then
     echo "[sync-branches] DRY-RUN  $SRC_BRANCH → $DST_BRANCH (working-dir 변경 안 함 — --apply 로 실행)"
@@ -254,6 +294,10 @@ if [ "$SYNC_ACTION" = "dryrun" ]; then
     printf '  - %s\n' "${PATHS[@]}"
     echo "[sync-branches] 정본과 현재 working-dir 의 차이(없으면 이미 동일):"
     git diff --stat "$SRC_BRANCH" -- "${PATHS[@]}" || true
+    if [ "${#DELETE_PATHS[@]}" -gt 0 ]; then
+        echo "[sync-branches] source에 없는 destination tracked path (apply 시 삭제 staging):"
+        printf '  - %s\n' "${DELETE_PATHS[@]}"
+    fi
     echo "[sync-branches] (위는 미리보기. 변경 사항을 사람이 확인 후 --apply)"
     exit 0
 fi
@@ -261,6 +305,9 @@ fi
 # ── apply: 정본 콘텐츠를 working-dir 로 가져온다(커밋은 사람이) ──
 echo "[sync-branches] APPLY  $SRC_BRANCH → $DST_BRANCH (working-dir 갱신)"
 git checkout "$SRC_BRANCH" -- "${PATHS[@]}"
+if [ "${#DELETE_PATHS[@]}" -gt 0 ]; then
+    git rm --ignore-unmatch -- "${DELETE_PATHS[@]}"
+fi
 # Git records only the executable bit; shared-repository umasks can materialize 0775.
 # Normalize canonical runner assets so production copies and review exports are exactly 0755.
 for runner in arm_patch.sh debug-init.sh serve_runner.sh; do

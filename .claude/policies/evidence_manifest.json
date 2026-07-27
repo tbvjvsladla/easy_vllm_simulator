@@ -24,7 +24,7 @@
   "scripts/hint_tag.py": "255d64f3d06e91f3371d354ee2f909d407441e29886a1ef960e85c1892dbe755",
   "scripts/install_host_safety.sh": "147b99892fceea48b50f2c82eeb3aab9936d09ae2e3723e18a182f397564e993",
   "scripts/mem_watchdog.sh": "b5fd4723c4276bbea3f0f281b51ad8a4467fd3850ad3186470a4ce1c59f24c1b",
-  "scripts/sync_branches.sh": "5b73e2d1b6e5066397f9764123fdd9d7399c8433d84f8592d4e95b0bb18ec263",
+  "scripts/sync_branches.sh": "a91bb8613182f9d89f632ec8ce04e75ca2c4f238c390d33cb5f85379518ad90a",
   "tests/harness/test_policy_claim_predicates.py": "ddb8db2fbe147969b2fcb18a8b7204e817367a68fce0f76e2c2a0628b9e439d9",
   "tests/harness/test_policy_clause_companion_evidence.py": "e899d59aba550325bed6cf309098db057e8649da7939496771e1ffc1c3a363a1",
   "tests/harness/test_runtime_patch_provenance.py": "60b3bcae3b7de90e412cda52d2e3fe3325a7b5c8a53e373d38079df44718b9ba"
