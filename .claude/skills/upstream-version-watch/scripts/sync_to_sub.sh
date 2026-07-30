@@ -760,6 +760,7 @@ verify_checksums() {  # $1=topology
              .claude/skills/adversarial-benchmark/scripts/verdict_rule.py .claude/skills/wiki-desk/reference/references.md .claude/a2a_delegation.json \
              .claude/runtime/host_safety/mem_watchdog.sh \
              .claude/runtime/host_safety/install_host_safety.sh \
+             .claude/runtime/host_safety/install_netconsole.sh \
              .claude/runtime/host_safety/host/vllm-drop-caches.sh \
              .claude/runtime/host_safety/systemd/easy-vllm-memwatch.service; do
         [ -f "$st/$f" ] || continue
@@ -774,6 +775,7 @@ verify_destination_host_safety_modes() {
     for f in \
         .claude/runtime/host_safety/mem_watchdog.sh \
         .claude/runtime/host_safety/install_host_safety.sh \
+        .claude/runtime/host_safety/install_netconsole.sh \
         .claude/runtime/host_safety/host/vllm-drop-caches.sh \
         .claude/runtime/host_safety/systemd/easy-vllm-memwatch.service; do
         case "$f" in *.service) expected=644;; *) expected=755;; esac
