@@ -258,6 +258,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
     host_safety_files = (
         ("mem_watchdog.sh", "mem_watchdog.sh", 0o755),
         ("install_host_safety.sh", "install_host_safety.sh", 0o755),
+        ("install_netconsole.sh", "install_netconsole.sh", 0o755),
         ("systemd/easy-vllm-memwatch.service", "systemd/easy-vllm-memwatch.service", 0o644),
         ("host/vllm-drop-caches.sh", "host/vllm-drop-caches.sh", 0o755),
     )
@@ -399,6 +400,7 @@ def _self_test() -> int:
                        # 호스트 안전체계: canonical terraforming source → constitution runtime delivery
                        ".claude/runtime/host_safety/mem_watchdog.sh",
                        ".claude/runtime/host_safety/install_host_safety.sh",
+                       ".claude/runtime/host_safety/install_netconsole.sh",
                        ".claude/runtime/host_safety/systemd/easy-vllm-memwatch.service",
                        ".claude/runtime/host_safety/host/vllm-drop-caches.sh"]
         have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
