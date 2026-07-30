@@ -75,3 +75,8 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
 ## 완료 조건
 
 컨테이너 변경은 S3 PASS 전 done이 아니다. 실패는 partial apply 없이 last-good로 복구하고(`policy:LAST_GOOD_ROLLBACK_ANCHOR`), build/검증 증거는 `docs/testlog/`, 전파 서사는 `docs/devlog/`에 남긴다. bump·full benchmark·모델 다운로드는 명시된 사람 승인 없이는 실행하지 않는다.
+
+S2.5 가 서브에 배달한 내용은 메인의 S4 커밋 전까지 **미검증 후보**다. S3 실패로 메인이 커밋 없이
+last-good 로 복구하면, 서브의 `[sync]` 커밋은 이력으로만 남기고 내용은 메인 정본에 수렴시켜야 한다
+— 서브는 미검증 후보를 last-good 앵커·태그로 승격하지 않으며, 되돌림은 다음 B1 전파가 index 권위로
+수행한다(2026-07-30 쌍노드 하드다운 때 현실화: 서브만 메인 미커밋 내용의 커밋을 보유).

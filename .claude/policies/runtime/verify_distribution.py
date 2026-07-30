@@ -180,6 +180,42 @@ def _active_retirement_consumers() -> list[str]:
     return hits
 
 
+def _terraform_flag_issued() -> bool:
+    """info-only(미테라포밍) 게이트의 *적용 가능 여부*를 결정론으로 판별한다.
+
+    권위는 소유 스크립트에 위임한다(계약 중복 금지): run_bench.sh 와 동일하게
+    terraforming_node 의 manifest_contract.py --require-flag 를 실제 실행하고,
+    A2A 면제 2경로(양성 키·테스트 env)는 recipe.py _require_terraform_flag 와 동형으로 읽는다.
+    fail-closed: 판별 불가·부정이면 False — 그 경우 검사를 *실행*하는 안전 방향으로 떨어진다.
+    """
+    if os.environ.get("EASY_VLLM_A2A_DELEGATED") == "1":
+        return True
+    key = REPO / ".claude" / "a2a_delegation.json"
+    try:
+        if key.is_file():
+            kd = json.loads(key.read_text(encoding="utf-8"))
+            if kd.get("delegation") == "main_cluster_flag" and kd.get("issued_to") == "sub":
+                return True
+    except Exception:
+        pass  # 손상/비유효 키 → 면제 안 함(fail-closed)
+    mc = REPO / ".claude/skills/terraforming_node/scripts/manifest_contract.py"
+    if not mc.is_file():
+        return False
+    try:
+        branch = subprocess.run(["git", "-C", str(REPO), "branch", "--show-current"],
+                                capture_output=True, text=True).stdout.strip()
+    except OSError:
+        branch = ""
+    topo = "multi" if branch == "multi-node" else "single"
+    try:
+        proc = subprocess.run([sys.executable, str(mc), "--topology", topo,
+                               "--repo", str(REPO), "--require-flag"],
+                              capture_output=True)
+        return proc.returncode == 0
+    except OSError:
+        return False
+
+
 def verify() -> dict:
     checks: list[dict] = []
     for root_name in ("tests", "scripts"):
@@ -426,11 +462,28 @@ def verify() -> dict:
                      "classify_failure.py", "check_smoke_model.py"):
         checks.append(_run(f"upstream_help:{filename}", [sys.executable,
                            f".claude/skills/upstream-version-watch/scripts/{filename}", "--help"], {0}))
+    # info-only(미테라포밍) 게이트 2건은 **조걜부**다: exit 4 는 Flag 미발급 환경에서만 발화하므로,
+    # Flag 발급이 완료된 배포 레포에서는 구조적으로 통과할 수 없다(2026-07-30 F2 교정 — 두 검사는 본래
+    # fresh-clone 하네스 소유인데 로컬 배포 검증기에 놓여 영구 FAIL 하고 있었다).
+    # ∴ Flag 발급 완료 시 not-applicable 로 보고하고, 미발급(fresh clone)에서만 exit 4 를 단언한다.
+    # fresh-clone 상태에서의 실제 실행 검사는 smoke_clone.sh A8 이 소유한다(보호 약화 아님).
+    if _terraform_flag_issued():
+        checks += [
+            {"name": "recipe_info_only_gate", "ok": True,
+             "not_applicable": "terraform Flag 발급 완료 — exit 4 게이트는 미테라포밍 환경에서만 발화. "
+                               "fresh-clone 실행 검사는 smoke_clone.sh A8 소유"},
+            {"name": "benchmark_info_only_gate", "ok": True,
+             "not_applicable": "terraform Flag 발급 완료 — exit 4 게이트는 미테라포밍 환경에서만 발화. "
+                               "fresh-clone 실행 검사는 smoke_clone.sh A8 소유"},
+        ]
+    else:
+        checks += [
+            _run("recipe_info_only_gate", [sys.executable,
+                 ".claude/skills/vllm-recipe-explorer/recipe.py", "estimate", "--auto"], {4}),
+            _run("benchmark_info_only_gate", ["bash",
+                 ".claude/skills/adversarial-benchmark/scripts/run_bench.sh", "freshclone-probe"], {4}),
+        ]
     checks += [
-        _run("recipe_info_only_gate", [sys.executable,
-             ".claude/skills/vllm-recipe-explorer/recipe.py", "estimate", "--auto"], {4}),
-        _run("benchmark_info_only_gate", ["bash",
-             ".claude/skills/adversarial-benchmark/scripts/run_bench.sh", "freshclone-probe"], {4}),
         _run("benchmark_verdict_fixture", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py", "--measured",
              ".claude/skills/adversarial-benchmark/fixtures/measured_pass.json", "--roofline",

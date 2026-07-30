@@ -580,6 +580,27 @@ def _sync_to_sub_src() -> str:
     return _read(".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh")
 
 
+def _stem_allowlist(src: str) -> list[str]:
+    """BAND2_RUNTIME_PATCH_STEMS 선언을 sync_to_sub.sh 소스에서 파싱해, *구조적 성질*을
+    단언하고 stem 목록을 돌려준다.
+
+    F4 교정(2026-07-30): 옛 술어는 이 목록이 `(exaone45-33b hy3)` 와 *리터럴 동일*함을 요구해
+    모델 이름이 거버넌스 술어에 결박돼 있었다 — 헌법의 "모델-키잉 아님" 취지와 정면충돌이며,
+    새 모델 패치 추가/은퇴 때마다 술어까지 고쳐야 하는 결합이었다. 단언해야 할 것은 특정
+    모델명이 아니라 allowlist 의 *성질*이다:
+      (a) 명시적 괄호 목록으로 존재하고(와일드카드 권위가 아님 — 그건 별도 _require 가 금지),
+      (b) 비어 있지 않으며,
+      (c) 각 stem 이 평범한 식별자다(글롭·경로·공백 문자 없음 = 닫힌 목록).
+    """
+    decl = _extract_bash_array(src, "BAND2_RUNTIME_PATCH_STEMS")
+    inner = decl[decl.index("(") + 1: decl.rindex(")")]
+    stems = inner.split()
+    _require(stems, 'runtime patch stem allowlist must be a non-empty explicit list')
+    _require(all(re.fullmatch(r"[a-z0-9][a-z0-9.-]*", s) for s in stems),
+             f'every runtime patch stem must be a plain identifier (no glob/path chars): {stems}')
+    return stems
+
+
 def predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C1():
     """C1: the per-model triplet (<model>.{yaml,sh} and .env.<model>) is never propagated
     main-to-sub -- structurally excluded from sync_to_sub.sh's rsync filter set (the runtime patch
@@ -590,9 +611,8 @@ def predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C1():
     band2_configs = _extract_bash_array(src, "BAND2_CONFIGS")
     band2_envs = _extract_bash_array(src, "BAND2_ENVS")
     patch_stems = _extract_bash_array(src, "BAND2_RUNTIME_PATCH_STEMS")
+    stems = _stem_allowlist(src)
     fn = _extract_bash_function(src, "_band2_filters")
-    _require(patch_stems == 'BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)',
-             'runtime patch transfer must use the closed owner-local stem allowlist')
     _require("'/configs/*_patch.py'" not in fn, 'runtime patch wildcard authority is forbidden')
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -604,8 +624,8 @@ def predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C1():
         (srcdir / "configs" / "serve_runner.sh").write_text("x")
         (srcdir / "configs" / "mymodel.sh").write_text("x")       # Band3 triplet -- must NOT propagate
         (srcdir / "configs" / "mymodel.yaml").write_text("x")
-        (srcdir / "configs" / "exaone45-33b_patch.py").write_text("x")
-        (srcdir / "configs" / "exaone45-33b_patch.provenance.json").write_text("x")
+        (srcdir / "configs" / f"{stems[0]}_patch.py").write_text("x")
+        (srcdir / "configs" / f"{stems[0]}_patch.provenance.json").write_text("x")
         (srcdir / "envs" / ".env.interconnect").write_text("x")
         (srcdir / "envs" / ".env.mymodel").write_text("x")        # Band3 model env -- must NOT propagate
         script = f"""
@@ -626,9 +646,9 @@ rsync -a --itemize-changes "${{FILT[@]}}" "{srcdir}/" "{dstdir}/"
         _require('configs/mymodel.sh' not in delivered_names, 'model triplet .sh leaked to sub')
         _require('configs/mymodel.yaml' not in delivered_names, 'model triplet .yaml leaked to sub')
         _require('envs/.env.mymodel' not in delivered_names, 'model env leaked to sub')
-        _require('configs/exaone45-33b_patch.py' in delivered_names,
+        _require(f'configs/{stems[0]}_patch.py' in delivered_names,
                  'owner-allowlisted runtime patch was not delivered')
-        _require('configs/exaone45-33b_patch.provenance.json' in delivered_names,
+        _require(f'configs/{stems[0]}_patch.provenance.json' in delivered_names,
                  'runtime patch provenance was not delivered')
 
 
@@ -1378,9 +1398,7 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1():
     whose carve-out set is closed and never re-includes configs/ at all."""
     src = _sync_to_sub_src()
     fn = _extract_bash_function(src, "_band2_filters")
-    patch_stems = _extract_bash_array(src, "BAND2_RUNTIME_PATCH_STEMS")
-    _require(patch_stems == 'BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)',
-             'runtime patches must be a closed owner-local allowlist')
+    _stem_allowlist(src)
     _require("'/configs/*_patch.py'" not in fn, 'wildcard runtime-patch transfer is forbidden')
     band2_configs = _extract_bash_array(src, "BAND2_CONFIGS")
     _require('serve_runner.sh' in band2_configs and 'debug-init.sh' in band2_configs, 'predicate requirement failed at original line 1444')
