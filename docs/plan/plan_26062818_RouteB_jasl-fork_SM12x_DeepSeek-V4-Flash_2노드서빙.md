@@ -134,7 +134,7 @@ disable-custom-all-reduce: true     # cross-node RoCE(NVLink 부재)
 
 ### S4 commit — 스모크 통과분만 last-good (HITL 게이트 ④)
 - multi-node 로컬 커밋(브랜치핀 독립) + `git tag last-good-multi-node`. 산출물 통로 `output/multi/` 만(껍데기 추적·생성물 비추적). resolved.json 오버라이드·새 트랙을 devlog/testlog 기록.
-- 서브 전파=S2.5. single↔multi 공유블럭 동기화=`scripts/sync_branches.sh`(작업종료 후 사람질의). **keep-assets 정본화**: `mem_watchdog.sh`(검증된 안전망)·`10-deepgemm.sh`.
+- 서브 전파=S2.5. single↔multi 공유블럭 동기화=`.claude/skills/upstream-version-watch/scripts/sync_branches.sh`(작업종료 후 사람질의; owner-path relocation 반영). **keep-assets 정본화**: `mem_watchdog.sh`(검증된 안전망)·`10-deepgemm.sh`.
 
 ---
 

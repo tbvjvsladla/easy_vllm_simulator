@@ -1,9 +1,10 @@
 #!/bin/bash
-# smoke_clone.sh — G1 합격 게이트(7 hermetic assertion).
+# smoke_clone.sh — G1 합격 게이트(8 hermetic assertion).
 #
 # 순수 결정론·STAGE-FREE: claude 세션 비실행, git add/commit/rm/checkout 일절 안 함.
 # 사용 도구는 읽기 전용뿐 — git check-ignore / git ls-files / grep / test.
-# 7개 전부 PASS 면 exit 0(= G1 done), 하나라도 FAIL 이면 exit 1.
+# (A8 만 예외적으로 *복사본* 트리에서 recipe/bench 를 실행 — 원본 트리·git 은 읽기 전용 유지.)
+# 8개 전부 PASS 면 exit 0(= G1 done), 하나라도 FAIL 이면 exit 1.
 #
 # 주의: 이 스크립트는 "G1 전체 세트가 적용된 뒤"의 추적 트리를 검증한다(plan §9, S7).
 #   .gitignore 재분할·PII 제거 등이 끝나기 전에는 의도적으로 FAIL 할 수 있다(게이트이므로 정상).
@@ -254,10 +255,34 @@ a7() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# A8 — info-only Flag 게이트: fresh-clone(추적 트리만 = manifest/config 부재) 상태에서
+#   recipe estimate · run_bench 가 exit 4 로 fail-closed 종료함을 *실제 실행*으로 단언.
+#   verify_distribution 의 동명 검사는 Flag 발급 완료 레포에서는 not-applicable 이므로
+#   (2026-07-30 F2 교정) 미테라포밍 보호의 실행 정본은 이 검사가 소유한다.
+# ─────────────────────────────────────────────────────────────────────────────
+a8() {
+    local tmp rc1 rc2
+    tmp="$(mktemp -d)" || { fail "A8 info-only Flag 게이트: 임시 디렉터리 생성 실패"; return; }
+    # 추적 트리만 복사(git 조작 없음 — stage-free 유지). manifest.yaml·config.yaml 은
+    # gitignore 대상이라 자연 부재 → fresh-clone 상태와 동일.
+    if ! git ls-files -z | tar --null -cf - --files-from - 2>/dev/null | tar -xf - -C "$tmp" 2>/dev/null; then
+        rm -rf "$tmp"; fail "A8 info-only Flag 게이트: fresh-clone 트리 구성 실패"; return
+    fi
+    ( cd "$tmp" && timeout 60 python3 .claude/skills/vllm-recipe-explorer/recipe.py estimate --auto >/dev/null 2>&1 ); rc1=$?
+    ( cd "$tmp" && timeout 60 bash .claude/skills/adversarial-benchmark/scripts/run_bench.sh freshclone-probe >/dev/null 2>&1 ); rc2=$?
+    rm -rf "$tmp"
+    if [ "$rc1" -eq 4 ] && [ "$rc2" -eq 4 ]; then
+        pass "A8 info-only Flag 게이트: fresh-clone 상태에서 recipe/bench 모두 exit 4 fail-closed"
+    else
+        fail "A8 info-only Flag 게이트: recipe rc=$rc1, bench rc=$rc2 (기대 4/4)"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 실행
 # ─────────────────────────────────────────────────────────────────────────────
-echo "=== smoke_clone.sh — G1 합격 게이트 (7 hermetic assertion) ==="
-a1; a2; a3; a4; a5; a6; a7
+echo "=== smoke_clone.sh — G1 합격 게이트 (8 hermetic assertion) ==="
+a1; a2; a3; a4; a5; a6; a7; a8
 echo "------------------------------------------------------------"
 TOTAL=$((PASS_N+FAIL_N))
 if [ "$FAIL_N" -eq 0 ]; then

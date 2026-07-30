@@ -125,6 +125,7 @@ VALIDATED_SOURCE_BUILD_KEYS = {
     ("26.05-py3", "0.23.0"),
     ("26.05-py3", "0.24.0"),
     ("26.05-py3", "0.25.1"),  # tracked output/multi freeze; exact pair must remain synchronized
+    ("26.05-py3", "0.26.0"),  # 2026-07-30 승급: 양노드 빌드+TP=2 서빙+스모크+에이전트-레디 3종 PASS (testlog_26073015 §2, 사용자 졸업 승인)
 }
 
 _PLACEHOLDER_RE = re.compile(r"\{\{\s*[A-Z0-9_]+\s*\}\}")
