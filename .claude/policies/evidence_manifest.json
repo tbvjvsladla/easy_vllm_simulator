@@ -6,6 +6,7 @@
   ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md": "a6788c3440acc92d7148a87140e9e19d48df5c8c77ce8fd742c1b405754c1b9d",
   ".claude/skills/adversarial-benchmark/scripts/run_bench.sh": "7c51925c7e56369885d771a498948cc583eb922273b7803caffa69b462387400",
   ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh": "e1320762ba2a55cb74e88526f39a8976f7003b8f57a958f7255c6705f1a61f95",
+  ".claude/skills/terraforming_node/scripts/host_safety/install_netconsole.sh": "966b03127edd7011b04f7b80a2aeb86eacc865194bf9b53ca70710e891dc6ed4",
   ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh": "b5fd4723c4276bbea3f0f281b51ad8a4467fd3850ad3186470a4ce1c59f24c1b",
   ".claude/skills/terraforming_node/scripts/manifest_contract.py": "d26deb644d90b1a6a05ce9b055ee737c0f750883b282ccd0018ebadb176ca4c8",
   ".claude/skills/terraforming_node/scripts/render_sub_env.py": "ae94e698726745076d7e46c7c3aeeb1e4bcf8794d065ca2571b52f42c5d763f1",
