@@ -19,7 +19,9 @@ FROM nvcr.io/nvidia/pytorch:26.05-py3
 #   [0.25.1 bump · plan_2026071512_1] torch 핀 2.11.0 재검증(=0.24.0 동일 · pyproject 직독) → NGC 26.05 carry-forward
 #   가 torch-핀-매칭 *증거기반*(무증거 아님). 버전-특정 소스-게이트 패치(아래 flashinfer/DSA)는 fail-loud anchor 로
 #   self-refute(0.25.1 upstream 수정 시 anchor 불일치→빌드중단=L4 "패치 불필요" 신호). 최종중재=serve 스모크.
-RUN echo "[guard] source-build key (26.05-py3 x vLLM 0.25.1): torch 2.11.0 re-verified (=0.24.0 pin) — proceeding."
+RUN echo "WARN: source-build key (26.05-py3 x vLLM 0.26.0) is UNVALIDATED — attempt-build under HITL override (--allow-unvalidated)." && \
+    echo "  -> arbiter = smoke (workflow S3). REQUIRED: record this attempt in docs/testlog/." && \
+    echo "  -> on smoke PASS: codify the key into VALIDATED_SOURCE_BUILD_KEYS (SKILL.md §4.6)."
 
 # VLLM_REPO/VLLM_REF: 빌드-arg 파라미터화 — 기본 = stock(vllm-project, 버전은 아래 ARG VLLM_REF 참조). 콤보 env 가 오버라이드해
 #   포크 변종을 같은 Dockerfile 로 빌드한다(예 DeepSeek-V4 SM12x: jasl/vllm @ c766cbc6 → 이미지 …-source-sm12x).
@@ -29,7 +31,7 @@ ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
 # [L3 stock 포크졸업 적대검증 · plan_2026071512_1] 기본 = stock v0.25.1 먼저 시도(0.24.0이 이미 SM120 stock
 #   enablement #43477 → stock 서빙 실증). stock 스모크 실패(arch-wall) 시에만 콤보 env 가 포크(jasl/vllm@SHA)로
 #   오버라이드 → …-source-sm12x 변종(반응적, 무증거 포크 금지). carry-forward 금지 — 스모크가 졸업 여부 중재.
-ARG VLLM_REF=v0.25.1
+ARG VLLM_REF=v0.26.0
 ARG TORCH_CUDA_ARCH=12.1a
 ARG BUILD_JOBS=16
 

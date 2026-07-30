@@ -435,7 +435,14 @@ render_topology() {
     install -m 0644 "$build_assets/requirements.txt" "$output_dir/requirements.txt" || return 9
     install -m 0644 "$build_assets/Dockerfile.source-build-upstage" "$output_dir/Dockerfile.source-build-upstage" || return 9
     if [ "$1" = "multi" ]; then
-        install -m 0644 "$build_assets"/runtime_patches/* "$output_dir/configs/" || return 9
+        # 패치 0건은 **정상 상태**다: policy:RUNTIME_PATCH_NO_CARRY_FORWARD.C2 가 버전 bump 마다 재유도를
+        # 요구하므로, bump 직후엔 정본 runtime_patches/ 가 비어 있는 게 규정된 결과다(또한 fresh clone 도 동일).
+        # 옛 무조건 glob 는 이 정상 상태에서 `install: cannot stat …/*` 로 죽었다 → 존재할 때만 install.
+        if compgen -G "$build_assets/runtime_patches/*" >/dev/null; then
+            install -m 0644 "$build_assets"/runtime_patches/* "$output_dir/configs/" || return 9
+        else
+            echo "[sync] info: 정본 runtime patch 0건 — policy:RUNTIME_PATCH_NO_CARRY_FORWARD(버전 bump 시 재유도) 정합 상태"
+        fi
         install -m 0644 "$build_assets"/model_inputs/configs/* "$output_dir/configs/" || return 9
         install -m 0644 "$build_assets"/model_inputs/envs/.env.* "$output_dir/envs/" || return 9
     fi

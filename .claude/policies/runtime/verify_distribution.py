@@ -352,8 +352,6 @@ def verify() -> dict:
     build_assets = [
         build_asset_root / "requirements.txt",
         build_asset_root / "Dockerfile.source-build-upstage",
-        *[build_asset_root / "runtime_patches" / f"{stem}_patch{suffix}"
-          for stem in ("exaone45-33b", "hy3") for suffix in (".py", ".provenance.json")],
         *[build_asset_root / "model_inputs/configs" / f"{stem}.{suffix}"
           for stem in ("exaone45-33b", "hy3") for suffix in ("sh", "yaml")],
         *[build_asset_root / "model_inputs/envs" / f".env.{stem}"
@@ -363,6 +361,39 @@ def verify() -> dict:
                    "ok": all(p.is_file() and not p.is_symlink() and p.stat().st_size > 0
                              and stat.S_IMODE(p.stat().st_mode) & 0o111 == 0 for p in build_assets),
                    "paths": [str(p.relative_to(REPO)) for p in build_assets]})
+    # 모델구동 런타임 패치는 policy:RUNTIME_PATCH_NO_CARRY_FORWARD.C1/C2 가 "휘발(volatile)·비추적 성격이며
+    # 환경 또는 **버전 bump 마다 재유도**한다"고 규정한 산출물이다. 그러므로 특정 모델 stem 의 패치가
+    # *존재한다*를 배포 불변식으로 단언하면 정책과 정면 모순한다 — bump 직후 정본이 비어 있는 것은
+    # 규정된 정상 상태이기 때문이다(2026-07-30 vLLM 0.26.0 bump 에서 실제로 표면화: 옛 단언이 C2 준수를
+    # 자산 손실로 오판해 FAIL 했다).
+    # ∴ 여기서 단언하는 것은 존재가 아니라 **있을 때의 정합성**이다:
+    #   (a) <stem>_patch.py 에는 짝 provenance 사이드카가 있어야 하고(고아 금지 — 낡은 권위 배달 차단),
+    #   (b) 양쪽 모두 정규파일·심링크아님·비어있지않음·비실행이어야 한다.
+    # 배달 허용 stem 의 allowlist 는 여전히 sync_to_sub.sh 의 BAND2_RUNTIME_PATCH_STEMS 가 소유한다
+    # (허용목록 ≠ 존재단언 — 이 둘의 혼동이 원래 모순의 원인이었다).
+    patch_root = build_asset_root / "runtime_patches"
+    patch_defects: list[str] = []
+
+    def _well_formed(p: Path) -> bool:
+        return (p.is_file() and not p.is_symlink() and p.stat().st_size > 0
+                and stat.S_IMODE(p.stat().st_mode) & 0o111 == 0)
+
+    if patch_root.is_dir():
+        for py in sorted(patch_root.glob("*_patch.py")):
+            sidecar = py.with_name(py.name[: -len(".py")] + ".provenance.json")
+            if not sidecar.is_file():
+                patch_defects.append(f"{py.relative_to(REPO)}:missing-provenance")
+                continue
+            patch_defects += [str(p.relative_to(REPO)) + ":malformed"
+                              for p in (py, sidecar) if not _well_formed(p)]
+        for sidecar in sorted(patch_root.glob("*_patch.provenance.json")):
+            py = sidecar.with_name(sidecar.name[: -len(".provenance.json")] + ".py")
+            if not py.is_file():
+                patch_defects.append(f"{sidecar.relative_to(REPO)}:orphan-provenance")
+    checks.append({"name": "upstream_owner_runtime_patch_pairing",
+                   "ok": not patch_defects, "defects": patch_defects,
+                   "present": sorted(p.name for p in patch_root.glob("*_patch.py"))
+                              if patch_root.is_dir() else []})
     provenance = REPO / ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md"
     checks.append({"name": "shipped_arch_approval_provenance",
                    "ok": provenance.is_file() and provenance.stat().st_size > 0})
