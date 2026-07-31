@@ -37,7 +37,7 @@
         },
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C7",
-          "statement": "Optional --with-kdump (default off) installs and enables kdump-tools with an explicit crashkernel reservation (high plus an explicit low reservation on aarch64 kernel 6.17, where a high-only reservation silently fails) plus hang-to-panic sysctl promotion, so a hard host crash preserves a vmcore for post-mortem diagnosis, verified only after the one required reboot; because it requires that reboot to take effect, it stays an explicit HITL opt-in flag rather than the installer's unconditional default."
+          "statement": "Post-mortem capture on unified-memory nodes is efi_pstore (NVRAM), not kdump: node-blackbox level L3 removes crashkernel and ramoops and disarms kdump-tools, because with kdump armed panic() jumps to __crash_kexec before kmsg_dump (crash_kexec_post_notifiers=N) so pstore can never be written, while the reservation costs 2.25 GiB of the very resource whose exhaustion causes the hard-down; on this platform ramoops additionally cannot survive a reset (an identical reserve_mem address across boots still yields 'error in header' after a clean reboot) and makedumpfile does not support kernel 6.17 so vmcore is structurally unavailable. L3 requires one reboot and stays an explicit HITL step, the legacy installer's --with-kdump is refused with that reason rather than silently removed, multi-node additionally cross-streams kmsg to the peer via netconsole, and capture is claimed only after verify_node_blackbox.sh --crash-test/--post-crash writes capture_verified."
         },
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C8",
@@ -63,13 +63,10 @@
             "HOST_SAFETY_LAYERED_DEFENSE.C1",
             "HOST_SAFETY_LAYERED_DEFENSE.C2",
             "HOST_SAFETY_LAYERED_DEFENSE.C5",
-            "HOST_SAFETY_LAYERED_DEFENSE.C6",
-            "HOST_SAFETY_LAYERED_DEFENSE.C7"
+            "HOST_SAFETY_LAYERED_DEFENSE.C6"
           ],
           "assertion_ids": [
             "APPLY",
-            "KDUMP_CRASHKERNEL",
-            "KDUMP_CRASHKERNEL_LOW",
             "TARGET_USER",
             "say"
           ]
@@ -204,6 +201,31 @@
           ],
           "assertion_ids": [
             "predicate_HOST_SAFETY_LAYERED_DEFENSE_C8"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C7"
+          ],
+          "assertion_ids": [
+            "LEVEL",
+            "APPLY",
+            "say",
+            "run"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C7"
+          ],
+          "assertion_ids": [
+            "MODE",
+            "CONFIRM",
+            "PEER_IP",
+            "ok",
+            "bad"
           ]
         }
       ],

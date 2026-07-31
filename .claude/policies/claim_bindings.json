@@ -288,10 +288,38 @@
     ],
     "HOST_SAFETY_LAYERED_DEFENSE.C1": [
       {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C1"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
+        "assertion_ids": [
+          "APPLY",
+          "TARGET_USER",
+          "say"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
+        "assertion_ids": [
+          "FILTER",
+          "THRESH_MIB",
+          "targets"
+        ]
+      },
+      {
         "path": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
         "assertion_ids": [
           "REQ_MIB",
           "_mf_sub"
+        ]
+      },
+      {
+        "path": ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml",
+        "assertion_ids": [
+          "oom_score_adj"
         ]
       },
       {
@@ -307,53 +335,21 @@
         "assertion_ids": [
           "_start_memwatch"
         ]
-      },
-      {
-        "path": ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml",
-        "assertion_ids": [
-          "oom_score_adj"
-        ]
-      },
-      {
-        "path": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
-        "assertion_ids": [
-          "APPLY",
-          "KDUMP_CRASHKERNEL",
-          "KDUMP_CRASHKERNEL_LOW",
-          "TARGET_USER",
-          "say"
-        ]
-      },
-      {
-        "path": ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
-        "assertion_ids": [
-          "FILTER",
-          "THRESH_MIB",
-          "targets"
-        ]
-      },
-      {
-        "path": ".claude/policies/predicates/claim_predicates.py",
-        "assertion_ids": [
-          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C1"
-        ]
       }
     ],
     "HOST_SAFETY_LAYERED_DEFENSE.C2": [
       {
-        "path": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
-        "assertion_ids": [
-          "APPLY",
-          "KDUMP_CRASHKERNEL",
-          "KDUMP_CRASHKERNEL_LOW",
-          "TARGET_USER",
-          "say"
-        ]
-      },
-      {
         "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HOST_SAFETY_LAYERED_DEFENSE_C2"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
+        "assertion_ids": [
+          "APPLY",
+          "TARGET_USER",
+          "say"
         ]
       }
     ],
@@ -396,29 +392,31 @@
     ],
     "HOST_SAFETY_LAYERED_DEFENSE.C5": [
       {
-        "path": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
-        "assertion_ids": [
-          "APPLY",
-          "KDUMP_CRASHKERNEL",
-          "KDUMP_CRASHKERNEL_LOW",
-          "TARGET_USER",
-          "say"
-        ]
-      },
-      {
         "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HOST_SAFETY_LAYERED_DEFENSE_C5"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
+        "assertion_ids": [
+          "APPLY",
+          "TARGET_USER",
+          "say"
         ]
       }
     ],
     "HOST_SAFETY_LAYERED_DEFENSE.C6": [
       {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C6"
+        ]
+      },
+      {
         "path": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
         "assertion_ids": [
           "APPLY",
-          "KDUMP_CRASHKERNEL",
-          "KDUMP_CRASHKERNEL_LOW",
           "TARGET_USER",
           "say"
         ]
@@ -430,29 +428,32 @@
           "THRESH_MIB",
           "targets"
         ]
-      },
-      {
-        "path": ".claude/policies/predicates/claim_predicates.py",
-        "assertion_ids": [
-          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C6"
-        ]
       }
     ],
     "HOST_SAFETY_LAYERED_DEFENSE.C7": [
       {
-        "path": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C7"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh",
         "assertion_ids": [
           "APPLY",
-          "KDUMP_CRASHKERNEL",
-          "KDUMP_CRASHKERNEL_LOW",
-          "TARGET_USER",
+          "LEVEL",
+          "run",
           "say"
         ]
       },
       {
-        "path": ".claude/policies/predicates/claim_predicates.py",
+        "path": ".claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh",
         "assertion_ids": [
-          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C7"
+          "CONFIRM",
+          "MODE",
+          "PEER_IP",
+          "bad",
+          "ok"
         ]
       }
     ],

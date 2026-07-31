@@ -1,22 +1,32 @@
 #!/bin/bash
 # install_host_safety.sh — 호스트 안전체계 결정론 설치자 (plan_26071019 §2.2·§2.5·§3·§4.1).
 #   설치물: ① mem_watchdog 상시 systemd 유닛(광역 @vllm) ② vllm-drop-caches 헬퍼 + sudoers 단일
-#   NOPASSWD 엔트리 ③ earlyoom(최후선 — 워치독의 워치독) ④ (--with-kdump) kdump-tools.
+#   NOPASSWD 엔트리 ③ earlyoom(최후선 — 워치독의 워치독).
+#   ④ kdump 는 **제거됐다**(2026-07-31, testlog_26073114): 무장 시 panic() 이 kmsg_dump 보다 먼저
+#      kexec 로 점프해 efi_pstore 를 원천 차단하고, 그 대가로 2.25 GiB 를 상시 예약한다.
+#      사후 포착 정본 = node_blackbox --level=L3 (efi_pstore) + 멀티는 netconsole.
 #   실행 주체 = 사람(HITL sudo — terraforming "호스트 안전체계" 스텝): sudo bash .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh --apply
 #   기본 = dry-run(무엇을 설치할지 표시만). 멱등 — 재실행 안전. 서브노드에도 동일 실행(렌더 배달분).
 # 종료코드: 0=성공(또는 dry-run) · 1=전제 실패 · 2=설치/검증 실패.
 set -uo pipefail
 
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APPLY=0; WITH_KDUMP=0; EARLYOOM_DEB=""
+APPLY=0; EARLYOOM_DEB=""
 TARGET_USER="${SUDO_USER:-$(id -un)}"
 for a in "$@"; do
   case "$a" in
     --apply) APPLY=1 ;;
-    --with-kdump) WITH_KDUMP=1 ;;
+    --with-kdump)
+      echo "[host-safety] 거부: --with-kdump 는 폐지됐습니다(2026-07-31)." >&2
+      echo "  근거: kdump 무장 시 panic() 이 kmsg_dump 보다 먼저 kexec 로 점프해(crash_kexec_post_notifiers=N)" >&2
+      echo "        efi_pstore 가 원리적으로 기록되지 못합니다. 게다가 vmcore 는 makedumpfile 이 커널 6.17 을" >&2
+      echo "        미지원해 구조적으로 불가하고(0/4), 크래시커널 부팅은 1/4 간헐이며, 예약 2.25 GiB 는" >&2
+      echo "        통합메모리 하드다운의 원인 자원 그 자체입니다. 증거: docs/testlog/testlog_26073114*." >&2
+      echo "  대체: sudo bash .claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh --apply --level=L3" >&2
+      exit 1 ;;
     --user=*) TARGET_USER="${a#--user=}" ;;
     --earlyoom-deb=*) EARLYOOM_DEB="${a#--earlyoom-deb=}" ;;
-    *) echo "[host-safety] 알 수 없는 인자: $a (사용: --apply [--with-kdump] [--earlyoom-deb=<path>] [--user=<name>])"; exit 1 ;;
+    *) echo "[host-safety] 알 수 없는 인자: $a (사용: --apply [--earlyoom-deb=<path>] [--user=<name>])"; exit 1 ;;
   esac
 done
 # 오프라인 earlyoom: --earlyoom-deb 미지정 시 레포 루트의 earlyoom_*.deb 자동탐지(offline apt 대비).
@@ -106,55 +116,10 @@ fi
 #   교정을 high+low 병기로 대체(SUPERSEDES 단일-값 접근 for 커널 6.17+).
 #   [P4 · testlog_26071111 §0]: 512M→2G,high — 124GiB 호스트서 512M 는 crash-kernel makedumpfile OOM
 #     으로 vmcore 저장 실패(2026-07-11 실증 vmcore 0). kdump-config 자체 권고 1660M · NVIDIA Tegra r36=2G.
-KDUMP_CRASHKERNEL="${KDUMP_CRASHKERNEL:-2G,high}"   # env 로 조정 가능. 2G = 128GiB 호스트 vmcore 저장 여유
-KDUMP_CRASHKERNEL_LOW="${KDUMP_CRASHKERNEL_LOW:-256M}"   # aarch64 커널 6.17: high 단독 예약 실패 → 명시 low 병기(참조 arm64 kdump). ""=끔(x86/구커널).
-if [ "$WITH_KDUMP" = "1" ]; then
-  say "④ kdump-tools 설치 + 활성화(USE_KDUMP=1) + crashkernel=${KDUMP_CRASHKERNEL}${KDUMP_CRASHKERNEL_LOW:+ + ${KDUMP_CRASHKERNEL_LOW},low} 예약 (**재부팅 1회 필요** · 커널 6.17 high+low)"
-  if [ "$APPLY" = "1" ]; then
-    DEBIAN_FRONTEND=noninteractive apt-get install -y kdump-tools >/dev/null 2>&1 || { say "  ✗ kdump-tools 설치 실패"; FAIL=1; }
-    if command -v kdump-config >/dev/null 2>&1; then
-      # (a) USE_KDUMP=1 (noninteractive 기본 0 교정)
-      if grep -qE '^USE_KDUMP=' /etc/default/kdump-tools 2>/dev/null; then
-        sed -i 's/^USE_KDUMP=.*/USE_KDUMP=1/' /etc/default/kdump-tools
-      else
-        echo 'USE_KDUMP=1' >> /etc/default/kdump-tools
-      fi
-      # (a2) KDUMP_SKIP_VMCORE=0 (P4 · testlog_26071111 §0 — BSP 가 =1 이면 vmcore 저장 스킵 = 2026-07-11
-      #      vmcore 0 근본원인. 존재하는 =1 만 뒤집음; 부재 시 append 금지 — 비표준 노브 신설 위험).
-      if grep -qE '^KDUMP_SKIP_VMCORE=' /etc/default/kdump-tools 2>/dev/null; then
-        sed -i 's/^KDUMP_SKIP_VMCORE=.*/KDUMP_SKIP_VMCORE=0/' /etc/default/kdump-tools
-      fi
-      # (b) crashkernel 교정 — aarch64 커널 6.17: high + 명시 low 병기(위 주석 · high 단독 예약실패 실증).
-      #     idempotent: kdump-tools.cfg 의 crashkernel 토큰 전부 제거(중복-high 함정 회피) 후, 우리 zz-
-      #     (최후정렬 'z'>'k'=권위)에 high+low emit. 재실행 안전(zz- 덮어쓰기·kdump-tools 스트립).
-      CK="crashkernel=${KDUMP_CRASHKERNEL}"
-      [ -n "$KDUMP_CRASHKERNEL_LOW" ] && CK="$CK crashkernel=${KDUMP_CRASHKERNEL_LOW},low"
-      rm -f /etc/default/grub.d/99-easy-vllm-kdump.cfg
-      KT=/etc/default/grub.d/kdump-tools.cfg
-      [ -f "$KT" ] && sed -i 's/ *crashkernel=[^ "]*//g' "$KT"   # kdump-tools 의 crashkernel 제거(권위=우리 zz-)
-      cat > /etc/default/grub.d/zz-easy-vllm-kdump.cfg <<EOF
-GRUB_CMDLINE_LINUX_DEFAULT="\$GRUB_CMDLINE_LINUX_DEFAULT $CK"
-EOF
-      if command -v update-grub >/dev/null 2>&1; then update-grub >/dev/null 2>&1
-      elif command -v update-grub2 >/dev/null 2>&1; then update-grub2 >/dev/null 2>&1
-      else grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1; fi
-      systemctl enable kdump-tools >/dev/null 2>&1
-      # (c) hang→panic 승격 (P4 — 22분 무음 non-panic hang 은 crash_kexec 미발동 → vmcore 0. hung_task·
-      #     softlockup 을 panic 으로 올려 kexec 경로 진입. panic=10 = 패닉 후 10s 자동재부팅).
-      cat > /etc/sysctl.d/99-easy-vllm-kdump-trigger.conf <<'EOF'
-kernel.hung_task_panic=1
-kernel.hung_task_timeout_secs=60
-kernel.softlockup_panic=1
-kernel.panic=10
-EOF
-      sysctl -p /etc/sysctl.d/99-easy-vllm-kdump-trigger.conf >/dev/null 2>&1
-      say "  ✓ USE_KDUMP=1 · KDUMP_SKIP_VMCORE=0 · $CK · hang→panic sysctl · update-grub — **재부팅 후** ready"
-      say "  ⚠ 재부팅 후 검증: kdump-config show|grep 'current state'→'ready' + grep -i crash /proc/iomem(**비-0 예약** — 0x0-0x0=여전히 실패) + (scratch)echo c>/proc/sysrq-trigger 로 vmcore 실착지"
-    fi
-  fi
-else
-  say "④ kdump: 건너뜀(--with-kdump 로 활성 — 스트레스 게이트 전 필수, plan §3)"
-fi
+# ④ kdump — **폐지**. 이 설치자는 더 이상 crashkernel 을 예약하지 않는다.
+#   기존 설치분의 제거와 efi_pstore 확보는 node_blackbox 설치자의 L3 가 소유한다.
+say "④ kdump: 폐지됨(2026-07-31) — 사후 포착은 node_blackbox --level=L3 의 efi_pstore 가 담당"
+say "   기존 kdump 가 남아 있다면 그것이 efi_pstore 를 막고 있다: install_node_blackbox.sh --apply --level=L3"
 
 if [ "$APPLY" = "1" ]; then
   say "설치 요약: memwatch=$(systemctl is-active easy-vllm-memwatch.service 2>/dev/null) · earlyoom=$(systemctl is-active earlyoom 2>/dev/null) · sudoers=$([ -f /etc/sudoers.d/easy-vllm-host-safety ] && echo ok || echo missing)"
