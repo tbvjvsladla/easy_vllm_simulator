@@ -290,6 +290,18 @@
       "last_verified": "2026-07-19"
     },
     {
+      "tag": "hint/0.26.0/lfm2-8b-a1b/gb10",
+      "vllm": "0.26.0",
+      "model": "lfm2-8b-a1b",
+      "arch": "gb10",
+      "topology": "single 1노드",
+      "brief": "LFM2-8B-A1B bf16 MoE 32e 하이브리드(conv18+attn6) · single tp=1 · KV 12KiB/token(전층가정의 1/4) · cold JIT 23초 · full 벤치 PASS(MBU 71%)",
+      "anchor": "6566a8125272ebd70cfdae4ad5f149f721700aab",
+      "related": "testlog_26073121",
+      "status": "active",
+      "last_verified": "2026-07-31"
+    },
+    {
       "tag": "hint/0.26.0/ministral-3-8b/gb10",
       "vllm": "0.26.0",
       "model": "ministral-3-8b",
