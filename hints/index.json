@@ -290,6 +290,18 @@
       "last_verified": "2026-07-19"
     },
     {
+      "tag": "hint/0.26.0/glm-47-flash/gb10",
+      "vllm": "0.26.0",
+      "model": "glm-47-flash",
+      "arch": "gb10",
+      "topology": "single 1노드",
+      "brief": "GLM-4.7-Flash(`zai-org/GLM-4.7-Flash`) bf16 MoE 64e · **MLA** · single tp=1 · KV 52.9 KiB/token(GQA 공식의 1/7) · full 벤치 PASS(MBU 85.7%)",
+      "anchor": "a6cb89f7baa1c58377cb0c11f32410b33e0605c2",
+      "related": "testlog_26080107",
+      "status": "active",
+      "last_verified": "2026-08-01"
+    },
+    {
       "tag": "hint/0.26.0/lfm2-8b-a1b/gb10",
       "vllm": "0.26.0",
       "model": "lfm2-8b-a1b",
