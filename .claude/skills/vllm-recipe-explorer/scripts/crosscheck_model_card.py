@@ -73,9 +73,32 @@ def _read_st_header(path: str) -> dict:
         return json.loads(fh.read(n))
 
 
+def _canonical_shards(model_dir: str) -> list:
+    """로더가 실제로 읽을 샤드 집합 = index weight_map 참조분. 없으면 glob 폴백.
+
+    ★ 글롭만 쓰면 **한 디렉토리에 공존하는 다른 정밀도 세트**를 함께 센다
+      (LFM2-8B-A1B: bf16 -of-00004 와 F32 -of-00007 동거). 그러면 순수 bf16 모델이
+      '혼합 정밀도'로 오판되어 양자화 판단이 뒤틀린다.
+      `_count_params_from_headers`(parse_model_config)가 같은 이유로 이미 weight_map 을 쓴다 —
+      여기만 빠져 있었다(2026-08-01 계열 전수조사에서 발견).
+    """
+    index_path = os.path.join(model_dir, "model.safetensors.index.json")
+    if os.path.isfile(index_path):
+        try:
+            with open(index_path, "r", encoding="utf-8") as f:
+                wm = json.load(f).get("weight_map")
+            if isinstance(wm, dict) and wm:
+                ref = sorted({os.path.join(model_dir, v) for v in wm.values()})
+                if all(os.path.isfile(p) for p in ref):
+                    return ref
+        except (OSError, ValueError, json.JSONDecodeError):
+            pass
+    return sorted(glob.glob(os.path.join(model_dir, "*.safetensors")))
+
+
 def scan_dtypes(model_dir: str) -> dict:
-    """전 safetensors 헤더만 읽어 dtype별 텐서수·byte + expert/비-expert 분리 + 정밀도 시그니처."""
-    shards = sorted(glob.glob(os.path.join(model_dir, "*.safetensors")))
+    """**정본 샤드**(index weight_map) 헤더만 읽어 dtype별 텐서수·byte + expert/비-expert 분리 + 정밀도 시그니처."""
+    shards = _canonical_shards(model_dir)
     if not shards:
         return {"present": False}
     counts, nbytes = Counter(), Counter()

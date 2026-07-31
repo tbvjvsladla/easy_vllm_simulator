@@ -7,9 +7,10 @@
   required_mib = ceil(checkpoint_bytes / tp / MiB) + floor_mib
   MemAvailable < required → drop-caches 헬퍼(sudo -n, 설치돼 있으면) 1회 → 재측정 → 부족 지속 = 거부
 
-- 체크포인트 크기 권위 = parse_model_config._native_weight_bytes(index total_size — **du 금지**,
-  testlog_26070814 .git-부풀림 결함). 크기 미상(None)이면 **경고 후 게이트 생략**(음성정직 —
-  거짓 크기로 false-block 하지 않는다).
+- 체크포인트 크기 권위 = parse_model_config._native_weight_bytes = **index weight_map 참조 샤드의
+  실제 파일 크기 합**. `du`(.git LFS 복제 2배) · `*.safetensors` 글롭(동거 포맷 세트) ·
+  `metadata.total_size`(발행자 오기재 — Olmo 가 fp32 기준으로 적어 2배 신고) 를 모두 피한다.
+  크기 미상(None)이면 **경고 후 게이트 생략**(음성정직 — 거짓 크기로 false-block 하지 않는다).
 - tp 분할: Ray TP=N 이면 노드당 로드는 ≈ 전체/N (DSpark 실측 77.7GiB/node @ TP=2 정합).
 - floor 기본 10240MiB = mem_watchdog 상시 임계와 동일(게이트 통과 직후 워치독 존이 침식되지 않게).
 - drop-caches 자동 실행은 §4.1 sudoers 단일 헬퍼(/usr/local/sbin/vllm-drop-caches)가 설치된
