@@ -118,16 +118,32 @@ def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
 
 
 def _total_bytes_dense(host_dir):
-    """비-MoE: 전 가중치(=항상 읽힘). index total_size 우선, 없으면 헤더 합."""
+    """비-MoE: 전 가중치(=항상 읽힘). **index weight_map 참조 샤드의 헤더 data_offsets 합**이 권위.
+
+    ★ `metadata.total_size` 를 쓰면 안 된다 — 디스크 바이트가 아니라 **발행자가 계산해 적은 값**이라
+      틀릴 수 있다. Olmo-3.1-32B-Instruct 는 32B 파라미터를 fp32(4 B) 기준으로 적어 실제 bf16
+      가중치의 **정확히 2배**(120.08 GiB vs 60.04)를 신고하고, 그대로 쓰면 R_fp 가 2.12 t/s 로
+      절반이 되어 **판정 기준 자체가 무너진다**(2026-08-01 실측).
+    ★ `os.listdir` 글롭도 안 된다 — 동거 포맷 세트를 함께 센다(LFM2 의 F32 ↔ bf16).
+    MoE 경로(_active_bytes_moe)는 이미 weight_map 을 쓴다. dense 경로만 어긋나 있었다.
+    (parse_model_config._native_weight_bytes 와 같은 원칙 — 다만 여기선 루프라인이 요구하는
+     **텐서 바이트**가 필요하므로 파일 크기가 아니라 헤더 data_offsets 를 합산한다.)
+    """
     idx = os.path.join(host_dir, "model.safetensors.index.json")
+    shard_names = None
     if os.path.isfile(idx):
         with open(idx, "r", encoding="utf-8") as f:
-            meta = json.load(f).get("metadata", {})
-        ts = meta.get("total_size")
-        if ts:
-            return int(ts)
+            blob = json.load(f)
+        wm = blob.get("weight_map")
+        if isinstance(wm, dict) and wm:
+            cand = sorted(set(wm.values()))
+            if all(os.path.isfile(os.path.join(host_dir, n)) for n in cand):
+                shard_names = cand
+        ts = blob.get("metadata", {}).get("total_size")
+    else:
+        ts = None
     total = 0
-    for fn in sorted(os.listdir(host_dir)):
+    for fn in (shard_names if shard_names is not None else sorted(os.listdir(host_dir))):
         if fn.endswith(".safetensors"):
             hdr = _st_header(os.path.join(host_dir, fn))
             for name, m in hdr.items():
@@ -138,6 +154,14 @@ def _total_bytes_dense(host_dir):
                     total += int(off[1]) - int(off[0])
     if total <= 0:
         _die("가중치 바이트 산출 실패: %s" % host_dir)
+    # total_size 는 교차검증용. 어긋나면 조용히 넘기지 않는다 — 그래야 다음 사람이 재조사하지 않는다.
+    if ts and total > 0:
+        ratio = float(ts) / total
+        if not (0.9 <= ratio <= 1.1):
+            sys.stderr.write(
+                "[roofline] ⚠ index metadata.total_size=%.2f GiB 가 실제 텐서 합 %.2f GiB 의 "
+                "%.2f배 — 발행자 오기재. 실측 헤더 합을 채택한다.\n"
+                % (ts / 1024 ** 3, total / 1024 ** 3, ratio))
     return total
 
 
