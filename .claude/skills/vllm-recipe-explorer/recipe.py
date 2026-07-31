@@ -587,7 +587,21 @@ def _load_candidate(path):
     if not os.path.isfile(path):
         _die(f"--candidate 파일 없음: {path}")
     with open(path, "r", encoding="utf-8") as f:
-        cand = json.load(f)
+        raw = f.read()
+    try:
+        cand = json.loads(raw)
+    except json.JSONDecodeError as e:
+        # docstring 이 "클린 어보트"를 약속하는데 실제로는 raw JSONDecodeError 트레이스백이 났다.
+        # 특히 simlog 산출물이 *.yaml 로 보존되므로 그걸 그대로 입력으로 되먹이기 쉽다 —
+        # 가장 흔한 오입력에 대해 원인과 해소를 함께 준다(2026-08-01 실제 발생).
+        hint = ""
+        if path.endswith((".yaml", ".yml")) or raw.lstrip()[:1] not in ("{", "["):
+            hint = (" — YAML 로 보인다. --candidate 는 **JSON** 만 받는다"
+                    "(simlog 의 trial*_candidate.yaml 은 사람이 읽으라고 만든 *산출물*이지"
+                    " 입력 형식이 아니다). 변환: python3 -c \"import yaml,json,sys;"
+                    "json.dump(yaml.safe_load(open(sys.argv[1])),open(sys.argv[2],'w'),"
+                    "ensure_ascii=False,indent=2)\" in.yaml out.json")
+        _die(f"--candidate 파싱 실패: {path} ({e}){hint}")
     if not isinstance(cand, dict):
         _die("--candidate JSON 은 lock-set dict 여야 함")
     cand.setdefault("id", "s1")

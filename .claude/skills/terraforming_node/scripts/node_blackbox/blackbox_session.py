@@ -153,14 +153,23 @@ def cmd_declare_budget(args):
     label = args.label or "unlabeled"
     if not SAFE_ID_RE.match(label):
         raise SystemExit("--label 은 [A-Za-z0-9._-]+ 여야 한다(워치독 파서 문자셋): %r" % (label,))
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(
-            "# easy-vllm serve budget declaration — 워치독이 sed 로 읽는다(source 하지 않는다).\n"
-            "# 산출: floor_mib = mem_total(%d) - [weights(%d) + kv(%d) + overhead(%d)]\n"
-            "# 발행 %s · TTL %ds · 근거 testlog_26073123\n"
-            "floor_mib=%d\nexpires_epoch=%d\nlabel=%s\n"
-            % (args.mem_total_mib, args.weights_mib, args.kv_mib, args.overhead_mib,
-               now, args.ttl_s, floor, expires, label))
+    body = (
+        "# easy-vllm serve budget declaration — 워치독이 sed 로 읽는다(source 하지 않는다).\n"
+        "# 산출: floor_mib = mem_total(%d) - [weights(%d) + kv(%d) + overhead(%d)]\n"
+        "# 발행 %s · TTL %ds · 근거 testlog_26073123\n"
+        "floor_mib=%d\nexpires_epoch=%d\nlabel=%s\n"
+        % (args.mem_total_mib, args.weights_mib, args.kv_mib, args.overhead_mib,
+           now, args.ttl_s, floor, expires, label))
+    # ★ 원자적 교체 필수. 워치독은 이 파일을 **1초마다** 읽는다. 제자리 쓰기(open 'w')는
+    #   내용이 비거나 잘린 순간을 만들고, 그 폴에서 선언이 거부돼 arm 상한이 무한대로 돌아간다.
+    #   하필 그 순간이 모델 로드 골짜기면 옛 규칙 그대로 사살된다 — 갱신 행위가 사고를 만든다.
+    #   rename 은 같은 파일시스템에서 원자적이므로 워치독은 옛 선언 아니면 새 선언만 본다.
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(body)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
     ceiling = floor - _WD_MARGIN_MIB
     _append_event(args.node_dir, {
         "kind": "budget_declare", "ts": now, "source": "blackbox_session",
