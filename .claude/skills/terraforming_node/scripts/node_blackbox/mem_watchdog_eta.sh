@@ -83,6 +83,9 @@ BB_HARD_FLOOR_MIB=${BB_HARD_FLOOR_MIB%%.*}
 BB_MIN_RATE_MIB_S=${BB_MIN_RATE_MIB_S%%.*}
 BB_DEBOUNCE_N=${BB_DEBOUNCE_N%%.*}
 BB_RUNWAY_MS=${BB_RUNWAY_MS%%.*}
+# 선언된 바닥 상수도 정본은 eta_params.env 다(위 source 가 여기 기본값을 덮는다). 같은 절삭 적용.
+BB_DECL_MARGIN_MIB=${BB_DECL_MARGIN_MIB%%.*}
+BB_DECL_MIN_CEILING_MIB=${BB_DECL_MIN_CEILING_MIB%%.*}
 
 ts(){ date -u +%FT%TZ; }
 log(){ echo "[bb-watchdog] $*"; }
