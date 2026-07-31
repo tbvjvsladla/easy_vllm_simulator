@@ -177,12 +177,20 @@ def _build_sh(name, served_model_name, recipe=None):
     return "\n".join(lines) + "\n"
 
 
-def _build_env(name, served_model_name, port):
+def _build_env(name, served_model_name, port, image=None):
     """envs/.env.<name> 내용 문자열 생성.
 
     기존 .env.gpt-oss-20b-normal 스키마 준수:
       COMPOSE_PROJECT_NAME, CONTAINER_NAME, VERSION, NVIDIA_VISIBLE_DEVICES,
       SERVING_IP, SERVING_PORT, TIKTOKEN_ENABLED, SERVING_MODEL_NAME, CONFIG_FILE
+      (+ IMAGE_TAG — 아래 참조)
+
+    ★ IMAGE_TAG 를 반드시 emit 한다. docker-compose.yaml 은
+      `image: ${IMAGE_TAG:-easy-vllm:0.24.0-cu132-aarch64-source}` 라서 이 변수가 없으면
+      **조용히 낡은 기본 이미지로 폴백**한다. 그 결과 의도한 vLLM 이 아닌 버전을 서빙·측정하게
+      되고, 로그·벤치 리포트에는 그 사실이 드러나지 않는다(D8 버전 치환 — testlog_26073117).
+      2026-07-31~08-01 캠페인에서 `simulate --force` 재생성 때마다 3회 재발했고 그때마다
+      사람이 수동 재주입했다 — 계획서에 경고를 세 번 적는 대신 생성부를 고친다.
     """
     lines = []
     sep = "# " + "═" * 69
@@ -204,10 +212,22 @@ def _build_env(name, served_model_name, port):
     lines.append("TIKTOKEN_ENABLED=true")
     lines.append("SERVING_MODEL_NAME={}".format(served_model_name))
     lines.append("CONFIG_FILE={}".format(name))
+    lines.append("")
+    lines.append("# ─────────────── 3) 컨테이너 이미지 (필수) ───────────────────────────")
+    lines.append("# 비우면 compose 가 낡은 기본값으로 조용히 폴백해 **다른 vLLM 버전을 측정**한다.")
+    if image:
+        lines.append("IMAGE_TAG={}".format(image))
+    else:
+        # 조용한 부재를 만들지 않는다 — 주석으로 자리를 남겨 "안 적혀 있음"이 눈에 보이게 한다.
+        lines.append("# IMAGE_TAG=<미지정 — 반드시 채울 것>")
+        sys.stderr.write(
+            "[gen_recipe_set] WARN: image 미지정 → env 에 IMAGE_TAG 를 쓰지 못했다. "
+            "compose 가 낡은 기본 이미지로 폴백하므로 서빙 전에 직접 채워라.\n")
     return "\n".join(lines) + "\n"
 
 
-def generate(parsed, recipe, name, repo_root, port, served_model_name, force=False):
+def generate(parsed, recipe, name, repo_root, port, served_model_name, force=False,
+             image=None):
     """3종 세트(.yaml + .sh + .env)를 생성하고 생성 경로 리스트를 반환.
 
     Args:
@@ -242,7 +262,7 @@ def generate(parsed, recipe, name, repo_root, port, served_model_name, force=Fal
 
     yaml_text = _build_yaml(parsed, recipe, served_model_name)
     sh_text = _build_sh(name, served_model_name, recipe)
-    env_text = _build_env(name, served_model_name, port)
+    env_text = _build_env(name, served_model_name, port, image=image)
 
     with open(yaml_path, "w", encoding="utf-8") as f:
         f.write(yaml_text)

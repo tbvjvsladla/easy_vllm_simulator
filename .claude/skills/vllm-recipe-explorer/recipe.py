@@ -552,6 +552,7 @@ def cmd_generate(args):
             port,
             served_model_name,
             force=args.force,
+            image=getattr(args, "image", None),
         )
     except FileExistsError as e:
         _die(f"{e} (덮어쓰려면 --force)")
@@ -1095,6 +1096,9 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
     try:
         paths = generate(
             parsed, recipe, name, output_root(REPO_ROOT), port, served_model_name, force=args.force,
+            # 트라이얼이 **실제로 통과시킨** 이미지를 env 에 박는다. 비우면 compose 가 낡은
+            # 기본값으로 조용히 폴백해 검증한 것과 다른 vLLM 을 서빙·측정한다(D8).
+            image=candidate.get("image") or args.image,
         )
     except FileExistsError as e:
         _die(f"{e} (덮어쓰려면 --force)")
@@ -1207,6 +1211,10 @@ def build_parser():
     pg.add_argument("--config", default="config.yaml", help="입력 config.yaml 경로")
     pg.add_argument("--recipe-id", required=True, help="선택 레시피 id(예: r3)")
     pg.add_argument("--force", action="store_true", help="기존 파일 덮어쓰기 허용")
+    pg.add_argument("--image", default=None,
+                    help="컨테이너 이미지 태그 → env 의 IMAGE_TAG. 생략하면 env 에 "
+                         "미지정 표시가 박히고 경고가 나간다(compose 는 비면 낡은 기본값으로 "
+                         "조용히 폴백한다 — D8).")
     pg.set_defaults(func=cmd_generate)
 
     # Phase 2 — simulate(통합 trial-loop: run_trial→sim_classify→조정→반복).
