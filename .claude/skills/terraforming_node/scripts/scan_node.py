@@ -434,6 +434,8 @@ def emit_manifest_block(result: dict) -> str:
     gpus = result["gpus_per_node"] if result["gpus_per_node"] is not None else "null"
     gpu_model = json.dumps(result["gpu_model"], ensure_ascii=False) \
         if isinstance(result.get("gpu_model"), str) and result["gpu_model"].strip() else "null"
+    driver = json.dumps(result["driver_version"], ensure_ascii=False) \
+        if isinstance(result.get("driver_version"), str) and result["driver_version"].strip() else "null"
     import datetime
     scanned_at = datetime.datetime.now().strftime("%Y%m%d%H")
     # 테라포밍 완수 Flag (attestation · plan_26063018 · 헌법 §테라포밍-완수 Flag 게이트):
@@ -450,6 +452,7 @@ def emit_manifest_block(result: dict) -> str:
         f"cuda_version: {cuda}",
         f"gpus_per_node: {gpus}",
         f"gpu_model: {gpu_model}",
+        f"driver_version: {driver}",
     ]
     if topo == "single":
         # single dormant 게이트를 결정론으로 동결(sub-control 확장기능 비활성 — 헌법 §single-node 확장기능).
@@ -775,6 +778,11 @@ def build_local_scan_result(ic: dict, compose: str, topology: str) -> dict:
         "cuda_version": scan_cuda_version(),
         "gpus_per_node": scan_gpus_per_node(),
         "gpu_model": scan_gpu_model(),
+        # 메인 자신의 드라이버. 종전엔 collect_local_hw() 가 서브 **동질성 비교용**으로만 수집해
+        # emit 경로가 없었고, 그 결과 single manifest 는 낡고 multi 는 driver_version:null 로 남았다.
+        # emission_blockers 에는 넣지 않는다 — GPU-less 그라운딩 세션에서 발행을 막으면 안 되므로
+        # 부재는 null 로 정직하게 흘린다(gpu_model 과 동일한 None-가드 계열).
+        "driver_version": scan_driver_version(),
         "interconnect": {k: v for k, v in ic.items() if not k.startswith("_")},
         "scan_detail": {k: v for k, v in ic.items() if k.startswith("_")},
         "cross_validation": cross_validate(ic, compose),
