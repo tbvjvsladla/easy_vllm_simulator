@@ -243,6 +243,13 @@ for u in easy-vllm-blackbox-collect.service easy-vllm-blackbox-watchdog.service 
          easy-vllm-blackbox-events.timer easy-vllm-blackbox-lifecycle.timer; do
   run systemctl enable --now "$u"
 done
+# ★ enable --now 는 **이미 돌고 있는 유닛을 재시작하지 않는다.** 재설치로 $BIN 의 스크립트를
+#   갈아끼워도 옛 프로세스가 옛 코드로 계속 돌아 "배포했는데 반영이 안 되는" 침묵 실패가 된다.
+#   try-restart 는 활성 유닛만 재시작하므로(비활성은 no-op) 위 enable 과 안전하게 겹친다.
+#   (2026-08-01 선언된-바닥 배포 때 현실화 — testlog_26073123)
+for u in easy-vllm-blackbox-collect.service easy-vllm-blackbox-watchdog.service; do
+  run systemctl try-restart "$u"
+done
 
 say "   sudoers 단일 NOPASSWD 엔트리($TARGET_USER → vllm-drop-caches)"
 if [ "$APPLY" = 1 ]; then

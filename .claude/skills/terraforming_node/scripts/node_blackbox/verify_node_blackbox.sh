@@ -112,7 +112,8 @@ for t in "blackbox_eta.py --self-test:ETA 엔진" \
          "blackbox_collect.py --self-test:수집기" \
          "blackbox_events.py --self-test:이벤트 통합" \
          "logs_lifecycle.py --self-test:수명 집행" \
-         "seed_from_journal.py --self-test:시드 임포터"; do
+         "seed_from_journal.py --self-test:시드 임포터" \
+         "blackbox_session.py --self-test:세션 사이드카"; do
   f="${t%%:*}"; label="${t##*:}"
   if python3 "$SDIR/${f%% *}" ${f#* } >/dev/null 2>&1; then ok "$label self-test" "selftest_${f%%.*}"
   else bad "$label self-test 실패 — python3 $SDIR/$f" "selftest_${f%%.*}"; fi
@@ -120,6 +121,22 @@ done
 if bash "$SDIR/mem_watchdog_eta.sh" --self-test >/dev/null 2>&1; then
   ok "ETA 워치독 self-test" "selftest_watchdog"
 else bad "ETA 워치독 self-test 실패" "selftest_watchdog"; fi
+
+# ★ 배포본 신선도 — self-test 는 **소스**를 시험한다. 데몬이 실행하는 것은 $BIN 의 사본이고,
+#   둘이 갈라져 있으면 "시험 통과 + 현장은 옛 코드"가 된다. 침묵 실패라 반드시 명시 검사한다.
+#   (근거: install 의 `enable --now` 가 이미 돌던 유닛을 재시작하지 않던 결함 — testlog_26073123)
+for pair in "mem_watchdog_eta.sh:easy-vllm-bb-watchdog" \
+            "blackbox_collect.py:easy-vllm-bb-collect" \
+            "blackbox_eta.py:easy-vllm-bb-eta"; do
+  src="$SDIR/${pair%%:*}"; dst="/usr/local/sbin/${pair##*:}"
+  if [ ! -f "$dst" ]; then bad "배포본 부재: $dst" "deployed_${pair##*:}"
+  elif [ "$(sha256sum <"$src" | cut -d' ' -f1)" = "$(sha256sum <"$dst" | cut -d' ' -f1)" ]; then
+    ok "배포본 최신 ${pair##*:}" "deployed_${pair##*:}"
+  else
+    bad "배포본 구버전 ${pair##*:} — 소스≠$dst. sudo bash $SDIR/install_node_blackbox.sh --apply --level L1" \
+        "deployed_${pair##*:}"
+  fi
+done
 
 # ── B. L1 런타임 ─────────────────────────────────────────────────────────
 echo; say "B. L1 런타임 (무재부팅 계층)"
