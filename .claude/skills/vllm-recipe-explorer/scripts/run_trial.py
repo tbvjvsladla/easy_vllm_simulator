@@ -195,7 +195,9 @@ def _needs_tiktoken(candidate: dict) -> bool:
 
 def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: int,
                       nas_mount: str = NAS_MOUNT,
-                      tiktoken_host_path: "str | None" = None) -> list:
+                      tiktoken_host_path: "str | None" = None,
+                      jit_cache_root: "str | None" = None,
+                      max_jobs: "int | None" = None) -> list:
     """docker run -d 명령 리스트를 구성한다.
 
     NAS read-only 마운트(nas_mount = config/manifest 의 nas_host_root, 기본 /mnt/models) ·
@@ -232,6 +234,23 @@ def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: in
             "[run_trial] WARN: candidate가 tiktoken(harmony/o200k)을 요구하나 "
             "tiktoken_host_path 미설정 — 폐쇄망 스모크 실패 가능"
             "(config.tiktoken_host_path 설정 권장).\n")
+
+    # ── JIT/컴파일 캐시 영속 + 컴파일 팬아웃 캡 ────────────────────────
+    # ★ serve 평면(docker-compose.yaml)은 ./cache/{vllm,flashinfer} 를 마운트하고
+    #   "cold JIT 은 호스트 하드다운 리스크를 매번 새로 진다(uncapped nvcc 팬아웃)"고 명시해 뒀다.
+    #   그런데 trial 평면엔 그 조치가 없었다 — **미검증 설정을 돌리는 더 위험한 쪽**이 무방비였다.
+    #   실측(2026-08-01 GLM-4.7-Flash S6): 로드 후 안정(41 GiB)했다가 torch.compile 뒤
+    #   2.5분에 걸쳐 12,880 MiB 까지 지속 하강 후 사망. 같은 설정의 serve 런은 38.5 GiB 평탄.
+    #   유일한 차이가 이 마운트였다.
+    # MAX_JOBS: 팬아웃은 기본 nproc(이 호스트 20)까지 벌어진다. gmu 도 KV 클램프도 이 구간에
+    #   닿지 않는다(Laguna FP4 lazy JIT 선례에서 확인 — MAX_JOBS 가 유일한 노브).
+    if jit_cache_root:
+        for sub in ("vllm", "flashinfer"):
+            host_dir = os.path.join(jit_cache_root, sub)
+            os.makedirs(host_dir, exist_ok=True)
+            cmd += ["-v", "%s:/root/.cache/%s" % (host_dir, sub)]
+    if max_jobs:
+        cmd += ["-e", "MAX_JOBS=%d" % int(max_jobs)]
 
     # ── VLLM_ATTENTION_BACKEND env (soft) ──────────────────────────────
     backend = candidate.get("attention_backend")
@@ -539,9 +558,14 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
 
     nas_mount = _opt(opts, "nas_mount", NAS_MOUNT)  # config/manifest nas_host_root 배선
     tiktoken_host_path = _opt(opts, "tiktoken_host_path", None)  # config.tiktoken_host_path(C8)
+    # JIT 캐시 통로·컴파일 팬아웃 캡(serve 평면과 parity — 위 _build_docker_cmd 주석 참조).
+    # 기본 4: 이 호스트 nproc 20 을 그대로 쓰면 nvcc 팬아웃이 수십 GiB 를 먹는다.
+    jit_cache_root = _opt(opts, "jit_cache_root", None)
+    max_jobs = _opt(opts, "max_jobs", 4)
     docker_cmd = _build_docker_cmd(
         candidate, image, container_name, port, nas_mount,
         tiktoken_host_path=tiktoken_host_path,
+        jit_cache_root=jit_cache_root, max_jobs=max_jobs,
     )
     # emit-audit: candidate 의 serve-관련 비-null 필드가 실제 cmd 에 반영됐는지 전수 점검
     # (gmu 미emit 회귀류 클래스 차단 — §9.3). 누락 시 즉시 raise.

@@ -367,6 +367,17 @@ def output_root(repo_root):
     return os.path.join(repo_root, "output", topology)
 
 
+def _default_jit_cache_root():
+    """trial 컨테이너의 JIT/컴파일 캐시 호스트 통로 = output/<topology>/cache.
+
+    serve 평면(docker-compose.yaml 의 `./cache/vllm`·`./cache/flashinfer`)과 **같은 디렉터리**다.
+    두 평면이 캐시를 공유해야 trial 이 데운 것을 serve 가 쓰고 그 반대도 성립한다 —
+    통로를 나누면 서로 cold JIT 을 반복하고, cold JIT 은 시간 문제가 아니라
+    uncapped nvcc 팬아웃에 의한 **호스트 하드다운 리스크**다(compose 주석 · Laguna 선례).
+    """
+    return os.path.join(output_root(REPO_ROOT), "cache")
+
+
 def _cfg_common(cfg, repo_root):
     """estimate/generate 공통 입력값 추출(스키마 결함은 즉시 중단).
 
@@ -805,6 +816,11 @@ def cmd_simulate(args):
         "port": int(_serving["port"]) if _serving.get("port") is not None else None,
         "nas_mount": nas_root,  # config.nas_host_root → run_trial NAS 마운트(하드코딩 /mnt/models 갭 수정)
         "tiktoken_host_path": cfg.get("tiktoken_host_path"),  # config → run_trial /encodings:ro 마운트(C8 에어갭 자산 배선)
+        # JIT 캐시 통로 + 컴파일 팬아웃 캡 — serve 평면(docker-compose)과 parity.
+        # 기본을 serve 와 **같은 디렉터리**로 잡아 trial 이 데운 캐시를 serve 가 그대로 쓴다
+        # (반대도 성립). 통로 분리는 두 평면이 서로 cold 를 반복하게 만들 뿐이다.
+        "jit_cache_root": cfg.get("jit_cache_root") or _default_jit_cache_root(),
+        "max_jobs": cfg.get("max_jobs", 4),
     }
     opts = {k: v for k, v in opts.items() if v is not None}
 
