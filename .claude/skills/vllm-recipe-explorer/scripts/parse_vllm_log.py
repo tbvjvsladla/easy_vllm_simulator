@@ -65,9 +65,13 @@ def parse_log(text: str) -> dict:
         r"(?:model\s+weights\s+take|weights\s+take)\s+" + _NUM + _GIB, text
     )
     # 형식 3 (NGC/0.22 빌드 — consolidated 라인 없음): "Model loading took 51.1 GiB memory and ..."
+    # 형식 3b (vLLM 0.26.x): "Model loading took 9.84 GiB and 62.89 seconds" — **"memory" 단어가
+    #   사라졌다**. 종전 패턴이 `GiB\s+memory` 를 강제해 0.26.x 에서 weights_gib=null 이 됐고,
+    #   그 null 이 _resolve_clamp_kv 를 무력화해 trial-loop 이 조정 없이 바일아웃했다
+    #   (2026-07-31 워치독 실화 · testlog_26073116 D6). "memory" 를 선택항으로 완화한다.
     if weights_gib is None:
         weights_gib = _search_float(
-            r"Model\s+loading\s+took\s+" + _NUM + _GIB + r"\s+memory", text
+            r"Model\s+loading\s+took\s+" + _NUM + _GIB + r"(?:\s+memory)?\b", text
         )
 
     # ── non_torch_gib ────────────────────────────────────────────────────
@@ -89,6 +93,16 @@ def parse_log(text: str) -> dict:
     if kv_cache_gib is None:
         kv_cache_gib = _search_float(
             r"Available\s+KV\s+cache\s+memory:\s*" + _NUM + _GIB, text
+        )
+    # 형식 3 (vLLM 0.26.x · **절대 클램프를 준 경우**): "Initial free memory 113.47 GiB,
+    #   reserved 20.0 GiB memory for KV Cache as specified by kv_cache_memory_bytes config".
+    #   수치가 "for KV Cache" **앞**에 온다 — 형식 1('...is N GiB')과 어순이 반대라 빗나갔다.
+    #   클램프를 준 트라이얼에서 kv_cache_gib 가 통째로 null 이 되던 원인(2026-07-31).
+    #   ※ lite_metrics.parse_engine_log 에도 동일 계열 결함이 있었다(D4) — 파서가 두 벌이므로
+    #     한쪽만 고치면 다른 쪽이 남는다. 어형 변화 발견 시 **양쪽 다** 확인할 것.
+    if kv_cache_gib is None:
+        kv_cache_gib = _search_float(
+            r"reserved\s+" + _NUM + _GIB + r"\s+memory\s+for\s+KV\s+Cache", text
         )
 
     # ── total_pool_gib ───────────────────────────────────────────────────

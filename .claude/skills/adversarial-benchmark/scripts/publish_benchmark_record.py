@@ -88,6 +88,19 @@ def build_yaml(index, verdict):
     A("accept_len: %s" % scalar(verdict.get("measured_accept_len")))
     A("sweep_levels: %s" % scalar(",".join(str(x) for x in completed) if completed else None))
     A("sweep_truncated: %s" % scalar("; ".join(trunc) if trunc else None))
+    # --- lite 지표 (full ⊇ lite 불변식) ---
+    # lite 만 돈 모델과 full 을 돈 모델의 열 집합이 **중첩**되어야 조건별 비교가 성립한다.
+    # 이 5행이 없으면 인증서는 lite 기록과 교집합 관계가 되어 carry-forward 비교가 반쪽이 된다.
+    # 값은 lite_metrics.py 산정을 sweep_index 가 그대로 실어온 것이다(재산정 ✗ — 산정 권위 단일).
+    _lite = index.get("lite") if isinstance(index.get("lite"), dict) else {}
+    _cap = (_lite.get("capacity") or {}).get("main") or {}
+    A("lite_included: %s" % scalar("true" if _lite.get("table") else "false"))
+    A("lite_gen_tps_warm: %s" % scalar(_lite.get("gen_tps")))
+    A("lite_gen_src: %s" % scalar(_lite.get("gen_src")))
+    A("lite_cold_ttft_ms: %s" % scalar(_lite.get("cold_ttft_ms")))
+    A("lite_kv_gib: %s" % scalar(_lite.get("kv_gib")))
+    A("lite_gpu_occupancy: %s" % scalar(_cap.get("gpu")))
+    A("lite_ram_occupancy: %s" % scalar(_cap.get("ram")))
     if verdict.get("balance"):
         b = verdict["balance"]
         A("node_vram_balance_dev: %s" % scalar(b.get("balance_dev")))

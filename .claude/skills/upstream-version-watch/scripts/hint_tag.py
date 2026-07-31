@@ -349,7 +349,21 @@ def _cgate():
     completion_gate.py is entirely absent (it stays read-only/ungated by design)."""
     global _cgate_module
     if _cgate_module is None:
-        import completion_gate as _cg
+        try:
+            import completion_gate as _cg           # 서브 배포(동거 사본) 경로
+        except ModuleNotFoundError:
+            # 메인 레이아웃: completion_gate.py 는 .claude/policies/runtime/ 에 있고 scripts/ 옆에
+            # 없다. 이 파일은 그 정본 경로를 이미 COMPLETION_GATE_SCRIPT 로 알고 subprocess 호출에
+            # 쓰면서(_authorize) 여기서만 bare import 를 해, **메인에서 finalize/verify 가
+            # ModuleNotFoundError 로 죽었다**(2026-07-31 발견 — Phase-3 로 추가된 identity-sha256
+            # 경로가 메인에서 한 번도 실행되지 않았다). 정본 경로에서 직접 적재해 두 레이아웃을 모두 지원한다.
+            import importlib.util as _ilu
+            if not COMPLETION_GATE_SCRIPT.is_file():
+                die("[hint_tag] FAIL: completion_gate.py 를 찾을 수 없다 "
+                    f"(동거 사본 ✗ · {COMPLETION_GATE_SCRIPT} ✗)")
+            _spec = _ilu.spec_from_file_location("completion_gate", COMPLETION_GATE_SCRIPT)
+            _cg = _ilu.module_from_spec(_spec)
+            _spec.loader.exec_module(_cg)
         _cgate_module = _cg
     return _cgate_module
 
@@ -593,6 +607,7 @@ def cmd_create(a: argparse.Namespace) -> int:
     manifest, _ = _load_manifest_for_binding("hint_create", a.manifest)
     _require_hint_promotion_target("hint_create", manifest, tag=a.tag, topology=a.topology,
                                     anchor=anchor, vllm=vllm, model=model)
+    _require_serving_evidence("hint_create", manifest)
 
     rj: dict = {}
     rp = (ROOT / a.from_resolved)
@@ -921,9 +936,15 @@ def cmd_verify(a: argparse.Namespace) -> int:
 
     # blocker 2 (cycle 2) -- EVERY hint tag's evidence is validated purely from its own footer,
     # never only the tag a particular --manifest happens to target.
-    for t in tags:
-        _footer, ev_problems = _validate_hint_tag_evidence(t, "hint_verify")
-        problems.extend(ev_problems)
+    # evidence-binding 분류는 classify_evidence_problems 단일 권위(계약 v2 §5).
+    # verify 는 릴리즈 게이트이지만 v1 빈티지를 차단하지 않는다 — 그러면 신규 태그 발행이
+    # 레거시 부채에 영구히 인질로 잡힌다(계약 §4). 변조는 여기서도 그대로 차단된다.
+    _ev_blocking, _ev_legacy = classify_evidence_problems(
+        [(t, _validate_hint_tag_evidence(t, "hint_verify")[1]) for t in tags])
+    problems.extend(_ev_blocking)
+    if _ev_legacy:
+        print(f"[hint_tag] ⚠ v1 빈티지 {len(_ev_legacy)}개(footer 이전 · SHA 핀 일치) — 경고.",
+              file=sys.stderr)
 
     for bp in sorted(ROOT.glob("output/*/build_patches/*.sh")):
         h = scan_text(bp.read_text(encoding="utf-8", errors="ignore"), terms)
@@ -947,19 +968,131 @@ def cmd_verify(a: argparse.Namespace) -> int:
     return 0
 
 
-def _require_all_hint_tags_evidence_valid(action: str) -> None:
-    """Full evidence-binding verification of EVERY existing hint tag (blocker 2, cycle 2) --
-    dies atomically (stable JSON, BEFORE any caller-side write/print/network) if ANY tag's
-    self-referenced evidence is missing/forged/drifted."""
+def _require_serving_evidence(action: str, manifest: dict) -> None:
+    """계약 v2 §3 — **발행 가능 시점**의 실질 검사. 이것이 §2 위협의 주 방어선이다.
+
+    위협: "서빙이 실패했는데도 에이전트가 사용자를 속여 '서빙되었다'고 허위 기재한 정보가 배포되는 것".
+    v1 게이트는 형식(footer)만 보고 이걸 **아예 검사하지 않았다**. v2 는 두 조건을 강제한다.
+
+      A. 서빙전략 달성 — runtime.health_ok AND functional_smoke_passed (컨테이너 oom_killed ✗)
+      B. 정량지표 확보 — 인증서에 lite_included: true 와 lite 실측 열
+
+    B 가 lite 기준인 이유: lite 는 서빙 성공 시 자동 수행되는 **암시적 필수 계측**이고, full 은 선택이다.
+    full ⊇ lite 불변식(계약 §3.1) 때문에 full 을 돌렸다면 B 는 자동 충족된다.
+    A 없이 B 는 성립할 수 없으므로(서빙이 안 되면 측정 대상이 없다), B 는 사실상
+    **'서빙되었다'의 정량 증거**다.
+    """
     problems: list[str] = []
-    for t in existing_hint_tags():
-        _footer, ev_problems = _validate_hint_tag_evidence(t, action)
-        problems.extend(ev_problems)
+    rt = manifest.get("runtime") if isinstance(manifest, dict) else None
+    if not isinstance(rt, dict):
+        problems.append("runtime 블록 부재 — 서빙 성공 증거 없음")
+    else:
+        if rt.get("health_ok") is not True:
+            problems.append("runtime.health_ok != true")
+        if rt.get("functional_smoke_passed") is not True:
+            problems.append("runtime.functional_smoke_passed != true")
+        if any(c.get("oom_killed") for c in (rt.get("containers") or []) if isinstance(c, dict)):
+            problems.append("컨테이너가 oom_killed — 서빙 성공으로 볼 수 없다")
+
+    # B: 인증서의 lite 열. 인증서가 없으면 lite 증거도 없다.
+    cert_rel = ((manifest.get("evidence") or {}).get("certificate") or {}).get("path") \
+        if isinstance(manifest.get("evidence"), dict) else None
+    if not cert_rel:
+        problems.append("evidence.certificate 부재 — lite 정량지표를 확인할 수 없다")
+    else:
+        cert_path = (ROOT / "docs" / "_evidence" / cert_rel).resolve()
+        try:
+            text = cert_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = ""
+            problems.append(f"인증서를 읽을 수 없다: {cert_rel}")
+        if text:
+            if not re.search(r"(?m)^lite_included:\s*true\b", text):
+                problems.append("인증서 lite_included != true — lite 정량지표 미확보"
+                                "(full ⊇ lite 불변식이 깨졌거나 lite 수집 실패)")
+            if not re.search(r"(?m)^lite_gen_tps_warm:\s*[0-9]", text):
+                problems.append("인증서 lite_gen_tps_warm 실측값 부재")
     if problems:
+        _die_binding(action, ["HINT_SERVING_EVIDENCE_INSUFFICIENT"],
+                     {"HINT_SERVING_EVIDENCE_INSUFFICIENT":
+                      "hints/HINT_ISSUANCE_CONTRACT.md §3 발행 조건 미충족 — "
+                      "서빙 성공과 lite 정량지표가 모두 증명돼야 한다:\n  " + "\n  ".join(problems)},
+                     manifest.get("identity") if isinstance(manifest, dict) else None,
+                     manifest.get("task_class") if isinstance(manifest, dict) else None)
+
+
+LEGACY_PINS_FILE = ROOT / "hints" / "legacy_v1_pins.json"
+
+
+def classify_evidence_problems(per_tag: list) -> tuple:
+    """계약 v2 §5 분류의 **단일 권위**. 입력 [(tag, ev_problems)] → (blocking[], legacy_warn[]).
+
+    push·reindex·reverify 세 곳이 각자 같은 판정을 복제하고 있었다(2026-07-31 발견). 그러면
+    한 곳만 고쳤을 때 나머지가 남는다 — 이 프로젝트에서 같은 계열 사고가 이미 여러 번 났다
+    (파서 두 벌 D4↔D6 · TP 오카운트 7사이트). **판정은 여기 하나뿐이다.**
+
+      missing + 핀 SHA 일치  → legacy_warn (v1 빈티지 · 차단 ✗ · 계약 §4)
+      missing + 핀 SHA 불일치 → blocking   (레거시를 손댔으면 v2 를 만족시켜라)
+      missing + 핀 없음      → blocking   (v2 이후 신규는 footer 필수)
+      forged / drifted       → blocking   (변조는 빈티지와 무관)
+    """
+    pins = _load_legacy_v1_pins()
+    blocking: list = []
+    legacy_warn: list = []
+    for tag, ev_problems in per_tag:
+        if not ev_problems:
+            continue
+        only_missing = all("HINT_EVIDENCE_BINDING_MISSING" in p for p in ev_problems)
+        pinned = pins.get(tag)
+        if only_missing and pinned:
+            try:
+                cur = subprocess.run(["git", "rev-parse", "--verify", tag],
+                                     capture_output=True, text=True).stdout.strip()
+            except Exception:
+                cur = ""
+            if cur and cur == pinned:
+                legacy_warn.append(tag)
+                continue
+            blocking.append(f"{tag}: v1 핀 SHA 불일치(pin={pinned[:12]} cur={cur[:12] or 'N/A'}) "
+                            "— 레거시 태그가 변경됐다면 v2 evidence-binding 을 만족시켜야 한다")
+            continue
+        blocking.extend(ev_problems)
+    return blocking, legacy_warn
+
+
+def _load_legacy_v1_pins() -> dict:
+    """v2 발효 시점의 v1 빈티지 태그 SHA 핀(계약 §4). 부재 시 {} — 그러면 전 태그가 v2 강제다."""
+    try:
+        with open(LEGACY_PINS_FILE, encoding="utf-8") as f:
+            return (json.load(f) or {}).get("pins") or {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _require_all_hint_tags_evidence_valid(action: str) -> None:
+    """모든 hint 태그의 evidence-binding 검증 — **계약 v2 분류**(hints/HINT_ISSUANCE_CONTRACT.md §5).
+
+    v1 은 missing/forged/drifted 를 한 덩어리로 차단했다. 그 결과 evidence-binding footer 규약이
+    Phase-3 에서 **나중에** 추가되면서, 그 이전 태그 23개가 이후의 모든 push 를 영구히 막았다.
+    hint 태그의 목적은 토큰 이코노미이고(계약 §1), **정보가 적은 구버전은 결함이 아니다**.
+    진짜 위협은 "서빙 실패를 성공으로 위장한 허위 배포"이지 형식 미비가 아니다(계약 §2).
+
+    v2 분류:
+      - 핀 목록에 있고 SHA 그대로  → v1 빈티지 → **경고**(차단 ✗)
+      - 핀에 없음(= v2 이후 신규)   → **차단**(footer 필수)
+      - 핀에 있는데 SHA 가 바뀜     → **차단**(레거시를 손댔으므로 v2 를 만족시켜야 한다)
+      - forged / drifted           → **차단 유지**(변조는 빈티지와 무관)
+    """
+    blocking, legacy_warn = classify_evidence_problems(
+        [(t, _validate_hint_tag_evidence(t, action)[1]) for t in existing_hint_tags()])
+    if legacy_warn:
+        print(f"[hint_tag] ⚠ v1 빈티지 {len(legacy_warn)}개는 evidence-binding footer 이전 태그다 "
+              f"(계약 §4 — 재작성 ✗ · SHA 핀 일치 확인됨). 경고로만 통과시킨다.", file=sys.stderr)
+    if blocking:
         _die_binding(action, ["HINT_EVIDENCE_BINDING_INCOMPLETE"],
                      {"HINT_EVIDENCE_BINDING_INCOMPLETE":
-                      "one or more hint tags carry missing/forged/drifted evidence -- refusing "
-                      "(no partial rewrite/push):\n  " + "\n  ".join(problems)},
+                      "one or more hint tags carry forged/drifted evidence, or a v2-era tag lacks "
+                      "its binding -- refusing (no partial rewrite/push):\n  " + "\n  ".join(blocking)},
                      None, None)
 
 
@@ -1020,11 +1153,17 @@ def cmd_reverify(a: argparse.Namespace) -> int:
     # blocker 2 (cycle 2) -- also validate the TARGET tag's own self-referenced evidence (not just
     # the supplied --manifest's binding to it) before mutating the index's last_verified stamp.
     _footer, ev_problems = _validate_hint_tag_evidence(a.tag, "hint_reverify")
-    if ev_problems:
+    # 단일 대상이지만 분류는 동일 권위를 쓴다 — v1 빈티지 태그의 currency 스탬프 갱신까지
+    # 막을 이유가 없다(계약 §4). forged/drifted 는 여기서도 그대로 차단된다.
+    _blocking, _legacy = classify_evidence_problems([(a.tag, ev_problems)])
+    if _legacy:
+        print(f"[hint_tag] ⚠ {a.tag} 는 v1 빈티지(footer 이전 · SHA 핀 일치) — 경고로 통과.",
+              file=sys.stderr)
+    if _blocking:
         _die_binding("hint_reverify", ["HINT_EVIDENCE_BINDING_INCOMPLETE"],
                      {"HINT_EVIDENCE_BINDING_INCOMPLETE":
-                      "target tag's self-referenced evidence is missing/forged/drifted:\n  "
-                      + "\n  ".join(ev_problems)},
+                      "target tag's evidence is forged/drifted, or a v2-era tag lacks its binding:\n  "
+                      + "\n  ".join(_blocking)},
                      manifest.get("identity"), manifest.get("task_class"))
     reachable = git("cat-file", "-e", entry["anchor"] + "^{commit}", check=False).returncode == 0
     entry["last_verified"] = date.today().isoformat()
@@ -1047,31 +1186,40 @@ def cmd_reindex(a: argparse.Namespace) -> int:
     # cycle-2 remediation: a syntactically valid-but-forged footer must not slip through).
     tags = sorted(existing_hint_tags())
     footers: dict[str, dict[str, str]] = {}
-    problems: list[str] = []
+    per_tag: list = []
     for t in tags:
         footer, ev_problems = _validate_hint_tag_evidence(t, "hint_reindex")
         if footer is not None:
             footers[t] = footer
-        problems.extend(ev_problems)
+        per_tag.append((t, ev_problems))
+    # 분류는 classify_evidence_problems 단일 권위(계약 v2 §5) — 여기서 복제하지 않는다.
+    problems, legacy_warn = classify_evidence_problems(per_tag)
+    if legacy_warn:
+        print(f"[hint_tag] ⚠ v1 빈티지 {len(legacy_warn)}개는 footer 이전 태그다(계약 §4 · SHA 핀 일치). "
+              "인덱스에는 포함하되 경고로만 통과시킨다.", file=sys.stderr)
     if problems:
         _die_binding("hint_reindex", ["HINT_EVIDENCE_BINDING_INCOMPLETE"],
                      {"HINT_EVIDENCE_BINDING_INCOMPLETE":
-                      "one or more hint tags carry missing/forged/drifted evidence -- refusing "
-                      "(no partial rewrite):\n  " + "\n  ".join(problems)},
+                      "one or more hint tags carry forged/drifted evidence, or a v2-era tag lacks "
+                      "its binding -- refusing (no partial rewrite):\n  " + "\n  ".join(problems)},
                      None, None)
     idx = _load_index()
     prev = {e["tag"]: e for e in idx["hints"]}
     hints = []
     for t in tags:
         _, vllm, model, arch = t.split("/")
-        footer = footers[t]
+        # v1 빈티지는 footer 가 **없다**(계약 §4 — 재작성 금지). 종전엔 게이트가 footer 를
+        # 보장했기에 footers[t] 를 무조건 인덱싱했고, v2 에서 레거시가 통과하게 되자
+        # KeyError 로 죽었다. footer 부재 시 기존 인덱스 항목(prev)에서 승계한다 —
+        # 그 값들은 v1 시절 finalize 가 기록해둔 것이라 날조가 아니다.
+        footer = footers.get(t)
         brief, _old_topology, related = _parse_tag_body(t)
         p = prev.get(t, {})
         e = {
             "tag": t, "vllm": vllm, "model": model, "arch": arch,
-            "topology": footer["topology"],
+            "topology": (footer or {}).get("topology") or p.get("topology") or _old_topology or "",
             "brief": brief or p.get("brief", ""),
-            "anchor": footer["anchor"],
+            "anchor": (footer or {}).get("anchor") or p.get("anchor") or "",
             "related": p.get("related") or related,  # 큐레이트(finalize) 우선, 없으면 본문 파싱
             "status": p.get("status", "active"),
             "last_verified": p.get("last_verified", date.today().isoformat()),

@@ -1,5 +1,5 @@
 {
-  "_note": "hint 태그 기계-인덱스 (plan_2026070222_1). 레시피 본문은 annotated 태그 오브젝트에만 존재([A]=B) — 이 파일엔 메타/포인터/currency 만. hint_tag.py 가 갱신. 태그 자체(git tag -l 'hint/*')가 단일 진실원천이며 이 인덱스는 재생성 가능.",
+  "_note": "hint 태그 기계-인덱스 (plan_26070222). 레시피 본문은 annotated 태그 오브젝트에만 존재([A]=B) — 이 파일엔 메타/포인터/currency 만. hint_tag.py 가 갱신. 태그 자체(git tag -l 'hint/*')가 단일 진실원천이며 이 인덱스는 재생성 가능.",
   "schema": [
     "tag",
     "vllm",
@@ -24,6 +24,18 @@
       "related": "-",
       "status": "active",
       "last_verified": "2026-07-03"
+    },
+    {
+      "tag": "hint/0.22.0/solar-open2-250b-nota-nvfp4/gb10",
+      "vllm": "0.22.0",
+      "model": "solar-open2-250b-nota-nvfp4",
+      "arch": "gb10",
+      "topology": "multi 2노드 TP2",
+      "brief": "Solar-Open2-250B NVFP4(하이브리드 KDA MoE)를 stock 미지원 → UpstageAI 포크 SHA 핀으로 2x GB10 TP=2 서빙; MoE=FLASHINFER_CUTLASS 명시 · JIT 병렬도 1이 호스트 RAM 벽의 열쇠",
+      "anchor": "b54b12f20a216696ef9b3232dfa52f927c199652",
+      "related": "hint/0.25.1/deepseek-v4-flash/gb10, hint/0.25.1/laguna-s-2.1/gb10",
+      "status": "active",
+      "last_verified": "2026-07-25"
     },
     {
       "tag": "hint/0.23.0/deepseek-v4-flash/gb10",
@@ -93,7 +105,7 @@
       "topology": "multi 실 2노드 Ray TP2(main+sub GB10) — target=2xRTX PRO 6000 프로젝션",
       "brief": "gpt-oss-120b(MXFP4 MoE, 60.77GiB) — 실 2노드 TP=2 Ray 분산서빙, 2xRTX PRO 6000(96GiB x2) 타겟 KV클램프 이식. 0.24.0 moe-backend=auto 회귀(TP=2 CompilationError) → marlin 전환 + gmu 0.8.",
       "anchor": "1ccdc4d29ba8aa693cfb69d1a1637670c1947aed",
-      "related": "docs/devlog/devlog_2026070908_1_델타2-2_gpt-oss-120b_최종해결_및_4시나리오_전량PASS.md,docs/testlog/testlog_2026070908_1_델타2-2_gpt-oss-120b_2xRTXPRO6000모사_실2노드_검증.md",
+      "related": "docs/devlog/devlog_26070908_델타2-2_gpt-oss-120b_최종해결_및_4시나리오_전량PASS.md,docs/testlog/testlog_26070908_델타2-2_gpt-oss-120b_2xRTXPRO6000모사_실2노드_검증.md",
       "status": "active",
       "last_verified": "2026-07-09"
     },
@@ -117,7 +129,7 @@
       "topology": "multi 2노드 TP2 타겟(측정=1노드 GB10, target=H200x2 프로젝션)",
       "brief": "Qwen3.6-35B-A3B(GDN 하이브리드 MoE, 66.97GiB) — H200x2(282GiB) 타겟 KV클램프 이식. GDN 커널 JIT 병렬폭주(MAX_JOBS=4로 해소) + gmu 0.85→0.75(추론-시점 잔여 JIT 대응).",
       "anchor": "1ccdc4d29ba8aa693cfb69d1a1637670c1947aed",
-      "related": "docs/devlog/devlog_2026070907_1_델타2-1_Qwen3.6-35B-A3B_최종해결_E2E_PASS.md,docs/testlog/testlog_2026070820_1_델타2-1_Qwen3.6-35B-A3B_H200x2_재시도_FAIL.md",
+      "related": "docs/devlog/devlog_26070907_델타2-1_Qwen3.6-35B-A3B_최종해결_E2E_PASS.md,docs/testlog/testlog_26070820_델타2-1_Qwen3.6-35B-A3B_H200x2_재시도_FAIL.md",
       "status": "active",
       "last_verified": "2026-07-09"
     },
@@ -141,7 +153,7 @@
       "topology": "single 1노드",
       "brief": "NemotronH LatentMoE(Mamba2+MoE+Attn·A12B) NVFP4 를 단일 RTX PRO 6000(96GiB·host RAM 60GiB) 서빙 — 커널 JIT host RAM 폭증(MAX_JOBS=4) + KV 절대클램프(프로파일링 skip) + enforce-eager. 256K PASS(기능)·성능 host-constrained REFUTE.",
       "anchor": "781e250c6785a4fe5719953eb093aa028cad57df",
-      "related": "testlog_2026071617_1,testlog_2026071619_1",
+      "related": "testlog_26071617,testlog_2026071619_1",
       "status": "active",
       "last_verified": "2026-07-19"
     },
@@ -225,7 +237,7 @@
       "topology": "single",
       "brief": "Laguna-S-2.1-NVFP4(117.6B-A8B MoE, poolside) 단일 GB10 서빙 · DFlash speculative decoding 유무 양노드 대조 검증",
       "anchor": "f12644b8e0eadcfc8b834b2bfc0a282fefc7c57c",
-      "related": "",
+      "related": "`hint/0.25.1/deepseek-v4-flash/gb10`(동일 vLLM·arch, 다른 모델 — MoE 백엔드 정답이 정반대라 대조 사례로 유용)",
       "status": "active",
       "last_verified": "2026-07-22"
     },
@@ -276,6 +288,18 @@
       "related": "",
       "status": "active",
       "last_verified": "2026-07-19"
+    },
+    {
+      "tag": "hint/0.26.0/ministral-3-8b/gb10",
+      "vllm": "0.26.0",
+      "model": "ministral-3-8b",
+      "arch": "gb10",
+      "topology": "single 1노드",
+      "brief": "Ministral-3-8B-Instruct-2512 FP8 vision-멀티모달 · single tp=1 · KV 절대클램프 20GiB · full 벤치 PASS(MBU 94.4%)",
+      "anchor": "0371dfe1850fe4f07493742a8d68747d30fa1cb9",
+      "related": "testlog_26073115,testlog_26073116,testlog_26073117",
+      "status": "active",
+      "last_verified": "2026-07-31"
     }
   ]
 }

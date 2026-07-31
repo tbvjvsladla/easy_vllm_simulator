@@ -71,6 +71,41 @@ def classify(trial_result: dict, budget_gib: float, safety_margin: float) -> dic
                 result["adjust_target"] = "kv_cache_memory_bytes"
                 result["note"] = f"OOM 시그니처 매칭('{sig}') → kv_cache_memory_bytes 축소 후 재시도."
                 return result
+
+        # ── 무예외 외부종료(호스트 워치독 SIGKILL 계열) ────────────────────
+        # OOM_SIGNATURES 는 전부 **예외 텍스트**를 전제한다. 그런데 통합메모리 호스트에서
+        # KV 벌룬이 나면 호스트 워치독이 컨테이너를 SIGKILL 하고, 그때는 예외가 **없다**
+        # (프로세스 즉사 → 로그가 중간에 끊김). 따라서 이 실패 양식은 시그니처로 잡을 수 없다.
+        #
+        # 판별: load 실패 + OOM 시그니처 미매칭 + **vllm_profile 에 kv_cache_gib 존재**.
+        # kv_cache_gib 가 있다는 건 엔진이 KV 사이징까지 성공했다는 뜻이고, CUDA OOM 이었다면
+        # 예외를 남겼을 것이므로 이 조합은 CUDA OOM 일 수 없다 → 외부 종료로 확정한다.
+        #
+        # failure_class 는 계약상 5종 고정이라 새 클래스를 만들지 않는다. 조정 대상은
+        # kv_cache_memory_bytes 로 동일하므로 vram_oom 으로 두되 note 로 기전을 구분한다.
+        # 근거: 2026-07-31 워치독 실화(KV 97.03 GiB · 하강 27.9 GiB/s · testlog_26073116).
+        kv_seen = _profile_gib(profile, "kv_cache_gib")
+        if kv_seen is not None:
+            result["failure_class"] = "vram_oom"
+            result["adjust_target"] = "kv_cache_memory_bytes"
+            # 위험 판정은 KV 단독이 아니라 **KV + 가중치**로 한다 — 통합메모리에서 호스트를
+            # 압박하는 건 상주 총량이다(실화: KV 97.03 + weights 9.84 ≈ 107 GiB / 안전예산 109.5).
+            w_seen = _profile_gib(profile, "weights_gib")
+            over = ""
+            if budget_gib:
+                safe = float(budget_gib) * float(safety_margin or 1.0)
+                resident = kv_seen + (w_seen or 0.0)
+                basis = "KV+가중치" if w_seen is not None else "KV(가중치 실측 부재)"
+                over = (f" 상주 {basis} {resident:.2f} GiB / 안전예산 {safe:.1f} GiB"
+                        f" ({100 * resident / safe:.0f}%).")
+            result["note"] = (
+                f"load 실패 + OOM 예외 없음 + vllm_profile.kv_cache_gib={kv_seen:.2f} GiB 존재 "
+                f"→ 엔진이 KV 를 잡은 뒤 **외부에서 종료**됨(호스트 워치독 SIGKILL 계열)."
+                f"{over} CUDA OOM 은 예외를 남기므로 이 조합은 CUDA OOM 이 아니다. "
+                "kv_cache_memory_bytes 축소 후 재시도."
+            )
+            return result
+
         result["failure_class"] = "unknown"
         result["adjust_target"] = None
         log_path = trial_result.get("log_path")
