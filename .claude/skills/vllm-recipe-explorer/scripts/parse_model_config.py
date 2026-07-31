@@ -141,17 +141,50 @@ def _measure_disk_dtype(st_path: str) -> tuple[str | None, float | None]:
 def _native_weight_bytes(host_path: str, warnings: list[str]) -> int | None:
     """폐쇄망 로컬 weight 바이트 원천(결정론).
 
-    우선순위: model.safetensors.index.json metadata.total_size →
+    우선순위: **index weight_map 참조 샤드의 실제 파일 크기 합**(정본) →
     *.safetensors 크기 합 → *.bin 크기 합 → None+경고.
+
+    ★ 권위는 "로더가 실제로 읽을 파일들의 os.path.getsize 합"이다. 세 가지 함정을 동시에 피한다:
+      1) `du`/디렉터리 walk — `.git/lfs/objects/` 가 모든 샤드의 **복제본**을 갖고 있어 2배가 된다
+         (2026-08-01 Olmo-3.1-32B 실측: du 121 GiB ↔ 실로드 60.04 GiB). 이 함정은 이 프로젝트에서
+         네 번 발현했다.
+      2) `*.safetensors` 글롭 — 동거 포맷 세트를 함께 센다(LFM2 실측: F32 of-00007 31.1 GiB 가
+         bf16 of-00004 15.5 GiB 와 동거). index 가 가리키는 쪽만 로드된다.
+      3) **`metadata.total_size` 자체** — 이건 디스크 바이트가 아니라 **발행자가 계산해 적은 값**이며
+         틀릴 수 있다. Olmo-3.1-32B 는 32B 파라미터를 fp32(4 B) 기준으로 적어 실제 bf16 파일 합의
+         **정확히 2배**(128.9 GB vs 64.5 GB)를 신고한다. 이 값을 권위로 쓰면 로드-전 RAM 게이트가
+         멀쩡한 모델을 거부한다(2026-08-01 실제 발생).
+    total_size 는 **교차검증용**으로만 쓰고 10% 넘게 어긋나면 경고한다 — 조용히 버리면
+    "왜 다른가"를 다음 사람이 다시 조사하게 된다.
     """
     index_path = os.path.join(host_path, "model.safetensors.index.json")
     if os.path.isfile(index_path):
         try:
             with open(index_path, "r", encoding="utf-8") as f:
                 idx = json.load(f)
-            total = idx.get("metadata", {}).get("total_size")
-            if isinstance(total, (int, float)) and total > 0:
-                return int(total)
+            weight_map = idx.get("weight_map")
+            if isinstance(weight_map, dict) and weight_map:
+                shards = sorted(set(weight_map.values()))
+                paths = [os.path.join(host_path, s) for s in shards]
+                missing = [s for s, p in zip(shards, paths) if not os.path.isfile(p)]
+                if missing:
+                    warnings.append(
+                        "index weight_map 참조 샤드 %d개 부재(예: %s) → 글롭 폴백"
+                        % (len(missing), missing[0])
+                    )
+                else:
+                    real = sum(os.path.getsize(p) for p in paths)
+                    total = idx.get("metadata", {}).get("total_size")
+                    if isinstance(total, (int, float)) and total > 0 and real > 0:
+                        ratio = float(total) / real
+                        if not (0.9 <= ratio <= 1.1):
+                            warnings.append(
+                                "index metadata.total_size=%.2f GiB 가 실제 샤드 합 %.2f GiB 의 "
+                                "%.2f배 — 발행자가 다른 dtype 기준으로 적은 값이다. "
+                                "실제 파일 크기를 채택한다."
+                                % (total / (1024 ** 3), real / (1024 ** 3), ratio)
+                            )
+                    return int(real)
         except (OSError, ValueError, json.JSONDecodeError):
             warnings.append(
                 "model.safetensors.index.json 읽기 실패 → 파일 크기 합으로 폴백"
