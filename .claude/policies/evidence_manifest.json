@@ -16,7 +16,7 @@
   ".claude/skills/upstream-version-watch/assets/configs/arm_patch.sh": "c787cc2598bf80b81c6164aa8192ebf9b53bbdeeea1eb04c6d772734920bdf74",
   ".claude/skills/upstream-version-watch/scripts/check_smoke_model.py": "87f5661fc88e33d42f5bb870db7e9a6073877c76c41555d0d50f6ed563c606f4",
   ".claude/skills/upstream-version-watch/scripts/classify_failure.py": "43cea3c2c9bf52bea3b62d96bed734eac958e483e67686a91853d61dcf15aeb5",
-  ".claude/skills/upstream-version-watch/scripts/hint_tag.py": "bee5806ae85aac49c0843458bc462163ce7f58ae911ae4b3cfe4ae3aee419133",
+  ".claude/skills/upstream-version-watch/scripts/hint_tag.py": "c8975d55ae410d4bbc5afd7085e55f9a27e682393da122951378fb7f7fc5e065",
   ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh": "a0be3c6ad49f68b6f41f3894c5b5ecbd4c80065bb728ecd93c98ee0292099c00",
   ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py": "593a3f98955276d085627eee6b7ce9ce693384dc054c738d0db25373677bb765",
   ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py": "83b238595d8e6ea22ceece1ca636692799fe3a69ffd8e5ee09b7e5ef5531c771",

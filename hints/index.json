@@ -237,7 +237,7 @@
       "topology": "single",
       "brief": "Laguna-S-2.1-NVFP4(117.6B-A8B MoE, poolside) 단일 GB10 서빙 · DFlash speculative decoding 유무 양노드 대조 검증",
       "anchor": "f12644b8e0eadcfc8b834b2bfc0a282fefc7c57c",
-      "related": "",
+      "related": "`hint/0.25.1/deepseek-v4-flash/gb10`(동일 vLLM·arch, 다른 모델 — MoE 백엔드 정답이 정반대라 대조 사례로 유용)",
       "status": "active",
       "last_verified": "2026-07-22"
     },
@@ -288,6 +288,18 @@
       "related": "",
       "status": "active",
       "last_verified": "2026-07-19"
+    },
+    {
+      "tag": "hint/0.26.0/ministral-3-8b/gb10",
+      "vllm": "0.26.0",
+      "model": "ministral-3-8b",
+      "arch": "gb10",
+      "topology": "single 1노드",
+      "brief": "Ministral-3-8B-Instruct-2512 FP8 vision-멀티모달 · single tp=1 · KV 절대클램프 20GiB · full 벤치 PASS(MBU 94.4%)",
+      "anchor": "0371dfe1850fe4f07493742a8d68747d30fa1cb9",
+      "related": "testlog_26073115,testlog_26073116,testlog_26073117",
+      "status": "active",
+      "last_verified": "2026-07-31"
     }
   ]
 }

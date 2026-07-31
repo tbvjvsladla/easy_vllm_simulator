@@ -94,6 +94,24 @@ def build_md(index, verdict, roofline):
             A("  - 진단 힌트: %s" % h)
         A("")
 
+    # --- lite 지표 (full ⊇ lite 불변식) ---
+    # full 은 lite 의 상위집합이어야 한다 — 그래야 lite 만 돈 모델과 full 을 돈 모델의
+    # 지표 열(column)이 **중첩**되어 조건별 비교가 성립한다. 교집합이면 비교가 깨진다.
+    _lite = index.get("lite")
+    A("## lite 지표 (full ⊇ lite — 열 집합 중첩 보장)")
+    A("")
+    if isinstance(_lite, dict) and _lite.get("table"):
+        A("> full 런이 lite 를 **포함해서 실행**한 결과다(별도 재측정 아님). cold-start TTFT 는 "
+          "warmup 0 단일요청 측정이라 스윕(warmup 有)이 잴 수 없는 축이다.")
+        A("")
+        A(_lite["table"])
+    elif isinstance(_lite, dict) and _lite.get("error"):
+        A("> ⚠ lite 산정 실패: %s — 이 report 는 lite 열이 **결손**이다." % _lite["error"])
+    else:
+        A("> ⚠ **lite 미포함** — 이 full 런은 lite 를 수집하지 못했다(열 집합 결손). "
+          "lite 만 돈 다른 모델과 직접 비교하지 마라.")
+    A("")
+
     # --- 부하 스윕 곡선 (client-load · reload 0) ---
     A("## 부하 스윕 곡선 (client-load · reload 없음)")
     A("")
