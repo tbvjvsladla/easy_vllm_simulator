@@ -20,6 +20,7 @@ CLI 예:
 import argparse
 import json
 import os
+import re
 import sys
 
 import yaml
@@ -80,6 +81,23 @@ def _die(msg, code=1):
     """비0 종료 + 명확한 중단·보고 메시지(stderr)."""
     print(f"[recipe] 중단: {msg}", file=sys.stderr)
     sys.exit(code)
+
+
+# docker compose 프로젝트명 규칙: [a-z0-9][a-z0-9_-]* — **점(.) 불가**.
+# compose 는 COMPOSE_PROJECT_NAME 을 config_name 에서 만들기 때문에, 점이 든 이름으로 3종 세트를
+# 생성하면 렌더는 성공하고 **기동에서만** 터진다:
+#   invalid project name "vllm_glm-4.7-flash-e2e_project": must consist only of lowercase
+#   alphanumeric characters, hyphens, and underscores as well as start with a letter or number
+# 2026-07-31 GLM-4.7-Flash 에서 실제 발생 — 모델명에 점이 흔하므로(4.7 · 3.1 · 2.1) 재발한다.
+# 생성 시점에 fail-loud 하는 것이 기동 시점에 터지는 것보다 낫다.
+_COMPOSE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+
+
+def _validate_config_name(name):
+    if not _COMPOSE_NAME_RE.match(name or ""):
+        _die("config.serving.config_name '%s' 은 docker compose 프로젝트명 규칙 위반 "
+             "([a-z0-9][a-z0-9_-]* · 점/대문자/공백 불가). 모델명의 점을 빼라(예: glm-4.7 → glm-47). "
+             "지금 막지 않으면 3종 세트는 생성되고 compose up 에서만 터진다." % name)
 
 
 def load_config(config_path):
@@ -484,6 +502,7 @@ def cmd_generate(args):
     served_model_name = serving.get("served_model_name")
     if not name:
         _die("config.serving.config_name 누락")
+    _validate_config_name(name)
     if port is None:
         _die("config.serving.port 누락")
     if not served_model_name:
@@ -1010,6 +1029,7 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
     served_model_name = serving.get("served_model_name")
     if not name:
         _die("config.serving.config_name 누락")
+    _validate_config_name(name)
     if port is None:
         _die("config.serving.port 누락")
     if not served_model_name:
