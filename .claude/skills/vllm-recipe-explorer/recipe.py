@@ -96,9 +96,14 @@ def load_config(config_path):
 def resolve_tp(cfg, repo_root):
     """tp 결정 (헌법 §manifest→서빙전략 배선 불변식 · roofline.py:196-209 패턴).
 
-    config.tensor_parallel_size(명시 override) > manifest(nodes 있으면 len(nodes)×gpus_per_node ·
-    nodes 비면 topology=single→1) > 최종폴백 1. **git 브랜치 폴백 없음** — 브랜치⇒TP 추론이 보고된 버그였음
-    (1-GPU 머신이 multi-node 브랜치면 TP=2). manifest = HW사실 단일 권위.
+    config.tensor_parallel_size(명시 override) > manifest > 최종폴백 1.
+    **git 브랜치 폴백 없음** — 브랜치⇒TP 추론이 보고된 버그였음(1-GPU 머신이 multi-node 브랜치면 TP=2).
+    manifest = HW사실 단일 권위.
+
+    manifest 파생: **topology=single → gpus_per_node(노드 배수 1 고정)** — single 의 nodes[role=sub]
+    는 sub-control 피어이지 텐서 워커가 아니다. 이 배수를 안 걷으면 서브가 등록된 single manifest 가
+    1-GPU 노드에 TP=2 를 요구한다(δ1-1 라이브 E2E 실버그 — 아래 `_target_cards` 는 이미 이 계약을
+    쓰는데 serve TP 를 정하는 여기가 누락돼 있었다). 그 외 nodes 있으면 len(nodes)×gpus_per_node.
     """
     explicit = cfg.get("tensor_parallel_size")
     if explicit is not None:
@@ -109,12 +114,12 @@ def resolve_tp(cfg, repo_root):
         gpus = max(1, int(gpus))
     except (TypeError, ValueError):
         gpus = 1
+    mtopo = man.get("topology") or topo
+    if (mtopo or "").startswith("single"):
+        return gpus
     nodes = man.get("nodes") or []
     if nodes:
         return max(1, len(nodes)) * gpus
-    mtopo = man.get("topology") or topo
-    if (mtopo or "").startswith("single"):
-        return 1
     return 1  # 최종폴백(안전·과대구독 ✗; multi 인데 nodes 비면 manifest 미완 신호)
 
 
@@ -151,12 +156,15 @@ def _read_manifest(repo_root):
 
 
 def _total_gpus(man):
-    """가용 GPU 합 = gpus_per_node × max(1,len(nodes)); single(nodes:[]) → gpus_per_node."""
+    """가용 GPU 합 = gpus_per_node × 노드 수.
+    **topology=single → 노드 배수 1**(sub 는 control 피어이지 텐서 워커가 아님 — resolve_tp 와 동일 계약)."""
     gpus = man.get("gpus_per_node") or 1
     try:
         gpus = max(1, int(gpus))
     except (TypeError, ValueError):
         gpus = 1
+    if (man.get("topology") or "").startswith("single"):
+        return gpus
     nodes = man.get("nodes") or []
     return max(1, len(nodes)) * gpus if nodes else gpus
 

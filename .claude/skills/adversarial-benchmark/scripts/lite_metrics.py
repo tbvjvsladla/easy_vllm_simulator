@@ -64,12 +64,21 @@ def cold_ttft_ms(bench_cold):
 
 # ── engine log 에서 KV cache + VRAM 분해(fail-soft regex) ────────────────────
 _KV_PATTERNS = [
-    r"kv[_ ]cache[_ ]memory[_ ]?bytes[=: ]+([\d,]+)",          # 절대 바이트
+    # 절대 바이트. non-default args 는 파이썬 dict repr 이라 키가 따옴표에 싸여 나온다
+    # ("'kv_cache_memory_bytes': 21474836480") — 종전 `bytes[=: ]+` 는 그 따옴표에서 끊겨
+    # **절대 클램프를 명시했는데도** 매칭에 실패했다.
+    r"kv[_ ]cache[_ ]memory[_ ]?bytes['\"]?\s*[=:]\s*([\d,]+)",
     r"[Aa]vailable KV cache memory[:= ]+([\d.]+)\s*GiB",
     r"reserved for KV [Cc]ache[:= ]+([\d.]+)\s*GiB",
+    # vLLM 0.26.x 어형: "Initial free memory 113.47 GiB, reserved 20.0 GiB memory for KV Cache".
+    # 수치가 "for KV Cache" **앞**에 오고 Cache 가 대문자라 위 두 패턴이 둘 다 빗나간다.
+    r"reserved\s+([\d.]+)\s*GiB\s+memory\s+for\s+KV\s+[Cc]ache",
     r"GPU KV cache (?:size|memory)[:= ]+([\d.]+)\s*GiB",
-    r"KV cache[^\n]*?([\d.]+)\s*GiB",
+    r"KV [Cc]ache[^\n]*?([\d.]+)\s*GiB",
 ]
+# vLLM 0.26.x 는 KV 크기를 **토큰**으로 보고한다("GPU KV cache size: 154,192 tokens").
+# GiB 가 아니므로 위 패턴들과 별개 축이며, 모델 간 비교에는 이쪽이 더 이식적이다.
+_KV_TOKENS_PAT = r"GPU KV cache size[:= ]+([\d,]+)\s*tokens"
 _WEIGHTS_PAT = r"[Mm]odel (?:weights take|loading took)[:= ]*([\d.]+)\s*GiB"
 _NONTORCH_PAT = r"non[_-]?torch[^\n]*?([\d.]+)\s*GiB"
 
@@ -83,8 +92,9 @@ def _grep_first(text, patterns):
 
 
 def parse_engine_log(path):
-    """→ {kv_gib, weights_gib, nontorch_gib, reserved_total_gib}. 부재는 null(fail-soft)."""
-    out = {"kv_gib": None, "weights_gib": None, "nontorch_gib": None, "reserved_total_gib": None}
+    """→ {kv_gib, kv_tokens, weights_gib, nontorch_gib, reserved_total_gib}. 부재는 null(fail-soft)."""
+    out = {"kv_gib": None, "kv_tokens": None, "weights_gib": None,
+           "nontorch_gib": None, "reserved_total_gib": None}
     if not path:
         return out
     try:
@@ -99,6 +109,12 @@ def parse_engine_log(path):
             val = float(raw)
             # 바이트(정수·큰 값)면 GiB 로 환산, 이미 GiB 면 그대로.
             out["kv_gib"] = round(val / GIB, 2) if val > 1e6 else round(val, 2)
+        except ValueError:
+            pass
+    m = re.search(_KV_TOKENS_PAT, text)
+    if m:
+        try:
+            out["kv_tokens"] = int(m.group(1).replace(",", ""))
         except ValueError:
             pass
     for key, pat in (("weights_gib", _WEIGHTS_PAT), ("nontorch_gib", _NONTORCH_PAT)):

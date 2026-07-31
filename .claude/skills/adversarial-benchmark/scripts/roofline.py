@@ -200,8 +200,13 @@ def main():
             import yaml
             with open(args.manifest, "r", encoding="utf-8") as f:
                 man = yaml.safe_load(f) or {}
-            nodes = man.get("nodes") or []
-            tp = max(1, len(nodes)) * max(1, gpus_per_node) if nodes else (1 if (manifest_topology or "").startswith("single") else None)
+            # topology=single → 노드 배수 1 고정(nodes[role=sub] 는 sub-control 피어이지 텐서
+            # 워커가 아님 — δ1-1 실버그 · manifest_contract.manifest_tp 와 동일 계약).
+            if (manifest_topology or "").startswith("single"):
+                tp = max(1, gpus_per_node)
+            else:
+                nodes = man.get("nodes") or []
+                tp = max(1, len(nodes)) * max(1, gpus_per_node) if nodes else None
         except Exception:
             tp = None
     if tp is None:

@@ -8,7 +8,8 @@
 설계:
 - 단일계약: `output/<topology>/manifest.yaml` 를 읽는다(topology = 현재 git 브랜치가 선택하는 *통로*; --topology 로 override).
 - **보수적**: `terraforming.complete == true` AND `terraforming.branch_verified == true` AND 필수 HW사실(topology·gpus_per_node) 존재해야 통과(fail-closed-on-flag).
-- **TP**(manifest 파생): nodes 있으면 len(nodes)×gpus_per_node · nodes 비면 topology=single→1 · 그 외 None
+- **TP**(manifest 파생): topology=single→gpus_per_node(노드 배수 1 고정 — sub 는 control 피어) ·
+  그 외 nodes 있으면 len(nodes)×gpus_per_node · nodes 비면 None
   (roofline.py:196-209 동일 패턴 — **git 브랜치 폴백 없음**; config override·최종폴백 1 은 *호출자*가 적용).
 - stdlib + yaml 만 · 외부 네트워크 호출 ✗(결정론 스크립트 평면 — 헌법 §금지).
 
@@ -70,17 +71,22 @@ def effective_model_source(node, top_level_ms):
 
 def manifest_tp(man, topology):
     """manifest 파생 TP (roofline.py:196-209 패턴). config override·최종폴백 1 은 호출자 책임.
-    nodes 있으면 len(nodes)×gpus_per_node · nodes 비면 topology=single→1 · 그 외 None."""
+
+    **topology=single → 노드 배수 1 고정**(TP = gpus_per_node): single 의 nodes[role=sub] 는
+    sub-control 피어이지 텐서 워커가 아니다. 이 배수를 안 걷으면 서브가 등록된 single manifest 가
+    1-GPU 노드에 TP=2 를 요구한다(δ1-1 라이브 E2E 실버그 · check_smoke_model.read_manifest_tp 와
+    recipe._target_cards 가 이미 쓰는 계약).
+    그 외: nodes 있으면 len(nodes)×gpus_per_node · nodes 비면 None."""
     gpus = man.get("gpus_per_node") or 1
     try:
         gpus = max(1, int(gpus))
     except (TypeError, ValueError):
         gpus = 1
+    if (topology or "").startswith("single"):
+        return gpus
     nodes = man.get("nodes") or []
     if nodes:
         return max(1, len(nodes)) * gpus
-    if (topology or "").startswith("single"):
-        return 1
     return None
 
 
@@ -244,8 +250,15 @@ def _self_test():
     cases.append(("multi-override(WARN, 무시 대상)", ok, r["reason"], r.get("manifest_tp")))
 
     # TP 파생 회귀 (roofline 패턴)
+    # δ1-1 회귀: single 은 nodes 가 **차 있어도** 노드 배수를 걷지 않는다. sub-control 확장으로
+    # 서브가 등록된 single manifest 가 1-GPU 노드에 TP=2 를 요구하던 실버그 — 아래 두 single-with-sub
+    # 케이스가 정확히 그 구멍이며, 종전 케이스는 nodes:[] 만 봐서 이를 통과시켰다.
     tp_cases = [
-        ("tp-single-empty", {"gpus_per_node": 4, "nodes": []}, "single", 1),
+        ("tp-single-empty", {"gpus_per_node": 4, "nodes": []}, "single", 4),
+        ("tp-single-with-sub(δ1-1)", {"gpus_per_node": 1,
+                                      "nodes": [{"role": "main"}, {"role": "sub"}]}, "single", 1),
+        ("tp-single-with-sub-4gpu", {"gpus_per_node": 4,
+                                     "nodes": [{"role": "main"}, {"role": "sub"}]}, "single", 4),
         ("tp-multi-2x1", {"gpus_per_node": 1, "nodes": [1, 2]}, "multi", 2),
         ("tp-multi-2x2", {"gpus_per_node": 2, "nodes": [1, 2]}, "multi", 4),
         ("tp-empty-multi-none", {"gpus_per_node": 1, "nodes": []}, "multi", None),
