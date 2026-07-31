@@ -1,10 +1,10 @@
 {
-  "base_tree_sha1": "c49d75dea2271b4f5c4be2e8e0eda73f237cdc7f",
+  "base_tree_sha1": "259372c58ab12b676f1a9ae0bb24d81d0c959f5d",
   "entries": {
     ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json": "d3508a0b4016cb51f1959638979c657d1fa09177",
     ".claude/policies/arch_variant_ledger.json": "31c9cca27082aaf5c8a07c4a17517e53a25f79db",
     ".claude/policies/claim_bindings.json": "51fb8cc78576385f1651521824bff9b311269104",
-    ".claude/policies/evidence_manifest.json": "3275320903e0c3d8b2c3da0388231984f249445f",
+    ".claude/policies/evidence_manifest.json": "a3f71421e5b4e1420e79cb91d9e7ac346ce97b0e",
     ".claude/policies/governed_prose_snapshot.json": "6a4a4b3ca9320a01adc42ad6539f88e59eccf794",
     ".claude/policies/predicates/claim_predicates.py": "cd09986955bf3224a3508a63dd4ca143ec97b3f5",
     ".claude/policies/predicates/companion_predicate.py": "c6f4eb244bf64b052e848505bb9c3ec7ebb86fb6",
@@ -24,7 +24,7 @@
     ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh": "c01237637bf068148babd81fb48eadcb1bf4ca74",
     ".claude/skills/terraforming_node/scripts/manifest_contract.py": "b9f1700ed181da4ff0dd0f0a5ab0d1da0d36c767",
     ".claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh": "e2c896d4131701700f0e7935e1d25e70a00e490e",
-    ".claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh": "fc7432d19b9420efbe8a76acb7e1b3395d43ad0b",
+    ".claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh": "5804006b85868095ebe482d514d409a677081820",
     ".claude/skills/terraforming_node/scripts/render_sub_env.py": "24c9223c1428625fa62fd9668ea7d9c2583e779e",
     ".claude/skills/terraforming_node/scripts/scan_node.py": "7e667d2b41214ff433480d52f7a43a455fd51b25",
     ".claude/skills/terraforming_node/sub_node/Agent_Card.template.json": "dc26785585e3a74bb3df0dc515c6c6f5baf6f0ac",
