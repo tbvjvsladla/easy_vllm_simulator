@@ -10,7 +10,7 @@
   ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh": "b5fd4723c4276bbea3f0f281b51ad8a4467fd3850ad3186470a4ce1c59f24c1b",
   ".claude/skills/terraforming_node/scripts/manifest_contract.py": "d26deb644d90b1a6a05ce9b055ee737c0f750883b282ccd0018ebadb176ca4c8",
   ".claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh": "c68147931b6c00801e3da89e679a3c43d9611ea1933771760689826c43296561",
-  ".claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh": "3b8da45fbfc3975e7f010ff22760bdd71bb721734dcc03b9900ebb1d572c1b1e",
+  ".claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh": "0b4c1e48d3b5be090c92db8b6261949e053f669bdbd524ed432e73f2fd967230",
   ".claude/skills/terraforming_node/scripts/render_sub_env.py": "2ab4fe5d8fc8b912fe1dd8894e448cbf43a69076451f78307fae3a4315495bdc",
   ".claude/skills/terraforming_node/scripts/scan_node.py": "2c9875401c1e2eacb057d21e7b80c12a62d4b2e896b0e6dbb7755cef4021b6a2",
   ".claude/skills/upstream-version-watch/assets/configs/arm_patch.sh": "c787cc2598bf80b81c6164aa8192ebf9b53bbdeeea1eb04c6d772734920bdf74",

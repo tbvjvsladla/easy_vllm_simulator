@@ -335,15 +335,49 @@ say "═══ 판정: 통과 $PASS · 실패 $FAILN · 보류 $PEND ═══"
 NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 if [ -d "$NODE_DIR" ]; then
   OUT="$NODE_DIR/capture_verified.json"
+  # ★★ 포착 증명(`capture_proven`)은 **--post-crash 만** 쓸 수 있다.
+  #   2026-07-31 실측 결함: 비파괴 `--check` 가 fail=0 이라는 이유로 verified_utc 를 새로 찍고
+  #   기존 post-crash 증명(28/0/0)을 23/0/2 로 **덮어썼다**. --check 는 준비상태만 보므로
+  #   포착을 증명할 수 없는데 증명 도장을 찍은 것이다 — 이 스크립트가 존재하는 이유였던
+  #   `ready to kdump`(주장≠증거)를 그대로 재현한 셈이다.
+  #   ∴ check/crash 실행은 증명을 **이월만** 하고 절대 생성·삭제하지 않는다.
+  PREV_PROVEN="null"
+  if [ -f "$OUT" ]; then
+    PREV_PROVEN="$(python3 - "$OUT" <<'PY' 2>/dev/null || echo null
+import json,sys
+try:
+    d=json.load(open(sys.argv[1],encoding="utf-8"))
+except Exception:
+    print("null"); raise SystemExit
+p=d.get("capture_proven")
+if not isinstance(p,dict):                      # schema_version 1 에서의 이월
+    p=({"proven_utc":d.get("verified_utc"),"pass":d.get("pass"),"fail":d.get("fail"),
+        "pending":d.get("pending")} if d.get("mode")=="post" and d.get("verified_utc") else None)
+print(json.dumps(p,ensure_ascii=False) if p else "null")
+PY
+)"
+  fi
+  if [ "$MODE" = "post" ] && [ "$FAILN" = 0 ]; then
+    PROVEN="$(printf '{"proven_utc": "%s", "pass": %d, "fail": %d, "pending": %d}' \
+              "$NOW" "$PASS" "$FAILN" "$PEND")"
+  else
+    PROVEN="$PREV_PROVEN"
+  fi
   {
-    printf '{\n  "schema_version": 1,\n  "node_id": "%s",\n  "mode": "%s",\n' "$NODE_ID" "$MODE"
-    printf '  "verified_utc": %s,\n' "$([ "$FAILN" = 0 ] && echo "\"$NOW\"" || echo null)"
+    printf '{\n  "schema_version": 2,\n  "node_id": "%s",\n  "mode": "%s",\n' "$NODE_ID" "$MODE"
+    printf '  "checked_utc": "%s",\n' "$NOW"
+    printf '  "capture_proven": %s,\n' "$PROVEN"
     printf '  "pass": %d, "fail": %d, "pending": %d,\n' "$PASS" "$FAILN" "$PEND"
     printf '  "checks": [%s]\n}\n' "${RESULTS%,}"
   } > "$OUT"
   say "기록: $OUT"
+  if [ "$PROVEN" = "null" ]; then
+    say "★ capture_proven = null — 포착이 아직 증명되지 않았다(--crash-test → --post-crash 필요)."
+  elif [ "$MODE" != "post" ]; then
+    say "   capture_proven 은 이전 --post-crash 결과를 이월했다(이번 실행은 증명이 아니다)."
+  fi
   if [ "$FAILN" != 0 ]; then
-    say "★ verified_utc = null — 실패가 있는 한 '검증됨'을 주장하지 않는다."
+    say "★ 이번 실행에 실패가 있다 — 준비상태가 깨졌다는 뜻이다(증명 이력과 별개)."
   fi
 fi
 
