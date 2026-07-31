@@ -48,11 +48,18 @@ LOGS_ROOT=""; NODE_ID="$(hostname)"
 # KDUMP_CRASHKERNEL/_LOW 는 삭제했다 — L3 가 crashkernel 을 **설정하지 않고 제거**하므로
 # 예약 크기라는 개념 자체가 없어졌다(2026-07-31 판정, 파일 상단 주석).
 
-for a in "$@"; do
+# `--level L1`(공백형)과 `--level=L1`(등호형)을 **둘 다** 받는다.
+# 예전엔 공백형을 거부했는데, 정작 이 파일 헤더(L27)가 공백형을 예시로 적고 있었다 —
+# 문서와 파서가 어긋나면 사용자는 문서를 믿고 실패한다(2026-08-01 실제 왕복 발생).
+# for 루프는 다음 인자를 소비할 수 없으므로 while+shift 로 바꾼다.
+while [ $# -gt 0 ]; do
+  a="$1"
   case "$a" in
     --apply) APPLY=1 ;;
     --level=*) LEVEL="${a#--level=}" ;;
-    --level) echo "[bb-install] --level=L1|L2|L3 형식으로 주세요" >&2; exit 1 ;;
+    --level)
+      [ $# -ge 2 ] || { echo "[bb-install] --level 뒤에 L1|L2|L3 이 필요하다" >&2; exit 1; }
+      LEVEL="$2"; shift ;;
     L1|L2|L3) LEVEL="$a" ;;
     --suggest-ramoops) SUGGEST=1 ;;
     --ramoops-addr=*) RAMOOPS_ADDR="${a#--ramoops-addr=}" ;;
@@ -63,6 +70,7 @@ for a in "$@"; do
     -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
     *) echo "[bb-install] 알 수 없는 인자: $a" >&2; exit 1 ;;
   esac
+  shift
 done
 case "$LEVEL" in L1|L2|L3) ;; *) echo "[bb-install] --level 은 L1|L2|L3" >&2; exit 1 ;; esac
 [ -n "$LOGS_ROOT" ] || LOGS_ROOT="$REPO/docs/logs"
