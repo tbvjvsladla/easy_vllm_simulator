@@ -1,5 +1,5 @@
 {
-  "base_tree_sha1": "b87a1f5e477cb8c258acbd3cf422349b30a1c206",
+  "base_tree_sha1": "259372c58ab12b676f1a9ae0bb24d81d0c959f5d",
   "entries": {
     ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json": "d3508a0b4016cb51f1959638979c657d1fa09177",
     ".claude/policies/arch_variant_ledger.json": "31c9cca27082aaf5c8a07c4a17517e53a25f79db",
