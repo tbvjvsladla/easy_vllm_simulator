@@ -11,6 +11,8 @@
 - simlog: `docs/simlog/<YYMMDDHH>[_<MM>_<SS>]_<주제>/` (run 디렉터리).
 - benchmark: `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`는 항상, `docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`은 PASS 때만 발행한다. report prefix 정본은 `bench_report_`; timestamp/collision은 `.claude/skills/wiki-desk/scripts/doc_naming.py`.
 - outbound report: `docs/report/<kebab-case-topic>.<html|md>`; 날짜 없이 최신본을 갱신한다.
+- **`docs/logs/` 는 이 명명 SSOT의 명시 예외다** — 문서가 아니라 기계판독 데이터 평면이므로
+  `<type>_<YYMMDDHH>_<주제>` 규약·산문 규약을 적용하지 않는다(아래 §기계판독 데이터 평면).
 
 ## compact document matrix
 
@@ -22,6 +24,29 @@
 | `simlog/` | raw trial vault | recipe/smoke scripts·per-trial facts | log/profile/candidate/smoke/history/summary | run 완결성 | testlog에서 누락 명시 |
 | `benchmark/` | full 계측 | `adversarial-benchmark`·측정값 | 항상 report, PASS만 flat certificate | verdict owner·재현성 | FAIL report만; 합성 금지 |
 | `report/` | 배포자 공지 | 사람·공지 본문 | self-contained HTML/MD 최신본 | PII·배포 검토 | 자동발행/위키색인/서브전파 금지 |
+
+## 기계판독 데이터 평면 — `docs/logs/` (7번째, 유일한 비-문서)
+
+> 근거 `plan_26073109`(노드블랙박스 승격) · 소유 `terraforming_node/scripts/node_blackbox/`.
+> **사람 가독성을 고려하지 않는다**(사용자 결정) — 열람이 필요하면 그때 비패턴 업무로 md/html 변환한다.
+> 산문 6종과 성격이 다르므로 §명명 SSOT·§공통 발행 계약·evidence chain 규약을 적용하지 않는다.
+
+| 경로 | 내용 | 포맷 근거 | 수명 |
+|---|---|---|---|
+| `docs/logs/<node_id>/samples/<YYYY-MM-DD>.csv` | 1초 원시 시계열 | 키 반복이 없어 JSONL 대비 약 1/3 용량 | 7일 → 압축 30일 → 삭제 |
+| `docs/logs/<node_id>/events/<YYYY-MM>.jsonl` | 희소·이질 이벤트(트립·킬·부정클린부팅) | 자기서술 필요, 양이 적음 | **영구** |
+| `docs/logs/<node_id>/rollup/<YYYY-MM-DD>.json` | 일별 포락선 통계 | 학습의 실제 입력 | **영구** |
+| `docs/logs/<node_id>/envelope.json` | 현재 포락선 + ETA 상수 | **에이전트가 폴링마다 읽는 유일한 파일**(수백 토큰) | 갱신 |
+| `docs/logs/<node_id>/capture_verified.json` | proof-of-capture 판정 | 상태 권위(`installed` 아님) | 갱신 |
+| `docs/logs/<node_id>/seed/` | 레거시 저널 수확분 | 15초 해상도 재구성(canonical 아님) | 보존 |
+
+- **수명 집행 순서가 곧 안전장치다**: rollup(통계 확정) → 압축 → 나이삭제 → 용량삭제. 원시를 버려도
+  학습 입력은 남는다. 노드당 총량 상한(기본 512 MiB) 초과 시 **오래된 samples 부터** 삭제한다.
+- **침묵 삭제 금지**: 모든 삭제·압축은 `events` 에 `log_evicted`/`log_compressed` 로 남긴다 —
+  조용한 삭제는 "기록이 원래 없었던 것"과 구분되지 않는다.
+- **부재와 결측의 구분**: GB10 통합메모리는 GPU 메모리 지표가 존재하지 않으므로(`nvidia-smi
+  memory.used` = `[N/A]`) `gpu_mem` 열은 상시 빈 칸이며 이는 정상이다.
+- 시각은 `--now` 주입만 사용한다(벽시계 금지 — `staleness_gate.py --max-age-days` 선례 정합).
 
 ## 공통 발행 계약
 
@@ -37,6 +62,7 @@
 |---|---|---|---|
 | `docs/{plan,devlog,testlog,simlog,benchmark}/*` | 작업 산출물 ignored; `example.md`만 tracked | 브랜치 전환에 working copy 유지; build rsync 제외 | `.gitignore`의 `docs/*/*` + `!docs/*/example.md` |
 | `docs/report/*` | **유일한 tracked docs 산출물 예외** | main-only; branch sync 대상 | `!docs/report/*`, PII gate |
+| `docs/logs/*` | ignored(기존 `docs/*/*` 가 이미 커버 — 새 규칙 불요) | **평시 `envelope.json` 요약만 상향**, 사고 시에만 원시 회수 | `logs_lifecycle.py`; `example.md` 스켈레톤 불요(기계 생성) |
 | `.claude/`·`CLAUDE.md` | tracked building blocks | `.claude/skills/upstream-version-watch/scripts/sync_branches.sh` | 이 문서 산출물 규약 밖 |
 | `seed/` | private/untracked | 배포본에 없을 수 있음 | 근거 pointer만 허용 |
 

@@ -221,7 +221,11 @@ sync_staging/
 hints/.drafts/
 
 # 호스트 안전체계 오프라인 패키지(아치별 바이너리 — 추적 안 함, 운영자가 각 노드에 스테이징)
+#   plan_26073109 Phase 1: 노드블랙박스 purge→재설치 시 apt 불가 노드를 위한 폴백 스테이징.
+#   earlyoom 뿐 아니라 kdump-tools·makedumpfile 도 같은 성격이므로 디렉터리째 제외한다
+#   (기존 earlyoom_*.deb 단일 패턴은 나머지 2종을 빌딩블럭에 흘리는 구멍이었음).
 earlyoom_*.deb
+.claude/skills/terraforming_node/scripts/node_blackbox/offline/
 
 # ===========================================
 # completion_gate 하네스 테스트 런타임 스크래치 (plan_26072506 Phase 1 리뷰 교정)

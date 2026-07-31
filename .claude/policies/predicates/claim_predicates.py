@@ -248,7 +248,10 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C2():
     src = _read(".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh")
     tree = ast.parse("APPLY=0")  # placeholder to keep ast imported for other predicates; unused here
     del tree
-    _require('APPLY=0; WITH_KDUMP=0' in src, 'APPLY must default to 0 (dry-run) unless --apply is passed')
+    # 2026-07-31: the anchor used to be 'APPLY=0; WITH_KDUMP=0'. --with-kdump was retired (C7), so
+    # the literal moved -- C2 itself never claimed anything about kdump, it claims a dry-run default.
+    # Re-anchor on the surviving declaration; the assertion strength is unchanged.
+    _require('APPLY=0; EARLYOOM_DEB=""' in src, 'APPLY must default to 0 (dry-run) unless --apply is passed')
     _require('--apply) APPLY=1 ;;' in src, '--apply is the sole toggle to 1')
     _require('if [ "$APPLY" = "1" ] && [ "$(id -u)" -ne 0 ]; then' in src, '--apply must require root (HITL sudo), never a passwordless/automatic escalation')
     _require('say "DRY-RUN 종료' in src, 'default path must end in an informative DRY-RUN message, not an install')
@@ -397,35 +400,53 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C6():
 
 
 def predicate_HOST_SAFETY_LAYERED_DEFENSE_C7():
-    """C7: --with-kdump (default off) installs kdump-tools with an explicit high+low crashkernel
-    reservation on aarch64 kernel 6.17 (high-only silently fails), hang-to-panic sysctl promotion,
-    verified only after the required reboot; stays an explicit HITL opt-in, not the default."""
+    """C7: post-mortem capture is efi_pstore, not kdump. node_blackbox L3 removes crashkernel/
+    ramoops and disarms kdump-tools; legacy --with-kdump is refused with its reason; capture is
+    claimed only via verify_node_blackbox.sh's crash-test/post-crash writing capture_verified.
+    Grounded in docs/testlog/testlog_26073114 (7 forced panics, both nodes)."""
+    nb = _read(".claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh")
+    vb = _read(".claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh")
     ihs = _read(".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh")
-    _require('WITH_KDUMP=0' in ihs.split('\n')[10] or 'WITH_KDUMP=0' in ihs, 'kdump defaults off')
-    _require('--with-kdump) WITH_KDUMP=1 ;;' in ihs, 'predicate requirement failed at original line 401')
-    _require('KDUMP_CRASHKERNEL="${KDUMP_CRASHKERNEL:-2G,high}"' in ihs, 'explicit high reservation default')
-    _require('KDUMP_CRASHKERNEL_LOW="${KDUMP_CRASHKERNEL_LOW:-256M}"' in ihs, 'explicit low reservation default (high-only silently fails on aarch64 kernel 6.17)')
-    _require('kernel.hung_task_panic=1' in ihs and 'kernel.softlockup_panic=1' in ihs, 'hang-to-panic sysctl promotion required for kexec entry')
-    _require('재부팅 후' in ihs, 'verification is documented as post-reboot only')
-    # stays HITL opt-in: the whole crashkernel/sysctl block is gated behind WITH_KDUMP, never
-    # executed unconditionally.
-    guard_idx = ihs.index('if [ "$WITH_KDUMP" = "1" ]; then')
-    ck_idx = ihs.index("kernel.hung_task_panic=1")
-    _require(guard_idx < ck_idx, 'predicate requirement failed at original line 412')
 
-    # NEW atoms: install+enable of kdump-tools, vmcore preservation (USE_KDUMP=1 +
-    # KDUMP_SKIP_VMCORE=0), and the exact one-reboot atom -- all real, and all ordered strictly
-    # inside the WITH_KDUMP guard, strictly before the opt-out ("건너뜀") branch a default run takes.
-    reboot_required_idx = ihs.index("재부팅 1회")   # the one-reboot requirement, stated right at the guard
-    install_idx = ihs.index("apt-get install -y kdump-tools")
-    use_kdump_idx = ihs.index("USE_KDUMP=1", install_idx)
-    skip_vmcore_idx = ihs.index("KDUMP_SKIP_VMCORE=0", use_kdump_idx)
-    enable_idx = ihs.index("systemctl enable kdump-tools", skip_vmcore_idx)
-    verify_idx = ihs.index("재부팅 후 검증", enable_idx)      # post-reboot verification instructions
-    vmcore_land_idx = ihs.index("vmcore 실착지", verify_idx)  # vmcore preservation confirmed post-reboot
-    opt_out_idx = ihs.index('say "④ kdump: 건너뜀')
-    _require(guard_idx < reboot_required_idx < install_idx, 'the one-reboot requirement must be documented at the WITH_KDUMP guard, before install')
-    _require(guard_idx < install_idx < use_kdump_idx < skip_vmcore_idx < enable_idx < ck_idx < verify_idx < vmcore_land_idx < opt_out_idx, 'install+enable+vmcore-preservation+post-reboot verification must all be strictly gated inside WITH_KDUMP, before the unconditional opt-out message a default run reaches')
+    # L3 disarms kdump rather than installing it.
+    _require("USE_KDUMP=0" in nb, "L3 must set USE_KDUMP=0 (disarm), never 1")
+    _require("systemctl disable --now kdump-tools" in nb, "L3 must disable kdump-tools")
+    _require("kdump-config unload" in nb, "L3 must unload any already-loaded kexec image")
+
+    # The GRUB drop-in L3 emits carries NO reservation tokens -- it is deliberately empty.
+    #   Checking the whole file for the substring is wrong: the --suggest-ramoops diagnostic and the
+    #   design rationale legitimately *mention* reserve_mem/ramoops in prose and say-lines. What must
+    #   be free of reservations is the heredoc actually written to the GRUB drop-in. Extract it.
+    _m = re.search(r"cat > /etc/default/grub\.d/zz-easy-vllm-blackbox\.cfg <<'?EOF'?\n(.*?)\nEOF",
+                   nb, re.S)
+    _require(_m is not None, "L3 must write the GRUB drop-in via a heredoc we can inspect")
+    _emitted = _m.group(1) if _m else ""
+    for _tok in ("crashkernel=", "reserve_mem=", "ramoops."):
+        _require(_tok not in _emitted,
+                 "L3 GRUB drop-in must emit no %s (kdump blocks pstore; ramoops cannot survive "
+                 "reset on this platform)" % _tok)
+    _require("GRUB_CMDLINE_LINUX_DEFAULT" not in _emitted,
+             "L3 GRUB drop-in must not re-append kernel parameters at all")
+    _require("rm -f /etc/modules-load.d/easy-vllm-ramoops.conf" in nb,
+             "L3 must withdraw the ramoops autoload config")
+
+    # efi_pstore path is actively secured: archival on, hang->panic promotion retained.
+    _require("systemctl enable systemd-pstore" in nb,
+             "systemd-pstore archival required (else EFI NVRAM fills and capture fails)")
+    _require("kernel.hung_task_panic=1" in nb and "kernel.softlockup_panic=1" in nb,
+             "hang->panic promotion retained so silent hangs reach kmsg_dump")
+    _require("재부팅 1회" in nb, "L3 is documented as requiring exactly one reboot")
+
+    # Legacy flag is refused WITH ITS REASON, not silently deleted (discoverability).
+    _require("--with-kdump)" in ihs, "legacy flag must remain recognised so the refusal is reachable")
+    _require("거부: --with-kdump 는 폐지됐습니다" in ihs, "legacy flag must refuse explicitly")
+    _require("KDUMP_CRASHKERNEL=" not in ihs, "legacy installer must no longer reserve crashkernel")
+
+    # Capture is a verified verdict, never an installation claim.
+    _require("capture_verified" in vb, "verifier owns the capture_verified verdict file")
+    _require("--crash-test" in vb and "--post-crash" in vb, "crash-test/post-crash modes required")
+    _require("Kernel panic" in vb, "post-crash must confirm record CONTENT, not record count")
+
 
 
 def predicate_HOST_SAFETY_LAYERED_DEFENSE_C8():
