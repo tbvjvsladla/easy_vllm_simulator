@@ -208,7 +208,8 @@ def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: in
                       nas_mount: str = NAS_MOUNT,
                       tiktoken_host_path: "str | None" = None,
                       jit_cache_root: "str | None" = None,
-                      max_jobs: "int | None" = None) -> list:
+                      max_jobs: "int | None" = None,
+                      nas_container_root: "str | None" = None) -> list:
     """docker run -d 명령 리스트를 구성한다.
 
     NAS read-only 마운트(nas_mount = config/manifest 의 nas_host_root, 기본 /mnt/models) ·
@@ -229,7 +230,14 @@ def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: in
         # 죽이고 70GiB 진범을 못 잡은 오발 교정. 커널이 트라이얼 컨테이너를 먼저 잡게 한다.
         "--oom-score-adj", "800",
         "-p", "%d:%d" % (int(port), DEFAULT_PORT),
-        "-v", "%s:%s:ro" % (nas_mount, CONTAINER_MODELS),
+        # ★ 컨테이너 마운트 경로는 config.nas_container_root 를 따른다(기본 /app/models).
+        #   예전엔 CONTAINER_MODELS 상수로 **하드코딩**돼 있어, quant_model 2차 NAS 를 쓰는
+        #   모델(config 가 /app/quant_models 를 선언)에서 트라이얼만 /app/models 에 마운트했다.
+        #   그러면 candidate.model_path_container 가 컨테이너 안에 실재하지 않아 HF 가 그 경로를
+        #   repo id 로 오해한다 — `HFValidationError: Repo id must be in the form ...`
+        #   (2026-08-01 Qwen3.5-122B-NVFP4 실측). 더 중요한 건 **트라이얼과 서빙의 컨테이너 경로가
+        #   갈린다**는 점이다 — 검증한 것과 배포되는 것이 달라진다.
+        "-v", "%s:%s:ro" % (nas_mount, nas_container_root or CONTAINER_MODELS),
     ]
 
     # ── 에어갭 tiktoken 인코딩 자산(C8) ────────────────────────────────
@@ -578,6 +586,7 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
         candidate, image, container_name, port, nas_mount,
         tiktoken_host_path=tiktoken_host_path,
         jit_cache_root=jit_cache_root, max_jobs=max_jobs,
+        nas_container_root=_opt(opts, "nas_container_root", None),
     )
     # emit-audit: candidate 의 serve-관련 비-null 필드가 실제 cmd 에 반영됐는지 전수 점검
     # (gmu 미emit 회귀류 클래스 차단 — §9.3). 누락 시 즉시 raise.

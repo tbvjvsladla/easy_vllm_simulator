@@ -816,6 +816,9 @@ def cmd_simulate(args):
         "served_model_name": _serving.get("served_model_name"),
         "port": int(_serving["port"]) if _serving.get("port") is not None else None,
         "nas_mount": nas_root,  # config.nas_host_root → run_trial NAS 마운트(하드코딩 /mnt/models 갭 수정)
+        # config.nas_container_root → 트라이얼 컨테이너 마운트 경로. 이게 없으면 quant_model 계열에서
+        # 트라이얼(/app/models)과 서빙(/app/quant_models)의 경로가 갈린다(2026-08-01 실측).
+        "nas_container_root": container_root,
         "tiktoken_host_path": cfg.get("tiktoken_host_path"),  # config → run_trial /encodings:ro 마운트(C8 에어갭 자산 배선)
         # JIT 캐시 통로 + 컴파일 팬아웃 캡 — serve 평면(docker-compose)과 parity.
         # 기본을 serve 와 **같은 디렉터리**로 잡아 trial 이 데운 캐시를 serve 가 그대로 쓴다
