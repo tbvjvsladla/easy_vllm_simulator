@@ -20,6 +20,7 @@
     "hint/0.25.1/exaone-4.5-33b/rtxpro6000": "a5f81cbf5a51f2857fdeae23acbca8f716d75526",
     "hint/0.25.1/gemma-4-26b-a4b/rtxpro6000": "442f29e0491247572a9ce5e99e769068a4020d8d",
     "hint/0.25.1/gemma-4-31b/rtxpro6000": "191fd2042e43020c5ba81c741f7bf7a609ee26c8",
+    "hint/0.25.1/gemma-4-e2b-it/rtx5090": "631b0303802970e29ade803d13099870462886d0",
     "hint/0.25.1/gpt-oss-120b/rtxpro6000": "4701bb6d30cade222ebb2725ca604cc4d5b09b77",
     "hint/0.25.1/hyperclovax-think-32b/rtxpro6000": "def11bcbf1df8168e2f70ecab3e3738cfa09152f",
     "hint/0.25.1/laguna-s-2.1/gb10": "f4190e9c24bbd60e1f3112c44f83e5c668f82589",

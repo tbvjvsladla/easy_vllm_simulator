@@ -17,15 +17,18 @@
 
 ## 발행처(provenance) — 두 하드웨어 계보
 
-이 카탈로그의 태그는 **서로 다른 두 물리 환경**에서 발행됐습니다. `arch` 열이 곧 발행처의 지문입니다:
+이 카탈로그의 태그는 **서로 다른 세 물리 환경**에서 발행됐습니다. `arch` 열이 곧 발행처의 지문입니다:
 
 | `arch` 패턴 | 발행처 | 의미 |
 |---|---|---|
 | `gb10` · `gb10x2` | **주력 검증기** — 2× NVIDIA DGX Spark(GB10 superchip, aarch64, sm_121a, 128GB **통합메모리**, CUDA 13.2) | 이 프로젝트가 개발·주력 검증된 환경. 단일/멀티노드(Ray TP=2·RoCE) 실측. |
 | `gb10-sim-<타겟>` · `gb10x2-sim-<타겟>` | 위 GB10 에서 **타겟-GPU 시뮬레이션** | 측정=호스트(GB10)·클램프=타겟 예산으로 이식(「여정 3」타겟 GPU 시뮬레이션). 실카드 부재 상태 검증. |
 | `rtxpro6000` *(sim 접미어 없음)* | **이기종 배포처** — **Ubuntu 22.04 · x86_64 · RTX PRO 6000(Blackwell, discrete, sm_120, 96GB) · host RAM 60GiB** | 이 스켈레톤을 배포받은 *전혀 다른 물리 머신*에서 vLLM 0.25.0/0.25.1 로 **여정 4 성능 적대검증까지** 완주한 크로스-하드웨어 재현 증거(7종 PASS · 4종 host-RAM/커널 천장으로 정직하게 REFUTE). |
+| `rtx5090` | **컨슈머 GPU · 가상화 호스트** — **WSL2(Docker Desktop) · x86_64 · RTX 5090(Blackwell 컨슈머, discrete, sm_120, 32GB)** | 카탈로그에서 유일한 *컨슈머 카드* + 유일한 *가상화 호스트*. 여기서만 나타나는 벽이 있습니다 — vLLM 이 WSL2 를 감지하면 pinned memory/UVA 를 **기본 OFF** 시켜 엔진 초기화가 `RuntimeError: UVA is not available` 로 죽습니다(GPU arch 무관 · **호스트-locked**). 기능 사이클 PASS, 성능 게이트는 미실행. |
 
 > 🌐 **왜 이게 중요한가** — `rtxpro6000` 네이티브 태그들은 *통합메모리 GB10 과 완전히 다른 축*(디스크리트 VRAM 충분 · host RAM 부족 · x86 리눅스)에서, 같은 생성엔진이 각 모델의 벽(Mistral 네이티브 포맷·MoE 커널 JIT host 폭증·Mamba 캐시블록 한계·MARLIN mxfp4 커널 천장 등)을 뚫고 서빙+성능게이트까지 돌린 이력입니다. 「개발자의 편지 — 범용성에 관하여」가 말한 *"다른 하드웨어에서 돌려본다면 그 자체가 다음 챕터"* 의 실증입니다.
+>
+> 그리고 `rtx5090` 은 **벽이 GPU 에만 있는 게 아니라는** 증거입니다 — 같은 sm_120 인데도 `rtxpro6000` 에는 없던 실패가 *호스트 가상화* 때문에 생겼습니다. 그래서 hint 본문은 노브를 `arch-locked`(GPU 종속)와 `호스트-locked`(OS·가상화 종속)로 **나눠서** 표시합니다. 남의 태그를 볼 때 *어떤 축에 묶인 노브인지* 를 먼저 보세요.
 
 ---
 
@@ -77,6 +80,7 @@ git tag -l --format='%(contents)' hint/0.24.0/deepseek-v4-flash/gb10 > seed/hint
 | `hint/0.25.1/exaone-4.5-33b/rtxpro6000` | 0.25.1 | exaone-4.5-33b | rtxpro6000 | single 1노드 TP1 | active | — | 2026-07-19 | LGAI-EXAONE/EXAONE-4.5-33B (Exaone4_5 dense VLM, SWA 하이브리드 64층=16 full+48 sliding(window 4096), bf16 ~64GiB) — RTX PRO 6000(96GiB discrete sm_120) TP1 최대-context(256K) M=24.1 t/s · verdict PASS(92.5% MBU) |
 | `hint/0.25.1/gemma-4-26b-a4b/rtxpro6000` | 0.25.1 | gemma-4-26b-a4b | rtxpro6000 | single 1노드 TP1 | active | — | 2026-07-19 | google/gemma-4-26B-A4B-it (Gemma4 MoE VLM SWA 하이브리드 30층=5 full+25 sliding, 128exp, bf16 ~49GiB, active 4B) — RTX PRO 6000 TP1 최대-context(256K) M=150.3 t/s · verdict PASS |
 | `hint/0.25.1/gemma-4-31b/rtxpro6000` | 0.25.1 | gemma-4-31b | rtxpro6000 | single 1노드 TP1 | active | — | 2026-07-19 | google/gemma-4-31B (Gemma4 dense VLM 31B, bf16 ~65GiB) — RTX PRO 6000 TP1 최대-context(256K) M=25.1 t/s · verdict PASS |
+| `hint/0.25.1/gemma-4-e2b-it/rtx5090` | 0.25.1 | gemma-4-e2b-it | rtx5090 | single 1노드 | active | - | 2026-07-20 | vLLM 0.25.1 NGC26.05 source-build, RTX5090(sm_120) 16GiB예산 fp8 가중치+KV, max-model-len 131072(모델네이티브최대) batch1 최대-context 전략, WSL2 pin-memory 게이트 대응 |
 | `hint/0.25.1/gpt-oss-120b/rtxpro6000` | 0.25.1 | gpt-oss-120b | rtxpro6000 | single 1노드 TP1 | active | — | 2026-07-19 | openai/gpt-oss-120b (GptOss MoE 128exp/4tok, MXFP4, SWA sliding_window 128, ~66GiB, harmony reasoning, text-only) — RTX PRO 6000 TP1 128K(native 상한) M=62.6 t/s · verdict REFUTE(MARLIN mxfp4 커널 천장) |
 | `hint/0.25.1/hyperclovax-think-32b/rtxpro6000` | 0.25.1 | hyperclovax-think-32b | rtxpro6000 | single 1노드 TP1 | active | — | 2026-07-19 | naver-hyperclovax/HyperCLOVAX-SEED-Think-32B (dense reasoning 32B, bf16 ~66GiB) — RTX PRO 6000 TP1 M=24.0 t/s · verdict PASS |
 | `hint/0.25.1/laguna-s-2.1/gb10` | 0.25.1 | laguna-s-2.1 | gb10 | single | active | `hint/0.25.1/deepseek-v4-flash/gb10`(동일 vLLM·arch, 다른 모델 — MoE 백엔드 정답이 정반대라 대조 사례로 유용) | 2026-07-22 | Laguna-S-2.1-NVFP4(117.6B-A8B MoE, poolside) 단일 GB10 서빙 · DFlash speculative decoding 유무 양노드 대조 검증 |
