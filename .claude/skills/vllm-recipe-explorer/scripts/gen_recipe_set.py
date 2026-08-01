@@ -152,28 +152,73 @@ _PARITY_EXEMPT = {
     "served_model_name",      # .env/.sh 로 전달
     "model_id",               # 주석/이름용
     "extra_env",              # 트라이얼 전용(임시 실험 env) — 배포 3종 세트로 승격하지 않는다
+    # gmu 는 **config.safety_margin 이 권위**다(디바이스 풀 상한 = 배포 정책). candidate 값은
+    # 트라이얼-로컬이며 배포로 승격하지 않는다 — 의도된 분기. 다만 둘이 다르면 "검증한 gmu ≠
+    # 배포된 gmu" 가 되므로 recipe.py 가 불일치를 경고한다(조용한 분기 금지).
+    "gpu_memory_utilization",
+}
+
+
+# candidate → recipe 투영의 **단일 소유자**. 이전에는 recipe.py 가 자체 dict 리터럴로
+# 9개 필드만 복사해, gen_recipe_set 을 고쳐도 노브가 그 홉에서 조용히 떨어졌다
+# (2026-08-01: moe_backend 를 _build_yaml 에 추가했는데도 생성물에 안 나온 원인).
+# 홉이 둘이면 둘 다 고쳐야 하고, 그 사실을 잊는 것이 이 결함 계열의 본질이다 → 홉을 하나로 만든다.
+SERVE_KNOB_KEYS = (
+    "quantization", "max_model_len", "batch",
+    "kv_cache_memory_bytes", "kv_cache_quant",
+    "attention_backend", "tool_call_parser", "reasoning_parser",
+    "moe_backend", "gdn_prefill_backend", "max_num_batched_tokens",
+    "enforce_eager", "language_model_only",
+)
+
+
+def recipe_from_candidate(candidate: dict, **extra) -> dict:
+    """수렴 candidate → gen_recipe_set 이 읽는 recipe dict. 추가 키는 extra 로 덮어쓴다.
+
+    extra 용례: gpu_memory_utilization(=safety_margin) · target_gpu · vram_breakdown.
+    """
+    r = {k: candidate.get(k) for k in SERVE_KNOB_KEYS}
+    r["id"] = candidate.get("id")
+    r.update(extra)
+    return r
+
+
+# 파리티 검사용 대표값(타입별). 값이 yaml 에 그대로 나타나는지로 전달 여부를 판정한다.
+_PROBE = {
+    "enforce_eager": True, "language_model_only": True,
+    "max_num_batched_tokens": 4242, "batch": 4242,
+    "max_model_len": 4242, "kv_cache_memory_bytes": 4242,
+    "gpu_memory_utilization": 0.77,
 }
 
 
 def assert_serve_knob_parity(run_trial_source: str, raise_on_gap: bool = True):
-    """run_trial 이 소비하는 serve 노브가 이 생성기에서 누락되지 않았는지 검사.
+    """run_trial 이 소비하는 serve 노브가 **실제로 3종 세트까지 도달**하는지 행위로 검사.
 
-    "트라이얼은 통과했는데 배포물이 그 설정을 재현하지 못한다"는 결함 계열을 클래스로 막는다.
+    소스 문자열 존재 확인은 부족하다 — 필드명이 파일에 있어도 중간 홉(recipe 투영)에서
+    떨어지면 배포물엔 안 나온다. 그래서 candidate → recipe_from_candidate → _build_yaml/_build_sh
+    를 실제로 통과시켜 대표값이 산출물에 나타나는지 본다.
     반환: 누락 필드 리스트(빈 리스트면 파리티 OK).
     """
     import re as _re
     consumed = set(_re.findall(r'candidate\.get\("([a-z_]+)"\)', run_trial_source))
-    mine = _build_yaml.__code__.co_consts
-    body = open(__file__, encoding="utf-8").read()
+    parsed = {"model_id": "probe/model", "container_path": "/app/models/probe/model"}
     gaps = []
     for f in sorted(consumed - _PARITY_EXEMPT):
-        flag = f.replace("_", "-")
-        if flag not in body and f not in body:
+        probe = _PROBE.get(f, "PROBE%sVALUE" % f.upper().replace("_", ""))
+        cand = {"id": "probe", f: probe}
+        # 시험 대상이 gmu 자신이면 덮어쓰지 않는다(덮어쓰면 프로브가 무효가 돼 오탐).
+        extra = {} if f == "gpu_memory_utilization" else {"gpu_memory_utilization": 0.9}
+        rec = recipe_from_candidate(cand, **extra)
+        blob = _build_yaml(parsed, rec, "probe") + _build_sh("probe", "probe", rec)
+        needle = "true" if probe is True else str(probe)
+        # 생성기가 값을 정규화(소문자화)하는 필드가 있으므로 대소문자 무시로 비교한다.
+        if needle.lower() not in blob.lower():
             gaps.append(f)
     if gaps and raise_on_gap:
         raise AssertionError(
-            "serve 노브 파리티 위반 — run_trial 이 쓰는데 3종 세트가 안 담는 필드: %s. "
-            "검증된 레시피와 배포된 레시피가 갈린다. _build_yaml 에 추가하거나 "
+            "serve 노브 파리티 위반 — run_trial 이 쓰는데 3종 세트에 도달하지 않는 필드: %s. "
+            "검증된 레시피와 배포된 레시피가 갈린다. SERVE_KNOB_KEYS/_build_yaml 에 추가하거나 "
             "_PARITY_EXEMPT 에 근거와 함께 등록하라." % ", ".join(gaps))
     return gaps
 

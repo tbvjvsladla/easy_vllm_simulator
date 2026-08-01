@@ -32,7 +32,7 @@ sys.path.insert(0, SCRIPTS_DIR)
 
 from parse_model_config import parse  # noqa: E402
 from rank_recipes import auto_candidates, rank, render_report  # noqa: E402
-from gen_recipe_set import generate  # noqa: E402
+from gen_recipe_set import generate, recipe_from_candidate  # noqa: E402
 from feedback_log import append as feedback_append  # noqa: E402
 
 # Phase 2 시뮬레이터(통합 trial-loop) 조립용 import.
@@ -1069,18 +1069,19 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
 
     # recipe dict: gen_recipe_set 가 읽는 키(quantization/max_model_len/gpu_memory_utilization
     # + Phase2 batch/kv_cache_memory_bytes/kv_cache_dtype/소프트 변수/vram_breakdown).
-    recipe = {
-        "id": candidate.get("id"),
-        "quantization": candidate.get("quantization"),
-        "max_model_len": candidate.get("max_model_len"),
+    # ★ 투영은 gen_recipe_set.recipe_from_candidate 가 **단독 소유**한다.
+    #   예전엔 여기 dict 리터럴이 9개 필드만 복사해, 생성기를 고쳐도 노브가 이 홉에서
+    #   조용히 떨어졌다(2026-08-01 moe_backend 실증 — 트라이얼 통과 ↔ 배포물 즉사).
+    #   홉이 둘이면 둘 다 고쳐야 하는데 그걸 잊는 것이 결함 계열의 본질이라 홉을 하나로 모았다.
+    # gmu 분기 가시화: 트라이얼이 쓴 값과 배포에 박히는 값(safety_margin)이 다르면 알린다.
+    _cand_gmu = candidate.get("gpu_memory_utilization")
+    if _cand_gmu is not None and abs(float(_cand_gmu) - float(margin)) > 1e-9:
+        print("[recipe] ⚠ gmu 분기: 트라이얼 %.3f ↔ 배포(config.safety_margin) %.3f — "
+              "검증한 값과 배포되는 값이 다르다. 의도한 것이 아니면 config.safety_margin 을 맞춰라."
+              % (float(_cand_gmu), float(margin)), file=sys.stderr)
+    recipe = recipe_from_candidate(candidate, **{
         # gpu-memory-utilization = safety_margin(디바이스 풀 상한; 실제 KV 는 절대 클램프가 제어).
         "gpu_memory_utilization": margin,
-        "batch": candidate.get("batch"),
-        "kv_cache_memory_bytes": candidate.get("kv_cache_memory_bytes"),
-        "kv_cache_quant": candidate.get("kv_cache_quant"),
-        "attention_backend": candidate.get("attention_backend"),
-        "tool_call_parser": candidate.get("tool_call_parser"),
-        "reasoning_parser": candidate.get("reasoning_parser"),
         # target_gpu 활성 시 gen_recipe_set 이 트리플렛 헤더에 이식 정직성 주석을 단다(§4.9, plan_26070809_47_07).
         "target_gpu": cfg.get("target_gpu"),
         "vram_breakdown": {
@@ -1091,7 +1092,7 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
             "budget_gib": budget,
             "headroom_gib": (budget - total_gib) if total_gib is not None else None,
         },
-    }
+    })
 
     try:
         paths = generate(
