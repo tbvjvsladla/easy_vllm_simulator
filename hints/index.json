@@ -302,6 +302,30 @@
       "last_verified": "2026-07-19"
     },
     {
+      "tag": "hint/0.26.0/glm-47-flash/gb10",
+      "vllm": "0.26.0",
+      "model": "glm-47-flash",
+      "arch": "gb10",
+      "topology": "single 1노드",
+      "brief": "GLM-4.7-Flash(`zai-org/GLM-4.7-Flash`) bf16 MoE 64e · **MLA** · single tp=1 · KV 52.9 KiB/token(GQA 공식의 1/7) · full 벤치 PASS(MBU 85.7%)",
+      "anchor": "a6cb89f7baa1c58377cb0c11f32410b33e0605c2",
+      "related": "testlog_26080107",
+      "status": "active",
+      "last_verified": "2026-08-01"
+    },
+    {
+      "tag": "hint/0.26.0/gpt-oss-120b/gb10-single",
+      "vllm": "0.26.0",
+      "model": "gpt-oss-120b",
+      "arch": "gb10-single",
+      "topology": "single 1노드",
+      "brief": "gpt-oss-120b MXFP4 MoE 128e · single tp=1 · **auto 백엔드 기동실패 → HUMMING 필수** · 컨텍스트 민감도 3.8배 · 성능 **REFUTE**",
+      "anchor": "1d313420b19936e9c3dbdc3d2287a04188dd1ae9",
+      "related": "testlog_26080114",
+      "status": "active",
+      "last_verified": "2026-08-01"
+    },
+    {
       "tag": "hint/0.26.0/lfm2-8b-a1b/gb10",
       "vllm": "0.26.0",
       "model": "lfm2-8b-a1b",
@@ -324,6 +348,18 @@
       "related": "testlog_26073115,testlog_26073116,testlog_26073117",
       "status": "active",
       "last_verified": "2026-07-31"
+    },
+    {
+      "tag": "hint/0.26.0/olmo-3.1-32b/gb10",
+      "vllm": "0.26.0",
+      "model": "olmo-3.1-32b",
+      "arch": "gb10",
+      "topology": "single 1노드",
+      "brief": "Olmo-3.1-32B-Instruct(`allenai/Olmo-3.1-32B-Instruct`) bf16 dense · 하이브리드 sliding48+full16 · KV 88.0 KiB/token(**sliding = 윈도우×2**) · full 벤치 PASS(MBU 87.5%)",
+      "anchor": "88c6bc1e1ca3baef29788a8e35b19dd2cf1cab3d",
+      "related": "testlog_26080110",
+      "status": "active",
+      "last_verified": "2026-08-01"
     }
   ]
 }
