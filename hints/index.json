@@ -206,6 +206,18 @@
       "last_verified": "2026-07-19"
     },
     {
+      "tag": "hint/0.25.1/gemma-4-e2b-it/rtx5090",
+      "vllm": "0.25.1",
+      "model": "gemma-4-e2b-it",
+      "arch": "rtx5090",
+      "topology": "single 1노드",
+      "brief": "vLLM 0.25.1 NGC26.05 source-build, RTX5090(sm_120) 16GiB예산 fp8 가중치+KV, max-model-len 131072(모델네이티브최대) batch1 최대-context 전략, WSL2 pin-memory 게이트 대응",
+      "anchor": "",
+      "related": "-",
+      "status": "active",
+      "last_verified": "2026-07-20"
+    },
+    {
       "tag": "hint/0.25.1/gpt-oss-120b/rtxpro6000",
       "vllm": "0.25.1",
       "model": "gpt-oss-120b",
