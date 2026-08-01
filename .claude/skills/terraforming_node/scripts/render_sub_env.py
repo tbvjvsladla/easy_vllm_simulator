@@ -275,6 +275,43 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
         os.chmod(dst, mode)
         produced.append(rel)
 
+    # 4.6) 노드 블랙박스(plan_26073109 §Phase 3·5). host_safety 와 **동형** 배선이다.
+    #   ★ 이 블록이 없던 동안 node_blackbox 는 수동 rsync 로만 서브에 갔고, 커밋되지 않은 그
+    #     잔재가 2026-08-01 정식 배달을 dirty 로 막았다(policy:SUB_SYNC_DIRTY_FAIL_CLOSED).
+    #     "배달 경로가 없으면 사람이 우회한다 — 그리고 그 우회가 다음 정식 경로를 막는다."
+    #   ★ offline/*.deb 는 **배달하지 않는다**. `.gitignore:228` 이 offline/ 전체를 비추적으로 두는데,
+    #     서브 배달은 git 인덱스 권위(ls-files→checkout-index)라 비추적물은 스냅샷에 아예 없다.
+    #     정책을 뒤집지 않고 따른다 — 이 프로젝트는 바이너리가 아니라 스켈레톤+생성엔진을 배포한다.
+    #     결과: 서브의 earlyoom 설치는 `apt-get install -y earlyoom` 폴백 경로를 탄다
+    #     (install_node_blackbox.sh:278-280 이 이미 그렇게 분기한다). egress 가 막힌 서브라면
+    #     운영자가 deb 를 수동으로 넣어야 하며, 그 사실이 여기 기록돼 있다.
+    blackbox_src = os.path.join(
+        REPO, ".claude", "skills", "terraforming_node", "scripts", "node_blackbox")
+    blackbox_files = (
+        ("mem_watchdog_eta.sh", "mem_watchdog_eta.sh", 0o755),
+        ("blackbox_collect.py", "blackbox_collect.py", 0o755),
+        ("blackbox_events.py", "blackbox_events.py", 0o755),
+        ("blackbox_eta.py", "blackbox_eta.py", 0o644),
+        ("blackbox_session.py", "blackbox_session.py", 0o644),
+        ("logs_lifecycle.py", "logs_lifecycle.py", 0o755),
+        ("seed_from_journal.py", "seed_from_journal.py", 0o755),
+        ("install_node_blackbox.sh", "install_node_blackbox.sh", 0o755),
+        ("verify_node_blackbox.sh", "verify_node_blackbox.sh", 0o755),
+        ("purge_host_safety.sh", "purge_host_safety.sh", 0o755),
+    )
+    for source_rel, delivered_rel, mode in blackbox_files:
+        src = os.path.join(blackbox_src, source_rel)
+        if not os.path.isfile(src):
+            raise SystemExit(
+                "[render_sub_env] NODE_BLACKBOX_SOURCE_MISSING: "
+                f"canonical terraforming asset absent: {source_rel}")
+        rel = os.path.join(".claude", "runtime", "node_blackbox", delivered_rel)
+        dst = os.path.join(out_dir, rel)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copyfile(src, dst)
+        os.chmod(dst, mode)
+        produced.append(rel)
+
     # 5) 서브 로컬 git .gitignore (D12 — placeholder 없는 정적자산 그대로 복제)
     gi_src = os.path.join(SUBNODE_DIR, "gitignore.template")
     if os.path.isfile(gi_src):
@@ -402,7 +439,18 @@ def _self_test() -> int:
                        ".claude/runtime/host_safety/install_host_safety.sh",
                        ".claude/runtime/host_safety/install_netconsole.sh",
                        ".claude/runtime/host_safety/systemd/easy-vllm-memwatch.service",
-                       ".claude/runtime/host_safety/host/vllm-drop-caches.sh"]
+                       ".claude/runtime/host_safety/host/vllm-drop-caches.sh",
+                       # 노드 블랙박스: 하나라도 빠지면 fail-loud (수동 rsync 우회 재발 차단)
+                       ".claude/runtime/node_blackbox/mem_watchdog_eta.sh",
+                       ".claude/runtime/node_blackbox/blackbox_collect.py",
+                       ".claude/runtime/node_blackbox/blackbox_events.py",
+                       ".claude/runtime/node_blackbox/blackbox_eta.py",
+                       ".claude/runtime/node_blackbox/blackbox_session.py",
+                       ".claude/runtime/node_blackbox/logs_lifecycle.py",
+                       ".claude/runtime/node_blackbox/seed_from_journal.py",
+                       ".claude/runtime/node_blackbox/install_node_blackbox.sh",
+                       ".claude/runtime/node_blackbox/verify_node_blackbox.sh",
+                       ".claude/runtime/node_blackbox/purge_host_safety.sh"]
         have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
         missing_art = [p for p in base_expect if not os.path.exists(os.path.join(out, p))]
         # docs 스켈레톤: docs.md 계약 5종(DOC_TYPES) 전부 렌더됐나(simlog·benchmark 누락 회귀 차단 — review)

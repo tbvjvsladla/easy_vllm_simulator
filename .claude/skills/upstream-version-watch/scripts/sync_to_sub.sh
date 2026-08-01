@@ -194,6 +194,17 @@ TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);
 BAND2_CONFIGS=(serve_runner.sh debug-init.sh arm_patch.sh)   # topology-keyed 분산서빙 인프라(Band2, 멀티). arm_patch.sh=모델구동 패치 arming(제네릭 결정론·양노드)
 BAND2_ENVS=(.env.interconnect .env.cluster)          # topology/network-keyed env(Band2): NCCL(.interconnect) + 클러스터배포(.cluster=S6 materialize)
 BAND2_TOP=(Dockerfile Dockerfile.source-build Dockerfile.source-build-upstage docker-compose.yaml requirements.txt .gitkeep)  # 최상위 빌드킷(Band2)
+# output/<t>/ 최상위 **비전송** 경로의 단일 소유. 세 소비자가 전부 여기서 파생한다:
+#   _band2_filters(rsync --exclude) · validate_remote_deletion_tree(서브 walk) · validate_inventory_tree(로컬 walk).
+# ★ 목록을 두 벌 두면 갈라진다 — 이 프로젝트는 파서 두 벌(D4↔D6)·TP 오카운트 7사이트로 같은 계열
+#   사고를 이미 겪었다. 갈라졌을 때의 실해악이 2026-08-01 에 현실화됐다: rsync 는 cache/ 를 제외하는데
+#   검증기는 그걸 걷어서, 컨테이너가 root 로 만든 **빈 캐시 디렉터리** 하나가 모든 후속 배달을 영구
+#   차단했다(비-root 서브 계정은 자력 해소 불가 → 매번 사람 sudo). 검증기의 시야는 전송 범위를
+#   넘지 않는다 — 롤백은 rsync 가 바꿀 수 있는 것만 덮으면 되기 때문이다.
+# 근거: manifest.yaml=D10 · .env=serve-time node-local host config(PII, render --materialize-env 산출) ·
+#   sub_provision=overlay 소관 · benchlog=adversarial-benchmark 생성 증거(빌드입력 ✗, plan_26063014) ·
+#   cache·tiktoken_cache=노드-로컬 JIT·tokenizer 캐시(빌드입력 ✗·전파 ✗, plan_26072217).
+BAND2_EXCLUDED_TOP=(manifest.yaml sub_provision .env benchlog cache tiktoken_cache)
 BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)          # owner-local provenance-bound runtime patches; wildcard authority 금지
 # ↑ Dockerfile.source-build-upstage = Solar-Open2 변종 트랙(UpstageAI 포크 @ v0.22.0-solar-open2).
 #   Band2 편입 근거 = **빌드-평면**: 멀티는 클러스터-와이드 이미지라 슬레이브도 동일 이미지를 빌드해야 한다
@@ -201,8 +212,9 @@ BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)          # owner-local provenance-b
 #   **벤더**명이며 stock 0.22.0 의 superset. Band3 모델 트리플렛은 계속 배제.
 
 _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = output/<t>/.
-    FILT=(--exclude='/manifest.yaml' --exclude='/sub_provision' --exclude='/.env' --exclude='/benchlog' --exclude='/cache' --exclude='/tiktoken_cache')   # D10 manifest·serve-time .env(node-local host config·PII, render --materialize-env 산출) 미전달 · benchlog=adversarial-benchmark 생성 증거(빌드입력 아님, plan_26063014) · cache/tiktoken_cache=노드-로컬 JIT·tokenizer 캐시(빌드입력 ✗·전파 ✗, plan_26072217) · 에이전트환경=overlay
+    FILT=()
     local f
+    for f in "${BAND2_EXCLUDED_TOP[@]}"; do FILT+=(--exclude="/$f"); done   # 단일 소유 = BAND2_EXCLUDED_TOP
     FILT+=(--include='/configs/')
     for f in "${BAND2_CONFIGS[@]}"; do FILT+=(--include="/configs/$f"); done
     for f in "${BAND2_RUNTIME_PATCH_STEMS[@]}"; do
@@ -253,7 +265,8 @@ assert_band_classification() {  # $1=topology → 0=ok, 1=미분류·누락
         _b2p["${b}_patch.py"]=1
         _b2p["${b}_patch.provenance.json"]=1
     done
-    for b in "${BAND2_TOP[@]}" configs envs build_patches manifest.yaml sub_provision .env benchlog cache tiktoken_cache; do _b2top["$b"]=1; done
+    # 제외 목록은 손으로 적지 않는다 — BAND2_EXCLUDED_TOP 단일 소유에서 파생한다(네 번째 소비자).
+    for b in "${BAND2_TOP[@]}" configs envs build_patches "${BAND2_EXCLUDED_TOP[@]}"; do _b2top["$b"]=1; done
 
     # (a) (d-cg-4) 최상위 — 빌드킷·서브디렉토리·의도적 제외(manifest/sub_provision) 외 미지 항목 fail-loud
     for f in "$odir"/*; do
@@ -488,11 +501,17 @@ validate_inventory_relative_path() { # $1=repo-relative path
     esac
 }
 
-validate_inventory_tree() { # $1=root
-    local root="$1" path rel
+validate_inventory_tree() { # $1=root  $2=1 이면 BAND2_EXCLUDED_TOP 최상위 prune(output/<t> 트리 전용)
+    # prune 근거는 validate_remote_deletion_tree 와 동일 — 검사 범위 = 전송 범위.
+    local root="$1" prune="${2:-0}" path rel ex
     [ -d "$root" ] || return 0
     while IFS= read -r -d '' path; do
         rel="${path#"$root/"}"
+        if [ "$prune" = "1" ]; then
+            for ex in "${BAND2_EXCLUDED_TOP[@]}"; do
+                [ "$rel" = "$ex" ] || [ "${rel#"$ex/"}" != "$rel" ] && continue 2
+            done
+        fi
         validate_inventory_relative_path "$rel" || return 9
         if [ -d "$path" ] && [ -z "$(find "$path" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
             echo "[sync] FAIL: empty directories are undeclared transfer artifacts: $path" >&2
@@ -502,26 +521,32 @@ validate_inventory_tree() { # $1=root
 }
 
 validate_remote_deletion_tree() { # $1=topology
-    local root="${DEST}output/$1"
+    # ★ 검사 범위는 **전송 범위와 일치**해야 한다. rsync 가 제외하는 최상위 경로(BAND2_EXCLUDED_TOP)는
+    #   이 트랜잭션이 바꿀 수 없으므로 롤백 인벤토리에 들 이유가 없고, 따라서 검사 대상도 아니다.
+    #   (2026-08-01: 이 prune 이 없어서 컨테이너가 root 로 만든 빈 cache 디렉터리가 배달을 영구 차단했다.)
+    local root="${DEST}output/$1" skip
+    skip="$(IFS=:; printf '%s' "${BAND2_EXCLUDED_TOP[*]}")"
     $SSH_OPTS "$SUB_HOST" "python3 -c 'import os,sys
-root=sys.argv[1]
+root,skip=sys.argv[1],set(x for x in sys.argv[2].split(\":\") if x)
 if not os.path.isdir(root): raise SystemExit(0)
 for base,dirs,files in os.walk(root):
+ if base==root: dirs[:]=[d for d in dirs if d not in skip]
  for name in dirs+files:
+  if base==root and name in skip: continue
   raw=os.fsencode(name)
   if any(byte<=32 or byte==127 for byte in raw): raise SystemExit(9)
  for name in dirs:
   path=os.path.join(base,name)
   if not os.listdir(path): raise SystemExit(9)
-' '$root'" || { echo "[sync] FAIL: destination deletion inventory has whitespace/control path or empty directory" >&2; return 9; }
+' '$root' '$skip'" || { echo "[sync] FAIL: destination deletion inventory has whitespace/control path or empty directory" >&2; return 9; }
 }
 
 build_remote_touch_inventory() { # $1=topology $2=output file
     local t="$1" out="$2" st rel line scan
     st="$(staging_dir "$t")"
     : >"$out"
-    validate_inventory_tree "$st" || return 9
-    validate_inventory_tree "${SRC}output/$t" || return 9
+    validate_inventory_tree "$st" || return 9                    # 오버레이 staging — prune 없음(전량 전송 대상)
+    validate_inventory_tree "${SRC}output/$t" 1 || return 9       # output/<t> — 전송 제외 최상위는 prune
     if [ -d "$st" ]; then
         while IFS= read -r -d '' rel; do printf '%s\n' "${rel#"$st/"}" >>"$out"; done \
             < <(find "$st" \( -type f -o -type l \) -print0)
@@ -580,9 +605,40 @@ begin_remote_transaction() { # $1=topology $2=bootstrap(0/1)
     echo "[sync] remote rollback transaction prepared: branch=$branch paths=$($SSH_OPTS "$SUB_HOST" "wc -l < '$tx/paths'")"
 }
 
+# 원격 git 락 유계 대기. 롤백의 모든 git 조작 앞에 선다.
+#
+# ★ 왜 필요한가(2026-08-01 실화): 오케스트레이터가 SIGTERM 을 받으면 EXIT trap 이 **즉시** 롤백을
+#   실행한다. 그런데 ssh 는 TTY 없이 돌므로 SIGHUP 이 원격에 전파되지 않아, 방금 띄운 `git add -A`
+#   가 서브에서 **계속 살아있다**. 롤백은 그 고아가 쥔 index.lock 에 부딪혀 한 번 시도하고
+#   CRITICAL 로 떨어졌다. 고아 프로세스는 막을 수 없지만, **기다리지 않는 것**은 고칠 수 있다.
+#
+# ★ 락을 **자동 삭제하지 않는다.** 같은 날 나는 이 락을 stale 로 오판했는데 실제로는 `git add -A`
+#   가 살아 있었다 — 지웠다면 진행 중인 인덱스 쓰기를 깨뜨렸을 것이다. 판별만 하고 처방은 사람에게 넘긴다.
+wait_for_remote_git_lock() {  # $1=최대 대기초(기본 90)
+    local max="${1:-90}"
+    $SSH_OPTS "$SUB_HOST" "
+        lock='$SUB_WORK_DIR/.git/index.lock'
+        [ -e \"\$lock\" ] || exit 0
+        echo '[sync] 원격 git 락 관측 — 최대 ${max}s 대기(자동 삭제하지 않는다)' >&2
+        i=0
+        while [ -e \"\$lock\" ] && [ \"\$i\" -lt $max ]; do sleep 3; i=\$((i+3)); done
+        if [ ! -e \"\$lock\" ]; then echo \"[sync] 원격 git 락 해제됨(대기 \${i}s)\" >&2; exit 0; fi
+        if pgrep -f 'git (add|commit|checkout|reset|status)' >/dev/null 2>&1; then
+            echo '[sync] 원격 git 이 여전히 실행 중 — 진행 중인 작업이다. 락을 지우지 말고 완료를 기다려라.' >&2
+            exit 10
+        fi
+        echo '[sync] 원격 git 프로세스는 없는데 락이 남아 있다(stale 로 보인다). 사람이 확인 후 제거하면 재시도 가능:' >&2
+        echo \"[sync]   ssh $SUB_HOST rm -f \$lock\" >&2
+        exit 11
+    "
+}
+
 rollback_remote_transactions() {
     [ ${#REMOTE_TX_DIRS[@]} -gt 0 ] || return 0
     echo "[sync] ROLLBACK: restoring ${#REMOTE_TX_DIRS[@]} remote transaction(s)" >&2
+    # 락이 살아있는 채로 롤백에 들어가면 반드시 실패한다 — 먼저 기다린다. 대기가 실패해도
+    # 롤백은 시도한다(백업은 어차피 보존되며, 아래 CRITICAL 메시지가 복구 경로를 남긴다).
+    wait_for_remote_git_lock 90 || echo "[sync] WARN: 원격 락이 남은 채로 롤백을 시도한다 — 실패할 수 있다." >&2
     local i tx branch head fail=0 root_tx="${REMOTE_TX_DIRS[0]}"
     if [ "${REMOTE_TX_BOOTSTRAPS[0]}" = "1" ]; then
         $SSH_OPTS "$SUB_HOST" "set -eu; if [ -f '$root_tx/workdir-absent' ]; then rm -rf -- '$SUB_WORK_DIR'; elif [ -f '$root_tx/workdir-existed' ]; then rm -rf -- '$SUB_WORK_DIR'; mkdir -p -- \"\$(dirname '$SUB_WORK_DIR')\"; cp -a -- '$root_tx/workdir-backup' '$SUB_WORK_DIR'; else echo '[sync] FAIL: bootstrap transaction lacks workdir origin marker' >&2; exit 9; fi" || fail=1
@@ -684,6 +740,27 @@ deliver_build() {  # $1=topology $2=dry(0/1)
         return 9
     fi
     ndel="$(printf '%s\n' "$dry_out" | awk '/^\*deleting/{n++} END{print n+0}')"
+    # ★ 브랜치 불일치 감지 — ALLOW_DELETE 로 뚫을 수 없는 별개 게이트.
+    #   `output/<t>/` 빌드킷은 **해당 토폴로지 브랜치에서만** 추적된다(single-node 인덱스엔
+    #   output/multi/.gitkeep 하나뿐). 그래서 single-node 체크아웃으로 `--branch multi` 를 배달하면
+    #   SRC 에 multi 빌드킷이 없고, rsync --delete 가 서브의 정상 빌드킷을 **지우려 든다**.
+    #   삭제brake 는 개수만 말하므로, 운영자가 안내대로 ALLOW_DELETE=<n> 을 주면 그대로 파괴된다
+    #   (2026-08-01 실제로 8건이 이 상태로 잡혔다 — Dockerfile·docker-compose·build_patches 4종).
+    #   브랜치 이름으로 토폴로지를 추론하지 않는다(헌법) — **증거로** 판정한다:
+    #   "정본이 이 토폴로지의 빌드킷을 갖고 있지 않은데 목적지는 갖고 있다" = 정합 실패.
+    if [ "${ndel:-0}" -gt 0 ]; then
+        local bk missing_bk=0
+        for bk in Dockerfile docker-compose.yaml; do
+            [ -f "${src%/}/$bk" ] || missing_bk=1
+        done
+        if [ "$missing_bk" = "1" ] \
+           && printf '%s\n' "$dry_out" | grep -qE '^\*deleting +(Dockerfile|docker-compose\.yaml|build_patches/)'; then
+            echo "[sync] STOP(브랜치 불일치): 정본 체크아웃에 output/$1 빌드킷이 없는데 서브에는 있다." >&2
+            echo "[sync]   → 이 삭제는 정리가 아니라 **잘못된 브랜치에서의 배달**이다. ALLOW_DELETE 로 뚫지 마라." >&2
+            echo "[sync]   → output/$1 빌드킷을 추적하는 브랜치로 체크아웃한 뒤 재실행하라(현재: $(git -C "$CANONICAL_SRC" rev-parse --abbrev-ref HEAD 2>/dev/null))." >&2
+            return 9
+        fi
+    fi
     if [ "${ndel:-0}" -gt "${ALLOW_DELETE:-0}" ]; then
         echo "[sync] STOP(S4 삭제brake): $1 삭제예정 ${ndel}건 > ALLOW_DELETE=${ALLOW_DELETE:-0} — 삭제 前 fail-closed(부분삭제 없음). 의도된 정리면 ALLOW_DELETE=${ndel} 로 재실행." >&2
         return 9

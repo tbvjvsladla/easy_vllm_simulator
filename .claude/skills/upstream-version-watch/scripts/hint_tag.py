@@ -32,7 +32,7 @@ import re
 import shlex
 import subprocess
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 TAG_SHAPE = re.compile(r"^hint/[^/]+/[^/]+/[^/]+$")
@@ -124,6 +124,7 @@ HINT_ACTION_FOR_CMD: dict[str, str] = {
     "reindex": "hint_reindex",
     "push": "hint_push",
     "reverify": "hint_reverify",
+    "pin-legacy": "hint_reindex",   # 카탈로그 정합 계열 — reindex 와 같은 권한면
 }
 
 
@@ -1150,6 +1151,115 @@ def _load_legacy_v1_pins() -> dict:
         return {}
 
 
+def _pins_effective_utc() -> str:
+    """핀 목록의 v2 발효 시각. 부재/불량이면 빈 문자열 → pre-effective 판정을 하지 않는다."""
+    try:
+        with open(LEGACY_PINS_FILE, encoding="utf-8") as f:
+            return str((json.load(f) or {}).get("effective_utc") or "")
+    except (OSError, ValueError):
+        return ""
+
+
+def _tag_is_pre_effective(tag: str):
+    """태그의 tagger 시각이 v2 발효보다 앞서면 True. 판정 불가면 None.
+
+    ★ 이 함수는 **진단에만** 쓴다. 자동 핀에 쓰지 않는다 — tagger 날짜는 태그 오브젝트 안에 있어
+      신규 위조 태그가 날짜를 소급해 빈티지를 참칭할 수 있다. 핀의 보안 가치는 '알려진 시점에
+      사람이 열거했다' 는 데 있으므로, 등재는 언제나 사람 게이트를 통과해야 한다.
+    """
+    eff = _pins_effective_utc()
+    if not eff:
+        return None
+    try:
+        raw = subprocess.run(["git", "for-each-ref", "--format=%(taggerdate:iso-strict)",
+                              f"refs/tags/{tag}"], capture_output=True, text=True).stdout.strip()
+        if not raw:
+            return None
+        tagged = datetime.fromisoformat(raw)
+        effective = datetime.fromisoformat(eff.replace("Z", "+00:00"))
+    except (OSError, ValueError):
+        return None
+    return tagged < effective
+
+
+def _legacy_remedy_hint(problems: list) -> str:
+    """차단된 태그 중 pre-effective 인 것에 대해 **정확한 해소 명령**을 문자열로 만든다.
+
+    종전엔 'binding 이 없다' 는 일반 문구뿐이라, 피어 호스트가 v2 발효 이전에 발행한 태그를
+    뒤늦게 페치하면 사람이 legacy_v1_pins.json 을 **손으로 열어 편집**하는 수밖에 없었다
+    (2026-08-01 hint/0.25.1/gemma-4-e2b-it/rtx5090 실제 발생). 핀 목록의 입력이 '로컬에 있던
+    태그' 집합이라 구조적으로 재발한다 — 사람 게이트는 유지하되 경로는 제시한다.
+    """
+    lines = []
+    for p in problems:
+        if "HINT_EVIDENCE_BINDING_MISSING" not in p:
+            continue
+        tag = p.split(":", 1)[0].strip()
+        if not tag.startswith("hint/") or _tag_is_pre_effective(tag) is not True:
+            continue
+        lines.append(
+            f"  ↳ {tag} 는 tagger 시각이 v2 발효({_pins_effective_utc()})보다 **앞선다** = v1 빈티지 후보다.\n"
+            f"    핀 목록이 로컬 태그만으로 만들어져 누락된 것일 수 있다(피어 호스트 발행분). 사람 확인 후:\n"
+            f"      python3 .claude/skills/upstream-version-watch/scripts/hint_tag.py pin-legacy \\\n"
+            f"        --tag {tag} --manifest <promotion-ready work-manifest>")
+    return ("\n\n[hint_tag] v1 빈티지 후보 감지 — 해소 경로:\n" + "\n".join(lines)) if lines else ""
+
+
+def cmd_pin_legacy(a: argparse.Namespace) -> int:
+    """v2 발효 이전에 발행된 footer-없는 태그를 legacy_v1_pins 에 SHA 로 등재한다.
+
+    세 조건을 **전부** 만족해야 등재한다(하나라도 어긋나면 거부, 부분 기록 없음):
+      ① 태그에 evidence-binding footer 가 실제로 없다 (있으면 v2 태그이므로 핀 대상이 아니다)
+      ② tagger 시각 < effective_utc (post-effective 태그의 빈티지 참칭 차단)
+      ③ 아직 핀되어 있지 않다 (기존 핀 덮어쓰기 = 변조 탐지 무력화)
+    """
+    _require_promotion_authorization("pin-legacy", a.manifest)
+    tag = a.tag
+    if tag not in set(existing_hint_tags()):
+        print(f"[hint_tag] FAIL: 존재하지 않는 태그: {tag}", file=sys.stderr)
+        return 2
+
+    footer, _ = _validate_hint_tag_evidence(tag, "hint_pin_legacy")
+    if footer is not None:
+        print(f"[hint_tag] FAIL: {tag} 에는 evidence-binding footer 가 있다 — v2 태그는 핀 대상이 아니다.",
+              file=sys.stderr)
+        return 2
+
+    pre = _tag_is_pre_effective(tag)
+    eff = _pins_effective_utc()
+    if pre is not True:
+        why = "판정 불가(tagger 시각/발효시각 해석 실패)" if pre is None else f"tagger 시각이 발효({eff}) 이후"
+        print(f"[hint_tag] FAIL: {tag} 는 v1 빈티지가 아니다 — {why}. "
+              "v2 태그는 evidence-binding 을 갖춰야 한다(핀으로 우회 불가).", file=sys.stderr)
+        return 2
+
+    try:
+        with open(LEGACY_PINS_FILE, encoding="utf-8") as f:
+            doc = json.load(f)
+    except (OSError, ValueError) as e:
+        print(f"[hint_tag] FAIL: 핀 목록을 읽을 수 없다: {e}", file=sys.stderr)
+        return 2
+    pins = doc.get("pins") or {}
+    if tag in pins:
+        print(f"[hint_tag] FAIL: {tag} 는 이미 핀되어 있다(pin={pins[tag][:12]}). "
+              "덮어쓰기는 변조 탐지를 무력화하므로 거부한다.", file=sys.stderr)
+        return 2
+
+    sha = subprocess.run(["git", "rev-parse", "--verify", tag],
+                         capture_output=True, text=True).stdout.strip()
+    if not sha:
+        print(f"[hint_tag] FAIL: {tag} 의 오브젝트 SHA 해소 실패", file=sys.stderr)
+        return 2
+
+    pins[tag] = sha
+    doc["pins"] = dict(sorted(pins.items()))
+    with open(LEGACY_PINS_FILE, "w", encoding="utf-8") as f:
+        f.write(json.dumps(doc, ensure_ascii=False, indent=2) + "\n")
+    print(f"[hint_tag] pin-legacy: {tag}\n  obj={sha}\n  근거=tagger 시각 < effective_utc({eff}) · footer 부재\n"
+          f"  핀 총계={len(doc['pins'])}. 이후 SHA 가 바뀌면 v2 조건이 강제된다(변조 탐지 보존).")
+    return 0
+
+
 def _require_all_hint_tags_evidence_valid(action: str) -> None:
     """모든 hint 태그의 evidence-binding 검증 — **계약 v2 분류**(hints/HINT_ISSUANCE_CONTRACT.md §5).
 
@@ -1282,7 +1392,8 @@ def cmd_reindex(a: argparse.Namespace) -> int:
         _die_binding("hint_reindex", ["HINT_EVIDENCE_BINDING_INCOMPLETE"],
                      {"HINT_EVIDENCE_BINDING_INCOMPLETE":
                       "one or more hint tags carry forged/drifted evidence, or a v2-era tag lacks "
-                      "its binding -- refusing (no partial rewrite):\n  " + "\n  ".join(problems)},
+                      "its binding -- refusing (no partial rewrite):\n  " + "\n  ".join(problems)
+                      + _legacy_remedy_hint(problems)},
                      None, None)
     idx = _load_index()
     prev = {e["tag"]: e for e in idx["hints"]}
@@ -1369,6 +1480,12 @@ def main() -> int:
     ri = sub.add_parser("reindex", help="전 hint 태그에서 index.json+HINTS.md 재생성(브랜치 드리프트 정합·currency 보존)")
     ri.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
     ri.set_defaults(fn=cmd_reindex)
+
+    pl = sub.add_parser("pin-legacy",
+                        help="v2 발효 이전 발행 + footer 부재 태그를 legacy_v1_pins 에 SHA 등재(피어 호스트 태그 뒤늦은 페치 대응)")
+    pl.add_argument("--tag", required=True)
+    pl.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
+    pl.set_defaults(fn=cmd_pin_legacy)
 
     a = ap.parse_args()
     if a.cmd != "match":
