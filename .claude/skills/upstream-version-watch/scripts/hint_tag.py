@@ -487,8 +487,7 @@ def _resolve_evidence_footer_fields(action: str, manifest: dict, resolved_manife
                          identity, manifest.get("task_class"))
         manifest_sha256 = r_manifest["sha256"]
 
-        cert_item = (manifest.get("evidence") or {}).get("certificate")
-        cert_path_str = cert_item.get("path") if isinstance(cert_item, dict) else None
+        cert_path_str = _binding_artifact_path(manifest)
         if not cert_path_str:
             _die_binding(action, ["HINT_CERTIFICATE_EVIDENCE_MISSING"],
                          {"HINT_CERTIFICATE_EVIDENCE_MISSING":
@@ -692,6 +691,9 @@ def cmd_finalize(a: argparse.Namespace) -> int:
     if "TODO(judgment" in body:
         die("[hint_tag] FAIL: 레시피에 TODO(judgment) 슬롯이 남아있음 — 에이전트가 저작해야 함.")
 
+    # perf_waiver(성능 REFUTE 사람승인)가 있으면 경고가 본문에 실제로 담겼는지 fail-closed 확인.
+    _require_perf_warning("hint_finalize", manifest, body)
+
     terms = load_pii_terms()
     if terms is None:
         die("[hint_tag] FAIL(fail-closed): .claude/pii_terms.txt 부재 — PII-clean 인증 불가.")
@@ -886,8 +888,7 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
     if identity_sha != footer["identity_sha256"]:
         problems.append(f"{tag}: HINT_EVIDENCE_IDENTITY_SHA_MISMATCH {identity_sha} != {footer['identity_sha256']}")
 
-    ref_cert_item = (ref_manifest.get("evidence") or {}).get("certificate")
-    ref_cert_path = ref_cert_item.get("path") if isinstance(ref_cert_item, dict) else None
+    ref_cert_path = _binding_artifact_path(ref_manifest)
     if ref_cert_path != footer["certificate_ref"]:
         problems.append(f"{tag}: HINT_EVIDENCE_CERTIFICATE_REF_MISMATCH footer.certificate_ref="
                          f"{footer['certificate_ref']!r} != manifest evidence.certificate.path={ref_cert_path!r}")
@@ -994,10 +995,33 @@ def _require_serving_evidence(action: str, manifest: dict) -> None:
         if any(c.get("oom_killed") for c in (rt.get("containers") or []) if isinstance(c, dict)):
             problems.append("컨테이너가 oom_killed — 서빙 성공으로 볼 수 없다")
 
-    # B: 인증서의 lite 열. 인증서가 없으면 lite 증거도 없다.
-    cert_rel = ((manifest.get("evidence") or {}).get("certificate") or {}).get("path") \
-        if isinstance(manifest.get("evidence"), dict) else None
-    if not cert_rel:
+    # B: lite 정량지표. 통상은 인증서에서 읽는다.
+    #    ★ 단 **perf_waiver 경로(REFUTE)** 에서는 인증서가 애초에 존재할 수 없다 —
+    #      publish_benchmark_record 가 PASS 때만 인증서를 내기 때문이다(그 규칙은 유지한다).
+    #      그러나 lite 실측 자체는 **항상 발행되는 bench_report** 에 실려 있으므로,
+    #      waiver 경로에서는 리포트를 B 의 근거로 삼는다. "증거가 없다"가 아니라
+    #      "증거가 다른 문서에 있다" 이므로 요구 강도를 낮추는 것이 아니다.
+    ev = manifest.get("evidence") if isinstance(manifest.get("evidence"), dict) else {}
+    waiver = ((manifest.get("benchmark") or {}).get("perf_waiver")
+              if isinstance(manifest.get("benchmark"), dict) else None)
+    cert_rel = (ev.get("certificate") or {}).get("path")
+    if not cert_rel and waiver:
+        rep_rel = (ev.get("bench_report") or {}).get("path")
+        if not rep_rel:
+            problems.append("perf_waiver 경로인데 evidence.bench_report 도 없다 — lite 근거 부재")
+        else:
+            rep_path = (ROOT / "docs" / "_evidence" / rep_rel).resolve()
+            try:
+                rtext = rep_path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                rtext = ""
+                problems.append(f"bench_report 를 읽을 수 없다: {rep_rel}")
+            if rtext:
+                if "lite 지표" not in rtext:
+                    problems.append("bench_report 에 lite 지표 절 부재 — full ⊇ lite 가 깨졌다")
+                if not re.search(r"gen tokens/sec[^|]*\|\s*[0-9]", rtext):
+                    problems.append("bench_report 의 lite warm gen 실측값 부재")
+    elif not cert_rel:
         problems.append("evidence.certificate 부재 — lite 정량지표를 확인할 수 없다")
     else:
         cert_path = (ROOT / "docs" / "_evidence" / cert_rel).resolve()
@@ -1017,6 +1041,63 @@ def _require_serving_evidence(action: str, manifest: dict) -> None:
                      {"HINT_SERVING_EVIDENCE_INSUFFICIENT":
                       "hints/HINT_ISSUANCE_CONTRACT.md §3 발행 조건 미충족 — "
                       "서빙 성공과 lite 정량지표가 모두 증명돼야 한다:\n  " + "\n  ".join(problems)},
+                     manifest.get("identity") if isinstance(manifest, dict) else None,
+                     manifest.get("task_class") if isinstance(manifest, dict) else None)
+
+
+def _binding_artifact_path(manifest: dict) -> "str | None":
+    """footer 가 해시로 묶을 **계측 산출물 경로**의 단일 소유자.
+
+    통상은 인증서다. 단 perf_waiver(성능 REFUTE 사람승인) 경로에는 인증서가 애초에 존재할 수
+    없으므로(publish_benchmark_record 가 PASS 때만 발행 — 그 규칙은 유지) **항상 발행되는
+    bench_report** 를 바인딩 대상으로 삼는다. 요구를 낮추는 게 아니라 대상 문서가 다를 뿐이다.
+
+    ★ 이 판정이 finalize·verify 두 곳에 **각각 박혀 있어** 한쪽만 고치면 즉시 불일치가 난다
+      (2026-08-01 실측: finalize 는 리포트로 묶었는데 verify 는 인증서와 비교해 FAIL).
+      그래서 한 함수로 모은다 — 오늘 반복해서 확인한 "같은 가정이 여러 곳" 결함 계열이다.
+    """
+    ev = manifest.get("evidence") if isinstance(manifest, dict) else None
+    ev = ev if isinstance(ev, dict) else {}
+    cert = ev.get("certificate")
+    path = cert.get("path") if isinstance(cert, dict) else None
+    if path:
+        return path
+    waiver = ((manifest.get("benchmark") or {}).get("perf_waiver")
+              if isinstance(manifest, dict) and isinstance(manifest.get("benchmark"), dict) else None)
+    if waiver:
+        rep = ev.get("bench_report")
+        return rep.get("path") if isinstance(rep, dict) else None
+    return None
+
+
+PERF_WARNING_MARKER = "PERF-WARNING"
+
+
+def _require_perf_warning(action: str, manifest: dict, recipe_text: str) -> None:
+    """perf_waiver 가 있으면 **배포 산출물에 경고가 실제로 담겼는지** 확인한다(fail-closed).
+
+    waiver 의 대가가 경고 플래그인데 그 경고가 본문에 없으면 waiver 는 그냥 게이트 우회가 된다.
+    그래서 여기서 두 가지를 강제한다:
+      1) `PERF-WARNING` 마커 존재 — 기계가 찾을 수 있는 고정 토큰
+      2) manifest 의 warning_flag 텍스트가 본문에 실제로 포함 — 사람이 선언한 문구 그대로
+    (2026-08-01 사용자 결정: "루프-언틸-던을 사람 지시로 깨되 hint 에 warning flag 를 기록한다")
+    """
+    waiver = ((manifest.get("benchmark") or {}).get("perf_waiver")
+              if isinstance(manifest, dict) and isinstance(manifest.get("benchmark"), dict) else None)
+    if not waiver:
+        return
+    problems = []
+    if PERF_WARNING_MARKER not in recipe_text:
+        problems.append(f"본문에 {PERF_WARNING_MARKER} 마커가 없다")
+    wf = (waiver.get("warning_flag") or "").strip()
+    if wf and wf not in recipe_text:
+        problems.append("manifest.perf_waiver.warning_flag 문구가 본문에 그대로 실려 있지 않다")
+    if problems:
+        _die_binding(action, ["HINT_PERF_WARNING_MISSING"],
+                     {"HINT_PERF_WARNING_MISSING":
+                      "perf_waiver(성능 REFUTE 승인)가 있는데 배포 본문에 경고가 없다 — "
+                      "waiver 의 대가가 경고이므로 경고 없는 waiver 는 단순 우회다:\n  "
+                      + "\n  ".join(problems)},
                      manifest.get("identity") if isinstance(manifest, dict) else None,
                      manifest.get("task_class") if isinstance(manifest, dict) else None)
 

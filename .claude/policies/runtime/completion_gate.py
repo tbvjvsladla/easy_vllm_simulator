@@ -1722,7 +1722,35 @@ def cmd_verify(args: argparse.Namespace) -> None:
             elif mode != "full":
                 add_reason("BENCHMARK_MODE_NOT_FULL", f"benchmark.mode={mode!r} (must be 'full' for promotion)")
             elif verdict != "PASS":
-                add_reason("BENCHMARK_VERDICT_NOT_PASS", f"benchmark.verdict={verdict!r} (must be 'PASS' for promotion)")
+                # ---- human-authorized perf waiver (loop-until-done break) ----
+                # 통상 REFUTE 는 서빙전략 재수립 + 벤치마커의 측정평면 확장(마지막 평면은 사람이
+                # 수동 수집한 정보까지 투입)을 loop-until-done 으로 반복해야 한다. 그 루프는
+                # **사람의 지시로만** 중단할 수 있다(2026-08-01 사용자 결정).
+                # 그래서 이 예외는 에이전트가 추론으로 열 수 없는 **positive key** 다 —
+                # 네 필드가 전부 비어있지 않아야 하고, 하나라도 없으면 종전대로 차단한다.
+                # 대가: waiver 가 있으면 배포 산출물에 경고 플래그가 **강제**된다(hint_tag 가 집행).
+                # 주의: 이 waiver 는 승격만 연다. 인증서는 여전히 PASS 때만 발행된다
+                #       (publish_benchmark_record 무변경) — "성능이 검증됐다"는 주장은 못 만든다.
+                waiver = benchmark.get("perf_waiver") if isinstance(benchmark, dict) else None
+                fields = ("authorized_by", "authorized_at_utc", "instruction", "warning_flag")
+                waiver_ok = (
+                    isinstance(waiver, dict)
+                    and all(isinstance(waiver.get(k), str) and waiver.get(k).strip() for k in fields)
+                )
+                if waiver_ok:
+                    eligible = True
+                    add_reason(
+                        "BENCHMARK_VERDICT_WAIVED",
+                        f"benchmark.verdict={verdict!r} + 사람 승인 perf_waiver"
+                        f"(by {waiver['authorized_by']!r} at {waiver['authorized_at_utc']!r}) "
+                        f"→ 승격 허용. 배포물에 경고 플래그 강제. 인증서는 여전히 미발행.")
+                elif waiver is not None:
+                    add_reason(
+                        "BENCHMARK_PERF_WAIVER_MALFORMED",
+                        "perf_waiver 가 있으나 authorized_by/authorized_at_utc/instruction/"
+                        "warning_flag 중 비어있는 항목이 있다 — fail-closed 로 차단한다.")
+                else:
+                    add_reason("BENCHMARK_VERDICT_NOT_PASS", f"benchmark.verdict={verdict!r} (must be 'PASS' for promotion)")
             else:
                 eligible = True
 

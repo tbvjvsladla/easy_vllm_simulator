@@ -1,4 +1,4 @@
-# hint 태그 발행 계약 (v2 · 2026-07-31 발효)
+# hint 태그 발행 계약 (v2.1 · 2026-08-01 개정)
 
 > 정본. `.claude/skills/upstream-version-watch/scripts/hint_tag.py` 가 이 문서의 규약을 집행한다.
 > v1(암묵) → v2(명문) 전환이며, **v2 는 발효일 이후 생성 태그에만 적용**한다(§4 소급 금지).
@@ -41,6 +41,31 @@ full 벤치는 lite 의 **상위집합**이어야 한다. 교집합이면 lite �
 
 구조적 보장: `sweep_bench.sh` 가 `lite_bench.sh` 를 **실제로 실행해서 포함**한다(병렬 목록 유지 ✗).
 집행: `scripts/conformance_full_superset_lite.py`.
+
+## 3.2 성능 REFUTE — loop-until-done 과 사람의 중단권 (v2.1 추가)
+
+통상 성능 REFUTE 는 **여기서 끝이 아니다**. 서빙전략을 재수립하고, 벤치마커의 측정 평면을
+넓혀 가며(마지막 평면은 **사람이 수동 수집한 정보**까지 투입) **loop-until-done** 으로
+반복해야 한다. 그 루프를 중간에 멈출 수 있는 것은 **사람의 지시뿐이다.**
+
+사람이 그 지시를 내린 경우, hint 는 발행하되 **경고 플래그를 배포물에 박는다**:
+
+> 서빙 성공은 했으나 성능이 기대 이하다. 이 자료를 서빙전략 수립에 쓸 때는
+> **적대적 검증이 필요하다.**
+
+### 집행 (fail-closed · 에이전트가 스스로 열 수 없다)
+
+| 층 | 규칙 |
+|---|---|
+| work-manifest | `benchmark.perf_waiver` = `authorized_by` · `authorized_at_utc` · `instruction` · `warning_flag` **4필드 전부** 비어있지 않아야 유효 |
+| `completion_gate.py` | waiver 유효 시에만 `verdict != PASS` 로도 승격 허용(`BENCHMARK_VERDICT_WAIVED`). 하나라도 비면 `BENCHMARK_PERF_WAIVER_MALFORMED` 로 차단 |
+| `hint_tag.py finalize` | waiver 가 있으면 본문에 **`PERF-WARNING` 마커**와 **`warning_flag` 문구 원문**이 둘 다 있어야 한다. 없으면 차단 — 경고 없는 waiver 는 단순 게이트 우회다 |
+| 인증서 | **여전히 PASS 때만 발행**한다(무변경). waiver 는 승격만 열 뿐 *"성능이 검증됐다"* 는 주장을 만들지 못한다 |
+| lite 증거(§3 B) | REFUTE 경로엔 인증서가 없으므로 **항상 발행되는 bench_report** 에서 읽는다. 요구 강도를 낮추는 게 아니라 근거 문서가 다를 뿐이다 |
+
+**설계 의도**: 이 예외는 에이전트가 추론으로 열 수 없는 **positive key** 다. 사람이 명시
+선언해야 열리고, 열리는 순간 배포물에 경고가 강제된다 — 얻는 것(지도 배포)과 치르는 것(경고)이
+같은 트랜잭션 안에 있다.
 
 ## 4. 레거시(v1) 태그 — 소급 적용 금지
 

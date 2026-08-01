@@ -302,6 +302,18 @@
       "last_verified": "2026-08-01"
     },
     {
+      "tag": "hint/0.26.0/gpt-oss-120b/gb10-single",
+      "vllm": "0.26.0",
+      "model": "gpt-oss-120b",
+      "arch": "gb10-single",
+      "topology": "single 1노드",
+      "brief": "gpt-oss-120b MXFP4 MoE 128e · single tp=1 · **auto 백엔드 기동실패 → HUMMING 필수** · 컨텍스트 민감도 3.8배 · 성능 **REFUTE**",
+      "anchor": "1d313420b19936e9c3dbdc3d2287a04188dd1ae9",
+      "related": "testlog_26080114",
+      "status": "active",
+      "last_verified": "2026-08-01"
+    },
+    {
       "tag": "hint/0.26.0/lfm2-8b-a1b/gb10",
       "vllm": "0.26.0",
       "model": "lfm2-8b-a1b",
