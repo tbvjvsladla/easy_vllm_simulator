@@ -84,8 +84,24 @@ def classify(trial_result: dict, budget_gib: float, safety_margin: float) -> dic
         # failure_class 는 계약상 5종 고정이라 새 클래스를 만들지 않는다. 조정 대상은
         # kv_cache_memory_bytes 로 동일하므로 vram_oom 으로 두되 note 로 기전을 구분한다.
         # 근거: 2026-07-31 워치독 실화(KV 97.03 GiB · 하강 27.9 GiB/s · testlog_26073116).
+        # ★ 선행 가드: **예외를 남기고 죽었으면 외부 종료가 아니다.**
+        #   SIGKILL 은 프로세스를 즉사시키므로 로그가 중간에 끊기고 traceback 이 없다.
+        #   반대로 traceback/ERROR 가 있으면 엔진이 스스로 실패를 보고한 것이며, 그것이
+        #   OOM 시그니처와 안 맞는다면 **미지 실패(Model-C)** 이지 워치독 킬이 아니다.
+        #   이 가드 없이는 예컨대 cudagraph 캡처 중 Triton 커널 컴파일 실패가
+        #   "워치독 SIGKILL → KV 축소" 로 오진되고, 이어서 vram_infeasible 로 승격돼
+        #   "예산 상향/KV quant/weight quant" 라는 **완전히 무관한 처방**이 나간다.
+        #   (2026-08-01 gpt-oss-120b 실측: KV 451,428 토큰 정상 할당 · free 113.54 GiB 상태에서
+        #    capture_model() 의 mxfp4 TRITON 커널이 shape 불일치로 컴파일 실패했다.)
+        _EXC = (r"Traceback \(most recent call last\)",
+                r"\bERROR\b.*(Error|Exception)",
+                r"^\s*\w*(Error|Exception):",
+                r"CompilationError",
+                r"Engine core initialization failed")
+        has_exception = any(re.search(p, error_excerpt, re.MULTILINE) for p in _EXC)
+
         kv_seen = _profile_gib(profile, "kv_cache_gib")
-        if kv_seen is not None:
+        if kv_seen is not None and not has_exception:
             result["failure_class"] = "vram_oom"
             result["adjust_target"] = "kv_cache_memory_bytes"
             # 위험 판정은 KV 단독이 아니라 **KV + 가중치**로 한다 — 통합메모리에서 호스트를
@@ -109,9 +125,19 @@ def classify(trial_result: dict, budget_gib: float, safety_margin: float) -> dic
         result["failure_class"] = "unknown"
         result["adjust_target"] = None
         log_path = trial_result.get("log_path")
+        why = ""
+        if has_exception:
+            # 여기 왔다는 건 "예외는 있는데 OOM 이 아니다" 라는 뜻이다. 그 사실을 명시해야
+            # 사람이 메모리 축을 뒤지느라 시간을 버리지 않는다.
+            why = ("엔진이 **예외를 남기고** 실패했다(외부 종료 아님) — 메모리 축이 아닐 가능성이 높다. "
+                   "로그의 traceback 을 직접 읽어라. ")
+            if kv_seen is not None:
+                why += (f"참고: KV {kv_seen:.2f} GiB 는 **정상 할당된 뒤** 실패했다 — "
+                        "KV 축소는 이 실패와 무관할 수 있다. ")
         result["note"] = (
             "load 실패이나 알려진 OOM 시그니처 미매칭 → Model-C(HITL). "
-            "시그니처 미매칭 = 미지 실패이지 불가 아님"
+            + why
+            + "시그니처 미매칭 = 미지 실패이지 불가 아님"
             + (f" (raw log: {log_path})" if log_path else "")
         )
         return result

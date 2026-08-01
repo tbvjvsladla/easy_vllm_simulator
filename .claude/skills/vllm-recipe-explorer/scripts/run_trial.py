@@ -157,6 +157,17 @@ def _build_serve_args(candidate: dict) -> list:
     if quant and str(quant).lower() != "none":
         args += ["--quantization", str(quant)]
 
+    # ── moe_backend (lock; auto/null 은 미지정 = 엔진 oracle 에 맡김) ───
+    # ★ 이 노브는 **후보 스키마에 있는데 emit 되지 않고 있었다**(2026-08-01 발견).
+    #   그 결과 `moe_backend: MARLIN` 을 줘도 조용히 무시되고 엔진이 auto 로 돌았다.
+    #   이 프로젝트에서 moe-backend 는 결정적 레버였다 — DeepSeek-V4-Flash 는
+    #   `humming` 이 6× OOM 을 풀었고 Qwen3-Next 는 `triton` 이 CUTLASS-JIT-OOM 을 풀었다.
+    #   즉 "설정했는데 안 먹는" 것이 가장 비싼 종류의 침묵 실패다.
+    #   플래그명 version-exact 확인: vllm/engine/arg_utils.py:1523 `--moe-backend`.
+    moe = candidate.get("moe_backend")
+    if moe and str(moe).lower() != "auto":
+        args += ["--moe-backend", str(moe)]
+
     # ── kv-cache-memory-bytes (free 변수 — 루프가 설정한 절대 클램프) ───
     kv_bytes = candidate.get("kv_cache_memory_bytes")
     if kv_bytes is not None:
@@ -195,7 +206,10 @@ def _needs_tiktoken(candidate: dict) -> bool:
 
 def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: int,
                       nas_mount: str = NAS_MOUNT,
-                      tiktoken_host_path: "str | None" = None) -> list:
+                      tiktoken_host_path: "str | None" = None,
+                      jit_cache_root: "str | None" = None,
+                      max_jobs: "int | None" = None,
+                      nas_container_root: "str | None" = None) -> list:
     """docker run -d 명령 리스트를 구성한다.
 
     NAS read-only 마운트(nas_mount = config/manifest 의 nas_host_root, 기본 /mnt/models) ·
@@ -216,7 +230,14 @@ def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: in
         # 죽이고 70GiB 진범을 못 잡은 오발 교정. 커널이 트라이얼 컨테이너를 먼저 잡게 한다.
         "--oom-score-adj", "800",
         "-p", "%d:%d" % (int(port), DEFAULT_PORT),
-        "-v", "%s:%s:ro" % (nas_mount, CONTAINER_MODELS),
+        # ★ 컨테이너 마운트 경로는 config.nas_container_root 를 따른다(기본 /app/models).
+        #   예전엔 CONTAINER_MODELS 상수로 **하드코딩**돼 있어, quant_model 2차 NAS 를 쓰는
+        #   모델(config 가 /app/quant_models 를 선언)에서 트라이얼만 /app/models 에 마운트했다.
+        #   그러면 candidate.model_path_container 가 컨테이너 안에 실재하지 않아 HF 가 그 경로를
+        #   repo id 로 오해한다 — `HFValidationError: Repo id must be in the form ...`
+        #   (2026-08-01 Qwen3.5-122B-NVFP4 실측). 더 중요한 건 **트라이얼과 서빙의 컨테이너 경로가
+        #   갈린다**는 점이다 — 검증한 것과 배포되는 것이 달라진다.
+        "-v", "%s:%s:ro" % (nas_mount, nas_container_root or CONTAINER_MODELS),
     ]
 
     # ── 에어갭 tiktoken 인코딩 자산(C8) ────────────────────────────────
@@ -232,6 +253,23 @@ def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: in
             "[run_trial] WARN: candidate가 tiktoken(harmony/o200k)을 요구하나 "
             "tiktoken_host_path 미설정 — 폐쇄망 스모크 실패 가능"
             "(config.tiktoken_host_path 설정 권장).\n")
+
+    # ── JIT/컴파일 캐시 영속 + 컴파일 팬아웃 캡 ────────────────────────
+    # ★ serve 평면(docker-compose.yaml)은 ./cache/{vllm,flashinfer} 를 마운트하고
+    #   "cold JIT 은 호스트 하드다운 리스크를 매번 새로 진다(uncapped nvcc 팬아웃)"고 명시해 뒀다.
+    #   그런데 trial 평면엔 그 조치가 없었다 — **미검증 설정을 돌리는 더 위험한 쪽**이 무방비였다.
+    #   실측(2026-08-01 GLM-4.7-Flash S6): 로드 후 안정(41 GiB)했다가 torch.compile 뒤
+    #   2.5분에 걸쳐 12,880 MiB 까지 지속 하강 후 사망. 같은 설정의 serve 런은 38.5 GiB 평탄.
+    #   유일한 차이가 이 마운트였다.
+    # MAX_JOBS: 팬아웃은 기본 nproc(이 호스트 20)까지 벌어진다. gmu 도 KV 클램프도 이 구간에
+    #   닿지 않는다(Laguna FP4 lazy JIT 선례에서 확인 — MAX_JOBS 가 유일한 노브).
+    if jit_cache_root:
+        for sub in ("vllm", "flashinfer"):
+            host_dir = os.path.join(jit_cache_root, sub)
+            os.makedirs(host_dir, exist_ok=True)
+            cmd += ["-v", "%s:/root/.cache/%s" % (host_dir, sub)]
+    if max_jobs:
+        cmd += ["-e", "MAX_JOBS=%d" % int(max_jobs)]
 
     # ── VLLM_ATTENTION_BACKEND env (soft) ──────────────────────────────
     backend = candidate.get("attention_backend")
@@ -270,6 +308,7 @@ def _audit_emitted(candidate: dict, docker_cmd: list) -> None:
         ("kv_cache_memory_bytes", "--kv-cache-memory-bytes"),
         ("kv_cache_quant", "--kv-cache-dtype"),
         ("attention_backend", "VLLM_ATTENTION_BACKEND="),
+        ("moe_backend", "--moe-backend"),
     ]
     # enforce_eager: false/미설정은 의도적 미emit(CUDA 그래프 기본 활성 유지).
     if candidate.get("enforce_eager"):
@@ -539,9 +578,15 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
 
     nas_mount = _opt(opts, "nas_mount", NAS_MOUNT)  # config/manifest nas_host_root 배선
     tiktoken_host_path = _opt(opts, "tiktoken_host_path", None)  # config.tiktoken_host_path(C8)
+    # JIT 캐시 통로·컴파일 팬아웃 캡(serve 평면과 parity — 위 _build_docker_cmd 주석 참조).
+    # 기본 4: 이 호스트 nproc 20 을 그대로 쓰면 nvcc 팬아웃이 수십 GiB 를 먹는다.
+    jit_cache_root = _opt(opts, "jit_cache_root", None)
+    max_jobs = _opt(opts, "max_jobs", 4)
     docker_cmd = _build_docker_cmd(
         candidate, image, container_name, port, nas_mount,
         tiktoken_host_path=tiktoken_host_path,
+        jit_cache_root=jit_cache_root, max_jobs=max_jobs,
+        nas_container_root=_opt(opts, "nas_container_root", None),
     )
     # emit-audit: candidate 의 serve-관련 비-null 필드가 실제 cmd 에 반영됐는지 전수 점검
     # (gmu 미emit 회귀류 클래스 차단 — §9.3). 누락 시 즉시 raise.

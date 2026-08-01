@@ -20,6 +20,7 @@ CLI 예:
 import argparse
 import json
 import os
+import re
 import sys
 
 import yaml
@@ -31,7 +32,7 @@ sys.path.insert(0, SCRIPTS_DIR)
 
 from parse_model_config import parse  # noqa: E402
 from rank_recipes import auto_candidates, rank, render_report  # noqa: E402
-from gen_recipe_set import generate  # noqa: E402
+from gen_recipe_set import generate, recipe_from_candidate  # noqa: E402
 from feedback_log import append as feedback_append  # noqa: E402
 
 # Phase 2 시뮬레이터(통합 trial-loop) 조립용 import.
@@ -80,6 +81,23 @@ def _die(msg, code=1):
     """비0 종료 + 명확한 중단·보고 메시지(stderr)."""
     print(f"[recipe] 중단: {msg}", file=sys.stderr)
     sys.exit(code)
+
+
+# docker compose 프로젝트명 규칙: [a-z0-9][a-z0-9_-]* — **점(.) 불가**.
+# compose 는 COMPOSE_PROJECT_NAME 을 config_name 에서 만들기 때문에, 점이 든 이름으로 3종 세트를
+# 생성하면 렌더는 성공하고 **기동에서만** 터진다:
+#   invalid project name "vllm_glm-4.7-flash-e2e_project": must consist only of lowercase
+#   alphanumeric characters, hyphens, and underscores as well as start with a letter or number
+# 2026-07-31 GLM-4.7-Flash 에서 실제 발생 — 모델명에 점이 흔하므로(4.7 · 3.1 · 2.1) 재발한다.
+# 생성 시점에 fail-loud 하는 것이 기동 시점에 터지는 것보다 낫다.
+_COMPOSE_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+
+
+def _validate_config_name(name):
+    if not _COMPOSE_NAME_RE.match(name or ""):
+        _die("config.serving.config_name '%s' 은 docker compose 프로젝트명 규칙 위반 "
+             "([a-z0-9][a-z0-9_-]* · 점/대문자/공백 불가). 모델명의 점을 빼라(예: glm-4.7 → glm-47). "
+             "지금 막지 않으면 3종 세트는 생성되고 compose up 에서만 터진다." % name)
 
 
 def load_config(config_path):
@@ -349,6 +367,17 @@ def output_root(repo_root):
     return os.path.join(repo_root, "output", topology)
 
 
+def _default_jit_cache_root():
+    """trial 컨테이너의 JIT/컴파일 캐시 호스트 통로 = output/<topology>/cache.
+
+    serve 평면(docker-compose.yaml 의 `./cache/vllm`·`./cache/flashinfer`)과 **같은 디렉터리**다.
+    두 평면이 캐시를 공유해야 trial 이 데운 것을 serve 가 쓰고 그 반대도 성립한다 —
+    통로를 나누면 서로 cold JIT 을 반복하고, cold JIT 은 시간 문제가 아니라
+    uncapped nvcc 팬아웃에 의한 **호스트 하드다운 리스크**다(compose 주석 · Laguna 선례).
+    """
+    return os.path.join(output_root(REPO_ROOT), "cache")
+
+
 def _cfg_common(cfg, repo_root):
     """estimate/generate 공통 입력값 추출(스키마 결함은 즉시 중단).
 
@@ -484,6 +513,7 @@ def cmd_generate(args):
     served_model_name = serving.get("served_model_name")
     if not name:
         _die("config.serving.config_name 누락")
+    _validate_config_name(name)
     if port is None:
         _die("config.serving.port 누락")
     if not served_model_name:
@@ -522,6 +552,7 @@ def cmd_generate(args):
             port,
             served_model_name,
             force=args.force,
+            image=getattr(args, "image", None),
         )
     except FileExistsError as e:
         _die(f"{e} (덮어쓰려면 --force)")
@@ -568,7 +599,21 @@ def _load_candidate(path):
     if not os.path.isfile(path):
         _die(f"--candidate 파일 없음: {path}")
     with open(path, "r", encoding="utf-8") as f:
-        cand = json.load(f)
+        raw = f.read()
+    try:
+        cand = json.loads(raw)
+    except json.JSONDecodeError as e:
+        # docstring 이 "클린 어보트"를 약속하는데 실제로는 raw JSONDecodeError 트레이스백이 났다.
+        # 특히 simlog 산출물이 *.yaml 로 보존되므로 그걸 그대로 입력으로 되먹이기 쉽다 —
+        # 가장 흔한 오입력에 대해 원인과 해소를 함께 준다(2026-08-01 실제 발생).
+        hint = ""
+        if path.endswith((".yaml", ".yml")) or raw.lstrip()[:1] not in ("{", "["):
+            hint = (" — YAML 로 보인다. --candidate 는 **JSON** 만 받는다"
+                    "(simlog 의 trial*_candidate.yaml 은 사람이 읽으라고 만든 *산출물*이지"
+                    " 입력 형식이 아니다). 변환: python3 -c \"import yaml,json,sys;"
+                    "json.dump(yaml.safe_load(open(sys.argv[1])),open(sys.argv[2],'w'),"
+                    "ensure_ascii=False,indent=2)\" in.yaml out.json")
+        _die(f"--candidate 파싱 실패: {path} ({e}){hint}")
     if not isinstance(cand, dict):
         _die("--candidate JSON 은 lock-set dict 여야 함")
     cand.setdefault("id", "s1")
@@ -771,7 +816,15 @@ def cmd_simulate(args):
         "served_model_name": _serving.get("served_model_name"),
         "port": int(_serving["port"]) if _serving.get("port") is not None else None,
         "nas_mount": nas_root,  # config.nas_host_root → run_trial NAS 마운트(하드코딩 /mnt/models 갭 수정)
+        # config.nas_container_root → 트라이얼 컨테이너 마운트 경로. 이게 없으면 quant_model 계열에서
+        # 트라이얼(/app/models)과 서빙(/app/quant_models)의 경로가 갈린다(2026-08-01 실측).
+        "nas_container_root": container_root,
         "tiktoken_host_path": cfg.get("tiktoken_host_path"),  # config → run_trial /encodings:ro 마운트(C8 에어갭 자산 배선)
+        # JIT 캐시 통로 + 컴파일 팬아웃 캡 — serve 평면(docker-compose)과 parity.
+        # 기본을 serve 와 **같은 디렉터리**로 잡아 trial 이 데운 캐시를 serve 가 그대로 쓴다
+        # (반대도 성립). 통로 분리는 두 평면이 서로 cold 를 반복하게 만들 뿐이다.
+        "jit_cache_root": cfg.get("jit_cache_root") or _default_jit_cache_root(),
+        "max_jobs": cfg.get("max_jobs", 4),
     }
     opts = {k: v for k, v in opts.items() if v is not None}
 
@@ -1010,6 +1063,7 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
     served_model_name = serving.get("served_model_name")
     if not name:
         _die("config.serving.config_name 누락")
+    _validate_config_name(name)
     if port is None:
         _die("config.serving.port 누락")
     if not served_model_name:
@@ -1018,18 +1072,19 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
 
     # recipe dict: gen_recipe_set 가 읽는 키(quantization/max_model_len/gpu_memory_utilization
     # + Phase2 batch/kv_cache_memory_bytes/kv_cache_dtype/소프트 변수/vram_breakdown).
-    recipe = {
-        "id": candidate.get("id"),
-        "quantization": candidate.get("quantization"),
-        "max_model_len": candidate.get("max_model_len"),
+    # ★ 투영은 gen_recipe_set.recipe_from_candidate 가 **단독 소유**한다.
+    #   예전엔 여기 dict 리터럴이 9개 필드만 복사해, 생성기를 고쳐도 노브가 이 홉에서
+    #   조용히 떨어졌다(2026-08-01 moe_backend 실증 — 트라이얼 통과 ↔ 배포물 즉사).
+    #   홉이 둘이면 둘 다 고쳐야 하는데 그걸 잊는 것이 결함 계열의 본질이라 홉을 하나로 모았다.
+    # gmu 분기 가시화: 트라이얼이 쓴 값과 배포에 박히는 값(safety_margin)이 다르면 알린다.
+    _cand_gmu = candidate.get("gpu_memory_utilization")
+    if _cand_gmu is not None and abs(float(_cand_gmu) - float(margin)) > 1e-9:
+        print("[recipe] ⚠ gmu 분기: 트라이얼 %.3f ↔ 배포(config.safety_margin) %.3f — "
+              "검증한 값과 배포되는 값이 다르다. 의도한 것이 아니면 config.safety_margin 을 맞춰라."
+              % (float(_cand_gmu), float(margin)), file=sys.stderr)
+    recipe = recipe_from_candidate(candidate, **{
         # gpu-memory-utilization = safety_margin(디바이스 풀 상한; 실제 KV 는 절대 클램프가 제어).
         "gpu_memory_utilization": margin,
-        "batch": candidate.get("batch"),
-        "kv_cache_memory_bytes": candidate.get("kv_cache_memory_bytes"),
-        "kv_cache_quant": candidate.get("kv_cache_quant"),
-        "attention_backend": candidate.get("attention_backend"),
-        "tool_call_parser": candidate.get("tool_call_parser"),
-        "reasoning_parser": candidate.get("reasoning_parser"),
         # target_gpu 활성 시 gen_recipe_set 이 트리플렛 헤더에 이식 정직성 주석을 단다(§4.9, plan_26070809_47_07).
         "target_gpu": cfg.get("target_gpu"),
         "vram_breakdown": {
@@ -1040,11 +1095,14 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
             "budget_gib": budget,
             "headroom_gib": (budget - total_gib) if total_gib is not None else None,
         },
-    }
+    })
 
     try:
         paths = generate(
             parsed, recipe, name, output_root(REPO_ROOT), port, served_model_name, force=args.force,
+            # 트라이얼이 **실제로 통과시킨** 이미지를 env 에 박는다. 비우면 compose 가 낡은
+            # 기본값으로 조용히 폴백해 검증한 것과 다른 vLLM 을 서빙·측정한다(D8).
+            image=candidate.get("image") or args.image,
         )
     except FileExistsError as e:
         _die(f"{e} (덮어쓰려면 --force)")
@@ -1157,6 +1215,10 @@ def build_parser():
     pg.add_argument("--config", default="config.yaml", help="입력 config.yaml 경로")
     pg.add_argument("--recipe-id", required=True, help="선택 레시피 id(예: r3)")
     pg.add_argument("--force", action="store_true", help="기존 파일 덮어쓰기 허용")
+    pg.add_argument("--image", default=None,
+                    help="컨테이너 이미지 태그 → env 의 IMAGE_TAG. 생략하면 env 에 "
+                         "미지정 표시가 박히고 경고가 나간다(compose 는 비면 낡은 기본값으로 "
+                         "조용히 폴백한다 — D8).")
     pg.set_defaults(func=cmd_generate)
 
     # Phase 2 — simulate(통합 trial-loop: run_trial→sim_classify→조정→반복).

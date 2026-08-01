@@ -118,7 +118,109 @@ def _build_yaml(parsed, recipe, served_model_name):
     # quantization 줄: native/none 이 아닐 때만.
     if not _is_native_or_none(quant):
         lines.append("quantization: {}".format(str(quant).strip().lower()))
+
+    # ── 트라이얼이 검증한 나머지 serve 노브 (2026-08-01 파리티 교정) ──────
+    # ★ 여기가 비어 있으면 **검증된 레시피 ≠ 배포된 레시피** 가 된다.
+    #   실증: gpt-oss-120b 는 `--moe-backend MARLIN` 으로 트라이얼이 수렴했는데 이 yaml 에
+    #   그 줄이 없어, 같은 config 로 띄운 serve 가 auto→TRITON 커널 컴파일 실패로 즉사했다.
+    #   트라이얼 통과가 배포 성공을 보장하지 못하면 S6(검증레시피) 자체가 무의미해진다.
+    #   run_trial._build_serve_args 와 **같은 필드 집합**을 유지해야 하며,
+    #   그 파리티는 아래 assert_serve_knob_parity() 가 집행한다.
+    for key, flag, is_bool in (
+        ("moe_backend", "moe-backend", False),
+        ("gdn_prefill_backend", "gdn-prefill-backend", False),
+        ("max_num_batched_tokens", "max-num-batched-tokens", False),
+        ("enforce_eager", "enforce-eager", True),
+        ("language_model_only", "language-model-only", True),
+    ):
+        v = recipe.get(key)
+        if is_bool:
+            if v:
+                lines.append("{}: true".format(flag))
+        elif v is not None and str(v).strip().lower() not in ("", "auto", "none"):
+            lines.append("{}: {}".format(flag, v))
     return "\n".join(lines) + "\n"
+
+
+# run_trial._build_serve_args 가 serve 인자로 소비하지만 **이 생성기가 의도적으로 다루지 않는**
+# 필드. 여기 없는 신규 필드가 run_trial 에 생기면 파리티 검사가 실패한다(침묵 드롭 차단).
+_PARITY_EXEMPT = {
+    "model_path", "model_path_container", "model_capabilities", "id",
+    "attention_backend",      # .sh 의 export VLLM_ATTENTION_BACKEND 로 전달
+    "tool_call_parser",       # .sh 의 CLI 플래그로 전달
+    "reasoning_parser",       # .sh 의 CLI 플래그로 전달
+    "served_model_name",      # .env/.sh 로 전달
+    "model_id",               # 주석/이름용
+    "extra_env",              # 트라이얼 전용(임시 실험 env) — 배포 3종 세트로 승격하지 않는다
+    # gmu 는 **config.safety_margin 이 권위**다(디바이스 풀 상한 = 배포 정책). candidate 값은
+    # 트라이얼-로컬이며 배포로 승격하지 않는다 — 의도된 분기. 다만 둘이 다르면 "검증한 gmu ≠
+    # 배포된 gmu" 가 되므로 recipe.py 가 불일치를 경고한다(조용한 분기 금지).
+    "gpu_memory_utilization",
+}
+
+
+# candidate → recipe 투영의 **단일 소유자**. 이전에는 recipe.py 가 자체 dict 리터럴로
+# 9개 필드만 복사해, gen_recipe_set 을 고쳐도 노브가 그 홉에서 조용히 떨어졌다
+# (2026-08-01: moe_backend 를 _build_yaml 에 추가했는데도 생성물에 안 나온 원인).
+# 홉이 둘이면 둘 다 고쳐야 하고, 그 사실을 잊는 것이 이 결함 계열의 본질이다 → 홉을 하나로 만든다.
+SERVE_KNOB_KEYS = (
+    "quantization", "max_model_len", "batch",
+    "kv_cache_memory_bytes", "kv_cache_quant",
+    "attention_backend", "tool_call_parser", "reasoning_parser",
+    "moe_backend", "gdn_prefill_backend", "max_num_batched_tokens",
+    "enforce_eager", "language_model_only",
+)
+
+
+def recipe_from_candidate(candidate: dict, **extra) -> dict:
+    """수렴 candidate → gen_recipe_set 이 읽는 recipe dict. 추가 키는 extra 로 덮어쓴다.
+
+    extra 용례: gpu_memory_utilization(=safety_margin) · target_gpu · vram_breakdown.
+    """
+    r = {k: candidate.get(k) for k in SERVE_KNOB_KEYS}
+    r["id"] = candidate.get("id")
+    r.update(extra)
+    return r
+
+
+# 파리티 검사용 대표값(타입별). 값이 yaml 에 그대로 나타나는지로 전달 여부를 판정한다.
+_PROBE = {
+    "enforce_eager": True, "language_model_only": True,
+    "max_num_batched_tokens": 4242, "batch": 4242,
+    "max_model_len": 4242, "kv_cache_memory_bytes": 4242,
+    "gpu_memory_utilization": 0.77,
+}
+
+
+def assert_serve_knob_parity(run_trial_source: str, raise_on_gap: bool = True):
+    """run_trial 이 소비하는 serve 노브가 **실제로 3종 세트까지 도달**하는지 행위로 검사.
+
+    소스 문자열 존재 확인은 부족하다 — 필드명이 파일에 있어도 중간 홉(recipe 투영)에서
+    떨어지면 배포물엔 안 나온다. 그래서 candidate → recipe_from_candidate → _build_yaml/_build_sh
+    를 실제로 통과시켜 대표값이 산출물에 나타나는지 본다.
+    반환: 누락 필드 리스트(빈 리스트면 파리티 OK).
+    """
+    import re as _re
+    consumed = set(_re.findall(r'candidate\.get\("([a-z_]+)"\)', run_trial_source))
+    parsed = {"model_id": "probe/model", "container_path": "/app/models/probe/model"}
+    gaps = []
+    for f in sorted(consumed - _PARITY_EXEMPT):
+        probe = _PROBE.get(f, "PROBE%sVALUE" % f.upper().replace("_", ""))
+        cand = {"id": "probe", f: probe}
+        # 시험 대상이 gmu 자신이면 덮어쓰지 않는다(덮어쓰면 프로브가 무효가 돼 오탐).
+        extra = {} if f == "gpu_memory_utilization" else {"gpu_memory_utilization": 0.9}
+        rec = recipe_from_candidate(cand, **extra)
+        blob = _build_yaml(parsed, rec, "probe") + _build_sh("probe", "probe", rec)
+        needle = "true" if probe is True else str(probe)
+        # 생성기가 값을 정규화(소문자화)하는 필드가 있으므로 대소문자 무시로 비교한다.
+        if needle.lower() not in blob.lower():
+            gaps.append(f)
+    if gaps and raise_on_gap:
+        raise AssertionError(
+            "serve 노브 파리티 위반 — run_trial 이 쓰는데 3종 세트에 도달하지 않는 필드: %s. "
+            "검증된 레시피와 배포된 레시피가 갈린다. SERVE_KNOB_KEYS/_build_yaml 에 추가하거나 "
+            "_PARITY_EXEMPT 에 근거와 함께 등록하라." % ", ".join(gaps))
+    return gaps
 
 
 def _build_sh(name, served_model_name, recipe=None):
@@ -177,12 +279,20 @@ def _build_sh(name, served_model_name, recipe=None):
     return "\n".join(lines) + "\n"
 
 
-def _build_env(name, served_model_name, port):
+def _build_env(name, served_model_name, port, image=None):
     """envs/.env.<name> 내용 문자열 생성.
 
     기존 .env.gpt-oss-20b-normal 스키마 준수:
       COMPOSE_PROJECT_NAME, CONTAINER_NAME, VERSION, NVIDIA_VISIBLE_DEVICES,
       SERVING_IP, SERVING_PORT, TIKTOKEN_ENABLED, SERVING_MODEL_NAME, CONFIG_FILE
+      (+ IMAGE_TAG — 아래 참조)
+
+    ★ IMAGE_TAG 를 반드시 emit 한다. docker-compose.yaml 은
+      `image: ${IMAGE_TAG:-easy-vllm:0.24.0-cu132-aarch64-source}` 라서 이 변수가 없으면
+      **조용히 낡은 기본 이미지로 폴백**한다. 그 결과 의도한 vLLM 이 아닌 버전을 서빙·측정하게
+      되고, 로그·벤치 리포트에는 그 사실이 드러나지 않는다(D8 버전 치환 — testlog_26073117).
+      2026-07-31~08-01 캠페인에서 `simulate --force` 재생성 때마다 3회 재발했고 그때마다
+      사람이 수동 재주입했다 — 계획서에 경고를 세 번 적는 대신 생성부를 고친다.
     """
     lines = []
     sep = "# " + "═" * 69
@@ -204,10 +314,22 @@ def _build_env(name, served_model_name, port):
     lines.append("TIKTOKEN_ENABLED=true")
     lines.append("SERVING_MODEL_NAME={}".format(served_model_name))
     lines.append("CONFIG_FILE={}".format(name))
+    lines.append("")
+    lines.append("# ─────────────── 3) 컨테이너 이미지 (필수) ───────────────────────────")
+    lines.append("# 비우면 compose 가 낡은 기본값으로 조용히 폴백해 **다른 vLLM 버전을 측정**한다.")
+    if image:
+        lines.append("IMAGE_TAG={}".format(image))
+    else:
+        # 조용한 부재를 만들지 않는다 — 주석으로 자리를 남겨 "안 적혀 있음"이 눈에 보이게 한다.
+        lines.append("# IMAGE_TAG=<미지정 — 반드시 채울 것>")
+        sys.stderr.write(
+            "[gen_recipe_set] WARN: image 미지정 → env 에 IMAGE_TAG 를 쓰지 못했다. "
+            "compose 가 낡은 기본 이미지로 폴백하므로 서빙 전에 직접 채워라.\n")
     return "\n".join(lines) + "\n"
 
 
-def generate(parsed, recipe, name, repo_root, port, served_model_name, force=False):
+def generate(parsed, recipe, name, repo_root, port, served_model_name, force=False,
+             image=None):
     """3종 세트(.yaml + .sh + .env)를 생성하고 생성 경로 리스트를 반환.
 
     Args:
@@ -242,7 +364,7 @@ def generate(parsed, recipe, name, repo_root, port, served_model_name, force=Fal
 
     yaml_text = _build_yaml(parsed, recipe, served_model_name)
     sh_text = _build_sh(name, served_model_name, recipe)
-    env_text = _build_env(name, served_model_name, port)
+    env_text = _build_env(name, served_model_name, port, image=image)
 
     with open(yaml_path, "w", encoding="utf-8") as f:
         f.write(yaml_text)

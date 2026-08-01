@@ -34,7 +34,7 @@ def main():
     ap.add_argument("--roofline", required=True, help="roofline.py JSON")
     ap.add_argument("--reference-tps", type=float, help="E: 외부 현실-달성치(검증기 (b) 외부검색 산물)")
     ap.add_argument("--target-tps", type=float, help="c: 사용자 선언 목표(백스톱)")
-    ap.add_argument("--tolerance", type=float, default=0.15, help="PASS 허용오차(기본 15%)")
+    ap.add_argument("--tolerance", type=float, default=0.15, help="PASS 허용오차(기본 15%%)")
     ap.add_argument("--spec-supported", action="store_true", help="모델이 speculative(MTP) 지원 — off 면 강제함수")
     ap.add_argument("--e-search", choices=["hit", "empty", "no"], default="no",
                     help="외부검색(E) 상태: hit=시도·발견 / empty=시도·빈손 / no=미시도(기본). 출력에 기록(판정 불변)")

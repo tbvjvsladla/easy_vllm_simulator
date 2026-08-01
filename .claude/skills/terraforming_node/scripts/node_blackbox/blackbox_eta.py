@@ -43,6 +43,13 @@ DEFAULTS = {
     "agent_notify_s": 900.0,    # 에이전트 알림 구간 (ETA 15분)
     "min_rate_mib_s": 1.0,      # 이보다 느린 하강은 '정지'로 간주(0 나눗셈·잡음 방지)
     "poll_interval_s": 1.0,
+    # ── 선언된 바닥(testlog_26073123 · 2026-08-01) ────────────────────────
+    # ETA 규칙은 `잔량÷하강률` 선형 외삽이라 **유계**인 모델 로드 하강을 무계로 읽어
+    # 58 GiB 급 모델을 3/3 사살했다. 서빙이 예상 바닥을 선언하면 규칙은 그 아래에서만 무장한다.
+    # 두 상수는 워치독에도 같은 기본값이 있으나 **정본은 여기**다 — 나머지 상수와 같은
+    # 파이프라인(emit_params)으로 조정 가능해야 캠페인 루프튜닝의 대상이 된다.
+    "decl_margin_mib": 8192,      # arm 상한 = 선언바닥 - 이 값. 선언 오차·정상 변동 흡수분
+    "decl_min_ceiling_mib": 16384,  # arm 상한이 이 밑이 되는 선언은 거부(게이트 실명 방지)
     # ★ 최후 절대 바닥. min_rate_mib_s 가 만든 구멍을 막는다 -- 0.5 MiB/s 로 천천히 새면
     #   ETA 는 영원히 'green'(rate_below_min)이라 절대 트립하지 않는다. 그 상태로 0 에 도달하면
     #   호스트가 죽는다. 따라서 "느리든 빠르든 이 밑이면 죽인다"는 무조건 바닥이 필요하다.
@@ -131,6 +138,14 @@ def validate_params(params):
     if runway < floor:
         errs.append("runway(kill_latency+detect_margin)=%.2fs < floor(kill_latency*%.1f)=%.2fs"
                     % (runway, ETA_FLOOR_MULTIPLIER, floor))
+    # 선언된 바닥 가드: 여유가 음수면 선언이 상한을 **올려** 규칙을 더 민감하게 만들고,
+    # 최소상한이 절대바닥 이하면 "거부"가 아무것도 거부하지 못한다(가드가 가드가 아니게 된다).
+    if float(p["decl_margin_mib"]) < 0:
+        errs.append("decl_margin_mib must be >= 0")
+    if float(p["decl_min_ceiling_mib"]) <= float(p["hard_floor_mib"]):
+        errs.append("decl_min_ceiling_mib(%s) must exceed hard_floor_mib(%s) — 최소상한이 절대바닥 "
+                    "이하면 어떤 선언도 거부되지 않아 가드가 무력해진다"
+                    % (p["decl_min_ceiling_mib"], p["hard_floor_mib"]))
     for k in ("agent_act_s", "agent_notify_s"):
         if float(params.get(k, DEFAULTS[k])) <= runway:
             errs.append("%s must exceed runway %.2fs (에이전트 구간이 데몬 구간보다 안쪽일 수 없음)" % (k, runway))
@@ -256,6 +271,19 @@ def _self_test():
                        % ("" if agree else " 불일치=%r" % disagreements), agree))
         checks.append(("emit 파일에 RUNWAY_MS=8000", "BB_RUNWAY_MS=8000" in txt))
         checks.append(("emit 파일에 DEBOUNCE_N=3", "BB_DEBOUNCE_N=3" in txt))
+        # 선언된 바닥 상수가 셸로 흘러가는가 — 워치독이 읽는 **정확한 변수명**이어야 한다.
+        # 이름이 어긋나면 워치독은 조용히 자기 하드코딩 기본값으로 돌고, 여기서 조정한 값은 증발한다.
+        checks.append(("emit 에 DECL_MARGIN_MIB=8192", "BB_DECL_MARGIN_MIB=8192\n" in txt))
+        checks.append(("emit 에 DECL_MIN_CEILING_MIB=16384", "BB_DECL_MIN_CEILING_MIB=16384\n" in txt))
+        # 정수로 나가야 한다 — 셸 산술은 정수 전용이고 '8192.0' 은 워치독 비교에서 터진다.
+        checks.append(("선언 상수가 정수 표기",
+                       "BB_DECL_MARGIN_MIB=8192.0" not in txt
+                       and "BB_DECL_MIN_CEILING_MIB=16384.0" not in txt))
+        # 가드가 가드로 작동하는가
+        bad, _ = validate_params({"decl_min_ceiling_mib": 5120})   # == hard_floor
+        checks.append(("최소상한 <= 절대바닥 거부", not bad))
+        bad2, _ = validate_params({"decl_margin_mib": -1})
+        checks.append(("음수 여유 거부", not bad2))
 
     ok_all = True
     for name, passed in checks:

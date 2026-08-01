@@ -111,6 +111,97 @@ def cmd_stop(args):
     return 0
 
 
+BUDGET_FILE = "serve_budget.env"
+# 워치독 기본 가드와 같은 값(mem_watchdog_eta.sh). 여기서는 **경고용 예측**에만 쓴다 —
+# 실제 수락/거부의 권위는 워치독이며, 두 곳이 판정하면 반드시 갈라진다.
+_WD_MARGIN_MIB = 8192
+_WD_MIN_CEILING_MIB = 16384
+MAX_TTL_S = 86400
+
+
+def _budget_path(node_dir):
+    return os.path.join(node_dir, BUDGET_FILE)
+
+
+def cmd_declare_budget(args):
+    """서빙이 남길 **예상 최소 MemAvailable** 을 선언한다 → 워치독 ETA 규칙의 arm 상한이 된다.
+
+    근거 testlog_26073123: ETA 규칙은 `잔량÷하강률` 선형 외삽이라 **유계**인 모델 로드 하강을
+    무계로 읽어 58 GiB 급 모델을 3/3 사살했다. 빠진 것은 임계값이 아니라 "바닥이 어디인가"다.
+
+    ★ KV 를 명시하지 않으면 선언할 수 없다(--kv-mib 필수). 이것이 설계의 핵심이다 —
+      유일한 진성 트립(KV 벌룬 97 GiB)은 `kv_cache_memory_bytes: null` 이라 선언 불가한
+      사건이었고, 선언이 없으면 워치독은 현행 규칙 그대로 동작해 그 벌룬을 잡는다.
+      즉 이 선언은 헌법 `policy:KV_ABSOLUTE_CLAMP_PORTABILITY` 를 집행 가능한 형태로 바꾼다.
+    """
+    now = _parse_now(args.now)
+    if args.ttl_s <= 0 or args.ttl_s > MAX_TTL_S:
+        raise SystemExit("--ttl-s 는 1..%d 여야 한다(무기한 선언 금지): %r" % (MAX_TTL_S, args.ttl_s))
+    for name, v in (("--mem-total-mib", args.mem_total_mib), ("--weights-mib", args.weights_mib),
+                    ("--kv-mib", args.kv_mib), ("--overhead-mib", args.overhead_mib)):
+        if v < 0:
+            raise SystemExit("%s 는 0 이상이어야 한다: %r" % (name, v))
+    resident = args.weights_mib + args.kv_mib + args.overhead_mib
+    floor = args.mem_total_mib - resident
+    if floor <= 0:
+        raise SystemExit(
+            "예상 상주 %d MiB 가 총량 %d MiB 이상이다 — 이 구성은 애초에 못 올린다."
+            % (resident, args.mem_total_mib))
+    expires = _epoch(now) + args.ttl_s
+    path = _budget_path(args.node_dir)
+    os.makedirs(args.node_dir, exist_ok=True)
+    label = args.label or "unlabeled"
+    if not SAFE_ID_RE.match(label):
+        raise SystemExit("--label 은 [A-Za-z0-9._-]+ 여야 한다(워치독 파서 문자셋): %r" % (label,))
+    body = (
+        "# easy-vllm serve budget declaration — 워치독이 sed 로 읽는다(source 하지 않는다).\n"
+        "# 산출: floor_mib = mem_total(%d) - [weights(%d) + kv(%d) + overhead(%d)]\n"
+        "# 발행 %s · TTL %ds · 근거 testlog_26073123\n"
+        "floor_mib=%d\nexpires_epoch=%d\nlabel=%s\n"
+        % (args.mem_total_mib, args.weights_mib, args.kv_mib, args.overhead_mib,
+           now, args.ttl_s, floor, expires, label))
+    # ★ 원자적 교체 필수. 워치독은 이 파일을 **1초마다** 읽는다. 제자리 쓰기(open 'w')는
+    #   내용이 비거나 잘린 순간을 만들고, 그 폴에서 선언이 거부돼 arm 상한이 무한대로 돌아간다.
+    #   하필 그 순간이 모델 로드 골짜기면 옛 규칙 그대로 사살된다 — 갱신 행위가 사고를 만든다.
+    #   rename 은 같은 파일시스템에서 원자적이므로 워치독은 옛 선언 아니면 새 선언만 본다.
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(body)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+    ceiling = floor - _WD_MARGIN_MIB
+    _append_event(args.node_dir, {
+        "kind": "budget_declare", "ts": now, "source": "blackbox_session",
+        "label": label, "floor_mib": floor, "expires_epoch": expires,
+        "weights_mib": args.weights_mib, "kv_mib": args.kv_mib,
+        "overhead_mib": args.overhead_mib, "mem_total_mib": args.mem_total_mib,
+    })
+    print("선언 발행: %s" % path)
+    print("  예상 상주 %d MiB → 예상 바닥 %d MiB · 만료 epoch %d (TTL %ds)"
+          % (resident, floor, expires, args.ttl_s))
+    print("  워치독 예상 arm 상한 = %d - %d = %d MiB" % (floor, _WD_MARGIN_MIB, ceiling))
+    if ceiling < _WD_MIN_CEILING_MIB:
+        # 워치독이 거부할 선언이다. 죽이지는 않는다 — 판정 권위는 워치독이고, 여기서 죽이면
+        # 두 곳이 같은 규칙을 갖게 되어 반드시 갈라진다. 대신 결과를 정직하게 예고한다.
+        print("  ⚠ 상한이 최소 %d MiB 미만 → **워치독이 이 선언을 거부**하고 현행 규칙으로 돈다."
+              % _WD_MIN_CEILING_MIB)
+    return 0
+
+
+def cmd_clear_budget(args):
+    now = _parse_now(args.now)
+    path = _budget_path(args.node_dir)
+    existed = os.path.isfile(path)
+    if existed:
+        os.remove(path)
+    _append_event(args.node_dir, {
+        "kind": "budget_clear", "ts": now, "source": "blackbox_session", "existed": existed,
+    })
+    print("선언 해제: %s (%s)" % (path, "제거함" if existed else "원래 없음"))
+    return 0
+
+
 def cmd_list(args):
     d = os.path.join(args.node_dir, "sessions")
     if not os.path.isdir(d):
@@ -206,6 +297,51 @@ def self_test():
         doc = json.load(open(p))
         ok.append(("stop duration 600s", doc["duration_s"] == 600))
         ok.append(("stop verdict 기록", doc["verdict"] == "PASS"))
+        # ── 예산 선언 (testlog_26073123 · 워치독 arm 상한) ─────────────────
+        def _bud(**kw):
+            base = dict(node_dir=node, mem_total_mib=124610, weights_mib=59556,
+                        kv_mib=16384, overhead_mib=12288, ttl_s=7200,
+                        label="glm-47-flash", now="2026-07-31T00:00:00Z")
+            base.update(kw)
+            return argparse.Namespace(**base)
+
+        cmd_declare_budget(_bud())
+        bp = _budget_path(node)
+        txt = open(bp, encoding="utf-8").read()
+        # floor = 124610 - (59556+16384+12288) = 36382
+        ok.append(("선언 floor 산출", "floor_mib=36382" in txt))
+        ok.append(("선언 만료 = now+ttl", "expires_epoch=%d\n" % (_epoch("2026-07-31T00:00:00Z") + 7200) in txt))
+        ok.append(("선언 라벨 기록", "label=glm-47-flash" in txt))
+        # 워치독 파서 문자셋과의 계약: 값 줄이 [A-Za-z0-9._-] 만 쓰는가
+        vals = [ln.split("=", 1)[1] for ln in txt.splitlines()
+                if ln and not ln.startswith("#") and "=" in ln]
+        ok.append(("선언 값이 워치독 문자셋 준수",
+                   all(re.match(r"^[A-Za-z0-9._-]{1,64}$", v) for v in vals)))
+        # 무기한 선언 금지
+        for bad_ttl in (0, -1, MAX_TTL_S + 1):
+            try:
+                cmd_declare_budget(_bud(ttl_s=bad_ttl))
+                ok.append(("ttl %r 거부" % bad_ttl, False))
+            except SystemExit:
+                ok.append(("ttl %r 거부" % bad_ttl, True))
+        # 상주가 총량 이상이면 거부(선언으로 불가능을 가릴 수 없다)
+        try:
+            cmd_declare_budget(_bud(weights_mib=124610))
+            ok.append(("상주 > 총량 거부", False))
+        except SystemExit:
+            ok.append(("상주 > 총량 거부", True))
+        # 라벨 문자셋 강제(워치독 파서가 못 읽는 값을 쓰지 않는다)
+        try:
+            cmd_declare_budget(_bud(label="bad label$(id)"))
+            ok.append(("불량 라벨 거부", False))
+        except SystemExit:
+            ok.append(("불량 라벨 거부", True))
+        # 해제
+        cmd_clear_budget(argparse.Namespace(node_dir=node, now="2026-07-31T00:30:00Z"))
+        ok.append(("선언 해제", not os.path.isfile(bp)))
+        cmd_clear_budget(argparse.Namespace(node_dir=node, now="2026-07-31T00:31:00Z"))
+        ok.append(("없는 선언 해제도 안전", not os.path.isfile(bp)))
+
         # 미종료 구분: stopped_utc=null 이 "안 끝남", 파일 부재가 "기록 없음"
         A2 = argparse.Namespace(**{**vars(A), "session_id": "s2"})
         cmd_start(A2)
@@ -261,6 +397,23 @@ def main():
     t.add_argument("--verdict", choices=["PASS", "FAIL", "REFUTE", "ABORT"])
     t.add_argument("--note", action="append")
     t.set_defaults(func=cmd_stop)
+
+    b = sub.add_parser("declare-budget",
+                       help="서빙 예산 선언 → 워치독 ETA 규칙의 arm 상한 (testlog_26073123)")
+    b.add_argument("--mem-total-mib", type=int, required=True, help="/proc/meminfo MemTotal")
+    b.add_argument("--weights-mib", type=int, required=True, help="가중치 실측(체크포인트 크기)")
+    b.add_argument("--kv-mib", type=int, required=True,
+                   help="KV 절대클램프. **미선언이면 예산 선언 자체가 불가**하다(설계 의도)")
+    b.add_argument("--overhead-mib", type=int, default=12288,
+                   help="cudagraph·활성화·런타임 여유 (기본 12288 = 12 GiB, 안전측)")
+    b.add_argument("--ttl-s", type=int, default=7200, help="만료까지 초(기본 7200 · 상한 86400)")
+    b.add_argument("--label")
+    b.add_argument("--now", required=True, help="YYYY-MM-DDTHH:MM:SSZ (벽시계 금지)")
+    b.set_defaults(func=cmd_declare_budget)
+
+    bc = sub.add_parser("clear-budget", help="예산 선언 해제 → 현행 ETA 규칙 복귀")
+    bc.add_argument("--now", required=True)
+    bc.set_defaults(func=cmd_clear_budget)
 
     l = sub.add_parser("list", help="세션 목록")
     l.set_defaults(func=cmd_list)

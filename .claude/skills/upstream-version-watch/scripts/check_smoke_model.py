@@ -14,7 +14,8 @@
       python3 check_smoke_model.py <config_name> --base output/multi [--repo .]
 산출물 통로(plan_26062312): configs/·docker-compose.yaml 는 output/<topology>/ 아래에 있다.
   → --topology 또는 --base 로 그 통로를 명시한다(루트 경로 폴백 금지 — fail-loud, single·multi 양쪽 정합).
-로드-전 RAM 게이트(plan_26071019 §2.6): 모델 실재 확인 후 체크포인트(index total_size)÷TP+floor
+로드-전 RAM 게이트(plan_26071019 §2.6): 모델 실재 확인 후 체크포인트(index weight_map 참조
+샤드의 실제 파일 크기 합 — total_size 아님, 2026-08-01)÷TP+floor
   vs MemAvailable 을 결정론 판정(부족 시 drop-caches 1회 자동 → 재측정 → 거부 exit7). 게이트 소유는
   recipe-explorer(preload_ram_gate.py — 발견≠소유), 여기는 serve-평면 소비자. TP 미해소 시 경고 후
   게이트 생략(음성정직 — 거짓 TP 로 false-block 하지 않음).
