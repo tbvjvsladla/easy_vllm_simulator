@@ -92,8 +92,18 @@ log(){ echo "[bb-watchdog] $*"; }
 
 emit_event(){ # $1=kind $2=json-fragment
   [ -n "$BB_EVENTS" ] || return 0
+  local _new=0
+  [ -e "$BB_EVENTS" ] || _new=1
   printf '{"ts":"%s","kind":"%s","source":"mem_watchdog_eta"%s}\n' \
     "$(ts)" "$1" "${2:+,$2}" >> "$BB_EVENTS" 2>/dev/null || true
+  # ★ root 가 새로 만든 이벤트 파일은 **디렉터리 소유자에게 넘긴다**. 이 파일은 root 데몬과
+  #   비-root 사용자 도구(blackbox_session declare-budget)가 함께 append 하는데, install 은
+  #   디렉터리만 위임 사용자 소유로 만들어 **그 달 먼저 쓴 쪽이 소유자**가 된다. root 가 이기면
+  #   사용자 도구가 EACCES 로 죽고 ETA 위양성 방어(선언된 바닥)가 통째로 못 선다
+  #   (2026-08-01 서브에서 실제 발생 — 메인은 우연히 사용자 도구가 먼저 써서 멀쩡했다).
+  if [ "$_new" = "1" ] && [ "$(id -u)" = "0" ] && [ -e "$BB_EVENTS" ]; then
+    chown --reference="$(dirname "$BB_EVENTS")" "$BB_EVENTS" 2>/dev/null || true
+  fi
 }
 
 # ── 선언 파일 읽기 ────────────────────────────────────────────────────────
