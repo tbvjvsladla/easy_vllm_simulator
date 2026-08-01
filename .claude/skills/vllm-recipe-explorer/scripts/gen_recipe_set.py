@@ -118,7 +118,64 @@ def _build_yaml(parsed, recipe, served_model_name):
     # quantization 줄: native/none 이 아닐 때만.
     if not _is_native_or_none(quant):
         lines.append("quantization: {}".format(str(quant).strip().lower()))
+
+    # ── 트라이얼이 검증한 나머지 serve 노브 (2026-08-01 파리티 교정) ──────
+    # ★ 여기가 비어 있으면 **검증된 레시피 ≠ 배포된 레시피** 가 된다.
+    #   실증: gpt-oss-120b 는 `--moe-backend MARLIN` 으로 트라이얼이 수렴했는데 이 yaml 에
+    #   그 줄이 없어, 같은 config 로 띄운 serve 가 auto→TRITON 커널 컴파일 실패로 즉사했다.
+    #   트라이얼 통과가 배포 성공을 보장하지 못하면 S6(검증레시피) 자체가 무의미해진다.
+    #   run_trial._build_serve_args 와 **같은 필드 집합**을 유지해야 하며,
+    #   그 파리티는 아래 assert_serve_knob_parity() 가 집행한다.
+    for key, flag, is_bool in (
+        ("moe_backend", "moe-backend", False),
+        ("gdn_prefill_backend", "gdn-prefill-backend", False),
+        ("max_num_batched_tokens", "max-num-batched-tokens", False),
+        ("enforce_eager", "enforce-eager", True),
+        ("language_model_only", "language-model-only", True),
+    ):
+        v = recipe.get(key)
+        if is_bool:
+            if v:
+                lines.append("{}: true".format(flag))
+        elif v is not None and str(v).strip().lower() not in ("", "auto", "none"):
+            lines.append("{}: {}".format(flag, v))
     return "\n".join(lines) + "\n"
+
+
+# run_trial._build_serve_args 가 serve 인자로 소비하지만 **이 생성기가 의도적으로 다루지 않는**
+# 필드. 여기 없는 신규 필드가 run_trial 에 생기면 파리티 검사가 실패한다(침묵 드롭 차단).
+_PARITY_EXEMPT = {
+    "model_path", "model_path_container", "model_capabilities", "id",
+    "attention_backend",      # .sh 의 export VLLM_ATTENTION_BACKEND 로 전달
+    "tool_call_parser",       # .sh 의 CLI 플래그로 전달
+    "reasoning_parser",       # .sh 의 CLI 플래그로 전달
+    "served_model_name",      # .env/.sh 로 전달
+    "model_id",               # 주석/이름용
+    "extra_env",              # 트라이얼 전용(임시 실험 env) — 배포 3종 세트로 승격하지 않는다
+}
+
+
+def assert_serve_knob_parity(run_trial_source: str, raise_on_gap: bool = True):
+    """run_trial 이 소비하는 serve 노브가 이 생성기에서 누락되지 않았는지 검사.
+
+    "트라이얼은 통과했는데 배포물이 그 설정을 재현하지 못한다"는 결함 계열을 클래스로 막는다.
+    반환: 누락 필드 리스트(빈 리스트면 파리티 OK).
+    """
+    import re as _re
+    consumed = set(_re.findall(r'candidate\.get\("([a-z_]+)"\)', run_trial_source))
+    mine = _build_yaml.__code__.co_consts
+    body = open(__file__, encoding="utf-8").read()
+    gaps = []
+    for f in sorted(consumed - _PARITY_EXEMPT):
+        flag = f.replace("_", "-")
+        if flag not in body and f not in body:
+            gaps.append(f)
+    if gaps and raise_on_gap:
+        raise AssertionError(
+            "serve 노브 파리티 위반 — run_trial 이 쓰는데 3종 세트가 안 담는 필드: %s. "
+            "검증된 레시피와 배포된 레시피가 갈린다. _build_yaml 에 추가하거나 "
+            "_PARITY_EXEMPT 에 근거와 함께 등록하라." % ", ".join(gaps))
+    return gaps
 
 
 def _build_sh(name, served_model_name, recipe=None):
