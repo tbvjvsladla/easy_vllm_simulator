@@ -418,14 +418,25 @@ def parse(model_path: str, nas_host_root: str = DEFAULT_NAS_HOST_ROOT,
     if prequantized:
         quant_method_native = quant_config.get("quant_method")
 
-    # 6) is_moe: num_experts/num_local_experts 존재 또는 model_type 에 'moe' 포함.
-    num_experts = field("num_experts")
-    if num_experts is None:
-        num_experts = field("num_local_experts")
+    # 6) is_moe: 전문가 수 키 존재 또는 model_type 에 'moe' 포함.
+    #
+    # ★ 키 이름은 publisher 마다 다르다. HF 표준은 `num_experts`/`num_local_experts` 지만
+    #   **DeepSeek 계열은 `n_routed_experts`** 를 쓴다(+ `n_shared_experts` 는 공유전문가로 별개).
+    #   그 결과 DeepSeek-V4-Flash 계열이 전부 `is_moe=False` 로 오판됐다 — 2026-08-01
+    #   DeepSeek-V4-Flash-0731(n_routed_experts=256, num_experts_per_tok=6) 실측으로 발견.
+    #   오판의 실해악: MoE 백엔드 선택(humming/triton/marlin)·KV 공식·루프라인 산정이 전부
+    #   dense 가정으로 흐른다. 이 프로젝트에서 그 셋은 각각 다른 실패로 이어진 전례가 있다.
+    #   ※ 지금까지 DeepSeek 서빙이 성공한 건 사람/에이전트가 알고 우회했기 때문이지 도구가
+    #     맞았기 때문이 아니다 — 지식이 도구로 전파되지 않은 전형이다.
+    #   routed 를 우선한다: MoE 라우팅 폭은 routed 전문가 수이고, shared 는 상시활성이라 폭이 아니다.
+    _EXPERT_COUNT_KEYS = ("num_experts", "num_local_experts", "n_routed_experts")
+    num_experts = None
+    for _k in _EXPERT_COUNT_KEYS:
+        if num_experts is None:
+            num_experts = field(_k)
     num_experts_per_tok = field("num_experts_per_tok")
     is_moe = (
         num_experts is not None
-        or field("num_local_experts") is not None
         or (isinstance(model_type, str) and "moe" in model_type.lower())
     )
 
