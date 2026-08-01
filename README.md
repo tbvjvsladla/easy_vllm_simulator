@@ -188,22 +188,32 @@ manifest 가 확정되면, 에이전트는 메인노드에서 랜더링한 결�
 > - **A2A 위임 키 fail-closed 결정적 입증**: 서브에 키가 있을 때 → 서브 레시피 스킬 정상 구동(자율 서빙 보존) / 키를 빼면 → 즉시 거부(exit 4). *"검증 안 된 서브가 조용히 서빙하는 일"* 을 코드가 막습니다.
 > - 라이브 테스트가 실결함 3건을 그 자리에서 잡아 수정(SSH probe 버그 · manifest 획득모드 미마이그레이션 · 서브 stale manifest). **판정: PASS.**
 
-### 여정 1의 마지막 스텝 — 호스트 안전체계 (선택 · 메인·서브 각각 sudo)
+### 여정 1의 마지막 스텝 — 노드 블랙박스 (선택 · 메인·서브 각각 sudo)
 
 manifest 에 *완수 표식* 이 찍히면 테라포밍의 표준 절차는 끝난 겁니다(단일이든 멀티든). 에이전트는 마지막으로 **딱 하나를 권유** 합니다 — 강제가 아니라 Y/N 선택입니다.
 
-> 🤖 **에이전트**: 끝으로 **호스트 안전체계**를 설치하시겠어요? 시스템에서 *상시 도는* 보호 장치라 부담이 될 수 있어, 일부러 **맨 마지막 선택조항**으로 뺐습니다.
-> - **mem_watchdog** — 메모리를 상시 지켜보다가 위험 수위를 넘으면 **문제 컨테이너를 먼저 죽여** 호스트를 살립니다. GB10 같은 **통합메모리** 머신은 GPU 메모리가 시스템 메모리와 한 몸이라 *GPU OOM = 호스트째 다운* 인데, 그 직전에 개입합니다(여정 3에서 KV 풍선을 SIGKILL 로 잡아 호스트를 지킨 그 장치예요). earlyoom 이 그 뒤를 받치는 최후선입니다.
-> - **kdump**(`--with-kdump`) — 그래도 시스템이 멎으면 **사후 분석용 커널 덤프(vmcore)** 를 남겨 원인을 추적하게 합니다(crashkernel RAM 예약 + 재부팅 1회).
+> 🤖 **에이전트**: 끝으로 **노드 블랙박스**를 설치하시겠어요? 이름 그대로 *항공기 블랙박스* 입니다 — 평시엔 조용히 계속 기록하고, 사고가 나면 그 기록이 **유일한 증거**가 됩니다. GB10 같은 **통합메모리** 머신은 GPU 메모리가 시스템 메모리와 한 몸이라 *GPU OOM = 호스트째 다운* 인데, 하드다운은 디스크에 로그를 쓸 시간조차 주지 않고 끝나거든요.
+> - **① 예방** — 메모리를 상시 지켜보다가 위험 수위를 넘으면 **문제 컨테이너를 먼저 죽여** 호스트를 살립니다(여정 3에서 KV 풍선을 SIGKILL 로 잡아 호스트를 지킨 그 장치예요). earlyoom 이 그 뒤를 받치는 최후선입니다.
+> - **② 기록** — 1초 해상도 시계열·이벤트·일별 통계를 `docs/logs/` 에 쌓습니다. *사람이 읽으라고* 만든 게 아니라 **에이전트가 읽는 데이터 평면**입니다.
+> - **③ 사후 포착** — 그래도 시스템이 멎으면, 죽는 순간의 커널 메시지를 **재부팅 뒤에도 남는 곳**(EFI NVRAM)이나 **다른 노드**(netconsole)로 흘려보냅니다.
 > - **discrete GPU(일반 PC)** 라면 GPU OOM 이 호스트를 죽이진 않으니 **부담 없이 건너뛰어도** 됩니다.
 
-**이 둘이 실제로 어떻게 지켜주는지** — 메모리가 튀는 순간의 흐름입니다. 평시엔 워치독이 막고(1차), 그걸 뚫려도 kdump 가 증거를 남깁니다(2차).
+**설치는 세 레벨** 이고, 경계는 *재부팅이 필요한가* 입니다. 파일과 유닛은 **레벨과 무관하게 항상 노드에 도착** 하고 활성화만 레벨이 고릅니다 — 나중에 마음이 바뀌어도 재배달이 필요 없습니다.
+
+| 레벨 | 재부팅 | 무엇이 켜지나 |
+| --- | --- | --- |
+| **L1** | 불필요 | 수집기(1초 샘플) · **ETA 워치독** · 이벤트 통합 · 로그 수명 집행 · drop-caches 헬퍼 · earlyoom |
+| **L2** | 불필요(peer 필요) | **netconsole** 교차 스트리밍 — 멀티노드 전용(단일은 `N/A` 로 정직하게 기록) |
+| **L3** | 1회 | 사후 포착 = **efi_pstore** 확보 (crashkernel·ramoops **제거**) |
+
+**이것들이 실제로 어떻게 지켜주는지** — 메모리가 튀는 순간의 흐름입니다. 평시엔 워치독이 막고(1차), 그걸 뚫려도 기록과 포착이 증거를 남깁니다(2차).
 
 ```mermaid
 flowchart TD
-    START(["🟢 vLLM 서빙 가동 중"]) --> SPIKE{"⚠️ 메모리 압박 급상승<br/>KV 풍선 · 대형 prefill · MoE-JIT"}
+    START(["🟢 vLLM 서빙 가동 중"]) --> REC["📼 상시 기록 · L1<br/>1초 샘플 → 일별 rollup → envelope.json"]
+    START --> SPIKE{"⚠️ 메모리 압박 급상승<br/>KV 풍선 · 대형 prefill · MoE-JIT"}
 
-    SPIKE -- "위험 수위 관측" --> WD["👁️ mem_watchdog<br/>systemd 상시 · MemAvailable 폴링<br/>oom_score_adj 800 로 커널도 컨테이너 조준"]
+    SPIKE -- "잔량 ÷ 하강률 이<br/>활주로보다 짧다" --> WD["👁️ ETA 워치독 · L1<br/>systemd 상시 · MemAvailable 1초 폴링<br/>oom_score_adj 800 로 커널도 컨테이너 조준"]
     WD -- "문제 컨테이너만 SIGKILL" --> KILL["🎯 해당 컨테이너 정리<br/>→ 메모리 즉시 회수"]
     KILL --> SURVIVE(["🟢 호스트 생존 → 곧바로 재서빙<br/>— 대부분의 경우"])
 
@@ -211,30 +221,85 @@ flowchart TD
     EO -. "최고점유 프로세스 kill" .-> SURVIVE
 
     SPIKE == "급작 이산폴트 등 워치독 우회 (드묾)" ==> DOWN["🔴 호스트 하드다운"]
-    DOWN -- "crashkernel 예약영역서 캡처 커널 부팅" --> KDUMP["💾 kdump → vmcore<br/>/var/crash 저장"]
-    KDUMP --> ANALYZE(["🔁 재부팅 후 사후분석<br/>근본원인 추적 · 증거 보존"])
+    DOWN -- "단일 · L3" --> PS["💾 efi_pstore → EFI NVRAM<br/>재부팅 뒤 systemd-pstore 가 아카이브"]
+    DOWN -- "멀티 · L2" --> NC["📡 netconsole → peer 노드<br/>죽는 순간까지 UDP 실시간 송출"]
+    PS --> ANALYZE(["🔁 사후분석<br/>근본원인 추적 · 증거 보존"])
+    NC --> ANALYZE
+    REC -. "직전 수 시간의 궤적" .-> ANALYZE
 
-    subgraph L1 ["1차 방어 — 예방 (호스트를 살린다)"]
+    subgraph L1G ["1차 — 예방 (호스트를 살린다)"]
         WD
         KILL
         EO
     end
-    subgraph L2 ["2차 방어 — 사후 (증거를 남긴다)"]
-        KDUMP
+    subgraph L2G ["2차 — 기록·포착 (증거를 남긴다)"]
+        REC
+        PS
+        NC
     end
 ```
 
-> 🛡️ 요컨대 — **평시엔 호스트가 살아남고, 최악의 경우에도 원인 분석용 덤프가 남습니다.** 통합메모리 환경의 *'한밤중 원인불명 하드다운'* 을 앞단에서 **예방** 하고, 그마저 뚫려도 *미궁에 빠지지 않게* 뒷단에서 **증거를 보존** 하는 2단 방어입니다. (근거·실측 = `docs/plan/plan_26071019`, 768k 크래시 포렌식.)
+> 🛡️ 요컨대 — **평시엔 호스트가 살아남고, 최악의 경우에도 원인을 추적할 증거가 남습니다.** 통합메모리 환경의 *'한밤중 원인불명 하드다운'* 을 앞단에서 **예방** 하고, 그마저 뚫려도 *미궁에 빠지지 않게* 뒷단에서 **증거를 보존** 하는 2단 방어입니다. (근거·실측 = `docs/plan/plan_26071019` 768k 크래시 포렌식 · `plan_26073109` 블랙박스 승격.)
 
-**설치는 당신이 직접 `sudo` 로 실행** 합니다 — 에이전트는 안전체계를 **무인 sudo 로 깔지 않습니다**(무엇을·왜·트레이드오프까지 설명하고, 승인·검증까지가 에이전트의 몫). 기본은 dry-run 이라 `--apply` 없이 먼저 돌려 무엇이 설치될지 볼 수 있고, 멱등이라 재실행도 안전합니다.
+> ⚠️ **이 README 는 원래 여기서 `kdump` 를 권했습니다 — 실측이 그걸 뒤집었습니다** (강제 크래시 7회 / `testlog_26073113`, 2026-07-31)
+> - **vmcore 0/4** — `makedumpfile` 이 커널 6.17 을 미지원. 우리 설정으로는 해소 불가한 구조적 문제입니다.
+> - **kdump 가 무장돼 있으면 pstore 가 원천 차단됩니다** — `crash_kexec_post_notifiers=N` 인 리눅스에서 `panic()` 은 `kmsg_dump()` 보다 **먼저** kexec 로 점프해 돌아오지 않습니다. 즉 kdump 는 *유일하게 작동하던 사후 포착 수단* 을 죽이면서, 그 대가로 **2.25 GiB 를 상시 예약** 하고 있었습니다 — 통합메모리 노드에서 그 자원이 곧 하드다운의 원인입니다.
+> - **∴ L3 는 kdump 를 설정하는 게 아니라 걷어냅니다.** crashkernel 을 제거하니 노드당 MemTotal 이 **119.44 → 121.69 GiB** 로 돌아왔고, efi_pstore 는 패닉 레코드를 실제로 포착했습니다(**단일 efi_pstore 3/3 · 멀티 netconsole 5/5**).
+> - `ramoops` 는 이 플랫폼에서 **불가** 로 직접 반증됐습니다 — 같은 물리주소로 3회 부팅해도 *크래시 없는 정상* 재부팅만으로 헤더가 깨집니다(펌웨어가 리셋 때 DRAM 초기화). 파라미터를 남겨두면 다음 사람이 *"포착 수단이 있다"* 고 오독하므로 **결함으로 잡습니다**.
+
+#### 워치독이 정상 작업을 죽였을 때 — "선언된 바닥"
+
+ETA 워치독의 규칙은 단순합니다: **남은 메모리 ÷ 줄어드는 속도** 가 활주로(컨테이너를 죽이는 데 걸리는 시간)보다 짧으면 죽인다. 이 규칙이 실제로 KV 풍선을 잡아 호스트를 살렸습니다.
+
+그런데 2026-08-01, 58 GiB 짜리 모델을 올리는 **정상 로드를 3번 중 3번 죽였습니다.** 파보니 임계값 문제가 아니었습니다 — 121.7 GiB 호스트에 58 GiB 모델을 올리면 MemAvailable 은 **반드시** 그만큼, **반드시** 대역폭 속도로 떨어집니다. 진성(KV 풍선)과 위양성(모델 로드)이 *(잔량, 하강률)* 평면에서 **분리되지 않았습니다** — 오히려 위양성 쪽 여유가 2배 크고 트립 순간 속도는 7배 느렸는데도요. 어느 축으로 선을 그어도 진성까지 같이 죽습니다.
+
+그래서 처방은 임계값 조정이 아니라 **빠진 정보를 채우는 것** 이었습니다. 서빙 직전에 *"이번 모델은 여기까지 내려갑니다"* 를 선언하면, 워치독은 **그 바닥 위에서는 ETA 규칙을 아예 무장하지 않습니다.**
 
 ```bash
-sudo bash .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh --apply                # ① 워치독 systemd + ② vllm-drop-caches 헬퍼 + ③ earlyoom
-sudo bash .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh --apply --with-kdump   # + ④ kdump (재부팅 1회 필요)
-systemctl is-active easy-vllm-memwatch                          # 확인 → active
+# 에이전트가 서빙 직전에 자동으로 호출합니다 (사람이 직접 칠 일은 거의 없습니다)
+python3 .claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.py declare-budget \
+  --mem-total-mib 124610 --weights-mib 59596 --kv-mib 16384 --now 2026-08-01T09:00:00Z
 ```
 
-> ⚠ **멀티노드면 메인·서브 노드에서 *각각* 실행** 합니다. 메인의 코드에이전트가 서브에 대신 sudo 를 걸어주지 않습니다(A2A 경계 — 서브의 관리 권한은 서브에서 사람이 행사). 서브노드에 SSH 로 들어가 위 명령을 **똑같이 한 번 더** 돌리고, 검증(`systemctl is-active …`)도 노드별로 따로 합니다. (설치 스크립트는 렌더 배달로 서브에도 이미 가 있습니다.)
+> 이 설계의 핵심은 **게이트를 눈멀게 하지 않는다** 는 데 있습니다.
+> - 선언이 **없으면** 상한이 무한대 = 예전 규칙 그대로입니다(빠뜨려도 안전한 쪽으로 실패합니다).
+> - 선언한 바닥을 **뚫고 내려가면** 다시 무장합니다. **절대 바닥(5 GiB)** 은 선언과 무관하게 **항상** 무장합니다.
+> - 실제로 유일했던 진성 사건은 `kv_cache_memory_bytes: null` 이라 **애초에 선언이 불가능** 한 경우였습니다 — 그래서 그 사건은 지금도 잡힙니다. 실측 재생 결과 **위양성 17건 → 0건, 진성은 그대로 보존**.
+> - 선언 파일은 root 데몬이 읽지만 **절대 `source` 하지 않습니다**(비-root 파일을 root 가 실행하는 셈이 되니까요) — 문자셋 검사 후 `sed` 로만 읽고, TTL 이 있고, 수상한 선언은 거부하며, **모든 실패는 무한대(=예전 규칙)로 복귀** 합니다.
+> - 부수효과로 `--kv-mib` 필수화가 *절대 KV 클램프* 원칙(「여정 3」)을 **집행 가능한 형태**로 바꿉니다 — 선언할 수 없는 서빙은 애초에 클램프가 없는 서빙이니까요.
+
+#### 설치와 검증
+
+**설치는 당신이 직접 `sudo` 로 실행** 합니다 — 에이전트는 안전체계를 **무인 sudo 로 깔지 않습니다**(무엇을·왜·트레이드오프까지 설명하고, 승인·검증까지가 에이전트의 몫). 기본은 dry-run 이라 `--apply` 없이 먼저 돌려 무엇이 바뀔지 볼 수 있고, 멱등이라 재실행도 안전합니다.
+
+```bash
+BB=.claude/skills/terraforming_node/scripts/node_blackbox
+sudo bash $BB/install_node_blackbox.sh --apply --level=L1     # 수집기·ETA 워치독·이벤트·수명·earlyoom
+sudo bash $BB/install_node_blackbox.sh --apply --level=L2     # + netconsole 교차 스트리밍 (멀티노드)
+sudo bash $BB/install_node_blackbox.sh --apply --level=L3     # + efi_pstore 확보 (재부팅 1회)
+
+systemctl is-active easy-vllm-blackbox-watchdog               # 확인 → active
+sudo bash $BB/verify_node_blackbox.sh --check                 # 비파괴 전수 검사
+```
+
+> 🔬 **"설치됨" 은 증거가 아닙니다.** 2026-07-30 두 번의 하드다운에서 kdump 는 양 노드 모두 `current state: ready to kdump` 였는데 vmcore 는 **0건** 이었습니다. *ready* 는 주장이지 증거가 아니었던 거죠. 그래서 상태 권위를 `installed: true` 가 아니라 **`capture_verified: <UTC>`** 로 바꿨습니다.
+> - `--check` 는 **비파괴** 전수 검사이고, 크래시가 있어야만 증명되는 항목은 **`pending` 으로 정직하게 남습니다** — "아직 증명 안 됨"과 "통과"를 섞지 않습니다.
+> - 진짜로 증명하려면 `--crash-test`(★파괴적★ 강제 커널 패닉 → 재부팅) → 재부팅 후 `--post-crash` 순서로 돌립니다.
+> - 이 게이트가 *배포본 신선도* 도 잡습니다 — 자체시험은 **소스**를 시험하는데 데몬은 **사본**을 돌리므로, 둘이 갈라지면 "시험 전부 PASS + 현장은 옛 코드" 라는 침묵실패가 됩니다(실제로 발생 → sha256 대조 추가).
+
+**기록은 어디에 쌓이나** — `docs/logs/<node_id>/` 이고, 이건 **7번째 문서 종류이자 유일한 비-문서** 입니다. 사람 가독성을 고려하지 않습니다(읽고 싶어지면 그때 md/html 로 변환합니다).
+
+| 파일 | 무엇 | 수명 |
+| --- | --- | --- |
+| `samples/<날짜>.csv` | 1초 해상도 원시 시계열 | 7일 → 압축 30일 → 삭제 |
+| `events/<연-월>.jsonl` | 희소·이질 이벤트(트립·킬·부정 클린부팅) | **영구** |
+| `rollup/<날짜>.json` | 일별 포락선 통계 — 학습의 실제 입력 | **영구** |
+| `envelope.json` | 현재 포락선 + ETA 상수 — **에이전트가 폴링마다 읽는 유일한 파일**(수백 토큰) | 갱신 |
+| `capture_verified.json` | proof-of-capture 판정 | 갱신 |
+
+> 수명 집행에는 **순서가 있고 그 순서가 곧 안전장치** 입니다 — `rollup(통계 확정) → 압축 → 나이 삭제 → 용량 삭제`. 원시를 버려도 학습 입력은 남습니다. 그리고 **침묵 삭제는 없습니다**: 모든 삭제·압축이 `events` 에 남습니다. *조용한 삭제* 는 **"기록이 원래 없었던 것"** 과 구분되지 않으니까요.
+
+> ⚠ **멀티노드면 메인·서브 노드에서 *각각* 실행** 합니다. 메인의 코드에이전트가 서브에 대신 sudo 를 걸어주지 않습니다(A2A 경계 — 서브의 관리 권한은 서브에서 사람이 행사). 서브노드에 SSH 로 들어가 위 명령을 **똑같이 한 번 더** 돌리고, 검증도 노드별로 따로 합니다. (설치 스크립트는 렌더 배달로 서브에도 이미 가 있습니다 — 다만 서브에서는 `.claude/runtime/node_blackbox/` 로 경로가 다릅니다.)
 
 설치하지 않아도(N) **테라포밍은 유효** 하고 서빙도 정상 진행됩니다 — 다만 *통합메모리* 노드라면 이후 서빙 기동 직전에 에이전트가 "워치독 미설치" 를 채팅으로 한 줄 귀띔하는 게 전부입니다(시끄러운 로그 배너는 없습니다).
 
@@ -590,7 +655,7 @@ flowchart TB
 | --- | --- |
 | [`CLAUDE.md`](./CLAUDE.md) | 헌법 — 항상 보유하는 사실·불변식·모든 따름정리의 단일 진실원천 |
 | [`.claude/rules/workflow.md`](./.claude/rules/workflow.md) | 전파 워크플로 — 버전 업데이트 S1~S4 4단계 + HITL 게이트 + 메인↔서브 싱크 |
-| [`.claude/rules/docs.md`](./.claude/rules/docs.md) | 문서 6종(plan·devlog·testlog·simlog·**benchmark**·report) 작성 규약 — full 벤치 계측 vault(`docs/benchmark/`) 포함 |
+| [`.claude/rules/docs.md`](./.claude/rules/docs.md) | 문서 6종(plan·devlog·testlog·simlog·**benchmark**·report) 작성 규약 — full 벤치 계측 vault(`docs/benchmark/`) + **7번째 평면 `docs/logs/`**(노드블랙박스 기계판독 데이터 — 산문 규약 미적용) |
 | [`HINTS.md`](./HINTS.md) | hint 태그 카탈로그 — 검증된 서빙 레시피 곁눈질(Token Economy)·발행처 계보·다운로드 방법(「부록 B」 상세본) |
 | `.claude/skills/` | 생성엔진 — `terraforming_node` · `upstream-version-watch` · `vllm-recipe-explorer` · `adversarial-benchmark` · `wiki-desk` |
 
@@ -670,7 +735,7 @@ r = client.chat.completions.create(
 print(r.choices[0].message.content)
 ```
 
-> 🌐 **원격 접속**: `SERVING_IP=0.0.0.0`(기본)이면 LAN 의 다른 기기에서도 붙을 수 있습니다 — `localhost` 대신 **마스터노드 IP**(manifest `nodes[main].host`, 예 `192.168.100.10`)를 쓰세요. reasoning 모델은 `reasoning` 필드가 따로 오고, 툴콜은 `tool_calls` 로 옵니다(응답에 `finish_reason` 확인).
+> 🌐 **원격 접속**: `SERVING_IP=0.0.0.0`(기본)이면 LAN 의 다른 기기에서도 붙을 수 있습니다 — `localhost` 대신 **마스터노드 IP**(manifest `nodes[main].host` 의 값 — 환경마다 다릅니다)를 쓰세요. reasoning 모델은 `reasoning` 필드가 따로 오고, 툴콜은 `tool_calls` 로 옵니다(응답에 `finish_reason` 확인).
 
 ### 3) 상태·로그
 
