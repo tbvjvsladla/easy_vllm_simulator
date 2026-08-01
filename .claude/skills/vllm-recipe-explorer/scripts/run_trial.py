@@ -157,6 +157,17 @@ def _build_serve_args(candidate: dict) -> list:
     if quant and str(quant).lower() != "none":
         args += ["--quantization", str(quant)]
 
+    # ── moe_backend (lock; auto/null 은 미지정 = 엔진 oracle 에 맡김) ───
+    # ★ 이 노브는 **후보 스키마에 있는데 emit 되지 않고 있었다**(2026-08-01 발견).
+    #   그 결과 `moe_backend: MARLIN` 을 줘도 조용히 무시되고 엔진이 auto 로 돌았다.
+    #   이 프로젝트에서 moe-backend 는 결정적 레버였다 — DeepSeek-V4-Flash 는
+    #   `humming` 이 6× OOM 을 풀었고 Qwen3-Next 는 `triton` 이 CUTLASS-JIT-OOM 을 풀었다.
+    #   즉 "설정했는데 안 먹는" 것이 가장 비싼 종류의 침묵 실패다.
+    #   플래그명 version-exact 확인: vllm/engine/arg_utils.py:1523 `--moe-backend`.
+    moe = candidate.get("moe_backend")
+    if moe and str(moe).lower() != "auto":
+        args += ["--moe-backend", str(moe)]
+
     # ── kv-cache-memory-bytes (free 변수 — 루프가 설정한 절대 클램프) ───
     kv_bytes = candidate.get("kv_cache_memory_bytes")
     if kv_bytes is not None:
@@ -289,6 +300,7 @@ def _audit_emitted(candidate: dict, docker_cmd: list) -> None:
         ("kv_cache_memory_bytes", "--kv-cache-memory-bytes"),
         ("kv_cache_quant", "--kv-cache-dtype"),
         ("attention_backend", "VLLM_ATTENTION_BACKEND="),
+        ("moe_backend", "--moe-backend"),
     ]
     # enforce_eager: false/미설정은 의도적 미emit(CUDA 그래프 기본 활성 유지).
     if candidate.get("enforce_eager"):
