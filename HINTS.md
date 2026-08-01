@@ -87,4 +87,5 @@ git tag -l --format='%(contents)' hint/0.24.0/deepseek-v4-flash/gb10 > seed/hint
 | `hint/0.26.0/glm-47-flash/gb10` | 0.26.0 | glm-47-flash | gb10 | single 1노드 | active | testlog_26080107 | 2026-08-01 | GLM-4.7-Flash(`zai-org/GLM-4.7-Flash`) bf16 MoE 64e · **MLA** · single tp=1 · KV 52.9 KiB/token(GQA 공식의 1/7) · full 벤치 PASS(MBU 85.7%) |
 | `hint/0.26.0/lfm2-8b-a1b/gb10` | 0.26.0 | lfm2-8b-a1b | gb10 | single 1노드 | active | testlog_26073121 | 2026-07-31 | LFM2-8B-A1B bf16 MoE 32e 하이브리드(conv18+attn6) · single tp=1 · KV 12KiB/token(전층가정의 1/4) · cold JIT 23초 · full 벤치 PASS(MBU 71%) |
 | `hint/0.26.0/ministral-3-8b/gb10` | 0.26.0 | ministral-3-8b | gb10 | single 1노드 | active | testlog_26073115,testlog_26073116,testlog_26073117 | 2026-07-31 | Ministral-3-8B-Instruct-2512 FP8 vision-멀티모달 · single tp=1 · KV 절대클램프 20GiB · full 벤치 PASS(MBU 94.4%) |
+| `hint/0.26.0/olmo-3.1-32b/gb10` | 0.26.0 | olmo-3.1-32b | gb10 | single 1노드 | active | testlog_26080110 | 2026-08-01 | Olmo-3.1-32B-Instruct(`allenai/Olmo-3.1-32B-Instruct`) bf16 dense · 하이브리드 sliding48+full16 · KV 88.0 KiB/token(**sliding = 윈도우×2**) · full 벤치 PASS(MBU 87.5%) |
 <!-- hint-index:rows -->

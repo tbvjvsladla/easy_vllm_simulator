@@ -324,6 +324,18 @@
       "related": "testlog_26073115,testlog_26073116,testlog_26073117",
       "status": "active",
       "last_verified": "2026-07-31"
+    },
+    {
+      "tag": "hint/0.26.0/olmo-3.1-32b/gb10",
+      "vllm": "0.26.0",
+      "model": "olmo-3.1-32b",
+      "arch": "gb10",
+      "topology": "single 1노드",
+      "brief": "Olmo-3.1-32B-Instruct(`allenai/Olmo-3.1-32B-Instruct`) bf16 dense · 하이브리드 sliding48+full16 · KV 88.0 KiB/token(**sliding = 윈도우×2**) · full 벤치 PASS(MBU 87.5%)",
+      "anchor": "88c6bc1e1ca3baef29788a8e35b19dd2cf1cab3d",
+      "related": "testlog_26080110",
+      "status": "active",
+      "last_verified": "2026-08-01"
     }
   ]
 }
