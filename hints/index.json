@@ -302,6 +302,30 @@
       "last_verified": "2026-07-19"
     },
     {
+      "tag": "hint/0.26.0/ax-4.0/gb10x2",
+      "vllm": "0.26.0",
+      "model": "ax-4.0",
+      "arch": "gb10x2",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "SKT A.X-4.0(72B급 dense bf16, Qwen2ForCausalLM, 80층 GQA 64/8, native 131072) 2×GB10 TP=2. 가중치 133.9GiB → 노드당 67GiB. ★KV 가 GQA 공식과 정확히 일치한 사례 — 예측 3.2 vs 실측 3.20x, 104,858 vs 104,848 tok(하이브리드 모델과 대비된다). KV 16GiB 절대클램프 @32768. full 벤치 PASS 3.26 t/s(기대 1.13) — dense 대형이라 절대값이 낮고 루프라인 자체가 1.33 t/s 다.",
+      "anchor": "ae4b0e0b4b276c187b946ecf603ccfd83a9c9c63",
+      "related": "testlog_26080201",
+      "status": "active",
+      "last_verified": "2026-08-02"
+    },
+    {
+      "tag": "hint/0.26.0/deepseek-v4-flash-0731/gb10x2",
+      "vllm": "0.26.0",
+      "model": "deepseek-v4-flash-0731",
+      "arch": "gb10x2",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "DeepSeek-V4-Flash-0731(정식판, fp8 block-quant e4m3/ue8m0, MoE routed256+shared1/active6, MLA+DSA index_topk 512, MTP 1층, 43층, 1M ctx) 2×GB10 TP=2. ★사다리 1칸=노멀(stock 0.26.0, 포크·패치 0건). ★DSpark arch-wall 가설 반증 — 0.25.1 시절 jasl fork 가 필요했으나 0.26.0 은 흡수했다. ★reasoning 분리는 파서/템플릿이 아니라 thinking 기본 False 가 원인. 가중치 155.4GiB → 노드당 77.7. KV 311,093 tok @131K(26.3 KiB/tok). full 벤치 PASS 19.65 t/s(기대 13.20). Hermes agent-ready(FC+reasoning 분리 실증).",
+      "anchor": "ae4b0e0b4b276c187b946ecf603ccfd83a9c9c63",
+      "related": "testlog_26080207",
+      "status": "active",
+      "last_verified": "2026-08-02"
+    },
+    {
       "tag": "hint/0.26.0/glm-47-flash/gb10",
       "vllm": "0.26.0",
       "model": "glm-47-flash",
@@ -324,6 +348,18 @@
       "related": "testlog_26080114",
       "status": "active",
       "last_verified": "2026-08-01"
+    },
+    {
+      "tag": "hint/0.26.0/laguna-s-2.1-fp8/gb10x2",
+      "vllm": "0.26.0",
+      "model": "laguna-s-2.1-fp8",
+      "arch": "gb10x2",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "Laguna-S-2.1-FP8(poolside, compressed-tensors FP8, MoE 256e/10a, 48층 GQA 8/128, native 262144) 2×GB10 TP=2. 가중치 113.2GiB → 노드당 56.6GiB. KV 22GiB 절대클램프 · moe-backend triton · disable-custom-all-reduce(RoCE) · poolside_v1 파서(FC+reasoning). full 벤치 PASS 28.16 t/s(기대 13.03) — 이번 캠페인 4종 중 최고.",
+      "anchor": "ae4b0e0b4b276c187b946ecf603ccfd83a9c9c63",
+      "related": "testlog_26080201",
+      "status": "active",
+      "last_verified": "2026-08-02"
     },
     {
       "tag": "hint/0.26.0/lfm2-8b-a1b/gb10",
@@ -360,6 +396,18 @@
       "related": "testlog_26080110",
       "status": "active",
       "last_verified": "2026-08-01"
+    },
+    {
+      "tag": "hint/0.26.0/qwen35-122b-a10b-nvfp4/gb10x2",
+      "vllm": "0.26.0",
+      "model": "qwen35-122b-a10b-nvfp4",
+      "arch": "gb10x2",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "Qwen3.5-122B-A10B-NVFP4(compressed-tensors NVFP4, MoE 256e/8a, 하이브리드 attn, vision) 2×GB10 TP=2. ★single 불가 — 로드 피크 114.8GiB(가중치버퍼 선할당 75.0 + 로드중 누적 31.8)가 gmu 0.90 예산 109.5GiB 를 넘는다. 정상상태 75.9GiB(예산 69%)만 보면 오판한다. TP=2 로 노드당 실측 35.75GiB. KV 12.4KiB/tok(676,697 tok @8GiB 절대클램프) — 매트릭스 추정 24KiB의 절반(하이브리드라 GQA 공식 불성립). 동시성 2.58x@262144. full 벤치 PASS 22.59 t/s(기대 12.27).",
+      "anchor": "ae4b0e0b4b276c187b946ecf603ccfd83a9c9c63",
+      "related": "testlog_26080118,testlog_26080201",
+      "status": "active",
+      "last_verified": "2026-08-02"
     }
   ]
 }
