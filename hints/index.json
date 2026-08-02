@@ -326,6 +326,18 @@
       "last_verified": "2026-08-02"
     },
     {
+      "tag": "hint/0.26.0/deepseek-v4-flash-0731/gb10x2-1m",
+      "vllm": "0.26.0",
+      "model": "deepseek-v4-flash-0731",
+      "arch": "gb10x2-1m",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "DeepSeek-V4-Flash-0731 @ **1M 컨텍스트** — 사다리 2칸. 1칸(128K) 대비 **바꾼 변수는 max-model-len 하나**. KV 절대클램프를 **한 바이트도 올리지 않고** 1,226,232 tok(6.85 KiB/tok · 동시성 1.17x) 확보 · decode **18.36 t/s**(1칸 19.65 대비 **−6.6%**) · verdict PASS(기대 15.53). Hermes 3종(completion·reasoning 분리·tool_call) 유지. ★ **KV bytes/token 은 max-model-len 의존**이 이 체크포인트에서 재확인됐다(27.0 KiB@128K → 6.85 KiB@1M). ★ 컨텍스트의 진짜 비용은 KV 가 아니라 **non-KV 오버헤드**(실측 바닥 −4.9 GiB).",
+      "anchor": "ac8b4c83c20f8339570fef03c8040e6819938f2c",
+      "related": "testlog_26080214, plan_26080213",
+      "status": "active",
+      "last_verified": "2026-08-02"
+    },
+    {
       "tag": "hint/0.26.0/glm-47-flash/gb10",
       "vllm": "0.26.0",
       "model": "glm-47-flash",

@@ -157,7 +157,13 @@ def smoke(
                 "messages": [{"role": "user", "content": _COMPLETION_PROMPT}],
                 # reasoning 모델은 analysis 채널이 토큰을 소모 → content(최종 채널) 도달 전 length 절단됨.
                 # 능력에 reasoning 있으면 충분히 줘 finish_reason=stop 유도(없으면 짧게).
-                "max_tokens": 1024 if want_reasoning else 256,
+                # ★ 1024 → 4096 (2026-08-02 실측). Qwen3.5-122B-NVFP4 가 "Say hello in one short
+                #   sentence." 에 **1024 를 다 쓰고도 finish=length** 였다. 같은 프롬프트를
+                #   2048/4096 으로 재요청하니 각각 273/148 토큰에 stop — 즉 사고 길이가 요청마다
+                #   크게 흔들린다(148~273, 간헐 1024 초과). 상한을 사고 분산에 맞춰 잡아야
+                #   **모델이 멀쩡한데 도구가 실패로 판정**하는 위양성을 막는다.
+                #   토큰 상한은 비용이 아니라 **판정 정확도**의 문제다 — stop 이면 실제 사용량만 든다.
+                "max_tokens": 4096 if want_reasoning else 256,
                 "temperature": 0.0,
             },
             timeout=timeout,

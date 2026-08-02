@@ -117,15 +117,44 @@ fi
 # ── 협역 워치독(계층 2층 — plan_26071019 §2.3): 컨테이너 기동 *전* 폴링 개시(로드 구간 커버) ──
 #   필터 = 컨테이너명 공통 접두(mn-<config> — master/slave 양쪽 부분일치). 정지는 PID 기반만
 #   (**pkill -f 금지** — 자기참조 부모셸 사망 exit144 선례, devlog_26062718).
+# ── 잔존 워치독 회수 계약(2026-08-02 신설) ──────────────────────────────────────
+#   `--keep-up` 은 워치독을 **의도적으로** 살려두는데, 회수 책임자가 없어 실행마다 하나씩 쌓였다
+#   (2026-08-02 실측: 메인 8 · 서브 9). 잔존분은 각자 thresh 10240 에서 SIGKILL 할 수 있고
+#   **선언된 바닥을 모른다** — 즉 위양성 사살기가 백그라운드에 누적된다. 기동 전에 회수한다.
+#   멀티는 클러스터 전체가 한 서빙에 전용되므로 "동시 서빙 보호"를 깨뜨리지 않는다.
+#
+#   ★ 판정은 argv **위치**로만 한다: argv[1]=bash · argv[2]=…/mem_watchdog.sh(끝 앵커).
+#     부분문자열 매칭(`pkill -f`·`pgrep -fc`·`case *…*`)은 **이름을 언급만 한 명령까지** 잡아
+#     자기 부모셸을 죽이거나(exit 144, devlog_26062718) 자기 진단 명령을 좀비로 센다
+#     (testlog_26080207 §7). 2026-08-02 이 트랩을 또 밟았다 — 위치 대조가 유일한 정답이다.
+reap_stale_watchdogs() {   # $1 = "master" | "slave"
+  if [ "$1" = "master" ]; then
+    ps -eo pid= -o args= | awk -v self="$$" \
+      '$1 != self && $2 ~ /(^|\/)bash$/ && $3 ~ /mem_watchdog\.sh$/ {print $1}' \
+      | while read -r p; do kill "$p" 2>/dev/null && echo "[mn] 잔존 워치독 회수(master pid=$p)"; done
+  else
+    timeout 20 $SSH -n "$SUB_HOST" "ps -eo pid= -o args= | awk '\$2 ~ /(^|\/)bash\$/ && \$3 ~ /mem_watchdog\.sh\$/ {print \$1}' | while read -r p; do kill \$p 2>/dev/null && echo \$p; done" 2>/dev/null \
+      | while read -r p; do [ -n "$p" ] && echo "[mn] 잔존 워치독 회수(slave pid=$p)"; done
+  fi
+}
+
 WD_MAIN_PID=""; WD_SUB_PID=""
 if [ "$WATCHDOG" = "1" ]; then
   WFILTER="${MC%-master}"
+  # ★ 빈 필터 = fail-closed. MASTER_CONTAINER_NAME 미설정이면 `${1:-@vllm}` 이 조용히 **광역**
+  #   필터로 되돌아가, 무관한 vllm 컨테이너까지 사살 대상이 된다(2026-08-02 잔존분 중 실제 1건).
+  #   compose 의 `:-기본값` 폴백이 ⑥ env 의 multi 키 누락을 숨겼던 것과 같은 부류다 —
+  #   설정 누락은 조용한 광역화가 아니라 큰 소리로 실패해야 한다.
+  [ -n "$WFILTER" ] || { echo "[mn] FAIL: 워치독 필터가 비었다(MASTER_CONTAINER_NAME 미설정). env 를 고쳐라."; exit 2; }
   MAIN_WATCHDOG="$REPO/.claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh"
   SUB_WATCHDOG_REL=".claude/runtime/host_safety/mem_watchdog.sh"
   [ -f "$MAIN_WATCHDOG" ] || { echo "[mn] FAIL: canonical host-safety watchdog absent: $MAIN_WATCHDOG"; exit 2; }
+  reap_stale_watchdogs master
   bash "$MAIN_WATCHDOG" "$WFILTER" "${WATCHDOG_THRESH_MIB:-10240}" 2 >/tmp/mn_watchdog_master.log 2>&1 & WD_MAIN_PID=$!
+  echo "$WD_MAIN_PID" > /tmp/mn_watchdog_master.pid
   echo "[mn] 워치독(master) pid=$WD_MAIN_PID filter=$WFILTER thresh=${WATCHDOG_THRESH_MIB:-10240}MiB (/tmp/mn_watchdog_master.log)"
   if $SSH "$SUB_HOST" "bash -lc '[ -f $SUB_WORK_DIR/$SUB_WATCHDOG_REL ]'" 2>/dev/null; then
+    reap_stale_watchdogs slave
     # ⚠ 원격 백그라운드 detach — 3-FD 리다이렉트(</dev/null + ssh -n)만으론 여전히 hang(2026-07-11 hy3 serve#1 실증:
     #   슬레이브 워치독은 정상 기동했으나 command-substitution ssh 가 ~8분 안 끝나 서빙 전체 블록). 원인 = 원격
     #   백그라운드 프로세스가 ssh 세션 프로세스그룹에 남아 sshd 가 채널 EOF 를 안 보냄(stdin 분리만으론 부족).
