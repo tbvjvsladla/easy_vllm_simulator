@@ -156,6 +156,14 @@ run install -d -m 0755 "$ETC"
 run install -d -m 0775 -o "$TARGET_USER" -g "$TARGET_USER" "$NODE_DIR"
 run install -d -m 0775 -o "$TARGET_USER" -g "$TARGET_USER" "$NODE_DIR/samples" \
         "$NODE_DIR/events" "$NODE_DIR/rollup"
+# ★ **기존 파일 소유 복구** — 디렉터리만 위임 사용자 소유로 만들면 부족하다. `events/<월>.jsonl` 은
+#   root 데몬과 비-root 사용자 도구가 함께 append 하는데, 파일은 install 이 만들지 않으므로
+#   그 달 **먼저 쓴 쪽이 소유자**가 된다. root 가 이기면 `blackbox_session declare-budget` 이
+#   EACCES 로 죽고 ETA 위양성 방어(선언된 바닥)가 통째로 못 선다(2026-08-01 서브 실화 —
+#   메인은 우연히 사용자 도구가 먼저 써서 멀쩡했다. 우연한 성공을 설계로 착각하지 않는다).
+#   작성자 쪽도 디렉터리 소유자를 상속하도록 고쳤지만, **이미 어긋난 노드**는 여기서만 복구된다.
+#   재실행이 곧 교정이 되도록 멱등하게 매번 정렬한다.
+run chown -R "$TARGET_USER:$TARGET_USER" "$NODE_DIR"
 # 설치명은 전부 대시로 통일한다(파일명 언더스코어를 그대로 쓰면 easy-vllm-blackbox_collect 처럼
 # 표기가 섞여 유닛/문서/검증자 사이에서 오탈자 원인이 된다).
 run install -m 0755 "$SDIR/blackbox_collect.py"  "$BIN/easy-vllm-bb-collect"

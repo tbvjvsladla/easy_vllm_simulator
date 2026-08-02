@@ -227,6 +227,27 @@ def save_cursors(events_dir, cursors):
     os.replace(tmp, p)
 
 
+def _inherit_dir_owner(path, parent):
+    """root 로 만든 파일의 소유를 **디렉터리 소유자에게 넘긴다**.
+
+    ★ 왜 필요한가(2026-08-01 실화): `events/<월>.jsonl` 은 root 데몬(이 파일·워치독·수명집행)과
+      비-root 사용자 도구(`blackbox_session.py declare-budget`)가 **함께 append** 한다. install 은
+      디렉터리만 위임 사용자 소유(0775)로 만들고 파일은 안 만들므로, 그 달 **먼저 쓴 쪽이 소유자**가
+      된다. root 가 이기면 사용자 도구가 EACCES 로 죽는다 — 서브에서 실제로 발생해
+      `declare-budget` 이 불가능해졌고, 그러면 ETA 워치독 위양성 방어가 통째로 못 선다.
+      메인이 멀쩡했던 건 우연히 사용자 도구가 먼저 썼기 때문이다.
+      **우연한 성공을 설계로 착각하지 않는다** — 디렉터리 소유자를 정본으로 삼아 상속시킨다.
+    """
+    try:
+        if os.geteuid() != 0:
+            return                      # root 가 아니면 애초에 소유 문제가 없다
+        st = os.stat(parent)
+        if os.stat(path).st_uid != st.st_uid:
+            os.chown(path, st.st_uid, st.st_gid)
+    except OSError:
+        pass                            # 소유 정렬 실패가 이벤트 기록을 막아서는 안 된다
+
+
 def append_events(events_dir, events):
     os.makedirs(events_dir, exist_ok=True)
     by_month = {}
@@ -234,9 +255,11 @@ def append_events(events_dir, events):
         month = (e.get("ts") or "0000-00")[:7]
         by_month.setdefault(month, []).append(e)
     for month, evs in sorted(by_month.items()):
-        with open(os.path.join(events_dir, "%s.jsonl" % month), "a", encoding="utf-8") as fh:
+        path = os.path.join(events_dir, "%s.jsonl" % month)
+        with open(path, "a", encoding="utf-8") as fh:
             for e in evs:
                 fh.write(json.dumps(e, ensure_ascii=False, sort_keys=True) + "\n")
+        _inherit_dir_owner(path, events_dir)
 
 
 DEFAULT_SOURCES = [
