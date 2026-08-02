@@ -10,6 +10,10 @@ x-gpu-common: &gpu-common
       #   포크 변종 빌드(예 DeepSeek-V4 SM12x: jasl/vllm @ SHA → IMAGE_TAG=…-source-sm12x). plan_2026062818_1.
       VLLM_REPO: ${VLLM_REPO:-https://github.com/vllm-project/vllm.git}
       VLLM_REF: ${VLLM_REF:-{{ VLLM_REF }}}
+      # 포크 태그가 semver 가 아니면 setuptools_scm 이 metadata 생성에서 죽는다
+      #   (2026-08-02 실측: 'sm120-pr-41834-stable-preview-20260802d' 파싱 실패).
+      #   빈 값 = 무동작이므로 stock 빌드 경로는 불변.
+      VLLM_PRETEND_VERSION: ${VLLM_PRETEND_VERSION:-}
   runtime: nvidia
   network_mode: host
   ipc: host

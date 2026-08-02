@@ -42,8 +42,13 @@ MODEL=$(val SERVING_MODEL_NAME); SLAVE_IP=$(val SLAVE_HOST_IP)
 #   ⚠ 모델 serve config(CONFIG_FILE)는 전달 안 함 → 슬레이브 Band2-only 보존(슬레이브 컨테이너 env 는 compose env_file=
 #     .env.interconnect+.env.cluster 만, CONFIG_FILE=default 유지). 값에 공백 없음(URL/태그/SHA) → 무인용 prefix 안전.
 #   근거: plan_26062818 §S2.5 R10 · 슬레이브 Band2-only(plan_26062811_30_33).
+#   ⚠ VLLM_PRETEND_VERSION 도 **이미지 정체성의 일부**다(2026-08-02 신설). 포크 태그가 semver 가
+#     아닐 때 setuptools_scm 을 우회하는 값인데, 이걸 빼면 **마스터만 빌드되고 슬레이브는 같은
+#     지점에서 죽는다** — BUILD_DOCKERFILE 이 잠복했던 것과 동일한 부류의 전파 구멍이다.
+#     멀티는 클러스터-와이드 이미지가 전제이므로 빌드 인자는 한 톨도 갈라지면 안 된다.
 IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF); BDF=$(val BUILD_DOCKERFILE)
-SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VREPO:+VLLM_REPO=$VREPO }${VREF:+VLLM_REF=$VREF}"
+VPV=$(val VLLM_PRETEND_VERSION)
+SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VREPO:+VLLM_REPO=$VREPO }${VPV:+VLLM_PRETEND_VERSION=$VPV }${VREF:+VLLM_REF=$VREF}"
 
 # ── 마운트 vars 전달(결함#2b · plan_26070119): materialize-env 산출(output/multi/.env)은 compose 가
 #   --env-file 사용 시 auto-load 하지 않는다(--env-file 이 기본 .env 자동로드를 대체) → NAS/quant/tiktoken 마운트가
