@@ -43,6 +43,10 @@ HINTS_MARKER = "<!-- hint-index:rows -->"
 # via the dict key). Register a new family here (HITL) rather than minting drive-by slugs.
 CANONICAL_SLUGS: dict[str, set[str]] = {
     "deepseek-v4-flash": {"deepseek-v4-flash", "ds4flash", "deepseek-v4-flash-dspark"},
+    # 0731 = 정식판. 프리뷰와 **가중치가 다르다**(index 해시부터 상이) → 별칭이 아니라 별도 family.
+    #   이미 `hint/0.26.0/deepseek-v4-flash-0731/gb10x2` 가 push 된 상태라 정본 철자는 이것으로 고정된다.
+    #   사다리(1칸 노멀 · 2칸 1M · 3칸 dspark)는 **arch 슬롯**으로 갈라지므로 슬러그는 하나로 족하다.
+    "deepseek-v4-flash-0731": {"deepseek-v4-flash-0731", "ds4f0731"},
     "gpt-oss-120b": {"gpt-oss-120b", "gptoss120b", "gpt-oss"},
     "qwen3-next-80b-bf16": {"qwen3-next-80b-bf16", "qwen3next80b", "qwen3-next-80b"},
     "qwen3.5-122b-a10b-nvfp4": {"qwen3.5-122b-a10b-nvfp4", "qwen35-122b-nvfp4"},
