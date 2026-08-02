@@ -86,8 +86,21 @@ else:
     print("[patch] strip-hoist skipped (register_opaque_type accepts hoist / opaque_object 부재)")
 PY
 
+# 포크 핀 빌드 대비 — setuptools_scm 버전 파싱 우회(빈 값이면 무동작 = stock 경로 불변).
+#   근거(2026-08-02 실측): jasl/vllm @ 67f0057da4e3 빌드가 양 노드에서 동일하게 죽었다.
+#     ValueError: Can't parse version from tag 'sm120-pr-41834-stable-preview-20260802d'
+#   setuptools_scm 은 **가장 가까운 git 태그**에서 버전을 뽑는데, 포크의 릴리즈 태그가
+#   semver 가 아니면 metadata 생성 단계에서 실패한다. SHA 를 아무리 정확히 핀해도 막힌다.
+#   → 포크 핀 트랙 전반의 구조적 결함이므로 여기(정본 템플릿)서 해소한다.
+#   ⚠ 빈 문자열이면 export 자체를 하지 않는다 — stock 빌드의 실제 버전 산출을 건드리지 않기 위함.
+ARG VLLM_PRETEND_VERSION=
 # 소스 컴파일: _C 를 NGC torch 에 맞춰 빌드 → ABI 벽 원천 해소. deps 는 pyproject 에서(torch 보호됨).
 RUN --mount=type=cache,target=/root/.ccache \
+    if [ -n "${VLLM_PRETEND_VERSION}" ]; then \
+        export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM="${VLLM_PRETEND_VERSION}"; \
+        export SETUPTOOLS_SCM_PRETEND_VERSION="${VLLM_PRETEND_VERSION}"; \
+        echo "[build] SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM=${VLLM_PRETEND_VERSION} (포크 태그 파싱 우회)"; \
+    fi; \
     pip install --no-build-isolation -e .
 
 # 빌드 검증(GPU 불요): vllm 패키지 설치만 확인. _C/import 는 libcuda.so.1(드라이버) 필요 →
