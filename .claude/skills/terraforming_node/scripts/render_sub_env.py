@@ -298,6 +298,12 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
         ("install_node_blackbox.sh", "install_node_blackbox.sh", 0o755),
         ("verify_node_blackbox.sh", "verify_node_blackbox.sh", 0o755),
         ("purge_host_safety.sh", "purge_host_safety.sh", 0o755),
+        # ★ 방어 2단(에이전트 예방)과 그 시험 도구. 2026-08-02 추가 —
+        #   두 파일을 만들고 **이 목록에 넣지 않아** 서브 전파에서 조용히 빠졌다.
+        #   D3(배달 배선 부재)를 같은 날 문서화해 놓고 같은 방식으로 재발시켰다:
+        #   "새 도구를 만들면 배달 목록도 함께 고친다" 가 아직 절차로 굳지 않았다는 증거.
+        ("agent_guard.py", "agent_guard.py", 0o755),
+        ("adversarial_stress.py", "adversarial_stress.py", 0o755),
     )
     for source_rel, delivered_rel, mode in blackbox_files:
         src = os.path.join(blackbox_src, source_rel)
@@ -450,7 +456,9 @@ def _self_test() -> int:
                        ".claude/runtime/node_blackbox/seed_from_journal.py",
                        ".claude/runtime/node_blackbox/install_node_blackbox.sh",
                        ".claude/runtime/node_blackbox/verify_node_blackbox.sh",
-                       ".claude/runtime/node_blackbox/purge_host_safety.sh"]
+                       ".claude/runtime/node_blackbox/purge_host_safety.sh",
+                       ".claude/runtime/node_blackbox/agent_guard.py",
+                       ".claude/runtime/node_blackbox/adversarial_stress.py"]
         have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
         missing_art = [p for p in base_expect if not os.path.exists(os.path.join(out, p))]
         # docs 스켈레톤: docs.md 계약 5종(DOC_TYPES) 전부 렌더됐나(simlog·benchmark 누락 회귀 차단 — review)
