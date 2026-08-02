@@ -55,6 +55,20 @@ git tag -l --format='%(contents)' hint/0.24.0/deepseek-v4-flash/gb10 > seed/hint
 
 > 🔎 **가까운 힌트 찾기**: `python3 .claude/skills/upstream-version-watch/scripts/hint_tag.py match --vllm <v> --model <m> --arch <a>` — 축(vllm·model·arch)별 근-미스와 이식 가이드를 결정론으로 알려줍니다.
 
+> 🪜 **같은 모델에 힌트가 여러 개면 "사다리"입니다** — arch 슬롯의 접미어가 칸을 나타냅니다.
+> 아래로 갈수록 표준에서 멀어지고(성능↑) 재현 난이도·의존이 커집니다. **낮은 칸부터** 올라가세요.
+>
+> | 칸 | 태그 | 스택 | decode |
+> |---|---|---|---|
+> | 1 노멀 | `hint/0.26.0/deepseek-v4-flash-0731/gb10x2` | stock 0.26.0 · 128K · spec ✗ | 19.65 t/s |
+> | 2 컨텍스트 | `…/gb10x2-1m` | stock 0.26.0 · **1M** · spec ✗ | 18.36 t/s |
+> | 3 변종 | `hint/0.26.1/…/gb10x2-dspark-1m` | **포크 핀**(jasl PR#41834) · 1M · **DSpark** | **31.01 t/s** |
+>
+> ⚠ **1칸 태그 본문에 사실오류 3건이 있습니다**(기존 태그는 재작성하지 않는 방침 — 정정은 2·3칸 §0):
+> ① "fp8 단일" → 실제 routed experts 는 **MXFP4**(전체의 89%) ② "stock 에 dspark 없다" → **있으나
+> 커널이 없어 못 쓴다** ③ "기대 13.20" → 그건 **PASS 문턱**(`floor_tps`)이고 기대치는 15.53.
+> ③은 이 캠페인 태그 **4종 전부**에 있습니다 — 자기 측정치를 문턱과 비교하면 18% 후하게 자평하게 됩니다.
+
 ---
 
 ## 카탈로그
