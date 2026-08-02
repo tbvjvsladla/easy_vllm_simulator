@@ -1861,7 +1861,11 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
     except (OSError, UnicodeError) as exc:
         fail("ARCH_VARIANT_PROCEDURE_UNREADABLE", str(exc), ".claude/rules/workflow.md")
         return out
-    ladder = "deps-패치 → 소스-게이트 패치 → **소스-repo 오버라이드(포크 핀)** → 체크포인트-교체"
+    # 2026-08-02: 포크 핀 앞에 **자체 이식** 칸 추가(testlog_26080223 — 자체 이식 3회 실패로
+    #   포크 핀 폴백이 실증됐고, 그 실패 자체가 "이식을 먼저 시도한다"는 순서를 정당화한다).
+    #   불변식은 그대로다: 고정 순서 · 건너뜀 금지 · 단일 활성 트랙.
+    ladder = ("deps-패치 → 소스-게이트 패치 → **자체 이식** → "
+              "**소스-repo 오버라이드(포크 핀)** → 체크포인트-교체")
     if ladder not in workflow:
         fail("ARCH_VARIANT_LADDER_ORDER_MISSING", "fixed no-skip ladder is missing", ".claude/rules/workflow.md")
     ordered = ("참조-그라운디드 확증", "testlog 기록 + 사람 승인", "source_build_variants",

@@ -59,7 +59,32 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋
 | unknown | 사람 | `{proposed_class,evidence}`만 제시; 승인 전 무행동 |
 | recipe 중 구조적 불가 발견 | recipe §5.5→upstream §3.6 | 공식 bump / 포크 SHA pin / 음성정직; cap 뒤 Model-C |
 
-arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 패치 → **소스-repo 오버라이드(포크 핀)** → 체크포인트-교체. `stock-구조적-불가` 뒤 **참조-그라운디드 확증** → **testlog 기록 + 사람 승인** → canonical ledger `source_build_variants` → **Dockerfile build-arg 파라미터화** → **clean 빌드(양노드) → 스모크** 순서다. 정본은 `policy:ARCH_WALL_VARIANT_LADDER`, upstream skill §4.6과 `references/source-build.md`다.
+arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 패치 → **자체 이식** → **소스-repo 오버라이드(포크 핀)** → 체크포인트-교체. `stock-구조적-불가` 뒤 **참조-그라운디드 확증** → **testlog 기록 + 사람 승인** → canonical ledger `source_build_variants` → **Dockerfile build-arg 파라미터화** → **clean 빌드(양노드) → 스모크** 순서다. 정본은 `policy:ARCH_WALL_VARIANT_LADDER`, upstream skill §4.6과 `references/source-build.md`다.
+
+## 3+1+1 슬롯 판정 (2026-08-02 명문화)
+
+판정 기준은 **"무엇을 고치나"가 아니라 "언제 성립해야 하나"**다. 위상을 틀리면 **조용히 무효화**된다.
+
+| 슬롯 | 성립 시점 | 담는 것 | owner |
+|---|---|---|---|
+| 트리플렛 3 (`<model>.{yaml,sh}` · `.env.<model>`) | serve | 서빙 설정·러너·환경 | recipe/upstream |
+| +1 런타임 패치 (`<model>_patch.py`) | serve(arming) | Python processor/config shim | `policy:RUNTIME_PATCH_NO_CARRY_FORWARD` |
+| +1 빌드 패치 · **pre** (`build_patches_src/<NN>-*.sh`) ⚠**미검증 슬롯** | **컴파일 전** | vLLM **소스** 수정(Python/C++). `_C` 재컴파일이 필요한 csrc의 **유일한** 자리 | upstream `references/source-build.md` §4 |
+| +1 빌드 패치 · **post** (`build_patches/<NN>-*.sh`) | **컴파일 후** | 빌드-바깥 native 의존(lib/커널) 설치 | 동상 |
+
+- **위상 오배정의 실증**: 동일 게이트 완화를 런타임 `.pth`로 시도했으나 **vllm/ray 워커가 site-init을 안 타 불발**했고(발화 0회), 소스 패치는 전 프로세스에 균일하게 먹었다(`build_patches/30-mxfp4-triton-sm121.sh` 헤더). **런타임 슬롯은 "먹었는지"를 반드시 로그로 실증**하라.
+- **native lib 은 `patch.py` ✗**(Python 몽키패치 불가) · **소스 수정은 post 슬롯 ✗**(컴파일이 이미 끝났다).
+- ⚠ **`build_patches_src/` 는 미검증 슬롯이다** — 배관(Dockerfile 스탠자·순서·fail-loud 게이트)은 실제로 동작함이 확인됐으나(적용 92파일·무결성 검증 통과), **그 위에서 서빙에 성공한 사례가 아직 없다**(첫 사용 = `testlog_26080223`, 이식 3회 실패). 쓰는 사람이 **첫 검증자**이며, 실패해도 슬롯 탓인지 이식 내용 탓인지 먼저 갈라야 한다. 성공 사례가 나오면 이 표기를 지운다.
+
+## 자체 이식 칸 — 착수 전 선판정
+
+포크 전체를 핀하기 전에 **참조 포크를 분석해 우리 빌드 패치안을 만든다**. 단 아래 신호에 걸리면 **착수하지 말고 포크 핀으로 간다**(2026-08-02 실증 — `testlog_26080223`):
+
+1. **PR 이 상위 스택 리팩터를 전제**하는가 — PR 델타 **밖** 파일이 PR 변경의 호출자/피호출자면 스택 경계가 갈라진다
+2. **되돌림 비율** — "드리프트 위에 얹힘"으로 제외해야 하는 파일이 많을수록 그 브랜치 상태에 깊이 묶여 있다
+3. **merge-base 거리** — 목표 태그↔merge-base 드리프트가 PR 델타보다 크게 우세하면 불리하다
+
+착수 시 검증 순서(비용 절감용이며 **가능성 판정은 못 한다**): merge-base 분리 → 버킷 분류 → 3-way → 이식후 심볼 triage → **pyflakes 기준선 대비 증분** → 부재 모듈 검사 → AST 시그니처 대조 → import 시험 → **서빙 스모크(유일한 중재자)**.
 
 ## 메인↔서브 B0–B3
 

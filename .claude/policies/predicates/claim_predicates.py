@@ -2619,8 +2619,10 @@ def predicate_ARCH_WALL_VARIANT_LADDER_C1():
         _require(_arch_codes(root) == set(), 'predicate requirement failed at original line 2757')
         workflow = root / ".claude/rules/workflow.md"
         workflow.write_text(workflow.read_text().replace(
-            "deps-패치 → 소스-게이트 패치 → **소스-repo 오버라이드(포크 핀)** → 체크포인트-교체",
-            "deps-패치 → **소스-repo 오버라이드(포크 핀)** → 체크포인트-교체"))
+            "deps-패치 → 소스-게이트 패치 → **자체 이식** → "
+            "**소스-repo 오버라이드(포크 핀)** → 체크포인트-교체",
+            # 반증실험: 한 칸(자체 이식)을 빼면 위반이 잡혀야 한다.
+            "deps-패치 → 소스-게이트 패치 → **소스-repo 오버라이드(포크 핀)** → 체크포인트-교체"))
         _require('ARCH_VARIANT_LADDER_ORDER_MISSING' in _arch_codes(root), 'predicate requirement failed at original line 2762')
         shutil.copy2(REPO_ROOT / ".claude/rules/workflow.md", workflow)
         dockerfile = root / ".claude/skills/upstream-version-watch/templates/Dockerfile.source-build.template"
