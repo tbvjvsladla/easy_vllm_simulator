@@ -420,6 +420,18 @@
       "related": "testlog_26080118,testlog_26080201",
       "status": "active",
       "last_verified": "2026-08-02"
+    },
+    {
+      "tag": "hint/0.26.1/deepseek-v4-flash-0731/gb10x2-dspark-1m",
+      "vllm": "0.26.1",
+      "model": "deepseek-v4-flash-0731",
+      "arch": "gb10x2-dspark-1m",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "DeepSeek-V4-Flash-0731 @ **1M 컨텍스트 + DSpark speculative decoding** — 변종 트랙(`jasl/vllm` PR#41834 SHA 핀 소스빌드). decode **31.01 t/s**(같은 하드웨어 stock 18.36 대비 **1.69배**) · accept_len **2.286** · KV 1,206,214 tok @1,048,576(클램프 8 GiB 불변) · Hermes 3종(completion·reasoning 분리·tool_call) 통과. ★ **stock vLLM 0.26.0 으로는 이 조합이 불가능하다** — spec 경로 2개가 서로 다른 이유로 막힌다. ★ 포크가 여는 것은 성능 노브가 아니라 **sm_120 커널 인스턴스 자체**다.",
+      "anchor": "e78ee89f11d6003b02ec48d550d18559efb557c5",
+      "related": "testlog_26080217, testlog_26080215, plan_26080213",
+      "status": "active",
+      "last_verified": "2026-08-02"
     }
   ]
 }

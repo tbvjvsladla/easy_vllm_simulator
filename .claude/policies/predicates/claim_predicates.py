@@ -533,7 +533,11 @@ def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1():
     mn = _read(".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh")
     _require('val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }' in mn, 'image-identity vars must be extracted from the SAME model env file ($EF) master build/up loads')
     _require('IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF); BDF=$(val BUILD_DOCKERFILE)' in mn, 'predicate requirement failed at original line 523')
-    _require('SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VREPO:+VLLM_REPO=$VREPO }${VREF:+VLLM_REF=$VREF}"' in mn, 'predicate requirement failed at original line 524')
+    # 2026-08-02: VLLM_PRETEND_VERSION 이 이미지 정체성에 추가됐다(포크 태그가 semver 가 아닐 때
+    #   setuptools_scm 우회값). 마스터만 갖고 슬레이브가 못 받으면 **슬레이브만 빌드가 죽는다** —
+    #   BUILD_DOCKERFILE 이 과거에 잠복했던 것과 동일한 전파 구멍이라 불변식을 확장한다.
+    _require('VPV=$(val VLLM_PRETEND_VERSION)' in mn, 'VLLM_PRETEND_VERSION must be extracted from the same model env file')
+    _require('SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VREPO:+VLLM_REPO=$VREPO }${VPV:+VLLM_PRETEND_VERSION=$VPV }${VREF:+VLLM_REF=$VREF}"' in mn, 'predicate requirement failed at original line 524')
     build_line = next(ln for ln in mn.splitlines() if "--profile slave build" in ln)
     _require('$SLAVE_IMGVARS' in build_line, 'slave build invocation must carry the image-identity vars')
 
@@ -551,18 +555,20 @@ def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1():
     # val() and the SLAVE_IMGVARS assignment verbatim in bash against a synthetic combo env file,
     # proving the slave genuinely receives the exact same image identity master reads from $EF.
     val_fn = 'val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }'
-    assign_line = 'IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF); BDF=$(val BUILD_DOCKERFILE)'
+    assign_line = ('IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF); BDF=$(val BUILD_DOCKERFILE)\n'
+                   'VPV=$(val VLLM_PRETEND_VERSION)')
     slave_imgvars_line = next(ln for ln in mn.splitlines() if ln.strip().startswith("SLAVE_IMGVARS="))
     with tempfile.TemporaryDirectory() as tmp:
         ef = Path(tmp) / "combo.env"
         ef.write_text("IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x\n"
                       "VLLM_REPO=https://github.com/jasl/vllm.git\n"
                       "VLLM_REF=b5c0d43b967c\n"
-                      "BUILD_DOCKERFILE=Dockerfile.source-build\n")
+                      "BUILD_DOCKERFILE=Dockerfile.source-build\n"
+                      "VLLM_PRETEND_VERSION=0.26.1\n")
         script = f'EF="{ef}"\n{val_fn}\n{assign_line}\n{slave_imgvars_line.strip()}\necho "$SLAVE_IMGVARS"\n'
         proc = _run_bash(script)
         _require(proc.returncode == 0, proc.stderr)
-        _require(proc.stdout.strip() == 'IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x BUILD_DOCKERFILE=Dockerfile.source-build VLLM_REPO=https://github.com/jasl/vllm.git VLLM_REF=b5c0d43b967c', proc.stdout)
+        _require(proc.stdout.strip() == 'IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x BUILD_DOCKERFILE=Dockerfile.source-build VLLM_REPO=https://github.com/jasl/vllm.git VLLM_PRETEND_VERSION=0.26.1 VLLM_REF=b5c0d43b967c', proc.stdout)
 
 
 def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C2():
