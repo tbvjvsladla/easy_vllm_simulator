@@ -109,6 +109,8 @@
   `.claude/rules/workflow.md`.
 - 호환성 사례·서빙전략 배선 공식·적대적 벤치마크 메커니즘·계측 vault 스키마는
   `.claude/skills/wiki-desk/reference/references.md`.
-- 문서 6종의 역할·명명·발행 순서는 `.claude/rules/docs.md`.
+- 문서 7종(plan·devlog·testlog·simlog·benchmark·report·request)의 역할·명명·발행 순서는
+  `.claude/rules/docs.md`. 에이전트 실행평면 **밖**에서만 완수되는 과업은 `request/` 수행지시서로
+  사람에게 위임한다 — 지시는 전제·명령·성공판정·회수물을 갖춰야 하며, 회수물이 돌아와야 완결된다.
 - 5개 public skill의 capability·전달·실행 절차는 각 스킬 문서와 workflow.md가 소유한다.
 - 부트스트랩 근거: 비추적 seed 디렉터리(배포본엔 부재 가능) + 추적 계획 문서 체인.

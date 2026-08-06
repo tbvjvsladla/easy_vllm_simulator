@@ -5,12 +5,15 @@
 
 ## 명명 SSOT
 
-- 기본: `docs/<type>/<type>_<YYMMDDHH>[_<MM>_<SS>]_<주제>.md` (`type`=`plan|devlog|testlog`). `YYMMDDHH`는 KST 2자리 연도 절대시각이다.
+- 기본: `docs/<type>/<type>_<YYMMDDHH>[_<MM>_<SS>]_<주제>.md` (`type`=`plan|devlog|testlog|request`). `YYMMDDHH`는 KST 2자리 연도 절대시각이다.
 - **충돌 시에만 `_MM_SS`**를 붙인다. 같은 type/hour의 기본형과 해당 충돌형이 점유되면 새 형식/덮어쓰기 없이 `NamingCollisionExhausted`로 fail-closed한다.
 - 주제는 간결한 한국어 `_` slug. 평면 `docs/파일.md`, 상대날짜, `_seq_`는 금지한다.
 - simlog: `docs/simlog/<YYMMDDHH>[_<MM>_<SS>]_<주제>/` (run 디렉터리).
 - benchmark: `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`는 항상, `docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`은 PASS 때만 발행한다. report prefix 정본은 `bench_report_`; timestamp/collision은 `.claude/skills/wiki-desk/scripts/doc_naming.py`.
 - outbound report: `docs/report/<kebab-case-topic>.<html|md>`; 날짜 없이 최신본을 갱신한다.
+- **request(수행지시서)**: `docs/request/request_<YYMMDDHH>[_MM_SS]_<주제>.md`. 기본형과 동일한 날짜 규약을
+  쓴다 — report 와 달리 "최신본 갱신"이 아니라 **발행 시점이 고정된 작업지시**이기 때문이다(같은 과업을
+  다시 지시하면 새 문서를 낸다). 발행 대상은 **에이전트가 닿을 수 없는 평면에서 사람이 직접 수행할 절차**다.
 - **`docs/logs/` 는 이 명명 SSOT의 명시 예외다** — 문서가 아니라 기계판독 데이터 평면이므로
   `<type>_<YYMMDDHH>_<주제>` 규약·산문 규약을 적용하지 않는다(아래 §기계판독 데이터 평면).
 
@@ -24,12 +27,27 @@
 | `simlog/` | raw trial vault | recipe/smoke scripts·per-trial facts | log/profile/candidate/smoke/history/summary | run 완결성 | testlog에서 누락 명시 |
 | `benchmark/` | full 계측 | `adversarial-benchmark`·측정값 | 항상 report, PASS만 flat certificate | verdict owner·재현성 | FAIL report만; 합성 금지 |
 | `report/` | 배포자 공지 | 사람·공지 본문 | self-contained HTML/MD 최신본 | PII·배포 검토 | 자동발행/위키색인/서브전파 금지 |
+| `request/` | **사람 수행 지시** | 에이전트·범위/전제/한계 | 전제→절차→검증→회수물 순의 실행가능 매뉴얼 | 절차가 실제 실행가능한지(버전·명령 핀) | 수행자 피드백→개정 발행 |
 
-## 기계판독 데이터 평면 — `docs/logs/` (7번째, 유일한 비-문서)
+### `request/` — 에이전트가 못 닿는 평면을 사람에게 위임하는 문서 (7번째 산문형)
+
+에이전트의 실행 평면 밖(다른 아키텍처의 머신, 물리 작업, 외부 계정 권한)에서만 완수 가능한 과업이
+드러났을 때, **그 과업을 사람이 재현 가능하게 수행하도록** 발행한다. plan 이 "우리가 무엇을 할 것인가"라면
+request 는 "당신이 무엇을 어떻게 해야 하는가"다.
+
+- **필수 구성**: ① 전제·준비물(하드웨어·네트워크·권한) ② 단계별 명령(복붙 가능·버전 핀) ③ 각 단계의
+  **성공 판정 기준** ④ 실패 시 분기 ⑤ **회수물 목록**(수행 후 에이전트에게 돌려줄 파일) ⑥ 예상 소요·비용.
+- **금지**: 추측 명령(실행해 보지 않은 절차를 검증된 것처럼 적기), 환경 구체값 하드코딩(주소·경로는
+  플레이스홀더 + 획득 방법을 적는다), 회수물 없는 지시(수행 결과가 에이전트로 돌아오지 못하면 미완결).
+- **evidence chain 밖이다** — request 는 판정도 계측도 아니므로 `evidence_publisher` 의 완료 게이트를
+  타지 않는다. 수행 결과가 돌아오면 그때 testlog/devlog 로 chain 에 편입한다.
+- **비추적**(아래 §보관·전파 matrix). 운영자 환경 절차라 배포 대상이 아니다.
+
+## 기계판독 데이터 평면 — `docs/logs/` (8번째, 유일한 비-문서)
 
 > 근거 `plan_26073109`(노드블랙박스 승격) · 소유 `terraforming_node/scripts/node_blackbox/`.
 > **사람 가독성을 고려하지 않는다**(사용자 결정) — 열람이 필요하면 그때 비패턴 업무로 md/html 변환한다.
-> 산문 6종과 성격이 다르므로 §명명 SSOT·§공통 발행 계약·evidence chain 규약을 적용하지 않는다.
+> 산문 7종과 성격이 다르므로 §명명 SSOT·§공통 발행 계약·evidence chain 규약을 적용하지 않는다.
 
 | 경로 | 내용 | 포맷 근거 | 수명 |
 |---|---|---|---|
@@ -58,7 +76,7 @@
 | 대상 | 적용 패턴 | 근거 |
 |---|---|---|
 | **배포 산출물** — hint 태그 오브젝트·`docs/report/*`·추적 템플릿·서브 전파분 | **4종 전부**(`abs-op-path` 포함) | 제3자에게 도달한다. 운영자 절대경로는 환경 지문이므로 제거 대상 |
-| **비배포 산출물** — gitignored `docs/{plan,devlog,testlog,simlog,benchmark}`·`docs/logs` | `private-ipv4`·`email`·`spark-host` **3종** | 로컬 전용. `/mnt`·`/home` 경로는 재현에 필요한 정보이며 배포되지 않는다 |
+| **비배포 산출물** — gitignored `docs/{plan,devlog,testlog,simlog,benchmark,request}`·`docs/logs` | `private-ipv4`·`email`·`spark-host` **3종** | 로컬 전용. `/mnt`·`/home` 경로는 재현에 필요한 정보이며 배포되지 않는다 |
 
 - `abs-op-path` 를 비배포 문서까지 확대하면 `nas_model_path`(manifest 정규 필드)를 인용한 모든
   계획·판정 문서가 비준수가 된다 — 정보를 잃는 대신 얻는 안전이 없다.
@@ -66,15 +84,17 @@
   좁은 패턴으로 스캔하고 통과를 선언하면 그 선언 자체가 거짓이다(2026-07-31 실제 발생).
 - `hint_tag finalize`/`verify` 의 fail-closed 스캔은 이 완화와 **무관하게 4종 전부**를 강제한다 —
   배포 경로의 최종 권위는 그쪽이다.
-- **Docker 기본 브리지 예외(비배포 원시로그 한정)**: 엔진 로그에 나오는 `172.17.0.0/16` 은
-  Docker 의 고정 기본 `docker0` 서브넷이라 모든 Docker 호스트에 동일하게 존재하며 운영자 네트워크를
+- **Docker 기본 브리지 예외(비배포 원시로그 한정)**: 엔진 로그에 나오는 Docker 고정 기본 `docker0`
+  서브넷(`172.17.x.x/16`)은 모든 Docker 호스트에 동일하게 존재하며 운영자 네트워크를
   식별하지 않는다. `docs/simlog/*`·`docs/logs/*` 의 **기계생성 원시로그**에 한해 `private-ipv4`
   매치에서 제외한다. **배포 산출물에는 적용하지 않는다** — 거기서는 4종 전부가 그대로 강제된다.
   (원시 vault 는 편집하지 않는 것이 계약이므로, 로그를 고치는 대신 판정에 예외를 둔다.)
+  이 문장 자체는 배포되는 추적 파일이므로 대역을 **리터럴로 적지 않는다** — 규칙 문서가 자기 스캔에
+  걸리면 게이트가 무의미해진다(2026-08-06 실제 발생: 이 줄이 4종 스캔의 유일한 위반이었다).
 
 ## 공통 발행 계약
 
-- 역할 분리: plan=intent, devlog=서사, testlog=판정, simlog=원시 trial, benchmark=inform-only 계측, report=outbound 공지.
+- 역할 분리: plan=intent, devlog=서사, testlog=판정, simlog=원시 trial, benchmark=inform-only 계측, report=outbound 공지, request=사람 수행지시.
 - evidence chain: simlog/raw → benchmark report → testlog verdict → devlog narrative. 관련 경로를 본문에 기록하고, 가변 파일의 line 번호에는 literal 또는 commit SHA를 병기한다.
 - 판정은 모델/HW/version/date 유효맥락을 붙인다. 후속은 `- [ ] 후속:`에서 시작해 해소 문서로 `- [x]` 닫는다.
 - 후속 문서가 기존 판정을 뒤집을 때만 선행 헤더에 `SUPERSEDED-IN-PART` 또는 `SUPERSEDED`와 후속 경로를 기록한다. 단순 보완은 citation만 추가한다.
@@ -84,7 +104,7 @@
 
 | 경로 | Git 상태 | main/sub 전파 | owner/gate |
 |---|---|---|---|
-| `docs/{plan,devlog,testlog,simlog,benchmark}/*` | 작업 산출물 ignored; `example.md`만 tracked | 브랜치 전환에 working copy 유지; build rsync 제외 | `.gitignore`의 `docs/*/*` + `!docs/*/example.md` |
+| `docs/{plan,devlog,testlog,simlog,benchmark,request}/*` | 작업 산출물 ignored; `example.md`만 tracked | 브랜치 전환에 working copy 유지; build rsync 제외 | `.gitignore`의 `docs/*/*` + `!docs/*/example.md` |
 | `docs/report/*` | **유일한 tracked docs 산출물 예외** | main-only; branch sync 대상 | `!docs/report/*`, PII gate |
 | `docs/logs/*` | ignored(기존 `docs/*/*` 가 이미 커버 — 새 규칙 불요) | **평시 `envelope.json` 요약만 상향**, 사고 시에만 원시 회수 | `logs_lifecycle.py`; `example.md` 스켈레톤 불요(기계 생성) |
 | `.claude/`·`CLAUDE.md` | tracked building blocks | `.claude/skills/upstream-version-watch/scripts/sync_branches.sh` | 이 문서 산출물 규약 밖 |
@@ -94,7 +114,7 @@ simlog·benchmark에 폴더별 ignore 예외를 더하지 않는다. report는 t
 
 ## 서브 docs 계약
 
-서브에는 plan/devlog/testlog/simlog/benchmark 다섯 skeleton만 렌더하고 report는 렌더하지 않는다. **상향 회수(서브→메인) = 문서기반 only**: 서브 발행→A2A path 전달→`fetch_sub_docs.sh`가 docs만 ignored mirror로 회수→메인이 열람/HITL 재저작한다. 코드·설정 patch 직접 회수와 서브 재스캔은 금지한다.
+서브에는 plan/devlog/testlog/simlog/benchmark 다섯 skeleton만 렌더하고 report·request는 렌더하지 않는다(둘 다 메인 전용 — report는 배포자 대상, request는 운영자 수행 지시라 서브가 발행할 주체가 아니다). **상향 회수(서브→메인) = 문서기반 only**: 서브 발행→A2A path 전달→`fetch_sub_docs.sh`가 docs만 ignored mirror로 회수→메인이 열람/HITL 재저작한다. 코드·설정 patch 직접 회수와 서브 재스캔은 금지한다.
 
 ## publisher 계약
 
