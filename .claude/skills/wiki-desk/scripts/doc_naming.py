@@ -17,7 +17,9 @@ Canon (see .claude/rules/docs.md):
     Republishing the SAME unit is an idempotency concern the caller (evidence_publisher.py) owns
     by persisting the name it already computed -- not by re-deriving a fresh, possibly different
     _MM_SS-suffixed name on every rerun.
-  - plan/devlog/testlog: `docs/<type>/<type>_<YYMMDDHH>[_MM_SS]_<topic>.md`
+  - plan/devlog/testlog/request: `docs/<type>/<type>_<YYMMDDHH>[_MM_SS]_<topic>.md`
+    (`request` = 사람 수행지시서. 발행 시점이 고정된 작업지시라 report 와 달리 날짜 토큰을 쓴다.
+    evidence chain 밖이므로 evidence_publisher 의 scaffold/completion 게이트는 타지 않는다.)
   - simlog: `docs/simlog/<YYMMDDHH>[_MM_SS]_<topic>/` -- a RUN DIRECTORY, not a file, so no
     `<type>_` prefix.
   - benchmark: `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md` (human,
@@ -36,7 +38,7 @@ import datetime
 import re
 import sys
 
-DATED_DOC_TYPES = ("plan", "devlog", "testlog")
+DATED_DOC_TYPES = ("plan", "devlog", "testlog", "request")
 BENCH_KIND_DEFAULT_EXT = {"bench_report": "md", "benchmark": "yaml", "max_envelope": "md"}
 
 _UTC_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z$")
