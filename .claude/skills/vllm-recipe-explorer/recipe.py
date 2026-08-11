@@ -663,7 +663,7 @@ def _next_soft_value(candidate, target):
     return cands[0]
 
 
-def _enrich_overhead(profile, device_total_gib, gmu_fallback=None):
+def _enrich_overhead(profile, device_total_gib, gmu_fallback=None, kv_was_explicit=False):
     """consolidated 메모리 라인이 없는 vLLM 빌드 보강: non_kv_overhead 를 유도한다.
 
     vLLM 메모리식: gmu × device_total = weights + non_kv_overhead + kv_available.
@@ -674,10 +674,20 @@ def _enrich_overhead(profile, device_total_gib, gmu_fallback=None):
     gmu_trial 은 우리가 --gpu-memory-utilization 으로 **설정한 알려진 입력**이다. 로그에서
     파싱(parse_vllm_log)이 vLLM 버전별 로그 포맷 차로 못 잡으면(예: 0.18.0) gmu_fallback
     (=candidate.gpu_memory_utilization)로 대체한다 — 로그 파싱에 의존하지 않는다.
+
+    ⚠ 이 잔차식은 **kv_available 이 gmu 풀을 다 채운(자연 프로파일링) 경우에만** 성립한다.
+    `kv_cache_memory_bytes` 절대클램프가 걸린 트라이얼(kv_was_explicit=True)은 클램프가
+    풀보다 훨씬 작게 KV를 강제하므로, 잔차 = 진짜 overhead + **의도적으로 남겨둔 미사용 풀**
+    이 되어 overhead 가 수십 GiB 로 부풀려진다(2026-08-11 gemma-4-E2B-it 실측: gmu=0.4 트라이얼
+    에서 kv=1.92GiB 클램프 시 overhead=36.96GiB 오산정 → vram_infeasible 오판). 그래서
+    explicit 클램프 트라이얼은 이 식을 건너뛴다(non_kv_overhead_gib 는 None 유지 — 직전
+    자연-프로파일 트라이얼의 실측값이 이미 correction_history 에 있으므로 재계산 불요).
     """
     if not isinstance(profile, dict):
         return profile
     if profile.get("non_kv_overhead_gib") is not None:
+        return profile
+    if kv_was_explicit:
         return profile
     gmu = profile.get("gmu_trial")
     gmu_from_log = gmu is not None
@@ -715,7 +725,9 @@ def _resolve_clamp_kv(parsed, candidate, profile, budget, margin, kv_dtype_bytes
         weights_b = weights_b / tp_divisor
         overhead_b = overhead_b / tp_divisor
     max_len = int(candidate["max_model_len"])
-    batch = int(candidate.get("batch", 1))
+    # candidate.get("batch", 1) 는 키가 *존재하지만 값이 JSON null*(자유변수 표기 — lockset.json 관례)
+    # 인 경우를 못 잡는다(.get 의 default 는 키 부재에만 적용) → TypeError(2026-08-11 gemma-4-e2b-it 실측).
+    batch = int(candidate.get("batch") or 1)
     # required_kv: 측정 트라이얼이 per-token KV(kv_available/kv_tokens)를 주면 그 측정값을 쓴다.
     # 하이브리드(GDN/linear-attention) 모델은 전 레이어가 full-KV 가 아니라 dims 공식이 과대추정한다
     # (Qwen3.6: 공식 262144 vs 실측 ~70600 B/token, 3.7×). 측정 per-token 이 정확. 없으면 공식 폴백.
@@ -723,7 +735,13 @@ def _resolve_clamp_kv(parsed, candidate, profile, budget, margin, kv_dtype_bytes
     kv_tok_m = profile.get("kv_cache_tokens")
     if kv_gib_m and kv_tok_m:
         per_token = (float(kv_gib_m) * (1024 ** 3)) / float(kv_tok_m)
-        required = int(per_token * max_len * batch)
+        # +2% 라운딩버퍼: vLLM 은 KV 를 고정 블록 단위(기본 block_size=16토큰)로 할당하므로
+        # 선형식(per_token×max_len×batch)이 블록 경계 반올림을 반영 못 해 vLLM 자신의
+        # `_check_enough_kv_cache_memory` 문턱에 근소 미달하는 사례가 실측됐다(2026-08-11:
+        # qwen3-4b batch=1 "needed 4.5GiB > available 4.5GiB" — 표시상 동률이나 내부 초과).
+        # required_kv_bytes()(estimate_vram.py, 공식-only 폴백 경로)에도 동형 버퍼를 뒀으나
+        # 이 measured-per-token 경로가 실제로 항상 우선 실행되므로 여기가 진짜 적용점이다.
+        required = int(per_token * max_len * batch * 1.02)
     else:
         required = required_kv_bytes(parsed, max_len, batch, kv_dtype_bytes)
     max_safe = max_safe_kv_bytes(budget, margin, weights_b, overhead_b)
@@ -879,7 +897,8 @@ def cmd_simulate(args):
         # consolidated 메모리 라인이 없는 빌드 보강: overhead 유도(제자리). dry-run mock 이
         # 이미 non_kv_overhead 를 주면 건드리지 않는다.
         _enrich_overhead(trial.get("vllm_profile"), device_total_gib,
-                         gmu_fallback=candidate.get("gpu_memory_utilization"))
+                         gmu_fallback=candidate.get("gpu_memory_utilization"),
+                         kv_was_explicit=candidate.get("kv_cache_memory_bytes") is not None)
         final_trial = trial
 
         # ── per-trial simlog 증거 4종 기록(SKILL.md §6) ───────────────────

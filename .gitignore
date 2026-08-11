@@ -114,11 +114,24 @@ output/*/*
 !output/*/.gitkeep
 !output/multi/Dockerfile
 !output/multi/Dockerfile.source-build
+!output/multi/Dockerfile.source-build-upstage
 !output/multi/docker-compose.yaml
+!output/multi/requirements.txt
+# single 통로도 multi 와 동형 추적(2026-08-11 결함수정 — sync_to_sub.sh 의 canonical-source 준비가
+#   git 인덱스 권위(checkout-index)로 output/<t>/ 빌드킷을 스냅샷하는데, single 쪽만 이 예외가 없어
+#   빌드킷이 "정본에 없음"으로 오판되고 서브의 정상 빌드킷을 삭제하려 드는 브랜치가드 오탐이 발생했다
+#   (testlog_26081112 계열). BAND2_TOP(sync_to_sub.sh) 과 정합.
+!output/single/Dockerfile
+!output/single/Dockerfile.source-build
+!output/single/Dockerfile.source-build-upstage
+!output/single/docker-compose.yaml
+!output/single/requirements.txt
 # 빌드-바깥 패치 모듈(build_patches/<NN>-*.sh) — 손작성 빌드입력·정본(컨테이너 정의와 동급 추적).
 #   통로(output/<t>/) 격리로 single/multi 혼재 차단(산출물 통로 불변식). upstream-version-watch §4.7 · 3+1+1.
 !output/multi/build_patches/
 !output/multi/build_patches/*
+!output/single/build_patches/
+!output/single/build_patches/*
 
 # ===========================================
 # Python

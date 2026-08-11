@@ -1,0 +1,55 @@
+# 스켈레톤 — render_dockerfile.py(G2)가 manifest+버전해소값으로 채움
+x-gpu-common: &gpu-common
+  build:
+    context: .
+    dockerfile: Dockerfile.source-build   # 트랙별: Dockerfile(wheel) | Dockerfile.source-build(source)
+  # 이미지 네이밍 불변식(easy-vllm:{vllm}-cu{cuda}-{arch}-{track}). 해소값이 기본, 콤보 env(.env.<config>)의
+  # IMAGE_TAG 가 오버라이드 — 변종/이전 버전 이미지 재사용 경로(multi 통로와 동형·plan_2026072217_1 S1).
+  image: ${IMAGE_TAG:-easy-vllm:0.27.0-cu133-aarch64-source}
+  runtime: nvidia
+  ipc: host
+  # OOM킬러 우선희생 지정(plan_2026071019_1 §2.4) — 통합메모리 압박 시 커널이 무고한 데스크톱 프로세스가
+  # 아니라 vLLM 컨테이너를 먼저 잡게(사고 #5 교정). 계층 방어의 커널층.
+  oom_score_adj: 800
+  ulimits:
+    memlock: -1
+    stack: 67108864
+  volumes:
+    - ${NAS_MODEL_PATH:-/mnt/models}:/app/models:ro # 호스트 NAS 루트(env; 테라포밍이 manifest.nas_model_path→env 전파). PII는 compose에 baking 안 함
+    - ${QUANT_MODEL_PATH:-/mnt/models}:/app/quant_models:ro # NVFP4/quant 별도 NAS(manifest.quant_model_path → --materialize-env). multi 통로와 동형
+    - ${TIKTOKEN_HOST_PATH:-./tiktoken_cache}:/encodings:ro # tiktoken 평탄폴더(gpt-oss용). 변수명·기본값 align (P3 카탈로그)
+    - ./configs:/app/configs:ro
+    # JIT/컴파일 캐시 영속(통로 self-containment — ./cache = output/<topology>/cache, gitignored).
+    #   컨테이너 재생성마다 torch.compile AOT · flashinfer autotune 캐시가 증발해 매 기동이 **cold JIT** 이 되던 문제 교정.
+    #   cold JIT 은 시간(≈12분 warmup)뿐 아니라 **호스트 하드다운 리스크**를 매번 새로 진다(uncapped nvcc 팬아웃 —
+    #   Laguna 모델카드 WARNING). 레퍼런스 레시피(호스트 venv)는 ~/.cache 가 유지되는 전제라, 이 마운트가 그 전제와의 parity.
+    #   ⚠ 컨테이너가 root 로 쓰므로 호스트 파일 소유자는 root — 정리 시 sudo 필요(gitignored 생성물).
+    - ./cache/vllm:/root/.cache/vllm
+    - ./cache/flashinfer:/root/.cache/flashinfer
+
+services:
+  vllm:
+    <<: *gpu-common
+    container_name: vllm_server # 디버그 모드일 시 컨테이름은 vllm_server로
+    profiles: [debug]
+    ports:
+      - "8081:8000" # 디버그 포트는 8081로 고정 -> 서빙 프로필이랑 포트가 겹치지 말 것!
+    environment:
+      TIKTOKEN_ENCODINGS_BASE: /encodings
+      TIKTOKEN_RS_CACHE_DIR: /encodings
+    command: ["bash"]
+    tty: true
+    stdin_open: true
+
+  vllm-serve:
+    <<: *gpu-common
+    container_name: ${CONTAINER_NAME:-vllm-serve-container}
+    profiles: [serve]
+    ports:
+      - "${SERVING_PORT:-8080}:8000"
+    environment:
+      TIKTOKEN_ENCODINGS_BASE: /encodings
+      TIKTOKEN_RS_CACHE_DIR: /encodings
+    env_file:
+      - envs/.env.${CONFIG_FILE:-default}
+    command: ["bash", "/app/configs/${CONFIG_FILE:-default}.sh"]

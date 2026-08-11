@@ -32,6 +32,15 @@ KNOWN_INCOMPAT = {
     # fastapi 0.137.0 include_router 리팩터(_IncludedRouter, .path 부재)가 prometheus-fastapi-instrumentator
     # 와 충돌 → /health 500 (vLLM #45596, testlog 2026062220). regen 이 0.138+ 를 흡수하면 재발.
     "fastapi": "<0.137.0",
+    # transformers 5.15.0(PyPI 업로드 2026-08-10 — vLLM 0.27.0 릴리즈 직후 시점 추정)이 신설한
+    # heterogeneity 가드(transformers/integrations/heterogeneity/configuration_utils.py)가
+    # ModelConfig.__post_init__() 의 getattr(hf_text_config, "head_dim", 0) 를 하드 예외로 승격
+    # (AmbiguousGlobalPerLayerAttributeError) → hybrid sliding/global attention 모델(예 gemma-4,
+    # head_dim=256 sliding vs global_head_dim=512) 서빙 즉사. vLLM 0.27.0 소스가 아직 이 신규 가드를
+    # 다루도록 갱신되지 않은 시간드리프트(fastapi 사례와 동일 패턴). 실측: gemma-4-12b-it-dgxspark
+    # 스모크 FAIL(2026-08-11, single-node 0.27.0 bump). upstream 이 heterogeneity-aware 접근으로
+    # 고치면(또는 vLLM 이 allow_global_per_layer_attribute_access 를 세팅하면) 여기서 제거.
+    "transformers": "<5.15.0",
 }
 
 

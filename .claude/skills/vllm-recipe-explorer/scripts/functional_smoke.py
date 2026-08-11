@@ -187,6 +187,12 @@ def smoke(
                     # reasoning 모델은 충분한 토큰을 줘 finish_reason=stop 유도.
                     "max_tokens": 1024,
                     "temperature": 0.0,
+                    # 일부 계열(gemma-4·qwen3 등)은 chat_template의 enable_thinking이 기본 False라
+                    # 이 kwarg 없이는 reasoning이 content에 섞여나오고 reasoning 필드가 비어 오탐 FAIL
+                    # 난다(2026-08-11 gemma-4-E2B-it 실측 — chat_template.jinja
+                    # `enable_thinking = enable_thinking | default(false)`). 이 kwarg를 모르는
+                    # 템플릿은 무시하므로 부작용 없음(가산적 변경).
+                    "chat_template_kwargs": {"enable_thinking": True},
                 },
                 timeout=timeout,
             )

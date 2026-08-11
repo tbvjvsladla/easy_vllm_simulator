@@ -11,13 +11,15 @@
 # ⚠ 패치 가드: 검증된 torch핀에서만 빌드한다(아래 guard). 미인식 핀이면 빌드를 명시 실패시켜
 #   "false determinism"(상류가 그 줄을 바꿨거나 torch 핀이 다른데도 옛 패치를 박는 것)을 막는다.
 
-FROM nvcr.io/nvidia/pytorch:{{ NGC_TAG }}
+FROM nvcr.io/nvidia/pytorch:26.07-py3
 
 # ── torch핀 가드 (render-time: 검증된 핀=주석 / 미인식=빌드 실패. 카탈로그 codify는 P6) ──
-{{ SOURCE_BUILD_PATCH_GUARD }}
+RUN echo "WARN: source-build key (26.07-py3 x vLLM 0.27.0) is UNVALIDATED — attempt-build under HITL override (--allow-unvalidated)." && \
+    echo "  -> arbiter = smoke (workflow S3). REQUIRED: record this attempt in docs/testlog/." && \
+    echo "  -> on smoke PASS: codify the key into VALIDATED_SOURCE_BUILD_KEYS (SKILL.md §4.6)."
 
-ARG VLLM_REF={{ VLLM_REF }}
-ARG TORCH_CUDA_ARCH={{ TORCH_CUDA_ARCH }}
+ARG VLLM_REF=v0.27.0
+ARG TORCH_CUDA_ARCH=12.1a
 ARG BUILD_JOBS=16
 
 ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH} \

@@ -126,6 +126,11 @@ VALIDATED_SOURCE_BUILD_KEYS = {
     ("26.05-py3", "0.24.0"),
     ("26.05-py3", "0.25.1"),  # tracked output/multi freeze; exact pair must remain synchronized
     ("26.05-py3", "0.26.0"),  # 2026-07-30 승급: 양노드 빌드+TP=2 서빙+스모크+에이전트-레디 3종 PASS (testlog_26073015 §2, 사용자 졸업 승인)
+    ("26.07-py3", "0.27.0"),  # 2026-08-11 승급(single-node): torch 2.13.0 강제 소스빌드+gemma-4-12b-it-dgxspark 스모크 PASS.
+                              #   전제조건 2건 — ① transformers<5.15.0(KNOWN_INCOMPAT, PyPI 5.15.0=2026-08-10 업로드가
+                              #   heterogeneity 가드 신설 → hybrid-attention 모델 즉사) ② source-build 트랙은 pip constraint
+                              #   파일을 requirements.txt(extras 제거)로 채워야 함(이 템플릿에 신규 배선 — 이전엔 비워서 무의미했음).
+                              #   testlog_26081111 참조.
 }
 
 _PLACEHOLDER_RE = re.compile(r"\{\{\s*[A-Z0-9_]+\s*\}\}")
