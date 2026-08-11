@@ -446,6 +446,18 @@
       "last_verified": "2026-08-11"
     },
     {
+      "tag": "hint/0.27.0/LFM2.5-2.6B/gb10-v2",
+      "vllm": "0.27.0",
+      "model": "LFM2.5-2.6B",
+      "arch": "gb10-v2",
+      "topology": "single 1노드",
+      "brief": "[정정판] reasoning_parser=qwen3 필수 — 구태그(hint/0.27.0/LFM2.5-2.6B/gb10)는 파서 미설정 결함 있음(폐기 아님, 교훈 보존)",
+      "anchor": "8f591fe086f4801df0a9040b24b0d37033ded39b",
+      "related": "hint/0.27.0/LFM2.5-2.6B/gb10",
+      "status": "active",
+      "last_verified": "2026-08-12"
+    },
+    {
       "tag": "hint/0.27.0/Qwen3-4B/gb10",
       "vllm": "0.27.0",
       "model": "Qwen3-4B",
