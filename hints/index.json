@@ -432,6 +432,66 @@
       "related": "testlog_26080217, testlog_26080215, plan_26080213",
       "status": "active",
       "last_verified": "2026-08-02"
+    },
+    {
+      "tag": "hint/0.27.0/LFM2.5-2.6B/gb10",
+      "vllm": "0.27.0",
+      "model": "LFM2.5-2.6B",
+      "arch": "gb10",
+      "topology": "single 1노드",
+      "brief": "16K 컨텍스트·gmu=0.4 예산 최대동시성(41), 서브 GB10 단독 서빙(노드당 2모델 동시서빙 설계 중 하나)",
+      "anchor": "02b22d474da313e6320d72b290694efe1f71ef5c",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-08-11"
+    },
+    {
+      "tag": "hint/0.27.0/LFM2.5-2.6B/gb10-v2",
+      "vllm": "0.27.0",
+      "model": "LFM2.5-2.6B",
+      "arch": "gb10-v2",
+      "topology": "single 1노드",
+      "brief": "[정정판] reasoning_parser=qwen3 필수 — 구태그(hint/0.27.0/LFM2.5-2.6B/gb10)는 파서 미설정 결함 있음(폐기 아님, 교훈 보존)",
+      "anchor": "8f591fe086f4801df0a9040b24b0d37033ded39b",
+      "related": "hint/0.27.0/LFM2.5-2.6B/gb10",
+      "status": "active",
+      "last_verified": "2026-08-12"
+    },
+    {
+      "tag": "hint/0.27.0/Qwen3-4B/gb10",
+      "vllm": "0.27.0",
+      "model": "Qwen3-4B",
+      "arch": "gb10",
+      "topology": "single 1노드",
+      "brief": "16K 컨텍스트·gmu=0.4 예산 최대동시성(4), 서브 GB10 단독 서빙, tool_call_parser=hermes(qwen3 계열 함정 주의)",
+      "anchor": "02b22d474da313e6320d72b290694efe1f71ef5c",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-08-11"
+    },
+    {
+      "tag": "hint/0.27.0/gemma-4-E2B-it/gb10",
+      "vllm": "0.27.0",
+      "model": "gemma-4-E2B-it",
+      "arch": "gb10",
+      "topology": "single 1노드",
+      "brief": "16K 컨텍스트·gmu=0.4 예산 최대동시성(181), 메인 GB10 단독 서빙(노드당 2모델 동시서빙 설계 중 하나)",
+      "anchor": "02b22d474da313e6320d72b290694efe1f71ef5c",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-08-11"
+    },
+    {
+      "tag": "hint/0.27.0/gemma-4-E4B-it/gb10",
+      "vllm": "0.27.0",
+      "model": "gemma-4-E4B-it",
+      "arch": "gb10",
+      "topology": "single 1노드",
+      "brief": "16K 컨텍스트·gmu=0.4 예산 최대동시성(10), fp8 quant, 메인 GB10 단독 서빙(노드당 2모델 동시서빙 설계 중 하나)",
+      "anchor": "02b22d474da313e6320d72b290694efe1f71ef5c",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-08-11"
     }
   ]
 }
