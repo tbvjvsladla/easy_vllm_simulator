@@ -42,6 +42,17 @@ ALLOWLIST=(
     .gitignore
     manifest.template.yaml
     .gitattributes
+    # ── 배포 문서·hint 카탈로그 (2026-08-14 추가) ────────────────────────────────
+    # hint 태그는 **git 태그**라 브랜치와 무관하게 저장소 전체에 존재하는데, 그 인덱스
+    # (hints/index.json)와 그것으로 자동 재생성되는 카탈로그(HINTS.md)는 **추적 파일**이라
+    # 브랜치별로 갈린다. allowlist 에 없어서 single-node 에서 발행한 태그가 multi-node 로
+    # 전파되지 않았고, 2026-08-14 실측에서 **실태그 40건 : multi-node 인덱스 35건**으로 벌어져
+    # 있었다 — 배포받은 사람이 어느 브랜치를 체크아웃했느냐에 따라 카탈로그가 달라지는 상태.
+    # README 도 같은 성격(배포 서사)이라 함께 묶어 브랜치 간 동일성을 보장한다.
+    # (docs/report 가 tracked 예외로 승격되며 겪은 것과 같은 계열의 침묵 누락이다.)
+    HINTS.md
+    README.md
+    hints/index.json
 )
 # These directory roots are shared control-plane mirrors, not topology-local overlays. A path
 # tracked on the destination under one of these roots but absent from the source must be staged for

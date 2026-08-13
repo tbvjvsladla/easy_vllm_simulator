@@ -117,9 +117,27 @@ for L in "${SORTED[@]}"; do
   fi
 done
 
+# ── 실제 측정 대상 이미지 캡처(2026-08-13 신설) ────────────────────────────────
+# image_tag 는 여태 envfile 선언값만 적었다. 그런데 IMAGE_TAG 는 `docker compose` 호출 시
+# 환경변수로 override 되는 것이 정상 경로이므로(변종·재빌드 트랙), **선언값과 실측이 갈린다**.
+#   2026-08-13 X1 실측: envfile 은 `...-source`, 실제 컨테이너는 `...-source-canonical`.
+#   그대로 두면 인증서가 **측정하지 않은 이미지**의 이름을 달고 발행되어 재현이 불가능해진다.
+# 이 파일은 vLLM 버전에 대해 이미 같은 규율을 갖고 있다(envfile 선언 ↔ 엔진 자기보고 교차검증 →
+# 어긋나면 vllm_mismatch 로 시끄럽게). image_tag 에만 그 교차검증이 없었을 뿐이라 동형으로 채운다.
+_CTR_RE='^(MASTER_)?CONTAINER_NAME='
+[ "$TOPO" = "multi" ] && _CTR_RE='^MASTER_CONTAINER_NAME='
+# tr 의 인자는 8진 이스케이프로 준다(\042=" \047=') — 셸 따옴표 중첩 회피.
+_CTR_NAME="$( { grep -E "$_CTR_RE" "$EF" 2>/dev/null || true; } | tail -1 | cut -d= -f2- | tr -d '\042\047' )"
+IMAGE_TAG_ACTUAL="NA"
+if [ -n "$_CTR_NAME" ]; then
+  IMAGE_TAG_ACTUAL="$(docker inspect "$_CTR_NAME" --format '{{.Config.Image}}' 2>/dev/null || echo NA)"
+  [ -n "$IMAGE_TAG_ACTUAL" ] || IMAGE_TAG_ACTUAL="NA"
+fi
+
 # ── sweep_index.json 조립 + meta 추출(결정론 · stdlib · fail-soft N/A) ──────────
 CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$CFGYAML" EF="$EF" MANIFEST="$MANIFEST" AGENT_CARD="$REPO/Agent_Card.json" \
 SWEEPDIR="$SWEEPDIR" VLLM_VER="$VLLM_VER" COMPLETED="${COMPLETED[*]:-}" ILEN="$ILEN" \
+ IMAGE_TAG_ACTUAL="$IMAGE_TAG_ACTUAL" \
  LITE_RAW="$LITE_RAW" SDIR="$SDIR" python3 - <<'PY'
 import json, os, re, glob, datetime
 
@@ -157,6 +175,10 @@ cfgtext = read(os.environ["CFGYAML"]); envtext = read(os.environ["EF"]); mftext 
 #   IMAGE_TAG 소실로 compose 가 0.24.0 으로 조용히 폴백했는데 health 200 이라 아무 데서도 안 걸렸다.
 #   두 출처를 다 기록하고 라인이 어긋나면 vllm_mismatch 로 **시끄럽게** 남긴다(침묵 치환 금지).
 _img = grep_env(envtext, "IMAGE_TAG") or ""
+_img_actual = (os.environ.get("IMAGE_TAG_ACTUAL") or "NA").strip() or "NA"
+# 선언 ↔ 실측 대조. 둘 다 알 때만 판정하고, 모르면 "unknown" 으로 남긴다(모름을 일치로 위장 금지).
+_img_mismatch = ("unknown" if (_img_actual == "NA" or not _img)
+                 else ("no" if _img_actual == _img else "YES"))
 _elog = ""
 for _lvl in sorted(completed):
     _p = os.path.join(sweepdir, "level_%02d" % _lvl, "engine_%s.log" % cfg)
@@ -232,7 +254,12 @@ meta = {
     # 소프트 지문
     "driver_version": grep_yaml(mftext, "driver_version") or "NA",
     "cuda_version": grep_yaml(mftext, "cuda_version") or "NA",
-    "image_tag": grep_env(envtext, "IMAGE_TAG") or "NA",
+    # 실측 우선(측정 > 선언). 선언값은 버리지 않고 나란히 남기며, 갈리면 mismatch 로 시끄럽게 —
+    # vllm_version/vllm_build 가 쓰는 규율과 동형이다(2026-08-13 신설, 위 캡처 스탠자 참조).
+    "image_tag": _img_actual if _img_actual != "NA" else (grep_env(envtext, "IMAGE_TAG") or "NA"),
+    "image_tag_source": "measured(docker inspect)" if _img_actual != "NA" else "declared(envfile)",
+    "image_tag_declared": grep_env(envtext, "IMAGE_TAG") or "NA",
+    "image_tag_mismatch": _img_mismatch,
     "max_model_len": grep_yaml(cfgtext, "max-model-len") or "NA",
     "max_num_seqs": grep_yaml(cfgtext, "max-num-seqs") or "NA",
     "kv_cache_memory_bytes": grep_yaml(cfgtext, "kv-cache-memory-bytes") or "NA",

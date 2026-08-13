@@ -492,7 +492,20 @@ def materialize_env(repo: str, topology: str, manifest: dict) -> str:
     # tiktoken·quant 도 manifest 정본 우선(env > manifest > 리터럴 default — 헌법 §serve-time env 통로 불변식).
     # plan_26063018: P1 이 manifest 에 tiktoken_host_path·quant_model_path 필드 추가 → 여기서 .env 로 materialize.
     tiktoken = str(manifest.get("tiktoken_host_path", "") or "").strip() or os.path.join(repo, "tiktoken_cache")
-    quant = str(manifest.get("quant_model_path", "") or "").strip() or nas  # 미설정 시 NAS 루트 폴백
+    # ⚠ quant 폴백은 **fail-loud** 여야 한다(2026-08-14 교정). 옛 코드는 필드 부재 시 조용히 NAS 루트로
+    #   대체했고, 그 결과 메인 manifest 에는 quant_model_path 가 있고 **서브에는 없어** 같은 양자화 모델이
+    #   마스터에선 해소되고 슬레이브에선 엉뚱한 경로가 됐다. TP=2 는 슬레이브도 가중치 절반을 로드하므로
+    #   분산 서빙이 거기서 깨지는데, 원인이 Ray 워커 안쪽으로 숨어 진단이 어렵다.
+    #   `plan_26081314` D2 판정표의 **"결정 경로에서 원인을 삼키는 침묵 폴백"** 에 해당한다 —
+    #   폴백 자체는 유지하되(하위호환) 발화시키고, 산출물에 출처를 각인한다(결정론 규율: 값 옆에 출처).
+    _quant_declared = str(manifest.get("quant_model_path", "") or "").strip()
+    quant = _quant_declared or nas
+    quant_source = "manifest.quant_model_path" if _quant_declared else "FALLBACK:nas_model_path"
+    if not _quant_declared:
+        sys.stderr.write(
+            "[render] WARN: manifest.quant_model_path 부재 — QUANT_MODEL_PATH 를 nas_model_path(%s) 로 폴백한다.\n"
+            "[render]   양자화 모델(/app/quant_models/...)을 쓰면 이 노드에서 경로가 해소되지 않는다. manifest 를 채울 것.\n"
+            % nas)
     dst_dir = os.path.join(repo, "output", topology)
     os.makedirs(dst_dir, exist_ok=True)
     dst = os.path.join(dst_dir, ".env")
@@ -501,9 +514,10 @@ def materialize_env(repo: str, topology: str, manifest: dict) -> str:
         "# docker compose 가 docker-compose.yaml 의 ${NAS_MODEL_PATH}·${QUANT_MODEL_PATH}·${TIKTOKEN_HOST_PATH} 치환에 사용.\n"
         "# gitignored(output/* — PII). 손수정 금지 — manifest(nas_model_path·quant_model_path·tiktoken_host_path)를 고칠 것.\n"
         "NAS_MODEL_PATH=%s\n"
+        "# QUANT_MODEL_PATH 출처(결정론 규율 — 값 옆에 출처): %s\n"
         "QUANT_MODEL_PATH=%s\n"
         "TIKTOKEN_HOST_PATH=%s\n"
-    ) % (nas, quant, tiktoken)
+    ) % (nas, quant_source, quant, tiktoken)
     with open(dst, "w", encoding="utf-8") as f:
         f.write(body)
     return dst
