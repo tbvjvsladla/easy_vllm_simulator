@@ -819,7 +819,7 @@
         ]
       }
     ],
-    "SUB_SYNC_DIRTY_FAIL_CLOSED.C1": [
+    "SUB_SYNC_DIRTY_AUTOSAVE.C1": [
       {
         "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
         "assertion_ids": [
@@ -830,11 +830,11 @@
       {
         "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
-          "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C1"
+          "predicate_SUB_SYNC_DIRTY_AUTOSAVE_C1"
         ]
       }
     ],
-    "SUB_SYNC_DIRTY_FAIL_CLOSED.C2": [
+    "SUB_SYNC_DIRTY_AUTOSAVE.C2": [
       {
         "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
         "assertion_ids": [
@@ -845,11 +845,11 @@
       {
         "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
-          "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C2"
+          "predicate_SUB_SYNC_DIRTY_AUTOSAVE_C2"
         ]
       }
     ],
-    "SUB_SYNC_DIRTY_FAIL_CLOSED.C3": [
+    "SUB_SYNC_DIRTY_AUTOSAVE.C3": [
       {
         "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
         "assertion_ids": [
@@ -860,11 +860,11 @@
       {
         "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
-          "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C3"
+          "predicate_SUB_SYNC_DIRTY_AUTOSAVE_C3"
         ]
       }
     ],
-    "SUB_SYNC_DIRTY_FAIL_CLOSED.C4": [
+    "SUB_SYNC_DIRTY_AUTOSAVE.C4": [
       {
         "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
         "assertion_ids": [
@@ -875,7 +875,7 @@
       {
         "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
-          "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C4"
+          "predicate_SUB_SYNC_DIRTY_AUTOSAVE_C4"
         ]
       }
     ],

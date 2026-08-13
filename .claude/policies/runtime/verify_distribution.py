@@ -385,8 +385,11 @@ def verify() -> dict:
                    "ok": all(p.is_file() and p.stat().st_size > 0 for p in skeletons),
                    "paths": [str(p.relative_to(REPO)) for p in skeletons]})
     build_asset_root = REPO / ".claude/skills/upstream-version-watch/assets/build_plane"
+    # requirements.txt 는 2026-08-13 이 목록에서 빠졌다 — Band1 정적 사본을 render_topology 가 인덱스
+    # 정본 위에 덮어썼는데 갱신 소유자가 없어 vLLM 0.18.0 METADATA 에 얼어붙었다(서브 0.27.0 빌드 사망).
+    # 여기 단언은 존재·비어있지않음·비실행뿐이라 **내용 신선도**를 볼 수 없었다 — 존재 단언은 갱신되지 않는
+    # 사본을 살려두는 근거가 되기도 한다. 소유자는 per-topology output/<t>/requirements.txt 하나다.
     build_assets = [
-        build_asset_root / "requirements.txt",
         build_asset_root / "Dockerfile.source-build-upstage",
         *[build_asset_root / "model_inputs/configs" / f"{stem}.{suffix}"
           for stem in ("exaone45-33b", "hy3") for suffix in ("sh", "yaml")],

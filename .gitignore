@@ -132,6 +132,28 @@ output/*/*
 !output/multi/build_patches/*
 !output/single/build_patches/
 !output/single/build_patches/*
+# 소스 이식 패치(build_patches_src/<NN>-*.sh + files/ + PROVENANCE.json) — **컴파일 前** 위상.
+#   `_C` 재컴파일이 필요한 csrc 의 유일한 자리이며 포크 사다리 3번째 칸(자체 이식)의 산출물이다.
+#   2026-08-13 신설: 이 예외가 없어 비추적 → sync_to_sub 의 index-권위 스냅샷에 부재 → 서브 배달
+#   경로가 아예 없었다. 게다가 assert_band_classification 은 그 스냅샷을 돌기 때문에 "미분류
+#   fail-loud" 조차 발화하지 못했다(누락이 침묵으로 덮임). BAND2_PATCH_DIRS(sync_to_sub.sh) 와 정합.
+#   ⚠ 범위는 **손작성분만**이다(2026-08-13 축소). 초판은 `/**` 로 전부 열었는데 그러면
+#   `files/` 아래 업스트림 vLLM 소스 벤더링(92파일·61,846줄)까지 추적물이 된다 — 그것은 손작성
+#   정본이 아니라 **파생 산출물**이므로 CLAUDE.md 의 추적 규정(빌딩블럭=추적 · 생성물=비추적)에
+#   어긋나고, "배포 단위 = 스켈레톤 + 생성엔진(완성품 아님)" 과도 부딪힌다.
+#   payload 는 PROVENANCE.json 의 유도식(merge-base diff → 3-way → 선별 병합)으로 재생성하고
+#   파일별 sha256 으로 검증한다. 변종 재현의 정본 경로는 이제 arch_variant_ledger 의 포크 좌표다.
+!output/multi/build_patches_src/
+!output/multi/build_patches_src/*.sh
+!output/multi/build_patches_src/PROVENANCE.json
+!output/single/build_patches_src/
+!output/single/build_patches_src/*.sh
+!output/single/build_patches_src/PROVENANCE.json
+#   ★ payload 명시 제외가 **반드시** 필요하다: `output/*/*` 의 `*` 는 `/` 를 넘지 않으므로
+#   `output/<t>/build_patches_src/files` (4단계)는 그 패턴에 걸리지 않는다. 위 `!` 로 디렉토리를
+#   재포함한 순간 git 이 안으로 내려가고, files/ 는 **어떤 규칙에도 안 걸려 기본 추적**이 된다.
+#   (2026-08-13 실제 발생: 좁힌 allowlist 만으로는 92파일이 그대로 스테이징에 남았다.)
+output/*/build_patches_src/files/
 
 # ===========================================
 # Python

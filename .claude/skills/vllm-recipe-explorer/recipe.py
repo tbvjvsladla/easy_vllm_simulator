@@ -36,11 +36,12 @@ from gen_recipe_set import generate, recipe_from_candidate  # noqa: E402
 from feedback_log import append as feedback_append  # noqa: E402
 
 # Phase 2 시뮬레이터(통합 trial-loop) 조립용 import.
-from run_trial import run_trial  # noqa: E402
+from run_trial import run_trial, PROVENANCE_VALUES, PROVENANCE_MEASURED  # noqa: E402
 from sim_classify import classify as sim_classify  # noqa: E402
 from preload_ram_gate import gate as preload_ram_gate  # noqa: E402
 from estimate_vram import (  # noqa: E402
     GIB,
+    KV_BLOCK_ALIGN_BUFFER,
     required_kv_bytes,
     max_safe_kv_bytes,
 )
@@ -739,9 +740,10 @@ def _resolve_clamp_kv(parsed, candidate, profile, budget, margin, kv_dtype_bytes
         # 선형식(per_token×max_len×batch)이 블록 경계 반올림을 반영 못 해 vLLM 자신의
         # `_check_enough_kv_cache_memory` 문턱에 근소 미달하는 사례가 실측됐다(2026-08-11:
         # qwen3-4b batch=1 "needed 4.5GiB > available 4.5GiB" — 표시상 동률이나 내부 초과).
-        # required_kv_bytes()(estimate_vram.py, 공식-only 폴백 경로)에도 동형 버퍼를 뒀으나
+        # required_kv_bytes()(estimate_vram.py, 공식-only 폴백 경로)에도 동형 버퍼가 적용되나
         # 이 measured-per-token 경로가 실제로 항상 우선 실행되므로 여기가 진짜 적용점이다.
-        required = int(per_token * max_len * batch * 1.02)
+        # 상수는 estimate_vram.KV_BLOCK_ALIGN_BUFFER **단일 소유**(2026-08-13 — 매직넘버 두 벌 제거).
+        required = int(per_token * max_len * batch * KV_BLOCK_ALIGN_BUFFER)
     else:
         required = required_kv_bytes(parsed, max_len, batch, kv_dtype_bytes)
     max_safe = max_safe_kv_bytes(budget, margin, weights_b, overhead_b)
@@ -894,6 +896,13 @@ def cmd_simulate(args):
 
         # ── 실서빙(또는 dry-run/mock) 트라이얼 ──────────────────────────────
         trial = run_trial(candidate, run_dir, trial_number, opts)
+        # provenance 전파 게이트(2026-08-13 · plan_26081314 D1): trial 산출물은 출처를 스스로
+        # 밝혀야 한다. 필드가 없으면 run_trial 이 계약을 어긴 것이므로 조용히 진행하지 않는다 —
+        # 출처 미상을 실측처럼 흘려보내면 하류 판정·인증서가 무엇을 근거로 삼았는지 알 수 없게 된다.
+        _prov = trial.get("provenance")
+        if _prov not in PROVENANCE_VALUES:
+            _die("trial provenance 미표기/미지값(%r) — run_trial 계약 위반. 출처 미상 결과는 "
+                 "판정에 쓰지 않는다(plan_26081314 D1)." % (_prov,), code=7)
         # consolidated 메모리 라인이 없는 빌드 보강: overhead 유도(제자리). dry-run mock 이
         # 이미 non_kv_overhead 를 주면 건드리지 않는다.
         _enrich_overhead(trial.get("vllm_profile"), device_total_gib,
@@ -1131,6 +1140,10 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
         print(f"  - {p}")
 
     # simlog run_summary.
+    #   provenance 각인(2026-08-13 · plan_26081314 D1): 수렴한 레시피가 **무엇을 근거로** 수렴했는지를
+    #   산출물 자체가 밝힌다. mock/dry-run 으로 수렴한 레시피를 실측 레시피와 같은 얼굴로 남기면,
+    #   나중에 그 파일을 읽는 사람도 인증서 발행 경로도 진위를 가릴 수 없다.
+    _final_prov = final_trial.get("provenance")
     summary = {
         "run_id": run_id,
         "converged": True,
@@ -1139,7 +1152,12 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
         "vram_breakdown": recipe["vram_breakdown"],
         "generated_paths": paths,
         "correction_history": correction_history,
+        "provenance": _final_prov,
+        "measured": _final_prov == PROVENANCE_MEASURED,
     }
+    if _final_prov != PROVENANCE_MEASURED:
+        print(f"[recipe] ⚠ 이 레시피는 실측이 아니다(provenance={_final_prov}) — "
+              f"서빙 판정·성능 인증의 근거로 쓰지 마라(plan_26081314 D1).", file=sys.stderr)
     simlog_writer.write_summary(run_dir, summary)
     print(f"[recipe] simlog 요약: {os.path.join(run_dir, 'run_summary.json')}",
           file=sys.stderr)
@@ -1187,6 +1205,10 @@ def _simulate_hitl(run_dir, run_id, candidate, trial, final_class,
     note = (final_class or {}).get("note", "")
     log_path = (trial or {}).get("log_path")
 
+    # 실패 요약에도 provenance 를 각인한다(plan_26081314 D1) — "왜 실패했는가"의 해석이 출처에
+    # 따라 완전히 달라지기 때문이다. mock 으로 낸 vram_infeasible 은 하드웨어 사실이 아니라
+    # 주입값의 산술 결과일 뿐이므로, 그것을 실측 실패와 같은 얼굴로 남기면 오독을 부른다.
+    _final_prov = (trial or {}).get("provenance")
     summary = {
         "run_id": run_id,
         "converged": False,
@@ -1196,6 +1218,8 @@ def _simulate_hitl(run_dir, run_id, candidate, trial, final_class,
         "candidate": candidate,
         "last_trial_log": log_path,
         "correction_history": correction_history,
+        "provenance": _final_prov,
+        "measured": _final_prov == PROVENANCE_MEASURED,
     }
     simlog_writer.write_summary(run_dir, summary)
 

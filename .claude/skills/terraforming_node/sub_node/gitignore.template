@@ -31,11 +31,40 @@ envs/.env.*
 !envs/.env.example
 
 # ── output/ 통로 — single/multi 경계분리(pathway isolation) ──
+# ⚠ 이 절은 메인 `.gitignore` 의 output 절과 **개념이 같다**(무엇이 Band2 빌드킷인가). 소유자는
+#   sync_to_sub.sh 의 BAND2_TOP·BAND2_PATCH_DIRS 배열이며, 두 정적 파일은
+#   assert_band2_top_gitignore_parity() 가 그 배열에 대조한다 — 손으로 한쪽만 고치면 FAIL 한다.
+#   ★ 2026-08-13 이전 이 목록은 4줄(multi Dockerfile 3종 + .gitkeep)에서 멈춰 있었고 메인은 19줄이었다.
+#   서브 git 은 메인의 **관측 장치**인데(권한평면 B) 그 눈이 가려져, 배달받은 빌드킷 전부가 비추적이라
+#   `[sync]` 커밋이 실제 배달분을 과소기록했다. 관측이 멀면 오배달도 침묵한다.
 output/*/*
 !output/*/.gitkeep
 !output/multi/Dockerfile
 !output/multi/Dockerfile.source-build
+!output/multi/Dockerfile.source-build-upstage
 !output/multi/docker-compose.yaml
+!output/multi/requirements.txt
+!output/single/Dockerfile
+!output/single/Dockerfile.source-build
+!output/single/Dockerfile.source-build-upstage
+!output/single/docker-compose.yaml
+!output/single/requirements.txt
+# 빌드 패치 2위상(post=build_patches · pre=build_patches_src) — 3+1+1 의 +1+1. 디렉토리 줄과 내용 줄이
+#   **둘 다** 있어야 한다(디렉토리만 재포함하면 그 안의 파일은 여전히 무시된다).
+!output/multi/build_patches/
+!output/multi/build_patches/*
+!output/single/build_patches/
+!output/single/build_patches/*
+#   build_patches_src 는 **손작성분만** 추적한다 — `files/` 아래 업스트림 소스 벤더링은 파생
+#   산출물이라 비추적(메인 .gitignore 와 동일 근거). payload 는 PROVENANCE.json 유도식으로 재생성.
+!output/multi/build_patches_src/
+!output/multi/build_patches_src/*.sh
+!output/multi/build_patches_src/PROVENANCE.json
+!output/single/build_patches_src/
+!output/single/build_patches_src/*.sh
+!output/single/build_patches_src/PROVENANCE.json
+#   payload 명시 제외 — `output/*/*` 의 `*` 는 `/` 를 넘지 않아 4단계 `files/` 를 덮지 못한다.
+output/*/build_patches_src/files/
 
 # ── docs — 작업문서 gitignore-persist(브랜치 전환 persist), 스켈레톤(example.md)만 추적 ──
 docs/*/*

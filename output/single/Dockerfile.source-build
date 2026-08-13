@@ -1,12 +1,19 @@
 # syntax=docker/dockerfile:1
-# 스켈레톤(source-build 트랙) — render_dockerfile.py(G2)가 manifest+resolved로 채운다.
+# 스켈레톤(source-build 트랙 · **stock**) — render_dockerfile.py(G2)가 manifest+resolved로 채운다.
+#
+# ★ 2026-08-13 정본 교체: 이 파일은 원래 DS4-Flash 변종 트랙용으로 진화한 템플릿(flashinfer 0.6.14
+#   하드핀 · sparse-MLA 심볼 assert 등 변종 전용 스탠자 누적)이었다. 그 상태로 single stock 을 렌더하니
+#   ① constraint 없이는 transformers 5.15.0 이 설치돼 gemma-4 서빙이 로드 전 즉사하고
+#   ② constraint 를 이식하면 requirements(flashinfer 0.6.16.post3) ↔ 템플릿 하드핀(0.6.14) 이
+#      ResolutionImpossible 로 충돌해 빌드가 죽었다. 즉 stock 경로가 어느 쪽으로도 성립하지 않았다.
+#   ∴ **stock 정본 = 실제 서빙 실적이 있는 루트 템플릿**으로 교체하고, 변종 전용본은
+#   `Dockerfile.source-build-dsv4.template` 로 분리 보존한다(이름이 같아 신구관계로 오인됐던 것이 원인).
+#   여기에 stock 이 실제로 필요로 하던 두 배선만 이식했다: (1) VLLM_REPO 파라미터화 (2) 3+1+1 빌드패치 슬롯.
 #
 # 왜 source-build 인가 (torch 2.11+ 구간): prebuilt vLLM wheel 의 _C(public torch 빌드)가
 # NGC alpha torch 와 C++ ABI 불일치(_C.abi3.so 가 c10::cuda::CUDAStream::query() 를 요구하나
 # NGC libc10_cuda.so 에 부재) → import 단계 하드 월. _C 를 NGC torch 에 맞춰 직접 컴파일하면
 # undefined-symbol 이 사라진다. 검증: vLLM 0.22.1 (SKILL.md §4.6 / testlog_260608_1).
-# 빌드 STEP 은 0.22.1 동결 산출물(백업)을 정본으로 따르고, render 파라미터화 + torch핀 가드 +
-# build-verify 를 더한다. (P3 fidelity diff: ccache 설치·build-reqs as-is 정합 반영.)
 #
 # ⚠ 패치 가드: 검증된 torch핀에서만 빌드한다(아래 guard). 미인식 핀이면 빌드를 명시 실패시켜
 #   "false determinism"(상류가 그 줄을 바꿨거나 torch 핀이 다른데도 옛 패치를 박는 것)을 막는다.
@@ -14,10 +21,12 @@
 FROM nvcr.io/nvidia/pytorch:26.07-py3
 
 # ── torch핀 가드 (render-time: 검증된 핀=주석 / 미인식=빌드 실패. 카탈로그 codify는 P6) ──
-RUN echo "WARN: source-build key (26.07-py3 x vLLM 0.27.0) is UNVALIDATED — attempt-build under HITL override (--allow-unvalidated)." && \
-    echo "  -> arbiter = smoke (workflow S3). REQUIRED: record this attempt in docs/testlog/." && \
-    echo "  -> on smoke PASS: codify the key into VALIDATED_SOURCE_BUILD_KEYS (SKILL.md §4.6)."
+RUN echo "[guard] source-build key (26.07-py3 x vLLM 0.27.0): validated patch set ((ngc_base x vllm_version) keyed) — proceeding."
 
+# VLLM_REPO/VLLM_REF: 빌드-arg 파라미터화 — 기본 = stock(vllm-project). 콤보 env 가 오버라이드해
+#   같은 Dockerfile 로 포크 변종을 빌드한다(arch-wall 사다리의 `소스-repo 오버라이드` 칸).
+#   좌표의 거처는 `.claude/policies/arch_variant_ledger.json`(Band2) — workflow.md §변종 좌표의 거처.
+ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
 ARG VLLM_REF=v0.27.0
 ARG TORCH_CUDA_ARCH=12.1a
 ARG BUILD_JOBS=16
@@ -38,12 +47,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends ccache && rm -r
 #   requirements.txt 는 대부분 `>=` 하한이라 constraint 로 써도 과잉제약 없음(상한 항목만 실제로 조인다).
 #   pip 제약파일은 extras 표기(`pkg[extra]`)를 허용하지 않는다("Constraints cannot have extras") —
 #   requirements.txt 는 일부 항목이 extras 를 쓰므로(fastapi[standard] 등) 대괄호를 벗겨낸 사본을 쓴다.
+#   ⚠ 변종 트랙은 이 constraint 와 템플릿 하드핀이 충돌할 수 있다 — 그래서 변종본은 별도 템플릿이다.
 COPY requirements.txt /tmp/requirements.txt
 RUN cp /etc/pip/constraint.txt /etc/pip/constraint.txt.bak 2>/dev/null || true; \
     sed -E 's/\[[^]]*\]//g' /tmp/requirements.txt > /etc/pip/constraint.txt
 
-# 대상 태그 소스 클론 + NGC torch 사용(소스가 torch 핀을 재설치하지 않게 — 커플링 규칙 충실)
-RUN git clone --branch ${VLLM_REF} --depth 1 https://github.com/vllm-project/vllm.git /workspace/vllm-src
+# 대상 ref 소스 클론 + NGC torch 사용(소스가 torch 핀을 재설치하지 않게 — 커플링 규칙 충실).
+# blobless 풀-히스토리 클론 + ref checkout: 버전 tag·임의 SHA(포크 force-push 면역 — SHA=content-addressed) 양쪽 지원.
+# (옛 `--branch <ref> --depth 1` 은 raw SHA checkout 불가 → 포크 핀 위해 교체.)
+RUN git clone --filter=blob:none ${VLLM_REPO} /workspace/vllm-src \
+ && git -C /workspace/vllm-src checkout --detach ${VLLM_REF} \
+ && echo "[clone] HEAD=$(git -C /workspace/vllm-src rev-parse HEAD) (${VLLM_REPO} @ ${VLLM_REF})"
 WORKDIR /workspace/vllm-src
 RUN python3 use_existing_torch.py
 
@@ -79,9 +93,35 @@ else:
     print("[patch] strip-hoist skipped (register_opaque_type accepts hoist / opaque_object 부재)")
 PY
 
+# ═════════════════════════════════════════════════════════════════════════════
+# [소스 이식 패치] build_patches_src 모듈 — upstream-version-watch §4.7 확장 · 헌법 3+1+1
+#   `build_patches_src/<NN>-*.sh` 를 정렬 적용(**컴파일 전**). `build_patches/`(컴파일 후)와
+#   **위상이 다르다**:
+#     · build_patches_src/ = vLLM **소스** 패치(Python/C++ 공통). `_C` 재컴파일이 필요한
+#       csrc 변경을 담을 수 있는 유일한 슬롯이다.
+#     · build_patches/     = **빌드-바깥 native 의존** 설치(lib/커널). 컴파일 결과에 의존하므로 뒤.
+#   근거: 포크 전체를 핀하는 대신 필요한 변경만 이식하는 트랙(plan_26080218). arch-wall 사다리의
+#   `소스-repo 오버라이드(포크 핀)` 앞단에 `자체 이식` 칸을 두어, 포크 의존을 상시화하지 않는다.
+#   ⚠ 폴더 부재/비어있음은 **정상**(no-op) — stock 빌드 경로 불변. 단 COPY 대상이므로 디렉터리 자체는
+#     존재해야 한다(통로마다 `.gitkeep` 유지 — 2026-08-13 실증).
+#   패치 추가 = 파일 drop(이 스탠자 무수정). fail-loud.
+# ═════════════════════════════════════════════════════════════════════════════
+COPY build_patches_src/ /tmp/build_patches_src/
+RUN for p in $(ls /tmp/build_patches_src/*.sh 2>/dev/null | sort); do echo "[build-patch-src] applying $p"; bash "$p" || exit 1; done
+
 # 소스 컴파일: _C 를 NGC torch 에 맞춰 빌드 → ABI 벽 원천 해소. deps 는 pyproject 에서(torch 보호됨).
 RUN --mount=type=cache,target=/root/.ccache \
     pip install --no-build-isolation -e .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# [빌드-바깥 의존 패치] build_patches 모듈 — upstream-version-watch §4.7 · 헌법 3+1+1 따름정리.
+#   build_patches/<NN>-*.sh (컨텍스트 = 해당 토폴로지 통로 `output/<t>/` 상대) 를 정렬 적용
+#   (모델구동 native lib/커널 — 예 DeepGEMM=DeepSeek-V4 DSA).
+#   패치 추가 = 폴더에 파일 drop(이 스탠자 무수정 → Dockerfile bloat 차단). core(_C 컴파일) 뒤 = 캐시 보존. fail-loud.
+#   build_patches 는 output/<t>/ 통로에 격리(산출물 통로 불변식 — single/multi 혼재 차단). plan_2026062812_1.
+# ═════════════════════════════════════════════════════════════════════════════
+COPY build_patches/ /tmp/build_patches/
+RUN for p in $(ls /tmp/build_patches/*.sh 2>/dev/null | sort); do echo "[build-patch] applying $p"; bash "$p" || exit 1; done
 
 # 빌드 검증(GPU 불요): vllm 패키지 설치만 확인. _C/import 는 libcuda.so.1(드라이버) 필요 →
 # 빌드타임 불가(GPU 미주입). 실제 _C 로드·서빙은 런타임(--gpus)에서 = 스모크가 최종 중재자.
