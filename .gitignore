@@ -114,11 +114,46 @@ output/*/*
 !output/*/.gitkeep
 !output/multi/Dockerfile
 !output/multi/Dockerfile.source-build
+!output/multi/Dockerfile.source-build-upstage
 !output/multi/docker-compose.yaml
+!output/multi/requirements.txt
+# single 통로도 multi 와 동형 추적(2026-08-11 결함수정 — sync_to_sub.sh 의 canonical-source 준비가
+#   git 인덱스 권위(checkout-index)로 output/<t>/ 빌드킷을 스냅샷하는데, single 쪽만 이 예외가 없어
+#   빌드킷이 "정본에 없음"으로 오판되고 서브의 정상 빌드킷을 삭제하려 드는 브랜치가드 오탐이 발생했다
+#   (testlog_26081112 계열). BAND2_TOP(sync_to_sub.sh) 과 정합.
+!output/single/Dockerfile
+!output/single/Dockerfile.source-build
+!output/single/Dockerfile.source-build-upstage
+!output/single/docker-compose.yaml
+!output/single/requirements.txt
 # 빌드-바깥 패치 모듈(build_patches/<NN>-*.sh) — 손작성 빌드입력·정본(컨테이너 정의와 동급 추적).
 #   통로(output/<t>/) 격리로 single/multi 혼재 차단(산출물 통로 불변식). upstream-version-watch §4.7 · 3+1+1.
 !output/multi/build_patches/
 !output/multi/build_patches/*
+!output/single/build_patches/
+!output/single/build_patches/*
+# 소스 이식 패치(build_patches_src/<NN>-*.sh + files/ + PROVENANCE.json) — **컴파일 前** 위상.
+#   `_C` 재컴파일이 필요한 csrc 의 유일한 자리이며 포크 사다리 3번째 칸(자체 이식)의 산출물이다.
+#   2026-08-13 신설: 이 예외가 없어 비추적 → sync_to_sub 의 index-권위 스냅샷에 부재 → 서브 배달
+#   경로가 아예 없었다. 게다가 assert_band_classification 은 그 스냅샷을 돌기 때문에 "미분류
+#   fail-loud" 조차 발화하지 못했다(누락이 침묵으로 덮임). BAND2_PATCH_DIRS(sync_to_sub.sh) 와 정합.
+#   ⚠ 범위는 **손작성분만**이다(2026-08-13 축소). 초판은 `/**` 로 전부 열었는데 그러면
+#   `files/` 아래 업스트림 vLLM 소스 벤더링(92파일·61,846줄)까지 추적물이 된다 — 그것은 손작성
+#   정본이 아니라 **파생 산출물**이므로 CLAUDE.md 의 추적 규정(빌딩블럭=추적 · 생성물=비추적)에
+#   어긋나고, "배포 단위 = 스켈레톤 + 생성엔진(완성품 아님)" 과도 부딪힌다.
+#   payload 는 PROVENANCE.json 의 유도식(merge-base diff → 3-way → 선별 병합)으로 재생성하고
+#   파일별 sha256 으로 검증한다. 변종 재현의 정본 경로는 이제 arch_variant_ledger 의 포크 좌표다.
+!output/multi/build_patches_src/
+!output/multi/build_patches_src/*.sh
+!output/multi/build_patches_src/PROVENANCE.json
+!output/single/build_patches_src/
+!output/single/build_patches_src/*.sh
+!output/single/build_patches_src/PROVENANCE.json
+#   ★ payload 명시 제외가 **반드시** 필요하다: `output/*/*` 의 `*` 는 `/` 를 넘지 않으므로
+#   `output/<t>/build_patches_src/files` (4단계)는 그 패턴에 걸리지 않는다. 위 `!` 로 디렉토리를
+#   재포함한 순간 git 이 안으로 내려가고, files/ 는 **어떤 규칙에도 안 걸려 기본 추적**이 된다.
+#   (2026-08-13 실제 발생: 좁힌 allowlist 만으로는 92파일이 그대로 스테이징에 남았다.)
+output/*/build_patches_src/files/
 
 # ===========================================
 # Python

@@ -41,6 +41,16 @@ import parse_vllm_log  # noqa: E402
 import functional_smoke  # noqa: E402
 import simlog_writer  # noqa: E402
 
+# ── trial 산출물의 출처(provenance) — 단일 소유 (2026-08-13 · plan_26081314 D1) ──────────────
+#   결정론 규율: **실측한 값과 만들어낸 값은 데이터에서 구분되어야 한다.** 구분이 없으면 하류의
+#   판정·인증서가 무엇을 근거로 삼았는지 알 수 없고, 헌법의 `합성 금지`·`측정 > 공식` 이 집행 불가가 된다.
+#   (근거 규율 = CoC 가 성립하는 이유: 인터프리터 실행분과 LM 에뮬레이션분을 program state 에서 색으로
+#    가른다. 기법이 아니라 이 구분 규율만 이식한다 — seed/Chain of Code…pdf Fig.1)
+PROVENANCE_MEASURED = "measured"   # 실제 docker 기동 + 로그 파싱으로 얻은 값
+PROVENANCE_MOCK = "mock"           # --mock-profile 로 주입한 값(docker 미기동)
+PROVENANCE_DRY_RUN = "dry-run"     # --dry-run: 값 자체가 없음(배선 점검용)
+PROVENANCE_VALUES = (PROVENANCE_MEASURED, PROVENANCE_MOCK, PROVENANCE_DRY_RUN)
+
 # ── 기본값 (CONTRACT) ────────────────────────────────────────────────────
 DEFAULT_IMAGE = "vllm-src-022:clean"
 DEFAULT_TIMEOUT = 900  # /health 200 폴링 타임아웃(초)
@@ -489,11 +499,19 @@ def _mock_result(
     vllm_profile: "dict | None",
     functional: "dict | None",
     log_path: str,
+    provenance: str,
 ) -> dict:
     """--dry-run/mock_profile 모드 결과. docker 없이 주어진 값으로 반환.
 
     load_ok 는 vllm_profile 이 존재(=비-None)하면 True 로 본다.
+
+    ★ provenance 필수(2026-08-13 · plan_26081314 D1): 이 함수의 산출물은 **실측이 아니다**.
+      예전엔 실측 경로와 dict 모양이 완전히 같아 하류(simlog·판정·인증서)에서 구분이 불가능했고,
+      그것은 헌법의 `합성 금지`·`측정 > 공식` 경계를 지우는 통로였다. 근거 규율은 CoC 가 성립하는
+      이유와 같다 — 인터프리터가 실행한 값과 에뮬레이트한 값은 상태에서 구분되어야 한다.
     """
+    if provenance == PROVENANCE_MEASURED:
+        raise ValueError("mock result must never claim measured provenance")
     load_ok = vllm_profile is not None
     return {
         "trial_number": int(trial_number),
@@ -503,6 +521,7 @@ def _mock_result(
         "functional": functional,
         "log_path": log_path,
         "error_excerpt": None,
+        "provenance": provenance,
     }
 
 
@@ -569,7 +588,8 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
                 # parse_vllm_log 결과 dict 자체로 해석.
                 vllm_profile = blob
         return _mock_result(
-            candidate, trial_number, vllm_profile, functional, log_path
+            candidate, trial_number, vllm_profile, functional, log_path,
+            PROVENANCE_MOCK if mock_profile_path else PROVENANCE_DRY_RUN,
         )
 
     # ── 실 DOCKER 경로 ─────────────────────────────────────────────────
@@ -626,6 +646,7 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
                 "functional": None,
                 "log_path": log_path,
                 "error_excerpt": error_excerpt,
+                "provenance": PROVENANCE_MEASURED,
             }
 
         # /health 200 폴링.
@@ -663,6 +684,7 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
         "functional": functional,
         "log_path": log_path,
         "error_excerpt": error_excerpt,
+        "provenance": PROVENANCE_MEASURED,
     }
 
 

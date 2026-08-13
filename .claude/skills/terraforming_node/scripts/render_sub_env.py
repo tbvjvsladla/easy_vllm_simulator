@@ -277,7 +277,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
 
     # 4.6) 노드 블랙박스(plan_26073109 §Phase 3·5). host_safety 와 **동형** 배선이다.
     #   ★ 이 블록이 없던 동안 node_blackbox 는 수동 rsync 로만 서브에 갔고, 커밋되지 않은 그
-    #     잔재가 2026-08-01 정식 배달을 dirty 로 막았다(policy:SUB_SYNC_DIRTY_FAIL_CLOSED).
+    #     잔재가 2026-08-01 정식 배달을 dirty 로 막았다(policy:SUB_SYNC_DIRTY_AUTOSAVE).
     #     "배달 경로가 없으면 사람이 우회한다 — 그리고 그 우회가 다음 정식 경로를 막는다."
     #   ★ offline/*.deb 는 **배달하지 않는다**. `.gitignore:228` 이 offline/ 전체를 비추적으로 두는데,
     #     서브 배달은 git 인덱스 권위(ls-files→checkout-index)라 비추적물은 스냅샷에 아예 없다.

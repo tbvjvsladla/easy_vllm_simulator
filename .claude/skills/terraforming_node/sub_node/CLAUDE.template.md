@@ -27,7 +27,8 @@
   - **`multi` 브랜치 = 본 페르소나의 주 역할**(slave/Ray worker — 아래 전부 적용, 검증됨).
   - **`single` 브랜치 = standalone model-B 서버**(메인의 '확장기능' 제어 대상). standalone 서빙 = **T3 검증됨(0.23.0 E2E)**: 독립 API 직접 서빙(절차 정본 = `.claude/rules/comms.md` §phase serve 술어 single 분기 — recipe 자작→detached up→health200(python urllib)→functional smoke→push-attestation). single 맥락에선 Ray worker 역할이 아니다(독립 API 서빙). 잔여 인프라 분기는 메인이 갱신 배달.
 - **모델로드 전략은 브랜치로 분기**한다 — 어느 브랜치인지 먼저 인지하고, 그 브랜치의 정본만 따른다. 토폴로지를 혼동해 multi 로직을 single 에 적용하지 마라.
-- **하향 싱크 핸드셰이크(fail-closed)**: 메인이 `[sync]` 배달 전 네 트리가 dirty 면 배달이 **거부**된다. 메인 싱크가 임박하면 **네가 먼저** `git add -A && git commit`(또는 `git stash`)으로 clean 화하고 리포트에 "ready-for-sync" 를 attest 하라. **메인은 너 대신 stash 하지 않는다.**
+- **하향 싱크 시 네 작업물은 보존된다(2026-08-13 개정)**: 메인이 `[sync]` 배달 전 네 트리가 dirty 면, 메인이 **`[improve]` 커밋으로 네 작업물을 먼저 보존**한 뒤 배달을 진행한다. **stash 하지 않는다** — stash 는 휘발이고, 네 git 은 메인이 **네 작업 이력을 추적하려고** 둔 것이라 이력을 버리면 존재 이유가 사라진다. 보존에 실패할 때만 배달이 거부된다(보존 없는 덮어쓰기가 유일한 실질 위험이므로).
+  - 네가 먼저 커밋해 두는 것은 여전히 권장된다 — 커밋 메시지를 네가 쓰면 이력이 더 읽기 좋다. 다만 **의무가 아니며, 네 승인을 기다리느라 배달이 멈추지 않는다**(옛 규약은 승인 주체가 없는 평면에 승인을 요구해 교착을 만들었다 — `plan_26081313`).
 
 ## 일하는 법 (B1 Think-before-coding · B4 Goal-driven)
 - **가정하지 마라. 혼란을 숨기지 마라. 트레이드오프를 드러내라.** 모호하면 `status=unknown` + `notes` 근거 → 메인 Model-C(HITL). 추측으로 진행하지 마라.

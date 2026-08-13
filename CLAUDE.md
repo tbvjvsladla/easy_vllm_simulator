@@ -48,9 +48,18 @@
 - 변종이미지 build/serve 평면 경계: policy:VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.
 - 모델 트리플렛 서브 미전파: policy:MODEL_TRIPLET_NO_SUB_PROPAGATION.
 - 서브 git은 로컬 전용이다: policy:SUB_GIT_LOCAL_ONLY.
-- 서브 동기화는 dirty 상태에서 fail-closed한다: policy:SUB_SYNC_DIRTY_FAIL_CLOSED.
+- 서브 동기화는 dirty를 만나면 보존 후 진행한다: policy:SUB_SYNC_DIRTY_AUTOSAVE.
+- **권한 평면을 구분한다**: 평면 A(사용자↔메인)의 게이트는 **승인**이라 대행이 금지되지만, 평면
+  B(메인↔서브)의 게이트는 **소실 방지**이므로 대행이 정상이다 — 서브는 메인이 렌더·배달해 만든
+  작업환경이고 승인 주체가 없다. A의 승인 규칙을 B에 투영하면 존재하지 않는 주체를 요구해 교착이
+  된다(2026-08-13 실증·plan_26081313). **서브 git은 메인이 서브 작업 이력을 추적하기 위한 관측
+  장치**이며 거버넌스 주체가 아니다 — 메인은 서브 git에 완전한 조작 권한(commit·checkout·clean)을 갖는다.
+- 정식 경로가 막히면 우회하지 않고 **경로를 고친다** — *"배달 경로가 없으면 사람이 우회하고, 그 우회가
+  다음 정식 경로를 막는다"*(D3 법칙). 우회 잔재는 다음 배달의 차단 사유가 된다. 막힘은 **정상 차단·
+  침묵 누락·오배달** 3종으로 분류해 대응한다(정본은 workflow.md).
 - 메인은 서브 작업환경·헌법의 저작권을 템플릿→렌더→배달 파이프라인으로만 행사한다 — 서브 디스크를
-  재스캔하거나 직접 교정하지 않는다. 서브 인사이트는 문서 기반으로만 회수한다.
+  **무단 파일시스템 스캔**하거나 직접 교정하지 않는다(git 경유 이력 관측은 위 관측-장치 원칙에 따라
+  허용된다). 서브 인사이트는 문서 기반으로만 회수한다(PII 격리 근거).
 - single-node은 manifest에 서브가 등록되면 서브제어 확장기능을 얻는다(활성 게이트는 결정론 — 상세는
   workflow.md).
 - last-good 롤백 앵커: policy:LAST_GOOD_ROLLBACK_ANCHOR.
@@ -66,6 +75,10 @@
 - 빌딩블럭(CLAUDE.md와 .claude 디렉터리)은 추적·배포 대상이다. 사적/생성물(로컬 설정·manifest·env 실값·
   seed)은 비추적이다.
 - 버전 문자열 해소는 확률론적 추론이 아니라 결정론적 스크립트로 한다.
+- **결정론 산출물은 출처를 표시한다** — 측정·모의·공식은 데이터에서 구분되어야 한다(`provenance`·
+  `*_source` 필드). 구분이 없으면 `합성 금지`·`측정 > 공식`이 집행 불가가 된다. 모의 자체는 금지가
+  아니며 **실측인 척하는 것**이 금지다. 4종 안티패턴(매직넘버·모킹·하드코딩·폴백)의 정당/결함
+  판정표는 workflow.md가 소유한다.
 - 오류복구·진단은 자기추론보다 권위 참조(업스트림 소스·이미지 내부·모델 설정·런타임 로그)를 우선한다.
   외부 레퍼런스 1차 진입점은 `.claude/skills/wiki-desk/reference/references.md`다.
 - 업스트림 핀/베이스 이미지를 가드레일·기록 없이 임의 변경하지 않는다.
@@ -99,7 +112,7 @@
 - policy:MODEL_TRIPLET_NO_SUB_PROPAGATION
 - policy:RUNTIME_PATCH_NO_CARRY_FORWARD
 - policy:SUB_GIT_LOCAL_ONLY
-- policy:SUB_SYNC_DIRTY_FAIL_CLOSED
+- policy:SUB_SYNC_DIRTY_AUTOSAVE
 - policy:TERRAFORM_FLAG_GATE
 - policy:VARIANT_IMAGE_BUILD_VS_SERVE_PLANE
 

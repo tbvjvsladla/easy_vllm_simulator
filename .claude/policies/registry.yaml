@@ -950,39 +950,40 @@
       }
     },
     {
-      "policy_id": "SUB_SYNC_DIRTY_FAIL_CLOSED",
+      "policy_id": "SUB_SYNC_DIRTY_AUTOSAVE",
       "owner": "upstream-version-watch",
-      "statement": "Delivery to a sub node checks working-tree cleanliness first and refuses on dirty rather than auto-stashing.",
+      "statement": "Delivery to a sub node checks working-tree cleanliness first and, on dirty, preserves the sub's work as an [improve] commit before proceeding -- never stashing (volatile) and never demanding consent from a sub that has no approval subject. Delivery is refused only if preservation itself fails.",
       "scope": [
+        "single-node",
         "multi-node"
       ],
-      "origin_failure": "plan_26062411",
+      "origin_failure": "plan_26081313",
       "clauses": [
         {
-          "clause_id": "SUB_SYNC_DIRTY_FAIL_CLOSED.C1",
+          "clause_id": "SUB_SYNC_DIRTY_AUTOSAVE.C1",
           "statement": "Before sync_to_sub.sh delivers anything to a sub node, it checks the sub's working-tree cleanliness (git status --porcelain)."
         },
         {
-          "clause_id": "SUB_SYNC_DIRTY_FAIL_CLOSED.C2",
-          "statement": "If it is not clean, delivery is refused with a non-zero exit rather than auto-stashing the sub's changes."
+          "clause_id": "SUB_SYNC_DIRTY_AUTOSAVE.C2",
+          "statement": "If it is not clean, the main node preserves the sub's work as an [improve] commit in the sub's local git -- never a stash, because a stash is volatile while sub git exists precisely so main can track sub work history."
         },
         {
-          "clause_id": "SUB_SYNC_DIRTY_FAIL_CLOSED.C3",
-          "statement": "The sub must self-resolve (commit or stash) and attest 'ready-for-sync' before delivery is retried."
+          "clause_id": "SUB_SYNC_DIRTY_AUTOSAVE.C3",
+          "statement": "The preservation commit strictly precedes any checkout or rsync, so no sub-authored change is ever overwritten before it is recorded."
         },
         {
-          "clause_id": "SUB_SYNC_DIRTY_FAIL_CLOSED.C4",
-          "statement": "This fail-closed handshake protects in-progress sub-authored work from being silently overwritten by a main-canonical push."
+          "clause_id": "SUB_SYNC_DIRTY_AUTOSAVE.C4",
+          "statement": "Delivery is refused (non-zero exit) only when preservation fails or dirt remains after it -- delivering without preservation is the sole real loss risk."
         }
       ],
       "evidence": [
         {
           "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
           "supports": [
-            "SUB_SYNC_DIRTY_FAIL_CLOSED.C1",
-            "SUB_SYNC_DIRTY_FAIL_CLOSED.C2",
-            "SUB_SYNC_DIRTY_FAIL_CLOSED.C3",
-            "SUB_SYNC_DIRTY_FAIL_CLOSED.C4"
+            "SUB_SYNC_DIRTY_AUTOSAVE.C1",
+            "SUB_SYNC_DIRTY_AUTOSAVE.C2",
+            "SUB_SYNC_DIRTY_AUTOSAVE.C3",
+            "SUB_SYNC_DIRTY_AUTOSAVE.C4"
           ],
           "assertion_ids": [
             "sub_dirty",
@@ -992,37 +993,37 @@
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
-            "SUB_SYNC_DIRTY_FAIL_CLOSED.C1"
+            "SUB_SYNC_DIRTY_AUTOSAVE.C1"
           ],
           "assertion_ids": [
-            "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C1"
+            "predicate_SUB_SYNC_DIRTY_AUTOSAVE_C1"
           ]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
-            "SUB_SYNC_DIRTY_FAIL_CLOSED.C2"
+            "SUB_SYNC_DIRTY_AUTOSAVE.C2"
           ],
           "assertion_ids": [
-            "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C2"
+            "predicate_SUB_SYNC_DIRTY_AUTOSAVE_C2"
           ]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
-            "SUB_SYNC_DIRTY_FAIL_CLOSED.C3"
+            "SUB_SYNC_DIRTY_AUTOSAVE.C3"
           ],
           "assertion_ids": [
-            "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C3"
+            "predicate_SUB_SYNC_DIRTY_AUTOSAVE_C3"
           ]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
-            "SUB_SYNC_DIRTY_FAIL_CLOSED.C4"
+            "SUB_SYNC_DIRTY_AUTOSAVE.C4"
           ],
           "assertion_ids": [
-            "predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C4"
+            "predicate_SUB_SYNC_DIRTY_AUTOSAVE_C4"
           ]
         }
       ],

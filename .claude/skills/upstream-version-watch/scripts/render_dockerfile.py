@@ -126,6 +126,11 @@ VALIDATED_SOURCE_BUILD_KEYS = {
     ("26.05-py3", "0.24.0"),
     ("26.05-py3", "0.25.1"),  # tracked output/multi freeze; exact pair must remain synchronized
     ("26.05-py3", "0.26.0"),  # 2026-07-30 승급: 양노드 빌드+TP=2 서빙+스모크+에이전트-레디 3종 PASS (testlog_26073015 §2, 사용자 졸업 승인)
+    ("26.07-py3", "0.27.0"),  # 2026-08-11 승급(single-node): torch 2.13.0 강제 소스빌드+gemma-4-12b-it-dgxspark 스모크 PASS.
+                              #   전제조건 2건 — ① transformers<5.15.0(KNOWN_INCOMPAT, PyPI 5.15.0=2026-08-10 업로드가
+                              #   heterogeneity 가드 신설 → hybrid-attention 모델 즉사) ② source-build 트랙은 pip constraint
+                              #   파일을 requirements.txt(extras 제거)로 채워야 함(이 템플릿에 신규 배선 — 이전엔 비워서 무의미했음).
+                              #   testlog_26081111 참조.
 }
 
 _PLACEHOLDER_RE = re.compile(r"\{\{\s*[A-Z0-9_]+\s*\}\}")
@@ -539,14 +544,38 @@ def render(template_path: str, manifest: dict, version_resolution: dict) -> str:
     return out
 
 
-def load_shared_resolution() -> dict:
+# kind → build track. 갈림의 축은 브랜치/토폴로지가 아니라 **빌드 트랙**이다(2026-08-13 사용자 지시):
+#   torch 2.11+ 는 prebuilt _C 가 NGC alpha torch 와 ABI 불일치 → source-build 강제.
+#   2.10 이하만 wheel 성립(대가 = 구동 가능 모델 범위 축소).
+# compose 는 트랙 중립이라 default(top-level)를 읽는다.
+_KIND_TO_TRACK = {"dockerfile": "wheel", "source-build": "source-build", "compose": None}
+
+
+def load_shared_resolution(track: str | None = None) -> dict:
+    """Canonical production resolution, optionally for a specific build track.
+
+    top-level IS the `default_track` resolution -- it is never duplicated under `tracks`
+    (a second copy would be a second list, and this project has been bitten by that repeatedly).
+    A non-default track must exist under `tracks.<name>` or this fails closed.
+    """
     try:
         with open(SHARED_RESOLUTION, encoding="utf-8") as fh:
             value = json.load(fh)
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError(f"shared production resolution unreadable: {exc}") from exc
-    if not isinstance(value, dict) or not value.get("ngc_base", {}).get("tag"):
-        raise ValueError("shared production resolution lacks ngc_base.tag")
+    if not isinstance(value, dict):
+        raise ValueError("shared production resolution is not an object")
+    if track is not None and track != value.get("default_track"):
+        tracks = value.get("tracks")
+        if not isinstance(tracks, dict) or not isinstance(tracks.get(track), dict):
+            raise ValueError(
+                f"shared production resolution lacks tracks.{track} "
+                f"(default_track={value.get('default_track')!r})")
+        value = tracks[track]
+    if not value.get("ngc_base", {}).get("tag"):
+        raise ValueError(
+            f"shared production resolution lacks ngc_base.tag"
+            f"{'' if track is None else f' for track {track!r}'}")
     return value
 
 
@@ -563,7 +592,8 @@ def render_shared(kind: str, topology: str, manifest: dict,
     path = os.path.join(SHARED_TEMPLATE_DIR, _SHARED_TEMPLATES[key])
     if not os.path.isfile(path):
         raise FileNotFoundError(f"shared template missing: {path}")
-    resolution = version_resolution if version_resolution is not None else load_shared_resolution()
+    resolution = (version_resolution if version_resolution is not None
+                  else load_shared_resolution(_KIND_TO_TRACK[kind]))
     return render(path, manifest, resolution)
 
 

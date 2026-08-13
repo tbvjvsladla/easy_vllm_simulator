@@ -194,6 +194,15 @@ TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);
 BAND2_CONFIGS=(serve_runner.sh debug-init.sh arm_patch.sh)   # topology-keyed 분산서빙 인프라(Band2, 멀티). arm_patch.sh=모델구동 패치 arming(제네릭 결정론·양노드)
 BAND2_ENVS=(.env.interconnect .env.cluster)          # topology/network-keyed env(Band2): NCCL(.interconnect) + 클러스터배포(.cluster=S6 materialize)
 BAND2_TOP=(Dockerfile Dockerfile.source-build Dockerfile.source-build-upstage docker-compose.yaml requirements.txt .gitkeep)  # 최상위 빌드킷(Band2)
+# 빌드 패치 디렉토리의 **단일 소유**(2026-08-13 신설). 두 소비자가 여기서 파생한다:
+#   _band2_filters(rsync --include) · assert_band_classification(_b2top 등록).
+# ★ 왜 신설했나: `build_patches_src/`(빌드패치 **pre** 위상 = 자체 이식 = 포크 사다리 3번째 칸)가
+#   .gitignore 예외·rsync include·린터 목록 **3곳 모두**에서 누락돼 서브 배달 경로가 아예 없었다.
+#   더 나쁜 건 침묵이다 — 린터는 prepare_transactional_source 이후의 **index 스냅샷**을 도는데,
+#   비추적 항목은 스냅샷에 없으므로 "미분류 fail-loud" 가 발화하지 못한다(gitignore 가 게이트의 눈을
+#   가린다). 목록을 세 벌 두면 또 갈라지므로 여기 한 곳에서만 선언한다.
+#   ⚠ pre 슬롯은 `workflow.md:77` 기준 **미검증 슬롯**(배관은 동작 확인, 그 위 서빙 성공 사례 없음).
+BAND2_PATCH_DIRS=(build_patches build_patches_src)
 # output/<t>/ 최상위 **비전송** 경로의 단일 소유. 세 소비자가 전부 여기서 파생한다:
 #   _band2_filters(rsync --exclude) · validate_remote_deletion_tree(서브 walk) · validate_inventory_tree(로컬 walk).
 # ★ 목록을 두 벌 두면 갈라진다 — 이 프로젝트는 파서 두 벌(D4↔D6)·TP 오카운트 7사이트로 같은 계열
@@ -226,7 +235,9 @@ _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = ou
     FILT+=(--exclude='/envs/*')                   # 나머지 envs(모델 env Band3) 배제
     # (d-rsync-3) 최상위는 default-include 가 아니라 명시 allowlist + terminal exclude → stray Band1/secret/log·.dockerignore(§1.3 불요) 누출 차단
     for f in "${BAND2_TOP[@]}"; do FILT+=(--include="/$f"); done
-    FILT+=(--include='/build_patches/' --include='/build_patches/**')   # 빌드-바깥 패치 모듈 디렉토리(Band2 빌드입력·서브 빌드가 COPY — §4.7·3+1+1)
+    for f in "${BAND2_PATCH_DIRS[@]}"; do                               # 빌드 패치 모듈 디렉토리(Band2 빌드입력·서브 빌드가 COPY — §4.7·3+1+1)
+        FILT+=(--include="/$f/" --include="/$f/**")                     #   build_patches=post(컴파일 후) · build_patches_src=pre(컴파일 전, 소스 이식)
+    done
     FILT+=(--exclude='/*')
 }
 
@@ -255,6 +266,54 @@ validate_runtime_patches() {  # $1=topology; every patch must bind current patch
 # ── S4 fail-loud band 분류 단언(plan ⊕rev3 keying linter) ──
 # output/<t>/ 의 (a) 최상위 (b) configs/ (c) envs/ 모든 항목이 Band2(allowlist) 또는 Band3(완전 모델 트리플렛
 # .sh+.yaml / .env.<model>)로 명확 분류되는지 + (멀티) Band2 인프라가 소스에 실재하는지 검증. 미분류/누락 → 비-0.
+# ── BAND2_TOP ↔ .gitignore 재포함 목록 교차검증 (2026-08-13 · plan_26081314 D4) ──────────────
+# 두 목록은 **같은 개념**(어떤 최상위 파일이 Band2 빌드킷인가)을 서로 다른 평면에 적는다:
+#   - BAND2_TOP        → rsync 전송 allowlist(무엇을 서브로 보내는가)
+#   - .gitignore `!`   → git 추적 allowlist(무엇이 정본 스냅샷에 들어가는가)
+# 정적 파일이라 한쪽에서 다른 쪽을 **생성할 수 없으므로**(단일 소유 불가) 차선으로 **정합을 검증**한다.
+# 갈라지면 어떤 일이 벌어지는지는 실증됐다: 8/11 에 gitignore 만 3종→11종으로 늘고 BAND2_TOP 은
+# 그대로여서, 추적은 되는데 전송되지 않거나 그 반대인 상태가 생겼다(plan_26081310 §배경 #1·#6).
+# 전송 대상인데 추적되지 않으면 index-권위 스냅샷에서 **조용히 빠진다** — 침묵 누락의 전형이다.
+# ★ 검증 대상은 **두 벌**이다(2026-08-13 확장). 메인 `.gitignore` 만 보던 초판은 서브측 사본을 놓쳤다:
+#   서브의 추적규칙은 메인 `.gitignore` 가 아니라 `sub_node/gitignore.template` 이 정한다(render_sub_env.py
+#   가 sub_provision/.gitignore 로 복제 → deliver_overlay 가 배달). 그 템플릿은 `!output/` 예외가 **4개**뿐
+#   (multi Dockerfile 3종 + .gitkeep)인 채 멈춰 있었고 메인은 **19개**였다 → 서브 git 은 자기가 받은
+#   빌드킷을 **하나도 추적하지 못했다**. 서브 git 은 메인의 **관측 장치**인데(CLAUDE.md 권한평면 B),
+#   그 눈이 가려져 `[sync]` 커밋이 배달분을 과소기록했다 — 2026-08-13 requirements.txt 오배달이
+#   3주간 침묵한 배경이 이것이다. 세 벌(BAND2_* ↔ 메인 gitignore ↔ 서브 template)을 손으로 유지하면
+#   반드시 갈라지므로, **배열이 소유자**이고 두 정적 파일은 여기서 대조된다.
+assert_band2_top_gitignore_parity() {  # 0=ok, 1=drift
+    local gi="${SRC%/}/.gitignore"
+    local sub_gi="${SRC%/}/.claude/skills/terraforming_node/sub_node/gitignore.template"
+    local f t d bad=0 label path
+    [ -f "$gi" ] || { echo "[sync] FAIL(parity): .gitignore 부재 — 교차검증 불가" >&2; return 1; }
+    [ -f "$sub_gi" ] || { echo "[sync] FAIL(parity): sub_node/gitignore.template 부재 — 교차검증 불가" >&2; return 1; }
+    for label in "메인:$gi" "서브템플릿:$sub_gi"; do
+        path="${label#*:}"; label="${label%%:*}"
+        for t in multi single; do
+            for f in "${BAND2_TOP[@]}"; do
+                [ "$f" = ".gitkeep" ] && continue      # .gitkeep 은 `!output/*/.gitkeep` 와일드카드가 커버
+                grep -qxF "!output/$t/$f" "$path" || {
+                    echo "[sync] FAIL(parity/$label): BAND2_TOP 에 '$f' 가 있으나 '!output/$t/$f' 예외가 없다." >&2
+                    echo "[sync]   → 전송 대상인데 추적되지 않으면 index-권위 스냅샷에서 침묵 누락된다(plan_26081314 D4)." >&2
+                    bad=1
+                }
+            done
+            for d in "${BAND2_PATCH_DIRS[@]}"; do      # 디렉토리는 자기 줄 + 내용 줄(`/*` 또는 `/**`) 둘 다 필요
+                grep -qxF "!output/$t/$d/" "$path" || {
+                    echo "[sync] FAIL(parity/$label): BAND2_PATCH_DIRS 의 '$d' 에 '!output/$t/$d/' 예외가 없다." >&2; bad=1; }
+                # 내용 예외는 **최소 1줄** 있으면 된다 — 어떤 범위인지는 밴드 규정이 정한다.
+                #   `build_patches` 는 `/*`(전부 손작성 .sh), `build_patches_src` 는 `/*.sh`+`/PROVENANCE.json`
+                #   (payload `files/` 는 업스트림 벤더링 = 파생 산출물이라 비추적). 여기서 범위를 못박으면
+                #   밴드 규정이 바뀔 때마다 정규식을 고쳐야 하므로, **존재**만 단언하고 범위는 규정에 맡긴다.
+                grep -qE "^!output/$t/$d/.+" "$path" || {
+                    echo "[sync] FAIL(parity/$label): '$d' 의 내용 예외가 한 줄도 없다 — 디렉토리만 재포함하면 파일은 여전히 무시된다." >&2; bad=1; }
+            done
+        done
+    done
+    return $bad
+}
+
 assert_band_classification() {  # $1=topology → 0=ok, 1=미분류·누락
     local odir="${SRC%/}/output/$1" cdir="${SRC%/}/output/$1/configs" edir="${SRC%/}/output/$1/envs" bad=0 f b ok stem
     local nullsave; nullsave="$(shopt -p nullglob dotglob || true)"; shopt -s nullglob dotglob
@@ -266,7 +325,7 @@ assert_band_classification() {  # $1=topology → 0=ok, 1=미분류·누락
         _b2p["${b}_patch.provenance.json"]=1
     done
     # 제외 목록은 손으로 적지 않는다 — BAND2_EXCLUDED_TOP 단일 소유에서 파생한다(네 번째 소비자).
-    for b in "${BAND2_TOP[@]}" configs envs build_patches "${BAND2_EXCLUDED_TOP[@]}"; do _b2top["$b"]=1; done
+    for b in "${BAND2_TOP[@]}" configs envs "${BAND2_PATCH_DIRS[@]}" "${BAND2_EXCLUDED_TOP[@]}"; do _b2top["$b"]=1; done
 
     # (a) (d-cg-4) 최상위 — 빌드킷·서브디렉토리·의도적 제외(manifest/sub_provision) 외 미지 항목 fail-loud
     for f in "$odir"/*; do
@@ -445,7 +504,15 @@ render_topology() {
     local output_dir="${SRC%/}/output/$1"
     local build_assets="${SRC%/}/.claude/skills/upstream-version-watch/assets/build_plane"
     mkdir -p "$output_dir/configs" "$output_dir/envs" || return 9
-    install -m 0644 "$build_assets/requirements.txt" "$output_dir/requirements.txt" || return 9
+    # ⚠ requirements.txt 를 여기서 install 하지 않는다(2026-08-13 제거). 그 줄은 checkout-index 가 방금
+    #   가져온 **인덱스 정본**(output/<t>/requirements.txt)을 Band1 정적 사본으로 덮어썼고, 그 사본에는
+    #   갱신 소유자가 없었다 — `regen_requirements.py -o` 는 기본값이 cwd 의 `requirements.txt` 라 bump 는
+    #   늘 output/<t>/ 만 갱신한다. 결과: 사본은 7/28(vLLM 0.18.0 METADATA)에 얼어붙고 서브는 0.19 이후
+    #   모든 배달에서 **0.18.0 핀**을 받았다. 2026-08-13 서브 0.27.0 소스빌드가 여기서 죽었다 —
+    #   constraint `transformers<5,>=4.56.0` 대 vLLM 요구 `transformers>=5.5.3` → ResolutionImpossible.
+    #   침묵한 이유: verify_distribution 의 단언은 존재·비어있지않음·비실행뿐이라 **내용 신선도**를 못 본다.
+    #   ∴ 소유자는 per-topology `output/<t>/requirements.txt` 하나다(핀은 브랜치별로 독립 — CLAUDE.md).
+    #   토폴로지 통로 완결성은 assert_buildkit_completeness 가 이미 존재로 단언한다.
     install -m 0644 "$build_assets/Dockerfile.source-build-upstage" "$output_dir/Dockerfile.source-build-upstage" || return 9
     if [ "$1" = "multi" ]; then
         # 패치 0건은 **정상 상태**다: policy:RUNTIME_PATCH_NO_CARRY_FORWARD.C2 가 버전 bump 마다 재유도를
@@ -872,6 +939,7 @@ verify_destination_host_safety_modes() {
 preflight_topology() {  # $1=active topology
     local t="$1"
     render_topology "$t" || return 9
+    assert_band2_top_gitignore_parity || return 9
     assert_band_classification "$t" || return 9
     assert_source_runner_modes "$t" || return 9
     assert_sub_delegation_authorized "$t" || return 10
@@ -897,6 +965,10 @@ if [ "$MODE" = "dryrun" ]; then
             if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then echo "  --- [single] dormant → skip ---"; continue; fi
             echo "  --- [$t] dirty 체크(fail-closed) → checkout → render → band단언 → rsync(빌드+오버레이) → [sync] 커밋 ---"
             render_topology "$t"
+            # 2026-08-13: parity 는 apply 경로(preflight_topology)에만 있었다 — dry-run 이 **HITL 미리보기**인데
+            #   사람이 승인 판단을 내리는 화면에서 이 게이트가 보이지 않았다. 검증되지 않은 tripwire 는 없는
+            #   것과 같다(같은 날 verify_distribution 의 존재-단언이 3주 부패를 은폐한 것과 동형).
+            assert_band2_top_gitignore_parity || echo "  [$t] ⚠ BAND2 ↔ gitignore 정합 실패(위 FAIL) — --apply 시 배달 거부."
             assert_band_classification "$t" || echo "  [$t] ⚠ S4 미분류 파일 존재(위 FAIL) — --apply 시 배달 거부. 분류 후 재시도."
             assert_source_runner_modes "$t" || echo "  [$t] ⚠ runner source mode 오류 — --apply 시 배달 거부. canonical materialize 후 재시도."
             if [ "$(_resolve_sub_hw_verified "$t" 2>/dev/null || true)" = "true" ]; then
@@ -995,14 +1067,25 @@ for t in "${TARGETS[@]}"; do
         continue
     fi
     echo "[sync] [$t] 증분 싱크 시작"
-    # (1) dirty 체크 — fail-closed (스크립트 auto-stash 금지)
+    # (1) dirty 체크 → 덮어쓰기 前 보존 (policy:SUB_SYNC_DIRTY_AUTOSAVE · plan_26081313)
+    #   ⚠ 2026-08-13 교정: 옛 동작은 dirty 면 배달을 **거부**하고 "서브가 스스로 clean 화 후
+    #   'ready-for-sync' 어테스트" 를 요구했다. 그 요구는 **평면 A(사용자↔메인)의 승인 규칙을
+    #   평면 B(메인↔서브)에 잘못 투영**한 것이다 — B 에는 승인 주체가 없다(서브는 메인이 렌더·배달해
+    #   만든 작업환경이고 headless 다). 그래서 안내가 지목하는 주체가 존재하지 않아 **교착**이 됐다.
+    #   게이트의 원래 목적은 **소실 방지**이지 승인 획득이 아니었으므로, 목적만 남기고 주체를 메인으로
+    #   바꾼다: stash(휘발) 가 아니라 **commit(보존)** 이라 히스토리에 영구 남고, 서브 git 을 둔 목적
+    #   (메인의 서브 이력 추적)에 오히려 부합한다. 보존에 실패하면 그때는 fail-closed 한다 —
+    #   보존 없는 배달만이 진짜 소실 위험이기 때문이다.
     DIRT="$(sub_dirty || true)"
     if [ -n "$DIRT" ]; then
-        echo "[sync] STOP(fail-closed): 서브 트리 dirty — 배달 거부(클로버 방지)." >&2
+        echo "[sync] [$t] 서브 트리 dirty — 덮어쓰기 前 [improve] 커밋으로 보존한다(소실 방지)." >&2
         echo "$DIRT" | head -20 | sed 's/^/    /' >&2
-        echo "  → 서브가 'git add -A && git commit'(또는 git stash)로 clean 화 후 'ready-for-sync' 어테스트 → 재시도." >&2
-        echo "  (정본: 메인은 너 대신 stash 하지 않는다 — workflow.md §양방향 브랜치싱크 B1-1.)" >&2
-        exit 8
+        sub_run "git add -A" || { echo "[sync] STOP: 서브 작업물 stage 실패 — 보존 없는 배달은 소실 위험이므로 거부." >&2; exit 8; }
+        sub_commit "[improve] pre-sync autosave ($(date -u +%Y%m%dT%H%M%SZ)) — main-initiated 보존" \
+            || { echo "[sync] STOP: 서브 작업물 보존 커밋 실패 — 보존 없는 배달은 소실 위험이므로 거부." >&2; exit 8; }
+        RE_DIRT="$(sub_dirty || true)"
+        [ -z "$RE_DIRT" ] || { echo "[sync] STOP: 보존 후에도 dirty 잔존 — 배달 거부." >&2; echo "$RE_DIRT" | head -10 | sed 's/^/    /' >&2; exit 8; }
+        echo "[sync] [$t] 보존 완료(서브 로컬 git) — 배달 계속." >&2
     fi
     # (2) transaction before checkout — complete source preflight ran globally before mutation.
     begin_remote_transaction "$t" 0 || { echo "[sync] FAIL: $t rollback transaction 생성 실패"; exit 9; }
@@ -1024,9 +1107,18 @@ for t in "${TARGETS[@]}"; do
         sub_commit "[sync] $t branch update ($(date -u +%Y%m%dT%H%M%SZ)) — main-canonical"
         echo "[sync] [$t] [sync] 커밋 완료: $(sub_run 'git log -1 --oneline')"
     fi
+    LAST_DELIVERED="$t"
 done
-# 서브를 기본 운용 브랜치(multi)로 복귀 — 멀티노드 서브의 active role(single 은 dormant/확장).
-sub_run "git checkout -q multi" >/dev/null 2>&1 \
-    || { echo "[sync] FAIL: 최종 multi branch 복귀 실패" >&2; exit 8; }
+# 서브가 쉬는 브랜치 = **마지막으로 배달한 토폴로지**(2026-08-13 교정). 옛 동작은 무조건 multi 로
+#   복귀했고 그 근거는 "single 은 dormant/확장" 이었는데, manifest 에 서브가 등록되면 single 은
+#   **활성**이 되어 전제가 깨진다. 두 토폴로지 빌드킷은 한 워킹트리에서 **상호배타**다(통로 격리가
+#   설계 의도) — 그러므로 복귀 브랜치는 그 노드가 지금 무슨 일을 하는가와 같아야 한다.
+#   ★ 이 결함은 2026-08-13 이전에도 있었으나 **보이지 않았다**: single 빌드킷이 서브에서 비추적이라
+#   checkout 이 건드리지 않았기 때문이다. gitignore 정합을 고쳐 추적이 시작되자 곧바로 표면화했다
+#   (checkout multi → output/single/ 빌드킷 전부 삭제 → compose "no configuration file provided").
+#   즉 **관측을 켜면 숨어 있던 결함이 드러난다** — 교정이 만든 결함이 아니라 은폐가 풀린 것이다.
+REST_BRANCH="${LAST_DELIVERED:-multi}"
+sub_run "git checkout -q $REST_BRANCH" >/dev/null 2>&1 \
+    || { echo "[sync] FAIL: 최종 $REST_BRANCH branch 복귀 실패" >&2; exit 8; }
 finalize_remote_transactions
 echo "[sync] 완료. (현재 서브 브랜치: $(sub_branch_current))"

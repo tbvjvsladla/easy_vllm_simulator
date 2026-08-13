@@ -79,10 +79,26 @@ def preserve_set(canonical_only=False):
     try:
         with open(resolution_path, encoding="utf-8") as fh:
             resolution = json.load(fh)
-        ngc_tag = resolution["ngc_base"]["tag"]
-        if not isinstance(ngc_tag, str) or not ngc_tag.strip():
-            raise ValueError("empty ngc_base.tag")
-        add("nvcr.io/nvidia/pytorch:" + ngc_tag.strip(), "shared production resolution")
+        # 트랙별 베이스를 **전부** 보존한다(2026-08-13). 해소값 정본이 빌드 트랙별 두 벌이 되면서
+        # (default=source-build top-level + tracks.wheel) top-level 만 읽으면 다른 트랙의 NGC
+        # 베이스가 보존 목록에서 빠져 `--apply` 삭제 후보로 올라간다 — 실제로 이 누락을
+        # HOST_SAFETY_LAYERED_DEFENSE.C8 이 잡았다(wheel 트랙 26.01-py3 미보존).
+        # 트랙이 늘어도 자동 추종하도록 열거하지 않고 순회한다.
+        ngc_sources = [("default", resolution.get("ngc_base"))]
+        for track_name, track in (resolution.get("tracks") or {}).items():
+            if isinstance(track, dict):
+                ngc_sources.append((f"tracks.{track_name}", track.get("ngc_base")))
+        seen_tag = False
+        for label, base in ngc_sources:
+            if not isinstance(base, dict):
+                continue
+            ngc_tag = base.get("tag")
+            if not isinstance(ngc_tag, str) or not ngc_tag.strip():
+                raise ValueError(f"empty ngc_base.tag ({label})")
+            add("nvcr.io/nvidia/pytorch:" + ngc_tag.strip(), f"shared production resolution ({label})")
+            seen_tag = True
+        if not seen_tag:
+            raise ValueError("no ngc_base.tag in any track")
     except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
         raise RuntimeError(f"canonical shared production resolution invalid: {exc}") from exc
     canonical_dockerfiles = [

@@ -1358,20 +1358,27 @@ def predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C3():
     # anchored in "measured", per the policy statement's own words.
     profile = {"weights_gib": 40.0, "non_kv_overhead_gib": 4.0,
               "kv_cache_gib": 1.0, "kv_cache_tokens": 1000}
-    # required = (kv_cache_gib*GIB/kv_cache_tokens) * max_model_len * batch = (GIB/1000)*10000*1
-    #          = 10*GIB exactly (10,737,418,240 bytes) -- by construction, independent of `parsed`.
+    # required = (kv_cache_gib*GIB/kv_cache_tokens) * max_model_len * batch * KV_BLOCK_ALIGN_BUFFER
+    #          = (GIB/1000)*10000*1 * buffer = 10*GIB*buffer -- by construction, independent of `parsed`.
+    # The buffer is READ FROM PRODUCTION (never re-spelled here): vLLM allocates KV in fixed blocks
+    # (block_size=16 tokens), so the linear estimate can land a hair under vLLM's own
+    # `_check_enough_kv_cache_memory` threshold -- measured 2026-08-11 on gemma-4-e2b-it and
+    # qwen3-4b ("needed X > available X": a display tie that is an internal overshoot).
+    # Hard-coding 10*GIB here would re-assert a stale arithmetic and break the moment production
+    # legitimately re-tunes the buffer -- which is exactly how this predicate went stale.
     candidate = {"max_model_len": 10000, "batch": 1}
+    expected_kv = int(10 * GIB * recipe.KV_BLOCK_ALIGN_BUFFER)
 
     r_tp1 = recipe._resolve_clamp_kv({}, candidate, profile, budget, margin, 2, tp_divisor=1)
     # tp_divisor=1: max_safe = int(50*0.90*GIB) - 40*GIB - 4*GIB = 45*GIB - 44*GIB = 1*GIB.
-    # required(10*GIB) > max_safe(1*GIB) -> infeasible: the FULL (undivided) host weights/overhead
+    # required(~10.2*GIB) > max_safe(1*GIB) -> infeasible: the FULL (undivided) host weights/overhead
     # do not leave room on the target for the requested KV.
     _require(r_tp1['kv'] is None and r_tp1['fail']['failure_class'] == 'vram_infeasible', "tp_divisor=1: undivided host weights/overhead must exceed the target budget for this required KV -- if this doesn't fail, the transfer isn't using the real host measurement")
 
     r_tp2 = recipe._resolve_clamp_kv({}, candidate, profile, budget, margin, 2, tp_divisor=2)
     # tp_divisor=2: weights/overhead are the SAME host invariants, transferred (halved, not
-    # re-measured/approximated) -> max_safe = 45*GIB - 20*GIB - 2*GIB = 23*GIB >= required(10*GIB).
-    _require(r_tp2['fail'] is None and r_tp2['kv'] == 10 * GIB, 'tp_divisor=2: dividing the SAME host-measured weights/overhead by the target TP must free enough budget to satisfy the identical KV request -- proving the transfer actually applies the host invariants (not a reversal/ignoring of them, not an independent re-approximation)')
+    # re-measured/approximated) -> max_safe = 45*GIB - 20*GIB - 2*GIB = 23*GIB >= required(~10.2*GIB).
+    _require(r_tp2['fail'] is None and r_tp2['kv'] == expected_kv, 'tp_divisor=2: dividing the SAME host-measured weights/overhead by the target TP must free enough budget to satisfy the identical KV request -- proving the transfer actually applies the host invariants (not a reversal/ignoring of them, not an independent re-approximation)')
 
     # not a reversal of any prior verdict / not memoized: an identical repeat of the tp_divisor=1
     # call, run AFTER the tp_divisor=2 call, must reproduce the exact same FAIL -- proving each call
@@ -1457,7 +1464,36 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1():
     output_block_end = gitignore.index("\n\n", output_block_start)
     output_block = gitignore[output_block_start:output_block_end]
     reincludes = re.findall(r"^!(\S+)", output_block, re.M)
-    _require(reincludes == ['output/*/.gitkeep', 'output/multi/Dockerfile', 'output/multi/Dockerfile.source-build', 'output/multi/docker-compose.yaml', 'output/multi/build_patches/', 'output/multi/build_patches/*'], f'unexpected output/ gitignore carve-outs -- must never re-include configs/: {reincludes}')
+    # Closed carve-out set (tripwire): any addition must be reviewed here, not slipped into
+    # .gitignore alone. Updated 2026-08-13 (plan_26081313 / plan_26081310):
+    #   - single-통로 빌드킷 예외는 8/11(02b22d4)에 추가됐으나 이 목록이 갱신되지 않아, 그때부터
+    #     이 술어가 계속 FAIL 이었다(검증기 BLOCKED 방치). 그 누락분을 함께 정합화한다.
+    #   - build_patches_src/(빌드패치 pre 위상)는 배달 경로 신설분(plan_26081310 A).
+    #   - 같은 날 2차 축소: `build_patches_src/**` → `*.sh` + `PROVENANCE.json`. `**` 는 payload
+    #     `files/`(업스트림 vLLM 소스 벤더링 92파일·61,846줄)까지 추적물로 끌어들였는데, 그것은
+    #     손작성 정본이 아니라 **파생 산출물**이라 CLAUDE.md 의 추적 규정(빌딩블럭=추적·생성물=비추적)에
+    #     어긋난다. payload 는 .gitignore 의 `output/*/build_patches_src/files/` 로 명시 제외한다 —
+    #     `output/*/*` 의 `*` 가 `/` 를 넘지 않아 4단계 경로를 덮지 못하기 때문에 **명시 제외가 필수**다.
+    #     ★ 이 tripwire 는 그 축소를 정확히 잡아 리뷰를 강제했다(설계대로 발화한 실례).
+    # 본질 불변식은 바로 아래 줄이다: configs/ 는 어떤 형태로도 재포함되지 않는다.
+    _require(reincludes == [
+        'output/*/.gitkeep',
+        'output/multi/Dockerfile', 'output/multi/Dockerfile.source-build',
+        'output/multi/Dockerfile.source-build-upstage', 'output/multi/docker-compose.yaml',
+        'output/multi/requirements.txt',
+        'output/single/Dockerfile', 'output/single/Dockerfile.source-build',
+        'output/single/Dockerfile.source-build-upstage', 'output/single/docker-compose.yaml',
+        'output/single/requirements.txt',
+        'output/multi/build_patches/', 'output/multi/build_patches/*',
+        'output/single/build_patches/', 'output/single/build_patches/*',
+        'output/multi/build_patches_src/', 'output/multi/build_patches_src/*.sh',
+        'output/multi/build_patches_src/PROVENANCE.json',
+        'output/single/build_patches_src/', 'output/single/build_patches_src/*.sh',
+        'output/single/build_patches_src/PROVENANCE.json',
+    ], f'unexpected output/ gitignore carve-outs -- must never re-include configs/: {reincludes}')
+    # payload 제외가 실제로 걸려 있는지 — allowlist 만으로는 files/ 가 기본 추적으로 남는다(위 주석).
+    _require('output/*/build_patches_src/files/' in gitignore,
+             'build_patches_src payload(files/) 명시 제외가 없다 — allowlist 축소만으로는 vendored 소스가 추적된다')
     _require(not any(('configs' in r for r in reincludes)), 'output/<topology>/configs/ (where the compose bind-mount and the runtime patch actually live) must have NO re-inclusion carve-out -- proving it is genuinely, structurally untracked')
     compose = _rendered("compose")
     _require('- ./configs:/app/configs:ro' in compose, 'the container must bind-mount the SAME blanket-ignored configs/ directory the patch lives in')
@@ -1613,10 +1649,10 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C4():
 
 
 # =============================================================================
-# SUB_SYNC_DIRTY_FAIL_CLOSED (4 clauses)
+# SUB_SYNC_DIRTY_AUTOSAVE (4 clauses)
 # =============================================================================
 
-def predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C1():
+def predicate_SUB_SYNC_DIRTY_AUTOSAVE_C1():
     """C1: before delivering anything, sync_to_sub.sh checks the sub's working-tree cleanliness
     via `git status --porcelain` -- the exact command `sub_dirty()` wraps for remote execution,
     executed here for real against a local dirty tree."""
@@ -1630,74 +1666,95 @@ def predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C1():
         _require(out.stdout.strip(), 'an untracked/dirty file must be reported by the exact command sub_dirty wraps')
 
 
-def predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C2():
-    """C2: if not clean, delivery is refused with a non-zero exit rather than auto-stashing."""
+def predicate_SUB_SYNC_DIRTY_AUTOSAVE_C2():
+    """C2: on dirty, main PRESERVES the sub's work as an `[improve]` commit in the sub's local git --
+    never a stash. A stash is volatile; sub git exists precisely so main can track sub work history,
+    so discarding that history to unblock delivery would defeat the reason the gate exists."""
     src = _sync_to_sub_src()
     b1_section = src[src.index("# ── B1 per-branch"):]
     dirt_idx = b1_section.index('DIRT="$(sub_dirty || true)"')
-    stop_idx = b1_section.index("STOP(fail-closed)")
-    exit_idx = b1_section.index("exit 8")
-    _require(dirt_idx < stop_idx < exit_idx, 'predicate requirement failed at original line 1683')
-    commands = [line.strip() for line in b1_section[dirt_idx:exit_idx].splitlines()
+    stage_idx = b1_section.index('sub_run "git add -A"', dirt_idx)
+    commit_idx = b1_section.index('sub_commit "[improve] pre-sync autosave', stage_idx)
+    _require(dirt_idx < stage_idx < commit_idx,
+             'the dirty branch must stage then commit the sub work, in that order')
+    # No stash anywhere in the dirty-handling branch: preservation must be durable, not volatile.
+    branch = b1_section[dirt_idx:b1_section.index("보존 완료", commit_idx)]
+    commands = [line.strip() for line in branch.splitlines()
                 if line.strip() and not line.lstrip().startswith("#")]
-    _require(not any((re.search('(^|sub_run\\s+["\\u0027])git\\s+stash\\b', line, re.I) for line in commands)), 'the dirty-handling branch must never invoke an auto-stash')
+    _require(not any(re.search('(^|sub_run\\s+["\\u0027])git\\s+stash\\b', line, re.I) for line in commands),
+             'the dirty-handling branch must never stash -- preservation is by commit, so the work survives in history')
 
 
-def predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C3():
-    """C3: the sub must self-resolve (commit-or-stash) and attest 'ready-for-sync' before delivery
-    is retried -- proven against REAL control flow (the dirty branch's sole terminal action is an
-    unconditional `exit 8`, never `continue`, and no CLI flag anywhere in the script's own closed
-    argument-parsing case-block can bypass the gate), not merely token presence inside a printed
-    message."""
+def predicate_SUB_SYNC_DIRTY_AUTOSAVE_C3():
+    """C3: the preservation commit strictly precedes any checkout or rsync -- proven against REAL
+    control flow, so no sub-authored change can be overwritten before it is recorded. This is the
+    clause that carries the gate's ORIGINAL purpose (loss prevention); what was dropped in the
+    2026-08-13 correction was only the consent demand, which addressed a subject that does not
+    exist on the main<->sub plane."""
     src = _sync_to_sub_src()
-
-    # Exact literal remedy: commit-OR-stash, THEN a literal 'ready-for-sync' attestation, THEN
-    # retry -- verbatim (never a paraphrase / keyword-overlap substitute).
-    remedy_line = ("서브가 'git add -A && git commit'(또는 git stash)로 clean 화 후 "
-                   "'ready-for-sync' 어테스트 → 재시도.")
-    _require(remedy_line in src, "the exact commit-or-stash + literal 'ready-for-sync' attestation + retry remedy must be present verbatim, not summarized")
-
-    # Real control flow, not a message-string check: locate the B1 loop's dirty branch and prove
-    # (a) the remedy sits strictly between the DIRT check and the terminal `exit 8`, (b) `exit 8` --
-    # never `continue` -- is that branch's only terminal action (a `continue` would silently skip
-    # self-resolution for this target while the loop moved on to others regardless), and (c) no
-    # checkout/delivery step is reachable before that exit.
     loop = src[src.index('for t in "${TARGETS[@]}"; do\n    if [ "$t" = "single"'):]
     dirt_idx = loop.index('DIRT="$(sub_dirty || true)"')
     if_idx = loop.index('if [ -n "$DIRT" ]; then', dirt_idx)
-    remedy_idx = loop.index(remedy_line, if_idx)
-    exit_idx = loop.index("exit 8", if_idx)
-    checkout_idx = loop.index('sub_run "git checkout -q $t"', exit_idx)
-    _require(dirt_idx < if_idx < remedy_idx < exit_idx < checkout_idx, 'the remedy must live inside the dirty if-branch, strictly before its terminal exit, which must strictly precede any checkout/delivery step -- delivery cannot proceed past this gate until a fresh, clean re-invocation')
-    dirty_branch = loop[if_idx:exit_idx + len("exit 8")]
-    _require('continue' not in dirty_branch, "the dirty branch must never `continue` past self-resolution -- that would silently skip this target's required commit-or-stash + attestation instead of halting delivery outright")
+    stage_idx = loop.index('sub_run "git add -A"', if_idx)
+    commit_idx = loop.index('sub_commit "[improve] pre-sync autosave', stage_idx)
+    checkout_idx = loop.index('sub_run "git checkout -q $t"', commit_idx)
+    build_idx = loop.index('deliver_build "$t" 0', checkout_idx)
+    _require(dirt_idx < if_idx < stage_idx < commit_idx < checkout_idx < build_idx,
+             'preservation (stage+commit) must live inside the dirty branch and strictly precede '
+             'checkout, which must strictly precede delivery -- otherwise sub work could be '
+             'clobbered before it is recorded')
 
-    # No CLI escape hatch exists to bypass the dirty gate: the script's own argument parser is a
-    # CLOSED enumeration (`case "$1" in ... *) unknown argument -> exit 2 ... esac`) -- extracted
-    # and inspected directly, rather than grepping the whole file for the mere absence of one
-    # guessed flag spelling (which would miss a differently-named bypass and could false-positive
-    # on unrelated prose).
+    # Re-verification after preservation: the tree must actually be clean before delivery proceeds,
+    # so a partial/failed preservation cannot silently pass through into an overwrite.
+    reverify_idx = loop.index('RE_DIRT="$(sub_dirty || true)"', commit_idx)
+    _require(commit_idx < reverify_idx < checkout_idx,
+             'the post-preservation cleanliness re-check must sit between the commit and any checkout')
+
+    # No CLI escape hatch may bypass the dirty handling: the script's own argument parser is a
+    # CLOSED enumeration (`case "$1" in ... *) unknown argument -> exit 2 ... esac`).
     case_start = src.index('case "$1" in')
     case_end = src.index("esac", case_start)
     arg_parser = src[case_start:case_end]
-    _require(re.search('force|skip|dirty|override|bypass', arg_parser, re.I) is None, 'the closed CLI flag case-block must contain no dirty-check bypass flag of any spelling')
-    _require('*) echo "[sync] FAIL: unknown argument: $1" >&2; exit 2 ;;' in arg_parser, 'an unrecognized flag must itself be rejected fail-closed -- proving the enumerated flag set is genuinely closed, so no undocumented bypass flag can exist')
+    _require(re.search('force|skip|dirty|override|bypass', arg_parser, re.I) is None,
+             'the closed CLI flag case-block must contain no dirty-handling bypass flag of any spelling')
+    _require('*) echo "[sync] FAIL: unknown argument: $1" >&2; exit 2 ;;' in arg_parser,
+             'an unrecognized flag must itself be rejected fail-closed -- proving the enumerated flag set is genuinely closed')
 
-    # DIRT is a single, live, per-invocation recomputation (never cached/persisted across retries)
-    # -- so a 'ready-for-sync' retry can only succeed against the sub's ACTUAL tree state.
-    _require(src.count('DIRT="$(sub_dirty || true)"') == 1, 'predicate requirement failed at original line 1743')
+    # Exactly two live probes per invocation and no more: the initial one and the post-preservation
+    # re-verification. Neither is cached across runs. Word-boundary match -- a bare `.count()` on
+    # `DIRT=` also matches inside `RE_DIRT=` and would silently miscount.
+    _require(len(re.findall(r'(?<![A-Z_])DIRT="\$\(sub_dirty \|\| true\)"', src)) == 1,
+             'the initial dirty probe must appear exactly once, computed live against the sub tree')
+    _require(len(re.findall(r'RE_DIRT="\$\(sub_dirty \|\| true\)"', src)) == 1,
+             'the post-preservation re-verification probe must appear exactly once, recomputed live '
+             '(never reusing the pre-preservation result, which would mask a failed preservation)')
 
 
-def predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C4():
-    """C4: this fail-closed handshake protects in-progress sub-authored work from being silently
-    overwritten -- verified by source order (dirty check strictly precedes checkout AND rsync in
-    the B1 loop, so a dirty sub-authored tree is never checked out over or synced onto)."""
+def predicate_SUB_SYNC_DIRTY_AUTOSAVE_C4():
+    """C4: delivery is refused (non-zero exit) ONLY when preservation fails or dirt remains after
+    it. Delivering without preservation is the sole real loss risk, so that -- not the absence of
+    the sub's consent -- is what fail-closed must guard."""
     src = _sync_to_sub_src()
     loop = src[src.index("for t in \"${TARGETS[@]}\"; do\n    if [ \"$t\" = \"single\""):]
-    dirt_idx = loop.index('DIRT="$(sub_dirty || true)"')
-    checkout_idx = loop.index('sub_run "git checkout -q $t"')
-    build_idx = loop.index('deliver_build "$t" 0')
-    _require(dirt_idx < checkout_idx < build_idx, 'dirty-check must strictly precede checkout, which must strictly precede delivery')
+    if_idx = loop.index('if [ -n "$DIRT" ]; then')
+    checkout_idx = loop.index('sub_run "git checkout -q $t"', if_idx)
+    dirty_branch = loop[if_idx:checkout_idx]
+
+    # Every terminal exit inside the dirty branch must be a preservation-failure path.
+    exits = [m.start() for m in re.finditer(r"exit 8", dirty_branch)]
+    _require(len(exits) == 3,
+             'the dirty branch must have exactly three refusal paths: stage failure, commit failure, '
+             'and residual dirt after preservation')
+    for pos in exits:
+        line_start = dirty_branch.rfind("\n", 0, pos) + 1
+        stmt = dirty_branch[line_start:dirty_branch.index("\n", pos)]
+        _require("STOP" in stmt and ("보존" in stmt or "배달 거부" in stmt),
+                 'each refusal inside the dirty branch must be a preservation-failure stop, not a consent demand')
+
+    # The gate must not refuse merely because the tree was dirty: a clean exit path past
+    # preservation has to exist, i.e. the branch falls through to checkout.
+    _require("보존 완료" in dirty_branch,
+             'the dirty branch must have a success path that proceeds to delivery after preserving')
 
 
 # =============================================================================
@@ -2893,10 +2950,10 @@ PREDICATES = {
     "RUNTIME_PATCH_NO_CARRY_FORWARD.C2": predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C2,
     "RUNTIME_PATCH_NO_CARRY_FORWARD.C3": predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C3,
     "RUNTIME_PATCH_NO_CARRY_FORWARD.C4": predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C4,
-    "SUB_SYNC_DIRTY_FAIL_CLOSED.C1": predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C1,
-    "SUB_SYNC_DIRTY_FAIL_CLOSED.C2": predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C2,
-    "SUB_SYNC_DIRTY_FAIL_CLOSED.C3": predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C3,
-    "SUB_SYNC_DIRTY_FAIL_CLOSED.C4": predicate_SUB_SYNC_DIRTY_FAIL_CLOSED_C4,
+    "SUB_SYNC_DIRTY_AUTOSAVE.C1": predicate_SUB_SYNC_DIRTY_AUTOSAVE_C1,
+    "SUB_SYNC_DIRTY_AUTOSAVE.C2": predicate_SUB_SYNC_DIRTY_AUTOSAVE_C2,
+    "SUB_SYNC_DIRTY_AUTOSAVE.C3": predicate_SUB_SYNC_DIRTY_AUTOSAVE_C3,
+    "SUB_SYNC_DIRTY_AUTOSAVE.C4": predicate_SUB_SYNC_DIRTY_AUTOSAVE_C4,
     "SUB_GIT_LOCAL_ONLY.C1": predicate_SUB_GIT_LOCAL_ONLY_C1,
     "SUB_GIT_LOCAL_ONLY.C2": predicate_SUB_GIT_LOCAL_ONLY_C2,
     "SUB_GIT_LOCAL_ONLY.C3": predicate_SUB_GIT_LOCAL_ONLY_C3,

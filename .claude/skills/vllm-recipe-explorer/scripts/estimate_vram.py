@@ -29,6 +29,18 @@ from quant_table import (  # noqa: E402
 
 GIB = 1024 ** 3  # 단위 통일: GiB = 1024**3 (추정·예산 둘 다)
 
+# KV 블록정렬 라운딩 버퍼 — **단일 소유**(2026-08-13 추출).
+#   vLLM 은 KV 를 고정 블록 단위(block_size, 기본 16토큰)로 할당하는데 우리 선형식
+#   (per_token × max_len × batch)은 블록 경계 반올림을 반영하지 못해, vLLM 자신의
+#   `_check_enough_kv_cache_memory` 문턱에 **근소 미달**하는 타이가 실측됐다
+#   (2026-08-11: gemma-4-e2b-it "needed 0.24GiB > available 0.24GiB", qwen3-4b "4.5GiB > 4.5GiB"
+#    — 표시상 동률이나 내부적으로 조금 더 필요했다).
+#   ⚠ 소비자가 둘이다: 여기 required_kv_bytes()(공식 폴백 경로)와 recipe._resolve_clamp_kv()의
+#   measured-per-token 경로(실제로 항상 우선 실행되는 진짜 적용점). 값을 두 벌로 두면 갈라지므로
+#   **여기서만 선언**하고 recipe 는 import 해서 쓴다. 정책 술어
+#   KV_ABSOLUTE_CLAMP_PORTABILITY.C3 도 이 상수를 참조해 기대값을 세운다.
+KV_BLOCK_ALIGN_BUFFER = 1.02
+
 
 def _activation_bytes(eff_params: int, max_model_len: int) -> int:
     """Activation/scratch 버퍼 바이트 (벤더링).
@@ -194,10 +206,17 @@ def required_kv_bytes(
 ) -> int:
     """주어진 max_model_len·batch 동시요청에 필요한 KV 캐시 총 바이트.
 
-    required_kv_bytes = per_token_kv_bytes * max_model_len * batch.
-    (batch = 동시요청수, 각 요청이 최대 max_model_len 토큰의 KV 를 차지.)
+    required_kv_bytes = per_token_kv_bytes * max_model_len * batch, +2% 라운딩버퍼.
+
+    vLLM 은 KV 를 고정 크기 블록 단위로 할당한다(block_size, 기본 16토큰) — 우리 선형식은
+    블록 경계 반올림을 반영하지 않아 vLLM 자신의 `_check_enough_kv_cache_memory` 문턱에
+    근소 미달하는 사례가 실측됐다(2026-08-11: gemma-4-e2b-it batch=1 "needed 0.24GiB > available
+    0.24GiB", qwen3-4b batch=1 "needed 4.5GiB > available 4.5GiB" — 둘 다 표시상 동률이지만
+    내부적으로 아주 조금 더 필요했다). 2% 버퍼는 GiB 스케일에서 무시할 만한 초과지만 이 타이를
+    안전하게 넘긴다.
     """
-    return per_token_kv_bytes(parsed, kv_dtype_bytes) * int(max_model_len) * int(batch)
+    base = per_token_kv_bytes(parsed, kv_dtype_bytes) * int(max_model_len) * int(batch)
+    return int(base * KV_BLOCK_ALIGN_BUFFER)
 
 
 def max_safe_kv_bytes(

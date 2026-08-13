@@ -1,20 +1,64 @@
 {
-  "build_track": {
-    "decision": "source-build"
+  "_meta": {
+    "purpose": "토폴로지-중립 프로덕션 해소값 정본(SSOT). 렌더·런타임패치 검증·cleanup 이 함께 읽는다.",
+    "structure": "top-level = default_track 의 해소값(기존 소비자 6곳이 그대로 읽는다). 다른 트랙은 tracks.<name> 에만 둔다 — default 를 tracks 에 중복 기재하지 않는다(목록 두 벌 = 갈라짐).",
+    "updated": "2026-08-13",
+    "why_updated": "8/11 0.27.0 bump 가 스모크 PASS·VALIDATED_SOURCE_BUILD_KEYS 승급까지 갔는데 이 정본은 0.26.0 에 멈춰 있었다(정본이 실물을 잃고 gitignored resolved.json 이 그림자로 실물을 보유). canonical 렌더는 --resolved 를 금지하므로 이 정체가 곧 '0.27.0 을 canonical 로 렌더할 수 없음'이었고, 그래서 8/11 렌더가 legacy --template 경로로 새어나갔다.",
+    "tracks_rationale": "사용자 지시(2026-08-13): 정본을 빌드 트랙별 두 벌로 나눈다. 갈림의 진짜 축은 브랜치나 토폴로지가 아니라 **빌드 트랙**이다 — torch 2.11+ 는 prebuilt wheel 의 _C 가 NGC alpha torch 와 C++ ABI 불일치를 일으켜 소스빌드가 강제되고, 2.10 이하만 wheel 이 성립한다. wheel 트랙은 그 대가로 구동 가능한 모델 범위가 좁다(신규 아키텍처 미지원)."
+  },
+
+  "default_track": "source-build",
+
+  "vllm_version": "0.27.0",
+  "torch": {
+    "pin": "2.13.0",
+    "source": "vLLM v0.27.0 pyproject.toml [build-system].requires (resolve_torch_pin.py)"
   },
   "ngc_base": {
-    "cuda_version": "13.2",
-    "tag": "26.05-py3"
+    "tag": "26.07-py3",
+    "cuda_version": "13.3.1.008",
+    "pytorch_build_version": "2.13.0a0+9186a08"
+  },
+  "build_track": {
+    "decision": "source-build",
+    "reason": "torch 2.13.0 >= 2.11 → prebuilt _C 와 NGC alpha torch 의 하드 C++ ABI 벽. _C 를 NGC torch 에 맞춰 소스컴파일해 해소.",
+    "arbiter": "smoke"
   },
   "source_build": {
     "torch_cuda_arch": "12.1a"
   },
-  "torch": {
-    "pin": "2.11.0"
-  },
-  "vllm_version": "0.26.0",
   "wheel": {
     "cuda": "129",
     "manylinux": "manylinux_2_28"
+  },
+
+  "tracks": {
+    "wheel": {
+      "_note": "prebuilt wheel 트랙의 **최신 성립 지점**. 0.20.0 부터 torch 2.11.0 을 선언하므로 ABI 벽에 걸린다 — 즉 0.19.1 이 wheel 로 갈 수 있는 마지막 버전이다. 대가: 이후 릴리즈에서 추가된 모델 아키텍처를 구동할 수 없다(사용자도 이 축소를 전제로 지시).",
+      "vllm_version": "0.19.1",
+      "torch": {
+        "pin": "2.10.0",
+        "source": "vLLM v0.19.1 pyproject.toml (resolve_torch_pin.py — 0.19.2/0.19.3 은 릴리즈 부재 404)"
+      },
+      "ngc_base": {
+        "tag": "26.01-py3",
+        "cuda_version": "13.1.1.006",
+        "pytorch_build_version": "2.10.0a0+a36e1d3",
+        "resolver": "resolve_ngc_tag.py 2.10.0 --arch arm64 --start 26.07 --months 14 → matched_tag=26.01-py3",
+        "prefix_invariant": "torch 2.10.0 == NGC 2.10.0a0 접두어 일치 — wheel 트랙 필수 불변식(CLAUDE.md 레이어 커플링) 충족"
+      },
+      "build_track": {
+        "decision": "wheel",
+        "reason": "torch 2.10 < 2.11 → pre-built wheel 트랙(--no-deps 설치).",
+        "arbiter": "smoke",
+        "proposer": "resolve_build_track.py --torch-pin 2.10.0 --sm-arch sm_121a → decision=wheel"
+      },
+      "wheel": {
+        "cuda": "130",
+        "manylinux": "manylinux_2_35",
+        "asset_name": "vllm-0.19.1+cu130-cp38-abi3-manylinux_2_35_aarch64.whl",
+        "resolver": "resolve_wheel.py 0.19.1 --arch aarch64 → aarch64 자산 실재 확인"
+      }
+    }
   }
 }

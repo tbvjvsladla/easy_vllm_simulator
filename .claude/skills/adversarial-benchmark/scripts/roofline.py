@@ -218,7 +218,13 @@ def main():
             notes.append("manifest 파싱 경고: %s" % e)
 
     # tp 결정: 명시 > manifest(nodes 수 × gpus_per_node) > 1
+    #   ★ tp 출처를 각인한다(2026-08-13 · plan_26081314 D2). tp 는 per_node_read = active_bytes/tp
+    #   로 기대치를 좌우하는데, **과소평가하면 기대치가 낮아져 느린 서빙이 PASS 로 통과**한다 —
+    #   적대검증의 존재 이유가 훼손된다. 그래서 (a) 예외 원인을 삼키지 않고 notes 에 남기고
+    #   (같은 함수 위쪽 manifest 파싱 경고와 동일 처리), (b) 1 로 떨어졌을 때 그 이유가
+    #   '부재'인지 '파싱 실패'인지 구분한다. 폴백 자체는 유지 — 금지가 아니라 표시가 처방이다.
     tp = args.tp
+    tp_source = "explicit(--tp)" if tp is not None else None
     if tp is None and args.manifest and os.path.isfile(args.manifest):
         try:
             import yaml
@@ -228,14 +234,23 @@ def main():
             # 워커가 아님 — δ1-1 실버그 · manifest_contract.manifest_tp 와 동일 계약).
             if (manifest_topology or "").startswith("single"):
                 tp = max(1, gpus_per_node)
+                tp_source = "manifest(single: gpus_per_node)"
             else:
                 nodes = man.get("nodes") or []
                 tp = max(1, len(nodes)) * max(1, gpus_per_node) if nodes else None
-        except Exception:
+                tp_source = "manifest(nodes×gpus_per_node)" if tp is not None else None
+        except Exception as e:
             tp = None
+            notes.append("tp manifest 파싱 실패(%s: %s) → tp 도출 불가"
+                         % (type(e).__name__, e))
+            tp_source = "fallback(manifest 파싱 실패)"
     if tp is None:
         tp = 1
-        notes.append("tp 미지정 → 1 가정")
+        if tp_source is None:
+            tp_source = ("fallback(manifest 부재/미지정)" if not args.manifest
+                         else "fallback(manifest 에 tp 근거 없음)")
+        notes.append("tp 미지정 → 1 가정 [%s] — TP 과소평가는 기대치를 낮춰 "
+                     "느린 서빙을 통과시킬 수 있다" % tp_source)
 
     bw_gbps, bw_src = _bandwidth_gbps(gpu_model, args.bandwidth_gbps)
     ic_gbps = args.interconnect_gbps if args.interconnect_gbps else ic_gbps
@@ -275,6 +290,7 @@ def main():
         "model_path": args.model_path,
         "is_moe": is_moe,
         "tp": tp,
+        "tp_source": tp_source,   # bandwidth_source 와 동형 — 값의 출처를 산출물이 스스로 밝힌다
         "gpu_model": gpu_model,
         "bandwidth_gbps": bw_gbps,
         "bandwidth_source": bw_src,
