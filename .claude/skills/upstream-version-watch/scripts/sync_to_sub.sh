@@ -587,25 +587,78 @@ validate_inventory_tree() { # $1=root  $2=1 이면 BAND2_EXCLUDED_TOP 최상위 
     done < <(find "$root" -mindepth 1 -print0)
 }
 
+# ── 배달 전제 복구: 빈 디렉터리 prune (2026-08-14 신설 · plan_26081409 A) ────────────────
+# 왜 게이트가 아니라 정비인가:
+#   롤백 스냅샷은 `find -type f -o -type l` 로 **파일·심링크만** 담는다. 대부분의 디렉터리는 그 안의
+#   파일 경로로 **함의**되므로(파일을 복원하면 부모도 생김) 담을 필요가 없다. 그런데 **빈 디렉터리는
+#   파일 경로로 함의되지 않는 유일한 디렉터리**라 롤백이 복원할 수 없다 — 그래서 옛 검증기는 트리에
+#   빈 디렉터리가 하나라도 있으면 배달 전체를 거부했다. 논리는 일관되지만 **거부 뒤 복구 경로가 없었다**.
+#   실해악: 2026-08-01 엔 매번 사람 sudo, 2026-08-14 엔 사람 ssh rmdir 이 필요했다(둘 다 실측).
+#   그러나 빈 디렉터리는 **정보량이 0**이고 mkdir -p 로 완전 복원된다 — 즉 "인벤토리가 디렉터리를 못
+#   담는다"는 **구현 제약**을 손실방지라는 **정책 게이트**로 표현한 범주 오류였다. 제약은 구현에서 푼다.
+#   메인은 서브에 대해 이 정도의 정비 권한을 갖는다(헌법 평면 B §파이프라인 정비 — 저작도 스캔도 아니다).
+# ⚠ 침묵 삭제 금지 — 제거한 경로를 항상 출력한다(docs.md 의 log_evicted 규율과 동형).
+prune_remote_empty_dirs() { # $1=topology → 0=ok(제거분 로그), 9=실패
+    local root="${DEST}output/$1" skip out
+    skip="$(IFS=:; printf '%s' "${BAND2_EXCLUDED_TOP[*]}")"
+    out="$($SSH_OPTS "$SUB_HOST" "python3 -c 'import os,sys
+root,skip=sys.argv[1],set(x for x in sys.argv[2].split(\":\") if x)
+if not os.path.isdir(root): raise SystemExit(0)
+removed=[]
+def excluded(base):
+ # ★ 전송 범위 밖은 **통째로** 건너뛴다 — 최상위 디렉터리 자신뿐 아니라 그 **하위 전부**.
+ #   topdown=False 라 dirs[:] prune 이 안 먹으므로 상대경로 첫 성분으로 판정한다.
+ #   (2026-08-14 실측: 이 판정을 최상위 basename 으로만 했더니 cache/vllm/dummy_cache 를 지웠다 —
+ #    rsync 가 건드리지 않는 영역을 파이프라인이 정비한 셈으로, 2026-08-01 사고와 동일한 형태의
+ #    "검사 범위 ≠ 전송 범위" 위반이다.)
+ rel=os.path.relpath(base,root)
+ return rel!=\".\" and rel.split(os.sep)[0] in skip
+# bottom-up: 안쪽을 지우면 바깥이 비므로 반복 없이 한 번에 수렴한다.
+for base,dirs,files in os.walk(root, topdown=False):
+ if base==root or excluded(base): continue
+ try:
+  if not os.listdir(base):
+   os.rmdir(base); removed.append(os.path.relpath(base,root))
+ except OSError as e:
+  sys.stderr.write(\"prune-failed %s: %s\n\" % (base,e)); raise SystemExit(9)
+print(\"\n\".join(removed))
+' '$root' '$skip'")" || { echo "[sync] FAIL: 서브 빈 디렉터리 prune 실패($1) — 권한/경합 확인" >&2; return 9; }
+    if [ -n "$out" ]; then
+        echo "[sync] [$1] 배달 전제 복구: 빈 디렉터리 $(printf '%s\n' "$out" | grep -c .)건 제거(정보량 0 · 롤백 인벤토리가 담지 못하는 유일한 형태)" >&2
+        printf '%s\n' "$out" | sed 's|^|    prune: output/'"$1"'/|' >&2
+    fi
+}
+
 validate_remote_deletion_tree() { # $1=topology
     # ★ 검사 범위는 **전송 범위와 일치**해야 한다. rsync 가 제외하는 최상위 경로(BAND2_EXCLUDED_TOP)는
     #   이 트랜잭션이 바꿀 수 없으므로 롤백 인벤토리에 들 이유가 없고, 따라서 검사 대상도 아니다.
     #   (2026-08-01: 이 prune 이 없어서 컨테이너가 root 로 만든 빈 cache 디렉터리가 배달을 영구 차단했다.)
-    local root="${DEST}output/$1" skip
+    # 빈 디렉터리 검사는 2026-08-14 에 **prune_remote_empty_dirs 로 이관**했다(위 스탠자 참조) —
+    #   여기 남는 것은 경로 주입 방어(whitespace/control)뿐이며 그것은 그대로 fail-closed 다.
+    # ⚠ 실패 시 **어느 경로인지 출력한다** — 옛 메시지는 원인 셋을 한 문장에 뭉치고 경로를 주지 않아
+    #   운영자가 무엇을 고쳐야 할지 알 수 없었다(plan_26081310 D5: "안내문이 분류를 잘못 말하면
+    #   가드가 있어도 사고가 난다" — 여기선 분류를 아예 하지 않았다).
+    prune_remote_empty_dirs "$1" || return 9
+    local root="${DEST}output/$1" skip bad
     skip="$(IFS=:; printf '%s' "${BAND2_EXCLUDED_TOP[*]}")"
-    $SSH_OPTS "$SUB_HOST" "python3 -c 'import os,sys
+    bad="$($SSH_OPTS "$SUB_HOST" "python3 -c 'import os,sys
 root,skip=sys.argv[1],set(x for x in sys.argv[2].split(\":\") if x)
 if not os.path.isdir(root): raise SystemExit(0)
+hits=[]
 for base,dirs,files in os.walk(root):
  if base==root: dirs[:]=[d for d in dirs if d not in skip]
  for name in dirs+files:
   if base==root and name in skip: continue
   raw=os.fsencode(name)
-  if any(byte<=32 or byte==127 for byte in raw): raise SystemExit(9)
- for name in dirs:
-  path=os.path.join(base,name)
-  if not os.listdir(path): raise SystemExit(9)
-' '$root' '$skip'" || { echo "[sync] FAIL: destination deletion inventory has whitespace/control path or empty directory" >&2; return 9; }
+  if any(byte<=32 or byte==127 for byte in raw):
+   hits.append(os.path.relpath(os.path.join(base,name),root))
+print(\"\n\".join(hits))
+' '$root' '$skip'")" || { echo "[sync] FAIL: 서브 삭제 인벤토리 검사 실패($1)" >&2; return 9; }
+    if [ -n "$bad" ]; then
+        echo "[sync] FAIL: 서브 경로에 공백/제어문자 — 경로 주입 방어로 fail-closed(대상 아래)." >&2
+        printf '%s\n' "$bad" | sed 's|^|    bad-path: output/'"$1"'/|' >&2
+        return 9
+    fi
 }
 
 build_remote_touch_inventory() { # $1=topology $2=output file
@@ -801,6 +854,11 @@ deliver_build() {  # $1=topology $2=dry(0/1)
     fi
     # apply: (d-rsync-2) 삭제 前 brake — dry-run 으로 삭제예정 세고 ALLOW_DELETE 초과 시 *삭제 前* fail-closed(부분삭제 0)
     sub_run "mkdir -p 'output/$1'"
+    # ★ 브레이크 **앞에서** 빈 디렉터리를 정비한다(2026-08-14 · plan_26081409 A). 뒤에 두면
+    #   정보량 0 인 정리를 위해 운영자가 ALLOW_DELETE 를 줘야 하고, 그 플래그는 **파일 삭제까지 함께**
+    #   뚫는다 — 손실 0 인 작업을 손실 위험이 있는 게이트로 통과시키는 셈이다(2026-08-14 실제 발생).
+    #   여기서 미리 치우면 rsync 의 삭제예정이 0 이 되어 브레이크가 정상 통과한다.
+    prune_remote_empty_dirs "$1" || return 9
     local ndel dry_out
     if ! dry_out="$(rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_OPTS" "$src" "$SUB_HOST:$dst" 2>&1)"; then
         echo "[sync] FAIL: deletion brake dry-run failed before apply" >&2
