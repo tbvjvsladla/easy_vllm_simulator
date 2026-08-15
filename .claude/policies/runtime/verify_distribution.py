@@ -528,6 +528,14 @@ def verify() -> dict:
             _run("benchmark_info_only_gate", ["bash",
                  ".claude/skills/adversarial-benchmark/scripts/run_bench.sh", "freshclone-probe"], {4}),
         ]
+    # serve 노브 파리티 — `gen_recipe_set.assert_serve_knob_parity` 의 **집행**(2026-08-16 배선).
+    #   그 tripwire 는 "run_trial 이 candidate 에서 읽는 필드는 3종 세트까지 도달해야 한다"(= 검증한
+    #   레시피와 배포된 레시피가 갈리지 않는다)를 지키려고 만들어졌으나 **호출자가 0 개**여서,
+    #   실제 위반이 커밋과 이 검증기를 그대로 통과했다(2026-08-16 실측). 검사를 만든 것과 검사가
+    #   도는 것은 다르다 — 여기서 매 검증마다 돌린다. 미테라포밍 레포에서도 순수 정적 검사라 안전하다.
+    checks.append(_run("recipe_serve_knob_parity", [sys.executable,
+                       ".claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py",
+                       "--check-parity"], {0}))
     checks += [
         _run("benchmark_verdict_fixture", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py", "--measured",

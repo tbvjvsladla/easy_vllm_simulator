@@ -559,6 +559,14 @@ def _budget_inputs(candidate: dict, opts) -> "tuple[dict | None, str]":
     """선언 입력을 **파생**한다(손으로 적지 않는다 · plan_26081415 C3-2).
 
     반환 (inputs, skip_reason). inputs 가 None 이면 skip_reason 이 사유다.
+
+    ⚠ **`model_host_path`·`tp` 는 candidate 가 아니라 opts 에서만 읽는다.** candidate 에서 읽으면
+      `gen_recipe_set.assert_serve_knob_parity` 의 계약 — *"run_trial 이 candidate 에서 읽는 필드는
+      3종 세트까지 도달해야 한다"* — 에 걸린다. 예산 선언 입력은 **serve 노브가 아니므로** 3종 세트에
+      도달할 이유가 없고, 그렇다고 면제 목록을 늘리면 그 tripwire 가 둔해진다. 애초에 평면을 섞지
+      않는 것이 옳다(2026-08-16 실측으로 발각 — 초판은 candidate 폴백을 뒀다가 파리티를 깼다).
+      `kv_cache_memory_bytes` 만은 candidate 가 권위다 — 그건 실제 serve 노브이고 이미 3종 세트에
+      도달한다(파리티 통과 필드).
     """
     kv_bytes = candidate.get("kv_cache_memory_bytes")
     if not kv_bytes:
@@ -572,21 +580,31 @@ def _budget_inputs(candidate: dict, opts) -> "tuple[dict | None, str]":
     except (OSError, IndexError, ValueError):
         return None, "mem_total_unavailable"
 
-    host_path = (_opt(opts, "model_host_path", None)
-                 or candidate.get("model_host_path")
-                 or candidate.get("model_path"))
-    if not host_path or not os.path.isdir(str(host_path)):
-        return None, "model_host_path_absent"
-    try:
-        import preload_ram_gate  # noqa: PLC0415 — 같은 scripts/ 디렉터리(경로는 위에서 보장)
-        ckpt_bytes = preload_ram_gate.checkpoint_bytes_for(str(host_path))
-    except Exception:
-        return None, "checkpoint_size_unavailable"
+    # 체크포인트 바이트: 호출부가 **이미 가진 값**을 우선 받는다. recipe.py 는 같은 값을
+    # `preload_ram_gate(parsed["native_weight_bytes"], tp=tp)` 로 로드-전 게이트에 쓰고 있으므로,
+    # 예산 선언이 같은 값을 쓰면 두 게이트가 **같은 축**을 보게 된다. 파일시스템을 다시 뒤지면
+    # 같은 사실의 두 번째 출처가 생기고, 둘이 갈리면 어느 쪽이 맞는지 알 수 없다.
+    ckpt_bytes = _opt(opts, "checkpoint_bytes", None)
+    if not ckpt_bytes:
+        # CLI 단독 사용 경로 — 호스트 경로에서 직접 산출한다(같은 산출기를 쓴다).
+        host_path = _opt(opts, "model_host_path", None)
+        if not host_path or not os.path.isdir(str(host_path)):
+            return None, "model_host_path_absent"
+        try:
+            import preload_ram_gate  # noqa: PLC0415 — 같은 scripts/ 디렉터리(경로는 위에서 보장)
+            ckpt_bytes = preload_ram_gate.checkpoint_bytes_for(str(host_path))
+        except Exception:
+            return None, "checkpoint_size_unavailable"
     if not ckpt_bytes or int(ckpt_bytes) <= 0:
         # preload_ram_gate 와 동일 판단: 크기 미상은 거짓 차단이 아니라 생략 사유다.
         return None, "checkpoint_size_unavailable"
 
-    tp = int(candidate.get("tensor_parallel_size") or candidate.get("tp") or 1) or 1
+    # tp 는 manifest 권위다(recipe.py resolve_tp: config override > manifest > 1). 여기서 candidate 를
+    # 뒤지지 않고 호출부가 정한 값을 받는다 — 추측하면 항상 1 로 떨어져 weights 를 과대평가한다.
+    try:
+        tp = int(_opt(opts, "tp", 1) or 1) or 1
+    except (TypeError, ValueError):
+        tp = 1
     return {
         "mem_total_mib": mem_total_mib,
         "weights_mib": -(-int(ckpt_bytes) // tp // (1024 * 1024)),   # ceil-div (게이트와 같은 축)
@@ -932,6 +950,13 @@ def _main(argv: "list[str] | None" = None) -> int:
              "미지정 시 candidate.model_host_path/model_path 를 시도한다",
     )
     p.add_argument(
+        "--tp",
+        type=int,
+        default=None,
+        help="tensor parallel 수 — weights_mib 파생용(ckpt÷tp). 미지정 시 1. "
+             "candidate 에서 추측하지 않는다(manifest 가 tp 의 권위 · recipe.resolve_tp)",
+    )
+    p.add_argument(
         "--no-budget",
         action="store_true",
         help="예산 선언 생략(무보호 진입). 생략 사실은 budget_skipped 이벤트로 남는다(침묵 금지)",
@@ -964,6 +989,8 @@ def _main(argv: "list[str] | None" = None) -> int:
         opts["budget_node_dir"] = args.budget_node_dir
     if args.model_host_path:
         opts["model_host_path"] = args.model_host_path
+    if args.tp:
+        opts["tp"] = args.tp
     if args.no_budget:
         opts["no_budget"] = True
 
