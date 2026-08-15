@@ -388,6 +388,32 @@ def _load_json(path):
 
 
 def main(argv=None):
+    # ── `--check-parity`: 파리티 tripwire 의 **집행 진입점** (2026-08-16 신설) ──────────────
+    #   `assert_serve_knob_parity` 는 "run_trial 이 candidate 에서 읽는 필드는 3종 세트까지
+    #   도달해야 한다"는 계약을 지키려고 만들어졌는데, **호출자가 0 개였다**(정의 + 주석뿐).
+    #   그 결과 2026-08-16 에 실제 위반(model_host_path·tensor_parallel_size·tp)이 커밋을 통과했고
+    #   verify_distribution·policy_registry·claim_predicates 어느 것도 잡지 못했다 —
+    #   **검사를 만든 것과 검사가 도는 것은 다르다**(이 레포에서 반복된 패턴: 선언 미배선·
+    #   teardown 미배선·READY_MAX 권고 미반영). 여기에 진입점을 두고 verify_distribution 이 호출한다.
+    if argv is None:
+        argv = sys.argv[1:]
+    if "--check-parity" in argv:
+        rt_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "run_trial.py")
+        try:
+            with open(rt_path, encoding="utf-8") as fh:
+                gaps = assert_serve_knob_parity(fh.read(), raise_on_gap=False)
+        except OSError as exc:
+            print("parity: run_trial.py 를 읽지 못했다 — %s" % exc, file=sys.stderr)
+            return 2
+        if gaps:
+            print("parity FAIL — run_trial 이 candidate 에서 읽지만 3종 세트에 도달하지 않는 필드: %s"
+                  % ", ".join(gaps), file=sys.stderr)
+            print("  → SERVE_KNOB_KEYS/_build_yaml 에 추가하거나, serve 노브가 아니면 candidate 를"
+                  " 읽지 말고 opts 로 받아라(평면 분리). 면제 등록은 마지막 수단이다.", file=sys.stderr)
+            return 1
+        print("parity ok — 3종 세트 도달 갭 0")
+        return 0
+
     parser = argparse.ArgumentParser(
         description="DGX Spark 서빙용 3종 세트(.yaml+.sh+.env) 생성")
     parser.add_argument("--parsed", required=True,

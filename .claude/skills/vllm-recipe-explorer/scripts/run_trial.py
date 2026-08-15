@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -63,6 +64,32 @@ CONTAINER_MODELS = "/app/models"  # 컨테이너 내 모델 마운트 경로(:ro
 # 자산은 이미지에 미번들 → 호스트 tiktoken_host_path 를 여기로 마운트해 사전적재(C8).
 CONTAINER_ENCODINGS = "/encodings"
 HEALTH_POLL_INTERVAL = 3.0  # /health 폴링 간격(초)
+
+# ── 서빙 예산 선언 (2026-08-16 신설 · plan_26081415 C3-1 "단일노드 경로도 대칭 적용") ─────────
+#   왜 여기 있나: ETA 워치독의 트립 조건은 `... && mem <= BB_ARM_CEILING_MIB && ...` 이고,
+#   **선언이 없으면 그 상한이 999999999** 라 AND 가 무력화된다 = ETA 규칙이 무제한으로 작동한다.
+#   그 규칙은 모델 로드의 유계 하강을 무계로 읽어 **58 GiB 급 정상 로드를 3회 중 3회 사살**했다
+#   (2026-08-01 · testlog_26073123). 처방(선언된 바닥)은 2026-08-14 에 multi 스모크에 배선됐고
+#   계획은 단일노드도 대칭 적용하라 했으나 **미구현으로 남아 있었다** — 2026-08-16 조사에서
+#   `declare-budget` 호출자가 전 코드베이스에 `multinode_serve_smoke.sh` 하나뿐임이 확인됐다.
+#   상시 워치독은 `@vllm` **광역 필터**로 돌므로 여기 trial 컨테이너도 사살 대상이다.
+#
+#   ⚠ 이 파일의 다른 방어층은 이 클래스를 못 막는다: `preload_ram_gate` 는 로드 **전**만 보고,
+#     `engine_liveness_watchdog` 는 "메모리 정상 + 엔진 교착"이라는 **다른 서브클래스**이며,
+#     `oom_score_adj` 는 진성 OOM 용이다. 위양성 사살의 유일한 제한자가 이 선언이다.
+#
+#   실패 정책 = **경고 후 진행 + `budget-skip` 이벤트**(multi 의 진입 차단과 다르다). 근거:
+#     ① trial-loop 는 KV 절대클램프를 **수렴시키는 탐색**이라 초기 후보에 kv 가 없을 수 있는데,
+#        거기서 차단하면 루프 자체가 죽는다(게이트가 겨눌 주체는 로드이지 탐색이 아니다).
+#     ② 같은 파일 계열의 선례가 이미 그 방향이다 — `preload_ram_gate.gate()` 는 크기 미상일 때
+#        "게이트 생략(음성정직·false-block 금지)" 한다.
+#     ③ 침묵은 금지된다 — 생략은 반드시 `budget-skip` 이벤트로 남는다(plan_26081415 C3 기준3).
+BUDGET_SESSION_PY = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "..", "..", "terraforming_node", "scripts", "node_blackbox", "blackbox_session.py",
+)
+BUDGET_OVERHEAD_MIB = 12288   # blackbox_session --overhead-mib 기본값과 동일(안전측)
+BUDGET_TTL_MIN_S = 7200       # declare-budget 기본 TTL. expected-load-s 의 3배 이상이어야 수락된다.
 
 
 class _Opts:
@@ -469,6 +496,154 @@ def _stop_memwatch(proc, fh) -> None:
         pass
 
 
+def _now_iso() -> str:
+    """벽시계 금지 규약의 예외가 아니다 — blackbox_session 이 `--now` 를 **요구**하므로 여기서
+    한 번만 만들어 넘긴다(스크립트 안에서 시각을 *판정*에 쓰지는 않는다)."""
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _budget_session(node_dir: str, *args: str) -> "tuple[bool, str]":
+    """blackbox_session 서브커맨드 1회 실행 → (성공, 출력)."""
+    cmd = [sys.executable, os.path.normpath(BUDGET_SESSION_PY), "--node-dir", node_dir, *args]
+    try:
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return False, "%s: %s" % (type(exc).__name__, exc)
+    return proc.returncode == 0, proc.stdout.decode("utf-8", errors="replace").strip()
+
+
+def _repo_root() -> str:
+    """이 스크립트 위치에서 레포 루트를 파생한다(.claude/skills/<skill>/scripts/ → 4단계 위).
+
+    manifest 경로에서 거슬러 올라가지 않는다 — manifest 는 `output/<topology>/` 아래라 깊이가
+    다르고, 그 가정이 틀리면 로그를 **레포 밖**에 쓰게 된다.
+    """
+    return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                         "..", "..", "..", ".."))
+
+
+def _budget_node_dir(opts) -> "str | None":
+    """선언을 기록할 노드 디렉터리. 명시 > manifest 파생 > None(생략).
+
+    **node_id = manifest nodes[].role 자체**다(node-identity 스킴 R · `terraforming_node`
+    SKILL.md §2.7.6). 별도 `node_id` 필드가 아니며, hostname 파생은 폐지됐다 —
+    원격 왕복이 실패하면 관측이 조용히 빠져 "그날 아무 일도 없었다"와 구분되지 않기 때문이다.
+    role 이 manifest 에 **실재할 때만** 값이 나온다(손으로 적은 리터럴이 아니다).
+    """
+    explicit = _opt(opts, "budget_node_dir", None)
+    if explicit:
+        return str(explicit)
+    manifest_path = _opt(opts, "manifest", None)
+    if not manifest_path or not os.path.isfile(str(manifest_path)):
+        return None
+    try:
+        import yaml  # noqa: PLC0415 — 선택 의존. 부재 시 선언을 생략할 뿐 trial 은 진행한다.
+        with open(str(manifest_path), encoding="utf-8") as fh:
+            doc = yaml.safe_load(fh) or {}
+    except Exception:
+        return None
+    for node in (doc.get("nodes") or []):
+        if not isinstance(node, dict):
+            continue
+        role = str(node.get("role") or "")
+        if role != "main":
+            continue
+        # multi 스모크와 **같은 스킴 검증**을 건다 — 위반값으로 경로를 만들면 안 된다.
+        if not re.match(r"^[a-z][a-z0-9-]{0,31}$", role):
+            return None
+        return os.path.join(_repo_root(), "docs", "logs", role)
+    return None
+
+
+def _budget_inputs(candidate: dict, opts) -> "tuple[dict | None, str]":
+    """선언 입력을 **파생**한다(손으로 적지 않는다 · plan_26081415 C3-2).
+
+    반환 (inputs, skip_reason). inputs 가 None 이면 skip_reason 이 사유다.
+
+    ⚠ **`model_host_path`·`tp` 는 candidate 가 아니라 opts 에서만 읽는다.** candidate 에서 읽으면
+      `gen_recipe_set.assert_serve_knob_parity` 의 계약 — *"run_trial 이 candidate 에서 읽는 필드는
+      3종 세트까지 도달해야 한다"* — 에 걸린다. 예산 선언 입력은 **serve 노브가 아니므로** 3종 세트에
+      도달할 이유가 없고, 그렇다고 면제 목록을 늘리면 그 tripwire 가 둔해진다. 애초에 평면을 섞지
+      않는 것이 옳다(2026-08-16 실측으로 발각 — 초판은 candidate 폴백을 뒀다가 파리티를 깼다).
+      `kv_cache_memory_bytes` 만은 candidate 가 권위다 — 그건 실제 serve 노브이고 이미 3종 세트에
+      도달한다(파리티 통과 필드).
+    """
+    kv_bytes = candidate.get("kv_cache_memory_bytes")
+    if not kv_bytes:
+        # 설계 의도: KV 절대클램프 미선언이면 선언 자체가 불가하다(blackbox_session --kv-mib).
+        return None, "kv_clamp_absent"
+    try:
+        mem_total_mib = int(
+            [l for l in open("/proc/meminfo", encoding="utf-8") if l.startswith("MemTotal:")][0]
+            .split()[1]
+        ) // 1024
+    except (OSError, IndexError, ValueError):
+        return None, "mem_total_unavailable"
+
+    # 체크포인트 바이트: 호출부가 **이미 가진 값**을 우선 받는다. recipe.py 는 같은 값을
+    # `preload_ram_gate(parsed["native_weight_bytes"], tp=tp)` 로 로드-전 게이트에 쓰고 있으므로,
+    # 예산 선언이 같은 값을 쓰면 두 게이트가 **같은 축**을 보게 된다. 파일시스템을 다시 뒤지면
+    # 같은 사실의 두 번째 출처가 생기고, 둘이 갈리면 어느 쪽이 맞는지 알 수 없다.
+    ckpt_bytes = _opt(opts, "checkpoint_bytes", None)
+    if not ckpt_bytes:
+        # CLI 단독 사용 경로 — 호스트 경로에서 직접 산출한다(같은 산출기를 쓴다).
+        host_path = _opt(opts, "model_host_path", None)
+        if not host_path or not os.path.isdir(str(host_path)):
+            return None, "model_host_path_absent"
+        try:
+            import preload_ram_gate  # noqa: PLC0415 — 같은 scripts/ 디렉터리(경로는 위에서 보장)
+            ckpt_bytes = preload_ram_gate.checkpoint_bytes_for(str(host_path))
+        except Exception:
+            return None, "checkpoint_size_unavailable"
+    if not ckpt_bytes or int(ckpt_bytes) <= 0:
+        # preload_ram_gate 와 동일 판단: 크기 미상은 거짓 차단이 아니라 생략 사유다.
+        return None, "checkpoint_size_unavailable"
+
+    # tp 는 manifest 권위다(recipe.py resolve_tp: config override > manifest > 1). 여기서 candidate 를
+    # 뒤지지 않고 호출부가 정한 값을 받는다 — 추측하면 항상 1 로 떨어져 weights 를 과대평가한다.
+    try:
+        tp = int(_opt(opts, "tp", 1) or 1) or 1
+    except (TypeError, ValueError):
+        tp = 1
+    return {
+        "mem_total_mib": mem_total_mib,
+        "weights_mib": -(-int(ckpt_bytes) // tp // (1024 * 1024)),   # ceil-div (게이트와 같은 축)
+        "kv_mib": -(-int(kv_bytes) // (1024 * 1024)),
+    }, ""
+
+
+def _budget_declare(node_dir: str, inputs: dict, label: str, expected_load_s: float) -> bool:
+    """로드 개시 **전** 선언. 순서가 판정 기준이다(사후 발행은 무의미 · C3 성공기준1)."""
+    ttl_s = max(BUDGET_TTL_MIN_S, int(expected_load_s) * 3)
+    ok, out = _budget_session(
+        node_dir, "declare-budget",
+        "--mem-total-mib", str(inputs["mem_total_mib"]),
+        "--weights-mib", str(inputs["weights_mib"]),
+        "--kv-mib", str(inputs["kv_mib"]),
+        "--overhead-mib", str(BUDGET_OVERHEAD_MIB),
+        "--ttl-s", str(ttl_s),
+        "--expected-load-s", str(int(expected_load_s)),
+        "--label", label,
+        "--now", _now_iso(),
+    )
+    print("[trial] 예산 선언: %s" % (out or ("ok" if ok else "실패")), file=sys.stderr)
+    return ok
+
+
+def _budget_skip(node_dir: "str | None", reason: str, label: str) -> None:
+    """무보호 진입을 **기록**한다. 침묵 금지 — 생략과 '원래 없었음'은 구분돼야 한다."""
+    print("[trial] ⚠ 예산 선언 생략(무보호 진입): %s" % reason, file=sys.stderr)
+    if node_dir:
+        _budget_session(node_dir, "budget-skip", "--reason", reason,
+                        "--label", label, "--now", _now_iso())
+
+
+def _budget_clear(node_dir: str) -> None:
+    """서빙을 내렸으면 선언도 내린다 — 남기면 다음 로드가 **남의 바닥**으로 무장한다."""
+    ok, out = _budget_session(node_dir, "clear-budget", "--now", _now_iso())
+    print("[trial] 예산 회수: %s" % (out or ("ok" if ok else "실패")), file=sys.stderr)
+
+
 def _drop_caches_best_effort() -> None:
     """teardown 후 페이지캐시 드랍(plan_26071019 §4.1 자동 지점 ②).
 
@@ -547,7 +722,7 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
 
     opts(dict 또는 객체) 인식 키:
         image(기본 vllm-src-022:clean), timeout(기본 900), port(기본 8903),
-        served_model_name(스모크용; 없으면 candidate.model_id 또는 모델 경로),
+        served_model_name(스모크용; 없으면 candidate.served_model_name → model_id → 모델 경로),
         dry_run(bool), mock_profile(json path), smoke_timeout(기본 60),
         container_name(기본 vllm_trialNN).
 
@@ -564,9 +739,15 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
 
     log_path = os.path.join(simlog_dir, "trial%02d_vllm.log" % int(trial_number))
 
-    # served_model_name 결정: opts → candidate.model_id → 모델 경로.
+    # served_model_name 결정: opts → candidate.served_model_name → candidate.model_id → 모델 경로.
+    #   ⚠ `candidate.served_model_name` 이 이 체인에 **없었다**(2026-08-16 실측 발각).
+    #   `_build_serve_args` 는 그 값을 `--served-model-name` 으로 넣어 vLLM 을 그 이름으로 띄우는데,
+    #   스모크는 여기서 `model_path_container` 로 떨어져 **다른 이름을 조회**했다 → 항상 http_404
+    #   (`The model '<path>' does not exist`). 서빙은 성공(load_ok=True)인데 스모크만 실패하므로
+    #   "모델이 안 떴다"로 오독하기 쉽다. serve 가 쓰는 값을 스모크도 쓰게 해 두 평면을 일치시킨다.
     served_model_name = (
         _opt(opts, "served_model_name", None)
+        or candidate.get("served_model_name")
         or candidate.get("model_id")
         or candidate.get("model_path_container")
         or candidate.get("model_path")
@@ -618,6 +799,25 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
         container_name, simlog_dir, trial_number,
         thresh_mib=int(_opt(opts, "memwatch_thresh_mib", 10240)),
     )
+
+    # 서빙 예산 선언 — 워치독 기동 **직후 · 로드 개시 전**(multi 스모크와 같은 순서:
+    # declare → honored → up). 상세 근거·실패정책은 파일 상단 BUDGET_* 주석.
+    budget_label = "trial%02d-%s" % (int(trial_number), str(served_model_name).split("/")[-1])
+    budget_node_dir = None if bool(_opt(opts, "no_budget", False)) else _budget_node_dir(opts)
+    budget_declared = False
+    if bool(_opt(opts, "no_budget", False)):
+        _budget_skip(None, "no_budget_flag", budget_label)
+    elif budget_node_dir is None:
+        # 노드 디렉터리를 못 정하면 이벤트를 남길 곳도 없다 — stderr 로만 정직하게 알린다.
+        _budget_skip(None, "node_dir_unresolved", budget_label)
+    else:
+        inputs, skip_reason = _budget_inputs(candidate, opts)
+        if inputs is None:
+            _budget_skip(budget_node_dir, skip_reason, budget_label)
+        else:
+            budget_declared = _budget_declare(budget_node_dir, inputs, budget_label, timeout)
+            if not budget_declared:
+                _budget_skip(budget_node_dir, "declare_failed", budget_label)
 
     load_ok = False
     vllm_profile = None
@@ -675,6 +875,12 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
         # 워치독은 teardown 완료까지 커버 후 PID 기반 정지(§2.3) → 페이지캐시 드랍(§4.1 ②).
         _stop_memwatch(wd_proc, wd_fh)
         _drop_caches_best_effort()
+        # 예산 회수 — teardown **뒤**다. 선언은 로드 구간을 덮어야 하므로 컨테이너보다 오래 산다.
+        #   trial-loop 는 한 실행에 여러 번 띄웠다 내리므로, 회수하지 않으면 다음 trial 의 declare 가
+        #   stale 선언과 같은 폴에 몰려 워치독이 상태 전이를 관측하지 못한다(2026-08-15 multi 실증).
+        #   docker run 실패로 조기 return 하는 경로도 이 finally 를 지난다.
+        if budget_declared and budget_node_dir:
+            _budget_clear(budget_node_dir)
 
     return {
         "trial_number": int(trial_number),
@@ -725,6 +931,36 @@ def _main(argv: "list[str] | None" = None) -> int:
         default=None,
         help="docker 없이 사용할 vllm_profile(+functional) JSON 경로",
     )
+    # ── 서빙 예산 선언 배선 (plan_26081415 C3-1) ──────────────────────────────────────────
+    p.add_argument(
+        "--manifest",
+        default=None,
+        help="manifest.yaml 경로. nodes[role=main].node_id 로 선언 기록 위치를 파생한다"
+             "(노드 사실의 단일 권위 — 브랜치·파일명으로 추론하지 않는다)",
+    )
+    p.add_argument(
+        "--budget-node-dir",
+        default=None,
+        help="선언을 기록할 노드 디렉터리(docs/logs/<node_id>). --manifest 파생을 덮어쓴다",
+    )
+    p.add_argument(
+        "--model-host-path",
+        default=None,
+        help="모델 디렉터리 **호스트** 경로 — 체크포인트 크기(weights_mib) 파생용. "
+             "미지정 시 candidate.model_host_path/model_path 를 시도한다",
+    )
+    p.add_argument(
+        "--tp",
+        type=int,
+        default=None,
+        help="tensor parallel 수 — weights_mib 파생용(ckpt÷tp). 미지정 시 1. "
+             "candidate 에서 추측하지 않는다(manifest 가 tp 의 권위 · recipe.resolve_tp)",
+    )
+    p.add_argument(
+        "--no-budget",
+        action="store_true",
+        help="예산 선언 생략(무보호 진입). 생략 사실은 budget_skipped 이벤트로 남는다(침묵 금지)",
+    )
     args = p.parse_args(argv)
 
     with open(args.candidate, "r", encoding="utf-8") as f:
@@ -747,6 +983,16 @@ def _main(argv: "list[str] | None" = None) -> int:
         opts["nas_mount"] = args.nas_mount
     if args.tiktoken_host_path:
         opts["tiktoken_host_path"] = args.tiktoken_host_path
+    if args.manifest:
+        opts["manifest"] = args.manifest
+    if args.budget_node_dir:
+        opts["budget_node_dir"] = args.budget_node_dir
+    if args.model_host_path:
+        opts["model_host_path"] = args.model_host_path
+    if args.tp:
+        opts["tp"] = args.tp
+    if args.no_budget:
+        opts["no_budget"] = True
 
     result = run_trial(candidate, args.simlog_dir, args.trial_number, opts=opts)
     print(json.dumps(result, ensure_ascii=False, indent=2))

@@ -845,6 +845,18 @@ def cmd_simulate(args):
         # (반대도 성립). 통로 분리는 두 평면이 서로 cold 를 반복하게 만들 뿐이다.
         "jit_cache_root": cfg.get("jit_cache_root") or _default_jit_cache_root(),
         "max_jobs": cfg.get("max_jobs", 4),
+        # ── 서빙 예산 선언 배선 (2026-08-16 · plan_26081415 C3-1) ─────────────────────────
+        #   run_trial 이 로드 개시 전에 `declare-budget` 을 발행하려면 세 값이 필요하고, 셋 다
+        #   **이 스코프에 이미 있다**. 넘기지 않으면 run_trial 이 `node_dir_unresolved` 로 조용히
+        #   skip 해 ETA 워치독이 무제한(arm_ceiling=999999999)으로 돌아간다 — 즉 **배선 부재가
+        #   곧 무보호**다. 이 결함이 생긴 방식이 정확히 "계획은 있고 배선은 없음"이었다.
+        #   · manifest  : 선언 기록 위치(node_id = nodes[].role)를 파생. `_read_manifest` 재사용.
+        #   · tp        : weights = ckpt ÷ tp. manifest 권위(resolve_tp) — candidate 추측 금지.
+        #   · checkpoint_bytes: **로드-전 RAM 게이트가 쓰는 바로 그 값**을 그대로 넘겨 두 게이트가
+        #                 같은 축을 보게 한다(아래 preload_ram_gate 호출과 동일 입력).
+        "manifest": _read_manifest(REPO_ROOT)[1],
+        "tp": tp,
+        "checkpoint_bytes": parsed.get("native_weight_bytes"),
     }
     opts = {k: v for k, v in opts.items() if v is not None}
 
@@ -1143,7 +1155,12 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
     #   provenance 각인(2026-08-13 · plan_26081314 D1): 수렴한 레시피가 **무엇을 근거로** 수렴했는지를
     #   산출물 자체가 밝힌다. mock/dry-run 으로 수렴한 레시피를 실측 레시피와 같은 얼굴로 남기면,
     #   나중에 그 파일을 읽는 사람도 인증서 발행 경로도 진위를 가릴 수 없다.
-    _final_prov = final_trial.get("provenance")
+    # ⚠ 이 함수의 파라미터명은 `trial` 이다(호출부의 지역변수명이 `final_trial` 일 뿐).
+    #   2026-08-13 provenance 각인 도입(413b291) 때 호출부 이름을 그대로 적어 NameError 가 됐고,
+    #   **수렴 성공 경로에서만** 터지므로 오래 숨어 있었다(대부분의 실행은 Model-C HITL 로 끝난다).
+    #   3종 세트는 이미 생성된 뒤 죽어서 "파일은 있는데 run_summary 가 없는" 상태가 됐다 —
+    #   evidence chain 이 끊긴다. 2026-08-16 첫 수렴 실행에서 발각(testlog_26081607 §10).
+    _final_prov = trial.get("provenance")
     summary = {
         "run_id": run_id,
         "converged": True,

@@ -5,7 +5,7 @@
 # 준비 판정은 **엔드포인트 health(http 200)** 폴링 — master 로그의 "Application startup complete" 는
 # 조기 컴포넌트에서도 떠 거짓양성이 나므로 쓰지 않는다(testlog_260607_7 §3 학습).
 #
-# 사용: bash multinode_serve_smoke.sh <config_name> [--build] [--build-only] [--keep-up] [--no-watchdog] [--no-budget]
+# 사용: bash multinode_serve_smoke.sh <config_name> [--build] [--build-only] [--keep-up] [--down] [--no-watchdog] [--no-budget]
 #   --build   : 서빙 전 양 노드 이미지 빌드(병렬, 최소병렬 원칙)
 #   --build-only : 양 노드 빌드만 하고 **종료**(서빙·스모크 없음). 로드-전 RAM 게이트를 타지 않는다.
 #                  ★ 2026-08-15 신설(R3 포크 핀이 노출). 그 게이트는 **가중치 로드**의 전제조건인데
@@ -15,6 +15,15 @@
 #                  못 넘겨 **빌드에 도달하기 전에** exit 3 로 죽는다. 빌드는 그 메모리가 불요하다.
 #                  ⚠ 대신 빌드가 쓰는 것은 **컴파일러 메모리**다 — 그건 BUILD_JOBS 가 다스린다(아래).
 #   --keep-up : 스모크 후 컨테이너 유지(기본은 정리/down — 워치독도 함께 유지)
+#   --down    : **상주 서빙을 내리기만 한다**(기동·스모크 없음). `--keep-up` 으로 남긴 서빙의 회수 경로.
+#               ★ 2026-08-16 신설. 그전까지 teardown 은 이 스크립트 **자기 실행 안에서만** 도달 가능했고
+#               (`KEEP != 1` 분기), `--keep-up` 상주분에 대한 안내는 워치독 `kill <pid>` 뿐이었다. 그래서
+#               사람도 에이전트도 `docker compose down` 을 직접 치게 되는데, 그러면 5단계(master·slave
+#               down / 워치독 정지 / drop-caches / **예산 회수**) 중 뒤 셋을 조용히 빠뜨린다.
+#               실증(2026-08-15): 그렇게 내린 뒤 재기동에서 stale 선언 때문에 `clear`+`declare` 가
+#               같은 초에 실행돼 1초 주기 워치독이 `none` 을 관측 못 함 → `declare_not_honored` 로
+#               진입 차단. 즉 **회수 경로의 부재가 다음 기동을 막았다**(workflow.md 막힘 3분류 = 침묵 누락).
+#               워치독 PID 는 다른 프로세스가 띄웠으므로 모른다 → `reap_stale_watchdogs`(argv 위치 대조)로 회수한다.
 #   --no-watchdog : 협역 워치독 사이드 기동 생략(plan_26071019 §2.3 — 진단 시)
 #   --no-budget   : 서빙 예산 **선언 생략**(무보호 진입 — plan_26081415 C3 탈출구).
 #                   선언 없이 로드하면 ETA 워치독이 현행 규칙 그대로 돌아 대형 로드를 사살할 수 있다.
@@ -23,9 +32,26 @@
 #           4=예산 선언 실패(진입 차단 — plan_26081415 C3 실패정책 ㄴ. 로드는 0초도 시작하지 않았다).
 set -uo pipefail
 
-CONFIG="${1:?사용: multinode_serve_smoke.sh <config_name> [--build] [--keep-up] [--no-watchdog] [--no-budget]}"; shift || true
-BUILD=0; KEEP=0; WATCHDOG=1; BUDGET=1; BUILD_ONLY=0
-for a in "$@"; do [ "$a" = "--build" ] && BUILD=1; [ "$a" = "--keep-up" ] && KEEP=1; [ "$a" = "--no-watchdog" ] && WATCHDOG=0; [ "$a" = "--no-budget" ] && BUDGET=0; [ "$a" = "--build-only" ] && { BUILD=1; BUILD_ONLY=1; }; done
+CONFIG="${1:?사용: multinode_serve_smoke.sh <config_name> [--build] [--keep-up] [--down] [--no-watchdog] [--no-budget]}"; shift || true
+BUILD=0; KEEP=0; WATCHDOG=1; BUDGET=1; BUILD_ONLY=0; DOWN=0
+for a in "$@"; do [ "$a" = "--build" ] && BUILD=1; [ "$a" = "--keep-up" ] && KEEP=1; [ "$a" = "--down" ] && DOWN=1; [ "$a" = "--no-watchdog" ] && WATCHDOG=0; [ "$a" = "--no-budget" ] && BUDGET=0; [ "$a" = "--build-only" ] && { BUILD=1; BUILD_ONLY=1; }; done
+# --down 은 "내리기만" 이므로 기동 계열 플래그와 동시에 오면 의도가 모순이다. 조용히 한쪽을 이기게
+# 두지 않고 fail-closed 한다 — 어느 쪽이 이겼는지 모르는 채 컨테이너가 뜨거나 내려가면 안 된다.
+if [ "$DOWN" = "1" ]; then
+  [ "$KEEP" = "1" ]       && { echo "[mn] FAIL: --down 과 --keep-up 은 함께 쓸 수 없다(내리기 vs 유지)."; exit 3; }
+  # BUILD_ONLY 를 **먼저** 본다: --build-only 는 BUILD=1 도 세우므로, 순서를 뒤집으면 주지도 않은
+  # --build 를 지목해 사용자가 자기 명령줄에 없는 플래그를 찾게 된다(진단은 원인을 정확히 가리켜야 한다).
+  [ "$BUILD_ONLY" = "1" ] && { echo "[mn] FAIL: --down 과 --build-only 는 함께 쓸 수 없다(내리기 vs 빌드)."; exit 3; }
+  [ "$BUILD" = "1" ]      && { echo "[mn] FAIL: --down 과 --build 는 함께 쓸 수 없다(내리기 vs 빌드)."; exit 3; }
+  WATCHDOG=0; BUDGET=0     # 내리는 경로에서는 새 워치독·새 선언을 만들지 않는다(회수만 한다).
+fi
+
+# ── READY_MAX 단일 정의 (2026-08-16) ────────────────────────────────────────────────────────
+#   기본값 180 이 파생·안내·루프 4곳에 `${READY_MAX:-180}` 로 손으로 적혀 있었다. 같은 개념이 두 곳
+#   이상에 적힌 값 = 4종 안티패턴의 **매직넘버 결함**(workflow.md §결정론 규율 판정표). 여기서 한 번
+#   해소하고 이후로는 `$READY_MAX` 만 참조한다 — 한 곳만 고치면 나머지가 갈리는 상태를 없앤다.
+READY_MAX="${READY_MAX:-180}"
+READY_WINDOW_S=$(( READY_MAX * 5 ))
 
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$SDIR/../../../.." && pwd)"
@@ -146,7 +172,10 @@ echo "[mn] config=$CONFIG master=$MC port=$PORT model=$MODEL sub=$SUB_HOST sub_w
 #   ⚠ --build-only 는 이 블록 전체를 건너뛴다: 이 게이트들은 **가중치 로드**의 전제조건이고
 #     (NAS 존재·spec 레이아웃·`ckpt÷tp+floor` RAM) 빌드는 그중 무엇도 요구하지 않는다.
 #     우회가 아니라 **주체 정합**이다 — 로드할 때는 그대로 전량 강제된다(아래 serve 경로 불변).
-if [ "$BUILD_ONLY" != "1" ]; then
+#   ⚠ --down 도 같은 이유로 건너뛴다. 오히려 더 강한 사례다: 내리려는 시점에는 그 서빙이 메모리를
+#     쥐고 있으므로 RAM 게이트가 **거의 항상** 거부한다 — 즉 "내리기 위해 먼저 내려야 하는" 교착이
+#     된다. 게이트가 겨눌 주체는 로드이지 회수가 아니다(workflow.md 막힘 3분류: 정상 차단 아님).
+if [ "$BUILD_ONLY" != "1" ] && [ "$DOWN" != "1" ]; then
 NAS_OUT=$(python3 "$SDIR/check_smoke_model.py" "$CONFIG" --repo "$REPO" --topology multi --emit-gate-params 2>&1); NAS_RC=$?
 printf '%s\n' "$NAS_OUT"
 case "$NAS_RC" in
@@ -176,7 +205,14 @@ if [ -n "$REQ_MIB" ]; then
   fi
 fi
 else
-  echo "[mn] --build-only: 로드-전 게이트(NAS·spec·RAM) 생략 — 빌드는 가중치를 로드하지 않는다."
+  # 어느 플래그가 이 생략을 일으켰는지 **그 플래그 이름으로** 말한다. 하드코딩된 `--build-only` 는
+  # --down 진입 시 주지도 않은 플래그를 지목해 사용자가 자기 명령줄에 없는 것을 찾게 만든다
+  # (2026-08-16 --down 첫 실행에서 실제로 관측). 생략 사유도 경로마다 다르다.
+  if [ "$DOWN" = "1" ]; then
+    echo "[mn] --down: 로드-전 게이트(NAS·spec·RAM) 생략 — 회수는 가중치를 로드하지 않는다(게이트가 겨눌 주체는 로드다)."
+  else
+    echo "[mn] --build-only: 로드-전 게이트(NAS·spec·RAM) 생략 — 빌드는 가중치를 로드하지 않는다."
+  fi
 fi
 
 # ── 빌드 병렬도 전달(2026-08-15 신설) ────────────────────────────────────────
@@ -284,6 +320,49 @@ MAIN_REGEN_PY="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/rege
 SUB_REGEN_PY="$SUB_WORK_DIR/.claude/runtime/node_blackbox/regen_envelope.py"
 NOW_ISO(){ date -u +%FT%TZ; }
 
+# ── 서빙 종료(단일 소유) ─────────────────────────────────────────────────────────────────────
+#   2026-08-16 함수화. 이 5단계는 원래 `KEEP != 1` 분기 **안에만** 있었고, 그래서 `--keep-up` 상주분을
+#   나중에 내리는 경로가 없었다. 두 진입점(스모크 자체 정리 · `--down`)이 **같은 로직**을 쓰게 한다 —
+#   두 벌로 나누면 갈라지고, 갈라진 목록이 침묵 누락을 만든다는 것이 이 레포의 반복된 실증이다.
+#
+#   $1 = smoke      : 스모크가 자기 실행에서 띄운 것을 내린다(WD PID 를 안다).
+#        standalone : `--down` — 다른 프로세스가 띄운 상주분을 내린다(WD PID 를 모른다 · 선언은 무조건 회수).
+teardown_serve(){
+  local mode="${1:?teardown_serve <smoke|standalone>}"
+  echo "[mn] 정리(양 노드 down)..."
+  docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master down >/dev/null 2>&1
+  $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave down'" >/dev/null 2>&1
+  # 워치독 정지 = PID 기반만(pkill -f 금지) → 잔여 페이지캐시 드랍(§4.1 ② — 헬퍼 설치 시 best-effort).
+  if [ "$mode" = "standalone" ]; then
+    # PID 를 모르므로 argv **위치** 대조로 회수한다(부분문자열 매칭 금지 — 위 회수 계약 주석 참조).
+    reap_stale_watchdogs master
+    reap_stale_watchdogs slave
+  else
+    [ -n "$WD_MAIN_PID" ] && kill "$WD_MAIN_PID" 2>/dev/null
+    [ -n "$WD_SUB_PID" ] && $SSH "$SUB_HOST" "kill $WD_SUB_PID" 2>/dev/null
+  fi
+  [ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches >/dev/null 2>&1
+  $SSH "$SUB_HOST" "[ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches" >/dev/null 2>&1
+  # 예산 회수(C3-4). 서빙을 내렸으면 선언도 내린다 — 남겨 두면 다음 로드가 **남의 바닥**으로 무장한다.
+  #   standalone 은 이 실행이 선언한 바가 없으므로 `BUDGET_DECLARED` 가 0 이다. 그래도 **무조건** 회수한다 —
+  #   내리려는 그 서빙의 선언은 다른 실행이 남긴 것이고, 그것을 남기는 것이 정확히 이 함수가 고치는 결함이다.
+  #   clear-budget 은 멱등이라 선언이 없으면 그렇게 보고하고 끝난다.
+  if [ "$mode" = "standalone" ] || [ "$BUDGET_DECLARED" = "1" ]; then
+    python3 "$MAIN_SESSION_PY" --node-dir "$(budget_node_dir_main)" clear-budget --now "$(NOW_ISO)" 2>&1 | sed 's/^/[mn] 예산회수(main): /'
+    [ -n "$SUB_NODE_ID" ] && timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $SUB_SESSION_PY --node-dir $SUB_WORK_DIR/docs/logs/$SUB_NODE_ID clear-budget --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn] 예산회수(sub): /'
+  fi
+}
+
+# ── `--down` 진입점: 여기까지가 변수 파생이고, 아래부터가 기동이다. 내리기만 할 때는 여기서 끝낸다. ──
+if [ "$DOWN" = "1" ]; then
+  echo "[mn] --down: 상주 서빙 회수(컨테이너 · 워치독 · 페이지캐시 · 예산선언) — 기동·스모크 없음"
+  echo "[mn]   대상: $MC / ${SLVC:-slave} · compose=output/multi/docker-compose.yaml · config=$CONFIG"
+  teardown_serve standalone
+  echo "[mn] --down 완료. 재기동은 인자에서 --down 을 빼고 실행하라."
+  echo "[mn] 종료코드 0"
+  exit 0
+fi
+
 # ── 진입 차단 기록 (plan_26081415 C3 기준3 · 침묵 금지) ──────────────────────────────────────
 #   아래 세 차단 경로는 stdout 에만 남아 있었다. stdout 은 이 셸이 끝나면 사라지고, 노드블랙박스
 #   `events/` 는 **영구**다(docs.md §기계판독 데이터 평면). 즉 "그날 왜 서빙이 0초도 안 떴나"를
@@ -361,7 +440,7 @@ if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
   OVERHEAD_MIB="${SMOKE_BUDGET_OVERHEAD_MIB:-12288}"   # blackbox_session --overhead-mib 기본값과 동일(안전측)
   # TTL 파생: 스모크 자신의 로드 타임아웃(READY_MAX×5s)의 3배 — 로드 도중 만료를 구조적으로 배제한다.
   #   현행 기본 7200s 는 하한으로 남긴다(둘 중 큰 값). 상한 86400 은 blackbox_session 이 강제한다.
-  READY_BUDGET_S=$(( ${READY_MAX:-180} * 5 ))
+  READY_BUDGET_S=$READY_WINDOW_S
   BUDGET_TTL_S=$(( READY_BUDGET_S * 3 )); [ "$BUDGET_TTL_S" -lt 7200 ] && BUDGET_TTL_S=7200
   [ "$BUDGET_TTL_S" -gt 86400 ] && BUDGET_TTL_S=86400
 
@@ -489,8 +568,18 @@ echo "[mn] slave 기동(Ray worker, SSH)..."
 $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $MOUNTVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave up -d'" >/dev/null 2>&1
 
 # ── 준비 폴링: 엔드포인트 health(거짓양성 회피) ──
-# READY_MAX(폴링 횟수×5s) 환경변수로 조정 가능 — 대형모델(예 Qwen3-Next-80B bf16 151GB CIFS 로드 ~11분
-#   + KV/compile setup)은 기본 15분(180회)으로 부족 → READY_MAX=360(30분) 등으로 연장(testlog_26062501 결함).
+# READY_MAX(폴링 횟수×5s) = health 창. 환경변수로 조정한다. **기본 180(15분)은 작은 모델 기준이며,
+#   아래 두 실측 사례는 둘 다 그 창을 넘겼다.** 두 사례가 서로 다른 값을 권하는 것은 모순이 아니라
+#   모델·트랙마다 로드 시간이 다르기 때문이다 — 그래서 값을 외우지 말고 **규칙**을 쓴다:
+#
+#     READY_MAX ≈ (그 구성의 실측 로드 초) ÷ 5 × 1.5   ← 여유 50%. 실측이 없으면 아래 사례에서 유추한다.
+#       · Qwen3-Next-80B bf16 151GB CIFS 로드 ~11분 + KV/compile   → **360**(30분)  · testlog_26062501
+#       · R2 ds4f0731-x2-sm12x (최초 JIT 변종) 실측 1,055s          → **600**(50분)  · 아래 ★
+#
+#   ⚠ 기본값 자체를 올리지 않는 이유: 창을 늘리면 **진짜 hang 일 때 그만큼 늦게 실패한다.** 15분 기본은
+#     "빨리 실패한다"는 값어치가 있다. 근본 처방은 창 확대가 아니라 **진행 감지**(엔진 로그가 전진하면
+#     연장, 정체하면 기존 창에서 끊기)이며, 지금은 느린 로드와 hang 이 **둘 다 종료코드 2 로 뭉개진다**
+#     — `_ordered_between` 이 앵커 부재와 순서 위반을 뭉갰던 것과 같은 형태의 결함이다(미해소 · 후속).
 # ★ 실측 사례 2 (2026-08-14 R2 · ds4f0731-x2-sm12x): **최초 JIT 컴파일이 있는 변종**은 기본 15분이 모자란다.
 #   내역 = 가중치 로드 723.7s(model_runner "Model loading took 79.17 GiB and 723.696045 s")
 #        + init engine(profile·KV·warmup) 226.7s(core.py "init engine ... took 226.74 s") + API 기동 ~25s
@@ -498,10 +587,11 @@ $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $MOUNTVARS docker compose -f 
 #   기본 900s 창이 2.6분 모자라 종료코드 2(로드는 정상 진행 중이었다 — hang 아님). ⇒ READY_MAX=600(50분) 권장.
 #   SM12x TileLang/flashinfer JIT 캐시는 **컨테이너 쓰기층에만** 남는다(/root/.cache/vllm 는 마운트 아님)
 #   → 컨테이너 재생성마다 226.7s 를 다시 낸다. 즉 이 확대는 1회성이 아니라 상시 필요하다.
-#   READY_MAX 확대는 L312 에서 예산 TTL(=READY_MAX×5×3)도 함께 늘려 로드 도중 선언 만료를 구조적으로 배제한다.
-echo "[mn] 엔드포인트 :$PORT health 폴링(2노드 분산 로드; READY_MAX=${READY_MAX:-180}회×5s ≈ $(( ${READY_MAX:-180} * 5 / 60 ))분)..."
+#   READY_MAX 확대는 `READY_BUDGET_S=$READY_WINDOW_S` 지점에서 예산 TTL(=READY_MAX×5×3)도 함께 늘려
+#   로드 도중 선언 만료를 구조적으로 배제한다(라인번호 대신 심볼로 가리킨다 — 번호는 편집마다 낡는다).
+echo "[mn] 엔드포인트 :$PORT health 폴링(2노드 분산 로드; READY_MAX=${READY_MAX}회×5s ≈ $(( READY_WINDOW_S / 60 ))분)..."
 READY=0
-for i in $(seq 1 "${READY_MAX:-180}"); do
+for i in $(seq 1 "$READY_MAX"); do
   [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' http://localhost:$PORT/health 2>/dev/null)" = "200" ] && { echo "[mn] READY ~$((i*5))s"; READY=1; break; }
   docker ps --filter name="$MC" --filter status=running -q | grep -q . || { echo "[mn] master EXITED"; docker logs "$MC" 2>&1 | tail -12; break; }
   docker logs "$MC" 2>&1 | grep -qiE "CUDA out of memory|NCCL error|did not join|RuntimeError" && { echo "[mn] FAILURE(serve)"; docker logs "$MC" 2>&1 | grep -iE "out of memory|NCCL error|did not join|RuntimeError" | tail -3; break; }
@@ -527,19 +617,7 @@ fi
 
 # ── 정리 ──
 if [ "$KEEP" != "1" ]; then
-  echo "[mn] 정리(양 노드 down)..."
-  docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master down >/dev/null 2>&1
-  $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave down'" >/dev/null 2>&1
-  # 워치독 정지 = PID 기반만(pkill -f 금지) → 잔여 페이지캐시 드랍(§4.1 ② — 헬퍼 설치 시 best-effort).
-  [ -n "$WD_MAIN_PID" ] && kill "$WD_MAIN_PID" 2>/dev/null
-  [ -n "$WD_SUB_PID" ] && $SSH "$SUB_HOST" "kill $WD_SUB_PID" 2>/dev/null
-  [ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches >/dev/null 2>&1
-  $SSH "$SUB_HOST" "[ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches" >/dev/null 2>&1
-  # 예산 회수(C3-4). 서빙을 내렸으면 선언도 내린다 — 남겨 두면 다음 로드가 **남의 바닥**으로 무장한다.
-  if [ "$BUDGET_DECLARED" = "1" ]; then
-    python3 "$MAIN_SESSION_PY" --node-dir "$(budget_node_dir_main)" clear-budget --now "$(NOW_ISO)" 2>&1 | sed 's/^/[mn] 예산회수(main): /'
-    [ -n "$SUB_NODE_ID" ] && timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $SUB_SESSION_PY --node-dir $SUB_WORK_DIR/docs/logs/$SUB_NODE_ID clear-budget --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn] 예산회수(sub): /'
-  fi
+  teardown_serve smoke
 elif [ -n "$WD_MAIN_PID" ] || [ "$BUDGET_DECLARED" = "1" ]; then
   [ -n "$WD_MAIN_PID" ] && echo "[mn] --keep-up: 워치독 유지(master pid=$WD_MAIN_PID · slave pid=${WD_SUB_PID:-없음}) — 정지는 kill <pid> 로만"
   # --keep-up 은 서빙이 상주하므로 선언도 **유지**한다(회수하면 상주 서빙이 무보호가 된다).
