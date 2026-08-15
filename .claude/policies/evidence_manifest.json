@@ -28,7 +28,7 @@
   ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py": "35bfd2306afb48f74b854d0abe436eb38286cef3f2d0c655011f8a6e7f042f57",
   ".claude/skills/vllm-recipe-explorer/scripts/crosscheck_model_card.py": "36ccb66d20bba3bccbe082b7ef7fa9d806efbd5dfa08e1f9c9c1b9edf2fa37b0",
   ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py": "4f4618e08363e5360df74e98efb5c6774416a42053a40a2c76f36937b75ab08b",
-  ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py": "8610e31ad70a0ac84deaf6007fb73aec3d2290a18c8e86f0595069e46bf19ee2",
+  ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py": "abfba645cfec379f786a875bacd7f7a5f58e4c9910eda297b1e23706b8e54902",
   ".claude/skills/wiki-desk/scripts/smoke_query.py": "ec176f52ba00e67d9ff51a532fd12099405dc294790a66c1ec081d333819b447",
   "manifest.template.yaml": "83b9fd399506e80772e8630ccaec6bad85a78db14a7fbcf4bab166bd584452e2"
 }
