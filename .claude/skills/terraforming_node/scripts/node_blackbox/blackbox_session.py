@@ -118,9 +118,83 @@ _WD_MARGIN_MIB = 8192
 _WD_MIN_CEILING_MIB = 16384
 MAX_TTL_S = 86400
 
+# ── TTL 정합(plan_26081415 C4) ──────────────────────────────────────────────
+# TTL 파생 배수. 근거: R0 실측 READY 소요 665 s. **로드 도중 만료**는 그 폴부터 옛 규칙
+# (무조건-트립)으로 되돌리므로 사고와 동치다 — 선언이 지켜야 할 최소 수명은 "로드가 끝날
+# 때까지"이며, 3배는 로드 변동(NAS 지연·재시도·재컴파일)의 여유다.
+# 이 상수는 이 파일에서만 쓰는 국소 상수이고 값이 아니라 **정책**이라 파생 대상이 아니다
+# (4종 안티패턴 판정표의 `매직넘버·정당` 칸).
+TTL_SAFETY_MULT = 3
+
+
+def ttl_floor_s(expected_load_s):
+    """예상 로드 소요에서 파생한 TTL 하한. 손으로 적지 않는다."""
+    return int(expected_load_s) * TTL_SAFETY_MULT
+
+
+def validate_ttl(ttl_s, expected_load_s=0):
+    """declare 와 renew 가 **같은 규칙**을 쓰도록 한 곳에 둔다.
+
+    두 곳에 같은 판정을 적으면 한쪽만 고쳐져 갈라진다 — 갱신 경로가 느슨하면 "선언은 엄격한데
+    연장은 아무 값이나"가 되어 검증이 통째로 무의미해진다(4종 안티패턴 `매직넘버·결함`).
+    """
+    if ttl_s <= 0 or ttl_s > MAX_TTL_S:
+        raise SystemExit("--ttl-s 는 1..%d 여야 한다(무기한 선언 금지): %r" % (MAX_TTL_S, ttl_s))
+    # ★ TTL 파생 검증(plan_26081415 C4-3). 예상 로드 소요를 알면서 그보다 짧은 TTL 을 받는 것은
+    #   "로드 도중 만료" 를 예약하는 것이다 — 만료 순간부터 옛 규칙(무조건-트립)이 재적용되고,
+    #   하필 그 지점이 하강 골짜기면 그대로 사살된다. 조용히 늘리지 않고 **거부**한다.
+    if expected_load_s:
+        floor_ttl = ttl_floor_s(expected_load_s)
+        if ttl_s < floor_ttl:
+            raise SystemExit(
+                "--ttl-s %d 는 예상 로드 %ds 의 %d배(=%ds)보다 짧다 — 로드 도중 만료가 예약된다. "
+                "거부한다(조용한 보정 금지)." % (ttl_s, expected_load_s, TTL_SAFETY_MULT, floor_ttl))
+
 
 def _budget_path(node_dir):
     return os.path.join(node_dir, BUDGET_FILE)
+
+
+def _read_budget(node_dir):
+    """현행 선언을 파싱한다. 워치독과 **같은 문자셋 규약**으로 읽는다(source 하지 않는다).
+
+    순수 파서다 — 없거나 깨졌으면 None 을 돌려주고, 호출부가 fail-closed 로 처리한다
+    (4종 안티패턴 판정표의 `폴백·정당` 칸: 순수 파서의 None).
+    """
+    path = _budget_path(node_dir)
+    if not os.path.isfile(path):
+        return None
+    out = {}
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            m = re.match(r"^\s*([A-Za-z_]+)\s*=\s*([A-Za-z0-9._-]{1,64})\s*$", line)
+            if m:
+                out[m.group(1)] = m.group(2)
+    if "floor_mib" not in out or "expires_epoch" not in out:
+        return None
+    try:
+        out["floor_mib"] = int(out["floor_mib"])
+        out["expires_epoch"] = int(out["expires_epoch"])
+    except ValueError:
+        return None
+    return out
+
+
+def _write_budget(node_dir, body):
+    """★ 원자적 교체 필수. 워치독은 이 파일을 **1초마다** 읽는다. 제자리 쓰기(open 'w')는
+    내용이 비거나 잘린 순간을 만들고, 그 폴에서 선언이 거부돼 arm 상한이 무한대로 돌아간다.
+    하필 그 순간이 모델 로드 골짜기면 옛 규칙 그대로 사살된다 — 갱신 행위가 사고를 만든다.
+    rename 은 같은 파일시스템에서 원자적이므로 워치독은 옛 선언 아니면 새 선언만 본다.
+    """
+    path = _budget_path(node_dir)
+    os.makedirs(node_dir, exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(body)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+    return path
 
 
 def cmd_declare_budget(args):
@@ -133,10 +207,56 @@ def cmd_declare_budget(args):
       유일한 진성 트립(KV 벌룬 97 GiB)은 `kv_cache_memory_bytes: null` 이라 선언 불가한
       사건이었고, 선언이 없으면 워치독은 현행 규칙 그대로 동작해 그 벌룬을 잡는다.
       즉 이 선언은 헌법 `policy:KV_ABSOLUTE_CLAMP_PORTABILITY` 를 집행 가능한 형태로 바꾼다.
+
+    ★ **거부도 기록한다**(plan_26081415 C3 기준3 · 침묵 금지). 아래 모든 거부 경로는 stdout 에만
+      남아 있었다 — 그러면 사후 분석에서 "선언을 시도조차 안 했다"와 "시도했는데 규칙이 막았다"가
+      구분되지 않는다. 두 사실의 처방은 정반대다(배선 추가 vs 입력 교정).
     """
+    # ★ 시각만 이 밖에서 판정한다 — ts 없이는 이벤트를 쓸 수 없고(벽시계 금지 · docs.md §기계판독
+    #   데이터 평면), 시각을 지어내 기록하면 그 기록 자체가 §결정론 규율의 출처 위조가 된다.
+    #   `--now` 형식 위반은 예산 거부가 아니라 호출자 버그이므로 이벤트 없이 죽는 것이 맞다.
     now = _parse_now(args.now)
-    if args.ttl_s <= 0 or args.ttl_s > MAX_TTL_S:
-        raise SystemExit("--ttl-s 는 1..%d 여야 한다(무기한 선언 금지): %r" % (MAX_TTL_S, args.ttl_s))
+    try:
+        return _declare_budget(args, now)
+    except SystemExit as exc:
+        _record_declare_rejection(args, now, exc)
+        raise
+
+
+def _safe_label_for_event(label):
+    """이벤트에 남길 라벨. 거부 사유가 **라벨 자체**일 수 있으므로 원문을 자르기만 한다 —
+    무엇이 거부됐는지가 증거다. events 는 JSON 이라 워치독 파서 문자셋 제약을 받지 않는다."""
+    if not label:
+        return "unlabeled"
+    return str(label)[:64]
+
+
+def _record_declare_rejection(args, now, exc):
+    """`declare-budget` 거부를 events 에 남긴다(kind=`budget_declare_rejected`)."""
+    code = getattr(exc, "code", None)
+    if code is None or code == 0:
+        return  # 정상 종료는 거부가 아니다
+    rec = {
+        "kind": "budget_declare_rejected", "ts": now, "source": "blackbox_session",
+        "reason": str(code),
+        "label": _safe_label_for_event(getattr(args, "label", None)),
+        "mem_total_mib": getattr(args, "mem_total_mib", None),
+        "weights_mib": getattr(args, "weights_mib", None),
+        "kv_mib": getattr(args, "kv_mib", None),
+        "overhead_mib": getattr(args, "overhead_mib", None),
+        "ttl_s": getattr(args, "ttl_s", None),
+        "expected_load_s": getattr(args, "expected_load_s", 0) or 0,
+    }
+    try:
+        _append_event(args.node_dir, rec)
+    except OSError as e:
+        # 기록 실패를 조용히 넘기면 침묵 금지가 한 겹 더 깨진다. 크게 말하되 **원래 거부를 가리지
+        # 않는다** — 호출부는 여전히 원 SystemExit 을 받는다.
+        print("⚠ 거부 이벤트 기록 실패(%s): %s" % (e, rec["reason"]), file=sys.stderr)
+
+
+def _declare_budget(args, now):
+    validate_ttl(args.ttl_s, getattr(args, "expected_load_s", 0))
     for name, v in (("--mem-total-mib", args.mem_total_mib), ("--weights-mib", args.weights_mib),
                     ("--kv-mib", args.kv_mib), ("--overhead-mib", args.overhead_mib)):
         if v < 0:
@@ -186,6 +306,109 @@ def cmd_declare_budget(args):
         # 두 곳이 같은 규칙을 갖게 되어 반드시 갈라진다. 대신 결과를 정직하게 예고한다.
         print("  ⚠ 상한이 최소 %d MiB 미만 → **워치독이 이 선언을 거부**하고 현행 규칙으로 돈다."
               % _WD_MIN_CEILING_MIB)
+    return 0
+
+
+def cmd_renew_budget(args):
+    """현행 선언의 **만료만** 연장한다 — 상주 서빙(`--keep-up`)의 TTL 결속(plan_26081415 C4-3).
+
+    왜 재선언이 아니라 갱신인가: 재선언은 `weights/kv/overhead` 를 다시 받아 **바닥을 다시 계산**한다.
+    상주 중에는 그 입력을 다시 구할 경로가 없어(모델은 이미 올라가 있고 스모크는 끝났다) 사람이
+    손으로 적게 되고, 그 순간 선언이 실제 상주와 갈린다. 갱신은 **원 산출을 그대로 두고 시계만**
+    민다 — 산출 provenance(헤더의 mem_total/weights/kv/overhead 줄)를 파괴하지 않는 것이 요점이다.
+
+    ★ 만료된 선언은 갱신하지 않는다(fail-closed). 만료 = 그 사이 규칙이 이미 옛것으로 돌아갔고
+      상주 구성이 그대로라는 보장이 없다는 뜻이다. 되살리려면 `declare-budget` 으로 다시 산출하라.
+    """
+    now = _parse_now(args.now)
+    validate_ttl(args.ttl_s, getattr(args, "expected_load_s", 0))
+    path = _budget_path(args.node_dir)
+    cur = _read_budget(args.node_dir)
+    if cur is None:
+        raise SystemExit(
+            "갱신할 선언이 없다(또는 파싱 불가): %s — 먼저 declare-budget 하라." % path)
+    now_epoch = _epoch(now)
+    if cur["expires_epoch"] <= now_epoch:
+        raise SystemExit(
+            "이미 만료된 선언은 갱신하지 않는다(expires_epoch=%d <= now=%d). "
+            "만료 구간 동안 워치독은 옛 규칙으로 돌았고 상주 구성이 그대로라는 보장이 없다 — "
+            "declare-budget 으로 바닥을 다시 산출하라." % (cur["expires_epoch"], now_epoch))
+    with open(path, encoding="utf-8") as f:
+        raw = f.read()
+    new_exp = now_epoch + args.ttl_s
+    body, n = re.subn(r"(?m)^([ \t]*expires_epoch[ \t]*=[ \t]*)\d+[ \t]*$",
+                      r"\g<1>%d" % new_exp, raw)
+    if n != 1:
+        raise SystemExit(
+            "expires_epoch 줄을 정확히 1개 찾지 못했다(%d개) — 손상된 선언이다: %s" % (n, path))
+    body += ("# 갱신 %s · TTL %ds → expires_epoch=%d (원 산출·floor 유지)\n"
+             % (now, args.ttl_s, new_exp))
+    _write_budget(args.node_dir, body)
+    _append_event(args.node_dir, {
+        "kind": "budget_renew", "ts": now, "source": "blackbox_session",
+        "label": cur.get("label", "unlabeled"), "floor_mib": cur["floor_mib"],
+        "expires_epoch": new_exp, "prev_expires_epoch": cur["expires_epoch"],
+        "remaining_before_s": cur["expires_epoch"] - now_epoch, "ttl_s": args.ttl_s,
+    })
+    print("선언 갱신: %s" % path)
+    print("  바닥 %d MiB 유지 · 만료 %d → %d (갱신 전 잔여 %ds · 새 TTL %ds)"
+          % (cur["floor_mib"], cur["expires_epoch"], new_exp,
+             cur["expires_epoch"] - now_epoch, args.ttl_s))
+    return 0
+
+
+def cmd_budget_skip(args):
+    """**무보호 진입**을 기록한다 — plan_26081415 C3(실패정책 ㄴ + `--no-budget` 탈출구).
+
+    탈출구가 조용하면 탈출구가 아니라 구멍이다. 나중에 사살이 나도 "선언이 없었다"와
+    "선언을 일부러 건너뛰었다"를 구분할 수 없으면 사후 분석이 불가능하다.
+    """
+    now = _parse_now(args.now)
+    _append_event(args.node_dir, {
+        "kind": "budget_skipped", "ts": now, "source": "blackbox_session",
+        "reason": args.reason, "label": args.label or "unlabeled",
+    })
+    print("무보호 진입 기록: reason=%s (선언 없음 = 워치독 현행 규칙 그대로)" % args.reason)
+    return 0
+
+
+# 차단 단계의 **닫힌 목록**. 새 차단 경로를 만들면 여기 한 줄을 더해야 한다(tripwire — 4종
+# 안티패턴 판정표의 `하드코딩·정당` 칸). 자유문자열로 두면 호출처마다 다른 이름을 써서 집계가
+# 불가능해지고, 그러면 "차단이 어디서 몇 번 일어났나"를 데이터로 물을 수 없다.
+BLOCK_STAGES = ("derive", "preflight_ceiling", "declare")
+
+
+def cmd_budget_block(args):
+    """**진입 차단**을 기록한다 — 선언이 성립하지 않아 로드를 0초도 시작하지 않은 사건.
+
+    `budget_skipped`(무보호로 **진입했다**)와 방향이 반대인 사실이라 kind 를 나눈다. 뭉치면
+    사후 분석이 "보호 없이 돌았다"(사살 위험의 기록)와 "아예 안 돌았다"(사살이 원천적으로
+    불가능한 기록)를 구분하지 못한다.
+
+    ★ `--reason` 은 자유문장이 아니라 slug 다. ① `docs/logs` 는 기계판독 평면이고(docs.md),
+      ② 이 명령은 ssh 를 건너 서브에서도 실행되므로 공백/따옴표가 섞이면 인용 지옥이 된다.
+      사람이 읽을 서사는 stdout 과 testlog 가 소유한다.
+    """
+    now = _parse_now(args.now)
+    if args.stage not in BLOCK_STAGES:
+        raise SystemExit("--stage 는 %s 중 하나여야 한다: %r"
+                         % ("|".join(BLOCK_STAGES), args.stage))
+    if not SAFE_ID_RE.match(args.reason or ""):
+        raise SystemExit("--reason 은 [A-Za-z0-9._-]+ slug 여야 한다: %r" % (args.reason,))
+    rec = {
+        "kind": "budget_blocked", "ts": now, "source": "blackbox_session",
+        "stage": args.stage, "reason": args.reason,
+        "label": _safe_label_for_event(args.label),
+    }
+    for item in args.detail or []:
+        k, sep, v = item.partition("=")
+        if not sep or not SAFE_ID_RE.match(k) or k in rec:
+            raise SystemExit(
+                "--detail 은 예약키가 아닌 key=value 여야 한다(key 문자셋 [A-Za-z0-9._-]): %r"
+                % (item,))
+        rec[k] = int(v) if re.match(r"^-?\d+$", v) else v[:200]
+    ev = _append_event(args.node_dir, rec)
+    print("진입 차단 기록: stage=%s reason=%s → %s" % (args.stage, args.reason, ev))
     return 0
 
 
@@ -300,7 +523,7 @@ def self_test():
         # ── 예산 선언 (testlog_26073123 · 워치독 arm 상한) ─────────────────
         def _bud(**kw):
             base = dict(node_dir=node, mem_total_mib=124610, weights_mib=59556,
-                        kv_mib=16384, overhead_mib=12288, ttl_s=7200,
+                        kv_mib=16384, overhead_mib=12288, ttl_s=7200, expected_load_s=0,
                         label="glm-47-flash", now="2026-07-31T00:00:00Z")
             base.update(kw)
             return argparse.Namespace(**base)
@@ -336,11 +559,98 @@ def self_test():
             ok.append(("불량 라벨 거부", False))
         except SystemExit:
             ok.append(("불량 라벨 거부", True))
+        # ── TTL 파생 검증 (C4-3) ─────────────────────────────────────────
+        # 예상 로드 665s(R0 실측) → 하한 1995s. 그보다 짧은 TTL 은 "로드 도중 만료" 예약이다.
+        ok.append(("TTL 하한이 예상 로드에서 파생(665s → 1995s)", ttl_floor_s(665) == 1995))
+        try:
+            cmd_declare_budget(_bud(ttl_s=1800, expected_load_s=665))
+            ok.append(("★ 예상 로드보다 짧은 TTL 거부", False))
+        except SystemExit:
+            ok.append(("★ 예상 로드보다 짧은 TTL 거부", True))
+        cmd_declare_budget(_bud(ttl_s=1995, expected_load_s=665))
+        ok.append(("경계값 TTL(=3배)은 수락",
+                   "expires_epoch=%d\n" % (_epoch("2026-07-31T00:00:00Z") + 1995)
+                   in open(bp, encoding="utf-8").read()))
+        # ── 갱신 (C4-3) — 원 산출을 파괴하지 않고 시계만 민다 ────────────
+        cmd_declare_budget(_bud())
+        pre = open(bp, encoding="utf-8").read()
+        cmd_renew_budget(argparse.Namespace(node_dir=node, ttl_s=3600, expected_load_s=0,
+                                            now="2026-07-31T00:10:00Z"))
+        post = open(bp, encoding="utf-8").read()
+        ok.append(("갱신이 만료를 새 TTL 로 민다",
+                   "expires_epoch=%d\n" % (_epoch("2026-07-31T00:10:00Z") + 3600) in post))
+        ok.append(("갱신이 바닥을 보존", "floor_mib=36382" in post))
+        ok.append(("갱신이 원 산출 provenance 헤더를 보존",
+                   all(ln in post for ln in pre.splitlines() if ln.startswith("# 산출"))))
+        ok.append(("갱신 값도 워치독 문자셋 준수",
+                   all(re.match(r"^[A-Za-z0-9._-]{1,64}$", ln.split("=", 1)[1])
+                       for ln in post.splitlines()
+                       if ln and not ln.startswith("#") and "=" in ln)))
+        try:  # 갱신도 declare 와 **같은** TTL 규칙을 쓴다(느슨한 뒷문 금지)
+            cmd_renew_budget(argparse.Namespace(node_dir=node, ttl_s=100,
+                                                expected_load_s=665,
+                                                now="2026-07-31T00:11:00Z"))
+            ok.append(("갱신도 TTL 파생 검증을 받는다", False))
+        except SystemExit:
+            ok.append(("갱신도 TTL 파생 검증을 받는다", True))
+        try:  # 만료분 갱신은 fail-closed (되살리려면 재산출)
+            cmd_renew_budget(argparse.Namespace(node_dir=node, ttl_s=3600, expected_load_s=0,
+                                                now="2026-07-31T09:00:00Z"))
+            ok.append(("★ 만료된 선언 갱신 거부", False))
+        except SystemExit:
+            ok.append(("★ 만료된 선언 갱신 거부", True))
         # 해제
         cmd_clear_budget(argparse.Namespace(node_dir=node, now="2026-07-31T00:30:00Z"))
         ok.append(("선언 해제", not os.path.isfile(bp)))
         cmd_clear_budget(argparse.Namespace(node_dir=node, now="2026-07-31T00:31:00Z"))
         ok.append(("없는 선언 해제도 안전", not os.path.isfile(bp)))
+
+        # ── 침묵 금지: 거부·차단이 events 에 남는가 (plan_26081415 C3 기준3) ──────
+        #   이 자체시험이 기준3 의 재현 가능한 증거다 — 실서빙 없이 "인위 주입 → 이벤트 잔존"을
+        #   전부 검사한다. 위 거부 6건(ttl 0/-1/초과 · 상주>총량 · 불량 라벨 · TTL 하한 미달)이
+        #   입력이고, 아래가 판정이다.
+        def _events():
+            p = os.path.join(node, "events", "2026-07.jsonl")
+            if not os.path.isfile(p):
+                return []
+            return [json.loads(ln) for ln in open(p, encoding="utf-8") if ln.strip()]
+
+        rej = [e for e in _events() if e["kind"] == "budget_declare_rejected"]
+        ok.append(("★ declare 거부가 events 에 남는다(6건 전부)", len(rej) == 6))
+        ok.append(("거부 이벤트가 사유를 담는다",
+                   all(e.get("reason") for e in rej)))
+        ok.append(("거부 이벤트가 입력값을 담는다(재현 가능)",
+                   all(e.get("mem_total_mib") == 124610 for e in rej)))
+        ok.append(("TTL 하한 미달 거부가 식별 가능",
+                   any("로드 도중 만료" in e["reason"] for e in rej)))
+        ok.append(("불량 라벨 거부가 그 라벨 원문을 남긴다",
+                   any(e.get("label") == "bad label$(id)" for e in rej)))
+        ok.append(("수락된 선언은 거부로 세지 않는다",
+                   len([e for e in _events() if e["kind"] == "budget_declare"]) >= 1))
+
+        def _blk(**kw):
+            base = dict(node_dir=node, stage="derive", reason="budget_params_missing",
+                        label="smoke-x", detail=[], now="2026-07-31T00:40:00Z")
+            base.update(kw)
+            return argparse.Namespace(**base)
+
+        for st in BLOCK_STAGES:
+            cmd_budget_block(_blk(stage=st, detail=["kv_mib=16384"]))
+        blk = [e for e in _events() if e["kind"] == "budget_blocked"]
+        ok.append(("★ 진입 차단이 events 에 남는다(3단계)",
+                   sorted(e["stage"] for e in blk) == sorted(BLOCK_STAGES)))
+        ok.append(("차단 detail 이 정수로 기록", all(e.get("kv_mib") == 16384 for e in blk)))
+        ok.append(("차단은 skipped 와 다른 kind",
+                   all(e["kind"] != "budget_skipped" for e in blk)))
+        for bad, why in ((dict(stage="whatever"), "미등록 stage"),
+                         (dict(reason="공백 있는 사유"), "비-slug reason"),
+                         (dict(detail=["kind=x"]), "예약키 detail"),
+                         (dict(detail=["novalue"]), "형식 위반 detail")):
+            try:
+                cmd_budget_block(_blk(**bad))
+                ok.append(("차단 기록 %s 거부" % why, False))
+            except SystemExit:
+                ok.append(("차단 기록 %s 거부" % why, True))
 
         # 미종료 구분: stopped_utc=null 이 "안 끝남", 파일 부재가 "기록 없음"
         A2 = argparse.Namespace(**{**vars(A), "session_id": "s2"})
@@ -407,13 +717,40 @@ def main():
     b.add_argument("--overhead-mib", type=int, default=12288,
                    help="cudagraph·활성화·런타임 여유 (기본 12288 = 12 GiB, 안전측)")
     b.add_argument("--ttl-s", type=int, default=7200, help="만료까지 초(기본 7200 · 상한 86400)")
+    b.add_argument("--expected-load-s", type=int, default=0,
+                   help="예상 READY 소요(초). 주면 TTL 이 그 %d배 미만일 때 **거부**한다"
+                        "(로드 도중 만료 예약 방지 · plan_26081415 C4-3)" % TTL_SAFETY_MULT)
     b.add_argument("--label")
     b.add_argument("--now", required=True, help="YYYY-MM-DDTHH:MM:SSZ (벽시계 금지)")
     b.set_defaults(func=cmd_declare_budget)
 
+    br = sub.add_parser("renew-budget",
+                        help="현행 선언의 만료만 연장(상주 서빙 · plan_26081415 C4-3)")
+    br.add_argument("--ttl-s", type=int, default=7200, help="지금부터 다시 셀 초(상한 86400)")
+    br.add_argument("--expected-load-s", type=int, default=0)
+    br.add_argument("--now", required=True)
+    br.set_defaults(func=cmd_renew_budget)
+
     bc = sub.add_parser("clear-budget", help="예산 선언 해제 → 현행 ETA 규칙 복귀")
     bc.add_argument("--now", required=True)
     bc.set_defaults(func=cmd_clear_budget)
+
+    bs = sub.add_parser("budget-skip", help="무보호 진입 기록(--no-budget 탈출구 · 침묵 금지)")
+    bs.add_argument("--reason", required=True)
+    bs.add_argument("--label")
+    bs.add_argument("--now", required=True)
+    bs.set_defaults(func=cmd_budget_skip)
+
+    bk = sub.add_parser("budget-block",
+                        help="예산 선언 미성립으로 **진입을 차단**했음을 기록(침묵 금지 · C3 기준3)")
+    bk.add_argument("--stage", required=True, choices=BLOCK_STAGES,
+                    help="derive=입력 파생 실패 · preflight_ceiling=arm 상한 선판정 · declare=선언/수락 실패")
+    bk.add_argument("--reason", required=True, help="slug [A-Za-z0-9._-]+ (기계판독 평면)")
+    bk.add_argument("--label")
+    bk.add_argument("--detail", action="append", default=[], metavar="KEY=VALUE",
+                    help="부가 수치(반복 가능). 숫자면 정수로 기록한다")
+    bk.add_argument("--now", required=True)
+    bk.set_defaults(func=cmd_budget_block)
 
     l = sub.add_parser("list", help="세션 목록")
     l.set_defaults(func=cmd_list)

@@ -39,12 +39,21 @@ SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _find_repo(){ local d="$1"; while [ "$d" != "/" ] && [ -n "$d" ]; do
     [ -d "$d/.claude" ] && [ -d "$d/docs" ] && { printf '%s' "$d"; return 0; }; d="$(dirname "$d")"; done; return 1; }
 REPO="$(_find_repo "$SDIR" || (cd "$SDIR/../../../../.." 2>/dev/null && pwd))"
+# node_id 해소는 단일 소유다(plan_26081514 §4.2 · SKILL.md §2.7.6). 각자 파싱 금지.
+# 부재를 조용히 넘기지 않는다 — 없으면 옛 hostname 파생으로 되돌아갈 길이 아니라 배달 결손이다.
+[ -f "$SDIR/node_identity.sh" ] || {
+  echo "[bb-install] FAIL: $SDIR/node_identity.sh 부재 — node_id 해소기가 배달되지 않았다." >&2
+  echo "[bb-install]       메인: 리포 무결성 확인 · 서브: render_sub_env.py 재배달." >&2; exit 1; }
+# shellcheck source=node_identity.sh
+. "$SDIR/node_identity.sh"
 APPLY=0; LEVEL="L1"; SUGGEST=0
 RAMOOPS_ADDR=""; RAMOOPS_SIZE="4M"     # reserve_mem 문법(2M/4M…). 생주소 방식일 때만 0x… 로 준다
 RAMOOPS_CONSOLE_SIZE="${RAMOOPS_CONSOLE_SIZE:-2097152}"   # 2 MiB — 커널 콘솔 상시 링버퍼(핵심)
 RAMOOPS_RECORD_SIZE="${RAMOOPS_RECORD_SIZE:-262144}"      # 256 KiB — oops/panic dump 레코드
 TARGET_USER="${SUDO_USER:-$(id -un)}"
-LOGS_ROOT=""; NODE_ID="$(hostname)"
+# ★ NODE_ID 에 기본값이 **없다**(plan_26081514 스킴 R). 예전엔 `$(hostname)` 이었고, 그것이
+#   틀려도 조용히 두 번째 로그 트리를 만들었다(침묵 폴백). 해소는 node_identity.sh 가 한다.
+LOGS_ROOT=""; NODE_ID=""
 # KDUMP_CRASHKERNEL/_LOW 는 삭제했다 — L3 가 crashkernel 을 **설정하지 않고 제거**하므로
 # 예약 크기라는 개념 자체가 없어졌다(2026-07-31 판정, 파일 상단 주석).
 
@@ -78,9 +87,10 @@ case "$LEVEL" in L1|L2|L3) ;; *) echo "[bb-install] --level 은 L1|L2|L3" >&2; e
 say(){ echo "[bb-install] $*"; }
 run(){ if [ "$APPLY" = 1 ]; then "$@"; else echo "            (dry-run) $*"; fi; }
 FAIL=0
-NODE_DIR="$LOGS_ROOT/$NODE_ID"
 BIN=/usr/local/sbin
 ETC=/etc/easy-vllm
+# NODE_DIR 해소는 --suggest-ramoops 블록 **뒤**로 내렸다 — 그 판정은 노드 정체성과 무관한
+# 플랫폼 질의(변경 0)라, 미테라포밍 노드에서도 답할 수 있어야 한다.
 
 # ── ramoops 안전영역 제안 (변경 0 — 근거 제시만) ─────────────────────────
 if [ "$SUGGEST" = 1 ]; then
@@ -139,9 +149,15 @@ if [ "$APPLY" = 1 ] && [ "$(id -u)" -ne 0 ]; then
   say "FAIL: --apply 는 root 필요 — sudo bash $0 --apply --level=$LEVEL"; exit 1
 fi
 
+# ── node_id 해소 (fail-loud · 기본값 없음) ───────────────────────────────
+#   여기서 실패하면 설치가 멈춘다. 예전처럼 hostname 으로 밀고 나가면 유닛에 엉뚱한 경로가
+#   구워지고(문자열 bake) 워치독이 아무도 안 보는 트리에 기록한다 — 사고가 나야 발견된다.
+NODE_ID="$(ni_resolve_node_id "$REPO" "$NODE_ID")" || exit 1
+NODE_DIR="$LOGS_ROOT/$NODE_ID"
+
 # ── 전제 확인 ────────────────────────────────────────────────────────────
 for f in blackbox_collect.py blackbox_eta.py blackbox_events.py logs_lifecycle.py \
-         mem_watchdog_eta.sh; do
+         regen_envelope.py mem_watchdog_eta.sh; do
   [ -f "$SDIR/$f" ] || { say "FAIL: $SDIR/$f 부재"; exit 1; }
 done
 DROP_HELPER="$SDIR/../host_safety/host/vllm-drop-caches.sh"
@@ -170,15 +186,22 @@ run install -m 0755 "$SDIR/blackbox_collect.py"  "$BIN/easy-vllm-bb-collect"
 run install -m 0755 "$SDIR/blackbox_eta.py"      "$BIN/easy-vllm-bb-eta"
 run install -m 0755 "$SDIR/blackbox_events.py"   "$BIN/easy-vllm-bb-events"
 run install -m 0755 "$SDIR/logs_lifecycle.py"    "$BIN/easy-vllm-bb-lifecycle"
+run install -m 0755 "$SDIR/regen_envelope.py"   "$BIN/easy-vllm-bb-regen-envelope"
 run install -m 0755 "$SDIR/mem_watchdog_eta.sh" "$BIN/easy-vllm-bb-watchdog"
 run install -m 0755 "$DROP_HELPER" "$BIN/vllm-drop-caches"
 
-say "   ETA 상수 생성 → $ETC/eta_params.env (하한 가드 통과 시에만 기록)"
+# ★ **환류 배선**(plan_26081415 C2-4). 예전엔 `--node-dir` 없이 호출해 envelope 의 eta_params 가
+#   상수 파일에 **한 번도 닿지 않았다** — 포락선을 아무리 갱신해도 워치독 판정은 DEFAULTS 그대로였고,
+#   그래서 "동결을 풀면 고쳐진다"는 기대가 구조적으로 틀렸다(§1.2). 경로를 여기서 잇는다.
+#   미지 키가 있으면 blackbox_eta 가 **거부**하므로(조용한 버림 폐지) 설치가 큰 소리로 멈춘다.
+say "   ETA 상수 생성 → $ETC/eta_params.env (envelope 환류 + 하한 가드 통과 시에만 기록)"
 if [ "$APPLY" = 1 ]; then
-  if python3 "$SDIR/blackbox_eta.py" --emit-params "$ETC/eta_params.env"; then
-    say "   ✓ eta_params.env"
+  if python3 "$SDIR/blackbox_eta.py" --node-dir "$NODE_DIR" --emit-params "$ETC/eta_params.env"; then
+    say "   ✓ eta_params.env (envelope=$NODE_DIR/envelope.json 반영)"
   else
-    say "   ✗ ETA 파라미터 거부(하한 가드) — 설치 중단"; exit 2
+    say "   ✗ ETA 파라미터 거부(하한 가드 또는 envelope 키 불일치) — 설치 중단"
+    say "     키 불일치면: $BIN/easy-vllm-bb-regen-envelope --node-dir $NODE_DIR regen --now <ISO>"
+    exit 2
   fi
 fi
 
@@ -231,12 +254,20 @@ OnUnitActiveSec=5min
 [Install]
 WantedBy=timers.target
 EOF
+  # rollup → envelope 환류(plan_26081415 C2-1). rollup 이 **먼저** 끝난 뒤 재생성해야 그날 통계가
+  # 포락선에 담긴다 — 두 ExecStart 는 systemd 가 순차 실행하며 앞이 실패하면 뒤는 돌지 않는다.
+  #
+  # ⚠ 여기서 `blackbox_eta --emit-params` 를 **부르지 않는다**(의도적). 포락선 갱신은 데이터이고
+  #   상수 파일 갱신은 **판정 규칙 변경**이라 평면이 다르다. 자동 재emit 하면 실측 kill 지연이
+  #   활주로를 늘려 무조건-트립 경계를 조용히 낮출 수 있다(2026-08-14 실측: 4.0s → 6.0s ⇒
+  #   경계 15,576 → 12,461 MiB/s = 위양성 증가 방향). 규칙 변경은 C1 의 dry-run·HITL 을 거친다.
   cat > /etc/systemd/system/easy-vllm-blackbox-lifecycle.service <<EOF
 [Unit]
-Description=easy-vllm node blackbox: logs lifecycle (rollup -> compress -> evict)
+Description=easy-vllm node blackbox: logs lifecycle (rollup -> envelope regen -> compress -> evict)
 [Service]
 Type=oneshot
 ExecStart=/bin/sh -c '$BIN/easy-vllm-bb-lifecycle --node-dir $NODE_DIR --now "\$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)" --apply'
+ExecStart=/bin/sh -c '$BIN/easy-vllm-bb-regen-envelope --node-dir $NODE_DIR regen --now "\$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)"'
 EOF
   cat > /etc/systemd/system/easy-vllm-blackbox-lifecycle.timer <<'EOF'
 [Unit]

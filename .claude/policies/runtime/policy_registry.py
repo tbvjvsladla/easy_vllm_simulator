@@ -1659,10 +1659,31 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
         message = err.message if err is not None else "resolved.json root must be an object"
         fail("ARCH_VARIANT_LEDGER_INVALID", message, "resolved.json")
         return out
-    if set(resolved) != {"schema_version", "source_build_variants"} or resolved.get("schema_version") != 1:
+    # schema v2 (2026-08-14): v1 은 변종을 `vllm_repo`+`vllm_ref` 로만 표현할 수 있어 **자체 이식**
+    #   (arch-wall 사다리 3번째 칸 -- stock ref + 빌드패치)을 담을 칸이 없었다. v2 는 `build_patch_selectors`
+    #   와 `port_manifest` 를 신설한다. 루트/항목의 밑줄 접두 키는 스칼라 메타데이터로만 허용한다 --
+    #   dict 를 허용하면 밑줄 키 밑에 변종을 숨길 수 있다(C3 의 `_hidden_active_variant` 반증실험과 동종).
+    # schema v3 (2026-08-15): v2 는 사다리 **4번째 칸**(소스-repo 오버라이드 = 포크 핀)을 표현하지 못했다.
+    #   두 군데가 막았고, 둘 다 "규칙이 사다리를 막는" 형태였다(2026-08-15 실측 · R3 착수 중 발견):
+    #     ① `image_grammar` 가 **아키텍처-전용**(`-source-sm<n>…`)이라, 같은 vLLM 버전에서 자체이식(R2)과
+    #        포크핀(R3)이 **같은 태그**를 강요받는다. 배선이 다른 이미지가 같은 이름을 갖는 것은 불변식이
+    #        아니라 결함이며(plan_26081410 §10.3.2.1), R2 는 그때 상주 서빙 중이라 덮어쓰기가 곧 사고였다.
+    #     ② 후보 단일성(`ARCH_VARIANT_MULTIPLE_CANDIDATE_TRACKS`)이 사다리와 충돌한다 -- 사다리는 칸을
+    #        순차로 밟으라 요구하는데 앞 칸(R2)이 아직 CANDIDATE 다.
+    #   우회(architecture 문자열을 `sm12xfork` 로 위장)는 게이트의 취지를 정확히 무력화하므로 채택하지
+    #   않았다 -- 경로를 고친다(D3 법칙). v3 는 `source-fork<PR>` 트랙·이미지 접미어를 신설하고,
+    #   후보 다중을 **image_tag 상이**를 조건으로 허용한다(개수가 아니라 덮어쓰기가 진짜 해악이었다).
+    root_metadata = {key for key in resolved if key.startswith("_")}
+    if (set(resolved) - root_metadata) != {"schema_version", "source_build_variants"} or \
+            resolved.get("schema_version") not in (1, 2, 3):
         fail("ARCH_VARIANT_LEDGER_SHAPE_INVALID",
-             "ledger requires exactly schema_version=1 and source_build_variants",
+             "ledger requires schema_version in {1,2,3}, source_build_variants, and only scalar underscore metadata besides",
              ".claude/policies/arch_variant_ledger.json")
+    for key in sorted(root_metadata):
+        if not isinstance(resolved[key], str) or not resolved[key].strip():
+            fail("ARCH_VARIANT_LEDGER_SHAPE_INVALID",
+                 f"root metadata key {key!r} must be a non-empty string",
+                 f".claude/policies/arch_variant_ledger.json.{key}")
     variants = resolved.get("source_build_variants")
     if not isinstance(variants, dict):
         fail("ARCH_VARIANT_LEDGER_MISSING", ".claude/policies/arch_variant_ledger.json.source_build_variants must be an object",
@@ -1773,8 +1794,130 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
                      f"{name!r} regression requires a non-empty list of model result identities",
                      f"{pfx}.{field}.path")
 
+    # 빌드-평면 배선 원본. 선택자 검증이 항목 루프 안에서 이 둘을 읽으므로 루프 앞에서 한 번만 읽는다.
+    dockerfile_rel = ".claude/skills/upstream-version-watch/templates/Dockerfile.source-build.template"
+    smoke_rel = ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh"
+    try:
+        dockerfile = (repo_root / dockerfile_rel).read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        fail("ARCH_VARIANT_DOCKERFILE_UNREADABLE", str(exc), dockerfile_rel)
+        dockerfile = ""
+    try:
+        smoke = (repo_root / smoke_rel).read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        smoke = ""   # 선택자를 선언한 항목이 있을 때만 위반이 된다(아래 validate_build_patch_selectors).
+
+    def validate_candidate_evidence(name, item, pfx):
+        """CANDIDATE 는 승인 아티팩트가 아니라 **사다리 근거**를 증거로 갖는다.
+
+        정본 approval 아티팩트(`validate_bound_artifact`)는 스모크 PASS 후 HITL 승인 시점에 나오므로
+        후보 단계에서는 존재할 수 없다. 대신 후보는 (a) 자기를 낳은 plan 과 (b) **stock 이 구조적으로
+        불가함을 보인 testlog** 를 최소 1건 인용해야 한다 -- 이것이 "사다리 칸을 건너뛰지 않았다"는
+        후보 단계의 유일한 검증 가능한 주장이다.
+
+        digest 바인딩을 하지 않는 이유: `docs/{plan,testlog}` 는 docs.md 보관 matrix 상 **비추적**이라
+        evidence_manifest/tracked_index 에 실릴 수 없다(배포 산출물이 아니다). 따라서 여기서 강제할 수
+        있는 것은 명명 SSOT 준수와 비어있지 않음뿐이며, 디스크 존재는 검사하지 않는다(fresh clone·
+        gitless_export 에서 위양성이 된다).
+        """
+        pointer = item.get("evidence")
+        if not isinstance(pointer, dict) or set(pointer) != {"plan", "stock_infeasible_testlogs"}:
+            fail("ARCH_VARIANT_CANDIDATE_EVIDENCE_INVALID",
+                 f"{name!r} candidate evidence must be an exact plan/stock_infeasible_testlogs object",
+                 f"{pfx}.evidence")
+            return
+        plan = pointer.get("plan")
+        if not isinstance(plan, str) or not re.fullmatch(r"docs/plan/plan_\d{8}(?:_\d{2}_\d{2})?_[^/]+\.md", plan):
+            fail("ARCH_VARIANT_CANDIDATE_EVIDENCE_INVALID",
+                 f"{name!r} candidate evidence requires a docs/plan naming-SSOT plan path", f"{pfx}.evidence.plan")
+        logs = pointer.get("stock_infeasible_testlogs")
+        if (not isinstance(logs, list) or not logs or
+                any(not isinstance(entry, str) or
+                    not re.fullmatch(r"docs/testlog/testlog_\d{8}(?:_\d{2}_\d{2})?_[^/]+\.md", entry)
+                    for entry in logs)):
+            fail("ARCH_VARIANT_CANDIDATE_EVIDENCE_INVALID",
+                 f"{name!r} candidate requires at least one docs/testlog path evidencing stock structural infeasibility",
+                 f"{pfx}.evidence.stock_infeasible_testlogs")
+
+    def validate_build_patch_selectors(name, selectors, pfx):
+        """선택자가 **이미지 정체성에만** 쓰이는지 교차검증한다.
+
+        선택자는 build-arg 이름 -> 값이다. 정적 파일끼리는 한쪽이 다른 쪽을 생성할 수 없으므로
+        (workflow.md §결정론 규율 "단일 소유가 불가능하면 교차검증이 차선") 원장 선언을 두 배선과 대조한다:
+          (1) Dockerfile 템플릿에 `ARG <NAME>=0` -- **부재 = stock** 이 기본이어야 침묵 변종화가 막힌다.
+          (2) 멀티 스모크가 같은 모델 env 에서 값을 뽑아(`$(val <NAME>)`) SLAVE_IMGVARS 로 전달 --
+              멀티는 클러스터-와이드 이미지가 전제라 빌드 인자가 한 톨이라도 갈리면 마스터만 변종이 된다.
+        (2)를 요구하는 것이 곧 "serve 평면이 아니라 build 평면의 값"이라는 증명이다.
+        """
+        if not isinstance(selectors, dict) or not selectors:
+            fail("ARCH_VARIANT_PORT_SELECTORS_INVALID",
+                 f"{name!r} build_patch_selectors must be a non-empty build-arg object", f"{pfx}.build_patch_selectors")
+            return
+        for arg in sorted(selectors):
+            value = selectors[arg]
+            sub = f"{pfx}.build_patch_selectors.{arg}"
+            if not re.fullmatch(r"[A-Z][A-Z0-9_]*", arg) or not isinstance(value, str) or not value.strip():
+                fail("ARCH_VARIANT_PORT_SELECTORS_INVALID",
+                     f"{name!r} selector {arg!r} must be an uppercase build-arg name with a non-empty string value", sub)
+                continue
+            if value == "0":
+                fail("ARCH_VARIANT_PORT_SELECTOR_NOT_ENABLING",
+                     f"{name!r} selector {arg!r}=0 equals the stock default and creates no variant", sub)
+            if f"ARG {arg}=0" not in dockerfile:
+                fail("ARCH_VARIANT_PORT_SELECTOR_UNGATED",
+                     f"{name!r} selector {arg!r} lacks a default-off `ARG {arg}=0` gate in the source template", sub)
+            if not smoke:
+                fail("ARCH_VARIANT_PORT_SELECTOR_WIRING_UNREADABLE",
+                     f"{name!r} selector {arg!r} cannot be proven cluster-wide: {smoke_rel} is unreadable", sub)
+                continue
+            imgvars_line = next((ln for ln in smoke.splitlines()
+                                 if ln.strip().startswith("SLAVE_IMGVARS=")), "")
+            if f"$(val {arg})" not in smoke or f"{arg}=$" not in imgvars_line:
+                fail("ARCH_VARIANT_PORT_SELECTOR_NOT_CLUSTER_WIDE",
+                     f"{name!r} selector {arg!r} is not read from the model env file and propagated to the slave "
+                     f"as image identity", sub)
+
+    def validate_port_manifest(name, port_manifest, pfx):
+        """이식 원장(provenance). 결정론 앵커는 `upstream_base_sha` 다 -- vllm_ref 가 stock 릴리스 태그일
+        때 이 40-hex SHA 가 그 태그의 실체를 고정한다. 포크 좌표(pr/fork)는 참조 출처라 선택이다.
+        path 는 pre 슬롯(`build_patches_src/`) 산출물이라 토폴로지 통로 안에 있어야 한다."""
+        if not isinstance(port_manifest, dict):
+            fail("ARCH_VARIANT_PORT_MANIFEST_INVALID", f"{name!r} port_manifest must be an object",
+                 f"{pfx}.port_manifest")
+            return
+        required = {"path", "upstream_base_sha", "files"}
+        optional = {"pr_base_sha", "fork_head_sha"}
+        missing = required - set(port_manifest)
+        unknown = set(port_manifest) - required - optional
+        if missing or unknown:
+            fail("ARCH_VARIANT_PORT_MANIFEST_INVALID",
+                 f"{name!r} port_manifest requires {sorted(required)} and allows only {sorted(optional)}",
+                 f"{pfx}.port_manifest")
+        path = port_manifest.get("path")
+        if not isinstance(path, str) or not re.fullmatch(
+                r"output/(?:single|multi)/build_patches_src/PROVENANCE\.json", path):
+            fail("ARCH_VARIANT_PORT_MANIFEST_INVALID",
+                 f"{name!r} port_manifest.path must be the pre-slot PROVENANCE.json inside a topology output lane",
+                 f"{pfx}.port_manifest.path")
+        for field in sorted(required | optional):
+            if field.endswith("_sha") and field in port_manifest:
+                value = port_manifest.get(field)
+                if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{40}", value):
+                    fail("ARCH_VARIANT_PORT_MANIFEST_INVALID",
+                         f"{name!r} port_manifest.{field} must be a 40-hex commit SHA",
+                         f"{pfx}.port_manifest.{field}")
+        files = port_manifest.get("files")
+        if not isinstance(files, int) or isinstance(files, bool) or files <= 0:
+            fail("ARCH_VARIANT_PORT_MANIFEST_INVALID",
+                 f"{name!r} port_manifest.files must be a positive integer file count",
+                 f"{pfx}.port_manifest.files")
+
     metadata_keys = {"_note", "_deprecation_0.24.0"}
-    active = []
+    promoted = []
+    candidates = []
+    # v3: 태그 충돌 검사는 **상태와 무관하게** 전 항목을 본다 -- SUPERSEDED 항목도 last-good 롤백 앵커
+    #   이미지를 실제로 붙들고 있으므로(policy:LAST_GOOD_ROLLBACK_ANCHOR), 그걸 덮어쓰는 것이 가장 나쁘다.
+    all_tagged = []
     for name, item in variants.items():
         if name.startswith("_"):
             if name not in metadata_keys or not isinstance(item, str) or not item.strip():
@@ -1787,30 +1930,111 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
             fail("ARCH_VARIANT_ENTRY_INVALID", f"{name!r} must be an object", pfx)
             continue
         allowed_entry_fields = {"variant_id", "architecture", "vllm_repo", "vllm_ref", "tag",
-                                "image_tag", "track", "evidence", "status", "regression_evidence"}
-        unknown_fields = set(item) - allowed_entry_fields
+                                "image_tag", "track", "evidence", "status", "regression_evidence",
+                                "build_patch_selectors", "port_manifest"}
+        entry_metadata = {key for key in item if key.startswith("_")}
+        unknown_fields = set(item) - allowed_entry_fields - entry_metadata
         if unknown_fields:
             fail("ARCH_VARIANT_ENTRY_UNKNOWN_FIELD",
                  f"{name!r} contains unknown fields {sorted(unknown_fields)}", pfx)
+        for key in sorted(entry_metadata):
+            if not isinstance(item[key], str) or not item[key].strip():
+                fail("ARCH_VARIANT_ENTRY_UNKNOWN_FIELD",
+                     f"{name!r} metadata key {key!r} must be a non-empty string", f"{pfx}.{key}")
         for field in ("variant_id", "architecture", "vllm_repo", "vllm_ref", "image_tag", "track", "status"):
             if not isinstance(item.get(field), str) or not item[field].strip():
                 fail("ARCH_VARIANT_FIELD_MISSING", f"{name!r} requires non-empty {field}", f"{pfx}.{field}")
-        ref = item.get("vllm_ref", "")
-        if not re.fullmatch(r"[0-9a-f]{40}", ref):
-            fail("ARCH_VARIANT_REF_NOT_SHA", f"{name!r} vllm_ref must be a 40-hex commit SHA", f"{pfx}.vllm_ref")
         track = item.get("track", "")
         architecture = item.get("architecture", "")
         image_tag = item.get("image_tag", "")
         suffix = track.removeprefix("source-") if isinstance(track, str) else ""
-        if not suffix or architecture != suffix or not image_tag.endswith(f"-source-{suffix}"):
+        # `source-<arch>-port` = **자체 이식** 칸(사다리 3번째). 포크를 핀하지 않으므로 아키텍처 접미어는
+        #   `-port` 를 벗긴 쪽이며, 이미지 태그도 아키텍처 접미어로 끝난다(변종성은 selector 가 만든다).
+        port_track = suffix.endswith("-port")
+        # `source-fork<PR번호>` = **포크 핀** 칸(사다리 4번째 · v3 신설). 이 칸에서는 접미어가 아키텍처가
+        #   아니라 **상류 PR 식별자**다 -- 변종성을 만드는 것이 우리 빌드패치가 아니라 남의 소스트리이기
+        #   때문이다. 그래서 `architecture`(sm12x)와 접미어(fork41834)는 같을 수 없고, 대신 태그가 접미어로
+        #   끝나는지만 본다. `\d+` 로 묶은 이유: `fork<모델명>` 같은 모델-키잉을 **문법 차원에서** 봉쇄한다
+        #   (아래 image_grammar 와 같은 근거 -- 자유 꼬리를 주면 그 자리가 곧 모델 이름의 자리가 된다).
+        fork_track = re.fullmatch(r"fork\d+", suffix) is not None
+        arch_suffix = suffix.removesuffix("-port")
+        if fork_track:
+            # 접미어가 아키텍처를 대신하므로, `architecture` 가 여전히 **진짜 아키텍처**인지는 따로 본다
+            #   (안 그러면 이 칸이 architecture 필드의 검증 구멍이 된다).
+            if not re.fullmatch(r"sm\d+[a-z0-9]*", architecture):
+                fail("ARCH_VARIANT_FIELD_MISSING",
+                     f"{name!r} fork-pin track still requires a real architecture (sm<n>…), got {architecture!r}",
+                     f"{pfx}.architecture")
+            if not image_tag.endswith(f"-source-{suffix}"):
+                fail("ARCH_VARIANT_NOT_SUPERSET_TAG",
+                     f"{name!r} fork-pin image_tag must end in -source-<fork track suffix>", f"{pfx}.image_tag")
+        elif not arch_suffix or architecture != arch_suffix or not image_tag.endswith(f"-source-{arch_suffix}"):
             fail("ARCH_VARIANT_NOT_SUPERSET_TAG", f"{name!r} image_tag must end in -source-<track suffix>",
                  f"{pfx}.image_tag")
-        image_grammar = r"easy-vllm:\d+\.\d+\.\d+-cu\d+-(?:aarch64|x86_64)-source-sm\d+[a-z0-9]*"
+        selectors = item.get("build_patch_selectors")
+        port_manifest = item.get("port_manifest")
+        ref = item.get("vllm_ref", "")
+        ref_is_sha = bool(re.fullmatch(r"[0-9a-f]{40}", ref))
+        if port_track:
+            # 자체 이식은 stock 업스트림에 붙는다 -- 포크 repo 를 핀하면 그건 다음 칸(포크 핀)이지 이 칸이 아니다.
+            if item.get("vllm_repo") != "https://github.com/vllm-project/vllm.git":
+                fail("ARCH_VARIANT_PORT_TRACK_NOT_STOCK",
+                     f"{name!r} is a self-port track and must pin the canonical upstream repo, not a fork",
+                     f"{pfx}.vllm_repo")
+            # stock 릴리스 태그를 허용하되 결정론은 잃지 않는다: 태그일 때는 port_manifest.upstream_base_sha
+            #   가 40-hex 앵커 역할을 대신해야 한다(둘 다 없으면 해소값이 부동한다).
+            if not ref_is_sha and not re.fullmatch(r"v\d+\.\d+\.\d+(?:(?:rc|a|b|\.dev)\d+)?", ref):
+                fail("ARCH_VARIANT_REF_NOT_SHA",
+                     f"{name!r} vllm_ref must be a 40-hex commit SHA or an upstream release tag", f"{pfx}.vllm_ref")
+            if selectors is None:
+                fail("ARCH_VARIANT_PORT_SELECTORS_INVALID",
+                     f"{name!r} is a self-port track and must declare the build_patch_selectors that create it",
+                     f"{pfx}.build_patch_selectors")
+            if port_manifest is None:
+                fail("ARCH_VARIANT_PORT_MANIFEST_INVALID",
+                     f"{name!r} is a self-port track and requires a port_manifest", f"{pfx}.port_manifest")
+            elif not ref_is_sha and not isinstance(port_manifest.get("upstream_base_sha"), str):
+                fail("ARCH_VARIANT_PORT_MANIFEST_INVALID",
+                     f"{name!r} pins a mutable tag and therefore requires port_manifest.upstream_base_sha",
+                     f"{pfx}.port_manifest.upstream_base_sha")
+        elif fork_track:
+            # 포크 핀은 **남의 repo** 를 핀한다 -- canonical upstream 을 핀했다면 그건 이 칸이 아니다
+            #   (stock 이거나 자체 이식 칸이다). 사다리를 건너뛴 것이 아니라 칸을 잘못 적은 것이므로,
+            #   port_track 의 `NOT_STOCK` 검사와 정확히 대칭으로 세운다.
+            if item.get("vllm_repo") == "https://github.com/vllm-project/vllm.git":
+                fail("ARCH_VARIANT_FORK_TRACK_NOT_FORK",
+                     f"{name!r} is a fork-pin track and must pin a fork repo, not the canonical upstream",
+                     f"{pfx}.vllm_repo")
+            # 포크는 force-push 가 가능하므로 **SHA 핀만** 허용한다. 자체 이식 칸이 릴리스 태그를 허용한 것은
+            #   `port_manifest.upstream_base_sha` 라는 대체 앵커가 있었기 때문인데, 포크엔 그 대체가 없다.
+            if not ref_is_sha:
+                fail("ARCH_VARIANT_REF_NOT_SHA",
+                     f"{name!r} fork-pin vllm_ref must be a 40-hex commit SHA (forks can force-push)",
+                     f"{pfx}.vllm_ref")
+            # 포크 트리가 소스를 이미 담고 있으므로 이식 원장은 성립하지 않는다 -- 있으면 두 칸을 섞은 것이고,
+            #   그 상태에서는 "무엇이 변종성을 만들었나"가 원장에서 갈리지 않는다.
+            if port_manifest is not None:
+                fail("ARCH_VARIANT_PORT_MANIFEST_INVALID",
+                     f"{name!r} is a fork-pin track and must not carry a port_manifest "
+                     f"(the fork already ships the source)", f"{pfx}.port_manifest")
+        elif not ref_is_sha:
+            fail("ARCH_VARIANT_REF_NOT_SHA", f"{name!r} vllm_ref must be a 40-hex commit SHA", f"{pfx}.vllm_ref")
+        if selectors is not None:
+            validate_build_patch_selectors(name, selectors, pfx)
+        if port_manifest is not None:
+            validate_port_manifest(name, port_manifest, pfx)
+        # v3: 접미어를 2택으로 넓힌다. **모델-키잉 봉쇄라는 취지는 그대로다** -- 이 검사가 지키는 불변식은
+        #   "아키텍처 전용"이 아니라 "이미지 하나가 모든 모델을 서빙한다"(CLAUDE.md)이고, `fork\d+` 는 상류
+        #   PR 번호라 모델명이 들어갈 자리가 없다. `sm\d+` 쪽에만 자유 꼬리(`[a-z0-9]*`)가 남는데 그건 기존
+        #   아키텍처 변형(sm121a 등)을 담던 자리이므로 v2 그대로 둔다.
+        image_grammar = (r"easy-vllm:\d+\.\d+\.\d+-cu\d+-(?:aarch64|x86_64)-source-"
+                         r"(?:sm\d+[a-z0-9]*|fork\d+)")
         if not re.fullmatch(image_grammar, image_tag):
             fail("ARCH_VARIANT_MODEL_KEYED_IMAGE",
-                 f"{name!r} image_tag must use the architecture-only canonical grammar",
+                 f"{name!r} image_tag must use the architecture-only canonical grammar "
+                 f"(or the v3 fork-pin `-source-fork<PR>` form)",
                  f"{pfx}.image_tag")
-        validate_bound_artifact(name, item, "evidence", "arch_variant_approval", pfx)
+        all_tagged.append((name, image_tag))
         status = item.get("status", "")
         deprecation_versions = sorted(key.removeprefix("_deprecation_") for key in metadata_keys
                                       if key.startswith("_deprecation_"))
@@ -1823,14 +2047,50 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
             fail("ARCH_VARIANT_STATUS_INVALID",
                  f"{name!r} malformed superseded status must not hide an active candidate",
                  f"{pfx}.status")
-        if not superseded:
-            active.append((name, item))
+        # 상태는 3종이다: SUPERSEDED(퇴역) · CANDIDATE(등재만, 미승격) · VALIDATED(승격=기본 트랙).
+        #   CANDIDATE 는 C5 절 문언 "before it becomes the default" 의 **이전** 상태다 -- 좌표를 원장에
+        #   두어야 빌드가 재현 가능하게 읽지만(workflow.md §변종 좌표의 거처), 회귀 재스모크 증거는
+        #   아직 존재할 수 없다. 승인 아티팩트도 마찬가지라 후보 전용 증거형을 쓴다.
+        candidate = (not superseded and isinstance(status, str)
+                     and re.match(r"CANDIDATE\b", status) is not None)
+        if not candidate:
+            validate_bound_artifact(name, item, "evidence", "arch_variant_approval", pfx)
+        if superseded:
+            continue
+        if candidate:
+            candidates.append((name, item))
+        else:
+            promoted.append((name, item))
 
-    if len(active) > 1:
+    if len(promoted) > 1:
         fail("ARCH_VARIANT_MULTIPLE_ACTIVE_TRACKS",
-             f"only one variant track may be active, got {[name for name, _ in active]}",
+             f"only one variant track may be active, got {[name for name, _ in promoted]}",
              ".claude/policies/arch_variant_ledger.json.source_build_variants")
-    for name, item in active:
+    # v3(2026-08-15): 후보 다중을 **허용한다**. v2 는 "다음 승격 대상이 모호해진다"를 근거로 1개로 묶었는데,
+    #   그 규칙이 정작 사다리를 막았다 -- 사다리는 칸을 순차로 밟으라 요구하고, 앞 칸(R2 자체이식)이 아직
+    #   CANDIDATE 인 채로 다음 칸(R3 포크핀)을 등재해야 두 칸이 like-with-like 대조가 된다(같은 상류 SHA).
+    #   재검토해 보면 v2 가 막고 싶었던 진짜 해악은 **개수가 아니라 같은 이름의 이미지를 서로 덮어쓰는 것**
+    #   이었다. 그래서 개수 상한을 **태그 상이** 요구로 갈아끼운다. 승격 단일성은 그대로다 --
+    #   VALIDATED(promoted)는 여전히 1개뿐이고(위 ARCH_VARIANT_MULTIPLE_ACTIVE_TRACKS), "다음 기본 트랙"의
+    #   모호함은 거기서 이미 닫힌다. 후보는 정의상 아직 기본이 아니다.
+    tags_seen: dict = {}
+    for name, image_tag in all_tagged:
+        tags_seen.setdefault(image_tag, []).append(name)
+    for image_tag, names in sorted(tags_seen.items()):
+        if len(names) > 1:
+            fail("ARCH_VARIANT_IMAGE_TAG_COLLISION",
+                 f"variants {sorted(names)} share image_tag {image_tag!r} -- distinct wiring must build to "
+                 f"distinct images or one silently overwrites the other",
+                 ".claude/policies/arch_variant_ledger.json.source_build_variants")
+    for name, item in candidates:
+        pfx = f".claude/policies/arch_variant_ledger.json.source_build_variants.{name}"
+        # 후보가 회귀 증거를 들고 있으면 승격 게이트를 우회한 것이다(스모크 전 last-good 앵커 승격 금지).
+        if "regression_evidence" in item:
+            fail("ARCH_VARIANT_CANDIDATE_PREPROMOTED",
+                 f"candidate variant {name!r} must not carry regression evidence before promotion to VALIDATED",
+                 f"{pfx}.regression_evidence")
+        validate_candidate_evidence(name, item, pfx)
+    for name, item in promoted:
         pfx = f".claude/policies/arch_variant_ledger.json.source_build_variants.{name}"
         if item.get("status") != "VALIDATED":
             fail("ARCH_VARIANT_ACTIVE_NOT_VALIDATED", f"active variant {name!r} lacks VALIDATED status",
@@ -1842,13 +2102,6 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
         else:
             validate_bound_artifact(name, item, "regression_evidence", "arch_variant_regression", pfx)
 
-    dockerfile_rel = ".claude/skills/upstream-version-watch/templates/Dockerfile.source-build.template"
-    dockerfile_path = repo_root / dockerfile_rel
-    try:
-        dockerfile = dockerfile_path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
-        fail("ARCH_VARIANT_DOCKERFILE_UNREADABLE", str(exc), dockerfile_rel)
-        dockerfile = ""
     required_docker = ("ARG VLLM_REPO=", "ARG VLLM_REF=", "--filter=blob:none",
                        "checkout --detach ${VLLM_REF}")
     if dockerfile and not all(token in dockerfile for token in required_docker):

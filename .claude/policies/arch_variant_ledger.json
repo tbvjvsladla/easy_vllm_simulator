@@ -1,5 +1,7 @@
 {
-  "schema_version": 1,
+  "schema_version": 3,
+  "_schema_note": "v2(2026-08-14): source_build_variants 항목에 `build_patch_selectors`(빌드 arg → 값) 와 `port_manifest` 를 신설했다. v1 은 변종을 `vllm_repo`+`vllm_ref` 로만 표현할 수 있어 **자체 이식 변종**(stock ref + 빌드패치)을 담을 칸이 없었다 — arch-wall 사다리에서 `자체 이식` 칸이 `소스-repo 오버라이드(포크 핀)` 칸보다 앞인데 원장이 뒤 칸만 표현할 수 있었던 셈이다. v1 항목은 두 필드가 없으면 stock 배선으로 해석한다(하위호환).",
+  "_schema_note_v3": "v3(2026-08-15): v2 는 사다리 **4번째 칸(포크 핀)** 을 표현하지 못했다. 두 규칙이 막았고 둘 다 '규칙이 사다리를 막는' 형태였다. ① `image_grammar` 가 아키텍처-전용이라 같은 vLLM 버전에서 자체이식(R2)과 포크핀(R3)이 **같은 태그**를 강요받았다 — R2 가 상주 서빙 중이었으므로 덮어쓰기가 곧 사고다. ② 후보 단일성이 '칸을 순차로 밟으라'는 사다리 요구와 충돌했다. v3 는 `source-fork<PR번호>` 트랙과 `-source-fork<PR번호>` 이미지 접미어를 신설하고, 후보 다중을 **image_tag 상이**를 조건으로 허용한다(개수가 아니라 덮어쓰기가 진짜 해악이었다). 모델-키잉 봉쇄는 유지된다 — `fork\\d+` 는 PR 번호라 모델명이 들어갈 자리가 없다. 승격 단일성(VALIDATED 1개)은 그대로다. 우회(architecture 를 `sm12xfork` 로 위장)는 게이트 취지를 무력화하므로 채택하지 않았다(D3 법칙 — 경로를 고친다).",
   "source_build_variants": {
     "_note": "Canonical tracked arch-enablement variant ledger. Runtime resolved.json may mirror this but is not the policy trust anchor.",
     "_deprecation_0.24.0": "deepseek-v4-flash-sm12x fork variant is SUPERSEDED at vLLM 0.24.0 by stock native SM12x support; preserve the 0.23.0 last-good rollback anchor.",
@@ -16,6 +18,59 @@
         "sha256": "d7562d7ba520cbadc88e9ab8685e4a2a0d39ce21549be4c248be5c0f6ab5d265"
       },
       "status": "SUPERSEDED@0.24.0; retained only as the 0.23.0 last-good rollback anchor"
+    },
+    "deepseek-v4-flash-sm12x-port-0.27.0": {
+      "variant_id": "source-sm12x-port-vllm-0.27.0",
+      "architecture": "sm12x",
+      "track": "source-sm12x-port",
+      "_track_note": "**자체 이식**(arch-wall 사다리 3번째 칸)이다 — 포크를 핀하지 않는다. vllm_repo/vllm_ref 는 stock 그대로이고, 변종성은 전적으로 build_patch_selectors 가 만든다. 이 항목이 schema v2 의 존재 이유다.",
+      "vllm_repo": "https://github.com/vllm-project/vllm.git",
+      "vllm_ref": "v0.27.0",
+      "build_patch_selectors": {
+        "SM12X_PORT": "1"
+      },
+      "_selector_note": "build-arg 이름 → 값. Dockerfile.source-build 의 `ARG SM12X_PORT=0` 게이트와 output/<t>/build_patches_src/*.sh 의 자기 게이트가 이 값을 읽는다. 기본 0 이므로 **부재 = stock** 이며, 이 원장에 등재되지 않은 빌드는 이식 스크립트가 디렉터리에 있어도 적용되지 않는다(침묵 변종화 차단).",
+      "image_tag": "easy-vllm:0.27.0-cu133-aarch64-source-sm12x",
+      "_image_tag_note": "stock 은 `easy-vllm:0.27.0-cu133-aarch64-source`. 접미사 `-sm12x` 로 **분리**한다 — 배선이 다른 이미지가 같은 이름을 갖는 것은 불변식이 아니라 결함이다(plan_26081410 §10.3.2.1).",
+      "port_manifest": {
+        "path": "output/multi/build_patches_src/PROVENANCE.json",
+        "upstream_base_sha": "4bdc8a788d2e2ce9165d552b3d4d8b72604626bf",
+        "pr_base_sha": "50ba4bc6b2cacd70c4711a1904dd7ad9740a578b",
+        "fork_head_sha": "9ad62027bc84ca0ccbcc40853179312de770220c",
+        "files": 108
+      },
+      "evidence": {
+        "plan": "docs/plan/plan_26081418_R2_3더하기1더하기1_자체이식_스코프_확정.md",
+        "stock_infeasible_testlogs": [
+          "docs/testlog/testlog_26081418_R1a_dspark_스모크FAIL_커널미배선_판정.md",
+          "docs/testlog/testlog_26081419_R1b_mtp_스모크FAIL_로더벽_잔존_판정.md"
+        ]
+      },
+      "status": "CANDIDATE — 이식 코드 배치·정적검증(2026-08-14) · **빌드 완료 · 서빙 스모크 PASS · full 벤치 PASS**(2026-08-15 재실행 decode 36.87 t/s @동시성1 · 인증서 docs/benchmark/benchmark_26081517_ds4f0731-x2-sm12x_GB10_0.27.0.yaml 발행 · 사다리 판정 testlog_26081519 = R3 포크핀과 동률이며 배치는 R2 우위). ⚠ **VALIDATED 미승격 — 사유는 성능이 아니라 `regression_evidence` 부재다**: 승격은 `arch_variant_regression`(기존모델 회귀 재스모크, `existing_models`) 바운드 아티팩트를 요구하는데(policy_registry ARCH_VARIANT_REGRESSION_EVIDENCE_MISSING) 그 재스모크가 아직 실행되지 않았다. 이 칸의 서빙 근거는 DS4F-0731 **한 모델**뿐이고, 승격은 *이 이미지를 기본 트랙으로 삼아도 다른 모델이 회귀하지 않는가* 를 묻는다 — 다른 질문이므로 벤치 PASS 로 대체되지 않는다."
+    },
+    "deepseek-v4-flash-sm12x-fork41834-0.27.0": {
+      "variant_id": "source-fork41834-vllm-0.27.0",
+      "architecture": "sm12x",
+      "track": "source-fork41834",
+      "_track_note": "**포크 핀**(arch-wall 사다리 4번째 칸 = 소스-repo 오버라이드)이다. 앞 칸(자체 이식 R2 = `deepseek-v4-flash-sm12x-port-0.27.0`)을 건너뛴 것이 아니라, **같은 상류 변경**을 두 방식으로 담아 like-with-like 대조를 만든다 — R2 의 `port_manifest.fork_head_sha` 와 이 항목의 `vllm_ref` 가 **동일 SHA**(9ad62027)다. R2=선별 이식, R3=통째 핀. 이 항목이 schema v3 의 존재 이유다.",
+      "vllm_repo": "https://github.com/jasl/vllm.git",
+      "vllm_ref": "9ad62027bc84ca0ccbcc40853179312de770220c",
+      "tag": "sm120-pr-41834-stable-preview-20260813b",
+      "_ref_note": "2026-08-15 `git ls-remote` 실측. 9ad62027 = refs/tags/sm120-pr-41834-stable-preview-20260813b^{} = refs/heads/codex/ds4-sm120-min-enable. 포크는 force-push 가 가능하므로 태그가 아니라 **SHA 로 핀한다**(content-addressed).",
+      "build_patch_selectors": {
+        "SRC_DEPS_AUTHORITY": "1"
+      },
+      "_selector_note": "`SM12X_PORT` 는 **의도적으로 부재**다(= 0 = stock) — 포크 트리가 이미 소스를 담고 있어 이식을 얹으면 중복 적용이 된다. 반면 **의존 양보는 필요하다**: 포크 트리는 stock v0.27.0 대비 4종을 올려서 오는데(flashinfer-python/cubin 0.6.16.post3→0.6.17 · nvidia-cutlass-dsl 4.6.0→4.6.2 · quack-kernels 0.6.1→0.6.4 · humming-kernels 0.1.10→0.1.12) 우리 Dockerfile 이 stock requirements.txt 를 `/etc/pip/constraint.txt` 로 굽기 때문에 `pip install -e .` 가 ResolutionImpossible 로 죽는다. 소유: `output/multi/build_patches_src/55-src-deps-authority.sh`. 게이트가 SM12X_PORT 하나뿐이면 이 칸은 켤 수도 끌 수도 없다 — 그래서 두 관심사를 갈랐다.",
+      "image_tag": "easy-vllm:0.27.0-cu133-aarch64-source-fork41834",
+      "_image_tag_note": "stock `…-source` · 자체이식 `…-source-sm12x` 와 **셋 다 분리**한다. v2 문법(아키텍처-전용)에서는 이 태그가 불가능했고 R2 태그를 덮어쓸 수밖에 없었다 — 그것이 v3 의 직접 동기다. `VLLM_PRETEND_VERSION=0.27.0` 은 setuptools_scm 이 비-semver 포크 태그에서 죽는 것을 피하는 빌드 metadata shim 이며 트리 내용에 대한 주장이 아니다(이미지 태그의 버전축과 일치시킨 값).",
+      "evidence": {
+        "plan": "docs/plan/plan_26081410_DS4F0731_0.27.0_MTP_1M_Hermes_사다리4칸_full벤치.md",
+        "stock_infeasible_testlogs": [
+          "docs/testlog/testlog_26081418_R1a_dspark_스모크FAIL_커널미배선_판정.md",
+          "docs/testlog/testlog_26081419_R1b_mtp_스모크FAIL_로더벽_잔존_판정.md"
+        ]
+      },
+      "status": "CANDIDATE — 양노드 이미지 빌드 완료(2026-08-15) · **서빙 스모크 PASS · full 벤치 PASS**(재실행 decode 37.05 t/s @동시성1 · 인증서 docs/benchmark/benchmark_26081519_ds4f0731-x2-fork_GB10_0.27.0.yaml 발행). ⚠ **대조군으로서 역할을 다했고 채택하지 않는다**(testlog_26081519 §7): @1 은 R2 와 동률(+0.49% ≪ 런간 분산 6.8~7.3%)이고 @2·@4 는 두 쌍 독립으로 R2 우위다. 포크 핀은 force-push 노출과 setuptools_scm 벽을 추가로 지므로, 성능이 동률이면 앞 칸(자체 이식)이 이긴다 — `policy:ARCH_WALL_VARIANT_LADDER` 의 정면 실증이다. 이 항목은 그 대조 이력으로 보존한다."
     }
   }
 }

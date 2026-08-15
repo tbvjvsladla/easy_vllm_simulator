@@ -40,7 +40,7 @@ description: >-
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
 - **Deterministic commands** — `scripts/staleness_gate.py`(조건부 preflight 트리거) · `scripts/scan_node.py`(스캔·게이트·3자일치·emit) · `scripts/render_sub_env.py`(서브 환경 렌더) · `scripts/manifest_contract.py`(Flag 리더).
 - **Handoff contract** — Flag 발급 → `upstream-version-watch`(컨테이너 빌드) → `vllm-recipe-explorer`(서빙전략). 서브 전달차는 `upstream-version-watch/scripts/sync_to_sub.sh` 단일 경로.
-- **Owns (state)** — `manifest.yaml` · `terraforming-flag` · `a2a-delegation-key` · `sub-agent-env`
+- **Owns (state)** — `manifest.yaml` · `terraforming-flag` · `a2a-delegation-key` · `sub-agent-env` · **`node-identity`**(§2.7.6 role 스킴) · **`sub-control-plane`**(§2.7 평면 A/B·3범주·B0–B3·권위 평면·A2A 제어명령)
 
 ## Mandatory procedural spine
 
@@ -63,6 +63,9 @@ description: >-
 | 서브 환경 렌더 실패(미치환 placeholder·필수 필드 누락) | `.claude/skills/terraforming_node/scripts/render_sub_env.py` |
 | 서브 위임/카나리의 provider 실행문법이 필요 | `.claude/skills/terraforming_node/references/agent-control-adapter.md` |
 | Flag 미발급이라 런타임 스킬이 info-only 로 떨어짐 | `.claude/skills/terraforming_node/scripts/manifest_contract.py` |
+| 서브에 무엇을 해도 되는지 모호(저작/스캔/정비) · 평면 A/B 혼동 · 서브 git 교착 | 이 문서 **§2.7 노드 제어 규약**(정본) |
+| "고쳤는데 안 갔다" / "안 고쳤는데 갔다"(커밋 vs 인덱스 vs 파일시스템) | 이 문서 **§2.7.4 권위 평면 계약** |
+| `docs/logs/<node_id>` 경로가 노드마다 갈림 · hostname 이 경로에 샘 | 이 문서 **§2.7.6 node-identity** |
 
 ## 0. 전제 / 입력
 - **토폴로지-중립 진입**: single·multi **공통** 발동. (과거 "multi 전용·single 비활성(α)"는 plan_26063009_44_23 에서 폐기 — single 진입점 부재 = chicken-and-egg 갭이었음: "single이냐 multi이냐"를 묻는 주체가 multi일 때만 발동했음.) **첫 동작 = 토폴로지 인터뷰(§0.5)**. 이하 §1(진입 루틴)·§2(서브 환경구축)는 **topology=multi 분기**, single 은 §0.5→§1S 로 짧게 완결.
@@ -202,6 +205,129 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
   - **통합메모리 노드 한정 후속 경고**: opt-out + 통합메모리(GPU OOM=호스트 하드다운 위험) 노드는, 이후 서빙 기동 직전 **에이전트 채팅창 1줄** 안내만 한다("워치독 미설치 상태 — 통합메모리라 OOM 시 호스트 다운 위험, `install_host_safety.sh` 로 언제든 보강 가능"). **serve 스크립트/로그 배너 코드변경 ✗**(시끄러운 경험 방지 — D31·NG-5). **discrete GPU 노드는 무경고.**
 - **④ 파급 정밀화(opt-out 이어도 보호 일부 유지)**: 하네스 **협역 워치독**(`run_trial`·`multinode_serve_smoke.sh` 자동 기동)은 레포 내장 스크립트라 **설치와 무관하게 계속 작동**(opt-out 사용자도 trial 중 보호 유지). 로드-전 RAM 게이트(⑤.5)의 `vllm-drop-caches` 자동 드랍만 헬퍼 부재로 skip 되며, 게이트는 이를 **음성정직으로 보고**(드랍 없이 재측정 → 부족 시 기동 거부 exit 7 유지 — `preload_ram_gate.try_drop_caches` 기구현 graceful).
 - **⑤ 멀티노드 변형**: 양노드(메인+서브) 각각 동일 Y/N. **서브 설치는 렌더 배달분**(`.claude/runtime/host_safety/install_host_safety.sh` — §2 오버레이 셋 포함)으로 **서브에서 사용자가 실행**(A2A 경계 — 메인 sudo 대행 ✗). manifest `nodes[].host_safety.installed` 로 **노드별 독립** 기록.
+
+## 2.7 노드 제어 규약 — 메인↔서브 평면·범주·권위 (정본 · 2026-08-15 이관)
+
+> **이관 근거** `plan_26081514_헌법스킬_책임범위_재설정_{설계,구현}.md` Q2/Step 1. 헌법(`CLAUDE.md`)은
+> **"왜"**(항상 참인 원칙)만 갖고, **"어떻게"**(도메인 절차)는 이 스킬이 소유한다. 아래 각 절의 `원문:`
+> 은 이관 직전 원본의 git blob SHA — 정합이 깨지면 `git cat-file -p <sha>` 로 복원한다.
+>
+> **이 절이 이 스킬에 사는 이유**: 노드(메인·서브)는 terraforming 이 스캔·렌더·배달로 **만든** 대상이다.
+> 그 대상을 어떤 평면에서 어떤 권한으로 다루는지는 노드 도메인의 절차이지 모든 도메인의 철학이 아니다.
+
+### 2.7.1 권한 평면 A/B
+
+> 원문: `CLAUDE.md@68dd64c8eea3` §불변식 · `.claude/rules/workflow.md@0d8f542eafa3` §권한 평면 A/B(2026-08-13 신설 · `plan_26081313`)
+
+| | 평면 A: 사용자↔메인 | 평면 B: 메인↔서브 |
+|---|---|---|
+| 상대 | 독립 소유권 주체(사람) | 메인이 렌더·배달해 만든 작업환경 |
+| 게이트 성격 | **승인** — 대행 시 자기승인 순환 | **소실 방지** — 대행이 정상(다른 주체 없음) |
+| git 의 역할 | 사용자의 작업 이력·소유 표현 | **메인의 서브 추적용 관측 장치** |
+| 예 | `execution_approval`·HITL 게이트 | `SUB_SYNC_DIRTY_AUTOSAVE` |
+
+- **A 의 승인 규칙을 B 에 투영하지 않는다** — 존재하지 않는 승인 주체를 요구해 교착이 된다(2026-08-13 실증 · `plan_26081313`).
+- **서브 git 은 거버넌스 주체가 아니라 관측 장치**다. 메인은 서브 git 에 **완전한 조작 권한**(`commit`·`checkout`·`clean`)을 갖는다.
+- B 에 남는 게이트의 근거는 승인이 아니라 **격리**(PII — 상향 문서기반 only)와 **범위**(레시피 계열만 — `policy:MODEL_TRIPLET_NO_SUB_PROPAGATION`)여야 한다.
+- **새 게이트를 B 에 놓을 때는 그 처방을 *누가 실행하는가*를 먼저 적는다** — 메인이 아니면 교착이다(헌법 불변식 ③의 도메인 적용).
+
+### 2.7.2 메인이 서브에 하는 행위의 3범주
+
+> 원문: `CLAUDE.md@68dd64c8eea3` §불변식 · `.claude/rules/workflow.md@0d8f542eafa3` §3범주(2026-08-14 신설 · `plan_26081409` C)
+
+*"서브 디스크를 무단 스캔하거나 직접 교정하지 않는다"* 한 문장이 **두 관심사**(격리·저작)를 묶어, **어느 쪽도 아닌 행위**까지 막아 교착을 만들었다. 세 범주로 가른다:
+
+| 범주 | 무엇 | 허용 | 근거 |
+|---|---|---|---|
+| **저작** | 서브 작업환경·헌법 콘텐츠를 **만들거나 고침** | 템플릿→렌더→배달 **only** | 재현성(직접 교정은 드리프트) |
+| **스캔** | 서브 디스크 내용을 **읽음** | **금지**(상향 회수는 문서기반) | PII 격리 |
+| **정비** | **정보량 0**인 상태 결손 복구(빈 디렉터리·mode 오차) | **허용** · 로그 필수 | 배달 전제 복원 |
+
+- 정비가 저작도 스캔도 아닌 이유: **만들지 않고**(제거·정정만) **읽지 않는다**(내용이 없다). **정보량 0** 이 범주의 경계다 — 바이트를 가진 것을 지우는 것은 정비가 아니라 삭제이며 `ALLOW_DELETE` 게이트가 관할한다.
+- **실증**(2026-08-14): 롤백 스냅샷이 `find -type f -o -type l` 로 파일·심링크만 담는데 **빈 디렉터리는 파일 경로로 함의되지 않는 유일한 디렉터리**라 복원 불가 → 검증기가 배달을 거부 → 복구 경로가 없어 **사람의 ssh `rmdir`** 이 필요했다. 메인은 그 권한을 이미 갖고 있었으나 **파이프라인이 쓸 줄 몰랐다.**
+- ⚠ **정비의 범위는 전송 범위와 일치**해야 한다. `BAND2_EXCLUDED_TOP` 아래는 rsync 가 안 건드리므로 정비도 안 건드린다 — 최상위 디렉터리 자신뿐 아니라 **하위 전부**다(2026-08-14 초판이 이걸 어겨 `cache/vllm/…` 를 정비했다. 대조실험이 잡았다).
+
+### 2.7.3 메인↔서브 B0–B3 상태 표
+
+> 원문: `.claude/rules/workflow.md@0d8f542eafa3` §메인↔서브 B0–B3
+
+| 상태 | 입력→출력 | gate | 실패/owner |
+|---|---|---|---|
+| B0 bootstrap | 최초 배달→서브 local git | dry-run→HITL apply | `policy:SUB_GIT_LOCAL_ONLY` |
+| B1 하향 | canonical render/output→서브 | dirty→보존 후 진행·checksum | `policy:SUB_SYNC_DIRTY_AUTOSAVE`; `upstream-version-watch/scripts/sync_to_sub.sh` |
+| B2 상향 | 서브 docs path→`sync_staging/sub_docs`→HITL 재저작 | **상향 회수(서브→메인) = 문서기반 only** | `fetch_sub_docs.sh`; patch/code 직접 회수 금지 |
+| B3 경계 | attestation+미러 docs→메인 관측 | A2A key(`policy:A2A_DELEGATION_KEY_FAIL_CLOSED`) | 메인은 서브 디스크 재스캔 금지(§2.7.2 스캔) |
+
+- 서브 개선은 `[improve]` history 에 남고 메인 저작권은 template→render→delivery 로만 행사한다(§2.7.2 저작).
+- egress-restricted 서브의 외부조사 실패도 **docs 로만** 상향한다.
+- **공통 진입 게이트**: B0–B3 진입 전 tracked terraform validator + `policy:A2A_DELEGATION_KEY_FAIL_CLOSED` 검증(`workflow.md` §공통 진입 게이트).
+
+### 2.7.4 권위 평면 계약 — 어느 도구가 무엇을 읽는가
+
+> 원문: `.claude/rules/workflow.md@0d8f542eafa3` §권위 평면 계약
+
+| 도구 | 읽는 평면 | 귀결 |
+|---|---|---|
+| `sync_branches.sh` | **커밋**(`git checkout <branch> -- <path>`) | 미커밋 변경은 전파되지 않는다 |
+| `sync_to_sub.sh` | **인덱스**(`ls-files \| checkout-index`) | `git add` 만으로 배달된다(커밋 불요) |
+| 렌더·빌드 | **파일시스템** | 인덱스와 갈리면 `info:` 만 찍고 진행한다 |
+
+같은 파일이 세 평면에서 서로 다른 값을 가질 수 있다. **새 도구는 이 표에 행을 추가한다** — 명문화 없이는 "고쳤는데 안 갔다"와 "안 고쳤는데 갔다"가 반복된다(2026-08-13 실제 발생: `55-src-deps-authority.sh` 배달 누락).
+
+### 2.7.5 sync 절차의 평면 분리
+
+> 원문: `.claude/rules/workflow.md@0d8f542eafa3` S2.5 + §권한 평면 A/B (분리 명문화는 `plan_26081514` Step 1 신설)
+
+한 번의 sync 안에 **두 평면이 섞여 있다.** 섞은 채로 게이트를 걸면 어느 쪽 규칙을 적용할지 모호해진다.
+
+| sync 하위행위 | 평면 | 게이트 | 실행 주체 |
+|---|---|---|---|
+| **전달 콘텐츠 결정**(무엇을 보낼지·핀·해소값) | **A** | 사용자 서명(HITL 게이트 ②) | 사람 |
+| **dry-run → apply** | **A** | 사용자 승인 | 사람 |
+| 서브 dirty 보존(`[autosave]` commit) | **B** | 소실 방지 — **메인 자율** | 메인 |
+| 서브 git `checkout`·`clean`(unstick) | **B** | 소실 방지 — **메인 자율** | 메인 |
+| 서브 빈 디렉터리 정비(§2.7.2) | **B** | 로그 필수 — **메인 자율** | 메인 |
+
+### 2.7.6 노드 정체성(node-identity) — `role` 스킴
+
+> 원문: `docs/plan/plan_26081514_노드정체성_명시화_role스킴_PII구조해소.md` §3 (R 스킴). **⚠ 미실장** — 아래는 확정된 스킴 선언이며 코드 배선(A1–A6)은 별건이다.
+
+```text
+node_id ::= manifest nodes[].role 슬러그
+정규식  ::= ^[a-z][a-z0-9-]{0,31}$          (fail-closed 검증)
+경로    ::= docs/logs/<node_id>             (2노드에서 main | sub)
+```
+
+| 항목 | 규약 |
+|---|---|
+| **메인측 권위** | `output/<topology>/manifest.yaml` 의 `nodes[].role` |
+| **서브측 권위** | 배달된 `Agent_Card.json` → `node_identity.role` — **신규 배달 채널 불요**(이미 렌더·전달 중) |
+| **기본값** | **없음.** 해소 실패 시 `$(hostname)` 로 떨어지지 않고 **fail-loud 종료** |
+| **hostname 의 남은 자리** | gitignored 렌더 산출물의 **비권위 속성 필드**(`Agent_Card.json:node_identity.hostname`)뿐. **경로 성분·문서 산문에는 등장 금지** |
+| **의미 스코프** | **클러스터 스코프**(누구의 디스크에서 보든 같은 이름). 메인의 `docs/logs/sub/` = 서브 미러, 서브의 `docs/logs/sub/` = 정본. 경로 동일, 권위만 다름 |
+
+- **기본값 제거가 스킴의 핵심이다.** 현행 `NODE_ID="$(hostname)"` 은 헌법이 금지한 *"결정·게이트·안전 경로의 침묵 폴백"*(§결정론 규율 4종 안티패턴 판정표의 **결함** 칸)이다 — 틀려도 조용히 새 로그 트리를 만든다.
+- **PII 구조 해소**: `hostname` 이 경로에서 사라지면 `spark-host` 패턴은 애초에 걸릴 것이 없다. `docs.md` 의 `<node_id>` 규약은 문자 그대로 유효하게 남는다(개정 대상은 규약이 아니라 `<node_id>` 의 **정의**뿐).
+- **예외**: `--confirm=CRASH-$(hostname)` 파괴적 확인 토큰은 PII 스캔 평면 밖이라 **의도적으로 hostname 을 남긴다**(경로·기록은 role, 파괴적 확인만 호스트). 최종 결정은 해당 plan 의 G2.
+
+### 2.7.7 A2A 제어명령 프로토콜 (신설 — 교착 해제)
+
+> 신설: `plan_26081514_…_구현.md` Step 1. §2.7.1 의 *"서브 git 은 관측 장치이고 메인은 완전한 조작 권한을 갖는다"* 를 **실행 가능한 명령 시퀀스**로 만든 것. 이것이 없으면 원칙은 있는데 처방 주체가 없어 §2.7.2 실증과 같은 교착이 반복된다.
+
+**전제**: `policy:A2A_DELEGATION_KEY_FAIL_CLOSED` 통과(키 부재 → 진입 금지) · 대상은 **서브 git 과 정보량 0 상태 결손만**(콘텐츠 저작은 §2.7.2 저작 경로로).
+
+| 명령 | 언제 | 무엇 | 평면 |
+|---|---|---|---|
+| `sub.git.status` | 배달 전 상시 | 서브 워킹트리 dirty 여부 관측 | B(관측) |
+| `sub.git.autosave` | dirty 감지 | `git add -A && git commit -m '[autosave] pre-sync'` — **소실 방지·메인 자율** | B |
+| `sub.git.unstick` | 배달 검증기가 거부 | `git checkout -- <path>` / `git clean -fd <path>` — **경로 한정**, 전역 금지 | B |
+| `sub.fs.repair` | 빈 디렉터리·mode 오차 | `rmdir`/`chmod` — **정보량 0 한정**(§2.7.2 정비) · 로그 필수 | B |
+| `sub.git.log` | 상향 관측 | 서브 작업 이력 조회(내용 아닌 이력) | B(관측) |
+
+- **경로 한정이 안전장치다** — `unstick`·`repair` 는 배달 대상 경로에만 건다. `BAND2_EXCLUDED_TOP` 및 그 **하위 전부**는 대상 밖(§2.7.2 ⚠).
+- **모든 제어명령은 로그를 남긴다** — 침묵 조작은 "원래 그랬던 것"과 구분되지 않는다.
+- **바이트를 가진 것의 삭제는 이 프로토콜 밖**이다 — `ALLOW_DELETE` 게이트 관할이며, 그 안내문을 그대로 따르면 파괴가 완성되는 형태였던 선례(D5)가 있으므로 **안내문 복창 금지**.
+- 실행문법(provider 별 `claude -p` 호출 형태)은 `references/agent-control-adapter.md` 에서만 해소한다.
 
 ## 3. 결정론 vs 판단 분리
 | 결정론 (스크립트) | 판단 (이 페르소나) |

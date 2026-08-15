@@ -58,6 +58,7 @@ def build_yaml(index, verdict):
     # ── carry-forward 재검증 헤더 (문서화된 배너) ──
     A("# ⚠ CARRY-FORWARD 재검증 필수 — 이건 '그때-그 환경' 한정 측정이다(지도≠정답). 소비 전 재확인하라.")
     A("#   강한 일치 키(model/gpu/vllm/quant/topology/tp): 정확일치 실패 시 이 인증서 무효.")
+    A("#   model = 체크포인트에서 파생한 **모델 축**(소문자). 운영 조합명은 serving_config 축에 따로 산다.")
     A("#   소프트 지문(driver/cuda/image/max-len/kv-bytes/gmu/moe): 불일치 시 stale — 재측정 권고.")
     A("#   발행 = full 모드 verdict==PASS 시만(결정론 publish_benchmark_record.py · inform-record).")
     A("schema_version: 1")
@@ -67,6 +68,18 @@ def build_yaml(index, verdict):
     A("# --- 강한 일치 키 (정확일치 필요) ---")
     for k in ("model", "gpu_model", "vllm_version", "quantization", "topology", "tensor_parallel_size"):
         A("%s: %s" % (k, scalar(meta.get(k))))
+    A("")
+    # --- 운영 조합명(정본 필드 · 2026-08-15 신설) ---
+    # `model` 은 **모델 축**이다(체크포인트에서 파생). 그런데 같은 모델을 사다리 칸/이미지 변종으로
+    # 가르려면 서빙 config 이름이 갈려야 하고(`ds4f0731-x2-sm12x` vs `-fork`), 종전 스키마엔 그 축을
+    # 담을 칸이 없어 조합명이 `model` 로 흘러들었다 → hint 태그의 `<model>` 세그먼트와 영구 불일치
+    # (`IDENTITY_MISMATCH:model`, 2026-08-15). 축이 둘이면 칸도 둘이어야 한다.
+    # **강한 일치 키가 아니다** — 같은 모델의 서로 다른 칸을 carry-forward 로 갈라 세우는 것은
+    # 소프트 지문의 일이고, 강한키를 늘리면 completion_gate 의 6키 계약(STRONG_IDENTITY_FIELDS)이
+    # 갈라진다. 항상 발행한다(결측이면 N/A) — 있을 때만 적으면 소비자가 부재와 결측을 구분 못 한다.
+    A("# --- 운영 조합명(모델 축 아님 · 정본 필드) ---")
+    A("serving_config: %s" % scalar(meta.get("serving_config")))
+    A("model_source: %s" % scalar(meta.get("model_source")))
     A("")
     A("# --- 소프트 지문 (불일치 시 stale 경고) ---")
     for k in ("driver_version", "cuda_version", "image_tag", "max_model_len", "max_num_seqs",

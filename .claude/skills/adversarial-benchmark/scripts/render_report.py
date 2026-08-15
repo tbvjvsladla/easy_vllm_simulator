@@ -160,7 +160,8 @@ def build_md(index, verdict, roofline):
     A("| 키 | 값 |")
     A("|---|---|")
     for label, key in [
-        ("model", "model"), ("gpu_model", "gpu_model"), ("vllm_version", "vllm_version"),
+        ("model", "model"), ("model_source", "model_source"), ("serving_config", "serving_config"),
+        ("gpu_model", "gpu_model"), ("vllm_version", "vllm_version"),
         ("quantization", "quantization"), ("topology", "topology"), ("tensor_parallel_size", "tensor_parallel_size"),
         ("driver_version", "driver_version"), ("cuda_version", "cuda_version"), ("image_tag", "image_tag"),
         ("max_model_len", "max_model_len"), ("max_num_seqs", "max_num_seqs"),

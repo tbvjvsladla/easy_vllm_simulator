@@ -28,7 +28,13 @@ SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _find_repo(){ local d="$1"; while [ "$d" != "/" ] && [ -n "$d" ]; do
     [ -d "$d/.claude" ] && [ -d "$d/docs" ] && { printf '%s' "$d"; return 0; }; d="$(dirname "$d")"; done; return 1; }
 REPO="$(_find_repo "$SDIR" || (cd "$SDIR/../../../../.." 2>/dev/null && pwd))"
-MODE="check"; NODE_ID="$(hostname)"; LOGS_ROOT=""; PEER_IP=""; CONFIRM=""
+# node_id 해소는 단일 소유다(plan_26081514 §4.2 · SKILL.md §2.7.6). 각자 파싱 금지.
+[ -f "$SDIR/node_identity.sh" ] || {
+  echo "[bb-verify] FAIL: $SDIR/node_identity.sh 부재 — node_id 해소기가 배달되지 않았다." >&2; exit 1; }
+# shellcheck source=node_identity.sh
+. "$SDIR/node_identity.sh"
+# ★ NODE_ID 기본값 없음(스킴 R) — 옛 `$(hostname)` 은 침묵 폴백이었다. 해소는 인자 파싱 뒤.
+MODE="check"; NODE_ID=""; LOGS_ROOT=""; PEER_IP=""; CONFIRM=""
 for a in "$@"; do
   case "$a" in
     --check) MODE="check" ;;
@@ -43,7 +49,14 @@ for a in "$@"; do
   esac
 done
 [ -n "$LOGS_ROOT" ] || LOGS_ROOT="$REPO/docs/logs"
+NODE_ID="$(ni_resolve_node_id "$REPO" "$NODE_ID")" || exit 1
 NODE_DIR="$LOGS_ROOT/$NODE_ID"
+# ── 파괴적 확인 토큰만 hostname 을 **의도적으로** 남긴다 (plan_26081514 §3.4 권고 · G2) ──
+#   경로·기록은 role 이지만, 이 토큰은 사람이 대화형으로 타이핑하는 **휘발성 CLI 입력**이라
+#   파일·문서에 적히지 않는다 → PII 스캔 평면 밖이다. 반대로 role 로 바꾸면 모든 노드에서
+#   `CRASH-main`/`CRASH-sub` 로 동형이 되어 **엉뚱한 노드에 복붙 실행**하는 사고를 막지 못한다.
+#   근거 없는 잔존은 다음 사람이 지우므로, 이 주석이 그 근거다. 균일성을 택하려면 G2 를 뒤집어라.
+CRASH_TOKEN="CRASH-$(hostname)"
 ETC=/etc/easy-vllm
 PASS=0; FAILN=0; PEND=0
 RESULTS=""
@@ -87,8 +100,8 @@ if [ "$MODE" = "crash" ]; then
   fi
   say "포착 수단: kdump_loaded=$CKL · pstore_backend='${PSB:-none}'"
   # 게이트 3: 명시 확인 문자열
-  if [ "$CONFIRM" != "CRASH-$NODE_ID" ]; then
-    say "거부: 확인 문자열 불일치. 정말 실행하려면 --confirm=CRASH-$NODE_ID 를 붙여라."
+  if [ "$CONFIRM" != "$CRASH_TOKEN" ]; then
+    say "거부: 확인 문자열 불일치. 정말 실행하려면 --confirm=$CRASH_TOKEN 를 붙여라."
     say "      (kexec_crash_size=$CKS · loaded=$CKL · 서빙 컨테이너 없음 = 나머지 전제는 충족)"
     exit 3
   fi
@@ -113,6 +126,7 @@ for t in "blackbox_eta.py --self-test:ETA 엔진" \
          "blackbox_events.py --self-test:이벤트 통합" \
          "logs_lifecycle.py --self-test:수명 집행" \
          "seed_from_journal.py --self-test:시드 임포터" \
+         "regen_envelope.py --self-test:포락선 재생성·키 정합" \
          "blackbox_session.py --self-test:세션 사이드카"; do
   f="${t%%:*}"; label="${t##*:}"
   if python3 "$SDIR/${f%% *}" ${f#* } >/dev/null 2>&1; then ok "$label self-test" "selftest_${f%%.*}"
@@ -127,7 +141,8 @@ else bad "ETA 워치독 self-test 실패" "selftest_watchdog"; fi
 #   (근거: install 의 `enable --now` 가 이미 돌던 유닛을 재시작하지 않던 결함 — testlog_26073123)
 for pair in "mem_watchdog_eta.sh:easy-vllm-bb-watchdog" \
             "blackbox_collect.py:easy-vllm-bb-collect" \
-            "blackbox_eta.py:easy-vllm-bb-eta"; do
+            "blackbox_eta.py:easy-vllm-bb-eta" \
+            "regen_envelope.py:easy-vllm-bb-regen-envelope"; do
   src="$SDIR/${pair%%:*}"; dst="/usr/local/sbin/${pair##*:}"
   if [ ! -f "$dst" ]; then bad "배포본 부재: $dst" "deployed_${pair##*:}"
   elif [ "$(sha256sum <"$src" | cut -d' ' -f1)" = "$(sha256sum <"$dst" | cut -d' ' -f1)" ]; then
@@ -411,7 +426,7 @@ fi
 if [ "$PEND" -gt 0 ] && [ "$FAILN" = 0 ]; then
   echo
   say "보류 항목이 남았다. 사후 포착(efi_pstore)은 **강제 크래시 없이는 증명 불가**다:"
-  say "   sudo bash $0 --crash-test --confirm=CRASH-$NODE_ID     # 노드가 죽고 재부팅됨"
+  say "   sudo bash $0 --crash-test --confirm=$CRASH_TOKEN     # 노드가 죽고 재부팅됨"
   say "   (재부팅 후)  sudo bash $0 --post-crash"
 fi
 [ "$FAILN" = 0 ] && exit 0 || exit 2

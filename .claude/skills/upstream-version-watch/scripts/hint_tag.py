@@ -63,6 +63,17 @@ GENERIC_PII: list[tuple[str, re.Pattern]] = [
     ("spark-host", re.compile(r"spark-[0-9a-f]{3,}")),
 ]
 
+# Document section numbers ("§10.1.2", "#### 10.1 ...") are NOT private IPv4 addresses. The
+# `10\.\d{1,3}\.` branch above cannot tell them apart on shape alone, so the discriminator is the
+# text IMMEDIATELY BEFORE the match, within the same line: a `§` sigil, or a markdown heading
+# marker. Measured on plan_26081410: 14/14 matches were section numbers, 0 genuine (plan_26081514
+# §6.1). Narrowing a safety pattern is only admissible with a no-loss proof -- the merge gate was
+# "genuine IP detections must stay at 169" (plan_26081516 §4 H1), and the negative fixture in
+# claim_predicates C2 is the tripwire that forces review if anyone widens or narrows this again.
+_SECTION_ANCHOR = re.compile(r"(?:§\s*|^#{1,6}\s+)$")
+# Only the IPv4 branch is shape-ambiguous with section numbers; email/abs-path/spark-host are not.
+_ANCHOR_EXCLUDED: frozenset[str] = frozenset({"private-ipv4"})
+
 
 def die(msg: str) -> "NoReturn":  # noqa: F821
     print(msg, file=sys.stderr)
@@ -529,10 +540,23 @@ def load_pii_terms() -> list[str] | None:
     return terms
 
 
+def _is_section_anchored(text: str, start: int) -> bool:
+    """True when the match at `start` is preceded, ON ITS OWN LINE, by a `§` sigil or a markdown
+    heading marker -- i.e. it is a document section number, not an address. The prefix is cut at
+    the line start on purpose: searching the whole preceding text would let a `§` sitting alone on
+    some earlier line suppress a genuine hit far below it."""
+    line_start = text.rfind("\n", 0, start) + 1
+    return _SECTION_ANCHOR.search(text[line_start:start]) is not None
+
+
 def scan_text(text: str, terms: list[str] | None, skip_generic: frozenset[str] = frozenset()) -> list[str]:
     """Scan for pii_terms literals + generic patterns. `skip_generic` drops named generic
     patterns — the tagger identity check skips 'email' (a tagger MUST have an email; we only
-    forbid it carrying a KNOWN-PII literal like a personal handle/domain, not being an email)."""
+    forbid it carrying a KNOWN-PII literal like a personal handle/domain, not being an email).
+
+    Anchored section numbers are excluded for `_ANCHOR_EXCLUDED` patterns. Note this walks EVERY
+    match rather than taking `search`'s first one: with an exclusion in play, stopping at match #1
+    would let a leading false positive mask a genuine address later in the same text."""
     hits = []
     for t in terms or []:
         if t and t in text:
@@ -540,9 +564,12 @@ def scan_text(text: str, terms: list[str] | None, skip_generic: frozenset[str] =
     for name, pat in GENERIC_PII:
         if name in skip_generic:
             continue
-        m = pat.search(text)
-        if m:
+        anchored_excluded = name in _ANCHOR_EXCLUDED
+        for m in pat.finditer(text):
+            if anchored_excluded and _is_section_anchored(text, m.start()):
+                continue
             hits.append(f"{name}:{m.group(0)}")
+            break
     return hits
 
 

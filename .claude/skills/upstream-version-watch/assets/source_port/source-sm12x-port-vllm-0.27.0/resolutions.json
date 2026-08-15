@@ -1,0 +1,359 @@
+{
+ "schema_version": 1,
+ "variant_id": "source-sm12x-port-vllm-0.27.0",
+ "_note": "① mechanical=유도식 그대로 · ② fork-verbatim=결정만 기록(바이트 ✗) · ③ residual-patch=사람 판단이 든 유일한 손작성 잔차. 최종 게이트는 PROVENANCE sha256.",
+ "derived_with_git": "git version 2.43.0",
+ "mechanical_conflict_files": [
+  "vllm/config/speculative.py",
+  "vllm/model_executor/layers/fused_moe/oracle/mxfp4.py",
+  "vllm/model_executor/layers/sparse_attn_indexer.py",
+  "vllm/model_executor/models/registry.py",
+  "vllm/models/deepseek_v4/nvidia/dspark.py",
+  "vllm/models/deepseek_v4/nvidia/flashmla.py",
+  "vllm/v1/attention/backends/mla/indexer.py",
+  "vllm/v1/worker/gpu/spec_decode/dspark/speculator.py"
+ ],
+ "counts": {
+  "mechanical": 96,
+  "fork_verbatim": 3,
+  "residual_patch": 9
+ },
+ "files": {
+  "csrc/cache.h": {
+   "strategy": "mechanical"
+  },
+  "csrc/libtorch_stable/cache_kernels.cu": {
+   "strategy": "mechanical"
+  },
+  "csrc/libtorch_stable/moe/marlin_moe_wna16/ops.cu": {
+   "strategy": "mechanical"
+  },
+  "csrc/libtorch_stable/moe/moe_align_sum_kernels.cu": {
+   "strategy": "mechanical"
+  },
+  "csrc/libtorch_stable/moe/topk_softplus_sqrt_kernels.cu": {
+   "strategy": "mechanical"
+  },
+  "csrc/libtorch_stable/ops.h": {
+   "strategy": "mechanical"
+  },
+  "csrc/libtorch_stable/persistent_topk.cuh": {
+   "strategy": "mechanical"
+  },
+  "csrc/libtorch_stable/topk.cu": {
+   "strategy": "mechanical"
+  },
+  "csrc/libtorch_stable/torch_bindings.cpp": {
+   "strategy": "mechanical"
+  },
+  "vllm/_custom_ops.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/compilation/breakable_cudagraph.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/compilation/passes/utility/fix_functionalization.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/config/cache.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/config/compilation.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/config/speculative.py": {
+   "strategy": "residual-patch",
+   "reason": "헝크 판정·드리프트 되돌림·폐포 최소추출 등 사람 판단"
+  },
+  "vllm/config/vllm.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/distributed/device_communicators/cuda_wrapper.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/distributed/kv_transfer/kv_connector/v1/offloading/config.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/envs.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/kernels/linear/scaled_mm/BlockScaledMMLinearKernel.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/kernels/linear/scaled_mm/cutlass.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/kernels/linear/scaled_mm/marlin.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/kernels/linear/scaled_mm/triton.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/kernels/mhc/__init__.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/kernels/mhc/tilelang.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/kernels/mhc/tilelang_kernels.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/configs/E=128,N=704,device_name=NVIDIA_GB10,dtype=fp8_w8a8.json": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/configs/E=129,N=704,device_name=NVIDIA_GB10,dtype=fp8_w8a8.json": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/configs/E=20,N=1536,device_name=NVIDIA_GB10,dtype=fp8_w8a8.json": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/configs/E=256,N=384,device_name=NVIDIA_GB10,dtype=fp8_w8a8,block_shape=[128,128].json": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/configs/E=256,N=512,device_name=NVIDIA_GB10,dtype=fp8_w8a8,block_shape=[128,128].json": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/configs/E=64,N=1536,device_name=NVIDIA_GB10,dtype=fp8_w8a8,block_shape=[128,128].json": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/experts/flashinfer_cutlass_moe.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/fused_moe.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/moe_fused_mul_sum.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/oracle/mxfp4.py": {
+   "strategy": "residual-patch",
+   "reason": "헝크 판정·드리프트 되돌림·폐포 최소추출 등 사람 판단"
+  },
+  "vllm/model_executor/layers/fused_moe/prepare_finalize/flashinfer_nvlink_one_sided.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/prepare_finalize/flashinfer_nvlink_two_sided.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/prepare_finalize/naive_dp_ep.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/routed_experts.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/fused_moe/utils.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/quantization/mxfp4.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/quantization/utils/configs/N=1536,K=4096,device_name=NVIDIA_GB10,dtype=fp8_w8a8,block_shape=[128,128].json": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/quantization/utils/configs/N=16384,K=1024,device_name=NVIDIA_GB10,dtype=fp8_w8a8,block_shape=[128,128].json": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/quantization/utils/configs/N=2048,K=4096,device_name=NVIDIA_GB10,dtype=fp8_w8a8,block_shape=[128,128].json": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/quantization/utils/configs/N=4096,K=1024,device_name=NVIDIA_GB10,dtype=fp8_w8a8,block_shape=[128,128].json": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/quantization/utils/configs/N=4096,K=4096,device_name=NVIDIA_GB10,dtype=fp8_w8a8,block_shape=[128,128].json": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/quantization/utils/configs/N=8192,K=1024,device_name=NVIDIA_GB10,dtype=fp8_w8a8,block_shape=[128,128].json": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/quantization/utils/fp8_utils.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/layers/sparse_attn_indexer.py": {
+   "strategy": "residual-patch",
+   "reason": "헝크 판정·드리프트 되돌림·폐포 최소추출 등 사람 판단"
+  },
+  "vllm/model_executor/model_loader/default_loader.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/model_loader/weight_utils.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/models/qwen3_dspark.py": {
+   "strategy": "residual-patch",
+   "reason": "헝크 판정·드리프트 되돌림·폐포 최소추출 등 사람 판단"
+  },
+  "vllm/model_executor/models/registry.py": {
+   "strategy": "residual-patch",
+   "reason": "헝크 판정·드리프트 되돌림·폐포 최소추출 등 사람 판단"
+  },
+  "vllm/model_executor/warmup/deepseek_v4_mhc_warmup.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/warmup/deepseek_v4_sm12x_warmup.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/model_executor/warmup/kernel_warmup.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/attention.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/common/ops/__init__.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/common/ops/cache_utils.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/common/rope.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/eager_scratch.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/nvidia/dspark.py": {
+   "strategy": "fork-verbatim",
+   "reason": "충돌 판정 = PR본 통째 채택(드리프트가 PR 재작성 대비 미미)"
+  },
+  "vllm/models/deepseek_v4/nvidia/dspark_triton.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/nvidia/flashinfer_sm120_decode.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/nvidia/flashmla.py": {
+   "strategy": "fork-verbatim",
+   "reason": "충돌 판정 = PR본 통째 채택(드리프트가 PR 재작성 대비 미미)"
+  },
+  "vllm/models/deepseek_v4/nvidia/model.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/nvidia/mtp.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/nvidia/ops/fp8_einsum.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/nvidia/ops/o_proj.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/nvidia/ops/shared_experts.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/nvidia/ops/sm12x_deep_gemm_fallbacks.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/nvidia/ops/sm12x_mqa.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/quant_config.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/models/deepseek_v4/sparse_mla.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/platforms/cuda.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/utils/deep_gemm.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/utils/flashinfer.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/utils/import_utils.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/attention/backends/mla/flashinfer_mla_sparse_sm120.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/attention/backends/mla/indexer.py": {
+   "strategy": "residual-patch",
+   "reason": "헝크 판정·드리프트 되돌림·폐포 최소추출 등 사람 판단"
+  },
+  "vllm/v1/attention/backends/mla/sparse_mla_env.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/attention/backends/mla/sparse_mla_kernels.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/attention/backends/mla/sparse_swa.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/attention/backends/utils.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/core/kv_cache_coordinator.py": {
+   "strategy": "residual-patch",
+   "reason": "헝크 판정·드리프트 되돌림·폐포 최소추출 등 사람 판단"
+  },
+  "vllm/v1/core/kv_cache_manager.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/core/kv_cache_utils.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/core/single_type_kv_cache_manager.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/engine/core.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/engine/core_client.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/kv_cache_interface.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/kv_offload/compact_geometry.py": {
+   "strategy": "fork-verbatim",
+   "reason": "충돌 판정 = PR본 통째 채택(드리프트가 PR 재작성 대비 미미)"
+  },
+  "vllm/v1/kv_offload/config.py": {
+   "strategy": "residual-patch",
+   "reason": "헝크 판정·드리프트 되돌림·폐포 최소추출 등 사람 판단"
+  },
+  "vllm/v1/sample/rejection_sampler.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/spec_decode/dflash.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/spec_decode/dspark.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/spec_decode/dspark_sampling.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/spec_decode/llm_base_proposer.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/spec_decode/utils.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/worker/gpu/model_runner.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/worker/gpu/sample/gumbel.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/worker/gpu/spec_decode/dflash/speculator.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/worker/gpu/spec_decode/dspark/speculator.py": {
+   "strategy": "residual-patch",
+   "reason": "헝크 판정·드리프트 되돌림·폐포 최소추출 등 사람 판단"
+  },
+  "vllm/v1/worker/gpu/spec_decode/dspark/utils.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/worker/gpu_model_runner.py": {
+   "strategy": "mechanical"
+  },
+  "vllm/v1/worker/ubatch_utils.py": {
+   "strategy": "mechanical"
+  }
+ }
+}
