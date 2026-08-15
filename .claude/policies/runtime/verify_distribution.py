@@ -320,8 +320,11 @@ def verify() -> dict:
             {"name": "local_exact_relocation_replacements",
              "ok": replacements == LOCAL_REPLACEMENTS and len(replacements) == len(local_actual),
              "actual": sorted(replacements), "expected": sorted(LOCAL_REPLACEMENTS)},
+            # 종료 앵커만 메시지 문자열이다 — `git rm --ignore-unmatch` 뒤로 **코드가 없다**
+            # (파일 끝이 안내 echo 5줄). 유일 출현이라 구간 상한이 판정을 좌우하지도 않는다.
             _order_check("local_replacement_integrity_before_tombstone", local_text,
-                         "# ── apply:", "echo \"[sync-branches] 완료", local_order),
+                         'git checkout "$SRC_BRANCH" -- "${PATHS[@]}"',
+                         "echo \"[sync-branches] 완료", local_order),
         ]
     except (OSError, UnicodeError) as exc:
         checks.append({"name": "local_exact_relocation_tombstones", "ok": False,
@@ -340,11 +343,11 @@ def verify() -> dict:
         # 두 구간을 and 로 묶는 체크라 진단도 둘 다 보존한다 — 어느 쪽이 깨졌는지 모르면
         # `ok:false` 하나로 뭉개지는 것은 마찬가지다.
         tx_before_mutation = [
-            _ordered_between_detail(sub_text, "# (2) transaction before checkout",
-                                    "# (3) rsync(빌드 + 오버레이)",
+            _ordered_between_detail(sub_text, 'begin_remote_transaction "$t" 0',
+                                    'deliver_build "$t" 0',
                                     ('begin_remote_transaction "$t" 0', 'git checkout -q $t')),
-            _ordered_between_detail(sub_text, "# R2 HITL 게이트",
-                                    "# ── B0 멱등 self-bootstrap",
+            _ordered_between_detail(sub_text, 'PROVISION" != "1"',
+                                    "if [ $HAS_GIT = 0 ]; then",
                                     ("begin_remote_transaction multi 1", "sub_run_mk")),
         ]
         checks += [
@@ -359,16 +362,26 @@ def verify() -> dict:
                         "retirements": sorted(sub_retirements)}},
             {"name": "sub_additive_overlay_has_no_apply_delete",
              "ok": bool(additive_body) and "rm -f" not in additive_body},
-            _order_check("sub_bootstrap_replacement_before_tombstone", sub_text,
-                         "# multi 초기 Band2 배달", "# ── B1 per-branch 증분 싱크", order),
-            # 종료 앵커는 **코드 토큰**이다(2026-08-15 · `request_26081521_01_04` 처방 B).
+            # ── 앵커 규약: **구간 앵커는 코드 토큰만 쓴다** ─────────────────────────────
+            # (2026-08-15 처방 B → 2026-08-16 전 체크로 확대 · `request_26081521_01_04`)
             # 옛 앵커 "# 서브를 기본 운용 브랜치" 는 주석이었고, 2026-08-13 배달경로 교정이
             # 그 주석을 다시 쓰면서 소실됐다 — 주석은 문서 교정 때 자유롭게 바뀌므로 앵커로
-            # 부적합하다. `REST_BRANCH=` 는 B1 루프가 끝나고 복귀 브랜치를 정하는 자리이며,
-            # 그 교정의 산물 자체다. 이 토큰이 사라지는 변경은 복귀 로직이 바뀌었다는 뜻이라
-            # 그때는 판정기도 함께 리뷰돼야 하는 것이 맞다.
+            # 부적합하다. 처방 B 는 깨진 한 곳(`REST_BRANCH=`)만 고쳤는데, **쌍둥이 체크의
+            # 앵커 4개도 같은 주석 계열이었다**(그때는 우연히 생존해 PASS 였을 뿐 — F7).
+            # 살아 있다는 이유로 두면 다음 리팩터 때 같은 사고가 난다.
+            # 코드 토큰도 바뀔 수는 있다. 다만 바뀐다는 것은 **배달 로직이 바뀌었다**는 뜻이라
+            # 그때는 판정기도 함께 리뷰돼야 하는 것이 맞다 — 이것이 주석과의 결정적 차이다.
+            #   B0 구간: `deliver_build multi 0`(부트스트랩 Band2 배달 시작)
+            #            → `REMOTES="$(sub_run`(배달·검증·tombstone·커밋 뒤 origin 부재 확증)
+            #   B1 구간: `deliver_build "$t" 0`(증분 배달 시작) → `REST_BRANCH=`(복귀 브랜치 결정)
+            # ⚠ 시작 앵커가 **첫 순서토큰 자신인** 두 체크(`local_…`·`sub_transaction_…`)는
+            #   그 토큰이 구간 밖으로 밀리면 `token_out_of_order` 가 아니라 `token_absent` 로
+            #   보고된다(구간이 앵커에서 시작하므로 앞쪽을 볼 수 없다). 빨간불은 정확히 켜지고
+            #   지목 토큰도 맞지만, 사유 문자열만으로 두 경우를 가르지는 못한다 — 2026-08-16 실측.
+            _order_check("sub_bootstrap_replacement_before_tombstone", sub_text,
+                         "deliver_build multi 0", 'REMOTES="$(sub_run', order),
             _order_check("sub_incremental_replacement_before_tombstone", sub_text,
-                         "# (3) rsync(빌드 + 오버레이)", "REST_BRANCH=", order),
+                         'deliver_build "$t" 0', "REST_BRANCH=", order),
             {"name": "sub_render_uses_transactional_source",
              "ok": all(token in sub_text for token in (
                  "prepare_transactional_source", "mktemp -d", "CANONICAL_SRC",
