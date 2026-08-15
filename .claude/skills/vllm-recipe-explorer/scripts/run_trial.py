@@ -704,7 +704,7 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
 
     opts(dict 또는 객체) 인식 키:
         image(기본 vllm-src-022:clean), timeout(기본 900), port(기본 8903),
-        served_model_name(스모크용; 없으면 candidate.model_id 또는 모델 경로),
+        served_model_name(스모크용; 없으면 candidate.served_model_name → model_id → 모델 경로),
         dry_run(bool), mock_profile(json path), smoke_timeout(기본 60),
         container_name(기본 vllm_trialNN).
 
@@ -721,9 +721,15 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
 
     log_path = os.path.join(simlog_dir, "trial%02d_vllm.log" % int(trial_number))
 
-    # served_model_name 결정: opts → candidate.model_id → 모델 경로.
+    # served_model_name 결정: opts → candidate.served_model_name → candidate.model_id → 모델 경로.
+    #   ⚠ `candidate.served_model_name` 이 이 체인에 **없었다**(2026-08-16 실측 발각).
+    #   `_build_serve_args` 는 그 값을 `--served-model-name` 으로 넣어 vLLM 을 그 이름으로 띄우는데,
+    #   스모크는 여기서 `model_path_container` 로 떨어져 **다른 이름을 조회**했다 → 항상 http_404
+    #   (`The model '<path>' does not exist`). 서빙은 성공(load_ok=True)인데 스모크만 실패하므로
+    #   "모델이 안 떴다"로 오독하기 쉽다. serve 가 쓰는 값을 스모크도 쓰게 해 두 평면을 일치시킨다.
     served_model_name = (
         _opt(opts, "served_model_name", None)
+        or candidate.get("served_model_name")
         or candidate.get("model_id")
         or candidate.get("model_path_container")
         or candidate.get("model_path")
