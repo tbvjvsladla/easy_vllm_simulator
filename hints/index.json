@@ -470,6 +470,18 @@
       "last_verified": "2026-08-11"
     },
     {
+      "tag": "hint/0.27.0/deepseek-v4-flash-0731/gb10x2-dspark-1m",
+      "vllm": "0.27.0",
+      "model": "deepseek-v4-flash-0731",
+      "arch": "gb10x2-dspark-1m",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "DeepSeek-V4-Flash-0731 @ **1M 컨텍스트 + DSpark speculative decoding** on vLLM **0.27.0** — ★ **포크를 핀하지 마라. 자체 이식(3+1+1 빌드패치)으로 같은 성능이 나온다.** decode **36.87 t/s**(자체이식) vs **37.05 t/s**(포크핀) = **동률**(+0.49% — 같은 이미지의 런간 분산 6.8~7.3% 의 **1/14**)이고, **배치에서는 자체이식이 두 쌍 독립으로 이긴다**(동시성 2 **+24.5% / +16.7%** · 동시성 4 **+12.6% / +24.5%**). 같은 하드웨어 stock 0.27.0(spec off) 18.92 대비 **약 1.95배**(⚠ R0 는 1회 측정 — 런간 분산 ~7% 를 감안해 읽어라). accept_len **2.625** · KV 1,206,214 tok @1,048,576(클램프 8 GiB 불변). ★ stock 0.27.0 으로는 이 조합이 **여전히 불가능하다** — spec 경로 2개가 **서로 다른 이유로** 막힌다(0.26.0 과 같은 벽이 살아 있다).",
+      "anchor": "2b8f881d7e03c0e12b8e7a60133f4b86d41b0d92",
+      "related": "hint/0.26.1/deepseek-v4-flash-0731/gb10x2-dspark-1m",
+      "status": "active",
+      "last_verified": "2026-08-15"
+    },
+    {
       "tag": "hint/0.27.0/gemma-4-E2B-it/gb10",
       "vllm": "0.27.0",
       "model": "gemma-4-E2B-it",
