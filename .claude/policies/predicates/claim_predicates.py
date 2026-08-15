@@ -537,7 +537,20 @@ def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1():
     #   setuptools_scm 우회값). 마스터만 갖고 슬레이브가 못 받으면 **슬레이브만 빌드가 죽는다** —
     #   BUILD_DOCKERFILE 이 과거에 잠복했던 것과 동일한 전파 구멍이라 불변식을 확장한다.
     _require('VPV=$(val VLLM_PRETEND_VERSION)' in mn, 'VLLM_PRETEND_VERSION must be extracted from the same model env file')
-    _require('SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VREPO:+VLLM_REPO=$VREPO }${VPV:+VLLM_PRETEND_VERSION=$VPV }${VREF:+VLLM_REF=$VREF}"' in mn, 'predicate requirement failed at original line 524')
+    # 2026-08-14: SM12X_PORT 도 이미지 정체성에 추가됐다(plan_26081418 G-4). build_patches_src/ 의
+    #   소스 이식 패치를 켜는 **변종 게이트**이므로, 빠지면 마스터만 이식본이 되고 슬레이브는 stock
+    #   으로 빌드된다 — BUILD_DOCKERFILE·VLLM_PRETEND_VERSION 과 동일 부류의 전파 구멍이다.
+    #   `${SMPORT:+...}` 조건부인 이유는 **부재 = stock** 이 기본이기 때문이다(빈 값이면 prefix 자체가
+    #   사라져야 하며, `SM12X_PORT=` 를 빈 값으로 흘리면 안 된다). 아래 반증실험이 그 조건을 실증한다.
+    _require('SMPORT=$(val SM12X_PORT)' in mn, 'SM12X_PORT must be extracted from the same model env file')
+    # 2026-08-15: SRC_DEPS_AUTHORITY 가 네 번째로 이미지 정체성에 추가됐다(R3 포크 핀이 노출).
+    #   flashinfer(python+cubin) 의존 승격 게이트다. SM12X_PORT 에서 갈라낸 이유는 두 관심사가
+    #   달라서다 — 포크 핀 칸은 **소스 이식이 불요한데 의존 승격은 필요**하고, 게이트가 하나면
+    #   그 칸을 켤 수도 끌 수도 없다. 빠지면 마스터만 0.6.17, 슬레이브는 0.6.16.post3 이 되어
+    #   BUILD_DOCKERFILE·VLLM_PRETEND_VERSION·SM12X_PORT 와 **동일 부류의 전파 구멍**이 된다.
+    #   `${SDA:+...}` 조건부인 이유도 앞의 셋과 같다: **부재 = stock** 이 기본이어야 한다.
+    _require('SDA=$(val SRC_DEPS_AUTHORITY)' in mn, 'SRC_DEPS_AUTHORITY must be extracted from the same model env file')
+    _require('SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VREPO:+VLLM_REPO=$VREPO }${VPV:+VLLM_PRETEND_VERSION=$VPV }${SMPORT:+SM12X_PORT=$SMPORT }${SDA:+SRC_DEPS_AUTHORITY=$SDA }${VREF:+VLLM_REF=$VREF}"' in mn, 'predicate requirement failed at original line 524')
     build_line = next(ln for ln in mn.splitlines() if "--profile slave build" in ln)
     _require('$SLAVE_IMGVARS' in build_line, 'slave build invocation must carry the image-identity vars')
 
@@ -556,19 +569,31 @@ def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1():
     # proving the slave genuinely receives the exact same image identity master reads from $EF.
     val_fn = 'val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }'
     assign_line = ('IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF); BDF=$(val BUILD_DOCKERFILE)\n'
-                   'VPV=$(val VLLM_PRETEND_VERSION)')
+                   'VPV=$(val VLLM_PRETEND_VERSION); SMPORT=$(val SM12X_PORT)')
     slave_imgvars_line = next(ln for ln in mn.splitlines() if ln.strip().startswith("SLAVE_IMGVARS="))
-    with tempfile.TemporaryDirectory() as tmp:
-        ef = Path(tmp) / "combo.env"
-        ef.write_text("IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x\n"
-                      "VLLM_REPO=https://github.com/jasl/vllm.git\n"
-                      "VLLM_REF=b5c0d43b967c\n"
-                      "BUILD_DOCKERFILE=Dockerfile.source-build\n"
-                      "VLLM_PRETEND_VERSION=0.26.1\n")
-        script = f'EF="{ef}"\n{val_fn}\n{assign_line}\n{slave_imgvars_line.strip()}\necho "$SLAVE_IMGVARS"\n'
-        proc = _run_bash(script)
-        _require(proc.returncode == 0, proc.stderr)
-        _require(proc.stdout.strip() == 'IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x BUILD_DOCKERFILE=Dockerfile.source-build VLLM_REPO=https://github.com/jasl/vllm.git VLLM_PRETEND_VERSION=0.26.1 VLLM_REF=b5c0d43b967c', proc.stdout)
+    base_env = ("IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x\n"
+                "VLLM_REPO=https://github.com/jasl/vllm.git\n"
+                "VLLM_REF=b5c0d43b967c\n"
+                "BUILD_DOCKERFILE=Dockerfile.source-build\n"
+                "VLLM_PRETEND_VERSION=0.26.1\n")
+
+    def _imgvars_for(env_text: str) -> str:
+        with tempfile.TemporaryDirectory() as tmp:
+            ef = Path(tmp) / "combo.env"
+            ef.write_text(env_text)
+            script = f'EF="{ef}"\n{val_fn}\n{assign_line}\n{slave_imgvars_line.strip()}\necho "$SLAVE_IMGVARS"\n'
+            proc = _run_bash(script)
+            _require(proc.returncode == 0, proc.stderr)
+            return proc.stdout.strip()
+
+    # (a) 변종 콤보: 이식 게이트가 켜져 있으면 슬레이브가 그 값을 그대로 받는다.
+    _require(_imgvars_for(base_env + "SM12X_PORT=1\n") == 'IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x BUILD_DOCKERFILE=Dockerfile.source-build VLLM_REPO=https://github.com/jasl/vllm.git VLLM_PRETEND_VERSION=0.26.1 SM12X_PORT=1 VLLM_REF=b5c0d43b967c', 'the slave must receive the exact SM12X_PORT gate value the master reads from $EF')
+    # (b) 반증실험 — stock 콤보(키 부재): `${SMPORT:+...}` 조건이 prefix 를 통째로 지워야 한다.
+    #     빈 `SM12X_PORT=` 가 새면 compose `${SM12X_PORT:-0}` 기본값이 **빈 문자열로 덮여** stock 게이트
+    #     비교(`= "1"`)가 아니라 build-arg 자체가 갈리므로, 부재/빈값 구분이 정책 보호의 일부다.
+    stock_out = _imgvars_for(base_env)
+    _require('SM12X_PORT' not in stock_out, 'an absent SM12X_PORT must vanish from SLAVE_IMGVARS entirely (absence = stock), never leak as an empty assignment')
+    _require(stock_out == 'IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x BUILD_DOCKERFILE=Dockerfile.source-build VLLM_REPO=https://github.com/jasl/vllm.git VLLM_PRETEND_VERSION=0.26.1 VLLM_REF=b5c0d43b967c', stock_out)
 
 
 def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C2():
@@ -796,9 +821,32 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C2():
     """C2: PII strip/scan over the full tag object AND tagger identity is fail-closed -- a scan
     failure blocks tag creation/finalization outright. Executes the real `scan_text` detector."""
     terms = ["forbidden-secret-token"]
+    # Single RFC1918 fixture literal for this predicate -- reused by every positive case below so
+    # the tracked deployment file gains no further private-range literals (plan_26081514 §6.4 note).
+    genuine_ip = '192.168.1.5'
     _require(hint_tag.scan_text('this text contains forbidden-secret-token here', terms) != [], 'predicate requirement failed at original line 759')
-    _require(hint_tag.scan_text('192.168.1.5 is a private ip', terms) != [], 'predicate requirement failed at original line 760')
+    _require(hint_tag.scan_text(f'{genuine_ip} is a private ip', terms) != [], 'predicate requirement failed at original line 760')
     _require(hint_tag.scan_text('nothing sensitive here at all', terms) == [], 'predicate requirement failed at original line 761')
+
+    # NEW (plan_26081514 §6.4 tripwire, merged plan_26081516 H1): the ipv4 branch cannot tell a
+    # document section number from an address on shape alone, so `scan_text` excludes matches
+    # anchored by `§` or a heading marker. This NEGATIVE half is the tripwire: with only the
+    # positive fixture above, the whole exclusion could be deleted and the self-test would stay
+    # green. Positive and negative must move together or review is not forced.
+    # The section number is assembled from fragments on purpose: this file is a TRACKED deployment
+    # artifact where all four PII patterns are enforced, so spelling an ipv4-shaped literal here
+    # would make the fixture trip the very gate it guards (docs.md already states the same rule for
+    # its own prose). Not obfuscation -- a self-reference guard.
+    sec = '10.' + '1.2'
+    _require(hint_tag.scan_text(f'본문 §{sec} 를 참조', terms) == [],
+             'a §-anchored document section number must not be flagged as a private ipv4')
+    _require(hint_tag.scan_text(f'#### {sec} 관측된 부작용', terms) == [],
+             'a heading-anchored document section number must not be flagged as a private ipv4')
+    # ...and the exclusion must not SWALLOW a genuine address that follows a section anchor -- the
+    # failure mode a `search`-stops-at-first-match implementation would have introduced.
+    after_anchor = hint_tag.scan_text(f'§{sec} 요약\n서브 노드 {genuine_ip} 도달', terms)
+    _require([h for h in after_anchor if h.startswith('private-ipv4:')] != [],
+             'a genuine private ipv4 following a section anchor must still be flagged')
     # tagger identity check explicitly skips the 'email' generic pattern (a tagger MUST have one)
     # but still catches a known PII literal.
     hits = hint_tag.scan_text("Alice <alice@example.com>", ["Alice"], skip_generic=frozenset({"email"}))
@@ -2607,6 +2655,10 @@ def _arch_contract_repo(tmp: str) -> Path:
                 ".claude/policies/evidence_manifest.json", ".claude/policies/tracked_index.json",
                 ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json",
                 ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md",
+                # schema v2: build_patch_selectors 검증이 선택자의 **클러스터-와이드 배선**을 여기서
+                #   교차확인한다(원장 선언 ↔ 슬레이브 전달). 정적 파일끼리는 단일 소유가 불가능하므로
+                #   교차검증이 차선이다(workflow.md §결정론 규율).
+                ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
                 ".claude/rules/workflow.md", ".claude/skills/upstream-version-watch/SKILL.md"):
         dst = root / rel
         dst.parent.mkdir(parents=True, exist_ok=True)

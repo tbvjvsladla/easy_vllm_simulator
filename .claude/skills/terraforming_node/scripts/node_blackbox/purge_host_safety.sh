@@ -30,12 +30,24 @@
 # 종료코드: 0=성공(또는 dry-run) · 1=전제 실패 · 2=제거/검증 실패.
 set -uo pipefail
 
-APPLY=0; PURGE_PKGS=0; SEED_DIR=""; REQUIRE_SEED=1
+SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 리포 루트는 고정 상대깊이로 세지 않는다(서브 배달 깊이가 다르다 — install/verify 선례와 동일).
+_find_repo(){ local d="$1"; while [ "$d" != "/" ] && [ -n "$d" ]; do
+    [ -d "$d/.claude" ] && [ -d "$d/docs" ] && { printf '%s' "$d"; return 0; }; d="$(dirname "$d")"; done; return 1; }
+REPO="$(_find_repo "$SDIR" || (cd "$SDIR/../../../../.." 2>/dev/null && pwd))"
+# node_id 해소는 단일 소유다(plan_26081514 §4.2 · SKILL.md §2.7.6). 각자 파싱 금지.
+[ -f "$SDIR/node_identity.sh" ] || {
+  echo "[purge] FAIL: $SDIR/node_identity.sh 부재 — node_id 해소기가 배달되지 않았다." >&2; exit 1; }
+# shellcheck source=node_identity.sh
+. "$SDIR/node_identity.sh"
+
+APPLY=0; PURGE_PKGS=0; SEED_DIR=""; REQUIRE_SEED=1; NODE_ID=""
 for a in "$@"; do
   case "$a" in
     --apply) APPLY=1 ;;
     --purge-packages) PURGE_PKGS=1 ;;
     --seed-dir=*) SEED_DIR="${a#--seed-dir=}" ;;
+    --node-id=*) NODE_ID="${a#--node-id=}" ;;
     --no-require-seed) REQUIRE_SEED=0 ;;
     -h|--help)
       sed -n '2,30p' "$0"; exit 0 ;;
@@ -48,10 +60,12 @@ run(){ if [ "$APPLY" = "1" ]; then "$@"; else echo "        (dry-run) $*"; fi; }
 FAIL=0
 
 # ── 0. 전제: Phase 0 시드 존재 ────────────────────────────────────────────
-NODE_ID="$(hostname)"
+# ★ NODE_ID 기본값 없음(스킴 R) — 옛 `$(hostname)` 은 시드 탐색을 조용히 빗나가게 했다.
+#   여기서 빗나가면 "시드 부재"로 오판해 **저널 수확 전 제거**를 막는 게이트가 헛돈다.
+NODE_ID="$(ni_resolve_node_id "$REPO" "$NODE_ID")" || exit 1
 if [ -z "$SEED_DIR" ]; then
   for cand in "/home/${SUDO_USER:-$(id -un)}/ws_docker/easy_vllm_simulator/docs/logs/${NODE_ID}/seed" \
-              "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." 2>/dev/null && pwd)/docs/logs/${NODE_ID}/seed"; do
+              "$REPO/docs/logs/${NODE_ID}/seed"; do
     [ -d "$cand" ] && { SEED_DIR="$cand"; break; }
   done
 fi

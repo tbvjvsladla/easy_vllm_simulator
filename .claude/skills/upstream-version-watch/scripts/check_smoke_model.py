@@ -38,6 +38,22 @@ def read_config_tp(config_yaml):
     return None
 
 
+def read_config_kv_mib(config_yaml):
+    """트리플렛 yaml 의 `kv-cache-memory-bytes` → MiB. 없으면 None.
+
+    ★ 예산 선언(blackbox_session declare-budget)의 `--kv-mib` 정본이다. **손으로 적지 않는다** —
+      같은 개념이 두 곳에 손으로 적히면 4종 안티패턴의 `매직넘버·결함`이고, KV 클램프를 바꿨는데
+      선언이 옛 값으로 남으면 예상 바닥이 틀려 워치독이 엉뚱한 지점에서 무장한다.
+      KV 미선언(=None)이면 예산 선언 자체가 불가한 것이 설계 의도다
+      (policy:KV_ABSOLUTE_CLAMP_PORTABILITY · blackbox_session.cmd_declare_budget 도크스트링)."""
+    with open(config_yaml, encoding="utf-8") as f:
+        for line in f:
+            m = re.match(r"\s*kv[-_]cache[-_]memory[-_]bytes\s*:\s*(\d+)", line)
+            if m:
+                return int(m.group(1)) // (1024 * 1024)
+    return None
+
+
 def read_manifest_tp(base):
     """<base>/manifest.yaml 에서 TP = gpus_per_node × 노드 수(role: 라인 수, nodes 비면 1).
     **topology=single 이면 노드 배수 = 1 고정** — single 의 nodes[role=sub]는 sub-control 피어이지
@@ -125,6 +141,8 @@ def main():
                     help="configs/·docker-compose.yaml 을 담은 디렉토리 직접 지정(--topology 보다 우선)")
     ap.add_argument("--no-ram-gate", action="store_true",
                     help="로드-전 RAM 게이트 생략(plan_26071019 §2.6 — 진단/강제 시)")
+    ap.add_argument("--no-spec-layout-check", action="store_true",
+                    help="spec-decoder 레이아웃 선검사 생략(testlog_26081419 §7 후속 ① — 진단 시)")
     ap.add_argument("--emit-gate-params", action="store_true",
                     help="게이트 통과 시 stdout 에 'GATE_PARAMS required_mib=<n>' 출력"
                          "(멀티노드 스모크가 슬레이브 노드 동일-문턱 검사에 재사용 — §2.6 예방 대칭)")
@@ -170,6 +188,33 @@ def main():
     host_path = model_ctr.replace(container_root, host_root, 1)
     if os.path.isdir(host_path):
         print(f"[NAS-check] OK: {a.config_name} → {host_path} 존재")
+
+        # ── spec-decoder 레이아웃 선검사(2026-08-14 신설 · testlog_26081419 §7 후속 ①) ──
+        #   존재(PRESENT)와 정합(fits)은 다른 술어다. R1-b 는 이미지 실측 4건을 전부 통과하고도
+        #   `KeyError 'model.layers.43.mtp_block.main_norm.weight'` 로 죽었고, 그 대조는
+        #   **로드 13분**을 태우고서야 이루어졌다. index.json 키 스캔은 0.07초다.
+        #   여기 배선하는 이유: 도구만 만들고 호출을 안 하면 교훈이 파일 단위로 갇힌다.
+        #   ⚠ 조기 차단 전용이다 — PASS 는 서빙 성공을 뜻하지 않는다(R1-a 는 로더를 통과했다).
+        if not a.no_spec_layout_check:
+            spec_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                       "check_spec_layout.py")
+            if os.path.isfile(spec_script):
+                import subprocess
+                r = subprocess.run([sys.executable, spec_script,
+                                    "--model-dir", host_path, "--config", cfg])
+                if r.returncode == 8:
+                    print("[NAS-check] STOP: spec-decoder 레이아웃 불일치 — 위 사유 참조 "
+                          "(로드 전 차단)", file=sys.stderr)
+                    sys.exit(8)
+                elif r.returncode not in (0,):
+                    # 선검사 내부 오류가 NAS-check 의 0/2/3 계약을 깨선 안 된다 →
+                    # fail-open + 경고(모델 실재는 이미 확인됨). 차단은 rc=8 만.
+                    print(f"[NAS-check] ⚠ spec 레이아웃 선검사 비정상 종료(rc={r.returncode}) — "
+                          "차단하지 않음", file=sys.stderr)
+            else:
+                print("[NAS-check] ⚠ check_spec_layout.py 부재 — spec 레이아웃 선검사 생략",
+                      file=sys.stderr)
+
         # ── 로드-전 RAM 게이트(plan_26071019 §2.6 — serve 평면) ──
         if not a.no_ram_gate:
             # serve TP 정본 = 트리플렛 명시값 > manifest GPU 수(config override > manifest 불변식).
@@ -189,6 +234,17 @@ def main():
                     for w in warns:
                         print(f"[NAS-check] ⚠ {w}", file=sys.stderr)
                     res = preload_ram_gate.gate(ckpt, tp=tp)
+                    # ★ 예산 선언(plan_26081415 C3-2)의 파생 입력. 게이트 통과 여부와 **독립**으로
+                    #   emit 한다 — 게이트가 거부하면 스모크는 어차피 멈추지만, 여기서 조건을 겹치면
+                    #   "게이트는 통과했는데 선언 입력이 안 나온다"는 침묵 결손이 생긴다.
+                    #   스모크가 ckpt·tp·kv 를 **다시 파싱하지 않게** 하려는 것이다 —
+                    #   같은 값을 두 곳에서 읽으면 반드시 갈린다(권위 평면 계약과 같은 부류).
+                    #   weights 는 노드당 몫이므로 스모크가 ckpt÷tp 로 나눈다(R0 실측 79,578 과 일치).
+                    if a.emit_gate_params and ckpt:
+                        kvm = read_config_kv_mib(cfg)
+                        print("[NAS-check] BUDGET_PARAMS ckpt_mib=%d tp=%d kv_mib=%s"
+                              % (int(ckpt / (1024 * 1024)), tp,
+                                 kvm if kvm is not None else "none"))
                     if res["ok"] and not res.get("skipped"):
                         print("[NAS-check] RAM-gate PASS: MemAvailable=%sMiB ≥ required=%sMiB(ckpt÷tp=%d+floor)"
                               % (res["avail_after_mib"], res["required_mib"], tp))

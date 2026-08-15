@@ -4,7 +4,15 @@
 # ★ 게이트는 *규칙*이 결정한다 — LLM 다수결 아님(§6). LLM Devil's Advocate 는 외부검색(E)·
 #   진단·재탐색힌트(증거/판정)만 생산해 이 규칙에 투입. 여기서 PASS/REFUTE 가 결정론으로 닫힌다.
 #
-# 루브릭 우선순위(3중 방어막): primary = E(외부 현실-달성치) > target(c, 사용자) > expected_achievable(루프라인×MBU).
+# 루브릭 우선순위(3중 방어막) — **트리거 기반 authority**(SKILL.md §2 · plan_26081514 Q4/Step 5):
+#   --authority weak    (기본) : primary = E(외부 현실-달성치) > c(사용자 목표) > expected_achievable(루프라인×MBU)
+#   --authority explicit       : primary = c(사용자 목표) > E > expected_achievable
+#   ★ explicit 은 **사용자가 HITL 로 목표를 명시했을 때만** 켠다(에이전트 자기선언 ✗). 남용 방어의 전부가
+#     이 조건이다 — c 가 정본이 되면 낮은 목표로 검증을 우회할 수 있기 때문.
+#   ★ E 는 어느 authority 에서도 **삭제되지 않는다** — rubric.reference_E 로 칸 비교용 상수 보존
+#     (R0~R3 사다리 비교의 성립 조건 = 모든 칸이 같은 E 로 재어졌다는 것. 우선순위만 바뀌고 상수는 불변).
+#   ★ 출력의 rubric.authority 로 **어느 권한에서 잰 판정인지 산출물이 스스로 밝힌다**(헌법 §결정론 규율
+#     — 출처 표시). 표시 없는 권한 전환 금지.
 #   PASS  : M ≥ primary × (1 − tol)
 #   REFUTE: M <  primary × (1 − tol)
 #   establish 실패(E·target·expected 모두 부재/불가) → failure_axis=establish → (c) 사용자 백스톱.
@@ -34,6 +42,10 @@ def main():
     ap.add_argument("--roofline", required=True, help="roofline.py JSON")
     ap.add_argument("--reference-tps", type=float, help="E: 외부 현실-달성치(검증기 (b) 외부검색 산물)")
     ap.add_argument("--target-tps", type=float, help="c: 사용자 선언 목표(백스톱)")
+    ap.add_argument("--authority", choices=["weak", "explicit"], default="weak",
+                    help="루브릭 정본 권한(SKILL.md §2). weak(기본)=E>c>expected · "
+                         "explicit=c>E>expected. explicit 은 **사용자 HITL 목표 명시** 시에만 — "
+                         "에이전트 자기선언 금지. E 는 어느 쪽이든 rubric.reference_E 로 보존.")
     ap.add_argument("--tolerance", type=float, default=0.15, help="PASS 허용오차(기본 15%%)")
     ap.add_argument("--spec-supported", action="store_true", help="모델이 speculative(MTP) 지원 — off 면 강제함수")
     ap.add_argument("--e-search", choices=["hit", "empty", "no"], default="no",
@@ -69,15 +81,27 @@ def main():
         }, ensure_ascii=False, indent=2))
         return
 
-    # --- 루브릭 primary 선택 (3중 방어막 우선순위) ---
-    if args.reference_tps is not None:
-        primary, primary_src = args.reference_tps, "E(external_reference)"
-    elif args.target_tps is not None:
-        primary, primary_src = args.target_tps, "c(user_target)"
-    elif expected is not None:
-        primary, primary_src = expected, "expected_achievable(roofline×MBU)"
+    # --- 루브릭 primary 선택 (트리거 기반 authority — SKILL.md §2) ---
+    # ★ explicit 인데 c 가 없으면 **fail-closed**. 트리거를 주장했는데 정본 상수가 없는 상태다 —
+    #   여기서 조용히 E 로 되돌아가면 "명시적 권한으로 쟀다"는 *거짓 출처*가 산출물에 남는다
+    #   (헌법 §결정론 규율: 결정·게이트 경로의 침묵 폴백 = 4종 안티패턴 '폴백'의 결함 칸).
+    if args.authority == "explicit" and args.target_tps is None:
+        sys.stderr.write("[verdict] ERROR --authority explicit 인데 --target-tps 부재 — "
+                         "명시적 권한은 사용자 목표(c)를 정본으로 요구한다(fail-closed)\n")
+        sys.exit(2)
+
+    # 사다리: authority 가 E/c 의 **순서만** 바꾼다. expected 는 항상 최후미이며 E 는 결코 빠지지 않는다.
+    if args.authority == "explicit":
+        ladder = [("c(user_target)", args.target_tps), ("E(external_reference)", args.reference_tps)]
     else:
-        primary, primary_src = None, None
+        ladder = [("E(external_reference)", args.reference_tps), ("c(user_target)", args.target_tps)]
+    ladder.append(("expected_achievable(roofline×MBU)", expected))
+
+    primary, primary_src = None, None
+    for _src, _val in ladder:
+        if _val is not None:
+            primary, primary_src = _val, _src
+            break
 
     # --- establish 실패 → 사용자 백스톱 ---
     if primary is None:
@@ -86,6 +110,7 @@ def main():
             "structural_or_strategy": None,
             "reason": "루브릭 못 세움: E(외부검색) 부재 ∧ c(사용자) 부재 ∧ expected 산출 불가 → (c) 사용자 백스톱 필요",
             "measured_decode_tps": M, "rubric": None,
+            "authority": args.authority,
             "e_search": args.e_search,
             "ask_user": "동일 HW(%s, tp=%s)에서 이 모델의 정상 디코드 t/s 레퍼런스를 제공해 주세요." % (
                 r.get("gpu_model"), r.get("tp")),
@@ -145,7 +170,12 @@ def main():
         "rubric": {"primary": primary, "source": primary_src, "floor": round(floor, 2),
                    "tolerance": tol, "ratio_M_over_primary": ratio,
                    "R_fp": R_fp, "R_token": R_token, "expected_achievable": expected,
-                   "reference_E": args.reference_tps, "target_c": args.target_tps},
+                   # E 는 authority 와 무관하게 **항상** 실린다 — 칸 비교용 상수(SKILL.md §2).
+                   "reference_E": args.reference_tps, "target_c": args.target_tps,
+                   "authority": args.authority,
+                   "authority_note": ("explicit: 사용자 HITL 목표(c)가 정본 — 달성 시 perf_waiver 불요"
+                                      if args.authority == "explicit"
+                                      else "weak(기본): 외부 레퍼런스(E)가 정본")},
         "e_search": args.e_search,
         "reasons": reasons,
         "refuted_claims": refuted_claims,

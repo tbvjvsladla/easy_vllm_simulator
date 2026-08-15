@@ -304,6 +304,15 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
         #   "새 도구를 만들면 배달 목록도 함께 고친다" 가 아직 절차로 굳지 않았다는 증거.
         ("agent_guard.py", "agent_guard.py", 0o755),
         ("adversarial_stress.py", "adversarial_stress.py", 0o755),
+        # ★ 포락선 재생성기 + 키 정합 검증기. 2026-08-14 추가(plan_26081415 C2).
+        #   위 2026-08-02 주석이 예고한 재발을 **이번엔 같은 커밋에서** 막는다.
+        #   서브에 이게 없으면 서브 포락선만 seed 로 동결된 채 남아(2026-08-14 실측: 서브
+        #   envelope 이 여전히 state=seed·2026-07-31), 양노드 대칭이 깨진다.
+        ("regen_envelope.py", "regen_envelope.py", 0o755),
+        # ★ node_id 단일 해소기. 2026-08-15 추가(plan_26081514 A1–A3).
+        #   install/verify/purge 세 스크립트가 이걸 **source** 한다 — 빠지면 서브에서 설치가
+        #   첫 줄에서 죽는다. 위 2026-08-02·08-14 주석이 예고한 재발을 이번에도 같은 편집에서 막는다.
+        ("node_identity.sh", "node_identity.sh", 0o755),
     )
     for source_rel, delivered_rel, mode in blackbox_files:
         src = os.path.join(blackbox_src, source_rel)
@@ -458,7 +467,9 @@ def _self_test() -> int:
                        ".claude/runtime/node_blackbox/verify_node_blackbox.sh",
                        ".claude/runtime/node_blackbox/purge_host_safety.sh",
                        ".claude/runtime/node_blackbox/agent_guard.py",
-                       ".claude/runtime/node_blackbox/adversarial_stress.py"]
+                       ".claude/runtime/node_blackbox/adversarial_stress.py",
+                       ".claude/runtime/node_blackbox/regen_envelope.py",
+                       ".claude/runtime/node_blackbox/node_identity.sh"]
         have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
         missing_art = [p for p in base_expect if not os.path.exists(os.path.join(out, p))]
         # docs 스켈레톤: docs.md 계약 5종(DOC_TYPES) 전부 렌더됐나(simlog·benchmark 누락 회귀 차단 — review)

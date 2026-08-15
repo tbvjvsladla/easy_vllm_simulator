@@ -341,7 +341,10 @@ def write_outputs(root, node_id, journal_text, samples, events, envelope, readme
 def main(argv=None):
     ap = argparse.ArgumentParser(description="mem_watchdog 저널 -> 노드블랙박스 시드")
     # --self-test 는 하드웨어·인자 불요(회귀 고정용) -- required 는 main 에서 조건부 강제한다.
-    ap.add_argument("--node-id", help="예: spark-a73e")
+    # A7: 호출자 공급 인자다(파생 없음). 예시는 **role 슬러그** — 예전엔 hostname 을 적어
+    # 뒀는데, 이 파일은 tracked 배포 산출물이라 4종 PII 전부가 강제되고 `spark-host` 에
+    # 걸렸다. 스킴 정본은 terraforming_node SKILL.md §2.7.6 (node_id ::= manifest role).
+    ap.add_argument("--node-id", help="manifest nodes[].role 슬러그 (예: main · sub)")
     ap.add_argument("--journal", default="-", help="저널 덤프 파일 (기본 '-' = stdin)")
     ap.add_argument("--logs-root", default="docs/logs")
     ap.add_argument("--generated-utc", help="YYYY-MM-DDTHH:MM:SSZ (벽시계 금지)")

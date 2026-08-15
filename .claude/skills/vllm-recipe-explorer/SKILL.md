@@ -37,7 +37,8 @@ description: >-
 - **Deterministic commands** — `recipe.py {estimate,generate,simulate}` · `scripts/parse_model_config.py` · `crosscheck_model_card.py` · `estimate_vram.py` · `rank_recipes.py` · `gen_recipe_set.py` · `run_trial.py` · `sim_classify.py` · `parse_vllm_log.py` · `functional_smoke.py` · `preload_ram_gate.py` · `simlog_writer.py`.
 - **Dormant optional diagnostic** — `.claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh`는 명시적으로 사람이 호출할 때만 쓰는 휴면 진단도구다. 현재 `recipe.py simulate`·`run_trial.py`·serve smoke에 자동 배선되지 않았으며, 배선된 안전장치나 completion 근거로 간주하지 않는다.
 - **Handoff contract** — 입력 ← `terraforming_node`(Flag·TP·NAS) · 빌드 필요/버전 불가 → `upstream-version-watch`(§4.7 native dep · §3.6 escalation) · 서빙 성공 → `adversarial-benchmark` lite(자동) / full(HITL).
-- **Owns (state)** — `serving-triplet` · `kv-clamp` · `lockset.json` · `serve-lifecycle`
+- **Owns (state)** — `serving-triplet`(트리플렛 3 = `<model>.{yaml,sh}` + `.env.<model>`) · **`runtime-patch`**(`<model>_patch.py`) · `kv-clamp` · `lockset.json` · `serve-lifecycle`
+- **3+1+1 소유 경계**(`plan_26081514` Q3/Step 4 · owner 표 정본 = `.claude/rules/workflow.md` §3+1+1): **serve 시점에 성립하는 것**이 이 스킬 소유다 — 트리플렛 3(단독 소유; 이전 표기 `recipe/upstream` 모호성 해소) + 런타임 패치(`policy:RUNTIME_PATCH_NO_CARRY_FORWARD` 는 적용 *정책*이지 owner 가 아니다). **빌드 시점에 성립하는 것**(`build_patches_src/` pre · `build_patches/` post · 포크 핀·변종 `IMAGE_TAG`)은 `upstream-version-watch` 소유이며 이 스킬이 저작하지 않는다. **발견 ≠ 소유** — 빌드평면 필요를 발견하면 §5.5 로 **핸드오프**만 한다.
 
 ## Mandatory procedural spine
 

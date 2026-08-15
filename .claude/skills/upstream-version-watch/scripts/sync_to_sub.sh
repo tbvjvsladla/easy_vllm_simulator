@@ -203,6 +203,37 @@ BAND2_TOP=(Dockerfile Dockerfile.source-build Dockerfile.source-build-upstage do
 #   가린다). 목록을 세 벌 두면 또 갈라지므로 여기 한 곳에서만 선언한다.
 #   ⚠ pre 슬롯은 `workflow.md:77` 기준 **미검증 슬롯**(배관은 동작 확인, 그 위 서빙 성공 사례 없음).
 BAND2_PATCH_DIRS=(build_patches build_patches_src)
+# 패치 디렉토리 **안쪽**의 배달 범위(payload glob)의 단일 소유(2026-08-14 신설 · R0 사전점검에서 발견).
+# ★ 무엇이 틀려 있었나: 배달 스코프와 삭제 스코프가 **서로 다른 정의**를 쓰고 있었다.
+#     배달 = git index(prepare_transactional_source) → `files/` 는 .gitignore:156 으로 비추적이라 **부재**
+#     삭제 = rsync `--include=/<d>/**` → `files/` 가 **삭제 대상에 포함**
+#   즉 "보내지는 않는데 지우기는 한다". 2026-08-13 에 gitignore 만 좁히고(92파일 비추적화) rsync 는
+#   `/**` 로 남겨둔 결과이며, 실측 dry-run 이 서브의 92파일 + 부모 3디렉토리를 삭제예정으로 세웠다.
+#   삭제brake(ALLOW_DELETE)가 1차로 막지만, 브레이크는 **개수만** 말하므로 운영자가 안내대로
+#   `ALLOW_DELETE=95` 를 주면 그대로 파괴된다 — 2026-08-01 브랜치 불일치 사고와 **동형**이다.
+# ★ 처방(D3): 우회(예외 하드코딩)가 아니라 **두 스코프를 한 정의로 묶는다**. rsync 의 include 집합은
+#   전송 대상이자 삭제 대상이므로, include 를 추적 allowlist 와 일치시키면 두 스코프가 **구성적으로**
+#   같아진다. 값은 여기가 소유하고 .gitignore 두 벌은 assert_band2_top_gitignore_parity 가 대조한다.
+# 값 근거 = 밴드 규정: build_patches 는 전부 손작성(post 위상 .sh) · build_patches_src 는 손작성분만
+#   (`*.sh`+`PROVENANCE.json`)이고 `files/` 는 업스트림 벤더링 = **파생 산출물**이라 비추적이다
+#   (.gitignore:140-156 · PROVENANCE.json 유도식 + 파일별 sha256 으로 재생성한다).
+# ★ 2026-08-14 교정(B-5): 비추적이 **비배달**을 함의한다고 적었던 것은 틀렸다. 서브는 egress-restricted 라
+#   상류를 clone 할 수 없다 → 재생성을 서브에서 할 수 없고, rsync 도 안 보내면 payload 를 **영원히 얻지
+#   못한다**. 그래서 배달 경로가 없는 채로 "재생성하면 된다"고 적혀 있었다(전제 없는 규정 = 구멍).
+#   처방은 우회(추적 승격·수작업 scp)가 아니라 **평면 신설**이다 — 아래 deliver_source_port_payload 가
+#   `메인 파생 → 결정론 번들 → 배달 → 서브 해체·검증` 을 소유한다. rsync 는 여전히 손작성분만 나른다.
+declare -A BAND2_PATCH_DIR_PAYLOAD=(
+    [build_patches]='*'                          # post 위상: 디렉토리 전체가 손작성 정본
+    [build_patches_src]='*.sh PROVENANCE.json'   # pre 위상: 손작성분만. `files/` = 파생 → rsync 비대상·**비삭제**(번들 평면 소관)
+)
+# 파생 payload 의 배달 평면(2026-08-14 신설 · B-5). rsync 평면과 **의도적으로 분리**한다:
+#   rsync   = 인덱스 권위 + 손작성 정본 → 추적 allowlist 와 1:1(parity 단언이 그 정합을 지킨다)
+#   번들     = 파일시스템 payload + **인덱스 PROVENANCE 로 검증** → 판정 권위는 추적물에 남는다
+#   두 평면을 섞으면(= payload glob 에 files/ 추가) parity 단언이 61,846줄 벤더링을 추적물로 끌어올린다.
+SOURCE_PORT_DIR="build_patches_src"
+SOURCE_PORT_PAYLOAD="files"
+SOURCE_PORT_BUNDLE_NAME=".files.bundle.tar.gz"     # 서브 임시 수신물. 해체 후 즉시 제거(이미지 COPY 오염 차단)
+SOURCE_PORT_BUNDLE_SHA=""                          # materialize 단계에서 채운다(토폴로지별 마지막 값)
 # output/<t>/ 최상위 **비전송** 경로의 단일 소유. 세 소비자가 전부 여기서 파생한다:
 #   _band2_filters(rsync --exclude) · validate_remote_deletion_tree(서브 walk) · validate_inventory_tree(로컬 walk).
 # ★ 목록을 두 벌 두면 갈라진다 — 이 프로젝트는 파서 두 벌(D4↔D6)·TP 오카운트 7사이트로 같은 계열
@@ -222,7 +253,7 @@ BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)          # owner-local provenance-b
 
 _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = output/<t>/.
     FILT=()
-    local f
+    local f g; local -a payload
     for f in "${BAND2_EXCLUDED_TOP[@]}"; do FILT+=(--exclude="/$f"); done   # 단일 소유 = BAND2_EXCLUDED_TOP
     FILT+=(--include='/configs/')
     for f in "${BAND2_CONFIGS[@]}"; do FILT+=(--include="/configs/$f"); done
@@ -235,8 +266,28 @@ _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = ou
     FILT+=(--exclude='/envs/*')                   # 나머지 envs(모델 env Band3) 배제
     # (d-rsync-3) 최상위는 default-include 가 아니라 명시 allowlist + terminal exclude → stray Band1/secret/log·.dockerignore(§1.3 불요) 누출 차단
     for f in "${BAND2_TOP[@]}"; do FILT+=(--include="/$f"); done
-    for f in "${BAND2_PATCH_DIRS[@]}"; do                               # 빌드 패치 모듈 디렉토리(Band2 빌드입력·서브 빌드가 COPY — §4.7·3+1+1)
-        FILT+=(--include="/$f/" --include="/$f/**")                     #   build_patches=post(컴파일 후) · build_patches_src=pre(컴파일 전, 소스 이식)
+    # 빌드 패치 모듈 디렉토리(Band2 빌드입력·서브 빌드가 COPY — §4.7·3+1+1).
+    #   build_patches=post(컴파일 후) · build_patches_src=pre(컴파일 전, 소스 이식)
+    # 배달=삭제 스코프 일치는 BAND2_PATCH_DIR_PAYLOAD 에서 파생한다(위 스탠자 근거). 규칙 3종:
+    #   (a) `P /<d>/`  = **수신측 전용** protect. 정본에 <d> 자체가 없을 때(예: 손작성분 0 인
+    #       build_patches_src) rsync 가 서브의 <d> 를 지우려다 `cannot delete non-empty directory`
+    #       를 뱉는 것을 막는다. P 는 삭제 판정에만 걸리므로 **전송은 그대로** 된다(실측 확인).
+    #       내용물이 전부 없어지면 빈 디렉토리가 되고 그건 prune_remote_empty_dirs 가 정비한다.
+    #   (b) payload glob include = 전송 + 삭제 대상(stale 손작성분은 계속 회수된다)
+    #   (c) terminal `--exclude=/<d>/*` = 나머지(파생 payload)는 전송 ✗ **삭제 ✗**(rsync 는 exclude 된
+    #       수신측 항목을 보호한다 — configs/*·envs/* Band3 보호와 동일 메커니즘)
+    for f in "${BAND2_PATCH_DIRS[@]}"; do
+        [ -n "${BAND2_PATCH_DIR_PAYLOAD[$f]+set}" ] || {
+            echo "[sync] FAIL(payload 미선언): BAND2_PATCH_DIRS 의 '$f' 가 BAND2_PATCH_DIR_PAYLOAD 에 없다." >&2
+            echo "[sync]   → 선언 없이 두면 terminal exclude 만 남아 **아무것도 배달되지 않는다**(침묵 누락)." >&2
+            return 1
+        }
+        FILT+=(--filter="P /$f/" --include="/$f/")
+        # ⚠ `read -a` 로 쪼갠다 — 비인용 확장은 payload 의 `*` 가 **CWD 에 대해 경로확장**된다
+        #   (실측: `[build_patches]='*'` 가 리포 최상위 15개 이름으로 터졌다). read 는 glob 을 하지 않는다.
+        payload=(); IFS=' ' read -r -a payload <<<"${BAND2_PATCH_DIR_PAYLOAD[$f]}"
+        for g in "${payload[@]}"; do FILT+=(--include="/$f/$g"); done
+        FILT+=(--exclude="/$f/*")
     done
     FILT+=(--exclude='/*')
 }
@@ -285,7 +336,7 @@ validate_runtime_patches() {  # $1=topology; every patch must bind current patch
 assert_band2_top_gitignore_parity() {  # 0=ok, 1=drift
     local gi="${SRC%/}/.gitignore"
     local sub_gi="${SRC%/}/.claude/skills/terraforming_node/sub_node/gitignore.template"
-    local f t d bad=0 label path
+    local f t d g bad=0 label path; local -a payload
     [ -f "$gi" ] || { echo "[sync] FAIL(parity): .gitignore 부재 — 교차검증 불가" >&2; return 1; }
     [ -f "$sub_gi" ] || { echo "[sync] FAIL(parity): sub_node/gitignore.template 부재 — 교차검증 불가" >&2; return 1; }
     for label in "메인:$gi" "서브템플릿:$sub_gi"; do
@@ -302,12 +353,21 @@ assert_band2_top_gitignore_parity() {  # 0=ok, 1=drift
             for d in "${BAND2_PATCH_DIRS[@]}"; do      # 디렉토리는 자기 줄 + 내용 줄(`/*` 또는 `/**`) 둘 다 필요
                 grep -qxF "!output/$t/$d/" "$path" || {
                     echo "[sync] FAIL(parity/$label): BAND2_PATCH_DIRS 의 '$d' 에 '!output/$t/$d/' 예외가 없다." >&2; bad=1; }
-                # 내용 예외는 **최소 1줄** 있으면 된다 — 어떤 범위인지는 밴드 규정이 정한다.
-                #   `build_patches` 는 `/*`(전부 손작성 .sh), `build_patches_src` 는 `/*.sh`+`/PROVENANCE.json`
-                #   (payload `files/` 는 업스트림 벤더링 = 파생 산출물이라 비추적). 여기서 범위를 못박으면
-                #   밴드 규정이 바뀔 때마다 정규식을 고쳐야 하므로, **존재**만 단언하고 범위는 규정에 맡긴다.
-                grep -qE "^!output/$t/$d/.+" "$path" || {
-                    echo "[sync] FAIL(parity/$label): '$d' 의 내용 예외가 한 줄도 없다 — 디렉토리만 재포함하면 파일은 여전히 무시된다." >&2; bad=1; }
+                # 내용 예외는 **선언된 payload glob 과 1:1 대조**한다(2026-08-14 강화).
+                #   초판은 "최소 1줄 존재"만 봤다 — 범위를 정규식으로 못박으면 밴드 규정이 바뀔 때마다
+                #   정규식을 고쳐야 한다는 이유였다. 그 이유는 이제 성립하지 않는다: 범위의 소유자가
+                #   손으로 적은 정규식이 아니라 **BAND2_PATCH_DIR_PAYLOAD 선언**이므로, 규정이 바뀌면
+                #   배열만 고치면 되고 이 대조는 자동으로 따라온다.
+                #   느슨함의 실해악은 실측됐다: 2026-08-13 에 gitignore 를 `/**`→`*.sh`+`PROVENANCE.json`
+                #   으로 좁혔을 때 "1줄은 남아 있어서" 게이트가 통과했고, 그 결과 추적(배달)에서 빠진
+                #   92파일이 rsync 삭제 스코프에는 그대로 남아 **배달 ✗ / 삭제 ✓** 상태가 침묵으로 유지됐다.
+                payload=(); IFS=' ' read -r -a payload <<<"${BAND2_PATCH_DIR_PAYLOAD[$d]:-}"  # 비인용 확장 금지(경로확장 위험)
+                for g in "${payload[@]}"; do
+                    grep -qxF "!output/$t/$d/$g" "$path" || {
+                        echo "[sync] FAIL(parity/$label): '$d' 의 payload glob '$g' 에 '!output/$t/$d/$g' 예외가 없다." >&2
+                        echo "[sync]   → 배달(index 권위)과 삭제(rsync include)가 갈라진다 — 보내지 않는 것을 지우게 된다." >&2
+                        bad=1; }
+                done
             done
         done
     done
@@ -679,7 +739,7 @@ build_remote_touch_inventory() { # $1=topology $2=output file
     # If deletion was explicitly authorized, inventory those destination-only Band2 paths too.
     if [ "${ALLOW_DELETE:-0}" -gt 0 ]; then
         validate_remote_deletion_tree "$t" || return 9
-        _band2_filters
+        _band2_filters || return 9
         scan="$(mktemp "${TMPDIR:-/tmp}/easy-vllm-delete-scan.XXXXXX")"
         if ! rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_OPTS" \
             "${SRC}output/$t/" "$SUB_HOST:${DEST}output/$t/" >"$scan" 2>&1; then
@@ -837,7 +897,114 @@ prepare_transactional_source() {
     RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
     PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
     PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
+    REGEN_TOOL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
     echo "[sync] transactional source prepared (canonical tree remains read-only): $TRANSACTIONAL_SRC"
+    for topology in multi single; do
+        materialize_source_port_payload "$topology" || return 9
+    done
+}
+
+# ── 파생 payload 를 트랜잭션 소스로 편입 (2026-08-14 신설 · B-5) ───────────────────────────
+# 인덱스 권위의 **두 번째 예외**다. 첫 번째(manifest.yaml)와 같은 기준을 통과해야 한다:
+#   (a) 범위가 좁고 (b) 결정론이며 (c) **추적물이 판정 권위를 쥔다**.
+#   여기서 (c)는 강하다 — payload 의 모든 바이트가 인덱스 스냅샷의 PROVENANCE.json 에 sha256 으로
+#   못박혀 있으므로, 파일시스템이 드리프트하면 **조용히 통과할 수 없다**(fail-loud).
+# 왜 굳이 트랜잭션 소스에 넣나: 그래야 build_remote_touch_inventory 가 108경로를 인벤토리에 담아
+#   **롤백이 이 배달을 덮는다**. 번들만 따로 scp 하면 실패 시 서브에 반쯤 갈린 payload 가 남는다.
+materialize_source_port_payload() {  # $1=topology → 0=ok(또는 해당없음), 9=실패
+    local t="$1"
+    local man="${SRC%/}/output/$t/$SOURCE_PORT_DIR/PROVENANCE.json"      # 인덱스 스냅샷 = 판정 권위
+    local payload="${CANONICAL_SRC}output/$t/$SOURCE_PORT_DIR/$SOURCE_PORT_PAYLOAD"   # 파일시스템 = 바이트
+    local dest="${SRC%/}/output/$t/$SOURCE_PORT_DIR/$SOURCE_PORT_PAYLOAD"
+    [ -f "$man" ] || return 0                                            # 이식 변종 없음 → 해당없음
+    if [ ! -f "$REGEN_TOOL" ]; then
+        echo "[sync] FAIL(source-port/$t): 재생성기가 인덱스에 없다: $REGEN_TOOL" >&2
+        echo "[sync]   → PROVENANCE.json 만 추적되고 생성엔진이 비추적이면 서브는 payload 를 만들 수 없다." >&2
+        return 9
+    fi
+    if [ ! -d "$payload" ]; then
+        echo "[sync] FAIL(source-port/$t): 파생 payload 부재 — $payload" >&2
+        echo "[sync]   → 정상 차단이다(우회 금지). 아래로 좌표에서 재파생한 뒤 재실행하라:" >&2
+        echo "[sync]     python3 .claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py derive \\" >&2
+        echo "[sync]       --root output/$t/$SOURCE_PORT_DIR --work <비추적 작업디렉터리>" >&2
+        return 9
+    fi
+    # 인덱스의 PROVENANCE 로 파일시스템 payload 를 검증한다(권위/바이트 분리의 핵심).
+    if ! python3 "$REGEN_TOOL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" \
+            --provenance "$man" --files-root "$payload" >/dev/null; then
+        echo "[sync] FAIL(source-port/$t): payload 가 인덱스 PROVENANCE 와 불일치 — 검증되지 않은 바이트는 배달하지 않는다." >&2
+        python3 "$REGEN_TOOL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" \
+            --provenance "$man" --files-root "$payload" 2>&1 | sed 's/^/    /' >&2 || true
+        return 9
+    fi
+    mkdir -p "$(dirname "$dest")"
+    cp -a "$payload" "$dest" || { echo "[sync] FAIL(source-port/$t): payload 복제 실패" >&2; return 9; }
+    echo "[sync] [$t] source-port payload 편입: $(find "$dest" -type f | wc -l)파일(인덱스 PROVENANCE 검증 통과 · 롤백 인벤토리 대상)"
+}
+
+# 번들 발행(로컬) — 트랜잭션 소스의 검증된 payload 에서만 만든다. 같은 payload → 같은 바이트.
+build_source_port_bundle() {  # $1=topology $2=출력경로 → SOURCE_PORT_BUNDLE_SHA 설정
+    local t="$1" out="$2"
+    SOURCE_PORT_BUNDLE_SHA=""
+    SOURCE_PORT_BUNDLE_SHA="$(python3 "$REGEN_TOOL" bundle \
+        --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" --out "$out" 2>/dev/null | tail -1)" || return 9
+    [ -n "$SOURCE_PORT_BUNDLE_SHA" ] || { echo "[sync] FAIL(source-port/$t): 번들 해시 미획득" >&2; return 9; }
+}
+
+source_port_active() {  # $1=topology → 0=이식 변종 존재
+    [ -d "${SRC%/}/output/$1/$SOURCE_PORT_DIR/$SOURCE_PORT_PAYLOAD" ]
+}
+
+# 배달(apply) — scp 로 번들을 보내고 **서브에서** 재생성기를 stdin 으로 실행해 해체·검증한다.
+#   서브에 도구를 상주시키지 않는다(오버레이는 recipe/benchmark 스킬만 렌더한다 — 그 계약을 건드리지 않는다).
+deliver_source_port_payload() {  # $1=topology → 0=ok/해당없음
+    local t="$1"
+    source_port_active "$t" || return 0
+    local local_bundle remote_dir remote_bundle rc=0
+    remote_dir="${DEST}output/$t/$SOURCE_PORT_DIR"
+    remote_bundle="$remote_dir/$SOURCE_PORT_BUNDLE_NAME"
+    local_bundle="$(mktemp "${TMPDIR:-/tmp}/easy-vllm-source-port.XXXXXX.tar.gz")"
+    build_source_port_bundle "$t" "$local_bundle" || { rm -f "$local_bundle"; return 9; }
+    echo "[sync] [$t] source-port 번들 배달 — $(stat -c %s "$local_bundle") bytes sha256=$SOURCE_PORT_BUNDLE_SHA"
+    if ! rsync -a -e "$SSH_OPTS" "$local_bundle" "$SUB_HOST:$remote_bundle"; then
+        echo "[sync] FAIL(source-port/$t): 번들 전송 실패" >&2; rm -f "$local_bundle"; return 9
+    fi
+    rm -f "$local_bundle"
+    # 해체·검증은 서브에서 수행한다 — 배달된 PROVENANCE.json(추적물)이 그쪽 판정 권위다.
+    if ! $SSH_OPTS "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - unbundle \
+            --root 'output/$t/$SOURCE_PORT_DIR' --bundle '$remote_bundle' \
+            --expect-sha256 '$SOURCE_PORT_BUNDLE_SHA'" <"$REGEN_TOOL"; then
+        rc=9
+        echo "[sync] FAIL(source-port/$t): 서브 해체·검증 실패 — 기존 payload 는 보존된다(교체는 검증 뒤에만)." >&2
+    fi
+    $SSH_OPTS "$SUB_HOST" "rm -f -- '$remote_bundle'" \
+        || echo "[sync] WARNING(source-port/$t): 서브에 번들 잔존 — 이미지 COPY 오염 방지를 위해 수동 제거 필요: $remote_bundle" >&2
+    return $rc
+}
+
+# 배달 후 독립 검증 — verify_checksums 와 같은 자리에서 "108/0/0" 을 사람에게 보인다.
+verify_source_port_payload() {  # $1=topology
+    local t="$1"
+    source_port_active "$t" || return 0
+    if $SSH_OPTS "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - verify \
+            --root 'output/$t/$SOURCE_PORT_DIR'" <"$REGEN_TOOL" | sed 's/^/  /'; then
+        echo "  ✅ output/$t/$SOURCE_PORT_DIR/$SOURCE_PORT_PAYLOAD (서브 무결성)"
+        return 0
+    fi
+    echo "  ❌ output/$t/$SOURCE_PORT_DIR/$SOURCE_PORT_PAYLOAD (서브 무결성 실패)" >&2
+    return 1
+}
+
+preview_source_port_payload() {  # $1=topology (dry-run 미리보기)
+    local t="$1" remote_dir n
+    if ! source_port_active "$t"; then
+        echo "    source-port payload: 해당없음(이식 변종 미등재)"; return 0
+    fi
+    remote_dir="${DEST}output/$t/$SOURCE_PORT_DIR"
+    echo "    source-port payload(번들 평면 — rsync 와 별개):"
+    echo "      로컬 검증분: $(find "${SRC%/}/output/$t/$SOURCE_PORT_DIR/$SOURCE_PORT_PAYLOAD" -type f | wc -l)파일(인덱스 PROVENANCE 대조 통과)"
+    n="$($SSH_OPTS "$SUB_HOST" "[ -d '$remote_dir/$SOURCE_PORT_PAYLOAD' ] && find '$remote_dir/$SOURCE_PORT_PAYLOAD' -type f | wc -l || echo 0" 2>/dev/null || echo unknown)"
+    echo "      서브 현재분: ${n}파일 → --apply 시 **전량 교체**(선언 밖 잔재는 제거된다 · 제거분은 로그로 남는다)"
 }
 
 # 빌드 콘텐츠 rsync(S4): 소스 = output/<t>/ 서브트리만(루트 Band1 구조적 배제) + Band2 keying. dry 면 --dry-run.
@@ -846,7 +1013,7 @@ prepare_transactional_source() {
 #   = full mirror 아님. stale main-origin Band3 잔재 회수는 gate③ cleanup 소관(루트 Band1 leak 과 동일 평면).
 deliver_build() {  # $1=topology $2=dry(0/1)
     validate_runtime_patches "$1" || return 9
-    _band2_filters
+    _band2_filters || return 9
     local src="${SRC%/}/output/$1/" dst="${DEST}output/$1/"
     if [ "$2" = "1" ]; then
         rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_OPTS" "$src" "$SUB_HOST:$dst"
@@ -1035,6 +1202,7 @@ if [ "$MODE" = "dryrun" ]; then
                 echo "    ⚠ A2A-위임 게이트: nodes[sub].hw_verified≠true → --apply 시 빌드 전파 거부(terraforming --peer-ssh 동질성 검증 먼저)"
             fi
             preview_build "$t"
+            preview_source_port_payload "$t"
             echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | head -40 || true
         done
     else
@@ -1043,6 +1211,7 @@ if [ "$MODE" = "dryrun" ]; then
         assert_band_classification multi || echo "  ⚠ S4 미분류(multi, 위 FAIL) — --apply 시 거부."
         assert_source_runner_modes multi || echo "  ⚠ runner source integrity 오류(multi) — --apply 시 remote mutation 전에 거부."
         preview_build multi
+        preview_source_port_payload multi
     fi
     echo "[sync] (위는 미리보기 — 변경 없음. 사람 확인 후 --apply. 첫 init 도 --apply 게이트.)"
     exit 0
@@ -1099,8 +1268,10 @@ if [ $HAS_GIT = 0 ]; then
     sub_run "git checkout -q multi"
     # multi 초기 Band2 배달.  Source gates above already passed before remote mutation.
     deliver_build multi 0
+    deliver_source_port_payload multi || { echo "[sync] FAIL: bootstrap source-port payload 배달 실패 — commit 전 중단"; exit 2; }
     deliver_overlay multi 0
     echo "[sync] 체크섬 검증(multi)..."; verify_checksums multi || { echo "[sync] FAIL: bootstrap 체크섬 불일치 — commit 전 중단"; exit 2; }
+    verify_source_port_payload multi || { echo "[sync] FAIL: bootstrap source-port 무결성 불일치 — commit 전 중단"; exit 2; }
     verify_destination_runner_modes multi || { echo "[sync] FAIL: bootstrap runner destination integrity 불일치 — commit 전 중단"; exit 2; }
     verify_destination_host_safety_modes || { echo "[sync] FAIL: bootstrap host-safety mode 불일치 — tombstone 전 중단"; exit 2; }
     verify_destination_retirement_consumers || { echo "[sync] FAIL: bootstrap retirement consumer 존재 — tombstone 전 중단"; exit 2; }
@@ -1151,8 +1322,11 @@ for t in "${TARGETS[@]}"; do
     # (3) rsync(빌드 + 오버레이) — render/band/runner/delegation/runtime-patch
     # source checks all passed before checkout; deliver_build repeats patch validation.
     deliver_build "$t" 0
+    # 파생 payload 는 rsync 뒤에 온다 — 판정 권위인 PROVENANCE.json 이 먼저 서브에 있어야 한다.
+    deliver_source_port_payload "$t" || { echo "[sync] FAIL: source-port payload 배달 실패($t)"; exit 2; }
     deliver_overlay "$t" 0
     echo "[sync] 체크섬 검증($t)..."; verify_checksums "$t" || { echo "[sync] FAIL: 체크섬 불일치($t)"; exit 2; }
+    verify_source_port_payload "$t" || { echo "[sync] FAIL: source-port 무결성 불일치($t)"; exit 2; }
     verify_destination_runner_modes "$t" || { echo "[sync] FAIL: runner destination mode 불일치($t)"; exit 2; }
     verify_destination_host_safety_modes || { echo "[sync] FAIL: host-safety mode 불일치($t) — tombstone 전 중단"; exit 2; }
     verify_destination_retirement_consumers || { echo "[sync] FAIL: retirement consumer 존재($t) — tombstone 전 중단"; exit 2; }

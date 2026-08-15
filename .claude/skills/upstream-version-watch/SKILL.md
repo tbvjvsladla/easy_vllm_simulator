@@ -29,7 +29,8 @@ description: >-
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
 - **Deterministic commands** — `scripts/resolve_torch_pin.py` · `resolve_ngc_tag.py` · `resolve_wheel.py` · `regen_requirements.py` · `resolve_build_track.py` · `render_dockerfile.py` · `check_smoke_model.py` · `classify_failure.py` · `sync_to_sub.sh` · `multinode_serve_smoke.sh`.
 - **Handoff contract** — 입력 ← `terraforming_node`(Flag·HW) · escalation ← `vllm-recipe-explorer` §5.5 / `adversarial-benchmark` §7 · 출력 → rebuild 이미지로 `vllm-recipe-explorer` 전략수립 재개.
-- **Owns (state)** — `resolved.json` · `image-identity` · `build-track` · `sub-delivery`
+- **Owns (state)** — `resolved.json` · `image-identity` · `build-track` · `sub-delivery` · **`build-patch(pre/post)`** · **`fork-pin`**(포크 좌표·arch-wall 변종)
+- **3+1+1 소유 경계**(`plan_26081514` Q3/Step 4 · owner 표 정본 = `.claude/rules/workflow.md` §3+1+1): **빌드 시점에 성립하는 것**이 이 스킬 소유다 — `build_patches_src/`(pre · 컴파일 **전** 소스 수정) · `build_patches/`(post · 컴파일 **후** native 의존) · 포크 핀(`VLLM_REPO`/`VLLM_REF`)·변종 `IMAGE_TAG`. **serve 시점에 성립하는 것**(트리플렛 3 + 런타임 패치 `<model>_patch.py`)은 `vllm-recipe-explorer` 소유이며 이 스킬이 저작하지 않는다. **발견 ≠ 소유** — explorer 가 §5.5 로 발견해 넘긴 것을 이 스킬이 **소유·처방**한다(수신점 = 아래 §escalation 수신).
 
 ## Mandatory procedural spine
 

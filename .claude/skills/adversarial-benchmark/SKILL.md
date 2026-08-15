@@ -27,7 +27,7 @@ description: >-
 
 - **Goal** — 돌고 있는 serve 의 디코드 성능을 3중 루브릭(루프라인 R · 외부 E · 사용자 c)으로 적대 검증해 PASS/REFUTE 를 결정론으로 판정하고, 기각 시 재탐색 힌트를 낸다.
 - **When to invoke** — "성능 검증/벤치마크" 지시 · recipe 서빙 성공 직후 lite 자동 핸드오프 · 멀티노드 VRAM 밸런스 의심 · (별도 오퍼레이션) Max envelope 특성화 승인 시.
-- **Inputs** — `config.yaml`(대상 config_name·`reference_tps`/`target_tps`/`tolerance`/`realistic_fraction`) · 라이브 serve(`:PORT/health` 200) · manifest(gpu_model·interconnect·topology) · 모델 config/safetensors index.
+- **Inputs** — `config.yaml`(대상 config_name·`reference_tps`/`target_tps`/`tolerance`/`realistic_fraction`) · **루브릭 authority 상태**(§2 — 기본 `weak`, 사용자 HITL 트리거 시 `explicit`) · 라이브 serve(`:PORT/health` 200) · manifest(gpu_model·interconnect·topology) · 모델 config/safetensors index.
 - **Outputs** — `verdict.json`(PASS/REFUTE/NEEDS_RUBRIC/INVALID + failure_axis + next_strategy_hint) · lite 채팅 표(inform-only) · full 종결 시 `docs/benchmark/` report(항상) + 인증서(PASS시만).
 - **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 7단계(순서 고정).
 - **State transitions** — full PASS + 인증서로 `promotion-ready` 의 성능 조건을 채운다(lite 는 어떤 상태도 진행시키지 않는다). 최종 상태 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
@@ -46,7 +46,7 @@ description: >-
 3. **serve 가동 확인** — `:PORT/health` 200. 로그 grep 금지(거짓양성).
 4. **측정 M** — `run_bench.sh` → `parse_bench.py`(warmup 폐기 + engine-log 교차).
 5. **외부 레퍼런스 (b) E** — Devil's Advocate 가 `references.md` warm-start → 검색 → 결과를 `--e-search {hit,empty,no}` 로 **기록**. 미시도 상태로 6단계 직행 ✗.
-6. **판정(결정론 게이트)** — `verdict_rule.py`. PASS → done-게이트 클리어 / REFUTE → 기각 리포트 + `next_strategy_hint` → recipe 재탐색 → 3단계로(cap 한정) / NEEDS_RUBRIC → (c) 사용자 백스톱.
+6. **판정(결정론 게이트)** — `verdict_rule.py --authority {weak,explicit}`(§2 — 기본 `weak`; 사용자가 목표를 HITL 명시했을 때만 `explicit`). PASS → done-게이트 클리어 / REFUTE → 기각 리포트 + `next_strategy_hint` → recipe 재탐색 → 3단계로(cap 한정) / NEEDS_RUBRIC → (c) 사용자 백스톱.
 7. **종결 발행** — cap 소진 or PASS 로 종결되면 사람용 report(항상) + 인증서(PASS시만) 발행(`references/lite-and-publication.md` §2).
 
 ## Failure → reference routing
@@ -59,6 +59,29 @@ description: >-
 | 안전-최대 컨텍스트 특성화(reload 반복·하드다운 위험) | `.claude/skills/adversarial-benchmark/references/max-envelope.md` |
 | M ≪ expected 이고 재탐색으로도 미달(구조적 의심) | `.claude/skills/upstream-version-watch/references/failure-recovery.md` |
 | 이전 동일 모델/HW 성능 증거를 먼저 확인하고 싶음 | `.claude/skills/wiki-desk/SKILL.md` |
+
+## 2. 루브릭 authority 모델 — 트리거 기반 (2026-08-15 신설 · `plan_26081514` Q4/Step 5)
+
+> **왜 필요했나**(본 세션 실증): 이 스킬은 **약한 권한**만 갖고 있었다 — E(외부 레퍼런스)가 무조건
+> 정본이라, 사용자가 HITL 로 목표를 명시해도 E 가 이겼다. R0~R3 사다리에서 **E=41 t/s 가 REFUTE**
+> 를 내는데 **사용자 목표 30 t/s 는 PASS** 인 상태가 되어, 진행하려면 매번 `perf_waiver` 서명이
+> 필요했다. 루브릭 정의는 **이 스킬이 소유**하므로 권한 전환도 여기서 정의한다.
+
+| 상태 | 루브릭 **정본** | 발동 조건 | `verdict_rule.py` |
+|---|---|---|---|
+| **약한 권한**(기본) | **E**(외부 레퍼런스) | 사용자가 목표 tok/s **미명시** | `--authority weak`(기본) → E > c > expected. E 부재 ∧ c 부재 ∧ expected 산출불가 → `NEEDS_RUBRIC`(사용자 백스톱) |
+| **명시적 권한**(트리거) | **c**(사용자 목표) | ⓐ 사용자가 HITL 로 *"목표 X tok/s"* 명시 **or** ⓑ *"외부 커뮤니티 자료 검색→tok/s 확인→서빙전략 수립"* 지시 | `--authority explicit --target-tps X` → c > E > expected |
+
+- **트리거 발동 시 c 달성 = PASS** 이며 **`perf_waiver` 서명이 불요**하다(본 세션 B1 마찰의 제거점).
+- **E 는 사라지지 않는다** — 트리거 상태에서도 `rubric.reference_E` 로 **칸 비교용 상수**로 보존된다.
+  R0~R3 같은 사다리 비교는 "모든 칸이 같은 E 로 재어졌다"가 성립 조건이므로, 우선순위만 바뀌고
+  **상수 자체는 불변**이어야 한다. E 를 지우면 칸 간 비교가 무효가 된다.
+- **트리거는 사용자만 당긴다**(에이전트 자기선언 ✗). 근거: c 가 정본이 되면 낮은 목표로 검증을
+  우회할 수 있으므로, 목표 제시는 **HITL 명시**로만 성립한다 — 이것이 남용 방어의 전부다.
+- **게이트는 여전히 결정론**이다 — authority 는 *어느 상수를 정본으로 쓸지*만 고르고, PASS/REFUTE
+  판정 자체는 `verdict_rule.py` 의 규칙이 한다(LLM 다수결 ✗ — §8 불변).
+- 판정 출력의 `rubric.authority` · `rubric.source` 로 **어느 권한에서 잰 판정인지 산출물이 스스로
+  밝힌다**(헌법 §결정론 규율 — 출처 표시). 표시 없는 권한 전환은 금지다.
 
 ## 3. 두 실패축 (반드시 구분)
 
@@ -90,7 +113,7 @@ description: >-
 **결정론 스크립트**
 - `scripts/roofline.py` — (a) spec-aware R_fp/R_token/expected(manifest+config/index).
 - `scripts/run_bench.sh` · `scripts/parse_bench.py` — full 경로 측정 M(+engine-log 교차).
-- `scripts/verdict_rule.py` — 결정론 PASS/REFUTE 게이트(E>c>expected, like-with-like, spec-off 강제함수, 밸런스 축).
+- `scripts/verdict_rule.py` — 결정론 PASS/REFUTE 게이트(**`--authority weak|explicit`** = E>c>expected / c>E>expected(§2), like-with-like, spec-off 강제함수, 밸런스 축). `explicit` + `--target-tps` 부재는 **fail-closed(exit 2)** — 침묵 폴백 금지.
 - `scripts/lite_bench.sh` · `scripts/lite_metrics.py` — lite 오케스트레이터 + 5종 메트릭 렌더(inform-only).
 - `scripts/sweep_bench.sh` · `scripts/render_report.py` · `scripts/publish_benchmark_record.py` — full 종결 스윕·report·인증서.
 - `scripts/max_envelope.sh` · `scripts/render_max_report.py` — **Max 오퍼레이션**(별도 정체성).

@@ -14,6 +14,25 @@ x-gpu-common: &gpu-common
       #   (2026-08-02 실측: 'sm120-pr-41834-stable-preview-20260802d' 파싱 실패).
       #   빈 값 = 무동작이므로 stock 빌드 경로는 불변.
       VLLM_PRETEND_VERSION: ${VLLM_PRETEND_VERSION:-}
+      # SM12X_PORT: build_patches_src/ 의 소스 이식 패치를 켜는 **변종 게이트**(기본 0=stock).
+      #   1 이면 50-dsv4-sm12x-port.sh 가 적용된다(R2 자체이식 칸).
+      #   ⚠ 이미지 정체성의 일부다 — 켠 빌드는 반드시 변종 IMAGE_TAG(…-source-sm12x)로 태깅한다.
+      #   plan_26081418 §4.2(B-2) · ledger `.claude/policies/arch_variant_ledger.json`.
+      #   ⚠ 2026-08-15: 이 줄은 R2 때 **렌더 산출물에만 손으로 추가**돼 템플릿에 없었다 —
+      #     재렌더 한 번이면 조용히 사라져 R2 가 stock 으로 빌드됐을 것이다(막힘 3분류의 침묵 누락).
+      #     R3 착수 중 렌더 대조로 발견해 여기로 역이식했다.
+      SM12X_PORT: ${SM12X_PORT:-0}
+      # SRC_DEPS_AUTHORITY: 켜면 **클론된 소스트리가 자기 의존의 권위**가 된다(기본 0 = off).
+      #   우리 requirements.txt 유래 constraint 의 `==` 핀 중 트리가 달리 핀한 것만 양보시킨다
+      #   (KNOWN_INCOMPAT 천장은 보존 · 천장 위반은 fail-loud).
+      #   SM12X_PORT 와 분리된 이유: 포크 핀 칸(R3)은 소스 이식이 불요하나 의존 양보는 필요하다.
+      SRC_DEPS_AUTHORITY: ${SRC_DEPS_AUTHORITY:-0}
+      # BUILD_JOBS: 컴파일 병렬도. **이미지 정체성이 아니다**(같은 산출물, 다른 병렬도·시간).
+      #   기본 16 은 노드가 한가할 때의 값이다 — 다른 서빙이 상주 중이면 낮춰야 한다.
+      #   2026-08-15 실측: R2 상주 시 잔여 RAM 14.5GiB(main)/19.4GiB(sub). nvcc 무거운 TU 가
+      #   수 GiB 를 쓰므로 16 병렬은 OOM 사정권이고, `oom_score_adj: 800` 때문에 커널이
+      #   **상주 vLLM 컨테이너를 먼저 죽인다** — 빌드가 서빙을 깨는 경로다.
+      BUILD_JOBS: ${BUILD_JOBS:-16}
   runtime: nvidia
   network_mode: host
   ipc: host
