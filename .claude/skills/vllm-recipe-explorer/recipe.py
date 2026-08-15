@@ -1155,7 +1155,12 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
     #   provenance 각인(2026-08-13 · plan_26081314 D1): 수렴한 레시피가 **무엇을 근거로** 수렴했는지를
     #   산출물 자체가 밝힌다. mock/dry-run 으로 수렴한 레시피를 실측 레시피와 같은 얼굴로 남기면,
     #   나중에 그 파일을 읽는 사람도 인증서 발행 경로도 진위를 가릴 수 없다.
-    _final_prov = final_trial.get("provenance")
+    # ⚠ 이 함수의 파라미터명은 `trial` 이다(호출부의 지역변수명이 `final_trial` 일 뿐).
+    #   2026-08-13 provenance 각인 도입(413b291) 때 호출부 이름을 그대로 적어 NameError 가 됐고,
+    #   **수렴 성공 경로에서만** 터지므로 오래 숨어 있었다(대부분의 실행은 Model-C HITL 로 끝난다).
+    #   3종 세트는 이미 생성된 뒤 죽어서 "파일은 있는데 run_summary 가 없는" 상태가 됐다 —
+    #   evidence chain 이 끊긴다. 2026-08-16 첫 수렴 실행에서 발각(testlog_26081607 §10).
+    _final_prov = trial.get("provenance")
     summary = {
         "run_id": run_id,
         "converged": True,
