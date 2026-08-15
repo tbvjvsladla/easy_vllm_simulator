@@ -129,22 +129,56 @@ def _shell_array(text: str, name: str) -> set[str]:
             if line.split("#", 1)[0].strip()}
 
 
-def _ordered_between(text: str, marker: str, end_marker: str,
-                     tokens: tuple[str, ...]) -> bool:
+def _ordered_between_detail(text: str, marker: str, end_marker: str,
+                            tokens: tuple[str, ...]) -> dict:
+    """구간 내 토큰 순서를 검사하되 **실패 사유를 구분해** 돌려준다.
+
+    2026-08-15 신설(`request_26081521_01_04` 처방 C). 이전 판본은 bool 하나만 돌려서
+    **앵커 부재와 순서 위반이 같은 값(False)으로 뭉개졌다**. 2026-08-13 배달경로 교정이
+    종료 앵커로 쓰이던 주석을 바꾸자 `sub_incremental_replacement_before_tombstone` 이
+    FAIL 로 떨어졌는데, `ok:false` 만으로는 "가드가 제 일을 했다(순서가 깨졌다)"와
+    "판정기가 자기 앵커를 잃었다"를 구분할 수 없어 진단 비용의 대부분이 거기서 났다.
+    `sync_to_sub.sh` 는 서브 파괴 권한을 가진 스크립트이므로, 이 구분이 없으면
+    "가드를 끄는 처방"과 "앵커를 고치는 처방"도 겉보기에 같아진다.
+
+    reason: ``start_anchor_missing`` | ``end_anchor_missing`` | ``token_absent``
+            | ``token_out_of_order`` | ``None``(통과)
+    """
     start = text.find(marker)
+    if start < 0:
+        return {"ok": False, "reason": "start_anchor_missing", "missing": marker}
     end = text.find(end_marker, start + len(marker))
-    if start < 0 or end < 0:
-        return False
+    if end < 0:
+        return {"ok": False, "reason": "end_anchor_missing", "missing": end_marker}
     block = text[start:end]
     cursor = 0
-    positions = []
     for token in tokens:
-        cursor = block.find(token, cursor)
-        if cursor < 0:
-            return False
-        positions.append(cursor)
-        cursor += len(token)
-    return positions == sorted(positions)
+        found = block.find(token, cursor)
+        if found < 0:
+            # 순차 검색이라 "구간에 아예 없음"과 "앞 토큰보다 먼저 나옴"이 같은 -1 로 돌아온다.
+            # 구간 전체를 다시 훑어야만 그 둘이 갈린다 — 순서 위반은 여기서만 관측된다.
+            reason = "token_absent" if block.find(token) < 0 else "token_out_of_order"
+            return {"ok": False, "reason": reason, "missing": token}
+        cursor = found + len(token)
+    return {"ok": True, "reason": None}
+
+
+def _ordered_between(text: str, marker: str, end_marker: str,
+                     tokens: tuple[str, ...]) -> bool:
+    """`_ordered_between_detail` 의 bool 축약.
+
+    체크 본문은 `_order_check` 를 쓰므로 여기서는 호출되지 않지만, 수행지시서
+    (`request_26081521_01_04` §2 Step 3 양성 대조)가 이 심볼을 직접 호출한다 —
+    제거하면 그 재현 절차가 깨지고, 그것이 바로 이 함수가 고치려는 종류의 사고다.
+    """
+    return _ordered_between_detail(text, marker, end_marker, tokens)["ok"]
+
+
+def _order_check(name: str, text: str, marker: str, end_marker: str,
+                 tokens: tuple[str, ...]) -> dict:
+    """순서 불변식 체크 하나를 진단(`order_detail`)과 함께 만든다."""
+    detail = _ordered_between_detail(text, marker, end_marker, tokens)
+    return {"name": name, "ok": detail["ok"], "order_detail": detail}
 
 
 def _active_retirement_consumers() -> list[str]:
@@ -286,9 +320,8 @@ def verify() -> dict:
             {"name": "local_exact_relocation_replacements",
              "ok": replacements == LOCAL_REPLACEMENTS and len(replacements) == len(local_actual),
              "actual": sorted(replacements), "expected": sorted(LOCAL_REPLACEMENTS)},
-            {"name": "local_replacement_integrity_before_tombstone",
-             "ok": _ordered_between(local_text, "# ── apply:",
-                                    "echo \"[sync-branches] 완료", local_order)},
+            _order_check("local_replacement_integrity_before_tombstone", local_text,
+                         "# ── apply:", "echo \"[sync-branches] 완료", local_order),
         ]
     except (OSError, UnicodeError) as exc:
         checks.append({"name": "local_exact_relocation_tombstones", "ok": False,
@@ -304,6 +337,16 @@ def verify() -> dict:
         order = ("verify_checksums ", "verify_destination_runner_modes ",
                  "verify_destination_host_safety_modes", "verify_destination_retirement_consumers",
                  "apply_overlay_tombstones", "git add -A")
+        # 두 구간을 and 로 묶는 체크라 진단도 둘 다 보존한다 — 어느 쪽이 깨졌는지 모르면
+        # `ok:false` 하나로 뭉개지는 것은 마찬가지다.
+        tx_before_mutation = [
+            _ordered_between_detail(sub_text, "# (2) transaction before checkout",
+                                    "# (3) rsync(빌드 + 오버레이)",
+                                    ('begin_remote_transaction "$t" 0', 'git checkout -q $t')),
+            _ordered_between_detail(sub_text, "# R2 HITL 게이트",
+                                    "# ── B0 멱등 self-bootstrap",
+                                    ("begin_remote_transaction multi 1", "sub_run_mk")),
+        ]
         checks += [
             {"name": "sub_exact_relocation_tombstones", "ok": sub_actual == SUB_TOMBSTONES,
              "actual": sorted(sub_actual), "expected": sorted(SUB_TOMBSTONES)},
@@ -316,12 +359,16 @@ def verify() -> dict:
                         "retirements": sorted(sub_retirements)}},
             {"name": "sub_additive_overlay_has_no_apply_delete",
              "ok": bool(additive_body) and "rm -f" not in additive_body},
-            {"name": "sub_bootstrap_replacement_before_tombstone",
-             "ok": _ordered_between(sub_text, "# multi 초기 Band2 배달",
-                                    "# ── B1 per-branch 증분 싱크", order)},
-            {"name": "sub_incremental_replacement_before_tombstone",
-             "ok": _ordered_between(sub_text, "# (3) rsync(빌드 + 오버레이)",
-                                    "# 서브를 기본 운용 브랜치", order)},
+            _order_check("sub_bootstrap_replacement_before_tombstone", sub_text,
+                         "# multi 초기 Band2 배달", "# ── B1 per-branch 증분 싱크", order),
+            # 종료 앵커는 **코드 토큰**이다(2026-08-15 · `request_26081521_01_04` 처방 B).
+            # 옛 앵커 "# 서브를 기본 운용 브랜치" 는 주석이었고, 2026-08-13 배달경로 교정이
+            # 그 주석을 다시 쓰면서 소실됐다 — 주석은 문서 교정 때 자유롭게 바뀌므로 앵커로
+            # 부적합하다. `REST_BRANCH=` 는 B1 루프가 끝나고 복귀 브랜치를 정하는 자리이며,
+            # 그 교정의 산물 자체다. 이 토큰이 사라지는 변경은 복귀 로직이 바뀌었다는 뜻이라
+            # 그때는 판정기도 함께 리뷰돼야 하는 것이 맞다.
+            _order_check("sub_incremental_replacement_before_tombstone", sub_text,
+                         "# (3) rsync(빌드 + 오버레이)", "REST_BRANCH=", order),
             {"name": "sub_render_uses_transactional_source",
              "ok": all(token in sub_text for token in (
                  "prepare_transactional_source", "mktemp -d", "CANONICAL_SRC",
@@ -355,12 +402,8 @@ def verify() -> dict:
                  "trap 'transactional_exit $?' EXIT", "rollback failed; recovery backups retained",
                  "rollback_remote_transactions || rc=11"))},
             {"name": "sub_transaction_precedes_remote_mutation",
-             "ok": (_ordered_between(sub_text, "# (2) transaction before checkout",
-                                     "# (3) rsync(빌드 + 오버레이)",
-                                     ('begin_remote_transaction "$t" 0', 'git checkout -q $t'))
-                    and _ordered_between(sub_text, "# R2 HITL 게이트",
-                                         "# ── B0 멱등 self-bootstrap",
-                                         ("begin_remote_transaction multi 1", "sub_run_mk")))},
+             "ok": tx_before_mutation[0]["ok"] and tx_before_mutation[1]["ok"],
+             "order_detail": tx_before_mutation},
             {"name": "sub_deletion_inventory_and_brake_fail_closed",
              "ok": all(token in sub_text for token in (
                  "deletion inventory dry-run failed", "deletion brake dry-run failed before apply",
@@ -369,10 +412,9 @@ def verify() -> dict:
              "ok": all(token in sub_text for token in (
                  "validate_inventory_relative_path", "[[:space:][:cntrl:]]",
                  "empty directories are undeclared transfer artifacts"))},
-            {"name": "sub_cleanup_is_postsuccess_best_effort",
-             "ok": _ordered_between(sub_text, "finalize_remote_transactions()",
-                                    "transactional_exit()",
-                                    ("REMOTE_TX_ACTIVE=0", "successful sync left recovery backup"))},
+            _order_check("sub_cleanup_is_postsuccess_best_effort", sub_text,
+                         "finalize_remote_transactions()", "transactional_exit()",
+                         ("REMOTE_TX_ACTIVE=0", "successful sync left recovery backup")),
         ]
     except (OSError, UnicodeError) as exc:
         checks.append({"name": "sub_relocation_contract", "ok": False,

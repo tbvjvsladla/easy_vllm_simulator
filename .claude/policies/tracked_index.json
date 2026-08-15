@@ -2,7 +2,7 @@
   "base_tree_sha1": "995dde3a4bb3842fe8481e661e2b7eb5897e387b",
   "entries": {
     ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json": "d3508a0b4016cb51f1959638979c657d1fa09177",
-    ".claude/policies/arch_variant_ledger.json": "6e4c42a405b443b43c05471c4b1d93ba4a58b294",
+    ".claude/policies/arch_variant_ledger.json": "d07bb6c1068c1d60524141ee7520b7922c05cba5",
     ".claude/policies/claim_bindings.json": "4cc19b8df79d0df8d568ea6c5962c952a4279d77",
     ".claude/policies/evidence_manifest.json": "e2ea63e1f84d715a6c52da71cf0ed1de9d8b41e6",
     ".claude/policies/governed_prose_snapshot.json": "efab61656b25231b10a39f89a96ae03c6f8aaeeb",
