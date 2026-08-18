@@ -261,7 +261,7 @@ FlashInfer, DeepGEMM, Triton kernels, CUTLASS, humming-kernels등의 커널 라�
 | 고치려는 것 | 올바른 자리 | 틀린 자리에 두면 |
 |---|---|---|
 | vLLM 소스(Python/C++), `_C` 재컴파일 필요 | **pre** — `build_patches_src/` | post → 컴파일이 끝나서 **무효** |
-| 빌드 바깥 native lib·커널 설치 | **post** — `build_patches/` | pre → 컴파일 전이라 설치 대상이 아직 없다 |
+| 빌드 바깥 native lib·커널 설치 | **post** — `build_patches/` | pre → 컴파일 결과에 의존하는데 그게 아직 없다 |
 | Python processor/config shim | **런타임 패치**(§3) | 빌드 슬롯 → 모델별 값이 이미지에 굳는다 |
 
 **③ 포크 SHA 핀** — 위 ①, ② 둘로도 안 되면 외부 자료검색으로 검증된 포크 SHA 핀을 사용합니다.

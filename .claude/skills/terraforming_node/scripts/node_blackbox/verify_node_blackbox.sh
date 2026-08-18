@@ -198,12 +198,53 @@ else bad "오늘 샘플 파일 없음: $TODAY" "sample_growth"; fi
 #   두 개였다. `[m]em…` 브래킷 트릭은 pgrep **자신의** argv 만 피할 뿐 **제3자 명령줄**은 못 피한다.
 #   → 실행 중인 프로그램의 **스크립트 인자 자체**가 그 파일인지로 판정한다(언급 ≠ 실행).
 #   이 프로젝트에서 자기매칭 함정은 반복 계열이다(`pkill -f` 가 자기 셸을 죽인 전례 포함).
-Z=$(ps -eo args= 2>/dev/null | awk '
-    $1 ~ /(^|\/)bash$/ && $2 ~ /(^|\/)mem_watchdog\.sh$/ { n++ }
-    END { print n+0 }')
-Z=${Z:-0}
-if [ "$Z" = "0" ]; then ok "레거시 협역 워치독 좀비 0" "no_zombie"
-else bad "레거시 협역 워치독 $Z 개 잔존 — PID 기반으로 정리 필요" "no_zombie"; fi
+#
+# ★★ 2026-08-18 교정(plan_26081809 §7 · testlog_26081810 §8): **개수 판정 → 대상 유무 판정**.
+#   옛 판정은 "실행 중인 협역 워치독이 하나라도 있으면 FAIL" 이었다. 그런데 협역 워치독은
+#   `policy:HOST_SAFETY_LAYERED_DEFENSE.C1` 이 요구하는 방어층이고, `multinode_serve_smoke.sh`
+#   는 그것을 **canonical** 이라 부르며 부재 시 exit 2 로 죽는다. 즉 **살아 있는 것이 정상**인
+#   국면이 규정돼 있다 — `--keep-up` 상주 서빙 중에는 워치독이 `PPID=1` 로 떠 있는 것이 설계다.
+#   2026-08-17 실측: 상주 컨테이너를 내렸더니 코드 한 줄 안 고치고 28/1 → **29/0** 이 됐다.
+#   그 판정은 결함을 발견한 게 아니라 **정상 상태를 결함이라 부른 것**이다(FALSE-POSITIVE).
+#   위양성 가드는 다음 사람에게 "정상 방어층을 죽여라"라고 지시하므로, 없느니만 못하다.
+#
+#   ∴ 좀비의 정의를 다시 쓴다: **지킬 대상이 없는데 살아 있는 워치독**. 판정은 워치독 자신의
+#   `targets()`(mem_watchdog.sh:34-43)를 그대로 재현한다 — argv $3 이 name_filter 이고
+#   생략/`@vllm` 이면 광역(이미지·이름에 vllm 포함 전체), 아니면 `docker ps --filter name=<f>`.
+#   대상이 하나라도 살아 있으면 그 워치독은 **제 일을 하는 중**이고, 0 이면 고아다.
+#
+#   ⚠ `pgrep -f` 는 여전히 쓰지 않는다(2026-08-02 위양성 실화 — 아래 원 주석 보존).
+#     -f 는 argv 전체를 부분문자열로 훑어 **언급만 해도** 카운트가 오른다. 실제로 정리 직후
+#     실카운트 0 인데 2 를 보고했고 그 2 는 방금 친 진단 명령이었다. `[m]em…` 브래킷 트릭은
+#     pgrep 자신의 argv 만 피할 뿐 제3자 명령줄은 못 피한다. → 실행 중 프로그램의 **스크립트
+#     인자 자체**가 그 파일인지로 판정한다(언급 ≠ 실행).
+_wd_live_targets() {   # $1=name_filter → 살아 있는 대상 컨테이너 수
+  if [ -z "$1" ] || [ "$1" = "@vllm" ]; then
+    docker ps --filter status=running --format '{{.ID}} {{.Image}} {{.Names}}' 2>/dev/null \
+      | awk 'tolower($0) ~ /vllm/ {n++} END {print n+0}'
+  else
+    # ⚠ `grep -c . || echo 0` 를 쓰지 않는다 — grep 은 0건일 때 "0" 을 찍고 **exit 1** 을 내므로
+    #   `|| echo 0` 이 붙으면 "0\n0" 이 되어 뒤의 `[ -gt ]` 가 깨진다. 이 파일 위쪽이 `pgrep -c`
+    #   로 같은 함정을 이미 문서화해 뒀는데, 이 함수를 처음 쓴 판본이 그대로 재현했다(2026-08-18
+    #   음성대조에서 발화: `[: 0\n0: integer expression expected`). wc -l 은 0건에도 exit 0 이다.
+    docker ps --filter "name=$1" --filter status=running -q 2>/dev/null | wc -l
+  fi
+}
+WD_TOTAL=0; WD_ORPHAN=0; WD_GUARDING=0; WD_DETAIL=""
+while IFS= read -r _flt; do
+  [ -n "$_flt" ] || continue
+  WD_TOTAL=$((WD_TOTAL+1))
+  _n=$(_wd_live_targets "$_flt"); _n=${_n:-0}
+  if [ "$_n" -gt 0 ]; then WD_GUARDING=$((WD_GUARDING+1)); WD_DETAIL="$WD_DETAIL '$_flt'→${_n}개(가동중)"
+  else WD_ORPHAN=$((WD_ORPHAN+1));  WD_DETAIL="$WD_DETAIL '$_flt'→0개(고아)"; fi
+done < <(ps -eo args= 2>/dev/null | awk '
+    $1 ~ /(^|\/)bash$/ && $2 ~ /(^|\/)mem_watchdog\.sh$/ { print ($3 == "" ? "@vllm" : $3) }')
+if [ "$WD_ORPHAN" = "0" ]; then
+  if [ "$WD_TOTAL" = "0" ]; then ok "레거시 협역 워치독 고아 0 (실행 중 0개)" "no_zombie"
+  else ok "레거시 협역 워치독 고아 0 (${WD_GUARDING}개가 대상 보호 중 —$WD_DETAIL)" "no_zombie"; fi
+else
+  bad "레거시 협역 워치독 고아 $WD_ORPHAN 개(전체 $WD_TOTAL) — 대상 컨테이너가 없는데 살아 있다. PID 기반으로 정리 필요:$WD_DETAIL" "no_zombie"
+fi
 
 # ── C. 오프박스 경로 (kmsg → netconsole/ramoops) ─────────────────────────
 echo; say "C. 오프박스 경로"
