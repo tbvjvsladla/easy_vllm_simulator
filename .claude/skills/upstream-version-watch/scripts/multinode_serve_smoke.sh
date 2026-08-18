@@ -305,7 +305,11 @@ fi
 #   띄운 것도 선언된 것도 없다(각 STOP 이 "로드는 0초도 시작하지 않았다"고 말한다). 무장 해제만이 맞다.
 disarm_armed_watchdogs(){
   [ -n "$WD_MAIN_PID" ] && kill "$WD_MAIN_PID" 2>/dev/null && echo "[mn] 워치독 해제(master pid=$WD_MAIN_PID) — 이 실행이 무장한 것"
-  [ -n "$WD_SUB_PID" ] && $SSH "$SUB_HOST" "kill $WD_SUB_PID" 2>/dev/null && echo "[mn] 워치독 해제(slave pid=$WD_SUB_PID)"
+  # ⚠ 슬레이브는 **PID 로 못 죽인다**. 무장이 `setsid nohup bash … & echo $!` 라 $! 는 setsid 의 PID 이고
+  #   실제 워치독은 그 자식이다(2026-08-18 실측: 캡처 2626758 vs 실제 2626760). argv **위치** 대조로 회수한다 —
+  #   같은 파일의 reap_stale_watchdogs 가 이미 그 방식이고, teardown_serve 의 smoke 분기도 같은 PID 결함을
+  #   갖고 있었다(회수가 조용히 실패하고 다음 실행의 reap 이 치워줘 증상이 사라졌다).
+  [ -n "$WD_SUB_PID" ] && reap_stale_watchdogs slave
   return 0
 }
 
@@ -356,7 +360,8 @@ teardown_serve(){
     reap_stale_watchdogs slave
   else
     [ -n "$WD_MAIN_PID" ] && kill "$WD_MAIN_PID" 2>/dev/null
-    [ -n "$WD_SUB_PID" ] && $SSH "$SUB_HOST" "kill $WD_SUB_PID" 2>/dev/null
+    # 슬레이브만 argv 대조 — 위 disarm_armed_watchdogs 주석의 setsid PID 결함(2026-08-18)과 동일 사유.
+    [ -n "$WD_SUB_PID" ] && reap_stale_watchdogs slave
   fi
   [ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches >/dev/null 2>&1
   $SSH "$SUB_HOST" "[ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches" >/dev/null 2>&1

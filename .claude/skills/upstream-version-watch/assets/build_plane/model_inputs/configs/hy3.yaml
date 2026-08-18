@@ -1,16 +1,16 @@
-# hy3 서빙 설정 — Tencent Hy3-NVFP4-W4A16 (HYV3ForCausalLM, 295B MoE · 21B active + 3.8B MTP) × stock vLLM 0.24.0 × 2x GB10 TP=2 Ray
-# 모델: /app/quant_models/Hy3-NVFP4-W4A16 (컨테이너 경로 — 아래 model: 키와 동일). 호스트측 마운트원은
+# hy3 서빙 설정 — Tencent Hy3-NVFP4-W4A16 (HYV3ForCausalLM, 295B MoE · 21B active + 3.8B MTP) × stock vLLM 0.27.0 × 2x GB10 TP=2 Ray
+# 모델: /app/quant_models/Tencent/Hy3-NVFP4-W4A16 (컨테이너 경로 — 아래 model: 키와 동일). 호스트측 마운트원은
 #   manifest.quant_model_path(NVFP4/quant 전용 NAS) 이며 compose 가 QUANT_MODEL_PATH 로 치환해
 #   `:/app/quant_models:ro` 로 붙인다. 실경로는 환경마다 다르므로 자기 manifest 에서 읽는다 —
 #   여기 적지 않는 이유는 이 파일이 배포 산출물이기 때문이다(docs.md §PII 적용범위 '배포 산출물' 행).
-#   가중치 168.41GiB(index total_size) → ~84GiB/node @TP=2. arch native(0.24.0 레지스트리 HYV3ForCausalLM 확인) → NO trust-remote-code.
+#   가중치 168.41GiB(index total_size) → ~84GiB/node @TP=2. arch native(0.27.0 레지스트리 HYV3ForCausalLM 확인 — 2026-08-18 이미지 내부 직독) → NO trust-remote-code.
 #   experts-only NVFP4(W4A16) + 비-expert BF16(attn·dense MLP·shared_mlp·router·lm_head·embed). 80층 + MTP 1층 · 192 experts top-8 + 1 shared.
 # 근거: plan_2026071119_1(참조-그라운디드 4소스) · 동일-HW tonyd2wild 2x-DGX-Spark 레시피(×2 검증) · 로컬 HF 카드 번들.
 #
 # ★ MoE 백엔드 = MARLIN NvFp4 (auto 가 선택 — 플래그 미지정). W4A16(weight-only)이라 flashinfer_trtllm/cutlass/cutedsl(W4A4)은
 #   'kernel does not support QuantKey(u8, scale(f8e4m3))' 로 거부 → vLLM 이 MARLIN NvFp4 커널을 auto-선택(카드·소스 확인).
 #   ⚠ 예전 Qwen3.5-122B-NVFP4(W4A4)의 flashinfer_cutlass 정답을 이월하면 실패(모델별 서빙전략 독립 따름정리 — carry-forward ✗). 스모크가 중재.
-model: /app/quant_models/Hy3-NVFP4-W4A16
+model: /app/quant_models/Tencent/Hy3-NVFP4-W4A16
 tensor-parallel-size: 2
 distributed-executor-backend: ray
 # ⚠ load-format 미지정(기본 mmap 로더) — fastsafetensors 는 로드 중 호스트버퍼 스파이크로 슬레이브 통합메모리 OOM
@@ -28,9 +28,12 @@ max-num-seqs: 6
 enforce-eager: true
 # cross-node RoCE(NVLink 부재) — custom all-reduce 비활성(멀티노드 공통).
 disable-custom-all-reduce: true
-# 에이전트-레디(Hermes agent + OpenWebUI): reasoning + tool-call 파서(0.24.0 네이티브 hy_v3 등록 — vllm/{reasoning,tool_parsers}/__init__ 소스 직독 확인).
-#   ⚠ :opensource 특수토큰 미스매치(체크포인트 vocab = <think:opensource>/<tool_calls:opensource>… 만, bare 부재) →
-#      파서가 bare 토큰 하드코딩 → 미패치 시 __init__ RuntimeError. hy3_patch.py(:opensource 스왑) 런타임 패치 필수(arm_patch.sh 가 arm).
+# 에이전트-레디(Hermes agent + OpenWebUI): reasoning + tool-call 파서(0.27.0 네이티브 hy_v3 등록 — vllm/{reasoning,tool_parsers}/hy_v3_* 소스 직독 확인).
+#   ✅ :opensource 특수토큰 — **0.27.0 에서 런타임 패치 불요**(2026-08-18 재유도, policy:RUNTIME_PATCH_NO_CARRY_FORWARD).
+#      0.24.0 파서는 bare 토큰을 하드코딩해 hy3_patch.py 스왑이 필수였으나, 0.27.0 파서는 tokenizer 의
+#      init_kwargs["token_suffix"] 를 읽어 `f"<think{suffix}>"` 로 조립한다(reasoning·tool 양쪽 동일).
+#      체크포인트 tokenizer_config.json 이 token_suffix=":opensource" 를 선언하므로 **네이티브로 일치**한다.
+#      ⚠ 0.24.0 패치를 이월했다면 이미 맞는 토큰을 다시 덮어썼을 것이다 — 이월 금지가 이 사례를 막았다.
 reasoning-parser: hy_v3
 tool-call-parser: hy_v3
 enable-auto-tool-choice: true
