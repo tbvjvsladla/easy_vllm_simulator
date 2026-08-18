@@ -1,5 +1,8 @@
 # hy3 서빙 설정 — Tencent Hy3-NVFP4-W4A16 (HYV3ForCausalLM, 295B MoE · 21B active + 3.8B MTP) × stock vLLM 0.24.0 × 2x GB10 TP=2 Ray
-# 모델: /app/quant_models/Hy3-NVFP4-W4A16 (별도 quant_model NAS → QUANT_MODEL_PATH=/mnt/llm/quant_model).
+# 모델: /app/quant_models/Hy3-NVFP4-W4A16 (컨테이너 경로 — 아래 model: 키와 동일). 호스트측 마운트원은
+#   manifest.quant_model_path(NVFP4/quant 전용 NAS) 이며 compose 가 QUANT_MODEL_PATH 로 치환해
+#   `:/app/quant_models:ro` 로 붙인다. 실경로는 환경마다 다르므로 자기 manifest 에서 읽는다 —
+#   여기 적지 않는 이유는 이 파일이 배포 산출물이기 때문이다(docs.md §PII 적용범위 '배포 산출물' 행).
 #   가중치 168.41GiB(index total_size) → ~84GiB/node @TP=2. arch native(0.24.0 레지스트리 HYV3ForCausalLM 확인) → NO trust-remote-code.
 #   experts-only NVFP4(W4A16) + 비-expert BF16(attn·dense MLP·shared_mlp·router·lm_head·embed). 80층 + MTP 1층 · 192 experts top-8 + 1 shared.
 # 근거: plan_2026071119_1(참조-그라운디드 4소스) · 동일-HW tonyd2wild 2x-DGX-Spark 레시피(×2 검증) · 로컬 HF 카드 번들.
