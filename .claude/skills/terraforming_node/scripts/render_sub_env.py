@@ -313,6 +313,17 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
         #   install/verify/purge 세 스크립트가 이걸 **source** 한다 — 빠지면 서브에서 설치가
         #   첫 줄에서 죽는다. 위 2026-08-02·08-14 주석이 예고한 재발을 이번에도 같은 편집에서 막는다.
         ("node_identity.sh", "node_identity.sh", 0o755),
+        # ── 의도적 **미배달** (2026-08-18 명시 · testlog_26081810 §8) ─────────────────
+        #   `publish_install_request.py` 는 이 디렉터리에 있지만 **서브로 보내지 않는다**.
+        #   그것은 L3 설치를 `docs/request/` 수행지시서로 발행하는 도구인데, 서브에는
+        #   `docs/request/` 자체가 없다 — `.claude/rules/docs.md` §서브 docs 계약이 서브에
+        #   plan·devlog·testlog·simlog·benchmark **다섯 스켈레톤만** 렌더하고 report·request 는
+        #   렌더하지 않는다고 규정한다(2026-08-18 실측: 서브 docs/ = 그 5개 + logs). 보내면
+        #   존재하지 않는 디렉터리에 발행을 시도하는 도구가 서브에 놓인다.
+        #   ★ 이 줄을 적는 이유: 위 세 ★ 주석이 증언하듯 이 목록은 **손유지 닫힌 목록**이고
+        #     누락은 침묵한다. "빠져 있다"만으로는 *판정한 제외*와 *잊은 누락*이 구분되지
+        #     않는다 — 실제로 이 파일도 그 구분 없이 빠져 있었고, 결과가 옳았을 뿐이다.
+        #     새 도구를 추가할 때는 배달하거나, 배달하지 않는 **사유를 여기 적는다**.
     )
     for source_rel, delivered_rel, mode in blackbox_files:
         src = os.path.join(blackbox_src, source_rel)

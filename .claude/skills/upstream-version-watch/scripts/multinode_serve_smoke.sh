@@ -292,6 +292,27 @@ if [ "$WATCHDOG" = "1" ]; then
   fi
 fi
 
+# ── 이 실행이 무장한 워치독만 해제한다 (2026-08-18 신설) ──────────────────────────────
+# 워치독은 **예산 게이트보다 먼저** 무장한다(위). 그런데 예산 게이트의 세 STOP 경로(derive 실패 ·
+# preflight_ceiling · declare_not_honored)는 전부 맨 `exit 4` 였다 — 컨테이너는 하나도 안 떴는데
+# 워치독만 양 노드에 남는다. 2026-08-18 실측: `ds4f0731-x2-sm12x` 가 preflight_ceiling 에서 멈춘 뒤
+# main pid=3207947 · sub pid=2614745 가 대상 0개인 채 상주했고, `verify_node_blackbox` 가
+# `no_zombie` 로 이를 잡았다(28통과/1실패).
+#   이 누락이 오래 살아남은 이유는 **다음 실행의 `reap_stale_watchdogs` 가 조용히 치워줬기** 때문이다 —
+#   증상이 다음 실행에서 사라지므로 아무도 원인을 안 본다. workflow.md 막힘 3분류의 **침묵 누락**이고,
+#   `teardown_serve`·`reap_stale_watchdogs` 라는 배선이 **이미 있는데 호출자가 없던** 경우다.
+# ⚠ 여기서 teardown_serve 를 부르지 않는다 — 그건 down·drop-caches·예산회수까지 하는데, 이 시점엔
+#   띄운 것도 선언된 것도 없다(각 STOP 이 "로드는 0초도 시작하지 않았다"고 말한다). 무장 해제만이 맞다.
+disarm_armed_watchdogs(){
+  [ -n "$WD_MAIN_PID" ] && kill "$WD_MAIN_PID" 2>/dev/null && echo "[mn] 워치독 해제(master pid=$WD_MAIN_PID) — 이 실행이 무장한 것"
+  # ⚠ 슬레이브는 **PID 로 못 죽인다**. 무장이 `setsid nohup bash … & echo $!` 라 $! 는 setsid 의 PID 이고
+  #   실제 워치독은 그 자식이다(2026-08-18 실측: 캡처 2626758 vs 실제 2626760). argv **위치** 대조로 회수한다 —
+  #   같은 파일의 reap_stale_watchdogs 가 이미 그 방식이고, teardown_serve 의 smoke 분기도 같은 PID 결함을
+  #   갖고 있었다(회수가 조용히 실패하고 다음 실행의 reap 이 치워줘 증상이 사라졌다).
+  [ -n "$WD_SUB_PID" ] && reap_stale_watchdogs slave
+  return 0
+}
+
 # ══ 서빙 예산 선언 — **로드 개시 전** 필수 단계 (plan_26081415 C3 · 궁극 교정) ══════════════
 #
 #   왜 여기 있나: 처방(선언된 바닥)은 2026-08-01 에 이미 도입됐고 설계대로 작동했다. 그런데
@@ -339,7 +360,8 @@ teardown_serve(){
     reap_stale_watchdogs slave
   else
     [ -n "$WD_MAIN_PID" ] && kill "$WD_MAIN_PID" 2>/dev/null
-    [ -n "$WD_SUB_PID" ] && $SSH "$SUB_HOST" "kill $WD_SUB_PID" 2>/dev/null
+    # 슬레이브만 argv 대조 — 위 disarm_armed_watchdogs 주석의 setsid PID 결함(2026-08-18)과 동일 사유.
+    [ -n "$WD_SUB_PID" ] && reap_stale_watchdogs slave
   fi
   [ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches >/dev/null 2>&1
   $SSH "$SUB_HOST" "[ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches" >/dev/null 2>&1
@@ -452,6 +474,7 @@ if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
       "ckpt_mib_found=$([ -n "$CKPT_MIB" ] && echo 1 || echo 0)" \
       "tp_found=$([ -n "$BTP" ] && echo 1 || echo 0)" \
       "kv_mib_found=$([ -n "$KV_MIB" ] && echo 1 || echo 0)"
+    disarm_armed_watchdogs
     exit 4
   fi
   WEIGHTS_MIB=$(( CKPT_MIB / BTP ))
@@ -467,8 +490,10 @@ if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
   #     판정 권위는 워치독이고 여기는 예고일 뿐이라 값을 파생할 통로가 없다 — 그래서 tripwire 로
   #     둔다(닫힌 목록: 저쪽 기본값을 바꾸면 여기도 바꿔야 한다). 한 블록 안에 같은 숫자를 네 번
   #     손으로 적던 것을 변수 하나로 모은다(4종 안티패턴 `매직넘버·결함` = 두 곳 이상의 손글씨).
-  _WD_MARGIN=8192
-  _WD_MIN_CEIL=16384
+  # 2026-08-18: 정본(blackbox_eta.DEFAULTS)이 8192/16384 → 3072/8192 로 바뀌어 거울도 함께 갱신한다
+  #   (위 ★ 주석의 tripwire 계약 — 저쪽 기본값을 바꾸면 여기도 바꾼다). 근거 testlog_26081811 §5.3.2.
+  _WD_MARGIN=3072
+  _WD_MIN_CEIL=8192
   _MEMTOT_MAIN=$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)
   _PRED_FLOOR=$(( _MEMTOT_MAIN - WEIGHTS_MIB - KV_MIB - OVERHEAD_MIB ))
   _PRED_CEIL=$(( _PRED_FLOOR - _WD_MARGIN ))
@@ -488,6 +513,7 @@ if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
       "min_ceiling_mib=$_WD_MIN_CEIL" "short_by_mib=$(( _WD_MIN_CEIL - _PRED_CEIL ))" \
       "weights_mib=$WEIGHTS_MIB" "kv_mib=$KV_MIB" "overhead_mib=$OVERHEAD_MIB" \
       "overhead_max_mib=$_OH_MAX" "mem_total_mib=$_MEMTOT_MAIN"
+    disarm_armed_watchdogs
     exit 4
   fi
 
@@ -545,6 +571,7 @@ if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
       "main_ok=$BUD_MAIN_OK" "sub_ok=$BUD_SUB_OK" "sub_session_py_missing=$BUD_SUB_MISSING" \
       "weights_mib=$WEIGHTS_MIB" "kv_mib=$KV_MIB" "overhead_mib=$OVERHEAD_MIB" \
       "ttl_s=$BUDGET_TTL_S"
+    disarm_armed_watchdogs
     exit 4
   fi
   BUDGET_DECLARED=1

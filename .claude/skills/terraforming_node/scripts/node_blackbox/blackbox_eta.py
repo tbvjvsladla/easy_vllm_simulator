@@ -61,7 +61,18 @@ ETA_FLOOR_MULTIPLIER = 1.5
 DEFAULTS = {
     "kill_latency_s": 4.0,      # testlog_26073109 관측 상한 하단(3~15s, HB 15s 격자로 과대) -- 실측 대체 대상
     "detect_margin_s": 2.0,     # 폴링 간격(1s) + 여유(1s)
-    "debounce_polls": 3.0,      # 연속 N 폴 지속해야 실제 TRIP (사용자 승인 2026-07-31, 옵션 '가')
+    # 연속 N 폴 지속해야 실제 TRIP (사용자 승인 2026-07-31, 옵션 '가').
+    # ⚠ 2026-08-18: hy3 위양성(§testlog_26081811 §5.3) 대응으로 3.0 → 8.0 을 **시도했다가 되돌렸다**.
+    #   동기는 타당했다 — hy3 의 KV 절대클램프 할당 12 GiB 가 1,741 MiB/s 로 약 7.0s 하강했고
+    #   3 폴(=3s) 디바운스가 그것을 "지속"으로 읽어 정상 로드를 사살했다(streak=3 에서 트립).
+    #   그러나 **두 요구가 정면 충돌한다**:
+    #     (A) 그 KV 할당을 거르려면            → debounce > 7 폴
+    #     (B) 진성 폭주(밴드 관통)를 잡으려면  → debounce ≤ 4 폴   ← 자기시험 회귀 픽스처가 강제
+    #   교집합이 없다. 그리고 (B) 는 양보 불가다 — **디바운스는 hard_floor_mib 트립에도 적용**되므로
+    #   8 폴(8s)이면 20,000 MiB/s 폭주가 노드 전체를 6.2s 에 소진해 최후 방어선을 통과한다.
+    #   ∴ 디바운스로는 이 문제를 못 고친다. **처방은 선언된 바닥**이며(아래 decl_* 두 상수)
+    #     그것만으로 hy3 는 해소된다. 이 주석은 같은 시도의 재발을 막기 위해 남긴다.
+    "debounce_polls": 3.0,
     "agent_act_s": 300.0,       # 에이전트 개입 구간 (ETA 5분)
     "agent_notify_s": 900.0,    # 에이전트 알림 구간 (ETA 15분)
     "min_rate_mib_s": 1.0,      # 이보다 느린 하강은 '정지'로 간주(0 나눗셈·잡음 방지)
@@ -71,8 +82,21 @@ DEFAULTS = {
     # 58 GiB 급 모델을 3/3 사살했다. 서빙이 예상 바닥을 선언하면 규칙은 그 아래에서만 무장한다.
     # 두 상수는 워치독에도 같은 기본값이 있으나 **정본은 여기**다 — 나머지 상수와 같은
     # 파이프라인(emit_params)으로 조정 가능해야 캠페인 루프튜닝의 대상이 된다.
-    "decl_margin_mib": 8192,      # arm 상한 = 선언바닥 - 이 값. 선언 오차·정상 변동 흡수분
-    "decl_min_ceiling_mib": 16384,  # arm 상한이 이 밑이 되는 선언은 거부(게이트 실명 방지)
+    # arm 상한 = 선언바닥 - 이 값. 선언 오차·정상 변동 흡수분.
+    #   8192 → 3072 (2026-08-18 · testlog_26081811 §5.3.2, 사용자 승인). 8 GiB 는 실측 대비 과잉이다:
+    #   hy3 선언바닥 13,801 vs 실측바닥 13,699 = **오차 102 MiB**. 과잉 여유는 arm 상한을 끌어내려
+    #   선언을 **거부당하게** 만들고, 그 결과 무선언(상한=무한대)으로 내몰아 위양성을 부른다.
+    "decl_margin_mib": 3072,
+    # arm 상한이 이 밑이 되는 선언은 거부(게이트 실명 방지). 16384 → 8192 (동상).
+    #   ★ 값 선택 근거 — **층이 겹치게** 둔다. margin 3072 에서 hy3 arm 상한 = 10,729 MiB 이고
+    #     이는 협역 워치독 절대임계 10,240(abs_band_mib 와 동일 개념)의 **바로 위**다. 즉 ETA 는
+    #     절대층이 손대기 직전 구간까지만 무장하고, 그 아래는 절대층이 받는다.
+    #   ⚠ validate_params 가 `decl_min_ceiling_mib > hard_floor_mib(5120)` 를 강제한다 — 그 이하로
+    #     내리면 어떤 선언도 거부되지 않아 가드가 가드가 아니게 된다. 8192 는 그 위이면서
+    #     바닥 < 11,264 인 선언은 여전히 거부하므로 **거부 권능을 유지**한다.
+    #   근거 사건: hy3(예상바닥 13,801 → 옛 상한 5,609 < 16,384)가 거부당해 --no-budget 으로 밀렸고,
+    #     무선언 상태의 ETA 가 KV 할당을 외삽해 정상 로드를 사살했다(2026-08-18T02:34:43Z).
+    "decl_min_ceiling_mib": 8192,
     # ★ 최후 절대 바닥. min_rate_mib_s 가 만든 구멍을 막는다 -- 0.5 MiB/s 로 천천히 새면
     #   ETA 는 영원히 'green'(rate_below_min)이라 절대 트립하지 않는다. 그 상태로 0 에 도달하면
     #   호스트가 죽는다. 따라서 "느리든 빠르든 이 밑이면 죽인다"는 무조건 바닥이 필요하다.
@@ -564,12 +588,12 @@ def _self_test():
         checks.append(("emit 파일에 DEBOUNCE_N=3", "BB_DEBOUNCE_N=3" in txt))
         # 선언된 바닥 상수가 셸로 흘러가는가 — 워치독이 읽는 **정확한 변수명**이어야 한다.
         # 이름이 어긋나면 워치독은 조용히 자기 하드코딩 기본값으로 돌고, 여기서 조정한 값은 증발한다.
-        checks.append(("emit 에 DECL_MARGIN_MIB=8192", "BB_DECL_MARGIN_MIB=8192\n" in txt))
-        checks.append(("emit 에 DECL_MIN_CEILING_MIB=16384", "BB_DECL_MIN_CEILING_MIB=16384\n" in txt))
+        checks.append(("emit 에 DECL_MARGIN_MIB=3072", "BB_DECL_MARGIN_MIB=3072\n" in txt))
+        checks.append(("emit 에 DECL_MIN_CEILING_MIB=8192", "BB_DECL_MIN_CEILING_MIB=8192\n" in txt))
         # 정수로 나가야 한다 — 셸 산술은 정수 전용이고 '8192.0' 은 워치독 비교에서 터진다.
         checks.append(("선언 상수가 정수 표기",
-                       "BB_DECL_MARGIN_MIB=8192.0" not in txt
-                       and "BB_DECL_MIN_CEILING_MIB=16384.0" not in txt))
+                       "BB_DECL_MARGIN_MIB=3072.0" not in txt
+                       and "BB_DECL_MIN_CEILING_MIB=8192.0" not in txt))
         # 가드가 가드로 작동하는가
         bad, _ = validate_params({"decl_min_ceiling_mib": 5120})   # == hard_floor
         checks.append(("최소상한 <= 절대바닥 거부", not bad))
