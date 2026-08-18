@@ -292,6 +292,23 @@ if [ "$WATCHDOG" = "1" ]; then
   fi
 fi
 
+# ── 이 실행이 무장한 워치독만 해제한다 (2026-08-18 신설) ──────────────────────────────
+# 워치독은 **예산 게이트보다 먼저** 무장한다(위). 그런데 예산 게이트의 세 STOP 경로(derive 실패 ·
+# preflight_ceiling · declare_not_honored)는 전부 맨 `exit 4` 였다 — 컨테이너는 하나도 안 떴는데
+# 워치독만 양 노드에 남는다. 2026-08-18 실측: `ds4f0731-x2-sm12x` 가 preflight_ceiling 에서 멈춘 뒤
+# main pid=3207947 · sub pid=2614745 가 대상 0개인 채 상주했고, `verify_node_blackbox` 가
+# `no_zombie` 로 이를 잡았다(28통과/1실패).
+#   이 누락이 오래 살아남은 이유는 **다음 실행의 `reap_stale_watchdogs` 가 조용히 치워줬기** 때문이다 —
+#   증상이 다음 실행에서 사라지므로 아무도 원인을 안 본다. workflow.md 막힘 3분류의 **침묵 누락**이고,
+#   `teardown_serve`·`reap_stale_watchdogs` 라는 배선이 **이미 있는데 호출자가 없던** 경우다.
+# ⚠ 여기서 teardown_serve 를 부르지 않는다 — 그건 down·drop-caches·예산회수까지 하는데, 이 시점엔
+#   띄운 것도 선언된 것도 없다(각 STOP 이 "로드는 0초도 시작하지 않았다"고 말한다). 무장 해제만이 맞다.
+disarm_armed_watchdogs(){
+  [ -n "$WD_MAIN_PID" ] && kill "$WD_MAIN_PID" 2>/dev/null && echo "[mn] 워치독 해제(master pid=$WD_MAIN_PID) — 이 실행이 무장한 것"
+  [ -n "$WD_SUB_PID" ] && $SSH "$SUB_HOST" "kill $WD_SUB_PID" 2>/dev/null && echo "[mn] 워치독 해제(slave pid=$WD_SUB_PID)"
+  return 0
+}
+
 # ══ 서빙 예산 선언 — **로드 개시 전** 필수 단계 (plan_26081415 C3 · 궁극 교정) ══════════════
 #
 #   왜 여기 있나: 처방(선언된 바닥)은 2026-08-01 에 이미 도입됐고 설계대로 작동했다. 그런데
@@ -452,6 +469,7 @@ if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
       "ckpt_mib_found=$([ -n "$CKPT_MIB" ] && echo 1 || echo 0)" \
       "tp_found=$([ -n "$BTP" ] && echo 1 || echo 0)" \
       "kv_mib_found=$([ -n "$KV_MIB" ] && echo 1 || echo 0)"
+    disarm_armed_watchdogs
     exit 4
   fi
   WEIGHTS_MIB=$(( CKPT_MIB / BTP ))
@@ -488,6 +506,7 @@ if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
       "min_ceiling_mib=$_WD_MIN_CEIL" "short_by_mib=$(( _WD_MIN_CEIL - _PRED_CEIL ))" \
       "weights_mib=$WEIGHTS_MIB" "kv_mib=$KV_MIB" "overhead_mib=$OVERHEAD_MIB" \
       "overhead_max_mib=$_OH_MAX" "mem_total_mib=$_MEMTOT_MAIN"
+    disarm_armed_watchdogs
     exit 4
   fi
 
@@ -545,6 +564,7 @@ if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
       "main_ok=$BUD_MAIN_OK" "sub_ok=$BUD_SUB_OK" "sub_session_py_missing=$BUD_SUB_MISSING" \
       "weights_mib=$WEIGHTS_MIB" "kv_mib=$KV_MIB" "overhead_mib=$OVERHEAD_MIB" \
       "ttl_s=$BUDGET_TTL_S"
+    disarm_armed_watchdogs
     exit 4
   fi
   BUDGET_DECLARED=1

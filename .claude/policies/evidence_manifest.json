@@ -17,7 +17,7 @@
   ".claude/skills/upstream-version-watch/scripts/check_smoke_model.py": "64f1fe05c52d56524a511a466819ae0b6bd27201b52f10098528667ab7f12a8c",
   ".claude/skills/upstream-version-watch/scripts/classify_failure.py": "43cea3c2c9bf52bea3b62d96bed734eac958e483e67686a91853d61dcf15aeb5",
   ".claude/skills/upstream-version-watch/scripts/hint_tag.py": "97cddca25c11f8bc50bdceab616a36d8ee2645a14a8917e0d3c4414965959c61",
-  ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh": "cc43205b86c12817ae89729393cab182316ebab53042e20fd397e19956ea21d0",
+  ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh": "075f2b1ffc9d16bbe40624d5dc1784430f3e106c6a1ec5dd11799eee31ed9f90",
   ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py": "c3f27e6ee3555b6ff2a48d4376b8fceb31bd73f97c489e8596e2e755e11d01f1",
   ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py": "83b238595d8e6ea22ceece1ca636692799fe3a69ffd8e5ee09b7e5ef5531c771",
   ".claude/skills/upstream-version-watch/scripts/sync_branches.sh": "68b26779483938bd1b2df5583cc467a7066e75a05aa535fae6baba412771755c",
