@@ -455,6 +455,56 @@ def verify() -> dict:
                    "ok": all(p.is_file() and not p.is_symlink() and p.stat().st_size > 0
                              and stat.S_IMODE(p.stat().st_mode) & 0o111 == 0 for p in build_assets),
                    "paths": [str(p.relative_to(REPO)) for p in build_assets]})
+    # ── build_plane 자산의 **내용** 단언 (2026-08-18 신설 · plan_26081810) ────────────────────
+    # 바로 위 단언은 존재·비심링크·비어있지않음·비실행뿐이다. 그 한계는 이미 requirements.txt 동결
+    # 사고로 자백돼 있는데(윗 주석), **같은 검사 안에서 같은 실패 모드가 재발했다**: `.env.hy3` 가
+    # Band2 클러스터 9키를 통째로 복제한 채(그중 노드 IP 2 + SSH 계정 1) 양 브랜치로 배포됐다.
+    # 사람만이 판정 주체였기 때문이다 — `.env.exaone45-33b` 는 맞게, `.env.hy3` 는 틀리게 들어왔다.
+    #
+    # 여기서 단언하는 두 가지:
+    #   (a) Band3 모델 env 에 **노드 정체성 키가 없다**. `.env.<model>` 은 policy:
+    #       MODEL_TRIPLET_NO_SUB_PROPAGATION 의 Band3 이고, 노드 좌표의 정본은 manifest.nodes[] →
+    #       render_dockerfile.py --cluster-envfile → `.env.cluster`(Band2) 다. 두 곳에 손으로 적히면
+    #       workflow.md §4종 판정표의 매직넘버 **결함** 칸("같은 개념이 두 곳 이상에 손으로 적힌 값")
+    #       이고, per-model env 가 cluster env 를 **이기므로**(compose env_file 순서 · smoke 의
+    #       --env-file 후순 우선) 배포본을 받은 제3자의 manifest 를 조용히 덮어쓴다.
+    #   (b) build_plane 자산 전체에 **배포 PII 4종이 0건**이다. docs.md §PII 적용범위 표에서
+    #       `.claude/**` 추적 템플릿은 "배포 산출물 · 4종 전부" 행이다(면제는 기계생성 원시 평면뿐).
+    #
+    # ⚠ 금지 대상을 노드 정체성 3키로 **한정**한다. `RAY_PORT`(③불변)·`MAX_JOBS`(②프리셋)는
+    #   CLUSTER_PRESETS 주석이 "모델별 override 필요시 .env.<model>(master) 에서" 로 명시 인가한
+    #   경로이고 실사용 output env 13종 중 13/2 건이 그 형태다 — 함께 금지하면 정상을 사살한다.
+    NODE_IDENTITY_KEYS = ("MASTER_HOST_IP", "SLAVE_HOST_IP", "SSH_USER")
+    BUILD_PLANE_PII = (
+        ("private-ipv4", re.compile(r"\b(?:192\.168\.|10\.\d{1,3}\.|172\.(?:1[6-9]|2\d|3[01])\.)\d{1,3}(?:\.\d{1,3})?")),
+        ("email", re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")),
+        ("abs-op-path", re.compile(r"/(?:mnt|home)/[A-Za-z0-9._/-]+")),
+        ("spark-host", re.compile(r"spark-[0-9a-f]{3,}")),
+    )
+    content_defects: list[str] = []
+    try:
+        for p in sorted((build_asset_root / "model_inputs/envs").glob(".env.*")):
+            rel = str(p.relative_to(REPO))
+            for lineno, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+                key = line.split("=", 1)[0].strip()
+                if key in NODE_IDENTITY_KEYS:
+                    content_defects.append(
+                        f"{rel}:{lineno} Band2 노드정체성 키 '{key}' — 정본은 manifest.nodes[] → .env.cluster")
+        for p in sorted((build_asset_root / "model_inputs").rglob("*")):
+            if not p.is_file():
+                continue
+            rel = str(p.relative_to(REPO))
+            text = p.read_text(encoding="utf-8", errors="replace")
+            for lineno, line in enumerate(text.splitlines(), 1):
+                for name, pat in BUILD_PLANE_PII:
+                    m = pat.search(line)
+                    if m:
+                        content_defects.append(f"{rel}:{lineno} 배포 PII {name}: {m.group(0)}")
+    except (OSError, UnicodeError) as exc:
+        content_defects.append(f"{type(exc).__name__}: {exc}")
+    checks.append({"name": "upstream_owner_build_plane_content",
+                   "ok": not content_defects,
+                   "defects": content_defects})
     # 모델구동 런타임 패치는 policy:RUNTIME_PATCH_NO_CARRY_FORWARD.C1/C2 가 "휘발(volatile)·비추적 성격이며
     # 환경 또는 **버전 bump 마다 재유도**한다"고 규정한 산출물이다. 그러므로 특정 모델 stem 의 패치가
     # *존재한다*를 배포 불변식으로 단언하면 정책과 정면 모순한다 — bump 직후 정본이 비어 있는 것은
