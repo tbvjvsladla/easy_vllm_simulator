@@ -53,6 +53,14 @@ ALLOWLIST=(
     HINTS.md
     README.md
     hints/index.json
+    # ── README 삽화 (2026-08-18 추가) ──────────────────────────────────────────
+    # README.md 가 `<img src="./assets/...">` 로 참조하므로 **README 와 한 벌**이다. README 만
+    # 전파하고 assets 를 빼면 반대 브랜치에서 이미지가 404 로 깨진다 — 위 HINTS.md 주석이 적은
+    # "배포받은 사람이 어느 브랜치를 체크아웃했느냐에 따라 달라지는 상태"의 같은 계열이고,
+    # 실제로 2026-08-18 시점 single-node 의 assets 파일 수는 0 이었다.
+    # ★ MIRROR_DIRS 에도 함께 넣는다 — 여기에만 넣으면 정본에서 지운 삽화가 대상 브랜치에
+    #   유령으로 남는다(추가는 전파되고 삭제는 안 되는 비대칭).
+    assets
 )
 # These directory roots are shared control-plane mirrors, not topology-local overlays. A path
 # tracked on the destination under one of these roots but absent from the source must be staged for
@@ -64,6 +72,7 @@ MIRROR_DIRS=(
     .claude/schemas
     .claude/policies
     docs/report
+    assets
 )
 # Exact historical root paths removed by the self-contained owner relocation. These paths sit
 # outside MIRROR_DIRS, so checkout alone cannot remove them from an older destination branch.
