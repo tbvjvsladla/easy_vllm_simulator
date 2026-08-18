@@ -490,8 +490,10 @@ if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
   #     판정 권위는 워치독이고 여기는 예고일 뿐이라 값을 파생할 통로가 없다 — 그래서 tripwire 로
   #     둔다(닫힌 목록: 저쪽 기본값을 바꾸면 여기도 바꿔야 한다). 한 블록 안에 같은 숫자를 네 번
   #     손으로 적던 것을 변수 하나로 모은다(4종 안티패턴 `매직넘버·결함` = 두 곳 이상의 손글씨).
-  _WD_MARGIN=8192
-  _WD_MIN_CEIL=16384
+  # 2026-08-18: 정본(blackbox_eta.DEFAULTS)이 8192/16384 → 3072/8192 로 바뀌어 거울도 함께 갱신한다
+  #   (위 ★ 주석의 tripwire 계약 — 저쪽 기본값을 바꾸면 여기도 바꾼다). 근거 testlog_26081811 §5.3.2.
+  _WD_MARGIN=3072
+  _WD_MIN_CEIL=8192
   _MEMTOT_MAIN=$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)
   _PRED_FLOOR=$(( _MEMTOT_MAIN - WEIGHTS_MIB - KV_MIB - OVERHEAD_MIB ))
   _PRED_CEIL=$(( _PRED_FLOOR - _WD_MARGIN ))

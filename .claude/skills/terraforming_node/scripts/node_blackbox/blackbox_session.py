@@ -112,10 +112,26 @@ def cmd_stop(args):
 
 
 BUDGET_FILE = "serve_budget.env"
-# 워치독 기본 가드와 같은 값(mem_watchdog_eta.sh). 여기서는 **경고용 예측**에만 쓴다 —
-# 실제 수락/거부의 권위는 워치독이며, 두 곳이 판정하면 반드시 갈라진다.
-_WD_MARGIN_MIB = 8192
-_WD_MIN_CEILING_MIB = 16384
+# 워치독 가드와 같은 값. 여기서는 **경고용 예측**에만 쓴다 — 실제 수락/거부의 권위는 워치독이다.
+# ★ 2026-08-18: 옛 판본은 이 두 값을 **손으로 적어** 두고 바로 위 주석에 "두 곳이 판정하면 반드시
+#   갈라진다"고 스스로 경고했다. 그리고 갈라졌다 — 정본(blackbox_eta.DEFAULTS)이 3072/8192 로
+#   바뀐 뒤 이 파일만 8192/16384 로 남아, 워치독이 **수락한**(arm_ceiling=10729) 선언을 두고
+#   "거부된다"고 출력했다(2026-08-18T03:10:50Z 실측: 경고 직후 같은 노드에서 budget_honored ✓).
+#   경고가 사실과 반대면 운영자는 정상을 사고로 읽는다 — 4종 안티패턴 `매직넘버·결함`
+#   (같은 개념이 두 곳 이상에 손으로 적힌 값)의 교과서 사례다.
+# ∴ 사본을 없애고 정본에서 파생한다. 같은 디렉터리에 배달되므로(메인 scripts/node_blackbox,
+#   서브 .claude/runtime/node_blackbox) sys.path[0] 로 import 가능하다.
+try:
+    from blackbox_eta import DEFAULTS as _ETA_DEFAULTS
+    _WD_MARGIN_MIB = int(_ETA_DEFAULTS["decl_margin_mib"])
+    _WD_MIN_CEILING_MIB = int(_ETA_DEFAULTS["decl_min_ceiling_mib"])
+    _WD_CONST_SOURCE = "derived:blackbox_eta.DEFAULTS"
+except Exception as _exc:      # fail-loud 폴백 — 침묵하지 않는다(workflow.md 폴백 판정표 '정당' 칸)
+    _WD_MARGIN_MIB = 8192
+    _WD_MIN_CEILING_MIB = 16384
+    _WD_CONST_SOURCE = "fallback:literal (%s: %s)" % (type(_exc).__name__, _exc)
+    print("[blackbox_session] WARN: blackbox_eta.DEFAULTS 파생 실패 → 리터럴 사용. "
+          "예측 경고가 실제 워치독 판정과 어긋날 수 있다: %s" % _WD_CONST_SOURCE, file=sys.stderr)
 MAX_TTL_S = 86400
 
 # ── TTL 정합(plan_26081415 C4) ──────────────────────────────────────────────

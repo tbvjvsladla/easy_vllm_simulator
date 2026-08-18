@@ -16,12 +16,28 @@ distributed-executor-backend: ray
 # ⚠ load-format 미지정(기본 mmap 로더) — fastsafetensors 는 로드 중 호스트버퍼 스파이크로 슬레이브 통합메모리 OOM
 #   유발(2026-07-11 serve#1: shard 6/50 서 slave MemAvail 9841MiB<10240 → worker 사망). 카드의 fastsafetensors 는
 #   275GB B300 기준 — 동일-HW tonyd2wild 2x-GB10 레시피는 기본 로더 사용(메모리 절약). 환경별 재확정(carry-forward ✗).
-# 통합메모리 클램프(0.92+ = startup OOM — tonyd2wild·헌법 ≤0.90). gmu=startup free-memory 게이트 + 총-cap.
-gpu-memory-utilization: 0.90
+# 통합메모리 클램프. gmu = ① startup free-memory 게이트 + ② 총-cap 두 역할(KV 는 아래 절대클램프가
+#   사이징하므로 gmu 는 KV 산정에 쓰이지 않는다).
+# ★ 2026-08-18 실측으로 0.90 → 0.85 하향. 0.90 은 이 배치 형태에서 **도달 불가**다:
+#     vLLM 기동 게이트가 워커 초기화 시점에 본 free = **105.79 GiB / 121.69 GiB**(비율 0.8693)인데
+#     0.90 은 109.52 GiB 를 요구 → `ValueError: Free memory on device cuda:0 ... is less than
+#     desired GPU memory utilization` 로 2회 연속 사망(02:00:54 · 02:04:09).
+#   ⚠ 빈 컨테이너에서 잰 free(113.66 GiB)로 판단하면 안 된다 — 그 차이 ~7.9 GiB 는 Ray head +
+#     APIServer + EngineCore + RayWorkerProc 스택이 **게이트 도달 전에** 이미 쓰는 몫이다.
+#     (첫 진단에서 이 값으로 "페이지캐시 탓"이라 오판했고 재시도가 반증했다. 측정은 *같은 형태*에서.)
+#   가용 창: gmu ≤ 105.79/121.69 = 0.8693(기동 게이트) · gmu ≥ (84.21+12)/121.69 = 0.7906(용량).
+#   0.85 = 요구 103.44 GiB → 기동 여유 2.35 GiB · 활성화 여유 7.23 GiB (양쪽에 마진).
+#   ⚠ tonyd2wild 의 0.90 은 다른 HW·배치의 값이다 — 이월 금지(모델·환경별 재확정). 스모크가 중재.
+gpu-memory-utilization: 0.85
 # 사용자 결정 — fp8_e4m3 KV(용량 ~180K 토큰풀, tonyd2wild ×2 검증). ⚠ 카드 경고: 미보정 fp8 KV 가 영어맥락 중국어혼출 증폭 가능성.
 kv-cache-dtype: fp8_e4m3
-# tonyd2wild 검증값(256K native 는 2x GB10 미탑재 — VRAM 제약).
-max-model-len: 131072
+# 131072 → 98304 (2026-08-18 · testlog_26081811 §5.5, 사용자 결정 ①).
+#   KV 절대클램프를 8 GiB 로 내리면(아래) 토큰풀이 ~103,562 라 131,072 를 한 요청도 못 담는다
+#   (동시성 < 1). 96K 로 낮춰 동시성 1.05x 를 확보한다. tonyd2wild 의 256K native·131K 값은
+#   다른 HW/버전 기준이라 이월하지 않는다(carry-forward ✗).
+#   ⚠ 컨텍스트를 더 쓰고 싶으면 KV 를 올려야 하는데, 그러면 바닥이 절대임계 아래로 내려간다
+#     — 이 노드에서 둘은 맞바꿈 관계다(§5.5 표).
+max-model-len: 98304
 # 초기 batch. near-max 는 serve KV-log 실측 후 조정(공식 batch 금지 — 헌법 near-max 따름정리).
 max-num-seqs: 6
 # GB10: cudagraph 미검증 → eager(tonyd2wild). decode 오버헤드는 MTP 가 상쇄, 실 t/s = adversarial-benchmark 게이트가 측정.
@@ -37,9 +53,19 @@ disable-custom-all-reduce: true
 reasoning-parser: hy_v3
 tool-call-parser: hy_v3
 enable-auto-tool-choice: true
-# KV 절대클램프(이식성·안전 — 헌법 KV 절대클램프 따름정리) = serve#2 실측 후 확정(Phase-1.5).
+# KV 절대클램프(이식성·안전 — 헌법 KV 절대클램프 따름정리).
+# ★ 2026-08-18 재확정: 12 GiB → 8 GiB. **0.27.0 실측이 0.24.0 추정을 뒤집었다.**
+#   4차 서빙(선언 경로·ETA 위양성 해소 상태)에서 실측 바닥이 **9,423 MiB** 로 절대임계 10,240 을
+#   817 MiB 밑돌아 협역 워치독이 정상 작동해 사살했다(위양성 아님 — 진성 방어).
+#   역산 실측 overhead = 124,610 − 86,233 − 12,288 − 9,423 = **16,666 MiB** 이며, 아래 serve#2
+#   기록(0.24.0)에서 유도한 11,036 MiB 보다 5,630 MiB 크다 — **버전이 바뀌면 overhead 도
+#   재확정 대상**이라는 증거다(모델별 재확정 원칙의 버전 축 확장).
+#   8 GiB 선택 근거: 예상 바닥 = 124,610 − 86,233 − 8,192 − 16,666 = **13,519 MiB**(임계 위 3,279).
+#   실측 bytes/token = 81.0 KiB(12 GiB → 155,344 토큰 실측 앵커) → 8 GiB ≈ 103,562 토큰.
+# ── 아래는 0.24.0 시절 기록(보존 — 위 재확정의 대조군) ──
+#   serve#2 실측 후 확정(Phase-1.5).
 #   실측(serve#2, gmu 0.90 언클램프): Available KV=19.32 GiB → 250,096 tokens 이지만 할당 후 여유 master 10.2/slave 7.4 GiB
 #   → 10.24 GiB 워치독 TRIP(11:41:29 docker kill, exit137). pre-KV 여유 = master 29.5/slave 26.7 GiB.
 #   ∴ 12 GiB 로 클램프 → slave 여유 ~14.7 GiB(워치독 위 4.5 GiB 마진·추론 스파이크 흡수) · ~155K tokens(>max-len 131072).
 #   gmu 0.90 은 startup free-memory 게이트+총-cap 용으로 함께 유지(클램프 설정 시 vLLM 은 KV 사이징에만 gmu 무시).
-kv-cache-memory-bytes: 12884901888
+kv-cache-memory-bytes: 8589934592
