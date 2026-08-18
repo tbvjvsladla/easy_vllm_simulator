@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1360 620" width="1360" height="620" role="img" aria-labelledby="ttl dsc">
+  <title id="ttl">easy-vllm 스킬 파이프라인</title>
+  <desc id="dsc">사람의 서빙 전략 지시가 terraforming_node, upstream-version-watch, vllm-recipe-explorer, adversarial-benchmark 네 스킬을 차례로 지나며 manifest.yaml, resolved.json, 모델 트리플렛, 벤치 리포트를 산출한다. 위쪽 hints 카탈로그와 아래쪽 wiki-desk 사서가 축적 평면으로 전 구간을 받친다.</desc>
+
+  <!-- 색은 표현 속성이 기본값(라이트)이고, 아래 CSS 는 다크모드에서만 그것을 덮는다.
+       스타일이 제거되는 환경에서도 라이트 배색으로 온전히 보이도록 한 이중화다. -->
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .bg   { fill: #0d1117; }
+      .ink  { stroke: #e6edf3; }
+      .fill { fill: #e6edf3; }
+    }
+  </style>
+
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="10" refY="5"
+            markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto">
+      <path class="fill" d="M 0 0 L 10 5 L 0 10 z" fill="#1f2328"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1360" height="620" fill="#ffffff"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, &quot;Apple SD Gothic Neo&quot;, &quot;Malgun Gothic&quot;, &quot;Noto Sans KR&quot;, &quot;Noto Sans CJK KR&quot;, &quot;Noto Serif CJK KR&quot;, NanumGothic, sans-serif">
+
+    <!-- ══ 축적 평면 (위) — hint 카탈로그 ══ -->
+    <rect class="ink" x="440" y="30" width="830" height="65" rx="8"
+          fill="none" stroke="#1f2328" stroke-width="1.6" stroke-dasharray="7 5"/>
+    <text class="fill" x="855" y="57" text-anchor="middle" font-size="13" fill="#1f2328">hints/ → HINTS.md · 검증된 레시피 카탈로그</text>
+    <text class="fill" x="855" y="78" text-anchor="middle" font-size="12.5" fill="#1f2328">쓸수록 쌓이고, 다음 모델·다음 사람의 출발점이 된다</text>
+
+    <!-- ══ 사람 ══ -->
+    <rect class="ink" x="30" y="30" width="250" height="85" rx="42"
+          fill="none" stroke="#1f2328" stroke-width="2"/>
+    <text class="fill" x="155" y="62" text-anchor="middle" font-size="15" font-weight="600" fill="#1f2328">사람</text>
+    <text class="fill" x="155" y="86" text-anchor="middle" font-size="12.5" fill="#1f2328">서빙 전략 지시</text>
+
+    <!-- ══ 산출물 ══ -->
+    <polygon class="ink" points="183,140 385,140 367,240 165,240" fill="none" stroke="#1f2328" stroke-width="1.6"/>
+    <text class="fill" x="275" y="180" text-anchor="middle" font-size="12.5" fill="#1f2328">manifest.yaml</text>
+    <text class="fill" x="275" y="202" text-anchor="middle" font-size="12.5" fill="#1f2328">GPU · 노드 · 모델경로 · TP</text>
+
+    <polygon class="ink" points="473,140 675,140 657,240 455,240" fill="none" stroke="#1f2328" stroke-width="1.6"/>
+    <text class="fill" x="565" y="180" text-anchor="middle" font-size="12.5" fill="#1f2328">resolved.json · Dockerfile</text>
+    <text class="fill" x="565" y="202" text-anchor="middle" font-size="12.5" fill="#1f2328">build_patches</text>
+
+    <polygon class="ink" points="763,140 965,140 947,240 745,240" fill="none" stroke="#1f2328" stroke-width="1.6"/>
+    <text class="fill" x="855" y="180" text-anchor="middle" font-size="12.5" fill="#1f2328">모델 트리플렛</text>
+    <text class="fill" x="855" y="202" text-anchor="middle" font-size="12.5" fill="#1f2328">.yaml · .sh · .env</text>
+
+    <polygon class="ink" points="1053,140 1255,140 1237,240 1035,240" fill="none" stroke="#1f2328" stroke-width="1.6"/>
+    <text class="fill" x="1145" y="180" text-anchor="middle" font-size="12.5" fill="#1f2328">bench report — 항상</text>
+    <text class="fill" x="1145" y="202" text-anchor="middle" font-size="12.5" fill="#1f2328">재현성 인증서 — PASS 만</text>
+
+    <!-- ══ 스킬 ══ -->
+    <rect class="ink" x="150" y="290" width="250" height="110" rx="6" fill="none" stroke="#1f2328" stroke-width="2"/>
+    <text class="fill" x="275" y="333" text-anchor="middle" font-size="15" font-weight="600" fill="#1f2328">terraforming_node</text>
+    <text class="fill" x="275" y="359" text-anchor="middle" font-size="12.5" fill="#1f2328">토폴로지 인터뷰 · 노드 스캔</text>
+
+    <rect class="ink" x="440" y="290" width="250" height="110" rx="6" fill="none" stroke="#1f2328" stroke-width="2"/>
+    <text class="fill" x="565" y="333" text-anchor="middle" font-size="15" font-weight="600" fill="#1f2328">upstream-version-watch</text>
+    <text class="fill" x="565" y="359" text-anchor="middle" font-size="12.5" fill="#1f2328">버전 결정론 해소 · 렌더</text>
+
+    <rect class="ink" x="730" y="290" width="250" height="110" rx="6" fill="none" stroke="#1f2328" stroke-width="2"/>
+    <text class="fill" x="855" y="322" text-anchor="middle" font-size="15" font-weight="600" fill="#1f2328">vllm-recipe-explorer</text>
+    <text class="fill" x="855" y="346" text-anchor="middle" font-size="12.5" fill="#1f2328">config 파싱 · 인터뷰</text>
+    <text class="fill" x="855" y="366" text-anchor="middle" font-size="12.5" fill="#1f2328">KV 클램프 수렴</text>
+
+    <rect class="ink" x="1020" y="290" width="250" height="110" rx="6" fill="none" stroke="#1f2328" stroke-width="2"/>
+    <text class="fill" x="1145" y="333" text-anchor="middle" font-size="15" font-weight="600" fill="#1f2328">adversarial-benchmark</text>
+    <text class="fill" x="1145" y="359" text-anchor="middle" font-size="12.5" fill="#1f2328">루프라인 적대검증</text>
+
+    <!-- ══ 축적 평면 (아래) — 사서 ══ -->
+    <rect class="ink" x="440" y="510" width="830" height="65" rx="8"
+          fill="none" stroke="#1f2328" stroke-width="1.6" stroke-dasharray="7 5"/>
+    <text class="fill" x="855" y="537" text-anchor="middle" font-size="13" fill="#1f2328">wiki-desk · 사서</text>
+    <text class="fill" x="855" y="558" text-anchor="middle" font-size="12.5" fill="#1f2328">근거 조회 · 문서 입고 — 상태를 전이하지 않는 곁수레</text>
+
+    <!-- ══ 사람이 지나는 길 ══ -->
+    <g class="ink" fill="none" stroke="#1f2328" stroke-width="3.4">
+      <path d="M 100,115 L 100,345 L 150,345" marker-end="url(#ah)"/>
+      <path d="M 400,345 L 440,345"  marker-end="url(#ah)"/>
+      <path d="M 690,345 L 730,345"  marker-end="url(#ah)"/>
+      <path d="M 980,345 L 1020,345" marker-end="url(#ah)"/>
+    </g>
+
+    <!-- ══ 스킬 → 산출물 ══ -->
+    <g class="ink" fill="none" stroke="#1f2328" stroke-width="1.6">
+      <path d="M 275,290 L 275,240"   marker-end="url(#ah)"/>
+      <path d="M 565,290 L 565,240"   marker-end="url(#ah)"/>
+      <path d="M 855,290 L 855,240"   marker-end="url(#ah)"/>
+      <path d="M 1145,290 L 1145,240" marker-end="url(#ah)"/>
+    </g>
+
+    <!-- ══ 되먹임 · 사서 ══ -->
+    <g class="ink" fill="none" stroke="#1f2328" stroke-width="1.6" stroke-dasharray="7 5">
+      <path d="M 1270,312 L 1312,312 L 1312,62 L 1270,62" marker-end="url(#ah)"/>
+      <path d="M 710,95 L 710,312 L 730,312" marker-end="url(#ah)"/>
+      <path d="M 1090,400 L 1090,455 L 930,455 L 930,400" marker-end="url(#ah)"/>
+      <path d="M 565,510 L 565,400"   marker-end="url(#ah)"/>
+      <path d="M 855,510 L 855,400"   marker-end="url(#ah)"/>
+      <path d="M 1145,510 L 1145,400" marker-end="url(#ah)"/>
+    </g>
+    <text class="fill" x="700" y="272" text-anchor="end"    font-size="11.5" font-style="italic" fill="#1f2328">다음 모델의 출발점</text>
+    <text class="fill" x="1010" y="447" text-anchor="middle" font-size="11.5" font-style="italic" fill="#1f2328">기대 이하 → 전략 재탐색</text>
+
+    <!-- ══ 범례 ══ -->
+    <text class="fill" x="30" y="598" font-size="11.5" fill="#1f2328">굵은 선 = 사람이 지나는 길 · 평행사변형 = 산출물 · 점선 = 축적 평면과 되먹임 · 모든 산출물은 output/single · output/multi 로 분리되어 쌓인다</text>
+
+  </g>
+</svg>
