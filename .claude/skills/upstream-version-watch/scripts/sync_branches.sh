@@ -53,6 +53,11 @@ ALLOWLIST=(
     HINTS.md
     README.md
     hints/index.json
+    # families.json 은 index.json 과 **한 벌**이다(2026-08-20 추가). `collect` 가 둘을 조인하므로
+    # 하나만 전파하면 반대 브랜치에서 family 해소가 조용히 실패한다 — 위 주석이 적은 것과 같은
+    # 계열의 침묵 누락이고, 실제로 이 파일을 신설한 그 커밋에서 곧바로 재발했다(allowlist 미배선).
+    # index 는 태그에서 재생성되지만 families 는 사람 승인분이라 재생성되지 않는다 → 유실 시 복구가 비싸다.
+    hints/families.json
     # ── README 삽화 (2026-08-18 추가) ──────────────────────────────────────────
     # README.md 가 `<img src="./assets/...">` 로 참조하므로 **README 와 한 벌**이다. README 만
     # 전파하고 assets 를 빼면 반대 브랜치에서 이미지가 404 로 깨진다 — 위 HINTS.md 주석이 적은
@@ -351,6 +356,16 @@ if [ "$SYNC_ACTION" = "dryrun" ]; then
 fi
 
 # ── apply: 정본 콘텐츠를 working-dir 로 가져온다(커밋은 사람이) ──
+#
+# ⚠ 이 checkout 은 **이 스크립트 자신도 덮는다**(sync_branches.sh 가 PATHS 에 있다). 그런데 아래
+#   relocation 검증은 bash 가 **시작 시 읽어둔 배열**을 쓰므로, 정본에서 relocation 표가 바뀐 회차에는
+#   *디스크는 신버전 · 메모리는 구버전* 이 되어 검증이 엉뚱한 경로를 찾다 죽는다.
+#   2026-08-20 실제 발생: hint_tag.py 를 hint-publisher 로 이관한 회차에서
+#   "source replacement missing before tombstone scripts/hint_tag.py: <구경로>" 로 실패.
+#   **처방(운영)**: 정본에서 이 파일이 바뀐 회차는 먼저
+#     `git checkout <SRC> -- .claude/skills/upstream-version-watch/scripts/sync_branches.sh`
+#   로 스크립트만 당겨온 뒤 실행한다. 그러면 메모리와 디스크가 같은 버전이 된다.
+#   (근본 처방은 relocation 검증을 checkout **앞**으로 옮기는 것 — 별건 후속.)
 echo "[sync-branches] APPLY  $SRC_BRANCH → $DST_BRANCH (working-dir 갱신)"
 git checkout "$SRC_BRANCH" -- "${PATHS[@]}"
 # Git records only the executable bit; shared-repository umasks can materialize 0775.
