@@ -52,12 +52,14 @@ ALLOWLIST=(
     # (docs/report 가 tracked 예외로 승격되며 겪은 것과 같은 계열의 침묵 누락이다.)
     HINTS.md
     README.md
-    hints/index.json
-    # families.json 은 index.json 과 **한 벌**이다(2026-08-20 추가). `collect` 가 둘을 조인하므로
-    # 하나만 전파하면 반대 브랜치에서 family 해소가 조용히 실패한다 — 위 주석이 적은 것과 같은
-    # 계열의 침묵 누락이고, 실제로 이 파일을 신설한 그 커밋에서 곧바로 재발했다(allowlist 미배선).
-    # index 는 태그에서 재생성되지만 families 는 사람 승인분이라 재생성되지 않는다 → 유실 시 복구가 비싸다.
-    hints/families.json
+    # ★ 파일 열거가 아니라 **디렉터리 단위**다(2026-08-20 교정). 개별 열거는 같은 사고를
+    #   **세 번** 냈다: ① families.json 신설 커밋에서 곧바로 미배선 ② HINT_ISSUANCE_CONTRACT.md
+    #   가 처음부터 빠져 single-node 계약서가 **존재하지 않는 경로**를 가리키고 있었다
+    #   ③ legacy_v1_pins.json 은 아직 안 바뀌어 우연히 같았을 뿐인 잠복 결함.
+    #   hints/ 아래 추적 파일은 전부 hint 배포 레이어의 빌딩블럭이므로 브랜치 간 동일해야 한다.
+    #   비추적 `hints/.central_authority`(중앙권위 마커)는 checkout 대상이 아니라 영향 없다.
+    #   ★ MIRROR_DIRS 에도 함께 넣는다 — 안 넣으면 정본에서 지운 파일이 대상 브랜치에 유령으로 남는다.
+    hints
     # ── README 삽화 (2026-08-18 추가) ──────────────────────────────────────────
     # README.md 가 `<img src="./assets/...">` 로 참조하므로 **README 와 한 벌**이다. README 만
     # 전파하고 assets 를 빼면 반대 브랜치에서 이미지가 404 로 깨진다 — 위 HINTS.md 주석이 적은
@@ -78,6 +80,7 @@ MIRROR_DIRS=(
     .claude/policies
     docs/report
     assets
+    hints
 )
 # Exact historical root paths removed by the self-contained owner relocation. These paths sit
 # outside MIRROR_DIRS, so checkout alone cannot remove them from an older destination branch.
