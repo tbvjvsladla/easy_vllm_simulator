@@ -1,8 +1,8 @@
 {
   "_trust": "change-review tripwire; ambient review establishes semantic equivalence",
   "files": {
-    ".claude/rules/docs.md": "cf4dfc54d64151e322b751f1f05352861c8117fe2feececff960e656b4c39600",
-    ".claude/rules/workflow.md": "959bb6b68b36d01af093b54bf0e8ad2b6c76aec9071030c494f20f6e2e653ff7",
+    ".claude/rules/docs.md": "7bae336c22545c3d005e1d3be9398bee0459b711bca1cf8ba51288ac0a97dc09",
+    ".claude/rules/workflow.md": "17dc24c292e46dc43c8b093434aee9fd20e8a22604a722a655962f52c5ce6e52",
     ".claude/skills/wiki-desk/reference/references.md": "e0b42ce9e501271b494331ed085c82d94c00608a714b5fa19b21e5b6f3409df9",
     "CLAUDE.md": "64c8dd2e75931f4203872a67aa067824db3d92907f68655d1f67f6151af297f1"
   },

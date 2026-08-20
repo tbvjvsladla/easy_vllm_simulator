@@ -23,6 +23,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 EXPECTED_SKILLS = {
     "adversarial-benchmark",
+    # hint 발행 sidecar(2026-08-20 · plan_26082009). 상태를 전이하지 않으므로 spine 이 아니라
+    # wiki-desk 와 같은 sidecar 다. 승격 근거: 발행 조건 A/B 가 explorer·benchmark 소유라
+    # 엔진만 upstream 에 세들어 있던 배치 오류였고, Contributor 진입점이 없었다.
+    "hint-publisher",
     "terraforming_node",
     "upstream-version-watch",
     "vllm-recipe-explorer",
@@ -52,7 +56,7 @@ LOCAL_REPLACEMENTS = {
     ".claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh",
     ".claude/policies/runtime/evidence_publisher.py",
     ".claude/policies/runtime/harness_verify.py",
-    ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
+    ".claude/skills/hint-publisher/scripts/hint_tag.py",
     ".claude/skills/terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh",
     ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
     ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
@@ -61,7 +65,7 @@ LOCAL_REPLACEMENTS = {
     ".claude/skills/upstream-version-watch/scripts/smoke_clone.sh",
     ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
     ".claude/skills/terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service",
-    ".claude/skills/upstream-version-watch/templates/hint_recipe.template.md",
+    ".claude/skills/hint-publisher/templates/hint_recipe.template.md",
 }
 SUB_TOMBSTONES = {
     ".claude/rules/references.md", "scripts/install_host_safety.sh",
@@ -561,7 +565,7 @@ def verify() -> dict:
         _run("runtime_regression_selftest", [*_child_python(),
              ".claude/policies/runtime/runtime_selftest.py"], {0}),
         _run("gitless_hint_match", [sys.executable,
-             ".claude/skills/upstream-version-watch/scripts/hint_tag.py", "match",
+             ".claude/skills/hint-publisher/scripts/hint_tag.py", "match",
              "--vllm", "0.24.0", "--model", "deepseek-v4-flash", "--arch", "gb10"],
              {0}, env_overrides={"PATH": "/nonexistent"}),
     ]

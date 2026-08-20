@@ -22,7 +22,7 @@ TensorRT-LLM 등의 추론엔진을 사용해야 합니다. 이때 서버 구축
 
 **easy-vllm 은 이 두 가지 문제를 코드에이전트에게 위임합니다.**
 
-<img src="./assets/skill-pipeline.png" alt="easy-vllm 스킬 파이프라인 — 사람의 서빙 전략 지시가 terraforming_node · upstream-version-watch · vllm-recipe-explorer · adversarial-benchmark 네 스킬을 차례로 지나며 manifest.yaml · resolved.json · 모델 트리플렛 · 벤치 리포트를 산출하고, 위의 hints 카탈로그와 아래의 wiki-desk 사서가 전 구간을 받친다" width="100%">
+<img src="./assets/skill-pipeline.svg" alt="easy-vllm 스킬 파이프라인 — 사람의 서빙 전략 지시가 terraforming_node · upstream-version-watch · vllm-recipe-explorer · adversarial-benchmark 네 스킬을 차례로 지나며 manifest.yaml · resolved.json · 모델 트리플렛 · 벤치 리포트를 산출하고, 위의 hints 카탈로그와 아래의 wiki-desk 사서가 전 구간을 받친다" width="100%">
 
 easy-vllm-simulator의 전체 프로세스 진행 도식
 
@@ -648,7 +648,7 @@ flowchart LR
   E -.->|"다음 세션에 로드되어 행동을 바꾼다"| A
 ```
 
-위 거대한 루프에서 **네 칸은 에이전트가 합니다. `D` 만 사람이 합니다.**<br/>
+위 거대한 루프에서 **네 칸은 에이전트가 합니다. `★` 만 사람이 합니다.**<br/>
 
 #### 왜 그 판정을 사람이 해야 하나? - LLM은 '귀추(Abduction)'할 수 없다.
 
@@ -656,7 +656,7 @@ flowchart LR
 |---|---|---|---|
 | **연역**(deduction) | Rule + Case → Result | 규칙을 사례에 적용해 결과 도출 | **결정론 스크립트** — 버전 해소, 실패 분류기, 게이트. 이미 기계화됨 |
 | **귀납**(induction) | Case + Result → Rule | 사례와 결과에서 통계적 규칙 학습 | **사서의 색인·블랙박스 롤업** — 로그의 압축. 기계화됨 |
-| **귀추**(abduction) | Rule + Result → **새 Case, 또는 새 Rule** | 예상 못한 결과를 설명할 원인·규칙을 **발명** | ★ **사람의 `D`** — 아직 여기 남아 있습니다 |
+| **귀추**(abduction) | Rule + Result → **새 Case, 또는 새 Rule** | 예상 못한 결과를 설명할 원인·규칙을 **발명** | ★ **사람의 `판정`** — 아직 여기 남아 있습니다 |
 
 연역은 "진리를 보장하는 분석"이고 귀납은 "데이터의 압축"입니다. 둘 다 `easy-vllm-simulator`의 에이전트에 위임된 작업입니다.<br/>
 그러나 귀추는 "예상치 못한 결과로부터 새로운 Rule 을 제정하는 것", LLM은 **직관적 점프(J)**를 달성하지 못했습니다.
@@ -713,7 +713,7 @@ hint/<vllm버전>/<모델>/<arch>
 
 ```bash
 # 2) 내 상황에 가까운 것 찾기 (축별 근-미스를 결정론으로 알려줍니다)
-python3 .claude/skills/upstream-version-watch/scripts/hint_tag.py match \
+python3 .claude/skills/hint-publisher/scripts/hint_tag.py match \
   --vllm 0.27.0 --model qwen3-4b --arch gb10
 ```
 

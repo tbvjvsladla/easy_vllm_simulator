@@ -174,7 +174,7 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C1": [
       {
-        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
         "assertion_ids": [
           "_build_evidence_footer",
           "_tag_object_body",
@@ -193,7 +193,7 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C2": [
       {
-        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
         "assertion_ids": [
           "_build_evidence_footer",
           "_tag_object_body",
@@ -212,7 +212,7 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C3": [
       {
-        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
         "assertion_ids": [
           "_build_evidence_footer",
           "_tag_object_body",
@@ -231,7 +231,7 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C4": [
       {
-        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
         "assertion_ids": [
           "_build_evidence_footer",
           "_tag_object_body",
@@ -250,7 +250,7 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C5": [
       {
-        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
         "assertion_ids": [
           "_build_evidence_footer",
           "_tag_object_body",
@@ -269,7 +269,7 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C6": [
       {
-        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
         "assertion_ids": [
           "_build_evidence_footer",
           "_tag_object_body",
@@ -542,7 +542,7 @@
     ],
     "LAST_GOOD_ROLLBACK_ANCHOR.C1": [
       {
-        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
         "assertion_ids": [
           "cmd_push"
         ]
@@ -571,7 +571,7 @@
     ],
     "LAST_GOOD_ROLLBACK_ANCHOR.C3": [
       {
-        "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
         "assertion_ids": [
           "cmd_push"
         ]

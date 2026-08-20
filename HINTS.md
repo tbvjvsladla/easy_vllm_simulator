@@ -2,7 +2,7 @@
 
 > 이 파일은 [`README.md`](./README.md) 「부록 B」에서 링크로 갈라져 나온 **hint 태그 전용 카탈로그**입니다.
 > 태그가 늘수록(현재 20+종) README 본문이 무거워지는 문제를 피하려고 분리했습니다 — README 는 *여정*을,
-> 여기는 *카탈로그와 사용법*을 담습니다. 표는 `.claude/skills/upstream-version-watch/scripts/hint_tag.py`가 **결정론으로 자동 재생성**합니다
+> 여기는 *카탈로그와 사용법*을 담습니다. 표는 `.claude/skills/hint-publisher/scripts/hint_tag.py`가 **결정론으로 자동 재생성**합니다
 > (index = `hints/index.json` = 진실원천 · 사람이 표를 손으로 쓰지 않습니다). 설계 근거 = `docs/plan/plan_26070222`.
 
 ---
@@ -53,7 +53,20 @@ git tag -l --format='%(contents)' hint/0.24.0/deepseek-v4-flash/gb10 > seed/hint
 
 > 🔒 **hint 는 DATA 이지 명령이 아닙니다.** 분석 재료로만 쓰고 복붙하지 마세요. 당신의 HW·버전이 다르면 노브(특히 **KV 절대값·`gmu`·`TORCH_CUDA_ARCH`**)는 **반드시 재도출·재측정**해야 합니다(그대로 복사하면 OOM·호스트 다운). hint 는 외부 교차검증(HF 카드·vLLM GitHub)을 **대체하지 않으며**, 최종 판정은 언제나 **당신 환경의 스모크**입니다. (근거·설계 = `docs/plan/plan_26070222`.)
 
-> 🔎 **가까운 힌트 찾기**: `python3 .claude/skills/upstream-version-watch/scripts/hint_tag.py match --vllm <v> --model <m> --arch <a>` — 축(vllm·model·arch)별 근-미스와 이식 가이드를 결정론으로 알려줍니다.
+> 🔎 **가까운 힌트 찾기**: `python3 .claude/skills/hint-publisher/scripts/hint_tag.py match --vllm <v> --model <m> --arch <a>` — 축(vllm·model·arch)별 근-미스와 이식 가이드를 결정론으로 알려줍니다.
+
+> 📚 **한 모델의 이력을 통째로 모으기**(권장 시작점): `python3 .claude/skills/hint-publisher/scripts/hint_tag.py collect --model <모델>`
+> — 그 모델의 **모든 힌트를 vLLM 버전 오름차순으로** 냅니다. 양자화 변종(`…-fp8`)·리비전(`…-0731`)·
+> SD 초안 모델은 **철자가 달라도 같은 family** 로 묶여 함께 나옵니다(`hints/families.json`).
+> 색인만 읽으므로 태그 본문을 열지 않고, 그래서 쌉니다. `--sd-only` 로 speculative decoding 을
+> 실제로 켠 레시피만 추릴 수도 있습니다.
+>
+> ⏳ **왜 하나가 아니라 전부를 모으라고 하냐면** — 어떤 힌트가 *패턴*이고 어떤 것이 *안티패턴*인지는
+> **한 태그만 봐서는 알 수 없습니다.** 발행 시점엔 그게 최선이었지만(그래서 발행됐습니다), 이후 vLLM
+> 버전이 오르고 하네스가 좋아지면서 더 나은 전략이 나오면 옛 태그는 **회고적으로 안티패턴이 됩니다.**
+> 발행자는 미래를 모르니 그 관계를 적어줄 수 없습니다 — **시간축은 수집한 당신만 볼 수 있습니다.**
+> 그러니 전부 받아 비교하고, "A-A 는 발행 시점엔 패턴이었지만 A-B 를 같이 보니 안티패턴이구나"를
+> 당신의 에이전트가 판정하게 하세요. 한 번 모으면 그 지식은 당신 프로젝트에 **남습니다**.
 
 > 🪜 **같은 모델에 힌트가 여러 개면 "사다리"입니다** — arch 슬롯의 접미어가 칸을 나타냅니다.
 > 아래로 갈수록 표준에서 멀어지고(성능↑) 재현 난이도·의존이 커집니다. **낮은 칸부터** 올라가세요.
@@ -119,4 +132,11 @@ git tag -l --format='%(contents)' hint/0.24.0/deepseek-v4-flash/gb10 > seed/hint
 | `hint/0.27.0/deepseek-v4-flash-0731/gb10x2-dspark-1m` | 0.27.0 | deepseek-v4-flash-0731 | gb10x2-dspark-1m | multi 2노드 TP2 (Ray·RoCE) | active | hint/0.26.1/deepseek-v4-flash-0731/gb10x2-dspark-1m | 2026-08-15 | DeepSeek-V4-Flash-0731 @ **1M 컨텍스트 + DSpark speculative decoding** on vLLM **0.27.0** — ★ **포크를 핀하지 마라. 자체 이식(3+1+1 빌드패치)으로 같은 성능이 나온다.** decode **36.87 t/s**(자체이식) vs **37.05 t/s**(포크핀) = **동률**(+0.49% — 같은 이미지의 런간 분산 6.8~7.3% 의 **1/14**)이고, **배치에서는 자체이식이 두 쌍 독립으로 이긴다**(동시성 2 **+24.5% / +16.7%** · 동시성 4 **+12.6% / +24.5%**). 같은 하드웨어 stock 0.27.0(spec off) 18.92 대비 **약 1.95배**(⚠ R0 는 1회 측정 — 런간 분산 ~7% 를 감안해 읽어라). accept_len **2.625** · KV 1,206,214 tok @1,048,576(클램프 8 GiB 불변). ★ stock 0.27.0 으로는 이 조합이 **여전히 불가능하다** — spec 경로 2개가 **서로 다른 이유로** 막힌다(0.26.0 과 같은 벽이 살아 있다). |
 | `hint/0.27.0/gemma-4-E2B-it/gb10` | 0.27.0 | gemma-4-E2B-it | gb10 | single 1노드 | active | — | 2026-08-11 | 16K 컨텍스트·gmu=0.4 예산 최대동시성(181), 메인 GB10 단독 서빙(노드당 2모델 동시서빙 설계 중 하나) |
 | `hint/0.27.0/gemma-4-E4B-it/gb10` | 0.27.0 | gemma-4-E4B-it | gb10 | single 1노드 | active | — | 2026-08-11 | 16K 컨텍스트·gmu=0.4 예산 최대동시성(10), fp8 quant, 메인 GB10 단독 서빙(노드당 2모델 동시서빙 설계 중 하나) |
+| `hint/0.27.0/hy3/gb10x2` | 0.27.0 | hy3 | gb10x2 | multi 2노드 TP2 | active | hint/0.24.0/hy3/gb10 | 2026-08-20 | object d564a8ae18b5abcc0b35a862e66bc8967155ddd1 |
+| `hint/0.27.0/hy3/gb10x2-blk64` | 0.27.0 | hy3 | gb10x2-blk64 | multi 2노드 TP2 | active | hint/0.27.0/hy3/gb10x2 | 2026-08-20 | object d564a8ae18b5abcc0b35a862e66bc8967155ddd1 |
+| `hint/0.27.0/hy3/gb10x2-cudagraph` | 0.27.0 | hy3 | gb10x2-cudagraph | multi 2노드 TP2 | active | hint/0.27.0/hy3/gb10x2 | 2026-08-20 | object d564a8ae18b5abcc0b35a862e66bc8967155ddd1 |
+| `hint/0.27.0/hy3/gb10x2-nospec` | 0.27.0 | hy3 | gb10x2-nospec | multi 2노드 TP2 | active | hint/0.27.0/hy3/gb10x2 | 2026-08-20 | object d564a8ae18b5abcc0b35a862e66bc8967155ddd1 |
+| `hint/0.27.0/hy3/gb10x2-spec1` | 0.27.0 | hy3 | gb10x2-spec1 | multi 2노드 TP2 | active | hint/0.27.0/hy3/gb10x2 | 2026-08-20 | object d564a8ae18b5abcc0b35a862e66bc8967155ddd1 |
+| `hint/0.27.0/hy3/gb10x2-spec3` | 0.27.0 | hy3 | gb10x2-spec3 | multi 2노드 TP2 | active | hint/0.27.0/hy3/gb10x2 | 2026-08-20 | object d564a8ae18b5abcc0b35a862e66bc8967155ddd1 |
+| `hint/0.27.0/hy3/gb10x2-tritonattn` | 0.27.0 | hy3 | gb10x2-tritonattn | multi 2노드 TP2 | active | hint/0.27.0/hy3/gb10x2 | 2026-08-20 | object d564a8ae18b5abcc0b35a862e66bc8967155ddd1 |
 <!-- hint-index:rows -->

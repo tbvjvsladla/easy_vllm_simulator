@@ -72,7 +72,7 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 
 ## PII 스캔 적용 범위 (2026-07-31 확정)
 
-정본 패턴은 `.claude/skills/upstream-version-watch/scripts/hint_tag.py` 의 `GENERIC_PII` 4종
+정본 패턴은 `.claude/skills/hint-publisher/scripts/hint_tag.py` 의 `GENERIC_PII` 4종
 (`private-ipv4`·`email`·`abs-op-path`·`spark-host`) + `.claude/pii_terms.txt` 리터럴이다.
 **적용 강도는 산출물이 배포되는지로 갈린다** — 배포되지 않는 것에 배포 기준을 적용하면 게이트가
 과잉차단되고, 배포되는 것에 완화 기준을 적용하면 유출된다.

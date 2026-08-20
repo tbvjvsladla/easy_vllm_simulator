@@ -439,7 +439,7 @@
       ],
       "evidence": [
         {
-          "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
+          "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C1",
             "HINT_TAG_ACTIVATION_GATE.C2",
@@ -549,7 +549,7 @@
       ],
       "evidence": [
         {
-          "path": ".claude/skills/upstream-version-watch/scripts/hint_tag.py",
+          "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
           "supports": [
             "LAST_GOOD_ROLLBACK_ANCHOR.C1",
             "LAST_GOOD_ROLLBACK_ANCHOR.C3"

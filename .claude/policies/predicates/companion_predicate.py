@@ -49,7 +49,7 @@ class TestLastGoodRollbackAnchorCompanion(unittest.TestCase):
     (a real check, not a restatement of the registry's own prose about the anchor)."""
 
     def test_hint_tag_push_refuses_last_good_tags_on_origin(self):
-        src = _read(".claude/skills/upstream-version-watch/scripts/hint_tag.py")
+        src = _read(".claude/skills/hint-publisher/scripts/hint_tag.py")
         self.assertIn('"last-good-*"', src)
         self.assertIn("ls-remote", src)
 

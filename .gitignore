@@ -269,3 +269,7 @@ earlyoom_*.deb
 # ===========================================
 tests/harness/fixtures/completion/_runtime_scratch/
 tests/harness/fixtures/policy_registry/removal_artifacts/_runtime_scratch/
+
+# hint 중앙권위 마커 — 배포본에 실리면 안 된다(plan_26082009 D8: 색인·배포는 중앙 전용).
+#   부재가 곧 fail-closed 이므로 Contributor 환경에서는 index/reindex/push 가 자동으로 막힌다.
+hints/.central_authority

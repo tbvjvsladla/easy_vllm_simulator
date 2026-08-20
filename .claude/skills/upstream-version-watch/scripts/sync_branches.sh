@@ -107,7 +107,7 @@ ROOT_RELOCATION_REPLACEMENTS=(
     .claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh
     .claude/policies/runtime/evidence_publisher.py
     .claude/policies/runtime/harness_verify.py
-    .claude/skills/upstream-version-watch/scripts/hint_tag.py
+    .claude/skills/hint-publisher/scripts/hint_tag.py
     .claude/skills/terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh
     .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh
     .claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh
@@ -116,7 +116,7 @@ ROOT_RELOCATION_REPLACEMENTS=(
     .claude/skills/upstream-version-watch/scripts/smoke_clone.sh
     .claude/skills/upstream-version-watch/scripts/sync_branches.sh
     .claude/skills/terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service
-    .claude/skills/upstream-version-watch/templates/hint_recipe.template.md
+    .claude/skills/hint-publisher/templates/hint_recipe.template.md
 )
 #   hint_tag.py·templates = hint 배포 레이어 엔진(빌딩블럭 · 브랜치 동일). hints/index.json·HINTS.md
 #   카탈로그 표(구 README 부록)는 생성-데이터(태그에서 재생성 가능)라 여기 미포함 — reindex 재생성/수동
