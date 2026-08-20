@@ -1,6 +1,6 @@
 # hint 태그 발행 계약 (v2.1 · 2026-08-01 개정)
 
-> 정본. `.claude/skills/upstream-version-watch/scripts/hint_tag.py` 가 이 문서의 규약을 집행한다.
+> 정본. `.claude/skills/hint-publisher/scripts/hint_tag.py` 가 이 문서의 규약을 집행한다.
 > v1(암묵) → v2(명문) 전환이며, **v2 는 발효일 이후 생성 태그에만 적용**한다(§4 소급 금지).
 
 ## 1. hint 태그는 무엇인가
