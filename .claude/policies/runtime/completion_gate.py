@@ -103,7 +103,7 @@ SIDE_EFFECT_SCHEMA = _load_schema("side-effect-authorization.schema.json")
 # work-manifest.schema.json's executionApproval.allowed_actions.items.enum and
 # side-effect-authorization.schema.json's action enum; the owner-local production
 # `runtime_selftest.py::_test_completion_gate` guards against drift between the three. The
-# hint_* actions are the owner-local upstream-version-watch hint_tag.py subcommands that mutate git
+# hint_* actions are the owner-local hint-publisher hint_tag.py subcommands that mutate git
 # tags/hints/index.json/HINTS.md or push to a remote -- `match` stays deliberately absent (it is
 # read-only and ungated by design, never wired to this gate).
 ALLOWED_ACTIONS = (

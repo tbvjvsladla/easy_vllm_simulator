@@ -25,6 +25,7 @@ Subcommands: create · finalize · verify · push · match · reverify.
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import os
@@ -52,6 +53,10 @@ CANONICAL_SLUGS: dict[str, set[str]] = {
     "qwen3.5-122b-a10b-nvfp4": {"qwen3.5-122b-a10b-nvfp4", "qwen35-122b-nvfp4"},
     "skt-a.x-4.0-72b": {"skt-a.x-4.0-72b", "skt-ax-72b"},
     "gemma-3-27b": {"gemma-3-27b", "gemma3-27b"},
+    # Tencent Hy3-295B(21B active + 3.8B MTP). `hint/0.24.0/hy3/gb10` 이 이미 push 된 상태라
+    #   정본 철자는 `hy3` 로 고정된다(위 0731 주석과 같은 근거). 변종 사다리(기준선·spec 축·
+    #   CUDA graph·block-size·attention backend)는 **arch 슬롯**으로 갈라지므로 슬러그는 하나로 족하다.
+    "hy3": {"hy3", "hy3-295b", "hunyuan3"},
 }
 
 # Generic PII patterns (belt-and-suspenders atop pii_terms.txt literals). Narrow on
@@ -113,7 +118,7 @@ INDEX_FILE = ROOT / "hints" / "index.json"
 # hint 카탈로그(부록 표)의 홈 = 전용 HINTS.md(README 는 링크 참조만 — 21+ 행이 README 를
 # 비대하게 만들던 문제 교정, plan_26070222 Token Economy 의 문서 축 연장).
 HINTS_FILE = ROOT / "HINTS.md"
-TEMPLATE_FILE = ROOT / ".claude" / "skills" / "upstream-version-watch" / "templates" / "hint_recipe.template.md"
+TEMPLATE_FILE = ROOT / ".claude" / "skills" / "hint-publisher" / "templates" / "hint_recipe.template.md"
 DRAFTS_DIR = ROOT / "hints" / ".drafts"
 
 
@@ -634,6 +639,8 @@ def _parse_tag_body(name: str) -> tuple[str, str, str]:
 def cmd_create(a: argparse.Namespace) -> int:
     _require_promotion_authorization("create", a.manifest)
     vllm, model, arch = validate_name(a.tag, a.allow_new_slug)
+    slug_src = require_derived_slug(model, vllm, arch, a.hf_repo, a.model_path)
+    print(f"[hint_tag] 슬러그 '{model}' 확인 (출처: {slug_src})")
     anchor = git("rev-parse", "--verify", a.commit).stdout.strip()
     manifest, _ = _load_manifest_for_binding("hint_create", a.manifest)
     _require_hint_promotion_target("hint_create", manifest, tag=a.tag, topology=a.topology,
@@ -680,7 +687,7 @@ def cmd_create(a: argparse.Namespace) -> int:
     DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
     out = DRAFTS_DIR / (a.tag.replace("/", "_") + ".md")
     out.write_text(tpl, encoding="utf-8")
-    follow_up = ["python3", ".claude/skills/upstream-version-watch/scripts/hint_tag.py", "finalize",
+    follow_up = ["python3", ".claude/skills/hint-publisher/scripts/hint_tag.py", "finalize",
                  "--tag", a.tag, "--recipe", str(out.relative_to(ROOT)),
                  "--commit", anchor[:12], "--topology", a.topology,
                  "--manifest", a.manifest]
@@ -708,6 +715,7 @@ def _assert_remeasure(body: str) -> None:
 def cmd_finalize(a: argparse.Namespace) -> int:
     _require_promotion_authorization("finalize", a.manifest)
     vllm, model, arch = validate_name(a.tag, a.allow_new_slug)  # 미존재·정본·합법 재확인
+    require_derived_slug(model, vllm, arch, a.hf_repo, a.model_path)
     anchor = git("rev-parse", "--verify", a.commit).stdout.strip()
     manifest, resolved_manifest_path = _load_manifest_for_binding("hint_finalize", a.manifest)
     _require_hint_promotion_target("hint_finalize", manifest, tag=a.tag, topology=a.topology,
@@ -720,8 +728,11 @@ def cmd_finalize(a: argparse.Namespace) -> int:
         die(f"[hint_tag] FAIL: 레시피 파일 없음: {a.recipe}")
     body = recipe.read_text(encoding="utf-8")
 
-    if "TODO(judgment" in body:
-        die("[hint_tag] FAIL: 레시피에 TODO(judgment) 슬롯이 남아있음 — 에이전트가 저작해야 함.")
+    lint_problems = lint_body(body)          # D10 L1-L5 — 일관성의 실제 보장(fail-closed)
+    if lint_problems:
+        die("[hint_tag] FAIL: 레시피 정보구조 린트 위반 — 태그가 나가지 않는다.\n        "
+            + "\n        ".join(lint_problems)
+            + "\n        (자유 기술은 `## 8. comment` 절에 — 그 칸만 검사 제외)")
 
     # perf_waiver(성능 REFUTE 사람승인)가 있으면 경고가 본문에 실제로 담겼는지 fail-closed 확인.
     _require_perf_warning("hint_finalize", manifest, body)
@@ -757,6 +768,10 @@ def cmd_finalize(a: argparse.Namespace) -> int:
         "tag", "-a", a.tag, anchor, "-F", "-", env=env, input_text=tag_message)
     print(f"[hint_tag] tagged {a.tag} → {anchor[:12]}  (tagger {tname} <{temail}>)")
 
+    if getattr(a, "no_index", False):
+        print("[hint_tag] seal 완료 — 색인은 중앙이 `index --tag` 로 수행한다(D8 권한 비대칭).")
+        return 0
+    _require_central("finalize(색인 갱신 포함)")
     brief = _brief_of(body)
     idx = _load_index()
     idx["hints"] = [e for e in idx["hints"] if e["tag"] != a.tag]
@@ -972,7 +987,7 @@ def cmd_verify(a: argparse.Namespace) -> int:
     # evidence-binding 분류는 classify_evidence_problems 단일 권위(계약 v2 §5).
     # verify 는 릴리즈 게이트이지만 v1 빈티지를 차단하지 않는다 — 그러면 신규 태그 발행이
     # 레거시 부채에 영구히 인질로 잡힌다(계약 §4). 변조는 여기서도 그대로 차단된다.
-    _ev_blocking, _ev_legacy = classify_evidence_problems(
+    _ev_blocking, _ev_legacy, _ev_drift = classify_evidence_problems(
         [(t, _validate_hint_tag_evidence(t, "hint_verify")[1]) for t in tags])
     problems.extend(_ev_blocking)
     if _ev_legacy:
@@ -1135,6 +1150,56 @@ def _require_perf_warning(action: str, manifest: dict, recipe_text: str) -> None
 
 
 LEGACY_PINS_FILE = ROOT / "hints" / "legacy_v1_pins.json"
+DRIFT_PINS_FILE = ROOT / "hints" / "evidence_drift_pins.json"
+
+
+def _load_drift_pins() -> dict:
+    """발행 **후** 매니페스트가 승인된 편집으로 바뀐 태그의 등재부.
+
+    왜 필요한가(2026-08-18 실제 발생): 사용자 지시로 `approved_by: coag-ash → AhnSangHun` 일괄
+    개명을 하면서 plan digest 재계산까지 돌았고, 그 순간 16개 태그의 footer `manifest_sha256` 이
+    전부 어긋났다. 해시는 **승인된 개명과 변조를 구분하지 못한다** — 그게 해시의 본분이다.
+    그런데 계약 §2 가 지목한 유일한 위협은 *"서빙 실패를 성공으로 허위기재해 배포하는 것"* 이고,
+    이 드리프트는 그 표면에 닿지 않았다(identity·certificate·verdict·health·smoke 전부 보존).
+
+    v1 이 형식으로 차단하고 증거를 검사하지 않은 실수를 v2 가 고쳤는데, `drifted` 판정만은
+    여전히 **바이트 형식**으로 내려지고 있었다. 이 핀이 그 마지막 칸을 증거 기준으로 옮긴다.
+
+    **핀은 면제가 아니라 동결이다** — 등재된 바이트에서 *더* 바뀌면 다시 차단된다."""
+    if not DRIFT_PINS_FILE.is_file():
+        return {}
+    try:
+        with open(DRIFT_PINS_FILE, encoding="utf-8") as f:
+            return json.load(f).get("pins", {})
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+_DRIFT_SHA_RE = re.compile(r"HINT_EVIDENCE_MANIFEST_SHA_MISMATCH\s+([0-9a-f]{64})\s*!=\s*([0-9a-f]{64})")
+
+
+def _is_evidence_preserving_drift(tag: str, ev_problems: list, pins: dict) -> bool:
+    """증거-보전 드리프트인가. 네 조건을 **전부** 만족해야 한다.
+
+    ① 문제가 `MANIFEST_SHA_MISMATCH` **하나뿐**이다.
+       — identity/certificate/verdict 불일치는 각자 **다른 코드**로 나오므로, 이 조건 하나가
+         "계측·정체성·판정은 그대로였다"를 구조적으로 보장한다.
+    ② 그 태그가 등재돼 있다.                    (사람 승인)
+    ③ 등재된 footer 기대값이 실제 footer 와 같다. (핀이 다른 태그 것을 재활용하지 못한다)
+    ④ 등재된 관측값이 **지금** 매니페스트와 같다. (등재 이후 추가 드리프트는 다시 차단)
+    """
+    if not ev_problems or len(ev_problems) != 1:
+        return False
+    m = _DRIFT_SHA_RE.search(ev_problems[0])
+    if not m:
+        return False
+    observed, expected = m.group(1), m.group(2)
+    pin = pins.get(tag)
+    if not isinstance(pin, dict):
+        return False
+    return (pin.get("footer_manifest_sha256") == expected
+            and pin.get("observed_manifest_sha256") == observed)
+
 
 
 def classify_evidence_problems(per_tag: list) -> tuple:
@@ -1150,8 +1215,10 @@ def classify_evidence_problems(per_tag: list) -> tuple:
       forged / drifted       → blocking   (변조는 빈티지와 무관)
     """
     pins = _load_legacy_v1_pins()
+    drift_pins = _load_drift_pins()
     blocking: list = []
     legacy_warn: list = []
+    drift_warn: list = []
     for tag, ev_problems in per_tag:
         if not ev_problems:
             continue
@@ -1169,8 +1236,11 @@ def classify_evidence_problems(per_tag: list) -> tuple:
             blocking.append(f"{tag}: v1 핀 SHA 불일치(pin={pinned[:12]} cur={cur[:12] or 'N/A'}) "
                             "— 레거시 태그가 변경됐다면 v2 evidence-binding 을 만족시켜야 한다")
             continue
+        if _is_evidence_preserving_drift(tag, ev_problems, drift_pins):
+            drift_warn.append(tag)          # 증거-보전 드리프트 · 등재분 (계약 §5 개정 2026-08-20)
+            continue
         blocking.extend(ev_problems)
-    return blocking, legacy_warn
+    return blocking, legacy_warn, drift_warn
 
 
 def _load_legacy_v1_pins() -> dict:
@@ -1231,7 +1301,7 @@ def _legacy_remedy_hint(problems: list) -> str:
         lines.append(
             f"  ↳ {tag} 는 tagger 시각이 v2 발효({_pins_effective_utc()})보다 **앞선다** = v1 빈티지 후보다.\n"
             f"    핀 목록이 로컬 태그만으로 만들어져 누락된 것일 수 있다(피어 호스트 발행분). 사람 확인 후:\n"
-            f"      python3 .claude/skills/upstream-version-watch/scripts/hint_tag.py pin-legacy \\\n"
+            f"      python3 .claude/skills/hint-publisher/scripts/hint_tag.py pin-legacy \\\n"
             f"        --tag {tag} --manifest <promotion-ready work-manifest>")
     return ("\n\n[hint_tag] v1 빈티지 후보 감지 — 해소 경로:\n" + "\n".join(lines)) if lines else ""
 
@@ -1291,7 +1361,7 @@ def cmd_pin_legacy(a: argparse.Namespace) -> int:
     return 0
 
 
-def _require_all_hint_tags_evidence_valid(action: str) -> None:
+def _require_all_hint_tags_evidence_valid(action: str, tags: list | None = None) -> None:
     """모든 hint 태그의 evidence-binding 검증 — **계약 v2 분류**(hints/HINT_ISSUANCE_CONTRACT.md §5).
 
     v1 은 missing/forged/drifted 를 한 덩어리로 차단했다. 그 결과 evidence-binding footer 규약이
@@ -1305,11 +1375,16 @@ def _require_all_hint_tags_evidence_valid(action: str) -> None:
       - 핀에 있는데 SHA 가 바뀜     → **차단**(레거시를 손댔으므로 v2 를 만족시켜야 한다)
       - forged / drifted           → **차단 유지**(변조는 빈티지와 무관)
     """
-    blocking, legacy_warn = classify_evidence_problems(
-        [(t, _validate_hint_tag_evidence(t, action)[1]) for t in existing_hint_tags()])
+    targets = tags if tags is not None else existing_hint_tags()
+    blocking, legacy_warn, drift_warn = classify_evidence_problems(
+        [(t, _validate_hint_tag_evidence(t, action)[1]) for t in targets])
     if legacy_warn:
         print(f"[hint_tag] ⚠ v1 빈티지 {len(legacy_warn)}개는 evidence-binding footer 이전 태그다 "
               f"(계약 §4 — 재작성 ✗ · SHA 핀 일치 확인됨). 경고로만 통과시킨다.", file=sys.stderr)
+    if drift_warn:
+        print(f"[hint_tag] ⚠ 증거-보전 드리프트 {len(drift_warn)}개 — 발행 후 매니페스트가 승인된 편집으로 "
+              f"바뀌었고 identity·certificate·판정은 보존됐다(등재: hints/evidence_drift_pins.json). "
+              f"경고로만 통과시킨다.", file=sys.stderr)
     if blocking:
         _die_binding(action, ["HINT_EVIDENCE_BINDING_INCOMPLETE"],
                      {"HINT_EVIDENCE_BINDING_INCOMPLETE":
@@ -1320,9 +1395,32 @@ def _require_all_hint_tags_evidence_valid(action: str) -> None:
 
 # ── push (선별) ──────────────────────────────────────────────────────────────
 def cmd_push(a: argparse.Namespace) -> int:
+    _require_central("push")
     _require_promotion_authorization("push", a.manifest)
-    _require_all_hint_tags_evidence_valid("hint_push")  # full evidence-binding verification, before dry-run/apply
+    # 검증 범위 = 배포 범위. `--tag` 를 주면 그 패턴에 맞는 태그만 검증하고 그것만 민다.
+    # 완화가 아니라 정밀화다 — 계약 §2 의 위협은 태그별 속성이라 A 의 드리프트가 B 의 주장을
+    # 거짓으로 만들지 않는다. 전수 검증은 위협 모델이 아니라 `refs/tags/hint/*` 라는 refspec
+    # 선택에서 따라온 결합이었고, 이미 원격에 있어 재-push 가 no-op 인 태그가 신규 발행을 영구히
+    # 막았다(2026-08-20 실증: 드리프트 16종이 hy3 7종을 가로막음).
+    selected = None
+    if getattr(a, "tag", None):
+        # 패턴은 반드시 hint 네임스페이스 안이어야 한다. 이걸 안 걸면 `--tag '*'` 가
+        # refspec `refs/tags/*` 로 번역돼 **로컬 last-good-* 롤백 태그가 공개 origin 으로 샌다**
+        # (계약 C5 가 막는 바로 그 사고 · 2026-08-20 이 가드가 실제로 내 결함을 잡았다).
+        if not a.tag.startswith("hint/"):
+            die(f"[hint_tag] FAIL: --tag 은 'hint/' 로 시작해야 한다: {a.tag!r} — "
+                "refspec 이 hint 네임스페이스를 벗어나면 last-good-* 가 유출된다(계약 C5).")
+        selected = [t for t in existing_hint_tags() if fnmatch.fnmatch(t, a.tag)]
+        if not selected:
+            die(f"[hint_tag] FAIL: --tag 패턴에 맞는 로컬 hint 태그 없음: {a.tag!r}")
+    _require_all_hint_tags_evidence_valid("hint_push", selected)
     refspec = "refs/tags/hint/*"
+    if selected:
+        refspec = f"refs/tags/{a.tag}"
+    if selected:
+        print(f"[hint_tag] 선별 배포 대상 {len(selected)}종 (검증 완료):")
+        for t in selected:
+            print(f"             {t}")
     print(f"[hint_tag] 선별 배포 refspec: git push {a.remote} \"{refspec}\"  (hint 태그만 · --tags 금지)")
     if not a.apply:
         print("[hint_tag] DRY-RUN (관례상 push 는 사용자가 직접). 실제 배포는 --apply.")
@@ -1335,17 +1433,24 @@ def cmd_push(a: argparse.Namespace) -> int:
 
 # ── match (근-미스 발견) ──────────────────────────────────────────────────────
 def cmd_match(a: argparse.Namespace) -> int:
-    idx = _load_index()
-    tgt = (a.vllm, canonicalize(a.model) or a.model, a.arch)
+    """근-미스 발견. **모델 비교는 정규화 + family 해소 후**에 한다 — 2026-08-20 실측에서
+    `--model gemma-4-e2b-it` 검색이 정확일치인 `gemma-4-E2B-it/gb10` 을 '다른 모델'로 판정했다.
+    그리고 모델 불일치분은 기본 숨긴다(출력 9,563 B 중 46/49 가 잡음이었다)."""
+    idx, fam = _load_index(), _load_families()
+    _, slugs = resolve_family(a.model, fam)
+    nslugs = {_norm_slug(s) for s in slugs} | {_norm_slug(canonicalize(a.model) or a.model)}
     scored = []
     for e in idx["hints"]:
-        d = (e["vllm"] == tgt[0], e["model"] == tgt[1], e["arch"] == tgt[2])
+        d = (e["vllm"] == a.vllm, _norm_slug(e["model"]) in nslugs, e["arch"] == a.arch)
         scored.append((sum(d), e, d))
-    scored.sort(key=lambda x: -x[0])
+    scored.sort(key=lambda x: (-x[0], _vkey(x[1]["vllm"])))
     if not scored:
         print("[hint_tag] (인덱스 비어있음)")
         return 0
+    shown = 0
     for score, e, d in scored:
+        if not d[1] and not a.include_other:
+            continue
         guide = []
         if d == (True, True, True):
             guide.append("정확 일치 — 그래도 네 스모크로 재검증")
@@ -1357,8 +1462,243 @@ def cmd_match(a: argparse.Namespace) -> int:
             if not d[2]:
                 guide.append("다른 arch→빌드트랙·벽지도 이식가능·KV/gmu/TORCH_CUDA_ARCH 재도출")
         print(f"[{score}/3] {e['tag']}  ·  {' · '.join(guide)}")
+        shown += 1
+    hidden = len(scored) - shown
+    if not shown:
+        print(f"[hint_tag] 같은 모델(family) 태그 없음. 다른 모델 {hidden}종은 --include-other 로.")
+    elif hidden:
+        print(f"[hint_tag] (다른 모델 {hidden}종 숨김 — --include-other · 전 이력은 `collect --model {a.model}`)")
     return 0
 
+
+# ── D8 권한 비대칭 (plan_26082009 §4) ────────────────────────────────────────
+# 사용자 제약: "HINTS.md 의 관리 주체는 단 1종으로 한정". 발행(seal)은 분산, 색인·배포는 중앙집중이다.
+# 마커는 **gitignored** 라 배포본에 실리지 않는다 — 즉 배포받은 Contributor 환경에서는 존재할 수
+# 없고, 게이트가 fail-closed 로 닫힌다. 신원 체계 없이 결정론으로 집행하는 가장 단순한 수단이다.
+CENTRAL_MARKER = ROOT / "hints" / ".central_authority"
+
+
+def _require_central(action: str) -> None:
+    if CENTRAL_MARKER.is_file():
+        return
+    die(f"[hint_tag] FAIL: '{action}' 는 중앙(원 저장소) 전용이다 — `hints/.central_authority` 부재.\n"
+        f"        Contributor 는 `seal` 로 **로컬 태그까지만** 만들고 그 태그를 전달한다.\n"
+        f"        색인(index.json·HINTS.md)과 배포(push)는 중앙이 수행한다(plan_26082009 D8).")
+
+
+def cmd_index(a: argparse.Namespace) -> int:
+    """이미 로컬에 존재하는 hint 태그를 색인에 편입한다(중앙 전용).
+    `seal` 이 만든 태그를 받아 여기서 index.json + HINTS.md 를 갱신한다."""
+    _require_central("index")
+    tags = existing_hint_tags()
+    if a.tag not in tags:
+        die(f"[hint_tag] FAIL: 로컬에 없는 태그: {a.tag}")
+    body = git("cat-file", "-p", a.tag).stdout
+    _, vllm, model, arch = a.tag.split("/")
+    fm = dict(re.findall(r"^(\w+):\s*(.+)$", body, re.M))
+    topology = a.topology or fm.get("topology", "")
+    anchor = fm.get("anchor") or git("rev-list", "-n", "1", a.tag).stdout.strip()
+    if not topology:
+        die("[hint_tag] FAIL: 태그 footer 에 topology 가 없고 --topology 도 미지정.")
+    idx = _load_index()
+    idx["hints"] = [e for e in idx["hints"] if e["tag"] != a.tag]
+    idx["hints"].append({
+        "tag": a.tag, "vllm": vllm, "model": model, "arch": arch,
+        "topology": topology, "brief": _brief_of(body), "anchor": anchor,
+        "related": a.related or "", "status": "active",
+        "last_verified": date.today().isoformat(),
+    })
+    idx["hints"].sort(key=lambda e: e["tag"])
+    _save_index(idx)
+    _hints_regen(idx["hints"])
+    print(f"[hint_tag] index.json + HINTS.md 갱신: {a.tag}")
+    return 0
+
+# ── R1 슬러그 파생 + D10 린터 (plan_26082008 R1 · plan_26082009 §6) ──────────
+def derive_slug(hf_repo: str | None, model_path: str | None) -> tuple[str, str]:
+    """→ (slug, source). **발행자가 이름을 짓지 못하게** 한다.
+
+    2026-08-20 실측: 발행된 32 슬러그 중 27종이 정본표 밖이었고(`--allow-new-slug` 통과),
+    같은 모델이 철자로 2건 갈라졌다(`gemma-4-e2b-it`↔`-E2B-it` · `qwen3.5-…`↔`qwen35-…`).
+    원인은 **작명 자유도**이므로 처방은 자유도 제거다 — 슬러그는 HF repo 이름에서 파생한다(사용자 D2).
+    HF 미등록 커스텀 모델만 예외이며 **서빙에 사용한 경로**로 명명한다(D2 예외)."""
+    if hf_repo:
+        if "/" not in hf_repo:
+            die(f"[hint_tag] FAIL: --hf-repo 는 '<org>/<name>' 형태여야 함: {hf_repo}")
+        return hf_repo.rstrip("/").split("/")[-1].lower(), "hf_repo"
+    if model_path:
+        base = os.path.basename(model_path.rstrip("/"))
+        if not base:
+            die(f"[hint_tag] FAIL: --model-path 에서 이름을 못 뽑음: {model_path}")
+        return re.sub(r"[^a-z0-9._-]+", "-", base.lower()).strip("-"), "model_path"
+    die("[hint_tag] FAIL: --hf-repo(정본) 또는 --model-path(HF 미등록 커스텀) 중 하나가 필요함. "
+        "슬러그는 발행자가 짓지 않는다(plan_26082008 R1).")
+    return "", ""            # unreachable — die() 는 SystemExit
+
+
+def require_derived_slug(tag_model: str, vllm: str, arch: str,
+                         hf_repo: str | None, model_path: str | None) -> str:
+    """태그의 `<model>` 슬롯이 파생 슬러그와 같은지 검사. 다르면 **정확한 태그 이름을 알려주고 죽는다**.
+    연속성 예외: 이미 등재된 같은 family 의 정본 철자면 통과한다 — 새 철자를 만들 수는 없고
+    (허용 목록이 추적 색인에서 온다) 기존 계보를 잇는 것만 된다."""
+    slug, src = derive_slug(hf_repo, model_path)
+    if tag_model == slug:
+        return src
+    fid, slugs = resolve_family(slug, _load_families())
+    if fid is not None and tag_model in slugs:
+        return src + "+family-continuity"
+    die(f"[hint_tag] FAIL: 태그의 model 슬롯 '{tag_model}' 가 파생 슬러그 '{slug}' 와 다름.\n"
+        f"        올바른 이름: hint/{vllm}/{slug}/{arch}\n"
+        f"        (연속성 예외는 `hints/families.json` 에 등재된 같은 family 슬러그만 해당)")
+    return ""
+
+
+# L1 필수 절. **템플릿에만 있고 산출물에는 없던 구조**를 여기서 강제한다 —
+# 2026-08-20 실측: 발행된 49/49 태그에 `#` 로 시작하는 라인이 0개였고 밀도가 12배 벌어졌다.
+# 템플릿이 스킬 안에 있어도 아무것도 막지 못했다. 막는 코드가 없었기 때문이다.
+REQUIRED_SECTIONS = [
+    (1, "벽 지도"), (2, "결정론 해소값"), (3, "모델 서빙 노브"),
+    (4, "빌드평면 노브"), (5, "성능 baseline"), (6, "재검증"), (7, "메타"),
+]
+FREE_SECTION = 8                        # `## 8. comment` — 자유 기술 칸(검사 제외)
+MIN_SECTION_CHARS = 80                  # L2: 공백 제외
+TRANSFER_CLASS = re.compile(r"arch-(?:invariant|scaled|locked|LOCKED)")
+GENERIC_ONLY = re.compile(r"^[\s\-*·>]*(재검증하라|재확인하라|주의하라|참고하라)[\s.·]*$", re.M)
+
+
+def _split_sections(body: str) -> dict[int, str]:
+    out, cur, buf = {}, None, []
+    for line in body.split("\n"):
+        m = re.match(r"^##\s*(\d+)\.", line)
+        if m:
+            if cur is not None:
+                out[cur] = "\n".join(buf)
+            cur, buf = int(m.group(1)), []
+        elif cur is not None:
+            buf.append(line)
+    if cur is not None:
+        out[cur] = "\n".join(buf)
+    return out
+
+
+def lint_body(body: str) -> list[str]:
+    """D10 L1–L5. fail-closed 로 쓰인다 — 통과 못 하면 태그가 안 나간다.
+
+    이것이 **일관성의 실제 보장**이다(스킬 승격이 아니라). 실증: 지금까지 집행된 검사는
+    `TODO(judgment` 한 줄뿐이었고 **그 항목만 100% 지켜졌다**(plan_26082009 §1)."""
+    problems: list[str] = []
+    secs = _split_sections(body)
+    for n, name in REQUIRED_SECTIONS:                                   # L1
+        if n not in secs:
+            problems.append(f"L1 필수 절 누락: `## {n}. {name}`")
+    for n, name in REQUIRED_SECTIONS:                                   # L2
+        if n in secs and len(re.sub(r"\s", "", secs[n])) < MIN_SECTION_CHARS:
+            problems.append(f"L2 절 `{n}. {name}` 밀도 부족(공백제외 "
+                            f"{len(re.sub(chr(92) + 's', '', secs[n]))} < {MIN_SECTION_CHARS}자)")
+    if not TRANSFER_CLASS.search(body):                                 # L3
+        problems.append("L3 전이등급 태깅(arch-invariant/scaled/locked) 이 한 번도 없음 — "
+                        "수신자가 무엇을 복사하면 안 되는지 알 수 없다")
+    if "TODO(judgment" in body:                                         # L4 (기존)
+        problems.append("L4 TODO(judgment) 슬롯 잔존 — 에이전트가 저작해야 함")
+    for n, name in REQUIRED_SECTIONS:                                   # L5
+        if n in secs and GENERIC_ONLY.search(secs[n]):
+            problems.append(f"L5 절 `{n}. {name}` 이 generic 문구뿐 — 이 HW/모델 특정 사실을 적어라")
+    return problems
+
+# ── family 색인 (plan_26082008 R2·R5·R6 · plan_26082009 D9) ───────────────────
+# family 는 `hints/families.json` 에 산다 — `reindex` 가 index.json 을 태그에서 **재생성**하므로
+# 거기 두면 재생성이 파괴한다. 생성/감사는 `bootstrap_families.py` 가 소유한다.
+FAMILIES_FILE = ROOT / "hints" / "families.json"
+
+
+def _norm_slug(s: str) -> str:
+    """슬러그 비교용 정규화. 2026-08-20 실측: 대소문자·구두점만 다른 동일 모델이 이미 2건
+    갈라져 있었고(`gemma-4-e2b-it`↔`gemma-4-E2B-it` · `qwen3.5-…`↔`qwen35-…`), `match` 가
+    정확일치 태그를 '다른 모델'로 판정했다. 비교는 반드시 정규화 후에 한다."""
+    return re.sub(r"[^a-z0-9]", "", s.lower())
+
+
+def _load_families() -> dict:
+    if not FAMILIES_FILE.is_file():
+        return {"families": {}, "tag_sd": {}}
+    return json.loads(FAMILIES_FILE.read_text(encoding="utf-8"))
+
+
+def resolve_family(model: str, fam: dict) -> tuple[str | None, set[str]]:
+    """model(슬러그·family id·철자변형 무엇이든) → (family_id, 소속 슬러그 집합).
+    미등재면 (None, {정규화 동치 슬러그들}) 로 떨어져 **최소한 철자 갈림은 흡수한다**."""
+    n = _norm_slug(model)
+    fams = fam.get("families", {})
+    for fid, f in fams.items():
+        if (_norm_slug(fid) == n
+                or any(_norm_slug(m["slug"]) == n for m in f["members"])
+                # 서빙 repo 이름으로도 이어붙인다 — 태그 슬러그와 repo 가 다를 수 있다
+                # (예: 태그 `hy3` ↔ repo `Hy3-NVFP4-W4A16`). 사용자 D2 의 "모델별 출처 기재" 가
+                # 여기서 실제로 쓰인다.
+                or any(m.get("repo") and _norm_slug(m["repo"]) == n for m in f["members"])):
+            return fid, {m["slug"] for m in f["members"]}
+    return None, {model}
+
+
+def _vkey(v: str) -> tuple:
+    return tuple(int(x) if x.isdigit() else 0 for x in re.split(r"[._-]", v)[:4])
+
+
+def _sd_brief(sd: dict | None) -> str:
+    if not sd:
+        return "-"
+    if sd.get("enabled") is None:
+        return "?"
+    if not sd["enabled"]:
+        return "off"
+    bits = []
+    if sd.get("spec_tokens") is not None:
+        bits.append(f"spec={sd['spec_tokens']}")
+    if sd.get("accept_len") is not None:
+        bits.append(f"acc={sd['accept_len']}")
+    return "on" + ("(" + "·".join(bits) + ")" if bits else "")
+
+
+def cmd_collect(a: argparse.Namespace) -> int:
+    """수신자용 **이력 수집**. index+families 만 읽는다 — git 오브젝트를 열지 않으므로 결정론이고
+    토큰이 적다(현행 `match` 는 49종을 9.5 KB 로 쏟았다).
+
+    관계 판정은 **하지 않는다**: 무엇이 패턴이고 무엇이 안티패턴인지는 시간축을 봐야 알고,
+    그건 수신자만 볼 수 있다(사용자 D3). 여기서는 **빠짐없는 수집**만 보장한다."""
+    idx, fam = _load_index(), _load_families()
+    fid, slugs = resolve_family(a.model, fam)
+    nslugs = {_norm_slug(s) for s in slugs}
+    rows = [e for e in idx["hints"] if _norm_slug(e["model"]) in nslugs]
+    if a.sd_only:
+        rows = [e for e in rows if (fam.get("tag_sd", {}).get(e["tag"], {}) or {}).get("enabled")]
+    rows.sort(key=lambda e: (_vkey(e["vllm"]), e["arch"]))
+    if a.json:
+        print(json.dumps({"family": fid, "slugs": sorted(slugs),
+                          "sd_capability": (fam.get("families", {}).get(fid) or {}).get("sd_capability"),
+                          "hints": [dict(e, sd=fam.get("tag_sd", {}).get(e["tag"])) for e in rows]},
+                         ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    if fid is None:
+        print(f"[collect] family 미등재: '{a.model}' — 철자 동치만으로 수집했다.")
+        print("          `bootstrap_families.py --write` 로 등재하면 양자화·변종·SD 초안까지 묶인다.")
+    else:
+        f = fam["families"][fid]
+        mem = " · ".join(f"{m['slug']}({m['relation']})" for m in f["members"])
+        print(f"[collect] family `{fid}`" + (f"  root={f['root_repo']}" if f.get("root_repo") else ""))
+        print(f"          멤버: {mem}")
+        cap = f.get("sd_capability") or {}
+        print(f"          SD 능력: {cap.get('mode','unknown')}  [{cap.get('source','-')}]")
+    if not rows:
+        print("[collect] 해당 태그 없음.")
+        return 0
+    print(f"\n  {'vLLM':<8} {'arch':<26} {'SD':<18} tag")
+    for e in rows:
+        sd = _sd_brief(fam.get("tag_sd", {}).get(e["tag"]))
+        print(f"  {e['vllm']:<8} {e['arch']:<26} {sd:<18} {e['tag']}")
+    print(f"\n  총 {len(rows)}종 — **시간축이다**: 뒤 항목이 앞 항목을 안티패턴으로 만들 수 있다.")
+    print("  판정은 네가 한다(발행자는 관계를 적지 않는다). 본문:")
+    print("     git tag -l --format='%(contents)' <tag> > seed/hints/<name>.md")
+    return 0
 
 # ── reverify (currency 스탬프) ────────────────────────────────────────────────
 def cmd_reverify(a: argparse.Namespace) -> int:
@@ -1377,7 +1717,7 @@ def cmd_reverify(a: argparse.Namespace) -> int:
     _footer, ev_problems = _validate_hint_tag_evidence(a.tag, "hint_reverify")
     # 단일 대상이지만 분류는 동일 권위를 쓴다 — v1 빈티지 태그의 currency 스탬프 갱신까지
     # 막을 이유가 없다(계약 §4). forged/drifted 는 여기서도 그대로 차단된다.
-    _blocking, _legacy = classify_evidence_problems([(a.tag, ev_problems)])
+    _blocking, _legacy, _drift = classify_evidence_problems([(a.tag, ev_problems)])
     if _legacy:
         print(f"[hint_tag] ⚠ {a.tag} 는 v1 빈티지(footer 이전 · SHA 핀 일치) — 경고로 통과.",
               file=sys.stderr)
@@ -1397,6 +1737,7 @@ def cmd_reverify(a: argparse.Namespace) -> int:
 
 # ── reindex (태그 = 진실원천 → index.json + HINTS.md 재생성) ──────────────────
 def cmd_reindex(a: argparse.Namespace) -> int:
+    _require_central("reindex")
     """전 hint 태그에서 index.json + HINTS.md 카탈로그를 재생성한다(브랜치 간 드리프트 정합).
     currency 필드(status·superseded_by·last_verified·큐레이트 related)는 기존 index 에서 보존.
     binding 필드(topology·anchor)는 footer(=진실원천)에서만 재구성한다 -- 기존 index 신뢰 안 함
@@ -1415,7 +1756,7 @@ def cmd_reindex(a: argparse.Namespace) -> int:
             footers[t] = footer
         per_tag.append((t, ev_problems))
     # 분류는 classify_evidence_problems 단일 권위(계약 v2 §5) — 여기서 복제하지 않는다.
-    problems, legacy_warn = classify_evidence_problems(per_tag)
+    problems, legacy_warn, drift_warn = classify_evidence_problems(per_tag)
     if legacy_warn:
         print(f"[hint_tag] ⚠ v1 빈티지 {len(legacy_warn)}개는 footer 이전 태그다(계약 §4 · SHA 핀 일치). "
               "인덱스에는 포함하되 경고로만 통과시킨다.", file=sys.stderr)
@@ -1471,6 +1812,8 @@ def main() -> int:
     c.add_argument("--related", default="")
     c.add_argument("--from-resolved", default="resolved.json")
     c.add_argument("--allow-new-slug", action="store_true")
+    c.add_argument("--hf-repo", help="정본 HF repo '<org>/<name>' — 슬러그가 여기서 파생된다(R1)")
+    c.add_argument("--model-path", help="HF 미등록 커스텀 모델의 서빙 경로(D2 예외)")
     c.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
     c.set_defaults(fn=cmd_create)
 
@@ -1483,8 +1826,29 @@ def main() -> int:
     f.add_argument("--tagger-name", default="")
     f.add_argument("--tagger-email", default="")
     f.add_argument("--allow-new-slug", action="store_true")
+    f.add_argument("--hf-repo", help="정본 HF repo '<org>/<name>' — 슬러그가 여기서 파생된다(R1)")
+    f.add_argument("--model-path", help="HF 미등록 커스텀 모델의 서빙 경로(D2 예외)")
     f.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
     f.set_defaults(fn=cmd_finalize)
+
+    # `seal` = finalize 에서 **색인 갱신만 뺀 것**. Contributor 의 종착점이다(D8).
+    sl = sub.add_parser("seal", help="PII 스캔 + 린트 + annotated 태그 생성까지 (색인 ✗ · Contributor 용)")
+    for _a in ("--tag", "--recipe", "--topology", "--manifest"):
+        sl.add_argument(_a, required=True)
+    sl.add_argument("--commit", default="HEAD")
+    sl.add_argument("--related", default="")
+    sl.add_argument("--tagger-name", default="")
+    sl.add_argument("--tagger-email", default="")
+    sl.add_argument("--allow-new-slug", action="store_true")
+    sl.add_argument("--hf-repo", help="정본 HF repo '<org>/<name>' — 슬러그가 여기서 파생된다(R1)")
+    sl.add_argument("--model-path", help="HF 미등록 커스텀 모델의 서빙 경로(D2 예외)")
+    sl.set_defaults(fn=cmd_finalize, no_index=True)
+
+    ix = sub.add_parser("index", help="로컬 hint 태그를 index.json + HINTS.md 에 편입 (중앙 전용)")
+    ix.add_argument("--tag", required=True)
+    ix.add_argument("--topology", default="", help="미지정 시 태그 footer 에서 읽는다")
+    ix.add_argument("--related", default="")
+    ix.set_defaults(fn=cmd_index)
 
     v = sub.add_parser("verify", help="릴리즈 게이트(태그오브젝트/build_patches PII·인덱스 정합)")
     v.add_argument("--check-origin", action="store_true", help="origin 에 last-good-* 없음 확인(네트워크)")
@@ -1494,6 +1858,9 @@ def main() -> int:
     p = sub.add_parser("push", help="선별 배포 refs/tags/hint/* (--tags 금지)")
     p.add_argument("--remote", default="origin")
     p.add_argument("--apply", action="store_true")
+    p.add_argument("--tag", default="",
+                   help="배포할 태그 glob(예: 'hint/0.27.0/hy3/*'). 지정 시 **그 태그만** 검증하고 "
+                        "그것만 민다 — 검증 범위를 배포 범위에 맞춘다. 미지정 시 전 hint 태그.")
     p.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
     p.set_defaults(fn=cmd_push)
 
@@ -1502,6 +1869,14 @@ def main() -> int:
     m.add_argument("--model", required=True)
     m.add_argument("--arch", required=True)
     m.set_defaults(fn=cmd_match)
+    m.add_argument("--include-other", action="store_true",
+                   help="다른 모델 태그까지 나열(기본 숨김 — 2026-08-20 실측 9,563 B 중 46종이 잡음이었다)")
+
+    co = sub.add_parser("collect", help="한 모델의 **전 이력**을 시간순 수집(family 해소) -- read-only, ungated")
+    co.add_argument("--model", required=True, help="슬러그·family id·철자변형 무엇이든")
+    co.add_argument("--sd-only", action="store_true", help="SD(speculative decoding)를 실제로 켠 레시피만")
+    co.add_argument("--json", action="store_true", help="기계판독 출력")
+    co.set_defaults(fn=cmd_collect)
 
     r = sub.add_parser("reverify", help="핀 자산 reachability + last_verified 스탬프")
     r.add_argument("--tag", required=True)

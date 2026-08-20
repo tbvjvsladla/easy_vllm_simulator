@@ -67,12 +67,18 @@ description: >-
 - **(iii) 음성정직** — 공식·포크 모두 부재, transformers-only → *"현재 vLLM으로 서빙 불가"* 보고(없는 길 날조 ✗). **단 이 선언은 `.claude/skills/wiki-desk/reference/references.md` §5 최소범위 레시피 수행 + testlog "탐색 증거"(검색어·URL·일자) 기록 후에만 허용** — 가장 강한 부정 결론엔 가장 강한 증거.
 - **최종 중재 = 스모크**(린트·이슈글 ≠ 서빙됨). **순환 차단** — rebuild 후도 미구동이면 `reconciliation_cap` 한정 재진입 → 소진 시 Model-C(무한 bump ✗). 완료 후 rebuild 이미지로 `vllm-recipe-explorer` 재진입.
 
-## hint 태그 발동 (bump closer)
+## hint 태그 발동 (bump closer) — **소유는 `hint-publisher`**
 
 **전작업 완료 후** — bump 사이클이 **서빙성공+커밋+문서+전파까지 끝난** S4 종결부에서, 새 `(vllm×model×arch)` 면
 hint 태그 발행을 **제안(Y/N)** 한다(**무인 자동 태깅 ✗** · **push 는 전부 사용자 소관** — **브랜치 push 도 루틴 대상 아님**).
-절차·엔진 = `.claude/skills/upstream-version-watch/scripts/hint_tag.py` · 헌법 §hint 배포 레이어 따름정리 §발동 시점 · 절차-홈 `workflow.md` S4 ·
-설계 `plan_26070222`·`plan_26071607`. main-only(서브 미전파).
+
+> **2026-08-20 이관**(`plan_26082009`): 절차·엔진·계약·템플릿·린터의 정본은 **스킬 `hint-publisher`** 다.
+> 이 스킬은 **제안 트리거만** 갖는다 — 발행 조건 A(서빙 성공)는 `vllm-recipe-explorer`,
+> B(lite 계측)는 `adversarial-benchmark` 소유이므로 엔진이 여기 있을 이유가 없었다(배치 오류).
+> 넘길 때 함께 전달할 것: 앵커 커밋 · topology · promotion-ready work-manifest 경로 · 정본 HF repo.
+
+절차 `.claude/skills/hint-publisher/SKILL.md` · 헌법 §hint 배포 레이어 따름정리 §발동 시점 ·
+절차-홈 `workflow.md` S4 · 설계 `plan_26070222`·`plan_26071607`·`plan_26082008`. main-only(서브 미전파).
 
 ## 금지
 

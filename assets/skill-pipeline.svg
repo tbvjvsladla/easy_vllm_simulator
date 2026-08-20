@@ -5,10 +5,15 @@
   <!-- 색은 표현 속성이 기본값(라이트)이고, 아래 CSS 는 다크모드에서만 그것을 덮는다.
        스타일이 제거되는 환경에서도 라이트 배색으로 온전히 보이도록 한 이중화다. -->
   <style>
+    .feed        { stroke: #b58900; }              /* 되먹임 재탐색 경로 — 라이트: 가독성 황색 */
+    .feed-text   { fill: #b58900; }                 /* 되먹임 재탐색 라벨 */
     @media (prefers-color-scheme: dark) {
-      .bg   { fill: #0d1117; }
-      .ink  { stroke: #e6edf3; }
-      .fill { fill: #e6edf3; }
+      .bg           { fill: #0d1117; }
+      .ink          { stroke: #e6edf3; }
+      .fill         { fill: #e6edf3; }
+      .feed         { stroke: #ffff00; }            /* PNG(다크)와 동일한 순수 노랑 */
+      .feed-text    { fill: #ffff00; }
+      .feed-marker  { fill: #ffff00; }
     }
   </style>
 
@@ -17,6 +22,10 @@
             markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto">
       <path class="fill" d="M 0 0 L 10 5 L 0 10 z" fill="#1f2328"/>
     </marker>
+    <marker id="ah-feed" viewBox="0 0 10 10" refX="10" refY="5"
+            markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto">
+      <path class="feed-marker" d="M 0 0 L 10 5 L 0 10 z" fill="#b58900"/>
+    </marker>
   </defs>
 
   <rect class="bg" x="0" y="0" width="1360" height="620" fill="#ffffff"/>
@@ -24,10 +33,10 @@
   <g font-family="-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, &quot;Apple SD Gothic Neo&quot;, &quot;Malgun Gothic&quot;, &quot;Noto Sans KR&quot;, &quot;Noto Sans CJK KR&quot;, &quot;Noto Serif CJK KR&quot;, NanumGothic, sans-serif">
 
     <!-- ══ 축적 평면 (위) — hint 카탈로그 ══ -->
-    <rect class="ink" x="440" y="30" width="830" height="65" rx="8"
+    <rect class="ink" x="770" y="30" width="500" height="75" rx="8"
           fill="none" stroke="#1f2328" stroke-width="1.6" stroke-dasharray="7 5"/>
-    <text class="fill" x="855" y="57" text-anchor="middle" font-size="13" fill="#1f2328">hints/ → HINTS.md · 검증된 레시피 카탈로그</text>
-    <text class="fill" x="855" y="78" text-anchor="middle" font-size="12.5" fill="#1f2328">쓸수록 쌓이고, 다음 모델·다음 사람의 출발점이 된다</text>
+    <text class="fill" x="1020" y="57" text-anchor="middle" font-size="13" fill="#1f2328">hints/ → HINTS.md · 검증된 레시피 카탈로그</text>
+    <text class="fill" x="1020" y="78" text-anchor="middle" font-size="12.5" fill="#1f2328">쓸수록 쌓이고, 다음 모델·다음 사람의 출발점이 된다</text>
 
     <!-- ══ 사람 ══ -->
     <rect class="ink" x="30" y="30" width="250" height="85" rx="42"
@@ -95,14 +104,14 @@
     <!-- ══ 되먹임 · 사서 ══ -->
     <g class="ink" fill="none" stroke="#1f2328" stroke-width="1.6" stroke-dasharray="7 5">
       <path d="M 1270,312 L 1312,312 L 1312,62 L 1270,62" marker-end="url(#ah)"/>
-      <path d="M 710,95 L 710,312 L 730,312" marker-end="url(#ah)"/>
-      <path d="M 1090,400 L 1090,455 L 930,455 L 930,400" marker-end="url(#ah)"/>
+      <path d="M 770,67.5 L 710,67.5 L 710,312 L 730,312" marker-end="url(#ah)"/>
+      <path class="feed" d="M 1090,400 L 1090,455 L 930,455 L 930,400" marker-end="url(#ah-feed)"/>
       <path d="M 565,510 L 565,400"   marker-end="url(#ah)"/>
       <path d="M 855,510 L 855,400"   marker-end="url(#ah)"/>
       <path d="M 1145,510 L 1145,400" marker-end="url(#ah)"/>
     </g>
     <text class="fill" x="700" y="272" text-anchor="end"    font-size="11.5" font-style="italic" fill="#1f2328">다음 모델의 출발점</text>
-    <text class="fill" x="1010" y="447" text-anchor="middle" font-size="11.5" font-style="italic" fill="#1f2328">기대 이하 → 전략 재탐색</text>
+    <text class="feed-text" x="1010" y="447" text-anchor="middle" font-size="11.5" font-style="italic">기대 이하 → 전략 재탐색</text>
 
     <!-- ══ 범례 ══ -->
     <text class="fill" x="30" y="598" font-size="11.5" fill="#1f2328">굵은 선 = 사람이 지나는 길 · 평행사변형 = 산출물 · 점선 = 축적 평면과 되먹임 · 모든 산출물은 output/single · output/multi 로 분리되어 쌓인다</text>

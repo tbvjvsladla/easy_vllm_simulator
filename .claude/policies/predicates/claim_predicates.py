@@ -108,12 +108,12 @@ def _import(rel_dir: str, name: str):
 
 def _import_hint_tag():
     if (REPO_ROOT / ".git").exists():
-        return _import(".claude/skills/upstream-version-watch/scripts", "hint_tag")
+        return _import(".claude/skills/hint-publisher/scripts", "hint_tag")
     # Clean-index exports intentionally have no .git.  hint_tag resolves ROOT at import time;
     # substitute only that read-only rev-parse call so pure scanners/parsers and source
     # inspection remain testable without weakening hint_tag's production fail-closed behavior.
     import importlib.util
-    path = REPO_ROOT / ".claude" / "skills" / "upstream-version-watch" / "scripts" / "hint_tag.py"
+    path = REPO_ROOT / ".claude" / "skills" / "hint-publisher" / "scripts" / "hint_tag.py"
     spec = importlib.util.spec_from_file_location("_policy_predicate_hint_tag", path)
     _require(spec is not None and spec.loader is not None, 'predicate requirement failed at original line 98')
     module = importlib.util.module_from_spec(spec)
@@ -896,7 +896,7 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C3():
     # this exact file; these fixed sentences are outside every {{...}}/TODO(judgment) slot so they
     # survive verbatim into every finalized hint, since finalize only rejects leftover TODO markers,
     # never strips the surrounding fixed prose).
-    tpl = _read(".claude/skills/upstream-version-watch/templates/hint_recipe.template.md")
+    tpl = _read(".claude/skills/hint-publisher/templates/hint_recipe.template.md")
     fixed_lines = (
         "이 자료는 **지도이지 정답이 아니다.**",
         "네 환경에서 반드시 **스모크 통과까지 재검증**. 최종 판정 = 네 스모크(린트·이슈글 ≠ 서빙됨).",
@@ -906,7 +906,7 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C3():
         _require(fixed_line in tpl, f'template must carry the fixed carry-forward-revalidation line: {fixed_line!r}')
         _require('{{' not in fixed_line and 'TODO(judgment' not in fixed_line, 'this must be FIXED prose (never a {{...}}-substituted or judgment-authored slot) so it survives verbatim into every finalized hint')
     _require(hint_tag.TEMPLATE_FILE == hint_tag.ROOT / '.claude' / 'skills' /
-             'upstream-version-watch' / 'templates' / 'hint_recipe.template.md',
+             'hint-publisher' / 'templates' / 'hint_recipe.template.md',
              'hint tagger must consume its owner-local template')
     create_src = inspect.getsource(hint_tag.cmd_create)
     _require('TEMPLATE_FILE.read_text' in create_src, 'every hint scaffold must originate from this exact template')
@@ -1103,7 +1103,7 @@ def predicate_LAST_GOOD_ROLLBACK_ANCHOR_C3():
     from the user's own environment value (manifest.origin_url) -- no hardcoded remote."""
     tmpl = _read("manifest.template.yaml")
     _require(re.search('^origin_url:\\s*""', tmpl, re.M), 'origin_url must default empty (user-supplied)')
-    for rel in (".claude/skills/upstream-version-watch/scripts/hint_tag.py", ".claude/skills/upstream-version-watch/scripts/sync_branches.sh"):
+    for rel in (".claude/skills/hint-publisher/scripts/hint_tag.py", ".claude/skills/upstream-version-watch/scripts/sync_branches.sh"):
         src = _read(rel)
         _require('github.com/' not in src and 'git@github.com' not in src, f'{rel} must not hardcode a project remote URL')
     push_src = inspect.getsource(hint_tag.cmd_push)
