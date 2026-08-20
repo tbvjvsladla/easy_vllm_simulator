@@ -242,6 +242,14 @@ docs/_evidence/
 #   정합 위반으로 오인해 제거하지 말 것. 대가: 브랜치 persist 상실 → sync_branches.sh 로 동기화.
 #   규칙 = .claude/rules/docs.md §report · 근거 = docs/plan/plan_2026071617_1
 !docs/report/*
+# ⚠ docs/benchmark/benchmark_*.yaml = 두 번째 추적 예외(재현성 **인증서**만 · report_*.md 는 제외).
+#   근거 = docs/plan/plan_26082017 §4.2 W2-b · 2026-08-20 사용자 결정 (ii).
+#   왜: hint 태그 footer 의 `certificate_sha256` 이 **비추적 파일**을 가리켜, 수신자가 그 digest 를
+#   영원히 대조할 수 없었다(불투명한 해시 = 신뢰 근거 없음). 인증서는 full PASS 때만 나오는 flat
+#   yaml 이고 배포강도 PII 4종 스캔 위반 0건이라 배포 가능하다.
+#   범위 주의: work-manifest(docs/_evidence/)는 **여전히 비추적**이다 — 운영자 환경 지문을 담는다.
+#   따라서 수신자 검증은 절반(인증서)까지다. 나머지 절반은 발행자 신뢰에 남는다.
+!docs/benchmark/benchmark_*.yaml
 
 # ===========================================
 # D12 상향 회수 미러 (fetch_sub_docs.sh 산출 — 서브 docs/ 로컬 작업본, gitignored)

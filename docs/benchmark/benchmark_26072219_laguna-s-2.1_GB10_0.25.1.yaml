@@ -1,0 +1,43 @@
+# ⚠ CARRY-FORWARD 재검증 필수 — 이건 '그때-그 환경' 한정 측정이다(지도≠정답). 소비 전 재확인하라.
+#   강한 일치 키(model/gpu/vllm/quant/topology/tp): 정확일치 실패 시 이 인증서 무효.
+#   소프트 지문(driver/cuda/image/max-len/kv-bytes/gmu/moe): 불일치 시 stale — 재측정 권고.
+#   발행 = full 모드 verdict==PASS 시만(결정론 publish_benchmark_record.py · inform-record).
+schema_version: 1
+record_type: benchmark_certificate
+verdict: PASS
+
+# --- 강한 일치 키 (정확일치 필요) ---
+model: laguna-s-2.1
+gpu_model: "NVIDIA GB10"
+vllm_version: 0.25.1
+quantization: N/A
+topology: single
+tensor_parallel_size: 1
+
+# --- 소프트 지문 (불일치 시 stale 경고) ---
+driver_version: N/A
+cuda_version: 132
+image_tag: "easy-vllm:0.25.1-cu132-aarch64-source"
+max_model_len: 262144
+max_num_seqs: 32
+kv_cache_memory_bytes: 17179869184
+kv_cache_dtype: auto
+gpu_memory_utilization: 0.85
+moe_backend: N/A
+enforce_eager: N/A
+ngc_base_tag: N/A
+
+# --- 검증 결과(인증서 본문) ---
+benchmark_mode: full
+decode_tps_conc1: 19.5
+primary_source: E(external_reference)
+primary_tps: 13.0
+floor_tps: 11.05
+tolerance: 0.15
+ratio_M_over_primary: 1.5
+e_search: hit
+spec_on: false
+accept_len: N/A
+sweep_levels: 1,2,4,8
+sweep_truncated: N/A
+measured_utc: "2026-07-22T10:51:47Z"
