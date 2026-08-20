@@ -288,6 +288,36 @@ if ! git rev-parse --verify "$SRC_BRANCH" >/dev/null 2>&1; then
     echo "[sync-branches] FAIL: 정본 브랜치 '$SRC_BRANCH' 가 없습니다."; exit 3
 fi
 
+# ── pre-flight: 이 스크립트 자신이 정본과 동일 버전인가 (self-overwrite 위험 차단) ──
+#
+# apply 의 `git checkout <SRC> -- PATHS` 는 **이 파일 자신도 덮는다**(sync_branches.sh 가 PATHS 에
+# 있다). 그런데 bash 는 배열·함수를 **시작 시 읽어둔 내용**으로 갖고 있고 본문은 파일에서 이어 읽는다
+# — 즉 checkout 이후로는 *메모리는 구버전 · 디스크는 신버전* 이 되어 동작이 정의되지 않는다.
+#
+# 2026-08-20 실제 발생: hint_tag.py 를 hint-publisher 로 이관해 relocation 표가 바뀐 회차에서,
+# checkout 뒤의 replacement 검증이 **메모리에 남은 구경로**를 찾다 죽었다:
+#     FAIL: source replacement missing before tombstone scripts/hint_tag.py: <구경로>
+# 디스크의 표에는 신경로가 이미 들어와 있었으므로, 사람이 파일을 열어보면 "왜 죽었는지" 알 수 없다.
+#
+# 처방: **불일치면 아예 시작하지 않는다.** 스크립트만 먼저 당겨오게 해서 메모리와 디스크를 같은
+# 버전으로 맞춘 뒤 실행시킨다. 검증 자체를 checkout 앞으로 옮기지 않는 이유는, 그 검증이 의도적으로
+# *materialized* 바이트(체크아웃 결과물)를 보기 때문이다 — 앞으로 옮기면 그 보장을 잃는다.
+SELF_BASENAME="$(basename -- "${BASH_SOURCE[0]}")"
+SELF_REL="${SCRIPT_DIR#"$REPO_ROOT"/}/$SELF_BASENAME"
+if [ "$SELF_REL" != "$SCRIPT_DIR/$SELF_BASENAME" ] && git cat-file -e "$SRC_BRANCH:$SELF_REL" 2>/dev/null; then
+    SELF_SRC_BLOB="$(git rev-parse "$SRC_BRANCH:$SELF_REL")"
+    SELF_DISK_BLOB="$(git hash-object -- "$REPO_ROOT/$SELF_REL")"
+    if [ "$SELF_SRC_BLOB" != "$SELF_DISK_BLOB" ]; then
+        echo "[sync-branches] FAIL: 이 스크립트가 정본($SRC_BRANCH)과 다릅니다." >&2
+        echo "[sync-branches]   disk=${SELF_DISK_BLOB:0:12}  $SRC_BRANCH=${SELF_SRC_BLOB:0:12}" >&2
+        echo "[sync-branches]   apply 는 이 파일 자신도 덮으므로, 그대로 진행하면 메모리(구버전)와" >&2
+        echo "[sync-branches]   디스크(신버전)가 갈려 relocation 검증이 엉뚱한 경로를 찾다 죽습니다." >&2
+        echo "[sync-branches]   먼저 스크립트만 당겨온 뒤 다시 실행하세요:" >&2
+        echo "[sync-branches]     git checkout $SRC_BRANCH -- $SELF_REL" >&2
+        exit 3
+    fi
+fi
+
 # ── allowlist 경로를 실제 존재(정본 측) 기준으로 확정 ──
 #   git pathspec 으로 main 트리에 실제로 있는 항목만 복사 대상으로 모은다.
 PATHS=()
@@ -365,10 +395,10 @@ fi
 #   *디스크는 신버전 · 메모리는 구버전* 이 되어 검증이 엉뚱한 경로를 찾다 죽는다.
 #   2026-08-20 실제 발생: hint_tag.py 를 hint-publisher 로 이관한 회차에서
 #   "source replacement missing before tombstone scripts/hint_tag.py: <구경로>" 로 실패.
-#   **처방(운영)**: 정본에서 이 파일이 바뀐 회차는 먼저
-#     `git checkout <SRC> -- .claude/skills/upstream-version-watch/scripts/sync_branches.sh`
-#   로 스크립트만 당겨온 뒤 실행한다. 그러면 메모리와 디스크가 같은 버전이 된다.
-#   (근본 처방은 relocation 검증을 checkout **앞**으로 옮기는 것 — 별건 후속.)
+#   **처방**: 위 §pre-flight 의 self-consistency 가드가 **불일치면 시작 자체를 막는다**(2026-08-20).
+#   그래서 이 지점에 도달했다면 메모리와 디스크는 이미 같은 버전이다.
+#   (검증을 checkout 앞으로 옮기지 않는 이유는 그 검증이 *materialized* 바이트를 보기 때문이다 —
+#    앞으로 옮기면 "복사가 실제로 제대로 내려앉았는가"라는 보장을 잃는다.)
 echo "[sync-branches] APPLY  $SRC_BRANCH → $DST_BRANCH (working-dir 갱신)"
 git checkout "$SRC_BRANCH" -- "${PATHS[@]}"
 # Git records only the executable bit; shared-repository umasks can materialize 0775.
