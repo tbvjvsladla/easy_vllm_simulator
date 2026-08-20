@@ -329,10 +329,21 @@ for p in "${ALLOWLIST[@]}"; do
         echo "[sync-branches] (skip) 정본 $SRC_BRANCH 에 없음: $p"
     fi
 done
-# docs skeletons + report artifacts (canonical tree enumeration, NUL-safe for all Git path bytes).
+# docs skeletons + report artifacts + 재현성 인증서 (canonical tree enumeration, NUL-safe).
+#
+# ★ `docs/benchmark/benchmark_*.yaml` (2026-08-20 추가 · plan_26082017 W2-b): 인증서가 tracked
+#   예외로 승격되면서 이 열거에 빠지면 **같은 침묵 누락이 네 번째**가 된다(선례: families.json ·
+#   HINT_ISSUANCE_CONTRACT.md · legacy_v1_pins.json · docs/report). hint 태그는 git **태그**라
+#   브랜치와 무관하게 존재하는데, 그 footer 의 `certificate_sha256` 이 가리키는 인증서가 한쪽
+#   브랜치에만 있으면 **수신자가 어느 브랜치를 체크아웃했느냐에 따라 증거 대조가 갈린다.**
+#
+# ⚠ 의도적 비대칭: 인증서는 MIRROR_DIRS 에 **넣지 않는다**. hints/·assets/ 와 달리 인증서는
+#   측정 시점에 고정되는 **append-only 증거**다. 미러로 만들면 정본에 없는 = 반대 브랜치가
+#   자기 환경에서 발행한 인증서가 동기화 때마다 삭제된다. 양방향 동기화를 거치며 두 브랜치가
+#   **합집합**으로 수렴하는 것이 옳다(유령 파일이 아니라 보존이다).
 while IFS= read -r -d '' f; do
     case "$f" in
-        docs/report/*|docs/*/example.md) PATHS+=("$f") ;;
+        docs/report/*|docs/*/example.md|docs/benchmark/benchmark_*.yaml) PATHS+=("$f") ;;
     esac
 done < <(git ls-tree -r -z --name-only "$SRC_BRANCH" -- docs/ 2>/dev/null)
 

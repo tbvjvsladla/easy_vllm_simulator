@@ -878,7 +878,12 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
     finally:
         os.close(repo_root_fd)
     if r_manifest["status"] != "ok":
-        problems.append(f"{tag}: HINT_EVIDENCE_MANIFEST_REF_UNSAFE_OR_MISSING manifest_ref "
+        # 부재(not_found)와 위험(symlink/escape/…)을 **가른다** — 부재는 "이 체크아웃에 증거가 없다"
+        # 이고, 수신자 클론에서는 그게 정상이다(증거는 배포되지 않는다). 같은 등급으로 묶으면
+        # 수신자 쪽에서 전량이 차단으로 읽혀 신호가 죽는다(plan_26082017 §10.4 · 사용자 결정 α).
+        _code = ("HINT_EVIDENCE_MANIFEST_REF_ABSENT" if r_manifest["status"] == "not_found"
+                 else "HINT_EVIDENCE_MANIFEST_REF_UNSAFE_OR_MISSING")
+        problems.append(f"{tag}: {_code} manifest_ref "
                          f"{footer['manifest_ref']!r} resolve 실패(status={r_manifest['status']})")
         return footer, problems  # nothing further can be checked without the manifest bytes
     if r_manifest["sha256"] != footer["manifest_sha256"]:
@@ -947,7 +952,9 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
         finally:
             os.close(repo_root_fd)
         if r_cert["status"] != "ok":
-            problems.append(f"{tag}: HINT_EVIDENCE_CERTIFICATE_UNSAFE_OR_MISSING certificate_ref "
+            _code = ("HINT_EVIDENCE_CERTIFICATE_REF_ABSENT" if r_cert["status"] == "not_found"
+                     else "HINT_EVIDENCE_CERTIFICATE_UNSAFE_OR_MISSING")
+            problems.append(f"{tag}: {_code} certificate_ref "
                              f"{footer['certificate_ref']!r} resolve 실패(status={r_cert['status']})")
         elif r_cert["sha256"] != footer["certificate_sha256"]:
             problems.append(f"{tag}: HINT_EVIDENCE_CERTIFICATE_SHA_MISMATCH {r_cert['sha256']} != {footer['certificate_sha256']}")
@@ -987,9 +994,15 @@ def cmd_verify(a: argparse.Namespace) -> int:
     # evidence-binding 분류는 classify_evidence_problems 단일 권위(계약 v2 §5).
     # verify 는 릴리즈 게이트이지만 v1 빈티지를 차단하지 않는다 — 그러면 신규 태그 발행이
     # 레거시 부채에 영구히 인질로 잡힌다(계약 §4). 변조는 여기서도 그대로 차단된다.
-    _ev_blocking, _ev_legacy, _ev_drift = classify_evidence_problems(
+    _ev_blocking, _ev_legacy, _ev_drift, _ev_unver = classify_evidence_problems(
         [(t, _validate_hint_tag_evidence(t, "hint_verify")[1]) for t in tags])
     problems.extend(_ev_blocking)
+    # 발행자 평면(verify=릴리즈 게이트)에서는 **부재도 차단**이다 — 발행자는 자기가 주장하는 증거를
+    # 갖고 있어야 한다. 수신자 평면(collect·reindex)에서만 부재를 경고로 낮춘다(사용자 결정 α).
+    problems.extend(f"{x}: HINT_EVIDENCE_REF_ABSENT 참조 증거가 이 체크아웃에 없다 — "
+                    "발행자는 증거를 보유해야 한다" for x in _ev_unver)
+    problems.extend(f"{x}: HINT_TAG_UNSEALED {_r}" for x in tags
+                    if (_r := unsealed_reason(x)))
     if _ev_legacy:
         print(f"[hint_tag] ⚠ v1 빈티지 {len(_ev_legacy)}개(footer 이전 · SHA 핀 일치) — 경고.",
               file=sys.stderr)
@@ -1202,6 +1215,42 @@ def _is_evidence_preserving_drift(tag: str, ev_problems: list, pins: dict) -> bo
 
 
 
+# 린터(L1–L5) 도입 시각. 이 시각 **이후** 발행분만 린트 준수를 강제한다 — 그 전에는 요구되지
+# 않았고 "부재가 곧 허위는 아니다"(계약 §4 소급 금지와 같은 논리). tripwire 상수이므로 바꾸려면
+# 리뷰가 필요하다. 근거: 린터 도입 커밋 daf63f3 = 2026-08-20T00:49:20Z (plan_26082009 D10).
+LINT_ERA_EFFECTIVE_EPOCH = 1787186960
+
+
+def _tagger_epoch(tag: str) -> int | None:
+    tok = git("for-each-ref", "--format=%(taggerdate:raw)", f"refs/tags/{tag}",
+              check=False).stdout.split()
+    try:
+        return int(tok[0])
+    except (IndexError, ValueError):
+        return None
+
+
+def unsealed_reason(tag: str) -> str | None:
+    """이 태그가 `seal` 산출물이 **아님**을 태그 오브젝트만으로 판정한다.
+
+    ★ 외부 파일이 필요 없다 — 그래서 **증거가 배포되지 않는 수신자 평면에서도 그대로 작동하는
+    유일한 검출기**다. digest 계열 검사는 증거 파일이 있어야 하므로 수신자에게는 항상 '부재'로
+    떨어진다(plan_26082017 §10.4). 손으로 만든 footer 는 digest 로는 못 잡아도 여기서 잡힌다:
+    `cmd_finalize` 가 lint_body 를 die 로 집행하므로, **린트를 못 넘는 본문은 seal 이 낸 것이
+    아니다.** 2026-08-20 실증(태그 4건)."""
+    ep = _tagger_epoch(tag)
+    if ep is None or ep < LINT_ERA_EFFECTIVE_EPOCH:
+        return None                                   # 린터 이전 발행분 — 소급하지 않는다
+    if git("cat-file", "-t", tag, check=False).stdout.strip() != "tag":
+        return "annotated 태그가 아니다 — hint 태그는 본문이 곧 페이로드다"
+    body = git("cat-file", "tag", tag, check=False).stdout.partition("\n\n")[2]
+    probs = lint_body(body)
+    if probs:
+        return (f"린트 위반 {len(probs)}건(예: {probs[0]}) — `seal` 은 이 본문으로 "
+                "태그를 만들지 않는다(=도구를 거치지 않았다)")
+    return None
+
+
 def classify_evidence_problems(per_tag: list) -> tuple:
     """계약 v2 §5 분류의 **단일 권위**. 입력 [(tag, ev_problems)] → (blocking[], legacy_warn[]).
 
@@ -1213,12 +1262,19 @@ def classify_evidence_problems(per_tag: list) -> tuple:
       missing + 핀 SHA 불일치 → blocking   (레거시를 손댔으면 v2 를 만족시켜라)
       missing + 핀 없음      → blocking   (v2 이후 신규는 footer 필수)
       forged / drifted       → blocking   (변조는 빈티지와 무관)
+      *_REF_ABSENT 만        → unverifiable (참조 파일이 이 체크아웃에 없다 — 수신자 평면에선 정상)
+
+    ★ `unverifiable` 은 "증거가 틀렸다"가 아니라 **"여기서는 대조할 수 없다"** 다. 증거(work-
+    manifest)는 배포되지 않으므로 수신자 클론에서는 사실상 전량이 여기 떨어진다. 이를 blocking 과
+    한 등급으로 묶으면 수신자 쪽 카탈로그가 통째로 경고가 되어 신호가 죽는다(plan_26082017 §10.4).
+    대신 도구 미경유는 `unsealed_reason()` 이 **파일 없이** 잡으므로 검출력은 유지된다.
     """
     pins = _load_legacy_v1_pins()
     drift_pins = _load_drift_pins()
     blocking: list = []
     legacy_warn: list = []
     drift_warn: list = []
+    unverifiable: list = []
     for tag, ev_problems in per_tag:
         if not ev_problems:
             continue
@@ -1239,8 +1295,11 @@ def classify_evidence_problems(per_tag: list) -> tuple:
         if _is_evidence_preserving_drift(tag, ev_problems, drift_pins):
             drift_warn.append(tag)          # 증거-보전 드리프트 · 등재분 (계약 §5 개정 2026-08-20)
             continue
+        if all("_REF_ABSENT" in p for p in ev_problems):
+            unverifiable.append(tag)        # 참조 파일 부재 only — 등급 분리(사용자 결정 α)
+            continue
         blocking.extend(ev_problems)
-    return blocking, legacy_warn, drift_warn
+    return blocking, legacy_warn, drift_warn, unverifiable
 
 
 def _load_legacy_v1_pins() -> dict:
@@ -1376,7 +1435,7 @@ def _require_all_hint_tags_evidence_valid(action: str, tags: list | None = None)
       - forged / drifted           → **차단 유지**(변조는 빈티지와 무관)
     """
     targets = tags if tags is not None else existing_hint_tags()
-    blocking, legacy_warn, drift_warn = classify_evidence_problems(
+    blocking, legacy_warn, drift_warn, unverifiable = classify_evidence_problems(
         [(t, _validate_hint_tag_evidence(t, action)[1]) for t in targets])
     if legacy_warn:
         print(f"[hint_tag] ⚠ v1 빈티지 {len(legacy_warn)}개는 evidence-binding footer 이전 태그다 "
@@ -1385,11 +1444,17 @@ def _require_all_hint_tags_evidence_valid(action: str, tags: list | None = None)
         print(f"[hint_tag] ⚠ 증거-보전 드리프트 {len(drift_warn)}개 — 발행 후 매니페스트가 승인된 편집으로 "
               f"바뀌었고 identity·certificate·판정은 보존됐다(등재: hints/evidence_drift_pins.json). "
               f"경고로만 통과시킨다.", file=sys.stderr)
+    # 배포 평면도 발행자 평면이다 — 부재/미봉인은 여기서 차단한다(사용자 결정 α의 경계).
+    blocking = list(blocking)
+    blocking += [f"{x}: HINT_EVIDENCE_REF_ABSENT 참조 증거가 이 체크아웃에 없다 — "
+                 "배포하려면 증거를 보유해야 한다" for x in unverifiable]
+    blocking += [f"{x}: HINT_TAG_UNSEALED {_r}" for x in targets if (_r := unsealed_reason(x))]
     if blocking:
         _die_binding(action, ["HINT_EVIDENCE_BINDING_INCOMPLETE"],
                      {"HINT_EVIDENCE_BINDING_INCOMPLETE":
-                      "one or more hint tags carry forged/drifted evidence, or a v2-era tag lacks "
-                      "its binding -- refusing (no partial rewrite/push):\n  " + "\n  ".join(blocking)},
+                      "one or more hint tags carry forged/drifted evidence, are unsealed (not a "
+                      "`seal` product), or a v2-era tag lacks its binding -- refusing (no partial "
+                      "rewrite/push):\n  " + "\n  ".join(blocking)},
                      None, None)
 
 
@@ -1481,9 +1546,21 @@ CENTRAL_MARKER = ROOT / "hints" / ".central_authority"
 def _require_central(action: str) -> None:
     if CENTRAL_MARKER.is_file():
         return
-    die(f"[hint_tag] FAIL: '{action}' 는 중앙(원 저장소) 전용이다 — `hints/.central_authority` 부재.\n"
-        f"        Contributor 는 `seal` 로 **로컬 태그까지만** 만들고 그 태그를 전달한다.\n"
-        f"        색인(index.json·HINTS.md)과 배포(push)는 중앙이 수행한다(plan_26082009 D8).")
+    # 안내가 막다른 길로 읽히면 사람도 에이전트도 우회를 택한다(workflow.md D5 · plan_26082017 W7).
+    # 종전 문구는 "중앙 전용이다"에서 끝나 **여는 법**을 말하지 않았고, 그 결과 배포받은 프로젝트가
+    # 맨 `git tag -a` + `git push` 로 돌아갔다(2026-08-20 실증). 처방을 함께 적는다.
+    die(f"[hint_tag] FAIL: '{action}' 는 **자기 원격의 색인·배포 권위**를 가진 체크아웃에서만 실행된다 "
+        f"— `hints/.central_authority` 부재.\n"
+        f"        ▸ 이 체크아웃이 **자기 원격**(origin)의 hint 카탈로그를 소유한다면 권위를 선언하라:\n"
+        f"            printf '%s\\n' '이 체크아웃이 자기 원격의 hint 색인·배포 권위다.' "
+        f"> hints/.central_authority\n"
+        f"          (비추적이다 — 배포본에 실리지 않으므로 **각 저장소가 스스로** 선언해야 한다.\n"
+        f"           선언은 권한이자 책임이다: 그 원격의 index.json·HINTS.md 정합을 떠안는다.)\n"
+        f"        ▸ 이 체크아웃이 **상류에 기여**하는 입장이라면 `seal` 로 로컬 태그까지만 만들고\n"
+        f"          그 태그를 상류에 전달하라. 색인·배포는 상류가 한다.\n"
+        f"        ▸ 어느 쪽도 아니면 **우회하지 말고** 어느 쪽인지부터 정하라 — 맨 `git tag -a` +\n"
+        f"          `git push` 로 만든 태그는 증거 바인딩이 없어 수신자에게 `unbound` 로 격리된다.\n"
+        f"        (근거: plan_26082009 D8 · plan_26082017 §4.2 W2-a)")
 
 
 def cmd_index(a: argparse.Namespace) -> int:
@@ -1493,7 +1570,14 @@ def cmd_index(a: argparse.Namespace) -> int:
     tags = existing_hint_tags()
     if a.tag not in tags:
         die(f"[hint_tag] FAIL: 로컬에 없는 태그: {a.tag}")
-    body = git("cat-file", "-p", a.tag).stdout
+    # `-p` 는 오브젝트 **전문**(object/type/tag/tagger 헤더 포함)을 준다 — 그걸 body 로 넘기면
+    # _brief_of 가 첫 줄 `object <sha>` 를 brief 로 집는다(2026-08-20 실측 7/48 파손).
+    # 헤더/본문 분리는 `_parse_tag_body`·PII 스캔이 쓰는 관용구를 그대로 재사용한다.
+    typ = git("cat-file", "-t", a.tag).stdout.strip()
+    if typ != "tag":
+        die(f"[hint_tag] FAIL: annotated 태그가 아니다(type={typ}): {a.tag}\n"
+            f"        hint 태그는 `seal` 이 만든 annotated 태그여야 한다(본문이 곧 페이로드다).")
+    _, _, body = git("cat-file", "tag", a.tag).stdout.partition("\n\n")
     _, vllm, model, arch = a.tag.split("/")
     fm = dict(re.findall(r"^(\w+):\s*(.+)$", body, re.M))
     topology = a.topology or fm.get("topology", "")
@@ -1694,11 +1778,84 @@ def cmd_collect(a: argparse.Namespace) -> int:
     print(f"\n  {'vLLM':<8} {'arch':<26} {'SD':<18} tag")
     for e in rows:
         sd = _sd_brief(fam.get("tag_sd", {}).get(e["tag"]))
-        print(f"  {e['vllm']:<8} {e['arch']:<26} {sd:<18} {e['tag']}")
+        mark = {"unbound": "  ⚠unbound", "unverifiable": "  ⓘ대조불가"}.get(e.get("status"), "")
+        print(f"  {e['vllm']:<8} {e['arch']:<26} {sd:<18} {e['tag']}{mark}")
+    # 격리분을 조용히 섞어 내보내면 수신자가 근거로 쓴다(plan_26082017 R2). 소리 내어 구분한다.
+    unv = [e for e in rows if e.get("status") == "unverifiable"]
+    if unv:
+        print(f"\n  ⓘ 위 {len(unv)}종은 **대조 불가(unverifiable)** 다 — 증거 파일이 배포되지 않아"
+              "\n    이 클론에서 digest 를 맞춰볼 수 없을 뿐, 결함이라는 뜻은 아니다. 평소대로 쓰되"
+              "\n    **네 환경에서 재검증**하라(원래도 그게 규칙이다).")
+    unb = [e for e in rows if e.get("status") == "unbound"]
+    if unb:
+        print(f"\n  ⚠ 위 {len(unb)}종은 **증거 바인딩 불량(unbound)** 이다 — 발행 도구를 거치지 않았거나"
+              "\n    바인딩이 해소되지 않는다. **서빙전략 근거로 쓰지 마라**(수치의 출처를 확인할 수 없다).")
+        for e in unb:
+            print(f"      - {e['tag']}: {e.get('unbound_reason', '(사유 미기록)')}")
     print(f"\n  총 {len(rows)}종 — **시간축이다**: 뒤 항목이 앞 항목을 안티패턴으로 만들 수 있다.")
     print("  판정은 네가 한다(발행자는 관계를 적지 않는다). 본문:")
     print("     git tag -l --format='%(contents)' <tag> > seed/hints/<name>.md")
     return 0
+
+# ── orphans (수집 가능성 대사 · read-only · ungated) ─────────────────────────
+def cmd_orphans(a: argparse.Namespace) -> int:
+    """태그 ↔ index.json ↔ families.json 3중 대사. **수집 가능성의 단일 권위**다.
+
+    `collect` 는 결정론을 위해 index+families 만 읽는다(git 오브젝트를 열지 않는다). 그래서 거기
+    없는 태그는 **침묵 누락**된다 — 수신자 로컬에 오브젝트가 있어도 존재하지 않는 것과 같다.
+    2026-08-20 실증: `hint/0.27.1/*` 2건이 원격에 있고 fetch 도 됐는데 `collect` 에 안 잡혔다.
+    이 명령은 그 침묵을 소리로 바꾼다 — 발행자가 계약 §1 의 유일한 의무(**빠짐없는 수집**)를
+    지켰는지 확인하는 자리다.
+
+    슬러그 대조는 `resolve_family` 와 같은 `_norm_slug` 를 쓴다(철자 갈림으로 인한 위양성 차단).
+    """
+    tags = set(existing_hint_tags())
+    idx, fam = _load_index(), _load_families()
+    indexed = {e["tag"] for e in idx.get("hints", [])}
+    fam_members = {m["slug"] for f in fam.get("families", {}).values() for m in f.get("members", [])}
+    fam_norm = {_norm_slug(s) for s in fam_members}
+    tag_slug_of = {}
+    for tg in tags:
+        tag_slug_of.setdefault(tg.split("/")[2], []).append(tg)
+
+    findings: list[tuple[str, list[str]]] = [
+        ("태그에 있는데 색인에 없음 — `collect` 에 안 잡힌다", sorted(tags - indexed)),
+        ("색인에 있는데 로컬 태그가 없음 — 미배포이거나 fetch 안 됨", sorted(indexed - tags)),
+        ("태그 슬러그가 family 미등재 — family 해소가 안 된다",
+         sorted(s for s in tag_slug_of if _norm_slug(s) not in fam_norm)),
+        ("family 멤버인데 그 슬러그의 태그가 없음",
+         sorted(s for s in fam_members
+                if _norm_slug(s) not in {_norm_slug(x) for x in tag_slug_of})),
+    ]
+    if a.remote:
+        ls = git("ls-remote", "--tags", a.remote, check=False)
+        if ls.returncode != 0:
+            print(f"  ⚠ 원격 대사 생략 — `git ls-remote {a.remote}` 실패(네트워크/권한). "
+                  "로컬 대사만 보고한다.", file=sys.stderr)
+        else:
+            remote = {ln.split("refs/tags/", 1)[1] for ln in ls.stdout.splitlines()
+                      if "refs/tags/hint/" in ln and not ln.rstrip().endswith("^{}")}
+            findings += [
+                (f"원격({a.remote})에만 있음 — fetch 하면 보인다", sorted(remote - tags)),
+                (f"로컬에만 있음 — 아직 {a.remote} 로 push 되지 않았다", sorted(tags - remote)),
+            ]
+
+    print(f"[orphans] 로컬 태그 {len(tags)} · 색인 {len(indexed)} · family 슬러그 {len(fam_members)}")
+    total = 0
+    for title, items in findings:
+        if not items:
+            continue
+        total += len(items)
+        print(f"\n  ✗ {title} ({len(items)})")
+        for x in items:
+            print(f"     - {x}")
+    if total == 0:
+        print("\n  ✓ 대사 일치 — 모든 태그가 수집 가능하다.")
+        return 0
+    print(f"\n  총 {total} 건 — 색인 편입은 `index --tag <tag> [--topology …]`, "
+          "family 등재는 `bootstrap_families.py --write` 다.")
+    return 1
+
 
 # ── reverify (currency 스탬프) ────────────────────────────────────────────────
 def cmd_reverify(a: argparse.Namespace) -> int:
@@ -1717,7 +1874,7 @@ def cmd_reverify(a: argparse.Namespace) -> int:
     _footer, ev_problems = _validate_hint_tag_evidence(a.tag, "hint_reverify")
     # 단일 대상이지만 분류는 동일 권위를 쓴다 — v1 빈티지 태그의 currency 스탬프 갱신까지
     # 막을 이유가 없다(계약 §4). forged/drifted 는 여기서도 그대로 차단된다.
-    _blocking, _legacy, _drift = classify_evidence_problems([(a.tag, ev_problems)])
+    _blocking, _legacy, _drift, _unver = classify_evidence_problems([(a.tag, ev_problems)])
     if _legacy:
         print(f"[hint_tag] ⚠ {a.tag} 는 v1 빈티지(footer 이전 · SHA 핀 일치) — 경고로 통과.",
               file=sys.stderr)
@@ -1756,17 +1913,44 @@ def cmd_reindex(a: argparse.Namespace) -> int:
             footers[t] = footer
         per_tag.append((t, ev_problems))
     # 분류는 classify_evidence_problems 단일 권위(계약 v2 §5) — 여기서 복제하지 않는다.
-    problems, legacy_warn, drift_warn = classify_evidence_problems(per_tag)
+    problems, legacy_warn, drift_warn, unverifiable = classify_evidence_problems(per_tag)
     if legacy_warn:
         print(f"[hint_tag] ⚠ v1 빈티지 {len(legacy_warn)}개는 footer 이전 태그다(계약 §4 · SHA 핀 일치). "
               "인덱스에는 포함하되 경고로만 통과시킨다.", file=sys.stderr)
-    if problems:
+    # 태그별 귀속 — 같은 단일 권위(classify_evidence_problems)를 태그 하나씩 다시 태운다.
+    # 메시지 문자열을 파싱해 태그를 캐내지 않는다(포맷이 바뀌면 조용히 어긋난다).
+    unbound_why: dict[str, str] = {}
+    unver_why: dict[str, str] = {}
+    for _t, _ev in per_tag:
+        _b, _l, _d, _u = classify_evidence_problems([(_t, _ev)])
+        _uns = unsealed_reason(_t)                      # 파일 불요 — 수신자 평면에서도 작동한다
+        if _b or _uns:
+            # 사유 문자열에는 태그를 넣지 않는다 — 소비처(collect)가 이미 태그를 찍으므로
+            # 그대로 두면 이름이 두 번 나온다.
+            _why = _b[0] if _b else f"HINT_TAG_UNSEALED {_uns}"
+            unbound_why[_t] = _why[len(_t) + 2:] if _why.startswith(f"{_t}: ") else _why
+        elif _u:
+            unver_why[_t] = ("참조 증거가 이 체크아웃에 없다 — 여기서는 대조 불가"
+                             "(증거는 배포되지 않는다. 발행자 평면에서 확인해야 한다)")
+    if problems and a.strict:
         _die_binding("hint_reindex", ["HINT_EVIDENCE_BINDING_INCOMPLETE"],
                      {"HINT_EVIDENCE_BINDING_INCOMPLETE":
                       "one or more hint tags carry forged/drifted evidence, or a v2-era tag lacks "
                       "its binding -- refusing (no partial rewrite):\n  " + "\n  ".join(problems)
                       + _legacy_remedy_hint(problems)},
                      None, None)
+    if unbound_why:
+        # 격리(plan_26082017 §4.3 (a) · 2026-08-20 사용자 결정): 전량 차단은 무결한 나머지의
+        # 갱신까지 인질로 잡는다. 대신 **침묵 배제 금지** — 여기서 열거하고, index 에
+        # status="unbound" 로 박고, collect 가 경고와 함께 보여준다.
+        print(f"[hint_tag] ⚠ 증거 바인딩 불량 {len(unbound_why)}건을 **격리**한다 "
+              f"(status=unbound · 색인에는 남지만 근거로 쓰지 마라):", file=sys.stderr)
+        for _t in sorted(unbound_why):
+            print(f"    - {_t}\n        {unbound_why[_t]}", file=sys.stderr)
+        print("    → 전량 차단을 원하면 `reindex --strict`.", file=sys.stderr)
+    if unver_why:
+        print(f"[hint_tag] ⓘ 대조 불가 {len(unver_why)}건 (status=unverifiable · **차단 아님**) — "
+              "증거가 이 체크아웃에 없을 뿐이다.", file=sys.stderr)
     idx = _load_index()
     prev = {e["tag"]: e for e in idx["hints"]}
     hints = []
@@ -1776,18 +1960,29 @@ def cmd_reindex(a: argparse.Namespace) -> int:
         # 보장했기에 footers[t] 를 무조건 인덱싱했고, v2 에서 레거시가 통과하게 되자
         # KeyError 로 죽었다. footer 부재 시 기존 인덱스 항목(prev)에서 승계한다 —
         # 그 값들은 v1 시절 finalize 가 기록해둔 것이라 날조가 아니다.
-        footer = footers.get(t)
+        # 격리 대상은 **footer 를 신뢰하지 않는다** — 바인딩이 불량이라고 판정한 그 footer 에서
+        # topology/anchor 를 다시 읽으면 불량분을 정본으로 승격시키는 셈이다. 태그 오브젝트
+        # 자체(본문·rev-list)에서만 재구성한다.
+        is_unbound = t in unbound_why
+        is_unver = t in unver_why
+        footer = None if is_unbound else footers.get(t)
         brief, _old_topology, related = _parse_tag_body(t)
         p = prev.get(t, {})
         e = {
             "tag": t, "vllm": vllm, "model": model, "arch": arch,
             "topology": (footer or {}).get("topology") or p.get("topology") or _old_topology or "",
             "brief": brief or p.get("brief", ""),
-            "anchor": (footer or {}).get("anchor") or p.get("anchor") or "",
+            "anchor": ((footer or {}).get("anchor") or p.get("anchor")
+                       or git("rev-list", "-n", "1", t).stdout.strip()),
             "related": p.get("related") or related,  # 큐레이트(finalize) 우선, 없으면 본문 파싱
-            "status": p.get("status", "active"),
+            "status": ("unbound" if is_unbound else
+                       "unverifiable" if is_unver else p.get("status", "active")),
             "last_verified": p.get("last_verified", date.today().isoformat()),
         }
+        if is_unbound:
+            e["unbound_reason"] = unbound_why[t]
+        elif is_unver:
+            e["unbound_reason"] = unver_why[t]
         if p.get("superseded_by"):
             e["superseded_by"] = p["superseded_by"]
         hints.append(e)
@@ -1878,12 +2073,20 @@ def main() -> int:
     co.add_argument("--json", action="store_true", help="기계판독 출력")
     co.set_defaults(fn=cmd_collect)
 
+    orp = sub.add_parser("orphans",
+                         help="태그↔index↔families 3중 대사(수집 가능성) -- read-only, ungated")
+    orp.add_argument("--remote", nargs="?", const="origin", default=None,
+                     help="원격까지 대사(기본 origin). 네트워크를 쓴다")
+    orp.set_defaults(fn=cmd_orphans)
+
     r = sub.add_parser("reverify", help="핀 자산 reachability + last_verified 스탬프")
     r.add_argument("--tag", required=True)
     r.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
     r.set_defaults(fn=cmd_reverify)
 
     ri = sub.add_parser("reindex", help="전 hint 태그에서 index.json+HINTS.md 재생성(브랜치 드리프트 정합·currency 보존)")
+    ri.add_argument("--strict", action="store_true",
+                    help="증거 바인딩 불량이 하나라도 있으면 전량 차단(옛 동작). 기본은 격리+경고")
     ri.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
     ri.set_defaults(fn=cmd_reindex)
 

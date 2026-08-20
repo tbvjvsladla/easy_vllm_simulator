@@ -1,0 +1,50 @@
+# ⚠ CARRY-FORWARD 재검증 필수 — 이건 '그때-그 환경' 한정 측정이다(지도≠정답). 소비 전 재확인하라.
+#   강한 일치 키(model/gpu/vllm/quant/topology/tp): 정확일치 실패 시 이 인증서 무효.
+#   소프트 지문(driver/cuda/image/max-len/kv-bytes/gmu/moe): 불일치 시 stale — 재측정 권고.
+#   발행 = full 모드 verdict==PASS 시만(결정론 publish_benchmark_record.py · inform-record).
+schema_version: 1
+record_type: benchmark_certificate
+verdict: PASS
+
+# --- 강한 일치 키 (정확일치 필요) ---
+model: laguna-s-2.1-fp8
+gpu_model: "NVIDIA GB10"
+vllm_version: 0.26.0
+quantization: N/A
+topology: multi
+tensor_parallel_size: 2
+
+# --- 소프트 지문 (불일치 시 stale 경고) ---
+driver_version: 580.159.03
+cuda_version: 132
+image_tag: "easy-vllm:0.26.0-cu132-aarch64-source"
+max_model_len: 1048576
+max_num_seqs: 32
+kv_cache_memory_bytes: 23622320128
+kv_cache_dtype: auto
+gpu_memory_utilization: 0.85
+moe_backend: triton
+enforce_eager: N/A
+ngc_base_tag: N/A
+
+# --- 검증 결과(인증서 본문) ---
+benchmark_mode: full
+decode_tps_conc1: 28.16
+primary_source: expected_achievable(roofline×MBU)
+primary_tps: 15.33
+floor_tps: 13.03
+tolerance: 0.15
+ratio_M_over_primary: 1.837
+e_search: no
+spec_on: false
+accept_len: N/A
+sweep_levels: 1,2,4
+sweep_truncated: N/A
+lite_included: true
+lite_gen_tps_warm: 28.46
+lite_gen_src: median_tpot
+lite_cold_ttft_ms: 1257.1
+lite_kv_gib: 22.0
+lite_gpu_occupancy: "~79.0 GiB (serve-log 분해; nvidia-smi N/A)"
+lite_ram_occupancy: "94.9 GiB (78%)"
+measured_utc: "2026-08-02T01:00:35Z"
