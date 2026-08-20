@@ -506,6 +506,30 @@
       "last_verified": "2026-08-11"
     },
     {
+      "tag": "hint/0.27.0/gemma-4-e2b-it/gb10x2",
+      "vllm": "0.27.0",
+      "model": "gemma-4-e2b-it",
+      "arch": "gb10x2",
+      "topology": "multi 2노드 TP2",
+      "brief": "<!-- ⚠ 절 헤딩(`## 1.` ~ `## 7.`)을 **지우지 마라** — `hint_tag seal` 의 린터 L1 이 fail-closed 로",
+      "anchor": "3ea023b837052cfca59b87dc748915eb74a06490",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-08-20"
+    },
+    {
+      "tag": "hint/0.27.0/gemma-4-e4b-it/gb10x2",
+      "vllm": "0.27.0",
+      "model": "gemma-4-e4b-it",
+      "arch": "gb10x2",
+      "topology": "multi 2노드 TP2",
+      "brief": "<!-- ⚠ 절 헤딩(`## 1.` ~ `## 7.`)을 **지우지 마라** — `hint_tag seal` 의 린터 L1 이 fail-closed 로",
+      "anchor": "3ea023b837052cfca59b87dc748915eb74a06490",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-08-20"
+    },
+    {
       "tag": "hint/0.27.0/hy3/gb10x2",
       "vllm": "0.27.0",
       "model": "hy3",
@@ -586,6 +610,30 @@
       "brief": "object d564a8ae18b5abcc0b35a862e66bc8967155ddd1",
       "anchor": "d564a8ae18b5abcc0b35a862e66bc8967155ddd1",
       "related": "hint/0.27.0/hy3/gb10x2",
+      "status": "active",
+      "last_verified": "2026-08-20"
+    },
+    {
+      "tag": "hint/0.27.0/lfm2.5-2.6b/gb10x2",
+      "vllm": "0.27.0",
+      "model": "lfm2.5-2.6b",
+      "arch": "gb10x2",
+      "topology": "multi 2노드 TP2",
+      "brief": "<!-- ⚠ 절 헤딩(`## 1.` ~ `## 7.`)을 **지우지 마라** — `hint_tag seal` 의 린터 L1 이 fail-closed 로",
+      "anchor": "3ea023b837052cfca59b87dc748915eb74a06490",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-08-20"
+    },
+    {
+      "tag": "hint/0.27.0/qwen3-4b/gb10x2",
+      "vllm": "0.27.0",
+      "model": "qwen3-4b",
+      "arch": "gb10x2",
+      "topology": "multi 2노드 TP2",
+      "brief": "<!-- ⚠ 절 헤딩(`## 1.` ~ `## 7.`)을 **지우지 마라** — `hint_tag seal` 의 린터 L1 이 fail-closed 로",
+      "anchor": "3ea023b837052cfca59b87dc748915eb74a06490",
+      "related": "",
       "status": "active",
       "last_verified": "2026-08-20"
     }

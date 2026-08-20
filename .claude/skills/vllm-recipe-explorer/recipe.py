@@ -349,13 +349,26 @@ def _guard_tp(tp, repo_root):
 
 
 def _guard_kv_heads(parsed, tp):
-    """가드: num_key_value_heads 가 tp 로 나눠떨어지지 않으면 비0종료(KV-head 비분할 — vLLM serve 즉사 조기탐지)."""
+    """가드: KV head 가 tp 에 분배 불가능하면 비0종료(KV-head 비분할 — vLLM serve 즉사 조기탐지).
+
+    kvh >= tp: kvh 가 tp 로 나눠떨어져야 한다(각 rank 가 kvh/tp 개씩 보유).
+    kvh <  tp: **vLLM 은 GQA/MQA 에서 kvh 를 tp 로 복제한다**(kvh=1 극단GQA — 예 gemma-4 계열 —
+      포함) — tp 가 kvh 로 나눠떨어지면 유효(각 rank 가 kvh 의 복제본 하나씩 보유, replication
+      factor=tp/kvh). 2026-08-20 실증: gemma-4-E2B-it(kvh=1) 이 실제 TP=2 Ray 서빙 PASS
+      (testlog_26081408 §1·§6, X3 4/4 성립) — 이전 버전은 kvh%tp 단방향만 검사해 이 유효 조합을
+      오탐 거부했다(vLLM 실동작과 불일치).
+    """
     kvh = parsed.get("num_key_value_heads")
     try:
-        if kvh and tp and int(kvh) % int(tp) != 0:
-            _die("num_key_value_heads=%s 가 tp=%d 로 나눠떨어지지 않음(KV-head 비분할) — tp 조정 필요." % (kvh, tp), code=6)
+        kvh_i, tp_i = int(kvh), int(tp)
     except (TypeError, ValueError):
-        pass
+        return
+    if not kvh_i or not tp_i:
+        return
+    divisible = (kvh_i % tp_i == 0) if kvh_i >= tp_i else (tp_i % kvh_i == 0)
+    if not divisible:
+        _die("num_key_value_heads=%s 가 tp=%d 와 상호 분배 불가(양방향 나눗셈 모두 비정수) — "
+             "tp 조정 필요." % (kvh, tp), code=6)
 
 
 def output_root(repo_root):
