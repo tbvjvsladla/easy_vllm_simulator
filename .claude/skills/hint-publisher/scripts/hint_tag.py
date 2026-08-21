@@ -762,10 +762,20 @@ def cmd_finalize(a: argparse.Namespace) -> int:
 
     # The tag message = original recipe body + footer, streamed via stdin (`-F -`) -- the source
     # recipe FILE on disk is never rewritten (design requirement: finalize must not mutate it).
+    # --cleanup=verbatim is REQUIRED: git's default cleanup ('strip') silently drops every line
+    # starting with '#' -- which is every '## N. <heading>' section marker this template mandates
+    # (lint_body's L1 checks). Without this flag, `git tag -a -F -` strips all section headings
+    # from the resulting tag object even though lint_body validated them present in `body` --
+    # discovered 2026-08-20 when hint_tag push's own re-validation (against the actual tag body,
+    # not the source recipe file) rejected a freshly-finalized tag for missing '## 1. 벽 지도' that
+    # was plainly present in the recipe on disk. Root-caused via `git --version` sandbox repro
+    # (git 2.43.0: `git tag -a -F -` with '## heading' input drops the heading line). This is the
+    # same defect the template's own header comment misattributed to authors not following the
+    # template ("발행된 49/49 태그에 헤딩이 0개") -- it was this git default the whole time.
     env = dict(os.environ, GIT_COMMITTER_NAME=tname, GIT_COMMITTER_EMAIL=temail)
     tag_message = (body if body.endswith("\n") else body + "\n") + "\n" + footer_text
     git("-c", f"user.name={tname}", "-c", f"user.email={temail}",
-        "tag", "-a", a.tag, anchor, "-F", "-", env=env, input_text=tag_message)
+        "tag", "-a", a.tag, anchor, "-F", "-", "--cleanup=verbatim", env=env, input_text=tag_message)
     print(f"[hint_tag] tagged {a.tag} → {anchor[:12]}  (tagger {tname} <{temail}>)")
 
     if getattr(a, "no_index", False):
