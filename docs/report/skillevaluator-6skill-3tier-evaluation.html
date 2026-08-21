@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6-Skill 3-Tier Evaluation — NVIDIA SkillEvaluator 0.2.0</title>
+<style>
+:root{
+  --ground:#f4f7f7;
+  --surface:#ffffff;
+  --surface-2:#eaf0f0;
+  --ink:#0e1518;
+  --ink-2:#41545a;
+  --ink-3:#6d8085;
+  --rule:#d5dfe0;
+  --rule-strong:#b6c6c8;
+  --accent:#15656d;
+  --accent-soft:#dfeced;
+  --crit:#9d2b25;
+  --high:#a8571c;
+  --med:#7d6613;
+  --low:#5a6d72;
+  --pass:#256349;
+  --crit-bg:#f6e4e2;
+  --high-bg:#f8ebdd;
+  --med-bg:#f4f0da;
+  --low-bg:#e8eeef;
+  --pass-bg:#dfeee6;
+  --shadow:0 1px 0 rgba(14,21,24,.05), 0 2px 10px rgba(14,21,24,.05);
+
+  /* self-contained: system stacks only -- docs/report/ ships without a font host */
+  --display:system-ui,-apple-system,"Segoe UI Semibold","Pretendard","Noto Sans KR",sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,"Pretendard","Noto Sans KR",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"D2Coding",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0c1214;
+    --surface:#121b1e;
+    --surface-2:#182427;
+    --ink:#e4ecec;
+    --ink-2:#a7bcbf;
+    --ink-3:#7d9498;
+    --rule:#243437;
+    --rule-strong:#33484c;
+    --accent:#54b3ba;
+    --accent-soft:#12312f;
+    --crit:#e8837a;
+    --high:#e0a163;
+    --med:#cbbb62;
+    --low:#8ba3a8;
+    --pass:#68bd95;
+    --crit-bg:#2c1917;
+    --high-bg:#2b2015;
+    --med-bg:#272414;
+    --low-bg:#1a2528;
+    --pass-bg:#152a22;
+    --shadow:0 1px 0 rgba(0,0,0,.3), 0 2px 12px rgba(0,0,0,.28);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0c1214;
+  --surface:#121b1e;
+  --surface-2:#182427;
+  --ink:#e4ecec;
+  --ink-2:#a7bcbf;
+  --ink-3:#7d9498;
+  --rule:#243437;
+  --rule-strong:#33484c;
+  --accent:#54b3ba;
+  --accent-soft:#12312f;
+  --crit:#e8837a;
+  --high:#e0a163;
+  --med:#cbbb62;
+  --low:#8ba3a8;
+  --pass:#68bd95;
+  --crit-bg:#2c1917;
+  --high-bg:#2b2015;
+  --med-bg:#272414;
+  --low-bg:#1a2528;
+  --pass-bg:#152a22;
+  --shadow:0 1px 0 rgba(0,0,0,.3), 0 2px 12px rgba(0,0,0,.28);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--body);
+  font-weight:400;
+  font-size:16px;
+  line-height:1.68;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px 96px}
+.col{max-width:70ch}
+h1,h2,h3{text-wrap:balance;margin:0}
+a{color:var(--accent);text-underline-offset:2px}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+code{font-family:var(--mono);font-size:.88em;background:var(--surface-2);padding:.1em .34em;border-radius:3px}
+
+/* ── masthead ─────────────────────────────── */
+.mast{padding:56px 0 28px;border-bottom:2px solid var(--ink)}
+.eyebrow{
+  font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 18px
+}
+h1{
+  font-family:var(--display);font-weight:700;letter-spacing:-.02em;
+  font-size:clamp(38px,7vw,68px);line-height:1.02;margin-bottom:16px
+}
+.standfirst{font-size:clamp(16px,2vw,19px);color:var(--ink-2);max-width:62ch;line-height:1.6}
+.provenance{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:1px;background:var(--rule);border:1px solid var(--rule);
+  margin-top:32px
+}
+.provenance div{background:var(--ground);padding:12px 14px}
+.provenance dt{
+  font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 4px
+}
+.provenance dd{margin:0;font-family:var(--mono);font-size:13px;color:var(--ink);word-break:break-word}
+
+/* ── verdict banner ───────────────────────── */
+.verdict{
+  margin:40px 0 0;border:1px solid var(--rule-strong);background:var(--surface);
+  box-shadow:var(--shadow);padding:24px 26px;
+  display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:start
+}
+.verdict .stamp{
+  font-family:var(--display);font-weight:700;font-size:13px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ground);background:var(--ink);
+  padding:6px 12px;white-space:nowrap
+}
+.verdict p{margin:0;font-size:15.5px;color:var(--ink-2)}
+.verdict strong{color:var(--ink);font-weight:600}
+
+/* ── tier sections ────────────────────────── */
+section{margin-top:72px;scroll-margin-top:24px}
+.sec-head{display:flex;align-items:baseline;gap:16px;border-bottom:1px solid var(--rule-strong);padding-bottom:10px;margin-bottom:26px;flex-wrap:wrap}
+.tier-mark{
+  font-family:var(--display);font-weight:700;font-size:13px;letter-spacing:.1em;
+  color:var(--accent);border:1px solid var(--accent);padding:2px 8px;white-space:nowrap
+}
+h2{font-family:var(--display);font-weight:700;font-size:clamp(24px,3.6vw,34px);letter-spacing:-.015em;line-height:1.12}
+.sec-head .note{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--ink-3);letter-spacing:.04em}
+h3{
+  font-family:var(--display);font-weight:600;font-size:19px;letter-spacing:-.005em;
+  margin:38px 0 12px;color:var(--ink)
+}
+p{margin:0 0 16px}
+.col p:last-child{margin-bottom:0}
+
+/* ── data slabs ───────────────────────────── */
+.slab{margin:28px 0;border:1px solid var(--rule);background:var(--surface);box-shadow:var(--shadow)}
+.slab-cap{
+  font-family:var(--mono);font-size:11px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ink-3);padding:11px 16px;border-bottom:1px solid var(--rule);background:var(--surface-2)
+}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{padding:9px 14px;text-align:left;border-bottom:1px solid var(--rule);vertical-align:baseline}
+th{
+  font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3);white-space:nowrap
+}
+tbody tr:last-child td{border-bottom:none}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.skillname{font-family:var(--mono);font-size:13px;white-space:nowrap}
+tfoot td{font-weight:600;border-top:2px solid var(--rule-strong);background:var(--surface-2)}
+
+/* severity chips */
+.chip{
+  display:inline-block;font-family:var(--mono);font-size:11px;font-weight:500;
+  padding:1px 7px;border-left:3px solid currentColor;white-space:nowrap
+}
+.c-crit{color:var(--crit);background:var(--crit-bg)}
+.c-high{color:var(--high);background:var(--high-bg)}
+.c-med{color:var(--med);background:var(--med-bg)}
+.c-low{color:var(--low);background:var(--low-bg)}
+.c-pass{color:var(--pass);background:var(--pass-bg)}
+.zero{color:var(--ink-3);opacity:.55}
+
+/* grade pill */
+.grade{
+  font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:.06em;
+  border:1px solid var(--rule-strong);padding:1px 7px;color:var(--ink-2)
+}
+
+/* ── delta bars ───────────────────────────── */
+.bars{display:grid;gap:2px;padding:16px}
+.barrow{display:grid;grid-template-columns:minmax(140px,1.1fr) minmax(180px,2fr) 62px;gap:14px;align-items:center;font-size:13px}
+.barrow .lbl{font-family:var(--mono);font-size:12.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{position:relative;height:16px;background:var(--surface-2);border-left:1px solid var(--rule-strong)}
+.track.diverge{border-left:none}
+.track.diverge::before{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--rule-strong)}
+.fill{position:absolute;top:2px;bottom:2px;background:var(--accent)}
+.fill.neg{background:var(--crit)}
+.barrow .val{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;font-size:12.5px;color:var(--ink)}
+
+/* ── ledger / callouts ────────────────────── */
+.ledger{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin:28px 0}
+.ledger div{background:var(--surface);padding:18px 18px 16px}
+.ledger .big{font-family:var(--display);font-weight:700;font-size:38px;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ledger .lab{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-top:8px}
+.ledger .sub{font-size:13px;color:var(--ink-2);margin-top:6px;line-height:1.45}
+
+.callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:16px 20px;margin:26px 0;font-size:15px}
+.callout p{margin:0 0 10px}
+.callout p:last-child{margin:0}
+.callout .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:8px;font-weight:600}
+.callout.warn{border-left-color:var(--high);background:var(--high-bg)}
+.callout.warn .tag{color:var(--high)}
+
+ul,ol{margin:0 0 16px;padding-left:22px}
+li{margin-bottom:9px}
+li::marker{color:var(--ink-3)}
+.fp-list{list-style:none;padding:0}
+.fp-list li{
+  display:grid;grid-template-columns:minmax(120px,auto) 1fr;gap:14px;
+  padding:10px 0;border-bottom:1px solid var(--rule);margin:0;align-items:baseline
+}
+.fp-list li:last-child{border-bottom:none}
+.fp-list .tok{font-family:var(--mono);font-size:12.5px;color:var(--ink);word-break:break-all}
+.fp-list .why{font-size:14px;color:var(--ink-2)}
+
+details{border:1px solid var(--rule);background:var(--surface);margin:20px 0}
+summary{
+  cursor:pointer;padding:12px 16px;font-family:var(--mono);font-size:12px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);list-style-position:inside
+}
+details[open] summary{border-bottom:1px solid var(--rule)}
+details .body{padding:16px}
+pre{
+  font-family:var(--mono);font-size:12.5px;line-height:1.62;background:var(--surface-2);
+  border:1px solid var(--rule);padding:14px 16px;overflow-x:auto;margin:0 0 14px
+}
+pre:last-child{margin-bottom:0}
+
+footer{margin-top:80px;border-top:2px solid var(--ink);padding-top:22px;font-size:13.5px;color:var(--ink-3)}
+footer p{margin:0 0 8px}
+
+@media (max-width:640px){
+  .verdict{grid-template-columns:1fr;gap:14px}
+  .barrow{grid-template-columns:1fr;gap:4px}
+  .barrow .val{text-align:left}
+  .fp-list li{grid-template-columns:1fr;gap:3px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">NVIDIA SkillEvaluator 0.2.0 · Tier 1–3 완주</p>
+  <h1>vLLM 스킬 3티어 감사</h1>
+  <p class="standfirst">
+    easy-vllm-simulator 의 6개 에이전트 스킬을 정적 게이트 · 의미 중복 · 라이브 에이전트 평가
+    전 구간에 통과시킨 결과. 도구가 올린 385건 중 무엇이 진짜였고, 무엇이 우리 규율이
+    작동하고 있다는 증거였는지를 가른다.
+  </p>
+  <dl class="provenance">
+    <div><dt>실행일</dt><dd>2026-08-21 KST</dd></div>
+    <div><dt>호스트</dt><dd>GB10 aarch64 · Ubuntu 24.04</dd></div>
+    <div><dt>정책 프로파일</dt><dd>external (공개배포)</dd></div>
+    <div><dt>평가 LLM</dt><dd>openai / gpt-5.6-sol</dd></div>
+    <div><dt>피험 에이전트</dt><dd>claude-code / claude-sonnet-5</dd></div>
+    <div><dt>샌드박스</dt><dd>Docker · 8 GiB · 동시성 1</dd></div>
+    <div><dt>격리</dt><dd>전량 <code>temp/</code> 내부 · 스킬은 사본</dd></div>
+    <div><dt>메인 오염</dt><dd>0 (git status 클린)</dd></div>
+  </dl>
+</header>
+
+<div class="verdict">
+  <span class="stamp">종합 판정</span>
+  <p>
+    <strong>배포 가능성에 걸린 결함은 없다.</strong> 진성 PII 0건, 시크릿 0건, 의존성 취약점 0건이고
+    라이브 평가에서 6종 전부 baseline 대비 <strong>overall lift 가 양수</strong>였다. 다만 <strong>스펙 적합성은
+    6종 전부 미달</strong>이며(frontmatter 필수 메타 부재), 검증을 통과한 보안 지적 93건 중 71건이
+    <strong>“description 이 패키지의 실제 파괴력을 밝히지 않는다”</strong>는 한 계열로 수렴한다.
+  </p>
+</div>
+
+<!-- ══════════════ TIER 1 ══════════════ -->
+<section id="tier1">
+  <div class="sec-head">
+    <span class="tier-mark">TIER 1</span>
+    <h2>정적 게이트 · 보안 · 품질</h2>
+    <span class="note">6/6 FAIL · exit 1</span>
+  </div>
+
+  <div class="col">
+    <p>
+      스캐너 3종(semgrep · SkillSpector · gitleaks)을 전부 붙여 증거 결손 없이 돌린 뒤,
+      LLM 2차 검증을 붙여 위양성을 걸러냈다. 두 패스를 나눈 이유는 단순하다 — 스캐너 없이 돌리면
+      상태가 <code>incomplete</code> 로 나와 <em>통과했는지 아닌지를 말할 수 없고</em>, 검증 없이 돌리면
+      패턴 매치가 그대로 판정이 되기 때문이다.
+    </p>
+  </div>
+
+  <div class="ledger">
+    <div>
+      <div class="big">385</div>
+      <div class="lab">정적 스캔 지적</div>
+      <div class="sub">스캐너 3종 완비 · 증거 결손 0</div>
+    </div>
+    <div>
+      <div class="big" style="color:var(--pass)">166</div>
+      <div class="lab">위양성 강등</div>
+      <div class="sub">LLM 2차 검증이 <code>info</code> 로 내림</div>
+    </div>
+    <div>
+      <div class="big" style="color:var(--crit)">3</div>
+      <div class="lab">잔존 CRITICAL</div>
+      <div class="sub">전부 terraforming_node · 전부 실재</div>
+    </div>
+    <div>
+      <div class="big">0</div>
+      <div class="lab">진성 PII · 시크릿</div>
+      <div class="sub">PII 14건 전량 위양성 확정</div>
+    </div>
+  </div>
+
+  <div class="slab">
+    <div class="slab-cap">스킬별 판정 — 정적 → LLM 검증 후</div>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>스킬</th><th class="num">품질</th><th>등급</th><th class="num">토큰</th>
+            <th class="num">정적</th><th class="num">강등</th>
+            <th class="num">CRIT</th><th class="num">HIGH</th><th class="num">MED</th><th class="num">LOW</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="skillname">wiki-desk</td><td class="num">80.2</td><td><span class="grade">B</span></td><td class="num">2,798</td><td class="num">26</td><td class="num">1</td><td class="num zero">0</td><td class="num"><span class="chip c-high">2</span></td><td class="num"><span class="chip c-med">14</span></td><td class="num"><span class="chip c-low">17</span></td></tr>
+          <tr><td class="skillname">adversarial-benchmark</td><td class="num">77.2</td><td><span class="grade">C</span></td><td class="num">2,347</td><td class="num">28</td><td class="num">2</td><td class="num zero">0</td><td class="num"><span class="chip c-high">6</span></td><td class="num"><span class="chip c-med">11</span></td><td class="num"><span class="chip c-low">17</span></td></tr>
+          <tr><td class="skillname">vllm-recipe-explorer</td><td class="num">77.2</td><td><span class="grade">C</span></td><td class="num">2,428</td><td class="num">70</td><td class="num">16</td><td class="num zero">0</td><td class="num"><span class="chip c-high">12</span></td><td class="num"><span class="chip c-med">29</span></td><td class="num"><span class="chip c-low">32</span></td></tr>
+          <tr><td class="skillname">upstream-version-watch</td><td class="num">76.0</td><td><span class="grade">C</span></td><td class="num">2,209</td><td class="num">93</td><td class="num">45</td><td class="num zero">0</td><td class="num"><span class="chip c-high">32</span></td><td class="num"><span class="chip c-med">27</span></td><td class="num"><span class="chip c-low">24</span></td></tr>
+          <tr><td class="skillname">hint-publisher</td><td class="num">75.0</td><td><span class="grade">C</span></td><td class="num">1,402</td><td class="num">30</td><td class="num">12</td><td class="num zero">0</td><td class="num"><span class="chip c-high">4</span></td><td class="num"><span class="chip c-med">13</span></td><td class="num"><span class="chip c-low">7</span></td></tr>
+          <tr><td class="skillname">terraforming_node</td><td class="num">71.5</td><td><span class="grade">C</span></td><td class="num">8,049</td><td class="num">138</td><td class="num">90</td><td class="num"><span class="chip c-crit">3</span></td><td class="num"><span class="chip c-high">42</span></td><td class="num"><span class="chip c-med">46</span></td><td class="num"><span class="chip c-low">10</span></td></tr>
+        </tbody>
+        <tfoot>
+          <tr><td>합계</td><td class="num">76.2</td><td>—</td><td class="num">19,233</td><td class="num">385</td><td class="num">166</td><td class="num">3</td><td class="num">98</td><td class="num">140</td><td class="num">107</td></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="col">
+    <p>
+      권장 상한은 SKILL.md 당 5,000 토큰이다. <code>terraforming_node</code> 의 8,049 토큰이 유일한
+      초과이며, 이 스킬은 뒤에 나올 Tier 3 에서도 유일하게 스크립트가 한 번도 실행되지 않았다 —
+      두 신호가 같은 곳을 가리킨다.
+    </p>
+  </div>
+
+  <h3>PII 14건은 전부 위양성이었다 — 그리고 그게 결과다</h3>
+  <div class="col">
+    <p>
+      단 하나의 CRITICAL 도 위양성이었다. 커널 크래시 주소를 신용카드 번호로 읽은 것이다.
+      나머지도 성격이 같다. 우리가 <em>정확히 규정대로</em> 예약 대역과 예약 TLD 를 써 왔기 때문에
+      일반 스캐너의 화이트리스트에 걸린 것이다.
+    </p>
+  </div>
+
+  <div class="slab">
+    <div class="slab-cap">위양성 원인 분류 — 14/14</div>
+    <div class="body" style="padding:4px 16px">
+      <ul class="fp-list">
+        <li><span class="tok">00000000-00000000</span><span class="why"><span class="chip c-crit">CRITICAL</span> 커널 크래시 주소 → 신용카드 번호로 오독</span></li>
+        <li><span class="tok">203.0.113.x · 198.51.100.x</span><span class="why">RFC 5737 문서용 예약 대역. 스캐너는 RFC1918 만 화이트리스트한다</span></li>
+        <li><span class="tok">8.8.8.8</span><span class="why">egress 점검용 공개 게이트웨이 기본값 — 운영자 네트워크와 무관</span></li>
+        <li><span class="tok">…@easy-vllm.invalid</span><span class="why">RFC 2606 예약 TLD. 도달 불가 주소가 목적이다</span></li>
+        <li><span class="tok">…@easy-vllm.local</span><span class="why">동상 — <code>.local</code> 은 라우팅되지 않는다</span></li>
+        <li><span class="tok">13.3.1.008 · 13.1.1.006</span><span class="why">CUDA 버전 문자열 → IPv4 로 오독</span></li>
+        <li><span class="tok">2.13.0a0+9186a08</span><span class="why">torch 빌드 문자열 → 국제전화번호로 오독</span></li>
+        <li><span class="tok">+0900</span><span class="why">KST 오프셋 → 국제전화번호로 오독</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout">
+    <span class="tag">읽는 법</span>
+    <p>
+      이 결과는 <code>docs.md</code> 의 4종 PII 게이트가 <strong>실제로 집행되고 있다</strong>는 외부 확증이다.
+      스캐너가 걸어온 것은 “유출된 실값”이 아니라 “유출을 피하려고 쓴 예약 자원”이었다.
+    </p>
+  </div>
+
+  <h3>검증을 통과한 93건은 한 문장으로 요약된다</h3>
+  <div class="col">
+    <p>
+      LLM 검증을 살아남은 high/critical 93건 중 <strong>71건이 SDI-1/SDI-2</strong>(Skill Description
+      Inconsistency) 한 계열이고, 6개 중 5개 스킬의 SKILL.md 에 <strong>TP4</strong>(Tool Poisoning)가
+      하나씩 붙었다. 요지는 동일하다 — <em>발동 메타데이터가 패키지의 실제 권한을 밝히지 않는다.</em>
+    </p>
+  </div>
+
+  <div class="slab">
+    <div class="slab-cap">잔존 지적의 대표 사례</div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>등급</th><th>위치</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="chip c-crit">CRIT</span></td>
+            <td class="skillname">purge_host_safety.sh</td>
+            <td>“온보딩 오케스트레이터”로 소개된 스킬이 root 로 OOM 보호 · kdump · netconsole · 방화벽 규칙을 제거한다. description 에 그 권한이 없다</td>
+          </tr>
+          <tr>
+            <td><span class="chip c-crit">CRIT</span></td>
+            <td class="skillname">mem_watchdog_eta.sh:231</td>
+            <td>armed 모드가 기본 <code>@vllm</code> 셀렉터로 <code>docker kill</code> 을 자율 실행 — 이름에 <code>vllm</code> 이 든 <em>모든</em> 컨테이너가 사정권</td>
+          </tr>
+          <tr>
+            <td><span class="chip c-high">HIGH</span></td>
+            <td class="skillname">max_envelope.sh</td>
+            <td>SKILL.md 는 “실서빙을 기동하지 않는다”고 선언하지만 Max 경로가 serving 설정을 reload 한다</td>
+          </tr>
+          <tr>
+            <td><span class="chip c-high">HIGH</span></td>
+            <td class="skillname">lite_bench.sh:78</td>
+            <td><code>--trust-remote-code</code> 를 무조건 전달 — 모델 경로가 설정에서 오므로 커스텀 토크나이저 코드가 컨테이너 안에서 실행될 수 있다</td>
+          </tr>
+          <tr>
+            <td><span class="chip c-high">HIGH</span></td>
+            <td class="skillname">run_trial.py</td>
+            <td><code>--ipc host</code> 특권 옵션. 의도된 것이지만 미공개 권한이다 (Tier 3 의 socket 접근과 같은 뿌리)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <span class="tag">되짚을 것</span>
+    <p>
+      <code>mem_watchdog_eta.sh</code> 의 <code>@vllm</code> 광역 셀렉터는 우리가 이미 겪은 사고와 구조가
+      같다 — 정상 로드를 가드가 4초 만에 사살했던 그 사건이다. 도구가 코드만 보고 같은 위험을
+      독립적으로 재발견했다.
+    </p>
+  </div>
+
+  <h3>스펙 적합성 — 6종 전부 미달</h3>
+  <div class="col">
+    <p>
+      이건 논쟁의 여지가 없는, 그리고 가장 싸게 고칠 수 있는 항목이다. 6개 스킬 전부 frontmatter 에
+      <code>name</code> 과 <code>description</code> 밖에 없다.
+    </p>
+    <ul>
+      <li><strong>6/6</strong> — <code>version</code> · <code>metadata.author</code> · <code>metadata.tags</code> · <code>allowed-tools</code> 부재
+        <span class="chip c-high">HIGH</span> (external 프로파일에서 author 부재는 HIGH 로 승격된다)</li>
+      <li><strong>terraforming_node</strong> — 이름이 snake_case. agentskills.io 는 kebab-case 를 요구한다</li>
+      <li><strong>hint-publisher</strong> — description 의 <code>hint/&lt;vllm&gt;/&lt;model&gt;/&lt;arch&gt;</code> 가 XML 태그로 파싱돼 스키마가 거부한다</li>
+      <li><strong>6/6</strong> — <code>## Instructions</code> · <code>## Examples</code> · <code>## Purpose</code> · 전제조건 · 한계 · 트러블슈팅 섹션 부재</li>
+      <li><strong>23건</strong> — 스킬 루트의 비규격 파일(<code>config.yaml</code> · <code>fixtures/</code> · <code>templates/</code> · <code>lockset*.json</code>)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ══════════════ TIER 2 ══════════════ -->
+<section id="tier2">
+  <div class="sec-head">
+    <span class="tier-mark">TIER 2</span>
+    <h2>의미 중복 검출</h2>
+    <span class="note">스킬 간 PASS · 스킬 내 5/6 FAIL</span>
+  </div>
+
+  <div class="col">
+    <p>
+      두 축을 따로 봐야 한다. <strong>스킬 간</strong> 중복은 라우팅 문제이고, <strong>스킬 내</strong> 중복은
+      유지보수 문제다. 우리 결과는 정확히 갈렸다.
+    </p>
+  </div>
+
+  <h3>발동 표면은 깨끗하다</h3>
+  <div class="col">
+    <p>
+      description 임베딩은 <strong>임계 0.55 에서도 충돌 0건</strong>이다. 에이전트가 6개 중 어느 스킬을
+      부를지 고민할 여지가 없다는 뜻이고, 이건 스킬 셋에서 가장 중요한 성질이다.
+    </p>
+    <p>
+      반면 full-body 임베딩은 5개 vLLM 스킬이 서로 0.80–0.88 로 뭉친다. 같은 한국어 도메인 산문과
+      manifest · HITL · policy 어휘를 공유하기 때문이다. <code>wiki-desk</code> 만 0.61–0.66 으로 떨어져
+      나오는데, 영어이고 사서 도메인이라 그렇다.
+    </p>
+  </div>
+
+  <div class="slab">
+    <div class="slab-cap">full-body 유사도 — 상위 페어</div>
+    <div class="bars">
+      <div class="barrow"><span class="lbl">upstream-watch ↔ recipe-explorer</span><span class="track"><span class="fill" style="left:0;width:87.7%"></span></span><span class="val">0.877</span></div>
+      <div class="barrow"><span class="lbl">adv-benchmark ↔ recipe-explorer</span><span class="track"><span class="fill" style="left:0;width:86.3%"></span></span><span class="val">0.863</span></div>
+      <div class="barrow"><span class="lbl">terraforming ↔ recipe-explorer</span><span class="track"><span class="fill" style="left:0;width:83.8%"></span></span><span class="val">0.838</span></div>
+      <div class="barrow"><span class="lbl">adv-benchmark ↔ upstream-watch</span><span class="track"><span class="fill" style="left:0;width:83.0%"></span></span><span class="val">0.830</span></div>
+      <div class="barrow"><span class="lbl">hint-publisher ↔ upstream-watch</span><span class="track"><span class="fill" style="left:0;width:80.4%"></span></span><span class="val">0.804</span></div>
+      <div class="barrow"><span class="lbl">upstream-watch ↔ wiki-desk</span><span class="track"><span class="fill" style="left:0;width:66.0%;background:var(--ink-3)"></span></span><span class="val">0.660</span></div>
+      <div class="barrow"><span class="lbl">hint-publisher ↔ wiki-desk</span><span class="track"><span class="fill" style="left:0;width:61.3%;background:var(--ink-3)"></span></span><span class="val">0.613</span></div>
+    </div>
+  </div>
+
+  <h3>스킬 내부 중복 — 개념이 두 곳에 손으로 적혀 있다</h3>
+  <div class="col">
+    <p>
+      이쪽은 우리 <code>workflow.md</code> 의 <em>“개념 중복은 단일 소유로 승격한다”</em> 규율에 그대로
+      걸린다. 도구가 술어 실패 대신 임베딩으로 같은 것을 찾아냈다.
+    </p>
+  </div>
+
+  <div class="slab">
+    <div class="slab-cap">검출된 이중 소유</div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>중복 단위</th><th>위치</th><th>스킬</th></tr></thead>
+        <tbody>
+          <tr><td class="skillname">_resolve_sub_host_from_manifest()</td><td>fetch_sub_docs.sh ↔ sync_to_sub.sh</td><td>upstream-version-watch</td></tr>
+          <tr><td class="skillname">_resolve_sub_work_dir_from_manifest()</td><td>fetch_sub_docs.sh ↔ sync_to_sub.sh</td><td>upstream-version-watch</td></tr>
+          <tr><td class="skillname">_mf_node()</td><td>multinode_comms_smoke.sh ↔ multinode_serve_smoke.sh</td><td>upstream-version-watch</td></tr>
+          <tr><td class="skillname">targets()</td><td>mem_watchdog.sh ↔ mem_watchdog_eta.sh</td><td>terraforming_node</td></tr>
+          <tr><td class="skillname">_find_repo()</td><td>4개 스크립트에 복제</td><td>terraforming_node</td></tr>
+          <tr><td class="skillname">파일명 규칙</td><td>devlog · plan · testlog 스켈레톤 3종에 각자 복사</td><td>terraforming_node</td></tr>
+          <tr><td class="skillname">push-attestation 절</td><td>CLAUDE.template.md ↔ comms.md</td><td>terraforming_node</td></tr>
+          <tr><td class="skillname">§3 측정 절차</td><td>rubric-and-lenses.md ↔ run_bench.sh 헤더</td><td>adversarial-benchmark</td></tr>
+          <tr><td class="skillname">§3 교차검증 루틴</td><td>parse-and-crosscheck.md ↔ crosscheck_model_card.py</td><td>vllm-recipe-explorer</td></tr>
+          <tr><td class="skillname">Constitution exclusion</td><td>INIT_GUIDE.md ↔ hierarchy-map.md</td><td>wiki-desk</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="col">
+    <p>
+      <code>hint-publisher</code> 만 중복 0건으로 통과했다. <code>targets()</code> 이중 소유는 특히
+      되짚을 값어치가 있다 — 두 워치독이 같은 함수를 각자 갖고 있으니, 한쪽에서 얻은 교훈이
+      다른 쪽으로 건너가지 않는 구조가 코드에 박혀 있다는 뜻이다.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════ TIER 3 ══════════════ -->
+<section id="tier3">
+  <div class="sec-head">
+    <span class="tier-mark">TIER 3</span>
+    <h2>라이브 에이전트 평가</h2>
+    <span class="note">24케이스 · 48시행 · 6/6 lift 양수</span>
+  </div>
+
+  <div class="col">
+    <p>
+      스킬당 4개 케이스를 합성해 <code>claude-code</code>(Sonnet 5)를 Docker 샌드박스에서
+      <strong>스킬 있음 / 없음</strong> 대조로 돌렸다. 상주 서빙은 규정 경로
+      <code>multinode_serve_smoke.sh lfm25-x2 --down</code> 으로 먼저 회수했다.
+    </p>
+  </div>
+
+  <div class="slab">
+    <div class="slab-cap">overall lift — with-skill 대비 baseline</div>
+    <div class="bars">
+      <div class="barrow"><span class="lbl">upstream-version-watch</span><span class="track"><span class="fill" style="left:0;width:97.6%"></span></span><span class="val">+0.244</span></div>
+      <div class="barrow"><span class="lbl">hint-publisher</span><span class="track"><span class="fill" style="left:0;width:80.4%"></span></span><span class="val">+0.201</span></div>
+      <div class="barrow"><span class="lbl">wiki-desk</span><span class="track"><span class="fill" style="left:0;width:70.6%"></span></span><span class="val">+0.177</span></div>
+      <div class="barrow"><span class="lbl">adversarial-benchmark</span><span class="track"><span class="fill" style="left:0;width:56.4%"></span></span><span class="val">+0.141</span></div>
+      <div class="barrow"><span class="lbl">vllm-recipe-explorer</span><span class="track"><span class="fill" style="left:0;width:53.6%"></span></span><span class="val">+0.134</span></div>
+      <div class="barrow"><span class="lbl">terraforming_node</span><span class="track"><span class="fill" style="left:0;width:35.6%"></span></span><span class="val">+0.089</span></div>
+    </div>
+  </div>
+
+  <div class="slab">
+    <div class="slab-cap">지표별 with-skill / baseline</div>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>스킬</th><th class="num">overall</th><th class="num">실행</th><th class="num">효율</th><th class="num">정확도</th><th class="num">목표달성</th><th class="num">보안</th><th class="num">커버리지</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="skillname">upstream-version-watch</td><td class="num">0.83 / 0.58</td><td class="num">0.89 / 0.38</td><td class="num">0.99 / 0.40</td><td class="num">0.80 / 0.65</td><td class="num">0.56 / 0.48</td><td class="num">1.00 / 1.00</td><td class="num"><span class="chip c-high">3/4</span></td></tr>
+          <tr><td class="skillname">wiki-desk</td><td class="num">0.71 / 0.54</td><td class="num">0.83 / 0.43</td><td class="num">1.00 / 0.50</td><td class="num">0.70 / 0.60</td><td class="num">0.35 / 0.29</td><td class="num">1.00 / 1.00</td><td class="num"><span class="chip c-pass">4/4</span></td></tr>
+          <tr><td class="skillname">hint-publisher</td><td class="num">0.69 / 0.49</td><td class="num">0.86 / 0.38</td><td class="num">0.98 / 0.44</td><td class="num">0.55 / 0.50</td><td class="num">0.32 / 0.25</td><td class="num">1.00 / 1.00</td><td class="num"><span class="chip c-pass">4/4</span></td></tr>
+          <tr><td class="skillname">adversarial-benchmark</td><td class="num">0.69 / 0.55</td><td class="num">0.91 / 0.42</td><td class="num">0.97 / 0.62</td><td class="num">0.70 / 0.65</td><td class="num">0.38 / 0.31</td><td class="num">0.88 / 0.88</td><td class="num"><span class="chip c-pass">4/4</span></td></tr>
+          <tr><td class="skillname">vllm-recipe-explorer</td><td class="num">0.65 / 0.52</td><td class="num">0.73 / 0.44</td><td class="num">0.96 / 0.47</td><td class="num">0.75 / 0.60</td><td class="num">0.36 / 0.25</td><td class="num"><span class="chip c-high">0.75 / 1.00</span></td><td class="num"><span class="chip c-pass">4/4</span></td></tr>
+          <tr><td class="skillname">terraforming_node</td><td class="num">0.50 / 0.42</td><td class="num">0.25 / 0.25</td><td class="num">0.25 / 0.25</td><td class="num">0.65 / 0.40</td><td class="num">0.25 / 0.05</td><td class="num">1.00 / 1.00</td><td class="num"><span class="chip c-pass">4/4</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="col">
+    <p>
+      가장 크게 움직이는 축은 일관되게 <strong>실행</strong>(+0.30–0.51)과 <strong>효율</strong>(+0.34–0.59)이다.
+      스킬을 주면 에이전트가 문서를 정해진 순서로 읽고 스크립트를 옳게 호출하고, 라우팅을 헤매지 않는다.
+      반대로 <strong>목표달성은 +0.06–0.11</strong> 에 그친다 — 샌드박스에는 스킬 폴더만 들어가고
+      repo · manifest · GPU · docker 가 없어 실제 실행이 불가능하기 때문이다. 이 축은 액면대로 읽으면 안 된다.
+    </p>
+  </div>
+
+  <h3>세 개의 예외가 각각 다른 것을 말한다</h3>
+
+  <div class="callout warn">
+    <span class="tag">① recipe-explorer · 보안 1.00 → 0.75</span>
+    <p>
+      스킬을 줬을 때만 안전 점수가 내려간 유일한 사례다. 원인은 에이전트가
+      <code>ls -la /var/run/docker.sock</code> 과 <code>sudo docker ps -a</code> 를 실행한 것 —
+      채점기가 “권한 밖 민감 경로 접근”으로 판정했고 <strong>스킬 기인</strong>으로 귀속했다.
+      실제 악용은 아니지만 귀속 자체는 정당하다: 이 스킬의 워크플로가 Docker 소켓을 전제한다.
+      Tier 1 의 <code>--ipc host</code> 지적과 같은 뿌리다.
+    </p>
+  </div>
+
+  <div class="callout">
+    <span class="tag">② adversarial-benchmark · behavior_check −0.10</span>
+    <p>
+      스킬을 받은 에이전트는 <strong>fail-closed 로 올바르게 중단</strong>했다 — serve 가 떠 있지 않고
+      테라포밍 Flag 도 없으니 측정하지 않겠다고 보고했다. 채점기는 이를 “과제 미해결”로 읽었다.
+      같은 실행에서 <em>baseline 은 위험한 행동을 했고 with-skill 은 하지 않아</em>
+      “스킬이 안전을 개선했을 수 있음”으로 귀속됐다. 즉 <strong>감점의 원인과 가점의 원인이 같은 행동</strong>이다.
+      일반 루브릭이 우리 게이트 규율을 실패로 읽는 구조적 한계다.
+    </p>
+  </div>
+
+  <div class="callout warn">
+    <span class="tag">③ terraforming_node · 실행·효율 0.25 고정</span>
+    <p>
+      유일하게 <strong>스킬을 줘도 스크립트를 한 번도 실행하지 않은</strong> 스킬이다. 두 지표가
+      baseline 과 완전히 동일하게 붙어 있다. 8,049 토큰 SKILL.md 라는 Tier 1 지적과 같은 곳을 가리킨다 —
+      문서가 커서 에이전트가 실행 경로까지 도달하지 못한다. 다만 정확도(+0.25)와 목표달성(+0.20)은
+      6종 중 가장 크게 올랐다. <em>읽히기는 하는데 실행되지는 않는다.</em>
+    </p>
+  </div>
+
+  <div class="col">
+    <p>
+      <code>upstream-version-watch</code> 는 커버리지 3/4 다. 케이스 001 의 with-skill 시행이 300초
+      타임아웃으로 죽었는데 원인은 시간이 아니라 <strong>샌드박스 안에서 GitHub 업스트림 조회가 404</strong> 였다.
+      이 스킬은 본질적으로 온라인 업스트림을 전제하므로 네트워크가 막힌 샌드박스에서는 절반만 검증된다.
+      그럼에도 lift 는 6종 중 최고다.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════ 도구 결함 ══════════════ -->
+<section id="tooling">
+  <div class="sec-head">
+    <span class="tier-mark">부록 A</span>
+    <h2>SkillEvaluator 자체 결함 2건</h2>
+    <span class="note">temp 클론에서만 수정</span>
+  </div>
+
+  <div class="col">
+    <p>
+      둘 다 고치지 않았으면 <strong>결과가 조용히 틀렸을</strong> 종류다. 수정은 전부
+      <code>temp/SkillEvaluator/src</code> 안에만 있고 주석으로 표시해 두었다.
+    </p>
+  </div>
+
+  <div class="slab">
+    <div class="slab-cap">수정 내역</div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>상수</th><th>기본값 → 사용값</th><th>고치지 않았다면</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="skillname">LLM_VERIFY_MAX_TOKENS<br><span style="color:var(--ink-3);font-size:11px">constants.py:305</span></td>
+            <td class="num">512 → 16,384</td>
+            <td>추론 모델의 사고 토큰이 512 를 다 먹어 응답이 <em>빈 문자열</em>로 돌아온다. 6종 전부
+              <code>no verdicts returned</code> 로 조용히 실패했고, 그 결과 <strong>위양성 166건이 전부 진성으로 남았다</strong></td>
+          </tr>
+          <tr>
+            <td class="skillname">MAX_SCALAR_COMPARISONS<br><span style="color:var(--ink-3);font-size:11px">registry.py:61 · intra_skill_validator.py:40</span></td>
+            <td class="num">25M → 500M</td>
+            <td>청크² × 차원이 상한을 넘으면 CRITICAL 로 중단한다. <code>terraforming_node</code>(268청크) ·
+              <code>upstream-version-watch</code>(245청크) 두 스킬은 <strong>측정 자체가 불가능</strong>했다 —
+              위 이중 소유 표의 절반이 이 상한 뒤에 숨어 있었다</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="col">
+    <p>
+      상류에 보고할 값어치가 있는 것은 첫 번째다. 두 번째는 의도된 비용 상한일 수 있으나,
+      <em>실패 모드가 CRITICAL 지적</em>이라 “스킬이 위험하다”와 “도구가 못 재겠다”가 구분되지 않는다.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════ 재현 ══════════════ -->
+<section id="repro">
+  <div class="sec-head">
+    <span class="tier-mark">부록 B</span>
+    <h2>재현 절차</h2>
+    <span class="note">전량 temp/ 격리</span>
+  </div>
+
+  <div class="col">
+    <p>
+      전역 <code>uv tool install</code> 을 쓰지 않았다. 세 도구가 각자 venv 를 갖고
+      <code>temp/bin</code> 심링크로만 만난다. 평가 대상은 <code>.claude/skills</code> 의 사본이라
+      원본에는 쓰기가 한 번도 일어나지 않았다.
+    </p>
+  </div>
+
+  <details>
+    <summary>환경 구성</summary>
+    <div class="body">
+<pre>temp/
+├── SkillEvaluator/.venv     uv sync --extra all         (754 MB)
+├── SkillSpector/.venv       uv pip install .            (211 MB)
+├── bin/                     gitleaks arm64 + 심링크 2   ( 20 MB)
+└── skilleval-run/           사본 · 리포트 · 스크립트     ( 19 MB)</pre>
+<pre>cd temp/SkillEvaluator && uv sync --extra all
+cd temp/SkillSpector  && uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python .
+curl -sSL .../gitleaks_8.30.1_linux_arm64.tar.gz | tar -xz -C temp/bin gitleaks
+ln -sf temp/SkillEvaluator/.venv/bin/semgrep      temp/bin/semgrep
+ln -sf temp/SkillSpector/.venv/bin/skillspector   temp/bin/skillspector</pre>
+    </div>
+  </details>
+
+  <details>
+    <summary>티어별 실행</summary>
+    <div class="body">
+<pre># Tier 1 — 정적 + LLM 검증
+skillevaluator validate ./skills/&lt;name&gt; --tiers 1 --llm --llm-verify -c \
+  -r json -o reports/t1-llm-fixed/&lt;name&gt;
+
+# Tier 2 — 스킬 간 / 스킬 내
+skillevaluator similarity-check ./skills --full-body --threshold 0.55
+skillevaluator context-optimization-check ./skills/&lt;name&gt;
+
+# Tier 3 — 라이브 (상주 서빙 회수 후)
+bash .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh lfm25-x2 --down
+skillevaluator create-eval-dataset ./skills/&lt;name&gt; --full
+skillevaluator tier3 evaluate ./skills/&lt;name&gt; --agents claude-code --env-mode docker \
+  --agent-model claude-code=claude-sonnet-5 --n-concurrent 1 --override-memory-mb 8192</pre>
+    </div>
+  </details>
+
+  <details>
+    <summary>격리 검증</summary>
+    <div class="body">
+<pre>$ git status --porcelain
+                                    (출력 없음)
+$ git diff --stat HEAD -- .claude/skills
+                                    (출력 없음)
+$ ls docs/logs/*/serve_budget.env
+No such file or directory           (양 노드 예산 선언 회수 완료)
+$ git check-ignore -v temp
+.gitignore:224:temp/   temp</pre>
+    </div>
+  </details>
+</section>
+
+<footer>
+  <p>
+    산출물 원본 — <code>temp/skilleval-run/reports/</code> ·
+    Tier 1 <code>full-t1</code>(정적) / <code>t1-llm-fixed</code>(검증) ·
+    Tier 2 <code>tier2/</code> · Tier 3 <code>tier3/&lt;skill&gt;/…/report.html</code>
+  </p>
+  <p>
+    측정 = SkillEvaluator 0.2.0 (결정론 스캐너 + LLM 판정) · 판정 맥락 = external 프로파일 ·
+    GB10 aarch64 · 2026-08-21 KST. 라이브 평가의 목표달성 축은 샌드박스에 repo·GPU·docker 가
+    없다는 전제 아래에서만 유효하다.
+  </p>
+</footer>
+
+</div>
+</body>
+</html>
