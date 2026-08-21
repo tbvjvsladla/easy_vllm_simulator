@@ -36,13 +36,15 @@
 FROM nvcr.io/nvidia/pytorch:26.07-py3
 
 # ── torch핀 가드 (render-time: 검증된 핀=주석 / 미인식=빌드 실패. 카탈로그 codify는 P6) ──
-RUN echo "[guard] source-build key (26.07-py3 x vLLM 0.27.0): validated patch set ((ngc_base x vllm_version) keyed) — proceeding."
+RUN echo "WARN: source-build key (26.07-py3 x vLLM 0.27.1) is UNVALIDATED — attempt-build under HITL override (--allow-unvalidated)." && \
+    echo "  -> arbiter = smoke (workflow S3). REQUIRED: record this attempt in docs/testlog/." && \
+    echo "  -> on smoke PASS: codify the key into VALIDATED_SOURCE_BUILD_KEYS (SKILL.md §4.6)."
 
 # VLLM_REPO/VLLM_REF: 빌드-arg 파라미터화 — 기본 = stock(vllm-project). 콤보 env 가 오버라이드해
 #   같은 Dockerfile 로 포크 변종을 빌드한다(arch-wall 사다리의 `소스-repo 오버라이드` 칸).
 #   좌표의 거처는 `.claude/policies/arch_variant_ledger.json`(Band2) — workflow.md §변종 좌표의 거처.
 ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
-ARG VLLM_REF=v0.27.0
+ARG VLLM_REF=v0.27.1
 ARG TORCH_CUDA_ARCH=12.1a
 ARG BUILD_JOBS=16
 

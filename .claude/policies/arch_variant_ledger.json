@@ -71,6 +71,36 @@
         ]
       },
       "status": "CANDIDATE — 양노드 이미지 빌드 완료(2026-08-15) · **서빙 스모크 PASS · full 벤치 PASS**(재실행 decode 37.05 t/s @동시성1 · 인증서 docs/benchmark/benchmark_26081519_ds4f0731-x2-fork_GB10_0.27.0.yaml 발행). ⚠ **대조군으로서 역할을 다했고 채택하지 않는다**(testlog_26081519 §7): @1 은 R2 와 동률(+0.49% ≪ 런간 분산 6.8~7.3%)이고 @2·@4 는 두 쌍 독립으로 R2 우위다. 포크 핀은 force-push 노출과 setuptools_scm 벽을 추가로 지므로, 성능이 동률이면 앞 칸(자체 이식)이 이긴다 — `policy:ARCH_WALL_VARIANT_LADDER` 의 정면 실증이다. 이 항목은 그 대조 이력으로 보존한다."
+    },
+    "deepseek-v4-flash-sm12x-port-0.27.1": {
+      "variant_id": "source-sm12x-port-vllm-0.27.1",
+      "architecture": "sm12x",
+      "track": "source-sm12x-port",
+      "_track_note": "**자체 이식**(arch-wall 사다리 3번째 칸)이다 — 포크를 핀하지 않는다. vllm_repo/vllm_ref 는 stock 그대로이고, 변종성은 전적으로 build_patch_selectors 가 만든다. `deepseek-v4-flash-sm12x-port-0.27.0` 의 **상류 재베이스본**이며 이식 결정(resolutions)은 재사용, 좌표만 v0.27.0→v0.27.1 로 옮겼다.",
+      "vllm_repo": "https://github.com/vllm-project/vllm.git",
+      "vllm_ref": "v0.27.1",
+      "build_patch_selectors": {
+        "SM12X_PORT": "1"
+      },
+      "_selector_note": "0.27.0 항목과 동일 배선. `ARG SM12X_PORT=0`(Dockerfile.source-build.template L131) + 스모크의 `$(val SM12X_PORT)` → SLAVE_IMGVARS 전달(multinode_serve_smoke.sh L96·97)로 클러스터-와이드가 증명된다. 부재 = stock 이므로 등재되지 않은 빌드는 스크립트가 디렉터리에 있어도 적용되지 않는다.",
+      "image_tag": "easy-vllm:0.27.1-cu133-aarch64-source-sm12x",
+      "_image_tag_note": "0.27.0 R2 이미지(`easy-vllm:0.27.0-cu133-aarch64-source-sm12x`)는 **롤백 앵커**이자 상주 대상일 수 있으므로 태그를 재사용하지 않는다 — 배선이 다른 이미지가 같은 이름을 갖는 것은 불변식이 아니라 결함이다(plan_26081410 §10.3.2.1 · schema v3 근거).",
+      "port_manifest": {
+        "path": "output/multi/build_patches_src/PROVENANCE.json",
+        "upstream_base_sha": "6e448d0ea9bf3d88d898b65449ca6dc2aec170ac",
+        "pr_base_sha": "50ba4bc6b2cacd70c4711a1904dd7ad9740a578b",
+        "fork_head_sha": "9ad62027bc84ca0ccbcc40853179312de770220c",
+        "files": 108
+      },
+      "_port_manifest_note": "0.27.0 항목과 fork_head_sha 가 동일하다(PR#41834 head 9ad62027 은 2026-08-21 조회에도 불변 · PR 미머지). 바뀐 것은 upstream_base_sha 뿐이며, 재파생 108파일 중 바이트가 달라진 것은 vllm/model_executor/models/qwen3_dspark.py 1건이다(v0.27.1 의 유일한 런타임 델타 #50424 보존).",
+      "evidence": {
+        "plan": "docs/plan/plan_26082111_DS4F0731_0.27.1_R2자체이식_1M_Hermes상주_full벤치.md",
+        "stock_infeasible_testlogs": [
+          "docs/testlog/testlog_26081418_R1a_dspark_스모크FAIL_커널미배선_판정.md",
+          "docs/testlog/testlog_26081419_R1b_mtp_스모크FAIL_로더벽_잔존_판정.md"
+        ]
+      },
+      "status": "CANDIDATE — 2026-08-21 좌표 재베이스·이식 재파생·정적검증 완료(3-way 충돌 8파일/16헝크 · verify 108/108 OK · pyflakes 증분 +9 전부 양성 · 계약 위반 0 · 진짜 미해소 심볼 0). **양노드 빌드 완료 · 서빙 스모크 PASS · full 벤치 PASS**(2026-08-21 decode 37.36 t/s @동시성1 · authority=explicit · primary c=30.0 · floor 25.50 · ratio 1.245 · 음성대조 `--authority weak`(E=41.0)로도 PASS · 인증서 docs/benchmark/benchmark_26082113_deepseek-v4-flash-0731_GB10_0.27.1.yaml 발행 · 판정 docs/testlog/testlog_26082113_ds4f0731_x2_sm12x_0271_fullbench_판정.md). 선행 칸(0.27.0 R2 · 36.87 t/s) 대비 **성능 동등(noise-level)** — 판정점 +1.33% 이나 부호가 레벨마다 뒤집히므로(@2 −4.05% · @4 +3.17%) 신호가 아니다. 이 캠페인이 확인해야 했던 것은 0.27.1 bump 의 **회귀 부재**이며 그것이 확인됐다. `policy:RUNTIME_PATCH_NO_CARRY_FORWARD` 에 따라 이 칸의 성공은 선행 칸에서 상속한 것이 아니라 별도 스모크로 확정한 것이다. ⚠ **VALIDATED 미승격 — 사유는 성능이 아니라 `regression_evidence` 부재다**: 승격은 `arch_variant_regression`(기존모델 회귀 재스모크 · `existing_models`) 바운드 아티팩트를 요구하는데(policy_registry ARCH_VARIANT_REGRESSION_EVIDENCE_MISSING) 그 재스모크가 아직 실행되지 않았다 — 0.27.0 항목과 동일한 사유다. ⚠ 후속: 스모크 PASS 로 (26.07-py3, 0.27.1) 키의 `VALIDATED_SOURCE_BUILD_KEYS` codify 조건이 충족됐으나 (source-build.md §3) 아직 미승급이다 — 재렌더 시 `--allow-unvalidated` 가 계속 필요하다."
     }
   }
 }

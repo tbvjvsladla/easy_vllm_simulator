@@ -1,0 +1,328 @@
+--- a/vllm/config/speculative.py
++++ b/vllm/config/speculative.py
+@@ -296,8 +296,6 @@
+     during rejection sampling. This comes at the cost of additional GPU memory
+     usage."""
+ 
+-<<<<<<< ours
+-=======
+     dspark_materialized_attention: bool = True
+     """Use DSpark's materialized local attention path."""
+     dspark_triton_attention: bool = True
+@@ -326,7 +324,6 @@
+     """For Qwen3 DSpark drafting, evaluate the Markov projection only for the
+     top-k base-logit candidates. Requires draft tensor parallel size 1."""
+ 
+->>>>>>> theirs
+     def compute_hash(self) -> str:
+         """
+         WARNING: Whenever a new field is added to this config,
+--- a/vllm/model_executor/layers/fused_moe/oracle/mxfp4.py
++++ b/vllm/model_executor/layers/fused_moe/oracle/mxfp4.py
+@@ -1267,12 +1267,8 @@
+ ]:
+     """Convert loaded weights into backend-specific kernel format.
+ 
+-<<<<<<< ours
+-    Supports DeepGEMM, TRTLLM MXFP8, Triton and Marlin backends.
+-=======
+     Supports DeepGEMM, FlashInfer, TRTLLM MXFP8, CUTLASS MXFP8, Triton and
+     Marlin backends.
+->>>>>>> theirs
+     """
+     is_gfx1250 = False
+     if current_platform.is_rocm():
+--- a/vllm/model_executor/layers/sparse_attn_indexer.py
++++ b/vllm/model_executor/layers/sparse_attn_indexer.py
+@@ -687,36 +687,6 @@
+                 weights[:num_padded_tokens],
+                 seq_lens,
+                 decode_metadata.block_table,
+-<<<<<<< ours
+-                decode_metadata.schedule_metadata,
+-                max_model_len=max_model_len,
+-                clean_logits=False,
+-            )
+-        num_rows = logits.shape[0]
+-        topk_indices = topk_indices_buffer[:num_padded_tokens, :topk_tokens]
+-
+-        use_cooperative_topk = (
+-            current_platform.is_cuda()
+-            and topk_tokens in (512, 1024, 2048)
+-            and num_rows <= 32
+-            and logits.stride(0) % 4 == 0  # TMA 16-byte alignment
+-            and current_platform.has_device_capability(90)
+-            and not current_platform.is_device_capability_family(120)
+-        )
+-        use_persistent_topk = current_platform.is_cuda() and topk_tokens in (
+-            512,
+-            1024,
+-            2048,
+-        )
+-        if use_cooperative_topk:
+-            workspace_manager = current_workspace_manager()
+-            (topk_workspace,) = workspace_manager.get_simultaneous(
+-                ((RADIX_TOPK_WORKSPACE_SIZE,), torch.uint8),
+-            )
+-            torch.ops._C.cooperative_topk(
+-                logits,
+-                seq_lens,
+-=======
+                 # Ours. This is fp8_fp4_paged_mqa_topk_indices, our direct-topk
+                 # path, which upstream does not have -- git aligned its argument
+                 # tail against upstream's tail for fp8_fp4_paged_mqa_logits
+@@ -724,7 +694,6 @@
+                 # is applied there; taking this side alone would have dropped it,
+                 # silently, because the kwarg defaults to None.
+                 logits_width,
+->>>>>>> theirs
+                 topk_indices,
+             )
+ 
+@@ -757,10 +726,12 @@
+                     # ours: the narrowed width, not the model's full window
+                     max_model_len=logits_width,
+                     clean_logits=False,
+-                    # upstream #47808 -- landed in the conflict against our
+-                    # topk_indices call above, so it has to be re-applied here,
+-                    # on the call it actually belongs to
+-                    indices=decode_metadata.indices,
++                    # [port:revert-drift] PR 원본은 여기서 upstream #47808 의
++                    #   indices=decode_metadata.indices 를 넘긴다. v0.27.0 의
++                    #   utils/deep_gemm.fp8_fp4_paged_mqa_logits 는 `indices`
++                    #   파라미터가 없고(이식본 L691 시그니처 실측) DSAIndexer
++                    #   메타데이터에도 `indices` 필드가 없다 → 넘기면 TypeError.
++                    #   PR 델타가 아니라 main 드리프트이므로 되돌린다.
+                 )
+             num_rows = logits.shape[0]
+ 
+@@ -1014,6 +985,11 @@
+         assert isinstance(q_quant, torch.Tensor), (
+             "AMD sparse_attn_indexer expects a single FP8 q_quant tensor"
+         )
++        # [port:revert-drift] PR 원본은 `rocm_aiter_ops.is_rdna_aiter_enabled()`
++        #   + `on_gfx11()` 를 OR 로 추가한다(main 드리프트). v0.27.0 에는
++        #   `is_rdna_aiter_enabled` 정의가 없다 → ROCm 경로에서 AttributeError.
++        #   우리 타깃은 CUDA/sm_121a 라 미실행 경로이나 미정의 심볼을 남기지
++        #   않는다는 규율상 v0.27.0 형태로 되돌린다. PR 델타가 아니다.
+         if rocm_aiter_ops.is_enabled():
+             return torch.ops.vllm.rocm_aiter_sparse_attn_indexer(
+                 hidden_states,
+--- a/vllm/model_executor/models/qwen3_dspark.py
++++ b/vllm/model_executor/models/qwen3_dspark.py
+@@ -21,6 +21,7 @@
+ 
+ from vllm.config import VllmConfig
+ from vllm.logger import init_logger
++from vllm.model_executor.layers.linear import ReplicatedLinear
+ from vllm.model_executor.layers.logits_processor import LogitsProcessor
+ from vllm.model_executor.layers.quantization import QuantizationConfig
+ from vllm.model_executor.layers.vocab_parallel_embedding import (
+@@ -78,6 +79,44 @@
+         return logits_processor(self.markov_w2, markov_embed)
+ 
+ 
++class DSparkConfidenceHead(nn.Module):
++    """DSpark acceptance-confidence head.
++
++    [port:drift-extract] 이 클래스는 **PR#41834 델타가 아니다**. upstream
++    main 의 #47808 에서 최소 추출한 것이며, v0.27.0 에는 없다. PR 이 이식
++    대상 `models/deepseek_v4/nvidia/dspark.py` 를 이 클래스 위에 재작성했고
++    (참조 25곳) 그 파일은 PR 델타의 43배 규모로 재작성되어 confidence-head
++    스레드만 외과적으로 도려내는 것이 2026-08-02 이식 1차 실패(선별 제외로
++    인한 ModuleNotFoundError)와 같은 부류의 위험이었다. 따라서 **제외가 아니라
++    공급**을 택했다. 원본: qwen3_dspark.py @ 50ba4bc6(main tip) — 클래스 본문
++    무수정 이식, 파일의 나머지 드리프트(+101/−4)는 가져오지 않는다.
++    """
++
++    def __init__(
++        self,
++        input_dim: int,
++        prefix: str,
++        bias: bool = False,
++        with_markov: bool = True,
++    ) -> None:
++        super().__init__()
++        self.with_markov = with_markov
++        self.proj = ReplicatedLinear(
++            input_dim,
++            1,
++            bias=bias,
++            return_bias=False,
++            params_dtype=torch.float32,
++            prefix=maybe_prefix(prefix, "proj"),
++        )
++
++    def forward(self, hidden: torch.Tensor, markov_embed: torch.Tensor) -> torch.Tensor:
++        x = (
++            torch.cat([hidden, markov_embed], dim=-1) if self.with_markov else hidden
++        ).float()
++        return self.proj(x).squeeze(-1)
++
++
+ class Qwen3DSparkModel(DFlashQwen3Model):
+     """DFlash Qwen3 backbone + DSpark Markov head."""
+ 
+--- a/vllm/model_executor/models/registry.py
++++ b/vllm/model_executor/models/registry.py
+@@ -640,11 +640,7 @@
+     "EagleDeepSeekMTPModel": ("deepseek_eagle", "EagleDeepseekV3ForCausalLM"),
+     "DeepSeekMTPModel": ("deepseek_mtp", "DeepSeekMTP"),
+     "DeepSeekV4MTPModel": ("vllm.models.deepseek_v4", "DeepSeekV4MTP"),
+-<<<<<<< ours
+-=======
+     "DSparkDraftModel": ("vllm.models.deepseek_v4", "DSparkDeepseekV4ForCausalLM"),
+-    "BailingMoeV3MTPModel": ("bailing_moe_v3_mtp", "BailingMoeV3MTPModel"),
+->>>>>>> theirs
+     "MiniMaxM3MTP": ("vllm.models.minimax_m3", "MiniMaxM3MTP"),
+     "BailingMoeV25MTPModel": ("bailing_moe_mtp", "BailingMoeV25MTPModel"),
+     "InklingMTPModel": ("vllm.models.inkling", "InklingMTP"),
+--- a/vllm/v1/attention/backends/mla/indexer.py
++++ b/vllm/v1/attention/backends/mla/indexer.py
+@@ -802,22 +802,17 @@
+             split_decodes_and_prefills(
+                 common_attn_metadata,
+                 decode_threshold=self.decode_threshold,
+-<<<<<<< ours
++                # [port:hybrid] require_uniform = ours(v0.27.0). PR 의
++                # `or self.supports_varlen` 는 upstream #47808(varlen paged-MQA)
++                # 드리프트이며 v0.27.0 에 `supports_varlen` 정의가 없다 →
++                # 취하면 AttributeError. treat_short_extends_as_decodes 는
++                # PR 고유 변경이고 sparse_short_extend_tiering 이 이식본
++                # backends/utils.py:564 에 존재하므로 theirs 를 취한다.
+                 require_uniform=not self.use_flattening,
+-                treat_short_extends_as_decodes=not self.use_pcp,
+-=======
+-                # Each side changed a different argument here. Upstream #47808
+-                # relaxed require_uniform when varlen paged-MQA logits are
+-                # available; our tiering gate on treat_short_extends_as_decodes
+-                # matches the three other call sites in this fork
+-                # (sparse_swa.py, sparse_mla.py). Taking one side would drop
+-                # the other's change silently.
+-                require_uniform=not (self.use_flattening or self.supports_varlen),
+                 treat_short_extends_as_decodes=sparse_short_extend_tiering(
+                     common_attn_metadata
+                 )
+                 and not self.use_pcp,
+->>>>>>> theirs
+             )
+         )
+ 
+--- a/vllm/v1/core/kv_cache_coordinator.py
++++ b/vllm/v1/core/kv_cache_coordinator.py
+@@ -6,6 +6,11 @@
+ from typing import NamedTuple
+ 
+ from vllm import envs
++# [port:drift-extract] PR 이 추가한 ghost-block 가드 로깅(L706)이 모듈 logger 를
++#   쓰는데 그 정의는 PR 델타가 아니라 main 드리프트다(v0.27.0 엔 부재).
++#   3-way 는 헝크 밖이라 조용히 통과시켰고 pyflakes 증분이 잡았다
++#   (`undefined name 'logger'` — 이식 고유 결함 1건).
++from vllm.logger import init_logger
+ from vllm.utils.math_utils import cdiv
+ from vllm.v1.core.block_pool import BlockPool
+ from vllm.v1.core.kv_cache_metrics import KVCacheMetricsCollector
+@@ -27,6 +32,8 @@
+ )
+ from vllm.v1.request import Request
+ 
++logger = init_logger(__name__)
++
+ 
+ def _validate_prefix_cache_retention_interval(
+     retention_interval: int | None,
+--- a/vllm/v1/kv_offload/config.py
++++ b/vllm/v1/kv_offload/config.py
+@@ -8,12 +8,56 @@
+ 
+ 
+ @dataclass(frozen=True)
++class CompactSliceConfig:
++    """Per-slice accounting within one compact KV group (transport-neutral).
++
++    Mirrors GroupCompactSlice from the CPU module but lives in the base config
++    package to avoid a dependency cycle from the offloading config layer into
++    the CPU manager submodule.
++    """
++
++    offset_bytes: int
++    """Byte offset of this slice within the packed GPU block row."""
++    real_bytes_per_gpu_block: int
++    """Unpadded real KV payload bytes per GPU block per rank."""
++    padded_bytes_per_gpu_block: int
++    """Padded GPU block bytes consumed by this slice per rank."""
++    layer_name: str
++    """Model layer name attributed to this slice."""
++
++
++@dataclass(frozen=True)
++class CompactGroupSliceConfig:
++    """Slice-level accounting for one KV group's compact layout.
++
++    Aggregate ``compact_real_bytes_per_rank`` must equal the transported
++    ``compact_bytes_per_native_block_per_worker`` on the matching
++    :class:`OffloadingGroupConfig`.
++    """
++
++    group_idx: int
++    slices: tuple[CompactSliceConfig, ...]
++    compact_real_bytes_per_rank: int
++    """Sum of ``s.real_bytes_per_gpu_block`` per GPU block per rank."""
++    compact_padded_bytes_per_rank: int
++    """Sum of ``s.padded_bytes_per_gpu_block`` per GPU block per rank."""
++
++    @property
++    def aggregate_bytes(self) -> int:
++        """Total real bytes per GPU block per rank (alias for validation)."""
++        return self.compact_real_bytes_per_rank
++
++
++@dataclass(frozen=True)
+ class OffloadingGroupConfig:
+     # Total token span covered by one block across all workers
+     # (accounts for context parallelism).
+     tokens_per_block: int
+     # Layer names belonging to this group.
+     layer_names: tuple[str, ...]
++    # Compact layout: real bytes per worker per native block.
++    # None when compact layout is disabled.
++    compact_bytes_per_native_block_per_worker: int | None = None
+ 
+ 
+ @dataclass(frozen=True)
+@@ -68,6 +112,10 @@
+     model: OffloadingModelConfig
+     cache: OffloadingCacheConfig
+     parallel: OffloadingParallelConfig
++    # Compact slice accounting per group, present on worker-side config
++    # when compact layout is enabled. None for legacy configs or scheduler-side
++    # projected configs that lack packed tensor metadata.
++    compact_slice_accounting: tuple[CompactGroupSliceConfig, ...] | None = None
+     # True when the offloaded bytes of every worker are expected to be
+     # byte-identical per block (pure-MLA model, single-node TP-only
+     # parallelism), enabling a single-copy host layout in backends that
+--- a/vllm/v1/worker/gpu/spec_decode/dspark/speculator.py
++++ b/vllm/v1/worker/gpu/spec_decode/dspark/speculator.py
+@@ -105,22 +105,6 @@
+                 dtype=self.draft_logits.dtype,
+                 device=self.device,
+             )
+-<<<<<<< ours
+-=======
+-        # Upstream writes `model.model.confidence_head`, which assumes the draft
+-        # model nests its layers under `.model` (qwen3_dspark, gemma4_dspark).
+-        # This fork FLATTENED the DeepSeek-V4 DSpark class, so it holds the head
+-        # directly and `model.model` raises AttributeError from nn.Module's
+-        # __getattr__. Accept both shapes.
+-        draft_inner = getattr(model, "model", model)
+-        if self.enable_adaptive_verification and draft_inner.confidence_head is None:
+-            raise ValueError(
+-                "Adaptive verification needs a DSpark checkpoint with a confidence "
+-                "head, and this one has none. Pass "
+-                "enable_adaptive_verification=false in the speculative config to verify"
+-                " a fixed number of drafts instead."
+-            )
+->>>>>>> theirs
+         return model
+ 
+     def _sample_sequential(self, num_reqs: int, head_hidden: torch.Tensor) -> None:

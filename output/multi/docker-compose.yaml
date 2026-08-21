@@ -1,7 +1,7 @@
 x-gpu-common: &gpu-common
   # 이미지 네이밍 불변식(easy-vllm:{vllm}-cu{cuda}-{arch}-{track}) — 콤보별 .env 가 IMAGE_TAG/BUILD_DOCKERFILE 선택.
   #   build 시 이 태그로 태깅 · up 시 재사용(한 이미지가 모든 모델 서빙). source 콤보들은 같은 이미지 공유(버전은 IMAGE_TAG 기본값 참조).
-  image: ${IMAGE_TAG:-easy-vllm:0.27.0-cu133-aarch64-source}
+  image: ${IMAGE_TAG:-easy-vllm:0.27.1-cu133-aarch64-source}
   build:
     context: .
     dockerfile: ${BUILD_DOCKERFILE:-Dockerfile.source-build}   # 콤보①=Dockerfile(0.18.0 wheel) · ②③=Dockerfile.source-build(기본·torch 2.11 ABI 벽)
@@ -9,7 +9,7 @@ x-gpu-common: &gpu-common
       # 빌드 변종 파라미터화(기본=stock vllm-project @ 아래 VLLM_REF 기본값). 콤보 env(.env.<config>)가 오버라이드 →
       #   포크 변종 빌드(예 DeepSeek-V4 SM12x: jasl/vllm @ SHA → IMAGE_TAG=…-source-sm12x). plan_2026062818_1.
       VLLM_REPO: ${VLLM_REPO:-https://github.com/vllm-project/vllm.git}
-      VLLM_REF: ${VLLM_REF:-v0.27.0}
+      VLLM_REF: ${VLLM_REF:-v0.27.1}
       # 포크 태그가 semver 가 아니면 setuptools_scm 이 metadata 생성에서 죽는다
       #   (2026-08-02 실측: 'sm120-pr-41834-stable-preview-20260802d' 파싱 실패).
       #   빈 값 = 무동작이므로 stock 빌드 경로는 불변.

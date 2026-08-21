@@ -3,10 +3,10 @@
 #   upstream-version-watch §4.7 확장 · 헌법 3+1+1 마지막 +1 의 **소스 위상**
 #
 # what : vLLM PR#41834(jasl, SM12x DeepSeek-V4 Flash enablement)의 **선별 이식본**을
-#        stock v0.27.0 소스트리에 얹는다. 포크 전체를 핀하지 않고 필요한 변경만 가져온다.
+#        stock v0.27.1 소스트리에 얹는다. 포크 전체를 핀하지 않고 필요한 변경만 가져온다.
 #        (R2 = arch-wall 사다리의 `자체 이식` 칸. 실패 시 다음 칸이 R3 포크 핀이다.)
 #
-# why  : stock v0.27.0 은 DeepSeek-V4-Flash-0731 의 spec decoding 을 **양쪽 다** 막는다.
+# why  : stock v0.27.x 는 DeepSeek-V4-Flash-0731 의 spec decoding 을 **양쪽 다** 막는다.
 #        2026-08-14 에 두 경로를 실측했고 **서로 다른 벽**임이 확정됐다:
 #          · method=dspark → 드래프트 로드는 성공하나 커널 워밍업에서 즉사.
 #            flashinfer `_decode_dsv4_dispatchable` 이 page_block_size==64 를 요구하는데
@@ -36,7 +36,11 @@
 #        testlog_26081418(R1-a) · testlog_26081419(R1-b) · testlog_26080223(v0.26.0 이식 3회 실패)
 #
 # ── 좌표(PROVENANCE.json 이 정본) ─────────────────────────────────────────────
-#   upstream_base = v0.27.0            4bdc8a788d2e2ce9165d552b3d4d8b72604626bf
+#   upstream_base = v0.27.1            6e448d0ea9bf3d88d898b65449ca6dc2aec170ac
+#     └ 2026-08-21 재베이스(plan_26082111 §4). 이전 base = v0.27.0 4bdc8a788d2e (롤백 앵커).
+#       v0.27.1 의 유일한 런타임 델타 #50424(qwen3_dspark.py +4, quantized Markov head)를
+#       0.27.0 이식본이 **조용히 되돌리는** 것이 실측돼(carry-forward·침묵 누락) 좌표를 옮겼다.
+#       재파생 108파일 중 바이트가 바뀐 것은 qwen3_dspark.py 1건뿐이다(실측).
 #   pr_base       = main(three-dot MB) 50ba4bc6b2cacd70c4711a1904dd7ad9740a578b
 #   fork_head     = PR#41834           9ad62027bc84ca0ccbcc40853179312de770220c
 #   ⚠ v0.26.0 이식 때 쓰던 `merge_base(fork_head, tag)` 는 **스코프 추출 기준이 아니다.**
@@ -53,7 +57,8 @@
 #          `pip install -e .` 가 stock cuda.txt 핀을 만나 **python 만 0.6.16.post3 로 되돌리는**
 #          것이 실측됐다(짝 어긋남 → import 크래시). 즉 이 파일은 "핀 표기"가 아니라
 #          **설치 결과를 결정하는 입력**이었다.
-#   3) `git apply --3way` on v0.27.0 → **충돌 8파일 / 16헝크**
+#   3) `git apply --3way` on v0.27.1 → **충돌 8파일 / 16헝크**
+#        (2026-08-21 실측 — v0.27.0 base 와 동일. 중단 임계 50헝크 대비 여유)
 #        (v0.26.0 때는 14파일 / 50헝크였다. 중단 임계 50 대비 큰 여유)
 #   4) 헝크 판정: theirs 가 참조하는 심볼이 이식 완료 트리에 있는가
 #   5) 정적 검증 5단계(전부 통과 — 상세는 아래)
@@ -134,12 +139,14 @@ MAN="$(dirname "$SRC_DIR")/PROVENANCE.json"
 [ -d "$SRC_DIR" ] || { echo "$TAG FAIL: vendored files/ 부재: $SRC_DIR" >&2; exit 1; }
 [ -f "$MAN" ]     || { echo "$TAG FAIL: PROVENANCE.json 부재" >&2; exit 1; }
 
-# 이 이식본은 v0.27.0 소스에만 유효하다 — 다른 ref 위에 얹으면 조용히 틀린다(fail-loud).
+# 이 이식본은 PROVENANCE 가 선언한 base ref 에만 유효하다 — 다른 ref 위에 얹으면 조용히 틀린다(fail-loud).
+# 태그·SHA 둘 다 PROVENANCE 에서 읽는다(손으로 적지 않는다 — 안내문이 틀리면 가드가 있어도 사고가 난다).
 BASE_SHA="$(python3 -c "import json;print(json.load(open('$MAN'))['source']['upstream_base_sha'])")"
+BASE_TAG="$(python3 -c "import json;print(json.load(open('$MAN'))['source']['upstream_base_tag'])")"
 HEAD_SHA="$(git -C "$DST" rev-parse HEAD 2>/dev/null || echo unknown)"
 if [ "$HEAD_SHA" != "$BASE_SHA" ]; then
-    echo "$TAG FAIL: 소스 ref 불일치 — 이 이식본은 v0.27.0($BASE_SHA) 전용이다." >&2
-    echo "$TAG       현재 HEAD=$HEAD_SHA. VLLM_REF 를 v0.27.0 으로 두거나 이식본을 재생성하라." >&2
+    echo "$TAG FAIL: 소스 ref 불일치 — 이 이식본은 ${BASE_TAG}(${BASE_SHA}) 전용이다." >&2
+    echo "$TAG       현재 HEAD=$HEAD_SHA. VLLM_REF 를 ${BASE_TAG} 로 두거나 이식본을 재생성하라." >&2
     exit 1
 fi
 
@@ -216,14 +223,14 @@ grep -q "VLLM_TOPK_DISABLE_NONCOOP" "$DST/csrc/libtorch_stable/topk.cu" \
 #     제외하므로(cuda.txt 주석 "flashinfer-cubin is not on PyPI since 0.6.14") 되돌림이 **한쪽만**
 #     일어난다. 즉 조용한 부분 되돌림이며, 로그상 45 의 fail-loud 검증은 통과한 뒤에 벌어진다.
 #   how: PR#41834 의 requirements 델타는 이 두 줄의 버전 bump 다. 파일을 통째로 vendoring 하지
-#        않고 **두 줄만** 고친다 — PR base(main) 의 cuda.txt 는 v0.27.0 대비 다른 줄에도 드리프트가
+#        않고 **두 줄만** 고친다 — PR base(main) 의 cuda.txt 는 v0.27.x 대비 다른 줄에도 드리프트가
 #        있고(tilelang·quack 등), 통째 채택은 그 드리프트를 조용히 끌고 들어온다.
 #        apache-tvm-ffi 는 0.1.11 유지(PR 주석: 0.1.13.post0 은 tilelang 빌드와 ABI 비호환).
 #   45 와의 역할 분담: 45 = constraint 핀 제거 + upstream 인덱스에서 실제 설치(cubin 은 PyPI 부재라
 #        --extra-index-url 필요). 50 = 그 설치가 #20 에서 되돌려지지 않도록 **입력을 고정**.
 FI_VER="0.6.17"
 REQ="$DST/requirements/cuda.txt"
-[ -f "$REQ" ] || { echo "$TAG FAIL: $REQ 부재 — v0.27.0 소스 레이아웃이 바뀌었다" >&2; exit 1; }
+[ -f "$REQ" ] || { echo "$TAG FAIL: $REQ 부재 — ${BASE_TAG} 소스 레이아웃이 바뀌었다" >&2; exit 1; }
 
 for pkg in flashinfer-python flashinfer-cubin; do
     grep -qE "^${pkg}[[:space:]]*==" "$REQ" \

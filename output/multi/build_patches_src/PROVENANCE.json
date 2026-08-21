@@ -2,8 +2,8 @@
  "schema_version": 2,
  "source": {
   "upstream_repo": "https://github.com/vllm-project/vllm.git",
-  "upstream_base_tag": "v0.27.0",
-  "upstream_base_sha": "4bdc8a788d2e2ce9165d552b3d4d8b72604626bf",
+  "upstream_base_tag": "v0.27.1",
+  "upstream_base_sha": "6e448d0ea9bf3d88d898b65449ca6dc2aec170ac",
   "fork_repo": "https://github.com/jasl/vllm.git",
   "fork_pr": 41834,
   "fork_pr_ref": "refs/pull/41834/head (vllm-project/vllm)",
@@ -12,18 +12,18 @@
   "pr_base_ref": "main (three-dot merge-base; GitHub 'Files changed' 기준)",
   "release_merge_base_sha": "f5bb701fa270f5c801f1572e1478b56f292d8dfc"
  },
- "derivation": "git diff <pr_base_sha>..<fork_head_sha> -- <scope 105> 를 v0.27.0 에 git apply --3way 후 헝크 판정 + 폐포 3파일",
+ "derivation": "git diff <pr_base_sha>..<fork_head_sha> -- <scope 105> 를 v0.27.1 에 git apply --3way 후 헝크 판정 + 폐포 3파일",
  "regenerator": {
   "tool": ".claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py",
   "_note": "files/ 는 비추적 파생물이다(.gitignore:156). 이 도구가 좌표에서 재파생(derive)·결정론 번들(bundle)·무결성 검증(verify)·서브 해체(unbundle)를 소유한다. egress-restricted 서브는 derive 를 못 하므로 메인이 파생→번들→배달한다."
  },
  "resolutions": {
-  "variant_id": "source-sm12x-port-vllm-0.27.0",
-  "spec": ".claude/skills/upstream-version-watch/assets/source_port/source-sm12x-port-vllm-0.27.0/resolutions.json",
-  "patch": ".claude/skills/upstream-version-watch/assets/source_port/source-sm12x-port-vllm-0.27.0/resolutions.patch",
+  "variant_id": "source-sm12x-port-vllm-0.27.1",
+  "spec": ".claude/skills/upstream-version-watch/assets/source_port/source-sm12x-port-vllm-0.27.1/resolutions.json",
+  "patch": ".claude/skills/upstream-version-watch/assets/source_port/source-sm12x-port-vllm-0.27.1/resolutions.patch",
   "_note": "유도식만으로는 충돌 8파일의 헝크 판정·드리프트 되돌림·폐포 최소추출이 복원되지 않는다. 그 사람 판단만 추적 자산으로 남기고(실측 9파일·328줄) 나머지는 좌표에서 유도한다."
  },
- "provenance": "measured (2026-08-14 KST · 실제 PR 소스에서 재파생 · v0.26.0 이식본 92파일 미재사용)",
+ "provenance": "measured (2026-08-21 KST · upstream_base 를 v0.27.0→v0.27.1 로 옮겨 재파생 · plan_26082111 §4.3). 108파일 중 실제 바이트가 바뀐 것은 vllm/model_executor/models/qwen3_dspark.py 1건이며, 이는 v0.27.1 의 유일한 런타임 델타(#50424 quantized DSpark Markov head, +4줄)를 보존하기 위한 것이다. 0.27.0 이식본을 그대로 얹었다면 이 4줄이 조용히 되돌아갔다(carry-forward · 침묵 누락).",
  "measurements": {
   "pr_delta": {
    "files": 221,
@@ -51,14 +51,18 @@
   },
   "conflict_files": 8,
   "conflict_hunks": 16,
-  "pyflakes_delta_total": 13,
-  "pyflakes_delta_port_unique": 1,
-  "missing_modules_real": 1,
-  "ast_sig_mismatch": 22,
-  "ast_contract_violations": 0
+  "pyflakes_delta_total": 9,
+  "pyflakes_delta_port_unique": 9,
+  "missing_modules_real": 0,
+  "ast_sig_mismatch": 7,
+  "ast_contract_violations": 0,
+  "_conflict_note": "v0.27.1 base 실측(2026-08-21) — v0.27.0 base 와 동일(8파일/16헝크). 중단 임계 50헝크 대비 여유. plan §3.1 신호②.",
+  "base_rebase_changed_files": 1,
+  "_static_verification_note": "2026-08-21 v0.27.1 재측정. 방법: baseline=stock v0.27.1 워크트리 · ported=거기에 payload 108파일 overlay. ① pyflakes: 줄/열 정규화 후 집합차 — port 1349 vs base 1340(+9), base-only 0(회귀 제거 없음). 9건 전부 unused-import 또는 star-import undefined-name 경고이며 이식 파일 소속. ② 부재 모듈: 이식 .py 87파일의 vllm.* import 전수 해소 — 미해소 6건은 전부 컴파일 산출 확장모듈(_C_stable_libtorch·_moe_C_stable_libtorch·_qutlass_C)과 빌드타임 벤더링(third_party.triton_kernels)이며 stock v0.27.1 에도 동일하게 부재 → 이식 귀속 0건. ③ AST 시그니처: 경계 넘는 import 1181건/고유 636쌍 중 stock↔fork 시그니처 불일치 7쌍(호출부 29곳 검사) → 계약 위반 0건(이식본이 stock 이 못 받는 인자를 넘기는 곳 없음). ④ import 시험: 호스트에 torch 부재 → 실제 import 불가. .py 87파일 py_compile 실패 0 + 빌드패치의 fail-loud 존재검사 13파일·DSparkProposer·DSparkConfidenceHead·csrc 앵커 전부 재현 OK. 실제 import 는 S3 로 이관. ⑤ 심볼 triage: 1차 미해소 74건은 전부 star-import 재수출(vllm.platforms.current_platform 등)로 해소 → 진짜 미해소 0건. ⚠ 5단계 전부 통과가 이식 성공을 보증하지 않는다(testlog_26080223 — 5단계 통과 후 3회 서빙 실패). 최종 중재는 서빙 스모크다.",
+  "_delta_vs_0.27.0_measurement": "0.27.0 표기(pyflakes_delta_total 13 · port_unique 1 · missing_modules_real 1 · ast_sig_mismatch 22)는 측정 스크립트·집계 규칙이 달랐다(당시 도구 미보존). 위 값은 이번 방법으로 재측정한 것이며 두 숫자를 직접 비교하지 않는다."
  },
  "scope_additions_beyond_pr_delta": {
-  "vllm/model_executor/models/qwen3_dspark.py": "drift-extract: DSparkConfidenceHead (upstream #47808) — PR 델타 밖. dspark.py 재작성이 25곳에서 참조",
+  "vllm/model_executor/models/qwen3_dspark.py": "drift-extract: DSparkConfidenceHead (upstream #47808) — PR 델타 밖. dspark.py 재작성이 25곳에서 참조. ★ 2026-08-21 v0.27.1 재베이스: 잔차(0.27.0 기준)가 #50424 와 같은 import 블록을 건드려 `git apply -p1` 이 fail-loud 실패했다. base=stock v0.27.0 · ours=stock v0.27.1 · theirs=R2 이식본 의 `git merge-file --diff3` 3-way 병합으로 무충돌 해소 (결과 = v0.27.1 + DSparkConfidenceHead + ReplicatedLinear import). 새 잔차는 이 결과를 정답으로 재발행했다.",
   "vllm/v1/kv_offload/compact_geometry.py": "closure: PR 신규파일. v1/core/kv_cache_utils.py + v1/kv_cache_interface.py 가 모듈레벨 import (plan §3.3 되돌림 조건 발동)",
   "vllm/v1/kv_offload/config.py": "closure: compact_geometry.py 및 kv_cache_interface.py 가 CompactGroupSliceConfig 를 참조"
  },
@@ -121,7 +125,7 @@
   "vllm/model_executor/layers/sparse_attn_indexer.py": "30da34591ab99d172f547f6ae73e1105ed557286cd717645011561d8c323466b",
   "vllm/model_executor/model_loader/default_loader.py": "096ca0da05fb1178d3e80d67965a3ef45b89822d5a5e2fe8835b1e0427fda0b2",
   "vllm/model_executor/model_loader/weight_utils.py": "e2ef85d2cabd79d92139f5bf5e60e74d869b5cd7251ca6096a9176c63039aaed",
-  "vllm/model_executor/models/qwen3_dspark.py": "fba72299c44e3320d0ee6a61999c6131150e7adde4ace600686aea91c538028d",
+  "vllm/model_executor/models/qwen3_dspark.py": "ec4ecfc9d3739df9da9f288a9fb8ab946c8a437bd5215636adc51ab61a3cb6ea",
   "vllm/model_executor/models/registry.py": "9b0c0ae65aeaee26a4f0f031de50af626505887f8c14d104ecac346f337263ea",
   "vllm/model_executor/warmup/deepseek_v4_mhc_warmup.py": "78a3e6845f79481491a71acca10082c52c302b693e90e1f5bc62680176c69706",
   "vllm/model_executor/warmup/deepseek_v4_sm12x_warmup.py": "faffdaa4b7ffb027ffb08ef5c6dcbd79a91523aec5f442a593e4728a9a6e02d8",
