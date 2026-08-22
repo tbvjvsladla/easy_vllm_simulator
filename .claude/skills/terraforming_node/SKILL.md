@@ -3,7 +3,7 @@ name: terraforming_node
 description: >-
   **토폴로지-중립 진입(온보딩) 오케스트레이터** — fresh-clone/미테라포밍 환경에서 능동 발동해 **첫 동작으로
   토폴로지(① 단일노드 ② N대 멀티노드)를 인터뷰로 확정**하고, 그에 따라 노드를 스캔·manifest.yaml(스킬 간
-  단일 계약)을 채운다. **single → 단일노드 온보딩**(manifest nodes:[], sub-control dormant) · **multi →
+  단일 계약)을 채운다. **single → 단일노드 온보딩**(manifest nodes:[] 기본; 서브 등록 시 A2A 에이전트 제어만 활성 — 빌드킷 배달 평면은 dormant) · **multi →
   서브노드 스캔·연결/성능 검증 + 서브 코드에이전트(Claude Code) 작업환경 구축**(메인 렌더→전달→model-less 카나리).
   "이제 뭐해야해", "환경 셋업", "온보딩", "테라포밍", "노드 스캔", "단일/멀티 결정", "manifest 생성",
   "서브노드 셋업", "인터커넥트 점검", "서브 에이전트 환경 구축", "서브 코드에이전트 셋업" 같은 지시·fresh-clone 감지에 발동.
@@ -18,6 +18,7 @@ description: >-
 있어야 한다. terraforming_node 는 **먼저 토폴로지를 인터뷰로 확정**(§0.5)한 뒤 분기한다:
 
 - **single** → 단일노드 온보딩(§1S: 스캔 → `manifest.yaml`(nodes:[]) → 완료). 서브가 없으니 §1·§2 는 N/A.
+  서브를 등록하면 **A2A 에이전트 제어**가 열리지만 멀티의 배달·버전동기 평면은 열리지 않는다(§2.7.0).
 - **multi** → 진입 루틴(§1: 5-전제조건 인터뷰 + 스캔 + 연결/성능 검증) + **서브 에이전트 환경 구축**(§2: 메인 렌더 → 서브 전달 → 카나리).
 
 이후 `upstream-version-watch`(컨테이너 빌드) · `vllm-recipe-explorer`(서빙전략) 와 **파이프라인 의존순서**로 협력한다(헌법 §스킬 오케스트레이션 / 진입 척추).
@@ -40,7 +41,7 @@ description: >-
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
 - **Deterministic commands** — `scripts/staleness_gate.py`(조건부 preflight 트리거) · `scripts/scan_node.py`(스캔·게이트·3자일치·emit) · `scripts/render_sub_env.py`(서브 환경 렌더) · `scripts/manifest_contract.py`(Flag 리더).
 - **Handoff contract** — Flag 발급 → `upstream-version-watch`(컨테이너 빌드) → `vllm-recipe-explorer`(서빙전략). 서브 전달차는 `upstream-version-watch/scripts/sync_to_sub.sh` 단일 경로.
-- **Owns (state)** — `manifest.yaml` · `terraforming-flag` · `a2a-delegation-key` · `sub-agent-env` · **`node-identity`**(§2.7.6 role 스킴) · **`sub-control-plane`**(§2.7 평면 A/B·3범주·B0–B3·권위 평면·A2A 제어명령)
+- **Owns (state)** — `manifest.yaml` · `terraforming-flag` · `a2a-delegation-key` · `sub-agent-env` · **`node-identity`**(§2.7.6 role+rank 스킴) · **`topology-axis-contract`**(§2.7.0 sub_mode·배달 평면 판정) · **`sub-control-plane`**(§2.7 평면 A/B·3범주·B0–B3·권위 평면·A2A 제어명령) · **`grounding-exchange`**(§2.7.8 claim/reference/citation)
 
 ## Mandatory procedural spine
 
@@ -66,6 +67,8 @@ description: >-
 | 서브에 무엇을 해도 되는지 모호(저작/스캔/정비) · 평면 A/B 혼동 · 서브 git 교착 | 이 문서 **§2.7 노드 제어 규약**(정본) |
 | "고쳤는데 안 갔다" / "안 고쳤는데 갔다"(커밋 vs 인덱스 vs 파일시스템) | 이 문서 **§2.7.4 권위 평면 계약** |
 | `docs/logs/<node_id>` 경로가 노드마다 갈림 · hostname 이 경로에 샘 | 이 문서 **§2.7.6 node-identity** |
+| 싱글인데 멀티의 배달·버전동기 개념이 끼어듦 · `role: sub` 의 의미가 모호 | 이 문서 **§2.7.0 토폴로지 분기** + `scripts/node_role_contract.py` |
+| 서브 결정의 근거가 불명 · 인용 없는 빌드/서빙 결정 | 이 문서 **§2.7.8 그라운딩 교환** + `scripts/library_exchange.py` |
 
 ## 0. 전제 / 입력
 - **토폴로지-중립 진입**: single·multi **공통** 발동. (과거 "multi 전용·single 비활성(α)"는 plan_26063009_44_23 에서 폐기 — single 진입점 부재 = chicken-and-egg 갭이었음: "single이냐 multi이냐"를 묻는 주체가 multi일 때만 발동했음.) **첫 동작 = 토폴로지 인터뷰(§0.5)**. 이하 §1(진입 루틴)·§2(서브 환경구축)는 **topology=multi 분기**, single 은 §0.5→§1S 로 짧게 완결.
@@ -92,7 +95,7 @@ description: >-
 
 - **스캔**(결정론): `python3 scripts/scan_node.py --topology single` — interconnect 검증 skip(=α 정상).
 - **게이트**: α — RoCE 하드웨어가 있어도 비blocking 경고(멀티 가능 머신의 단일 운용은 정상).
-- **manifest 기입**(HITL): `--emit-manifest --topology single` 블록(YAML-valid · **single 시 `nodes: []` 도 결정론 emit** — dormant 게이트 동결, 수기 의존 ✗) → **사람 확인 후** `output/single/manifest.yaml` 반영. `nodes: []` → **sub-control dormant**(독립 self-containment 보존 — 헌법 §single-node 확장기능). **무증거 기입 금지.**
+- **manifest 기입**(HITL): `--emit-manifest --topology single` 블록(YAML-valid · **single 시 `nodes: []` 도 결정론 emit** — dormant 게이트 동결, 수기 의존 ✗) → **사람 확인 후** `output/single/manifest.yaml` 반영. `nodes: []` → **서브 미등록 dormant**(독립 self-containment 보존). ⚠ dormant 의 정확한 뜻은 "서브가 없다"이지 "서브를 등록하면 안 된다"가 아니다 — 등록 시 열리는 것은 **A2A 에이전트 제어**뿐이고 빌드킷 배달 평면은 여전히 dormant 다(§2.7.0 · 헌법 §single-node 확장기능). **무증거 기입 금지.**
   - emit 블록은 **테라포밍 완수 Flag attestation**(`terraforming.complete/branch_verified`)을 §1.5 3자일치 통과 시에만 포함(보수적·미통과면 미발급) — **§0.5.7 `model_source` 도 함께 기입**해야 `manifest_contract` Flag valid(complete + valid model_source 이중요건). Flag 발급 = 3 런타임 스킬 작업 활성(헌법 §테라포밍-완수 Flag 게이트).
   - **Flag ↔ 호스트 안전체계 명시 분리**(plan_26071115): Flag 발급은 표준 절차 완수이며 **안전체계 설치와 무관**(안전체계 미설치여도 Flag valid). 안전체계는 이 manifest+Flag 기입 **이후** §2.6 세션 최종 Y/N 선택조항에서 다룬다.
 - **호스트 안전체계 세션 최종 Y/N** → **§2.6**(보험판매 톤 선택조항, 양 토폴로지 공통) 수행 후 완료.
@@ -287,6 +290,83 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 >
 > **이 절이 이 스킬에 사는 이유**: 노드(메인·서브)는 terraforming 이 스캔·렌더·배달로 **만든** 대상이다.
 > 그 대상을 어떤 평면에서 어떤 권한으로 다루는지는 노드 도메인의 절차이지 모든 도메인의 철학이 아니다.
+>
+> ⚠ **§2.7.1–§2.7.7 은 멀티 기준으로 쓰였다.** 어느 절이 싱글에도 적용되는지는 **§2.7.0 분기표가
+> 먼저 정한다** — 이 순서를 뒤집으면(절부터 읽고 토폴로지를 나중에 따지면) 멀티의 배달·동기 개념이
+> 싱글로 새어 든다. 그것이 2026-08-22 진단의 5증상이었다(`plan_26082214` §0).
+
+### 2.7.0 토폴로지 분기 — **제1축** (신설 2026-08-22 · `plan_26082214` §4.2)
+
+> 헌법 **불변식 A** 의 "어떻게". 헌법은 *왜 토폴로지가 제1축인가*를 말하고, 이 절은 *그래서 어느
+> 절·어느 도구가 켜지는가*를 정한다. 외부 그라운딩 정본 = `docs/report/node-identity-topology-grounding.md`.
+
+**한 단어가 두 존재를 덮고 있었다.** `output/single/manifest.yaml` 과 `output/multi/manifest.yaml` 은
+같은 `nodes[].role: main|sub` 스킴을 쓰지만, 두 통로의 "sub" 는 본질이 다르다:
+
+| | **multi 의 sub** = Ray 워커 | **single 의 sub** = A2A 원격 에이전트 |
+|---|---|---|
+| 정체성 권위 | **manifest `nodes[]` 인덱스(rank) + role** | **`Agent_Card.json`**(정체성+능력+엔드포인트) |
+| 외부 정본 | NCCL rank + uniqueId · Ray head/worker | A2A Client·AgentCard·Task |
+| sub↔sub 통신 | 대칭 collective(집단 연산) | **없음** — 각자 메인하고만 대화 |
+| 제어 평면 | head 종속(SSH 제어) | client→server 호출(A2A Task 위임) |
+| 버전·드라이버 | **동기 필수**(집단 연산 ABI 정합) | **독립**(핀 커플링 없음) |
+| 빌드 흐름 | 메인 빌드 → `sync_to_sub` 전파 → **동일 빌드킷에서 파생된 동일 ABI** 분산 | 노드별 **독립 병렬 빌드**(서브가 자기 빌드킷 자율 저작) |
+| `sub_mode` | `ray-worker` | `a2a-agent` |
+
+- **버전 싱크의 이유는 로드 균형이 아니라 집단 연산의 lockstep 정합**이다(그라운딩 §6.1). 그래서 싱글엔
+  적용될 이유가 애초에 없다 — 싱글은 collective 에 참여하지 않는다.
+- ⚠ **"동일 이미지"가 아니라 "동일 ABI"다**(2026-08-22 실측 정밀화 · `testlog_26082215` §4.7 M-4).
+  분산 서빙에 실제로 참여한 두 컨테이너의 **image digest 는 서로 달랐다**(`58fd5b62…` vs `c5487620…`)
+  — 각 노드가 로컬에서 자기 빌드를 하므로 digest 일치는 애초에 성립하지 않는다. 정확히 일치해야 하는
+  것은 **집단 연산 ABI 3종**(vLLM git SHA · torch · driver)이고, 실측에서 그 셋은 완전히 일치했다.
+  digest 를 커플링 판정 기준으로 쓰면 정상 배포를 불일치로 오판한다.
+- **`role: sub` 의 *존재*는 정체성을 말하지 않는다.** 판정 입력은 언제나 **`sub_mode`** 다.
+
+**결정론 판정기 = `scripts/node_role_contract.py`**(이 계약의 단일 소유자):
+
+| 판정 | 호출 | 산출 |
+|---|---|---|
+| 이 sub 는 무엇인가 | `resolve_sub_mode(topology, declared)` | `{value, source}` — `derived-from-topology` \| `declared-and-agrees` |
+| 집단 안의 위치 | `resolve_rank(topology, nodes, role)` | multi=`nodes[]` 인덱스 · single=`None` + `not-applicable:single-a2a-agent` |
+| 정체성 권위는 어디인가 | `identity_authority(topology)` | `agent-card` \| `manifest-rank-and-role` |
+| **빌드킷 배달 평면이 켜지나** | `delivery_plane(topology, sub_mode)` | `active`(ray-worker) \| `dormant`(a2a-agent) |
+
+```bash
+# 셸 소비자는 한 줄 값으로 묻는다. 위반이면 값을 찍지 않고 종료코드 5.
+python3 .claude/skills/terraforming_node/scripts/node_role_contract.py \
+        evaluate --topology single --repo . --field delivery_plane --format value    # → dormant
+```
+
+> ✅ **배선 완료(2026-08-22 · W-1)** — `sync_to_sub.sh:_single_extension_active` 는 이제 위 판정기를
+> 호출하고 그 답(`delivery_plane`)만 비교한다. `role: sub` 의 *존재* 는 더 이상 판정 입력이 아니다.
+> 판정기 부재·파싱 실패·계약 위반은 전부 **dormant(fail-closed)** 이며 사유를 stderr 로 밝힌다.
+> dry-run/B1 안내문도 판정기가 답한 **출처**를 그대로 인용한다(`source=sub-mode:a2a-agent` ·
+> `no-sub-registered` · `fail-closed:*`) — "nodes[] 비어있음" 이라는 옛 모델 문구는 제거됐다.
+> 이전 상태의 실증은 `testlog_26082215` §4.2(같은 평면이 **34회 발화**)다.
+
+- **`sub_mode` 는 파생값이다 — manifest 선언은 tripwire다.** 사상이 1:1 이라 topology 만 알면 계산된다.
+  필수 손저작으로 만들면 헌법 §판정표의 *"파생 가능한데 손으로 적은 것"*(하드코딩 **결함**)이 된다.
+  선언은 **선택**이며, 선언되면 파생값과 **일치해야 한다**(어긋나면 `SUB_MODE_TOPOLOGY_CONFLICT`
+  fail-closed). 선언의 값어치는 값 전달이 아니라 **혼동 지점에서 의미를 읽히게 하고 변경 시 리뷰를
+  강제하는 것**이다(판정표의 tripwire **정당** 칸).
+- **fail-closed 방향은 언제나 dormant** 다 — topology 미해소·`sub_mode` 미확정이면 배달은 열리지 않는다.
+
+**절별 적용 범위** — 아래 표가 §2.7.1–§2.7.7 을 토폴로지로 가른다:
+
+| 절 | multi | single | 싱글 분기 주석 |
+|---|---|---|---|
+| §2.7.1 권한 평면 A/B | ✔ | ✔ | 평면 정의는 토폴로지 무관(승인 vs 소실방지) |
+| §2.7.2 저작/스캔/정비 3범주 | ✔ | ✔ | **무단 스캔 금지는 양쪽 공통** — A2A 불투명 피어 원칙이 같은 결론을 낸다 |
+| §2.7.3 B0–B3 상태 표 | ✔ | **B1 배달 ✗** | B0 부트스트랩·B2 상향 문서회수·B3 경계는 유효. **B1 하향 빌드킷 배달만 dormant** |
+| §2.7.4 권위 평면 계약 | ✔ | ✔ | 커밋/인덱스/파일시스템 구분은 토폴로지 무관 |
+| §2.7.5 sync 절차 평면 분리 | ✔ | **N/A** | `sync_to_sub` 배달 자체가 dormant 이므로 하위행위도 없다 |
+| §2.7.6 node-identity | ✔ rank+role | ✔ AgentCard | 같은 절 안에서 갈린다(아래) |
+| §2.7.7 A2A 제어명령 | ✔ | ✔ | 싱글에서 **더** 중심적이다 — 제어 자체가 A2A Task 이므로 |
+| §2.7.8 그라운딩 교환 | ✔ | ✔ | 도서관 비대칭은 토폴로지 무관(메인 단독) |
+
+- **싱글에서 서브를 "제어"한다는 말의 의미**: 메인은 A2A Task 를 발급하고(§2.7.7 제어명령은 그 특수형),
+  서브는 자율 수행 후 push-attestation 리포트를 돌려준다. 메인이 서브의 **빌드 산출물을 밀어 넣지
+  않는다** — 그건 멀티의 평면이다.
 
 ### 2.7.1 권한 평면 A/B
 
@@ -361,9 +441,17 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 | 서브 git `checkout`·`clean`(unstick) | **B** | 소실 방지 — **메인 자율** | 메인 |
 | 서브 빈 디렉터리 정비(§2.7.2) | **B** | 로그 필수 — **메인 자율** | 메인 |
 
-### 2.7.6 노드 정체성(node-identity) — `role` 스킴
+### 2.7.6 노드 정체성(node-identity) — `role` + `rank` 스킴
 
-> 원문: `docs/plan/plan_26081514_노드정체성_명시화_role스킴_PII구조해소.md` §3 (R 스킴). **⚠ 미실장** — 아래는 확정된 스킴 선언이며 코드 배선(A1–A6)은 별건이다.
+> 원문: `docs/plan/plan_26081514_노드정체성_명시화_role스킴_PII구조해소.md` §3 (R 스킴).
+> **실장 완료** — `scripts/node_blackbox/node_identity.sh`(node_id 단일 해소기, 소비자 4종이 source)
+> + `scripts/node_role_contract.py`(rank·sub_mode·정체성 권위). 2026-08-22 `plan_26082214` §4.2 에서
+> **토폴로지 축**(rank vs AgentCard)을 얹어 완성했다. 종전의 "⚠ 미실장" 표기는 이로써 해소된다.
+
+**정체성은 두 질문으로 갈린다** — *"이 노드를 무엇이라 부르는가"*(node_id, 경로 성분)와 *"이 노드는
+집단의 어디인가"*(rank, 멀티 전용). 앞엣것은 토폴로지 무관이고, 뒤엣것은 **§2.7.0 제1축에서 갈린다.**
+
+#### (a) node_id — 이름 (양 토폴로지 공통)
 
 ```text
 node_id ::= manifest nodes[].role 슬러그
@@ -376,10 +464,64 @@ node_id ::= manifest nodes[].role 슬러그
 | **메인측 권위** | `output/<topology>/manifest.yaml` 의 `nodes[].role` |
 | **서브측 권위** | 배달된 `Agent_Card.json` → `node_identity.role` — **신규 배달 채널 불요**(이미 렌더·전달 중) |
 | **기본값** | **없음.** 해소 실패 시 `$(hostname)` 로 떨어지지 않고 **fail-loud 종료** |
+| **해소 우선순위** | ① 명시 `--node-id=<slug>` ② `Agent_Card.json`(서브측) ③ `output/*/manifest.yaml` 의 유일한 `role: main` ④ fail-loud |
 | **hostname 의 남은 자리** | gitignored 렌더 산출물의 **비권위 속성 필드**(`Agent_Card.json:node_identity.hostname`)뿐. **경로 성분·문서 산문에는 등장 금지** |
 | **의미 스코프** | **클러스터 스코프**(누구의 디스크에서 보든 같은 이름). 메인의 `docs/logs/sub/` = 서브 미러, 서브의 `docs/logs/sub/` = 정본. 경로 동일, 권위만 다름 |
 
-- **기본값 제거가 스킴의 핵심이다.** 현행 `NODE_ID="$(hostname)"` 은 헌법이 금지한 *"결정·게이트·안전 경로의 침묵 폴백"*(§결정론 규율 4종 안티패턴 판정표의 **결함** 칸)이다 — 틀려도 조용히 새 로그 트리를 만든다.
+- **기본값 제거가 스킴의 핵심이었고, 지금은 제거되어 있다.** 옛 `NODE_ID="$(hostname)"` 은 헌법이 금지한 *"결정·게이트·안전 경로의 침묵 폴백"*(§결정론 규율 4종 안티패턴 판정표의 **결함** 칸)이었다 — 틀려도 조용히 새 로그 트리를 만들고, 워치독은 아무도 안 보는 곳에 기록하며, 관측 공백은 사고가 나야 발견된다. 현행 배선은 `ni_resolve_node_id` 하나가 해소하고 **실패하면 죽는다**(`node_identity.sh:ni_resolve_node_id` 마지막 분기 = 옛 hostname 자리).
+- **각자 파싱 금지.** 소비자(`install_node_blackbox.sh`·`verify_node_blackbox.sh`·`purge_host_safety.sh`·`multinode_serve_smoke.sh`)는 이 파일을 source 하고 `ni_resolve_node_id` 만 부른다 — 5개 스크립트가 제각기 `$(hostname)` 을 파생하던 것이 원래 문제였다.
+
+#### (b) rank — 위치 (**멀티 전용** · 신설 2026-08-22)
+
+```text
+rank ::= manifest nodes[] 배열 인덱스 (0..n-1)
+권위 ::= scripts/node_role_contract.py :: resolve_rank(topology, nodes, role)
+```
+
+| 토폴로지 | rank | `source` 값 | 근거 |
+|---|---|---|---|
+| **multi** | `nodes[]` 인덱스 | `manifest-nodes-index` | NCCL "n개 디바이스 각각에 0..n-1 의 고유 rank" 차용 |
+| **single** | **`None`** | `not-applicable:single-a2a-agent` | A2A 는 집단이 아니다 — 정체성은 AgentCard이지 위치가 아니다 |
+
+- **싱글에서 rank 를 조용히 0 으로 채우지 않는다.** 그건 "싱글 sub 가 집단의 0번"이라는 거짓말이고,
+  하류가 그 값을 TP·NCCL 입력으로 오해할 수 있다. `None` + 출처 문자열이 **음성정직** 표기다
+  (`staleness_gate` 의 `skipped:*` 선례와 동형).
+- ⚠ **알려진 경계 — N>2**: 현행 role 어휘는 `{main, sub}` 닫힌 목록이라 **서브가 2대 이상이면 슬러그가
+  겹치고 node_id 도 겹친다**(로그 트리 혼합). `resolve_rank` 는 조용히 첫 항목을 고르지 않고
+  `RANK_AMBIGUOUS_ROLE` 로 죽는다. 어휘를 넓히려면 **세 공동 소유자가 함께** 바뀐다 —
+  `node_role_contract.py`(SUB_MODE/role) · `scan_node.py` manifest 게이트 · `node_identity.sh:NI_MAIN_ROLE`.
+- multi 에서 `role: main` 이 인덱스 0 이 아니면 **위반이 아니라 note** 다(Ray/NCCL 은 head 가 배열
+  첫 항목일 것을 요구하지 않는다). 다만 관례와 어긋나므로 침묵하지 않는다.
+
+#### (c) 렌더 산출물에 실릴 형태 — ✅ **배선 완료**(2026-08-22 · W-2)
+
+`Agent_Card.json:node_identity` 는 **값과 출처를 함께** 싣는다 — `rank`/`sub_mode` 는 파생값이라
+출처 없이는 하류가 측정·선언·파생을 구분하지 못한다(헌법 §결정론 규율 "출처 표시"):
+
+```jsonc
+"node_identity": {
+  "role": "sub",
+  "rank": null,                                    // multi 면 nodes[] 인덱스
+  "rank_source": "not-applicable:single-a2a-agent",
+  "sub_mode": "a2a-agent",
+  "sub_mode_source": "derived-from-topology",      // 선언되어 일치하면 declared-and-agrees
+  "hostname": "…"                                  // 비권위 속성 필드 — 경로 성분 ✗
+}
+```
+
+- 값의 산출 권위는 `node_role_contract.py` 이며 렌더러는 그것을 **적기만** 한다(두 번째 파생 구현 ✗).
+  배선: `render_sub_env.py::_contract_placeholders` 가 `evaluate_manifest` 를 불러 네 값을
+  `{{SUB_MODE}}`·`{{SUB_MODE_SOURCE}}`·`{{SUB_RANK}}`·`{{SUB_RANK_SOURCE}}` 로 옮긴다.
+  **회귀핀**: `render_sub_env.py --self-test` 가 렌더 산출물과 판정기 산출의 **문자 그대로 일치**를
+  검사한다(`testlog_26082215` S-11 FAIL 재발 차단).
+- `rank` 는 JSON **정수 또는 null** 이지 문자열이 아니다 — 템플릿에서 따옴표 없이 치환된다.
+  `"null"` 로 실으면 하류가 rank 를 문자열로 읽어 TP·NCCL 입력으로 오해할 수 있다.
+- 계약 위반(예: single 에 `sub_mode: ray-worker` 선언)이면 네 값이 비고, 렌더러는 **필수 필드 누락**
+  경로로 **fail-loud 종료**한다(빈 정체성 렌더 금지). 위반 코드도 함께 출력한다.
+- 카드의 서술 자체도 토폴로지로 갈랐다(W-3): `topology_contract.{a2a-agent,ray-worker}` 블록이
+  분리돼 있고, 종전의 *"현재 브랜치로 분기"*·*"메인 정본 빌드를 byte-equiv 재현"* 문구는 제거됐다
+  (브랜치 추론은 헌법 금지이고, single 서브는 재현자가 아니라 **자율 저작자**다).
+- `hostname` 은 여기에만 남고 **경로 성분이 되지 않는다.**
 - **PII 구조 해소**: `hostname` 이 경로에서 사라지면 `spark-host` 패턴은 애초에 걸릴 것이 없다. `docs.md` 의 `<node_id>` 규약은 문자 그대로 유효하게 남는다(개정 대상은 규약이 아니라 `<node_id>` 의 **정의**뿐).
 - **예외**: `--confirm=CRASH-$(hostname)` 파괴적 확인 토큰은 PII 스캔 평면 밖이라 **의도적으로 hostname 을 남긴다**(경로·기록은 role, 파괴적 확인만 호스트). 최종 결정은 해당 plan 의 G2.
 
@@ -402,19 +544,123 @@ node_id ::= manifest nodes[].role 슬러그
 - **바이트를 가진 것의 삭제는 이 프로토콜 밖**이다 — `ALLOW_DELETE` 게이트 관할이며, 그 안내문을 그대로 따르면 파괴가 완성되는 형태였던 선례(D5)가 있으므로 **안내문 복창 금지**.
 - 실행문법(provider 별 `claude -p` 호출 형태)은 `references/agent-control-adapter.md` 에서만 해소한다.
 
+### 2.7.8 그라운딩 교환 포맷 — 서브 요청 → 메인 색인 → 반출 (신설 2026-08-22 · `plan_26082214` §4.2)
+
+> 헌법 **불변식 B** 의 "어떻게". 헌법은 *왜 인용 없는 결정이 성립하지 않는가*를 말하고, 이 절은
+> *그래서 무엇을 어떤 모양으로 주고받고 무엇이 기계 판정인가*를 정한다.
+> 계약 = `sub_node/library-exchange.schema.json`(추적 PII-free 정적계약, 서브로 복제) ·
+> 판정기 = `scripts/library_exchange.py`(**메인 전용** — 서브는 판정 주체가 아니다).
+> 원리 차용 = `docs/report/ttsc-evidence-graph-principles-implementation.md` §1·§5.
+
+**분업이 설계의 전부다 — *누락은 기계가, 거짓은 사람이.*** 서브가 "이 근거로 이렇게 빌드했다"고 말할
+때, *그 근거가 실제로 반출된 항목인지·빠진 인용은 없는지*는 결정론으로 답할 수 있다. 반면 *그 근거가
+이 결정을 정말 뒷받침하는가*는 사람이 읽어야 한다. 판정기는 앞엣것만 한다 — 뒤엣것을 흉내 내면 판정이
+확률론이 되고 게이트가 무의미해진다.
+
+**지식 비대칭은 유지한다.** 도서관(`__llm-wiki`)과 사서(`wiki-desk`)는 **메인 단독**이며 서브로
+복제되지 않는다("DB 한 곳, 차등 접근권한"). 그래서 메인이 내보내는 것은 도서관이 아니라
+**경로 + 앵커 + digest + 발췌**다 — 반출을 복제로 바꾸는 것이 비대칭을 깨는 실제 경로이므로,
+발췌 예산 초과는 `EXPORT_EXCEEDS_EXCERPT_BUDGET` 로 거부한다.
+
+#### 세 메시지 (전송은 신설하지 않는다 — 기존 A2A 통로에 실어 보낸다)
+
+| # | `kind` | 방향 | 필수 블록 | 뜻 |
+|---|---|---|---|---|
+| ① | `library.citation.request` | 서브 → 메인 | `claim` · `query` | "이 **결정**을 뒷받침할 근거를 달라". 서브는 도서관을 뒤지지 않는다 — 무엇을 찾는지만 말한다 |
+| ② | `library.resolution.export` | 메인 → 서브 | `resolution` · `references` | 사서가 색인한 결과 중 **반출 가능한 항목**. `status` ∈ resolved\|partial\|**unresolved**\|refused |
+| ③ | `library.citation.attestation` | 서브 → 메인 | `claim` · `citations` · `decision` | "이 결정은 이 ref 들을 인용해 내렸다"는 자기귀속 |
+
+- 셋은 `exchange_id` 로 묶인다. 갈리면 `EXCHANGE_ID_MISMATCH` — 어느 반출이 어느 결정을 뒷받침했는지
+  추적 불가가 되므로 의미 판정을 **아예 진행하지 않는다**.
+- **한 오브젝트는 한 종류만 담는다**(`KIND_BLOCK_FOREIGN`). 스키마의 `additionalProperties:false` 는
+  "계약에 없는 키"만 막고 "이 종류에 없어야 할 블록"은 못 막으므로, 그 경계는 판정기가 닫는다.
+
+#### 증거그래프 어휘 대응
+
+| 증거그래프 | 여기서 | 내용 |
+|---|---|---|
+| **claim** (빚을 지는 쪽) | `claim` | 인용 의무를 지는 **결정**. `kind` ∈ build-decision · serve-decision · version-pin · patch-slot · *informational* |
+| **reference** (빚의 원천) | `references[]` | 도서관 항목. `ref_id` · `path` · `anchor` · **`digest`** · `excerpt` · `authority` |
+| **acknowledgement** | `citations[]` | claim → reference 의무 이행. `ref_id` · `digest` · `reason` |
+| **resolution** | `resolution.status` | 사서의 해소 상태. **`unresolved` 는 정직한 공백**이지 실패가 아니다 |
+
+- `authority` 는 wiki-desk 규약(**실행진실 > 계획의도**)을 그대로 쓴다 — 서브가 상충하는 참조를
+  받았을 때의 우선순위다.
+- `informational` 은 **인용 의무 모집단 밖**이다(질의만 하고 결정하지 않는 claim). 그것으로 결정을
+  채택하면 의무를 우회하는 셈이라 `HOST_INELIGIBLE` 로 막는다.
+
+#### 하드게이트 — 세 질문 + Freshness
+
+```bash
+python3 .claude/skills/terraforming_node/scripts/library_exchange.py \
+        gate --request <req.json> --export <exp.json> --attestation <att.json>
+# 0 = 통과 · 5 = 게이트 위반(fail-closed) · 2 = 사용오류
+```
+
+| 질문 | 무엇을 묻나 | 위반 코드 |
+|---|---|---|
+| **Resolution** | 모든 인용이 반출 항목 **정확히 하나**로 해소되는가 | `CITATION_UNRESOLVED` · `EXPORT_DUPLICATE_REF_ID` |
+| **Host eligibility** | 인용을 단 결정이 **의무 모집단**인가 | `HOST_INELIGIBLE` |
+| **Coverage** | 채택된 모든 결정이 **최소 하나**의 인용을 갖는가 | **`GROUNDING_OMISSION`** |
+| *+ Freshness* | 인용 시점 digest 가 반출 시점 digest 와 같은가 | `CITATION_STALE` |
+
+- **`GROUNDING_OMISSION` 이 불변식 B 의 집행점이다.** *"아무것도 인용하지 않는 산출물은 '필요했다'는
+  증거가 없고, 반출되지 않은 것을 인용하는 산출물은 '무엇'도 증명하지 못한다."*
+- **도서관에 근거가 없을 때의 올바른 행동은 강행이 아니다.** `resolution.status` 가
+  `unresolved`/`refused` 인데 서브가 `decision.accepted: true` 를 내면 omission 이며, 판정기가
+  그 경우 **`accepted:false` + HITL 에스컬레이션**이 정답임을 메시지에 함께 적는다.
+- **Freshness 는 `requireReview` 차용**이다 — 인용된 것이 바뀌면 인용은 만료된다. 조용히 유효한 척하면
+  낡은 근거 위에 선 결정이 초록불로 남는다.
+- 판정기는 **서브 디스크를 읽지 않는다**(메시지만 본다) — §2.7.2 스캔 금지와 push-attestation 보존.
+
+#### 배선 — 어디서 도는가
+
+| 단계 | 주체 | 행위 |
+|---|---|---|
+| ① 요청 | 서브(A2A remote agent) | `library.citation.request` 를 task-report 통로로 반환 |
+| ② 색인·반출 | **메인 + `wiki-desk`** | 사서가 색인 → 반출 가능분만 `library.resolution.export` 로 회신 |
+| ③ 귀속 | 서브 | 결정과 함께 `library.citation.attestation` 반환 |
+| ④ **판정** | **메인** | `library_exchange.py receive` — 통과해야 결정이 성립. 실패는 서브로 feedback |
+
+- ✅ **자동 호출 배선 완료**(2026-08-22 · W-5). ④ 의 정문은 `gate` 가 아니라 **`receive`** 다 —
+  `gate` 는 "이 셋이 정합한가"만 알고 *"지금 물어야 하는가"* 를 모른다. 그래서 2026-08-22 E2E 에서
+  gate 를 돌린 주체는 파이프라인이 아니라 **사람**이었다(`testlog_26082215` §4.5).
+  `receive` 는 리포트 자신에서 **인용 의무를 판정**하고(`phase ∈ {config,build,serve}` ∧
+  `status=completed`), 의무가 있는데 교환 3메시지가 없으면 `GROUNDING_EXCHANGE_ABSENT` 로 거부한다.
+
+```bash
+# 위임과 수신을 한 명령으로 묶는다 — 두 단계로 두면 두 번째를 건너뛸 수 있다.
+python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
+        --invoke-request <agent-control-request.json> --exchange-dir <교환 3메시지 디렉터리>
+# 이미 받아 둔 산출로 판정할 때:
+#   receive --agent-control-result <result.json> …   (result.output 에서 리포트를 꺼낸다)
+#   receive --report <task-report.json> …
+```
+
+- **결속을 함께 본다**: `attestation.node_id` 가 리포트 `node_id` 와 다르면 `EXCHANGE_NODE_MISMATCH`
+  로 거부한다 — 다른 노드/다른 결정의 통과한 교환을 재사용해 게이트를 우회하는 경로를 닫는다
+  (M-2 가 노출한 `execution_approval` 재인가 결함과 **같은 형태**이며, 그쪽은 W-8 로 남아 있다).
+- **유보에는 의무가 없다**: `input-required`·`failed` 는 채택이 아니므로 인용을 요구하지 않는다.
+  요구하면 *"막혔다"고 정직하게 보고하는 경로가 오히려 벌을 받는다.*
+- 전송은 여전히 헌법 소유다 — `receive` 는 `agent_control.py invoke`(provider-neutral)를 부르고
+  **자기 전송을 만들지 않는다**(헌법=왜 / 스킬=어떻게 경계 유지).
+- 양 토폴로지 공통이다(§2.7.0 분기표) — 도서관 비대칭은 sub 가 Ray 워커든 A2A 에이전트든 같다.
+
 ## 3. 결정론 vs 판단 분리
 | 결정론 (스크립트) | 판단 (이 페르소나) |
 |---|---|
-| **`staleness_gate.py`(조건부 preflight 트리거 — manifest/Flag/HW드리프트/attestation 나이 3축, `--now` 주입·벽시계 ✗)** · `scan_node.py`(스캔·게이트·3자-일치·manifest 블록·**emit_gate=토폴로지 미선언 emit fail-closed**) · `render_sub_env.py`(manifest→10아티팩트 렌더/복제·미치환/필수 검증) · sync_to_sub 체크섬 · `install_host_safety.sh`(설치·검증 — 실행 트리거는 HITL) | **토폴로지 진입 인터뷰(§0.5)** · fresh-clone 온보딩 능동제안 · 5-전제조건 인터뷰 · 사용자 승인 · 브랜치≠토폴로지 시 브랜치전환 안내 · ib_write_bw 오케스트레이션 · **호스트 안전체계 세션 최종 Y/N 설명·승인(§2.6 — 보험판매 톤 선택조항)** · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 · 모호 시 중단·질의 |
+| **`staleness_gate.py`(조건부 preflight 트리거 — manifest/Flag/HW드리프트/attestation 나이 3축, `--now` 주입·벽시계 ✗)** · `scan_node.py`(스캔·게이트·3자-일치·manifest 블록·**emit_gate=토폴로지 미선언 emit fail-closed**) · `render_sub_env.py`(manifest→10아티팩트 렌더/복제·미치환/필수 검증) · **`node_role_contract.py`**(토폴로지 축 계약 — sub_mode 파생/선언일치·rank·정체성 권위·배달 평면, 출처 필드 동반) · **`library_exchange.py`**(그라운딩 3질문+Freshness — **누락** 판정만; "이 근거가 정말 뒷받침하나"는 판단 칸) · sync_to_sub 체크섬 · `install_host_safety.sh`(설치·검증 — 실행 트리거는 HITL) | **토폴로지 진입 인터뷰(§0.5)** · fresh-clone 온보딩 능동제안 · 5-전제조건 인터뷰 · 사용자 승인 · 브랜치≠토폴로지 시 브랜치전환 안내 · ib_write_bw 오케스트레이션 · **호스트 안전체계 세션 최종 Y/N 설명·승인(§2.6 — 보험판매 톤 선택조항)** · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 · **인용의 진위 리뷰(§2.7.8 — 거짓은 사람이 본다)** · 모호 시 중단·질의 |
 
-회귀 고정: `python3 scripts/staleness_gate.py --self-test`(3축 판정·결정론·음성정직 10케이스) · `python3 scripts/scan_node.py --self-test`(게이트 9 + emit_gate fail-closed 4 + emit-block None-leak 2 = 15케이스) · `python3 scripts/render_sub_env.py --self-test`(렌더 4케이스). 둘 다 하드웨어 불요.
+회귀 고정(전부 하드웨어·네트워크 불요): `python3 scripts/staleness_gate.py --self-test`(3축 판정·결정론·음성정직 9 + single sub-control 로스터 6 + interconnect 의미론 6 = 21케이스) · `python3 scripts/scan_node.py --self-test`(34케이스 — 게이트·emit_gate fail-closed·emit-block None-leak·egress) · `python3 scripts/render_sub_env.py --self-test`(렌더 6케이스) · **`python3 scripts/node_role_contract.py --self-test`**(sub_mode 파생/선언 8 + rank 5 + 권위·배달평면 4 + manifest 평가 6 + 결정론 1 = 24케이스) · **`python3 scripts/library_exchange.py --self-test`**(세 질문·Freshness·비대칭·shape = 17케이스) · `bash scripts/node_blackbox/node_identity.sh --self-test`(해소 우선순위·fail-loud 8케이스).
 
 ## 4. 보조 파일
-- `scripts/staleness_gate.py` — **조건부 preflight 결정론 트리거**(`--topology`·`--repo`·`--observed`·`--now`·`--max-age-days`·`--self-test`). 3축(manifest/Flag · HW 드리프트 · attestation 나이) → 안정 reason code. 미평가 축은 `skipped:*` 로 음성정직 표기(조용한 통과 ✗).
+- `scripts/staleness_gate.py` — **조건부 preflight 결정론 트리거**(`--topology`·`--repo`·`--observed`·`--now`·`--max-age-days`·`--self-test`). 3축(manifest/Flag · HW 드리프트 · attestation 나이) → 안정 reason code. 미평가 축은 `skipped:*` 로 음성정직 표기(조용한 통과 ✗). **HW 축의 interconnect 6필드는 topology=single 에서 비교하지 않는다**(2026-08-21 · approved_by AhnSangHun) — single 은 분산서빙을 안 해 interconnect 를 쓰지 않으므로 manifest 의 "미사용" 선언 ↔ 실측 RoCE 발산은 의도된 것이다. `scan_node.evaluate_gate` 의 single 의미론(RoCE 존재 = warning, gate note "interconnect 스캔 skip(실패 아님)")과 정합. **multi 는 유지**(텐서패브릭이므로 완화 ✗). 제외 적용 시 `notes` 에 표기한다(침묵 ✗).
 - `references/agent-control-adapter.md` — **provider 전용 실행문법 경계**(서브 위임·카나리). 본문은 의도만, 문법은 여기서만.
 - `scripts/scan_node.py` — 결정론 스캔 코어(`--topology`·`--peer-ip`·`--bandwidth-gbps`·`--bw-floor`·`--emit-manifest`·`--self-test`).
 - `scripts/render_sub_env.py` — 결정론 렌더러(manifest→`output/multi/sub_provision/` 스테이징·`--self-test`).
-- `sub_node/` — 추적 PII-free 템플릿·정적계약: `CLAUDE.template.md`·`Agent_Card.template.json`·`settings.local.template.json`·`comms.md`·`task-report.schema.json`·`gitignore.template`.
+- `scripts/node_role_contract.py` — **토폴로지 축 노드 계약의 단일 소유자**(§2.7.0·§2.7.6b). `evaluate --topology <t> --field {sub_mode,rank,identity_authority,delivery_plane} --format {json,value}` · `--self-test`. 배달 평면 판정의 **정본**이며 `role: sub` 존재로 추론하지 않는다. ✅ 소비자 배선 완료(2026-08-22): `sync_to_sub.sh:_single_extension_active`(배달 평면) · `render_sub_env.py::_contract_placeholders`(Agent_Card 4필드). ⚠ venv `-S` shim 을 포함한 `load_yaml` 을 자체 보유한다 — `staleness_gate._load_yaml` 과 **같은 shim 이 두 곳에 있다**. 지금은 의도된 비결합(preflight 게이트가 이 파일 부재로 죽지 않게)이며, 갈라지면 신호는 두 파서의 판정 불일치로 온다.
+- `scripts/library_exchange.py` — **그라운딩 교환 판정기**(§2.7.8, 메인 전용). `validate --file <msg>` · `gate --request/--export/--attestation` · `--self-test`. 서브 디스크를 읽지 않는다(메시지만 본다).
+- `sub_node/` — 추적 PII-free 템플릿·정적계약: `CLAUDE.template.md`·`Agent_Card.template.json`·`settings.local.template.json`·`comms.md`·`task-report.schema.json`·**`library-exchange.schema.json`**(§2.7.8 그라운딩 교환)·`gitignore.template`.
 - 메인↔서브 [전달]·[서빙 스모크]는 `upstream-version-watch`(`sync_to_sub.sh` — `--provision` 에 에이전트환경 오버레이 포함 · `multinode_serve_smoke.sh`).
 - **호스트 안전체계 — 설치자는 승계됐고 협역 워치독은 정본으로 남았다**(2026-08-18 정밀화). 두 디렉터리를 뭉뚱그리면 살아 있는 자산을 레거시로 오인해 **보호층을 걷어내게 된다.** 두 뿌리는 `.claude/skills/terraforming_node/scripts/node_blackbox/` 와 `.claude/skills/terraforming_node/scripts/host_safety/` 이며, 레포 루트 `scripts/` 가 아니다(자기완결 재배치 완료 — 그 경로는 tombstone).
 

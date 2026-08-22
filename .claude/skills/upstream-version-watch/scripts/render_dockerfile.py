@@ -118,7 +118,7 @@ CLUSTER_INVARIANTS = {                  # ③ universal — 클러스터 포트
 #     (26.03-py3, 0.23.0)=FAIL(torch 2.11, Tensor::layout() 부재) ← 옛 '0.23.0 동일 torch2.11 캐리' 가정의 반증.
 #     (26.05-py3, 0.24.0)=검증(torch 2.11.0 핀·NGC 26.05 동일, source-build 레시피 byte-동일 — 0.23.0 twin.
 #         0.24.0=#43477 DeepSeek-V4 SM120 네이티브 stock. strip-hoist 자동 skip(torch 2.12). plan_26070119, 스모크 최종중재).
-#   미인식 키는 빌드를 명시적으로 실패시킨다(false determinism 방지 — plan rev3 §5 / SKILL.md §4.6 HITL 발견 루프 유도).
+#   미인식 키는 빌드를 명시적으로 실패시킨다(false determinism 방지 — plan rev3 §5 / .claude/skills/upstream-version-watch/references/source-build.md §3 HITL 발견 루프 유도).
 #   P6: 이 인라인 셋을 source_build_patches.yaml + 패치-리졸버 페르소나로 승급.
 VALIDATED_SOURCE_BUILD_KEYS = {
     ("26.03-py3", "0.22.1"),
@@ -132,6 +132,123 @@ VALIDATED_SOURCE_BUILD_KEYS = {
                               #   파일을 requirements.txt(extras 제거)로 채워야 함(이 템플릿에 신규 배선 — 이전엔 비워서 무의미했음).
                               #   testlog_26081111 참조.
 }
+
+# ── 출구① 상속(inherit) 원장 — plan_26082112 §5.2 · P4 ────────────────────────
+#   **별도 dict 다**(계획 §10 U4 권장 채택). 위 VALIDATED_SOURCE_BUILD_KEYS 는 리터럴 set 원형을
+#   그대로 보존한다 — 그 set 은 "이 조합으로 실제 빌드·스모크가 통과했다"는 tripwire 이고,
+#   아래 dict 는 "직접 통과시킨 적은 없으나 델타 증거로 상속한다"는 **성질이 다른 주장**이다.
+#   둘을 한 자료구조에 섞으면 그 구분이 데이터에서 사라진다(결정론 규율 §출처 표시).
+#
+#   **이 목록은 Judge 가 채우지 않는다.** 등재는 게이트 G1.6 에서 **사람이 손으로** 한 줄 적는 행위다
+#   (계획 §9 R2 · 하드코딩 정당조건 = tripwire). judge_version_delta.py 의 산출물은 **evidence 이지
+#   approval 이 아니다** — 아래 술어는 그 evidence 가 *존재하고 상속 조건을 만족하는지*만 본다.
+#
+#   항목 스키마(4필드 전부 필수):
+#     (ngc_tag, vllm_new): {
+#         "inherits":    (ngc_tag, vllm_old),          # 반드시 VALIDATED_… 에 실재 + 같은 NGC 베이스
+#         "attestation": "<resolved.json 경로>#upstream_delta",
+#         "approved_by": "<승인자>",                    # G1.6 사람 승인 기재
+#         "approved_kst": "YYMMDDHH",
+#     }
+#   ⚠ 이 relay(P4)는 **메커니즘만** 배선하고 실제 상속 항목은 넣지 않는다 — 비어 있는 것이 정상이다.
+INHERITED_SOURCE_BUILD_KEYS: dict = {
+    # (등재 예시 — 주석으로만 둔다. 실제 등재는 G1.6 승인 뒤 사람이 이 주석 아래에 적는다)
+    # ("26.07-py3", "0.27.1"): {
+    #     "inherits": ("26.07-py3", "0.27.0"),
+    #     "attestation": "output/multi/resolved.json#upstream_delta",
+    #     "approved_by": "<승인자>",
+    #     "approved_kst": "26082212",
+    # },
+}
+
+INHERIT_REQUIRED_FIELDS = ("inherits", "attestation", "approved_by", "approved_kst")
+INHERIT_ATTESTATION_KEY = "upstream_delta"
+INHERIT_ATTESTATION_SUFFIX = "#" + INHERIT_ATTESTATION_KEY
+# tripwire(하드코딩 정당조건 — workflow.md §4종 안티패턴 판정표): judge_version_delta.py 의
+#   SCHEMA_VERSION 이 올라가면 이 닫힌 목록을 **사람이 검토해** 넓힌다. 파생하지 않는 이유는
+#   render 가 judge 를 import 하지 않기 때문이다(judge 부재가 렌더를 깨면 안 된다 — 배포 단위가 다르다).
+INHERIT_ACCEPTED_ATTESTATION_SCHEMAS = (1,)
+
+
+def _norm_ref(ref) -> str:
+    """'v0.27.1' · '0.27.1' → '0.27.1' (ref ↔ 버전문자열 정규화)."""
+    r = str(ref or "").strip()
+    return r[1:] if r.startswith("v") else r
+
+
+def _echo_safe(text: str) -> str:
+    """RUN echo "..." 안에 안전하게 넣을 1행 문자열."""
+    return re.sub(r"\s+", " ", str(text)).replace('"', "'").replace("\\", "/").strip()
+
+
+def _inherit_eligibility(ngc_tag: str, vllm_version: str, entry, resolved):
+    """출구① 상속 성립 술어. → (ok, checks[(name, ok, detail)], att)
+
+    **전부 통과해야 성립한다.** 하나라도 걸리면 렌더는 상속을 거부하고 fail-loud 스탠자를 낸다 —
+    조용히 미검증 경로로 강등하지 않는다(침묵 폴백 금지 · workflow.md §4종 판정표 폴백-결함).
+    """
+    checks = []
+
+    def ck(name, ok, detail=""):
+        checks.append((name, bool(ok), detail))
+        return bool(ok)
+
+    if not isinstance(entry, dict):
+        ck("entry_shape", False, f"항목이 dict 가 아님: {type(entry).__name__}")
+        return False, checks, None
+    missing = [f for f in INHERIT_REQUIRED_FIELDS if not entry.get(f)]
+    ck("entry_shape", not missing, f"필수 필드 결손: {missing}")
+
+    base = entry.get("inherits")
+    base_t = tuple(base) if isinstance(base, (tuple, list)) else None
+    ck("base_shape", base_t is not None and len(base_t) == 2, f"inherits 가 (ngc, vllm) 2-튜플이 아님: {base!r}")
+    if base_t and len(base_t) == 2:
+        ck("base_same_ngc", str(base_t[0]) == str(ngc_tag),
+           f"상속원 NGC({base_t[0]}) != 대상 NGC({ngc_tag}) — 출구①은 **같은 NGC 베이스** 위의 vLLM bump 만 덮는다")
+        ck("base_validated", base_t in VALIDATED_SOURCE_BUILD_KEYS,
+           f"상속원 {base_t} 가 VALIDATED_SOURCE_BUILD_KEYS 에 없음 — 상속의 상속(체인) 금지")
+    else:
+        ck("base_same_ngc", False, "inherits 형식 불량으로 판정 불가")
+        ck("base_validated", False, "inherits 형식 불량으로 판정 불가")
+
+    ptr = str(entry.get("attestation") or "")
+    ck("attestation_pointer",
+       ptr.endswith(INHERIT_ATTESTATION_SUFFIX) and len(ptr) > len(INHERIT_ATTESTATION_SUFFIX),
+       f"attestation 포인터가 '<경로>{INHERIT_ATTESTATION_SUFFIX}' 형식이 아님: {ptr!r}")
+
+    att = (resolved or {}).get(INHERIT_ATTESTATION_KEY)
+    if not isinstance(att, dict) or not att:
+        ck("attestation_present", False,
+           f"렌더 입력(resolved)에 '{INHERIT_ATTESTATION_KEY}' 블록이 없다 — "
+           "judge_version_delta.py --write-resolved 로 발행하지 않았거나 다른 resolved 를 렌더 중이다")
+        return False, checks, None
+    ck("attestation_present", True)
+
+    ck("attestation_schema", att.get("schema_version") in INHERIT_ACCEPTED_ATTESTATION_SCHEMAS,
+       f"attestation schema_version={att.get('schema_version')!r} 이 승인목록 {list(INHERIT_ACCEPTED_ATTESTATION_SCHEMAS)} 밖")
+    ck("attestation_provenance", att.get("provenance") == "measured",
+       f"provenance={att.get('provenance')!r} (measured 만 상속 근거가 된다 — 모의·dry-run 금지)")
+
+    to_ok = _norm_ref(att.get("to_ref")) == str(vllm_version)
+    from_ok = bool(base_t) and len(base_t) == 2 and _norm_ref(att.get("from_ref")) == str(base_t[1])
+    ck("attestation_refs", to_ok and from_ok,
+       f"attestation {att.get('from_ref')!r}->{att.get('to_ref')!r} 이 상속 주장 "
+       f"{(base_t[1] if base_t and len(base_t) == 2 else '?')}->{vllm_version} 와 불일치")
+
+    ax_a = (att.get("axis_A_build_input") or {}).get("verdict")
+    ax_b = (att.get("axis_B_port_scope") or {}).get("verdict")
+    ck("axis_A_no_impact", ax_a == "NO_IMPACT", f"axis_A={ax_a!r} (NO_IMPACT 필요)")
+    ck("axis_B_no_impact", ax_b == "NO_IMPACT", f"axis_B={ax_b!r} (NO_IMPACT 필요)")
+
+    gv = att.get("verdict")
+    ck("global_verdict", gv in ("NO_IMPACT", "IMPACT"),
+       f"전역 verdict={gv!r} — UNDETERMINED/미지 는 상속 근거가 아니다(미판정이 무영향으로 세탁되는 것을 막는다)")
+
+    unk = att.get("unknown")
+    ck("unknown_empty", isinstance(unk, list) and not unk, f"unknown={unk!r} (비어 있어야 한다)")
+
+    return all(ok for _, ok, _ in checks), checks, att
+
 
 _PLACEHOLDER_RE = re.compile(r"\{\{\s*[A-Z0-9_]+\s*\}\}")
 
@@ -279,21 +396,57 @@ def _compact_cuda(cuda: str) -> str:
 ALLOW_UNVALIDATED = False
 
 
-def _patch_guard(ngc_tag: str, vllm_version: str) -> str:
+def _patch_guard(ngc_tag: str, vllm_version: str, resolved: dict | None = None,
+                 inherited: dict | None = None) -> str:
+    """(NGC 베이스 × vLLM 버전) source-build 가드 스탠자 생성. 출구 3갈래(plan_26082112 §5.2).
+
+    ① validated  — VALIDATED_SOURCE_BUILD_KEYS 등재 → 진행(변경 없음)
+    ①' inherited — INHERITED_SOURCE_BUILD_KEYS 등재 **+ 델타 attestation 이 상속 조건 충족** → 진행
+    ②  attempt   — --allow-unvalidated (WARN 강등, 변경 없음)
+    ③  discovery — fail-closed exit 1 (변경 없음)
+
+    `inherited` 는 테스트 주입점이다(기본=모듈 원장). 프로덕션 호출자는 기본값만 쓴다.
+    """
     key = (ngc_tag, vllm_version)
+    ledger = INHERITED_SOURCE_BUILD_KEYS if inherited is None else inherited
     if key in VALIDATED_SOURCE_BUILD_KEYS:
         return (f'RUN echo "[guard] source-build key ({ngc_tag} x vLLM {vllm_version}): '
                 f'validated patch set ((ngc_base x vllm_version) keyed) — proceeding."')
+    if key in ledger:
+        # 출구① — 상속. **선언만으로는 성립하지 않는다**: 델타 attestation 이 술어를 통과해야 한다.
+        ok, checks, att = _inherit_eligibility(ngc_tag, vllm_version, ledger[key], resolved)
+        entry = ledger[key] if isinstance(ledger[key], dict) else {}
+        base = entry.get("inherits")
+        base_s = f"{tuple(base)}" if isinstance(base, (tuple, list)) else repr(base)
+        if ok:
+            ax_c = (att.get("axis_C_model_path") or {}).get("verdict")
+            return (
+                'RUN echo "[guard] source-build key (' + ngc_tag + ' x vLLM ' + vllm_version + '): INHERITED from ' + _echo_safe(base_s) + '." && \\\n'
+                '    echo "  -> basis: upstream_delta ' + _echo_safe(f"{att.get('from_ref')}->{att.get('to_ref')}") + ' verdict=' + _echo_safe(att.get("verdict")) + ' axis_A=NO_IMPACT axis_B=NO_IMPACT unknown=0" && \\\n'
+                '    echo "  -> attestation: ' + _echo_safe(entry.get("attestation")) + ' (judge_version_delta.py · provenance=' + _echo_safe(att.get("provenance")) + ' · delta_source=' + _echo_safe(att.get("delta_source")) + ')" && \\\n'
+                '    echo "  -> approved_by: ' + _echo_safe(entry.get("approved_by")) + ' @ ' + _echo_safe(entry.get("approved_kst")) + ' (HITL 게이트 G1.6 — 이 항목은 사람이 손으로 등재했다. Judge 는 가드를 넓히지 않는다)" && \\\n'
+                '    echo "  -> scope: 상속되는 것은 **빌드 키**(패치 셋 적용가능성)뿐이다. 기능 판정 아님 — axis_C=' + _echo_safe(ax_c) + '." && \\\n'
+                '    echo "  -> arbiter = smoke (workflow S3 · HITL 게이트 ③). 상속은 스모크를 면제하지 않는다." && \\\n'
+                '    echo "  -> 출구① 계약: .claude/skills/upstream-version-watch/references/source-build.md §3.1"'
+            )
+        reasons = "; ".join(f"{n}: {d}" for n, o, d in checks if not o) or "unknown"
+        return (
+            'RUN echo "ERROR: source-build key (' + ngc_tag + ' x vLLM ' + vllm_version + ') declares an INHERITED_SOURCE_BUILD_KEYS entry, but the inheritance is NOT eligible." && \\\n'
+            '    echo "  -> refused: ' + _echo_safe(reasons) + '" && \\\n'
+            '    echo "  -> 상속은 **증거로만** 성립한다 — 성립 조건 정본 = .claude/skills/upstream-version-watch/references/source-build.md §3.1. 선언은 증거가 아니다." && \\\n'
+            '    echo "  -> --allow-unvalidated 로 우회되지 않는다 — 이것은 미검증 키가 아니라 **원장 항목의 결함**이다(D3: 우회 말고 경로를 고친다)." && \\\n'
+            '    echo "  -> fix: judge_version_delta.py 를 재실행해 resolved.json#upstream_delta 를 갱신하거나, INHERITED 항목을 지우고 출구②(--allow-unvalidated)/③(source-build.md §3)로 간다." && exit 1'
+        )
     if ALLOW_UNVALIDATED:
         return (
             'RUN echo "WARN: source-build key (' + ngc_tag + ' x vLLM ' + vllm_version + ') is UNVALIDATED — attempt-build under HITL override (--allow-unvalidated)." && \\\n'
             '    echo "  -> arbiter = smoke (workflow S3). REQUIRED: record this attempt in docs/testlog/." && \\\n'
-            '    echo "  -> on smoke PASS: codify the key into VALIDATED_SOURCE_BUILD_KEYS (SKILL.md §4.6)."'
+            '    echo "  -> on smoke PASS: codify the key into VALIDATED_SOURCE_BUILD_KEYS (.claude/skills/upstream-version-watch/references/source-build.md §3)."'
         )
     return (
         'RUN echo "ERROR: source-build key (' + ngc_tag + ' x vLLM ' + vllm_version + ') has NO validated patch set." && \\\n'
         '    echo "  -> this is UNVALIDATED, not IMPOSSIBLE — 미검증이지 불가 판정 아님(시도-우선 따름정리)." && \\\n'
-        '    echo "  -> run SKILL.md §4.6 HITL discovery loop, then graduate the verified" && \\\n'
+        '    echo "  -> run .claude/skills/upstream-version-watch/references/source-build.md §3 HITL discovery loop, then graduate the verified" && \\\n'
         '    echo "     patches into Dockerfile.source-build.template ((ngc_base x vllm_version) guarded, P6 catalog)." && \\\n'
         '    echo "  -> or: human-approved attempt-build via render --allow-unvalidated (WARN + testlog 의무)." && \\\n'
         '    echo "  -> refusing to build on unvalidated determinism (plan rev3 §5)." && exit 1'
@@ -331,7 +484,9 @@ def build_context(manifest: dict, resolved: dict) -> dict:
         "IMAGE_NAME": IMAGE_NAME,
         "IMAGE_TAG": image_tag,
         "DOCKERFILE": dockerfile,
-        "SOURCE_BUILD_PATCH_GUARD": _patch_guard(ngc_tag, vllm),
+        # resolved 를 넘기는 이유: 출구① 상속 술어가 resolved.json#upstream_delta(델타 attestation)를
+        #   읽어야 하기 때문이다. 없으면 상속은 성립하지 않는다(무증거 상속 금지 — plan §8.2 N4).
+        "SOURCE_BUILD_PATCH_GUARD": _patch_guard(ngc_tag, vllm, resolved),
         "CUDA_VERSION": str(wheel.get("cuda", "") or ""),
         "VLLM_MANYLINUX": str(wheel.get("manylinux", "") or ""),
     }
@@ -617,6 +772,121 @@ def _require(condition, message):
         raise AssertionError(message)
 
 
+# ── 출구① 상속 회귀 — plan_26082112 §8.2 N4·N5 음성대조 ──────────────────────
+#   합성 attestation 은 **테스트 평면 격리**용이다(4종 판정표 모킹-정당). 프로덕션 산출물과 같은
+#   모양으로 새어나가지 않도록 이 함수 안에서만 만들고 밖으로 쓰지 않는다.
+_INHERIT_KEY = ("26.05-py3", "9.99.1")           # 실재 NGC 베이스 × 합성 vLLM 버전(실 키와 미충돌)
+_INHERIT_BASE = ("26.05-py3", "0.26.0")          # VALIDATED_… 실재 항목 · 같은 NGC 베이스(체인 아님)
+
+
+def _synthetic_attestation(**over) -> dict:
+    att = {
+        "schema_version": 1,
+        "from_ref": "v" + _INHERIT_BASE[1], "to_ref": "v" + _INHERIT_KEY[1],
+        "provenance": "measured", "delta_source": "git-local",
+        "axis_A_build_input": {"verdict": "NO_IMPACT"},
+        "axis_B_port_scope": {"verdict": "NO_IMPACT"},
+        "axis_C_model_path": {"verdict": "NOT_IMPLEMENTED"},
+        "verdict": "NO_IMPACT", "unknown": [],
+    }
+    att.update(over)
+    return att
+
+
+def _synthetic_entry(**over) -> dict:
+    e = {"inherits": _INHERIT_BASE,
+         "attestation": "output/multi/resolved.json#upstream_delta",
+         "approved_by": "self-test", "approved_kst": "26082212"}
+    e.update(over)
+    return e
+
+
+def _inherit_self_test(tpl: str, man: dict) -> None:
+    ngc, vllm = _INHERIT_KEY
+
+    def render_with(ledger, att):
+        """모듈 원장을 **일시 치환**해 build_context → _patch_guard 정문 배선까지 실제로 태운다.
+        (술어만 직접 호출하면 '만든 것'은 증명되나 '도는 것'은 증명되지 않는다.)"""
+        global INHERITED_SOURCE_BUILD_KEYS
+        saved = INHERITED_SOURCE_BUILD_KEYS
+        try:
+            INHERITED_SOURCE_BUILD_KEYS = ledger
+            res = {"vllm_version": vllm, "torch": {"pin": "2.13.0"},
+                   "ngc_base": {"tag": ngc, "cuda_version": "13.2.0.046"},
+                   "build_track": {"decision": "source-build"},
+                   "source_build": {"torch_cuda_arch": "12.1a"}}
+            if att is not None:
+                res["upstream_delta"] = att
+            return _substitute(tpl, build_context(man, res))
+        finally:
+            INHERITED_SOURCE_BUILD_KEYS = saved
+
+    led = {_INHERIT_KEY: _synthetic_entry()}
+
+    # 양성 대조 — 술어를 전부 만족하면 상속 스탠자가 나오고 exit 1 이 **없어야** 한다.
+    #   (이 대조가 없으면 아래 음성대조는 "가드가 항상 빨간불"인 것과 구분되지 않는다.)
+    ok_out = render_with(led, _synthetic_attestation())
+    _require("INHERITED from" in ok_out and "exit 1" not in ok_out,
+             f"양성 대조 실패 — 적격 상속인데 진행하지 않음:\n{ok_out}")
+    _require("arbiter = smoke" in ok_out, "상속 스탠자에 스모크 불변 문구 누락")
+    _require("axis_C=NOT_IMPLEMENTED" in ok_out, "상속 스탠자가 axis_C 미구현 사실을 숨김")
+    _require("approved_by: self-test" in ok_out, "상속 스탠자에 G1.6 승인자 미기재")
+
+    # N4 — attestation **없이** 상속 시도 → exit 1
+    n4 = render_with(led, None)
+    _require("exit 1" in n4 and "NOT eligible" in n4, f"N4 실패 — 무증거 상속이 통과:\n{n4}")
+    _require("attestation_present" in n4, f"N4 실패 — 거부 사유가 지목되지 않음:\n{n4}")
+
+    # N5 — verdict == UNDETERMINED attestation 으로 상속 시도 → exit 1
+    n5 = render_with(led, _synthetic_attestation(verdict="UNDETERMINED",
+                                                 unknown=["UNKNOWN_PLANE: newplane/x.toml"]))
+    _require("exit 1" in n5 and "NOT eligible" in n5, f"N5 실패 — UNDETERMINED 상속이 통과:\n{n5}")
+    _require("global_verdict" in n5 and "unknown_empty" in n5,
+             f"N5 실패 — UNDETERMINED/unknown 사유가 지목되지 않음:\n{n5}")
+
+    # N5' — 축별 미판정도 같은 결론(전역만 보고 새지 않는다)
+    for axis in ("axis_A_build_input", "axis_B_port_scope"):
+        o = render_with(led, _synthetic_attestation(**{axis: {"verdict": "UNDETERMINED"}}))
+        _require("exit 1" in o, f"N5' 실패 — {axis}=UNDETERMINED 인데 통과")
+
+    # 추가 음성 — 상속 술어의 나머지 성립조건이 각각 실제로 가드한다.
+    neg = {
+        "axis_B=IMPACT(이식 재파생 필요)": (led, _synthetic_attestation(
+            axis_B_port_scope={"verdict": "IMPACT"}, verdict="IMPACT")),
+        "attestation 이 다른 bump 의 것": (led, _synthetic_attestation(from_ref="v0.1.0")),
+        "provenance=mock(실측 아님)": (led, _synthetic_attestation(provenance="mock")),
+        "미지 schema_version": (led, _synthetic_attestation(schema_version=99)),
+        "상속원이 VALIDATED 에 없음(체인 금지)": (
+            {_INHERIT_KEY: _synthetic_entry(inherits=("26.05-py3", "0.99.0"))},
+            _synthetic_attestation(from_ref="v0.99.0")),
+        "상속원 NGC 베이스 불일치": (   # 상속원 자체는 VALIDATED 지만 NGC 가 다르다
+            {_INHERIT_KEY: _synthetic_entry(inherits=("26.03-py3", "0.22.1"))},
+            _synthetic_attestation(from_ref="v0.22.1")),
+        "승인자 미기재(G1.6 미이행)": (
+            {_INHERIT_KEY: _synthetic_entry(approved_by="")}, _synthetic_attestation()),
+        "attestation 포인터 형식 불량": (
+            {_INHERIT_KEY: _synthetic_entry(attestation="output/multi/resolved.json")},
+            _synthetic_attestation()),
+    }
+    for name, (ledger, att) in neg.items():
+        o = render_with(ledger, att)
+        _require("exit 1" in o, f"음성대조 실패 — [{name}] 인데 상속이 통과:\n{o}")
+
+    # 원장 자기정합 — 사람이 손으로 등재한 항목이 스키마를 지키는지(등재 시점에 빨간불).
+    for k, e in INHERITED_SOURCE_BUILD_KEYS.items():
+        _require(isinstance(k, tuple) and len(k) == 2, f"INHERITED 키 형식 불량: {k!r}")
+        _require(k not in VALIDATED_SOURCE_BUILD_KEYS,
+                 f"INHERITED 항목 {k!r} 이 VALIDATED 에도 있음 — 두 주장이 겹치면 출처가 흐려진다")
+        miss = [f for f in INHERIT_REQUIRED_FIELDS if not (isinstance(e, dict) and e.get(f))]
+        _require(not miss, f"INHERITED 항목 {k!r} 필수 필드 결손: {miss}")
+        _require(tuple(e["inherits"]) in VALIDATED_SOURCE_BUILD_KEYS,
+                 f"INHERITED 항목 {k!r} 의 상속원 {e['inherits']!r} 이 VALIDATED 에 없음(체인 금지)")
+
+    print(f"[render] inherit self-test OK — 출구① 상속 양성1 + 음성{2 + 2 + len(neg)}건"
+          f"(N4 무증거·N5 UNDETERMINED 포함) 전부 fail-closed · 원장 항목 "
+          f"{len(INHERITED_SOURCE_BUILD_KEYS)}건 자기정합")
+
+
 def _self_test() -> None:
     tpl = ("FROM nvcr.io/nvidia/pytorch:{{ NGC_TAG }}\n"
            "{{ SOURCE_BUILD_PATCH_GUARD }}\n"
@@ -650,6 +920,8 @@ def _self_test() -> None:
     out_bad = _substitute(tpl, build_context(man, res_bad))
     _require("exit 1" in out_bad, "guard(fail-loud) for (26.03, 0.23.0)")
     print("[render] self-test OK — source-build 렌더 + (NGC베이스×vLLM버전) 키 가드(검증x2/fail-loud) 정상")
+
+    _inherit_self_test(tpl, man)
 
     # ── NCCL envfile 회귀(Plan 2 S2): golden 대비 KEY=VALUE 집합 동치 + fail-loud ──
     golden_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),

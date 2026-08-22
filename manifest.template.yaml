@@ -66,13 +66,25 @@ interconnect:
   bandwidth_gbps: <num|null>   # ib_write_bw 합산 실측(성능 게이트 기준선). 예: 218. 미측정=null
   platform_preset: <key>       # 렌더 튜닝상수(NCCL GDR/QPS/CROSS_NIC 등) 프리셋 키. 예: dgx-spark-gb10
 
-# === 멀티노드 전용 — topology: multi 일 때만 채운다 (전부 인터뷰) ===
+# === 노드 로스터 — topology: multi 는 필수, single 은 선택 (전부 인터뷰) ===
 # 각 항목: role(main|sub) · host(IP 또는 호스트명) · ssh_user(passwordless SSH 계정) · work_dir(레포 작업경로).
-# 단일노드면 이 목록은 비워둔다.
+#
+# ⚠ **'sub' 는 토폴로지에 따라 서로 다른 존재다**(헌법 §불변식 A · terraforming_node SKILL.md §2.7.0):
+#     multi  의 sub = **Ray 워커**       — 정체성=nodes[] 인덱스(rank)+role · 버전/드라이버 동기 필수
+#                                          (집단 연산 ABI 정합) · 메인 빌드→sync_to_sub 전파 대상
+#     single 의 sub = **A2A 원격 에이전트** — 정체성=Agent_Card.json · 자율 처리(client↔server) ·
+#                                          버전 핀 독립 · **빌드킷 배달 대상이 아니다**(자율 저작)
+#   한 스킴의 role:sub 로 양자를 덮으면 멀티의 전파·동기 개념이 싱글로 새어 든다(plan_26082214 §0 의 5증상).
+#
+# single 기본값은 빈 목록이다(`nodes: []` = 서브 미등록 dormant). 다만 **등록은 허용된다** — 등록하면
+#   얻는 것은 **A2A 에이전트 제어**(위임·관측)뿐이고 배달·버전동기 평면은 여전히 dormant 다.
+#   판정은 추론이 아니라 결정론이다:
+#     python3 .claude/skills/terraforming_node/scripts/node_role_contract.py \
+#             evaluate --topology <single|multi> --field delivery_plane --format value
 # work_dir: 그 노드에서 레포가 사는 절대경로. sync_to_sub.sh·multinode_*smoke.sh 가 여기서 해소(하드코딩 금지 — 포인터 원칙).
 #   서브 work_dir 기본값 = 메인 work_dir 와 동일(R2, plan_26062320). 미지정 시 스크립트가 로컬 $REPO 로 유도.
 #   ⚠ 서브 work_dir 신설은 반드시 HITL(sync_to_sub.sh --provision 승인) — 자동 경로 신설 금지(R2).
-# per-node model_source override(선택 — single-node sub-control 한정. plan_26070809_46_57 §4.4):
+# per-node model_source override(선택 — single 의 A2A 서브에서 주로 쓴다. plan_26070809_46_57 §4.4):
 #   해소규칙 = node.model_source(있으면) > 클러스터 기본 model_source(위) > (오류). 멀티는 override 있어도 무시(단일 정책·WARN).
 #   target_gpu 등 config-평면 필드는 여기 두지 않음 — recipe-explorer 의 config.yaml 소관(γ, manifest 와 직교).
 nodes:
@@ -86,5 +98,12 @@ nodes:
     host: <IP_or_hostname>        # 인터뷰 — 서브 노드 주소
     ssh_user: <user>              # 인터뷰 — SSH 계정
     work_dir: <abs_path>          # 서브 작업환경. 기본값=메인 work_dir 와 동일(R2). ⚠ 신설은 HITL 후(자동신설 금지).
-    # model_source: ephemeral      # (선택) single sub-control: 메인 managed·서브 ephemeral 같은 노드별 분기
+    # sub_mode: a2a-agent          # (선택 · **tripwire**) 이 sub 의 정체성 계약. single=a2a-agent · multi=ray-worker.
+                                   #   **파생값이다** — topology 만 알면 계산되므로(사상이 1:1) 손으로 적을 의무가 없다.
+                                   #   필수 손저작으로 만들면 헌법 §판정표의 "파생 가능한데 손으로 적은 것"(하드코딩 결함)이 된다.
+                                   #   적는 이유는 값 전달이 아니라 **혼동 지점에서 의미를 읽히게 하고 변경 시 리뷰를 강제**하는 것
+                                   #   (판정표의 tripwire = 정당 칸). 적었는데 topology 와 어긋나면 fail-closed:
+                                   #   node_role_contract 가 SUB_MODE_TOPOLOGY_CONFLICT 로 거부하고 배달 평면은 dormant 로 남는다.
+                                   #   미기입 시 해소 출처는 `derived-from-topology`, 기입 시 `declared-and-agrees` 로 표기된다.
+    # model_source: ephemeral      # (선택) 노드별 획득모드 분기: 메인 managed·서브 ephemeral 등.
     # host_safety: { installed: false }  # (선택·멀티) 서브 노드 안전체계 Y/N(서브에서 사용자 실행 — A2A 경계, 메인 sudo 대행 ✗).

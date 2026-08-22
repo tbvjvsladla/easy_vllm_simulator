@@ -263,7 +263,24 @@ reap_stale_watchdogs() {   # $1 = "master" | "slave"
   fi
 }
 
+# ── 예산 갱신 루프 회수 (2026-08-22 신설 · W-7) ──────────────────────────────────────
+#   워치독과 **같은 부류의 상주 사이드카**이므로 같은 규율을 쓴다: 판정은 argv **위치**로만
+#   (부분문자열 매칭 금지 — 자기 부모셸 사망 exit144 선례). 루프는 컨테이너가 사라지면 스스로
+#   끝나지만, teardown 이 컨테이너를 내린 **직후**에는 아직 다음 tick 전이라 살아 있을 수 있다.
+#   남겨 두면 이미 회수된 선언을 되살리려다 fail-loud 로 죽으며 로그를 오염시킨다.
+reap_renew_loops() {   # $1 = "master" | "slave"
+  if [ "$1" = "master" ]; then
+    ps -eo pid= -o args= | awk -v self="$$" \
+      '$1 != self && $2 ~ /(^|\/)bash$/ && $3 ~ /budget_renew_loop\.sh$/ {print $1}' \
+      | while read -r p; do kill "$p" 2>/dev/null && echo "[mn] 예산갱신 루프 회수(master pid=$p)"; done
+  else
+    timeout 20 $SSH -n "$SUB_HOST" "ps -eo pid= -o args= | awk '\$2 ~ /(^|\/)bash\$/ && \$3 ~ /budget_renew_loop\\.sh\$/ {print \$1}' | while read -r p; do kill \$p 2>/dev/null && echo \$p; done" 2>/dev/null \
+      | while read -r p; do [ -n "$p" ] && echo "[mn] 예산갱신 루프 회수(slave pid=$p)"; done
+  fi
+}
+
 WD_MAIN_PID=""; WD_SUB_PID=""
+RENEW_MAIN_PID=""; RENEW_SUB_PID=""
 if [ "$WATCHDOG" = "1" ]; then
   WFILTER="${MC%-master}"
   # ★ 빈 필터 = fail-closed. MASTER_CONTAINER_NAME 미설정이면 `${1:-@vllm}` 이 조용히 **광역**
@@ -337,6 +354,8 @@ budget_node_dir_main(){ printf '%s/docs/logs/%s' "$REPO" "$MAIN_NODE_ID"; }
 budget_node_dir_sub(){  printf '%s/docs/logs/%s' "$SUB_WORK_DIR" "$SUB_NODE_ID"; }
 SUB_SESSION_PY="$SUB_WORK_DIR/.claude/runtime/node_blackbox/blackbox_session.py"
 MAIN_SESSION_PY="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.py"
+MAIN_RENEW_SH="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/budget_renew_loop.sh"
+SUB_RENEW_SH="$SUB_WORK_DIR/.claude/runtime/node_blackbox/budget_renew_loop.sh"
 MAIN_REGEN_PY="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/regen_envelope.py"
 SUB_REGEN_PY="$SUB_WORK_DIR/.claude/runtime/node_blackbox/regen_envelope.py"
 NOW_ISO(){ date -u +%FT%TZ; }
@@ -363,6 +382,10 @@ teardown_serve(){
     # 슬레이브만 argv 대조 — 위 disarm_armed_watchdogs 주석의 setsid PID 결함(2026-08-18)과 동일 사유.
     [ -n "$WD_SUB_PID" ] && reap_stale_watchdogs slave
   fi
+  # 예산 갱신 루프(W-7)도 같은 자리에서 회수한다 — 선언을 곧 지울 것이므로 갱신자가 남으면
+  # 지워진 선언을 되살리려다 fail-loud 로 죽는다(회수 순서: 루프 정지 → clear-budget).
+  reap_renew_loops master
+  reap_renew_loops slave
   [ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches >/dev/null 2>&1
   $SSH "$SUB_HOST" "[ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches" >/dev/null 2>&1
   # 예산 회수(C3-4). 서빙을 내렸으면 선언도 내린다 — 남겨 두면 다음 로드가 **남의 바닥**으로 무장한다.
@@ -632,14 +655,76 @@ if [ "$READY" != "1" ] && [ "$WATCHDOG" = "1" ]; then
 fi
 
 # ── multi-smoke (master 엔드포인트, reasoning 모델 대비 max_tokens 충분히) ──
+#
+# ★ 2026-08-22(W-10) 교정 — **빈 content 를 통과시키던 합격 기준**.
+#   실측(testlog_26082215 §4.7): `SMOKE PASS — content='' fr=length`. 판정식은 `content or reasoning`
+#   이었으므로 통과를 떠받친 것은 reasoning 이었는데, **로그는 그 사실을 말하지 않았다** — 읽는 사람에겐
+#   "빈 응답으로 합격" 으로 보인다. 게다가 `finish_reason=length` 는 사고 블록이 max_tokens 안에서
+#   끝나지 않았다는 뜻이라, 그 응답만으로는 "쓸 수 있는 생성" 을 확증하지 못한다.
+#   같은 런에서 파서를 우회한 `/v1/completions` 는 71자 평문을 돌려줬다 — 엔진은 확실히 생성 중이었다.
+#
+#   그래서 판정을 **증거원 표기(provenance)** 와 함께 세 갈래로 가른다:
+#     ① content 비어있지 않음                → PASS (evidence=chat.content)
+#     ② content 비었고 reasoning 만 있음      → **아직 판정하지 않는다.** 파서를 우회한
+#                                              `/v1/completions` 로 생성 실재를 확증한 뒤 PASS
+#                                              (evidence=v1.completions) · 확증 실패면 FAIL
+#     ③ 둘 다 비었음                          → FAIL (종전과 동일)
+#   ②의 탈출구는 `SMOKE_ALLOW_REASONING_ONLY=1` 이며, 쓰면 **크게 로그를 남긴다**(침묵 완화 ✗).
 RESULT=2
 if [ "$READY" = "1" ]; then
   printf '{"model":"%s","messages":[{"role":"user","content":"2+2= ? \xec\x88\xab\xec\x9e\x90\xeb\xa7\x8c \xeb\x8b\xb5\xed\x95\x98\xec\x84\xb8\xec\x9a\x94."}],"max_tokens":256}' "$MODEL" > /tmp/mn_req.json
   curl -s -m 120 "http://localhost:$PORT/v1/chat/completions" -H "Content-Type: application/json" -d @/tmp/mn_req.json -o /tmp/mn_resp.json
-  PASS=$(python3 -c "import json;d=json.load(open('/tmp/mn_resp.json'));m=d['choices'][0]['message'];print('1' if ((m.get('content') or '').strip() or (m.get('reasoning') or '').strip()) else '0')" 2>/dev/null)
-  INFO=$(python3 -c "import json;d=json.load(open('/tmp/mn_resp.json'));m=d['choices'][0]['message'];print('content='+repr((m.get('content') or '')[:80]),'fr='+str(d['choices'][0].get('finish_reason')))" 2>/dev/null)
-  if [ "$PASS" = "1" ]; then echo "[mn] SMOKE PASS — $INFO"; RESULT=0
-  else echo "[mn] SMOKE FAIL — raw:"; head -c 300 /tmp/mn_resp.json; fi
+  # 한 파서가 세 값을 함께 낸다(두 벌로 나누면 판정과 표시가 갈린다 — 그것이 이번 결함의 형태다).
+  read -r CH_VERDICT CH_CLEN CH_RLEN CH_FR <<<"$(python3 -c "
+import json
+try:
+    d = json.load(open('/tmp/mn_resp.json'))
+    c = d['choices'][0]
+    m = c.get('message') or {}
+    content = (m.get('content') or '').strip()
+    reasoning = (m.get('reasoning') or m.get('reasoning_content') or '').strip()
+    v = 'content' if content else ('reasoning-only' if reasoning else 'empty')
+    print(v, len(content), len(reasoning), c.get('finish_reason'))
+except Exception:
+    print('unparsable 0 0 none')
+" 2>/dev/null)"
+  CH_VERDICT="${CH_VERDICT:-unparsable}"
+  echo "[mn] smoke(chat): verdict=$CH_VERDICT content_len=${CH_CLEN:-?} reasoning_len=${CH_RLEN:-?} finish_reason=${CH_FR:-?}"
+
+  case "$CH_VERDICT" in
+    content)
+      echo "[mn] SMOKE PASS — evidence=chat.content (content_len=$CH_CLEN fr=$CH_FR)"; RESULT=0 ;;
+    reasoning-only)
+      # 파서 우회 프로브: reasoning 파서가 content 를 비워도 /v1/completions 는 원시 텍스트를 돌려준다.
+      echo "[mn] ⚠ chat content 가 비었다(reasoning_len=$CH_RLEN · fr=$CH_FR) — 생성 실재를 /v1/completions 로 확증한다."
+      printf '{"model":"%s","prompt":"2+2=","max_tokens":32}' "$MODEL" > /tmp/mn_req_compl.json
+      curl -s -m 120 "http://localhost:$PORT/v1/completions" -H "Content-Type: application/json" -d @/tmp/mn_req_compl.json -o /tmp/mn_resp_compl.json
+      CO_LEN=$(python3 -c "
+import json
+try:
+    d = json.load(open('/tmp/mn_resp_compl.json'))
+    print(len((d['choices'][0].get('text') or '').strip()))
+except Exception:
+    print(0)
+" 2>/dev/null)
+      if [ "${CO_LEN:-0}" -gt 0 ]; then
+        echo "[mn] SMOKE PASS — evidence=v1.completions (text_len=$CO_LEN · chat.reasoning_len=$CH_RLEN)"
+        echo "[mn]   ⚠ 그러나 chat content 는 비어 있다(fr=$CH_FR). reasoning 파서가 활성인데 사고 블록이"
+        echo "[mn]     max_tokens 안에서 끝나지 않은 형태다 — 서빙 레시피(max_tokens·reasoning-parser)를 점검하라."
+        RESULT=0
+      elif [ "${SMOKE_ALLOW_REASONING_ONLY:-0}" = "1" ]; then
+        echo "[mn] SMOKE PASS(완화) — evidence=chat.reasoning only · SMOKE_ALLOW_REASONING_ONLY=1 탈출구 사용"
+        echo "[mn]   ⚠ /v1/completions 확증에 실패했다(text_len=${CO_LEN:-0}). 이 PASS 는 생성 실재를 증명하지 않는다."
+        RESULT=0
+      else
+        echo "[mn] SMOKE FAIL — 생성 실재 미확증: chat content 비었고 /v1/completions 도 비었다(text_len=${CO_LEN:-0})."
+        echo "[mn]   reasoning 만으로 통과시키려면 SMOKE_ALLOW_REASONING_ONLY=1 (완화는 로그에 남는다). raw:"
+        head -c 300 /tmp/mn_resp_compl.json; echo
+      fi ;;
+    *)
+      echo "[mn] SMOKE FAIL — content·reasoning 모두 비었다(verdict=$CH_VERDICT). raw:"
+      head -c 300 /tmp/mn_resp.json; echo ;;
+  esac
 fi
 
 # ── 정리 ──
@@ -648,10 +733,30 @@ if [ "$KEEP" != "1" ]; then
 elif [ -n "$WD_MAIN_PID" ] || [ "$BUDGET_DECLARED" = "1" ]; then
   [ -n "$WD_MAIN_PID" ] && echo "[mn] --keep-up: 워치독 유지(master pid=$WD_MAIN_PID · slave pid=${WD_SUB_PID:-없음}) — 정지는 kill <pid> 로만"
   # --keep-up 은 서빙이 상주하므로 선언도 **유지**한다(회수하면 상주 서빙이 무보호가 된다).
-  #   회수 경로는 TTL 만료이며, 만료 전 갱신은 `blackbox_session renew-budget`(C4)이 담당한다.
+  #   ★ 2026-08-22(W-7): 여기엔 **안내문만** 있었다 — "연장은 이 명령으로" 가 사람을 가리켰고,
+  #   사람은 치지 않았다. 실측 결과 상주 18시간 중 **12시간이 만료 상태**였다(testlog_26082215 §4.0).
+  #   처방이 가리키는 주체가 아키텍처에 없으면 그것은 안전장치가 아니다 — 주체를 만들어 건다.
   if [ "$BUDGET_DECLARED" = "1" ]; then
-    echo "[mn] --keep-up: 예산 선언 유지 · 만료까지 TTL ${BUDGET_TTL_S}s. 상주 연장은:"
-    echo "     python3 $MAIN_SESSION_PY --node-dir $(budget_node_dir_main) renew-budget --ttl-s <n> --now <ISO>"
+    echo "[mn] --keep-up: 예산 선언 유지 · TTL ${BUDGET_TTL_S}s → 갱신 루프를 무장한다(만료 구간 제거)."
+    if [ -f "$MAIN_RENEW_SH" ]; then
+      reap_renew_loops master
+      setsid nohup bash "$MAIN_RENEW_SH" --node-dir "$(budget_node_dir_main)" \
+             --container "$MC" --ttl-s "$BUDGET_TTL_S" \
+             </dev/null >/tmp/mn_budget_renew_master.log 2>&1 & RENEW_MAIN_PID=$!
+      echo "[mn]   갱신 루프(master) pid=$RENEW_MAIN_PID container=$MC (/tmp/mn_budget_renew_master.log)"
+    else
+      echo "[mn]   ⚠ $MAIN_RENEW_SH 부재 — master 갱신 루프 생략. 만료까지 ${BUDGET_TTL_S}s 뒤 무보호가 된다."
+      echo "[mn]     수동 연장: python3 $MAIN_SESSION_PY --node-dir $(budget_node_dir_main) renew-budget --ttl-s <n> --now <ISO>"
+    fi
+    if [ -n "$SUB_NODE_ID" ] && $SSH "$SUB_HOST" "bash -lc '[ -f $SUB_RENEW_SH ]'" 2>/dev/null; then
+      reap_renew_loops slave
+      # 원격 detach 는 워치독과 같은 처방(setsid + exit 0 + timeout 백스톱) — 같은 hang 함정이다.
+      RENEW_SUB_PID=$(timeout 20 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD setsid nohup bash $SUB_RENEW_SH --node-dir $SUB_WORK_DIR/docs/logs/$SUB_NODE_ID --container ${SLVC:-vllm-slave-serve-container} --ttl-s $BUDGET_TTL_S </dev/null >/tmp/mn_budget_renew_slave.log 2>&1 & echo \$!; exit 0'" 2>/dev/null || true)
+      echo "[mn]   갱신 루프(slave) pid=${RENEW_SUB_PID:-?} (원격 /tmp/mn_budget_renew_slave.log)"
+    else
+      echo "[mn]   ⚠ 서브에 budget_renew_loop.sh 부재 — slave 갱신 루프 생략(render_sub_env/sync_to_sub 재배달 필요)."
+    fi
+    echo "[mn]   회수: multinode_serve_smoke.sh $CONFIG --down (루프·워치독·선언을 함께 회수한다)"
   fi
 fi
 echo "[mn] 종료코드 $RESULT"

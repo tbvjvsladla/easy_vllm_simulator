@@ -12,6 +12,7 @@ gitignored 스테이징 트리 `output/<topology>/sub_provision/` 로 렌더한�
   .claude/rules/comms.md                 ← comms.md                   (복제·정적계약)
   .claude/rules/docs.md                  ← .claude/rules/docs.md      (복제·문서규약 테라포밍, D12)
   .claude/schemas/task-report.schema.json← task-report.schema.json    (복제·정적계약)
+  .claude/schemas/library-exchange.schema.json ← library-exchange.schema.json (복제·정적계약, §2.7.8 그라운딩 교환)
   .claude/skills/{vllm-recipe-explorer,adversarial-benchmark}/ ← 런타임블럭(git-tracked만 복제 — config.yaml/feedback/lockset 제외)
   .claude/skills/wiki-desk/reference/references.md ← recipe의 on-demand 정적 reference dependency
   .gitignore                             ← gitignore.template         (복제·서브 로컬git 추적규칙, D12)
@@ -53,6 +54,12 @@ RUNTIME_BLOCKS = [
 DOCS_RULES = os.path.join(REPO, ".claude", "rules", "docs.md")     # 문서규약(정적계약 — 서브 테라포밍, D12)
 DOC_SKELETONS = os.path.join(SKILL_DIR, "templates", "document_skeletons")  # 배포 포함 docs/*/example.md 정본(D12)
 RECIPE_REFERENCE = os.path.join(REPO, ".claude", "skills", "wiki-desk", "reference", "references.md")
+
+# 토폴로지 축 계약(sub_mode·rank·정체성 권위)의 **단일 소유자**. 렌더러는 산출을 **적기만** 한다 —
+# 두 번째 파생 구현을 두면 두 답이 갈리고(헌법 §4종 안티패턴 "파생 가능한데 손으로 적은 것"),
+# 그 갈림이 2026-08-22 진단의 형태였다(SKILL.md §2.7.6(c) · 헌법 §불변식 A).
+sys.path.insert(0, HERE)
+import node_role_contract as _contract  # noqa: E402  (형제 스크립트 — 위 sys.path 선행 필요)
 
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Z_]+)\s*\}\}")
 # 템플릿 전용 머리말(렌더 산출물에서 제거) — md 템플릿의 "이건 템플릿이다" 메타 블록.
@@ -144,11 +151,42 @@ def build_placeholders(data: dict) -> tuple[dict, list[str]]:
         # A2A 위임 키 발급 판정용(plan_26063021_14_37 D5/D7) — nodes[sub].hw_verified(동질성 검증 통과 표식). 템플릿 치환엔 미사용.
         "SUB_HW_VERIFIED": (sub.get("hw_verified") or ""),
     }
+    ph.update(_contract_placeholders(data))
     # 필수(누락 시 fail-loud — 무증거/빈 정체성 렌더 금지)
+    #   SUB_MODE·*_SOURCE 는 계약이 해소하는 파생값이다 — 빈 값 = 계약 미해소(위반 또는 서브 미등록)이며
+    #   그대로 렌더하면 서브의 정체성 권위(AgentCard)가 거짓을 싣는다. 그래서 같은 fail-loud 통로에 둔다.
+    #   ⚠ SUB_RANK 는 여기 넣지 않는다 — single 의 정답이 리터럴 `null` 이라 "빈 값"과 구분돼야 한다(음성정직).
     required = ["SUB_HOST", "MASTER_HOST", "SSH_USER", "WORKSPACE_PATH", "NAS_MOUNT",
-               "CPU_ARCH", "INTERCONNECT", "INTERCONNECT_IFACE"]
+               "CPU_ARCH", "INTERCONNECT", "INTERCONNECT_IFACE",
+               "SUB_MODE", "SUB_MODE_SOURCE", "SUB_RANK_SOURCE"]
     missing = [k for k in required if not ph.get(k)]
     return ph, missing
+
+
+def _contract_placeholders(data: dict) -> dict:
+    """토폴로지 축 계약 산출 → {{SUB_MODE}}·{{SUB_MODE_SOURCE}}·{{SUB_RANK}}·{{SUB_RANK_SOURCE}}.
+
+    **여기서 규칙을 재저작하지 않는다** — `node_role_contract.evaluate_manifest` 를 부르고 그 답을
+    옮겨 적을 뿐이다(SKILL.md §2.7.6(c) "렌더러는 적기만 한다"). 값 옆에 출처를 함께 실어야
+    하류가 측정·선언·파생을 구분할 수 있다(헌법 §결정론 규율 출처 표시).
+
+    위반(예: single 에 sub_mode: ray-worker 선언)이면 값 자리를 비워 둔다 — 호출부의 `missing`
+    fail-loud 로 흘러가 렌더가 멈춘다(침묵 폴백 ✗).
+    """
+    res = _contract.evaluate_manifest(data, topology=data.get("topology") or None, role="sub")
+    sub_mode = res.get("sub_mode") or {}
+    rank = res.get("rank") or {}
+    rank_value = rank.get("value")
+    return {
+        "SUB_MODE": sub_mode.get("value") or "",
+        "SUB_MODE_SOURCE": sub_mode.get("source") or "",
+        # JSON 템플릿에서 **따옴표 없이** 놓인다 — single 은 리터럴 null, multi 는 정수.
+        # 문자열 "null" 로 싣으면 하류가 rank 를 문자열로 읽어 TP/NCCL 입력으로 오해할 수 있다.
+        "SUB_RANK": "null" if rank_value is None else str(int(rank_value)),
+        "SUB_RANK_SOURCE": rank.get("source") or "",
+        # 위반 코드(렌더 실패 시 사람이 읽을 진단 — 템플릿 치환엔 미사용).
+        "SUB_CONTRACT_VIOLATIONS": ",".join(v.get("code", "?") for v in res.get("violations", [])),
+    }
 
 
 def render_text(text: str, ph: dict) -> str:
@@ -200,11 +238,17 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
 
     # 2) 복제 정적계약 (comms·schema·docs규약)
     shutil.copyfile(os.path.join(SUBNODE_DIR, "comms.md"), os.path.join(claude, "rules", "comms.md"))
-    schema_dst = os.path.join(claude, "schemas", "task-report.schema.json")
-    shutil.copyfile(os.path.join(SUBNODE_DIR, "task-report.schema.json"), schema_dst)
-    with open(schema_dst, encoding="utf-8") as f:
-        json.load(f)
-    produced += [".claude/rules/comms.md", ".claude/schemas/task-report.schema.json"]
+    produced.append(".claude/rules/comms.md")
+    # 서브로 복제되는 정적 스키마 계약. `library-exchange` 가 빠져 있던 동안 서브는 교환 메시지의
+    # 계약 없이 형태를 추측해야 했다(testlog_26082215 S-9) — SKILL.md §4 목록이 정본으로 적었는데
+    # 렌더러 배선만 없던 **침묵 누락**이다(만든 것 ≠ 도는 것).
+    SUB_SCHEMAS = ("task-report.schema.json", "library-exchange.schema.json")
+    for schema_name in SUB_SCHEMAS:
+        schema_dst = os.path.join(claude, "schemas", schema_name)
+        shutil.copyfile(os.path.join(SUBNODE_DIR, schema_name), schema_dst)
+        with open(schema_dst, encoding="utf-8") as f:
+            json.load(f)
+        produced.append(f".claude/schemas/{schema_name}")
     # D12: 문서규약 테라포밍 — 서브가 동일 발행규약(docs.md)으로 insight 문서 발행 → 상향 문서기반 회수
     if os.path.isfile(DOCS_RULES):
         shutil.copyfile(DOCS_RULES, os.path.join(claude, "rules", "docs.md"))
@@ -313,6 +357,12 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
         #   install/verify/purge 세 스크립트가 이걸 **source** 한다 — 빠지면 서브에서 설치가
         #   첫 줄에서 죽는다. 위 2026-08-02·08-14 주석이 예고한 재발을 이번에도 같은 편집에서 막는다.
         ("node_identity.sh", "node_identity.sh", 0o755),
+        # ★ 상주 서빙 예산 갱신 사이드카. 2026-08-22 추가(W-7 · testlog_26082215 §4.0).
+        #   멀티 `--keep-up` 은 **양 노드**에 선언을 남기므로 갱신자도 양 노드에 있어야 한다 —
+        #   빠지면 슬레이브 선언만 조용히 만료돼 서브에서만 무보호 구간이 생긴다(하드다운 #2 가
+        #   서브였음을 상기하라). 위 세 ★ 주석이 예고한 "만들고 목록에 안 넣기" 재발을 같은
+        #   편집에서 막는다.
+        ("budget_renew_loop.sh", "budget_renew_loop.sh", 0o755),
         # ── 의도적 **미배달** (2026-08-18 명시 · testlog_26081810 §8) ─────────────────
         #   `publish_install_request.py` 는 이 디렉터리에 있지만 **서브로 보내지 않는다**.
         #   그것은 L3 설치를 `docs/request/` 수행지시서로 발행하는 도구인데, 서브에는
@@ -458,7 +508,8 @@ def _self_test() -> int:
     try:
         res = render_tree(ph, out, copy_runtime_block=False)  # 런타임블럭 복제는 git 의존 → self-test 제외
         base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
-                       ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json", "tasks/.gitkeep",
+                       ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json",
+                       ".claude/schemas/library-exchange.schema.json", "tasks/.gitkeep",
                        ".claude/rules/docs.md", ".claude/skills/wiki-desk/reference/references.md", ".gitignore",
                        # 호스트 안전체계: canonical terraforming source → constitution runtime delivery
                        ".claude/runtime/host_safety/mem_watchdog.sh",
@@ -480,7 +531,8 @@ def _self_test() -> int:
                        ".claude/runtime/node_blackbox/agent_guard.py",
                        ".claude/runtime/node_blackbox/adversarial_stress.py",
                        ".claude/runtime/node_blackbox/regen_envelope.py",
-                       ".claude/runtime/node_blackbox/node_identity.sh"]
+                       ".claude/runtime/node_blackbox/node_identity.sh",
+                       ".claude/runtime/node_blackbox/budget_renew_loop.sh"]
         have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
         missing_art = [p for p in base_expect if not os.path.exists(os.path.join(out, p))]
         # docs 스켈레톤: docs.md 계약 5종(DOC_TYPES) 전부 렌더됐나(simlog·benchmark 누락 회귀 차단 — review)
@@ -495,7 +547,9 @@ def _self_test() -> int:
             with open(os.path.join(out, p), encoding="utf-8") as f:
                 leftover += _unrendered(f.read())
         # JSON 유효
-        for p in ("Agent_Card.json", ".claude/settings.local.json", ".claude/schemas/task-report.schema.json"):
+        for p in ("Agent_Card.json", ".claude/settings.local.json",
+                  ".claude/schemas/task-report.schema.json",
+                  ".claude/schemas/library-exchange.schema.json"):
             with open(os.path.join(out, p), encoding="utf-8") as f:
                 json.load(f)
         # settings: 로컬 git allow + 원격 deny 정합(D12-02)
@@ -547,6 +601,53 @@ def _self_test() -> int:
     print(f"  [{'PASS' if c6 else 'FAIL'}] A2A 위임 키: hw_verified 부재→미발급({key6a_absent}) · =true→발급+유효({key6b_ok})")
     ok &= c6
 
+    # (7) ★ 토폴로지 축 4필드 회귀핀(testlog_26082215 S-11 FAIL 재발 차단):
+    #     Agent_Card.json:node_identity 가 rank·rank_source·sub_mode·sub_mode_source 를 싣고,
+    #     그 값이 node_role_contract 산출과 **정확히 같은지**(렌더러가 두 번째 파생을 하지 않는지).
+    data7 = parse_manifest(mpath)                                   # fixture = topology: multi
+    ph7m, _ = build_placeholders(data7)
+    out7m = os.path.join(tmp, "sub_provision_axis_multi")
+    render_tree(ph7m, out7m, copy_runtime_block=False)
+    with open(os.path.join(out7m, "Agent_Card.json"), encoding="utf-8") as f:
+        card_m = json.load(f)["node_identity"]
+    data7s = parse_manifest(mpath); data7s["topology"] = "single"
+    ph7s, _ = build_placeholders(data7s)
+    out7s = os.path.join(tmp, "sub_provision_axis_single")
+    render_tree(ph7s, out7s, copy_runtime_block=False)
+    with open(os.path.join(out7s, "Agent_Card.json"), encoding="utf-8") as f:
+        card_s = json.load(f)["node_identity"]
+    axis_keys = ("rank", "rank_source", "sub_mode", "sub_mode_source")
+    keys_ok = all(k in card_m for k in axis_keys) and all(k in card_s for k in axis_keys)
+    # multi: rank 는 **정수 1**(nodes[main,sub] 의 인덱스)이지 문자열 "1" 이 아니다 — 하류가 TP/NCCL
+    #        입력으로 읽으므로 타입이 계약이다. single: 리터럴 None + 음성정직 출처(조용한 0 ✗).
+    multi_ok = (card_m["sub_mode"] == "ray-worker"
+                and card_m["sub_mode_source"] == "derived-from-topology"
+                and card_m["rank"] == 1 and isinstance(card_m["rank"], int)
+                and card_m["rank_source"] == "manifest-nodes-index")
+    single_ok = (card_s["sub_mode"] == "a2a-agent"
+                 and card_s["rank"] is None
+                 and card_s["rank_source"] == "not-applicable:single-a2a-agent")
+    # 단일 소유 확증: 렌더 산출물이 판정기 산출과 문자 그대로 같아야 한다(재저작 ✗).
+    owner_s = _contract.evaluate_manifest(data7s, topology="single", role="sub")
+    owner_ok = (card_s["sub_mode"] == owner_s["sub_mode"]["value"]
+                and card_s["sub_mode_source"] == owner_s["sub_mode"]["source"]
+                and card_s["rank"] == owner_s["rank"]["value"]
+                and card_s["rank_source"] == owner_s["rank"]["source"])
+    c7 = keys_ok and multi_ok and single_ok and owner_ok
+    print(f"  [{'PASS' if c7 else 'FAIL'}] 토폴로지 축 4필드 탑재(keys={keys_ok}, multi={multi_ok}, "
+          f"single={single_ok}, 판정기일치={owner_ok}) → multi rank={card_m.get('rank')!r} / single rank={card_s.get('rank')!r}")
+    ok &= c7
+
+    # (8) 계약 위반(single 에 ray-worker 선언) → 렌더 fail-loud(빈 정체성 렌더 금지)
+    data8 = parse_manifest(mpath); data8["topology"] = "single"
+    _node(data8, "sub")["sub_mode"] = "ray-worker"
+    ph8, missing8 = build_placeholders(data8)
+    c8 = ("SUB_MODE" in missing8
+          and ph8.get("SUB_CONTRACT_VIOLATIONS") == "SUB_MODE_TOPOLOGY_CONFLICT")
+    print(f"  [{'PASS' if c8 else 'FAIL'}] 계약 위반 → fail-loud(missing={sorted(set(missing8))[:3]}, "
+          f"violations={ph8.get('SUB_CONTRACT_VIOLATIONS')!r})")
+    ok &= c8
+
     # (템플릿 PII-free 는 upstream-version-watch owner-local smoke_clone.sh A4가 단일 게이트로 검사)
     shutil.rmtree(tmp, ignore_errors=True)
     print(f"self-test: {'PASS' if ok else 'FAIL'}")
@@ -576,6 +677,10 @@ def main() -> int:
     ph, missing = build_placeholders(data)
     if missing:
         print(f"[render] FAIL: manifest 필수 필드 누락 {missing} — 무증거 빈 정체성 렌더 금지.", file=sys.stderr)
+        if ph.get("SUB_CONTRACT_VIOLATIONS"):
+            # 왜 비었는지를 말한다 — 계약 위반이 "필드 누락"으로만 보이면 사람이 manifest 를 잘못 고친다.
+            print(f"[render]       ↳ 토폴로지 축 계약 위반: {ph['SUB_CONTRACT_VIOLATIONS']} "
+                  f"(node_role_contract.py evaluate --manifest {manifest} 로 상세 확인)", file=sys.stderr)
         return 2
     res = render_tree(ph, out_dir, copy_runtime_block=not args.no_runtime_block)
     print(f"[render] OK → {res['out_dir']}")

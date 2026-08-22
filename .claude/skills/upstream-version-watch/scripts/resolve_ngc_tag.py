@@ -123,7 +123,9 @@ def main():
     print(json.dumps({
         "error": ("매칭 NGC 태그 없음(완전일치) — 매칭 베이스 없음 ≠ 빌드 불가 — "
                   "후속: NGC release-notes 매트릭스 확인 + 더 새 베이스 승격 검토"
-                  "(workflow S3 ⑥ §4.6 전방호환·HITL)"),
+                  "(라우팅: .claude/rules/workflow.md §실패 라우팅 'NGC base mismatch' — "
+                  "후보 헤더/로그 증거 → HITL → 해소값 override → S3. "
+                  "시도-빌드 우회는 .claude/skills/upstream-version-watch/references/source-build.md §3)"),
         "torch_prefix": target, "prefix_candidates": prefix_candidates, "probed": probed,
     }, ensure_ascii=False, indent=2), file=sys.stderr)
     sys.exit(4)

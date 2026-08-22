@@ -53,6 +53,40 @@
   패치-바디 다양화. 근거 E2E = `testlog_26062217_25_17`(0.23.0 source 26.05) · `testlog_26062422`(듀얼모델 E2E 26.05 재검증).
 - strip-hoist 가 torch 2.12 에서 자동 skip 된 것은 **조건부 패치의 재사용 가능 패턴**이다(부재감지 = 적용여부 자동결정).
 
+## 3.1 가드 3출구 — 상속(inherit) · 시도-빌드(attempt) · 발견(discovery)
+
+*(plan_26082112 §5.2 · P4. `render_dockerfile.py::_patch_guard` 의 세 분기가 이 표다. 가드 스탠자가 지시하는 주소가 여기다.)*
+
+미인식 (NGC베이스 × vLLM버전) 키의 출구는 **하나가 아니다**. 하나뿐이면 델타가 진짜 ∅ 인 경우와
+델타가 큰 경우가 같은 버튼(`--allow-unvalidated`)을 쓰게 되고, 그 버튼은 고무도장이 된다.
+
+| 출구 | 조건 | 처방 | 스탠자 |
+|---|---|---|---|
+| **① 상속(inherit)** | `axis_A == NO_IMPACT` ∧ `axis_B == NO_IMPACT` ∧ 전역 `verdict != UNDETERMINED` ∧ `unknown == []` ∧ **사람이 원장에 등재** | `INHERITED_SOURCE_BUILD_KEYS` 항목 + `resolved.json#upstream_delta` attestation | `[guard] … INHERITED from (ngc, vllm_old)` → 진행 |
+| **② 시도-빌드(attempt)** | 전역 `verdict == IMPACT` 이고 사람이 명시 승인 | `render --allow-unvalidated` (WARN 강등 + testlog 의무) — §3 | `WARN: … UNVALIDATED` → 진행 |
+| **③ 발견(discovery)** | 전역 `verdict == UNDETERMINED` 또는 `UNKNOWN_PLANE` 존재 또는 판정 미실시 | 위 §3 HITL 발견 루프 | `ERROR: … NO validated patch set` → `exit 1` |
+
+**출구①의 성립 조건 — 선언은 증거가 아니다.** 원장에 한 줄 적는 것만으로는 상속이 성립하지 않는다.
+렌더는 매번 아래를 **전부** 확인하고, 하나라도 걸리면 `exit 1` 한다(사유를 스탠자에 열거한다):
+
+- 항목 4필드(`inherits`·`attestation`·`approved_by`·`approved_kst`) 전부 존재
+- 상속원이 **같은 NGC 베이스**이고 `VALIDATED_SOURCE_BUILD_KEYS` 에 실재 (→ **상속의 상속=체인 금지**)
+- `attestation` 포인터가 `<경로>#upstream_delta` 형식
+- 렌더 입력 `resolved` 에 `upstream_delta` 블록이 실재하고 `provenance == "measured"`, `schema_version` 이 승인 목록 안
+- attestation 의 `from_ref → to_ref` 가 상속 주장 `vllm_old → vllm_new` 와 **일치** (다른 bump 의 증거 재활용 차단)
+- `axis_A`·`axis_B` 둘 다 `NO_IMPACT`, 전역 `verdict` 가 `UNDETERMINED` 아님, `unknown == []`
+
+> **부적격 상속은 `--allow-unvalidated` 로 우회되지 않는다.** 그것은 *미검증 키*가 아니라 **원장 항목의 결함**이므로,
+> 처방은 증거를 고치거나(judge 재실행) 항목을 지우는 것이다(D3: 우회 말고 경로를 고친다). 항목이 **없으면 기본은
+> ③ 발견**이다 — 부재가 기본값이라 "상속을 쓰지 않는 상태"가 값 수정이 아니라 **줄 삭제**로 표현된다.
+
+**상속되는 것과 되지 않는 것.** 상속되는 것은 **빌드 키**(그 패치 셋이 이 조합에 적용 가능한가)뿐이다.
+기능 판정이 아니다 — `axis_C`(모델 코드경로 도달성)는 전역 verdict 에서 제외되어 있고, **상속은 스모크를 면제하지
+않는다**(workflow S3 · HITL 게이트 ③). 상속 스탠자가 이 두 사실을 매 빌드 로그에 찍는 이유다.
+
+**등재는 사람의 손이다**(게이트 ①.6). Judge 는 attestation 을 낼 뿐 원장을 넓히지 않는다 —
+`judge_version_delta.py` 의 산출물은 **evidence 이지 approval 이 아니다**.
+
 ## 4. 빌드-바깥 의존 패치 (`build_patches/`)
 
 > §1~3 = vLLM **빌드 자체**의 ABI 수정(inline·torch/NGC-keyed). 여기 = **모델이 요구하는 native 의존**(lib/커널) 추가 —

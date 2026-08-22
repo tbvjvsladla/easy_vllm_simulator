@@ -65,6 +65,43 @@ python3 scripts/resolve_build_track.py "$V"   # build_track.decision·source_bui
 - ⑦트랙 제안자(proposer): torch핀 휴리스틱(2.10→wheel / 2.11+→source) + SM arch(manifest scan)**만** 결정론, **최종은 스모크 중재**.
   `build_track.decision`·`source_build.torch_cuda_arch`를 `resolved.json`에 채운다.
 
+## 1.5 델타 판정 (Judge — spine 2.5 · HITL 게이트 ①.5)
+
+`from_ref → to_ref` 의 변경이 **우리** 빌드/이식/기능에 닿는지를 3축으로 결정론 판정한다.
+"동일빌드 vs 다른빌드"는 단일 질문이 아니다 — 같은 델타가 축에 따라 답이 갈린다.
+
+```bash
+# 로컬 clone 이 1차 권위(없으면 compare API 폴백 · 둘 다 실패면 비-0. 추정 금지)
+python3 scripts/judge_version_delta.py \
+  --from-ref v<old> --to-ref v<new> \
+  --generated-kst <YYMMDDHH> \                       # 벽시계 금지 — 주입만
+  --repo-cache <로컬 vLLM clone> \                    # 선택(권장)
+  --resolved output/<t>/resolved.json --write-resolved \
+  --provenance output/<t>/build_patches_src/PROVENANCE.json   # 이식 트랙일 때만
+# 회귀: --self-test · --check-fixture <fixtures/version_delta_*.json>
+```
+
+| 축 | 질문 | 답이 바꾸는 것 |
+|---|---|---|
+| **A. 빌드입력 동일성** | 델타가 우리 빌드 입력(ABI·deps·csrc·빌드시스템)을 건드리는가 | 가드 키 **상속** 가부(§source-build.md §3.1 출구①) |
+| **B. 이식 스코프 교차** | 델타가 **우리 번들이 덮어쓰는 파일**과 겹치는가 | 이식 **재파생** 필요 여부(침묵 되돌림 위험) |
+| **C. 모델 코드경로 도달성** | 델타가 대상 모델이 실제로 도는 경로의 심볼에 닿는가 | 기능 재검증의 **성격**(거동검증 vs 재현확인). **미구현** |
+
+- **verdict 는 worst-wins**: 어느 축이든 `UNDETERMINED` → 전역 `UNDETERMINED`; 아니면 `IMPACT` 하나라도 있으면 `IMPACT`.
+  `NO_IMPACT` 는 **구현된 모든 축이 완전 커버리지로 계산됐을 때만** 나온다.
+- **`UNDETERMINED` 는 무영향이 아니다** — 게이팅상 `IMPACT` 와 같게 취급하되 **기록은 분리**한다.
+  미판정이 무영향으로 세탁되는 것을 막는 것이 이 설계의 첫 번째 목적이다.
+- **닫힌 열거 밖 경로 = `UNKNOWN_PLANE` = fail-closed.** vLLM 레이아웃이 바뀌면 **막히지, 새지 않는다**.
+- **C축은 스모크를 면제하지 않는다** — 현재 `NOT_IMPLEMENTED`(전역 verdict 에서 제외)이며,
+  구현되더라도 *증거의 성격*만 바꾼다. `arbiter="smoke"` 는 어느 축에서도 불변이다.
+- **axis_B 가 `IMPACT` 면 `regen_build_patches_src.py derive` 재파생이 선행**한다. 정지조건은
+  `silent_revert_risk == []`(위험분만 담기며, 전체 프로브는 `probes` 에 남는다 — `NO_REVERT` 도 증거다).
+  ⚠ 파생 변종 번들은 **정의상 상류와 다르므로** `probes` 가 비지 않는다. 그것이 정상이며,
+  `PROVENANCE.source` 의 파생-베이스 선언이 증거로 붙되 **verdict 는 fail-closed 로 유지**한다(선언 ≠ 증명).
+
+**HITL 게이트 ①.5**(렌더 전): ⓐ `axis_A` 가 정말 ∅ 인지 ⓑ `axis_B.silent_revert_risk` 처리 계획
+ⓒ `unknown[]` 이 비었는지. **`UNDETERMINED` 면 렌더 진입 금지.**
+
 ## 2. 레이어 bump 매핑 (제안 표)
 
 ①~④ 결과를 모아 표로 제안한다. **Dockerfile 의 휘발성 부분은 3개 ARG로 격리**되어 있으므로
@@ -83,7 +120,8 @@ python3 scripts/resolve_build_track.py "$V"   # build_track.decision·source_bui
 > ③`resolve_wheel.py`가 GitHub 자산에서 실재 검증한 값으로 채운다. arch 는 빌드 시점 `$(uname -m)`.
 
 **사실/판단 분리**: change-summary·bump 제안표의 **사실 행**(torch핀·NGC태그·wheel URL·requirements delta·
-Dockerfile ARG)은 ①~④ 스크립트 JSON 출력을 **그대로 테이블화**한다. LLM은 사실을 작성하지 않는다.
+Dockerfile ARG·**버전 델타 파일/라인수**)은 ①~④ 및 §1.5 Judge 의 스크립트 JSON 출력(`resolved.json#upstream_delta`)을 **그대로 테이블화**한다.
+델타 행을 손으로 옮겨 적지 않는다 — 실제로 `+5/-1` 을 `+6/-2` 로 옮겨 적은 전사 오류가 있었고, 가능했던 이유는 그 사실을 만들어 주는 스크립트가 없어서였다. LLM은 사실을 작성하지 않는다.
 LLM 몫은 그 위의 **risk-memo(리스크 해석 + 실패 분류 근거)** 뿐이며, 스크립트 JSON에 없는 버전·URL·패키지명을
 risk-memo에 새로 도입하지 않는다. 불명·미매칭은 **"확인 필요"**(Model-C).
 

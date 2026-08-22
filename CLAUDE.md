@@ -51,8 +51,18 @@
 - 모델 트리플렛 서브 미전파: policy:MODEL_TRIPLET_NO_SUB_PROPAGATION.
 - 서브 git은 로컬 전용이다: policy:SUB_GIT_LOCAL_ONLY.
 - 서브 동기화는 dirty를 만나면 보존 후 진행한다: policy:SUB_SYNC_DIRTY_AUTOSAVE.
-- **노드 제어 5불변식** — 아래 다섯 문장만 헌법에 남는다("왜"). **"어떻게"(평면 A/B 상세표·저작/스캔/
-  정비 3범주·B0–B3·권위 평면 계약·node-identity·A2A 제어명령)의 정본은 스킬
+- **A. 토폴로지 축** — 노드 정체성·자율성의 **제1축은 토폴로지**다. 멀티의 sub는 Ray 워커(위치=rank·
+  집단 연산 ABI 동기·제어평면은 head 종속)이고, 싱글의 sub는 A2A 원격 에이전트(정체성=AgentCard·
+  자율 처리·client↔server)다. **한 스킴의 `role: sub`로 양자를 덮지 않는다** — 덮으면 멀티의 전파·
+  동기 개념이 싱글로 새어 든다. 판정·배선은 `terraforming_node` SKILL.md §2.7.0이 소유한다(외부
+  그라운딩은 `docs/report/node-identity-topology-grounding.md`).
+- **B. 그라운딩** — 서브의 빌드·서빙 **결정은 도서관 참조를 인용해야 성립한다**. 인용 없는 결정은
+  거짓이 아니라 **누락**이며, **누락은 기계가 fail-closed로 잡고 거짓은 사람이 리뷰한다**. 도서관과
+  사서는 메인 단독이다 — 복제하지 않고 차등 접근으로 연다(반출은 참조·발췌이지 복제가 아니다).
+  교환 스키마·판정 절차는 `terraforming_node` SKILL.md §2.7.8이 소유한다.
+- **노드 제어 5불변식** — 아래 다섯 문장만 헌법에 남는다("왜"). 다섯 모두 **불변식 A의 토폴로지 축
+  아래에서 읽는다**(어느 sub인지가 정해져야 어느 평면인지가 정해진다). **"어떻게"(평면 A/B 상세표·
+  저작/스캔/정비 3범주·B0–B3·권위 평면 계약·node-identity·A2A 제어명령)의 정본은 스킬
   `terraforming_node` SKILL.md §2.7이다**(2026-08-15 이관 · plan_26081514):
   1. 메인은 서브를 **무단 스캔·직접 교정하지 않는다** — 상향 회수는 문서기반이다(PII 격리).
   2. 서브 git은 **메인의 관측 장치**다 — 메인은 완전한 조작 권한(commit·checkout·clean)을 가지며,
@@ -63,8 +73,10 @@
      사유가 된다. 막힘 3종 분류(정상 차단·침묵 누락·오배달)의 정본은 workflow.md다.
   5. **발견은 소유가 아니다** — 발견한 주체와 처방을 소유한 주체가 다를 수 있으며, 소유자는 owner
      표가 정한다(3+1+1 슬롯·escalation 역루프 모두 이 원칙의 사례다).
-- single-node은 manifest에 서브가 등록되면 서브제어 확장기능을 얻는다(활성 게이트는 결정론 — 상세는
-  workflow.md).
+- single-node은 manifest에 서브가 등록되면 **A2A 에이전트 제어** 확장기능을 얻는다 — 얻는 것은 위임·
+  관측이지 **멀티의 빌드킷 배달·버전 동기 평면이 아니다**(불변식 A). 서브 등록은 배달 평면을 켜지
+  못하며, 싱글 서브는 자기 빌드킷을 자율 저작한다. 활성 게이트는 결정론이고 상세는
+  `terraforming_node` SKILL.md §2.7.0이다.
 - last-good 롤백 앵커: policy:LAST_GOOD_ROLLBACK_ANCHOR.
 - hint 태그 활성화: policy:HINT_TAG_ACTIVATION_GATE.
 - 로그가 곧 에이전트다: 작업은 로그/문서 발행으로 잔존한다. container-gen·서빙전략·브랜치싱크·온보딩은
@@ -128,8 +140,9 @@
 - 문서 7종(plan·devlog·testlog·simlog·benchmark·report·request)의 역할·명명·발행 순서는
   `.claude/rules/docs.md`. 에이전트 실행평면 **밖**에서만 완수되는 과업은 `request/` 수행지시서로
   사람에게 위임한다 — 지시는 전제·명령·성공판정·회수물을 갖춰야 하며, 회수물이 돌아와야 완결된다.
-- **노드 제어 규약의 정본**(평면 A/B 상세·저작/스캔/정비 3범주·메인↔서브 B0–B3·권위 평면 계약·
-  node-identity `role` 스킴·A2A 제어명령 프로토콜)은 `.claude/skills/terraforming_node/SKILL.md` §2.7.
+- **노드 제어 규약의 정본**(토폴로지 분기표·평면 A/B 상세·저작/스캔/정비 3범주·메인↔서브 B0–B3·
+  권위 평면 계약·node-identity `role`+rank 스킴·A2A 제어명령 프로토콜·그라운딩 교환 포맷)은
+  `.claude/skills/terraforming_node/SKILL.md` §2.7.
 - **성능 루브릭 권한 모델**(약한 권한=외부 레퍼런스 E 정본 / 명시적 권한 트리거=사용자 목표 c 정본)은
   `.claude/skills/adversarial-benchmark/SKILL.md` §2.
 - 5개 public skill의 capability·전달·실행 절차는 각 스킬 문서와 workflow.md가 소유한다.
