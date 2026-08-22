@@ -60,6 +60,20 @@ def classify(trial_result: dict, budget_gib: float, safety_margin: float) -> dic
     profile = trial_result.get("vllm_profile") or {}
     functional = trial_result.get("functional") or {}
     error_excerpt = trial_result.get("error_excerpt") or ""
+    # 준비 대기의 종단 사유(run_trial 이 생존검사로 남긴다 · plan_26082223 결함 C).
+    #   ⚠ 이 신호는 **분류를 바꾸지 않는다** — 분류 권위는 여전히 로그(시그니처·kv_cache_gib·
+    #     예외 유무)다. 컨테이너가 죽었다는 사실만으로는 *왜* 죽었는지를 모르기 때문이다
+    #     (워치독 SIGKILL 인지 엔진 크래시인지). 여기서는 note 에만 실어 사후분석이 timeout
+    #     소진과 사망을 구분할 수 있게 한다. 가드를 넓히려면 별도 증거가 필요하다.
+    health_wait = trial_result.get("health_wait") or {}
+    wait_outcome = health_wait.get("outcome")
+    wait_note = ""
+    if wait_outcome == "container_died":
+        wait_note = (" [준비대기 종단=container_died(%s, %.0fs 경과 — 타임아웃 소진 아님)]"
+                     % (health_wait.get("container_state"), health_wait.get("waited_s") or 0.0))
+    elif wait_outcome == "timeout":
+        wait_note = (" [준비대기 종단=timeout(%.0fs 전량 소진 — 컨테이너는 살아 있었다)]"
+                     % (health_wait.get("waited_s") or 0.0))
 
     # ── load 실패 ──────────────────────────────────────────────────────
     # OOM 시그니처가 잡히면 vram_oom(KV 바이트 줄여 재시도). 그 외 load 실패는 unknown(HITL).
@@ -69,7 +83,10 @@ def classify(trial_result: dict, budget_gib: float, safety_margin: float) -> dic
             if m:
                 result["failure_class"] = "vram_oom"
                 result["adjust_target"] = "kv_cache_memory_bytes"
-                result["note"] = f"OOM 시그니처 매칭('{sig}') → kv_cache_memory_bytes 축소 후 재시도."
+                result["note"] = (
+                    f"OOM 시그니처 매칭('{sig}') → kv_cache_memory_bytes 축소 후 재시도."
+                    + wait_note
+                )
                 return result
 
         # ── 무예외 외부종료(호스트 워치독 SIGKILL 계열) ────────────────────
@@ -118,7 +135,7 @@ def classify(trial_result: dict, budget_gib: float, safety_margin: float) -> dic
                 f"load 실패 + OOM 예외 없음 + vllm_profile.kv_cache_gib={kv_seen:.2f} GiB 존재 "
                 f"→ 엔진이 KV 를 잡은 뒤 **외부에서 종료**됨(호스트 워치독 SIGKILL 계열)."
                 f"{over} CUDA OOM 은 예외를 남기므로 이 조합은 CUDA OOM 이 아니다. "
-                "kv_cache_memory_bytes 축소 후 재시도."
+                "kv_cache_memory_bytes 축소 후 재시도." + wait_note
             )
             return result
 
@@ -139,6 +156,7 @@ def classify(trial_result: dict, budget_gib: float, safety_margin: float) -> dic
             + why
             + "시그니처 미매칭 = 미지 실패이지 불가 아님"
             + (f" (raw log: {log_path})" if log_path else "")
+            + wait_note
         )
         return result
 

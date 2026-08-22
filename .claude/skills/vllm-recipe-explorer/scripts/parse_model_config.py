@@ -42,6 +42,13 @@ _SAFETENSORS_DTYPE_BPW: dict[str, float] = {
     "U8": 1.0,
 }
 
+# ── layer_types 어휘 (하이브리드 KV 층수 인지 · plan_26082223 결함 A) ────────────────
+#   `_KV_FREE_LAYER_TYPES` = **표준 KV 캐시를 보유하지 않는** 층 타입의 닫힌 목록(tripwire —
+#   새 타입을 넣으려면 리뷰가 강제된다). 여기 없는 타입은 전부 KV 보유로 센다(보수적).
+#   linear_attention = GDN/mamba 계열 conv+recurrent state. 토큰 수에 비례하지 않는다.
+_KV_FREE_LAYER_TYPES = ("linear_attention",)
+_KV_FULL_LAYER_TYPE = "full_attention"
+
 # safetensors 헤더 dtype 문자열 → 원소당 바이트 (가장 큰 텐서 판정용).
 _SAFETENSORS_DTYPE_ELEM_BYTES: dict[str, int] = {
     "F64": 8,
@@ -57,6 +64,80 @@ _SAFETENSORS_DTYPE_ELEM_BYTES: dict[str, int] = {
     "U8": 1,
     "BOOL": 1,
 }
+
+
+def resolve_kv_layers(layer_types, num_hidden_layers, full_attention_interval=None):
+    """`layer_types` → (num_full_attention_layers, is_hybrid, counts, warnings). **순수 함수**.
+
+    왜 있나: KV 공식은 `num_hidden_layers` 전층이 표준 KV 를 보유한다고 가정한다. 그러나
+    GDN/linear-attention 하이브리드(Qwen3.6/3.8 계열)는 전 층 중 일부만 `full_attention` 이고
+    나머지는 `linear_attention`(conv+recurrent state — 토큰 비례 KV 가 아니다)이다. 그 결과
+    Phase-1 하드게이트가 KV 를 **3.95× 과대추정**해 실제로 서빙되는 티어를 FAIL 시켰다
+    (2026-08-22 Qwen3.8-27B 실측: 공식 262,144 B/token vs 측정 66,290 B/token ·
+     `docs/simlog/26082221_qwen38_27b_R0기준선/raw/P0_P2_findings.md` · plan_26082223 결함 A).
+    Phase-2 는 측정 per-token 을 써서 정확했고(`recipe._resolve_clamp_kv` 주석의 Qwen3.6 선례),
+    측정이 없는 Phase-1 만 공식으로 돌아 이 갭이 생겼다.
+
+    판정은 `layer_types` **단독**으로 한다 — `full_attention_interval` 은 publisher 마다 있을
+    수도 없을 수도 있어 이식성이 없다(있으면 tripwire 교차검증에만 쓴다).
+
+    ★ 미지 타입은 **KV 보유로 센다**(보수적 = 과대추정 = OOM 안전). 예: `sliding_attention` 은
+      창 크기만큼이지만 KV 를 보유하므로 0 으로 세면 과소추정이 된다. 아는 KV-무보유 타입만
+      `_KV_FREE_LAYER_TYPES` 닫힌 목록으로 뺀다.
+
+    부정합(길이 불일치 · KV 보유층 0)은 **조용히 쓰지 않고** 전층 폴백 + 경고다 — 과소추정은
+    하드게이트를 무력화하지만 과대추정은 보수적일 뿐이다.
+    """
+    warnings: list[str] = []
+    if not isinstance(layer_types, list) or not layer_types:
+        return None, False, None, warnings
+
+    counts: dict[str, int] = {}
+    for _t in layer_types:
+        _k = str(_t)
+        counts[_k] = counts.get(_k, 0) + 1
+
+    kv_bearing = sum(n for t, n in counts.items() if t not in _KV_FREE_LAYER_TYPES)
+    unknown_types = sorted(
+        t for t in counts if t not in _KV_FREE_LAYER_TYPES and t != _KV_FULL_LAYER_TYPE
+    )
+    if unknown_types:
+        warnings.append(
+            "layer_types 에 미지 타입 %s → KV 보유로 계산(보수적·과대추정). KV-무보유가 맞다면 "
+            "parse_model_config._KV_FREE_LAYER_TYPES 에 근거와 함께 등재하라"
+            % (", ".join(unknown_types),)
+        )
+
+    if num_hidden_layers is not None and len(layer_types) != int(num_hidden_layers):
+        warnings.append(
+            "layer_types 길이(%d) != num_hidden_layers(%s) → 층수 인지 포기, 전층 폴백(보수적)"
+            % (len(layer_types), num_hidden_layers)
+        )
+        return None, False, counts, warnings
+
+    if kv_bearing <= 0:
+        # KV 보유층 0 = KV 0 = 하드게이트 무조건 통과. 조용한 과소추정 금지 → 전층 폴백.
+        warnings.append(
+            "layer_types 에 KV 보유층이 0 개 → 층수 인지 포기, 전층 폴백(과소추정 방지)"
+        )
+        return None, False, counts, warnings
+
+    is_hybrid = num_hidden_layers is not None and kv_bearing < int(num_hidden_layers)
+
+    # tripwire: interval 이 있으면 교차검증한다(둘이 갈리면 사람이 봐야 한다).
+    if full_attention_interval and num_hidden_layers is not None:
+        try:
+            expected = int(num_hidden_layers) // int(full_attention_interval)
+        except (TypeError, ValueError, ZeroDivisionError):
+            expected = None
+        if expected is not None and expected != kv_bearing:
+            warnings.append(
+                "full_attention_interval(%s)로 기대한 full 층수(%d) != layer_types 집계(%d) — "
+                "layer_types 를 권위로 쓴다(interval 은 참고값)"
+                % (full_attention_interval, expected, kv_bearing)
+            )
+
+    return int(kv_bearing), bool(is_hybrid), counts, warnings
 
 
 def _resolve_host_path(model_path: str, nas_host_root: str,
@@ -385,6 +466,15 @@ def parse(model_path: str, nas_host_root: str = DEFAULT_NAS_HOST_ROOT,
                 "head_dim 누락 + hidden_size/num_attention_heads 부족 → 산출 불가"
             )
 
+    # ── 3.5) 하이브리드 attention 층수 인지 (2026-08-23 · plan_26082223 결함 A) ─────────
+    #   순수 판정은 `resolve_kv_layers()` 가 소유한다(파일 IO 없음 → `--self-test` 가 이걸 친다).
+    layer_types = field("layer_types")
+    full_attention_interval = field("full_attention_interval")
+    num_full_attention_layers, is_hybrid, layer_type_counts, _lt_warnings = resolve_kv_layers(
+        layer_types, num_hidden_layers, full_attention_interval
+    )
+    warnings.extend(_lt_warnings)
+
     vocab_size = field("vocab_size")
     if vocab_size is None:
         warnings.append("vocab_size 누락")
@@ -531,6 +621,12 @@ def parse(model_path: str, nas_host_root: str = DEFAULT_NAS_HOST_ROOT,
         "prequantized": prequantized,
         "quant_method_native": quant_method_native,
         "num_hidden_layers": num_hidden_layers,
+        # 하이브리드 KV 층수(plan_26082223 결함 A). None = layer_types 부재/부정합 →
+        # 소비자(estimate_vram.kv_bearing_layers)가 전층 폴백한다.
+        "num_full_attention_layers": num_full_attention_layers,
+        "is_hybrid": is_hybrid,
+        "layer_type_counts": layer_type_counts,
+        "full_attention_interval": full_attention_interval,
         "num_attention_heads": num_attention_heads,
         "num_key_value_heads": num_key_value_heads,
         "head_dim": head_dim,
@@ -546,11 +642,92 @@ def parse(model_path: str, nas_host_root: str = DEFAULT_NAS_HOST_ROOT,
     }
 
 
+# ===========================================================================
+# 자체검사 (--self-test) — 하이브리드 KV 층수 인지(plan_26082223 결함 A).
+#   `resolve_kv_layers` 는 순수 함수라 파일 IO·모델·하드웨어가 필요 없다
+#   (다른 스킬 도구의 `--self-test` 계약과 동일).
+# ===========================================================================
+
+def _self_test() -> int:
+    failures: list[str] = []
+
+    def check(name, got, want):
+        if got != want:
+            failures.append("%s: got=%r want=%r" % (name, got, want))
+
+    # A1 — Qwen3.8-27B 실물 형태: 64층 중 full 16 · linear 48.
+    lt = ["full_attention" if (i + 1) % 4 == 0 else "linear_attention" for i in range(64)]
+    n, hyb, counts, warns = resolve_kv_layers(lt, 64, 4)
+    check("A1.num_full", n, 16)
+    check("A1.is_hybrid", hyb, True)
+    check("A1.counts", counts, {"linear_attention": 48, "full_attention": 16})
+    check("A1.no_warning", warns, [])
+
+    # A2 — 전층 full_attention(비하이브리드): 값은 나오되 is_hybrid=False.
+    n, hyb, _c, warns = resolve_kv_layers(["full_attention"] * 32, 32, None)
+    check("A2.num_full", n, 32)
+    check("A2.is_hybrid", hyb, False)
+    check("A2.no_warning", warns, [])
+
+    # A3 — layer_types 부재(구형 config): None → 소비자가 전층 폴백(회귀 0).
+    n, hyb, counts, warns = resolve_kv_layers(None, 64, None)
+    check("A3.num_full", n, None)
+    check("A3.is_hybrid", hyb, False)
+    check("A3.counts", counts, None)
+
+    # A4 — 길이 불일치는 **조용히 쓰지 않는다**: 전층 폴백 + 경고.
+    n, hyb, _c, warns = resolve_kv_layers(["full_attention"] * 10, 64, None)
+    check("A4.num_full", n, None)
+    if not any("길이" in w for w in warns):
+        failures.append("A4: 길이 불일치 경고 누락 — 침묵 폴백은 금지다")
+
+    # A5 — KV 보유층 0 은 KV=0(게이트 무조건 통과) 이므로 전층 폴백 + 경고.
+    n, _h, _c, warns = resolve_kv_layers(["linear_attention"] * 8, 8, None)
+    check("A5.num_full", n, None)
+    if not any("KV 보유층이 0" in w for w in warns):
+        failures.append("A5: KV 보유층 0 경고 누락 — 과소추정이 조용히 통과한다")
+
+    # A6 — 미지 타입은 **KV 보유로 센다**(보수적) + 경고. sliding_attention 이 실사례.
+    lt = ["sliding_attention"] * 4 + ["full_attention"] * 4 + ["linear_attention"] * 8
+    n, hyb, _c, warns = resolve_kv_layers(lt, 16, None)
+    check("A6.num_full", n, 8)
+    check("A6.is_hybrid", hyb, True)
+    if not any("미지 타입" in w for w in warns):
+        failures.append("A6: 미지 타입 경고 누락 — 조용한 보수화도 침묵이다")
+
+    # A7 — interval tripwire: layer_types 가 권위, 불일치는 경고로 드러낸다.
+    lt = ["full_attention" if (i + 1) % 4 == 0 else "linear_attention" for i in range(64)]
+    n, _h, _c, warns = resolve_kv_layers(lt, 64, 8)   # interval 8 → 기대 8 ≠ 집계 16
+    check("A7.num_full", n, 16)
+    if not any("full_attention_interval" in w for w in warns):
+        failures.append("A7: interval 교차검증 경고 누락 — tripwire 가 죽었다")
+
+    # A8 — 소비자 계약: estimate_vram 이 이 값을 실제로 집어 KV 를 1/4 로 만든다.
+    #      (도구를 만든 것과 도는 것은 다르다 — 끝단까지 실측한다.)
+    import estimate_vram as _E
+    parsed_hybrid = {"num_hidden_layers": 64, "num_full_attention_layers": 16,
+                     "num_key_value_heads": 4, "head_dim": 256}
+    parsed_dense = {"num_hidden_layers": 64, "num_key_value_heads": 4, "head_dim": 256}
+    check("A8.hybrid_per_token", _E.per_token_kv_bytes(parsed_hybrid, 2), 65536)
+    check("A8.dense_per_token", _E.per_token_kv_bytes(parsed_dense, 2), 262144)
+
+    if failures:
+        sys.stderr.write("[parse_model_config --self-test] FAIL %d 건:\n" % len(failures))
+        for f in failures:
+            sys.stderr.write("  - %s\n" % f)
+        return 1
+    sys.stdout.write("[parse_model_config --self-test] OK — A1~A8 통과"
+                     " (하이브리드 KV 층수 인지 · plan_26082223 결함 A)\n")
+    return 0
+
+
 def _main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description="config.json 결정론 파서 (vllm-recipe-explorer)"
     )
-    ap.add_argument("path", help="모델 경로 (/app/models/<Org>/<Name> 또는 호스트 경로)")
+    ap.add_argument("path", nargs="?", help="모델 경로 (/app/models/<Org>/<Name> 또는 호스트 경로)")
+    ap.add_argument("--self-test", action="store_true",
+                    help="하이브리드 KV 층수 인지 회귀(모델/하드웨어 불요)")
     ap.add_argument(
         "--nas-root",
         default=DEFAULT_NAS_HOST_ROOT,
@@ -558,6 +735,11 @@ def _main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--json", action="store_true", help="JSON 으로 출력")
     args = ap.parse_args(argv)
+
+    if args.self_test:
+        return _self_test()
+    if not args.path:
+        ap.error("path 는 필수다(--self-test 는 예외)")
 
     try:
         result = parse(args.path, nas_host_root=args.nas_root)

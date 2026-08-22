@@ -42,6 +42,52 @@ GIB = 1024 ** 3  # 단위 통일: GiB = 1024**3 (추정·예산 둘 다)
 KV_BLOCK_ALIGN_BUFFER = 1.02
 
 
+def kv_bearing_layers(parsed: dict) -> "int | None":
+    """KV 캐시를 **실제로 보유하는** 층 수. KV 공식의 `layers` 항 단일 소유자.
+
+    하이브리드(GDN/linear-attention) 모델은 전 층이 full-KV 가 아니다 — Qwen3.8-27B 는
+    64층 중 16층만 `full_attention` 이고 48층은 `linear_attention`(conv+recurrent state,
+    토큰 비례 KV 아님)이다. 전층으로 세면 KV 가 **3.95× 과대추정**되어 Phase-1 하드게이트가
+    실제로 서빙되는 티어를 FAIL 시킨다(2026-08-22 실측 · plan_26082223 결함 A ·
+    `docs/simlog/26082221_qwen38_27b_R0기준선/raw/P0_P2_findings.md`).
+
+    선택 규칙(순수 산술 — 여기가 단일 소유다):
+      `num_full_attention_layers` 가 `0 < n <= num_hidden_layers` 면 그 값, 아니면 전층.
+    → **폴백이 현행 동작**이므로 비하이브리드/구버전 parsed dict 는 회귀 0 이다.
+
+    ★ `parsed["is_hybrid"]` 는 **보고용 라벨**이고 이 함수는 그것을 읽지 않는다. 같은 판정을
+      두 곳에서 각자 하면 갈라진다(§결정론 규율 — 개념 중복). 라벨은 parse_model_config 가,
+      산술은 이 함수가 소유한다.
+    """
+    total = parsed.get("num_hidden_layers")
+    n_full = parsed.get("num_full_attention_layers")
+    if n_full is None:
+        return int(total) if total is not None else None
+    try:
+        n_full = int(n_full)
+    except (TypeError, ValueError):
+        return int(total) if total is not None else None
+    if total is None:
+        # 전층을 모르면 상한 검증을 못 한다 — 값 자체는 결정론이므로 그대로 쓴다.
+        return n_full if n_full > 0 else None
+    total = int(total)
+    if not (0 < n_full <= total):
+        # 부정합(0 이하·전층 초과) → 보수적 전층 폴백. parse 단계가 이미 경고를 남긴다.
+        return total
+    return n_full
+
+
+def kv_layers_source(parsed: dict) -> str:
+    """`kv_bearing_layers` 가 어느 축을 썼는지의 출처 표시(§결정론 규율 — `*_source`)."""
+    total = parsed.get("num_hidden_layers")
+    total = int(total) if total is not None else None
+    return (
+        "num_hidden_layers"
+        if kv_bearing_layers(parsed) == total
+        else "num_full_attention_layers"
+    )
+
+
 def _activation_bytes(eff_params: int, max_model_len: int) -> int:
     """Activation/scratch 버퍼 바이트 (벤더링).
 
@@ -134,16 +180,18 @@ def estimate(
     # ── KV_cache ───────────────────────────────────────────────────────
     # KV_cache = 2 * layers * num_key_value_heads * head_dim * kv_dtype_bytes * max_model_len
     # (factor 2 = K + V. GQA 는 num_key_value_heads 사용 — MHA 면 = num_attention_heads.)
-    num_hidden_layers = parsed.get("num_hidden_layers")
+    # layers 항은 `kv_bearing_layers` 가 단일 소유한다 — 하이브리드면 full-attention 층수,
+    # 아니면 전층(현행 = 폴백). plan_26082223 결함 A.
+    kv_layers = kv_bearing_layers(parsed)
     num_key_value_heads = parsed.get("num_key_value_heads")
     head_dim = parsed.get("head_dim")
-    if None in (num_hidden_layers, num_key_value_heads, head_dim):
+    if None in (kv_layers, num_key_value_heads, head_dim):
         result["error"] = "kv_dims_unknown"
         result["gate_pass"] = False
         return result
     kv_cache = (
         2
-        * int(num_hidden_layers)
+        * int(kv_layers)
         * int(num_key_value_heads)
         * int(head_dim)
         * int(kv_cache_dtype_bytes)
@@ -168,6 +216,9 @@ def estimate(
 
     result["weight_gib"] = weight_bytes / GIB
     result["kv_gib"] = kv_cache / GIB
+    # 출처 표시(§결정론 규율): KV 를 몇 층으로 셌는지와 그 근거 축을 값 옆에 남긴다.
+    result["kv_layers"] = int(kv_layers)
+    result["kv_layers_source"] = kv_layers_source(parsed)
     result["overhead_gib"] = overhead / GIB
     result["estimated_total_gib"] = estimated_total_gib
     result["headroom_gib"] = headroom_gib
@@ -188,13 +239,19 @@ def estimate(
 def per_token_kv_bytes(parsed: dict, kv_dtype_bytes: int) -> int:
     """토큰 1개당 KV 캐시 바이트.
 
-    per_token_kv_bytes = 2 * num_hidden_layers * num_key_value_heads * head_dim
+    per_token_kv_bytes = 2 * kv_bearing_layers * num_key_value_heads * head_dim
                          * kv_dtype_bytes   (factor 2 = K + V).
     GQA 면 num_key_value_heads(<num_attention_heads) 사용.
+    layers 항은 `kv_bearing_layers()` 가 정한다 — 하이브리드는 full-attention 층수, 그 외 전층
+    (plan_26082223 결함 A). 이 경로는 `recipe._resolve_clamp_kv` 의 **측정 per-token 부재 시
+    공식 폴백**이므로, 측정이 있으면 여전히 측정이 우선한다(측정 > 공식).
     """
+    layers = kv_bearing_layers(parsed)
+    if layers is None:
+        raise KeyError("num_hidden_layers")
     return (
         2
-        * int(parsed["num_hidden_layers"])
+        * int(layers)
         * int(parsed["num_key_value_heads"])
         * int(parsed["head_dim"])
         * int(kv_dtype_bytes)
@@ -386,20 +443,132 @@ def max_feasible_batch(
     return int(safe_kv // denom)
 
 
+# ===========================================================================
+# 자체검사 (--self-test) — 하이브리드 KV 층수 인지(plan_26082223 결함 A).
+#   픽스처는 **Qwen3.8-27B 실측 형상**(64층 · full 16 · kv_heads 4 · head_dim 256)이며
+#   기대값 16 GiB 는 손계산 리터럴이 아니라 공식의 산출값이다. 모델·하드웨어 불요.
+# ===========================================================================
+
+# 2026-08-22 실측 per-token KV — `Available KV cache memory 52.28 GiB` ÷
+# `GPU KV cache size 846,926 tokens` (docs/simlog/26082221_qwen38_27b_R0기준선/raw/
+#  P0_P2_findings.md). 공식이 이 실측과 어긋나면 자체검사가 빨간불을 켠다.
+_MEASURED_PER_TOKEN_QWEN38_27B = 66290
+
+
+def _self_test() -> int:
+    failures: list[str] = []
+
+    def check(name, got, want):
+        if got != want:
+            failures.append("%s: got=%r want=%r" % (name, got, want))
+
+    hybrid = {"num_hidden_layers": 64, "num_full_attention_layers": 16, "is_hybrid": True,
+              "num_key_value_heads": 4, "head_dim": 256, "max_position_embeddings": 262144,
+              "num_params": 27_000_000_000, "prequantized": False, "serve_bpw": 2.0}
+    # 비하이브리드 = **필드 자체가 없는** 구형 parsed dict(회귀 0 을 이 형태로 증명한다).
+    dense = {k: v for k, v in hybrid.items() if k != "num_full_attention_layers"}
+    dense["is_hybrid"] = False
+    cand = {"id": "selftest", "quantization": None, "max_model_len": 262144,
+            "gpu_memory_utilization": 0.90}
+
+    # E1 — 하이브리드: 262k KV = 16 GiB (전층 64 GiB 의 정확히 1/4).
+    r_h = estimate(hybrid, cand, tp=1, budget_gib=115.0, safety_margin=0.90)
+    check("E1.kv_gib", r_h["kv_gib"], 16.0)
+    check("E1.kv_layers", r_h["kv_layers"], 16)
+    check("E1.kv_layers_source", r_h["kv_layers_source"], "num_full_attention_layers")
+
+    # E2 — 비하이브리드 회귀 0: 현행값(전층 64 GiB) 유지.
+    r_d = estimate(dense, cand, tp=1, budget_gib=115.0, safety_margin=0.90)
+    check("E2.kv_gib", r_d["kv_gib"], 64.0)
+    check("E2.kv_layers", r_d["kv_layers"], 64)
+    check("E2.kv_layers_source", r_d["kv_layers_source"], "num_hidden_layers")
+    check("E2.ratio_is_exactly_quarter", r_h["kv_gib"] * 4, r_d["kv_gib"])
+    # 회귀 0 의 진짜 판정: KV 밖 항이 하나도 안 움직였는지.
+    for k in ("weight_gib", "overhead_gib"):
+        check("E2.%s_unchanged" % k, r_h[k], r_d[k])
+
+    # E3 — 전층이 full_attention 인 모델은 하이브리드가 아니다(값은 있어도 전층).
+    allfull = dict(dense, num_full_attention_layers=64)
+    check("E3.layers", kv_bearing_layers(allfull), 64)
+    check("E3.source", kv_layers_source(allfull), "num_hidden_layers")
+
+    # E4 — 부정합은 **보수적 전층 폴백**이다(과소추정 금지).
+    check("E4.zero", kv_bearing_layers(dict(dense, num_full_attention_layers=0)), 64)
+    check("E4.over", kv_bearing_layers(dict(dense, num_full_attention_layers=99)), 64)
+    check("E4.garbage", kv_bearing_layers(dict(dense, num_full_attention_layers="x")), 64)
+
+    # E5 — per_token / required 도 같은 축을 쓴다(KV 항의 단일 소유).
+    check("E5.per_token_hybrid", per_token_kv_bytes(hybrid, 2), 65536)
+    check("E5.per_token_dense", per_token_kv_bytes(dense, 2), 262144)
+    check("E5.required_hybrid", required_kv_bytes(hybrid, 262144, 1, 2),
+          int(65536 * 262144 * KV_BLOCK_ALIGN_BUFFER))
+
+    # E6 — **실측 대조**(그라운딩): 하이브리드 공식은 실측의 ±5% 안, 전층 공식은 밖.
+    err_h = abs(per_token_kv_bytes(hybrid, 2) - _MEASURED_PER_TOKEN_QWEN38_27B) / \
+        _MEASURED_PER_TOKEN_QWEN38_27B
+    err_d = abs(per_token_kv_bytes(dense, 2) - _MEASURED_PER_TOKEN_QWEN38_27B) / \
+        _MEASURED_PER_TOKEN_QWEN38_27B
+    if not err_h <= 0.05:
+        failures.append("E6.hybrid_vs_measured: 오차 %.3f > 0.05 (공식이 실측과 어긋난다)" % err_h)
+    if not err_d > 1.0:
+        failures.append("E6.dense_vs_measured: 전층 공식 오차 %.3f — 결함 A 전제가 무너졌다" % err_d)
+
+    # E7 — 하드게이트 결과가 실제로 뒤집힌다(이 수정의 존재 이유).
+    #      262k 티어는 as-shipped 에서 FAIL 이었고 교정 후 PASS 여야 한다.
+    check("E7.hybrid_gate", r_h["gate_pass"], True)
+    check("E7.dense_gate", r_d["gate_pass"], False)
+
+    # E8 — 파생 함수(max_feasible_*)도 같은 축을 타는지. 하이브리드가 4배 긴 ctx 를 준다.
+    kw = dict(budget_gib=115.0, safety_margin=0.90, quantization=None, kv_dtype_bytes=2,
+              weights_bytes=51.1 * GIB, overhead_bytes=2.0 * GIB)
+    len_h = max_feasible_max_len(hybrid, batch=1, **kw)
+    len_d = max_feasible_max_len(dense, batch=1, **kw)
+    if not (len_h >= len_d * 4 or len_h == int(hybrid["max_position_embeddings"])):
+        failures.append("E8.max_len: hybrid=%d dense=%d — 파생 함수가 층수 인지를 안 탄다"
+                        % (len_h, len_d))
+    b_h = max_feasible_batch(hybrid, max_model_len=32768, **kw)
+    b_d = max_feasible_batch(dense, max_model_len=32768, **kw)
+    # per-token 이 정확히 1/4 이므로 batch 는 4배 대역에 든다. floor 나눗셈이라 정확히 4배가
+    # 아닐 수 있어(잔여가 hybrid 쪽에서 한 칸 더 나온다) 상·하한으로 단언한다.
+    if not (b_d * 4 <= b_h <= (b_d + 1) * 4 - 1):
+        failures.append("E8.batch: hybrid=%d dense=%d — 4배 대역 밖(층수 인지 미적용 의심)"
+                        % (b_h, b_d))
+
+    if failures:
+        sys.stderr.write("[estimate_vram --self-test] FAIL %d 건:\n" % len(failures))
+        for f in failures:
+            sys.stderr.write("  - %s\n" % f)
+        return 1
+    sys.stdout.write("[estimate_vram --self-test] OK — E1~E8 통과"
+                     " (하이브리드 KV 층수 인지 · plan_26082223 결함 A)\n")
+    return 0
+
+
 def _main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description="결정론 VRAM 추정기 (vllm-recipe-explorer)."
     )
-    p.add_argument("--parsed", required=True, help="parse_model_config 출력 JSON 경로")
+    p.add_argument("--parsed", help="parse_model_config 출력 JSON 경로")
+    p.add_argument("--self-test", action="store_true",
+                   help="하이브리드 KV 층수 인지 회귀(모델/하드웨어 불요)")
     p.add_argument("--quant", default=None, help="후보 quantization 플래그(none/fp8/awq/...)")
-    p.add_argument("--max-model-len", type=int, required=True)
-    p.add_argument("--gmu", type=float, required=True, help="gpu_memory_utilization (0~1)")
-    p.add_argument("--tp", type=int, required=True, help="tensor_parallel_size")
-    p.add_argument("--budget", type=float, required=True, help="vram_budget_gib")
-    p.add_argument("--margin", type=float, required=True, help="safety_margin (하드게이트 임계)")
+    p.add_argument("--max-model-len", type=int)
+    p.add_argument("--gmu", type=float, help="gpu_memory_utilization (0~1)")
+    p.add_argument("--tp", type=int, help="tensor_parallel_size")
+    p.add_argument("--budget", type=float, help="vram_budget_gib")
+    p.add_argument("--margin", type=float, help="safety_margin (하드게이트 임계)")
     p.add_argument("--kv-bytes", type=int, default=2, help="KV dtype 바이트(기본 2=fp16)")
     p.add_argument("--id", default=None, help="후보 id (선택)")
     args = p.parse_args(argv)
+
+    if args.self_test:
+        return _self_test()
+    _missing = [n for n, v in (("--parsed", args.parsed), ("--max-model-len", args.max_model_len),
+                               ("--gmu", args.gmu), ("--tp", args.tp),
+                               ("--budget", args.budget), ("--margin", args.margin))
+                if v is None]
+    if _missing:
+        p.error("%s 는 필수다(--self-test 는 예외)" % ", ".join(_missing))
 
     with open(args.parsed, "r", encoding="utf-8") as f:
         parsed = json.load(f)

@@ -616,6 +616,17 @@ def verify() -> dict:
         #   순수 결정론 단위검사(픽스처 파일·네트워크·서빙 불요)라 미테라포밍 레포에서도 안전하다.
         _run("benchmark_verdict_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py", "--self-test"], {0}),
+        # recipe-explorer 결정론 자체검사의 **집행** (plan_26082223 §4 · 2026-08-23 배선).
+        #   같은 이유다 — 호출자 없는 자체검사는 L2 가 아니라 L1(산문)이다. 셋 다 순수
+        #   결정론 단위검사(모델·NAS·docker·GPU 불요)라 미테라포밍 레포에서도 안전하다.
+        #   · parse/estimate = 하이브리드 KV 층수 인지(결함 A — 262k KV 16 GiB vs 전층 64 GiB)
+        #   · run_trial      = 컨테이너 생존검사(결함 C) + 호스트 바닥 gmu 캡(결함 B)
+        _run("recipe_parse_config_selftest", [sys.executable,
+             ".claude/skills/vllm-recipe-explorer/scripts/parse_model_config.py", "--self-test"], {0}),
+        _run("recipe_estimate_vram_selftest", [sys.executable,
+             ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py", "--self-test"], {0}),
+        _run("recipe_run_trial_selftest", [sys.executable,
+             ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py", "--self-test"], {0}),
     ]
 
     with tempfile.TemporaryDirectory(prefix="easy-vllm-wiki-distribution.") as wiki:

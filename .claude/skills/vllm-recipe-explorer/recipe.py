@@ -198,6 +198,36 @@ REFERENCES_MD_PATH = os.path.join(
 )
 
 
+def _is_unified_memory(device_total_gib, tolerance=0.05):
+    """디바이스 메모리 풀 == 호스트 RAM 풀인가(GB10 통합메모리) — **파생** 판정. 결정론.
+
+    왜 필요한가(plan_26082223 결함 B): 트라이얼 협역 워치독은 `/proc/meminfo MemAvailable` 을
+    보고 컨테이너를 죽인다. 통합메모리에서는 엔진 할당이 그 값을 직접 끌어내리므로 gmu 상한이
+    곧 호스트 바닥 준수가 되지만, discrete GPU 에서는 두 풀이 무관하다 — 거기서 호스트 RAM 을
+    근거로 gmu 를 깎으면 **근거 없는 축소**다(작은 RAM + 큰 VRAM 조합에서 실제로 오작동한다).
+
+    manifest 에 새 필드를 만들지 않는다 — 이미 있는 두 사실(`test_device_total_gib` 와
+    `/proc/meminfo MemTotal`)에서 파생되므로, 손으로 적으면 §4종 안티패턴의 "파생 가능한데
+    손으로 적은 것"이 된다. 판정 불가(meminfo 못 읽음/디바이스 total 미상)면 None 이며,
+    소비자는 None 을 "캡 걸지 않음"으로 처리한다(fail-closed 방향 = 현행 동작 유지).
+    """
+    if not device_total_gib:
+        return None
+    try:
+        with open("/proc/meminfo", encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("MemTotal:"):
+                    mem_total_gib = int(line.split()[1]) / (1024.0 * 1024.0)
+                    break
+            else:
+                return None
+    except (OSError, IndexError, ValueError):
+        return None
+    if mem_total_gib <= 0:
+        return None
+    return abs(float(device_total_gib) - mem_total_gib) / mem_total_gib <= tolerance
+
+
 def _lookup_gpu_spec(gpu_model, references_path=None):
     """references.md §4 HW-스코프에서 gpu_model 매칭 섹션의 per-card VRAM(GiB)·통합메모리 여부를 역룩업.
 
@@ -870,6 +900,12 @@ def cmd_simulate(args):
         "manifest": _read_manifest(REPO_ROOT)[1],
         "tp": tp,
         "checkpoint_bytes": parsed.get("native_weight_bytes"),
+        # ── 측정 트라이얼 gmu 캡 게이트 (2026-08-23 · plan_26082223 결함 B) ────────────
+        #   run_trial 은 통합메모리에서만 gmu 를 호스트 바닥 준수 상한으로 깎는다. 그 판정에
+        #   필요한 두 사실(device_total ↔ MemTotal)이 **이 스코프에 이미 있다** — 넘기지 않으면
+        #   run_trial 이 판정 근거가 없어 캡을 못 걸고, 측정 트라이얼은 계속 구조적으로 사살된다
+        #   ("만든 것과 도는 것은 다르다" — 배선이 없으면 코드는 없는 것과 같다).
+        "unified_memory": _is_unified_memory(device_total_gib),
     }
     opts = {k: v for k, v in opts.items() if v is not None}
 
@@ -930,8 +966,12 @@ def cmd_simulate(args):
                  "판정에 쓰지 않는다(plan_26081314 D1)." % (_prov,), code=7)
         # consolidated 메모리 라인이 없는 빌드 보강: overhead 유도(제자리). dry-run mock 이
         # 이미 non_kv_overhead 를 주면 건드리지 않는다.
+        # gmu_fallback 은 **실제로 emit 된 값**이어야 한다(trial.effective_gmu). 결함 B 캡이
+        # 걸린 트라이얼에서 요청값을 쓰면 overhead = gmu×total − w − kv 가 그대로 틀어진다.
         _enrich_overhead(trial.get("vllm_profile"), device_total_gib,
-                         gmu_fallback=candidate.get("gpu_memory_utilization"),
+                         gmu_fallback=(trial.get("effective_gmu")
+                                       if trial.get("effective_gmu") is not None
+                                       else candidate.get("gpu_memory_utilization")),
                          kv_was_explicit=candidate.get("kv_cache_memory_bytes") is not None)
         final_trial = trial
 
