@@ -91,6 +91,10 @@ def build_yaml(index, verdict):
     A("# --- 검증 결과(인증서 본문) ---")
     A("benchmark_mode: full")
     A("decode_tps_conc1: %s" % scalar(verdict.get("measured_decode_tps")))
+    # 루브릭 **권한**(weak|explicit|explore) — 어느 권한에서 잰 판정인지 인증서가 스스로 밝힌다
+    # (헌법 §결정론 규율 출처 표시 · plan_26082219 A6). 승격 판정기(completion_gate)가 이 필드로
+    # explore 계약을 읽는다. 결측은 scalar() 가 N/A 로 fail-soft(legacy 인증서 관용).
+    A("rubric_authority: %s" % scalar(rub.get("authority")))
     A("primary_source: %s" % scalar(rub.get("source")))
     A("primary_tps: %s" % scalar(rub.get("primary")))
     A("floor_tps: %s" % scalar(rub.get("floor")))

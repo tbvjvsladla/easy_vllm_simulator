@@ -51,6 +51,12 @@
   → `docs/benchmark/benchmark_<YYMMDDHH>_<model>_<gpu>_<vllm>.yaml`. **flat 계약**(중첩 ✗ — 소비자 stdlib 독해) +
   **carry-forward 재검증 헤더**(강한키=model/gpu/vllm/quant/topology/tp 정확일치 + 소프트지문=driver/cuda/image/max-len/
   kv-bytes/gmu/moe 불일치 시 stale). verdict≠PASS 면 **미발행**(report 만).
+  **`rubric_authority: weak|explicit|explore`** 를 검증결과 블록에 함께 싣는다(2026-08-22 · `plan_26082219` A6) —
+  승격 판정기(`completion_gate.py`)가 *어느 권한에서 잰 판정인지*를 인증서에서 직접 읽어야 explore 계약
+  (성능 판정=서술 · 승격 게이트=서빙 성립+유효 측정)을 집행할 수 있다. 결측은 `N/A` fail-soft이며,
+  **legacy 인증서(필드 부재)는 관용**한다(값역 검사만 — 스키마가 늘었다고 기존 판정을 뒤집지 않는다).
+  같은 판정기가 `floor_tps > 0` ∧ `ratio_M_over_primary` 실수 ∧ `primary_source` 실재를 **fail-closed** 로
+  요구한다 — 손저작·개조·stale 인증서의 공허 PASS 승격을 이중으로 막는다.
 - **비용 규율**: 재탐색 루프 **내부는 값싼 단일점 판정** 유지 · 스윕·리치리포트는 **종결 1회**만. 오케스트레이션은
   **에이전트 매개**(스킬↔스킬 직접호출 ✗). **done-게이트는 여전히 verdict 독점** · lite 는 발행 안 함(채팅 표만).
 - 발행 경로·명명 SSOT = `.claude/skills/wiki-desk/scripts/doc_naming.py`(generated_utc→KST) · 증거 계약은 `.claude/policies/runtime/completion_gate.py` 가 판정.

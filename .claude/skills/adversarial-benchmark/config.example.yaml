@@ -8,7 +8,12 @@ serving:
 # === 루브릭 (3중 방어막) ===
 # reference_tps:                      # (선택) E = 외부 현실-달성치. 미지정 시 검증기(Devil's Advocate)가 외부검색(HF카드·포럼·PR).
 # target_tps:                         # (선택) c = 사용자 선언 목표(백스톱). E·expected 모두 불가할 때 사용.
-tolerance: 0.15                       # PASS 허용오차(M ≥ primary×(1−tol))
+#   ⚠ 0/NULL 금지 — 0 이 정본으로 낙찰되면 floor=0 인 **공허 PASS**(어떤 측정치도 통과)가 된다.
+#     verdict_rule.py 가 exit 2 로 거부한다. '게이트 미설정'은 **키를 두지 않는 것**이고,
+#     광범위 탐색은 `--authority explore`(CLI 트리거 — reference_tps 에도 동일 규칙 적용).
+#   ※ `authority` 는 이 파일의 키가 아니다 — 트리거는 사용자 HITL 이며, 파일에 적히면
+#     "사용자가 당겼다"는 증거가 약해진다(SKILL.md §2).
+tolerance: 0.15                       # PASS 허용오차(M ≥ primary×(1−tol)) — 0 ≤ tol < 1(tol=1 이면 floor=0)
 realistic_fraction: 0.35              # MBU 보정(batch=1 MoE 통상 0.25~0.4). expected_achievable = fraction × R_token
 reconciliation_cap: 3                 # 루브릭 못 충족 시 재탐색 루프 상한(소진→escalation/음성정직)
 

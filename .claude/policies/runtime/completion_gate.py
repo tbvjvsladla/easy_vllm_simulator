@@ -77,6 +77,7 @@ import datetime
 import errno
 import hashlib
 import json
+import math
 import os
 import re
 import stat
@@ -887,6 +888,36 @@ CERTIFICATE_FIELD_MAP = {
 
 STRONG_IDENTITY_FIELDS = ("model", "gpu", "vllm", "quant", "topology", "tp")
 
+# ---- benchmark-certificate rubric contract (plan_26082219 D5) --------------------------------
+# 벤치 판정기(adversarial-benchmark/scripts/verdict_rule.py)가 `--target-tps 0` 같은 상수 0 을
+# 정본으로 낙찰시키면 floor=0 이 되어 **어떤 측정치도 통과하는 PASS**(공허 PASS)가 만들어졌고, 그
+# PASS 가 여기서 promotion-ready(=hint 발행 자격)를 열었다(2026-08-22 실측). 발생 원천은 판정기에서
+# 막혔지만(D1), 승격 경로에는 두 잔여 위험이 남는다 -- ① 손저작/개조된 인증서, ② **수정 전에 발행된
+# stale 인증서**. 그래서 판정기의 자기주장이 아니라 **디스크의 인증서 아티팩트 수치**로 여기서 한 번 더
+# 계약을 건다: floor 는 유한 양수여야 하고, ratio 와 primary_source 는 실재해야 한다.
+# floor>0 없이는 공허 PASS 가 수치적으로 성립하지 않으므로, primary_source 문자열 매칭(하드코딩 결함
+# 칸)에 기대지 않고 이 두 수치만으로 배제된다 -- source 는 표면화만 한다.
+RUBRIC_AUTHORITIES = ("weak", "explicit", "explore")
+
+
+def _certificate_number(raw):
+    """Parses ONE flat-certificate scalar into a finite float. Returns None for absent / empty /
+    'N/A' / non-numeric / NaN / +-Inf -- i.e. every shape that cannot serve as a threshold. Pure
+    parser: the caller decides what a None means (fail-closed at each call site), which is the
+    '순수 파서의 None' 정당 칸 rather than a silent fallback."""
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    if not text or text.upper() == "N/A":
+        return None
+    try:
+        value = float(text)
+    except ValueError:
+        return None
+    if math.isnan(value) or math.isinf(value):
+        return None
+    return value
+
 
 def parse_flat_certificate(text: str):
     """Returns (fields: dict[str,str], ok: bool). ok=False (fields=={}) means the artifact's
@@ -1586,6 +1617,9 @@ def cmd_verify(args: argparse.Namespace) -> None:
         identity_ok = True
         links_ok = True
         certificate_output: dict | None = None
+        # rubric contract outcome, carried to the promotion tier (plan_26082219 D5/U1)
+        cert_rubric_ok = False
+        cert_rubric_authority: str | None = None
 
         for key in all_evidence_keys:
             item = evidence.get(key)
@@ -1609,7 +1643,10 @@ def cmd_verify(args: argparse.Namespace) -> None:
                     add_reason("CERTIFICATE_UNPARSEABLE",
                                f"certificate at {item['path']!r} is not in the recognized flat-scalar format")
                     certificate_output = {"path": item["path"], "parsed": False, "identity": None,
-                                          "verdict": None, "benchmark_mode": None, "identity_match": None}
+                                          "verdict": None, "benchmark_mode": None, "identity_match": None,
+                                          "rubric_authority": None, "floor_tps": None,
+                                          "ratio_M_over_primary": None, "primary_source": None,
+                                          "rubric_contract_ok": False}
                 else:
                     mapped, mismatched = _certificate_strong_identity_matches(cert_fields, identity)
                     identity_match = not mismatched
@@ -1629,9 +1666,55 @@ def cmd_verify(args: argparse.Namespace) -> None:
                         identity_ok = False
                         add_reason("CERTIFICATE_BENCHMARK_MODE_MISMATCH",
                                    f"certificate benchmark_mode={cert_mode!r} (must be 'full')")
+                    # ---- rubric contract (plan_26082219 D5) -- fail-closed on the ARTIFACT ----
+                    floor_tps = _certificate_number(cert_fields.get("floor_tps"))
+                    ratio_value = _certificate_number(cert_fields.get("ratio_M_over_primary"))
+                    primary_source = (cert_fields.get("primary_source") or "").strip()
+                    raw_authority = (cert_fields.get("rubric_authority") or "").strip()
+                    cert_rubric_ok = True
+                    if floor_tps is None or floor_tps <= 0:
+                        cert_rubric_ok = False
+                        identity_ok = False
+                        add_reason("CERTIFICATE_RUBRIC_FLOOR_INVALID",
+                                   f"certificate floor_tps={cert_fields.get('floor_tps')!r} is not a finite "
+                                   f"positive number -- floor<=0 means the rubric imposed NO threshold "
+                                   f"(공허 PASS): every measurement passes. Not promotable in ANY authority.")
+                    if ratio_value is None:
+                        cert_rubric_ok = False
+                        identity_ok = False
+                        add_reason("CERTIFICATE_RUBRIC_RATIO_MISSING",
+                                   f"certificate ratio_M_over_primary={cert_fields.get('ratio_M_over_primary')!r} "
+                                   f"is not a finite number -- the measurement-vs-rubric indicator is absent, "
+                                   f"so the PASS cannot be audited")
+                    if not primary_source or primary_source.upper() == "N/A":
+                        cert_rubric_ok = False
+                        identity_ok = False
+                        add_reason("CERTIFICATE_RUBRIC_SOURCE_MISSING",
+                                   f"certificate primary_source={cert_fields.get('primary_source')!r} is absent "
+                                   f"-- which rubric slot won cannot be established (surfaced, never matched "
+                                   f"as a string: the numeric floor/ratio contract above is the gate)")
+                    # authority: legacy tolerance. Certificates published before this field existed
+                    # (2026-08-22) simply do not carry it -- requiring it would turn every existing
+                    # hint tag red because the schema grew, not because the perf fact changed. Only
+                    # the VALUE RANGE is gated.
+                    if raw_authority and raw_authority.upper() != "N/A":
+                        if raw_authority in RUBRIC_AUTHORITIES:
+                            cert_rubric_authority = raw_authority
+                        else:
+                            cert_rubric_ok = False
+                            identity_ok = False
+                            add_reason("CERTIFICATE_RUBRIC_AUTHORITY_UNKNOWN",
+                                       f"certificate rubric_authority={raw_authority!r} is not one of "
+                                       f"{list(RUBRIC_AUTHORITIES)} -- an unknown rubric authority cannot be "
+                                       f"reasoned about, fail closed")
                     certificate_output = {
                         "path": item["path"], "parsed": True, "identity": mapped,
                         "verdict": cert_verdict, "benchmark_mode": cert_mode, "identity_match": identity_match,
+                        # 출처 표시(헌법 §결정론 규율): 판정기가 *무엇을 근거로* 승격을 열었는지 산출물이 밝힌다.
+                        "rubric_authority": cert_rubric_authority,
+                        "floor_tps": floor_tps, "ratio_M_over_primary": ratio_value,
+                        "primary_source": primary_source or None,
+                        "rubric_contract_ok": cert_rubric_ok,
                     }
 
             if key in MARKDOWN_LIKE_EVIDENCE_KEYS and required and exists:
@@ -1722,6 +1805,26 @@ def cmd_verify(args: argparse.Namespace) -> None:
             elif mode != "full":
                 add_reason("BENCHMARK_MODE_NOT_FULL", f"benchmark.mode={mode!r} (must be 'full' for promotion)")
             elif verdict != "PASS":
+                # ---- explore authority: 성능 판정은 게이트가 아니라 **서술**이다 (plan_26082219 U1) ----
+                # 사용자가 HITL 로 *"목표 0/광범위 탐색"* 을 지시한 런에서는 PASS/REFUTE 가 "벽 지도
+                # 데이터"이지 통과 조건이 아니다. 그 모드의 승격 자격은 **서빙 성립(기능)** -- 모델이
+                # 실제로 떠서 통신에 응답한다 -- **∧ 유효 측정**(floor>0 ∧ ratio 실재)이다.
+                # 서빙 성립은 위 runtime tier 가 이미 강제한다(health_ok ∧ oom_killed 없음 ∧
+                # functional_smoke_passed ∧ runtime.identity 6키 일치): 그 관문을 통과하지 못하면
+                # 여기까지 오지 못한다. 아래 재확인은 **U1 계약을 코드에 명시**하기 위한 것이며,
+                # 조건을 완화하지 않는다(runtime tier 가 바뀌어도 이 경로는 스스로 닫힌다).
+                # ★ 공허 PASS 배제는 불변이다 -- floor<=0 이면 cert_rubric_ok=False 라 여기서도 못 연다.
+                functional_smoke_ok = bool(runtime) and runtime.get("functional_smoke_passed") is True
+                if cert_rubric_authority == "explore" and cert_rubric_ok and functional_smoke_ok:
+                    eligible = True
+                    add_reason(
+                        "BENCHMARK_EXPLORE_AUTHORITY_PROMOTION",
+                        f"benchmark.verdict={verdict!r} + 인증서 rubric_authority='explore' "
+                        f"(사용자 HITL 탐색 트리거) → 승격 게이트는 성능 판정이 아니라 "
+                        f"**서빙 성립(functional_smoke_passed) + 유효 측정**"
+                        f"(floor_tps={(certificate_output or {}).get('floor_tps')!r}, "
+                        f"ratio={(certificate_output or {}).get('ratio_M_over_primary')!r})이다. "
+                        f"PASS/REFUTE 는 벽 지도 데이터로 기록될 뿐 차단하지 않는다.")
                 # ---- human-authorized perf waiver (loop-until-done break) ----
                 # 통상 REFUTE 는 서빙전략 재수립 + 벤치마커의 측정평면 확장(마지막 평면은 사람이
                 # 수동 수집한 정보까지 투입)을 loop-until-done 으로 반복해야 한다. 그 루프는
@@ -1737,7 +1840,9 @@ def cmd_verify(args: argparse.Namespace) -> None:
                     isinstance(waiver, dict)
                     and all(isinstance(waiver.get(k), str) and waiver.get(k).strip() for k in fields)
                 )
-                if waiver_ok:
+                if eligible:
+                    pass  # explore authority already opened promotion above -- no waiver needed
+                elif waiver_ok:
                     eligible = True
                     add_reason(
                         "BENCHMARK_VERDICT_WAIVED",
@@ -1753,6 +1858,15 @@ def cmd_verify(args: argparse.Namespace) -> None:
                     add_reason("BENCHMARK_VERDICT_NOT_PASS", f"benchmark.verdict={verdict!r} (must be 'PASS' for promotion)")
             else:
                 eligible = True
+                if cert_rubric_authority == "explore":
+                    # explore 에서 PASS 는 *우연히 문턱을 넘은 것*이지 게이트 통과가 아니다 --
+                    # 승격을 연 실제 근거(서빙 성립 + 유효 측정)를 산출물에 남긴다(출처 표시).
+                    add_reason(
+                        "BENCHMARK_EXPLORE_AUTHORITY_PROMOTION",
+                        f"rubric_authority='explore' -- 승격 근거는 성능 판정이 아니라 서빙 성립 + "
+                        f"유효 측정이다(floor_tps={(certificate_output or {}).get('floor_tps')!r}, "
+                        f"ratio={(certificate_output or {}).get('ratio_M_over_primary')!r}). "
+                        f"verdict={verdict!r} 는 벽 지도 데이터로 기록된다.")
 
         if eligible:
             state = "promotion-ready"
