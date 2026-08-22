@@ -636,6 +636,18 @@
       "related": "",
       "status": "active",
       "last_verified": "2026-08-20"
+    },
+    {
+      "tag": "hint/0.27.1/deepseek-v4-flash-0731/gb10x2-dspark-1m",
+      "vllm": "0.27.1",
+      "model": "deepseek-v4-flash-0731",
+      "arch": "gb10x2-dspark-1m",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "DeepSeek-V4-Flash-0731 @ **1M 컨텍스트 + DSpark speculative decoding** on vLLM **0.27.1** — ★ **선행 0.27.0 자체이식본을 그대로 얹지 마라. 조용히 되돌아간다.** 0.27.1 의 유일한 런타임 델타 #50424(`qwen3_dspark.py` quantized DSpark Markov head, **+4줄**)를 0.27.0 이식본이 **덮어서 없앤다** — 에러도 경고도 없다. 좌표를 옮겨 **재파생**하면 108파일 중 바이트가 바뀌는 것은 그 1파일뿐이다. decode **37.36 t/s**(@동시성1) · verdict **PASS**(c=30 기준 ratio 1.245) · accept_len **2.685** · KV **1,206,214 tok @1,048,576**(클램프 8 GiB 불변). ★ **0.27.0 대비 성능은 동등(noise-level)** — 이 bump 가 확인해야 했던 것은 속도 향상이 아니라 **회귀 부재**이고, 그것이 확인됐다.",
+      "anchor": "a435c5b2ea76e587cddb9a2723eff479f6007f56",
+      "related": "hint/0.27.0/deepseek-v4-flash-0731/gb10x2-dspark-1m",
+      "status": "active",
+      "last_verified": "2026-08-21"
     }
   ]
 }
