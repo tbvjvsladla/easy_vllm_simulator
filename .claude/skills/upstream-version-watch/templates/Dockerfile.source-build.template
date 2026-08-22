@@ -28,7 +28,7 @@
 # 왜 source-build 인가 (torch 2.11+ 구간): prebuilt vLLM wheel 의 _C(public torch 빌드)가
 # NGC alpha torch 와 C++ ABI 불일치(_C.abi3.so 가 c10::cuda::CUDAStream::query() 를 요구하나
 # NGC libc10_cuda.so 에 부재) → import 단계 하드 월. _C 를 NGC torch 에 맞춰 직접 컴파일하면
-# undefined-symbol 이 사라진다. 검증: vLLM 0.22.1 (SKILL.md §4.6 / testlog_260608_1).
+# undefined-symbol 이 사라진다. 검증: vLLM 0.22.1 (.claude/skills/upstream-version-watch/references/source-build.md §3 / testlog_260608_1).
 #
 # ⚠ 패치 가드: 검증된 torch핀에서만 빌드한다(아래 guard). 미인식 핀이면 빌드를 명시 실패시켜
 #   "false determinism"(상류가 그 줄을 바꿨거나 torch 핀이 다른데도 옛 패치를 박는 것)을 막는다.

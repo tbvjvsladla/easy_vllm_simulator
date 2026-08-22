@@ -10,7 +10,9 @@
 #                            그리고 multi 브랜치 초기 전체 배달(+커밋). single=base(dormant). **첫 init=HITL(--apply)**.
 #   B1 per-branch 증분(--branch) — dirty 체크(fail-closed) → checkout → render → rsync(빌드+오버레이) → [sync] 커밋.
 #        겹침 = main-canonical(sub-yields). 서브 [improve] history 는 git 에 잔존.
-#   single 확장 게이트(D12 Gap B) — output/single/manifest.yaml nodes[] 에 sub 있으면 활성, 없으면 **dormant(배달 skip)**.
+#   single 확장 게이트(D12 Gap B) — 판정은 `node_role_contract.py … --field delivery_plane`(단일 소유자)가 한다.
+#        single 의 sub_mode=a2a-agent → **dormant(빌드킷 배달 skip)** · multi 의 sub 만 ray-worker → active.
+#        `role: sub` 의 *존재* 는 판정 입력이 아니다(헌법 §불변식 A · 2026-08-22 교체).
 #
 # HITL 안전장치: 기본 DRY-RUN(미리보기). 실제 변경은 --apply. **스크립트 auto-stash 금지**(서브가 스스로 clean 화).
 # 빌드 배달(S4 Band2-only · plan_26062417): rsync 소스 = output/<t>/ 서브트리만 → 루트 Band1(템플릿·scripts·resolved.json) 구조적 배제.
@@ -144,11 +146,42 @@ _resolve_sub_work_dir_from_manifest() {
         in_sub && /^[[:space:]]*work_dir:/ { sub(/^[[:space:]]*work_dir:[[:space:]]*/, ""); sub(/[[:space:]]*#.*/, ""); gsub(/[ "\r]/, ""); print; exit }
     ' "$manifest"
 }
-# single 확장 활성? = output/single/manifest.yaml nodes[] 에 role:sub 가 있나(D12 Gap B 결정론 게이트).
+# single 확장 활성? — 판정 입력은 `role: sub` 의 **존재**가 아니라 **정체성 계약(sub_mode)** 이다.
+#   존재는 정체성을 말하지 않는다: 두 종류의 sub(멀티=Ray 워커 · 싱글=A2A 원격 에이전트)가 같은
+#   단어를 쓰기 때문이다(헌법 §불변식 A). 옛 awk 술어는 존재만 보고 배달 평면을 켰고, 그 결과
+#   싱글 서브로 메인 빌드킷이 34회 흘러갔다(testlog_26082215 §4.2 ④).
+#   판정의 **단일 소유자**는 node_role_contract.py 다 — 여기서는 묻기만 하고 규칙을 재저작하지 않는다.
+#   fail-closed: 판정기 부재·파싱 실패·계약 위반은 전부 dormant(배달 안 열림)이며, 이유를 stderr 로
+#   밝힌다(침묵 폴백 ✗ — 헌법 §4종 안티패턴 판정표의 '결함' 칸).
 _single_extension_active() {
     local manifest="${SRC%/}/output/single/manifest.yaml"
-    [ -f "$manifest" ] || return 1
-    awk '/^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { found=1 } END { exit(found?0:1) }' "$manifest"
+    local contract="${SRC%/}/.claude/skills/terraforming_node/scripts/node_role_contract.py"
+    local plane rc=0
+    SINGLE_PLANE_SOURCE="fail-closed:unevaluated"      # 판정 출처(*_source 표시 — 안내문이 인용한다)
+    if [ ! -f "$manifest" ]; then
+        SINGLE_PLANE_SOURCE="fail-closed:manifest-absent"
+        echo "[sync] single 확장 판정: manifest 부재($manifest) → dormant(fail-closed)" >&2
+        return 1
+    fi
+    if [ ! -f "$contract" ]; then
+        SINGLE_PLANE_SOURCE="fail-closed:contract-script-absent"
+        echo "[sync] single 확장 판정: 계약 판정기 부재($contract) → dormant(fail-closed)" >&2
+        return 1
+    fi
+    # stderr 는 캡처하지 않는다 — 위반 메시지([node-role] VIOLATION …)가 사람 화면에 그대로 떠야 한다.
+    plane="$(python3 "$contract" evaluate --manifest "$manifest" --topology single \
+                     --field delivery_plane --format value)" || rc=$?
+    if [ "$rc" -ne 0 ]; then
+        SINGLE_PLANE_SOURCE="fail-closed:contract-exit-$rc"
+        echo "[sync] single 확장 판정: node_role_contract exit=$rc → dormant(fail-closed)" >&2
+        return 1
+    fi
+    # 출처는 판정기가 소유한다 — 여기서 사유를 손저작하지 않는다(sub-mode:a2a-agent · no-sub-registered …).
+    SINGLE_PLANE_SOURCE="$(python3 "$contract" evaluate --manifest "$manifest" --topology single \
+                                  --field delivery_plane --format json 2>/dev/null \
+                           | python3 -c 'import json,sys; print((json.load(sys.stdin).get("delivery_plane") or {}).get("source") or "unknown")' \
+                           2>/dev/null || echo unknown)"
+    [ "$plane" = "active" ]
 }
 
 # ── A2A-위임 전파 게이트 (plan_26063021_14_37 D5 · New-2) ──
@@ -1125,7 +1158,8 @@ verify_checksums() {  # $1=topology
         [ -n "$L" ] && [ "$L" = "$R" ] && echo "  ✅ ${f}" || { echo "  ❌ ${f}: main=$L sub=$R"; fail=1; }
     done
     for f in CLAUDE.md Agent_Card.json .claude/settings.local.json .claude/rules/comms.md .claude/rules/docs.md \
-             .claude/schemas/task-report.schema.json .gitignore .claude/skills/vllm-recipe-explorer/recipe.py \
+             .claude/schemas/task-report.schema.json .claude/schemas/library-exchange.schema.json \
+             .gitignore .claude/skills/vllm-recipe-explorer/recipe.py \
              .claude/skills/adversarial-benchmark/scripts/verdict_rule.py .claude/skills/wiki-desk/reference/references.md .claude/a2a_delegation.json \
              .claude/runtime/host_safety/mem_watchdog.sh \
              .claude/runtime/host_safety/install_host_safety.sh \
@@ -1177,6 +1211,7 @@ if ! $SSH_OPTS "$SUB_HOST" 'echo ok' >/dev/null 2>&1; then
 fi
 HAS_GIT=0; sub_has_git && HAS_GIT=1
 [ "$HAS_GIT" = "0" ] || REMOTE_ORIGINAL_BRANCH="$(sub_branch_current)"
+SINGLE_PLANE_SOURCE="fail-closed:unevaluated"
 SINGLE_ACTIVE=0; _single_extension_active && SINGLE_ACTIVE=1
 prepare_transactional_source
 
@@ -1184,7 +1219,9 @@ prepare_transactional_source
 if [ "$MODE" = "dryrun" ]; then
     echo "[sync] DRY-RUN  $SRC → $SUB_HOST:$DEST"
     echo "  서브 git: $([ $HAS_GIT = 1 ] && echo '존재(증분 싱크)' || echo '부재 → B0 멱등 self-bootstrap(git init + multi·single 브랜치 + 초기 커밋)')"
-    echo "  타겟 브랜치: ${TARGETS[*]}   single 확장: $([ $SINGLE_ACTIVE = 1 ] && echo '활성' || echo 'dormant(single manifest nodes[] 비어있음 → 배달 skip)')"
+    echo "  타겟 브랜치: ${TARGETS[*]}   single 확장: $([ $SINGLE_ACTIVE = 1 ] \
+        && echo "활성(delivery_plane=active · source=${SINGLE_PLANE_SOURCE})" \
+        || echo "dormant(delivery_plane=dormant · source=${SINGLE_PLANE_SOURCE} → 빌드킷 배달 skip)")"
     if [ $HAS_GIT = 1 ]; then
         for t in "${TARGETS[@]}"; do
             if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then echo "  --- [single] dormant → skip ---"; continue; fi
@@ -1292,7 +1329,8 @@ fi
 # ── B1 per-branch 증분 싱크 ──
 for t in "${TARGETS[@]}"; do
     if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then
-        echo "[sync] [single] DORMANT — single manifest nodes[] 비어있음(확장 비활성). 배달 skip(브랜치는 base 유지)."
+        echo "[sync] [single] DORMANT — delivery_plane=dormant (source=${SINGLE_PLANE_SOURCE}). 배달 skip(브랜치는 base 유지)."
+        echo "           싱글의 sub 는 A2A 원격 에이전트다 — 자기 빌드킷을 자율 저작한다(헌법 §불변식 A)."
         continue
     fi
     echo "[sync] [$t] 증분 싱크 시작"

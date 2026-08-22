@@ -1,0 +1,156 @@
+{
+  "_template_note": "추적 PII-free 정적계약(양 노드 동일). terraforming_node/render_sub_env.py 가 서브 .claude/schemas/library-exchange.schema.json 으로 복제한다. 정본 서술 = terraforming_node/SKILL.md §2.7.8. 판정기 = terraforming_node/scripts/library_exchange.py(메인 전용).",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://easy-vllm/sub_node/library-exchange.schema.json",
+  "title": "Main↔Sub Library Exchange — 그라운딩 자료구조화 포맷",
+  "description": "헌법 §불변식 B(그라운딩)의 메시지 계약. 서브의 빌드·서빙 **결정(claim)** 은 메인 도서관의 **항목(reference)** 을 **인용(citation)** 해야 하고, 인용 없는 결정은 거짓이 아니라 **누락(omission)** 이며 누락은 기계가 fail-closed 로 잡는다(거짓은 사람이 리뷰한다). 지식 비대칭은 유지된다 — 도서관(__llm-wiki)과 사서(wiki-desk)는 메인 단독이며 서브로 복제되지 않는다. 메인이 반출하는 것은 도서관이 아니라 **경로 참조 + 발췌 + digest** 다. 전송은 신설하지 않는다: 기존 A2A-개념 통로(ssh claude -p / task-report JSON)에 이 오브젝트를 실어 보낸다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "exchange_id", "node_id", "topology"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "이 계약의 판 번호. 판정기(library_exchange.py)가 아는 판보다 크면 fail-closed."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "library.citation.request",
+        "library.resolution.export",
+        "library.citation.attestation"
+      ],
+      "description": "메시지 종류. request=서브→메인(질의) · export=메인→서브(색인 결과 반출) · attestation=서브→메인(결정과 인용의 자기귀속). 한 오브젝트는 한 종류만 담는다 — 종류별 배타 블록 검사는 판정기가 한다."
+    },
+    "exchange_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "세 메시지를 묶는 교환 id. request 가 발급하고 export·attestation 이 그대로 되돌린다. 셋의 값이 갈리면 EXCHANGE_ID_MISMATCH(fail-closed) — 어느 반출이 어느 결정을 뒷받침했는지 추적 불가가 된다."
+    },
+    "node_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "발신 노드의 node_id(= manifest nodes[].role 슬러그). 해소기는 node_identity.sh 단일 소유. hostname ✗."
+    },
+    "topology": {
+      "type": "string",
+      "enum": ["single", "multi"],
+      "description": "발신 시점의 토폴로지(헌법 §불변식 A 제1축). 판정기는 이 값으로 정체성 계약을 읽는다 — 브랜치 추론 ✗."
+    },
+    "recorded_utc": {
+      "type": "string",
+      "minLength": 1,
+      "description": "발신 시각(주입값). 벽시계 자동 판독 ✗ — 호출자가 넘긴다."
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "kind", "statement"],
+      "description": "인용 의무를 지는 결정 호스트(증거그래프의 claim 차용). '이 결정은 무엇을 근거로 존재하는가'에 답해야 한다.",
+      "properties": {
+        "claim_id": {"type": "string", "minLength": 1},
+        "kind": {
+          "type": "string",
+          "enum": ["build-decision", "serve-decision", "version-pin", "patch-slot", "informational"],
+          "description": "결정 종류. 앞 넷은 **인용 의무 모집단**(host eligible) · informational 은 의무 밖(질의만 하고 결정하지 않음)."
+        },
+        "statement": {"type": "string", "minLength": 1, "description": "결정 한 문장. 예: 'gpt-oss-120b 를 --moe-backend triton 으로 서빙한다'."},
+        "artifact_path": {"type": "string", "description": "이 결정이 낳는 산출물의 workspace-상대 경로(예 configs/<model>.yaml)."}
+      }
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["terms"],
+      "description": "서브가 사서에게 던지는 질의. 도서관을 직접 뒤지지 않는다(비대칭 유지) — 무엇을 찾는지만 말한다.",
+      "properties": {
+        "terms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1},
+          "description": "검색어. 예: ['sm_121a', 'CUTLASS JIT OOM', 'moe-backend']."
+        },
+        "scope": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["plan", "devlog", "testlog", "simlog", "benchmark", "reference", "hint"]},
+          "description": "질의 범위 힌트(선택). 사서가 좁힐 때 쓴다."
+        }
+      }
+    },
+    "resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "description": "사서(wiki-desk)의 해소 상태(증거그래프 §5 의 resolution 차용).",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["resolved", "partial", "unresolved", "refused"],
+          "description": "resolved=요청을 덮는 항목을 반출 · partial=일부만 · unresolved=도서관에 근거가 없다(정직한 공백) · refused=반출 불가(PII·배포 경계)."
+        },
+        "reason": {"type": "string", "description": "partial/unresolved/refused 의 사유. 침묵 금지 — '없음'과 '안 보냄'은 다르다."},
+        "librarian": {"type": "string", "description": "해소 주체. 정본은 'wiki-desk'."}
+      }
+    },
+    "references": {
+      "type": "array",
+      "description": "메인이 반출하는 도서관 항목(증거그래프의 reference 차용). **복제가 아니라 참조+발췌다** — 경로·앵커·digest 가 본체이고 excerpt 는 읽기 보조다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref_id", "path", "digest"],
+        "properties": {
+          "ref_id": {"type": "string", "minLength": 1, "description": "이 교환 안에서 유일한 참조 id. attestation 이 이 값으로 인용한다."},
+          "path": {"type": "string", "minLength": 1, "description": "메인 레포 상대 경로(예 docs/testlog/testlog_26081517_….md). 서브는 이 경로를 열 수 없다 — 출처 표기·재질의용이다."},
+          "anchor": {"type": "string", "description": "문서 내 앵커(H2/H3 제목 등). 증거그래프의 '<path>#<anchor>' 주소 형식 차용."},
+          "digest": {"type": "string", "minLength": 1, "description": "반출 시점 항목 콘텐츠의 sha256(소문자 hex). 인용 만료 판정의 근거 — 인용된 것이 바뀌면 인용이 만료된다(requireReview 차용)."},
+          "excerpt": {"type": "string", "description": "발췌(읽기 보조). 예산 초과는 판정기가 EXPORT_EXCEEDS_EXCERPT_BUDGET 로 거부한다 — 반출은 도서관 복제가 아니다."},
+          "authority": {
+            "type": "string",
+            "enum": ["execution-truth", "plan-intent", "external-reference", "unknown"],
+            "description": "권위 등급(wiki-desk 규약: 실행진실 > 계획의도). 서브가 상충하는 참조를 받았을 때의 우선순위."
+          }
+        }
+      }
+    },
+    "citations": {
+      "type": "array",
+      "description": "서브가 자기 결정에 붙인 인용(증거그래프의 acknowledgement 차용). 비어 있으면 omission 이다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref_id", "digest"],
+        "properties": {
+          "ref_id": {"type": "string", "minLength": 1, "description": "export 의 references[].ref_id. 없는 값을 인용하면 CITATION_UNRESOLVED."},
+          "digest": {"type": "string", "minLength": 1, "description": "인용 시점에 본 항목의 digest. export 의 값과 다르면 CITATION_STALE."},
+          "reason": {"type": "string", "description": "왜 이 참조가 이 결정을 뒷받침하는가(한 줄). 증거그래프 태그 문법의 <reason> 차용."}
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accepted"],
+      "description": "attestation 에 실리는 결정 결과.",
+      "properties": {
+        "accepted": {"type": "boolean", "description": "claim 을 채택했는가. false 면 서브가 근거 부족으로 결정을 유보했다는 뜻이며 그것도 정직한 결과다."},
+        "artifact_sha256": {"type": "string", "description": "결정이 낳은 산출물의 sha256(있으면). 메인은 이 값으로 확인하고 서브 디스크를 재스캔하지 않는다(push-attestation)."},
+        "notes": {"type": "string", "description": "메인이 알아야 할 한두 줄."}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"required": ["kind"], "properties": {"kind": {"const": "library.citation.request"}}},
+      "then": {"required": ["claim", "query"]}
+    },
+    {
+      "if": {"required": ["kind"], "properties": {"kind": {"const": "library.resolution.export"}}},
+      "then": {"required": ["resolution", "references"]}
+    },
+    {
+      "if": {"required": ["kind"], "properties": {"kind": {"const": "library.citation.attestation"}}},
+      "then": {"required": ["claim", "citations", "decision"]}
+    }
+  ]
+}

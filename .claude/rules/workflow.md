@@ -9,6 +9,7 @@
 |---|---|---|---|---|---|
 | init | `terraforming_node` | 인터뷰 답·노드 사실 | manifest·완수 Flag | plan HITL→스캔→attestation | 스킬 §0.5·`manifest_contract.py` |
 | S1 resolve | `upstream-version-watch` | 목표 vLLM·manifest | torch/NGC/CUDA/build-track/deps 해소값 | HITL ① | 스킬 `references/resolve-and-render.md` |
+| S1.5 judge | `upstream-version-watch` | from/to ref·resolved·(이식 트랙이면)PROVENANCE | `resolved.json#upstream_delta` 3축 attestation | HITL ①.5 | `judge_version_delta.py`(비-0 = 수집 실패) |
 | S2 patch | `upstream-version-watch` | S1 해소값·두 topology | 렌더된 이미지/serve 입력 | 양 브랜치 diff HITL ② | 스킬 §2·renderer |
 | S2.5 sync | `upstream-version-watch` | multi manifest·렌더 산출물 | 검증된 메인→서브 배달 | dry-run→apply·checksum | `sync_to_sub.sh` |
 | S3 smoke | upstream + recipe | 렌더 산출물·모델·HW | 기능 스모크·분류·risk memo | 아래 HITL ③ | `classify_failure.py`·owner reference |
@@ -30,6 +31,11 @@
 S1 resolve  → 결정론 스크립트로 vLLM/torch/NGC/CUDA/wheel-or-source/deps 해소
    verify   → 해소값 출력
    HITL 게이트 ① → 사람 확인
+S1.5 judge  → `judge_version_delta.py` 로 버전 델타 3축 판정(A 빌드입력 · B 이식 스코프 · C 모델 코드경로)
+   verify   → `resolved.json#upstream_delta` 발행; 사실 행은 이 JSON을 그대로 테이블화(손저작 금지)
+   HITL 게이트 ①.5 → 사람 확인: ⓐ axis_A 가 정말 ∅ 인지 ⓑ axis_B.silent_revert_risk 처리 계획
+                     ⓒ unknown[] 이 비었는지. **UNDETERMINED 면 렌더 진입 금지**
+   (조건부) HITL 게이트 ①.6 → 출구① 상속을 쓸 때만: `INHERITED_SOURCE_BUILD_KEYS` 한 줄을 **사람이 손으로** 추가
 S2 patch    → single·multi를 같은 해소값에서 렌더; serve-time env는 manifest보다 우선
    verify   → 변경이 S1에 직결되고 topology 산출물 통로가 분리됨
    HITL 게이트 ② → 각 브랜치 diff 확인
@@ -59,7 +65,7 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋
 | unknown | 사람 | `{proposed_class,evidence}`만 제시; 승인 전 무행동 |
 | recipe 중 구조적 불가 발견 | recipe §5.5→upstream §3.6 | 공식 bump / 포크 SHA pin / 음성정직; cap 뒤 Model-C |
 
-arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 패치 → **자체 이식** → **소스-repo 오버라이드(포크 핀)** → 체크포인트-교체. `stock-구조적-불가` 뒤 **참조-그라운디드 확증** → **testlog 기록 + 사람 승인** → canonical ledger `source_build_variants` → **Dockerfile build-arg 파라미터화** → **clean 빌드(양노드) → 스모크** 순서다. 정본은 `policy:ARCH_WALL_VARIANT_LADDER`, upstream skill §4.6과 `references/source-build.md`다.
+arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 패치 → **자체 이식** → **소스-repo 오버라이드(포크 핀)** → 체크포인트-교체. `stock-구조적-불가` 뒤 **참조-그라운디드 확증** → **testlog 기록 + 사람 승인** → canonical ledger `source_build_variants` → **Dockerfile build-arg 파라미터화** → **clean 빌드(양노드) → 스모크** 순서다. 정본은 `policy:ARCH_WALL_VARIANT_LADDER`, upstream skill §escalation 수신 (ii) 커스텀/포크핀과 `references/source-build.md` §5다.
 
 ### 변종 좌표의 거처 (2026-08-13 신설 · 신규 변종부터 적용)
 

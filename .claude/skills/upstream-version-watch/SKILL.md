@@ -22,12 +22,12 @@ description: >-
 - **Goal** — 대상 vLLM 버전을 결정론으로 해소해 컨테이너 레이어(NGC 베이스·wheel·deps·빌드트랙) bump 를 제안하고, 승인된 핀으로 렌더·빌드·스모크까지 몰고 간다.
 - **When to invoke** — 사람의 "업데이트/bump" 지시 · `vllm-recipe-explorer` §5.5 escalation 수신 · arch-wall 로 변종 트랙 결정이 필요할 때. 자동 폴링·cron ✗.
 - **Inputs** — `config.yaml`(대상 버전·스모크 config_name·`ngc_probe_start`·`reconciliation_cap`) · `output/<topology>/manifest.yaml`(HW 사실·model_source) · 실패 시 빌드/serve 로그.
-- **Outputs** — `resolved.json`(torch핀·NGC태그·wheel·build_track·변종) · `output/<t>/{Dockerfile*,docker-compose.yaml,requirements.txt,.env}` · bump 제안표 + risk-memo · 스모크 판정.
+- **Outputs** — `resolved.json`(torch핀·NGC태그·wheel·build_track·변종·**`upstream_delta` 델타 attestation**) · `output/<t>/{Dockerfile*,docker-compose.yaml,requirements.txt,.env}` · bump 제안표 + risk-memo · 스모크 판정.
 - **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 8단계(순서 고정).
 - **State transitions** — Flag(전제) → 스모크 PASS 로 이미지의 `runtime-ready` 근거를 만든다. `evidence-complete`/`promotion-ready` 판정은 `.claude/policies/runtime/completion_gate.py` 소유(이 문서가 자체 판정 ✗).
 - **HITL/safety boundaries** — 핀 변경·빌드·push 는 workflow S1–S4 HITL 게이트 · 스모크 모델 자동 다운로드 ✗ · 무증거 NGC/repo 오버라이드 ✗ · 추측 단정 ✗("확인 필요").
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
-- **Deterministic commands** — `scripts/resolve_torch_pin.py` · `resolve_ngc_tag.py` · `resolve_wheel.py` · `regen_requirements.py` · `resolve_build_track.py` · `render_dockerfile.py` · `check_smoke_model.py` · `classify_failure.py` · `sync_to_sub.sh` · `multinode_serve_smoke.sh`.
+- **Deterministic commands** — `scripts/resolve_torch_pin.py` · `resolve_ngc_tag.py` · `resolve_wheel.py` · `regen_requirements.py` · `resolve_build_track.py` · **`judge_version_delta.py`** · `render_dockerfile.py` · `check_smoke_model.py` · `classify_failure.py` · `sync_to_sub.sh` · `multinode_serve_smoke.sh` · **`single_serve_down.sh`**.
 - **Handoff contract** — 입력 ← `terraforming_node`(Flag·HW) · escalation ← `vllm-recipe-explorer` §5.5 / `adversarial-benchmark` §7 · 출력 → rebuild 이미지로 `vllm-recipe-explorer` 전략수립 재개.
 - **Owns (state)** — `resolved.json` · `image-identity` · `build-track` · `sub-delivery` · **`build-patch(pre/post)`** · **`fork-pin`**(포크 좌표·arch-wall 변종)
 - **3+1+1 소유 경계**(`plan_26081514` Q3/Step 4 · owner 표 정본 = `.claude/rules/workflow.md` §3+1+1): **빌드 시점에 성립하는 것**이 이 스킬 소유다 — `build_patches_src/`(pre · 컴파일 **전** 소스 수정) · `build_patches/`(post · 컴파일 **후** native 의존) · 포크 핀(`VLLM_REPO`/`VLLM_REF`)·변종 `IMAGE_TAG`. **serve 시점에 성립하는 것**(트리플렛 3 + 런타임 패치 `<model>_patch.py`)은 `vllm-recipe-explorer` 소유이며 이 스킬이 저작하지 않는다. **발견 ≠ 소유** — explorer 가 §5.5 로 발견해 넘긴 것을 이 스킬이 **소유·처방**한다(수신점 = 아래 §escalation 수신).
@@ -38,7 +38,9 @@ description: >-
 
 1. **Flag 확인**(§0.0) — `manifest_contract.py --require-flag`. 미발급이면 여기서 멈추고 info-only.
 2. **resolve** — ①torch핀 → ②NGC 태그 → ③wheel URL → ④requirements 재생성 → ⑦빌드트랙 제안. 명령·근거 = `references/resolve-and-render.md` §1.
+2.5. **delta judge** — `judge_version_delta.py` 로 `from_ref→to_ref` 3축 판정(A 빌드입력 · B 이식 스코프 · C 모델 코드경로) → `resolved.json#upstream_delta` attestation 발행. **3의 사실 행이 여기서 나온다**(손저작 금지 — 전사 오류가 구조적으로 불가능해진다). 비-0 = 델타 수집 실패(추정 금지). 계약 = `references/resolve-and-render.md` §1.5.
 3. **bump 제안표 + risk-memo** — 사실 행은 스크립트 JSON 그대로, LLM 은 리스크 해석만(`references/resolve-and-render.md` §2). HITL 게이트 ①.
+3.5. **HITL 게이트 ①.5** — 3축 verdict 를 **렌더 전** 사람이 확인: ⓐ `axis_A` 가 정말 ∅ 인지 ⓑ `axis_B.silent_revert_risk` 처리 계획 ⓒ `unknown[]` 이 비었는지. **`UNDETERMINED` 면 렌더 진입 금지.** 출구① 상속을 쓸 때만 **게이트 ①.6**(원장 한 줄을 **사람이 손으로** 추가) — 3출구 계약 = `references/source-build.md` §3.1.
 4. **render 시퀀스** — template → (multi)`--materialize-configs` → `--materialize-env`. **단일 호출 아님**(누락 시 serve 잠복 실패). HITL 게이트 ②.
 5. **(multi) sync to sub** — `sync_to_sub.sh` dry-run → `--apply`. Band2-only 전달 경계 = `references/multinode-build.md`.
 6. **smoke** — NAS 체크(⑤) → 빌드 → 실서빙 스모크(단일 `docker compose`, 멀티 `multinode_serve_smoke.sh`). 실패면 ⑥`classify_failure.py` 로 분기 → §Failure routing. HITL 게이트 ③.
@@ -54,6 +56,8 @@ description: >-
 | `source-build-class`(torch 2.11+ ABI 벽) · 빌드-바깥 native dep · 패치 래더 | `.claude/skills/upstream-version-watch/references/source-build.md` |
 | 2노드 Ray 서빙 실패(OOM/NCCL-RDMA/join timeout) · 서브만 빌드 실패 | `.claude/skills/upstream-version-watch/references/multinode-build.md` |
 | render 후 serve 가 `/mnt/models` 로 오마운트(결함#2) · 해소값 재확인 | `.claude/skills/upstream-version-watch/references/resolve-and-render.md` |
+| 미인식 `(NGC×vLLM)` 키로 렌더가 막힘 · 상속 거부 스탠자(`NOT eligible`) | `.claude/skills/upstream-version-watch/references/source-build.md` §3.1(가드 3출구) |
+| 델타 판정 `UNDETERMINED`/`UNKNOWN_PLANE` — 렌더 진입 불가 | `.claude/skills/upstream-version-watch/references/resolve-and-render.md` §1.5 |
 | 스모크 모델이 NAS 에 부재 | `.claude/skills/upstream-version-watch/scripts/check_smoke_model.py` |
 | 서브 위임의 provider 실행문법이 필요 | `.claude/skills/terraforming_node/references/agent-control-adapter.md` |
 
@@ -86,6 +90,7 @@ hint 태그 발행을 **제안(Y/N)** 한다(**무인 자동 태깅 ✗** · **p
 - 스모크 모델 자동 다운로드(NAS 부재 시 중단·보고).
 - 버전·태그·매핑을 추측으로 단정(불명은 "확인 필요").
 - 무증거 NGC 베이스/소스-repo 오버라이드 · 단계 건너뛴 부분 적용 빌드.
+- **`INHERITED_SOURCE_BUILD_KEYS` 자동 등재**(에이전트가 항목을 추가하는 것). 등재는 게이트 ①.6 의 **사람 손**이다 — Judge 산출물은 evidence 이지 approval 이 아니다. 부적격 상속을 `--allow-unvalidated` 로 우회하는 것도 금지(원장 결함은 고쳐야 한다).
 
 ## 보조 파일
 
@@ -93,11 +98,23 @@ hint 태그 발행을 **제안(Y/N)** 한다(**무인 자동 태깅 ✗** · **p
 - `scripts/resolve_torch_pin.py` `resolve_ngc_tag.py` `resolve_wheel.py` — ①②③ 해소.
 - `scripts/regen_requirements.py` — ④ requirements 재생성(wheel METADATA 기준, `--from-wheel-url`/`--use-installed`).
 - `scripts/resolve_build_track.py` — ⑦ 트랙 제안자(휴리스틱만 결정론, 최종은 스모크 중재).
-- `scripts/render_dockerfile.py` — 렌더 시퀀스(template · `--materialize-configs` · `--materialize-env`).
+- `scripts/judge_version_delta.py` — 2.5 버전 델타 3축 영향판정(D0 수집 · D1 닫힌열거 평면 · D2 이식 스코프 교차 + 침묵-되돌림 프로브). `--self-test`/`--check-fixture` 회귀. **C축(D3·D4)은 미구현**(`NOT_IMPLEMENTED` · 전역 verdict 에서 제외).
+- `scripts/render_dockerfile.py` — 렌더 시퀀스(template · `--materialize-configs` · `--materialize-env`) + source-build 가드 3출구(상속/시도-빌드/발견 — `references/source-build.md` §3.1).
 - `scripts/check_smoke_model.py` — ⑤ no-download NAS 모델 실재 체크.
 - `scripts/classify_failure.py` + `failure_patterns.yaml` — ⑥ 실패 결정론 분류(미지→Model-C).
 - `scripts/sync_to_sub.sh` — 멀티노드 [전달](dry-run 기본/`--apply`, 체크섬, 빌딩블럭 제외).
-- `scripts/multinode_serve_smoke.sh` — 2노드 Ray 서빙+multi-smoke 오케스트레이션.
+- `scripts/multinode_serve_smoke.sh` — 2노드 Ray 서빙+multi-smoke 오케스트레이션. **teardown(`--down`)은 멀티 전용**이다(경로가 `output/multi/` 고정 · SSH 슬레이브 전제).
+  - 스모크 합격 기준은 **생성 실재**다(2026-08-22 · W-10): `content` 비었고 `reasoning` 만 있으면
+    PASS 하지 않고 파서를 우회한 `/v1/completions` 로 확증한다. 통과 로그는 언제나 증거원을 밝힌다
+    (`evidence=chat.content` \| `v1.completions`). 완화 탈출구 `SMOKE_ALLOW_REASONING_ONLY=1` 은
+    쓰면 로그에 크게 남는다.
+  - `--keep-up` 상주분은 **예산 갱신 루프**(`budget_renew_loop.sh`)를 양 노드에 무장한다(W-7).
+    컨테이너가 사라지면 루프가 스스로 끝나고, 회수는 `--down` 이 함께 한다.
+- `scripts/single_serve_down.sh` — **단일노드 정규 teardown 진입점**(2026-08-22 신설 · W-6).
+  `bash single_serve_down.sh <config> [--dry-run]`. 5단계(컨테이너 down · 상주 사이드카 회수 ·
+  페이지캐시 · 예산선언 회수 · 블랙박스 세션 stop)를 수행하고 **각 단계의 DONE/SKIPPED(사유)/FAIL 을
+  반드시 출력한다** — README §B-3 의 `docker compose … down` 직접 호출은 뒤 셋을 조용히 빠뜨린다
+  (`testlog_26082215` §4.0 R-0). 열린 세션이 둘 이상이면 조용히 고르지 않고 fail-loud 한다.
 
 **조건부 references(필요할 때만 연다)**
 - `references/resolve-and-render.md` — config 입력 · Phase 분기 · ①~⑦ 해소 근거 · bump 매핑표 · render 시퀀스.
