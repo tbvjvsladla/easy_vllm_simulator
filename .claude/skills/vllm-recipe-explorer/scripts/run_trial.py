@@ -6,7 +6,8 @@ CONTRACT(FROZEN) run_trial.py 절 준수. 한 candidate(lock-set)를 실제 서�
 
 동작(실 docker 경로):
   docker run -d 이미지(opts.image, 기본 "vllm-src-022:clean")로 서빙 →
-  /health 200 폴링(opts.timeout 기본 900s) → functional_smoke →
+  /health 200 폴링 + 컨테이너 생존검사(opts.timeout 기본 900s; 컨테이너가 죽으면 타임아웃을
+  기다리지 않고 즉시 이탈 — plan_26082223 결함 C) → functional_smoke →
   docker logs 를 simlog_dir/trialNN_vllm.log 로 캡처 → parse_vllm_log →
   컨테이너 teardown(docker rm -f, 통합메모리 잔류 OOM 방지).
   NAS 마운트 -v <nas_host_root>:/app/models:ro (호스트 경로는 config.nas_host_root →
@@ -64,6 +65,22 @@ CONTAINER_MODELS = "/app/models"  # 컨테이너 내 모델 마운트 경로(:ro
 # 자산은 이미지에 미번들 → 호스트 tiktoken_host_path 를 여기로 마운트해 사전적재(C8).
 CONTAINER_ENCODINGS = "/encodings"
 HEALTH_POLL_INTERVAL = 3.0  # /health 폴링 간격(초)
+
+# ── 호스트 안전바닥 (policy:HOST_SAFETY_LAYERED_DEFENSE) ─────────────────────────────
+#   트라이얼 협역 워치독(`mem_watchdog.sh`)이 `MemAvailable < 이 값` 에서 컨테이너를 죽인다.
+#   **단일 소유**: 이전엔 같은 10240 이 `_start_memwatch` 기본인자와 그 호출부 두 곳에 손으로
+#   적혀 있었고(§4종 안티패턴 — 같은 개념이 두 곳 이상), 이제 gmu 캡까지 세 번째 소비자가 됐다.
+#   ⚠ 이 값을 **낮추는 것은 처방이 아니다** — 낮추면 호스트 하드다운 방어가 얇아진다.
+#   결함 B 의 처방은 바닥을 내리는 것이 아니라 **요구(gmu)를 깎는 것**이다.
+HOST_FLOOR_MIB = 10240
+
+#   캡은 근사식이다(vLLM 실제 할당 ≈ gmu × total, 풀 밖 상주분·단편화 미반영). 바닥에 딱 붙여
+#   착지시키면 근사오차가 그대로 트립이 된다 → 오차 흡수분을 둔다. 이 파일에서만 쓰는 국소 상수.
+HOST_FLOOR_HEADROOM_MIB = 2048
+
+#   캡을 걸더라도 측정이 성립해야 한다 — KV 가 이보다 작아질 상한이면 캡을 **걸지 않는다**
+#   (사살은 회복 가능하지만, weights 도 못 올리는 상한은 회복 불가한 하드 실패가 된다).
+MIN_MEASURE_KV_MIB = 4096
 
 # ── 서빙 예산 선언 (2026-08-16 신설 · plan_26081415 C3-1 "단일노드 경로도 대칭 적용") ─────────
 #   왜 여기 있나: ETA 워치독의 트립 조건은 `... && mem <= BB_ARM_CEILING_MIB && ...` 이고,
@@ -383,25 +400,134 @@ def _health_url(port: int) -> str:
     return "http://127.0.0.1:%d/health" % int(port)
 
 
-def _poll_health(port: int, timeout: float) -> bool:
-    """/health 가 HTTP 200 을 줄 때까지 폴링. 성공 True, 타임아웃 False.
+def _container_state(container_name: str) -> dict:
+    """컨테이너 생존 판정 — `docker inspect` 1회로 (state, exit_code, oom_killed) 를 얻는다.
+
+    반환 state: `running` | `dead` | `absent` | `unknown`.
+      running : 아직 살아 있다(=미준비일 뿐).
+      dead    : `State.Running=false` — 죽었다(워치독 SIGKILL·엔진 크래시·cgroup OOM).
+      absent  : 컨테이너 오브젝트 자체가 없다(누가 rm 했다) — 죽음과 동치로 다룬다.
+      unknown : docker CLI/데몬 조회 실패. **죽음으로 취급하지 않는다**(아래 이유).
+
+    ★ `unknown` 을 죽음으로 읽으면 안 된다 — 일시적 조회 실패로 정상 로드를 중단시키는 것은
+      이 프로젝트가 이미 값을 치른 위양성 클래스다(ETA 워치독이 정상 로드 3/3 을 사살한
+      2026-08-01 · `docs/logs` envelope 처방 참조). **확정 신호에만 fail-closed** 하고
+      조회 실패는 로그로 남긴 뒤 폴링을 계속한다(침묵 금지).
+    """
+    try:
+        proc = subprocess.run(
+            ["docker", "inspect", "-f",
+             "{{.State.Running}} {{.State.ExitCode}} {{.State.OOMKilled}}", container_name],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20,
+        )
+    except Exception as exc:  # noqa: BLE001 — CLI 부재/타임아웃
+        return {"state": "unknown", "detail": "%s: %s" % (type(exc).__name__, exc)}
+    return parse_inspect_state(
+        proc.returncode,
+        proc.stdout.decode("utf-8", errors="replace"),
+        proc.stderr.decode("utf-8", errors="replace"),
+    )
+
+
+def parse_inspect_state(returncode: int, stdout: str, stderr: str) -> dict:
+    """`docker inspect` 결과 → 생존 판정. **순수 함수**(IO 없음 → `--self-test` 가 이걸 친다)."""
+    out = (stdout or "").strip()
+    err = (stderr or "").strip()
+    if returncode != 0:
+        low = err.lower()
+        if "no such object" in low or "no such container" in low:
+            return {"state": "absent", "detail": err[:200]}
+        return {"state": "unknown", "detail": err[:200] or "rc=%d" % returncode}
+    parts = out.split()
+    if not parts:
+        return {"state": "unknown", "detail": "빈 inspect 출력"}
+    running = parts[0].lower()
+    info = {"detail": out}
+    if len(parts) >= 2:
+        info["exit_code"] = parts[1]
+    if len(parts) >= 3:
+        info["oom_killed"] = parts[2].lower() == "true"
+    if running == "true":
+        info["state"] = "running"
+    elif running == "false":
+        info["state"] = "dead"
+    else:
+        info["state"] = "unknown"
+    return info
+
+
+def _poll_health(port: int, timeout: float, container_name: "str | None" = None) -> dict:
+    """/health 가 HTTP 200 을 줄 때까지 폴링하되, **컨테이너가 죽으면 즉시 이탈**한다.
 
     준비판정 = :PORT/health http200 (로그 "startup complete" grep 금지 — 거짓양성).
+
+    ★ 반환은 bool 이 아니라 **dict** 다. `if _poll_health(...)` 로 쓰면 항상 참이 된다 —
+      호출부는 `["healthy"]` 를 읽어라(자체검사 C5 가 이 계약을 지킨다).
+      keys: healthy(bool) · outcome(str) · waited_s(float) · polls(int) ·
+            container_state(str|None) · container_detail(str|None) · unknown_polls(int).
+      outcome ∈ `healthy` | `container_died` | `timeout`.
+
+    왜 생존검사가 필요한가(plan_26082223 결함 C · 2026-08-22 실측):
+      호스트 mem-watchdog 이 컨테이너를 `docker kill` 해도 이 루프는 그 사실을 몰라
+      `--timeout 1800`(30분)을 **전량 소진**했다. 런당 최대 ~26분, 캠페인 누적 ~3.5시간.
+      `/health` 연결거부는 "아직 미준비"와 "죽었다"를 구분하지 못한다 — 구분자는
+      `docker inspect` 뿐이다. `engine_liveness_watchdog.sh` 는 휴면(미배선)이라 이 갭을
+      못 막는다. **사망은 미준비가 아니라 종단 상태**이므로 즉시 이탈한다.
+
+    `container_name` 미주입이면 생존검사를 건너뛴다(하위 호환 — 기존 동작 그대로).
     """
     url = _health_url(port)
-    deadline = time.monotonic() + float(timeout)
+    started = time.monotonic()
+    deadline = started + float(timeout)
+    polls = 0
+    unknown_polls = 0
+    last_state = None
+    last_detail = None
+
+    def _done(healthy, outcome):
+        return {
+            "healthy": bool(healthy),
+            "outcome": outcome,
+            "waited_s": round(time.monotonic() - started, 3),
+            "polls": polls,
+            "container_state": last_state,
+            "container_detail": last_detail,
+            "unknown_polls": unknown_polls,
+        }
+
     while time.monotonic() < deadline:
+        polls += 1
         try:
             with urllib.request.urlopen(url, timeout=5.0) as resp:
                 if resp.status == 200:
-                    return True
+                    return _done(True, "healthy")
         except urllib.error.HTTPError as e:
             if e.code == 200:
-                return True
+                return _done(True, "healthy")
         except Exception:  # noqa: BLE001 — 연결 거부/타임아웃은 아직 미준비
             pass
+
+        # 미준비다. 그러면 **아직 살아 있기는 한가**를 본다.
+        if container_name:
+            info = _container_state(container_name)
+            last_state = info.get("state")
+            last_detail = info.get("detail")
+            if last_state in ("dead", "absent"):
+                print("[run_trial] 컨테이너 사망 감지(%s) — /health 폴링 즉시 중단"
+                      " (경과 %.1fs / 타임아웃 %.0fs). detail=%s"
+                      % (last_state, time.monotonic() - started, float(timeout), last_detail),
+                      file=sys.stderr)
+                return _done(False, "container_died")
+            if last_state == "unknown":
+                unknown_polls += 1
+                # 침묵 금지 — 단 매 폴마다 찍으면 30분 폴링이 수백 줄 잡음이 된다.
+                # **첫 회는 반드시** 찍고 이후는 감속한다(횟수는 반환 dict 에 전량 남는다).
+                if unknown_polls == 1 or unknown_polls % 20 == 0:
+                    print("[run_trial] ⚠ 컨테이너 생존조회 실패(%d회째) — 폴링 계속(위양성 방지). %s"
+                          % (unknown_polls, last_detail), file=sys.stderr)
+
         time.sleep(HEALTH_POLL_INTERVAL)
-    return False
+    return _done(False, "timeout")
 
 
 def _docker_logs(container_name: str) -> str:
@@ -434,6 +560,94 @@ def _docker_teardown(container_name: str) -> None:
         pass
 
 
+def _read_meminfo_mib(key: str) -> "int | None":
+    """/proc/meminfo 의 한 항목을 MiB 로 읽는다. 실패 시 None(호출부가 fail-closed 처리)."""
+    try:
+        with open("/proc/meminfo", encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith(key + ":"):
+                    return int(line.split()[1]) // 1024
+    except (OSError, IndexError, ValueError):
+        return None
+    return None
+
+
+def host_floor_gmu_cap(requested_gmu, mem_total_mib, mem_available_mib, floor_mib,
+                       weights_mib=None, overhead_mib=None,
+                       headroom_mib=HOST_FLOOR_HEADROOM_MIB,
+                       min_kv_mib=MIN_MEASURE_KV_MIB) -> dict:
+    """측정 트라이얼의 gmu 를 **호스트 안전바닥 준수 상한**으로 캡한다. 순수 함수(IO 없음).
+
+    풀려는 문제(plan_26082223 결함 B · 2026-08-22 실측): 통합메모리 호스트에서 클램프 미설정
+    측정 트라이얼은 `gmu 0.90 × 121.69 GiB = 109.5 GiB` 를 전부 잡고, 그러면 MemAvailable 은
+    필연적으로 8 GiB 대로 수렴해 **고정 10 GiB 바닥 아래**로 떨어진다 → 협역 워치독이 **항상**
+    사살한다(모델 크기와 무관한 구조적 상호배타).
+
+    처방의 방향이 중요하다 — **바닥을 낮추지 않고 요구를 깎는다**
+    (`policy:HOST_SAFETY_LAYERED_DEFENSE`). 바닥을 낮추면 호스트 하드다운 방어가 얇아진다.
+
+    ⚠ plan §4.3 의 리터럴 식 `(MemTotal − floor − weights − overhead)/MemTotal` 은 **KV 몫의
+      비율**이지 gmu 상한이 아니다. vLLM 의 `--gpu-memory-utilization` 은 weights·activation·KV 를
+      **전부 포함한** 총 상한 비율이므로, 그 식을 그대로 쓰면 이 호스트에서 0.39 가 나와
+      가중치(51 GiB)조차 못 올린다 — 회복 가능한 사살을 **회복 불가한 하드 실패**로 바꾼다.
+      그래서 여기서는 같은 의도를 총 상한 축으로 옮겨 적는다:
+          `cap = (MemAvailable − floor − headroom) / MemTotal`
+      (MemAvailable 을 쓰는 이유: 워치독이 비교하는 값이 바로 그것이고, 호스트 상주분을 추정이
+       아니라 실측으로 반영한다.)
+
+    반환 dict: gmu(적용값) · applied(bool) · reason(str) · cap(float|None) ·
+               requested(float) · 입력 스냅샷. **출처 표시**(§결정론 규율)로 하류가 이 값이
+               요청값인지 캡값인지 구분할 수 있게 한다.
+    """
+    info = {
+        "gmu": requested_gmu,
+        "applied": False,
+        "reason": "",
+        "cap": None,
+        "requested": requested_gmu,
+        "mem_total_mib": mem_total_mib,
+        "mem_available_mib": mem_available_mib,
+        "floor_mib": floor_mib,
+        "headroom_mib": headroom_mib,
+        "weights_mib": weights_mib,
+        "overhead_mib": overhead_mib,
+    }
+    if requested_gmu is None:
+        info["reason"] = "gmu_unset"
+        return info
+    if not mem_total_mib or not mem_available_mib or mem_total_mib <= 0:
+        info["reason"] = "meminfo_unavailable"
+        return info
+
+    cap = (int(mem_available_mib) - int(floor_mib) - int(headroom_mib)) / float(mem_total_mib)
+    # 4자리 내림 — 올림하면 캡이 제 목적(바닥 준수)을 어긴다.
+    cap = int(cap * 10000) / 10000.0
+    info["cap"] = cap
+
+    if cap >= float(requested_gmu):
+        info["reason"] = "not_needed"
+        return info
+    if cap <= 0:
+        info["reason"] = "cap_nonpositive"
+        return info
+    if weights_mib is None:
+        # 가중치를 모르면 캡이 가중치를 굶기는지 **증명할 수 없다** → 캡을 걸지 않는다.
+        # (조용한 생략이 아니다 — reason 이 산출물에 남는다.)
+        info["reason"] = "weights_unknown"
+        return info
+    allowed_mib = cap * float(mem_total_mib)
+    need_mib = int(weights_mib) + int(overhead_mib or 0) + int(min_kv_mib)
+    if allowed_mib < need_mib:
+        # 캡을 걸면 weights+overhead+최소KV 도 못 들어간다 → 사살(회복 가능)보다 나쁘다.
+        info["reason"] = "cap_infeasible(allowed=%dMiB < need=%dMiB)" % (allowed_mib, need_mib)
+        return info
+
+    info["gmu"] = cap
+    info["applied"] = True
+    info["reason"] = "capped_to_host_floor"
+    return info
+
+
 def _memwatch_script_path():
     """Resolve the owner-local canonical source, then the rendered sub runtime asset."""
     root = os.path.abspath(os.path.join(
@@ -447,7 +661,7 @@ def _memwatch_script_path():
 
 
 def _start_memwatch(container_name: str, simlog_dir: str, trial_number: int,
-                    thresh_mib: int = 10240):
+                    thresh_mib: int = HOST_FLOOR_MIB):
     """트라이얼 협역 워치독 사이드 기동(plan_26071019 §2.3 — 계층 방어 2층).
 
     systemd 상시(광역) 인스턴스와 병행(임계 동급·필터 협역 — 로그가 simlog 에 남아
@@ -697,6 +911,8 @@ def _mock_result(
         "log_path": log_path,
         "error_excerpt": None,
         "provenance": provenance,
+        # 스키마 균일성: mock/dry-run 은 준비 대기를 하지 않는다(None ≠ timeout).
+        "health_wait": None,
     }
 
 
@@ -783,6 +999,47 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
     # 기본 4: 이 호스트 nproc 20 을 그대로 쓰면 nvcc 팬아웃이 수십 GiB 를 먹는다.
     jit_cache_root = _opt(opts, "jit_cache_root", None)
     max_jobs = _opt(opts, "max_jobs", 4)
+
+    # ── 측정 트라이얼 gmu 캡 (plan_26082223 결함 B) ─────────────────────────────────
+    #   왜 여기만: 절대 KV 클램프가 **설정된** 트라이얼은 vLLM 사용량이 클램프로 이미 유계라
+    #   gmu 는 풀 상한일 뿐이고, 그걸 깎으면 검증하려던 클램프가 거짓 기각된다. 사살이
+    #   구조적으로 항상 일어나는 쪽은 **클램프 미설정(측정) 트라이얼**이다.
+    #   왜 unified 게이트: 캡의 근거는 "엔진 할당이 MemAvailable 을 직접 끌어내린다"이며 이는
+    #   통합메모리에서만 참이다. discrete GPU 에서 호스트 RAM 기준으로 gmu 를 깎으면 근거 없는
+    #   축소다. 통합 여부는 호출부(recipe)가 device_total↔MemTotal 파생으로 판정해 넘긴다.
+    memwatch_thresh_mib = int(_opt(opts, "memwatch_thresh_mib", HOST_FLOOR_MIB))
+    gmu_cap_info = None
+    effective_gmu = candidate.get("gpu_memory_utilization")
+    if candidate.get("kv_cache_memory_bytes") is None and _opt(opts, "unified_memory", None) is True:
+        _ck = _opt(opts, "checkpoint_bytes", None)
+        try:
+            _tp = int(_opt(opts, "tp", 1) or 1) or 1
+        except (TypeError, ValueError):
+            _tp = 1
+        _w_mib = -(-int(_ck) // _tp // (1024 * 1024)) if _ck else None
+        gmu_cap_info = host_floor_gmu_cap(
+            effective_gmu,
+            _read_meminfo_mib("MemTotal"),
+            _read_meminfo_mib("MemAvailable"),
+            memwatch_thresh_mib,
+            weights_mib=_w_mib,
+            overhead_mib=BUDGET_OVERHEAD_MIB,
+        )
+        if gmu_cap_info["applied"]:
+            print("[trial] gmu 캡 적용: %.4f → %.4f (호스트 바닥 %dMiB + 여유 %dMiB 준수, "
+                  "MemAvailable=%sMiB/MemTotal=%sMiB). 측정 트라이얼의 구조적 사살 회피 — "
+                  "바닥을 낮춘 것이 아니라 요구를 깎았다."
+                  % (gmu_cap_info["requested"], gmu_cap_info["gmu"], memwatch_thresh_mib,
+                     HOST_FLOOR_HEADROOM_MIB, gmu_cap_info["mem_available_mib"],
+                     gmu_cap_info["mem_total_mib"]), file=sys.stderr)
+            # 원본 candidate 는 건드리지 않는다(호출부가 최종 레시피로 쓰는 객체다).
+            candidate = dict(candidate, gpu_memory_utilization=gmu_cap_info["gmu"])
+            effective_gmu = gmu_cap_info["gmu"]
+        else:
+            print("[trial] gmu 캡 미적용(%s) — 요청값 %s 그대로 진입. 침묵 금지: 이 사유가 "
+                  "trial 산출물 gmu_cap.reason 에 남는다."
+                  % (gmu_cap_info["reason"], gmu_cap_info["requested"]), file=sys.stderr)
+
     docker_cmd = _build_docker_cmd(
         candidate, image, container_name, port, nas_mount,
         tiktoken_host_path=tiktoken_host_path,
@@ -797,7 +1054,7 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
     # 사고 #5 는 로드 시작 직후 폭주였음(14:56 로드 → 압박). 로그 = trialNN_memwatch.log.
     wd_proc, wd_fh = _start_memwatch(
         container_name, simlog_dir, trial_number,
-        thresh_mib=int(_opt(opts, "memwatch_thresh_mib", 10240)),
+        thresh_mib=memwatch_thresh_mib,   # gmu 캡과 **같은 바닥**을 본다(단일 소유).
     )
 
     # 서빙 예산 선언 — 워치독 기동 **직후 · 로드 개시 전**(multi 스모크와 같은 순서:
@@ -823,6 +1080,7 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
     vllm_profile = None
     functional = None
     error_excerpt = None
+    health_wait = None
 
     try:
         proc = subprocess.run(
@@ -847,11 +1105,16 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
                 "log_path": log_path,
                 "error_excerpt": error_excerpt,
                 "provenance": PROVENANCE_MEASURED,
+                # docker run 자체가 실패 → 준비 대기에 진입조차 못 했다(None ≠ timeout).
+                "health_wait": None,
+                "effective_gmu": effective_gmu,
+                "gmu_cap": gmu_cap_info,
             }
 
-        # /health 200 폴링.
-        healthy = _poll_health(port, timeout)
-        load_ok = bool(healthy)
+        # /health 200 폴링 + 컨테이너 생존검사(사망 시 즉시 이탈 — plan_26082223 결함 C).
+        health_wait = _poll_health(port, timeout, container_name=container_name)
+        healthy = bool(health_wait["healthy"])
+        load_ok = healthy
 
         if healthy:
             # 기능 스모크(완성·tool_call·reasoning) — 능력 게이팅은 smoke 가 처리.
@@ -891,7 +1154,166 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
         "log_path": log_path,
         "error_excerpt": error_excerpt,
         "provenance": PROVENANCE_MEASURED,
+        # 준비 대기의 **종단 사유**. `timeout`(30분 소진)과 `container_died`(사망)는
+        # 같은 load_ok=False 지만 원인이 다르다 — 구분이 없으면 sim_classify 의 note 도
+        # 사후분석도 둘을 못 가른다(plan_26082223 결함 C).
+        "health_wait": health_wait,
+        # 실제로 emit 된 gmu 와 그 출처(§결정론 규율). 호출부는 overhead 유도에 **이 값**을
+        # 써야 한다 — 요청값을 쓰면 캡이 걸린 트라이얼에서 overhead 가 틀어진다.
+        "effective_gmu": effective_gmu,
+        "gmu_cap": gmu_cap_info,
     }
+
+
+# ===========================================================================
+# 자체검사 (--self-test) — 결함 C(생존검사) · 결함 B(gmu 캡). plan_26082223 §4.
+#   docker·모델·하드웨어 불요. 생존 조회는 순수 파서/주입으로 대체하고, 실 docker 음성대조는
+#   별도로 수행한다(단위 자체검사는 "도는지"를 못 본다 — 2026-08-22 교훈).
+# ===========================================================================
+
+def _self_test() -> int:
+    global HEALTH_POLL_INTERVAL, _container_state
+    failures: list[str] = []
+
+    def check(name, got, want):
+        if got != want:
+            failures.append("%s: got=%r want=%r" % (name, got, want))
+
+    import socket
+
+    def _closed_port():
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+        s.close()
+        return port
+
+    orig_interval = HEALTH_POLL_INTERVAL
+    orig_state_fn = _container_state
+    HEALTH_POLL_INTERVAL = 0.01   # 자체검사 전용 가속(원복은 finally).
+    try:
+        port = _closed_port()
+
+        # ── 결함 C ──────────────────────────────────────────────────────────
+        # C1 — container_name 미주입 = 하위 호환: 타임아웃 전량 소진(기존 동작).
+        r = _poll_health(port, 0.15)
+        check("C1.healthy", r["healthy"], False)
+        check("C1.outcome", r["outcome"], "timeout")
+
+        # C2 — 사망 감지 시 **타임아웃 전에 즉시 이탈**. 이것이 결함 C 의 처방 자체다.
+        _container_state = lambda name: {"state": "dead", "detail": "false 137 true"}
+        r = _poll_health(port, 30.0, container_name="probe")
+        check("C2.outcome", r["outcome"], "container_died")
+        check("C2.healthy", r["healthy"], False)
+        check("C2.container_state", r["container_state"], "dead")
+        if r["waited_s"] >= 5.0:
+            failures.append("C2.early_exit: %.2fs 소요 — 즉시 이탈이 아니다" % r["waited_s"])
+
+        # C3 — 컨테이너 오브젝트 부재(누가 rm 했다)도 죽음과 동치다.
+        _container_state = lambda name: {"state": "absent", "detail": "No such object"}
+        r = _poll_health(port, 30.0, container_name="probe")
+        check("C3.outcome", r["outcome"], "container_died")
+
+        # C4 — ★위양성 방지: 조회 실패(unknown)는 **죽음이 아니다**. 폴링을 계속해야 한다.
+        #      이 가드가 없으면 일시적 docker 조회 실패가 정상 로드를 중단시킨다.
+        _container_state = lambda name: {"state": "unknown", "detail": "daemon busy"}
+        r = _poll_health(port, 0.15, container_name="probe")
+        check("C4.outcome", r["outcome"], "timeout")
+        if not r["unknown_polls"] >= 1:
+            failures.append("C4.unknown_polls: 조회 실패가 기록되지 않았다(침묵 금지 위반)")
+
+        # C5 — 반환 계약: bool 이 아니라 dict 다(`if _poll_health(...)` 오용 차단).
+        if not isinstance(r, dict):
+            failures.append("C5.type: 반환이 dict 가 아니다 — bool 회귀 시 호출부가 조용히 참이 된다")
+        for k in ("healthy", "outcome", "waited_s", "polls", "container_state", "unknown_polls"):
+            if k not in r:
+                failures.append("C5.key: 반환 계약 키 누락 %r" % k)
+
+        # C6 — inspect 출력 파서(순수).
+        check("C6.running", parse_inspect_state(0, "true 0 false", "")["state"], "running")
+        check("C6.dead", parse_inspect_state(0, "false 137 false", "")["state"], "dead")
+        check("C6.oom", parse_inspect_state(0, "false 137 true", "")["oom_killed"], True)
+        check("C6.absent", parse_inspect_state(1, "", "Error: No such object: x")["state"], "absent")
+        check("C6.unknown_rc", parse_inspect_state(1, "", "daemon down")["state"], "unknown")
+        check("C6.unknown_empty", parse_inspect_state(0, "", "")["state"], "unknown")
+    finally:
+        HEALTH_POLL_INTERVAL = orig_interval
+        _container_state = orig_state_fn
+
+    # ── 결함 B — gmu 캡 ────────────────────────────────────────────────────
+    # 실측 스냅샷(2026-08-22 이 호스트): MemTotal 124610 MiB · weights(ckpt÷tp) 52989 MiB.
+    TOTAL, WEIGHTS, FLOOR = 124610, 52989, HOST_FLOOR_MIB
+
+    # B1 — 캡이 걸리고, **캡 이후 착지 예상 MemAvailable 이 바닥 이상**이어야 한다.
+    avail = 119215
+    b = host_floor_gmu_cap(0.90, TOTAL, avail, FLOOR, weights_mib=WEIGHTS,
+                           overhead_mib=BUDGET_OVERHEAD_MIB)
+    check("B1.applied", b["applied"], True)
+    if not b["gmu"] < 0.90:
+        failures.append("B1.cap: 캡이 요청값을 낮추지 않았다(%r)" % b["gmu"])
+    landed = avail - b["gmu"] * TOTAL
+    if not landed >= FLOOR:
+        failures.append("B1.floor: 캡 후 착지 %.0fMiB < 바닥 %dMiB — 캡이 제 목적을 못 한다"
+                        % (landed, FLOOR))
+
+    # B2 — ★바닥은 절대 낮추지 않는다(policy:HOST_SAFETY_LAYERED_DEFENSE).
+    #      캡 함수는 floor 를 **입력으로만** 쓰고 결코 되돌려 깎지 않는다.
+    check("B2.floor_untouched", b["floor_mib"], FLOOR)
+
+    # B3 — 여유가 충분하면 캡을 걸지 않는다(불필요한 축소 금지).
+    b3 = host_floor_gmu_cap(0.50, TOTAL, avail, FLOOR, weights_mib=WEIGHTS,
+                            overhead_mib=BUDGET_OVERHEAD_MIB)
+    check("B3.applied", b3["applied"], False)
+    check("B3.reason", b3["reason"], "not_needed")
+    check("B3.gmu", b3["gmu"], 0.50)
+
+    # B4 — 캡이 weights 를 굶기면 **걸지 않는다**(회복 가능한 사살 < 회복 불가한 하드 실패).
+    b4 = host_floor_gmu_cap(0.90, TOTAL, 70000, FLOOR, weights_mib=WEIGHTS,
+                            overhead_mib=BUDGET_OVERHEAD_MIB)
+    check("B4.applied", b4["applied"], False)
+    if not b4["reason"].startswith("cap_infeasible"):
+        failures.append("B4.reason: got=%r want=cap_infeasible*" % b4["reason"])
+
+    # B5 — 증명 불가 입력이면 캡을 걸지 않되 **사유를 남긴다**(침묵 폴백 금지).
+    #      ★ reason 만 보면 부족하다 — 사유를 남기면서 값은 캡해 버리는 훼손이 초록불로
+    #        통과했다(2026-08-23 음성대조에서 실제 검출). **불변식으로 못박는다**:
+    #        `applied=False` ⇔ `gmu == requested`. 사유 문자열과 실제 값이 갈리면 안 된다.
+    for _name, _b in (
+        ("weights_unknown", host_floor_gmu_cap(0.90, TOTAL, avail, FLOOR)),
+        ("meminfo_unavailable", host_floor_gmu_cap(0.90, None, None, FLOOR)),
+        ("gmu_unset", host_floor_gmu_cap(None, TOTAL, avail, FLOOR)),
+        ("cap_nonpositive", host_floor_gmu_cap(0.90, TOTAL, FLOOR, FLOOR, weights_mib=1)),
+    ):
+        check("B5.%s.reason" % _name, _b["reason"], _name)
+        check("B5.%s.applied" % _name, _b["applied"], False)
+        if _b["gmu"] != _b["requested"]:
+            failures.append("B5.%s: applied=False 인데 gmu(%r) != requested(%r) — "
+                            "사유만 남기고 값은 바꾸는 것은 침묵 폴백이다"
+                            % (_name, _b["gmu"], _b["requested"]))
+    # 같은 불변식을 적용/미적용 전 사례에 일괄 적용한다(위 B3·B4 포함).
+    for _name, _b in (("B3", b3), ("B4", b4)):
+        if not _b["applied"] and _b["gmu"] != _b["requested"]:
+            failures.append("%s: applied=False 인데 gmu 가 바뀌었다(%r != %r)"
+                            % (_name, _b["gmu"], _b["requested"]))
+
+    # B6 — plan §4.3 리터럴 식은 **KV 몫의 비율**이라 gmu 상한으로 쓸 수 없다.
+    #      이 호스트에서 그 식은 weights 조차 못 올리는 값을 낸다 — 그래서 총상한 축으로
+    #      옮겨 적었다(host_floor_gmu_cap docstring). 그 사실을 회귀로 못박는다.
+    plan_literal = (TOTAL - FLOOR - WEIGHTS - BUDGET_OVERHEAD_MIB) / float(TOTAL)
+    if not plan_literal * TOTAL < WEIGHTS:
+        failures.append("B6: plan 리터럴 식이 weights 를 담는다(%.0fMiB ≥ %dMiB) — 교정 근거 재확인 필요"
+                        % (plan_literal * TOTAL, WEIGHTS))
+    if not b["gmu"] > plan_literal:
+        failures.append("B6: 교정된 캡(%.4f)이 리터럴 식(%.4f)보다 크지 않다" % (b["gmu"], plan_literal))
+
+    if failures:
+        sys.stderr.write("[run_trial --self-test] FAIL %d 건:\n" % len(failures))
+        for f in failures:
+            sys.stderr.write("  - %s\n" % f)
+        return 1
+    sys.stdout.write("[run_trial --self-test] OK — C1~C6(생존검사) · B1~B6(gmu 캡) 통과"
+                     " (plan_26082223 결함 C·B)\n")
+    return 0
 
 
 def _main(argv: "list[str] | None" = None) -> int:
@@ -899,10 +1321,12 @@ def _main(argv: "list[str] | None" = None) -> int:
         description="단일 트라이얼 실행기 (vllm-recipe-explorer Phase 2)."
     )
     p.add_argument(
-        "--candidate", required=True, help="candidate(lock-set) JSON 경로"
+        "--candidate", help="candidate(lock-set) JSON 경로"
     )
+    p.add_argument("--self-test", action="store_true",
+                   help="생존검사·gmu 캡 회귀(docker/모델/하드웨어 불요)")
     p.add_argument(
-        "--simlog-dir", required=True, help="trialNN_vllm.log 등을 기록할 디렉토리"
+        "--simlog-dir", help="trialNN_vllm.log 등을 기록할 디렉토리"
     )
     p.add_argument("--trial-number", type=int, default=1)
     p.add_argument("--image", default=DEFAULT_IMAGE, help="서빙 docker 이미지")
@@ -962,6 +1386,13 @@ def _main(argv: "list[str] | None" = None) -> int:
         help="예산 선언 생략(무보호 진입). 생략 사실은 budget_skipped 이벤트로 남는다(침묵 금지)",
     )
     args = p.parse_args(argv)
+
+    if args.self_test:
+        return _self_test()
+    _missing = [n for n, v in (("--candidate", args.candidate),
+                               ("--simlog-dir", args.simlog_dir)) if not v]
+    if _missing:
+        p.error("%s 는 필수다(--self-test 는 예외)" % ", ".join(_missing))
 
     with open(args.candidate, "r", encoding="utf-8") as f:
         candidate = json.load(f)
