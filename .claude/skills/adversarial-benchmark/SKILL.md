@@ -27,7 +27,7 @@ description: >-
 
 - **Goal** — 돌고 있는 serve 의 디코드 성능을 3중 루브릭(루프라인 R · 외부 E · 사용자 c)으로 적대 검증해 PASS/REFUTE 를 결정론으로 판정하고, 기각 시 재탐색 힌트를 낸다.
 - **When to invoke** — "성능 검증/벤치마크" 지시 · recipe 서빙 성공 직후 lite 자동 핸드오프 · 멀티노드 VRAM 밸런스 의심 · (별도 오퍼레이션) Max envelope 특성화 승인 시.
-- **Inputs** — `config.yaml`(대상 config_name·`reference_tps`/`target_tps`/`tolerance`/`realistic_fraction`) · **루브릭 authority 상태**(§2 — 기본 `weak`, 사용자 HITL 트리거 시 `explicit`) · 라이브 serve(`:PORT/health` 200) · manifest(gpu_model·interconnect·topology) · 모델 config/safetensors index.
+- **Inputs** — `config.yaml`(대상 config_name·`reference_tps`/`target_tps`/`tolerance`/`realistic_fraction`) · **루브릭 authority 상태 3종**(§2 — 기본 `weak`, 사용자 HITL 트리거 시 `explicit` 또는 `explore`) · 라이브 serve(`:PORT/health` 200) · manifest(gpu_model·interconnect·topology) · 모델 config/safetensors index.
 - **Outputs** — `verdict.json`(PASS/REFUTE/NEEDS_RUBRIC/INVALID + failure_axis + next_strategy_hint) · lite 채팅 표(inform-only) · full 종결 시 `docs/benchmark/` report(항상) + 인증서(PASS시만).
 - **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 7단계(순서 고정).
 - **State transitions** — full PASS + 인증서로 `promotion-ready` 의 성능 조건을 채운다(lite 는 어떤 상태도 진행시키지 않는다). 최종 상태 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
@@ -46,7 +46,7 @@ description: >-
 3. **serve 가동 확인** — `:PORT/health` 200. 로그 grep 금지(거짓양성).
 4. **측정 M** — `run_bench.sh` → `parse_bench.py`(warmup 폐기 + engine-log 교차).
 5. **외부 레퍼런스 (b) E** — Devil's Advocate 가 `references.md` warm-start → 검색 → 결과를 `--e-search {hit,empty,no}` 로 **기록**. 미시도 상태로 6단계 직행 ✗.
-6. **판정(결정론 게이트)** — `verdict_rule.py --authority {weak,explicit}`(§2 — 기본 `weak`; 사용자가 목표를 HITL 명시했을 때만 `explicit`). PASS → done-게이트 클리어 / REFUTE → 기각 리포트 + `next_strategy_hint` → recipe 재탐색 → 3단계로(cap 한정) / NEEDS_RUBRIC → (c) 사용자 백스톱.
+6. **판정(결정론 게이트)** — `verdict_rule.py --authority {weak,explicit,explore}`(§2 — 기본 `weak`; 사용자가 목표를 HITL 명시했을 때만 `explicit`; 사용자가 *광범위 탐색/목표 미설정*을 HITL 지시했을 때만 `explore`). PASS → done-게이트 클리어 / REFUTE → 기각 리포트 + `next_strategy_hint` → recipe 재탐색 → 3단계로(cap 한정, **`explore` 에서는 해제** — 다음 항목으로 진행) / NEEDS_RUBRIC → (c) 사용자 백스톱.
 7. **종결 발행** — cap 소진 or PASS 로 종결되면 사람용 report(항상) + 인증서(PASS시만) 발행(`references/lite-and-publication.md` §2).
 
 ## Failure → reference routing
@@ -70,14 +70,62 @@ description: >-
 | 상태 | 루브릭 **정본** | 발동 조건 | `verdict_rule.py` |
 |---|---|---|---|
 | **약한 권한**(기본) | **E**(외부 레퍼런스) | 사용자가 목표 tok/s **미명시** | `--authority weak`(기본) → E > c > expected. E 부재 ∧ c 부재 ∧ expected 산출불가 → `NEEDS_RUBRIC`(사용자 백스톱) |
-| **명시적 권한**(트리거) | **c**(사용자 목표) | ⓐ 사용자가 HITL 로 *"목표 X tok/s"* 명시 **or** ⓑ *"외부 커뮤니티 자료 검색→tok/s 확인→서빙전략 수립"* 지시 | `--authority explicit --target-tps X` → c > E > expected |
+| **명시적 권한**(트리거) | **c**(사용자 목표) | ⓐ 사용자가 HITL 로 *"목표 X tok/s"* 명시 **or** ⓑ *"외부 커뮤니티 자료 검색→tok/s 확인→서빙전략 수립"* 지시 | `--authority explicit --target-tps X` → c > E > expected. `--target-tps` 부재 = **fail-closed(exit 2)** |
+| **탐색 권한**(트리거 · 2026-08-22 신설) | **E**(외부 레퍼런스) — 단 **문턱으로 쓰지 않는다** | 사용자가 HITL 로 *"목표 0 / NULL / None / 광범위 탐색"* 지시 | `--authority explore` → **E > expected**(`c` 칸 **부재**). `--target-tps` 는 **금지(exit 2)** |
 
 - **트리거 발동 시 c 달성 = PASS** 이며 **`perf_waiver` 서명이 불요**하다(본 세션 B1 마찰의 제거점).
+
+### 2.1 `explore` 계약 — 게이트 미설정 상태 (`plan_26082219` D2·U1)
+
+> **`--target-tps 0` 은 explore 가 아니다.** 상수 0 투입은 **loud reject(exit 2)** 이며 explore 로 자동
+> 매핑하지 **않는다** — 자동 매핑은 에이전트/스크립트가 authority 를 전환하는 것이고(트리거는 사용자만
+> 당긴다), 산출물에서 사용자가 `weak` 를 의도했는지 `explore` 를 의도했는지 구분 불가하게 만든다
+> (표시 없는 권한 전환 금지). 오타(`3O`→파싱실패 0)가 조용히 탐색모드가 되는 것도 같은 이유로 막는다.
+
+- **`c` 칸을 사다리에서 제거한다.** explore 의 정의가 *"목표를 세우지 않는다"* 이므로 `c` 는 존재해서는
+  안 되는 값이다. 칸을 남겨두면 "explore 인데 목표가 있다"는 **모순 상태가 표현 가능**해지고, 그 모순이
+  다시 침묵 폴백의 자리가 된다. 출력의 `rubric.target_c` 는 explore 에서 **항상 `null`** 이고
+  `rubric.candidates[]` 에 `{"source":"c(user_target)","state":"absent-by-authority"}` 로 남는다.
+- **`E` 는 explore 에서도 사라지지 않는다** — `weak` 와 동일하게 1순위이며 `rubric.reference_E` 상수
+  보존 규칙은 **전 authority 불변**이다(칸 비교의 성립 조건).
+- **실질은 오케스트레이션 해제다**: REFUTE 여도 다음 항목으로 진행한다(loop-until-done 해제). 이는 판정
+  규칙이 아니라 오케스트레이션 계약이므로 산출물이 `rubric.loop_until_done: false` 로 스스로 밝힌다.
+  ⚠ 해제 대상은 *재탐색 강제*이지 `reconciliation_cap` 이 아니다 — §3 의 cap→Model-C 규율은 **불변**이다.
+- ★ **hint 발행 자격(승격 기준)이 바뀐다 — `explore` 에서는 성능 판정이 게이트가 아니다**(2026-08-22
+  사용자 결정 · `plan_26082219` U1 해소):
+
+  | | `weak`·`explicit` | **`explore`** |
+  |---|---|---|
+  | 승격 게이트 | 성능 판정 `verdict == PASS`(미달 시 `perf_waiver`) | **서빙 성립(기능)** = 모델이 실제로 떠서 curl 통신으로 응답을 낸다 **∧ 유효 측정**(`floor > 0` ∧ `ratio ≠ null`) |
+  | `PASS`/`REFUTE` 의 지위 | **게이트** | **서술** — 벽 지도 데이터(어디서 얼마나 못 미쳤나) |
+
+  - "서빙 성립"의 기계 증거는 `runtime.health_ok ∧ containers[].oom_killed=false ∧
+    runtime.functional_smoke_passed` 이며, 이는 `completion_gate.py` 의 **runtime tier 가 이미 강제**한다
+    (그 관문을 통과하지 못하면 어떤 authority 로도 evidence-complete 에 못 간다).
+  - **공허 PASS 배제 규칙은 어느 authority 에서도 불변이다** — `floor = 0` 은 **어떤 모드에서도** 승격
+    불가다. explore 가 무는 것은 *문턱의 높이*이지 *측정의 유효성*이 아니다.
+  - 잔여 경계(2026-08-22 현재): 인증서는 헌법(`CLAUDE.md` §불변식 · `.claude/rules/docs.md` §benchmark)상
+    **PASS 때만 발행**되므로, explore 에서 `REFUTE` 로 끝난 항목은 여전히 인증서를 갖지 못한다 →
+    그 경우의 승격은 종전대로 `perf_waiver`(사람 서명) 경로다. explore-REFUTE 를 인증서 없이 승격시키려면
+    **인증서 PASS-only 규칙 자체를 개정**해야 하며 그것은 헌법 개정 사안이다(이 스킬이 단독으로 못 연다).
+- ★ **밸런스 축(`--node-vram-gib`)도 explore 에서는 서술이다**(2026-08-22 · U1 후속). 노드간 VRAM
+  편차는 decode-tps 축과 **직교**하지만 성질은 같은 *성능 문턱*이므로, explore 에서 그것만 게이트로
+  남기면 U1 계약이 옆문으로 뚫린다. 값은 종전대로 전부 기록하되(`balance.pass` · `balance_dev` ·
+  `node_vram_gib`) **`verdict` 를 `REFUTE` 로 뒤집지 않는다**.
+  - 우회의 실체: 밸런스가 `verdict` 를 뒤집으면 → 인증서가 **PASS 때만 발행**되는 규칙에 걸려 미발행 →
+    인증서가 없으면 `completion_gate.py` 의 explore 승격 경로(`cert_rubric_authority=='explore'`)가
+    닫힌다 → 결국 **`perf_waiver`(사람 서명)를 강요**한다. 즉 "서빙 성립이면 승격"이 성립하지 않는다.
+  - **`weak`·`explicit` 은 종전 그대로 게이트다** — `balance_dev > --balance-tol` → `REFUTE` +
+    `failure_axis="balance"` + recipe-explorer loop-back. 이 완화는 **explore 에만** 적용된다.
+  - 출력이 스스로 밝힌다(헌법 §결정론 규율 — 출처 표시): `balance.gates_verdict` 가 `true`(게이트) /
+    `false`(서술)이며, explore 의 편차 초과는 `refuted_claims` 가 아니라 `diagnosis_hint` 에 **벽 지도
+    데이터**로 적힌다(기각 목록과 서술을 섞지 않는다).
 - **E 는 사라지지 않는다** — 트리거 상태에서도 `rubric.reference_E` 로 **칸 비교용 상수**로 보존된다.
   R0~R3 같은 사다리 비교는 "모든 칸이 같은 E 로 재어졌다"가 성립 조건이므로, 우선순위만 바뀌고
   **상수 자체는 불변**이어야 한다. E 를 지우면 칸 간 비교가 무효가 된다.
-- **트리거는 사용자만 당긴다**(에이전트 자기선언 ✗). 근거: c 가 정본이 되면 낮은 목표로 검증을
-  우회할 수 있으므로, 목표 제시는 **HITL 명시**로만 성립한다 — 이것이 남용 방어의 전부다.
+- **트리거는 사용자만 당긴다**(에이전트 자기선언 ✗ — `explicit`·`explore` 둘 다). 근거: c 가 정본이
+  되면 낮은 목표로 검증을 우회할 수 있고, explore 는 문턱 자체를 내리므로, 두 전환 모두 **HITL 명시**
+  로만 성립한다 — 이것이 남용 방어의 전부다.
 - **게이트는 여전히 결정론**이다 — authority 는 *어느 상수를 정본으로 쓸지*만 고르고, PASS/REFUTE
   판정 자체는 `verdict_rule.py` 의 규칙이 한다(LLM 다수결 ✗ — §8 불변).
 - 판정 출력의 `rubric.authority` · `rubric.source` 로 **어느 권한에서 잰 판정인지 산출물이 스스로
@@ -107,13 +155,18 @@ description: >-
 - 모델 자동 다운로드 금지(NAS 부재면 중단). 결정론 스크립트는 외부 네트워크 호출 없음 — **단 검증기 (b) 외부검색은 허용·의무**(모델획득 격리 한정).
 - 무승인 자동 escalate/rebuild ✗(escalation 은 승인 게이트). 무한 기각·무한 루프 ✗(cap → Model-C).
 - 게이트(PASS/REFUTE)는 결정론 규칙 — LLM 다수결로 결정하지 않는다. lite 는 `verdict_rule` 에 투입하지 않는다(inform-only).
+- **공허 PASS 는 구조적으로 불가하다**(`plan_26082219` D1): 사다리 세 칸(E·c·expected) 모두 단일 술어
+  `rubric_candidate()` 로 *유한 양수* 검사를 통과해야 낙찰된다 ⇒ `rubric.floor > 0` ∧
+  `rubric.ratio_M_over_primary ≠ null` 이 **항상** 성립한다. `--target-tps 0`/`--reference-tps 0`/
+  `--tolerance 1` 은 **exit 2 loud reject**(조용한 무문턱 PASS 금지). `verdict_rule.py --self-test` 가
+  이 불변식을 상시 단언하고, `verify_distribution.py` 가 매 검증마다 그 자체검사를 **실행**한다.
 
 ## 9. 보조 파일
 
 **결정론 스크립트**
 - `scripts/roofline.py` — (a) spec-aware R_fp/R_token/expected(manifest+config/index).
 - `scripts/run_bench.sh` · `scripts/parse_bench.py` — full 경로 측정 M(+engine-log 교차).
-- `scripts/verdict_rule.py` — 결정론 PASS/REFUTE 게이트(**`--authority weak|explicit`** = E>c>expected / c>E>expected(§2), like-with-like, spec-off 강제함수, 밸런스 축). `explicit` + `--target-tps` 부재는 **fail-closed(exit 2)** — 침묵 폴백 금지.
+- `scripts/verdict_rule.py` — 결정론 PASS/REFUTE 게이트(**`--authority weak|explicit|explore`** = E>c>expected / c>E>expected / E>expected(c 부재)(§2), like-with-like, spec-off 강제함수, 밸런스 축 — **`explore` 에서 밸런스는 게이트가 아니라 서술**(§2.1)). `explicit` + `--target-tps` 부재, `explore` + `--target-tps` 존재, `--target-tps|--reference-tps ≤0·NaN·Inf`, `--tolerance ∉[0,1)` 은 전부 **fail-closed(exit 2)** — 침묵 폴백 금지. **`--self-test`** 로 T1~T16 결정론 자체검사(파일 입력 불요 — T16 = explore 밸런스=서술 회귀).
 - `scripts/lite_bench.sh` · `scripts/lite_metrics.py` — lite 오케스트레이터 + 5종 메트릭 렌더(inform-only).
 - `scripts/sweep_bench.sh` · `scripts/render_report.py` · `scripts/publish_benchmark_record.py` — full 종결 스윕·report·인증서.
 - `scripts/max_envelope.sh` · `scripts/render_max_report.py` — **Max 오퍼레이션**(별도 정체성).

@@ -5,7 +5,18 @@
 
 ## 1. 3중 방어막 — 루브릭 *세우기*
 
-매번 **(a) → (b) → (c)** 순. `verdict_rule.py` 의 primary 우선순위 = **E > c > expected**.
+매번 **(a) → (b) → (c)** 순. `verdict_rule.py` 의 primary 우선순위는 **루브릭 authority 가 고른다**
+(SKILL.md §2 — 하드코딩된 단일 순서가 아니다):
+
+| authority | 사다리 | 트리거 |
+|---|---|---|
+| `weak`(기본) | **E > c > expected** | 사용자 목표 미명시 |
+| `explicit` | **c > E > expected** | 사용자 HITL *"목표 X tok/s"* (`--target-tps X` 필수) |
+| `explore` | **E > expected** (`c` 칸 **부재**) | 사용자 HITL *"목표 0/NULL/광범위 탐색"* (`--target-tps` **금지**) |
+
+세 칸 모두 **같은 유효성 술어**(`rubric_candidate()` — 유한 양수)를 통과해야 낙찰된다. `0`·음수·`NaN`·
+`Inf` 는 사다리에 오르지 못하며(CLI 입력이면 exit 2), 그래서 `floor > 0` ∧ `ratio ≠ null` 이 **항상**
+성립한다 — *문턱도 지표도 사라진 PASS*(공허 PASS)는 구조적으로 만들 수 없다(`plan_26082219` D1).
 
 - **(a) 결정론 루프라인 = 척추(매번 먼저)**: `roofline.py` → `R_fp`(forward-pass/sec 상한, 100% MBU 낙관 천장)·
   `R_token = accept_len × R_fp`(speculative)·`expected_achievable = realistic_fraction × R_token`. **의심 임계**(SLA 아님).
@@ -25,8 +36,13 @@
 decode-tps 축과 **직교**한 별도 루브릭 축. recipe-explorer 가 산정만 하고, **이 스킬이 밸런스를 게이트**한다.
 
 - **산정식**: `balance_dev = (max_node_used_gib − min_node_used_gib) / max_node_used_gib`.
-- **판정**: `balance_dev > 0.10` → **REFUTE**(`failure_axis="balance"`) → recipe-explorer **loop-back**(재탐색, cap 한정).
+- **판정**(`weak`·`explicit`): `balance_dev > 0.10` → **REFUTE**(`failure_axis="balance"`) → recipe-explorer **loop-back**(재탐색, cap 한정).
   `≤ 0.10` → 밸런스 축 PASS.
+- **`explore` 에서는 게이트가 아니라 서술이다**(2026-08-22 · SKILL.md §2.1 U1 후속): 값은 그대로 기록하되
+  `verdict` 를 뒤집지 않는다. 편차 초과는 `refuted_claims` 가 아니라 `diagnosis_hint` 에 **벽 지도 데이터**로
+  적힌다. 어느 쪽인지는 출력의 `balance.gates_verdict`(`true`=게이트 / `false`=서술)가 밝힌다.
+  이유: 뒤집으면 인증서 미발행 → `completion_gate` 의 explore 승격 경로가 닫혀 `perf_waiver` 를 강요하게
+  되어, "explore 의 승격 자격 = 서빙 성립" 계약이 이 축으로 우회된다.
 - **입력**: `multinode_serve_smoke.sh` 양노드 measured VRAM → `verdict_rule.py --node-vram-gib <n1,n2,...> --balance-tol 0.10`.
   결정론 유지(LLM 다수결 ✗).
 - **기본 비활성**: `--node-vram-gib` 미지정 시 balance 축은 판정에 관여하지 않음(기존 decode-tps 전용 판정 완전 보존).
@@ -57,7 +73,10 @@ decode-tps 축과 **직교**한 별도 루브릭 축. recipe-explorer 가 산정
 - 오케스트레이션: 렌즈 fan-out = 병렬 에이전트(동시 공격 → verdict_rule 투입).
 
 `verdict_rule.py` 출력 = `{verdict: PASS|REFUTE|NEEDS_RUBRIC|INVALID, failure_axis, structural_or_strategy(힌트),
-rubric{primary,source,floor,R_fp,R_token,expected}, refuted_claims[], diagnosis_hint[]}`.
+rubric{primary,source,floor,ratio_M_over_primary,R_fp,R_token,expected,reference_E,target_c,
+**authority**,**loop_until_done**,**candidates[]**}, refuted_claims[], diagnosis_hint[]}`.
+`candidates[]` 는 사다리 세 칸의 3-state(`valid`/`invalid`/`unset`/`absent-by-authority`)를 그대로
+표면화한다 — 하류(리포트·인증서·사람)가 *어느 칸이 왜 낙찰됐는지*를 추론이 아니라 **조회**로 안다.
 
 ## 5. 입력 (`config.yaml`)
 
@@ -65,6 +84,11 @@ rubric{primary,source,floor,R_fp,R_token,expected}, refuted_claims[], diagnosis_
 
 - `serving.config_name`(검증 대상 트리플렛 키) · `topology`(미지정 시 브랜치 파생).
 - `reference_tps`(E, 선택 — 미지정 시 검증기 외부검색) · `target_tps`(c, 선택) · `tolerance`(기본 0.15).
+  ⚠ `reference_tps`·`target_tps` 에 **`0`/`NULL`(빈 값) 을 '게이트 미설정'의 뜻으로 쓰지 않는다** —
+  상수 0 은 루브릭이 될 수 없어 `verdict_rule.py` 가 **exit 2 로 거부**한다(공허 PASS 차단). *키를
+  아예 두지 않는 것*이 미설정이고, **광범위 탐색은 `--authority explore`**(CLI 트리거)다. `authority`
+  는 config 키가 아니다 — 트리거는 사용자 HITL 이며, 파일에 적히면 "사용자가 당겼다"는 증거가 약해진다.
+  `tolerance` 는 `0 ≤ tol < 1`(tol=1 이면 floor=0 이라 같은 결함의 두 번째 입구가 된다).
 - `realistic_fraction`(MBU 보정, 기본 0.35 — batch=1 MoE) · `reconciliation_cap`(기본 3).
 - bench: `concurrency`(단일스트림=1) · `input_len` · `output_len` · `num_prompts` · `warmups`(콜드 JIT 폐기) ·
   `spec_supported`(모델이 MTP 지원) · `bench.lite_burst_n`(lite warm burst 크기).

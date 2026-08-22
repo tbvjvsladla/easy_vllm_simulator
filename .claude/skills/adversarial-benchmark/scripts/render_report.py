@@ -74,6 +74,7 @@ def build_md(index, verdict, roofline):
     A("|---|---|")
     A("| verdict | **%s** |" % v)
     A("| 측정 decode t/s (동시성1) | %s |" % na(verdict.get("measured_decode_tps"), " t/s"))
+    A("| 루브릭 권한 | %s |" % na(rub.get("authority")))  # weak|explicit|explore (표시만 — plan_26082219 A7)
     A("| 루브릭 primary | %s (%s) |" % (na(rub.get("primary"), " t/s"), na(rub.get("source"))))
     A("| floor (primary×(1−tol)) | %s |" % na(rub.get("floor"), " t/s"))
     A("| ratio (M/primary) | %s |" % na(rub.get("ratio_M_over_primary")))
@@ -83,8 +84,16 @@ def build_md(index, verdict, roofline):
         A("| ⚠ warning | %s |" % verdict["warning"])
     if verdict.get("balance"):
         b = verdict["balance"]
+        # ★ 라벨은 이 축이 **게이트인지 서술인지**에 따라 갈린다(SKILL.md §2.1 · U1 후속).
+        #   explore 에서는 편차 초과가 verdict 를 뒤집지 않으므로 "REFUTE" 로 적으면 전체 판정(PASS)과
+        #   모순돼 보인다 — 리포트가 판정과 서술을 뒤섞지 않도록 gates_verdict 로 표기를 나눈다.
+        gates = b.get("gates_verdict")
+        if b.get("pass"):
+            state = "PASS" if gates else "정상(서술)"
+        else:
+            state = "REFUTE" if gates else "편차 초과(서술 — explore 에서 게이트 아님)"
         A("| 노드간 VRAM 밸런스 | dev=%s (tol=%s) → %s |"
-          % (na(b.get("balance_dev")), na(b.get("tolerance")), "PASS" if b.get("pass") else "REFUTE"))
+          % (na(b.get("balance_dev")), na(b.get("tolerance")), state))
     A("")
     if v == "REFUTE" and verdict.get("refuted_claims"):
         A("**기각 사유(사람 참고):**")

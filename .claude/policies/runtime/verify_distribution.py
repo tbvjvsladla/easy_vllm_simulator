@@ -608,6 +608,14 @@ def verify() -> dict:
              ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py", "--measured",
              ".claude/skills/adversarial-benchmark/fixtures/measured_pass.json", "--roofline",
              ".claude/skills/adversarial-benchmark/fixtures/roofline_sample.json"], {0}),
+        # 공허 PASS 게이트의 **집행** (plan_26082219 B2 · 2026-08-22 배선).
+        #   `verdict_rule.py --self-test`(T1~T15) 는 "--target-tps 0 으로 PASS 를 만들 수 있는 경로가
+        #   코드 어디에도 없다"를 단언한다. 그러나 **자체검사에 호출자가 없으면 그것은 L2 가 아니라
+        #   L1(산문)** 이다 — 2026-08-16 실측(`gen_recipe_set --check-parity` tripwire 가 호출자 0 개라
+        #   실제 위반이 커밋과 이 검증기를 그대로 통과했다)이 그 실증이다. 여기서 매 검증마다 돌린다.
+        #   순수 결정론 단위검사(픽스처 파일·네트워크·서빙 불요)라 미테라포밍 레포에서도 안전하다.
+        _run("benchmark_verdict_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py", "--self-test"], {0}),
     ]
 
     with tempfile.TemporaryDirectory(prefix="easy-vllm-wiki-distribution.") as wiki:
