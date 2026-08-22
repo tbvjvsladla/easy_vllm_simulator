@@ -1,0 +1,219 @@
+# syntax=docker/dockerfile:1
+# 스켈레톤(source-build 트랙 · **stock**) — render_dockerfile.py(G2)가 manifest+resolved로 채운다.
+#
+# ★ 2026-08-13 정본 교체: 이 파일은 원래 DS4-Flash 변종 트랙용으로 진화한 템플릿(flashinfer 0.6.14
+#   하드핀 · sparse-MLA 심볼 assert 등 변종 전용 스탠자 누적)이었다. 그 상태로 single stock 을 렌더하니
+#   ① constraint 없이는 transformers 5.15.0 이 설치돼 gemma-4 서빙이 로드 전 즉사하고
+#   ② constraint 를 이식하면 requirements(flashinfer 0.6.16.post3) ↔ 템플릿 하드핀(0.6.14) 이
+#      ResolutionImpossible 로 충돌해 빌드가 죽었다. 즉 stock 경로가 어느 쪽으로도 성립하지 않았다.
+#   ∴ **stock 정본 = 실제 서빙 실적이 있는 루트 템플릿**으로 교체하고, 변종 전용본은
+#   `Dockerfile.source-build-dsv4.template` 로 분리 보존한다(이름이 같아 신구관계로 오인됐던 것이 원인).
+#   여기에 stock 이 실제로 필요로 하던 두 배선만 이식했다: (1) VLLM_REPO 파라미터화 (2) 3+1+1 빌드패치 슬롯.
+#
+# ★ 2026-08-14 복원 3건: 위 정본 교체 때 변종본에만 남아 있던 배선 중 **stock·멀티 공통 3건이 함께
+#   유실**됐다(교체가 변종 전용 스탠자를 걷어내며 과잉 절제). 셋 다 변종 전용이 아니므로 되살린다.
+#     (D-B) `ARG VLLM_PRETEND_VERSION=` + 조건부 컴파일 RUN — compose 가 이 build-arg 를 **항상**
+#           보낸다(docker-compose.*.template.yaml: `VLLM_PRETEND_VERSION: ${VLLM_PRETEND_VERSION:-}`).
+#           ARG 선언이 없으면 Docker 가 미소비 build-arg 로 흘려버려, 포크 핀 트랙이 다시
+#           setuptools_scm 태그 파싱에서 죽는다(2026-08-02 실측 ValueError). **빈 값이면 export 자체를
+#           하지 않으므로 stock 빌드 경로는 불변**이다.
+#     (D-A) ray·netcat 런타임 의존 — **토폴로지 조건부가 아니다**. IMAGE_TAG 에 토폴로지 축이 없어
+#           (`<version>-<cuda>-<arch>-source`) 단일/멀티가 같은 이미지를 공유한다. 따라서 멀티가
+#           요구하는 의존은 그 공유 이미지가 담아야 하며, 단노드에선 미사용 패키지로 남을 뿐이다.
+#           (조건부로 만들면 이미지 정체성이 갈라져 `VARIANT_IMAGE_BUILD_VS_SERVE_PLANE` 를 깬다.)
+#     (D-C) `ENV PATH=/usr/local/cuda/bin:${PATH}` — 아래 ccache 용 PATH 재정의가 CUDA bin 을 떨어뜨려
+#           **런타임 nvcc 미발견**을 만든다(flashinfer 계열 has_flashinfer() 오판의 근본). 복원과 함께
+#           빌드 검증 RUN 을 nc/nvcc/ray fail-loud 로 승격해 같은 유실이 조용히 반복되지 않게 한다.
+#
+# 왜 source-build 인가 (torch 2.11+ 구간): prebuilt vLLM wheel 의 _C(public torch 빌드)가
+# NGC alpha torch 와 C++ ABI 불일치(_C.abi3.so 가 c10::cuda::CUDAStream::query() 를 요구하나
+# NGC libc10_cuda.so 에 부재) → import 단계 하드 월. _C 를 NGC torch 에 맞춰 직접 컴파일하면
+# undefined-symbol 이 사라진다. 검증: vLLM 0.22.1 (SKILL.md §4.6 / testlog_260608_1).
+#
+# ⚠ 패치 가드: 검증된 torch핀에서만 빌드한다(아래 guard). 미인식 핀이면 빌드를 명시 실패시켜
+#   "false determinism"(상류가 그 줄을 바꿨거나 torch 핀이 다른데도 옛 패치를 박는 것)을 막는다.
+
+FROM nvcr.io/nvidia/pytorch:26.07-py3
+
+# ── torch핀 가드 (render-time: 검증된 핀=주석 / 미인식=빌드 실패. 카탈로그 codify는 P6) ──
+RUN echo "WARN: source-build key (26.07-py3 x vLLM 0.27.1) is UNVALIDATED — attempt-build under HITL override (--allow-unvalidated)." && \
+    echo "  -> arbiter = smoke (workflow S3). REQUIRED: record this attempt in docs/testlog/." && \
+    echo "  -> on smoke PASS: codify the key into VALIDATED_SOURCE_BUILD_KEYS (SKILL.md §4.6)."
+
+# VLLM_REPO/VLLM_REF: 빌드-arg 파라미터화 — 기본 = stock(vllm-project). 콤보 env 가 오버라이드해
+#   같은 Dockerfile 로 포크 변종을 빌드한다(arch-wall 사다리의 `소스-repo 오버라이드` 칸).
+#   좌표의 거처는 `.claude/policies/arch_variant_ledger.json`(Band2) — workflow.md §변종 좌표의 거처.
+ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
+ARG VLLM_REF=v0.27.1
+ARG TORCH_CUDA_ARCH=12.1a
+ARG BUILD_JOBS=16
+
+ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH} \
+    MAX_JOBS=${BUILD_JOBS} \
+    CMAKE_BUILD_PARALLEL_LEVEL=${BUILD_JOBS} \
+    CCACHE_DIR=/root/.ccache CCACHE_MAXSIZE=30G CCACHE_COMPRESS=1 \
+    PATH=/usr/lib/ccache:/usr/local/bin:/usr/bin:/bin
+
+# ccache 설치(NGC 베이스엔 ccache 없음 — ninja/git 는 존재). 증분 재컴파일 가속.
+RUN apt-get update && apt-get install -y --no-install-recommends ccache && rm -rf /var/lib/apt/lists/*
+
+# NGC pip constraint 비우기(핀 충돌 회피) 후 regen_requirements.py KNOWN_INCOMPAT 천장으로 대체.
+#   ⚠ source-build 는 `pip install -e .`가 vLLM 자신의 pyproject.toml 만 읽어 requirements.txt 를
+#   직접 소비하지 않는다(wheel 트랙 Dockerfile.template 과 다름) — 그래서 constraint 파일 경유로
+#   KNOWN_INCOMPAT(예 fastapi<0.137.0·transformers<5.15.0 — 시간드리프트 회귀 핀)를 강제한다.
+#   requirements.txt 는 대부분 `>=` 하한이라 constraint 로 써도 과잉제약 없음(상한 항목만 실제로 조인다).
+#   pip 제약파일은 extras 표기(`pkg[extra]`)를 허용하지 않는다("Constraints cannot have extras") —
+#   requirements.txt 는 일부 항목이 extras 를 쓰므로(fastapi[standard] 등) 대괄호를 벗겨낸 사본을 쓴다.
+#   ⚠ 변종 트랙은 이 constraint 와 템플릿 하드핀이 충돌할 수 있다 — 그래서 변종본은 별도 템플릿이다.
+COPY requirements.txt /tmp/requirements.txt
+RUN cp /etc/pip/constraint.txt /etc/pip/constraint.txt.bak 2>/dev/null || true; \
+    sed -E 's/\[[^]]*\]//g' /tmp/requirements.txt > /etc/pip/constraint.txt
+
+# 대상 ref 소스 클론 + NGC torch 사용(소스가 torch 핀을 재설치하지 않게 — 커플링 규칙 충실).
+# blobless 풀-히스토리 클론 + ref checkout: 버전 tag·임의 SHA(포크 force-push 면역 — SHA=content-addressed) 양쪽 지원.
+# (옛 `--branch <ref> --depth 1` 은 raw SHA checkout 불가 → 포크 핀 위해 교체.)
+RUN git clone --filter=blob:none ${VLLM_REPO} /workspace/vllm-src \
+ && git -C /workspace/vllm-src checkout --detach ${VLLM_REF} \
+ && echo "[clone] HEAD=$(git -C /workspace/vllm-src rev-parse HEAD) (${VLLM_REPO} @ ${VLLM_REF})"
+WORKDIR /workspace/vllm-src
+RUN python3 use_existing_torch.py
+
+# build-system.requires 수동 설치(--no-build-isolation 전제: pip 가 자동설치 안 함).
+# 0.22.1 검증 레시피대로 as-is 설치(setuptools-rust/cmake/ninja/scm/wheel/jinja2 등 포함).
+# setuptools 는 vLLM 빌드가 <81 을 요구하므로 명시 조정.
+RUN pip install $(python3 -c "import tomllib;print(' '.join(tomllib.load(open('pyproject.toml','rb'))['build-system']['requires']))") "setuptools<81"
+
+# strip-hoist (torch 2.11a): NGC torch 의 register_opaque_type 가 hoist kwarg 를 안 받으면
+# 소스에서 그 kwarg 만 제거(opaque 등록 기능 유지). torch 2.10대/수용 시엔 no-op(자기적응).
+RUN python3 - <<'PY'
+import inspect, pathlib, re, sys
+try:
+    from torch._library.opaque_object import register_opaque_type
+    needs = "hoist" not in inspect.signature(register_opaque_type).parameters
+except Exception:
+    needs = False  # opaque_object 미존재(torch 2.10대) → 패치 불요
+if needs:
+    n = 0
+    for p in pathlib.Path(".").rglob("*.py"):
+        try:
+            s = p.read_text()
+        except Exception:
+            continue
+        if "register_opaque_type(" in s and "hoist" in s:
+            ns = re.sub(r",\s*hoist\s*=\s*[^,)]+", "", s)
+            if ns != s:
+                p.write_text(ns); n += 1; print(f"[patch] strip-hoist {p}")
+    print(f"[patch] strip-hoist applied to {n} file(s)")
+    if n == 0:
+        print("[patch][WARN] hoist 미수용인데 register_opaque_type(hoist=) 미발견 — 상류 변경 의심(P6 재검토)", file=sys.stderr)
+else:
+    print("[patch] strip-hoist skipped (register_opaque_type accepts hoist / opaque_object 부재)")
+PY
+
+# ═════════════════════════════════════════════════════════════════════════════
+# [소스 이식 패치] build_patches_src 모듈 — upstream-version-watch §4.7 확장 · 헌법 3+1+1
+#   `build_patches_src/<NN>-*.sh` 를 정렬 적용(**컴파일 전**). `build_patches/`(컴파일 후)와
+#   **위상이 다르다**:
+#     · build_patches_src/ = vLLM **소스** 패치(Python/C++ 공통). `_C` 재컴파일이 필요한
+#       csrc 변경을 담을 수 있는 유일한 슬롯이다.
+#     · build_patches/     = **빌드-바깥 native 의존** 설치(lib/커널). 컴파일 결과에 의존하므로 뒤.
+#   근거: 포크 전체를 핀하는 대신 필요한 변경만 이식하는 트랙(plan_26080218). arch-wall 사다리의
+#   `소스-repo 오버라이드(포크 핀)` 앞단에 `자체 이식` 칸을 두어, 포크 의존을 상시화하지 않는다.
+#   ⚠ 폴더 부재/비어있음은 **정상**(no-op) — stock 빌드 경로 불변. 단 COPY 대상이므로 디렉터리 자체는
+#     존재해야 한다(통로마다 `.gitkeep` 유지 — 2026-08-13 실증).
+#   패치 추가 = 파일 drop(이 스탠자 무수정). fail-loud.
+# ═════════════════════════════════════════════════════════════════════════════
+#   ★ 2026-08-14 신설 — SM12X_PORT 변종 게이트(plan_26081418 §4.2 B-2 · G-4).
+#     게이트가 없던 동안 이 스탠자는 **무조건**이었다: 이식 스크립트를 디렉터리에 놓는 순간
+#     이후 **모든** 빌드가 이식본이 되는데 이미지 태그는 그대로일 수 있었다 —
+#     "배선이 다른 이미지가 같은 이름을 갖는 것"(plan_26081410 §10.3.2.1)이자
+#     workflow.md 막힘 3분류의 **침묵 누락**이다. 이제 build-arg 가 명시적으로 켜야 한다.
+#     각 스크립트는 스스로도 `SM12X_PORT!=1 → exit 0` 으로 자기 게이트한다(이중 방어).
+#     기본값 0 = stock. 변종 좌표의 거처는 `.claude/policies/arch_variant_ledger.json`.
+ARG SM12X_PORT=0
+#   ★ 2026-08-15 신설 — SRC_DEPS_AUTHORITY 게이트(R3 포크 핀이 노출 · 기본 0 = off).
+#     **의미**: 켜면 *클론된 소스트리*가 자기 의존의 권위가 된다 — 위 L66-68 이 구운
+#     `/etc/pip/constraint.txt`(우리 stock requirements.txt 유래)의 `==` 핀 중
+#     **소스트리가 스스로 다른 값으로 핀한 것**을 양보시킨다.
+#     **왜 필요한가**: 포크/이식 트리는 자기 의존을 올려서 온다. 2026-08-15 실측 —
+#     PR#41834 head 는 stock v0.27.0 대비 **4종**을 올린다(flashinfer-python/cubin
+#     0.6.16.post3→0.6.17 · nvidia-cutlass-dsl 4.6.0→4.6.2 · quack-kernels 0.6.1→0.6.4 ·
+#     humming-kernels 0.1.10→0.1.12). 우리 constraint 가 그 4종을 옛 값으로 못박고 있어
+#     `pip install -e .` 가 ResolutionImpossible 로 죽는다. 게이트가 SM12X_PORT 하나뿐이면
+#     포크 핀 칸은 **켤 수도 끌 수도 없는 상태**가 된다(소스 이식은 불요, 의존 양보는 필요).
+#     ⚠ 양보는 `==` 핀에 한정한다 — KNOWN_INCOMPAT **천장**(`<`·`<=`·`!=`, 예 transformers<5.15.0)은
+#       시간드리프트 회귀 핀이라 그대로 남기고, 트리 핀이 천장을 넘으면 **fail-loud** 로 세운다.
+#     ⚠ 이미지 정체성의 일부다 — 멀티는 슬레이브까지 같은 값이 가야 한다(SLAVE_IMGVARS).
+ARG SRC_DEPS_AUTHORITY=0
+COPY build_patches_src/ /tmp/build_patches_src/
+RUN export SM12X_PORT="${SM12X_PORT}"; export SRC_DEPS_AUTHORITY="${SRC_DEPS_AUTHORITY}"; \
+    echo "[build-patch-src] SM12X_PORT=${SM12X_PORT} ($([ "${SM12X_PORT}" = "1" ] && echo '변종: 소스 이식 적용' || echo 'stock: 이식 스킵'))"; \
+    echo "[build-patch-src] SRC_DEPS_AUTHORITY=${SRC_DEPS_AUTHORITY:-0} ($([ "${SRC_DEPS_AUTHORITY}" = "1" ] && echo '소스트리가 자기 의존의 권위' || echo 'off: constraint 그대로'))"; \
+    for p in $(ls /tmp/build_patches_src/*.sh 2>/dev/null | sort); do echo "[build-patch-src] applying $p"; bash "$p" || exit 1; done
+
+# 포크 핀 빌드 대비 — setuptools_scm 버전 파싱 우회(빈 값이면 무동작 = stock 경로 불변).
+#   근거(2026-08-02 실측): 포크 @ 임의 SHA 빌드가 양 노드에서 동일하게 죽었다 —
+#     ValueError: Can't parse version from tag '<non-semver 포크 릴리즈 태그>'
+#   setuptools_scm 은 **가장 가까운 git 태그**에서 버전을 뽑는데, 포크 태그가 semver 가 아니면
+#   metadata 생성 단계에서 실패한다. SHA 를 아무리 정확히 핀해도 막힌다 → 포크 핀 트랙 전반의
+#   구조적 결함이므로 정본 템플릿에서 해소한다.
+#   ⚠ 빈 문자열이면 export 자체를 하지 않는다 — stock 빌드의 실제 버전 산출을 건드리지 않기 위함.
+ARG VLLM_PRETEND_VERSION=
+# 소스 컴파일: _C 를 NGC torch 에 맞춰 빌드 → ABI 벽 원천 해소. deps 는 pyproject 에서(torch 보호됨).
+RUN --mount=type=cache,target=/root/.ccache \
+    if [ -n "${VLLM_PRETEND_VERSION}" ]; then \
+        export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM="${VLLM_PRETEND_VERSION}"; \
+        export SETUPTOOLS_SCM_PRETEND_VERSION="${VLLM_PRETEND_VERSION}"; \
+        echo "[build] SETUPTOOLS_SCM_PRETEND_VERSION_FOR_VLLM=${VLLM_PRETEND_VERSION} (포크 태그 파싱 우회)"; \
+    fi; \
+    pip install --no-build-isolation -e .
+
+# ═════════════════════════════════════════════════════════════════════════════
+# [빌드-바깥 의존 패치] build_patches 모듈 — upstream-version-watch §4.7 · 헌법 3+1+1 따름정리.
+#   build_patches/<NN>-*.sh (컨텍스트 = 해당 토폴로지 통로 `output/<t>/` 상대) 를 정렬 적용
+#   (모델구동 native lib/커널 — 예 DeepGEMM=DeepSeek-V4 DSA).
+#   패치 추가 = 폴더에 파일 drop(이 스탠자 무수정 → Dockerfile bloat 차단). core(_C 컴파일) 뒤 = 캐시 보존. fail-loud.
+#   build_patches 는 output/<t>/ 통로에 격리(산출물 통로 불변식 — single/multi 혼재 차단). plan_2026062812_1.
+# ═════════════════════════════════════════════════════════════════════════════
+COPY build_patches/ /tmp/build_patches/
+RUN for p in $(ls /tmp/build_patches/*.sh 2>/dev/null | sort); do echo "[build-patch] applying $p"; bash "$p" || exit 1; done
+
+# ═════════════════════════════════════════════════════════════════════════════
+# [분산서빙 런타임 의존] — **토폴로지 조건부가 아니다**(IMAGE_TAG 에 토폴로지 축 없음 → 단일/멀티
+#   동일 이미지 공유). 코어 `_C` 컴파일·build_patches **뒤**에 둬서 컴파일 레이어 캐시를 보존한다.
+#   A) netcat: serve_runner.sh 의 slave 가 `nc` 로 Ray head 포트를 대기한다 → 부재 시 슬레이브 무한대기.
+#   B) ray   : 2노드 Ray 분산 서빙(`ray start`). vLLM 코어 dep 이 아니라 requirements 에 안 나온다 →
+#      명시 설치가 유일한 통로. 핀 2.48.0 = 멀티 0.22.1 검증치(상류 reqs 미선언, Phase0 재확인).
+#   단노드에선 미사용 패키지로 남을 뿐이며, 조건부화는 이미지 정체성을 갈라 VARIANT_IMAGE_BUILD_VS_SERVE_PLANE 위반이다.
+# ═════════════════════════════════════════════════════════════════════════════
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        iproute2 netcat-openbsd iputils-ping dnsutils \
+    && rm -rf /var/lib/apt/lists/*
+ARG RAY_VERSION=2.48.0
+RUN pip install ray==${RAY_VERSION}
+
+# CUDA bin 재노출: 위 ccache ENV 가 PATH 를 재정의하며 /usr/local/cuda/bin 을 떨어뜨린다 →
+#   런타임 nvcc 미발견(flashinfer 계열 JIT 의 has_flashinfer() 가 조용히 False 로 오판하는 근본).
+#   빌드는 CUDA_HOME 로 nvcc 를 찾으므로 위 컴파일 단계엔 영향이 없다 — 여기서 복원해도 캐시 무해.
+ENV PATH=/usr/local/cuda/bin:${PATH}
+
+# 빌드 검증(GPU 불요) — fail-loud. _C/import 는 libcuda.so.1(드라이버) 필요 → 빌드타임 불가
+# (GPU 미주입). 실제 _C 로드·서빙은 런타임(--gpus)에서 = 스모크가 최종 중재자.
+#   ⚠ nc/nvcc/ray 는 여기서 **명시 실패**시킨다. 2026-08-14 실증: 이 셋이 템플릿 교체로 유실됐는데
+#     빌드는 통과하고 서빙 단계에서야(슬레이브 무한대기·JIT 오판) 드러났다. 조용한 유실 재발 차단.
+RUN set -eu; \
+    python3 -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('vllm') else 1)" \
+      || { echo "[build][FAIL] vllm 패키지 미설치"; exit 1; }; \
+    command -v nc >/dev/null 2>&1 \
+      || { echo "[build][FAIL] nc 부재 — slave 가 Ray head 포트를 대기하지 못한다(netcat-openbsd)"; exit 1; }; \
+    command -v nvcc >/dev/null 2>&1 \
+      || { echo "[build][FAIL] nvcc 미발견 — PATH 에 /usr/local/cuda/bin 부재(런타임 JIT 불가)"; exit 1; }; \
+    python3 -c "import ray; print('[build] ray ' + ray.__version__)" \
+      || { echo "[build][FAIL] ray import 실패 — 분산 서빙 불가"; exit 1; }; \
+    echo "[build] verified: vllm/nc/nvcc/ray (런타임 _C 검증은 serve 단계)"
+
+WORKDIR /workspace
+EXPOSE 8000
+
+# 참고: gpt-oss harmony 오프라인 토크나이저(/encodings + TIKTOKEN_*)는 이미지에 굽지 않고
+#   서빙 단계(docker-compose + configs/<model>.sh)에서 마운트·주입한다(불편함-해소 .sh 레이어).
