@@ -363,6 +363,15 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
         #   서브였음을 상기하라). 위 세 ★ 주석이 예고한 "만들고 목록에 안 넣기" 재발을 같은
         #   편집에서 막는다.
         ("budget_renew_loop.sh", "budget_renew_loop.sh", 0o755),
+        # ★ 열·전력 포락선 축(하드락업 **예방**). 2026-08-23 추가(plan_26082319 §6.3).
+        #   위 네 ★ 주석이 예고한 "만들고 목록에 안 넣기" 재발을 이번에도 같은 편집에서 막는다 —
+        #   실제로 이번에도 **전파 단계에서야** 누락이 드러났다(구현 커밋 시점엔 빠져 있었다).
+        #   빠지면 서브에서 install_node_blackbox.sh 가 `install $SDIR/blackbox_thermal.py` 에서
+        #   죽고(전제 실패), verify 의 자체시험·배포본 신선도 검사도 통째로 FAIL 한다.
+        #   두 파일은 **한 쌍**이다: 엔진이 emit 한 상수를 핫루프가 source 하므로 한쪽만 가면
+        #   핫루프가 내장 기본값으로 조용히 돈다(= 상수 파일 부재와 같은 상태).
+        ("blackbox_thermal.py", "blackbox_thermal.py", 0o755),
+        ("thermal_watchdog.sh", "thermal_watchdog.sh", 0o755),
         # ── 의도적 **미배달** (2026-08-18 명시 · testlog_26081810 §8) ─────────────────
         #   `publish_install_request.py` 는 이 디렉터리에 있지만 **서브로 보내지 않는다**.
         #   그것은 L3 설치를 `docs/request/` 수행지시서로 발행하는 도구인데, 서브에는
@@ -532,7 +541,9 @@ def _self_test() -> int:
                        ".claude/runtime/node_blackbox/adversarial_stress.py",
                        ".claude/runtime/node_blackbox/regen_envelope.py",
                        ".claude/runtime/node_blackbox/node_identity.sh",
-                       ".claude/runtime/node_blackbox/budget_renew_loop.sh"]
+                       ".claude/runtime/node_blackbox/budget_renew_loop.sh",
+                       ".claude/runtime/node_blackbox/blackbox_thermal.py",
+                       ".claude/runtime/node_blackbox/thermal_watchdog.sh"]
         have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
         missing_art = [p for p in base_expect if not os.path.exists(os.path.join(out, p))]
         # docs 스켈레톤: docs.md 계약 5종(DOC_TYPES) 전부 렌더됐나(simlog·benchmark 누락 회귀 차단 — review)
