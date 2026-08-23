@@ -12,7 +12,7 @@
   ".claude/skills/terraforming_node/scripts/manifest_contract.py": "1812ced677fa43000e02d12738f3e1f41252aaa2bd52795fae1074548c39c683",
   ".claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh": "3c85aa587f1e9ffb861c0951c08d0c6a8dc550b1be4cdcb70c0ca5c34a601f12",
   ".claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh": "6c55ec879847eb2fbc0ac1f78fcc2fab507e585cd5cffbb6c96ea111e3a5f0d5",
-  ".claude/skills/terraforming_node/scripts/render_sub_env.py": "9483d84e0482cde4e46b0392e22b931734d2a56802060bc0e536aac1fb71bbe6",
+  ".claude/skills/terraforming_node/scripts/render_sub_env.py": "b0abecd308d5b0e9402c01b666d59e8e67c4f6534b3494f205d3cbd8406fb201",
   ".claude/skills/terraforming_node/scripts/scan_node.py": "960285887a89270911945e6e1b5d67ca07a84ad02e3176d3a07935587eb09ae2",
   ".claude/skills/upstream-version-watch/assets/configs/arm_patch.sh": "c787cc2598bf80b81c6164aa8192ebf9b53bbdeeea1eb04c6d772734920bdf74",
   ".claude/skills/upstream-version-watch/scripts/check_smoke_model.py": "64f1fe05c52d56524a511a466819ae0b6bd27201b52f10098528667ab7f12a8c",
