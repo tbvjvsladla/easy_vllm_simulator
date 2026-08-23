@@ -1039,6 +1039,48 @@ def cmd_verify(a: argparse.Namespace) -> int:
     return 0
 
 
+def _no_cert_binding_source(manifest: dict) -> "str | None":
+    """인증서가 없을 때 **무엇이 bench_report 바인딩을 여는가**의 단일 판정자.
+
+    인증서는 PASS 때만 발행된다(`publish_benchmark_record` — 그 규칙은 유지한다). 그래서 "인증서
+    부재"는 하나의 사실이 아니라 서로 다른 두 사실일 수 있다:
+
+      · `perf_waiver` — 성능 REFUTE 를 **사람이 서명**해 통과시킨 경로(positive key).
+      · `explore`     — 사용자 HITL 탐색 트리거로 루브릭 권한이 explore 인 런. 성능 판정이 게이트가
+                        아니라 **서술**이므로 REFUTE 여도 승격이 열린다(completion_gate U1).
+                        explore 는 waiver 를 요구하지 **않는다** — 요구하면 그 자동개방이 여기서
+                        다시 죽는다(2026-08-24 실측한 그 죽은 코드의 hint 평면 쌍둥이).
+
+    둘 다 아니면 None(=차단). 요구를 낮추는 것이 아니라 **바인딩 대상 문서가 다를 뿐**이며, lite
+    실측 자체는 어느 경로든 **항상 발행되는 bench_report** 에 실려 있다.
+
+    ★ 이 판정이 여러 곳에 각각 박히면 즉시 불일치가 난다(`_binding_artifact_path` 주석의 2026-08-01
+      실측: finalize 는 리포트로 묶었는데 verify 는 인증서와 대조해 FAIL). 그래서 발행 조건 검사
+      (`_require_serving_evidence`)와 바인딩 대상 선택(`_binding_artifact_path` → finalize footer ·
+      verify 대조)이 **모두 이 한 함수만** 본다.
+
+    explore 계약은 `completion_gate._manifest_rubric_contract` 를 **그대로 재사용한다**(포인터 원칙).
+    floor>0(공허 PASS 배제) ∧ ratio 유한 ∧ primary_source 실재 ∧ authority 값역 ∧ rubric_source
+    출처표시 — 이걸 여기서 손으로 다시 적으면 승격 게이트와 발행 게이트의 판정이 갈라진다.
+    """
+    if not isinstance(manifest, dict):
+        return None
+    benchmark = manifest.get("benchmark")
+    benchmark = benchmark if isinstance(benchmark, dict) else {}
+    if benchmark.get("perf_waiver"):
+        return "perf_waiver"
+    contract = getattr(_cgate(), "_manifest_rubric_contract", None)
+    if contract is None:
+        # fail-loud: 침묵 폴백(=조용히 차단)이면 "explore 인데 왜 막혔나"를 영원히 못 읽는다.
+        die("[hint_tag] FAIL(fail-closed): completion_gate.py 에 _manifest_rubric_contract 가 없다 "
+            "— explore 루브릭 권한 계약을 검증할 수 없어 인증서-부재 바인딩을 열지 않는다 "
+            "(동거 사본이 낡았을 수 있다: sync_to_sub 로 재배달하라).")
+    rubric = contract(benchmark)
+    if rubric.get("declared") and rubric.get("ok") and rubric.get("authority") == "explore":
+        return "explore"
+    return None
+
+
 def _require_serving_evidence(action: str, manifest: dict) -> None:
     """계약 v2 §3 — **발행 가능 시점**의 실질 검사. 이것이 §2 위협의 주 방어선이다.
 
@@ -1066,19 +1108,19 @@ def _require_serving_evidence(action: str, manifest: dict) -> None:
             problems.append("컨테이너가 oom_killed — 서빙 성공으로 볼 수 없다")
 
     # B: lite 정량지표. 통상은 인증서에서 읽는다.
-    #    ★ 단 **perf_waiver 경로(REFUTE)** 에서는 인증서가 애초에 존재할 수 없다 —
+    #    ★ 단 **인증서가 구조적으로 존재할 수 없는 두 경로**(perf_waiver · explore)가 있다 —
     #      publish_benchmark_record 가 PASS 때만 인증서를 내기 때문이다(그 규칙은 유지한다).
-    #      그러나 lite 실측 자체는 **항상 발행되는 bench_report** 에 실려 있으므로,
-    #      waiver 경로에서는 리포트를 B 의 근거로 삼는다. "증거가 없다"가 아니라
-    #      "증거가 다른 문서에 있다" 이므로 요구 강도를 낮추는 것이 아니다.
+    #      그러나 lite 실측 자체는 **항상 발행되는 bench_report** 에 실려 있으므로, 그 두 경로에서는
+    #      리포트를 B 의 근거로 삼는다. "증거가 없다"가 아니라 "증거가 다른 문서에 있다" 이므로
+    #      요구 강도를 낮추는 것이 아니다. 어느 경로가 열렸는지의 판정은
+    #      `_no_cert_binding_source` 단독 소유다(바인딩 대상과 발행 조건이 갈리지 않도록).
     ev = manifest.get("evidence") if isinstance(manifest.get("evidence"), dict) else {}
-    waiver = ((manifest.get("benchmark") or {}).get("perf_waiver")
-              if isinstance(manifest.get("benchmark"), dict) else None)
     cert_rel = (ev.get("certificate") or {}).get("path")
-    if not cert_rel and waiver:
+    no_cert_source = _no_cert_binding_source(manifest) if not cert_rel else None
+    if not cert_rel and no_cert_source:
         rep_rel = (ev.get("bench_report") or {}).get("path")
         if not rep_rel:
-            problems.append("perf_waiver 경로인데 evidence.bench_report 도 없다 — lite 근거 부재")
+            problems.append(f"{no_cert_source} 경로인데 evidence.bench_report 도 없다 — lite 근거 부재")
         else:
             rep_path = (ROOT / "docs" / "_evidence" / rep_rel).resolve()
             try:
@@ -1092,7 +1134,8 @@ def _require_serving_evidence(action: str, manifest: dict) -> None:
                 if not re.search(r"gen tokens/sec[^|]*\|\s*[0-9]", rtext):
                     problems.append("bench_report 의 lite warm gen 실측값 부재")
     elif not cert_rel:
-        problems.append("evidence.certificate 부재 — lite 정량지표를 확인할 수 없다")
+        problems.append("evidence.certificate 부재 — lite 정량지표를 확인할 수 없다"
+                        "(인증서-부재 바인딩을 여는 perf_waiver·explore 어느 쪽도 성립하지 않았다)")
     else:
         cert_path = (ROOT / "docs" / "_evidence" / cert_rel).resolve()
         try:
@@ -1118,9 +1161,10 @@ def _require_serving_evidence(action: str, manifest: dict) -> None:
 def _binding_artifact_path(manifest: dict) -> "str | None":
     """footer 가 해시로 묶을 **계측 산출물 경로**의 단일 소유자.
 
-    통상은 인증서다. 단 perf_waiver(성능 REFUTE 사람승인) 경로에는 인증서가 애초에 존재할 수
-    없으므로(publish_benchmark_record 가 PASS 때만 발행 — 그 규칙은 유지) **항상 발행되는
+    통상은 인증서다. 단 인증서가 애초에 존재할 수 없는 경로가 둘 있고(perf_waiver · explore —
+    publish_benchmark_record 가 PASS 때만 발행하며 그 규칙은 유지) 그때는 **항상 발행되는
     bench_report** 를 바인딩 대상으로 삼는다. 요구를 낮추는 게 아니라 대상 문서가 다를 뿐이다.
+    어느 경로가 열렸는지는 `_no_cert_binding_source` 가 단독으로 판정한다.
 
     ★ 이 판정이 finalize·verify 두 곳에 **각각 박혀 있어** 한쪽만 고치면 즉시 불일치가 난다
       (2026-08-01 실측: finalize 는 리포트로 묶었는데 verify 는 인증서와 비교해 FAIL).
@@ -1132,9 +1176,7 @@ def _binding_artifact_path(manifest: dict) -> "str | None":
     path = cert.get("path") if isinstance(cert, dict) else None
     if path:
         return path
-    waiver = ((manifest.get("benchmark") or {}).get("perf_waiver")
-              if isinstance(manifest, dict) and isinstance(manifest.get("benchmark"), dict) else None)
-    if waiver:
+    if _no_cert_binding_source(manifest):
         rep = ev.get("bench_report")
         return rep.get("path") if isinstance(rep, dict) else None
     return None
