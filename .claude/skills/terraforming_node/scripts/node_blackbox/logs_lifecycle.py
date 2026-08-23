@@ -105,12 +105,25 @@ def build_rollup(csv_path, day):
     if not all(k in idx for k in need):
         return None
 
-    mem, falling, temp, pwr, n = [], [], [], [], 0
+    # ★ `soc_temp` 는 `need` 에 넣지 않는다(plan_26082319 §5.3 · 2026-08-23). 옛 스키마 파일과
+    #   확장 이전 날짜에는 그 열이 **없으며**, 필수로 두면 과거 rollup 이 통째로 None 이 된다
+    #   (= 있는 데이터를 버린다). 부재는 아래에서 열별로 정직하게 None 으로 남긴다.
+    #
+    #   ★ SoC 열을 rollup 에 **반드시** 넣어야 하는 이유: 원시 samples 는 30 일 뒤 삭제되지만
+    #     rollup 은 영구다(docs.md §기계판독 데이터 평면). 열·전력 워치독의 SoC 임계는 현재
+    #     **미교정**(외부 보고 역산)이고, 그 교정 입력이 바로 이 통계다. rollup 에 안 실으면
+    #     "실측으로 교정한다"는 계획이 데이터가 없어 **영원히 불가능**해진다.
+    mem, falling, temp, pwr, soc, n = [], [], [], [], [], 0
+    has_soc = "soc_temp" in idx
     for line in lines[1:]:
         parts = line.split(",")
         if len(parts) < len(header):
             continue
         n += 1
+        if has_soc and idx["soc_temp"] < len(parts):
+            sc = _num(parts[idx["soc_temp"]])
+            if sc is not None:
+                soc.append(sc)
         v = _num(parts[idx["mem_avail"]])
         if v is not None:
             mem.append(v)
@@ -133,6 +146,12 @@ def build_rollup(csv_path, day):
                                "max": max(falling) if falling else None},
         "gpu_temp_c": {"p50": _pct(temp, 0.50), "max": max(temp) if temp else None},
         "gpu_power_w": {"p50": _pct(pwr, 0.50), "max": max(pwr) if pwr else None},
+        # p95/p99 를 함께 낸다 -- 지속성 트립의 교정에는 중앙값·최대값보다 **꼬리**가 쓰인다
+        # (최대값은 1 초 버스트로도 찍히고, 중앙값은 유휴에 눌린다).
+        "soc_temp_c": {"samples": len(soc), "p50": _pct(soc, 0.50), "p95": _pct(soc, 0.95),
+                       "p99": _pct(soc, 0.99), "max": max(soc) if soc else None,
+                       # 열이 아예 없었는지(부재) 값이 안 잡혔는지(결측)를 가른다.
+                       "column_present": has_soc},
     }
 
 
@@ -251,13 +270,22 @@ def _self_test():
     checks = []
     now = parse_now("2026-07-31T00:00:00Z")
 
-    def mkday(sdir, day, rows=5, mem0=117000):
+    def mkday(sdir, day, rows=5, mem0=117000, soc=None):
+        """soc=None 이면 **옛 스키마**(SoC 열 없음) — 확장 이전 날짜의 회귀 고정용."""
         os.makedirs(sdir, exist_ok=True)
         p = os.path.join(sdir, "%s.csv" % day)
         with open(p, "w", encoding="utf-8") as fh:
-            fh.write("ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n\n")
-            for i in range(rows):
-                fh.write("%d,%d,%d,49,4.8,208,0,,0.3,1\n" % (1785 + i, mem0 - i * 100, 100))
+            if soc is None:
+                fh.write("ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,"
+                         "load1,ctr_n\n")
+                for i in range(rows):
+                    fh.write("%d,%d,%d,49,4.8,208,0,,0.3,1\n" % (1785 + i, mem0 - i * 100, 100))
+            else:
+                fh.write("ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,"
+                         "load1,ctr_n,soc_temp,soc_zone\n")
+                for i in range(rows):
+                    fh.write("%d,%d,%d,49,4.8,208,0,,0.3,1,%d,5\n"
+                             % (1785 + i, mem0 - i * 100, 100, soc[i % len(soc)]))
         return p
 
     with tempfile.TemporaryDirectory() as td:
@@ -277,6 +305,29 @@ def _self_test():
                        any(c["day"] == "2026-07-20" for c in plan["compressed"])))
         checks.append(("1일 전은 압축 아님",
                        not any(c["day"] == "2026-07-30" for c in plan["compressed"])))
+
+        # ── SoC 열 rollup (plan_26082319 §5.3) ────────────────────────────
+        #   원시 samples 는 30 일 뒤 삭제되고 rollup 은 영구다. SoC 임계는 아직 **미교정**이고
+        #   그 교정 입력이 이 통계이므로, 여기 안 실리면 교정이 영원히 불가능해진다.
+        sd2 = os.path.join(td, "spark-soc", "samples")
+        mkday(sd2, "2026-07-30", rows=10, soc=[46, 47, 91, 92, 93, 47, 46, 46, 47, 95])
+        r_soc = build_rollup(os.path.join(sd2, "2026-07-30.csv"), "2026-07-30")
+        checks.append(("SoC 열 rollup: 열 존재 표기",
+                       r_soc["soc_temp_c"]["column_present"] is True))
+        checks.append(("SoC 열 rollup: 최대값", r_soc["soc_temp_c"]["max"] == 95))
+        checks.append(("SoC 열 rollup: 표본수", r_soc["soc_temp_c"]["samples"] == 10))
+        checks.append(("SoC 열 rollup: 꼬리 분위(교정 입력)",
+                       r_soc["soc_temp_c"]["p95"] is not None
+                       and r_soc["soc_temp_c"]["p99"] is not None))
+        # 옛 스키마: 부재를 결측으로 위장하지 않는다(그리고 나머지 통계는 살아 있어야 한다)
+        r_old = build_rollup(os.path.join(sd, "2026-07-30.csv"), "2026-07-30")
+        checks.append(("옛 스키마: SoC 열 부재를 정직 표기",
+                       r_old["soc_temp_c"]["column_present"] is False
+                       and r_old["soc_temp_c"]["max"] is None
+                       and r_old["soc_temp_c"]["samples"] == 0))
+        checks.append(("옛 스키마: SoC 부재가 기존 통계를 버리지 않는다(회귀 고정)",
+                       r_old["gpu_power_w"]["max"] is not None
+                       and r_old["mem_avail_mib"]["min"] is not None))
 
         res = enforce(nd, now, apply=True)
         checks.append(("rollup 파일 생성",

@@ -8,7 +8,8 @@
 #     활성화만 --level 로 고른다. 나중에 마음이 바뀌어도 재배달이 필요 없다.
 #
 #   레벨(재부팅 필요 여부가 자연 경계):
-#     L1  무재부팅        수집기 · ETA 워치독 · 이벤트 통합 · 수명 집행 · drop-caches · earlyoom
+#     L1  무재부팅        수집기 · ETA 워치독 · **열·전력 워치독** · 이벤트 통합 · 수명 집행 ·
+#                         drop-caches · earlyoom
 #     L2  무재부팅·peer   netconsole 교차 스트리밍 (multi 전용 — single 은 N/A 로 정직 기록)
 #     L3  재부팅 1회      사후 포착 = efi_pstore 확보 (crashkernel·ramoops **제거**)
 #
@@ -188,6 +189,10 @@ run install -m 0755 "$SDIR/blackbox_events.py"   "$BIN/easy-vllm-bb-events"
 run install -m 0755 "$SDIR/logs_lifecycle.py"    "$BIN/easy-vllm-bb-lifecycle"
 run install -m 0755 "$SDIR/regen_envelope.py"   "$BIN/easy-vllm-bb-regen-envelope"
 run install -m 0755 "$SDIR/mem_watchdog_eta.sh" "$BIN/easy-vllm-bb-watchdog"
+# 열·전력 포락선 축(plan_26082319 §6.3 · 2026-08-23). RAM 축과 **별개 평면**이라 파일도 유닛도
+# 상수도 따로 둔다 — 한쪽 재emit 이 다른 쪽 판정 규칙을 조용히 갈아끼우지 않게.
+run install -m 0755 "$SDIR/blackbox_thermal.py"  "$BIN/easy-vllm-bb-thermal"
+run install -m 0755 "$SDIR/thermal_watchdog.sh"  "$BIN/easy-vllm-bb-tp-watchdog"
 run install -m 0755 "$DROP_HELPER" "$BIN/vllm-drop-caches"
 
 # ★ **환류 배선**(plan_26081415 C2-4). 예전엔 `--node-dir` 없이 호출해 envelope 의 eta_params 가
@@ -201,6 +206,18 @@ if [ "$APPLY" = 1 ]; then
   else
     say "   ✗ ETA 파라미터 거부(하한 가드 또는 envelope 키 불일치) — 설치 중단"
     say "     키 불일치면: $BIN/easy-vllm-bb-regen-envelope --node-dir $NODE_DIR regen --now <ISO>"
+    exit 2
+  fi
+fi
+
+# 열·전력 상수도 **같은 자리에서** 생성한다. 여기서 안 만들면 핫루프가 내장 기본값으로 돌고,
+# 그 사실이 로그 한 줄(`params=defaults(내장)`)로만 남아 사실상 보이지 않는다.
+say "   열·전력 상수 생성 → $ETC/thermal_params.env (하한 가드 통과 시에만 기록)"
+if [ "$APPLY" = 1 ]; then
+  if python3 "$SDIR/blackbox_thermal.py" --emit-params "$ETC/thermal_params.env"; then
+    say "   ✓ thermal_params.env"
+  else
+    say "   ✗ 열·전력 파라미터 거부(하한 가드) — 설치 중단"
     exit 2
   fi
 fi
@@ -231,6 +248,27 @@ Type=simple
 Environment=BB_PARAMS=$ETC/eta_params.env
 Environment=BB_EVENTS=$NODE_DIR/events/watchdog.jsonl
 ExecStart=$BIN/easy-vllm-bb-watchdog @vllm 1
+Restart=always
+RestartSec=5
+Nice=-10
+OOMScoreAdjust=-500
+[Install]
+WantedBy=multi-user.target
+EOF
+  # 열·전력 포락선 워치독. **수집기 뒤에 세운다** — GPU 전력을 수집기 CSV 꼬리에서 읽기 때문이다
+  # (SoC 열은 sysfs 직접이라 수집기와 무관하게 산다). 수집기가 죽으면 전력 축은 stale 로 외치고
+  # 버킷을 동결한다 — 조용히 '안전'으로 넘어가지 않는다.
+  cat > /etc/systemd/system/easy-vllm-blackbox-thermal.service <<EOF
+[Unit]
+Description=easy-vllm node blackbox: thermal/power envelope watchdog (hard-lockup prevention)
+After=docker.service easy-vllm-blackbox-collect.service
+Wants=docker.service easy-vllm-blackbox-collect.service
+[Service]
+Type=simple
+Environment=BB_TP_PARAMS=$ETC/thermal_params.env
+Environment=BB_TP_NODE_DIR=$NODE_DIR
+Environment=BB_TP_EVENTS=$NODE_DIR/events/thermal.jsonl
+ExecStart=$BIN/easy-vllm-bb-tp-watchdog @vllm 1
 Restart=always
 RestartSec=5
 Nice=-10
@@ -280,13 +318,14 @@ RandomizedDelaySec=30min
 WantedBy=timers.target
 EOF
 }
-say "   systemd 유닛 5종 배치(collect·watchdog·events.timer·lifecycle.timer)"
+say "   systemd 유닛 6종 배치(collect·watchdog·thermal·events.timer·lifecycle.timer)"
 if [ "$APPLY" = 1 ]; then write_units; else echo "            (dry-run) write_units"; fi
 
 # ── L1: 무재부팅 계층 활성화 ─────────────────────────────────────────────
-say "L1. 수집기·ETA 워치독·이벤트·수명 활성화 + sudoers + earlyoom"
+say "L1. 수집기·ETA 워치독·열전력 워치독·이벤트·수명 활성화 + sudoers + earlyoom"
 run systemctl daemon-reload
 for u in easy-vllm-blackbox-collect.service easy-vllm-blackbox-watchdog.service \
+         easy-vllm-blackbox-thermal.service \
          easy-vllm-blackbox-events.timer easy-vllm-blackbox-lifecycle.timer; do
   run systemctl enable --now "$u"
 done
@@ -294,7 +333,8 @@ done
 #   갈아끼워도 옛 프로세스가 옛 코드로 계속 돌아 "배포했는데 반영이 안 되는" 침묵 실패가 된다.
 #   try-restart 는 활성 유닛만 재시작하므로(비활성은 no-op) 위 enable 과 안전하게 겹친다.
 #   (2026-08-01 선언된-바닥 배포 때 현실화 — testlog_26073123)
-for u in easy-vllm-blackbox-collect.service easy-vllm-blackbox-watchdog.service; do
+for u in easy-vllm-blackbox-collect.service easy-vllm-blackbox-watchdog.service \
+         easy-vllm-blackbox-thermal.service; do
   run systemctl try-restart "$u"
 done
 
