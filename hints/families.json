@@ -34,8 +34,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "draft-external",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "exaone-4.5-33b": {
@@ -51,8 +50,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "gemma-3-1b-it": {
@@ -84,8 +82,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "gemma-4-12b": {
@@ -117,8 +114,7 @@
       "root_repo": "google/gemma-4-26B-A4B",
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "gemma-4-31b": {
@@ -134,8 +130,7 @@
       "root_repo": "google/gemma-4-31B",
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "gemma-4-e2b": {
@@ -160,17 +155,25 @@
       "root_repo": "google/gemma-4-E2B",
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "gemma-4-e4b": {
       "members": [
         {
           "evidence": "card base_model=google/gemma-4-E4B",
-          "relation": "variant",
+          "note": "철자 갈림(정규화 시 동일): gemma-4-E4B-it ↔ gemma-4-e4b-it",
+          "relation": "alias",
           "repo": "gemma-4-e4b-it",
           "slug": "gemma-4-E4B-it",
+          "source": "name_prefix"
+        },
+        {
+          "evidence": "card base_model=google/gemma-4-E4B",
+          "note": "철자 갈림(정규화 시 동일): gemma-4-E4B-it ↔ gemma-4-e4b-it",
+          "relation": "alias",
+          "repo": "gemma-4-e4b-it",
+          "slug": "gemma-4-e4b-it",
           "source": "name_prefix"
         }
       ],
@@ -209,8 +212,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "hy3": {
@@ -226,8 +228,7 @@
       "root_repo": "tencent/Hy3",
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "hyperclovax-think-32b": {
@@ -243,8 +244,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "laguna-s-2.1": {
@@ -267,8 +267,7 @@
       "root_repo": "poolside/Laguna-S-2.1",
       "sd_capability": {
         "draft_slug": null,
-        "mode": "draft-external",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "lfm2-8b-a1b": {
@@ -291,9 +290,18 @@
       "members": [
         {
           "evidence": "card base_model=LiquidAI/LFM2.5-2.6B-Base",
-          "relation": "variant",
+          "note": "철자 갈림(정규화 시 동일): LFM2.5-2.6B ↔ lfm2.5-2.6b",
+          "relation": "alias",
           "repo": "lfm2.5-2.6b",
           "slug": "LFM2.5-2.6B",
+          "source": "name_prefix"
+        },
+        {
+          "evidence": "card base_model=LiquidAI/LFM2.5-2.6B-Base",
+          "note": "철자 갈림(정규화 시 동일): LFM2.5-2.6B ↔ lfm2.5-2.6b",
+          "relation": "alias",
+          "repo": "lfm2.5-2.6b",
+          "slug": "lfm2.5-2.6b",
           "source": "name_prefix"
         }
       ],
@@ -332,8 +340,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "ministral-3-8b-base-2512": {
@@ -349,8 +356,7 @@
       "root_repo": "mistralai/Ministral-3-8B-Base-2512",
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "mistral-small-4-119b": {
@@ -366,8 +372,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "nemotron-3-super-120b-a12b-nvfp4": {
@@ -383,8 +388,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "olmo-3.1-32b": {
@@ -407,9 +411,18 @@
       "members": [
         {
           "evidence": "card base_model=Qwen/Qwen3-4B-Base",
-          "relation": "variant",
+          "note": "철자 갈림(정규화 시 동일): Qwen3-4B ↔ qwen3-4b",
+          "relation": "alias",
           "repo": "qwen3-4b",
           "slug": "Qwen3-4B",
+          "source": "name_prefix"
+        },
+        {
+          "evidence": "card base_model=Qwen/Qwen3-4B-Base",
+          "note": "철자 갈림(정규화 시 동일): Qwen3-4B ↔ qwen3-4b",
+          "relation": "alias",
+          "repo": "qwen3-4b",
+          "slug": "qwen3-4b",
           "source": "name_prefix"
         }
       ],
@@ -441,8 +454,7 @@
       "root_repo": "Qwen/Qwen3.5-122B-A10B",
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "qwen3.6-27b": {
@@ -458,8 +470,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
       }
     },
     "qwen3.6-35b-a3b": {
@@ -475,8 +486,23 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "mtp-internal",
-        "source": "tag_body_scan"
+        "mode": "unknown"
+      }
+    },
+    "qwen3.8-27b": {
+      "members": [
+        {
+          "evidence": "",
+          "relation": "root",
+          "repo": "qwen3.8-27b",
+          "slug": "qwen3.8-27b",
+          "source": "manual"
+        }
+      ],
+      "root_repo": null,
+      "sd_capability": {
+        "draft_slug": null,
+        "mode": "unknown"
       }
     },
     "solar-open2-250b": {
