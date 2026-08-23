@@ -281,6 +281,54 @@
       ],
       "description": "Echo of the input manifest's identity block, for downstream consumers that only read the gate's output."
     },
+    "rubric": {
+      "description": "승격 판정에 실제로 쓰인 루브릭 사실과 **그 출처**(헌법 §결정론 규율 출처 표시). authority_source='certificate' = PASS 런의 인증서 아티팩트에서 파싱 · 'manifest_benchmark' = REFUTE 런처럼 인증서가 구조적으로 없을 때 manifest.benchmark 가 나른 판정기 산출물 파생분(plan_26082405) · null = 어느 carrier 도 rubric 을 선언하지 않음. contract_ok 는 두 carrier 모두 같은 계약(floor>0 ∧ ratio 유한 ∧ primary_source 실재 ∧ authority 값역)을 통과했는지이며, explore 자동개방(U1)의 전제다.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "authority": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "authority_source": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "certificate",
+            "manifest_benchmark",
+            null
+          ]
+        },
+        "contract_ok": {
+          "type": "boolean"
+        },
+        "floor_tps": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "ratio_M_over_primary": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "primary_source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
     "certificate": {
       "description": "Present only when evidence.certificate was declared and its path resolved to a real regular file; carries what was actually parsed from the flat-YAML artifact on disk (never the manifest's own claims -- there are none, evidence.certificate has no identity sub-object per work-manifest.schema.json). null when no certificate evidence was checked.",
       "type": [

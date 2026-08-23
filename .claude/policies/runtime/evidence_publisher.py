@@ -1190,6 +1190,68 @@ def _remove_prior_certificate(repo_root: Path, prior_rel_path: str) -> None:
         os.close(dir_fd)
 
 
+# ---- rubric carrier for non-PASS runs (plan_26082405) ----------------------------------------
+# 인증서는 PASS 때만 발행되므로 REFUTE 런의 루브릭 사실(어느 권한에서 쟀나 · 문턱은 얼마였나)은
+# 인증서를 통해 승격 판정기에 **도달할 수 없다** — 그래서 completion_gate 의 explore 자동개방이
+# REFUTE 에서 죽은 코드였다. 여기서 판정기 산출물(verdict_rule.py JSON)을 직접 읽어 record 의
+# benchmark 오브젝트에 싣는다. finalize 가 그 오브젝트를 그대로 work-manifest 로 옮기므로,
+# certificate 가 null 이어도 authority 는 살아있는 채널로 게이트에 도달한다.
+# ★ 값을 **만들지 않는다** — 판정기가 계산한 것을 옮길 뿐이고, 출처는 rubric_source 로 표시한다.
+RUBRIC_RECORD_FIELDS = ("rubric_authority", "floor_tps", "ratio_M_over_primary",
+                        "primary_source", "rubric_source")
+
+
+def _rubric_from_verdict_json(repo_root: Path, verdict_json_src: str, cli_verdict: str,
+                              error_prefix: str) -> dict:
+    """verdict_rule.py 산출물에서 rubric 사실을 파생한다(합성 ✗ · fail-closed).
+
+    거부(exit 2)하는 것은 **모순**뿐이다 — 파싱 불가, 또는 산출물의 verdict 가 --verdict 와
+    다름(인증서의 `_VERDICT_MISMATCH` 와 같은 규율: 서로 어긋나는 아티팩트를 발행하지 않는다),
+    또는 authority 가 값역 밖. 반면 rubric 수치의 **결측은 거부하지 않는다** — 판정기가 루브릭을
+    못 세운 런(NEEDS_RUBRIC 계열)이 실제로 존재하고, 그 사실은 null 로 정직하게 기록되어
+    승격 판정기에서 fail-closed 로 막히는 것이 옳다(여기서 막으면 리포트 발행까지 함께 죽는다).
+    """
+    content_bytes, _sha = _resolve_src(repo_root, verdict_json_src, error_prefix)
+    try:
+        doc = json.loads(content_bytes.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        _emit(_bare_error(f"{error_prefix}_UNPARSEABLE",
+                          f"--verdict-json-src {verdict_json_src!r} is not parseable JSON: {e} -- "
+                          f"refusing to derive rubric facts from an unreadable artifact"), 2)
+    if not isinstance(doc, dict):
+        _emit(_bare_error(f"{error_prefix}_WRONG_SHAPE",
+                          f"--verdict-json-src {verdict_json_src!r} must contain a JSON object, "
+                          f"got {type(doc).__name__}"), 2)
+    doc_verdict = doc.get("verdict")
+    if doc_verdict != cli_verdict:
+        _emit(_bare_error(f"{error_prefix}_VERDICT_MISMATCH",
+                          f"verdict JSON says verdict={doc_verdict!r} but --verdict={cli_verdict!r} "
+                          f"-- refusing to record rubric facts from a contradictory artifact"), 2)
+    rub = doc.get("rubric")
+    rub = rub if isinstance(rub, dict) else {}
+    raw_authority = rub.get("authority")
+    authority = raw_authority.strip() if isinstance(raw_authority, str) else None
+    if authority and authority not in gate.RUBRIC_AUTHORITIES:
+        _emit(_bare_error(f"{error_prefix}_AUTHORITY_UNKNOWN",
+                          f"verdict JSON rubric.authority={raw_authority!r} is not one of "
+                          f"{list(gate.RUBRIC_AUTHORITIES)} -- fail closed rather than record an "
+                          f"authority no consumer can reason about"), 2)
+
+    def _number(value):
+        return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+    primary_source = rub.get("source")
+    primary_source = primary_source.strip() if isinstance(primary_source, str) else None
+    return {
+        "rubric_authority": authority or None,
+        "floor_tps": _number(rub.get("floor")),
+        "ratio_M_over_primary": _number(rub.get("ratio_M_over_primary")),
+        "primary_source": primary_source or None,
+        # 출처 표시(헌법 §결정론 규율): 이 네 값이 판정기 산출물 파생분임을 데이터가 스스로 밝힌다.
+        "rubric_source": "verdict_json",
+    }
+
+
 def cmd_publish_benchmark(args: argparse.Namespace) -> None:
     repo_root = _resolve_repo_root(args.repo_root)
     _validate_topic_or_die(args.topic)
@@ -1221,6 +1283,10 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
     # before this command ran: no orphan new report, no report/record contradiction.
     # =========================================================================
     report_bytes, _sha = _resolve_src(repo_root, args.bench_report_src, report_error_prefix)
+    rubric_record = {field: None for field in RUBRIC_RECORD_FIELDS}
+    if args.verdict_json_src:
+        rubric_record = _rubric_from_verdict_json(
+            repo_root, args.verdict_json_src, args.verdict, "PUBLISH_BENCHMARK_VERDICT_JSON")
     _plan_dated_kind_destination(
         repo_root, "bench_report", meta, args.generated_utc, "md",
         scaffolded_before.get("bench_report"), report_error_prefix,
@@ -1299,7 +1365,9 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
         scaffolded["certificate"] = certificate_rel
         pending_certificate = False
 
-    record["benchmark"] = {"mode": "full", "verdict": args.verdict}
+    # rubric 은 mode/verdict 와 **같은 커밋**에 실린다 — 갈라지면 finalize 가 나르는 오브젝트가
+    # 이 발행의 verdict 와 다른 런의 루브릭을 섞어 담을 수 있다(carrier 불일치 = 이 결함 계열).
+    record["benchmark"] = {"mode": "full", "verdict": args.verdict, **rubric_record}
     # Keep the persisted producer-derived contract canonical in the same commit as the verdict.
     # Otherwise an init-without-verdict -> publish PASS transition would add certificate to the
     # required matrix semantically while leaving required_evidence stale, making the next load
@@ -1317,6 +1385,7 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
         "publication_id": args.topic, "verdict": args.verdict,
         "bench_report_path": bench_report_rel, "certificate_path": certificate_rel,
         "pending_certificate": pending_certificate,
+        "rubric": dict(rubric_record),
     }, 0)
 
 
@@ -1525,6 +1594,11 @@ def cmd_init(args: argparse.Namespace) -> None:
         "mode": args.benchmark_mode if args.benchmark_mode is not None else prior_benchmark.get("mode"),
         "verdict": verdict if args.benchmark_verdict is not None else prior_benchmark.get("verdict"),
     }
+    # 이미 publish-benchmark 가 실어둔 rubric(판정기 파생분)은 re-init 이 말없이 떨어뜨리면 안 된다 --
+    # 그 침묵 손실이 곧 이 결함 계열(통로 끊김)이다. init 은 rubric 을 **만들지 않고** 보존만 한다.
+    for field in RUBRIC_RECORD_FIELDS:
+        if prior_benchmark.get(field) is not None:
+            benchmark[field] = prior_benchmark[field]
     record = {
         "schema_version": SCHEMA_VERSION,
         "publication_id": args.topic,
@@ -1627,6 +1701,11 @@ def _build_parser() -> _PublisherArgumentParser:
     p_bench.add_argument("--generated-utc", required=True)
     p_bench.add_argument("--bench-report-src", required=True)
     p_bench.add_argument("--certificate-src")
+    p_bench.add_argument("--verdict-json-src",
+                         help="verdict_rule.py 산출물(JSON, repo-relative). rubric authority/floor/"
+                              "ratio/primary_source 를 record.benchmark 로 옮겨 REFUTE 런에서도 "
+                              "승격 판정기가 루브릭 권한을 읽게 한다(인증서는 PASS 전용이라 "
+                              "REFUTE 의 carrier 가 못 된다 — plan_26082405).")
     p_bench.set_defaults(func=cmd_publish_benchmark)
 
     p_fin = sub.add_parser("finalize", help="build a work-manifest from the publication record and delegate to completion_gate.py verify")

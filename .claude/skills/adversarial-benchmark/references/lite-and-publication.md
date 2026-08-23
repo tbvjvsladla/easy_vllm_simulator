@@ -57,6 +57,17 @@
   **legacy 인증서(필드 부재)는 관용**한다(값역 검사만 — 스키마가 늘었다고 기존 판정을 뒤집지 않는다).
   같은 판정기가 `floor_tps > 0` ∧ `ratio_M_over_primary` 실수 ∧ `primary_source` 실재를 **fail-closed** 로
   요구한다 — 손저작·개조·stale 인증서의 공허 PASS 승격을 이중으로 막는다.
+- **승격 carrier(REFUTE 런 필수 · 2026-08-24 · `plan_26082405`)** — 인증서는 PASS 전용이므로 **REFUTE 런의
+  루브릭 권한은 인증서로 게이트에 도달할 수 없다**. 그래서 증거 발행 시 판정기 산출물을 함께 넘긴다:
+  `evidence_publisher.py publish-benchmark … --verdict-json-src <verdict.json>`.
+  그러면 `rubric_authority`·`floor_tps`·`ratio_M_over_primary`·`primary_source` 가 출처 표시
+  (`rubric_source: verdict_json`)와 함께 work-manifest 의 `benchmark` 오브젝트에 실리고,
+  `completion_gate.py` 가 인증서 부재 시 이 채널을 fallback 으로 읽는다.
+  **이 플래그를 빠뜨리면 explore-REFUTE 는 종전대로 `BENCHMARK_VERDICT_NOT_PASS` 로 막히고
+  사람 `perf_waiver` 서명을 강요한다** — 값이 없어서가 아니라 통로를 안 열어서다(2026-08-24 실측 결함:
+  bench report 는 "루브릭 권한 = explore" 를 적고 있는데 게이트는 못 봤다).
+  계약은 인증서와 **동일**하다(`floor>0` ∧ `ratio` 유한 ∧ `primary_source` 실재) — 완화가 아니라 carrier
+  교체이며, `weak`/`explicit` REFUTE 는 여전히 `perf_waiver` 없이는 열리지 않는다.
 - **비용 규율**: 재탐색 루프 **내부는 값싼 단일점 판정** 유지 · 스윕·리치리포트는 **종결 1회**만. 오케스트레이션은
   **에이전트 매개**(스킬↔스킬 직접호출 ✗). **done-게이트는 여전히 verdict 독점** · lite 는 발행 안 함(채팅 표만).
 - 발행 경로·명명 SSOT = `.claude/skills/wiki-desk/scripts/doc_naming.py`(generated_utc→KST) · 증거 계약은 `.claude/policies/runtime/completion_gate.py` 가 판정.

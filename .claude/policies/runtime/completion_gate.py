@@ -899,6 +899,93 @@ STRONG_IDENTITY_FIELDS = ("model", "gpu", "vllm", "quant", "topology", "tp")
 # 칸)에 기대지 않고 이 두 수치만으로 배제된다 -- source 는 표면화만 한다.
 RUBRIC_AUTHORITIES = ("weak", "explicit", "explore")
 
+# ---- manifest-carried rubric contract (plan_26082405) ----------------------------------------
+# 인증서는 **PASS 때만** 발행된다(publish_benchmark_record.py — 그 규칙은 유지한다). 그래서 REFUTE
+# 런에는 인증서가 없고, 인증서에서만 읽던 rubric_authority 는 REFUTE 에서 영원히 None 이었다 —
+# 아래 explore 자동개방 경로(U1)가 **죽은 코드**였다(2026-08-24 실측: bench report 는 판정기 산출대로
+# "루브릭 권한 = explore" 를 적는데 게이트 입력으로 전파되지 않음 = 출처는 있는데 통로가 끊긴 침묵 누락).
+# 처방은 조건 완화가 아니라 **carrier 교체**다: REFUTE 에서도 살아있는 채널(manifest.benchmark)이
+# 같은 사실을 나른다. 계약은 인증서와 **글자 그대로 동일**하다 —
+#   floor 유한 양수(공허 PASS 배제 불변) ∧ ratio 유한 ∧ primary_source 실재 ∧ authority 값역.
+# 여기에 하나가 더 붙는다: **출처 표시**(`rubric_source`). 인증서는 그 자체가 결정론 발행기의
+# 산출물이라 출처가 아티팩트로 증명되지만, manifest 는 사람도 쓸 수 있는 평면이다. 출처 표시가
+# 없으면 손저작 값과 판정기 파생분이 데이터에서 구분되지 않아 `합성 금지`가 집행 불가가 된다.
+MANIFEST_RUBRIC_SOURCES = ("verdict_json",)
+
+
+def _manifest_rubric_contract(benchmark) -> dict:
+    """manifest.benchmark 가 나른 rubric 사실을 인증서와 동일한 계약으로 판정한다(fail-closed).
+
+    반환 dict:
+      declared -- 이 채널을 **쓰겠다고 선언**했는가(`rubric_authority` 가 실재하는가).
+                  False 는 결함이 아니라 '미사용'이다(부재와 결측의 구분) — 호출부는 조용히
+                  fallback 을 포기하고 종전 경로(perf_waiver)로 간다. legacy manifest 가 스키마
+                  성장만으로 붉어지지 않는다.
+      ok       -- 선언분이 계약 전부를 통과했는가. explore 자동개방의 전제.
+      problems -- (reason_code, message) 목록. 선언해 놓고 못 지킨 것은 **표면화**한다
+                  (침묵 무시 ✗). 단 evidence-complete 는 막지 않는다 — 이 채널은 승격의
+                  *추가 통로*이지 증거 아티팩트가 아니며, 막으면 종전 REFUTE 런의 상태가
+                  뒤로 후퇴한다.
+    """
+    out = {"declared": False, "ok": False, "authority": None, "floor_tps": None,
+           "ratio_M_over_primary": None, "primary_source": None, "problems": []}
+    if not isinstance(benchmark, dict):
+        return out
+    raw_authority = benchmark.get("rubric_authority")
+    raw_authority = raw_authority.strip() if isinstance(raw_authority, str) else ""
+    if not raw_authority or raw_authority.upper() == "N/A":
+        return out  # 채널 미사용 — 조용히 종전 경로로
+    out["declared"] = True
+
+    problems = out["problems"]
+    if raw_authority in RUBRIC_AUTHORITIES:
+        out["authority"] = raw_authority
+    else:
+        problems.append((
+            "MANIFEST_RUBRIC_AUTHORITY_UNKNOWN",
+            f"benchmark.rubric_authority={raw_authority!r} is not one of {list(RUBRIC_AUTHORITIES)} "
+            f"-- an unknown rubric authority cannot be reasoned about, fail closed"))
+
+    raw_source = benchmark.get("rubric_source")
+    raw_source = raw_source.strip() if isinstance(raw_source, str) else ""
+    if raw_source not in MANIFEST_RUBRIC_SOURCES:
+        problems.append((
+            "MANIFEST_RUBRIC_PROVENANCE_MISSING",
+            f"benchmark.rubric_source={benchmark.get('rubric_source')!r} is not one of "
+            f"{list(MANIFEST_RUBRIC_SOURCES)} -- 출처 표시가 없는 rubric 값은 판정기 산출물 파생분과 "
+            f"손저작을 데이터에서 구분할 수 없다(헌법 §결정론 규율). 승격을 열지 않는다"))
+
+    floor_tps = _certificate_number(benchmark.get("floor_tps"))
+    out["floor_tps"] = floor_tps
+    if floor_tps is None or floor_tps <= 0:
+        problems.append((
+            "MANIFEST_RUBRIC_FLOOR_INVALID",
+            f"benchmark.floor_tps={benchmark.get('floor_tps')!r} is not a finite positive number "
+            f"-- floor<=0 means the rubric imposed NO threshold (공허 PASS): every measurement "
+            f"passes. Not promotable in ANY authority."))
+
+    ratio_value = _certificate_number(benchmark.get("ratio_M_over_primary"))
+    out["ratio_M_over_primary"] = ratio_value
+    if ratio_value is None:
+        problems.append((
+            "MANIFEST_RUBRIC_RATIO_MISSING",
+            f"benchmark.ratio_M_over_primary={benchmark.get('ratio_M_over_primary')!r} is not a "
+            f"finite number -- the measurement-vs-rubric indicator is absent, so the verdict "
+            f"cannot be audited"))
+
+    primary_source = benchmark.get("primary_source")
+    primary_source = primary_source.strip() if isinstance(primary_source, str) else ""
+    out["primary_source"] = primary_source or None
+    if not primary_source or primary_source.upper() == "N/A":
+        problems.append((
+            "MANIFEST_RUBRIC_SOURCE_MISSING",
+            f"benchmark.primary_source={benchmark.get('primary_source')!r} is absent -- which "
+            f"rubric slot won cannot be established (surfaced, never matched as a string: the "
+            f"numeric floor/ratio contract above is the gate)"))
+
+    out["ok"] = not problems
+    return out
+
 
 def _certificate_number(raw):
     """Parses ONE flat-certificate scalar into a finite float. Returns None for absent / empty /
@@ -1790,6 +1877,47 @@ def cmd_verify(args: argparse.Namespace) -> None:
             add_reason(f"TASK_CLASS_CAPS_BELOW_PROMOTION:{task_class}",
                        f"task_class '{task_class}' architecturally cannot reach promotion-ready")
 
+        # ---- rubric authority resolution: certificate first, manifest.benchmark as fallback ----
+        # 승격이 *무엇을 근거로* 열렸는지는 산출물이 스스로 밝혀야 한다(헌법 §결정론 규율 출처 표시).
+        # 우선순위는 **아티팩트 > 선언**이다: 디스크의 인증서가 있으면 그것이 정본이고, manifest 는
+        # 인증서가 구조적으로 존재할 수 없을 때(=verdict!=PASS)만 carrier 가 된다.
+        certificate_present = bool(resolved.get("certificate") and resolved["certificate"]["status"] == "ok")
+        manifest_rubric = _manifest_rubric_contract(benchmark)
+        rubric_authority = cert_rubric_authority
+        rubric_ok = cert_rubric_ok
+        rubric_floor = (certificate_output or {}).get("floor_tps")
+        rubric_ratio = (certificate_output or {}).get("ratio_M_over_primary")
+        rubric_primary_source = (certificate_output or {}).get("primary_source")
+        rubric_authority_source = "certificate" if certificate_present else None
+        if manifest_rubric["declared"]:
+            if certificate_present:
+                # 두 carrier 가 갈라지면 이 결함 계열(통로 불일치)이 그대로 다시 자란다. 판정은
+                # 인증서를 따르되(아티팩트 우선), 갈라진 사실 자체는 **표면화**한다 — 정적 파일끼리는
+                # 한쪽이 다른 쪽을 생성할 수 없으므로 교차검증이 차선이다(workflow.md §결정론 규율).
+                if manifest_rubric["authority"] and cert_rubric_authority and \
+                        manifest_rubric["authority"] != cert_rubric_authority:
+                    add_reason(
+                        "RUBRIC_AUTHORITY_CARRIER_DISAGREEMENT",
+                        f"manifest benchmark.rubric_authority={manifest_rubric['authority']!r} != "
+                        f"certificate rubric_authority={cert_rubric_authority!r} -- 인증서(디스크 아티팩트)를 "
+                        f"정본으로 판정한다. 두 carrier 가 갈라진 것은 발행 체인의 결함이므로 확인하라.")
+            else:
+                for code, message in manifest_rubric["problems"]:
+                    add_reason(code, message)
+                rubric_authority = manifest_rubric["authority"]
+                rubric_ok = manifest_rubric["ok"]
+                rubric_floor = manifest_rubric["floor_tps"]
+                rubric_ratio = manifest_rubric["ratio_M_over_primary"]
+                rubric_primary_source = manifest_rubric["primary_source"]
+                rubric_authority_source = "manifest_benchmark"
+        rubric_output = None
+        if certificate_present or manifest_rubric["declared"]:
+            rubric_output = {
+                "authority": rubric_authority, "authority_source": rubric_authority_source,
+                "contract_ok": bool(rubric_ok), "floor_tps": rubric_floor,
+                "ratio_M_over_primary": rubric_ratio, "primary_source": rubric_primary_source,
+            }
+
         # ---- promotion tier ----
         # PROMOTION_CERTIFICATE_BYPASS fix: promotion is modeled EXCLUSIVELY by task_class ==
         # "full_benchmark" -- no other class may reach promotion-ready by self-declaring
@@ -1813,17 +1941,20 @@ def cmd_verify(args: argparse.Namespace) -> None:
                 # functional_smoke_passed ∧ runtime.identity 6키 일치): 그 관문을 통과하지 못하면
                 # 여기까지 오지 못한다. 아래 재확인은 **U1 계약을 코드에 명시**하기 위한 것이며,
                 # 조건을 완화하지 않는다(runtime tier 가 바뀌어도 이 경로는 스스로 닫힌다).
-                # ★ 공허 PASS 배제는 불변이다 -- floor<=0 이면 cert_rubric_ok=False 라 여기서도 못 연다.
+                # ★ 공허 PASS 배제는 불변이다 -- floor<=0 이면 rubric_ok=False 라 여기서도 못 연다
+                #   (인증서 carrier·manifest carrier 둘 다 같은 계약을 통과해야 True 가 된다).
+                # ★ carrier 는 인증서가 아니라 **resolve 된 rubric** 이다 — 인증서는 PASS 전용
+                #   산출물이라 REFUTE 에서는 구조적으로 부재하고, 인증서에서만 읽으면 이 경로가
+                #   REFUTE 에서 영원히 발화하지 못한다(plan_26082405 · 죽은 코드였던 원인).
                 functional_smoke_ok = bool(runtime) and runtime.get("functional_smoke_passed") is True
-                if cert_rubric_authority == "explore" and cert_rubric_ok and functional_smoke_ok:
+                if rubric_authority == "explore" and rubric_ok and functional_smoke_ok:
                     eligible = True
                     add_reason(
                         "BENCHMARK_EXPLORE_AUTHORITY_PROMOTION",
-                        f"benchmark.verdict={verdict!r} + 인증서 rubric_authority='explore' "
-                        f"(사용자 HITL 탐색 트리거) → 승격 게이트는 성능 판정이 아니라 "
-                        f"**서빙 성립(functional_smoke_passed) + 유효 측정**"
-                        f"(floor_tps={(certificate_output or {}).get('floor_tps')!r}, "
-                        f"ratio={(certificate_output or {}).get('ratio_M_over_primary')!r})이다. "
+                        f"benchmark.verdict={verdict!r} + rubric_authority='explore' "
+                        f"(사용자 HITL 탐색 트리거 · carrier={rubric_authority_source!r}) → 승격 게이트는 "
+                        f"성능 판정이 아니라 **서빙 성립(functional_smoke_passed) + 유효 측정**"
+                        f"(floor_tps={rubric_floor!r}, ratio={rubric_ratio!r})이다. "
                         f"PASS/REFUTE 는 벽 지도 데이터로 기록될 뿐 차단하지 않는다.")
                 # ---- human-authorized perf waiver (loop-until-done break) ----
                 # 통상 REFUTE 는 서빙전략 재수립 + 벤치마커의 측정평면 확장(마지막 평면은 사람이
@@ -1858,15 +1989,14 @@ def cmd_verify(args: argparse.Namespace) -> None:
                     add_reason("BENCHMARK_VERDICT_NOT_PASS", f"benchmark.verdict={verdict!r} (must be 'PASS' for promotion)")
             else:
                 eligible = True
-                if cert_rubric_authority == "explore":
+                if rubric_authority == "explore":
                     # explore 에서 PASS 는 *우연히 문턱을 넘은 것*이지 게이트 통과가 아니다 --
                     # 승격을 연 실제 근거(서빙 성립 + 유효 측정)를 산출물에 남긴다(출처 표시).
                     add_reason(
                         "BENCHMARK_EXPLORE_AUTHORITY_PROMOTION",
-                        f"rubric_authority='explore' -- 승격 근거는 성능 판정이 아니라 서빙 성립 + "
-                        f"유효 측정이다(floor_tps={(certificate_output or {}).get('floor_tps')!r}, "
-                        f"ratio={(certificate_output or {}).get('ratio_M_over_primary')!r}). "
-                        f"verdict={verdict!r} 는 벽 지도 데이터로 기록된다.")
+                        f"rubric_authority='explore'(carrier={rubric_authority_source!r}) -- 승격 근거는 "
+                        f"성능 판정이 아니라 서빙 성립 + 유효 측정이다(floor_tps={rubric_floor!r}, "
+                        f"ratio={rubric_ratio!r}). verdict={verdict!r} 는 벽 지도 데이터로 기록된다.")
 
         if eligible:
             state = "promotion-ready"
@@ -1876,6 +2006,7 @@ def cmd_verify(args: argparse.Namespace) -> None:
             "eligible_for_promotion": eligible,
             "reason_codes": sorted(reason_codes), "messages": messages,
             "checked_evidence": checked_evidence, "identity": identity,
+            "rubric": rubric_output,
             "certificate": certificate_output,
         }, 0 if eligible else 1)
     finally:

@@ -124,6 +124,51 @@
             null
           ]
         },
+        "rubric_authority": {
+          "description": "루브릭 정본 권한(weak|explicit|explore) — 판정기(adversarial-benchmark/scripts/verdict_rule.py) 산출물에서 파생해 evidence_publisher publish-benchmark 가 기록한다. **인증서와 달리 REFUTE 에서도 살아있는 carrier** 다: 인증서는 PASS 때만 발행되므로 REFUTE 런의 explore 권한은 이 필드로만 승격 판정기에 도달한다(plan_26082405 — 종전엔 통로가 끊겨 explore 자동개방이 죽은 코드였다). 부재(null)는 결함이 아니라 '이 채널 미사용'이며, 선언했는데 계약(floor>0 ∧ ratio 유한 ∧ primary_source 실재 ∧ rubric_source 표시)을 못 지키면 승격을 열지 않는다.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "weak",
+            "explicit",
+            "explore",
+            null
+          ]
+        },
+        "floor_tps": {
+          "description": "판정기가 선언한 PASS 문턱(primary x (1-tolerance)). 유한 양수가 아니면 어떤 authority 로도 승격 불가 — floor<=0 은 문턱 없는 '공허 PASS' 다(인증서 경로와 동일 계약).",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "ratio_M_over_primary": {
+          "description": "측정치/루브릭 비. 유한수가 아니면 판정을 감사할 수 없으므로 승격을 열지 않는다(인증서 경로와 동일 계약).",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "primary_source": {
+          "description": "낙찰된 루브릭 칸의 라벨. **표면화 전용** — 문자열 매칭을 게이트로 쓰지 않는다(하드코딩 결함 칸). 부재/N/A 면 어느 칸이 이겼는지 성립하지 않으므로 승격을 열지 않는다.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rubric_source": {
+          "description": "위 네 값의 **출처 표시**(헌법 §결정론 규율). 'verdict_json' = 판정기 산출물 JSON 에서 결정론적으로 파생됨. 출처가 없으면 손저작 값과 산출물 파생분을 구분할 수 없어 '측정 > 공식'·'합성 금지'가 집행 불가가 되므로, 승격 판정기는 이 표시가 없는 값으로는 explore 경로를 열지 않는다.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "verdict_json",
+            null
+          ]
+        },
         "perf_waiver": {
           "type": "object",
           "additionalProperties": false,
