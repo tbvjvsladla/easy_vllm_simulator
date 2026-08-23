@@ -15,7 +15,8 @@
 #
 # --reassemble-only: **측정하지 않고** 기존 SWEEPDIR 의 raw(level_NN/measured.json · lite raw ·
 #   truncation.log)에서 sweep_index.json 만 다시 조립한다. 라벨/파생키 계약이 바뀌었을 때
-#   (예: 2026-08-15 model 강한키 파생 교정) **재측정 없이** 산출물을 정합화하는 유일한 정식 경로다 —
+#   (예: 2026-08-15 model 강한키 파생 교정 · 2026-08-23 quantization/kv_cache_dtype 실측 승격)
+#   **재측정 없이** 산출물을 정합화하는 유일한 정식 경로다 —
 #   대안은 인증서 수기 편집(=증거 위조)이거나 재측정(=측정치가 아니라 라벨 문제인데 비용 지불)뿐이다.
 #   측정시각(`generated_utc`)·실측 image_tag 는 **기존 index 에서 승계**한다(측정이 안 바뀌었으니
 #   측정시각도 안 바뀐다). 기존 index 가 없으면 시각을 날조하는 대신 fail-closed 로 멈춘다.
@@ -329,6 +330,77 @@ if not _mbase:      # fail-loud 폴백 — 대체했다는 사실을 침묵시�
     print("[sweep_bench] ⚠ config yaml 에 model 경로가 없어 강한키를 조합명으로 폴백했다 "
           "(model_source=%s) — 인증서 모델 축이 조합명이 된다" % model_source, file=sys.stderr)
 
+# ── serve-plane 실측: quantization · kv_cache_dtype (2026-08-23 신설 · plan_26082322) ──────────
+# 종전엔 두 값을 **config yaml 에서만** 읽었다. 그런데 이 둘은 serve-plane CLI(runner 의 EXTRA_ARGS →
+# `--quantization` / `--kv-cache-dtype`)로도 들어온다 — 캠페인 축 F/H 가 정확히 그 경로다. 그러면
+# yaml 에 줄이 없어 "NA" 가 찍히고, 사람은 "NA" 를 **"양자화 없음 · bf16 KV"** 로 읽는다.
+#   2026-08-23 R7(1M·fp8 KV·fp8 가중치)이 실제로 그렇게 발행됐다 — 엔진은 그 순간 `quantization=fp8,
+#   kv_cache_dtype=fp8` 을 자기보고하고 있었다. 이번엔 verdict=REFUTE 라 인증서가 안 나가 유출은
+#   없었지만, PASS 였다면 "양자화 없이 이 성능"이라는 **거짓 계약**이 배포됐을 것이다.
+#   ⇒ 같은 파일의 image_tag 가 이미 갖춘 규율(측정 > 선언 · 선언 병기 · 갈리면 mismatch)을 동형 복제한다.
+#
+# 권위 = **엔진 config 자기보고 라인 하나**로 고정한다(`Initializing a V1 LLM engine … with config: …`).
+#   로그 전체를 긁으면 안 된다 — 같은 로그에 `[runner] KV_CACHE_DTYPE=…`(러너 에코)와
+#   `FlashInfer resolved … kv_cache_dtype=torch.float8_e4m3fn`(백엔드 해석값)이 함께 산다.
+#   2026-08-23 캠페인 러너의 6g 행이 정확히 전역 검색을 써서 `kv_cache_dtype=torch` 를 집었다(실증).
+#
+# 재조립(--reassemble-only)에서도 이 파싱은 **정당하다** — 그때 그 측정이 남긴 raw 로그를 다시 읽는
+# 것이지 새로 재는 것이 아니다(바로 위 vllm_build 가 이미 같은 자격으로 _elog 를 재파싱한다).
+# image_tag 를 승계로 처리한 이유와 대비된다: 저쪽은 docker 에 **다시 묻는** 행위였다.
+_ecfg_m = re.search(r"Initializing a V1 LLM engine[^\n]*?with config:([^\n]*)", _elog)
+_ecfg = _ecfg_m.group(1) if _ecfg_m else ""
+
+
+def engine_cfg_val(key):
+    """엔진 config 라인에서 `key=<값>` 을 하나 뽑는다. 라인/키가 없으면 None — 순수 파서의 None
+    이며 대체값을 만들지 않는다(호출부가 어느 소스로 떨어질지 정한다).
+    키 앞 경계를 요구하는 이유: 같은 라인에 `quantization_config=None` 이 나란히 있어서, 경계 없이
+    찾으면 접두어가 겹치는 다른 키를 집을 수 있다."""
+    if not _ecfg:
+        return None
+    m = re.search(r"(?:^|[\s,({\[])%s=([^,\s)\]}]+)" % re.escape(key), _ecfg)
+    return m.group(1).strip().strip("'\"") if m else None
+
+
+def _norm_measured(v):
+    """엔진의 파이썬 repr 을 계약 토큰으로 정규화한다.
+    **`None` 은 '측정된 기본값'이지 미상이 아니다** — 그래서 "NA" 가 아니라 `none` 으로 적는다
+    (kv 쪽 엔진 기본 토큰 `auto` 와 동렬). 이 구분이 이 수정의 핵심이다: "측정 못 함"과 "기본값"을
+    한 칸에 뭉개면 하류 독자가 후자를 전자로, 또는 그 반대로 읽는다.
+    소문자화는 대소문자만 다른 키가 정확일치 게이트를 조용히 깨뜨리는 사고를 없애기 위해서다
+    (model 강한키가 2026-08-15 에 같은 이유로 소문자화됐다)."""
+    if v is None:
+        return None
+    return "none" if v.strip() == "None" else v.strip().lower()
+
+
+def _measured_first(meas, decl):
+    """(값, source, declared, mismatch) 4-튜플. image_tag 스탠자와 **동형**이다.
+    mismatch 는 둘 다 알 때만 판정한다 — 모름을 일치로 위장하지 않는다(image_tag 와 같은 규율).
+    ⚠ 선언 평면은 config yaml 하나만 본다. 축 F/H 는 실제로는 envfile(`QUANTIZATION`·
+      `KV_CACHE_DTYPE`)로 선언되지만 그 변수명은 **모델 러너(Band3 트리플렛) 로컬 규약**이고
+      `.claude/` 어디에도 계약이 없다 — 공유 하네스가 비계약 이름에 묶이면 다음 러너가 이름을 바꾸는
+      순간 조용히 어긋난다. 그래서 교차검증은 포기하고("unknown") **값은 측정으로** 채운다."""
+    m = _norm_measured(meas)
+    d = decl.strip() if isinstance(decl, str) and decl.strip() else None
+    if m is not None:
+        value, source = m, "measured(engine log)"
+    elif d is not None:
+        value, source = d, "declared(config yaml)"
+    else:
+        value, source = "NA", "absent(both)"   # "NA" 는 오직 여기 — 양 소스 모두 부재
+    mismatch = "unknown" if (m is None or d is None) else ("no" if m == d.lower() else "YES(measured=%s declared=%s)" % (m, d))
+    return value, source, (d or "NA"), mismatch
+
+
+_quant, _quant_src, _quant_decl, _quant_mm = _measured_first(
+    engine_cfg_val("quantization"), grep_yaml(cfgtext, "quantization"))
+_kvdt, _kvdt_src, _kvdt_decl, _kvdt_mm = _measured_first(
+    engine_cfg_val("kv_cache_dtype"), grep_yaml(cfgtext, "kv-cache-dtype"))
+if _quant_mm.startswith("YES") or _kvdt_mm.startswith("YES"):   # 침묵 치환 금지 — 갈리면 시끄럽게
+    print("[sweep_bench] ⚠ 선언↔실측 불일치 — quantization:%s · kv_cache_dtype:%s"
+          % (_quant_mm, _kvdt_mm), file=sys.stderr)
+
 meta = {
     # 강한 일치 키
     "model": model_key,
@@ -338,7 +410,15 @@ meta = {
     "config_name": cfg,
     "gpu_model": gpu_model, "gpu_key": gpu_key, "vllm_version": vllm,
     "vllm_build": vllm_build, "vllm_mismatch": vllm_mismatch,
-    "quantization": grep_yaml(cfgtext, "quantization") or "NA",
+    # ⚠ 강한 일치 키. 2026-08-23 이전엔 yaml 부재 = "NA" 였고, 그래서 **양자화 안 한 모델도
+    # 양자화한 모델도 똑같이 "N/A"** 로 발행됐다. 이제 엔진 실측이 `none`(기본) / `fp8`(적용)을
+    # 가른다. carry-forward 영향: 그 이전 인증서(quantization: N/A)와 정확일치하지 않는다 —
+    # 실패 방향은 "일치 안 함 = 재측정"(fail-closed)이라 model 강한키 소문자화(2026-08-15) 때와
+    # 같은 안전한 쪽이다. 작업 매니페스트 identity 의 `quant` 도 같은 토큰(`none`)을 써야 한다.
+    "quantization": _quant,
+    "quantization_source": _quant_src,
+    "quantization_declared": _quant_decl,
+    "quantization_mismatch": _quant_mm,
     "topology": topo, "tensor_parallel_size": tp,
     # 소프트 지문
     "driver_version": grep_yaml(mftext, "driver_version") or "NA",
@@ -352,7 +432,12 @@ meta = {
     "max_model_len": grep_yaml(cfgtext, "max-model-len") or "NA",
     "max_num_seqs": grep_yaml(cfgtext, "max-num-seqs") or "NA",
     "kv_cache_memory_bytes": grep_yaml(cfgtext, "kv-cache-memory-bytes") or "NA",
-    "kv_cache_dtype": grep_yaml(cfgtext, "kv-cache-dtype") or "NA",
+    # 소프트 지문이지만 같은 규율을 적용한다 — "NA" 를 bf16 으로 오독하는 것이 강한키 오독보다
+    # 덜 위험하지도 않다(KV dtype 은 KV 용량·정확도 양쪽을 동시에 바꾼다).
+    "kv_cache_dtype": _kvdt,
+    "kv_cache_dtype_source": _kvdt_src,
+    "kv_cache_dtype_declared": _kvdt_decl,
+    "kv_cache_dtype_mismatch": _kvdt_mm,
     "gpu_memory_utilization": grep_yaml(cfgtext, "gpu-memory-utilization") or "NA",
     "moe_backend": grep_yaml(cfgtext, "moe-backend") or "NA",
     "enforce_eager": grep_yaml(cfgtext, "enforce-eager") or "NA",
