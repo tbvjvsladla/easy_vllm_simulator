@@ -41,11 +41,12 @@ REPO="$(_find_repo "$SDIR" || (cd "$SDIR/../../../../.." 2>/dev/null && pwd))"
 # shellcheck source=node_identity.sh
 . "$SDIR/node_identity.sh"
 
-APPLY=0; PURGE_PKGS=0; SEED_DIR=""; REQUIRE_SEED=1; NODE_ID=""
+APPLY=0; PURGE_PKGS=0; SEED_DIR=""; REQUIRE_SEED=1; NODE_ID=""; PURGE_WATCHDOG=0
 for a in "$@"; do
   case "$a" in
     --apply) APPLY=1 ;;
     --purge-packages) PURGE_PKGS=1 ;;
+    --purge-watchdog) PURGE_WATCHDOG=1 ;;
     --seed-dir=*) SEED_DIR="${a#--seed-dir=}" ;;
     --node-id=*) NODE_ID="${a#--node-id=}" ;;
     --no-require-seed) REQUIRE_SEED=0 ;;
@@ -146,6 +147,25 @@ for k in kernel.hung_task_panic kernel.softlockup_panic; do
   run sysctl -w "$k=0"
 done
 run sysctl -w kernel.hung_task_timeout_secs=120
+
+# ── ④b SBSA 하드웨어 워치독 — **기본 보존**(plan_26082319 §5.1 · 2026-08-23) ─────
+#   install_host_safety.sh 가 만든 파일이므로 형식적으로는 이 스크립트의 제거 대상이다.
+#   그런데 **재설치 경로가 다르다**: 이 purge 뒤에 도는 install_node_blackbox.sh 는 하드웨어
+#   워치독을 다시 놓지 않는다(그건 install_host_safety.sh 소관). 여기서 지우면 노드는
+#   **하드 락업 복구 계층을 잃은 채 아무도 되돌려놓지 않는** 상태가 된다 —
+#   레거시 RAM 평면을 걷어내려다 다른 평면을 조용히 무장해제하는 **오배달**이다.
+#   그래서 기본은 보존이고, 지우려면 명시해야 한다(--purge-watchdog).
+WD_DROPIN=/etc/systemd/system.conf.d/10-easy-vllm-watchdog.conf
+if [ "${PURGE_WATCHDOG:-0}" = "1" ]; then
+  say "④b 하드웨어 워치독 drop-in 제거(--purge-watchdog 명시) → $WD_DROPIN"
+  say "   ⚠ 제거 후 이 노드는 하드 락업 시 **자동 리셋되지 않는다**(수동 재부팅만)."
+  run rm -f "$WD_DROPIN"
+  run systemctl daemon-reexec        # system.conf 는 daemon-reload 로 반영되지 않는다
+elif [ -f "$WD_DROPIN" ]; then
+  say "④b 하드웨어 워치독 drop-in **보존**: $WD_DROPIN (state=$(cat /sys/class/watchdog/watchdog0/state 2>/dev/null || echo n/a))"
+  say "   근거: 이 purge 뒤의 재설치 경로가 그것을 되돌려놓지 않는다 — 지우면 복구 계층이 사라진 채 남는다."
+  say "   정말 지우려면: --purge-watchdog"
+fi
 
 # ── ⑤ netconsole ─────────────────────────────────────────────────────────
 say "⑤ netconsole 모듈 + rsyslog 수신 + printk + ufw"

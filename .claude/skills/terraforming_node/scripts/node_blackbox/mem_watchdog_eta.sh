@@ -267,9 +267,15 @@ if [ "$SELFTEST" = 1 ]; then
   echo "파라미터: floor=${BB_HARD_FLOOR_MIB}MiB runway=${BB_RUNWAY_MS}ms debounce=${BB_DEBOUNCE_N} min_rate=${BB_MIN_RATE_MIB_S} max_rate=${BB_MAX_RATE_MIB_S} band=${BB_ABS_BAND_MIB}MiB"
   # 자체시험은 **결정론적 입력**으로 돈다 — 설치 환경의 eta_params.env 가 있든 없든 같은 판정을
   # 내야 한다. 그러지 않으면 "내 노드에선 PASS" 가 된다(파라미터 종속 위양성).
-  _st_saved="$BB_HARD_FLOOR_MIB $BB_RUNWAY_MS $BB_DEBOUNCE_N $BB_MIN_RATE_MIB_S $BB_MAX_RATE_MIB_S $BB_ABS_BAND_MIB"
+  _st_saved="$BB_HARD_FLOOR_MIB $BB_RUNWAY_MS $BB_DEBOUNCE_N $BB_MIN_RATE_MIB_S $BB_MAX_RATE_MIB_S $BB_ABS_BAND_MIB $BB_DECL_MARGIN_MIB $BB_DECL_MIN_CEILING_MIB"
   BB_HARD_FLOOR_MIB=5120; BB_RUNWAY_MS=8000; BB_DEBOUNCE_N=3; BB_MIN_RATE_MIB_S=1
   BB_MAX_RATE_MIB_S=0; BB_ABS_BAND_MIB=10240      # 먼저 이중규칙 OFF 로 기존 회귀를 돌린다
+  # ★ 선언 상수도 **고정**한다(2026-08-23 교정). 예전엔 이 둘만 빠져 있어서 자체시험이 설치
+  #   환경의 eta_params.env 를 그대로 물고 돌았다 — 2026-08-18 에 정본이 8192/16384 →
+  #   3072/8192 로 바뀌자(testlog_26081811 §5.3.2) 기대값 32768/16384 와 어긋나 **설치된
+  #   노드에서만 3 건 FAIL** 이 났다. 이 파일이 스스로 경고한 "내 노드에선 PASS" 의 뒤집힌 형태다.
+  #   아래 dchk 기대값(32768·16384 거부선)은 이 두 상수에서 파생되므로 여기서 고정해야 한다.
+  BB_DECL_MARGIN_MIB=8192; BB_DECL_MIN_CEILING_MIB=16384
   chk "최후 바닥 밑 → TRIP"                       0 4000   0
   chk "바닥 경계값 포함 → TRIP"                   0 5120   0
   chk "바닥 위·정지 → 무트립"                     1 6000   0
@@ -462,7 +468,7 @@ if [ "$SELFTEST" = 1 ]; then
   # 파라미터 복원 — 자체시험이 전역을 남기지 않게(뒤에 코드가 붙어도 안전하도록)
   set -- $_st_saved
   BB_HARD_FLOOR_MIB=$1; BB_RUNWAY_MS=$2; BB_DEBOUNCE_N=$3; BB_MIN_RATE_MIB_S=$4
-  BB_MAX_RATE_MIB_S=$5; BB_ABS_BAND_MIB=$6
+  BB_MAX_RATE_MIB_S=$5; BB_ABS_BAND_MIB=$6; BB_DECL_MARGIN_MIB=$7; BB_DECL_MIN_CEILING_MIB=$8
 
   [ "$fails" = 0 ] && { echo "self-test: PASS"; exit 0; } || { echo "self-test: FAIL"; exit 2; }
 fi

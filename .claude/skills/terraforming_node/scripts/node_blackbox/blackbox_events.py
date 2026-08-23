@@ -9,6 +9,12 @@
   ① mem_watchdog 상시(레거시 `[mem-watchdog]`)      ② 노드블랙박스 ETA 워치독(`[bb-watchdog]`)
   ③ 협역 워치독(같은 접두어, 필터만 다름)            ④ engine_liveness_watchdog(`[liveness]`)
   ⑤ earlyoom(프로세스 레벨)                          ⑥ 커널 OOM killer
+  ⑦ **열·전력 포락선 워치독**(`[tp-watchdog]` · plan_26082319 §6.4 · 2026-08-23 신설)
+
+★ ⑦ 이 왜 추가됐나: 2026-08-23 R6 는 RAM OOM 이 아니라 **하드 락업**이었다. RAM 축 6 경로는
+  전부 정상적으로 미발동했고 그것이 옳았다 -- 방어 표면 자체에 축이 없었다. 열·전력 축이
+  생겼으므로 그 킬 경로도 같은 이벤트 평면으로 들어와야 한다. **경로가 늘었는데 통합이 안 되면
+  사후분석은 다시 여러 곳을 뒤지게 된다** -- 이 파일의 존재 이유가 바로 그것이다.
 
 전부 journald 에 있으므로 **journald 커서**로 증분 수집한다(멱등 -- 재실행이 중복을 만들지 않는다).
 추가로 **부정 클린 부팅**(정상 종료 흔적 없이 끊긴 부팅 = 하드다운 후보)을 판정해 남긴다 --
@@ -28,6 +34,22 @@ from datetime import datetime, timezone
 
 SCHEMA_VERSION = 1
 CURSOR_FILE = ".cursors.json"
+
+
+def _num_or_none(text):
+    """'90' -> 90 · '90.5' -> 90.5 · 'na'(부재) -> None.
+
+    ★ 'na' 를 0 으로 접지 않는다 -- 0 W/0 C 는 '아주 안전'을 뜻해서, 부재를 0 으로 적으면
+      사후분석이 **센서가 죽어 있던 구간을 한산한 구간으로** 읽는다(수집기의 '부재는 빈 칸'
+      규율과 같은 이유).
+    """
+    if text is None or text == "na":
+        return None
+    try:
+        return int(text) if "." not in text else float(text)
+    except ValueError:
+        return None
+
 
 # ── 메시지 파서 (본문만 받는다 -- 유닛/시각은 journald 메타에서 온다) ─────
 _P = [
@@ -49,6 +71,34 @@ _P = [
     (re.compile(r"\[bb-watchdog\]\s+TRIP-ARM\s+mem=(\d+)MiB\s+rate=(-?\d+)MiB/s"),
      lambda m: {"kind": "watchdog_trip_arm", "mem_avail_mib": int(m.group(1)),
                 "rate_mib_s": int(m.group(2))}),
+    # ⑦ 열·전력 포락선 워치독 -- RAM 과 무관한 **또 하나의 별개 축**(하드 락업 예방).
+    #    `rule` 이 어느 축이 죽였는지를 남긴다(gpu_pwr_sustained · soc_temp_sustained ·
+    #    soc_hard_ceiling). 사후분석에서 "무엇이 이 kill 을 만들었나"가 이벤트만으로 서야 한다.
+    (re.compile(r"\[tp-watchdog\]\s+TRIP\s+rule=(\S+)\s+gpu=(\S+?)W\s+soc=(\S+?)C\s+"
+                r"buckets=(\d+)/(\d+)\s+streak=(\d+)\s+→\s+docker kill\s+(.+?)\s+\d{4}-"),
+     lambda m: {"kind": "thermal_trip", "rule": m.group(1),
+                "gpu_pwr_w": _num_or_none(m.group(2)), "soc_temp_c": _num_or_none(m.group(3)),
+                "gpu_bucket": int(m.group(4)), "soc_bucket": int(m.group(5)),
+                "soc_hard_streak": int(m.group(6)), "target": m.group(7).strip(),
+                "action": "docker_kill"}),
+    # dry-run(관측 전용)은 **별도 kind** 다 -- 같은 kind 로 내면 하류가 kill 로 오독한다.
+    (re.compile(r"\[tp-watchdog\]\s+TRIP-DRYRUN\s+rule=(\S+)\s+gpu=(\S+?)W\s+soc=(\S+?)C\s+"
+                r"buckets=(\d+)/(\d+)"),
+     lambda m: {"kind": "thermal_trip_dryrun", "rule": m.group(1),
+                "gpu_pwr_w": _num_or_none(m.group(2)), "soc_temp_c": _num_or_none(m.group(3)),
+                "gpu_bucket": int(m.group(4)), "soc_bucket": int(m.group(5)),
+                "action": "none"}),
+    (re.compile(r"\[tp-watchdog\]\s+TRIP-nomatch\s+rule=(\S+)\s+gpu=(\S+?)W\s+soc=(\S+?)C"),
+     lambda m: {"kind": "thermal_trip_nomatch", "rule": m.group(1),
+                "gpu_pwr_w": _num_or_none(m.group(2)), "soc_temp_c": _num_or_none(m.group(3)),
+                "action": "none"}),
+    # 수집기 꼬리가 뒤처져 전력 축이 **동결**된 구간. '조용한 무장해제'를 사후에 볼 수 있어야 한다.
+    (re.compile(r"\[tp-watchdog\]\s+GPU-STALE\s+수집기 꼬리가\s+(\d+)s\s+뒤짐"),
+     lambda m: {"kind": "thermal_gpu_stale", "lag_s": int(m.group(1)), "axis": "frozen"}),
+    (re.compile(r"\[tp-watchdog\]\s+GPU-STALE\s+해제"),
+     lambda m: {"kind": "thermal_gpu_stale_clear", "axis": "resumed"}),
+    (re.compile(r"\[tp-watchdog\]\s+start\s+mode=(\S+)\s+filter='([^']*)'"),
+     lambda m: {"kind": "thermal_watchdog_start", "mode": m.group(1), "filter": m.group(2)}),
     # ④ 엔진 교착(liveness) -- 메모리와 무관한 별개 축
     (re.compile(r"\[liveness\]\s+TRIP\s+엔진교착.*?정체\s+(\d+)s.*?docker kill\s+(\S+)"),
      lambda m: {"kind": "liveness_trip", "stalled_s": int(m.group(1)),
@@ -67,6 +117,9 @@ _P = [
 
 # docker kill 이 표준출력으로 되돌린 컨테이너 ID = 킬 명령이 반환됐다는 증거
 _ACK = re.compile(r"^\[(?:mem|bb)-watchdog\]\s+([0-9a-f]{8,})\s*$")
+# 열·전력 워치독의 같은 증거. **kind 를 따로 둔다** -- 어느 축의 kill 이 실제로 반환됐는지가
+# 갈려야 "트립은 났는데 kill 이 안 돌아왔다"를 축별로 판정할 수 있다.
+_TP_ACK = re.compile(r"^\[tp-watchdog\]\s+([0-9a-f]{8,})\s*$")
 
 # 정상 종료의 흔적. 이 중 어느 것도 없이 끊긴 부팅 = 부정 클린(하드다운 후보).
 _CLEAN_SHUTDOWN = re.compile(
@@ -85,6 +138,9 @@ def parse_message(msg):
     m = _ACK.match(msg.strip())
     if m:
         return {"kind": "watchdog_kill_ack", "target": m.group(1)}
+    m = _TP_ACK.match(msg.strip())
+    if m:
+        return {"kind": "thermal_kill_ack", "target": m.group(1)}
     return None
 
 
@@ -263,7 +319,8 @@ def append_events(events_dir, events):
 
 
 DEFAULT_SOURCES = [
-    ("easy-vllm-blackbox-watchdog", False),   # 신규 상시 ETA 워치독
+    ("easy-vllm-blackbox-watchdog", False),   # 신규 상시 ETA 워치독(RAM 축)
+    ("easy-vllm-blackbox-thermal", False),    # 열·전력 포락선 워치독(하드락업 예방 축)
     ("easy-vllm-memwatch", False),            # 레거시(제거 전/이행기)
     ("earlyoom", False),
     (None, True),                             # 커널(-k) : OOM killer
@@ -326,6 +383,59 @@ def _self_test():
                    == "watchdog_trip_nomatch"))
     checks.append(("kill-ack 파싱", kind_of("[mem-watchdog] 249d24630725") == "watchdog_kill_ack"))
     checks.append(("start 파싱", kind_of("[bb-watchdog] start filter='@vllm' interval=1s") == "watchdog_start"))
+    # ⑦ 열·전력 포락선 워치독 (plan_26082319 §6.4)
+    #    ★ 픽스처는 thermal_watchdog.sh 가 **실제로 찍는 문자열**이어야 한다. 손으로 지어낸
+    #      문자열로 시험하면 로그 포맷이 바뀌어도 PASS 가 나고, 그 사이 이벤트는 조용히 사라진다.
+    e = parse_message("[tp-watchdog] TRIP rule=gpu_pwr_sustained gpu=90W soc=47C "
+                      "buckets=60/0 streak=0 → docker kill cafe1234 2026-08-23T09:24:36Z")
+    checks.append(("열·전력 TRIP 파싱(축·버킷 보존)",
+                   e and e["kind"] == "thermal_trip" and e["rule"] == "gpu_pwr_sustained"
+                   and e["gpu_pwr_w"] == 90 and e["soc_temp_c"] == 47
+                   and e["gpu_bucket"] == 60 and e["target"] == "cafe1234"
+                   and e["action"] == "docker_kill"))
+    e = parse_message("[tp-watchdog] TRIP rule=soc_hard_ceiling gpu=45W soc=97C "
+                      "buckets=0/12 streak=3 → docker kill a1b2c3 d4e5f6 2026-08-23T09:24:36Z")
+    checks.append(("열·전력 TRIP: SoC 즉시계층 규칙 라벨·다중 타깃",
+                   e and e["rule"] == "soc_hard_ceiling" and e["soc_hard_streak"] == 3
+                   and e["target"] == "a1b2c3 d4e5f6"))
+    # 부재('na')는 0 이 아니다 -- 센서 사망 구간을 '한산'으로 읽지 않게
+    e = parse_message("[tp-watchdog] TRIP rule=gpu_pwr_sustained gpu=90W soc=naC "
+                      "buckets=60/0 streak=0 → docker kill z9 2026-08-23T09:24:36Z")
+    checks.append(("열·전력 TRIP: 부재(na)는 None(0 으로 접지 않는다)",
+                   e and e["soc_temp_c"] is None and e["gpu_pwr_w"] == 90))
+    e = parse_message("[tp-watchdog] TRIP-DRYRUN rule=gpu_pwr_sustained gpu=90W soc=47C "
+                      "buckets=60/0 streak=0 → 실무장이었으면 docker kill cafe1234 2026-08-23T09:24:36Z")
+    checks.append(("열·전력 dry-run 은 별도 kind(하류 오독 방지)",
+                   e and e["kind"] == "thermal_trip_dryrun" and e["action"] == "none"))
+    checks.append(("★dry-run 이 실무장 kind 로 새지 않는다",
+                   parse_message("[tp-watchdog] TRIP-DRYRUN rule=gpu_pwr_sustained gpu=90W "
+                                 "soc=47C buckets=60/0 streak=0 → 실무장이었으면 docker kill x "
+                                 "2026-08-23T09:24:36Z")["kind"] != "thermal_trip"))
+    checks.append(("열·전력 TRIP-nomatch 파싱",
+                   kind_of("[tp-watchdog] TRIP-nomatch rule=gpu_pwr_sustained gpu=90W soc=47C "
+                           "(filter='@vllm' 매칭 0) 2026-08-23T09:24:36Z")
+                   == "thermal_trip_nomatch"))
+    e = parse_message("[tp-watchdog] GPU-STALE 수집기 꼬리가 37s 뒤짐(>10s) — 전력 축 동결. "
+                      "수집기 확인: systemctl status easy-vllm-blackbox-collect 2026-08-23T09:24:36Z")
+    checks.append(("전력 축 동결(stale) 파싱 — 조용한 무장해제를 사후에 본다",
+                   e and e["kind"] == "thermal_gpu_stale" and e["lag_s"] == 37
+                   and e["axis"] == "frozen"))
+    checks.append(("stale 해제 파싱",
+                   kind_of("[tp-watchdog] GPU-STALE 해제 — 전력 축 재개 2026-08-23T09:24:36Z")
+                   == "thermal_gpu_stale_clear"))
+    e = parse_message("[tp-watchdog] start mode=armed filter='@vllm' interval=1s "
+                      "params=/etc/easy-vllm/thermal_params.env node=/x/y")
+    checks.append(("열·전력 워치독 start 파싱(mode 보존)",
+                   e and e["kind"] == "thermal_watchdog_start" and e["mode"] == "armed"
+                   and e["filter"] == "@vllm"))
+    checks.append(("열·전력 kill-ack 파싱(축별로 갈린다)",
+                   kind_of("[tp-watchdog] cafe1234deadbeef") == "thermal_kill_ack"))
+    checks.append(("RAM 축 kill-ack 은 여전히 RAM kind(축 혼선 없음)",
+                   kind_of("[bb-watchdog] cafe1234deadbeef") == "watchdog_kill_ack"))
+    # 새 유닛이 수집 소스에 배선됐는가 — "만든 것과 도는 것은 다르다"
+    checks.append(("★열·전력 유닛이 수집 소스에 배선됨(배선 실증)",
+                   ("easy-vllm-blackbox-thermal", False) in DEFAULT_SOURCES))
+
     # ④ liveness
     e = parse_message("[liveness] TRIP 엔진교착: running=1 reachable=1 progress 정체 600s(>=600) → docker kill mn-x 2026-07-31T00:00:00Z")
     checks.append(("liveness TRIP 파싱", e and e["kind"] == "liveness_trip"

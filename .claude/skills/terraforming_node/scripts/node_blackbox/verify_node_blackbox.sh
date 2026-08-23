@@ -127,7 +127,8 @@ for t in "blackbox_eta.py --self-test:ETA 엔진" \
          "logs_lifecycle.py --self-test:수명 집행" \
          "seed_from_journal.py --self-test:시드 임포터" \
          "regen_envelope.py --self-test:포락선 재생성·키 정합" \
-         "blackbox_session.py --self-test:세션 사이드카"; do
+         "blackbox_session.py --self-test:세션 사이드카" \
+         "blackbox_thermal.py --self-test:열·전력 포락선 엔진"; do
   f="${t%%:*}"; label="${t##*:}"
   if python3 "$SDIR/${f%% *}" ${f#* } >/dev/null 2>&1; then ok "$label self-test" "selftest_${f%%.*}"
   else bad "$label self-test 실패 — python3 $SDIR/$f" "selftest_${f%%.*}"; fi
@@ -135,6 +136,9 @@ done
 if bash "$SDIR/mem_watchdog_eta.sh" --self-test >/dev/null 2>&1; then
   ok "ETA 워치독 self-test" "selftest_watchdog"
 else bad "ETA 워치독 self-test 실패" "selftest_watchdog"; fi
+if bash "$SDIR/thermal_watchdog.sh" --self-test >/dev/null 2>&1; then
+  ok "열·전력 워치독 self-test" "selftest_thermal_watchdog"
+else bad "열·전력 워치독 self-test 실패 — bash $SDIR/thermal_watchdog.sh --self-test" "selftest_thermal_watchdog"; fi
 
 # ★ 배포본 신선도 — self-test 는 **소스**를 시험한다. 데몬이 실행하는 것은 $BIN 의 사본이고,
 #   둘이 갈라져 있으면 "시험 통과 + 현장은 옛 코드"가 된다. 침묵 실패라 반드시 명시 검사한다.
@@ -142,7 +146,9 @@ else bad "ETA 워치독 self-test 실패" "selftest_watchdog"; fi
 for pair in "mem_watchdog_eta.sh:easy-vllm-bb-watchdog" \
             "blackbox_collect.py:easy-vllm-bb-collect" \
             "blackbox_eta.py:easy-vllm-bb-eta" \
-            "regen_envelope.py:easy-vllm-bb-regen-envelope"; do
+            "regen_envelope.py:easy-vllm-bb-regen-envelope" \
+            "blackbox_thermal.py:easy-vllm-bb-thermal" \
+            "thermal_watchdog.sh:easy-vllm-bb-tp-watchdog"; do
   src="$SDIR/${pair%%:*}"; dst="/usr/local/sbin/${pair##*:}"
   if [ ! -f "$dst" ]; then bad "배포본 부재: $dst" "deployed_${pair##*:}"
   elif [ "$(sha256sum <"$src" | cut -d' ' -f1)" = "$(sha256sum <"$dst" | cut -d' ' -f1)" ]; then
@@ -155,7 +161,7 @@ done
 
 # ── B. L1 런타임 ─────────────────────────────────────────────────────────
 echo; say "B. L1 런타임 (무재부팅 계층)"
-for u in easy-vllm-blackbox-collect easy-vllm-blackbox-watchdog; do
+for u in easy-vllm-blackbox-collect easy-vllm-blackbox-watchdog easy-vllm-blackbox-thermal; do
   if systemctl is-active --quiet "$u" 2>/dev/null; then ok "$u active" "unit_$u"
   else bad "$u 비활성 — journalctl -u $u" "unit_$u"; fi
 done
@@ -178,6 +184,46 @@ if [ -s "$ETC/eta_params.env" ]; then
     || bad "ETA 상수가 하한 가드 위반 — 재생성 필요" "eta_guard"
 else
   bad "ETA 상수 부재 — 워치독이 내장 기본값으로 동작 중" "eta_params"
+fi
+
+# 열·전력 상수(plan_26082319 §6.3). 존재만으로 유효한 게 아니라 하한 가드까지 태운다.
+if [ -s "$ETC/thermal_params.env" ]; then
+  ok "열·전력 상수 존재($ETC/thermal_params.env)" "thermal_params"
+  # shellcheck disable=SC1090
+  ( . "$ETC/thermal_params.env"; python3 "$SDIR/blackbox_thermal.py" \
+      --set gpu_pwr_w="$(( ${BB_TP_GPU_PWR_DW:-800} / 10 ))" \
+      --set gpu_sustain_s="${BB_TP_GPU_SUSTAIN_S:-60}" \
+      --set soc_warn_c="${BB_TP_SOC_WARN_C:-90}" \
+      --set soc_hard_c="${BB_TP_SOC_HARD_C:-95}" --explain 90 47 >/dev/null 2>&1 ) \
+    && ok "열·전력 상수가 하한 가드 통과" "thermal_guard" \
+    || bad "열·전력 상수가 하한 가드 위반 — 재생성 필요" "thermal_guard"
+  # 미교정 파라미터는 **PASS 로 덮지 않는다**. 통과했다는 말이 "실측으로 검증됐다"로 읽히면
+  # 그 자체가 거짓이 된다(헌법 §결정론 규율 — 값 옆에 출처).
+  # shellcheck disable=SC1090
+  _unc="$( . "$ETC/thermal_params.env" 2>/dev/null; echo "${BB_TP_UNCALIBRATED:-}" )"
+  [ -n "$_unc" ] && say "   ⚠ 미교정 파라미터(외부 보고 역산 — 이 노드 실측 분포 없음): $_unc"
+else
+  bad "열·전력 상수 부재 — 워치독이 내장 기본값으로 동작 중" "thermal_params"
+fi
+
+# ── B2. 하드웨어 워치독 = 하드 락업 **복구** 계층 (plan_26082319 §5.1 · §8 성공기준 1) ──
+#   ★ 이 검사가 없으면 "설치했다"와 "무장됐다"가 구별되지 않는다. system.conf 는 PID1 자신의
+#     설정이라 daemon-reload 로는 반영되지 않고(daemon-reexec 필요), 그 함정에 걸리면 파일은
+#     놓였는데 state 는 inactive 인 채로 조용히 지나간다.
+WD_SYS=/sys/class/watchdog/watchdog0
+if [ ! -e "$WD_SYS" ]; then
+  # 장치 부재는 실패가 아니라 부재다 — 그러나 "복구 계층 없음"은 반드시 말한다(침묵 금지).
+  say "   ⚠ $WD_SYS 부재 — 이 플랫폼엔 하드웨어 워치독이 없다. **하드 락업 복구 계층 없음**"
+  PEND=$((PEND+1)); RESULTS="$RESULTS{\"check\":\"hw_watchdog\",\"verdict\":\"n/a\"},"
+else
+  _wst="$(cat "$WD_SYS/state" 2>/dev/null || echo unknown)"
+  _wto="$(cat "$WD_SYS/timeout" 2>/dev/null || echo ?)"
+  _wus="$(systemctl show -p RuntimeWatchdogUSec --value 2>/dev/null || echo ?)"
+  if [ "$_wst" = "active" ]; then
+    ok "하드웨어 워치독 무장($(cat "$WD_SYS/identity" 2>/dev/null) · timeout=${_wto}s · RuntimeWatchdogUSec=$_wus)" "hw_watchdog"
+  else
+    bad "하드웨어 워치독 **미무장**(state=$_wst · RuntimeWatchdogUSec=$_wus) — 하드 락업 시 자동 리셋 없음. 무장: sudo bash $SDIR/../host_safety/install_host_safety.sh --apply" "hw_watchdog"
+  fi
 fi
 
 # ★ 샘플이 '실제로 자라는가' — 파일 존재가 아니라 증분을 본다

@@ -5,6 +5,9 @@
 #   ④ kdump 는 **제거됐다**(2026-07-31, testlog_26073114): 무장 시 panic() 이 kmsg_dump 보다 먼저
 #      kexec 로 점프해 efi_pstore 를 원천 차단하고, 그 대가로 2.25 GiB 를 상시 예약한다.
 #      사후 포착 정본 = node_blackbox --level=L3 (efi_pstore) + 멀티는 netconsole.
+#   ⑤ **SBSA 하드웨어 워치독 무장**(plan_26082319 §5.1 · 2026-08-23 신설) — 하드 락업 자동 리셋.
+#      ①~④ 는 전부 **userland** 다. 하드 락업(커널 완전 정지)에서는 감시자 자신이 함께 얼어붙으므로
+#      원리적으로 무력하다. 하드웨어 타이머만이 그 상태에서 살아 있다.
 #   실행 주체 = 사람(HITL sudo — terraforming "호스트 안전체계" 스텝): sudo bash .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh --apply
 #   기본 = dry-run(무엇을 설치할지 표시만). 멱등 — 재실행 안전. 서브노드에도 동일 실행(렌더 배달분).
 # 종료코드: 0=성공(또는 dry-run) · 1=전제 실패 · 2=설치/검증 실패.
@@ -13,6 +16,12 @@ set -uo pipefail
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APPLY=0; EARLYOOM_DEB=""
 TARGET_USER="${SUDO_USER:-$(id -un)}"
+# ★ 하드웨어 워치독 타임아웃(초). 기본 60 의 근거는 아래 ⑤ 블록 주석에 있다 — **한 곳에서만** 설명한다.
+WATCHDOG_SEC=60
+WITH_WATCHDOG=1
+# 이보다 짧은 설정은 거부한다. 이 호스트는 100 GiB 급 모델 로드를 상시 수행하고, 그 구간에서
+# PID1 이 수 초 스톨하는 것은 정상이다. 짧은 타임아웃은 **정상 부하를 재부팅으로 바꾼다**.
+WATCHDOG_MIN_SEC=15
 for a in "$@"; do
   case "$a" in
     --apply) APPLY=1 ;;
@@ -26,7 +35,9 @@ for a in "$@"; do
       exit 1 ;;
     --user=*) TARGET_USER="${a#--user=}" ;;
     --earlyoom-deb=*) EARLYOOM_DEB="${a#--earlyoom-deb=}" ;;
-    *) echo "[host-safety] 알 수 없는 인자: $a (사용: --apply [--earlyoom-deb=<path>] [--user=<name>])"; exit 1 ;;
+    --watchdog-sec=*) WATCHDOG_SEC="${a#--watchdog-sec=}" ;;
+    --no-watchdog) WITH_WATCHDOG=0 ;;
+    *) echo "[host-safety] 알 수 없는 인자: $a (사용: --apply [--earlyoom-deb=<path>] [--user=<name>] [--watchdog-sec=<n>] [--no-watchdog])"; exit 1 ;;
   esac
 done
 # 오프라인 earlyoom: --earlyoom-deb 미지정 시 레포 루트의 earlyoom_*.deb 자동탐지(offline apt 대비).
@@ -121,9 +132,108 @@ fi
 say "④ kdump: 폐지됨(2026-07-31) — 사후 포착은 node_blackbox --level=L3 의 efi_pstore 가 담당"
 say "   기존 kdump 가 남아 있다면 그것이 efi_pstore 를 막고 있다: install_node_blackbox.sh --apply --level=L3"
 
+# ── ⑤ SBSA 하드웨어 워치독 무장 (하드 락업 자동 리셋) ───────────────────
+#   근거 plan_26082319 §5.1 · 사건 2026-08-23 R6.
+#   ①~④ 는 전부 userland 다. 2026-08-23 R6 에서 호스트가 **하드 락업**(커널 완전 정지)에 빠졌을 때
+#   softlockup_panic·hung_task_panic 은 무장돼 있었는데도 **둘 다 미발동**했다 — 인터럽트까지
+#   멈췄다는 뜻이다. 하드 락업을 잡는 유일한 커널 감지기(NMI 워치독)는 이 플랫폼에서
+#   `watchdog: Hard watchdog permanently disabled`(부트로그 실측)로 **영구 비활성**이고,
+#   대안인 "buddy" 감지기는 **전 CPU 동시 정지를 못 잡는다**(감시 CPU 도 얼음) — 이번 사건이
+#   정확히 그 경우다. 결과: 18:28 정지 → 18:41 사용자 수동 재부팅까지 **13 분 무방비**.
+#
+#   SBSA Generic Watchdog 은 **하드웨어 타이머**라 커널 정지의 영향을 받지 않는다. 커널이 얼면
+#   pet(피드)이 멈추고, 타이머가 만료되면 시스템을 리셋한다. 이 호스트는 GTDT 에 이미 장치가
+#   있고(`ACPI GTDT: found 1 SBSA generic Watchdog(s)`) `/dev/watchdog` 으로 노출돼 있다 —
+#   **무장만 하면 된다**(설치 전 실측: state=inactive · RuntimeWatchdogUSec=0).
+#
+#   ⚠ 이것은 **복구**이지 예방이 아니다. 예방은 node_blackbox 의 열·전력 포락선 워치독
+#     (`thermal_watchdog.sh`)이 담당한다. 리셋이 반복된다면 그것은 워치독의 성공이 아니라
+#     **예방 실패 신호**다 — 그때는 열·전력 임계를 재교정하라.
+#
+#   ⚠ **새 실패 모드를 하나 들여온다(음성정직)**: PID1 이 타임아웃 동안 ping 하지 못하면
+#     *멀쩡한* 호스트도 리셋된다. 그래서 기본을 60 초로 잡았다(systemd 는 그 절반인 30 초마다
+#     ping 한다). PID1 이 30 초를 놓치려면 시스템이 이미 사용 불가 상태여야 하며, 이 호스트의
+#     과거 사고는 전부 그 상태에서 **어차피 하드다운으로 끝났다** — 그 구간의 리셋은 퇴행이
+#     아니라 개선이다. 관측 후 조이려면 --watchdog-sec=<n> (하한 ${WATCHDOG_MIN_SEC}초).
+#   ⚠ efi_pstore(C7)와의 관계: panic 시 systemd 가 ping 을 멈추므로 워치독이 결국 리셋한다.
+#     efi_pstore 기록은 1 초 미만이라 60 초 타임아웃이 사후 포착을 자르지 않는다.
+say "⑤ SBSA 하드웨어 워치독: $([ "$WITH_WATCHDOG" = 1 ] && echo "RuntimeWatchdogSec=${WATCHDOG_SEC}s 무장" || echo "건너뜀(--no-watchdog)")"
+WD_SYS=/sys/class/watchdog/watchdog0
+WD_DROPIN=/etc/systemd/system.conf.d/10-easy-vllm-watchdog.conf
+if [ "$WITH_WATCHDOG" = "1" ]; then
+  case "$WATCHDOG_SEC" in
+    ''|*[!0-9]*) say "  ✗ --watchdog-sec 는 정수여야 한다: '$WATCHDOG_SEC'"; FAIL=1; WITH_WATCHDOG=0 ;;
+    *) if [ "$WATCHDOG_SEC" -lt "$WATCHDOG_MIN_SEC" ]; then
+         # 조용히 올리지 않는다 — 거부한다(안전값을 몰래 바꾸면 사람이 무엇이 걸렸는지 모른다).
+         say "  ✗ --watchdog-sec=$WATCHDOG_SEC 는 하한 ${WATCHDOG_MIN_SEC}초 미만이라 거부한다."
+         say "    근거: 100 GiB 급 모델 로드 중 PID1 수 초 스톨은 정상이며, 짧은 타임아웃은"
+         say "          정상 부하를 재부팅으로 바꾼다. 필요하면 하한 자체를 근거와 함께 바꿔라."
+         FAIL=1; WITH_WATCHDOG=0
+       fi ;;
+  esac
+fi
+if [ "$WITH_WATCHDOG" = "1" ] && [ ! -e "$WD_SYS" ]; then
+  # 장치 부재는 **실패가 아니라 부재**다(플랫폼에 따라 없을 수 있다). 정직하게 알리고 넘어간다 —
+  # 다만 "설치했다"고 말하지는 않는다. 그 노드는 하드 락업 복구 계층이 없는 것이다.
+  say "  ⚠ $WD_SYS 부재 — 이 플랫폼엔 하드웨어 워치독이 없다. **하드 락업 복구 계층 없음**."
+  say "    (예방 계층 thermal_watchdog 은 여전히 유효하다 — install_node_blackbox.sh --level=L1)"
+  WITH_WATCHDOG=0
+fi
+if [ "$WITH_WATCHDOG" = "1" ]; then
+  WD_ID="$(cat "$WD_SYS/identity" 2>/dev/null || echo unknown)"
+  WD_STATE="$(cat "$WD_SYS/state" 2>/dev/null || echo unknown)"
+  WD_TMO="$(cat "$WD_SYS/timeout" 2>/dev/null || echo unknown)"
+  WD_OPT="$(cat "$WD_SYS/options" 2>/dev/null || echo 0)"
+  say "  장치: $WD_ID · 현재 state=$WD_STATE · timeout=${WD_TMO}s · options=$WD_OPT"
+  # WDIOF_PRETIMEOUT(0x0200) 능력 판정. **있다고 가정하고 쓰면 PID1 설정이 통째로 거부될 수 있다.**
+  #   이 호스트 실측 options=0x81a0 → pretimeout 미지원이므로 RuntimeWatchdogPreSec 은 쓰지 않는다.
+  WD_PRE=0
+  if [ "$WD_OPT" != "0" ] && [ $(( WD_OPT & 0x0200 )) -ne 0 ]; then WD_PRE=1; fi
+  if [ "$WD_PRE" = "1" ]; then
+    say "  pretimeout 지원됨 → 2 단계(WS0 panic → WS1 reset) 사용: RuntimeWatchdogPreSec=$(( WATCHDOG_SEC / 2 ))s"
+  else
+    say "  pretimeout 미지원(options 에 WDIOF_PRETIMEOUT 없음) → 1 단계 리셋만. RuntimeWatchdogPreSec 생략."
+  fi
+  say "  drop-in → $WD_DROPIN (system.conf 원본은 건드리지 않는다 — 패키지 갱신과 충돌하지 않게)"
+  if [ "$APPLY" = "1" ]; then
+    install -d -m 0755 /etc/systemd/system.conf.d
+    {
+      printf '# easy-vllm host-safety (plan_26082319 §5.1) — SBSA 하드웨어 워치독.
+'
+      printf '# 하드 락업(커널 완전 정지)에서 자동 리셋하는 **유일한** 기구다. userland 워치독은
+'
+      printf '# 정의상 이 클래스를 못 잡는다(감시자도 함께 얼어붙는다).
+'
+      printf '# 갱신: install_host_safety.sh --apply --watchdog-sec=<n> · 해제: --no-watchdog 후 이 파일 삭제
+'
+      printf '[Manager]
+'
+      printf 'RuntimeWatchdogSec=%ss
+' "$WATCHDOG_SEC"
+      [ "$WD_PRE" = "1" ] && printf 'RuntimeWatchdogPreSec=%ss
+' "$(( WATCHDOG_SEC / 2 ))"
+    } > "$WD_DROPIN"
+    chmod 0644 "$WD_DROPIN"
+    # ★ **daemon-reload 로는 반영되지 않는다.** system.conf 는 PID1 자신의 설정이라
+    #   `daemon-reexec` 로 PID1 을 재실행해야 읽힌다. 이걸 빠뜨리면 파일은 놓였는데 워치독은
+    #   여전히 꺼져 있고, 그 상태가 "설치 완료"로 보고된다(만든 것과 도는 것이 다른 전형).
+    systemctl daemon-reexec
+    sleep 1
+    WD_NOW="$(cat "$WD_SYS/state" 2>/dev/null || echo unknown)"
+    WD_USEC="$(systemctl show -p RuntimeWatchdogUSec --value 2>/dev/null || echo unknown)"
+    if [ "$WD_NOW" = "active" ]; then
+      say "  ✓ 하드웨어 워치독 active (timeout=$(cat "$WD_SYS/timeout" 2>/dev/null)s · systemd RuntimeWatchdogUSec=$WD_USEC)"
+    else
+      say "  ✗ 무장 실패 — state=$WD_NOW (systemd RuntimeWatchdogUSec=$WD_USEC)"
+      say "    확인: cat $WD_DROPIN · systemctl show -p RuntimeWatchdogUSec · journalctl -b -u init.scope"
+      FAIL=1
+    fi
+  fi
+fi
+
 if [ "$APPLY" = "1" ]; then
-  say "설치 요약: memwatch=$(systemctl is-active easy-vllm-memwatch.service 2>/dev/null) · earlyoom=$(systemctl is-active earlyoom 2>/dev/null) · sudoers=$([ -f /etc/sudoers.d/easy-vllm-host-safety ] && echo ok || echo missing)"
+  say "설치 요약: memwatch=$(systemctl is-active easy-vllm-memwatch.service 2>/dev/null) · earlyoom=$(systemctl is-active earlyoom 2>/dev/null) · sudoers=$([ -f /etc/sudoers.d/easy-vllm-host-safety ] && echo ok || echo missing) · hw-watchdog=$(cat /sys/class/watchdog/watchdog0/state 2>/dev/null || echo none)"
   exit "$([ "$FAIL" = "0" ] && echo 0 || echo 2)"
 else
-  say "DRY-RUN 종료 — 실제 설치: sudo bash .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh --apply [--with-kdump]"
+  say "DRY-RUN 종료 — 실제 설치: sudo bash .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh --apply"
 fi
