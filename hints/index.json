@@ -638,6 +638,42 @@
       "last_verified": "2026-08-20"
     },
     {
+      "tag": "hint/0.27.1.dev0/qwen3.8-27b/gb10-1m-fp8kv-fp8w",
+      "vllm": "0.27.1.dev0",
+      "model": "qwen3.8-27b",
+      "arch": "gb10-1m-fp8kv-fp8w",
+      "topology": "single 1노드",
+      "brief": "Qwen3.8-27B 를 GB10 단일노드에서 **1M 컨텍스트**로 띄운 레시피 — fp8 KV 가 티어를 열고, 온-더-플라이 가중치 fp8 이 속도를 1.73× 올린다.",
+      "anchor": "04f6b3f9723df749a87835058b7a24f7bed272ec",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-08-24"
+    },
+    {
+      "tag": "hint/0.27.1.dev0/qwen3.8-27b/gb10-262k-stock",
+      "vllm": "0.27.1.dev0",
+      "model": "qwen3.8-27b",
+      "arch": "gb10-262k-stock",
+      "topology": "single 1노드",
+      "brief": "Qwen3.8-27B 를 GB10 단일노드에서 **네이티브 262,144 컨텍스트**로 띄운 기준선 레시피 — rope 주입 없이, MTP n=3 만으로 기준선 대비 2.18×.",
+      "anchor": "04f6b3f9723df749a87835058b7a24f7bed272ec",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-08-24"
+    },
+    {
+      "tag": "hint/0.27.1.dev0/qwen3.8-27b/gb10-524k-stock",
+      "vllm": "0.27.1.dev0",
+      "model": "qwen3.8-27b",
+      "arch": "gb10-524k-stock",
+      "topology": "single 1노드",
+      "brief": "Qwen3.8-27B 를 GB10 단일노드에서 **512K(524,288) 컨텍스트 · bf16 KV** 로 띄운 레시피 — 가중치를 bf16 로 두고도 서는 가장 높은 티어.",
+      "anchor": "04f6b3f9723df749a87835058b7a24f7bed272ec",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-08-24"
+    },
+    {
       "tag": "hint/0.27.1/deepseek-v4-flash-0731/gb10x2-dspark-1m",
       "vllm": "0.27.1",
       "model": "deepseek-v4-flash-0731",
