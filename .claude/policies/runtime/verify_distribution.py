@@ -627,6 +627,15 @@ def verify() -> dict:
              ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py", "--self-test"], {0}),
         _run("recipe_run_trial_selftest", [sys.executable,
              ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py", "--self-test"], {0}),
+        # sweep meta 추출의 **집행** (plan_26082322 §3.3 · 2026-08-23 배선). 같은 이유다 —
+        #   호출자 없는 자체검사는 L2 가 아니라 L1(산문)이다.
+        #   무엇을 지키나: `quantization`·`kv_cache_dtype` 를 config yaml 에서만 읽던 시절,
+        #   serve-plane CLI(축 F/H)로 들어온 fp8 이 "N/A" 로 발행됐다(2026-08-23 R7). "N/A" 는
+        #   사람에게 **"양자화 없음"**으로 읽히므로, PASS 였다면 거짓 계약이 인증서로 배포됐다.
+        #   이 검사는 sweep_bench.sh 의 조립 heredoc 을 **그대로 뽑아 실행**하므로(파서 복제 없음)
+        #   배포되는 코드 자체를 친다. 순수 정적 픽스처 — 서빙·docker·모델 불요.
+        _run("benchmark_sweep_meta_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_meta.py"], {0}),
     ]
 
     with tempfile.TemporaryDirectory(prefix="easy-vllm-wiki-distribution.") as wiki:

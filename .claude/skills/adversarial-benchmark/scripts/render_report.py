@@ -171,10 +171,16 @@ def build_md(index, verdict, roofline):
     for label, key in [
         ("model", "model"), ("model_source", "model_source"), ("serving_config", "serving_config"),
         ("gpu_model", "gpu_model"), ("vllm_version", "vllm_version"),
-        ("quantization", "quantization"), ("topology", "topology"), ("tensor_parallel_size", "tensor_parallel_size"),
+        # `*_source` 를 값 바로 옆에 렌더한다(2026-08-23 · plan_26082322). 이 두 값은 config yaml
+        # 에도 serve-plane CLI 에도 살 수 있어서, 값만 보면 "N/A = 양자화 없음"으로 오독된다 —
+        # 2026-08-23 R7 이 실제로 그렇게 읽혔다. 출처가 보이면 `measured(engine log)` 인지
+        # `absent(both)` 인지가 표에서 바로 갈린다(헌법 §결정론 규율 "값 옆에 출처 필드").
+        ("quantization", "quantization"), ("quantization_source", "quantization_source"),
+        ("topology", "topology"), ("tensor_parallel_size", "tensor_parallel_size"),
         ("driver_version", "driver_version"), ("cuda_version", "cuda_version"), ("image_tag", "image_tag"),
         ("max_model_len", "max_model_len"), ("max_num_seqs", "max_num_seqs"),
-        ("kv_cache_memory_bytes", "kv_cache_memory_bytes"), ("kv_cache_dtype", "kv_cache_dtype"),
+        ("kv_cache_memory_bytes", "kv_cache_memory_bytes"),
+        ("kv_cache_dtype", "kv_cache_dtype"), ("kv_cache_dtype_source", "kv_cache_dtype_source"),
         ("gpu_memory_utilization", "gpu_memory_utilization"), ("moe_backend", "moe_backend"),
         ("enforce_eager", "enforce_eager"), ("model_path", "model_path"),
     ]:
