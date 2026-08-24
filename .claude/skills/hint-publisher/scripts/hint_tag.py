@@ -1540,7 +1540,7 @@ def cmd_push(a: argparse.Namespace) -> int:
             print(f"             {t}")
     print(f"[hint_tag] 선별 배포 refspec: git push {a.remote} \"{refspec}\"  (hint 태그만 · --tags 금지)")
     if not a.apply:
-        print("[hint_tag] DRY-RUN (관례상 push 는 사용자가 직접). 실제 배포는 --apply.")
+        print("[hint_tag] DRY-RUN (배포 없음). 실제 배포는 --apply.")
         git("push", "--dry-run", a.remote, refspec, check=False)
         return 0
     git("push", a.remote, refspec)

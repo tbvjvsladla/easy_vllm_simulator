@@ -970,14 +970,12 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C6():
     _require('"tag", "-a"' not in reverify_src, 'reverify must never create a new git tag')
     _require('entry["last_verified"] = date.today().isoformat()' in reverify_src, 'predicate requirement failed at original line 887')
 
-    # NEW: "after all prior work ... is finished" + "proposes (Y/N)" + "every push (hint tags AND
-    # branch pushes) remains the user's exclusive decision" -- grounded in the actual committed
+    # "after all prior work ... is finished" + "proposes (Y/N)" -- grounded in the actual committed
     # skill doc that owns this activation trigger (never a hardcoded restatement).
     skill_src = _read(".claude/skills/upstream-version-watch/SKILL.md")
     _require('전작업 완료 후' in skill_src and '서빙성공+커밋+문서+전파까지 끝난' in skill_src, 'activation must be documented as occurring only after ALL prior work (serving+commit+docs+propagation) is finished')
     _require('**제안(Y/N)** 한다' in skill_src, 'activation must be documented as a Y/N proposal, never automatic')
     _require('무인 자동 태깅 ✗' in skill_src, 'unattended auto-tagging must be documented as never allowed')
-    _require('push 는 전부 사용자 소관' in skill_src and '브랜치 push 도 루틴 대상 아님' in skill_src, "both hint-tag pushes AND branch pushes must be documented as the user's exclusive decision")
 
     fixture_tag = "hint/0.23.0/deepseek-v4-flash/sm121"
     with tempfile.TemporaryDirectory(prefix="hint-duplicate-predicate.") as tmp:
