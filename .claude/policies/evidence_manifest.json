@@ -1,11 +1,11 @@
 {
   ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json": "d7562d7ba520cbadc88e9ab8685e4a2a0d39ce21549be4c248be5c0f6ab5d265",
-  ".claude/policies/predicates/claim_predicates.py": "13416be51e46a8917805e7a3a907d1eb01d8e08f544bf9b4a8bca56c53aaaad3",
+  ".claude/policies/predicates/claim_predicates.py": "a4ca17ec8eedb1305ba5a5f3f8a1751da163e48d46ec23d44a3182f82b7ed130",
   ".claude/policies/predicates/companion_predicate.py": "f95e28a22e4768636892ee06c1f86d9fad01182771f34ae4b3b04d3b28b75e7d",
   ".claude/policies/predicates/runtime_patch_predicate.py": "852ba2a545b1766d7d669a0e100390b64b1bbd6e71eaba8091547e1c6eeb309d",
   ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md": "a6788c3440acc92d7148a87140e9e19d48df5c8c77ce8fd742c1b405754c1b9d",
   ".claude/skills/adversarial-benchmark/scripts/run_bench.sh": "7c51925c7e56369885d771a498948cc583eb922273b7803caffa69b462387400",
-  ".claude/skills/hint-publisher/scripts/hint_tag.py": "9bb67e8c3de9c4e9f06a759ba993c5d77eef3b3d9c2f42a622912c245c475fbb",
+  ".claude/skills/hint-publisher/scripts/hint_tag.py": "3c6c42ebb75308351ca1c778c4d4b8946d00208db1d1d7514039bc4ad4fbbd5a",
   ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh": "c94d92b868d526e4965639b0011a2aaa5072057c90bcad93afffb666caf8541a",
   ".claude/skills/terraforming_node/scripts/host_safety/install_netconsole.sh": "bb80148eb2c3cddbba3ff7fc70e028688bb2f361ecea854d7c478319056e3a2d",
   ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh": "b5fd4723c4276bbea3f0f281b51ad8a4467fd3850ad3186470a4ce1c59f24c1b",
