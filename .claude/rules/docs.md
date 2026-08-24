@@ -10,7 +10,9 @@
 - 주제는 간결한 한국어 `_` slug. 평면 `docs/파일.md`, 상대날짜, `_seq_`는 금지한다.
 - simlog: `docs/simlog/<YYMMDDHH>[_<MM>_<SS>]_<주제>/` (run 디렉터리).
 - benchmark: `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`는 항상, `docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`은 PASS 때만 발행한다. report prefix 정본은 `bench_report_`; timestamp/collision은 `.claude/skills/wiki-desk/scripts/doc_naming.py`.
-- outbound report: `docs/report/<kebab-case-topic>.<html|md>`; 날짜 없이 최신본을 갱신한다.
+- outbound report: `docs/report/<분류>_<YYMMDDHH>[_MM_SS]_<한글제목>.<html|md>`; 분류는 짧은 영문 키워드
+  (`perf|harness|audit|example` 등), 한글제목은 간결한 한국어 `_` slug. 발행 시점이 고정된다(최신본 갱신이
+  아니다 — 같은 주제를 다시 발행하면 새 문서를 낸다). 2026-08-24 개정: 기존 kebab-case 무날짜 규약 폐기.
 - **request(수행지시서)**: `docs/request/request_<YYMMDDHH>[_MM_SS]_<주제>.md`. 기본형과 동일한 날짜 규약을
   쓴다 — report 와 달리 "최신본 갱신"이 아니라 **발행 시점이 고정된 작업지시**이기 때문이다(같은 과업을
   다시 지시하면 새 문서를 낸다). 발행 대상은 **에이전트가 닿을 수 없는 평면에서 사람이 직접 수행할 절차**다.

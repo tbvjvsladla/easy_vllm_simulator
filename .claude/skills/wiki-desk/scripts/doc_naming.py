@@ -168,13 +168,17 @@ def bench_filename(kind, meta, generated_utc, existing_basenames=(), ext=None):
     return suffixed
 
 
-def report_basename(slug, ext="html"):
-    """docs/report/ is the ONE undated exception -- kebab-case slug only, no time token, no
-    collision suffix (the slug itself IS the file identity; re-publishing overwrites in place,
-    README-style)."""
-    if not slug or not _KEBAB_RE.match(slug):
-        raise ValueError("report_basename: slug must be non-empty kebab-case ([a-z0-9]+(-[a-z0-9]+)*), got %r" % (slug,))
-    return "%s.%s" % (slug, ext)
+_REPORT_RE = re.compile(r"^[a-z][a-z0-9]*_\d{8}_.+\Z")
+
+
+def report_basename(name, ext="html"):
+    """docs/report/ — <분류>_<YYMMDDHH>[_MM_SS]_<한글제목>.<ext> (2026-08-24 개정: kebab 무날짜 규약 폐기).
+    분류 = 짧은 영문 키워드(perf|harness|audit|example ...), timestamp = KST YYMMDDHH, 한글제목 = 간결한
+    한국어 `_` slug(모델명 등 proper noun 은 원형 유지). 발행 시점 고정 — 같은 주제 재발행은 새 문서."""
+    if not name or "/" in name or "\\" in name or not _REPORT_RE.match(name):
+        raise ValueError("report_basename: name must be <분류>_<YYMMDDHH>[_MM_SS]_<한글제목> "
+                         "(분류=영문 키워드, 예: perf_26082421_qwen3.8-27b_레시피별_성능), got %r" % (name,))
+    return "%s.%s" % (name, ext)
 
 
 def _require(condition, message):
@@ -214,11 +218,13 @@ def _self_test():
     c1 = bench_filename("benchmark", meta, "2026-07-24T16:22:29Z")
     _require(c1 == "benchmark_26072501_solar-open2-250b_GB10_0.22.0.yaml", c1)
 
-    r1 = report_basename("rtxpro6000-benchmark-explorer")
-    _require(r1 == "rtxpro6000-benchmark-explorer.html", r1)
+    r1 = report_basename("perf_26082421_qwen3.8-27b_레시피별_성능")
+    _require(r1 == "perf_26082421_qwen3.8-27b_레시피별_성능.html", r1)
+    r2 = report_basename("harness_26082218_08_32_노드_정체성_토폴로지_그라운딩")
+    _require(r2 == "harness_26082218_08_32_노드_정체성_토폴로지_그라운딩.html", r2)
     try:
-        report_basename("has_underscore")
-        raise AssertionError("expected ValueError for non-kebab slug")
+        report_basename("rtxpro6000-benchmark-explorer")  # 무날짜 kebab → 신규 규칙 위반
+        raise AssertionError("expected ValueError for undated kebab slug")
     except ValueError:
         pass
 
