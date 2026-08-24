@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1712 685" width="1712" height="685" role="img" aria-labelledby="ttl dsc">
+  <title id="ttl">adversarial-benchmark 판정과 대응전략</title>
+  <desc id="dsc">서빙 중인 모델을 확인하고 제1 루브릭(루프라인 — 결정론적 로직으로 이론치 모델 성능 연산)에서 출발해 /health 200 가동 확인과 벤치마크(Full/Lite)를 거쳐 제2 루브릭(레퍼런스 — 외부 자료검색을 통한 모델 성능 자료 수집)으로 흐른다. 제3 루브릭은 사람이 목표 성능값을 지정하고, 수집 결과는 hit/empty/no 로 표시해 환각적 완료를 방지한다. Agent Judge 의 판정은 PASS(인증서 발행), 전략 폐기(모델 재 서빙 — 서빙 확인으로 되돌아가는 루프), cap 소진(시행착오 보고서 발행) 세 갈래다.</desc>
+
+  <!-- 배색은 자기완결이다(아이보리 배경 고정) — skill-pipeline.svg 와 동일 규약. -->
+  <defs>
+    <marker id="ah-ink" viewBox="0 0 10 10" refX="9" refY="5"
+            markerUnits="userSpaceOnUse" markerWidth="20" markerHeight="20" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#111111"/>
+    </marker>
+    <marker id="ah-red" viewBox="0 0 10 10" refX="9" refY="5"
+            markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c00000"/>
+    </marker>
+    <marker id="ah-navy" viewBox="0 0 10 10" refX="9" refY="5"
+            markerUnits="userSpaceOnUse" markerWidth="18" markerHeight="18" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f3864"/>
+    </marker>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="3" flood-color="#000000" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1712" height="685" fill="#f0f0e3"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, &quot;Apple SD Gothic Neo&quot;, &quot;Malgun Gothic&quot;, &quot;Noto Sans KR&quot;, &quot;Noto Sans CJK KR&quot;, NanumGothic, sans-serif">
+
+    <!-- ══ 서빙 확인 (루프 기점) ══ -->
+    <rect x="12" y="10" width="300" height="112" rx="56" fill="#fdfdfb" stroke="#1f3864" stroke-width="4" filter="url(#soft)"/>
+    <text x="162" y="56" text-anchor="middle" font-size="28" font-weight="600" fill="#1a1a1a">🧠 모델이</text>
+    <text x="162" y="100" text-anchor="middle" font-size="28" font-weight="600" fill="#1a1a1a">서빙중인지 확인</text>
+
+    <path d="M 192,124 L 250,192" fill="none" stroke="#c00000" stroke-width="5" marker-end="url(#ah-red)"/>
+
+    <!-- ══ 제1 루브릭 ══ -->
+    <rect x="185" y="200" width="355" height="145" rx="26" fill="#fbf8f0" stroke="#c00000" stroke-width="5" filter="url(#soft)"/>
+    <text x="362" y="245" text-anchor="middle" font-size="30" font-weight="700" fill="#c00000">제1 루브릭 : 루프라인</text>
+    <text x="362" y="290" text-anchor="middle" font-size="25" fill="#1a1a1a">결정론적 로직으로</text>
+    <text x="362" y="325" text-anchor="middle" font-size="25" fill="#1a1a1a">이론치 모델 성능 연산</text>
+
+    <!-- ══ 제1 → 제2 ══ -->
+    <path d="M 545,272 L 1035,272" fill="none" stroke="#111111" stroke-width="7" marker-end="url(#ah-ink)"/>
+    <rect x="570" y="215" width="195" height="112" fill="#fdfcf7" stroke="#c8c8c0" stroke-width="1" filter="url(#soft)"/>
+    <text x="667" y="256" text-anchor="middle" font-size="26" fill="#1a1a1a">/health 200</text>
+    <text x="667" y="308" text-anchor="middle" font-size="26" fill="#1a1a1a">가동 확인</text>
+    <rect x="800" y="215" width="200" height="112" fill="#fdfcf7" stroke="#c8c8c0" stroke-width="1" filter="url(#soft)"/>
+    <text x="900" y="256" text-anchor="middle" font-size="26" fill="#1a1a1a">벤치마크</text>
+    <text x="900" y="308" text-anchor="middle" font-size="26" fill="#1a1a1a">(Full / Lite)</text>
+
+    <!-- ══ 제2 루브릭 ══ -->
+    <rect x="1045" y="200" width="360" height="145" rx="26" fill="#fbf8f0" stroke="#c00000" stroke-width="5" filter="url(#soft)"/>
+    <text x="1225" y="245" text-anchor="middle" font-size="30" font-weight="700" fill="#c00000">제2 루브릭 : 레퍼런스</text>
+    <text x="1225" y="290" text-anchor="middle" font-size="25" fill="#1a1a1a">외부 자료검색을 통한</text>
+    <text x="1225" y="325" text-anchor="middle" font-size="25" fill="#1a1a1a">모델 성능 자료 수집</text>
+
+    <!-- ══ 제3 루브릭 (사람) ══ -->
+    <rect x="1070" y="10" width="300" height="110" rx="40" fill="#fbf8f0" stroke="#c00000" stroke-width="5" filter="url(#soft)"/>
+    <text y="52" text-anchor="start" font-size="28" font-weight="700"><tspan x="1093" fill="#c00000">제3 루브릭 : </tspan><tspan x="1253" fill="#1f4e79">👤 사람</tspan></text>
+    <text x="1220" y="95" text-anchor="middle" font-size="25" fill="#1a1a1a">목표 성능값 지정</text>
+    <path d="M 1220,122 L 1220,190" fill="none" stroke="#c00000" stroke-width="5" stroke-dasharray="10 8" marker-end="url(#ah-red)"/>
+
+    <!-- ══ 환각적 완료 방지 ══ -->
+    <rect x="1440" y="22" width="250" height="145" rx="10" fill="#fbf8ee" stroke="#111111" stroke-width="4" filter="url(#soft)"/>
+    <text x="1565" y="58" text-anchor="middle" font-size="26" font-weight="700" fill="#1a1a1a">환각적 완료 방지</text>
+    <rect x="1452" y="75" width="226" height="80" rx="8" fill="#c55a11"/>
+    <text x="1565" y="108" text-anchor="middle" font-size="25" font-weight="700" fill="#ffffff">수집 결과</text>
+    <text x="1565" y="143" text-anchor="middle" font-size="24" font-weight="700" fill="#ffffff">hit | empty | no</text>
+    <path d="M 1398,212 L 1442,158" fill="none" stroke="#111111" stroke-width="7" marker-end="url(#ah-ink)"/>
+
+    <!-- ══ 제2 → Judge ══ -->
+    <path d="M 1225,345 L 1225,412" fill="none" stroke="#111111" stroke-width="7" marker-end="url(#ah-ink)"/>
+
+    <polygon points="1075,490 1120,420 1320,420 1365,490 1320,560 1120,560"
+             fill="#fdfdfb" stroke="#1f3864" stroke-width="5" filter="url(#soft)"/>
+    <text x="1220" y="478" text-anchor="middle" font-size="40" font-weight="700" fill="#1a1a1a">Agent</text>
+    <text x="1220" y="532" text-anchor="middle" font-size="40" font-weight="700" fill="#1a1a1a">Judge</text>
+
+    <!-- ══ 판정 세 갈래 (점선) ══ -->
+    <g fill="none" stroke="#1f3864" stroke-width="6" stroke-dasharray="16 10">
+      <path d="M 1070,490 L 762,490" marker-end="url(#ah-navy)"/>
+      <path d="M 436,490 L 132,490 L 132,132" marker-end="url(#ah-navy)"/>
+      <path d="M 1370,490 L 1446,490" marker-end="url(#ah-navy)"/>
+      <path d="M 1220,565 L 1220,625 L 1066,625" marker-end="url(#ah-navy)"/>
+    </g>
+
+    <!-- 전략 폐기 -->
+    <polygon points="460,415 775,415 735,555 420,555" fill="#fbf8f0" stroke="#c55a11" stroke-width="5" filter="url(#soft)"/>
+    <text x="598" y="470" text-anchor="middle" font-size="32" font-weight="700" fill="#1a1a1a">전략 폐기</text>
+    <text x="598" y="525" text-anchor="middle" font-size="32" font-weight="700" fill="#c00000">😈 모델 재 서빙</text>
+
+    <!-- PASS -->
+    <polygon points="1470,435 1700,435 1665,545 1435,545" fill="#fbf8f0" stroke="#c55a11" stroke-width="5" filter="url(#soft)"/>
+    <text x="1568" y="502" text-anchor="middle" font-size="34" font-weight="700" fill="#1a1a1a">✅ PASS</text>
+    <path d="M 1568,548 L 1568,592" fill="none" stroke="#111111" stroke-width="7" marker-end="url(#ah-ink)"/>
+    <rect x="1440" y="598" width="255" height="72" fill="#f8f5ea" filter="url(#soft)"/>
+    <text x="1568" y="643" text-anchor="middle" font-size="28" fill="#1a1a1a">🏅 인증서 발행</text>
+
+    <!-- cap 소진 -->
+    <polygon points="845,580 1080,580 1045,670 810,670" fill="#fbf8f0" stroke="#c55a11" stroke-width="5" filter="url(#soft)"/>
+    <text x="945" y="637" text-anchor="middle" font-size="32" font-weight="700" fill="#1a1a1a">📉 cap 소진</text>
+    <path d="M 818,625 L 724,625" fill="none" stroke="#111111" stroke-width="7" marker-end="url(#ah-ink)"/>
+    <rect x="350" y="590" width="365" height="72" fill="#f8f5ea" filter="url(#soft)"/>
+    <text x="532" y="637" text-anchor="middle" font-size="28" fill="#1a1a1a">📄 시행착오 보고서 발행</text>
+
+  </g>
+</svg>

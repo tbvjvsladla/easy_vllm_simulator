@@ -22,7 +22,7 @@ TensorRT-LLM 등의 추론엔진을 사용해야 합니다. 이때 서버 구축
 
 **easy-vllm 은 이 두 가지 문제를 코드에이전트에게 위임합니다.**
 
-<img src="./assets/skill-pipeline.svg" alt="easy-vllm 스킬 파이프라인 — 사람의 서빙 전략 지시가 terraforming_node · upstream-version-watch · vllm-recipe-explorer · adversarial-benchmark 네 스킬을 차례로 지나며 manifest.yaml · resolved.json · 모델 트리플렛 · 벤치 리포트를 산출하고, 위의 hints 카탈로그와 아래의 wiki-desk 사서가 전 구간을 받친다" width="100%">
+<img src="./assets/skill-pipeline.svg" alt="easy-vllm 스킬 파이프라인 — 사람의 서빙 전략 지시가 Terraforming_node(시스템 HW스캔·노드 블랙박스 설치) · upstream-version-watch(vLLM 컨테이너 빌드) · vllm-recipe-explorer(HITL 모델 서빙 전략 수립) · adversarial-benchmark(전략의 적대적 검증) 네 스킬을 차례로 지나며 manifest.yaml · build_patches · 모델 트리플렛 · bench report 를 산출한다. 위의 wiki-desk 사서가 세 런타임 스킬에 근거를 대고, 아래의 Hints 카탈로그가 벤치 결과를 받아 다음 레시피 탐색의 출발점이 된다" width="100%">
 
 easy-vllm-simulator의 전체 프로세스 진행 도식
 
@@ -176,6 +176,8 @@ manifest 를 만들지 않고, 비정상 종료합니다. "느린데 일단 진�
 torch·CUDA·드라이버 의존 요구사항을 준수하는 `vLLM 컨테이너`를 빌드하는 스킬은 `upstream-version-watch`로,<br/>
 사용자가 **타겟 vLLM 버전**을 선정하면 아래의 결정론적 스크립트 4개가 순차로 기능하여 빌드 전략을 판정(혹은 제안)합니다.
 
+<img src="./assets/build-track-judge.svg" alt="upstream-version-watch 빌드트랙 판정 — Deterministic Logic Node 안에서 ① resolve_torch_pin(vLLM이 요구하는 torch 버전) → ② resolve_ngc_tag(그 torch가 설치된 NGC 베이스 이미지) → ③ resolve_wheel(vLLM 깃허브에 prebuilt wheel 존재?) → ④ resolve_build_track(설치 가능한 prebuilt wheel?) 이 순차로 돌아 resolved.json 을 만들고, Agent Judge 가 이를 읽어 쉬운 길(Prebuilt wheel · 컴파일 없음)과 어려운 길(Source Build · 소스컴파일)로 판정한다" width="100%">
+
 | | 스크립트 | 무엇을 판정하나 | 무엇을 읽어서 판정하나 (권위) |
 |---|---|---|---|
 | **①** | `resolve_torch_pin.py` | 이 vLLM 이 요구하는 **torch 버전** | 업스트림 `pyproject.toml` 의 `[build-system].requires` |
@@ -323,33 +325,8 @@ deps 패치 → 소스-게이트 패치 → 자체 이식 → 포크 SHA 핀 →
 
 > ⚠️ **weight 양자화**는 로드하는 모델의 양자화 정보 기준, **KV 양자화**는 모델 서빙 CLI 플래그를 통해서 결정
 
-```mermaid
-flowchart TD
-    REQ(["🧑 사용자 요구 — context window · concurrency · 메모리 예산<br/>📄 config.json · safetensors 실측 파싱 (du 아님)"])
+<img src="./assets/recipe-explorer-patterns.svg" alt="vllm-recipe-explorer 두 패턴 — 왼쪽 Generate & Filter: 모델 양자화 · KV 양자화 · 컨텍스트(max-model-len) · 메모리 활용률(gpu-memory-utilization) 네 입력이 깔때기로 모여 유효 상한 = 예산(GiB) × 안전마진, weights + overhead + KV ≤ 유효 상한 하드게이트를 통과한 안전한 후보군 서빙 레시피가 도출되고, HITL 로 동시성(max-num-seqs)을 정한다. 오른쪽 Loop Until Done: 기동 테스트 전 준비작업(RAM 가용량 확인) → 스모크 테스트 및 판정(OOM/서빙실패) → KV 캐시 재산정(CLI 플래그 변수 조정) → 재시도(루프 cap 차감) 순환을 돌다 /health 200 이면 수렴 완료 — kv-cache-memory-bytes 확정" width="100%">
 
-    subgraph GF ["① Generate &amp; Filter — 실서빙 없음"]
-        direction TB
-        GEN["🎲 3축 곱집합 생성<br/>quant × max-model-len × gmu"]
-        GEN --> EST["📐 결정론 메모리 추정<br/>weights + overhead + KV"]
-        EST --> FLT{"예산 × 안전마진<br/>하드게이트"}
-        FLT -- "초과 후보 탈락" --> RANK["🏅 랭킹 — headroom → context"]
-    end
-
-    REQ --> GEN
-    RANK --> PICK(["🧑 HITL — 후보 선택"])
-
-    subgraph LP ["② Loop Until Done — 측정이 공식을 이긴다"]
-        direction TB
-        TRY["🚀 실기동 — <br/>로드-전 게이트 · 예산 선언<br/>/health → 기능 스모크 → 로그 실측"]
-        TRY --> CLS{"결정론 판정<br/>sim_classify"}
-        CLS -- "vram_oom → KV 클램프 재산정" --> TRY
-        CLS -- "functional → soft 변수 폴백" --> TRY
-    end
-
-    PICK --> TRY
-    CLS -- "infeasible · unknown · cap 3 소진" --> HALT(["🧑 Model-C — 중단·보고 + simlog"])
-    CLS == "none = 수렴" ==> DONE["✅ kv-cache-memory-bytes 확정<br/>+ gmu 함께 emit (이식성)"]
-```
 ---
 
 ### 3-1. 모델 하나를 띄우는 다섯 자리 — 3+1+1 과 그 바깥
@@ -445,39 +422,7 @@ Devil's Advocate는 스킬의 기동 과정에서 *Self-enhancement Bias(자기 
 
 ### 4-3. 판정과 대응전략 수립
 
-```mermaid
-flowchart TD
-    M["📊 측정값 M"]
-    AUTH{"루브릭 정본은?"}
-    V{"결정론 규칙 판정<br/>verdict_rule"}
-    NR(["🧑 NEEDS_RUBRIC<br/>사용자 백스톱"])
-    PASS["✅ PASS"]
-    REF["❌ REFUTE<br/>+ next_strategy_hint"]
-    CAP{"reconciliation cap<br/>남았나?"}
-    RE["🎛 recipe-explorer<br/>전략 폐기 → 재탐색 → 재기동"]
-    ESC(["🔁 §2 로 역루프<br/>재빌드 · 사용자 승인 필요"])
-    HON["📉 음성정직<br/>REFUTE + best-so-far 기록"]
-    RPT["📄 사람용 리포트 — 결과와 무관하게 항상"]
-    CERT["🏅 재현성 인증서 — PASS 일 때만"]
-
-    M --> AUTH
-    AUTH -- "목표 미명시 · 약한 권한(기본)<br/>우선순위 E → c → 이론치" --> V
-    AUTH -- "사용자 HITL 목표 명시 · 트리거<br/>우선순위 c → E → 이론치" --> V
-
-    V -- "루브릭을 못 세움<br/>이론치 불확실 ∧ 레퍼런스 빈손" --> NR
-    V == "루브릭 충족" ==> PASS
-    V -- "루브릭 미달" --> REF
-
-    REF --> CAP
-    CAP -.->|"남음 → 힌트 전달 (스킬 직접호출 ✗)"| RE
-    RE -.-> M
-    CAP -- "소진 · 이론치에 크게 미달 = 구조적 의심" --> ESC
-    CAP -- "소진 · 더 짜낼 전략 없음" --> HON
-
-    PASS --> RPT
-    PASS --> CERT
-    HON --> RPT
-```
+<img src="./assets/benchmark-verdict.svg" alt="adversarial-benchmark 판정과 대응전략 — 서빙 중인 모델 확인에서 제1 루브릭(루프라인 · 결정론적 로직으로 이론치 모델 성능 연산)으로 출발, /health 200 가동 확인과 벤치마크(Full/Lite)를 거쳐 제2 루브릭(레퍼런스 · 외부 자료검색을 통한 모델 성능 자료 수집)으로 흐른다. 제3 루브릭은 사람이 목표 성능값을 지정하고, 수집 결과는 hit/empty/no 로 표시해 환각적 완료를 방지한다. Agent Judge 판정은 세 갈래 — PASS 면 인증서 발행, 전략 폐기면 모델 재 서빙으로 서빙 확인에 되돌아가는 루프, cap 소진이면 시행착오 보고서 발행" width="100%">
 
 **세 가지가 이 그림의 요점입니다.**
 

@@ -1,120 +1,105 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1360 620" width="1360" height="620" role="img" aria-labelledby="ttl dsc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 670" width="1700" height="670" role="img" aria-labelledby="ttl dsc">
   <title id="ttl">easy-vllm 스킬 파이프라인</title>
-  <desc id="dsc">사람의 서빙 전략 지시가 terraforming_node, upstream-version-watch, vllm-recipe-explorer, adversarial-benchmark 네 스킬을 차례로 지나며 manifest.yaml, resolved.json, 모델 트리플렛, 벤치 리포트를 산출한다. 위쪽 hints 카탈로그와 아래쪽 wiki-desk 사서가 축적 평면으로 전 구간을 받친다.</desc>
+  <desc id="dsc">사람의 서빙 전략 지시가 Terraforming_node, upstream-version-watch, vllm-recipe-explorer, adversarial-benchmark 네 스킬을 차례로 지나며 manifest.yaml, build_patches, 모델 트리플렛, bench report 를 산출한다. 위쪽 wiki-desk 사서가 세 런타임 스킬에 근거를 대고, 아래쪽 Hints 카탈로그가 벤치 결과를 받아 다음 레시피 탐색의 출발점이 된다.</desc>
 
-  <!-- 색은 표현 속성이 기본값(라이트)이고, 아래 CSS 는 다크모드에서만 그것을 덮는다.
-       스타일이 제거되는 환경에서도 라이트 배색으로 온전히 보이도록 한 이중화다. -->
-  <style>
-    .feed        { stroke: #b58900; }              /* 되먹임 재탐색 경로 — 라이트: 가독성 황색 */
-    .feed-text   { fill: #b58900; }                 /* 되먹임 재탐색 라벨 */
-    @media (prefers-color-scheme: dark) {
-      .bg           { fill: #0d1117; }
-      .ink          { stroke: #e6edf3; }
-      .fill         { fill: #e6edf3; }
-      .feed         { stroke: #ffff00; }            /* PNG(다크)와 동일한 순수 노랑 */
-      .feed-text    { fill: #ffff00; }
-      .feed-marker  { fill: #ffff00; }
-    }
-  </style>
-
+  <!-- 배색은 자기완결이다(아이보리 배경 고정). prefers-color-scheme 에 의존하지 않으므로
+       GitHub 라이트/다크 어느 쪽에서도 원본 이미지와 동일하게 보인다. -->
   <defs>
-    <marker id="ah" viewBox="0 0 10 10" refX="10" refY="5"
-            markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto">
-      <path class="fill" d="M 0 0 L 10 5 L 0 10 z" fill="#1f2328"/>
+    <marker id="ah-red" viewBox="0 0 10 10" refX="9.5" refY="5"
+            markerUnits="userSpaceOnUse" markerWidth="15" markerHeight="15" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c00000"/>
     </marker>
-    <marker id="ah-feed" viewBox="0 0 10 10" refX="10" refY="5"
-            markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto">
-      <path class="feed-marker" d="M 0 0 L 10 5 L 0 10 z" fill="#b58900"/>
+    <marker id="ah-ink" viewBox="0 0 10 10" refX="9.5" refY="5"
+            markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#111111"/>
     </marker>
+    <marker id="ah-navy" viewBox="0 0 10 10" refX="9.5" refY="5"
+            markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f3864"/>
+    </marker>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="3" flood-color="#000000" flood-opacity="0.16"/>
+    </filter>
   </defs>
 
-  <rect class="bg" x="0" y="0" width="1360" height="620" fill="#ffffff"/>
+  <rect x="0" y="0" width="1700" height="670" fill="#f0f0e3"/>
 
-  <g font-family="-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, &quot;Apple SD Gothic Neo&quot;, &quot;Malgun Gothic&quot;, &quot;Noto Sans KR&quot;, &quot;Noto Sans CJK KR&quot;, &quot;Noto Serif CJK KR&quot;, NanumGothic, sans-serif">
-
-    <!-- ══ 축적 평면 (위) — hint 카탈로그 ══ -->
-    <rect class="ink" x="770" y="30" width="500" height="75" rx="8"
-          fill="none" stroke="#1f2328" stroke-width="1.6" stroke-dasharray="7 5"/>
-    <text class="fill" x="1020" y="57" text-anchor="middle" font-size="13" fill="#1f2328">hints/ → HINTS.md · 검증된 레시피 카탈로그</text>
-    <text class="fill" x="1020" y="78" text-anchor="middle" font-size="12.5" fill="#1f2328">쓸수록 쌓이고, 다음 모델·다음 사람의 출발점이 된다</text>
+  <g font-family="-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, &quot;Apple SD Gothic Neo&quot;, &quot;Malgun Gothic&quot;, &quot;Noto Sans KR&quot;, &quot;Noto Sans CJK KR&quot;, NanumGothic, sans-serif">
 
     <!-- ══ 사람 ══ -->
-    <rect class="ink" x="30" y="30" width="250" height="85" rx="42"
-          fill="none" stroke="#1f2328" stroke-width="2"/>
-    <text class="fill" x="155" y="62" text-anchor="middle" font-size="15" font-weight="600" fill="#1f2328">사람</text>
-    <text class="fill" x="155" y="86" text-anchor="middle" font-size="12.5" fill="#1f2328">서빙 전략 지시</text>
+    <rect x="22" y="28" width="252" height="95" rx="47.5" fill="#fdfdfb" stroke="#1f3864" stroke-width="2.6" filter="url(#soft)"/>
+    <text x="148" y="66" text-anchor="middle" font-size="23" font-weight="600" fill="#1a1a1a">👤 사람</text>
+    <text x="148" y="99" text-anchor="middle" font-size="23" fill="#1a1a1a">서빙 전략 지시</text>
 
-    <!-- ══ 산출물 ══ -->
-    <polygon class="ink" points="183,140 385,140 367,240 165,240" fill="none" stroke="#1f2328" stroke-width="1.6"/>
-    <text class="fill" x="275" y="180" text-anchor="middle" font-size="12.5" fill="#1f2328">manifest.yaml</text>
-    <text class="fill" x="275" y="202" text-anchor="middle" font-size="12.5" fill="#1f2328">GPU · 노드 · 모델경로 · TP</text>
-
-    <polygon class="ink" points="473,140 675,140 657,240 455,240" fill="none" stroke="#1f2328" stroke-width="1.6"/>
-    <text class="fill" x="565" y="180" text-anchor="middle" font-size="12.5" fill="#1f2328">resolved.json · Dockerfile</text>
-    <text class="fill" x="565" y="202" text-anchor="middle" font-size="12.5" fill="#1f2328">build_patches</text>
-
-    <polygon class="ink" points="763,140 965,140 947,240 745,240" fill="none" stroke="#1f2328" stroke-width="1.6"/>
-    <text class="fill" x="855" y="180" text-anchor="middle" font-size="12.5" fill="#1f2328">모델 트리플렛</text>
-    <text class="fill" x="855" y="202" text-anchor="middle" font-size="12.5" fill="#1f2328">.yaml · .sh · .env</text>
-
-    <polygon class="ink" points="1053,140 1255,140 1237,240 1035,240" fill="none" stroke="#1f2328" stroke-width="1.6"/>
-    <text class="fill" x="1145" y="180" text-anchor="middle" font-size="12.5" fill="#1f2328">bench report — 항상</text>
-    <text class="fill" x="1145" y="202" text-anchor="middle" font-size="12.5" fill="#1f2328">재현성 인증서 — PASS 만</text>
+    <!-- ══ 축적 평면 (위) — 사서 ══ -->
+    <rect x="580" y="28" width="1085" height="88" rx="10" fill="none" stroke="#1f3864" stroke-width="2.6" stroke-dasharray="11 7"/>
+    <text x="1122" y="82" text-anchor="middle" font-size="28" fill="#1a1a1a">📊 wiki-desk · 사서 : 근거 조회 · 문서 입고</text>
 
     <!-- ══ 스킬 ══ -->
-    <rect class="ink" x="150" y="290" width="250" height="110" rx="6" fill="none" stroke="#1f2328" stroke-width="2"/>
-    <text class="fill" x="275" y="333" text-anchor="middle" font-size="15" font-weight="600" fill="#1f2328">terraforming_node</text>
-    <text class="fill" x="275" y="359" text-anchor="middle" font-size="12.5" fill="#1f2328">토폴로지 인터뷰 · 노드 스캔</text>
+    <rect x="205" y="228" width="290" height="118" rx="14" fill="#fbfaf7" stroke="#d6d6cd" stroke-width="1.4" filter="url(#soft)"/>
+    <text x="350" y="262" text-anchor="middle" font-size="22" font-weight="600" fill="#1a1a1a">🛠Terraforming_node</text>
+    <text x="350" y="296" text-anchor="middle" font-size="21" fill="#1a1a1a">시스템 HW스캔</text>
+    <text x="350" y="325" text-anchor="middle" font-size="21" fill="#1a1a1a">노드 블랙박스 설치</text>
 
-    <rect class="ink" x="440" y="290" width="250" height="110" rx="6" fill="none" stroke="#1f2328" stroke-width="2"/>
-    <text class="fill" x="565" y="333" text-anchor="middle" font-size="15" font-weight="600" fill="#1f2328">upstream-version-watch</text>
-    <text class="fill" x="565" y="359" text-anchor="middle" font-size="12.5" fill="#1f2328">버전 결정론 해소 · 렌더</text>
+    <rect x="585" y="228" width="290" height="118" rx="14" fill="#fbfaf7" stroke="#d6d6cd" stroke-width="1.4" filter="url(#soft)"/>
+    <text x="730" y="258" text-anchor="middle" font-size="22" font-weight="600" fill="#1a1a1a">📌upstream-</text>
+    <text x="730" y="287" text-anchor="middle" font-size="22" font-weight="600" fill="#1a1a1a">version-watch</text>
+    <text x="730" y="322" text-anchor="middle" font-size="21" fill="#1a1a1a">vLLM 컨테이너 빌드</text>
 
-    <rect class="ink" x="730" y="290" width="250" height="110" rx="6" fill="none" stroke="#1f2328" stroke-width="2"/>
-    <text class="fill" x="855" y="322" text-anchor="middle" font-size="15" font-weight="600" fill="#1f2328">vllm-recipe-explorer</text>
-    <text class="fill" x="855" y="346" text-anchor="middle" font-size="12.5" fill="#1f2328">config 파싱 · 인터뷰</text>
-    <text class="fill" x="855" y="366" text-anchor="middle" font-size="12.5" fill="#1f2328">KV 클램프 수렴</text>
+    <rect x="965" y="228" width="290" height="118" rx="14" fill="#fbfaf7" stroke="#d6d6cd" stroke-width="1.4" filter="url(#soft)"/>
+    <text x="1110" y="262" text-anchor="middle" font-size="22" font-weight="600" fill="#1a1a1a">📱vllm-recipe-explorer</text>
+    <text x="1110" y="296" text-anchor="middle" font-size="21" fill="#1a1a1a">HITL을 통한 모델</text>
+    <text x="1110" y="325" text-anchor="middle" font-size="21" fill="#1a1a1a">서빙 전략 수립</text>
 
-    <rect class="ink" x="1020" y="290" width="250" height="110" rx="6" fill="none" stroke="#1f2328" stroke-width="2"/>
-    <text class="fill" x="1145" y="333" text-anchor="middle" font-size="15" font-weight="600" fill="#1f2328">adversarial-benchmark</text>
-    <text class="fill" x="1145" y="359" text-anchor="middle" font-size="12.5" fill="#1f2328">루프라인 적대검증</text>
+    <rect x="1345" y="228" width="290" height="118" rx="14" fill="#fbfaf7" stroke="#d6d6cd" stroke-width="1.4" filter="url(#soft)"/>
+    <text x="1490" y="258" text-anchor="middle" font-size="22" font-weight="600" fill="#1a1a1a">⚔ adversarial-</text>
+    <text x="1490" y="287" text-anchor="middle" font-size="22" font-weight="600" fill="#1a1a1a">benchmark</text>
+    <text x="1490" y="322" text-anchor="middle" font-size="21" fill="#1a1a1a">전략의 적대적 검증</text>
 
-    <!-- ══ 축적 평면 (아래) — 사서 ══ -->
-    <rect class="ink" x="440" y="510" width="830" height="65" rx="8"
-          fill="none" stroke="#1f2328" stroke-width="1.6" stroke-dasharray="7 5"/>
-    <text class="fill" x="855" y="537" text-anchor="middle" font-size="13" fill="#1f2328">wiki-desk · 사서</text>
-    <text class="fill" x="855" y="558" text-anchor="middle" font-size="12.5" fill="#1f2328">근거 조회 · 문서 입고 — 상태를 전이하지 않는 곁수레</text>
+    <!-- ══ 산출물 ══ -->
+    <polygon points="250,424 486,424 450,516 214,516" fill="#fbfaf7" stroke="#c55a11" stroke-width="2.6"/>
+    <text x="350" y="459" text-anchor="middle" font-size="22" fill="#c55a11">환경기술서</text>
+    <text x="350" y="493" text-anchor="middle" font-size="22" fill="#c55a11">manifest.yaml</text>
+
+    <polygon points="630,424 866,424 830,516 594,516" fill="#fbfaf7" stroke="#c55a11" stroke-width="2.6"/>
+    <text x="730" y="459" text-anchor="middle" font-size="22" fill="#c55a11">컨테이너 빌드패치</text>
+    <text x="730" y="493" text-anchor="middle" font-size="22" fill="#c55a11">build_patches</text>
+
+    <polygon points="1010,424 1246,424 1210,516 974,516" fill="#fbfaf7" stroke="#c55a11" stroke-width="2.6"/>
+    <text x="1110" y="459" text-anchor="middle" font-size="22" fill="#c55a11">모델 트리플렛</text>
+    <text x="1110" y="493" text-anchor="middle" font-size="22" fill="#c55a11">.yaml · .sh · .env</text>
+
+    <polygon points="1390,424 1626,424 1590,516 1354,516" fill="#fbfaf7" stroke="#c55a11" stroke-width="2.6"/>
+    <text x="1490" y="478" text-anchor="middle" font-size="22" fill="#c55a11">Bench report</text>
+
+    <!-- ══ 축적 평면 (아래) — hint 카탈로그 ══ -->
+    <rect x="980" y="590" width="685" height="72" rx="10" fill="none" stroke="#1f3864" stroke-width="2.6" stroke-dasharray="11 7"/>
+    <text x="1322" y="636" text-anchor="middle" font-size="28" fill="#1a1a1a">Hints/ → HINTS.md · 레시피 카탈로그</text>
 
     <!-- ══ 사람이 지나는 길 ══ -->
-    <g class="ink" fill="none" stroke="#1f2328" stroke-width="3.4">
-      <path d="M 100,115 L 100,345 L 150,345" marker-end="url(#ah)"/>
-      <path d="M 400,345 L 440,345"  marker-end="url(#ah)"/>
-      <path d="M 690,345 L 730,345"  marker-end="url(#ah)"/>
-      <path d="M 980,345 L 1020,345" marker-end="url(#ah)"/>
+    <g fill="none" stroke="#c00000" stroke-width="5">
+      <path d="M 118,123 L 118,287 L 200,287" marker-end="url(#ah-red)"/>
+      <path d="M 495,287 L 580,287"   marker-end="url(#ah-red)"/>
+      <path d="M 875,287 L 960,287"   marker-end="url(#ah-red)"/>
+      <path d="M 1255,287 L 1340,287" marker-end="url(#ah-red)"/>
     </g>
 
     <!-- ══ 스킬 → 산출물 ══ -->
-    <g class="ink" fill="none" stroke="#1f2328" stroke-width="1.6">
-      <path d="M 275,290 L 275,240"   marker-end="url(#ah)"/>
-      <path d="M 565,290 L 565,240"   marker-end="url(#ah)"/>
-      <path d="M 855,290 L 855,240"   marker-end="url(#ah)"/>
-      <path d="M 1145,290 L 1145,240" marker-end="url(#ah)"/>
+    <g fill="none" stroke="#111111" stroke-width="3.5">
+      <path d="M 350,346 L 350,420"   marker-end="url(#ah-ink)"/>
+      <path d="M 730,346 L 730,420"   marker-end="url(#ah-ink)"/>
+      <path d="M 1110,346 L 1110,420" marker-end="url(#ah-ink)"/>
+      <path d="M 1490,346 L 1490,420" marker-end="url(#ah-ink)"/>
     </g>
 
-    <!-- ══ 되먹임 · 사서 ══ -->
-    <g class="ink" fill="none" stroke="#1f2328" stroke-width="1.6" stroke-dasharray="7 5">
-      <path d="M 1270,312 L 1312,312 L 1312,62 L 1270,62" marker-end="url(#ah)"/>
-      <path d="M 770,67.5 L 710,67.5 L 710,312 L 730,312" marker-end="url(#ah)"/>
-      <path class="feed" d="M 1090,400 L 1090,455 L 930,455 L 930,400" marker-end="url(#ah-feed)"/>
-      <path d="M 565,510 L 565,400"   marker-end="url(#ah)"/>
-      <path d="M 855,510 L 855,400"   marker-end="url(#ah)"/>
-      <path d="M 1145,510 L 1145,400" marker-end="url(#ah)"/>
+    <!-- ══ 사서 급전 · 되먹임 ══ -->
+    <g fill="none" stroke="#1f3864" stroke-width="2.6" stroke-dasharray="11 7">
+      <path d="M 730,116 L 730,224"   marker-end="url(#ah-navy)"/>
+      <path d="M 1110,116 L 1110,224" marker-end="url(#ah-navy)"/>
+      <path d="M 1490,116 L 1490,224" marker-end="url(#ah-navy)"/>
+      <path d="M 1635,290 L 1682,290 L 1682,626 L 1669,626" marker-end="url(#ah-navy)"/>
+      <path d="M 980,626 L 922,626 L 922,368 L 956,341"     marker-end="url(#ah-navy)"/>
     </g>
-    <text class="fill" x="700" y="272" text-anchor="end"    font-size="11.5" font-style="italic" fill="#1f2328">다음 모델의 출발점</text>
-    <text class="feed-text" x="1010" y="447" text-anchor="middle" font-size="11.5" font-style="italic">기대 이하 → 전략 재탐색</text>
-
-    <!-- ══ 범례 ══ -->
-    <text class="fill" x="30" y="598" font-size="11.5" fill="#1f2328">굵은 선 = 사람이 지나는 길 · 평행사변형 = 산출물 · 점선 = 축적 평면과 되먹임 · 모든 산출물은 output/single · output/multi 로 분리되어 쌓인다</text>
 
   </g>
 </svg>
