@@ -1,6 +1,6 @@
 {
   ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json": "d7562d7ba520cbadc88e9ab8685e4a2a0d39ce21549be4c248be5c0f6ab5d265",
-  ".claude/policies/predicates/claim_predicates.py": "a4ca17ec8eedb1305ba5a5f3f8a1751da163e48d46ec23d44a3182f82b7ed130",
+  ".claude/policies/predicates/claim_predicates.py": "d212c3c5e96852fa5021b25eace5f664bb7ef572490a432b416c4592ae9d3cc3",
   ".claude/policies/predicates/companion_predicate.py": "f95e28a22e4768636892ee06c1f86d9fad01182771f34ae4b3b04d3b28b75e7d",
   ".claude/policies/predicates/runtime_patch_predicate.py": "852ba2a545b1766d7d669a0e100390b64b1bbd6e71eaba8091547e1c6eeb309d",
   ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md": "a6788c3440acc92d7148a87140e9e19d48df5c8c77ce8fd742c1b405754c1b9d",
@@ -18,7 +18,7 @@
   ".claude/skills/upstream-version-watch/scripts/check_smoke_model.py": "64f1fe05c52d56524a511a466819ae0b6bd27201b52f10098528667ab7f12a8c",
   ".claude/skills/upstream-version-watch/scripts/classify_failure.py": "43cea3c2c9bf52bea3b62d96bed734eac958e483e67686a91853d61dcf15aeb5",
   ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh": "09fc9e0445843470f9fbcf54cb4363ada6d6044ae8978efd95839172a1784316",
-  ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py": "e2aaecad5458d5cb0f6a25e1216a522c606db9d5eb18cb20c13a32b3828bb1a3",
+  ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py": "c0396445d79133a702e8f615acced4ef1a8b62c85baf20a2d4a8b0b2ef86cba3",
   ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py": "fd65e012098bd107df327c7615604525bd4d909ea7861584404d72ecca7dac69",
   ".claude/skills/upstream-version-watch/scripts/sync_branches.sh": "56df2aa05e233a62c3bed7f084df9955f6d044f155828cfd3243dfb01346b4bf",
   ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh": "dd24b7126ea32680328d65a284abca0be4b82c91240c244a01593388f89223ad",
@@ -30,5 +30,5 @@
   ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py": "4f4618e08363e5360df74e98efb5c6774416a42053a40a2c76f36937b75ab08b",
   ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py": "7c3dbb559f410120fbc030b1017897b34d1d9b691a4282700bc7711639f55034",
   ".claude/skills/wiki-desk/scripts/smoke_query.py": "ec176f52ba00e67d9ff51a532fd12099405dc294790a66c1ec081d333819b447",
-  "manifest.template.yaml": "e5944fcd22a377f82963a1b15e57c2016f35698390f50ad845a3a59dd4a90482"
+  "manifest.template.yaml": "27cc3c09f2b642bfe10c29b9ac662be611fe6b7ac0ed0b81d6659a29cc6bf61f"
 }
