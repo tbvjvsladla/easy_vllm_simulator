@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 530" width="1700" height="530" role="img" aria-labelledby="ttl dsc">
+  <title id="ttl">upstream-version-watch 빌드트랙 판정</title>
+  <desc id="dsc">결정론 스크립트 4개(resolve_torch_pin, resolve_ngc_tag, resolve_wheel, resolve_build_track)가 순차로 돌아 resolved.json 을 만들고, Agent Judge 가 그것을 읽어 쉬운 길(prebuilt wheel, 컴파일 없음)과 어려운 길(source build, 소스 컴파일)로 갈라 판정한다.</desc>
+
+  <!-- 배색은 자기완결이다(아이보리 배경 고정) — skill-pipeline.svg 와 동일 규약. -->
+  <defs>
+    <marker id="ah-ink" viewBox="0 0 10 10" refX="9.5" refY="5"
+            markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#111111"/>
+    </marker>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="3" flood-color="#000000" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1700" height="530" fill="#f0f0e3"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, &quot;Apple SD Gothic Neo&quot;, &quot;Malgun Gothic&quot;, &quot;Noto Sans KR&quot;, &quot;Noto Sans CJK KR&quot;, NanumGothic, sans-serif">
+
+    <!-- ══ 결정론 로직 노드 컨테이너 ══ -->
+    <rect x="22" y="16" width="770" height="496" rx="26" fill="#fbfaf7" stroke="#1f3864" stroke-width="4" filter="url(#soft)"/>
+    <text x="407" y="66" text-anchor="middle" font-size="32" font-weight="700" fill="#1a1a1a">Deterministic Logic Node</text>
+
+    <rect x="45" y="92" width="330" height="160" rx="14" fill="#fdfdfb" stroke="#a8a8a0" stroke-width="2" filter="url(#soft)"/>
+    <text x="210" y="140" text-anchor="middle" font-size="25" font-weight="600" fill="#1a1a1a">① resolve_torch_pin</text>
+    <text x="210" y="182" text-anchor="middle" font-size="23" fill="#1a1a1a">vLLM이 요구하는</text>
+    <text x="210" y="216" text-anchor="middle" font-size="23" fill="#1a1a1a">torch 버전은?</text>
+
+    <rect x="440" y="92" width="330" height="160" rx="14" fill="#fdfdfb" stroke="#a8a8a0" stroke-width="2" filter="url(#soft)"/>
+    <text x="605" y="140" text-anchor="middle" font-size="25" font-weight="600" fill="#1a1a1a">② resolve_ngc_tag</text>
+    <text x="605" y="182" text-anchor="middle" font-size="23" fill="#1a1a1a">그 torch가 설치된</text>
+    <text x="605" y="216" text-anchor="middle" font-size="23" fill="#1a1a1a">NGC 베이스 이미지?</text>
+
+    <rect x="45" y="330" width="330" height="160" rx="14" fill="#fdfdfb" stroke="#a8a8a0" stroke-width="2" filter="url(#soft)"/>
+    <text x="210" y="378" text-anchor="middle" font-size="25" font-weight="600" fill="#1a1a1a">③ resolve_wheel</text>
+    <text x="210" y="420" text-anchor="middle" font-size="23" fill="#1a1a1a">vLLM 깃허브에</text>
+    <text x="210" y="454" text-anchor="middle" font-size="23" fill="#1a1a1a">prebuilt wheel 존재?</text>
+
+    <rect x="440" y="330" width="330" height="160" rx="14" fill="#fdfdfb" stroke="#a8a8a0" stroke-width="2" filter="url(#soft)"/>
+    <text x="605" y="378" text-anchor="middle" font-size="25" font-weight="600" fill="#1a1a1a">④ resolve_build_track</text>
+    <text x="605" y="420" text-anchor="middle" font-size="23" fill="#1a1a1a">설치 가능한</text>
+    <text x="605" y="454" text-anchor="middle" font-size="23" fill="#1a1a1a">prebuilt wheel??</text>
+
+    <!-- ══ 스크립트 순차 흐름 ══ -->
+    <g fill="none" stroke="#111111" stroke-width="5">
+      <path d="M 378,172 L 432,172" marker-end="url(#ah-ink)"/>
+      <path d="M 480,258 L 352,322" marker-end="url(#ah-ink)"/>
+      <path d="M 378,410 L 432,410" marker-end="url(#ah-ink)"/>
+    </g>
+
+    <!-- ══ resolved.json → Agent Judge ══ -->
+    <path d="M 795,264 L 1010,264" fill="none" stroke="#111111" stroke-width="5.5" marker-end="url(#ah-ink)"/>
+    <text x="902" y="238" text-anchor="middle" font-size="27" font-weight="600" fill="#843c0c">resolved.json</text>
+
+    <polygon points="1020,264 1070,182 1300,182 1350,264 1300,346 1070,346"
+             fill="#fdfdfb" stroke="#1f3864" stroke-width="4.5" filter="url(#soft)"/>
+    <text x="1185" y="250" text-anchor="middle" font-size="42" font-weight="700" fill="#1a1a1a">Agent</text>
+    <text x="1185" y="310" text-anchor="middle" font-size="42" font-weight="700" fill="#1a1a1a">Judge</text>
+
+    <!-- ══ 갈래 판정 ══ -->
+    <g fill="none" stroke="#111111" stroke-width="5">
+      <path d="M 1342,246 L 1390,108" marker-end="url(#ah-ink)"/>
+      <path d="M 1342,282 L 1390,420" marker-end="url(#ah-ink)"/>
+    </g>
+    <text x="1300" y="130" text-anchor="middle" font-size="30" font-weight="700" fill="#843c0c">쉬운 길</text>
+    <text x="1292" y="416" text-anchor="middle" font-size="30" font-weight="700" fill="#843c0c">어려운 길</text>
+
+    <rect x="1395" y="25" width="290" height="145" fill="#476b1e" filter="url(#soft)"/>
+    <text x="1540" y="86" text-anchor="middle" font-size="33" font-weight="600" fill="#ffffff">Prebuilt wheel</text>
+    <text x="1540" y="134" text-anchor="middle" font-size="33" font-weight="600" fill="#ffffff">컴파일 X</text>
+
+    <rect x="1395" y="360" width="290" height="145" fill="#7f1416" filter="url(#soft)"/>
+    <text x="1540" y="421" text-anchor="middle" font-size="33" font-weight="600" fill="#ffffff">Source Build</text>
+    <text x="1540" y="469" text-anchor="middle" font-size="33" font-weight="600" fill="#ffffff">소스컴파일..</text>
+
+  </g>
+</svg>
