@@ -1533,7 +1533,7 @@ def cmd_init(args: argparse.Namespace) -> None:
     if "report" in required and not args.report_slug:
         _emit(_bare_error("INIT_REPORT_SLUG_REQUIRED",
                           "task_class/conditions require a 'report' evidence item -- pass --report-slug "
-                          "(kebab-case, no date token per docs.md's report/ exception)"), 2)
+                          "(<분류>_<YYMMDDHH>[_MM_SS]_<한글제목> per docs.md's report/ rule)"), 2)
 
     if prior:
         immutable = {
