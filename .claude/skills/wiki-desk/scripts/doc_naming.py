@@ -38,7 +38,7 @@ import datetime
 import re
 import sys
 
-DATED_DOC_TYPES = ("plan", "devlog", "testlog", "request")
+DATED_DOC_TYPES = ("plan", "devlog", "testlog", "request", "checklist")
 BENCH_KIND_DEFAULT_EXT = {"bench_report": "md", "benchmark": "yaml", "max_envelope": "md"}
 
 _UTC_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z$")
@@ -200,8 +200,10 @@ def _self_test():
     n1 = dated_doc_basename("plan", "2026-07-25T06:58:00Z", "하네스_루프_구조개선")
     _require(n1 == "plan_26072515_하네스_루프_구조개선.md", n1)
     n2 = dated_doc_basename("testlog", "2026-07-25T06:58:29Z", "구조개선",
-                             existing_basenames={"testlog_26072515_구조개선.md"})
+                            existing_basenames={"testlog_26072515_구조개선.md"})
     _require(n2 == "testlog_26072515_58_29_구조개선.md", n2)
+    ck = dated_doc_basename("checklist", "2026-07-25T06:58:00Z", "감사_마스터")
+    _require(ck == "checklist_26072515_감사_마스터.md", ck)
 
     d1 = simlog_dirname("2026-06-21T12:21:00Z", "vLLM0.22.1_KV클램프_시뮬")
     _require(d1 == "26062121_vLLM0.22.1_KV클램프_시뮬", d1)

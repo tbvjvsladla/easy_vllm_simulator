@@ -5,7 +5,7 @@
 
 ## 명명 SSOT
 
-- 기본: `docs/<type>/<type>_<YYMMDDHH>[_<MM>_<SS>]_<주제>.md` (`type`=`plan|devlog|testlog|request`). `YYMMDDHH`는 KST 2자리 연도 절대시각이다.
+- 기본: `docs/<type>/<type>_<YYMMDDHH>[_<MM>_<SS>]_<주제>.md` (`type`=`plan|devlog|testlog|request|checklist`). `YYMMDDHH`는 KST 2자리 연도 절대시각이다.
 - **충돌 시에만 `_MM_SS`**를 붙인다. 같은 type/hour의 기본형과 해당 충돌형이 점유되면 새 형식/덮어쓰기 없이 `NamingCollisionExhausted`로 fail-closed한다.
 - 주제는 간결한 한국어 `_` slug. 평면 `docs/파일.md`, 상대날짜, `_seq_`는 금지한다.
 - simlog: `docs/simlog/<YYMMDDHH>[_<MM>_<SS>]_<주제>/` (run 디렉터리).
@@ -28,6 +28,7 @@
 | `benchmark/` | full 계측 | `adversarial-benchmark`·측정값 | 항상 report, PASS만 flat certificate | verdict owner·재현성 | FAIL report만; 합성 금지 |
 | `report/` | 배포자 공지 | 사람·공지 본문 | self-contained HTML/MD 최신본 | PII·배포 검토 | 자동발행/위키색인/서브전파 금지 |
 | `request/` | **사람 수행 지시** | 에이전트·범위/전제/한계 | 전제→절차→검증→회수물 순의 실행가능 매뉴얼 | 절차가 실제 실행가능한지(버전·명령 핀) | 수행자 피드백→개정 발행 |
+| `checklist/` | bot 전용 단계 트래킹 | 검증 owner·3-Phase(Planner/Builder/Validator) 상태 | phase별 항목 체크 + 재개지침 | 최신 snapshot(YYMMDDHH) 기준 | 최신 체크리스트로 복귀 |
 
 ### `request/` — 에이전트가 못 닿는 평면을 사람에게 위임하는 문서 (7번째 산문형)
 
@@ -110,7 +111,7 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 
 ## 공통 발행 계약
 
-- 역할 분리: plan=intent, devlog=서사, testlog=판정, simlog=원시 trial, benchmark=inform-only 계측, report=outbound 공지, request=사람 수행지시.
+- 역할 분리: plan=intent, devlog=서사, testlog=판정, simlog=원시 trial, benchmark=inform-only 계측, report=outbound 공지, request=사람 수행지시, checklist=bot 전용 단계 트래킹(최신 snapshot 기준).
 - evidence chain: simlog/raw → benchmark report → testlog verdict → devlog narrative. 관련 경로를 본문에 기록하고, 가변 파일의 line 번호에는 literal 또는 commit SHA를 병기한다.
 - 판정은 모델/HW/version/date 유효맥락을 붙인다. 후속은 `- [ ] 후속:`에서 시작해 해소 문서로 `- [x]` 닫는다.
 - 후속 문서가 기존 판정을 뒤집을 때만 선행 헤더에 `SUPERSEDED-IN-PART` 또는 `SUPERSEDED`와 후속 경로를 기록한다. 단순 보완은 citation만 추가한다.
@@ -120,7 +121,7 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 
 | 경로 | Git 상태 | main/sub 전파 | owner/gate |
 |---|---|---|---|
-| `docs/{plan,devlog,testlog,simlog,benchmark,request}/*` | 작업 산출물 ignored; `example.md`만 tracked | 브랜치 전환에 working copy 유지; build rsync 제외 | `.gitignore`의 `docs/*/*` + `!docs/*/example.md` |
+| `docs/{plan,devlog,testlog,simlog,benchmark,request,checklist}/*` | 작업 산출물 ignored; `example.md`만 tracked | 브랜치 전환에 working copy 유지; build rsync 제외 | `.gitignore`의 `docs/*/*` + `!docs/*/example.md` |
 | `docs/report/*` | **유일한 tracked docs 산출물 예외** | main-only; branch sync 대상 | `!docs/report/*`, PII gate |
 | `docs/logs/*` | ignored(기존 `docs/*/*` 가 이미 커버 — 새 규칙 불요) | **평시 `envelope.json` 요약만 상향**, 사고 시에만 원시 회수 | `logs_lifecycle.py`; `example.md` 스켈레톤 불요(기계 생성) |
 | `.claude/`·`CLAUDE.md` | tracked building blocks | `.claude/skills/upstream-version-watch/scripts/sync_branches.sh` | 이 문서 산출물 규약 밖 |
@@ -130,7 +131,7 @@ simlog·benchmark에 폴더별 ignore 예외를 더하지 않는다. report는 t
 
 ## 서브 docs 계약
 
-서브에는 plan/devlog/testlog/simlog/benchmark 다섯 skeleton만 렌더하고 report·request는 렌더하지 않는다(둘 다 메인 전용 — report는 배포자 대상, request는 운영자 수행 지시라 서브가 발행할 주체가 아니다). **상향 회수(서브→메인) = 문서기반 only**: 서브 발행→A2A path 전달→`fetch_sub_docs.sh`가 docs만 ignored mirror로 회수→메인이 열람/HITL 재저작한다. 코드·설정 patch 직접 회수와 서브 재스캔은 금지한다.
+서브에는 plan/devlog/testlog/simlog/benchmark 다섯 skeleton만 렌더하고 report·request·checklist는 렌더하지 않는다(셋 다 메인 전용 — report는 배포자 대상, request는 운영자 수행 지시, checklist는 bot 전용 감사 트래킹이라 서브가 발행할 주체가 아니다). **상향 회수(서브→메인) = 문서기반 only**: 서브 발행→A2A path 전달→`fetch_sub_docs.sh`가 docs만 ignored mirror로 회수→메인이 열람/HITL 재저작한다. 코드·설정 patch 직접 회수와 서브 재스캔은 금지한다.
 
 ## publisher 계약
 
