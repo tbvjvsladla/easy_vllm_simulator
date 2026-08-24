@@ -21,7 +21,7 @@ manifest(환경 사실) + resolved(버전해소값, resolve_*.py 산출)로 치�
   {{ TORCH_PIN }}       ← resolved.torch.pin
   {{ NAS_MODEL_PATH }}  ← manifest.nas_model_path
   {{ IMAGE_NAME }}      ← "easy-vllm"
-  {{ IMAGE_TAG }}       ← {vllm}-cu{cuda}-{arch}-{track}  (버전-키드, 모델-키잉 금지)
+  {{ IMAGE_TAG }}       ← {vllm}-cu{cuda}-{arch}-{track}  (버전-키드)
   {{ DOCKERFILE }}      ← 트랙별 ("Dockerfile" | "Dockerfile.source-build")
   {{ SOURCE_BUILD_PATCH_GUARD }} ← (NGC베이스×vLLM버전) 키 가드 (검증된 키=주석 / 미인식=빌드 명시 실패)
 
@@ -1004,6 +1004,37 @@ def _self_test() -> None:
     print("[render] materialize self-test OK — 러너 스크립트 통로 복사(멱등·권한·fail-loud) 정상")
 
 
+def _require_terraform_flag(manifest_path: str) -> None:
+    """헌법 §테라포밍-완수 Flag 게이트 (fail-closed) — render/build deliverable 은 Flag 전제.
+
+    upstream 은 main-only 빌딩블럭이라 A2A 서브 위임 키 면제가 없다(서브는 build/render 를 안 한다).
+    recipe.py 의 `_require_terraform_flag` 와 동일 계약(약한 게이트 금지 — 통합검증 BLOCK).
+    테스트 override 는 EASY_VLLM_A2A_DELEGATED=1(정확히 "1").
+    """
+    if os.environ.get("EASY_VLLM_A2A_DELEGATED") == "1":
+        return
+    if not os.path.isfile(manifest_path):
+        print("[render] FAIL: manifest 부재 — 테라포밍 미완(fail-closed). terraforming_node 로 HW스캔 + "
+              "모델획득 모드(managed|ephemeral|custom)를 먼저 정하세요(info-only).", file=sys.stderr)
+        sys.exit(4)
+    man = load_manifest(manifest_path)
+    terra = man.get("terraforming") or {}
+    if terra.get("complete") is not True or terra.get("branch_verified") is not True:
+        print("[render] FAIL: 테라포밍 완수 Flag 미발급(terraforming.complete/branch_verified != true) — "
+              "terraforming_node 로 스캔·branch↔topology 3자일치 검증 완수 먼저(info-only).", file=sys.stderr)
+        sys.exit(4)
+    missing = [k for k in ("topology", "gpus_per_node") if not man.get(k)]
+    if missing:
+        print("[render] FAIL: Flag true 이나 필수 HW필드 누락(%s) — terraforming_node 스캔 완수 먼저(info-only)."
+              % ", ".join(missing), file=sys.stderr)
+        sys.exit(5)
+    ms = man.get("model_source")
+    if ms not in ("managed", "ephemeral", "custom"):
+        print("[render] FAIL: model_source 미설정/오류(%r) — terraforming_node 에서 획득모드 지정 먼저(info-only)."
+              % ms, file=sys.stderr)
+        sys.exit(5)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="render_dockerfile.py — G2 결정론 렌더러")
     ap.add_argument("--self-test", action="store_true", help="내장 self-test(A7 게이트 + NCCL 회귀)")
@@ -1074,6 +1105,11 @@ def main() -> None:
         env_path = materialize_env(a.repo or _repo_root(), a.topology, load_manifest(a.manifest))
         print(f"[render] materialize env → {env_path}", file=sys.stderr)
         return
+
+    # 헌법 §테라포밍-완수 Flag 게이트 — render deliverable(canonical-kind/template)은 Flag 전제.
+    # env-file/materialize 는 serve-time 런타임 설정이라 게이트 대상 아님(info-only).
+    if a.canonical_kind or a.template:
+        _require_terraform_flag(a.manifest)
 
     if a.canonical_kind:
         if not a.topology or a.template or a.resolved:

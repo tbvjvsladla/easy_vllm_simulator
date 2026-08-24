@@ -1,12 +1,12 @@
 {
-  "base_tree_sha1": "4d2665787750de8d984e83d3a71e4fbf6340d073",
+  "base_tree_sha1": "8ef439babfe9ca595f4c78aa0f3c02875fc13dbc",
   "entries": {
     ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json": "d3508a0b4016cb51f1959638979c657d1fa09177",
     ".claude/policies/arch_variant_ledger.json": "6b238e59b565cd8fc3b4cd35901f5a3eea9db705",
     ".claude/policies/claim_bindings.json": "6ba805cbc44d9961f6859bb4a364090a407ebf08",
-    ".claude/policies/evidence_manifest.json": "8bf651fa3e210f18128cdb3d32c50d50474d37a8",
+    ".claude/policies/evidence_manifest.json": "6ef316bb175e3eee275c88ac928a9fcfb382a2d9",
     ".claude/policies/governed_prose_snapshot.json": "28e25a4def1d4272975df2a0974be7bbe5716cf7",
-    ".claude/policies/predicates/claim_predicates.py": "5d171c903120eea4a302676249322ef07702ec07",
+    ".claude/policies/predicates/claim_predicates.py": "b5f59fd60a7ff8cd0eb87851ca4aaebc2980ce28",
     ".claude/policies/predicates/companion_predicate.py": "7af83798f0e46f18687e689fceb3548978e568b6",
     ".claude/policies/predicates/runtime_patch_predicate.py": "66cb6383b2b11d11266ccb88960b6efed86848c8",
     ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md": "d9c63b7c7fb1019910a2761545da589694e2869b",
@@ -20,7 +20,7 @@
     ".claude/skills/adversarial-benchmark/SKILL.md": "1ee3c96b3ea3f694b65ffa9213e471c95719a752",
     ".claude/skills/adversarial-benchmark/scripts/run_bench.sh": "9f31f290562a59c082dc41b9cb96a2a41b90ae2d",
     ".claude/skills/hint-publisher/scripts/hint_tag.py": "a831ca4d0a0994c31fcef85b60870be228bf500f",
-    ".claude/skills/terraforming_node/SKILL.md": "5d1ded6574c1535f0a1203df5dff90bdc2269c70",
+    ".claude/skills/terraforming_node/SKILL.md": "0256480f6a4950dafc7293e3e060863d1db2ab0c",
     ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh": "742ee1a239b3b81e5f156deb9b27863bde29a092",
     ".claude/skills/terraforming_node/scripts/host_safety/install_netconsole.sh": "725f5c255681fb8741ccc7c51230768680bc5d28",
     ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh": "c01237637bf068148babd81fb48eadcb1bf4ca74",
@@ -54,7 +54,7 @@
     ".claude/skills/upstream-version-watch/scripts/fetch_sub_docs.sh": "bac71c1b218f7a4acbe8b22586c3a95839e90b9b",
     ".claude/skills/upstream-version-watch/scripts/judge_version_delta.py": "a917e258e3c416346a9e4b2f7a67cc0d7b84e1bb",
     ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh": "9ba962d002ccce0d32ba7dceb3dbc97b53074c20",
-    ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py": "f7b0929daa764affe371eebe60ed6d14b0d371f3",
+    ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py": "aef0082bcc6b57099ed4ac18e7f214a5d8184743",
     ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py": "d82febec478996bdefcfea3e24819765498e5e8f",
     ".claude/skills/upstream-version-watch/scripts/single_serve_down.sh": "995853a3ded301da2c894f338fd8bcbd30a7c08f",
     ".claude/skills/upstream-version-watch/scripts/sync_branches.sh": "e9d8b44b34eb1c0d4d20fe2b84e1b38c14d9aba9",
@@ -95,7 +95,7 @@
     "docs/plan/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md": "d9c63b7c7fb1019910a2761545da589694e2869b",
     "docs/simlog/example.md": "43e6215f48aa0e8c138d2b8bf9090444055c80af",
     "docs/testlog/example.md": "c39cadd57b18641b22a3371162fb9657b0d65897",
-    "manifest.template.yaml": "4628b1218922dedbf6856c284a6b89e99e3d3a44"
+    "manifest.template.yaml": "a1f51e819fa8e4d76851b63cd539a52bf7c58c6b"
   },
   "schema_version": 1,
   "trust_model": {

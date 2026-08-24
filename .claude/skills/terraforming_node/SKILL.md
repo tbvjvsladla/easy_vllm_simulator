@@ -98,7 +98,7 @@ description: >-
 - **manifest 기입**(HITL): `--emit-manifest --topology single` 블록(YAML-valid · **single 시 `nodes: []` 도 결정론 emit** — dormant 게이트 동결, 수기 의존 ✗) → **사람 확인 후** `output/single/manifest.yaml` 반영. `nodes: []` → **서브 미등록 dormant**(독립 self-containment 보존). ⚠ dormant 의 정확한 뜻은 "서브가 없다"이지 "서브를 등록하면 안 된다"가 아니다 — 등록 시 열리는 것은 **A2A 에이전트 제어**뿐이고 빌드킷 배달 평면은 여전히 dormant 다(§2.7.0 · 헌법 §single-node 확장기능). **무증거 기입 금지.**
   - emit 블록은 **테라포밍 완수 Flag attestation**(`terraforming.complete/branch_verified`)을 §1.5 3자일치 통과 시에만 포함(보수적·미통과면 미발급) — **§0.5.7 `model_source` 도 함께 기입**해야 `manifest_contract` Flag valid(complete + valid model_source 이중요건). Flag 발급 = 3 런타임 스킬 작업 활성(헌법 §테라포밍-완수 Flag 게이트).
   - **Flag ↔ 호스트 안전체계 명시 분리**(plan_26071115): Flag 발급은 표준 절차 완수이며 **안전체계 설치와 무관**(안전체계 미설치여도 Flag valid). 안전체계는 이 manifest+Flag 기입 **이후** §2.6 세션 최종 Y/N 선택조항에서 다룬다.
-- **호스트 안전체계 세션 최종 Y/N** → **§2.6**(보험판매 톤 선택조항, 양 토폴로지 공통) 수행 후 완료.
+- **호스트 안전체계 세션 최종 Y/N** → **§2.6**(선택조항, 양 토폴로지 공통) 수행 후 완료.
 - 온보딩 완료 → 파이프라인 다음 단계(`upstream-version-watch` 컨테이너 빌드).
 
 ## 1. 멀티노드 진입 루틴 (topology=multi — §0.5 에서 multi 확정 후)
@@ -193,12 +193,12 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 
 - 카나리 통과 → **호스트 안전체계 세션 최종 Y/N**(§2.6, 양노드) 수행 후 온보딩 완료.
 
-## 2.6 호스트 안전체계 — 세션 최종 선택조항 (Y/N · 양 토폴로지 공통 · 보험판매 톤 · plan_26071115)
+## 2.6 호스트 안전체계 — 세션 최종 선택조항 (Y/N · 양 토폴로지 공통 · plan_26071115)
 
 > **양 토폴로지 공통 최종 스텝**: single 은 §1S manifest+Flag 기입 직후 · multi 는 §2.5 카나리 통과 직후 이 절로 온다.
 > **Flag 발급 이후**에 오는 **독립 Y/N 선택조항**이다 — 표준 온보딩(스캔·게이트·manifest·Flag)은 이미 완수됐고, 안전체계는 **선택**이다(설치 안 해도 Flag valid). 헌법 §호스트 안전체계 따름정리(선택화).
 
-- **성격**: 절차적 필수 스텝이 아니라 **보험판매식 Y/N 권유**다 — 배포 사용자에게 상시 데몬 설치를 강제하면 반발이 있으므로, *혜택을 서술*해 권하되 **강제·차단·반복 잔소리 금지**(D2·D3·D33). "설치하면 안정성이 향상된다"는 톤으로 꼬시되 거부는 존중한다.
+- **성격**: 절차적 필수 스텝이 아니라 **선택(Y/N)**이다 — 설치를 강제하지 않고, 혜택을 서술해 권하되 거부는 존중한다.
 - **① 혜택 서술(talking point 예시 — 실문구는 재량)**:
   - "768k prefill 사건에서 워치독이 컨테이너를 먼저 정리해 호스트를 지킨 실적이 있습니다 — 설치하면 이 보호막이 상시 작동합니다."
   - "설치하면 **하드다운의 블랙박스**가 남습니다 — 하드다운은 디스크에 로그를 쓸 시간조차 주지 않고 끝나는데, efi_pstore(단일)·netconsole(멀티)이 그 순간의 커널 메시지를 노드 **밖**·**전원 밖**에 남깁니다. 안 남기면 원인 추적이 원천 불가입니다."
@@ -234,10 +234,10 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
   > 불가(정상 재부팅만으로 헤더가 깨진다 = 펌웨어가 리셋 때 DRAM 을 초기화). **efi_pstore 는 kdump 를
   > 내린 상태에서 패닉 19 레코드를 포착했다(1/1).**
   >
-  > **이 절의 Y/N 선택조항 성격·보험판매 톤·무인 sudo 금지는 그대로 유효하다** — 설치 대상만 바뀌었다.
+  > **이 절의 Y/N 선택조항 성격·무인 sudo 금지는 그대로 유효하다** — 설치 대상만 바뀌었다.
   > 레거시 설치물이 남아 있는 노드는 `purge_host_safety.sh --require-seed` 를 **먼저** 돌린다(저널 수확
   > 선행 게이트 — mem_watchdog 저널은 포락선의 유일한 초기 데이터이고 유닛 제거 후 vacuum 되면 복구 불가).
-- **③ N 분기(미설치·opt-out)**: **차단 없음** — 서빙은 정상 진행. manifest `host_safety.installed: false`(중립 기록 — 비난 톤 ✗). 재권유는 **세션당 1회 이하**(시끄러움 방지).
+- **③ N 분기(미설치·opt-out)**: 서빙은 정상 진행. manifest `host_safety.installed: false` 로 기록한다. 재권유는 **세션당 1회 이하**.
   - **통합메모리 노드 한정 후속 경고**: opt-out + 통합메모리(GPU OOM=호스트 하드다운 위험) 노드는, 이후 서빙 기동 직전 **에이전트 채팅창 1줄** 안내만 한다("워치독 미설치 상태 — 통합메모리라 OOM 시 호스트 다운 위험, `install_host_safety.sh` 로 언제든 보강 가능"). **serve 스크립트/로그 배너 코드변경 ✗**(시끄러운 경험 방지 — D31·NG-5). **discrete GPU 노드는 무경고.**
 - **④ 파급 정밀화(opt-out 이어도 보호 일부 유지)**: 하네스 **협역 워치독**(`run_trial`·`multinode_serve_smoke.sh` 자동 기동)은 레포 내장 스크립트라 **설치와 무관하게 계속 작동**(opt-out 사용자도 trial 중 보호 유지). 로드-전 RAM 게이트(⑤.5)의 `vllm-drop-caches` 자동 드랍만 헬퍼 부재로 skip 되며, 게이트는 이를 **음성정직으로 보고**(드랍 없이 재측정 → 부족 시 기동 거부 exit 7 유지 — `preload_ram_gate.try_drop_caches` 기구현 graceful).
 - **⑤ 멀티노드 변형**: 양노드(메인+서브) 각각 동일 Y/N. **서브 설치는 렌더 배달분**(`.claude/runtime/node_blackbox/install_node_blackbox.sh` — `render_sub_env.py` §4.6 이 `node_identity.sh` 를 포함해 배달한다)으로 **서브에서 사용자가 실행**(A2A 경계 — 메인 sudo 대행 ✗). manifest `nodes[].host_safety.installed` 로 **노드별 독립** 기록. **L2(netconsole)는 멀티에서만 성립**하므로 양노드 peer 지정이 필요하다.
@@ -265,7 +265,7 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
   지시서는 **진행 체크박스**를 자기 안에 담아 *상태*까지 생존시킨다.
 - **② 발행하지 않는 경우**: `L1`·`L2` 만이면 발행하지 않는다(발행기가 exit 1 로 거절 —
   `--force` 로만 우회). 재부팅이 없으면 세션이 죽지 않아 문서의 존재 이유가 약하고, §2.6 의
-  **강제·차단·반복 잔소리 금지** 톤과도 맞다. 채팅 안내로 족하다.
+  선택(Y/N) 성격과도 맞다. 채팅 안내로 족하다.
 - **③ 회수 스텝**: 사람이 "완료"를 알리면 에이전트가 **정해진 경로에서 직접 읽는다**(채팅 붙여넣기
   요구 ✗ — 재부팅 생존 목적과 정합):
 
@@ -649,7 +649,7 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 ## 3. 결정론 vs 판단 분리
 | 결정론 (스크립트) | 판단 (이 페르소나) |
 |---|---|
-| **`staleness_gate.py`(조건부 preflight 트리거 — manifest/Flag/HW드리프트/attestation 나이 3축, `--now` 주입·벽시계 ✗)** · `scan_node.py`(스캔·게이트·3자-일치·manifest 블록·**emit_gate=토폴로지 미선언 emit fail-closed**) · `render_sub_env.py`(manifest→10아티팩트 렌더/복제·미치환/필수 검증) · **`node_role_contract.py`**(토폴로지 축 계약 — sub_mode 파생/선언일치·rank·정체성 권위·배달 평면, 출처 필드 동반) · **`library_exchange.py`**(그라운딩 3질문+Freshness — **누락** 판정만; "이 근거가 정말 뒷받침하나"는 판단 칸) · sync_to_sub 체크섬 · `install_host_safety.sh`(설치·검증 — 실행 트리거는 HITL) | **토폴로지 진입 인터뷰(§0.5)** · fresh-clone 온보딩 능동제안 · 5-전제조건 인터뷰 · 사용자 승인 · 브랜치≠토폴로지 시 브랜치전환 안내 · ib_write_bw 오케스트레이션 · **호스트 안전체계 세션 최종 Y/N 설명·승인(§2.6 — 보험판매 톤 선택조항)** · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 · **인용의 진위 리뷰(§2.7.8 — 거짓은 사람이 본다)** · 모호 시 중단·질의 |
+| **`staleness_gate.py`(조건부 preflight 트리거 — manifest/Flag/HW드리프트/attestation 나이 3축, `--now` 주입·벽시계 ✗)** · `scan_node.py`(스캔·게이트·3자-일치·manifest 블록·**emit_gate=토폴로지 미선언 emit fail-closed**) · `render_sub_env.py`(manifest→10아티팩트 렌더/복제·미치환/필수 검증) · **`node_role_contract.py`**(토폴로지 축 계약 — sub_mode 파생/선언일치·rank·정체성 권위·배달 평면, 출처 필드 동반) · **`library_exchange.py`**(그라운딩 3질문+Freshness — **누락** 판정만; "이 근거가 정말 뒷받침하나"는 판단 칸) · sync_to_sub 체크섬 · `install_host_safety.sh`(설치·검증 — 실행 트리거는 HITL) | **토폴로지 진입 인터뷰(§0.5)** · fresh-clone 온보딩 능동제안 · 5-전제조건 인터뷰 · 사용자 승인 · 브랜치≠토폴로지 시 브랜치전환 안내 · ib_write_bw 오케스트레이션 · **호스트 안전체계 세션 최종 Y/N 설명·승인(§2.6 — 선택조항)** · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 · **인용의 진위 리뷰(§2.7.8 — 거짓은 사람이 본다)** · 모호 시 중단·질의 |
 
 회귀 고정(전부 하드웨어·네트워크 불요): `python3 scripts/staleness_gate.py --self-test`(3축 판정·결정론·음성정직 9 + single sub-control 로스터 6 + interconnect 의미론 6 = 21케이스) · `python3 scripts/scan_node.py --self-test`(34케이스 — 게이트·emit_gate fail-closed·emit-block None-leak·egress) · `python3 scripts/render_sub_env.py --self-test`(렌더 6케이스) · **`python3 scripts/node_role_contract.py --self-test`**(sub_mode 파생/선언 8 + rank 5 + 권위·배달평면 4 + manifest 평가 6 + 결정론 1 = 24케이스) · **`python3 scripts/library_exchange.py --self-test`**(세 질문·Freshness·비대칭·shape = 17케이스) · `bash scripts/node_blackbox/node_identity.sh --self-test`(해소 우선순위·fail-loud 8케이스).
 

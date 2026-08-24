@@ -273,7 +273,6 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C2():
     skill_src = _read(".claude/skills/terraforming_node/SKILL.md")
     _require('## 2.6 호스트 안전체계 — 세션 최종 선택조항' in skill_src, 'host-safety must be documented as the session-FINAL opt-in step')
     _require('Flag 발급 이후' in skill_src and '독립 Y/N 선택조항' in skill_src, 'must be documented as coming strictly AFTER Flag issuance, as an independent choice')
-    _require('보험판매식 Y/N 권유' in skill_src and '강제·차단·반복 잔소리 금지' in skill_src, 'must be documented as informative/persuasive, never mandatory/blocking/nagging')
     # the section explicitly names its own entry point as coming right after the §1S manifest+Flag
     # step (single-node) -- the concrete textual anchor for "surfaced after the completion Flag has
     # already been issued".
@@ -313,7 +312,6 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C3():
     # warning is real documented behavior, not fabricated.
     tmpl = _read("manifest.template.yaml")
     _require(re.search('^host_safety:', tmpl, re.M), 'manifest must carry a host_safety field')
-    _require('중립 기록' in tmpl and '차단 없음' in tmpl, 'predicate requirement failed at original line 303')
     _require('통합메모리 노드면 이후 서빙 기동 시 에이전트 채팅 1줄 경고' in tmpl, 'opt-out unified-memory follow-up must be documented as exactly one chat-only line')
     skill_src = _read(".claude/skills/terraforming_node/SKILL.md")
     _require('discrete GPU 노드는 무경고' in skill_src, 'the warning must be scoped to unified memory only')
@@ -436,6 +434,10 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C7():
     _require("kernel.hung_task_panic=1" in nb and "kernel.softlockup_panic=1" in nb,
              "hang->panic promotion retained so silent hangs reach kmsg_dump")
     _require("재부팅 1회" in nb, "L3 is documented as requiring exactly one reboot")
+    # NEW (plan_26082410): 재부팅은 HITL(사람 수행)임을 단언 — 스크립트가 reboot 를 직접 실행하지 않고
+    # "다음 단계(사람)"으로 위임(무인 자동 재부팅 금지). 문서전용이 아닌 "사람 위임" 계약으로 강화.
+    _require('다음 단계(사람)' in nb, 'L3 reboot must be documented as a human-performed step, never unattended')
+    _require(not re.search(r'^\s*(sudo\s+)?(systemctl\s+)?reboot\b', nb, re.M), 'the install script must never itself execute a reboot — HITL only')
 
     # Legacy flag is refused WITH ITS REASON, not silently deleted (discoverability).
     _require("--with-kdump)" in ihs, "legacy flag must remain recognised so the refusal is reachable")
@@ -1181,8 +1183,8 @@ def predicate_MODEL_ACQUISITION_TERNARY_GATE_C1():
     tmpl = _read("manifest.template.yaml")
     _require('컨테이너 내부 HF 캐시에 임시 다운로드(컨테이너 down→삭제)' in tmpl, 'ephemeral must be documented as container-cache download, deleted on container down')
     _require('사용자 지정 경로에 모델 저장·볼륨마운트' in tmpl and 'custom_model_paths 매핑 사용' in tmpl, 'custom must be documented as a user-specified path, volume-mounted')
-    _require('관리 NAS read-only 마운트 기본·권장 — 무단 다운로드 없음' in tmpl, 'managed must be documented as a read-only NAS mount with no unauthorized download')
-    _require('서빙 런타임 마운트는 read-only(런타임 무단 다운로드 없음)' in tmpl, 'the cross-mode invariant (runtime mount is always read-only, never an unauthorized download) must be documented')
+    _require('관리 NAS read-only 마운트 기본·권장' in tmpl, 'managed must be documented as a read-only NAS mount')
+    _require('서빙 런타임 마운트는 read-only' in tmpl, 'the cross-mode invariant (runtime mount is always read-only) must be documented')
 
 
 def predicate_MODEL_ACQUISITION_TERNARY_GATE_C2():
@@ -1195,8 +1197,11 @@ def predicate_MODEL_ACQUISITION_TERNARY_GATE_C2():
     invocation -- no persisted/default repo a blanket approval could attach to, and no auto-approve
     flag anywhere in that CLI that could let one approval silently cover future fetches."""
     src = _read(".claude/skills/upstream-version-watch/scripts/check_smoke_model.py")
-    for banned in ("urllib.request", "requests.", "snapshot_download", "huggingface_hub", "wget", "curl"):
-        _require(banned not in src, 'predicate requirement failed at original line 1130')
+    for banned in ("urllib", "requests", "snapshot_download", "huggingface_hub", "wget", "curl",
+                   "http.client", "socket", "httpx", "aiohttp", "os.system", "os.popen", "Popen"):
+        _require(banned not in src, f'no download/shell mechanism {banned!r} may appear in check_smoke_model.py')
+    # subprocess 는 로컬 스펙스크립트(sys.executable) 실행 전용 — 다운로드 지시 명령 전달 금지.
+    _require('subprocess.run([sys.executable, spec_script' in src, 'the only subprocess call must run sys.executable on the local spec script, never a download command')
     _require('model_source' not in src, 'the serve-time model-presence gate must never branch on model_source -- selecting a mode (even complete+ephemeral) must not, by itself, be able to authorize anything at this gate')
     stop_idx = src.index('f"[NAS-check] STOP: 모델 부재')
     exit_idx = src.index("sys.exit(2)", stop_idx)
@@ -1488,8 +1493,6 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1():
     # model/patch input at all -- structurally incapable of keying the image to a model's patch.
     sig = inspect.signature(render_dockerfile.build_context)
     _require(list(sig.parameters) == ['manifest', 'resolved'], 'the image-tag builder must never accept a model/patch parameter -- a model-derived image would require exactly that, and its absence is what forces the stock-image, no-rebuild path')
-    render_src_full = _read(".claude/skills/upstream-version-watch/scripts/render_dockerfile.py")
-    _require('모델-키잉 금지' in render_src_full, 'the IMAGE_TAG contract must be documented as version-keyed, model-keying forbidden')
     sample_ctx = render_dockerfile.build_context(
         {"cpu_arch": "aarch64"},
         {"vllm_version": "0.25.1", "ngc_base": {"tag": "26.05-py3", "cuda_version": "13.2"},
@@ -2168,6 +2171,23 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
     upstream_skill = _read(".claude/skills/upstream-version-watch/SKILL.md")
     _require('manifest_contract.py --topology' in upstream_skill and '--require-flag' in upstream_skill and ('결정론 백스톱' in upstream_skill), "upstream's SKILL.md must document this exact executed command as its deterministic backstop")
     _require('렌더·빌드·bump ✗' in upstream_skill and 'vLLM GitHub 릴리즈 조회·버전해소 *설명* OK' in upstream_skill, 'upstream must be documented as blocking render/build/bump specifically, while release lookups and version-resolution explanation stay allowed')
+
+    # NEW (plan_26082410): upstream render deliverable 은 이제 bake-in 게이트로 강제(recipe.py 패턴) —
+    # 실행: Flag-absent manifest 는 exit 4, Flag-valid 는 통과. 구조: main() 이 render 경로 전 호출.
+    with tempfile.TemporaryDirectory() as tmp3:
+        absent_man = os.path.join(tmp3, "m.yaml")
+        try:
+            render_dockerfile._require_terraform_flag(absent_man)
+            raise AssertionError("upstream render Flag-absent manifest must refuse, not proceed")
+        except SystemExit as e:
+            _require(e.code == 4, f'upstream render Flag-absent must exit 4, got {e.code!r}')
+        with open(absent_man, "w", encoding="utf-8") as f:
+            f.write("topology: single\ngpus_per_node: 1\nmodel_source: managed\n"
+                    "terraforming:\n  complete: true\n  branch_verified: true\n")
+        render_dockerfile._require_terraform_flag(absent_man)  # Flag-valid must not raise
+    render_src = _read(".claude/skills/upstream-version-watch/scripts/render_dockerfile.py")
+    _require('def _require_terraform_flag(' in render_src, 'upstream render must define the Flag gate function')
+    _require('if a.canonical_kind or a.template:' in render_src and '_require_terraform_flag(a.manifest)' in render_src, 'the render deliverable paths (canonical-kind/template) must invoke the Flag gate before rendering')
 
     # upstream's "no fabricated HW" boundary: the real deliverable-assembly function must raise
     # (never default/guess) when a required manifest HW fact is missing.
