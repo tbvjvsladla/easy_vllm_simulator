@@ -161,14 +161,26 @@ def detect_interconnect() -> dict:
 
 def _parse_compose_nccl(path: str) -> dict:
     """docker-compose 에서 NCCL_IB_HCA/GID_INDEX/SOCKET_IFNAME 추출(교차검증용, flat grep)."""
+    return _parse_nccl_lines(path, sep=":")
+
+
+def _parse_env_file_nccl(path: str) -> dict:
+    """`.env.interconnect`(KEY=VALUE) 에서 NCCL 3키 추출 — S6 env-split 이후의 제2 소스.
+    compose inline 이 비어도 여기서 찾으면 교차검증이 침묵 no-op 되지 않는다."""
+    return _parse_nccl_lines(path, sep="=")
+
+
+def _parse_nccl_lines(path: str, sep: str) -> dict:
+    """NCCL 3키 flat grep 공통부. `NCCL_IB_HCA==roce…`(env) 와 `NCCL_IB_HCA: "=roce…"`(compose)
+    양쪽 다 값 앞의 잔여 '=' 는 호출부(cross_validate)의 lstrip("=")이 처리한다."""
     res: dict = {}
     try:
         with open(path, encoding="utf-8") as f:
             for ln in f:
                 s = ln.strip()
                 for key in ("NCCL_IB_HCA", "NCCL_IB_GID_INDEX", "NCCL_SOCKET_IFNAME"):
-                    if s.startswith(key + ":"):
-                        val = s.split(":", 1)[1].strip().strip('"').strip()
+                    if s.startswith(key + sep):
+                        val = s.split(sep, 1)[1].strip().strip('"').strip()
                         # 인라인 주석 제거
                         val = val.split("#", 1)[0].strip().strip('"')
                         res[key] = val
@@ -177,26 +189,51 @@ def _parse_compose_nccl(path: str) -> dict:
     return res
 
 
-def cross_validate(ic: dict, compose_path: str) -> dict:
-    """스캔 interconnect ↔ 현 docker-compose NCCL 값 일치 확인."""
+def default_env_interconnect_path(compose_path: str) -> str:
+    """S6 env-split 통로: compose 와 같은 디렉터리의 `envs/.env.interconnect`."""
+    return os.path.join(os.path.dirname(compose_path), "envs", ".env.interconnect")
+
+
+def cross_validate(ic: dict, compose_path: str, env_interconnect_path: str | None = None) -> dict:
+    """스캔 interconnect ↔ 현 배포 NCCL 값 일치 확인.
+    소스는 2개다 — compose inline(S6 이전 통로) + envs/.env.interconnect(S6 env-split 이후 통로).
+    키별 출처를 `sources` 에 남긴다(헌법 §결정론 규율 — 값 옆에 출처). compose inline 이 같은 키를
+    가지면 env 파일보다 우선한다(compose 가 최종 서비스 서술). 둘 다 비면 checked:false + fail-loud
+    어휘로 **무엇을 안 봤는지**를 명시한다 — 종전 'compose 없음/NCCL 부재' 문구는 env-split 통로의
+    존재 자체를 숨겨 침묵 누락을 낳았다(2026-08-24 plan_26082415 결함 1)."""
     nccl = _parse_compose_nccl(compose_path)
-    if not nccl:
-        return {"checked": False, "reason": f"compose 없음/NCCL 부재: {compose_path}"}
+    env_nccl = _parse_env_file_nccl(env_interconnect_path) if env_interconnect_path else {}
+    merged: dict = {}
+    sources: dict = {}
+    for key, val in env_nccl.items():
+        merged[key] = val
+        sources[key] = "env.interconnect"
+    for key, val in nccl.items():
+        merged[key] = val
+        sources[key] = "compose"
+    if not merged:
+        return {"checked": False,
+                "reason": "NCCL env 부재(compose+env.interconnect 둘 다): "
+                          f"compose={compose_path} env={env_interconnect_path or '(미지정)'}"}
     checks = []
-    # HCA: compose 는 "=rocep1s0f1,roceP2p1s0f1" 형식 → '=' 와 분해
-    if "NCCL_IB_HCA" in nccl:
-        comp_hcas = sorted(x for x in nccl["NCCL_IB_HCA"].lstrip("=").split(",") if x)
+    # HCA: compose/env 는 "=rocep1s0f1,roceP2p1s0f1" 형식 → '=' 와 분해
+    if "NCCL_IB_HCA" in merged:
+        comp_hcas = sorted(x for x in merged["NCCL_IB_HCA"].lstrip("=").split(",") if x)
         checks.append({"field": "hca_devices", "scanned": ic["hca_devices"],
-                       "compose": comp_hcas, "match": sorted(ic["hca_devices"]) == comp_hcas})
-    if "NCCL_IB_GID_INDEX" in nccl:
-        comp_gid = nccl["NCCL_IB_GID_INDEX"]
+                       "deployed": comp_hcas, "source": sources["NCCL_IB_HCA"],
+                       "match": sorted(ic["hca_devices"]) == comp_hcas})
+    if "NCCL_IB_GID_INDEX" in merged:
+        comp_gid = merged["NCCL_IB_GID_INDEX"]
         checks.append({"field": "gid_index", "scanned": str(ic["gid_index"]),
-                       "compose": comp_gid, "match": str(ic["gid_index"]) == comp_gid})
-    if "NCCL_SOCKET_IFNAME" in nccl:
+                       "deployed": comp_gid, "source": sources["NCCL_IB_GID_INDEX"],
+                       "match": str(ic["gid_index"]) == comp_gid})
+    if "NCCL_SOCKET_IFNAME" in merged:
         checks.append({"field": "socket_iface", "scanned": ic["socket_iface"],
-                       "compose": nccl["NCCL_SOCKET_IFNAME"],
-                       "match": ic["socket_iface"] == nccl["NCCL_SOCKET_IFNAME"]})
-    return {"checked": True, "all_match": all(c["match"] for c in checks), "checks": checks}
+                       "deployed": merged["NCCL_SOCKET_IFNAME"],
+                       "source": sources["NCCL_SOCKET_IFNAME"],
+                       "match": ic["socket_iface"] == merged["NCCL_SOCKET_IFNAME"]})
+    return {"checked": True, "all_match": all(c["match"] for c in checks),
+            "sources": sources, "checks": checks}
 
 
 def peer_reachable(ip: str, port: int = 22, timeout: int = 5) -> bool:
@@ -767,11 +804,54 @@ def _self_test() -> int:
         n += 1
         print(f"  [{'PASS' if ok else 'FAIL'}] gate-egress:{name}: gate={g['branch']} exit={code}"
               + ("" if ok else f"  ← 기대 ({eg},{ec},{econ})"))
+    # cross_validate 소스 병합 회귀(2026-08-24 plan_26082415 결함 1 — S6 env-split 이후 compose
+    # inline 이 비어 교차검증이 침묵 no-op 되던 결함). 소스 2개: compose inline + .env.interconnect.
+    import tempfile
+    cv_ic = {"hca_devices": ["roceP2p1s0f1", "rocep1s0f1"], "gid_index": 3,
+             "socket_iface": "enp1s0f1np1"}
+    with tempfile.TemporaryDirectory() as td:
+        comp = os.path.join(td, "docker-compose.yaml")
+        envf = os.path.join(td, ".env.interconnect")
+        with open(comp, "w", encoding="utf-8") as fh:
+            fh.write('services:\n  vllm:\n    environment:\n'
+                     '      NCCL_IB_HCA: "=rocep1s0f1,roceP2p1s0f1"\n'
+                     '      NCCL_SOCKET_IFNAME: enp1s0f1np1\n')
+        with open(envf, "w", encoding="utf-8") as fh:
+            fh.write("# rendered\nNCCL_IB_GID_INDEX=3\nNCCL_IB_HCA==rocep1s0f1,roceP2p1s0f1\n"
+                     "NCCL_SOCKET_IFNAME=enp1s0f1np1\n")
+        cv_cases = []
+        # ① compose-inline-only(env 부재) — S6 이전 통로가 여전히 동작
+        r = cross_validate(cv_ic, comp, os.path.join(td, "없음"))
+        cv_cases.append(("compose-inline-only → checked+all_match",
+                         r["checked"] and r["all_match"]
+                         and r["sources"].get("NCCL_IB_HCA") == "compose"))
+        # ② compose NCCL 부재 + env.interconnect 만 — S6 이후 통로(결함 재현 위치)
+        with open(comp, "w", encoding="utf-8") as fh:
+            fh.write("services:\n  vllm:\n    env_file:\n      - envs/.env.interconnect\n")
+        r = cross_validate(cv_ic, comp, envf)
+        cv_cases.append(("env.interconnect-only → checked+all_match(침묵 no-op 아님)",
+                         r["checked"] and r["all_match"] and len(r["checks"]) == 3
+                         and r["sources"].get("NCCL_IB_GID_INDEX") == "env.interconnect"))
+        # ③ 양쪽 부재 → checked:false + fail-loud 어휘
+        r = cross_validate(cv_ic, comp, os.path.join(td, "없음"))
+        cv_cases.append(("양쪽 부재 → checked:false + 명시 reason",
+                         (not r["checked"]) and "NCCL env 부재" in r.get("reason", "")))
+        # ④ env 값 불일치 → all_match False(비교가 실제로 물린다)
+        with open(envf, "w", encoding="utf-8") as fh:
+            fh.write("NCCL_SOCKET_IFNAME=wrong0\n")
+        r = cross_validate(cv_ic, comp, envf)
+        cv_cases.append(("env 값 불일치 → all_match False",
+                         r["checked"] and not r["all_match"]))
+        for name, ok in cv_cases:
+            passed += ok
+            n += 1
+            print(f"  [{'PASS' if ok else 'FAIL'}] cross-validate:{name}")
     print(f"self-test: {passed}/{n} {'PASS' if passed == n else 'FAIL'}")
     return 0 if passed == n else 1
 
 
-def build_local_scan_result(ic: dict, compose: str, topology: str) -> dict:
+def build_local_scan_result(ic: dict, compose: str, topology: str,
+                            env_interconnect: str | None = None) -> dict:
     """Build the canonical local scan envelope consumed by staleness_gate.py."""
     return {
         "cpu_arch": scan_cpu_arch(),
@@ -785,7 +865,7 @@ def build_local_scan_result(ic: dict, compose: str, topology: str) -> dict:
         "driver_version": scan_driver_version(),
         "interconnect": {k: v for k, v in ic.items() if not k.startswith("_")},
         "scan_detail": {k: v for k, v in ic.items() if k.startswith("_")},
-        "cross_validation": cross_validate(ic, compose),
+        "cross_validation": cross_validate(ic, compose, env_interconnect),
         "topology_declared": topology,
         "interconnect_present": ic["type"] != "generic-ethernet",
     }
@@ -801,6 +881,9 @@ def main() -> int:
                                        "미지정 시 동질성 미검증 → nodes[sub].hw_verified 미발급 → 서브 위임 키 미발급(fail-closed).")
     ap.add_argument("--compose", default="output/multi/docker-compose.yaml",
                     help="교차검증할 docker-compose 경로")
+    ap.add_argument("--env-interconnect", default=None,
+                    help="교차검증할 envs/.env.interconnect 경로(S6 env-split 제2 소스). "
+                         "기본 = --compose 와 같은 디렉터리의 envs/.env.interconnect")
     ap.add_argument("--bandwidth-gbps", type=float, default=None,
                     help="cross-node ib_write_bw 합산 실측(Gb/s). 성능게이트 입력. 미지정 시 perf pending.")
     ap.add_argument("--bw-floor", type=float, default=180.0,
@@ -833,7 +916,9 @@ def main() -> int:
     ic = detect_interconnect()
     if args.bandwidth_gbps is not None:
         ic["bandwidth_gbps"] = args.bandwidth_gbps   # cross-node ib_write_bw 실측 주입
-    result = build_local_scan_result(ic, args.compose, args.topology)
+    result = build_local_scan_result(ic, args.compose, args.topology,
+                                     args.env_interconnect
+                                     or default_env_interconnect_path(args.compose))
     if args.topology == "multi" and args.peer_ip:
         result["nodes"] = [
             {"role": "main", "host": platform.node() or "localhost"},

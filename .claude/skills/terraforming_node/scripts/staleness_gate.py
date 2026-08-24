@@ -54,12 +54,21 @@ REASON_CODES = (
 )
 
 # 비교 대상 고정(글롭 ✗ — 새 manifest 키가 조용히 판정에 끼어들지 않게).
-HW_FIELDS = ("topology", "cpu_arch", "cuda_version", "gpus_per_node", "gpu_model")
+# driver_version 은 top-level(메인 드라이버)로 비교한다 — scan emit(build_local_scan_result)과
+# manifest emit 블록 둘 다 top-level `driver_version` 을 낸다. 2026-08-24 이전엔 이 필드가 비교
+# 목록에 없어 드라이버 bump(580.159.03→580.173.02)가 HW 축을 조용히 통과했다(plan_26082415 결함 2).
+HW_FIELDS = ("topology", "cpu_arch", "cuda_version", "gpus_per_node", "gpu_model",
+             "driver_version")
 INTERCONNECT_FIELDS = (
     "type", "hca_devices", "gid_index", "socket_iface",
     "bandwidth_gbps", "platform_preset",
 )
 NODE_FIELDS = ("role", "host")
+# 노드 비교 전용 확장 필드 — validate_document 의 **필수** 필드는 NODE_FIELDS 그대로 둔다
+# (driver_version 은 sub 로스터의 선택 필드라 필수화하면 기존 유효 manifest 가 전부 invalid 가 된다).
+# 비교에서는 _scalar 로 접히므로 양쪽 부재(""=="")는 무드리프트, 한쪽만 있거나 값이 다륾 때만
+# nodes[i].driver_version 드리프트로 보고된다 — 서브 드라이버 bump 검출 경로(동상 결함 2).
+NODE_COMPARE_FIELDS = NODE_FIELDS + ("driver_version",)
 
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 CUDA_RE = re.compile(r"^[0-9]{2,4}$")
@@ -248,7 +257,7 @@ def hw_facts(doc):
     nodes = doc.get("nodes")
     out["_nodes_present"] = "nodes" in doc
     out["nodes"] = [
-        {field: _scalar((node or {}).get(field)) for field in NODE_FIELDS}
+        {field: _scalar((node or {}).get(field)) for field in NODE_COMPARE_FIELDS}
         for node in (nodes if isinstance(nodes, list) else [])
     ]
     return out
@@ -290,7 +299,7 @@ def diff_fields(attested, observed):
             out.append("nodes.count")
         else:
             for idx, (a_node, o_node) in enumerate(zip(a_nodes, o_nodes)):
-                for field in NODE_FIELDS:
+                for field in NODE_COMPARE_FIELDS:
                     if a_node.get(field) != o_node.get(field):
                         out.append("nodes[%d].%s" % (idx, field))
     return sorted(out)
@@ -571,6 +580,38 @@ def _self_test():
         REASON_HW_DRIFT in mixed["reasons"] and "topology" in mixed["drift_fields"]
         and "interconnect.type" in mixed["drift_fields"],
         str(mixed["drift_fields"]))
+
+    # ── driver_version 드리프트 검출 (2026-08-24 plan_26082415 결함 2) ──
+    # 종전엔 비교 목록에 driver_version 이 아예 없어 드라이버 bump(580.159.03→580.173.02)가
+    # HW 축을 조용히 통과했다. top-level(메인)과 nodes[sub](서브) 두 경로를 각각 고정한다.
+    drv_att = dict(base, driver_version="580.159.03")
+    drv_obs = dict(observed, driver_version="580.173.02")
+    drv_top = evaluate(drv_att, drv_obs, ref)
+    chk("top-level driver bump → HW_DRIFT + 필드명 보고",
+        REASON_HW_DRIFT in drv_top["reasons"] and drv_top["drift_fields"] == ["driver_version"],
+        str(drv_top["drift_fields"]))
+
+    drv_same = evaluate(drv_att, dict(observed, driver_version="580.159.03"), ref)
+    chk("driver 일치 → 드리프트 아님(비교가 실제로 물린다의 음성 대조)",
+        drv_same["reasons"] == [REASON_FRESH], str(drv_same["reasons"]))
+
+    roster_drv = [{"role": "main", "host": "192.0.2.10", "driver_version": "580.159.03"},
+                  {"role": "sub", "host": "192.0.2.11", "driver_version": "580.159.03"}]
+    roster_bumped = [dict(roster_drv[0]),
+                     dict(roster_drv[1], driver_version="580.173.02")]
+    node_drv = evaluate(dict(base, nodes=roster_drv),
+                        dict(observed, nodes=roster_bumped), ref)
+    chk("서브 driver bump → nodes[1].driver_version HW_DRIFT",
+        REASON_HW_DRIFT in node_drv["reasons"]
+        and node_drv["drift_fields"] == ["nodes[1].driver_version"],
+        str(node_drv["drift_fields"]))
+
+    node_one_sided = evaluate(dict(base, nodes=roster_drv),
+                              dict(observed, nodes=sub_roster), ref)
+    chk("한쪽만 driver_version 보유 → 무드리프트가 아니라 드리프트(침묵 폴드 금지)",
+        node_one_sided["drift_fields"] == ["nodes[0].driver_version",
+                                           "nodes[1].driver_version"],
+        str(node_one_sided["drift_fields"]))
 
     twice = [json.dumps(evaluate(base, observed, ref), sort_keys=True, ensure_ascii=False)
              for _ in range(2)]
