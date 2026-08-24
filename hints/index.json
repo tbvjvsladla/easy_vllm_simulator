@@ -674,6 +674,18 @@
       "last_verified": "2026-08-24"
     },
     {
+      "tag": "hint/0.27.1.dev0/qwen3.8-27b/gb10x2-262k-tp2",
+      "vllm": "0.27.1.dev0",
+      "model": "qwen3.8-27b",
+      "arch": "gb10x2-262k-tp2",
+      "topology": "multi 2노드 TP2 (Ray·RoCE)",
+      "brief": "Qwen3.8-27B 를 2×GB10 Ray TP=2 + 262k 컨텍스트로 서빙 — THERMAL_LIMIT_LITE_ONLY: warm+full 벤치가 SoC 95℃ 초과로 docker_kill. lite cold 단일 측정만(TTFT 311ms · 8.40 t/s). 승자는 형제 single R7 1M-fp8kv-fp8w 18.69 t/s.",
+      "anchor": "a560dead2dad2f50f5c46978a3cd776fc3c6363c",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-08-24"
+    },
+    {
       "tag": "hint/0.27.1/deepseek-v4-flash-0731/gb10x2-dspark-1m",
       "vllm": "0.27.1",
       "model": "deepseek-v4-flash-0731",
