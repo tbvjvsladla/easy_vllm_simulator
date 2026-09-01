@@ -26,6 +26,18 @@
       "last_verified": "2026-07-03"
     },
     {
+      "tag": "hint/0.19.1/gpt-oss-120b/gb10-single",
+      "vllm": "0.19.1",
+      "model": "gpt-oss-120b",
+      "arch": "gb10-single",
+      "topology": "single 1노드",
+      "brief": "0.19.1 prebuilt wheel 로 gpt-oss-120b(MXFP4)를 단일 GB10 에 서빙 — auto=TRITON_ATTN+MARLIN 정상 · 34.55 t/s(MBU 77.9%) · 성능 PASS",
+      "anchor": "6407d6e6993663d45a74e2d1f83eebfee8c922e7",
+      "related": "hint/0.26.0/gpt-oss-120b/gb10-single",
+      "status": "active",
+      "last_verified": "2026-09-01"
+    },
+    {
       "tag": "hint/0.22.0/solar-open2-250b-nota-nvfp4/gb10",
       "vllm": "0.22.0",
       "model": "solar-open2-250b-nota-nvfp4",
