@@ -9,6 +9,15 @@
 set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
+# ★ 2026-09-01 신설 — backend 노브(기본값 openai-chat = 종전 동작, 후방호환).
+#   왜: 정본 디코드 지표는 `1000/median_tpot_ms` 인데 **harmony 계열(gpt-oss)은 chat 엔드포인트에서
+#   `--ignore-eos` 가 무력**하다 — harmony 의 assistant-action stop 토큰이 EOS 와 별개로 턴을 끝낸다.
+#   그러면 요청당 생성이 목표보다 훨씬 짧아지고(실측: out-len 256 요청에 평균 41 토큰)
+#   TPOT=(duration-TTFT)/(n-1) 의 분모가 작아져 **디코드가 3.3배 느린 것처럼** 측정된다
+#   (client 10.33 t/s vs engine-log 34.1 t/s — parse_bench 의 client_engine_agreement 가 검출).
+#   완결 엔드포인트(/v1/completions)에서는 같은 요청이 400/400 토큰을 낸다(finish_reason=length).
+#   ∴ 측정 무효를 우회하지 않고 **경로를 고친다**(workflow.md §막힘 3분류 — 배선 부재는 배선을 만든다).
+BACKEND="openai-chat"
 TOPO=""; CONC=1; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; OUTDIR=""
 while [ $# -gt 0 ]; do case "$1" in
   --topology) TOPO="$2"; shift 2;;
@@ -18,6 +27,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --num-prompts) NPROMPTS="$2"; shift 2;;
   --warmups) WARMUPS="$2"; shift 2;;
   --out-dir) OUTDIR="$2"; shift 2;;
+  --backend) BACKEND="$2"; shift 2;;
   *) echo "[run_bench] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
 
@@ -75,10 +85,15 @@ echo "[run_bench] precheck http://localhost:$PORT/health"
 docker ps --filter "name=$CTR" --filter status=running -q | grep -q . \
   || { echo "[run_bench] 컨테이너 $CTR 미실행" >&2; exit 3; }
 
-echo "[run_bench] bench: ctr=$CTR inport=$INPORT model=$MODEL_NAME conc=$CONC in=$ILEN out=$OLEN n=$NPROMPTS warmup=$WARMUPS"
+case "$BACKEND" in
+  openai-chat) ENDPOINT=/v1/chat/completions ;;
+  openai)      ENDPOINT=/v1/completions ;;
+  *) echo "[run_bench] 알 수 없는 --backend: $BACKEND (openai-chat|openai)" >&2; exit 2 ;;
+esac
+echo "[run_bench] bench: ctr=$CTR inport=$INPORT model=$MODEL_NAME conc=$CONC in=$ILEN out=$OLEN n=$NPROMPTS warmup=$WARMUPS backend=$BACKEND endpoint=$ENDPOINT"
 RFN="ab_bench_${CONFIG}.json"
 docker exec "$CTR" bash -lc "cd /tmp && vllm bench serve \
-  --backend openai-chat --base-url http://localhost:$INPORT --endpoint /v1/chat/completions \
+  --backend $BACKEND --base-url http://localhost:$INPORT --endpoint $ENDPOINT \
   --model '$MODEL_NAME' --tokenizer '$MODEL_PATH' --trust-remote-code \
   --dataset-name random --random-input-len $ILEN --random-output-len $OLEN --random-range-ratio 0 \
   --num-prompts $NPROMPTS --max-concurrency $CONC --request-rate inf --ignore-eos --num-warmups $WARMUPS --temperature 0 \

@@ -9,7 +9,7 @@
 #   run_bench 가 Flag/A2A 게이트·health precheck·envfile 해소를 수행 → 전이적 게이트 보존.
 # 비용 규율(편지 B.5): 이 스윕은 재탐색 루프 내부가 아니라 **full 런 종결 시 1회**만 호출한다.
 #
-# 사용: sweep_bench.sh <config_name> [--topology single|multi] [--levels 1,2,4,8,16]
+# 사용: sweep_bench.sh <config_name> [--topology single|multi] [--levels 1,2,4,8,16] [--backend openai-chat|openai]
 #        [--input-len N] [--output-len N] [--num-prompts N] [--warmups N] [--vllm-version X] [--dry-run]
 #        [--reassemble-only]
 #
@@ -27,8 +27,14 @@ set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
 TOPO=""; LEVELS="1,2,4,8,16"; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; VLLM_VER=""; DRYRUN=0; REASSEMBLE=0
+# ★ 2026-09-01 신설 — run_bench.sh 의 --backend 를 레벨마다 그대로 전달한다.
+#   전달하지 않으면 스윕 전 레벨이 openai-chat 로 돌아, harmony 계열(gpt-oss)에서 `--ignore-eos` 가
+#   무력해져 **모든 레벨의 TPOT 이 동시에 왜곡**된다(run_bench.sh 의 BACKEND 주석 참조).
+#   판정점(동시성=1)을 스윕이 포함하므로 그 왜곡은 곧 verdict 왜곡이다.
+BACKEND="openai-chat"
 while [ $# -gt 0 ]; do case "$1" in
   --topology) TOPO="$2"; shift 2;;
+  --backend) BACKEND="$2"; shift 2;;
   --reassemble-only) REASSEMBLE=1; shift;;
   --levels) LEVELS="$2"; shift 2;;
   --input-len) ILEN="$2"; shift 2;;
@@ -135,7 +141,7 @@ for L in "${SORTED[@]}"; do
   echo "[sweep_bench] ── level 동시성=$L ──"
   if bash "$SDIR/run_bench.sh" "$CONFIG" --topology "$TOPO" --concurrency "$L" \
         --input-len "$ILEN" --output-len "$OLEN" --num-prompts "$NPROMPTS" \
-        --warmups "$WARMUPS" --out-dir "$LDIR"; then
+        --warmups "$WARMUPS" --backend "$BACKEND" --out-dir "$LDIR"; then
     BJSON="$LDIR/bench_${CONFIG}.json"; ELOG="$LDIR/engine_${CONFIG}.log"
     if python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG" > "$LDIR/measured.json" 2>/dev/null \
        && python3 -c "import json,sys; d=json.load(open('$LDIR/measured.json')); sys.exit(0 if d.get('measurement_ok') else 1)"; then
