@@ -25,7 +25,7 @@ done
 
 # ★ 고정 상대깊이 금지 — 이 파일은 메인에서 .claude/skills/terraforming_node/scripts/host_safety/
 #   에 있고 서브에는 .claude/runtime/host_safety/ 로 배달된다. 깊이가 달라 ../../../../.. 는
-#   서브에서 /home/cona 를 가리키고 manifest 를 못 찾는다(2026-07-31 서브 배포에서 실측).
+#   서브에서 홈 디렉터리(저장소 루트 바깥)를 가리키고 manifest 를 못 찾는다(2026-07-31 서브 배포에서 실측).
 _find_repo(){ local d="$1"; while [ "$d" != "/" ] && [ -n "$d" ]; do
     [ -d "$d/.claude" ] && [ -d "$d/output" ] && { printf '%s' "$d"; return 0; }; d="$(dirname "$d")"; done; return 1; }
 REPO="$(_find_repo "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" \

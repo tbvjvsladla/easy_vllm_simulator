@@ -15,7 +15,7 @@
       "track": "source-sm12x",
       "evidence": {
         "path": ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json",
-        "sha256": "d7562d7ba520cbadc88e9ab8685e4a2a0d39ce21549be4c248be5c0f6ab5d265"
+        "sha256": "4623085c37515ae4f455e8e98f2f2551986ea63e7664efb368daf8b6afd474dc"
       },
       "status": "SUPERSEDED@0.24.0; retained only as the 0.23.0 last-good rollback anchor"
     },

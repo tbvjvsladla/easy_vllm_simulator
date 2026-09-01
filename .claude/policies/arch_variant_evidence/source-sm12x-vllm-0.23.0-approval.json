@@ -11,6 +11,6 @@
   "image_tag": "easy-vllm:0.23.0-cu132-aarch64-source-sm12x",
   "source_evidence": "plan_26062818 §3 R1 primary-source fork inspection and same-hardware community evidence",
   "source_path": ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md",
-  "source_sha256": "a6788c3440acc92d7148a87140e9e19d48df5c8c77ce8fd742c1b405754c1b9d",
+  "source_sha256": "39070d1a816b09528081513e778dc8dad61fe7f63135f62e8e9dbf746052c679",
   "approved_scope": "historical 0.23.0 rollback variant; serving smoke remains final arbitration"
 }

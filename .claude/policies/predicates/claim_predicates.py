@@ -825,7 +825,7 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C2():
     terms = ["forbidden-secret-token"]
     # Single RFC1918 fixture literal for this predicate -- reused by every positive case below so
     # the tracked deployment file gains no further private-range literals (plan_26081514 §6.4 note).
-    genuine_ip = '192.168.1.5'
+    genuine_ip = '192.168.1.5'  # pii-scan-fixture: 탐지기 양성 케이스 — 삭제하면 시험이 죽는다
     _require(hint_tag.scan_text('this text contains forbidden-secret-token here', terms) != [], 'predicate requirement failed at original line 759')
     _require(hint_tag.scan_text(f'{genuine_ip} is a private ip', terms) != [], 'predicate requirement failed at original line 760')
     _require(hint_tag.scan_text('nothing sensitive here at all', terms) == [], 'predicate requirement failed at original line 761')

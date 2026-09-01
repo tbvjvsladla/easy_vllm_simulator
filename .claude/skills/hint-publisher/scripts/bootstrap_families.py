@@ -22,22 +22,6 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))))
 FAMILIES_FILE = os.path.join(REPO, "hints", "families.json")
 
-# 수동 선언 — 자동 판별자가 닿지 않는 것만. 근거를 반드시 병기한다.
-MANUAL_FAMILIES: dict[str, dict] = {
-    # 사용자 D1(2026-08-20): "살짝만 교정한 변종모델까지는 같은 모델".
-    #   양쪽 카드 모두 base_model 미선언이라 자동 판별 불가 → 수동.
-    "deepseek-v4-flash": {
-        "members": {"deepseek-v4-flash": "revision", "deepseek-v4-flash-0731": "revision"},
-        "evidence": "사용자 D1(2026-08-20) · 0731=정식판, 프리뷰와 가중치 상이하나 동일 모델계열",
-    },
-}
-
-# 이 호스트 NAS 에 카드가 없는 발행처(이기종 rtxpro6000/rtx5090). 단독 family 로 둔다.
-KNOWN_CARDLESS = {
-    "hyperclovax-think-32b", "minicpm5-1b", "minicpm5-1b-base",
-    "mistral-small-4-119b", "nemotron-3-super-120b-a12b-nvfp4",
-}
-
 
 def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]", "", s.lower())
@@ -88,7 +72,11 @@ def scan_cards(roots: list[str]) -> dict[str, dict]:
 def classify(slug: str, card: dict | None) -> tuple[str, str, str]:
     """→ (family_id, relation, source). 판별자 우선순위는 모듈 docstring 참조."""
     if card is None or not card.get("base"):
-        return slug, "root", "manual"
+        # ★ 'manual' 로 라벨하지 않는다(2026-09-01). 'manual' 은 **사람이 선언했다**는 뜻인데
+        # 여기는 **판정할 근거가 없다**는 뜻이다. 둘을 같은 값으로 적으면 출처 표시가 거짓을
+        # 말한다(헌법 §결정론 규율). 실측: 카드가 없는 이 호스트에서 36/36 이 'manual' 로 찍혀
+        # 마치 전부 사람이 승인한 것처럼 보였다.
+        return slug, "root", "unresolved"
     base = card["base"]
     base_name = base.split("/")[-1]
     rel_decl = card.get("rel")
@@ -101,7 +89,7 @@ def classify(slug: str, card: dict | None) -> tuple[str, str, str]:
     # 접두 규칙(대체 신호). 위음성 있음 — 걸리지 않으면 단독 family 로 두고 사람이 본다.
     if _norm(slug).startswith(_norm(base_name)) or _norm(base_name).startswith(_norm(slug)):
         return _norm_id(base_name), relation_of(slug, base_name), "name_prefix"
-    return slug, "root", "manual"
+    return slug, "root", "unresolved"
 
 
 def _norm_id(repo_name: str) -> str:
@@ -115,7 +103,8 @@ QUANT_TOKENS = frozenset({
     "fp8", "fp4", "nvfp4", "mxfp4", "int4", "int8", "w4a16", "w8a8", "w4a8",
     "awq", "gptq", "autoround", "bnb", "gguf", "quantized", "compressed",
 })
-# SD 외장 초안 모델을 가리키는 토큰(plan_26082008 §3.3 D7).
+# SD 외장 초안 모델을 가리키는 **슬러그 토큰**. relation_of 의 후보 생성에만 쓴다 —
+# SD *능력* 판정에는 더 이상 쓰지 않는다(아래 extract_sd 참조).
 DRAFT_TOKENS = frozenset({"dflash", "draft", "eagle", "eagle3", "mtp"})
 
 
@@ -145,41 +134,36 @@ def relation_of(slug: str, base_name: str) -> str:
 # 표시한다. 없으면 비운다 — 추정치를 넣으면 하류가 실측으로 오독한다(헌법 §측정 > 공식).
 _RE_NUM_SPEC = re.compile(r'num_speculative_tokens["\s:·]*(\d+)')
 _RE_ACCEPT = re.compile(r'accept_len["\s:·=]*([0-9]+\.[0-9]+)')
-_RE_MTP = re.compile(r'\bMTP\b|num_nextn_predict_layers', re.I)
-_RE_DRAFT = re.compile(r'DFlash|eagle-?3?\b|draft\s*model|초안\s*모델', re.I)
-_RE_OFF = re.compile(r'spec(?:ulative)?[\s-]*(?:decoding)?\s*(?:off|해제|미사용|비활성|없음|없이|미적용)|spec\s*off|no\s+spec', re.I)
 
 
 def extract_sd(body: str) -> dict:
-    """태그 본문 → (a) 모델의 SD **능력**(mode) 과 (b) 이 레시피가 SD 를 **썼는지**(enabled).
-    둘은 다르다 — hy3 `-nospec` 은 능력이 있으나 쓰지 않은 경우다.
+    """태그 본문에서 SD 관련 **수치만** 수확한다. 능력(mode) 판정은 **하지 않는다**.
 
-    **신호 우선순위**(2026-08-20 교정): 수치 > 산문. `accept_len > 1.0` 은 초안 토큰이 실제로
-    수용됐다는 뜻이라 spec 가동의 **직접 증거**다. 산문 패턴('no spec'·'없이')을 먼저 보면
-    다른 맥락의 부정문에 걸려 오판한다 — 실제로 R3/R2/R6 3건이 그렇게 뒤집혔다.
+    ★ 2026-09-01 개정: 종전엔 산문 정규식(`DFlash|eagle-?3?|draft model|초안 모델` 및 'no spec'
+    부정문)으로 SD **능력**과 사용여부를 추론했다. 정규식이 원리적으로 못 하는 일이고 위음성이
+    실증됐다 — 본문에 "MTP n=3 … 2.18×" 가 있는데 `collect --sd-only` 가 그 태그를 놓쳤다.
+    능력 판정은 인용과 함께 **Agent** 가 하고 `families.json` 의 `source: judgment` 항목이 담는다.
 
-    **합성 금지**: 수치는 본문에 실제로 있을 때만 채우고 `measured` 로 표시한다.
-    능력을 단정할 근거가 없으면 `unknown` 으로 둔다 — `none`(SD 없는 모델)과 혼동하지 않는다."""
+    여기 남는 것은 **본문에 실제로 적힌 숫자를 읽는 일**뿐이다 — 의미 해석이 아니라 사실 수확이며
+    결정론↔Agent 경계의 결정론 쪽이다. 없으면 비운다(합성 금지 · 추정치를 넣으면 하류가 실측으로
+    오독한다).
+    """
     ns = _RE_NUM_SPEC.search(body)
     acc = _RE_ACCEPT.search(body)
     spec_tokens = int(ns.group(1)) if ns else None
     accept_len = float(acc.group(1)) if acc else None
-    has_draft, has_mtp = bool(_RE_DRAFT.search(body)), bool(_RE_MTP.search(body))
 
     if spec_tokens is not None:
-        enabled = spec_tokens > 0
+        enabled, enabled_source = spec_tokens > 0, "measured:num_speculative_tokens"
     elif accept_len is not None and accept_len > 1.0:
-        enabled = True                      # 초안 수용이 실측됐다 = 켜져 있었다
-    elif _RE_OFF.search(body):
-        enabled = False
-    elif has_draft or has_mtp:
-        enabled = None                      # 언급은 있으나 사용 여부 불명
+        enabled, enabled_source = True, "measured:accept_len"   # 초안 수용 실측 = 켜져 있었다
     else:
-        enabled = None
-    mode = "draft-external" if has_draft else ("mtp-internal" if has_mtp else "unknown")
-    return {"enabled": enabled, "mode": mode, "spec_tokens": spec_tokens,
-            "accept_len": accept_len, "measured": accept_len is not None,
-            "source": "tag_body_scan"}
+        enabled, enabled_source = None, "needs_judgment"        # 숫자가 없다 = 여기서는 모른다
+
+    return {"enabled": enabled, "enabled_source": enabled_source,
+            "mode": "needs_judgment",          # 능력 판정은 Agent 소관 (인용 필수)
+            "spec_tokens": spec_tokens, "accept_len": accept_len,
+            "measured": accept_len is not None, "source": "tag_body_numeric_scan"}
 
 
 def scan_tag_sd() -> dict[str, dict]:
@@ -208,14 +192,15 @@ def build(roots: list[str]) -> dict:
         cand = [k for k in cards if _norm(k) == ns] or \
                [k for k in cards if _norm(k).startswith(ns) or ns.startswith(_norm(k))]
         card = cards[sorted(cand, key=lambda k: abs(len(_norm(k)) - len(ns)))[0]] if cand else None
-        if slug in KNOWN_CARDLESS:
-            card = None
         fid, relation, source = classify(slug, card)
         ev = ""
-        if source != "manual" and card:
+        if source != "unresolved" and card:
             ev = f"card base_model={card['base']}" + (f" relation={card['rel']}" if card.get("rel") else "")
-        elif slug in KNOWN_CARDLESS:
-            ev = "이기종 발행처(rtxpro6000/rtx5090) — 이 호스트 NAS 에 카드 없음"
+        elif card is None:
+            # 카드 부재는 **사실**이지 판정이 아니다. 종전엔 특정 모델 5종을 `KNOWN_CARDLESS` 에
+            # 손으로 적어 "이기종 발행처"라고 단정했는데, 그건 이 스크립트가 알 수 없는 것이다
+            # (2026-09-01 제거). 부재 사실만 적고 이유는 Agent 가 인용과 함께 판단한다.
+            ev = "모델 카드를 찾지 못함(--root 범위 밖이거나 미보유) — 사유는 판정 대상"
         f = fams.setdefault(fid, {"root_repo": None, "members": [], "sd_capability":
                                   {"mode": "unknown", "draft_slug": None}})
         # `repo` = 실제로 서빙한 모델의 HF repo 이름(NAS 카드 디렉터리명). 슬러그가 이것과 다를 수
@@ -223,21 +208,8 @@ def build(roots: list[str]) -> dict:
         # family 연속성을 판정할 때 이 필드로 이어붙인다.
         f["members"].append({"slug": slug, "relation": relation, "source": source,
                              "evidence": ev, "repo": (cand and sorted(cand, key=lambda k: abs(len(_norm(k)) - len(ns)))[0]) or None})
-        if card and card.get("base") and source != "manual":
+        if card and card.get("base") and source != "unresolved":
             f["root_repo"] = card["base"]
-    # 수동 선언을 덮어씌운다(자동보다 우선 — 사람 승인이 최종 권위).
-    for fid, spec in MANUAL_FAMILIES.items():
-        merged = fams.setdefault(fid, {"root_repo": None, "members": [],
-                                       "sd_capability": {"mode": "unknown", "draft_slug": None}})
-        keep = [m for m in merged["members"] if m["slug"] not in spec["members"]]
-        for slug, relation in spec["members"].items():
-            keep.append({"slug": slug, "relation": relation, "source": "manual",
-                         "evidence": spec["evidence"]})
-            for other in list(fams):
-                if other == fid:
-                    continue
-                fams[other]["members"] = [m for m in fams[other]["members"] if m["slug"] != slug]
-        merged["members"] = sorted(keep, key=lambda m: m["slug"])
     # 정규화하면 같아지는 멤버 = ②철자 갈림 사고. 색인이 이를 명시해야 수신자가
     # "왜 같은 모델이 두 슬러그인가"를 안다.
     for v in fams.values():
@@ -269,30 +241,24 @@ def main() -> int:
     data = build(a.root)
     if a.scan_sd:
         data["tag_sd"] = scan_tag_sd()
-        # family 층 = 소속 태그들의 mode 합집합. unknown 은 다른 신호가 있으면 밀려난다.
-        by_slug = {m["slug"]: fid for fid, f in data["families"].items() for m in f["members"]}
-        agg: dict[str, set] = {}
-        for tag, sd in data["tag_sd"].items():
-            fid = by_slug.get(tag.split("/")[2])
-            if fid and sd["mode"] != "unknown":
-                agg.setdefault(fid, set()).add(sd["mode"])
-        for fid, modes in agg.items():
-            m = ("draft-external" if "draft-external" in modes else
-                 "mtp-internal" if "mtp-internal" in modes else "none")
-            data["families"][fid]["sd_capability"]["mode"] = m
-            # 출처 표시(헌법 §결정론 규율) — 이 값은 모델 카드 선언이 아니라 **태그 본문 스캔에서
-            # 파생**됐다. 사람이 확인해 고치면 source 를 manual 로 바꾼다.
-            data["families"][fid]["sd_capability"]["source"] = "tag_body_scan"
-        c = {}
-        for sd in data["tag_sd"].values():
-            c[sd["mode"]] = c.get(sd["mode"], 0) + 1
-        print(f"[sd] 태그 {len(data['tag_sd'])}종 스캔 · mode 분포 {c} · "
-              f"measured {sum(1 for v in data['tag_sd'].values() if v['measured'])}종")
-    n_auto = sum(1 for f in data["families"].values() for m in f["members"] if m["source"] != "manual")
-    n_man = sum(1 for f in data["families"].values() for m in f["members"] if m["source"] == "manual")
+        # ★ family 층 mode 집계는 제거했다. 종전엔 태그 본문 산문에서 추론한 mode 를 family 로
+        # 올려 `source: tag_body_scan` 으로 박았는데, 그 추론 자체가 위음성이 실증됐다.
+        # 능력 판정은 Agent 가 인용과 함께 하고, 아래 보존 규칙이 그 판정을 덮지 않게 지킨다.
+        _need = sum(1 for v in data["tag_sd"].values() if v["enabled"] is None)
+        print(f"[sd] 태그 {len(data['tag_sd'])}종 스캔 · 수치 확보 "
+              f"{sum(1 for v in data['tag_sd'].values() if v['measured'])}종 · "
+              f"판정대기(enabled 미상) {_need}종 → Agent 가 본문을 읽고 판정해야 한다")
+    _JUDGED = ("manual", "judgment")
+    n_derived = sum(1 for f in data["families"].values() for m in f["members"]
+                    if m["source"] not in _JUDGED and m["source"] != "unresolved")
+    n_judged = sum(1 for f in data["families"].values() for m in f["members"] if m["source"] in _JUDGED)
+    n_unres = sum(1 for f in data["families"].values() for m in f["members"] if m["source"] == "unresolved")
     multi = {k: v for k, v in data["families"].items() if len(v["members"]) > 1}
-    print(f"[families] family {len(data['families'])}종 · 멤버 {n_auto + n_man}종 "
-          f"(자동 {n_auto} · 수동 {n_man})")
+    print(f"[families] family {len(data['families'])}종 · 멤버 {n_derived + n_judged + n_unres}종 "
+          f"(카드파생 {n_derived} · 확정판정 {n_judged} · **판정대기 {n_unres}**)")
+    if n_unres:
+        print(f"[families] ⚠ 판정대기 {n_unres}종 — 모델 카드가 없어 기계가 계보를 알 수 없다. "
+              f"family 귀속은 Agent 가 인용과 함께 판정하고 members[].source 를 'judgment' 로 적는다.")
     print(f"[families] 복수-멤버 family {len(multi)}종:")
     for k, v in multi.items():
         print(f"   {k}")
@@ -307,6 +273,40 @@ def main() -> int:
         # 반대로 스캔한 실행의 결과를 이전 값으로 덮어도 안 된다 — 2026-08-20 실제 발생.
         if not a.scan_sd:
             data["tag_sd"] = prev.get("tag_sd", {})
+        # ★ 부분보존 결함 교정(2026-09-01 · 감사 ⑬): 종전엔 `tag_sd` 만 보존하고
+        # `families[*].sd_capability` 는 보존하지 않았다. 그래서 `--scan-sd` 없이 한 번만 돌려도
+        # 사람/Agent 가 확정한 능력 판정이 기계 기본값으로 **조용히 되돌아갔다**. 판정은 기계가
+        # 만든 것이 아니므로 기계가 지울 수도 없다 — judgment/manual 출처는 무조건 이어받는다.
+        _prev_fams = prev.get("families") or {}
+        # ★ 확정 판정 멤버 보존(2026-09-01). 종전엔 스크립트 안의 `MANUAL_FAMILIES` 상수가 매
+        # 실행마다 사람 선언을 다시 주입했다. 그 상수를 없앴으므로(특정 모델명 하드코딩),
+        # **판정의 거처를 파일로 옮긴다** — `members[].source` 가 manual|judgment 인 항목은
+        # 기계가 만든 것이 아니므로 기계가 지우지 않는다. 이 보존이 없으면 Agent 가 내린 family
+        # 판정이 다음 실행에서 조용히 사라진다(= 삭제한 상수가 하던 일을 아무도 안 하게 된다).
+        _judged_members: dict[str, list] = {}
+        for _fid, _pf in _prev_fams.items():
+            _keep = [m for m in (_pf.get("members") or []) if m.get("source") in ("manual", "judgment")]
+            if _keep:
+                _judged_members[_fid] = _keep
+        _claimed = {m["slug"] for ms in _judged_members.values() for m in ms}
+        if _claimed:
+            for _f in data["families"].values():
+                _f["members"] = [m for m in _f["members"] if m["slug"] not in _claimed]
+            for _fid, _ms in _judged_members.items():
+                _tgt = data["families"].setdefault(_fid, {"root_repo": None, "members": [],
+                                                          "sd_capability": {"mode": "needs_judgment",
+                                                                            "draft_slug": None}})
+                _tgt["members"] = sorted(_tgt["members"] + _ms, key=lambda m: m["slug"])
+            data["families"] = {k: v for k, v in sorted(data["families"].items()) if v["members"]}
+            print(f"[families] 이전 판정 보존: 멤버 {len(_claimed)}건 (source=judgment|manual)")
+        _kept = 0
+        for _fid, _f in data["families"].items():
+            _pc = (_prev_fams.get(_fid) or {}).get("sd_capability") or {}
+            if _pc.get("source") in ("judgment", "manual"):
+                _f["sd_capability"] = _pc
+                _kept += 1
+        if _kept:
+            print(f"[families] 이전 판정 보존: sd_capability {_kept}건 (source=judgment|manual)")
         with open(FAMILIES_FILE, "w", encoding="utf-8") as fh:
             json.dump(data, fh, ensure_ascii=False, indent=2, sort_keys=True)
             fh.write("\n")

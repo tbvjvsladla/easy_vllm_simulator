@@ -36,7 +36,7 @@ SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ★ 리포 루트는 **고정 상대깊이로 세지 않는다**. 메인에서는 이 스크립트가
 #   .claude/skills/terraforming_node/scripts/node_blackbox/ 에 있지만, 서브에는 런타임으로
 #   .claude/runtime/node_blackbox/ 로 배달된다(host_safety 선례). 깊이가 다르므로 ../../../../..
-#   는 서브에서 /home/cona 를 가리켜 로그 루트가 조용히 엉뚱한 곳이 된다. 마커로 찾는다.
+#   는 서브에서 홈 디렉터리(저장소 루트 바깥)를 가리켜 로그 루트가 조용히 엉뚱한 곳이 된다. 마커로 찾는다.
 _find_repo(){ local d="$1"; while [ "$d" != "/" ] && [ -n "$d" ]; do
     [ -d "$d/.claude" ] && [ -d "$d/docs" ] && { printf '%s' "$d"; return 0; }; d="$(dirname "$d")"; done; return 1; }
 REPO="$(_find_repo "$SDIR" || (cd "$SDIR/../../../../.." 2>/dev/null && pwd))"

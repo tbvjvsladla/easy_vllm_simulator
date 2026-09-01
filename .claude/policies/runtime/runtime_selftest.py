@@ -434,8 +434,11 @@ def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = 
             certificate=certificate, bench_report_text=bench_report_text,
             promotion_target={"kind": "hint", "tag": _HINT_TAG,
                               "topology": _HINT_TOPOLOGY, "anchor": anchor})
+        # `--allow-new-slug` 는 2026-09-01 제거됐다 — 슬러그 정본표(CANONICAL_SLUGS)가 사라지고
+        # 철자 충돌 대조가 **발행된 태그에서 파생**되도록 바뀌면서 '표에 없음'이라는 상태 자체가
+        # 없어졌기 때문이다(plan_26090107 §6). 신규 슬러그는 이제 플래그 없이 통과한다.
         common = ("--tag", _HINT_TAG, "--topology", _HINT_TOPOLOGY, "--commit", anchor,
-                  "--hf-repo", _HINT_HF_REPO, "--allow-new-slug", "--manifest", str(manifest))
+                  "--hf-repo", _HINT_HF_REPO, "--manifest", str(manifest))
         out = {"anchor": anchor, "create": _hint_cli(root, "create", *common)}
         if out["create"].returncode != 0:
             return out

@@ -39,25 +39,6 @@ from pathlib import Path
 TAG_SHAPE = re.compile(r"^hint/[^/]+/[^/]+/[^/]+$")
 HINTS_MARKER = "<!-- hint-index:rows -->"
 
-# Canonical model-slug per family (hardening #5 — prevents slug sprawl that would break
-# `git tag -l 'hint/*/<slug>/*'`). Value = accepted spellings (canonical MUST be first-listed
-# via the dict key). Register a new family here (HITL) rather than minting drive-by slugs.
-CANONICAL_SLUGS: dict[str, set[str]] = {
-    "deepseek-v4-flash": {"deepseek-v4-flash", "ds4flash", "deepseek-v4-flash-dspark"},
-    # 0731 = 정식판. 프리뷰와 **가중치가 다르다**(index 해시부터 상이) → 별칭이 아니라 별도 family.
-    #   이미 `hint/0.26.0/deepseek-v4-flash-0731/gb10x2` 가 push 된 상태라 정본 철자는 이것으로 고정된다.
-    #   사다리(1칸 노멀 · 2칸 1M · 3칸 dspark)는 **arch 슬롯**으로 갈라지므로 슬러그는 하나로 족하다.
-    "deepseek-v4-flash-0731": {"deepseek-v4-flash-0731", "ds4f0731"},
-    "gpt-oss-120b": {"gpt-oss-120b", "gptoss120b", "gpt-oss"},
-    "qwen3-next-80b-bf16": {"qwen3-next-80b-bf16", "qwen3next80b", "qwen3-next-80b"},
-    "qwen3.5-122b-a10b-nvfp4": {"qwen3.5-122b-a10b-nvfp4", "qwen35-122b-nvfp4"},
-    "skt-a.x-4.0-72b": {"skt-a.x-4.0-72b", "skt-ax-72b"},
-    "gemma-3-27b": {"gemma-3-27b", "gemma3-27b"},
-    # Tencent Hy3-295B(21B active + 3.8B MTP). `hint/0.24.0/hy3/gb10` 이 이미 push 된 상태라
-    #   정본 철자는 `hy3` 로 고정된다(위 0731 주석과 같은 근거). 변종 사다리(기준선·spec 축·
-    #   CUDA graph·block-size·attention backend)는 **arch 슬롯**으로 갈라지므로 슬러그는 하나로 족하다.
-    "hy3": {"hy3", "hy3-295b", "hunyuan3"},
-}
 
 # Generic PII patterns (belt-and-suspenders atop pii_terms.txt literals). Narrow on
 # purpose so versions ("2.11.0" = 3 octets) don't false-positive as IPv4.
@@ -144,7 +125,6 @@ HINT_ACTION_FOR_CMD: dict[str, str] = {
     "reindex": "hint_reindex",
     "push": "hint_push",
     "reverify": "hint_reverify",
-    "pin-legacy": "hint_reindex",   # 카탈로그 정합 계열 — reindex 와 같은 권한면
 }
 
 
@@ -578,29 +558,40 @@ def scan_text(text: str, terms: list[str] | None, skip_generic: frozenset[str] =
     return hits
 
 
-def canonicalize(model: str) -> str | None:
-    for canon, spellings in CANONICAL_SLUGS.items():
-        if model == canon or model in spellings:
-            return canon
-    return None
+def _existing_model_slugs() -> dict[str, str]:
+    """발행된 hint 태그에서 파생한 {정규화키: 먼저 발행된 철자}.
+
+    ★ 종전엔 `CANONICAL_SLUGS` 라는 손저작 표가 이 일을 했다. 2026-08-20 실측에서 **발행된 32
+    슬러그 중 27종이 그 표 밖**이었다(`--allow-new-slug` 로 통과) — 표는 이미 집행되지 않고
+    있었고, 모델이 늘 때마다 스크립트를 고쳐야 했다. **파생 가능한데 손으로 적은 것**이므로 없앤다.
+
+    남는 일은 의미 판정이 아니라 **사실 대조**다: "이 철자가 이미 발행된 것과 대소문자·구두점만
+    다른가". 무엇이 같은 모델인가(패밀리)는 이 스크립트가 판단하지 않는다 — Agent 가 인용과 함께
+    판단하고 `hints/families.json` 이 담는다(결정론↔Agent 경계).
+    """
+    out: dict[str, str] = {}
+    for t in existing_hint_tags():
+        parts = t.split("/")
+        if len(parts) == 4:
+            out.setdefault(_norm_slug(parts[2]), parts[2])
+    return out
 
 
 def existing_hint_tags() -> list[str]:
     return [t for t in git("tag", "-l", "hint/*").stdout.split() if t]
 
 
-def validate_name(name: str, allow_new_slug: bool = False, expect_absent: bool = True) -> tuple[str, str, str]:
+def validate_name(name: str, expect_absent: bool = True) -> tuple[str, str, str]:
     if not TAG_SHAPE.match(name):
         die(f"[hint_tag] FAIL: 이름 형태 위반(hint/<vllm>/<model>/<arch>): {name}")
     if git("check-ref-format", f"refs/tags/{name}", check=False).returncode != 0:
         die(f"[hint_tag] FAIL: git 이 거부하는 ref 이름: {name}")
     _, vllm, model, arch = name.split("/")
-    canon = canonicalize(model)
-    if canon is None and not allow_new_slug:
-        die(f"[hint_tag] FAIL: 모델 슬러그 '{model}' 가 정본표에 없음. "
-            f"CANONICAL_SLUGS 에 등록하거나 --allow-new-slug(HITL) 사용.")
-    if canon is not None and canon != model:
-        die(f"[hint_tag] FAIL: 별칭 '{model}' 대신 정본 슬러그 '{canon}' 를 쓰세요.")
+    prior = _existing_model_slugs().get(_norm_slug(model))
+    if prior is not None and prior != model:
+        die(f"[hint_tag] FAIL: 모델 슬러그 '{model}' 은 이미 발행된 '{prior}' 와 대소문자·구두점만 "
+            f"다르다(정규화키 동일). 정본 철자 '{prior}' 를 쓰라 — 철자 분열은 "
+            f"`git tag -l 'hint/*/<slug>/*'` 검색을 조용히 깨뜨린다(2026-08-20 실측 2건).")
     existing = existing_hint_tags()
     if expect_absent and name in existing:
         die(f"[hint_tag] FAIL: 이미 존재하는 태그: {name}")
@@ -638,7 +629,7 @@ def _parse_tag_body(name: str) -> tuple[str, str, str]:
 # ── create ──────────────────────────────────────────────────────────────────
 def cmd_create(a: argparse.Namespace) -> int:
     _require_promotion_authorization("create", a.manifest)
-    vllm, model, arch = validate_name(a.tag, a.allow_new_slug)
+    vllm, model, arch = validate_name(a.tag)
     slug_src = require_derived_slug(model, vllm, arch, a.hf_repo, a.model_path)
     print(f"[hint_tag] 슬러그 '{model}' 확인 (출처: {slug_src})")
     anchor = git("rev-parse", "--verify", a.commit).stdout.strip()
@@ -693,8 +684,6 @@ def cmd_create(a: argparse.Namespace) -> int:
                  "--manifest", a.manifest]
     if a.related:
         follow_up += ["--related", a.related]
-    if a.allow_new_slug:
-        follow_up.append("--allow-new-slug")
     print(f"[hint_tag] scaffold → {out.relative_to(ROOT)}  (앵커 {anchor[:12]})")
     print("[hint_tag] 다음: TODO(judgment) 슬롯을 채운 뒤:")
     print("           " + " ".join(shlex.quote(tok) for tok in follow_up))
@@ -714,7 +703,7 @@ def _assert_remeasure(body: str) -> None:
 
 def cmd_finalize(a: argparse.Namespace) -> int:
     _require_promotion_authorization("finalize", a.manifest)
-    vllm, model, arch = validate_name(a.tag, a.allow_new_slug)  # 미존재·정본·합법 재확인
+    vllm, model, arch = validate_name(a.tag)  # 미존재·철자충돌·합법 재확인
     require_derived_slug(model, vllm, arch, a.hf_repo, a.model_path)
     anchor = git("rev-parse", "--verify", a.commit).stdout.strip()
     manifest, resolved_manifest_path = _load_manifest_for_binding("hint_finalize", a.manifest)
@@ -793,8 +782,9 @@ def cmd_finalize(a: argparse.Namespace) -> int:
     })
     idx["hints"].sort(key=lambda e: e["tag"])
     _save_index(idx)
-    _hints_regen(idx["hints"])
-    print("[hint_tag] index.json + HINTS.md 카탈로그 인덱스 갱신 완료.")
+    _wrote_md = _hints_regen(idx["hints"])
+    print(f"[hint_tag] index.json{' + HINTS.md' if _wrote_md else ''} 카탈로그 인덱스 갱신 완료."
+          + ("" if _wrote_md else "  (HINTS.md 는 갱신되지 않았다 — 위 경고 참조)"))
     return 0
 
 
@@ -805,10 +795,21 @@ def _hints_row(e: dict) -> str:
             f"{e.get('last_verified','')} | {e.get('brief','')} |")
 
 
-def _hints_regen(hints: list[dict]) -> None:
-    """HINTS.md 카탈로그 행 전량 재생성(index = 진실원천). 마커 앞에 정렬 삽입."""
+def _hints_regen(hints: list[dict]) -> bool:
+    """HINTS.md 카탈로그 행 전량 재생성(index = 진실원천). 마커 앞에 정렬 삽입.
+
+    → 실제로 갱신했으면 True. **호출부는 이 값을 보고 보고 문구를 정해야 한다** — 종전엔 파일이
+    없거나 마커가 없어도 조용히 반환하면서 `cmd_index` 가 "HINTS.md 갱신 완료"를 무조건 찍었다.
+    하지 않은 일을 했다고 말하는 침묵 no-op 이다(2026-09-01 E2E 에서 검출).
+    """
     if not HINTS_FILE.is_file():
-        return
+        print(f"[hint_tag] ⚠ {HINTS_FILE.name} 이 없어 카탈로그 행을 쓰지 못했다 — index.json 만 갱신됐다.",
+              file=sys.stderr)
+        return False
+    if HINTS_MARKER not in HINTS_FILE.read_text(encoding="utf-8"):
+        print(f"[hint_tag] ⚠ {HINTS_FILE.name} 에 삽입 마커({HINTS_MARKER}) 가 없어 행을 쓰지 못했다 "
+              f"— index.json 만 갱신됐다.", file=sys.stderr)
+        return False
     out = []
     for ln in HINTS_FILE.read_text(encoding="utf-8").splitlines():
         if ln.startswith("| `hint/"):
@@ -817,6 +818,7 @@ def _hints_regen(hints: list[dict]) -> None:
             out.extend(_hints_row(e) for e in hints)
         out.append(ln)
     HINTS_FILE.write_text("\n".join(out) + "\n", encoding="utf-8")
+    return True
 
 
 # ── verify ──────────────────────────────────────────────────────────────────
@@ -846,7 +848,7 @@ def _evaluate_manifest_promotion_ready(manifest_path: Path, action: str) -> tupl
     return False, f"exit={proc.returncode} reason_codes={parsed.get('reason_codes')}"
 
 
-def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] | None, list[str]]:
+def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] | None, list[tuple[str, str]]]:
     """Full evidence-binding validation for ONE existing hint tag, driven ENTIRELY from that tag's
     own footer + ROOT -- NEVER from whatever --manifest the CURRENTLY-RUNNING command happened to
     receive. Closes the fabricated-historical-footer gap (cycle-2 remediation): a syntactically
@@ -863,23 +865,26 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
     `problems` list means this tag's evidence is genuinely durable."""
     typ = git("cat-file", "-t", tag, check=False).stdout.strip()
     if typ != "tag":
-        return None, [f"{tag}: HINT_TAG_NOT_ANNOTATED annotated 태그가 아님(type={typ})"]
+        return None, [("HINT_TAG_NOT_ANNOTATED", f"{tag}: HINT_TAG_NOT_ANNOTATED annotated 태그가 아님(type={typ})")]
     try:
         footer = _parse_evidence_footer(_tag_object_body(tag))
     except HintEvidenceBindingError as e:
-        return None, [f"{tag}: {e.code} {e.message}"]
+        return None, [(e.code, f"{tag}: {e.code} {e.message}")]
 
-    problems: list[str] = []
+    # ★ 문제는 (code, message) 로 낸다 — 판정은 code 로만 한다. 종전엔 렌더된 message 를
+    # 부분일치(`CODE in msg`)로 분류했는데, message 에는 footer 값이 그대로 박히므로
+    # 발행자가 footer 필드에 코드 문자열을 넣어 등급을 뒤집을 수 있었다(감사 심각도1-②, 주입 실증).
+    problems: list[tuple[str, str]] = []
 
     if footer["tag"] != tag:
-        problems.append(f"{tag}: HINT_EVIDENCE_BINDING_TAG_SELF_MISMATCH footer.tag={footer['tag']!r} != actual tag {tag!r}")
+        problems.append(("HINT_EVIDENCE_BINDING_TAG_SELF_MISMATCH", f"{tag}: HINT_EVIDENCE_BINDING_TAG_SELF_MISMATCH footer.tag={footer['tag']!r} != actual tag {tag!r}"))
 
     actual_commit = git("rev-parse", "--verify", tag + "^{commit}", check=False).stdout.strip()
     if not actual_commit:
-        problems.append(f"{tag}: HINT_TAG_COMMIT_UNRESOLVABLE 태그의 peeled commit 을 확인할 수 없음")
+        problems.append(("HINT_TAG_COMMIT_UNRESOLVABLE", f"{tag}: HINT_TAG_COMMIT_UNRESOLVABLE 태그의 peeled commit 을 확인할 수 없음"))
     elif footer["anchor"] != actual_commit:
-        problems.append(f"{tag}: HINT_EVIDENCE_BINDING_ANCHOR_SELF_MISMATCH footer.anchor={footer['anchor']!r} "
-                         f"!= actual peeled commit {actual_commit!r}")
+        problems.append(("HINT_EVIDENCE_BINDING_ANCHOR_SELF_MISMATCH", f"{tag}: HINT_EVIDENCE_BINDING_ANCHOR_SELF_MISMATCH footer.anchor={footer['anchor']!r} "
+                         f"!= actual peeled commit {actual_commit!r}"))
 
     repo_root_fd = os.open(str(ROOT), os.O_RDONLY | os.O_DIRECTORY)
     try:
@@ -893,67 +898,67 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
         # 수신자 쪽에서 전량이 차단으로 읽혀 신호가 죽는다(plan_26082017 §10.4 · 사용자 결정 α).
         _code = ("HINT_EVIDENCE_MANIFEST_REF_ABSENT" if r_manifest["status"] == "not_found"
                  else "HINT_EVIDENCE_MANIFEST_REF_UNSAFE_OR_MISSING")
-        problems.append(f"{tag}: {_code} manifest_ref "
-                         f"{footer['manifest_ref']!r} resolve 실패(status={r_manifest['status']})")
+        problems.append((_code, f"{tag}: {_code} manifest_ref "
+                         f"{footer['manifest_ref']!r} resolve 실패(status={r_manifest['status']})"))
         return footer, problems  # nothing further can be checked without the manifest bytes
     if r_manifest["sha256"] != footer["manifest_sha256"]:
-        problems.append(f"{tag}: HINT_EVIDENCE_MANIFEST_SHA_MISMATCH {r_manifest['sha256']} != {footer['manifest_sha256']}")
+        problems.append(("HINT_EVIDENCE_MANIFEST_SHA_MISMATCH", f"{tag}: HINT_EVIDENCE_MANIFEST_SHA_MISMATCH {r_manifest['sha256']} != {footer['manifest_sha256']}"))
 
     try:
         ref_manifest = json.loads((r_manifest["content_bytes"] or b"").decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
-        problems.append(f"{tag}: HINT_EVIDENCE_MANIFEST_INVALID_JSON manifest_ref {footer['manifest_ref']!r} "
-                         f"가 유효한 JSON 이 아님")
+        problems.append(("HINT_EVIDENCE_MANIFEST_INVALID_JSON", f"{tag}: HINT_EVIDENCE_MANIFEST_INVALID_JSON manifest_ref {footer['manifest_ref']!r} "
+                         f"가 유효한 JSON 이 아님"))
         return footer, problems
     if not isinstance(ref_manifest, dict):
-        problems.append(f"{tag}: HINT_EVIDENCE_MANIFEST_INVALID_SHAPE manifest_ref root 가 JSON object 아님")
+        problems.append(("HINT_EVIDENCE_MANIFEST_INVALID_SHAPE", f"{tag}: HINT_EVIDENCE_MANIFEST_INVALID_SHAPE manifest_ref root 가 JSON object 아님"))
         return footer, problems
 
     manifest_ref_abs = ROOT / footer["manifest_ref"]  # already proven safe/regular above
     gate_ok, gate_detail = _evaluate_manifest_promotion_ready(manifest_ref_abs, action)
     if not gate_ok:
-        problems.append(f"{tag}: HINT_EVIDENCE_MANIFEST_NOT_PROMOTION_READY {gate_detail}")
+        problems.append(("HINT_EVIDENCE_MANIFEST_NOT_PROMOTION_READY", f"{tag}: HINT_EVIDENCE_MANIFEST_NOT_PROMOTION_READY {gate_detail}"))
 
     _, vllm, model, arch = tag.split("/")
     ref_pt = ref_manifest.get("promotion_target")
     if not isinstance(ref_pt, dict):
-        problems.append(f"{tag}: HINT_EVIDENCE_PROMOTION_TARGET_MISSING referenced manifest 에 promotion_target 없음")
+        problems.append(("HINT_EVIDENCE_PROMOTION_TARGET_MISSING", f"{tag}: HINT_EVIDENCE_PROMOTION_TARGET_MISSING referenced manifest 에 promotion_target 없음"))
     else:
         if ref_pt.get("kind") != "hint":
-            problems.append(f"{tag}: HINT_EVIDENCE_PROMOTION_TARGET_KIND_MISMATCH kind={ref_pt.get('kind')!r}")
+            problems.append(("HINT_EVIDENCE_PROMOTION_TARGET_KIND_MISMATCH", f"{tag}: HINT_EVIDENCE_PROMOTION_TARGET_KIND_MISMATCH kind={ref_pt.get('kind')!r}"))
         if ref_pt.get("tag") != tag:
-            problems.append(f"{tag}: HINT_EVIDENCE_PROMOTION_TARGET_TAG_MISMATCH "
-                             f"promotion_target.tag={ref_pt.get('tag')!r} != {tag!r}")
+            problems.append(("HINT_EVIDENCE_PROMOTION_TARGET_TAG_MISMATCH", f"{tag}: HINT_EVIDENCE_PROMOTION_TARGET_TAG_MISMATCH "
+                             f"promotion_target.tag={ref_pt.get('tag')!r} != {tag!r}"))
         if ref_pt.get("topology") != footer["topology"]:
-            problems.append(f"{tag}: HINT_EVIDENCE_PROMOTION_TARGET_TOPOLOGY_MISMATCH "
-                             f"promotion_target.topology={ref_pt.get('topology')!r} != footer topology {footer['topology']!r}")
+            problems.append(("HINT_EVIDENCE_PROMOTION_TARGET_TOPOLOGY_MISMATCH", f"{tag}: HINT_EVIDENCE_PROMOTION_TARGET_TOPOLOGY_MISMATCH "
+                             f"promotion_target.topology={ref_pt.get('topology')!r} != footer topology {footer['topology']!r}"))
         if ref_pt.get("anchor") != footer["anchor"]:
-            problems.append(f"{tag}: HINT_EVIDENCE_PROMOTION_TARGET_ANCHOR_MISMATCH "
-                             f"promotion_target.anchor={ref_pt.get('anchor')!r} != footer anchor {footer['anchor']!r}")
+            problems.append(("HINT_EVIDENCE_PROMOTION_TARGET_ANCHOR_MISMATCH", f"{tag}: HINT_EVIDENCE_PROMOTION_TARGET_ANCHOR_MISMATCH "
+                             f"promotion_target.anchor={ref_pt.get('anchor')!r} != footer anchor {footer['anchor']!r}"))
 
     ref_identity = ref_manifest.get("identity") or {}
     if ref_identity.get("model") != model:
-        problems.append(f"{tag}: HINT_EVIDENCE_IDENTITY_MODEL_MISMATCH identity.model={ref_identity.get('model')!r} != tag model {model!r}")
+        problems.append(("HINT_EVIDENCE_IDENTITY_MODEL_MISMATCH", f"{tag}: HINT_EVIDENCE_IDENTITY_MODEL_MISMATCH identity.model={ref_identity.get('model')!r} != tag model {model!r}"))
     m_vllm = ref_identity.get("vllm")
     if not (m_vllm == vllm or (isinstance(m_vllm, str) and m_vllm.startswith(vllm + "-"))):
-        problems.append(f"{tag}: HINT_EVIDENCE_IDENTITY_VLLM_MISMATCH identity.vllm={m_vllm!r} does not bind to tag vllm {vllm!r}")
+        problems.append(("HINT_EVIDENCE_IDENTITY_VLLM_MISMATCH", f"{tag}: HINT_EVIDENCE_IDENTITY_VLLM_MISMATCH identity.vllm={m_vllm!r} does not bind to tag vllm {vllm!r}"))
     expected_class = _topology_class(footer["topology"])
     if ref_identity.get("topology") != expected_class:
-        problems.append(f"{tag}: HINT_EVIDENCE_IDENTITY_TOPOLOGY_CLASS_MISMATCH identity.topology="
-                         f"{ref_identity.get('topology')!r} != topology class {expected_class!r}")
+        problems.append(("HINT_EVIDENCE_IDENTITY_TOPOLOGY_CLASS_MISMATCH", f"{tag}: HINT_EVIDENCE_IDENTITY_TOPOLOGY_CLASS_MISMATCH identity.topology="
+                         f"{ref_identity.get('topology')!r} != topology class {expected_class!r}"))
     tp_label = _TP_LABEL_RE.search(footer["topology"])
     if tp_label is not None and ref_identity.get("tp") != int(tp_label.group(1)):
-        problems.append(f"{tag}: HINT_EVIDENCE_IDENTITY_TP_MISMATCH identity.tp={ref_identity.get('tp')!r} "
-                         f"!= TP{tp_label.group(1)} in topology label {footer['topology']!r}")
+        problems.append(("HINT_EVIDENCE_IDENTITY_TP_MISMATCH", f"{tag}: HINT_EVIDENCE_IDENTITY_TP_MISMATCH identity.tp={ref_identity.get('tp')!r} "
+                         f"!= TP{tp_label.group(1)} in topology label {footer['topology']!r}"))
 
     identity_sha = _canonical_identity_sha256(ref_identity)
     if identity_sha != footer["identity_sha256"]:
-        problems.append(f"{tag}: HINT_EVIDENCE_IDENTITY_SHA_MISMATCH {identity_sha} != {footer['identity_sha256']}")
+        problems.append(("HINT_EVIDENCE_IDENTITY_SHA_MISMATCH", f"{tag}: HINT_EVIDENCE_IDENTITY_SHA_MISMATCH {identity_sha} != {footer['identity_sha256']}"))
 
     ref_cert_path = _binding_artifact_path(ref_manifest)
     if ref_cert_path != footer["certificate_ref"]:
-        problems.append(f"{tag}: HINT_EVIDENCE_CERTIFICATE_REF_MISMATCH footer.certificate_ref="
-                         f"{footer['certificate_ref']!r} != manifest evidence.certificate.path={ref_cert_path!r}")
+        problems.append(("HINT_EVIDENCE_CERTIFICATE_REF_MISMATCH", f"{tag}: HINT_EVIDENCE_CERTIFICATE_REF_MISMATCH footer.certificate_ref="
+                         f"{footer['certificate_ref']!r} != manifest evidence.certificate.path={ref_cert_path!r}"))
     else:
         repo_root_fd = os.open(str(ROOT), os.O_RDONLY | os.O_DIRECTORY)
         try:
@@ -964,10 +969,10 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
         if r_cert["status"] != "ok":
             _code = ("HINT_EVIDENCE_CERTIFICATE_REF_ABSENT" if r_cert["status"] == "not_found"
                      else "HINT_EVIDENCE_CERTIFICATE_UNSAFE_OR_MISSING")
-            problems.append(f"{tag}: {_code} certificate_ref "
-                             f"{footer['certificate_ref']!r} resolve 실패(status={r_cert['status']})")
+            problems.append((_code, f"{tag}: {_code} certificate_ref "
+                             f"{footer['certificate_ref']!r} resolve 실패(status={r_cert['status']})"))
         elif r_cert["sha256"] != footer["certificate_sha256"]:
-            problems.append(f"{tag}: HINT_EVIDENCE_CERTIFICATE_SHA_MISMATCH {r_cert['sha256']} != {footer['certificate_sha256']}")
+            problems.append(("HINT_EVIDENCE_CERTIFICATE_SHA_MISMATCH", f"{tag}: HINT_EVIDENCE_CERTIFICATE_SHA_MISMATCH {r_cert['sha256']} != {footer['certificate_sha256']}"))
 
     return footer, problems
 
@@ -1004,7 +1009,7 @@ def cmd_verify(a: argparse.Namespace) -> int:
     # evidence-binding 분류는 classify_evidence_problems 단일 권위(계약 v2 §5).
     # verify 는 릴리즈 게이트이지만 v1 빈티지를 차단하지 않는다 — 그러면 신규 태그 발행이
     # 레거시 부채에 영구히 인질로 잡힌다(계약 §4). 변조는 여기서도 그대로 차단된다.
-    _ev_blocking, _ev_legacy, _ev_drift, _ev_unver = classify_evidence_problems(
+    _ev_blocking, _ev_unver = classify_evidence_problems(
         [(t, _validate_hint_tag_evidence(t, "hint_verify")[1]) for t in tags])
     problems.extend(_ev_blocking)
     # 발행자 평면(verify=릴리즈 게이트)에서는 **부재도 차단**이다 — 발행자는 자기가 주장하는 증거를
@@ -1013,9 +1018,6 @@ def cmd_verify(a: argparse.Namespace) -> int:
                     "발행자는 증거를 보유해야 한다" for x in _ev_unver)
     problems.extend(f"{x}: HINT_TAG_UNSEALED {_r}" for x in tags
                     if (_r := unsealed_reason(x)))
-    if _ev_legacy:
-        print(f"[hint_tag] ⚠ v1 빈티지 {len(_ev_legacy)}개(footer 이전 · SHA 핀 일치) — 경고.",
-              file=sys.stderr)
 
     for bp in sorted(ROOT.glob("output/*/build_patches/*.sh")):
         h = scan_text(bp.read_text(encoding="utf-8", errors="ignore"), terms)
@@ -1214,74 +1216,6 @@ def _require_perf_warning(action: str, manifest: dict, recipe_text: str) -> None
                      manifest.get("task_class") if isinstance(manifest, dict) else None)
 
 
-LEGACY_PINS_FILE = ROOT / "hints" / "legacy_v1_pins.json"
-DRIFT_PINS_FILE = ROOT / "hints" / "evidence_drift_pins.json"
-
-
-def _load_drift_pins() -> dict:
-    """발행 **후** 매니페스트가 승인된 편집으로 바뀐 태그의 등재부.
-
-    왜 필요한가(2026-08-18 실제 발생): 사용자 지시로 `approved_by: coag-ash → AhnSangHun` 일괄
-    개명을 하면서 plan digest 재계산까지 돌았고, 그 순간 16개 태그의 footer `manifest_sha256` 이
-    전부 어긋났다. 해시는 **승인된 개명과 변조를 구분하지 못한다** — 그게 해시의 본분이다.
-    그런데 계약 §2 가 지목한 유일한 위협은 *"서빙 실패를 성공으로 허위기재해 배포하는 것"* 이고,
-    이 드리프트는 그 표면에 닿지 않았다(identity·certificate·verdict·health·smoke 전부 보존).
-
-    v1 이 형식으로 차단하고 증거를 검사하지 않은 실수를 v2 가 고쳤는데, `drifted` 판정만은
-    여전히 **바이트 형식**으로 내려지고 있었다. 이 핀이 그 마지막 칸을 증거 기준으로 옮긴다.
-
-    **핀은 면제가 아니라 동결이다** — 등재된 바이트에서 *더* 바뀌면 다시 차단된다."""
-    if not DRIFT_PINS_FILE.is_file():
-        return {}
-    try:
-        with open(DRIFT_PINS_FILE, encoding="utf-8") as f:
-            return json.load(f).get("pins", {})
-    except (OSError, json.JSONDecodeError):
-        return {}
-
-
-_DRIFT_SHA_RE = re.compile(r"HINT_EVIDENCE_MANIFEST_SHA_MISMATCH\s+([0-9a-f]{64})\s*!=\s*([0-9a-f]{64})")
-
-
-def _is_evidence_preserving_drift(tag: str, ev_problems: list, pins: dict) -> bool:
-    """증거-보전 드리프트인가. 네 조건을 **전부** 만족해야 한다.
-
-    ① 문제가 `MANIFEST_SHA_MISMATCH` **하나뿐**이다.
-       — identity/certificate/verdict 불일치는 각자 **다른 코드**로 나오므로, 이 조건 하나가
-         "계측·정체성·판정은 그대로였다"를 구조적으로 보장한다.
-    ② 그 태그가 등재돼 있다.                    (사람 승인)
-    ③ 등재된 footer 기대값이 실제 footer 와 같다. (핀이 다른 태그 것을 재활용하지 못한다)
-    ④ 등재된 관측값이 **지금** 매니페스트와 같다. (등재 이후 추가 드리프트는 다시 차단)
-    """
-    if not ev_problems or len(ev_problems) != 1:
-        return False
-    m = _DRIFT_SHA_RE.search(ev_problems[0])
-    if not m:
-        return False
-    observed, expected = m.group(1), m.group(2)
-    pin = pins.get(tag)
-    if not isinstance(pin, dict):
-        return False
-    return (pin.get("footer_manifest_sha256") == expected
-            and pin.get("observed_manifest_sha256") == observed)
-
-
-
-# 린터(L1–L5) 도입 시각. 이 시각 **이후** 발행분만 린트 준수를 강제한다 — 그 전에는 요구되지
-# 않았고 "부재가 곧 허위는 아니다"(계약 §4 소급 금지와 같은 논리). tripwire 상수이므로 바꾸려면
-# 리뷰가 필요하다. 근거: 린터 도입 커밋 daf63f3 = 2026-08-20T00:49:20Z (plan_26082009 D10).
-LINT_ERA_EFFECTIVE_EPOCH = 1787186960
-
-
-def _tagger_epoch(tag: str) -> int | None:
-    tok = git("for-each-ref", "--format=%(taggerdate:raw)", f"refs/tags/{tag}",
-              check=False).stdout.split()
-    try:
-        return int(tok[0])
-    except (IndexError, ValueError):
-        return None
-
-
 def unsealed_reason(tag: str) -> str | None:
     """이 태그가 `seal` 산출물이 **아님**을 태그 오브젝트만으로 판정한다.
 
@@ -1289,10 +1223,12 @@ def unsealed_reason(tag: str) -> str | None:
     유일한 검출기**다. digest 계열 검사는 증거 파일이 있어야 하므로 수신자에게는 항상 '부재'로
     떨어진다(plan_26082017 §10.4). 손으로 만든 footer 는 digest 로는 못 잡아도 여기서 잡힌다:
     `cmd_finalize` 가 lint_body 를 die 로 집행하므로, **린트를 못 넘는 본문은 seal 이 낸 것이
-    아니다.** 2026-08-20 실증(태그 4건)."""
-    ep = _tagger_epoch(tag)
-    if ep is None or ep < LINT_ERA_EFFECTIVE_EPOCH:
-        return None                                   # 린터 이전 발행분 — 소급하지 않는다
+    아니다.** 2026-08-20 실증(태그 4건).
+
+    ★ 2026-09-01 개정: 종전엔 태그의 taggerdate 가 린터 도입 시각보다 이르면 검사를 **건너뛰었다**.
+    그 시각은 태그 오브젝트 안에 있어 **발행자가 정한다** — 피감사자가 자기 검사를 끌 수 있는
+    구조였다(감사 심각도1-③). 과거 태그 전량 초기화로 소급 면제의 근거도 사라져 게이트를 제거한다.
+    이제 모든 hint 태그가 예외 없이 이 검사를 받는다."""
     if git("cat-file", "-t", tag, check=False).stdout.strip() != "tag":
         return "annotated 태그가 아니다 — hint 태그는 본문이 곧 페이로드다"
     body = git("cat-file", "tag", tag, check=False).stdout.partition("\n\n")[2]
@@ -1303,173 +1239,45 @@ def unsealed_reason(tag: str) -> str | None:
     return None
 
 
-def classify_evidence_problems(per_tag: list) -> tuple:
-    """계약 v2 §5 분류의 **단일 권위**. 입력 [(tag, ev_problems)] → (blocking[], legacy_warn[]).
+# 참조 파일 **부재**를 뜻하는 코드의 닫힌 목록. tripwire 다 — 새 부재 코드가 생기면 여기 등재를
+# 강제해 "조용히 blocking 으로 떨어지는" 일도, "조용히 통과하는" 일도 막는다.
+_ABSENT_CODES = frozenset({
+    "HINT_EVIDENCE_MANIFEST_REF_ABSENT",
+    "HINT_EVIDENCE_CERTIFICATE_REF_ABSENT",
+})
 
-    push·reindex·reverify 세 곳이 각자 같은 판정을 복제하고 있었다(2026-07-31 발견). 그러면
-    한 곳만 고쳤을 때 나머지가 남는다 — 이 프로젝트에서 같은 계열 사고가 이미 여러 번 났다
-    (파서 두 벌 D4↔D6 · TP 오카운트 7사이트). **판정은 여기 하나뿐이다.**
 
-      missing + 핀 SHA 일치  → legacy_warn (v1 빈티지 · 차단 ✗ · 계약 §4)
-      missing + 핀 SHA 불일치 → blocking   (레거시를 손댔으면 v2 를 만족시켜라)
-      missing + 핀 없음      → blocking   (v2 이후 신규는 footer 필수)
-      forged / drifted       → blocking   (변조는 빈티지와 무관)
-      *_REF_ABSENT 만        → unverifiable (참조 파일이 이 체크아웃에 없다 — 수신자 평면에선 정상)
+def classify_evidence_problems(per_tag: list) -> tuple[list[str], list[str]]:
+    """evidence-binding 판정의 **단일 권위**. 입력 [(tag, [(code, message), ...])] →
+    (blocking_messages[], unverifiable_tags[]).
 
-    ★ `unverifiable` 은 "증거가 틀렸다"가 아니라 **"여기서는 대조할 수 없다"** 다. 증거(work-
-    manifest)는 배포되지 않으므로 수신자 클론에서는 사실상 전량이 여기 떨어진다. 이를 blocking 과
-    한 등급으로 묶으면 수신자 쪽 카탈로그가 통째로 경고가 되어 신호가 죽는다(plan_26082017 §10.4).
+    ★ 판정은 **code 로만** 한다. 종전엔 렌더된 message 를 부분일치(`CODE in msg`)로 분류했는데,
+    message 에는 footer 값이 그대로 박히므로 발행자가 footer 필드에 코드 문자열을 심어 등급을
+    뒤집을 수 있었다(감사 심각도1-② · 주입 실증: blocking 1→0). code 는 검증기가 정하고
+    발행자가 건드릴 수 없다.
+
+      *_REF_ABSENT 만              → unverifiable ("여기서는 대조할 수 없다")
+      그 외 문제                    → blocking
+
+    ★ unverifiable 은 "증거가 틀렸다"가 아니라 **"이 체크아웃에 참조 파일이 없다"** 다. 증거
+    (work-manifest)는 배포되지 않으므로 수신자 클론에서는 사실상 전량이 여기 떨어진다. blocking 과
+    한 등급으로 묶으면 수신자 카탈로그가 통째로 경고가 되어 신호가 죽는다(plan_26082017 §10.4).
     대신 도구 미경유는 `unsealed_reason()` 이 **파일 없이** 잡으므로 검출력은 유지된다.
+
+    ★ 2026-09-01: v1 빈티지(legacy_warn)·증거보전 드리프트(drift_warn) 두 등급은 **삭제**했다.
+    둘 다 "footer 규약 도입 이전 태그를 소급 차단하지 않는다"는 하위호환 장치였는데, 과거 태그
+    전량 초기화로 소급 대상이 0이 되었다. 남겨두면 집행되지 않는 코드가 판정 경로에 남는다.
     """
-    pins = _load_legacy_v1_pins()
-    drift_pins = _load_drift_pins()
-    blocking: list = []
-    legacy_warn: list = []
-    drift_warn: list = []
-    unverifiable: list = []
+    blocking: list[str] = []
+    unverifiable: list[str] = []
     for tag, ev_problems in per_tag:
         if not ev_problems:
             continue
-        only_missing = all("HINT_EVIDENCE_BINDING_MISSING" in p for p in ev_problems)
-        pinned = pins.get(tag)
-        if only_missing and pinned:
-            try:
-                cur = subprocess.run(["git", "rev-parse", "--verify", tag],
-                                     capture_output=True, text=True).stdout.strip()
-            except Exception:
-                cur = ""
-            if cur and cur == pinned:
-                legacy_warn.append(tag)
-                continue
-            blocking.append(f"{tag}: v1 핀 SHA 불일치(pin={pinned[:12]} cur={cur[:12] or 'N/A'}) "
-                            "— 레거시 태그가 변경됐다면 v2 evidence-binding 을 만족시켜야 한다")
+        if all(code in _ABSENT_CODES for code, _ in ev_problems):
+            unverifiable.append(tag)
             continue
-        if _is_evidence_preserving_drift(tag, ev_problems, drift_pins):
-            drift_warn.append(tag)          # 증거-보전 드리프트 · 등재분 (계약 §5 개정 2026-08-20)
-            continue
-        if all("_REF_ABSENT" in p for p in ev_problems):
-            unverifiable.append(tag)        # 참조 파일 부재 only — 등급 분리(사용자 결정 α)
-            continue
-        blocking.extend(ev_problems)
-    return blocking, legacy_warn, drift_warn, unverifiable
-
-
-def _load_legacy_v1_pins() -> dict:
-    """v2 발효 시점의 v1 빈티지 태그 SHA 핀(계약 §4). 부재 시 {} — 그러면 전 태그가 v2 강제다."""
-    try:
-        with open(LEGACY_PINS_FILE, encoding="utf-8") as f:
-            return (json.load(f) or {}).get("pins") or {}
-    except (OSError, ValueError):
-        return {}
-
-
-def _pins_effective_utc() -> str:
-    """핀 목록의 v2 발효 시각. 부재/불량이면 빈 문자열 → pre-effective 판정을 하지 않는다."""
-    try:
-        with open(LEGACY_PINS_FILE, encoding="utf-8") as f:
-            return str((json.load(f) or {}).get("effective_utc") or "")
-    except (OSError, ValueError):
-        return ""
-
-
-def _tag_is_pre_effective(tag: str):
-    """태그의 tagger 시각이 v2 발효보다 앞서면 True. 판정 불가면 None.
-
-    ★ 이 함수는 **진단에만** 쓴다. 자동 핀에 쓰지 않는다 — tagger 날짜는 태그 오브젝트 안에 있어
-      신규 위조 태그가 날짜를 소급해 빈티지를 참칭할 수 있다. 핀의 보안 가치는 '알려진 시점에
-      사람이 열거했다' 는 데 있으므로, 등재는 언제나 사람 게이트를 통과해야 한다.
-    """
-    eff = _pins_effective_utc()
-    if not eff:
-        return None
-    try:
-        raw = subprocess.run(["git", "for-each-ref", "--format=%(taggerdate:iso-strict)",
-                              f"refs/tags/{tag}"], capture_output=True, text=True).stdout.strip()
-        if not raw:
-            return None
-        tagged = datetime.fromisoformat(raw)
-        effective = datetime.fromisoformat(eff.replace("Z", "+00:00"))
-    except (OSError, ValueError):
-        return None
-    return tagged < effective
-
-
-def _legacy_remedy_hint(problems: list) -> str:
-    """차단된 태그 중 pre-effective 인 것에 대해 **정확한 해소 명령**을 문자열로 만든다.
-
-    종전엔 'binding 이 없다' 는 일반 문구뿐이라, 피어 호스트가 v2 발효 이전에 발행한 태그를
-    뒤늦게 페치하면 사람이 legacy_v1_pins.json 을 **손으로 열어 편집**하는 수밖에 없었다
-    (2026-08-01 hint/0.25.1/gemma-4-e2b-it/rtx5090 실제 발생). 핀 목록의 입력이 '로컬에 있던
-    태그' 집합이라 구조적으로 재발한다 — 사람 게이트는 유지하되 경로는 제시한다.
-    """
-    lines = []
-    for p in problems:
-        if "HINT_EVIDENCE_BINDING_MISSING" not in p:
-            continue
-        tag = p.split(":", 1)[0].strip()
-        if not tag.startswith("hint/") or _tag_is_pre_effective(tag) is not True:
-            continue
-        lines.append(
-            f"  ↳ {tag} 는 tagger 시각이 v2 발효({_pins_effective_utc()})보다 **앞선다** = v1 빈티지 후보다.\n"
-            f"    핀 목록이 로컬 태그만으로 만들어져 누락된 것일 수 있다(피어 호스트 발행분). 사람 확인 후:\n"
-            f"      python3 .claude/skills/hint-publisher/scripts/hint_tag.py pin-legacy \\\n"
-            f"        --tag {tag} --manifest <promotion-ready work-manifest>")
-    return ("\n\n[hint_tag] v1 빈티지 후보 감지 — 해소 경로:\n" + "\n".join(lines)) if lines else ""
-
-
-def cmd_pin_legacy(a: argparse.Namespace) -> int:
-    """v2 발효 이전에 발행된 footer-없는 태그를 legacy_v1_pins 에 SHA 로 등재한다.
-
-    세 조건을 **전부** 만족해야 등재한다(하나라도 어긋나면 거부, 부분 기록 없음):
-      ① 태그에 evidence-binding footer 가 실제로 없다 (있으면 v2 태그이므로 핀 대상이 아니다)
-      ② tagger 시각 < effective_utc (post-effective 태그의 빈티지 참칭 차단)
-      ③ 아직 핀되어 있지 않다 (기존 핀 덮어쓰기 = 변조 탐지 무력화)
-    """
-    _require_promotion_authorization("pin-legacy", a.manifest)
-    tag = a.tag
-    if tag not in set(existing_hint_tags()):
-        print(f"[hint_tag] FAIL: 존재하지 않는 태그: {tag}", file=sys.stderr)
-        return 2
-
-    footer, _ = _validate_hint_tag_evidence(tag, "hint_pin_legacy")
-    if footer is not None:
-        print(f"[hint_tag] FAIL: {tag} 에는 evidence-binding footer 가 있다 — v2 태그는 핀 대상이 아니다.",
-              file=sys.stderr)
-        return 2
-
-    pre = _tag_is_pre_effective(tag)
-    eff = _pins_effective_utc()
-    if pre is not True:
-        why = "판정 불가(tagger 시각/발효시각 해석 실패)" if pre is None else f"tagger 시각이 발효({eff}) 이후"
-        print(f"[hint_tag] FAIL: {tag} 는 v1 빈티지가 아니다 — {why}. "
-              "v2 태그는 evidence-binding 을 갖춰야 한다(핀으로 우회 불가).", file=sys.stderr)
-        return 2
-
-    try:
-        with open(LEGACY_PINS_FILE, encoding="utf-8") as f:
-            doc = json.load(f)
-    except (OSError, ValueError) as e:
-        print(f"[hint_tag] FAIL: 핀 목록을 읽을 수 없다: {e}", file=sys.stderr)
-        return 2
-    pins = doc.get("pins") or {}
-    if tag in pins:
-        print(f"[hint_tag] FAIL: {tag} 는 이미 핀되어 있다(pin={pins[tag][:12]}). "
-              "덮어쓰기는 변조 탐지를 무력화하므로 거부한다.", file=sys.stderr)
-        return 2
-
-    sha = subprocess.run(["git", "rev-parse", "--verify", tag],
-                         capture_output=True, text=True).stdout.strip()
-    if not sha:
-        print(f"[hint_tag] FAIL: {tag} 의 오브젝트 SHA 해소 실패", file=sys.stderr)
-        return 2
-
-    pins[tag] = sha
-    doc["pins"] = dict(sorted(pins.items()))
-    with open(LEGACY_PINS_FILE, "w", encoding="utf-8") as f:
-        f.write(json.dumps(doc, ensure_ascii=False, indent=2) + "\n")
-    print(f"[hint_tag] pin-legacy: {tag}\n  obj={sha}\n  근거=tagger 시각 < effective_utc({eff}) · footer 부재\n"
-          f"  핀 총계={len(doc['pins'])}. 이후 SHA 가 바뀌면 v2 조건이 강제된다(변조 탐지 보존).")
-    return 0
+        blocking.extend(msg for _, msg in ev_problems)
+    return blocking, unverifiable
 
 
 def _require_all_hint_tags_evidence_valid(action: str, tags: list | None = None) -> None:
@@ -1487,15 +1295,8 @@ def _require_all_hint_tags_evidence_valid(action: str, tags: list | None = None)
       - forged / drifted           → **차단 유지**(변조는 빈티지와 무관)
     """
     targets = tags if tags is not None else existing_hint_tags()
-    blocking, legacy_warn, drift_warn, unverifiable = classify_evidence_problems(
+    blocking, unverifiable = classify_evidence_problems(
         [(t, _validate_hint_tag_evidence(t, action)[1]) for t in targets])
-    if legacy_warn:
-        print(f"[hint_tag] ⚠ v1 빈티지 {len(legacy_warn)}개는 evidence-binding footer 이전 태그다 "
-              f"(계약 §4 — 재작성 ✗ · SHA 핀 일치 확인됨). 경고로만 통과시킨다.", file=sys.stderr)
-    if drift_warn:
-        print(f"[hint_tag] ⚠ 증거-보전 드리프트 {len(drift_warn)}개 — 발행 후 매니페스트가 승인된 편집으로 "
-              f"바뀌었고 identity·certificate·판정은 보존됐다(등재: hints/evidence_drift_pins.json). "
-              f"경고로만 통과시킨다.", file=sys.stderr)
     # 배포 평면도 발행자 평면이다 — 부재/미봉인은 여기서 차단한다(사용자 결정 α의 경계).
     blocking = list(blocking)
     blocking += [f"{x}: HINT_EVIDENCE_REF_ABSENT 참조 증거가 이 체크아웃에 없다 — "
@@ -1555,7 +1356,7 @@ def cmd_match(a: argparse.Namespace) -> int:
     그리고 모델 불일치분은 기본 숨긴다(출력 9,563 B 중 46/49 가 잡음이었다)."""
     idx, fam = _load_index(), _load_families()
     _, slugs = resolve_family(a.model, fam)
-    nslugs = {_norm_slug(s) for s in slugs} | {_norm_slug(canonicalize(a.model) or a.model)}
+    nslugs = {_norm_slug(s) for s in slugs} | {_norm_slug(a.model)}
     scored = []
     for e in idx["hints"]:
         d = (e["vllm"] == a.vllm, _norm_slug(e["model"]) in nslugs, e["arch"] == a.arch)
@@ -1646,8 +1447,9 @@ def cmd_index(a: argparse.Namespace) -> int:
     })
     idx["hints"].sort(key=lambda e: e["tag"])
     _save_index(idx)
-    _hints_regen(idx["hints"])
-    print(f"[hint_tag] index.json + HINTS.md 갱신: {a.tag}")
+    _wrote_md = _hints_regen(idx["hints"])
+    print(f"[hint_tag] index.json{' + HINTS.md' if _wrote_md else ''} 갱신: {a.tag}"
+          + ("" if _wrote_md else "  (HINTS.md 는 갱신되지 않았다 — 위 경고 참조)"))
     return 0
 
 # ── R1 슬러그 파생 + D10 린터 (plan_26082008 R1 · plan_26082009 §6) ──────────
@@ -1806,7 +1608,21 @@ def cmd_collect(a: argparse.Namespace) -> int:
     nslugs = {_norm_slug(s) for s in slugs}
     rows = [e for e in idx["hints"] if _norm_slug(e["model"]) in nslugs]
     if a.sd_only:
-        rows = [e for e in rows if (fam.get("tag_sd", {}).get(e["tag"], {}) or {}).get("enabled")]
+        # ★ 침묵 배제 금지(2026-09-01 · 감사 ⑩). 종전엔 `.get("enabled")` 가 falsy 면 뺐는데,
+        # `None`(= 판정 대기)과 `False`(= 실제로 끔)가 같은 취급을 받아 **SD 를 쓴 레시피가
+        # 조용히 사라졌다**(qwen3.8-27b: 본문에 "MTP n=3 … 2.18×" 가 있는데 누락). 필터는
+        # `True` 만 남기되, 판정 대기로 빠진 건수를 **반드시 알린다** — 빠진 줄 모르면
+        # "없다"와 "모른다"가 구분되지 않는다.
+        _sd = fam.get("tag_sd", {})
+        _pending = [e["tag"] for e in rows
+                    if (_sd.get(e["tag"], {}) or {}).get("enabled") is None]
+        rows = [e for e in rows if (_sd.get(e["tag"], {}) or {}).get("enabled") is True]
+        if _pending:
+            print(f"[hint_tag] ⚠ --sd-only 로 {len(_pending)}건을 **판정 대기**라 뺐다 "
+                  f"(SD 사용 여부 미상 — 없다는 뜻이 아니다). 본문 확인이 필요한 태그:",
+                  file=sys.stderr)
+            for _t in _pending:
+                print(f"    - {_t}", file=sys.stderr)
     rows.sort(key=lambda e: (_vkey(e["vllm"]), e["arch"]))
     if a.json:
         print(json.dumps({"family": fid, "slugs": sorted(slugs),
@@ -1926,10 +1742,7 @@ def cmd_reverify(a: argparse.Namespace) -> int:
     _footer, ev_problems = _validate_hint_tag_evidence(a.tag, "hint_reverify")
     # 단일 대상이지만 분류는 동일 권위를 쓴다 — v1 빈티지 태그의 currency 스탬프 갱신까지
     # 막을 이유가 없다(계약 §4). forged/drifted 는 여기서도 그대로 차단된다.
-    _blocking, _legacy, _drift, _unver = classify_evidence_problems([(a.tag, ev_problems)])
-    if _legacy:
-        print(f"[hint_tag] ⚠ {a.tag} 는 v1 빈티지(footer 이전 · SHA 핀 일치) — 경고로 통과.",
-              file=sys.stderr)
+    _blocking, _unver = classify_evidence_problems([(a.tag, ev_problems)])
     if _blocking:
         _die_binding("hint_reverify", ["HINT_EVIDENCE_BINDING_INCOMPLETE"],
                      {"HINT_EVIDENCE_BINDING_INCOMPLETE":
@@ -1965,16 +1778,13 @@ def cmd_reindex(a: argparse.Namespace) -> int:
             footers[t] = footer
         per_tag.append((t, ev_problems))
     # 분류는 classify_evidence_problems 단일 권위(계약 v2 §5) — 여기서 복제하지 않는다.
-    problems, legacy_warn, drift_warn, unverifiable = classify_evidence_problems(per_tag)
-    if legacy_warn:
-        print(f"[hint_tag] ⚠ v1 빈티지 {len(legacy_warn)}개는 footer 이전 태그다(계약 §4 · SHA 핀 일치). "
-              "인덱스에는 포함하되 경고로만 통과시킨다.", file=sys.stderr)
+    problems, unverifiable = classify_evidence_problems(per_tag)
     # 태그별 귀속 — 같은 단일 권위(classify_evidence_problems)를 태그 하나씩 다시 태운다.
     # 메시지 문자열을 파싱해 태그를 캐내지 않는다(포맷이 바뀌면 조용히 어긋난다).
     unbound_why: dict[str, str] = {}
     unver_why: dict[str, str] = {}
     for _t, _ev in per_tag:
-        _b, _l, _d, _u = classify_evidence_problems([(_t, _ev)])
+        _b, _u = classify_evidence_problems([(_t, _ev)])
         _uns = unsealed_reason(_t)                      # 파일 불요 — 수신자 평면에서도 작동한다
         if _b or _uns:
             # 사유 문자열에는 태그를 넣지 않는다 — 소비처(collect)가 이미 태그를 찍으므로
@@ -1988,8 +1798,7 @@ def cmd_reindex(a: argparse.Namespace) -> int:
         _die_binding("hint_reindex", ["HINT_EVIDENCE_BINDING_INCOMPLETE"],
                      {"HINT_EVIDENCE_BINDING_INCOMPLETE":
                       "one or more hint tags carry forged/drifted evidence, or a v2-era tag lacks "
-                      "its binding -- refusing (no partial rewrite):\n  " + "\n  ".join(problems)
-                      + _legacy_remedy_hint(problems)},
+                      "its binding -- refusing (no partial rewrite):\n  " + "\n  ".join(problems)},
                      None, None)
     if unbound_why:
         # 격리(plan_26082017 §4.3 (a) · 2026-08-20 사용자 결정): 전량 차단은 무결한 나머지의
@@ -2040,9 +1849,11 @@ def cmd_reindex(a: argparse.Namespace) -> int:
         hints.append(e)
     idx["hints"] = hints
     _save_index(idx)
-    _hints_regen(hints)
+    _wrote_md = _hints_regen(hints)
     dropped = sorted(set(prev) - set(tags))
-    print(f"[hint_tag] reindex: {len(hints)} 태그 → index.json + HINTS.md 재생성(currency 보존)."
+    print(f"[hint_tag] reindex: {len(hints)} 태그 → index.json{' + HINTS.md' if _wrote_md else ''} "
+          f"재생성(currency 보존)."
+          + ("" if _wrote_md else "  (HINTS.md 는 갱신되지 않았다 — 위 경고 참조)")
           + (f"  제거(태그없음): {dropped}" if dropped else ""))
     return 0
 
@@ -2058,7 +1869,6 @@ def main() -> int:
     c.add_argument("--brief", default="")
     c.add_argument("--related", default="")
     c.add_argument("--from-resolved", default="resolved.json")
-    c.add_argument("--allow-new-slug", action="store_true")
     c.add_argument("--hf-repo", help="정본 HF repo '<org>/<name>' — 슬러그가 여기서 파생된다(R1)")
     c.add_argument("--model-path", help="HF 미등록 커스텀 모델의 서빙 경로(D2 예외)")
     c.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
@@ -2072,7 +1882,6 @@ def main() -> int:
     f.add_argument("--related", default="")
     f.add_argument("--tagger-name", default="")
     f.add_argument("--tagger-email", default="")
-    f.add_argument("--allow-new-slug", action="store_true")
     f.add_argument("--hf-repo", help="정본 HF repo '<org>/<name>' — 슬러그가 여기서 파생된다(R1)")
     f.add_argument("--model-path", help="HF 미등록 커스텀 모델의 서빙 경로(D2 예외)")
     f.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
@@ -2086,7 +1895,6 @@ def main() -> int:
     sl.add_argument("--related", default="")
     sl.add_argument("--tagger-name", default="")
     sl.add_argument("--tagger-email", default="")
-    sl.add_argument("--allow-new-slug", action="store_true")
     sl.add_argument("--hf-repo", help="정본 HF repo '<org>/<name>' — 슬러그가 여기서 파생된다(R1)")
     sl.add_argument("--model-path", help="HF 미등록 커스텀 모델의 서빙 경로(D2 예외)")
     sl.set_defaults(fn=cmd_finalize, no_index=True)
@@ -2141,12 +1949,6 @@ def main() -> int:
                     help="증거 바인딩 불량이 하나라도 있으면 전량 차단(옛 동작). 기본은 격리+경고")
     ri.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
     ri.set_defaults(fn=cmd_reindex)
-
-    pl = sub.add_parser("pin-legacy",
-                        help="v2 발효 이전 발행 + footer 부재 태그를 legacy_v1_pins 에 SHA 등재(피어 호스트 태그 뒤늦은 페치 대응)")
-    pl.add_argument("--tag", required=True)
-    pl.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
-    pl.set_defaults(fn=cmd_pin_legacy)
 
     a = ap.parse_args()
     if a.cmd != "match":

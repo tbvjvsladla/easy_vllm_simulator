@@ -25,7 +25,7 @@ stock `0.23.0-source` 로 6회 연속 MARLIN-repack→통합메모리 OOM→호�
 | NGC 베이스 | `nvcr.io/nvidia/pytorch:26.05-py3` (불변) | — |
 | `TORCH_CUDA_ARCH` | `12.1a` (sm_121) | — |
 | 이미지 태그 | **`easy-vllm:0.23.0-cu132-aarch64-source-sm12x`** | §2.2 |
-| 체크포인트 | 공식 `deepseek-ai/DeepSeek-V4-Flash` MXFP4 149GB(46 shard) — **NAS 존재 확인** `/mnt/llm/Model/hugging_face_ver_model/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash` | 본세션 ls |
+| 체크포인트 | 공식 `deepseek-ai/DeepSeek-V4-Flash` MXFP4 149GB(46 shard) — **NAS 존재 확인** `<nas_model_path>/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash` (경로 정본 = manifest `nas_model_path`) | 본세션 ls |
 | NCCL | NGC 26.05 = **2.30.4 (이미지 내장)** → LD_PRELOAD/패치 **불요** | A4 측정 |
 | DeepGEMM | `deepseek-ai/DeepGEMM@891d57b4…` (기존 `10-deepgemm.sh` 핀 유지) | — |
 
