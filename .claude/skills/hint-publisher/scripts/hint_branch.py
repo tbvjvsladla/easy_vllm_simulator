@@ -49,6 +49,12 @@ PROVENANCE_NAME = "PROVENANCE.json"
 # 닫힌 목록이고, 여기 손대려면 리뷰가 강제된다(workflow.md 안티패턴 판정표).
 FORBIDDEN_TOP = {".git", ".claude", "__pycache__"}
 
+# `${VAR:-/some/path}` 의 기본값을 가려내는 **구조적 판별자**. 값의 모양이 아니라 **문맥**으로
+# 가른다(`_SECTION_ANCHOR` 가 §10.1 을 사설 IP 와 가르는 것과 같은 규율). compose 는 경로를
+# baking 하지 않고 치환형으로만 쓰므로, 그 기본값은 운영자 지문이 아니라 폴백이다.
+# 좁게 잡는다 — 매치 **직전** 텍스트가 `${…:-` 로 끝나야만 면제한다.
+_SHELL_DEFAULT = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*:-$")
+
 
 def die(msg: str, code: int = 2) -> None:
     print(f"[hint_branch] {msg}", file=sys.stderr)
@@ -92,6 +98,7 @@ def scan_payload_pii(root: Path, rels: list[str]) -> list[str]:
         die("`.claude/pii_terms.txt` 부재 — 페이로드 PII-clean 인증 불가(fail-closed). "
             "감사 ⑫: 이 파일은 비추적이라 배포 클론의 기본 상태가 부재다.")
     hits: list[str] = []
+    exempt: list[str] = []
     for rel in rels:
         p = root / rel
         try:
@@ -107,7 +114,15 @@ def scan_payload_pii(root: Path, rels: list[str]) -> list[str]:
                     if (name == "private-ipv4" and section_anchor is not None
                             and section_anchor.search(line[:m.start()])):
                         continue  # 문서 절번호(§10.1) 는 사설 IP 가 아니다
+                    if name == "abs-op-path" and _SHELL_DEFAULT.search(line[:m.start()]):
+                        # `${VAR:-/mnt/models}` 의 기본값은 **운영자 경로가 아니라 폴백**이다.
+                        # 실값은 env 로 주입되며 그 env 는 배포되지 않는다(형상 템플릿만 나간다).
+                        # 다만 **조용히 넘기지 않는다** — 무엇을 면제했는지 출력한다.
+                        exempt.append(f"{rel}:{lineno}: shell-default:{m.group(0)[:48]}")
+                        continue
                     hits.append(f"{rel}:{lineno}: {name}:{m.group(0)[:48]}")
+    for e in exempt:
+        print(f"[hint_branch] EXEMPT(shell-default) {e}", file=sys.stderr)
     return hits
 
 
@@ -467,6 +482,20 @@ def _run_self_test() -> int:
                    any("abs-op-path" in h for h in hits))
                 (pay / "leak.md").write_text("정상 문서\n", encoding="utf-8")
                 ck("무해 페이로드는 통과", scan_payload_pii(pay, ["leak.md"]) == [])
+                # ── shell 기본값 판별자 (2026-09-01): compose 의 `${VAR:-/mnt/models}` 는
+                #    운영자 경로가 아니라 폴백이다. 좁게(직전 텍스트로만) 가른다.
+                (pay / "leak.md").write_text(
+                    "- ${NAS_MODEL_PATH:-/mnt/models}:/app/models:ro\n", encoding="utf-8")
+                ck("★shell 기본값은 면제된다", scan_payload_pii(pay, ["leak.md"]) == [])
+                (pay / "leak.md").write_text(
+                    "NAS_MODEL_PATH=/mnt/llm/Model/real\n", encoding="utf-8")
+                ck("★음성대조 baking 된 실경로는 여전히 잡힌다",
+                   any("abs-op-path" in h for h in scan_payload_pii(pay, ["leak.md"])))
+                (pay / "leak.md").write_text(
+                    "설명: ${VAR} 뒤에 /mnt/llm/Model/real 이 있다\n", encoding="utf-8")
+                ck("★음성대조 치환구문 근처라도 기본값이 아니면 잡힌다",
+                   any("abs-op-path" in h for h in scan_payload_pii(pay, ["leak.md"])))
+                (pay / "leak.md").write_text("정상 문서\n", encoding="utf-8")
                 (pay / "leak.md").unlink()
             else:
                 ck("pii_terms 부재 — 스캔 시험 생략(배포 클론 기본 상태)", True)
