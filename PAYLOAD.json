@@ -1,0 +1,103 @@
+{
+  "artifacts": [
+    "artifacts/triplet/gpt-oss-120b-gb10.yaml",
+    "artifacts/triplet/gpt-oss-120b-gb10.sh",
+    "artifacts/triplet/.env.gpt-oss-120b-gb10"
+  ],
+  "benchmark": {
+    "accept_len": "N/A",
+    "benchmark_mode": "full",
+    "decode_tps_conc1": "34.55",
+    "floor_tps": "28.5",
+    "lite_cold_ttft_ms": "70.0",
+    "lite_gen_src": "median_tpot",
+    "lite_gen_tps_warm": "34.52",
+    "lite_included": "true",
+    "lite_kv_gib": "30.0",
+    "measured_utc": "2026-09-01T08:02:35Z",
+    "primary_source": "E(external_reference)",
+    "primary_tps": "33.53",
+    "ratio_M_over_primary": "1.03",
+    "rubric_authority": "weak",
+    "spec_on": "false",
+    "sweep_levels": "1,2,4,8,16",
+    "sweep_truncated": "N/A",
+    "tolerance": "0.15",
+    "verdict": "PASS"
+  },
+  "benchmark_source": {
+    "certificate": "benchmark_26090117_17_21_gpt-oss-120b_NVIDIA GB10_0.19.1.yaml",
+    "parsed_not_synthesized": true,
+    "sha256": "37b5fa713e761ce0a26261e71fa7f6a3de1c4fbff30b5983bb3dd85a8f9b6837"
+  },
+  "generated_kst": "2026-09-01T19:00:00",
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "gpt-oss-120b",
+    "quant": "mxfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.19.1"
+  },
+  "kind": "hint_payload_facts",
+  "provenance": "derived",
+  "runtime": {
+    "functional_smoke_passed": true,
+    "health_ok": true
+  },
+  "schema_version": 1,
+  "slots": {
+    "build_patch_post": {
+      "exemptible": true,
+      "files": [],
+      "owner": "upstream-version-watch",
+      "phase": "컴파일 후",
+      "present": false,
+      "slot_confidence": "1-signal(absence)"
+    },
+    "build_patch_pre": {
+      "exemptible": true,
+      "files": [],
+      "owner": "upstream-version-watch",
+      "phase": "컴파일 전",
+      "present": false,
+      "slot_confidence": "1-signal(absence)"
+    },
+    "fork_pin": {
+      "exemptible": true,
+      "ledger": null,
+      "owner": "upstream-version-watch",
+      "phase": "build",
+      "present": false,
+      "slot_confidence": "1-signal(absence)",
+      "variant_id": null
+    },
+    "runtime_patch": {
+      "exemptible": true,
+      "files": {},
+      "note_for_agent": "arming 이 실제로 '먹었는지'는 로그로 실증해야 한다(workflow.md 위상 오배정 실증)",
+      "owner": "vllm-recipe-explorer",
+      "phase": "serve(arming)",
+      "present": false,
+      "slot_confidence": "2-signal(file+declaration)"
+    },
+    "triplet": {
+      "exemptible": false,
+      "files": {
+        "config_yaml": "output/single/configs/gpt-oss-120b-gb10.yaml",
+        "env_file": "output/single/envs/.env.gpt-oss-120b-gb10",
+        "runner_sh": "output/single/configs/gpt-oss-120b-gb10.sh"
+      },
+      "missing": [],
+      "owner": "vllm-recipe-explorer",
+      "phase": "serve",
+      "present": true,
+      "slot_confidence": "1-signal(file-presence)"
+    }
+  },
+  "source_channel": {
+    "read_from": "working-tree(main)",
+    "sub_note": "서브 산출물은 이 통로로 오지 않는다 — 문서기반 회수(fetch_sub_docs.sh) 뒤 메인이 재저작한다(docs.md 상향 회수 규약).",
+    "topology": "single"
+  }
+}
