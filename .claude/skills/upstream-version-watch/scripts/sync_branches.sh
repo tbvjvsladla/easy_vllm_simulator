@@ -31,6 +31,21 @@ set -euo pipefail
 SRC_BRANCH="${SRC_BRANCH:-main}"
 DST_BRANCH="${DST_BRANCH:-multi-node}"
 
+# ── hint 브랜치는 sync 대상이 아니다 (plan_26090107 R7 · 2026-09-01) ────────────────
+#   hint 는 **빌딩블럭이 아니라 산출물**이다. 그 브랜치의 트리는 `hint_branch.py` 가 allowlist 로
+#   매번 새로 짓는 페이로드이며, 코드·스킬이 들어가면 그 순간 합격기준 A1(archive 에 `.claude/`
+#   엔트리 0)이 깨진다. 위 ALLOWLIST 는 `.claude/skills` 를 통째로 복사하므로 방향을 착각하면
+#   **산출물 브랜치를 빌딩블럭으로 덮어쓴다** — 되돌리려면 페이로드를 다시 지어야 한다.
+#   기본값으로는 닿지 않지만, 환경변수 override 가 있으므로 **명시적으로 막는다**.
+for _b in "$SRC_BRANCH" "$DST_BRANCH"; do
+    case "$_b" in
+        hint|refs/heads/hint)
+            echo "[sync_branches] 거부: hint 브랜치는 sync 대상이 아니다(산출물 · plan R7)." >&2
+            echo "  hint 페이로드는 hint_branch.py publish 가 allowlist 로 새로 짓는다." >&2
+            exit 2 ;;
+    esac
+done
+
 # ── 공유 allowlist (정본 main → multi-node 복사 대상만) ──
 #   주의: 토폴로지 분기 구현체·사용자 실값은 여기 넣지 않는다(브랜치별 독립).
 ALLOWLIST=(

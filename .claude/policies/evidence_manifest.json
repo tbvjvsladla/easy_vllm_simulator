@@ -23,7 +23,7 @@
   ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh": "09fc9e0445843470f9fbcf54cb4363ada6d6044ae8978efd95839172a1784316",
   ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py": "c0396445d79133a702e8f615acced4ef1a8b62c85baf20a2d4a8b0b2ef86cba3",
   ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py": "fd65e012098bd107df327c7615604525bd4d909ea7861584404d72ecca7dac69",
-  ".claude/skills/upstream-version-watch/scripts/sync_branches.sh": "56df2aa05e233a62c3bed7f084df9955f6d044f155828cfd3243dfb01346b4bf",
+  ".claude/skills/upstream-version-watch/scripts/sync_branches.sh": "a364f0d791c5aa26223ed902bfe95b57160f54189802759165d441eb993e3067",
   ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh": "dd24b7126ea32680328d65a284abca0be4b82c91240c244a01593388f89223ad",
   ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py": "58b02bce35ad76ab64f50eb356951c175bc5c7e4600e6c15411aa75bdba25313",
   ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml": "c4b1f3bb58ab9adf27a911c77e75b8e326ee5fac669f0f5ca597f408d960c0f1",
