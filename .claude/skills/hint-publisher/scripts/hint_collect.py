@@ -191,6 +191,98 @@ def discover_slots(repo: Path, topo: str, cfg: str) -> dict:
     return slots
 
 
+# ---------------------------------------------------------------- 신호② 적용 증거
+
+DECLARATION_NAME = "slots.declaration.json"
+
+# 슬롯별 **관측 가능한** 적용 증거의 공급원. plan Q1: "관측되는 신호만 사용".
+# 값이 None 인 슬롯은 공급원이 **아직 없다** — 있는 척하지 않고 2신호로 강등한다.
+EVIDENCE_SOURCE = {
+    "triplet": "certificate.serving_config",
+    "runtime_patch": None,      # arming 로그 미배선 (plan Q1 귀결)
+    "build_patch_pre": "build_patches_src/PROVENANCE.json",
+    "build_patch_post": None,   # 컴파일 후 적용을 사후 관측할 공급원이 없다
+    "fork_pin": "arch_variant_ledger.source_build_variants",
+}
+
+
+def evidence_signal(repo: Path, topo: str, slot: str, slots: dict, cert: dict) -> bool | None:
+    """신호② — **관측**한다. 관측원이 없으면 `None`(모름)이지 `False`(없음)가 아니다.
+
+    '없다'와 '모른다'를 같은 값으로 뭉개면 거짓 음성이 난다 — 감사 ⑦ 이 실증한 기전이다
+    (`-` 하나가 "SD 없음"과 "색인이 낡음"을 구분하지 못했다).
+    """
+    src = EVIDENCE_SOURCE.get(slot)
+    if src is None:
+        return None
+    if slot == "triplet":
+        cfgname = cert.get("serving_config")
+        if not cfgname:
+            return None
+        # 인증서의 운영 조합명이 트리플렛 파일명에 담겨 있으면 그 트리플렛이 서빙에 쓰였다는
+        # 관측이다. 완전 일치가 아니라 포함 관계인 이유: serving_config 는 모델 축이고
+        # 트리플렛 basename 은 `<model>-<hw>` 조합이다(실측: 'gpt-oss-120b' ⊂ 'gpt-oss-120b-gb10').
+        any_file = next(iter(slots["triplet"]["files"].values()), "")
+        return bool(cfgname) and cfgname in Path(any_file).name
+    if slot == "build_patch_pre":
+        prov = repo / "output" / topo / "build_patches_src" / "PROVENANCE.json"
+        if not prov.is_file():
+            return False
+        try:
+            doc = json.loads(prov.read_text(encoding="utf-8"))
+        except Exception:
+            return False
+        return bool(doc.get("counts", {}).get("files"))
+    if slot == "fork_pin":
+        vid = slots["fork_pin"].get("variant_id")
+        if not vid:
+            return False
+        led = repo / ".claude" / "policies" / "arch_variant_ledger.json"
+        if not led.is_file():
+            return None
+        try:
+            doc = json.loads(led.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+        variants = doc.get("source_build_variants") or {}
+        return vid in {k for k in variants if not k.startswith("_")}
+    return None
+
+
+def dialogue(present: bool, evidence: bool | None, declared: bool | None,
+             exemptible: bool) -> tuple[str, str]:
+    """plan §7 대사표. `(verdict, 사유)` — verdict ∈ {ok, blocked, undeclared}.
+
+    | 파일 | 적용증거 | 선언 | 판정 |
+    |---|---|---|---|
+    | 부재 | 부재 | 불해당 | not-applicable 통과 |
+    | 부재 | **있음** | — | **차단**(진짜 누락) |
+    | 있음 | 부재 | — | **차단**(먹지 않은 패치를 재현지침으로 배포) |
+
+    ★ `exemptible=False`(트리플렛)는 **선언으로 면제 불가**다. 서빙에 원리적으로 필수이므로
+      부재는 언제나 누락이고, Agent 가 "불해당"이라 해도 통과시키지 않는다. 이 구분이 없으면
+      선언 하나가 안전 게이트를 무력화한다.
+    """
+    if not present and not exemptible:
+        return "blocked", "면제 불가 슬롯이 부재하다 — 선언과 무관하게 누락이다"
+    if declared is None:
+        return "undeclared", "Agent 선언이 비어 있다(부재는 미판정이지 통과가 아니다)"
+    if not present and evidence is True:
+        return "blocked", "파일은 없는데 **적용 증거가 있다** — 진짜 누락이다"
+    if present and evidence is False:
+        return "blocked", "파일은 있는데 **적용 증거가 없다** — 먹지 않은 패치를 재현지침으로 배포하게 된다"
+    if present and not declared:
+        return "blocked", "파일이 있는데 Agent 가 '불해당'이라 선언했다 — 모순이다"
+    if not present and declared:
+        return "blocked", "파일이 없는데 Agent 가 '해당'이라 선언했다 — 모순이다"
+    return "ok", ("해당(파일·증거·선언 일치)" if present else "불해당(세 신호 모두 부재/불해당)")
+
+
+def confidence_of(evidence: bool | None) -> str:
+    """판정 강도를 **표시**한다. 강도가 다른 것을 섞으면 하류가 근거를 알 수 없다(헌법 §결정론 규율)."""
+    return "2-signal(file+declaration)" if evidence is None else "3-signal(file+evidence+declaration)"
+
+
 # ---------------------------------------------------------------- 저작 스캐폴드
 
 def _fmt_kv(doc: dict, keys: list[str]) -> str:
@@ -292,6 +384,15 @@ def cmd_collect(a) -> int:
             "\n  트리플렛은 **선언으로 면제 불가**다(plan §7) — 서빙에 원리적으로 필수이므로"
             "\n  부재는 언제나 누락이다. 서빙 직후 워킹트리에서 수집하라(plan §2.2).")
 
+    # 신호② 를 **관측**하고, 그 결과로 판정 강도를 재산정한다.
+    # discover_slots 가 붙여 둔 강도는 신호① 만 본 잠정값이다 — 관측원이 없는 슬롯은
+    # 여기서 2-signal 로 강등된다(있는 척하지 않는다).
+    for name, sl in slots.items():
+        sig2 = evidence_signal(repo, topo, name, slots, cert)   # `ev` 는 manifest.evidence 다 — 가리지 않는다
+        sl["evidence"] = sig2
+        sl["evidence_source"] = EVIDENCE_SOURCE.get(name)
+        sl["slot_confidence"] = confidence_of(sig2)
+
     out = Path(a.out).resolve()
     if out.exists() and any(out.iterdir()):
         die(f"출력 디렉터리가 비어 있지 않다: {out} — 이전 발행 잔재가 섞이면 오염이다(plan C1). "
@@ -345,11 +446,23 @@ def cmd_collect(a) -> int:
         },
         "artifacts": copied,
     }
+    decl = {
+        "_note": ("신호③ — **Agent 선언**. 각 슬롯의 `applicable` 을 true/false 로, `rationale` 을 "
+                  "한 줄로 채운다. null 이 하나라도 남으면 `hint_collect check` 가 막는다. "
+                  "선언은 파일 존재·적용 증거와 **대사**되며, 셋이 어긋나면 차단이다(plan §7). "
+                  "★ triplet 은 선언으로 면제할 수 없다 — 서빙에 원리적으로 필수다."),
+        "schema_version": 1,
+        "slots": {name: {"applicable": None, "rationale": None} for name in slots},
+    }
+    (out / DECLARATION_NAME).write_text(
+        json.dumps(decl, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
     (out / PAYLOAD_JSON).write_text(
         json.dumps(payload_doc, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8")
 
-    rels = sorted(["01-artifacts.md", "02-narrative.md", "03-benchmark.md", PAYLOAD_JSON] + copied)
+    rels = sorted(["01-artifacts.md", "02-narrative.md", "03-benchmark.md",
+                   PAYLOAD_JSON, DECLARATION_NAME] + copied)
     (out / FILES_LIST).write_text(
         "# hint 페이로드 allowlist — hint_branch 가 이 목록으로만 트리를 짓는다.\n"
         "# 여기 없는 것은 배포되지 않는다(넣지 않은 것은 들어갈 수 없다).\n"
@@ -357,8 +470,9 @@ def cmd_collect(a) -> int:
 
     print(f"[hint_collect] 수집 완료 → {out}")
     print(f"  아티팩트 {len(copied)}건 · 저작 스캐폴드 3건 · allowlist {len(rels)}행")
-    for name, s in slots.items():
-        print(f"  slot {name:18s} {'있음' if s['present'] else '없음':4s} {s['slot_confidence']}")
+    for name, sl in slots.items():
+        ev = {True: "증거O", False: "증거X", None: "관측불가"}[sl["evidence"]]
+        print(f"  slot {name:18s} {'있음' if sl['present'] else '없음':4s} {ev:8s} {sl['slot_confidence']}")
     print(f"[hint_collect] 다음: 02-narrative.md 등의 {AGENT_MARK}…>> 를 Agent 가 채운 뒤 "
           f"`hint_collect check --payload {out}`")
     return 0
@@ -385,12 +499,37 @@ def cmd_check(a) -> int:
         for lineno, line in enumerate(text.splitlines(), 1):
             if AGENT_MARK in line:
                 problems.append(f"{rel}:{lineno}: 미저작 Agent 슬롯이 남아 있다")
+    # ── 슬롯 3신호 대사 (plan §7) — 파일존재 × 적용증거 × Agent선언
+    pj, dj = out / PAYLOAD_JSON, out / DECLARATION_NAME
+    verdicts: list[str] = []
+    if not pj.is_file() or not dj.is_file():
+        problems.append(f"{PAYLOAD_JSON} 또는 {DECLARATION_NAME} 부재 — 3신호 대사 불가(fail-closed)")
+    else:
+        facts = json.loads(pj.read_text(encoding="utf-8")).get("slots", {})
+        decl = json.loads(dj.read_text(encoding="utf-8")).get("slots", {})
+        for name, sl in facts.items():
+            d = decl.get(name) or {}
+            applicable = d.get("applicable")
+            verdict, why = dialogue(bool(sl.get("present")), sl.get("evidence"),
+                                    applicable, bool(sl.get("exemptible")))
+            verdicts.append(f"  slot {name:18s} {verdict:10s} [{sl.get('slot_confidence')}] {why}")
+            if verdict != "ok":
+                problems.append(f"{DECLARATION_NAME}: 슬롯 `{name}` {verdict} — {why}")
+            elif applicable is not None and not (d.get("rationale") or "").strip():
+                problems.append(f"{DECLARATION_NAME}: 슬롯 `{name}` 의 rationale 이 비었다 — "
+                                "판정에는 이유가 따라야 한다(불해당도 이유를 남긴다)")
+        missing_decl = sorted(set(facts) - set(decl))
+        if missing_decl:
+            problems.append(f"{DECLARATION_NAME}: 선언이 없는 슬롯 {missing_decl}")
+
+    for line in verdicts:
+        print(line)
     if problems:
         print(f"[hint_collect] CHECK FAIL — {len(problems)}건", file=sys.stderr)
         for p in problems[:20]:
             print(f"  {p}", file=sys.stderr)
         return 1
-    print(f"[hint_collect] CHECK PASS — {len(rels)} 파일 · 미저작 슬롯 0")
+    print(f"[hint_collect] CHECK PASS — {len(rels)} 파일 · 미저작 슬롯 0 · 3신호 대사 {len(verdicts)}슬롯 ok")
     return 0
 
 
@@ -484,16 +623,63 @@ def _run_self_test() -> int:
         ck("항목3 이 인증서 값을 그대로 옮김", "34.55" in i3 and "NVIDIA GB10" in i3)
         ck("★항목2 가 devlog 원문을 담지 않음(포인터만)", "복사 대상 아님" in i2)
 
-        # check 게이트
+        # ── 3신호 대사표 (plan §7) — 표의 각 행을 직접 친다
+        ck("대사 부재+부재+불해당 → ok", dialogue(False, False, False, True)[0] == "ok")
+        ck("대사 존재+증거O+해당 → ok", dialogue(True, True, True, True)[0] == "ok")
+        ck("★대사 부재인데 **증거 있음** → 차단(진짜 누락)",
+           dialogue(False, True, False, True)[0] == "blocked")
+        ck("★대사 존재인데 **증거 없음** → 차단(먹지 않은 패치 배포)",
+           dialogue(True, False, True, True)[0] == "blocked")
+        ck("★대사 트리플렛 부재는 선언과 무관하게 차단(면제 불가)",
+           dialogue(False, None, False, False)[0] == "blocked")
+        ck("★대사 선언 미기입 → undeclared", dialogue(True, None, None, True)[0] == "undeclared")
+        ck("★대사 파일있음+불해당선언 모순 검출", dialogue(True, None, False, True)[0] == "blocked")
+        ck("★대사 파일없음+해당선언 모순 검출", dialogue(False, None, True, True)[0] == "blocked")
+        ck("관측불가는 2신호로 표시", confidence_of(None).startswith("2-signal")
+           and confidence_of(True).startswith("3-signal"))
+
+        # check 게이트 (3신호 대사 포함)
         pay = t / "pay"
         pay.mkdir()
+        facts = {"slots": {
+            "triplet": {"present": True, "evidence": True, "exemptible": False,
+                        "slot_confidence": "3-signal"},
+            "runtime_patch": {"present": False, "evidence": None, "exemptible": True,
+                              "slot_confidence": "2-signal"}}}
+        decl_ok = {"slots": {"triplet": {"applicable": True, "rationale": "서빙에 쓰였다"},
+                             "runtime_patch": {"applicable": False, "rationale": "stock 으로 충분"}}}
+        (pay / PAYLOAD_JSON).write_text(json.dumps(facts), encoding="utf-8")
+        (pay / DECLARATION_NAME).write_text(json.dumps(decl_ok), encoding="utf-8")
         (pay / "a.md").write_text(f"{AGENT_MARK} 아직 안 씀 >>\n", encoding="utf-8")
-        (pay / FILES_LIST).write_text("a.md\n", encoding="utf-8")
-        rc_bad = cmd_check(argparse.Namespace(payload=str(pay)))
-        ck("★음성대조 미저작 마커 차단", rc_bad == 1)
+        (pay / FILES_LIST).write_text(f"a.md\n{PAYLOAD_JSON}\n{DECLARATION_NAME}\n", encoding="utf-8")
+        ck("★음성대조 미저작 마커 차단", cmd_check(argparse.Namespace(payload=str(pay))) == 1)
         (pay / "a.md").write_text("다 썼다\n", encoding="utf-8")
-        ck("저작 완료 시 통과", cmd_check(argparse.Namespace(payload=str(pay))) == 0)
-        (pay / FILES_LIST).write_text("a.md\nghost.md\n", encoding="utf-8")
+        ck("저작 완료 + 대사 일치 시 통과", cmd_check(argparse.Namespace(payload=str(pay))) == 0)
+
+        decl_null = {"slots": {"triplet": {"applicable": None, "rationale": None},
+                               "runtime_patch": {"applicable": False, "rationale": "x"}}}
+        (pay / DECLARATION_NAME).write_text(json.dumps(decl_null), encoding="utf-8")
+        ck("★음성대조 선언 미기입 차단", cmd_check(argparse.Namespace(payload=str(pay))) == 1)
+
+        decl_no_why = {"slots": {"triplet": {"applicable": True, "rationale": "  "},
+                                 "runtime_patch": {"applicable": False, "rationale": "x"}}}
+        (pay / DECLARATION_NAME).write_text(json.dumps(decl_no_why), encoding="utf-8")
+        ck("★음성대조 이유 없는 판정 차단", cmd_check(argparse.Namespace(payload=str(pay))) == 1)
+
+        # 트리플렛을 선언으로 면제하려는 시도
+        facts_no_trip = {"slots": {"triplet": {"present": False, "evidence": None,
+                                               "exemptible": False, "slot_confidence": "1-signal"}}}
+        (pay / PAYLOAD_JSON).write_text(json.dumps(facts_no_trip), encoding="utf-8")
+        (pay / DECLARATION_NAME).write_text(
+            json.dumps({"slots": {"triplet": {"applicable": False, "rationale": "필요 없다"}}}),
+            encoding="utf-8")
+        ck("★음성대조 트리플렛 면제 시도 거부",
+           cmd_check(argparse.Namespace(payload=str(pay))) == 1)
+
+        (pay / PAYLOAD_JSON).write_text(json.dumps(facts), encoding="utf-8")
+        (pay / DECLARATION_NAME).write_text(json.dumps(decl_ok), encoding="utf-8")
+        (pay / FILES_LIST).write_text(
+            f"a.md\nghost.md\n{PAYLOAD_JSON}\n{DECLARATION_NAME}\n", encoding="utf-8")
         ck("★음성대조 allowlist 실물부재 차단",
            cmd_check(argparse.Namespace(payload=str(pay))) == 1)
 
