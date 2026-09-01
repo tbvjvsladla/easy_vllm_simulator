@@ -6,6 +6,7 @@
   ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md": "39070d1a816b09528081513e778dc8dad61fe7f63135f62e8e9dbf746052c679",
   ".claude/skills/adversarial-benchmark/scripts/run_bench.sh": "633d55537e3109cf8a884b90fad374e378b86da73ac38b26ef392f9c65b42e8a",
   ".claude/skills/hint-publisher/scripts/hint_branch.py": "7740d491fb634a55868cb12d23ab6cb1f83cee04d1325d0662dfb04a2dd6d5a1",
+  ".claude/skills/hint-publisher/scripts/hint_collect.py": "b01b7cfe0216430e10ca6f26145cc029be5ba7a05ae1282dd9d21d76e62ebb68",
   ".claude/skills/hint-publisher/scripts/hint_tag.py": "a0b3beaa1248f81ba67ba60546c22c373d943c9a4933bfb7d6306680d5e25960",
   ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh": "c94d92b868d526e4965639b0011a2aaa5072057c90bcad93afffb666caf8541a",
   ".claude/skills/terraforming_node/scripts/host_safety/install_netconsole.sh": "f42f9bbb00e634f5e09efdc7cc8fd2ee97e28437c5e5d53693f5b96d1c295e0a",
