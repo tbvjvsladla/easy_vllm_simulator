@@ -13,7 +13,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "deepseek-v4-flash": {
@@ -34,7 +34,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "exaone-4.5-33b": {
@@ -50,7 +50,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "gemma-3-1b-it": {
@@ -66,7 +66,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "gemma-3-4b-it": {
@@ -82,105 +82,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
-      }
-    },
-    "gemma-4-12b": {
-      "members": [
-        {
-          "evidence": "card base_model=google/gemma-4-12B",
-          "relation": "variant",
-          "repo": "gemma-4-12b-it",
-          "slug": "gemma-4-12b-it",
-          "source": "name_prefix"
-        }
-      ],
-      "root_repo": "google/gemma-4-12B",
-      "sd_capability": {
-        "draft_slug": null,
-        "mode": "unknown"
-      }
-    },
-    "gemma-4-26b-a4b": {
-      "members": [
-        {
-          "evidence": "card base_model=google/gemma-4-26B-A4B",
-          "relation": "alias",
-          "repo": "gemma-4-26b-a4b-it",
-          "slug": "gemma-4-26b-a4b",
-          "source": "name_prefix"
-        }
-      ],
-      "root_repo": "google/gemma-4-26B-A4B",
-      "sd_capability": {
-        "draft_slug": null,
-        "mode": "unknown"
-      }
-    },
-    "gemma-4-31b": {
-      "members": [
-        {
-          "evidence": "card base_model=google/gemma-4-31B",
-          "relation": "alias",
-          "repo": "gemma-4-31b-it",
-          "slug": "gemma-4-31b",
-          "source": "name_prefix"
-        }
-      ],
-      "root_repo": "google/gemma-4-31B",
-      "sd_capability": {
-        "draft_slug": null,
-        "mode": "unknown"
-      }
-    },
-    "gemma-4-e2b": {
-      "members": [
-        {
-          "evidence": "card base_model=google/gemma-4-E2B",
-          "note": "철자 갈림(정규화 시 동일): gemma-4-E2B-it ↔ gemma-4-e2b-it",
-          "relation": "alias",
-          "repo": "gemma-4-e2b-it",
-          "slug": "gemma-4-E2B-it",
-          "source": "name_prefix"
-        },
-        {
-          "evidence": "card base_model=google/gemma-4-E2B",
-          "note": "철자 갈림(정규화 시 동일): gemma-4-E2B-it ↔ gemma-4-e2b-it",
-          "relation": "alias",
-          "repo": "gemma-4-e2b-it",
-          "slug": "gemma-4-e2b-it",
-          "source": "name_prefix"
-        }
-      ],
-      "root_repo": "google/gemma-4-E2B",
-      "sd_capability": {
-        "draft_slug": null,
-        "mode": "unknown"
-      }
-    },
-    "gemma-4-e4b": {
-      "members": [
-        {
-          "evidence": "card base_model=google/gemma-4-E4B",
-          "note": "철자 갈림(정규화 시 동일): gemma-4-E4B-it ↔ gemma-4-e4b-it",
-          "relation": "alias",
-          "repo": "gemma-4-e4b-it",
-          "slug": "gemma-4-E4B-it",
-          "source": "name_prefix"
-        },
-        {
-          "evidence": "card base_model=google/gemma-4-E4B",
-          "note": "철자 갈림(정규화 시 동일): gemma-4-E4B-it ↔ gemma-4-e4b-it",
-          "relation": "alias",
-          "repo": "gemma-4-e4b-it",
-          "slug": "gemma-4-e4b-it",
-          "source": "name_prefix"
-        }
-      ],
-      "root_repo": "google/gemma-4-E4B",
-      "sd_capability": {
-        "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "glm-47-flash": {
@@ -196,7 +98,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "gpt-oss-120b": {
@@ -215,22 +117,6 @@
         "mode": "unknown"
       }
     },
-    "hy3": {
-      "members": [
-        {
-          "evidence": "card base_model=tencent/Hy3 relation=quantized",
-          "relation": "quantized",
-          "repo": "hy3-nvfp4-w4a16",
-          "slug": "hy3",
-          "source": "base_model_relation"
-        }
-      ],
-      "root_repo": "tencent/Hy3",
-      "sd_capability": {
-        "draft_slug": null,
-        "mode": "unknown"
-      }
-    },
     "hyperclovax-think-32b": {
       "members": [
         {
@@ -244,7 +130,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "laguna-s-2.1": {
@@ -255,19 +141,12 @@
           "repo": "laguna-s-2.1",
           "slug": "laguna-s-2.1",
           "source": "manual"
-        },
-        {
-          "evidence": "card base_model=poolside/Laguna-S-2.1",
-          "relation": "quantized",
-          "repo": "laguna-s-2.1-fp8",
-          "slug": "laguna-s-2.1-fp8",
-          "source": "name_prefix"
         }
       ],
-      "root_repo": "poolside/Laguna-S-2.1",
+      "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "lfm2-8b-a1b": {
@@ -283,32 +162,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
-      }
-    },
-    "lfm2.5-2.6b-base": {
-      "members": [
-        {
-          "evidence": "card base_model=LiquidAI/LFM2.5-2.6B-Base",
-          "note": "철자 갈림(정규화 시 동일): LFM2.5-2.6B ↔ lfm2.5-2.6b",
-          "relation": "alias",
-          "repo": "lfm2.5-2.6b",
-          "slug": "LFM2.5-2.6B",
-          "source": "name_prefix"
-        },
-        {
-          "evidence": "card base_model=LiquidAI/LFM2.5-2.6B-Base",
-          "note": "철자 갈림(정규화 시 동일): LFM2.5-2.6B ↔ lfm2.5-2.6b",
-          "relation": "alias",
-          "repo": "lfm2.5-2.6b",
-          "slug": "lfm2.5-2.6b",
-          "source": "name_prefix"
-        }
-      ],
-      "root_repo": "LiquidAI/LFM2.5-2.6B-Base",
-      "sd_capability": {
-        "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "minicpm5-1b": {
@@ -324,7 +178,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "minicpm5-1b-base": {
@@ -340,23 +194,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
-      }
-    },
-    "ministral-3-8b-base-2512": {
-      "members": [
-        {
-          "evidence": "card base_model=mistralai/Ministral-3-8B-Base-2512",
-          "relation": "variant",
-          "repo": "ministral-3-8b-instruct-2512",
-          "slug": "ministral-3-8b",
-          "source": "name_prefix"
-        }
-      ],
-      "root_repo": "mistralai/Ministral-3-8B-Base-2512",
-      "sd_capability": {
-        "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "mistral-small-4-119b": {
@@ -372,7 +210,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "nemotron-3-super-120b-a12b-nvfp4": {
@@ -388,7 +226,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "olmo-3.1-32b": {
@@ -404,57 +242,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
-      }
-    },
-    "qwen3-4b-base": {
-      "members": [
-        {
-          "evidence": "card base_model=Qwen/Qwen3-4B-Base",
-          "note": "철자 갈림(정규화 시 동일): Qwen3-4B ↔ qwen3-4b",
-          "relation": "alias",
-          "repo": "qwen3-4b",
-          "slug": "Qwen3-4B",
-          "source": "name_prefix"
-        },
-        {
-          "evidence": "card base_model=Qwen/Qwen3-4B-Base",
-          "note": "철자 갈림(정규화 시 동일): Qwen3-4B ↔ qwen3-4b",
-          "relation": "alias",
-          "repo": "qwen3-4b",
-          "slug": "qwen3-4b",
-          "source": "name_prefix"
-        }
-      ],
-      "root_repo": "Qwen/Qwen3-4B-Base",
-      "sd_capability": {
-        "draft_slug": null,
-        "mode": "unknown"
-      }
-    },
-    "qwen3.5-122b-a10b": {
-      "members": [
-        {
-          "evidence": "card base_model=Qwen/Qwen3.5-122B-A10B",
-          "note": "철자 갈림(정규화 시 동일): qwen3.5-122b-a10b-nvfp4 ↔ qwen35-122b-a10b-nvfp4",
-          "relation": "alias",
-          "repo": "qwen3.5-122b-a10b-nvfp4",
-          "slug": "qwen3.5-122b-a10b-nvfp4",
-          "source": "name_prefix"
-        },
-        {
-          "evidence": "card base_model=Qwen/Qwen3.5-122B-A10B",
-          "note": "철자 갈림(정규화 시 동일): qwen3.5-122b-a10b-nvfp4 ↔ qwen35-122b-a10b-nvfp4",
-          "relation": "alias",
-          "repo": "qwen3.5-122b-a10b-nvfp4",
-          "slug": "qwen35-122b-a10b-nvfp4",
-          "source": "name_prefix"
-        }
-      ],
-      "root_repo": "Qwen/Qwen3.5-122B-A10B",
-      "sd_capability": {
-        "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "qwen3.6-27b": {
@@ -470,7 +258,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "qwen3.6-35b-a3b": {
@@ -486,7 +274,7 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     },
     "qwen3.8-27b": {
@@ -502,419 +290,20 @@
       "root_repo": null,
       "sd_capability": {
         "draft_slug": null,
-        "mode": "unknown"
-      }
-    },
-    "solar-open2-250b": {
-      "members": [
-        {
-          "evidence": "card base_model=upstage/Solar-Open2-250B relation=quantized",
-          "relation": "quantized",
-          "repo": "solar-open2-250b-nota-nvfp4",
-          "slug": "solar-open2-250b-nota-nvfp4",
-          "source": "base_model_relation"
-        }
-      ],
-      "root_repo": "upstage/Solar-Open2-250B",
-      "sd_capability": {
-        "draft_slug": null,
-        "mode": "unknown"
+        "mode": "needs_judgment"
       }
     }
   },
   "note": "hint family 색인. reindex 불가침(plan_26082009 D9). 출처는 members[].source.",
   "schema_version": 1,
   "tag_sd": {
-    "hint/0.18.0/gpt-oss-120b/gb10": {
+    "hint/0.19.1/gpt-oss-120b/gb10-single": {
       "accept_len": null,
       "enabled": null,
+      "enabled_source": "needs_judgment",
       "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.22.0/solar-open2-250b-nota-nvfp4/gb10": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.23.0/deepseek-v4-flash/gb10": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.23.0/gemma-3-1b-it/gb10-sim-rtx4080": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.23.0/gemma-4-12b-it/gb10-sim-rtxpro6000": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.23.0/minicpm5-1b/gb10-sim-rtx4070": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.24.0/deepseek-v4-flash/gb10": {
-      "accept_len": 1.81,
-      "enabled": true,
-      "measured": true,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.24.0/gpt-oss-120b/gb10x2-sim-rtxpro6000x2": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.24.0/hy3/gb10": {
-      "accept_len": null,
-      "enabled": true,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": 1
-    },
-    "hint/0.24.0/qwen3.6-35b-a3b/gb10-sim-h200x2": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.25.0/mistral-small-4-119b/rtxpro6000": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.25.0/nemotron-3-super-120b-a12b-nvfp4/rtxpro6000": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.25.1/deepseek-v4-flash/gb10": {
-      "accept_len": 2.05,
-      "enabled": true,
-      "measured": true,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": 2
-    },
-    "hint/0.25.1/exaone-4.5-33b/rtxpro6000": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.25.1/gemma-4-26b-a4b/rtxpro6000": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.25.1/gemma-4-31b/rtxpro6000": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.25.1/gemma-4-e2b-it/rtx5090": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.25.1/gpt-oss-120b/rtxpro6000": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.25.1/hyperclovax-think-32b/rtxpro6000": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.25.1/laguna-s-2.1/gb10": {
-      "accept_len": null,
-      "enabled": true,
-      "measured": false,
-      "mode": "draft-external",
-      "source": "tag_body_scan",
-      "spec_tokens": 15
-    },
-    "hint/0.25.1/minicpm5-1b-base/rtxpro6000": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.25.1/qwen3.5-122b-a10b-nvfp4/rtxpro6000": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.25.1/qwen3.6-27b/rtxpro6000": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.25.1/qwen3.6-35b-a3b/rtxpro6000": {
-      "accept_len": null,
-      "enabled": null,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.26.0/ax-4.0/gb10x2": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.26.0/deepseek-v4-flash-0731/gb10x2": {
-      "accept_len": null,
-      "enabled": true,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": 2
-    },
-    "hint/0.26.0/deepseek-v4-flash-0731/gb10x2-1m": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.26.0/glm-47-flash/gb10": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.26.0/gpt-oss-120b/gb10-single": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.26.0/laguna-s-2.1-fp8/gb10x2": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "draft-external",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.26.0/lfm2-8b-a1b/gb10": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.26.0/ministral-3-8b/gb10": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.26.0/olmo-3.1-32b/gb10": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.26.0/qwen35-122b-a10b-nvfp4/gb10x2": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.26.1/deepseek-v4-flash-0731/gb10x2-dspark-1m": {
-      "accept_len": null,
-      "enabled": true,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": 5
-    },
-    "hint/0.27.0/LFM2.5-2.6B/gb10": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.27.0/LFM2.5-2.6B/gb10-v2": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.27.0/Qwen3-4B/gb10": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.27.0/deepseek-v4-flash-0731/gb10x2-dspark-1m": {
-      "accept_len": null,
-      "enabled": true,
-      "measured": false,
-      "mode": "draft-external",
-      "source": "tag_body_scan",
-      "spec_tokens": 5
-    },
-    "hint/0.27.0/gemma-4-E2B-it/gb10": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.27.0/gemma-4-E4B-it/gb10": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.27.0/hy3/gb10x2": {
-      "accept_len": 1.948,
-      "enabled": true,
-      "measured": true,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": 2
-    },
-    "hint/0.27.0/hy3/gb10x2-blk64": {
-      "accept_len": 1.609,
-      "enabled": true,
-      "measured": true,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.27.0/hy3/gb10x2-cudagraph": {
-      "accept_len": 1.617,
-      "enabled": true,
-      "measured": true,
-      "mode": "unknown",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.27.0/hy3/gb10x2-nospec": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.27.0/hy3/gb10x2-spec1": {
-      "accept_len": 1.59,
-      "enabled": true,
-      "measured": true,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": 1
-    },
-    "hint/0.27.0/hy3/gb10x2-spec3": {
-      "accept_len": 1.925,
-      "enabled": true,
-      "measured": true,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": 3
-    },
-    "hint/0.27.0/hy3/gb10x2-tritonattn": {
-      "accept_len": 1.802,
-      "enabled": true,
-      "measured": true,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
-      "spec_tokens": null
-    },
-    "hint/0.27.1/gemma-3-4b-it/rtx5090": {
-      "accept_len": null,
-      "enabled": false,
-      "measured": false,
-      "mode": "mtp-internal",
-      "source": "tag_body_scan",
+      "mode": "needs_judgment",
+      "source": "tag_body_numeric_scan",
       "spec_tokens": null
     }
   }
