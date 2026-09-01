@@ -33,7 +33,7 @@
     ".claude/skills/terraforming_node/scripts/node_role_contract.py": "75f7aabaa73f4ee75acdd1a988572451cd6ca81d",
     ".claude/skills/terraforming_node/scripts/render_sub_env.py": "d16eabfaded28d285cf742d9e025c70f1d411bf4",
     ".claude/skills/terraforming_node/scripts/scan_node.py": "9514758d7260a1f334eeb36dbd16eb349964a934",
-    ".claude/skills/terraforming_node/scripts/staleness_gate.py": "6bd0384a3459416f4c10a8f23f68546beb607ae8",
+    ".claude/skills/terraforming_node/scripts/staleness_gate.py": "01dddd67f94accb8dfa2089ac63f5c46f8f25de7",
     ".claude/skills/terraforming_node/sub_node/Agent_Card.template.json": "d8f6f0fb3fe59d40dd838d782e58f65b576c5718",
     ".claude/skills/terraforming_node/sub_node/CLAUDE.template.md": "dcd32a7457fcadc2ac93c1938ac6c86c7deb3e0a",
     ".claude/skills/terraforming_node/sub_node/comms.md": "17fa4c50f832d7cc583d5b05a5804d06a9f41b6c",
