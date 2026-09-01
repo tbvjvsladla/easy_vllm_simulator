@@ -250,6 +250,24 @@ def cmd_publish(a) -> int:
         prov_path.write_text(prov_text, encoding="utf-8")
         rels_full = sorted(set(rels) | {PROVENANCE_NAME})
 
+    # A6 경고 도달 — 경고 README 는 **잊을 수 없어야 한다**(plan D1.3 · §12 A6).
+    # 페이로드 조립자가 넣기를 기대하지 않고, 트리를 소유한 이쪽이 브랜치 tip 에서 끌어와
+    # 항상 심는다. 그래야 브랜치 열람과 태그 zip **양쪽**에 동시에 도달한다.
+    if "README.md" not in rels_full:
+        tip0 = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{HINT_BRANCH}:README.md"],
+                              cwd=str(repo), capture_output=True, text=True).stdout.strip()
+        if not tip0:
+            die(f"{HINT_BRANCH} 에 README.md 가 없다 — 경고문이 없는 페이로드는 발행하지 않는다"
+                "(plan §12 A6). 브랜치를 먼저 신설하라(Phase 0c).")
+        readme = subprocess.run(["git", "cat-file", "blob", tip0],
+                                cwd=str(repo), capture_output=True).stdout
+        if not a.dry_run:
+            (payload / "README.md").write_bytes(readme)
+            rels_full = sorted(set(rels_full) | {"README.md"})
+        else:
+            print("[hint_branch] (dry-run) 경고 README 를 브랜치 tip 에서 심을 예정 — "
+                  f"blob {tip0[:12]}")
+
     message = Path(a.message).read_text(encoding="utf-8")
     problems = verify_anchor_triple(anchor, message, prov_text, None)
     if problems:
