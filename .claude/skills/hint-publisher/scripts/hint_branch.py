@@ -39,6 +39,7 @@ import os
 import re
 import subprocess
 import sys
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -156,12 +157,17 @@ def build_tree(root: Path, rels: list[str], repo: Path) -> str:
         children.setdefault(parent, []).append((_mode_for(p), "blob", sha, Path(rel).name))
 
     # 깊은 디렉터리부터 접어 올린다.
-    for d in sorted({d for d in children if d}, key=lambda x: x.count("/"), reverse=True):
-        entries = children.pop(d)
+    # ⚠ 한 번의 for 로는 안 된다 — 접는 도중에 **새 중간 디렉터리가 생긴다**
+    #   (`artifacts/triplet` 을 접으면 `artifacts` 가 새로 나타난다). 미리 뽑아둔 목록으로
+    #   돌리면 2단 이상 중첩에서 접기가 미완결로 끝난다(2026-09-01 실물에서 검출 —
+    #   자체검사 픽스처가 1단뿐이라 못 봤고, 아래 §_run_self_test 에 2단 회귀를 넣었다).
+    while any(d for d in children if d):
+        deepest = max((d for d in children if d), key=lambda x: x.count("/"))
+        entries = children.pop(deepest)
         payload = "".join(f"{m} {t} {s}\t{n}\n" for m, t, s, n in sorted(entries, key=lambda e: e[3]))
         sha = git("mktree", cwd=repo, input_bytes=payload.encode("utf-8")).strip()
-        parent = str(Path(d).parent) if Path(d).parent != Path(".") else ""
-        children.setdefault(parent, []).append(("040000", "tree", sha, Path(d).name))
+        parent = str(Path(deepest).parent) if Path(deepest).parent != Path(".") else ""
+        children.setdefault(parent, []).append(("040000", "tree", sha, Path(deepest).name))
 
     root_entries = children.pop("", [])
     if children:  # 접기가 끝났는데 남았다면 배선 사고다 — 조용히 넘기지 않는다
@@ -378,6 +384,18 @@ def _run_self_test() -> int:
         tree = build_tree(pay, rels, repo)
         ck("중첩 디렉터리 트리 생성", bool(re.fullmatch(r"[0-9a-f]{40}", tree)))
         ck("트리 전수 == 목록", verify_tree(tree, rels, repo) == ([], []))
+
+        # ── 2026-09-01 실물 회귀: 2단 이상 중첩에서 트리 접기가 미완결이었다
+        (pay / "artifacts" / "triplet").mkdir(parents=True)
+        (pay / "artifacts" / "triplet" / "a.yaml").write_text("a: 1\n", encoding="utf-8")
+        (pay / "artifacts" / "build" / "deep" / "x").mkdir(parents=True)
+        (pay / "artifacts" / "build" / "deep" / "x" / "b.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+        deep_rels = rels + ["artifacts/triplet/a.yaml", "artifacts/build/deep/x/b.sh"]
+        deep_tree = build_tree(pay, deep_rels, repo)
+        ck("★회귀 2단 중첩 트리", verify_tree(deep_tree, deep_rels, repo) == ([], []))
+        ck("★회귀 4단 중첩 경로 보존",
+           "artifacts/build/deep/x/b.sh" in tree_paths(deep_tree, repo))
+        shutil.rmtree(pay / "artifacts")
 
         modes = git("ls-tree", "-r", tree, cwd=repo)
         ck("실행비트 보존(run.sh=100755)", "100755" in modes and "configs/run.sh" in modes)
