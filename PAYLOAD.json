@@ -30,7 +30,7 @@
     "parsed_not_synthesized": true,
     "sha256": "37b5fa713e761ce0a26261e71fa7f6a3de1c4fbff30b5983bb3dd85a8f9b6837"
   },
-  "generated_kst": "2026-09-01T19:00:00",
+  "generated_kst": "2026-09-01T20:10:00",
   "identity": {
     "gpu": "NVIDIA GB10",
     "model": "gpt-oss-120b",
@@ -48,31 +48,39 @@
   "schema_version": 1,
   "slots": {
     "build_patch_post": {
+      "evidence": null,
+      "evidence_source": null,
       "exemptible": true,
       "files": [],
       "owner": "upstream-version-watch",
       "phase": "컴파일 후",
       "present": false,
-      "slot_confidence": "1-signal(absence)"
+      "slot_confidence": "2-signal(file+declaration)"
     },
     "build_patch_pre": {
+      "evidence": false,
+      "evidence_source": "build_patches_src/PROVENANCE.json",
       "exemptible": true,
       "files": [],
       "owner": "upstream-version-watch",
       "phase": "컴파일 전",
       "present": false,
-      "slot_confidence": "1-signal(absence)"
+      "slot_confidence": "3-signal(file+evidence+declaration)"
     },
     "fork_pin": {
+      "evidence": false,
+      "evidence_source": "arch_variant_ledger.source_build_variants",
       "exemptible": true,
       "ledger": null,
       "owner": "upstream-version-watch",
       "phase": "build",
       "present": false,
-      "slot_confidence": "1-signal(absence)",
+      "slot_confidence": "3-signal(file+evidence+declaration)",
       "variant_id": null
     },
     "runtime_patch": {
+      "evidence": null,
+      "evidence_source": null,
       "exemptible": true,
       "files": {},
       "note_for_agent": "arming 이 실제로 '먹었는지'는 로그로 실증해야 한다(workflow.md 위상 오배정 실증)",
@@ -82,6 +90,8 @@
       "slot_confidence": "2-signal(file+declaration)"
     },
     "triplet": {
+      "evidence": true,
+      "evidence_source": "certificate.serving_config",
       "exemptible": false,
       "files": {
         "config_yaml": "output/single/configs/gpt-oss-120b-gb10.yaml",
@@ -92,7 +102,7 @@
       "owner": "vllm-recipe-explorer",
       "phase": "serve",
       "present": true,
-      "slot_confidence": "1-signal(file-presence)"
+      "slot_confidence": "3-signal(file+evidence+declaration)"
     }
   },
   "source_channel": {
