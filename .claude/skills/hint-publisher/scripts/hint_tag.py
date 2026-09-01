@@ -715,6 +715,14 @@ def cmd_finalize(a: argparse.Namespace) -> int:
     manifest, resolved_manifest_path = _load_manifest_for_binding("hint_finalize", a.manifest)
     _require_hint_promotion_target("hint_finalize", manifest, tag=a.tag, topology=a.topology,
                                     anchor=anchor, vllm=vllm, model=model)
+    # ── 감사 심각도1-① 폐쇄 (2026-09-01 · plan §12 A4-a)
+    # 계약 §3 의 발행조건 A·B 를 검사하는 이 함수가 **`create` 에만** 걸려 있었다. `create` 의
+    # 부작용은 스캐폴드 파일 하나뿐이라, `--recipe <임의경로>` 로 `seal` 에 직행하면 비용 0으로
+    # 우회됐다 — 계약 §2 가 지목한 **유일한 위협**("서빙 실패를 성공으로 허위기재한 정보의 배포")
+    # 에 대한 주 방어선이 실제 발행 경로에 없었던 것이다.
+    # 여기는 `finalize`·`seal` 이 **공유하는** 지점이고 태그 생성보다 앞이므로, 한 줄로 양쪽이
+    # 닫히고 거부 시 부작용이 0이다(승격게이트가 지킨 규율과 같다).
+    _require_serving_evidence("hint_finalize", manifest)
     footer_fields = _resolve_evidence_footer_fields("hint_finalize", manifest, resolved_manifest_path,
                                                      a.manifest, tag=a.tag, topology=a.topology, anchor=anchor)
 

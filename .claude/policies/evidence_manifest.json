@@ -8,7 +8,7 @@
   ".claude/skills/hint-publisher/scripts/hint_branch.py": "4351ec86b44ad427816e17a19ee054b4997feaeea60711b02feb5d37147325a3",
   ".claude/skills/hint-publisher/scripts/hint_catalog.py": "143d0873a95e04f2454978558537a00bb21b5161a4e2b20a3031fddf0187720a",
   ".claude/skills/hint-publisher/scripts/hint_collect.py": "cac6ffed82439030c3afbeae19db1d1743da9e91ba0e386e159cb5bbe6a9e641",
-  ".claude/skills/hint-publisher/scripts/hint_tag.py": "e5332e608e24ca88fc3e1953deb126cb28ca27b16ab4e67ed3e53f4aa2b107e7",
+  ".claude/skills/hint-publisher/scripts/hint_tag.py": "31edd071158e6a5ef821f9c40b232095b2a7f8c91183f906ccef9b01670febf7",
   ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh": "c94d92b868d526e4965639b0011a2aaa5072057c90bcad93afffb666caf8541a",
   ".claude/skills/terraforming_node/scripts/host_safety/install_netconsole.sh": "f42f9bbb00e634f5e09efdc7cc8fd2ee97e28437c5e5d53693f5b96d1c295e0a",
   ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh": "f83c8a208717e6fc2205687e1f528e1f444d02dabead8da5c06071d3e3b6f313",
