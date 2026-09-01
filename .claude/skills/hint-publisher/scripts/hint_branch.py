@@ -233,6 +233,16 @@ def cmd_publish(a) -> int:
     anchor = git("rev-parse", a.anchor + "^{commit}", cwd=repo).strip()
     source_branch = git("rev-parse", "--abbrev-ref", "HEAD", cwd=repo).strip()
 
+    # 앵커가 HEAD 와 다르면 **깨끗한 트리**여도 페이로드는 앵커의 트리가 아니다.
+    # 정당한 경우가 있다 — 서빙은 옛 커밋 상태에서 했고 페이로드는 나중에 조립한다.
+    # 그래서 막지 않되 **침묵하지도 않는다**: 출처를 표시한다(헌법 §결정론 규율).
+    head = git("rev-parse", "HEAD", cwd=repo).strip()
+    anchor_is_head = (anchor == head)
+    if not anchor_is_head:
+        print(f"[hint_branch] 주의: anchor({anchor[:12]}) ≠ HEAD({head[:12]}). "
+              "페이로드는 HEAD 워킹트리에서 조립됐고 앵커는 그 산출물을 **만든** 상태를 가리킨다. "
+              "둘 다 PROVENANCE 에 기록한다.", file=sys.stderr)
+
     if a.require_clean:
         dirty = git("status", "--porcelain", cwd=repo).strip()
         if dirty:
@@ -242,7 +252,9 @@ def cmd_publish(a) -> int:
 
     # ⓒ PROVENANCE 를 페이로드 안에 만들고, 그 자체를 목록에 넣는다(트리에 들어가야 배포된다)
     prov_text = make_provenance(anchor, a.tag, source_branch,
-                                {"payload_files": len(rels), "generated_kst": a.generated_kst})
+                                {"payload_files": len(rels), "generated_kst": a.generated_kst,
+                                 "assembled_at_head": head,
+                                 "anchor_is_head": anchor_is_head})
     prov_path = payload / PROVENANCE_NAME
     if a.dry_run:
         rels_full = rels

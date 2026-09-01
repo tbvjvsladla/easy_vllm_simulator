@@ -5,7 +5,7 @@
   ".claude/policies/predicates/runtime_patch_predicate.py": "852ba2a545b1766d7d669a0e100390b64b1bbd6e71eaba8091547e1c6eeb309d",
   ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md": "39070d1a816b09528081513e778dc8dad61fe7f63135f62e8e9dbf746052c679",
   ".claude/skills/adversarial-benchmark/scripts/run_bench.sh": "633d55537e3109cf8a884b90fad374e378b86da73ac38b26ef392f9c65b42e8a",
-  ".claude/skills/hint-publisher/scripts/hint_branch.py": "ba9dbae11edf5cbedb61771b11a6919a1180bf6b55f1ff60b01f763e05f3df6e",
+  ".claude/skills/hint-publisher/scripts/hint_branch.py": "2d3097f13e64372659433a2a86bb8b0a6cb5f59250167e8f87e52834137b96ac",
   ".claude/skills/hint-publisher/scripts/hint_collect.py": "b01b7cfe0216430e10ca6f26145cc029be5ba7a05ae1282dd9d21d76e62ebb68",
   ".claude/skills/hint-publisher/scripts/hint_tag.py": "a0b3beaa1248f81ba67ba60546c22c373d943c9a4933bfb7d6306680d5e25960",
   ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh": "c94d92b868d526e4965639b0011a2aaa5072057c90bcad93afffb666caf8541a",
