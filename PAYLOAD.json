@@ -2,7 +2,11 @@
   "artifacts": [
     "artifacts/triplet/gpt-oss-120b-gb10.yaml",
     "artifacts/triplet/gpt-oss-120b-gb10.sh",
-    "artifacts/triplet/.env.gpt-oss-120b-gb10"
+    "artifacts/triplet/.env.gpt-oss-120b-gb10",
+    "artifacts/build_recipe/Dockerfile",
+    "artifacts/build_recipe/requirements.txt",
+    "artifacts/compose/docker-compose.yaml",
+    "artifacts/compose/topology.env.template"
   ],
   "benchmark": {
     "accept_len": "N/A",
@@ -30,7 +34,7 @@
     "parsed_not_synthesized": true,
     "sha256": "37b5fa713e761ce0a26261e71fa7f6a3de1c4fbff30b5983bb3dd85a8f9b6837"
   },
-  "generated_kst": "2026-09-01T20:10:00",
+  "generated_kst": "2026-09-01T20:45:00",
   "identity": {
     "gpu": "NVIDIA GB10",
     "model": "gpt-oss-120b",
@@ -66,6 +70,33 @@
       "phase": "컴파일 전",
       "present": false,
       "slot_confidence": "3-signal(file+evidence+declaration)"
+    },
+    "build_recipe": {
+      "evidence": true,
+      "evidence_source": "certificate.image_tag ↔ .env IMAGE_TAG",
+      "exemptible": false,
+      "files": [
+        "output/single/Dockerfile",
+        "output/single/requirements.txt"
+      ],
+      "owner": "upstream-version-watch",
+      "phase": "build",
+      "present": true,
+      "slot_confidence": "3-signal(file+evidence+declaration)",
+      "track": "wheel"
+    },
+    "compose": {
+      "evidence": true,
+      "evidence_source": "certificate.image_tag ↔ .env IMAGE_TAG",
+      "exemptible": false,
+      "files": [
+        "output/single/docker-compose.yaml"
+      ],
+      "owner": "upstream-version-watch",
+      "phase": "serve(orchestration)",
+      "present": true,
+      "slot_confidence": "3-signal(file+evidence+declaration)",
+      "topology_env_template_from": "output/single/.env"
     },
     "fork_pin": {
       "evidence": false,

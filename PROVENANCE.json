@@ -1,10 +1,10 @@
 {
   "anchor": "6407d6e6993663d45a74e2d1f83eebfee8c922e7",
   "anchor_is_head": false,
-  "assembled_at_head": "91ef7101b4f6450843ecef51c2d8610db9825c5e",
-  "generated_kst": "2026-09-01T20:20:00",
+  "assembled_at_head": "d3f976db152a9890a9bf2d28c742615f5dcc3682",
+  "generated_kst": "2026-09-01T21:00:00",
   "kind": "hint_payload_provenance",
-  "payload_files": 8,
+  "payload_files": 12,
   "schema_version": 1,
   "source_branch": "single-node",
   "tag": "hint/0.19.1/gpt-oss-120b/gb10-single"

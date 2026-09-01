@@ -6,11 +6,13 @@
 
 | 슬롯 | 성립 시점 | owner | 존재 | 판정 강도 |
 |---|---|---|---|---|
-| `triplet` | serve | vllm-recipe-explorer | 있음 | 1-signal(file-presence) |
+| `triplet` | serve | vllm-recipe-explorer | 있음 | 3-signal(file+evidence+declaration) |
 | `runtime_patch` | serve(arming) | vllm-recipe-explorer | 없음 | 2-signal(file+declaration) |
-| `build_patch_pre` | 컴파일 전 | upstream-version-watch | 없음 | 1-signal(absence) |
-| `build_patch_post` | 컴파일 후 | upstream-version-watch | 없음 | 1-signal(absence) |
-| `fork_pin` | build | upstream-version-watch | 없음 | 1-signal(absence) |
+| `build_patch_pre` | 컴파일 전 | upstream-version-watch | 없음 | 3-signal(file+evidence+declaration) |
+| `build_patch_post` | 컴파일 후 | upstream-version-watch | 없음 | 2-signal(file+declaration) |
+| `build_recipe` | build | upstream-version-watch | 있음 | 3-signal(file+evidence+declaration) |
+| `compose` | serve(orchestration) | upstream-version-watch | 있음 | 3-signal(file+evidence+declaration) |
+| `fork_pin` | build | upstream-version-watch | 없음 | 3-signal(file+evidence+declaration) |
 
 ## 파일
 
@@ -18,6 +20,13 @@
 - `output/single/configs/gpt-oss-120b-gb10.yaml`
 - `output/single/configs/gpt-oss-120b-gb10.sh`
 - `output/single/envs/.env.gpt-oss-120b-gb10`
+
+**build_recipe**
+- `output/single/Dockerfile`
+- `output/single/requirements.txt`
+
+**compose**
+- `output/single/docker-compose.yaml`
 
 **fork_pin** — 없음 = **stock**. `.env` 에 `VARIANT=` 줄이 없는 것이 기본값이다.
 
@@ -61,3 +70,28 @@ vLLM 0.19.1 의 stock 코드경로가 이 체크포인트를 그대로 서빙했
 슬롯 3+1+1 어디에도 안 들어가지만 **없으면 서빙이 죽는 자산**이 하나 있다: harmony/o200k 인코딩
 파일이다. 이미지에 번들되지 않으므로 호스트에서 마운트해야 한다. 3+1+1 은 *코드·설정*의 분류이지
 *자산*의 분류가 아니다 — 자세한 증상은 항목2 를 보라.
+
+### `build_recipe` — 해당 (재현의 시작점)
+
+**이미지를 어떻게 지었는가.** wheel 트랙이므로 `Dockerfile` 한 장과 핀된 `requirements.txt`
+(60 패키지)가 전부다 — 소스 컴파일이 없어 `Dockerfile.source-build` 는 쓰이지 않았고 담지 않았다
+(쓰지 않은 레시피를 함께 배포하면 어느 쪽이 진짜인지 모르게 된다).
+
+**적용 증거가 관측된다**: 인증서의 `image_tag` 와 `.env` 의 `IMAGE_TAG` 가 일치한다. 이것이
+중요한 이유는 **불일치가 벤치를 거짓말하게 만드는 가장 값싼 경로**이기 때문이다 — `.env` 가
+비어 있으면 compose 가 낡은 기본값으로 조용히 폴백해 **다른 vLLM 버전을 측정**한다.
+
+### `compose` — 해당 (기동 방법)
+
+**어떻게 띄우는가.** 마운트·포트·프로파일이 여기 있다. 두 가지를 주의하라.
+
+- **env-file 이 둘 필요하다** — 토폴로지 레벨(마운트 경로)과 모델 레벨(서빙 설정). 하나만 주면
+  변수 치환이 비어 조용히 기본값으로 간다.
+- **토폴로지 `.env` 는 실물을 담지 않았다.** 그 파일은 운영자의 NAS 루트·tiktoken 절대경로를
+  담아서 배포 대상이 아니다(자기 주석이 스스로 그렇게 적는다). 대신 **형상 템플릿**
+  `artifacts/compose/topology.env.template` 을 넣었다 — **어떤 변수가 필요한지**는 재현에
+  필수 정보이고, 값은 각자 manifest 의 동명 필드에서 온다.
+
+compose 자체에는 경로가 baked 되어 있지 않다(`${NAS_MODEL_PATH:-/mnt/models}` 형태). 그 설계
+덕분에 compose 는 그대로 배포할 수 있다.
+
