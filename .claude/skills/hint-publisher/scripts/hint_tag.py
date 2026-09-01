@@ -36,6 +36,12 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
+# 배포 태그 오브젝트에 박히는 tagger 신원의 기본값. **발행자 개인 신원이 아니라 프로젝트
+# 합성 신원**이며, 발행된 62개 태그가 이미 이 값을 쓰고 있다(관행의 코드화). `.invalid` 는
+# RFC2606 예약 TLD 라 실제로 도달하지 않는다.
+DEFAULT_TAGGER_NAME = "easy-vllm-simulator"
+DEFAULT_TAGGER_EMAIL = "hints@easy-vllm.invalid"
+
 TAG_SHAPE = re.compile(r"^hint/[^/]+/[^/]+/[^/]+$")
 HINTS_MARKER = "<!-- hint-index:rows -->"
 
@@ -741,8 +747,14 @@ def cmd_finalize(a: argparse.Namespace) -> int:
     if footer_hits:
         die("[hint_tag] FAIL(PII): evidence-binding footer PII 검출:\n  " + "\n  ".join(footer_hits))
 
-    tname = a.tagger_name or git("config", "user.name", check=False).stdout.strip()
-    temail = a.tagger_email or git("config", "user.email", check=False).stdout.strip()
+    # 기본값은 **합성 프로젝트 신원**이다 — git config 가 아니다(2026-09-01 교정).
+    # 이전 기본값은 `git config user.name/email` 이었고, 그 결과 발행자의 실명·업무 이메일이
+    # 배포 태그 오브젝트에 박혔다(실제 발생 — push 전에 회수). tagger PII 검사는 generic
+    # `email` 패턴을 **건너뛰므로**(tagger 는 정의상 이메일을 갖는다) 리터럴 목록에 없는 실제
+    # 주소는 그대로 통과한다. 즉 "잊으면 새는" 구조였다.
+    # 안전한 쪽을 기본값으로 두고, 실명을 쓰려면 **명시**하게 한다.
+    tname = a.tagger_name or DEFAULT_TAGGER_NAME
+    temail = a.tagger_email or DEFAULT_TAGGER_EMAIL
     idhits = scan_text(f"{tname} {temail}", terms, skip_generic=frozenset({"email"}))
     if idhits:
         die("[hint_tag] FAIL(tagger PII): tagger 신원이 PII 를 흘림: " + ", ".join(idhits)
