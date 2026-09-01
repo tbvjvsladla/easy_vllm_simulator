@@ -325,6 +325,7 @@ _HINT_TOPOLOGY = "single 1노드 TP1"
 _HINT_HF_REPO = "selftest-org/selftest-model"
 _HINT_SCRIPT_REL = ".claude/skills/hint-publisher/scripts/hint_tag.py"
 _HINT_TEMPLATE_REL = ".claude/skills/hint-publisher/templates/hint_recipe.template.md"
+_HINT_CATALOG_REL = ".claude/skills/hint-publisher/scripts/hint_catalog.py"
 
 # 인증서 carrier 케이스용 -- 실제 인증서는 lite 열을 갖는다(full ⊇ lite 불변식).
 _HINT_CERTIFICATE = (_PROMO_CERTIFICATE.format(authority="weak")
@@ -406,6 +407,11 @@ def _hint_repo(root: Path) -> str:
         shutil.copy2(CLAUDE_DIR / "schemas" / name, root / ".claude/schemas" / name)
     shutil.copy2(CLAUDE_DIR.parent / _HINT_SCRIPT_REL, root / _HINT_SCRIPT_REL)
     shutil.copy2(CLAUDE_DIR.parent / _HINT_TEMPLATE_REL, root / _HINT_TEMPLATE_REL)
+    shutil.copy2(CLAUDE_DIR.parent / _HINT_CATALOG_REL, root / _HINT_CATALOG_REL)
+    # 카탈로그 관리 구역은 **마커 쌍**이다(2026-09-01 D1.1). 여는 마커가 없던 옛 형식은
+    # 구역의 시작이 모호해 마커 유실 시 전 행이 조용히 사라질 수 있었다(감사 ⑬).
+    (root / "HINTS.md").write_text(
+        "# hints\n\n<!-- hint-index:rows -->\n<!-- hint-index:rows -->\n", encoding="utf-8")
     # 실 pii_terms.txt 는 운영자 리터럴이라 격리 레포로 복사하지 않는다(픽스처 전용 토큰만).
     (root / ".claude/pii_terms.txt").write_text(
         "# selftest fixture terms\nselftest-forbidden-token\n", encoding="utf-8")
@@ -425,7 +431,11 @@ def _hint_cli(root: Path, *args: str) -> subprocess.CompletedProcess:
 def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = None,
                         bench_report_text: str = _LITE_BENCH_REPORT,
                         recipe_body: str = _HINT_RECIPE_BODY) -> dict:
-    """격리 레포에서 create→seal→index→verify 를 실제로 돌린다. 각 단계의 CompletedProcess 반환."""
+    """격리 레포에서 create→seal→**catalog derive**→verify 를 실제로 돌린다.
+
+    2026-09-01: `index`(손저작 색인)가 D1.1 로 폐쇄되어 카탈로그 단계를 원격 파생으로 옮겼다.
+    프로브가 임시 bare 원격을 만들고 태그를 push 한 뒤 파생한다 — 발행 사실을 실제로 만든다.
+    """
     with tempfile.TemporaryDirectory(prefix="hint-binding-selftest.") as td:
         root = Path(td).resolve()
         anchor = _hint_repo(root)
@@ -450,7 +460,18 @@ def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = 
         if out["seal"].returncode != 0:
             return out
         out["tag_object"] = _hint_git(root, "cat-file", "tag", _HINT_TAG).stdout
-        out["index"] = _hint_cli(root, "index", "--tag", _HINT_TAG)
+        # 카탈로그는 **원격 발행 태그에서 파생**한다(D1.1) — 손저작 `index` 경로는 폐쇄됐다.
+        # 그래서 프로브도 진짜로 원격을 만들고 거기에 push 한 뒤 파생한다. 원격을 만들지 않으면
+        # "발행됐다"의 증거가 없어 카탈로그가 비는 것이 **정상 동작**이므로, 그 경로를 시험하려면
+        # 발행 사실 자체를 만들어야 한다.
+        bare = root.parent / (root.name + ".remote.git")
+        _hint_git(root, "init", "--bare", "-q", str(bare))
+        _hint_git(root, "push", "-q", str(bare),
+                  f"refs/tags/{_HINT_TAG}:refs/tags/{_HINT_TAG}")
+        out["catalog"] = subprocess.run(
+            [sys.executable, "-B", str(root / _HINT_CATALOG_REL), "--repo", str(root),
+             "derive", "--remote", str(bare), "--generated-kst", "2026-01-01T00:00:00"],
+            cwd=str(root), capture_output=True, text=True)
         out["verify"] = _hint_cli(root, "verify", "--manifest", str(manifest))
         return out
 
@@ -492,7 +513,7 @@ def _test_hint_binding_source() -> None:
 
     # ---- H1 E2E ★ explore(REFUTE·waiver 없음) 가 create→seal→index→verify 전 구간을 통과한다.
     out = _hint_publish_probe(dict(_PROMO_RUBRIC))
-    for step in ("create", "seal", "index", "verify"):
+    for step in ("create", "seal", "catalog", "verify"):
         proc = out.get(step)
         _require(proc is not None and proc.returncode == 0,
                  f"explore-authority hint publication died at `{step}`: "
@@ -504,7 +525,7 @@ def _test_hint_binding_source() -> None:
 
     # ---- H2 E2E 종전 경로 불변: 인증서(PASS) 는 여전히 인증서에 묶인다.
     out = _hint_publish_probe(None, certificate=_HINT_CERTIFICATE)
-    for step in ("create", "seal", "index", "verify"):
+    for step in ("create", "seal", "catalog", "verify"):
         proc = out.get(step)
         _require(proc is not None and proc.returncode == 0,
                  f"certificate hint publication regressed at `{step}`: "
@@ -521,7 +542,7 @@ def _test_hint_binding_source() -> None:
         "authorized_by": "selftest-operator", "authorized_at_utc": "2026-08-24T00:00:00Z",
         "instruction": "loop-until-done 중단",
         "warning_flag": "PERF-WARNING: selftest fixture"}}, recipe_body=waiver_body)
-    for step in ("create", "seal", "index", "verify"):
+    for step in ("create", "seal", "catalog", "verify"):
         proc = out.get(step)
         _require(proc is not None and proc.returncode == 0,
                  f"perf_waiver hint publication regressed at `{step}`: "

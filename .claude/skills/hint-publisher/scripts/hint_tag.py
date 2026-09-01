@@ -1432,6 +1432,16 @@ def cmd_index(a: argparse.Namespace) -> int:
     """이미 로컬에 존재하는 hint 태그를 색인에 편입한다(중앙 전용).
     `seal` 이 만든 태그를 받아 여기서 index.json + HINTS.md 를 갱신한다."""
     _require_central("index")
+    # ── 2026-09-01 (plan_26090107 D1.1 · Phase 4): 손저작 카탈로그 평면 폐쇄.
+    # 카탈로그의 진실원천은 이제 **원격 발행 태그**이고 파생기는 `hint_catalog.py derive` 다.
+    # 이 명령이 살아 있으면 로컬 상태를 신뢰해 다시 쓰게 되고, 그것이 감사 ④(무검증 `active`
+    # 기입 · 격리 세탁)와 ⑤(손저작 brief 오염 → 렌더 삼킴 18행)의 기전이었다.
+    # **경로를 우회하지 않고 막는다** — D3 법칙: 정식 경로가 막히면 경로를 고친다.
+    die("[hint_tag] 이 명령은 폐쇄됐다(plan_26090107 D1.1).\n"
+        "  카탈로그는 손으로 쓰지 않는다 — 원격 발행 태그에서 파생한다:\n"
+        "    python3 .claude/skills/hint-publisher/scripts/hint_catalog.py derive \\\n"
+        "        --remote <원격> --generated-kst <YYYY-MM-DDTHH:MM:SS>\n"
+        "  발행 자체는 `seal` 이 그대로 소유한다(태그 생성). 이 명령이 하던 색인 갱신만 옮겼다.")
     tags = existing_hint_tags()
     if a.tag not in tags:
         die(f"[hint_tag] FAIL: 로컬에 없는 태그: {a.tag}")
@@ -1772,6 +1782,16 @@ def cmd_reverify(a: argparse.Namespace) -> int:
 # ── reindex (태그 = 진실원천 → index.json + HINTS.md 재생성) ──────────────────
 def cmd_reindex(a: argparse.Namespace) -> int:
     _require_central("reindex")
+    # ── 2026-09-01 (plan_26090107 D1.1 · Phase 4): 손저작 카탈로그 평면 폐쇄.
+    # 카탈로그의 진실원천은 이제 **원격 발행 태그**이고 파생기는 `hint_catalog.py derive` 다.
+    # 이 명령이 살아 있으면 로컬 상태를 신뢰해 다시 쓰게 되고, 그것이 감사 ④(무검증 `active`
+    # 기입 · 격리 세탁)와 ⑤(손저작 brief 오염 → 렌더 삼킴 18행)의 기전이었다.
+    # **경로를 우회하지 않고 막는다** — D3 법칙: 정식 경로가 막히면 경로를 고친다.
+    die("[hint_tag] 이 명령은 폐쇄됐다(plan_26090107 D1.1).\n"
+        "  카탈로그는 손으로 쓰지 않는다 — 원격 발행 태그에서 파생한다:\n"
+        "    python3 .claude/skills/hint-publisher/scripts/hint_catalog.py derive \\\n"
+        "        --remote <원격> --generated-kst <YYYY-MM-DDTHH:MM:SS>\n"
+        "  발행 자체는 `seal` 이 그대로 소유한다(태그 생성). 이 명령이 하던 색인 갱신만 옮겼다.")
     """전 hint 태그에서 index.json + HINTS.md 카탈로그를 재생성한다(브랜치 간 드리프트 정합).
     currency 필드(status·superseded_by·last_verified·큐레이트 related)는 기존 index 에서 보존.
     binding 필드(topology·anchor)는 footer(=진실원천)에서만 재구성한다 -- 기존 index 신뢰 안 함
