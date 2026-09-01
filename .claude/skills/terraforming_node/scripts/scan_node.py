@@ -530,10 +530,26 @@ def evaluate_gate(*, declared, ic_present, peer_given, peer_reachable, bandwidth
     if declared in ("single", "multi"):
         if branch_topo and branch_topo != declared:
             mism.append(f"declared={declared} ≠ git branch({branch})⇒{branch_topo}")
+        elif not branch_topo:
+            # ★ 2026-09-01 (audit_26090109 ③) — 종전에는 두 대조 다리가 **모두**
+            #   `branch_topo` 가 참일 때만 걸렸다. 그래서 브랜치 미해소(detached HEAD ·
+            #   규약 밖 이름) 한 번이면 3자-일치 단언이 **통째로 증발**하고 Flag 가
+            #   fail-open 으로 발급됐다. **판정 불가는 통과가 아니다** — 이 저장소가
+            #   "부재와 판단 불가의 융합"이라 부른 결함의 교과서 사례다.
+            mism.append(
+                f"git branch({branch}) 로 토폴로지를 해소하지 못했다 — "
+                f"3자-일치(branch↔manifest↔scan)를 판정할 수 없다(fail-closed)")
         if declared == "multi" and not ic_present:
             mism.append("declared=multi 인데 스캔: RoCE v2 미탐지")
         if declared == "single" and ic_present:
             warns.append("single 선언 + RoCE 하드웨어 존재 — 멀티 가능 머신의 단일노드 운용(정상·정보)")
+        # ★ manifest 는 branch 를 **경유하지 않고** declared 와 직접 대조한다(2026-09-01 · ③).
+        #   종전에는 branch 를 거쳐서만 비교해, declared=single + manifest=multi 라는
+        #   **정면 모순**이 consistent=True · exit 0 으로 통과했다. 헌법은 manifest 를
+        #   하드웨어·TP 의 단일 권위로 두고 브랜치 추론을 금지하는데, 실제 배선은 그
+        #   권위를 브랜치에 **종속**시키고 있었다.
+        if mani_topo and mani_topo != declared:
+            mism.append(f"manifest({mani_path}) topology={mani_topo} ≠ declared={declared}")
         if mani_topo and branch_topo and mani_topo != branch_topo:
             mism.append(f"manifest({mani_path}) topology={mani_topo} ≠ branch⇒{branch_topo}")
     if egress_self and egress_peer and egress_self != egress_peer:
@@ -697,6 +713,12 @@ def _self_test() -> int:
         ("single α + RoCE(경고 비blocking)", dict(declared="single", ic_present=True, peer_given=False, peer_reachable=None, bandwidth=None, bw_floor=F, branch_topo="single", mani_topo="single"), ("alpha", 0, True)),
         ("single on multi-branch(혼재차단)", dict(declared="single", ic_present=True, peer_given=False, peer_reachable=None, bandwidth=None, bw_floor=F, branch_topo="multi", mani_topo="multi"), ("alpha", 2, False)),
         ("manifest≠branch(혼재차단)", dict(declared="multi", ic_present=True, peer_given=True, peer_reachable=True, bandwidth=208.2, bw_floor=F, branch_topo="multi", mani_topo="single"), ("gamma", 2, False)),
+        # ★ audit_26090109 ③ 회귀 2건 (2026-09-01). 종전에는 두 대조가 모두 branch_topo 를
+        #   경유해, 아래 첫 케이스(declared 와 manifest 의 **정면 모순**)가 consistent=True ·
+        #   exit 0 으로 통과했고, 둘째(브랜치 미해소)는 단언 자체가 증발해 Flag 가 fail-open
+        #   으로 발급됐다. 이 두 줄이 그 두 문을 닫는다.
+        ("★declared≠manifest 직접모순(③)", dict(declared="single", ic_present=False, peer_given=False, peer_reachable=None, bandwidth=None, bw_floor=F, branch="single-node", branch_topo="single", mani_topo="multi"), ("alpha", 2, False)),
+        ("★branch 미해소 → 3자일치 판정불가(③)", dict(declared="single", ic_present=False, peer_given=False, peer_reachable=None, bandwidth=None, bw_floor=F, branch="feature/x", branch_topo=None, mani_topo="single"), ("alpha", 2, False)),
     ]
     passed = 0
     for name, kw, (eg, ec, econ) in cases:

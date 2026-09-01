@@ -185,6 +185,16 @@ run chown -R "$TARGET_USER:$TARGET_USER" "$NODE_DIR"
 # 표기가 섞여 유닛/문서/검증자 사이에서 오탈자 원인이 된다).
 run install -m 0755 "$SDIR/blackbox_collect.py"  "$BIN/easy-vllm-bb-collect"
 run install -m 0755 "$SDIR/blackbox_eta.py"      "$BIN/easy-vllm-bb-eta"
+# ★ sibling import 통로 (2026-09-01 · audit_26090109 ⑦ 1단) ─────────────────────────
+#   regen_envelope · blackbox_session · agent_guard 는 `from blackbox_eta import DEFAULTS` 로
+#   **정본 상수**를 파생한다(상수 사본은 갈라져 맹점을 만든다 — ① 참조). 그런데 위 줄이
+#   `.py` 확장자를 떼고 콘솔 이름으로 설치하므로, 실행체의 `sys.path[0]`(=$BIN)에는
+#   `blackbox_eta.py` 가 **없다**. 그래서 import 가 깨진다.
+#   실측(2026-09-01): easy-vllm-blackbox-lifecycle.service 가 5일 연속 status=1/FAILURE 였고
+#   저널에 `blackbox_eta.py 를 같은 디렉터리에서 찾지 못했다` 가 그대로 찍혀 있었으며,
+#   **envelope.json 은 한 번도 생성된 적이 없다**. 가드는 정확히 울었고 듣는 사람이 없었다.
+#   모듈 이름으로도 함께 둔다(0644 — 실행체가 아니라 라이브러리 사본임을 모드로 표시).
+run install -m 0644 "$SDIR/blackbox_eta.py"      "$BIN/blackbox_eta.py"
 run install -m 0755 "$SDIR/blackbox_events.py"   "$BIN/easy-vllm-bb-events"
 run install -m 0755 "$SDIR/logs_lifecycle.py"    "$BIN/easy-vllm-bb-lifecycle"
 run install -m 0755 "$SDIR/regen_envelope.py"   "$BIN/easy-vllm-bb-regen-envelope"

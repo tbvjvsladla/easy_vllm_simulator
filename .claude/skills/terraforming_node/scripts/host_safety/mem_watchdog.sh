@@ -39,11 +39,27 @@ targets(){
     docker ps --filter "name=$FILTER" --filter status=running -q
   fi
 }
+# ★ 정지 기록 (2026-09-01 · audit ㉛). start 만 있고 stop 이 없으면 저널에서
+#   "돌고 있다"와 "사라졌다"가 구분되지 않는다.
+trap '_rc=$?; echo "[mem-watchdog] stop rc=$_rc signal=${_mw_sig:-EXIT} $(ts)"; exit $_rc' EXIT
+trap '_mw_sig=TERM' TERM
+trap '_mw_sig=INT'  INT
+trap '_mw_sig=HUP'  HUP
 echo "[mem-watchdog] start filter='$FILTER' threshold=${THRESH_MIB}MiB interval=${INTERVAL}s heartbeat=${HB_SEC}s pid=$$ $(ts)"
 last_hb=0
 min_since_hb=999999999   # 직전 HB 이후 1s-폴 최저치(P2 — 임계-하 순간 dip 을 60s HB 가 놓치지 않게, testlog_26071111 §0)
 while true; do
-  avail_mib=$(( $(awk '/MemAvailable:/{print $2}' /proc/meminfo) / 1024 ))
+  # ★ 판독 실패는 판정 불가다 (2026-09-01 · audit ④). 종전 형태는 /proc/meminfo 를 못
+  #   읽으면 산술 확장 오류로 **셸이 즉사**했고(비대화형 bash), 이 정본 워치독은
+  #   policy:HOST_SAFETY_LAYERED_DEFENSE.C1 이 요구하는 실물 방어층이라 그 침묵 사망이
+  #   곧 무방비다. 이 폴만 건너뛰고 큰 소리로 남긴다.
+  _mem_kb="$(awk '/MemAvailable:/{print $2; exit}' /proc/meminfo 2>/dev/null || true)"
+  case "$_mem_kb" in
+    ''|*[!0-9]*)
+      echo "[mem-watchdog] READ-FAIL /proc/meminfo MemAvailable 판독 실패(raw=[$_mem_kb]) — 이 폴은 판정하지 않는다 $(ts)"
+      sleep "$INTERVAL"; continue ;;
+  esac
+  avail_mib=$(( _mem_kb / 1024 ))
   [ "$avail_mib" -lt "$min_since_hb" ] && min_since_hb=$avail_mib
   now=$(date +%s)
   if [ "$HB_SEC" -gt 0 ] && [ $(( now - last_hb )) -ge "$HB_SEC" ]; then

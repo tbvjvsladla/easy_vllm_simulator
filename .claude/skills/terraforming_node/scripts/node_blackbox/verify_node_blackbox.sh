@@ -79,7 +79,17 @@ if [ "$MODE" = "crash" ]; then
   #   이 프로젝트는 2026-07-30 install_netconsole.sh 에서 이미 같은 함정을 겪었고,
   #   2026-07-31 이 검증자의 pstore 내용검사가 정확히 이 이유로 위음성을 냈다.
   #   여기는 특히 치명적이다 — 위음성이면 **서빙 중인 노드를 죽인다**. 파이프를 없앤다.
-  _dps="$(docker ps --format '{{.Names}}' 2>/dev/null)"
+  # ★ 2026-09-01 (audit ⑤): 위 주석은 위음성의 위험을 정확히 서술하고 파이프 하나를
+  #   없앴는데, **같은 줄의 `2>/dev/null` 이 동일한 위음성을 낸다.** docker 데몬이 죽어
+  #   있거나 권한이 없으면 `_dps` 가 빈 문자열이 되고, grep 이 매칭하지 않아 게이트가
+  #   **열린 채** 강제 커널 패닉으로 진행한다. 즉 "docker 를 못 물어봤다"가 "서빙 안 한다"로
+  #   접힌다 — 부재와 판단 불가의 융합. 여기서 그 오판의 대가는 **남의 서빙이 도는 노드의
+  #   즉사**다. rc 를 본다.
+  if ! _dps="$(docker ps --format '{{.Names}}' 2>&1)"; then
+    say "거부: docker 상태를 조회할 수 없다(rc≠0) — 서빙 여부를 **판정할 수 없으므로** 진행하지 않는다."
+    say "      docker 출력: ${_dps}"
+    exit 3
+  fi
   if grep -qi vllm <<< "$_dps"; then
     say "거부: vLLM 컨테이너가 실행 중이다. 먼저 serve 를 내려라."; exit 3
   fi
@@ -147,6 +157,8 @@ for pair in "mem_watchdog_eta.sh:easy-vllm-bb-watchdog" \
             "blackbox_collect.py:easy-vllm-bb-collect" \
             "blackbox_eta.py:easy-vllm-bb-eta" \
             "regen_envelope.py:easy-vllm-bb-regen-envelope" \
+            "blackbox_events.py:easy-vllm-bb-events" \
+            "logs_lifecycle.py:easy-vllm-bb-lifecycle" \
             "blackbox_thermal.py:easy-vllm-bb-thermal" \
             "thermal_watchdog.sh:easy-vllm-bb-tp-watchdog"; do
   src="$SDIR/${pair%%:*}"; dst="/usr/local/sbin/${pair##*:}"
@@ -156,6 +168,28 @@ for pair in "mem_watchdog_eta.sh:easy-vllm-bb-watchdog" \
   else
     bad "배포본 구버전 ${pair##*:} — 소스≠$dst. sudo bash $SDIR/install_node_blackbox.sh --apply --level L1" \
         "deployed_${pair##*:}"
+  fi
+done
+
+# ★ 신선도(내용 동일)는 **실행 가능성**을 보증하지 않는다 (2026-09-01 · audit_26090109 ⑦ 2단).
+#   위 A 절의 self-test 는 $SDIR(소스)에서 돈다. 그런데 데몬이 실행하는 것은 $BIN 의 사본이고,
+#   설치기가 `.py` 확장자를 떼므로 **sibling import 통로가 소스에만 존재**했다.
+#   실측(2026-09-01) — 체크섬은 완전히 일치하는데 판정이 반대다:
+#       소스   regen_envelope.py            --self-test → rc=0
+#       설치본 easy-vllm-bb-regen-envelope  --self-test → rc=1 (ModuleNotFoundError)
+#   그래서 lifecycle 유닛이 5일 연속 죽는 동안 이 검증자는 계속 초록불이었고,
+#   envelope.json 은 **한 번도 생성된 적이 없다**. 내용이 아니라 **배치**가 갈린 것이므로
+#   체크섬으로는 원리상 잡히지 않는다 — 설치된 자리에서, 중립 cwd 로 실제로 돌려 본다.
+for _b in easy-vllm-bb-eta easy-vllm-bb-collect easy-vllm-bb-events \
+          easy-vllm-bb-lifecycle easy-vllm-bb-regen-envelope; do
+  _d="/usr/local/sbin/$_b"
+  if [ ! -x "$_d" ]; then
+    bad "배포본 실행권한/부재: $_d" "deployed_exec_$_b"
+  elif ( cd / && python3 -B "$_d" --self-test >/dev/null 2>&1 ); then
+    ok "배포본 실동작 $_b" "deployed_exec_$_b"
+  else
+    bad "배포본이 **설치된 자리에서** 실패: $_b (내용은 소스와 같아도 실행되지 않는다 — sibling import 통로 확인). sudo bash $SDIR/install_node_blackbox.sh --apply --level L1" \
+        "deployed_exec_$_b"
   fi
 done
 

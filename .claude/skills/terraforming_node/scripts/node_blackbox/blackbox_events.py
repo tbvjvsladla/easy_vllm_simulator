@@ -322,6 +322,14 @@ DEFAULT_SOURCES = [
     ("easy-vllm-blackbox-watchdog", False),   # 신규 상시 ETA 워치독(RAM 축)
     ("easy-vllm-blackbox-thermal", False),    # 열·전력 포락선 워치독(하드락업 예방 축)
     ("easy-vllm-memwatch", False),            # 레거시(제거 전/이행기)
+    # ★ 2026-09-01 (audit_26090109 ⑦ 3단) — 아래 둘이 빠져 있어 **실패가 관측 평면에
+    #   도달하지 못했다**. lifecycle 은 5일 연속 status=1 로 죽으면서 envelope 을 한 번도
+    #   만들지 못했는데, events 에는 그 사실이 단 한 줄도 남지 않았다. 관측 장치가
+    #   자기 공급원의 죽음을 못 보면 "기록이 없다"와 "사고가 없었다"가 구분되지 않는다.
+    ("easy-vllm-blackbox-lifecycle", False),  # rollup→envelope regen→압축→삭제
+    ("easy-vllm-blackbox-collect", False),    # 1초 원시 시계열 수집기(죽으면 데이터 평면 실명)
+    # ※ `easy-vllm-blackbox-events` 자신은 넣지 않는다 — 그것이 죽으면 수확 자체가 안 도므로
+    #   자기 저장소에 적는 것이 무의미하다. 그 유닛의 생사 판정은 verify 가 소유한다.
     ("earlyoom", False),
     (None, True),                             # 커널(-k) : OOM killer
 ]

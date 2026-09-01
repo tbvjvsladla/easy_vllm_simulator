@@ -107,7 +107,32 @@ def compute_eta_s(mem_avail_mib: int, rate_mib_s: float, kill_threshold_mib: int
     return headroom / rate_mib_s
 
 
-DECL_MARGIN_MIB = 8192          # 데몬 BB_DECL_MARGIN_MIB 와 같은 값 — 두 층이 다른 상한을 쓰면 안 된다
+# ── 선언 상한 상수 — **정본에서 파생한다** (2026-09-01 교정 · audit_26090109 ①) ────────
+# ⚠ 이 두 값은 원래 리터럴 8192 / 16384 였고, 주석이 *"데몬 BB_DECL_MARGIN_MIB 와 같은 값"*
+#   이라고 **단언**했다. 그 단언이 검사할 이유를 없앴고, 정본(blackbox_eta.DEFAULTS)이
+#   3072 / 8192 로 옮겨간 뒤에도 아무도 몰랐다. 실측 결과:
+#     데몬 수락 최소 floor = 8192+3072  = 11,264
+#     가드 수락 최소 floor = 16384+8192 = 24,576
+#   ⇒ **맹점 [11264, 24576)** — 데몬은 선언을 수락해 무장을 풀었는데 가드는 같은 선언을
+#     폐기(INF)하고 ETA 규칙을 그대로 적용해 **정상 로드를 사살**한다. hy3 실측 바닥
+#     13,801 이 이 구간 안에 있다. 구간 밖에서도 값이 갈렸다(floor=24576 → 데몬 21504 /
+#     가드 16384): 가드가 데몬보다 **먼저** 재무장한다.
+# ★ 자매 파일 `blackbox_session.py` 가 같은 결함을 먼저 만나 이 패턴으로 고쳤다. 그 처방이
+#   이 파일로 **전파되지 않은 것**이 결함의 전부다 — 단일 파일 교정은 결함 계열을 못 막는다.
+# ★ 폴백 리터럴은 **tripwire** 다(4종 판정표 하드코딩 '정당' 칸): `--self-test` 가 정본과
+#   리터럴 대조하므로, 정본이 움직이면 폴백 경로를 안 타도 빨간불이 켜진다.
+_DECL_FALLBACK = {"decl_margin_mib": 3072, "decl_min_ceiling_mib": 8192}
+try:
+    from blackbox_eta import DEFAULTS as _ETA_DEFAULTS
+    DECL_MARGIN_MIB = int(_ETA_DEFAULTS["decl_margin_mib"])
+    DECL_MIN_CEILING_MIB = int(_ETA_DEFAULTS["decl_min_ceiling_mib"])
+    DECL_CONST_SOURCE = "derived:blackbox_eta.DEFAULTS"
+except Exception as _exc:     # fail-loud 폴백 — 침묵하지 않는다(폴백 판정표 '정당' 칸)
+    DECL_MARGIN_MIB = _DECL_FALLBACK["decl_margin_mib"]
+    DECL_MIN_CEILING_MIB = _DECL_FALLBACK["decl_min_ceiling_mib"]
+    DECL_CONST_SOURCE = "fallback:literal (%s: %s)" % (type(_exc).__name__, _exc)
+    print("[agent_guard] WARN: blackbox_eta.DEFAULTS 파생 실패 → 리터럴 사용. "
+          "가드와 데몬이 다른 상한을 쓸 위험이 있다: %s" % DECL_CONST_SOURCE, file=sys.stderr)
 LEVEL_ORDER = (NORMAL, NOTIFY, ACT, LAST_RESORT)
 
 
@@ -142,7 +167,7 @@ def read_declared_ceiling_mib(node_dir: str, now_epoch: int | None = None) -> in
     if now_epoch >= int(fields["expires_epoch"]):
         return INF                                   # 만료 → 선언 없음과 동일
     ceiling = int(fields["floor_mib"]) - DECL_MARGIN_MIB
-    if ceiling < 16384:                              # 데몬과 동일한 하한 가드
+    if ceiling < DECL_MIN_CEILING_MIB:               # 데몬과 **같은 정본**에서 파생한 하한 가드
         return INF
     return ceiling
 
@@ -383,6 +408,33 @@ def _self_test() -> int:
         print("  [%s] %s" % ("PASS" if cond else "FAIL", label))
         ok = ok and bool(cond)
 
+    # ── 교차검증: 선언 상수가 정본과 같은가 (신설 2026-09-01 · audit_26090109 ①) ──────
+    # 이 술어가 **없어서** ①이 발생했다. 자매 blackbox_thermal 자체검사는 수집기 상수와
+    # 셸 기본값을 리터럴 대조하는데, 그 규율이 이 파일에만 오지 않았다. 주석의 "데몬과
+    # 같은 값"이라는 **단언**이 검사할 이유를 없앤 것이 결함의 형태다 — 단언마다 그것을
+    # 깨뜨리면 빨간불이 켜지는 지점을 하나씩 붙인다.
+    try:
+        from blackbox_eta import DEFAULTS as _CANON
+        _canon_margin = int(_CANON["decl_margin_mib"])
+        _canon_min = int(_CANON["decl_min_ceiling_mib"])
+    except Exception as _cexc:
+        # 정본에 닿지 못하면 "일치한다"고 말할 근거가 없다. 조용한 통과도, traceback 도
+        # 답이 아니다 — 깨끗한 FAIL 로 끝낸다(종료코드 2 = 자체검사 실패).
+        chk(False, "정본 blackbox_eta.DEFAULTS 도달 불가 — 상수 일치를 판정할 수 없다 (%s: %s)"
+            % (type(_cexc).__name__, _cexc))
+        print("self-test: FAIL")
+        return 2
+    chk(DECL_CONST_SOURCE.startswith("derived:"),
+        "선언 상수 출처 = 정본 파생 (현재: %s)" % DECL_CONST_SOURCE)
+    chk(DECL_MARGIN_MIB == _canon_margin,
+        "margin 이 정본과 일치 (가드 %s / 정본 %s)" % (DECL_MARGIN_MIB, _canon_margin))
+    chk(DECL_MIN_CEILING_MIB == _canon_min,
+        "min_ceiling 이 정본과 일치 (가드 %s / 정본 %s)" % (DECL_MIN_CEILING_MIB, _canon_min))
+    # 폴백 리터럴은 tripwire — 정본이 움직이면 폴백 경로를 안 타도 여기서 빨간불이 켜진다.
+    chk(_DECL_FALLBACK["decl_margin_mib"] == _canon_margin
+        and _DECL_FALLBACK["decl_min_ceiling_mib"] == _canon_min,
+        "폴백 tripwire 가 정본과 일치(정본 이동 시 리뷰 강제)")
+
     env = {"agent_notify_s": 900.0, "agent_act_s": 300.0, "daemon_kill_s": 6.0,
            "kill_latency_max_s": 14.0, "kill_threshold_mib": 10240}
     lr = env["daemon_kill_s"] + env["kill_latency_max_s"] + LAST_RESORT_MARGIN_S   # 30.0
@@ -449,15 +501,29 @@ def _self_test() -> int:
     with tempfile.TemporaryDirectory() as td:
         with open(os.path.join(td, "serve_budget.env"), "w", encoding="utf-8") as fh:
             fh.write("floor_mib=45352\nexpires_epoch=9999999999\n")
-        chk(read_declared_ceiling_mib(td, now_epoch=1) == 45352 - DECL_MARGIN_MIB,
-            "선언 파싱 → floor - margin")
+        chk(read_declared_ceiling_mib(td, now_epoch=1) == 45352 - _canon_margin,
+            "선언 파싱 → floor - margin(**정본** margin)")
         chk(read_declared_ceiling_mib(td, now_epoch=9999999999) == INF, "TTL 만료 → INF")
         with open(os.path.join(td, "serve_budget.env"), "w", encoding="utf-8") as fh:
             fh.write("floor_mib=$(rm -rf /)\nexpires_epoch=9999999999\n")
         chk(read_declared_ceiling_mib(td, now_epoch=1) == INF, "주입 시도 → INF(거부)")
+        # 하한 가드는 **정본 min_ceiling** 기준이다. 종전 이 자리는 floor=20000 이 INF 라고
+        # 단언했는데, 그것은 가드가 리터럴 16384 를 쓰던 시절의 **결함을 시험이 굳힌** 것이다
+        # (정본 기준 20000-3072=16928 은 수락돼야 한다). 경계 양쪽을 정본에서 계산해 건다.
+        _lo_accept = _canon_min + _canon_margin          # 수락되는 최소 floor
+        for _floor, _want in ((_lo_accept - 1, INF), (_lo_accept, _canon_min)):
+            with open(os.path.join(td, "serve_budget.env"), "w", encoding="utf-8") as fh:
+                fh.write("floor_mib=%d\nexpires_epoch=9999999999\n" % _floor)
+            chk(read_declared_ceiling_mib(td, now_epoch=1) == _want,
+                "하한 가드 경계 floor=%d → %s" % (_floor, "INF" if _want == INF else _want))
+        # ★ 맹점 회귀(audit_26090109 ①). hy3 실측 바닥 13,801 은 **데몬이 수락하는** 선언이다.
+        #   가드가 리터럴 8192/16384 를 쓰던 동안 이 값은 INF 로 폐기됐고, 그 결과 ETA 규칙이
+        #   그대로 무장해 **정상 로드를 사살**했다. 데몬과 같은 답이 나와야 한다.
         with open(os.path.join(td, "serve_budget.env"), "w", encoding="utf-8") as fh:
-            fh.write("floor_mib=20000\nexpires_epoch=9999999999\n")
-        chk(read_declared_ceiling_mib(td, now_epoch=1) == INF, "상한<16384 → INF(하한 가드)")
+            fh.write("floor_mib=13801\nexpires_epoch=9999999999\n")
+        chk(read_declared_ceiling_mib(td, now_epoch=1) == 13801 - _canon_margin,
+            "맹점 회귀: floor=13801 → 데몬과 동일한 arm_ceiling(%d), INF 아님"
+            % (13801 - _canon_margin))
     chk(read_declared_ceiling_mib("/nonexistent") == INF, "선언 부재 → INF")
 
     # 시각: 앵커 + monotonic (벽시계 미사용)

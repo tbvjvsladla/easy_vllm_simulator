@@ -54,6 +54,24 @@ EXIT_GATE_VIOLATION = 5
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", "..", "..", ".."))
 SCHEMA_PATH = os.path.join(_HERE, "..", "sub_node", "library-exchange.schema.json")
+# ★ 2026-09-01 (audit_26090109 ②) — task-report 스키마는 존재했으나 저장소 전체에
+#   **로더가 0개**였다. 그 결과 receive() 는 dict 이기만 하면 무엇이든 통과시켰고,
+#   `phase` 오타 한 글자·`status` 대문자 하나로 `grounding_required` 가 False 가 되어
+#   **헌법 불변식 B 의 유일한 기계 집행점이 열렸다**. 검증기(completion_gate)도 스키마도
+#   이미 있었고 **연결만 없었다**.
+TASK_REPORT_SCHEMA_PATH = os.path.join(_HERE, "..", "sub_node", "task-report.schema.json")
+_task_report_schema_cache = None
+
+
+def load_task_report_schema(path=None):
+    global _task_report_schema_cache
+    if path is None and _task_report_schema_cache is not None:
+        return _task_report_schema_cache
+    with open(path or TASK_REPORT_SCHEMA_PATH, "r", encoding="utf-8") as handle:
+        schema = json.load(handle)
+    if path is None:
+        _task_report_schema_cache = schema
+    return schema
 COMPLETION_GATE_SCRIPT = os.path.join(
     REPO_ROOT, ".claude", "policies", "runtime", "completion_gate.py")
 
@@ -319,6 +337,23 @@ def receive(report, request=None, export=None, attestation=None, schema=None):
                        "(형태를 모르면 의무 여부도 모른다).")
         return out
 
+    # ★ 형태를 확인하기 전에는 의무를 판정하지 않는다(2026-09-01 · ②). `grounding_required`
+    #   는 `phase`·`status` 를 읽어 인용 의무를 정하는데, 그 두 필드가 스키마 밖 값이면
+    #   의무 판정 자체가 무의미하다 — 오타가 곧 면제가 된다.
+    try:
+        _tr_schema = load_task_report_schema(schema if isinstance(schema, str) else None)
+        _tr_problems = list(_cgate().validate_against_schema(report, _tr_schema))
+    except Exception as exc:                       # fail-loud: 검증할 수 없으면 통과시키지 않는다
+        violations.add("REPORT_SCHEMA_UNAVAILABLE",
+                       "task-report 스키마를 적용할 수 없다(%s: %s) — 수신은 fail-closed 다."
+                       % (type(exc).__name__, exc))
+        return out
+    if _tr_problems:
+        for _code, _msg in _tr_problems:
+            violations.add("REPORT_SCHEMA_INVALID",
+                           "task-report 스키마 위반[%s]: %s" % (_code, _msg))
+        return out
+
     required, reason = grounding_required(report)
     out["grounding_required"] = required
     out["obligation_reason"] = reason
@@ -520,8 +555,11 @@ def cmd_receive(args):
 # --------------------------------------------------------------------------------------
 def _self_test():
     failures = []
+    checks = []                    # 총계는 **파생**한다 — 손으로 적은 총계는 케이스를 더해도
+                                   # 조용히 옛 수를 보고한다(4종 판정표 하드코딩 '결함' 칸).
 
     def chk(name, cond, detail=""):
+        checks.append(name)
         print("%s %s%s" % ("PASS" if cond else "FAIL", name, "" if cond else " — %s" % detail))
         if not cond:
             failures.append(name)
@@ -681,11 +719,39 @@ def _self_test():
         rc["accepted"] is False and codes(rc["violations"]) == ["REPORT_UNREADABLE"],
         codes(rc["violations"]))
 
+    # ── ② 회귀: task-report 스키마 하드게이트 (2026-09-01 · audit_26090109 ②) ──────────
+    # 종전 receive() 는 dict 이기만 하면 통과시켰다. 그래서 `phase` 오타 한 글자로
+    # grounding_required 가 False 가 되고 accepted=True 가 나왔다 — **불변식 B 의 유일한
+    # 기계 집행점이 오타로 열린다**. 아래 케이스들이 그 문을 닫아 둔다.
+    _ok_report = {"task_id": "t-1", "node_id": "sub", "context_id": "c-1", "turn": 1,
+                  "phase": "build", "status": "completed",
+                  "self_verification": {"checks_run": ["import", "smoke"]}}
+    rc = receive(dict(_ok_report))
+    chk("★스키마 적합 build/completed → 의무 성립(GROUNDING_EXCHANGE_ABSENT)",
+        rc["grounding_required"] is True
+        and codes(rc["violations"]) == ["GROUNDING_EXCHANGE_ABSENT"],
+        codes(rc["violations"]))
+    for _label, _mut in (("phase 오타", {"phase": "buld"}),
+                         ("status 대소문자", {"status": "Completed"}),
+                         ("turn=0(minimum 위반)", {"turn": 0}),
+                         ("계약 밖 키", {"extra": "x"})):
+        _bad = dict(_ok_report); _bad.update(_mut)
+        rc = receive(_bad)
+        chk("★스키마 위반(%s) → REPORT_SCHEMA_INVALID · 의무 판정 안 함" % _label,
+            rc["accepted"] is False
+            and rc["grounding_required"] is None
+            and codes(rc["violations"]) == ["REPORT_SCHEMA_INVALID"],
+            codes(rc["violations"]))
+    rc = receive({})
+    chk("★빈 오브젝트 → REPORT_SCHEMA_INVALID(형태 모르면 의무도 모른다)",
+        rc["accepted"] is False and codes(rc["violations"]) == ["REPORT_SCHEMA_INVALID"],
+        codes(rc["violations"]))
+
     chk("agent 텍스트에서 리포트 추출(앞뒤 잡문 1회 관대)",
         _extract_report('말머리 {"phase": "serve"} 말꼬리', "x") == {"phase": "serve"})
     chk("추출 불가는 None(호출부 fail-closed)", _extract_report("no json here", "x") is None)
 
-    total = 30
+    total = len(checks)
     print("--- %d/%d PASS" % (total - len(failures), total))
     return 0 if not failures else 1
 
