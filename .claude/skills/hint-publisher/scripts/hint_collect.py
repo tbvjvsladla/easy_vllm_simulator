@@ -178,6 +178,43 @@ def discover_slots(repo: Path, topo: str, cfg: str) -> dict:
         for line in env_p.read_text(encoding="utf-8").splitlines():
             if line.strip().startswith("VARIANT="):
                 variant_id = line.split("=", 1)[1].strip()
+    # ── 바깥영역 확장 (2026-09-01 사용자 요청): 3+1+1 은 **서빙 시점**과 **패치** 평면만 덮는다.
+    #    이미지를 *어떻게 지었나*(Dockerfile·requirements)와 *어떻게 띄우나*(compose·env 형상)가
+    #    빠지면 재현 키트로 불완전하다. 슬롯이 아니라 **재현 자산**이므로 3+1+1 표를 늘리지 않고
+    #    별도 두 칸으로 둔다 — 헌법의 슬롯 분류를 흐리지 않기 위해서다.
+    wheel_track = True
+    env_text = env_p.read_text(encoding="utf-8") if env_p.is_file() else ""
+    for line in env_text.splitlines():
+        if line.strip().startswith("IMAGE_TAG="):
+            wheel_track = "-source" not in line
+    recipe_files = [out / "Dockerfile", out / "requirements.txt"]
+    if not wheel_track:
+        recipe_files.insert(1, out / "Dockerfile.source-build")
+    found_recipe = [f for f in recipe_files if f.is_file()]
+    slots["build_recipe"] = {
+        "phase": "build",
+        "owner": "upstream-version-watch",
+        "files": [str(f.relative_to(repo)) for f in found_recipe],
+        "present": bool(found_recipe),
+        "exemptible": False,   # 이미지를 지은 레시피 없이는 재현이 불가능하다
+        "track": "wheel" if wheel_track else "source-build",
+        "slot_confidence": "1-signal(file-presence)",
+    }
+    compose_files = [f for f in (out / "docker-compose.yaml", out / "docker-compose.yml")
+                     if f.is_file()]
+    slots["compose"] = {
+        "phase": "serve(orchestration)",
+        "owner": "upstream-version-watch",
+        "files": [str(f.relative_to(repo)) for f in compose_files],
+        "present": bool(compose_files),
+        "exemptible": False,   # 기동 방법 없이는 재현이 불가능하다
+        # 토폴로지 .env 는 **실물을 담지 않는다** — 운영자 절대경로(NAS·tiktoken)를 담기 때문이다.
+        # 대신 변수 **형상**만 템플릿으로 옮긴다(어떤 변수가 필요한지는 재현에 필수 정보다).
+        "topology_env_template_from": str((out / ".env").relative_to(repo))
+                                      if (out / ".env").is_file() else None,
+        "slot_confidence": "1-signal(file-presence)",
+    }
+
     slots["fork_pin"] = {
         "phase": "build",
         "owner": "upstream-version-watch",
@@ -189,6 +226,31 @@ def discover_slots(repo: Path, topo: str, cfg: str) -> dict:
         "slot_confidence": "3-signal(ledger+file+declaration)" if variant_id else "1-signal(absence)",
     }
     return slots
+
+
+def env_shape_template(text: str) -> str:
+    """토폴로지 `.env` 의 **형상만** 옮긴다 — 값은 플레이스홀더로 바꾼다.
+
+    그 파일은 운영자 절대경로(NAS 루트·tiktoken 경로)를 담고, 자기 주석이 스스로
+    *"gitignored(output/* — PII)"* 라고 적는다. 그러나 **어떤 변수가 필요한지**는 재현에
+    필수 정보다. 값을 지우고 형상을 남기는 것이 정답이며, 어디서 얻는지도 함께 적는다
+    (docs.md `request` §자제: 플레이스홀더 + 획득 방법).
+    """
+    out = ["# 이 파일은 **형상 템플릿**이다 — 값은 발행자 환경의 것이 아니라 플레이스홀더다.",
+           "# 각 값의 정본은 manifest 의 동명 필드다. 자기 환경 값으로 채워 쓰라.",
+           "# (원본은 배포되지 않는다 — 운영자 절대경로를 담기 때문이다.)", ""]
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        if not line or line.lstrip().startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        key = key.strip()
+        # 절대경로 값만 가린다. 그 외(태그·불리언 등)는 재현에 쓰이는 사실이므로 남긴다.
+        out.append(f"{key}=<manifest.{key.lower()}>" if val.strip().startswith("/")
+                   else f"{key}={val.strip()}")
+    return "\n".join(out) + "\n"
 
 
 # ---------------------------------------------------------------- 신호② 적용 증거
@@ -203,6 +265,11 @@ EVIDENCE_SOURCE = {
     "build_patch_pre": "build_patches_src/PROVENANCE.json",
     "build_patch_post": None,   # 컴파일 후 적용을 사후 관측할 공급원이 없다
     "fork_pin": "arch_variant_ledger.source_build_variants",
+    # 인증서가 측정한 이미지와 기동이 가리키는 이미지가 같은가 — 관측 가능하고 의미가 크다.
+    # 다르면 "재현지침이 다른 이미지를 띄운다"는 뜻이고, 그것이 벤치를 거짓말하게 만드는
+    # 가장 값싼 경로다(.env 주석이 이미 경고한다).
+    "build_recipe": "certificate.image_tag ↔ .env IMAGE_TAG",
+    "compose": "certificate.image_tag ↔ .env IMAGE_TAG",
 }
 
 
@@ -233,6 +300,17 @@ def evidence_signal(repo: Path, topo: str, slot: str, slots: dict, cert: dict) -
         except Exception:
             return False
         return bool(doc.get("counts", {}).get("files"))
+    if slot in ("build_recipe", "compose"):
+        want = cert.get("image_tag")
+        if not want:
+            return None
+        envrel = slots["triplet"]["files"].get("env_file")
+        if not envrel:
+            return None
+        for line in (repo / envrel).read_text(encoding="utf-8").splitlines():
+            if line.strip().startswith("IMAGE_TAG="):
+                return line.split("=", 1)[1].strip() == want
+        return False
     if slot == "fork_pin":
         vid = slots["fork_pin"].get("variant_id")
         if not vid:
@@ -412,9 +490,17 @@ def cmd_collect(a) -> int:
         take(v, "triplet")
     if slots["runtime_patch"]["present"]:
         take(slots["runtime_patch"]["files"]["patch_py"], "runtime_patch")
-    for key in ("build_patch_pre", "build_patch_post"):
+    for key in ("build_patch_pre", "build_patch_post", "build_recipe", "compose"):
         for rel in slots[key]["files"]:
             take(rel, key)
+    # 토폴로지 env 는 실물이 아니라 **형상 템플릿**으로 옮긴다(PII).
+    envsrc = slots["compose"].get("topology_env_template_from")
+    if envsrc:
+        tpl = out / "artifacts" / "compose" / "topology.env.template"
+        tpl.parent.mkdir(parents=True, exist_ok=True)
+        tpl.write_text(env_shape_template((repo / envsrc).read_text(encoding="utf-8")),
+                       encoding="utf-8")
+        copied.append(str(tpl.relative_to(out)))
 
     # 3항목 저작 스캐폴드 — 기계는 사실만 채우고 판단 자리는 마커로 남긴다
     def ev_rel(key: str) -> str | None:
@@ -597,6 +683,49 @@ def _run_self_test() -> int:
         ck("★음성대조 트리플렛 결손 검출",
            (not s3["triplet"]["present"]) and s3["triplet"]["missing"] == ["runner_sh"])
         (repo / "output" / "single" / "configs" / f"{cfg}.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+
+        # ── 바깥영역 확장: 빌드 레시피 · compose (2026-09-01 신설)
+        (repo / "output" / "single" / "Dockerfile").write_text("FROM x\n", encoding="utf-8")
+        (repo / "output" / "single" / "requirements.txt").write_text("vllm==1\n", encoding="utf-8")
+        (repo / "output" / "single" / "docker-compose.yaml").write_text("services: {}\n", encoding="utf-8")
+        (repo / "output" / "single" / ".env").write_text(
+            "# 주석\nNAS_MODEL_PATH=/mnt/llm/Model/x\nIMAGE_TAG=easy-vllm:1-wheel\n", encoding="utf-8")
+        env.write_text("IMAGE_TAG=easy-vllm:1-wheel\n", encoding="utf-8")
+        sx = discover_slots(repo, "single", cfg)
+        ck("build_recipe 발견(Dockerfile+requirements)",
+           sx["build_recipe"]["present"] and len(sx["build_recipe"]["files"]) == 2)
+        ck("wheel 트랙이면 source-build Dockerfile 미포함",
+           sx["build_recipe"]["track"] == "wheel"
+           and not any("source-build" in f for f in sx["build_recipe"]["files"]))
+        ck("compose 발견 + env 형상 출처 기록",
+           sx["compose"]["present"] and sx["compose"]["topology_env_template_from"].endswith(".env"))
+        ck("build_recipe·compose 는 면제 불가",
+           sx["build_recipe"]["exemptible"] is False and sx["compose"]["exemptible"] is False)
+
+        (repo / "output" / "single" / "Dockerfile.source-build").write_text("FROM y\n", encoding="utf-8")
+        env.write_text("IMAGE_TAG=easy-vllm:1-source-sm12x\n", encoding="utf-8")
+        sy = discover_slots(repo, "single", cfg)
+        ck("★source 트랙이면 source-build Dockerfile 포함",
+           sy["build_recipe"]["track"] == "source-build"
+           and any("source-build" in f for f in sy["build_recipe"]["files"]))
+        env.write_text("IMAGE_TAG=easy-vllm:1-wheel\n", encoding="utf-8")
+
+        # env 형상 템플릿 — 절대경로만 가리고 나머지는 남긴다
+        tpl = env_shape_template("# 주석\nNAS_MODEL_PATH=/mnt/llm/Model/x\n"
+                                 "IMAGE_TAG=easy-vllm:1-wheel\nTIKTOKEN_ENABLED=true\n")
+        ck("★env 템플릿이 운영자 절대경로를 가린다",
+           "/mnt/llm" not in tpl and "<manifest.nas_model_path>" in tpl)
+        ck("★env 템플릿이 비-경로 값은 남긴다",
+           "IMAGE_TAG=easy-vllm:1-wheel" in tpl and "TIKTOKEN_ENABLED=true" in tpl)
+        ck("env 템플릿에 원본 주석이 실리지 않는다", "주석" not in tpl)
+
+        # 신호② — 인증서 image_tag ↔ .env IMAGE_TAG
+        certx = {"image_tag": "easy-vllm:1-wheel", "serving_config": "demo"}
+        ck("★신호② 이미지 태그 일치 → 증거O",
+           evidence_signal(repo, "single", "compose", sx, certx) is True)
+        certy = {"image_tag": "easy-vllm:9-other", "serving_config": "demo"}
+        ck("★신호② 이미지 태그 불일치 → 증거X (재현지침이 다른 이미지를 띄운다)",
+           evidence_signal(repo, "single", "build_recipe", sx, certy) is False)
 
         # 인증서 파싱
         cert = t / "cert.yaml"
