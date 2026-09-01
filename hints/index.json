@@ -3,7 +3,7 @@
   "schema": 2,
   "source": "remote-derived",
   "remote": "git@github.com:tbvjvsladla/easy_vllm_simulator.git",
-  "generated_kst": "2026-09-01T19:55:00",
+  "generated_kst": "2026-09-01T20:25:00",
   "count": 63,
   "hints": [
     {
@@ -23,8 +23,8 @@
       "model": "gpt-oss-120b",
       "arch": "gb10-single",
       "brief": "0.19.1 prebuilt wheel 로 gpt-oss-120b(MXFP4)를 단일 GB10 에 서빙 — auto=TRITON_ATTN+MARLIN · 34.55 t/s(MBU 77.9%) · 성능 PASS · **이 태그의 archive 가 곧 페이로드다**",
-      "anchor": "f373c9f102242f95c9ec5e0685c1ea09cd43094c",
-      "object": "c85dfcffe6c4ef13c2f6e7f23ceaea66a56edebb",
+      "anchor": "fa4406aae0014eea5233095ad33859876d7b1aa3",
+      "object": "eab1a2d019c4bfd14197e1cde554f14e4ea7958b",
       "published": true,
       "source": "remote-derived"
     },
