@@ -296,12 +296,11 @@ def extract_edges(entries: list[dict[str, Any]], bodies: dict[str, str]) -> list
                 if tid:
                     add(sid, tid, "superseded-by", _cap(line.strip()))
 
-    # part-of: a source nested under another source's dir-node path
-    dir_nodes = [e for e in entries if e["document_type"] == "simlog"]
-    for e in entries:
-        for d in dir_nodes:
-            if e["source_id"] != d["source_id"] and e["source_path"].startswith(d["source_path"] + "/"):
-                add(e["source_id"], d["source_id"], "part-of", d["source_path"])
+    # 2026-09-03 (F-7): `part-of` 엣지 생성기를 제거했다 — **도달 불가한 죽은 코드**였다.
+    #   dir-node 모드(`iter_sources`)는 simlog run **디렉터리 하나만** 노드로 내보내고 그 안의
+    #   파일들은 entries 에 아예 들어오지 않는다. 그래서 "다른 소스의 dir-node 경로 아래에
+    #   중첩된 소스"라는 전제가 **정의상 성립할 수 없었고**, 이 루프는 항상 0개를 냈다.
+    #   simlog 참조는 `evidences` 엣지(위 SIMLOG_CITE_RE)가 이미 소유한다.
     # same-thread: identical topic_slug (best-effort, secondary)
     by_slug: dict[str, list[str]] = {}
     for e in entries:
@@ -380,7 +379,7 @@ def write_wiki(wiki_root: Path, answers: dict[str, Any], entries: list[dict[str,
 
     # edge graph
     eg = ["# Relationship Edge Graph (deterministic)", "",
-          f"> {len(edges)} edges over {len(entries)} sources. Types: cites/realizes/evidences/part-of/same-thread/superseded-by.",
+          f"> {len(edges)} edges over {len(entries)} sources. Types: cites/realizes/evidences/same-thread/superseded-by.",
           "> Every edge is grep-grounded (evidence token shown); no inference.", "",
           "| from | edge | to | evidence |", "|---|---|---|---|"]
     for e in sorted(edges, key=lambda x: (x["edge_type"], x["from"])):

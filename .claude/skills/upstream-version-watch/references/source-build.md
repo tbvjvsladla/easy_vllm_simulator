@@ -62,7 +62,7 @@
 
 | 출구 | 조건 | 처방 | 스탠자 |
 |---|---|---|---|
-| **① 상속(inherit)** | `axis_A == NO_IMPACT` ∧ `axis_B == NO_IMPACT` ∧ 전역 `verdict != UNDETERMINED` ∧ `unknown == []` ∧ **사람이 원장에 등재** | `INHERITED_SOURCE_BUILD_KEYS` 항목 + `resolved.json#upstream_delta` attestation | `[guard] … INHERITED from (ngc, vllm_old)` → 진행 |
+| **① 상속(inherit)** | `axis_A == NO_IMPACT` ∧ `axis_B.silent_revert_risk == []` ∧ 전역 `verdict != UNDETERMINED` ∧ `unknown == []` ∧ **사람이 원장에 등재** | `INHERITED_SOURCE_BUILD_KEYS` 항목 + `resolved.json#upstream_delta` attestation | `[guard] … INHERITED from (ngc, vllm_old)` → 진행 |
 | **② 시도-빌드(attempt)** | 전역 `verdict == IMPACT` 이고 사람이 명시 승인 | `render --allow-unvalidated` (WARN 강등 + testlog 의무) — §3 | `WARN: … UNVALIDATED` → 진행 |
 | **③ 발견(discovery)** | 전역 `verdict == UNDETERMINED` 또는 `UNKNOWN_PLANE` 존재 또는 판정 미실시 | 위 §3 HITL 발견 루프 | `ERROR: … NO validated patch set` → `exit 1` |
 
@@ -74,7 +74,13 @@
 - `attestation` 포인터가 `<경로>#upstream_delta` 형식
 - 렌더 입력 `resolved` 에 `upstream_delta` 블록이 실재하고 `provenance == "measured"`, `schema_version` 이 승인 목록 안
 - attestation 의 `from_ref → to_ref` 가 상속 주장 `vllm_old → vllm_new` 와 **일치** (다른 bump 의 증거 재활용 차단)
-- `axis_A`·`axis_B` 둘 다 `NO_IMPACT`, 전역 `verdict` 가 `UNDETERMINED` 아님, `unknown == []`
+- `axis_A` 가 `NO_IMPACT`, **`axis_B.silent_revert_risk == []`**, 전역 `verdict` 가 `UNDETERMINED` 아님, `unknown == []`
+  - B축 정지조건은 `axis_B.verdict` 가 **아니다**(2026-09-03 · `plan_26082112` U7 해소). 이식 트랙의
+    번들은 상류에 없는 내용을 의도적으로 가지므로 델타가 번들 스코프와 겹치기만 하면 `axis_B` 는
+    `IMPACT` 다 — verdict 를 정지조건으로 쓰면 출구①이 **정의상 도달 불가**가 되어 ②가 상시화된다.
+    위험분(`WOULD_REVERT`·`UNDETERMINED`)만 담는 `silent_revert_risk` 는 정상 재파생으로 비울 수
+    있으므로 도달 가능한 게이트가 된다(§5.3.1 정지조건과 같은 축). 필드가 **없으면 통과가 아니라
+    거부**다 — 리스트가 아니면 fail-closed.
 
 > **부적격 상속은 `--allow-unvalidated` 로 우회되지 않는다.** 그것은 *미검증 키*가 아니라 **원장 항목의 결함**이므로,
 > 처방은 증거를 고치거나(judge 재실행) 항목을 지우는 것이다(D3: 우회 말고 경로를 고친다). 항목이 **없으면 기본은

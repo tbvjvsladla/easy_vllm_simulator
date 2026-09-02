@@ -41,14 +41,13 @@
     },
     "artifacts": {
       "type": "array",
-      "description": "이 턴에 생성/변경한 산출물(A2A Artifact). 경로+sha256 로 자기-귀속. 메인은 이 목록으로 결과를 확인(디스크 재스캔 대신).",
+      "description": "이 턴에 생성/변경한 산출물(A2A Artifact). 경로+kind 로 자기-귀속한다 — **해시 필드는 없다**(2026-09-03: 무결성 단일권위 = 서브 로컬 git. `additionalProperties: false` 이므로 sha256 등을 적으면 스키마 위반이다). 메인은 이 목록으로 결과를 확인(디스크 재스캔 대신).",
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["path", "kind"],
         "properties": {
           "path": {"type": "string", "description": "workspace-상대 경로. 예: configs/<model>.yaml"},
-          "sha256": {"type": "string", "description": "파일 sha256(소문자 hex). 메인이 무결성 대조."},
           "kind": {"type": "string", "enum": ["triplet-yaml", "triplet-sh", "triplet-env", "image", "log", "report", "other"]}
         }
       }
@@ -85,16 +84,11 @@
         "checks_run": {
           "type": "array",
           "items": {"type": "string"},
-          "description": "실제로 돌린 검증 이름. 예: [identity, skills_loaded, permissions, config_parse, schema_valid, runner_syntax, checksum, smoke]"
+          "description": "실제로 돌린 검증 이름. 예: [identity, skills_loaded, permissions, config_parse, schema_valid, runner_syntax, smoke]"
         },
         "config_parse_ok": {"type": "boolean", "description": "생성/변경한 yaml·env 가 파싱되는가."},
         "schema_valid": {"type": "boolean", "description": "이 리포트 자신이 task-report.schema.json 에 유효한가(자기검증)."},
         "runner_syntax_ok": {"type": "boolean", "description": "serve_runner.sh 등 셸 문법(bash -n) 통과."},
-        "checksums": {
-          "type": "array",
-          "items": {"type": "object", "additionalProperties": false, "properties": {"path": {"type": "string"}, "sha256": {"type": "string"}}},
-          "description": "정본/산출물 무결성 대조용 sha256."
-        },
         "identity_ok": {"type": "boolean", "description": "(inspect) 페르소나가 자기 노드정체성을 정확히 로드했는가."},
         "delegation_acknowledged": {"type": "boolean", "description": "A2A 위임 키(.claude/a2a_delegation.json) 인지 echo — 메인이 위임 인가를 확인(plan_26063021_14_37 · A2A 패킷 루프 닫음). 서브 런타임블럭은 이 양성 키 하에 Flag 게이트 자동 면제(fail-closed). 키 부재면 false + status=input-required(메인이 terraforming --peer-ssh 로 검증·재발급)."},
         "skills_loaded": {"type": "array", "items": {"type": "string"}, "description": "(inspect) 로드 확인된 스킬(예: vllm-recipe-explorer)."},

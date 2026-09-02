@@ -54,6 +54,11 @@ ALLOWLIST=(
     .claude/skills
     .claude/schemas
     .claude/policies
+    # 추적 git 훅(2026-09-03 추가). `core.hooksPath` 설정은 `.git/config` 라 브랜치마다 갈리지
+    #   않지만 **훅 파일 자체는 추적물**이라 갈린다 — 한쪽 브랜치에서만 tripwire 가 도는 상태가
+    #   된다. ★ MIRROR_DIRS 에도 함께 넣는다(한쪽만 넣어 침묵 누락된 선례 3건: families.json ·
+    #   HINT_ISSUANCE_CONTRACT.md · assets).
+    .claude/hooks
     .gitignore
     manifest.template.yaml
     .gitattributes
@@ -93,6 +98,7 @@ MIRROR_DIRS=(
     .claude/skills
     .claude/schemas
     .claude/policies
+    .claude/hooks
     docs/report
     assets
     hints
@@ -349,8 +355,10 @@ done
 # ★ `docs/benchmark/benchmark_*.yaml` (2026-08-20 추가 · plan_26082017 W2-b): 인증서가 tracked
 #   예외로 승격되면서 이 열거에 빠지면 **같은 침묵 누락이 네 번째**가 된다(선례: families.json ·
 #   HINT_ISSUANCE_CONTRACT.md · legacy_v1_pins.json · docs/report). hint 태그는 git **태그**라
-#   브랜치와 무관하게 존재하는데, 그 footer 의 `certificate_sha256` 이 가리키는 인증서가 한쪽
-#   브랜치에만 있으면 **수신자가 어느 브랜치를 체크아웃했느냐에 따라 증거 대조가 갈린다.**
+#   브랜치와 무관하게 존재하는데, 그 footer 의 `certificate_ref` 가 가리키는 인증서가 한쪽
+#   브랜치에만 있으면 **수신자가 어느 브랜치를 체크아웃했느냐에 따라 증거 도달이 갈린다.**
+#   (2026-09-03 F-6a: footer 의 digest 3필드는 삭제됐고 참조 경로는 남았다 — 이 열거의 사유는
+#   digest 대조가 아니라 참조 대상의 존재 자체다.)
 #
 # ⚠ 의도적 비대칭: 인증서는 MIRROR_DIRS 에 **넣지 않는다**. hints/·assets/ 와 달리 인증서는
 #   측정 시점에 고정되는 **append-only 증거**다. 미러로 만들면 정본에 없는 = 반대 브랜치가
@@ -438,37 +446,53 @@ if [ "${#ROOT_RELOCATION_TOMBSTONES[@]}" -ne "${#ROOT_RELOCATION_REPLACEMENTS[@]
     echo "[sync-branches] FAIL: relocation tombstone/replacement cardinality drift." >&2
     exit 4
 fi
+# ── 2026-09-03 (F-1f · plan_26090222): git-대-git blob 대조 2건 제거 ──────────────
+# 이 루프는 예전에 세 층을 대조했다: ⓐ 정본 tree blob ↔ 인덱스 blob ⓑ 워킹트리 blob ↔ 정본 blob
+# ⓒ 파일시스템 모드 ↔ 기대 모드. 그런데 ⓐ·ⓑ 가 비교하는 네 값은 **모두 git 이 방금 스스로 쓴
+# 것**이다 — 바로 위 `git checkout "$SRC_BRANCH" -- "${PATHS[@]}"` 가 인덱스와 워킹트리를 정본
+# 트리에서 동시에 갱신했고, `set -euo pipefail` 이라 그 checkout 이 실패하면 여기 도달조차 못 한다.
+# 즉 ⓐ·ⓑ 는 git 이 이미 든 바이트를 손으로 옮겨적어 자기 자신과 대조하는 **중복 무결성층**이었다.
+#
+# ★ 그러나 ⓐ 에는 대조와 무관한 **진짜 불변식**이 하나 얹혀 있었다: "checkout 이 이 replacement
+#   경로를 정말 덮었는가". 경로가 allowlist 밖이면 인덱스는 옛 blob 을 든 채 남고 ⓐ 가 그것을
+#   잡았다. 그 불변식은 해시 대조 없이 **직접** 말하는 편이 정확하고 싸다 — 아래 커버리지 가드가
+#   그것이며, 변형 전에 판정하므로 검출 시점도 앞당겨진다.
+# KEEP: 존재 검사(정본에 replacement 가 있는가) · 모드 검사(파일시스템 모드는 git 이 exec 비트만
+#       들므로 중복이 아니다).
 for i in "${!ROOT_RELOCATION_REPLACEMENTS[@]}"; do
     replacement="${ROOT_RELOCATION_REPLACEMENTS[$i]}"
     tombstone="${ROOT_RELOCATION_TOMBSTONES[$i]}"
+    # 커버리지: replacement 는 위 checkout 의 pathspec(PATHS) 에 반드시 덮여야 한다.
+    #   ALLOWLIST 가 디렉터리 단위라 접두 일치로 판정한다(파일 열거가 아니다).
+    covered=0
+    for covering_path in "${PATHS[@]}"; do
+        case "$replacement" in
+            "$covering_path"|"$covering_path"/*) covered=1; break ;;
+        esac
+    done
+    if [ "$covered" != 1 ]; then
+        echo "[sync-branches] FAIL: relocation replacement is outside the checkout allowlist — the index would keep its stale blob: $replacement" >&2
+        exit 4
+    fi
     source_meta="$(git ls-tree "$SRC_BRANCH" -- "$replacement")"
     if [ -z "$source_meta" ]; then
         echo "[sync-branches] FAIL: source replacement missing before tombstone $tombstone: $replacement" >&2
         exit 4
     fi
     source_mode="${source_meta%% *}"
-    source_rest="${source_meta#* }"; source_rest="${source_rest#* }"; source_blob="${source_rest%%$'\t'*}"
-    index_meta="$(git ls-files -s -- "$replacement")"
-    index_mode="${index_meta%% *}"
-    index_rest="${index_meta#* }"; index_blob="${index_rest%% *}"
-    if [ "$source_mode" != "$index_mode" ] || [ "$source_blob" != "$index_blob" ]; then
-        echo "[sync-branches] FAIL: source→destination Git object/mode mismatch for $replacement" >&2
-        exit 4
-    fi
     case "$source_mode" in
         100755) expected_fs_mode=755 ;;
         100644) expected_fs_mode=644 ;;
         *) echo "[sync-branches] FAIL: unsupported replacement mode $source_mode: $replacement" >&2; exit 4 ;;
     esac
     chmod "$expected_fs_mode" "$replacement"
-    materialized_blob="$(git hash-object --no-filters -- "$replacement")"
     materialized_mode="$(stat -c '%a' -- "$replacement")"
-    if [ "$materialized_blob" != "$source_blob" ] || [ "$materialized_mode" != "$expected_fs_mode" ]; then
-        echo "[sync-branches] FAIL: materialized replacement byte/mode mismatch before tombstone $tombstone: $replacement" >&2
+    if [ "$materialized_mode" != "$expected_fs_mode" ]; then
+        echo "[sync-branches] FAIL: materialized replacement mode mismatch before tombstone $tombstone: $replacement (got $materialized_mode, want $expected_fs_mode)" >&2
         exit 4
     fi
 done
-echo "[sync-branches] relocation replacements verified: canonical→index→materialized bytes/modes PASS"
+echo "[sync-branches] relocation replacements verified: allowlist coverage → canonical presence → materialized mode PASS"
 
 # Deletions are deliberately last: no historical fallback disappears until every relocated owner
 # replacement above has passed canonical byte and exact-mode validation.

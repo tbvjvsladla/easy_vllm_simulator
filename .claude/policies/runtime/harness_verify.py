@@ -13,7 +13,7 @@ stdlib-only (argparse/datetime/subprocess/sys) -- no PyYAML, no jsonschema, no r
 
 Usage:
     python3 .claude/policies/runtime/harness_verify.py --as-of YYYY-MM-DD
-        [--registry PATH] [--schema PATH] [--evidence-manifest PATH] [--repo-root PATH]
+        [--registry PATH] [--schema PATH] [--claim-bindings PATH] [--repo-root PATH]
 
 Exit codes:
     0  both stages passed.
@@ -77,10 +77,6 @@ def _parse_args(argv: list) -> argparse.Namespace:
 
     ap.add_argument("--registry", default=None, help="passthrough to policy_registry.py verify --registry")
     ap.add_argument("--schema", default=None, help="passthrough to policy_registry.py verify --schema")
-    ap.add_argument("--evidence-manifest", default=None,
-                     help="passthrough to policy_registry.py verify --evidence-manifest")
-    ap.add_argument("--tracked-index", default=None,
-                     help="passthrough to policy_registry.py verify --tracked-index")
     ap.add_argument("--claim-bindings", default=None,
                      help="passthrough to policy_registry.py verify --claim-bindings")
     ap.add_argument("--repo-root", default=None, help="passthrough to policy_registry.py verify --repo-root")
@@ -93,10 +89,6 @@ def run_policy_audit(args: argparse.Namespace) -> int:
         cmd += ["--registry", args.registry]
     if args.schema:
         cmd += ["--schema", args.schema]
-    if args.evidence_manifest:
-        cmd += ["--evidence-manifest", args.evidence_manifest]
-    if args.tracked_index:
-        cmd += ["--tracked-index", args.tracked_index]
     if args.claim_bindings:
         cmd += ["--claim-bindings", args.claim_bindings]
     if args.repo_root:

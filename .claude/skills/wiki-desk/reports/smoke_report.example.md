@@ -5,7 +5,7 @@
 
 ## Init
 
-- sources: 70 · edges: 151 (cites/realizes/evidences/part-of/same-thread) · raw_copy: false
+- sources: 70 · edges: 151 (cites/realizes/evidences/same-thread) · raw_copy: false
 
 ## A. Direct lookup (path-reference accuracy + edge)
 

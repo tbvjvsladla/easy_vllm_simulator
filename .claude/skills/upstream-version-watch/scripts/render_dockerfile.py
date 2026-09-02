@@ -236,9 +236,19 @@ def _inherit_eligibility(ngc_tag: str, vllm_version: str, entry, resolved):
        f"{(base_t[1] if base_t and len(base_t) == 2 else '?')}->{vllm_version} 와 불일치")
 
     ax_a = (att.get("axis_A_build_input") or {}).get("verdict")
-    ax_b = (att.get("axis_B_port_scope") or {}).get("verdict")
+    ax_b_block = att.get("axis_B_port_scope") or {}
+    ax_b = ax_b_block.get("verdict")
     ck("axis_A_no_impact", ax_a == "NO_IMPACT", f"axis_A={ax_a!r} (NO_IMPACT 필요)")
-    ck("axis_B_no_impact", ax_b == "NO_IMPACT", f"axis_B={ax_b!r} (NO_IMPACT 필요)")
+    # B축 정지조건은 `verdict == NO_IMPACT` 가 아니라 **`silent_revert_risk == []`** 다
+    # (plan_26082112 §5.2 U7 해소 · §5.3.1 정정). 이식 트랙의 번들은 상류에 없는 내용을 의도적으로
+    # 가지므로 델타가 번들 스코프와 겹치기만 하면 axis_B 는 IMPACT 다 — verdict 를 정지조건으로 쓰면
+    # 게이트가 정의상 도달 불가가 되고, 도달 불가능한 게이트는 게이트가 아니라 우회 유인이다.
+    # 위험분(WOULD_REVERT·UNDETERMINED)만 담는 `silent_revert_risk` 는 정상 재파생으로 비울 수 있다.
+    # 키 부재(None)는 통과가 아니다 — 리스트가 아니면 fail-closed(침묵 폴백 금지).
+    srr = ax_b_block.get("silent_revert_risk")
+    ck("axis_B_no_silent_revert", isinstance(srr, list) and not srr,
+       f"axis_B.silent_revert_risk={srr!r} — 빈 리스트여야 한다"
+       f"(axis_B.verdict={ax_b!r}; WOULD_REVERT/UNDETERMINED 프로브가 남아 있거나 필드가 없다)")
 
     gv = att.get("verdict")
     ck("global_verdict", gv in ("NO_IMPACT", "IMPACT"),
@@ -420,9 +430,15 @@ def _patch_guard(ngc_tag: str, vllm_version: str, resolved: dict | None = None,
         base_s = f"{tuple(base)}" if isinstance(base, (tuple, list)) else repr(base)
         if ok:
             ax_c = (att.get("axis_C_model_path") or {}).get("verdict")
+            # 판정 근거는 att 에서 파생한다 — 하드코딩하면 술어가 바뀐 뒤 빌드 로그가 거짓을 찍는다.
+            _axa = (att.get("axis_A_build_input") or {}).get("verdict")
+            _axb_blk = att.get("axis_B_port_scope") or {}
+            _basis = (f"axis_A={_axa} axis_B={_axb_blk.get('verdict')}"
+                      f"(silent_revert_risk={len(_axb_blk.get('silent_revert_risk') or [])}) "
+                      f"unknown={len(att.get('unknown') or [])}")
             return (
                 'RUN echo "[guard] source-build key (' + ngc_tag + ' x vLLM ' + vllm_version + '): INHERITED from ' + _echo_safe(base_s) + '." && \\\n'
-                '    echo "  -> basis: upstream_delta ' + _echo_safe(f"{att.get('from_ref')}->{att.get('to_ref')}") + ' verdict=' + _echo_safe(att.get("verdict")) + ' axis_A=NO_IMPACT axis_B=NO_IMPACT unknown=0" && \\\n'
+                '    echo "  -> basis: upstream_delta ' + _echo_safe(f"{att.get('from_ref')}->{att.get('to_ref')}") + ' verdict=' + _echo_safe(att.get("verdict")) + ' ' + _echo_safe(_basis) + '" && \\\n'
                 '    echo "  -> attestation: ' + _echo_safe(entry.get("attestation")) + ' (judge_version_delta.py · provenance=' + _echo_safe(att.get("provenance")) + ' · delta_source=' + _echo_safe(att.get("delta_source")) + ')" && \\\n'
                 '    echo "  -> approved_by: ' + _echo_safe(entry.get("approved_by")) + ' @ ' + _echo_safe(entry.get("approved_kst")) + ' (HITL 게이트 G1.6 — 이 항목은 사람이 손으로 등재했다. Judge 는 가드를 넓히지 않는다)" && \\\n'
                 '    echo "  -> scope: 상속되는 것은 **빌드 키**(패치 셋 적용가능성)뿐이다. 기능 판정 아님 — axis_C=' + _echo_safe(ax_c) + '." && \\\n'
@@ -785,7 +801,9 @@ def _synthetic_attestation(**over) -> dict:
         "from_ref": "v" + _INHERIT_BASE[1], "to_ref": "v" + _INHERIT_KEY[1],
         "provenance": "measured", "delta_source": "git-local",
         "axis_A_build_input": {"verdict": "NO_IMPACT"},
-        "axis_B_port_scope": {"verdict": "NO_IMPACT"},
+        # judge_version_delta.axis_b() 는 항상 `probes`(전체)와 `silent_revert_risk`(위험분만)를
+        # 함께 싣는다 — 상속 술어가 후자를 읽으므로 픽스처도 실물과 같은 모양이어야 한다.
+        "axis_B_port_scope": {"verdict": "NO_IMPACT", "probes": [], "silent_revert_risk": []},
         "axis_C_model_path": {"verdict": "NOT_IMPLEMENTED"},
         "verdict": "NO_IMPACT", "unknown": [],
     }
@@ -831,6 +849,20 @@ def _inherit_self_test(tpl: str, man: dict) -> None:
     _require("arbiter = smoke" in ok_out, "상속 스탠자에 스모크 불변 문구 누락")
     _require("axis_C=NOT_IMPLEMENTED" in ok_out, "상속 스탠자가 axis_C 미구현 사실을 숨김")
     _require("approved_by: self-test" in ok_out, "상속 스탠자에 G1.6 승인자 미기재")
+    _require("silent_revert_risk=0" in ok_out,
+             f"상속 스탠자의 basis 가 att 에서 파생되지 않음(하드코딩 회귀):\n{ok_out}")
+
+    # 양성 대조 ② — U7 해소의 본체. axis_B.verdict 가 IMPACT 여도 **위험분이 0건이면** 상속이 성립한다.
+    #   (이 대조가 없으면 F-4e 교정이 배선됐는지 '도는 것'으로 증명되지 않는다 — 옛 술어라면 여기서 exit 1.)
+    ok_b = render_with(led, _synthetic_attestation(
+        axis_B_port_scope={"verdict": "IMPACT",
+                           "probes": [{"path": "vllm/x.py", "verdict": "NO_REVERT"}],
+                           "silent_revert_risk": []},
+        verdict="IMPACT"))
+    _require("INHERITED from" in ok_b and "exit 1" not in ok_b,
+             f"양성 대조② 실패 — axis_B=IMPACT ∧ silent_revert_risk=[] 인데 상속 거부:\n{ok_b}")
+    _require("axis_B=IMPACT(silent_revert_risk=0)" in ok_b,
+             f"양성 대조② 실패 — basis 가 실제 axis_B 상태를 숨김:\n{ok_b}")
 
     # N4 — attestation **없이** 상속 시도 → exit 1
     n4 = render_with(led, None)
@@ -851,7 +883,13 @@ def _inherit_self_test(tpl: str, man: dict) -> None:
 
     # 추가 음성 — 상속 술어의 나머지 성립조건이 각각 실제로 가드한다.
     neg = {
-        "axis_B=IMPACT(이식 재파생 필요)": (led, _synthetic_attestation(
+        "axis_B.silent_revert_risk 비지 않음(재파생 필요)": (led, _synthetic_attestation(
+            axis_B_port_scope={"verdict": "IMPACT",
+                               "probes": [{"path": "vllm/x.py", "verdict": "WOULD_REVERT"}],
+                               "silent_revert_risk": [{"path": "vllm/x.py",
+                                                       "verdict": "WOULD_REVERT"}]},
+            verdict="IMPACT")),
+        "axis_B 에 silent_revert_risk 필드 자체가 없음": (led, _synthetic_attestation(
             axis_B_port_scope={"verdict": "IMPACT"}, verdict="IMPACT")),
         "attestation 이 다른 bump 의 것": (led, _synthetic_attestation(from_ref="v0.1.0")),
         "provenance=mock(실측 아님)": (led, _synthetic_attestation(provenance="mock")),
@@ -882,7 +920,7 @@ def _inherit_self_test(tpl: str, man: dict) -> None:
         _require(tuple(e["inherits"]) in VALIDATED_SOURCE_BUILD_KEYS,
                  f"INHERITED 항목 {k!r} 의 상속원 {e['inherits']!r} 이 VALIDATED 에 없음(체인 금지)")
 
-    print(f"[render] inherit self-test OK — 출구① 상속 양성1 + 음성{2 + 2 + len(neg)}건"
+    print(f"[render] inherit self-test OK — 출구① 상속 양성2(NO_IMPACT·IMPACT∧위험0) + 음성{2 + 2 + len(neg)}건"
           f"(N4 무증거·N5 UNDETERMINED 포함) 전부 fail-closed · 원장 항목 "
           f"{len(INHERITED_SOURCE_BUILD_KEYS)}건 자기정합")
 

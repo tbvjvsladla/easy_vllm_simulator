@@ -42,6 +42,10 @@
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C8",
           "statement": "The vllm-recipe-explorer owner-local cleanup_docker.py reclaims docker image/cache debris: it always prints a dry-run table of deletion candidates against a deterministic preserve-set first, and only deletes once a human explicitly re-invokes it with --apply; it is never a periodic/scheduled job -- its trigger points are the end of a version-bump S4 commit step and an end-of-session human query."
+        },
+        {
+          "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C9",
+          "statement": "Removal of the legacy host-safety installation is a separate, non-installing script (node_blackbox/purge_host_safety.sh) so no node is ever left in a partially applied purge-plus-reinstall state: it defaults to dry-run and destroys only when a human re-invokes it with --apply as root; it refuses to run before the Phase 0 journal harvest unless the operator explicitly waives the gate with --no-require-seed or names a stored seed with --seed-dir, because the mem_watchdog journal is the envelope's only initial data and is unrecoverable once the unit is removed and its journal vacuumed; every destructive step propagates its rc into a single FAIL verdict so a failed removal can never print a clean purge verdict that a reinstall would then build on; stray narrow-scope watchdog processes are terminated by PID resolved through argv field anchors only, never by a blanket pgrep -f/pkill -f match; and the GRUB config is copied to a verified backup before regeneration, with residue judged only from a readable grub.cfg -- an unreadable file is reported as undecidable, never as clean."
         }
       ],
       "evidence": [
@@ -209,10 +213,24 @@
             "HOST_SAFETY_LAYERED_DEFENSE.C7"
           ],
           "assertion_ids": [
-            "LEVEL",
             "APPLY",
-            "say",
-            "run"
+            "CKS_NOW",
+            "LEVEL",
+            "_KL",
+            "_PP_BAD",
+            "_PS_EN",
+            "run",
+            "say"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C6"
+          ],
+          "assertion_ids": [
+            "SUDOERS_F",
+            "TARGET_USER"
           ]
         },
         {
@@ -227,11 +245,36 @@
             "ok",
             "bad"
           ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/node_blackbox/purge_host_safety.sh",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C9"
+          ],
+          "assertion_ids": [
+            "APPLY",
+            "GRUB_BAK",
+            "REQUIRE_SEED",
+            "_gone",
+            "run",
+            "verify_pkg_absent",
+            "verify_sysctl",
+            "wd_pids"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C9"
+          ],
+          "assertion_ids": [
+            "predicate_HOST_SAFETY_LAYERED_DEFENSE_C9"
+          ]
         }
       ],
       "remove_when": "Removable only via an HITL-approved superseding plan that documents a replacement host-hard-down defense mechanism for unified-memory nodes (e.g. a kernel-level cgroup memory ceiling that makes the userspace watchdog redundant), verified by a repeat of the DSpark stress-gate scenario that originally motivated this policy.",
       "added_at": "2026-07-25",
-      "last_reproduced": null,
+      "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
         "state": "current",
@@ -316,7 +359,7 @@
       ],
       "remove_when": "Removable only if the project drops per-node image-variant builds entirely (e.g. a future registry-push-based distribution model replaces node-local compose build), documented in a superseding plan and re-verified against a live multi-node variant smoke.",
       "added_at": "2026-07-25",
-      "last_reproduced": null,
+      "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
         "state": "current",
@@ -392,7 +435,7 @@
       ],
       "remove_when": "Removable only if the TP slave role is redesigned to consume per-model config directly (a structural change to the Band2/Band3 split), documented in a superseding plan and re-verified by a live multi-node TP serve.",
       "added_at": "2026-07-25",
-      "last_reproduced": null,
+      "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
         "state": "current",
@@ -430,7 +473,7 @@
         },
         {
           "clause_id": "HINT_TAG_ACTIVATION_GATE.C5",
-          "statement": "Push is selective (refs/tags/hint/* only, --tags is forbidden) specifically to prevent local last-good-* rollback tags from leaking to a public origin."
+          "statement": "Push is selective -- the refspec is the literal refs/tags/hint/* and --tags is forbidden -- so no ref outside the hint namespace can reach a public origin. The guard that makes this structural lives in cmd_push: any --tag outside the hint/ namespace is refused, so the rendered refspec can never widen to refs/tags/* and carry local refs outward. The rollback anchor is a local COMMIT, never a tag (2026-09-03 correction; the GIT_SINGLE_AUTHORITY tripwire forbids a last-good-* tag from existing at all), and the origin-side last-good-* existence scan cmd_verify used to carry was deleted in the same correction -- it asserted a condition about a tag this repo never creates."
         },
         {
           "clause_id": "HINT_TAG_ACTIVATION_GATE.C6",
@@ -514,7 +557,7 @@
       ],
       "remove_when": "Removable only if the hint-tag distribution layer itself is retired in favor of a different recipe-sharing mechanism, documented in a superseding plan and re-verified against the existing hints/index.json contract.",
       "added_at": "2026-07-25",
-      "last_reproduced": null,
+      "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
         "state": "current",
@@ -598,7 +641,7 @@
       ],
       "remove_when": "Removable only if local git commits stop being the system of record for deployability (e.g. a future promotion-manifest-only rollback model fully replaces commit-based anchoring), documented in a superseding plan.",
       "added_at": "2026-07-25",
-      "last_reproduced": null,
+      "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
         "state": "current",
@@ -729,7 +772,7 @@
       ],
       "remove_when": "Removable only if the manifest model_source ternary is replaced by a different acquisition-policy model, documented in a superseding plan and re-verified against the model-acquisition decision tree's three exit branches.",
       "added_at": "2026-07-25",
-      "last_reproduced": null,
+      "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
         "state": "current",
@@ -821,7 +864,7 @@
       ],
       "remove_when": "Removable only if vLLM's own KV-cache sizing contract changes such that gpu-memory-utilization becomes sufficient on its own for portable, safe sizing across heterogeneous target GPUs, documented in a superseding plan and re-verified by a fresh host-to-target KV trial.",
       "added_at": "2026-07-25",
-      "last_reproduced": null,
+      "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
         "state": "current",
@@ -939,7 +982,7 @@
       ],
       "remove_when": "Removable only if the project adopts per-model derived images as the sanctioned distribution unit (a reversal of the image-naming invariant), documented in a superseding plan and re-verified against a live runtime-patch serve.",
       "added_at": "2026-07-25",
-      "last_reproduced": null,
+      "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
         "state": "current",
@@ -1029,7 +1072,7 @@
       ],
       "remove_when": "Removable only if the main-to-sub delivery mechanism is redesigned around a conflict-free merge model that makes dirty-tree rejection unnecessary, documented in a superseding plan and re-verified by a live dirty-sub delivery attempt.",
       "added_at": "2026-07-25",
-      "last_reproduced": null,
+      "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
         "state": "current",
@@ -1104,7 +1147,7 @@
       ],
       "remove_when": "Removable only if sub nodes are given a sanctioned path back to a shared remote (a structural change to the main/sub topology's trust model), documented in a superseding plan and re-verified by a live sub-node git audit.",
       "added_at": "2026-07-25",
-      "last_reproduced": null,
+      "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
         "state": "current",
@@ -1233,7 +1276,7 @@
       ],
       "remove_when": "Removable only if the init/runtime two-mode gate is replaced by a different completion-attestation contract, documented in a superseding plan and re-verified against both the deterministic script gate and the persona redirect behavior.",
       "added_at": "2026-07-25",
-      "last_reproduced": null,
+      "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
         "state": "current",
@@ -1351,7 +1394,7 @@
       ],
       "remove_when": "Removable only if the A2A trust model is redesigned around a different credential scheme, documented in a superseding plan and re-verified by a live key-present / key-absent A2A delegation test on heterogeneous and homogeneous hardware.",
       "added_at": "2026-07-25",
-      "last_reproduced": null,
+      "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
         "state": "current",
@@ -1477,7 +1520,7 @@
       ],
       "remove_when": "Removable only if stock vLLM upstream closes the underlying arch-wall class this ladder exists to work around (verified by a clean stock build/smoke on the previously-walled architecture), documented in a superseding plan.",
       "added_at": "2026-07-25",
-      "last_reproduced": null,
+      "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
         "state": "current",
@@ -1485,6 +1528,75 @@
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",
         "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
+      }
+    },
+    {
+      "policy_id": "GIT_SINGLE_AUTHORITY",
+      "owner": "upstream-version-watch",
+      "statement": "Git is the single authority over the bytes it already carries: an integrity digest or a copy belongs only where git does NOT carry the bytes, recovery is git history plus regeneration rather than a side copy, and reproducibility is proven by rebuild+smoke rather than by comparing one transcription of git against another.",
+      "scope": [
+        "multi-node",
+        "single-node"
+      ],
+      "origin_failure": "2026-09-01/03 full audit (docs/report/audit_26090121_해시_버전매칭_무결성_과잉_전수감사.md, plan_26090222): duplicated integrity layers had accumulated over git itself -- a tracked_index transcribing git blob sha1s, an evidence_manifest transcribing sha256s of the same tracked files, and a governed_prose_snapshot transcribing four prose digests. Every one of them re-stated a fact git already held, so the two copies could (and did) drift apart silently, and the recorded remedy for drift was to re-stamp the transcription rather than to ask git. The same habit produced backup artifacts (.bak/.orig copies, backup branches and folders) that git history already made unnecessary while hiding them from `git status` via ignore lines.",
+      "clauses": [
+        {
+          "clause_id": "GIT_SINGLE_AUTHORITY.C1",
+          "statement": "Backup practice is forbidden outright rather than hidden: no path whose name carries a `.bak`/`.orig` suffix or a `backup`/`백업` token may exist in the working tree, `.gitignore` may not carry `*.bak`/`*.orig` lines that would hide such a path from `git status`, `refs/heads` must stay a subset of {single-node, multi-node, hint}, and every tag must live under the `hint/` prefix -- a last-good anchor is a commit, never a tag or a branch of its own."
+        },
+        {
+          "clause_id": "GIT_SINGLE_AUTHORITY.C2",
+          "statement": "No tracked .json/.yaml/.yml file may restate a digest of bytes git already carries: the check is a derived predicate over the live tracked-blob digest set (git blob sha1 union sha256) with no allowlist, so a constant that moves file or a newly created file is still caught. Digests of inputs git does NOT carry -- upstream source payloads, fork pins, commit/tag object ids -- are outside the predicate's reach by construction, not exempted from it."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/policies/runtime/runtime_selftest.py",
+          "supports": [
+            "GIT_SINGLE_AUTHORITY.C1"
+          ],
+          "assertion_ids": [
+            "_test_no_backup_artifacts"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "GIT_SINGLE_AUTHORITY.C1"
+          ],
+          "assertion_ids": [
+            "predicate_GIT_SINGLE_AUTHORITY_C1"
+          ]
+        },
+        {
+          "path": ".claude/policies/runtime/runtime_selftest.py",
+          "supports": [
+            "GIT_SINGLE_AUTHORITY.C2"
+          ],
+          "assertion_ids": [
+            "_test_no_tracked_digest_rewrite"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "GIT_SINGLE_AUTHORITY.C2"
+          ],
+          "assertion_ids": [
+            "predicate_GIT_SINGLE_AUTHORITY_C2"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if git stops being the system of record for this project's tracked bytes -- for example a future model where deployability is anchored in an external content-addressed store rather than in local commits -- documented in a superseding plan that also names what replaces the two tripwires.",
+      "added_at": "2026-09-03",
+      "last_reproduced": "2026-09-03",
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-09-03",
+        "next_review_due": "2026-12-02",
+        "reviewer": "maintainer",
+        "reason": "Added 2026-09-03. Both tripwires are wired and green on this clone, and a dated reproduction was captured the same day: deliberate RED injection on the live working tree for tripwire (1) stray .bak, an out-of-set branch and a non-hint tag, tripwire (2) a tracked-blob digest constant written into a tracked JSON in both lower and upper case, and tripwire (3) a retired mechanism name in governed prose, each followed by byte-exact restore (see docs/testlog/testlog_26090306). Kept candidate rather than active because the executor layer is WARN-only on clones that have not set core.hooksPath; promotion waits for the next full single/multi E2E, which is already a recorded follow-up."
       }
     }
   ]

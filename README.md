@@ -539,10 +539,8 @@ L3 는 헌법이 **집행 가능해지는** 층입니다. 구성은 이렇습니
 | `claim_bindings.json` | ★ **조항 → 코드 바인딩** — 조항 하나하나가 실제 파일 경로 + `assertion_id` 로 묶인다 |
 | `predicates/` | **판정 술어 3종** — 조항 준수 여부를 기계가 판정하는 함수 |
 | `runtime/` | **런타임 게이트 8종** — `completion_gate` · `evidence_publisher` · `harness_verify` · `verify_distribution` 등 |
-| `governed_prose_snapshot.json` | ★ **헌법 산문의 변경 감지 tripwire** — `CLAUDE.md` · `workflow.md` · `docs.md` · `references.md` |
-| `tracked_index.json` | 배포 추적물 86건의 무결성 기준 (git index = provenance 권위) |
 | `arch_variant_ledger.json` | arch-wall 변종 좌표 원장 (§2-2) |
-| `evidence_manifest.json` · `provenance/` | 조항이 근거로 삼은 승인 문서·증거 |
+| `provenance/` | 조항이 근거로 삼은 승인 문서·증거 |
 ---
 
 ### 6-1. 이해는 검증이 아니라 참여를 위한 것

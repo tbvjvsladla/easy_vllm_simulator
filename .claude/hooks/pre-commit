@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# 추적 pre-commit 훅 — 활성화는 `git config core.hooksPath .claude/hooks` 1회.
+#
+# 왜 추적 디렉터리인가: `.git/hooks` 는 클론에 실리지 않는다. 훅을 배포 대상 빌딩블럭으로
+# 만들려면 추적 경로에 두고 hooksPath 로 가리켜야 한다. 그 설정 자체는 `.git/config` 라
+# 비추적이므로 `runtime_selftest.py::_test_tripwire_executor_wiring` 이 설정 여부를 자기검사한다
+# (미설치 클론에서는 FAIL 이 아니라 WARN).
+#
+# 범위: 병목이므로 **tripwire 3종만** 돈다(1초 예산). 전체 셀프테스트는 harness_verify /
+# verify_distribution 이 돌린다. hint 페이로드 커밋(`git commit-tree`)은 훅을 타지 않는다 —
+# 의도된 것이다(페이로드는 워킹트리 상태가 아니라 태그 오브젝트 평면이다).
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+selftest="$repo_root/.claude/policies/runtime/runtime_selftest.py"
+
+if [ ! -f "$selftest" ]; then
+    printf '[pre-commit] runtime_selftest.py 부재 — tripwire 를 실행할 수 없다: %s\n' \
+        "$selftest" >&2
+    exit 1
+fi
+
+if ! python3 "$selftest" --tripwires-only; then
+    printf '[pre-commit] tripwire FAIL — 커밋을 거부한다. 우회(--no-verify)하지 말고 원인을 고쳐라(D3).\n' >&2
+    exit 1
+fi

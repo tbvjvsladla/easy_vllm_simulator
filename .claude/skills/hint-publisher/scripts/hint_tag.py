@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
-import hashlib
 import json
 import os
 import re
@@ -204,29 +203,33 @@ def _require_promotion_authorization(cmd: str, manifest_path: str) -> None:
 #   tag: hint/<vllm>/<model>/<arch>
 #   topology: <exact --topology string the hint command was invoked with>
 #   anchor: <full 40-hex commit SHA>
-#   manifest_sha256: <sha256 of the EXACT --manifest file bytes, at finalize time>
-#   identity_sha256: <sha256 of the canonical (sorted, compact-JSON) 6-key strong identity>
 #   manifest_ref: <normalized repo-relative manifest path; re-opened and revalidated by every global command>
-#   certificate_sha256: <sha256 of the certificate artifact file bytes, at finalize time>
-#   certificate_ref: <manifest-relative certificate path; re-opened and digest-checked>
+#   certificate_ref: <manifest-relative certificate path; re-opened and revalidated>
 #   -->
 #
-# All 9 fields are required whenever the block is present at all -- no duplicates, no unrecognized
-# keys, no malformed anchor/digest formats. Missing the block entirely (a historical/unmigrated
-# tag) and a present-but-malformed block are two DISTINCT, stable reason codes.
+# All 6 fields are required whenever the block is present at all -- no duplicates, no unrecognized
+# keys, no malformed anchor format. Missing the block entirely (a historical/unmigrated tag) and a
+# present-but-malformed block are two DISTINCT, stable reason codes.
+#
+# 2026-09-03 (plan_26090222 F-6a): the three content digests (`manifest_sha256`, `identity_sha256`,
+# `certificate_sha256`) were REMOVED -- v1 has no backward-compatible reading of a 9-field block.
+# Rationale: the footer's job is to BIND a tag to its evidence *address* (which file, which commit),
+# not to re-implement content integrity. `anchor` already pins the exact commit git itself hashes,
+# and every referenced path is re-opened + re-validated from ROOT on each read; a hand-carried
+# digest beside it is a second authority that can only drift from the first. The digests also
+# pointed at `docs/_evidence/*.work-manifest.json`, which is untracked and therefore absent in a
+# recipient clone -- so they were unverifiable exactly where the footer travels to.
 
 _FOOTER_MARKER_OPEN = "<!-- hint-evidence-binding:v1"
 _FOOTER_MARKER_CLOSE = "-->"
 _FOOTER_FIELDS = (
-    "version", "tag", "topology", "anchor", "manifest_sha256", "identity_sha256",
-    "manifest_ref", "certificate_sha256", "certificate_ref",
+    "version", "tag", "topology", "anchor", "manifest_ref", "certificate_ref",
 )
 _FOOTER_BLOCK_RE = re.compile(
     re.escape(_FOOTER_MARKER_OPEN) + r"\s*\n(?P<body>.*?)\n" + re.escape(_FOOTER_MARKER_CLOSE),
     re.S,
 )
 _FOOTER_LINE_RE = re.compile(r"^([a-z0-9_]+): (.*)$")
-_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _FULL_ANCHOR_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -287,10 +290,6 @@ def _parse_evidence_footer(body: str) -> dict[str, str]:
     if not _FULL_ANCHOR_RE.match(fields["anchor"]):
         raise HintEvidenceBindingError("HINT_EVIDENCE_BINDING_MALFORMED",
                                         f"anchor is not a full 40-hex commit SHA: {fields['anchor']!r}")
-    for k in ("manifest_sha256", "identity_sha256", "certificate_sha256"):
-        if not _SHA256_RE.match(fields[k]):
-            raise HintEvidenceBindingError("HINT_EVIDENCE_BINDING_MALFORMED",
-                                            f"{k} is not a 64-hex sha256 digest: {fields[k]!r}")
     for k in ("tag", "topology", "manifest_ref", "certificate_ref"):
         if not fields[k]:
             raise HintEvidenceBindingError("HINT_EVIDENCE_BINDING_MALFORMED",
@@ -375,15 +374,6 @@ def _cgate():
     return _cgate_module
 
 
-def _canonical_identity_sha256(identity: dict) -> str:
-    """Deterministic canonical serialization of the 6-key strong identity (single source of the
-    field set/order: completion_gate.py's own STRONG_IDENTITY_FIELDS), hashed for the footer/
-    verify recompute-compare -- compact separators avoid whitespace ambiguity."""
-    payload = {f: identity.get(f) for f in _cgate().STRONG_IDENTITY_FIELDS}
-    blob = json.dumps(payload, sort_keys=True, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(blob).hexdigest()
-
-
 def _topology_class(topology: str) -> str:
     return "multi" if topology.strip().lower().startswith("multi") else "single"
 
@@ -466,7 +456,6 @@ def _resolve_evidence_footer_fields(action: str, manifest: dict, resolved_manife
     --manifest CLI argument that created it is gone, so a reference that cannot be durably
     re-resolved from ROOT alone is not a valid binding at all."""
     identity = manifest.get("identity") or {}
-    identity_sha256 = _canonical_identity_sha256(identity)
 
     # Pure lexical normalization (no I/O, no symlink following) -- mirrors completion_gate.py's own
     # _lexical_components: dividing an absolute path onto anything on the left discards the left
@@ -492,8 +481,6 @@ def _resolve_evidence_footer_fields(action: str, manifest: dict, resolved_manife
                           f"(status={r_manifest['status']}) -- refusing to bind an unsafe/symlinked "
                           f"manifest reference into the durable footer"},
                          identity, manifest.get("task_class"))
-        manifest_sha256 = r_manifest["sha256"]
-
         cert_path_str = _binding_artifact_path(manifest)
         if not cert_path_str:
             _die_binding(action, ["HINT_CERTIFICATE_EVIDENCE_MISSING"],
@@ -512,10 +499,12 @@ def _resolve_evidence_footer_fields(action: str, manifest: dict, resolved_manife
     finally:
         os.close(repo_root_fd)
 
+    # r_manifest / r_cert 의 status 검사는 위에서 이미 끝났다 — footer 는 그 **주소**만 싣고
+    # digest 는 싣지 않는다(F-6a). 안전 resolve 자체가 발행 시점 게이트이고, 읽는 쪽은 매 판독마다
+    # ROOT 기준으로 같은 resolve 를 다시 돌린다.
     return {
         "version": "1", "tag": tag, "topology": topology, "anchor": anchor,
-        "manifest_sha256": manifest_sha256, "identity_sha256": identity_sha256,
-        "manifest_ref": manifest_ref, "certificate_sha256": r_cert["sha256"], "certificate_ref": cert_path_str,
+        "manifest_ref": manifest_ref, "certificate_ref": cert_path_str,
     }
 
 
@@ -921,9 +910,6 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
         problems.append((_code, f"{tag}: {_code} manifest_ref "
                          f"{footer['manifest_ref']!r} resolve 실패(status={r_manifest['status']})"))
         return footer, problems  # nothing further can be checked without the manifest bytes
-    if r_manifest["sha256"] != footer["manifest_sha256"]:
-        problems.append(("HINT_EVIDENCE_MANIFEST_SHA_MISMATCH", f"{tag}: HINT_EVIDENCE_MANIFEST_SHA_MISMATCH {r_manifest['sha256']} != {footer['manifest_sha256']}"))
-
     try:
         ref_manifest = json.loads((r_manifest["content_bytes"] or b"").decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
@@ -971,10 +957,6 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
         problems.append(("HINT_EVIDENCE_IDENTITY_TP_MISMATCH", f"{tag}: HINT_EVIDENCE_IDENTITY_TP_MISMATCH identity.tp={ref_identity.get('tp')!r} "
                          f"!= TP{tp_label.group(1)} in topology label {footer['topology']!r}"))
 
-    identity_sha = _canonical_identity_sha256(ref_identity)
-    if identity_sha != footer["identity_sha256"]:
-        problems.append(("HINT_EVIDENCE_IDENTITY_SHA_MISMATCH", f"{tag}: HINT_EVIDENCE_IDENTITY_SHA_MISMATCH {identity_sha} != {footer['identity_sha256']}"))
-
     ref_cert_path = _binding_artifact_path(ref_manifest)
     if ref_cert_path != footer["certificate_ref"]:
         problems.append(("HINT_EVIDENCE_CERTIFICATE_REF_MISMATCH", f"{tag}: HINT_EVIDENCE_CERTIFICATE_REF_MISMATCH footer.certificate_ref="
@@ -991,8 +973,6 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
                      else "HINT_EVIDENCE_CERTIFICATE_UNSAFE_OR_MISSING")
             problems.append((_code, f"{tag}: {_code} certificate_ref "
                              f"{footer['certificate_ref']!r} resolve 실패(status={r_cert['status']})"))
-        elif r_cert["sha256"] != footer["certificate_sha256"]:
-            problems.append(("HINT_EVIDENCE_CERTIFICATE_SHA_MISMATCH", f"{tag}: HINT_EVIDENCE_CERTIFICATE_SHA_MISMATCH {r_cert['sha256']} != {footer['certificate_sha256']}"))
 
     return footer, problems
 
@@ -1043,11 +1023,6 @@ def cmd_verify(a: argparse.Namespace) -> int:
         h = scan_text(bp.read_text(encoding="utf-8", errors="ignore"), terms)
         if h:
             problems.append(f"{bp.relative_to(ROOT)}: build_patch PII {h}")
-
-    if a.check_origin:
-        r = git("ls-remote", "--tags", "origin", "last-good-*", check=False)
-        if r.returncode == 0 and r.stdout.strip():
-            problems.append("origin 에 last-good-* 태그 존재(로컬 전용이어야 함):\n" + r.stdout.strip())
 
     if terms is None:
         problems.append("pii_terms.txt 부재 → generic 패턴만으로 스캔(축소 커버리지)")
@@ -1946,7 +1921,6 @@ def main() -> int:
     ix.set_defaults(fn=cmd_index)
 
     v = sub.add_parser("verify", help="릴리즈 게이트(태그오브젝트/build_patches PII·인덱스 정합)")
-    v.add_argument("--check-origin", action="store_true", help="origin 에 last-good-* 없음 확인(네트워크)")
     v.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
     v.set_defaults(fn=cmd_verify)
 

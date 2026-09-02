@@ -580,7 +580,7 @@ def _self_test():
     att = dict(base, kind=KIND_ATTESTATION,
                claim=req["claim"],
                citations=[{"ref_id": "r-1", "digest": "a" * 64, "reason": "동일 arch 실측"}],
-               decision={"accepted": True, "artifact_sha256": "b" * 64})
+               decision={"accepted": True, "notes": "R2 자체이식 채택 — 동일 arch 실측 인용"})
 
     chk("정상 3메시지 shape 통과",
         not validate_message(req) and not validate_message(exp) and not validate_message(att))

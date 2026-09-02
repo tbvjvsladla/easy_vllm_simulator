@@ -7,12 +7,15 @@ security-critical negative paths under the active interpreter, including ``pytho
 """
 from __future__ import annotations
 
+import argparse
 import ast
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -628,13 +631,382 @@ def _test_agent_provider_boundary() -> None:
              f"non-Sonnet request was not blocked before execution: {result}")
 
 
-def main() -> int:
+# ─────────────────────────────────────────────────────────────────────────────
+# tripwire 3종 (2026-09-03 신설 · plan_26090222 P2)
+#
+# 왜 여기인가: 해시 중복층을 걷어낸 뒤 **재발을 막는 것**은 목록(allowlist)이 아니라 파생 술어여야
+# 한다. 목록은 새 파일이 생기면 조용히 늦어지지만, 파생 술어는 "git 이 이미 아는 것을 또 적었다"는
+# 성질 자체를 본다. 세 단언은 병목(pre-commit)에 걸리므로 **1초 예산**을 지킨다.
+#
+# ⚠ 픽스처 격리: 이 파일의 단언은 저장소 상태를 읽는다. 그런데 `_hint_repo()` 는 `git init -b
+# selftest` 로 격리 레포를 만들고 completion_gate 를 그 안에서 돌린다 — 거기서 브랜치 부분집합
+# 단언이 발화하면 셀프테스트가 **자기 자신을 RED** 로 만든다. 그래서 모든 진입점이
+# `_is_canonical_repo()` 로 "정본(헌법 소유) 저장소인가"를 먼저 판별한다.
+# ─────────────────────────────────────────────────────────────────────────────
+
+REPO_ROOT = RUNTIME_DIR.parents[2]
+
+# 헌법을 소유한 저장소만 가지는 구조적 표지. 픽스처 레포(`_hint_repo`)는 completion_gate·schemas·
+# hint 스크립트만 복사하므로 이 셋을 동시에 갖지 못한다.
+_CANONICAL_MARKERS = ("CLAUDE.md", ".claude/rules/workflow.md", ".claude/policies/registry.yaml")
+
+_ALLOWED_BRANCHES = frozenset({"single-node", "multi-node", "hint"})
+_ALLOWED_TAG_PREFIX = "hint/"
+_BACKUP_SUFFIXES = (".bak", ".orig")
+# 경로 부분문자열 술어. `백업` 은 2026-09-03 추가 — 이 저장소의 실제 백업 명명이 한글이라
+# `backup` 만으로는 검출력이 0 이었다(P0 §5-①-a MINOR: `seed/이전 plan 백업` 156파일 미매칭).
+_BACKUP_PATH_TOKENS = ("backup", "백업")
+# 워킹트리 스캔에서 최상위만 잘라내는 디렉터리. `seed/` 는 사용자 보관소(비배포·비추적)이고
+# `.git/` 은 git 내부다 — 둘 다 "습관 제도화" 의 대상이 아니다.
+# `output/` 은 2026-09-03 추가(P0-C-④): 빌드/캐시 산출물이라 "백업 습관" 평면이 아니고,
+# 컨테이너가 만든 하위 디렉터리에 읽기권한이 없어(`output/*/cache/vllm/modelinfos/…: Permission
+# denied`) 스캔 자체가 불가능하다. 범위 밖으로 명시해야 아래 `onerror` 가 위양성 없이 산다.
+_BACKUP_SCAN_PRUNE_TOP = frozenset({".git", "seed", "output"})
+
+# tripwire ③: 걷어낸 해시 중복층 메커니즘의 이름. 산문이 이 이름을 다시 쓰면 사라진 기계를
+# 가리키는 지시가 되살아난다(문서가 코드보다 오래 산다).
+_RETIRED_HASH_MECHANISMS = (
+    "tracked_index", "evidence_manifest", "governed_prose_snapshot",
+    "plan_blob_sha1", "image_version_match", "patch_sha256",
+)
+# 범위 정의이지 allowlist 가 아니다: `docs/report/*` 는 "발행 시점이 고정된" 장르라(docs.md
+# §명명 SSOT) 과거 발행분의 본문을 고쳐 쓰면 그 장르 규약 자체가 깨진다.
+_PROSE_SCAN_EXTRA = ("CLAUDE.md", "README.md")
+
+# `ls-files -s` 의 gitlink(서브모듈) 모드. 이 술어의 범위는 blob 이므로 입력에서 제외한다.
+_GITLINK_MODES = frozenset({"160000"})
+
+# 대소문자 무관하게 잡고 **비교는 lower 정규화**한다(2026-09-03 P0-C-②): 룩어라운드는 이미
+# 대문자를 배제했는데 본체가 `[0-9a-f]` 뿐이라, 추적 JSON/YAML 이 digest 를 대문자로 적으면
+# 조용히 통과했다 — "allowlist 없는 파생 술어" 라는 성질이 대소문자에서 깨진다.
+_HEX_CONST_RE = re.compile(r"(?<![0-9a-fA-F])(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})(?![0-9a-fA-F])")
+
+
+# 정본 판별이 건너뛰는 단언들의 이름. SKIPPED 를 출력할 때 **무엇이 안 돌았는지**를 같이
+# 적기 위한 목록이다 — "건너뛰었다"만 말하고 무엇을 건너뛰었는지 안 말하면 여전히 반쪽 침묵이다.
+_REPO_STATE_ASSERTIONS = (
+    "tripwire①no-backup-artifacts(+refs/heads·tags·.gitignore)",
+    "tripwire②no-tracked-digest-rewrite",
+    "tripwire③no-retired-hash-mechanism-prose",
+    "executor-wiring(core.hooksPath·hook tracked)",
+)
+
+
+def _canonical_repo_reason(root: Path) -> str | None:
+    """`root` 가 정본 저장소가 **아니라면 그 사유**를, 정본이면 None 을 돌려준다.
+
+    ★ 2026-09-03 (적대검증 MAJOR ①): 예전에는 bool 만 돌려줬고, 호출부는 거짓일 때 조용히
+    `return` 했다 — 그래서 **무력화된 가드와 통과한 가드가 출력에서 구분되지 않았다**(둘 다
+    `[tripwire] PASS` rc=0). 표지 파일이 미래에 사라지면(이 캠페인이 방금 원장 3종을 지웠듯)
+    가드 전체가 소리 없이 죽는데 아무도 모른다. 처방은 금지가 아니라 **표시**다
+    (`workflow.md` §결정론 규율 — 침묵 폴백은 결함, 출처 표시가 처방).
+    """
+    missing = [m for m in _CANONICAL_MARKERS if not (root / m).is_file()]
+    if missing:
+        return f"missing canonical marker(s) {missing} under {root}"
+    proc = subprocess.run(["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+                          capture_output=True, text=True, timeout=60)
+    if proc.returncode != 0:
+        return (f"`git rev-parse --show-toplevel` failed in {root} "
+                f"(rc={proc.returncode}): {proc.stderr.strip()[:200]}")
+    toplevel = Path(proc.stdout.strip())
+    if toplevel.resolve() != root.resolve():
+        return f"{root} is not a git work-tree root (toplevel={toplevel})"
+    return None
+
+
+def _is_canonical_repo(root: Path) -> bool:
+    """`root` 가 헌법을 소유한 정본 저장소인가(= 저장소상태 단언을 돌려도 되는가)."""
+    return _canonical_repo_reason(root) is None
+
+
+def _announce_non_canonical(root: Path, prefix: str) -> str | None:
+    """정본이 아니면 **구분되는 SKIPPED 한 줄**을 stderr 로 내고 사유를 돌려준다(정본이면 None).
+
+    ⚠ stdout 계약: 진단은 전부 stderr 다. `completion_gate authorize` 의 stdout JSON 을
+    `json.loads` 하는 소비자가 셋(`sync_branches.sh`·`sync_to_sub.sh`·`hint_tag.py`)이고,
+    이 스크립트는 그 authorize 가 자식으로 띄운다.
+    """
+    reason = _canonical_repo_reason(root)
+    if reason is None:
+        return None
+    print(f"[{prefix}] SKIPPED (non-canonical repo: {reason}) -- "
+          f"repo-state assertions NOT run: {', '.join(_REPO_STATE_ASSERTIONS)}", file=sys.stderr)
+    return reason
+
+
+def _git_out(root: Path, *args: str) -> str:
+    proc = subprocess.run(["git", "-C", str(root), *args],
+                          capture_output=True, text=True, timeout=120)
+    if proc.returncode != 0:
+        raise RuntimeSelftestFailure(f"git {' '.join(args)} failed in {root}: {proc.stderr.strip()}")
+    return proc.stdout
+
+
+def _tracked_paths(root: Path) -> list[str]:
+    """`-z` 로 읽는다 — `git ls-files` 의 기본 quotePath 가 한글 경로를 이스케이프해 거짓
+    드리프트를 만든 선례가 있다(verify_distribution 회수 건)."""
+    return [p for p in _git_out(root, "ls-files", "-z").split("\0") if p]
+
+
+def _test_no_backup_artifacts(root: Path | None = None) -> None:
+    """tripwire ① — 백업 관행 자체를 금지한다(숨기지 않는다).
+
+    `.gitignore` 의 `*.bak`/`*.orig` 는 2026-09-03 에 삭제됐다: 무시는 관행을 제도화하고
+    잔재를 `git status` 밖으로 숨긴다. 이 단언이 그 자리를 대신한다.
+    """
+    root = REPO_ROOT if root is None else root
+    if not _is_canonical_repo(root):
+        return
+
+    offenders: list[str] = []
+    # `os.walk` 기본 `onerror=None` 은 권한 오류를 **삼킨다** — 못 읽은 디렉터리 아래에 백업
+    # 아티팩트가 있어도 가드가 초록을 낸다(스캔 실패와 "없음" 이 구분되지 않는다). 범위 안에서
+    # 못 읽은 것은 판정 불가이므로 실패로 다룬다(2026-09-03 P0-C-④).
+    scan_errors: list[str] = []
+
+    def _on_scan_error(err: OSError) -> None:
+        name = getattr(err, "filename", None)
+        where = os.path.relpath(name, root) if name else "<unknown>"
+        scan_errors.append(f"{where}: {err.strerror or err}")
+
+    for dirpath, dirnames, filenames in os.walk(root, onerror=_on_scan_error):
+        rel_dir = os.path.relpath(dirpath, root)
+        if rel_dir == ".":
+            dirnames[:] = [d for d in dirnames if d not in _BACKUP_SCAN_PRUNE_TOP]
+        for name in filenames:
+            rel = name if rel_dir == "." else os.path.join(rel_dir, name)
+            low = rel.lower()
+            if rel.endswith(_BACKUP_SUFFIXES) or any(tok in low for tok in _BACKUP_PATH_TOKENS):
+                offenders.append(rel)
+    _require(not offenders, f"backup artifact in working tree (백업 금지 · 숨김 금지): {offenders[:20]}")
+    _require(not scan_errors,
+             "backup scan could not read part of its own scope (스캔 실패 ≠ 없음): "
+             f"{scan_errors[:20]}")
+
+    branches = {b for b in _git_out(root, "for-each-ref", "--format=%(refname:short)",
+                                   "refs/heads").split("\n") if b}
+    stray = sorted(branches - _ALLOWED_BRANCHES)
+    _require(not stray, f"refs/heads must be a subset of {sorted(_ALLOWED_BRANCHES)}: {stray}")
+
+    tags = {t for t in _git_out(root, "tag", "-l").split("\n") if t}
+    bad_tags = sorted(t for t in tags if not t.startswith(_ALLOWED_TAG_PREFIX))
+    _require(not bad_tags, f"tags must all be under {_ALLOWED_TAG_PREFIX!r}: {bad_tags}")
+
+    ignore_lines = {line.strip() for line in
+                    (root / ".gitignore").read_text(encoding="utf-8").splitlines()}
+    resurrected = sorted({"*.bak", "*.orig"} & ignore_lines)
+    _require(not resurrected,
+             f".gitignore must not hide backup artifacts (deleted 2026-09-03): {resurrected}")
+
+
+def _tracked_blob_digests(root: Path) -> set[str]:
+    """추적 blob 의 sha1(= git object id) ∪ sha256 을 한 번의 `cat-file --batch` 로 모은다.
+
+    2026-09-03 (P0-C-③) 두 가지를 고쳤다.
+
+    ① **gitlink 제외** — `ls-files -s` 는 서브모듈을 mode 160000 + **커밋** id 로 낸다. 커밋은
+       blob 이 아니라 `--batch` 가 `<sha> missing`(2필드)을 내며, 이 술어의 범위 자체가 blob 이다
+       (docstring 하단 참조: tree/commit 으로 넓히면 즉시 위양성). 그러니 입력에서 먼저 뺀다.
+    ② **버린 배치 항목에 fail-loud** — 옛 파서는 2필드 헤더를 만나면 `break` 로 루프를 끊어
+       **그 뒤 정렬 순서의 digest 를 전부 잃었고**, 그러면 tripwire ② 가 조용히 공허통과한다.
+       이제는 건너뛰되 못 푼 항목을 세고, 하나라도 있으면 실패한다 — 결정·게이트 경로에서
+       원인을 삼키는 침묵 폴백은 금지다(`workflow.md` §4종 안티패턴 판정표).
+    """
+    sha1s: set[str] = set()
+    for entry in _git_out(root, "ls-files", "-s", "-z").split("\0"):
+        if not entry:
+            continue
+        meta = entry.split("\t", 1)[0].split()
+        if len(meta) < 2 or meta[0] in _GITLINK_MODES:
+            continue
+        sha1s.add(meta[1])
+    digests: set[str] = set(sha1s)
+    if not sha1s:
+        return digests
+    proc = subprocess.run(["git", "-C", str(root), "cat-file", "--batch"],
+                          input=("\n".join(sorted(sha1s)) + "\n").encode(),
+                          capture_output=True, timeout=180)
+    buf = proc.stdout
+    pos = 0
+    resolved = 0
+    unresolved: list[str] = []
+    while pos < len(buf):
+        nl = buf.find(b"\n", pos)
+        if nl < 0:
+            unresolved.append(f"<truncated batch output at byte {pos}>")
+            break
+        header = buf[pos:nl].decode("utf-8", "replace").split()
+        if len(header) < 3 or header[1] != "blob" or not header[2].isdigit():
+            unresolved.append(" ".join(header) or "<empty header>")
+            pos = nl + 1
+            continue
+        size = int(header[2])
+        body = buf[nl + 1:nl + 1 + size]
+        digests.add(hashlib.sha256(body).hexdigest())
+        resolved += 1
+        pos = nl + 1 + size + 1
+    _require(not unresolved and resolved == len(sha1s),
+             "git cat-file --batch dropped tracked blobs — digest 집합이 불완전하면 tripwire ② 가 "
+             "조용히 공허통과한다(침묵 폴백 금지): "
+             f"resolved={resolved}/{len(sha1s)} unresolved={unresolved[:10]}")
+    return digests
+
+
+def _test_no_tracked_digest_rewrite(root: Path | None = None) -> None:
+    """tripwire ② — **파생 술어**(allowlist 없음): git 이 이미 든 바이트의 해시를 추적 데이터가
+    다시 적으면 FAIL.
+
+    적중 조건이 "추적 blob 의 sha1 또는 sha256 과 같다" 이므로, 상수를 옮기거나 파일을 새로
+    만들어도 술어가 따라간다 — 면제 목록을 유지할 필요가 없다.
+
+    자연 통과(설계상 적중하지 않는 것들 — 면제가 아니라 **대상 밖**):
+      · `output/*/build_patches_src/PROVENANCE.json` — 추적 파일 안의 **비추적** 상류 vLLM 소스
+        digest(108건). git 이 그 바이트를 들고 있지 않으므로 추적 blob 집합에 없다.
+      · Judge 골든 픽스처(`version_delta_*.json`) — 상류 vLLM 커밋 sha.
+      · `hints/index.json` — 커밋/태그 **object id**(blob 이 아니다). 술어를 tree/commit 으로
+        넓히면 즉시 위양성이 되므로 blob 으로 좁혀 둔다.
+    """
+    root = REPO_ROOT if root is None else root
+    if not _is_canonical_repo(root):
+        return
+
+    digests = _tracked_blob_digests(root)
+    offenders: list[str] = []
+    for rel in _tracked_paths(root):
+        if not rel.endswith((".json", ".yaml", ".yml")):
+            continue
+        path = root / rel
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        hits = sorted({m for m in _HEX_CONST_RE.findall(text) if m.lower() in digests})
+        if hits:
+            offenders.append(f"{rel}:{len(hits)} (e.g. {hits[0]})")
+    _require(not offenders,
+             "tracked data re-states a digest git already owns (single authority = git): "
+             f"{offenders}")
+
+
+def _test_no_retired_hash_mechanism_prose(root: Path | None = None) -> None:
+    """tripwire ③ — 걷어낸 메커니즘 이름이 규약 산문에 되살아나면 FAIL(음성 regex).
+
+    범위는 `.claude/**/*.md` · `CLAUDE.md` · `README.md` 다. `docs/report/*` 는 발행 시점이
+    고정된 장르라 **범위 밖**이며(범위 정의이지 allowlist 가 아니다), 과거 감사 보고서가 사라진
+    기계를 서술하는 것은 정상이다.
+    """
+    root = REPO_ROOT if root is None else root
+    if not _is_canonical_repo(root):
+        return
+
+    targets = sorted((root / ".claude").rglob("*.md"))
+    targets += [root / name for name in _PROSE_SCAN_EXTRA]
+    offenders: list[str] = []
+    for path in targets:
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for lineno, line in enumerate(text.splitlines(), 1):
+            for name in _RETIRED_HASH_MECHANISMS:
+                if name in line:
+                    offenders.append(f"{path.relative_to(root)}:{lineno}:{name}")
+    _require(not offenders, f"retired hash mechanism named in governing prose: {offenders[:20]}")
+
+
+def _test_tripwire_executor_wiring(root: Path | None = None) -> list[str]:
+    """실행자 자기검사 — `core.hooksPath` 설정과 훅 파일의 **추적 여부**.
+
+    미설치 클론(막 클론한 배포본)에서는 hooksPath 가 아직 안 잡혀 있는 것이 정상이므로 FAIL 이
+    아니라 **WARN** 이다(plan §10 risk). 반면 훅 파일이 추적되지 않는 것은 저작 결함이라
+    같은 WARN 으로 보고하되, 두 경고 모두 stderr 로 나간다 — stdout JSON 계약을 오염시키지 않는다.
+
+    비-정본 저장소에서 빈 리스트를 돌려주는 것은 여전히 정상 경로다. 다만 그 침묵이 tripwire
+    3종의 침묵과 겹쳐 **이중 침묵**이 되던 것은 2026-09-03 에 닫혔다 — 호출부(`run_tripwires`·
+    `main`)가 먼저 `_announce_non_canonical()` 로 SKIPPED 한 줄을 내고, 그 줄이 이 검사도
+    건너뛰었음을 이름으로 밝힌다(`_REPO_STATE_ASSERTIONS`).
+    """
+    root = REPO_ROOT if root is None else root
+    warnings: list[str] = []
+    if not _is_canonical_repo(root):
+        return warnings
+
+    hook = root / ".claude/hooks/pre-commit"
+    proc = subprocess.run(["git", "-C", str(root), "config", "--get", "core.hooksPath"],
+                          capture_output=True, text=True, timeout=60)
+    configured = proc.stdout.strip()
+    if configured != ".claude/hooks":
+        warnings.append(
+            f"core.hooksPath is {configured!r}, expected '.claude/hooks' — "
+            "run: git config core.hooksPath .claude/hooks")
+    if not hook.is_file():
+        warnings.append(".claude/hooks/pre-commit is missing")
+    else:
+        tracked = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "--error-unmatch", ".claude/hooks/pre-commit"],
+            capture_output=True, text=True, timeout=60)
+        if tracked.returncode != 0:
+            warnings.append(".claude/hooks/pre-commit exists but is NOT tracked "
+                            "(untracked hooks do not reach a clone)")
+    return warnings
+
+
+def run_tripwires(root: Path | None = None) -> int:
+    """병목(pre-commit·authorize)에서 도는 축약 진입점. 1초 예산.
+
+    ★ 2026-09-03: 비-정본 저장소에서는 `PASS` 가 아니라 **`SKIPPED`** 를 낸다. rc 는 여전히 0
+    이다(격리 픽스처에서 도는 것이 정상 경로이므로 차단하면 셀프테스트가 자기 자신을 RED 로
+    만든다) — 바뀐 것은 **rc 가 아니라 가시성**이다. 무력화된 가드가 통과한 가드처럼 보이지
+    않는 것, 그것 하나가 이 변경의 전부다.
+    """
+    root = REPO_ROOT if root is None else root
+    if _announce_non_canonical(root, "tripwire") is not None:
+        return 0
+    try:
+        _test_no_backup_artifacts(root)
+        _test_no_tracked_digest_rewrite(root)
+        _test_no_retired_hash_mechanism_prose(root)
+    except RuntimeSelftestFailure as exc:
+        print(f"[tripwire] FAIL {exc}", file=sys.stderr)
+        return 1
+    for warning in _test_tripwire_executor_wiring(root):
+        print(f"[tripwire] WARN {warning}", file=sys.stderr)
+    print("[tripwire] PASS", file=sys.stderr)
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--tripwires-only", action="store_true",
+        help="run only the pre-commit tripwires (backup artifacts / tracked digest rewrite / "
+             "retired-mechanism prose); 1s budget, diagnostics on stderr")
+    args = parser.parse_args(argv)  # argv=None -> argparse reads sys.argv[1:]
+
+    if args.tripwires_only:
+        return run_tripwires()
+
     _test_no_production_asserts()
     _test_completion_gate()
     _test_promotion_rubric_carrier()
     _test_hint_binding_source()
     _test_policy_and_evidence_lifecycle()
     _test_agent_provider_boundary()
+    # tripwire 3종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
+    # 늦는다(선례 3건). 전체 실행에서도 반드시 검사한다.
+    # 비-정본 저장소에서 세 단언이 no-op 이 되는 것은 `run_tripwires` 와 **같은 정상 경로**이며,
+    # 여기서도 같은 SKIPPED 한 줄로 눈에 보이게 한다(침묵 no-op 금지).
+    _announce_non_canonical(REPO_ROOT, "runtime_selftest")
+    _test_no_backup_artifacts()
+    _test_no_tracked_digest_rewrite()
+    _test_no_retired_hash_mechanism_prose()
+    for warning in _test_tripwire_executor_wiring():
+        print(f"[runtime_selftest] WARN {warning}", file=sys.stderr)
     print("[runtime_selftest] PASS")
     return 0
 

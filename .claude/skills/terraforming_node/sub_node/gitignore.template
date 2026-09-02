@@ -75,10 +75,10 @@ sync_staging/
 
 # ── 임시/로그 ──
 *.tmp
-*.bak
 *.log
-*.orig
 *~
+# ⚠ `*.bak` · `*.orig` 는 메인 `.gitignore` 와 함께 2026-09-03 에 의도적으로 삭제했다.
+#   서브 배달본만 백업을 숨기면 tripwire ①(`_test_no_backup_artifacts`)이 서브에서 공허통과한다.
 
 # 호스트 안전체계 오프라인 패키지(아치별 바이너리 — 비추적, 운영자가 각 노드 스테이징) — plan_26071019 §2.5
 earlyoom_*.deb

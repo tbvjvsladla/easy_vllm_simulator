@@ -30,7 +30,7 @@
 - **max-turns = 3**(메인 `reconciliation_cap` 미러). `turn > 3` 이면 더 시도하지 말고 `status=failed, failure_class=unknown` 으로 종료 → 메인이 **Model-C(HITL)**.
 
 ## 검증 = push-attestation (가장 중요)
-- **DO** 보고 전에 **스스로 검증**하고 결과를 `self_verification` 에 담아라: config-parse · 이 리포트의 schema 유효성 · runner 문법(bash -n) · 산출물 checksum · 가능하면 **로컬 스모크**.
+- **DO** 보고 전에 **스스로 검증**하고 결과를 `self_verification` 에 담아라: config-parse · 이 리포트의 schema 유효성 · runner 문법(bash -n) · 가능하면 **로컬 스모크**.
 - **DON'T** "파일 만들었음"으로 completed 선언하지 마라 — **린트 통과 ≠ 서빙됨**. 성공술어를 만족해야 completed.
 - 메인은 네 디스크가 아니라 **네 리포트**를 검증한다. 그러니 **정직하게** attest 하라(허위 attest = 신뢰 붕괴).
 

@@ -14,8 +14,7 @@
       "image_tag": "easy-vllm:0.23.0-cu132-aarch64-source-sm12x",
       "track": "source-sm12x",
       "evidence": {
-        "path": ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json",
-        "sha256": "4623085c37515ae4f455e8e98f2f2551986ea63e7664efb368daf8b6afd474dc"
+        "path": ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json"
       },
       "status": "SUPERSEDED@0.24.0; retained only as the 0.23.0 last-good rollback anchor"
     },

@@ -38,14 +38,19 @@ Design (cycle2):
     retirement_reason, superseded_by, OR removal_evidence -- cycle1 only checked the first two,
     so an `active` policy self-declaring `removal_evidence.status: contract_e2e_green` was
     accepted with zero violations.
-  - Evidence tracking is an EXACT, DIGEST-LOCKED MANIFEST (.claude/policies/evidence_manifest.json
-    -- cycle2 replaces cycle1's prefix-allowlist, which let any path merely *starting with* a
-    tracked prefix, e.g. `scripts/untracked_probe.py`, resolve as if it were a real, reviewed
-    evidence file). A path is admissible only if: it is a non-absolute, non-escaping (no `..`
-    component), EXACT key in the manifest; no path component (including the leaf) is a symlink
-    (checked component-by-component from repo_root, fail-closed on any stat error); the file
-    exists; and its current sha256 matches the manifest's recorded digest (a tampered-after-
-    review file is caught, not silently trusted because the path still resolves).
+  - Evidence tracking is GIT-NATIVE -- git is the single provenance authority (2026-09-03
+    G2-a, plan_26090222). This replaces the evidence_manifest.json + tracked_index.json ledger
+    pair, which re-derived (sha256 / blob sha1) bytes git already holds: two self-authored
+    files that an editor had to re-stamp by hand on every change, and that could be rewritten
+    together. A path is admissible only if: it is a non-absolute, non-escaping (no `..`
+    component) repo-relative path; no path component (including the leaf) is a symlink
+    (checked component-by-component from repo_root, fail-closed on any stat error -- git does
+    NOT check this for us, which is why the symlink gate survives the rewrite); it exists as a
+    regular file; it is TRACKED in the repo_root's own git index; and its working-tree bytes
+    hash to exactly the blob that index holds (a tampered-after-review file is caught, not
+    silently trusted because the path still resolves). No usable git -- no executable, or a
+    repo_root that is not a work tree -- is EVIDENCE_GIT_UNAVAILABLE: fail-closed, never a
+    silent pass.
   - Evidence RELEVANCE is no longer keyword corroboration (cycle1's `EVIDENCE_NOT_RELEVANT`,
     which a single appended keyword could satisfy, and which returned zero violations on Korean-
     only clause text with zero extracted keywords). Cycle2 requires each evidence entry to name
@@ -91,16 +96,14 @@ Design (cycle2):
 
 Usage:
     python3 policy_registry.py verify --as-of YYYY-MM-DD [--registry <path>] [--schema <path>]
-        [--evidence-manifest <path>] [--tracked-index <path>] [--claim-bindings <path>]
-        [--repo-root <path>]
+        [--claim-bindings <path>] [--repo-root <path>]
     python3 policy_registry.py check-removal --policy-id <ID> --as-of YYYY-MM-DD
-        [--registry <path>] [--schema <path>] [--evidence-manifest <path>]
-        [--tracked-index <path>] [--claim-bindings <path>] [--repo-root <path>]
+        [--registry <path>] [--schema <path>] [--claim-bindings <path>] [--repo-root <path>]
     python3 policy_registry.py --self-test
 
---tracked-index/--claim-bindings default to <repo-root>/.claude/policies/{tracked_index,
-claim_bindings}.json (repo-root-relative -- NOT this script's own fixed location, unlike
---registry/--schema/--evidence-manifest) -- see _load_inputs_or_emit's docstring.
+--claim-bindings defaults to <repo-root>/.claude/policies/claim_bindings.json (repo-root-
+relative -- NOT this script's own fixed location, unlike --registry/--schema) -- see
+_load_inputs_or_emit's docstring.
 
 Exit codes (both subcommands):
     0  clean -- zero violations
@@ -131,19 +134,13 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_PATH = REPO_ROOT / ".claude" / "schemas" / "policy-registry.schema.json"
 REGISTRY_PATH = REPO_ROOT / ".claude" / "policies" / "registry.yaml"
-EVIDENCE_MANIFEST_PATH = REPO_ROOT / ".claude" / "policies" / "evidence_manifest.json"
 CLAIM_BINDINGS_PATH = REPO_ROOT / ".claude" / "policies" / "claim_bindings.json"
-TRACKED_INDEX_PATH = REPO_ROOT / ".claude" / "policies" / "tracked_index.json"
-GOVERNED_PROSE_SNAPSHOT_PATH = REPO_ROOT / ".claude" / "policies" / "governed_prose_snapshot.json"
 
-# repo-relative (no leading REPO_ROOT) -- used both to build the CLI's repo_root-relative default
-# resolution (cycle4 fix: a tracked_index/claim_bindings default must live INSIDE whatever
-# --repo-root is being checked, not always resolve to THIS project's own file, or a custom/export
-# repo that lacks its own copy would silently inherit this project's trust anchors) and by the
-# generator that produces these files' own committed content.
-TRACKED_INDEX_REL = ".claude/policies/tracked_index.json"
+# repo-relative (no leading REPO_ROOT) -- used to build the CLI's repo_root-relative default
+# resolution (cycle4 fix: a claim_bindings default must live INSIDE whatever --repo-root is being
+# checked, not always resolve to THIS project's own file, or a custom/export repo that lacks its
+# own copy would silently inherit this project's trust anchors).
 CLAIM_BINDINGS_REL = ".claude/policies/claim_bindings.json"
-GOVERNED_PROSE_SNAPSHOT_REL = ".claude/policies/governed_prose_snapshot.json"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import completion_gate as _gate  # noqa: E402 -- reuse the one generic schema validator
@@ -331,70 +328,6 @@ def citation_violations(text: str, registry_doc: dict, source_label: str | None 
 
 
 # =============================================================================
-# Governed-prose SSOT snapshot (cycle4 fix -- subagent-summary-0 finding 1 root cause /
-# subagent-summary-1 finding 7): TestNoDuplicateProse's Jaccard token-overlap scan and
-# TestNoVerbatimPolicyStatementInProse's whole-registry-statement substring check are BOTH
-# deliberately diagnostic-only, not semantic proof -- a paraphrase that shares few tokens with the
-# registry's own statement (a reviewer's OWN prose restating a rule in different words) sails past
-# both checks even though it duplicates governed semantics.
-# `.claude/policies/governed_prose_snapshot.json` records one exact SHA256 per governed file
-# (CLAUDE.md, workflow.md, docs.md, and the on-demand external reference, in full -- byte content,
-# no normalization ambiguity). Phase 10 moved the rare reference out of the always-loaded rules
-# tier, but it remains governed because recipe.py consumes its GPU table at runtime.
-# governed_prose_snapshot_violations flags ANY drift from that snapshot -- including
-# purely-prose edits that add no forbidden token and cite no policy at all. This is DELIBERATELY
-# NOT itself semantic proof of anything -- it is a change-review TRIPWIRE: any edit to a governed
-# file must be paired with a deliberate, reviewed snapshot update (see
-# policy_registry.py --self-test docstring pattern and governed_prose_snapshot.json for
-# the exact "append a paraphrase -> tripwire fires" regression this exists to lock in).
-# =============================================================================
-
-GOVERNED_PROSE_FILES = {
-    "CLAUDE.md": "CLAUDE.md",
-    ".claude/rules/workflow.md": ".claude/rules/workflow.md",
-    ".claude/rules/docs.md": ".claude/rules/docs.md",
-    ".claude/skills/wiki-desk/reference/references.md": ".claude/skills/wiki-desk/reference/references.md",
-}
-
-
-def governed_prose_snapshot_violations(snapshot: dict, repo_root: Path = REPO_ROOT) -> list:
-    """Compares each of the 4 governed files' CURRENT exact byte-content SHA256 against
-    `snapshot["files"][label]`. Any mismatch (including a change that adds no forbidden token and
-    cites no policy) is GOVERNED_PROSE_SNAPSHOT_MISMATCH -- a change-review tripwire, not semantic
-    proof (see module docstring section above)."""
-    out: list = []
-    canonical_trust = "change-review tripwire; ambient review establishes semantic equivalence"
-    if (not isinstance(snapshot, dict) or set(snapshot) != {"schema_version", "_trust", "files"}
-            or snapshot.get("schema_version") != 1 or snapshot.get("_trust") != canonical_trust):
-        return [Violation(
-            "GOVERNED_PROSE_SNAPSHOT_SHAPE_INVALID",
-            "snapshot requires exactly schema_version=1, the canonical _trust declaration, and files",
-            path=GOVERNED_PROSE_SNAPSHOT_REL)]
-    files = snapshot.get("files", {}) if isinstance(snapshot, dict) else {}
-    if (not isinstance(files, dict) or set(files) != set(GOVERNED_PROSE_FILES)
-            or any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None
-                   for value in files.values())):
-        return [Violation(
-            "GOVERNED_PROSE_SNAPSHOT_FILES_INVALID",
-            "files must contain exactly the four governed paths with lowercase SHA-256 digests",
-            path=GOVERNED_PROSE_SNAPSHOT_REL)]
-    for label, rel_path in GOVERNED_PROSE_FILES.items():
-        full = repo_root / rel_path
-        try:
-            digest = hashlib.sha256(full.read_bytes()).hexdigest()
-        except OSError:
-            out.append(Violation("GOVERNED_PROSE_FILE_UNREADABLE", f"{rel_path} could not be read",
-                                  path=rel_path))
-            continue
-        expected = files.get(label)
-        if expected != digest:
-            out.append(Violation("GOVERNED_PROSE_SNAPSHOT_MISMATCH",
-                                  f"{rel_path} content digest {digest} != snapshot {expected!r} -- governed "
-                                  "prose changed without a reviewed snapshot update", path=rel_path))
-    return out
-
-
-# =============================================================================
 # Safe, hermetic JSON loading -- one implementation every CLI entry point shares (cycle2 fix:
 # cycle1 let OSError/UnicodeDecodeError/JSONDecodeError raise uncaught tracebacks with process
 # exit 1, contradicting this module's own documented exit-2 invalid-input contract).
@@ -404,7 +337,7 @@ def safe_load_json_object(path: Path, label: str) -> tuple[dict | None, Violatio
     """Reads `path`, decodes as UTF-8, parses as JSON, and requires the parsed root to be a JSON
     object (dict) -- returns (doc, None) on success or (None, Violation) on ANY failure mode
     (missing/unreadable file, invalid UTF-8, malformed JSON, non-object root incl. a JSON array).
-    `label` becomes the reason_code prefix (e.g. "REGISTRY", "SCHEMA", "EVIDENCE_MANIFEST")."""
+    `label` becomes the reason_code prefix (e.g. "REGISTRY", "SCHEMA", "CLAIM_BINDINGS")."""
     try:
         raw = path.read_bytes()
     except OSError as e:
@@ -439,29 +372,8 @@ def load_schema(path: Path = SCHEMA_PATH) -> dict:
     return doc
 
 
-def load_evidence_manifest(path: Path = EVIDENCE_MANIFEST_PATH) -> dict:
-    doc, err = safe_load_json_object(path, "EVIDENCE_MANIFEST")
-    if err is not None:
-        raise ValueError(err.message)
-    return doc
-
-
 def load_claim_bindings(path: Path = CLAIM_BINDINGS_PATH) -> dict:
     doc, err = safe_load_json_object(path, "CLAIM_BINDINGS")
-    if err is not None:
-        raise ValueError(err.message)
-    return doc
-
-
-def load_tracked_index(path: Path = TRACKED_INDEX_PATH) -> dict:
-    doc, err = safe_load_json_object(path, "TRACKED_INDEX")
-    if err is not None:
-        raise ValueError(err.message)
-    return doc
-
-
-def load_governed_prose_snapshot(path: Path = GOVERNED_PROSE_SNAPSHOT_PATH) -> dict:
-    doc, err = safe_load_json_object(path, "GOVERNED_PROSE_SNAPSHOT")
     if err is not None:
         raise ValueError(err.message)
     return doc
@@ -957,34 +869,39 @@ _EVIDENCE_RESOLUTION_REASON = {
     "path_escape": "EVIDENCE_PATH_ESCAPES_REPO",
     "symlink": "EVIDENCE_PATH_CONTAINS_SYMLINK",
     "missing": "EVIDENCE_MISSING_FILE",
-    "digest_mismatch": "EVIDENCE_DIGEST_MISMATCH",
-    "not_tracked_index": "EVIDENCE_NOT_IN_TRACKED_INDEX",
-    "tracked_index_invalid": "EVIDENCE_TRACKED_INDEX_INVALID",
-    "tracked_index_drift": "EVIDENCE_TRACKED_INDEX_DRIFT",
-    "not_staged": "EVIDENCE_NOT_STAGED",
+    "worktree_drift": "EVIDENCE_WORKTREE_DRIFT",
+    "git_unavailable": "EVIDENCE_GIT_UNAVAILABLE",
 }
 
 
 # =============================================================================
-# Tracked-index trust tiers (cycle4 fix -- subagent-summary-1 finding 1): membership in a
-# caller-supplied evidence_manifest.json is NOT independent proof that a path is actually
-# git-tracked -- a self-authored manifest can list (and digest-match) any file, including one
-# that was never staged/committed at all. `.claude/policies/tracked_index.json` is a SEPARATE,
-# independently-generated snapshot (repo-relative path -> git blob sha1) that resolve_evidence_path
-# additionally cross-checks:
-#   - AMBIENT GIT tier (this repo, in this environment): the path's CURRENT STAGED blob
-#     (`git ls-files --stage`) must match the snapshot's recorded blob sha1 exactly -- this is the
-#     actual provenance authority; a path present in tracked_index.json but drifted (or never
-#     staged) fails here.
-#   - GITLESS tier (a clean-index/no-.git export): no live git call is possible, so trust rests on
-#     tracked_index.json's own recorded snapshot (presence) plus evidence_manifest.json's sha256
-#     digest match (already checked above) -- this is an EXPORT-TRUST INPUT, not an independent
-#     cryptographic proof (see module docstring / test_tracked_index.py for why this distinction
-#     matters: two self-consistent files can still both be wrong about the same fabricated path).
-# `tracked_index` is None by default everywhere in this module (opt-in) so every existing
-# fixture-level caller that builds its own ad-hoc manifest/repo_root is completely unaffected;
-# only the CLI (`cmd_verify`/`cmd_check_removal`) and the "real registry" test path load and pass
-# the real committed tracked_index.json.
+# Git is the single provenance authority (2026-09-03 G2-a, plan_26090222 -- supersedes the
+# cycle4 "tracked-index trust tiers" comment that used to stand here). The problem cycle4 was
+# solving is real and unchanged: a caller-supplied evidence_manifest.json was NOT independent
+# proof that a path is actually tracked -- a self-authored manifest can list (and digest-match)
+# any file, including one that was never staged at all. Cycle4's answer was a SECOND
+# self-authored file (.claude/policies/tracked_index.json, path -> git blob sha1) cross-checked
+# against `git ls-files --stage`, with a gitless fallback that re-derived git's own blob hash
+# from worktree bytes.
+#
+# That answer carried the ledgers as a duplicate layer: every column in both files was bytes git
+# already holds, re-stamped by hand on every edit, and the ledger's own trust_model graded the
+# gitless tier as "export-trust input, not independent proof" -- i.e. the repo already declared
+# tier 2 non-probative. The rewrite keeps the authority cycle4 identified (the git index) and
+# drops the transcription of it:
+#   - TRACKED  : `git ls-files --stage -- <rel>` must return a blob for the path in THIS
+#                repo_root's index. Not staged (or not a repo) is not evidence.
+#   - UNDRIFTED: `git hash-object -- <rel>` (working-tree bytes, with the same attribute filters
+#                git applies when staging) must equal that indexed blob exactly.
+#   - NO GIT   : EVIDENCE_GIT_UNAVAILABLE. There is no fallback tier -- a repo_root with no git
+#                simply cannot prove provenance, and saying so is fail-closed. (The gitless
+#                CONSUMER that does exist -- hint_tag's read-only `match`/catalogue path -- never
+#                enters this module; `require_git_repository()` gates the rest of hint_tag, and
+#                the governance harness runs only in a git clone.)
+# The symlink gate is NOT delegated to git: git tracks a symlink as its own blob, so a symlinked
+# component would resolve as "tracked and undrifted" while pointing outside the reviewed tree.
+# `evidence_manifest`/`tracked_index` parameters are gone from every signature in this module --
+# there is nothing left to opt into, so fixtures and the CLI now exercise the identical gate.
 # =============================================================================
 
 def _git_available(repo_root: Path) -> bool:
@@ -1011,6 +928,36 @@ def _git_staged_blob_sha(repo_root: Path, rel_path: str) -> str | None:
     if len(fields) < 2:
         return None
     return fields[1]
+
+
+def _git_inside_work_tree(repo_root: Path) -> bool:
+    """True only when a git executable exists AND `repo_root` really is inside a git work tree.
+    Every provenance answer in this module is gated on this: a False here is reported as
+    EVIDENCE_GIT_UNAVAILABLE, never silently treated as 'nothing to check'."""
+    if not _git_available(repo_root):
+        return False
+    try:
+        probe = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=repo_root,
+                                capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return probe.returncode == 0 and probe.stdout.strip() == "true"
+
+
+def _git_worktree_blob_sha(repo_root: Path, rel_path: str) -> str | None:
+    """Git's canonical blob sha1 for the WORKING-TREE bytes at `rel_path`, computed by git itself
+    (`git hash-object`) so the same .gitattributes clean/eol filters that apply when the file is
+    staged apply here too -- a locally reimplemented sha1 would diverge on any filtered path.
+    None when git cannot answer (caller reports EVIDENCE_GIT_UNAVAILABLE, never 'ok')."""
+    try:
+        result = subprocess.run(["git", "hash-object", "--", rel_path], cwd=repo_root,
+                                 capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    out = result.stdout.strip()
+    return out if re.fullmatch(r"[0-9a-f]{40}", out) else None
 
 
 def _has_symlink_component(repo_root: Path, rel_path: str) -> bool:
@@ -1040,16 +987,17 @@ def _sha256_file(path: Path) -> str | None:
         return None
 
 
-def resolve_evidence_path(repo_root: Path, rel_path, evidence_manifest: dict,
-                           tracked_index: dict | None = None) -> _EvidenceResolution:
-    """Admits `rel_path` only if it is a non-absolute, non-escaping, EXACT key of
-    `evidence_manifest` (never a prefix match), contains no symlink at any path component, exists
-    as a regular file, and its current sha256 matches the manifest's recorded digest.
+def resolve_evidence_path(repo_root: Path, rel_path) -> _EvidenceResolution:
+    """Admits `rel_path` only if it is a non-absolute, non-escaping repo-relative path that
+    contains no symlink at any path component, exists as a regular file, is TRACKED in
+    `repo_root`'s own git index, and whose working-tree bytes hash to exactly the blob that index
+    holds.
 
-    cycle4 fix: when `tracked_index` is given (not None -- opt-in, see module docstring "Tracked-
-    index trust tiers"), evidence_manifest membership is no longer sufficient ON ITS OWN: `rel_path`
-    must ALSO be a key of tracked_index's own snapshot, and -- when ambient git is available -- its
-    CURRENTLY STAGED blob must match the snapshot's recorded blob sha1 exactly."""
+    2026-09-03 (G2-a, plan_26090222): git is the single authority -- the evidence_manifest sha256
+    comparison and the tracked_index membership/blob comparison are gone, along with the gitless
+    fallback tier (see the section comment above for why). The order below is deliberate: the
+    cheap, git-independent structural rejections run first so a malformed or symlinked path never
+    reaches a subprocess, and the git verdict is the last word rather than an optional extra."""
     if not isinstance(rel_path, str) or not rel_path:
         return _EvidenceResolution("absent")
     if rel_path.startswith("/") or rel_path.startswith("~"):
@@ -1057,63 +1005,22 @@ def resolve_evidence_path(repo_root: Path, rel_path, evidence_manifest: dict,
     parts = Path(rel_path).parts
     if not parts or ".." in parts or any(part in (".", "") for part in parts):
         return _EvidenceResolution("path_escape")
-    if rel_path not in evidence_manifest:
-        return _EvidenceResolution("untracked")
     if _has_symlink_component(repo_root, rel_path):
         return _EvidenceResolution("symlink")
     full = repo_root / rel_path
     if not full.is_file():
         return _EvidenceResolution("missing")
-    digest = _sha256_file(full)
-    expected = evidence_manifest.get(rel_path)
-    if digest is None or not isinstance(expected, str) or digest != expected:
-        return _EvidenceResolution("digest_mismatch")
-    if tracked_index is not None:
-        expected_index_keys = {"schema_version", "trust_model", "base_tree_sha1", "entries"}
-        expected_trust_model = {
-            "ambient_git": "git index is provenance authority",
-            "gitless_export": "snapshot plus content digests is export-trust input, not independent proof",
-        }
-        if (not isinstance(tracked_index, dict) or set(tracked_index) != expected_index_keys
-                or tracked_index.get("schema_version") != 1
-                or tracked_index.get("trust_model") != expected_trust_model
-                or not re.fullmatch(r"[0-9a-f]{40}", str(tracked_index.get("base_tree_sha1", "")))
-                or not isinstance(tracked_index.get("entries"), dict)):
-            return _EvidenceResolution("tracked_index_invalid")
-        entries = tracked_index["entries"]
-        if any(not isinstance(path, str) or not path or "\\" in path or Path(path).is_absolute()
-               or ".." in Path(path).parts or any(part in ("", ".") for part in Path(path).parts) or
-               not isinstance(blob, str) or re.fullmatch(r"[0-9a-f]{40}", blob) is None
-               for path, blob in entries.items()):
-            return _EvidenceResolution("tracked_index_invalid")
-        if rel_path not in entries:
-            return _EvidenceResolution("not_tracked_index")
-        recorded_blob = entries.get(rel_path)
-        live_blob = _git_staged_blob_sha(repo_root, rel_path)
-        if live_blob is not None and live_blob != recorded_blob:
-            return _EvidenceResolution("tracked_index_drift")
-        git_inside = False
-        if _git_available(repo_root):
-            try:
-                git_probe = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=repo_root,
-                                           capture_output=True, text=True)
-                git_inside = git_probe.returncode == 0 and git_probe.stdout.strip() == "true"
-            except OSError:
-                git_inside = False
-        if live_blob is None and git_inside:
-            return _EvidenceResolution("not_staged")
-        if live_blob is None:
-            # Gitless/no-executable tier still proves that the regular file's actual bytes are the
-            # frozen tracked blob. A manifest SHA and tracked-index map may otherwise be rewritten
-            # together by an attacker. Reproduce Git's canonical blob object hash directly.
-            try:
-                payload = full.read_bytes()
-            except OSError:
-                return _EvidenceResolution("missing")
-            computed_blob = hashlib.sha1(
-                b"blob " + str(len(payload)).encode("ascii") + b"\0" + payload).hexdigest()
-            if computed_blob != recorded_blob:
-                return _EvidenceResolution("tracked_index_drift")
+    if not _git_inside_work_tree(repo_root):
+        return _EvidenceResolution("git_unavailable")
+    indexed_blob = _git_staged_blob_sha(repo_root, rel_path)
+    if indexed_blob is None:
+        # Regular file, but git does not carry it: an unstaged/ignored path is not evidence.
+        return _EvidenceResolution("untracked")
+    worktree_blob = _git_worktree_blob_sha(repo_root, rel_path)
+    if worktree_blob is None:
+        return _EvidenceResolution("git_unavailable")
+    if worktree_blob != indexed_blob:
+        return _EvidenceResolution("worktree_drift")
     return _EvidenceResolution("ok")
 
 
@@ -1264,16 +1171,12 @@ def extract_assertion_ids(path: Path) -> set | None:
     return extractor(path)
 
 
-def evidence_structural_violations(policies: list, repo_root: Path = REPO_ROOT,
-                                    evidence_manifest: dict | None = None,
-                                    tracked_index: dict | None = None) -> list:
-    """Path resolves through the manifest+digest+symlink gate (plus the tracked_index trust tier
-    when `tracked_index` is given -- see resolve_evidence_path / module docstring), assertion_ids
-    are nonempty and each one is an exact, real identifier in the cited file, supports[] entries
-    resolve to real clause_ids on the SAME policy, and every declared clause_id has at least one
-    evidence entry supporting it (no orphan clauses)."""
-    if evidence_manifest is None:
-        evidence_manifest = load_evidence_manifest()
+def evidence_structural_violations(policies: list, repo_root: Path = REPO_ROOT) -> list:
+    """Path resolves through the git+symlink gate (see resolve_evidence_path / module docstring:
+    tracked in repo_root's git index, working-tree bytes undrifted from it, no symlink component),
+    assertion_ids are nonempty and each one is an exact, real identifier in the cited file,
+    supports[] entries resolve to real clause_ids on the SAME policy, and every declared clause_id
+    has at least one evidence entry supporting it (no orphan clauses)."""
     out = []
     for p in policies:
         pid = p.get("policy_id")
@@ -1290,7 +1193,7 @@ def evidence_structural_violations(policies: list, repo_root: Path = REPO_ROOT,
             supports = e.get("supports") or []
             assertion_ids = e.get("assertion_ids") or []
 
-            res = resolve_evidence_path(repo_root, path, evidence_manifest, tracked_index=tracked_index)
+            res = resolve_evidence_path(repo_root, path)
             if res.status != "ok":
                 out.append(Violation(_EVIDENCE_RESOLUTION_REASON[res.status],
                                       f"{path!r}: {res.status}", policy_id=pid, path=path))
@@ -1466,35 +1369,73 @@ _TREE_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _CONTRACT_SCRIPT_REL = ".claude/policies/runtime/policy_registry.py"
 
 
-def compute_contract_tree_sha256(doc: dict, schema: dict, evidence_manifest: dict, claim_bindings: dict,
-                                  tracked_index: dict, repo_root: Path = REPO_ROOT,
+_CONTRACT_TREE_SCOPE = ".claude"
+
+
+def _git_contract_tree_digest(repo_root: Path, exclude_paths: set) -> str:
+    """sha256 over `git ls-tree -r -z HEAD -- .claude` reduced to "<blob sha1> <path>" lines, minus
+    the selected removal artifact's own line.
+
+    This is the git tree identity that replaces the two ledger components (2026-09-03 G2-a): the
+    same fact -- "which exact bytes does every tracked contract file hold" -- read from git rather
+    than from a hand-stamped transcription of git. `-z` is mandatory: without it git applies
+    core.quotePath and a non-ASCII path would produce a DIFFERENT line for identical content
+    depending on config, which is exactly the false-drift class this project has already been
+    bitten by. A whole-tree id (`git rev-parse HEAD^{tree}`) is deliberately NOT used: the removal
+    artifact itself lives in the tree, so an artifact would have to contain a digest of itself.
+    Listing lines can be filtered; a tree id cannot.
+
+    Returns the literal sentinel "unavailable" when git cannot answer. That sentinel is not a
+    64-hex digest and can never equal a git-backed one, so check_removal_eligibility's exact
+    comparison fails closed instead of silently accepting a stale artifact."""
+    if not _git_inside_work_tree(repo_root):
+        return "unavailable"
+    try:
+        result = subprocess.run(["git", "ls-tree", "-r", "-z", "HEAD", "--", _CONTRACT_TREE_SCOPE],
+                                 cwd=repo_root, capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return "unavailable"
+    if result.returncode != 0:
+        return "unavailable"
+    lines = []
+    for record in result.stdout.split("\0"):
+        if not record:
+            continue
+        meta, _, path = record.partition("\t")
+        fields = meta.split()
+        if len(fields) < 3 or not path or path in exclude_paths:
+            continue
+        lines.append(f"{fields[2]} {path}")
+    return hashlib.sha256("\n".join(sorted(lines)).encode("utf-8")).hexdigest()
+
+
+def compute_contract_tree_sha256(doc: dict, schema: dict, claim_bindings: dict,
+                                  repo_root: Path = REPO_ROOT,
                                   selected_removal_artifact_path: str | None = None) -> str:
     """Deterministic content-identity digest binding a removal artifact to the EXACT contract
     state it was checked against (cycle4 fix -- subagent-summary-1 finding 3: a removal artifact's
     `tree_sha256` previously only had to be well-formed-64-hex, never bound to any real tree, so a
     stale artifact from a completely different tree/registry state was silently accepted).
 
-    Inputs: the registry document under test, the schema, the evidence manifest, the claim-binding
-    map, the tracked-index snapshot, and this validator's own source bytes -- exactly the six
-    named in the remediation spec. Canonical encoding: every JSON-like input is serialized with
-    `json.dumps(..., sort_keys=True, ensure_ascii=False)` (so key order in the source file never
-    matters), each part is labeled and sha256'd independently, and the six labeled digests are
-    joined SORTED (labels are fixed and unique) before the final sha256, so argument order cannot
-    change the result.  A removal artifact cannot include its own path/digest in that result without
-    self-reference. Every `removal_evidence.path` remains in the canonical registry component.
-    Only the selected artifact's own manifest/tracked-index entries are omitted; sibling artifacts
-    remain ordinary contract material. Policy_id, result, exact artifact digest and invocation as_of
-    remain independently checked by check_removal_evidence_contract()."""
+    Inputs: the registry document under test, the schema, the claim-binding map, the GIT TREE
+    IDENTITY of the tracked contract surface, and this validator's own source bytes. Canonical
+    encoding: every JSON-like input is serialized with `json.dumps(..., sort_keys=True,
+    ensure_ascii=False)` (so key order in the source file never matters), each part is labeled and
+    sha256'd independently, and the labeled digests are joined SORTED (labels are fixed and
+    unique) before the final sha256, so argument order cannot change the result. A removal
+    artifact cannot include its own path/digest in that result without self-reference, so only
+    the selected artifact's own tree line is omitted; sibling artifacts remain ordinary contract
+    material, and every `removal_evidence.path` remains in the canonical registry component.
+    Policy_id, result, exact artifact digest and invocation as_of remain independently checked by
+    check_removal_evidence_contract().
+
+    2026-09-03 (G2-a): the `evidence_manifest`/`tracked_index` components are replaced by the
+    single `git_tree` component. The digest VALUE therefore changes -- safe here because the repo
+    holds zero removal artifacts (registry.yaml: `status: retired` 0, `removal_evidence` 0), so
+    nothing was ever bound to the old value."""
     contract_doc = copy.deepcopy(doc)
     artifact_paths = ({selected_removal_artifact_path}
                       if isinstance(selected_removal_artifact_path, str) else set())
-    contract_manifest = ({path: digest for path, digest in evidence_manifest.items()
-                          if path not in artifact_paths}
-                         if isinstance(evidence_manifest, dict) else evidence_manifest)
-    contract_tracked_index = copy.deepcopy(tracked_index)
-    if isinstance(contract_tracked_index, dict) and isinstance(contract_tracked_index.get("entries"), dict):
-        for path in artifact_paths:
-            contract_tracked_index["entries"].pop(path, None)
 
     def _digest_json(o) -> str:
         return hashlib.sha256(json.dumps(o, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
@@ -1507,20 +1448,18 @@ def compute_contract_tree_sha256(doc: dict, schema: dict, evidence_manifest: dic
     parts = [
         f"registry:{_digest_json(contract_doc)}",
         f"schema:{_digest_json(schema)}",
-        f"evidence_manifest:{_digest_json(contract_manifest)}",
         f"claim_bindings:{_digest_json(claim_bindings)}",
-        f"tracked_index:{_digest_json(contract_tracked_index)}",
+        f"git_tree:{_git_contract_tree_digest(repo_root, artifact_paths)}",
         f"policy_registry.py:{hashlib.sha256(script_bytes).hexdigest()}",
     ]
     combined = "\n".join(sorted(parts))
     return hashlib.sha256(combined.encode("utf-8")).hexdigest()
 
 
-def _load_removal_artifact(repo_root: Path, rel_path, evidence_manifest: dict,
-                           tracked_index: dict | None = None):
-    """Resolves `rel_path` through the SAME manifest+digest+symlink gate as any other evidence
-    path, then parses it as a JSON object. Returns (artifact_dict_or_None, reason_code_or_None)."""
-    res = resolve_evidence_path(repo_root, rel_path, evidence_manifest, tracked_index)
+def _load_removal_artifact(repo_root: Path, rel_path):
+    """Resolves `rel_path` through the SAME git+symlink gate as any other evidence path, then
+    parses it as a JSON object. Returns (artifact_dict_or_None, reason_code_or_None)."""
+    res = resolve_evidence_path(repo_root, rel_path)
     if res.status != "ok":
         return None, _EVIDENCE_RESOLUTION_REASON[res.status]
     doc, err = safe_load_json_object(repo_root / rel_path, "REMOVAL_EVIDENCE_ARTIFACT")
@@ -1530,23 +1469,18 @@ def _load_removal_artifact(repo_root: Path, rel_path, evidence_manifest: dict,
 
 
 def check_removal_eligibility(policy: dict, repo_root: Path = REPO_ROOT,
-                               evidence_manifest: dict | None = None,
-                               tracked_index: dict | None = None,
                                expected_tree_sha256: str | None = None,
                                expected_as_of: datetime.date | None = None) -> list:
     """Selected-policy-only eligibility check -- callers wanting the full contract (schema +
     registry-wide lifecycle validation FIRST, plus contract-tree/as_of identity binding) use
     cmd_check_removal / the check_removal_full helper below. This function alone is intentionally
-    narrow (it is also exercised directly, fixture-style, by tests that construct a single policy
-    dict in isolation).
+    narrow, and can be called with a single policy dict in isolation.
 
-    cycle4 fix: `expected_tree_sha256`/`expected_as_of` are opt-in (default None -- every existing
-    narrow/direct caller that never passes them is completely unaffected). When given (always the
-    case from check_removal_full, which alone has the doc/schema/claim_bindings/tracked_index
-    needed to compute expected_tree_sha256), the artifact's own tree_sha256/as_of fields -- once
-    individually shape-valid -- must equal them EXACTLY, not merely look like a digest/date."""
-    if evidence_manifest is None:
-        evidence_manifest = load_evidence_manifest()
+    cycle4 fix: `expected_tree_sha256`/`expected_as_of` are opt-in (default None -- a narrow
+    caller that never passes them is unaffected). When given (always the case from
+    check_removal_full, which alone has the doc/schema/claim_bindings needed to compute
+    expected_tree_sha256), the artifact's own tree_sha256/as_of fields -- once individually
+    shape-valid -- must equal them EXACTLY, not merely look like a digest/date."""
     pid = policy.get("policy_id")
     out = []
     if policy.get("status") != "retired":
@@ -1560,7 +1494,7 @@ def check_removal_eligibility(policy: dict, repo_root: Path = REPO_ROOT,
                               path=f"$.policies[{pid}].removal_evidence.status"))
         return out
     path = removal_evidence.get("path")
-    artifact, err_code = _load_removal_artifact(repo_root, path, evidence_manifest, tracked_index)
+    artifact, err_code = _load_removal_artifact(repo_root, path)
     if artifact is None:
         out.append(Violation(err_code or "REMOVAL_NOT_ELIGIBLE",
                               "removal_evidence.path does not resolve to a readable, tracked, digest-matching "
@@ -1597,9 +1531,8 @@ def check_removal_eligibility(policy: dict, repo_root: Path = REPO_ROOT,
 
 
 def check_removal_full(doc: dict, policy_id: str, as_of: datetime.date, schema: dict,
-                        repo_root: Path = REPO_ROOT, evidence_manifest: dict | None = None,
-                        claim_bindings: dict | None = None, tracked_index: dict | None = None,
-                        governed_prose_snapshot: dict | None = None) -> list:
+                        repo_root: Path = REPO_ROOT,
+                        claim_bindings: dict | None = None) -> list:
     """The full removal contract (cycle2 fix): schema-shape validation, THEN full-registry
     lifecycle validation (both with the given as_of/repo_root), and ONLY if the WHOLE registry is
     clean does the selected policy's own removal_evidence get checked. A retired policy with a
@@ -1609,21 +1542,15 @@ def check_removal_full(doc: dict, policy_id: str, as_of: datetime.date, schema: 
 
     cycle4 fix (subagent-summary-1 finding 3): the selected policy's removal artifact is now bound
     to the EXACT contract tree and as_of this invocation is checking -- computed once here via
-    compute_contract_tree_sha256 (using the real committed claim_bindings.json/tracked_index.json
-    by default, loaded fresh when the caller does not supply them) and passed down as
-    expected_tree_sha256/expected_as_of. This does NOT change the `evaluate_lifecycle` call below
-    (still exactly the pre-cycle4 signature/behavior) -- the identity binding lives solely in the
-    eligibility check, so it cannot introduce any new violation class into unrelated
-    registry-wide lifecycle fixtures."""
-    if evidence_manifest is None:
-        evidence_manifest = load_evidence_manifest()
+    compute_contract_tree_sha256 (using the real committed claim_bindings.json by default, loaded
+    fresh when the caller does not supply it, plus the live git tree identity) and passed down as
+    expected_tree_sha256/expected_as_of. The identity binding lives solely in the eligibility
+    check, so it cannot introduce any new violation class into unrelated registry-wide lifecycle
+    fixtures."""
     shape = schema_violations(doc, schema)
     if shape:
         return shape
-    lifecycle = evaluate_lifecycle(
-        doc, as_of, repo_root, evidence_manifest,
-        tracked_index=tracked_index, claim_bindings=claim_bindings,
-        governed_prose_snapshot=governed_prose_snapshot)
+    lifecycle = evaluate_lifecycle(doc, as_of, repo_root, claim_bindings=claim_bindings)
     if lifecycle:
         return lifecycle
     by_id = {p.get("policy_id"): p for p in doc.get("policies", []) if isinstance(p, dict)}
@@ -1631,12 +1558,10 @@ def check_removal_full(doc: dict, policy_id: str, as_of: datetime.date, schema: 
     if policy is None:
         return [Violation("UNKNOWN_POLICY_ID", f"{policy_id!r} not found in registry", path="$.policies")]
     resolved_claim_bindings = claim_bindings if claim_bindings is not None else load_claim_bindings()
-    resolved_tracked_index = tracked_index if tracked_index is not None else load_tracked_index()
-    expected_tree = compute_contract_tree_sha256(doc, schema, evidence_manifest, resolved_claim_bindings,
-                                                  resolved_tracked_index, repo_root,
+    expected_tree = compute_contract_tree_sha256(doc, schema, resolved_claim_bindings, repo_root,
                                                   selected_removal_artifact_path=(
                                                       policy.get("removal_evidence") or {}).get("path"))
-    return check_removal_eligibility(policy, repo_root, evidence_manifest, resolved_tracked_index,
+    return check_removal_eligibility(policy, repo_root,
                                       expected_tree_sha256=expected_tree, expected_as_of=as_of)
 
 
@@ -1690,36 +1615,31 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
              ".claude/policies/arch_variant_ledger.json.source_build_variants")
         return out
 
-    evidence_manifest, manifest_err = safe_load_json_object(
-        repo_root / ".claude/policies/evidence_manifest.json", "ARCH_EVIDENCE_MANIFEST")
-    tracked_index, index_err = safe_load_json_object(
-        repo_root / ".claude/policies/tracked_index.json", "ARCH_TRACKED_INDEX")
-    if (manifest_err is not None or index_err is not None or
-            not isinstance(evidence_manifest, dict) or not isinstance(tracked_index, dict)):
-        fail("ARCH_VARIANT_TRUST_INPUT_INVALID", "evidence manifest and tracked index must be readable objects",
-             ".claude/policies")
-        return out
+    # 2026-09-03 (G2-a): 이 자리에 있던 evidence_manifest/tracked_index 2종 로드와 실패 시
+    # `ARCH_VARIANT_TRUST_INPUT_INVALID` 단일 위반 + `return out` 은 **침묵 범위붕괴**였다 --
+    # 원장 하나만 읽히지 않아도 아래 아치 검사 전부(후보 증거·사다리·이미지 문법·빌드패치 선택자·
+    # Dockerfile/SKILL 배선)가 통째로 건너뛰어지고, 그 사실은 위반 1건으로만 보였다. 이제 아티팩트
+    # 결속은 git 권위(resolve_evidence_path)로 직접 판정하므로 읽을 신뢰입력 파일이 없고, 아치 검사는
+    # 어떤 경우에도 끝까지 돈다.
 
     def validate_bound_artifact(name, item, field, kind, pfx):
         pointer = item.get(field)
-        if not isinstance(pointer, dict) or set(pointer) != {"path", "sha256"}:
+        if not isinstance(pointer, dict) or set(pointer) != {"path"}:
             fail("ARCH_VARIANT_ARTIFACT_POINTER_INVALID",
-                 f"{name!r} {field} must be an exact path/sha256 object", f"{pfx}.{field}")
+                 f"{name!r} {field} must be an exact single-key path object", f"{pfx}.{field}")
             return
         rel = pointer.get("path")
-        digest = pointer.get("sha256")
         if not isinstance(rel, str):
             fail("ARCH_VARIANT_ARTIFACT_PATH_INVALID", f"{name!r} {field} requires a path string",
                  f"{pfx}.{field}.path")
             return
-        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
-            fail("ARCH_VARIANT_ARTIFACT_DIGEST_INVALID", f"{name!r} {field} requires sha256",
-                 f"{pfx}.{field}.sha256")
-            return
-        resolution = resolve_evidence_path(repo_root, rel, evidence_manifest, tracked_index)
-        if resolution.status != "ok" or _sha256_file(repo_root / rel) != digest:
+        # 무결성 권위는 Git 자신이다 — 손으로 적은 sha256 을 곁에 두지 않는다. 포인터가 가리키는
+        # 파일이 인덱스에 추적돼 있고 워킹트리 바이트가 스테이징 blob 과 같은지를 Git 이 판정한다.
+        resolution = resolve_evidence_path(repo_root, rel)
+        if resolution.status != "ok":
             fail("ARCH_VARIANT_ARTIFACT_UNBOUND",
-                 f"{name!r} {field} is not regular, manifest/index tracked, and digest-bound",
+                 f"{name!r} {field} is not a regular, git-tracked, undrifted file "
+                 f"(resolution={resolution.status})",
                  f"{pfx}.{field}.path")
             return
         artifact, artifact_err = safe_load_json_object(repo_root / rel, "ARCH_VARIANT_ARTIFACT")
@@ -1729,7 +1649,7 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
             return
         common_fields = {"schema_version", "kind", "result", "variant_id", "vllm_repo", "vllm_ref",
                          "track", "architecture", "image_tag"}
-        kind_fields = ({"approved_by", "source_evidence", "source_path", "source_sha256", "approved_scope"}
+        kind_fields = ({"approved_by", "source_evidence", "source_path", "approved_scope"}
                        if kind == "arch_variant_approval" else {"existing_models"})
         if artifact.get("schema_version") != 1 or set(artifact) != common_fields | kind_fields:
             fail("ARCH_VARIANT_ARTIFACT_SHAPE_INVALID",
@@ -1751,7 +1671,6 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
                               if isinstance(approved_by, str) else None)
             source_evidence = artifact.get("source_evidence")
             source_path = artifact.get("source_path")
-            source_sha256 = artifact.get("source_sha256")
             approved_scope = artifact.get("approved_scope")
             if approval_match is None:
                 fail("ARCH_VARIANT_APPROVAL_IDENTITY_MISSING", f"{name!r} approval lacks explicit HITL identity",
@@ -1765,7 +1684,7 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
             expected_source_path = (".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_"
                                     "SM12x_DeepSeek-V4-Flash_2노드서빙.md")
             source_path_value = source_path if isinstance(source_path, str) else ""
-            source_resolution = (resolve_evidence_path(repo_root, source_path_value, evidence_manifest, tracked_index)
+            source_resolution = (resolve_evidence_path(repo_root, source_path_value)
                                  if source_path_value else _EvidenceResolution("absent"))
             try:
                 source_text = (repo_root / source_path_value).read_text(encoding="utf-8") if source_resolution.status == "ok" else ""
@@ -1773,10 +1692,7 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
                 source_text = ""
             source_artifact_ok = (
                 source_path == expected_source_path
-                and isinstance(source_sha256, str)
-                and re.fullmatch(r"[0-9a-f]{64}", source_sha256) is not None
                 and source_resolution.status == "ok"
-                and _sha256_file(repo_root / source_path_value) == source_sha256
                 and "## 3. R1 해소 — 비-repack MoE 경로" in source_text
                 and "포크 소스를 직독해 **확정**" in source_text
                 and "**HUMMING** (fused grouped MoE)" in source_text
@@ -1816,9 +1732,8 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
         후보 단계의 유일한 검증 가능한 주장이다.
 
         digest 바인딩을 하지 않는 이유: `docs/{plan,testlog}` 는 docs.md 보관 matrix 상 **비추적**이라
-        evidence_manifest/tracked_index 에 실릴 수 없다(배포 산출물이 아니다). 따라서 여기서 강제할 수
-        있는 것은 명명 SSOT 준수와 비어있지 않음뿐이며, 디스크 존재는 검사하지 않는다(fresh clone·
-        gitless_export 에서 위양성이 된다).
+        git 이 들지 않는다(배포 산출물이 아니다). 따라서 여기서 강제할 수 있는 것은 명명 SSOT 준수와
+        비어있지 않음뿐이며, 디스크 존재는 검사하지 않는다(fresh clone·export 에서 위양성이 된다).
         """
         pointer = item.get("evidence")
         if not isinstance(pointer, dict) or set(pointer) != {"plan", "stock_infeasible_testlogs"}:
@@ -2036,16 +1951,21 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
                  f"{pfx}.image_tag")
         all_tagged.append((name, image_tag))
         status = item.get("status", "")
-        deprecation_versions = sorted(key.removeprefix("_deprecation_") for key in metadata_keys
-                                      if key.startswith("_deprecation_"))
-        image_version_match = re.match(r"easy-vllm:(\d+\.\d+\.\d+)-", image_tag)
-        expected_superseded = (f"SUPERSEDED@{deprecation_versions[0]}; retained only as the "
-                               f"{image_version_match.group(1)} last-good rollback anchor"
-                               if len(deprecation_versions) == 1 and image_version_match else None)
-        superseded = isinstance(status, str) and status == expected_superseded
+        # v4(2026-09-03): 퇴역 판정을 **산문 재구성**에서 **토큰 문법**으로 바꾼다.
+        #   이전 판은 `_deprecation_<ver>` 메타키의 버전 + image_tag 의 버전 + 정해진 문장 전문을 조립해
+        #   `status` 와 **완전일치**를 요구했다(3중 버전매칭). 그래서 실제로 강제한 것은 안전 성질이 아니라
+        #   **문장 한 글자**였고, 결합도 취약했다 — `_deprecation_*` 메타키를 하나 더 달면 len != 1 이
+        #   되어 expected 가 None 이 되고, 정상 퇴역 항목이 통째로 promoted 로 떨어져 무관한 위반
+        #   (ACTIVE_NOT_VALIDATED)이 터진다. 지키려는 불변식은 하나뿐이다:
+        #   **"퇴역했다"는 선언은 어느 버전에서 퇴역했는지를 못박아야 한다**(맨 `SUPERSEDED` 로 활성
+        #   후보를 숨길 수 없다). 그 한 가지만 검사하고, 뒤따르는 산문은 사람 몫으로 자유롭게 둔다.
+        #   `_deprecation_*` 메타키는 사람용 근거 노트로 위 metadata_keys allowlist 에 그대로 남는다.
+        superseded = (isinstance(status, str)
+                      and re.match(r"SUPERSEDED@\d+\.\d+\.\d+(?![\d.])", status) is not None)
         if isinstance(status, str) and status.startswith("SUPERSEDED") and not superseded:
             fail("ARCH_VARIANT_STATUS_INVALID",
-                 f"{name!r} malformed superseded status must not hide an active candidate",
+                 f"{name!r} superseded status must name the deprecating version as "
+                 f"SUPERSEDED@<major.minor.patch> -- a bare marker must not hide an active candidate",
                  f"{pfx}.status")
         # 상태는 3종이다: SUPERSEDED(퇴역) · CANDIDATE(등재만, 미승격) · VALIDATED(승격=기본 트랙).
         #   CANDIDATE 는 C5 절 문언 "before it becomes the default" 의 **이전** 상태다 -- 좌표를 원장에
@@ -2139,20 +2059,15 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
 
 
 def evaluate_lifecycle(doc: dict, as_of: datetime.date, repo_root: Path = REPO_ROOT,
-                        evidence_manifest: dict | None = None, tracked_index: dict | None = None,
-                        claim_bindings: dict | None = None,
-                        governed_prose_snapshot: dict | None = None) -> list:
+                        claim_bindings: dict | None = None) -> list:
     """Runs every Python-level (non-schema) check and returns the combined violation list. Does
     NOT run schema_violations -- callers that also want shape validation call that separately
     (cmd_verify does both, in that order).
 
-    cycle4 fix: `tracked_index`/`claim_bindings` are opt-in (default None), threaded straight into
-    evidence_structural_violations / claim_binding_violations respectively -- every existing
-    fixture-level test that never passes them exercises EXACTLY the pre-cycle4 check set (see
-    module docstring "Tracked-index trust tiers" / "Clause-specific claim bindings" for why this
-    is opt-in rather than always-on)."""
-    if evidence_manifest is None:
-        evidence_manifest = load_evidence_manifest()
+    2026-09-03 (G2-a): `evidence_manifest`/`tracked_index`/`governed_prose_snapshot` parameters
+    are gone. Evidence resolution now asks git directly (no trust-input files to thread through),
+    and the governed-prose snapshot tripwire was removed outright. `claim_bindings` stays opt-in
+    (default None) exactly as before -- see module docstring "Clause-specific claim bindings"."""
     policies = [p for p in doc.get("policies", []) if isinstance(p, dict)]
     out = []
     out += duplicate_id_violations(policies)
@@ -2167,12 +2082,10 @@ def evaluate_lifecycle(doc: dict, as_of: datetime.date, repo_root: Path = REPO_R
     out += as_of_state_violations(policies, as_of)
     out += status_enum_violations(policies)
     out += retirement_metadata_closure_violations(policies)
-    out += evidence_structural_violations(policies, repo_root, evidence_manifest, tracked_index=tracked_index)
+    out += evidence_structural_violations(policies, repo_root)
     out += clause_executable_evidence_violations(policies)
     if claim_bindings is not None:
         out += claim_binding_violations(policies, claim_bindings)
-    if governed_prose_snapshot is not None:
-        out += governed_prose_snapshot_violations(governed_prose_snapshot, repo_root)
     if any(p.get("policy_id") == "ARCH_WALL_VARIANT_LADDER" for p in policies):
         out += arch_variant_contract_violations(repo_root)
     return out
@@ -2204,33 +2117,28 @@ def _emit(violations: list, exit_code: int) -> None:
 
 def _load_inputs_or_emit(args: argparse.Namespace):
     """Shared safe-loading sequence for both verify and check-removal: --as-of, registry, schema,
-    evidence-manifest, tracked-index, claim-bindings -- each failure emits the stable JSON
-    envelope (exit 2) and never raises. Returns (repo_root, as_of, doc, schema, evidence_manifest,
-    tracked_index, claim_bindings) on success (never returns on failure -- _emit always raises
-    SystemExit).
+    claim-bindings -- each failure emits the stable JSON envelope (exit 2) and never raises.
+    Returns (repo_root, as_of, doc, schema, claim_bindings) on success (never returns on failure
+    -- _emit always raises SystemExit).
 
-    cycle4 fix: --tracked-index/--claim-bindings default to living INSIDE the effective repo_root
-    (`<repo_root>/.claude/policies/{tracked_index,claim_bindings}.json`) rather than always
-    resolving to THIS project's own committed files regardless of --repo-root -- unlike
-    --registry/--schema/--evidence-manifest (which stay script-relative-default, unchanged, for
-    full backward compatibility with every existing caller). This is a deliberate asymmetry: these
-    two files each attest to facts about the repo_root BEING CHECKED (its own git-staged state /
-    its own clause-evidence contract), so a repo export that lacks its own copy must fail closed
-    here -- it must not silently inherit this project's trust anchors (subagent-summary-1
-    finding 1's exact reproduction: a custom, non-git temp repo with only a self-authored evidence
-    manifest and no trusted tracked_index of its own)."""
+    2026-09-03 (G2-a, plan_26090222): the evidence-manifest / tracked-index / governed-prose
+    loads are GONE, not made optional. The plan's premise that a missing ledger would be "treated
+    as normal" was false -- each miss emitted exit 2, a hard block that harness_verify's first
+    stage propagates as BLOCKED. Removing the load removes the block at its source. Provenance is
+    now asked of git per path, inside whatever --repo-root is being checked, so a repo export
+    without its own git still fails closed (EVIDENCE_GIT_UNAVAILABLE) rather than inheriting this
+    project's trust anchors.
+
+    cycle4 fix (retained): --claim-bindings defaults to living INSIDE the effective repo_root
+    (`<repo_root>/.claude/policies/claim_bindings.json`) rather than always resolving to THIS
+    project's own committed file regardless of --repo-root -- unlike --registry/--schema (which
+    stay script-relative-default). That file attests to a fact about the repo_root BEING CHECKED
+    (its own clause-evidence contract), so an export lacking its own copy must fail closed."""
     repo_root = Path(args.repo_root).resolve() if args.repo_root else REPO_ROOT
     registry_path = Path(args.registry).resolve() if args.registry else REGISTRY_PATH
     schema_path = Path(args.schema).resolve() if args.schema else SCHEMA_PATH
-    manifest_path = Path(args.evidence_manifest).resolve() if getattr(args, "evidence_manifest", None) \
-        else EVIDENCE_MANIFEST_PATH
-    tracked_index_path = Path(args.tracked_index).resolve() if getattr(args, "tracked_index", None) \
-        else (repo_root / TRACKED_INDEX_REL)
     claim_bindings_path = Path(args.claim_bindings).resolve() if getattr(args, "claim_bindings", None) \
         else (repo_root / CLAIM_BINDINGS_REL)
-    governed_snapshot_path = Path(args.governed_prose_snapshot).resolve() \
-        if getattr(args, "governed_prose_snapshot", None) \
-        else (repo_root / GOVERNED_PROSE_SNAPSHOT_REL)
 
     try:
         as_of = datetime.date.fromisoformat(args.as_of)
@@ -2245,46 +2153,27 @@ def _load_inputs_or_emit(args: argparse.Namespace):
     if err is not None:
         _emit([err], 2)
 
-    evidence_manifest, err = safe_load_json_object(manifest_path, "EVIDENCE_MANIFEST")
-    if err is not None:
-        _emit([err], 2)
-
-    tracked_index, err = safe_load_json_object(tracked_index_path, "TRACKED_INDEX")
-    if err is not None:
-        _emit([err], 2)
-
     claim_bindings, err = safe_load_json_object(claim_bindings_path, "CLAIM_BINDINGS")
     if err is not None:
         _emit([err], 2)
 
-    governed_prose_snapshot, err = safe_load_json_object(
-        governed_snapshot_path, "GOVERNED_PROSE_SNAPSHOT")
-    if err is not None:
-        _emit([err], 2)
-
-    return (repo_root, as_of, doc, schema, evidence_manifest, tracked_index, claim_bindings,
-            governed_prose_snapshot)
+    return (repo_root, as_of, doc, schema, claim_bindings)
 
 
 def cmd_verify(args: argparse.Namespace) -> None:
-    (repo_root, as_of, doc, schema, evidence_manifest, tracked_index, claim_bindings,
-     governed_prose_snapshot) = _load_inputs_or_emit(args)
+    (repo_root, as_of, doc, schema, claim_bindings) = _load_inputs_or_emit(args)
     shape_violations = schema_violations(doc, schema)
     if shape_violations:
         _emit(shape_violations, 2)
         return
-    lifecycle_violations = evaluate_lifecycle(
-        doc, as_of, repo_root, evidence_manifest, tracked_index=tracked_index,
-        claim_bindings=claim_bindings, governed_prose_snapshot=governed_prose_snapshot)
+    lifecycle_violations = evaluate_lifecycle(doc, as_of, repo_root, claim_bindings=claim_bindings)
     _emit(lifecycle_violations, 1 if lifecycle_violations else 0)
 
 
 def cmd_check_removal(args: argparse.Namespace) -> None:
-    (repo_root, as_of, doc, schema, evidence_manifest, tracked_index, claim_bindings,
-     governed_prose_snapshot) = _load_inputs_or_emit(args)
-    violations = check_removal_full(doc, args.policy_id, as_of, schema, repo_root, evidence_manifest,
-                                     claim_bindings=claim_bindings, tracked_index=tracked_index,
-                                     governed_prose_snapshot=governed_prose_snapshot)
+    (repo_root, as_of, doc, schema, claim_bindings) = _load_inputs_or_emit(args)
+    violations = check_removal_full(doc, args.policy_id, as_of, schema, repo_root,
+                                     claim_bindings=claim_bindings)
     # cycle4 fix (subagent-summary-1 finding 6): this module's own documented exit-code contract
     # already lists "unknown --policy-id" under exit 2 (invalid-input) -- the implementation
     # previously fell through to the generic "any violation -> exit 1" branch instead.
@@ -2309,9 +2198,8 @@ def _self_test() -> int:
         "review": {"state": "current", "last_reviewed_at": "2026-01-15", "next_review_due": "2026-04-15",
                    "reviewer": "selftest"},
     }
-    manifest = {".claude/policies/runtime/policy_registry.py": _sha256_file(Path(__file__).resolve())}
     as_of = datetime.date(2026, 1, 15)
-    violations = evaluate_lifecycle({"policies": [ok_policy]}, as_of, REPO_ROOT, manifest)
+    violations = evaluate_lifecycle({"policies": [ok_policy]}, as_of, REPO_ROOT)
     if violations:
         raise RuntimeError(f"self-test OK fixture unexpectedly flagged: {[v.to_dict() for v in violations]}")
 
@@ -2324,7 +2212,7 @@ def _self_test() -> int:
                        status="active",
                        review={"state": "current", "last_reviewed_at": "2025-01-01",
                                "next_review_due": "2025-04-01", "reviewer": "selftest"})
-    violations = evaluate_lifecycle({"policies": [bad_policy]}, as_of, REPO_ROOT, manifest)
+    violations = evaluate_lifecycle({"policies": [bad_policy]}, as_of, REPO_ROOT)
     codes = {v.reason_code for v in violations}
     expected = {"LAZY_REMOVE_WHEN", "BAD_LAST_REPRODUCED_DATE", "UNREPRODUCED_90_DAY_NOT_CANDIDATE",
                 "AS_OF_STATE_MISMATCH"}
@@ -2343,13 +2231,8 @@ def main() -> None:
     p_verify.add_argument("--as-of", required=True, help="YYYY-MM-DD, required, no wall-clock default")
     p_verify.add_argument("--registry", default=None)
     p_verify.add_argument("--schema", default=None)
-    p_verify.add_argument("--evidence-manifest", default=None)
-    p_verify.add_argument("--tracked-index", default=None,
-                           help="default: <repo-root>/.claude/policies/tracked_index.json")
     p_verify.add_argument("--claim-bindings", default=None,
                            help="default: <repo-root>/.claude/policies/claim_bindings.json")
-    p_verify.add_argument("--governed-prose-snapshot", default=None,
-                          help="default: <repo-root>/.claude/policies/governed_prose_snapshot.json")
     p_verify.add_argument("--repo-root", default=None)
     p_verify.set_defaults(func=cmd_verify)
 
@@ -2358,13 +2241,8 @@ def main() -> None:
     p_removal.add_argument("--as-of", required=True, help="YYYY-MM-DD, required, no wall-clock default")
     p_removal.add_argument("--registry", default=None)
     p_removal.add_argument("--schema", default=None)
-    p_removal.add_argument("--evidence-manifest", default=None)
-    p_removal.add_argument("--tracked-index", default=None,
-                            help="default: <repo-root>/.claude/policies/tracked_index.json")
     p_removal.add_argument("--claim-bindings", default=None,
                             help="default: <repo-root>/.claude/policies/claim_bindings.json")
-    p_removal.add_argument("--governed-prose-snapshot", default=None,
-                           help="default: <repo-root>/.claude/policies/governed_prose_snapshot.json")
     p_removal.add_argument("--repo-root", default=None)
     p_removal.set_defaults(func=cmd_check_removal)
 

@@ -1336,16 +1336,9 @@ def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, rep
     finally:
         os.close(repo_root_fd)
 
-    plan_bytes = r["content_bytes"]
-    plan_blob_sha1 = hashlib.sha1(
-        b"blob " + str(len(plan_bytes)).encode("ascii") + b"\0" + plan_bytes).hexdigest()
     if r["sha256"] != execution_approval["plan_sha256"]:
         add_reason("EXECUTION_APPROVAL_PLAN_DIGEST_MISMATCH",
                    "execution_approval.plan_sha256 does not match the resolved plan bytes")
-        fail(2)
-    if plan_blob_sha1 != execution_approval["plan_blob_sha1"]:
-        add_reason("EXECUTION_APPROVAL_PLAN_BLOB_MISMATCH",
-                   "execution_approval.plan_blob_sha1 does not match the resolved plan Git blob")
         fail(2)
     expected_atoms = [
         f"approved_by: {execution_approval['approved_by']}",
@@ -1448,6 +1441,42 @@ def _cmd_authorize_promotion(mode: str, action: str, manifest_path: Path, repo_r
     }, 2 if invalid_input else 1)
 
 
+def _authorize_tripwire_failure(repo_root: Path) -> str | None:
+    """부 실행자 — `authorize` 병목에서 tripwire 3종을 돌린다(실패 사유 문자열 또는 None).
+
+    ⚠ stdout 계약: 이 함수는 **절대 stdout 에 쓰지 않는다**. `authorize` 의 JSON stdout 을
+    파싱하는 소비자가 셋이다 — `sync_branches.sh` · `hint_tag.py` · **`sync_to_sub.sh`**
+    (`authorize --action sync_to_sub`). 진단 한 줄이라도 새면 셋이 한꺼번에 깨진다.
+    자식 프로세스의 stdout/stderr 는 캡처해 삼키고, 사유는 반환값으로만 돌려준다.
+
+    격리 픽스처 제외: `runtime_selftest.py` 가 이 파일 옆에 없거나(픽스처 레포는 completion_gate
+    만 복사한다) `--repo-root` 가 이 파일이 속한 저장소가 아니면(clean-checkout export) 건너뛴다.
+    runtime_selftest 안에서도 `_is_canonical_repo()` 가 한 번 더 판별한다(이중 방어).
+
+    ★ 2026-09-03 (적대검증 MAJOR ①): 두 제외 경로는 `return None` 으로 **조용히** 빠져나갔고,
+    호출부는 그것을 "tripwire 가 통과했다"와 구분하지 못했다. 이제 제외될 때마다 **사유가 담긴
+    SKIPPED 한 줄을 stderr 로** 낸다. 제외 자체는 그대로 정상 경로다 — 바뀐 것은 가시성뿐이다.
+    ⚠ stdout 은 절대 건드리지 않는다(`sync_branches.sh`·`sync_to_sub.sh`·`hint_tag.py` 셋이
+    이 명령의 stdout 을 `json.loads` 한다). 자식의 stdout/stderr 도 그대로 삼킨다.
+    """
+    selftest = Path(__file__).resolve().parent / "runtime_selftest.py"
+    if not selftest.is_file():
+        print(f"[authorize] tripwire SKIPPED (runtime_selftest.py absent beside {Path(__file__).name} "
+              f"— isolated fixture copy); pre-side-effect tripwires NOT run", file=sys.stderr)
+        return None
+    if repo_root.resolve() != Path(__file__).resolve().parents[3]:
+        print(f"[authorize] tripwire SKIPPED (--repo-root {repo_root} is not this file's repo "
+              f"{Path(__file__).resolve().parents[3]} — clean-checkout export); "
+              f"pre-side-effect tripwires NOT run", file=sys.stderr)
+        return None
+    proc = subprocess.run([sys.executable, "-B", str(selftest), "--tripwires-only"],
+                          cwd=str(repo_root), capture_output=True, text=True, timeout=120)
+    if proc.returncode == 0:
+        return None
+    return (proc.stderr or proc.stdout).strip().splitlines()[-1] if (proc.stderr or proc.stdout) \
+        else f"runtime_selftest --tripwires-only exited {proc.returncode}"
+
+
 def cmd_authorize(args: argparse.Namespace) -> None:
     mode = args.mode
     action = args.action
@@ -1457,6 +1486,12 @@ def cmd_authorize(args: argparse.Namespace) -> None:
         _emit_authorization(_authorize_bare_result(mode, action, code, message), 2)
 
     repo_root = _resolve_repo_root(args, _on_repo_root_not_found)
+
+    tripwire_failure = _authorize_tripwire_failure(repo_root)
+    if tripwire_failure is not None:
+        _emit_authorization(_authorize_bare_result(
+            mode, action, "TRIPWIRE_FAILED",
+            f"pre-side-effect tripwire failed: {tripwire_failure}"), 2)
 
     if mode == "promotion":
         _cmd_authorize_promotion(mode, action, manifest_path, repo_root)

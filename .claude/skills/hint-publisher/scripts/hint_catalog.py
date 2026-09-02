@@ -49,8 +49,13 @@ def git(*args: str, cwd: Path | None = None, check: bool = True) -> subprocess.C
 
 # ---------------------------------------------------------------- 진실원천
 
-def remote_hint_tags(repo: Path, remote: str) -> list[str]:
-    """**카탈로그의 진실원천.** 실패하면 캐시로 대체하지 않고 죽는다."""
+def remote_hint_tags(repo: Path, remote: str, *, allow_empty: bool = False) -> list[str]:
+    """**카탈로그의 진실원천.** 실패하면 캐시로 대체하지 않고 죽는다.
+
+    `allow_empty` 는 **0건을 정상으로 선언**하는 스위치다(기본 False = fail-closed). 태그 전량을
+    폐기한 직후처럼 '0건이 사실'인 상태가 실재하며, 그때 게이트가 열리지 않으면 카탈로그가
+    낡은 1건을 영원히 들고 있게 된다. 조회 **실패**(returncode != 0)는 이 스위치로도 열리지
+    않는다 — 그것은 '0건'이 아니라 '모른다'이고, 모르는 것을 0으로 적으면 침묵 폴백이 된다."""
     p = git("ls-remote", "--tags", remote, "refs/tags/hint/*", cwd=repo, check=False)
     if p.returncode != 0:
         die(f"원격 태그 조회 실패({remote}) — **캐시로 대체하지 않는다**(D1.1 fail-closed).\n"
@@ -59,7 +64,7 @@ def remote_hint_tags(repo: Path, remote: str) -> list[str]:
     tags = sorted({line.split("\t", 1)[1].removeprefix("refs/tags/")
                    for line in p.stdout.splitlines()
                    if "\t" in line and not line.rstrip().endswith("^{}")})
-    if not tags:
+    if not tags and not allow_empty:
         die(f"원격 {remote} 에 hint 태그가 0건이다 — 빈 카탈로그를 발행하지 않는다. "
             "정말 0건이 맞다면 --allow-empty 로 명시하라.")
     return tags
@@ -153,7 +158,7 @@ def cmd_derive(a) -> int:
     repo = Path(a.repo).resolve()
     if not (repo / CENTRAL_FLAG).exists():
         die(f"{CENTRAL_FLAG} 부재 — 카탈로그는 중앙 저장소만 갱신한다(권한 비대칭).")
-    tags = remote_hint_tags(repo, a.remote)
+    tags = remote_hint_tags(repo, a.remote, allow_empty=a.allow_empty)
     entries = derive_entries(repo, tags)
     rows = render_rows(entries)
 
@@ -270,6 +275,13 @@ def _run_self_test() -> int:
         ck("★음성대조 원격 hint 태그 0건 → 빈 카탈로그 거부",
            expect_die(lambda: remote_hint_tags(repo, str(bare))) == "raised")
 
+        # --allow-empty: 0건을 **선언하면** 통과한다(빈 목록). 태그 전량 폐기 직후의 재파생 경로.
+        ck("allow_empty=True → 0건 정상 통과(빈 목록)",
+           remote_hint_tags(repo, str(bare), allow_empty=True) == [])
+        # 단 조회 **실패**는 allow_empty 로도 열리지 않는다 — '0건'과 '모른다'는 다르다.
+        ck("★음성대조 allow_empty 여도 원격 조회 실패는 중단",
+           expect_die(lambda: remote_hint_tags(repo, nope, allow_empty=True)) == "raised")
+
         # 살아 있는 원격 + 태그 1건 → 정상 조회
         git("push", "-q", str(bare), "refs/tags/hint/1.0/m/a:refs/tags/hint/1.0/m/a", cwd=repo)
         ck("살아 있는 원격에서 태그 조회", remote_hint_tags(repo, str(bare)) == ["hint/1.0/m/a"])
@@ -291,6 +303,9 @@ def main() -> int:
     d.add_argument("--remote", default="origin")
     d.add_argument("--generated-kst", required=True, help="시각은 주입만 받는다(벽시계 금지)")
     d.add_argument("--dry-run", action="store_true")
+    d.add_argument("--allow-empty", action="store_true",
+                   help="원격 hint 태그 0건을 **정상**으로 선언하고 빈 카탈로그를 파생한다"
+                        "(태그 전량 폐기 직후용 · 기본은 fail-closed). 조회 실패는 이 플래그로도 열리지 않는다.")
     d.set_defaults(fn=cmd_derive)
     a = ap.parse_args()
     if a.self_test:

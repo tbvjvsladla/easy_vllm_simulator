@@ -346,7 +346,6 @@
         "approved_at_utc",
         "plan_path",
         "plan_sha256",
-        "plan_blob_sha1",
         "approval_anchor",
         "approval_atoms",
         "allowed_actions"
@@ -371,10 +370,6 @@
         "plan_sha256": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
-        },
-        "plan_blob_sha1": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{40}$"
         },
         "approval_anchor": {
           "type": "string",

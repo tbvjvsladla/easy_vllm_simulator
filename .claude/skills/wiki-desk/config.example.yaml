@@ -44,7 +44,6 @@ registry:
   exclude_dirs: [__llm-wiki, .git, __pycache__, .pytest_cache, temp, dist, output, llm-wiki, wiki-desk, node_modules, <vendored-subtrees>]
   exclude_basenames: [example.md]          # per-folder tracked skeleton, not content
   dir_node_roots: [docs/simlog]            # index each run DIR as one node (run-summary granularity)
-  dir_node_anchor: run_summary.json        # hash/summary anchor inside a run dir (tolerate absence)
 
 # What the librarian returns FIRST, by query intent.
 retrieval:

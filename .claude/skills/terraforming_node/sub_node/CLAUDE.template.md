@@ -43,7 +43,10 @@
 - **자기교정**: 메인 feedback("여기가 틀렸다, 이렇게 고쳐") → **네가 직접 고쳐** 다음 턴에 재-attest. 메인이 네 파일을 고쳐주지 않는다.
 
 ## push-attestation (보고 전 스스로 검증 — 가장 중요)
-- **DO** 보고 전에 검증을 돌리고 결과를 `self_verification` 에 담아라: config-parse · 이 리포트 schema 유효 · runner 문법(`bash -n`) · 산출물 checksum · 가능하면 **로컬 스모크**.
+- **DO** 보고 전에 검증을 돌리고 결과를 `self_verification` 에 담아라: config-parse · 이 리포트 schema 유효 ·
+  runner 문법(`bash -n`) · 산출물 경로 존재 확인 · 가능하면 **로컬 스모크**.
+- **산출물 해시는 적지 마라** — 리포트 스키마에 자리가 없고(`additionalProperties: false`), 무결성 단일권위는
+  네 **로컬 git** 이다. 바뀐 것을 보이려면 해시가 아니라 커밋(`[improve]`)으로 보여라.
 - **DON'T** "파일 만들었음"으로 completed 선언 마라 — **린트 통과 ≠ 서빙됨**.
 - 메인은 네 디스크가 아니라 **네 리포트**를 검증한다(재스캔 안 함). 그러니 **정직하게** attest 하라.
 
@@ -52,17 +55,18 @@
 - **빌딩블럭 비편집**: `.claude/`·`CLAUDE.md`·`Agent_Card.json` 은 메인 소유. 단 `.claude/skills/vllm-recipe-explorer/`(런타임블럭)은 **실행**한다(편집 아님).
 - **모델 다운로드 금지**: NAS(`{{ NAS_MOUNT }}`, read-only) 부재 → 중단·보고. 절대 받지 않는다.
 - **로컬 git 허용 · 원격 금지**: 작업공간은 로컬 레포 — `git add/commit/checkout/switch/branch/status/diff/log/stash` **허용**(브랜치전환·`[improve]` 자기개선 추적·clean-tree 핸드셰이크용). 단 **`git push`·`git pull`·`git fetch`·`git remote`·`git clone` 금지**(origin 영구 없음). `[sync]` 커밋은 **메인 스크립트가 저작**(네가 아님) — 너는 `[improve]` 만 저작.
+- **백업 금지 · git 이 단일 권위**: 고치기 전에 `.bak`/`.orig` 사본을 두거나 `backup` 브랜치·폴더를 만들지 마라 — 되돌리기는 `git diff` · `git checkout -- <path>` 다. 추적물의 해시를 다른 파일에 다시 적지도 마라(같은 사실이 두 자리에 갈라진다). **너의 refs = `single`·`multi` 브랜치 + 메인이 배달한 것**뿐이며 그 밖의 브랜치·태그를 새로 만들지 않는다. **집행은 메인이다** — 배달 표면에 `.claude/policies/` 가 없어(registry·술어·런타임 게이트는 네게 오지 않는다) 이 규약을 기계로 검사하는 주체는 메인이고, 너는 지키고 리포트로 보고한다.
 - **멀티노드 서빙 설정 보존**: NCCL/RDMA env·/dev/infiniband·serve_runner Ray 로직 안 깬다.
 - **무프롬프트**: 확인 요청 말고 Task 자동 수행 후 보고. raw 로그 나열 금지 — **schema-valid JSON 리포트 1개**가 산출물.
 
 ## 리포트 (반환값 — `.claude/schemas/task-report.schema.json` 준수)
 ```json
 {
-  "task_id": "...", "context_id": "...", "turn": 1,
+  "task_id": "...", "context_id": "...", "turn": 1, "node_id": "sub-<host>",
   "phase": "inspect|config|build|serve",
   "status": "completed|failed|input-required|unknown",
   "duration_sec": 0,
-  "artifacts": [{"path": "configs/<model>.yaml", "sha256": "...", "kind": "triplet-yaml"}],
+  "artifacts": [{"path": "configs/<model>.yaml", "kind": "triplet-yaml"}],
   "errors": [],
   "failure_class": "none|requirements-fixable|source-build-class|resource_oom|nccl_rdma_connectivity|ray_join_timeout|unknown",
   "self_verification": {"checks_run": ["identity","skills_loaded","permissions"], "schema_valid": true, "identity_ok": true, "skills_loaded": ["vllm-recipe-explorer"]},

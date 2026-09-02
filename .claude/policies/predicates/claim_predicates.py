@@ -396,6 +396,34 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C6():
         _require('pkill -f' not in line, 'predicate requirement failed at original line 391')
     _require('kill "$WD_MAIN_PID"' in mn, 'watchdog shutdown must be PID-based')
 
+    # ★ 2026-09-03 (적대검증 MAJOR ②): 이 절의 사정거리가 install_host_safety.sh 하나였다.
+    #   그런데 **node_blackbox 설치기도 같은 단일 헬퍼 경로로 같은 sudoers 엔트리를 쓴다** —
+    #   그쪽 배치는 rc 를 버린 채 다음 줄에서 "✓ sudoers" 를 조건 없이 찍던 fail-open 이었고,
+    #   그 형태로 되돌려도 하네스 6종이 전부 초록이었다(앵커 0). 여기서 사정거리를 넓힌다.
+    #   판정은 "명령이 돌았다"가 아니라 **그 자리에 유효한 조각이 있는가**여야 한다.
+    nbi = _read(".claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh")
+    _require(nbi.count("NOPASSWD: %s/vllm-drop-caches") == 1,
+             'the node_blackbox installer must grant exactly one fixed NOPASSWD helper path')
+    _require('SUDOERS_F=/etc/sudoers.d/easy-vllm-host-safety' in nbi,
+             'the sudoers fragment path must be a single named constant, not re-typed per use')
+    _require('if run install -m 0440 "$T" "$SUDOERS_F" \\' in nbi,
+             'the fragment must be PLACED through run() so a failed placement reaches the FAIL verdict')
+    _require('&& [ "$(stat -c %a "$SUDOERS_F" 2>/dev/null)" = "440" ] \\' in nbi,
+             'the placed fragment must be re-read for mode 0440 — sudo silently ignores any other mode')
+    _require('&& visudo -cf "$SUDOERS_F" >/dev/null 2>&1; then' in nbi,
+             'the PLACED fragment (not merely the mktemp candidate) must re-pass visudo')
+    # 되돌림 방지: 수리 전의 **무조건 ✓** 형태가 되살아나면 즉시 FAIL 이다.
+    _require('install -m 0440 "$T" /etc/sudoers.d/easy-vllm-host-safety' not in nbi,
+             'the pre-repair unconditional placement (rc discarded, ✓ printed regardless) must not return')
+    _require('say "   ✓ sudoers(visudo 검증 통과)"' not in nbi,
+             'a sudoers success line must never be printed without re-reading the placed fragment')
+    _sud_place = nbi.index('if run install -m 0440 "$T" "$SUDOERS_F"')
+    _sud_ok = nbi.index('say "   ✓ sudoers(visudo 검증 통과 · $SUDOERS_F 0440 배치 확인)"', _sud_place)
+    _sud_bad = nbi.index('say "   ✗ sudoers 배치 실패: $SUDOERS_F', _sud_ok)
+    _sud_fail = nbi.index("FAIL=1", _sud_bad)
+    _require(_sud_place < _sud_ok < _sud_bad < _sud_fail,
+             'the ✓ line must sit inside the verified branch and the ✗ branch must raise FAIL')
+
 
 def predicate_HOST_SAFETY_LAYERED_DEFENSE_C7():
     """C7: post-mortem capture is efi_pstore, not kdump. node_blackbox L3 removes crashkernel/
@@ -448,6 +476,49 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C7():
     _require("capture_verified" in vb, "verifier owns the capture_verified verdict file")
     _require("--crash-test" in vb and "--post-crash" in vb, "crash-test/post-crash modes required")
     _require("Kernel panic" in vb, "post-crash must confirm record CONTENT, not record count")
+
+    # ★ 2026-09-03 (적대검증 MAJOR ②-④): "capture is claimed only after verification" 은 **설치기
+    #   자신에게도** 적용된다. 예전 L3 블록은 네 자리(kdump 무장해제 · hang→panic 승격 · systemd-
+    #   pstore 활성 · 예약 0) 전부를 **결과를 한 번도 읽지 않고** ✓ 로 찍었고, 바로 아래에서
+    #   "INSTALL PASS" 가 나갔다 — 숫자를 보여 주는 것은 판정이 아니다. 네 자리 모두 결과 상태로
+    #   판정해야 하며, **읽지 못한 것은 clean 이 아니라 판정 불가(FAIL)** 다.
+    #   앵커가 없으면 이 넷을 수리 전 형태로 되돌려도 하네스가 전부 초록이다(실측).
+    #   ⓐ kdump 무장 = kexec_crash_loaded (crash_kexec_post_notifiers=N 이라 적재돼 있으면
+    #     panic() 이 kmsg_dump 보다 먼저 kexec 로 점프한다 = pstore 원천 차단)
+    _require('_KL="$(cat /sys/kernel/kexec_crash_loaded 2>/dev/null || echo \'\')"' in nb,
+             'kdump disarm must be judged from kexec_crash_loaded, not from the disable command rc')
+    _require('if [ -z "$_KL" ]; then' in nb and 'elif [ "$_KL" = "0" ]; then' in nb,
+             'an unreadable kexec_crash_loaded must be undecidable (FAIL), never reported as disarmed')
+    _require('say "   ✓ kdump 무장 해제(USE_KDUMP=0 · 서비스 disable · kexec unload)"' not in nb,
+             'the pre-repair unconditional kdump ✓ (result never read) must not return')
+    #   ⓑ hang→panic 승격 = 방금 쓴 파일에서 파생한 기대값 대 실제 sysctl 값
+    _require('_got="$(sysctl -n "$_k" 2>/dev/null)"' in nb,
+             'panic-promotion must be judged by re-reading each key, not by the `sysctl -p` rc alone')
+    _require('done < /etc/sysctl.d/99-easy-vllm-panic-promote.conf' in nb,
+             'expected values must be DERIVED from the file just written (hand-restating them splits the two)')
+    _require('if [ -n "$_PP_BAD" ]; then' in nb and 'elif [ "$_SP_RC" -ne 0 ]; then' in nb,
+             'both a value mismatch and a failed `sysctl -p` (reboot persistence) must raise FAIL')
+    _require('say "   ✓ hang→panic 승격 sysctl (이제 efi_pstore 를 먹인다)"' not in nb,
+             'the pre-repair unconditional sysctl ✓ must not return')
+    #   ⓒ systemd-pstore = is-enabled 결과 상태(enable rc 는 이미 enabled 인 노드에서 위양성)
+    _require('_PS_EN="$(systemctl is-enabled systemd-pstore 2>/dev/null)"' in nb,
+             'systemd-pstore must be judged by is-enabled, never by the enable rc alone')
+    _require('case "$_PS_EN" in' in nb and 'enabled|enabled-runtime|static|indirect|generated)' in nb,
+             'the is-enabled verdict must enumerate the accepting states explicitly')
+    _require('say "   ✓ systemd-pstore 아카이브 활성(NVRAM 누적 방지)"' not in nb,
+             'the pre-repair unconditional systemd-pstore ✓ must not return')
+    #   ⓓ 예약 잔존 = kexec_crash_size 를 **판정**한다(출력만 하면 아무도 판단하지 않는다)
+    _require('CKS_NOW="$(cat /sys/kernel/kexec_crash_size 2>/dev/null || echo \'\')"' in nb,
+             'the reservation must be read into a named result, not interpolated into a say-line')
+    _require('elif [ "$CKS_NOW" -eq 0 ] 2>/dev/null; then' in nb,
+             'the reservation must be JUDGED == 0, not merely printed for a human to read')
+    _require('현재 커널의 kdump 예약: $(cat /sys/kernel/kexec_crash_size' not in nb,
+             'the pre-repair print-only reservation line (no verdict) must not return')
+    #   네 자리 모두 "읽지 못함 = 판정 불가 = FAIL" 을 갖는다.
+    for _undecidable in ('say "   ✗ /sys/kernel/kexec_crash_loaded 를 읽지 못했다',
+                         'say "  ✗ /sys/kernel/kexec_crash_size 를 읽지 못했다'):
+        _require(_undecidable in nb,
+                 f'an unreadable kernel fact must be reported as undecidable: {_undecidable[:60]}')
 
 
 
@@ -523,6 +594,118 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C8():
     _require(not any((dockerfile_from in ln for ln in rm_lines)), 'the preserved Dockerfile FROM base must never appear as an RM candidate')
     _require(any((dockerfile_from in ln for ln in keep_lines)), 'the preserved Dockerfile FROM base must appear in the KEEP table')
     _require('DRY-RUN 종료' in report, 'predicate requirement failed at original line 510')
+
+
+def predicate_HOST_SAFETY_LAYERED_DEFENSE_C9():
+    """C9: purge_host_safety.sh — 이 저장소에서 가장 파괴적인 스크립트. 2026-09-03(감사 §5 C-2)
+    까지 registry/claim_bindings 어느 쪽에도 **바인딩이 없던** 유일한 파괴 스크립트였다.
+
+    정적 단언만으로는 부족하다(이 프로젝트가 반복해 당한 결함: 단언만 있고 술어가 없다) — 그래서
+    아래는 **실제로 스크립트를 두 번 기동**해 ⓐ 시드 게이트가 정말 거부하는지 ⓑ dry-run 이 정말
+    아무것도 실행하지 않는지를 관측한다. 두 기동 모두 파괴 인자(--apply) 없이 돌므로 호스트를
+    건드리지 않는다. node_id 는 `--node-id=` 명시 override 로 고정해 환경 의존을 없앤다."""
+    rel = ".claude/skills/terraforming_node/scripts/node_blackbox/purge_host_safety.sh"
+    src = _read(rel)
+
+    # ── 정적: 파괴는 --apply 뒤에만, 그리고 root 로만 ────────────────────────────
+    _require("APPLY=0;" in src or re.search(r"^APPLY=0\b", src, re.M),
+             "--apply must default to off (APPLY=0)")
+    _require(re.search(r'run\(\)\{\s*\n\s*if \[ "\$APPLY" = "1" \]', src),
+             "the destructive wrapper run() must execute only under --apply")
+    _require('say "FAIL: --apply 는 root 필요' in src, "--apply must refuse to proceed as non-root")
+    # 설치와 제거를 한 스크립트에 섞지 않는다(부분 적용 상태 금지).
+    for line in src.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        _require("install_node_blackbox.sh" not in stripped and "install_host_safety.sh" not in stripped,
+                 "the purger must never invoke an installer — purge and install stay separate scripts")
+
+    # ── 정적: rc 전파(B5) — 실패한 제거 위에서 'PURGE PASS' 가 찍히면 안 된다 ────
+    _require('if [ "$_rc" -ne 0 ]; then say "   ✗ 실패(rc=$_rc): $*"; FAIL=1; fi' in src,
+             "run() must propagate a non-zero rc into the single FAIL verdict")
+    _require('if [ "$FAIL" = "0" ]; then say "PURGE PASS' in src and 'exit "$FAIL"' in src,
+             "the summary verdict and the exit code must both be derived from FAIL")
+
+    # ── 정적: 블랭킷 이름매칭 킬 금지(자기참조 사망 선례 devlog_26062718) ────────
+    # ⚠ 부분문자열 금지는 여기서 위양성이다 — 스크립트는 `say "… pkill -f 금지"` 로 그 금지를
+    #   **선언**한다. 금지 대상은 *언급*이 아니라 *호출*이므로 명령 위치만 본다.
+    _invocation = re.compile(r"(?:^|[;&|(]|\$\(|\bthen\b|\belse\b|\bdo\b)\s*(?:pkill|pgrep)\b")
+    for line in src.splitlines():
+        if line.strip().startswith("#"):
+            continue
+        _require(_invocation.search(line) is None,
+                 "blanket process-name matching is forbidden on executable lines (2026-08-02 false positive)")
+    _require("awk '$2 ~ /(^|\\/)bash$/ && $3 ~ /(^|\\/)mem_watchdog\\.sh$/ {print $1}'" in src,
+             "wd_pids must resolve PIDs by argv field anchors, not by a whole-line substring match")
+
+    # ★ 2026-09-03 (적대검증 MAJOR ②-③): "terminated by PID" 는 **kill 을 보냈다**가 아니라
+    #   **실제로 사라졌다**여야 한다. kill 의 rc 는 판정 근거가 못 된다(대상이 이미 죽었으면
+    #   비-0 인데 그것이 우리가 원하던 결과다) — 그래서 판정은 사후 소멸 확인이 한다.
+    #   그 확인 루프에는 off-by-one 이 있었다: 매 회 `확인 → sleep 1` 순서라 **마지막 sleep 뒤
+    #   재확인이 없어** 실판정 지평이 5초가 아니라 4초였고, 5초째에 죽은 프로세스를 "살아 있다"
+    #   (FAIL=1)로 오보했다. 이 절에 앵커가 없어 그 형태로 되돌려도 하네스가 전부 초록이었다.
+    _require('for _i in 0 1 2 3 4 5; do' in src,
+             'the disappearance probe must sample t=0..5 — six checkpoints for a 5s horizon')
+    _require('[ "$_i" = "0" ] || sleep 1' in src,
+             'the first probe must precede any sleep and the last must FOLLOW the 5th sleep '
+             '(the old check→sleep order wasted the final second: real horizon 4s, not 5s)')
+    _require('kill -0 "$p" 2>/dev/null || { _gone=1; break; }' in src,
+             'disappearance must be observed with kill -0, not inferred from the kill rc')
+    _require('case "$(ps -o stat= -p "$p" 2>/dev/null)" in Z*) _gone=1; break ;; esac' in src,
+             'a zombie must count as gone — kill -0 succeeds on zombies (H83)')
+    _gone_ok = src.index('if [ "$_gone" = "1" ]; then say "   ✓ PID $p 종료 확인"')
+    _gone_bad = src.index('✗ PID $p 가 kill 후에도 살아 있다', _gone_ok)
+    _require(_gone_ok < _gone_bad < src.index("FAIL=1", _gone_bad),
+             'a survivor must raise FAIL; the ✓ line must be reachable only from _gone=1')
+    _require('    run kill "$p"' not in src,
+             'the pre-repair `run kill` (rc-based verdict, no disappearance check) must not return')
+
+    # 같은 수리 계열: 파괴 단계는 **결과 상태**로 재판정한다(rc 0 은 "명령이 돌았다"일 뿐이고
+    # apt-get/sysctl 은 부분 성공·무시된 요청에도 0 을 낸다).
+    _require('_st="$(dpkg-query -W -f=\'${Status}\' "$1" 2>/dev/null)"' in src,
+             'package removal must be re-read from dpkg-query, not trusted from the apt-get rc')
+    _require('*"install ok installed"*) say "   ✗ 패키지 잔존: $1 (status=$_st)"; FAIL=1 ;;' in src,
+             'a still-installed package must raise FAIL')
+    _require('_v="$(sysctl -n "$1" 2>/dev/null)"' in src,
+             'sysctl revert must be re-read from the live key, not trusted from the `sysctl -w` rc')
+    _require('if [ -z "$_v" ]; then say "   ✗ $1 을 읽지 못했다 — 되돌림 여부를 **판정할 수 없다**"; FAIL=1' in src,
+             'an unreadable sysctl key must be undecidable (FAIL), never reported as reverted')
+
+    # ── 정적: GRUB 백업 검증 후에만 재생성 · 읽지 못한 것 ≠ 없는 것 ─────────────
+    _require("GRUB_BAK=/boot/grub/grub.cfg.easy-vllm-purge-backup" in src, "the GRUB backup path must be fixed")
+    _require('cmp -s /boot/grub/grub.cfg "$GRUB_BAK"' in src,
+             "the GRUB backup must be byte-verified against the CURRENT grub.cfg, not merely created")
+    _require('if [ "$GRUB_OK" != "1" ]; then' in src,
+             "GRUB regeneration must be skipped when no verified backup was secured")
+    _bak_idx, _regen_idx = src.index("GRUB_BAK=/boot/grub"), src.index("GRUB 재생성 (crashkernel")
+    _require(_bak_idx < _regen_idx, "the backup must be taken before regeneration, in source order")
+    _require("if [ ! -r /boot/grub/grub.cfg ]; then" in src
+             and "crashkernel 잔재를 **판정할 수 없다**" in src,
+             "an unreadable grub.cfg must be reported as undecidable (FAIL), never as clean")
+
+    # ── 행동: ⓐ Phase 0 시드 게이트가 실제로 거부한다 ───────────────────────────
+    probe = ["bash", str(REPO_ROOT / rel), "--node-id=predicate-probe"]
+    gated = subprocess.run(probe + ["--seed-dir=/nonexistent-predicate-probe"],
+                           cwd=REPO_ROOT, capture_output=True, text=True, timeout=180)
+    _require(gated.returncode == 1, f"missing Phase 0 seed must refuse with rc 1 (got {gated.returncode})")
+    _require("저널 수확 전 제거 금지" in gated.stdout + gated.stderr,
+             "the seed gate must state why it refuses (envelope's only initial data)")
+    _require("(dry-run)" not in gated.stdout,
+             "the seed gate must refuse BEFORE any removal step is even enumerated")
+
+    # ── 행동: ⓑ 기본 모드는 정말로 아무것도 실행하지 않는다 ─────────────────────
+    dry = subprocess.run(probe + ["--no-require-seed"],
+                         cwd=REPO_ROOT, capture_output=True, text=True, timeout=180)
+    _require(dry.returncode == 0, f"a waived dry-run must succeed without touching the host (rc {dry.returncode})")
+    _require("모드: DRY-RUN" in dry.stdout, "the run must announce itself as DRY-RUN")
+    _require("DRY-RUN 종료" in dry.stdout and "PURGE PASS" not in dry.stdout,
+             "a dry-run must end at the DRY-RUN exit and never emit a purge verdict")
+    emitted = [ln for ln in dry.stdout.splitlines() if ln.startswith("        ")]
+    _require(emitted, "the dry-run must actually enumerate removal steps (else the probe proves nothing)")
+    for ln in emitted:
+        _require("(dry-run) " in ln,
+                 f"every enumerated removal step must be marked (dry-run), got: {ln.strip()[:80]}")
 
 
 # =============================================================================
@@ -875,12 +1058,15 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C3():
     """C3: every hint carries a mandatory carry-forward revalidation header (a map, not an answer)
     so a stale hint can never be treated as executable without re-verification. Round-trips the
     real footer builder/parser and confirms a missing field is rejected, not silently accepted."""
+    # 6-field footer contract (plan_26090222 F-6a): the three content digests were removed --
+    # the footer binds an evidence ADDRESS (anchor + refs), integrity is git's job.
     fields = {
         "version": "1", "tag": "hint/0.25.1/gpt-oss-120b/gb10", "topology": "single",
-        "anchor": "a" * 40, "manifest_sha256": "b" * 64, "identity_sha256": "c" * 64,
-        "manifest_ref": "docs/_evidence/x.json", "certificate_sha256": "d" * 64,
+        "anchor": "a" * 40, "manifest_ref": "docs/_evidence/x.json",
         "certificate_ref": "docs/benchmark/cert.yaml",
     }
+    _require(tuple(hint_tag._FOOTER_FIELDS) == tuple(fields),
+             'footer contract must be exactly the 6 address fields, in order')
     footer_text = hint_tag._build_evidence_footer(fields)
     parsed = hint_tag._parse_evidence_footer(footer_text.split("\n\n", 1)[-1] if "\n\n" in footer_text else
                                               "\n" + footer_text)
@@ -941,8 +1127,15 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C4():
 
 
 def predicate_HINT_TAG_ACTIVATION_GATE_C5():
-    """C5: push is selective (refs/tags/hint/* only, --tags forbidden) specifically to prevent
-    local last-good-* rollback tags from leaking to a public origin."""
+    """C5: push is selective -- the refspec is the literal refs/tags/hint/* and --tags is
+    forbidden -- so no ref outside the hint namespace reaches a public origin.
+
+    2026-09-03 (plan_26090222 F-6c): the origin-side `last-good-*` ls-remote existence check that
+    cmd_verify used to run was DELETED and is no longer pinned here -- the rollback anchor is a
+    local COMMIT, never a tag, so that check asserted a condition nothing in this repo can create.
+    What is NOT deleted is the namespace guard inside cmd_push: it is a general refspec-leak guard,
+    not a last-good-specific one (`--tag '*'` would otherwise render `refs/tags/*` and push every
+    local tag to a public origin), so it is pinned below alongside the refspec literal."""
     push_src = inspect.getsource(hint_tag.cmd_push)
     _require('refspec = "refs/tags/hint/*"' in push_src, 'predicate requirement failed at original line 861')
     _require('"--tags"' not in push_src and "'--tags'" not in push_src, 'predicate requirement failed at original line 862')
@@ -953,9 +1146,14 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C5():
     for line in full_src.splitlines():
         if "git(" in line and "push" in line:
             _require('--tags' not in line, f'a push invocation line must never include --tags: {line!r}')
+    # the namespace guard itself -- without it `--tag '*'` renders refspec `refs/tags/*`.
+    _require('if not a.tag.startswith("hint/")' in push_src,
+             'cmd_push must refuse any --tag outside the hint/ namespace (refspec-leak guard)')
+    # and the deleted check must stay deleted -- a re-added origin-side scan would be an
+    # unenforceable assertion about a tag this repo never creates.
     verify_src = inspect.getsource(hint_tag.cmd_verify)
-    _require('git("ls-remote", "--tags", "origin", "last-good-*"' in verify_src, 'predicate requirement failed at original line 871')
-    _require('origin 에 last-good-* 태그 존재' in verify_src, 'predicate requirement failed at original line 872')
+    _require('last-good' not in verify_src,
+             'cmd_verify must not re-introduce an origin-side last-good-* scan (F-6c)')
 
 
 def predicate_HINT_TAG_ACTIVATION_GATE_C6():
@@ -2667,10 +2865,14 @@ def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C4():
 # =============================================================================
 
 def _arch_contract_repo(tmp: str) -> Path:
+    """A CLEAN-INDEX EXPORT of just the arch-contract inputs -- intentionally no `.git` (same
+    contract as `_hint_tag` above; do not `git init` here).  `resolve_evidence_path` is git-native
+    since G2-a, so every `_arch_codes` call runs inside `_arch_fixture_git`, which stubs git's
+    index oracle for this root only.  The two digest ledgers this list used to copy
+    (evidence_manifest.json / tracked_index.json) were deleted in G2-b -- Git is the authority."""
     root = Path(tmp)
     for rel in (".claude/policies/arch_variant_ledger.json",
                 ".claude/skills/upstream-version-watch/templates/Dockerfile.source-build.template",
-                ".claude/policies/evidence_manifest.json", ".claude/policies/tracked_index.json",
                 ".claude/policies/arch_variant_evidence/source-sm12x-vllm-0.23.0-approval.json",
                 ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md",
                 # schema v2: build_patch_selectors 검증이 선택자의 **클러스터-와이드 배선**을 여기서
@@ -2696,42 +2898,80 @@ def _write_arch_regression_artifact(root: Path, entry: dict) -> None:
     path = root / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(artifact, sort_keys=True), encoding="utf-8")
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    entry["regression_evidence"] = {"path": rel, "sha256": digest}
-    manifest_path = root / ".claude/policies/evidence_manifest.json"
-    manifest = json.loads(manifest_path.read_text())
-    manifest[rel] = digest
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    index_path = root / ".claude/policies/tracked_index.json"
-    index = json.loads(index_path.read_text())
-    payload = path.read_bytes()
-    index["entries"][rel] = hashlib.sha1(
-        b"blob " + str(len(payload)).encode("ascii") + b"\0" + payload).hexdigest()
-    index_path.write_text(json.dumps(index), encoding="utf-8")
+    # 포인터는 경로 하나뿐이다(G2-b, plan_26090222 F-1g). 예전에는 여기서 sha256 을 계산해
+    # evidence_manifest·tracked_index 두 원장에 되박아야 픽스처가 자기정합을 유지했는데, 그
+    # 재결속 자체가 걷어낸 중복층이었다 — 지금은 Git(픽스처에서는 _arch_fixture_git 스텁)이
+    # 무결성 권위이므로 파일을 쓰는 것으로 끝난다.
+    entry["regression_evidence"] = {"path": rel}
 
 
-def _mutate_and_rebind_arch_artifact(root: Path, entry: dict, field: str, mutate) -> None:
+def _mutate_arch_artifact(root: Path, entry: dict, field: str, mutate) -> None:
+    """Rewrite the pointed-to artifact in place.  No digest re-binding: the pointer carries only
+    a path now, and the fixture's simulated index (`_arch_fixture_git`) is *defined* as the bytes
+    on disk -- which is exactly the self-consistency the deleted two-ledger re-stamp bought."""
     pointer = entry[field]
     path = root / pointer["path"]
     artifact = json.loads(path.read_text())
     mutate(artifact)
     path.write_text(json.dumps(artifact, sort_keys=True), encoding="utf-8")
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    pointer["sha256"] = digest
-    manifest_path = root / ".claude/policies/evidence_manifest.json"
-    manifest = json.loads(manifest_path.read_text())
-    manifest[pointer["path"]] = digest
-    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    index_path = root / ".claude/policies/tracked_index.json"
-    index = json.loads(index_path.read_text())
+
+
+def _fixture_blob_sha1(path: Path) -> str:
     payload = path.read_bytes()
-    index["entries"][pointer["path"]] = hashlib.sha1(
+    return hashlib.sha1(
         b"blob " + str(len(payload)).encode("ascii") + b"\0" + payload).hexdigest()
-    index_path.write_text(json.dumps(index), encoding="utf-8")
+
+
+@contextlib.contextmanager
+def _arch_fixture_git(root: Path):
+    """`_arch_contract_repo` builds a CLEAN-INDEX EXPORT -- intentionally no `.git`, same contract
+    as `_hint_tag`'s `scoped_run` above.  Since G2-a `resolve_evidence_path` is git-native, so an
+    un-stubbed fixture would answer `git_unavailable` for every pointer and every arch predicate
+    would drown in ARCH_VARIANT_ARTIFACT_UNBOUND instead of exercising the ladder.
+
+    We therefore stub ONLY git's index oracle, and only for this fixture root: the resolution
+    ladder itself (absolute/`~`, path escape, symlink component, missing file) still runs for
+    real, and the simulated index is "the bytes currently on disk", so a mutation-then-check
+    fixture stays self-consistent without re-stamping any ledger.  Any other repo_root -- above
+    all the real one -- passes through to the real git untouched, so this never weakens a
+    production verdict."""
+    original_available = policy_registry._git_available
+    original_run = subprocess.run
+
+    def scoped_available(repo_root):
+        return True if Path(repo_root) == root else original_available(repo_root)
+
+    def scoped_run(args, *a, **kw):
+        argv = list(args)
+        if argv[:1] == ["git"] and kw.get("cwd") is not None and Path(kw["cwd"]) == root:
+            if argv[1:] == ["rev-parse", "--is-inside-work-tree"]:
+                return subprocess.CompletedProcess(argv, 0, stdout="true\n", stderr="")
+            if argv[1:3] == ["ls-files", "--stage"] and argv[3:4] == ["--"]:
+                target = root / argv[4]
+                if not target.is_file():
+                    return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+                return subprocess.CompletedProcess(
+                    argv, 0, stdout=f"100644 {_fixture_blob_sha1(target)} 0\t{argv[4]}\n", stderr="")
+            if argv[1:3] == ["hash-object", "--"]:
+                target = root / argv[3]
+                if not target.is_file():
+                    return subprocess.CompletedProcess(argv, 128, stdout="", stderr="no such path\n")
+                return subprocess.CompletedProcess(
+                    argv, 0, stdout=_fixture_blob_sha1(target) + "\n", stderr="")
+        return original_run(args, *a, **kw)
+
+    policy_registry._git_available = scoped_available
+    subprocess.run = scoped_run
+    try:
+        yield
+    finally:
+        subprocess.run = original_run
+        policy_registry._git_available = original_available
 
 
 def _arch_codes(root: Path) -> set[str]:
-    return {v.reason_code for v in policy_registry.arch_variant_contract_violations(root)}
+    with _arch_fixture_git(root):
+        return {v.reason_code for v in policy_registry.arch_variant_contract_violations(root)}
 
 def predicate_ARCH_WALL_VARIANT_LADDER_C1():
     """C1: execute the classifier controls and the production no-skip ladder validator."""
@@ -2823,15 +3063,29 @@ def predicate_ARCH_WALL_VARIANT_LADDER_C3():
         root = _arch_contract_repo(tmp)
         doc = json.loads((root / ".claude/policies/arch_variant_ledger.json").read_text())
         entry = doc["source_build_variants"]["deepseek-v4-flash-sm12x"]
-        entry["status"] = "SUPERSEDED_PENDING"
-        entry.pop("regression_evidence", None)
+        # v4(2026-09-03): 퇴역 판정이 `SUPERSEDED@<major.minor.patch>` **토큰 문법**으로 바뀌었다.
+        #   폐기된 것은 "메타키 버전 + image_tag 버전 + 문장 전문" 3중 재구성 완전일치이고, 남은
+        #   불변식은 하나다 -- 맨 마커로 활성 후보를 숨길 수 없다. 그래서 음성대조를 문법 위반
+        #   4종으로 건다(버전 없음 · 접미사 오염 · 2-컴포넌트 절단 · 4-컴포넌트 과잉).
+        #   STATUS_INVALID 는 단독 발화가 아니라 ACTIVE_NOT_VALIDATED 와 **동반 발화**가 정상이다 --
+        #   문법을 못 갖춘 선언은 퇴역으로 인정되지 않고 활성 트랙 게이트로 떨어지기 때문이다.
+        for bad_status in ("SUPERSEDED_PENDING", "SUPERSEDED", "SUPERSEDED@0.24", "SUPERSEDED@0.24.0.1"):
+            entry["status"] = bad_status
+            entry.pop("regression_evidence", None)
+            (root / ".claude/policies/arch_variant_ledger.json").write_text(json.dumps(doc))
+            codes = _arch_codes(root)
+            _require('ARCH_VARIANT_STATUS_INVALID' in codes,
+                     f'{bad_status!r} must be refused as a malformed retirement marker')
+            _require('ARCH_VARIANT_ACTIVE_NOT_VALIDATED' in codes,
+                     f'{bad_status!r} must fall through to the active-track gate, never be silently retired')
+        # 양성 대조: 문법을 갖춘 선언은 뒤따르는 산문이 무엇이든 통과한다(산문은 더 이상 게이트가 아니다).
+        entry["status"] = "SUPERSEDED@0.24.0; whatever prose the maintainer chooses to write here"
         (root / ".claude/policies/arch_variant_ledger.json").write_text(json.dumps(doc))
         codes = _arch_codes(root)
-        _require('ARCH_VARIANT_STATUS_INVALID' in codes, 'predicate requirement failed at original line 2840')
-        _require('ARCH_VARIANT_ACTIVE_NOT_VALIDATED' in codes, 'predicate requirement failed at original line 2841')
-        entry["status"] = "SUPERSEDED@999.999.999; retained only as the nonsense last-good rollback anchor"
-        (root / ".claude/policies/arch_variant_ledger.json").write_text(json.dumps(doc))
-        _require('ARCH_VARIANT_STATUS_INVALID' in _arch_codes(root), 'predicate requirement failed at original line 2844')
+        _require('ARCH_VARIANT_STATUS_INVALID' not in codes,
+                 'a well-formed retirement marker must be admitted regardless of its trailing prose')
+        _require('ARCH_VARIANT_ACTIVE_NOT_VALIDATED' not in codes,
+                 'a retired variant must not be evaluated as an active track')
 
     with tempfile.TemporaryDirectory() as tmp:
         root = _arch_contract_repo(tmp)
@@ -2858,7 +3112,7 @@ def predicate_ARCH_WALL_VARIANT_LADDER_C4():
         doc = json.loads((root / ".claude/policies/arch_variant_ledger.json").read_text())
         entry = doc["source_build_variants"]["deepseek-v4-flash-sm12x"]
         original_pointer = dict(entry["evidence"])
-        entry["evidence"] = {"path": "missing-approval.json", "sha256": "0" * 64}
+        entry["evidence"] = {"path": "missing-approval.json"}
         (root / ".claude/policies/arch_variant_ledger.json").write_text(json.dumps(doc))
         _require('ARCH_VARIANT_ARTIFACT_UNBOUND' in _arch_codes(root), 'predicate requirement failed at original line 2873')
 
@@ -2867,18 +3121,6 @@ def predicate_ARCH_WALL_VARIANT_LADDER_C4():
         artifact = json.loads(artifact_path.read_text())
         artifact["result"] = "FAIL"
         artifact_path.write_text(json.dumps(artifact, sort_keys=True), encoding="utf-8")
-        bad_digest = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
-        entry["evidence"]["sha256"] = bad_digest
-        manifest_path = root / ".claude/policies/evidence_manifest.json"
-        manifest = json.loads(manifest_path.read_text())
-        manifest[original_pointer["path"]] = bad_digest
-        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-        index_path = root / ".claude/policies/tracked_index.json"
-        index = json.loads(index_path.read_text())
-        payload = artifact_path.read_bytes()
-        index["entries"][original_pointer["path"]] = hashlib.sha1(
-            b"blob " + str(len(payload)).encode("ascii") + b"\0" + payload).hexdigest()
-        index_path.write_text(json.dumps(index), encoding="utf-8")
         (root / ".claude/policies/arch_variant_ledger.json").write_text(json.dumps(doc))
         _require('ARCH_VARIANT_ARTIFACT_BINDING_MISMATCH' in _arch_codes(root), 'predicate requirement failed at original line 2893')
 
@@ -2893,7 +3135,7 @@ def predicate_ARCH_WALL_VARIANT_LADDER_C4():
         root = _arch_contract_repo(tmp)
         doc = json.loads((root / ".claude/policies/arch_variant_ledger.json").read_text())
         entry = doc["source_build_variants"]["deepseek-v4-flash-sm12x"]
-        _mutate_and_rebind_arch_artifact(
+        _mutate_arch_artifact(
             root, entry, "evidence", lambda artifact: artifact.__setitem__("approved_by", "HITL:AUTOMATION:unattended"))
         (root / ".claude/policies/arch_variant_ledger.json").write_text(json.dumps(doc))
         _require('ARCH_VARIANT_APPROVAL_IDENTITY_MISSING' in _arch_codes(root), 'predicate requirement failed at original line 2909')
@@ -2905,7 +3147,7 @@ def predicate_ARCH_WALL_VARIANT_LADDER_C4():
         def remove_grounding(artifact):
             artifact["source_evidence"] = "x"
             artifact["approved_scope"] = "x"
-        _mutate_and_rebind_arch_artifact(root, entry, "evidence", remove_grounding)
+        _mutate_arch_artifact(root, entry, "evidence", remove_grounding)
         (root / ".claude/policies/arch_variant_ledger.json").write_text(json.dumps(doc))
         _require('ARCH_VARIANT_APPROVAL_GROUNDING_MISSING' in _arch_codes(root), 'predicate requirement failed at original line 2920')
 
@@ -2917,7 +3159,7 @@ def predicate_ARCH_WALL_VARIANT_LADDER_C4():
             root = _arch_contract_repo(tmp)
             doc = json.loads((root / ".claude/policies/arch_variant_ledger.json").read_text())
             entry = doc["source_build_variants"]["deepseek-v4-flash-sm12x"]
-            _mutate_and_rebind_arch_artifact(
+            _mutate_arch_artifact(
                 root, entry, "evidence", lambda artifact, f=field, v=value: artifact.__setitem__(f, v))
             (root / ".claude/policies/arch_variant_ledger.json").write_text(json.dumps(doc))
             _require('ARCH_VARIANT_APPROVAL_GROUNDING_MISSING' in _arch_codes(root), 'predicate requirement failed at original line 2933')
@@ -2934,7 +3176,7 @@ def predicate_ARCH_WALL_VARIANT_LADDER_C4():
         def corrupt_shape(artifact):
             artifact.pop("schema_version", None)
             artifact["unexpected"] = True
-        _mutate_and_rebind_arch_artifact(root, entry, "evidence", corrupt_shape)
+        _mutate_arch_artifact(root, entry, "evidence", corrupt_shape)
         (root / ".claude/policies/arch_variant_ledger.json").write_text(json.dumps(doc))
         _require('ARCH_VARIANT_ARTIFACT_SHAPE_INVALID' in _arch_codes(root), 'predicate requirement failed at original line 2949')
 
@@ -2956,21 +3198,9 @@ def predicate_ARCH_WALL_VARIANT_LADDER_C5():
         regression = json.loads(regression_path.read_text())
         regression["existing_models"] = []
         regression_path.write_text(json.dumps(regression, sort_keys=True), encoding="utf-8")
-        empty_digest = hashlib.sha256(regression_path.read_bytes()).hexdigest()
-        entry["regression_evidence"]["sha256"] = empty_digest
-        manifest_path = root / ".claude/policies/evidence_manifest.json"
-        manifest = json.loads(manifest_path.read_text())
-        manifest[entry["regression_evidence"]["path"]] = empty_digest
-        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-        index_path = root / ".claude/policies/tracked_index.json"
-        index = json.loads(index_path.read_text())
-        payload = regression_path.read_bytes()
-        index["entries"][entry["regression_evidence"]["path"]] = hashlib.sha1(
-            b"blob " + str(len(payload)).encode("ascii") + b"\0" + payload).hexdigest()
-        index_path.write_text(json.dumps(index), encoding="utf-8")
         (root / ".claude/policies/arch_variant_ledger.json").write_text(json.dumps(doc))
         _require('ARCH_VARIANT_REGRESSION_MODELS_MISSING' in _arch_codes(root), 'predicate requirement failed at original line 2982')
-        _mutate_and_rebind_arch_artifact(
+        _mutate_arch_artifact(
             root, entry, "regression_evidence", lambda artifact: artifact.__setitem__("existing_models", True))
         (root / ".claude/policies/arch_variant_ledger.json").write_text(json.dumps(doc))
         _require('ARCH_VARIANT_REGRESSION_MODELS_MISSING' in _arch_codes(root), 'predicate requirement failed at original line 2986')
@@ -2980,7 +3210,153 @@ def predicate_ARCH_WALL_VARIANT_LADDER_C5():
 
 
 # =============================================================================
-# Exact clause_id -> predicate function mapping (56 entries -- parity asserted in the test class).
+# GIT_SINGLE_AUTHORITY (2026-09-03, plan_26090222) -- the two tripwires that keep git the only
+# place a tracked byte's identity is written down.  Both predicates drive the REAL production
+# functions in runtime_selftest.py, but against a purpose-built canonical-looking fixture repo
+# rather than this clone: a live repo that is currently green gives a mutation test nothing to
+# fail on, and one that is red would make the predicate report the working tree's state instead
+# of the guard's behaviour (the reverse-oracle trap this project has hit three times).
+# =============================================================================
+
+_GIT_FIXTURE_ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+                    "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+
+
+def _runtime_selftest():
+    """Imported lazily: the production tripwires live in the runtime package, and this predicate
+    file must stay importable even while that package is mid-edit."""
+    return _import(".claude/policies/runtime", "runtime_selftest")
+
+
+def _fixture_git(root: Path, *args: str) -> str:
+    env = dict(os.environ, **_GIT_FIXTURE_ENV)
+    r = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, env=env)
+    _require(r.returncode == 0, f"fixture git {' '.join(args)} failed: {r.stderr.strip()}")
+    return r.stdout.strip()
+
+
+def _canonical_fixture_repo(tmp: str) -> Path:
+    """A repo carrying runtime_selftest's three canonical markers, so `_is_canonical_repo` answers
+    yes and the repository-state assertions actually execute -- they short-circuit to a silent
+    no-op anywhere else, which would make every RED below a false GREEN."""
+    root = Path(tmp)
+    (root / ".claude" / "rules").mkdir(parents=True, exist_ok=True)
+    (root / ".claude" / "policies").mkdir(parents=True, exist_ok=True)
+    (root / "CLAUDE.md").write_text("fixture constitution\n", encoding="utf-8")
+    (root / ".claude" / "rules" / "workflow.md").write_text("fixture workflow\n", encoding="utf-8")
+    (root / ".claude" / "policies" / "registry.yaml").write_text(
+        '{"schema_version": 2, "policies": []}\n', encoding="utf-8")
+    (root / ".gitignore").write_text("*.log\n", encoding="utf-8")
+    _fixture_git(root, "init", "-q", "-b", "single-node")
+    _fixture_git(root, "add", "-A")
+    _fixture_git(root, "commit", "-qm", "fixture")
+    return root
+
+
+def _tripwire_raises(fn, root: Path) -> bool:
+    """True when the production tripwire fails closed on `root`."""
+    try:
+        fn(root)
+    except _runtime_selftest().RuntimeSelftestFailure:
+        return True
+    return False
+
+
+def predicate_GIT_SINGLE_AUTHORITY_C1():
+    """C1: backup practice is forbidden outright rather than hidden.  Drives tripwire (1)
+    `_test_no_backup_artifacts` through one RED->GREEN cycle per material atom of the clause:
+    a `.bak`/`.orig` suffixed copy, a `backup`/`백업` named path, a branch outside
+    {single-node, multi-node, hint}, a tag outside `hint/`, and a `.gitignore` line that would
+    hide the first atom from `git status`."""
+    rs = _runtime_selftest()
+    _require(rs._ALLOWED_BRANCHES == frozenset({"single-node", "multi-node", "hint"}),
+             f"refs/heads allowlist must be exactly the three operating branches: {sorted(rs._ALLOWED_BRANCHES)}")
+    _require(rs._ALLOWED_TAG_PREFIX == "hint/",
+             f"tags must be confined to the hint namespace, not {rs._ALLOWED_TAG_PREFIX!r}")
+    _require(tuple(rs._BACKUP_SUFFIXES) == (".bak", ".orig"),
+             f"the backup suffix set must stay (.bak, .orig): {rs._BACKUP_SUFFIXES}")
+    _require(set(rs._BACKUP_PATH_TOKENS) == {"backup", "백업"},
+             "the path-token set must cover this repo's actual Korean backup naming, not ASCII only")
+
+    fn = rs._test_no_backup_artifacts
+    with tempfile.TemporaryDirectory() as tmp:
+        root = _canonical_fixture_repo(tmp)
+        _require(not _tripwire_raises(fn, root),
+                 "a clean canonical fixture repo must pass tripwire (1) -- GREEN baseline")
+
+        copy = root / "Dockerfile.bak"
+        copy.write_text("x", encoding="utf-8")
+        _require(_tripwire_raises(fn, root), "a *.bak working-tree copy must fail tripwire (1)")
+        copy.unlink()
+        _require(not _tripwire_raises(fn, root),
+                 "deleting the .bak copy must return tripwire (1) to GREEN (the check is live, not sticky)")
+
+        korean = root / "이전 plan 백업"
+        korean.mkdir()
+        (korean / "a.md").write_text("x", encoding="utf-8")
+        _require(_tripwire_raises(fn, root),
+                 "a 백업-named directory must fail tripwire (1) -- an ASCII-only token had zero detection power here")
+        shutil.rmtree(korean)
+
+        _fixture_git(root, "branch", "wip-anchor")
+        _require(_tripwire_raises(fn, root),
+                 "a branch outside {single-node, multi-node, hint} must fail tripwire (1)")
+        _fixture_git(root, "branch", "-D", "wip-anchor")
+        _require(not _tripwire_raises(fn, root), "deleting the stray branch must return tripwire (1) to GREEN")
+
+        _fixture_git(root, "tag", "last-good-26090301")
+        _require(_tripwire_raises(fn, root),
+                 "a last-good-* tag must fail tripwire (1) -- the rollback anchor is a commit, never a tag")
+        _fixture_git(root, "tag", "-d", "last-good-26090301")
+
+        (root / ".gitignore").write_text("*.log\n*.bak\n*.orig\n", encoding="utf-8")
+        _require(_tripwire_raises(fn, root),
+                 "resurrecting the *.bak/*.orig ignore lines must fail tripwire (1) -- hiding is not forbidding")
+        (root / ".gitignore").write_text("*.log\n", encoding="utf-8")
+        _require(not _tripwire_raises(fn, root), "restoring the ignore file must return tripwire (1) to GREEN")
+
+
+def predicate_GIT_SINGLE_AUTHORITY_C2():
+    """C2: no tracked .json/.yaml/.yml may restate a digest of bytes git already carries.  Drives
+    tripwire (2) `_test_no_tracked_digest_rewrite`: both the git blob sha1 and the sha256 of the
+    SAME tracked bytes fail, while a digest of bytes git does not carry passes -- the second half
+    is the blind layer this policy deliberately keeps (out of reach by construction, not an
+    allowlisted exemption)."""
+    rs = _runtime_selftest()
+    _require(rs._HEX_CONST_RE.findall("a" * 40) == ["a" * 40] and rs._HEX_CONST_RE.findall("b" * 64) == ["b" * 64],
+             "the derived predicate must recognise both git blob sha1 (40-hex) and sha256 (64-hex) constants")
+
+    fn = rs._test_no_tracked_digest_rewrite
+    with tempfile.TemporaryDirectory() as tmp:
+        root = _canonical_fixture_repo(tmp)
+        _require(not _tripwire_raises(fn, root),
+                 "a fixture repo with no transcribed digest must pass tripwire (2) -- GREEN baseline")
+
+        blob_sha1 = _fixture_git(root, "rev-parse", "HEAD:CLAUDE.md")
+        blob_sha256 = hashlib.sha256((root / "CLAUDE.md").read_bytes()).hexdigest()
+        ledger = root / "ledger.json"
+
+        for label, digest in (("git blob sha1", blob_sha1), ("sha256", blob_sha256)):
+            ledger.write_text(json.dumps({"CLAUDE.md": digest}), encoding="utf-8")
+            _fixture_git(root, "add", "-A")
+            _require(_tripwire_raises(fn, root),
+                     f"a tracked ledger restating the {label} of a tracked blob must fail tripwire (2)")
+
+        outside = hashlib.sha256(b"upstream payload git does not carry").hexdigest()
+        ledger.write_text(json.dumps({"upstream_payload": outside}), encoding="utf-8")
+        _fixture_git(root, "add", "-A")
+        _require(not _tripwire_raises(fn, root),
+                 "a digest of bytes git does not carry is outside the predicate by construction -- "
+                 "the blind layer stays, and it is not maintained as an allowlist")
+
+        ledger.unlink()
+        _fixture_git(root, "add", "-A")
+        _require(not _tripwire_raises(fn, root),
+                 "removing the transcription must return tripwire (2) to GREEN")
+
+
+# =============================================================================
+# Exact clause_id -> predicate function mapping (59 entries -- parity asserted in the test class).
 # =============================================================================
 
 PREDICATES = {
@@ -2992,6 +3368,7 @@ PREDICATES = {
     "HOST_SAFETY_LAYERED_DEFENSE.C6": predicate_HOST_SAFETY_LAYERED_DEFENSE_C6,
     "HOST_SAFETY_LAYERED_DEFENSE.C7": predicate_HOST_SAFETY_LAYERED_DEFENSE_C7,
     "HOST_SAFETY_LAYERED_DEFENSE.C8": predicate_HOST_SAFETY_LAYERED_DEFENSE_C8,
+    "HOST_SAFETY_LAYERED_DEFENSE.C9": predicate_HOST_SAFETY_LAYERED_DEFENSE_C9,
     "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C1": predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1,
     "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C2": predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C2,
     "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C3": predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C3,
@@ -3040,6 +3417,8 @@ PREDICATES = {
     "ARCH_WALL_VARIANT_LADDER.C3": predicate_ARCH_WALL_VARIANT_LADDER_C3,
     "ARCH_WALL_VARIANT_LADDER.C4": predicate_ARCH_WALL_VARIANT_LADDER_C4,
     "ARCH_WALL_VARIANT_LADDER.C5": predicate_ARCH_WALL_VARIANT_LADDER_C5,
+    "GIT_SINGLE_AUTHORITY.C1": predicate_GIT_SINGLE_AUTHORITY_C1,
+    "GIT_SINGLE_AUTHORITY.C2": predicate_GIT_SINGLE_AUTHORITY_C2,
 }
 
 
@@ -3051,11 +3430,11 @@ def _load_real_registry_clause_ids() -> set:
 
 class TestAllClausePredicatesExecute(unittest.TestCase):
     """Enumerates the exact {clause_id: predicate function} mapping, asserts exact parity with the
-    real registry's 56 clause_ids, and executes every predicate under subTest -- a single
+    real registry's 59 clause_ids, and executes every predicate under subTest -- a single
     predicate raising AssertionError fails only that clause's subTest, not the whole run."""
 
-    def test_mapping_has_exactly_56_entries(self):
-        self.assertEqual(len(PREDICATES), 56)
+    def test_mapping_has_exactly_59_entries(self):
+        self.assertEqual(len(PREDICATES), 59)
 
     def test_mapping_matches_real_registry_clause_ids_exactly(self):
         self.assertEqual(set(PREDICATES), _load_real_registry_clause_ids())
@@ -3079,7 +3458,7 @@ class TestAllClausePredicatesExecute(unittest.TestCase):
                 self.assertGreaterEqual(assert_count, 1,
                                          f"{fn.__name__} has no direct assert statement in its own body")
 
-    def test_all_56_clause_predicates_execute(self):
+    def test_all_59_clause_predicates_execute(self):
         for clause_id, fn in sorted(PREDICATES.items()):
             with self.subTest(clause=clause_id):
                 fn()  # raises AssertionError/SystemExit-mismatch on genuine failure
@@ -3115,7 +3494,7 @@ def run_all_predicates() -> int:
     """Execute the exact registry mapping and emit a stable production verdict."""
     failures = []
     registry_ids = _load_real_registry_clause_ids()
-    if len(PREDICATES) != 56 or set(PREDICATES) != registry_ids:
+    if len(PREDICATES) != 59 or set(PREDICATES) != registry_ids:
         failures.append({"clause_id": "__mapping__", "error":
                          f"predicate/registry mismatch predicates={len(PREDICATES)} registry={len(registry_ids)}"})
     funcs = list(PREDICATES.values())

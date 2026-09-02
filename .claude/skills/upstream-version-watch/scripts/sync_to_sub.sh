@@ -1149,27 +1149,60 @@ verify_destination_retirement_consumers() {
     done
     return $fail
 }
-# 체크섬 검증(빌드 핵심입력 + 오버레이 대표). 불일치 시 비-0.
+# 체크섬 검증(빌드킷 + 오버레이 배달 표면 전수). 불일치 시 비-0.
+# ★ 목록을 손저작하지 않는다 (2026-09-03). 이전 판은 21개 경로를 이 함수 안에 손으로 적어 두었고,
+#   그 목록은 **배달 표면이 늘어나도 스스로 늘지 않는다** — 새 파일이 배달되면 검증 없이 통과하고
+#   사람은 "체크섬 통과"를 보고 전수 검증으로 오해한다(침묵 누락). 그래서 두 목록 모두 **배달을
+#   실제로 결정하는 원천**에서 파생한다:
+#     (1) 빌드킷  = ${BAND2_TOP[@]}      — deliver_build 의 rsync allowlist 그 자체(300행대 _band2_filters)
+#     (2) 오버레이 = 스테이징 트리       — deliver_overlay 가 `$st/` 를 통째로 미는 대상(render_sub_env 산출물)
+#                                          에서 OVERLAY_EXCLUDES(__pycache__·*.pyc)만 뺀 것
+#   근거 규율: workflow.md §결정론 규율 "단일 소유가 불가능하면 교차검증이 차선" — 여기서는 단일 소유가
+#   가능하므로 교차검증(assert_band2_top_gitignore_parity)이 아니라 파생을 쓴다. 함수명·호출 위치는
+#   그대로 둔다(verify_distribution 의 순서체크 2건이 `verify_checksums ` 토큰을 핀한다).
 verify_checksums() {  # $1=topology
-    local st; st="$(staging_dir "$1")"; local fail=0 L R f
-    for f in "output/$1/Dockerfile" "output/$1/Dockerfile.source-build" "output/$1/docker-compose.yaml" "output/$1/requirements.txt"; do
-        [ -f "${SRC}${f}" ] || continue
-        L=$(md5sum "${SRC}${f}" | awk '{print $1}'); R=$($SSH_OPTS "$SUB_HOST" "md5sum '${SUB_WORK_DIR}/${f}' 2>/dev/null" | awk '{print $1}')
-        [ -n "$L" ] && [ "$L" = "$R" ] && echo "  ✅ ${f}" || { echo "  ❌ ${f}: main=$L sub=$R"; fail=1; }
+    local st; st="$(staging_dir "$1")"; local fail=0 L R f rels line ok_n all_n
+    # (1) 빌드킷 — 원천 = rsync allowlist. 부재 항목은 건너뛴다(토폴로지별 선택 자산).
+    for f in "${BAND2_TOP[@]}"; do
+        [ -f "${SRC%/}/output/$1/$f" ] || continue
+        L=$(md5sum "${SRC%/}/output/$1/$f" | awk '{print $1}')
+        R=$($SSH_OPTS "$SUB_HOST" "md5sum '${SUB_WORK_DIR}/output/$1/$f' 2>/dev/null" | awk '{print $1}')
+        [ -n "$L" ] && [ "$L" = "$R" ] && echo "  ✅ output/$1/$f" || { echo "  ❌ output/$1/$f: main=$L sub=$R"; fail=1; }
     done
-    for f in CLAUDE.md Agent_Card.json .claude/settings.local.json .claude/rules/comms.md .claude/rules/docs.md \
-             .claude/schemas/task-report.schema.json .claude/schemas/library-exchange.schema.json \
-             .gitignore .claude/skills/vllm-recipe-explorer/recipe.py \
-             .claude/skills/adversarial-benchmark/scripts/verdict_rule.py .claude/skills/wiki-desk/reference/references.md .claude/a2a_delegation.json \
-             .claude/runtime/host_safety/mem_watchdog.sh \
-             .claude/runtime/host_safety/install_host_safety.sh \
-             .claude/runtime/host_safety/install_netconsole.sh \
-             .claude/runtime/host_safety/host/vllm-drop-caches.sh \
-             .claude/runtime/host_safety/systemd/easy-vllm-memwatch.service; do
-        [ -f "$st/$f" ] || continue
-        L=$(md5sum "$st/$f" | awk '{print $1}'); R=$($SSH_OPTS "$SUB_HOST" "md5sum '$SUB_WORK_DIR/$f' 2>/dev/null" | awk '{print $1}')
-        [ -n "$L" ] && [ "$L" = "$R" ] && echo "  ✅ $f" || { echo "  ❌ $f: main=$L sub=$R"; fail=1; }
-    done
+    # (2) 오버레이 — 원천 = deliver_overlay 가 미는 스테이징 트리 전수.
+    if [ ! -d "$st" ]; then
+        echo "  ❌ 오버레이 스테이징 부재: $st — render 선행 필요" >&2
+        return 1
+    fi
+    rels="$(cd "$st" && find . -type f -not -path '*/__pycache__/*' -not -name '*.pyc' -printf '%P\n' | LC_ALL=C sort)"
+    if [ -z "$rels" ]; then
+        echo "  ❌ 배달 표면이 비었다($st) — 0건 검사를 통과로 읽지 않는다" >&2
+        return 1
+    fi
+    # 계약 대표 — 파생 목록이 조용히 줄어드는 것을 막는다.
+    #   · .claude/skills/vllm-recipe-explorer/recipe.py = 런타임블럭이 실제로 복제됐다는 증거(무조건 렌더)
+    #   · .claude/a2a_delegation.json               = A2A 위임키(hw_verified:true 일 때만 발급)
+    printf '%s\n' "$rels" | grep -qxF '.claude/skills/vllm-recipe-explorer/recipe.py' \
+        || { echo "  ❌ 배달 표면에 런타임블럭 대표(.claude/skills/vllm-recipe-explorer/recipe.py)가 없다" >&2; fail=1; }
+    [ -f "$st/.claude/a2a_delegation.json" ] \
+        || echo "  ℹ️  .claude/a2a_delegation.json 미발급(서브 hw_verified 미검증) — 배달 표면 밖"
+    # 원격 md5 는 SSH 1회로 몰아 받는다(파일당 1회는 수십배 느리다).
+    local -A RSUM=()
+    while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        RSUM["${line#*  }"]="${line%% *}"
+    done < <(printf '%s\n' "$rels" | $SSH_OPTS "$SUB_HOST" \
+        "cd '$SUB_WORK_DIR' && while IFS= read -r _p; do if [ -f \"\$_p\" ]; then md5sum -- \"\$_p\"; fi; done" 2>/dev/null)
+    ok_n=0; all_n=0
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        all_n=$((all_n + 1))
+        L=$(md5sum -- "$st/$f" | awk '{print $1}'); R="${RSUM[$f]-}"
+        if [ -n "$L" ] && [ "$L" = "$R" ]; then ok_n=$((ok_n + 1))
+        else echo "  ❌ $f: main=$L sub=${R:-missing}"; fail=1; fi
+    done < <(printf '%s\n' "$rels")
+    [ "$ok_n" = "$all_n" ] && echo "  ✅ 오버레이 배달 표면 ${ok_n}/${all_n} 일치" \
+        || echo "  ❌ 오버레이 배달 표면 ${ok_n}/${all_n} 만 일치"
     return $fail
 }
 
