@@ -85,13 +85,25 @@ if [ "$MODE" = "crash" ]; then
   #   **열린 채** 강제 커널 패닉으로 진행한다. 즉 "docker 를 못 물어봤다"가 "서빙 안 한다"로
   #   접힌다 — 부재와 판단 불가의 융합. 여기서 그 오판의 대가는 **남의 서빙이 도는 노드의
   #   즉사**다. rc 를 본다.
-  if ! _dps="$(docker ps --format '{{.Names}}' 2>&1)"; then
+  # ★ B11(2026-09-03 · audit_26090121): 위 rc 검사는 "docker 를 못 물어봤다"를 닫았지만
+  #   **매칭 술어 자체가 반쪽**이었다 — `{{.Names}}` 만 보면 이름에 'vllm' 이 없는 서빙
+  #   컨테이너를 놓친다. 이 저장소의 실측 반례: `MASTER_CONTAINER_NAME=mn-hy3-master` ·
+  #   `mn-exaone45-33b-master`(.env.hy3 · .env.exaone45-33b) — 둘 다 'vllm' 미포함이라
+  #   옛 게이트를 **그대로 통과**한다. 그 대가는 남의 서빙이 도는 노드의 강제 커널 패닉이다.
+  #   판정 술어는 협역 워치독의 정본(host_safety/mem_watchdog.sh `targets()`)을 그대로
+  #   재현한다 — running 으로 한정하고 ID·**이미지**·이름 세 필드를 훑는다. 이미지에는
+  #   vllm 이 들어가므로(easy-vllm*·vllm/vllm-openai 등) 이름 규약과 무관하게 잡힌다.
+  if ! _dps="$(docker ps --filter status=running --format '{{.ID}} {{.Image}} {{.Names}}' 2>&1)"; then
     say "거부: docker 상태를 조회할 수 없다(rc≠0) — 서빙 여부를 **판정할 수 없으므로** 진행하지 않는다."
     say "      docker 출력: ${_dps}"
     exit 3
   fi
-  if grep -qi vllm <<< "$_dps"; then
-    say "거부: vLLM 컨테이너가 실행 중이다. 먼저 serve 를 내려라."; exit 3
+  # 파이프 없이(here-string) 훑는다 — pipefail + 조기종료 SIGPIPE 위음성 회피(위 주석 계열).
+  _hit="$(awk 'tolower($0) ~ /vllm/ {print; exit}' <<< "$_dps")"
+  if [ -n "$_hit" ]; then
+    say "거부: vLLM 컨테이너가 실행 중이다(이미지 또는 이름 매칭). 먼저 serve 를 내려라."
+    say "      매칭: $_hit"
+    exit 3
   fi
   # 게이트 2: 포착 수단이 하나도 없으면 시험 자체가 무의미.
   #   2026-07-31 교정: 예전 게이트는 kdump 적재를 필수로 요구했으나, 같은 날 4회 실측에서
@@ -163,7 +175,7 @@ for pair in "mem_watchdog_eta.sh:easy-vllm-bb-watchdog" \
             "thermal_watchdog.sh:easy-vllm-bb-tp-watchdog"; do
   src="$SDIR/${pair%%:*}"; dst="/usr/local/sbin/${pair##*:}"
   if [ ! -f "$dst" ]; then bad "배포본 부재: $dst" "deployed_${pair##*:}"
-  elif [ "$(sha256sum <"$src" | cut -d' ' -f1)" = "$(sha256sum <"$dst" | cut -d' ' -f1)" ]; then
+  elif cmp -s "$src" "$dst"; then
     ok "배포본 최신 ${pair##*:}" "deployed_${pair##*:}"
   else
     bad "배포본 구버전 ${pair##*:} — 소스≠$dst. sudo bash $SDIR/install_node_blackbox.sh --apply --level L1" \

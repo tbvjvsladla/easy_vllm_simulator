@@ -86,8 +86,25 @@ case "$LEVEL" in L1|L2|L3) ;; *) echo "[bb-install] --level 은 L1|L2|L3" >&2; e
 [ -n "$LOGS_ROOT" ] || LOGS_ROOT="$REPO/docs/logs"
 
 say(){ echo "[bb-install] $*"; }
-run(){ if [ "$APPLY" = 1 ]; then "$@"; else echo "            (dry-run) $*"; fi; }
 FAIL=0
+# ★ rc 전파 (2026-09-03 · B4). 예전 run() 은 `"$@"` 의 rc 를 그대로 반환했지만 `set -e` 가 없고
+#   18개 호출부 중 rc 를 보는 곳이 **0개**라, 실패가 조용히 삼켜지고 스크립트는 끝에서
+#   "INSTALL PASS" 를 찍었다 — 반환값이 있어도 **듣는 사람이 없으면 fail-open 이다.**
+#   호출부를 18곳 고치는 대신 래퍼가 직접 판정을 기록한다(단일 자리 = 갈라지지 않는다).
+#   ⓐ 실패를 큰 소리로 찍고 ⓑ FAIL 을 세우고(최종 `exit "$FAIL"` 로 프로세스 rc 에 전파)
+#   ⓒ rc 를 그대로 되돌려 호출부가 원하면 추가로 분기할 수 있게 한다.
+#   ★ FAIL 은 **대입이지 증분이 아니다** — 헤더의 종료코드 taxonomy(0/1/2)를 넘겨 3,4… 로
+#     새면 수행지시서의 성공판정이 깨진다.
+run(){
+  if [ "$APPLY" = 1 ]; then
+    "$@"
+    local _rc=$?
+    if [ "$_rc" -ne 0 ]; then say "   ✗ 실패(rc=$_rc): $*"; FAIL=1; fi
+    return "$_rc"
+  else
+    echo "            (dry-run) $*"
+  fi
+}
 BIN=/usr/local/sbin
 ETC=/etc/easy-vllm
 # NODE_DIR 해소는 --suggest-ramoops 블록 **뒤**로 내렸다 — 그 판정은 노드 정체성과 무관한
@@ -204,6 +221,30 @@ run install -m 0755 "$SDIR/mem_watchdog_eta.sh" "$BIN/easy-vllm-bb-watchdog"
 run install -m 0755 "$SDIR/blackbox_thermal.py"  "$BIN/easy-vllm-bb-thermal"
 run install -m 0755 "$SDIR/thermal_watchdog.sh"  "$BIN/easy-vllm-bb-tp-watchdog"
 run install -m 0755 "$DROP_HELPER" "$BIN/vllm-drop-caches"
+
+# ★ 설치 사후검증 (2026-09-03 · B4). `install` 의 rc 는 이제 run() 이 보지만, **rc 0 이 곧
+#   "쓸 수 있는 상태"는 아니다** — noexec 마운트·부분 쓰기·경합 재설치는 rc 0 을 내고도
+#   실행 불가한 파일을 남긴다. 배치의 목적은 "명령이 돌았다"가 아니라 "그 자리에 실행 가능한
+#   바이너리가 있다"이므로, 목적 그대로를 다시 읽어 판정한다.
+#   0644 라이브러리 사본(blackbox_eta.py)은 **실행권한이 없어야 정상**이라 존재만 본다.
+verify_installed(){   # $1=경로 $2=x(실행체)|r(라이브러리)
+  [ "$APPLY" = 1 ] || return 0
+  if [ ! -f "$1" ]; then say "   ✗ 미설치: $1"; FAIL=1; return 1; fi
+  if [ "$2" = "x" ] && [ ! -x "$1" ]; then say "   ✗ 실행권한 없음: $1"; FAIL=1; return 1; fi
+  if [ ! -s "$1" ]; then say "   ✗ 빈 파일: $1"; FAIL=1; return 1; fi
+  return 0
+}
+if [ "$APPLY" = 1 ]; then
+  _BB_MISS=0
+  for _b in easy-vllm-bb-collect easy-vllm-bb-eta easy-vllm-bb-events easy-vllm-bb-lifecycle \
+            easy-vllm-bb-regen-envelope easy-vllm-bb-watchdog easy-vllm-bb-thermal \
+            easy-vllm-bb-tp-watchdog vllm-drop-caches; do
+    verify_installed "$BIN/$_b" x || _BB_MISS=$((_BB_MISS+1))
+  done
+  verify_installed "$BIN/blackbox_eta.py" r || _BB_MISS=$((_BB_MISS+1))
+  if [ "$_BB_MISS" = 0 ]; then say "   ✓ $BIN 배치 10종 실재·실행권한 확인"
+  else say "   ✗ $BIN 배치 $_BB_MISS 종 결손 — 위 ✗ 확인(sys.path[0] sibling import 포함)"; fi
+fi
 
 # ★ **환류 배선**(plan_26081415 C2-4). 예전엔 `--node-dir` 없이 호출해 envelope 의 eta_params 가
 #   상수 파일에 **한 번도 닿지 않았다** — 포락선을 아무리 갱신해도 워치독 판정은 DEFAULTS 그대로였고,
@@ -352,9 +393,25 @@ say "   sudoers 단일 NOPASSWD 엔트리($TARGET_USER → vllm-drop-caches)"
 if [ "$APPLY" = 1 ]; then
   T="$(mktemp)"
   printf '%s ALL=(root) NOPASSWD: %s/vllm-drop-caches\n' "$TARGET_USER" "$BIN" > "$T"
+  # ★ 배치 사후검증(2026-09-03 · 2차 수리). 옛 코드는 후보의 visudo 검증만 게이트로 쓰고
+  #   **배치 자체는 rc 를 버린 채**(run() 미경유) 다음 줄에서 "✓ sudoers" 를 조건 없이 찍었다 —
+  #   /etc 가 읽기전용이거나 배치가 잘려도 PASS 로 보였고, $BIN 배치와 달리 새 사후검증에도
+  #   들어 있지 않았다. 판정은 목적 그대로를 다시 읽어서 한다: **그 자리에 0440 으로 유효한
+  #   sudoers 조각이 있는가**. 모드가 중요하다 — sudo 는 0440 이 아닌 조각을 무시하므로
+  #   "파일은 있는데 권한 상승은 안 되는" 침묵 실패가 된다(verify_installed 는 모드를 보지
+  #   않으므로 여기서는 쓰지 않고 명시 검사한다).
+  SUDOERS_F=/etc/sudoers.d/easy-vllm-host-safety
   if visudo -cf "$T" >/dev/null 2>&1; then
-    install -m 0440 "$T" /etc/sudoers.d/easy-vllm-host-safety
-    say "   ✓ sudoers(visudo 검증 통과)"
+    if run install -m 0440 "$T" "$SUDOERS_F" \
+       && [ -f "$SUDOERS_F" ] \
+       && [ "$(stat -c %a "$SUDOERS_F" 2>/dev/null)" = "440" ] \
+       && visudo -cf "$SUDOERS_F" >/dev/null 2>&1; then
+      say "   ✓ sudoers(visudo 검증 통과 · $SUDOERS_F 0440 배치 확인)"
+    else
+      say "   ✗ sudoers 배치 실패: $SUDOERS_F (실재·모드 0440·배치본 visudo 재검증 중 하나가 실패)"
+      say "     확인: ls -l $SUDOERS_F · visudo -cf $SUDOERS_F"
+      FAIL=1
+    fi
   else
     say "   ✗ sudoers 후보 검증 실패 — 미설치"; FAIL=1
   fi
@@ -420,7 +477,22 @@ if [ "$LEVEL" = "L3" ]; then
     fi
     systemctl disable --now kdump-tools >/dev/null 2>&1 || true
     kdump-config unload >/dev/null 2>&1 || true
-    say "   ✓ kdump 무장 해제(USE_KDUMP=0 · 서비스 disable · kexec unload)"
+    # ★ B6(2026-09-03): 위 두 줄의 `|| true` 는 **남긴다** — 이 rc 는 "패키지 미설치"(정상)와
+    #   "무장 해제 실패"(결함)를 구분하지 못해 판정 근거가 못 되기 때문이다. 그래서 폐기한 것은
+    #   rc 가 아니라 판정 자체였다: 예전엔 결과를 한 번도 읽지 않고 ✓ 를 조건 없이 찍었다.
+    #   판정은 **결과 상태**로 한다 — 커널이 크래시 이미지를 적재 중인지(kexec_crash_loaded)가
+    #   pstore 차단 여부의 직접 사실이다(crash_kexec_post_notifiers=N 이라 적재돼 있으면
+    #   panic() 이 kmsg_dump 보다 먼저 kexec 로 점프한다).
+    _KL="$(cat /sys/kernel/kexec_crash_loaded 2>/dev/null || echo '')"
+    if [ -z "$_KL" ]; then
+      say "   ✗ /sys/kernel/kexec_crash_loaded 를 읽지 못했다 — kdump 무장 상태를 **판정할 수 없다**"; FAIL=1
+    elif [ "$_KL" = "0" ]; then
+      say "   ✓ kdump 무장 해제(USE_KDUMP=0 · 서비스 disable · kexec unload · kexec_crash_loaded=0)"
+    else
+      say "   ✗ kexec 크래시 이미지가 여전히 적재됨(kexec_crash_loaded=$_KL) — panic 이 pstore 를 못 탄다"
+      say "     확인: systemctl status kdump-tools · kdump-config status · /etc/default/kdump-tools"
+      FAIL=1
+    fi
 
     # ② hang→panic 승격은 **유지한다**. 오히려 지금 더 중요하다: 무음 hang 은 아무 경로도 타지
     #    않아 기록이 0 이 되는데, panic 으로 승격되면 efi_pstore 가 그 순간을 잡는다.
@@ -434,20 +506,71 @@ kernel.softlockup_panic=1
 kernel.panic=10
 EOF
     rm -f /etc/sysctl.d/99-easy-vllm-kdump-trigger.conf     # 구 이름 정리
-    sysctl -p /etc/sysctl.d/99-easy-vllm-panic-promote.conf >/dev/null 2>&1
-    say "   ✓ hang→panic 승격 sysctl (이제 efi_pstore 를 먹인다)"
+    # ★ B6 계열(2026-09-03 · 2차 수리): 같은 블록 안에서 처방이 비대칭이었다 — kdump 는 결과
+    #   상태(kexec_crash_loaded)로 판정하는데, 바로 아래 두 줄은 여전히 rc 를 버리고 ✓ 를
+    #   **조건 없이** 찍었다. 여기서는 rc 를 살릴 수 있다: `sysctl -p` 의 비-0 은 "파일을 못
+    #   읽었다/키가 없다"는 실패 신호이지 정상 상태가 아니다(kdump 의 `|| true` 와 다르다).
+    #   그래도 최종 판정은 **결과 상태**로 한다 — sysctl 은 커널이 요청을 무시해도 0 을 낼 수
+    #   있기 때문이다. 기대값은 방금 쓴 파일에서 파생한다(손으로 두 번 적으면 갈라진다).
+    if sysctl -p /etc/sysctl.d/99-easy-vllm-panic-promote.conf >/dev/null 2>&1; then _SP_RC=0
+    else _SP_RC=$?; fi
+    _PP_BAD=""
+    while IFS='=' read -r _k _want; do
+      case "$_k" in ''|'#'*) continue ;; esac
+      _got="$(sysctl -n "$_k" 2>/dev/null)"
+      [ "$_got" = "$_want" ] || _PP_BAD="$_PP_BAD $_k=${_got:-<읽기실패>}(기대 $_want)"
+    done < /etc/sysctl.d/99-easy-vllm-panic-promote.conf
+    if [ -n "$_PP_BAD" ]; then
+      say "   ✗ hang→panic 승격 미반영(sysctl -p rc=$_SP_RC):$_PP_BAD"
+      say "     무음 hang 이 panic 으로 승격되지 않으면 efi_pstore 가 잡을 순간 자체가 없다"
+      FAIL=1
+    elif [ "$_SP_RC" -ne 0 ]; then
+      say "   ✗ hang→panic 승격 값은 맞지만 sysctl -p 가 실패했다(rc=$_SP_RC) — 재부팅 후 재적용이 보장되지 않는다"
+      FAIL=1
+    else
+      say "   ✓ hang→panic 승격 sysctl 적용 확인 (이제 efi_pstore 를 먹인다)"
+    fi
 
     # ③ systemd-pstore: 부팅마다 pstore 를 /var/lib/systemd/pstore 로 옮기고 **NVRAM 을 비운다**.
     #    이게 없으면 EFI 변수가 누적돼 결국 기록 실패한다. 2026-07-31 실측에서 시험 전후 EFI
     #    변수 164 개로 동일 — 아카이브가 정상 동작하면 누적이 없다.
-    systemctl enable systemd-pstore >/dev/null 2>&1 || true
-    say "   ✓ systemd-pstore 아카이브 활성(NVRAM 누적 방지)"
+    #   ★ B6 계열(2026-09-03 · 2차 수리): `|| true` 뒤 무조건 ✓ 였다. 여기서 rc 는 kdump 와 달리
+    #     "정상적 미설치"를 뜻할 수 없다 — systemd-pstore 유닛이 없으면 NVRAM 이 비워지지 않아
+    #     결국 포착이 실패하므로, 부재는 정상이 아니라 **이 설치가 달성하려던 것의 결손**이다.
+    #     그래도 판정은 결과 상태(is-enabled)로 한다: 이미 enabled 인 노드에서 enable 이 비-0 을
+    #     내는 경우가 있고, 그때 실패라 부르면 위양성이 된다.
+    if systemctl enable systemd-pstore >/dev/null 2>&1; then _PS_RC=0; else _PS_RC=$?; fi
+    _PS_EN="$(systemctl is-enabled systemd-pstore 2>/dev/null)"
+    case "$_PS_EN" in
+      enabled|enabled-runtime|static|indirect|generated)
+        say "   ✓ systemd-pstore 아카이브 활성(is-enabled=$_PS_EN · NVRAM 누적 방지)" ;;
+      "")
+        say "   ✗ systemd-pstore 유닛을 찾을 수 없다(enable rc=$_PS_RC) — NVRAM 이 비워지지 않아"
+        say "     EFI 변수가 누적되면 결국 패닉 로그 기록 자체가 실패한다(2026-07-31 근거)"
+        FAIL=1 ;;
+      *)
+        say "   ✗ systemd-pstore 미활성(is-enabled=$_PS_EN · enable rc=$_PS_RC)"
+        say "     확인: systemctl status systemd-pstore"
+        FAIL=1 ;;
+    esac
   fi
 
   # ④ GRUB: 우리 drop-in 을 **비우고**, kdump-tools 가 넣는 crashkernel 도 걷어낸다.
   say "   GRUB drop-in: (비움) — crashkernel·reserve_mem·ramoops.* 전부 제거"
   if [ "$APPLY" = 1 ]; then
-    cp -a /boot/grub/grub.cfg /boot/grub/grub.cfg.easy-vllm-install-backup 2>/dev/null || true
+    # ★ B7(2026-09-03): 예전엔 `cp -a … 2>/dev/null || true` 로 rc 와 stderr 를 **둘 다** 버린 뒤
+    #   블록 끝에서 "백업=…" 을 조건 없이 찍었다. 백업이 없는데 있다고 말하는 것은, 되돌릴 수
+    #   없는 GRUB 갱신을 되돌릴 수 있는 것처럼 보이게 하는 가장 나쁜 형태의 fail-open 이다.
+    GRUB_BAK=/boot/grub/grub.cfg.easy-vllm-install-backup
+    GRUB_OK=1
+    if [ ! -f /boot/grub/grub.cfg ]; then
+      say "   ✗ /boot/grub/grub.cfg 부재 — GRUB 갱신 전제가 성립하지 않는다"; FAIL=1; GRUB_OK=0
+    elif cp -a /boot/grub/grub.cfg "$GRUB_BAK" && [ -s "$GRUB_BAK" ]; then
+      say "   ✓ GRUB 백업 확보: $GRUB_BAK ($(stat -c %s "$GRUB_BAK" 2>/dev/null) bytes)"
+    else
+      say "   ✗ GRUB 백업 실패: $GRUB_BAK — 되돌릴 수단 없이 grub.cfg 를 갱신하지 않는다"
+      FAIL=1; GRUB_OK=0
+    fi
     KT=/etc/default/grub.d/kdump-tools.cfg
     [ -f "$KT" ] && sed -i 's/ *crashkernel=[^ "]*//g' "$KT"
     cat > /etc/default/grub.d/zz-easy-vllm-blackbox.cfg <<'EOF'
@@ -456,10 +579,20 @@ EOF
 #   판단해서 비워 뒀다"는 표시로 남긴다 — 파일이 없으면 다음 사람이 "아직 설정 안 했나?" 로
 #   오독하고 되돌릴 수 있다. 근거: testlog_26073113 · install_node_blackbox.sh 상단 주석.
 EOF
-    if command -v update-grub >/dev/null 2>&1; then update-grub >/dev/null 2>&1
-    else grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1; fi
+    if [ "$GRUB_OK" != 1 ]; then
+      say "   ⊘ GRUB 재생성 건너뜀(백업 미확보) — 백업을 확보한 뒤 재실행하라"
+    else
+      if command -v update-grub >/dev/null 2>&1; then update-grub >/dev/null 2>&1; _GR=$?
+      else grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1; _GR=$?; fi
+      if [ "$_GR" -ne 0 ]; then
+        say "   ✗ GRUB 재생성 실패(rc=$_GR) — 복원: cp -a $GRUB_BAK /boot/grub/grub.cfg"; FAIL=1
+      elif [ ! -s /boot/grub/grub.cfg ]; then
+        say "   ✗ 재생성 후 /boot/grub/grub.cfg 가 비었다 — 복원: cp -a $GRUB_BAK /boot/grub/grub.cfg"; FAIL=1
+      else
+        say "   ✓ GRUB 갱신 · 백업=$GRUB_BAK"
+      fi
+    fi
     rm -f /etc/modules-load.d/easy-vllm-ramoops.conf        # ramoops 자동로드 철회
-    say "   ✓ GRUB 갱신 · 백업=/boot/grub/grub.cfg.easy-vllm-install-backup"
   fi
 fi
 
@@ -481,7 +614,22 @@ if [ "$APPLY" = 1 ]; then
   else
     say "  ✗ 샘플 미기록 — journalctl -u easy-vllm-blackbox-collect"; FAIL=1
   fi
-  say "  현재 커널의 kdump 예약: $(cat /sys/kernel/kexec_crash_size 2>/dev/null) bytes (재부팅 후 0 이 되어야 정상)"
+  # ★ B6(2026-09-03): 예전엔 예약 크기를 **출력만** 했다. 사람이 그 숫자를 읽고 판단하기를
+  #   기대한 형태인데, 바로 아래에서 스크립트가 "INSTALL PASS" 를 찍어 버리므로 실제로는
+  #   아무도 판단하지 않았다 — 숫자를 보여 주는 것은 판정이 아니다. `== 0` 으로 판정한다.
+  #   예약이 남아 있으면 panic 이 kexec 로 점프해 efi_pstore 가 원천 차단되므로, 이 설치의
+  #   목적(L3 = 사후 포착 확보)이 아직 달성되지 않은 상태다 = PASS 가 아니다.
+  CKS_NOW="$(cat /sys/kernel/kexec_crash_size 2>/dev/null || echo '')"
+  if [ -z "$CKS_NOW" ]; then
+    say "  ✗ /sys/kernel/kexec_crash_size 를 읽지 못했다 — 예약 여부를 **판정할 수 없다**"; FAIL=1
+  elif [ "$CKS_NOW" -eq 0 ] 2>/dev/null; then
+    say "  ✓ kdump 예약 0 bytes (kexec_crash_size=0 — pstore 경로가 열려 있다)"
+  else
+    say "  ✗ kdump 예약 잔존: $CKS_NOW bytes (kexec_crash_size≠0 — panic 이 kexec 로 점프해 pstore 차단)"
+    say "    L3 는 crashkernel 을 GRUB 에서 걷어냈으므로 **재부팅 1회** 뒤 0 이 되어야 한다."
+    say "    재부팅 뒤 재판정: bash $SDIR/verify_node_blackbox.sh --check"
+    FAIL=1
+  fi
   say "     ⚠ /proc/iomem grep 로 예약을 판정하지 말 것 — kptr_restrict 로 전 항목이 0 으로 보인다(위음성 함정)"
   echo
   if [ "$LEVEL" = "L3" ]; then
