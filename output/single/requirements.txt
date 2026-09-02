@@ -1,5 +1,5 @@
 # vLLM 런타임 의존성 — wheel 의 Requires-Dist(METADATA) 기준(권위 소스).
-# source: https://github.com/vllm-project/vllm/releases/download/v0.19.1/vllm-0.19.1+cu130-cp38-abi3-manylinux_2_35_aarch64.whl
+# source: https://github.com/vllm-project/vllm/releases/download/v0.18.0/vllm-0.18.0+cu130-cp38-abi3-manylinux_2_35_aarch64.whl
 # base 제공분(torch/torchvision/torchaudio/setuptools)은 제외(--no-deps 보호).
 # extra(fastapi[standard] 등)는 그대로 — pip 가 빌드 시 transitive(uvicorn→uvloop) 해소.
 # ⚠ KNOWN_INCOMPAT 천장 적용(시간드리프트 회귀 차단; upstream 수정 시 regen_requirements.py KNOWN_INCOMPAT 에서 제거): fastapi<0.137.0; transformers<5.15.0
@@ -9,13 +9,12 @@ blake3
 cachetools
 cbor2
 cloudpickle
-compressed-tensors==0.15.0.1
+compressed-tensors==0.13.0
 depyf==0.20.0
 diskcache==5.6.3
 einops
 fastapi[standard]>=0.115.0,<0.137.0
 filelock>=3.16.1
-flashinfer-cubin==0.6.6
 flashinfer-python==0.6.6
 gguf>=0.17.0
 ijson
@@ -31,7 +30,7 @@ numba==0.61.2
 nvidia-cudnn-frontend<1.19.0,>=1.13.0
 nvidia-cutlass-dsl>=4.4.0.dev1
 openai-harmony>=0.0.3
-openai>=2.0.0
+openai<2.25.0,>=1.99.1
 opencv-python-headless>=4.13.0
 opentelemetry-api>=1.27.0
 opentelemetry-exporter-otlp>=1.27.0
@@ -59,7 +58,7 @@ six>=1.16.0
 tiktoken>=0.6.0
 tokenizers>=0.21.1
 tqdm
-transformers!=5.0.*,!=5.1.*,!=5.2.*,!=5.3.*,!=5.4.*,!=5.5.0,>=4.56.0,<5.15.0
+transformers<5,>=4.56.0,<5.15.0
 typing_extensions>=4.10
 watchfiles
 xgrammar<1.0.0,>=0.1.32
