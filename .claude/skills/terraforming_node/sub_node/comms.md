@@ -27,7 +27,18 @@
 ## 상태 = 파일 (세션 없는 멀티턴)
 - 한 작업 = 하나 `context_id`. 진행상태는 **`tasks/<context_id>.json`** 에 산다 — **파일이 세션이다**(데몬 없음).
 - 매 턴: (1) `tasks/<context_id>.json` 이 있으면 읽어 이전 턴/피드백을 복원 (2) 작업 수행 (3) 네 턴 결과를 그 파일에 덧쓰고 (4) 리포트 반환.
-- **max-turns = 3**(메인 `reconciliation_cap` 미러). `turn > 3` 이면 더 시도하지 말고 `status=failed, failure_class=unknown` 으로 종료 → 메인이 **Model-C(HITL)**.
+- **턴 예산은 난이도(grade)가 정한다 — 고정 3 이 아니다**(2026-09-03 개정 · `plan_26090317` §5).
+  메인이 Task 와 함께 `max_turns_allocated` 를 준다. 정본 표는 메인의 `scripts/turn_budget.py`:
+  `S 10 · L0 8 · L1 16 · L2 25 · L3 40 · L4 65`(하한 6). 옛 규약(`max-turns = 3` = `reconciliation_cap`
+  미러)은 캠페인 규모 태스크에서 **정상 진행을 실패로 만들었다** — 예산은 비용 노브이지 hang 노브가 아니다.
+- **예산을 다 쓰면 그 자리에서 멈춘다(terminal)**. `status=failed` 로 끝내되 `budget_outcome=exhausted`
+  와 `max_turns_used` 를 리포트에 담아라. **메인은 같은 예산으로 재시도하지 않고 더 큰 예산의 새 attempt 를
+  연다** — 예산을 줄이는 방향은 하강나선이다. 소진 직전 만든 부분 산출물이 있으면 `artifacts` 에 남겨라
+  (다음 attempt 가 그것을 이어받는다).
+- **답을 기다려야 하면 실패가 아니라 `input-required`** 다. `hitl.needed=true` + `hitl.request_id` 를 담아
+  끝내라 — 메인이 답을 실어 **같은 세션을 재개**(`--resume <session_id>`)하므로 컨텍스트를 다시 쌓지 않아도 된다.
+- **근거가 필요하면 `library_request[]` 에 적어 보내라**(도서관은 메인에만 있다). 역방향 접속을 시도하지 마라 —
+  네가 메인에게 말하는 통로는 **이 리포트 하나**다. `blocking:true` 면 그 근거 없이 결정을 진행하지 않는다.
 
 ## 검증 = push-attestation (가장 중요)
 - **DO** 보고 전에 **스스로 검증**하고 결과를 `self_verification` 에 담아라: config-parse · 이 리포트의 schema 유효성 · runner 문법(bash -n) · 가능하면 **로컬 스모크**.

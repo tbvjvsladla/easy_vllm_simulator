@@ -2709,8 +2709,27 @@ def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C2():
     _require('RC=0' in proc_ok.stdout, 'hw_verified:true on role:sub, alone, must be admitted')
 
     # ---- sub cannot self-scan/self-issue: terraforming_node is structurally never delivered ----
-    delivered_names = {os.path.basename(rb) for rb in render_sub_env.RUNTIME_BLOCKS}
-    _require(delivered_names == {'vllm-recipe-explorer', 'adversarial-benchmark'}, f"the sub's runtime-block copy set must be exactly this closed pair, got {delivered_names} -- terraforming_node must never join it")
+    # 2026-09-03(P2 · plan_26090317): 배달 집합은 이제 **토폴로지 계약이 정한다**(닫힌 리스트 ✗) —
+    #   ray-worker 는 0종, a2a-agent 는 3종. 그리고 upstream 은 스킬 전체가 아니라 **경로 단위**로
+    #   갈린다(해소·렌더는 가고, 노드 간 오케스트레이션은 안 간다). 불변인 것은 하나다:
+    #   **terraforming_node 는 어느 모드에서도 배달되지 않는다**(서브 자가스캔·자가발급 구조적 불가).
+    sys.path.insert(0, str(REPO_ROOT / ".claude/skills/terraforming_node/scripts"))
+    import node_role_contract as _nrc
+    for _mode in _nrc.SUB_MODES:
+        _plane = set(_nrc.tool_plane("single" if _mode == "a2a-agent" else "multi", _mode)["value"])
+        _require('terraforming_node' not in _plane,
+                 f"terraforming_node must never be in any sub tool_plane (mode={_mode})")
+    _require(set(_nrc.tool_plane("multi", "ray-worker")["value"]) == set(),
+             "a multi sub is a Ray worker that reproduces canon -- it must receive zero strategy skills")
+    _a2a = set(_nrc.tool_plane("single", "a2a-agent")["value"])
+    _require(_a2a == {'vllm-recipe-explorer', 'adversarial-benchmark', 'upstream-version-watch'},
+             f"the a2a-agent sub must receive exactly the three runtime skills, got {_a2a}")
+    _require(set(render_sub_env.RUNTIME_BLOCK_PATHS) >= _a2a,
+             'every skill the contract names must have a resolvable path in the renderer')
+    _orch = set(render_sub_env.RUNTIME_BLOCK_EXCLUDES['upstream-version-watch'])
+    _require({'scripts/sync_to_sub.sh', 'scripts/sync_branches.sh', 'scripts/fetch_sub_docs.sh'} <= _orch,
+             "main->sub orchestration scripts must be excluded from the sub's copy of "
+             "upstream-version-watch -- a sub holding them can reverse the delivery direction")
 
     checksum_fn = _extract_bash_function(src, "verify_checksums")
     _require('.claude/skills/vllm-recipe-explorer/recipe.py' in checksum_fn, "control: the real delivered runtime file must appear in the overlay's own checksum list")
@@ -2718,7 +2737,12 @@ def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C2():
     _require('.claude/skills/terraforming_node' not in checksum_fn, 'the overlay-delivery enumeration itself must never name a terraforming_node path')
 
     skill_md = _read(".claude/skills/terraforming_node/SKILL.md")
-    _require('**빌딩블럭**(메인 전용, 서브 전달 ✗): `terraforming_node`·`upstream-version-watch`.' in skill_md, 'the committed persona-level fact -- terraforming_node is main-only, never sub-delivered -- must still say so verbatim')
+    _require('**빌딩블럭**(메인 전용, 서브 전달 ✗): `terraforming_node`.' in skill_md,
+             'the committed persona-level fact -- terraforming_node is main-only, never sub-delivered -- '
+             'must still say so verbatim')
+    _require('RUNTIME_BLOCK_EXCLUDES' in skill_md,
+             'the committed doc must name the canonical owner of the upstream path split, so a reader '
+             'is not left with the older all-or-nothing wording')
 
 
 def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C3():

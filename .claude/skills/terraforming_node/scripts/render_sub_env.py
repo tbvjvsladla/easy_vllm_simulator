@@ -28,6 +28,7 @@ stdlib 만. PII(실 manifest)는 읽되 gitignored 스테이징으로만 쓴다(
 from __future__ import annotations
 import argparse
 import glob
+import hashlib
 import json
 import os
 import re
@@ -47,10 +48,44 @@ REPO = os.path.abspath(os.path.join(SKILL_DIR, "..", "..", ".."))  # repo root
 #   adversarial-benchmark 의 (b) 외부검색 arm = 이중게이트(A2A 위임 키 ∧ egress-online) 통과 시 서브 자율,
 #   미통과 시 미수행+증상 상향 — 서브는 (a) 루프라인-only 판정(SKILL.md §7). 렌더 시 서브 env 에 egress
 #   attestation 을 반영해 서브 페르소나가 자기 능력을 정확히 로드한다(plan_26070809_46_57).
-RUNTIME_BLOCKS = [
-    os.path.join(REPO, ".claude", "skills", "vllm-recipe-explorer"),
-    os.path.join(REPO, ".claude", "skills", "adversarial-benchmark"),
-]
+# 2026-09-03(P2 · plan_26090317): 이 리스트는 **토폴로지와 무관한 닫힌 목록**이라 멀티 서브(Ray
+#   워커)에게도 서빙전략·벤치 스킬이 배달됐다. 불변식 A 가 말하는 멀티 sub 는 정본을 재현하는
+#   워커이지 전략을 세우는 주체가 아니다 — 스킬을 들려주면 그 스킬이 시키는 자율 판단(트리플렛
+#   자작·루브릭 판정)을 하게 되고, 그건 head 종속 제어평면과 충돌한다. 반대로 싱글 sub 는 빌드→
+#   서빙→벤치를 자율 완주해야 하므로 3종이 필요하다.
+#   판정은 `node_role_contract.tool_plane` 이 소유한다 — 여기서 두 번째 답을 만들지 않는다.
+#   이 상수는 **경로 해소표**로만 남는다(어떤 스킬을 줄지는 계약이 정한다).
+RUNTIME_BLOCK_PATHS = {
+    "vllm-recipe-explorer": os.path.join(REPO, ".claude", "skills", "vllm-recipe-explorer"),
+    "adversarial-benchmark": os.path.join(REPO, ".claude", "skills", "adversarial-benchmark"),
+    "upstream-version-watch": os.path.join(REPO, ".claude", "skills", "upstream-version-watch"),
+}
+
+# 서브에 배달할 때 **제외**하는 경로(스킬 안의 메인 전용 오케스트레이션).
+#
+# 2026-09-03(P2 · plan_26090317): 사용자 범위 선언은 싱글 서브가 "타겟 모델 + 엔진 버전을 받으면
+# 자율적으로 빌드→서빙→벤치" 를 하려면 **upstream 런타임 스킬이 활성화돼야 한다** 고 못박는다.
+# 그런데 SKILL.md §2 는 upstream 을 "메인 전용, 서브 전달 ✗" 로 분류해 왔다. 둘 다 옳다 —
+# **한 스킬 안에 두 성질이 섞여 있는 것**이 문제였다:
+#
+#   · 서브가 필요로 하는 것 = **해소·렌더**(resolve_*·render_dockerfile·regen_requirements·
+#     classify_failure·check_smoke_model) — 자기 노드에서 자기 이미지를 만드는 능력.
+#   · 서브에 가면 안 되는 것 = **노드 간 오케스트레이션**(sync_to_sub·sync_branches·fetch_sub_docs·
+#     smoke_clone·multinode_*) — 이것은 메인이 서브를 향해 쓰는 도구다. 서브가 들면 배달 방향이
+#     뒤집히고(§2.7.1 권한 평면 위반), 서브가 다른 노드를 향해 쓰는 경로가 생긴다.
+#
+# 그래서 "스킬 전체를 주느냐 마느냐" 가 아니라 **경로 단위로 가른다**. 목록은 닫혀 있고(tripwire),
+# 새 오케스트레이션 스크립트가 생기면 아래 자체검사가 분류를 강제한다.
+RUNTIME_BLOCK_EXCLUDES = {
+    "upstream-version-watch": (
+        "scripts/sync_to_sub.sh",          # 메인→서브 배달(방향이 뒤집힌다)
+        "scripts/sync_branches.sh",        # 공유 빌딩블럭 브랜치 동기(메인 소관)
+        "scripts/fetch_sub_docs.sh",       # 서브→메인 문서 회수(메인이 당긴다)
+        "scripts/smoke_clone.sh",          # 배포본 클론 검증(메인 소관 · 이미 retirement 대상)
+        "scripts/multinode_comms_smoke.sh",  # 노드 간 통신 스모크(메인이 양노드를 향해 쓴다)
+        "scripts/multinode_serve_smoke.sh",  # 동상
+    ),
+}
 DOCS_RULES = os.path.join(REPO, ".claude", "rules", "docs.md")     # 문서규약(정적계약 — 서브 테라포밍, D12)
 DOC_SKELETONS = os.path.join(SKILL_DIR, "templates", "document_skeletons")  # 배포 포함 docs/*/example.md 정본(D12)
 RECIPE_REFERENCE = os.path.join(REPO, ".claude", "skills", "wiki-desk", "reference", "references.md")
@@ -210,9 +245,14 @@ def _contract_placeholders(data: dict) -> dict:
     sub_mode = res.get("sub_mode") or {}
     rank = res.get("rank") or {}
     rank_value = rank.get("value")
+    tp = res.get("tool_plane") or {}
     return {
         "SUB_MODE": sub_mode.get("value") or "",
         "SUB_MODE_SOURCE": sub_mode.get("source") or "",
+        # 2026-09-03(P2): 어떤 런타임 스킬을 배달할지도 **계약 산출**이다. 렌더러의 닫힌 리스트가
+        #   토폴로지를 무시하던 자리를 이 값이 대체한다. 빈 문자열 = 0종(정상 상태일 수 있다).
+        "TOOL_PLANE": ",".join(tp.get("value") or []),
+        "TOOL_PLANE_SOURCE": tp.get("source") or "",
         # JSON 템플릿에서 **따옴표 없이** 놓인다 — single 은 리터럴 null, multi 는 정수.
         # 문자열 "null" 로 싣으면 하류가 rank 를 문자열로 읽어 TP/NCCL 입력으로 오해할 수 있다.
         "SUB_RANK": "null" if rank_value is None else str(int(rank_value)),
@@ -291,21 +331,37 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
 
     # recipe.py resolves GPU/source-verification facts from this on-demand dependency.  Copy only
     # the dependency, not the main-only wiki-desk capability, so sub runtime closure stays minimal.
-    if not os.path.isfile(RECIPE_REFERENCE):
-        raise SystemExit(f"[render] FAIL: recipe reference dependency missing: {RECIPE_REFERENCE}")
-    recipe_ref_rel = ".claude/skills/wiki-desk/reference/references.md"
-    recipe_ref_dst = os.path.join(out_dir, recipe_ref_rel)
-    os.makedirs(os.path.dirname(recipe_ref_dst), exist_ok=True)
-    shutil.copyfile(RECIPE_REFERENCE, recipe_ref_dst)
-    produced.append(recipe_ref_rel)
+    # 2026-09-03(P2): 이 사본은 `vllm-recipe-explorer` 의 의존이다 — 그 스킬이 가지 않는 모드
+    #   (ray-worker)에 도서관 발췌만 보내는 것은 근거 없는 배달이다. tool_plane 을 따른다.
+    #   (사본 자체를 걷어내는 것 = wiki-desk 사영은 이번 plan 범위 밖 — §8 후속.)
+    if "vllm-recipe-explorer" in (ph.get("TOOL_PLANE") or ""):
+        if not os.path.isfile(RECIPE_REFERENCE):
+            raise SystemExit(f"[render] FAIL: recipe reference dependency missing: {RECIPE_REFERENCE}")
+        recipe_ref_rel = ".claude/skills/wiki-desk/reference/references.md"
+        recipe_ref_dst = os.path.join(out_dir, recipe_ref_rel)
+        os.makedirs(os.path.dirname(recipe_ref_dst), exist_ok=True)
+        shutil.copyfile(RECIPE_REFERENCE, recipe_ref_dst)
+        produced.append(recipe_ref_rel)
 
-    # 3) 런타임블럭 복제(git-tracked 만 — config.yaml/feedback/lockset/__pycache__ 제외)
+    # 3) 런타임블럭 복제(git-tracked 만) — **무엇을 줄지는 계약이 정한다**(P2 토폴로지 게이팅).
     if copy_runtime_block:
-        for rb in RUNTIME_BLOCKS:
-            name = os.path.basename(rb)
+        wanted = ph.get("TOOL_PLANE") or ""
+        names = [x for x in wanted.split(",") if x.strip()]
+        for name in names:
+            rb = RUNTIME_BLOCK_PATHS.get(name)
+            if rb is None:
+                raise SystemExit(f"[render] FAIL: tool_plane 이 지목한 런타임블럭 경로를 모른다: {name}")
             dst_skill = os.path.join(claude, "skills", name)
-            n = _copy_tracked(rb, dst_skill, tracked_list=tracked_list)
-            produced.append(f".claude/skills/{name}/ ({n} tracked files)")
+            n = _copy_tracked(rb, dst_skill, tracked_list=tracked_list,
+                              excludes=RUNTIME_BLOCK_EXCLUDES.get(name))
+            ex = RUNTIME_BLOCK_EXCLUDES.get(name)
+            produced.append(f".claude/skills/{name}/ ({n} tracked files"
+                            + (f" · 메인전용 {len(ex)}건 제외)" if ex else ")"))
+        if not names:
+            # 음성정직: "0종" 은 결손이 아니라 판정 결과다. 그 사실이 산출 매니페스트에 남아야
+            # 나중에 "왜 스킬이 없지?" 가 조용한 결손과 구분된다.
+            produced.append(".claude/skills/ (런타임블럭 0종 — tool_plane=%s)"
+                            % (ph.get("TOOL_PLANE_SOURCE") or "unknown"))
 
     # 3.5) A2A 위임 키 (plan_26063021_14_37 D5/D7) — 서브 HW 동질성 검증(nodes[sub].hw_verified=true) 통과 시에만 발급.
     #   메인 키(terraforming.complete@manifest)와 UNIQUE. 최소 attestation(HW사실/전체 manifest ✗ → D10 보존).
@@ -453,7 +509,8 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     return {"out_dir": out_dir, "produced": produced}
 
 
-def _copy_tracked(src_skill: str, dst: str, tracked_list: list | None = None) -> int:
+def _copy_tracked(src_skill: str, dst: str, tracked_list: list | None = None,
+                  excludes: tuple | None = None) -> int:
     """런타임블럭을 서브 스테이징으로 복제한다 — **git-tracked 만**이 계약이다.
 
     2026-09-03(S10/㉓/F3 · plan_26090317 P1) 재작성. 이전 판본은 `git ls-files` 의 returncode 를
@@ -489,11 +546,14 @@ def _copy_tracked(src_skill: str, dst: str, tracked_list: list | None = None) ->
     if not files:
         raise SystemExit(f"[render] FAIL: 런타임블럭 {rel} 의 tracked 파일이 0개 — 배달할 것이 없다(계약 위반).")
     cnt = 0
+    ex = set(excludes or ())
     for rf in files:
         srcf = os.path.join(REPO, rf)
         if not os.path.isfile(srcf):
             continue                       # index 에는 있으나 워킹트리에 없는 항목(삭제 스테이징 등)
         sub_rel = os.path.relpath(srcf, src_skill)
+        if sub_rel in ex:
+            continue                       # 메인 전용 오케스트레이션(위 RUNTIME_BLOCK_EXCLUDES)
         destf = os.path.join(dst, sub_rel)
         os.makedirs(os.path.dirname(destf), exist_ok=True)
         shutil.copy2(srcf, destf)          # ㉟: 모드 보존
@@ -570,7 +630,7 @@ def _self_test() -> int:
         base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json",
                        ".claude/schemas/library-exchange.schema.json", "tasks/.gitkeep",
-                       ".claude/rules/docs.md", ".claude/skills/wiki-desk/reference/references.md", ".gitignore",
+                       ".claude/rules/docs.md", ".gitignore",   # ← references.md 는 tool_plane 종속(아래 c4b)
                        # 호스트 안전체계: canonical terraforming source → constitution runtime delivery
                        ".claude/runtime/host_safety/mem_watchdog.sh",
                        ".claude/runtime/host_safety/install_host_safety.sh",
@@ -667,6 +727,71 @@ def _self_test() -> int:
     except SystemExit as e:
         print(f"  [FAIL] single 렌더 예외: {e}")
         ok = False
+
+    # (4b) tool_plane 토폴로지 게이팅 (2026-09-03 · P2 · plan_26090317).
+    #   결함의 형태: 렌더러가 **토폴로지와 무관한 닫힌 리스트**로 런타임블럭을 배달해, 멀티 서브
+    #   (Ray 워커)에게도 서빙전략·벤치 스킬이 갔다. 판정을 계약(node_role_contract.tool_plane)으로
+    #   옮겼으므로, 여기서는 **양방향**을 본다 — 한쪽만 보면 "전부 안 주기"가 통과한다.
+    for _topo, _want, _label in (("single", {"vllm-recipe-explorer", "adversarial-benchmark",
+                                             "upstream-version-watch"}, "a2a-agent=3종"),
+                                 ("multi", set(), "ray-worker=0종")):
+        _d = parse_manifest(mpath); _d["topology"] = _topo
+        _ph, _ = build_placeholders(_d)
+        _out = os.path.join(tmp, f"tp_{_topo}")
+        render_tree(_ph, _out, copy_runtime_block=True)
+        _got = {os.path.basename(x) for x in glob.glob(os.path.join(_out, ".claude", "skills", "*"))
+                if os.path.isdir(x)}
+        _ref = os.path.exists(os.path.join(_out, ".claude/skills/wiki-desk/reference/references.md"))
+        # references.md 는 recipe 스킬의 의존이므로 recipe 가 갈 때만 간다.
+        _ref_ok = _ref == ("vllm-recipe-explorer" in _want)
+        _c = (_got - {"wiki-desk"}) == _want and _ref_ok
+        print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} refs={_ref}")
+        ok &= _c
+
+    # (4b-2) upstream 스킬의 **경로 단위 분할** — 서브는 해소·렌더 능력만 받고 노드 간
+    #   오케스트레이션(sync_to_sub·sync_branches·fetch_sub_docs·multinode_*)은 받지 않는다.
+    #   이 분류가 새 스크립트에서 조용히 새는 것을 막기 위해 **두 방향**을 본다:
+    #     ① 제외 대상이 실제로 서브에 없다  ② 서브가 필요로 하는 것은 실제로 있다
+    #   그리고 ③ 정본에 새 "노드 간" 스크립트가 생겼는데 분류표에 없으면 fail-loud 한다(tripwire).
+    _d = parse_manifest(mpath); _d["topology"] = "single"
+    _ph, _ = build_placeholders(_d)
+    _out = os.path.join(tmp, "upstream_split")
+    render_tree(_ph, _out, copy_runtime_block=True)
+    _uw = os.path.join(_out, ".claude", "skills", "upstream-version-watch")
+    _leaked = [x for x in RUNTIME_BLOCK_EXCLUDES["upstream-version-watch"]
+               if os.path.exists(os.path.join(_uw, x))]
+    _needed = ["scripts/resolve_wheel.py", "scripts/resolve_torch_pin.py",
+               "scripts/render_dockerfile.py", "scripts/regen_requirements.py",
+               "scripts/classify_failure.py", "references/resolve-and-render.md"]
+    _absent = [x for x in _needed if not os.path.exists(os.path.join(_uw, x))]
+    # ③ 정본의 노드 간 스크립트 전수 ⊆ 제외표. 이름에 sub/branch/multinode 가 든 셸 스크립트를
+    #    "노드 간" 후보로 본다 — 새 파일이 생기면 분류를 강제한다(닫힌 목록 tripwire).
+    _canon = os.path.join(REPO, ".claude", "skills", "upstream-version-watch", "scripts")
+    _cands = {f"scripts/{n}" for n in os.listdir(_canon)
+              if n.endswith(".sh") and any(k in n for k in ("sub", "branch", "multinode", "clone"))}
+    _unclassified = sorted(_cands - set(RUNTIME_BLOCK_EXCLUDES["upstream-version-watch"]))
+    _c4b2 = not _leaked and not _absent and not _unclassified
+    print(f"  [{'PASS' if _c4b2 else 'FAIL'}] upstream 경로 분할: 누수={_leaked or '없음'} "
+          f"필요분누락={_absent or '없음'} 미분류={_unclassified or '없음'}")
+    ok &= _c4b2
+
+    # (4c) 렌더 결정론 — 같은 입력이면 **바이트가 같아야** 한다(P3 재정착 합격 기준의 전제).
+    _d1 = parse_manifest(mpath); _ph1, _ = build_placeholders(_d1)
+    _o1, _o2 = os.path.join(tmp, "det_a"), os.path.join(tmp, "det_b")
+    render_tree(_ph1, _o1, copy_runtime_block=True)
+    render_tree(_ph1, _o2, copy_runtime_block=True)
+    _digest = {}
+    for _tag, _root in (("a", _o1), ("b", _o2)):
+        _h = hashlib.sha256()
+        for _f in sorted(glob.glob(os.path.join(_root, "**"), recursive=True)):
+            if os.path.isfile(_f):
+                _h.update(os.path.relpath(_f, _root).encode())
+                with open(_f, "rb") as _fh:
+                    _h.update(_fh.read())
+        _digest[_tag] = _h.hexdigest()
+    _cdet = _digest["a"] == _digest["b"]
+    print(f"  [{'PASS' if _cdet else 'FAIL'}] 렌더 결정론(같은 입력 → 같은 바이트): {_digest['a'][:16]}…")
+    ok &= _cdet
 
     # (5c) 런타임블럭 복제 경로 — 2026-09-03(S10/㉓/F3 · plan_26090317 P1) 신설.
     #   감사 지적: `_copy_tracked` 의 모든 self-test 호출이 copy_runtime_block=False 라 **이 경로를

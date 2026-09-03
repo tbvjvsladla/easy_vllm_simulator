@@ -41,7 +41,7 @@ CAPABILITY_TO_TOOL = {
 
 def _inner_argv(request: dict) -> list[str]:
     allowed_tools = ",".join(CAPABILITY_TO_TOOL[name] for name in request["capabilities"])
-    return [
+    argv = [
         "claude",
         "-p", request["task"],
         "--model", request["model"],
@@ -49,6 +49,13 @@ def _inner_argv(request: dict) -> list[str]:
         "--max-turns", str(request["max_turns"]),
         "--allowedTools", allowed_tools,
     ]
+    # 2026-09-03(P2 · plan_26090317): 턴제 릴레이. `input-required` 로 끊긴 세션에 답을 실어
+    #   **같은 세션을 잇는다** — 새 세션이면 서브가 컨텍스트를 처음부터 재구축하고, 그 비용이
+    #   곧 턴 소진의 주된 원인이었다(참고 프로젝트 e2e-lessons: max-turns 2/4 실패·6 성공).
+    resume = request.get("resume_session_id")
+    if isinstance(resume, str) and resume.strip():
+        argv += ["--resume", resume.strip()]
+    return argv
 
 
 def _ssh_destination(target: dict) -> str:
@@ -109,7 +116,10 @@ def _diag(request: dict, code: str, message: str, *, stderr: str | None = None,
 
 
 def _result(request: dict, *, status: str, exit_code: int, reason_codes: list[str],
-            model_used: list[str] | None = None, output: str | None = None) -> dict:
+            model_used: list[str] | None = None, output: str | None = None,
+            session_id: str | None = None, num_turns: int | None = None,
+            budget_outcome: str | None = None) -> dict:
+    # 릴레이 원장 3필드는 **모르면 null** 이다 — 그럴듯한 값으로 채우면 Layer2 보정이 거짓 위에 선다.
     return {
         "schema_version": request.get("schema_version", 1),
         "provider": PROVIDER_NAME,
@@ -120,7 +130,25 @@ def _result(request: dict, *, status: str, exit_code: int, reason_codes: list[st
         "model_used": model_used or [],
         "reason_codes": reason_codes,
         "output": output,
+        "session_id": session_id,
+        "num_turns": num_turns,
+        "budget_outcome": budget_outcome,
     }
+
+
+def _budget_outcome(payload: dict, request: dict) -> str:
+    """성공 경로의 예산 결말.
+
+    **소진은 실패의 한 형태이지 "예산을 다 썼다" 가 아니다.** 작업이 끝났으면 마지막 턴을 썼든
+    아니든 `within_budget` 이다 — 소진(`exhausted`)은 provider 가 `subtype=error_max_turns` 로
+    말할 때만 성립하고, 그 경로는 이 함수에 오지 않는다(위에서 이미 반환된다).
+    천장에 얼마나 붙었는지는 원장의 `num_turns` ÷ `max_turns_allocated` 로 파생되므로 여기서
+    별도 값으로 적지 않는다(파생 가능한 것을 손으로 적지 않는다).
+    """
+    turns = payload.get("num_turns")
+    if isinstance(turns, int):
+        return "within_budget"
+    return "unknown"
 
 
 def invoke(request: dict) -> dict:
@@ -195,10 +223,25 @@ def invoke(request: dict) -> dict:
         return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
                        reason_codes=["IS_ERROR"])
 
+    # 2026-09-03(P2 · plan_26090317): `subtype == "error_max_turns"` 는 provider 가 **예산 소진**을
+    #   말하는 방식인데, 이전에는 그것이 `PROVIDER_RESULT_INVALID`(형식 오류)로 접혔다 — 원장이
+    #   "예산이 모자랐다" 와 "출력이 깨졌다" 를 구분하지 못했고, 그래서 다음 attempt 에 예산을 얼마나
+    #   늘려야 하는지 알 수 없었다. 소진은 terminal 이되 **분류가 다르다**.
+    _sess = payload.get("session_id") if isinstance(payload.get("session_id"), str) else None
+    _turns = payload.get("num_turns") if isinstance(payload.get("num_turns"), int) else None
+    if payload.get("subtype") == "error_max_turns":
+        _diag(request, "TURN_BUDGET_EXHAUSTED",
+              f"provider 가 max_turns={request.get('max_turns')} 를 소진했다(num_turns={_turns}). "
+              f"같은 예산의 자동 재시도 ✗ — 더 큰 예산의 새 attempt 를 열어라(scope ⊥ budget).")
+        return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
+                       reason_codes=["NONZERO_EXIT"], session_id=_sess, num_turns=_turns,
+                       budget_outcome="exhausted")
+
     if payload.get("is_error") is not False or payload.get("subtype") != "success" \
             or not isinstance(payload.get("result"), str) or not payload["result"]:
         return _result(request, status=STATUS_MALFORMED_OUTPUT, exit_code=EXIT_MALFORMED_OUTPUT,
-                       reason_codes=["PROVIDER_RESULT_INVALID"])
+                       reason_codes=["PROVIDER_RESULT_INVALID"], session_id=_sess, num_turns=_turns,
+                       budget_outcome="unknown")
 
     model_usage = payload.get("modelUsage")
     if not isinstance(model_usage, dict) or not model_usage:
@@ -247,4 +290,6 @@ def invoke(request: dict) -> dict:
                        reason_codes=["UNEXPECTED_MODEL_USAGE"], model_used=model_ids)
 
     return _result(request, status=STATUS_COMPLETED, exit_code=EXIT_SUCCESS, reason_codes=[],
-                    model_used=model_ids, output=payload["result"])
+                    model_used=model_ids, output=payload["result"],
+                    session_id=_sess, num_turns=_turns,
+                    budget_outcome=_budget_outcome(payload, request))

@@ -5,7 +5,15 @@
   "description": "메인↔서브 A2A-개념 통신의 회신 산출물. 서브 빌드워커가 ssh claude -p 한 턴마다 이 스키마에 맞는 JSON 1개를 반환한다. 메인은 이 리포트를 검증하며 서브 워크스페이스를 재스캔하지 않는다(push-attestation). 정적계약(양 노드 동일) — terraforming_node 가 서브 .claude/schemas/ 로 복제.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["task_id", "context_id", "turn", "phase", "status", "self_verification", "node_id"],
+  "required": [
+    "task_id",
+    "context_id",
+    "turn",
+    "phase",
+    "status",
+    "self_verification",
+    "node_id"
+  ],
   "properties": {
     "task_id": {
       "type": "string",
@@ -22,16 +30,29 @@
     "turn": {
       "type": "integer",
       "minimum": 1,
-      "description": "이 contextId 안에서 몇 번째 턴인지. max-turns(reconciliation_cap, 기본 3) 초과 시 status=failed 로 종료하고 메인이 Model-C(HITL)."
+      "description": "이 contextId 안에서 몇 번째 턴인지. **소진(max_turns_allocated 도달)은 terminal 이며 budget_outcome=exhausted 로 보고한다** — 메인은 자동 재시도 대신 **더 큰 예산의 새 attempt** 를 연다(예산을 줄이면 하강나선이다). scope ⊥ budget: hang 은 timeout+진행로그로 따로 다룬다. 2026-09-03 이전 기술은 '기본 3 초과 시 failed→Model-C' 였고, 그 값이 캠페인 규모 태스크에서 정상 진행을 실패로 만들었다(plan_26090317 §5 grade 표로 대체)."
     },
     "phase": {
       "type": "string",
-      "enum": ["inspect", "config", "build", "serve"],
+      "enum": [
+        "inspect",
+        "config",
+        "build",
+        "serve"
+      ],
       "description": "inspect=부트스트랩/카나리(모델 없이 정체성·환경 self-report) · config=자율 모델 triplet 저작(vllm-recipe-explorer) · build=컨테이너 빌드 · serve=Ray worker 합류."
     },
     "status": {
       "type": "string",
-      "enum": ["submitted", "working", "input-required", "completed", "failed", "canceled", "unknown"],
+      "enum": [
+        "submitted",
+        "working",
+        "input-required",
+        "completed",
+        "failed",
+        "canceled",
+        "unknown"
+      ],
       "description": "A2A TaskState. completed=성공술어 충족 · input-required=메인 피드백 대기 · failed=실패(failure_class 참조) · unknown=판정 애매 → 메인 Model-C."
     },
     "duration_sec": {
@@ -45,10 +66,27 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "kind"],
+        "required": [
+          "path",
+          "kind"
+        ],
         "properties": {
-          "path": {"type": "string", "description": "workspace-상대 경로. 예: configs/<model>.yaml"},
-          "kind": {"type": "string", "enum": ["triplet-yaml", "triplet-sh", "triplet-env", "image", "log", "report", "other"]}
+          "path": {
+            "type": "string",
+            "description": "workspace-상대 경로. 예: configs/<model>.yaml"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "triplet-yaml",
+              "triplet-sh",
+              "triplet-env",
+              "image",
+              "log",
+              "report",
+              "other"
+            ]
+          }
         }
       }
     },
@@ -58,49 +96,104 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["role", "text"],
+        "required": [
+          "role",
+          "text"
+        ],
         "properties": {
-          "role": {"type": "string", "enum": ["user", "agent"]},
-          "text": {"type": "string"}
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "agent"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
         }
       }
     },
     "errors": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "description": "에러 요약(있으면). raw 로그 금지 — 한두 줄 요약."
     },
     "failure_class": {
       "type": "string",
-      "enum": ["none", "requirements-fixable", "source-build-class", "resource_oom", "nccl_rdma_connectivity", "ray_join_timeout", "unknown"],
+      "enum": [
+        "none",
+        "requirements-fixable",
+        "source-build-class",
+        "resource_oom",
+        "nccl_rdma_connectivity",
+        "ray_join_timeout",
+        "unknown"
+      ],
       "description": "실패 분류(2-부 계약). 빌드클래스 {requirements-fixable, source-build-class} = 메인 failure_patterns.yaml/classify_failure.py 와 정렬(결정론 시그니처). 멀티노드 서빙클래스 {resource_oom, nccl_rdma_connectivity, ray_join_timeout} = 결정론 시그니처 없이 workflow.md S3 의 Model-C(HITL) 라우팅 전용. 애매하면 unknown + notes → 메인 Model-C(HITL)."
     },
     "self_verification": {
       "type": "object",
       "description": "push-attestation 의 핵심. 서브가 보고 전에 스스로 돌린 검증 결과. 메인은 이 블록을 신뢰·검증하며 서브 디스크를 재스캔하지 않는다.",
       "additionalProperties": false,
-      "required": ["checks_run"],
+      "required": [
+        "checks_run"
+      ],
       "properties": {
         "checks_run": {
           "type": "array",
-          "items": {"type": "string"},
+          "items": {
+            "type": "string"
+          },
           "description": "실제로 돌린 검증 이름. 예: [identity, skills_loaded, permissions, config_parse, schema_valid, runner_syntax, smoke]"
         },
-        "config_parse_ok": {"type": "boolean", "description": "생성/변경한 yaml·env 가 파싱되는가."},
-        "schema_valid": {"type": "boolean", "description": "이 리포트 자신이 task-report.schema.json 에 유효한가(자기검증)."},
-        "runner_syntax_ok": {"type": "boolean", "description": "serve_runner.sh 등 셸 문법(bash -n) 통과."},
-        "identity_ok": {"type": "boolean", "description": "(inspect) 페르소나가 자기 노드정체성을 정확히 로드했는가."},
-        "delegation_acknowledged": {"type": "boolean", "description": "A2A 위임 키(.claude/a2a_delegation.json) 인지 echo — 메인이 위임 인가를 확인(plan_26063021_14_37 · A2A 패킷 루프 닫음). 서브 런타임블럭은 이 양성 키 하에 Flag 게이트 자동 면제(fail-closed). 키 부재면 false + status=input-required(메인이 terraforming --peer-ssh 로 검증·재발급)."},
-        "skills_loaded": {"type": "array", "items": {"type": "string"}, "description": "(inspect) 로드 확인된 스킬(예: vllm-recipe-explorer)."},
+        "config_parse_ok": {
+          "type": "boolean",
+          "description": "생성/변경한 yaml·env 가 파싱되는가."
+        },
+        "schema_valid": {
+          "type": "boolean",
+          "description": "이 리포트 자신이 task-report.schema.json 에 유효한가(자기검증)."
+        },
+        "runner_syntax_ok": {
+          "type": "boolean",
+          "description": "serve_runner.sh 등 셸 문법(bash -n) 통과."
+        },
+        "identity_ok": {
+          "type": "boolean",
+          "description": "(inspect) 페르소나가 자기 노드정체성을 정확히 로드했는가."
+        },
+        "delegation_acknowledged": {
+          "type": "boolean",
+          "description": "A2A 위임 키(.claude/a2a_delegation.json) 인지 echo — 메인이 위임 인가를 확인(plan_26063021_14_37 · A2A 패킷 루프 닫음). 서브 런타임블럭은 이 양성 키 하에 Flag 게이트 자동 면제(fail-closed). 키 부재면 false + status=input-required(메인이 terraforming --peer-ssh 로 검증·재발급)."
+        },
+        "skills_loaded": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "(inspect) 로드 확인된 스킬(예: vllm-recipe-explorer)."
+        },
         "smoke": {
           "type": "object",
           "additionalProperties": false,
           "description": "(config/serve) 로컬 스모크 결과. 성공술어의 최종 증거 — '린트 통과 ≠ 서빙됨'.",
           "properties": {
-            "ran": {"type": "boolean"},
-            "passed": {"type": "boolean"},
-            "finish_reason": {"type": "string"},
-            "sample": {"type": "string", "description": "비어있지 않은 완성 응답 샘플(짧게)."}
+            "ran": {
+              "type": "boolean"
+            },
+            "passed": {
+              "type": "boolean"
+            },
+            "finish_reason": {
+              "type": "string"
+            },
+            "sample": {
+              "type": "string",
+              "description": "비어있지 않은 완성 응답 샘플(짧게)."
+            }
           }
         }
       }
@@ -114,15 +207,135 @@
       "additionalProperties": false,
       "description": "턴제 릴레이(비둘기)의 HITL 출처 라벨 — plan_26070809_46_57 §4.5. 메인은 서브가 스스로 표면화한 것만 릴레이(디스크 재스캔 ✗).",
       "properties": {
-        "needed": {"type": "boolean", "description": "이 턴에 사용자 HITL 이 필요한가."},
+        "needed": {
+          "type": "boolean",
+          "description": "이 턴에 사용자 HITL 이 필요한가."
+        },
         "source": {
           "type": "string",
-          "enum": ["main", "sub-relay"],
+          "enum": [
+            "main",
+            "sub-relay"
+          ],
           "description": "HITL 출처 — 사용자가 메인 HITL 과 서브(릴레이) HITL 을 혼동 없이 각 노드에 정확히 지시하도록 라벨링."
         },
         "prompt": {
           "type": "string",
           "description": "사용자에게 표면화할 질의(서브가 스스로 올린 것만 — messages/status:input-required 와 정합, 메인 재스캔 ✗)."
+        },
+        "request_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "input-required 를 다음 턴 응답과 짝짓는 키. 메인은 이 id 로 답을 실어 재개한다."
+        }
+      }
+    },
+    "task_grade": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "난이도 등급(cold-start prior). recommended=서브가 카나리/이번 턴에 제안한 값, assigned=메인이 실제로 부여한 값. 둘이 다르면 그 차이가 Layer2 보정의 입력이다.",
+      "properties": {
+        "recommended": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "S",
+            "L0",
+            "L1",
+            "L2",
+            "L3",
+            "L4",
+            null
+          ]
+        },
+        "assigned": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "S",
+            "L0",
+            "L1",
+            "L2",
+            "L3",
+            "L4",
+            null
+          ]
+        }
+      }
+    },
+    "max_turns_allocated": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "이번 attempt 에 메인이 부여한 턴 예산(grade 표 파생 — 매직상수 금지)."
+    },
+    "max_turns_used": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "description": "실제 소비 턴. provider JSON 의 `num_turns` 를 그대로 옮긴다. 모르면 null — 그럴듯한 값으로 채우지 않는다(폴백 금지)."
+    },
+    "budget_outcome": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "within_budget",
+        "exhausted",
+        "aborted",
+        "unknown",
+        null
+      ],
+      "description": "예산 결말. exhausted 는 **terminal** 이며 같은 예산으로 자동 재시도하지 않는다."
+    },
+    "session_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "provider 세션 식별자(`claude -p --output-format json` 의 session_id). 메인이 `--resume <session_id>` 로 **같은 세션을 이어** 릴레이한다 — 컨텍스트 재구축 비용을 없앤다."
+    },
+    "library_request": {
+      "type": "array",
+      "description": "서브→메인 **도서관 요청**(§2.7.8). 서브는 메인 도서관을 직접 못 읽으므로 요청을 리포트에 실어 보낸다 — 역방향 채널·폴링 inbox 를 새로 만들지 않는다(자동 폴링 금지 규율).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "question",
+          "kind"
+        ],
+        "properties": {
+          "question": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "version-pin",
+              "patch-slot",
+              "hardware-fact",
+              "serving-recipe",
+              "benchmark-rubric",
+              "other"
+            ]
+          },
+          "blocking": {
+            "type": "boolean",
+            "description": "true 면 이 근거 없이는 결정을 진행하지 않는다(누락 fail-closed)."
+          }
         }
       }
     }

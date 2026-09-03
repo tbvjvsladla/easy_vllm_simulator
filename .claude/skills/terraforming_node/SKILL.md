@@ -167,7 +167,19 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 > **메인에서 렌더해(render-on-main) 서브로 전달하고 카나리로 검증**한다.
 
 ### 2.1 스킬 분류학 (결정론↔자율성 충돌 해소)
-- **빌딩블럭**(메인 전용, 서브 전달 ✗): `terraforming_node`·`upstream-version-watch`.
+- **빌딩블럭**(메인 전용, 서브 전달 ✗): `terraforming_node`. 온보딩·노드 계약·서브 정체성 판정은
+  영구히 메인 단독이다(서브 자가스캔 ✗).
+- **`upstream-version-watch` 는 스킬 전체가 아니라 경로 단위로 갈린다**(2026-09-03 개정 · `plan_26090317` P2).
+  한 스킬 안에 성질이 다른 둘이 섞여 있었고, "전체를 주느냐 마느냐" 로 물으면 어느 답도 옳지 않았다:
+  - **서브에 간다(a2a-agent 만)** — 해소·렌더 능력: `resolve_*`·`render_dockerfile`·`regen_requirements`·
+    `classify_failure`·`check_smoke_model`·`references/*`. 싱글 서브가 "모델+엔진 핀을 받아 자율 빌드→서빙→벤치"
+    를 하려면 이것이 있어야 한다(사용자 범위 선언).
+  - **서브에 가지 않는다(전 모드)** — 노드 간 오케스트레이션: `sync_to_sub.sh`·`sync_branches.sh`·
+    `fetch_sub_docs.sh`·`smoke_clone.sh`·`multinode_*_smoke.sh`. 이것들은 **메인이 서브를 향해** 쓰는
+    도구다. 서브가 들면 배달 방향이 뒤집히고(§2.7.1 권한 평면), 서브가 다른 노드를 향해 쓰는 경로가 생긴다.
+  - 정본 = `render_sub_env.RUNTIME_BLOCK_EXCLUDES` (닫힌 목록 · 자체검사가 새 스크립트의 미분류를 fail-loud).
+- **ray-worker 서브는 런타임 스킬 0종**이다 — 정본(Dockerfile·compose·serve_runner)을 재현하는 워커이지
+  전략을 세우는 주체가 아니다. 판정 정본 = `node_role_contract.tool_plane`.
 - **런타임블럭**(서브 복제 ✓): `vllm-recipe-explorer`. 서브가 **동일 결정론 엔진**을 자기 모델에 자율 실행 → 자율=실행 주체, 방법=결정론(헌법 "확률론 추론 금지" 보존).
 
 ### 2.2 구축 5+아티팩트 (서브 워크스페이스 레이아웃)
