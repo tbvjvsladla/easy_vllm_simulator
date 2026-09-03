@@ -48,6 +48,21 @@ if [ "${NODE_ROLE}" = "master" ]; then
         echo "[master][error] Model config yaml not found: ${MODEL_YAML}"
         exit 1
     fi
+    # ─── 멀티 전용 필수 노브 게이트 (2026-09-04 실측) ───
+    #   `distributed-executor-backend: ray` 가 없으면 vLLM 은 기본 multiprocessing 경로로 가고
+    #   `World size (N) is larger than the number of available GPUs (1) in this node` 로 죽는다.
+    #   ★ Ray 클러스터가 **정상 형성돼 있어도** 그렇다 — 바로 위에서 slave join 을 확인한 뒤에도
+    #   vLLM 이 그 클러스터를 쓰지 않기 때문이다. 그래서 증상이 "클러스터 문제" 처럼 보이지 않는다.
+    #   이 러너는 멀티 전용이므로(single compose 는 모델 sh 를 직접 실행) 여기서 강제해도 안전하다.
+    #   주입하지 않고 **fail-loud** 한다 — 설정은 데이터(yaml)에 명시돼야 하고, 러너가 몰래 바꾸면
+    #   인증서의 config 지문과 실제 실행이 갈린다.
+    if ! grep -qE '^[[:space:]]*distributed-executor-backend[[:space:]]*:' "${MODEL_YAML}"; then
+        echo "[master][error] ${MODEL_YAML} 에 'distributed-executor-backend' 가 없다 —"
+        echo "[master][error]   멀티노드 TP 는 이 노브가 필수다. 없으면 vLLM 이 multiprocessing 으로"
+        echo "[master][error]   가서 'World size > available GPUs (1)' 로 죽는다(Ray 클러스터와 무관)."
+        echo "[master][error]   yaml 에 다음 줄을 추가하라:  distributed-executor-backend: ray"
+        exit 1
+    fi
 
     # ─── 1) Ray head 시작 (object-store 상한 명시 — 통합메모리 풀 보호) ───
     echo "[master] Starting Ray head on ${VLLM_HOST_IP}:${RAY_PORT} (object-store ${RAY_OBJECT_STORE_MEMORY})..."

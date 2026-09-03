@@ -225,6 +225,39 @@ SLAVE_BUILDVARS="${BJOBS:+BUILD_JOBS=$BJOBS}"
 
 # ── 빌드(옵션, 양 노드 병렬) ──
 if [ "$BUILD" = "1" ]; then
+# ── 빌드 트랙 ↔ 이미지 태그 정합 게이트 (2026-09-04 실측) ─────────────────────────
+#
+# 이미지 네이밍 불변식은 `easy-vllm:{vllm}-cu{cuda}-{arch}-{track}` 이라 **track 이 태그 안에 있다**.
+# 그런데 실제 빌드 트랙은 `BUILD_DOCKERFILE` 이 따로 고르고 compose 기본값은 `Dockerfile.source-build`
+# 다. 즉 태그와 내용이 **독립적으로** 정해질 수 있고, 갈려도 아무도 울지 않는다.
+#
+# 실측: `.env` 에 `IMAGE_TAG=…-wheel` 만 적고 `BUILD_DOCKERFILE` 을 빠뜨렸더니 0.27.1 **소스**가
+# 빌드돼 그 결과물이 `…-0.18.0-…-wheel` 태그로 붙었다(엔진 로그 `v0.27.2.dev0+g6e448d0ea`).
+# 양 노드의 진짜 0.18.0 wheel 이미지가 그것으로 덮였고, 인증서는 태그만 적으므로 **그 사실을 말할
+# 수단이 없었다**. 태그는 가변 포인터다 — 같은 문자열이 다른 내용을 가리킬 수 있다.
+#
+# 여기서 fail-loud 한다. 주입하지 않는다 — 어느 쪽이 옳은지는 사람이 정할 일이고, 조용히 맞추면
+# 그 선택이 기록되지 않는다.
+# ⚠ 이 스크립트는 env 를 셸에 source 하지 않는다 — `val` 로 뽑아 $IMG/$BDF 에 담는다(위 참조).
+#   셸 변수 $IMAGE_TAG/$BUILD_DOCKERFILE 을 보면 항상 비어 있어 **게이트가 조용히 무력해진다**
+#   (있는 척하지만 울지 않는 가드 — 없는 것보다 나쁘다).
+_it="$IMG"
+_bd="${BDF:-Dockerfile.source-build}"
+[ -n "$_it" ] || { echo "[mn] FAIL: IMAGE_TAG 미해소 — 빌드 트랙 정합을 판정할 수 없다(fail-closed)." >&2; exit 3; }
+case "$_it" in
+  *-wheel)
+    [ "$_bd" = "Dockerfile" ] || {
+      echo "[mn] FAIL(트랙 불일치): IMAGE_TAG='$_it' 는 wheel 트랙인데 BUILD_DOCKERFILE='$_bd' 다." >&2
+      echo "[mn]   → 이대로 빌드하면 소스빌드 결과물이 wheel 태그로 붙는다(태그≠내용)." >&2
+      echo "[mn]   → $EF 에 'BUILD_DOCKERFILE=Dockerfile' 을 명시하라." >&2
+      exit 3; } ;;
+  *-source|*-source-*)
+    case "$_bd" in Dockerfile.source-build*) ;; *)
+      echo "[mn] FAIL(트랙 불일치): IMAGE_TAG='$_it' 는 source 트랙인데 BUILD_DOCKERFILE='$_bd' 다." >&2
+      echo "[mn]   → $EF 에 'BUILD_DOCKERFILE=Dockerfile.source-build' 을 명시하라." >&2
+      exit 3 ;; esac ;;
+esac
+echo "[mn] 빌드 트랙 정합: IMAGE_TAG=$_it ↔ BUILD_DOCKERFILE=$_bd"
   echo "[mn] 양 노드 빌드(병렬)... build_jobs=${BJOBS:-<Dockerfile 기본 16>}"
   docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master build >/tmp/mn_build_master.log 2>&1 & BPID=$!
   $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $SLAVE_BUILDVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave build'" >/tmp/mn_build_slave.log 2>&1 & SPID=$!

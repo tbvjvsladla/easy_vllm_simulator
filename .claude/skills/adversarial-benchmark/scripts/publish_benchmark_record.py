@@ -82,7 +82,7 @@ def build_yaml(index, verdict):
     A("model_source: %s" % scalar(meta.get("model_source")))
     A("")
     A("# --- 소프트 지문 (불일치 시 stale 경고) ---")
-    for k in ("driver_version", "cuda_version", "image_tag", "max_model_len", "max_num_seqs",
+    for k in ("driver_version", "cuda_version", "image_tag", "image_digest", "max_model_len", "max_num_seqs",
               "kv_cache_memory_bytes", "kv_cache_dtype", "gpu_memory_utilization", "moe_backend",
               "enforce_eager"):
         A("%s: %s" % (k, scalar(meta.get(k))))

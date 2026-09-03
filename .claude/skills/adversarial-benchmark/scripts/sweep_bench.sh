@@ -109,6 +109,7 @@ if [ "$REASSEMBLE" = "1" ]; then
   LITE_RAW="$SWEEPDIR/lite_raw_${CONFIG}.json"
   [ -s "$LITE_RAW" ] || { echo "[sweep_bench] ⚠ --reassemble-only: lite raw 부재 — lite 블록 결손 승계" | tee -a "$TRUNCLOG"; LITE_RAW=""; }
   IMAGE_TAG_ACTUAL="NA"   # 재조립은 docker 를 건드리지 않는다 — 실측값은 기존 index 에서 승계(아래 PY)
+  IMAGE_DIGEST_ACTUAL="NA"  # 동상(태그와 같은 승계 규율)
   echo "[sweep_bench] --reassemble-only: 측정 0회 · 복원 레벨 [${COMPLETED[*]}] · 측정시각 승계"
 else
 
@@ -179,9 +180,18 @@ _CTR_RE='^(MASTER_)?CONTAINER_NAME='
 # tr 의 인자는 8진 이스케이프로 준다(\042=" \047=') — 셸 따옴표 중첩 회피.
 _CTR_NAME="$( { grep -E "$_CTR_RE" "$EF" 2>/dev/null || true; } | tail -1 | cut -d= -f2- | tr -d '\042\047' )"
 IMAGE_TAG_ACTUAL="NA"
+# ★ 태그는 **가변 포인터**다 — 같은 문자열이 다른 이미지를 가리킬 수 있다(2026-09-04 실측:
+#   메인 `easy-vllm:0.18.0-cu130-aarch64-wheel` = ca36fd12…, 서브 같은 태그 = c642de38…,
+#   그 뒤 멀티 빌드가 메인 것을 또 덮었다). 인증서가 태그만 적으면 "어느 이미지로 쟀는가" 에
+#   답하지 못한다. 컨테이너 이미지는 git 이 바이트를 들지 않고 추적 입력만으로 결정론 재생성도
+#   보장되지 않으므로 **맹점층**이고(헌법 2문항 판정), 그 자리의 digest 는 중복이 아니라 유일한 증거다.
+IMAGE_DIGEST_ACTUAL="NA"
 if [ -n "$_CTR_NAME" ]; then
   IMAGE_TAG_ACTUAL="$(docker inspect "$_CTR_NAME" --format '{{.Config.Image}}' 2>/dev/null || echo NA)"
   [ -n "$IMAGE_TAG_ACTUAL" ] || IMAGE_TAG_ACTUAL="NA"
+  # `.Image` = 컨테이너가 실제로 기동한 이미지의 content id(태그 재사용과 무관).
+  IMAGE_DIGEST_ACTUAL="$(docker inspect "$_CTR_NAME" --format '{{.Image}}' 2>/dev/null || echo NA)"
+  [ -n "$IMAGE_DIGEST_ACTUAL" ] || IMAGE_DIGEST_ACTUAL="NA"
 fi
 
 fi   # ── /REASSEMBLE 분기 끝(위 측정·캡처 전량은 재조립 모드에서 건너뛴다) ──
@@ -189,7 +199,7 @@ fi   # ── /REASSEMBLE 분기 끝(위 측정·캡처 전량은 재조립 모�
 # ── sweep_index.json 조립 + meta 추출(결정론 · stdlib · fail-soft N/A) ──────────
 CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$CFGYAML" EF="$EF" MANIFEST="$MANIFEST" AGENT_CARD="$REPO/Agent_Card.json" \
 SWEEPDIR="$SWEEPDIR" VLLM_VER="$VLLM_VER" COMPLETED="${COMPLETED[*]:-}" ILEN="$ILEN" \
- IMAGE_TAG_ACTUAL="$IMAGE_TAG_ACTUAL" REASSEMBLE="$REASSEMBLE" \
+ IMAGE_TAG_ACTUAL="$IMAGE_TAG_ACTUAL" IMAGE_DIGEST_ACTUAL="$IMAGE_DIGEST_ACTUAL" REASSEMBLE="$REASSEMBLE" \
  LITE_RAW="$LITE_RAW" SDIR="$SDIR" python3 - <<'PY'
 import json, os, re, glob, sys, datetime
 
@@ -244,11 +254,15 @@ if reassemble:
 #   dev 빌드는 마이너 +1 이 정상이라 규칙이 예외로만 이루어져 위양성·위음성을 함께 낳았다.
 _img = grep_env(envtext, "IMAGE_TAG") or ""
 _img_actual = (os.environ.get("IMAGE_TAG_ACTUAL") or "NA").strip() or "NA"
+_img_digest = (os.environ.get("IMAGE_DIGEST_ACTUAL") or "NA").strip() or "NA"
 if reassemble:
     # docker 를 다시 묻지 않는다 — 그 사이 컨테이너가 바뀌었으면 **측정하지 않은 이미지** 이름이
     # 실린다. 이전 조립이 실측으로 잡아둔 값만 승계하고, 실측이 아니었으면 NA 로 둔다.
     _pm = prior.get("meta") or {}
     _img_actual = (_pm.get("image_tag") or "NA") if str(_pm.get("image_tag_source", "")).startswith("measured") else "NA"
+    # digest 도 같은 규율로 승계한다 — 재조립은 측정하지 않으므로 docker 에 다시 묻지 않는다.
+    _img_digest = ((_pm.get("image_digest") or "NA")
+                   if str(_pm.get("image_digest_source", "")).startswith("measured") else "NA")
 _elog = ""
 for _lvl in sorted(completed):
     _p = os.path.join(sweepdir, "level_%02d" % _lvl, "engine_%s.log" % cfg)
@@ -424,6 +438,9 @@ meta = {
     "image_tag": _img_actual if _img_actual != "NA" else (grep_env(envtext, "IMAGE_TAG") or "NA"),
     "image_tag_source": "measured(docker inspect)" if _img_actual != "NA" else "declared(envfile)",
     "image_tag_declared": grep_env(envtext, "IMAGE_TAG") or "NA",
+    # 태그가 가리키는 **내용**의 신원. 재조립 모드에서는 기존 index 에서 승계된다.
+    "image_digest": _img_digest,
+    "image_digest_source": "measured(docker inspect .Image)" if _img_digest != "NA" else "unavailable",
     "max_model_len": grep_yaml(cfgtext, "max-model-len") or "NA",
     "max_num_seqs": grep_yaml(cfgtext, "max-num-seqs") or "NA",
     "kv_cache_memory_bytes": grep_yaml(cfgtext, "kv-cache-memory-bytes") or "NA",
