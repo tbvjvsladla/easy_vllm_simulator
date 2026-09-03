@@ -32,6 +32,21 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
+# 2026-09-03(plan_26090317 P3): 프로젝트 경로를 **root 소유로 굳히지 않기 위해** 조상 소유자를
+#   물려주는 디렉터리 생성기를 공유 sibling 모듈에서 가져온다(설치기가 blackbox_eta.py 를
+#   /usr/local/sbin 에 sibling 으로 배치한다). 임포트 불가는 치명이 아니다 — 그 경우
+#   os.makedirs 로 떨어지되 **그 사실을 숨기지 않는다**(아래 폴백은 loud 하다).
+try:
+    from blackbox_eta import makedirs_as_ancestor_owner as _mk_owned
+except ImportError:  # pragma: no cover - 설치 배선이 깨진 경우
+    import os as _os_fb, sys as _sys_fb
+    def _mk_owned(path, mode=0o775):
+        print("[blackbox] 경고: blackbox_eta sibling 임포트 실패 — 소유권 정렬 없이 디렉터리를 만든다",
+              file=_sys_fb.stderr)
+        _os_fb.makedirs(path, exist_ok=True)
+        return []
+
+
 SCHEMA_VERSION = 1
 CURSOR_FILE = ".cursors.json"
 
@@ -272,7 +287,7 @@ def load_cursors(events_dir):
 
 
 def save_cursors(events_dir, cursors):
-    os.makedirs(events_dir, exist_ok=True)
+    _mk_owned(events_dir)
     p = os.path.join(events_dir, CURSOR_FILE)
     tmp = p + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
@@ -305,7 +320,7 @@ def _inherit_dir_owner(path, parent):
 
 
 def append_events(events_dir, events):
-    os.makedirs(events_dir, exist_ok=True)
+    _mk_owned(events_dir)
     by_month = {}
     for e in events:
         month = (e.get("ts") or "0000-00")[:7]

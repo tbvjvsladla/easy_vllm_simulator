@@ -58,6 +58,50 @@ SCHEMA_VERSION = 1
 # 근거: kill 지연보다 짧은 여유를 요구하는 임계는 "발동해도 늦는" 설정이다.
 ETA_FLOOR_MULTIPLIER = 1.5
 
+def makedirs_as_ancestor_owner(path, mode=0o775):
+    """디렉터리 체인을 만들되 **가장 가까운 기존 조상의 소유자**를 물려준다.
+
+    왜 이 함수가 있나(2026-09-03 · plan_26090317 P3 실측):
+        블랙박스 데몬은 root 로 돌고, `--node-dir <project>/docs/logs/<node>` 아래에 쓴다.
+        사용자가 프로젝트 경로를 **완전삭제**하면(이 프로젝트의 CI/CD 대리 실험이 정확히 그
+        시나리오다) 다음 폴에서 데몬의 `os.makedirs` 가 그 체인을 **root:root 로 재생성**한다.
+        그 순간부터 위임 사용자는 프로젝트 경로에 아무것도 쓸 수 없고, 메인의 정착(rsync/git init)이
+        구조적으로 막힌다 — 실측에서 wipe 20초 만에 재발했고, 증상은 배달 중간의 rsync 실패라
+        원인(소유권)에 도달하기 어렵다. 설치기의 소유권 정렬은 **설치 시점**만 고치므로
+        이미 도는 데몬에는 닿지 않는다. 그래서 만드는 자리에서 고친다.
+
+    규칙은 결정론이다: 프로젝트 경로는 **그 부모를 소유한 사람의 것**이지 데몬의 것이 아니다.
+    root 가 아니면 chown 을 시도하지 않는다(권한 없음이 정상이며 조용히 넘어간다).
+    """
+    import os as _os
+    path = _os.path.abspath(path)
+    missing = []
+    probe = path
+    while not _os.path.exists(probe):
+        missing.append(probe)
+        parent = _os.path.dirname(probe)
+        if parent == probe:
+            break
+        probe = parent
+    _os.makedirs(path, mode=mode, exist_ok=True)
+    if not missing:
+        return []
+    try:
+        st = _os.stat(probe)
+        uid, gid = st.st_uid, st.st_gid
+    except OSError:
+        return missing
+    if _os.geteuid() != 0:
+        return missing                      # 비-root 는 이미 자기 소유로 만든다
+    for d in reversed(missing):
+        try:
+            if _os.stat(d).st_uid != uid:
+                _os.chown(d, uid, gid)
+        except OSError:
+            pass                            # 소유권 정렬 실패가 수집을 막지는 않는다(로그 우선)
+    return missing
+
+
 DEFAULTS = {
     "kill_latency_s": 4.0,      # testlog_26073109 관측 상한 하단(3~15s, HB 15s 격자로 과대) -- 실측 대체 대상
     "detect_margin_s": 2.0,     # 폴링 간격(1s) + 여유(1s)
@@ -732,6 +776,28 @@ def _self_test():
         r5 = replay_samples(load, mem_total_mib=MT, arm_ceiling_mib=32768)
         checks.append(("재생: arm 상한 적용 시 옛 규칙도 kill=0(선언 효과 재현)",
                        r5["eta_only"]["kills"] == 0))
+    # ── 조상 소유자 상속 디렉터리 생성 (2026-09-03 신설 · plan_26090317 P3 실측) ──
+    #   root 데몬이 프로젝트 경로를 만들면 root:root 로 굳어 위임 사용자가 정착을 못 한다.
+    #   wipe 20초 만에 재발함을 실측했다. 규칙: **프로젝트 경로는 부모를 소유한 사람의 것**.
+    import tempfile as _tf, os as _os
+    with _tf.TemporaryDirectory() as _d:
+        _target = _os.path.join(_d, "proj", "docs", "logs", "sub", "samples")
+        _made = makedirs_as_ancestor_owner(_target)
+        checks.append(("없는 체인을 전부 만든다", len(_made) == 5 and _os.path.isdir(_target)))
+        checks.append(("만든 경로가 조상 소유자를 물려받는다",
+                       _os.stat(_os.path.join(_d, "proj")).st_uid == _os.stat(_d).st_uid))
+        checks.append(("멱등 — 이미 있으면 신규 0건",
+                       makedirs_as_ancestor_owner(_target) == []))
+        # 음성대조: 기존 디렉터리의 소유권은 건드리지 않는다(우리가 만든 것만 정렬한다).
+        _pre = _os.path.join(_d, "preexisting")
+        _os.makedirs(_pre)
+        _before = _os.stat(_pre).st_uid
+        makedirs_as_ancestor_owner(_os.path.join(_pre, "child"))
+        checks.append(("기존 경로의 소유권은 변경하지 않는다",
+                       _os.stat(_pre).st_uid == _before))
+        # 비-root 에서는 chown 을 시도조차 하지 않는다(권한 오류로 죽지 않는다).
+        checks.append(("비-root 에서도 예외 없이 동작", _os.path.isdir(_os.path.join(_pre, "child"))))
+
         checks.append(("재생: 판독 불가 경로는 None(조용한 0 아님)",
                        replay_samples(os.path.join(td2, "없다.csv")) is None))
 

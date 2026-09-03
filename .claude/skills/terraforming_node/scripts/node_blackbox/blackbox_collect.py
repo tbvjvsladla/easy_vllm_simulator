@@ -44,6 +44,21 @@ import subprocess
 import sys
 import time
 
+# 2026-09-03(plan_26090317 P3): 프로젝트 경로를 **root 소유로 굳히지 않기 위해** 조상 소유자를
+#   물려주는 디렉터리 생성기를 공유 sibling 모듈에서 가져온다(설치기가 blackbox_eta.py 를
+#   /usr/local/sbin 에 sibling 으로 배치한다). 임포트 불가는 치명이 아니다 — 그 경우
+#   os.makedirs 로 떨어지되 **그 사실을 숨기지 않는다**(아래 폴백은 loud 하다).
+try:
+    from blackbox_eta import makedirs_as_ancestor_owner as _mk_owned
+except ImportError:  # pragma: no cover - 설치 배선이 깨진 경우
+    import os as _os_fb, sys as _sys_fb
+    def _mk_owned(path, mode=0o775):
+        print("[blackbox] 경고: blackbox_eta sibling 임포트 실패 — 소유권 정렬 없이 디렉터리를 만든다",
+              file=_sys_fb.stderr)
+        _os_fb.makedirs(path, exist_ok=True)
+        return []
+
+
 # ★ GB10 통합메모리 실측(2026-07-31): nvidia-smi 의 memory.used/memory.total 은 **[N/A]** 다 --
 #   GPU 전용 메모리 풀이 없고 호스트와 공유하기 때문. 즉 이 하드웨어에서 **메모리 신호는
 #   /proc/meminfo 의 MemAvailable 이 유일**하며, gpu_mem 열은 상시 빈 칸인 것이 정상이다
@@ -281,7 +296,7 @@ class SampleWriter:
 
     def __init__(self, samples_dir, fsync=True):
         self.dir, self.fsync, self.day, self.fh = samples_dir, fsync, None, None
-        os.makedirs(samples_dir, exist_ok=True)
+        _mk_owned(samples_dir)
 
     @staticmethod
     def _has_current_header(path):
