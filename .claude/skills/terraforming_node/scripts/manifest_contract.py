@@ -153,6 +153,32 @@ def evaluate_contract(man, topology):
             "; ".join(bad_node_sources), "|".join(VALID_MODES))
         res["exit_code"] = EXIT_MISSING_FIELD
         return res
+    # ── 사전적재 자산이 노드-로컬이면 다중노드에서 구조적으로 도달 불가 (2026-09-03 신설) ──
+    #
+    # 실증: 서브가 gpt-oss-20b serve 를 완주하지 못했다. KV 도 메모리도 아니고
+    # `openai_harmony.HarmonyError: invalid tiktoken vocab file` 이었다. gpt-oss 계열은
+    # `reasoning_parser=openai_gptoss` 가 harmony 인코딩(o200k tiktoken vocab)을 **무조건** 로드하는데,
+    # 그 자산은 자동 생성되는 캐시가 아니라 **사전적재가 필요한 입력**이고, 서브는 curl/wget/hf 가
+    # 전부 deny 라 스스로 얻을 수 없다. 메인에만 노드-로컬로 두면 서브는 **영원히** 얻지 못한다.
+    #
+    # 규정의 분류 오류였다: `sync_to_sub` 의 BAND2_EXCLUDED_TOP 이 `cache`(JIT 캐시 — 자동 생성이라
+    # 전파가 무의미)와 `tiktoken_cache`(사전적재 입력 — 획득 경로가 필요)를 **한 이름으로 묶어**
+    # 둘 다 "노드-로컬 캐시" 로 불렀다. 앞의 것은 전파 제외가 옳고, 뒤의 것은 전파도 다운로드도
+    # 막히면 막다른 길이 된다. 처방은 전파 경로 신설이 아니라 **공유 스토리지 + manifest 포인터**다
+    # (2026-09-03 사용자 결정 — NAS 배치). 그러면 전파 자체가 불필요해진다.
+    #
+    # 이 술어는 그 결정이 다음 노드에서 조용히 되돌아가는 것을 막는다. **차단이 아니라 경고**다 —
+    # 서브가 없는 순수 단일노드에서는 노드-로컬 경로가 정상이기 때문이다.
+    tik = res.get("tiktoken_host_path") or ""
+    if tik and len(res["nodes"]) > 1:
+        _local_of = [n.get("work_dir") or "" for n in res["nodes"] if isinstance(n, dict)]
+        _owner = next((w for w in _local_of if w and (tik == w or tik.startswith(w.rstrip("/") + "/"))), None)
+        if _owner:
+            node_warnings.append(
+                "tiktoken_host_path=%r 가 노드 작업경로(%s) 안이다 — 사전적재 자산은 노드-로컬에 두면 "
+                "다른 노드가 얻을 수 없다(서브는 curl/wget/hf deny). 공유 스토리지(nas_model_path 와 같은 "
+                "마운트)로 옮기고 이 포인터를 그리로 돌려라." % (tik, _owner))
+
     res["node_warnings"] = node_warnings
     res["effective_model_source"] = {
         (node.get("role") or "node%d" % i): effective_model_source(node, ms)
@@ -239,6 +265,27 @@ def _self_test():
     r = evaluate_contract(bad_override, "single")
     ok = (r["flag"] is False and r["exit_code"] == EXIT_MISSING_FIELD)
     cases.append(("bad-override(invalid per-node model_source)", ok, r["reason"], r.get("manifest_tp")))
+
+    # 사전적재 자산 경로 술어(2026-09-03): 노드-로컬 → WARN · 공유 → 무경고 · 단일노드 → 무경고
+    _base_nodes = [{"role": "main", "work_dir": "/home/u/proj"}, {"role": "sub", "work_dir": "/home/u/proj"}]
+    _tik_local = {"topology": "single", "model_source": "managed", "nas_model_path": "/mnt/models",
+                  "gpus_per_node": 1, "tiktoken_host_path": "/home/u/proj/tiktoken_cache",
+                  "nodes": _base_nodes,
+                  "terraforming": {"complete": True, "branch_verified": True}}
+    r = evaluate_contract(_tik_local, "single")
+    cases.append(("사전적재 자산 노드-로컬 → WARN",
+                  any("tiktoken_host_path" in w for w in r.get("node_warnings", [])),
+                  r["reason"], None))
+    _tik_shared = dict(_tik_local, tiktoken_host_path="/mnt/models/OpenAI/harmony_tokenizer")
+    r = evaluate_contract(_tik_shared, "single")
+    cases.append(("공유 스토리지 → 무경고(대조군)",
+                  not any("tiktoken_host_path" in w for w in r.get("node_warnings", [])),
+                  r["reason"], None))
+    _tik_solo = dict(_tik_local, nodes=[{"role": "main", "work_dir": "/home/u/proj"}])
+    r = evaluate_contract(_tik_solo, "single")
+    cases.append(("서브 없는 단일노드 → 무경고(로컬이 정상)",
+                  not any("tiktoken_host_path" in w for w in r.get("node_warnings", [])),
+                  r["reason"], None))
 
     multi_override_warn = {
         "topology": "multi", "gpus_per_node": 1, "model_source": "ephemeral",

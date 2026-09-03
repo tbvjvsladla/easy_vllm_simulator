@@ -313,7 +313,15 @@ SOURCE_PORT_BUNDLE_SHA=""                          # materialize 단계에서 �
 #   넘지 않는다 — 롤백은 rsync 가 바꿀 수 있는 것만 덮으면 되기 때문이다.
 # 근거: manifest.yaml=D10 · .env=serve-time node-local host config(PII, render --materialize-env 산출) ·
 #   sub_provision=overlay 소관 · benchlog=adversarial-benchmark 생성 증거(빌드입력 ✗, plan_26063014) ·
-#   cache·tiktoken_cache=노드-로컬 JIT·tokenizer 캐시(빌드입력 ✗·전파 ✗, plan_26072217).
+#   cache=노드-로컬 JIT 캐시(자동 생성 — 전파가 무의미. 빌드입력 ✗·전파 ✗, plan_26072217).
+#   tiktoken_cache=**폴백 기본값 디렉터리일 뿐 정본이 아니다**(2026-09-03 분류 교정).
+#     ⚠ 이전 주석은 이 둘을 "노드-로컬 캐시" 한 이름으로 묶었고, 그 분류가 서브를 막다른 길에 넣었다:
+#       harmony/tiktoken vocab 은 **자동 생성되는 캐시가 아니라 사전적재가 필요한 입력**이고, 서브는
+#       curl/wget/hf 가 전부 deny 라 스스로 얻을 수 없다. 전파도 다운로드도 막히면 영원히 못 얻는다
+#       (2026-09-03 실증: 서브 serve 가 `HarmonyError: invalid tiktoken vocab file` 로 차단).
+#     처방은 전파 경로 신설이 아니라 **공유 스토리지 + manifest 포인터**다(사용자 결정 — NAS 배치).
+#       자산 정본 = `manifest.tiktoken_host_path` 가 가리키는 공유 경로. 그러면 전파가 불필요해지므로
+#       이 제외 목록은 그대로 옳다. 되돌아감 방지는 `manifest_contract.py` 의 노드-로컬 경고가 맡는다.
 BAND2_EXCLUDED_TOP=(manifest.yaml sub_provision .env benchlog cache tiktoken_cache)
 BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)          # owner-local provenance-bound runtime patches; wildcard authority 금지
 # ↑ Dockerfile.source-build-upstage = Solar-Open2 변종 트랙(UpstageAI 포크 @ v0.22.0-solar-open2).
