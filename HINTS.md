@@ -97,5 +97,6 @@ git tag -l --format='%(contents)' hint/0.24.0/deepseek-v4-flash/gb10 > seed/hint
 <!-- hint-index:rows -->
 | 태그 | vLLM | 모델 | arch | brief |
 |---|---|---|---|---|
+| `hint/0.18.0/gpt-oss-20b/gb10` | 0.18.0 | gpt-oss-20b | gb10 | 0.18.0 prebuilt wheel(다운그레이드)로 gpt-oss-20b(MXFP4)를 단일 GB10에 최대 컨텍스트(131072)로 서빙 — TRITON_ATTN(유일 후보) · 46.51 t/s(ratio 2.37x expected) · 성능 PASS · **이 태그의 archive가 곧 페이로드다** |
 | `hint/0.19.1/gpt-oss-120b/gb10-single` | 0.19.1 | gpt-oss-120b | gb10-single | 0.19.1 prebuilt wheel 로 gpt-oss-120b(MXFP4)를 단일 GB10 에 서빙 — auto=TRITON_ATTN+MARLIN · 34.55 t/s(MBU 77.9%) · 성능 PASS · **이 태그의 archive 가 곧 페이로드다** |
 <!-- hint-index:rows -->

@@ -2,10 +2,21 @@
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 `git ls-remote --tags <remote> 'refs/tags/hint/*'` 이고, brief 는 로컬 태그 오브젝트에서 파싱한다(합성 금지).",
   "schema": 2,
   "source": "remote-derived",
-  "remote": "git@github.com:tbvjvsladla/easy_vllm_simulator.git",
-  "generated_kst": "2026-09-01T21:30:00",
-  "count": 1,
+  "remote": "https://github.com/tbvjvsladla/easy_vllm_simulator.git",
+  "generated_kst": "2026-09-03T10:40:53",
+  "count": 2,
   "hints": [
+    {
+      "tag": "hint/0.18.0/gpt-oss-20b/gb10",
+      "vllm": "0.18.0",
+      "model": "gpt-oss-20b",
+      "arch": "gb10",
+      "brief": "0.18.0 prebuilt wheel(다운그레이드)로 gpt-oss-20b(MXFP4)를 단일 GB10에 최대 컨텍스트(131072)로 서빙 — TRITON_ATTN(유일 후보) · 46.51 t/s(ratio 2.37x expected) · 성능 PASS · **이 태그의 archive가 곧 페이로드다**",
+      "anchor": "399234063420631ce1fb1781e4466b56840ca7b8",
+      "object": "44a20a2e35945591baa8f3717f352f7921cd258e",
+      "published": true,
+      "source": "remote-derived"
+    },
     {
       "tag": "hint/0.19.1/gpt-oss-120b/gb10-single",
       "vllm": "0.19.1",
