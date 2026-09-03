@@ -587,6 +587,13 @@ def verify() -> dict:
     ]
 
     checks += [
+        # 2026-09-04: hint-publisher 의 두 스크립트에는 자체검사가 **아예 없었고**, 그래서 push
+        #   자격증명 배선이 통째로 빠진 것을 아무도 묻지 않았다(세션마다 `could not read Username`
+        #   으로 재발). 위 terraforming 계열과 같은 결함(호출자 없는/존재하지 않는 자체검사)이다.
+        _run("hint_tag_selftest", [sys.executable,
+             ".claude/skills/hint-publisher/scripts/hint_tag.py", "--self-test"], {0}),
+        _run("hint_collect_selftest", [sys.executable,
+             ".claude/skills/hint-publisher/scripts/hint_collect.py", "--self-test"], {0}),
         _run("terraform_scan_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/scan_node.py", "--self-test"], {0}),
         _run("terraform_render_selftest", [sys.executable,

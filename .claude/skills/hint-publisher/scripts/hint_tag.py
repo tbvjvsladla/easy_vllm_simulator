@@ -116,6 +116,67 @@ def git(*args: str, check: bool = True, env: dict | None = None, input_text: str
     return out
 
 
+# ── push 자격증명 배선 (2026-09-04 신설) ─────────────────────────────────────
+# **왜 필요했나**: 이 스킬의 마지막 단계인 push 에 자격증명 배선이 **아예 없었다**. 호스트에
+# credential.helper 가 없으면 `git push` 가 `could not read Username for <원격 호스트>` 로
+# 끝나고, 그 사실이 세션마다 재발했다(2026-09-04 실측 — 태그는 sealed 인데 원격 등재만 못 함).
+# 운영자는 `envs/.env`(비추적 평면)에 `GITHUB_TOKEN` 을 이미 두고 있었으나 **읽는 코드가 없었다**
+# — "만든 것과 도는 것은 다르다" 의 전형이다.
+#
+# ★ 토큰은 argv·원격 URL·로그 어디에도 넣지 않는다. credential helper 가 **환경변수에서** 읽게
+#   해서 프로세스 인자표(`ps`)·reflog·remote.url 에 남지 않게 한다. URL 에 박는 방식
+#   (URL 에 토큰을 박는 `https://<token>@<host>/...` 형태)은 절대 쓰지 않는다.
+TOKEN_ENV_FILE = ROOT / "envs" / ".env"
+PUSH_TOKEN_ENV = "HINT_PUSH_TOKEN"      # helper 가 읽을 임시 변수명(원본 이름과 분리)
+
+
+def read_push_token(env_file: Path | None = None, environ: dict | None = None) -> str | None:
+    """push 용 PAT 을 찾는다: 환경변수 `GITHUB_TOKEN` → `envs/.env` 의 같은 키. 없으면 None.
+
+    비추적 평면에서만 읽는다(`envs/.env` 는 `.gitignore` 대상). 값은 **반환만** 하고 어디에도
+    출력하지 않는다.
+    """
+    environ = os.environ if environ is None else environ
+    direct = (environ.get("GITHUB_TOKEN") or "").strip()
+    if direct:
+        return direct
+    f = TOKEN_ENV_FILE if env_file is None else env_file
+    if not f.is_file():
+        return None
+    for line in f.read_text(encoding="utf-8").splitlines():
+        st = line.strip()
+        if st.startswith("#") or not st.startswith("GITHUB_TOKEN="):
+            continue
+        val = st.split("=", 1)[1].strip().strip('"').strip("'")
+        if val:
+            return val
+    return None
+
+
+def push_credential_args() -> list[str]:
+    """`git -c` 인자만 산출한다(토큰 없음 — 순수 함수라 자체검사가 argv 를 직접 단언할 수 있다)."""
+    helper = ('!f() { test "$1" = get || exit 0; echo username=x-access-token; '
+              'echo "password=$%s"; }; f' % PUSH_TOKEN_ENV)
+    # 앞의 빈 값이 상속된 helper 목록을 **비운다** — 호스트에 이상한 helper 가 있어도 우리 것만 쓴다.
+    return ["-c", "credential.helper=", "-c", "credential.helper=" + helper]
+
+
+def git_push_authenticated(remote: str, refspec: str, *, dry_run: bool) -> subprocess.CompletedProcess:
+    token = read_push_token()
+    if not token:
+        die("[hint_tag] FAIL: push 자격증명이 없다 — `envs/.env`(비추적)에 `GITHUB_TOKEN=<PAT>` 한 줄을 "
+            "두거나 환경변수 `GITHUB_TOKEN` 을 주라. 이 배선이 없으면 무인 실행에서 "
+            "`could not read Username for <원격 호스트>` 로 멈춘다.")
+    env = dict(os.environ)
+    env[PUSH_TOKEN_ENV] = token
+    env["GIT_TERMINAL_PROMPT"] = "0"     # 프롬프트 대기 대신 즉시 실패(무인 실행 · 교착 방지)
+    args = [*push_credential_args(), "push"]
+    if dry_run:
+        args.append("--dry-run")
+    args += [remote, refspec]
+    return git(*args, check=not dry_run, env=env)
+
+
 # ── promotion-gate wiring (Phase 3, plan_26072506, vertical slice 2A) ────────
 # Every subcommand that mutates a git tag/hints/index.json/HINTS.md, or performs a network push,
 # requires an explicit --manifest and must pass `completion_gate.py authorize --mode promotion`
@@ -1337,9 +1398,9 @@ def cmd_push(a: argparse.Namespace) -> int:
     print(f"[hint_tag] 선별 배포 refspec: git push {a.remote} \"{refspec}\"  (hint 태그만 · --tags 금지)")
     if not a.apply:
         print("[hint_tag] DRY-RUN (배포 없음). 실제 배포는 --apply.")
-        git("push", "--dry-run", a.remote, refspec, check=False)
+        git_push_authenticated(a.remote, refspec, dry_run=True)
         return 0
-    git("push", a.remote, refspec)
+    git_push_authenticated(a.remote, refspec, dry_run=False)
     print("[hint_tag] pushed refs/tags/hint/* (last-good-* 미포함).")
     return 0
 
@@ -1873,8 +1934,66 @@ def cmd_reindex(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_self_test(_a=None) -> int:
+    """결정론 자체검사 — 라이브 원격·태그 없이 도는 것만 담는다.
+
+    **왜 지금 생겼나**: push 자격증명 배선이 통째로 없었는데(2026-09-04) 이 스크립트에는 자체검사
+    자체가 없어서 **아무도 그 부재를 물어보지 않았다**. 배선을 넣으면서 물어보는 자리도 같이 만든다.
+    """
+    import tempfile
+    checks: list[tuple[str, bool]] = []
+
+    def ck(n: str, c) -> None:
+        checks.append((n, bool(c)))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        t = Path(tmp)
+        envf = t / ".env"
+
+        # ── push 토큰 판독
+        ck("파일 없으면 None", read_push_token(env_file=t / "nope", environ={}) is None)
+        envf.write_text("# 주석\nHF_TOKEN=hf_x\nGITHUB_TOKEN=ghp_FILE\n", encoding="utf-8")
+        ck("envs/.env 에서 판독", read_push_token(env_file=envf, environ={}) == "ghp_FILE")
+        ck("★환경변수가 파일을 이긴다",
+           read_push_token(env_file=envf, environ={"GITHUB_TOKEN": "ghp_ENV"}) == "ghp_ENV")
+        envf.write_text("GITHUB_TOKEN=\n", encoding="utf-8")
+        ck("★음성대조 빈 값은 토큰이 아니다", read_push_token(env_file=envf, environ={}) is None)
+        envf.write_text("#GITHUB_TOKEN=ghp_commented\n", encoding="utf-8")
+        ck("★음성대조 주석 처리된 줄은 무시", read_push_token(env_file=envf, environ={}) is None)
+        envf.write_text('GITHUB_TOKEN="ghp_Q"\n', encoding="utf-8")
+        ck("따옴표 제거", read_push_token(env_file=envf, environ={}) == "ghp_Q")
+
+        # ── credential helper argv — ★ 토큰이 argv 에 실리면 안 된다(ps·reflog 유출)
+        args = push_credential_args()
+        ck("상속 helper 를 먼저 비운다", args[:2] == ["-c", "credential.helper="])
+        ck("우리 helper 가 환경변수에서 읽는다", PUSH_TOKEN_ENV in args[3] and "$" + PUSH_TOKEN_ENV in args[3])
+        ck("★토큰 값이 argv 에 없다", not any("ghp_" in a for a in args))
+        ck("helper 는 get 이외 연산에 응답하지 않는다", 'test "$1" = get' in args[3])
+
+    # ── 본문 린터(음성대조 포함)
+    good = "\n".join([f"## {n}. x\n" + ("가" * 90) for n, _ in REQUIRED_SECTIONS]) + "\narch-invariant\n"
+    ck("완전한 본문은 린트 통과", lint_body(good) == [])
+    ck("★음성대조 절 누락 검출", any("L1" in p for p in lint_body(good.replace("## 7. x", "## 9. x"))))
+    ck("★음성대조 전이등급 없으면 검출",
+       any("L3" in p for p in lint_body(good.replace("arch-invariant", "그냥 참고"))))
+    ck("★음성대조 밀도 부족 검출", any("L2" in p for p in lint_body(good.replace("가" * 90, "짧음"))))
+
+    # ── PII 스캔(배포면 4종)
+    ck("★PII 절대경로 검출", any("abs-op-path" in h for h in scan_text("경로 /mnt/llm/Model/x 참조", None)))
+    ck("★PII 호스트명 검출", any("spark-host" in h for h in scan_text("노드 spark-a73e 에서", None)))
+    ck("깨끗한 본문은 무검출", scan_text("GB10 2노드 TP=2 · 53.92 t/s", None) == [])
+
+    bad = [n for n, ok in checks if not ok]
+    for n, ok in checks:
+        print(f"  {'ok  ' if ok else 'FAIL'} {n}")
+    print(f"[hint_tag] self-test {len(checks) - len(bad)}/{len(checks)} " + ("PASS" if not bad else "FAIL"))
+    return 1 if bad else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="hint/<vllm>/<model>/<arch> 레시피-힌트 태그 관리")
+    if "--self-test" in sys.argv[1:]:
+        return cmd_self_test()
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("create", help="태그 검증 + 레시피 스캐폴드(TODO 슬롯)")
