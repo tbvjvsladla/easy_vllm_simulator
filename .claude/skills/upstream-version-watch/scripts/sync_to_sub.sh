@@ -1268,9 +1268,10 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
     #   (a2a-agent=3종)에서는 단언이 참이라 드러나지 않았고, **멀티 배달이 처음 실행된 순간**
     #   `❌ 배달 표면에 런타임블럭 대표가 없다` 로 죽었다(롤백은 정상 작동). 교정이 만든 결함이 아니라
     #   교정의 배선이 한 곳 덜 간 것이다 — 계약을 바꾸면 그 계약을 읽는 **모든** 자리를 따라가야 한다.
-    #   판정 정본은 `node_role_contract.tool_plane` 이다(여기서 토폴로지로 추론하지 않는다).
+    #   판정 정본은 계약 판정기의 tool_plane 이다(토폴로지로 추론하지 않는다 · 경로는 파일 상단
+    #   ROLE_CONTRACT 상수 — 이 함수 본문은 판정기 경로 문자열을 갖지 않는다).
     local _tp _tp_n
-    _tp="$(python3 "${SRC%/}/.claude/skills/terraforming_node/scripts/node_role_contract.py" evaluate \
+    _tp="$(python3 "$ROLE_CONTRACT" evaluate \
              --manifest "${SRC%/}/output/$1/manifest.yaml" --topology "$1" \
              --field tool_plane --format value 2>/dev/null || echo '__UNRESOLVED__')"
     if [ "$_tp" = "__UNRESOLVED__" ]; then
