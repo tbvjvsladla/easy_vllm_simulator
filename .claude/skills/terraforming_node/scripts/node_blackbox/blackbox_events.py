@@ -296,6 +296,7 @@ def save_cursors(events_dir, cursors):
         fh.flush()
         os.fsync(fh.fileno())
     os.replace(tmp, p)
+    _inherit_dir_owner(p, events_dir)   # .cursors.json 도 jsonl 과 같은 규칙(2026-09-03 실측: root 잔존)
 
 
 def _inherit_dir_owner(path, parent):

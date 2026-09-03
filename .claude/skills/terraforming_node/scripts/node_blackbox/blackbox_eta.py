@@ -102,6 +102,30 @@ def makedirs_as_ancestor_owner(path, mode=0o775):
     return missing
 
 
+def inherit_dir_owner(path, parent):
+    """root 데몬이 만든 **파일**의 소유를 그 디렉터리 소유자에게 넘긴다(디렉터리 정렬의 파일판).
+
+    2026-09-03 체크포인트 실측(plan_26090317 P4): `makedirs_as_ancestor_owner` 가 디렉터리 체인은
+    위임 사용자 소유로 만들었지만, 그 안에 root 데몬이 `open(path, "a")` 로 만든
+    `samples/<날짜>.csv`·`events/.cursors.json` 은 root:root 로 남았다. 부모가 사용자 소유라
+    삭제(wipe)는 막지 않으나, 프로젝트 경로 안의 root 소유물은 정확히 그 소유권 트랩의
+    잔여 형태다. `blackbox_events._inherit_dir_owner` 가 같은 일을 `events/*.jsonl` 에만 하고
+    있었다 — 공유 형제 모듈로 올려 세 파일이 한 규칙을 쓴다.
+    비-root 는 no-op(권한 문제가 애초에 없다). 실패는 기록을 막지 않는다.
+    """
+    import os as _os
+    try:
+        if _os.geteuid() != 0:
+            return False
+        st = _os.stat(parent)
+        if _os.stat(path).st_uid != st.st_uid:
+            _os.chown(path, st.st_uid, st.st_gid)
+            return True
+    except OSError:
+        pass
+    return False
+
+
 DEFAULTS = {
     "kill_latency_s": 4.0,      # testlog_26073109 관측 상한 하단(3~15s, HB 15s 격자로 과대) -- 실측 대체 대상
     "detect_margin_s": 2.0,     # 폴링 간격(1s) + 여유(1s)
@@ -797,6 +821,13 @@ def _self_test():
                        _os.stat(_pre).st_uid == _before))
         # 비-root 에서는 chown 을 시도조차 하지 않는다(권한 오류로 죽지 않는다).
         checks.append(("비-root 에서도 예외 없이 동작", _os.path.isdir(_os.path.join(_pre, "child"))))
+        # 파일판: 없는 파일·비-root 모두 예외 없이 False, 있는 파일은 그대로 남는다.
+        _f = _os.path.join(_pre, "child", "x.csv"); open(_f, "w").close()
+        _r = inherit_dir_owner(_f, _os.path.dirname(_f))
+        checks.append(("파일 소유 상속: 비-root 는 no-op(False) · 파일 보존",
+                       _r is False and _os.path.isfile(_f)))
+        checks.append(("파일 소유 상속: 없는 파일도 예외 없이 False",
+                       inherit_dir_owner(_os.path.join(_pre, "none.csv"), _pre) is False))
 
         checks.append(("재생: 판독 불가 경로는 None(조용한 0 아님)",
                        replay_samples(os.path.join(td2, "없다.csv")) is None))

@@ -50,13 +50,18 @@ import time
 #   os.makedirs 로 떨어지되 **그 사실을 숨기지 않는다**(아래 폴백은 loud 하다).
 try:
     from blackbox_eta import makedirs_as_ancestor_owner as _mk_owned
-except ImportError:  # pragma: no cover - 설치 배선이 깨진 경우
+    from blackbox_eta import inherit_dir_owner as _own_file
+except ImportError:  # pragma: no cover - 설치 배선이 깨진 경우(구 sibling 포함)
     import os as _os_fb, sys as _sys_fb
     def _mk_owned(path, mode=0o775):
         print("[blackbox] 경고: blackbox_eta sibling 임포트 실패 — 소유권 정렬 없이 디렉터리를 만든다",
               file=_sys_fb.stderr)
         _os_fb.makedirs(path, exist_ok=True)
         return []
+    def _own_file(path, parent):
+        print("[blackbox] 경고: blackbox_eta sibling 임포트 실패 — 파일 소유 정렬 없이 쓴다",
+              file=_sys_fb.stderr)
+        return False
 
 
 # ★ GB10 통합메모리 실측(2026-07-31): nvidia-smi 의 memory.used/memory.total 은 **[N/A]** 다 --
@@ -329,6 +334,7 @@ class SampleWriter:
         #   판독기는 숫자 파싱 실패로 그 줄을 건너뛴다(replay/rollup 모두 try/except 로 방어).
         drift = (not new) and not self._has_current_header(path)
         self.fh = open(path, "a", encoding="utf-8")
+        _own_file(path, self.dir)           # root 데몬이 만든 csv 도 디렉터리 소유자의 것(2026-09-03)
         if new or drift:
             self.fh.write(CSV_HEADER)
         self.day = day

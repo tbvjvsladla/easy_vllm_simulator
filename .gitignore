@@ -21,6 +21,9 @@ CLAUDE.local.md
 #   파생물(추적 시 incoherent) + path-reference 로컬상태 종속. gitignore-persist로 브랜치 통합.
 #   스킬 자체(.claude/skills/wiki-desk/)는 추적. 근거 plan_2026062809_1.
 /__llm-wiki/
+# 메인↔서브 A2A 릴레이 원장(tasks/<context_id>.json · <context_id>.reports/) — 환경 런타임 상태
+#   (세션 id·서브 리포트 원문). 관측 자리이지 배포물이 아니다(2026-09-03 plan_26090317 P4).
+/tasks/
 
 # ===========================================
 # .claude 빌딩블럭 선별 추적 (배포 대상)

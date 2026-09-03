@@ -215,8 +215,56 @@ def _self_test() -> int:
         chk(parse_report("어쩌고 {\"status\": \"completed\"} 끝")["status"] == "completed",
             "산문 속 JSON 리포트 추출")
         chk(parse_report("리포트 없음") is None, "JSON 이 없으면 None(추측 파싱 ✗)")
+
+        # ⑦ 위임 전 서브 브랜치 == 토폴로지 (양방향 + 판독불가는 fail-closed)
+        _req = {"target": {"host": "h", "ssh_user": "u", "work_dir": "/w"}}
+        chk(assert_sub_branch(_req, "single", runner=lambda t, c: (0, "single", "")) == "single",
+            "서브 브랜치가 토폴로지와 같으면 통과")
+        try:
+            assert_sub_branch(_req, "single", runner=lambda t, c: (0, "multi", ""))
+            chk(False, "불일치는 STOP")
+        except SystemExit as e:
+            chk("브랜치 불일치" in str(e), "불일치는 STOP(브랜치 불일치)")
+        try:
+            assert_sub_branch(_req, "single", runner=lambda t, c: (255, "", "Connection refused"))
+            chk(False, "판독 불가는 STOP")
+        except SystemExit as e:
+            chk("판독하지 못했다" in str(e), "판독 불가는 일치로 치지 않는다(fail-closed)")
     print("self-test: %s" % ("PASS" if ok else "FAIL"))
     return 0 if ok else 2
+
+
+SSH_PROBE = ("ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8",
+             "-o", "ServerAliveInterval=5", "-o", "ServerAliveCountMax=2")
+
+
+def _ssh_run(target: dict, cmd: str):
+    argv = [*SSH_PROBE, f"{target['ssh_user']}@{target['host']}", cmd]
+    out = subprocess.run(argv, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    return out.returncode, out.stdout.strip(), out.stderr.strip()
+
+
+def assert_sub_branch(req: dict, topology: str, runner=None) -> str:
+    """위임 직전 서브의 **현재 브랜치가 요청 토폴로지와 같은지** 확인한다(fail-closed).
+
+    왜(2026-09-03 체크포인트 · plan_26090317 P4): 서브의 페르소나·tool_plane 은 **브랜치별로
+    추적된 CLAUDE.md** 가 정한다(single=a2a-agent·런타임 스킬 3, multi=ray-worker·0). 릴레이는
+    지금까지 manifest 의 토폴로지로 주소만 풀었고 서브가 실제로 어느 브랜치에 있는지는 보지
+    않았다 — `sync_to_sub` 의 REST_BRANCH(마지막 배달 토폴로지) 덕에 **관행상** 일치했을 뿐
+    게이트가 아니었다. 불일치 상태로 위임하면 다른 정체성에게 말하는 것이며, 그 실패는 서브의
+    산문 거절로만 드러나 조용하다.
+    서브 git 은 메인의 관측 장치다(헌법 노드 제어 불변식 2) — 이 읽기는 스캔이 아니다.
+    """
+    t = req["target"]
+    rc, out, err = (runner or _ssh_run)(t, f"git -C '{t['work_dir']}' rev-parse --abbrev-ref HEAD")
+    if rc != 0:
+        raise SystemExit(f"[relay] STOP: 서브 브랜치를 판독하지 못했다(rc={rc}) — {err or out or '(출력 없음)'}\n"
+                         "  → 판독 불가는 일치가 아니다(fail-closed). 서브 도달성·work_dir 를 먼저 확인하라.")
+    if out != topology:
+        raise SystemExit(f"[relay] STOP(브랜치 불일치): 서브는 '{out}' 에 있고 요청 토폴로지는 '{topology}' 다.\n"
+                         "  → 브랜치별 CLAUDE.md 가 정체성을 정하므로 이 상태의 위임은 다른 정체성에게 말하는 것이다.\n"
+                         f"  → `sync_to_sub.sh --branch {topology}` 가 서브를 그 브랜치에 안착시킨다(REST_BRANCH).")
+    return out
 
 
 def main() -> int:
@@ -257,8 +305,10 @@ def main() -> int:
         sys.stdout.write("\n")
         return 0
 
+    branch = assert_sub_branch(req, a.topology)
     print(f"[relay] attempt={len(doc.get('attempts') or []) + 1} grade={a.grade} "
-          f"max_turns={bud['max_turns']} ({bud['source']}) resume={resume or '(새 세션)'}")
+          f"max_turns={bud['max_turns']} ({bud['source']}) resume={resume or '(새 세션)'} "
+          f"sub_branch={branch}")
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tf:
         json.dump(req, tf, ensure_ascii=False)
         tmp = tf.name
