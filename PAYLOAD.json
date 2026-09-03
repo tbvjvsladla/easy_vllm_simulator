@@ -1,8 +1,8 @@
 {
   "artifacts": [
-    "artifacts/triplet/gpt-oss-120b-gb10.yaml",
-    "artifacts/triplet/gpt-oss-120b-gb10.sh",
-    "artifacts/triplet/.env.gpt-oss-120b-gb10",
+    "artifacts/triplet/gpt-oss-20b-gb10.yaml",
+    "artifacts/triplet/gpt-oss-20b-gb10.sh",
+    "artifacts/triplet/.env.gpt-oss-20b-gb10",
     "artifacts/build_recipe/Dockerfile",
     "artifacts/build_recipe/requirements.txt",
     "artifacts/compose/docker-compose.yaml",
@@ -11,17 +11,17 @@
   "benchmark": {
     "accept_len": "N/A",
     "benchmark_mode": "full",
-    "decode_tps_conc1": "53.92",
-    "floor_tps": "26.34",
-    "lite_cold_ttft_ms": "178.5",
+    "decode_tps_conc1": "69.36",
+    "floor_tps": "33.35",
+    "lite_cold_ttft_ms": "89.9",
     "lite_gen_src": "median_tpot",
-    "lite_gen_tps_warm": "54.01",
+    "lite_gen_tps_warm": "69.58",
     "lite_included": "true",
-    "lite_kv_gib": "15.0",
-    "measured_utc": "2026-09-03T22:18:44Z",
+    "lite_kv_gib": "5.0",
+    "measured_utc": "2026-09-03T22:41:45Z",
     "primary_source": "expected_achievable(roofline×MBU)",
-    "primary_tps": "30.99",
-    "ratio_M_over_primary": "1.74",
+    "primary_tps": "39.24",
+    "ratio_M_over_primary": "1.768",
     "rubric_authority": "weak",
     "spec_on": "false",
     "sweep_levels": "1,2,4,8,16",
@@ -30,14 +30,14 @@
     "verdict": "PASS"
   },
   "benchmark_source": {
-    "certificate": "benchmark_26090408_gpt-oss-120b_GB10_0.18.0.yaml",
+    "certificate": "benchmark_26090408_14_02_gpt-oss-20b_GB10_0.18.0.yaml",
     "parsed_not_synthesized": true,
-    "sha256": "007d7f1e456d4affe6a4dd3b8689caec936eb9aa02376c814892130262c5719a"
+    "sha256": "13b42acbf7e81a189aa2ed513a508209b298164e2dd7afed23e484e6b1c62159"
   },
-  "generated_kst": "2026-09-04T08:17:30",
+  "generated_kst": "2026-09-04T08:14:45",
   "identity": {
     "gpu": "NVIDIA GB10",
-    "model": "gpt-oss-120b",
+    "model": "gpt-oss-20b",
     "quant": "mxfp4",
     "topology": "multi",
     "tp": 2,
@@ -158,9 +158,9 @@
       "evidence_source": "certificate.serving_config",
       "exemptible": false,
       "files": {
-        "config_yaml": "output/multi/configs/gpt-oss-120b-gb10.yaml",
-        "env_file": "output/multi/envs/.env.gpt-oss-120b-gb10",
-        "runner_sh": "output/multi/configs/gpt-oss-120b-gb10.sh"
+        "config_yaml": "output/multi/configs/gpt-oss-20b-gb10.yaml",
+        "env_file": "output/multi/envs/.env.gpt-oss-20b-gb10",
+        "runner_sh": "output/multi/configs/gpt-oss-20b-gb10.sh"
       },
       "missing": [],
       "owner": "vllm-recipe-explorer",

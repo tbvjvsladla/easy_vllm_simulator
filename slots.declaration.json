@@ -4,7 +4,7 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "TP=2 서빙 설정·러너·모델 env — ray executor·gmu 0.80·워커당 KV 15GiB·포트 8080"
+      "rationale": "TP=2 서빙 설정·러너·모델 env — ray executor·gmu 0.80·워커당 KV 5GiB·포트 8080·max-model-len 4096"
     },
     "runtime_patch": {
       "applicable": false,
