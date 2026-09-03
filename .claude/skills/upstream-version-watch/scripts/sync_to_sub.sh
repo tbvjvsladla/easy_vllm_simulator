@@ -1259,10 +1259,31 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
         return 1
     fi
     # 계약 대표 — 파생 목록이 조용히 줄어드는 것을 막는다.
-    #   · .claude/skills/vllm-recipe-explorer/recipe.py = 런타임블럭이 실제로 복제됐다는 증거(무조건 렌더)
+    #   · .claude/skills/vllm-recipe-explorer/recipe.py = 런타임블럭이 실제로 복제됐다는 증거
     #   · .claude/a2a_delegation.json               = A2A 위임키(hw_verified:true 일 때만 발급)
-    printf '%s\n' "$rels" | grep -qxF '.claude/skills/vllm-recipe-explorer/recipe.py' \
-        || { echo "  ❌ 배달 표면에 런타임블럭 대표(.claude/skills/vllm-recipe-explorer/recipe.py)가 없다" >&2; fail=1; }
+    #
+    # ⚠ 런타임블럭 대표는 **tool_plane 이 비어 있지 않을 때만** 요구한다(2026-09-03 P5 실측).
+    #   결함의 형태: P2 에서 `tool_plane` 게이팅을 도입해 **ray-worker 에는 런타임 스킬을 0종 배달**
+    #   하도록 렌더러를 고쳤는데, 이 검증기는 옛 가정("무조건 렌더")을 그대로 들고 있었다. single
+    #   (a2a-agent=3종)에서는 단언이 참이라 드러나지 않았고, **멀티 배달이 처음 실행된 순간**
+    #   `❌ 배달 표면에 런타임블럭 대표가 없다` 로 죽었다(롤백은 정상 작동). 교정이 만든 결함이 아니라
+    #   교정의 배선이 한 곳 덜 간 것이다 — 계약을 바꾸면 그 계약을 읽는 **모든** 자리를 따라가야 한다.
+    #   판정 정본은 `node_role_contract.tool_plane` 이다(여기서 토폴로지로 추론하지 않는다).
+    local _tp _tp_n
+    _tp="$(python3 "${SRC%/}/.claude/skills/terraforming_node/scripts/node_role_contract.py" evaluate \
+             --manifest "${SRC%/}/output/$1/manifest.yaml" --topology "$1" \
+             --field tool_plane --format value 2>/dev/null || echo '__UNRESOLVED__')"
+    if [ "$_tp" = "__UNRESOLVED__" ]; then
+        echo "  ❌ tool_plane 미해소 — 런타임블럭 대표 요구 여부를 정할 수 없다(fail-closed)" >&2; fail=1
+    else
+        _tp_n="$(printf '%s' "$_tp" | tr -cd '[:alnum:]-' | wc -c)"
+        if [ "${_tp_n:-0}" -eq 0 ]; then
+            echo "  ⏭  런타임블럭 대표 검사 생략 — tool_plane 이 비었다(ray-worker: 스킬 0종이 계약)"
+        else
+            printf '%s\n' "$rels" | grep -qxF '.claude/skills/vllm-recipe-explorer/recipe.py' \
+                || { echo "  ❌ 배달 표면에 런타임블럭 대표(.claude/skills/vllm-recipe-explorer/recipe.py)가 없다" >&2; fail=1; }
+        fi
+    fi
     # 2026-09-03(S4/㉕ · plan_26090317 P1): 여기서 하던 일은 **정보 한 줄**이었다 — 스테이징에 키가
     #   없으면 "미발급" 이라고만 말하고, **서브에 있으면 안 되는 키가 남아 있는지는 보지 않았다.**
     #   회수 경로가 3중으로 없었기 때문에 그 상태는 영구였다: ① deliver_overlay 는 `--delete` 없는
