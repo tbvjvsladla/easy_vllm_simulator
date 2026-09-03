@@ -134,6 +134,47 @@ def apply_mode_blocks(text: str, sub_mode: str) -> str:
 
 
 
+MODE_PREFIX_RE = re.compile(r"^MODE:(?P<mode>[a-z0-9-]+)\s+(?P<rest>.+)$", re.DOTALL)
+
+
+def apply_mode_prefixes(obj, sub_mode: str):
+    """JSON 배열 원소의 `MODE:<mode> <값>` 접두어로 모드를 가른다(재귀).
+
+    왜 블록 마커가 아니라 접두어인가(2026-09-03 · plan_26090317 P4):
+        `<!-- MODE:x -->` 는 템플릿을 **유효하지 않은 JSON** 으로 만든다. 그러면 템플릿 자체를
+        `json.tool` 로 검증할 수 없고, 렌더 전에는 아무도 그 파일이 깨졌는지 모른다. 값 접두어는
+        템플릿을 유효 JSON 으로 유지하면서 같은 일을 하고, 목록은 여전히 **템플릿 한 곳**에만 있다
+        (렌더러에 경로 목록을 다시 적으면 그 순간 두 자리가 갈라진다 — 하드코딩 결함 칸).
+
+    왜 필요한가:
+        서브의 쓰기 권한 평면이 `output/**/{Dockerfile,docker-compose.yaml,requirements.txt}` 를
+        **양 모드 모두** deny 했다. 그 목록은 **멀티 상정**이다 — 거기서는 메인이 빌드킷을 배달하므로
+        서브가 고치면 안 된다. 그런데 헌법은 **싱글 서브는 자기 빌드킷을 자율 저작한다**(불변식 A)고
+        못박고, `sync_to_sub` 도 그래서 싱글에 빌드킷을 보내지 않는다(빌드킷 평면 dormant).
+        즉 **저작하라고 해놓고 쓰기를 막았다** — 토폴로지 제1축이 권한 평면에는 아직 안 닿아 있었다.
+        실측(2026-09-03 P4): 서브 build 턴 착수 직전에 발견. 서브에는 `render_dockerfile.py`·
+        `regen_requirements.py`·정본 러너 assets 이 이미 다 배달돼 있어 **권한만이 유일한 벽**이었다.
+    """
+    if isinstance(obj, dict):
+        return {k: apply_mode_prefixes(v, sub_mode) for k, v in obj.items()}
+    if isinstance(obj, list):
+        out = []
+        for item in obj:
+            if isinstance(item, str):
+                m = MODE_PREFIX_RE.match(item)
+                if m:
+                    mode = m.group("mode")
+                    if mode not in KNOWN_SUB_MODES:
+                        raise SystemExit(f"[render] FAIL: 미지의 MODE 접두 '{mode}' — 알려진 모드 {KNOWN_SUB_MODES}")
+                    if mode != sub_mode:
+                        continue
+                    out.append(m.group("rest"))
+                    continue
+            out.append(apply_mode_prefixes(item, sub_mode))
+        return out
+    return obj
+
+
 def strip_template_header(text: str) -> str:
     return TEMPLATE_HEADER_RE.sub("", text)
 
@@ -295,6 +336,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
             raise SystemExit(f"[render] FAIL: 미치환 placeholder {left} in {tmpl_name}")
         if kind == "json":
             obj = json.loads(txt)                   # 렌더 후 JSON 유효성
+            obj = apply_mode_prefixes(obj, ph.get("SUB_MODE", ""))   # S2: 권한 평면도 정체성으로 갈린다
             if isinstance(obj, dict):               # _ 접두 메타키(_template_note) 제거
                 for k in [k for k in obj if k.startswith("_")]:
                     obj.pop(k)
@@ -727,6 +769,38 @@ def _self_test() -> int:
     except SystemExit as e:
         print(f"  [FAIL] single 렌더 예외: {e}")
         ok = False
+
+    # (4c) 권한 평면의 정체성 분기 (2026-09-03 · P4 · plan_26090317).
+    #   결함의 형태: deny 목록이 **멀티 상정**이라 빌드킷 3종을 양 모드 모두 막았다. 헌법은 싱글
+    #   서브가 자기 빌드킷을 **자율 저작**한다고 못박고 sync_to_sub 도 그래서 빌드킷을 안 보낸다 —
+    #   즉 저작하라면서 쓰기를 막은 상태였다(build 턴 착수 직전 발견). 양방향으로 본다:
+    #   한쪽만 보면 "전부 열기"·"전부 막기" 가 통과한다.
+    _KIT = "output/**/Dockerfile"
+    for _topo, _want_allow, _label in (("single", True, "a2a-agent=자율저작 allow"),
+                                       ("multi", False, "ray-worker=배달분 보호 deny")):
+        _d = parse_manifest(mpath); _d["topology"] = _topo
+        _ph, _ = build_placeholders(_d)
+        _out = os.path.join(tmp, f"perm_{_topo}")
+        render_tree(_ph, _out, copy_runtime_block=False)
+        with open(os.path.join(_out, ".claude/settings.local.json"), encoding="utf-8") as f:
+            _st = json.load(f)
+        _al, _dn = _st["permissions"]["allow"], _st["permissions"]["deny"]
+        _in_allow = any(x.endswith(f"/{_KIT})") and x.startswith("Write(") for x in _al)
+        _in_deny = any(x.endswith(f"/{_KIT})") and x.startswith("Write(") for x in _dn)
+        # 접두어가 산출물에 새면 권한 문자열 자체가 무효가 된다(조용히 아무것도 매칭 안 함).
+        _no_marker = not any(x.startswith("MODE:") for x in _al + _dn)
+        # 모드 무관 항목은 양쪽 모두에 그대로 남아야 한다(필터가 과잉 삭제하지 않았는가).
+        _common = ("Bash(git push:*)" in _dn and f"Edit({_ph['WORKSPACE_PATH']}/.claude/**)" in _dn)
+        _c = (_in_allow == _want_allow) and (_in_deny != _want_allow) and _no_marker and _common
+        print(f"  [{'PASS' if _c else 'FAIL'}] 권한 평면 {_topo}({_label}): "
+              f"allow={_in_allow} deny={_in_deny} 마커제거={_no_marker} 공통보존={_common}")
+        ok &= _c
+    # 음성대조: 미지 MODE 접두는 조용히 지우지 않고 fail-loud 한다.
+    try:
+        apply_mode_prefixes({"a": ["MODE:nonesuch X"]}, "a2a-agent")
+        print("  [FAIL] 미지 MODE 접두가 통과했다"); ok = False
+    except SystemExit as _e:
+        print(f"  [PASS] 미지 MODE 접두 → fail-loud ({str(_e)[:40]}…)")
 
     # (4b) tool_plane 토폴로지 게이팅 (2026-09-03 · P2 · plan_26090317).
     #   결함의 형태: 렌더러가 **토폴로지와 무관한 닫힌 리스트**로 런타임블럭을 배달해, 멀티 서브
