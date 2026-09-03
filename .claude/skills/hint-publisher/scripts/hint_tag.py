@@ -291,6 +291,25 @@ _FOOTER_BLOCK_RE = re.compile(
     re.S,
 )
 _FOOTER_LINE_RE = re.compile(r"^([a-z0-9_]+): (.*)$")
+
+# ── 폐기된 footer 키의 빈티지 핀 (2026-09-04 신설) ───────────────────────────
+# `*_sha256` 3종은 2026-09-03 `policy:GIT_SINGLE_AUTHORITY`(추적물의 digest 를 두 번째 자리에 다시
+# 적지 않는다)로 스키마에서 **제거**됐다. 그런데 그 이틀 전에 발행된 태그가 그 키를 들고 있고
+# **태그는 불변**이라 고칠 수 없다 → 파서가 거부하면 그 태그 하나가 이후 모든 전수 검증과 push 를
+# 영구히 막는다. 이 검증기는 v2 에서 이미 그 상황을 풀어 뒀다고 적어 뒀는데
+# (`_require_all_hint_tags_evidence_valid` 독스트링의 "v1 빈티지 → 경고(차단 ✗)"), 그 등급은
+# 2026-09-01 에 **"소급 대상 0"** 이라는 이유로 삭제됐다 — 그 전제가 이틀 만에 거짓이 됐다.
+#
+# ★ 닫힌 목록이다(workflow.md §4종 안티패턴 — 하드코딩의 **정당** 형태 = tripwire). 값은
+#   그 태그 오브젝트의 SHA 이며, 태그를 다시 만들면 SHA 가 달라져 자동으로 막힌다.
+# ★ 수용은 **읽기 전용 하위호환**이다 — `_build_evidence_footer` 는 `_FOOTER_FIELDS` 만 쓰므로
+#   `seal` 이 이 키를 새로 발행하는 경로는 존재하지 않는다(아래 자체검사가 단언한다).
+# ★ 값은 **읽고 버린다**. 폐기 이유가 "추적물의 digest 를 두 번째 자리에 적지 마라" 이므로,
+#   그 값을 판정에 쓰면 폐기한 의미가 없다.
+RETIRED_FOOTER_KEYS = frozenset({"manifest_sha256", "identity_sha256", "certificate_sha256"})
+LEGACY_FOOTER_TAG_PINS: dict[str, str] = {
+    "hint/0.19.1/gpt-oss-120b/gb10-single": "27a8a289de35d81aca5d063885a37aea5e5a6342",
+}
 _FULL_ANCHOR_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -312,7 +331,7 @@ def _build_evidence_footer(fields: dict[str, str]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _parse_evidence_footer(body: str) -> dict[str, str]:
+def _parse_evidence_footer(body: str, retired_ok: frozenset = frozenset()) -> dict[str, str]:
     """Strict parse of ONE hint-evidence-binding footer out of a tag object's body text. Raises
     HintEvidenceBindingError -- HINT_EVIDENCE_BINDING_MISSING when the block itself isn't found at
     all (a historical/unmigrated tag), HINT_EVIDENCE_BINDING_MALFORMED for every other defect
@@ -335,6 +354,8 @@ def _parse_evidence_footer(body: str) -> dict[str, str]:
                                             f"unparseable footer line: {line!r}")
         key, value = fm.group(1), fm.group(2).strip()
         if key not in _FOOTER_FIELDS:
+            if key in retired_ok:
+                continue      # 폐기 키 — 빈티지 핀에 한해 읽고 버린다(값은 판정에 쓰지 않는다)
             raise HintEvidenceBindingError("HINT_EVIDENCE_BINDING_MALFORMED",
                                             f"unrecognized footer key: {key!r}")
         if key in fields:
@@ -936,10 +957,18 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
     typ = git("cat-file", "-t", tag, check=False).stdout.strip()
     if typ != "tag":
         return None, [("HINT_TAG_NOT_ANNOTATED", f"{tag}: HINT_TAG_NOT_ANNOTATED annotated 태그가 아님(type={typ})")]
+    tag_object = git("rev-parse", "--verify", tag, check=False).stdout.strip()
+    retired_ok = (RETIRED_FOOTER_KEYS
+                  if LEGACY_FOOTER_TAG_PINS.get(tag) == tag_object and tag_object
+                  else frozenset())
     try:
-        footer = _parse_evidence_footer(_tag_object_body(tag))
+        footer = _parse_evidence_footer(_tag_object_body(tag), retired_ok=retired_ok)
     except HintEvidenceBindingError as e:
         return None, [(e.code, f"{tag}: {e.code} {e.message}")]
+    if retired_ok:
+        # 침묵 수용 금지 — 어느 태그가 어떤 빈티지로 통과했는지 소리내어 남긴다.
+        print(f"[hint_tag] LEGACY(vintage) {tag}: 폐기된 footer 키를 핀 목록에 따라 읽고 **버린다** "
+              f"(태그는 불변 · 값은 판정에 쓰지 않는다)", file=sys.stderr)
 
     # ★ 문제는 (code, message) 로 낸다 — 판정은 code 로만 한다. 종전엔 렌더된 message 를
     # 부분일치(`CODE in msg`)로 분류했는데, message 에는 footer 값이 그대로 박히므로
@@ -1969,6 +1998,31 @@ def cmd_self_test(_a=None) -> int:
         ck("우리 helper 가 환경변수에서 읽는다", PUSH_TOKEN_ENV in args[3] and "$" + PUSH_TOKEN_ENV in args[3])
         ck("★토큰 값이 argv 에 없다", not any("ghp_" in a for a in args))
         ck("helper 는 get 이외 연산에 응답하지 않는다", 'test "$1" = get' in args[3])
+
+    # ── footer 빈티지 핀(폐기 키 하위호환) — 음성대조가 핵심이다
+    _f = ("<!-- hint-evidence-binding:v1\n"
+          "version: 1\ntag: hint/x/y/z\ntopology: single 1노드\n"
+          "anchor: " + "a" * 40 + "\nmanifest_ref: m.json\ncertificate_ref: c.yaml\n%s-->\n")
+    ck("정상 footer 파싱", _parse_evidence_footer(_f % "")["tag"] == "hint/x/y/z")
+    legacy = _f % "manifest_ref_note: x\n".replace("manifest_ref_note", "manifest_sha256")
+    ck("★핀 있으면 폐기 키를 읽고 버린다",
+       "manifest_sha256" not in _parse_evidence_footer(legacy, retired_ok=RETIRED_FOOTER_KEYS))
+    def _boom(b, r=frozenset()):
+        try:
+            _parse_evidence_footer(b, retired_ok=r)
+        except HintEvidenceBindingError as e:
+            return e.code
+        return None
+    ck("★음성대조 핀 없으면 폐기 키는 여전히 차단",
+       _boom(legacy) == "HINT_EVIDENCE_BINDING_MALFORMED")
+    ck("★음성대조 폐기 키가 아닌 미지 키는 핀이 있어도 차단",
+       _boom(_f % "totally_unknown: x\n", RETIRED_FOOTER_KEYS) == "HINT_EVIDENCE_BINDING_MALFORMED")
+    ck("★seal 이 폐기 키를 발행하는 경로는 없다",
+       not (set(_FOOTER_FIELDS) & RETIRED_FOOTER_KEYS)
+       and not (RETIRED_FOOTER_KEYS & set(_build_evidence_footer(
+           {k: "v" for k in _FOOTER_FIELDS}).split())))
+    ck("핀은 닫힌 목록이다(태그→오브젝트 SHA)",
+       all(re.fullmatch(r"[0-9a-f]{40}", v) for v in LEGACY_FOOTER_TAG_PINS.values()))
 
     # ── 본문 린터(음성대조 포함)
     good = "\n".join([f"## {n}. x\n" + ("가" * 90) for n, _ in REQUIRED_SECTIONS]) + "\narch-invariant\n"
