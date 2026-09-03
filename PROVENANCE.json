@@ -1,8 +1,8 @@
 {
-  "anchor": "e51572dc98d3dd87f690d5a55058f2a038d5db48",
-  "anchor_is_head": true,
+  "anchor": "3ac89c47e1e6ddc101be44209fd5497b7f6a5d1a",
+  "anchor_is_head": false,
   "assembled_at_head": "e51572dc98d3dd87f690d5a55058f2a038d5db48",
-  "generated_kst": "2026-09-03T08:59:00",
+  "generated_kst": "2026-09-03T09:15:00",
   "kind": "hint_payload_provenance",
   "payload_files": 12,
   "schema_version": 1,
