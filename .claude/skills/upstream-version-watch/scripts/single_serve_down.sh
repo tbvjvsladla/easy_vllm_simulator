@@ -13,7 +13,7 @@
 #   두 토폴로지를 넣으면 분기마다 "이건 멀티만" 주석이 붙는 코드가 된다 — 헌법 §불변식 A 가
 #   경고하는 *한 스킴으로 두 존재를 덮는* 형태 그대로다. 진입점을 가른다.
 #
-# 5단계(순서가 곧 안전장치다):
+# 6단계(순서가 곧 안전장치다):
 #   1) 컨테이너 down        — 서빙을 먼저 내린다
 #   2) 상주 사이드카 회수    — 협역 워치독 · 예산갱신 루프(argv **위치** 대조만)
 #   3) 페이지캐시 드랍      — best-effort. **건너뛰면 사유를 반드시 말한다**
@@ -203,8 +203,53 @@ PY
   fi
 fi
 
+# ── 6/6 컨테이너 생성물 소유권 정렬 ──────────────────────────────────────────
+#
+# 왜(2026-09-03 wipe 2차 실측): compose 는 JIT/컴파일 캐시를 `./cache/{vllm,flashinfer}` →
+#   컨테이너 `/root/.cache/*` 로 마운트한다(통로 self-containment 가 설계 의도 · compose 주석).
+#   컨테이너 프로세스는 root 라 그 캐시 파일이 **호스트에서 root 소유**로 남는다. 그러면
+#   위임 사용자가 자기 워크스페이스를 정리할 수 없다:
+#     `rm: cannot remove '.../output/single/cache/vllm/torch_compile_cache/...': Permission denied`
+#   포크 사용자가 서빙 한 번 한 뒤 워크스페이스를 지우려면 sudo 가 필요해진다 — 배포 결함이다.
+#   1차 wipe 때는 서브가 서빙한 적이 없어 캐시가 없었고, 그래서 **보이지 않았다**.
+#
+# 왜 캐시를 프로젝트 밖으로 빼지 않는가: compose 주석이 근거를 적는다 — 통로 self-containment
+#   (`./cache = output/<topology>/cache`, gitignored)와 레퍼런스 레시피(호스트 venv `~/.cache`
+#   유지 전제)와의 parity. 그 의도를 깨지 않고 **소유권만** 되돌린다.
+#
+# 왜 컨테이너 경유인가: chown 은 root 권한을 요구하고 이 스크립트는 비밀번호 없는 sudo 를
+#   가정하지 않는다(3단계가 이미 그래서 skip 된다). 도커 소켓 접근권은 이미 전제이므로
+#   같은 권한의 **정식 통로**를 쓴다(우회가 아니라 경로다). 대상 uid/gid 는 프로젝트 경로
+#   소유자에서 **파생**한다 — 하드코딩하지 않는다. chown 은 멱등이라 재실행이 안전하다.
+CACHE_DIR="$REPO/output/single/cache"   # 통로는 54-56행과 동일 고정(이 진입점은 single 전용)
+if [ ! -d "$CACHE_DIR" ]; then
+  echo "$TAG 6/6 캐시 소유권     : SKIPPED — $CACHE_DIR 부재(서빙 이력 없음)"
+else
+  _own="$(stat -c '%u:%g' "$REPO")"
+  _root_n="$(find "$CACHE_DIR" ! -user "$(stat -c '%U' "$REPO")" 2>/dev/null | wc -l)"
+  if [ "${_root_n:-0}" = "0" ]; then
+    echo "$TAG 6/6 캐시 소유권     : DONE — 이미 정렬됨(타 소유 0건 · no-op)"
+  elif [ "$DRY" = "1" ]; then
+    echo "$TAG 6/6 캐시 소유권     : (dry-run) docker run --rm -v $CACHE_DIR:/w <IMAGE> chown -R $_own /w  (타 소유 ${_root_n}건)"
+  else
+    _img="$(grep -E '^IMAGE_TAG=' "$EF" 2>/dev/null | head -1 | cut -d= -f2-)"
+    [ -n "$_img" ] || _img="$(docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep -E '^easy-vllm:' | head -1)"
+    if [ -z "$_img" ]; then
+      echo "$TAG 6/6 캐시 소유권     : FAIL — chown 을 실행할 로컬 이미지를 찾지 못했다(타 소유 ${_root_n}건 잔존)." >&2
+      echo "$TAG   → 수동: sudo chown -R $(stat -c '%U:%G' "$REPO") $CACHE_DIR" >&2
+      FAILED=1
+    elif out="$(docker run --rm -v "$CACHE_DIR":/w --entrypoint chown "$_img" -R "$_own" /w 2>&1)"; then
+      echo "$TAG 6/6 캐시 소유권     : DONE — ${_root_n}건 → $(stat -c '%U:%G' "$REPO") (이미지 $_img)"
+    else
+      echo "$TAG 6/6 캐시 소유권     : FAIL — $out" >&2
+      echo "$TAG   → 수동: sudo chown -R $(stat -c '%U:%G' "$REPO") $CACHE_DIR" >&2
+      FAILED=1
+    fi
+  fi
+fi
+
 if [ "$FAILED" = "0" ]; then
-  echo "$TAG 완료(5단계). 재기동은 README §B-3 또는 에이전트 경로(run_trial)로."
+  echo "$TAG 완료(6단계). 재기동은 README §B-3 또는 에이전트 경로(run_trial)로."
   exit 0
 fi
 echo "$TAG 일부 단계 실패 — 위 FAIL 을 확인하라(부분 회수 상태다)." >&2
