@@ -41,6 +41,12 @@ fi
 # 면제 2경로(recipe.py _require_terraform_flag 와 동형): (1차) 서브 A2A 위임 *양성 키* .claude/a2a_delegation.json 존재
 #   (메인이 동질성 검증 후 발급, 메인 키와 UNIQUE) · (2차) EASY_VLLM_A2A_DELEGATED env(테스트 override).
 # 그 외 메인이면 manifest_contract --require-flag. 키·MC·Flag 모두 부재 = fail-closed info-only(옛 [ -f $MC ]-부재 skip 은 fail-open 이었음).
+# ⚠ 서브에는 이 파일이 없다(설계) — `terraforming_node` 는 온보딩 스킬이라 배달되지 않는다.
+#   서브는 아래 A2A 위임 *양성 키* 경로로 게이트를 통과하며, 키·MC·Flag 모두 부재면
+#   fail-closed(exit 4)다. 즉 MC 경로 부재는 결함이 아니다 — **배달 목록에 넣지 마라**
+#   (2026-09-03 명문화: 같은 가정을 하드코딩한 single_serve_down.sh 는 서브에서 실제로
+#    죽었다. 그쪽은 블랙박스가 서브에 *있으므로* 경로만 갈렸던 것이고, 이쪽은 파일 자체가
+#    없는 것이 계약이다 — 두 경우를 구분하라).
 MC="$REPO/.claude/skills/terraforming_node/scripts/manifest_contract.py"
 KEY="$REPO/.claude/a2a_delegation.json"
 KEY_OK=0   # 존재 + 내용·역할 검증(D8: 손상/외부 파일로 게이트 우회 차단 — WARN-1)

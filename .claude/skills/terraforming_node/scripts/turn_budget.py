@@ -21,7 +21,29 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+
+# 요청 스키마가 max_turns 의 **상한 정본**이다 — 여기 숫자를 다시 적지 않는다(두 자리가 갈라진다).
+REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
+REQUEST_SCHEMA = os.path.join(REPO, ".claude", "schemas", "agent-control-request.schema.json")
+
+
+def schema_max_turns(path: str = REQUEST_SCHEMA) -> int:
+    """agent-control 요청 스키마의 max_turns 상한을 읽는다. 못 읽으면 fail-loud.
+
+    2026-09-03 실측(P4): L4(65) 소진 → escalate 가 104 를 냈고 → 요청 스키마가
+    `$.max_turns: 104 above maximum 100` 으로 **정상 차단**했다. 가드는 제 일을 했지만,
+    증액하는 쪽이 상한을 모르니 **L4 소진 뒤 릴레이가 구조적으로 막혔다**(attempt 하나가
+    통째로 낭비됐다). 상한을 여기 상수로 복제하면 스키마와 갈라지므로 **읽는다**.
+    """
+    with open(path, encoding="utf-8") as f:
+        doc = json.load(f)
+    node = (doc.get("properties") or {}).get("max_turns") or {}
+    cap = node.get("maximum")
+    if not isinstance(cap, int) or cap < 1:
+        raise SystemExit(f"[turn-budget] FAIL: 요청 스키마에서 max_turns 상한을 읽지 못했다 — {path}")
+    return cap
 
 # grade → (max_turns, timeout_seconds, 제어 패턴). 하한은 6 — 그 아래는 왕복 자체가 성립하지 않는다.
 GRADES = {
@@ -56,14 +78,26 @@ def budget(grade: str) -> dict:
     return row
 
 
-def escalate(grade: str, previous_allocated: int) -> dict:
-    """소진 뒤 새 attempt 의 예산. **항상 이전보다 크다** — 같거나 작으면 fail-loud."""
+def escalate(grade: str, previous_allocated: int, cap: int = None) -> dict:
+    """소진 뒤 새 attempt 의 예산. **항상 이전보다 크다** — 같거나 작으면 fail-loud.
+
+    단 전송 계약(요청 스키마)의 상한을 넘지 않는다. 상한에 닿으면 **그 사실을 출처에 적는다** —
+    조용히 깎으면 "왜 안 늘었나" 를 다음 사람이 알 수 없다(침묵 폴백 금지).
+    상한에서 또 소진되면 그것은 예산 문제가 아니라 **과업을 쪼개라는 신호**이며, 출처가 그렇게 말한다.
+    """
     base = budget(grade)
-    nxt = max(int(previous_allocated * ESCALATION_FACTOR), previous_allocated + MIN_TURNS)
+    cap = schema_max_turns() if cap is None else cap
+    want = max(int(previous_allocated * ESCALATION_FACTOR), previous_allocated + MIN_TURNS)
+    nxt = min(want, cap)
     if nxt <= previous_allocated:
-        raise SystemExit("[turn-budget] FAIL: 증액이 성립하지 않는다 — 예산 축소는 하강나선이다.")
+        raise SystemExit(
+            "[turn-budget] FAIL: 증액이 성립하지 않는다 — 이전 %d, 전송 상한 %d. 예산 축소는 하강나선이다. "
+            "상한에서 소진됐다면 예산을 늘릴 것이 아니라 **과업을 더 작은 턴으로 쪼개라**(scope ⊥ budget)."
+            % (previous_allocated, cap))
     base["max_turns"] = nxt
     base["source"] = SOURCE + f" · escalated from {previous_allocated} (×{ESCALATION_FACTOR})"
+    if nxt < want:
+        base["source"] += f" · 전송 상한 {cap} 으로 클램프(요청 {want})"
     return base
 
 
@@ -92,6 +126,21 @@ def _self_test() -> int:
         chk(False, "어휘 밖 grade → fail-loud")
     except SystemExit:
         chk(True, "어휘 밖 grade → fail-loud")
+    # 전송 상한 인지(2026-09-03 P4 실측: 104 를 스키마가 정상 차단해 attempt 하나가 낭비됐다)
+    cap = schema_max_turns()
+    chk(cap == 100, f"요청 스키마에서 상한을 읽는다(cap={cap}) — 상수 복제 ✗")
+    e = escalate("L4", 65)
+    chk(e["max_turns"] == cap and "클램프" in e["source"],
+        f"상한 초과 요청은 클램프되고 그 사실이 출처에 남는다 → {e['max_turns']} · {e['source'][-40:]}")
+    e2 = escalate("L2", 25)
+    chk(e2["max_turns"] == 40 and "클램프" not in e2["source"],
+        f"상한 미만은 종전대로 증액(클램프 표시 없음) → {e2['max_turns']}")
+    try:
+        escalate("L4", cap)
+        chk(False, "상한에서의 증액 시도는 fail-loud 여야 한다")
+    except SystemExit as _e:
+        chk("쪼개라" in str(_e), "상한 소진 → 예산이 아니라 과업 분할을 지시한다")
+
     print("self-test: %s" % ("PASS" if ok else "FAIL"))
     return 0 if ok else 2
 

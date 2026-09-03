@@ -41,6 +41,12 @@ fi
 
 # 헌법 §테라포밍-완수/A2A-위임 Flag 게이트 — 결정론 백스톱(fail-closed, run_bench.sh 와 동형).
 # lite 는 이미 Flag-게이트된 serve 위에서 돈다(§0.0 전이적 게이트) — 직접 진입도 동일 백스톱.
+# ⚠ 서브에는 이 파일이 없다(설계) — `terraforming_node` 는 온보딩 스킬이라 배달되지 않는다.
+#   서브는 아래 A2A 위임 *양성 키* 경로로 게이트를 통과하며, 키·MC·Flag 모두 부재면
+#   fail-closed(exit 4)다. 즉 MC 경로 부재는 결함이 아니다 — **배달 목록에 넣지 마라**
+#   (2026-09-03 명문화: 같은 가정을 하드코딩한 single_serve_down.sh 는 서브에서 실제로
+#    죽었다. 그쪽은 블랙박스가 서브에 *있으므로* 경로만 갈렸던 것이고, 이쪽은 파일 자체가
+#    없는 것이 계약이다 — 두 경우를 구분하라).
 MC="$REPO/.claude/skills/terraforming_node/scripts/manifest_contract.py"
 KEY="$REPO/.claude/a2a_delegation.json"
 KEY_OK=0

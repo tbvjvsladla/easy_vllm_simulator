@@ -125,7 +125,12 @@ else
 # 더 이상 cold 가 아니다.
 echo "[sweep_bench] ── lite 포함 실행(full ⊇ lite 불변식) ──"
 LITE_RAW="$SWEEPDIR/lite_raw_${CONFIG}.json"
-if bash "$SDIR/lite_bench.sh" "$CONFIG" --topology "$TOPO" --out-dir "$SWEEPDIR" >/dev/null 2>&1 \
+# ★ 2026-09-03: `--backend "$BACKEND"` 가 **이 호출에만 빠져 있었다**(레벨 호출에는 있다).
+#   2026-09-01 에 harmony 왜곡 대응으로 세 파일(run_bench·sweep_bench·lite_bench)에 노브를 신설했는데
+#   sweep→lite 호출부 하나가 전달을 빠뜨렸다. 그래서 full 런의 lite 열은 **언제나 openai-chat** 으로
+#   재졌고, gpt-oss 에서 gen_tps 11.83 vs 같은 런의 full decode 34.42 (2.9배)가 나왔다 —
+#   2026-09-01 에 인증서까지 갔던 그 왜곡과 **같은 뿌리**다. 노브를 만든 것과 그것이 도는 것은 다르다.
+if bash "$SDIR/lite_bench.sh" "$CONFIG" --topology "$TOPO" --backend "$BACKEND" --out-dir "$SWEEPDIR" >/dev/null 2>&1 \
    && [ -s "$LITE_RAW" ]; then
   echo "[sweep_bench] lite ✓ → $LITE_RAW"
 else
