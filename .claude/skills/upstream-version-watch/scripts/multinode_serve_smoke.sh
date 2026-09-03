@@ -257,12 +257,82 @@ case "$_it" in
       echo "[mn]   → $EF 에 'BUILD_DOCKERFILE=Dockerfile.source-build' 을 명시하라." >&2
       exit 3 ;; esac ;;
 esac
+# ── 버전 정합 — 트랙만 맞아도 **버전이 갈릴 수 있다** (2026-09-04) ──
+#   태그의 버전 조각과 실제 빌드가 쓰는 버전을 대조한다. wheel 트랙은 VLLM_VERSION(env 또는
+#   Dockerfile ARG 기본값), source 트랙은 VLLM_REF 가 그 값이다. 트랙 게이트만 있던 초판은
+#   `IMAGE_TAG=…0.19.1…-wheel` + Dockerfile 기본값 0.18.0 조합을 그대로 통과시켰다.
+_tag_ver="$(printf '%s' "$_it" | sed -n 's/^easy-vllm:\([0-9][0-9.]*\)-.*/\1/p')"
+if [ -n "$_tag_ver" ]; then
+  case "$_bd" in
+    Dockerfile)
+      # ⚠ 이 스크립트에 $TOPO 는 없다(멀티 전용 진입점 — EF 도 output/multi 로 고정이다).
+      #   초판이 `output/$TOPO/Dockerfile` 을 읽어 빈 경로가 됐고, 그 결과 `_bld_ver` 가 비어
+      #   **대조를 건너뛰었다**(로그: `빌드 버전 정합: 태그 0.18.0 ↔ 빌드  `). 판정 불가를 통과로
+      #   읽은 것 — 바로 아래 ABI 게이트에서는 지킨 원칙을 여기서 어겼다. 경로 고정 + fail-loud.
+      _bld_ver="$(val VLLM_VERSION)"
+      [ -n "$_bld_ver" ] || _bld_ver="$(sed -n 's/^ARG VLLM_VERSION=\(.*\)$/\1/p' "output/multi/Dockerfile" 2>/dev/null | head -1)"
+      _src="env/Dockerfile-ARG" ;;
+    *) _bld_ver="$(val VLLM_REF)"; _bld_ver="${_bld_ver#v}"; _src="VLLM_REF"
+       [ -n "$_bld_ver" ] || { _bld_ver="0.27.1"; _src="compose 기본값"; } ;;
+  esac
+  if [ -z "$_bld_ver" ]; then
+    echo "[mn] FAIL(버전 판정 불가): 태그 버전 '$_tag_ver' 에 대응하는 빌드 버전을 읽지 못했다($_src)." >&2
+    echo "[mn]   → 판정 불가는 통과가 아니다. wheel 트랙이면 output/multi/Dockerfile 의 ARG VLLM_VERSION" >&2
+    echo "[mn]     또는 $EF 의 VLLM_VERSION 을, source 트랙이면 VLLM_REF 를 확인하라." >&2
+    exit 3
+  fi
+  if [ "$_tag_ver" != "$_bld_ver" ]; then
+    echo "[mn] FAIL(버전 불일치): IMAGE_TAG 의 버전 '$_tag_ver' ≠ 실제 빌드 버전 '$_bld_ver' ($_src)." >&2
+    echo "[mn]   → 이대로 빌드하면 태그가 거짓말을 한다(다른 버전이 그 이름으로 붙는다)." >&2
+    echo "[mn]   → wheel 트랙이면 $EF 에 'VLLM_VERSION=$_tag_ver' 를, source 트랙이면 'VLLM_REF=v$_tag_ver' 를 명시하라." >&2
+    exit 3
+  fi
+  echo "[mn] 빌드 버전 정합: 태그 $_tag_ver ↔ 빌드 $_bld_ver ($_src)"
+else
+  echo "[mn] ⚠ IMAGE_TAG 에서 버전 조각을 못 읽었다('$_it') — 버전 정합 판정 생략(트랙 정합은 통과)."
+fi
 echo "[mn] 빌드 트랙 정합: IMAGE_TAG=$_it ↔ BUILD_DOCKERFILE=$_bd"
   echo "[mn] 양 노드 빌드(병렬)... build_jobs=${BJOBS:-<Dockerfile 기본 16>}"
   docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master build >/tmp/mn_build_master.log 2>&1 & BPID=$!
   $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $SLAVE_BUILDVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave build'" >/tmp/mn_build_slave.log 2>&1 & SPID=$!
   wait $BPID; MR=$?; wait $SPID; SR=$?
   if [ $MR -eq 0 ] && [ $SR -eq 0 ]; then echo "[mn] 빌드 OK(양 노드)";
+# ── 빌드 후 ABI 불변식 검증 (2026-09-04 신설) ─────────────────────────────────────
+#
+# 헌법 §레이어 커플링: "prebuilt wheel 트랙에서는 대상 vLLM 버전이 선언한 torch 버전과 NGC 컨테이너
+# 베이스의 torch 빌드버전이 **접두어 일치**해야 한다(wheel `_C` 의 ABI 요건)".
+# 그 불변식은 문서에만 있었고 **코드가 집행한 적이 없었다**. 실측(2026-09-04): 멀티 requirements 가
+# 0.27.1 wheel 에서 파생된 낡은 것이라 `torchcodec>=0.14` 가 들어 있었고, 그것이 의존성으로 torch 를
+# 2.14.0 으로 끌어올려 NGC 베이스의 2.10.0a0 을 덮었다. 빌드는 성공했고 서빙 기동에서야
+# `ImportError: vllm/_C.abi3.so: undefined symbol: _ZN3c104cuda29c10_cuda_check_implementation…`
+# 로 죽었다 — 증상이 원인에서 멀다.
+#
+# 그래서 **빌드 직후 이미지 안에서** 실제 torch 를 읽어 대조한다. 양 노드 모두 본다(멀티는 빌드
+# 인자가 한 톨도 갈리면 안 된다 — 이 파일의 SLAVE_IMGVARS 규율과 같은 이유).
+if [ "$_bd" = "Dockerfile" ]; then   # wheel 트랙에만 적용(source-build 는 베이스 torch 를 그대로 쓴다)
+  _want="$(python3 "$REPO/.claude/skills/upstream-version-watch/scripts/resolve_torch_pin.py" \
+             "$_tag_ver" 2>/dev/null | python3 -c \
+             'import sys,json;d=json.load(sys.stdin);print(d.get("torch_prefix") or "")' 2>/dev/null || echo "")"
+  if [ -z "$_want" ]; then
+    echo "[mn] ⚠ torch 기대 접두어 미해소(vLLM $_tag_ver) — ABI 검증 생략(판정 불가를 통과로 읽지 않되 차단도 않는다)."
+  else
+    for _n in main sub; do
+      if [ "$_n" = "main" ]; then
+        _got="$(docker run --rm "$IMG" python3 -c 'import torch;print(torch.__version__)' 2>/dev/null | tail -1)"
+      else
+        _got="$(ssh -o BatchMode=yes -n "$SUB_HOST" "docker run --rm '$IMG' python3 -c 'import torch;print(torch.__version__)'" 2>/dev/null | tail -1)"
+      fi
+      case "$_got" in
+        "$_want"*) echo "[mn] ABI 정합($_n): torch $_got ← 기대 접두어 $_want" ;;
+        "") echo "[mn] FAIL(ABI): $_n 이미지에서 torch 버전을 읽지 못했다 — 검증 불가는 통과가 아니다." >&2; exit 3 ;;
+        *)  echo "[mn] FAIL(ABI 불일치): $_n 이미지 torch=$_got 인데 vLLM $_tag_ver 는 $_want* 를 요구한다." >&2
+            echo "[mn]   → wheel 의 _C 확장이 베이스 torch 와 ABI 가 갈린다(기동 시 undefined symbol)." >&2
+            echo "[mn]   → requirements 가 torch 를 끌어올렸는지 확인하라: 'regen_requirements.py --from-wheel-url <이 버전의 wheel> -o output/$TOPO/requirements.txt'" >&2
+            exit 3 ;;
+      esac
+    done
+  fi
+fi
   else echo "[mn] FAIL: 빌드(master=$MR slave=$SR). tail:"; tail -6 /tmp/mn_build_master.log /tmp/mn_build_slave.log; exit 2; fi
 fi
 

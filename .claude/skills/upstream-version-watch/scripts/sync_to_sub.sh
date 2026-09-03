@@ -981,8 +981,18 @@ prepare_transactional_source() {
     # output files never enter the snapshot. The sole filesystem exception is manifest.yaml: it is
     # topology input (possibly PII), is explicitly copied mode 0600, deterministically renders the
     # transaction, and is excluded from remote delivery by _band2_filters.
-    if ! git -C "$CANONICAL_SRC" diff --quiet -- .claude CLAUDE.md .gitignore output/multi output/single; then
-        echo "[sync] info: canonical worktree drift detected; filesystem bytes are excluded in favor of index authority"
+    # ⚠ 드리프트는 **파일 이름과 함께** 말한다(2026-09-04 실측). 이전 문구는 `[sync] info:` 한 줄로
+    #   "드리프트가 있다" 만 알렸고 **어느 파일인지 말하지 않았다**. 그래서 실제로 이런 일이 벌어졌다:
+    #   `output/multi/requirements.txt` 를 고치고 배달했는데 스테이징을 안 해 **인덱스의 구버전이
+    #   조용히 갔고**, rc=0 이라 성공으로 보였다. 가드는 울었지만 이름이 없어 사람이 자기 파일과
+    #   연결하지 못했고, 로그를 FAIL/STOP 으로 좁혀 보는 습관이 그 한 줄을 잘라냈다.
+    #   인덱스 권위 자체는 계약이므로 **차단하지 않는다** — 다만 무엇이 갈렸는지는 반드시 보인다.
+    local _drift
+    _drift="$(git -C "$CANONICAL_SRC" diff --name-only -- .claude CLAUDE.md .gitignore output/multi output/single 2>/dev/null)"
+    if [ -n "$_drift" ]; then
+        echo "[sync] ⚠ 워킹트리 드리프트 — 아래 파일은 **인덱스 버전이 배달된다**(git add 안 한 변경은 안 간다):" >&2
+        printf '%s\n' "$_drift" | sed 's/^/[sync]     /' >&2
+        echo "[sync]   → 방금 고친 파일이 이 목록에 있으면 'git add <파일>' 후 다시 실행하라." >&2
     fi
     git -C "$CANONICAL_SRC" ls-files -z -- .claude CLAUDE.md .gitignore output/multi output/single \
         | git -C "$CANONICAL_SRC" checkout-index -z --stdin --prefix="$TRANSACTIONAL_SRC/"
