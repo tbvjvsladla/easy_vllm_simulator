@@ -51,7 +51,8 @@ x-gpu-common: &gpu-common
     - /dev/infiniband:/dev/infiniband
   volumes:
     # 포인터 원칙(헌법 §배포·§manifest→서빙전략 배선): PII·환경경로 비추적 — manifest → output/multi/.env 로 materialize.
-    # 기본값(/mnt/models)은 플레이스홀더; render_dockerfile.py --materialize-env 가 manifest 실값(NAS_MODEL_PATH·
+    # 각 변수의 `:-` 뒤 기본값은 **플레이스홀더**다(운영자 실경로 아님); render_dockerfile.py --materialize-env 가
+    # manifest 실값(NAS_MODEL_PATH·
     # QUANT_MODEL_PATH·TIKTOKEN_HOST_PATH)으로 .env 를 채워 compose 변수치환(serve-time env 통로 불변식).
     - ${NAS_MODEL_PATH:-/mnt/models}:/app/models:ro       # 모델 폴더 read-only (managed/custom 마운트원)
     - ${QUANT_MODEL_PATH:-/mnt/models}:/app/quant_models:ro
