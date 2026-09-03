@@ -1,8 +1,8 @@
 {
   "artifacts": [
-    "artifacts/triplet/gpt-oss-20b-gb10.yaml",
-    "artifacts/triplet/gpt-oss-20b-gb10.sh",
-    "artifacts/triplet/.env.gpt-oss-20b-gb10",
+    "artifacts/triplet/gpt-oss-120b-gb10.yaml",
+    "artifacts/triplet/gpt-oss-120b-gb10.sh",
+    "artifacts/triplet/.env.gpt-oss-120b-gb10",
     "artifacts/build_recipe/Dockerfile",
     "artifacts/build_recipe/requirements.txt",
     "artifacts/compose/docker-compose.yaml",
@@ -11,17 +11,17 @@
   "benchmark": {
     "accept_len": "N/A",
     "benchmark_mode": "full",
-    "decode_tps_conc1": "69.36",
-    "floor_tps": "33.35",
-    "lite_cold_ttft_ms": "89.9",
+    "decode_tps_conc1": "34.42",
+    "floor_tps": "13.18",
+    "lite_cold_ttft_ms": "69.6",
     "lite_gen_src": "median_tpot",
-    "lite_gen_tps_warm": "69.58",
+    "lite_gen_tps_warm": "34.69",
     "lite_included": "true",
-    "lite_kv_gib": "5.0",
-    "measured_utc": "2026-09-03T22:41:45Z",
+    "lite_kv_gib": "30.0",
+    "measured_utc": "2026-09-03T12:34:31Z",
     "primary_source": "expected_achievable(roofline×MBU)",
-    "primary_tps": "39.24",
-    "ratio_M_over_primary": "1.768",
+    "primary_tps": "15.51",
+    "ratio_M_over_primary": "2.219",
     "rubric_authority": "weak",
     "spec_on": "false",
     "sweep_levels": "1,2,4,8,16",
@@ -30,17 +30,17 @@
     "verdict": "PASS"
   },
   "benchmark_source": {
-    "certificate": "benchmark_26090408_14_02_gpt-oss-20b_GB10_0.18.0.yaml",
+    "certificate": "benchmark_26090408_37_21_gpt-oss-120b_GB10_0.18.0.yaml",
     "parsed_not_synthesized": true,
-    "sha256": "13b42acbf7e81a189aa2ed513a508209b298164e2dd7afed23e484e6b1c62159"
+    "sha256": "2cb755c977ee2c7120c866d90f9d5901345ef4b06d2ba4f42b5fa424aa44589c"
   },
-  "generated_kst": "2026-09-04T08:14:45",
+  "generated_kst": "2026-09-04T08:37:43",
   "identity": {
     "gpu": "NVIDIA GB10",
-    "model": "gpt-oss-20b",
+    "model": "gpt-oss-120b",
     "quant": "mxfp4",
-    "topology": "multi",
-    "tp": 2,
+    "topology": "single",
+    "tp": 1,
     "vllm": "0.18.0"
   },
   "kind": "hint_payload_facts",
@@ -54,25 +54,8 @@
     "build_patch_post": {
       "evidence": null,
       "evidence_source": null,
-      "excluded_by_recipe": {
-        "reason": "활성 빌드 레시피가 이 디렉터리를 참조하지 않는다 — 이 이미지에 먹지 않았다",
-        "recipe_files": [
-          "output/multi/Dockerfile"
-        ],
-        "rendered_but_unused": [
-          "output/multi/build_patches/10-deepgemm.sh",
-          "output/multi/build_patches/20-triton-kernels.sh",
-          "output/multi/build_patches/30-mxfp4-triton-sm121.sh",
-          "output/multi/build_patches/40-humming-nvml-gb10.sh"
-        ]
-      },
       "exemptible": true,
-      "files": [
-        "output/multi/build_patches/10-deepgemm.sh",
-        "output/multi/build_patches/20-triton-kernels.sh",
-        "output/multi/build_patches/30-mxfp4-triton-sm121.sh",
-        "output/multi/build_patches/40-humming-nvml-gb10.sh"
-      ],
+      "files": [],
       "owner": "upstream-version-watch",
       "phase": "컴파일 후",
       "present": false,
@@ -81,24 +64,8 @@
     "build_patch_pre": {
       "evidence": false,
       "evidence_source": "build_patches_src/PROVENANCE.json",
-      "excluded_by_recipe": {
-        "reason": "활성 빌드 레시피가 이 디렉터리를 참조하지 않는다 — 이 이미지에 먹지 않았다",
-        "recipe_files": [
-          "output/multi/Dockerfile"
-        ],
-        "rendered_but_unused": [
-          "output/multi/build_patches_src/50-dsv4-sm12x-port.sh",
-          "output/multi/build_patches_src/55-src-deps-authority.sh"
-        ]
-      },
       "exemptible": true,
-      "files": [
-        "output/multi/build_patches_src/50-dsv4-sm12x-port.sh",
-        "output/multi/build_patches_src/55-src-deps-authority.sh"
-      ],
-      "nonconforming": [
-        "PROVENANCE.json"
-      ],
+      "files": [],
       "owner": "upstream-version-watch",
       "phase": "컴파일 전",
       "present": false,
@@ -109,8 +76,8 @@
       "evidence_source": "certificate.image_tag ↔ .env IMAGE_TAG",
       "exemptible": false,
       "files": [
-        "output/multi/Dockerfile",
-        "output/multi/requirements.txt"
+        "output/single/Dockerfile",
+        "output/single/requirements.txt"
       ],
       "owner": "upstream-version-watch",
       "phase": "build",
@@ -123,13 +90,13 @@
       "evidence_source": "certificate.image_tag ↔ .env IMAGE_TAG",
       "exemptible": false,
       "files": [
-        "output/multi/docker-compose.yaml"
+        "output/single/docker-compose.yaml"
       ],
       "owner": "upstream-version-watch",
       "phase": "serve(orchestration)",
       "present": true,
       "slot_confidence": "3-signal(file+evidence+declaration)",
-      "topology_env_template_from": "output/multi/.env"
+      "topology_env_template_from": "output/single/.env"
     },
     "fork_pin": {
       "evidence": false,
@@ -158,9 +125,9 @@
       "evidence_source": "certificate.serving_config",
       "exemptible": false,
       "files": {
-        "config_yaml": "output/multi/configs/gpt-oss-20b-gb10.yaml",
-        "env_file": "output/multi/envs/.env.gpt-oss-20b-gb10",
-        "runner_sh": "output/multi/configs/gpt-oss-20b-gb10.sh"
+        "config_yaml": "output/single/configs/gpt-oss-120b-gb10.yaml",
+        "env_file": "output/single/envs/.env.gpt-oss-120b-gb10",
+        "runner_sh": "output/single/configs/gpt-oss-120b-gb10.sh"
       },
       "missing": [],
       "owner": "vllm-recipe-explorer",
@@ -172,6 +139,6 @@
   "source_channel": {
     "read_from": "working-tree(main)",
     "sub_note": "서브 산출물은 이 통로로 오지 않는다 — 문서기반 회수(fetch_sub_docs.sh) 뒤 메인이 재저작한다(docs.md 상향 회수 규약).",
-    "topology": "multi"
+    "topology": "single"
   }
 }

@@ -4,7 +4,7 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "TP=2 서빙 설정·러너·모델 env — ray executor·gmu 0.80·워커당 KV 5GiB·포트 8080·max-model-len 4096"
+      "rationale": "단일노드 최대 컨텍스트 구성 — gmu 0.90·KV 30GiB 총량·max-model-len 131072·포트 8000(브리지 매핑 안쪽)"
     },
     "runtime_patch": {
       "applicable": false,
@@ -20,11 +20,11 @@
     },
     "build_recipe": {
       "applicable": true,
-      "rationale": "wheel 설치 + ray 명시 설치가 멀티의 필수 조건이라 이미지 재생성에 원리적으로 필요하다"
+      "rationale": "wheel --no-deps + 별도 requirements 가 베이스 torch 를 지키는 핵심이라 재생성에 필수"
     },
     "compose": {
       "applicable": true,
-      "rationale": "network_mode host 와 두 env-file 이 없으면 기동 자체가 재현되지 않는다"
+      "rationale": "브리지 포트 매핑이 트리플렛 port 값의 의미를 정한다 — 기동 방법 없이 재현 불가"
     },
     "fork_pin": {
       "applicable": false,
