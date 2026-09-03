@@ -683,6 +683,54 @@ def _test_execution_approval_authorization() -> None:
                  f"a plan without the anchor/atoms must be rejected: {no_anchor}")
 
 
+def _test_provider_turn_exhaustion_reachable() -> None:
+    """`claude -p` 가 **exit 1 + 정상 result JSON** 으로 소진을 알리는 실제 형태를 재현한다.
+
+    2026-09-04(plan_26090317 P4 라이브): 소진 분류 분기가 `returncode != 0` 조기 반환 뒤에 있어
+    **한 번도 실행되지 않았다**. 단위 자체검사는 성공 경로만 봤고, 첫 라이브 위임이 알려줬다 —
+    원장에 `budget=None`·`turns=None` 만 남아 다음 attempt 예산을 정할 근거가 사라진다.
+    그러므로 여기서는 **실측 payload 모양 그대로** 넣고 세 값이 살아 나오는지 본다.
+    """
+    provider = agent_control._load_provider("claude_code")
+    payload = {"type": "result", "subtype": "error_max_turns", "is_error": True,
+               "num_turns": 26, "session_id": "sess-abc",
+               "errors": ["Reached maximum number of turns (25)"],
+               "result": "", "modelUsage": {}}
+
+    class _Completed:
+        returncode, stdout, stderr = 1, json.dumps(payload), ""
+
+    real_run = provider.subprocess.run
+    provider.subprocess.run = lambda *a, **k: _Completed()
+    try:
+        req = _request("local")
+        req["max_turns"] = 25
+        res = provider.invoke(req)
+    finally:
+        provider.subprocess.run = real_run
+
+    _require(res["budget_outcome"] == "exhausted",
+             f"turn exhaustion must be classified as exhausted, got {res.get('budget_outcome')!r} "
+             f"-- an unreachable branch leaves the ledger with no basis to size the next attempt")
+    _require(res["num_turns"] == 26 and res["session_id"] == "sess-abc",
+             f"num_turns/session_id must survive a non-zero exit: {res}")
+    _require(res["status"] == "execution_failed",
+             "exhaustion is still a failure of that attempt -- it must not read as completed")
+
+    # 음성대조: payload 가 아예 없는 비-0 종료(전송 실패)는 여전히 NONZERO_EXIT 이고 원장 3필드는 null.
+    class _Broken:
+        returncode, stdout, stderr = 255, "", "ssh: connect failed"
+
+    provider.subprocess.run = lambda *a, **k: _Broken()
+    try:
+        res2 = provider.invoke(_request("ssh"))
+    finally:
+        provider.subprocess.run = real_run
+    _require(res2["reason_codes"] == ["NONZERO_EXIT"] and res2["budget_outcome"] is None
+             and res2["num_turns"] is None,
+             f"a transport failure has no budget story -- it must stay null, got {res2}")
+
+
 def _test_agent_provider_boundary() -> None:
     request_schema = agent_control._load_schema(agent_control.REQUEST_SCHEMA_PATH)
     result_schema = agent_control._load_schema(agent_control.RESULT_SCHEMA_PATH)
@@ -1093,6 +1141,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_promotion_rubric_carrier()
     _test_hint_binding_source()
     _test_policy_and_evidence_lifecycle()
+    _test_provider_turn_exhaustion_reachable()
     _test_execution_approval_authorization()
     _test_agent_provider_boundary()
     # tripwire 3종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히

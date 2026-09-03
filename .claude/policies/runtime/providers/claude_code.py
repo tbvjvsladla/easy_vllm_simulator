@@ -187,6 +187,38 @@ def invoke(request: dict) -> dict:
                         reason_codes=["NONZERO_EXIT"])
 
     if completed.returncode != 0:
+        # 2026-09-04(P4 라이브 실측 · plan_26090317): 이 조기 반환이 아래의 **예산 소진 분기를
+        #   도달 불가로 만들고 있었다.** `claude -p` 는 max-turns 소진 시 exit 1 로 나가면서
+        #   stdout 에는 `subtype:"error_max_turns"` · `num_turns` · `session_id` 가 든 **정상 result
+        #   JSON** 을 낸다. returncode 만 보고 돌아서면 그 셋을 통째로 버리게 되고, 원장에는
+        #   `budget=None`·`turns=None` 만 남아 다음 attempt 를 얼마나 늘려야 할지 알 수 없다.
+        #   (내가 P2 에서 넣은 분기가 선행 게이트와 상호배타라 한 번도 실행되지 않았다 —
+        #    단위 자체검사는 못 잡고 **첫 라이브 실행이 알려줬다**.)
+        #   그러므로 비-0 종료에서도 **먼저 payload 를 읽어 본다**. 읽히지 않으면 그때 NONZERO_EXIT.
+        _payload = None
+        try:
+            _cand = json.loads(completed.stdout)
+            if isinstance(_cand, dict) and _cand.get("type") == "result":
+                _payload = _cand
+        except (ValueError, RecursionError):
+            _payload = None
+        if _payload is not None:
+            _sess0 = _payload.get("session_id") if isinstance(_payload.get("session_id"), str) else None
+            _turns0 = _payload.get("num_turns") if isinstance(_payload.get("num_turns"), int) else None
+            if _payload.get("subtype") == "error_max_turns":
+                _diag(request, "TURN_BUDGET_EXHAUSTED",
+                      f"provider 가 max_turns={request.get('max_turns')} 를 소진했다"
+                      f"(num_turns={_turns0}). 같은 예산의 자동 재시도 ✗ — 더 큰 예산의 새 attempt 를 "
+                      f"열고 session_id 로 이어라(scope ⊥ budget).")
+                return _result(request, status=STATUS_EXECUTION_FAILED,
+                               exit_code=EXIT_EXECUTION_FAILED, reason_codes=["NONZERO_EXIT"],
+                               session_id=_sess0, num_turns=_turns0, budget_outcome="exhausted")
+            _diag(request, "NONZERO_EXIT",
+                  f"provider exited {completed.returncode} · subtype={_payload.get('subtype')!r} "
+                  f"errors={_payload.get('errors')}", stderr=completed.stderr)
+            return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
+                           reason_codes=["NONZERO_EXIT"], session_id=_sess0, num_turns=_turns0,
+                           budget_outcome="aborted")
         _diag(request, "NONZERO_EXIT",
               f"provider exited {completed.returncode}"
               + (" (ssh transport: 255 = 전송 실패, host key/키인증/네트워크를 먼저 본다)"

@@ -276,6 +276,22 @@ def main() -> int:
     report = parse_report(result.get("output") or "")
     att = record_attempt(doc, context_id=a.context_id, grade=a.grade,
                          allocated=bud["max_turns"], result=result, report=report)
+    # 2026-09-04(P4 라이브): 원장이 status 만 적고 **리포트 본문을 버렸다** — 나중에 "서브가 무엇을
+    #   근거로 completed 라 했는가" 를 메인이 감사할 수 없었다(내가 서브를 의심했다가 dotfile 을
+    #   놓친 내 실수임을 확인하는 데도 서브 워크스페이스를 다시 뒤져야 했다 — 재스캔은 계약 밖이다).
+    #   서브가 보낸 것은 서브가 보낸 그대로 남긴다. 없으면 산문 원문을 남긴다(추측 파싱 ✗).
+    _adir = os.path.join(a.repo_root, TASKS_DIR_NAME, f"{a.context_id}.reports")
+    os.makedirs(_adir, exist_ok=True)
+    _ap = os.path.join(_adir, "attempt-%02d.json" % att["attempt"])
+    with open(_ap, "w", encoding="utf-8") as f:
+        json.dump({"attempt": att["attempt"], "report": report,
+                   "raw_output": None if report else (result.get("output") or ""),
+                   "control": {k: result.get(k) for k in
+                               ("status", "exit_code", "reason_codes", "session_id",
+                                "num_turns", "budget_outcome")}},
+                  f, ensure_ascii=False, indent=2, sort_keys=True)
+        f.write("\n")
+    att["report_path"] = os.path.relpath(_ap, a.repo_root)
     save_ledger(lp, doc)
     hp = surface_hitl(a.repo_root, a.context_id, report or {})
 
