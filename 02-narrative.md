@@ -6,47 +6,59 @@
 
 ## 읽을 원재료 (복사 대상 아님 · 포인터)
 
-- devlog: `../devlog/devlog_26090308_gpt_oss_20b_gb10_0180.md`
-- testlog: `../testlog/testlog_26090308_gpt_oss_20b_gb10_0180.md`
+- devlog: `../devlog/devlog_26090408_13_27_gptoss120b_gb10_0180_tp2.md`
+- testlog: `../testlog/testlog_26090408_gptoss120b_gb10_0180_tp2.md`
 
 ## 서사
 
-**증상 1 — 요청한 attention backend가 조용히 무시됨.** Phase 2 초회 lockset은
-`attention_backend=FLASHINFER`를 요청했다. 그러나 엔진 로그에 `Unknown vLLM environment variable
-detected: VLLM_ATTENTION_BACKEND` 경고가 찍혔고, 실제 선택은 `Using TRITON_ATTN attention backend
-out of potential backends: ['TRITON_ATTN']`였다(testlog "Phase 2 trial-loop" 절 인용). **원인**:
-vLLM 0.18.0에서 gpt-oss+mxfp4 조합은 TRITON_ATTN이 유일한 가용 백엔드이고, 요청 자체가 무효한 환경변수라
-아무 효과가 없었다(devlog §2). **해소**: attention_backend를 실측대로 TRITON_ATTN으로 정정 — 이 조합에서는
-선택의 여지가 없으므로 요청이 아니라 확인의 문제였다.
+이 조합은 **한 번에 뜨지 않았다.** 단일노드에서 이미 PASS 한 같은 모델·같은 엔진 버전인데도
+멀티로 옮기는 과정에서 층이 일곱 겹 나왔다(testlog §5 표). 아래는 그중 재현에 직접 걸리는 여섯이다.
 
-**증상 2 — batch=32에서 호스트 워치독에 의한 외부 SIGKILL.** 언클램프(trial1, `kv_cache_memory_bytes=null`)
-측정에서 kv_cache_gib=87.72GiB(실측 24.58KB/token), weights=13.72GiB로 프로파일까지는 성공했으나,
-gmu가 호스트 안전계층에 의해 0.90→0.852로 자동 하향됐음에도 컨테이너가 138.6초 만에 CUDA OOM 예외 없이
-죽었다(testlog "Phase 2 trial-loop" 표, trial 1 행). `classify_failure`는 `vram_infeasible`로 판정했다
-(`required_kv=105,142,151,354B > max_safe_kv=100,470,151,321B`). **원인**: GB10은 통합메모리 호스트라
-vLLM 자체의 gmu 안전장치를 통과해도, 그와 **별개인 호스트 레벨 워치독**이 CUDA 예외 없이 개입할 수
-있다 — "측정된 최대치에 근접"이 곧 "안전"은 아니었다. **해소**: max-model-len(131072, 전략상 고정)은
-그대로 두고 batch를 32→16으로 낮추고 `kv-cache-memory-bytes=51539607552`(48GiB)를 명시적 절대클램프로
-지정했다. trial2는 예산 선언이 정상 발행되고 CUDA 그래프 캡처까지 마친 뒤 `classify → none`(수렴)으로
-끝났다(testlog 동일 표, trial 2 행).
+**① `ray: command not found`** — 단일노드 트랙으로 지은 이미지에는 Ray 가 없다(testlog §5-①).
+두 토폴로지의 Dockerfile 이 갈리는데 이미지 태그는 같은 모양이라, 태그만 보고 재사용하면 여기서 죽는다.
+해소는 멀티 Dockerfile 로 다시 짓는 것이고, 그 파일은 이 archive 의 `artifacts/build_recipe/` 에 있다.
 
-**증상 3 — harmony 포맷이 벤치 측정을 왜곡할 뻔함.** gpt-oss는 harmony의 assistant-action stop 토큰이
-EOS와 별개로 턴을 끝내므로, `/v1/chat/completions`(기본 backend)로 측정하면 `--ignore-eos`가 무력화돼
-TPOT이 실제보다 느리게 측정된다(이 프로젝트에서 과거 3.3배 왜곡이 실측된 바 있음 — testlog "Full
-벤치마크" 절). **해소**: 처음부터 `run_bench.sh --backend openai`(`/v1/completions`)로 측정했다 —
-총 생성 토큰이 요청한 4096(=16×256)과 정확히 일치했고 `client_engine_agreement.ratio=1.0`으로 왜곡
-없음을 확인했다(testlog 동일 절).
+**② `World size (2) > GPUs (1)`** — `distributed-executor-backend` 누락이다(testlog §5-②).
+**증상이 원인을 가리킨다고 믿지 마라**: 이때 Ray 클러스터 자체는 정상이었고 로그에도 슬레이브 노드가
+붙었다고 찍혀 있었다. 그런데 vLLM 은 executor 백엔드를 지정받지 못하면 자기 노드의 GPU 만 세므로,
+"클러스터가 안 붙었나" 를 의심하며 시간을 버리게 된다.
+
+**③ `Free memory 105.98 GiB < 109.52 GiB`** — 단일노드의 `gpu-memory-utilization: 0.90` 을 그대로
+가져오면 이 벽에 부딪힌다(testlog §5-③). 원인은 Ray 와 NCCL 이 **모델 로드 전에** 이미 통합메모리를
+점유한다는 것이다(가용이 114.38 → 105.98 GiB 로 줄었다). 0.80 으로 낮춰 해소했다. 이 숫자는 공식이
+아니라 이 하드웨어의 실측이므로, 다른 노드에서는 실측으로 다시 정해야 한다.
+
+**④ 태그가 가리키는 내용이 갈렸다** — 이 캠페인에서 가장 비싼 실패다(testlog §5-④ · devlog §4).
+이미지 이름에는 빌드 트랙이 들어가는데 **실제 트랙은 별도 변수가 고른다.** 그 변수의 기본값이
+소스빌드였던 탓에, `…-wheel` 태그를 단 이미지의 내용물이 전혀 다른 버전의 소스빌드였다. 엔진은
+정상적으로 떴고 아무도 울지 않았으며, 증상은 한참 뒤 Triton 커널의 shape 불일치로 나타났다.
+**태그는 가변 포인터다** — 그래서 이 archive 의 인증서에는 `image_digest` 가 함께 실린다.
+
+**⑤ `_C.abi3.so: undefined symbol`** — 낡은 requirements 가 `torchcodec` 을 통해 torch 를 끌어올려
+베이스 이미지의 torch 를 덮었다(testlog §5-⑤). wheel 트랙에서는 **wheel 이 선언한 torch 와 베이스
+이미지의 torch 빌드가 접두어까지 일치해야 한다.** requirements 를 그 버전의 wheel 메타데이터에서
+다시 생성하는 것이 해소이며, 결과물이 `artifacts/build_recipe/requirements.txt` 다.
+
+**⑥ health 타임아웃** — 멀티 compose 는 `network_mode: host` 라 포트 매핑이 없다(testlog §5-⑦).
+단일노드는 브리지 네트워크에 매핑이 있어 컨테이너 안팎의 포트가 다르지만, 멀티에서는 설정 파일의
+`port` 값이 **그대로 호스트 포트**다. 같은 키가 토폴로지에 따라 다른 것을 뜻한다.
 
 ## 되풀이하지 말 것
 
-1. **`VLLM_ATTENTION_BACKEND=FLASHINFER`를 gpt-oss+mxfp4에 지정하지 말 것** — vLLM 0.18.0에서는
-   미인식 환경변수로 조용히 무시된다. 요청이 반영됐는지는 항상 엔진 로그의 "Unknown vLLM environment
-   variable" 경고와 "potential backends" 목록으로 확인하라.
-2. **언클램프 trial에서 측정된 kv_cache_gib 값을 그대로 다음 절대클램프로 쓰지 말 것** — GB10 같은
-   통합메모리 호스트에서는 호스트 워치독이 vLLM의 CUDA OOM 예외 없이 개입한다. 측정치보다 확실히
-   낮은(이 캠페인에서는 87.72GiB→48GiB, 약 45% 절감) 값으로 시작하라.
-3. **gpt-oss 계열을 `/v1/chat/completions`(기본 backend)로 벤치하지 말 것** — `--backend openai`로
-   `/v1/completions`을 명시해야 harmony ignore-eos 무력화에 의한 TPOT 왜곡을 피한다.
-4. **`docker compose build`로 wheel 트랙 이미지를 새로 만들려 하지 말 것** — 이 브랜치의 compose
-   `build:` 스탠자는 canonical default_track(source-build)을 가리키므로 무관한 트랙이 빌드된다.
-   `docker build -f Dockerfile -t <tag> .`을 직접 써라.
+**단일노드 트리플렛을 복사해 값만 바꾸지 마라.** 위 ②③⑥ 이 전부 "단일에서는 맞았던 값이
+멀티에서는 틀리다" 는 형태다. 같은 키의 **의미가 바뀌는 지점**을 먼저 훑고 시작하는 편이 빠르다 —
+이미지 트랙 · executor 백엔드 · gpu-memory-utilization · 포트, 넷이다.
+
+**`enforce_eager` 로 컴파일 문제를 우회하려 하지 마라 — 적어도 이 계열에서는.** 우리는 상위 버전
+(0.19.1)에서 그 우회를 시도했고, 초기화와 health 는 통과했으나 **첫 추론에서** 엔진이 죽었다
+(testlog §3). 게다가 그때의 오류 메시지는 Ray 워커의 오류 객체를 정상 입력으로 취급해 길이를 재려다
+난 2차 오류라 **진짜 원인을 가린다**. eager 로 "떴다" 는 사실은 그 자체로 아무것도 보증하지 않는다.
+
+**★ 이 하드웨어에서 vLLM 0.19.1 은 분산 서빙이 안 된다.** 단일노드에서는 정상 동작하고 성능도 이
+버전(0.18.0)과 사실상 같다 — 그래서 **단일만 재면 두 버전이 구분되지 않는다.** 분산에서는
+`vllm/config/utils.py` 의 해시 팩터 수집에서 `_stateless_dp_group_port_list` 키가 처리되지 않아
+컴파일이 실패한다. 우리는 이것을 두 모델(120b·20b)에서 확인했고 **정확히 같은 파일·함수·키**였다 —
+모델 특성이 아니라 단일 원인이다(testlog §3.1). 멀티노드 계획이 있으면 버전을 여기서 고정하라.
+
+**KV 클램프 숫자를 총량으로 착각하지 마라.** 이 설정의 값은 **워커당**이다. 단일노드에서 쓰던 총량을
+그대로 넣으면 두 배를 잡는다. 반대로 총량을 같게 맞추면 TP=2 는 정확히 두 배의 토큰 용량을 낸다.

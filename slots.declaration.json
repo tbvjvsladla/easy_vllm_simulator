@@ -1,34 +1,34 @@
 {
-  "_note": "신호③ — Agent 선언. 01-artifacts.md 적용 사유와 대사됨.",
+  "_note": "신호③ — **Agent 선언**. 각 슬롯의 `applicable` 을 true/false 로, `rationale` 을 한 줄로 채운다. null 이 하나라도 남으면 `hint_collect check` 가 막는다. 선언은 파일 존재·적용 증거와 **대사**되며, 셋이 어긋나면 차단이다(plan §7). ★ triplet 은 선언으로 면제할 수 없다 — 서빙에 원리적으로 필수다.",
   "schema_version": 1,
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "최대 컨텍스트 전략의 실측 KV 클램프·batch·attention backend를 재현하려면 트리플렛 3종이 필수다."
+      "rationale": "TP=2 서빙 설정·러너·모델 env — ray executor·gmu 0.80·워커당 KV 15GiB·포트 8080"
     },
     "runtime_patch": {
       "applicable": false,
-      "rationale": "Python processor/config shim이 arm된 적 없음 — 표준 harmony/tiktoken 경로만 사용."
+      "rationale": "stock harmony/tiktoken 경로가 그대로 서빙했다 — 몽키패치 지점이 없었다"
     },
     "build_patch_pre": {
       "applicable": false,
-      "rationale": "wheel 트랙 다운그레이드였고 소스 컴파일이 없었다 — 컴파일 전 패치가 성립할 자리가 없음."
+      "rationale": "wheel 트랙이라 컴파일이 없고 활성 Dockerfile 이 이 디렉터리를 참조하지 않는다"
     },
     "build_patch_post": {
       "applicable": false,
-      "rationale": "빌드-바깥 native 의존 설치가 필요하지 않았다(prebuilt wheel 그대로 동작)."
+      "rationale": "동상 — 활성 레시피가 참조하지 않아 이 이미지에 적용되지 않았다"
     },
     "build_recipe": {
       "applicable": true,
-      "rationale": "공유 이미지의 vLLM 핀 자체가 0.19.1→0.18.0으로 바뀌었으므로 Dockerfile/requirements.txt가 재현에 필수."
+      "rationale": "wheel 설치 + ray 명시 설치가 멀티의 필수 조건이라 이미지 재생성에 원리적으로 필요하다"
     },
     "compose": {
       "applicable": true,
-      "rationale": "표준 단일노드 기동 경로(--env-file 2개 조합 포함)가 이 조합에서 성립함을 실측했다."
+      "rationale": "network_mode host 와 두 env-file 이 없으면 기동 자체가 재현되지 않는다"
     },
     "fork_pin": {
       "applicable": false,
-      "rationale": "stock vLLM 0.18.0으로 서빙됨 — 포크/변종 이미지 불요."
+      "rationale": "stock 이다 — 모델 env 에 VARIANT 줄이 없는 것이 그 선언이다"
     }
   }
 }

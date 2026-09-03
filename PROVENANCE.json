@@ -1,11 +1,11 @@
 {
-  "anchor": "3ac89c47e1e6ddc101be44209fd5497b7f6a5d1a",
-  "anchor_is_head": false,
-  "assembled_at_head": "e51572dc98d3dd87f690d5a55058f2a038d5db48",
-  "generated_kst": "2026-09-03T09:15:00",
+  "anchor": "fd5f5e3d0062bedabb09baafef58df884fb32a69",
+  "anchor_is_head": true,
+  "assembled_at_head": "fd5f5e3d0062bedabb09baafef58df884fb32a69",
+  "generated_kst": "2026-09-04T08:19:50",
   "kind": "hint_payload_provenance",
   "payload_files": 12,
   "schema_version": 1,
-  "source_branch": "single-node",
-  "tag": "hint/0.18.0/gpt-oss-20b/gb10"
+  "source_branch": "multi-node",
+  "tag": "hint/0.18.0/gpt-oss-120b/gb10-multi"
 }
