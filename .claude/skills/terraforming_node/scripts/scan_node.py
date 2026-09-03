@@ -26,6 +26,7 @@ import os
 import platform
 import re
 import shlex
+import socket
 import shutil
 import subprocess
 import sys
@@ -1080,8 +1081,51 @@ def _self_test() -> int:
             passed += ok
             n += 1
             print(f"  [{'PASS' if ok else 'FAIL'}] cross-validate:{name}")
+    # 멀티 main.host 도달성 헬퍼 (2026-09-03 P5: hostname 이 루프백이면 Ray head 가 죽는다)
+    _c = []
+    _c.append(("iface 미지정 → None", _iface_ipv4(None) is None))
+    _c.append(("없는 iface → None(예외 ✗)", _iface_ipv4("nonexistent-iface-xyz0") is None))
+    _c.append(("localhost → 루프백 탐지", (_resolves_to_loopback("localhost") or "").startswith("127.")))
+    _c.append(("빈 이름 → None", _resolves_to_loopback("") is None))
+    _c.append(("해소 불가 이름 → None(예외 ✗)",
+               _resolves_to_loopback("no-such-host.invalid") is None))
+    for _n, _ok in _c:
+        print("  [%s] %s" % ("PASS" if _ok else "FAIL", _n))
+        passed += 1 if _ok else 0
+        n += 1
+
     print(f"self-test: {passed}/{n} {'PASS' if passed == n else 'FAIL'}")
     return 0 if passed == n else 1
+
+
+def _iface_ipv4(iface):
+    """iface 의 첫 IPv4 주소(문자열) 또는 None. 결정론 — `ip -o -4 addr show <iface>` 파싱."""
+    if not iface:
+        return None
+    try:
+        out = subprocess.run(["ip", "-o", "-4", "addr", "show", iface],
+                             capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    m = re.search(r"\binet\s+(\d+\.\d+\.\d+\.\d+)/", out.stdout or "")
+    return m.group(1) if m else None
+
+
+def _resolves_to_loopback(name):
+    """name 이 루프백으로 해소되면 그 주소를, 아니면 None. (127.0.0.0/8 · ::1)"""
+    if not name:
+        return None
+    try:
+        infos = socket.getaddrinfo(name, None)
+    except OSError:
+        return None
+    for fam, _, _, _, sockaddr in infos:
+        addr = sockaddr[0]
+        if addr.startswith("127.") or addr == "::1":
+            return addr
+    return None
 
 
 def build_local_scan_result(ic: dict, compose: str, topology: str,
@@ -1171,6 +1215,34 @@ def main() -> int:
         "ssh_user": getpass.getuser(),
         "work_dir": os.getcwd(),
     }
+    # ── 멀티: main.host 는 **서브가 도달하는 주소**여야 한다 (2026-09-03 P5 실측) ──
+    #
+    # 결함의 형태: 위 기본값은 `platform.node()`(hostname)다. 싱글에서는 자기 자신이라 무해하지만
+    # 멀티에서 이 값은 **Ray head 주소**로 흘러간다(`.env.cluster` 의 MASTER_HOST_IP → compose).
+    # 그런데 우분투 기본 `/etc/hosts` 는 hostname 을 **루프백**에 묶는다(이 노드 실측:
+    # `127.0.0.1  spark-a73e`). 그러면 head 가 127.0.0.1 에 바인드돼 서브가 붙지 못하고,
+    # 분산 서빙이 **구조적으로 불가능**해진다. 스캔은 통과하고 렌더도 통과하며 기동에서야 죽는다.
+    #
+    # 처방: 멀티에서는 인터커넥트 소켓 iface 의 IPv4 를 host 로 쓴다 — 그것이 서브의 `--peer-ip`
+    # 와 같은 대역이고 실제 데이터 평면이다. hostname 은 `hostname` 필드에 그대로 남는다
+    # (정체성 표기와 도달 주소는 다른 것이다). iface IP 를 못 얻으면 **fail-loud** 한다 —
+    # 루프백을 조용히 head 주소로 넘기지 않는다.
+    if args.topology == "multi":
+        _sif = (ic or {}).get("socket_iface")
+        _mip = _iface_ipv4(_sif) if _sif else None
+        if _mip:
+            _main_node["host"] = _mip
+            _main_node["host_source"] = "interconnect-iface:%s" % _sif
+        else:
+            _res = _resolves_to_loopback(_main_node["host"])
+            if _res:
+                sys.stderr.write(
+                    "[scan] FAIL: multi 인데 main.host=%r 가 루프백(%s)으로 해소되고 "
+                    "인터커넥트 iface(%s) IPv4 도 얻지 못했다 — 이 값이 Ray head 주소가 되면 "
+                    "서브가 붙을 수 없다(분산 서빙 구조적 불가). manifest.nodes[main].host 에 "
+                    "서브가 도달 가능한 IP 를 직접 지정하라.\n" % (_main_node["host"], _res, _sif))
+                sys.exit(2)
+            _main_node["host_source"] = "hostname(루프백 아님 — iface IP 미해소)"
     if args.topology == "multi" and args.peer_ip:
         _sub = {"role": "sub", "host": args.peer_ip}
         if args.peer_ssh and "@" in args.peer_ssh:

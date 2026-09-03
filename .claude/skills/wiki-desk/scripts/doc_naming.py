@@ -140,6 +140,21 @@ def simlog_dirname(generated_utc, topic, existing_dirnames=()):
     return suffixed
 
 
+def gpu_key(gpu_model):
+    """자유텍스트 GPU 모델명 → **파일명 안전 키**. "NVIDIA GB10" → "GB10".
+
+    명명 SSOT 가 이 변환을 소유한다 — 호출부가 각자 정규화하면 같은 측정이 두 이름을 갖는다.
+    실측 결함(2026-08-24·2026-09-04 재발): `evidence_publisher` 가 `identity['gpu']` 를 날것으로
+    넘겨 인증서 파일명에 **공백**이 들어갔고, 그 결과 같은 런의 인증서가 두 이름으로 추적됐다.
+    ⚠ `adversarial-benchmark/scripts/sweep_bench.sh` 에 같은 규칙의 인라인 사본이 아직 있다
+    (bash 임베드 python 이라 import 경로가 없다) — 통합은 후속.
+    """
+    import re as _re
+    if not gpu_model:
+        return "NA"
+    return _re.sub(r"[^A-Za-z0-9]", "", str(gpu_model).replace("NVIDIA", "")) or "NA"
+
+
 def bench_filename(kind, meta, generated_utc, existing_basenames=(), ext=None):
     """kind in {'bench_report','benchmark','max_envelope'}. `meta` needs model/gpu_key/vllm_version
     (N/A fail-soft: missing keys render as the literal 'NA' combo segment, never fabricated).

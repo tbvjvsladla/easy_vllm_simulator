@@ -42,7 +42,11 @@ FILES_LIST = "files.txt"
 # "인증서의 어느 키를 페이로드로 옮기는가"라는 선택이지 값의 복제가 아니다(tripwire 칸).
 CERT_STRONG = ["model", "gpu_model", "vllm_version", "quantization", "topology",
                "tensor_parallel_size"]
-CERT_SOFT = ["driver_version", "cuda_version", "image_tag", "max_model_len", "max_num_seqs",
+# `image_digest` — 태그는 가변 포인터라 같은 태그가 다른 내용을 가리킬 수 있다(2026-09-04 실측:
+# 하루에 같은 태그가 다섯 내용을 가리켰다). digest 는 그 내용을 유일하게 지목한다. 옛 인증서에는
+# 없으므로 `_fmt_kv` 가 부재 키를 건너뛰는 성질에 의존한다(부재 = 그 시점엔 필드가 없었다).
+CERT_SOFT = ["driver_version", "cuda_version", "image_tag", "image_digest",
+             "max_model_len", "max_num_seqs",
              "kv_cache_memory_bytes", "kv_cache_dtype", "gpu_memory_utilization",
              "moe_backend", "enforce_eager", "ngc_base_tag"]
 CERT_PERF = ["benchmark_mode", "verdict", "decode_tps_conc1", "rubric_authority",
@@ -92,6 +96,43 @@ def parse_certificate(path: Path) -> dict:
 
 
 # ---------------------------------------------------------------- 슬롯 발견
+
+# 빌드 패치 디렉터리를 활성 Dockerfile 이 실제로 참조하는지 보는 패턴. `build_patches_src` 가
+# `build_patches` 를 부분문자열로 포함하므로 post 는 `_src` 를 부정형으로 배제해야 한다.
+_PRE_REF = re.compile(r"build_patches_src")
+_POST_REF = re.compile(r"build_patches(?!_src)")
+
+
+def _dry_copy_keys(slots: dict) -> list[str]:
+    """복사 대상 슬롯 키 — `collect` 의 복사 루프와 **같은 술어**를 쓴다(둘이 갈리면 자체검사가 무의미).
+
+    자체검사용 순수 함수이며 파일을 만들지 않는다.
+    """
+    return [key for key in ("build_patch_pre", "build_patch_post", "build_recipe", "compose")
+            if slots[key]["present"] for _ in slots[key]["files"]]
+
+
+def env_p_text(env_file: Path) -> str:
+    return env_file.read_text(encoding="utf-8") if env_file.is_file() else ""
+
+
+def build_track_is_wheel(env_text: str) -> bool:
+    """활성 빌드 트랙. 선택자(`BUILD_DOCKERFILE`)가 있으면 그것이 정본이고, 없으면 태그로 판정한다.
+
+    태그를 2순위로 내린 근거: 이미지 태그는 **가변 포인터**라 내용과 갈릴 수 있다(2026-09-04 실측 —
+    `0.18.0-…-wheel` 태그가 0.27.1 소스빌드 내용을 가리켰다). 선택자는 빌드 입력 자체다.
+    """
+    selector = tag = None
+    for line in env_text.splitlines():
+        st = line.strip()
+        if st.startswith("BUILD_DOCKERFILE="):
+            selector = st.split("=", 1)[1].strip()
+        elif st.startswith("IMAGE_TAG="):
+            tag = st.split("=", 1)[1].strip()
+    if selector:
+        return selector == "Dockerfile"
+    return "-source" not in (tag or "")
+
 
 def discover_slots(repo: Path, topo: str, cfg: str) -> dict:
     """3+1+1 슬롯을 **경로 규약에서 파생**한다.
@@ -154,18 +195,45 @@ def discover_slots(repo: Path, topo: str, cfg: str) -> dict:
         "slot_confidence": "2-signal(file+declaration)",
         "note_for_agent": "arming 이 실제로 '먹었는지'는 로그로 실증해야 한다(workflow.md 위상 오배정 실증)",
     }
-    for key, d, phase in (("build_patch_pre", pre_dir, "컴파일 전"),
-                          ("build_patch_post", post_dir, "컴파일 후")):
+    # ── 활성 빌드 레시피를 **먼저** 정한다. 빌드 패치가 "이 이미지에 먹었는가" 는 디렉터리에
+    #    파일이 있느냐가 아니라 **선택된 Dockerfile 이 그 디렉터리를 참조하느냐**로 갈린다.
+    #    (2026-09-04 실측: 멀티 wheel 트랙은 build_patches* 를 렌더해 두지만 wheel Dockerfile 은
+    #     컴파일 자체가 없어 하나도 실행하지 않는다. 디렉터리만 보면 '있음' 이 되어, 대사표가
+    #     Agent 에게 `applicable:true` 를 강요하고 **먹지 않은 패치가 재현지침으로 배포**된다 —
+    #     §3.1 이 막으려던 바로 그 해악이 반대편 문으로 들어온다.)
+    env_text = env_p_text(triplet["env_file"])
+    wheel_track = build_track_is_wheel(env_text)
+    recipe_files = [out / "Dockerfile", out / "requirements.txt"]
+    if not wheel_track:
+        recipe_files.insert(1, out / "Dockerfile.source-build")
+    found_recipe = [f for f in recipe_files if f.is_file()]
+    recipe_texts = [f.read_text(encoding="utf-8", errors="replace")
+                    for f in found_recipe if f.name.startswith("Dockerfile")]
+
+    for key, d, phase, ref in (("build_patch_pre", pre_dir, "컴파일 전", _PRE_REF),
+                               ("build_patch_post", post_dir, "컴파일 후", _POST_REF)):
         found, odd = listing(d)
+        applied = any(ref.search(t) for t in recipe_texts)
         slots[key] = {
             "phase": phase,
             "owner": "upstream-version-watch",
             "files": [str(p.relative_to(repo)) for p in found],
-            "present": bool(found),
+            # ★ 존재 ∧ 활성 레시피가 참조 — 둘 다여야 "이 재현 키트의 일부" 다
+            "present": bool(found) and applied,
             "exemptible": True,
-            "slot_confidence": "3-signal(file+provenance+declaration)" if found
+            "slot_confidence": "3-signal(file+provenance+declaration)" if (found and applied)
                                else "1-signal(absence)",
         }
+        if found and not applied:
+            # 침묵 배제 금지 — 왜 빠졌는지 산출물이 스스로 밝힌다(헌법 §결정론 규율 출처 표시)
+            slots[key]["excluded_by_recipe"] = {
+                "reason": "활성 빌드 레시피가 이 디렉터리를 참조하지 않는다 — 이 이미지에 먹지 않았다",
+                "recipe_files": [str(f.relative_to(repo)) for f in found_recipe
+                                 if f.name.startswith("Dockerfile")],
+                "rendered_but_unused": [str(p.relative_to(repo)) for p in found],
+            }
+            print(f"[hint_collect] 알림: {d} 에 {len(found)}건이 있으나 활성 레시피가 참조하지 않아 "
+                  "슬롯을 '불해당' 으로 둔다(먹지 않은 패치는 재현지침이 아니다)", file=sys.stderr)
         if odd:
             # 규약 밖 항목은 소리내어 남긴다 — 하류가 이것을 보고 사람에게 묻게 한다
             slots[key]["nonconforming"] = odd
@@ -182,15 +250,8 @@ def discover_slots(repo: Path, topo: str, cfg: str) -> dict:
     #    이미지를 *어떻게 지었나*(Dockerfile·requirements)와 *어떻게 띄우나*(compose·env 형상)가
     #    빠지면 재현 키트로 불완전하다. 슬롯이 아니라 **재현 자산**이므로 3+1+1 표를 늘리지 않고
     #    별도 두 칸으로 둔다 — 헌법의 슬롯 분류를 흐리지 않기 위해서다.
-    wheel_track = True
-    env_text = env_p.read_text(encoding="utf-8") if env_p.is_file() else ""
-    for line in env_text.splitlines():
-        if line.strip().startswith("IMAGE_TAG="):
-            wheel_track = "-source" not in line
-    recipe_files = [out / "Dockerfile", out / "requirements.txt"]
-    if not wheel_track:
-        recipe_files.insert(1, out / "Dockerfile.source-build")
-    found_recipe = [f for f in recipe_files if f.is_file()]
+    # wheel_track·found_recipe 는 위(빌드 패치 대사 앞)에서 이미 산출했다 — 같은 값을 두 번 계산하면
+    # 두 자리가 갈린다(헌법 §단일 권위).
     slots["build_recipe"] = {
         "phase": "build",
         "owner": "upstream-version-watch",
@@ -292,6 +353,10 @@ def evidence_signal(repo: Path, topo: str, slot: str, slots: dict, cert: dict) -
         any_file = next(iter(slots["triplet"]["files"].values()), "")
         return bool(cfgname) and cfgname in Path(any_file).name
     if slot == "build_patch_pre":
+        # 활성 레시피가 참조하지 않으면 PROVENANCE 가 있어도 **이 이미지에는** 적용되지 않았다.
+        # (이식 기록은 "이식했다" 는 증거이지 "이 빌드가 실행했다" 는 증거가 아니다.)
+        if slots.get("build_patch_pre", {}).get("excluded_by_recipe"):
+            return False
         prov = repo / "output" / topo / "build_patches_src" / "PROVENANCE.json"
         if not prov.is_file():
             return False
@@ -491,6 +556,10 @@ def cmd_collect(a) -> int:
     if slots["runtime_patch"]["present"]:
         take(slots["runtime_patch"]["files"]["patch_py"], "runtime_patch")
     for key in ("build_patch_pre", "build_patch_post", "build_recipe", "compose"):
+        # ★ 배제된 슬롯은 **실물도 싣지 않는다**. 슬롯을 '불해당' 으로 두고 파일만 archive 에
+        #   넣으면 수신자는 그 디렉터리를 재현 지침으로 읽는다 — 배제의 의미가 사라진다.
+        if not slots[key]["present"]:
+            continue
         for rel in slots[key]["files"]:
             take(rel, key)
     # 토폴로지 env 는 실물이 아니라 **형상 템플릿**으로 옮긴다(PII).
@@ -709,6 +778,52 @@ def _run_self_test() -> int:
            sy["build_recipe"]["track"] == "source-build"
            and any("source-build" in f for f in sy["build_recipe"]["files"]))
         env.write_text("IMAGE_TAG=easy-vllm:1-wheel\n", encoding="utf-8")
+
+        # ── 2026-09-04 실물 회귀: 렌더돼 있으나 **활성 레시피가 안 쓰는** 빌드 패치
+        #    (멀티 wheel 트랙. 디렉터리만 보면 '있음' 이라 대사표가 `applicable:true` 를 강요했다.)
+        bps = repo / "output" / "single" / "build_patches_src"
+        bps.mkdir(parents=True, exist_ok=True)
+        (bps / "50-port.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+        (bps / "PROVENANCE.json").write_text('{"counts": {"files": 3}}', encoding="utf-8")
+        bpp = repo / "output" / "single" / "build_patches"
+        bpp.mkdir(parents=True, exist_ok=True)
+        (bpp / "10-native.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+        sz = discover_slots(repo, "single", cfg)
+        ck("★wheel 레시피가 참조 안 하면 빌드패치는 불해당",
+           sz["build_patch_pre"]["present"] is False and sz["build_patch_post"]["present"] is False)
+        ck("★배제는 침묵하지 않는다(사유·레시피·미사용 목록 기록)",
+           set(sz["build_patch_pre"]["excluded_by_recipe"]) == {"reason", "recipe_files",
+                                                               "rendered_but_unused"})
+        ck("★PROVENANCE 가 있어도 레시피 미참조면 적용증거 아님",
+           evidence_signal(repo, "single", "build_patch_pre", sz, {"image_tag": "easy-vllm:1-wheel",
+                                                                  "serving_config": "demo"}) is False)
+        ck("★그 조합의 대사는 '불해당' 으로 통과한다(applicable=false)",
+           dialogue(False, False, False, True)[0] == "ok")
+
+        # 음성대조 — 레시피가 참조하면 같은 파일이 '있음' 이 된다(교정이 무조건 배제가 아님을 증명)
+        (repo / "output" / "single" / "Dockerfile").write_text(
+            "FROM x\nCOPY build_patches_src /tmp/bps\nCOPY build_patches /tmp/bp\n", encoding="utf-8")
+        sz2 = discover_slots(repo, "single", cfg)
+        ck("★음성대조 레시피가 참조하면 빌드패치 present",
+           sz2["build_patch_pre"]["present"] is True and sz2["build_patch_post"]["present"] is True
+           and "excluded_by_recipe" not in sz2["build_patch_pre"])
+        ck("★배제 슬롯은 아티팩트로 복사되지 않는다",
+           not any("build_patch" in c for c in _dry_copy_keys(sz)))
+        ck("★음성대조 참조되면 복사 대상이 된다",
+           any("build_patch_pre" in c for c in _dry_copy_keys(sz2)))
+        ck("★post 참조 판정이 build_patches_src 에 오염되지 않는다",
+           _POST_REF.search("COPY build_patches_src /x") is None
+           and _POST_REF.search("COPY build_patches /x") is not None)
+        (repo / "output" / "single" / "Dockerfile").write_text("FROM x\n", encoding="utf-8")
+        shutil.rmtree(bps); shutil.rmtree(bpp)
+
+        # 트랙 선택자 우선순위 — 태그가 아니라 BUILD_DOCKERFILE 이 정본이다
+        ck("★선택자가 태그를 이긴다(태그 wheel · 선택자 source-build)",
+           build_track_is_wheel("IMAGE_TAG=easy-vllm:1-wheel\nBUILD_DOCKERFILE=Dockerfile.source-build\n")
+           is False)
+        ck("선택자 부재 시 태그로 판정",
+           build_track_is_wheel("IMAGE_TAG=easy-vllm:1-source-x\n") is False
+           and build_track_is_wheel("IMAGE_TAG=easy-vllm:1-wheel\n") is True)
 
         # env 형상 템플릿 — 절대경로만 가리고 나머지는 남긴다
         tpl = env_shape_template("# 주석\nNAS_MODEL_PATH=/mnt/llm/Model/x\n"

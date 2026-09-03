@@ -1069,7 +1069,11 @@ def cmd_record_capacity_rejection(args: argparse.Namespace) -> None:
 # =============================================================================
 
 def _identity_to_bench_meta(identity: dict) -> dict:
-    return {"model": identity.get("model"), "gpu_key": identity.get("gpu"), "vllm_version": identity.get("vllm")}
+    # gpu 는 자유텍스트("NVIDIA GB10")고 파일명 키는 정규화형("GB10")이다. 변환은 명명 SSOT 가
+    # 소유한다 — 여기서 날것을 넘기면 인증서 파일명에 공백이 들어가고, 같은 런의 인증서가 두 이름을
+    # 갖는다(2026-08-24 최초·2026-09-04 재발).
+    return {"model": identity.get("model"), "gpu_key": doc_naming.gpu_key(identity.get("gpu")),
+            "vllm_version": identity.get("vllm")}
 
 
 def _publish_dated_kind_no_prefix(repo_root: Path, kind: str, meta: dict,

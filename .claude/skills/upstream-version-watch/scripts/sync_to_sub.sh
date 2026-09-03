@@ -981,8 +981,22 @@ prepare_transactional_source() {
     # output files never enter the snapshot. The sole filesystem exception is manifest.yaml: it is
     # topology input (possibly PII), is explicitly copied mode 0600, deterministically renders the
     # transaction, and is excluded from remote delivery by _band2_filters.
-    if ! git -C "$CANONICAL_SRC" diff --quiet -- .claude CLAUDE.md .gitignore output/multi output/single; then
-        echo "[sync] info: canonical worktree drift detected; filesystem bytes are excluded in favor of index authority"
+    # ⚠ 드리프트는 **파일 이름과 함께** 말한다(2026-09-04 실측). 이전 문구는 `[sync] info:` 한 줄로
+    #   "드리프트가 있다" 만 알렸고 **어느 파일인지 말하지 않았다**. 그래서 실제로 이런 일이 벌어졌다:
+    #   `output/multi/requirements.txt` 를 고치고 배달했는데 스테이징을 안 해 **인덱스의 구버전이
+    #   조용히 갔고**, rc=0 이라 성공으로 보였다. 가드는 울었지만 이름이 없어 사람이 자기 파일과
+    #   연결하지 못했고, 로그를 FAIL/STOP 으로 좁혀 보는 습관이 그 한 줄을 잘라냈다.
+    #   인덱스 권위 자체는 계약이므로 **차단하지 않는다** — 다만 무엇이 갈렸는지는 반드시 보인다.
+    local _drift
+    _drift="$(git -C "$CANONICAL_SRC" diff --name-only -- .claude CLAUDE.md .gitignore output/multi output/single 2>/dev/null)"
+    if [ -n "$_drift" ]; then
+        # 아래 영문 한 줄은 `verify_distribution` 의 `sub_transactional_source_uses_git_index` 가
+        #   앵커로 쓴다 — 트랜잭션 소스가 인덱스 권위임을 코드가 스스로 말하는 자리다. 지우지 마라
+        #   (2026-09-04: 파일명 출력을 더하면서 이 줄을 지웠다가 그 검사가 RED 로 잡았다).
+        echo "[sync] info: canonical worktree drift detected; filesystem bytes are excluded in favor of index authority" >&2
+        echo "[sync] ⚠ 워킹트리 드리프트 — 아래 파일은 **인덱스 버전이 배달된다**(git add 안 한 변경은 안 간다):" >&2
+        printf '%s\n' "$_drift" | sed 's/^/[sync]     /' >&2
+        echo "[sync]   → 방금 고친 파일이 이 목록에 있으면 'git add <파일>' 후 다시 실행하라." >&2
     fi
     git -C "$CANONICAL_SRC" ls-files -z -- .claude CLAUDE.md .gitignore output/multi output/single \
         | git -C "$CANONICAL_SRC" checkout-index -z --stdin --prefix="$TRANSACTIONAL_SRC/"
@@ -1259,10 +1273,32 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
         return 1
     fi
     # 계약 대표 — 파생 목록이 조용히 줄어드는 것을 막는다.
-    #   · .claude/skills/vllm-recipe-explorer/recipe.py = 런타임블럭이 실제로 복제됐다는 증거(무조건 렌더)
+    #   · .claude/skills/vllm-recipe-explorer/recipe.py = 런타임블럭이 실제로 복제됐다는 증거
     #   · .claude/a2a_delegation.json               = A2A 위임키(hw_verified:true 일 때만 발급)
-    printf '%s\n' "$rels" | grep -qxF '.claude/skills/vllm-recipe-explorer/recipe.py' \
-        || { echo "  ❌ 배달 표면에 런타임블럭 대표(.claude/skills/vllm-recipe-explorer/recipe.py)가 없다" >&2; fail=1; }
+    #
+    # ⚠ 런타임블럭 대표는 **tool_plane 이 비어 있지 않을 때만** 요구한다(2026-09-03 P5 실측).
+    #   결함의 형태: P2 에서 `tool_plane` 게이팅을 도입해 **ray-worker 에는 런타임 스킬을 0종 배달**
+    #   하도록 렌더러를 고쳤는데, 이 검증기는 옛 가정("무조건 렌더")을 그대로 들고 있었다. single
+    #   (a2a-agent=3종)에서는 단언이 참이라 드러나지 않았고, **멀티 배달이 처음 실행된 순간**
+    #   `❌ 배달 표면에 런타임블럭 대표가 없다` 로 죽었다(롤백은 정상 작동). 교정이 만든 결함이 아니라
+    #   교정의 배선이 한 곳 덜 간 것이다 — 계약을 바꾸면 그 계약을 읽는 **모든** 자리를 따라가야 한다.
+    #   판정 정본은 계약 판정기의 tool_plane 이다(토폴로지로 추론하지 않는다 · 경로는 파일 상단
+    #   ROLE_CONTRACT 상수 — 이 함수 본문은 판정기 경로 문자열을 갖지 않는다).
+    local _tp _tp_n
+    _tp="$(python3 "$ROLE_CONTRACT" evaluate \
+             --manifest "${SRC%/}/output/$1/manifest.yaml" --topology "$1" \
+             --field tool_plane --format value 2>/dev/null || echo '__UNRESOLVED__')"
+    if [ "$_tp" = "__UNRESOLVED__" ]; then
+        echo "  ❌ tool_plane 미해소 — 런타임블럭 대표 요구 여부를 정할 수 없다(fail-closed)" >&2; fail=1
+    else
+        _tp_n="$(printf '%s' "$_tp" | tr -cd '[:alnum:]-' | wc -c)"
+        if [ "${_tp_n:-0}" -eq 0 ]; then
+            echo "  ⏭  런타임블럭 대표 검사 생략 — tool_plane 이 비었다(ray-worker: 스킬 0종이 계약)"
+        else
+            printf '%s\n' "$rels" | grep -qxF '.claude/skills/vllm-recipe-explorer/recipe.py' \
+                || { echo "  ❌ 배달 표면에 런타임블럭 대표(.claude/skills/vllm-recipe-explorer/recipe.py)가 없다" >&2; fail=1; }
+        fi
+    fi
     # 2026-09-03(S4/㉕ · plan_26090317 P1): 여기서 하던 일은 **정보 한 줄**이었다 — 스테이징에 키가
     #   없으면 "미발급" 이라고만 말하고, **서브에 있으면 안 되는 키가 남아 있는지는 보지 않았다.**
     #   회수 경로가 3중으로 없었기 때문에 그 상태는 영구였다: ① deliver_overlay 는 `--delete` 없는
