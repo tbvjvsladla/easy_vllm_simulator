@@ -142,6 +142,11 @@ def _request_contract_violations(request: dict) -> list[str]:
         out.append("$.target.work_dir: required")
     if transport == "ssh" and (not isinstance(target.get("host"), str) or not target["host"]):
         out.append("$.target.host: required for ssh")
+    # 2026-09-03(S5 · plan_26090317 P1): ssh_user 가 선택이라 provider 의 _ssh_destination 이 host 단독
+    #   으로 접속했다 — manifest 에는 ssh_user 가 있는데 request 로 옮기지 않으면 **틀린 계정으로 조용히**
+    #   위임이 나간다. 서브 위임은 계정이 곧 권한 평면이므로 여기서 fail-closed 한다.
+    if transport == "ssh" and (not isinstance(target.get("ssh_user"), str) or not target["ssh_user"]):
+        out.append("$.target.ssh_user: required for ssh (계정 미지정 위임은 권한 평면을 바꾼다)")
     return out
 
 
@@ -207,6 +212,10 @@ def cmd_invoke(args: argparse.Namespace) -> None:
     if not violations:
         violations.extend(_request_contract_violations(request))
     if violations:
+        # 2026-09-03(F4): 위반 목록을 계산해 놓고 버렸다 — 사용자는 무엇이 틀렸는지 알 수 없었다.
+        #   stdout 은 안정 JSON 계약이므로 stderr 로 낸다.
+        for v in violations:
+            print(f"[agent-control] REQUEST_SCHEMA_INVALID: {v}", file=sys.stderr)
         _emit(_invalid_request_result(request if isinstance(request, dict) else None))
         return
 

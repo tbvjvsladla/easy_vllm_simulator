@@ -86,6 +86,16 @@ def _require(condition, message: object) -> None:
         raise PredicateFailure(str(message))
 
 
+def _extract_python_function(src: str, name: str) -> str:
+    """소스에서 함수 하나의 본문 텍스트를 뽑는다(AST 라인 범위 — 정규식 추측 금지)."""
+    tree = ast.parse(src)
+    lines = src.splitlines(keepends=True)
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
+            return "".join(lines[node.lineno - 1:node.end_lineno])
+    raise AssertionError(f"function {name!r} not found")
+
+
 def _read(rel_path: str) -> str:
     return (REPO_ROOT / rel_path).read_text(encoding="utf-8")
 
@@ -1478,7 +1488,17 @@ def predicate_MODEL_ACQUISITION_TERNARY_GATE_C4():
                 name = fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", ast.dump(fn))
                 call_names.append(name)
     _require(call_names, 'hf_token_env_file must actually be consumed somewhere (not dead code)')
-    _require(set(call_names) <= {'bool', 'isfile'}, f'hf_token_env_file may only be passed to existence checks (bool/isfile), found: {call_names}')
+    # 2026-09-03(S6 · plan_26090317 P1): 서브의 토큰 존재 여부는 **서브에서** 봐야 한다(메인 fs 를
+    #   보던 것이 S6 결함이다). `collect_peer_model_env` 는 경로를 `shlex.quote` 해 원격 `[ -f ]` 로만
+    #   넘기고 **내용을 읽지 않는다** — 존재검사의 원격판이므로 허용 집합에 넣는다. 그 함수가 내용을
+    #   읽도록 바뀌면 아래 소스 단언(open/read_text 금지)이 잡는다.
+    _ALLOWED_TOKEN_SINKS = {'bool', 'isfile', 'quote', 'collect_peer_model_env'}
+    _require(set(call_names) <= _ALLOWED_TOKEN_SINKS,
+             f'hf_token_env_file may only be passed to existence checks (local or remote), found: {call_names}')
+    _peer_src = _extract_python_function(sn_src, 'collect_peer_model_env')
+    _require('open(' not in _peer_src and 'read_text' not in _peer_src and 'cat ' not in _peer_src,
+             'the remote existence probe must never read the token file content')
+    _require('[ -f ' in _peer_src, 'the remote probe must be an existence test, not a content read')
     _require('open(hf_token_env_file' not in sn_src and 'read_text' not in sn_src, "the raw token file's content must never be read")
 
 
@@ -1905,7 +1925,14 @@ def predicate_SUB_SYNC_DIRTY_AUTOSAVE_C1():
     executed here for real against a local dirty tree."""
     src = _sync_to_sub_src()
     fn = _extract_bash_function(src, "sub_dirty") if re.search(r"^sub_dirty\s*\(\)", src, re.M) else None
-    _require('sub_dirty() { sub_run "git status --porcelain 2>/dev/null"; }' in src, 'predicate requirement failed at original line 1668')
+    _require('sub_dirty() { sub_run "git status --porcelain"; }' in src,
+             'sub_dirty must wrap exactly `git status --porcelain` for remote execution')
+    # 2026-09-03(F1 · plan_26090317 P1): 이전 정의는 `2>/dev/null` 로 실패 사유를 지웠고, 호출부의
+    #   `|| true` 와 합쳐져 **판독 실패가 clean 으로 접혔다**. 보존 게이트의 목적이 소실 방지인데
+    #   "모르는 상태" 를 "깨끗함" 으로 읽으면 그 목적이 정확히 뒤집힌다. 사유 보존을 원자로 고정한다.
+    _require('2>/dev/null' not in _extract_bash_function(src, "sub_dirty"),
+             'sub_dirty must not discard stderr -- an unreadable sub tree must surface its cause, '
+             'not be folded into "clean"')
     with tempfile.TemporaryDirectory() as tmp:
         subprocess.run(["git", "init", "-q", tmp], check=True)
         (Path(tmp) / "f").write_text("untracked")
@@ -1919,7 +1946,7 @@ def predicate_SUB_SYNC_DIRTY_AUTOSAVE_C2():
     so discarding that history to unblock delivery would defeat the reason the gate exists."""
     src = _sync_to_sub_src()
     b1_section = src[src.index("# ── B1 per-branch"):]
-    dirt_idx = b1_section.index('DIRT="$(sub_dirty || true)"')
+    dirt_idx = b1_section.index('DIRT="$(sub_dirty)"')
     stage_idx = b1_section.index('sub_run "git add -A"', dirt_idx)
     commit_idx = b1_section.index('sub_commit "[improve] pre-sync autosave', stage_idx)
     _require(dirt_idx < stage_idx < commit_idx,
@@ -1940,7 +1967,7 @@ def predicate_SUB_SYNC_DIRTY_AUTOSAVE_C3():
     exist on the main<->sub plane."""
     src = _sync_to_sub_src()
     loop = src[src.index('for t in "${TARGETS[@]}"; do\n    if [ "$t" = "single"'):]
-    dirt_idx = loop.index('DIRT="$(sub_dirty || true)"')
+    dirt_idx = loop.index('DIRT="$(sub_dirty)"')
     if_idx = loop.index('if [ -n "$DIRT" ]; then', dirt_idx)
     stage_idx = loop.index('sub_run "git add -A"', if_idx)
     commit_idx = loop.index('sub_commit "[improve] pre-sync autosave', stage_idx)
@@ -1953,7 +1980,7 @@ def predicate_SUB_SYNC_DIRTY_AUTOSAVE_C3():
 
     # Re-verification after preservation: the tree must actually be clean before delivery proceeds,
     # so a partial/failed preservation cannot silently pass through into an overwrite.
-    reverify_idx = loop.index('RE_DIRT="$(sub_dirty || true)"', commit_idx)
+    reverify_idx = loop.index('RE_DIRT="$(sub_dirty)"', commit_idx)
     _require(commit_idx < reverify_idx < checkout_idx,
              'the post-preservation cleanliness re-check must sit between the commit and any checkout')
 
@@ -1970,9 +1997,9 @@ def predicate_SUB_SYNC_DIRTY_AUTOSAVE_C3():
     # Exactly two live probes per invocation and no more: the initial one and the post-preservation
     # re-verification. Neither is cached across runs. Word-boundary match -- a bare `.count()` on
     # `DIRT=` also matches inside `RE_DIRT=` and would silently miscount.
-    _require(len(re.findall(r'(?<![A-Z_])DIRT="\$\(sub_dirty \|\| true\)"', src)) == 1,
+    _require(len(re.findall(r'(?<![A-Z_])DIRT="\$\(sub_dirty\)"', src)) == 1,
              'the initial dirty probe must appear exactly once, computed live against the sub tree')
-    _require(len(re.findall(r'RE_DIRT="\$\(sub_dirty \|\| true\)"', src)) == 1,
+    _require(len(re.findall(r'RE_DIRT="\$\(sub_dirty\)"', src)) == 1,
              'the post-preservation re-verification probe must appear exactly once, recomputed live '
              '(never reusing the pre-preservation result, which would mask a failed preservation)')
 
@@ -1989,9 +2016,11 @@ def predicate_SUB_SYNC_DIRTY_AUTOSAVE_C4():
 
     # Every terminal exit inside the dirty branch must be a preservation-failure path.
     exits = [m.start() for m in re.finditer(r"exit 8", dirty_branch)]
-    _require(len(exits) == 3,
-             'the dirty branch must have exactly three refusal paths: stage failure, commit failure, '
-             'and residual dirt after preservation')
+    # 2026-09-03(F1): 네 번째 거부 경로 = 보존 후 **재판독 실패**. "판독 불가" 는 clean 이 아니라
+    #   보존 실패와 같은 급이며, 그렇게 읽지 않으면 게이트 전체가 fail-open 이 된다.
+    _require(len(exits) == 4,
+             'the dirty branch must have exactly four refusal paths: stage failure, commit failure, '
+             'residual dirt after preservation, and an unreadable post-preservation re-probe')
     for pos in exits:
         line_start = dirty_branch.rfind("\n", 0, pos) + 1
         stmt = dirty_branch[line_start:dirty_branch.index("\n", pos)]
@@ -2014,8 +2043,11 @@ def predicate_SUB_GIT_LOCAL_ONLY_C1():
     src = _sync_to_sub_src()
     _require('sub_run "git init -q"' in src, 'predicate requirement failed at original line 1767')
     _require('git remote add' not in src, 'sync_to_sub.sh must never itself add a remote to the sub')
-    m = re.search(r'REMOTES="\$\(sub_run \'git remote\' \|\| true\)"', src)
-    _require(m, 'predicate requirement failed at original line 1770')
+    # 2026-09-03(F9 · plan_26090317 P1): `|| true` 는 **판독 실패를 "원격 0" 으로** 만들었다 —
+    #   로컬 전용 불변식이 읽지 못한 사실 위에 서 있었다. 이제 실패는 exit 7 이고, 확증은 실제 판독일 때만 선다.
+    m = re.search(r'REMOTES="\$\(sub_run \'git remote\'\)"', src)
+    _require(m, "the origin-zero attestation must read `git remote` for real -- a swallowed read "
+                "failure must never be able to print the local-only confirmation")
     confirm_idx = src.index('origin 0 (로컬 전용 확증)')
     _require(confirm_idx > m.start(), 'predicate requirement failed at original line 1772')
 
@@ -2070,7 +2102,7 @@ def predicate_SUB_GIT_LOCAL_ONLY_C3():
     # to bootstrap the sub's local-only repo, mirrored bit-for-bit rather than an arbitrary demo.
     for literal in ('sub_run "git init -q"', 'sub_run "git branch -m multi"',
                     'sub_run "git branch single"', 'sub_run "git checkout -q multi"',
-                    'sub_branch_current() { sub_run "git rev-parse --abbrev-ref HEAD 2>/dev/null"; }'):
+                    'sub_branch_current() { sub_run "git rev-parse --abbrev-ref HEAD"; }'):
         _require(literal in src, f'B0 bootstrap must issue the exact literal: {literal}')
     with tempfile.TemporaryDirectory() as tmp:
         env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t",
@@ -2190,7 +2222,14 @@ def predicate_TERRAFORM_FLAG_GATE_C1():
     # (7) missing/pending measurement -- an untaken bandwidth reading must stay pending, never
     # silently treated as passing/complete.
     _, gate_pending, exit_pending = scan_node.evaluate_gate(**{**base_multi, "bandwidth": None})
-    _require(gate_pending['branch'] == 'multi-ready-candidate' and gate_pending['status'] == 'pending-perf' and (gate_pending['status'] != 'ok') and (exit_pending == 0), "an untaken bandwidth measurement must stay pending-perf, never 'ok'")
+    # 2026-09-03(B4 · plan_26090317 P1): 이 단언은 `exit_pending == 0` 이었다 — 술어 자신의 산문
+    #   ("never silently treated as passing/complete")과 **정반대**다. 종료코드 0 은 온보딩 러너의
+    #   `scan_node.py … || abort` 관용구에서 곧 "통과" 로 읽히므로, 성능 미측정이 조용히 통과했다.
+    #   SKILL.md §1 머리의 "성능 미검증 멀티 진행 금지(fail-closed)" 와도 어긋났다.
+    _require(gate_pending['branch'] == 'multi-ready-candidate' and gate_pending['status'] == 'pending-perf'
+             and (gate_pending['status'] != 'ok') and (exit_pending == 2),
+             "an untaken bandwidth measurement must stay pending-perf AND exit non-zero -- exit 0 is "
+             "read as success by `scan_node.py || abort` runners")
 
     # --- Layer B: manifest_contract's read-gate, same one-flip-at-a-time discipline ---
     base = {"topology": "single", "gpus_per_node": 1, "model_source": "managed",
@@ -2571,8 +2610,31 @@ def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C1():
 
     # ---- main-only key-issuance sequence: real gating source + real downstream execution ----
     scan_src = _read(".claude/skills/terraforming_node/scripts/scan_node.py")
-    _require('if result.get("homogeneity", {}).get("verified"):' in scan_src, 'the operator-facing hw_verified suggestion must be gated on the real assert_homogeneity verdict, never emitted unconditionally')
-    _require('nodes[sub].hw_verified' in scan_src, 'predicate requirement failed at original line 2367')
+    # 2026-09-03(⑬ · plan_26090317 P1): hw_verified 안내는 **별도의 "병합 지시" 블록**에 있었고 그
+    #   블록이 `homogeneity.verified` 로 게이트돼 있었다. 같은 출력 안에 "이 블록으로 덮어써라" 와
+    #   "sub 항목에 이걸 추가해라" 가 공존해 사람이 무엇을 반영해야 하는지 모호했으므로, emit 본문
+    #   하나로 합쳤다. 게이트 자체는 그대로다 — 이제 **emit 산출물을 실행해** 확인한다(더 강하다).
+    _require('hw_verified' in scan_src, 'emit must speak about hw_verified at all')
+    _verified_block = scan_node.emit_manifest_block({
+        "topology_declared": "multi", "cpu_arch": "aarch64", "cuda_version": "132",
+        "gpus_per_node": 1, "gpu_model": "NVIDIA GB10",
+        "nodes": [{"role": "main", "host": "a", "hostname": "a", "ssh_user": "u", "work_dir": "/w"},
+                  {"role": "sub", "host": "b", "hostname": "b", "ssh_user": "u", "work_dir": "/w"}],
+        "homogeneity": {"verified": True, "peer": {"gpu_model": "NVIDIA GB10", "driver": "1", "cuda": "13.2"}},
+        "interconnect": {"type": "RoCE v2", "hca_devices": [], "gid_index": None, "socket_iface": None,
+                         "bandwidth_gbps": None, "platform_preset": None}})
+    _unverified_block = scan_node.emit_manifest_block({
+        "topology_declared": "multi", "cpu_arch": "aarch64", "cuda_version": "132",
+        "gpus_per_node": 1, "gpu_model": "NVIDIA GB10",
+        "nodes": [{"role": "main", "host": "a", "hostname": "a", "ssh_user": "u", "work_dir": "/w"},
+                  {"role": "sub", "host": "b", "hostname": "b", "ssh_user": "u", "work_dir": "/w"}],
+        "interconnect": {"type": "RoCE v2", "hca_devices": [], "gid_index": None, "socket_iface": None,
+                         "bandwidth_gbps": None, "platform_preset": None}})
+    _require('hw_verified: true' in _verified_block,
+             'a genuinely homogeneity-verified scan must stamp hw_verified: true')
+    _require('hw_verified: true' not in _unverified_block and 'hw_verified: false' in _unverified_block,
+             'without an assert_homogeneity verdict the emit must say hw_verified: false -- never true, '
+             'and never silently omit the field (omission reads as "unknown" to a human)')
 
     with tempfile.TemporaryDirectory() as tmp:
         mpath = os.path.join(tmp, "manifest.yaml")

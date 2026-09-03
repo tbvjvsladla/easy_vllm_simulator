@@ -158,6 +158,30 @@ done
 if bash "$SDIR/mem_watchdog_eta.sh" --self-test >/dev/null 2>&1; then
   ok "ETA 워치독 self-test" "selftest_watchdog"
 else bad "ETA 워치독 self-test 실패" "selftest_watchdog"; fi
+# ★ 정지 계약(2026-09-03 · ㉛ 회귀 · plan_26090317 P1). audit ㉛ 는 "정지 기록" 을 넣으려다
+#   시그널 핸들러에 `exit` 를 빠뜨려 **워치독이 TERM 으로 죽지 않게** 만들었다 — systemd stop 은
+#   90s 뒤 SIGKILL 로 끝나고, KILL 은 trap 을 안 돌아 기록도 안 남는다(라이브 고아 1건이 그 결과).
+#   `--self-test` 는 이 축을 못 본다(프로세스를 띄우지 않으므로). 실제로 띄워서 TERM 을 보낸다.
+_wd_term_contract() {  # $1=스크립트 절대경로 → 0=TERM 2.5s 내 종료
+  local script="$1" tmp pid i
+  tmp="$(mktemp -d)" || return 1
+  printf '#!/bin/sh\nexit 0\n' > "$tmp/docker"; chmod +x "$tmp/docker"
+  ( PATH="$tmp:$PATH" BB_DRY_RUN=1 timeout 20 bash "$script" >"$tmp/out" 2>&1 & echo $! > "$tmp/pid" )
+  sleep 2
+  pid="$(cat "$tmp/pid" 2>/dev/null)"; [ -n "$pid" ] || { rm -rf "$tmp"; return 1; }
+  kill -TERM "$pid" 2>/dev/null
+  for i in $(seq 1 25); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+  if kill -0 "$pid" 2>/dev/null; then kill -KILL "$pid" 2>/dev/null; rm -rf "$tmp"; return 1; fi
+  rm -rf "$tmp"; return 0
+}
+for wd in "$SDIR/mem_watchdog_eta.sh:ETA 워치독" \
+          "$SDIR/../host_safety/mem_watchdog.sh:협역 워치독"; do
+  wdp="${wd%%:*}"; wdl="${wd##*:}"
+  if [ ! -f "$wdp" ]; then bad "$wdl 파일 부재 — $wdp" "term_contract_missing"; continue; fi
+  if _wd_term_contract "$wdp"; then ok "$wdl SIGTERM 정지 계약(2.5s 내)" "term_contract"
+  else bad "$wdl 이 SIGTERM 으로 죽지 않는다 — 정지 불가(㉛ 회귀). 시그널 trap 에 exit 가 있는지 보라." "term_contract"; fi
+done
+
 if bash "$SDIR/thermal_watchdog.sh" --self-test >/dev/null 2>&1; then
   ok "열·전력 워치독 self-test" "selftest_thermal_watchdog"
 else bad "열·전력 워치독 self-test 실패 — bash $SDIR/thermal_watchdog.sh --self-test" "selftest_thermal_watchdog"; fi

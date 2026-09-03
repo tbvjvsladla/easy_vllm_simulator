@@ -52,25 +52,44 @@ ni_valid_slug() {  # $1=후보 → 0=적합
 # Agent_Card.json → .node_identity.role (서브측 권위).
 # JSON 을 셸로 긁지 않는다 — python3 는 이 패키지의 이미 확정된 의존이다(blackbox_*.py).
 # python3 가 없으면 **모른다고 말하고 실패**한다(hostname 으로 떨어지지 않는다).
-ni_agent_card_role() {  # $1=repo → stdout=슬러그 · 1=부재/해소불가
+ni_agent_card_role() {  # $1=repo → stdout=슬러그 · 1=부재(정상 폴백) · 2=python3 부재 · 3=존재하나 판독불가
+  # 2026-09-03(F2 · plan_26090317 P1): 이전 판본은 "카드 부재" 와 "카드는 있으나 깨짐/빈 role" 을
+  #   **같은 rc=1** 로 접었다. rc=1 은 manifest 폴백을 여는 값이고, 서브 워크스페이스에는 manifest
+  #   사본이 존재할 수 있으므로 그 폴백이 `- role: main` 을 집어 **서브가 자기를 main 이라 선언**했다
+  #   (블랙박스 로그가 docs/logs/main 에 겹쳐 써져 두 노드 기록이 복구 불가로 섞인다 — 이 파일 헤더가
+  #   경고하는 바로 그 상태). 존재하는 카드의 판독 실패는 폴백 사유가 아니라 **정지 사유**다.
   local card="$1/Agent_Card.json"
-  [ -f "$card" ] || return 1
+  [ -e "$card" ] || return 1
+  if [ ! -f "$card" ]; then
+    echo "[node-identity] FAIL: $card 가 일반파일이 아니다(디렉터리/특수파일) — 정체성을 추측하지 않는다." >&2
+    return 3
+  fi
   command -v python3 >/dev/null 2>&1 || {
     echo "[node-identity] FAIL: $card 는 있으나 python3 가 없어 role 을 읽지 못한다." >&2
     echo "[node-identity]       python3 설치 후 재시도하거나 --node-id=<slug> 로 명시 주입하라." >&2
     return 2
   }
-  python3 - "$card" <<'PY' 2>/dev/null
+  local out rc
+  out="$(python3 - "$card" <<'PY'
 import json, sys
 try:
     doc = json.load(open(sys.argv[1], encoding="utf-8"))
-except Exception:
-    sys.exit(1)
+except Exception as exc:
+    print("[node-identity] card unreadable: %s: %s" % (type(exc).__name__, exc), file=sys.stderr)
+    sys.exit(3)
 role = (doc.get("node_identity") or {}).get("role")
-if not isinstance(role, str) or not role:
-    sys.exit(1)
+if not isinstance(role, str) or not role.strip():
+    print("[node-identity] card present but node_identity.role is missing/empty", file=sys.stderr)
+    sys.exit(3)
 print(role.strip())
 PY
+)"; rc=$?
+  if [ "$rc" -ne 0 ]; then
+    echo "[node-identity] FAIL: $card 가 존재하나 role 판독 불가(rc=$rc) — manifest 폴백으로 넘어가지 않는다." >&2
+    echo "[node-identity]       카드를 고치거나 --node-id=<slug> 로 명시 주입하라." >&2
+    return 3
+  fi
+  printf '%s' "$out"
 }
 
 # output/*/manifest.yaml → 유일한 `- role: main` 슬러그 (메인측 권위).
@@ -79,8 +98,15 @@ ni_manifest_main_role() {  # $1=repo → stdout=슬러그 · 1=부재 · 2=계�
   local repo="$1" mf found="" n=0 hits
   for mf in "$repo"/output/*/manifest.yaml; do
     [ -f "$mf" ] || continue
+    if [ ! -r "$mf" ]; then
+      # 2026-09-03(F2): 읽을 수 없는 manifest 는 `grep -c` 가 수치줄을 내지 않아 hits="" 가 되고,
+      #   `[ "" -eq 0 ]` 가 "integer expression expected" 로 실패해 **그대로 흘러갔다** — 판독 실패가
+      #   "해당 없음" 으로 접힌 것이다. 모르는 것은 넘기지 않는다.
+      echo "[node-identity] FAIL: $mf 를 읽을 수 없다(권한/소유권) — 정체성 판정을 추측으로 잇지 않는다." >&2
+      return 2
+    fi
     # `- role: main` 정확매칭(주석·후행공백 허용). 접두 오인 방지는 _mf_sub 선례와 동일.
-    hits=$(grep -Ec "^[[:space:]]*-[[:space:]]*role:[[:space:]]*${NI_MAIN_ROLE}([[:space:]]|#|$)" "$mf" || true)
+    hits=$(grep -Ec "^[[:space:]]*-[[:space:]]*role:[[:space:]]*${NI_MAIN_ROLE}([[:space:]]|#|$)" "$mf") || hits=0
     [ "$hits" -eq 0 ] && continue
     if [ "$hits" -ne 1 ]; then
       echo "[node-identity] FAIL: $mf 에 role: ${NI_MAIN_ROLE} 항목이 ${hits}개다(계약은 정확히 1개)." >&2
@@ -107,7 +133,7 @@ ni_resolve_node_id() {  # $1=repo  $2=명시 --node-id(없으면 빈 문자열) 
   fi
 
   v="$(ni_agent_card_role "$repo")"; rc=$?
-  if [ "$rc" -eq 2 ]; then return 1; fi
+  if [ "$rc" -eq 2 ] || [ "$rc" -eq 3 ]; then return 1; fi
   if [ "$rc" -eq 0 ] && [ -n "$v" ]; then
     if ni_valid_slug "$v"; then printf '%s' "$v"; return 0; fi
     echo "[node-identity] FAIL: Agent_Card.json 의 node_identity.role='$v' 가 스킴 위반이다($NI_SLUG_RE)." >&2

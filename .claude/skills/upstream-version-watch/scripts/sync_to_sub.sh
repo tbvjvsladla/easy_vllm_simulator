@@ -586,11 +586,20 @@ OVERLAY_RETIREMENT_STALE_PATHS=(
 )
 
 # ── 서브 git 헬퍼 ──
+# 2026-09-03(F1·F6·F7·F9 · plan_26090317 P1): 이 헬퍼들은 원격 판독 실패(ssh rc255 · cd 실패 · .git 권한/인덱스
+#   손상 rc128)를 **정상 상태**로 접고 있었다 — `2>/dev/null` 로 사유까지 지운 채. "모르는 것" 과 "없는 것" 이
+#   같은 값이 되면 그 위의 게이트는 전부 fail-open 이다(dirty 미보존 배달 · B0 오발동 · origin-0 거짓확증).
+#   처방: 원인을 살리고(stderr 유지) rc 를 전파하며, `[ -d ]` 는 rc 1(부재)만 부재로 읽는다.
 sub_run()  { $SSH_OPTS "$SUB_HOST" "cd '$SUB_WORK_DIR' && $1"; }
-sub_has_git() { $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR/.git' ]" 2>/dev/null; }
-sub_dirty() { sub_run "git status --porcelain 2>/dev/null"; }
+# 0=존재 · 1=부재(확정) · 2=판독불가(트랜스포트/권한) — 호출부는 2 를 fail-closed 로 다뤄야 한다.
+sub_has_git() {
+    local rc=0
+    $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR/.git' ]" || rc=$?
+    case "$rc" in 0) return 0 ;; 1) return 1 ;; *) return 2 ;; esac
+}
+sub_dirty() { sub_run "git status --porcelain"; }
 sub_commit() { sub_run "git -c user.name='$GIT_NAME' -c user.email='$GIT_EMAIL' commit -q -m \"$1\""; }
-sub_branch_current() { sub_run "git rev-parse --abbrev-ref HEAD 2>/dev/null"; }
+sub_branch_current() { sub_run "git rev-parse --abbrev-ref HEAD"; }
 
 render_topology() {
     normalize_canonical_runner_modes || return 9
@@ -627,7 +636,16 @@ render_topology() {
         python3 "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.py" \
             --cluster-envfile --manifest "$output_dir/manifest.yaml" --out "$output_dir/envs/.env.cluster" >/dev/null || return 9
     fi
-    python3 "$RENDER" --topology "$1" >/dev/null || return 9
+    # 2026-09-03(S10/F3 · plan_26090317 P1): 트랜잭션 소스는 `checkout-index --prefix` 트리라 `.git` 이
+    #   없다 — 거기서 render 가 `git ls-files` 를 부르면 rc=128 이고, 옛 판본은 그걸 조용히 os.walk 폴백으로
+    #   대체하면서 화면엔 "(N tracked files)" 라고 찍었다(거짓 표기). 이제 render 는 목록 없이 복제하지
+    #   않으므로, **정본 레포에서 뽑은 tracked 목록을 명시 주입**한다.
+    _tracked_list="$(mktemp)"
+    git -C "$REPO_ROOT" ls-files -z > "$_tracked_list" || {
+        rm -f "$_tracked_list"; echo "[sync] FAIL: tracked 목록 생성 실패 — 런타임블럭 배달 중단" >&2; return 9; }
+    python3 "$RENDER" --topology "$1" --tracked-list "$_tracked_list" >/dev/null || {
+        rm -f "$_tracked_list"; return 9; }
+    rm -f "$_tracked_list"
     if [ "$1" != "multi" ] && [ -d "$output_dir/envs" ] \
         && [ -z "$(find "$output_dir/envs" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
         rmdir "$output_dir/envs" || return 9
@@ -804,7 +822,11 @@ begin_remote_transaction() { # $1=topology $2=bootstrap(0/1)
     LC_ALL=C sort -u -o "$list" "$list"
     tx="/tmp/easy-vllm-sync-rollback.$$.${#REMOTE_TX_DIRS[@]}"
     if [ "$bootstrap" = "1" ]; then head=""; branch="multi";
-    else head="$(sub_run "git rev-parse '$t'")"; branch="$t"; fi
+    else
+        head="$(sub_run "git rev-parse --verify '$t'")" \
+            || { echo "[sync] FAIL(F8): 서브에 브랜치 '$t' 가 없거나 판독 불가 — 빈 head 로 트랜잭션을 등록하지 않는다." >&2; return 9; }
+        branch="$t"
+    fi
     if ! $SSH_OPTS "$SUB_HOST" "set -eu; umask 077; tx='$tx'; rm -rf -- \"\$tx\"; mkdir -p \"\$tx/backup\"; cat >\"\$tx/paths\"; : >\"\$tx/dirs\"; : >\"\$tx/existing-dirs\"; if [ -d '$SUB_WORK_DIR' ]; then : >\"\$tx/workdir-existed\"; [ '$bootstrap' != 1 ] || cp -a -- '$SUB_WORK_DIR' \"\$tx/workdir-backup\"; cd '$SUB_WORK_DIR'; while IFS= read -r p; do d=\$(dirname \"\$p\"); while [ \"\$d\" != . ]; do printf '%s\\n' \"\$d\" >>\"\$tx/dirs\"; [ ! -d \"\$d\" ] || printf '%s %s\\n' \"\$(stat -c '%a' \"\$d\")\" \"\$d\" >>\"\$tx/existing-dirs\"; d=\$(dirname \"\$d\"); done; if [ -e \"\$p\" ] || [ -L \"\$p\" ]; then mkdir -p \"\$tx/backup/\$(dirname \"\$p\")\"; cp -a -- \"\$p\" \"\$tx/backup/\$p\"; fi; done <\"\$tx/paths\"; elif [ '$bootstrap' = 1 ]; then : >\"\$tx/workdir-absent\"; else exit 9; fi; sort -u -o \"\$tx/dirs\" \"\$tx/dirs\"; sort -u -k2,2 -o \"\$tx/existing-dirs\" \"\$tx/existing-dirs\"" <"$list"; then
         rm -f "$list"
         if ! $SSH_OPTS "$SUB_HOST" "rm -rf -- '$tx'"; then
@@ -1184,8 +1206,28 @@ verify_checksums() {  # $1=topology
     #   · .claude/a2a_delegation.json               = A2A 위임키(hw_verified:true 일 때만 발급)
     printf '%s\n' "$rels" | grep -qxF '.claude/skills/vllm-recipe-explorer/recipe.py' \
         || { echo "  ❌ 배달 표면에 런타임블럭 대표(.claude/skills/vllm-recipe-explorer/recipe.py)가 없다" >&2; fail=1; }
-    [ -f "$st/.claude/a2a_delegation.json" ] \
-        || echo "  ℹ️  .claude/a2a_delegation.json 미발급(서브 hw_verified 미검증) — 배달 표면 밖"
+    # 2026-09-03(S4/㉕ · plan_26090317 P1): 여기서 하던 일은 **정보 한 줄**이었다 — 스테이징에 키가
+    #   없으면 "미발급" 이라고만 말하고, **서브에 있으면 안 되는 키가 남아 있는지는 보지 않았다.**
+    #   회수 경로가 3중으로 없었기 때문에 그 상태는 영구였다: ① deliver_overlay 는 `--delete` 없는
+    #   가산 rsync ② 이 검사가 잉여 키를 안 봄 ③ gitignore.template 에 무시 규칙이 없어 서브 git 이
+    #   키를 추적 → 손으로 지워도 `sub.git.unstick`(git checkout --)이 되살린다.
+    #   `policy:A2A_DELEGATION_KEY_FAIL_CLOSED` 는 **발급 방향으로만** fail-closed 였고 회수 방향은
+    #   fail-open 이었다. 오진 정정·서브 교체·HW 변경 뒤에도 서브는 계속 위임 자격을 들고 있었다.
+    if [ -f "$st/.claude/a2a_delegation.json" ]; then
+        echo "  ✅ .claude/a2a_delegation.json 발급(서브 hw_verified 검증) — 배달 표면 안"
+    else
+        echo "  ℹ️  .claude/a2a_delegation.json 미발급(서브 hw_verified 미검증) — 배달 표면 밖"
+        # 회수: 스테이징에 없는데 목적지에 있으면 그것은 **철회된 자격의 잔재**다. 지운다.
+        if sub_run "[ -f '.claude/a2a_delegation.json' ]" 2>/dev/null; then
+            echo "  ⚠ 서브에 철회된 위임 키 잔재 발견 — 회수한다(발급 게이트가 닫혔는데 키가 남아 있다)."
+            sub_run "rm -f -- '.claude/a2a_delegation.json'" \
+                || { echo "[sync] FAIL(S4): 위임 키 회수 실패 — 자격이 남은 채로 배달하지 않는다" >&2; return 9; }
+            if sub_run "[ -f '.claude/a2a_delegation.json' ]" 2>/dev/null; then
+                echo "[sync] FAIL(S4): 회수 후에도 위임 키가 남아 있다(서브 git 이 되살렸을 수 있다)" >&2; return 9
+            fi
+            echo "  ✅ 위임 키 회수 완료"
+        fi
+    fi
     # 원격 md5 는 SSH 1회로 몰아 받는다(파일당 1회는 수십배 느리다).
     local -A RSUM=()
     while IFS= read -r line; do
@@ -1242,8 +1284,19 @@ preflight_topology() {  # $1=active topology
 if ! $SSH_OPTS "$SUB_HOST" 'echo ok' >/dev/null 2>&1; then
     echo "[sync] FAIL: $SUB_HOST 에 SSH 불가 (키 인증·네트워크 확인)"; exit 3
 fi
-HAS_GIT=0; sub_has_git && HAS_GIT=1
-[ "$HAS_GIT" = "0" ] || REMOTE_ORIGINAL_BRANCH="$(sub_branch_current)"
+HAS_GIT=0; _hg_rc=0; sub_has_git || _hg_rc=$?
+case "$_hg_rc" in
+    0) HAS_GIT=1 ;;
+    1) HAS_GIT=0 ;;
+    *) echo "[sync] STOP(F6): 서브 .git 존재 여부 판독 불가(rc=$_hg_rc) — 모르는 상태에서 B0 를 발동하지 않는다." >&2
+       echo "       확인: $SSH_OPTS '$SUB_HOST' \"ls -d '$SUB_WORK_DIR/.git'\"" >&2; exit 3 ;;
+esac
+if [ "$HAS_GIT" != "0" ]; then
+    REMOTE_ORIGINAL_BRANCH="$(sub_branch_current)" \
+        || { echo "[sync] STOP(F7): 서브 현재 브랜치 판독 실패 — 원복 지점을 모른 채 배달하지 않는다." >&2; exit 8; }
+    [ "$REMOTE_ORIGINAL_BRANCH" != "HEAD" ] \
+        || { echo "[sync] STOP(F7): 서브가 detached HEAD — 원복이 no-op 이 되므로 배달 거부. 서브에서 브랜치를 체크아웃하라." >&2; exit 8; }
+fi
 SINGLE_PLANE_SOURCE="fail-closed:unevaluated"
 SINGLE_ACTIVE=0; _single_extension_active && SINGLE_ACTIVE=1
 prepare_transactional_source
@@ -1311,12 +1364,14 @@ done
 if ! $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
     if [ "$PROVISION" != "1" ]; then
         echo "[sync] STOP(R2): 서브 작업경로 부재 — $SUB_HOST:$SUB_WORK_DIR" >&2
-        echo "       ❓ 신설하려면: bash sync_to_sub.sh --apply --provision (HITL — 자동 경로 신설 금지)" >&2
+        echo "       ❓ 신설하려면 --provision 을 더한다. 인가 인자(--mode·--manifest)는 생략 불가:" >&2
+        echo "          bash sync_to_sub.sh --mode experimental --manifest <work-manifest.json> --apply --provision" >&2
+        echo "       (work-manifest 만드는 법 = terraforming_node SKILL.md §2.3 '인가 체인')" >&2
         exit 5
     fi
     begin_remote_transaction multi 1 || { echo "[sync] FAIL: provision 전 rollback transaction 생성 실패"; exit 9; }
     BOOTSTRAP_TX_PREPARED=1
-    sub_run_mk() { $SSH_OPTS "$SUB_HOST" "mkdir -- '$SUB_WORK_DIR' && : >'${REMOTE_TX_DIRS[0]}/provisioned'"; }
+    sub_run_mk() { $SSH_OPTS "$SUB_HOST" "mkdir -p -- '$SUB_WORK_DIR' && : >'${REMOTE_TX_DIRS[0]}/provisioned'"; }
     echo "[sync] PROVISION(승인됨): mkdir -p $SUB_HOST:$SUB_WORK_DIR"; sub_run_mk || { echo "[sync] FAIL: work_dir 신설 실패"; exit 5; }
     PROVISIONED_BY_SYNC=1
 fi
@@ -1349,7 +1404,8 @@ if [ $HAS_GIT = 0 ]; then
     sub_run "git add -A"
     sub_commit "[sync] multi initial delivery — D12 bootstrap"
     # origin 부재 불변식 확증
-    REMOTES="$(sub_run 'git remote' || true)"
+    REMOTES="$(sub_run 'git remote')" \
+        || { echo "[sync] FAIL(F9): 서브 origin 판독 실패 — 로컬 전용(D12)을 확증할 수 없으므로 거부." >&2; exit 7; }
     [ -z "$REMOTES" ] && echo "[sync] ✅ origin 0 (로컬 전용 확증)" || { echo "[sync] FAIL: 서브에 원격 존재($REMOTES) — D12 위반"; exit 7; }
     echo "[sync] B0 완료 — multi=populated, single=base(dormant). 브랜치: $(sub_run 'git branch | tr -d "\n"')"
     # bootstrap 이 multi 를 이미 채움 → TARGETS 에서 multi 제거. 남은 타겟(single, --branch both/single)이 있으면 B1 로 진행.
@@ -1376,14 +1432,16 @@ for t in "${TARGETS[@]}"; do
     #   바꾼다: stash(휘발) 가 아니라 **commit(보존)** 이라 히스토리에 영구 남고, 서브 git 을 둔 목적
     #   (메인의 서브 이력 추적)에 오히려 부합한다. 보존에 실패하면 그때는 fail-closed 한다 —
     #   보존 없는 배달만이 진짜 소실 위험이기 때문이다.
-    DIRT="$(sub_dirty || true)"
+    DIRT="$(sub_dirty)" \
+        || { echo "[sync] STOP(F1): 서브 git status 판독 실패 — dirty 여부를 모르면 배달하지 않는다(소실 방지)." >&2; exit 8; }
     if [ -n "$DIRT" ]; then
         echo "[sync] [$t] 서브 트리 dirty — 덮어쓰기 前 [improve] 커밋으로 보존한다(소실 방지)." >&2
         echo "$DIRT" | head -20 | sed 's/^/    /' >&2
         sub_run "git add -A" || { echo "[sync] STOP: 서브 작업물 stage 실패 — 보존 없는 배달은 소실 위험이므로 거부." >&2; exit 8; }
         sub_commit "[improve] pre-sync autosave ($(date -u +%Y%m%dT%H%M%SZ)) — main-initiated 보존" \
             || { echo "[sync] STOP: 서브 작업물 보존 커밋 실패 — 보존 없는 배달은 소실 위험이므로 거부." >&2; exit 8; }
-        RE_DIRT="$(sub_dirty || true)"
+        RE_DIRT="$(sub_dirty)" \
+            || { echo "[sync] STOP(F1): 보존 후 재판독 실패 — 배달 거부." >&2; exit 8; }
         [ -z "$RE_DIRT" ] || { echo "[sync] STOP: 보존 후에도 dirty 잔존 — 배달 거부." >&2; echo "$RE_DIRT" | head -10 | sed 's/^/    /' >&2; exit 8; }
         echo "[sync] [$t] 보존 완료(서브 로컬 git) — 배달 계속." >&2
     fi

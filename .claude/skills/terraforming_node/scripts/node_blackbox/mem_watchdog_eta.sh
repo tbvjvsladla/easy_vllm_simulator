@@ -495,9 +495,13 @@ log "start mode=$MODE filter='$FILTER' interval=${INTERVAL}s params=$PARAMS_SRC 
 # ★ 정지 경로 (2026-09-01 · audit ㉛). start 는 있고 stop 이 없으면 "지금도 도는 중"과
 #   "조용히 사라졌다"가 기록상 같아진다. 침묵 금지 계약은 시작만이 아니라 **끝**에도 걸린다.
 trap '_rc=$?; emit_event "watchdog_stop" "\"rc\":$_rc,\"signal\":\"${_bb_sig:-EXIT}\""; exit $_rc' EXIT
-trap '_bb_sig=TERM' TERM
-trap '_bb_sig=INT'  INT
-trap '_bb_sig=HUP'  HUP
+# 2026-09-03(㉛ 회귀 · plan_26090317 P1): 핸들러가 변수만 놓고 `exit` 하지 않아 bash 가 루프를
+#   **계속 돌았다** — TERM 으로는 죽지 않고 SIGKILL 까지 가며, KILL 은 trap 을 안 돌므로
+#   정지 기록도 남지 않는다. 즉 ㉛ 이 만들려던 기록은 TERM 경로에서 달성되지 않고, 그 대신
+#   **정상 정지 경로가 사라졌다**(라이브 고아 워치독 1건이 그 결과다). 128+signum 으로 나간다.
+trap '_bb_sig=TERM; exit 143' TERM
+trap '_bb_sig=INT;  exit 130' INT
+trap '_bb_sig=HUP;  exit 129' HUP
 
 emit_event "watchdog_start" "\"filter\":\"$FILTER\",\"runway_ms\":$BB_RUNWAY_MS,\"debounce\":$BB_DEBOUNCE_N,\"hard_floor_mib\":$BB_HARD_FLOOR_MIB,\"max_rate_mib_s\":$BB_MAX_RATE_MIB_S,\"abs_band_mib\":$BB_ABS_BAND_MIB,\"decl_path\":\"$BB_DECL\",\"decl_margin_mib\":$BB_DECL_MARGIN_MIB"
 

@@ -588,6 +588,25 @@ def verify() -> dict:
              ".claude/skills/terraforming_node/scripts/scan_node.py", "--self-test"], {0}),
         _run("terraform_render_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/render_sub_env.py", "--self-test"], {0}),
+        # 2026-09-03(S3 · plan_26090317 P1): SKILL.md §3 이 "회귀 고정 6종" 을 선언하는데 실행자는 위 2종
+        #   뿐이었다. 특히 library_exchange 는 **헌법 불변식 B(그라운딩 누락 판정)의 유일한 기계 집행점**
+        #   이고, node_role_contract 는 불변식 A(토폴로지 축)의 판정기다 — 그 둘이 깨져도 아무도 몰랐다.
+        #   이 파일이 이미 recipe·benchmark 쪽에서 세 번 고친 결함(호출자 없는 자체검사 = L1 산문)과 동형.
+        _run("terraform_node_role_contract_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/node_role_contract.py", "--self-test"], {0}),
+        _run("terraform_library_exchange_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/library_exchange.py", "--self-test"], {0}),
+        _run("terraform_staleness_gate_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/staleness_gate.py", "--self-test"], {0}),
+        _run("terraform_manifest_contract_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/manifest_contract.py", "--self-test"], {0}),
+        _run("terraform_bootstrap_canary_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/bootstrap_canary.py", "--self-test"], {0}),
+        _run("terraform_agent_guard_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/node_blackbox/agent_guard.py", "--self-test"], {0}),
+        _run("terraform_node_identity_selftest", ["bash",
+             ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
+             "--self-test"], {0}),
         _run("runtime_regression_selftest", [*_child_python(),
              ".claude/policies/runtime/runtime_selftest.py"], {0}),
         _run("gitless_hint_match", [sys.executable,

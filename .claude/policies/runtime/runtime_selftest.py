@@ -589,6 +589,10 @@ def _request(transport: str = "local") -> dict:
         "intent": "probe",
         "task": "read-only runtime probe",
         "model": "sonnet",
+        # 2026-09-03(plan_26090317 P1): 이 픽스처는 스키마 required 인 `timeout_seconds` 를 빠뜨리고
+        #   있었다 — 실물 request 는 반드시 갖는 필드다. 픽스처가 실물보다 좁으면 그 위의 단언은
+        #   실물에서 성립하는 성질을 시험하지 못한다(원격 timeout 래핑이 그 예였다).
+        "timeout_seconds": 60,
         "max_turns": 1,
         "capabilities": ["read"],
         "target": target,
@@ -617,12 +621,21 @@ def _test_agent_provider_boundary() -> None:
     _require(local_argv[0] == "claude" and "--model" in local_argv,
              f"local provider argv malformed: {local_argv}")
     ssh_argv = provider.build_argv(_request("ssh"))
-    _require(ssh_argv[:2] == ["ssh", "--"] and ssh_argv[2] == "probe@192.0.2.10",
-             f"SSH provider argv malformed: {ssh_argv}")
-    remote_shell = shlex.split(ssh_argv[3])
+    # 2026-09-03(F5 · plan_26090317 P1): 위임 전송만 맨 ssh 였다 — 미등록 host key·패스프레이즈에서
+    #   ssh 가 /dev/tty 를 읽으며 timeout_seconds(≤3600s)까지 멈추고, 그 뒤에도 **원격 claude 는 살아**
+    #   서브 워크스페이스를 계속 편집했다(메인은 이미 실패로 기록한 뒤). 하드닝을 계약으로 고정한다.
+    _require(ssh_argv[0] == "ssh", f"SSH provider argv malformed: {ssh_argv}")
+    _require("-o" in ssh_argv and "BatchMode=yes" in ssh_argv and "ConnectTimeout=8" in ssh_argv,
+             f"SSH delegation must never be able to prompt on a tty: {ssh_argv}")
+    _require(ssh_argv[-2] == "probe@192.0.2.10" and ssh_argv[ssh_argv.index("--") + 1] == "probe@192.0.2.10",
+             f"SSH destination misplaced: {ssh_argv}")
+    remote_shell = shlex.split(ssh_argv[-1])
     _require(remote_shell[:2] == ["bash", "-lc"] and
-             remote_shell[2].startswith("cd '/tmp/runtime probe' && claude "),
-             f"SSH work_dir is not safely shell-quoted: {ssh_argv[3]}")
+             remote_shell[2].startswith("cd '/tmp/runtime probe' && "),
+             f"SSH work_dir is not safely shell-quoted: {ssh_argv[-1]}")
+    # 원격 동반사망: 클라이언트 timeout 만으로는 서브에 고아 에이전트가 남는다.
+    _require("timeout " in remote_shell[2] and " claude " in remote_shell[2],
+             f"remote command must be wrapped in `timeout` so the sub agent dies with the client: {remote_shell[2]}")
 
     blocked = _request("local")
     blocked["model"] = "opus"

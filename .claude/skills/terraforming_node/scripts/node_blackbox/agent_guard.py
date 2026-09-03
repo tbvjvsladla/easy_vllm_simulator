@@ -72,24 +72,57 @@ def read_mem_avail_mib() -> int | None:
 
 
 def load_envelope(node_dir: str) -> dict:
-    """에이전트가 폴링마다 읽는 유일한 파일. 부재/불량이면 계약 기본값으로 fail-safe."""
+    """에이전트가 폴링마다 읽는 유일한 파일. 부재/불량이면 계약 기본값으로 fail-safe.
+
+    2026-09-03(⑦ 4단 · plan_26090317 P1): 이전 판본은 **존재하지 않는 키 3개**를 읽었다 —
+    `kill.latency_upper_bound_s.max` · `kill.threshold_mib` · `eta_params.daemon_kill_s`.
+    `regen_envelope.py` 가 실제로 쓰는 키는 `kill.latency_s.max` · `derived.abs_band_mib` ·
+    `eta_params.kill_latency_s` 다. 그 결과 세 값이 **항상 리터럴 기본값**(14/10240/6)으로 떨어졌는데
+    기동 배너는 `src=<envelope 경로>` 를 찍었다 — "포락선을 읽고 있다" 는 표시와 "리터럴을 쓰고 있다"
+    는 실제가 어긋난 채 5일을 갔다(`blackbox-envelope-never-existed` 와 같은 계열의 결함).
+    이제 실제 키를 읽고, **필드별 출처**를 함께 돌려주며, envelope 이 있는데 키가 없으면 크게 말한다.
+    """
     path = os.path.join(node_dir, "envelope.json")
     try:
         with open(path, "r", encoding="utf-8") as fh:
             env = json.load(fh) or {}
     except (OSError, ValueError):
         env = {}
-    p = env.get("eta_params") or {}
+    ep = env.get("eta_params") or {}
     k = env.get("kill") or {}
-    lat = (k.get("latency_upper_bound_s") or {}).get("max")
-    return {
-        "agent_notify_s": float(p.get("agent_notify_s") or 900),
-        "agent_act_s": float(p.get("agent_act_s") or 300),
-        "daemon_kill_s": float(p.get("daemon_kill_s") or 6),
-        "kill_threshold_mib": int(k.get("threshold_mib") or 10240),
-        "kill_latency_max_s": float(lat if lat is not None else 14),
-        "_source": path if env else "(부재 — 계약 기본값)",
+    derived = env.get("derived") or {}
+    src: dict = {}
+    missing: list = []
+
+    def pick(value, default, name, origin):
+        if value is None:
+            if env:
+                missing.append(name)
+            src[name] = "default:agent_guard literal"
+            return default
+        src[name] = origin
+        return value
+
+    lat = (k.get("latency_s") or {}).get("max")
+    out = {
+        "agent_notify_s": float(pick(ep.get("agent_notify_s"), 900, "agent_notify_s", "envelope:eta_params")),
+        "agent_act_s": float(pick(ep.get("agent_act_s"), 300, "agent_act_s", "envelope:eta_params")),
+        # 데몬이 실제로 kill 하기까지 걸린 시간 = 실측 kill_latency_s(없으면 보수적 기본 6s).
+        "daemon_kill_s": float(pick(ep.get("kill_latency_s"), 6, "daemon_kill_s", "envelope:eta_params.kill_latency_s")),
+        # 데몬 절대 임계 = derived.abs_band_mib(레거시 절대임계 재사용 — regen_envelope 가 그렇게 적는다).
+        "kill_threshold_mib": int(pick(derived.get("abs_band_mib"), 10240, "kill_threshold_mib",
+                                       derived.get("abs_band_source") or "envelope:derived.abs_band_mib")),
+        "kill_latency_max_s": float(pick(lat, 14, "kill_latency_max_s", "envelope:kill.latency_s.max")),
     }
+    out["_field_sources"] = src
+    if env and missing:
+        # 침묵 금지: envelope 이 있는데 계약 키가 없으면 그 사실이 배너에 나와야 한다.
+        out["_source"] = "%s (⚠ 미해소 키: %s → 리터럴 기본값)" % (path, ",".join(sorted(missing)))
+        print("[agent-guard] WARN: envelope 에 계약 키 %s 가 없어 리터럴 기본값을 쓴다 — "
+              "regen_envelope 스키마와 이 소비자가 갈라졌다." % ",".join(sorted(missing)), file=sys.stderr)
+    else:
+        out["_source"] = path if env else "(부재 — 계약 기본값)"
+    return out
 
 
 def compute_eta_s(mem_avail_mib: int, rate_mib_s: float, kill_threshold_mib: int):
@@ -407,6 +440,42 @@ def _self_test() -> int:
         nonlocal ok
         print("  [%s] %s" % ("PASS" if cond else "FAIL", label))
         ok = ok and bool(cond)
+
+    # ── envelope 계약 파리티 (신설 2026-09-03 · ⑦ 4단 · plan_26090317 P1) ─────────────
+    # 결함의 형태: 소비자(이 파일)가 **생산자(regen_envelope)에 없는 키**를 읽어 세 값이 항상
+    # 리터럴로 떨어지는데, 배너는 `src=<envelope>` 를 찍었다. 두 정적 파일 사이에는 "한쪽이 다른
+    # 쪽을 생성" 하는 관계가 없으므로 **교차검증이 차선**이다(workflow.md §결정론 규율).
+    # 시험 방법: 생산자 스키마 모양의 픽스처를 넣고, 각 필드의 출처가 리터럴이 **아님**을 본다.
+    import tempfile as _tf
+    _fix = {
+        "schema_version": 2,
+        "eta_params": {"agent_act_s": 111.0, "agent_notify_s": 222.0, "kill_latency_s": 3.0},
+        "eta_params_source": {"kill_latency_s": "measured:events"},
+        "kill": {"latency_s": {"max": 4.0, "p50": 0.0, "n": 2, "scope": "window"},
+                 "trip_mem_mib": [3858], "trips": 1},
+        "derived": {"abs_band_mib": 9999, "abs_band_source": "default:blackbox_eta.DEFAULTS.abs_band_mib"},
+    }
+    with _tf.TemporaryDirectory() as _d:
+        with open(os.path.join(_d, "envelope.json"), "w", encoding="utf-8") as _fh:
+            json.dump(_fix, _fh)
+        _env = load_envelope(_d)
+        _srcs = _env["_field_sources"]
+        _literal = [k for k, v in _srcs.items() if v == "default:agent_guard literal"]
+        chk(not _literal,
+            "envelope 계약 파리티: 생산자 키를 전부 해소(리터럴로 떨어진 필드=%s)" % (_literal or "없음"))
+        chk(_env["agent_act_s"] == 111.0 and _env["agent_notify_s"] == 222.0
+            and _env["daemon_kill_s"] == 3.0 and _env["kill_latency_max_s"] == 4.0
+            and _env["kill_threshold_mib"] == 9999,
+            "envelope 값이 실제로 반영됨(리터럴 기본값과 다름)")
+        chk("⚠" not in _env["_source"], "정상 envelope 에는 미해소 경고가 붙지 않는다")
+        # 음성대조: 생산자가 키 이름을 바꾸면(=옛 소비자 상태) 반드시 크게 말해야 한다.
+        _bad = {"eta_params": {"daemon_kill_s": 6}, "kill": {"latency_upper_bound_s": {"max": 14}}}
+        with open(os.path.join(_d, "envelope.json"), "w", encoding="utf-8") as _fh:
+            json.dump(_bad, _fh)
+        _env2 = load_envelope(_d)
+        chk("⚠" in _env2["_source"] and _env2["_field_sources"]["kill_latency_max_s"]
+            == "default:agent_guard literal",
+            "키 불일치 envelope → 배너에 경고 + 출처가 리터럴로 표기(조용한 통과 ✗)")
 
     # ── 교차검증: 선언 상수가 정본과 같은가 (신설 2026-09-01 · audit_26090109 ①) ──────
     # 이 술어가 **없어서** ①이 발생했다. 자매 blackbox_thermal 자체검사는 수집기 상수와

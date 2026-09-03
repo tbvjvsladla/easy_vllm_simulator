@@ -116,12 +116,25 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 인터뷰 응답 수집 → 사용자가 **명시 승인**해야 스캔 시작.
 
 ### 1.3 스캔 (결정론 — `scripts/scan_node.py`)
-- 로컬: `python3 scripts/scan_node.py --topology <single|multi> [--peer-ip <sub IP>] [--compose output/<topology>/docker-compose.yaml]`
+- **라이브 멀티 명령(정본)**: `--peer-ip` 와 `--peer-ssh` 는 **서로 대체 불가한 별개 플래그**이며 **둘 다** 필요하다.
+  ```bash
+  python3 scripts/scan_node.py --topology multi \
+      --peer-ip <sub IP> --peer-ssh <user>@<sub> --sub-work-dir <서브 프로젝트 절대경로> \
+      --check-egress --model-source <managed|ephemeral|custom> \
+      [--bandwidth-gbps <합산 실측> --per-port-gbps <포트당 실측>] [--emit-manifest]
+  ```
+  - `--peer-ip` 만: 게이트는 통과하지만 **서브 HW 동질성 검증이 통째로 생략**돼 `hw_verified` 미발급 → A2A 위임 키가 영구히 안 나온다(서브 info-only).
+  - `--peer-ssh` 만: `nodes[]` 자체가 만들어지지 않고 도달성 미검증으로 **γ blocked(exit 2)**.
+  - 2026-09-03 이전에는 이 조합이 저장소 어디에도 적혀 있지 않았다(B1) — 두 실패 모두 조용했다.
+- 단일: `python3 scripts/scan_node.py --topology single [--compose output/single/docker-compose.yaml]`
 - 탐지: cpu_arch(uname) · cuda(nvcc) · gpus(nvidia-smi) · interconnect(**/sys/class/infiniband + show_gids** — ibstat 비의존) · docker-compose NCCL 교차검증.
 - 폴백: 탐지 도구 부재/빈 결과 → graceful(인터뷰 폴백 또는 α). hard-crash 금지.
 
 ### 1.4 성능 게이트 (결정론 판정 + cross-node 오케스트레이션)
 - 합격선(plan §2.4): **포트당 ≥100 Gb/s & 합산 ≥180 Gb/s**(=200Gbps 풀대역폭 ~90%, devlog 218 기준).
+  두 조건 모두 `evaluate_gate` 가 집행한다(`--per-port-gbps`/`--per-port-floor` · 2026-09-03 B4 이전에는
+  **합산만** 코드에 있어 포트당 조건이 집행 불가였다). **미측정은 통과가 아니다** — `bandwidth_gbps` 가
+  없으면 `pending-perf` + **exit 2**(fail-closed). 미평가 축은 `per_port_evaluated:false` 로 음성정직 표기된다.
   **이 기본값은 200Gbps RoCE 플랫폼 파생 상수** — 저속-그러나-가용 인터커넥트(예 100GbE)는 불가 판정이
   아니라 `--bw-floor <합산 line-rate×0.9>` 재설정 대상(전방호환 시도-우선 따름정리 — 시도 차단 금지;
   단 낮춘 합격선은 분산서빙 성능 기대치도 비례 하향됨을 HITL 에 고지).
@@ -176,8 +189,22 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 ### 2.3 렌더-온-메인 → 전달 (결정론 + HITL)
 - **렌더**(결정론): `python3 scripts/render_sub_env.py --topology multi` → manifest 노드정체성을 템플릿에 치환,
   gitignored 스테이징 `output/multi/sub_provision/` 산출(서브 루트 미러). 미치환 placeholder·필수 누락 시 fail-loud.
-- **전달**(HITL): `bash .claude/skills/upstream-version-watch/scripts/sync_to_sub.sh --apply --provision`
+- **전달**(HITL) — **인가 체인이 먼저다**. `sync_to_sub.sh` 는 `--mode` 와 `--manifest` 를 **필수**로 받고,
+  `completion_gate.py authorize --action sync_to_sub` 로 포워딩해 **discovery·ssh·rsync 이전에** fail-closed 한다.
+  2026-09-03 이전에는 이 문서·렌더러 출력·스크립트 자기안내 **세 곳 모두** 그 두 인자를 빠뜨려, 안내대로 치면
+  `CLI_USAGE_ERROR` 로 거부됐다(B0).
+
+  ```bash
+  # ① 증거 레코드 발행(work-manifest 의 뼈대)
+  python3 .claude/policies/runtime/evidence_publisher.py init       --task-class harness_change --topic <주제>       --generated-utc <YYYY-MM-DDTHH:MM:SSZ> --identity-json <identity.json>
+  # ② 사람이 plan 문서에 `## Execution approval` 앵커 + 원자 3종을 적고(approved_by/approved_at_utc/allowed_action),
+  #    그 값을 work-manifest 의 execution_approval 에 기입한다(plan_sha256 = 그 plan 바이트의 sha256).
+  #    → allowed_actions 에 `sync_to_sub` 가 있어야 인가가 열린다.
+  # ③ 전달
+  bash .claude/skills/upstream-version-watch/scripts/sync_to_sub.sh       --mode experimental --manifest <work-manifest.json> --apply --provision --branch <multi|single|both>
+  ```
   — 메인 rsync(코드) **이후** 스테이징을 서브 루트로 **오버레이(--delete 없음)**. 빌딩블럭 스킬·manifest 는 전달 안 됨(런타임블럭만).
+  - `--mode promotion` 은 verify 가 `promotion-ready` 에 도달한 경우에만 열린다(hint·last-good 평면). 서브 배달은 통상 `experimental`.
 - **단일 전달차**: 코드+에이전트환경 모두 sync_to_sub.sh 한 경로. dry-run 기본 → 사람 검토 후 --apply.
 
 ### 2.4 A2A-개념 협업 계약 (서버 없음)
@@ -188,7 +215,17 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 - per-task 휘발값(모델명·예산·NAS 서브디렉토리)은 **Task Message** 로(manifest 복제 아님).
 
 ### 2.5 완료 게이트 — model-less 카나리 라운드트립 (R1 정합)
-전달 후 메인이 **모델 없이** 부트스트랩 Task 1회(`bootstrap_canary()` — 실행문법 = `references/agent-control-adapter.md` §2)
+전달 후 메인이 **모델 없이** 부트스트랩 Task 1회. **실행자 = `scripts/bootstrap_canary.py`**(2026-09-03 신설 · S1):
+manifest 의 `nodes[sub]` 에서 host·ssh_user·work_dir 를 읽고 `node_role_contract` 가 정한 `sub_mode` 로
+**정체성에 맞는 카나리 문구**를 골라 request 를 조립한다(ray-worker 에게 "런타임 스킬 3종" 을 묻지 않는다).
+```bash
+python3 scripts/bootstrap_canary.py --topology <single|multi> --emit /tmp/canary.json   # 조립(결정론)
+python3 scripts/bootstrap_canary.py --topology <single|multi> --invoke                  # HITL 승인 뒤 실행
+```
+turn 예산은 매직상수가 아니라 **grade 표 S(8~12)** 에서 온다(`GRADE_SOURCE` 로 출처 표기 · plan_26090317 §5).
+서브 미등록·`__REQUIRED__` 센티넬 잔존 시 **조립 자체를 거부**한다(틀린 계정/경로로 접속하지 않는다).
+이전 판본은 이 자리에 `bootstrap_canary()` 라고만 적혀 있었고 **생산자가 0개**였다(실행자 없는 금지 — §2.7.1 위반).
+(실행문법 = `references/agent-control-adapter.md` §2)
 → 서브가 새 CLAUDE.md+런타임블럭+settings+comms 로드, **phase=inspect·status=completed + self_verification** 의 schema-valid 리포트 반환.
 이로써 "구성된 환경이 프로토콜대로 작동함"을 전체로서 증명(권한행·skill YAML·페르소나 비준수 포착 — 체크섬이 못 잡는 것). 실패 시 max-turns→Model-C. **카나리 미통과 시 done 선언 금지.**
 
@@ -652,12 +689,18 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 |---|---|
 | **`staleness_gate.py`(조건부 preflight 트리거 — manifest/Flag/HW드리프트/attestation 나이 3축, `--now` 주입·벽시계 ✗)** · `scan_node.py`(스캔·게이트·3자-일치·manifest 블록·**emit_gate=토폴로지 미선언 emit fail-closed**) · `render_sub_env.py`(manifest→10아티팩트 렌더/복제·미치환/필수 검증) · **`node_role_contract.py`**(토폴로지 축 계약 — sub_mode 파생/선언일치·rank·정체성 권위·배달 평면, 출처 필드 동반) · **`library_exchange.py`**(그라운딩 3질문+Freshness — **누락** 판정만; "이 근거가 정말 뒷받침하나"는 판단 칸) · sync_to_sub 체크섬 · `install_host_safety.sh`(설치·검증 — 실행 트리거는 HITL) | **토폴로지 진입 인터뷰(§0.5)** · fresh-clone 온보딩 능동제안 · 5-전제조건 인터뷰 · 사용자 승인 · 브랜치≠토폴로지 시 브랜치전환 안내 · ib_write_bw 오케스트레이션 · **호스트 안전체계 세션 최종 Y/N 설명·승인(§2.6 — 선택조항)** · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 · **인용의 진위 리뷰(§2.7.8 — 거짓은 사람이 본다)** · 모호 시 중단·질의 |
 
-회귀 고정(전부 하드웨어·네트워크 불요): `python3 scripts/staleness_gate.py --self-test`(3축 판정·결정론·음성정직 9 + single sub-control 로스터 6 + interconnect 의미론 6 = 21케이스) · `python3 scripts/scan_node.py --self-test`(34케이스 — 게이트·emit_gate fail-closed·emit-block None-leak·egress) · `python3 scripts/render_sub_env.py --self-test`(렌더 6케이스) · **`python3 scripts/node_role_contract.py --self-test`**(sub_mode 파생/선언 8 + rank 5 + 권위·배달평면 4 + manifest 평가 6 + 결정론 1 = 24케이스) · **`python3 scripts/library_exchange.py --self-test`**(세 질문·Freshness·비대칭·shape = 17케이스) · `bash scripts/node_blackbox/node_identity.sh --self-test`(해소 우선순위·fail-loud 8케이스).
+회귀 고정(전부 하드웨어·네트워크 불요) — **케이스 수는 여기 적지 않는다**(파생 가능한 값을 손으로 적으면 반드시 낡는다.
+2026-09-03 이전 목록은 34/21/6/17 이라 적혀 있었고 실측은 43/26/8/36 이었다). 실행자는
+`.claude/policies/runtime/verify_distribution.py` 이며 **7종 전부**가 그 하네스에서 돈다(2026-09-03 S3 배선 —
+그전에는 scan·render 2종만 돌았고, 불변식 B 의 유일한 기계 집행점인 `library_exchange` 를 포함해 4종에 호출자가 0이었다):
+`scan_node.py` · `render_sub_env.py` · `node_role_contract.py` · `library_exchange.py` · `staleness_gate.py` ·
+`manifest_contract.py` · `node_blackbox/node_identity.sh` (+ `bootstrap_canary.py`).
 
 ## 4. 보조 파일
 - `scripts/staleness_gate.py` — **조건부 preflight 결정론 트리거**(`--topology`·`--repo`·`--observed`·`--now`·`--max-age-days`·`--self-test`). 3축(manifest/Flag · HW 드리프트 · attestation 나이) → 안정 reason code. 미평가 축은 `skipped:*` 로 음성정직 표기(조용한 통과 ✗). **HW 축의 interconnect 6필드는 topology=single 에서 비교하지 않는다**(2026-08-21 · approved_by AhnSangHun) — single 은 분산서빙을 안 해 interconnect 를 쓰지 않으므로 manifest 의 "미사용" 선언 ↔ 실측 RoCE 발산은 의도된 것이다. `scan_node.evaluate_gate` 의 single 의미론(RoCE 존재 = warning, gate note "interconnect 스캔 skip(실패 아님)")과 정합. **multi 는 유지**(텐서패브릭이므로 완화 ✗). 제외 적용 시 `notes` 에 표기한다(침묵 ✗).
 - `references/agent-control-adapter.md` — **provider 전용 실행문법 경계**(서브 위임·카나리). 본문은 의도만, 문법은 여기서만.
-- `scripts/scan_node.py` — 결정론 스캔 코어(`--topology`·`--peer-ip`·`--bandwidth-gbps`·`--bw-floor`·`--emit-manifest`·`--self-test`).
+- `scripts/scan_node.py` — 결정론 스캔 코어. 플래그 전수: `--topology`·`--peer-ip`·`--peer-port`·`--peer-ssh`·`--sub-work-dir`·`--compose`·`--env-interconnect`·`--manifest`·`--bandwidth-gbps`·`--per-port-gbps`·`--per-port-floor`·`--bw-floor`·`--check-egress`·`--model-source`·`--emit-manifest`·`--self-test`. (2026-09-03 이전 목록은 6개만 적어 라이브 조합을 감췄다 — B1.)
+- `scripts/bootstrap_canary.py` — **§2.5 완료 게이트 실행자**(`--topology`·`--manifest`·`--emit`·`--invoke`·`--self-test`).
 - `scripts/render_sub_env.py` — 결정론 렌더러(manifest→`output/multi/sub_provision/` 스테이징·`--self-test`).
 - `scripts/node_role_contract.py` — **토폴로지 축 노드 계약의 단일 소유자**(§2.7.0·§2.7.6b). `evaluate --topology <t> --field {sub_mode,rank,identity_authority,delivery_plane} --format {json,value}` · `--self-test`. 배달 평면 판정의 **정본**이며 `role: sub` 존재로 추론하지 않는다. ✅ 소비자 배선 완료(2026-08-22): `sync_to_sub.sh:_single_extension_active`(배달 평면) · `render_sub_env.py::_contract_placeholders`(Agent_Card 4필드). ⚠ venv `-S` shim 을 포함한 `load_yaml` 을 자체 보유한다 — `staleness_gate._load_yaml` 과 **같은 shim 이 두 곳에 있다**. 지금은 의도된 비결합(preflight 게이트가 이 파일 부재로 죽지 않게)이며, 갈라지면 신호는 두 파서의 판정 불일치로 온다.
 - `scripts/library_exchange.py` — **그라운딩 교환 판정기**(§2.7.8, 메인 전용). `validate --file <msg>` · `gate --request/--export/--attestation` · `--self-test`. 서브 디스크를 읽지 않는다(메시지만 본다).
