@@ -990,6 +990,10 @@ prepare_transactional_source() {
     local _drift
     _drift="$(git -C "$CANONICAL_SRC" diff --name-only -- .claude CLAUDE.md .gitignore output/multi output/single 2>/dev/null)"
     if [ -n "$_drift" ]; then
+        # 아래 영문 한 줄은 `verify_distribution` 의 `sub_transactional_source_uses_git_index` 가
+        #   앵커로 쓴다 — 트랜잭션 소스가 인덱스 권위임을 코드가 스스로 말하는 자리다. 지우지 마라
+        #   (2026-09-04: 파일명 출력을 더하면서 이 줄을 지웠다가 그 검사가 RED 로 잡았다).
+        echo "[sync] info: canonical worktree drift detected; filesystem bytes are excluded in favor of index authority" >&2
         echo "[sync] ⚠ 워킹트리 드리프트 — 아래 파일은 **인덱스 버전이 배달된다**(git add 안 한 변경은 안 간다):" >&2
         printf '%s\n' "$_drift" | sed 's/^/[sync]     /' >&2
         echo "[sync]   → 방금 고친 파일이 이 목록에 있으면 'git add <파일>' 후 다시 실행하라." >&2
