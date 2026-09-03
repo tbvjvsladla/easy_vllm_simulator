@@ -67,12 +67,34 @@ val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }
 CNAME="$(val CONTAINER_NAME)"
 [ -n "$CNAME" ] || CNAME="vllm-serve-container"     # compose 기본값과 동일(정보 손실 없음)
 
+# ── 블랙박스 도구 디렉터리 해소 — **메인과 서브가 경로가 다르다** ──
+#
+# 2026-09-03 실측: 이 스크립트는 서브에 배달되는데(런타임블럭) node_blackbox 경로를
+#   `.claude/skills/terraforming_node/scripts/node_blackbox/` 로 하드코딩했다. 서브에는
+#   `terraforming_node`(온보딩 스킬)가 **가지 않는다** — 렌더러가 블랙박스만 떼어
+#   `.claude/runtime/node_blackbox/` 로 배치한다. 그래서 서브에서 teardown 이
+#   `node_identity.sh: No such file` → `ni_resolve_node_id: command not found` →
+#   `FAIL: node_id 미해소` 로 **구조적으로 못 돌았다**. 서브가 이 스크립트를 처음 쓰려 한
+#   순간에 드러났다(그 전까지는 아무도 부르지 않아 보이지 않았다).
+#   침묵 누락이 아니라 **경로 가정과 배달 표면의 불일치**다 — 배달되는 스크립트는 배달된
+#   자리에서 도는지로 판정해야 한다.
+_bb_dir() {
+  local c
+  for c in "$REPO/.claude/runtime/node_blackbox" \
+           "$REPO/.claude/skills/terraforming_node/scripts/node_blackbox"; do
+    [ -d "$c" ] && { printf '%s' "$c"; return 0; }
+  done
+  return 1
+}
+BB_DIR="$(_bb_dir)" || {
+  echo "$TAG FAIL: node_blackbox 도구 디렉터리를 찾지 못했다 — 메인 .claude/skills/terraforming_node/scripts/node_blackbox 도, 서브 .claude/runtime/node_blackbox 도 없다." >&2; exit 3; }
+
 # ── node_id 는 단일 해소기가 답한다(각자 파싱 ✗ · hostname 폴백 ✗) ──
-. "$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh"
+. "$BB_DIR/node_identity.sh"
 NODE_ID="$(ni_resolve_node_id "$REPO" "$EXPLICIT_NODE_ID")" || {
   echo "$TAG FAIL: node_id 미해소 — 예산·세션 회수 대상 디렉터리를 정할 수 없다(fail-loud)." >&2; exit 2; }
 NODE_DIR="$REPO/docs/logs/$NODE_ID"
-SESSION_PY="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.py"
+SESSION_PY="$BB_DIR/blackbox_session.py"
 NOW_ISO(){ date -u +%FT%TZ; }
 
 echo "$TAG 대상: container=$CNAME · compose=$COMPOSE · config=$CONFIG · node_id=$NODE_ID$([ $DRY = 1 ] && echo ' · DRY-RUN(변경 없음)')"
