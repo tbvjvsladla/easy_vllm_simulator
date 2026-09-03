@@ -6,79 +6,47 @@
 
 ## 읽을 원재료 (복사 대상 아님 · 포인터)
 
-- devlog: `../devlog/devlog_26090117_17_21_gptoss120b_gb10_0191_single_v2.md`
-- testlog: `../testlog/testlog_26090117_17_21_gptoss120b_gb10_0191_single_v2.md`
+- devlog: `../devlog/devlog_26090308_gpt_oss_20b_gb10_0180.md`
+- testlog: `../testlog/testlog_26090308_gpt_oss_20b_gb10_0180.md`
 
 ## 서사
 
-빌드는 벽이 **0개**였다. wheel 이 그대로 붙었고 컴파일이 없다. 벽은 전부 그 다음,
-**런타임 자산과 측정 평면**에 있었다.
+**증상 1 — 요청한 attention backend가 조용히 무시됨.** Phase 2 초회 lockset은
+`attention_backend=FLASHINFER`를 요청했다. 그러나 엔진 로그에 `Unknown vLLM environment variable
+detected: VLLM_ATTENTION_BACKEND` 경고가 찍혔고, 실제 선택은 `Using TRITON_ATTN attention backend
+out of potential backends: ['TRITON_ATTN']`였다(testlog "Phase 2 trial-loop" 절 인용). **원인**:
+vLLM 0.18.0에서 gpt-oss+mxfp4 조합은 TRITON_ATTN이 유일한 가용 백엔드이고, 요청 자체가 무효한 환경변수라
+아무 효과가 없었다(devlog §2). **해소**: attention_backend를 실측대로 TRITON_ATTN으로 정정 — 이 조합에서는
+선택의 여지가 없으므로 요청이 아니라 확인의 문제였다.
 
-### ① 엔진이 다 뜬 뒤에 API 서버가 죽는다 — 그리고 도구가 오진한다
+**증상 2 — batch=32에서 호스트 워치독에 의한 외부 SIGKILL.** 언클램프(trial1, `kv_cache_memory_bytes=null`)
+측정에서 kv_cache_gib=87.72GiB(실측 24.58KB/token), weights=13.72GiB로 프로파일까지는 성공했으나,
+gmu가 호스트 안전계층에 의해 0.90→0.852로 자동 하향됐음에도 컨테이너가 138.6초 만에 CUDA OOM 예외 없이
+죽었다(testlog "Phase 2 trial-loop" 표, trial 1 행). `classify_failure`는 `vram_infeasible`로 판정했다
+(`required_kv=105,142,151,354B > max_safe_kv=100,470,151,321B`). **원인**: GB10은 통합메모리 호스트라
+vLLM 자체의 gmu 안전장치를 통과해도, 그와 **별개인 호스트 레벨 워치독**이 CUDA 예외 없이 개입할 수
+있다 — "측정된 최대치에 근접"이 곧 "안전"은 아니었다. **해소**: max-model-len(131072, 전략상 고정)은
+그대로 두고 batch를 32→16으로 낮추고 `kv-cache-memory-bytes=51539607552`(48GiB)를 명시적 절대클램프로
+지정했다. trial2는 예산 선언이 정상 발행되고 CUDA 그래프 캡처까지 마친 뒤 `classify → none`(수렴)으로
+끝났다(testlog 동일 표, trial 2 행).
 
-증상은 잔인하게 늦게 온다. 가중치 15 shard 로드 정상, KV 할당 정상(`GPU KV cache size` 까지
-로그에 찍힘), **그 다음** 사망:
-
-```
-openai_harmony.HarmonyError: error downloading or loading vocab file
-  harmony_utils.get_encoding()  ←  OpenAIServingResponses.__init__
-```
-
-**원인**: harmony/o200k 인코딩이 이미지에 번들되지 않는다. 폐쇄망이면 라이브러리 자체 다운로드도
-실패한다.
-
-**왜 위험한가**: 죽는 시점이 KV 할당 *직후*라 자동 분류기가 이것을 **"KV 부족"으로 오분류**한다.
-실제로 그렇게 오진했고, 그 처방을 따라 KV 를 30 → 15 → 7.5 GiB 로 줄여도 **낫지 않는다**
-(근거: testlog §단계표 · devlog §무엇을 했나). 증상이 자원 부족처럼 보이는데 원인이 자산 부재이므로,
-**자원을 깎는 처방이 무한히 헛돈다.**
-
-**해소**: flat 디렉터리에 `o200k_base.tiktoken` 을 사전 적재하고 읽기전용 마운트 +
-`TIKTOKEN_ENCODINGS_BASE`·`TIKTOKEN_RS_CACHE_DIR` 를 그 경로로, `TIKTOKEN_ENABLED=true`.
-**검증법**: `--network=none` 으로 띄워서 harmony 로드가 되면 성립이다. 네트워크가 있으면
-"다운로드가 성공한 것"과 "로컬에서 찾은 것"이 구분되지 않는다.
-
-### ② `auto` 의 답은 버전 간에 뒤집힌다
-
-요청한 attention backend 가 **채택되지 않았다**. 참조가 `FLASHINFER` 를 지목해 lockset 에 넣었으나
-엔진은 `out of potential backends: ['TRITON_ATTN']` 을 냈다 — 0.19.1 의 gpt-oss MXFP4 × sm_121
-조합엔 그 경로가 **후보에 아예 없다**. 참조가 그것을 쓸 수 있었던 건 **포크·0.17.1** 이었기
-때문이다(근거: devlog §시도했다가 폐기한 것).
-
-실제로 선택된 것은 **TRITON_ATTN + MARLIN** 이고, 그 조합이 정상 동작했다. 반대로 이 모델의
-0.26.x 계열에서는 auto 가 TRITON Mxfp4 를 골라 cudagraph 캡처에서 기동 실패한다.
-**같은 모델·같은 하드웨어인데 버전만 다르면 auto 의 답이 뒤집힌다 — carry-forward 하지 마라.**
-
-### ③ 판정이 두 번 뒤집혔다 — 그리고 두 번 다 게이트가 아니라 사람이 잡았다
-
-**첫 번째, 측정이 무효였다.** harmony 는 chat 엔드포인트에서 `--ignore-eos` 가 먹지 않는다.
-assistant-action stop 토큰이 EOS 와 별개로 턴을 끝내기 때문이다. 실측 대조 — chat 은 256×8 을
-요청해 **331** 개만 생성하고 `stop` 으로 끝났고, completions 는 400 요청에 **400** 생성 `length`
-였다. 생성이 짧아지면 `TPOT=(duration−TTFT)/(n−1)` 의 분모가 작아져 디코드가 **3.3배 느린 것처럼**
-찍힌다(client 10.33 vs engine-log 34.1). 같은 뿌리가 벤치 하네스 **세 파일**에 있었고, 그중 하나는
-**이미 발행된 인증서에 왜곡값이 실린 뒤**에 발견됐다(근거: testlog §하네스 결함 3건).
-
-**두 번째, 루브릭이 물리적으로 불가능했다.** 1차 판정은 REFUTE(ratio 0.581)였는데, 비교 대상 E 가
-잘못이었다. 배치1 디코드는 토큰마다 active **5.738 GiB** 를 읽으므로 이 하드웨어의 스펙 대역폭
-아래에서 **절대 상한이 44.31 t/s** 다. E=59 는 그 상한을 33% 초과한다 — 단일 스트림 수치일 수 없고,
-실은 **높은 동시성에서의 총합**이었다. like-with-like E=33.53(같은 하드웨어·같은 체크포인트·
-동시성 1 명시)으로 정정하니 **PASS**(근거: testlog §판정이 REFUTE → PASS 로 뒤집힌 경위).
-
-**남는 교훈**: 결정론 게이트는 **불가능한 E 를 그대로 받았다.** 성능 판정을 소비할 때는
-`E × active_bytes ≤ 대역폭` 을 손으로 검산하라. 게이트 통과가 루브릭의 타당성을 뜻하지 않는다.
+**증상 3 — harmony 포맷이 벤치 측정을 왜곡할 뻔함.** gpt-oss는 harmony의 assistant-action stop 토큰이
+EOS와 별개로 턴을 끝내므로, `/v1/chat/completions`(기본 backend)로 측정하면 `--ignore-eos`가 무력화돼
+TPOT이 실제보다 느리게 측정된다(이 프로젝트에서 과거 3.3배 왜곡이 실측된 바 있음 — testlog "Full
+벤치마크" 절). **해소**: 처음부터 `run_bench.sh --backend openai`(`/v1/completions`)로 측정했다 —
+총 생성 토큰이 요청한 4096(=16×256)과 정확히 일치했고 `client_engine_agreement.ratio=1.0`으로 왜곡
+없음을 확인했다(testlog 동일 절).
 
 ## 되풀이하지 말 것
 
-- **`FLASHINFER` 를 강제하려 애쓰지 마라.** lockset 에 넣어도 이 버전·이 아키텍처에서는
-  후보 목록에 없어 조용히 무시된다. 참조가 그것을 쓸 수 있었던 조건(포크·다른 버전)을 먼저 확인하라.
-- **`--mxfp4-layers` · `VLLM_MXFP4_BACKEND` 는 0.19.1 에 존재하지 않는다.** 후자는 이름이 다르다
-  (`VLLM_MXFP4_USE_MARLIN`). 참조 문서에 있다고 그 버전에 있는 것이 아니다 — **정적 grep 으로
-  version-exact 확증**을 먼저 하라. 런타임 레지스트리 열거는 lazy-registration 때문에 빈 리스트를
-  반환해 확증에 쓸 수 없다.
-- **KV dtype 을 성능 레버로 기대하지 마라.** fp16→fp8 이 용량을 2배로 늘렸지만 속도는 +0.8%였다.
-  이 모델의 디코드는 가중치 대역폭에 묶여 있다.
-- **`gmu` 를 0.95 로 올리려 하지 마라(통합메모리 노드).** 예산 선언이 거부되어 호스트 보호가
-  꺼진 채 로드하게 된다 — 얻는 것보다 잃는 것이 크다.
-- **엔진이 죽은 위치로 원인을 추정하지 마라.** ①의 자산 부재는 KV 할당 직후에 터져서 KV 부족처럼
-  보인다. 로그의 **마지막 예외 타입**을 읽어라, 마지막 정상 로그가 아니라.
-- **디스크 체크포인트 크기로 메모리 예산을 잡지 마라.** 상주 가중치가 디스크보다 **5.2 GiB 컸다**
-  (MXFP4 인메모리 레이아웃). 예산 바닥이 그만큼 높게 잡혀 안전 여유가 줄어든다.
+1. **`VLLM_ATTENTION_BACKEND=FLASHINFER`를 gpt-oss+mxfp4에 지정하지 말 것** — vLLM 0.18.0에서는
+   미인식 환경변수로 조용히 무시된다. 요청이 반영됐는지는 항상 엔진 로그의 "Unknown vLLM environment
+   variable" 경고와 "potential backends" 목록으로 확인하라.
+2. **언클램프 trial에서 측정된 kv_cache_gib 값을 그대로 다음 절대클램프로 쓰지 말 것** — GB10 같은
+   통합메모리 호스트에서는 호스트 워치독이 vLLM의 CUDA OOM 예외 없이 개입한다. 측정치보다 확실히
+   낮은(이 캠페인에서는 87.72GiB→48GiB, 약 45% 절감) 값으로 시작하라.
+3. **gpt-oss 계열을 `/v1/chat/completions`(기본 backend)로 벤치하지 말 것** — `--backend openai`로
+   `/v1/completions`을 명시해야 harmony ignore-eos 무력화에 의한 TPOT 왜곡을 피한다.
+4. **`docker compose build`로 wheel 트랙 이미지를 새로 만들려 하지 말 것** — 이 브랜치의 compose
+   `build:` 스탠자는 canonical default_track(source-build)을 가리키므로 무관한 트랙이 빌드된다.
+   `docker build -f Dockerfile -t <tag> .`을 직접 써라.

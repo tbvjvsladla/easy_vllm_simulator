@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/single/configs/gpt-oss-120b-gb10.yaml`
-- `output/single/configs/gpt-oss-120b-gb10.sh`
-- `output/single/envs/.env.gpt-oss-120b-gb10`
+- `output/single/configs/gpt-oss-20b-gb10.yaml`
+- `output/single/configs/gpt-oss-20b-gb10.sh`
+- `output/single/envs/.env.gpt-oss-20b-gb10`
 
 **build_recipe**
 - `output/single/Dockerfile`
@@ -32,66 +32,22 @@
 
 ## 적용 사유 (Agent)
 
-### `triplet` — 필수, 면제 없음
-
-서빙에 원리적으로 필요하다. 이 조합에서 트리플렛이 실제로 담은 결정은 셋이다.
-
-- **`max_model_len 131072` · `gpu_memory_utilization 0.90`** — 사용자 선택이지만 상한은 안전체계가
-  정했다. 통합메모리에서 `gmu 0.95` 는 선언 바닥의 `arm_ceiling` 이 최소치 미만이 되어 **호스트
-  예산 선언 자체가 거부**된다(근거: devlog §결정과 근거). 즉 0.90 은 취향이 아니라 **선언 가능한
-  최대치**였다. 통합메모리 노드에서 gmu 를 올릴 때 이 벽을 먼저 만난다.
-- **KV `fp8` + `kv_cache_memory_bytes` 절대값** — 비율이 아니라 절대 바이트로 잡는다
-  (`policy:KV_ABSOLUTE_CLAMP_PORTABILITY`). fp16→fp8 전환으로 용량이 **436,896 → 873,808 토큰**
-  으로 2배가 됐는데 **속도는 +0.8% 뿐**이었다(근거: testlog §측정값). 디코드가 KV 가 아니라
-  **가중치 대역폭**에 묶여 있다는 실측이며, 이 모델에서 KV dtype 을 성능 레버로 기대하지 마라.
-- **`.env` 는 이미지 태그를 명시한다** — 비우면 compose 가 낡은 기본값으로 조용히 폴백해
-  **다른 vLLM 버전을 측정**한다. 벤치가 거짓말하는 가장 값싼 경로다.
-
-### `runtime_patch` — 불해당
-
-vLLM 0.19.1 의 stock 코드경로가 이 체크포인트를 그대로 서빙했다. processor/config shim 이 필요한
-지점이 없었다. **부재는 미판정이 아니라 이 경우엔 확인된 불해당**이다 — Phase-2 수렴이 trial 1/3 에서
-`correction_history: []` 로 끝났고 분류기도 `none` 을 냈다(근거: testlog §단계표).
-
-### `build_patch_pre` / `build_patch_post` — 불해당 (트랙에서 파생)
-
-**prebuilt wheel 트랙이므로 컴파일이 없다.** 빌드 패치는 정의상 소스 컴파일 전/후에 끼어드는
-자리인데 그 자리가 존재하지 않는다. `TORCH_CUDA_ARCH_LIST` 도 불요다. 소스빌드 트랙으로 옮기면
-이 두 슬롯의 판정이 통째로 달라지므로, **트랙이 다르면 이 항목을 그대로 가져가지 마라.**
-
-### `fork_pin` — 불해당 (stock)
-
-`.env` 에 `VARIANT=` 줄이 없다 = stock 이다. 0.19.1 stock 이 gpt-oss-120b MXFP4 를 sm_121 에서
-그대로 서빙했고, 아치월도 포크 의존도 없었다. **줄의 부재가 곧 기본값**이라는 규약 덕에 "포크를
-안 썼다"가 파일에 값을 적지 않는 것으로 표현된다.
-
-### 이 목록에 없는 것 — 에어갭 자산 1건
-
-슬롯 3+1+1 어디에도 안 들어가지만 **없으면 서빙이 죽는 자산**이 하나 있다: harmony/o200k 인코딩
-파일이다. 이미지에 번들되지 않으므로 호스트에서 마운트해야 한다. 3+1+1 은 *코드·설정*의 분류이지
-*자산*의 분류가 아니다 — 자세한 증상은 항목2 를 보라.
-
-### `build_recipe` — 해당 (재현의 시작점)
-
-**이미지를 어떻게 지었는가.** wheel 트랙이므로 `Dockerfile` 한 장과 핀된 `requirements.txt`
-(60 패키지)가 전부다 — 소스 컴파일이 없어 `Dockerfile.source-build` 는 쓰이지 않았고 담지 않았다
-(쓰지 않은 레시피를 함께 배포하면 어느 쪽이 진짜인지 모르게 된다).
-
-**적용 증거가 관측된다**: 인증서의 `image_tag` 와 `.env` 의 `IMAGE_TAG` 가 일치한다. 이것이
-중요한 이유는 **불일치가 벤치를 거짓말하게 만드는 가장 값싼 경로**이기 때문이다 — `.env` 가
-비어 있으면 compose 가 낡은 기본값으로 조용히 폴백해 **다른 vLLM 버전을 측정**한다.
-
-### `compose` — 해당 (기동 방법)
-
-**어떻게 띄우는가.** 마운트·포트·프로파일이 여기 있다. 두 가지를 주의하라.
-
-- **env-file 이 둘 필요하다** — 토폴로지 레벨(마운트 경로)과 모델 레벨(서빙 설정). 하나만 주면
-  변수 치환이 비어 조용히 기본값으로 간다.
-- **토폴로지 `.env` 는 실물을 담지 않았다.** 그 파일은 운영자의 NAS 루트·tiktoken 절대경로를
-  담아서 배포 대상이 아니다(자기 주석이 스스로 그렇게 적는다). 대신 **형상 템플릿**
-  `artifacts/compose/topology.env.template` 을 넣었다 — **어떤 변수가 필요한지**는 재현에
-  필수 정보이고, 값은 각자 manifest 의 동명 필드에서 온다.
-
-compose 자체에는 경로가 baked 되어 있지 않다(`${NAS_MODEL_PATH:-/mnt/models}` 형태). 그 설계
-덕분에 compose 는 그대로 배포할 수 있다.
-
+- **triplet(적용)**: mxfp4 prequantized·GQA(sliding+full 12/12) 모델을 "최대 컨텍스트"
+  전략(max-model-len=131072)으로 서빙하려면 절대 KV 클램프(`kv-cache-memory-bytes`)·batch(`max-num-seqs`)·
+  실측 attention backend가 트리플렛 안에 고정돼 있어야 재현된다. 이 값들은 전부 Phase 2 실측 산물이라
+  파일 없이는 재현이 원리적으로 불가능하다(devlog §2).
+- **runtime_patch(불해당)**: gpt-oss-20b는 Python processor/config 불일치가 없었다 — vLLM 0.18.0의
+  기본 harmony/tiktoken 처리 경로를 그대로 썼고, 별도 shim이 arm된 적이 없다(testlog "실서빙(최종)
+  헬스·기능 확인" 절 — 코드 수정 없이 표준 트리플렛만으로 기동).
+- **build_patch_pre/post(불해당)**: 이 캠페인의 vLLM 버전 변경(0.19.1→0.18.0)은 **다운그레이드**였고
+  wheel 트랙(torch 2.10대)을 그대로 유지했다 — 소스 컴파일 자체가 없었으므로 pre/post 빌드 패치가
+  성립할 자리가 없다(devlog §1 "S1~S4" — `build_track.decision=wheel` 불변).
+- **build_recipe(적용)**: 공유 이미지 자체가 0.19.1→0.18.0으로 바뀌었으므로 `Dockerfile`·
+  `requirements.txt`가 이 hint의 재현에 필수다. ⚠ **compose의 `build:` 스탠자는 이 Dockerfile을
+  가리키지 않는다**(아래 서사 참조) — 이미지 실물은 `docker build -f Dockerfile`로 직접 만들어야
+  했다(devlog §1 "함정").
+- **compose(적용)**: 단일노드 표준 기동 경로(`docker compose --env-file .env --env-file
+  envs/.env.<config> --profile serve up`)가 이 조합에서 그대로 성립함을 실측했다(NAS 마운트 정합
+  포함 — devlog §1 "함정"에서 project `.env` 누락 시 오마운트가 재현됨을 실제로 겪었다).
+- **fork_pin(불해당)**: stock vLLM 0.18.0으로 서빙됐다 — 포크·변종 이미지 태그가 필요하지 않았다
+  (`.env`에 `VARIANT=` 줄 없음이 곧 stock 선언).

@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
 # 스켈레톤 — render_dockerfile.py(G2)가 manifest+버전해소값으로 채움
 
-# Phase 1 안정 앵커: vLLM 0.19.1 / NGC 26.01-py3 (torch 핀 prefix 매칭) — prebuilt 동작 검증 구간.
+# Phase 1 안정 앵커: vLLM 0.18.0 / NGC 26.01-py3 (torch 핀 prefix 매칭) — prebuilt 동작 검증 구간.
 FROM nvcr.io/nvidia/pytorch:26.01-py3
 
 # 아래 3개 ARG는 resolve_wheel.py 가 GitHub Release 자산에서 자동 도출한 값으로 채운다.
 # 버전마다 살짝 바뀌는 휘발성 디테일(cuXXX·manylinux)을 ARG로 격리 — 사람은 vLLM 버전만 지정.
-ARG VLLM_VERSION=0.19.1
+ARG VLLM_VERSION=0.18.0
 ARG CUDA_VERSION=130
 ARG VLLM_MANYLINUX=manylinux_2_35
 

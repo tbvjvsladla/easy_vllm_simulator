@@ -1,8 +1,8 @@
 {
   "artifacts": [
-    "artifacts/triplet/gpt-oss-120b-gb10.yaml",
-    "artifacts/triplet/gpt-oss-120b-gb10.sh",
-    "artifacts/triplet/.env.gpt-oss-120b-gb10",
+    "artifacts/triplet/gpt-oss-20b-gb10.yaml",
+    "artifacts/triplet/gpt-oss-20b-gb10.sh",
+    "artifacts/triplet/.env.gpt-oss-20b-gb10",
     "artifacts/build_recipe/Dockerfile",
     "artifacts/build_recipe/requirements.txt",
     "artifacts/compose/docker-compose.yaml",
@@ -11,17 +11,17 @@
   "benchmark": {
     "accept_len": "N/A",
     "benchmark_mode": "full",
-    "decode_tps_conc1": "34.55",
-    "floor_tps": "28.5",
-    "lite_cold_ttft_ms": "70.0",
+    "decode_tps_conc1": "46.51",
+    "floor_tps": "16.69",
+    "lite_cold_ttft_ms": "109.7",
     "lite_gen_src": "median_tpot",
-    "lite_gen_tps_warm": "34.52",
+    "lite_gen_tps_warm": "46.67",
     "lite_included": "true",
-    "lite_kv_gib": "30.0",
-    "measured_utc": "2026-09-01T08:02:35Z",
-    "primary_source": "E(external_reference)",
-    "primary_tps": "33.53",
-    "ratio_M_over_primary": "1.03",
+    "lite_kv_gib": "48.0",
+    "measured_utc": "2026-09-02T23:50:16Z",
+    "primary_source": "expected_achievable(roofline×MBU)",
+    "primary_tps": "19.63",
+    "ratio_M_over_primary": "2.369",
     "rubric_authority": "weak",
     "spec_on": "false",
     "sweep_levels": "1,2,4,8,16",
@@ -30,18 +30,18 @@
     "verdict": "PASS"
   },
   "benchmark_source": {
-    "certificate": "benchmark_26090117_17_21_gpt-oss-120b_NVIDIA GB10_0.19.1.yaml",
+    "certificate": "benchmark_26090308_58_00_gpt-oss-20b_NVIDIA GB10_0.18.0.yaml",
     "parsed_not_synthesized": true,
-    "sha256": "37b5fa713e761ce0a26261e71fa7f6a3de1c4fbff30b5983bb3dd85a8f9b6837"
+    "sha256": "986cd03dc83c632f2930d3a75323d11ae7076cba2a91c5c888c6c9c749e42418"
   },
-  "generated_kst": "2026-09-01T20:45:00",
+  "generated_kst": "2026-09-03T08:58:00",
   "identity": {
     "gpu": "NVIDIA GB10",
-    "model": "gpt-oss-120b",
+    "model": "gpt-oss-20b",
     "quant": "mxfp4",
     "topology": "single",
     "tp": 1,
-    "vllm": "0.19.1"
+    "vllm": "0.18.0"
   },
   "kind": "hint_payload_facts",
   "provenance": "derived",
@@ -125,9 +125,9 @@
       "evidence_source": "certificate.serving_config",
       "exemptible": false,
       "files": {
-        "config_yaml": "output/single/configs/gpt-oss-120b-gb10.yaml",
-        "env_file": "output/single/envs/.env.gpt-oss-120b-gb10",
-        "runner_sh": "output/single/configs/gpt-oss-120b-gb10.sh"
+        "config_yaml": "output/single/configs/gpt-oss-20b-gb10.yaml",
+        "env_file": "output/single/envs/.env.gpt-oss-20b-gb10",
+        "runner_sh": "output/single/configs/gpt-oss-20b-gb10.sh"
       },
       "missing": [],
       "owner": "vllm-recipe-explorer",
