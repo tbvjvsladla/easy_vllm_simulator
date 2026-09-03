@@ -1224,15 +1224,22 @@ verify_destination_retirement_consumers() {
 #   근거 규율: workflow.md §결정론 규율 "단일 소유가 불가능하면 교차검증이 차선" — 여기서는 단일 소유가
 #   가능하므로 교차검증(assert_band2_top_gitignore_parity)이 아니라 파생을 쓴다. 함수명·호출 위치는
 #   그대로 둔다(verify_distribution 의 순서체크 2건이 `verify_checksums ` 토큰을 핀한다).
-verify_checksums() {  # $1=topology
+verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 대조 생략)
     local st; st="$(staging_dir "$1")"; local fail=0 L R f rels line ok_n all_n
     # (1) 빌드킷 — 원천 = rsync allowlist. 부재 항목은 건너뛴다(토폴로지별 선택 자산).
+    # 2026-09-03(P3 · plan_26090317): 빌드킷 평면이 dormant 라 **보내지 않은 것**을 여기서 대조하면
+    #   전건 불일치로 배달이 죽는다(오버레이는 129/129 일치인데도). 검증 범위는 배달 범위를 따른다 —
+    #   "안 보냈다" 와 "보냈는데 틀렸다" 는 다른 사실이고, 후자만 실패다.
+    if [ "${2:-0}" = "1" ]; then
+        echo "  ⏭  빌드킷 대조 생략(평면 dormant — 이 배달의 범위 밖)"
+    else
     for f in "${BAND2_TOP[@]}"; do
         [ -f "${SRC%/}/output/$1/$f" ] || continue
         L=$(md5sum "${SRC%/}/output/$1/$f" | awk '{print $1}')
         R=$($SSH_OPTS "$SUB_HOST" "md5sum '${SUB_WORK_DIR}/output/$1/$f' 2>/dev/null" | awk '{print $1}')
         [ -n "$L" ] && [ "$L" = "$R" ] && echo "  ✅ output/$1/$f" || { echo "  ❌ output/$1/$f: main=$L sub=$R"; fail=1; }
     done
+    fi
     # (2) 오버레이 — 원천 = deliver_overlay 가 미는 스테이징 트리 전수.
     if [ ! -d "$st" ]; then
         echo "  ❌ 오버레이 스테이징 부재: $st — render 선행 필요" >&2
@@ -1502,7 +1509,7 @@ if [ $HAS_GIT = 0 ]; then
     REMOTES="$(sub_run 'git remote')" \
         || { echo "[sync] FAIL(F9): 서브 origin 판독 실패 — 로컬 전용(D12)을 확증할 수 없으므로 거부." >&2; exit 7; }
     [ -z "$REMOTES" ] && echo "[sync] ✅ origin 0 (로컬 전용 확증)" || { echo "[sync] FAIL: 서브에 원격 존재($REMOTES) — D12 위반"; exit 7; }
-    echo "[sync] B0 완료 — multi=populated, single=base(dormant). 브랜치: $(sub_run 'git branch | tr -d "\n"')"
+    echo "[sync] B0 완료 — multi=$([ -n "$BOOTSTRAP_POPULATE" ] && echo populated || echo 'base(타겟 아님)'), single=base. 브랜치: $(sub_run 'git branch | tr -d "\n"')"
     # bootstrap 이 multi 를 이미 채움 → TARGETS 에서 multi 제거. 남은 타겟(single, --branch both/single)이 있으면 B1 로 진행.
     NEWT=(); for x in "${TARGETS[@]}"; do
         if [ -n "$BOOTSTRAP_POPULATE" ] && [ "$x" = "multi" ]; then continue; fi
@@ -1566,7 +1573,7 @@ for t in "${TARGETS[@]}"; do
         deliver_source_port_payload "$t" || { echo "[sync] FAIL: source-port payload 배달 실패($t)"; exit 2; }
     fi
     deliver_overlay "$t" 0
-    echo "[sync] 체크섬 검증($t)..."; verify_checksums "$t" || { echo "[sync] FAIL: 체크섬 불일치($t)"; exit 2; }
+    echo "[sync] 체크섬 검증($t)..."; verify_checksums "$t" "$SKIP_BUILDKIT" || { echo "[sync] FAIL: 체크섬 불일치($t)"; exit 2; }
     if [ "$SKIP_BUILDKIT" != "1" ]; then
         verify_source_port_payload "$t" || { echo "[sync] FAIL: source-port 무결성 불일치($t)"; exit 2; }
         verify_destination_runner_modes "$t" || { echo "[sync] FAIL: runner destination mode 불일치($t)"; exit 2; }
