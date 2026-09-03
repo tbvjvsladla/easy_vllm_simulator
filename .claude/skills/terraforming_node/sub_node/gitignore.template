@@ -75,10 +75,15 @@ sync_staging/
 
 # ── 임시/로그 ──
 *.tmp
-*.bak
 *.log
-*.orig
 *~
+# ⚠ `*.bak` · `*.orig` 는 메인 `.gitignore` 와 함께 2026-09-03 에 의도적으로 삭제했다.
+#   서브 배달본만 백업을 숨기면 tripwire ①(`_test_no_backup_artifacts`)이 서브에서 공허통과한다.
 
 # 호스트 안전체계 오프라인 패키지(아치별 바이너리 — 비추적, 운영자가 각 노드 스테이징) — plan_26071019 §2.5
 earlyoom_*.deb
+
+# A2A 위임 키 — 메인이 발급/회수하는 **휘발 자격**이다(2026-09-03 · S4/㉕ · plan_26090317 P1).
+# 서브 git 이 추적하면 메인이 지워도 `git checkout -- <path>`(§2.7.7 sub.git.unstick)가 되살려
+# 철회가 무효가 된다. 자격은 이력에 남길 것이 아니라 **지금 있는가**만이 의미다.
+.claude/a2a_delegation.json

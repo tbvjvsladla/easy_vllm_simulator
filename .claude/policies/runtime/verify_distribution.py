@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import ast
-import hashlib
 import json
 import os
 import re
@@ -35,8 +34,6 @@ EXPECTED_SKILLS = {
 TRUST_FILES = (
     ".claude/policies/registry.yaml",
     ".claude/policies/claim_bindings.json",
-    ".claude/policies/evidence_manifest.json",
-    ".claude/policies/tracked_index.json",
 )
 LOCAL_TOMBSTONES = {
     "scripts/agent_control.py", "scripts/cleanup_docker.py", "scripts/completion_gate.py",
@@ -276,25 +273,6 @@ def verify() -> dict:
             checks.append({"name": f"trust_owner_paths:{rel}", "ok": False,
                            "error": f"{type(exc).__name__}: {exc}"})
 
-    try:
-        tracked = json.loads((REPO / ".claude/policies/tracked_index.json")
-                             .read_text(encoding="utf-8"))["entries"]
-        drift = []
-        for rel, expected in sorted(tracked.items()):
-            path = REPO / rel
-            if path.is_symlink() or not path.is_file():
-                drift.append(f"{rel}:missing-or-symlink")
-                continue
-            data = path.read_bytes()
-            actual = hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
-            if actual != expected:
-                drift.append(f"{rel}:{actual}!={expected}")
-        checks.append({"name": "tracked_index_all_entry_bytes", "ok": not drift,
-                       "drift": drift})
-    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError) as exc:
-        checks.append({"name": "tracked_index_all_entry_bytes", "ok": False,
-                       "error": f"{type(exc).__name__}: {exc}"})
-
     bare_asserts = []
     for path in sorted((REPO / ".claude").rglob("*.py")):
         rel = str(path.relative_to(REPO))
@@ -315,8 +293,15 @@ def verify() -> dict:
         local_text = local_sync.read_text(encoding="utf-8")
         local_actual = _shell_array(local_text, "ROOT_RELOCATION_TOMBSTONES")
         replacements = _shell_array(local_text, "ROOT_RELOCATION_REPLACEMENTS")
-        local_order = ("git checkout ", "source→destination Git object/mode mismatch",
-                       "materialized replacement byte/mode mismatch", "git rm --ignore-unmatch")
+        # ── 앵커 이설 (2026-09-03 · F-1f) ────────────────────────────────────────
+        # 옛 중간 앵커 둘은 **삭제 대상이던 git-대-git blob 비교의 FAIL 메시지 리터럴**이었다
+        # (`source→destination Git object/mode mismatch` · `materialized replacement byte/mode
+        #  mismatch`). 그 두 비교는 git 이 방금 checkout 으로 만든 바이트를 다시 옮겨적어 대조하는
+        # 중복층이라 걷어냈고(sync_branches.sh), 그러면서 앵커가 함께 사라지면 이 배포검증이
+        # 즉시 ok=False 가 된다 — 그래서 **삭제 전에** 앵커를 삭제되지 않는 코드 토큰으로 옮겼다.
+        # 새 앵커가 지키는 불변식은 그대로다: checkout → (커버리지·존재·모드 검증) → tombstone 삭제.
+        local_order = ("git checkout ", "covered=0", 'source_meta="$(git ls-tree',
+                       'materialized_mode="$(stat -c', "git rm --ignore-unmatch")
         checks += [
             {"name": "local_exact_relocation_tombstones",
              "ok": local_actual == LOCAL_TOMBSTONES,
@@ -352,7 +337,8 @@ def verify() -> dict:
                                     ('begin_remote_transaction "$t" 0', 'git checkout -q $t')),
             _ordered_between_detail(sub_text, 'PROVISION" != "1"',
                                     "if [ $HAS_GIT = 0 ]; then",
-                                    ("begin_remote_transaction multi 1", "sub_run_mk")),
+                                    ('begin_remote_transaction "${BOOTSTRAP_POPULATE:-${TARGETS[0]}}" 1',
+                                     "sub_run_mk")),
         ]
         checks += [
             {"name": "sub_exact_relocation_tombstones", "ok": sub_actual == SUB_TOMBSTONES,
@@ -413,7 +399,9 @@ def verify() -> dict:
              "details": _active_retirement_consumers()},
             {"name": "sub_invocation_rollback_transaction",
              "ok": all(token in sub_text for token in (
-                 "begin_remote_transaction multi 1", 'begin_remote_transaction "$t" 0',
+                 # 2026-09-03(P3): 부트스트랩이 채우는 토폴로지가 타겟에 따라 갈리므로 리터럴
+                 #   "multi" 가 아니다. 불변인 것은 **트랜잭션이 먼저 열린다**는 사실이다.
+                 "begin_remote_transaction \"$_bs_t\" 1", 'begin_remote_transaction "$t" 0',
                  "rollback_remote_transactions", "finalize_remote_transactions",
                  "workdir-absent", "workdir-backup",
                  "trap 'transactional_exit $?' EXIT", "rollback failed; recovery backups retained",
@@ -519,6 +507,21 @@ def verify() -> dict:
     #   (b) 양쪽 모두 정규파일·심링크아님·비어있지않음·비실행이어야 한다.
     # 배달 허용 stem 의 allowlist 는 여전히 sync_to_sub.sh 의 BAND2_RUNTIME_PATCH_STEMS 가 소유한다
     # (허용목록 ≠ 존재단언 — 이 둘의 혼동이 원래 모순의 원인이었다).
+    # ── 공허통과 폐쇄 (2026-09-03 · 감사 §4 "verify_distribution.py:529 상시 ok:true") ──────────
+    # 초판은 `if patch_root.is_dir():` 하나로 전체 몸통을 감쌌다. 정본 디렉터리는 0.26.0 bump 때
+    # C2 준수로 비워졌고(`b59f156` 에서 2쌍 추가 → 이후 회수), 그 뒤로 이 검사는 **아무 술어도
+    # 평가하지 않은 채** `ok:true` 를 냈다 — 4종 안티패턴 표의 *결함* 칸(결정·게이트 경로에서
+    # 원인을 삼키는 침묵 폴백)에 정확히 해당한다. 처방은 삭제가 아니라 배선이다(D3):
+    #   ⓐ `subject_state` 로 **무엇을 평가했는지**를 데이터에 남긴다(§결정론 규율 출처 표시).
+    #   ⓑ 정본이 비어 있어도 **항상 평가되는 술어 두 개**를 둔다:
+    #      · 오배치 검사 — build_plane 어디에도 runtime_patches/ 밖의 `*_patch.py` /
+    #        `*.provenance.json` 이 있으면 안 된다. sync_to_sub.sh:614 는 `runtime_patches/*` 만
+    #        glob 하므로 오배치는 **조용히 배달되지 않는다**(침묵 누락).
+    #      · 규정된 공상태 생존성 — "패치 0건 = 정상"이 참이려면 배달부가 그 상태를 견뎌야 한다.
+    #        옛 무조건 glob 는 `install: cannot stat …/*` 로 죽었다. 그 가드(compgen -G)가 실재하는지
+    #        여기서 단언한다. 가드가 사라지면 정본이 비는 순간 배달이 깨지므로 이 검사는 그때 RED 다.
+    # ⚠ F-5(런타임 패치 사이드카)는 이월됐다. 그러나 이 검사의 대상은 **Band2 정본 build_plane** 이며
+    #   F-5 가 다루는 output/<t>/configs 사이드카 평면이 아니다 — 이월과 무관하게 여기는 배선한다.
     patch_root = build_asset_root / "runtime_patches"
     patch_defects: list[str] = []
 
@@ -526,8 +529,10 @@ def verify() -> dict:
         return (p.is_file() and not p.is_symlink() and p.stat().st_size > 0
                 and stat.S_IMODE(p.stat().st_mode) & 0o111 == 0)
 
+    pairs_checked = 0
     if patch_root.is_dir():
         for py in sorted(patch_root.glob("*_patch.py")):
+            pairs_checked += 1
             sidecar = py.with_name(py.name[: -len(".py")] + ".provenance.json")
             if not sidecar.is_file():
                 patch_defects.append(f"{py.relative_to(REPO)}:missing-provenance")
@@ -538,8 +543,32 @@ def verify() -> dict:
             py = sidecar.with_name(sidecar.name[: -len(".provenance.json")] + ".py")
             if not py.is_file():
                 patch_defects.append(f"{sidecar.relative_to(REPO)}:orphan-provenance")
+    # ⓑ-1 오배치 — 정본 디렉터리 유무와 무관하게 언제나 평가된다.
+    if build_asset_root.is_dir():
+        for stray in sorted(build_asset_root.rglob("*_patch.py")):
+            if stray.parent != patch_root:
+                patch_defects.append(f"{stray.relative_to(REPO)}:misplaced-outside-runtime_patches")
+        for stray in sorted(build_asset_root.rglob("*_patch.provenance.json")):
+            if stray.parent != patch_root:
+                patch_defects.append(f"{stray.relative_to(REPO)}:misplaced-outside-runtime_patches")
+    # ⓑ-2 규정된 공상태 생존성 — 배달부의 0건 가드가 실재하는지.
+    empty_state_guard = False
+    try:
+        _sub_text = sub_sync.read_text(encoding="utf-8")
+        empty_state_guard = ('compgen -G "$build_assets/runtime_patches/*"' in _sub_text
+                             and '"$build_assets"/runtime_patches/*' in _sub_text)
+    except (OSError, UnicodeError) as exc:
+        patch_defects.append(f"sync_to_sub.sh:unreadable:{type(exc).__name__}")
+    if not empty_state_guard:
+        patch_defects.append(
+            "sync_to_sub.sh:regulated-empty-guard-missing — "
+            "policy:RUNTIME_PATCH_NO_CARRY_FORWARD.C2 의 '0건 = 정상' 이 배달부에서 깨진다")
     checks.append({"name": "upstream_owner_runtime_patch_pairing",
                    "ok": not patch_defects, "defects": patch_defects,
+                   # 출처 표시: 이 검사가 이번 실행에서 무엇을 평가했는지를 데이터로 남긴다.
+                   # 'regulated-empty' 는 공허통과가 아니라 ⓑ 두 술어만 평가했다는 뜻이다.
+                   "subject_state": "evaluated" if pairs_checked else "regulated-empty",
+                   "pairs_checked": pairs_checked,
                    "present": sorted(p.name for p in patch_root.glob("*_patch.py"))
                               if patch_root.is_dir() else []})
     provenance = REPO / ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md"
@@ -562,6 +591,31 @@ def verify() -> dict:
              ".claude/skills/terraforming_node/scripts/scan_node.py", "--self-test"], {0}),
         _run("terraform_render_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/render_sub_env.py", "--self-test"], {0}),
+        # 2026-09-03(S3 · plan_26090317 P1): SKILL.md §3 이 "회귀 고정 6종" 을 선언하는데 실행자는 위 2종
+        #   뿐이었다. 특히 library_exchange 는 **헌법 불변식 B(그라운딩 누락 판정)의 유일한 기계 집행점**
+        #   이고, node_role_contract 는 불변식 A(토폴로지 축)의 판정기다 — 그 둘이 깨져도 아무도 몰랐다.
+        #   이 파일이 이미 recipe·benchmark 쪽에서 세 번 고친 결함(호출자 없는 자체검사 = L1 산문)과 동형.
+        _run("terraform_node_role_contract_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/node_role_contract.py", "--self-test"], {0}),
+        _run("terraform_library_exchange_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/library_exchange.py", "--self-test"], {0}),
+        _run("terraform_staleness_gate_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/staleness_gate.py", "--self-test"], {0}),
+        _run("terraform_manifest_contract_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/manifest_contract.py", "--self-test"], {0}),
+        _run("terraform_turn_budget_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/turn_budget.py", "--self-test"], {0}),
+        _run("terraform_library_relay_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/library_relay.py", "--self-test"], {0}),
+        _run("terraform_relay_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/relay.py", "--self-test"], {0}),
+        _run("terraform_bootstrap_canary_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/bootstrap_canary.py", "--self-test"], {0}),
+        _run("terraform_agent_guard_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/node_blackbox/agent_guard.py", "--self-test"], {0}),
+        _run("terraform_node_identity_selftest", ["bash",
+             ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
+             "--self-test"], {0}),
         _run("runtime_regression_selftest", [*_child_python(),
              ".claude/policies/runtime/runtime_selftest.py"], {0}),
         _run("gitless_hint_match", [sys.executable,
@@ -652,8 +706,12 @@ def verify() -> dict:
 
     policy_runner = REPO / ".claude/policies/runtime/policy_registry.py"
     if policy_runner.is_file():
+        # Pinned, never wall-clock (this project injects dates; it never reads the host clock).
+        # It is therefore a tripwire, not a magic number: a policy whose added_at/last_reviewed_at
+        # is newer than this date fails closed here until the date is deliberately moved forward.
+        # Moved 2026-07-27 -> 2026-09-03 when GIT_SINGLE_AUTHORITY was registered (plan_26090222).
         checks.append(_run("policy_registry_verify", [sys.executable, str(policy_runner),
-                           "verify", "--as-of", "2026-07-27", "--repo-root", str(REPO)], {0}))
+                           "verify", "--as-of", "2026-09-03", "--repo-root", str(REPO)], {0}))
     else:
         checks.append({"name": "policy_registry_verify", "ok": False,
                        "error": "missing .claude/policies/runtime/policy_registry.py"})

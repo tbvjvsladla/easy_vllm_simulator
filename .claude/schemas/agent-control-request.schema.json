@@ -4,7 +4,17 @@
   "title": "agent-control-request",
   "description": "Phase 6 (plan_26072506) provider-neutral INPUT contract for .claude/policies/runtime/agent_control.py. Vocabulary mirrors .claude/skills/terraforming_node/references/agent-control-adapter.md section 1. provider is the ONLY place the literal token 'claude' may appear, as an enum VALUE (never as a field name). model is intentionally NOT constrained to 'sonnet' here -- Sonnet-only enforcement is a runtime safety check the adapter performs against the provider's own result metadata, not a request-schema constraint.",
   "type": "object",
-  "required": ["schema_version", "provider", "intent", "model", "task", "target", "timeout_seconds", "max_turns", "capabilities"],
+  "required": [
+    "schema_version",
+    "provider",
+    "intent",
+    "model",
+    "task",
+    "target",
+    "timeout_seconds",
+    "max_turns",
+    "capabilities"
+  ],
   "additionalProperties": false,
   "properties": {
     "schema_version": {
@@ -14,12 +24,18 @@
     "provider": {
       "description": "Provider-neutral orchestrator identifier. Phase 6 scope is Claude Code only.",
       "type": "string",
-      "enum": ["claude_code"]
+      "enum": [
+        "claude_code"
+      ]
     },
     "intent": {
       "description": "Provider-neutral intent vocabulary (agent-control-adapter.md section 1).",
       "type": "string",
-      "enum": ["delegate", "probe", "bootstrap_canary"]
+      "enum": [
+        "delegate",
+        "probe",
+        "bootstrap_canary"
+      ]
     },
     "model": {
       "type": "string",
@@ -31,16 +47,25 @@
     },
     "target": {
       "type": "object",
-      "required": ["role", "transport"],
+      "required": [
+        "role",
+        "transport"
+      ],
       "additionalProperties": false,
       "properties": {
         "role": {
           "type": "string",
-          "enum": ["main", "sub"]
+          "enum": [
+            "main",
+            "sub"
+          ]
         },
         "transport": {
           "type": "string",
-          "enum": ["local", "ssh"]
+          "enum": [
+            "local",
+            "ssh"
+          ]
         },
         "host": {
           "type": "string",
@@ -73,8 +98,21 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "enum": ["read", "execute", "edit", "write"]
+        "enum": [
+          "read",
+          "execute",
+          "edit",
+          "write"
+        ]
       }
+    },
+    "resume_session_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "description": "이 값이 있으면 provider 는 새 세션을 열지 않고 `--resume <id>` 로 **같은 세션을 잇는다**. 턴제 릴레이(input-required → 답을 실어 재개)의 전송 계층 근거."
     }
   }
 }

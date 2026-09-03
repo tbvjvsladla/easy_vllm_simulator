@@ -15,8 +15,9 @@ next to each `supports` extension) rather than gaining a test here. Every test m
 instead reads REAL, ALREADY-TRACKED, non-registry source (scripts this suite does not modify) and
 asserts a durable, literal, checkable fact about it -- never a re-statement of the registry's own
 prose, and never a fabricated claim. Each becomes one `assertion_ids` entry
-(`ClassName.method_name`, AST-verified by `.claude/policies/runtime/policy_registry.py`) on this file as an
-evidence-manifest entry in `.claude/policies/evidence_manifest.json`.
+(`ClassName.method_name`, AST-verified by `.claude/policies/runtime/policy_registry.py`) on this file as a
+registry `evidence` entry, whose path is resolved against Git itself (tracked in the index and
+byte-identical to the staged blob) rather than against a hand-maintained digest ledger.
 
 Runner: stdlib `unittest` (matches every other tests/harness/test_*.py in this project).
 """
@@ -44,14 +45,24 @@ class TestHostSafetyLayeredDefenseCompanion(unittest.TestCase):
 
 
 class TestLastGoodRollbackAnchorCompanion(unittest.TestCase):
-    """LAST_GOOD_ROLLBACK_ANCHOR.C1/C3: the rollback anchor is a LOCAL commit; hint_tag.py's own
-    push path structurally protects that by refusing to let a `last-good-*` tag exist on origin
-    (a real check, not a restatement of the registry's own prose about the anchor)."""
+    """LAST_GOOD_ROLLBACK_ANCHOR.C1/C3: the rollback anchor is a LOCAL commit; hint_tag.py's push
+    path structurally protects that by refusing any --tag outside the hint/ namespace, so the
+    rendered refspec can never widen to `refs/tags/*` and carry local refs to a public origin.
 
-    def test_hint_tag_push_refuses_last_good_tags_on_origin(self):
+    2026-09-03 (plan_26090222 F-6c): this used to pin cmd_verify's origin-side `ls-remote --tags
+    origin last-good-*` scan instead. That scan was deleted -- it asserted a condition about a tag
+    this repo never creates, while the guard that actually prevents the leak lives in cmd_push."""
+
+    def test_hint_tag_push_refuses_refs_outside_hint_namespace(self):
         src = _read(".claude/skills/hint-publisher/scripts/hint_tag.py")
-        self.assertIn('"last-good-*"', src)
-        self.assertIn("ls-remote", src)
+        tree = ast.parse(src)
+        push = next((n for n in ast.walk(tree)
+                     if isinstance(n, ast.FunctionDef) and n.name == "cmd_push"), None)
+        self.assertIsNotNone(push, "hint_tag.cmd_push must exist")
+        push_src = ast.get_source_segment(src, push) or ""
+        self.assertIn('if not a.tag.startswith("hint/")', push_src)
+        self.assertIn('refspec = "refs/tags/hint/*"', push_src)
+        self.assertNotIn('"--tags"', push_src)
 
     def test_sync_branches_never_tags_or_hard_resets(self):
         # LAST_GOOD_ROLLBACK_ANCHOR.C2: single-node/multi-node roll back independently -- the

@@ -198,8 +198,18 @@ tp_fire(){
   fi
   log "TRIP rule=$rule $human → docker kill $ids $(ts)"
   emit_event "thermal_trip" "\"rule\":\"$rule\",$ev,\"targets\":\"$ids\",\"action\":\"docker_kill\""
-  docker kill $ids 2>&1 | sed 's/^/[tp-watchdog] /'
-  emit_event "thermal_kill_ack" "\"targets\":\"$ids\""
+  # 2026-09-03(⑥ 잔여 · plan_26090317 P1): 파이프가 `docker kill` 의 rc 를 삼켜 **실패해도 무조건**
+  #   `thermal_kill_ack` 을 발행했다 — 블랙박스가 "죽였다" 고 기록하는데 실제로는 안 죽은 상태다.
+  #   사후 분석이 방어 실패를 방어 성공으로 읽는다(관측 장치의 위조). 자매 파일 mem_watchdog_eta
+  #   `bb_fire` 는 2026-09-01 에 같은 교정을 받았는데 이 파일에는 오지 않았다.
+  _kout="$(docker kill $ids 2>&1)"; _krc=$?
+  printf '%s\n' "$_kout" | sed 's/^/[tp-watchdog] /'
+  if [ "$_krc" -eq 0 ]; then
+    emit_event "thermal_kill_ack" "\"targets\":\"$ids\""
+  else
+    log "KILL-FAILED rc=$_krc targets=$ids — 열 방어가 성립하지 않았다 $(ts)"
+    emit_event "thermal_kill_failed" "\"targets\":\"$ids\",\"rc\":$_krc"
+  fi
   return 0
 }
 
@@ -373,6 +383,17 @@ if [ "$SELFTEST" = 1 ]; then
   if grep -q '"mode":"armed"' "$BB_TP_EVENTS" && grep -q '"kind":"thermal_kill_ack"' "$BB_TP_EVENTS"; then
     pass "  실무장 이벤트에 mode=armed 와 kill_ack 이 남는다"
   else fail "  실무장 이벤트 표기 불량"; fi
+  # 2026-09-03(⑥ 잔여 고정 · plan_26090317 P1): 지금까지 이 절의 docker 스텁은 **항상 rc=0** 이라
+  #   kill 실패 분기가 시험 밖이었다. 그래서 "파이프가 rc 를 삼켜 무조건 kill_ack" 이라는 결함이
+  #   자체검사 전부 초록인 채로 살아 있었다. 실패하는 스텁을 넣어 **양방향**을 본다.
+  : > "$_calls"; : > "$BB_TP_EVENTS"
+  docker(){ echo "$*" >> "$_calls"; [ "${1:-}" = "kill" ] && { echo "cannot kill" >&2; return 1; }; return 0; }
+  tp_fire gpu_pwr_sustained "gpu=90W buckets=60/0 streak=0" '"gpu_bucket":60' "cafe1234" >/dev/null; _rc=$?
+  if grep -q '"kind":"thermal_kill_failed"' "$BB_TP_EVENTS" \
+     && ! grep -q '"kind":"thermal_kill_ack"' "$BB_TP_EVENTS"; then
+    pass "  docker kill 실패 → kill_failed 발행·kill_ack 없음(관측 위조 방지)"
+  else fail "  kill 실패인데 kill_ack 이 남았다 — 사후 분석이 방어 실패를 성공으로 읽는다"; fi
+  docker(){ echo "$*" >> "$_calls"; }
   : > "$_calls"
   tp_fire gpu_pwr_sustained "gpu=90W buckets=60/0 streak=0" '"gpu_bucket":60' "" >/dev/null; _rc=$?
   if [ "$_rc" = 2 ] && [ ! -s "$_calls" ]; then pass "  매칭 0 은 kill 없이 nomatch 반환"

@@ -192,10 +192,22 @@ def validate_document(doc, kind, expected_topology=None):
         # 로스터 형태(main 정확히 1 + sub ≥ 1)를 요구한다 — 등록 자체는 허용하되 형태는 검사한다.
         # ⚠ 실행평면 경계는 여기서 완화되지 않는다: single 의 sub 는 A2A 제어 피어이지 텐서 워커가
         #   아니며, 그 계약은 `manifest_contract.manifest_tp`(single → 노드 배수 1 고정)가 소유한다.
+        # ★ 2026-09-01 교정 — 종전 술어는 `nodes 비어있지 않음 = sub-control 활성` 으로 읽고
+        #   **sub ≥ 1 을 요구**했다. 그 전제가 틀렸다. §2.7.0 은 *"`role: sub` 의 존재는 정체성을
+        #   말하지 않는다 — 판정 입력은 언제나 `sub_mode`"* 라고 못박고, 활성 판정은
+        #   `node_role_contract.delivery_plane` 이 소유한다(로스터 길이가 아니다).
+        #   실증(2026-09-01 첫 single 실테라포밍): 서브 없는 단일노드에서 두 계약이
+        #   **동시에 만족 불가**였다 —
+        #     nodes: []       → 이 게이트는 통과하지만 `node_identity.sh` 가 `role: main` 을
+        #                       못 찾아 **fail-loud**(소비자 4종이 --node-id 수동 주입 강요)
+        #     nodes: [main]   → node_identity 는 통과하지만 여기서 MANIFEST_INVALID
+        #     nodes: [main,sub] → 둘 다 통과하나 **없는 서브를 선언하는 거짓**
+        #   ∴ single 에서 요구할 것은 "main 이 정확히 하나"뿐이다. sub 는 0 이어도 되며
+        #     그것이 곧 dormant 다. multi 의 sub ≥ 1 요구는 아래에서 **그대로 유지**된다.
         nodes = doc.get("nodes")
         if isinstance(nodes, list) and nodes:
             roles = [node.get("role") for node in nodes if isinstance(node, dict)]
-            if roles.count("main") != 1 or roles.count("sub") < 1:
+            if roles.count("main") != 1:
                 invalid.append("nodes.roster")
     if kind == "manifest" and doc.get("topology") == "multi":
         nodes = doc.get("nodes")
@@ -535,6 +547,18 @@ def _self_test():
 
     chk("single dormant(nodes:[]) → 여전히 유효",
         evaluate(base, observed, ref)["reasons"] == [REASON_FRESH])
+
+    # ★ 2026-09-01 회귀: **서브 없는 단일노드**(main 단독 로스터). node_identity.sh 가
+    #   `role: main` 을 요구하므로 실환경에서 반드시 나오는 형태인데, 종전 술어가
+    #   `sub >= 1` 을 요구해 MANIFEST_INVALID 로 막았다 — 두 계약이 동시 만족 불가였다.
+    main_only = evaluate(dict(base, nodes=[{"role": "main", "host": "192.0.2.10"}]),
+                         observed_no_nodes, ref)
+    chk("★single main 단독 로스터(서브 미등록) → 유효 · HW·age 축 도달",
+        main_only["reasons"] == [REASON_FRESH]
+        and main_only["hw_check"] == "evaluated"
+        and main_only["age_check"] == "evaluated",
+        "%s hw=%s age=%s inv=%s" % (main_only["reasons"], main_only["hw_check"],
+                                    main_only["age_check"], main_only.get("invalid_fields")))
 
     no_main = evaluate(dict(base, nodes=[{"role": "sub", "host": "192.0.2.11"}]),
                        observed_no_nodes, ref)

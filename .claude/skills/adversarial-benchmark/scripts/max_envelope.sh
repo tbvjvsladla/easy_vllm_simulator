@@ -16,7 +16,8 @@
 #        [--confirm-risk] [--dry-run] [--out-dir DIR]
 # 산출: output/<topo>/benchlog/max_<config>/{original_config.yaml, level_<L>/{config.yaml,result.json}, max_index.json}
 #        → render_max_report.py 가 소비 → docs/benchmark/max_envelope_<model>_<gpu>_<vllm>.md.
-# 종료: 0=성공(안전상한 확정) · 2=인자/전제 · 5=--confirm-risk 미명시(안전 게이트).
+# 종료: 0=성공(안전상한 확정) · 2=인자/전제 · 5=--confirm-risk 미명시(안전 게이트)
+#       · 6=EXIT 트랩의 config 원복 실패(그 외 종료코드는 보존 — 6 은 "성공이었는데 원복만 실패" 일 때만).
 set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
@@ -77,7 +78,29 @@ mkdir -p "$MAXDIR"
 cp "$CFGYAML" "$MAXDIR/original_config.yaml"   # 원본 스냅샷
 ORIG_LEN="$(awk -F: '/^\s*max-model-len:/{gsub(/[^0-9]/,"",$2);print $2;exit}' "$CFGYAML")"
 # EXIT 트랩: 원본 config 복원(하드다운 시엔 트랩 미발동 — max_index 의 safe_ceiling 이 복구 앵커).
-restore_cfg(){ cp "$MAXDIR/original_config.yaml" "$CFGYAML" 2>/dev/null && echo "[max_envelope] config 원복(max-model-len=$ORIG_LEN)"; }
+#
+# ★ rc 전파 (2026-09-03 · 감사 B16). 스냅샷과 EXIT 트랩은 **유지한다** — 복원 대상
+#   `output/<topo>/configs/*.yaml` 은 비추적이라 git 이 들지 않는 바이트이고, 이 스크립트는
+#   그것을 레벨마다 `sed -i` 로 제자리 변형한다. 즉 트랩은 "예방 사본"이 아니라 **유일한 복구
+#   경로**다(헌법 §결정론 규율 4종 판정표: 정당한 자리).
+#   결함은 사본이 아니라 **침묵**이었다: 옛 한 줄은 `2>/dev/null && echo …` 여서 cp 가 실패하면
+#   ⓐ 에러가 지워지고 ⓑ 성공 메시지도 안 나오고 ⓒ EXIT 트랩의 rc 는 종료코드에 반영되지 않아,
+#   config 가 스텝업 값(예: 524288)에 남은 채 **스크립트는 0 을 냈다**. 다음 서빙이 그 값을 쓴다.
+#   ∴ stderr 를 살리고, 원래 종료코드를 보존하되 성공이었다면 6(원복 실패)으로 승격한다.
+restore_cfg(){
+  local _rc=$? _cp_rc=0
+  trap - EXIT                                  # 재진입 방지(아래 exit 가 다시 트랩을 부르지 않게)
+  cp "$MAXDIR/original_config.yaml" "$CFGYAML" || _cp_rc=$?
+  if [ "$_cp_rc" -ne 0 ]; then
+    echo "[max_envelope] ✗ FAIL: config 원복 실패(cp rc=$_cp_rc) — '$CFGYAML' 이 스텝업 값으로 남아 있다." >&2
+    echo "[max_envelope]   이 파일은 비추적이라 git 이 되돌려 주지 못한다. 수동 복원:" >&2
+    echo "[max_envelope]     cp '$MAXDIR/original_config.yaml' '$CFGYAML'" >&2
+    [ "$_rc" -eq 0 ] && _rc=6
+  else
+    echo "[max_envelope] config 원복(max-model-len=$ORIG_LEN)"
+  fi
+  exit "$_rc"
+}
 trap restore_cfg EXIT
 
 TRUNCLOG="$MAXDIR/truncation.log"; : > "$TRUNCLOG"

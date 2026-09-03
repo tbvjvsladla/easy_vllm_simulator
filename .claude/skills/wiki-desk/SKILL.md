@@ -125,8 +125,10 @@ authority/score gate, answer "no evidence" — never fabricate a path.
 ## Relationship edges (deterministic, grep-grounded — no inference)
 
 `cites` (explicit cross-ref) · `realizes` (devlog/testlog → plan) · `evidences` (simlog/testlog →
-the higher tier it supports; the docs chain simlog→testlog→devlog) · `part-of` (file under a
-directory-node, e.g. a simlog run) · `same-thread` (identical topic slug). Citations are resolved
+the higher tier it supports; the docs chain simlog→testlog→devlog) · `same-thread` (identical
+topic slug) · `superseded-by` (retroactive header banner). (A `part-of` type existed until
+2026-09-03 but was **unreachable**: dir-node mode registers the simlog run directory itself and
+never its member files, so nothing could ever be nested under a registered dir-node.) Citations are resolved
 by stem with prefix-glob, brace-glob `{1,2,3}`, and `_*` wildcard expansion. (Semantic
 `contradicts`/`supersedes` edges are intentionally **not** v1 — they need judgment; parked.)
 

@@ -33,7 +33,6 @@ registry:
   exclude_dirs: [__llm-wiki, .git, __pycache__, .pytest_cache, temp, dist, output, llm-wiki, wiki-desk, node_modules, "안드레카파시 클로드", claude-md-management]
   exclude_basenames: [example.md]
   dir_node_roots: [docs/simlog]
-  dir_node_anchor: run_summary.json
 
 retrieval:
   completion_first: [testlog, simlog, devlog]

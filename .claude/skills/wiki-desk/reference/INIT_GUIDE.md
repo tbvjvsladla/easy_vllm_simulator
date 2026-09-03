@@ -16,10 +16,11 @@ just indexes it from `fixtures/project_init_answers.yaml`; otherwise lead the in
    **execution-truth > plan-intent**:
    `devlog:100 > testlog:85 > sub-doc:70 > plan:55 > simlog:40 > seed:25`.
 4. **Registry rules** — `include_extensions`, `exclude_dirs` (add `output`, `__llm-wiki`, the wiki
-   source trees), `exclude_basenames` (`example.md` skeleton), `dir_node_roots` (`docs/simlog`),
-   `dir_node_anchor` (`run_summary.json`, tolerate absence).
+   source trees), `exclude_basenames` (`example.md` skeleton), `dir_node_roots` (`docs/simlog`).
+   (A `dir_node_anchor` key was documented until 2026-09-03; no code ever read it — a dir-node is
+   hashed over its whole sorted file set, so no in-directory anchor file is needed.)
 5. **Relationship/edge slot** — confirm the deterministic edge types extractable from the project's
-   cross-reference convention: `cites`, `realizes`, `evidences`, `part-of`, `same-thread`. (Semantic
+   cross-reference convention: `cites`, `realizes`, `evidences`, `same-thread`, `superseded-by`. (Semantic
    `contradicts`/`supersedes` are parked — they need judgment.)
 6. **Retrieval policy** — `completion_first` (did it work) vs `intent_first` (what approach), plus the
    negative-honesty gates `min_authority` / `min_score`.

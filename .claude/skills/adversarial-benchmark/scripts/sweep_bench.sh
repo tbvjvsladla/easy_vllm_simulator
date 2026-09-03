@@ -9,7 +9,7 @@
 #   run_bench 가 Flag/A2A 게이트·health precheck·envfile 해소를 수행 → 전이적 게이트 보존.
 # 비용 규율(편지 B.5): 이 스윕은 재탐색 루프 내부가 아니라 **full 런 종결 시 1회**만 호출한다.
 #
-# 사용: sweep_bench.sh <config_name> [--topology single|multi] [--levels 1,2,4,8,16]
+# 사용: sweep_bench.sh <config_name> [--topology single|multi] [--levels 1,2,4,8,16] [--backend openai-chat|openai]
 #        [--input-len N] [--output-len N] [--num-prompts N] [--warmups N] [--vllm-version X] [--dry-run]
 #        [--reassemble-only]
 #
@@ -27,8 +27,14 @@ set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
 TOPO=""; LEVELS="1,2,4,8,16"; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; VLLM_VER=""; DRYRUN=0; REASSEMBLE=0
+# ★ 2026-09-01 신설 — run_bench.sh 의 --backend 를 레벨마다 그대로 전달한다.
+#   전달하지 않으면 스윕 전 레벨이 openai-chat 로 돌아, harmony 계열(gpt-oss)에서 `--ignore-eos` 가
+#   무력해져 **모든 레벨의 TPOT 이 동시에 왜곡**된다(run_bench.sh 의 BACKEND 주석 참조).
+#   판정점(동시성=1)을 스윕이 포함하므로 그 왜곡은 곧 verdict 왜곡이다.
+BACKEND="openai-chat"
 while [ $# -gt 0 ]; do case "$1" in
   --topology) TOPO="$2"; shift 2;;
+  --backend) BACKEND="$2"; shift 2;;
   --reassemble-only) REASSEMBLE=1; shift;;
   --levels) LEVELS="$2"; shift 2;;
   --input-len) ILEN="$2"; shift 2;;
@@ -135,7 +141,7 @@ for L in "${SORTED[@]}"; do
   echo "[sweep_bench] ── level 동시성=$L ──"
   if bash "$SDIR/run_bench.sh" "$CONFIG" --topology "$TOPO" --concurrency "$L" \
         --input-len "$ILEN" --output-len "$OLEN" --num-prompts "$NPROMPTS" \
-        --warmups "$WARMUPS" --out-dir "$LDIR"; then
+        --warmups "$WARMUPS" --backend "$BACKEND" --out-dir "$LDIR"; then
     BJSON="$LDIR/bench_${CONFIG}.json"; ELOG="$LDIR/engine_${CONFIG}.log"
     if python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG" > "$LDIR/measured.json" 2>/dev/null \
        && python3 -c "import json,sys; d=json.load(open('$LDIR/measured.json')); sys.exit(0 if d.get('measurement_ok') else 1)"; then
@@ -161,8 +167,8 @@ done
 # 환경변수로 override 되는 것이 정상 경로이므로(변종·재빌드 트랙), **선언값과 실측이 갈린다**.
 #   2026-08-13 X1 실측: envfile 은 `...-source`, 실제 컨테이너는 `...-source-canonical`.
 #   그대로 두면 인증서가 **측정하지 않은 이미지**의 이름을 달고 발행되어 재현이 불가능해진다.
-# 이 파일은 vLLM 버전에 대해 이미 같은 규율을 갖고 있다(envfile 선언 ↔ 엔진 자기보고 교차검증 →
-# 어긋나면 vllm_mismatch 로 시끄럽게). image_tag 에만 그 교차검증이 없었을 뿐이라 동형으로 채운다.
+# 이 파일은 vLLM 버전에 대해 이미 같은 규율을 갖고 있다(선언값 대신 **실측을 강한키로 싣고**
+# 선언값은 `*_declared` 로 나란히 남긴다). image_tag 에도 동형으로 채운다.
 _CTR_RE='^(MASTER_)?CONTAINER_NAME='
 [ "$TOPO" = "multi" ] && _CTR_RE='^MASTER_CONTAINER_NAME='
 # tr 의 인자는 8진 이스케이프로 준다(\042=" \047=') — 셸 따옴표 중첩 회피.
@@ -227,9 +233,10 @@ if reassemble:
 # 강한키 vllm_version = **이미지 라인**(선례 정합: image easy-vllm:0.25.1-… ↔ 인증서 0.25.1 ↔
 #   hint/0.25.1/…). 엔진은 소스빌드라 항상 dev 문자열(0.26.1.dev0+g…)을 자기보고하므로 그걸 강한키로
 #   쓰면 인증서·hint 태그 세그먼트와 영영 불일치한다.
-# 엔진 자기보고는 버리지 않고 **vllm_build(소프트) + 교차검증**으로 쓴다 — 2026-07-31 에
+# 엔진 자기보고는 버리지 않고 **vllm_build(소프트 지문)** 으로 나란히 기록한다 — 2026-07-31 에
 #   IMAGE_TAG 소실로 compose 가 0.24.0 으로 조용히 폴백했는데 health 200 이라 아무 데서도 안 걸렸다.
-#   두 출처를 다 기록하고 라인이 어긋나면 vllm_mismatch 로 **시끄럽게** 남긴다(침묵 치환 금지).
+#   두 출처를 다 남기면 사람이 report 에서 갈림을 읽는다(침묵 치환 금지). 자동 판정은 두지 않는다 —
+#   dev 빌드는 마이너 +1 이 정상이라 규칙이 예외로만 이루어져 위양성·위음성을 함께 낳았다.
 _img = grep_env(envtext, "IMAGE_TAG") or ""
 _img_actual = (os.environ.get("IMAGE_TAG_ACTUAL") or "NA").strip() or "NA"
 if reassemble:
@@ -237,9 +244,6 @@ if reassemble:
     # 실린다. 이전 조립이 실측으로 잡아둔 값만 승계하고, 실측이 아니었으면 NA 로 둔다.
     _pm = prior.get("meta") or {}
     _img_actual = (_pm.get("image_tag") or "NA") if str(_pm.get("image_tag_source", "")).startswith("measured") else "NA"
-# 선언 ↔ 실측 대조. 둘 다 알 때만 판정하고, 모르면 "unknown" 으로 남긴다(모름을 일치로 위장 금지).
-_img_mismatch = ("unknown" if (_img_actual == "NA" or not _img)
-                 else ("no" if _img_actual == _img else "YES"))
 _elog = ""
 for _lvl in sorted(completed):
     _p = os.path.join(sweepdir, "level_%02d" % _lvl, "engine_%s.log" % cfg)
@@ -258,19 +262,6 @@ if not vllm and vllm_build != "NA":
 if not vllm:
     _mc = re.search(r"vLLM[\s]*([0-9]+\.[0-9]+\.[0-9]+)", cfgtext)
     vllm = _mc.group(1) if _mc else "NA"
-# 교차검증: 이미지 라인 ↔ 엔진 자기보고. dev 빌드는 마이너 +1 이 정상이므로(0.26.0 이미지가
-# 0.26.1.dev0 을 보고) major.minor 만 비교하고, 그마저 어긋나면 치환으로 본다.
-vllm_mismatch = "no"
-if vllm != "NA" and vllm_build != "NA":
-    _a = ".".join(vllm.split(".")[:2])
-    _b = ".".join(vllm_build.split(".")[:2])
-    if _a != _b:
-        _bm = re.match(r"([0-9]+)\.([0-9]+)", vllm_build)
-        _am = re.match(r"([0-9]+)\.([0-9]+)", vllm)
-        ok_devbump = bool(_am and _bm and _am.group(1) == _bm.group(1)
-                          and int(_bm.group(2)) == int(_am.group(2)) + 1 and ".dev" in vllm_build)
-        vllm_mismatch = "no" if ok_devbump else "YES(image=%s engine=%s)" % (vllm, vllm_build)
-
 # gpu_model: manifest > Agent_Card.json(node_identity) > NA.
 #   ⚠ 서브 노드에는 manifest.yaml 이 **설계상 부재**(D10 — sync_to_sub 가 manifest 를 배달하지 않는다; 서브 정체성은
 #   메인이 render_sub_env.py 로 렌더한 Agent_Card.json 에 산다). 폴백이 없으면 서브에서 돈 full 벤치의
@@ -409,7 +400,7 @@ meta = {
     "serving_config": _serving_cfg,
     "config_name": cfg,
     "gpu_model": gpu_model, "gpu_key": gpu_key, "vllm_version": vllm,
-    "vllm_build": vllm_build, "vllm_mismatch": vllm_mismatch,
+    "vllm_build": vllm_build,
     # ⚠ 강한 일치 키. 2026-08-23 이전엔 yaml 부재 = "NA" 였고, 그래서 **양자화 안 한 모델도
     # 양자화한 모델도 똑같이 "N/A"** 로 발행됐다. 이제 엔진 실측이 `none`(기본) / `fp8`(적용)을
     # 가른다. carry-forward 영향: 그 이전 인증서(quantization: N/A)와 정확일치하지 않는다 —
@@ -423,12 +414,11 @@ meta = {
     # 소프트 지문
     "driver_version": grep_yaml(mftext, "driver_version") or "NA",
     "cuda_version": grep_yaml(mftext, "cuda_version") or "NA",
-    # 실측 우선(측정 > 선언). 선언값은 버리지 않고 나란히 남기며, 갈리면 mismatch 로 시끄럽게 —
+    # 실측 우선(측정 > 선언). 선언값은 버리지 않고 `image_tag_declared` 로 나란히 남긴다 —
     # vllm_version/vllm_build 가 쓰는 규율과 동형이다(2026-08-13 신설, 위 캡처 스탠자 참조).
     "image_tag": _img_actual if _img_actual != "NA" else (grep_env(envtext, "IMAGE_TAG") or "NA"),
     "image_tag_source": "measured(docker inspect)" if _img_actual != "NA" else "declared(envfile)",
     "image_tag_declared": grep_env(envtext, "IMAGE_TAG") or "NA",
-    "image_tag_mismatch": _img_mismatch,
     "max_model_len": grep_yaml(cfgtext, "max-model-len") or "NA",
     "max_num_seqs": grep_yaml(cfgtext, "max-num-seqs") or "NA",
     "kv_cache_memory_bytes": grep_yaml(cfgtext, "kv-cache-memory-bytes") or "NA",

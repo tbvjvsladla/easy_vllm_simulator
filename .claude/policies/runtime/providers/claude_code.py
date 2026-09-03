@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import shlex
 import subprocess
+import sys
 
 STATUS_COMPLETED = "completed"
 STATUS_MODEL_SAFETY_BLOCKED = "model_safety_blocked"
@@ -40,7 +41,7 @@ CAPABILITY_TO_TOOL = {
 
 def _inner_argv(request: dict) -> list[str]:
     allowed_tools = ",".join(CAPABILITY_TO_TOOL[name] for name in request["capabilities"])
-    return [
+    argv = [
         "claude",
         "-p", request["task"],
         "--model", request["model"],
@@ -48,12 +49,27 @@ def _inner_argv(request: dict) -> list[str]:
         "--max-turns", str(request["max_turns"]),
         "--allowedTools", allowed_tools,
     ]
+    # 2026-09-03(P2 · plan_26090317): 턴제 릴레이. `input-required` 로 끊긴 세션에 답을 실어
+    #   **같은 세션을 잇는다** — 새 세션이면 서브가 컨텍스트를 처음부터 재구축하고, 그 비용이
+    #   곧 턴 소진의 주된 원인이었다(참고 프로젝트 e2e-lessons: max-turns 2/4 실패·6 성공).
+    resume = request.get("resume_session_id")
+    if isinstance(resume, str) and resume.strip():
+        argv += ["--resume", resume.strip()]
+    return argv
 
 
 def _ssh_destination(target: dict) -> str:
     host = target["host"]
     ssh_user = target.get("ssh_user")
     return f"{ssh_user}@{host}" if ssh_user else host
+
+
+# 2026-09-03(F5 · plan_26090317 P1): 이 저장소의 다른 모든 ssh 는 BatchMode/ConnectTimeout 을 쓰는데
+#   위임 전송만 맨 ssh 였다 — 미등록 host key·패스프레이즈·비밀번호 인증에서 ssh 가 /dev/tty 를 읽으며
+#   timeout_seconds(최대 3600s)까지 멈추고, 그 TIMEOUT 뒤에도 **원격 claude 는 계속 돌며 서브
+#   워크스페이스를 편집한다**(tty 가 없어 SIGHUP 이 없다). 메인은 실패로 기록했는데 서브는 살아 있는
+#   상태가 A2A 원장의 최악 형태다. 처방: 프롬프트를 원천 차단하고, 원격 쪽에도 같은 시한을 건다.
+SSH_HARDENING = ("-o", "BatchMode=yes", "-o", "ConnectTimeout=8")
 
 
 def build_argv(request: dict) -> list[str]:
@@ -68,14 +84,42 @@ def build_argv(request: dict) -> list[str]:
     if transport == "ssh":
         work_dir = target.get("work_dir")
         remote_inner = " ".join(shlex.quote(tok) for tok in inner)
+        timeout_seconds = request.get("timeout_seconds")
+        if isinstance(timeout_seconds, (int, float)) and timeout_seconds > 0:
+            # 원격 동반사망: 클라이언트만 죽으면 고아 에이전트가 남는다.
+            remote_inner = f"timeout {int(timeout_seconds)} {remote_inner}"
         remote_script = f"cd {shlex.quote(work_dir)} && {remote_inner}" if work_dir else remote_inner
         remote_command = "bash -lc " + shlex.quote(remote_script)
-        return ["ssh", "--", _ssh_destination(target), remote_command]
+        return ["ssh", *SSH_HARDENING, "--", _ssh_destination(target), remote_command]
     raise ValueError(f"unsupported transport: {transport!r}")
 
 
+def _diag(request: dict, code: str, message: str, *, stderr: str | None = None,
+          stdout: str | None = None) -> None:
+    """진단을 stderr 로 낸다(stdout 은 안정 JSON 계약이라 절대 건드리지 않는다).
+
+    2026-09-03(F4 · plan_26090317 P1): 결과 스키마가 additionalProperties=false 라 사유를 결과에
+    실을 수 없다 — 그래서 이전 판본은 `completed.stderr` 를 통째로 버렸고, 호스트 미도달·키 거부·
+    바이너리 부재·서브 에이전트 실패가 전부 `NONZERO_EXIT` 한 단어가 됐다. 스키마를 넓히는 대신
+    **사이드채널(stderr)** 로 원인을 남긴다. 이 함수는 절대 예외를 올리지 않는다.
+    """
+    try:
+        target = request.get("target") or {}
+        where = f"{target.get('role')}/{target.get('transport')}"
+        print(f"[agent-control] {code}: {message} (target={where})", file=sys.stderr)
+        for label, blob in (("stderr", stderr), ("stdout", stdout)):
+            text = (blob or "").strip()
+            if text:
+                print(f"[agent-control]   provider {label} tail: {text[-2000:]}", file=sys.stderr)
+    except Exception:  # 진단이 본 경로를 죽이지 않는다
+        pass
+
+
 def _result(request: dict, *, status: str, exit_code: int, reason_codes: list[str],
-            model_used: list[str] | None = None, output: str | None = None) -> dict:
+            model_used: list[str] | None = None, output: str | None = None,
+            session_id: str | None = None, num_turns: int | None = None,
+            budget_outcome: str | None = None) -> dict:
+    # 릴레이 원장 3필드는 **모르면 null** 이다 — 그럴듯한 값으로 채우면 Layer2 보정이 거짓 위에 선다.
     return {
         "schema_version": request.get("schema_version", 1),
         "provider": PROVIDER_NAME,
@@ -86,7 +130,25 @@ def _result(request: dict, *, status: str, exit_code: int, reason_codes: list[st
         "model_used": model_used or [],
         "reason_codes": reason_codes,
         "output": output,
+        "session_id": session_id,
+        "num_turns": num_turns,
+        "budget_outcome": budget_outcome,
     }
+
+
+def _budget_outcome(payload: dict, request: dict) -> str:
+    """성공 경로의 예산 결말.
+
+    **소진은 실패의 한 형태이지 "예산을 다 썼다" 가 아니다.** 작업이 끝났으면 마지막 턴을 썼든
+    아니든 `within_budget` 이다 — 소진(`exhausted`)은 provider 가 `subtype=error_max_turns` 로
+    말할 때만 성립하고, 그 경로는 이 함수에 오지 않는다(위에서 이미 반환된다).
+    천장에 얼마나 붙었는지는 원장의 `num_turns` ÷ `max_turns_allocated` 로 파생되므로 여기서
+    별도 값으로 적지 않는다(파생 가능한 것을 손으로 적지 않는다).
+    """
+    turns = payload.get("num_turns")
+    if isinstance(turns, int):
+        return "within_budget"
+    return "unknown"
 
 
 def invoke(request: dict) -> dict:
@@ -104,18 +166,64 @@ def invoke(request: dict) -> dict:
 
     try:
         completed = subprocess.run(
+            # stdin=DEVNULL: `claude -p` 는 파이프된 stdin 을 3초 기다렸다가 경고를 찍는다(2026-09-03
+            #   서브 실측). 위임에는 넘길 stdin 이 없으므로 명시적으로 닫는다.
             argv, cwd=cwd, capture_output=True, text=True, timeout=timeout_seconds,
+            stdin=subprocess.DEVNULL,
         )
     except subprocess.TimeoutExpired:
+        _diag(request, "TIMEOUT", f"provider exceeded timeout_seconds={timeout_seconds!r}")
         return _result(request, status=STATUS_TIMEOUT, exit_code=EXIT_TIMEOUT, reason_codes=["TIMEOUT"])
     except UnicodeDecodeError:
+        _diag(request, "MALFORMED_JSON", "provider stdout was not valid UTF-8")
         return _result(request, status=STATUS_MALFORMED_OUTPUT, exit_code=EXIT_MALFORMED_OUTPUT,
                        reason_codes=["MALFORMED_JSON"])
-    except OSError:
+    except OSError as exc:
+        # 2026-09-03(F4): `claude` 가 PATH 에 없거나 work_dir 이 없는 것과 "서브 에이전트가 돌다 실패"
+        #   가 같은 NONZERO_EXIT 한 단어로 접혔다. 스키마 enum 은 못 늘리므로 사유는 stderr 로 낸다.
+        _diag(request, "NONZERO_EXIT",
+              f"provider could not be executed: {type(exc).__name__}: {exc} · argv[0]={argv[0]!r}")
         return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
                         reason_codes=["NONZERO_EXIT"])
 
     if completed.returncode != 0:
+        # 2026-09-04(P4 라이브 실측 · plan_26090317): 이 조기 반환이 아래의 **예산 소진 분기를
+        #   도달 불가로 만들고 있었다.** `claude -p` 는 max-turns 소진 시 exit 1 로 나가면서
+        #   stdout 에는 `subtype:"error_max_turns"` · `num_turns` · `session_id` 가 든 **정상 result
+        #   JSON** 을 낸다. returncode 만 보고 돌아서면 그 셋을 통째로 버리게 되고, 원장에는
+        #   `budget=None`·`turns=None` 만 남아 다음 attempt 를 얼마나 늘려야 할지 알 수 없다.
+        #   (내가 P2 에서 넣은 분기가 선행 게이트와 상호배타라 한 번도 실행되지 않았다 —
+        #    단위 자체검사는 못 잡고 **첫 라이브 실행이 알려줬다**.)
+        #   그러므로 비-0 종료에서도 **먼저 payload 를 읽어 본다**. 읽히지 않으면 그때 NONZERO_EXIT.
+        _payload = None
+        try:
+            _cand = json.loads(completed.stdout)
+            if isinstance(_cand, dict) and _cand.get("type") == "result":
+                _payload = _cand
+        except (ValueError, RecursionError):
+            _payload = None
+        if _payload is not None:
+            _sess0 = _payload.get("session_id") if isinstance(_payload.get("session_id"), str) else None
+            _turns0 = _payload.get("num_turns") if isinstance(_payload.get("num_turns"), int) else None
+            if _payload.get("subtype") == "error_max_turns":
+                _diag(request, "TURN_BUDGET_EXHAUSTED",
+                      f"provider 가 max_turns={request.get('max_turns')} 를 소진했다"
+                      f"(num_turns={_turns0}). 같은 예산의 자동 재시도 ✗ — 더 큰 예산의 새 attempt 를 "
+                      f"열고 session_id 로 이어라(scope ⊥ budget).")
+                return _result(request, status=STATUS_EXECUTION_FAILED,
+                               exit_code=EXIT_EXECUTION_FAILED, reason_codes=["NONZERO_EXIT"],
+                               session_id=_sess0, num_turns=_turns0, budget_outcome="exhausted")
+            _diag(request, "NONZERO_EXIT",
+                  f"provider exited {completed.returncode} · subtype={_payload.get('subtype')!r} "
+                  f"errors={_payload.get('errors')}", stderr=completed.stderr)
+            return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
+                           reason_codes=["NONZERO_EXIT"], session_id=_sess0, num_turns=_turns0,
+                           budget_outcome="aborted")
+        _diag(request, "NONZERO_EXIT",
+              f"provider exited {completed.returncode}"
+              + (" (ssh transport: 255 = 전송 실패, host key/키인증/네트워크를 먼저 본다)"
+                 if request["target"]["transport"] == "ssh" and completed.returncode == 255 else ""),
+              stderr=completed.stderr, stdout=completed.stdout)
         return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
                         reason_codes=["NONZERO_EXIT"])
 
@@ -147,10 +255,25 @@ def invoke(request: dict) -> dict:
         return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
                        reason_codes=["IS_ERROR"])
 
+    # 2026-09-03(P2 · plan_26090317): `subtype == "error_max_turns"` 는 provider 가 **예산 소진**을
+    #   말하는 방식인데, 이전에는 그것이 `PROVIDER_RESULT_INVALID`(형식 오류)로 접혔다 — 원장이
+    #   "예산이 모자랐다" 와 "출력이 깨졌다" 를 구분하지 못했고, 그래서 다음 attempt 에 예산을 얼마나
+    #   늘려야 하는지 알 수 없었다. 소진은 terminal 이되 **분류가 다르다**.
+    _sess = payload.get("session_id") if isinstance(payload.get("session_id"), str) else None
+    _turns = payload.get("num_turns") if isinstance(payload.get("num_turns"), int) else None
+    if payload.get("subtype") == "error_max_turns":
+        _diag(request, "TURN_BUDGET_EXHAUSTED",
+              f"provider 가 max_turns={request.get('max_turns')} 를 소진했다(num_turns={_turns}). "
+              f"같은 예산의 자동 재시도 ✗ — 더 큰 예산의 새 attempt 를 열어라(scope ⊥ budget).")
+        return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
+                       reason_codes=["NONZERO_EXIT"], session_id=_sess, num_turns=_turns,
+                       budget_outcome="exhausted")
+
     if payload.get("is_error") is not False or payload.get("subtype") != "success" \
             or not isinstance(payload.get("result"), str) or not payload["result"]:
         return _result(request, status=STATUS_MALFORMED_OUTPUT, exit_code=EXIT_MALFORMED_OUTPUT,
-                       reason_codes=["PROVIDER_RESULT_INVALID"])
+                       reason_codes=["PROVIDER_RESULT_INVALID"], session_id=_sess, num_turns=_turns,
+                       budget_outcome="unknown")
 
     model_usage = payload.get("modelUsage")
     if not isinstance(model_usage, dict) or not model_usage:
@@ -199,4 +322,6 @@ def invoke(request: dict) -> dict:
                        reason_codes=["UNEXPECTED_MODEL_USAGE"], model_used=model_ids)
 
     return _result(request, status=STATUS_COMPLETED, exit_code=EXIT_SUCCESS, reason_codes=[],
-                    model_used=model_ids, output=payload["result"])
+                    model_used=model_ids, output=payload["result"],
+                    session_id=_sess, num_turns=_turns,
+                    budget_outcome=_budget_outcome(payload, request))

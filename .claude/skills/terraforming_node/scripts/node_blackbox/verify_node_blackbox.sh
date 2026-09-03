@@ -24,7 +24,7 @@ SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ★ 리포 루트는 **고정 상대깊이로 세지 않는다**. 메인에서는 이 스크립트가
 #   .claude/skills/terraforming_node/scripts/node_blackbox/ 에 있지만, 서브에는 런타임으로
 #   .claude/runtime/node_blackbox/ 로 배달된다(host_safety 선례). 깊이가 다르므로 ../../../../..
-#   는 서브에서 /home/cona 를 가리켜 로그 루트가 조용히 엉뚱한 곳이 된다. 마커로 찾는다.
+#   는 서브에서 홈 디렉터리(저장소 루트 바깥)를 가리켜 로그 루트가 조용히 엉뚱한 곳이 된다. 마커로 찾는다.
 _find_repo(){ local d="$1"; while [ "$d" != "/" ] && [ -n "$d" ]; do
     [ -d "$d/.claude" ] && [ -d "$d/docs" ] && { printf '%s' "$d"; return 0; }; d="$(dirname "$d")"; done; return 1; }
 REPO="$(_find_repo "$SDIR" || (cd "$SDIR/../../../../.." 2>/dev/null && pwd))"
@@ -79,9 +79,31 @@ if [ "$MODE" = "crash" ]; then
   #   이 프로젝트는 2026-07-30 install_netconsole.sh 에서 이미 같은 함정을 겪었고,
   #   2026-07-31 이 검증자의 pstore 내용검사가 정확히 이 이유로 위음성을 냈다.
   #   여기는 특히 치명적이다 — 위음성이면 **서빙 중인 노드를 죽인다**. 파이프를 없앤다.
-  _dps="$(docker ps --format '{{.Names}}' 2>/dev/null)"
-  if grep -qi vllm <<< "$_dps"; then
-    say "거부: vLLM 컨테이너가 실행 중이다. 먼저 serve 를 내려라."; exit 3
+  # ★ 2026-09-01 (audit ⑤): 위 주석은 위음성의 위험을 정확히 서술하고 파이프 하나를
+  #   없앴는데, **같은 줄의 `2>/dev/null` 이 동일한 위음성을 낸다.** docker 데몬이 죽어
+  #   있거나 권한이 없으면 `_dps` 가 빈 문자열이 되고, grep 이 매칭하지 않아 게이트가
+  #   **열린 채** 강제 커널 패닉으로 진행한다. 즉 "docker 를 못 물어봤다"가 "서빙 안 한다"로
+  #   접힌다 — 부재와 판단 불가의 융합. 여기서 그 오판의 대가는 **남의 서빙이 도는 노드의
+  #   즉사**다. rc 를 본다.
+  # ★ B11(2026-09-03 · audit_26090121): 위 rc 검사는 "docker 를 못 물어봤다"를 닫았지만
+  #   **매칭 술어 자체가 반쪽**이었다 — `{{.Names}}` 만 보면 이름에 'vllm' 이 없는 서빙
+  #   컨테이너를 놓친다. 이 저장소의 실측 반례: `MASTER_CONTAINER_NAME=mn-hy3-master` ·
+  #   `mn-exaone45-33b-master`(.env.hy3 · .env.exaone45-33b) — 둘 다 'vllm' 미포함이라
+  #   옛 게이트를 **그대로 통과**한다. 그 대가는 남의 서빙이 도는 노드의 강제 커널 패닉이다.
+  #   판정 술어는 협역 워치독의 정본(host_safety/mem_watchdog.sh `targets()`)을 그대로
+  #   재현한다 — running 으로 한정하고 ID·**이미지**·이름 세 필드를 훑는다. 이미지에는
+  #   vllm 이 들어가므로(easy-vllm*·vllm/vllm-openai 등) 이름 규약과 무관하게 잡힌다.
+  if ! _dps="$(docker ps --filter status=running --format '{{.ID}} {{.Image}} {{.Names}}' 2>&1)"; then
+    say "거부: docker 상태를 조회할 수 없다(rc≠0) — 서빙 여부를 **판정할 수 없으므로** 진행하지 않는다."
+    say "      docker 출력: ${_dps}"
+    exit 3
+  fi
+  # 파이프 없이(here-string) 훑는다 — pipefail + 조기종료 SIGPIPE 위음성 회피(위 주석 계열).
+  _hit="$(awk 'tolower($0) ~ /vllm/ {print; exit}' <<< "$_dps")"
+  if [ -n "$_hit" ]; then
+    say "거부: vLLM 컨테이너가 실행 중이다(이미지 또는 이름 매칭). 먼저 serve 를 내려라."
+    say "      매칭: $_hit"
+    exit 3
   fi
   # 게이트 2: 포착 수단이 하나도 없으면 시험 자체가 무의미.
   #   2026-07-31 교정: 예전 게이트는 kdump 적재를 필수로 요구했으나, 같은 날 4회 실측에서
@@ -136,6 +158,30 @@ done
 if bash "$SDIR/mem_watchdog_eta.sh" --self-test >/dev/null 2>&1; then
   ok "ETA 워치독 self-test" "selftest_watchdog"
 else bad "ETA 워치독 self-test 실패" "selftest_watchdog"; fi
+# ★ 정지 계약(2026-09-03 · ㉛ 회귀 · plan_26090317 P1). audit ㉛ 는 "정지 기록" 을 넣으려다
+#   시그널 핸들러에 `exit` 를 빠뜨려 **워치독이 TERM 으로 죽지 않게** 만들었다 — systemd stop 은
+#   90s 뒤 SIGKILL 로 끝나고, KILL 은 trap 을 안 돌아 기록도 안 남는다(라이브 고아 1건이 그 결과).
+#   `--self-test` 는 이 축을 못 본다(프로세스를 띄우지 않으므로). 실제로 띄워서 TERM 을 보낸다.
+_wd_term_contract() {  # $1=스크립트 절대경로 → 0=TERM 2.5s 내 종료
+  local script="$1" tmp pid i
+  tmp="$(mktemp -d)" || return 1
+  printf '#!/bin/sh\nexit 0\n' > "$tmp/docker"; chmod +x "$tmp/docker"
+  ( PATH="$tmp:$PATH" BB_DRY_RUN=1 timeout 20 bash "$script" >"$tmp/out" 2>&1 & echo $! > "$tmp/pid" )
+  sleep 2
+  pid="$(cat "$tmp/pid" 2>/dev/null)"; [ -n "$pid" ] || { rm -rf "$tmp"; return 1; }
+  kill -TERM "$pid" 2>/dev/null
+  for i in $(seq 1 25); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+  if kill -0 "$pid" 2>/dev/null; then kill -KILL "$pid" 2>/dev/null; rm -rf "$tmp"; return 1; fi
+  rm -rf "$tmp"; return 0
+}
+for wd in "$SDIR/mem_watchdog_eta.sh:ETA 워치독" \
+          "$SDIR/../host_safety/mem_watchdog.sh:협역 워치독"; do
+  wdp="${wd%%:*}"; wdl="${wd##*:}"
+  if [ ! -f "$wdp" ]; then bad "$wdl 파일 부재 — $wdp" "term_contract_missing"; continue; fi
+  if _wd_term_contract "$wdp"; then ok "$wdl SIGTERM 정지 계약(2.5s 내)" "term_contract"
+  else bad "$wdl 이 SIGTERM 으로 죽지 않는다 — 정지 불가(㉛ 회귀). 시그널 trap 에 exit 가 있는지 보라." "term_contract"; fi
+done
+
 if bash "$SDIR/thermal_watchdog.sh" --self-test >/dev/null 2>&1; then
   ok "열·전력 워치독 self-test" "selftest_thermal_watchdog"
 else bad "열·전력 워치독 self-test 실패 — bash $SDIR/thermal_watchdog.sh --self-test" "selftest_thermal_watchdog"; fi
@@ -147,15 +193,39 @@ for pair in "mem_watchdog_eta.sh:easy-vllm-bb-watchdog" \
             "blackbox_collect.py:easy-vllm-bb-collect" \
             "blackbox_eta.py:easy-vllm-bb-eta" \
             "regen_envelope.py:easy-vllm-bb-regen-envelope" \
+            "blackbox_events.py:easy-vllm-bb-events" \
+            "logs_lifecycle.py:easy-vllm-bb-lifecycle" \
             "blackbox_thermal.py:easy-vllm-bb-thermal" \
             "thermal_watchdog.sh:easy-vllm-bb-tp-watchdog"; do
   src="$SDIR/${pair%%:*}"; dst="/usr/local/sbin/${pair##*:}"
   if [ ! -f "$dst" ]; then bad "배포본 부재: $dst" "deployed_${pair##*:}"
-  elif [ "$(sha256sum <"$src" | cut -d' ' -f1)" = "$(sha256sum <"$dst" | cut -d' ' -f1)" ]; then
+  elif cmp -s "$src" "$dst"; then
     ok "배포본 최신 ${pair##*:}" "deployed_${pair##*:}"
   else
     bad "배포본 구버전 ${pair##*:} — 소스≠$dst. sudo bash $SDIR/install_node_blackbox.sh --apply --level L1" \
         "deployed_${pair##*:}"
+  fi
+done
+
+# ★ 신선도(내용 동일)는 **실행 가능성**을 보증하지 않는다 (2026-09-01 · audit_26090109 ⑦ 2단).
+#   위 A 절의 self-test 는 $SDIR(소스)에서 돈다. 그런데 데몬이 실행하는 것은 $BIN 의 사본이고,
+#   설치기가 `.py` 확장자를 떼므로 **sibling import 통로가 소스에만 존재**했다.
+#   실측(2026-09-01) — 체크섬은 완전히 일치하는데 판정이 반대다:
+#       소스   regen_envelope.py            --self-test → rc=0
+#       설치본 easy-vllm-bb-regen-envelope  --self-test → rc=1 (ModuleNotFoundError)
+#   그래서 lifecycle 유닛이 5일 연속 죽는 동안 이 검증자는 계속 초록불이었고,
+#   envelope.json 은 **한 번도 생성된 적이 없다**. 내용이 아니라 **배치**가 갈린 것이므로
+#   체크섬으로는 원리상 잡히지 않는다 — 설치된 자리에서, 중립 cwd 로 실제로 돌려 본다.
+for _b in easy-vllm-bb-eta easy-vllm-bb-collect easy-vllm-bb-events \
+          easy-vllm-bb-lifecycle easy-vllm-bb-regen-envelope; do
+  _d="/usr/local/sbin/$_b"
+  if [ ! -x "$_d" ]; then
+    bad "배포본 실행권한/부재: $_d" "deployed_exec_$_b"
+  elif ( cd / && python3 -B "$_d" --self-test >/dev/null 2>&1 ); then
+    ok "배포본 실동작 $_b" "deployed_exec_$_b"
+  else
+    bad "배포본이 **설치된 자리에서** 실패: $_b (내용은 소스와 같아도 실행되지 않는다 — sibling import 통로 확인). sudo bash $SDIR/install_node_blackbox.sh --apply --level L1" \
+        "deployed_exec_$_b"
   fi
 done
 

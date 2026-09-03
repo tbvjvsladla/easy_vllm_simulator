@@ -20,10 +20,13 @@ set -euo pipefail
 
 SRC="${SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)/}"
 
-# ── SUB_HOST/SUB_WORK_DIR 해소: 환경변수 우선, 없으면 manifest.yaml(output/multi 통로) nodes[] (role: sub) ──
-# 서브 접속정보는 항상 multi 통로 manifest 에 있다(single manifest 는 nodes:[] — 서브 미정의).
-_resolve_sub_host_from_manifest() {
-    local manifest="${SRC%/}/output/multi/manifest.yaml"
+# ── SUB_HOST/SUB_WORK_DIR 해소: 환경변수 우선, 없으면 manifest nodes[] (role: sub) ──
+# 2026-09-03(P3 · plan_26090317): 옛 주석은 "서브 접속정보는 **항상** multi 통로 manifest 에 있다
+#   (single manifest 는 nodes:[] — 서브 미정의)" 였다. 그 전제가 §2.7.0(single+sub = A2A 에이전트)
+#   신설로 깨졌는데 이 파일은 따라오지 않아, 싱글 구성에서 상향 회수 채널이 통째로 죽어 있었다
+#   (그것도 조용히 — `exit 0` "회수할 것 없음" 으로). 두 통로를 모두 보고, 값이 갈리면 fail-closed.
+_resolve_sub_host_from_manifest() {   # $1=topology
+    local manifest="${SRC%/}/output/${1:-multi}/manifest.yaml"
     [ -f "$manifest" ] || return 1
     awk '
         /^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { in_sub=1; host=""; user=""; next }
@@ -33,8 +36,8 @@ _resolve_sub_host_from_manifest() {
         in_sub && host != "" && user != "" { print user "@" host; exit }
     ' "$manifest"
 }
-_resolve_sub_work_dir_from_manifest() {
-    local manifest="${SRC%/}/output/multi/manifest.yaml"
+_resolve_sub_work_dir_from_manifest() {   # $1=topology
+    local manifest="${SRC%/}/output/${1:-multi}/manifest.yaml"
     [ -f "$manifest" ] || return 1
     awk '
         /^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { in_sub=1; next }
@@ -43,8 +46,27 @@ _resolve_sub_work_dir_from_manifest() {
     ' "$manifest"
 }
 
-[ -z "${SUB_HOST:-}" ]     && SUB_HOST="$(_resolve_sub_host_from_manifest || true)"
-[ -z "${SUB_WORK_DIR:-}" ] && SUB_WORK_DIR="$(_resolve_sub_work_dir_from_manifest || true)"
+_fetch_resolve() {   # $1=host|work_dir → 두 통로를 모두 보고 갈리면 fail-closed
+    local kind="$1" t v prev="" src=""
+    for t in single multi; do
+        if [ "$kind" = "host" ]; then v="$(_resolve_sub_host_from_manifest "$t" || true)"
+        else v="$(_resolve_sub_work_dir_from_manifest "$t" || true)"; fi
+        [ -n "$v" ] || continue
+        if [ -n "$prev" ] && [ "$v" != "$prev" ]; then
+            echo "[fetch] FAIL: 서브 $kind 가 통로 간에 다르다 — $src=$prev vs output/$t=$v" >&2
+            return 2
+        fi
+        prev="$v"; src="output/$t"
+    done
+    [ -n "$prev" ] || return 1
+    printf '%s' "$prev"
+}
+if [ -z "${SUB_HOST:-}" ]; then
+    SUB_HOST="$(_fetch_resolve host)" || { [ $? = 2 ] && exit 4; SUB_HOST=""; }
+fi
+if [ -z "${SUB_WORK_DIR:-}" ]; then
+    SUB_WORK_DIR="$(_fetch_resolve work_dir)" || { [ $? = 2 ] && exit 4; SUB_WORK_DIR=""; }
+fi
 [ -z "${SUB_WORK_DIR:-}" ] && SUB_WORK_DIR="${SRC%/}"
 if [ -z "${SUB_HOST:-}" ]; then
     echo "[fetch] FAIL: 서브노드 주소 미해소 — SUB_HOST(<ssh_user>@<host>) 지정 또는 manifest nodes[](role:sub) 채우기." >&2
@@ -68,9 +90,15 @@ if ! $SSH_OPTS "$SUB_HOST" 'echo ok' >/dev/null 2>&1; then
     echo "[fetch] FAIL: $SUB_HOST 에 SSH 불가 (키 인증·네트워크 확인)"; exit 3
 fi
 # 서브 docs/ 존재 확인(없으면 회수할 것 없음 — 정상 종료)
-if ! $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR/docs' ]" 2>/dev/null; then
-    echo "[fetch] (info) 서브에 docs/ 없음 — 회수할 발행문서 없음. ($SUB_HOST:$SUB_WORK_DIR/docs)"; exit 0
-fi
+# 2026-09-03(F6 · plan_26090317): rc 를 구분하지 않아 **전송 실패가 "docs 없음"** 이 됐다 —
+#   유일한 서브→메인 채널이 판독 실패에 대고 "회수할 것 없음(성공)" 이라고 답했다.
+_docs_rc=0
+$SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR/docs' ]" || _docs_rc=$?
+case "$_docs_rc" in
+    0) : ;;
+    1) echo "[fetch] (info) 서브에 docs/ 없음 — 회수할 발행문서 없음. ($SUB_HOST:$SUB_WORK_DIR/docs)"; exit 0 ;;
+    *) echo "[fetch] FAIL: 서브 docs/ 존재 여부 판독 불가(rc=$_docs_rc) — '없음' 으로 접지 않는다." >&2; exit 3 ;;
+esac
 
 if [ "$MODE" = "dryrun" ]; then
     echo "[fetch] DRY-RUN  $SUB_HOST:$SUB_WORK_DIR/docs/ → $DEST/  (read-only on sub · 실제 미러 안 함 — --apply 로 실행)"

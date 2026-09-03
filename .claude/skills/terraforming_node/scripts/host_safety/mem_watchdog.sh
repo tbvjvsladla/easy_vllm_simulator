@@ -39,11 +39,31 @@ targets(){
     docker ps --filter "name=$FILTER" --filter status=running -q
   fi
 }
+# ★ 정지 기록 (2026-09-01 · audit ㉛). start 만 있고 stop 이 없으면 저널에서
+#   "돌고 있다"와 "사라졌다"가 구분되지 않는다.
+trap '_rc=$?; echo "[mem-watchdog] stop rc=$_rc signal=${_mw_sig:-EXIT} $(ts)"; exit $_rc' EXIT
+# 2026-09-03(㉛ 회귀 · plan_26090317 P1): 핸들러가 변수만 놓고 `exit` 하지 않아 bash 가 루프를
+#   **계속 돌았다** — TERM 으로는 죽지 않고 SIGKILL 까지 가며, KILL 은 trap 을 안 돌므로
+#   정지 기록도 남지 않는다. 즉 ㉛ 이 만들려던 기록은 TERM 경로에서 달성되지 않고, 그 대신
+#   **정상 정지 경로가 사라졌다**(라이브 고아 워치독 1건이 그 결과다). 128+signum 으로 나간다.
+trap '_mw_sig=TERM; exit 143' TERM
+trap '_mw_sig=INT;  exit 130' INT
+trap '_mw_sig=HUP;  exit 129' HUP
 echo "[mem-watchdog] start filter='$FILTER' threshold=${THRESH_MIB}MiB interval=${INTERVAL}s heartbeat=${HB_SEC}s pid=$$ $(ts)"
 last_hb=0
 min_since_hb=999999999   # 직전 HB 이후 1s-폴 최저치(P2 — 임계-하 순간 dip 을 60s HB 가 놓치지 않게, testlog_26071111 §0)
 while true; do
-  avail_mib=$(( $(awk '/MemAvailable:/{print $2}' /proc/meminfo) / 1024 ))
+  # ★ 판독 실패는 판정 불가다 (2026-09-01 · audit ④). 종전 형태는 /proc/meminfo 를 못
+  #   읽으면 산술 확장 오류로 **셸이 즉사**했고(비대화형 bash), 이 정본 워치독은
+  #   policy:HOST_SAFETY_LAYERED_DEFENSE.C1 이 요구하는 실물 방어층이라 그 침묵 사망이
+  #   곧 무방비다. 이 폴만 건너뛰고 큰 소리로 남긴다.
+  _mem_kb="$(awk '/MemAvailable:/{print $2; exit}' /proc/meminfo 2>/dev/null || true)"
+  case "$_mem_kb" in
+    ''|*[!0-9]*)
+      echo "[mem-watchdog] READ-FAIL /proc/meminfo MemAvailable 판독 실패(raw=[$_mem_kb]) — 이 폴은 판정하지 않는다 $(ts)"
+      sleep "$INTERVAL"; continue ;;
+  esac
+  avail_mib=$(( _mem_kb / 1024 ))
   [ "$avail_mib" -lt "$min_since_hb" ] && min_since_hb=$avail_mib
   now=$(date +%s)
   if [ "$HB_SEC" -gt 0 ] && [ $(( now - last_hb )) -ge "$HB_SEC" ]; then
@@ -55,7 +75,14 @@ while true; do
     ids=$(targets)
     if [ -n "$ids" ]; then
       echo "[mem-watchdog] TRIP MemAvailable=${avail_mib}MiB < ${THRESH_MIB}MiB → docker kill $ids $(ts)"
-      docker kill $ids 2>&1 | sed 's/^/[mem-watchdog] /'
+      # 2026-09-03(⑥ 잔여 · plan_26090317 P1): 파이프가 rc 를 삼켜 kill 실패가 **로그에서 성공과
+      #   구분되지 않았다**. 이 워치독은 policy:HOST_SAFETY_LAYERED_DEFENSE.C1 의 실물 방어층이라
+      #   "죽였다고 적혔는데 안 죽었다" 는 곧 무방비를 방어로 오독하게 만든다.
+      _kout="$(docker kill $ids 2>&1)"; _krc=$?
+      printf '%s\n' "$_kout" | sed 's/^/[mem-watchdog] /'
+      if [ "$_krc" -ne 0 ]; then
+        echo "[mem-watchdog] KILL-FAILED rc=$_krc targets=$ids — 방어가 성립하지 않았다 $(ts)" >&2
+      fi
     else
       # 매칭 0 인데 임계 미달 = vllm 밖 원인(관측만) — 로그 폭주 방지 감속
       echo "[mem-watchdog] TRIP-nomatch MemAvailable=${avail_mib}MiB < ${THRESH_MIB}MiB (filter='$FILTER' 매칭 0) $(ts)"

@@ -27,10 +27,53 @@
 ## 상태 = 파일 (세션 없는 멀티턴)
 - 한 작업 = 하나 `context_id`. 진행상태는 **`tasks/<context_id>.json`** 에 산다 — **파일이 세션이다**(데몬 없음).
 - 매 턴: (1) `tasks/<context_id>.json` 이 있으면 읽어 이전 턴/피드백을 복원 (2) 작업 수행 (3) 네 턴 결과를 그 파일에 덧쓰고 (4) 리포트 반환.
-- **max-turns = 3**(메인 `reconciliation_cap` 미러). `turn > 3` 이면 더 시도하지 말고 `status=failed, failure_class=unknown` 으로 종료 → 메인이 **Model-C(HITL)**.
+- **턴 예산은 난이도(grade)가 정한다 — 고정 3 이 아니다**(2026-09-03 개정 · `plan_26090317` §5).
+  메인이 Task 와 함께 `max_turns_allocated` 를 준다. 정본 표는 메인의 `scripts/turn_budget.py`:
+  `S 10 · L0 8 · L1 16 · L2 25 · L3 40 · L4 65`(하한 6). 옛 규약(`max-turns = 3` = `reconciliation_cap`
+  미러)은 캠페인 규모 태스크에서 **정상 진행을 실패로 만들었다** — 예산은 비용 노브이지 hang 노브가 아니다.
+- **예산을 다 쓰면 그 자리에서 멈춘다(terminal)**. `status=failed` 로 끝내되 `budget_outcome=exhausted`
+  와 `max_turns_used` 를 리포트에 담아라. **메인은 같은 예산으로 재시도하지 않고 더 큰 예산의 새 attempt 를
+  연다** — 예산을 줄이는 방향은 하강나선이다. 소진 직전 만든 부분 산출물이 있으면 `artifacts` 에 남겨라
+  (다음 attempt 가 그것을 이어받는다).
+- **답을 기다려야 하면 실패가 아니라 `input-required`** 다. `hitl.needed=true` + `hitl.request_id` 를 담아
+  끝내라 — 메인이 답을 실어 **같은 세션을 재개**(`--resume <session_id>`)하므로 컨텍스트를 다시 쌓지 않아도 된다.
+- **근거가 필요하면 도서관에 요청하라**(도서관·사서는 메인 단독이다). 역방향 접속을 시도하지 마라 —
+  네가 메인에게 말하는 통로는 **리포트와 네 `docs/`** 뿐이다. `blocking:true` 면 그 근거 없이 결정하지 않는다.
+
+## 도서관 교환 — 3메시지 왕복 (헌법 불변식 B · 정본 계약 `.claude/schemas/library-exchange.schema.json`)
+
+**인용 없는 결정은 거짓이 아니라 누락이다.** phase 가 `config`·`build`·`serve` 인 결정을 **채택**하면서
+인용이 0이면 메인 판정기가 `GROUNDING_OMISSION` 으로 **수신 자체를 거부**한다. 그러니 결정 전에 물어라.
+
+1. **요청**(너 → 메인). 아래 경로에 `library.citation.request` 를 **네가 쓴다**:
+   ```
+   docs/library_exchange/<exchange_id>/request.json
+   ```
+   - `exchange_id` 는 네가 발급한다(예 `lx-<context_id>-01`). 세 메시지가 이 값으로 묶인다.
+   - 필수: `schema_version:1` · `kind` · `exchange_id` · `node_id`(= `sub`) · `topology`.
+   - `claim` 에 **결정 한 문장**을, `query.terms` 에 **무엇을 찾는지**를 적는다. 도서관을 뒤지지
+     마라 — 무엇을 찾는지만 말하는 것이 이 비대칭의 요지다.
+   - 리포트에도 `library_request[]` 로 요약을 싣고, `status: input-required` 로 그 턴을 끝낸다.
+     **경로는 `artifacts[]` 에 적어라**(메인이 그 경로로 찾아간다).
+2. **반출**(메인 → 너). 메인이 사서(wiki-desk)로 해소해 `library.resolution.export` 를 만들고,
+   **다음 턴 Task 본문에 그 JSON 을 실어** 보낸다. 별도 채널·파일 배달은 없다.
+   - `references[]` 는 **복제가 아니라 참조+발췌**다: `ref_id`·`path`·`digest` 가 본체이고
+     `excerpt` 는 읽기 보조다. 그 경로를 열려고 하지 마라 — 네게 없다.
+   - `resolution.status` 가 `unresolved` 면 도서관에 근거가 **없는** 것이다. 그때 결정을 밀어붙이지
+     말고 `decision.accepted:false` 로 유보하라 — **정직한 유보는 실패가 아니다.**
+3. **인증**(너 → 메인). 같은 `exchange_id` 로 아래에 `library.citation.attestation` 을 쓴다:
+   ```
+   docs/library_exchange/<exchange_id>/attestation.json
+   ```
+   - `citations[]` 의 각 항목은 `ref_id` + **네가 본 시점의 `digest`** + `reason`(왜 이 참조가 이
+     결정을 뒷받침하는가 한 줄). export 의 digest 와 다르면 `CITATION_STALE` 로 거부된다.
+   - `decision.accepted` 로 채택 여부를 밝힌다.
+
+**왜 `docs/` 인가**: 상향 회수는 문서기반 only 이고(`fetch_sub_docs.sh` 가 `docs/` 만 미러한다),
+그 통로를 그대로 쓴다. 코드·설정을 올려보내는 것이 아니라 **네가 저작한 메시지**를 메인이 읽는 것이다.
 
 ## 검증 = push-attestation (가장 중요)
-- **DO** 보고 전에 **스스로 검증**하고 결과를 `self_verification` 에 담아라: config-parse · 이 리포트의 schema 유효성 · runner 문법(bash -n) · 산출물 checksum · 가능하면 **로컬 스모크**.
+- **DO** 보고 전에 **스스로 검증**하고 결과를 `self_verification` 에 담아라: config-parse · 이 리포트의 schema 유효성 · runner 문법(bash -n) · 가능하면 **로컬 스모크**.
 - **DON'T** "파일 만들었음"으로 completed 선언하지 마라 — **린트 통과 ≠ 서빙됨**. 성공술어를 만족해야 completed.
 - 메인은 네 디스크가 아니라 **네 리포트**를 검증한다. 그러니 **정직하게** attest 하라(허위 attest = 신뢰 붕괴).
 

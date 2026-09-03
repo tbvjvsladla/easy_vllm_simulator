@@ -19,6 +19,21 @@ import re
 import sys
 from datetime import datetime, timezone
 
+# 2026-09-03(plan_26090317 P3): 프로젝트 경로를 **root 소유로 굳히지 않기 위해** 조상 소유자를
+#   물려주는 디렉터리 생성기를 공유 sibling 모듈에서 가져온다(설치기가 blackbox_eta.py 를
+#   /usr/local/sbin 에 sibling 으로 배치한다). 임포트 불가는 치명이 아니다 — 그 경우
+#   os.makedirs 로 떨어지되 **그 사실을 숨기지 않는다**(아래 폴백은 loud 하다).
+try:
+    from blackbox_eta import makedirs_as_ancestor_owner as _mk_owned
+except ImportError:  # pragma: no cover - 설치 배선이 깨진 경우
+    import os as _os_fb, sys as _sys_fb
+    def _mk_owned(path, mode=0o775):
+        print("[blackbox] 경고: blackbox_eta sibling 임포트 실패 — 소유권 정렬 없이 디렉터리를 만든다",
+              file=_sys_fb.stderr)
+        _os_fb.makedirs(path, exist_ok=True)
+        return []
+
+
 ISO_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 SAFE_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 
@@ -45,7 +60,7 @@ def _append_event(node_dir, rec):
     """events/<YYYY-MM>.jsonl 에 append. 기존 평면과 같은 파일·같은 키 규약."""
     month = rec["ts"][:7]
     path = os.path.join(node_dir, "events", month + ".jsonl")
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    _mk_owned(os.path.dirname(path))
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(rec, ensure_ascii=False, sort_keys=True) + "\n")
     return path
@@ -56,7 +71,7 @@ def cmd_start(args):
     path = _session_path(args.node_dir, args.session_id)
     if os.path.exists(path) and not args.force:
         raise SystemExit("이미 존재하는 세션이다(덮어쓰기는 --force): %s" % path)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    _mk_owned(os.path.dirname(path))
     doc = {
         "session_id": args.session_id,
         "model": args.model,
@@ -121,14 +136,19 @@ BUDGET_FILE = "serve_budget.env"
 #   (같은 개념이 두 곳 이상에 손으로 적힌 값)의 교과서 사례다.
 # ∴ 사본을 없애고 정본에서 파생한다. 같은 디렉터리에 배달되므로(메인 scripts/node_blackbox,
 #   서브 .claude/runtime/node_blackbox) sys.path[0] 로 import 가능하다.
+_WD_FALLBACK = {"decl_margin_mib": 3072, "decl_min_ceiling_mib": 8192}
 try:
     from blackbox_eta import DEFAULTS as _ETA_DEFAULTS
     _WD_MARGIN_MIB = int(_ETA_DEFAULTS["decl_margin_mib"])
     _WD_MIN_CEILING_MIB = int(_ETA_DEFAULTS["decl_min_ceiling_mib"])
     _WD_CONST_SOURCE = "derived:blackbox_eta.DEFAULTS"
 except Exception as _exc:      # fail-loud 폴백 — 침묵하지 않는다(workflow.md 폴백 판정표 '정당' 칸)
-    _WD_MARGIN_MIB = 8192
-    _WD_MIN_CEILING_MIB = 16384
+    # ★ 2026-09-01 (audit_26090109 ①): 이 폴백 리터럴 자신이 **정본과 갈라져 있었다**
+    #   (8192/16384 vs 정본 3072/8192). 파생 경로가 정상일 땐 안 보이지만, import 가
+    #   깨지는 순간 조용히 옛 상한으로 돌아간다 — 고친 결함의 그림자가 폴백에 남아 있던 셈.
+    #   값은 정본에 맞추고, 자체검사가 **tripwire 로 대조**한다(정본이 움직이면 빨간불).
+    _WD_MARGIN_MIB = _WD_FALLBACK["decl_margin_mib"]
+    _WD_MIN_CEILING_MIB = _WD_FALLBACK["decl_min_ceiling_mib"]
     _WD_CONST_SOURCE = "fallback:literal (%s: %s)" % (type(_exc).__name__, _exc)
     print("[blackbox_session] WARN: blackbox_eta.DEFAULTS 파생 실패 → 리터럴 사용. "
           "예측 경고가 실제 워치독 판정과 어긋날 수 있다: %s" % _WD_CONST_SOURCE, file=sys.stderr)
@@ -203,7 +223,7 @@ def _write_budget(node_dir, body):
     rename 은 같은 파일시스템에서 원자적이므로 워치독은 옛 선언 아니면 새 선언만 본다.
     """
     path = _budget_path(node_dir)
-    os.makedirs(node_dir, exist_ok=True)
+    _mk_owned(node_dir)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(body)
@@ -285,7 +305,7 @@ def _declare_budget(args, now):
             % (resident, args.mem_total_mib))
     expires = _epoch(now) + args.ttl_s
     path = _budget_path(args.node_dir)
-    os.makedirs(args.node_dir, exist_ok=True)
+    _mk_owned(args.node_dir)
     label = args.label or "unlabeled"
     if not SAFE_ID_RE.match(label):
         raise SystemExit("--label 은 [A-Za-z0-9._-]+ 여야 한다(워치독 파서 문자셋): %r" % (label,))
@@ -511,6 +531,13 @@ def cmd_slice(args):
 def self_test():
     import tempfile
     ok = []
+    # ★ 폴백 tripwire (2026-09-01 · audit_26090109 ①) — 폴백 리터럴이 정본과 갈리면
+    #   빨간불. agent_guard 에 둔 것과 **같은 술어**다: 한 파일만 고치면 결함 계열이
+    #   닫히지 않는다는 것이 ① 이 가르친 전부다.
+    from blackbox_eta import DEFAULTS as _CANON_S
+    ok.append(("폴백 tripwire 가 blackbox_eta.DEFAULTS 와 일치",
+               _WD_FALLBACK["decl_margin_mib"] == int(_CANON_S["decl_margin_mib"])
+               and _WD_FALLBACK["decl_min_ceiling_mib"] == int(_CANON_S["decl_min_ceiling_mib"])))
     with tempfile.TemporaryDirectory() as td:
         node = os.path.join(td, "node-x")
         os.makedirs(os.path.join(node, "samples"))

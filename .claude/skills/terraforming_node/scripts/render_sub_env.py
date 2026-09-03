@@ -28,6 +28,7 @@ stdlib 만. PII(실 manifest)는 읽되 gitignored 스테이징으로만 쓴다(
 from __future__ import annotations
 import argparse
 import glob
+import hashlib
 import json
 import os
 import re
@@ -47,10 +48,44 @@ REPO = os.path.abspath(os.path.join(SKILL_DIR, "..", "..", ".."))  # repo root
 #   adversarial-benchmark 의 (b) 외부검색 arm = 이중게이트(A2A 위임 키 ∧ egress-online) 통과 시 서브 자율,
 #   미통과 시 미수행+증상 상향 — 서브는 (a) 루프라인-only 판정(SKILL.md §7). 렌더 시 서브 env 에 egress
 #   attestation 을 반영해 서브 페르소나가 자기 능력을 정확히 로드한다(plan_26070809_46_57).
-RUNTIME_BLOCKS = [
-    os.path.join(REPO, ".claude", "skills", "vllm-recipe-explorer"),
-    os.path.join(REPO, ".claude", "skills", "adversarial-benchmark"),
-]
+# 2026-09-03(P2 · plan_26090317): 이 리스트는 **토폴로지와 무관한 닫힌 목록**이라 멀티 서브(Ray
+#   워커)에게도 서빙전략·벤치 스킬이 배달됐다. 불변식 A 가 말하는 멀티 sub 는 정본을 재현하는
+#   워커이지 전략을 세우는 주체가 아니다 — 스킬을 들려주면 그 스킬이 시키는 자율 판단(트리플렛
+#   자작·루브릭 판정)을 하게 되고, 그건 head 종속 제어평면과 충돌한다. 반대로 싱글 sub 는 빌드→
+#   서빙→벤치를 자율 완주해야 하므로 3종이 필요하다.
+#   판정은 `node_role_contract.tool_plane` 이 소유한다 — 여기서 두 번째 답을 만들지 않는다.
+#   이 상수는 **경로 해소표**로만 남는다(어떤 스킬을 줄지는 계약이 정한다).
+RUNTIME_BLOCK_PATHS = {
+    "vllm-recipe-explorer": os.path.join(REPO, ".claude", "skills", "vllm-recipe-explorer"),
+    "adversarial-benchmark": os.path.join(REPO, ".claude", "skills", "adversarial-benchmark"),
+    "upstream-version-watch": os.path.join(REPO, ".claude", "skills", "upstream-version-watch"),
+}
+
+# 서브에 배달할 때 **제외**하는 경로(스킬 안의 메인 전용 오케스트레이션).
+#
+# 2026-09-03(P2 · plan_26090317): 사용자 범위 선언은 싱글 서브가 "타겟 모델 + 엔진 버전을 받으면
+# 자율적으로 빌드→서빙→벤치" 를 하려면 **upstream 런타임 스킬이 활성화돼야 한다** 고 못박는다.
+# 그런데 SKILL.md §2 는 upstream 을 "메인 전용, 서브 전달 ✗" 로 분류해 왔다. 둘 다 옳다 —
+# **한 스킬 안에 두 성질이 섞여 있는 것**이 문제였다:
+#
+#   · 서브가 필요로 하는 것 = **해소·렌더**(resolve_*·render_dockerfile·regen_requirements·
+#     classify_failure·check_smoke_model) — 자기 노드에서 자기 이미지를 만드는 능력.
+#   · 서브에 가면 안 되는 것 = **노드 간 오케스트레이션**(sync_to_sub·sync_branches·fetch_sub_docs·
+#     smoke_clone·multinode_*) — 이것은 메인이 서브를 향해 쓰는 도구다. 서브가 들면 배달 방향이
+#     뒤집히고(§2.7.1 권한 평면 위반), 서브가 다른 노드를 향해 쓰는 경로가 생긴다.
+#
+# 그래서 "스킬 전체를 주느냐 마느냐" 가 아니라 **경로 단위로 가른다**. 목록은 닫혀 있고(tripwire),
+# 새 오케스트레이션 스크립트가 생기면 아래 자체검사가 분류를 강제한다.
+RUNTIME_BLOCK_EXCLUDES = {
+    "upstream-version-watch": (
+        "scripts/sync_to_sub.sh",          # 메인→서브 배달(방향이 뒤집힌다)
+        "scripts/sync_branches.sh",        # 공유 빌딩블럭 브랜치 동기(메인 소관)
+        "scripts/fetch_sub_docs.sh",       # 서브→메인 문서 회수(메인이 당긴다)
+        "scripts/smoke_clone.sh",          # 배포본 클론 검증(메인 소관 · 이미 retirement 대상)
+        "scripts/multinode_comms_smoke.sh",  # 노드 간 통신 스모크(메인이 양노드를 향해 쓴다)
+        "scripts/multinode_serve_smoke.sh",  # 동상
+    ),
+}
 DOCS_RULES = os.path.join(REPO, ".claude", "rules", "docs.md")     # 문서규약(정적계약 — 서브 테라포밍, D12)
 DOC_SKELETONS = os.path.join(SKILL_DIR, "templates", "document_skeletons")  # 배포 포함 docs/*/example.md 정본(D12)
 RECIPE_REFERENCE = os.path.join(REPO, ".claude", "skills", "wiki-desk", "reference", "references.md")
@@ -64,6 +99,39 @@ import node_role_contract as _contract  # noqa: E402  (형제 스크립트 — �
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Z_]+)\s*\}\}")
 # 템플릿 전용 머리말(렌더 산출물에서 제거) — md 템플릿의 "이건 템플릿이다" 메타 블록.
 TEMPLATE_HEADER_RE = re.compile(r"<!--\s*TEMPLATE-ONLY:START\s*-->.*?<!--\s*TEMPLATE-ONLY:END\s*-->\s*", re.DOTALL)
+
+# ── 모드 게이트 블록 (2026-09-03 · S2 · plan_26090317 P1) ──────────────────────────────────────
+# 헌법 불변식 A: **한 스킴의 `role: sub` 로 멀티 Ray 워커와 싱글 A2A 에이전트 양자를 덮지 않는다.**
+# 그런데 CLAUDE.template.md 에는 `{{SUB_MODE}}` 계열 placeholder 가 하나도 없어서, single 렌더에도
+# "너 = slave(Ray worker)" 가 그대로 배달됐다(실측 확증). 같은 워크스페이스에 Agent_Card 는
+# `sub_mode: a2a-agent`, 페르소나는 Ray 워커 — **서로 모순되는 두 정체성**이고 자동 로드되는 쪽
+# (페르소나)이 틀린 쪽이었다.
+#
+# 파일을 둘로 쪼개지 않고(90% 중복은 곧 드리프트다) 마커로 가른다. 렌더러가 SUB_MODE 와 일치하는
+# 블록만 남기고 나머지는 **바이트째 제거**한다 — 서브는 자기 모드의 문장만 본다.
+MODE_BLOCK_RE = re.compile(
+    r"[ \t]*<!--\s*MODE:(?P<mode>[a-z0-9-]+)\s*-->\n(?P<body>.*?)[ \t]*<!--\s*/MODE:(?P=mode)\s*-->\n?",
+    re.DOTALL)
+KNOWN_SUB_MODES = ("ray-worker", "a2a-agent")
+
+
+def apply_mode_blocks(text: str, sub_mode: str) -> str:
+    """SUB_MODE 와 일치하는 MODE 블록만 남긴다. 미지 모드는 fail-loud(조용한 전량 삭제 금지)."""
+    seen = set()
+
+    def _keep(m):
+        mode = m.group("mode")
+        seen.add(mode)
+        if mode not in KNOWN_SUB_MODES:
+            raise SystemExit(f"[render] FAIL: 미지의 MODE 블록 '{mode}' — 알려진 모드 {KNOWN_SUB_MODES}")
+        return m.group("body") if mode == sub_mode else ""
+
+    out = MODE_BLOCK_RE.sub(_keep, text)
+    if seen and sub_mode not in seen:
+        # 블록이 있는데 내 모드용 블록이 하나도 없다 = 그 모드의 페르소나가 통째로 비어 배달된다.
+        raise SystemExit(f"[render] FAIL: sub_mode='{sub_mode}' 용 MODE 블록이 템플릿에 없다(있는 것: {sorted(seen)})")
+    return out
+
 
 
 def strip_template_header(text: str) -> str:
@@ -177,9 +245,14 @@ def _contract_placeholders(data: dict) -> dict:
     sub_mode = res.get("sub_mode") or {}
     rank = res.get("rank") or {}
     rank_value = rank.get("value")
+    tp = res.get("tool_plane") or {}
     return {
         "SUB_MODE": sub_mode.get("value") or "",
         "SUB_MODE_SOURCE": sub_mode.get("source") or "",
+        # 2026-09-03(P2): 어떤 런타임 스킬을 배달할지도 **계약 산출**이다. 렌더러의 닫힌 리스트가
+        #   토폴로지를 무시하던 자리를 이 값이 대체한다. 빈 문자열 = 0종(정상 상태일 수 있다).
+        "TOOL_PLANE": ",".join(tp.get("value") or []),
+        "TOOL_PLANE_SOURCE": tp.get("source") or "",
         # JSON 템플릿에서 **따옴표 없이** 놓인다 — single 은 리터럴 null, multi 는 정수.
         # 문자열 "null" 로 싣으면 하류가 rank 를 문자열로 읽어 TP/NCCL 입력으로 오해할 수 있다.
         "SUB_RANK": "null" if rank_value is None else str(int(rank_value)),
@@ -198,7 +271,8 @@ def _unrendered(text: str) -> list[str]:
 
 
 # ── 렌더 한 판 (스테이징 트리 산출) ──
-def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict:
+def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
+                tracked_list: list | None = None) -> dict:
     """치환된 placeholders 로 스테이징 트리를 만든다. 반환 = 산출 매니페스트(검증용)."""
     if os.path.isdir(out_dir):
         shutil.rmtree(out_dir)
@@ -214,6 +288,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
             raw = f.read()
         if kind == "md":
             raw = strip_template_header(raw)        # 템플릿 메타 머리말 제거(렌더 산출물 정결)
+            raw = apply_mode_blocks(raw, ph.get("SUB_MODE", ""))   # S2: 정체성 분기(불변식 A)
         txt = render_text(raw, ph)
         left = _unrendered(txt)
         if left:
@@ -256,21 +331,37 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
 
     # recipe.py resolves GPU/source-verification facts from this on-demand dependency.  Copy only
     # the dependency, not the main-only wiki-desk capability, so sub runtime closure stays minimal.
-    if not os.path.isfile(RECIPE_REFERENCE):
-        raise SystemExit(f"[render] FAIL: recipe reference dependency missing: {RECIPE_REFERENCE}")
-    recipe_ref_rel = ".claude/skills/wiki-desk/reference/references.md"
-    recipe_ref_dst = os.path.join(out_dir, recipe_ref_rel)
-    os.makedirs(os.path.dirname(recipe_ref_dst), exist_ok=True)
-    shutil.copyfile(RECIPE_REFERENCE, recipe_ref_dst)
-    produced.append(recipe_ref_rel)
+    # 2026-09-03(P2): 이 사본은 `vllm-recipe-explorer` 의 의존이다 — 그 스킬이 가지 않는 모드
+    #   (ray-worker)에 도서관 발췌만 보내는 것은 근거 없는 배달이다. tool_plane 을 따른다.
+    #   (사본 자체를 걷어내는 것 = wiki-desk 사영은 이번 plan 범위 밖 — §8 후속.)
+    if "vllm-recipe-explorer" in (ph.get("TOOL_PLANE") or ""):
+        if not os.path.isfile(RECIPE_REFERENCE):
+            raise SystemExit(f"[render] FAIL: recipe reference dependency missing: {RECIPE_REFERENCE}")
+        recipe_ref_rel = ".claude/skills/wiki-desk/reference/references.md"
+        recipe_ref_dst = os.path.join(out_dir, recipe_ref_rel)
+        os.makedirs(os.path.dirname(recipe_ref_dst), exist_ok=True)
+        shutil.copyfile(RECIPE_REFERENCE, recipe_ref_dst)
+        produced.append(recipe_ref_rel)
 
-    # 3) 런타임블럭 복제(git-tracked 만 — config.yaml/feedback/lockset/__pycache__ 제외)
+    # 3) 런타임블럭 복제(git-tracked 만) — **무엇을 줄지는 계약이 정한다**(P2 토폴로지 게이팅).
     if copy_runtime_block:
-        for rb in RUNTIME_BLOCKS:
-            name = os.path.basename(rb)
+        wanted = ph.get("TOOL_PLANE") or ""
+        names = [x for x in wanted.split(",") if x.strip()]
+        for name in names:
+            rb = RUNTIME_BLOCK_PATHS.get(name)
+            if rb is None:
+                raise SystemExit(f"[render] FAIL: tool_plane 이 지목한 런타임블럭 경로를 모른다: {name}")
             dst_skill = os.path.join(claude, "skills", name)
-            n = _copy_tracked(rb, dst_skill)
-            produced.append(f".claude/skills/{name}/ ({n} tracked files)")
+            n = _copy_tracked(rb, dst_skill, tracked_list=tracked_list,
+                              excludes=RUNTIME_BLOCK_EXCLUDES.get(name))
+            ex = RUNTIME_BLOCK_EXCLUDES.get(name)
+            produced.append(f".claude/skills/{name}/ ({n} tracked files"
+                            + (f" · 메인전용 {len(ex)}건 제외)" if ex else ")"))
+        if not names:
+            # 음성정직: "0종" 은 결손이 아니라 판정 결과다. 그 사실이 산출 매니페스트에 남아야
+            # 나중에 "왜 스킬이 없지?" 가 조용한 결손과 구분된다.
+            produced.append(".claude/skills/ (런타임블럭 0종 — tool_plane=%s)"
+                            % (ph.get("TOOL_PLANE_SOURCE") or "unknown"))
 
     # 3.5) A2A 위임 키 (plan_26063021_14_37 D5/D7) — 서브 HW 동질성 검증(nodes[sub].hw_verified=true) 통과 시에만 발급.
     #   메인 키(terraforming.complete@manifest)와 UNIQUE. 최소 attestation(HW사실/전체 manifest ✗ → D10 보존).
@@ -418,36 +509,56 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True) -> dict
     return {"out_dir": out_dir, "produced": produced}
 
 
-def _copy_tracked(src_skill: str, dst: str) -> int:
-    """git-tracked 파일만 복제(런타임블럭 = vllm-recipe-explorer). 사적/생성물 자동 제외."""
+def _copy_tracked(src_skill: str, dst: str, tracked_list: list | None = None,
+                  excludes: tuple | None = None) -> int:
+    """런타임블럭을 서브 스테이징으로 복제한다 — **git-tracked 만**이 계약이다.
+
+    2026-09-03(S10/㉓/F3 · plan_26090317 P1) 재작성. 이전 판본은 `git ls-files` 의 returncode 를
+    보지 않고 빈 목록이면 조용히 `os.walk` 폴백으로 넘어갔다. 그런데 이 함수가 실제로 도는 자리는
+    `sync_to_sub.prepare_transactional_source` 가 만든 **`checkout-index --prefix` 트리**이고 거기엔
+    `.git` 이 없다 — 즉 `git ls-files` 가 **매번 rc=128** 로 죽어 **폴백이 곧 프로덕션 경로**였다.
+    화면에는 `+ …/vllm-recipe-explorer/ (23 tracked files)` 라고 찍히는데 그 "tracked" 는 거짓 표기였고,
+    필터는 손유지 파일명 블랙리스트 4개뿐이었다(그 이름을 가진 추적 파일이 생기면 **말없이 누락**된다).
+
+    처방은 둘이다: ① tracked 목록을 얻지 못하면 **추측하지 않는다**(fail-loud) ② 호출부가 목록을
+    알고 있으면 `tracked_list` 로 주입한다(트랜잭션 트리처럼 git 이 없는 자리를 위한 정식 통로).
+    모드도 보존한다(`copy2` — ㉟: 이전에는 0664 로 평탄화됐다).
+    """
     rel = os.path.relpath(src_skill, REPO)
-    try:
-        out = subprocess.run(["git", "-C", REPO, "ls-files", rel],
-                             capture_output=True, text=True, timeout=20)
-        files = [ln for ln in out.stdout.splitlines() if ln.strip()]
-    except Exception:
-        files = []
+    if tracked_list is not None:
+        prefix = rel.rstrip("/") + "/"
+        files = [f for f in tracked_list if f == rel or f.startswith(prefix)]
+        source = "injected:tracked-list"
+    else:
+        try:
+            out = subprocess.run(["git", "-C", REPO, "ls-files", "-z", "--", rel],
+                                 capture_output=True, text=True, timeout=20)
+        except Exception as exc:
+            raise SystemExit(f"[render] FAIL: git ls-files 실행 불가({type(exc).__name__}: {exc}) — "
+                             f"tracked 목록 없이 런타임블럭을 복제하지 않는다({rel}).")
+        if out.returncode != 0:
+            raise SystemExit(
+                f"[render] FAIL: git ls-files rc={out.returncode} — tracked 목록 없이 복제하지 않는다({rel}).\n"
+                f"          stderr: {(out.stderr or '').strip()[:300]}\n"
+                f"          (git 없는 트리에서 렌더한다면 호출부가 tracked_list 를 주입해야 한다.)")
+        files = [f for f in out.stdout.split("\0") if f.strip()]
+        source = "measured:git-ls-files"
     if not files:
-        # 폴백: tracked 목록 못 얻으면 알려진 비추적만 제외하고 복제
-        files = []
-        for root, _, fns in os.walk(src_skill):
-            if "__pycache__" in root:
-                continue
-            for fn in fns:
-                if fn in ("config.yaml", "lockset.json", "candidates.json", "parsed.json"):
-                    continue
-                full = os.path.join(root, fn)
-                if os.sep + "feedback" + os.sep in full:
-                    continue
-                files.append(os.path.relpath(full, REPO))
+        raise SystemExit(f"[render] FAIL: 런타임블럭 {rel} 의 tracked 파일이 0개 — 배달할 것이 없다(계약 위반).")
     cnt = 0
+    ex = set(excludes or ())
     for rf in files:
         srcf = os.path.join(REPO, rf)
+        if not os.path.isfile(srcf):
+            continue                       # index 에는 있으나 워킹트리에 없는 항목(삭제 스테이징 등)
         sub_rel = os.path.relpath(srcf, src_skill)
+        if sub_rel in ex:
+            continue                       # 메인 전용 오케스트레이션(위 RUNTIME_BLOCK_EXCLUDES)
         destf = os.path.join(dst, sub_rel)
         os.makedirs(os.path.dirname(destf), exist_ok=True)
-        shutil.copyfile(srcf, destf)
+        shutil.copy2(srcf, destf)          # ㉟: 모드 보존
         cnt += 1
+    _copy_tracked.last_source = source     # 호출부/시험이 출처를 확인할 수 있게(결정론 규율)
     return cnt
 
 
@@ -519,7 +630,7 @@ def _self_test() -> int:
         base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json",
                        ".claude/schemas/library-exchange.schema.json", "tasks/.gitkeep",
-                       ".claude/rules/docs.md", ".claude/skills/wiki-desk/reference/references.md", ".gitignore",
+                       ".claude/rules/docs.md", ".gitignore",   # ← references.md 는 tool_plane 종속(아래 c4b)
                        # 호스트 안전체계: canonical terraforming source → constitution runtime delivery
                        ".claude/runtime/host_safety/mem_watchdog.sh",
                        ".claude/runtime/host_safety/install_host_safety.sh",
@@ -585,12 +696,137 @@ def _self_test() -> int:
         render_tree(ph5, out5, copy_runtime_block=False)
         with open(os.path.join(out5, "CLAUDE.md"), encoding="utf-8") as f:
             claude_single = f.read()
-        c5 = ph5["TOPOLOGY"] == "single" and "single" in claude_single and not _unrendered(claude_single)
-        print(f"  [{'PASS' if c5 else 'FAIL'}] dual-topology single 렌더(TOPOLOGY={ph5['TOPOLOGY']}, 페르소나 반영={'single' in claude_single})")
+        # 2026-09-03(S2 · plan_26090317 P1): 이전 단언은 `"single" in claude_single` 이었다.
+        #   템플릿 본문에 "single" 이라는 낱말이 리터럴로 있어 **항상 참**이었고, 페르소나가
+        #   "너 = slave(Ray worker)" 라고 말해도 PASS 했다(실제로 PASS 하고 있었다). 변이가 통과하는
+        #   시험은 커버리지 구멍의 신호다 — 이제 **정체성 문장 자체**를 양방향으로 본다.
+        ray_marks = ("slave(Ray worker)", "Ray head", "RAY_PORT", "/dev/infiniband", "--profile slave")
+        a2a_marks = ("A2A 원격 에이전트", "AgentCard")
+        leaked = [m for m in ray_marks if m in claude_single]
+        has_a2a = all(m in claude_single for m in a2a_marks)
+        no_markers = "<!-- MODE:" not in claude_single      # 마커가 산출물에 새면 안 된다
+        c5 = (ph5["TOPOLOGY"] == "single" and not _unrendered(claude_single)
+              and not leaked and has_a2a and no_markers)
+        print(f"  [{'PASS' if c5 else 'FAIL'}] single 렌더 페르소나=a2a-agent "
+              f"(ray누수={leaked or '없음'} a2a문장={has_a2a} 마커제거={no_markers})")
         ok &= c5
+
+        # 대조군(양성): multi 렌더는 Ray 워커 정체성을 **가져야** 한다 — 한쪽만 보면 "전부 지우기" 가
+        #   통과해 버린다. 두 방향을 함께 봐야 게이트가 실질이 된다.
+        data5m = parse_manifest(mpath); data5m["topology"] = "multi"
+        ph5m, _ = build_placeholders(data5m)
+        out5m = os.path.join(tmp, "sub_provision_multi_persona")
+        render_tree(ph5m, out5m, copy_runtime_block=False)
+        with open(os.path.join(out5m, "CLAUDE.md"), encoding="utf-8") as f:
+            claude_multi = f.read()
+        c5b = ("slave(Ray worker)" in claude_multi
+               and not any(m in claude_multi for m in a2a_marks)
+               and "<!-- MODE:" not in claude_multi)
+        print(f"  [{'PASS' if c5b else 'FAIL'}] multi 렌더 페르소나=ray-worker (대조군 — 양방향 확인)")
+        ok &= c5b
     except SystemExit as e:
         print(f"  [FAIL] single 렌더 예외: {e}")
         ok = False
+
+    # (4b) tool_plane 토폴로지 게이팅 (2026-09-03 · P2 · plan_26090317).
+    #   결함의 형태: 렌더러가 **토폴로지와 무관한 닫힌 리스트**로 런타임블럭을 배달해, 멀티 서브
+    #   (Ray 워커)에게도 서빙전략·벤치 스킬이 갔다. 판정을 계약(node_role_contract.tool_plane)으로
+    #   옮겼으므로, 여기서는 **양방향**을 본다 — 한쪽만 보면 "전부 안 주기"가 통과한다.
+    for _topo, _want, _label in (("single", {"vllm-recipe-explorer", "adversarial-benchmark",
+                                             "upstream-version-watch"}, "a2a-agent=3종"),
+                                 ("multi", set(), "ray-worker=0종")):
+        _d = parse_manifest(mpath); _d["topology"] = _topo
+        _ph, _ = build_placeholders(_d)
+        _out = os.path.join(tmp, f"tp_{_topo}")
+        render_tree(_ph, _out, copy_runtime_block=True)
+        _got = {os.path.basename(x) for x in glob.glob(os.path.join(_out, ".claude", "skills", "*"))
+                if os.path.isdir(x)}
+        _ref = os.path.exists(os.path.join(_out, ".claude/skills/wiki-desk/reference/references.md"))
+        # references.md 는 recipe 스킬의 의존이므로 recipe 가 갈 때만 간다.
+        _ref_ok = _ref == ("vllm-recipe-explorer" in _want)
+        _c = (_got - {"wiki-desk"}) == _want and _ref_ok
+        print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} refs={_ref}")
+        ok &= _c
+
+    # (4b-2) upstream 스킬의 **경로 단위 분할** — 서브는 해소·렌더 능력만 받고 노드 간
+    #   오케스트레이션(sync_to_sub·sync_branches·fetch_sub_docs·multinode_*)은 받지 않는다.
+    #   이 분류가 새 스크립트에서 조용히 새는 것을 막기 위해 **두 방향**을 본다:
+    #     ① 제외 대상이 실제로 서브에 없다  ② 서브가 필요로 하는 것은 실제로 있다
+    #   그리고 ③ 정본에 새 "노드 간" 스크립트가 생겼는데 분류표에 없으면 fail-loud 한다(tripwire).
+    _d = parse_manifest(mpath); _d["topology"] = "single"
+    _ph, _ = build_placeholders(_d)
+    _out = os.path.join(tmp, "upstream_split")
+    render_tree(_ph, _out, copy_runtime_block=True)
+    _uw = os.path.join(_out, ".claude", "skills", "upstream-version-watch")
+    _leaked = [x for x in RUNTIME_BLOCK_EXCLUDES["upstream-version-watch"]
+               if os.path.exists(os.path.join(_uw, x))]
+    _needed = ["scripts/resolve_wheel.py", "scripts/resolve_torch_pin.py",
+               "scripts/render_dockerfile.py", "scripts/regen_requirements.py",
+               "scripts/classify_failure.py", "references/resolve-and-render.md"]
+    _absent = [x for x in _needed if not os.path.exists(os.path.join(_uw, x))]
+    # ③ 정본의 노드 간 스크립트 전수 ⊆ 제외표. 이름에 sub/branch/multinode 가 든 셸 스크립트를
+    #    "노드 간" 후보로 본다 — 새 파일이 생기면 분류를 강제한다(닫힌 목록 tripwire).
+    _canon = os.path.join(REPO, ".claude", "skills", "upstream-version-watch", "scripts")
+    _cands = {f"scripts/{n}" for n in os.listdir(_canon)
+              if n.endswith(".sh") and any(k in n for k in ("sub", "branch", "multinode", "clone"))}
+    _unclassified = sorted(_cands - set(RUNTIME_BLOCK_EXCLUDES["upstream-version-watch"]))
+    _c4b2 = not _leaked and not _absent and not _unclassified
+    print(f"  [{'PASS' if _c4b2 else 'FAIL'}] upstream 경로 분할: 누수={_leaked or '없음'} "
+          f"필요분누락={_absent or '없음'} 미분류={_unclassified or '없음'}")
+    ok &= _c4b2
+
+    # (4c) 렌더 결정론 — 같은 입력이면 **바이트가 같아야** 한다(P3 재정착 합격 기준의 전제).
+    _d1 = parse_manifest(mpath); _ph1, _ = build_placeholders(_d1)
+    _o1, _o2 = os.path.join(tmp, "det_a"), os.path.join(tmp, "det_b")
+    render_tree(_ph1, _o1, copy_runtime_block=True)
+    render_tree(_ph1, _o2, copy_runtime_block=True)
+    _digest = {}
+    for _tag, _root in (("a", _o1), ("b", _o2)):
+        _h = hashlib.sha256()
+        for _f in sorted(glob.glob(os.path.join(_root, "**"), recursive=True)):
+            if os.path.isfile(_f):
+                _h.update(os.path.relpath(_f, _root).encode())
+                with open(_f, "rb") as _fh:
+                    _h.update(_fh.read())
+        _digest[_tag] = _h.hexdigest()
+    _cdet = _digest["a"] == _digest["b"]
+    print(f"  [{'PASS' if _cdet else 'FAIL'}] 렌더 결정론(같은 입력 → 같은 바이트): {_digest['a'][:16]}…")
+    ok &= _cdet
+
+    # (5c) 런타임블럭 복제 경로 — 2026-09-03(S10/㉓/F3 · plan_26090317 P1) 신설.
+    #   감사 지적: `_copy_tracked` 의 모든 self-test 호출이 copy_runtime_block=False 라 **이 경로를
+    #   한 번도 타지 않았다**. 그 사이 프로덕션에서는 git 없는 트랜잭션 트리 때문에 폴백이 상시 경로였다.
+    #   세 방향을 본다: ① 실 git 목록 ② 주입 목록 ③ git 없는 트리에서 fail-loud.
+    rb_dir = os.path.join(REPO, ".claude", "skills", "vllm-recipe-explorer")
+    if os.path.isdir(rb_dir):
+        d5c = os.path.join(tmp, "rb_git"); os.makedirs(d5c, exist_ok=True)
+        n_git = _copy_tracked(rb_dir, d5c)
+        src_git = getattr(_copy_tracked, "last_source", None)
+        d5d = os.path.join(tmp, "rb_inject"); os.makedirs(d5d, exist_ok=True)
+        listed = subprocess.run(["git", "-C", REPO, "ls-files", "-z"],
+                                capture_output=True, text=True, timeout=20)
+        inject = [x for x in listed.stdout.split("\0") if x.strip()]
+        n_inj = _copy_tracked(rb_dir, d5d, tracked_list=inject)
+        src_inj = getattr(_copy_tracked, "last_source", None)
+        # ③ git 이 없는 트리: 예전엔 조용히 os.walk 로 넘어갔다. 이제는 정지해야 한다.
+        gitless = os.path.join(tmp, "gitless_repo", ".claude", "skills", "vllm-recipe-explorer")
+        os.makedirs(gitless, exist_ok=True)
+        with open(os.path.join(gitless, "SKILL.md"), "w", encoding="utf-8") as f:
+            f.write("x\n")
+        _saved_repo = globals()["REPO"]
+        globals()["REPO"] = os.path.join(tmp, "gitless_repo")
+        try:
+            _copy_tracked(gitless, os.path.join(tmp, "rb_gitless"))
+            failed_loud = False
+        except SystemExit:
+            failed_loud = True
+        finally:
+            globals()["REPO"] = _saved_repo
+        c5c = (n_git > 0 and n_git == n_inj and src_git == "measured:git-ls-files"
+               and src_inj == "injected:tracked-list" and failed_loud)
+        print(f"  [{'PASS' if c5c else 'FAIL'}] 런타임블럭 복제: git={n_git} 주입={n_inj} "
+              f"출처={src_git}/{src_inj} git없는트리→fail-loud={failed_loud}")
+        ok &= c5c
 
     # (6) A2A 위임 키(plan_26063021_14_37 D5/D7): nodes[sub].hw_verified=true → 키 발급 / 부재 → 미발급(fail-closed).
     data6 = parse_manifest(mpath)
@@ -672,6 +908,9 @@ def main() -> int:
     ap.add_argument("--manifest", default=None, help="manifest 경로(기본 output/<topology>/manifest.yaml)")
     ap.add_argument("--out", default=None, help="스테이징 출력(기본 output/<topology>/sub_provision)")
     ap.add_argument("--no-runtime-block", action="store_true", help="런타임블럭(vllm-recipe-explorer) 복제 생략(디버그)")
+    ap.add_argument("--tracked-list", default=None,
+                    help="git-tracked 경로 목록 파일(NUL 또는 개행 구분). git 이 없는 트랜잭션 트리에서 "
+                         "런타임블럭을 복제할 때 호출부가 주입한다(S10 — 추측 폴백 금지).")
     ap.add_argument("--self-test", action="store_true", help="fixture 렌더 회귀(하드웨어/실 manifest 불요)")
     args = ap.parse_args()
 
@@ -693,11 +932,21 @@ def main() -> int:
             print(f"[render]       ↳ 토폴로지 축 계약 위반: {ph['SUB_CONTRACT_VIOLATIONS']} "
                   f"(node_role_contract.py evaluate --manifest {manifest} 로 상세 확인)", file=sys.stderr)
         return 2
-    res = render_tree(ph, out_dir, copy_runtime_block=not args.no_runtime_block)
+    tracked = None
+    if args.tracked_list:
+        with open(args.tracked_list, encoding="utf-8") as f:
+            blob = f.read()
+        tracked = [x for x in (blob.split("\0") if "\0" in blob else blob.splitlines()) if x.strip()]
+    res = render_tree(ph, out_dir, copy_runtime_block=not args.no_runtime_block, tracked_list=tracked)
     print(f"[render] OK → {res['out_dir']}")
     for p in res["produced"]:
         print(f"   + {p}")
-    print(f"[render] (다음: bash .claude/skills/upstream-version-watch/scripts/sync_to_sub.sh --apply --provision — HITL)")
+    # 2026-09-03(B0 · plan_26090317 P1): 여기서 찍던 명령은 필수 인가 인자(--mode·--manifest)가 없어
+    #   completion_gate 가 CLI_USAGE_ERROR 로 거부했다 — 렌더 성공 화면이 실행 불가 명령을 안내하고 있었다.
+    print("[render] 다음(HITL · 인가 인자 필수):")
+    print("   bash .claude/skills/upstream-version-watch/scripts/sync_to_sub.sh \\")
+    print("        --mode experimental --manifest <work-manifest.json> --apply --provision")
+    print("   ↑ work-manifest 발행 절차 = terraforming_node SKILL.md §2.3 '인가 체인'")
     return 0
 
 

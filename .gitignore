@@ -7,6 +7,8 @@
 .windsurf/
 .taskmaster/
 .serena/
+.unlazy/
+.ouroboros/
 # Claude/Hermes control runtime overlay — maintainer-local only; never distribute or sync.
 /.hermes-claude-control/
 .codex/
@@ -19,6 +21,9 @@ CLAUDE.local.md
 #   파생물(추적 시 incoherent) + path-reference 로컬상태 종속. gitignore-persist로 브랜치 통합.
 #   스킬 자체(.claude/skills/wiki-desk/)는 추적. 근거 plan_2026062809_1.
 /__llm-wiki/
+# 메인↔서브 A2A 릴레이 원장(tasks/<context_id>.json · <context_id>.reports/) — 환경 런타임 상태
+#   (세션 id·서브 리포트 원문). 관측 자리이지 배포물이 아니다(2026-09-03 plan_26090317 P4).
+/tasks/
 
 # ===========================================
 # .claude 빌딩블럭 선별 추적 (배포 대상)
@@ -31,6 +36,9 @@ CLAUDE.local.md
 !.claude/skills/
 !.claude/schemas/
 !.claude/policies/
+# 추적 git 훅(core.hooksPath = .claude/hooks). 훅은 배포 대상 빌딩블럭이다 — `.git/hooks` 는
+#   클론에 실리지 않으므로 추적 디렉터리에 두고 hooksPath 로 가리켜야 배포본에서도 산다.
+!.claude/hooks/
 .claude/schemas/*
 !.claude/schemas/work-manifest.schema.json
 !.claude/schemas/completion-manifest.schema.json
@@ -39,11 +47,15 @@ CLAUDE.local.md
 !.claude/schemas/agent-control-request.schema.json
 !.claude/schemas/agent-control-result.schema.json
 .claude/policies/*
+# C-4 비대칭 해소(2026-09-03): runtime/·predicates/·provenance/ 는 **이미 추적 중**이라 정상으로
+#   보였을 뿐, `.claude/policies/*` 에 걸려 ignored-but-tracked 였다 — 신규 판정기를 `git add`
+#   하면 조용히 no-op 이 됐다(실증: `git check-ignore -v .claude/policies/runtime/xxx_new.py`).
+#   재포함은 부모→자식 순서이며, `*` 는 `/` 를 넘지 않으므로 디렉터리 재포함만으로 내부가 살아난다.
+!.claude/policies/runtime/
+!.claude/policies/predicates/
+!.claude/policies/provenance/
 !.claude/policies/registry.yaml
-!.claude/policies/evidence_manifest.json
-!.claude/policies/tracked_index.json
 !.claude/policies/claim_bindings.json
-!.claude/policies/governed_prose_snapshot.json
 !.claude/policies/arch_variant_ledger.json
 !.claude/policies/arch_variant_evidence/
 !.claude/policies/arch_variant_evidence/*.json
@@ -93,6 +105,10 @@ manifest.yaml
 /requirements.txt
 # S1 resolve 산출 스냅샷 (버전 bump마다 재생성 — 추적 안 함)
 /resolved.json
+# recipe 탐색 입력·잠금 (모델마다 재생성 · config.yaml 은 NAS/tiktoken 절대경로를 담는다).
+# 무시하지 않으면 `git add -A` 한 번에 운영자 지문이 추적 배포물로 들어간다 — 2026-09-01 실측.
+/config.yaml
+/lockset.json
 # tiktoken 에어갭 자산(gpt-oss harmony o200k — URL 다운로드본, 호스트 자산·배포물 아님)
 /tiktoken_cache/
 # 모델별 산출물 (범용 툴 configs/check_reqs.py 는 .py 라 미매칭 → 추적 유지)
@@ -218,11 +234,13 @@ Thumbs.db
 # ===========================================
 *.tmp
 *.temp
-*.bak
 *.log
-*.orig
 temp/
 seed/
+# ⚠ `*.bak` · `*.orig` 는 2026-09-03 에 **의도적으로 삭제**했다(되돌리지 말 것). 숨김이 백업
+#   관행을 제도화했다 — 잔재가 `git status` 에 드러나는 것이 의도이며, 금지 집행은
+#   `runtime_selftest.py::_test_no_backup_artifacts`(tripwire ①)가 한다. 그 단언은 이 두 행의
+#   **부재**까지 검사하므로 다시 넣으면 하네스가 RED 가 된다.
 
 # Phase-7 branch/sub sync authorization artifacts — local execution records, never distributable.
 /.p7_sync_*
@@ -244,9 +262,13 @@ docs/_evidence/
 !docs/report/*
 # ⚠ docs/benchmark/benchmark_*.yaml = 두 번째 추적 예외(재현성 **인증서**만 · report_*.md 는 제외).
 #   근거 = docs/plan/plan_26082017 §4.2 W2-b · 2026-08-20 사용자 결정 (ii).
-#   왜: hint 태그 footer 의 `certificate_sha256` 이 **비추적 파일**을 가리켜, 수신자가 그 digest 를
-#   영원히 대조할 수 없었다(불투명한 해시 = 신뢰 근거 없음). 인증서는 full PASS 때만 나오는 flat
-#   yaml 이고 배포강도 PII 4종 스캔 위반 0건이라 배포 가능하다.
+#   왜(원안 2026-08-20): hint 태그 footer 의 `certificate_sha256` 이 **비추적 파일**을 가리켜,
+#   수신자가 그 digest 를 영원히 대조할 수 없었다(불투명한 해시 = 신뢰 근거 없음).
+#   ★ 존치 사유 재기재(2026-09-03 · plan_26090222 F-6a): 그 digest 필드는 삭제됐다. 그럼에도 이
+#   재포함 행은 **남긴다** — 사유가 digest 대조에서 **증거 자체의 도달**로 바뀌었을 뿐이다.
+#   footer 의 `certificate_ref` 는 여전히 수신자 클론에서 열려야 하며(안 열리면 verify 가
+#   `HINT_EVIDENCE_CERTIFICATE_REF_ABSENT`), 인증서가 무시되면 그 참조는 배포처에서 항상 부재다.
+#   인증서는 full PASS 때만 나오는 flat yaml 이고 배포강도 PII 4종 스캔 위반 0건이라 배포 가능하다.
 #   범위 주의: work-manifest(docs/_evidence/)는 **여전히 비추적**이다 — 운영자 환경 지문을 담는다.
 #   따라서 수신자 검증은 절반(인증서)까지다. 나머지 절반은 발행자 신뢰에 남는다.
 !docs/benchmark/benchmark_*.yaml

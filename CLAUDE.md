@@ -67,8 +67,9 @@
   1. 메인은 서브를 **무단 스캔·직접 교정하지 않는다** — 상향 회수는 문서기반이다(PII 격리).
   2. 서브 git은 **메인의 관측 장치**다 — 메인은 완전한 조작 권한(commit·checkout·clean)을 가지며,
      교착 시 **A2A 제어명령으로 해제를 지시할 수 있다**.
-  3. 평면 B(메인↔서브)에 게이트를 놓을 때는 그 처방을 **누가 실행하는가**를 먼저 적는다 — 메인이
-     아니면 안전장치가 아니라 교착이다.
+  3. 게이트·검증·가드를 놓을 때는(평면 B(메인↔서브)를 포함해 어느 평면이든) 그 처방을 **누가
+     실행하는가**를 먼저 적는다 — 실행자가 아예 없으면, 그리고 평면 B에서 그 실행자가 메인이
+     아니면, 안전장치가 아니라 교착이다.
   4. 정식 경로가 막히면 우회하지 않고 **경로를 고친다**(D3 법칙) — 우회 잔재는 다음 배달의 차단
      사유가 된다. 막힘 3종 분류(정상 차단·침묵 누락·오배달)의 정본은 workflow.md다.
   5. **발견은 소유가 아니다** — 발견한 주체와 처방을 소유한 주체가 다를 수 있으며, 소유자는 owner
@@ -100,6 +101,10 @@
 - 요청 범위 밖 기능·추상화를 선반영하지 않는다.
 - PII는 서브 회수가 문서기반이라는 사실 자체로 격리된다 — 서브 헌법의 bake 정체성은 메인 추적물로
   유입되지 않는다.
+- 무결성 해시와 사본은 git이 그 바이트를 들지 않는 대상에만 둔다 — 추적물의 digest·복제본을 두 번째
+  자리에 다시 적지 않는다(단일 권위). 복구는 git 이력과 재생성이며 메인의 운영 refs는 브랜치
+  single-node·multi-node·hint와 hint/* 태그뿐이다. 재현성은 재빌드+스모크로 증명한다 — digest 대조는
+  git이 바이트를 들지 않은 입력(payload·상류 핀)에만 둔다. policy:GIT_SINGLE_AUTHORITY.
 
 ## 트리거
 
@@ -119,6 +124,7 @@
 
 - policy:A2A_DELEGATION_KEY_FAIL_CLOSED
 - policy:ARCH_WALL_VARIANT_LADDER
+- policy:GIT_SINGLE_AUTHORITY
 - policy:HINT_TAG_ACTIVATION_GATE
 - policy:HOST_SAFETY_LAYERED_DEFENSE
 - policy:KV_ABSOLUTE_CLAMP_PORTABILITY

@@ -40,7 +40,18 @@ rl_container_running(){   # $1=container name → 0=살아있음
         BUDGET_RENEW_TARGET="$1" bash -c "$BUDGET_RENEW_PROBE"
         return $?
     fi
-    [ -n "$(docker ps --filter "name=^${1}$" --filter status=running -q 2>/dev/null)" ]
+    # ★ 2026-09-01 (audit_26090109 ⑧): 종전 형태는 `2>/dev/null` 로 docker 조회 실패를
+    #   삼켜 **빈 출력 = 컨테이너 부재**로 접었다. 그러면 docker 데몬이 잠깐 흔들리기만 해도
+    #   루프가 "서빙 끝났다"며 exit 0 하고, 예산 선언이 갱신되지 않아 TTL 만료와 함께
+    #   워치독이 **옛 무조건-트립 규칙으로 복귀**한다 — 살아 있는 서빙 위에서.
+    #   부재(1)와 판정 불가(2)를 가른다.
+    local _out _rc
+    _out="$(docker ps --filter "name=^${1}$" --filter status=running -q 2>&1)"; _rc=$?
+    if [ "$_rc" -ne 0 ]; then
+        echo "$RL_TAG READ-FAIL docker 조회 실패(rc=$_rc): $_out" >&2
+        return 2                       # 판정 불가 — 부재와 다르다
+    fi
+    [ -n "$_out" ]
 }
 
 rl_usage(){
@@ -106,6 +117,18 @@ if [ "$RL_SELFTEST" = "1" ]; then
     case "$rl_out" in *"컨테이너 부재"*) rl_r=0 ;; *) rl_r=1 ;; esac
     rl_chk "종료 사유를 남긴다(침묵 종료 ✗)" "$rl_r" "0"
 
+    # ★ audit ⑧ 회귀: docker 조회 실패(판정 불가)를 **부재로 접지 않는다**.
+    #   probe 가 2 를 내면 루프는 종료하지 않아야 한다(--once 아님 · 짧게 돌려 확인).
+    BUDGET_RENEW_PROBE='exit 2' rl_container_running x; rl_r=$?
+    rl_chk "프로브 주입: 판정 불가 → 2(부재 1 과 구별)" "$rl_r" "2"
+    printf '%s\n' 'print("ok")' >"$rl_tmp/ok2.py"
+    rl_out="$(BUDGET_RENEW_PROBE='exit 2' BUDGET_RENEW_SESSION_PY="$rl_tmp/ok2.py" \
+              timeout -s KILL 3 bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container c --interval-s 1 2>&1)"; rl_r=$?
+    case "$rl_out" in *"판정 불가"*) rl_r2=0 ;; *) rl_r2=1 ;; esac
+    rl_chk "판정 불가 → 종료하지 않고 갱신 계속(사유 기록)" "$rl_r2" "0"
+    case "$rl_out" in *"컨테이너 부재"*) rl_r2=1 ;; *) rl_r2=0 ;; esac
+    rl_chk "판정 불가를 '컨테이너 부재'로 적지 않는다" "$rl_r2" "0"
+
     # 갱신 실패는 크게 죽는다(만료된 선언을 조용히 되살리지 않는다).
     printf '%s\n' 'import sys; sys.exit(1)' >"$rl_tmp/fail.py"
     rl_out="$(BUDGET_RENEW_PROBE='exit 0' BUDGET_RENEW_SESSION_PY="$rl_tmp/fail.py" \
@@ -162,10 +185,17 @@ if [ "$RL_ONCE" = "1" ]; then
 fi
 
 while :; do
-    if ! rl_container_running "$RL_CONTAINER"; then
+    rl_container_running "$RL_CONTAINER"; rl_cr=$?
+    if [ "$rl_cr" -eq 1 ]; then
         echo "$RL_TAG 종료 — 컨테이너 부재($RL_CONTAINER). 서빙이 없으면 선언도 유지하지 않는다."
         echo "$RL_TAG ⚠ 선언 자체의 회수(clear-budget)는 teardown 진입점이 한다 — 이 루프는 갱신만 멈춘다."
         exit 0
+    fi
+    if [ "$rl_cr" -ge 2 ]; then
+        # 판정 불가에서의 안전 기본값은 **갱신 계속**이다. 갱신을 멈추면 선언이 만료되고
+        # 워치독이 옛 규칙으로 복귀해 정상 로드를 사살할 수 있다(2026-08-01 실화 계열).
+        # 절대 바닥(hard_floor)은 선언과 무관하게 항상 무장하므로 호스트는 여전히 보호된다.
+        echo "$RL_TAG ⚠ 컨테이너 생사 판정 불가 — 갱신을 계속한다(선언 만료가 더 위험하다). 부재로 접지 않는다."
     fi
     rl_renew_once || exit 5
     sleep "$RL_INTERVAL_S"

@@ -172,6 +172,34 @@
         ]
       }
     ],
+    "GIT_SINGLE_AUTHORITY.C1": [
+      {
+        "path": ".claude/policies/runtime/runtime_selftest.py",
+        "assertion_ids": [
+          "_test_no_backup_artifacts"
+        ]
+      },
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_GIT_SINGLE_AUTHORITY_C1"
+        ]
+      }
+    ],
+    "GIT_SINGLE_AUTHORITY.C2": [
+      {
+        "path": ".claude/policies/runtime/runtime_selftest.py",
+        "assertion_ids": [
+          "_test_no_tracked_digest_rewrite"
+        ]
+      },
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_GIT_SINGLE_AUTHORITY_C2"
+        ]
+      }
+    ],
     "HINT_TAG_ACTIVATION_GATE.C1": [
       {
         "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
@@ -428,6 +456,13 @@
           "THRESH_MIB",
           "targets"
         ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh",
+        "assertion_ids": [
+          "SUDOERS_F",
+          "TARGET_USER"
+        ]
       }
     ],
     "HOST_SAFETY_LAYERED_DEFENSE.C7": [
@@ -441,7 +476,11 @@
         "path": ".claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh",
         "assertion_ids": [
           "APPLY",
+          "CKS_NOW",
           "LEVEL",
+          "_KL",
+          "_PP_BAD",
+          "_PS_EN",
           "run",
           "say"
         ]
@@ -469,6 +508,27 @@
         "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_HOST_SAFETY_LAYERED_DEFENSE_C8"
+        ]
+      }
+    ],
+    "HOST_SAFETY_LAYERED_DEFENSE.C9": [
+      {
+        "path": ".claude/skills/terraforming_node/scripts/node_blackbox/purge_host_safety.sh",
+        "assertion_ids": [
+          "APPLY",
+          "GRUB_BAK",
+          "REQUIRE_SEED",
+          "_gone",
+          "run",
+          "verify_pkg_absent",
+          "verify_sysctl",
+          "wd_pids"
+        ]
+      },
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C9"
         ]
       }
     ],

@@ -2,8 +2,8 @@
   "_meta": {
     "purpose": "토폴로지-중립 프로덕션 해소값 정본(SSOT). 렌더·런타임패치 검증·cleanup 이 함께 읽는다.",
     "structure": "top-level = default_track 의 해소값(기존 소비자 6곳이 그대로 읽는다). 다른 트랙은 tracks.<name> 에만 둔다 — default 를 tracks 에 중복 기재하지 않는다(목록 두 벌 = 갈라짐).",
-    "updated": "2026-08-13",
-    "why_updated": "8/11 0.27.0 bump 가 스모크 PASS·VALIDATED_SOURCE_BUILD_KEYS 승급까지 갔는데 이 정본은 0.26.0 에 멈춰 있었다(정본이 실물을 잃고 gitignored resolved.json 이 그림자로 실물을 보유). canonical 렌더는 --resolved 를 금지하므로 이 정체가 곧 '0.27.0 을 canonical 로 렌더할 수 없음'이었고, 그래서 8/11 렌더가 legacy --template 경로로 새어나갔다.",
+    "updated": "2026-09-03",
+    "why_updated": "8/11 0.27.0 bump 가 스모크 PASS·VALIDATED_SOURCE_BUILD_KEYS 승급까지 갔는데 이 정본은 0.26.0 에 멈춰 있었다(정본이 실물을 잃고 gitignored resolved.json 이 그림자로 실물을 보유). canonical 렌더는 --resolved 를 금지하므로 이 정체가 곧 '0.27.0 을 canonical 로 렌더할 수 없음'이었고, 그래서 8/11 렌더가 legacy --template 경로로 새어나갔다. [2026-09-03] tracks.wheel 을 0.19.1→0.18.0 으로 되돌림 — 사용자 명시 지시(gpt-oss-20b 를 vLLM 0.18.0 으로 서빙, 다운그레이드 의도 확인됨). S1.5 델타판정(v0.19.1→v0.18.0) axis_A=IMPACT(csrc FP4/MXFP4 커널 4파일 변경, gpt-oss 계열이 실사용) · axis_B=NO_IMPACT(stock) · unknown=∅ · 전역 IMPACT(UNDETERMINED 아님) — 사용자 승인 후 렌더 진입. 기존 gpt-oss-120b(0.19.1 검증분)는 같은 공유 이미지를 쓰므로 이 bump 로 회귀 재스모크 대상이 된다.",
     "tracks_rationale": "사용자 지시(2026-08-13): 정본을 빌드 트랙별 두 벌로 나눈다. 갈림의 진짜 축은 브랜치나 토폴로지가 아니라 **빌드 트랙**이다 — torch 2.11+ 는 prebuilt wheel 의 _C 가 NGC alpha torch 와 C++ ABI 불일치를 일으켜 소스빌드가 강제되고, 2.10 이하만 wheel 이 성립한다. wheel 트랙은 그 대가로 구동 가능한 모델 범위가 좁다(신규 아키텍처 미지원)."
   },
 
@@ -34,30 +34,31 @@
 
   "tracks": {
     "wheel": {
-      "_note": "prebuilt wheel 트랙의 **최신 성립 지점**. 0.20.0 부터 torch 2.11.0 을 선언하므로 ABI 벽에 걸린다 — 즉 0.19.1 이 wheel 로 갈 수 있는 마지막 버전이다. 대가: 이후 릴리즈에서 추가된 모델 아키텍처를 구동할 수 없다(사용자도 이 축소를 전제로 지시).",
-      "vllm_version": "0.19.1",
+      "_note": "prebuilt wheel 트랙의 **성립 상한**은 0.19.1 이다(0.20.0 부터 torch 2.11.0 선언 → ABI 벽). **현재 핀은 0.18.0**(2026-09-03 사용자 명시 다운그레이드 지시 — gpt-oss-20b 서빙 목적). 0.18.0 도 torch 2.10 대라 wheel 트랙 성립 조건은 그대로 충족.",
+      "wheel_track_ceiling": "0.19.1",
+      "vllm_version": "0.18.0",
       "torch": {
         "pin": "2.10.0",
-        "source": "vLLM v0.19.1 pyproject.toml (resolve_torch_pin.py — 0.19.2/0.19.3 은 릴리즈 부재 404)"
+        "source": "vLLM v0.18.0 pyproject.toml (resolve_torch_pin.py)"
       },
       "ngc_base": {
         "tag": "26.01-py3",
         "cuda_version": "13.1.1.006",
         "pytorch_build_version": "2.10.0a0+a36e1d3",
-        "resolver": "resolve_ngc_tag.py 2.10.0 --arch arm64 --start 26.07 --months 14 → matched_tag=26.01-py3",
+        "resolver": "resolve_ngc_tag.py 2.10.0 --arch arm64 --start 26.05 → matched_tag=26.01-py3",
         "prefix_invariant": "torch 2.10.0 == NGC 2.10.0a0 접두어 일치 — wheel 트랙 필수 불변식(CLAUDE.md 레이어 커플링) 충족"
       },
       "build_track": {
         "decision": "wheel",
         "reason": "torch 2.10 < 2.11 → pre-built wheel 트랙(--no-deps 설치).",
         "arbiter": "smoke",
-        "proposer": "resolve_build_track.py --torch-pin 2.10.0 --sm-arch sm_121a → decision=wheel"
+        "proposer": "resolve_build_track.py --torch-pin 2.10.0 --manifest output/single/manifest.yaml → decision=wheel"
       },
       "wheel": {
         "cuda": "130",
         "manylinux": "manylinux_2_35",
-        "asset_name": "vllm-0.19.1+cu130-cp38-abi3-manylinux_2_35_aarch64.whl",
-        "resolver": "resolve_wheel.py 0.19.1 --arch aarch64 → aarch64 자산 실재 확인"
+        "asset_name": "vllm-0.18.0+cu130-cp38-abi3-manylinux_2_35_aarch64.whl",
+        "resolver": "resolve_wheel.py 0.18.0 --arch aarch64 → aarch64 자산 실재 확인"
       }
     }
   }

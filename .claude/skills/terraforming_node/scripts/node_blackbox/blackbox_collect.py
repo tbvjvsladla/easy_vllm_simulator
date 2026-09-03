@@ -44,6 +44,26 @@ import subprocess
 import sys
 import time
 
+# 2026-09-03(plan_26090317 P3): 프로젝트 경로를 **root 소유로 굳히지 않기 위해** 조상 소유자를
+#   물려주는 디렉터리 생성기를 공유 sibling 모듈에서 가져온다(설치기가 blackbox_eta.py 를
+#   /usr/local/sbin 에 sibling 으로 배치한다). 임포트 불가는 치명이 아니다 — 그 경우
+#   os.makedirs 로 떨어지되 **그 사실을 숨기지 않는다**(아래 폴백은 loud 하다).
+try:
+    from blackbox_eta import makedirs_as_ancestor_owner as _mk_owned
+    from blackbox_eta import inherit_dir_owner as _own_file
+except ImportError:  # pragma: no cover - 설치 배선이 깨진 경우(구 sibling 포함)
+    import os as _os_fb, sys as _sys_fb
+    def _mk_owned(path, mode=0o775):
+        print("[blackbox] 경고: blackbox_eta sibling 임포트 실패 — 소유권 정렬 없이 디렉터리를 만든다",
+              file=_sys_fb.stderr)
+        _os_fb.makedirs(path, exist_ok=True)
+        return []
+    def _own_file(path, parent):
+        print("[blackbox] 경고: blackbox_eta sibling 임포트 실패 — 파일 소유 정렬 없이 쓴다",
+              file=_sys_fb.stderr)
+        return False
+
+
 # ★ GB10 통합메모리 실측(2026-07-31): nvidia-smi 의 memory.used/memory.total 은 **[N/A]** 다 --
 #   GPU 전용 메모리 풀이 없고 호스트와 공유하기 때문. 즉 이 하드웨어에서 **메모리 신호는
 #   /proc/meminfo 의 MemAvailable 이 유일**하며, gpu_mem 열은 상시 빈 칸인 것이 정상이다
@@ -193,33 +213,70 @@ def format_kmsg(sample):
 class GpuStream:
     """nvidia-smi -l 1 스트리밍. 스폰 1회 -- 매 초 스폰(50~200ms)을 피한다."""
 
-    def __init__(self, interval=1, enabled=True):
+    # 무출력 판정 임계. 스트리밍 간격의 몇 배로 잡아 정상 지터를 트립으로 읽지 않는다.
+    STALE_MULTIPLIER = 15
+
+    def __init__(self, interval=1, enabled=True, stale_after_s=None):
         self.proc, self.last = None, ""
+        self.interval = int(max(1, interval))
+        self.stale_after_s = stale_after_s or (self.interval * self.STALE_MULTIPLIER)
+        self.last_ts = None
+        self.respawns = 0
         self.enabled = enabled and bool(shutil.which("nvidia-smi"))
         if not self.enabled:
             return
+        self._spawn()
+        self.last_ts = time.time() if self.proc else None
+
+    def _spawn(self):
         try:
             self.proc = subprocess.Popen(
                 ["nvidia-smi", "--query-gpu=" + GPU_QUERY,
-                 "--format=csv,noheader,nounits", "-l", str(interval)],
+                 "--format=csv,noheader,nounits", "-l", str(self.interval)],
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                 text=True, bufsize=1)
             os.set_blocking(self.proc.stdout.fileno(), False)
+            self.respawns += 1
         except OSError:
             self.proc, self.enabled = None, False
 
     def poll(self):
+        """최신 GPU 줄. 2026-09-03(plan_26090317 P3 실측): `nvidia-smi -l 1` 자식이 **살아 있는데
+        출력을 멈추는** 상태가 실제로 발생했다(서브 09:51:32 이후 무출력 · 같은 시각 열 워치독이
+        `thermal_gpu_stale` 발행). 비차단 읽기라 예외도 안 나고, 마지막 줄이 그대로 남아 **낡은 값이
+        신선한 값처럼** 계속 실린다 — 관측층이 조용히 거짓말을 하는 형태다. 신선도를 스스로 보고,
+        임계를 넘으면 자식을 되살리며 그 사실을 stderr(journal)로 남긴다."""
         if not self.proc:
             return {}
+        got = False
         try:
             while True:                     # 밀린 줄을 모두 소진해 **가장 최신**만 남긴다
                 line = self.proc.stdout.readline()
                 if not line:
                     break
                 self.last = line.strip()
+                got = True
         except (BlockingIOError, ValueError, OSError):
             pass
+        now = time.time()
+        if got:
+            self.last_ts = now
+        elif self.last_ts and (now - self.last_ts) > self.stale_after_s:
+            age = now - self.last_ts
+            print("[collect] 경고: GPU 스트림 %.0fs 무출력 — 자식을 재기동한다"
+                  "(낡은 값을 신선한 것처럼 싣지 않는다)" % age, file=sys.stderr)
+            self.last = ""                  # 낡은 값을 즉시 버린다(부재가 거짓보다 낫다)
+            self._respawn()
         return parse_gpu_line(self.last)
+
+    def _respawn(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+        self.proc = None
+        self._spawn()
+        self.last_ts = time.time() if self.proc else None
 
     def close(self):
         if self.proc:
@@ -244,7 +301,7 @@ class SampleWriter:
 
     def __init__(self, samples_dir, fsync=True):
         self.dir, self.fsync, self.day, self.fh = samples_dir, fsync, None, None
-        os.makedirs(samples_dir, exist_ok=True)
+        _mk_owned(samples_dir)
 
     @staticmethod
     def _has_current_header(path):
@@ -277,6 +334,7 @@ class SampleWriter:
         #   판독기는 숫자 파싱 실패로 그 줄을 건너뛴다(replay/rollup 모두 try/except 로 방어).
         drift = (not new) and not self._has_current_header(path)
         self.fh = open(path, "a", encoding="utf-8")
+        _own_file(path, self.dir)           # root 데몬이 만든 csv 도 디렉터리 소유자의 것(2026-09-03)
         if new or drift:
             self.fh.write(CSV_HEADER)
         self.day = day
@@ -341,6 +399,13 @@ def run(node_dir, interval=1.0, use_kmsg=True, fsync=True, max_samples=None,
                     if not ok:
                         print("[collect] 경고: %s 기록 불가(비-root?) — 오프박스 경로 없음"
                               % kmsg_path, file=sys.stderr)
+            # 2026-09-03(P3): 한 바퀴가 비정상적으로 길면 그 사실이 journal 에 남아야 한다.
+            #   "서비스는 active 인데 샘플이 안 자란다" 는 상태가 실제로 발생했고, 그때 프로세스는
+            #   조용했다 — 관측층의 정지는 관측층 자신이 말해야 한다.
+            _elapsed = time.time() - t0
+            if interval > 0 and _elapsed > interval * 5:
+                print("[collect] 경고: 한 샘플 주기가 %.1fs 걸렸다(간격 %.1fs) — 외부 호출 지연 의심"
+                      % (_elapsed, interval), file=sys.stderr)
             prev_mem, prev_t, n = mem, t0, n + 1
             time.sleep(max(0.0, interval - (time.time() - t0)))
     except KeyboardInterrupt:
@@ -521,7 +586,43 @@ def _self_test():
             time.sleep = real_sleep
         _l2 = open(os.path.join(nd2, "samples", time.strftime("%Y-%m-%d", time.gmtime())
                                 + ".csv")).read().strip().split("\n")[-1].split(",")
-        checks.append(("zone 부재 노드는 SoC 빈 칸(음성대조)", _l2[-2] == "" and _l2[-1] == ""))
+        # ── GPU 스트림 신선도 자가회복 (2026-09-03 신설 · plan_26090317 P3 실측 근거) ──
+    #   서브에서 `nvidia-smi -l 1` 자식이 **살아 있는데 출력만 멈추는** 상태가 발생했다. 비차단
+    #   읽기라 예외가 없고 `self.last` 가 남아, 낡은 값이 신선한 값처럼 계속 실린다. 부재보다
+    #   나쁜 것이 **거짓 신선도**이므로, 임계를 넘으면 값을 버리고 자식을 되살린다.
+    class _FakeProc:
+        def __init__(self):
+            import io as _io
+            self.stdout = _io.StringIO("")
+            self.terminated = False
+        def terminate(self): self.terminated = True
+        def wait(self, timeout=None): return 0
+        def kill(self): self.terminated = True
+
+    gs = GpuStream.__new__(GpuStream)
+    gs.proc, gs.last = _FakeProc(), "50, 90.0, 1000, 30, 1024"
+    gs.interval, gs.stale_after_s, gs.respawns = 1, 5, 1
+    gs.enabled = True
+    gs.last_ts = time.time()
+    gs._spawn = lambda: setattr(gs, "proc", _FakeProc())
+    fresh = gs.poll()
+    checks.append(("무출력이지만 임계 이내면 마지막 값을 유지(정상 지터 오탐 ✗)",
+                   fresh.get("gpu_temp") == 50))
+    gs.last_ts = time.time() - 99          # 임계 초과로 늙힌다
+    stale = gs.poll()
+    checks.append(("무출력이 임계를 넘으면 낡은 값을 버린다(거짓 신선도 ✗)", stale == {}))
+    checks.append(("무출력이 임계를 넘으면 자식을 되살린다", gs.respawns >= 1 and gs.proc is not None))
+    # 음성대조: 값이 계속 오면 재기동하지 않는다.
+    gs2 = GpuStream.__new__(GpuStream)
+    import io as _io2
+    gs2.proc = _FakeProc(); gs2.proc.stdout = _io2.StringIO("51, 91.0, 1001, 31, 1025\n")
+    gs2.last, gs2.interval, gs2.stale_after_s, gs2.respawns, gs2.enabled = "", 1, 5, 0, True
+    gs2.last_ts = time.time() - 99
+    got = gs2.poll()
+    checks.append(("출력이 있으면 임계를 넘겨 늙었어도 재기동하지 않는다(대조군)",
+                   got.get("gpu_temp") == 51 and gs2.respawns == 0))
+
+    checks.append(("zone 부재 노드는 SoC 빈 칸(음성대조)", _l2[-2] == "" and _l2[-1] == ""))
 
     ok = True
     for name, passed in checks:

@@ -134,7 +134,6 @@
       "description": "attestation 에 실리는 결정 결과.",
       "properties": {
         "accepted": {"type": "boolean", "description": "claim 을 채택했는가. false 면 서브가 근거 부족으로 결정을 유보했다는 뜻이며 그것도 정직한 결과다."},
-        "artifact_sha256": {"type": "string", "description": "결정이 낳은 산출물의 sha256(있으면). 메인은 이 값으로 확인하고 서브 디스크를 재스캔하지 않는다(push-attestation)."},
         "notes": {"type": "string", "description": "메인이 알아야 할 한두 줄."}
       }
     }

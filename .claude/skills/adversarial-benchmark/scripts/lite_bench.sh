@@ -13,14 +13,25 @@
 set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
-TOPO=""; BURST_N=3; OUTDIR=""; SUB_PROBE=1
+TOPO=""; BURST_N=3; OUTDIR=""; SUB_PROBE=1; BACKEND="openai-chat"
+# ★ 2026-09-01 신설 — run_bench.sh·sweep_bench.sh 와 같은 backend 노브(기본값 동일, 후방호환).
+#   왜: harmony 계열(gpt-oss)은 chat 엔드포인트에서 `--ignore-eos` 가 무력해 생성이 조기 종료되고
+#   median_tpot 이 크게 부풀려진다. 실측: 같은 서빙에서 lite(chat) 16.43 t/s vs full(completions)
+#   34.55 t/s — **같은 인증서 안에서 두 배 넘게 갈렸다**. 세 스크립트 중 여기만 노브가 없으면
+#   그 왜곡이 인증서의 lite_* 필드로 그대로 발행된다.
 while [ $# -gt 0 ]; do case "$1" in
   --topology) TOPO="$2"; shift 2;;
+  --backend) BACKEND="$2"; shift 2;;
   --burst-n) BURST_N="$2"; shift 2;;
   --out-dir) OUTDIR="$2"; shift 2;;
   --no-sub-probe) SUB_PROBE=0; shift;;
   *) echo "[lite_bench] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
+case "$BACKEND" in
+  openai-chat) LITE_ENDPOINT=/v1/chat/completions ;;
+  openai)      LITE_ENDPOINT=/v1/completions ;;
+  *) echo "[lite_bench] 알 수 없는 --backend: $BACKEND (openai-chat|openai)" >&2; exit 2 ;;
+esac
 
 REPO="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 if [ -z "$TOPO" ]; then
@@ -74,7 +85,7 @@ docker ps --filter "name=$CTR" --filter status=running -q | grep -q . \
 
 _bench() {  # $1=out.json $2=num-prompts $3=warmups
   docker exec "$CTR" bash -lc "cd /tmp && vllm bench serve \
-    --backend openai-chat --base-url http://localhost:$INPORT --endpoint /v1/chat/completions \
+    --backend $BACKEND --base-url http://localhost:$INPORT --endpoint $LITE_ENDPOINT \
     --model '$MODEL_NAME' --tokenizer '$MODEL_PATH' --trust-remote-code \
     --dataset-name random --random-input-len 512 --random-output-len 128 --random-range-ratio 0 \
     --num-prompts $2 --max-concurrency 1 --request-rate inf --ignore-eos --num-warmups $3 \

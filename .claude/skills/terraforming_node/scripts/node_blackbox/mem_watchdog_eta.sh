@@ -243,8 +243,18 @@ bb_fire(){
   fi
   log "TRIP mem=${mem}MiB rate=${rate}MiB/s rule=$rule streak=${streak} → docker kill $ids $(ts)"
   emit_event "watchdog_trip" "\"mem_avail_mib\":$mem,\"rate_mib_s\":$rate,\"streak\":$streak,\"rule\":\"$rule\",\"targets\":\"$ids\",\"action\":\"docker_kill\""
-  docker kill $ids 2>&1 | sed 's/^/[bb-watchdog] /'
-  emit_event "watchdog_kill_ack" "\"targets\":\"$ids\""
+  # ★ 부작용 명령의 rc 를 보지 않고 성공 문구를 발행하지 않는다 (2026-09-01 · audit ⑥).
+  #   종전에는 파이프(`| sed`) 때문에 rc 가 사라진 채 `kill_ack` 가 **무조건** 발행됐다.
+  #   그러면 블랙박스가 "죽였다"고 기록하는데 실제로는 안 죽은 상태가 되어, 사후 분석이
+  #   방어 실패를 방어 성공으로 읽는다 — **관측 장치의 위조**다.
+  _kout="$(docker kill $ids 2>&1)"; _krc=$?
+  printf '%s\n' "$_kout" | sed 's/^/[bb-watchdog] /'
+  if [ "$_krc" -eq 0 ]; then
+    emit_event "watchdog_kill_ack" "\"targets\":\"$ids\""
+  else
+    log "KILL-FAILED rc=$_krc targets=$ids — 방어가 성립하지 않았다 $(ts)"
+    emit_event "watchdog_kill_failed" "\"targets\":\"$ids\",\"rc\":$_krc"
+  fi
   return 0
 }
 
@@ -482,6 +492,17 @@ else
 fi
 [ "$DRY_RUN" = 1 ] && log "★★ DRY-RUN — 판정만 하고 docker kill 을 하지 않는다(관측 전용). 이 인스턴스는 호스트를 지키지 않는다."
 log "start mode=$MODE filter='$FILTER' interval=${INTERVAL}s params=$PARAMS_SRC floor=${BB_HARD_FLOOR_MIB}MiB runway=${BB_RUNWAY_MS}ms debounce=${BB_DEBOUNCE_N} $DUAL_DESC decl=$BB_DECL pid=$$ $(ts)"
+# ★ 정지 경로 (2026-09-01 · audit ㉛). start 는 있고 stop 이 없으면 "지금도 도는 중"과
+#   "조용히 사라졌다"가 기록상 같아진다. 침묵 금지 계약은 시작만이 아니라 **끝**에도 걸린다.
+trap '_rc=$?; emit_event "watchdog_stop" "\"rc\":$_rc,\"signal\":\"${_bb_sig:-EXIT}\""; exit $_rc' EXIT
+# 2026-09-03(㉛ 회귀 · plan_26090317 P1): 핸들러가 변수만 놓고 `exit` 하지 않아 bash 가 루프를
+#   **계속 돌았다** — TERM 으로는 죽지 않고 SIGKILL 까지 가며, KILL 은 trap 을 안 돌므로
+#   정지 기록도 남지 않는다. 즉 ㉛ 이 만들려던 기록은 TERM 경로에서 달성되지 않고, 그 대신
+#   **정상 정지 경로가 사라졌다**(라이브 고아 워치독 1건이 그 결과다). 128+signum 으로 나간다.
+trap '_bb_sig=TERM; exit 143' TERM
+trap '_bb_sig=INT;  exit 130' INT
+trap '_bb_sig=HUP;  exit 129' HUP
+
 emit_event "watchdog_start" "\"filter\":\"$FILTER\",\"runway_ms\":$BB_RUNWAY_MS,\"debounce\":$BB_DEBOUNCE_N,\"hard_floor_mib\":$BB_HARD_FLOOR_MIB,\"max_rate_mib_s\":$BB_MAX_RATE_MIB_S,\"abs_band_mib\":$BB_ABS_BAND_MIB,\"decl_path\":\"$BB_DECL\",\"decl_margin_mib\":$BB_DECL_MARGIN_MIB"
 
 # 상한 위 '보류'(이중규칙이 옛 규칙과 갈리는 유일한 지점)는 **에피소드당 1회** 남긴다.
@@ -490,7 +511,20 @@ highrate_ep=0
 prev_mem=""; streak=0; last_hb=0; min_since_hb=999999999
 while true; do
   refresh_decl                      # 선언은 매 폴 재평가한다(선언 소멸이 즉시 규칙 복귀가 되도록)
-  mem=$(( $(awk '/MemAvailable:/{print $2}' /proc/meminfo) / 1024 ))
+  # ★ 판독 실패는 **판정 불가**이지 "메모리 0" 도 "안전" 도 아니다 (2026-09-01 · audit ④).
+  #   종전: `mem=$(( $(awk …) / 1024 ))`. /proc/meminfo 를 못 읽으면 산술 확장이 문법
+  #   오류가 되고, 비대화형 bash 는 **확장 오류에서 즉시 종료**한다(실측 rc=1). 그 순간
+  #   워치독은 사라지는데 events 에는 한 줄도 남지 않고, `watchdog_stop` 이벤트도 없어
+  #   "돌았는데 못 잡았다"와 "3시간 전에 사라졌다"를 **데이터로 가를 수 없었다**(㉛과 결합).
+  mem_kb="$(awk '/MemAvailable:/{print $2; exit}' /proc/meminfo 2>/dev/null || true)"
+  case "$mem_kb" in
+    ''|*[!0-9]*)
+      log "READ-FAIL /proc/meminfo MemAvailable 판독 실패(raw=[$mem_kb]) — 이 폴은 판정하지 않는다 $(ts)"
+      emit_event "watchdog_read_fail" "\"source\":\"/proc/meminfo\",\"field\":\"MemAvailable\""
+      sleep "$INTERVAL"
+      continue ;;
+  esac
+  mem=$(( mem_kb / 1024 ))
   if [ -n "$prev_mem" ]; then rate=$(( (prev_mem - mem) / INTERVAL )); else rate=0; fi
   prev_mem="$mem"
   [ "$mem" -lt "$min_since_hb" ] && min_since_hb=$mem

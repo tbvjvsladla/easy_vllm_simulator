@@ -7,12 +7,15 @@ security-critical negative paths under the active interpreter, including ``pytho
 """
 from __future__ import annotations
 
+import argparse
 import ast
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -325,6 +328,7 @@ _HINT_TOPOLOGY = "single 1노드 TP1"
 _HINT_HF_REPO = "selftest-org/selftest-model"
 _HINT_SCRIPT_REL = ".claude/skills/hint-publisher/scripts/hint_tag.py"
 _HINT_TEMPLATE_REL = ".claude/skills/hint-publisher/templates/hint_recipe.template.md"
+_HINT_CATALOG_REL = ".claude/skills/hint-publisher/scripts/hint_catalog.py"
 
 # 인증서 carrier 케이스용 -- 실제 인증서는 lite 열을 갖는다(full ⊇ lite 불변식).
 _HINT_CERTIFICATE = (_PROMO_CERTIFICATE.format(authority="weak")
@@ -406,6 +410,11 @@ def _hint_repo(root: Path) -> str:
         shutil.copy2(CLAUDE_DIR / "schemas" / name, root / ".claude/schemas" / name)
     shutil.copy2(CLAUDE_DIR.parent / _HINT_SCRIPT_REL, root / _HINT_SCRIPT_REL)
     shutil.copy2(CLAUDE_DIR.parent / _HINT_TEMPLATE_REL, root / _HINT_TEMPLATE_REL)
+    shutil.copy2(CLAUDE_DIR.parent / _HINT_CATALOG_REL, root / _HINT_CATALOG_REL)
+    # 카탈로그 관리 구역은 **마커 쌍**이다(2026-09-01 D1.1). 여는 마커가 없던 옛 형식은
+    # 구역의 시작이 모호해 마커 유실 시 전 행이 조용히 사라질 수 있었다(감사 ⑬).
+    (root / "HINTS.md").write_text(
+        "# hints\n\n<!-- hint-index:rows -->\n<!-- hint-index:rows -->\n", encoding="utf-8")
     # 실 pii_terms.txt 는 운영자 리터럴이라 격리 레포로 복사하지 않는다(픽스처 전용 토큰만).
     (root / ".claude/pii_terms.txt").write_text(
         "# selftest fixture terms\nselftest-forbidden-token\n", encoding="utf-8")
@@ -425,7 +434,11 @@ def _hint_cli(root: Path, *args: str) -> subprocess.CompletedProcess:
 def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = None,
                         bench_report_text: str = _LITE_BENCH_REPORT,
                         recipe_body: str = _HINT_RECIPE_BODY) -> dict:
-    """격리 레포에서 create→seal→index→verify 를 실제로 돌린다. 각 단계의 CompletedProcess 반환."""
+    """격리 레포에서 create→seal→**catalog derive**→verify 를 실제로 돌린다.
+
+    2026-09-01: `index`(손저작 색인)가 D1.1 로 폐쇄되어 카탈로그 단계를 원격 파생으로 옮겼다.
+    프로브가 임시 bare 원격을 만들고 태그를 push 한 뒤 파생한다 — 발행 사실을 실제로 만든다.
+    """
     with tempfile.TemporaryDirectory(prefix="hint-binding-selftest.") as td:
         root = Path(td).resolve()
         anchor = _hint_repo(root)
@@ -434,8 +447,11 @@ def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = 
             certificate=certificate, bench_report_text=bench_report_text,
             promotion_target={"kind": "hint", "tag": _HINT_TAG,
                               "topology": _HINT_TOPOLOGY, "anchor": anchor})
+        # `--allow-new-slug` 는 2026-09-01 제거됐다 — 슬러그 정본표(CANONICAL_SLUGS)가 사라지고
+        # 철자 충돌 대조가 **발행된 태그에서 파생**되도록 바뀌면서 '표에 없음'이라는 상태 자체가
+        # 없어졌기 때문이다(plan_26090107 §6). 신규 슬러그는 이제 플래그 없이 통과한다.
         common = ("--tag", _HINT_TAG, "--topology", _HINT_TOPOLOGY, "--commit", anchor,
-                  "--hf-repo", _HINT_HF_REPO, "--allow-new-slug", "--manifest", str(manifest))
+                  "--hf-repo", _HINT_HF_REPO, "--manifest", str(manifest))
         out = {"anchor": anchor, "create": _hint_cli(root, "create", *common)}
         if out["create"].returncode != 0:
             return out
@@ -447,7 +463,18 @@ def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = 
         if out["seal"].returncode != 0:
             return out
         out["tag_object"] = _hint_git(root, "cat-file", "tag", _HINT_TAG).stdout
-        out["index"] = _hint_cli(root, "index", "--tag", _HINT_TAG)
+        # 카탈로그는 **원격 발행 태그에서 파생**한다(D1.1) — 손저작 `index` 경로는 폐쇄됐다.
+        # 그래서 프로브도 진짜로 원격을 만들고 거기에 push 한 뒤 파생한다. 원격을 만들지 않으면
+        # "발행됐다"의 증거가 없어 카탈로그가 비는 것이 **정상 동작**이므로, 그 경로를 시험하려면
+        # 발행 사실 자체를 만들어야 한다.
+        bare = root.parent / (root.name + ".remote.git")
+        _hint_git(root, "init", "--bare", "-q", str(bare))
+        _hint_git(root, "push", "-q", str(bare),
+                  f"refs/tags/{_HINT_TAG}:refs/tags/{_HINT_TAG}")
+        out["catalog"] = subprocess.run(
+            [sys.executable, "-B", str(root / _HINT_CATALOG_REL), "--repo", str(root),
+             "derive", "--remote", str(bare), "--generated-kst", "2026-01-01T00:00:00"],
+            cwd=str(root), capture_output=True, text=True)
         out["verify"] = _hint_cli(root, "verify", "--manifest", str(manifest))
         return out
 
@@ -489,7 +516,7 @@ def _test_hint_binding_source() -> None:
 
     # ---- H1 E2E ★ explore(REFUTE·waiver 없음) 가 create→seal→index→verify 전 구간을 통과한다.
     out = _hint_publish_probe(dict(_PROMO_RUBRIC))
-    for step in ("create", "seal", "index", "verify"):
+    for step in ("create", "seal", "catalog", "verify"):
         proc = out.get(step)
         _require(proc is not None and proc.returncode == 0,
                  f"explore-authority hint publication died at `{step}`: "
@@ -501,7 +528,7 @@ def _test_hint_binding_source() -> None:
 
     # ---- H2 E2E 종전 경로 불변: 인증서(PASS) 는 여전히 인증서에 묶인다.
     out = _hint_publish_probe(None, certificate=_HINT_CERTIFICATE)
-    for step in ("create", "seal", "index", "verify"):
+    for step in ("create", "seal", "catalog", "verify"):
         proc = out.get(step)
         _require(proc is not None and proc.returncode == 0,
                  f"certificate hint publication regressed at `{step}`: "
@@ -518,7 +545,7 @@ def _test_hint_binding_source() -> None:
         "authorized_by": "selftest-operator", "authorized_at_utc": "2026-08-24T00:00:00Z",
         "instruction": "loop-until-done 중단",
         "warning_flag": "PERF-WARNING: selftest fixture"}}, recipe_body=waiver_body)
-    for step in ("create", "seal", "index", "verify"):
+    for step in ("create", "seal", "catalog", "verify"):
         proc = out.get(step)
         _require(proc is not None and proc.returncode == 0,
                  f"perf_waiver hint publication regressed at `{step}`: "
@@ -562,10 +589,146 @@ def _request(transport: str = "local") -> dict:
         "intent": "probe",
         "task": "read-only runtime probe",
         "model": "sonnet",
+        # 2026-09-03(plan_26090317 P1): 이 픽스처는 스키마 required 인 `timeout_seconds` 를 빠뜨리고
+        #   있었다 — 실물 request 는 반드시 갖는 필드다. 픽스처가 실물보다 좁으면 그 위의 단언은
+        #   실물에서 성립하는 성질을 시험하지 못한다(원격 timeout 래핑이 그 예였다).
+        "timeout_seconds": 60,
         "max_turns": 1,
         "capabilities": ["read"],
         "target": target,
     }
+
+
+def _test_execution_approval_authorization() -> None:
+    """`authorize --action sync_to_sub --mode experimental` 의 **양방향**을 실제로 실행한다.
+
+    2026-09-03(plan_26090317 P3): 이 경로는 `plan_bytes` 미정의로 **NameError 를 내며 한 번도
+    성공한 적이 없었다** — 그런데 어떤 검사도 그것을 실행하지 않아 3주 넘게 아무도 몰랐다.
+    "안내 문구가 틀렸다"(B0)의 아래층에 "고쳐도 그 다음 줄에서 죽는다" 가 있었던 셈이다.
+    앞으로는 정상 통과와 4종 거부를 **매번 실행해서** 확인한다(단언이 아니라 실행).
+    """
+    import hashlib
+    import shutil
+    import subprocess as _sp
+    gate = REPO_ROOT / ".claude/policies/runtime/completion_gate.py"
+    approved_by, approved_at = "selftest", "2026-01-01T00:00:00Z"
+    atoms = [f"approved_by: {approved_by}", f"approved_at_utc: {approved_at}",
+             "allowed_action: sync_to_sub"]
+    plan_body = ("# selftest plan\n\n## Execution approval\n\n" + "\n".join(atoms) + "\n")
+
+    with tempfile.TemporaryDirectory() as td:
+        repo = Path(td) / "repo"
+        (repo / "docs" / "plan").mkdir(parents=True)
+        (repo / "docs" / "_evidence").mkdir(parents=True)
+        # 게이트는 repo_root 안의 실재 파일만 받아들이므로 최소 저장소를 만든다.
+        shutil.copy2(gate, repo / "gate.py")
+        for extra in ("policy_registry.py",):
+            src = REPO_ROOT / ".claude/policies/runtime" / extra
+            if src.exists():
+                shutil.copy2(src, repo / extra)
+        plan_path = repo / "docs/plan/p.md"
+        plan_path.write_text(plan_body, encoding="utf-8")
+        sha = hashlib.sha256(plan_path.read_bytes()).hexdigest()
+        rel = "../plan/p.md"
+
+        def _manifest(**over):
+            ea = {"approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
+                  "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
+                  "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]}
+            ea.update(over)
+            # evidence.plan.path 는 plan_path 를 따라간다 — 어긋나면 **앵커 검사 이전에** 경로
+            #   불일치로 걸려, 이 시험이 겨냥한 가드가 아닌 다른 가드를 확인하게 된다.
+            return {"schema_version": 1, "task_class": "harness_change",
+                    "identity": {"model": "m", "gpu": "g", "vllm": "v", "quant": None,
+                                 "topology": "single", "tp": 1},
+                    "evidence": {"plan": {"path": ea["plan_path"]}},
+                    "pii_scan": {"passed": True}, "execution_approval": ea}
+
+        def _run(man, name):
+            mp = repo / "docs/_evidence" / f"{name}.json"
+            mp.write_text(json.dumps(man, ensure_ascii=False), encoding="utf-8")
+            out = _sp.run([sys.executable, str(gate), "authorize", "--action", "sync_to_sub",
+                           "--mode", "experimental", "--manifest", str(mp),
+                           "--repo-root", str(repo)], capture_output=True, text=True)
+            _require(out.stdout.strip(), f"authorize produced no JSON for {name}: {out.stderr[-400:]}")
+            return json.loads(out.stdout)
+
+        ok = _run(_manifest(), "ok")
+        _require(ok.get("allowed") is True and ok.get("authorization_state") == "execution-approved",
+                 f"a genuine execution approval must be admitted, got {ok.get('reason_codes')}")
+
+        bad_sha = _run(_manifest(plan_sha256="0" * 64), "bad_sha")
+        _require(bad_sha.get("allowed") is False
+                 and "EXECUTION_APPROVAL_PLAN_DIGEST_MISMATCH" in bad_sha.get("reason_codes", []),
+                 f"a plan whose bytes changed after approval must be rejected: {bad_sha}")
+
+        not_approved = _run(_manifest(approved=False), "not_approved")
+        _require(not_approved.get("allowed") is False
+                 and "EXECUTION_APPROVAL_NOT_APPROVED" in not_approved.get("reason_codes", []),
+                 f"approved=false must be rejected: {not_approved}")
+
+        wrong_action = _run(_manifest(allowed_actions=["hint_create"],
+                                      approval_atoms=atoms[:2] + ["allowed_action: hint_create"]),
+                            "wrong_action")
+        _require(wrong_action.get("allowed") is False,
+                 f"an approval for a different action must not open sync_to_sub: {wrong_action}")
+
+        no_anchor_plan = repo / "docs/plan/q.md"
+        no_anchor_plan.write_text("# no anchor here\n", encoding="utf-8")
+        no_anchor = _run(_manifest(plan_path="../plan/q.md",
+                                   plan_sha256=hashlib.sha256(no_anchor_plan.read_bytes()).hexdigest()),
+                         "no_anchor")
+        _require(no_anchor.get("allowed") is False
+                 and "EXECUTION_APPROVAL_PLAN_ATOMS_MISSING" in no_anchor.get("reason_codes", []),
+                 f"a plan without the anchor/atoms must be rejected: {no_anchor}")
+
+
+def _test_provider_turn_exhaustion_reachable() -> None:
+    """`claude -p` 가 **exit 1 + 정상 result JSON** 으로 소진을 알리는 실제 형태를 재현한다.
+
+    2026-09-04(plan_26090317 P4 라이브): 소진 분류 분기가 `returncode != 0` 조기 반환 뒤에 있어
+    **한 번도 실행되지 않았다**. 단위 자체검사는 성공 경로만 봤고, 첫 라이브 위임이 알려줬다 —
+    원장에 `budget=None`·`turns=None` 만 남아 다음 attempt 예산을 정할 근거가 사라진다.
+    그러므로 여기서는 **실측 payload 모양 그대로** 넣고 세 값이 살아 나오는지 본다.
+    """
+    provider = agent_control._load_provider("claude_code")
+    payload = {"type": "result", "subtype": "error_max_turns", "is_error": True,
+               "num_turns": 26, "session_id": "sess-abc",
+               "errors": ["Reached maximum number of turns (25)"],
+               "result": "", "modelUsage": {}}
+
+    class _Completed:
+        returncode, stdout, stderr = 1, json.dumps(payload), ""
+
+    real_run = provider.subprocess.run
+    provider.subprocess.run = lambda *a, **k: _Completed()
+    try:
+        req = _request("local")
+        req["max_turns"] = 25
+        res = provider.invoke(req)
+    finally:
+        provider.subprocess.run = real_run
+
+    _require(res["budget_outcome"] == "exhausted",
+             f"turn exhaustion must be classified as exhausted, got {res.get('budget_outcome')!r} "
+             f"-- an unreachable branch leaves the ledger with no basis to size the next attempt")
+    _require(res["num_turns"] == 26 and res["session_id"] == "sess-abc",
+             f"num_turns/session_id must survive a non-zero exit: {res}")
+    _require(res["status"] == "execution_failed",
+             "exhaustion is still a failure of that attempt -- it must not read as completed")
+
+    # 음성대조: payload 가 아예 없는 비-0 종료(전송 실패)는 여전히 NONZERO_EXIT 이고 원장 3필드는 null.
+    class _Broken:
+        returncode, stdout, stderr = 255, "", "ssh: connect failed"
+
+    provider.subprocess.run = lambda *a, **k: _Broken()
+    try:
+        res2 = provider.invoke(_request("ssh"))
+    finally:
+        provider.subprocess.run = real_run
+    _require(res2["reason_codes"] == ["NONZERO_EXIT"] and res2["budget_outcome"] is None
+             and res2["num_turns"] is None,
+             f"a transport failure has no budget story -- it must stay null, got {res2}")
 
 
 def _test_agent_provider_boundary() -> None:
@@ -590,12 +753,21 @@ def _test_agent_provider_boundary() -> None:
     _require(local_argv[0] == "claude" and "--model" in local_argv,
              f"local provider argv malformed: {local_argv}")
     ssh_argv = provider.build_argv(_request("ssh"))
-    _require(ssh_argv[:2] == ["ssh", "--"] and ssh_argv[2] == "probe@192.0.2.10",
-             f"SSH provider argv malformed: {ssh_argv}")
-    remote_shell = shlex.split(ssh_argv[3])
+    # 2026-09-03(F5 · plan_26090317 P1): 위임 전송만 맨 ssh 였다 — 미등록 host key·패스프레이즈에서
+    #   ssh 가 /dev/tty 를 읽으며 timeout_seconds(≤3600s)까지 멈추고, 그 뒤에도 **원격 claude 는 살아**
+    #   서브 워크스페이스를 계속 편집했다(메인은 이미 실패로 기록한 뒤). 하드닝을 계약으로 고정한다.
+    _require(ssh_argv[0] == "ssh", f"SSH provider argv malformed: {ssh_argv}")
+    _require("-o" in ssh_argv and "BatchMode=yes" in ssh_argv and "ConnectTimeout=8" in ssh_argv,
+             f"SSH delegation must never be able to prompt on a tty: {ssh_argv}")
+    _require(ssh_argv[-2] == "probe@192.0.2.10" and ssh_argv[ssh_argv.index("--") + 1] == "probe@192.0.2.10",
+             f"SSH destination misplaced: {ssh_argv}")
+    remote_shell = shlex.split(ssh_argv[-1])
     _require(remote_shell[:2] == ["bash", "-lc"] and
-             remote_shell[2].startswith("cd '/tmp/runtime probe' && claude "),
-             f"SSH work_dir is not safely shell-quoted: {ssh_argv[3]}")
+             remote_shell[2].startswith("cd '/tmp/runtime probe' && "),
+             f"SSH work_dir is not safely shell-quoted: {ssh_argv[-1]}")
+    # 원격 동반사망: 클라이언트 timeout 만으로는 서브에 고아 에이전트가 남는다.
+    _require("timeout " in remote_shell[2] and " claude " in remote_shell[2],
+             f"remote command must be wrapped in `timeout` so the sub agent dies with the client: {remote_shell[2]}")
 
     blocked = _request("local")
     blocked["model"] = "opus"
@@ -604,13 +776,384 @@ def _test_agent_provider_boundary() -> None:
              f"non-Sonnet request was not blocked before execution: {result}")
 
 
-def main() -> int:
+# ─────────────────────────────────────────────────────────────────────────────
+# tripwire 3종 (2026-09-03 신설 · plan_26090222 P2)
+#
+# 왜 여기인가: 해시 중복층을 걷어낸 뒤 **재발을 막는 것**은 목록(allowlist)이 아니라 파생 술어여야
+# 한다. 목록은 새 파일이 생기면 조용히 늦어지지만, 파생 술어는 "git 이 이미 아는 것을 또 적었다"는
+# 성질 자체를 본다. 세 단언은 병목(pre-commit)에 걸리므로 **1초 예산**을 지킨다.
+#
+# ⚠ 픽스처 격리: 이 파일의 단언은 저장소 상태를 읽는다. 그런데 `_hint_repo()` 는 `git init -b
+# selftest` 로 격리 레포를 만들고 completion_gate 를 그 안에서 돌린다 — 거기서 브랜치 부분집합
+# 단언이 발화하면 셀프테스트가 **자기 자신을 RED** 로 만든다. 그래서 모든 진입점이
+# `_is_canonical_repo()` 로 "정본(헌법 소유) 저장소인가"를 먼저 판별한다.
+# ─────────────────────────────────────────────────────────────────────────────
+
+REPO_ROOT = RUNTIME_DIR.parents[2]
+
+# 헌법을 소유한 저장소만 가지는 구조적 표지. 픽스처 레포(`_hint_repo`)는 completion_gate·schemas·
+# hint 스크립트만 복사하므로 이 셋을 동시에 갖지 못한다.
+_CANONICAL_MARKERS = ("CLAUDE.md", ".claude/rules/workflow.md", ".claude/policies/registry.yaml")
+
+_ALLOWED_BRANCHES = frozenset({"single-node", "multi-node", "hint"})
+_ALLOWED_TAG_PREFIX = "hint/"
+_BACKUP_SUFFIXES = (".bak", ".orig")
+# 경로 부분문자열 술어. `백업` 은 2026-09-03 추가 — 이 저장소의 실제 백업 명명이 한글이라
+# `backup` 만으로는 검출력이 0 이었다(P0 §5-①-a MINOR: `seed/이전 plan 백업` 156파일 미매칭).
+_BACKUP_PATH_TOKENS = ("backup", "백업")
+# 워킹트리 스캔에서 최상위만 잘라내는 디렉터리. `seed/` 는 사용자 보관소(비배포·비추적)이고
+# `.git/` 은 git 내부다 — 둘 다 "습관 제도화" 의 대상이 아니다.
+# `output/` 은 2026-09-03 추가(P0-C-④): 빌드/캐시 산출물이라 "백업 습관" 평면이 아니고,
+# 컨테이너가 만든 하위 디렉터리에 읽기권한이 없어(`output/*/cache/vllm/modelinfos/…: Permission
+# denied`) 스캔 자체가 불가능하다. 범위 밖으로 명시해야 아래 `onerror` 가 위양성 없이 산다.
+_BACKUP_SCAN_PRUNE_TOP = frozenset({".git", "seed", "output"})
+
+# tripwire ③: 걷어낸 해시 중복층 메커니즘의 이름. 산문이 이 이름을 다시 쓰면 사라진 기계를
+# 가리키는 지시가 되살아난다(문서가 코드보다 오래 산다).
+_RETIRED_HASH_MECHANISMS = (
+    "tracked_index", "evidence_manifest", "governed_prose_snapshot",
+    "plan_blob_sha1", "image_version_match", "patch_sha256",
+)
+# 범위 정의이지 allowlist 가 아니다: `docs/report/*` 는 "발행 시점이 고정된" 장르라(docs.md
+# §명명 SSOT) 과거 발행분의 본문을 고쳐 쓰면 그 장르 규약 자체가 깨진다.
+_PROSE_SCAN_EXTRA = ("CLAUDE.md", "README.md")
+
+# `ls-files -s` 의 gitlink(서브모듈) 모드. 이 술어의 범위는 blob 이므로 입력에서 제외한다.
+_GITLINK_MODES = frozenset({"160000"})
+
+# 대소문자 무관하게 잡고 **비교는 lower 정규화**한다(2026-09-03 P0-C-②): 룩어라운드는 이미
+# 대문자를 배제했는데 본체가 `[0-9a-f]` 뿐이라, 추적 JSON/YAML 이 digest 를 대문자로 적으면
+# 조용히 통과했다 — "allowlist 없는 파생 술어" 라는 성질이 대소문자에서 깨진다.
+_HEX_CONST_RE = re.compile(r"(?<![0-9a-fA-F])(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})(?![0-9a-fA-F])")
+
+
+# 정본 판별이 건너뛰는 단언들의 이름. SKIPPED 를 출력할 때 **무엇이 안 돌았는지**를 같이
+# 적기 위한 목록이다 — "건너뛰었다"만 말하고 무엇을 건너뛰었는지 안 말하면 여전히 반쪽 침묵이다.
+_REPO_STATE_ASSERTIONS = (
+    "tripwire①no-backup-artifacts(+refs/heads·tags·.gitignore)",
+    "tripwire②no-tracked-digest-rewrite",
+    "tripwire③no-retired-hash-mechanism-prose",
+    "executor-wiring(core.hooksPath·hook tracked)",
+)
+
+
+def _canonical_repo_reason(root: Path) -> str | None:
+    """`root` 가 정본 저장소가 **아니라면 그 사유**를, 정본이면 None 을 돌려준다.
+
+    ★ 2026-09-03 (적대검증 MAJOR ①): 예전에는 bool 만 돌려줬고, 호출부는 거짓일 때 조용히
+    `return` 했다 — 그래서 **무력화된 가드와 통과한 가드가 출력에서 구분되지 않았다**(둘 다
+    `[tripwire] PASS` rc=0). 표지 파일이 미래에 사라지면(이 캠페인이 방금 원장 3종을 지웠듯)
+    가드 전체가 소리 없이 죽는데 아무도 모른다. 처방은 금지가 아니라 **표시**다
+    (`workflow.md` §결정론 규율 — 침묵 폴백은 결함, 출처 표시가 처방).
+    """
+    missing = [m for m in _CANONICAL_MARKERS if not (root / m).is_file()]
+    if missing:
+        return f"missing canonical marker(s) {missing} under {root}"
+    proc = subprocess.run(["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+                          capture_output=True, text=True, timeout=60)
+    if proc.returncode != 0:
+        return (f"`git rev-parse --show-toplevel` failed in {root} "
+                f"(rc={proc.returncode}): {proc.stderr.strip()[:200]}")
+    toplevel = Path(proc.stdout.strip())
+    if toplevel.resolve() != root.resolve():
+        return f"{root} is not a git work-tree root (toplevel={toplevel})"
+    return None
+
+
+def _is_canonical_repo(root: Path) -> bool:
+    """`root` 가 헌법을 소유한 정본 저장소인가(= 저장소상태 단언을 돌려도 되는가)."""
+    return _canonical_repo_reason(root) is None
+
+
+def _announce_non_canonical(root: Path, prefix: str) -> str | None:
+    """정본이 아니면 **구분되는 SKIPPED 한 줄**을 stderr 로 내고 사유를 돌려준다(정본이면 None).
+
+    ⚠ stdout 계약: 진단은 전부 stderr 다. `completion_gate authorize` 의 stdout JSON 을
+    `json.loads` 하는 소비자가 셋(`sync_branches.sh`·`sync_to_sub.sh`·`hint_tag.py`)이고,
+    이 스크립트는 그 authorize 가 자식으로 띄운다.
+    """
+    reason = _canonical_repo_reason(root)
+    if reason is None:
+        return None
+    print(f"[{prefix}] SKIPPED (non-canonical repo: {reason}) -- "
+          f"repo-state assertions NOT run: {', '.join(_REPO_STATE_ASSERTIONS)}", file=sys.stderr)
+    return reason
+
+
+def _git_out(root: Path, *args: str) -> str:
+    proc = subprocess.run(["git", "-C", str(root), *args],
+                          capture_output=True, text=True, timeout=120)
+    if proc.returncode != 0:
+        raise RuntimeSelftestFailure(f"git {' '.join(args)} failed in {root}: {proc.stderr.strip()}")
+    return proc.stdout
+
+
+def _tracked_paths(root: Path) -> list[str]:
+    """`-z` 로 읽는다 — `git ls-files` 의 기본 quotePath 가 한글 경로를 이스케이프해 거짓
+    드리프트를 만든 선례가 있다(verify_distribution 회수 건)."""
+    return [p for p in _git_out(root, "ls-files", "-z").split("\0") if p]
+
+
+def _test_no_backup_artifacts(root: Path | None = None) -> None:
+    """tripwire ① — 백업 관행 자체를 금지한다(숨기지 않는다).
+
+    `.gitignore` 의 `*.bak`/`*.orig` 는 2026-09-03 에 삭제됐다: 무시는 관행을 제도화하고
+    잔재를 `git status` 밖으로 숨긴다. 이 단언이 그 자리를 대신한다.
+    """
+    root = REPO_ROOT if root is None else root
+    if not _is_canonical_repo(root):
+        return
+
+    offenders: list[str] = []
+    # `os.walk` 기본 `onerror=None` 은 권한 오류를 **삼킨다** — 못 읽은 디렉터리 아래에 백업
+    # 아티팩트가 있어도 가드가 초록을 낸다(스캔 실패와 "없음" 이 구분되지 않는다). 범위 안에서
+    # 못 읽은 것은 판정 불가이므로 실패로 다룬다(2026-09-03 P0-C-④).
+    scan_errors: list[str] = []
+
+    def _on_scan_error(err: OSError) -> None:
+        name = getattr(err, "filename", None)
+        where = os.path.relpath(name, root) if name else "<unknown>"
+        scan_errors.append(f"{where}: {err.strerror or err}")
+
+    for dirpath, dirnames, filenames in os.walk(root, onerror=_on_scan_error):
+        rel_dir = os.path.relpath(dirpath, root)
+        if rel_dir == ".":
+            dirnames[:] = [d for d in dirnames if d not in _BACKUP_SCAN_PRUNE_TOP]
+        for name in filenames:
+            rel = name if rel_dir == "." else os.path.join(rel_dir, name)
+            low = rel.lower()
+            if rel.endswith(_BACKUP_SUFFIXES) or any(tok in low for tok in _BACKUP_PATH_TOKENS):
+                offenders.append(rel)
+    _require(not offenders, f"backup artifact in working tree (백업 금지 · 숨김 금지): {offenders[:20]}")
+    _require(not scan_errors,
+             "backup scan could not read part of its own scope (스캔 실패 ≠ 없음): "
+             f"{scan_errors[:20]}")
+
+    branches = {b for b in _git_out(root, "for-each-ref", "--format=%(refname:short)",
+                                   "refs/heads").split("\n") if b}
+    stray = sorted(branches - _ALLOWED_BRANCHES)
+    _require(not stray, f"refs/heads must be a subset of {sorted(_ALLOWED_BRANCHES)}: {stray}")
+
+    tags = {t for t in _git_out(root, "tag", "-l").split("\n") if t}
+    bad_tags = sorted(t for t in tags if not t.startswith(_ALLOWED_TAG_PREFIX))
+    _require(not bad_tags, f"tags must all be under {_ALLOWED_TAG_PREFIX!r}: {bad_tags}")
+
+    ignore_lines = {line.strip() for line in
+                    (root / ".gitignore").read_text(encoding="utf-8").splitlines()}
+    resurrected = sorted({"*.bak", "*.orig"} & ignore_lines)
+    _require(not resurrected,
+             f".gitignore must not hide backup artifacts (deleted 2026-09-03): {resurrected}")
+
+
+def _tracked_blob_digests(root: Path) -> set[str]:
+    """추적 blob 의 sha1(= git object id) ∪ sha256 을 한 번의 `cat-file --batch` 로 모은다.
+
+    2026-09-03 (P0-C-③) 두 가지를 고쳤다.
+
+    ① **gitlink 제외** — `ls-files -s` 는 서브모듈을 mode 160000 + **커밋** id 로 낸다. 커밋은
+       blob 이 아니라 `--batch` 가 `<sha> missing`(2필드)을 내며, 이 술어의 범위 자체가 blob 이다
+       (docstring 하단 참조: tree/commit 으로 넓히면 즉시 위양성). 그러니 입력에서 먼저 뺀다.
+    ② **버린 배치 항목에 fail-loud** — 옛 파서는 2필드 헤더를 만나면 `break` 로 루프를 끊어
+       **그 뒤 정렬 순서의 digest 를 전부 잃었고**, 그러면 tripwire ② 가 조용히 공허통과한다.
+       이제는 건너뛰되 못 푼 항목을 세고, 하나라도 있으면 실패한다 — 결정·게이트 경로에서
+       원인을 삼키는 침묵 폴백은 금지다(`workflow.md` §4종 안티패턴 판정표).
+    """
+    sha1s: set[str] = set()
+    for entry in _git_out(root, "ls-files", "-s", "-z").split("\0"):
+        if not entry:
+            continue
+        meta = entry.split("\t", 1)[0].split()
+        if len(meta) < 2 or meta[0] in _GITLINK_MODES:
+            continue
+        sha1s.add(meta[1])
+    digests: set[str] = set(sha1s)
+    if not sha1s:
+        return digests
+    proc = subprocess.run(["git", "-C", str(root), "cat-file", "--batch"],
+                          input=("\n".join(sorted(sha1s)) + "\n").encode(),
+                          capture_output=True, timeout=180)
+    buf = proc.stdout
+    pos = 0
+    resolved = 0
+    unresolved: list[str] = []
+    while pos < len(buf):
+        nl = buf.find(b"\n", pos)
+        if nl < 0:
+            unresolved.append(f"<truncated batch output at byte {pos}>")
+            break
+        header = buf[pos:nl].decode("utf-8", "replace").split()
+        if len(header) < 3 or header[1] != "blob" or not header[2].isdigit():
+            unresolved.append(" ".join(header) or "<empty header>")
+            pos = nl + 1
+            continue
+        size = int(header[2])
+        body = buf[nl + 1:nl + 1 + size]
+        digests.add(hashlib.sha256(body).hexdigest())
+        resolved += 1
+        pos = nl + 1 + size + 1
+    _require(not unresolved and resolved == len(sha1s),
+             "git cat-file --batch dropped tracked blobs — digest 집합이 불완전하면 tripwire ② 가 "
+             "조용히 공허통과한다(침묵 폴백 금지): "
+             f"resolved={resolved}/{len(sha1s)} unresolved={unresolved[:10]}")
+    return digests
+
+
+def _test_no_tracked_digest_rewrite(root: Path | None = None) -> None:
+    """tripwire ② — **파생 술어**(allowlist 없음): git 이 이미 든 바이트의 해시를 추적 데이터가
+    다시 적으면 FAIL.
+
+    적중 조건이 "추적 blob 의 sha1 또는 sha256 과 같다" 이므로, 상수를 옮기거나 파일을 새로
+    만들어도 술어가 따라간다 — 면제 목록을 유지할 필요가 없다.
+
+    자연 통과(설계상 적중하지 않는 것들 — 면제가 아니라 **대상 밖**):
+      · `output/*/build_patches_src/PROVENANCE.json` — 추적 파일 안의 **비추적** 상류 vLLM 소스
+        digest(108건). git 이 그 바이트를 들고 있지 않으므로 추적 blob 집합에 없다.
+      · Judge 골든 픽스처(`version_delta_*.json`) — 상류 vLLM 커밋 sha.
+      · `hints/index.json` — 커밋/태그 **object id**(blob 이 아니다). 술어를 tree/commit 으로
+        넓히면 즉시 위양성이 되므로 blob 으로 좁혀 둔다.
+    """
+    root = REPO_ROOT if root is None else root
+    if not _is_canonical_repo(root):
+        return
+
+    digests = _tracked_blob_digests(root)
+    offenders: list[str] = []
+    for rel in _tracked_paths(root):
+        if not rel.endswith((".json", ".yaml", ".yml")):
+            continue
+        path = root / rel
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        hits = sorted({m for m in _HEX_CONST_RE.findall(text) if m.lower() in digests})
+        if hits:
+            offenders.append(f"{rel}:{len(hits)} (e.g. {hits[0]})")
+    _require(not offenders,
+             "tracked data re-states a digest git already owns (single authority = git): "
+             f"{offenders}")
+
+
+def _test_no_retired_hash_mechanism_prose(root: Path | None = None) -> None:
+    """tripwire ③ — 걷어낸 메커니즘 이름이 규약 산문에 되살아나면 FAIL(음성 regex).
+
+    범위는 `.claude/**/*.md` · `CLAUDE.md` · `README.md` 다. `docs/report/*` 는 발행 시점이
+    고정된 장르라 **범위 밖**이며(범위 정의이지 allowlist 가 아니다), 과거 감사 보고서가 사라진
+    기계를 서술하는 것은 정상이다.
+    """
+    root = REPO_ROOT if root is None else root
+    if not _is_canonical_repo(root):
+        return
+
+    targets = sorted((root / ".claude").rglob("*.md"))
+    targets += [root / name for name in _PROSE_SCAN_EXTRA]
+    offenders: list[str] = []
+    for path in targets:
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for lineno, line in enumerate(text.splitlines(), 1):
+            for name in _RETIRED_HASH_MECHANISMS:
+                if name in line:
+                    offenders.append(f"{path.relative_to(root)}:{lineno}:{name}")
+    _require(not offenders, f"retired hash mechanism named in governing prose: {offenders[:20]}")
+
+
+def _test_tripwire_executor_wiring(root: Path | None = None) -> list[str]:
+    """실행자 자기검사 — `core.hooksPath` 설정과 훅 파일의 **추적 여부**.
+
+    미설치 클론(막 클론한 배포본)에서는 hooksPath 가 아직 안 잡혀 있는 것이 정상이므로 FAIL 이
+    아니라 **WARN** 이다(plan §10 risk). 반면 훅 파일이 추적되지 않는 것은 저작 결함이라
+    같은 WARN 으로 보고하되, 두 경고 모두 stderr 로 나간다 — stdout JSON 계약을 오염시키지 않는다.
+
+    비-정본 저장소에서 빈 리스트를 돌려주는 것은 여전히 정상 경로다. 다만 그 침묵이 tripwire
+    3종의 침묵과 겹쳐 **이중 침묵**이 되던 것은 2026-09-03 에 닫혔다 — 호출부(`run_tripwires`·
+    `main`)가 먼저 `_announce_non_canonical()` 로 SKIPPED 한 줄을 내고, 그 줄이 이 검사도
+    건너뛰었음을 이름으로 밝힌다(`_REPO_STATE_ASSERTIONS`).
+    """
+    root = REPO_ROOT if root is None else root
+    warnings: list[str] = []
+    if not _is_canonical_repo(root):
+        return warnings
+
+    hook = root / ".claude/hooks/pre-commit"
+    proc = subprocess.run(["git", "-C", str(root), "config", "--get", "core.hooksPath"],
+                          capture_output=True, text=True, timeout=60)
+    configured = proc.stdout.strip()
+    if configured != ".claude/hooks":
+        warnings.append(
+            f"core.hooksPath is {configured!r}, expected '.claude/hooks' — "
+            "run: git config core.hooksPath .claude/hooks")
+    if not hook.is_file():
+        warnings.append(".claude/hooks/pre-commit is missing")
+    else:
+        tracked = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "--error-unmatch", ".claude/hooks/pre-commit"],
+            capture_output=True, text=True, timeout=60)
+        if tracked.returncode != 0:
+            warnings.append(".claude/hooks/pre-commit exists but is NOT tracked "
+                            "(untracked hooks do not reach a clone)")
+    return warnings
+
+
+def run_tripwires(root: Path | None = None) -> int:
+    """병목(pre-commit·authorize)에서 도는 축약 진입점. 1초 예산.
+
+    ★ 2026-09-03: 비-정본 저장소에서는 `PASS` 가 아니라 **`SKIPPED`** 를 낸다. rc 는 여전히 0
+    이다(격리 픽스처에서 도는 것이 정상 경로이므로 차단하면 셀프테스트가 자기 자신을 RED 로
+    만든다) — 바뀐 것은 **rc 가 아니라 가시성**이다. 무력화된 가드가 통과한 가드처럼 보이지
+    않는 것, 그것 하나가 이 변경의 전부다.
+    """
+    root = REPO_ROOT if root is None else root
+    if _announce_non_canonical(root, "tripwire") is not None:
+        return 0
+    try:
+        _test_no_backup_artifacts(root)
+        _test_no_tracked_digest_rewrite(root)
+        _test_no_retired_hash_mechanism_prose(root)
+    except RuntimeSelftestFailure as exc:
+        print(f"[tripwire] FAIL {exc}", file=sys.stderr)
+        return 1
+    for warning in _test_tripwire_executor_wiring(root):
+        print(f"[tripwire] WARN {warning}", file=sys.stderr)
+    print("[tripwire] PASS", file=sys.stderr)
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--tripwires-only", action="store_true",
+        help="run only the pre-commit tripwires (backup artifacts / tracked digest rewrite / "
+             "retired-mechanism prose); 1s budget, diagnostics on stderr")
+    args = parser.parse_args(argv)  # argv=None -> argparse reads sys.argv[1:]
+
+    if args.tripwires_only:
+        return run_tripwires()
+
     _test_no_production_asserts()
     _test_completion_gate()
     _test_promotion_rubric_carrier()
     _test_hint_binding_source()
     _test_policy_and_evidence_lifecycle()
+    _test_provider_turn_exhaustion_reachable()
+    _test_execution_approval_authorization()
     _test_agent_provider_boundary()
+    # tripwire 3종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
+    # 늦는다(선례 3건). 전체 실행에서도 반드시 검사한다.
+    # 비-정본 저장소에서 세 단언이 no-op 이 되는 것은 `run_tripwires` 와 **같은 정상 경로**이며,
+    # 여기서도 같은 SKIPPED 한 줄로 눈에 보이게 한다(침묵 no-op 금지).
+    _announce_non_canonical(REPO_ROOT, "runtime_selftest")
+    _test_no_backup_artifacts()
+    _test_no_tracked_digest_rewrite()
+    _test_no_retired_hash_mechanism_prose()
+    for warning in _test_tripwire_executor_wiring():
+        print(f"[runtime_selftest] WARN {warning}", file=sys.stderr)
     print("[runtime_selftest] PASS")
     return 0
 

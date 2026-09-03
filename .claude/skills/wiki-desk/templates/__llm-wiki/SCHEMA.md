@@ -52,7 +52,7 @@ out_edges:       [ {to, edge_type, evidence} ]
 ```yaml
 from:       source_id
 to:         source_id
-edge_type:  cites | realizes | evidences | part-of | same-thread | superseded-by (문서 헤더의 소급 배너 literal grep — docs.md §3 · 판정 반전 표시, 여전히 결정론)
+edge_type:  cites | realizes | evidences | same-thread | superseded-by (문서 헤더의 소급 배너 literal grep — docs.md §3 · 판정 반전 표시, 여전히 결정론)
 evidence:   string   # the literal token/path that grounds this edge (no inference)
 ```
 
@@ -60,7 +60,6 @@ evidence:   string   # the literal token/path that grounds this edge (no inferen
 - `evidences` — a simlog/testlog cited by a higher tier → evidence supports it
   (the docs chain: simlog → testlog → devlog).
 - `cites`     — generic explicit cross-reference.
-- `part-of`   — a file nested under a directory-node (e.g. a simlog run).
 - `same-thread` — identical topic slug (best-effort, secondary).
 
 ## Rules

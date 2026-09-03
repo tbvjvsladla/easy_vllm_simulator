@@ -72,24 +72,57 @@ def read_mem_avail_mib() -> int | None:
 
 
 def load_envelope(node_dir: str) -> dict:
-    """에이전트가 폴링마다 읽는 유일한 파일. 부재/불량이면 계약 기본값으로 fail-safe."""
+    """에이전트가 폴링마다 읽는 유일한 파일. 부재/불량이면 계약 기본값으로 fail-safe.
+
+    2026-09-03(⑦ 4단 · plan_26090317 P1): 이전 판본은 **존재하지 않는 키 3개**를 읽었다 —
+    `kill.latency_upper_bound_s.max` · `kill.threshold_mib` · `eta_params.daemon_kill_s`.
+    `regen_envelope.py` 가 실제로 쓰는 키는 `kill.latency_s.max` · `derived.abs_band_mib` ·
+    `eta_params.kill_latency_s` 다. 그 결과 세 값이 **항상 리터럴 기본값**(14/10240/6)으로 떨어졌는데
+    기동 배너는 `src=<envelope 경로>` 를 찍었다 — "포락선을 읽고 있다" 는 표시와 "리터럴을 쓰고 있다"
+    는 실제가 어긋난 채 5일을 갔다(`blackbox-envelope-never-existed` 와 같은 계열의 결함).
+    이제 실제 키를 읽고, **필드별 출처**를 함께 돌려주며, envelope 이 있는데 키가 없으면 크게 말한다.
+    """
     path = os.path.join(node_dir, "envelope.json")
     try:
         with open(path, "r", encoding="utf-8") as fh:
             env = json.load(fh) or {}
     except (OSError, ValueError):
         env = {}
-    p = env.get("eta_params") or {}
+    ep = env.get("eta_params") or {}
     k = env.get("kill") or {}
-    lat = (k.get("latency_upper_bound_s") or {}).get("max")
-    return {
-        "agent_notify_s": float(p.get("agent_notify_s") or 900),
-        "agent_act_s": float(p.get("agent_act_s") or 300),
-        "daemon_kill_s": float(p.get("daemon_kill_s") or 6),
-        "kill_threshold_mib": int(k.get("threshold_mib") or 10240),
-        "kill_latency_max_s": float(lat if lat is not None else 14),
-        "_source": path if env else "(부재 — 계약 기본값)",
+    derived = env.get("derived") or {}
+    src: dict = {}
+    missing: list = []
+
+    def pick(value, default, name, origin):
+        if value is None:
+            if env:
+                missing.append(name)
+            src[name] = "default:agent_guard literal"
+            return default
+        src[name] = origin
+        return value
+
+    lat = (k.get("latency_s") or {}).get("max")
+    out = {
+        "agent_notify_s": float(pick(ep.get("agent_notify_s"), 900, "agent_notify_s", "envelope:eta_params")),
+        "agent_act_s": float(pick(ep.get("agent_act_s"), 300, "agent_act_s", "envelope:eta_params")),
+        # 데몬이 실제로 kill 하기까지 걸린 시간 = 실측 kill_latency_s(없으면 보수적 기본 6s).
+        "daemon_kill_s": float(pick(ep.get("kill_latency_s"), 6, "daemon_kill_s", "envelope:eta_params.kill_latency_s")),
+        # 데몬 절대 임계 = derived.abs_band_mib(레거시 절대임계 재사용 — regen_envelope 가 그렇게 적는다).
+        "kill_threshold_mib": int(pick(derived.get("abs_band_mib"), 10240, "kill_threshold_mib",
+                                       derived.get("abs_band_source") or "envelope:derived.abs_band_mib")),
+        "kill_latency_max_s": float(pick(lat, 14, "kill_latency_max_s", "envelope:kill.latency_s.max")),
     }
+    out["_field_sources"] = src
+    if env and missing:
+        # 침묵 금지: envelope 이 있는데 계약 키가 없으면 그 사실이 배너에 나와야 한다.
+        out["_source"] = "%s (⚠ 미해소 키: %s → 리터럴 기본값)" % (path, ",".join(sorted(missing)))
+        print("[agent-guard] WARN: envelope 에 계약 키 %s 가 없어 리터럴 기본값을 쓴다 — "
+              "regen_envelope 스키마와 이 소비자가 갈라졌다." % ",".join(sorted(missing)), file=sys.stderr)
+    else:
+        out["_source"] = path if env else "(부재 — 계약 기본값)"
+    return out
 
 
 def compute_eta_s(mem_avail_mib: int, rate_mib_s: float, kill_threshold_mib: int):
@@ -107,7 +140,32 @@ def compute_eta_s(mem_avail_mib: int, rate_mib_s: float, kill_threshold_mib: int
     return headroom / rate_mib_s
 
 
-DECL_MARGIN_MIB = 8192          # 데몬 BB_DECL_MARGIN_MIB 와 같은 값 — 두 층이 다른 상한을 쓰면 안 된다
+# ── 선언 상한 상수 — **정본에서 파생한다** (2026-09-01 교정 · audit_26090109 ①) ────────
+# ⚠ 이 두 값은 원래 리터럴 8192 / 16384 였고, 주석이 *"데몬 BB_DECL_MARGIN_MIB 와 같은 값"*
+#   이라고 **단언**했다. 그 단언이 검사할 이유를 없앴고, 정본(blackbox_eta.DEFAULTS)이
+#   3072 / 8192 로 옮겨간 뒤에도 아무도 몰랐다. 실측 결과:
+#     데몬 수락 최소 floor = 8192+3072  = 11,264
+#     가드 수락 최소 floor = 16384+8192 = 24,576
+#   ⇒ **맹점 [11264, 24576)** — 데몬은 선언을 수락해 무장을 풀었는데 가드는 같은 선언을
+#     폐기(INF)하고 ETA 규칙을 그대로 적용해 **정상 로드를 사살**한다. hy3 실측 바닥
+#     13,801 이 이 구간 안에 있다. 구간 밖에서도 값이 갈렸다(floor=24576 → 데몬 21504 /
+#     가드 16384): 가드가 데몬보다 **먼저** 재무장한다.
+# ★ 자매 파일 `blackbox_session.py` 가 같은 결함을 먼저 만나 이 패턴으로 고쳤다. 그 처방이
+#   이 파일로 **전파되지 않은 것**이 결함의 전부다 — 단일 파일 교정은 결함 계열을 못 막는다.
+# ★ 폴백 리터럴은 **tripwire** 다(4종 판정표 하드코딩 '정당' 칸): `--self-test` 가 정본과
+#   리터럴 대조하므로, 정본이 움직이면 폴백 경로를 안 타도 빨간불이 켜진다.
+_DECL_FALLBACK = {"decl_margin_mib": 3072, "decl_min_ceiling_mib": 8192}
+try:
+    from blackbox_eta import DEFAULTS as _ETA_DEFAULTS
+    DECL_MARGIN_MIB = int(_ETA_DEFAULTS["decl_margin_mib"])
+    DECL_MIN_CEILING_MIB = int(_ETA_DEFAULTS["decl_min_ceiling_mib"])
+    DECL_CONST_SOURCE = "derived:blackbox_eta.DEFAULTS"
+except Exception as _exc:     # fail-loud 폴백 — 침묵하지 않는다(폴백 판정표 '정당' 칸)
+    DECL_MARGIN_MIB = _DECL_FALLBACK["decl_margin_mib"]
+    DECL_MIN_CEILING_MIB = _DECL_FALLBACK["decl_min_ceiling_mib"]
+    DECL_CONST_SOURCE = "fallback:literal (%s: %s)" % (type(_exc).__name__, _exc)
+    print("[agent_guard] WARN: blackbox_eta.DEFAULTS 파생 실패 → 리터럴 사용. "
+          "가드와 데몬이 다른 상한을 쓸 위험이 있다: %s" % DECL_CONST_SOURCE, file=sys.stderr)
 LEVEL_ORDER = (NORMAL, NOTIFY, ACT, LAST_RESORT)
 
 
@@ -142,7 +200,7 @@ def read_declared_ceiling_mib(node_dir: str, now_epoch: int | None = None) -> in
     if now_epoch >= int(fields["expires_epoch"]):
         return INF                                   # 만료 → 선언 없음과 동일
     ceiling = int(fields["floor_mib"]) - DECL_MARGIN_MIB
-    if ceiling < 16384:                              # 데몬과 동일한 하한 가드
+    if ceiling < DECL_MIN_CEILING_MIB:               # 데몬과 **같은 정본**에서 파생한 하한 가드
         return INF
     return ceiling
 
@@ -383,6 +441,69 @@ def _self_test() -> int:
         print("  [%s] %s" % ("PASS" if cond else "FAIL", label))
         ok = ok and bool(cond)
 
+    # ── envelope 계약 파리티 (신설 2026-09-03 · ⑦ 4단 · plan_26090317 P1) ─────────────
+    # 결함의 형태: 소비자(이 파일)가 **생산자(regen_envelope)에 없는 키**를 읽어 세 값이 항상
+    # 리터럴로 떨어지는데, 배너는 `src=<envelope>` 를 찍었다. 두 정적 파일 사이에는 "한쪽이 다른
+    # 쪽을 생성" 하는 관계가 없으므로 **교차검증이 차선**이다(workflow.md §결정론 규율).
+    # 시험 방법: 생산자 스키마 모양의 픽스처를 넣고, 각 필드의 출처가 리터럴이 **아님**을 본다.
+    import tempfile as _tf
+    _fix = {
+        "schema_version": 2,
+        "eta_params": {"agent_act_s": 111.0, "agent_notify_s": 222.0, "kill_latency_s": 3.0},
+        "eta_params_source": {"kill_latency_s": "measured:events"},
+        "kill": {"latency_s": {"max": 4.0, "p50": 0.0, "n": 2, "scope": "window"},
+                 "trip_mem_mib": [3858], "trips": 1},
+        "derived": {"abs_band_mib": 9999, "abs_band_source": "default:blackbox_eta.DEFAULTS.abs_band_mib"},
+    }
+    with _tf.TemporaryDirectory() as _d:
+        with open(os.path.join(_d, "envelope.json"), "w", encoding="utf-8") as _fh:
+            json.dump(_fix, _fh)
+        _env = load_envelope(_d)
+        _srcs = _env["_field_sources"]
+        _literal = [k for k, v in _srcs.items() if v == "default:agent_guard literal"]
+        chk(not _literal,
+            "envelope 계약 파리티: 생산자 키를 전부 해소(리터럴로 떨어진 필드=%s)" % (_literal or "없음"))
+        chk(_env["agent_act_s"] == 111.0 and _env["agent_notify_s"] == 222.0
+            and _env["daemon_kill_s"] == 3.0 and _env["kill_latency_max_s"] == 4.0
+            and _env["kill_threshold_mib"] == 9999,
+            "envelope 값이 실제로 반영됨(리터럴 기본값과 다름)")
+        chk("⚠" not in _env["_source"], "정상 envelope 에는 미해소 경고가 붙지 않는다")
+        # 음성대조: 생산자가 키 이름을 바꾸면(=옛 소비자 상태) 반드시 크게 말해야 한다.
+        _bad = {"eta_params": {"daemon_kill_s": 6}, "kill": {"latency_upper_bound_s": {"max": 14}}}
+        with open(os.path.join(_d, "envelope.json"), "w", encoding="utf-8") as _fh:
+            json.dump(_bad, _fh)
+        _env2 = load_envelope(_d)
+        chk("⚠" in _env2["_source"] and _env2["_field_sources"]["kill_latency_max_s"]
+            == "default:agent_guard literal",
+            "키 불일치 envelope → 배너에 경고 + 출처가 리터럴로 표기(조용한 통과 ✗)")
+
+    # ── 교차검증: 선언 상수가 정본과 같은가 (신설 2026-09-01 · audit_26090109 ①) ──────
+    # 이 술어가 **없어서** ①이 발생했다. 자매 blackbox_thermal 자체검사는 수집기 상수와
+    # 셸 기본값을 리터럴 대조하는데, 그 규율이 이 파일에만 오지 않았다. 주석의 "데몬과
+    # 같은 값"이라는 **단언**이 검사할 이유를 없앤 것이 결함의 형태다 — 단언마다 그것을
+    # 깨뜨리면 빨간불이 켜지는 지점을 하나씩 붙인다.
+    try:
+        from blackbox_eta import DEFAULTS as _CANON
+        _canon_margin = int(_CANON["decl_margin_mib"])
+        _canon_min = int(_CANON["decl_min_ceiling_mib"])
+    except Exception as _cexc:
+        # 정본에 닿지 못하면 "일치한다"고 말할 근거가 없다. 조용한 통과도, traceback 도
+        # 답이 아니다 — 깨끗한 FAIL 로 끝낸다(종료코드 2 = 자체검사 실패).
+        chk(False, "정본 blackbox_eta.DEFAULTS 도달 불가 — 상수 일치를 판정할 수 없다 (%s: %s)"
+            % (type(_cexc).__name__, _cexc))
+        print("self-test: FAIL")
+        return 2
+    chk(DECL_CONST_SOURCE.startswith("derived:"),
+        "선언 상수 출처 = 정본 파생 (현재: %s)" % DECL_CONST_SOURCE)
+    chk(DECL_MARGIN_MIB == _canon_margin,
+        "margin 이 정본과 일치 (가드 %s / 정본 %s)" % (DECL_MARGIN_MIB, _canon_margin))
+    chk(DECL_MIN_CEILING_MIB == _canon_min,
+        "min_ceiling 이 정본과 일치 (가드 %s / 정본 %s)" % (DECL_MIN_CEILING_MIB, _canon_min))
+    # 폴백 리터럴은 tripwire — 정본이 움직이면 폴백 경로를 안 타도 여기서 빨간불이 켜진다.
+    chk(_DECL_FALLBACK["decl_margin_mib"] == _canon_margin
+        and _DECL_FALLBACK["decl_min_ceiling_mib"] == _canon_min,
+        "폴백 tripwire 가 정본과 일치(정본 이동 시 리뷰 강제)")
+
     env = {"agent_notify_s": 900.0, "agent_act_s": 300.0, "daemon_kill_s": 6.0,
            "kill_latency_max_s": 14.0, "kill_threshold_mib": 10240}
     lr = env["daemon_kill_s"] + env["kill_latency_max_s"] + LAST_RESORT_MARGIN_S   # 30.0
@@ -449,15 +570,29 @@ def _self_test() -> int:
     with tempfile.TemporaryDirectory() as td:
         with open(os.path.join(td, "serve_budget.env"), "w", encoding="utf-8") as fh:
             fh.write("floor_mib=45352\nexpires_epoch=9999999999\n")
-        chk(read_declared_ceiling_mib(td, now_epoch=1) == 45352 - DECL_MARGIN_MIB,
-            "선언 파싱 → floor - margin")
+        chk(read_declared_ceiling_mib(td, now_epoch=1) == 45352 - _canon_margin,
+            "선언 파싱 → floor - margin(**정본** margin)")
         chk(read_declared_ceiling_mib(td, now_epoch=9999999999) == INF, "TTL 만료 → INF")
         with open(os.path.join(td, "serve_budget.env"), "w", encoding="utf-8") as fh:
             fh.write("floor_mib=$(rm -rf /)\nexpires_epoch=9999999999\n")
         chk(read_declared_ceiling_mib(td, now_epoch=1) == INF, "주입 시도 → INF(거부)")
+        # 하한 가드는 **정본 min_ceiling** 기준이다. 종전 이 자리는 floor=20000 이 INF 라고
+        # 단언했는데, 그것은 가드가 리터럴 16384 를 쓰던 시절의 **결함을 시험이 굳힌** 것이다
+        # (정본 기준 20000-3072=16928 은 수락돼야 한다). 경계 양쪽을 정본에서 계산해 건다.
+        _lo_accept = _canon_min + _canon_margin          # 수락되는 최소 floor
+        for _floor, _want in ((_lo_accept - 1, INF), (_lo_accept, _canon_min)):
+            with open(os.path.join(td, "serve_budget.env"), "w", encoding="utf-8") as fh:
+                fh.write("floor_mib=%d\nexpires_epoch=9999999999\n" % _floor)
+            chk(read_declared_ceiling_mib(td, now_epoch=1) == _want,
+                "하한 가드 경계 floor=%d → %s" % (_floor, "INF" if _want == INF else _want))
+        # ★ 맹점 회귀(audit_26090109 ①). hy3 실측 바닥 13,801 은 **데몬이 수락하는** 선언이다.
+        #   가드가 리터럴 8192/16384 를 쓰던 동안 이 값은 INF 로 폐기됐고, 그 결과 ETA 규칙이
+        #   그대로 무장해 **정상 로드를 사살**했다. 데몬과 같은 답이 나와야 한다.
         with open(os.path.join(td, "serve_budget.env"), "w", encoding="utf-8") as fh:
-            fh.write("floor_mib=20000\nexpires_epoch=9999999999\n")
-        chk(read_declared_ceiling_mib(td, now_epoch=1) == INF, "상한<16384 → INF(하한 가드)")
+            fh.write("floor_mib=13801\nexpires_epoch=9999999999\n")
+        chk(read_declared_ceiling_mib(td, now_epoch=1) == 13801 - _canon_margin,
+            "맹점 회귀: floor=13801 → 데몬과 동일한 arm_ceiling(%d), INF 아님"
+            % (13801 - _canon_margin))
     chk(read_declared_ceiling_mib("/nonexistent") == INF, "선언 부재 → INF")
 
     # 시각: 앵커 + monotonic (벽시계 미사용)

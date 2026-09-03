@@ -24,11 +24,17 @@
     "provider": {
       "description": "Provider-neutral orchestrator identifier. Phase 6 scope is Claude Code only.",
       "type": "string",
-      "enum": ["claude_code"]
+      "enum": [
+        "claude_code"
+      ]
     },
     "intent": {
       "type": "string",
-      "enum": ["delegate", "probe", "bootstrap_canary"]
+      "enum": [
+        "delegate",
+        "probe",
+        "bootstrap_canary"
+      ]
     },
     "status": {
       "type": "string",
@@ -43,7 +49,14 @@
     },
     "exit_code": {
       "type": "integer",
-      "enum": [0, 2, 3, 4, 5, 124]
+      "enum": [
+        0,
+        2,
+        3,
+        4,
+        5,
+        124
+      ]
     },
     "model_requested": {
       "type": "string"
@@ -78,63 +91,173 @@
     },
     "output": {
       "description": "Provider-neutral agent text on completed results; null on every fail-closed result.",
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "minLength": 1
+    },
+    "session_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "provider 세션 식별자. 메인이 `--resume <session_id>` 로 같은 세션을 이어 릴레이한다. 2026-09-03(P2 · plan_26090317): 이 값이 결과에 없어서 릴레이가 **매 턴 새 세션**이었고, 컨텍스트 재구축 비용이 곧 턴 소진의 주된 원인이었다. 모르면 null(추측 금지)."
+    },
+    "num_turns": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "description": "provider 가 보고한 소비 턴 수. 원장 `max_turns_used` 의 유일한 소스. 모르면 null."
+    },
+    "budget_outcome": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "within_budget",
+        "exhausted",
+        "aborted",
+        "unknown",
+        null
+      ],
+      "description": "예산 결말. `exhausted` 는 terminal — 같은 예산으로 자동 재시도하지 않고 **더 큰 예산의 새 attempt** 를 연다(scope ⊥ budget · 예산 축소는 하강나선)."
     }
   },
   "oneOf": [
     {
       "properties": {
-        "status": {"const": "completed"},
-        "exit_code": {"const": 0},
-        "model_used": {"minItems": 1},
-        "reason_codes": {"maxItems": 0},
-        "output": {"type": "string", "minLength": 1}
+        "status": {
+          "const": "completed"
+        },
+        "exit_code": {
+          "const": 0
+        },
+        "model_used": {
+          "minItems": 1
+        },
+        "reason_codes": {
+          "maxItems": 0
+        },
+        "output": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     {
       "properties": {
-        "status": {"const": "invalid_request"},
-        "exit_code": {"const": 2},
-        "model_used": {"maxItems": 0},
-        "reason_codes": {"const": ["REQUEST_SCHEMA_INVALID"]},
-        "output": {"const": null}
+        "status": {
+          "const": "invalid_request"
+        },
+        "exit_code": {
+          "const": 2
+        },
+        "model_used": {
+          "maxItems": 0
+        },
+        "reason_codes": {
+          "const": [
+            "REQUEST_SCHEMA_INVALID"
+          ]
+        },
+        "output": {
+          "const": null
+        }
       }
     },
     {
       "properties": {
-        "status": {"const": "model_safety_blocked"},
-        "exit_code": {"const": 3},
+        "status": {
+          "const": "model_safety_blocked"
+        },
+        "exit_code": {
+          "const": 3
+        },
         "reason_codes": {
           "minItems": 1,
-          "items": {"enum": ["MISSING_MODEL_METADATA", "OPUS_FALLBACK", "MIXED_MODEL_USAGE", "REQUESTED_MODEL_NOT_SONNET", "UNEXPECTED_MODEL_USAGE"]}
+          "items": {
+            "enum": [
+              "MISSING_MODEL_METADATA",
+              "OPUS_FALLBACK",
+              "MIXED_MODEL_USAGE",
+              "REQUESTED_MODEL_NOT_SONNET",
+              "UNEXPECTED_MODEL_USAGE"
+            ]
+          }
         },
-        "output": {"const": null}
+        "output": {
+          "const": null
+        }
       }
     },
     {
       "properties": {
-        "status": {"const": "execution_failed"},
-        "exit_code": {"const": 4},
-        "reason_codes": {"minItems": 1, "items": {"enum": ["NONZERO_EXIT", "IS_ERROR", "PERMISSION_DENIED"]}},
-        "output": {"const": null}
+        "status": {
+          "const": "execution_failed"
+        },
+        "exit_code": {
+          "const": 4
+        },
+        "reason_codes": {
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "NONZERO_EXIT",
+              "IS_ERROR",
+              "PERMISSION_DENIED"
+            ]
+          }
+        },
+        "output": {
+          "const": null
+        }
       }
     },
     {
       "properties": {
-        "status": {"const": "malformed_output"},
-        "exit_code": {"const": 5},
-        "reason_codes": {"minItems": 1, "items": {"enum": ["MALFORMED_JSON", "PROVIDER_RESULT_INVALID"]}},
-        "output": {"const": null}
+        "status": {
+          "const": "malformed_output"
+        },
+        "exit_code": {
+          "const": 5
+        },
+        "reason_codes": {
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "MALFORMED_JSON",
+              "PROVIDER_RESULT_INVALID"
+            ]
+          }
+        },
+        "output": {
+          "const": null
+        }
       }
     },
     {
       "properties": {
-        "status": {"const": "timeout"},
-        "exit_code": {"const": 124},
-        "model_used": {"maxItems": 0},
-        "reason_codes": {"const": ["TIMEOUT"]},
-        "output": {"const": null}
+        "status": {
+          "const": "timeout"
+        },
+        "exit_code": {
+          "const": 124
+        },
+        "model_used": {
+          "maxItems": 0
+        },
+        "reason_codes": {
+          "const": [
+            "TIMEOUT"
+          ]
+        },
+        "output": {
+          "const": null
+        }
       }
     }
   ]

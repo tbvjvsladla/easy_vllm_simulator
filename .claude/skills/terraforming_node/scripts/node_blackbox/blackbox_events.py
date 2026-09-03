@@ -32,6 +32,21 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
+# 2026-09-03(plan_26090317 P3): 프로젝트 경로를 **root 소유로 굳히지 않기 위해** 조상 소유자를
+#   물려주는 디렉터리 생성기를 공유 sibling 모듈에서 가져온다(설치기가 blackbox_eta.py 를
+#   /usr/local/sbin 에 sibling 으로 배치한다). 임포트 불가는 치명이 아니다 — 그 경우
+#   os.makedirs 로 떨어지되 **그 사실을 숨기지 않는다**(아래 폴백은 loud 하다).
+try:
+    from blackbox_eta import makedirs_as_ancestor_owner as _mk_owned
+except ImportError:  # pragma: no cover - 설치 배선이 깨진 경우
+    import os as _os_fb, sys as _sys_fb
+    def _mk_owned(path, mode=0o775):
+        print("[blackbox] 경고: blackbox_eta sibling 임포트 실패 — 소유권 정렬 없이 디렉터리를 만든다",
+              file=_sys_fb.stderr)
+        _os_fb.makedirs(path, exist_ok=True)
+        return []
+
+
 SCHEMA_VERSION = 1
 CURSOR_FILE = ".cursors.json"
 
@@ -272,7 +287,7 @@ def load_cursors(events_dir):
 
 
 def save_cursors(events_dir, cursors):
-    os.makedirs(events_dir, exist_ok=True)
+    _mk_owned(events_dir)
     p = os.path.join(events_dir, CURSOR_FILE)
     tmp = p + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
@@ -281,6 +296,7 @@ def save_cursors(events_dir, cursors):
         fh.flush()
         os.fsync(fh.fileno())
     os.replace(tmp, p)
+    _inherit_dir_owner(p, events_dir)   # .cursors.json 도 jsonl 과 같은 규칙(2026-09-03 실측: root 잔존)
 
 
 def _inherit_dir_owner(path, parent):
@@ -305,7 +321,7 @@ def _inherit_dir_owner(path, parent):
 
 
 def append_events(events_dir, events):
-    os.makedirs(events_dir, exist_ok=True)
+    _mk_owned(events_dir)
     by_month = {}
     for e in events:
         month = (e.get("ts") or "0000-00")[:7]
@@ -322,6 +338,14 @@ DEFAULT_SOURCES = [
     ("easy-vllm-blackbox-watchdog", False),   # 신규 상시 ETA 워치독(RAM 축)
     ("easy-vllm-blackbox-thermal", False),    # 열·전력 포락선 워치독(하드락업 예방 축)
     ("easy-vllm-memwatch", False),            # 레거시(제거 전/이행기)
+    # ★ 2026-09-01 (audit_26090109 ⑦ 3단) — 아래 둘이 빠져 있어 **실패가 관측 평면에
+    #   도달하지 못했다**. lifecycle 은 5일 연속 status=1 로 죽으면서 envelope 을 한 번도
+    #   만들지 못했는데, events 에는 그 사실이 단 한 줄도 남지 않았다. 관측 장치가
+    #   자기 공급원의 죽음을 못 보면 "기록이 없다"와 "사고가 없었다"가 구분되지 않는다.
+    ("easy-vllm-blackbox-lifecycle", False),  # rollup→envelope regen→압축→삭제
+    ("easy-vllm-blackbox-collect", False),    # 1초 원시 시계열 수집기(죽으면 데이터 평면 실명)
+    # ※ `easy-vllm-blackbox-events` 자신은 넣지 않는다 — 그것이 죽으면 수확 자체가 안 도므로
+    #   자기 저장소에 적는 것이 무의미하다. 그 유닛의 생사 판정은 verify 가 소유한다.
     ("earlyoom", False),
     (None, True),                             # 커널(-k) : OOM killer
 ]

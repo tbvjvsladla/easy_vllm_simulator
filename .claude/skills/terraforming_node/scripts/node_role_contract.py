@@ -29,7 +29,7 @@ CLI:
                                    [--role sub] [--field <k>] [--format json|value]
     node_role_contract.py --self-test
 
-    --field ∈ {sub_mode, rank, identity_authority, delivery_plane, topology}
+    --field ∈ {sub_mode, rank, identity_authority, delivery_plane, tool_plane, topology}
     --format value 는 셸 소비자용(한 줄). 위반이 있으면 값을 찍지 않고 종료코드로 말한다.
 
 종료코드:
@@ -215,6 +215,34 @@ def delivery_plane(topology, sub_mode):
             "source": "sub-mode:%s" % sub_mode}
 
 
+# 서브가 **실행 권한을 갖는 런타임 스킬** 집합. 토폴로지 축의 네 번째 판정이다(2026-09-03 · P2).
+#
+# 왜 계약이어야 하나: 렌더러의 `RUNTIME_BLOCKS` 는 토폴로지와 무관한 **닫힌 리스트**라, 멀티 서브
+# (Ray 워커)에게도 recipe·benchmark 스킬이 배달됐다. 그런데 불변식 A 가 말하는 멀티 sub 는 정본을
+# 재현하는 워커이고 **전략을 세우는 주체가 아니다** — 서빙전략 스킬을 들려주면 그 스킬이 시키는
+# 자율 판단(트리플렛 자작·벤치 루브릭)을 할 수 있게 되고, 그것은 head 종속 제어평면과 충돌한다.
+# 반대로 싱글 sub(A2A 에이전트)는 빌드→서빙→벤치를 자율 완주해야 하므로 3종이 **필요**하다.
+# 이 판정을 렌더러가 손으로 들고 있으면 두 답이 갈리므로, sub_mode 와 같은 자리에서 파생한다.
+TOOL_PLANE_BY_SUB_MODE = {
+    # 싱글 A2A 에이전트: 빌드 트랙 해소 → 서빙전략 → 성능 검증까지 자기 손으로 한다.
+    "a2a-agent": ("vllm-recipe-explorer", "adversarial-benchmark", "upstream-version-watch"),
+    # 멀티 Ray 워커: 0종. 정본(Dockerfile·compose·serve_runner)을 재현하는 것이 전부다.
+    "ray-worker": (),
+}
+
+
+def tool_plane(topology, sub_mode):
+    """서브에 배달할 런타임 스킬 집합. → {"value": [...], "source": ...}"""
+    assert_topology(topology)
+    if sub_mode not in SUB_MODES:
+        raise ContractViolation(
+            "SUB_MODE_UNKNOWN",
+            "sub_mode=%r 는 어휘 %r 밖이다." % (sub_mode, list(SUB_MODES)),
+            field="nodes[sub].sub_mode")
+    return {"value": list(TOOL_PLANE_BY_SUB_MODE[sub_mode]),
+            "source": "sub-mode:%s" % sub_mode}
+
+
 # --------------------------------------------------------------------------------------
 # manifest 전체 평가 (예외를 삼키지 않고 **모아서** 보고 — 게이트 방향은 항상 fail-closed)
 # --------------------------------------------------------------------------------------
@@ -241,6 +269,8 @@ def evaluate_manifest(doc, topology=None, role=SUB_ROLE):
         "identity_authority": None,
         # fail-closed 기본값: 무엇 하나라도 못 정하면 배달은 열리지 않는다.
         "delivery_plane": {"value": "dormant", "source": "fail-closed:unevaluated"},
+        # 같은 규율 — 정체성이 안 정해지면 스킬도 주지 않는다(빈 집합이 fail-closed 방향이다).
+        "tool_plane": {"value": [], "source": "fail-closed:unevaluated"},
         "notes": [],
         "violations": [],
     }
@@ -275,6 +305,7 @@ def evaluate_manifest(doc, topology=None, role=SUB_ROLE):
     if sub is None:
         # 서브 미등록 = dormant. 이것은 정상 상태이며 위반이 아니다.
         out["delivery_plane"] = {"value": "dormant", "source": "no-sub-registered"}
+        out["tool_plane"] = {"value": [], "source": "no-sub-registered"}
         out["rank"] = {"value": None, "source": "not-applicable:no-sub-registered"}
         return out
 
@@ -293,13 +324,18 @@ def evaluate_manifest(doc, topology=None, role=SUB_ROLE):
         out["delivery_plane"] = delivery_plane(topo, out["sub_mode"]["value"])
     except ContractViolation as exc:
         record(exc)
+
+    try:
+        out["tool_plane"] = tool_plane(topo, out["sub_mode"]["value"])
+    except ContractViolation as exc:
+        record(exc)
     return out
 
 
 # --------------------------------------------------------------------------------------
 # CLI
 # --------------------------------------------------------------------------------------
-FIELDS = ("sub_mode", "rank", "identity_authority", "delivery_plane", "topology")
+FIELDS = ("sub_mode", "rank", "identity_authority", "delivery_plane", "tool_plane", "topology")
 
 
 def _field_value(result, field):
@@ -365,7 +401,10 @@ def cmd_evaluate(args):
 def _self_test():
     failures = []
 
+    ran = []
+
     def chk(name, cond, detail=""):
+        ran.append(name)
         print("%s %s%s" % ("PASS" if cond else "FAIL", name,
                            "" if cond else " — %s" % detail))
         if not cond:
@@ -460,11 +499,36 @@ def _self_test():
     chk("multi 에서 main 이 인덱스 0 이 아니면 note(위반 ✗)",
         r["violations"] == [] and len(r["notes"]) == 1, r)
 
+    # ── tool_plane (2026-09-03 · P2 · plan_26090317) ──────────────────────────
+    # 결함의 형태: 렌더러가 토폴로지 무관 닫힌 리스트로 스킬을 배달했다. 판정을 여기로 옮겼으니
+    # **양방향**을 고정한다 — 한쪽만 보면 "전부 안 주기" 나 "전부 주기" 가 통과한다.
+    r = tool_plane("single", "a2a-agent")
+    chk("single(a2a-agent) → 런타임 스킬 3종",
+        set(r["value"]) == {"vllm-recipe-explorer", "adversarial-benchmark", "upstream-version-watch"}
+        and r["source"] == "sub-mode:a2a-agent", r)
+    r = tool_plane("multi", "ray-worker")
+    chk("multi(ray-worker) → 0종(정본 재현이 전부다)",
+        r["value"] == [] and r["source"] == "sub-mode:ray-worker", r)
+    chk("어휘 밖 sub_mode → fail-closed",
+        violation_code(tool_plane, "single", "worker") == "SUB_MODE_UNKNOWN")
+    r = evaluate_manifest({"topology": "multi", "nodes": [{"role": "main"}, {"role": "sub"}]})
+    chk("evaluate_manifest 가 tool_plane 을 함께 낸다(멀티=0종)",
+        r["tool_plane"]["value"] == [] and r["violations"] == [], r.get("tool_plane"))
+    r = evaluate_manifest({"topology": "single", "nodes": [{"role": "main"}]})
+    chk("서브 미등록 → tool_plane 0종 + 출처 no-sub-registered",
+        r["tool_plane"] == {"value": [], "source": "no-sub-registered"}, r.get("tool_plane"))
+    r = evaluate_manifest({"topology": "single",
+                           "nodes": [{"role": "main"}, {"role": "sub", "sub_mode": "ray-worker"}]})
+    chk("정체성 위반이면 tool_plane 은 fail-closed 빈 집합(스킬을 주지 않는다)",
+        r["tool_plane"]["value"] == [] and r["violations"], r.get("tool_plane"))
+
     chk("결정론(동일 입력 → 동일 출력)",
         json.dumps(evaluate_manifest(single_with_sub), sort_keys=True)
         == json.dumps(evaluate_manifest(single_with_sub), sort_keys=True))
 
-    total = 24
+    # 2026-09-03(P2): `total = 24` 는 **손으로 적은 값**이었다 — 케이스를 6건 늘렸는데도 24/24 라고
+    #   보고했다(파생 가능한데 손으로 적은 것 = 하드코딩 결함). 실제 실행 수에서 센다.
+    total = len(ran)
     passed = total - len(failures)
     print("--- %d/%d PASS" % (passed, total))
     return 0 if not failures else 1
