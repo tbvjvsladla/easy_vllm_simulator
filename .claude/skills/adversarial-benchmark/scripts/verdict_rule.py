@@ -285,11 +285,58 @@ def build_verdict(measured, roofline, opts):
 
     primary_src, primary = ladder[0]
 
+    # ── 루브릭의 **물리 타당성** 검사 (2026-09-03 신설 · testlog_26090117 후속 체크박스 해소) ──
+    #
+    # 결함의 실측(2026-09-01 · devlog_26090117): 커뮤니티 E=59 t/s 를 그대로 문턱으로 넣어 REFUTE 가
+    # 났다. 그런데 그 59 t/s 는 **363.5 GB/s 대역폭을 요구**하고 GB10 스펙은 273 GB/s 다 — 이 구성에서
+    # 물리적으로 도달 불가능한 목표였다. 게이트는 그것을 그대로 받았다. 사람이 알아채고 손으로
+    # like-with-like E 를 정정해 PASS 로 뒤집었고, "verdict_rule 의 E 물리타당성 미검사" 를 후속으로
+    # 남겼다. 2026-09-03 재발: 같은 모델의 커뮤니티 수치가 여전히 57~60 t/s 인데 그것들은 전부
+    # `--mxfp4-layers moe,qkv,o,lm_head`(dense 까지 MXFP4) + FLASHINFER + CUTLASS 구성이라 active
+    # 바이트가 우리 구성(MoE 만 MXFP4 · Marlin · TRITON_ATTN)의 절반이다. **같은 모델·같은 HW 라도
+    # 구성이 다르면 루프라인이 다르다** — like-with-like 의 축은 모델·HW 만이 아니다.
+    #
+    # 처방: 정본으로 낙찰된 문턱이 그 구성의 물리 상한을 넘으면 **루브릭을 못 세운 것**이다(§3 의
+    # "루브릭 못 *세움*" 축). 이는 M 이 나쁜 것이 아니므로 REFUTE 가 아니라 NEEDS_RUBRIC 이며,
+    # 사용자에게 되묻는다. 판정을 조용히 뒤집지 않고 필요 대역폭을 역산해 **왜** 불가능한지 보인다.
+    #   · 비교 대상 R 은 spec 축을 따른다(spec on → R_token · off → R_fp) — like-with-like 의 기존 규율.
+    #   · R 을 산출할 수 없으면(루프라인 부재) 검사를 건너뛴다 — 없는 근거로 기각하지 않는다.
+    R_phys = R_token if spec_on else R_fp
+    physical = {"limit_source": "R_token(spec on)" if spec_on else "R_fp(spec off)",
+                "limit_tps": R_phys, "exceeds": False, "required_bandwidth_gbps": None}
+    if isinstance(R_phys, (int, float)) and R_phys > 0 and primary > R_phys:
+        physical["exceeds"] = True
+        bw = roofline.get("bandwidth_gbps")
+        if isinstance(bw, (int, float)) and bw > 0:
+            # R 은 대역폭에 선형이다 ⇒ 문턱을 달성하려면 required = bw × (primary / R).
+            physical["required_bandwidth_gbps"] = round(bw * primary / R_phys, 1)
+        rub = dict(rubric_common)
+        rub.update({"primary": primary, "source": primary_src,
+                    "floor": None, "ratio_M_over_primary": None, "physical": physical})
+        _req = physical["required_bandwidth_gbps"]
+        return {
+            "verdict": "NEEDS_RUBRIC", "failure_axis": "establish",
+            "structural_or_strategy": None,
+            "reason": ("루브릭 못 세움(물리 초과): 정본 문턱 %s t/s [%s] 가 이 구성의 물리 상한 %s t/s [%s] 를 "
+                       "넘는다%s. 도달 불가능한 문턱으로 낸 REFUTE 는 측정이 아니라 루브릭의 결함이다."
+                       % (primary, primary_src, R_phys, physical["limit_source"],
+                          " — 달성하려면 %s GB/s 가 필요하나 이 HW 는 %s GB/s 다"
+                          % (_req, roofline.get("bandwidth_gbps")) if _req else "")),
+            "measured_decode_tps": M, "rubric": rub,
+            "authority": authority,
+            "e_search": e_search,
+            "ask_user": ("문턱 %s t/s 의 출처가 **이 구성과 like-with-like** 인지 확인해 주세요 "
+                         "(같은 모델·HW 라도 양자화 범위·커널 백엔드가 다르면 active 바이트가 달라져 "
+                         "루프라인이 달라집니다). like-with-like 수치가 없으면 --e-search empty 로 "
+                         "재판정하세요." % primary),
+        }
+
     # ★ primary 는 유한 양수임이 D1 로 보장된다 ⇒ floor > 0 이고 ratio 는 **무조건** 실수다.
     #   (이전 구현의 `if primary` falsy 의존 제거 — 지표가 사라지는 PASS 는 구조적으로 발생 불가.)
     floor = primary * (1.0 - tol)
     passed = M >= floor
     ratio = round(M / primary, 3)
+    rubric_common["physical"] = physical      # 통과 경로도 검사 결과를 밝힌다(출처 표시)
 
     # --- spec-off 강제함수: 모델이 MTP 지원하는데 off 면, R_token 기대 대비 미달을 명시 ---
     spec_hint = None
@@ -550,6 +597,40 @@ def _self_test():
     check("T16c", not e and v and "balance" not in v,
           "node_vram 미지정인데 balance 키가 생겼다: %r" % (e or (v or {}).get("balance")))
 
+    # --- T17 ★: 물리 초과 문턱 → NEEDS_RUBRIC(REFUTE 아님) · 픽스처 R_fp=30 / R_token=45 ---
+    #   실측 근거(devlog_26090117): E=59 t/s 가 363.5 GB/s 를 요구하는데 HW 는 273 GB/s 였고 게이트는
+    #   그것을 그대로 받아 REFUTE 를 냈다. 도달 불가능한 문턱의 기각은 측정이 아니라 루브릭의 결함이다.
+    #   spec 축을 따른다: 픽스처는 spec_on=True 이므로 상한은 R_token=45.
+    v, e = run("T17", reference_tps=60.0)          # 60 > R_token 45
+    check("T17", not e and v and v["verdict"] == "NEEDS_RUBRIC"
+          and v["failure_axis"] == "establish"
+          and v["rubric"]["physical"]["exceeds"] is True
+          and v["rubric"]["floor"] is None and v["rubric"]["ratio_M_over_primary"] is None
+          and "like-with-like" in (v.get("ask_user") or ""),
+          "물리 초과 문턱이 NEEDS_RUBRIC 이 아니다: %r" % (
+              e or {"verdict": (v or {}).get("verdict"), "axis": (v or {}).get("failure_axis"),
+                    "physical": ((v or {}).get("rubric") or {}).get("physical")}))
+
+    # --- T17b 음성대조: 상한 **이하** 문턱은 종전대로 판정된다(검사가 정상 경로를 삼키지 않는다) ---
+    #   44 < R_token 45 이고 M=34.0 < 44×0.85=37.4 이므로 REFUTE 여야 한다 — NEEDS_RUBRIC 이 아니다.
+    v, e = run("T17b", reference_tps=44.0)
+    check("T17b", not e and v and v["verdict"] == "REFUTE" and v["failure_axis"] == "meet"
+          and v["rubric"]["physical"]["exceeds"] is False
+          and v["rubric"]["floor"] is not None,
+          "상한 이하 문턱이 종전 판정을 잃었다: %r" % (
+              e or {"verdict": (v or {}).get("verdict"), "axis": (v or {}).get("failure_axis")}))
+
+    # --- T17c: spec 축을 따른다 — spec off 면 상한은 R_fp(30) 이므로 44 도 초과다 ---
+    #   같은 문턱 44 가 spec on 에서는 통과 판정(T17b), off 에서는 물리 초과가 된다. 축을 안 따르면
+    #   두 결과가 같아진다(like-with-like 의 기존 규율과 정합).
+    _md_off = dict(_FIX_MEASURED); _md_off["spec_on"] = False; _md_off["accept_len"] = 1.0
+    v, e = run("T17c", measured=_md_off, reference_tps=44.0)
+    check("T17c", not e and v and v["verdict"] == "NEEDS_RUBRIC"
+          and v["rubric"]["physical"]["limit_source"].startswith("R_fp"),
+          "spec off 에서 R_fp 상한을 쓰지 않았다: %r" % (
+              e or {"verdict": (v or {}).get("verdict"),
+                    "physical": ((v or {}).get("rubric") or {}).get("physical")}))
+
     # --- T14: measured.decode_tps = null / NaN → INVALID ---
     for bad in (None, float("nan"), float("inf")):
         md = dict(_FIX_MEASURED, decode_tps=bad)
@@ -567,7 +648,7 @@ def _self_test():
         for f in failures:
             sys.stderr.write("  - %s\n" % f)
         return 1
-    sys.stdout.write("[verdict --self-test] OK — T1~T16 전부 통과"
+    sys.stdout.write("[verdict --self-test] OK — T1~T17 전부 통과"
                      "(공허 PASS 경로 부재 + explore 밸런스=서술 단언 포함)\n")
     return 0
 
@@ -596,7 +677,7 @@ def main():
     ap.add_argument("--balance-tol", type=float, default=0.10,
                     help="노드간 VRAM 밸런스 허용편차(기본 0.10=10%%)")
     ap.add_argument("--self-test", action="store_true",
-                    help="결정론 자체검사(T1~T15) — 파일 입력 불요. 0=전부 통과 · 1=실패 나열")
+                    help="결정론 자체검사(T1~T17) — 파일 입력 불요. 0=전부 통과 · 1=실패 나열")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
