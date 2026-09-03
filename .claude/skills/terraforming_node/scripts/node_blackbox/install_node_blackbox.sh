@@ -187,6 +187,32 @@ say "로그 루트=$NODE_DIR · 위임 사용자=$TARGET_USER"
 # ── 0. 공통 배치 (레벨 무관 — 항상 도착시킨다) ───────────────────────────
 say "0. 스크립트 배치 → $BIN · 설정 → $ETC · 로그 루트 준비"
 run install -d -m 0755 "$ETC"
+# ★ **프로젝트 경로 조상까지 위임 사용자 소유로** (2026-09-03 · plan_26090317 P3 실화).
+#   `install -d` 는 없는 조상을 **root 소유로** 만든다. 사용자가 서브 프로젝트 경로를 완전삭제하면
+#   (이 프로젝트의 CI/CD 대리 실험이 정확히 그 시나리오다) 다음 폴에서 root 데몬이 work_dir·docs·
+#   docs/logs 를 **root:root 로 재생성**한다. 그 뒤로는 위임 사용자가 프로젝트 경로에 아무것도 쓸 수
+#   없고, 메인의 정착(rsync/git init)이 통째로 막힌다 — 그런데 증상은 배달 중간의 rsync 실패로
+#   나타나서 원인이 소유권이라는 것이 드러나지 않는다(2026-09-03 실측: 서브 work_dir = root:root 755,
+#   롤백의 rm 까지 Permission denied 로 실패해 CRITICAL 로 끝났다).
+#   데몬은 **로그만** 쓰면 되고 프로젝트는 위임 사용자의 것이다. 조상 체인을 멱등하게 정렬한다.
+_bb_align_ancestors() {   # $1=work_dir 아래의 로그 루트 → work_dir 까지 거슬러 소유권 정렬
+    local d="$1" root_dir
+    root_dir="${d%/docs/logs/*}"
+    [ -n "$root_dir" ] && [ "$root_dir" != "$d" ] || return 0
+    local chain="$root_dir $root_dir/docs $root_dir/docs/logs"
+    local x
+    for x in $chain; do
+        [ -e "$x" ] || run install -d -m 0775 -o "$TARGET_USER" -g "$TARGET_USER" "$x"
+    done
+    # 이미 root 소유로 굳어 있으면 되돌린다(재실행이 곧 교정 — 멱등).
+    for x in $chain; do
+        if [ -d "$x" ] && [ "$(stat -c '%U' "$x" 2>/dev/null)" != "$TARGET_USER" ]; then
+            say "   소유권 정렬: $x ($(stat -c '%U:%G' "$x")) → $TARGET_USER"
+            run chown "$TARGET_USER:$TARGET_USER" "$x"
+        fi
+    done
+}
+_bb_align_ancestors "$NODE_DIR"
 run install -d -m 0775 -o "$TARGET_USER" -g "$TARGET_USER" "$NODE_DIR"
 run install -d -m 0775 -o "$TARGET_USER" -g "$TARGET_USER" "$NODE_DIR/samples" \
         "$NODE_DIR/events" "$NODE_DIR/rollup"

@@ -126,8 +126,12 @@ PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runt
 PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
 
 # ── manifest 해소(서브 접속·work_dir = 항상 multi 통로 manifest. single 은 nodes:[] 라 서브 미정의) ──
-_resolve_sub_host_from_manifest() {
-    local manifest="${SRC%/}/output/multi/manifest.yaml"
+# 2026-09-03(P3 · plan_26090317): 두 해소기가 `output/multi/manifest.yaml` 을 **하드코딩**했다.
+#   §2.7.0 이 명시적으로 허용하는 single+sub(A2A 에이전트) 구성에서는 서브 주소가
+#   `output/single/manifest.yaml` 에 있으므로, 등록을 해도 "서브노드 주소 미해소" 로 죽었다.
+#   토폴로지는 인자로 받는다(브랜치로 추론하지 않는다 — 호출부가 --branch 로 정한 타겟을 넘긴다).
+_resolve_sub_host_from_manifest() {   # $1=topology
+    local manifest="${SRC%/}/output/${1:-multi}/manifest.yaml"
     [ -f "$manifest" ] || return 1
     awk '
         /^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { in_sub=1; host=""; user=""; next }
@@ -137,8 +141,8 @@ _resolve_sub_host_from_manifest() {
         in_sub && host != "" && user != "" { print user "@" host; exit }
     ' "$manifest"
 }
-_resolve_sub_work_dir_from_manifest() {
-    local manifest="${SRC%/}/output/multi/manifest.yaml"
+_resolve_sub_work_dir_from_manifest() {   # $1=topology
+    local manifest="${SRC%/}/output/${1:-multi}/manifest.yaml"
     [ -f "$manifest" ] || return 1
     awk '
         /^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { in_sub=1; next }
@@ -157,7 +161,17 @@ _single_extension_active() {
     local manifest="${SRC%/}/output/single/manifest.yaml"
     local contract="${SRC%/}/.claude/skills/terraforming_node/scripts/node_role_contract.py"
     local plane rc=0
-    SINGLE_PLANE_SOURCE="fail-closed:unevaluated"      # 판정 출처(*_source 표시 — 안내문이 인용한다)
+    # 2026-09-03(P3 · plan_26090317): B0 는 서브 git 이 없으면 **무조건 multi 를 채웠다**. 그 설계는
+#   멀티 온보딩만 상정한 것인데, §2.7.0 이 허용하는 single+sub(A2A 에이전트) 구성에서는 그것이
+#   **헌법이 금지하는 배달**이다 — 싱글 서브는 자기 빌드킷을 자율 저작하고, 메인의 멀티 빌드킷은
+#   그에게 가면 안 된다(불변식 A). 게다가 이 워크스페이스의 output/multi 는 다른 브랜치 산출물이라
+#   상시 stale 이고, 그 stale 을 preflight 가 요구해 **single 배달이 multi 사유로 죽었다**.
+#   → 부트스트랩이 채우는 토폴로지는 **요청된 타겟에 따른다**. multi 가 타겟이 아니면 base 만 만든다.
+BOOTSTRAP_POPULATE=""
+if [ $HAS_GIT = 0 ]; then
+    for _t in "${TARGETS[@]}"; do [ "$_t" = "multi" ] && BOOTSTRAP_POPULATE="multi"; done
+fi
+SINGLE_PLANE_SOURCE="fail-closed:unevaluated"      # 판정 출처(*_source 표시 — 안내문이 인용한다)
     if [ ! -f "$manifest" ]; then
         SINGLE_PLANE_SOURCE="fail-closed:manifest-absent"
         echo "[sync] single 확장 판정: manifest 부재($manifest) → dormant(fail-closed)" >&2
@@ -207,17 +221,40 @@ assert_sub_delegation_authorized() {  # $1=topology → 0=인가(hw_verified:tru
     return 1
 }
 
-[ -z "${SUB_HOST:-}" ]     && SUB_HOST="$(_resolve_sub_host_from_manifest || true)"
-[ -z "${SUB_WORK_DIR:-}" ] && SUB_WORK_DIR="$(_resolve_sub_work_dir_from_manifest || true)"
+# 타겟 브랜치 목록 — 주소 해소가 이 목록을 쓰므로 먼저 정한다.
+TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);; both) TARGETS=(multi single);; esac
+
+# 주소는 **타겟 토폴로지의 manifest** 에서 온다. --branch both 처럼 후보가 둘이면 값이 일치해야 한다 —
+# 갈리면 어느 노드에 배달하는지가 모호해지므로 fail-closed 한다(추측으로 고르지 않는다).
+_resolve_addr_across_targets() {   # $1=host|work_dir → stdout=값 · 1=미해소 · 2=불일치
+    local kind="$1" t v prev="" src=""
+    for t in "${TARGETS[@]}"; do
+        if [ "$kind" = "host" ]; then v="$(_resolve_sub_host_from_manifest "$t" || true)"
+        else v="$(_resolve_sub_work_dir_from_manifest "$t" || true)"; fi
+        [ -n "$v" ] || continue
+        if [ -n "$prev" ] && [ "$v" != "$prev" ]; then
+            echo "[sync] FAIL: 서브 $kind 가 토폴로지 manifest 간에 다르다 — $src=$prev vs output/$t=$v" >&2
+            return 2
+        fi
+        prev="$v"; src="output/$t"
+    done
+    [ -n "$prev" ] || return 1
+    printf '%s' "$prev"
+}
+
+if [ -z "${SUB_HOST:-}" ]; then
+    SUB_HOST="$(_resolve_addr_across_targets host)" || { [ $? = 2 ] && exit 4; SUB_HOST=""; }
+fi
+if [ -z "${SUB_WORK_DIR:-}" ]; then
+    SUB_WORK_DIR="$(_resolve_addr_across_targets work_dir)" || { [ $? = 2 ] && exit 4; SUB_WORK_DIR=""; }
+fi
 [ -z "${SUB_WORK_DIR:-}" ] && SUB_WORK_DIR="${SRC%/}"
 if [ -z "${SUB_HOST:-}" ]; then
-    echo "[sync] FAIL: 서브노드 주소 미해소 — SUB_HOST(<ssh_user>@<host>) 지정 또는 manifest nodes[](role:sub) 채우기." >&2
+    echo "[sync] FAIL: 서브노드 주소 미해소 — SUB_HOST(<ssh_user>@<host>) 지정 또는" >&2
+    echo "       output/{${TARGETS[*]}}/manifest.yaml 의 nodes[](role:sub) 에 host·ssh_user 채우기." >&2
     exit 4
 fi
 DEST="${SUB_WORK_DIR}/"
-
-# 타겟 브랜치 목록
-TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);; both) TARGETS=(multi single);; esac
 
 # ── S4 Band2 빌드킷 keying(전파 = output/<t>/ 의 Band2 만 · plan_26062417 rev3 R1) ──
 # Band1(루트 템플릿·scripts·resolved.json)은 rsync 소스가 output/<t>/ 라 구조적으로 빠지고,
@@ -954,7 +991,12 @@ prepare_transactional_source() {
     PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
     REGEN_TOOL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
     echo "[sync] transactional source prepared (canonical tree remains read-only): $TRANSACTIONAL_SRC"
-    for topology in multi single; do
+    # 2026-09-03(P3 · plan_26090317): 이 루프가 **두 토폴로지 전부**를 무조건 물질화해, 이번 배달과
+    #   무관한 통로의 파생 payload 부재가 배달 전체를 죽였다(싱글 배달이 multi 사유로 STOP).
+    #   물질화는 **이번 실행이 실제로 배달할 통로**에만 필요하다 — 그 밖은 판정 대상이 아니다.
+    #   (부트스트랩이 multi 를 채우는 경우 BOOTSTRAP_POPULATE 가 TARGETS 밖의 multi 를 요구하는데,
+    #    그 값은 이 시점 이후에 정해지므로 여기서는 TARGETS 에 더해 --branch both 의 양쪽을 본다.)
+    for topology in "${TARGETS[@]}"; do
         materialize_source_port_payload "$topology" || return 9
     done
 }
@@ -1304,13 +1346,20 @@ prepare_transactional_source
 # ═══════════════════════ DRY-RUN(계획 미리보기) ═══════════════════════
 if [ "$MODE" = "dryrun" ]; then
     echo "[sync] DRY-RUN  $SRC → $SUB_HOST:$DEST"
-    echo "  서브 git: $([ $HAS_GIT = 1 ] && echo '존재(증분 싱크)' || echo '부재 → B0 멱등 self-bootstrap(git init + multi·single 브랜치 + 초기 커밋)')"
+    echo "  서브 git: $([ $HAS_GIT = 1 ] && echo '존재(증분 싱크)' \
+        || echo "부재 → B0 멱등 self-bootstrap(git init + multi·single 브랜치 + 초기 커밋$([ -n "$BOOTSTRAP_POPULATE" ] && echo ' + multi 초기 배달' || echo '; multi 는 base 로 남김'))")"
     echo "  타겟 브랜치: ${TARGETS[*]}   single 확장: $([ $SINGLE_ACTIVE = 1 ] \
         && echo "활성(delivery_plane=active · source=${SINGLE_PLANE_SOURCE})" \
         || echo "dormant(delivery_plane=dormant · source=${SINGLE_PLANE_SOURCE} → 빌드킷 배달 skip)")"
     if [ $HAS_GIT = 1 ]; then
         for t in "${TARGETS[@]}"; do
-            if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then echo "  --- [single] dormant → skip ---"; continue; fi
+            # dry-run 은 HITL 미리보기다 — apply 가 실제로 할 일과 어긋나면 사람이 잘못된 판단을 한다.
+            #   (2026-09-03 평면 분리: 빌드킷만 skip, 에이전트 환경 오버레이는 배달된다.)
+            _dry_skip_buildkit=0
+            if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then
+                _dry_skip_buildkit=1
+                echo "  --- [single] 빌드킷 평면 dormant → build/source-port skip · **오버레이는 배달** ---"
+            fi
             echo "  --- [$t] dirty 체크(fail-closed) → checkout → render → band단언 → rsync(빌드+오버레이) → [sync] 커밋 ---"
             render_topology "$t"
             # 2026-08-13: parity 는 apply 경로(preflight_topology)에만 있었다 — dry-run 이 **HITL 미리보기**인데
@@ -1324,17 +1373,35 @@ if [ "$MODE" = "dryrun" ]; then
             else
                 echo "    ⚠ A2A-위임 게이트: nodes[sub].hw_verified≠true → --apply 시 빌드 전파 거부(terraforming --peer-ssh 동질성 검증 먼저)"
             fi
-            preview_build "$t"
-            preview_source_port_payload "$t"
+            if [ "$_dry_skip_buildkit" != "1" ]; then
+                preview_build "$t"
+                preview_source_port_payload "$t"
+            fi
             echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | head -40 || true
         done
-    else
+    elif [ -n "$BOOTSTRAP_POPULATE" ]; then
         echo "  --- B0 bootstrap 미리보기(multi 초기 Band2 배달) ---"
         render_topology multi
         assert_band_classification multi || echo "  ⚠ S4 미분류(multi, 위 FAIL) — --apply 시 거부."
         assert_source_runner_modes multi || echo "  ⚠ runner source integrity 오류(multi) — --apply 시 remote mutation 전에 거부."
         preview_build multi
         preview_source_port_payload multi
+    else
+        echo "  --- B0 bootstrap 미리보기(base 만: git init + .gitignore + multi/single 브랜치) ---"
+        echo "      multi 는 채우지 않는다 — 타겟이 아니며, 싱글 서브는 자기 빌드킷을 자율 저작한다(불변식 A)."
+        for t in "${TARGETS[@]}"; do
+            echo "  --- [$t] 부트스트랩 직후 배달 미리보기 ---"
+            render_topology "$t"
+            assert_band_classification "$t" || echo "  ⚠ S4 미분류($t) — --apply 시 거부."
+            assert_source_runner_modes "$t" || echo "  ⚠ runner source integrity 오류($t) — --apply 시 거부."
+            if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then
+                echo "    빌드킷 평면 dormant → build/source-port skip · **에이전트 환경 오버레이만 배달**"
+            else
+                preview_build "$t"
+                preview_source_port_payload "$t"
+            fi
+            echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | head -40 || true
+        done
     fi
     echo "[sync] (위는 미리보기 — 변경 없음. 사람 확인 후 --apply. 첫 init 도 --apply 게이트.)"
     exit 0
@@ -1345,9 +1412,11 @@ fi
 # filesystem/ref/working-tree mutation. Bootstrap always creates multi, even when only single
 # was requested. Dormant single remains skipped.
 PRECHECK_TARGETS=()
-[ $HAS_GIT = 0 ] && PRECHECK_TARGETS+=(multi)
+[ -n "$BOOTSTRAP_POPULATE" ] && PRECHECK_TARGETS+=("$BOOTSTRAP_POPULATE")
 for t in "${TARGETS[@]}"; do
-    if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then continue; fi
+    # 2026-09-03(P3): dormant 라도 **오버레이는 배달**하므로 렌더/소스검사를 건너뛰면 안 된다.
+    #   이전에는 여기서 continue 해 스테이징 자체가 만들어지지 않았고, B0 가 `.gitignore` 를
+    #   rsync 하려다 "change_dir … sub_provision failed" 로 죽었다(원인이 전혀 드러나지 않는 형태).
     seen=0
     for p in "${PRECHECK_TARGETS[@]:-}"; do [ "$p" = "$t" ] && seen=1; done
     [ $seen = 1 ] || PRECHECK_TARGETS+=("$t")
@@ -1360,6 +1429,24 @@ for t in "${PRECHECK_TARGETS[@]}"; do
     }
 done
 
+# ── 쓰기 권한 프리플라이트 (2026-09-03 신설 · plan_26090317 P3 실화) ──────────────────
+# 서브 work_dir 이 **존재하지만 우리 계정이 쓸 수 없는** 상태가 실제로 발생한다: 사용자가 프로젝트
+# 경로를 완전삭제하면 root 로 도는 블랙박스 데몬이 다음 폴에서 그 경로를 **root:root 로 재생성**한다.
+# 그 상태에서 배달을 시작하면 rsync 가 중간에 죽고, 롤백의 `rm` 마저 Permission denied 로 실패해
+# **CRITICAL + 반쯤 갈린 서브**로 끝난다(2026-09-03 실측). 원인은 소유권인데 증상은 rsync 오류라
+# 사람이 원인에 도달하지 못한다. 그러므로 **아무것도 건드리기 전에** 여기서 확인하고 처방을 말한다.
+if $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
+    if ! $SSH_OPTS "$SUB_HOST" "[ -w '$SUB_WORK_DIR' ]" 2>/dev/null; then
+        _owner="$($SSH_OPTS "$SUB_HOST" "stat -c '%U:%G %a' '$SUB_WORK_DIR'" 2>/dev/null || echo '판독불가')"
+        echo "[sync] STOP: 서브 작업경로에 쓸 수 없다 — $SUB_HOST:$SUB_WORK_DIR (소유 $_owner)" >&2
+        echo "       원인 후보: 프로젝트 경로 완전삭제 후 root 로 도는 노드블랙박스 데몬이 경로를 재생성했다." >&2
+        echo "       처방(서브에서 사람이 1회 · sudo):" >&2
+        echo "         sudo chown -R \$(id -un):\$(id -gn) '$SUB_WORK_DIR'" >&2
+        echo "       근본 교정은 최신 install_node_blackbox.sh 재설치다 — 조상 소유권을 위임 사용자로 정렬한다." >&2
+        exit 6
+    fi
+fi
+
 # R2 HITL 게이트: 서브 work_dir 부재 시 자동신설 금지(--provision 필요).
 if ! $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
     if [ "$PROVISION" != "1" ]; then
@@ -1369,7 +1456,7 @@ if ! $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
         echo "       (work-manifest 만드는 법 = terraforming_node SKILL.md §2.3 '인가 체인')" >&2
         exit 5
     fi
-    begin_remote_transaction multi 1 || { echo "[sync] FAIL: provision 전 rollback transaction 생성 실패"; exit 9; }
+    begin_remote_transaction "${BOOTSTRAP_POPULATE:-${TARGETS[0]}}" 1 || { echo "[sync] FAIL: provision 전 rollback transaction 생성 실패"; exit 9; }
     BOOTSTRAP_TX_PREPARED=1
     sub_run_mk() { $SSH_OPTS "$SUB_HOST" "mkdir -p -- '$SUB_WORK_DIR' && : >'${REMOTE_TX_DIRS[0]}/provisioned'"; }
     echo "[sync] PROVISION(승인됨): mkdir -p $SUB_HOST:$SUB_WORK_DIR"; sub_run_mk || { echo "[sync] FAIL: work_dir 신설 실패"; exit 5; }
@@ -1379,8 +1466,9 @@ fi
 # ── B0 멱등 self-bootstrap (서브 .git 부재 시) ──
 if [ $HAS_GIT = 0 ]; then
     echo "[sync] B0 BOOTSTRAP — 서브 git init + multi·single 브랜치 (로컬 전용·origin 없음)"
-    st="$(staging_dir multi)"
-    [ "$BOOTSTRAP_TX_PREPARED" = "1" ] || begin_remote_transaction multi 1 \
+    _bs_t="${BOOTSTRAP_POPULATE:-${TARGETS[0]}}"
+    st="$(staging_dir "$_bs_t")"
+    [ "$BOOTSTRAP_TX_PREPARED" = "1" ] || begin_remote_transaction "$_bs_t" 1 \
         || { echo "[sync] FAIL: bootstrap rollback transaction 생성 실패"; exit 9; }
     # Complete multi source preflight already passed before optional provision and this branch.
     # base = .gitignore 만(서브 로컬 추적규칙). 이후 multi 에만 전체 배달 → single 은 base(dormant) 로 격리.
@@ -1390,26 +1478,36 @@ if [ $HAS_GIT = 0 ]; then
     sub_commit "[sync] bootstrap base (.gitignore) — D12 서브 로컬 git"
     sub_run "git branch -m multi"     # 기본 브랜치명 → multi
     sub_run "git branch single"       # single = base(.gitignore) — dormant
-    sub_run "git checkout -q multi"
-    # multi 초기 Band2 배달.  Source gates above already passed before remote mutation.
-    deliver_build multi 0
-    deliver_source_port_payload multi || { echo "[sync] FAIL: bootstrap source-port payload 배달 실패 — commit 전 중단"; exit 2; }
-    deliver_overlay multi 0
-    echo "[sync] 체크섬 검증(multi)..."; verify_checksums multi || { echo "[sync] FAIL: bootstrap 체크섬 불일치 — commit 전 중단"; exit 2; }
-    verify_source_port_payload multi || { echo "[sync] FAIL: bootstrap source-port 무결성 불일치 — commit 전 중단"; exit 2; }
-    verify_destination_runner_modes multi || { echo "[sync] FAIL: bootstrap runner destination integrity 불일치 — commit 전 중단"; exit 2; }
-    verify_destination_host_safety_modes || { echo "[sync] FAIL: bootstrap host-safety mode 불일치 — tombstone 전 중단"; exit 2; }
-    verify_destination_retirement_consumers || { echo "[sync] FAIL: bootstrap retirement consumer 존재 — tombstone 전 중단"; exit 2; }
-    apply_overlay_tombstones
-    sub_run "git add -A"
-    sub_commit "[sync] multi initial delivery — D12 bootstrap"
+    if [ -n "$BOOTSTRAP_POPULATE" ]; then
+        sub_run "git checkout -q multi"
+        # multi 초기 Band2 배달.  Source gates above already passed before remote mutation.
+        deliver_build multi 0
+        deliver_source_port_payload multi || { echo "[sync] FAIL: bootstrap source-port payload 배달 실패 — commit 전 중단"; exit 2; }
+        deliver_overlay multi 0
+        echo "[sync] 체크섬 검증(multi)..."; verify_checksums multi || { echo "[sync] FAIL: bootstrap 체크섬 불일치 — commit 전 중단"; exit 2; }
+        verify_source_port_payload multi || { echo "[sync] FAIL: bootstrap source-port 무결성 불일치 — commit 전 중단"; exit 2; }
+        verify_destination_runner_modes multi || { echo "[sync] FAIL: bootstrap runner destination integrity 불일치 — commit 전 중단"; exit 2; }
+        verify_destination_host_safety_modes || { echo "[sync] FAIL: bootstrap host-safety mode 불일치 — tombstone 전 중단"; exit 2; }
+        verify_destination_retirement_consumers || { echo "[sync] FAIL: bootstrap retirement consumer 존재 — tombstone 전 중단"; exit 2; }
+        apply_overlay_tombstones
+        sub_run "git add -A"
+        sub_commit "[sync] multi initial delivery — D12 bootstrap"
+    else
+        # 타겟에 multi 가 없다 = 싱글 온보딩. 브랜치 골격만 만들고 배달은 아래 B1 이 한다.
+        #   multi 를 비워 두는 것은 결손이 아니라 **판정 결과**다(빌드킷 배달 평면 dormant).
+        sub_run "git checkout -q single"
+        echo "[sync] B0: multi 는 base 로 남긴다(타겟 아님 — 싱글 서브는 자기 빌드킷을 자율 저작한다)."
+    fi
     # origin 부재 불변식 확증
     REMOTES="$(sub_run 'git remote')" \
         || { echo "[sync] FAIL(F9): 서브 origin 판독 실패 — 로컬 전용(D12)을 확증할 수 없으므로 거부." >&2; exit 7; }
     [ -z "$REMOTES" ] && echo "[sync] ✅ origin 0 (로컬 전용 확증)" || { echo "[sync] FAIL: 서브에 원격 존재($REMOTES) — D12 위반"; exit 7; }
     echo "[sync] B0 완료 — multi=populated, single=base(dormant). 브랜치: $(sub_run 'git branch | tr -d "\n"')"
     # bootstrap 이 multi 를 이미 채움 → TARGETS 에서 multi 제거. 남은 타겟(single, --branch both/single)이 있으면 B1 로 진행.
-    NEWT=(); for x in "${TARGETS[@]}"; do [ "$x" = "multi" ] || NEWT+=("$x"); done
+    NEWT=(); for x in "${TARGETS[@]}"; do
+        if [ -n "$BOOTSTRAP_POPULATE" ] && [ "$x" = "multi" ]; then continue; fi
+        NEWT+=("$x")
+    done
     TARGETS=("${NEWT[@]:-}"); [ -z "${TARGETS[*]:-}" ] && TARGETS=()
     [ ${#TARGETS[@]} -eq 0 ] && { finalize_remote_transactions; echo "[sync] 완료."; exit 0; }
     echo "[sync] bootstrap 후 잔여 타겟 B1 진행: ${TARGETS[*]}"
@@ -1417,10 +1515,20 @@ fi
 
 # ── B1 per-branch 증분 싱크 ──
 for t in "${TARGETS[@]}"; do
+    # 2026-09-03(P2/P3 · plan_26090317): 여기서 `continue` 로 **타겟 전체**를 건너뛰었다. 그런데
+    #   `delivery_plane` 이 판정하는 것은 이름 그대로 **빌드킷 배달 평면**이고(계약 docstring:
+    #   "빌드킷 배달(rsync) 평면"), 서브의 **에이전트 환경 오버레이**(CLAUDE.md·Agent_Card·
+    #   settings·comms·런타임 스킬)는 다른 평면이다 — 그것이 곧 헌법이 말하는 "A2A 에이전트 제어
+    #   확장기능" 자체다. 두 평면을 한 스위치로 묶어 놓아, 싱글 서브는 **자기 정체성조차 배달받지
+    #   못했다**(그 상태에서 A2A 위임은 성립하지 않는다). 평면을 가른다:
+    #     · 빌드킷(deliver_build·source-port) → dormant 면 skip. 싱글 서브는 자율 저작한다.
+    #     · 에이전트 환경(deliver_overlay)     → 배달한다. 그것이 확장기능의 내용이다.
+    SKIP_BUILDKIT=0
     if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then
-        echo "[sync] [single] DORMANT — delivery_plane=dormant (source=${SINGLE_PLANE_SOURCE}). 배달 skip(브랜치는 base 유지)."
+        SKIP_BUILDKIT=1
+        echo "[sync] [single] 빌드킷 평면 DORMANT — delivery_plane=dormant (source=${SINGLE_PLANE_SOURCE})."
         echo "           싱글의 sub 는 A2A 원격 에이전트다 — 자기 빌드킷을 자율 저작한다(헌법 §불변식 A)."
-        continue
+        echo "           단 **에이전트 환경 오버레이는 배달한다** — 정체성·런타임 스킬이 곧 그 확장기능이다."
     fi
     echo "[sync] [$t] 증분 싱크 시작"
     # (1) dirty 체크 → 덮어쓰기 前 보존 (policy:SUB_SYNC_DIRTY_AUTOSAVE · plan_26081313)
@@ -1450,13 +1558,19 @@ for t in "${TARGETS[@]}"; do
     sub_run "git checkout -q $t" || { echo "[sync] FAIL: 서브 checkout $t 실패"; exit 8; }
     # (3) rsync(빌드 + 오버레이) — render/band/runner/delegation/runtime-patch
     # source checks all passed before checkout; deliver_build repeats patch validation.
-    deliver_build "$t" 0
-    # 파생 payload 는 rsync 뒤에 온다 — 판정 권위인 PROVENANCE.json 이 먼저 서브에 있어야 한다.
-    deliver_source_port_payload "$t" || { echo "[sync] FAIL: source-port payload 배달 실패($t)"; exit 2; }
+    if [ "$SKIP_BUILDKIT" = "1" ]; then
+        echo "[sync] [$t] 빌드킷·source-port 배달 skip(평면 dormant) — 오버레이만 진행."
+    else
+        deliver_build "$t" 0
+        # 파생 payload 는 rsync 뒤에 온다 — 판정 권위인 PROVENANCE.json 이 먼저 서브에 있어야 한다.
+        deliver_source_port_payload "$t" || { echo "[sync] FAIL: source-port payload 배달 실패($t)"; exit 2; }
+    fi
     deliver_overlay "$t" 0
     echo "[sync] 체크섬 검증($t)..."; verify_checksums "$t" || { echo "[sync] FAIL: 체크섬 불일치($t)"; exit 2; }
-    verify_source_port_payload "$t" || { echo "[sync] FAIL: source-port 무결성 불일치($t)"; exit 2; }
-    verify_destination_runner_modes "$t" || { echo "[sync] FAIL: runner destination mode 불일치($t)"; exit 2; }
+    if [ "$SKIP_BUILDKIT" != "1" ]; then
+        verify_source_port_payload "$t" || { echo "[sync] FAIL: source-port 무결성 불일치($t)"; exit 2; }
+        verify_destination_runner_modes "$t" || { echo "[sync] FAIL: runner destination mode 불일치($t)"; exit 2; }
+    fi
     verify_destination_host_safety_modes || { echo "[sync] FAIL: host-safety mode 불일치($t) — tombstone 전 중단"; exit 2; }
     verify_destination_retirement_consumers || { echo "[sync] FAIL: retirement consumer 존재($t) — tombstone 전 중단"; exit 2; }
     apply_overlay_tombstones

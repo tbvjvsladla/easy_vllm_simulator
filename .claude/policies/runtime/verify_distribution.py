@@ -337,7 +337,8 @@ def verify() -> dict:
                                     ('begin_remote_transaction "$t" 0', 'git checkout -q $t')),
             _ordered_between_detail(sub_text, 'PROVISION" != "1"',
                                     "if [ $HAS_GIT = 0 ]; then",
-                                    ("begin_remote_transaction multi 1", "sub_run_mk")),
+                                    ('begin_remote_transaction "${BOOTSTRAP_POPULATE:-${TARGETS[0]}}" 1',
+                                     "sub_run_mk")),
         ]
         checks += [
             {"name": "sub_exact_relocation_tombstones", "ok": sub_actual == SUB_TOMBSTONES,
@@ -398,7 +399,9 @@ def verify() -> dict:
              "details": _active_retirement_consumers()},
             {"name": "sub_invocation_rollback_transaction",
              "ok": all(token in sub_text for token in (
-                 "begin_remote_transaction multi 1", 'begin_remote_transaction "$t" 0',
+                 # 2026-09-03(P3): 부트스트랩이 채우는 토폴로지가 타겟에 따라 갈리므로 리터럴
+                 #   "multi" 가 아니다. 불변인 것은 **트랜잭션이 먼저 열린다**는 사실이다.
+                 "begin_remote_transaction \"$_bs_t\" 1", 'begin_remote_transaction "$t" 0',
                  "rollback_remote_transactions", "finalize_remote_transactions",
                  "workdir-absent", "workdir-backup",
                  "trap 'transactional_exit $?' EXIT", "rollback failed; recovery backups retained",

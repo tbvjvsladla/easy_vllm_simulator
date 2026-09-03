@@ -1966,7 +1966,7 @@ def predicate_SUB_SYNC_DIRTY_AUTOSAVE_C3():
     2026-08-13 correction was only the consent demand, which addressed a subject that does not
     exist on the main<->sub plane."""
     src = _sync_to_sub_src()
-    loop = src[src.index('for t in "${TARGETS[@]}"; do\n    if [ "$t" = "single"'):]
+    loop = src[src.index("# ── B1 per-branch 증분 싱크 ──"):]
     dirt_idx = loop.index('DIRT="$(sub_dirty)"')
     if_idx = loop.index('if [ -n "$DIRT" ]; then', dirt_idx)
     stage_idx = loop.index('sub_run "git add -A"', if_idx)
@@ -2009,7 +2009,7 @@ def predicate_SUB_SYNC_DIRTY_AUTOSAVE_C4():
     it. Delivering without preservation is the sole real loss risk, so that -- not the absence of
     the sub's consent -- is what fail-closed must guard."""
     src = _sync_to_sub_src()
-    loop = src[src.index("for t in \"${TARGETS[@]}\"; do\n    if [ \"$t\" = \"single\""):]
+    loop = src[src.index("# ── B1 per-branch 증분 싱크 ──"):]
     if_idx = loop.index('if [ -n "$DIRT" ]; then')
     checkout_idx = loop.index('sub_run "git checkout -q $t"', if_idx)
     dirty_branch = loop[if_idx:checkout_idx]

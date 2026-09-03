@@ -599,6 +599,90 @@ def _request(transport: str = "local") -> dict:
     }
 
 
+def _test_execution_approval_authorization() -> None:
+    """`authorize --action sync_to_sub --mode experimental` 의 **양방향**을 실제로 실행한다.
+
+    2026-09-03(plan_26090317 P3): 이 경로는 `plan_bytes` 미정의로 **NameError 를 내며 한 번도
+    성공한 적이 없었다** — 그런데 어떤 검사도 그것을 실행하지 않아 3주 넘게 아무도 몰랐다.
+    "안내 문구가 틀렸다"(B0)의 아래층에 "고쳐도 그 다음 줄에서 죽는다" 가 있었던 셈이다.
+    앞으로는 정상 통과와 4종 거부를 **매번 실행해서** 확인한다(단언이 아니라 실행).
+    """
+    import hashlib
+    import shutil
+    import subprocess as _sp
+    gate = REPO_ROOT / ".claude/policies/runtime/completion_gate.py"
+    approved_by, approved_at = "selftest", "2026-01-01T00:00:00Z"
+    atoms = [f"approved_by: {approved_by}", f"approved_at_utc: {approved_at}",
+             "allowed_action: sync_to_sub"]
+    plan_body = ("# selftest plan\n\n## Execution approval\n\n" + "\n".join(atoms) + "\n")
+
+    with tempfile.TemporaryDirectory() as td:
+        repo = Path(td) / "repo"
+        (repo / "docs" / "plan").mkdir(parents=True)
+        (repo / "docs" / "_evidence").mkdir(parents=True)
+        # 게이트는 repo_root 안의 실재 파일만 받아들이므로 최소 저장소를 만든다.
+        shutil.copy2(gate, repo / "gate.py")
+        for extra in ("policy_registry.py",):
+            src = REPO_ROOT / ".claude/policies/runtime" / extra
+            if src.exists():
+                shutil.copy2(src, repo / extra)
+        plan_path = repo / "docs/plan/p.md"
+        plan_path.write_text(plan_body, encoding="utf-8")
+        sha = hashlib.sha256(plan_path.read_bytes()).hexdigest()
+        rel = "../plan/p.md"
+
+        def _manifest(**over):
+            ea = {"approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
+                  "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
+                  "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]}
+            ea.update(over)
+            # evidence.plan.path 는 plan_path 를 따라간다 — 어긋나면 **앵커 검사 이전에** 경로
+            #   불일치로 걸려, 이 시험이 겨냥한 가드가 아닌 다른 가드를 확인하게 된다.
+            return {"schema_version": 1, "task_class": "harness_change",
+                    "identity": {"model": "m", "gpu": "g", "vllm": "v", "quant": None,
+                                 "topology": "single", "tp": 1},
+                    "evidence": {"plan": {"path": ea["plan_path"]}},
+                    "pii_scan": {"passed": True}, "execution_approval": ea}
+
+        def _run(man, name):
+            mp = repo / "docs/_evidence" / f"{name}.json"
+            mp.write_text(json.dumps(man, ensure_ascii=False), encoding="utf-8")
+            out = _sp.run([sys.executable, str(gate), "authorize", "--action", "sync_to_sub",
+                           "--mode", "experimental", "--manifest", str(mp),
+                           "--repo-root", str(repo)], capture_output=True, text=True)
+            _require(out.stdout.strip(), f"authorize produced no JSON for {name}: {out.stderr[-400:]}")
+            return json.loads(out.stdout)
+
+        ok = _run(_manifest(), "ok")
+        _require(ok.get("allowed") is True and ok.get("authorization_state") == "execution-approved",
+                 f"a genuine execution approval must be admitted, got {ok.get('reason_codes')}")
+
+        bad_sha = _run(_manifest(plan_sha256="0" * 64), "bad_sha")
+        _require(bad_sha.get("allowed") is False
+                 and "EXECUTION_APPROVAL_PLAN_DIGEST_MISMATCH" in bad_sha.get("reason_codes", []),
+                 f"a plan whose bytes changed after approval must be rejected: {bad_sha}")
+
+        not_approved = _run(_manifest(approved=False), "not_approved")
+        _require(not_approved.get("allowed") is False
+                 and "EXECUTION_APPROVAL_NOT_APPROVED" in not_approved.get("reason_codes", []),
+                 f"approved=false must be rejected: {not_approved}")
+
+        wrong_action = _run(_manifest(allowed_actions=["hint_create"],
+                                      approval_atoms=atoms[:2] + ["allowed_action: hint_create"]),
+                            "wrong_action")
+        _require(wrong_action.get("allowed") is False,
+                 f"an approval for a different action must not open sync_to_sub: {wrong_action}")
+
+        no_anchor_plan = repo / "docs/plan/q.md"
+        no_anchor_plan.write_text("# no anchor here\n", encoding="utf-8")
+        no_anchor = _run(_manifest(plan_path="../plan/q.md",
+                                   plan_sha256=hashlib.sha256(no_anchor_plan.read_bytes()).hexdigest()),
+                         "no_anchor")
+        _require(no_anchor.get("allowed") is False
+                 and "EXECUTION_APPROVAL_PLAN_ATOMS_MISSING" in no_anchor.get("reason_codes", []),
+                 f"a plan without the anchor/atoms must be rejected: {no_anchor}")
+
+
 def _test_agent_provider_boundary() -> None:
     request_schema = agent_control._load_schema(agent_control.REQUEST_SCHEMA_PATH)
     result_schema = agent_control._load_schema(agent_control.RESULT_SCHEMA_PATH)
@@ -1009,6 +1093,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_promotion_rubric_carrier()
     _test_hint_binding_source()
     _test_policy_and_evidence_lifecycle()
+    _test_execution_approval_authorization()
     _test_agent_provider_boundary()
     # tripwire 3종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
     # 늦는다(선례 3건). 전체 실행에서도 반드시 검사한다.

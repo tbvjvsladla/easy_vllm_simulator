@@ -1349,6 +1349,15 @@ def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, rep
         add_reason("EXECUTION_APPROVAL_ATOMS_INVALID",
                    "approval_atoms must exactly equal the deterministic atoms derived from approver, time, and actions")
         fail(2)
+    # 2026-09-03(plan_26090317 P3): `plan_bytes` 가 어디에도 정의돼 있지 않아 이 줄이 NameError 로
+    #   죽었다 — 즉 **execution_approval 인가 경로는 한 번도 성공한 적이 없다**(B0 가 "안내대로 하면
+    #   거부된다" 로 관측한 것의 더 깊은 층: 안내를 고쳐도 그 다음 줄에서 죽었다). resolver 가
+    #   capture_content=True 로 이미 읽어 둔 바이트를 쓴다.
+    plan_bytes = r.get("content_bytes")
+    if not isinstance(plan_bytes, (bytes, bytearray)):
+        add_reason("EXECUTION_APPROVAL_PLAN_PATH_UNREADABLE",
+                   "resolved plan produced no content bytes to verify the approval anchor against")
+        fail(2)
     try:
         plan_lines = plan_bytes.decode("utf-8").splitlines()
     except UnicodeDecodeError:

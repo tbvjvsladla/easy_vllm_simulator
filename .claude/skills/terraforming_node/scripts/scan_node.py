@@ -112,6 +112,17 @@ def scan_roce_v2_gids() -> list[dict]:
     return rows
 
 
+def _read_iface_mtu(iface):
+    """/sys/class/net/<iface>/mtu 실측. 못 읽으면 None — 9000 같은 값을 지어내지 않는다."""
+    if not iface:
+        return None
+    try:
+        with open(f"/sys/class/net/{iface}/mtu", encoding="utf-8") as f:
+            return int(f.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
 def detect_interconnect() -> dict:
     """환경정체성 interconnect 블록을 결정론적으로 산출."""
     hcas_all = scan_infiniband_hcas()
@@ -123,6 +134,7 @@ def detect_interconnect() -> dict:
             "hca_devices": [],
             "gid_index": None,
             "socket_iface": None,
+            "mtu": None,
             "bandwidth_gbps": None,
             "platform_preset": None,
             "_sysfs_hcas": hcas_all,
@@ -154,6 +166,10 @@ def detect_interconnect() -> dict:
         "gid_index": gid_idx,
         # bootstrap iface = 최저 IPv4(Domain 0) 의 iface → enp1s0f1np1 (compose 와 정합)
         "socket_iface": v2_sorted[0]["iface"],
+        # 2026-09-03(⑬ · plan_26090317 P3): mtu 를 산출하지 않아 emit 이 기존 manifest 의 실측값을
+        #   덮어 지웠고, 렌더러는 `INTERCONNECT_MTU` 를 9000 으로 **침묵 폴백**했다 — 9000 이 아닌
+        #   링크에서 조용히 틀린다. bootstrap iface 의 실측을 그대로 싣는다.
+        "mtu": _read_iface_mtu(v2_sorted[0]["iface"]),
         "bandwidth_gbps": None,  # ib_write_bw 측정 전까지 null
         "platform_preset": None,  # 사람/플랫폼 탐지가 채움(예: dgx-spark-gb10)
         "_sysfs_hcas": hcas_all,
@@ -1095,7 +1111,8 @@ def main() -> int:
                     help="선언 토폴로지(인터뷰 결정). auto=스캔으로 추정(보고만, 게이트는 single/multi 명시 시)")
     ap.add_argument("--peer-ip", help="multi: 서브노드 IP(도달성 체크). 예: 203.0.113.11")
     ap.add_argument("--peer-port", type=int, default=22, help="도달성 체크 포트(기본 22=SSH)")
-    ap.add_argument("--peer-ssh", help="multi: 서브 SSH 타겟(user@host) — 서브 HW 실측 + 메인↔서브 동질성 단언(D2/D3). "
+    ap.add_argument("--peer-ssh", help="서브 SSH 타겟(user@host) — 서브 HW 실측. "
+                    "multi 는 동질성 하드 단언(D2/D3), single 은 관측 단언(GPU≥1)으로 hw_verified 를 낸다. "
                                        "미지정 시 동질성 미검증 → nodes[sub].hw_verified 미발급 → 서브 위임 키 미발급(fail-closed).")
     ap.add_argument("--compose", default="output/multi/docker-compose.yaml",
                     help="교차검증할 docker-compose 경로")
@@ -1167,6 +1184,15 @@ def main() -> int:
         # ⑬: 이전에는 single 이 `nodes: []` 를 하드코딩해 등록된 main 항목을 지웠다.
         #    §2.7.0 은 single+sub(A2A) 조합을 명시적으로 허용하므로 통째로 비우면 안 된다.
         result["nodes"] = [_main_node]
+        # single 서브 등록: `--peer-ssh` 가 주어졌다는 것이 곧 "이 서브를 관측 대상으로 삼는다" 는
+        #   선언이다(무단 프로빙 금지 원칙상 이 플래그 없이는 서브를 만지지 않는다).
+        if args.peer_ssh:
+            _u, _, _h = args.peer_ssh.partition("@")
+            _sub = {"role": "sub", "host": args.peer_ip or _h or args.peer_ssh,
+                    "hostname": _h or None, "ssh_user": _u or None}
+            if args.sub_work_dir:
+                _sub["work_dir"] = args.sub_work_dir
+            result["nodes"].append(_sub)
     if args.peer_ip:
         result["peer_check"] = {"ip": args.peer_ip, "port": args.peer_port,
                                 "reachable": peer_reachable(args.peer_ip, args.peer_port)}
@@ -1187,11 +1213,21 @@ def main() -> int:
     # ── 외부 egress 스캔 (축 B — plan_26070809_46_57 §4.2, 인터커넥트 축 A 와 병렬·독립) ──
     egress_self = egress_peer = None
     model_env_result = None
+    # 모델 획득 축은 egress 스캔과 독립이다 — --check-egress 없이도 인터뷰 확정값은 emit 에 실린다.
+    if args.model_source:
+        result.setdefault("model_source", args.model_source)
+    try:
+        _nas = read_manifest_field(mani_path, "nas_model_path")
+    except ManifestUnreadable as exc:
+        _nas, manifest_read_error = None, str(exc)
+    if _nas:
+        result.setdefault("nas_model_path", _nas)
+
     if args.check_egress:
         es = scan_egress()
         egress_self = es["egress"]
         result["egress"] = {"self": es}
-        if args.peer_ssh and args.topology == "multi":
+        if args.peer_ssh and args.topology in ("single", "multi"):
             ep = collect_peer_egress(args.peer_ssh)
             egress_peer = ep["egress"]
             result["egress"]["peer"] = ep
@@ -1217,7 +1253,7 @@ def main() -> int:
             #   권위다. 이전에는 nas_reachable/hf_token_present 를 **메인 파일시스템**에서 판정하고 그 값을
             #   서브 판정에 썼다 — docstring 은 "서브 모델 NAS 경로 도달 불가" 라고 말하는데 서브를 보지
             #   않았다. 메인에만 NAS 가 있으면 게이트는 통과하고 **서빙에서** 죽는다(가장 비싼 자리).
-            if args.peer_ssh and args.topology == "multi":
+            if args.peer_ssh and args.topology in ("single", "multi"):
                 peer_env = collect_peer_model_env(args.peer_ssh, nas_path, hf_token_env_file)
                 result["model_env_peer"] = peer_env
                 if peer_env["probed"]:
@@ -1231,19 +1267,9 @@ def main() -> int:
             model_env_result = check_model_env(model_source, egress_for_model, nas_reachable, hf_token_present)
             model_env_result["nas_source"] = nas_source
             model_env_result["hf_token_source"] = token_source
-            model_env_result["egress_source"] = ("peer" if (args.peer_ssh and args.topology == "multi"
-                                                            and egress_peer) else "self")
+            model_env_result["egress_source"] = ("peer" if (args.peer_ssh and egress_peer) else "self")
             result["model_env"] = model_env_result
 
-    # 모델 획득 축은 egress 스캔과 독립이다 — --check-egress 없이도 인터뷰 확정값은 emit 에 실린다.
-    if args.model_source:
-        result.setdefault("model_source", args.model_source)
-    try:
-        _nas = read_manifest_field(mani_path, "nas_model_path")
-    except ManifestUnreadable as exc:
-        _nas, manifest_read_error = None, str(exc)
-    if _nas:
-        result.setdefault("nas_model_path", _nas)
 
     if manifest_read_error:
         print(f"[scan] FAIL(F10): manifest 가 존재하나 판독 불가 — {manifest_read_error}", file=sys.stderr)
@@ -1265,10 +1291,34 @@ def main() -> int:
 
     # ── 서브 HW 동질성 단언 (multi · --peer-ssh — plan_26063021_14_37 D2/D3) ──
     # 통과 시 nodes[role=sub].hw_verified 발급(서브 위임 키의 전제) · 하드 블록 시 게이트 blocked(fail-closed).
-    if args.peer_ssh and args.topology == "multi":
+    # 2026-09-03(P3 · plan_26090317): `--peer-ssh` 가 **multi 전용**이라 single+sub 조합
+    #   (§2.7.0 이 명시적으로 허용하는 A2A 에이전트 구성)은 `hw_verified` 를 얻을 경로가 아예
+    #   없었다 → A2A 위임 키 영구 미발급 → 서브가 영구 info-only. 게이트가 아니라 **배선 공백**이다.
+    #
+    #   두 토폴로지에서 이 단언의 **의미가 다르다**:
+    #     · multi  = 집단 연산(NCCL/Ray)이 ABI·GPU 동질성을 요구한다 → 불일치는 **하드 블록**.
+    #     · single = 집단 연산이 없다. 서브는 독립 서빙하는 A2A 에이전트이므로 동질성은 **정보**이고,
+    #                검증해야 할 것은 "메인이 이 서브를 실제로 관측했고 서빙 가능한 노드다" 이다.
+    #                따라서 술어 = 서브 HW 수집 성공 ∧ GPU ≥ 1. 불일치는 warns 로 남긴다(침묵 ✗).
+    if args.peer_ssh and args.topology in ("single", "multi"):
         local_hw = collect_local_hw()
         peer_hw = collect_peer_hw(args.peer_ssh)
         homo = assert_homogeneity(local_hw, peer_hw)
+        if args.topology == "single":
+            _peer_gpus = peer_hw.get("gpus_per_node")
+            _observed = bool(peer_hw) and isinstance(_peer_gpus, int) and _peer_gpus >= 1
+            homo = {
+                "verified": _observed,
+                "blocks": [] if _observed else
+                          ["서브 HW 수집 실패 또는 GPU 0 — 관측되지 않은 노드에 위임하지 않는다(fail-closed)"],
+                # 동질성 불일치는 single 에서 블록 사유가 아니다. 사라지게 두지도 않는다.
+                "warns": list(homo.get("warns") or []) + [
+                    "single 동질성 정보(블록 아님): " + b for b in (homo.get("blocks") or [])],
+                "detail": homo.get("detail") or {},
+                "verified_rule": "single:peer-observed(gpus>=1)",
+            }
+        else:
+            homo["verified_rule"] = "multi:homogeneity-hard"
         result["homogeneity"] = {"local": local_hw, "peer": peer_hw, **homo}
         if homo["blocks"]:
             result["gate"]["status"] = "blocked"
