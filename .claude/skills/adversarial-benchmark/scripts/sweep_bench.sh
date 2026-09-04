@@ -449,9 +449,38 @@ _quant, _quant_src, _quant_decl, _quant_mm = _measured_first(
     engine_cfg_val("quantization"), grep_yaml(cfgtext, "quantization"))
 _kvdt, _kvdt_src, _kvdt_decl, _kvdt_mm = _measured_first(
     engine_cfg_val("kv_cache_dtype"), grep_yaml(cfgtext, "kv-cache-dtype"))
-if _quant_mm.startswith("YES") or _kvdt_mm.startswith("YES"):   # 침묵 치환 금지 — 갈리면 시끄럽게
-    print("[sweep_bench] ⚠ 선언↔실측 불일치 — quantization:%s · kv_cache_dtype:%s"
-          % (_quant_mm, _kvdt_mm), file=sys.stderr)
+
+# ── 커널 백엔드 축: 요청과 **실효**가 갈릴 수 있다 (2026-09-04 · plan_26090419) ────────────────
+#   실측 계기: 트리플렛 러너가 `VLLM_ATTENTION_BACKEND=FLASHINFER` 를 export 하는데 엔진 로그는
+#   `Using TRITON_ATTN attention backend out of potential backends: ['TRITON_ATTN']` 이었다.
+#   후보 목록이 **한 개**라 요청이 조용히 무시된 것이다. 이 사실을 meta 가 싣지 않으면, 커널 축을
+#   도는 캠페인이 "FLASHINFER 로 34.5 t/s" 라는 **거짓 좌표**를 지도에 남긴다 — 이 오퍼레이션이
+#   막으려는 바로 그 오도(誤導)다.
+#   `VLLM_ATTENTION_BACKEND` 는 Band3 로컬 규약이 아니라 **vLLM 업스트림이 소유한 이름**이므로
+#   교차검증 대상으로 삼는다(envfile 의 QUANTIZATION 계열을 포기한 이유가 여기엔 해당하지 않는다).
+_shtext = read(os.path.join(os.path.dirname(os.environ["CFGYAML"]), "%s.sh" % cfg))
+_m = re.search(r"Using\s+(\S+)\s+attention backend", _elog)
+_attn_meas = _m.group(1) if _m else None
+_m = re.search(r"attention backend out of potential backends:\s*\[([^\]]*)\]", _elog)
+_attn_cands = ([c.strip().strip("'\"") for c in _m.group(1).split(",") if c.strip()] if _m else None)
+_m = re.search(r"^\s*export\s+VLLM_ATTENTION_BACKEND=(\S+)", _shtext, re.M)
+_attn_decl_raw = _m.group(1) if _m else None
+_attn, _attn_src, _attn_decl, _attn_mm = _measured_first(_attn_meas, _attn_decl_raw)
+
+# MoE 백엔드도 측정 우선으로 올린다 — 종전에는 config yaml 선언만 봐서 실측 인증서가 "N/A" 였다.
+_m = re.search(r"mxfp4\.py[^\]]*\]\s*Using\s+(\S+)\s+backend", _elog)
+_moe_meas = _m.group(1) if _m else None
+_moe, _moe_src, _moe_decl, _moe_mm = _measured_first(_moe_meas, grep_yaml(cfgtext, "moe-backend"))
+
+if any(x.startswith("YES") for x in (_quant_mm, _kvdt_mm, _attn_mm, _moe_mm)):
+    print("[sweep_bench] ⚠ 선언↔실측 불일치 — quantization:%s · kv_cache_dtype:%s · "
+          "attention_backend:%s · moe_backend:%s"
+          % (_quant_mm, _kvdt_mm, _attn_mm, _moe_mm), file=sys.stderr)
+# 후보가 한 개면 그 축은 **이 조합에서 선택지가 없다**. 실패가 아니라 축이 비어 있는 것이며,
+# 그 사실이 지도에 실려야 다음 캠페인이 같은 셀을 다시 돌지 않는다.
+if _attn_cands is not None and len(_attn_cands) <= 1:
+    print("[sweep_bench] ⓘ 어텐션 축 무선택 — 후보 %s (요청 %s 는 실효 없음)"
+          % (_attn_cands, _attn_decl_raw or "미선언"), file=sys.stderr)
 
 meta = {
     # 강한 일치 키
@@ -493,7 +522,16 @@ meta = {
     "kv_cache_dtype_declared": _kvdt_decl,
     "kv_cache_dtype_mismatch": _kvdt_mm,
     "gpu_memory_utilization": grep_yaml(cfgtext, "gpu-memory-utilization") or "NA",
-    "moe_backend": grep_yaml(cfgtext, "moe-backend") or "NA",
+    "moe_backend": _moe,
+    "moe_backend_source": _moe_src,
+    "moe_backend_declared": _moe_decl,
+    "moe_backend_mismatch": _moe_mm,
+    # 어텐션 축 — 값·출처·선언·불일치 + **후보 목록**. 후보가 1개면 그 축은 선택지가 없다.
+    "attention_backend": _attn,
+    "attention_backend_source": _attn_src,
+    "attention_backend_declared": _attn_decl,
+    "attention_backend_mismatch": _attn_mm,
+    "attention_backend_candidates": _attn_cands,
     "enforce_eager": grep_yaml(cfgtext, "enforce-eager") or "NA",
     "serving_model_name": grep_env(envtext, "SERVING_MODEL_NAME") or "NA",
     "model_path": grep_yaml(cfgtext, "model") or "NA",

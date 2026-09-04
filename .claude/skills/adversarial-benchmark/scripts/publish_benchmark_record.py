@@ -90,7 +90,12 @@ def build_yaml(index, verdict):
     #   못박아 두었다. 도구가 바뀌면 인증서가 무효가 되는 것이 아니라 **불일치가 보이는** 것이 옳다.
     for k in ("driver_version", "cuda_version", "image_tag", "image_digest", "max_model_len", "max_num_seqs",
               "kv_cache_memory_bytes", "kv_cache_dtype", "gpu_memory_utilization", "moe_backend",
-              "enforce_eager", "bench_tool", "bench_tool_version", "bench_tool_version_source"):
+              "enforce_eager", "bench_tool", "bench_tool_version", "bench_tool_version_source",
+              # 커널 축은 **실측**이 정본이다(2026-09-04). 요청과 실효가 갈릴 수 있고
+              # (`VLLM_ATTENTION_BACKEND=FLASHINFER` 인데 엔진은 TRITON_ATTN 을 썼다),
+              # 인증서가 요청값을 실었다면 그 인증서는 쓰지 않은 커널로 잰 것처럼 읽힌다.
+              "attention_backend", "attention_backend_source", "attention_backend_mismatch",
+              "moe_backend_source", "moe_backend_mismatch"):
         A("%s: %s" % (k, scalar(meta.get(k))))
     A("ngc_base_tag: %s" % scalar(meta.get("ngc_base_tag")))  # 현재 resolved.json 부재 시 N/A(fail-soft)
     A("")
