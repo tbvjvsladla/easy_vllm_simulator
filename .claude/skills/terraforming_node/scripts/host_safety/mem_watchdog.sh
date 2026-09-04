@@ -6,7 +6,8 @@
 #   (Ray master 는 그 워커 actor-unavailable 로 깨끗이 종료 → 호스트 보존.)
 # 사용: mem_watchdog.sh [name_filter|@vllm] [threshold_mib] [interval_sec]
 #   name_filter : docker ps --filter name=<filter> 부분일치(예: slave / master / vllm_trial)
-#   생략 또는 '@vllm' = 광역 모드 — 이미지/이름에 vllm 이 포함된 전 컨테이너(trial 포함).
+#   생략 또는 '@vllm' = 광역 모드 — **이미지 저장소 이름** 또는 컨테이너 이름에 vllm 이 포함된
+#     전 컨테이너(trial 포함). 레지스트리·조직 경로는 매칭 평면 밖이다(BB_TARGET_PREDICATE_V1).
 #     (systemd 상시 인스턴스용 — δ2-1 사고에서 name_filter 가 vllm_trial01 을 미커버한 갭의 교정.)
 # env: MEMWATCH_HEARTBEAT_SEC(기본 15, 0=끔 — MemAvailable 시계열 1줄/주기 + 직전주기 MIN 병기, 트립
 #      전조 사후분석용. 60→15 하향 근거: 2026-07-11 768k 크래시서 60s HB 가 임계-하 최종접근을 가림
@@ -30,15 +31,49 @@ INTERVAL="${3:-1}"
 HB_SEC="${MEMWATCH_HEARTBEAT_SEC:-15}"
 [ -n "${MEMWATCH_PIDFILE:-}" ] && echo "$$" > "$MEMWATCH_PIDFILE"
 ts(){ date -u +%FT%TZ; }
+# ── BB_TARGET_PREDICATE_V1 ────────────────────────────────────────────────
+# 킬 대상 술어. **세 워치독(node_blackbox/mem_watchdog_eta · host_safety/mem_watchdog ·
+# node_blackbox/thermal_watchdog)이 이 블록을 글자 그대로 공유**한다. 갈라지면
+# runtime_selftest 의 parity tripwire 가 잡는다(정적 파일끼리는 한쪽이 다른 쪽을 생성할 수
+# 없으므로 단일 소유가 불가능하다 — 차선은 교차검증이다: workflow.md §결정론 규율).
+# sourcing 하지 않는 이유: 설치기가 이 파일들을 **확장자 없는 단독 바이너리**로 복사하므로
+# sibling 경로가 현장에서 사라진다(2026-09-01 블랙박스 sibling import 파손 선례).
+#
+# ★ 2026-09-04(CP0 · plan_26090415 §3.3). 종전 술어는 `{{.ID}} {{.Image}} {{.Names}}` **한 줄
+#   전체**를 `/vllm/` 로 훑었다. 그래서 이미지 경로의 **레지스트리·조직 세그먼트**까지 매칭
+#   대상이 됐고, 전용 벤치툴 공식 이미지 `ghcr.io/vllm-project/guidellm` 이 조직명
+#   `vllm-project` 때문에 걸렸다. 트립하면 `docker kill $ids` 가 매칭 전부를 한 번에 죽이므로
+#   **서빙 컨테이너와 측정 컨테이너가 동반 사살**된다 — 안전장치가 측정을 공격하는 형태이며,
+#   이름 우연 일치이지 설계된 동작이 아니다.
+#   교정은 이름 목록이 아니라 **원인**을 친다: 이미지에서 레지스트리·조직 경로를 벗기고
+#   **저장소 이름**만 본다(조직명이 매칭 평면에서 사라진다). 커버리지는 보존된다 —
+#     easy-vllm:<tag>                      → easy-vllm:<tag>     매칭 ○ (로컬 빌드 서빙 이미지)
+#     vllm/vllm-openai:latest              → vllm-openai:latest  매칭 ○ (업스트림 서버)
+#     ghcr.io/vllm-project/guidellm:latest → guidellm:latest     매칭 ✗ (측정 도구)
+#   이름 필드 매칭은 그대로 둔다(vllm_trial01 등). **이미지 매칭이 살아 있어야** 이름에 vllm 이
+#   없는 서빙 컨테이너(mn-hy3-master·mn-exaone45-33b-master 실측 반례)를 계속 잡는다
+#   — verify_node_blackbox.sh B11 이 그 반례로 이름-단독 술어를 이미 기각했다.
+bb_target_match(){   # $1=ID $2=IMAGE $3=NAMES → rc 0=킬 대상 · 1=제외
+  local _repo _name
+  _repo="$(printf '%s' "${2##*/}" | tr 'A-Z' 'a-z')"
+  _name="$(printf '%s' "${3:-}"   | tr 'A-Z' 'a-z')"
+  case "$_repo" in *vllm*) return 0 ;; esac
+  case "$_name" in *vllm*) return 0 ;; esac
+  return 1
+}
 targets(){
   if [ "$FILTER" = "@vllm" ]; then
-    # 광역: 이미지명 또는 컨테이너명에 vllm 포함(easy-vllm*·multi-vllm·vllm_trial·mn-* serve 등)
-    docker ps --filter status=running --format '{{.ID}} {{.Image}} {{.Names}}' 2>/dev/null \
-      | awk 'tolower($0) ~ /vllm/ {print $1}'
+    local _id _img _names
+    while IFS='|' read -r _id _img _names; do
+      [ -n "$_id" ] || continue
+      bb_target_match "$_id" "$_img" "$_names" && printf '%s\n' "$_id"
+    done < <(docker ps --filter status=running \
+               --format '{{.ID}}|{{.Image}}|{{.Names}}' 2>/dev/null)
   else
     docker ps --filter "name=$FILTER" --filter status=running -q
   fi
 }
+# ── /BB_TARGET_PREDICATE_V1 ───────────────────────────────────────────────
 # ★ 정지 기록 (2026-09-01 · audit ㉛). start 만 있고 stop 이 없으면 저널에서
 #   "돌고 있다"와 "사라졌다"가 구분되지 않는다.
 trap '_rc=$?; echo "[mem-watchdog] stop rc=$_rc signal=${_mw_sig:-EXIT} $(ts)"; exit $_rc' EXIT

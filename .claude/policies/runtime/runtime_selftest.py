@@ -1337,6 +1337,82 @@ def _test_tripwire_executor_wiring(root: Path | None = None) -> list[str]:
     return warnings
 
 
+_WATCHDOG_PREDICATE_FILES = (
+    ".claude/skills/terraforming_node/scripts/node_blackbox/mem_watchdog_eta.sh",
+    ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
+    ".claude/skills/terraforming_node/scripts/node_blackbox/thermal_watchdog.sh",
+)
+_WATCHDOG_PREDICATE_BLOCKS = (
+    ("BB_TARGET_PREDICATE_V1", _WATCHDOG_PREDICATE_FILES),
+    # 자체시험 블록은 self-test 를 가진 두 워치독에만 있다. 협역 워치독은 --self-test 진입점이
+    # 없어 대상에서 빠지며, 그 빈자리는 술어 본문 parity 가 덮는다(같은 글자면 같은 판정이다).
+    ("BB_TARGET_PREDICATE_SELFTEST_V1",
+     (".claude/skills/terraforming_node/scripts/node_blackbox/mem_watchdog_eta.sh",
+      ".claude/skills/terraforming_node/scripts/node_blackbox/thermal_watchdog.sh")),
+)
+
+
+def _extract_marked_block(text: str, marker: str) -> str | None:
+    """`# ── <marker> …` 부터 `# ── /<marker> …` 까지를 그대로 돌려준다(없으면 None)."""
+    start = end = None
+    for lineno, line in enumerate(text.splitlines()):
+        stripped = line.strip()
+        if stripped.startswith(f"# ── /{marker}"):
+            end = lineno
+            break
+        if start is None and stripped.startswith(f"# ── {marker}"):
+            start = lineno
+    if start is None or end is None or end <= start:
+        return None
+    return "\n".join(text.splitlines()[start:end + 1])
+
+
+def _test_watchdog_target_predicate_parity(root: Path | None = None) -> None:
+    """세 워치독의 킬 대상 술어가 **글자 그대로 같은지** 확인한다 (CP0 · plan_26090415 §3.3).
+
+    왜 parity 인가: 이 술어는 세 파일에 복제돼 있고 **단일 소유가 불가능**하다 — 설치기가
+    각 스크립트를 확장자 없는 단독 바이너리로 복사하므로 공유 파일을 source 하면 현장에서
+    sibling 경로가 사라진다(2026-09-01 블랙박스 sibling import 파손 선례). 정적 파일끼리는
+    한쪽이 다른 쪽을 생성할 수 없으므로 차선은 교차검증이다(`workflow.md` §결정론 규율 ·
+    `assert_band2_top_gitignore_parity` 선례).
+
+    갈라졌을 때의 대가가 비대칭이라 침묵을 허용하지 않는다: 한 워치독만 넓은 채로 남으면
+    그 워치독이 트립할 때 **측정 컨테이너를 서빙과 함께 죽인다**. 그런데 그 사건은 OOM 압박
+    구간에서만 재현되므로 평시 시험으로는 영영 드러나지 않는다.
+
+    블록이 통째로 사라진 것도 FAIL 이다 — 부재를 "같다" 로 접으면 가드가 스스로 꺼진다.
+    """
+    root = REPO_ROOT if root is None else root
+    if not _is_canonical_repo(root):
+        return
+
+    for marker, files in _WATCHDOG_PREDICATE_BLOCKS:
+        blocks: dict[str, str] = {}
+        for rel in files:
+            path = root / rel
+            _require(path.is_file(), f"watchdog predicate carrier missing: {rel}")
+            block = _extract_marked_block(path.read_text(encoding="utf-8"), marker)
+            _require(block is not None, f"{rel} lost its {marker} block (guard would silently disarm)")
+            blocks[rel] = block
+        distinct = sorted(set(blocks.values()))
+        _require(
+            len(distinct) == 1,
+            f"{marker} diverged across {len(files)} carriers: "
+            + ", ".join(f"{rel}={hashlib.sha256(b.encode()).hexdigest()[:12]}"
+                        for rel, b in blocks.items()),
+        )
+
+    # 술어가 **살아 있는지**는 parity 가 답하지 못한다(셋 다 똑같이 망가질 수 있다).
+    # self-test 를 가진 워치독을 실제로 돌려 음성대조까지 통과하는지 본다.
+    for rel in (".claude/skills/terraforming_node/scripts/node_blackbox/mem_watchdog_eta.sh",
+                ".claude/skills/terraforming_node/scripts/node_blackbox/thermal_watchdog.sh"):
+        proc = subprocess.run(["bash", str(root / rel), "--self-test"],
+                              capture_output=True, text=True, timeout=120)
+        _require(proc.returncode == 0, f"{rel} --self-test failed: {proc.stdout[-800:]}")
+        _require("★음성대조" in proc.stdout,
+                 f"{rel} --self-test ran without the kill-target negative control")
+
+
 def run_tripwires(root: Path | None = None) -> int:
     """병목(pre-commit·authorize)에서 도는 축약 진입점. 1초 예산.
 
@@ -1386,6 +1462,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_agent_provider_boundary()
     _test_duplicate_certificate_predicate()
     _test_deployed_pii_predicate()
+    _test_watchdog_target_predicate_parity()
     # tripwire 5종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
     # 늦는다(선례 3건). 전체 실행에서도 반드시 검사한다.
     # 비-정본 저장소에서 그 단언들이 no-op 이 되는 것은 `run_tripwires` 와 **같은 정상 경로**이며,

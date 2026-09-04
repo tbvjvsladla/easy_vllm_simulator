@@ -27,6 +27,7 @@
 #     그리고 stale 진입/이탈은 **에피소드당 1회** 로그·이벤트로 남긴다(침묵 금지).
 #
 # 사용: thermal_watchdog.sh [name_filter|@vllm] [interval_sec]
+#   '@vllm' 광역 모드의 킬 대상 술어는 BB_TARGET_PREDICATE_V1 블록이 소유한다(세 워치독 공유).
 # env : BB_TP_PARAMS  (기본 /etc/easy-vllm/thermal_params.env — blackbox_thermal.py --emit-params)
 #       BB_TP_NODE_DIR(수집기 CSV 루트. 기본 = BB_TP_EVENTS 의 조부모)
 #       BB_TP_EVENTS  (지정 시 트립/킬 이벤트를 JSONL append — 블랙박스 events 평면)
@@ -213,14 +214,49 @@ tp_fire(){
   return 0
 }
 
+# ── BB_TARGET_PREDICATE_V1 ────────────────────────────────────────────────
+# 킬 대상 술어. **세 워치독(node_blackbox/mem_watchdog_eta · host_safety/mem_watchdog ·
+# node_blackbox/thermal_watchdog)이 이 블록을 글자 그대로 공유**한다. 갈라지면
+# runtime_selftest 의 parity tripwire 가 잡는다(정적 파일끼리는 한쪽이 다른 쪽을 생성할 수
+# 없으므로 단일 소유가 불가능하다 — 차선은 교차검증이다: workflow.md §결정론 규율).
+# sourcing 하지 않는 이유: 설치기가 이 파일들을 **확장자 없는 단독 바이너리**로 복사하므로
+# sibling 경로가 현장에서 사라진다(2026-09-01 블랙박스 sibling import 파손 선례).
+#
+# ★ 2026-09-04(CP0 · plan_26090415 §3.3). 종전 술어는 `{{.ID}} {{.Image}} {{.Names}}` **한 줄
+#   전체**를 `/vllm/` 로 훑었다. 그래서 이미지 경로의 **레지스트리·조직 세그먼트**까지 매칭
+#   대상이 됐고, 전용 벤치툴 공식 이미지 `ghcr.io/vllm-project/guidellm` 이 조직명
+#   `vllm-project` 때문에 걸렸다. 트립하면 `docker kill $ids` 가 매칭 전부를 한 번에 죽이므로
+#   **서빙 컨테이너와 측정 컨테이너가 동반 사살**된다 — 안전장치가 측정을 공격하는 형태이며,
+#   이름 우연 일치이지 설계된 동작이 아니다.
+#   교정은 이름 목록이 아니라 **원인**을 친다: 이미지에서 레지스트리·조직 경로를 벗기고
+#   **저장소 이름**만 본다(조직명이 매칭 평면에서 사라진다). 커버리지는 보존된다 —
+#     easy-vllm:<tag>                      → easy-vllm:<tag>     매칭 ○ (로컬 빌드 서빙 이미지)
+#     vllm/vllm-openai:latest              → vllm-openai:latest  매칭 ○ (업스트림 서버)
+#     ghcr.io/vllm-project/guidellm:latest → guidellm:latest     매칭 ✗ (측정 도구)
+#   이름 필드 매칭은 그대로 둔다(vllm_trial01 등). **이미지 매칭이 살아 있어야** 이름에 vllm 이
+#   없는 서빙 컨테이너(mn-hy3-master·mn-exaone45-33b-master 실측 반례)를 계속 잡는다
+#   — verify_node_blackbox.sh B11 이 그 반례로 이름-단독 술어를 이미 기각했다.
+bb_target_match(){   # $1=ID $2=IMAGE $3=NAMES → rc 0=킬 대상 · 1=제외
+  local _repo _name
+  _repo="$(printf '%s' "${2##*/}" | tr 'A-Z' 'a-z')"
+  _name="$(printf '%s' "${3:-}"   | tr 'A-Z' 'a-z')"
+  case "$_repo" in *vllm*) return 0 ;; esac
+  case "$_name" in *vllm*) return 0 ;; esac
+  return 1
+}
 targets(){
   if [ "$FILTER" = "@vllm" ]; then
-    docker ps --filter status=running --format '{{.ID}} {{.Image}} {{.Names}}' 2>/dev/null \
-      | awk 'tolower($0) ~ /vllm/ {print $1}'
+    local _id _img _names
+    while IFS='|' read -r _id _img _names; do
+      [ -n "$_id" ] || continue
+      bb_target_match "$_id" "$_img" "$_names" && printf '%s\n' "$_id"
+    done < <(docker ps --filter status=running \
+               --format '{{.ID}}|{{.Image}}|{{.Names}}' 2>/dev/null)
   else
     docker ps --filter "name=$FILTER" --filter status=running -q
   fi
 }
+# ── /BB_TARGET_PREDICATE_V1 ───────────────────────────────────────────────
 
 # ── 자체시험 (하드웨어·도커 불요) ────────────────────────────────────────
 if [ "$SELFTEST" = 1 ]; then
@@ -400,6 +436,29 @@ if [ "$SELFTEST" = 1 ]; then
   else fail "  매칭 0 경로 이상 (rc=$_rc)"; fi
   unset -f docker; DRY_RUN="$_sd"; MODE="$_sm"; BB_TP_EVENTS=""
   rm -rf "$_td"
+
+  # ── BB_TARGET_PREDICATE_SELFTEST_V1 ─────────────────────────────────────
+  # 킬 대상 술어의 **음성대조**(plan_26090415 §3.3 · CP0). 양성 사례만 두면 "좁혔다"가
+  # 증명되지 않는다 — 이 블록의 존재 이유는 측정 도구 컨테이너가 대상 목록에서 **실제로
+  # 빠지는지**이고, 동시에 이름에 vllm 이 없는 서빙 컨테이너가 **여전히 잡히는지**다.
+  # GuideLLM 이미지 리터럴은 tripwire 로서의 하드코딩이다(workflow.md §4종 안티패턴 판정표:
+  # "변경 시 리뷰를 강제하는 닫힌 목록" = 정당). 벤치 이미지를 바꾸면 이 시험이 먼저
+  # 빨간불을 켜고, 그때 술어를 다시 본다.
+  # 이 블록도 세 워치독 사이에서 parity tripwire 의 대상이다.
+  tmchk(){ # $1=설명 $2=기대rc(0=대상·1=제외) $3=IMAGE $4=NAMES
+    bb_target_match "deadbeef" "$3" "$4"; local got=$?
+    if [ "$got" = "$2" ]; then echo "  [PASS] $1"
+    else echo "  [FAIL] $1 (기대rc=$2 실제=$got)"; fails=1; fi
+  }
+  tmchk "대상: 서빙 이미지(easy-vllm)"                 0 "easy-vllm:0.19.1-cu130-aarch64-wheel" "vllm-serve-container"
+  tmchk "대상: 이름에 vllm 없는 서빙도 이미지로 포착"  0 "easy-vllm:0.27.1-cu133-aarch64-source" "mn-hy3-master"
+  tmchk "대상: 업스트림 공식 서버 이미지"              0 "vllm/vllm-openai:latest" "openai-server"
+  tmchk "대상: 이름에만 vllm(trial)"                   0 "ubuntu:24.04" "vllm_trial01"
+  tmchk "대상: 대소문자 무관"                          0 "EASY-VLLM:0.19.1" "SERVE"
+  tmchk "★음성대조: GuideLLM 벤치 컨테이너는 제외"     1 "ghcr.io/vllm-project/guidellm:latest" "guidellm-bench"
+  tmchk "★음성대조: GuideLLM digest 핀도 제외"         1 "ghcr.io/vllm-project/guidellm@sha256:00ff" "guidellm-bench"
+  tmchk "제외: 무관 컨테이너(NGC 베이스)"              1 "nvcr.io/nvidia/pytorch:25.08-py3" "build-helper"
+  # ── /BB_TARGET_PREDICATE_SELFTEST_V1 ────────────────────────────────────
 
   [ "$fails" = 0 ] && { echo "self-test: PASS"; exit 0; } || { echo "self-test: FAIL"; exit 2; }
 fi

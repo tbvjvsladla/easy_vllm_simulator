@@ -52,6 +52,7 @@ import io
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -201,7 +202,50 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C1():
     mw = _read(".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh")
     _require('FILTER="${1:-@vllm}"' in mw, 'mem_watchdog.sh must default to the broad @vllm filter')
     _require('THRESH_MIB="${2:-10240}"' in mw, 'default MemAvailable threshold must be 10240 MiB')
-    _require('tolower($0) ~ /vllm/' in mw, 'broad-mode target enumeration must case-insensitively match vllm')
+    # Broad-mode kill-target selection.  Until 2026-09-04 this was a literal text assertion on
+    # ``tolower($0) ~ /vllm/`` -- an enumeration that scanned the whole ``ID IMAGE NAMES`` line and
+    # therefore matched the *registry/org* segment of an image path.  The dedicated benchmark tool
+    # ships as ``ghcr.io/vllm-project/guidellm``, so a trip killed the measurement container
+    # alongside the server (plan_26090415 sec.1.6/3.3).  The narrowed predicate strips the
+    # registry/org path and matches the repository name only.
+    #
+    # The assertion is now **behavioural, not textual**: the shared block is sourced and exercised.
+    # Wording may change; the contract may not.  Coverage (server still caught, including servers
+    # whose container name has no 'vllm') and exclusion (measurement tool not caught) are both
+    # asserted, because narrowing that lost coverage would be a silent regression in a defence that
+    # only fires under OOM pressure.
+    _require("# ── BB_TARGET_PREDICATE_V1" in mw,
+             'mem_watchdog.sh must carry the shared BB_TARGET_PREDICATE_V1 kill-target block')
+    _block_lines, _in_block = [], False
+    for _line in mw.splitlines():
+        if _line.strip().startswith("# ── BB_TARGET_PREDICATE_V1"):
+            _in_block = True
+        if _in_block:
+            _block_lines.append(_line)
+        if _in_block and _line.strip().startswith("# ── /BB_TARGET_PREDICATE_V1"):
+            break
+    _require(_block_lines and _block_lines[-1].strip().startswith("# ── /BB_TARGET_PREDICATE_V1"),
+             'BB_TARGET_PREDICATE_V1 block is not terminated in mem_watchdog.sh')
+    _probe_cases = [
+        ("serve_image_local_build", "easy-vllm:0.19.1-cu130-aarch64-wheel", "vllm-serve-container", 0),
+        ("serve_image_name_without_vllm", "easy-vllm:0.27.1-cu133-aarch64-source", "mn-hy3-master", 0),
+        ("serve_image_upstream", "vllm/vllm-openai:latest", "openai-server", 0),
+        ("serve_name_only", "ubuntu:24.04", "vllm_trial01", 0),
+        ("case_insensitive", "EASY-VLLM:0.19.1", "SERVE", 0),
+        ("measurement_tool_tag", "ghcr.io/vllm-project/guidellm:latest", "guidellm-bench", 1),
+        ("measurement_tool_digest", "ghcr.io/vllm-project/guidellm@sha256:00ff", "guidellm-bench", 1),
+        ("unrelated_base_image", "nvcr.io/nvidia/pytorch:25.08-py3", "build-helper", 1),
+    ]
+    _probe = "\n".join(_block_lines) + "\n" + "\n".join(
+        f'bb_target_match id {shlex.quote(img)} {shlex.quote(name)}; echo "{label}=$?"'
+        for label, img, name, _ in _probe_cases)
+    _proc = _run_bash(_probe)
+    _require(_proc.returncode == 0, f'kill-target predicate probe failed to run: {_proc.stderr[-400:]}')
+    _got = dict(line.split("=", 1) for line in _proc.stdout.split() if "=" in line)
+    for _label, _img, _name, _want in _probe_cases:
+        _require(_got.get(_label) == str(_want),
+                 f'broad-mode kill-target predicate: {_label} ({_img!r}, {_name!r}) '
+                 f'expected rc={_want}, got rc={_got.get(_label)!r}')
 
     mn = _read(".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh")
     _require('MAIN_WATCHDOG="$REPO/.claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh"' in mn and
