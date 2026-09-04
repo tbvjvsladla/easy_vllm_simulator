@@ -877,6 +877,15 @@ _RETIRED_HASH_MECHANISMS = (
 # §명명 SSOT) 과거 발행분의 본문을 고쳐 쓰면 그 장르 규약 자체가 깨진다.
 _PROSE_SCAN_EXTRA = ("CLAUDE.md", "README.md")
 
+# tripwire ⑤ — 배포 산출물 PII. 범위 정의는 `.claude/rules/docs.md` §PII 스캔 적용 범위의
+# **"배포 산출물"** 행 그대로다(추적 템플릿 `.claude/**`·`CLAUDE.md` · `docs/report/*` ·
+# 카탈로그). 비배포 산문(`docs/{plan,devlog,testlog,...}`)은 그 표가 다른 강도를 규정하므로
+# 범위 밖이고, **추적물만** 본다 — 배포되는 것은 추적물이고, 워킹트리의 비추적 로컬 설정
+# (예: 스킬 `config.yaml` 의 운영자 경로)까지 잡으면 가드가 정상 상태를 상시 RED 로 만든다.
+_FORBIDDEN_SCANNER_REL = ".claude/skills/wiki-desk/scripts/scan_forbidden_strings.py"
+_DEPLOYED_PII_PREFIXES = (".claude/", "docs/report/", "hints/")
+_DEPLOYED_PII_FILES = ("CLAUDE.md", "README.md", "HINTS.md")
+
 # `ls-files -s` 의 gitlink(서브모듈) 모드. 이 술어의 범위는 blob 이므로 입력에서 제외한다.
 _GITLINK_MODES = frozenset({"160000"})
 
@@ -892,6 +901,8 @@ _REPO_STATE_ASSERTIONS = (
     "tripwire①no-backup-artifacts(+refs/heads·tags·.gitignore)",
     "tripwire②no-tracked-digest-rewrite",
     "tripwire③no-retired-hash-mechanism-prose",
+    "tripwire④no-duplicate-certificates",
+    "tripwire⑤no-pii-in-deployed-artifacts",
     "executor-wiring(core.hooksPath·hook tracked)",
 )
 
@@ -1204,6 +1215,91 @@ def _test_no_retired_hash_mechanism_prose(root: Path | None = None) -> None:
     _require(not offenders, f"retired hash mechanism named in governing prose: {offenders[:20]}")
 
 
+def _import_forbidden_scanner():
+    """`scan_forbidden_strings.py` 를 in-process 로 적재한다(`_import_hint_tag` 와 같은 관용구).
+
+    패턴·면제 규칙을 **복제하지 않는다** — 복제하면 두 자리가 갈라져 한쪽만 조용히 늦는다
+    (`workflow.md` §결정론 규율 — 개념 중복). 커널은 그 파일의 `scan_lines` 하나다.
+    """
+    path = CLAUDE_DIR.parent / _FORBIDDEN_SCANNER_REL
+    spec = importlib.util.spec_from_file_location("_runtime_selftest_pii_scan", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _deployed_pii_targets(root: Path) -> list[str]:
+    """배포면에 해당하는 **추적** 경로(repo-relative)."""
+    return [rel for rel in _tracked_paths(root)
+            if rel.startswith(_DEPLOYED_PII_PREFIXES) or rel in _DEPLOYED_PII_FILES]
+
+
+def _test_no_pii_in_deployed_artifacts(root: Path | None = None) -> None:
+    """tripwire ⑤ — 추적 배포 산출물에 운영자 PII 가 실리면 FAIL.
+
+    ★ 왜 tripwire 인가(2026-09-04 실측): 이 스캐너에는 **자동 실행자가 하나도 없었다**.
+    두 스킬 문서가 "손으로 돌려라" 라고 적어 두었을 뿐이라, P5 에서 들어간 운영자 호스트명
+    2건(자체검사 픽스처 1 · 주석 1)이 추적 파일로 커밋되고 브랜치싱크로 전파됐다. 헌법
+    §노드 제어 5불변식 3 이 정확히 이 형태를 금지한다 — *"가드를 놓을 때는 그 처방을 누가
+    실행하는가를 먼저 적는다. 실행자가 아예 없으면 안전장치가 아니라 교착이다."*
+
+    ⚠ 강도 경계: 여기서 도는 것은 스캐너의 현행 패턴(리터럴 term + `GENERIC_PATTERNS`)이지
+    hint 평면의 **4종 전부**가 아니다. 4종을 이 트리에 그대로 걸면 픽스처·플레이스홀더가
+    대량으로 걸려(2026-09-04 실측 63건 중 진성 2건) 기준이 정의상 달성 불가가 된다 —
+    `docs.md` 가 simlog/logs 에 대해 이미 편 논리와 같다. 4종 강도의 정본 집행자는
+    `hint_tag.finalize/verify`(배포 평면 fail-closed)이며, 트리 스캐너의 generic 축을
+    넓히려면 shell-default 판별자와 픽스처 면제를 함께 설계해야 한다(후속).
+    """
+    root = REPO_ROOT if root is None else root
+    if not _is_canonical_repo(root):
+        return
+
+    scanner = _import_forbidden_scanner()
+    terms = scanner.load_terms(scanner._default_terms_file())
+    targets = _deployed_pii_targets(root)
+    # 사정거리 0 방어 — 목록이 비면 이 가드는 "통과" 가 아니라 **무력**이다(선례: envelope 수확기).
+    _require(targets, f"tripwire5 scanned nothing under {root} -- deployed surface enumeration is empty")
+
+    offenders: list[str] = []
+    for rel in targets:
+        path = root / rel
+        try:
+            if path.stat().st_size > scanner.MAX_BYTES:
+                print(f"[tripwire] WARN 5 skipped (too large) {rel}", file=sys.stderr)
+                continue
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue  # 바이너리 — 확장자가 아니라 내용으로 판정(스캐너와 같은 규율)
+        except OSError as exc:
+            print(f"[tripwire] WARN 5 unreadable {rel}: {exc}", file=sys.stderr)
+            continue
+        offenders += [f"{rel}:{lineno}:{what}"
+                      for lineno, what, exempt in scanner.scan_lines(text, terms) if not exempt]
+    _require(not offenders,
+             f"operator PII in tracked deployed artifacts ({len(offenders)}): {offenders[:20]}")
+
+
+def _test_deployed_pii_predicate() -> None:
+    """tripwire ⑤ 의 커널·면제·사정거리를 단위로 고정한다(라이브 트리 불요).
+
+    라이브 트리는 **깨끗할 때 아무것도 증명하지 않는다** — 통과가 "검출력이 있다" 를 뜻하려면
+    양성 입력이 실제로 발화해야 한다(역-오라클 회피).
+    """
+    scanner = _import_forbidden_scanner()
+    hits = scanner.scan_lines("host 192.168.0.7\nclean line\n", ["secret-node"])  # pii-scan-fixture
+    _require([h for h in hits if h[1].startswith("generic:")], "scan_lines must fire on private IPv4")
+    _require(scanner.scan_lines("node secret-node", ["secret-node"])[0][1] == "term:secret-node",
+             "scan_lines must fire on a literal term")
+    exempt = scanner.scan_lines(f"192.168.0.7  # {scanner.EXEMPT_MARK}", [])  # pii-scan-fixture
+    _require(exempt and exempt[0][2] is True, "EXEMPT_MARK must mark the row exempt, not drop it")
+    _require(not scanner.scan_lines("GB10 2-node TP=2 · 53.92 t/s", ["secret-node"]),
+             "clean text must not produce hits")
+    if _is_canonical_repo(REPO_ROOT):
+        targets = _deployed_pii_targets(REPO_ROOT)
+        _require(len(targets) > 50 and "CLAUDE.md" in targets,
+                 f"deployed surface enumeration looks wrong: {len(targets)} paths")
+
+
 def _test_tripwire_executor_wiring(root: Path | None = None) -> list[str]:
     """실행자 자기검사 — `core.hooksPath` 설정과 훅 파일의 **추적 여부**.
 
@@ -1257,6 +1353,7 @@ def run_tripwires(root: Path | None = None) -> int:
         _test_no_tracked_digest_rewrite(root)
         _test_no_retired_hash_mechanism_prose(root)
         _test_no_duplicate_certificates(root)      # ④ plan_26090410 P4 — 사본 정리 뒤 배선
+        _test_no_pii_in_deployed_artifacts(root)   # ⑤ P6 — 스캐너에 실행자가 없던 것을 배선
     except RuntimeSelftestFailure as exc:
         print(f"[tripwire] FAIL {exc}", file=sys.stderr)
         return 1
@@ -1271,7 +1368,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--tripwires-only", action="store_true",
         help="run only the pre-commit tripwires (backup artifacts / tracked digest rewrite / "
-             "retired-mechanism prose / duplicate certificates); 1s budget, diagnostics on stderr")
+             "retired-mechanism prose / duplicate certificates / deployed-artifact PII); "
+             "1s budget, diagnostics on stderr")
     args = parser.parse_args(argv)  # argv=None -> argparse reads sys.argv[1:]
 
     if args.tripwires_only:
@@ -1287,15 +1385,17 @@ def main(argv: list[str] | None = None) -> int:
     _test_execution_approval_authorization()
     _test_agent_provider_boundary()
     _test_duplicate_certificate_predicate()
-    # tripwire 3종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
+    _test_deployed_pii_predicate()
+    # tripwire 5종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
     # 늦는다(선례 3건). 전체 실행에서도 반드시 검사한다.
-    # 비-정본 저장소에서 세 단언이 no-op 이 되는 것은 `run_tripwires` 와 **같은 정상 경로**이며,
+    # 비-정본 저장소에서 그 단언들이 no-op 이 되는 것은 `run_tripwires` 와 **같은 정상 경로**이며,
     # 여기서도 같은 SKIPPED 한 줄로 눈에 보이게 한다(침묵 no-op 금지).
     _announce_non_canonical(REPO_ROOT, "runtime_selftest")
     _test_no_backup_artifacts()
     _test_no_tracked_digest_rewrite()
     _test_no_retired_hash_mechanism_prose()
     _test_no_duplicate_certificates()
+    _test_no_pii_in_deployed_artifacts()
     for warning in _test_tripwire_executor_wiring():
         print(f"[runtime_selftest] WARN {warning}", file=sys.stderr)
     print("[runtime_selftest] PASS")

@@ -2179,7 +2179,11 @@ def cmd_self_test(_a=None) -> int:
 
     # ── PII 스캔(배포면 4종)
     ck("★PII 절대경로 검출", any("abs-op-path" in h for h in scan_text("경로 /mnt/llm/Model/x 참조", None)))
-    ck("★PII 호스트명 검출", any("spark-host" in h for h in scan_text("노드 spark-a73e 에서", None)))
+    # 픽스처 값은 **합성**이다(`spark-[0-9a-f]{3,}` 을 만족하는 아무 값). 운영자 실호스트명을 쓰면
+    # 이 추적·배포 파일이 그 이름을 싣게 되고, 그것이 곧 우리가 막으려는 유출이다(2026-09-04 실측:
+    # 배포면 스캔이 이 줄을 `term:` 으로 잡았다). 합성 값으로도 **generic 패턴 발화**는 동일하게
+    # 증명되므로 시험 강도는 그대로다 — 면제 마커가 아니라 값 교체가 정답인 이유다.
+    ck("★PII 호스트명 검출", any("spark-host" in h for h in scan_text("노드 spark-0f0f 에서", None)))
     ck("깨끗한 본문은 무검출", scan_text("GB10 2노드 TP=2 · 53.92 t/s", None) == [])
 
     bad = [n for n, ok in checks if not ok]
