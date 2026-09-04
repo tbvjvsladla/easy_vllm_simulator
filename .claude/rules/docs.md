@@ -140,9 +140,9 @@ simlog·benchmark에 폴더별 ignore 예외를 더하지 않는다. report는 t
 | command | 입력→출력 | fail-closed gate |
 |---|---|---|
 | `init` | task class→deterministic scaffold/publication record | 기존 narrative/raw 비덮어쓰기 |
-| `append-raw` | repo-relative regular UTF-8 evidence→append-only entry | absolute/escape/symlink/FIFO/empty/wrong type 거부 |
+| `append-raw` | repo-relative regular UTF-8 evidence→append-only entry (`simlog` 만 **복사** — `output/*` 는 다음 런이 덮어쓰는 휘발 소스라 보존이 정당) | absolute/escape/symlink/FIFO/empty/wrong type 거부 |
 | `set-narrative` | 명시 narrative file→provenance-bound marker | publisher 산문 합성 금지 |
-| `publish-benchmark` | 실제 full result→report/certificate | FAIL certificate·누락 certificate 합성 금지 |
+| `publish-benchmark` | 벤치 스킬이 `docs/benchmark/` 에 발행한 report/certificate **원본에 바인딩**(복사 ✗ · 2026-09-04 plan_26090410) · 인증서는 측정 키(강한 6키+`measured_utc`)로 되찾아 정확히 1건일 때만 · PASS→FAIL 전이는 unbind(unlink ✗) | 규약 위치·이름 밖 src 거부 · 같은 측정 2건+ `AMBIGUOUS` · FAIL certificate·누락 certificate 합성 금지 |
 | `record-capacity-rejection` | 검증된 gate pointer→record | fabricated evidence 금지 |
 | `finalize` | record→work manifest→completion gate | identity/PII/verdict 자체판정 금지 |
 

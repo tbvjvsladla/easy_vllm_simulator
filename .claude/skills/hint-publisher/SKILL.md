@@ -87,6 +87,8 @@ description: 검증된 서빙 지식을 `hint/<vllm>/<model>/<arch>` 태그로 *
 
 ```bash
 # 1) 증거 발행 → work-manifest (publisher 소유 · .claude/rules/docs.md §publisher 계약)
+#    ★ publish-benchmark 의 --certificate-src / --bench-report-src 는 벤치 스킬이 docs/benchmark/ 에 이미 발행한
+#      **원본 경로**다 — publisher 는 복사하지 않고 바인딩한다(plan_26090410). 다른 위치의 파일은 거부된다.
 python3 .claude/policies/runtime/evidence_publisher.py ...  finalize
 # 2) 승인 확인 (read-only · 여기서 통과해야 hint 명령이 받는다)
 python3 .claude/policies/runtime/completion_gate.py authorize --manifest $M \

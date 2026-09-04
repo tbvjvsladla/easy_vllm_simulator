@@ -1175,6 +1175,9 @@ def _certificates_matching_key(repo_root: Path, key: tuple, error_prefix: str) -
 # ★ 값을 **만들지 않는다** — 판정기가 계산한 것을 옮길 뿐이고, 출처는 rubric_source 로 표시한다.
 RUBRIC_RECORD_FIELDS = ("rubric_authority", "floor_tps", "ratio_M_over_primary",
                         "primary_source", "rubric_source")
+# re-init 이 보존해야 하는 benchmark 필드 = rubric + 측정 식별자(plan_26090410 P3). 인증서 파일에서
+# 파생한 값이므로 init 은 만들지 않고 보존만 한다.
+BENCHMARK_CARRY_FIELDS = RUBRIC_RECORD_FIELDS + ("measured_utc",)
 
 
 def _rubric_from_verdict_json(repo_root: Path, verdict_json_src: str, cli_verdict: str,
@@ -1277,6 +1280,7 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
 
     cert_src_rel = None
     cert_key = None
+    cert_measured_utc = None
     if args.verdict == "PASS" and args.certificate_src:
         cert_src_rel = _require_canonical_bench_src(repo_root, args.certificate_src, "benchmark", cert_error_prefix)
         cert_bytes, _csha = _resolve_src(repo_root, cert_src_rel, cert_error_prefix)
@@ -1309,6 +1313,7 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
         # 측정 키로 되찾으면 **정확히 src 1건**이어야 한다 — 2건+ 는 같은 측정이 이미 두 파일로
         # 추적됐다는 뜻이고(중복층), 0건은 키를 못 세운 것이다. 발행 시점에서 잡는다.
         cert_key = gate.certificate_run_key(fields)
+        cert_measured_utc = (fields.get("measured_utc") or "").strip() or None
         if cert_key is None:
             _emit(_bare_error(f"{cert_error_prefix}_KEY_UNRESOLVABLE",
                               f"certificate {cert_src_rel!r} lacks a strong identity field or measured_utc -- "
@@ -1357,7 +1362,10 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
 
     # rubric 은 mode/verdict 와 **같은 커밋**에 실린다 — 갈라지면 finalize 가 나르는 오브젝트가
     # 이 발행의 verdict 와 다른 런의 루브릭을 섞어 담을 수 있다(carrier 불일치 = 이 결함 계열).
-    record["benchmark"] = {"mode": "full", "verdict": args.verdict, **rubric_record}
+    # measured_utc 는 인증서 **파일에서 파생**한 측정 식별자다 — manifest 가 "어느 측정을 묶었는가" 를
+    # 선언하고 게이트가 파일과 대조한다(갈라지면 CERTIFICATE_RUN_DRIFT). 손으로 적는 값이 아니다.
+    record["benchmark"] = {"mode": "full", "verdict": args.verdict, **rubric_record,
+                           "measured_utc": cert_measured_utc}
     # Keep the persisted producer-derived contract canonical in the same commit as the verdict.
     # Otherwise an init-without-verdict -> publish PASS transition would add certificate to the
     # required matrix semantically while leaving required_evidence stale, making the next load
@@ -1589,7 +1597,7 @@ def cmd_init(args: argparse.Namespace) -> None:
     }
     # 이미 publish-benchmark 가 실어둔 rubric(판정기 파생분)은 re-init 이 말없이 떨어뜨리면 안 된다 --
     # 그 침묵 손실이 곧 이 결함 계열(통로 끊김)이다. init 은 rubric 을 **만들지 않고** 보존만 한다.
-    for field in RUBRIC_RECORD_FIELDS:
+    for field in BENCHMARK_CARRY_FIELDS:
         if prior_benchmark.get(field) is not None:
             benchmark[field] = prior_benchmark[field]
     record = {
@@ -1821,6 +1829,9 @@ def _self_test() -> None:
             raise RuntimeError(f"binding provenance missing: {out['binding']!r}")
         if sorted(os.listdir(repo_root / "docs" / "benchmark")) != before:
             raise RuntimeError("publish-benchmark must not create files under docs/benchmark/ (no copies)")
+        rec = json.loads((repo_root / "docs/_evidence/bench.json").read_text(encoding="utf-8"))
+        if rec["benchmark"].get("measured_utc") != "2026-01-01T00:00:00Z":
+            raise RuntimeError(f"record.benchmark.measured_utc must derive from the certificate: {rec['benchmark']!r}")
 
         # ★음성대조 1: 규약 위치 밖의 파일은 거부(publisher 가 두 번째 발행자가 되는 것을 막는다)
         (repo_root / "docs/_evidence/inputs/x.yaml").write_text(cert_text, encoding="utf-8")

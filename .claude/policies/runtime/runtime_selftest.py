@@ -238,14 +238,15 @@ def _test_certificate_run_resolution() -> None:
     tripwire ④ 뒤의 두 번째 방어선: 같은 측정이 두 파일로 추적되면 승격이 열리지 않아야 한다."""
     cert = _PROMO_CERTIFICATE.format(authority="weak")
 
-    def run(plant: dict | None = None, certificate: str = cert) -> dict:
+    def run(plant: dict | None = None, certificate: str = cert, extra: dict | None = None) -> dict:
+        bench = dict(_PROMO_RUBRIC, rubric_authority="weak", **(extra or {}))
         with tempfile.TemporaryDirectory(prefix="cert-run-resolution.") as td:
             root = Path(td)
             (root / ".git").mkdir()
-            _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC, rubric_authority="weak"), certificate)
+            _write_promotion_manifest(root, "PASS", bench, certificate)
             for name, text in (plant or {}).items():
                 (root / "docs" / "benchmark" / name).write_text(text, encoding="utf-8")
-            return _promotion_probe(root, "PASS", dict(_PROMO_RUBRIC, rubric_authority="weak"), certificate)
+            return _promotion_probe(root, "PASS", bench, certificate)
 
     out = run()
     _require(out.get("eligible_for_promotion") is True
@@ -274,6 +275,16 @@ def _test_certificate_run_resolution() -> None:
     _require(out.get("eligible_for_promotion") is False
              and "CERTIFICATE_RUN_KEY_UNRESOLVABLE" in (out.get("reason_codes") or []),
              f"★measured_utc 없는 인증서는 식별 불가로 차단: {out.get('reason_codes')}")
+
+    # P3 — manifest 가 선언한 측정과 파일이 갈라지면 DRIFT, 같으면 통과(선언은 인증서에서 파생된 값)
+    out = run(extra={"measured_utc": "2026-01-01T00:00:00Z"})
+    _require(out.get("eligible_for_promotion") is True
+             and "CERTIFICATE_RUN_DRIFT" not in (out.get("reason_codes") or []),
+             f"선언과 파일이 같으면 통과: {out.get('reason_codes')}")
+    out = run(extra={"measured_utc": "2026-01-01T00:00:59Z"})
+    _require(out.get("eligible_for_promotion") is False
+             and "CERTIFICATE_RUN_DRIFT" in (out.get("reason_codes") or []),
+             f"★manifest 가 다른 측정을 선언하면 DRIFT 로 차단: {out.get('reason_codes')}")
 
     out = run(plant={"notes.yaml": "x: 1\n", "benchmark_garbled.yaml": "a:\n  nested: 1\n"})
     _require(out.get("eligible_for_promotion") is True,

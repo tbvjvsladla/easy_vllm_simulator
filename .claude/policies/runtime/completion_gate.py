@@ -1859,6 +1859,15 @@ def cmd_verify(args: argparse.Namespace) -> None:
                                    f"certificate at {item['path']!r} lacks a strong identity field or "
                                    f"measured_utc -- the measurement it certifies cannot be identified (fail-closed)")
                     else:
+                        # manifest 가 선언한 측정(benchmark.measured_utc · 인증서에서 파생)과 파일이 갈라지면
+                        # 이 manifest 는 다른 런의 인증서를 가리키고 있다(감사 B-1: 6키만으론 런을 못 가른다).
+                        declared_utc = (benchmark.get("measured_utc") or None) if isinstance(benchmark, dict) else None
+                        if declared_utc and declared_utc != run_key[-1]:
+                            identity_ok = False
+                            add_reason("CERTIFICATE_RUN_DRIFT",
+                                       f"manifest benchmark.measured_utc={declared_utc!r} != certificate "
+                                       f"measured_utc={run_key[-1]!r} -- the manifest binds a different measurement "
+                                       f"than the file at {item['path']!r} certifies")
                         duplicates = _sibling_certificates_with_key(repo_root_fd, repo_root, manifest_dir,
                                                                     item["path"], run_key)
                         if duplicates:
