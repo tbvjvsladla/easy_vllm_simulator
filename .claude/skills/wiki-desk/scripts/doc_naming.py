@@ -90,6 +90,19 @@ def validate_topic(topic):
         )
 
 
+_DATED_DOC_RE = re.compile(r"^(?P<type>[a-z]+)_(?P<hour>\d{8})(?:_\d{2}_\d{2})?_(?P<topic>.+)\.md\Z")
+
+
+def is_dated_doc_basename(doc_type, basename):
+    """`<type>_<YYMMDDHH>[_MM_SS]_<topic>.md` 규약 이름인가(= 이 SSOT 가 만들었을 수 있는 이름). 발행기가
+    기존 문서를 **바인딩**할지(규약 이름 · docs/<type>/ 아래) 스캐폴드에 **주입**할지(임시 위치) 가르는
+    술어 — 규약을 여기 한 곳이 소유한다(plan_26090410 P5)."""
+    if doc_type not in DATED_DOC_TYPES or not basename or "/" in basename:
+        return False
+    m = _DATED_DOC_RE.match(basename)
+    return bool(m) and m.group("type") == doc_type
+
+
 def dated_doc_basename(doc_type, generated_utc, topic, existing_basenames=(), ext="md"):
     """plan/devlog/testlog: '<type>_<YYMMDDHH>[_MM_SS]_<topic>.<ext>'. Collision is keyed on
     (doc_type, hour) ALONE -- .claude/rules/docs.md 's canon is "충돌 시에만 _MM_SS: 같은
@@ -177,6 +190,13 @@ def _self_test():
     n2 = dated_doc_basename("testlog", "2026-07-25T06:58:29Z", "구조개선",
                             existing_basenames={"testlog_26072515_구조개선.md"})
     _require(n2 == "testlog_26072515_58_29_구조개선.md", n2)
+    _require(is_dated_doc_basename("plan", "plan_26072515_하네스_루프_구조개선.md")
+             and is_dated_doc_basename("testlog", "testlog_26072515_58_29_구조개선.md")
+             and not is_dated_doc_basename("plan", "testlog_26072515_구조개선.md")
+             and not is_dated_doc_basename("plan", "plan_2607251_x.md")
+             and not is_dated_doc_basename("plan", "notes.md")
+             and not is_dated_doc_basename("report", "perf_26082421_x.md"),
+             "is_dated_doc_basename 규약 판정")
     ck = dated_doc_basename("checklist", "2026-07-25T06:58:00Z", "감사_마스터")
     _require(ck == "checklist_26072515_감사_마스터.md", ck)
 
