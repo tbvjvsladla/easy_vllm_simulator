@@ -1256,6 +1256,7 @@ def run_tripwires(root: Path | None = None) -> int:
         _test_no_backup_artifacts(root)
         _test_no_tracked_digest_rewrite(root)
         _test_no_retired_hash_mechanism_prose(root)
+        _test_no_duplicate_certificates(root)      # ④ plan_26090410 P4 — 사본 정리 뒤 배선
     except RuntimeSelftestFailure as exc:
         print(f"[tripwire] FAIL {exc}", file=sys.stderr)
         return 1
@@ -1270,7 +1271,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--tripwires-only", action="store_true",
         help="run only the pre-commit tripwires (backup artifacts / tracked digest rewrite / "
-             "retired-mechanism prose); 1s budget, diagnostics on stderr")
+             "retired-mechanism prose / duplicate certificates); 1s budget, diagnostics on stderr")
     args = parser.parse_args(argv)  # argv=None -> argparse reads sys.argv[1:]
 
     if args.tripwires_only:
@@ -1294,6 +1295,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_no_backup_artifacts()
     _test_no_tracked_digest_rewrite()
     _test_no_retired_hash_mechanism_prose()
+    _test_no_duplicate_certificates()
     for warning in _test_tripwire_executor_wiring():
         print(f"[runtime_selftest] WARN {warning}", file=sys.stderr)
     print("[runtime_selftest] PASS")
