@@ -703,6 +703,20 @@ def verify() -> dict:
         #   사례 6건이 지킨다. 순수 결정론(파일·시계·서빙 불요 — 시각은 주입만 받는다).
         _run("benchmark_sweep_stop_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/sweep_stop.py", "--self-test"], {0}),
+        # 루브릭 권한 통로의 fail-closed (plan_26090415 §1.2 · CP2 · 2026-09-04).
+        #   `--authority` 를 넘기는 실행 코드가 0건이었던 것이 explore 인증서 0건의 원인이다.
+        #   통로를 만들었으니 그 통로가 **권한을 발명하지 않는지**를 여기서 집행한다 —
+        #   기본값이 생기는 순간 "사용자가 골랐다"와 "아무도 안 골랐다"가 다시 구분 불가가 된다.
+        #   서빙·docker·모델 불요(인자 검사에서 즉시 거부되는 경로).
+        #   음성·양성 **쌍**으로 둔다. 음성만 두면 기본값을 넣어도 rc 가 안 바뀌는 다른 이유
+        #   (산출물 부재도 exit 2)로 통과해 가드가 틀린 이유로 초록이 된다 — 그래서 파일 전제를
+        #   타지 않는 `--check-args` 로 인자 평면만 친다.
+        _run("benchmark_judge_authority_required",
+             ["bash", ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh",
+              "_probe", "--check-args"], {2}),
+        _run("benchmark_judge_authority_accepted",
+             ["bash", ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh",
+              "_probe", "--authority", "weak", "--check-args"], {0}),
     ]
 
     with tempfile.TemporaryDirectory(prefix="easy-vllm-wiki-distribution.") as wiki:

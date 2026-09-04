@@ -46,7 +46,7 @@ description: >-
 3. **serve 가동 확인** — `:PORT/health` 200. 로그 grep 금지(거짓양성).
 4. **측정 M** — `run_bench.sh` → `parse_bench.py`(warmup 폐기 + engine-log 교차).
 5. **외부 레퍼런스 (b) E** — Devil's Advocate 가 `references.md` warm-start → 검색 → 결과를 `--e-search {hit,empty,no}` 로 **기록**. 미시도 상태로 6단계 직행 ✗.
-6. **판정(결정론 게이트)** — `verdict_rule.py --authority {weak,explicit,explore}`(§2 — 기본 `weak`; 사용자가 목표를 HITL 명시했을 때만 `explicit`; 사용자가 *광범위 탐색/목표 미설정*을 HITL 지시했을 때만 `explore`). PASS → done-게이트 클리어 / REFUTE → 기각 리포트 + `next_strategy_hint` → recipe 재탐색 → 3단계로(cap 한정, **`explore` 에서는 해제** — 다음 항목으로 진행) / NEEDS_RUBRIC → (c) 사용자 백스톱.
+6. **판정(결정론 게이트)** — `judge_bench.sh <config> --authority {weak,explicit,explore}` (roofline→verdict 체인 · 권한 인자 필수 · 기본값 없음). 판정 규칙 자체는 `verdict_rule.py --authority {weak,explicit,explore}`(§2 — 기본 `weak`; 사용자가 목표를 HITL 명시했을 때만 `explicit`; 사용자가 *광범위 탐색/목표 미설정*을 HITL 지시했을 때만 `explore`). PASS → done-게이트 클리어 / REFUTE → 기각 리포트 + `next_strategy_hint` → recipe 재탐색 → 3단계로(cap 한정, **`explore` 에서는 해제** — 다음 항목으로 진행) / NEEDS_RUBRIC → (c) 사용자 백스톱.
 7. **종결 발행** — cap 소진 or PASS 로 종결되면 사람용 report(항상) + 인증서(PASS시만) 발행(`references/lite-and-publication.md` §2).
 
 ## Failure → reference routing
@@ -167,6 +167,7 @@ description: >-
 - `scripts/roofline.py` — (a) spec-aware R_fp/R_token/expected(manifest+config/index).
 - `scripts/run_bench.sh` · `scripts/parse_bench.py` — full 경로 측정 M(+engine-log 교차).
 - `scripts/verdict_rule.py` — 결정론 PASS/REFUTE 게이트(**`--authority weak|explicit|explore`** = E>c>expected / c>E>expected / E>expected(c 부재)(§2), like-with-like, spec-off 강제함수, 밸런스 축 — **`explore` 에서 밸런스는 게이트가 아니라 서술**(§2.1)). `explicit` + `--target-tps` 부재, `explore` + `--target-tps` 존재, `--target-tps|--reference-tps ≤0·NaN·Inf`, `--tolerance ∉[0,1)` 은 전부 **fail-closed(exit 2)** — 침묵 폴백 금지. **`--self-test`** 로 T1~T16 결정론 자체검사(파일 입력 불요 — T16 = explore 밸런스=서술 회귀).
+- `scripts/judge_bench.sh` — **루브릭 권한 통로**(roofline → verdict 체인). `--authority` 는 **필수이며 기본값이 없다** — 권한은 사용자 HITL 트리거이지 스크립트의 판단이 아니고, 기본값을 두면 "사용자가 약한 권한을 골랐다"와 "아무도 안 골랐다"가 구분 불가가 된다(이것이 1년간 explore 인증서 0건이었던 원인이다). 권한↔`--target-tps` 조합 규칙은 **복제하지 않고** `verdict_rule.py` 의 exit 2 를 그대로 전달한다. 루프라인 입력은 `sweep_index.json` meta 에서 **승계**한다(파생 복제 ✗).
 - `scripts/lite_bench.sh` · `scripts/lite_metrics.py` — lite 오케스트레이터 + 5종 메트릭 렌더(inform-only).
 - `scripts/sweep_bench.sh` · `scripts/render_report.py` · `scripts/publish_benchmark_record.py` — full 종결 스윕·report·인증서.
 - `scripts/max_envelope.sh` · `scripts/render_max_report.py` — **Max 오퍼레이션**(별도 정체성).
