@@ -243,9 +243,10 @@ def _validate_record_shape(record) -> tuple[str, str] | None:
                 return (f"PUBLICATION_RECORD_NARRATIVE_STATUS_VALUE_NOT_AN_OBJECT:{kind}",
                         f"publication record field 'narrative_status.{kind}' must be a JSON "
                         f"object, got {type(value).__name__}")
-            if set(value) != expected_entry_keys or value.get("status") != "authored":
+            if set(value) != expected_entry_keys or value.get("status") not in NARRATIVE_STATUSES:
                 return (f"PUBLICATION_RECORD_NARRATIVE_STATUS_SHAPE_INVALID:{kind}",
-                        f"narrative_status.{kind} must be the complete producer-emitted authored entry")
+                        f"narrative_status.{kind} must be the complete producer-emitted entry with status in "
+                        f"{sorted(NARRATIVE_STATUSES)}")
             if any(not isinstance(value[key], str) or not value[key]
                    for key in ("author", "generated_utc", "source")):
                 return (f"PUBLICATION_RECORD_NARRATIVE_STATUS_FIELD_INVALID:{kind}",
@@ -905,6 +906,12 @@ def cmd_append_raw(args: argparse.Namespace) -> None:
 # =============================================================================
 
 NARRATIVE_KINDS = ("plan", "devlog", "testlog", "report")
+# "authored" = 스캐폴드에 본문을 **주입**(임시 위치의 원문 — 휘발 소스 materialize) ·
+# "bound"    = 이미 docs/<kind>/ 에 규약 이름으로 있는 문서에 **바인딩**(복사 ✗ · plan_26090410 P5).
+#   종전엔 authored 만 있어서 기존 문서를 묶을 길이 없었고, 그래서 본문을 옮기는 것이 유일한 통과 경로였다
+#   → 원문 하나에 토픽별 파생 사본이 생기고 원문 편집 뒤 조용히 드리프트했다(2026-09-04 실측 9개/4원문).
+NARRATIVE_STATUSES = frozenset({"authored", "bound"})
+BINDABLE_NARRATIVE_KINDS = ("plan", "devlog", "testlog")   # report 는 배포자 공지(사람 저작) — 바인딩 대상 밖
 
 _AUTHOR_MAX_LEN = 200
 _COMMENT_BREAKING_SUBSTRINGS = ("-->", "<!--")
@@ -941,6 +948,65 @@ def _validate_author_or_die(author) -> None:
     _reject_html_comment_breaking_chars(author, "NARRATIVE_AUTHOR", "--author")
 
 
+def _canonical_narrative_src(repo_root: Path, src: str, kind: str) -> "str | None":
+    """`src` 가 `docs/<kind>/<kind>_<YYMMDDHH>[_MM_SS]_<topic>.md` 규약 이름이면 정규화된 repo-relative
+    경로, 아니면 None(→ 주입 경로). 규약 판정은 명명 SSOT(`doc_naming.is_dated_doc_basename`)가 한다."""
+    if kind not in BINDABLE_NARRATIVE_KINDS or gate._is_absolute_path_string(src):
+        return None
+    lex_status, parts = gate._lexical_components(repo_root, repo_root, src)
+    if lex_status != "ok" or len(parts) != 3 or tuple(parts[:2]) != ("docs", kind):
+        return None
+    return "/".join(parts) if doc_naming.is_dated_doc_basename(kind, parts[-1]) else None
+
+
+def _bind_existing_narrative(repo_root: Path, record: dict, args: argparse.Namespace,
+                             bind_rel: str, prior_target_rel: str, error_prefix: str) -> None:
+    """기존 규약 문서에 **바인딩**한다: 바이트를 옮기지 않고 `scaffolded[kind]` 를 그 경로로 돌린다.
+    init 이 만들어 둔 placeholder 스캐폴드는 지운다(publisher 자기 산출물 · 아직 저작 전일 때만).
+    원문에 placeholder 문구가 있으면 거부 — 그것은 저작된 문서가 아니다."""
+    content_bytes, _sha = _resolve_src(repo_root, bind_rel, "NARRATIVE")
+    text = content_bytes.decode("utf-8")
+    if _PLACEHOLDER in text or _NARRATIVE_BEGIN in text:
+        _emit(_bare_error("NARRATIVE_BIND_TARGET_IS_PLACEHOLDER",
+                          f"{bind_rel!r} still carries publisher scaffold markers/placeholder -- bind only an "
+                          f"authored document (or use the injection path with a temporary source)"), 2)
+    scaffold_removed = False
+    if prior_target_rel != bind_rel:
+        status = (record.get("narrative_status", {}).get(args.kind) or {}).get("status")
+        parts = _validate_prior_path(repo_root, prior_target_rel, ("docs", args.kind), error_prefix)
+        repo_root_fd = _open_repo_root_fd(repo_root)
+        try:
+            dir_fd = _safe_mkdir_chain(repo_root_fd, parts[:-1], error_prefix)
+        finally:
+            os.close(repo_root_fd)
+        try:
+            kind_of = _safe_stat_in_dir(dir_fd, parts[-1])
+            if kind_of == "file" and status not in ("authored", "bound"):
+                # publisher 가 init 에서 만든 미저작 스캐폴드만 지운다 — 사람이 저작한 문서는 절대 지우지 않는다.
+                fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=dir_fd)
+                try:
+                    old_text = os.read(fd, 1 << 20).decode("utf-8", errors="replace")
+                finally:
+                    os.close(fd)
+                if _PLACEHOLDER in old_text and _NARRATIVE_BEGIN in old_text:
+                    os.unlink(parts[-1], dir_fd=dir_fd)
+                    scaffold_removed = True
+        finally:
+            os.close(dir_fd)
+    record.setdefault("scaffolded", {})[args.kind] = bind_rel
+    record.setdefault("narrative_status", {})[args.kind] = {
+        "status": "bound", "author": args.author, "generated_utc": args.generated_utc, "source": bind_rel,
+    }
+    _save_record(repo_root, args.topic, record)
+    _emit({
+        "schema_version": SCHEMA_VERSION, "ok": True, "reason_codes": [], "messages": {},
+        "publication_id": args.topic, "kind": args.kind, "path": bind_rel,
+        "author": args.author, "status": "bound",
+        "binding": {"source": "path", "scaffold_removed": scaffold_removed,
+                    "previous_scaffold": (None if prior_target_rel == bind_rel else prior_target_rel)},
+    }, 0)
+
+
 def cmd_set_narrative(args: argparse.Namespace) -> None:
     repo_root = _resolve_repo_root(args.repo_root)
     _validate_topic_or_die(args.topic)
@@ -966,6 +1032,12 @@ def cmd_set_narrative(args: argparse.Namespace) -> None:
         _emit(_bare_error("NARRATIVE_TARGET_NOT_SCAFFOLDED",
                           f"no scaffolded '{args.kind}' document for this topic -- run `init` first"), 2)
     error_prefix = "NARRATIVE_%s" % args.kind.upper()
+
+    # ---- 바인딩 분기(plan_26090410 P5): 원문이 이미 docs/<kind>/ 의 규약 이름 문서면 복사하지 않는다 ----
+    bind_rel = _canonical_narrative_src(repo_root, args.narrative_file, args.kind)
+    if bind_rel is not None:
+        _bind_existing_narrative(repo_root, record, args, bind_rel, target_rel, error_prefix)
+        return
     # docs/_evidence/ is never trusted just because the record says so (P2-02): re-validate
     # containment/no-symlink through the same hardened resolver used for read-only evidence.
     repo_root_fd = _open_repo_root_fd(repo_root)
@@ -1435,7 +1507,7 @@ def cmd_finalize(args: argparse.Namespace) -> None:
             # already-delegated-to EVIDENCE_MISSING:<key> logic is what blocks the state --
             # finalize still never self-judges identity/link/PII/verdict/promotion.
             if key in NARRATIVE_KINDS:
-                if narrative_status.get(key, {}).get("status") != "authored":
+                if narrative_status.get(key, {}).get("status") not in NARRATIVE_STATUSES:
                     evidence[key] = None
                     continue
                 r = gate.resolve_and_stat_evidence(finalize_repo_root_fd, repo_root, repo_root, rel,
@@ -1571,6 +1643,12 @@ def cmd_init(args: argparse.Namespace) -> None:
     try:
         for kind in kinds_to_scaffold:
             prior_path = prior_scaffolded.get(kind)
+            if (prior.get("narrative_status", {}).get(kind) or {}).get("status") == "bound" and prior_path:
+                # 바인딩된 원문은 publisher 의 산출물이 아니다 — 사라졌다고 placeholder 를 만들어 채우면
+                # 그것이 곧 합성이다. 경로만 유지하고 부재는 finalize 의 EVIDENCE_MISSING 이 말한다.
+                scaffolded[kind] = prior_path
+                already_existed.append(kind)
+                continue
             if kind in DATED_KINDS:
                 rel_path, created = _ensure_dated_scaffold(repo_root_fd, repo_root, kind, args.topic, args.task_class,
                                                             args.generated_utc, prior_path)
@@ -1862,6 +1940,45 @@ def _self_test() -> None:
             raise RuntimeError(f"unbind must be surfaced, got {out['binding']!r}")
         if not (repo_root / cert_rel).is_file():
             raise RuntimeError("PASS→REFUTE must UNBIND, never unlink the skill-issued certificate")
+        # ── set-narrative 바인딩(plan_26090410 P5) — 규약 문서는 복사하지 않고 묶는다 ──────────────
+        plan_src = "docs/plan/plan_26010109_selftest_source.md"
+        (repo_root / plan_src).write_text("# plan\n실제 저작 본문.\n", encoding="utf-8")
+        before_plans = sorted(os.listdir(repo_root / "docs" / "plan"))
+        code, out = invoke(["set-narrative", "--repo-root", str(repo_root), "--topic", "bench", "--kind", "plan",
+                            "--narrative-file", plan_src, "--author", "selftest", "--generated-utc", "2026-01-01T02:20:00Z"])
+        if not (code == 0 and out and out.get("status") == "bound" and out.get("path") == plan_src):
+            raise RuntimeError(f"canonical narrative must be BOUND, got {out!r}")
+        if not out["binding"]["scaffold_removed"]:
+            raise RuntimeError("init's unauthored placeholder scaffold must be removed on bind")
+        if sorted(os.listdir(repo_root / "docs" / "plan")) != ["plan_26010109_selftest_source.md"]:
+            raise RuntimeError(f"bind must leave exactly the bound original: {os.listdir(repo_root / 'docs' / 'plan')}")
+        rec = json.loads((repo_root / "docs/_evidence/bench.json").read_text(encoding="utf-8"))
+        if rec["scaffolded"]["plan"] != plan_src or rec["narrative_status"]["plan"]["status"] != "bound":
+            raise RuntimeError(f"record must point at the bound original: {rec['scaffolded']['plan']!r}")
+        # ★음성대조 1: 임시 위치의 원문은 종전대로 주입(스캐폴드 유지 · authored)
+        (repo_root / "docs/_evidence/inputs/dev.md").write_text("서사 본문\n", encoding="utf-8")
+        code, out = invoke(["set-narrative", "--repo-root", str(repo_root), "--topic", "bench", "--kind", "devlog",
+                            "--narrative-file", "docs/_evidence/inputs/dev.md", "--author", "selftest",
+                            "--generated-utc", "2026-01-01T02:21:00Z"])
+        if not (code == 0 and out and out.get("status") == "authored"):
+            raise RuntimeError(f"temporary source must take the injection path, got {out!r}")
+        # ★음성대조 2: placeholder 가 남은 규약 문서는 바인딩 거부
+        ph = "docs/testlog/testlog_26010109_selftest_ph.md"
+        (repo_root / ph).write_text(_PLACEHOLDER + "\n", encoding="utf-8")
+        code, out = invoke(["set-narrative", "--repo-root", str(repo_root), "--topic", "bench", "--kind", "testlog",
+                            "--narrative-file", ph, "--author", "selftest", "--generated-utc", "2026-01-01T02:22:00Z"])
+        if not (code == 2 and "NARRATIVE_BIND_TARGET_IS_PLACEHOLDER" in (out or {}).get("reason_codes", [])):
+            raise RuntimeError(f"placeholder document must not be bindable, got {out!r}")
+        # ★음성대조 3: 바인딩된 원문이 사라져도 re-init 이 placeholder 를 **만들지 않는다**(복원 = 합성)
+        (repo_root / plan_src).unlink()
+        # (이 토픽은 위에서 REFUTE 로 재발행됐다 — re-init 은 verdict 를 다시 주장하지 않는다)
+        code, out = invoke(["init", "--repo-root", str(repo_root), "--topic", "bench",
+                            "--task-class", "full_benchmark", "--generated-utc", "2026-01-01T02:00:00Z",
+                            "--identity-json", str(repo_root / "identity.json")])
+        if not (code == 0 and out and out.get("ok")) or "plan" in out.get("created_now", []) \
+                or (repo_root / plan_src).exists():
+            raise RuntimeError(f"re-init must not synthesize a missing BOUND original: {out!r}")
+
         # listdir 실패는 fail-closed (감사 A-3). ★ `-1` 은 CPython path_t 의 "fd 아님" 센티널이라
         #   cwd 를 열어 버린다 — 진짜 닫힌 fd 번호(EBADF)를 써야 음성대조가 성립한다.
         closed_fd = os.open(str(repo_root), os.O_RDONLY | os.O_DIRECTORY)
