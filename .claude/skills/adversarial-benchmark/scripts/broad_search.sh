@@ -101,10 +101,14 @@ fi
 STOPJSON="${STATE%.json}.stop.json"
 
 _stop(){   # 상태 → 정지 판정 파일. rc 0=계속 · 3=정지 를 그대로 돌려준다.
+  # ★ 여기서 `set -e` 를 다시 켜지 않는다. 셸 옵션은 함수 지역이 아니라 **전역**이라,
+  #   켜 두면 호출부가 `set +e` 로 감싸 놨어도 `return 3`(정지) 이 errexit 를 물어
+  #   스크립트가 **게이트 메시지를 찍기 전에** 죽는다. 2026-09-05 실측: 연속실패 정지가
+  #   성립했는데 stdout·stderr 둘 다 비고 rc=3 만 남았다 — 가드가 듣는 사람 없는 자리에서
+  #   울린 것이다. errexit 복원은 호출부 책임이다(모든 호출부가 이미 `set -e` 로 닫는다).
   set +e
   python3 "$SDIR/sweep_stop.py" --state "$STATE" --now-utc "$NOW" > "$STOPJSON"
   local rc=$?
-  set -e
   [ "$rc" = "2" ] && { cat "$STOPJSON" >&2; echo "[broad_search] 정지 조건을 판정할 수 없다" >&2; exit 2; }
   return "$rc"
 }
@@ -191,11 +195,18 @@ MSG
   [ -f "$STATE" ] || { echo "[broad_search] ERROR 상태 파일 부재: $STATE (먼저 init)" >&2; exit 2; }
 
   # 진입 전 정지 조건. 이미 멈춰야 하는 스윕에 셀을 하나 더 밀어 넣지 않는다.
-  set +e; _stop; STOPRC=$?; set -e
-  if [ "$STOPRC" = "3" ]; then
-    echo "[broad_search] 정지 조건 성립 — 셀을 실행하지 않는다:" >&2
-    python3 -c "import json;d=json.load(open('$STOPJSON'));print('  stopped_by:', d['stopped_by'])" >&2
-    exit 0
+  #   단 `--serve-failed` 는 **이미 끝난 일의 기록**이다 — 컨테이너도 벤치도 띄우지 않고
+  #   상태 파일에 사실 한 줄을 적을 뿐이다. 게이트의 목적은 *새 작업 착수*를 막는 것이지
+  #   *이미 관측한 사실*을 지우는 것이 아니다. 여기서 막으면 "C7 은 불가"가 "C7 은 미상"이
+  #   되어 지도에 구멍이 남는다(2026-09-05 실측 — 연속실패 정지가 마지막 셀 기록을 삼켰다).
+  #   기록 뒤 정지 조건은 어차피 하단에서 다시 평가돼 그대로 성립한다.
+  if [ -z "$SERVE_FAILED_REASON" ]; then
+    set +e; _stop; STOPRC=$?; set -e
+    if [ "$STOPRC" = "3" ]; then
+      echo "[broad_search] 정지 조건 성립 — 셀을 실행하지 않는다:" >&2
+      python3 -c "import json;d=json.load(open('$STOPJSON'));print('  stopped_by:', d['stopped_by'])" >&2
+      exit 0
+    fi
   fi
 
   if [ -n "$SERVE_FAILED_REASON" ]; then
