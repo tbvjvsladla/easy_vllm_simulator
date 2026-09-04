@@ -888,6 +888,25 @@ CERTIFICATE_FIELD_MAP = {
 
 STRONG_IDENTITY_FIELDS = ("model", "gpu", "vllm", "quant", "topology", "tp")
 
+# ---- certificate run key (plan_26090410 §3.2) -----------------------------------------------
+# 인증서 한 장을 **"측정 하나"** 로 식별하는 키 = 강한 6키 + `measured_utc`. 소프트 지문(image_digest
+# 등)은 넣지 않는다 — 넣는 순간 두 번째 identity 가 된다. 이 키가 곧 폴더 해소의 질의이자 tripwire ④
+# 의 그룹 키다: **같은 술어를 감지기와 해소기가 공유**한다(갈라지면 둘이 다른 답을 낸다).
+# 2026-09-04 실측: 추적 인증서 53장에서 이 키의 그룹핑이 바이트 동일 8쌍과 정확히 일치했다.
+CERTIFICATE_RUN_KEY_FIELDS = tuple(CERTIFICATE_FIELD_MAP[f] for f in STRONG_IDENTITY_FIELDS) + ("measured_utc",)
+
+
+def certificate_run_key(cert_fields: dict):
+    """(6 strong cert fields + measured_utc) as a tuple, or None when any is absent/blank -- callers
+    must treat None as *unidentifiable* (fail-closed), never as "matches nothing"."""
+    vals = []
+    for k in CERTIFICATE_RUN_KEY_FIELDS:
+        v = cert_fields.get(k)
+        if v is None or str(v).strip() == "":
+            return None
+        vals.append(str(v).strip())
+    return tuple(vals)
+
 # ---- benchmark-certificate rubric contract (plan_26082219 D5) --------------------------------
 # 벤치 판정기(adversarial-benchmark/scripts/verdict_rule.py)가 `--target-tps 0` 같은 상수 0 을
 # 정본으로 낙찰시키면 floor=0 이 되어 **어떤 측정치도 통과하는 PASS**(공허 PASS)가 만들어졌고, 그
