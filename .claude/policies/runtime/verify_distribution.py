@@ -722,6 +722,23 @@ def verify() -> dict:
         #   초록이 되지 않는다(픽스처가 실물보다 좁다 — 하루에 네 번 겪은 계열).
         _run("benchmark_bench_tool_pin_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py", "--self-test"], {0}),
+        # GuideLLM 산출물 파서 (CP4). 실측 산출물 픽스처를 함께 검사하므로 합성 픽스처만 보고
+        #   초록이 되지 않는다.
+        _run("benchmark_parse_guidellm_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.py", "--self-test"], {0}),
+        # 광의의 탐색 결정론 3종 (CP6). 셀 종결 분류·지도 렌더러가 각각 음성 사례를 갖는다.
+        #   특히 render_sweep_map 의 R8~R10 은 **순위 금지**를 산문이 아니라 결정론으로 지킨다 —
+        #   산문으로만 적으면 다음 편집이 조용히 정렬 한 줄을 넣는다.
+        _run("benchmark_classify_cell_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/classify_cell.py", "--self-test"], {0}),
+        _run("benchmark_sweep_map_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.py", "--self-test"], {0}),
+        # Broad Search 이중 게이트의 **집행**: --confirm-risk 없이는 셀이 돌지 않는다(exit 5).
+        _run("benchmark_broad_search_confirm_gate",
+             ["bash", ".claude/skills/adversarial-benchmark/scripts/broad_search.sh", "cell",
+              "--state", "/nonexistent/bs.json", "--now-utc", "2026-01-01T00:00:00Z",
+              "--cell-key", "k", "--config", "c", "--axis-citation", "x",
+              "--bench-budget-mib", "1"], {5}),
     ]
 
     with tempfile.TemporaryDirectory(prefix="easy-vllm-wiki-distribution.") as wiki:

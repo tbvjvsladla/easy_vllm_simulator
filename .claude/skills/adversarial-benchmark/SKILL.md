@@ -174,6 +174,9 @@ description: >-
 - `scripts/lite_bench.sh` · `scripts/lite_metrics.py` — lite 오케스트레이터 + 5종 메트릭 렌더(inform-only).
 - `scripts/sweep_bench.sh` · `scripts/render_report.py` · `scripts/publish_benchmark_record.py` — full 종결 스윕·report·인증서.
 - `scripts/max_envelope.sh` · `scripts/render_max_report.py` — **Max 오퍼레이션**(별도 정체성).
+- `scripts/broad_search.sh` — **광의의 탐색 오퍼레이션**(Max 동형 · 별도 정체성 · 이중 게이트 `--confirm-risk` ∧ 챗 Y/N). `init`/`cell`/`status`/`map`. **축을 고르지 않는다** — 축 선택·후보 생성·캠페인 안은 에이전트 판단이고(결정론이 축을 고르면 탐색 품질이 떨어진다), 이 스크립트가 소유하는 것은 게이트·안전·상태·산출물이다. **serve 를 기동하지 않는다** — 셀 materialize 는 explorer 소관이며, 미가동은 `serve_failed` 로 정직하게 기록하고 멈춘다(단일노드에 정규 기동 경로가 없다고 해서 여기서 무보호 `compose up` 으로 메우지 않는다 — D3).
+- `scripts/classify_cell.py` — 셀 종결 3분류(`measured`/`serve_failed`/`measurement_void`). `void_reason` 은 자기추론이 아니라 **노드 블랙박스 이벤트와의 시각 대조**로 채우고, 대조 실패는 `unknown` 이다(추측 ✗). dry-run 트립은 사인 후보가 아니다 — 아무것도 죽이지 않았다. 허용오차 기본 0(같은 호스트 같은 시계). **`--self-test`**(K1~K3 · C1~C6).
+- `scripts/render_sweep_map.py` — 탐색 지도 렌더러. **순위를 만들지 않는다**(목적함수 ✗ · 파레토 선언 ✗ · 셀은 **실행 순서**로만). 그 금지를 산문이 아니라 `assert_no_ranking` 이 **깊이 무제한 키 검사**로 집행하고, 위반 시 자기 산출물을 스스로 거부한다(exit 3). 미완 지도도 발행한다(`sweep_status: incomplete` · `remaining[]`). **`--self-test`**(R1~R10 · 음성대조 3건).
 - `scripts/sweep_stop.py` — **광의의 탐색(Broad Search) 정지 조건 평가기**(`stop ⟸ 남은 셀 0 ∨ 셀 수 예산 ∨ 벽시계 예산 ∨ 연속 실패 한도`). 세 한도는 전부 상태 파일의 `declared_budget` 에서만 오고 **기본값이 없다** — 미선언은 exit 2 다(깊이 HITL 이 숫자를 낳는다). 셀 종결 3분류(`measured`/`serve_failed`/`measurement_void`) 중 뒤 둘만 연속 실패로 세며, `measured` 는 verdict 가 REFUTE 여도 실패가 아니다(잴 수 있었다). 시각은 `--now-utc` 주입만. **`--self-test`**(S1~S16 · 음성 사례 6건). 종료 `0=계속 · 3=정지 · 2=판정 불가`.
 - `.claude/skills/wiki-desk/scripts/doc_naming.py` — 발행 명명 SSOT.
 
