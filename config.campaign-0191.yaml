@@ -1,0 +1,13 @@
+# 광의의 탐색 캠페인 입력 (plan_26090419) — 0.19.1 × gpt-oss-120b × single
+# 루트 config.yaml 을 덮지 않으려고 별도 파일로 둔다(0.18.0 트리플렛 보존).
+target_model:
+  path: /app/models/OpenAI/gpt-oss-120b
+nas_host_root: /mnt/llm/Model/hugging_face_ver_model
+tiktoken_host_path: /mnt/llm/Model/hugging_face_ver_model/OpenAI/harmony_tokenizer
+vram_budget_gb: 121.7
+safety_margin: 0.90
+kv_cache_dtype_bytes: 1      # 이 캠페인의 기준 셀은 KV fp8 이다(1 바이트) — 축을 옮기는 셀은 후보에서 바꾼다.
+serving:
+  config_name: gptoss120b-0191-c0
+  port: 8081                 # 0.18.0 서빙(8080)과 포트를 가른다 — 동시 기동 사고 방지
+  served_model_name: gpt-oss-120b
