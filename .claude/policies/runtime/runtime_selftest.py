@@ -382,7 +382,11 @@ def _test_promotion_rubric_carrier() -> None:
 #   그대로 차단된다 -- 가드를 끈 것이 아니라 통로를 이었다는 증거다.
 # =============================================================================================
 
-_HINT_TAG = "hint/0.0.0.dev0/selftest-model/gb10"
+# ★ 2026-09-04(CP7 · plan_26090415 §7.5 M1): 태그가 5세그먼트가 됐다 —
+#   `hint/<vllm>/<model>/<arch>/<recipe>`. 마지막 칸은 **인증서에서 파생**하며
+#   `hint_tag.derive_recipe_segment` 가 아래 `_HINT_CERTIFICATE` 로부터 같은 값을 낸다
+#   (이름과 측정이 어긋나면 seal 이 HINT_RECIPE_SEGMENT_MISMATCH 로 거부한다).
+_HINT_TAG = "hint/0.0.0.dev0/selftest-model/gb10/qfp8-len32768-kvfp8"
 _HINT_TOPOLOGY = "single 1노드 TP1"
 _HINT_HF_REPO = "selftest-org/selftest-model"
 _HINT_SCRIPT_REL = ".claude/skills/hint-publisher/scripts/hint_tag.py"
@@ -390,8 +394,11 @@ _HINT_TEMPLATE_REL = ".claude/skills/hint-publisher/templates/hint_recipe.templa
 _HINT_CATALOG_REL = ".claude/skills/hint-publisher/scripts/hint_catalog.py"
 
 # 인증서 carrier 케이스용 -- 실제 인증서는 lite 열을 갖는다(full ⊇ lite 불변식).
+# 레시피 축 3종을 **전부** 담는다 — 하나만 담으면 픽스처가 실물보다 좁아져 파생기의
+# 다축 결합을 시험하지 못한다(같은 계열 회귀를 하루에 네 번 겪었다).
 _HINT_CERTIFICATE = (_PROMO_CERTIFICATE.format(authority="weak")
-                     + "lite_included: true\nlite_gen_tps_warm: 26.0\n")
+                     + "lite_included: true\nlite_gen_tps_warm: 26.0\n"
+                     + "max_model_len: 32768\nkv_cache_dtype: fp8\n")
 
 # 린터 L1~L5 를 실제로 통과하는 최소 본문(합성 픽스처 -- 실제 서빙 사실이 아니다).
 _HINT_RECIPE_BODY = """selftest 합성 레시피 픽스처 — 실제 서빙 실적이 아니라 런타임 자체검사용이다.

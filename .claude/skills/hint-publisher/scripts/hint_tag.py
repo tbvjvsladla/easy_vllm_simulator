@@ -41,7 +41,69 @@ from pathlib import Path
 DEFAULT_TAGGER_NAME = "easy-vllm-simulator"
 DEFAULT_TAGGER_EMAIL = "hints@easy-vllm.invalid"
 
-TAG_SHAPE = re.compile(r"^hint/[^/]+/[^/]+/[^/]+$")
+# ★ 2026-09-04(CP7 · plan_26090415 §7.5 M1): 태그가 **5세그먼트**가 된다.
+#     hint/<vllm>/<model>/<arch>/<recipe>
+#   왜: 이름에 레시피 축이 없어서 한 스윕의 여러 셀이 **같은 이름**을 원했고, 그때 이 스크립트는
+#   기존 이름을 하드 차단한다(발행 불가). 이미 벌어져 있던 일이다 — 같은 모델·다른 max_model_len
+#   인증서가 실재하고 레시피 변이를 가진 모델이 6종이다. `serving_config` 는 축으로 못 쓴다
+#   (45건 중 12건만 채워졌고 그마저 모델명으로 덮인다).
+#   레시피를 **맨 뒤**에 붙이는 이유: 모델 슬러그 인덱스(`split("/")[2]`)가 그대로 살아 변경
+#   표면이 가장 작다.
+TAG_SHAPE = re.compile(r"^hint/[^/]+/[^/]+/[^/]+/[^/]+$")
+# 레시피 세그먼트는 **파생값**이다(손저작 ✗). 형태를 좁혀 두면 손으로 지은 이름이 여기서 걸린다.
+RECIPE_SHAPE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+
+
+def parse_hint_tag(name: str) -> tuple[str, str, str, str]:
+    """`hint/<vllm>/<model>/<arch>/<recipe>` → 4-튜플. **이름 해체의 단일 소유자.**
+
+    종전에는 `_, vllm, model, arch = tag.split("/")` 가 5곳에 흩어져 있었다. 세그먼트가 하나
+    늘면 그 다섯이 **동시에** 깨지고, 하나라도 놓치면 그 경로만 조용히 옛 모양을 가정한다.
+    """
+    parts = name.split("/")
+    if len(parts) != 5 or parts[0] != "hint" or not all(parts):
+        die(f"[hint_tag] FAIL: 이름 형태 위반(hint/<vllm>/<model>/<arch>/<recipe>): {name}")
+    return parts[1], parts[2], parts[3], parts[4]
+
+
+def _recipe_token(value: object, prefix: str) -> str | None:
+    """인증서 값 하나 → 레시피 토큰. 결측(`N/A`/빈값)은 **토큰을 만들지 않는다**."""
+    text = str(value).strip() if value is not None else ""
+    if not text or text.upper() == "N/A" or text.lower() in ("none", "null"):
+        return None
+    slug = re.sub(r"[^a-z0-9]+", "", text.lower())
+    return f"{prefix}{slug}" if slug else None
+
+
+def derive_recipe_segment(fields: dict) -> str:
+    """인증서 필드 → 레시피 세그먼트(예 `qmxfp4-len131072-kvfp8`).
+
+    축 3종 = `quantization` · `max_model_len` · `kv_cache_dtype`. 지문 해시가 아니라 **읽히는
+    파생값**을 쓰는 이유: 태그가 *지도* 역할을 하려면 이름 자체가 신호를 줘야 하고, 불투명 해시는
+    인증서가 이미 드는 값을 두 번째 자리에 적어 `policy:GIT_SINGLE_AUTHORITY` 와 부딪힌다.
+    트리플렛 이름은 축이 못 된다 — 실적상 사람이 안 갈라 왔다(같은 모델 인증서 3장이 같은 이름).
+    """
+    tokens = [t for t in (_recipe_token(fields.get("quantization"), "q"),
+                          _recipe_token(fields.get("max_model_len"), "len"),
+                          _recipe_token(fields.get("kv_cache_dtype"), "kv")) if t]
+    if not tokens:
+        die("[hint_tag] FAIL: 인증서에서 레시피 축 3종(quantization·max_model_len·kv_cache_dtype)을 "
+            "하나도 읽지 못했다 — 이름을 지어내지 않는다.")
+    return "-".join(tokens)
+
+
+def collide_suffix(name: str, timestamp: str) -> str:
+    """파생 세그먼트가 그래도 겹칠 때의 폴백 — `_<timestamp>` 접미사(사용자 결정 2026-09-04).
+
+    ★ **조용히 붙이지 않는다.** 겹쳤다는 것은 *고른 축 3종이 두 레시피를 못 갈랐다*는 신호이고,
+    접미사만 붙이고 넘어가면 스키마가 부족하다는 사실이 사라진다(침묵 폴백 금지).
+    선례 정합: `doc_naming.bench_filename` 이 같은 시간대 다른 측정에 `_MM_SS` 를 붙이는 것과 동형.
+    """
+    print(f"[hint_tag] ⚠ 이름 충돌: {name}\n"
+          f"        레시피 축 3종(quantization·max_model_len·kv_cache_dtype)이 두 레시피를 "
+          f"가르지 못했다. `_{timestamp}` 로 유일화하되 **축이 부족하다는 신호로 기록한다** — "
+          f"반복되면 축을 늘려야 한다.", file=sys.stderr)
+    return f"{name}_{timestamp}"
 HINTS_MARKER = "<!-- hint-index:rows -->"
 
 
@@ -694,8 +756,11 @@ def _resolve_evidence_footer_fields(action: str, manifest: dict, resolved_manife
                           "manifest has no evidence.certificate.path -- cannot bind a durable "
                           "evidence footer without a certificate artifact to hash"},
                          identity, manifest.get("task_class"))
+        # capture_content=True: 레시피 세그먼트를 이 바이트로 대조한다(CP7). 경로를 다시 열지 않고
+        # **이미 안전 해소된 그 바이트**를 쓰는 것이 요점이다 — 두 번 열면 TOCTOU 창이 생긴다.
         r_cert = _cgate().resolve_and_stat_evidence(repo_root_fd, ROOT, resolved_manifest_path.parent,
-                                                     cert_path_str, expect_dir=False)
+                                                     cert_path_str, expect_dir=False,
+                                                     capture_content=True)
         if r_cert["status"] != "ok":
             _die_binding(action, ["HINT_CERTIFICATE_UNSAFE_OR_MISSING"],
                          {"HINT_CERTIFICATE_UNSAFE_OR_MISSING":
@@ -704,6 +769,46 @@ def _resolve_evidence_footer_fields(action: str, manifest: dict, resolved_manife
                          identity, manifest.get("task_class"))
     finally:
         os.close(repo_root_fd)
+
+    # ★ 레시피 세그먼트는 **손저작이 아니라 파생값**이다(CP7 · plan_26090415 §7.5 M1). 여기서
+    #   바인딩된 인증서로부터 다시 파생해 대조한다 — 이름이 측정과 어긋나면 그 태그는 지도가
+    #   아니라 오도(誤導)다. `derive_slug` 가 모델 슬러그에 대해 하는 일과 같은 처방(작명 자유도
+    #   제거)이며, 인증서를 못 읽으면 대조를 **건너뛰지 않고** 거부한다.
+    _tag_recipe = parse_hint_tag(tag)[3]
+    _ev = manifest.get("evidence") if isinstance(manifest, dict) else None
+    _ev = _ev if isinstance(_ev, dict) else {}
+    _cert_decl = _ev.get("certificate")
+    _bound_is_certificate = isinstance(_cert_decl, dict) and bool(_cert_decl.get("path"))
+    if _bound_is_certificate:
+        _cert_bytes = r_cert.get("content_bytes")
+        if _cert_bytes:
+            _cert_fields, _cert_ok = _cgate().parse_flat_certificate(
+                _cert_bytes.decode("utf-8", "replace"))
+        else:
+            _cert_fields, _cert_ok = {}, False
+        if not _cert_ok:
+            _die_binding(action, ["HINT_CERTIFICATE_UNPARSEABLE"],
+                         {"HINT_CERTIFICATE_UNPARSEABLE":
+                          f"certificate {cert_path_str!r} did not parse as a flat certificate -- "
+                          f"refusing to bind a recipe segment that cannot be checked against it"},
+                         identity, manifest.get("task_class"))
+        _expected_recipe = derive_recipe_segment(_cert_fields)
+        if _tag_recipe.split("_")[0] != _expected_recipe:   # `_<timestamp>` 충돌 폴백을 벗긴다
+            _die_binding(action, ["HINT_RECIPE_SEGMENT_MISMATCH"],
+                         {"HINT_RECIPE_SEGMENT_MISMATCH":
+                          f"tag recipe segment {_tag_recipe!r} does not match the segment derived "
+                          f"from the bound certificate ({_expected_recipe!r}) -- the name must be "
+                          f"derived, not authored; run "
+                          f"`hint_tag.py recipe-segment --certificate {cert_path_str}`"},
+                         identity, manifest.get("task_class"))
+    else:
+        # 인증서가 **애초에 존재할 수 없는** 발행 경로다(perf_waiver · explore — 인증서는 PASS
+        # 때만 나온다). 그때 바인딩 대상은 항상 발행되는 bench_report 이고, 리포트는 flat
+        # 인증서가 아니므로 레시피 세그먼트를 측정과 대조할 근거가 **없다**.
+        # 조용히 넘기지 않는다 — 무엇을 확인하지 못했는지 큰 소리로 남긴다(대조 부재 ≠ 대조 통과).
+        print(f"[hint_tag] ⚠ 레시피 세그먼트 대조 생략: 바인딩 대상이 인증서가 아니라 "
+              f"{cert_path_str!r} 다(인증서는 PASS 때만 발행된다). 세그먼트 {_tag_recipe!r} 의 "
+              f"형태는 검증됐으나 **측정과의 일치는 검증되지 않았다**.", file=sys.stderr)
 
     # r_manifest / r_cert 의 status 검사는 위에서 이미 끝났다 — footer 는 그 **주소**만 싣고
     # digest 는 싣지 않는다(F-6a). 안전 resolve 자체가 발행 시점 게이트이고, 읽는 쪽은 매 판독마다
@@ -773,7 +878,7 @@ def _existing_model_slugs() -> dict[str, str]:
     out: dict[str, str] = {}
     for t in existing_hint_tags():
         parts = t.split("/")
-        if len(parts) == 4:
+        if len(parts) == 5:
             out.setdefault(_norm_slug(parts[2]), parts[2])
     return out
 
@@ -782,17 +887,21 @@ def existing_hint_tags() -> list[str]:
     return [t for t in git("tag", "-l", "hint/*").stdout.split() if t]
 
 
-def validate_name(name: str, expect_absent: bool = True) -> tuple[str, str, str]:
+def validate_name(name: str, expect_absent: bool = True) -> tuple[str, str, str, str]:
     if not TAG_SHAPE.match(name):
-        die(f"[hint_tag] FAIL: 이름 형태 위반(hint/<vllm>/<model>/<arch>): {name}")
+        die(f"[hint_tag] FAIL: 이름 형태 위반(hint/<vllm>/<model>/<arch>/<recipe>): {name}")
     if git("check-ref-format", f"refs/tags/{name}", check=False).returncode != 0:
         die(f"[hint_tag] FAIL: git 이 거부하는 ref 이름: {name}")
-    _, vllm, model, arch = name.split("/")
+    vllm, model, arch, recipe = parse_hint_tag(name)
+    if not RECIPE_SHAPE.match(recipe):
+        die(f"[hint_tag] FAIL: 레시피 세그먼트 형태 위반(소문자 슬러그): {recipe!r}\n"
+            f"        레시피는 **인증서에서 파생**한다 — `hint_tag.py recipe-segment --certificate <경로>` "
+            f"가 그 값을 낸다. 손으로 짓지 않는다.")
     prior = _existing_model_slugs().get(_norm_slug(model))
     if prior is not None and prior != model:
         die(f"[hint_tag] FAIL: 모델 슬러그 '{model}' 은 이미 발행된 '{prior}' 와 대소문자·구두점만 "
             f"다르다(정규화키 동일). 정본 철자 '{prior}' 를 쓰라 — 철자 분열은 "
-            f"`git tag -l 'hint/*/<slug>/*'` 검색을 조용히 깨뜨린다(2026-08-20 실측 2건).")
+            f"`git tag -l 'hint/*/<slug>/*/*'` 검색을 조용히 깨뜨린다(2026-08-20 실측 2건).")
     existing = existing_hint_tags()
     if expect_absent and name in existing:
         die(f"[hint_tag] FAIL: 이미 존재하는 태그: {name}")
@@ -801,7 +910,7 @@ def validate_name(name: str, expect_absent: bool = True) -> tuple[str, str, str]
             continue
         if e.startswith(name + "/") or name.startswith(e + "/"):
             die(f"[hint_tag] FAIL: 기존 태그와 D/F prefix 충돌: {e}")
-    return vllm, model, arch
+    return vllm, model, arch, recipe
 
 
 def _load_index() -> dict:
@@ -830,7 +939,7 @@ def _parse_tag_body(name: str) -> tuple[str, str, str]:
 # ── create ──────────────────────────────────────────────────────────────────
 def cmd_create(a: argparse.Namespace) -> int:
     _require_promotion_authorization("create", a.manifest)
-    vllm, model, arch = validate_name(a.tag)
+    vllm, model, arch, recipe = validate_name(a.tag)
     slug_src = require_derived_slug(model, vllm, arch, a.hf_repo, a.model_path)
     print(f"[hint_tag] 슬러그 '{model}' 확인 (출처: {slug_src})")
     anchor = git("rev-parse", "--verify", a.commit).stdout.strip()
@@ -904,7 +1013,7 @@ def _assert_remeasure(body: str) -> None:
 
 def cmd_finalize(a: argparse.Namespace) -> int:
     _require_promotion_authorization("finalize", a.manifest)
-    vllm, model, arch = validate_name(a.tag)  # 미존재·철자충돌·합법 재확인
+    vllm, model, arch, recipe = validate_name(a.tag)  # 미존재·철자충돌·합법 재확인
     require_derived_slug(model, vllm, arch, a.hf_repo, a.model_path)
     anchor = git("rev-parse", "--verify", a.commit).stdout.strip()
     manifest, resolved_manifest_path = _load_manifest_for_binding("hint_finalize", a.manifest)
@@ -1005,6 +1114,7 @@ def cmd_finalize(a: argparse.Namespace) -> int:
 
 def _hints_row(e: dict) -> str:
     return (f"| `{e['tag']}` | {e['vllm']} | {e['model']} | {e['arch']} | "
+            f"{e.get('recipe','')} | "
             f"{e.get('topology','')} | {e.get('status','active')} | "
             f"{e.get('superseded_by') or e.get('related') or '—'} | "
             f"{e.get('last_verified','')} | {e.get('brief','')} |")
@@ -1161,7 +1271,7 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
     if not gate_ok:
         problems.append(("HINT_EVIDENCE_MANIFEST_NOT_PROMOTION_READY", f"{tag}: HINT_EVIDENCE_MANIFEST_NOT_PROMOTION_READY {gate_detail}"))
 
-    _, vllm, model, arch = tag.split("/")
+    vllm, model, arch, recipe = parse_hint_tag(tag)
     ref_pt = ref_manifest.get("promotion_target")
     if not isinstance(ref_pt, dict):
         problems.append(("HINT_EVIDENCE_PROMOTION_TARGET_MISSING", f"{tag}: HINT_EVIDENCE_PROMOTION_TARGET_MISSING referenced manifest 에 promotion_target 없음"))
@@ -1568,6 +1678,25 @@ def cmd_push(a: argparse.Namespace) -> int:
 
 
 # ── match (근-미스 발견) ──────────────────────────────────────────────────────
+def cmd_recipe_segment(a: argparse.Namespace) -> int:
+    """인증서 → 레시피 세그먼트. 발행자가 이름을 짓지 못하게 하는 것이 목적이다(`derive_slug` 와 동형).
+
+    read-only 이며 태그를 만들지 않는다 — 사람/에이전트가 이 값을 받아 이름을 조립한다.
+    """
+    path = Path(a.certificate)
+    if not path.is_absolute():
+        path = ROOT / path
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as e:
+        die(f"[hint_tag] FAIL: 인증서를 읽을 수 없다({a.certificate}): {e}")
+    fields, ok = _cgate().parse_flat_certificate(text)
+    if not ok:
+        die(f"[hint_tag] FAIL: flat 인증서로 파싱되지 않는다: {a.certificate}")
+    print(derive_recipe_segment(fields))
+    return 0
+
+
 def cmd_match(a: argparse.Namespace) -> int:
     """근-미스 발견. **모델 비교는 정규화 + family 해소 후**에 한다 — 2026-08-20 실측에서
     `--model gemma-4-e2b-it` 검색이 정확일치인 `gemma-4-E2B-it/gb10` 을 '다른 모델'로 판정했다.
@@ -1659,7 +1788,7 @@ def cmd_index(a: argparse.Namespace) -> int:
         die(f"[hint_tag] FAIL: annotated 태그가 아니다(type={typ}): {a.tag}\n"
             f"        hint 태그는 `seal` 이 만든 annotated 태그여야 한다(본문이 곧 페이로드다).")
     _, _, body = git("cat-file", "tag", a.tag).stdout.partition("\n\n")
-    _, vllm, model, arch = a.tag.split("/")
+    vllm, model, arch, recipe = parse_hint_tag(a.tag)
     fm = dict(re.findall(r"^(\w+):\s*(.+)$", body, re.M))
     topology = a.topology or fm.get("topology", "")
     anchor = fm.get("anchor") or git("rev-list", "-n", "1", a.tag).stdout.strip()
@@ -1668,7 +1797,7 @@ def cmd_index(a: argparse.Namespace) -> int:
     idx = _load_index()
     idx["hints"] = [e for e in idx["hints"] if e["tag"] != a.tag]
     idx["hints"].append({
-        "tag": a.tag, "vllm": vllm, "model": model, "arch": arch,
+        "tag": a.tag, "vllm": vllm, "model": model, "arch": arch, "recipe": recipe,
         "topology": topology, "brief": _brief_of(body), "anchor": anchor,
         "related": a.related or "", "status": "active",
         "last_verified": date.today().isoformat(),
@@ -1961,7 +2090,7 @@ def cmd_reverify(a: argparse.Namespace) -> int:
     entry = next((e for e in idx["hints"] if e["tag"] == a.tag), None)
     if entry is None:
         die(f"[hint_tag] FAIL: {a.tag} 가 index 에 없음.")
-    _, vllm, model, arch = a.tag.split("/")
+    vllm, model, arch, recipe = parse_hint_tag(a.tag)
     _require_hint_promotion_target("hint_reverify", manifest, tag=a.tag,
                                     topology=entry.get("topology", ""), anchor=entry.get("anchor", ""),
                                     vllm=vllm, model=model)
@@ -2054,7 +2183,7 @@ def cmd_reindex(a: argparse.Namespace) -> int:
     prev = {e["tag"]: e for e in idx["hints"]}
     hints = []
     for t in tags:
-        _, vllm, model, arch = t.split("/")
+        vllm, model, arch, recipe = parse_hint_tag(t)
         # v1 빈티지는 footer 가 **없다**(계약 §4 — 재작성 금지). 종전엔 게이트가 footer 를
         # 보장했기에 footers[t] 를 무조건 인덱싱했고, v2 에서 레거시가 통과하게 되자
         # KeyError 로 죽었다. footer 부재 시 기존 인덱스 항목(prev)에서 승계한다 —
@@ -2186,6 +2315,35 @@ def cmd_self_test(_a=None) -> int:
     ck("★PII 호스트명 검출", any("spark-host" in h for h in scan_text("노드 spark-0f0f 에서", None)))
     ck("깨끗한 본문은 무검출", scan_text("GB10 2노드 TP=2 · 53.92 t/s", None) == [])
 
+    # ── CP7: 5세그먼트 이름 + 파생 레시피 (plan_26090415 §7.5 M1) ────────────────
+    ck("5세그먼트 이름을 해체한다",
+       parse_hint_tag("hint/0.19.1/gpt-oss-120b/gb10-single/qmxfp4-len131072-kvfp8")
+       == ("0.19.1", "gpt-oss-120b", "gb10-single", "qmxfp4-len131072-kvfp8"))
+    ck("★음성대조 4세그먼트(구세대)는 거부", not TAG_SHAPE.match("hint/0.19.1/gpt-oss-120b/gb10"))
+    ck("★음성대조 6세그먼트도 거부", not TAG_SHAPE.match("hint/a/b/c/d/e"))
+    ck("모델 슬러그 인덱스는 그대로 [2](레시피를 맨 뒤에 붙인 이유)",
+       "hint/0.19.1/gpt-oss-120b/gb10-single/q-len-kv".split("/")[2] == "gpt-oss-120b")
+    ck("인증서 3축에서 파생한다",
+       derive_recipe_segment({"quantization": "mxfp4", "max_model_len": "131072",
+                              "kv_cache_dtype": "fp8"}) == "qmxfp4-len131072-kvfp8")
+    ck("★결측 축은 토큰을 만들지 않는다(N/A 를 값으로 적지 않는다)",
+       derive_recipe_segment({"quantization": "N/A", "max_model_len": "32768",
+                              "kv_cache_dtype": ""}) == "len32768")
+    ck("파생값은 레시피 형태를 만족한다",
+       bool(RECIPE_SHAPE.match(derive_recipe_segment(
+           {"quantization": "mxfp4", "max_model_len": "131072", "kv_cache_dtype": "fp8"}))))
+    ck("★음성대조 손저작 형태(대문자·슬래시·선행 하이픈)는 거부",
+       not RECIPE_SHAPE.match("QMXFP4") and not RECIPE_SHAPE.match("q/len")
+       and not RECIPE_SHAPE.match("-leading"))
+    ck("충돌 폴백은 `_<timestamp>` 를 붙인다",
+       collide_suffix("hint/a/b/c/qx", "260904T0730Z") == "hint/a/b/c/qx_260904T0730Z")
+    ck("★충돌 폴백을 벗기면 파생값과 대조된다(인증서 교차검증이 여전히 성립)",
+       "qmxfp4-len131072-kvfp8_260904T0730Z".split("_")[0] == "qmxfp4-len131072-kvfp8")
+    ck("인덱스 행이 recipe 칸을 싣는다",
+       "| qmxfp4-len1-kvfp8 |" in _hints_row(
+           {"tag": "hint/a/b/c/qmxfp4-len1-kvfp8", "vllm": "a", "model": "b", "arch": "c",
+            "recipe": "qmxfp4-len1-kvfp8"}))
+
     bad = [n for n, ok in checks if not ok]
     for n, ok in checks:
         print(f"  {'ok  ' if ok else 'FAIL'} {n}")
@@ -2254,6 +2412,11 @@ def main() -> int:
                         "그것만 민다 — 검증 범위를 배포 범위에 맞춘다. 미지정 시 전 hint 태그.")
     p.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
     p.set_defaults(fn=cmd_push)
+
+    rs = sub.add_parser("recipe-segment",
+                        help="인증서에서 레시피 세그먼트를 **파생**한다(손저작 방지) -- read-only")
+    rs.add_argument("--certificate", required=True, help="flat 인증서 YAML 경로")
+    rs.set_defaults(func=cmd_recipe_segment)
 
     m = sub.add_parser("match", help="근-미스 발견(축별 이식 가이드) -- read-only, ungated")
     m.add_argument("--vllm", required=True)
