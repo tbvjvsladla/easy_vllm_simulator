@@ -371,25 +371,18 @@ _FOOTER_LINE_RE = re.compile(r"^([a-z0-9_]+): (.*)$")
 #   `seal` 이 이 키를 새로 발행하는 경로는 존재하지 않는다(아래 자체검사가 단언한다).
 # ★ 값은 **읽고 버린다**. 폐기 이유가 "추적물의 digest 를 두 번째 자리에 적지 마라" 이므로,
 #   그 값을 판정에 쓰면 폐기한 의미가 없다.
+# ★ 2026-09-04(CP7.5): 이 키들을 **면제받던 태그가 없어졌다.** `LEGACY_FOOTER_TAG_PINS` 는
+#   `hint/0.19.1/gpt-oss-120b/gb10-single` 한 건만 담고 있었고 그 태그가 폐기되면서 목록이 비었다 —
+#   빈 닫힌 목록은 코드가 아니라 잔재이므로 상수째 걷어낸다. 이제 폐기 키는 **어떤 태그에서도**
+#   차단된다(`retired_ok` 기본값 = 빈 집합). 아래 상수는 그 차단이 무엇을 차단하는지 이름 붙이고,
+#   자체검사가 "핀 없이는 여전히 막힌다"를 단언하는 데 쓰인다.
 RETIRED_FOOTER_KEYS = frozenset({"manifest_sha256", "identity_sha256", "certificate_sha256"})
-LEGACY_FOOTER_TAG_PINS: dict[str, str] = {
-    "hint/0.19.1/gpt-oss-120b/gb10-single": "27a8a289de35d81aca5d063885a37aea5e5a6342",
-}
 
-# ── 인증서 참조 별칭 핀 (plan_26090410 §3.4 (b) · 2026-09-04) ─────────────────────────────────
-# footer 의 `certificate_ref` 는 불변이고, 사본 정리(P4) 뒤 manifest 는 원본을 가리킨다. 둘이 갈릴 때의
-# 정본 판정은 **"같은 측정인가"**(measured 키 동일)이며, footer 가 가리키던 파일의 바이트를 워킹트리
-# 또는 소스 앵커 트리에서 읽을 수 있으면 그 판정은 코드가 한다(`_resolve_footer_certificate`).
-# 이 목록은 그 두 곳 **어디에서도 읽을 수 없는** 태그만 위한 것이다 — #5 의 사본은 태그의 소스 앵커
-# (`6407d6e`) **이후**에 커밋돼 앵커 트리에 없다. {태그 오브젝트 SHA: {footer: 사본, canonical: 원본}}
-# 닫힌 목록(tripwire 형). canonical 은 그래도 파싱해 태그 identity 와 대조한다 — 별칭은 경로만 바꾸고
-# 검증은 면제하지 않는다. 바이트 동일성은 핀 시점 실측(sha256 37b5fa71…)이며 커밋 메시지에 남긴다.
-LEGACY_CERTIFICATE_REF_ALIASES: dict[str, dict[str, str]] = {
-    "27a8a289de35d81aca5d063885a37aea5e5a6342": {
-        "footer": "../benchmark/benchmark_26090117_17_21_gpt-oss-120b_NVIDIA GB10_0.19.1.yaml",
-        "canonical": "../benchmark/benchmark_26090117_gpt-oss-120b_GB10_0.19.1.yaml",
-    },
-}
+# ★ 2026-09-04(CP7.5): `LEGACY_CERTIFICATE_REF_ALIASES` 를 걷어냈다. 그 닫힌 목록은
+#   `hint/0.19.1/gpt-oss-120b/gb10-single`(태그 오브젝트 27a8a289…) 한 건만 담았고,
+#   그 태그가 폐기되면서 어떤 입력에도 매칭될 수 없는 죽은 분기가 됐다. 별칭 없이도
+#   정본 판정(“같은 측정인가” = measured 키 동일)은 그대로 산다 — 별칭은 경로만 바꾸는
+#   보조 경로였지 판정의 근거가 아니었다.
 
 
 def _source_anchor_of(tag: str) -> "str | None":
@@ -487,14 +480,9 @@ def _resolve_footer_certificate(tag: str, footer_ref: str, manifest_dir: Path,
             return "same_measurement", source, notes
         return "mismatch", source, notes
 
-    # ③ 별칭 핀 — footer 파일을 어디서도 읽을 수 없을 때만. 태그 오브젝트 SHA 로 잠긴다.
-    tag_object = git("rev-parse", "--verify", tag, check=False).stdout.strip()
-    alias = LEGACY_CERTIFICATE_REF_ALIASES.get(tag_object)
-    if alias and alias.get("footer") == footer_ref and alias.get("canonical") == manifest_cert_ref \
-            and manifest_key is not None:
-        notes.append(f"HINT_EVIDENCE_CERTIFICATE_REF_ALIASED footer={footer_ref!r} → canonical="
-                     f"{manifest_cert_ref!r} (pinned by tag object {tag_object[:12]})")
-        return "same_measurement", "alias", notes
+    # ③ 별칭 핀 경로는 2026-09-04(CP7.5)에 사라졌다 — 유일한 항목의 태그가 폐기됐다.
+    #   footer 파일을 어디서도 읽을 수 없으면 그것은 **판정 불가**이며, 판정 불가를 통과로
+    #   접지 않는다(부재와 결측의 구분).
     return "absent", source, notes
 _FULL_ANCHOR_RE = re.compile(r"^[0-9a-f]{40}$")
 
@@ -1191,19 +1179,11 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
     typ = git("cat-file", "-t", tag, check=False).stdout.strip()
     if typ != "tag":
         return None, [("HINT_TAG_NOT_ANNOTATED", f"{tag}: HINT_TAG_NOT_ANNOTATED annotated 태그가 아님(type={typ})")]
-    tag_object = git("rev-parse", "--verify", tag, check=False).stdout.strip()
-    retired_ok = (RETIRED_FOOTER_KEYS
-                  if LEGACY_FOOTER_TAG_PINS.get(tag) == tag_object and tag_object
-                  else frozenset())
+    # 폐기 footer 키를 면제받는 태그는 더 이상 없다(CP7.5) — 기본값 = 빈 집합 = 전면 차단.
     try:
-        footer = _parse_evidence_footer(_tag_object_body(tag), retired_ok=retired_ok)
+        footer = _parse_evidence_footer(_tag_object_body(tag))
     except HintEvidenceBindingError as e:
         return None, [(e.code, f"{tag}: {e.code} {e.message}")]
-    if retired_ok:
-        # 침묵 수용 금지 — 어느 태그가 어떤 빈티지로 통과했는지 소리내어 남긴다.
-        print(f"[hint_tag] LEGACY(vintage) {tag}: 폐기된 footer 키를 핀 목록에 따라 읽고 **버린다** "
-              f"(태그는 불변 · 값은 판정에 쓰지 않는다)", file=sys.stderr)
-
     # ★ 문제는 (code, message) 로 낸다 — 판정은 code 로만 한다. 종전엔 렌더된 message 를
     # 부분일치(`CODE in msg`)로 분류했는데, message 에는 footer 값이 그대로 박히므로
     # 발행자가 footer 필드에 코드 문자열을 넣어 등급을 뒤집을 수 있었다(감사 심각도1-②, 주입 실증).
@@ -1616,10 +1596,11 @@ def _require_all_hint_tags_evidence_valid(action: str, tags: list | None = None)
     약속했으나 그 코드는 2026-09-01 에 삭제됐다. 문서가 없는 완화를 약속하면 다음 스키마 변경에서
     같은 전수 차단이 재발한다):
       - footer 부재 / 위조 / 드리프트 / 미봉인 → **차단**
-      - 폐기된 footer 키(`RETIRED_FOOTER_KEYS`)는 `LEGACY_FOOTER_TAG_PINS` 의 태그(오브젝트 SHA 일치)
-        에서만 **읽고 버린다** — 값은 판정에 쓰지 않는다
-      - footer 의 certificate_ref 가 manifest 와 갈려도 **같은 측정**이면 통과(REBOUND · 앵커 트리 판독
-        · `LEGACY_CERTIFICATE_REF_ALIASES` 순) — 태그는 불변이고 사본 정리는 manifest 쪽에서 일어난다
+      - 폐기된 footer 키(`RETIRED_FOOTER_KEYS`)는 **어떤 태그에서도 차단된다** — 그 키를 면제하던
+        빈티지 핀은 CP7.5(2026-09-04)에서 유일 항목의 태그가 폐기되며 함께 사라졌다
+      - footer 의 certificate_ref 가 manifest 와 갈려도 **같은 측정**이면 통과(REBOUND · 앵커 트리
+        판독) — 태그는 불변이고 사본 정리는 manifest 쪽에서 일어난다. 어디서도 읽을 수 없으면
+        absent 이며 **통과가 아니다**
       - 참조 증거 부재 → unverifiable(수신자 평면 경고) — 단 **발행자 평면(verify·push)에서는 차단**
     """
     targets = tags if tags is not None else existing_hint_tags()
@@ -2283,8 +2264,10 @@ def cmd_self_test(_a=None) -> int:
        not (set(_FOOTER_FIELDS) & RETIRED_FOOTER_KEYS)
        and not (RETIRED_FOOTER_KEYS & set(_build_evidence_footer(
            {k: "v" for k in _FOOTER_FIELDS}).split())))
-    ck("핀은 닫힌 목록이다(태그→오브젝트 SHA)",
-       all(re.fullmatch(r"[0-9a-f]{40}", v) for v in LEGACY_FOOTER_TAG_PINS.values()))
+    # ★ 이름을 **파일 텍스트**에서 찾으면 이 주석 자체가 매칭돼 가드가 스스로 무력화된다.
+    #   모듈 네임스페이스를 본다 — 상수가 실제로 없는지를 묻는 것이 목적이다.
+    ck("★CP7.5: 폐기 키 면제(빈티지 핀) 상수가 존재하지 않는다",
+       "LEGACY_FOOTER_TAG_PINS" not in globals() and "LEGACY_CERTIFICATE_REF_ALIASES" not in globals())
 
     # ── 인증서 참조 해소의 순수 부분(plan_26090410 P4)
     _c = ("schema_version: 1\nverdict: PASS\nmodel: m\ngpu_model: GB10\nvllm_version: 0.18.0\n"
@@ -2294,9 +2277,17 @@ def cmd_self_test(_a=None) -> int:
        _certificate_key_from_bytes(_c.replace('measured_utc: "2026-09-03T12:00:00Z"\n', "").encode()) is None)
     ck("★음성대조 중첩 YAML 은 식별 불가", _certificate_key_from_bytes(b"a:\n  b: 1\n") is None)
     ck("빈 바이트는 None", _certificate_key_from_bytes(None) is None and _certificate_key_from_bytes(b"") is None)
-    ck("별칭 핀은 태그 오브젝트 SHA 로 잠긴 닫힌 목록",
-       all(re.fullmatch(r"[0-9a-f]{40}", k) and set(v) == {"footer", "canonical"} and v["footer"] != v["canonical"]
-           for k, v in LEGACY_CERTIFICATE_REF_ALIASES.items()))
+    # 별칭 핀 경로는 CP7.5 에서 사라졌다. 남은 계약은 **판정 불가를 통과로 접지 않는 것**이다 —
+    #   어디서도 읽을 수 없는 footer 는 "absent" 로 끝나며 absent 는 통과가 아니다.
+    #   문서 문자열이 아니라 **실제 호출**로 확인한다(주석 검사는 행동을 증명하지 못한다).
+    with tempfile.TemporaryDirectory() as _td:
+        _v, _src, _ = _resolve_footer_certificate(
+            "hint/none/none/none/none", "../benchmark/does-not-exist.yaml",
+            Path(_td), "../benchmark/also-missing.yaml")
+    # 통과-계열 판정(`same_file`/`same_measurement`)에 **절대 도달하지 않는다**는 것이 계약이다.
+    #   구체 판정은 저장소 밖 경로면 `unsafe`, 안이면 `absent` 로 갈리며 둘 다 통과가 아니다.
+    ck("★음성대조 읽을 수 없는 footer 는 통과 판정에 도달하지 않는다(별칭 폴백 없음)",
+       _v not in ("same_file", "same_measurement") and _src != "alias")
 
     # ── 본문 린터(음성대조 포함)
     good = "\n".join([f"## {n}. x\n" + ("가" * 90) for n, _ in REQUIRED_SECTIONS]) + "\narch-invariant\n"

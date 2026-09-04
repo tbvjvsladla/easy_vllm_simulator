@@ -97,9 +97,4 @@ git tag -l --format='%(contents)' hint/0.24.0/deepseek-v4-flash/gb10 > seed/hint
 <!-- hint-index:rows -->
 | 태그 | vLLM | 모델 | arch | recipe | topology | 상태 | 대체/관련 | 최종검증 | brief |
 |---|---|---|---|---|---|---|---|---|---|
-| `hint/0.18.0/gpt-oss-120b/gb10-multi` | 0.18.0 | gpt-oss-120b | gb10-multi | 0.18.0 prebuilt wheel + ray 로 gpt-oss-120b(MXFP4)를 GB10 2노드 TP=2 분산 서빙 — 53.92 t/s(단일노드 34.42 대비 **1.57배**) · 성능 PASS · **같은 하드웨어에서 0.19.1 은 분산이 성립하지 않는다**(음성 증거 동봉) · 이 태그의 archive 가 곧 재현 키트다 |
-| `hint/0.18.0/gpt-oss-120b/gb10-single` | 0.18.0 | gpt-oss-120b | gb10-single | 0.18.0 prebuilt wheel 로 gpt-oss-120b(MXFP4)를 단일 GB10 에 최대 컨텍스트(131072)로 서빙 — 34.42 t/s(MBU 77.7%) · 성능 PASS · **서빙 벽 0개, 벽은 측정·판정 평면에 있었다** · 0.19.1 과 단일에서는 구분되지 않는다(버전 선택 근거는 분산에 있다) · 이 태그의 archive 가 곧 재현 키트다 |
-| `hint/0.18.0/gpt-oss-20b/gb10` | 0.18.0 | gpt-oss-20b | gb10 | 0.18.0 prebuilt wheel(다운그레이드)로 gpt-oss-20b(MXFP4)를 단일 GB10에 최대 컨텍스트(131072)로 서빙 — TRITON_ATTN(유일 후보) · 46.51 t/s(ratio 2.37x expected) · 성능 PASS · **이 태그의 archive가 곧 페이로드다** |
-| `hint/0.18.0/gpt-oss-20b/gb10-multi` | 0.18.0 | gpt-oss-20b | gb10-multi | 0.18.0 prebuilt wheel + ray 로 gpt-oss-20b(MXFP4)를 GB10 2노드 TP=2 분산 서빙 — 69.36 t/s(단일노드 48.58 대비 **1.43배**) · 성능 PASS · **작은 모델일수록 TP=2 이득이 작다**(헤드룸 부족) · 같은 하드웨어에서 0.19.1 은 분산 불가 · 이 태그의 archive 가 곧 재현 키트다 |
-| `hint/0.19.1/gpt-oss-120b/gb10-single` | 0.19.1 | gpt-oss-120b | gb10-single | 0.19.1 prebuilt wheel 로 gpt-oss-120b(MXFP4)를 단일 GB10 에 서빙 — auto=TRITON_ATTN+MARLIN · 34.55 t/s(MBU 77.9%) · 성능 PASS · **이 태그의 archive 가 곧 페이로드다** |
 <!-- hint-index:rows -->
