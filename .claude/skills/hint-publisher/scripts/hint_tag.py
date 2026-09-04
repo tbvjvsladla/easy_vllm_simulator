@@ -174,7 +174,10 @@ def git_push_authenticated(remote: str, refspec: str, *, dry_run: bool) -> subpr
     if dry_run:
         args.append("--dry-run")
     args += [remote, refspec]
-    return git(*args, check=not dry_run, env=env)
+    # ★ dry-run 도 실패를 삼키지 않는다(2026-09-04 감사 C-3). 종전 `check=not dry_run` 은 인증
+    #   실패·refspec 거부를 stderr 째 버리고 exit 0 을 냈다 — "실패를 미리 본다" 는 dry-run 의
+    #   목적을 정확히 무력화하는 형태다. 원격에 닿지 못하면 dry-run 에서 먼저 죽어야 한다.
+    return git(*args, check=True, env=env)
 
 
 # ── promotion-gate wiring (Phase 3, plan_26072506, vertical slice 2A) ────────
