@@ -368,36 +368,53 @@
           ]
         },
         "rubric_authority": {
-          "description": "\ub8e8\ube0c\ub9ad \uc815\ubcf8 \uad8c\ud55c(weak|explicit|explore), \uc778\uc99d\uc11c \uc544\ud2f0\ud329\ud2b8\uc5d0\uc11c \ud30c\uc2f1. legacy \uc778\uc99d\uc11c(\ud544\ub4dc \ubd80\uc7ac)\ub294 null -- \uac12\uc5ed \uc704\ubc18\ub9cc CERTIFICATE_RUBRIC_AUTHORITY_UNKNOWN \uc73c\ub85c \ucc28\ub2e8\ud55c\ub2e4(plan_26082219 D5).",
+          "description": "루브릭 정본 권한(weak|explicit|explore), 인증서 아티팩트에서 파싱. legacy 인증서(필드 부재)는 null -- 값역 위반만 CERTIFICATE_RUBRIC_AUTHORITY_UNKNOWN 으로 차단한다(plan_26082219 D5).",
           "type": [
             "string",
             "null"
           ]
         },
         "floor_tps": {
-          "description": "\uc778\uc99d\uc11c\uac00 \uc120\uc5b8\ud55c PASS \ubb38\ud131(primary x (1-tolerance)). \uc720\ud55c \uc591\uc218\uac00 \uc544\ub2c8\uba74 CERTIFICATE_RUBRIC_FLOOR_INVALID -- floor<=0 \uc740 \ubb38\ud131 \uc5c6\ub294 '\uacf5\ud5c8 PASS' \uc774\uba70 \uc5b4\ub5a4 authority \ub85c\ub3c4 \uc2b9\uaca9 \ubd88\uac00.",
+          "description": "인증서가 선언한 PASS 문턱(primary x (1-tolerance)). 유한 양수가 아니면 CERTIFICATE_RUBRIC_FLOOR_INVALID -- floor<=0 은 문턱 없는 '공허 PASS' 이며 어떤 authority 로도 승격 불가.",
           "type": [
             "number",
             "null"
           ]
         },
         "ratio_M_over_primary": {
-          "description": "\uce21\uc815\uce58/\ub8e8\ube0c\ub9ad \ube44. \uc720\ud55c\uc218\uac00 \uc544\ub2c8\uba74 CERTIFICATE_RUBRIC_RATIO_MISSING -- \uc9c0\ud45c\uac00 \uc0ac\ub77c\uc9c4 PASS \ub294 \uac10\uc0ac \ubd88\uac00.",
+          "description": "측정치/루브릭 비. 유한수가 아니면 CERTIFICATE_RUBRIC_RATIO_MISSING -- 지표가 사라진 PASS 는 감사 불가.",
           "type": [
             "number",
             "null"
           ]
         },
         "primary_source": {
-          "description": "\ub099\ucc30\ub41c \ub8e8\ube0c\ub9ad \uce78\uc758 \ub77c\ubca8. **\ud45c\uba74\ud654 \uc804\uc6a9** -- \ubb38\uc790\uc5f4 \ub9e4\uce6d\uc744 \uac8c\uc774\ud2b8\ub85c \uc4f0\uc9c0 \uc54a\ub294\ub2e4(\ud558\ub4dc\ucf54\ub529 \uacb0\ud568 \uce78). \ubd80\uc7ac/N/A \ub294 CERTIFICATE_RUBRIC_SOURCE_MISSING.",
+          "description": "낙찰된 루브릭 칸의 라벨. **표면화 전용** -- 문자열 매칭을 게이트로 쓰지 않는다(하드코딩 결함 칸). 부재/N/A 는 CERTIFICATE_RUBRIC_SOURCE_MISSING.",
           "type": [
             "string",
             "null"
           ]
         },
         "rubric_contract_ok": {
-          "description": "\uc704 \uc138 \uc218\uce58 \uacc4\uc57d + authority \uac12\uc5ed\uc744 \ubaa8\ub450 \ub9cc\uc871\ud588\ub294\uac00. explore \uc2b9\uaca9 \uacbd\ub85c(U1)\uc758 \uc804\uc81c \uc870\uac74.",
+          "description": "위 세 수치 계약 + authority 값역을 모두 만족했는가. explore 승격 경로(U1)의 전제 조건.",
           "type": "boolean"
+        },
+        "run_key": {
+          "description": "이 인증서가 식별하는 측정 = 강한 6키 + measured_utc(completion_gate.certificate_run_key). 결측이면 null 이고 CERTIFICATE_RUN_KEY_UNRESOLVABLE 로 차단된다(식별 불가 = 매치 없음이 아니다).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "duplicates": {
+          "description": "같은 측정 키를 가진 **다른** 추적 인증서(repo-relative). 비어 있지 않으면 CERTIFICATE_RUN_AMBIGUOUS — 같은 사실이 두 자리에 있어 승격 불가(plan_26090410 §3.2).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

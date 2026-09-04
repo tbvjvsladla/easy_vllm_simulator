@@ -136,6 +136,7 @@ primary_tps: 26.0
 floor_tps: 22.1
 tolerance: 0.15
 ratio_M_over_primary: 0.719
+measured_utc: "2026-01-01T00:00:00Z"
 """
 
 # manifest carrier(REFUTE 런) -- 인증서와 **동일한 계약**을 만족하는 최소 선언.
@@ -230,6 +231,53 @@ def _promotion_probe(root: Path, verdict: str, benchmark_extra: dict | None,
             f"stderr={proc.stderr.strip()[:400]!r}") from exc
     out["_returncode"] = proc.returncode
     return out
+
+
+def _test_certificate_run_resolution() -> None:
+    """plan_26090410 P2 — 게이트가 인증서의 측정 키로 0/1/2+ 를 판정하는가(음성대조 포함).
+    tripwire ④ 뒤의 두 번째 방어선: 같은 측정이 두 파일로 추적되면 승격이 열리지 않아야 한다."""
+    cert = _PROMO_CERTIFICATE.format(authority="weak")
+
+    def run(plant: dict | None = None, certificate: str = cert) -> dict:
+        with tempfile.TemporaryDirectory(prefix="cert-run-resolution.") as td:
+            root = Path(td)
+            (root / ".git").mkdir()
+            _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC, rubric_authority="weak"), certificate)
+            for name, text in (plant or {}).items():
+                (root / "docs" / "benchmark" / name).write_text(text, encoding="utf-8")
+            return _promotion_probe(root, "PASS", dict(_PROMO_RUBRIC, rubric_authority="weak"), certificate)
+
+    out = run()
+    _require(out.get("eligible_for_promotion") is True
+             and (out.get("certificate") or {}).get("run_key", [None])[-1] == "2026-01-01T00:00:00Z"
+             and (out.get("certificate") or {}).get("duplicates") == [],
+             f"단독 인증서는 키가 식별되고 중복 0 이어야 한다: {out.get('reason_codes')} {out.get('certificate')}")
+
+    out = run(plant={"benchmark_selftest_copy.yaml": cert})
+    _require(out.get("eligible_for_promotion") is False
+             and "CERTIFICATE_RUN_AMBIGUOUS" in (out.get("reason_codes") or [])
+             and (out.get("certificate") or {}).get("duplicates") == ["docs/benchmark/benchmark_selftest_copy.yaml"]
+             and "byte-identical" in json.dumps(out.get("messages") or {}, ensure_ascii=False),
+             f"★같은 측정의 사본이 있으면 승격이 막혀야 한다: {out.get('reason_codes')}")
+
+    out = run(plant={"benchmark_selftest_other.yaml": cert.replace("2026-01-01T00:00:00Z", "2026-01-01T00:00:01Z")})
+    _require(out.get("eligible_for_promotion") is True
+             and "CERTIFICATE_RUN_AMBIGUOUS" not in (out.get("reason_codes") or []),
+             f"★음성대조 measured_utc 가 다른 형제는 다른 측정이다: {out.get('reason_codes')}")
+
+    out = run(plant={"benchmark_selftest_diff.yaml": cert.replace("ratio_M_over_primary: 0.719", "ratio_M_over_primary: 0.9")})
+    _require("CERTIFICATE_RUN_AMBIGUOUS" in (out.get("reason_codes") or [])
+             and "DIFFERENT bytes" in json.dumps(out.get("messages") or {}, ensure_ascii=False),
+             f"같은 측정 다른 내용은 더 나쁜 결함으로 가려야 한다: {out.get('reason_codes')}")
+
+    out = run(certificate=cert.replace('measured_utc: "2026-01-01T00:00:00Z"\n', ""))
+    _require(out.get("eligible_for_promotion") is False
+             and "CERTIFICATE_RUN_KEY_UNRESOLVABLE" in (out.get("reason_codes") or []),
+             f"★measured_utc 없는 인증서는 식별 불가로 차단: {out.get('reason_codes')}")
+
+    out = run(plant={"notes.yaml": "x: 1\n", "benchmark_garbled.yaml": "a:\n  nested: 1\n"})
+    _require(out.get("eligible_for_promotion") is True,
+             f"비-인증서·파싱불가 형제는 매치 대상이 아니다(승격 유지): {out.get('reason_codes')}")
 
 
 def _test_promotion_rubric_carrier() -> None:
@@ -1220,6 +1268,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_no_production_asserts()
     _test_completion_gate()
     _test_promotion_rubric_carrier()
+    _test_certificate_run_resolution()
     _test_hint_binding_source()
     _test_policy_and_evidence_lifecycle()
     _test_provider_turn_exhaustion_reachable()

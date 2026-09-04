@@ -1048,6 +1048,46 @@ def parse_flat_certificate(text: str):
     return fields, True
 
 
+def _sibling_certificates_with_key(repo_root_fd: int, repo_root: Path, manifest_dir: Path,
+                                   cert_rel_path: str, run_key: tuple) -> list[dict]:
+    """인증서가 놓인 디렉터리의 다른 `benchmark_*.yaml` 중 **같은 측정 키**를 가진 것들.
+    plan_26090410 §3.2 — 2건+ 는 같은 측정이 두 파일로 추적됐다는 뜻이고(중복층), 이 게이트가
+    tripwire ④ 뒤의 두 번째 방어선이다. 반환: [{path(repo-relative), sha256}] · 자기 자신 제외.
+    파싱 불가·키 결측 형제는 매치 대상이 아니지만 삼키지 않고 stderr 에 남긴다(부재≠결측)."""
+    lex_status, parts = _lexical_components(manifest_dir, repo_root, cert_rel_path)
+    if lex_status != "ok" or not parts:
+        return []
+    dir_parts, self_name = parts[:-1], parts[-1]
+    dir_path = repo_root.joinpath(*dir_parts) if dir_parts else repo_root
+    try:
+        dir_fd = os.open(str(dir_path), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError:
+        return []
+    try:
+        names = sorted(os.listdir(dir_fd))
+    except OSError:
+        names = []
+    finally:
+        os.close(dir_fd)
+    out: list[dict] = []
+    for name in names:
+        if name == self_name or not (name.startswith("benchmark_") and name.endswith(".yaml")):
+            continue
+        rel = "/".join([*dir_parts, name])
+        r = resolve_and_stat_evidence(repo_root_fd, repo_root, repo_root, rel, expect_dir=False, capture_content=True)
+        if r["status"] != "ok":
+            print(f"[completion_gate] WARN sibling certificate {rel} unreadable ({r['status']}) -- excluded "
+                  f"from run-key resolution (not silently treated as non-matching)", file=sys.stderr)
+            continue
+        try:
+            fields, ok = parse_flat_certificate((r["content_bytes"] or b"").decode("utf-8"))
+        except UnicodeDecodeError:
+            ok, fields = False, {}
+        if ok and certificate_run_key(fields) == run_key:
+            out.append({"path": rel, "sha256": r["sha256"]})
+    return out
+
+
 def _certificate_strong_identity_matches(cert_fields: dict, manifest_identity: dict):
     """Compares the 6 strong identity fields between a parsed certificate and the manifest's own
     identity block. Returns (mapped_identity: dict[str,str|None], mismatched_fields: list[str])."""
@@ -1796,7 +1836,8 @@ def cmd_verify(args: argparse.Namespace) -> None:
                                           "verdict": None, "benchmark_mode": None, "identity_match": None,
                                           "rubric_authority": None, "floor_tps": None,
                                           "ratio_M_over_primary": None, "primary_source": None,
-                                          "rubric_contract_ok": False}
+                                          "rubric_contract_ok": False,
+                                          "run_key": None, "duplicates": []}
                 else:
                     mapped, mismatched = _certificate_strong_identity_matches(cert_fields, identity)
                     identity_match = not mismatched
@@ -1806,6 +1847,30 @@ def cmd_verify(args: argparse.Namespace) -> None:
                             add_reason(f"IDENTITY_MISMATCH:{f}",
                                        f"certificate {CERTIFICATE_FIELD_MAP[f]}={mapped.get(f)!r} "
                                        f"!= manifest identity.{f}={identity.get(f)!r}")
+                    # ---- 측정 키 해소 (plan_26090410 §3.2) — 이 인증서가 증명하는 "측정 하나" 가
+                    #      식별되는가(0), 그리고 같은 측정을 증명하는 **다른 추적 파일**이 있는가(2+).
+                    #      2+ 는 단일 권위 위반(같은 사실이 두 자리에)이므로 승격을 막는다. 바이트가
+                    #      같으면 중복층(하나를 지워라), 다르면 더 나쁜 결함(같은 측정 다른 내용)이다.
+                    run_key = certificate_run_key(cert_fields)
+                    duplicates: list[dict] = []
+                    if run_key is None:
+                        identity_ok = False
+                        add_reason("CERTIFICATE_RUN_KEY_UNRESOLVABLE",
+                                   f"certificate at {item['path']!r} lacks a strong identity field or "
+                                   f"measured_utc -- the measurement it certifies cannot be identified (fail-closed)")
+                    else:
+                        duplicates = _sibling_certificates_with_key(repo_root_fd, repo_root, manifest_dir,
+                                                                    item["path"], run_key)
+                        if duplicates:
+                            identity_ok = False
+                            same_bytes = all(d["sha256"] == r["sha256"] for d in duplicates)
+                            add_reason("CERTIFICATE_RUN_AMBIGUOUS",
+                                       f"measurement {run_key[0]}@{run_key[-1]} is certified by "
+                                       f"{len(duplicates) + 1} tracked files ({item['path']!r} + "
+                                       f"{[d['path'] for d in duplicates]}) -- "
+                                       + ("byte-identical: duplicate layer, delete all but the original"
+                                          if same_bytes else
+                                          "DIFFERENT bytes for the same measurement: publication-chain defect"))
                     cert_verdict = cert_fields.get("verdict")
                     cert_mode = cert_fields.get("benchmark_mode")
                     if cert_verdict != "PASS":
@@ -1865,6 +1930,9 @@ def cmd_verify(args: argparse.Namespace) -> None:
                         "floor_tps": floor_tps, "ratio_M_over_primary": ratio_value,
                         "primary_source": primary_source or None,
                         "rubric_contract_ok": cert_rubric_ok,
+                        # 출처 표시: 이 인증서가 식별하는 측정과, 같은 측정을 주장하는 다른 추적 파일들
+                        "run_key": (list(run_key) if run_key else None),
+                        "duplicates": [d["path"] for d in duplicates],
                     }
 
             if key in MARKDOWN_LIKE_EVIDENCE_KEYS and required and exists:
