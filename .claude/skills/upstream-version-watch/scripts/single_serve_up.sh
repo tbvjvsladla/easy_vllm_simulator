@@ -84,7 +84,36 @@ PORT="$(val SERVING_PORT)"
 [ -n "$PORT" ] || { echo "$TAG 1/7 통로·전제      : FAIL — $EF 에 SERVING_PORT 없음" >&2; exit 3; }
 IMAGE_TAG="$(val IMAGE_TAG)"
 ENVFILES=(--env-file "$EF_ROOT" --env-file "$EF")
-echo "$TAG 1/7 통로·전제      : DONE (container=$CNAME port=$PORT image=${IMAGE_TAG:-<compose 기본값>})"
+# ── manifest ↔ materialize 산출물 정합 (2026-09-04 · 실패 1건이 만든 검사) ────────────
+#   `output/<topo>/.env` 는 manifest 에서 **파생**되는데, manifest 가 바뀌어도 아무도 재생성을
+#   요구하지 않는다. 2026-09-03 에 harmony 토크나이저가 NAS 정본으로 옮겨졌을 때 multi 의 .env 만
+#   재생성되고 single 은 옛 로컬 경로를 든 채 남았다 → compose 가 없는 경로를 마운트 소스로 잡고
+#   docker 가 **그 자리에 빈 디렉터리를 만들어** 컨테이너는 떴다가 6분 뒤 vocab 부재로 죽었다.
+#   침묵 분기다: 권위(manifest)와 파생물이 갈라졌는데 묻는 사람이 없었다.
+#   `staleness_gate.py` 는 HW·네트워크·attestation 만 본다 — 이 축은 그 바깥이다.
+#   ★ 로드 **전에** 판정한다. 6분 뒤에 아는 것과 6초 만에 아는 것의 차이가 이 검사의 전부다.
+mval(){ sed -n "s/^[[:space:]]*$1:[[:space:]]*\"\{0,1\}\([^\"#]*\)\"\{0,1\}.*/\1/p" \
+          output/single/manifest.yaml 2>/dev/null | head -1 | sed 's/[[:space:]]*$//'; }
+eval_root(){ grep -E "^$1=" "$EF_ROOT" | head -1 | cut -d= -f2-; }
+_drift=0
+for pair in "NAS_MODEL_PATH:nas_model_path" "QUANT_MODEL_PATH:quant_model_path" \
+            "TIKTOKEN_HOST_PATH:tiktoken_host_path"; do
+  _k="${pair%%:*}"; _mk="${pair##*:}"
+  _have="$(eval_root "$_k")"; _want="$(mval "$_mk")"
+  [ -n "$_want" ] || continue           # manifest 에 없는 키는 대조 대상이 아니다(부재 ≠ 불일치)
+  if [ "$_have" != "$_want" ]; then
+    echo "$TAG 1/7 통로·전제      : FAIL — $EF_ROOT 가 manifest 와 갈렸다($_k)" >&2
+    echo "$TAG     .env=$_have" >&2
+    echo "$TAG     manifest=$_want" >&2
+    _drift=1
+  fi
+done
+if [ "$_drift" = "1" ]; then
+  echo "$TAG     재생성: python3 .claude/skills/upstream-version-watch/scripts/render_dockerfile.py \\" >&2
+  echo "$TAG               --materialize-env --topology single --manifest output/single/manifest.yaml" >&2
+  exit 3
+fi
+echo "$TAG 1/7 통로·전제      : DONE (container=$CNAME port=$PORT image=${IMAGE_TAG:-<compose 기본값>} · manifest 정합 ✓)"
 
 # 블랙박스 도구 경로 — 메인/서브가 다르다(single_serve_down.sh 와 같은 해소기).
 _bb_dir() {
@@ -153,10 +182,14 @@ fi
 
 # ── 4/7 블랙박스 세션 ───────────────────────────────────────────────────────────────
 MODEL_PATH="$(awk -F': *' '/^model:/{print $2; exit}' "$CFGYAML" | tr -d '[:space:]')"
-SESS_ARGS=(--node-dir "$NODE_DIR" start --topology single --tp "$TP"
+# `--session-id` 는 blackbox_session 이 **요구**한다(선택 아님 — 2026-09-04 첫 실행에서 드러났다).
+# 미지정 시 여기서 만든다: config + UTC 초. 결정론이며 사람이 읽을 수 있고, 같은 config 를 다시
+# 올리면 다른 id 가 되어 세션이 겹치지 않는다(시각은 이미 주입점이 셸이다).
+[ -n "$SESSION_ID" ] || SESSION_ID="serve-${CONFIG}-$(date -u +%Y%m%dT%H%M%SZ)"
+SESS_ARGS=(--node-dir "$NODE_DIR" start --session-id "$SESSION_ID"
+           --topology single --tp "$TP"
            --config-file "$CONFIG" --model "$(val SERVING_MODEL_NAME)" --model-path "$MODEL_PATH"
            --now "$(NOW_ISO)")
-[ -n "$SESSION_ID" ] && SESS_ARGS+=(--session-id "$SESSION_ID")
 [ -n "$IMAGE_TAG" ] && SESS_ARGS+=(--image "$IMAGE_TAG")
 if [ "$DRY" = "1" ]; then
   echo "$TAG 4/7 세션 start      : (dry-run) python3 $SESSION_PY ${SESS_ARGS[*]}"
@@ -202,7 +235,7 @@ _waited=0
 while [ "$_waited" -lt "$READY_MAX" ]; do
   if [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://localhost:$PORT/health" 2>/dev/null)" = "200" ]; then
     echo "$TAG 7/7 health 대기     : DONE (${_waited}s)"
-    echo "$TAG READY container=$CNAME port=$PORT node_id=$NODE_ID"
+    echo "$TAG READY container=$CNAME port=$PORT node_id=$NODE_ID session=$SESSION_ID"
     exit 0
   fi
   # 컨테이너가 죽었으면 더 기다리는 것은 거짓 인내다 — 즉시 실패로 간다.

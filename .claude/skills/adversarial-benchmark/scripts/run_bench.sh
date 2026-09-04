@@ -186,9 +186,16 @@ bench_with_guidellm(){
   docker rm -f "$GLNAME" >/dev/null 2>&1 || true
 
   echo "[run_bench] bench(guidellm): image=$IMAGE budget=${BENCH_BUDGET_MIB}MiB conc=$CONC in=$ILEN out=$OLEN n=$NPROMPTS(+warm $WARMUPS) endpoint=$ENDPOINT"
+  # ★ 호스트 사용자로 돌린다. 이미지 기본 UID(1001)로 두면 산출물 디렉터리에 **쓰지 못해**
+  #   벤치를 다 돌고 마지막 저장에서 죽는다(2026-09-04 실측: PermissionError /out/…json —
+  #   측정은 성립했는데 기록이 사라지는, 가장 비싼 형태의 실패다).
+  #   `chmod 777` 로 여는 대신 UID 를 맞춘다 — 산출물 소유가 호스트 사용자로 남아야
+  #   teardown 의 "캐시 소유권 정렬" 단계와도 어긋나지 않는다.
   docker run --rm --name "$GLNAME" --network host \
+    --user "$(id -u):$(id -g)" \
     --memory "${BENCH_BUDGET_MIB}m" --memory-swap "${BENCH_BUDGET_MIB}m" \
     -v "$HOSTTOK:/tok:ro" -v "$OUTDIR:/out" \
+    -e HOME=/tmp -e XDG_CACHE_HOME=/tmp/.cache \
     -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
     --entrypoint guidellm "$IMAGE" run \
     --backend "kind=openai_http,target=http://localhost:$PORT,model=$MODEL_NAME,request_format=$ENDPOINT,extras={\"ignore_eos\":true}" \
