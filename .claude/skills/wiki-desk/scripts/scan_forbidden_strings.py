@@ -40,6 +40,25 @@ def _default_terms_file() -> Path:
     return Path(__file__).resolve().parents[3] / "pii_terms.txt"
 
 
+def scan_lines(text: str, terms: list[str]) -> list[tuple[int, str, bool]]:
+    """(lineno, what, exempt) for every hit — the single scanning kernel.
+
+    호출자가 둘이다: 이 파일의 `main()`(사람이 트리를 훑을 때)과 `runtime_selftest.py` 의
+    tripwire ⑤(커밋마다 추적 배포면을 훑을 때). 두 번째 호출자가 없던 동안 이 스캐너는
+    **실행자가 아예 없는 가드**였고, 그래서 운영자 호스트명 2건이 추적 파일로 배포됐다
+    (2026-09-04 실측 · 헌법 §노드 제어 5불변식 3 — "처방을 누가 실행하는가를 먼저 적는다").
+    커널을 함수로 노출해 두 호출자가 **같은 패턴·같은 면제 규칙**을 쓰게 한다.
+    """
+    out: list[tuple[int, str, bool]] = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        exempt = EXEMPT_MARK in line
+        found = [f"term:{t}" for t in terms if t and t in line]
+        found += [f"generic:{m.group(0)}" for pat in GENERIC_PATTERNS
+                  if (m := pat.search(line))]
+        out.extend((lineno, what, exempt) for what in found)
+    return out
+
+
 def load_terms(path: Path) -> list[str]:
     if not path.is_file():
         return []
@@ -83,13 +102,8 @@ def main() -> int:
         except OSError as exc:
             unreadable.append((path, exc))
             continue
-        for lineno, line in enumerate(text.splitlines(), 1):
-            exempt = EXEMPT_MARK in line
-            found = [f"term:{t}" for t in terms if t and t in line]
-            found += [f"generic:{m.group(0)}" for pat in GENERIC_PATTERNS
-                      if (m := pat.search(line))]
-            for what in found:
-                (exempted if exempt else hits).append((path, lineno, what))
+        for lineno, what, exempt in scan_lines(text, terms):
+            (exempted if exempt else hits).append((path, lineno, what))
     # 스캔하지 못한 것을 먼저 고지한다 — 조용히 건너뛴 파일은 "깨끗한 것"과 구분되지 않는다.
     for path in skipped_large:
         print(f"SKIP(too-large>{MAX_BYTES}B) {path}")
