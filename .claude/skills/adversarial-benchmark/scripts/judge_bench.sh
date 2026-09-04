@@ -95,7 +95,14 @@ fi
 read -r MODEL_PATH TP < <(python3 - "$INDEX" <<'PY'
 import json, sys
 meta = (json.load(open(sys.argv[1], encoding="utf-8")).get("meta") or {})
-tp = meta.get("tp")
+# sweep meta 의 키는 `tensor_parallel_size` 다. 종전에 `tp` 를 읽어 **항상 미승계**였고,
+# single 에서는 roofline 이 manifest 로 1 을 파생해 우연히 맞았지만 multi 에서는 틀린 상한을
+# 세운다(2026-09-04 실측 발견 — 값이 없어도 조용히 도는 형태라 로그로는 안 보인다).
+tp = meta.get("tensor_parallel_size", meta.get("tp"))
+try:
+    tp = int(tp)
+except (TypeError, ValueError):
+    tp = None
 print(meta.get("model_path") or "NA",
       tp if isinstance(tp, int) and not isinstance(tp, bool) and tp > 0 else "-")
 PY

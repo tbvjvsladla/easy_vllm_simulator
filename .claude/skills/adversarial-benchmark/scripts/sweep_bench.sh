@@ -468,7 +468,12 @@ _attn_decl_raw = _m.group(1) if _m else None
 _attn, _attn_src, _attn_decl, _attn_mm = _measured_first(_attn_meas, _attn_decl_raw)
 
 # MoE 백엔드도 측정 우선으로 올린다 — 종전에는 config yaml 선언만 봐서 실측 인증서가 "N/A" 였다.
-_m = re.search(r"mxfp4\.py[^\]]*\]\s*Using\s+(\S+)\s+backend", _elog)
+# 실제 라인(0.19.1): `[mxfp4.py:352] Using 'MARLIN' Mxfp4 MoE backend.`
+#   0.18.0 은 `[mxfp4.py:166] Using Marlin backend` 였다 — 따옴표 유무와 어순이 버전마다 다르므로
+#   "Using <이름> … backend" 형태를 느슨하게 잡되 **이름만** 캡처한다. 못 잡으면 None 이고
+#   `_measured_first` 가 선언 평면으로 떨어진다(합성 ✗).
+_m = re.search(r"Using\s+'?([A-Za-z0-9_]+)'?\s+(?:\w+\s+)*?MoE backend", _elog) \
+     or re.search(r"mxfp4\.py[^\]]*\]\s*Using\s+'?([A-Za-z0-9_]+)'?\s+backend", _elog)
 _moe_meas = _m.group(1) if _m else None
 _moe, _moe_src, _moe_decl, _moe_mm = _measured_first(_moe_meas, grep_yaml(cfgtext, "moe-backend"))
 
