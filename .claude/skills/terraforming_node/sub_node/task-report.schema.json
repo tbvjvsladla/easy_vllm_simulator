@@ -335,6 +335,51 @@
           "blocking": {
             "type": "boolean",
             "description": "true 면 이 근거 없이는 결정을 진행하지 않는다(누락 fail-closed)."
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "이 요청의 식별자. 메인은 이 id 로 사람의 `answer` 를 이월한다(`relay.surface_requests` — 재표면화가 답을 지우지 않게 하는 키)."
+          }
+        }
+      }
+    },
+    "external_search": {
+      "type": "array",
+      "description": "서브가 **직접 수행한** 외부지식 검색 이력(2026-09-04 · plan_26090412 §6.1 B안). 서브의 상향 회수는 문서기반이므로 별도 채널을 만들지 않고 이 리포트로 온다. 이 배열이 B안의 성립 조건이다 — 기록이 없으면 B안은 자산화가 아니라 그냥 권한 확대이고, 인용 없는 결정은 거짓이 아니라 **누락**이다(헌법 불변식 B). 메인은 이것을 원장에 보존하고 도서관 적재 후보로 삼는다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "query",
+          "used_for"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "description": "실제로 던진 질의."
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "참조한 출처(URL 또는 식별 가능한 문서명). 없으면 빈 배열 — '검색했으나 빈손' 과 '검색 안 함' 은 다른 사실이다."
+          },
+          "finding": {
+            "type": "string",
+            "description": "얻은 요지. 서브가 쓴 그대로 — 메인이 고쳐 적지 않는다."
+          },
+          "used_for": {
+            "type": "string",
+            "minLength": 1,
+            "description": "이 근거가 **어느 결정에** 쓰였는가. 결정과 연결되지 않은 검색은 자산이 아니라 소음이다."
+          },
+          "accepted": {
+            "type": "boolean",
+            "description": "그 근거를 채택했는가. false 도 정직한 값이다(유보)."
           }
         }
       }

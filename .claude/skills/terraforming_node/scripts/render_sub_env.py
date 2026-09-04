@@ -45,9 +45,11 @@ SKILL_DIR = os.path.dirname(HERE)                       # .claude/skills/terrafo
 SUBNODE_DIR = os.path.join(SKILL_DIR, "sub_node")       # 템플릿·정적자산 보관
 REPO = os.path.abspath(os.path.join(SKILL_DIR, "..", "..", ".."))  # repo root
 # 런타임블럭(서브 복제) — git-tracked 만 복제. 다중(plan_26063014: adversarial-benchmark 추가 = 2번째 런타임블럭).
-#   adversarial-benchmark 의 (b) 외부검색 arm = 이중게이트(A2A 위임 키 ∧ egress-online) 통과 시 서브 자율,
-#   미통과 시 미수행+증상 상향 — 서브는 (a) 루프라인-only 판정(SKILL.md §7). 렌더 시 서브 env 에 egress
-#   attestation 을 반영해 서브 페르소나가 자기 능력을 정확히 로드한다(plan_26070809_46_57).
+#   adversarial-benchmark 의 (b) 외부검색 arm: 결정론 백스톱(`run_bench.sh`)이 실제로 검사하는 것은
+#   **A2A 위임 키 ∨ Flag** 한 축이다 — egress arm 은 코드에 없다(2026-09-04 감사 실측). 종전 주석은
+#   "이중게이트" 라고 적었으나 그 두 번째 문은 존재하지 않았다. egress 는 스캔 시점 attestation 이며
+#   불일치가 fail-open 경고다. 서술을 코드에 맞춘다 — 없는 게이트를 있다고 적으면 다음 사람이 그것을
+#   믿고 설계한다. 대신 그 값은 이제 서브 페르소나로 **전달된다**(`EGRESS_STATE` · plan_26090412 B8).
 # 2026-09-03(P2 · plan_26090317): 이 리스트는 **토폴로지와 무관한 닫힌 목록**이라 멀티 서브(Ray
 #   워커)에게도 서빙전략·벤치 스킬이 배달됐다. 불변식 A 가 말하는 멀티 sub 는 정본을 재현하는
 #   워커이지 전략을 세우는 주체가 아니다 — 스킬을 들려주면 그 스킬이 시키는 자율 판단(트리플렛
@@ -189,7 +191,7 @@ def _clean(v: str) -> str:
 
 
 def parse_manifest(path: str) -> dict:
-    data: dict = {"interconnect": {}, "nodes": []}
+    data: dict = {"interconnect": {}, "network": {}, "nodes": []}
     section = None
     cur = None
     with open(path, encoding="utf-8") as f:
@@ -202,14 +204,20 @@ def parse_manifest(path: str) -> dict:
             if indent == 0:
                 if s.startswith("interconnect:"):
                     section = "interconnect"; cur = None; continue
+                # `network:` 는 2026-09-04 추가(plan_26090412 B8). 종전에는 중첩 매핑 섹션이
+                #   `interconnect` 하나뿐이라 `network.egress` 가 **조용히 버려졌다** — 값은
+                #   manifest 에 실재했고(스캐너가 적었다) 읽는 코드가 0 이었다(감사 D2/I).
+                if s.startswith("network:"):
+                    section = "network"; cur = None
+                    data.setdefault("network", {}); continue
                 if s.startswith("nodes:"):
                     section = "nodes"; cur = None; continue
                 section = None; cur = None
                 k, _, v = s.partition(":")
                 data[k.strip()] = _clean(v)
-            elif section == "interconnect":
+            elif section in ("interconnect", "network"):
                 k, _, v = s.partition(":")
-                data["interconnect"][k.strip()] = _clean(v)
+                data[section][k.strip()] = _clean(v)
             elif section == "nodes":
                 if s.startswith("- role:"):
                     cur = {"role": _clean(s.split(":", 1)[1])}
@@ -259,6 +267,13 @@ def build_placeholders(data: dict) -> tuple[dict, list[str]]:
         "GPU_MODEL": data.get("gpu_model") or (f"{gpus}x-{cpu_arch}" if gpus and cpu_arch else cpu_arch or "unknown-gpu"),
         # A2A 위임 키 발급 판정용(plan_26063021_14_37 D5/D7) — nodes[sub].hw_verified(동질성 검증 통과 표식). 템플릿 치환엔 미사용.
         "SUB_HW_VERIFIED": (sub.get("hw_verified") or ""),
+        # ── egress attestation → 서브 페르소나(2026-09-04 · plan_26090412 B8) ──
+        #   이 파일의 머리말은 2026-07 부터 *"렌더 시 서브 env 에 egress attestation 을 반영해 서브
+        #   페르소나가 자기 능력을 정확히 로드한다"* 고 적어 왔지만 **그 코드가 없었다**(감사 D6).
+        #   B안(서브 직접 검색)을 켠 이상 egress 는 정보성 부기가 아니라 **전제**다 — 검색 권한만
+        #   주고 도달 가능성을 안 알려주면 서브는 조용히 빈손이 되고, 그 빈손을 근거 부족으로
+        #   구분하지 못한다. 값이 없으면 `unknown` 이다(모르는 것을 online 으로 적지 않는다).
+        "EGRESS_STATE": (data.get("network") or {}).get("egress") or "unknown",
     }
     ph.update(_contract_placeholders(data))
     # 필수(누락 시 fail-loud — 무증거/빈 정체성 렌더 금지)

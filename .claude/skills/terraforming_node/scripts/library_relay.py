@@ -35,17 +35,16 @@ FETCH = os.path.join(REPO, ".claude/skills/upstream-version-watch/scripts/fetch_
 SMOKE_QUERY = os.path.join(REPO, ".claude/skills/wiki-desk/scripts/smoke_query.py")
 WIKI_ROOT = os.path.join(REPO, "__llm-wiki")
 GATE = os.path.join(HERE, "library_exchange.py")
+sys.path.insert(0, HERE)
+import library_exchange as _gate  # noqa: E402  (발췌 예산의 단일 소유자 — 값을 복제하지 않는다)
 EXPORT_DIR = os.path.join(REPO, "docs", "_evidence", "library_exchange")
 
 SCHEMA_VERSION = 1
 MAX_REFS = 6
-EXCERPT_CHARS = 6000
-# 2026-09-03(P4 실측) 1200 → 6000. 발췌는 **읽기 보조**가 아니라 서브 결정의 유일한 근거다.
-# 실측 인과: 발췌가 잘려 서브가 KV 관련 결정을 정직하게 유보(`accepted:false`) → KV 절대 클램프
-# (`policy:KV_ABSOLUTE_CLAMP_PORTABILITY`)를 채택하지 못함 → gmu 0.90 만으로 서빙 → KV 94 GiB 할당 →
-# mem watchdog 이 `mem_avail 4.3 GiB < 10 GiB` 에서 컨테이너 사살(호스트는 지켜졌다).
-# 즉 **발췌 예산이 그라운딩의 성패를 결정한다** — 유보 자체는 옳은 행동이었고, 부족했던 것은 근거다.
-# 상한을 두는 이유는 여전히 있다(서브 컨텍스트 비용) — 없애지 않고 근거 있는 값으로 올린다.
+# 발췌 예산은 **판정기가 소유**한다 — 여기서 다시 적지 않고 읽는다(2026-09-04 교정).
+# 두 자리에 적혀 있던 동안 생산자 6000 / 판정기 2000 으로 갈려, 규약대로 만든 반출을 우리 게이트가
+# 거부했다(실증 rc=5 · `EXPORT_EXCEEDS_EXCERPT_BUDGET`). 값의 근거 서사는 소유자 쪽 주석에 있다.
+EXCERPT_CHARS = _gate.EXCERPT_MAX_CHARS
 
 
 def pull(apply=True) -> list:

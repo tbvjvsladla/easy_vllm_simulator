@@ -177,6 +177,12 @@ def _invalid_request_result(request) -> dict:
         "model_used": [],
         "reason_codes": ["REQUEST_SCHEMA_INVALID"],
         "output": None,
+        # 릴레이 3필드는 **모르면 null** 이다. 2026-09-04 부터 결과 스키마의 `required` 이며(이 봉투가
+        # 그것을 빠뜨려 자체검사가 즉시 잡았다 — 가드가 제 일을 했다), 이 경로에서는 서브에 닿지도
+        # 않았으므로 null 이 곧 사실이다. 값이 없다는 것과 키가 없다는 것은 다른 사실이다.
+        "session_id": None,
+        "num_turns": None,
+        "budget_outcome": None,
     }
 
 
@@ -191,6 +197,11 @@ def _invalid_provider_result(request: dict) -> dict:
         "model_used": [],
         "reason_codes": ["PROVIDER_RESULT_INVALID"],
         "output": None,
+        # 동상(2026-09-04): provider 결과가 스키마를 못 지켰을 때의 봉투도 3필드를 갖는다.
+        # provider 가 준 값을 여기로 옮기지 않는다 — 그 결과 자체가 무효 판정을 받았기 때문이다.
+        "session_id": None,
+        "num_turns": None,
+        "budget_outcome": None,
     }
 
 

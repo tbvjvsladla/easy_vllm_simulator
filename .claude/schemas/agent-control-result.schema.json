@@ -13,7 +13,10 @@
     "model_requested",
     "model_used",
     "reason_codes",
-    "output"
+    "output",
+    "session_id",
+    "num_turns",
+    "budget_outcome"
   ],
   "additionalProperties": false,
   "properties": {

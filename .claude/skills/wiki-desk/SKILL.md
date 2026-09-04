@@ -68,6 +68,31 @@ Invoke the librarian — read its metadata first, then act — when:
   library for what already worked (and what failed) on that model/version;
 - **a new doc is written** (plan/devlog/testlog/simlog/benchmark) → shelve it (warm-start incremental);
 - **asked "what do we know about X / where is the evidence for Y"** → topical query with edges.
+- **a sub node asked for grounding** (`library_request[]` in its task report) → resolve it and hand
+  back an export. **This is the librarian's job, and until 2026-09-04 this file never said so** —
+  the exchange protocol lived only in `terraforming_node`, so a session that loaded *this* skill
+  had no idea it was the export party (audit finding). See §Serving a sub node's request below.
+
+## Serving a sub node's request (main-only · 2026-09-04)
+
+The sub cannot read the library — that asymmetry is deliberate (the library is **not replicated**;
+what crosses is a *reference plus excerpt*, never a copy). So the sub sends a request and you answer.
+
+- **Where the request arrives**: the sub's task report carries `library_request[]`; the relay
+  surfaces it into `tasks/pending_hitl.json`. The three-message contract (`request` → `export` →
+  `attestation`) and its judge live in `terraforming_node` (`SKILL.md` §2.7.8 ·
+  `scripts/library_exchange.py`); the mechanics are `scripts/library_relay.py`, which calls this
+  skill's `smoke_query.py` to resolve terms.
+- **★ Priority is not first-come**: a request carrying `blocking: true` means the sub has *stopped*
+  and will not decide without it. Serve those **before** everything else — including before your
+  own in-flight query work. Non-blocking requests wait. (Before 2026-09-04 nothing read that field;
+  ordering was directory-name sort, i.e. effectively arbitrary.)
+- **Excerpt budget is owned by the judge** (`library_exchange.EXCERPT_MAX_CHARS`). Do not re-declare
+  it here or in the relay — it was declared in two places once, they diverged, and the gate then
+  rejected exports that followed the rule.
+- **An unanswered blocking request is a stalled node.** The sub is behaving correctly by waiting:
+  its honest deferral is the designed outcome of insufficient grounding, not a failure to route
+  around. What is missing in that state is *evidence*, and supplying it is this desk's work.
 
 ## Operating model
 

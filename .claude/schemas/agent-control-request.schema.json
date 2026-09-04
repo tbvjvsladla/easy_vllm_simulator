@@ -92,7 +92,7 @@
       "maximum": 100
     },
     "capabilities": {
-      "description": "Provider-neutral least-privilege capabilities mapped only inside the selected provider adapter.",
+      "description": "Provider-neutral least-privilege capabilities mapped only inside the selected provider adapter. `search` 는 하네스 웹 도구 평면(WebSearch/WebFetch)이며 셸 egress(curl/wget)와 다른 평면이다 — 서브 권한 템플릿의 셸 네트워크 deny 는 유지된다(2026-09-04 · plan_26090412 §6.1 B안).",
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
@@ -102,7 +102,8 @@
           "read",
           "execute",
           "edit",
-          "write"
+          "write",
+          "search"
         ]
       }
     },

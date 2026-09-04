@@ -57,54 +57,158 @@ def save_ledger(path: str, doc: dict) -> None:
     os.replace(tmp, path)
 
 
+def _reached_sub(att: dict) -> bool:
+    """이 attempt 가 서브에 **닿았는가**. 전송·스키마 실패는 예산 서사도 세션도 남기지 않는다."""
+    return bool(att.get("session_id") or att.get("status") or att.get("budget_outcome"))
+
+
 def latest_session_id(doc: dict):
-    """이어 붙일 세션. **완결된 attempt 의 세션은 잇지 않는다** — 새 attempt 는 새 맥락이다."""
+    """이어 붙일 세션. **완결된 attempt 의 세션은 잇지 않는다** — 새 attempt 는 새 맥락이다.
+
+    2026-09-04 교정(감사 D3 · 라이브 재현): 종전 루프는 `completed` 를 만나도 멈추지 않고 **뒤로
+    계속 스캔**해 더 오래된 `input-required` 세션을 돌려줬다. 라이브 원장(attempt 7 = completed)에서
+    실제로 그 값이 나왔다 — 즉 **자기 독스트링을 위반**했고, 자체검사는 attempt 1건 픽스처라
+    루프가 우연히 소진되어 통과했다(`픽스처가 실물보다 좁다` 재발).
+    이제 **닿은 attempt 중 가장 최근 것 하나**가 판정한다. 닿지 못한 attempt(전송 실패)는 서브의
+    상태를 바꾸지 못했으므로 건너뛴다 — 그것이 "그 앞 attempt 가 실상태" 라는 뜻이다.
+    """
     for att in reversed(doc.get("attempts") or []):
+        if not _reached_sub(att):
+            continue
         if att.get("budget_outcome") == "exhausted":
             return None                      # 소진된 세션을 이으면 그 자리에서 또 소진된다
+        if att.get("status") in ("completed", "failed"):
+            return None                      # 완결 — 새 attempt 는 새 맥락이다
         if att.get("status") == "input-required" and att.get("session_id"):
             return att["session_id"]
+        return None
     return None
 
 
+def budget_floor(doc: dict) -> int:
+    """이 context 에서 **실제로 집행된** 최대 예산. 축소 금지의 구조적 바닥이다.
+
+    ⚠ 닿지 못한 attempt 는 세지 않는다(2026-09-04 라이브 실측): P4 attempt 4 는 104 를 요청했다가
+    **요청 스키마가 정상 차단**해 서브에 닿지 않았다. 그 값을 바닥으로 삼으면 한 번도 집행된 적
+    없는 예산이 바닥이 되고, 다음 증액이 전송 상한을 넘어 `escalate` 가 fail-loud 한다 —
+    거절된 요청이 릴레이를 잠그는 형태다. 바닥은 **집행된 사실**이지 요청한 희망이 아니다.
+    """
+    return max([int(a["max_turns_allocated"]) for a in (doc.get("attempts") or [])
+                if a.get("max_turns_allocated") and _reached_sub(a)] or [0])
+
+
 def next_budget(doc: dict, grade: str) -> dict:
-    """직전 attempt 가 소진이면 증액한다. 그 외에는 grade 표의 기본값."""
-    for att in reversed(doc.get("attempts") or []):
-        if att.get("budget_outcome") == "exhausted" and att.get("max_turns_allocated"):
-            return turn_budget.escalate(grade, int(att["max_turns_allocated"]))
-        break
-    return turn_budget.budget(grade)
+    """다음 attempt 예산. 소진 이력이 있으면 증액하고, **어떤 경우에도 바닥 아래로 내려가지 않는다**.
+
+    2026-09-04 교정(감사 D2 · 라이브 재현): 종전 루프는 `for ... break` 로 **마지막 attempt 1건만**
+    봤다. 그 1건이 소진이 아니면 즉시 grade 기본값으로 떨어진다 — 그래서 P4 에서 attempt 3 이
+    65 를 소진한 뒤 attempt 4 가 전송 실패(예산 서사 없음)하자 **attempt 5 가 다시 65 로 열렸다**.
+    소진했던 예산을 그대로 재부여한 것이며, "소진 시 예산을 줄이지 않는다"(turn_budget §②)가
+    조용히 깨졌다.
+
+    규칙 둘:
+      · 예산 서사가 **없는** attempt(전송/스키마 실패)는 건너뛴다 — 그것은 예산 사건이 아니다.
+      · 바닥(`budget_floor`)은 단조 비감소다. 한 context 안에서 예산이 내려가는 경로를 없앤다.
+    """
+    floor = budget_floor(doc)
+    last = next((a for a in reversed(doc.get("attempts") or [])
+                 if a.get("budget_outcome") is not None), None)
+    if last is not None and last.get("budget_outcome") == "exhausted":
+        return turn_budget.escalate(grade, floor or int(last["max_turns_allocated"]))
+    base = turn_budget.budget(grade)
+    if floor > base["max_turns"]:
+        base["max_turns"] = floor
+        base["source"] += f" · 이 context 의 예산 바닥 {floor} 유지(축소 금지)"
+    return base
+
+
+def stalled_attempts(doc: dict) -> int:
+    """**전진 없이** 이어진 말미 attempt 수. `MAX_ATTEMPTS_BEFORE_HITL` 의 입력이다.
+
+    전진의 정의는 둘뿐이다 — ⓐ `completed` ⓑ phase 가 바뀌었다. 예산만 키우며 같은 벽에 부딪히는
+    것은 전진이 아니다. 이 술어가 없으면 `--continue` 는 무한 재개가 되고, 그것은 "루프를 만들면서
+    정지 조건을 나중으로 미룬" 형태다(plan §5 risk).
+    """
+    atts = [a for a in (doc.get("attempts") or []) if _reached_sub(a)]
+    n, phase = 0, None
+    for att in reversed(atts):
+        if att.get("status") == "completed":
+            break
+        if phase is None:
+            phase = att.get("phase")
+        elif att.get("phase") != phase:
+            break                            # phase 가 바뀌었다 = 전진했다
+        n += 1
+    return n
+
+
+DEFAULT_CAPABILITIES = ("read", "execute", "edit", "write", "search")
+
+
+def relay_header(context_id: str, attempt: int, allocated: int, grade: str) -> str:
+    """위임 본문 머리에 붙는 결정론 헤더.
+
+    2026-09-04 신설(감사 D6/comms 배선 부재). `comms.md` 는 *"메인이 Task 와 함께
+    `max_turns_allocated` 를 준다"* 고 적었지만 **주는 코드가 없었다** — 서브는 자기 예산을 모른 채
+    일했고, 메인 원장의 `context_id` 는 파일명으로만 존재해 서브가 회신한 것과 **상관 검증이
+    불가능**했다(라이브: 메인 `p4-sub-20b-0180` vs 서브 `gpt-oss-20b-vllm0180-single`).
+    """
+    return (
+        "## [relay] 위임 헤더 — 메인이 결정론으로 붙였다. 서브는 이 값을 그대로 회신한다.\n"
+        f"- context_id: {context_id}\n"
+        f"- attempt: {attempt}\n"
+        f"- task_grade: {grade}\n"
+        f"- max_turns_allocated: {allocated}\n"
+        "- 규약: 리포트 `context_id` 에 위 값을 그대로 적는다. 예산이 모자라면 **소진하지 말고**\n"
+        "  `input-required` 로 끊고 남은 일을 `next_steps` 에 적어라(scope ⊥ budget).\n"
+        "- 외부지식을 검색했다면 `external_search[]` 에 질의·출처·요지를 남겨라 — 그 기록이\n"
+        "  메인의 자산이 되고, 인용 없는 결정은 거짓이 아니라 **누락**이다(헌법 불변식 B).\n\n"
+    )
 
 
 def build_request(topology: str, manifest: str, task: str, grade: str,
-                  resume_session_id=None, capabilities=None) -> dict:
+                  resume_session_id=None, capabilities=None,
+                  context_id: str = None, attempt: int = 0, allocated: int = None) -> dict:
     base = _canary.build_request(topology, manifest)   # target 해소·센티넬 거부를 그대로 재사용
     bud = turn_budget.budget(grade)
+    allocated = bud["max_turns"] if allocated is None else int(allocated)
     base["intent"] = "delegate"
-    base["task"] = task
-    base["max_turns"] = bud["max_turns"]
+    base["task"] = (relay_header(context_id, attempt, allocated, grade) + task) if context_id else task
+    base["max_turns"] = allocated
     base["timeout_seconds"] = bud["timeout_seconds"]
-    base["capabilities"] = list(capabilities or ["read", "execute", "edit", "write"])
+    base["capabilities"] = list(capabilities or DEFAULT_CAPABILITIES)
     if resume_session_id:
         base["resume_session_id"] = resume_session_id
     return base
 
 
 def record_attempt(doc: dict, *, context_id: str, grade: str, allocated: int,
-                   result: dict, report=None) -> dict:
+                   result: dict, report=None, resume_requested=None) -> dict:
+    report = report or {}
+    session = result.get("session_id")
     att = {
         "attempt": len(doc.get("attempts") or []) + 1,
         "task_grade": {"assigned": grade,
-                       "recommended": (report or {}).get("task_grade", {}).get("recommended")},
+                       "recommended": (report.get("task_grade") or {}).get("recommended")},
         "max_turns_allocated": allocated,
         # 모르면 null — 그럴듯한 값으로 채우면 Layer2 보정이 거짓 위에 선다.
         "max_turns_used": result.get("num_turns"),
         "budget_outcome": result.get("budget_outcome"),
-        "session_id": result.get("session_id"),
+        "session_id": session,
+        # 2026-09-04(감사 D7): 재개를 **요청했다는 사실**을 남긴다. 종전에는 요청한 세션 id 를 적는
+        #   자리조차 없어, provider 가 재개에 실패하고 새 세션을 열어도 원장에는 정상으로 보였다
+        #   — 그 경우 서브는 컨텍스트를 처음부터 재구축하고, 그것이 곧 소진의 주된 원인이다.
+        "resume_requested": resume_requested,
+        "resume_honored": (None if not resume_requested else session == resume_requested),
         "control_status": result.get("status"),
         "reason_codes": result.get("reason_codes") or [],
-        "status": (report or {}).get("status"),
-        "phase": (report or {}).get("phase"),
+        "status": report.get("status"),
+        "phase": report.get("phase"),
+        # 2026-09-04(감사 D6): 서브가 회신한 정체성을 **그대로** 남기고 대조는 소비자가 한다.
+        "context_id_reported": report.get("context_id"),
+        # B안(2026-09-04 사용자 결정): 서브가 직접 수행한 외부검색 이력. 이것이 남아야 B안은
+        #   권한 확대가 아니라 **자산화 경로**가 된다(plan §6.1).
+        "external_search": report.get("external_search") or [],
         # SILENT_FALLBACK 금지: 메인이 대신 한 것은 여기에 적히지 않는다. 서브 산출만 집계한다.
         "sub_reported": bool(report),
     }
@@ -113,29 +217,94 @@ def record_attempt(doc: dict, *, context_id: str, grade: str, allocated: int,
     return att
 
 
-def surface_hitl(repo_root: str, context_id: str, report: dict) -> str | None:
-    """서브가 스스로 표면화한 것만 릴레이한다(디스크 재스캔 ✗ — §2.4 push-attestation)."""
-    hitl = (report or {}).get("hitl") or {}
-    if not hitl.get("needed"):
-        return None
+def entry_blocking(entry: dict) -> bool:
+    """이 대기 항목이 **차단성**인가 — 저장된 필드가 아니라 요청 본문에서 파생한다.
+
+    2026-09-04: 처음에는 표면화 시점에 `blocking` 을 계산해 항목에 적었다. 그런데 그러면 같은
+    개념이 두 자리(요청 본문 · 항목 필드)에 앉고, 실제로 **옛 형식으로 쓰인 라이브 항목을 읽지
+    못했다**(`library_request[0].blocking=true` 인데 항목에는 필드가 없어 비차단으로 읽혔다).
+    `workflow.md` §4종 안티패턴의 "같은 개념이 두 곳 이상에 손으로 적힌 값" = 결함 칸이다.
+    파생으로 바꾸면 옛 항목도 그대로 읽히고 갈라질 자리가 사라진다.
+    """
+    if any(bool(r.get("blocking")) for r in entry.get("library_request") or []):
+        return True
+    return bool(entry.get("blocking"))
+
+
+def sort_pending(pending: list) -> list:
+    """대기 요청의 **처리 순서**. `blocking` 이 먼저, 그 안에서는 도착 순(attempt 오름차순).
+
+    2026-09-04 신설(감사 B3 · 사용자 지목). 종전에는 우선순위 개념이 **어디에도 없었다** —
+    도서관 교환의 처리 순서는 `sorted(os.listdir(...))` = exchange_id 사전순이었고, 요청 스키마에
+    priority/urgency 필드가 없었으며, 가장 가까운 `blocking` 은 **읽는 코드가 0** 이었다.
+    즉 "서브가 막혔다" 는 선언이 아무것도 바꾸지 못했다.
+
+    순서 키를 벽시계가 아니라 **attempt 번호**로 잡는다 — 이 저장소는 벽시계를 금지하고 주입만
+    허용하는데(`docs.md` §기계판독 평면), attempt 는 이미 단조 증가하는 결정론 서수다.
+    """
+    return sorted(pending, key=lambda e: (not entry_blocking(e), e.get("attempt") or 0,
+                                          e.get("request_id") or ""))
+
+
+def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: int = 0) -> str | None:
+    """서브가 스스로 표면화한 것을 릴레이한다(디스크 재스캔 ✗ — §2.4 push-attestation).
+
+    2026-09-04 교정 3건:
+      · **B2(침묵 누락)**: 종전에는 `hitl.needed` 가 거짓이면 즉시 return 했다. 그런데 서브 규약
+        (`comms.md` 도서관 절)은 *"리포트에 `library_request[]` 를 싣고 `input-required` 로 끝내라"*
+        만 지시하고 `hitl.needed` 를 요구하지 않는다 — **절차대로 한 요청이 사라졌다.** 이제
+        요청 배열 하나만으로도 표면화한다.
+      · **A4(해소 미반영)**: 같은 이유로 `needed=false` 인 턴은 `:126` 의 정리 필터에 **도달조차
+        못 해**, 이미 해소된 질문이 계속 남았다(라이브 잔존 실측). 이제 어떤 경우에도 이 context
+        의 낡은 항목을 먼저 걷어낸다.
+      · **B3(우선순위)**: `blocking` 을 읽어 정렬 키로 쓴다.
+    사람이 적어 넣은 `answer` 는 같은 `request_id` 로 **이월**한다 — 재표면화가 답을 지우면
+    사람이 두 번 답해야 하고, 그것은 릴레이가 사람의 일을 늘리는 것이다.
+    """
+    report = report or {}
+    hitl = report.get("hitl") or {}
+    requests = report.get("library_request") or []
     path = os.path.join(repo_root, TASKS_DIR_NAME, PENDING_HITL)
     doc = {"schema_version": 1, "pending": []}
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
             doc = json.load(f)
-    doc["pending"] = [p for p in doc.get("pending", []) if p.get("context_id") != context_id]
-    doc["pending"].append({
-        "context_id": context_id,
-        "request_id": hitl.get("request_id"),
-        "source": hitl.get("source") or "sub-relay",
-        "prompt": hitl.get("prompt"),
-        "library_request": report.get("library_request") or [],
-    })
+    prior = {e.get("request_id"): e.get("answer") for e in doc.get("pending", [])
+             if e.get("context_id") == context_id}
+    doc["pending"] = [e for e in doc.get("pending", []) if e.get("context_id") != context_id]
+
+    entry = None
+    if hitl.get("needed") or requests:
+        rid = hitl.get("request_id") or (requests[0].get("request_id") if requests else None)
+        entry = {
+            "context_id": context_id,
+            "attempt": attempt,
+            "request_id": rid,
+            "source": hitl.get("source") or "sub-relay",
+            "prompt": hitl.get("prompt"),
+            "library_request": requests,
+            # 서브의 자기억제 선언은 요청 본문에 있다 — 여기에 **다시 적지 않는다**(entry_blocking).
+            #   hitl 절이 스스로 차단성을 말한 경우만 항목에 남긴다(요청 본문에 없는 정보라서).
+            **({"blocking": True} if hitl.get("blocking") else {}),
+            "answer": prior.get(rid),
+        }
+        doc["pending"].append(entry)
+    doc["pending"] = sort_pending(doc["pending"])
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(doc, f, ensure_ascii=False, indent=2, sort_keys=True)
         f.write("\n")
-    return path
+    return path if entry else None
+
+
+def pending_for(repo_root: str, context_id: str) -> list:
+    """이 context 의 대기 요청(우선순위 순). `--continue` 가 읽는다 — **쓰기만 하던 파일에 소비자가 생긴다**."""
+    path = os.path.join(repo_root, TASKS_DIR_NAME, PENDING_HITL)
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as f:
+        doc = json.load(f)
+    return sort_pending([e for e in doc.get("pending", []) if e.get("context_id") == context_id])
 
 
 def parse_report(output: str):
@@ -157,6 +326,72 @@ def parse_report(output: str):
                 except ValueError:
                     pass
     return best if isinstance(best, dict) else None
+
+
+def load_report(repo_root: str, att: dict):
+    """원장 attempt 가 가리키는 서브 리포트 원본을 읽는다(없으면 None — 합성 ✗)."""
+    rel = (att or {}).get("report_path")
+    if not rel:
+        return None
+    path = os.path.join(repo_root, rel)
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        return (json.load(f) or {}).get("report")
+
+
+def assemble_continuation(repo_root: str, doc: dict, pending: list) -> str:
+    """이어붙일 task 본문을 **기계가** 조립한다 — 이것이 없어서 자율 재개가 성립하지 않았다.
+
+    2026-09-04 신설(감사 D1 · 심각도 1). 종전에는 소진 시 `relay.py` 가 *"다음 attempt 는
+    max_turns=N 으로 열고 직전 산출물을 prompt 로 실어라"* 라는 **산문 안내를 출력하고 죽었고**,
+    그 안내를 받아 다시 부르는 코드가 저장소에 0건이었다. 즉 "이어붙일 수 있는 상태" 는 남지만
+    "스스로 잇는 루프" 가 없었다.
+
+    조립 원칙 — **합성하지 않는다**. 여기 들어가는 것은 전부 이미 기록된 사실뿐이다:
+      · 직전 attempt 의 제어 상태(원장)
+      · 서브가 보낸 리포트의 `artifacts[]`·`next_steps`·`notes`(서브가 쓴 그대로)
+      · 사람이 `pending_hitl.json` 에 적어 넣은 `answer`(사람이 쓴 그대로)
+      · 원래 지시(원장에 보존한 원문)
+    메인이 추측한 진행상황을 여기에 적으면 그것이 SILENT_FALLBACK 이다.
+    """
+    atts = [a for a in (doc.get("attempts") or []) if _reached_sub(a)]
+    last = atts[-1] if atts else None
+    report = load_report(repo_root, last)
+    out = ["## 이어받기 — 아래는 메인이 원장에서 **그대로 옮긴** 사실이다(추측 없음).", ""]
+    if last:
+        out.append(f"- 직전 attempt {last['attempt']}: status={last.get('status')} · "
+                   f"phase={last.get('phase')} · turns={last.get('max_turns_used')}/"
+                   f"{last.get('max_turns_allocated')} · budget={last.get('budget_outcome')}")
+        if last.get("budget_outcome") == "exhausted":
+            out.append("- ⚠ 직전 attempt 는 **예산 소진**으로 끊겼다. 같은 일을 처음부터 하지 말고 "
+                       "아래 산출물을 신뢰해 그 다음부터 이어라.")
+    if report is None:
+        out.append("- ⚠ 직전 리포트(JSON)가 없다 — 서브가 산문만 보냈거나 전송이 실패했다. "
+                   "무엇이 끝났는지 **실물로 확인한 뒤** 진행하라.")
+    for art in (report or {}).get("artifacts") or []:
+        out.append(f"  - 산출물[{art.get('kind')}]: {art.get('path')}")
+    for step in (report or {}).get("next_steps") or []:
+        out.append(f"  - 직전 턴이 남긴 다음 단계: {step}")
+    if (report or {}).get("notes"):
+        out.append(f"  - 직전 턴 메모: {report['notes']}")
+
+    answered = [e for e in pending if e.get("answer")]
+    if answered:
+        out += ["", "## 네 질문에 대한 메인의 답"]
+        for e in answered:
+            for req in e.get("library_request") or []:
+                out.append(f"- (질문) {req.get('question')}")
+            if e.get("prompt"):
+                out.append(f"- (질문) {e['prompt']}")
+            out.append(f"- **(답)** {e['answer']}")
+    open_nonblocking = [e for e in pending if not e.get("answer") and not entry_blocking(e)]
+    if open_nonblocking:
+        out += ["", "## 아직 답이 없는 비차단 질문(진행을 막지 않는다 — 없이 갈 수 있으면 가라)"]
+        for e in open_nonblocking:
+            out.append(f"- {e.get('prompt') or (e.get('library_request') or [{}])[0].get('question')}")
+    out += ["", "## 원래 지시(변경 없음)", "", doc.get("task") or "(원장에 원 지시가 없다)"]
+    return "\n".join(out) + "\n"
 
 
 def _self_test() -> int:
@@ -204,12 +439,13 @@ def _self_test() -> int:
             "서브 리포트 없는 attempt 는 sub_reported=false(메인 대행을 성공으로 집계 ✗)")
 
         # ⑤ HITL 표면화 — 서브가 스스로 needed 를 말한 것만
-        p = surface_hitl(d, "ctx-1", {"hitl": {"needed": True, "request_id": "h1",
-                                               "prompt": "어느 핀?"},
-                                      "library_request": [{"question": "q", "kind": "version-pin"}]})
+        p = surface_requests(d, "ctx-1", {"hitl": {"needed": True, "request_id": "h1",
+                                                   "prompt": "어느 핀?"},
+                                          "library_request": [{"question": "q", "kind": "version-pin"}]},
+                             attempt=1)
         chk(p and json.load(open(p))["pending"][0]["request_id"] == "h1", "HITL 표면화")
-        p2 = surface_hitl(d, "ctx-2", {"hitl": {"needed": False}})
-        chk(p2 is None, "needed=false 면 표면화하지 않는다(메인이 대신 만들지 않는다)")
+        p2 = surface_requests(d, "ctx-2", {"hitl": {"needed": False}}, attempt=1)
+        chk(p2 is None, "요청이 없으면 새 항목을 만들지 않는다(메인이 대신 만들지 않는다)")
 
         # ⑥ 리포트 파싱 — 산문에 섞여 와도 JSON 을 집는다 / 없으면 None
         chk(parse_report("어쩌고 {\"status\": \"completed\"} 끝")["status"] == "completed",
@@ -230,6 +466,101 @@ def _self_test() -> int:
             chk(False, "판독 불가는 STOP")
         except SystemExit as e:
             chk("판독하지 못했다" in str(e), "판독 불가는 일치로 치지 않는다(fail-closed)")
+
+        # ⑧ 2026-09-04 회귀 — 픽스처를 **실물 폭**으로 넓힌다.
+        #    ①의 "완료된 세션은 재개 대상 아님" 은 attempt 1건 픽스처라 루프가 우연히 소진되어
+        #    통과했다. 실물 원장(7건)에서는 실패했다(감사 D3 라이브 재현).
+        d2 = {"attempts": [
+            {"attempt": 1, "status": "input-required", "session_id": "sA",
+             "budget_outcome": "within_budget", "max_turns_allocated": 25},
+            {"attempt": 2, "status": "completed", "session_id": "sB",
+             "budget_outcome": "within_budget", "max_turns_allocated": 25},
+        ]}
+        chk(latest_session_id(d2) is None,
+            "★음성대조: 앞에 input-required 가 있어도 **마지막이 completed 면** 잇지 않는다")
+        d3 = {"attempts": [d2["attempts"][0],
+                           {"attempt": 2}]}          # 전송 실패(닿지 못함) — 건너뛴다
+        chk(latest_session_id(d3) == "sA", "닿지 못한 attempt 는 서브 상태를 바꾸지 못한다(건너뛴다)")
+
+        # ⑨ 예산 바닥 — 소진과 다음 attempt 사이에 예산 서사 없는 실패가 끼어도 내려가지 않는다
+        d4 = {"attempts": [
+            {"attempt": 1, "budget_outcome": "exhausted", "max_turns_allocated": 25,
+             "status": None, "session_id": "s1"},
+            {"attempt": 2},                                   # 스키마/전송 실패 = 예산 사건 아님
+        ]}
+        chk(next_budget(d4, "L2")["max_turns"] > 25,
+            "★음성대조: 소진 뒤 다른 실패가 끼어도 예산이 grade 기본값으로 되돌아가지 않는다")
+        d5 = {"attempts": [{"attempt": 1, "budget_outcome": "within_budget",
+                            "max_turns_allocated": 40, "status": "input-required",
+                            "session_id": "s1"}]}
+        chk(next_budget(d5, "L2")["max_turns"] == 40 and "바닥" in next_budget(d5, "L2")["source"],
+            "이미 올라간 예산은 유지되고 그 사실이 출처에 남는다(축소 금지)")
+
+        # ⑩ 정지 조건 — 전진 없는 연속 attempt
+        d6 = {"attempts": [{"attempt": i, "status": "input-required", "phase": "build",
+                            "session_id": "s%d" % i} for i in (1, 2, 3)]}
+        chk(stalled_attempts(d6) == 3, f"전진 없는 3연속을 센다 → {stalled_attempts(d6)}")
+        d7 = {"attempts": [{"attempt": 1, "status": "input-required", "phase": "config",
+                            "session_id": "s1"},
+                           {"attempt": 2, "status": "input-required", "phase": "build",
+                            "session_id": "s2"}]}
+        chk(stalled_attempts(d7) == 1, "phase 가 바뀌면 전진으로 센다(예산만 태운 것과 구분)")
+
+        # ⑪ B2/B3/A4 — 표면화·우선순위·해소
+        rep_lib = {"library_request": [{"question": "q1", "kind": "serving-recipe",
+                                        "blocking": True, "request_id": "r1"}]}
+        pth = surface_requests(d, "ctx-lib", rep_lib, attempt=1)
+        chk(pth is not None, "★hitl.needed 없이 library_request 만으로도 표면화된다(침묵 누락 ✗)")
+        chk(entry_blocking(pending_for(d, "ctx-lib")[0]) is True,
+            "blocking 을 메인이 **읽는다**(요청 본문에서 파생 — 옛 형식 항목도 읽힌다)")
+        surface_requests(d, "ctx-nb", {"library_request": [{"question": "q2", "blocking": False,
+                                                            "request_id": "r2"}]}, attempt=1)
+        order = [e["request_id"] for e in sort_pending(
+            pending_for(d, "ctx-nb") + pending_for(d, "ctx-lib"))]
+        chk(order[0] == "r1", f"★우선순위: blocking 이 먼저다(사전순이 아니다) → {order}")
+        # 사람이 답을 적으면 재표면화가 그것을 지우지 않는다
+        _pp = os.path.join(d, TASKS_DIR_NAME, PENDING_HITL)
+        _doc = json.load(open(_pp, encoding="utf-8"))
+        for e in _doc["pending"]:
+            if e["request_id"] == "r1":
+                e["answer"] = "NAS 경로 X 를 쓴다"
+        json.dump(_doc, open(_pp, "w", encoding="utf-8"), ensure_ascii=False)
+        surface_requests(d, "ctx-lib", rep_lib, attempt=2)
+        chk(pending_for(d, "ctx-lib")[0]["answer"] == "NAS 경로 X 를 쓴다",
+            "재표면화가 사람의 답을 지우지 않는다(두 번 답하게 하지 않는다)")
+        # 해소되면 사라진다 — 종전에는 needed=false 가 정리 필터에 도달조차 못 했다
+        surface_requests(d, "ctx-lib", {"hitl": {"needed": False}}, attempt=3)
+        chk(pending_for(d, "ctx-lib") == [],
+            "★음성대조: 요청이 사라진 턴에는 낡은 항목이 제거된다(라이브 잔존 실측 교정)")
+
+        # ⑫ A1 — 조립기는 **기록된 것만** 옮긴다
+        rd = os.path.join(d, "tasks", "ctx-c.reports")
+        os.makedirs(rd, exist_ok=True)
+        json.dump({"report": {"artifacts": [{"kind": "log", "path": "output/x.json"}],
+                              "next_steps": ["serve 재기동"], "notes": "KV 미정"}},
+                  open(os.path.join(rd, "attempt-01.json"), "w", encoding="utf-8"))
+        d8 = {"task": "원 지시 본문", "attempts": [
+            {"attempt": 1, "status": "input-required", "phase": "build", "session_id": "s1",
+             "budget_outcome": "exhausted", "max_turns_allocated": 25,
+             "report_path": "tasks/ctx-c.reports/attempt-01.json"}]}
+        body = assemble_continuation(d, d8, [{"request_id": "r9", "blocking": True,
+                                              "answer": "답 A", "prompt": "질문 Q"}])
+        for token in ("output/x.json", "serve 재기동", "KV 미정", "답 A", "원 지시 본문", "예산 소진"):
+            chk(token in body, f"조립 본문이 기록된 사실을 담는다: {token!r}")
+        chk("추측" not in body.replace("추측 없음", ""), "조립기는 추측을 적지 않는다")
+
+        # ⑬ A5/A6 — 헤더 주입과 재개 검증
+        hdr = relay_header("ctx-h", 3, 40, "L3")
+        chk("context_id: ctx-h" in hdr and "max_turns_allocated: 40" in hdr,
+            "위임 헤더가 context_id·예산을 서브에게 알린다(comms.md 규약의 실배선)")
+        d9 = {"attempts": []}
+        record_attempt(d9, context_id="ctx-h", grade="L3", allocated=40,
+                       result={"session_id": "other", "status": "completed"},
+                       report={"status": "completed", "context_id": "ctx-h"},
+                       resume_requested="wanted")
+        chk(d9["attempts"][0]["resume_honored"] is False,
+            "★재개 불발이 원장에 남는다(침묵 새 세션 ✗)")
+        chk(d9["attempts"][0]["external_search"] == [], "외부검색 기록 자리가 있다(B안 자산화 입력)")
     print("self-test: %s" % ("PASS" if ok else "FAIL"))
     return 0 if ok else 2
 
@@ -267,37 +598,11 @@ def assert_sub_branch(req: dict, topology: str, runner=None) -> str:
     return out
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser(description="메인↔서브 턴제 릴레이")
-    ap.add_argument("--topology", choices=["single", "multi"])
-    ap.add_argument("--manifest", default=None)
-    ap.add_argument("--context-id")
-    ap.add_argument("--grade", choices=list(turn_budget.GRADE_ORDER))
-    ap.add_argument("--task", help="서브에 보낼 지시(또는 --task-file)")
-    ap.add_argument("--task-file")
-    ap.add_argument("--emit-only", action="store_true", help="request 만 조립해 출력(실행 ✗)")
-    ap.add_argument("--repo-root", default=REPO)
-    ap.add_argument("--self-test", action="store_true")
-    a = ap.parse_args()
-    if a.self_test:
-        return _self_test()
-    for req in ("topology", "context_id", "grade"):
-        if not getattr(a, req):
-            raise SystemExit(f"[relay] --{req.replace('_','-')} 필수")
-    task = a.task
-    if a.task_file:
-        with open(a.task_file, encoding="utf-8") as f:
-            task = f.read()
-    if not task:
-        raise SystemExit("[relay] --task 또는 --task-file 필수")
-
-    manifest = a.manifest or os.path.join(REPO, "output", a.topology, "manifest.yaml")
-    lp = ledger_path(a.repo_root, a.context_id)
-    doc = load_ledger(lp)
-    bud = next_budget(doc, a.grade)
-    resume = latest_session_id(doc)
-    req = build_request(a.topology, manifest, task, a.grade, resume_session_id=resume)
-    req["max_turns"] = bud["max_turns"]
+def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume) -> int:
+    """한 번의 위임 왕복. `--task` 진입과 `--continue` 진입이 **같은 몸통**을 쓴다."""
+    attempt_no = len(doc.get("attempts") or []) + 1
+    req = build_request(a.topology, a.manifest_path, task, a.grade, resume_session_id=resume,
+                        context_id=a.context_id, attempt=attempt_no, allocated=bud["max_turns"])
     req["timeout_seconds"] = bud["timeout_seconds"]
 
     if a.emit_only:
@@ -306,7 +611,7 @@ def main() -> int:
         return 0
 
     branch = assert_sub_branch(req, a.topology)
-    print(f"[relay] attempt={len(doc.get('attempts') or []) + 1} grade={a.grade} "
+    print(f"[relay] attempt={attempt_no} grade={a.grade} "
           f"max_turns={bud['max_turns']} ({bud['source']}) resume={resume or '(새 세션)'} "
           f"sub_branch={branch}")
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tf:
@@ -325,7 +630,8 @@ def main() -> int:
 
     report = parse_report(result.get("output") or "")
     att = record_attempt(doc, context_id=a.context_id, grade=a.grade,
-                         allocated=bud["max_turns"], result=result, report=report)
+                         allocated=bud["max_turns"], result=result, report=report,
+                         resume_requested=resume)
     # 2026-09-04(P4 라이브): 원장이 status 만 적고 **리포트 본문을 버렸다** — 나중에 "서브가 무엇을
     #   근거로 completed 라 했는가" 를 메인이 감사할 수 없었다(내가 서브를 의심했다가 dotfile 을
     #   놓친 내 실수임을 확인하는 데도 서브 워크스페이스를 다시 뒤져야 했다 — 재스캔은 계약 밖이다).
@@ -342,23 +648,125 @@ def main() -> int:
                   f, ensure_ascii=False, indent=2, sort_keys=True)
         f.write("\n")
     att["report_path"] = os.path.relpath(_ap, a.repo_root)
+    doc["task"] = doc.get("task") or task
+    doc["topology"] = a.topology
+    doc["grade"] = a.grade
+    doc["manifest"] = a.manifest_path
     save_ledger(lp, doc)
-    hp = surface_hitl(a.repo_root, a.context_id, report or {})
+    hp = surface_requests(a.repo_root, a.context_id, report or {}, attempt=att["attempt"])
 
     print(f"[relay] 원장 → {lp}")
     print(f"[relay] control={att['control_status']} sub_status={att['status']} "
           f"turns={att['max_turns_used']}/{att['max_turns_allocated']} budget={att['budget_outcome']}")
+    if att["resume_honored"] is False:
+        print(f"[relay] ⚠ 재개 불발: 요청한 세션 {resume} 과 다른 세션 {att['session_id']} 이 열렸다 — "
+              "서브가 컨텍스트를 처음부터 재구축했을 수 있다(소진의 주된 원인). 다음 턴의 예산을 그렇게 읽어라.")
+    if att["context_id_reported"] and att["context_id_reported"] != a.context_id:
+        print(f"[relay] ⚠ context_id 불일치: 메인 '{a.context_id}' vs 서브 '{att['context_id_reported']}' — "
+              "`--continue` 는 이 상태에서 진행하지 않는다(두 원장이 같은 작업인지 확인 불가).")
+    if att["external_search"]:
+        print(f"[relay] 서브가 외부검색 {len(att['external_search'])}건을 기록했다 — 자산화 후보. "
+              f"근거는 원장 attempt {att['attempt']}.external_search 에 있다.")
     if hp:
-        print(f"[relay] ⚠ 서브가 HITL 을 요청했다 → {hp} (사람 답변 후 같은 context_id 로 재개)")
+        print(f"[relay] ⚠ 서브가 요청을 표면화했다 → {hp} "
+              "(`answer` 를 적고 `--continue` 로 재개. blocking 은 답 없이는 진행하지 않는다)")
     if att["budget_outcome"] == "exhausted":
-        nxt = turn_budget.escalate(a.grade, bud["max_turns"])
-        print(f"[relay] ⚠ 예산 소진(terminal). 자동 재시도하지 않는다 — 다음 attempt 는 "
-              f"max_turns={nxt['max_turns']} 로 열고 직전 산출물을 prompt 로 실어라.")
+        print(f"[relay] ⚠ 예산 소진(terminal). 자동 재시도하지 않는다 — "
+              f"`relay.py --continue --context-id {a.context_id}` 로 이어라(본문은 기계가 조립한다).")
         return 3
     if report is None:
         print("[relay] ⚠ 서브 리포트(JSON)를 찾지 못했다 — 산문만 왔다. 성공으로 집계하지 않는다.")
         return 4
     return 0 if att["status"] == "completed" else 2
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="메인↔서브 턴제 릴레이")
+    ap.add_argument("--topology", choices=["single", "multi"])
+    ap.add_argument("--manifest", default=None)
+    ap.add_argument("--context-id")
+    ap.add_argument("--grade", choices=list(turn_budget.GRADE_ORDER))
+    ap.add_argument("--task", help="서브에 보낼 지시(또는 --task-file)")
+    ap.add_argument("--task-file")
+    ap.add_argument("--continue", dest="continue_", action="store_true",
+                    help="원장의 중단점에서 이어간다 — 본문을 기계가 조립한다. 기본 dry-run.")
+    ap.add_argument("--apply", action="store_true",
+                    help="--continue 와 함께: 조립한 본문으로 실제 위임한다(사람 승인 정문).")
+    ap.add_argument("--emit-only", action="store_true", help="request 만 조립해 출력(실행 ✗)")
+    ap.add_argument("--repo-root", default=REPO)
+    ap.add_argument("--self-test", action="store_true")
+    a = ap.parse_args()
+    if a.self_test:
+        return _self_test()
+    if not a.context_id:
+        raise SystemExit("[relay] --context-id 필수")
+
+    lp = ledger_path(a.repo_root, a.context_id)
+    doc = load_ledger(lp)
+
+    if a.continue_:
+        # 이어가기에 필요한 것은 전부 **원장**에서 온다 — 사람이 다시 적지 않는다.
+        if not (doc.get("attempts") or []):
+            raise SystemExit(f"[relay] STOP: 이어갈 원장이 없다 — {lp}. 첫 위임은 `--task` 로 연다.")
+        a.topology = a.topology or doc.get("topology")
+        a.grade = a.grade or doc.get("grade")
+        if not (a.topology and a.grade):
+            raise SystemExit("[relay] STOP: 원장에 topology/grade 가 없다(구버전 원장) — 명시하라.")
+        a.manifest_path = a.manifest or doc.get("manifest") or os.path.join(
+            REPO, "output", a.topology, "manifest.yaml")
+
+        # ── 정지 조건 셋. 루프를 만들면서 정지 조건을 나중으로 미루지 않는다.
+        stalled = stalled_attempts(doc)
+        if stalled >= turn_budget.MAX_ATTEMPTS_BEFORE_HITL:
+            raise SystemExit(
+                f"[relay] STOP: 전진 없는 attempt 가 {stalled}회 연속이다"
+                f"(한계 {turn_budget.MAX_ATTEMPTS_BEFORE_HITL}). 예산만 키우며 같은 벽에 부딪히고 있다 —\n"
+                "  → 사람이 과업을 쪼개거나 벽의 성격을 판정해야 한다(scope ⊥ budget).")
+        last = next((x for x in reversed(doc["attempts"]) if _reached_sub(x)), None)
+        if last and last.get("status") == "completed":
+            raise SystemExit("[relay] STOP: 직전 attempt 가 completed 다 — 이을 중단점이 없다.\n"
+                             "  → 새 과업이면 새 --context-id 로 `--task` 를 연다.")
+        if last and last.get("context_id_reported") and last["context_id_reported"] != a.context_id:
+            raise SystemExit(
+                f"[relay] STOP: context_id 불일치 — 메인 '{a.context_id}' vs 서브 "
+                f"'{last['context_id_reported']}'. 두 원장이 같은 작업인지 확인되지 않았다.\n"
+                "  → 서브가 위임 헤더의 context_id 를 회신하도록 한 뒤 재개하라.")
+        pend = pending_for(a.repo_root, a.context_id)
+        blocked = [e for e in pend if entry_blocking(e) and not e.get("answer")]
+        if blocked:
+            ids = ", ".join(str(e.get("request_id")) for e in blocked)
+            raise SystemExit(
+                f"[relay] STOP: 답이 필요한 **차단성** 요청이 있다 — {ids}\n"
+                f"  → tasks/{PENDING_HITL} 의 해당 항목 `answer` 에 답을 적고 다시 --continue 하라.\n"
+                "  → 이것이 사람의 승인 정문이다(답 = 승인). 답 없이 진행하면 서브가 근거 없이 결정한다.")
+
+        bud = next_budget(doc, a.grade)
+        resume = latest_session_id(doc)
+        task = assemble_continuation(a.repo_root, doc, pend)
+        if not a.apply:
+            print(f"[relay] --continue DRY-RUN · context={a.context_id} grade={a.grade} "
+                  f"max_turns={bud['max_turns']} ({bud['source']}) resume={resume or '(새 세션)'}")
+            print(f"[relay] 대기 요청 {len(pend)}건(우선순위 순) · 전진 없는 연속 attempt {stalled}회")
+            print("─" * 72)
+            sys.stdout.write(task)
+            print("─" * 72)
+            print("[relay] 위 본문으로 위임하려면 --apply 를 붙여라(사람 승인 정문).")
+            return 0
+        return run_attempt(a, doc, lp, task, bud, resume)
+
+    for req in ("topology", "grade"):
+        if not getattr(a, req):
+            raise SystemExit(f"[relay] --{req} 필수")
+    task = a.task
+    if a.task_file:
+        with open(a.task_file, encoding="utf-8") as f:
+            task = f.read()
+    if not task:
+        raise SystemExit("[relay] --task 또는 --task-file 필수")
+    a.manifest_path = a.manifest or os.path.join(REPO, "output", a.topology, "manifest.yaml")
+    bud = next_budget(doc, a.grade)
+    resume = latest_session_id(doc)
+    return run_attempt(a, doc, lp, task, bud, resume)
 
 
 if __name__ == "__main__":
