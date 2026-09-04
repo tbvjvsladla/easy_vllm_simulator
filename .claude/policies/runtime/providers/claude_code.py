@@ -31,16 +31,23 @@ EXIT_MALFORMED_OUTPUT = 5
 EXIT_TIMEOUT = 124
 
 PROVIDER_NAME = "claude_code"
+# capability → 하네스 도구. **한 capability 가 여러 도구로 갈 수 있다**(2026-09-04 · plan_26090412
+# §6.1 B안). 종전에는 1:1 이라 어휘가 곧 도구였고, 그래서 `WebSearch`/`WebFetch` 로 가는 통로가
+# **아예 존재하지 않았다** — 서브의 외부지식 획득 불가는 egress 나 위임 키 때문이 아니라 여기가
+# 비어 있었기 때문이다(감사 실측). `search` 는 **하네스 도구 평면**이며 셸 egress(curl/wget)와
+# 다른 평면이다 — 서브 권한 템플릿의 셸 네트워크 deny 는 그대로 둔다(방어심층 보존).
 CAPABILITY_TO_TOOL = {
-    "read": "Read",
-    "execute": "Bash",
-    "edit": "Edit",
-    "write": "Write",
+    "read": ("Read",),
+    "execute": ("Bash",),
+    "edit": ("Edit",),
+    "write": ("Write",),
+    "search": ("WebSearch", "WebFetch"),
 }
 
 
 def _inner_argv(request: dict) -> list[str]:
-    allowed_tools = ",".join(CAPABILITY_TO_TOOL[name] for name in request["capabilities"])
+    allowed_tools = ",".join(tool for name in request["capabilities"]
+                             for tool in CAPABILITY_TO_TOOL[name])
     argv = [
         "claude",
         "-p", request["task"],

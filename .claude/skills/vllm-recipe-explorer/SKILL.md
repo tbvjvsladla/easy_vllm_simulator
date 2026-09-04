@@ -84,7 +84,7 @@ description: >-
 - **발견 술어(둘 다 요구 — 오발 방지)**: ① **구동불가 증상**(config arch/quant 미지원, serve init 즉사, transformers-only 폴백 신호) ∧ ② **외부 교차검증 확증**(HF 모델카드의 포크 지목 + vLLM GitHub issue/release/PR). **단일 신호로 escalate ✗**.
 - **핸드오프(recipe는 소유 ✗)**: 사용자에게 *"이건 vLLM 측 문제 → upstream 에 버전핀을 넘길까요?"* **명시 승인 요청** → 승인 시 `upstream-version-watch` §escalation 으로 핸드오프(증거 첨부). **버전핀 변경·이미지 빌드를 하지 않는다**. rebuild 된 이미지로 전략수립 재진입.
 - **carry-forward 금지 정합**: escalation 판정도 **모델×하드웨어마다 재확정**(이전 모델의 "됐다/안 됐다" 전가 ✗).
-- **런타임블럭/서브 주의**: 외부검색은 **이중게이트**(A2A 위임 키 ∧ egress-online) 조건부다. restricted 서브는 **증상만 docs insight 상향 보고**(D12), 메인이 외부검색·처방한다.
+- **런타임블럭/서브 주의**: 2026-09-04(`plan_26090412` B안)부터 **서브도 웹 도구를 직접 갖는다**(`search` capability · `MODE:a2a-agent` 한정 — 멀티 ray-worker 는 런타임 스킬이 0 이라 대상 아님). 종전 서술의 "이중게이트(∧ egress-online)" 는 **코드에 없던 문**이었다(감사 실측). 서브는 자기 `EGRESS_STATE` 를 페르소나로 받아 판단하고, 검색 이력을 `external_search[]` 로 회수한다 — egress 가 online 이 아니면 증상만 상향 보고하고 메인이 처방한다(종전 D12 경로는 그대로 폴백이다).
 
 ## 7. 범위 (Phase 1 / Phase 2)
 

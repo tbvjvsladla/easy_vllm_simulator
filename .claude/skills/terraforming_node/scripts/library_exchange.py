@@ -102,9 +102,19 @@ GROUNDED_CLAIM_KINDS = ("build-decision", "serve-decision", "version-pin", "patc
 GROUNDED_REPORT_PHASES = ("config", "build", "serve")
 ACCEPTING_REPORT_STATUSES = ("completed",)
 
-# 발췌 예산. **이 파일에서만 쓰는 국소 상수**(헌법 §판정표 "매직넘버 — 정당" 칸)이며,
-# 값의 근거는 "반출은 읽기 보조이고 도서관 복제가 아니다"라는 Q4 비대칭 규약이다.
-EXCERPT_MAX_CHARS = 2000
+# 발췌 예산 — **이 파일이 단일 소유자**다. 생산자(`library_relay.py`)가 여기서 import 한다.
+#
+# ⚠ 2026-09-04 교정: 종전 주석은 이 값을 *"이 파일에서만 쓰는 국소 상수(매직넘버 — 정당 칸)"* 라고
+#   자칭했으나 사실이 아니었다. 생산자에도 같은 개념이 `EXCERPT_CHARS` 로 앉아 있었고, 2026-09-03
+#   P4 에서 1200→6000 상향을 **생산자에만** 적용해 두 자리가 갈라졌다. 그 결과 6000자로 잘라 낸
+#   반출을 같은 저장소의 이 게이트가 `EXPORT_EXCEEDS_EXCERPT_BUDGET` 로 **fail-closed 거부**했다
+#   (2026-09-04 실증 rc=5). 판정표의 "같은 개념이 두 곳 이상에 손으로 적힌 값" = **결함** 칸이다.
+#
+# 값(6000)의 근거는 생산자에 있던 실측 서사 그대로다 — 발췌는 읽기 보조가 아니라 **서브 결정의
+# 유일한 근거**이며, 1200 에서 잘린 발췌가 서브의 정직한 유보 → KV 클램프 미채택 → 워치독 사살로
+# 이어졌다(`policy:KV_ABSOLUTE_CLAMP_PORTABILITY`). 상한을 두는 이유는 여전히 있다(서브 컨텍스트
+# 비용) — 없애지 않고 근거 있는 값으로 올린다. 비대칭 규약(반출은 도서관 복제가 아니다)도 유지된다.
+EXCERPT_MAX_CHARS = 6000
 
 
 class _Violations(list):

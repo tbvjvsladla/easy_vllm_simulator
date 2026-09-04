@@ -1,5 +1,5 @@
 {
-  "_template_note": "추적 PII-free 템플릿. render_sub_env.py 가 {{ WORKSPACE_PATH }}/{{ NAS_MOUNT }} 를 채워 서브 .claude/settings.local.json(gitignored)으로 렌더. 스코프드 권한(블랭킷 dontAsk 아님). 메인이 ssh claude -p 로 이 allowlist 에 대해 비대화 실행. 헌법: settings.local.json 은 비추적 — 추적은 이 .template. ⚠ deny 는 best-effort 방어심층일 뿐 — Bash(bash:*)·Bash(python3:*) 와이드 allow(recipe 엔진·bash -n 에 필요)로 우회 가능(claude 권한=호출 prefix 매칭). D12: 로컬 git 허용(add/commit/checkout/switch/branch/stash + 읽기 status/diff/log/rev-parse — 브랜치전환·[improve]·clean-tree 핸드셰이크) · 원격 deny(push/pull/fetch/remote/clone). 컨테이너 정본 deny 는 output/** 실경로 타겟(출력통로 이관 반영). **`MODE:<sub_mode> ` 접두 = 그 모드에서만 사는 항목**(render_sub_env.apply_mode_prefixes 가 필터) — 빌드킷 3종은 ray-worker 에선 deny(메인이 배달한 것을 서브가 고치면 안 된다), a2a-agent 에선 allow(싱글 서브는 자기 빌드킷을 **자율 저작**한다 — 헌법 불변식 A · sync_to_sub 가 빌드킷을 보내지 않는 이유와 같다). '모델 다운로드 금지·원격 git 금지'의 진짜 구속력은 페르소나(CLAUDE.md)와 서브 origin 영구 부재에 있다(권한층 deny 는 방어심층 — Bash 와이드 allow 로 우회 가능). model=sonnet(표준 컨텍스트) 핀 — 유저 settings 의 sonnet[1m] 는 usage-credit(429) 게이트라 서브 빌드워커는 표준 컨텍스트 사용(메인이 --model 미지정해도 ssh claude -p 동작). 환경 맞게 override 가능.",
+  "_template_note": "추적 PII-free 템플릿. render_sub_env.py 가 {{ WORKSPACE_PATH }}/{{ NAS_MOUNT }} 를 채워 서브 .claude/settings.local.json(gitignored)으로 렌더. 스코프드 권한(블랭킷 dontAsk 아님). 메인이 ssh claude -p 로 이 allowlist 에 대해 비대화 실행. 헌법: settings.local.json 은 비추적 — 추적은 이 .template. ⚠ deny 는 best-effort 방어심층일 뿐 — Bash(bash:*)·Bash(python3:*) 와이드 allow(recipe 엔진·bash -n 에 필요)로 우회 가능(claude 권한=호출 prefix 매칭). D12: 로컬 git 허용(add/commit/checkout/switch/branch/stash + 읽기 status/diff/log/rev-parse — 브랜치전환·[improve]·clean-tree 핸드셰이크) · 원격 deny(push/pull/fetch/remote/clone). 컨테이너 정본 deny 는 output/** 실경로 타겟(출력통로 이관 반영). **`MODE:<sub_mode> ` 접두 = 그 모드에서만 사는 항목**(render_sub_env.apply_mode_prefixes 가 필터) — 빌드킷 3종은 ray-worker 에선 deny(메인이 배달한 것을 서브가 고치면 안 된다), a2a-agent 에선 allow(싱글 서브는 자기 빌드킷을 **자율 저작**한다 — 헌법 불변식 A · sync_to_sub 가 빌드킷을 보내지 않는 이유와 같다). '모델 다운로드 금지·원격 git 금지'의 진짜 구속력은 페르소나(CLAUDE.md)와 서브 origin 영구 부재에 있다(권한층 deny 는 방어심층 — Bash 와이드 allow 로 우회 가능). model=sonnet(표준 컨텍스트) 핀 — 유저 settings 의 sonnet[1m] 는 usage-credit(429) 게이트라 서브 빌드워커는 표준 컨텍스트 사용(메인이 --model 미지정해도 ssh claude -p 동작). 환경 맞게 override 가능. **2026-09-04(plan_26090412 §6.1 B안)**: `MODE:a2a-agent WebSearch/WebFetch` 추가 — 싱글 서브는 외부지식을 **직접** 검색한다(멀티 ray-worker 는 런타임 스킬이 0 이라 대상 아님). 이것은 하네스 도구 평면이며 셸 egress 와 다른 평면이다 — 아래 `Bash(curl:*)`·`Bash(wget:*)` deny 는 그대로 유지한다. 검색 이력은 task-report `external_search[]` 로 메인에 회수되어 자산이 된다(헌법 불변식 B — 인용 없는 결정은 누락이다).",
   "model": "sonnet",
   "permissions": {
     "defaultMode": "default",
@@ -28,6 +28,8 @@
       "MODE:a2a-agent Edit({{ WORKSPACE_PATH }}/output/**/build_patches/**)",
       "MODE:a2a-agent Write({{ WORKSPACE_PATH }}/output/**/build_patches_src/**)",
       "MODE:a2a-agent Edit({{ WORKSPACE_PATH }}/output/**/build_patches_src/**)",
+      "MODE:a2a-agent WebSearch",
+      "MODE:a2a-agent WebFetch",
       "Bash(docker compose:*)",
       "Bash(docker:*)",
       "Bash(python3:*)",

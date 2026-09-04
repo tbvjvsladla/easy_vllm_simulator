@@ -18,7 +18,7 @@ description: >-
 **런타임블럭 검증 스킬**. 동기 = self-preference 사건(에이전트가 DeepSeek 15 t/s 를 "천장"으로 자기-선호 →
 사용자 외부 레퍼런스가 반증; testlog_26063004). **기능 스모크는 *작동*만, 이 스킬은 *성능*을 별도 게이트.**
 
-> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_26063018)**: bench·verdict 는 *돌고 있는 serve* 전제 — 그 serve 자체가 recipe/upstream(=Flag)을 거쳤다(**전이적 게이트**). 직접 진입 시에도 Flag 확인: 미발급이면 **info-only**(루프라인 개념 설명 OK / bench·verdict ✗) → "벤치할 serve 가 없음 — recipe/upstream(테라포밍 Flag) 먼저". **결정론 백스톱** = `run_bench.sh` 진입 `manifest_contract.py --require-flag`. (b) 외부검색 arm = **이중게이트**(A2A 위임 키 ∧ egress-online) 통과 서브 자율, 미통과 시 루프라인-only 판정 + 증상 docs 상향(메인 릴레이 · 위임 키 = `.claude/a2a_delegation.json` 1차 / `EASY_VLLM_A2A_DELEGATED` 2차 — `run_bench.sh` **fail-closed**(키·MC·Flag 모두 부재 → exit4)).
+> **§0.0 진입 전제 — 테라포밍-완수 Flag 게이트 (헌법 §테라포밍-완수 Flag 게이트 따름정리 · plan_26063018)**: bench·verdict 는 *돌고 있는 serve* 전제 — 그 serve 자체가 recipe/upstream(=Flag)을 거쳤다(**전이적 게이트**). 직접 진입 시에도 Flag 확인: 미발급이면 **info-only**(루프라인 개념 설명 OK / bench·verdict ✗) → "벤치할 serve 가 없음 — recipe/upstream(테라포밍 Flag) 먼저". **결정론 백스톱** = `run_bench.sh` 진입 `manifest_contract.py --require-flag`. **(b) 외부검색 arm**: 결정론 백스톱(`run_bench.sh`)이 실제로 검사하는 것은 **위임 키 ∨ Flag 한 축**이다 — 종전 서술의 "이중게이트(∧ egress-online)" 중 두 번째 문은 **코드에 없었다**(2026-09-04 감사 실측: manifest `network.egress` 를 읽는 소비자 0). egress 는 스캔 시점 attestation 이며 불일치는 fail-open 경고다. 그 값은 이제 **서브 페르소나로 전달**되어 서브가 자기 도달성을 알고 판단한다(`EGRESS_STATE` · `plan_26090412` B8). 그리고 2026-09-04 부터 **서브도 웹 도구를 직접 갖는다**(B안) — 서브는 자기 검색을 수행하고 그 이력을 `external_search[]` 로 회수한다. 위임 키 = `.claude/a2a_delegation.json` 1차 / `EASY_VLLM_A2A_DELEGATED` 2차 — `run_bench.sh` **fail-closed**(키·MC·Flag 모두 부재 → exit4).
 
 > 설계 원칙(하네스 엔지니어링): **측정·루프라인·게이트는 결정론 스크립트**(`scripts/`). LLM 은 **외부검색(E)·
 > 정성 진단·재탐색 힌트**만 생산해 결정론 게이트에 투입한다. PASS/REFUTE 는 규칙이 결정(LLM 다수결 아님).
@@ -146,7 +146,7 @@ description: >-
 - **↔ recipe-explorer**: recipe 의 측정·serve 인프라를 **소비**, 위에 적대 루브릭/게이트만 얹는다. 기각 시 `next_strategy_hint` 로 재탐색 **자극**(feasibility 탐색은 recipe, performance 목표는 이 스킬이 주입).
 - **↔ upstream-version-watch**: "루브릭 못 충족 + 구조적" → **escalation 역루프** 핸드오프(M≪expected + 외부 확증 = 적대 증거). upstream 이 버전핀/rebuild 소유(승인 게이트).
 - **↔ wiki-desk**: 진입 시 warm-start(이전 동일 모델/HW 성능 증거 우선소비), 새 testlog 발행 시 입고. wiki 는 **sidecar** — 벤치 report/인증서/verdict 의 **소유자가 아니다**(이 스킬이 소유).
-- **블럭 분류 = 런타임블럭(서브 복제)**: 서브가 자기 모델에 자율 실행. **(b) 외부검색 arm = 이중게이트 통과 시 서브 자율, 미통과 시 루프라인-only 판정 + 증상 docs 상향 보고**. lite 스크립트(`lite_bench.sh`·`lite_metrics.py`)도 런타임블럭이라 **git-tracked 로 서브 자동 전파**.
+- **블럭 분류 = 런타임블럭(서브 복제)**: 서브가 자기 모델에 자율 실행. **(b) 외부검색 arm = 서브도 웹 도구를 직접 갖는다**(2026-09-04 B안) — 검색 이력은 `external_search[]` 로 메인에 회수돼 자산이 된다. egress 가 `online` 이 아니면 **빈손을 빈손이라고 보고**하고 루프라인-only 로 판정한다(빈손과 미수행은 다른 사실이다). lite 스크립트(`lite_bench.sh`·`lite_metrics.py`)도 런타임블럭이라 **git-tracked 로 서브 자동 전파**.
 - **lite 멀티 수집의 A2A 관측 평면**: 서브 `nvidia-smi`/`/proc/meminfo` **읽기전용 probe** 는 health 폴링과 **동형 관측 평면**이지 "서브 작업코드/설정 재스캔·직접교정 금지"와 **다른 평면**이다(관측 ≠ 재스캔·교정).
 
 ## 8. 안전 / 금지
