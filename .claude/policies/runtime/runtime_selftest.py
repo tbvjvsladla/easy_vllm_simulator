@@ -136,6 +136,7 @@ primary_tps: 26.0
 floor_tps: 22.1
 tolerance: 0.15
 ratio_M_over_primary: 0.719
+measured_utc: "2026-01-01T00:00:00Z"
 """
 
 # manifest carrier(REFUTE 런) -- 인증서와 **동일한 계약**을 만족하는 최소 선언.
@@ -230,6 +231,64 @@ def _promotion_probe(root: Path, verdict: str, benchmark_extra: dict | None,
             f"stderr={proc.stderr.strip()[:400]!r}") from exc
     out["_returncode"] = proc.returncode
     return out
+
+
+def _test_certificate_run_resolution() -> None:
+    """plan_26090410 P2 — 게이트가 인증서의 측정 키로 0/1/2+ 를 판정하는가(음성대조 포함).
+    tripwire ④ 뒤의 두 번째 방어선: 같은 측정이 두 파일로 추적되면 승격이 열리지 않아야 한다."""
+    cert = _PROMO_CERTIFICATE.format(authority="weak")
+
+    def run(plant: dict | None = None, certificate: str = cert, extra: dict | None = None) -> dict:
+        bench = dict(_PROMO_RUBRIC, rubric_authority="weak", **(extra or {}))
+        with tempfile.TemporaryDirectory(prefix="cert-run-resolution.") as td:
+            root = Path(td)
+            (root / ".git").mkdir()
+            _write_promotion_manifest(root, "PASS", bench, certificate)
+            for name, text in (plant or {}).items():
+                (root / "docs" / "benchmark" / name).write_text(text, encoding="utf-8")
+            return _promotion_probe(root, "PASS", bench, certificate)
+
+    out = run()
+    _require(out.get("eligible_for_promotion") is True
+             and (out.get("certificate") or {}).get("run_key", [None])[-1] == "2026-01-01T00:00:00Z"
+             and (out.get("certificate") or {}).get("duplicates") == [],
+             f"단독 인증서는 키가 식별되고 중복 0 이어야 한다: {out.get('reason_codes')} {out.get('certificate')}")
+
+    out = run(plant={"benchmark_selftest_copy.yaml": cert})
+    _require(out.get("eligible_for_promotion") is False
+             and "CERTIFICATE_RUN_AMBIGUOUS" in (out.get("reason_codes") or [])
+             and (out.get("certificate") or {}).get("duplicates") == ["docs/benchmark/benchmark_selftest_copy.yaml"]
+             and "byte-identical" in json.dumps(out.get("messages") or {}, ensure_ascii=False),
+             f"★같은 측정의 사본이 있으면 승격이 막혀야 한다: {out.get('reason_codes')}")
+
+    out = run(plant={"benchmark_selftest_other.yaml": cert.replace("2026-01-01T00:00:00Z", "2026-01-01T00:00:01Z")})
+    _require(out.get("eligible_for_promotion") is True
+             and "CERTIFICATE_RUN_AMBIGUOUS" not in (out.get("reason_codes") or []),
+             f"★음성대조 measured_utc 가 다른 형제는 다른 측정이다: {out.get('reason_codes')}")
+
+    out = run(plant={"benchmark_selftest_diff.yaml": cert.replace("ratio_M_over_primary: 0.719", "ratio_M_over_primary: 0.9")})
+    _require("CERTIFICATE_RUN_AMBIGUOUS" in (out.get("reason_codes") or [])
+             and "DIFFERENT bytes" in json.dumps(out.get("messages") or {}, ensure_ascii=False),
+             f"같은 측정 다른 내용은 더 나쁜 결함으로 가려야 한다: {out.get('reason_codes')}")
+
+    out = run(certificate=cert.replace('measured_utc: "2026-01-01T00:00:00Z"\n', ""))
+    _require(out.get("eligible_for_promotion") is False
+             and "CERTIFICATE_RUN_KEY_UNRESOLVABLE" in (out.get("reason_codes") or []),
+             f"★measured_utc 없는 인증서는 식별 불가로 차단: {out.get('reason_codes')}")
+
+    # P3 — manifest 가 선언한 측정과 파일이 갈라지면 DRIFT, 같으면 통과(선언은 인증서에서 파생된 값)
+    out = run(extra={"measured_utc": "2026-01-01T00:00:00Z"})
+    _require(out.get("eligible_for_promotion") is True
+             and "CERTIFICATE_RUN_DRIFT" not in (out.get("reason_codes") or []),
+             f"선언과 파일이 같으면 통과: {out.get('reason_codes')}")
+    out = run(extra={"measured_utc": "2026-01-01T00:00:59Z"})
+    _require(out.get("eligible_for_promotion") is False
+             and "CERTIFICATE_RUN_DRIFT" in (out.get("reason_codes") or []),
+             f"★manifest 가 다른 측정을 선언하면 DRIFT 로 차단: {out.get('reason_codes')}")
+
+    out = run(plant={"notes.yaml": "x: 1\n", "benchmark_garbled.yaml": "a:\n  nested: 1\n"})
+    _require(out.get("eligible_for_promotion") is True,
+             f"비-인증서·파싱불가 형제는 매치 대상이 아니다(승격 유지): {out.get('reason_codes')}")
 
 
 def _test_promotion_rubric_carrier() -> None:
@@ -1036,6 +1095,87 @@ def _test_no_tracked_digest_rewrite(root: Path | None = None) -> None:
              f"{offenders}")
 
 
+def duplicate_certificate_groups(certs: dict[str, str]) -> tuple[dict[tuple, list[str]], list[str]]:
+    """순수 술어(git 불요) — {상대경로: 본문} → (같은 측정 키를 가진 경로 그룹(크기>1), 식별불가 경로).
+
+    키는 `completion_gate.certificate_run_key`(강한 6키 + measured_utc) 하나다 — 감지기와
+    해소기가 같은 술어를 쓴다. 파싱 실패·키 결측은 "매치 없음" 이 아니라 **식별 불가**로 따로 낸다
+    (부재≠결측 · 침묵 폴백 금지).
+    """
+    groups: dict[tuple, list[str]] = {}
+    unkeyed: list[str] = []
+    for rel, text in certs.items():
+        fields, ok = completion_gate.parse_flat_certificate(text)
+        key = completion_gate.certificate_run_key(fields) if ok else None
+        if key is None:
+            unkeyed.append(rel)
+            continue
+        groups.setdefault(key, []).append(rel)
+    dups = {k: sorted(v) for k, v in groups.items() if len(v) > 1}
+    return dups, sorted(unkeyed)
+
+
+def _test_no_duplicate_certificates(root: Path | None = None) -> None:
+    """tripwire ④ — **파생 술어**(allowlist 없음): 추적 인증서 두 장이 같은 측정이면 FAIL.
+
+    왜(plan_26090410 §1): 발행기가 공급받은 인증서(이미 추적 원본)를 **발행 시각** 이름으로 복사해
+    같은 측정이 두 파일로 추적됐다(2026-09-04 실측 8쌍 · 바이트 동일). `0afa3ee` 가 사본 1개를
+    손으로 지웠지만 생성기가 남아 하루 만에 재발했다 — 이 술어가 그 재발을 pre-commit 에서 막는다.
+
+    술어가 이름·해시가 아니라 **내용의 측정 키**로 판정하므로, 파일을 개명하거나 다른 시간대에
+    다시 발행해도 따라간다. 사본이 원본과 바이트가 다르더라도(같은 측정 다른 내용) 걸린다 —
+    그것은 더 나쁜 결함이라 메시지로 가른다.
+    """
+    root = REPO_ROOT if root is None else root
+    if not _is_canonical_repo(root):
+        return
+    certs: dict[str, str] = {}
+    for rel in _tracked_paths(root):
+        if not (rel.startswith("docs/benchmark/benchmark_") and rel.endswith(".yaml")):
+            continue
+        path = root / rel
+        if not path.is_file():
+            continue
+        try:
+            certs[rel] = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError) as exc:
+            _require(False, f"tracked certificate unreadable — fail-closed: {rel}: {exc}")
+    dups, unkeyed = duplicate_certificate_groups(certs)
+    _require(not unkeyed,
+             "tracked certificate(s) cannot be keyed (flat parse failed or measured_utc/strong key "
+             f"missing) — fail-closed, not 'no match': {unkeyed}")
+    lines = []
+    for key, rels in sorted(dups.items(), key=lambda kv: kv[1][0]):
+        digests = {hashlib.sha256((root / r).read_bytes()).hexdigest() for r in rels}
+        kind = "byte-identical (duplicate layer — delete all but one)" if len(digests) == 1 \
+            else "DIFFERENT bytes for the same measurement (publication-chain defect)"
+        lines.append(f"{key[0]}@{key[-1]} [{kind}]: {rels}")
+    _require(not dups,
+             "same measurement tracked under more than one certificate file (single authority = one "
+             "file per (identity, measured_utc)):\n  " + "\n  ".join(lines))
+
+
+def _test_duplicate_certificate_predicate() -> None:
+    """tripwire ④ 술어의 hermetic 자체검사(음성대조 포함)."""
+    base = ("schema_version: 1\nrecord_type: benchmark_certificate\nverdict: PASS\nmodel: m\n"
+            'gpu_model: "NVIDIA GB10"\nvllm_version: 0.18.0\nquantization: mxfp4\ntopology: single\n'
+            "tensor_parallel_size: 1\n")
+    a = base + 'measured_utc: "2026-09-03T12:00:00Z"\n'
+    b = base + 'measured_utc: "2026-09-03T12:00:01Z"\n'
+    dups, unkeyed = duplicate_certificate_groups({"x.yaml": a, "y.yaml": a})
+    _require(len(dups) == 1 and next(iter(dups.values())) == ["x.yaml", "y.yaml"] and not unkeyed,
+             "같은 키 두 장은 한 그룹으로 잡혀야 한다")
+    dups, unkeyed = duplicate_certificate_groups({"x.yaml": a, "y.yaml": b})
+    _require(not dups and not unkeyed, "★음성대조 measured_utc 가 다르면 다른 측정이다")
+    dups, unkeyed = duplicate_certificate_groups({"x.yaml": a, "z.yaml": base})
+    _require(not dups and unkeyed == ["z.yaml"], "★키 결측은 '매치 없음' 이 아니라 식별불가로 나와야 한다")
+    dups, unkeyed = duplicate_certificate_groups({"n.yaml": "a:\n  nested: 1\n"})
+    _require(unkeyed == ["n.yaml"], "★파싱 실패도 식별불가")
+    _require(completion_gate.CERTIFICATE_RUN_KEY_FIELDS[-1] == "measured_utc"
+             and "image_digest" not in completion_gate.CERTIFICATE_RUN_KEY_FIELDS,
+             "키는 강한 6키 + measured_utc 뿐 — 소프트 지문은 identity 가 아니다")
+
+
 def _test_no_retired_hash_mechanism_prose(root: Path | None = None) -> None:
     """tripwire ③ — 걷어낸 메커니즘 이름이 규약 산문에 되살아나면 FAIL(음성 regex).
 
@@ -1116,6 +1256,7 @@ def run_tripwires(root: Path | None = None) -> int:
         _test_no_backup_artifacts(root)
         _test_no_tracked_digest_rewrite(root)
         _test_no_retired_hash_mechanism_prose(root)
+        _test_no_duplicate_certificates(root)      # ④ plan_26090410 P4 — 사본 정리 뒤 배선
     except RuntimeSelftestFailure as exc:
         print(f"[tripwire] FAIL {exc}", file=sys.stderr)
         return 1
@@ -1130,7 +1271,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--tripwires-only", action="store_true",
         help="run only the pre-commit tripwires (backup artifacts / tracked digest rewrite / "
-             "retired-mechanism prose); 1s budget, diagnostics on stderr")
+             "retired-mechanism prose / duplicate certificates); 1s budget, diagnostics on stderr")
     args = parser.parse_args(argv)  # argv=None -> argparse reads sys.argv[1:]
 
     if args.tripwires_only:
@@ -1139,11 +1280,13 @@ def main(argv: list[str] | None = None) -> int:
     _test_no_production_asserts()
     _test_completion_gate()
     _test_promotion_rubric_carrier()
+    _test_certificate_run_resolution()
     _test_hint_binding_source()
     _test_policy_and_evidence_lifecycle()
     _test_provider_turn_exhaustion_reachable()
     _test_execution_approval_authorization()
     _test_agent_provider_boundary()
+    _test_duplicate_certificate_predicate()
     # tripwire 3종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
     # 늦는다(선례 3건). 전체 실행에서도 반드시 검사한다.
     # 비-정본 저장소에서 세 단언이 no-op 이 되는 것은 `run_tripwires` 와 **같은 정상 경로**이며,
@@ -1152,6 +1295,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_no_backup_artifacts()
     _test_no_tracked_digest_rewrite()
     _test_no_retired_hash_mechanism_prose()
+    _test_no_duplicate_certificates()
     for warning in _test_tripwire_executor_wiring():
         print(f"[runtime_selftest] WARN {warning}", file=sys.stderr)
     print("[runtime_selftest] PASS")

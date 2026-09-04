@@ -6,7 +6,7 @@
 # 비추적이므로 `runtime_selftest.py::_test_tripwire_executor_wiring` 이 설정 여부를 자기검사한다
 # (미설치 클론에서는 FAIL 이 아니라 WARN).
 #
-# 범위: 병목이므로 **tripwire 3종만** 돈다(1초 예산). 전체 셀프테스트는 harness_verify /
+# 범위: 병목이므로 **tripwire 4종만** 돈다(1초 예산 · ④ = 같은 측정의 인증서 이중 추적). 전체 셀프테스트는 harness_verify /
 # verify_distribution 이 돌린다. hint 페이로드 커밋(`git commit-tree`)은 훅을 타지 않는다 —
 # 의도된 것이다(페이로드는 워킹트리 상태가 아니라 태그 오브젝트 평면이다).
 set -euo pipefail

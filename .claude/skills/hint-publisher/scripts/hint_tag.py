@@ -174,7 +174,10 @@ def git_push_authenticated(remote: str, refspec: str, *, dry_run: bool) -> subpr
     if dry_run:
         args.append("--dry-run")
     args += [remote, refspec]
-    return git(*args, check=not dry_run, env=env)
+    # ★ dry-run 도 실패를 삼키지 않는다(2026-09-04 감사 C-3). 종전 `check=not dry_run` 은 인증
+    #   실패·refspec 거부를 stderr 째 버리고 exit 0 을 냈다 — "실패를 미리 본다" 는 dry-run 의
+    #   목적을 정확히 무력화하는 형태다. 원격에 닿지 못하면 dry-run 에서 먼저 죽어야 한다.
+    return git(*args, check=True, env=env)
 
 
 # ── promotion-gate wiring (Phase 3, plan_26072506, vertical slice 2A) ────────
@@ -291,6 +294,146 @@ _FOOTER_BLOCK_RE = re.compile(
     re.S,
 )
 _FOOTER_LINE_RE = re.compile(r"^([a-z0-9_]+): (.*)$")
+
+# ── 폐기된 footer 키의 빈티지 핀 (2026-09-04 신설) ───────────────────────────
+# `*_sha256` 3종은 2026-09-03 `policy:GIT_SINGLE_AUTHORITY`(추적물의 digest 를 두 번째 자리에 다시
+# 적지 않는다)로 스키마에서 **제거**됐다. 그런데 그 이틀 전에 발행된 태그가 그 키를 들고 있고
+# **태그는 불변**이라 고칠 수 없다 → 파서가 거부하면 그 태그 하나가 이후 모든 전수 검증과 push 를
+# 영구히 막는다. 이 검증기는 v2 에서 이미 그 상황을 풀어 뒀다고 적어 뒀는데
+# (`_require_all_hint_tags_evidence_valid` 독스트링의 "v1 빈티지 → 경고(차단 ✗)"), 그 등급은
+# 2026-09-01 에 **"소급 대상 0"** 이라는 이유로 삭제됐다 — 그 전제가 이틀 만에 거짓이 됐다.
+#
+# ★ 닫힌 목록이다(workflow.md §4종 안티패턴 — 하드코딩의 **정당** 형태 = tripwire). 값은
+#   그 태그 오브젝트의 SHA 이며, 태그를 다시 만들면 SHA 가 달라져 자동으로 막힌다.
+# ★ 수용은 **읽기 전용 하위호환**이다 — `_build_evidence_footer` 는 `_FOOTER_FIELDS` 만 쓰므로
+#   `seal` 이 이 키를 새로 발행하는 경로는 존재하지 않는다(아래 자체검사가 단언한다).
+# ★ 값은 **읽고 버린다**. 폐기 이유가 "추적물의 digest 를 두 번째 자리에 적지 마라" 이므로,
+#   그 값을 판정에 쓰면 폐기한 의미가 없다.
+RETIRED_FOOTER_KEYS = frozenset({"manifest_sha256", "identity_sha256", "certificate_sha256"})
+LEGACY_FOOTER_TAG_PINS: dict[str, str] = {
+    "hint/0.19.1/gpt-oss-120b/gb10-single": "27a8a289de35d81aca5d063885a37aea5e5a6342",
+}
+
+# ── 인증서 참조 별칭 핀 (plan_26090410 §3.4 (b) · 2026-09-04) ─────────────────────────────────
+# footer 의 `certificate_ref` 는 불변이고, 사본 정리(P4) 뒤 manifest 는 원본을 가리킨다. 둘이 갈릴 때의
+# 정본 판정은 **"같은 측정인가"**(measured 키 동일)이며, footer 가 가리키던 파일의 바이트를 워킹트리
+# 또는 소스 앵커 트리에서 읽을 수 있으면 그 판정은 코드가 한다(`_resolve_footer_certificate`).
+# 이 목록은 그 두 곳 **어디에서도 읽을 수 없는** 태그만 위한 것이다 — #5 의 사본은 태그의 소스 앵커
+# (`6407d6e`) **이후**에 커밋돼 앵커 트리에 없다. {태그 오브젝트 SHA: {footer: 사본, canonical: 원본}}
+# 닫힌 목록(tripwire 형). canonical 은 그래도 파싱해 태그 identity 와 대조한다 — 별칭은 경로만 바꾸고
+# 검증은 면제하지 않는다. 바이트 동일성은 핀 시점 실측(sha256 37b5fa71…)이며 커밋 메시지에 남긴다.
+LEGACY_CERTIFICATE_REF_ALIASES: dict[str, dict[str, str]] = {
+    "27a8a289de35d81aca5d063885a37aea5e5a6342": {
+        "footer": "../benchmark/benchmark_26090117_17_21_gpt-oss-120b_NVIDIA GB10_0.19.1.yaml",
+        "canonical": "../benchmark/benchmark_26090117_gpt-oss-120b_GB10_0.19.1.yaml",
+    },
+}
+
+
+def _source_anchor_of(tag: str) -> "str | None":
+    """태그 페이로드의 `PROVENANCE.json` 이 기록한 **소스 앵커**(산출물을 만든 저장소 커밋). footer 의
+    `anchor` 는 페이로드 커밋이라 저장소 트리를 들지 않는다 — 인증서를 git 에서 읽으려면 이쪽이다."""
+    hc = git("rev-parse", "--verify", tag + "^{commit}", check=False).stdout.strip()
+    if not hc:
+        return None
+    out = git("show", f"{hc}:PROVENANCE.json", check=False)
+    if out.returncode != 0:
+        return None
+    try:
+        doc = json.loads(out.stdout)
+    except json.JSONDecodeError:
+        return None
+    a = doc.get("anchor") if isinstance(doc, dict) else None
+    return a if isinstance(a, str) and _FULL_ANCHOR_RE.match(a) else None
+
+
+def _git_blob_bytes(commit: str, repo_rel: str) -> "bytes | None":
+    out = subprocess.run(["git", "cat-file", "-p", f"{commit}:{repo_rel}"], capture_output=True, cwd=str(ROOT))
+    return out.stdout if out.returncode == 0 else None
+
+
+def _certificate_key_from_bytes(data: "bytes | None") -> "tuple | None":
+    """바이트 → 측정 키(강한 6키 + measured_utc). 파싱 불가/결측은 None(식별 불가)."""
+    if not data:
+        return None
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    fields, ok = _cgate().parse_flat_certificate(text)
+    return _cgate().certificate_run_key(fields) if ok else None
+
+
+def _resolve_footer_certificate(tag: str, footer_ref: str, manifest_dir: Path,
+                                manifest_cert_ref: "str | None") -> tuple[str, str, "list[str]"]:
+    """footer 가 가리키는 인증서를 **워킹트리 → 소스 앵커 트리 → 별칭 핀** 순으로 해소하고 manifest 의
+    현재 인증서와 **같은 측정인지** 판정한다(plan_26090410 §3.4).
+
+    반환 (verdict, source, notes):
+      verdict ∈ {"same_file", "same_measurement", "absent", "mismatch", "unsafe"}
+      source  ∈ {"worktree", "anchor", "alias", "-"}
+    `same_measurement` 는 footer 경로 ≠ manifest 경로이지만 두 파일의 측정 키가 같은 경우 — 사본 정리
+    뒤 태그(불변)와 manifest(정리됨)가 갈라지는 정상 상태다. 차단하지 않고 notes 로 표면화한다.
+    """
+    cg = _cgate()
+    notes: list[str] = []
+    lex_status, parts = cg._lexical_components(manifest_dir, ROOT, footer_ref)
+    if lex_status != "ok":
+        return "unsafe", "-", notes
+    footer_repo_rel = "/".join(parts)
+
+    # ① 워킹트리
+    repo_root_fd = os.open(str(ROOT), os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        r = cg.resolve_and_stat_evidence(repo_root_fd, ROOT, manifest_dir, footer_ref,
+                                          expect_dir=False, capture_content=True)
+    finally:
+        os.close(repo_root_fd)
+    footer_bytes, source = None, "-"
+    if r["status"] == "ok":
+        footer_bytes, source = (r["content_bytes"] or b""), "worktree"
+    elif r["status"] != "not_found":
+        return "unsafe", "-", notes
+    else:
+        # ② 소스 앵커 트리 — git 이 드는 바이트가 권위(policy:GIT_SINGLE_AUTHORITY). 워킹트리에서 지운
+        #    사본도 그 태그를 만든 커밋에는 남아 있다.
+        anchor = _source_anchor_of(tag)
+        if anchor:
+            blob = _git_blob_bytes(anchor, footer_repo_rel)
+            if blob is not None:
+                footer_bytes, source = blob, "anchor"
+                notes.append(f"HINT_EVIDENCE_CERTIFICATE_REF_RESOLVED_FROM_ANCHOR {footer_repo_rel} @ {anchor[:12]}")
+
+    if manifest_cert_ref is None:
+        return ("absent" if footer_bytes is None else "mismatch"), source, notes
+    if footer_ref == manifest_cert_ref:
+        return ("same_file" if footer_bytes is not None else "absent"), source, notes
+
+    # 경로가 갈린다 → 같은 측정인가?
+    repo_root_fd = os.open(str(ROOT), os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        rm = cg.resolve_and_stat_evidence(repo_root_fd, ROOT, manifest_dir, manifest_cert_ref,
+                                           expect_dir=False, capture_content=True)
+    finally:
+        os.close(repo_root_fd)
+    manifest_key = _certificate_key_from_bytes(rm["content_bytes"] if rm["status"] == "ok" else None)
+    if footer_bytes is not None:
+        footer_key = _certificate_key_from_bytes(footer_bytes)
+        if footer_key is not None and footer_key == manifest_key:
+            notes.append(f"HINT_EVIDENCE_CERTIFICATE_REF_REBOUND footer={footer_ref!r} → manifest="
+                         f"{manifest_cert_ref!r} (same measurement {footer_key[0]}@{footer_key[-1]})")
+            return "same_measurement", source, notes
+        return "mismatch", source, notes
+
+    # ③ 별칭 핀 — footer 파일을 어디서도 읽을 수 없을 때만. 태그 오브젝트 SHA 로 잠긴다.
+    tag_object = git("rev-parse", "--verify", tag, check=False).stdout.strip()
+    alias = LEGACY_CERTIFICATE_REF_ALIASES.get(tag_object)
+    if alias and alias.get("footer") == footer_ref and alias.get("canonical") == manifest_cert_ref \
+            and manifest_key is not None:
+        notes.append(f"HINT_EVIDENCE_CERTIFICATE_REF_ALIASED footer={footer_ref!r} → canonical="
+                     f"{manifest_cert_ref!r} (pinned by tag object {tag_object[:12]})")
+        return "same_measurement", "alias", notes
+    return "absent", source, notes
 _FULL_ANCHOR_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -312,7 +455,7 @@ def _build_evidence_footer(fields: dict[str, str]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _parse_evidence_footer(body: str) -> dict[str, str]:
+def _parse_evidence_footer(body: str, retired_ok: frozenset = frozenset()) -> dict[str, str]:
     """Strict parse of ONE hint-evidence-binding footer out of a tag object's body text. Raises
     HintEvidenceBindingError -- HINT_EVIDENCE_BINDING_MISSING when the block itself isn't found at
     all (a historical/unmigrated tag), HINT_EVIDENCE_BINDING_MALFORMED for every other defect
@@ -335,6 +478,8 @@ def _parse_evidence_footer(body: str) -> dict[str, str]:
                                             f"unparseable footer line: {line!r}")
         key, value = fm.group(1), fm.group(2).strip()
         if key not in _FOOTER_FIELDS:
+            if key in retired_ok:
+                continue      # 폐기 키 — 빈티지 핀에 한해 읽고 버린다(값은 판정에 쓰지 않는다)
             raise HintEvidenceBindingError("HINT_EVIDENCE_BINDING_MALFORMED",
                                             f"unrecognized footer key: {key!r}")
         if key in fields:
@@ -936,10 +1081,18 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
     typ = git("cat-file", "-t", tag, check=False).stdout.strip()
     if typ != "tag":
         return None, [("HINT_TAG_NOT_ANNOTATED", f"{tag}: HINT_TAG_NOT_ANNOTATED annotated 태그가 아님(type={typ})")]
+    tag_object = git("rev-parse", "--verify", tag, check=False).stdout.strip()
+    retired_ok = (RETIRED_FOOTER_KEYS
+                  if LEGACY_FOOTER_TAG_PINS.get(tag) == tag_object and tag_object
+                  else frozenset())
     try:
-        footer = _parse_evidence_footer(_tag_object_body(tag))
+        footer = _parse_evidence_footer(_tag_object_body(tag), retired_ok=retired_ok)
     except HintEvidenceBindingError as e:
         return None, [(e.code, f"{tag}: {e.code} {e.message}")]
+    if retired_ok:
+        # 침묵 수용 금지 — 어느 태그가 어떤 빈티지로 통과했는지 소리내어 남긴다.
+        print(f"[hint_tag] LEGACY(vintage) {tag}: 폐기된 footer 키를 핀 목록에 따라 읽고 **버린다** "
+              f"(태그는 불변 · 값은 판정에 쓰지 않는다)", file=sys.stderr)
 
     # ★ 문제는 (code, message) 로 낸다 — 판정은 code 로만 한다. 종전엔 렌더된 message 를
     # 부분일치(`CODE in msg`)로 분류했는데, message 에는 footer 값이 그대로 박히므로
@@ -982,6 +1135,28 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
         return footer, problems
 
     manifest_ref_abs = ROOT / footer["manifest_ref"]  # already proven safe/regular above
+
+    # ---- 인증서 참조 해소를 **게이트 앞에** 둔다(감사 C-1: 게이트가 먼저 NOT_PROMOTION_READY 를 붙이면
+    #      `_ABSENT_CODES` 의 인증서 항목이 도달 불가가 되어 부재가 "forged/drifted" 로 오진됐다).
+    ref_cert_path = _binding_artifact_path(ref_manifest)
+    cert_verdict, cert_source, cert_notes = _resolve_footer_certificate(
+        tag, footer["certificate_ref"], manifest_ref_abs.parent, ref_cert_path)
+    for note in cert_notes:
+        print(f"[hint_tag] NOTE {tag}: {note}", file=sys.stderr)
+    if cert_verdict == "unsafe":
+        problems.append(("HINT_EVIDENCE_CERTIFICATE_UNSAFE_OR_MISSING",
+                         f"{tag}: HINT_EVIDENCE_CERTIFICATE_UNSAFE_OR_MISSING certificate_ref "
+                         f"{footer['certificate_ref']!r} resolve 실패(escape/symlink/type)"))
+    elif cert_verdict == "absent":
+        problems.append(("HINT_EVIDENCE_CERTIFICATE_REF_ABSENT",
+                         f"{tag}: HINT_EVIDENCE_CERTIFICATE_REF_ABSENT certificate_ref "
+                         f"{footer['certificate_ref']!r} 를 워킹트리·소스 앵커 트리·별칭 핀 어디에서도 읽을 수 없다"))
+    elif cert_verdict == "mismatch":
+        problems.append(("HINT_EVIDENCE_CERTIFICATE_REF_MISMATCH",
+                         f"{tag}: HINT_EVIDENCE_CERTIFICATE_REF_MISMATCH footer.certificate_ref="
+                         f"{footer['certificate_ref']!r} 와 manifest evidence.certificate.path={ref_cert_path!r} 가 "
+                         f"**다른 측정**을 증명한다(같은 측정이면 REBOUND 로 통과한다)"))
+
     gate_ok, gate_detail = _evaluate_manifest_promotion_ready(manifest_ref_abs, action)
     if not gate_ok:
         problems.append(("HINT_EVIDENCE_MANIFEST_NOT_PROMOTION_READY", f"{tag}: HINT_EVIDENCE_MANIFEST_NOT_PROMOTION_READY {gate_detail}"))
@@ -1017,23 +1192,6 @@ def _validate_hint_tag_evidence(tag: str, action: str) -> tuple[dict[str, str] |
     if tp_label is not None and ref_identity.get("tp") != int(tp_label.group(1)):
         problems.append(("HINT_EVIDENCE_IDENTITY_TP_MISMATCH", f"{tag}: HINT_EVIDENCE_IDENTITY_TP_MISMATCH identity.tp={ref_identity.get('tp')!r} "
                          f"!= TP{tp_label.group(1)} in topology label {footer['topology']!r}"))
-
-    ref_cert_path = _binding_artifact_path(ref_manifest)
-    if ref_cert_path != footer["certificate_ref"]:
-        problems.append(("HINT_EVIDENCE_CERTIFICATE_REF_MISMATCH", f"{tag}: HINT_EVIDENCE_CERTIFICATE_REF_MISMATCH footer.certificate_ref="
-                         f"{footer['certificate_ref']!r} != manifest evidence.certificate.path={ref_cert_path!r}"))
-    else:
-        repo_root_fd = os.open(str(ROOT), os.O_RDONLY | os.O_DIRECTORY)
-        try:
-            r_cert = _cgate().resolve_and_stat_evidence(repo_root_fd, ROOT, manifest_ref_abs.parent,
-                                                         footer["certificate_ref"], expect_dir=False)
-        finally:
-            os.close(repo_root_fd)
-        if r_cert["status"] != "ok":
-            _code = ("HINT_EVIDENCE_CERTIFICATE_REF_ABSENT" if r_cert["status"] == "not_found"
-                     else "HINT_EVIDENCE_CERTIFICATE_UNSAFE_OR_MISSING")
-            problems.append((_code, f"{tag}: {_code} certificate_ref "
-                             f"{footer['certificate_ref']!r} resolve 실패(status={r_cert['status']})"))
 
     return footer, problems
 
@@ -1344,11 +1502,15 @@ def _require_all_hint_tags_evidence_valid(action: str, tags: list | None = None)
     hint 태그의 목적은 토큰 이코노미이고(계약 §1), **정보가 적은 구버전은 결함이 아니다**.
     진짜 위협은 "서빙 실패를 성공으로 위장한 허위 배포"이지 형식 미비가 아니다(계약 §2).
 
-    v2 분류:
-      - 핀 목록에 있고 SHA 그대로  → v1 빈티지 → **경고**(차단 ✗)
-      - 핀에 없음(= v2 이후 신규)   → **차단**(footer 필수)
-      - 핀에 있는데 SHA 가 바뀜     → **차단**(레거시를 손댔으므로 v2 를 만족시켜야 한다)
-      - forged / drifted           → **차단 유지**(변조는 빈티지와 무관)
+    v2 분류(2026-09-04 현행으로 정정 — 감사 C-4: 종전 문구는 "footer 부재 태그의 빈티지 등급" 을
+    약속했으나 그 코드는 2026-09-01 에 삭제됐다. 문서가 없는 완화를 약속하면 다음 스키마 변경에서
+    같은 전수 차단이 재발한다):
+      - footer 부재 / 위조 / 드리프트 / 미봉인 → **차단**
+      - 폐기된 footer 키(`RETIRED_FOOTER_KEYS`)는 `LEGACY_FOOTER_TAG_PINS` 의 태그(오브젝트 SHA 일치)
+        에서만 **읽고 버린다** — 값은 판정에 쓰지 않는다
+      - footer 의 certificate_ref 가 manifest 와 갈려도 **같은 측정**이면 통과(REBOUND · 앵커 트리 판독
+        · `LEGACY_CERTIFICATE_REF_ALIASES` 순) — 태그는 불변이고 사본 정리는 manifest 쪽에서 일어난다
+      - 참조 증거 부재 → unverifiable(수신자 평면 경고) — 단 **발행자 평면(verify·push)에서는 차단**
     """
     targets = tags if tags is not None else existing_hint_tags()
     blocking, unverifiable = classify_evidence_problems(
@@ -1969,6 +2131,43 @@ def cmd_self_test(_a=None) -> int:
         ck("우리 helper 가 환경변수에서 읽는다", PUSH_TOKEN_ENV in args[3] and "$" + PUSH_TOKEN_ENV in args[3])
         ck("★토큰 값이 argv 에 없다", not any("ghp_" in a for a in args))
         ck("helper 는 get 이외 연산에 응답하지 않는다", 'test "$1" = get' in args[3])
+
+    # ── footer 빈티지 핀(폐기 키 하위호환) — 음성대조가 핵심이다
+    _f = ("<!-- hint-evidence-binding:v1\n"
+          "version: 1\ntag: hint/x/y/z\ntopology: single 1노드\n"
+          "anchor: " + "a" * 40 + "\nmanifest_ref: m.json\ncertificate_ref: c.yaml\n%s-->\n")
+    ck("정상 footer 파싱", _parse_evidence_footer(_f % "")["tag"] == "hint/x/y/z")
+    legacy = _f % "manifest_ref_note: x\n".replace("manifest_ref_note", "manifest_sha256")
+    ck("★핀 있으면 폐기 키를 읽고 버린다",
+       "manifest_sha256" not in _parse_evidence_footer(legacy, retired_ok=RETIRED_FOOTER_KEYS))
+    def _boom(b, r=frozenset()):
+        try:
+            _parse_evidence_footer(b, retired_ok=r)
+        except HintEvidenceBindingError as e:
+            return e.code
+        return None
+    ck("★음성대조 핀 없으면 폐기 키는 여전히 차단",
+       _boom(legacy) == "HINT_EVIDENCE_BINDING_MALFORMED")
+    ck("★음성대조 폐기 키가 아닌 미지 키는 핀이 있어도 차단",
+       _boom(_f % "totally_unknown: x\n", RETIRED_FOOTER_KEYS) == "HINT_EVIDENCE_BINDING_MALFORMED")
+    ck("★seal 이 폐기 키를 발행하는 경로는 없다",
+       not (set(_FOOTER_FIELDS) & RETIRED_FOOTER_KEYS)
+       and not (RETIRED_FOOTER_KEYS & set(_build_evidence_footer(
+           {k: "v" for k in _FOOTER_FIELDS}).split())))
+    ck("핀은 닫힌 목록이다(태그→오브젝트 SHA)",
+       all(re.fullmatch(r"[0-9a-f]{40}", v) for v in LEGACY_FOOTER_TAG_PINS.values()))
+
+    # ── 인증서 참조 해소의 순수 부분(plan_26090410 P4)
+    _c = ("schema_version: 1\nverdict: PASS\nmodel: m\ngpu_model: GB10\nvllm_version: 0.18.0\n"
+          "quantization: mxfp4\ntopology: single\ntensor_parallel_size: 1\nmeasured_utc: \"2026-09-03T12:00:00Z\"\n")
+    ck("바이트 → 측정 키", _certificate_key_from_bytes(_c.encode())[-1] == "2026-09-03T12:00:00Z")
+    ck("★음성대조 measured_utc 없으면 식별 불가(None)",
+       _certificate_key_from_bytes(_c.replace('measured_utc: "2026-09-03T12:00:00Z"\n', "").encode()) is None)
+    ck("★음성대조 중첩 YAML 은 식별 불가", _certificate_key_from_bytes(b"a:\n  b: 1\n") is None)
+    ck("빈 바이트는 None", _certificate_key_from_bytes(None) is None and _certificate_key_from_bytes(b"") is None)
+    ck("별칭 핀은 태그 오브젝트 SHA 로 잠긴 닫힌 목록",
+       all(re.fullmatch(r"[0-9a-f]{40}", k) and set(v) == {"footer", "canonical"} and v["footer"] != v["canonical"]
+           for k, v in LEGACY_CERTIFICATE_REF_ALIASES.items()))
 
     # ── 본문 린터(음성대조 포함)
     good = "\n".join([f"## {n}. x\n" + ("가" * 90) for n, _ in REQUIRED_SECTIONS]) + "\narch-invariant\n"

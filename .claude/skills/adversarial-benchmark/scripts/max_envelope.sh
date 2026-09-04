@@ -136,8 +136,9 @@ done
 
 # ── max_index.json 조립 + meta(sweep_bench 와 동형 grep) ───────────────────────
 CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$MAXDIR/original_config.yaml" EF="$EF" MANIFEST="$MANIFEST" \
-MAXDIR="$MAXDIR" SAFE_CEIL="${SAFE_CEIL:-}" SAFE_LEVELS="${SAFE_LEVELS[*]:-}" ORIG_LEN="${ORIG_LEN:-}" python3 - <<'PY'
-import json, os, re, datetime
+MAXDIR="$MAXDIR" SAFE_CEIL="${SAFE_CEIL:-}" SAFE_LEVELS="${SAFE_LEVELS[*]:-}" ORIG_LEN="${ORIG_LEN:-}" SDIR="$SDIR" python3 - <<'PY'
+import json, os, re, datetime, sys
+sys.path.insert(0, os.environ["SDIR"]); from doc_naming import gpu_key as _gpu_key
 def read(p):
     try:
         with open(p, encoding="utf-8", errors="replace") as f: return f.read()
@@ -146,7 +147,7 @@ def gy(t,k):
     m=re.search(r"(?m)^\s*%s\s*:\s*([^\n#]+)"%re.escape(k),t); return m.group(1).strip().strip('"').strip("'") if m else None
 cfg=os.environ["CONFIG"]; topo=os.environ["TOPO"]; maxdir=os.environ["MAXDIR"]
 mft=read(os.environ["MANIFEST"]); cfgt=read(os.environ["CFGYAML"])
-gpu=gy(mft,"gpu_model") or "NA"; gkey=re.sub(r"[^A-Za-z0-9]","",gpu.replace("NVIDIA","")) or "NA"
+gpu=gy(mft,"gpu_model") or "NA"; gkey=_gpu_key(gpu)   # 정규화 규칙은 doc_naming 한 곳
 m=re.search(r"vLLM[\s]*([0-9]+\.[0-9]+\.[0-9]+)",cfgt); vllm=os.environ.get("EASY_VLLM_VERSION") or (m.group(1) if m else "NA")
 tp=gy(cfgt,"tensor-parallel-size") or "1"
 levels=[]

@@ -145,9 +145,11 @@ def main():
     y = build_yaml(index, verdict)
     meta = index.get("meta", {})
     import sys as _s, os as _o; _s.path.insert(0, _o.path.dirname(_o.path.abspath(__file__)))
-    from doc_naming import bench_filename
+    from doc_naming import bench_filename, scan_bench_dir
     _outdir = a.out_dir or os.path.join(repo_root(a.sweep_index), "docs", "benchmark")
-    fname = bench_filename("benchmark", meta, index.get("generated_utc"), (None if a.stdout else _outdir), "yaml")
+    # 같은 측정 = 덮어쓰기 · 다른 측정 = _MM_SS · 판독 불가 = fail-loud (doc_naming 규약)
+    fname = bench_filename("benchmark", meta, index.get("generated_utc"),
+                           (None if a.stdout else scan_bench_dir(_outdir, "benchmark")), "yaml")
     if a.stdout:
         sys.stdout.write(y)
         return

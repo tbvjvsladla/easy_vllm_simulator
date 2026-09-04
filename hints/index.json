@@ -3,8 +3,8 @@
   "schema": 2,
   "source": "remote-derived",
   "remote": "origin",
-  "generated_kst": "2026-09-04T08:34:31",
-  "count": 4,
+  "generated_kst": "2026-09-04T08:43:57",
+  "count": 5,
   "hints": [
     {
       "tag": "hint/0.18.0/gpt-oss-120b/gb10-multi",
@@ -14,6 +14,17 @@
       "brief": "0.18.0 prebuilt wheel + ray 로 gpt-oss-120b(MXFP4)를 GB10 2노드 TP=2 분산 서빙 — 53.92 t/s(단일노드 34.42 대비 **1.57배**) · 성능 PASS · **같은 하드웨어에서 0.19.1 은 분산이 성립하지 않는다**(음성 증거 동봉) · 이 태그의 archive 가 곧 재현 키트다",
       "anchor": "3e9fc3f4002e76a32e6680ce663bd822232f4ad3",
       "object": "ce00a6f57db193388fec00edb522c1b2a1f0a0c6",
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.18.0/gpt-oss-120b/gb10-single",
+      "vllm": "0.18.0",
+      "model": "gpt-oss-120b",
+      "arch": "gb10-single",
+      "brief": "0.18.0 prebuilt wheel 로 gpt-oss-120b(MXFP4)를 단일 GB10 에 최대 컨텍스트(131072)로 서빙 — 34.42 t/s(MBU 77.7%) · 성능 PASS · **서빙 벽 0개, 벽은 측정·판정 평면에 있었다** · 0.19.1 과 단일에서는 구분되지 않는다(버전 선택 근거는 분산에 있다) · 이 태그의 archive 가 곧 재현 키트다",
+      "anchor": "79792e5e33034c1bc430a14c3c4325c0f836bddb",
+      "object": "703a7216ba11bd199af308b701a3a2cb7fce04e7",
       "published": true,
       "source": "remote-derived"
     },

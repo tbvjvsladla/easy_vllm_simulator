@@ -42,12 +42,12 @@ docs/benchmark/max_envelope_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md  ← Max 
 - `<model>` = config_name(트리플렛 키, 예 `deepseek-v4-flash`) · `<gpu>` = manifest gpu_model 정규화(예 `GB10`) ·
   `<vllm>` = 대상 vLLM 버전(예 `0.24.0`, 미상 시 `NA`).
 - **파일 접두사 = 산출물 종류**(`bench_report_` / `benchmark_` / `max_envelope_`). 여러 모델·HW·버전 조합이 한 폴더에 공존.
-- 명명 SSOT(결정론 헬퍼): `.claude/skills/wiki-desk/scripts/doc_naming.py`(`bench_filename`). **주의**:
-  adversarial-benchmark 스킬의 `render_report.py`/`publish_benchmark_record.py`/`render_max_report.py`는
-  **스킬-로컬 사본** `.claude/skills/adversarial-benchmark/scripts/doc_naming.py`(동일 로직의 벤치 전용
-  부분집합)를 import 한다. 헌법 runtime의 `.claude/policies/runtime/evidence_publisher.py
-  publish-benchmark`는 wiki-desk SSOT를 직접 소비한다. 두 사본은 같은 명명 계약을 따르지만 서로 다른
-  파일이다(Phase 2는 스킬-로컬 사본을 수정·통합하지 않았다 — 범위 밖).
+- 명명 SSOT(결정론 헬퍼): 벤치 산출물 이름(`bench_filename`·`gpu_key`·`kst_tokens`)의 **정본은**
+  `.claude/skills/adversarial-benchmark/scripts/doc_naming.py` 다 — 런타임블럭이라 **서브 노드에도 배달**된다.
+  `.claude/skills/wiki-desk/scripts/doc_naming.py`(메인 전용 · 산문 문서 명명 소유)는 그 모듈을 **재수출**한다
+  (2026-09-04 plan_26090410 P0.5 — 종전 두 사본이 서로 다른 충돌 규칙을 가져 같은 측정이 두 이름을 가졌다).
+  "같은 측정" 판정은 이름이 아니라 기존 파일 **본문의 `measured_utc`** 로 하며(같으면 덮어쓰기·다르면 `_MM_SS`),
+  헌법 runtime 의 `evidence_publisher.py publish-benchmark` 는 이름을 **만들지 않고** 원본 경로에 바인딩한다.
   `publish-benchmark`는 항상 `bench_report`를 발행하고, `certificate`는 **실제로 공급된, 파싱 가능하고,
   verdict=PASS·benchmark_mode=full·강한 식별자(model/gpu/vllm/quant/topology/tp)가 이 발행물의 identity
   와 정확히 일치하는 아티팩트가 있을 때만** 발행한다(모순되는 인증서는 게시 전에 거부 — verdict=PASS

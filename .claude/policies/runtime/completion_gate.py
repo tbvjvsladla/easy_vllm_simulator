@@ -888,6 +888,25 @@ CERTIFICATE_FIELD_MAP = {
 
 STRONG_IDENTITY_FIELDS = ("model", "gpu", "vllm", "quant", "topology", "tp")
 
+# ---- certificate run key (plan_26090410 §3.2) -----------------------------------------------
+# 인증서 한 장을 **"측정 하나"** 로 식별하는 키 = 강한 6키 + `measured_utc`. 소프트 지문(image_digest
+# 등)은 넣지 않는다 — 넣는 순간 두 번째 identity 가 된다. 이 키가 곧 폴더 해소의 질의이자 tripwire ④
+# 의 그룹 키다: **같은 술어를 감지기와 해소기가 공유**한다(갈라지면 둘이 다른 답을 낸다).
+# 2026-09-04 실측: 추적 인증서 53장에서 이 키의 그룹핑이 바이트 동일 8쌍과 정확히 일치했다.
+CERTIFICATE_RUN_KEY_FIELDS = tuple(CERTIFICATE_FIELD_MAP[f] for f in STRONG_IDENTITY_FIELDS) + ("measured_utc",)
+
+
+def certificate_run_key(cert_fields: dict):
+    """(6 strong cert fields + measured_utc) as a tuple, or None when any is absent/blank -- callers
+    must treat None as *unidentifiable* (fail-closed), never as "matches nothing"."""
+    vals = []
+    for k in CERTIFICATE_RUN_KEY_FIELDS:
+        v = cert_fields.get(k)
+        if v is None or str(v).strip() == "":
+            return None
+        vals.append(str(v).strip())
+    return tuple(vals)
+
 # ---- benchmark-certificate rubric contract (plan_26082219 D5) --------------------------------
 # 벤치 판정기(adversarial-benchmark/scripts/verdict_rule.py)가 `--target-tps 0` 같은 상수 0 을
 # 정본으로 낙찰시키면 floor=0 이 되어 **어떤 측정치도 통과하는 PASS**(공허 PASS)가 만들어졌고, 그
@@ -1027,6 +1046,46 @@ def parse_flat_certificate(text: str):
             return {}, False  # duplicate key -- ambiguous, fail closed
         fields[key] = value
     return fields, True
+
+
+def _sibling_certificates_with_key(repo_root_fd: int, repo_root: Path, manifest_dir: Path,
+                                   cert_rel_path: str, run_key: tuple) -> list[dict]:
+    """인증서가 놓인 디렉터리의 다른 `benchmark_*.yaml` 중 **같은 측정 키**를 가진 것들.
+    plan_26090410 §3.2 — 2건+ 는 같은 측정이 두 파일로 추적됐다는 뜻이고(중복층), 이 게이트가
+    tripwire ④ 뒤의 두 번째 방어선이다. 반환: [{path(repo-relative), sha256}] · 자기 자신 제외.
+    파싱 불가·키 결측 형제는 매치 대상이 아니지만 삼키지 않고 stderr 에 남긴다(부재≠결측)."""
+    lex_status, parts = _lexical_components(manifest_dir, repo_root, cert_rel_path)
+    if lex_status != "ok" or not parts:
+        return []
+    dir_parts, self_name = parts[:-1], parts[-1]
+    dir_path = repo_root.joinpath(*dir_parts) if dir_parts else repo_root
+    try:
+        dir_fd = os.open(str(dir_path), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError:
+        return []
+    try:
+        names = sorted(os.listdir(dir_fd))
+    except OSError:
+        names = []
+    finally:
+        os.close(dir_fd)
+    out: list[dict] = []
+    for name in names:
+        if name == self_name or not (name.startswith("benchmark_") and name.endswith(".yaml")):
+            continue
+        rel = "/".join([*dir_parts, name])
+        r = resolve_and_stat_evidence(repo_root_fd, repo_root, repo_root, rel, expect_dir=False, capture_content=True)
+        if r["status"] != "ok":
+            print(f"[completion_gate] WARN sibling certificate {rel} unreadable ({r['status']}) -- excluded "
+                  f"from run-key resolution (not silently treated as non-matching)", file=sys.stderr)
+            continue
+        try:
+            fields, ok = parse_flat_certificate((r["content_bytes"] or b"").decode("utf-8"))
+        except UnicodeDecodeError:
+            ok, fields = False, {}
+        if ok and certificate_run_key(fields) == run_key:
+            out.append({"path": rel, "sha256": r["sha256"]})
+    return out
 
 
 def _certificate_strong_identity_matches(cert_fields: dict, manifest_identity: dict):
@@ -1777,7 +1836,8 @@ def cmd_verify(args: argparse.Namespace) -> None:
                                           "verdict": None, "benchmark_mode": None, "identity_match": None,
                                           "rubric_authority": None, "floor_tps": None,
                                           "ratio_M_over_primary": None, "primary_source": None,
-                                          "rubric_contract_ok": False}
+                                          "rubric_contract_ok": False,
+                                          "run_key": None, "duplicates": []}
                 else:
                     mapped, mismatched = _certificate_strong_identity_matches(cert_fields, identity)
                     identity_match = not mismatched
@@ -1787,6 +1847,39 @@ def cmd_verify(args: argparse.Namespace) -> None:
                             add_reason(f"IDENTITY_MISMATCH:{f}",
                                        f"certificate {CERTIFICATE_FIELD_MAP[f]}={mapped.get(f)!r} "
                                        f"!= manifest identity.{f}={identity.get(f)!r}")
+                    # ---- 측정 키 해소 (plan_26090410 §3.2) — 이 인증서가 증명하는 "측정 하나" 가
+                    #      식별되는가(0), 그리고 같은 측정을 증명하는 **다른 추적 파일**이 있는가(2+).
+                    #      2+ 는 단일 권위 위반(같은 사실이 두 자리에)이므로 승격을 막는다. 바이트가
+                    #      같으면 중복층(하나를 지워라), 다르면 더 나쁜 결함(같은 측정 다른 내용)이다.
+                    run_key = certificate_run_key(cert_fields)
+                    duplicates: list[dict] = []
+                    if run_key is None:
+                        identity_ok = False
+                        add_reason("CERTIFICATE_RUN_KEY_UNRESOLVABLE",
+                                   f"certificate at {item['path']!r} lacks a strong identity field or "
+                                   f"measured_utc -- the measurement it certifies cannot be identified (fail-closed)")
+                    else:
+                        # manifest 가 선언한 측정(benchmark.measured_utc · 인증서에서 파생)과 파일이 갈라지면
+                        # 이 manifest 는 다른 런의 인증서를 가리키고 있다(감사 B-1: 6키만으론 런을 못 가른다).
+                        declared_utc = (benchmark.get("measured_utc") or None) if isinstance(benchmark, dict) else None
+                        if declared_utc and declared_utc != run_key[-1]:
+                            identity_ok = False
+                            add_reason("CERTIFICATE_RUN_DRIFT",
+                                       f"manifest benchmark.measured_utc={declared_utc!r} != certificate "
+                                       f"measured_utc={run_key[-1]!r} -- the manifest binds a different measurement "
+                                       f"than the file at {item['path']!r} certifies")
+                        duplicates = _sibling_certificates_with_key(repo_root_fd, repo_root, manifest_dir,
+                                                                    item["path"], run_key)
+                        if duplicates:
+                            identity_ok = False
+                            same_bytes = all(d["sha256"] == r["sha256"] for d in duplicates)
+                            add_reason("CERTIFICATE_RUN_AMBIGUOUS",
+                                       f"measurement {run_key[0]}@{run_key[-1]} is certified by "
+                                       f"{len(duplicates) + 1} tracked files ({item['path']!r} + "
+                                       f"{[d['path'] for d in duplicates]}) -- "
+                                       + ("byte-identical: duplicate layer, delete all but the original"
+                                          if same_bytes else
+                                          "DIFFERENT bytes for the same measurement: publication-chain defect"))
                     cert_verdict = cert_fields.get("verdict")
                     cert_mode = cert_fields.get("benchmark_mode")
                     if cert_verdict != "PASS":
@@ -1846,6 +1939,9 @@ def cmd_verify(args: argparse.Namespace) -> None:
                         "floor_tps": floor_tps, "ratio_M_over_primary": ratio_value,
                         "primary_source": primary_source or None,
                         "rubric_contract_ok": cert_rubric_ok,
+                        # 출처 표시: 이 인증서가 식별하는 측정과, 같은 측정을 주장하는 다른 추적 파일들
+                        "run_key": (list(run_key) if run_key else None),
+                        "duplicates": [d["path"] for d in duplicates],
                     }
 
             if key in MARKDOWN_LIKE_EVIDENCE_KEYS and required and exists:

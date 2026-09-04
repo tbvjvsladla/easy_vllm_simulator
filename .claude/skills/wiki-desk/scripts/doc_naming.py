@@ -22,7 +22,8 @@ Canon (see .claude/rules/docs.md):
     evidence chain 밖이므로 evidence_publisher 의 scaffold/completion 게이트는 타지 않는다.)
   - simlog: `docs/simlog/<YYMMDDHH>[_MM_SS]_<topic>/` -- a RUN DIRECTORY, not a file, so no
     `<type>_` prefix.
-  - benchmark: `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md` (human,
+  - benchmark (**재수출** — 정본은 adversarial-benchmark/scripts/doc_naming.py):
+    `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md` (human,
     always published) + `docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`
     (certificate, PASS-only) + `docs/benchmark/max_envelope_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`.
   - report/ is the ONE exception: no date token at all -- `docs/report/<kebab-slug>.<ext>`,
@@ -34,46 +35,44 @@ stdlib only, no third-party dependencies.
 from __future__ import annotations
 
 import argparse
-import datetime
+import importlib.util
 import re
 import sys
+from pathlib import Path
 
 DATED_DOC_TYPES = ("plan", "devlog", "testlog", "request", "checklist")
-BENCH_KIND_DEFAULT_EXT = {"bench_report": "md", "benchmark": "yaml", "max_envelope": "md"}
 
-_UTC_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z$")
 _TOPIC_RE = re.compile(r"^[A-Za-z0-9_.가-힣]+$")
 _KEBAB_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
+# ── 벤치 명명(kst_tokens · gpu_key · bench_filename · scan_bench_dir · 예외 2종)은 **재수출**이다 ──
+# 정본은 `.claude/skills/adversarial-benchmark/scripts/doc_naming.py` (plan_26090410 P0.5b).
+# 왜 거기인가: 그 모듈은 런타임블럭이라 **서브 노드에도 배달**되고, 이 파일(wiki-desk)은 메인 전용이라
+# 서브에서 import 할 수 없다. 두 사본이 서로 다른 충돌 규칙을 가져 같은 측정이 두 이름을 갖던 결함
+# (감사 D-1)을 "한 파일 + 재수출" 로 끊는다. 이 파일은 산문 문서(plan/devlog/testlog/request/checklist ·
+# simlog · report) 명명만 직접 소유한다. 재수출 대상이 없으면 **fail-loud** — 조용한 대체 구현 금지.
+_BENCH_NAMING_PATH = (Path(__file__).resolve().parents[2] / "adversarial-benchmark" / "scripts" / "doc_naming.py")
 
-class NamingCollisionExhausted(ValueError):
-    """Raised when BOTH the unsuffixed and the single _MM_SS-suffixed candidate name/dirname are
-    already occupied by a DIFFERENT publication. Canon (.claude/rules/docs.md §1) permits only
-    these two forms -- there is no third disambiguator -- so a caller hitting this must fail
-    closed (surface a stable error) rather than have this module invent a new suffix scheme or,
-    worse, silently return an already-occupied name that the caller then overwrites."""
+
+def _load_bench_naming():
+    if not _BENCH_NAMING_PATH.is_file():
+        raise ImportError(
+            "doc_naming: bench naming SSOT missing at %s -- wiki-desk re-exports it and must not "
+            "substitute its own copy (plan_26090410 P0.5b)" % _BENCH_NAMING_PATH)
+    spec = importlib.util.spec_from_file_location("_bench_doc_naming", _BENCH_NAMING_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
-def kst_tokens(generated_utc):
-    """UTC 'YYYY-MM-DDTHH:MM:SSZ' -> (YYMMDDHH, MM, SS) KST(+0900). None, shape-mismatched, AND
-    shape-matched-but-not-a-real-calendar-date (e.g. '2026-99-99T99:99:99Z') all fall back to the
-    same ('NA','00','00') sentinel -- this function never raises for any string input, matching
-    its documented 'unparseable -> NA' contract (N/A fail-soft, docs.md's own convention for
-    optional/best-effort timestamp consumers such as bench certificate meta). Callers that treat a
-    REQUIRED timestamp argument as invalid user input when this sentinel comes back (e.g.
-    evidence_publisher.py's CLI --generated-utc/--recorded-utc) are responsible for that rejection
-    themselves -- it is not this pure library's job to decide what's "required" for any given
-    caller."""
-    if not generated_utc:
-        return ("NA", "00", "00")
-    m = _UTC_RE.match(str(generated_utc))
-    if not m:
-        return ("NA", "00", "00")
-    try:
-        dt = datetime.datetime(*map(int, m.groups())) + datetime.timedelta(hours=9)
-    except (ValueError, OverflowError):
-        return ("NA", "00", "00")
-    return (dt.strftime("%y%m%d%H"), dt.strftime("%M"), dt.strftime("%S"))
+_bench = _load_bench_naming()
+kst_tokens = _bench.kst_tokens
+gpu_key = _bench.gpu_key
+bench_filename = _bench.bench_filename
+scan_bench_dir = _bench.scan_bench_dir
+BENCH_KIND_DEFAULT_EXT = _bench.BENCH_KIND_DEFAULT_EXT
+NamingCollisionExhausted = _bench.NamingCollisionExhausted   # 산문 명명도 같은 예외 클래스를 쓴다(두 클래스 ✗)
+NamingSourceUnreadable = _bench.NamingSourceUnreadable
 
 
 def validate_topic(topic):
@@ -140,49 +139,6 @@ def simlog_dirname(generated_utc, topic, existing_dirnames=()):
     return suffixed
 
 
-def gpu_key(gpu_model):
-    """자유텍스트 GPU 모델명 → **파일명 안전 키**. "NVIDIA GB10" → "GB10".
-
-    명명 SSOT 가 이 변환을 소유한다 — 호출부가 각자 정규화하면 같은 측정이 두 이름을 갖는다.
-    실측 결함(2026-08-24·2026-09-04 재발): `evidence_publisher` 가 `identity['gpu']` 를 날것으로
-    넘겨 인증서 파일명에 **공백**이 들어갔고, 그 결과 같은 런의 인증서가 두 이름으로 추적됐다.
-    ⚠ `adversarial-benchmark/scripts/sweep_bench.sh` 에 같은 규칙의 인라인 사본이 아직 있다
-    (bash 임베드 python 이라 import 경로가 없다) — 통합은 후속.
-    """
-    import re as _re
-    if not gpu_model:
-        return "NA"
-    return _re.sub(r"[^A-Za-z0-9]", "", str(gpu_model).replace("NVIDIA", "")) or "NA"
-
-
-def bench_filename(kind, meta, generated_utc, existing_basenames=(), ext=None):
-    """kind in {'bench_report','benchmark','max_envelope'}. `meta` needs model/gpu_key/vllm_version
-    (N/A fail-soft: missing keys render as the literal 'NA' combo segment, never fabricated).
-    Collision is keyed on (kind, hour) ALONE (P2-A04) -- docs.md: "동일 측정 재발행=덮어쓰기 ·
-    동일 YYMMDDHH 다른 측정=_MM_SS" -- ANY existing artifact of this kind in this hour forces the
-    new, distinct-combo publication onto its own _MM_SS form too. Raises NamingCollisionExhausted
-    if both forms for THIS combo are already occupied (see dated_doc_basename)."""
-    if kind not in BENCH_KIND_DEFAULT_EXT:
-        raise ValueError(
-            "bench_filename: kind must be one of %r, got %r" % (tuple(BENCH_KIND_DEFAULT_EXT), kind)
-        )
-    resolved_ext = ext or BENCH_KIND_DEFAULT_EXT[kind]
-    yymmddhh, mm, ss = kst_tokens(generated_utc)
-    meta = meta or {}
-    existing = set(existing_basenames)
-    combo = "%s_%s_%s" % (meta.get("model", "NA"), meta.get("gpu_key", "NA"), meta.get("vllm_version", "NA"))
-    prefix = "%s_%s_" % (kind, yymmddhh)
-    base = "%s_%s_%s.%s" % (kind, yymmddhh, combo, resolved_ext)
-    if not any(name.startswith(prefix) for name in existing):
-        return base
-    suffixed = "%s_%s_%s_%s_%s.%s" % (kind, yymmddhh, mm, ss, combo, resolved_ext)
-    if suffixed in existing:
-        raise NamingCollisionExhausted(
-            "bench_filename: both %r and %r are already occupied by another publication -- "
-            "canon permits only unsuffixed or a single _MM_SS suffix" % (base, suffixed))
-    return suffixed
-
-
 _REPORT_RE = re.compile(r"^[a-z][a-z0-9]*_\d{8}_.+\Z")
 
 
@@ -227,11 +183,14 @@ def _self_test():
     d1 = simlog_dirname("2026-06-21T12:21:00Z", "vLLM0.22.1_KV클램프_시뮬")
     _require(d1 == "26062121_vLLM0.22.1_KV클램프_시뮬", d1)
 
+    # 벤치 명명은 재수출 — 정본 모듈의 객체 **그 자체**여야 한다(사본이면 다시 갈라진다)
+    _require(bench_filename is _bench.bench_filename and gpu_key is _bench.gpu_key
+             and kst_tokens is _bench.kst_tokens and NamingCollisionExhausted is _bench.NamingCollisionExhausted,
+             "wiki-desk must re-export the bench naming SSOT, not copy it")
+    _require(gpu_key("NVIDIA GB10") == "GB10", "gpu_key re-export")
     meta = {"model": "solar-open2-250b", "gpu_key": "GB10", "vllm_version": "0.22.0"}
-    b1 = bench_filename("bench_report", meta, "2026-07-24T16:22:29Z")
-    _require(b1 == "bench_report_26072501_solar-open2-250b_GB10_0.22.0.md", b1)
-    c1 = bench_filename("benchmark", meta, "2026-07-24T16:22:29Z")
-    _require(c1 == "benchmark_26072501_solar-open2-250b_GB10_0.22.0.yaml", c1)
+    _require(bench_filename("benchmark", meta, "2026-07-24T16:22:29Z")
+             == "benchmark_26072501_solar-open2-250b_GB10_0.22.0.yaml", "bench_filename re-export")
 
     r1 = report_basename("perf_26082421_qwen3.8-27b_레시피별_성능")
     _require(r1 == "perf_26082421_qwen3.8-27b_레시피별_성능.html", r1)

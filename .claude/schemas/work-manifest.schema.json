@@ -197,6 +197,13 @@
               "minLength": 1
             }
           }
+        },
+        "measured_utc": {
+          "description": "이 발행이 바인딩한 **측정 하나**의 식별자 — 인증서 파일의 measured_utc 에서 파생(손으로 적지 않는다). 강한 6키(identity)와 합쳐 측정 키가 된다(plan_26090410 §3.2). 게이트는 인증서 본문의 값과 대조해 갈라지면 CERTIFICATE_RUN_DRIFT. 인증서 없는 발행(REFUTE)은 null.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },
