@@ -27,7 +27,7 @@ description: >-
 - **State transitions** — Flag(전제) → 스모크 PASS 로 이미지의 `runtime-ready` 근거를 만든다. `evidence-complete`/`promotion-ready` 판정은 `.claude/policies/runtime/completion_gate.py` 소유(이 문서가 자체 판정 ✗).
 - **HITL/safety boundaries** — 핀 변경·빌드·push 는 workflow S1–S4 HITL 게이트 · 스모크 모델 자동 다운로드 ✗ · 무증거 NGC/repo 오버라이드 ✗ · 추측 단정 ✗("확인 필요").
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
-- **Deterministic commands** — `scripts/resolve_torch_pin.py` · `resolve_ngc_tag.py` · `resolve_wheel.py` · `regen_requirements.py` · `resolve_build_track.py` · **`judge_version_delta.py`** · `render_dockerfile.py` · `check_smoke_model.py` · `classify_failure.py` · `sync_to_sub.sh` · `multinode_serve_smoke.sh` · **`single_serve_down.sh`**.
+- **Deterministic commands** — `scripts/resolve_torch_pin.py` · `resolve_ngc_tag.py` · `resolve_wheel.py` · `regen_requirements.py` · `resolve_build_track.py` · **`judge_version_delta.py`** · `render_dockerfile.py` · `check_smoke_model.py` · `classify_failure.py` · `sync_to_sub.sh` · `multinode_serve_smoke.sh` · **`single_serve_up.sh`** · **`single_serve_down.sh`** · `container_inventory.sh`.
 - **Handoff contract** — 입력 ← `terraforming_node`(Flag·HW) · escalation ← `vllm-recipe-explorer` §5.5 / `adversarial-benchmark` §7 · 출력 → rebuild 이미지로 `vllm-recipe-explorer` 전략수립 재개.
 - **Owns (state)** — `resolved.json` · `image-identity` · `build-track` · `sub-delivery` · **`build-patch(pre/post)`** · **`fork-pin`**(포크 좌표·arch-wall 변종)
 - **3+1+1 소유 경계**(`plan_26081514` Q3/Step 4 · owner 표 정본 = `.claude/rules/workflow.md` §3+1+1): **빌드 시점에 성립하는 것**이 이 스킬 소유다 — `build_patches_src/`(pre · 컴파일 **전** 소스 수정) · `build_patches/`(post · 컴파일 **후** native 의존) · 포크 핀(`VLLM_REPO`/`VLLM_REF`)·변종 `IMAGE_TAG`. **serve 시점에 성립하는 것**(트리플렛 3 + 런타임 패치 `<model>_patch.py`)은 `vllm-recipe-explorer` 소유이며 이 스킬이 저작하지 않는다. **발견 ≠ 소유** — explorer 가 §5.5 로 발견해 넘긴 것을 이 스킬이 **소유·처방**한다(수신점 = 아래 §escalation 수신).
@@ -110,6 +110,21 @@ hint 태그 발행을 **제안(Y/N)** 한다(**무인 자동 태깅 ✗**).
     쓰면 로그에 크게 남는다.
   - `--keep-up` 상주분은 **예산 갱신 루프**(`budget_renew_loop.sh`)를 양 노드에 무장한다(W-7).
     컨테이너가 사라지면 루프가 스스로 끝나고, 회수는 `--down` 이 함께 한다.
+- `scripts/single_serve_up.sh` — **단일노드 정규 기동 진입점**(2026-09-04 신설 · `plan_26090419` P1).
+  `bash single_serve_up.sh <config> [--dry-run] [--ready-max 600] …`. 7단계(통로·전제 · 모델+로드-전
+  RAM 게이트 · **예산 선언** · 블랙박스 세션 · compose up(두 env-file) · 예산 갱신 루프 · health 대기).
+  **순서가 곧 판정 기준이다** — 예산 선언 → *그 다음* up. 사후 선언은 무의미하다(로드 골짜기는
+  이미 지나갔다). 입력(weights·kv·tp)은 `check_smoke_model.py --emit-gate-params` 한 곳에서
+  **파생**한다(손저작 ✗). 어느 단계든 실패하면 `single_serve_down.sh` 로 **되돌린다** — 반쯤
+  올라간 서빙과 남은 예산 선언은 다음 로드를 *남의 바닥*으로 무장시킨다.
+  종전에는 이 경로가 **없어서** 사람이 `docker compose up` 을 직접 쳤고, 그것은 예산선언·워치독
+  무장이 빠진 **무보호 기동**이었다(`workflow.md` §막힘 3분류의 침묵 누락 — 처방은 우회가 아니라
+  경로 신설이다).
+- `scripts/container_inventory.sh` — **read-only 인벤토리**(빌드된 이미지 · 서빙 중 컨테이너 ·
+  envfile 참조 관계). 아무것도 지우거나 내리지 않는다(정리는 down 진입점, 이미지 회수는
+  explorer `cleanup_docker.py` 소유). **크기로 노드를 비교하지 않는다** — storage driver 가 다르면
+  같은 내용이 45.5GB 대 30.8GB 로 보인 실측이 있다. 신원은 digest 가 답한다.
+  `docker` 조회가 rc≠0 이면 **부재가 아니라 판정 불가**로 멈춘다.
 - `scripts/single_serve_down.sh` — **단일노드 정규 teardown 진입점**(2026-08-22 신설 · W-6).
   `bash single_serve_down.sh <config> [--dry-run]`. 5단계(컨테이너 down · 상주 사이드카 회수 ·
   페이지캐시 · 예산선언 회수 · 블랙박스 세션 stop)를 수행하고 **각 단계의 DONE/SKIPPED(사유)/FAIL 을

@@ -734,6 +734,17 @@ def verify() -> dict:
         _run("benchmark_sweep_map_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.py", "--self-test"], {0}),
         # Broad Search 이중 게이트의 **집행**: --confirm-risk 없이는 셀이 돌지 않는다(exit 5).
+        # single 컨테이너 관리 진입점의 **인자 평면** fail-closed (plan_26090419 P1 · 2026-09-04).
+        #   기동 경로는 예산선언·워치독 무장을 품고 있어 잘못 불리면 무보호 로드가 된다. 여기서는
+        #   docker·NAS·/proc 에 의존하지 않는 인자 검사만 친다(그 층은 어느 노드에서도 같다).
+        _run("upstream_single_up_requires_config",
+             ["bash", ".claude/skills/upstream-version-watch/scripts/single_serve_up.sh"], {3}),
+        _run("upstream_single_up_rejects_unknown_arg",
+             ["bash", ".claude/skills/upstream-version-watch/scripts/single_serve_up.sh",
+              "_probe", "--bogus"], {3}),
+        _run("upstream_inventory_rejects_unknown_topology",
+             ["bash", ".claude/skills/upstream-version-watch/scripts/container_inventory.sh",
+              "--topology", "bogus"], {2}),
         _run("benchmark_broad_search_confirm_gate",
              ["bash", ".claude/skills/adversarial-benchmark/scripts/broad_search.sh", "cell",
               "--state", "/nonexistent/bs.json", "--now-utc", "2026-01-01T00:00:00Z",
