@@ -167,6 +167,7 @@ description: >-
 - `scripts/roofline.py` — (a) spec-aware R_fp/R_token/expected(manifest+config/index).
 - `scripts/run_bench.sh` · `scripts/parse_bench.py` — full 경로 측정 M(+engine-log 교차).
 - `scripts/verdict_rule.py` — 결정론 PASS/REFUTE 게이트(**`--authority weak|explicit|explore`** = E>c>expected / c>E>expected / E>expected(c 부재)(§2), like-with-like, spec-off 강제함수, 밸런스 축 — **`explore` 에서 밸런스는 게이트가 아니라 서술**(§2.1)). `explicit` + `--target-tps` 부재, `explore` + `--target-tps` 존재, `--target-tps|--reference-tps ≤0·NaN·Inf`, `--tolerance ∉[0,1)` 은 전부 **fail-closed(exit 2)** — 침묵 폴백 금지. **`--self-test`** 로 T1~T16 결정론 자체검사(파일 입력 불요 — T16 = explore 밸런스=서술 회귀).
+- `scripts/resolve_bench_tool.py` + `bench_tool_pin.json` — **측정 도구 컨테이너 핀**. 태그와 digest 를 병기하되 **판정 권위는 digest 단일**이다(같은 태그가 노드마다 다른 이미지를 가리킨 실측 선례). 이미지 부재는 **자동 pull 하지 않고 exit 3**(사전 스테이징 계약 — airgap-safe 불변식 보존), digest 드리프트는 **exit 4**(태그가 같아도 통과 ✗). 핀 갱신은 파일을 고쳐 리뷰에 태우는 것이지 실행 시점 흡수가 아니다. **`--self-test`**(P1~P8).
 - `scripts/judge_bench.sh` — **루브릭 권한 통로**(roofline → verdict 체인). `--authority` 는 **필수이며 기본값이 없다** — 권한은 사용자 HITL 트리거이지 스크립트의 판단이 아니고, 기본값을 두면 "사용자가 약한 권한을 골랐다"와 "아무도 안 골랐다"가 구분 불가가 된다(이것이 1년간 explore 인증서 0건이었던 원인이다). 권한↔`--target-tps` 조합 규칙은 **복제하지 않고** `verdict_rule.py` 의 exit 2 를 그대로 전달한다. 루프라인 입력은 `sweep_index.json` meta 에서 **승계**한다(파생 복제 ✗).
 - `scripts/lite_bench.sh` · `scripts/lite_metrics.py` — lite 오케스트레이터 + 5종 메트릭 렌더(inform-only).
 - `scripts/sweep_bench.sh` · `scripts/render_report.py` · `scripts/publish_benchmark_record.py` — full 종결 스윕·report·인증서.

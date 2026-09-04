@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "_doc": [
+    "측정 도구 컨테이너의 핀. plan_26090415 §3.5 (CP2 계획의 CP3).",
+    "왜 tracked 신설 파일인가: config.yaml 은 비추적·사람 저작이라 배포본에 없을 수 있고,",
+    "arch_variant_ledger.json 은 엔진 빌드변종 전용 스키마라 범주 오용이다.",
+    "왜 digest 를 두는가: policy:GIT_SINGLE_AUTHORITY 의 2문항으로 판정하면 맹점층이다 —",
+    "  Q1 git 이 이 바이트를 blob 으로 드는가? 아니오(상류 레지스트리의 이미지다).",
+    "  Q2 추적 입력만으로 결정론적으로 재생성되는가? 아니오(우리가 빌드하지 않는다).",
+    "  둘 다 아니오 → 맹점층이므로 digest 는 중복이 아니라 유일한 증거다.",
+    "태그와 digest 를 병기하되 판정 권위는 digest 단일이다 — 태그는 사람이 읽는 표기이고,",
+    "같은 태그가 메인과 서브에서 다른 이미지를 가리킨 실측 선례가 있다."
+  ],
+  "tools": {
+    "guidellm": {
+      "version": "0.7.3",
+      "image_ref": "ghcr.io/vllm-project/guidellm:v0.7.3",
+      "index_digest": "sha256:e3ad2371bfa8e42f2c3d1251b62d0d9c9706c27ae2143c8c048eb5fc6aebb558",
+      "platform_digests": {
+        "linux/arm64": "sha256:78b04f3dde455d0aed1fd90d28e449f4ac70c6ffa38a3d6bf6e812c603b61f59",
+        "linux/amd64": "sha256:b24d7a03e64674a9a6f60c2937762465d7a6f3f3d8d55a1d99e8617e94e06b3e"
+      },
+      "digest_source": "measured(GHCR v2 manifests API · docker-content-digest 헤더)",
+      "pinned_utc": "2026-09-04T07:20:00Z",
+      "pinned_by": "plan_26090415 CP3",
+      "notes": [
+        "v0.7.3 과 latest 는 2026-09-04 시점 같은 인덱스를 가리킨다. 핀은 v0.7.3 을 쓴다 —",
+        "latest 는 움직이는 표적이라 재현성 인증서의 입력이 될 수 없다.",
+        "GB10 은 aarch64 이므로 실제로 도는 것은 linux/arm64 항목이다.",
+        "이미지 부재 시 자동 pull 하지 않는다 — 사전 스테이징 후 실행이 계약이다(§U4)."
+      ]
+    }
+  }
+}
