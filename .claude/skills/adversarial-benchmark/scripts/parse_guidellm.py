@@ -58,7 +58,7 @@ def _inv(ms):
     return round(1000.0 / ms, 2) if isinstance(ms, float) and ms > 0 else None
 
 
-def build(doc, benchmark_index=0, engine_max=None, spec=None):
+def build(doc, benchmark_index=0, engine_max=None, spec=None, max_error_rate=0.0):
     """GuideLLM report 문서 → parse_bench 와 동일한 측정 M. 순수 함수."""
     if not isinstance(doc, dict):
         raise ValueError("benchmarks.json 은 JSON 객체여야 한다")
@@ -96,6 +96,7 @@ def build(doc, benchmark_index=0, engine_max=None, spec=None):
         agreement = {"engine_max": engine_max, "client_decode_tps": decode_tps,
                      "ratio": round(engine_max / decode_tps, 2)}
 
+    error_rate = (float(failed) / float(total)) if (failed is not None and total) else 0.0
     spec = spec or {}
     accept_len = spec.get("accept_len")
     meta = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
@@ -118,7 +119,17 @@ def build(doc, benchmark_index=0, engine_max=None, spec=None):
         "num_prompts": total,
         "engine_gen_throughput_max": engine_max,
         "client_engine_agreement": agreement,
-        "measurement_ok": bool(successful and not failed and decode_tps is not None),
+        # ★ 오류 허용치는 **선언에서만** 온다(기본 0 = 엄격 · plan_26090419 §8.9).
+        #   왜 0 이 아닌 값을 받을 수 있게 했나: GuideLLM 의 `errored` 는 서버 오류만이 아니라
+        #   **클라이언트측 스트림 파싱 실패**도 담는다(실측: JSONDecodeError, 잘린 SSE 청크 1건).
+        #   그런 1건 때문에 통계가 건전한 측정(성공 17건 · 엔진로그와 ratio 1.01)을 통째로 버리면
+        #   지도에 구멍이 생기고, 그 구멍은 "이 레시피는 측정 불가"로 읽힌다 — 거짓이다.
+        #   그렇다고 조용히 삼키면 진짜 서버 오류가 묻힌다. 그래서 **삼키지 않고 선언하게** 한다:
+        #   허용치는 호출자가 근거와 함께 넘기고, 실제 오류율은 산출물이 항상 싣는다.
+        "error_rate": error_rate,
+        "max_error_rate_declared": max_error_rate,
+        "measurement_ok": bool(successful and decode_tps is not None
+                               and error_rate <= max_error_rate),
         # ── 출처 표시(헌법 §결정론 규율). 값 옆에 어디서 왔는지를 둔다. ──
         "bench_tool": "guidellm",
         "bench_tool_version": tool_version,
@@ -234,10 +245,23 @@ def _self_test():
     else:
         check("G11 실측 산출물 픽스처 존재", False, "(fixtures/guidellm_benchmarks_sample.json 부재)")
 
+    err1 = json.loads(json.dumps(doc))
+    err1["benchmarks"][0]["metrics"]["request_totals"] = {"successful": 15, "errored": 1,
+                                                          "incomplete": 0, "total": 16}
+    o_strict = build(err1, spec={"source": "declared-absent"})
+    o_decl = build(err1, spec={"source": "declared-absent"}, max_error_rate=0.0625)
+    check("G12 기본은 엄격 — 오류 1건이면 measurement_ok=False",
+          o_strict["measurement_ok"] is False and abs(o_strict["error_rate"] - 0.0625) < 1e-9)
+    check("G13 선언한 허용치 안이면 통과하되 오류율을 **항상 싣는다**",
+          o_decl["measurement_ok"] is True and o_decl["error_rate"] > 0
+          and o_decl["max_error_rate_declared"] == 0.0625)
+    o_over = build(err1, spec={"source": "declared-absent"}, max_error_rate=0.01)
+    check("G14 ★음성대조 선언 허용치를 넘으면 여전히 False", o_over["measurement_ok"] is False)
+
     if failures:
         sys.stderr.write("[parse_guidellm --self-test] FAIL %d 건: %s\n" % (len(failures), failures))
         return 1
-    print("[parse_guidellm --self-test] OK — G1~G11 전부 통과")
+    print("[parse_guidellm --self-test] OK — G1~G14 전부 통과")
     return 0
 
 
@@ -250,6 +274,9 @@ def main(argv=None):
                     help="같은 스윕 lite 레그의 `vllm bench serve` JSON — spec 수용길이를 승계한다")
     ap.add_argument("--spec-axis-absent", action="store_true",
                     help="spec 축 부재를 명시 선언한다(승계원이 없을 때. 그 사실이 출력에 남는다)")
+    ap.add_argument("--max-error-rate", type=float, default=0.0,
+                    help="허용 오류율(기본 0.0 = 엄격). 0 이 아닌 값을 쓰려면 호출자가 근거를 갖고 "
+                         "넘겨야 한다 — 실제 오류율은 산출물이 항상 error_rate 로 싣는다(삼키지 않는다).")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args(argv)
@@ -283,7 +310,7 @@ def main(argv=None):
     engine_max = _engine_max(args.engine_log) if args.engine_log else None
     doc = _load(args.benchmarks_json, "--benchmarks-json")
     try:
-        out = build(doc, args.benchmark_index, engine_max, spec)
+        out = build(doc, args.benchmark_index, engine_max, spec, args.max_error_rate)
     except ValueError as exc:
         sys.stderr.write("[parse_guidellm] ERROR %s\n" % exc)
         return 2

@@ -108,6 +108,9 @@ manifest.yaml
 # recipe 탐색 입력·잠금 (모델마다 재생성 · config.yaml 은 NAS/tiktoken 절대경로를 담는다).
 # 무시하지 않으면 `git add -A` 한 번에 운영자 지문이 추적 배포물로 들어간다 — 2026-09-01 실측.
 /config.yaml
+# 캠페인별 변형 입력(광의의 탐색 = 셀마다 config 하나). `/config.yaml` 과 같은 성질이며
+#   같은 NAS 절대경로를 담는다 — 패턴이 exact 라 변형이 그물을 빠져나갔다(2026-09-05 발견).
+/config.campaign-*.yaml
 /lockset.json
 # tiktoken 에어갭 자산(gpt-oss harmony o200k — URL 다운로드본, 호스트 자산·배포물 아님)
 /tiktoken_cache/

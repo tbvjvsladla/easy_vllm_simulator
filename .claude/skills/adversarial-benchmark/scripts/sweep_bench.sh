@@ -38,10 +38,13 @@ BACKEND="openai-chat"
 #   `--tool guidellm` 은 **레벨 측정만** 옮긴다.
 TOOL="vllm"
 BENCH_BUDGET_MIB=""
+# 오류 허용치는 **선언에서만** 온다(기본 빈값 = 파서 기본 0 = 엄격).
+MAX_ERROR_RATE=""
 while [ $# -gt 0 ]; do case "$1" in
   --topology) TOPO="$2"; shift 2;;
   --tool) TOOL="$2"; shift 2;;
   --bench-budget-mib) BENCH_BUDGET_MIB="$2"; shift 2;;
+  --max-error-rate) MAX_ERROR_RATE="$2"; shift 2;;
   --backend) BACKEND="$2"; shift 2;;
   --reassemble-only) REASSEMBLE=1; shift;;
   --levels) LEVELS="$2"; shift 2;;
@@ -185,6 +188,7 @@ for L in "${SORTED[@]}"; do
         PARSE_CMD=(python3 "$SDIR/parse_guidellm.py" --benchmarks-json "$BJSON"
                    --engine-log "$ELOG" --spec-axis-absent)
       fi
+      [ -n "$MAX_ERROR_RATE" ] && PARSE_CMD+=(--max-error-rate "$MAX_ERROR_RATE")
     else
       BJSON="$LDIR/bench_${CONFIG}.json"
       PARSE_CMD=(python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG")

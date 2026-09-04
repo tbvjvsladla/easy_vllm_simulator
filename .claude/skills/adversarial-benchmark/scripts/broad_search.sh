@@ -55,7 +55,7 @@ CELL_KEY=""; CONFIG=""; CITATION=""; BENCH_BUDGET=""; TOPO=""; CONFIRM=0
 #   길이 자체는 지켰다는 점이 2026-09-01 관측과 다른 부분인데, 길이를 지키는 대가가 파서 파손이라
 #   결론은 같다: **완결 엔드포인트로 잰다.**
 BACKEND=""
-OUT_MD=""; OUT_JSON=""; REASSEMBLE=0
+OUT_MD=""; OUT_JSON=""; REASSEMBLE=0; SERVE_FAILED_REASON=""; MAX_ERROR_RATE=""
 while [ $# -gt 0 ]; do case "$1" in
   --state) STATE="$2"; shift 2;;
   --now-utc) NOW="$2"; shift 2;;
@@ -72,6 +72,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --config) CONFIG="$2"; shift 2;;
   --axis-citation) CITATION="$2"; shift 2;;
   --bench-budget-mib) BENCH_BUDGET="$2"; shift 2;;
+  --max-error-rate) MAX_ERROR_RATE="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
   --backend) BACKEND="$2"; shift 2;;
   --confirm-risk) CONFIRM=1; shift;;
@@ -80,6 +81,11 @@ while [ $# -gt 0 ]; do case "$1" in
   #   대안은 상태 파일 수기 편집(=증거 위조)이거나 재측정(=라벨 문제인데 비용 지불)뿐이다.
   #   `sweep_bench --reassemble-only` 와 같은 선례이며 같은 이유로 존재한다.
   --reassemble-only) REASSEMBLE=1; shift;;
+  # 서빙에 도달하지 못한 셀을 기록한다(materialize 실패 등). §4.6 의 `serve_failed` 는 "서빙 자체
+  #   미성립"을 담는 칸이고, 그런 셀은 트리플렛조차 없어 통상 경로(envfile 검사)를 탈 수 없다.
+  #   기록하지 못하면 **지도에 구멍이 남고** 다음 캠페인이 같은 벽에 다시 부딪힌다 —
+  #   실패는 숨길 것이 아니라 지도가 실어야 할 정보다.
+  --serve-failed) SERVE_FAILED_REASON="$2"; shift 2;;
   --out-md) OUT_MD="$2"; shift 2;;
   --out-json) OUT_JSON="$2"; shift 2;;
   *) echo "[broad_search] 알 수 없는 인자: $1" >&2; exit 2;;
@@ -192,6 +198,12 @@ MSG
     exit 0
   fi
 
+  if [ -n "$SERVE_FAILED_REASON" ]; then
+    # materialize 단계에서 죽은 셀 — 트리플렛이 없으므로 envfile·포트·측정 경로를 타지 않는다.
+    STARTED="$NOW"; ENDED="$(date -u +%FT%TZ)"; SERVE_RC=3; MEASURE_RC=0
+    SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
+    echo "[broad_search] serve_failed 기록 — $SERVE_FAILED_REASON"
+  else
   EF="$REPO/output/$TOPO/envs/.env.$CONFIG"
   [ -f "$EF" ] || { echo "[broad_search] ERROR envfile 없음: $EF — 셀 materialize 는 explorer 소관이다" >&2; exit 2; }
   PORT="$(sed -n 's/^SERVING_PORT=//p' "$EF" | head -1)"
@@ -221,6 +233,7 @@ MSG
     set +e
     SB_ARGS=("$CONFIG" --topology "$TOPO" --tool guidellm --bench-budget-mib "$BENCH_BUDGET")
     [ -n "$BACKEND" ] && SB_ARGS+=(--backend "$BACKEND")
+    [ -n "$MAX_ERROR_RATE" ] && SB_ARGS+=(--max-error-rate "$MAX_ERROR_RATE")
     bash "$SDIR/sweep_bench.sh" "${SB_ARGS[@]}"
     MEASURE_RC=$?
     if [ "$MEASURE_RC" = "0" ]; then
@@ -231,6 +244,7 @@ MSG
     set -e
   fi
   ENDED="$(date -u +%FT%TZ)"
+  fi
 
   EVARGS=()
   for evf in "$REPO"/docs/logs/*/events/*.jsonl; do
@@ -240,7 +254,7 @@ MSG
           --started-utc "$STARTED" --ended-utc "$ENDED" "${EVARGS[@]+"${EVARGS[@]}"}")"
 
   CELL_KEY="$CELL_KEY" CONFIG="$CONFIG" CITATION="$CITATION" SWEEPDIR="$SWEEPDIR" \
-  CLS="$CLS" ENDED="$ENDED" STARTED="$STARTED" \
+  CLS="$CLS" ENDED="$ENDED" STARTED="$STARTED" SERVE_FAILED_REASON="$SERVE_FAILED_REASON" \
   python3 - "$STATE" <<'PY'
 import json, os, sys
 state_path = sys.argv[1]
@@ -301,6 +315,11 @@ cell = {
                           if verdict else None),
     "axis_citation": os.environ["CITATION"],
 }
+_sf = os.environ.get("SERVE_FAILED_REASON") or ""
+if _sf:
+    # 사유는 **인용**이다 — 로그의 실제 문장을 옮긴다. 요약·추측 ✗.
+    cell["serve_failed_reason"] = _sf
+    cell["note"] = "%s / %s" % (cell.get("note") or "", _sf)
 # 같은 셀 키가 이미 있으면 **교체**한다(재조립). 덧붙이면 지도에 같은 좌표가 두 번 나온다.
 state["cells"] = [c for c in (state.get("cells") or []) if c.get("cell_key") != cell["cell_key"]]
 state["cells"].append(cell)
