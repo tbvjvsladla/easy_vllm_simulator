@@ -105,7 +105,12 @@ BUDGET_SESSION_PY = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     "..", "..", "terraforming_node", "scripts", "node_blackbox", "blackbox_session.py",
 )
-BUDGET_OVERHEAD_MIB = 12288   # blackbox_session --overhead-mib 기본값과 동일(안전측)
+# blackbox_session --overhead-mib 기본값과 동일. **이 값은 "안전측"이 아니다** —
+#   overhead 를 낮게 잡으면 선언 바닥(mem_total - weights - kv - overhead)이 **높게** 나오고,
+#   워치독 arm 상한도 같이 높아져 **정상 서빙이 무장 밴드 안에 들어간다**. 2026-09-04 실측:
+#   gpt-oss-120b/GB10 의 실제 overhead 는 17,971 MiB 로 이 기본값보다 5,683 MiB 크다.
+#   그래서 이건 기본값일 뿐이고, 워크로드가 아는 값이 있으면 `--overhead-mib` 로 넘긴다.
+BUDGET_OVERHEAD_MIB = 12288
 BUDGET_TTL_MIN_S = 7200       # declare-budget 기본 TTL. expected-load-s 의 3배 이상이어야 수락된다.
 
 
@@ -819,10 +824,19 @@ def _budget_inputs(candidate: dict, opts) -> "tuple[dict | None, str]":
         tp = int(_opt(opts, "tp", 1) or 1) or 1
     except (TypeError, ValueError):
         tp = 1
+    # overhead 는 호출부가 아는 값이 있으면 그것을 쓴다. 상수로 두면 워크로드마다 틀리고,
+    # 틀린 방향이 하필 **무장 밴드를 넓히는 쪽**이다(위 상수 주석의 실측).
+    try:
+        overhead_mib = int(_opt(opts, "overhead_mib", BUDGET_OVERHEAD_MIB) or BUDGET_OVERHEAD_MIB)
+    except (TypeError, ValueError):
+        overhead_mib = BUDGET_OVERHEAD_MIB
+    if overhead_mib <= 0:
+        overhead_mib = BUDGET_OVERHEAD_MIB
     return {
         "mem_total_mib": mem_total_mib,
         "weights_mib": -(-int(ckpt_bytes) // tp // (1024 * 1024)),   # ceil-div (게이트와 같은 축)
         "kv_mib": -(-int(kv_bytes) // (1024 * 1024)),
+        "overhead_mib": overhead_mib,
     }, ""
 
 
@@ -834,7 +848,7 @@ def _budget_declare(node_dir: str, inputs: dict, label: str, expected_load_s: fl
         "--mem-total-mib", str(inputs["mem_total_mib"]),
         "--weights-mib", str(inputs["weights_mib"]),
         "--kv-mib", str(inputs["kv_mib"]),
-        "--overhead-mib", str(BUDGET_OVERHEAD_MIB),
+        "--overhead-mib", str(inputs.get("overhead_mib") or BUDGET_OVERHEAD_MIB),
         "--ttl-s", str(ttl_s),
         "--expected-load-s", str(int(expected_load_s)),
         "--label", label,
@@ -1381,6 +1395,13 @@ def _main(argv: "list[str] | None" = None) -> int:
              "candidate 에서 추측하지 않는다(manifest 가 tp 의 권위 · recipe.resolve_tp)",
     )
     p.add_argument(
+        "--overhead-mib",
+        type=int,
+        default=None,
+        help="예산 선언의 overhead(MiB). 미지정 시 %d. 실측값을 알면 넘긴다 — 낮게 잡으면 "
+             "선언 바닥이 높아져 워치독이 정상 서빙을 무장 밴드에 넣는다" % BUDGET_OVERHEAD_MIB,
+    )
+    p.add_argument(
         "--no-budget",
         action="store_true",
         help="예산 선언 생략(무보호 진입). 생략 사실은 budget_skipped 이벤트로 남는다(침묵 금지)",
@@ -1422,6 +1443,8 @@ def _main(argv: "list[str] | None" = None) -> int:
         opts["model_host_path"] = args.model_host_path
     if args.tp:
         opts["tp"] = args.tp
+    if args.overhead_mib:
+        opts["overhead_mib"] = args.overhead_mib
     if args.no_budget:
         opts["no_budget"] = True
 

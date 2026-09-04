@@ -906,6 +906,9 @@ def cmd_simulate(args):
         #   run_trial 이 판정 근거가 없어 캡을 못 걸고, 측정 트라이얼은 계속 구조적으로 사살된다
         #   ("만든 것과 도는 것은 다르다" — 배선이 없으면 코드는 없는 것과 같다).
         "unified_memory": _is_unified_memory(device_total_gib),
+        # 예산 선언 overhead — CLI > config > run_trial 기본값. 상수 하나로 두면 워크로드마다
+        #   틀리고, 틀리는 방향이 **무장 밴드를 넓히는 쪽**이다(run_trial BUDGET_OVERHEAD_MIB 주석).
+        "overhead_mib": getattr(args, "overhead_mib", None) or cfg.get("budget_overhead_mib"),
     }
     opts = {k: v for k, v in opts.items() if v is not None}
 
@@ -1348,6 +1351,9 @@ def build_parser():
     ps.add_argument("--cap", type=int, default=DEFAULT_TRIAL_CAP, help="reconciliation_cap(기본 3)")
     ps.add_argument("--image", default=DEFAULT_TRIAL_IMAGE, help="run_trial docker 이미지")
     ps.add_argument("--timeout", type=int, default=900, help="/health 폴링 타임아웃(초)")
+    ps.add_argument("--overhead-mib", type=int, default=None,
+                    help="예산 선언 overhead(MiB). 미지정 시 config.budget_overhead_mib → "
+                         "run_trial 기본값 순. 실측값이 있으면 넘긴다")
     ps.add_argument("--force", action="store_true", help="수렴 시 3종 세트 덮어쓰기 허용")
     ps.set_defaults(func=cmd_simulate)
 
