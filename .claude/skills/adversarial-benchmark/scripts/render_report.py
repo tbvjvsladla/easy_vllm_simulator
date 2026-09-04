@@ -208,9 +208,10 @@ def main():
     md = build_md(index, verdict, roofline)
     meta = index.get("meta", {})
     import sys as _s, os as _o; _s.path.insert(0, _o.path.dirname(_o.path.abspath(__file__)))
-    from doc_naming import bench_filename
+    from doc_naming import bench_filename, scan_bench_dir
     _outdir = a.out_dir or os.path.join(repo_root(a.sweep_index), "docs", "benchmark")
-    fname = bench_filename("bench_report", meta, index.get("generated_utc"), (None if a.stdout else _outdir), "md")
+    fname = bench_filename("bench_report", meta, index.get("generated_utc"),
+                           (None if a.stdout else scan_bench_dir(_outdir, "bench_report")), "md")
 
     if a.stdout:
         sys.stdout.write(md)

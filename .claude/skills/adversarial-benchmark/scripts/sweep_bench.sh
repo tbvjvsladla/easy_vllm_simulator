@@ -202,6 +202,8 @@ SWEEPDIR="$SWEEPDIR" VLLM_VER="$VLLM_VER" COMPLETED="${COMPLETED[*]:-}" ILEN="$I
  IMAGE_TAG_ACTUAL="$IMAGE_TAG_ACTUAL" IMAGE_DIGEST_ACTUAL="$IMAGE_DIGEST_ACTUAL" REASSEMBLE="$REASSEMBLE" \
  LITE_RAW="$LITE_RAW" SDIR="$SDIR" python3 - <<'PY'
 import json, os, re, glob, sys, datetime
+sys.path.insert(0, os.environ["SDIR"])   # 벤치 명명 SSOT(같은 스킬 디렉터리 · 서브에도 배달됨)
+from doc_naming import gpu_key as _gpu_key
 
 cfg = os.environ["CONFIG"]; topo = os.environ["TOPO"]
 sweepdir = os.environ["SWEEPDIR"]
@@ -294,7 +296,7 @@ if not gpu_model:
     except Exception:
         gpu_model = None
 gpu_model = gpu_model or "NA"
-gpu_key = re.sub(r"[^A-Za-z0-9]", "", gpu_model.replace("NVIDIA", "")) or "NA"  # "NVIDIA GB10" → "GB10"
+gpu_key = _gpu_key(gpu_model)  # 정규화 규칙은 doc_naming 한 곳(인라인 사본 제거 · 감사 D-1)
 # tp: config tensor-parallel-size > manifest 파생 > 1
 # **topology=single 이면 노드 배수 1 고정** — single manifest 의 nodes[role=sub] 는 sub-control
 # 피어이지 텐서 워커가 아니다. 이 검사가 없어서 single 스윕이 tp=2 를 인증서 **강한키**에 박았고,
