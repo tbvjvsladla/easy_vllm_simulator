@@ -170,6 +170,7 @@ description: >-
 - `scripts/lite_bench.sh` · `scripts/lite_metrics.py` — lite 오케스트레이터 + 5종 메트릭 렌더(inform-only).
 - `scripts/sweep_bench.sh` · `scripts/render_report.py` · `scripts/publish_benchmark_record.py` — full 종결 스윕·report·인증서.
 - `scripts/max_envelope.sh` · `scripts/render_max_report.py` — **Max 오퍼레이션**(별도 정체성).
+- `scripts/sweep_stop.py` — **광의의 탐색(Broad Search) 정지 조건 평가기**(`stop ⟸ 남은 셀 0 ∨ 셀 수 예산 ∨ 벽시계 예산 ∨ 연속 실패 한도`). 세 한도는 전부 상태 파일의 `declared_budget` 에서만 오고 **기본값이 없다** — 미선언은 exit 2 다(깊이 HITL 이 숫자를 낳는다). 셀 종결 3분류(`measured`/`serve_failed`/`measurement_void`) 중 뒤 둘만 연속 실패로 세며, `measured` 는 verdict 가 REFUTE 여도 실패가 아니다(잴 수 있었다). 시각은 `--now-utc` 주입만. **`--self-test`**(S1~S16 · 음성 사례 6건). 종료 `0=계속 · 3=정지 · 2=판정 불가`.
 - `.claude/skills/wiki-desk/scripts/doc_naming.py` — 발행 명명 SSOT.
 
 **조건부 references(필요할 때만 연다)**

@@ -697,6 +697,12 @@ def verify() -> dict:
         #   배포되는 코드 자체를 친다. 순수 정적 픽스처 — 서빙·docker·모델 불요.
         _run("benchmark_sweep_meta_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_meta.py"], {0}),
+        # Broad Search 정지 조건 평가기의 **집행** (plan_26090415 §4.7 · CP1 · 2026-09-04).
+        #   같은 이유다 — 호출자 없는 자체검사는 L2 가 아니라 L1(산문)이다. 이 평가기는 예산을
+        #   선언 없이 판정하지 않는 fail-closed 이고(§4.8), 그 거부 경로가 살아 있는지는 음성
+        #   사례 6건이 지킨다. 순수 결정론(파일·시계·서빙 불요 — 시각은 주입만 받는다).
+        _run("benchmark_sweep_stop_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/sweep_stop.py", "--self-test"], {0}),
     ]
 
     with tempfile.TemporaryDirectory(prefix="easy-vllm-wiki-distribution.") as wiki:
