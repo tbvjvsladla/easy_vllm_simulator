@@ -1083,6 +1083,32 @@
           "predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C3"
         ]
       }
+    ],
+    "HOST_SAFETY_LAYERED_DEFENSE.C10": [
+      {
+        "path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+        "assertion_ids": [
+          "TOOL",
+          "BENCH_BUDGET_MIB",
+          "bench_with_guidellm",
+          "bench_with_vllm"
+        ]
+      },
+      {
+        "path": ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py",
+        "assertion_ids": [
+          "RC_ABSENT",
+          "RC_DRIFT",
+          "classify",
+          "accepted_digests"
+        ]
+      },
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C10"
+        ]
+      }
     ]
   }
 }

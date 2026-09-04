@@ -650,6 +650,60 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C8():
     _require('DRY-RUN 종료' in report, 'predicate requirement failed at original line 510')
 
 
+
+def predicate_HOST_SAFETY_LAYERED_DEFENSE_C10():
+    """C10: the full-mode measurement tool is a separate container under a teardown contract.
+
+    Why this is host safety and not merely benchmark plumbing: the load generator shares GB10's
+    unified memory with the inference server, and the failure it can cause is the one this policy
+    exists to prevent -- a host hard-down.  The protections are therefore (a) an explicitly declared
+    memory budget with no default, enforced by the kernel via ``--memory``, so an unapproved
+    generator cannot grow without bound, and (b) a teardown contract so a crashed run cannot leak a
+    container that keeps holding memory.
+
+    The budget refusal is asserted by **execution**, not by reading source: a default silently
+    reintroduced anywhere would keep the source literals intact.  It is also asserted
+    discriminatingly -- the accepted case must get *past* the budget check, because "missing budget"
+    and "missing envfile" both exit 2 and a rc-only assertion would pass for the wrong reason
+    (that exact mistake was made and caught by mutation testing on 2026-09-04).
+    """
+    script = ".claude/skills/adversarial-benchmark/scripts/run_bench.sh"
+    src = _read(script)
+
+    BUDGET_MARK = "--bench-budget-mib <양의 정수> 가 필수다"
+    refused = _run_bash(f'bash {shlex.quote(script)} _probe --tool guidellm 2>&1; echo "rc=$?"')
+    _require(BUDGET_MARK in refused.stdout and "rc=2" in refused.stdout,
+             f'--tool guidellm without a declared memory budget must refuse; got {refused.stdout[-300:]!r}')
+    accepted = _run_bash(
+        f'bash {shlex.quote(script)} _probe --tool guidellm --bench-budget-mib 4096 2>&1; echo "rc=$?"')
+    _require(BUDGET_MARK not in accepted.stdout,
+             'a declared budget must get past the budget check -- otherwise the refusal above is '
+             f'passing for an unrelated reason; got {accepted.stdout[-300:]!r}')
+
+    # Kernel-enforced budget and teardown: closed literal comparison against the shipped script.
+    _require('--memory "${BENCH_BUDGET_MIB}m" --memory-swap "${BENCH_BUDGET_MIB}m"' in src,
+             'the declared budget must be enforced by the kernel, not merely recorded')
+    _require('docker run --rm --name "$GLNAME"' in src,
+             'the measurement container must be launched with --rm')
+    _require("trap 'docker rm -f \"$GLNAME\" >/dev/null 2>&1 || true' RETURN" in src,
+             'a teardown trap must remove the measurement container on every exit path -- ownership '
+             'is defined by cleanup, not by who started it')
+
+    # The tool image is resolved from the tracked pin and never pulled implicitly.
+    _require('resolve_bench_tool.py' in src,
+             'the measurement image must be resolved through the digest pin resolver')
+    resolver = _read(".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py")
+    _require("docker" in resolver and '"pull"' not in resolver and "'pull'" not in resolver,
+             'the resolver must never pull -- absence is fail-closed pre-staging, not a silent fetch')
+    _require("RC_ABSENT = 3" in resolver and "RC_DRIFT = 4" in resolver
+             and "RC_OK = 0" in resolver,
+             'absence and drift must be distinguishable exit codes, not one generic failure')
+
+    # The serve container is not started or stopped by the benchmark skill (the invariant's object
+    # is the inference server; the measurement container is the documented exception).
+    _require("docker start" not in src and "docker stop" not in src,
+             'the benchmark skill must not start or stop the inference server')
+
 def predicate_HOST_SAFETY_LAYERED_DEFENSE_C9():
     """C9: purge_host_safety.sh — 이 저장소에서 가장 파괴적인 스크립트. 2026-09-03(감사 §5 C-2)
     까지 registry/claim_bindings 어느 쪽에도 **바인딩이 없던** 유일한 파괴 스크립트였다.
@@ -3486,7 +3540,7 @@ def predicate_GIT_SINGLE_AUTHORITY_C2():
 
 
 # =============================================================================
-# Exact clause_id -> predicate function mapping (59 entries -- parity asserted in the test class).
+# Exact clause_id -> predicate function mapping (60 entries -- parity asserted in the test class).
 # =============================================================================
 
 PREDICATES = {
@@ -3499,6 +3553,7 @@ PREDICATES = {
     "HOST_SAFETY_LAYERED_DEFENSE.C7": predicate_HOST_SAFETY_LAYERED_DEFENSE_C7,
     "HOST_SAFETY_LAYERED_DEFENSE.C8": predicate_HOST_SAFETY_LAYERED_DEFENSE_C8,
     "HOST_SAFETY_LAYERED_DEFENSE.C9": predicate_HOST_SAFETY_LAYERED_DEFENSE_C9,
+    "HOST_SAFETY_LAYERED_DEFENSE.C10": predicate_HOST_SAFETY_LAYERED_DEFENSE_C10,
     "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C1": predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1,
     "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C2": predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C2,
     "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C3": predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C3,
@@ -3560,11 +3615,11 @@ def _load_real_registry_clause_ids() -> set:
 
 class TestAllClausePredicatesExecute(unittest.TestCase):
     """Enumerates the exact {clause_id: predicate function} mapping, asserts exact parity with the
-    real registry's 59 clause_ids, and executes every predicate under subTest -- a single
+    real registry's 60 clause_ids, and executes every predicate under subTest -- a single
     predicate raising AssertionError fails only that clause's subTest, not the whole run."""
 
     def test_mapping_has_exactly_59_entries(self):
-        self.assertEqual(len(PREDICATES), 59)
+        self.assertEqual(len(PREDICATES), 60)
 
     def test_mapping_matches_real_registry_clause_ids_exactly(self):
         self.assertEqual(set(PREDICATES), _load_real_registry_clause_ids())
@@ -3624,7 +3679,7 @@ def run_all_predicates() -> int:
     """Execute the exact registry mapping and emit a stable production verdict."""
     failures = []
     registry_ids = _load_real_registry_clause_ids()
-    if len(PREDICATES) != 59 or set(PREDICATES) != registry_ids:
+    if len(PREDICATES) != 60 or set(PREDICATES) != registry_ids:
         failures.append({"clause_id": "__mapping__", "error":
                          f"predicate/registry mismatch predicates={len(PREDICATES)} registry={len(registry_ids)}"})
     funcs = list(PREDICATES.values())

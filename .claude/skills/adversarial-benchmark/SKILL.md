@@ -152,6 +152,7 @@ description: >-
 ## 8. 안전 / 금지
 
 - **serve 를 기동하지 않는다**(돌고 있는 serve 검증만). 미가동 시 중단·보고. — 예외는 **별도 오퍼레이션 Max**(reload 를 스스로 소유, 이중 게이트).
+  - ★ **이 금지의 목적어는 추론 서버다**(2026-09-04 명문화 · `plan_26090415` §3.2). 원문이 "어떤 컨테이너도"로 읽히면 오늘의 `docker exec` 조차 금지되어 현실과 모순된다. **측정 도구 컨테이너는 teardown 계약 하에 이 스킬이 소유한다** — full 모드의 GuideLLM 이 그것이다. 소유의 기준은 **기동이 아니라 정리**다: 실질 실패모드는 "누가 띄웠나"가 아니라 "크래시가 컨테이너를 흘렸나"이므로 `--rm` + 모든 종료 경로의 teardown trap 이 계약이며, 메모리 예산은 **선언에서만** 오고(`--bench-budget-mib` · 기본값 없음) 커널이 `--memory` 로 강제한다. Max 의 이중 게이트는 여기 적용하지 않는다 — Max 가 이중인 이유는 추론 서버를 reload 해 통합메모리 OOM 이력에 직결되기 때문이고, 측정 도구는 그 축을 건드리지 않는다. 정본 술어는 `policy:HOST_SAFETY_LAYERED_DEFENSE.C10`.
 - 모델 자동 다운로드 금지(NAS 부재면 중단). 결정론 스크립트는 외부 네트워크 호출 없음 — **단 검증기 (b) 외부검색은 허용·의무**(모델획득 격리 한정).
 - 무승인 자동 escalate/rebuild ✗(escalation 은 승인 게이트). 무한 기각·무한 루프 ✗(cap → Model-C).
 - 게이트(PASS/REFUTE)는 결정론 규칙 — LLM 다수결로 결정하지 않는다. lite 는 `verdict_rule` 에 투입하지 않는다(inform-only).
@@ -165,7 +166,8 @@ description: >-
 
 **결정론 스크립트**
 - `scripts/roofline.py` — (a) spec-aware R_fp/R_token/expected(manifest+config/index).
-- `scripts/run_bench.sh` · `scripts/parse_bench.py` — full 경로 측정 M(+engine-log 교차).
+- `scripts/run_bench.sh` · `scripts/parse_bench.py` — 측정 M(+engine-log 교차). `--tool vllm|guidellm`(기본 `vllm`)이 도구를 고른다 — **lite 는 언제나 `vllm bench serve`**, full 만 GuideLLM 으로 간다(`full = lite ∪ GuideLLM`). 두 경로를 이질적으로 유지하는 것이 설계다: 통합하면 같은 버그가 양쪽에 균일하게 먹어 **일치해 보이면서 둘 다 틀리는** 상태가 되고, 실제로 그 이질성이 실결함 2건을 잡았다(2026-09-01·09-03).
+- `scripts/parse_guidellm.py` — GuideLLM `benchmarks.json` → **`parse_bench` 와 동일 계약**의 측정 M(소비자가 도구를 몰라도 되게). 정본 지표도 그대로 `1000/median(TPOT)`. **spec 축은 추측하지 않고 요구한다** — GuideLLM 은 수용길이를 보고하지 않는데 `verdict_rule` 은 `spec_on` 으로 물리 상한을 R_token/R_fp 중에서 고르므로, 조용한 False 는 거짓 판정이 된다. `--accept-len-src`(같은 스윕 lite 레그에서 승계) 또는 `--spec-axis-absent`(부재 명시) 중 **정확히 하나**가 필수다. **`--self-test`**(G1~G11 · 실측 산출물 픽스처 포함).
 - `scripts/verdict_rule.py` — 결정론 PASS/REFUTE 게이트(**`--authority weak|explicit|explore`** = E>c>expected / c>E>expected / E>expected(c 부재)(§2), like-with-like, spec-off 강제함수, 밸런스 축 — **`explore` 에서 밸런스는 게이트가 아니라 서술**(§2.1)). `explicit` + `--target-tps` 부재, `explore` + `--target-tps` 존재, `--target-tps|--reference-tps ≤0·NaN·Inf`, `--tolerance ∉[0,1)` 은 전부 **fail-closed(exit 2)** — 침묵 폴백 금지. **`--self-test`** 로 T1~T16 결정론 자체검사(파일 입력 불요 — T16 = explore 밸런스=서술 회귀).
 - `scripts/resolve_bench_tool.py` + `bench_tool_pin.json` — **측정 도구 컨테이너 핀**. 태그와 digest 를 병기하되 **판정 권위는 digest 단일**이다(같은 태그가 노드마다 다른 이미지를 가리킨 실측 선례). 이미지 부재는 **자동 pull 하지 않고 exit 3**(사전 스테이징 계약 — airgap-safe 불변식 보존), digest 드리프트는 **exit 4**(태그가 같아도 통과 ✗). 핀 갱신은 파일을 고쳐 리뷰에 태우는 것이지 실행 시점 흡수가 아니다. **`--self-test`**(P1~P8).
 - `scripts/judge_bench.sh` — **루브릭 권한 통로**(roofline → verdict 체인). `--authority` 는 **필수이며 기본값이 없다** — 권한은 사용자 HITL 트리거이지 스크립트의 판단이 아니고, 기본값을 두면 "사용자가 약한 권한을 골랐다"와 "아무도 안 골랐다"가 구분 불가가 된다(이것이 1년간 explore 인증서 0건이었던 원인이다). 권한↔`--target-tps` 조합 규칙은 **복제하지 않고** `verdict_rule.py` 의 exit 2 를 그대로 전달한다. 루프라인 입력은 `sweep_index.json` meta 에서 **승계**한다(파생 복제 ✗).

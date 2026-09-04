@@ -32,8 +32,16 @@ TOPO=""; LEVELS="1,2,4,8,16"; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; VLLM_
 #   무력해져 **모든 레벨의 TPOT 이 동시에 왜곡**된다(run_bench.sh 의 BACKEND 주석 참조).
 #   판정점(동시성=1)을 스윕이 포함하므로 그 왜곡은 곧 verdict 왜곡이다.
 BACKEND="openai-chat"
+# ★ 2026-09-04(CP5 · plan_26090415 §3.1·§3.7) — 모드별 측정 도구 선택.
+#   lite 레그는 이 노브와 무관하게 **언제나 `vllm bench serve`** 다(`full = lite ∪ GuideLLM`).
+#   두 레그를 이질적으로 유지하는 것이 설계이며, 그 이질성이 실결함 2건을 잡았다(2026-09-01·09-03).
+#   `--tool guidellm` 은 **레벨 측정만** 옮긴다.
+TOOL="vllm"
+BENCH_BUDGET_MIB=""
 while [ $# -gt 0 ]; do case "$1" in
   --topology) TOPO="$2"; shift 2;;
+  --tool) TOOL="$2"; shift 2;;
+  --bench-budget-mib) BENCH_BUDGET_MIB="$2"; shift 2;;
   --backend) BACKEND="$2"; shift 2;;
   --reassemble-only) REASSEMBLE=1; shift;;
   --levels) LEVELS="$2"; shift 2;;
@@ -45,6 +53,18 @@ while [ $# -gt 0 ]; do case "$1" in
   --dry-run) DRYRUN=1; shift;;
   *) echo "[sweep_bench] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
+
+case "$TOOL" in
+  vllm) ;;
+  guidellm)
+    # 예산 미선언을 여기서 친다 — 뒤로 미루면 lite 레그와 레벨 1 을 다 돌고 나서야 드러난다.
+    case "$BENCH_BUDGET_MIB" in
+      ''|*[!0-9]*) echo "[sweep_bench] ERROR --tool guidellm 에는 --bench-budget-mib <양의 정수> 가 필수다(기본값 없음 · §4.8)" >&2; exit 2;;
+    esac
+    [ "$BENCH_BUDGET_MIB" -gt 0 ] || { echo "[sweep_bench] ERROR --bench-budget-mib 는 양수여야 한다" >&2; exit 2; }
+    ;;
+  *) echo "[sweep_bench] 알 수 없는 --tool: $TOOL (vllm|guidellm)" >&2; exit 2;;
+esac
 
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(git -C "$SDIR" rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -69,12 +89,12 @@ EF="$REPO/output/$TOPO/envs/.env.${CONFIG}"
 MANIFEST="$REPO/output/$TOPO/manifest.yaml"
 SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
 
-echo "[sweep_bench] config=$CONFIG topo=$TOPO levels=[${SORTED[*]}] in=$ILEN out=$OLEN n=$NPROMPTS warmup=$WARMUPS"
+echo "[sweep_bench] config=$CONFIG topo=$TOPO levels=[${SORTED[*]}] in=$ILEN out=$OLEN n=$NPROMPTS warmup=$WARMUPS tool=$TOOL${BENCH_BUDGET_MIB:+ bench_budget=${BENCH_BUDGET_MIB}MiB}"
 echo "[sweep_bench] sweepdir=$SWEEPDIR (판정점=동시성1 재사용)"
 if [ "$DRYRUN" = "1" ]; then
   echo "[sweep_bench] DRY-RUN — 레벨별 실행 계획:"
   for L in "${SORTED[@]}"; do
-    echo "  level $L → run_bench.sh $CONFIG --topology $TOPO --concurrency $L --out-dir $SWEEPDIR/level_$(printf '%02d' "$L")"
+    echo "  level $L → run_bench.sh $CONFIG --topology $TOPO --concurrency $L --tool $TOOL${BENCH_BUDGET_MIB:+ --bench-budget-mib $BENCH_BUDGET_MIB} --out-dir $SWEEPDIR/level_$(printf '%02d' "$L")"
   done
   echo "[sweep_bench] DRY-RUN 종료(실제 벤치·assemble 생략)"
   exit 0
@@ -145,11 +165,31 @@ COMPLETED=()
 for L in "${SORTED[@]}"; do
   LDIR="$SWEEPDIR/level_$(printf '%02d' "$L")"; mkdir -p "$LDIR"
   echo "[sweep_bench] ── level 동시성=$L ──"
-  if bash "$SDIR/run_bench.sh" "$CONFIG" --topology "$TOPO" --concurrency "$L" \
-        --input-len "$ILEN" --output-len "$OLEN" --num-prompts "$NPROMPTS" \
-        --warmups "$WARMUPS" --backend "$BACKEND" --out-dir "$LDIR"; then
-    BJSON="$LDIR/bench_${CONFIG}.json"; ELOG="$LDIR/engine_${CONFIG}.log"
-    if python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG" > "$LDIR/measured.json" 2>/dev/null \
+  RB_ARGS=("$CONFIG" --topology "$TOPO" --concurrency "$L"
+           --input-len "$ILEN" --output-len "$OLEN" --num-prompts "$NPROMPTS"
+           --warmups "$WARMUPS" --backend "$BACKEND" --out-dir "$LDIR" --tool "$TOOL")
+  [ -n "$BENCH_BUDGET_MIB" ] && RB_ARGS+=(--bench-budget-mib "$BENCH_BUDGET_MIB")
+  if bash "$SDIR/run_bench.sh" "${RB_ARGS[@]}"; then
+    ELOG="$LDIR/engine_${CONFIG}.log"
+    # 파서는 도구가 정한다 — 스키마가 다르므로 파일명도 다르고, 잘못된 파서가 조용히 빈 값을
+    # 내는 일이 없게 한다.
+    if [ "$TOOL" = "guidellm" ]; then
+      BJSON="$LDIR/guidellm_${CONFIG}.json"
+      # spec 축은 GuideLLM 이 보고하지 않는다. **같은 스윕의 lite 레그**에서 승계한다 —
+      # 이것이 `full = lite ∪ GuideLLM` 이 값으로 갚아 주는 자리다. lite 가 절삭됐으면
+      # 부재를 명시 선언한다(그 사실은 이미 truncation.log 에 남아 있다).
+      if [ -n "$LITE_RAW" ] && [ -s "$LITE_RAW" ]; then
+        PARSE_CMD=(python3 "$SDIR/parse_guidellm.py" --benchmarks-json "$BJSON"
+                   --engine-log "$ELOG" --accept-len-src "$LITE_RAW")
+      else
+        PARSE_CMD=(python3 "$SDIR/parse_guidellm.py" --benchmarks-json "$BJSON"
+                   --engine-log "$ELOG" --spec-axis-absent)
+      fi
+    else
+      BJSON="$LDIR/bench_${CONFIG}.json"
+      PARSE_CMD=(python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG")
+    fi
+    if "${PARSE_CMD[@]}" > "$LDIR/measured.json" 2>/dev/null \
        && python3 -c "import json,sys; d=json.load(open('$LDIR/measured.json')); sys.exit(0 if d.get('measurement_ok') else 1)"; then
       COMPLETED+=("$L"); echo "[sweep_bench] level $L ✓"
     else
@@ -458,6 +498,29 @@ meta = {
     "serving_model_name": grep_env(envtext, "SERVING_MODEL_NAME") or "NA",
     "model_path": grep_yaml(cfgtext, "model") or "NA",
 }
+
+# ── 측정 도구 소프트 지문 (plan_26090415 §3.6 · 2026-09-04) ──────────────────────
+#   **강한키 6종은 불변**이다. 도구를 7번째 강한키로 올리면 부재값 None 대 "N/A" 비교 때문에
+#   레거시 인증서 45장이 같은 vLLM-bench 런에 대해서도 즉시 전부 무효화된다. 같은 범주(측정 환경
+#   지문)의 처방은 이미 소프트로 굳어 있다 — runtime_selftest 가 `image_digest not in
+#   CERTIFICATE_RUN_KEY_FIELDS` 를 하드 assert 한다.
+#   값은 **파서가 산출물에서 실측한 것을 승계**한다. 여기서 TOOL 환경변수를 그대로 적으면
+#   "무엇을 시켰나"가 되고, 우리가 남겨야 하는 것은 "무엇이 실제로 쟀나"다.
+_bt, _btv, _btv_src = "NA", "NA", "unavailable"
+for _lvl in sorted(completed):
+    _mp = os.path.join(sweepdir, "level_%02d" % _lvl, "measured.json")
+    try:
+        with open(_mp, encoding="utf-8") as _f:
+            _md = json.load(_f)
+    except (OSError, ValueError):
+        continue
+    _bt = _md.get("bench_tool") or "vllm-bench-serve"
+    _btv = _md.get("bench_tool_version") or "NA"
+    _btv_src = _md.get("bench_tool_version_source") or "declared(도구가 버전을 자기보고하지 않는다)"
+    break
+meta["bench_tool"] = _bt
+meta["bench_tool_version"] = _btv
+meta["bench_tool_version_source"] = _btv_src
 
 levels = []
 for L in sorted(completed):

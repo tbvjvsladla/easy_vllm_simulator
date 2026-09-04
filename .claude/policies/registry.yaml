@@ -13,7 +13,7 @@
       "clauses": [
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C1",
-          "statement": "Layered defense = a systemd-resident mem_watchdog (broad @vllm filter) plus a harness-scoped watchdog instance auto-started by run_trial/multinode_serve_smoke.sh, container oom_score_adj=800, earlyoom as a process-level backstop, and a pre-load RAM gate that compares checkpoint total_size/TP plus a floor against MemAvailable."
+          "statement": "Layered defense = a systemd-resident mem_watchdog (broad @vllm mode) plus a harness-scoped watchdog instance auto-started by run_trial/multinode_serve_smoke.sh, container oom_score_adj=800, earlyoom as a process-level backstop, and a pre-load RAM gate that compares checkpoint total_size/TP plus a floor against MemAvailable. Broad mode selects kill targets by matching vllm against the container name and the image *repository* name only -- the registry and organisation path segments are outside the matching plane, so a measurement tool published under a vllm-named organisation is not killed alongside the server it is measuring, while servers whose container name carries no vllm are still caught through the image."
         },
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C2",
@@ -46,6 +46,10 @@
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C9",
           "statement": "Removal of the legacy host-safety installation is a separate, non-installing script (node_blackbox/purge_host_safety.sh) so no node is ever left in a partially applied purge-plus-reinstall state: it defaults to dry-run and destroys only when a human re-invokes it with --apply as root; it refuses to run before the Phase 0 journal harvest unless the operator explicitly waives the gate with --no-require-seed or names a stored seed with --seed-dir, because the mem_watchdog journal is the envelope's only initial data and is unrecoverable once the unit is removed and its journal vacuumed; every destructive step propagates its rc into a single FAIL verdict so a failed removal can never print a clean purge verdict that a reinstall would then build on; stray narrow-scope watchdog processes are terminated by PID resolved through argv field anchors only, never by a blanket pgrep -f/pkill -f match; and the GRUB config is copied to a verified backup before regeneration, with residue judged only from a readable grub.cfg -- an unreadable file is reported as undecidable, never as clean."
+        },
+        {
+          "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C10",
+          "statement": "The full-mode measurement tool runs as a separate container owned by the benchmark skill under a teardown contract, which is a host-safety concern because the load generator shares unified memory with the inference server: its memory budget is explicitly declared with no default and enforced by the kernel via --memory, it is launched with --rm and removed by a teardown trap on every exit path so a crashed run cannot leak a container that keeps holding memory, and its image is resolved from a tracked digest pin whose absence and drift are distinguishable fail-closed refusals rather than an implicit pull. The inference server itself is still never started or stopped by this skill."
         }
       ],
       "evidence": [
@@ -269,6 +273,39 @@
           ],
           "assertion_ids": [
             "predicate_HOST_SAFETY_LAYERED_DEFENSE_C9"
+          ]
+        },
+        {
+          "path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C10"
+          ],
+          "assertion_ids": [
+            "TOOL",
+            "BENCH_BUDGET_MIB",
+            "bench_with_guidellm",
+            "bench_with_vllm"
+          ]
+        },
+        {
+          "path": ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C10"
+          ],
+          "assertion_ids": [
+            "RC_ABSENT",
+            "RC_DRIFT",
+            "classify",
+            "accepted_digests"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C10"
+          ],
+          "assertion_ids": [
+            "predicate_HOST_SAFETY_LAYERED_DEFENSE_C10"
           ]
         }
       ],

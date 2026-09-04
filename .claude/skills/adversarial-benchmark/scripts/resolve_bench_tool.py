@@ -26,7 +26,12 @@ import sys
 DEFAULT_TOOL = "guidellm"
 PIN_RELATIVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "bench_tool_pin.json")
 
-RC_OK, RC_ARGS, RC_ABSENT, RC_DRIFT = 0, 2, 3, 4
+# 종료코드는 **개별 대입**으로 둔다 — 튜플 대입은 policy_registry 의 식별자 추출기가 잡지 못해
+# 정책 증거로 배선할 수 없다(추출기가 인정하는 것은 변수 대입·함수명·--longopt case 뿐).
+RC_OK = 0        # 핀과 일치
+RC_ARGS = 2      # 인자·핀 파일 오류
+RC_ABSENT = 3    # 이미지 부재 — 사전 스테이징 필요(자동 pull ✗)
+RC_DRIFT = 4     # 태그는 같은데 내용이 다르다
 
 
 class PinError(ValueError):
