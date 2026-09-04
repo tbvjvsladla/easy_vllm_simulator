@@ -404,11 +404,15 @@ def _safe_stat_in_dir(dir_fd: int, basename: str) -> str:
     return "other"
 
 
-def _safe_listdir_names(dir_fd: int) -> set:
+def _safe_listdir_names(dir_fd: int, error_prefix: str = "EVIDENCE_DIR") -> set:
+    """디렉터리 목록은 충돌 감지의 입력이다 — 읽기 실패를 빈 집합으로 접으면 충돌 감지가 꺼진 채
+    기존 파일 위에 쓴다(감사 A-3: 종전 `except OSError: return set()`). fail-closed."""
     try:
         return set(os.listdir(dir_fd))
-    except OSError:
-        return set()
+    except OSError as e:
+        _emit(_bare_error(f"{error_prefix}_LISTDIR_FAILED",
+                          f"could not list the destination directory (collision detection would be "
+                          f"blind — refusing to write): {e}"), 2)
 
 
 def _safe_replace_file(dir_fd: int, basename: str, content_bytes: bytes, error_prefix: str) -> None:
@@ -865,6 +869,9 @@ def cmd_append_raw(args: argparse.Namespace) -> None:
         finally:
             os.close(dir_fd)
         recorded_rel = "%s/%s" % (simlog_rel, dest_name)
+        # 종전엔 여기서 조기 emit 해 record.raw_log_paths 에 simlog 가 영영 안 실렸다(5개 record 전부 {}).
+        record.setdefault("raw_log_paths", {})["simlog"] = simlog_rel
+        _save_record(repo_root, args.topic, record)
         _emit({
             "schema_version": SCHEMA_VERSION, "ok": True, "reason_codes": [], "messages": {},
             "publication_id": args.topic, "kind": args.kind, "recorded_path": recorded_rel, "sha256": sha256,
@@ -1068,130 +1075,95 @@ def cmd_record_capacity_rejection(args: argparse.Namespace) -> None:
 # certificate from the manifest's own claims).
 # =============================================================================
 
-def _identity_to_bench_meta(identity: dict) -> dict:
-    # gpu 는 자유텍스트("NVIDIA GB10")고 파일명 키는 정규화형("GB10")이다. 변환은 명명 SSOT 가
-    # 소유한다 — 여기서 날것을 넘기면 인증서 파일명에 공백이 들어가고, 같은 런의 인증서가 두 이름을
-    # 갖는다(2026-08-24 최초·2026-09-04 재발).
-    return {"model": identity.get("model"), "gpu_key": doc_naming.gpu_key(identity.get("gpu")),
-            "vllm_version": identity.get("vllm")}
+# =============================================================================
+# publish-benchmark = **바인딩**(복사 ✗) — plan_26090410 P1 (2026-09-04)
+#
+# 왜 바뀌었나: 종전 publish-benchmark 는 `--certificate-src`(이미 `docs/benchmark/` 의 추적 원본)를
+# 읽어 **발행 시각** 이름으로 다시 썼다. 원본은 측정 시각 이름이라 두 이름은 절대 같아지지 않았고,
+# 같은 측정의 인증서가 두 파일로 추적됐다(2026-09-04 실측 8쌍 · 바이트 동일). `0afa3ee` 가 사본
+# 1개를 손으로 지웠지만 생성기가 남아 하루 만에 재발했다. 사본은 digest 시대의 잔재가 아니라
+# "토픽이 파일을 소유한다" 는 설계 전제였고(같은 토픽 재발행 = in-place 덮어쓰기), 08-20 인증서가
+# 추적 예외로 승격되면서 그 전제의 비용이 git 에 생겼다.
+#
+# 이제 publisher 는 벤치 산출물을 **만들지도 지우지도 않는다**. 정본 발행자는 벤치 스킬
+# (`adversarial-benchmark` — bench-certificate owner)이고, 여기서는 그 파일이 규약 위치·규약 이름
+# 이며 이 발행의 identity 와 맞는지 확인한 뒤 **경로를 기록**한다(`verification`/`commit` 의
+# `_POINTER_ONLY_KINDS` 선례와 같은 모델). PASS→FAIL 전이는 unlink 가 아니라 **unbind** 다 —
+# 종전 코드는 스킬이 발행한 추적 원본을 지웠을 것이다.
+# =============================================================================
+
+BENCH_CANONICAL_PREFIX = ("docs", "benchmark")
+_BENCH_SRC_NAME_RE = {
+    "bench_report": re.compile(r"^bench_report_\d{8}(?:_\d{2}_\d{2})?_.+\.md$"),
+    "benchmark": re.compile(r"^benchmark_\d{8}(?:_\d{2}_\d{2})?_.+\.yaml$"),
+}
 
 
-def _publish_dated_kind_no_prefix(repo_root: Path, kind: str, meta: dict,
-                                   generated_utc, content_bytes: bytes, ext: str, prior_rel_path):
-    """Shared helper for bench_report/benchmark(certificate) under docs/benchmark/: republishing
-    the SAME topic reuses its previously recorded filename (overwrite-in-place, through the same
-    symlink-rejecting dir_fd machinery as every other publisher-controlled write -- the persisted
-    path is re-validated, never trusted); a topic publishing for the first time computes a fresh,
-    collision-checked name via doc_naming.bench_filename (NamingCollisionExhausted propagates to
-    the caller, which maps it to a stable reason code)."""
-    error_prefix = "PUBLISH_BENCHMARK_%s" % kind.upper()
+def _require_canonical_bench_src(repo_root: Path, src: str, kind: str, error_prefix: str) -> str:
+    """`src` 가 `docs/benchmark/` 아래의 규약 이름(`bench_report_*.md` / `benchmark_*.yaml`)인지 확인하고
+    정규화된 repo-relative 경로를 돌려준다. 다른 곳의 파일은 **거부**한다 — 그것을 받아 옮기는 순간
+    publisher 가 두 번째 발행자가 되고 사본이 생긴다."""
+    if gate._is_absolute_path_string(src):
+        _emit(_bare_error(f"{error_prefix}_SRC_NOT_CANONICAL",
+                          f"{kind} src must be repo-relative under docs/benchmark/, got absolute {src!r}"), 2)
+    lex_status, parts = gate._lexical_components(repo_root, repo_root, src)
+    if lex_status != "ok" or tuple(parts[:2]) != BENCH_CANONICAL_PREFIX or len(parts) != 3:
+        _emit(_bare_error(f"{error_prefix}_SRC_NOT_CANONICAL",
+                          f"{kind} src must be a file directly under docs/benchmark/ (the bench skill is the "
+                          f"sole issuer — publisher binds, never copies): {src!r}"), 2)
+    if not _BENCH_SRC_NAME_RE[kind].match(parts[-1]):
+        _emit(_bare_error(f"{error_prefix}_SRC_NOT_CANONICAL",
+                          f"{kind} src basename does not follow the naming canon "
+                          f"({_BENCH_SRC_NAME_RE[kind].pattern}): {parts[-1]!r}"), 2)
+    return "/".join(parts)
+
+
+def _bench_stem(rel_path: str) -> str:
+    """`docs/benchmark/bench_report_26090407_m_GB10_0.18.0.md` → `26090407_m_GB10_0.18.0`. 같은 측정의
+    report/certificate 는 같은 생산자가 같은 측정 시각으로 이름 지으므로 stem 이 같아야 한다."""
+    name = rel_path.rsplit("/", 1)[-1]
+    name = name.rsplit(".", 1)[0]
+    return name.split("_", 1)[1] if name.startswith("benchmark_") else name.split("_", 2)[2]
+
+
+def _certificates_matching_key(repo_root: Path, key: tuple, error_prefix: str) -> list[str]:
+    """`docs/benchmark/benchmark_*.yaml` 을 열거·파싱해 측정 키(`completion_gate.certificate_run_key`)가
+    같은 파일들의 repo-relative 경로를 돌려준다. 발행 시점의 **중복 감지기**다 — 결과가 정확히 1건
+    (= src 자신)이 아니면 호출부가 거부한다. 파싱 불가/키 결측 파일은 매치 대상이 아니지만 삼키지
+    않고 stderr 에 남긴다(부재≠결측)."""
     repo_root_fd = _open_repo_root_fd(repo_root)
     try:
-        if prior_rel_path:
-            parts = _validate_prior_path(repo_root, prior_rel_path, ("docs", "benchmark"), error_prefix)
-            dir_fd = _safe_mkdir_chain(repo_root_fd, parts[:-1], error_prefix)
+        dir_fd = _safe_mkdir_chain(repo_root_fd, list(BENCH_CANONICAL_PREFIX), error_prefix)
+    finally:
+        os.close(repo_root_fd)
+    try:
+        names = sorted(n for n in _safe_listdir_names(dir_fd, error_prefix)
+                       if _BENCH_SRC_NAME_RE["benchmark"].match(n))
+    finally:
+        os.close(dir_fd)
+    matches: list[str] = []
+    repo_root_fd = _open_repo_root_fd(repo_root)
+    try:
+        for name in names:
+            rel = "docs/benchmark/" + name
+            r = gate.resolve_and_stat_evidence(repo_root_fd, repo_root, repo_root, rel,
+                                                expect_dir=False, capture_content=True)
+            if r["status"] != "ok":
+                print(f"[evidence_publisher] WARN certificate {rel} unreadable ({r['status']}) — "
+                      f"excluded from key resolution (not silently treated as non-matching)", file=sys.stderr)
+                continue
             try:
-                basename = parts[-1]
-                _safe_replace_file(dir_fd, basename, content_bytes, error_prefix)
-            finally:
-                os.close(dir_fd)
-            return prior_rel_path
-        dir_fd = _safe_mkdir_chain(repo_root_fd, ["docs", "benchmark"], error_prefix)
-        try:
-            existing = _safe_listdir_names(dir_fd)
-            try:
-                basename = doc_naming.bench_filename(kind, meta, generated_utc, existing_basenames=existing, ext=ext)
-            except doc_naming.NamingCollisionExhausted as e:
-                _emit(_bare_error(f"{error_prefix}_COLLISION_EXHAUSTED", str(e)), 2)
-            _safe_replace_file(dir_fd, basename, content_bytes, error_prefix)
-        finally:
-            os.close(dir_fd)
-        return "docs/benchmark/%s" % basename
+                text = (r["content_bytes"] or b"").decode("utf-8")
+            except UnicodeDecodeError:
+                print(f"[evidence_publisher] WARN certificate {rel} not UTF-8 — excluded", file=sys.stderr)
+                continue
+            fields, ok = gate.parse_flat_certificate(text)
+            other = gate.certificate_run_key(fields) if ok else None
+            if other == key:
+                matches.append(rel)
     finally:
         os.close(repo_root_fd)
-
-
-def _plan_dated_kind_destination(repo_root: Path, kind: str, meta: dict, generated_utc, ext: str,
-                                  prior_rel_path, error_prefix: str) -> str:
-    """P2-FINAL-05 PLAN phase (validate-only, writes nothing): resolves and validates the exact
-    destination `_publish_dated_kind_no_prefix` will later write to, WITHOUT writing any content
-    bytes yet. Republishing the same topic re-validates (never re-trusts) its previously recorded
-    path via _validate_prior_path; a first-time publish computes a fresh, collision-checked name
-    against the real directory listing -- the identical decision _publish_dated_kind_no_prefix
-    itself makes, so the later commit-phase call is guaranteed to land on this same path. A
-    tampered/escaping prior path or a naming-collision exhaustion is rejected HERE, before the
-    caller writes a single byte of report/certificate/record content."""
-    if prior_rel_path:
-        _validate_prior_path(repo_root, prior_rel_path, ("docs", "benchmark"), error_prefix)
-        return prior_rel_path
-    repo_root_fd = _open_repo_root_fd(repo_root)
-    try:
-        dir_fd = _safe_mkdir_chain(repo_root_fd, ["docs", "benchmark"], error_prefix)
-    finally:
-        os.close(repo_root_fd)
-    try:
-        existing = _safe_listdir_names(dir_fd)
-    finally:
-        os.close(dir_fd)
-    try:
-        basename = doc_naming.bench_filename(kind, meta, generated_utc, existing_basenames=existing, ext=ext)
-    except doc_naming.NamingCollisionExhausted as e:
-        _emit(_bare_error(f"{error_prefix}_COLLISION_EXHAUSTED", str(e)), 2)
-    return "docs/benchmark/%s" % basename
-
-
-def _plan_remove_certificate(repo_root: Path, prior_rel_path: str) -> None:
-    """P2-FINAL-05 PLAN phase (validate-only, unlinks nothing): confirms `prior_rel_path` is safe
-    to remove -- performs the EXACT same checks _remove_prior_certificate performs immediately
-    before it unlinks (repo-contained, under docs/benchmark/, and, if present, a plain regular
-    file -- never a symlink or directory) -- but never touches the filesystem beyond a read-only
-    stat. Used so an unsafe prior certificate pointer (tampered to escape the repo, or swapped for
-    a symlink) is rejected here, before the bench_report this call is about to publish alongside
-    it has been written -- report/certificate/record must reject together, not one after another."""
-    error_prefix = "PUBLISH_BENCHMARK_CERTIFICATE_CLEANUP"
-    parts = _validate_prior_path(repo_root, prior_rel_path, ("docs", "benchmark"), error_prefix)
-    repo_root_fd = _open_repo_root_fd(repo_root)
-    try:
-        dir_fd = _safe_mkdir_chain(repo_root_fd, parts[:-1], error_prefix)
-    finally:
-        os.close(repo_root_fd)
-    try:
-        kind_of = _safe_stat_in_dir(dir_fd, parts[-1])
-        if kind_of not in ("missing", "file"):
-            _emit(_bare_error(f"{error_prefix}_TARGET_UNSAFE",
-                              f"prior certificate path {prior_rel_path!r} is not a plain regular "
-                              f"file (kind={kind_of!r}) -- refusing to unlink it"), 2)
-    finally:
-        os.close(dir_fd)
-
-
-def _remove_prior_certificate(repo_root: Path, prior_rel_path: str) -> None:
-    """P2-A02: on a PASS->FAIL/REFUTE transition, a certificate published by an earlier PASS run
-    of this same topic must not keep being associated with the new, contradictory verdict. Only a
-    re-validated (repo-relative, under docs/benchmark/, no '..' escape), lstat-confirmed REGULAR
-    FILE is ever unlinked -- a persisted record path is never trusted as-is (matches the same
-    _validate_prior_path/_safe_stat_in_dir discipline every other publisher-controlled write path
-    uses). A symlink, directory, or escaping path fails closed (stable JSON, exit 2) rather than
-    ever unlinking through it; an already-missing file is a no-op (nothing to clean up)."""
-    error_prefix = "PUBLISH_BENCHMARK_CERTIFICATE_CLEANUP"
-    parts = _validate_prior_path(repo_root, prior_rel_path, ("docs", "benchmark"), error_prefix)
-    repo_root_fd = _open_repo_root_fd(repo_root)
-    try:
-        dir_fd = _safe_mkdir_chain(repo_root_fd, parts[:-1], error_prefix)
-    finally:
-        os.close(repo_root_fd)
-    try:
-        basename = parts[-1]
-        kind_of = _safe_stat_in_dir(dir_fd, basename)
-        if kind_of == "missing":
-            return
-        if kind_of != "file":
-            _emit(_bare_error(f"{error_prefix}_TARGET_UNSAFE",
-                              f"prior certificate path {prior_rel_path!r} is not a plain regular "
-                              f"file (kind={kind_of!r}) -- refusing to unlink it"), 2)
-        os.unlink(basename, dir_fd=dir_fd)
-    finally:
-        os.close(dir_fd)
+    return matches
 
 
 # ---- rubric carrier for non-PASS runs (plan_26082405) ----------------------------------------
@@ -1274,7 +1246,6 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
                           f"own CERTIFICATE_PRESENT_WITHOUT_PASS_VERDICT structural contract)"), 2)
 
     identity = record.get("identity") or {}
-    meta = _identity_to_bench_meta(identity)
     scaffolded_before = record.get("scaffolded", {})
     report_error_prefix = "PUBLISH_BENCHMARK_BENCH_REPORT"
     cert_error_prefix = "PUBLISH_BENCHMARK_CERTIFICATE"
@@ -1286,30 +1257,29 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
     # leaves the bench_report, certificate, and persisted record bytes ALL exactly as they were
     # before this command ran: no orphan new report, no report/record contradiction.
     # =========================================================================
-    report_bytes, _sha = _resolve_src(repo_root, args.bench_report_src, report_error_prefix)
+    # 바인딩 대상은 벤치 스킬이 `docs/benchmark/` 에 규약 이름으로 **이미 발행한** 파일이어야 한다.
+    report_src_rel = _require_canonical_bench_src(repo_root, args.bench_report_src, "bench_report", report_error_prefix)
+    _report_bytes, _report_sha = _resolve_src(repo_root, report_src_rel, report_error_prefix)
     rubric_record = {field: None for field in RUBRIC_RECORD_FIELDS}
     if args.verdict_json_src:
         rubric_record = _rubric_from_verdict_json(
             repo_root, args.verdict_json_src, args.verdict, "PUBLISH_BENCHMARK_VERDICT_JSON")
-    _plan_dated_kind_destination(
-        repo_root, "bench_report", meta, args.generated_utc, "md",
-        scaffolded_before.get("bench_report"), report_error_prefix,
-    )
+    elif args.verdict != "PASS":
+        # 감사 A-7: REFUTE 런에 판정기 산출물이 없으면 rubric 통로가 무경고로 닫혀 explore 자동개방이
+        # 죽은 코드로 되돌아간다. 차단은 아니지만 **소리내어** 남긴다.
+        print("[evidence_publisher] WARN PUBLISH_BENCHMARK_RUBRIC_CARRIER_ABSENT: non-PASS publication without "
+              "--verdict-json-src — rubric authority will not reach the promotion gate", file=sys.stderr)
 
     prior_cert_rel = scaffolded_before.get("certificate")
+    # P2-A02 의 의도(FAIL/REFUTE 재발행이 옛 PASS 인증서를 계속 물고 있지 않게)는 유지하되, 실행은
+    # **unbind** 다 — 파일은 벤치 스킬의 추적 원본이므로 publisher 가 지울 권한이 없다.
     clear_prior_certificate = args.verdict != "PASS" and bool(prior_cert_rel)
-    if clear_prior_certificate:
-        # P2-A02: a FAIL/REFUTE republish of a topic that previously PASSed with a certificate
-        # must not leave that certificate silently still associated with the new, contradictory
-        # verdict. P2-FINAL-05: this safety check now runs BEFORE the bench_report write below,
-        # not after it -- an unsafe prior certificate pointer must reject the whole transition,
-        # not just the certificate half of it.
-        _plan_remove_certificate(repo_root, prior_cert_rel)
 
-    cert_bytes = None
-    cert_dest_rel = None
+    cert_src_rel = None
+    cert_key = None
     if args.verdict == "PASS" and args.certificate_src:
-        cert_bytes, _csha = _resolve_src(repo_root, args.certificate_src, cert_error_prefix)
+        cert_src_rel = _require_canonical_bench_src(repo_root, args.certificate_src, "benchmark", cert_error_prefix)
+        cert_bytes, _csha = _resolve_src(repo_root, cert_src_rel, cert_error_prefix)
         try:
             cert_text = cert_bytes.decode("utf-8")
         except UnicodeDecodeError:
@@ -1336,10 +1306,27 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
             _emit(_bare_error(f"{cert_error_prefix}_IDENTITY_MISMATCH",
                               f"certificate identity field(s) {mismatched} do not match this "
                               f"publication's recorded identity -- refusing to publish a mismatched certificate"), 2)
-        cert_dest_rel = _plan_dated_kind_destination(
-            repo_root, "benchmark", meta, args.generated_utc, "yaml",
-            scaffolded_before.get("certificate"), cert_error_prefix,
-        )
+        # 측정 키로 되찾으면 **정확히 src 1건**이어야 한다 — 2건+ 는 같은 측정이 이미 두 파일로
+        # 추적됐다는 뜻이고(중복층), 0건은 키를 못 세운 것이다. 발행 시점에서 잡는다.
+        cert_key = gate.certificate_run_key(fields)
+        if cert_key is None:
+            _emit(_bare_error(f"{cert_error_prefix}_KEY_UNRESOLVABLE",
+                              f"certificate {cert_src_rel!r} lacks a strong identity field or measured_utc -- "
+                              f"cannot identify the measurement it certifies (fail-closed)"), 2)
+        matches = _certificates_matching_key(repo_root, cert_key, cert_error_prefix)
+        if matches != [cert_src_rel]:
+            others = [m for m in matches if m != cert_src_rel]
+            same_bytes = all((repo_root / m).read_bytes() == cert_bytes for m in others)
+            _emit(_bare_error(f"{cert_error_prefix}_AMBIGUOUS",
+                              f"measurement {cert_key[0]}@{cert_key[-1]} is certified by {len(matches)} tracked "
+                              f"files, not one: {matches} -- "
+                              + ("byte-identical: a duplicate layer; delete all but the original"
+                                 if same_bytes else
+                                 "DIFFERENT bytes for the same measurement: publication-chain defect")), 2)
+        if _bench_stem(cert_src_rel) != _bench_stem(report_src_rel):
+            _emit(_bare_error("PUBLISH_BENCHMARK_REPORT_CERTIFICATE_STEM_MISMATCH",
+                              f"bench_report {report_src_rel!r} and certificate {cert_src_rel!r} do not share a "
+                              f"stem -- they were not issued for the same measurement"), 2)
 
     # =========================================================================
     # COMMIT PHASE: everything above already validated -- nothing here is expected to reject.
@@ -1348,25 +1335,24 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
     # saved LAST, so it only ever describes a bench_report/certificate state that has already
     # fully landed on disk.
     # =========================================================================
-    bench_report_rel = _publish_dated_kind_no_prefix(
-        repo_root, "bench_report", meta, args.generated_utc, report_bytes, "md",
-        scaffolded_before.get("bench_report"),
-    )
     scaffolded = record.setdefault("scaffolded", {})
-    scaffolded["bench_report"] = bench_report_rel
+    binding_events: dict = {}
+    if scaffolded_before.get("bench_report") not in (None, report_src_rel):
+        binding_events["bench_report_rebound_from"] = scaffolded_before.get("bench_report")
+    scaffolded["bench_report"] = report_src_rel           # 바인딩 — 바이트는 쓰지 않는다
 
     if clear_prior_certificate:
-        _remove_prior_certificate(repo_root, prior_cert_rel)
-        scaffolded["certificate"] = None
+        scaffolded["certificate"] = None                   # unbind — 파일은 그대로(스킬의 추적 원본)
+        binding_events["certificate_unbound_from"] = prior_cert_rel
 
     certificate_rel = scaffolded.get("certificate") if args.verdict == "PASS" else None
     pending_certificate = args.verdict == "PASS"
-    if cert_dest_rel:
-        certificate_rel = _publish_dated_kind_no_prefix(
-            repo_root, "benchmark", meta, args.generated_utc, cert_bytes, "yaml",
-            scaffolded_before.get("certificate"),
-        )
-        scaffolded["certificate"] = certificate_rel
+    if cert_src_rel:
+        if prior_cert_rel not in (None, cert_src_rel):
+            # 감사 A-2: 같은 토픽에 다른 인증서를 다시 묶는 일은 허용하되 **표면화**한다(종전엔 무로그 덮어쓰기)
+            binding_events["certificate_rebound_from"] = prior_cert_rel
+        scaffolded["certificate"] = cert_src_rel
+        certificate_rel = cert_src_rel
         pending_certificate = False
 
     # rubric 은 mode/verdict 와 **같은 커밋**에 실린다 — 갈라지면 finalize 가 나르는 오브젝트가
@@ -1387,9 +1373,12 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
     _emit({
         "schema_version": SCHEMA_VERSION, "ok": True, "reason_codes": [], "messages": {},
         "publication_id": args.topic, "verdict": args.verdict,
-        "bench_report_path": bench_report_rel, "certificate_path": certificate_rel,
+        "bench_report_path": report_src_rel, "certificate_path": certificate_rel,
         "pending_certificate": pending_certificate,
         "rubric": dict(rubric_record),
+        # 출처 표시(§결정론 규율): 이 경로들은 **바인딩**이며 publisher 가 만든 바이트가 아니다.
+        "binding": {"bench_report": "bound", "certificate": ("bound" if certificate_rel else None),
+                    "certificate_key": (list(cert_key) if cert_key else None), **binding_events},
     }, 0)
 
 
@@ -1788,6 +1777,92 @@ def _self_test() -> None:
             raise RuntimeError(f"self-test finalize state mismatch: {out!r}")
         if out.get("eligible_for_promotion") is not False:  # minor_patch is promotion-capped
             raise RuntimeError(f"self-test promotion cap mismatch: {out!r}")
+
+    # ── publish-benchmark = 바인딩(복사 ✗) — plan_26090410 P1 (음성대조 포함) ─────────────────
+    with tempfile.TemporaryDirectory() as td:
+        repo_root = Path(td)
+        for d in ("plan", "devlog", "testlog", "simlog", "benchmark", "report", "_evidence/inputs"):
+            (repo_root / "docs" / d).mkdir(parents=True, exist_ok=True)
+        identity = {"model": "self-test-model", "gpu": "GB10", "vllm": "0.0.0",
+                    "quant": None, "topology": "single", "tp": 1}
+        (repo_root / "identity.json").write_text(json.dumps(identity), encoding="utf-8")
+        cert_text = ("schema_version: 1\nrecord_type: benchmark_certificate\nverdict: PASS\n"
+                     "model: self-test-model\ngpu_model: GB10\nvllm_version: 0.0.0\nquantization: N/A\n"
+                     "topology: single\ntensor_parallel_size: 1\nbenchmark_mode: full\ndecode_tps_conc1: 12.3\n"
+                     "rubric_authority: weak\nprimary_source: expected_achievable(roofline×MBU)\n"
+                     "primary_tps: 10.0\nfloor_tps: 8.5\ntolerance: 0.15\nratio_M_over_primary: 1.23\n"
+                     'measured_utc: "2026-01-01T00:00:00Z"\n')
+        stem = "26010109_self-test-model_GB10_0.0.0"
+        cert_rel = f"docs/benchmark/benchmark_{stem}.yaml"
+        rep_rel = f"docs/benchmark/bench_report_{stem}.md"
+        (repo_root / cert_rel).write_text(cert_text, encoding="utf-8")
+        (repo_root / rep_rel).write_text("# report\n생성일 2026-01-01T00:00:00Z.\n", encoding="utf-8")
+        code, out = invoke(["init", "--repo-root", str(repo_root), "--topic", "bench",
+                            "--task-class", "full_benchmark", "--generated-utc", "2026-01-01T02:00:00Z",
+                            "--identity-json", str(repo_root / "identity.json"),
+                            "--benchmark-mode", "full", "--benchmark-verdict", "PASS"])
+        if not (code == 0 and out and out.get("ok")):
+            raise RuntimeError(f"bench init failed: {out!r}")
+        before = sorted(os.listdir(repo_root / "docs" / "benchmark"))
+
+        def publish(verdict, cert=cert_rel, rep=rep_rel, utc="2026-01-01T02:05:00Z"):
+            argv = ["publish-benchmark", "--repo-root", str(repo_root), "--topic", "bench",
+                    "--verdict", verdict, "--generated-utc", utc, "--bench-report-src", rep]
+            if cert:
+                argv += ["--certificate-src", cert]
+            return invoke(argv)
+
+        code, out = publish("PASS")
+        if not (code == 0 and out and out.get("ok")):
+            raise RuntimeError(f"bind publish failed: {out!r}")
+        if out["certificate_path"] != cert_rel or out["bench_report_path"] != rep_rel:
+            raise RuntimeError(f"publish must BIND the supplied canonical paths, got {out!r}")
+        if out["binding"]["certificate"] != "bound" or out["binding"]["certificate_key"][-1] != "2026-01-01T00:00:00Z":
+            raise RuntimeError(f"binding provenance missing: {out['binding']!r}")
+        if sorted(os.listdir(repo_root / "docs" / "benchmark")) != before:
+            raise RuntimeError("publish-benchmark must not create files under docs/benchmark/ (no copies)")
+
+        # ★음성대조 1: 규약 위치 밖의 파일은 거부(publisher 가 두 번째 발행자가 되는 것을 막는다)
+        (repo_root / "docs/_evidence/inputs/x.yaml").write_text(cert_text, encoding="utf-8")
+        code, out = publish("PASS", cert="docs/_evidence/inputs/x.yaml")
+        if not (code == 2 and "PUBLISH_BENCHMARK_CERTIFICATE_SRC_NOT_CANONICAL" in (out or {}).get("reason_codes", [])):
+            raise RuntimeError(f"non-canonical src must be rejected, got {out!r}")
+        # ★음성대조 2: 같은 측정의 사본이 디렉터리에 있으면 AMBIGUOUS(발행 시점 중복 감지)
+        dup_rel = f"docs/benchmark/benchmark_26010109_00_00_self-test-model_GB10_0.0.0.yaml"
+        (repo_root / dup_rel).write_text(cert_text, encoding="utf-8")
+        code, out = publish("PASS")
+        if not (code == 2 and "PUBLISH_BENCHMARK_CERTIFICATE_AMBIGUOUS" in (out or {}).get("reason_codes", [])):
+            raise RuntimeError(f"duplicate certificate must be AMBIGUOUS, got {out!r}")
+        if "byte-identical" not in json.dumps(out, ensure_ascii=False):
+            raise RuntimeError("AMBIGUOUS must say whether the duplicates are byte-identical")
+        (repo_root / dup_rel).unlink()
+        # ★음성대조 3: report 와 certificate 의 stem 이 다르면 같은 측정이 아니다
+        other_rep = "docs/benchmark/bench_report_26010110_self-test-model_GB10_0.0.0.md"
+        (repo_root / other_rep).write_text("# r\n생성일 2026-01-01T01:00:00Z.\n", encoding="utf-8")
+        code, out = publish("PASS", rep=other_rep)
+        if not (code == 2 and "PUBLISH_BENCHMARK_REPORT_CERTIFICATE_STEM_MISMATCH" in (out or {}).get("reason_codes", [])):
+            raise RuntimeError(f"stem mismatch must be rejected, got {out!r}")
+        (repo_root / other_rep).unlink()
+        # ★음성대조 4: PASS→REFUTE 전이는 unbind 이며 스킬의 원본 파일을 **지우지 않는다**
+        code, out = publish("REFUTE", cert=None, utc="2026-01-01T02:10:00Z")
+        if not (code == 0 and out and out.get("ok") and out["certificate_path"] is None):
+            raise RuntimeError(f"REFUTE republish failed: {out!r}")
+        if out["binding"].get("certificate_unbound_from") != cert_rel:
+            raise RuntimeError(f"unbind must be surfaced, got {out['binding']!r}")
+        if not (repo_root / cert_rel).is_file():
+            raise RuntimeError("PASS→REFUTE must UNBIND, never unlink the skill-issued certificate")
+        # listdir 실패는 fail-closed (감사 A-3). ★ `-1` 은 CPython path_t 의 "fd 아님" 센티널이라
+        #   cwd 를 열어 버린다 — 진짜 닫힌 fd 번호(EBADF)를 써야 음성대조가 성립한다.
+        closed_fd = os.open(str(repo_root), os.O_RDONLY | os.O_DIRECTORY)
+        os.close(closed_fd)
+        with contextlib.redirect_stdout(io.StringIO()):
+            try:
+                _safe_listdir_names(closed_fd, "SELFTEST")
+                bad_fd_exit = None
+            except SystemExit as e:
+                bad_fd_exit = e.code
+        if bad_fd_exit != 2:
+            raise RuntimeError(f"listdir on a closed fd must fail closed with exit 2, got {bad_fd_exit!r}")
 
     print("[evidence_publisher] self-test PASS")
 
