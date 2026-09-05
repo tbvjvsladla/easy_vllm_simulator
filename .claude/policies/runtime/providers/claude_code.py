@@ -247,6 +247,9 @@ def invoke(request: dict) -> dict:
         return _result(request, status=STATUS_MALFORMED_OUTPUT, exit_code=EXIT_MALFORMED_OUTPUT,
                        reason_codes=["PROVIDER_RESULT_INVALID"])
 
+    _sess = payload.get("session_id") if isinstance(payload.get("session_id"), str) else None
+    _turns = payload.get("num_turns") if isinstance(payload.get("num_turns"), int) else None
+
     denials = payload.get("permission_denials")
     if "permission_denials" in payload:
         if not isinstance(denials, list):
@@ -254,9 +257,28 @@ def invoke(request: dict) -> dict:
                            exit_code=EXIT_MALFORMED_OUTPUT,
                            reason_codes=["PROVIDER_RESULT_INVALID"])
         if denials:
+            # 2026-09-05 실측: 거부 1건이 실행 전체를 버렸고 **무엇이 거부됐는지도, 세션 id 도**
+            #   함께 사라졌다. 그래서 호출자는 (a) 권한을 어떻게 고쳐야 하는지 알 수 없고
+            #   (b) `--resume` 으로 이어받을 수도 없어, 서브가 한 일이 통째로 고아가 된다.
+            #   거부는 terminal 이 맞다 — 하지만 **말없이 terminal 인 것은 교착이다**.
+            #   다른 terminal 분기(error_max_turns·PROVIDER_RESULT_INVALID)는 이미 세션을 싣고 있다.
+            _det = []
+            for _d in denials[:10]:
+                if isinstance(_d, dict):
+                    _det.append("%s %s" % (
+                        _d.get("tool_name") or "?",
+                        json.dumps(_d.get("tool_input") or {}, ensure_ascii=False)[:240]))
+                else:
+                    _det.append(str(_d)[:240])
+            _note = "[permission_denials] %d건 — 거부된 도구 호출:\n  - %s" % (
+                len(denials), "\n  - ".join(_det))
+            _said = payload.get("result")
+            if isinstance(_said, str) and _said:
+                _note += "\n\n[서브가 남긴 말]\n" + _said
             return _result(request, status=STATUS_EXECUTION_FAILED,
                            exit_code=EXIT_EXECUTION_FAILED,
-                           reason_codes=["PERMISSION_DENIED"])
+                           reason_codes=["PERMISSION_DENIED"],
+                           output=_note, session_id=_sess, num_turns=_turns)
 
     if payload.get("is_error") is True:
         return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
@@ -266,8 +288,6 @@ def invoke(request: dict) -> dict:
     #   말하는 방식인데, 이전에는 그것이 `PROVIDER_RESULT_INVALID`(형식 오류)로 접혔다 — 원장이
     #   "예산이 모자랐다" 와 "출력이 깨졌다" 를 구분하지 못했고, 그래서 다음 attempt 에 예산을 얼마나
     #   늘려야 하는지 알 수 없었다. 소진은 terminal 이되 **분류가 다르다**.
-    _sess = payload.get("session_id") if isinstance(payload.get("session_id"), str) else None
-    _turns = payload.get("num_turns") if isinstance(payload.get("num_turns"), int) else None
     if payload.get("subtype") == "error_max_turns":
         _diag(request, "TURN_BUDGET_EXHAUSTED",
               f"provider 가 max_turns={request.get('max_turns')} 를 소진했다(num_turns={_turns}). "
