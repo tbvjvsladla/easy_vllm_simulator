@@ -25,6 +25,7 @@ import math
 import os
 import platform
 import re
+import datetime
 import shlex
 import socket
 import shutil
@@ -572,6 +573,52 @@ def _yaml_str(value) -> str:
     return json.dumps(value, ensure_ascii=False) if isinstance(value, str) and value.strip() else "null"
 
 
+def build_sub_manifest(result: dict, peer_hw: dict, main_manifest: dict, scanned_at: str | None = None,
+                       egress_peer: str | None = None) -> dict:
+    """서브 manifest(dict) — **메인이 실측한 서브 HW 사실**로 조립한다(2026-09-05 · plan_26090516 §7.3 · H1).
+
+    서브는 HW 스캔 권위 데이터를 스스로 만들지 않는다 — 이 함수의 입력은 전부 메인의 `--peer-ssh` 실측
+    (`collect_peer_hw`·`collect_peer_model_env`·`collect_peer_egress`)과 메인 manifest(공유 NAS 경로·로스터)다.
+    출력 스키마는 메인 manifest 와 같고 두 가지가 더 있다: `self_role: sub`(이 파일이 놓인 노드가 누구인가 —
+    hostname·브랜치 추론 ✗ · node_identity.sh 의 서브측 권위) · `terraforming.issued_by: main`(Flag 를 서브가
+    자가 발급하지 않았다는 출처). 순수 함수 — --self-test 가 manifest_contract 로 Flag 유효성을 대조한다.
+    """
+    cuda_raw = peer_hw.get("cuda")
+    m = re.search(r"(\d+)\.(\d+)", str(cuda_raw or ""))
+    cuda = f"{m.group(1)}{m.group(2)}" if m else None
+    homo = result.get("homogeneity") or {}
+    man: dict = {
+        "self_role": "sub",
+        "topology": "single",
+        "cpu_arch": peer_hw.get("cpu_arch"),
+        "cuda_version": cuda,
+        "gpus_per_node": peer_hw.get("gpus_per_node"),
+        "gpu_model": peer_hw.get("gpu_model"),
+        "driver_version": peer_hw.get("driver"),
+        "terraforming": {
+            "complete": True,
+            "branch_verified": True,
+            "scanned_at": scanned_at or datetime.datetime.now().strftime("%Y%m%d%H"),
+            "issued_by": "main",
+            "verified_rule": homo.get("verified_rule") or "single:peer-observed(gpus>=1)",
+        },
+        "model_source": result.get("model_source"),
+        "nas_model_path": result.get("nas_model_path") or main_manifest.get("nas_model_path"),
+        "custom_model_paths": main_manifest.get("custom_model_paths") or {},
+        "hf_token_env_file": main_manifest.get("hf_token_env_file") or "",
+        "quant_model_path": main_manifest.get("quant_model_path") or "",
+        "tiktoken_host_path": main_manifest.get("tiktoken_host_path") or "",
+    }
+    if egress_peer:
+        man["network"] = {"egress": egress_peer, "egress_source": "measured:peer-probe"}
+    if main_manifest.get("origin_url"):
+        man["origin_url"] = main_manifest["origin_url"]
+    if main_manifest.get("interconnect"):
+        man["interconnect"] = dict(main_manifest["interconnect"])   # single 에서는 정보성(집단 연산 없음)
+    man["nodes"] = [dict(n) for n in (result.get("nodes") or [])]
+    return man
+
+
 def emit_manifest_block(result: dict) -> str:
     """검증된 스캔 결과 → manifest.yaml 에 기입할 YAML 블록(문자열).
 
@@ -1094,6 +1141,31 @@ def _self_test() -> int:
         passed += 1 if _ok else 0
         n += 1
 
+    # 서브 manifest 조립 회귀 (plan_26090516 §7.3): 메인 실측 → Flag 계약 통과 · self_role · 결정론 cuda 축약
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import manifest_contract as _mc  # noqa: E402
+    _fx_result = {"model_source": "managed", "nas_model_path": "/srv/test-models",
+                  "homogeneity": {"verified": True, "verified_rule": "single:peer-observed(gpus>=1)"},
+                  "nodes": [{"role": "main", "host": "203.0.113.10"}, {"role": "sub", "host": "203.0.113.11", "hw_verified": True}]}
+    _fx_peer = {"cpu_arch": "aarch64", "gpu_model": "NVIDIA TEST", "gpus_per_node": 1, "cuda": "13.2", "driver": "580.0.1"}
+    _fx_main = {"quant_model_path": "/srv/quant", "tiktoken_host_path": "/srv/tok", "origin_url": "https://example.invalid/r",
+                "interconnect": {"type": "RoCE v2", "mtu": 9000}}
+    _sm = build_sub_manifest(_fx_result, _fx_peer, _fx_main, scanned_at="2026090516", egress_peer="online")
+    _ev = _mc.evaluate_contract(_sm, "single")
+    _sc = [
+        ("sub-manifest: Flag 계약 통과(issued_by=main)", bool(_ev.get("flag")) and _sm["terraforming"]["issued_by"] == "main"),
+        ("sub-manifest: self_role=sub · topology=single", _sm["self_role"] == "sub" and _sm["topology"] == "single"),
+        ("sub-manifest: cuda 13.2→'132' · gpus int · driver 실측", _sm["cuda_version"] == "132" and _sm["gpus_per_node"] == 1 and _sm["driver_version"] == "580.0.1"),
+        ("sub-manifest: 경로는 공유 NAS(메인 manifest) · egress 는 서브 실측 출처", _sm["quant_model_path"] == "/srv/quant" and _sm["network"] == {"egress": "online", "egress_source": "measured:peer-probe"}),
+        ("sub-manifest: 로스터 = 메인과 동일(main+sub)", [x["role"] for x in _sm["nodes"]] == ["main", "sub"]),
+        ("sub-manifest 음성대조: model_source 없음 → Flag 무효", not _mc.evaluate_contract(build_sub_manifest({**_fx_result, "model_source": None}, _fx_peer, _fx_main), "single").get("flag")),
+        ("sub-manifest 음성대조: 서브 GPU 미관측 → Flag 무효(gpus 결손)", not _mc.evaluate_contract(build_sub_manifest(_fx_result, {**_fx_peer, "gpus_per_node": None}, _fx_main), "single").get("flag")),
+    ]
+    for _n, _ok in _sc:
+        print("  [%s] %s" % ("PASS" if _ok else "FAIL", _n))
+        passed += 1 if _ok else 0
+        n += 1
+
     print(f"self-test: {passed}/{n} {'PASS' if passed == n else 'FAIL'}")
     return 0 if passed == n else 1
 
@@ -1184,6 +1256,9 @@ def main() -> int:
                          "__REQUIRED__ 센티넬을 남긴다(추측 금지).")
     ap.add_argument("--model-source", choices=["managed", "ephemeral", "custom"], default=None,
                     help="모델 제반환경 판정용 override(기본=manifest model_source 읽음).")
+    ap.add_argument("--emit-sub-manifest", default=None, metavar="PATH",
+                    help="single + --peer-ssh: 메인이 실측한 서브 HW 로 **서브 manifest** 를 PATH 에 발행(plan_26090516 §7.3). "
+                         "게이트 ok ∧ 서브 관측 통과 ∧ model_source 확정일 때만. render_sub_env --sub-manifest 가 소비한다.")
     ap.add_argument("--self-test", action="store_true",
                     help="결정론 회귀(게이트+emit_gate+emit-block YAML, 하드웨어 불요 — 라이브 검증 고정, #4)")
     args = ap.parse_args()
@@ -1400,6 +1475,43 @@ def main() -> int:
                                       "오탐 판단 시 HITL 우회 = manifest nodes[sub].hw_verified 수동 기입이 권위"
                                       "(plan_26063021_14_37 D3) — ") + result["gate"].get("note", "")
             exit_code = 2
+
+    # ── 서브 manifest 발행 (single · --peer-ssh · plan_26090516 §7.3) — 서브도 manifest 를 갖는다 ──
+    if args.emit_sub_manifest:
+        _homo = result.get("homogeneity") or {}
+        if args.topology != "single" or not args.peer_ssh:
+            sys.stderr.write("[scan] FAIL: --emit-sub-manifest 는 --topology single 과 --peer-ssh 가 함께 있어야 한다(서브 실측이 전제).\n")
+            return 2
+        if result["gate"]["status"] != "ok" or not _homo.get("verified"):
+            sys.stderr.write("[scan] FAIL: 서브 manifest 발행 금지 — gate=%s · 서브 관측=%s (%s)\n"
+                             % (result["gate"]["status"], _homo.get("verified"), "; ".join(_homo.get("blocks") or result["gate"].get("reasons") or [])))
+            return 2
+        if result.get("model_source") not in ("managed", "ephemeral", "custom"):
+            sys.stderr.write("[scan] FAIL: 서브 manifest 에 model_source 가 필요하다 — --model-source <managed|ephemeral|custom>(인터뷰 확정값).\n")
+            return 2
+        try:
+            import yaml  # PyYAML 6 (호스트)
+        except ImportError:
+            sys.stderr.write("[scan] FAIL: pyyaml 부재 — YAML 기록 불가(설치는 사람 승인 사항).\n")
+            return 2
+        try:
+            with open(mani_path, "r", encoding="utf-8") as _f:
+                _main_man = yaml.safe_load(_f) or {}
+        except Exception as exc:  # noqa: BLE001 — 메인 manifest 를 못 읽으면 공유 NAS 경로 사실을 채울 수 없다
+            sys.stderr.write("[scan] FAIL: 메인 manifest 판독 실패(%s): %s\n" % (mani_path, exc))
+            return 2
+        sub_man = build_sub_manifest(result, _homo.get("peer") or {}, _main_man, egress_peer=egress_peer)
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import manifest_contract as _mc  # noqa: E402 — 발행 전 Flag 계약 자기 검증(배달 뒤 서브에서 죽는 것을 여기서 잡는다)
+        _res = _mc.evaluate_contract(sub_man, "single")
+        if not _res.get("flag"):
+            sys.stderr.write("[scan] FAIL: 조립한 서브 manifest 가 테라포밍 계약을 통과하지 못한다 — %s\n" % _res.get("reason"))
+            return 2
+        os.makedirs(os.path.dirname(os.path.abspath(args.emit_sub_manifest)) or ".", exist_ok=True)
+        with open(args.emit_sub_manifest, "w", encoding="utf-8") as _f:
+            _f.write("# 서브 manifest — 메인 terraforming 이 --peer-ssh 로 실측·발급(plan_26090516 §7.3). 서브는 이 파일을 손으로 고치지 않는다.\n")
+            yaml.safe_dump(sub_man, _f, allow_unicode=True, sort_keys=False)
+        result["sub_manifest"] = {"path": args.emit_sub_manifest, "issued_by": "main", "manifest_tp": _res.get("manifest_tp")}
 
     if args.emit_manifest and result["gate"]["status"] == "ok":
         incomplete = emission_blockers(result)

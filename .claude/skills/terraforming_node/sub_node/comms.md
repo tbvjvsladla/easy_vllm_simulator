@@ -110,4 +110,4 @@
 
 ## 경계 (B3 Surgical)
 - 너는 **모델별 `configs/`·`envs/` 만** 자작한다. 컨테이너 정본(Dockerfile/requirements/compose/serve_runner)·빌딩블럭(.claude/, CLAUDE.md, Agent_Card.json)은 **건드리지 않는다**.
-- per-task 값은 Task Message 에서 읽는다 — manifest 는 서브에 없다(메인이 다 조리해 보냄). 단 **A2A 위임 키 `.claude/a2a_delegation.json` 는 예외**(메인이 동질성 검증 후 발급하는 *양성* 게이트 면제 키 — §A2A 위임).
+- HW 사실·경로·획득 모드는 **이 노드의 `output/<topology>/manifest.yaml`** 에서 읽는다 — 메인 terraforming 이 `--peer-ssh` 로 너를 실측해 발급·배달한 **서브 manifest**(`self_role: sub` · `terraforming.issued_by: main`)다. 너는 이 파일을 손으로 고치지 않는다(권위는 메인 스캔 · 재발급은 메인 `scan_node.py --emit-sub-manifest`). per-task 값(모델명·VRAM 예산·NAS 서브디렉토리)은 Task Message 에서 읽는다. **A2A 위임 키 `.claude/a2a_delegation.json`** 는 메인이 발급한 양성 게이트 면제 키다(§A2A 위임) — 면제는 Flag 검사뿐이며 HW 사실은 manifest 가 채운다.

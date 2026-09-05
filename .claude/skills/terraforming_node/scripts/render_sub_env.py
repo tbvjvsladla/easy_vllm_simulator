@@ -97,6 +97,8 @@ RECIPE_REFERENCE = os.path.join(REPO, ".claude", "skills", "wiki-desk", "referen
 # 그 갈림이 2026-08-22 진단의 형태였다(SKILL.md §2.7.6(c) · 헌법 §불변식 A).
 sys.path.insert(0, HERE)
 import node_role_contract as _contract  # noqa: E402  (형제 스크립트 — 위 sys.path 선행 필요)
+import agent_card_contract as _acc      # noqa: E402  Agent_Card v2 계약·JWS 서명(단일 소유 · plan_26090516 §7.2)
+import manifest_contract as _mc         # noqa: E402  서브 manifest Flag 계약 리더(§7.3)
 
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Z_]+)\s*\}\}")
 # 템플릿 전용 머리말(렌더 산출물에서 제거) — md 템플릿의 "이건 템플릿이다" 메타 블록.
@@ -235,16 +237,22 @@ def _node(data: dict, role: str) -> dict:
     return {}
 
 
-def build_placeholders(data: dict) -> tuple[dict, list[str]]:
-    """manifest → {{KEY}} 치환 dict. 반환 (placeholders, missing_required)."""
+def build_placeholders(data: dict, sub_manifest: dict | None = None) -> tuple[dict, list[str]]:
+    """manifest → {{KEY}} 치환 dict. 반환 (placeholders, missing_required).
+
+    `sub_manifest`(2026-09-05 · plan_26090516 §7.3): 서브 자신의 manifest(terraforming 이 실측·생성).
+    주어지면 HW·경로 placeholder(GPU_MODEL·CPU_ARCH·NAS_MOUNT·EGRESS_STATE)는 **서브 manifest** 에서
+    읽는다 — 종전에는 메인 manifest 의 메인 HW 를 서브 페르소나에 적었다(메인=서브 동질성 가정).
+    """
+    hw = sub_manifest if isinstance(sub_manifest, dict) and sub_manifest else data
     ic = data.get("interconnect", {})
     sub = _node(data, "sub")
     main = _node(data, "main")
     sub_host = sub.get("host", "")
     work_dir = sub.get("work_dir") or main.get("work_dir", "")
     ssh_user = sub.get("ssh_user") or main.get("ssh_user", "")
-    gpus = data.get("gpus_per_node", "")
-    cpu_arch = data.get("cpu_arch", "")
+    gpus = hw.get("gpus_per_node", "")
+    cpu_arch = hw.get("cpu_arch", "")
 
     ph = {
         "SUB_HOST": sub_host,
@@ -252,7 +260,7 @@ def build_placeholders(data: dict) -> tuple[dict, list[str]]:
         "MASTER_HOST": main.get("host", ""),
         "SSH_USER": ssh_user,
         "WORKSPACE_PATH": work_dir,
-        "NAS_MOUNT": data.get("nas_model_path", ""),
+        "NAS_MOUNT": hw.get("nas_model_path", ""),
         "CPU_ARCH": cpu_arch,
         "TOPOLOGY": data.get("topology", ""),   # D12: 서브 브랜치 맥락(single|multi) — main() 이 manifest 누락 시 --topology 로 채움
 
@@ -267,7 +275,7 @@ def build_placeholders(data: dict) -> tuple[dict, list[str]]:
         # GPU_MODEL 은 폴백 없음(2026-09-05 · audit_26090515 B9): 종전 `"<n>x-<arch>"`/`"unknown-gpu"` 폴백은
         #   Agent_Card.node_identity.gpu_model → 서브 인증서 **강한 키** `gpu` 로 흘러 위조 정체성이 인증서에
         #   실렸다. HW 사실은 manifest 가 권위이며 없으면 아래 `required` fail-loud 로 렌더가 멈춘다.
-        "GPU_MODEL": data.get("gpu_model") or "",
+        "GPU_MODEL": hw.get("gpu_model") or "",
         # A2A 위임 키 발급 판정용(plan_26063021_14_37 D5/D7) — nodes[sub].hw_verified(동질성 검증 통과 표식). 템플릿 치환엔 미사용.
         "SUB_HW_VERIFIED": (sub.get("hw_verified") or ""),
         # ── egress attestation → 서브 페르소나(2026-09-04 · plan_26090412 B8) ──
@@ -276,7 +284,7 @@ def build_placeholders(data: dict) -> tuple[dict, list[str]]:
         #   B안(서브 직접 검색)을 켠 이상 egress 는 정보성 부기가 아니라 **전제**다 — 검색 권한만
         #   주고 도달 가능성을 안 알려주면 서브는 조용히 빈손이 되고, 그 빈손을 근거 부족으로
         #   구분하지 못한다. 값이 없으면 `unknown` 이다(모르는 것을 online 으로 적지 않는다).
-        "EGRESS_STATE": (data.get("network") or {}).get("egress") or "unknown",
+        "EGRESS_STATE": (hw.get("network") or {}).get("egress") or "unknown",
     }
     ph.update(_contract_placeholders(data))
     # 필수(누락 시 fail-loud — 무증거/빈 정체성 렌더 금지)
@@ -305,9 +313,17 @@ def _contract_placeholders(data: dict) -> dict:
     rank = res.get("rank") or {}
     rank_value = rank.get("value")
     tp = res.get("tool_plane") or {}
+    ia = res.get("identity_authority") or {}
+    dp = res.get("delivery_plane") or {}
     return {
         "SUB_MODE": sub_mode.get("value") or "",
         "SUB_MODE_SOURCE": sub_mode.get("source") or "",
+        # 2026-09-05(plan_26090516 ② · H1): Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 두고 우리
+        #   노드 역할 계약을 확장(capabilities.extensions[urn:easy-vllm:ext:node-role:v1].params) 하나에 싣는다.
+        #   아래 셋은 그 params 의 나머지 해소값이다 — 역시 판정기 산출을 옮겨 적을 뿐이다.
+        "IDENTITY_AUTHORITY": ia.get("value") or "",
+        "DELIVERY_PLANE": dp.get("value") or "",
+        "TOOL_PLANE_JSON": json.dumps(list(tp.get("value") or []), ensure_ascii=False),   # JSON 배열(따옴표 없이 놓인다)
         # 2026-09-03(P2): 어떤 런타임 스킬을 배달할지도 **계약 산출**이다. 렌더러의 닫힌 리스트가
         #   토폴로지를 무시하던 자리를 이 값이 대체한다. 빈 문자열 = 0종(정상 상태일 수 있다).
         "TOOL_PLANE": ",".join(tp.get("value") or []),
@@ -331,8 +347,17 @@ def _unrendered(text: str) -> list[str]:
 
 # ── 렌더 한 판 (스테이징 트리 산출) ──
 def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
-                tracked_list: list | None = None) -> dict:
-    """치환된 placeholders 로 스테이징 트리를 만든다. 반환 = 산출 매니페스트(검증용)."""
+                tracked_list: list | None = None, signing_key: str | None = None,
+                sub_manifest_path: str | None = None) -> dict:
+    """치환된 placeholders 로 스테이징 트리를 만든다. 반환 = 산출 매니페스트(검증용).
+
+    `signing_key`(2026-09-05 · plan_26090516 §7.2 H1(A)): 메인 Ed25519 PEM. 렌더된 Agent_Card 를
+    A2A §8.4 JWS 로 서명하고 공개키(JWK)를 `.claude/a2a/trusted_keys.json` 으로 함께 싣는다 — 서브·메인
+    게이트가 이 저장소로 검증한다. **사람 개입 0**(H1 조건). None 이면 서명하지 않는다(self-test 전용 —
+    main() 은 키 부재를 fail-loud 로 막는다).
+    `sub_manifest_path`(§7.3): terraforming 이 실측·생성한 서브 manifest. 스테이징의
+    `output/<topology>/manifest.yaml` 로 복제한다(설치 산출물 — 빌드킷 배달 평면(D10)과 무관).
+    """
     if os.path.isdir(out_dir):
         shutil.rmtree(out_dir)
     claude = os.path.join(out_dir, ".claude")
@@ -368,8 +393,49 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
 
     # 1) 렌더 3종 (md=머리말 strip · json=_메타키 drop+유효성)
     _render_file("CLAUDE.template.md", "CLAUDE.md", "md")
-    _render_file("Agent_Card.template.json", "Agent_Card.json", "json")
+    card_path = _render_file("Agent_Card.template.json", "Agent_Card.json", "json")
     _render_file("settings.local.template.json", ".claude/settings.local.json", "json")
+
+    # 1.5) Agent_Card v2 계약 검증 + JWS 서명 (A2A v1.0.1 · agent_card_contract.py 단일 소유)
+    with open(card_path, encoding="utf-8") as f:
+        card = json.load(f)
+    violations = _acc.validate_card(card) + _acc.require_skills(card)
+    if violations:
+        raise SystemExit("[render] FAIL: Agent_Card 계약 위반 — " + "; ".join(violations))
+    if signing_key:
+        signed = _acc.sign_card(card, signing_key)
+        with open(card_path, "w", encoding="utf-8") as f:
+            json.dump(signed, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        _ser, _ = _acc._crypto()
+        _pub = _acc._load_private(signing_key).public_key().public_bytes(
+            _ser.Encoding.Raw, _ser.PublicFormat.Raw)
+        jwk = _acc.jwk_from_public(_pub)
+        jwk["issued_by"] = "main"
+        a2a_dir = os.path.join(claude, "a2a")
+        os.makedirs(a2a_dir, exist_ok=True)
+        trusted_path = os.path.join(a2a_dir, "trusted_keys.json")
+        with open(trusted_path, "w", encoding="utf-8") as f:
+            json.dump({"schema_version": 1, "keys": [jwk]}, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        _acc.verify_card(signed, trusted_path)      # 서명 직후 자기 검증 — 배달 전 RED 를 여기서 잡는다
+        produced.append(".claude/a2a/trusted_keys.json")
+        produced.append("Agent_Card.json (signed · kid=%s)" % jwk["kid"])
+
+    # 1.6) 서브 manifest (설치 산출물 · terraforming 실측) → 스테이징 output/<topology>/manifest.yaml
+    if sub_manifest_path:
+        sub_man = _mc._load_manifest(sub_manifest_path)   # 계약 리더의 로더(pyyaml · 중첩 terraforming 블록 필요)
+        if sub_man.get("self_role") != "sub":
+            raise SystemExit(f"[render] FAIL: 서브 manifest 의 self_role 이 'sub' 가 아니다({sub_man.get('self_role')!r}) — {sub_manifest_path}")
+        _topo = sub_man.get("topology") or ph.get("TOPOLOGY") or ""
+        _res = _mc.evaluate_contract(sub_man, _topo)
+        if not _res.get("flag"):
+            raise SystemExit(f"[render] FAIL: 서브 manifest 가 테라포밍 계약을 통과하지 못한다 — {_res.get('reason')} ({sub_manifest_path})")
+        dest_rel = os.path.join("output", _topo, "manifest.yaml")
+        dest = os.path.join(out_dir, dest_rel)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        shutil.copyfile(sub_manifest_path, dest)
+        produced.append(dest_rel + " (서브 manifest · terraforming 실측 · Flag issued_by=main)")
 
     # 2) 복제 정적계약 (comms·schema·docs규약)
     shutil.copyfile(os.path.join(SUBNODE_DIR, "comms.md"), os.path.join(claude, "rules", "comms.md"))
@@ -941,20 +1007,25 @@ def _self_test() -> int:
     ok &= c6
 
     # (7) ★ 토폴로지 축 4필드 회귀핀(testlog_26082215 S-11 FAIL 재발 차단):
-    #     Agent_Card.json:node_identity 가 rank·rank_source·sub_mode·sub_mode_source 를 싣고,
+    #     Agent_Card.json 의 node-role 확장 params 가 rank·rank_source·sub_mode·sub_mode_source 를 싣고,
     #     그 값이 node_role_contract 산출과 **정확히 같은지**(렌더러가 두 번째 파생을 하지 않는지).
     data7 = parse_manifest(mpath)                                   # fixture = topology: multi
     ph7m, _ = build_placeholders(data7)
     out7m = os.path.join(tmp, "sub_provision_axis_multi")
     render_tree(ph7m, out7m, copy_runtime_block=False)
-    with open(os.path.join(out7m, "Agent_Card.json"), encoding="utf-8") as f:
-        card_m = json.load(f)["node_identity"]
+    def _role_params(path):   # Agent_Card v2: 노드 역할은 A2A 확장 하나의 params 에 산다
+        with open(path, encoding="utf-8") as f:
+            card = json.load(f)
+        exts = [e for e in card["capabilities"]["extensions"] if e.get("uri") == _acc.NODE_ROLE_EXT_URI]
+        if len(exts) != 1:   # bare assert 금지(최적화 시 증발 — runtime_selftest 가 배포 python 전수 검사)
+            raise SystemExit(f"[render self-test] node-role 확장이 정확히 1개여야 한다: {exts}")
+        return exts[0]["params"]
+    card_m = _role_params(os.path.join(out7m, "Agent_Card.json"))
     data7s = parse_manifest(mpath); data7s["topology"] = "single"
     ph7s, _ = build_placeholders(data7s)
     out7s = os.path.join(tmp, "sub_provision_axis_single")
     render_tree(ph7s, out7s, copy_runtime_block=False)
-    with open(os.path.join(out7s, "Agent_Card.json"), encoding="utf-8") as f:
-        card_s = json.load(f)["node_identity"]
+    card_s = _role_params(os.path.join(out7s, "Agent_Card.json"))
     axis_keys = ("rank", "rank_source", "sub_mode", "sub_mode_source")
     keys_ok = all(k in card_m for k in axis_keys) and all(k in card_s for k in axis_keys)
     # multi: rank 는 **정수 1**(nodes[main,sub] 의 인덱스)이지 문자열 "1" 이 아니다 — 하류가 TP/NCCL
@@ -976,6 +1047,47 @@ def _self_test() -> int:
     print(f"  [{'PASS' if c7 else 'FAIL'}] 토폴로지 축 4필드 탑재(keys={keys_ok}, multi={multi_ok}, "
           f"single={single_ok}, 판정기일치={owner_ok}) → multi rank={card_m.get('rank')!r} / single rank={card_s.get('rank')!r}")
     ok &= c7
+
+    # (7b) Agent_Card v2 = A2A 1.0.1 표준 필드만 최상위 + 서명 왕복 + 서브 manifest 배달 (plan_26090516 §7.2/§7.3)
+    with open(os.path.join(out7s, "Agent_Card.json"), encoding="utf-8") as f:
+        card_full = json.load(f)
+    v7b = _acc.validate_card(card_full) + _acc.require_skills(card_full)
+    std_ok = not v7b and "node_identity" not in card_full and "topology_contract" not in card_full
+    key_dir = os.path.join(tmp, "a2a_signing")
+    kinfo = _acc.keygen(key_dir)
+    sub_man_path = os.path.join(tmp, "sub_manifest.yaml")
+    with open(sub_man_path, "w", encoding="utf-8") as f:
+        f.write("self_role: sub\ntopology: single\ncpu_arch: \"aarch64\"\ngpus_per_node: 1\ngpu_model: \"SUB-GPU\"\n"
+                "model_source: managed\nnas_model_path: /srv/test-models\nterraforming:\n  complete: true\n  branch_verified: true\n"
+                "  issued_by: main\nnodes:\n  - role: main\n    host: \"203.0.113.10\"\n  - role: sub\n    host: \"203.0.113.11\"\n")
+    ph7b, _ = build_placeholders(data7s, sub_manifest=parse_manifest(sub_man_path))
+    out7b = os.path.join(tmp, "sub_provision_signed")
+    res7b = render_tree(ph7b, out7b, copy_runtime_block=False, signing_key=kinfo["private"], sub_manifest_path=sub_man_path)
+    signed_path = os.path.join(out7b, "Agent_Card.json"); trusted_path = os.path.join(out7b, ".claude", "a2a", "trusted_keys.json")
+    with open(signed_path, encoding="utf-8") as f:
+        signed_card = json.load(f)
+    sig_ok = bool(signed_card.get("signatures")) and _acc.verify_card(signed_card, trusted_path) == kinfo["kid"]
+    forged = json.loads(json.dumps(signed_card)); forged["skills"][0]["description"] = "tampered"
+    try:
+        _acc.verify_card(forged, trusted_path); forge_caught = False
+    except _acc.ContractViolation:
+        forge_caught = True
+    sub_copied = os.path.isfile(os.path.join(out7b, "output", "single", "manifest.yaml"))
+    hw_from_sub = ph7b["GPU_MODEL"] == "SUB-GPU"      # 서브 페르소나 HW 는 서브 manifest 에서
+    # 음성대조: self_role 이 sub 가 아닌 manifest 는 배달 거부
+    bad_sub = os.path.join(tmp, "sub_manifest_bad.yaml")
+    with open(sub_man_path, encoding="utf-8") as f, open(bad_sub, "w", encoding="utf-8") as g:
+        g.write(f.read().replace("self_role: sub", "self_role: main"))
+    try:
+        render_tree(ph7b, os.path.join(tmp, "sub_provision_badsub"), copy_runtime_block=False,
+                    signing_key=kinfo["private"], sub_manifest_path=bad_sub); bad_caught = False
+    except SystemExit as e:
+        bad_caught = "self_role" in str(e)
+    c7b = std_ok and sig_ok and forge_caught and sub_copied and hw_from_sub and bad_caught
+    print(f"  [{'PASS' if c7b else 'FAIL'}] Agent_Card v2: 표준필드만={std_ok} 서명검증={sig_ok} 위조감지={forge_caught} "
+          f"서브manifest배달={sub_copied} HW출처=서브manifest({hw_from_sub}) self_role≠sub거부={bad_caught} "
+          f"(위반={v7b[:2]})")
+    ok &= c7b
 
     # (8) 계약 위반(single 에 ray-worker 선언) → 렌더 fail-loud(빈 정체성 렌더 금지)
     data8 = parse_manifest(mpath); data8["topology"] = "single"
@@ -1003,6 +1115,12 @@ def main() -> int:
     ap.add_argument("--tracked-list", default=None,
                     help="git-tracked 경로 목록 파일(NUL 또는 개행 구분). git 이 없는 트랜잭션 트리에서 "
                          "런타임블럭을 복제할 때 호출부가 주입한다(S10 — 추측 폴백 금지).")
+    ap.add_argument("--signing-key", default=None,
+                    help="메인 Ed25519 PEM(기본 output/<topology>/a2a_signing/main_ed25519.pem). 부재 시 fail-loud — "
+                         "`agent_card_contract.py keygen --out-dir output/<topology>/a2a_signing` 로 설치 때 1회 생성(사람 개입 0).")
+    ap.add_argument("--sub-manifest", default=None,
+                    help="서브 manifest(terraforming 실측 · scan_node.py --emit-sub-manifest 산출). 기본 "
+                         "output/<topology>/sub_manifest.yaml. single 은 필수(서브도 manifest 를 갖는다 · §7.3), multi 는 선택.")
     ap.add_argument("--self-test", action="store_true", help="fixture 렌더 회귀(하드웨어/실 manifest 불요)")
     args = ap.parse_args()
 
@@ -1014,9 +1132,24 @@ def main() -> int:
     if not os.path.isfile(manifest):
         print(f"[render] FAIL: manifest 없음 — {manifest} (terraforming_node 스캔/인터뷰로 먼저 채우세요)", file=sys.stderr)
         return 3
+    signing_key = args.signing_key or os.path.join(REPO, "output", args.topology, "a2a_signing", "main_ed25519.pem")
+    if not os.path.isfile(signing_key):
+        print(f"[render] FAIL: Agent_Card 서명키 없음 — {signing_key}\n"
+              f"        설치 때 1회: python3 .claude/skills/terraforming_node/scripts/agent_card_contract.py keygen "
+              f"--out-dir output/{args.topology}/a2a_signing   (패스프레이즈 없음 · 0600 · 비추적 — 이후 사람 개입 0)", file=sys.stderr)
+        return 2
+    sub_manifest = args.sub_manifest or os.path.join(REPO, "output", args.topology, "sub_manifest.yaml")
+    if not os.path.isfile(sub_manifest):
+        if args.topology == "single":
+            print(f"[render] FAIL: 서브 manifest 파일이 아직 생성되지 않았다 — {sub_manifest}\n"
+                  f"        single 의 서브는 자기 manifest 를 갖는다(terraforming 실측·생성): "
+                  f"python3 .claude/skills/terraforming_node/scripts/scan_node.py --topology single --peer-ssh <user@sub> "
+                  f"--model-source <managed|ephemeral|custom> --emit-sub-manifest {sub_manifest}", file=sys.stderr)
+            return 2
+        sub_manifest = None   # multi(ray-worker): 서브 manifest 는 이 계획 범위 밖(브랜치싱크 때 재검토)
     data = parse_manifest(manifest)
     data.setdefault("topology", args.topology)   # D12: manifest 에 topology 없으면 --topology 로 채움(브랜치 맥락 보장)
-    ph, missing = build_placeholders(data)
+    ph, missing = build_placeholders(data, sub_manifest=parse_manifest(sub_manifest) if sub_manifest else None)
     if missing:
         print(f"[render] FAIL: manifest 필수 필드 누락 {missing} — 무증거 빈 정체성 렌더 금지.", file=sys.stderr)
         if ph.get("SUB_CONTRACT_VIOLATIONS"):
@@ -1029,7 +1162,8 @@ def main() -> int:
         with open(args.tracked_list, encoding="utf-8") as f:
             blob = f.read()
         tracked = [x for x in (blob.split("\0") if "\0" in blob else blob.splitlines()) if x.strip()]
-    res = render_tree(ph, out_dir, copy_runtime_block=not args.no_runtime_block, tracked_list=tracked)
+    res = render_tree(ph, out_dir, copy_runtime_block=not args.no_runtime_block, tracked_list=tracked,
+                      signing_key=signing_key, sub_manifest_path=sub_manifest)
     print(f"[render] OK → {res['out_dir']}")
     for p in res["produced"]:
         print(f"   + {p}")

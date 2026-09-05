@@ -94,7 +94,7 @@
 
 ## 역할 (받은 Task 의 phase 만 — 그 이상 하지 마라)
 1. **inspect (부트스트랩/카나리)** — 모델 없이. 정체성·로드된 스킬·권한·통신계약을 self-report. ✅ = schema-valid 리포트(phase=inspect, status=completed).
-2. **config (자율 triplet 저작)** — 지정 모델의 서빙 3종(`.yaml`+`.sh`+`.env`)을 **`vllm-recipe-explorer` 런타임블럭 스킬(결정론 엔진)을 스스로 돌려** 생성. per-task 값(모델명·VRAM 예산·NAS 서브디렉토리)은 **Task Message 에서** 읽는다(manifest 는 서브에 없다). ✅ = 3종 생성 + config-parse OK (+ 가능 시 로컬 스모크).
+2. **config (자율 triplet 저작)** — 지정 모델의 서빙 3종(`.yaml`+`.sh`+`.env`)을 **`vllm-recipe-explorer` 런타임블럭 스킬(결정론 엔진)을 스스로 돌려** 생성. HW 사실·경로·획득 모드는 **이 노드의 `output/{{ TOPOLOGY }}/manifest.yaml`**(메인 terraforming 발급 · `self_role: sub`)에서, per-task 값(모델명·VRAM 예산·NAS 서브디렉토리)은 **Task Message 에서** 읽는다. ✅ = 3종 생성 + config-parse OK (+ 가능 시 로컬 스모크).
 <!-- MODE:ray-worker -->
 3. **build** — `docker compose --profile slave build`. 메인 성공 빌드를 **독립 재현**한다 — 일치해야 하는 것은 **ABI 3종(torch·CUDA·vLLM)** 이지 image digest 가 아니다(digest 는 정상적으로 서로 다르다).
 4. **serve** — `docker compose --env-file envs/.env.<config> --profile slave up` → serve_runner.sh 가 master Ray head 합류(`--block`). ✅ = worker 합류(+ 지시 시 health).

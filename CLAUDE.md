@@ -77,7 +77,9 @@
 - single-node은 manifest에 서브가 등록되면 **A2A 에이전트 제어** 확장기능을 얻는다 — 얻는 것은 위임·
   관측이지 **멀티의 빌드킷 배달·버전 동기 평면이 아니다**(불변식 A). 서브 등록은 배달 평면을 켜지
   못하며, 싱글 서브는 자기 빌드킷을 자율 저작한다. 활성 게이트는 결정론이고 상세는
-  `terraforming_node` SKILL.md §2.7.0이다.
+  `terraforming_node` SKILL.md §2.7.0이다. **싱글 서브도 자기 manifest 를 갖는다** — 메인 terraforming 이
+  실측·생성·배달하며(`self_role: sub` · Flag `issued_by: main`), Agent_Card 는 A2A 평면 계약(능력·엔드포인트·
+  서명)이지 HW 사실의 자리가 아니다(2026-09-05 · plan_26090516 §7).
 - last-good 롤백 앵커: policy:LAST_GOOD_ROLLBACK_ANCHOR.
 - hint 태그 활성화: policy:HINT_TAG_ACTIVATION_GATE.
 - 로그가 곧 에이전트다: 작업은 로그/문서 발행으로 잔존한다. container-gen·서빙전략·브랜치싱크·온보딩은

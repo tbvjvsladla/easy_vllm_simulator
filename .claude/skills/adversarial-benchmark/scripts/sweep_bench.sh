@@ -241,7 +241,7 @@ fi
 fi   # ── /REASSEMBLE 분기 끝(위 측정·캡처 전량은 재조립 모드에서 건너뛴다) ──
 
 # ── sweep_index.json 조립 + meta 추출(결정론 · stdlib · fail-soft N/A) ──────────
-CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$CFGYAML" EF="$EF" MANIFEST="$MANIFEST" AGENT_CARD="$REPO/Agent_Card.json" \
+CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$CFGYAML" EF="$EF" MANIFEST="$MANIFEST" \
 SWEEPDIR="$SWEEPDIR" VLLM_VER="$VLLM_VER" COMPLETED="${COMPLETED[*]:-}" ILEN="$ILEN" \
  IMAGE_TAG_ACTUAL="$IMAGE_TAG_ACTUAL" IMAGE_DIGEST_ACTUAL="$IMAGE_DIGEST_ACTUAL" REASSEMBLE="$REASSEMBLE" \
  LITE_RAW="$LITE_RAW" SDIR="$SDIR" python3 - <<'PY'
@@ -327,19 +327,17 @@ if not vllm and vllm_build != "NA":
 if not vllm:
     _mc = re.search(r"vLLM[\s]*([0-9]+\.[0-9]+\.[0-9]+)", cfgtext)
     vllm = _mc.group(1) if _mc else "NA"
-# gpu_model: manifest > Agent_Card.json(node_identity) > NA.
-#   ⚠ 서브 노드에는 manifest.yaml 이 **설계상 부재**(D10 — sync_to_sub 가 manifest 를 배달하지 않는다; 서브 정체성은
-#   메인이 render_sub_env.py 로 렌더한 Agent_Card.json 에 산다). 폴백이 없으면 서브에서 돈 full 벤치의
-#   인증서 강한키 gpu 가 "NA" 로 발행돼 carry-forward 재검증이 무력화된다(plan_26072217 실측).
-#   Agent_Card 의 gpu_model 은 메인의 HW 동질성 스캔 산물이므로 날조가 아니라 **A2A attestation** 이다.
+# gpu_model: manifest 단일 권위(2026-09-05 · plan_26090516 §7.3 · audit_26090515 B9).
+#   종전에는 "서브 노드는 manifest 를 갖지 않는다"(D10) 는 전제로 Agent_Card.json(node_identity.gpu_model) 폴백을 두었고,
+#   그 폴백은 렌더러의 `<n>x-<arch>`/`unknown-gpu` 기본값과 이어져 위조 정체성이 인증서 **강한 키** `gpu` 로
+#   흘러갈 수 있었다. 이제 서브도 자기 manifest 를 갖는다(메인 terraforming 이 실측·발급 · self_role: sub).
+#   Agent_Card v2 는 A2A 평면 계약(능력·엔드포인트·서명)이라 HW 필드가 없다. gpu_model 이 없으면 인증서를
+#   "NA" 강한 키로 발행하지 않고 여기서 멈춘다(fail-loud).
 gpu_model = grep_yaml(mftext, "gpu_model")
 if not gpu_model:
-    try:
-        with open(os.environ.get("AGENT_CARD", ""), encoding="utf-8") as _f:
-            gpu_model = (json.load(_f).get("node_identity") or {}).get("gpu_model") or None
-    except Exception:
-        gpu_model = None
-gpu_model = gpu_model or "NA"
+    sys.stderr.write("[sweep_bench] FAIL: manifest(%s) 에 gpu_model 이 없다 — 인증서 강한 키 gpu 를 NA 로 발행하지 않는다. "
+                     "terraforming_node 스캔(서브면 scan_node.py --emit-sub-manifest)으로 채워라.\n" % os.environ.get("MANIFEST", "?"))
+    sys.exit(2)
 gpu_key = _gpu_key(gpu_model)  # 정규화 규칙은 doc_naming 한 곳(인라인 사본 제거 · 감사 D-1)
 # tp: config tensor-parallel-size > manifest 파생 > 1
 # **topology=single 이면 노드 배수 1 고정** — single manifest 의 nodes[role=sub] 는 sub-control
