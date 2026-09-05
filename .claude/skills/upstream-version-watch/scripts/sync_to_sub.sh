@@ -122,6 +122,10 @@ GIT_EMAIL="${SYNC_GIT_EMAIL:-sync@easy-vllm.local}"
 MAX_DELETE="${MAX_DELETE:-50}"     # (레거시) --delete 안전캡. S4 는 아래 ALLOW_DELETE 삭제brake 가 1차 게이트.
 ALLOW_DELETE="${ALLOW_DELETE:-0}"  # (S4 d-rsync-2) 삭제 前 brake: 삭제예정 > 이 값이면 *삭제 前* fail-closed. 의도된 정리만 명시 override.
 RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
+# 역할 계약 판정기 — 배달 표면 검증이 tool_plane 을 물을 때 쓴다. 2026-09-05: 이 상수가
+#   **정의된 적이 없었다**. 검증기 본문 주석은 "경로는 파일 상단 ROLE_CONTRACT 상수"라고
+#   적고 있었으니 배선만 빠진 것이다(만든 것과 도는 것은 다르다).
+ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.py"
 PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
 PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
 
@@ -1009,6 +1013,7 @@ prepare_transactional_source() {
     done
     SRC="$TRANSACTIONAL_SRC/"
     RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
+    ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.py"
     PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
     PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
     REGEN_TOOL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
@@ -1285,9 +1290,19 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
     #   판정 정본은 계약 판정기의 tool_plane 이다(토폴로지로 추론하지 않는다 · 경로는 파일 상단
     #   ROLE_CONTRACT 상수 — 이 함수 본문은 판정기 경로 문자열을 갖지 않는다).
     local _tp _tp_n
+    # 판정기 부재/미해소는 "tool_plane 이 비었다"와 **다른 사실**이다. 먼저 갈라야 한다 —
+    #   갈라 두지 않으면 배선 결함이 정상 계약(ray-worker 0종)으로 위장한다(2026-09-05 실측).
+    if [ ! -f "${ROLE_CONTRACT:-}" ]; then
+        # 뒤따르는 검사(위임키 회수·host-safety 모드·retirement 감사)는 계속 돌려야 한다 —
+        #   한 검사의 배선 결함이 나머지 검사를 침묵시키면 결함 하나가 여러 개를 가린다.
+        echo "  ❌ 계약 판정기 경로 미해소(ROLE_CONTRACT='${ROLE_CONTRACT:-}') — 런타임블럭 대표 요구 여부를 정할 수 없다(fail-closed)" >&2
+        fail=1
+        _tp="__UNRESOLVED__"
+    else
     _tp="$(python3 "$ROLE_CONTRACT" evaluate \
              --manifest "${SRC%/}/output/$1/manifest.yaml" --topology "$1" \
              --field tool_plane --format value 2>/dev/null || echo '__UNRESOLVED__')"
+    fi
     if [ "$_tp" = "__UNRESOLVED__" ]; then
         echo "  ❌ tool_plane 미해소 — 런타임블럭 대표 요구 여부를 정할 수 없다(fail-closed)" >&2; fail=1
     else
