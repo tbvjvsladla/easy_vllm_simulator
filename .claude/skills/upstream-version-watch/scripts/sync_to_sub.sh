@@ -1267,6 +1267,31 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
     sub_list="$(sub_run "find $dirs -maxdepth 1 -type f -not -path '*/__pycache__/*' -not -name '*.pyc' 2>/dev/null | sed 's|^\./||' | LC_ALL=C sort" || true)"
     [ -n "$sub_list" ] || return 0
     extra="$(LC_ALL=C comm -13 <(printf '%s\n' "$canon") <(printf '%s\n' "$sub_list") || true)"
+    # ── 서브가 **계약상 소유**하는 평면은 잔재가 아니다 (2026-09-05 · 캠페인 1 실측) ──
+    #   ① tasks/** — 릴레이 원장·리포트. 서브의 쓰기 권한 평면이며 메인이 배달하지 않는다.
+    #   ② 빌드킷 4종 — 배달 평면이 **dormant** 인 토폴로지(싱글)에서는 서브가 자율 저작한다
+    #      (헌법 불변식 A). dormant 판정은 별도 변수가 아니라 **정본이 그 디렉터리에 빌드킷을
+    #      하나도 두지 않았다**는 사실로 읽는다 — 배달했으면 canon 에 있고, 그러면 잔재 판정이
+    #      정상 작동한다.
+    #   이 제외가 없으면 싱글에서 "정본 밖 0건" 이 **정의상 달성 불가**가 된다(서브가 계약대로
+    #   저작할수록 리포트가 커진다). 달성 불가한 기준은 사람이 보지 않게 되고, 그러면 진짜
+    #   잔재도 못 본다 — docs.md §PII 판정 대상 축소가 같은 근거로 내린 결정이다.
+    #   목록은 닫혀 있다(antipattern-ok: hardcoding — tripwire: 늘리려면 이 주석을 읽고 리뷰하라).
+    if [ -n "$extra" ]; then
+        local _kit_re='(Dockerfile|Dockerfile\.source-build|docker-compose\.yaml|requirements\.txt)'
+        local _keep="" _f _dir
+        while IFS= read -r _f; do
+            [ -n "$_f" ] || continue
+            case "$_f" in tasks/*) continue ;; esac
+            _dir="${_f%/*}"; [ "$_dir" = "$_f" ] && _dir="."
+            if printf '%s' "${_f##*/}" | grep -qE "^${_kit_re}$" \
+               && ! printf '%s\n' "$canon" | grep -qE "^${_dir}/${_kit_re}$"; then
+                continue   # dormant 평면의 서브 자율 저작분
+            fi
+            _keep="${_keep}${_f}\n"
+        done <<< "$extra"
+        extra="$(printf "$_keep" | grep -v '^$' || true)"
+    fi
     n="$(printf '%s' "$extra" | grep -c '' || true)"
     if [ "${n:-0}" -eq 0 ]; then
         # 성공 줄에 디렉터리 목록을 다 뿌리면 화면이 목록으로 덮여 정작 다른 판정이 안 보인다.
