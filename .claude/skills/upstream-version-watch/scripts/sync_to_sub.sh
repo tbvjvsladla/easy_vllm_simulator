@@ -1258,15 +1258,21 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
     canon="$(cd "$st" && find . -type f -not -path '*/__pycache__/*' -not -name '*.pyc' \
              -printf '%P\n' | LC_ALL=C sort)"
     [ -n "$canon" ] || return 0
-    # 비교 범위 = 정본이 실제로 배달하는 **최상위 경로**뿐(서브의 output/·docs/·tasks/ 는 그 노드의
-    #   산출물 평면이라 비교 대상이 아니다 — 거기까지 '잔재'라 부르면 리포트가 소음이 된다).
-    dirs="$(printf '%s\n' "$canon" | awk -F/ '{print $1}' | LC_ALL=C sort -u | tr '\n' ' ')"
-    sub_list="$(sub_run "find $dirs -type f -not -path '*/__pycache__/*' -not -name '*.pyc' 2>/dev/null | sed 's|^\./||' | LC_ALL=C sort" || true)"
+    # 비교 범위 = 정본이 **파일을 두는 그 디렉터리**뿐이며 재귀하지 않는다(-maxdepth 1).
+    #   2026-09-05 첫 실행 교정: 최상위(`docs` 등)로 잡았더니 서브가 만든 블랙박스 로그
+    #   (`docs/logs/sub/**` 8건)가 "정본에 없음" 으로 잡혔다 — 그건 잔재가 아니라 **그 노드의
+    #   산출물**이다. 리포트가 소음을 내면 사람은 리포트를 안 보게 되고, 그러면 진짜 잔재도 못 본다.
+    dirs="$(printf '%s\n' "$canon" | sed 's|/[^/]*$||' | grep -v '^\.$' | LC_ALL=C sort -u | tr '\n' ' ')"
+    [ -n "$dirs" ] || return 0
+    sub_list="$(sub_run "find $dirs -maxdepth 1 -type f -not -path '*/__pycache__/*' -not -name '*.pyc' 2>/dev/null | sed 's|^\./||' | LC_ALL=C sort" || true)"
     [ -n "$sub_list" ] || return 0
     extra="$(LC_ALL=C comm -13 <(printf '%s\n' "$canon") <(printf '%s\n' "$sub_list") || true)"
     n="$(printf '%s' "$extra" | grep -c '' || true)"
     if [ "${n:-0}" -eq 0 ]; then
-        echo "  ✅ 수렴: 배달 표면($dirs)에 정본 밖 파일 0건 — 서브가 과거 찌꺼기 없이 정본과 같다"
+        # 성공 줄에 디렉터리 목록을 다 뿌리면 화면이 목록으로 덮여 정작 다른 판정이 안 보인다.
+        # 세 개수만 말한다(무엇을 봤는지는 실패했을 때 목록으로 나온다).
+        local _nd; _nd="$(printf '%s\n' "$dirs" | tr ' ' '\n' | grep -c '.' || true)"
+        echo "  ✅ 수렴: 배달 표면 ${_nd}개 디렉터리에 정본 밖 파일 0건 — 서브가 과거 찌꺼기 없이 정본과 같다"
         return 0
     fi
     echo "  ⚠ 수렴 리포트: 정본에 없는 파일 ${n}건이 서브의 배달 표면에 있다(삭제하지 않는다 — 눈에 보이게만 한다):"
