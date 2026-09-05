@@ -24,10 +24,12 @@ BACKEND="openai-chat"
 #   버그가 양쪽에 균일하게 먹어 "일치해 보이면서 둘 다 틀리는" 상태가 된다(실결함 2건이 이질성
 #   덕에 잡혔다: 2026-09-01·09-03).
 TOOL="vllm"
+TOOL_VERSION=""      # 미선언이면 기록의 default_version(= 마지막 스테이징분)
 BENCH_BUDGET_MIB=""
 TOPO=""; CONC=1; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; OUTDIR=""
 while [ $# -gt 0 ]; do case "$1" in
   --tool) TOOL="$2"; shift 2;;
+  --tool-version) TOOL_VERSION="$2"; shift 2;;
   --bench-budget-mib) BENCH_BUDGET_MIB="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
   --concurrency) CONC="$2"; shift 2;;
@@ -153,13 +155,29 @@ bench_with_vllm(){
 bench_with_guidellm(){
   # 예산 유효성은 **인자 평면**이 이미 쳤다(위 case). 여기서 다시 적으면 두 벌이 갈라진다.
   local PINJSON IMAGE PRC
-  PINJSON="$(python3 "$SDIR/resolve_bench_tool.py" --tool guidellm --json 2>/dev/null)"; PRC=$?
+  # 버전은 **선언**이면 그것을, 아니면 기록의 default_version(= 마지막 스테이징분)을 쓴다.
+  # 최신 릴리즈 해소는 스테이징 평면(resolve_guidellm.py)의 일이다 — 벤치 도중 상류를 조회하지 않는다.
+  local VERARG=()
+  # `[ ... ] && x=(...)` 로 쓰면 조건이 거짓일 때 AND-리스트가 1 을 돌려주고 `set -e` 가 스크립트를
+  # 죽인다 — 버전 미선언(정상 경로)에서 벤치가 통째로 사라지는 형태다. if 로 쓴다.
+  if [ -n "${TOOL_VERSION:-}" ]; then VERARG=(--tool-version "$TOOL_VERSION"); fi
+  PINJSON="$(python3 "$SDIR/resolve_bench_tool.py" --tool guidellm "${VERARG[@]}" --json 2>/dev/null)"; PRC=$?
   if [ "$PRC" != "0" ]; then
-    python3 "$SDIR/resolve_bench_tool.py" --tool guidellm >/dev/null   # 사람이 읽을 사유를 stderr 로
-    echo "[run_bench] 측정 도구 핀 해소 실패(rc=$PRC) — 실행하지 않는다" >&2
+    python3 "$SDIR/resolve_bench_tool.py" --tool guidellm "${VERARG[@]}" >/dev/null  # 사유는 stderr 로
+    echo "[run_bench] 측정 도구 해소 실패(rc=$PRC) — 실행하지 않는다" >&2
     return "$PRC"
   fi
   IMAGE="$(printf '%s' "$PINJSON" | python3 -c "import json,sys;print(json.load(sys.stdin)['image_ref'])")"
+  # ★ 런별 기록(2026-09-05 · 축 A): 무엇으로 쟀는지를 산출물에 남긴다. digest 게이트를 걷어낸
+  #   대신 **실제로 돈 이미지의 digest** 가 vault 에 남아 리포트·인증서가 그것을 인용한다.
+  BENCH_TOOL_JSON="$OUTDIR/bench_tool_${CONFIG}.json"
+  printf '%s' "$PINJSON" | GL_ENDPOINT="$ENDPOINT" GL_OUT="$BENCH_TOOL_JSON" python3 -c '
+import json, os, sys
+doc = json.load(sys.stdin)
+doc["endpoint"] = os.environ["GL_ENDPOINT"]        # 측정 조건 지문(요청 포맷이 TPOT 을 바꾼다)
+with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
+    json.dump(doc, f, ensure_ascii=False, indent=2); f.write("\n")
+' 
 
   # 토크나이저는 **호스트 경로**가 필요하다. serve 컨테이너 안의 /app/models/... 를 manifest 의
   # nas_model_path 로 되돌린다. 되돌리지 못하면 추측하지 않고 멈춘다.

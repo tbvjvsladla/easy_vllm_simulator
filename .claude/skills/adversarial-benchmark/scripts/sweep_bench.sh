@@ -552,6 +552,7 @@ meta = {
 #   값은 **파서가 산출물에서 실측한 것을 승계**한다. 여기서 TOOL 환경변수를 그대로 적으면
 #   "무엇을 시켰나"가 되고, 우리가 남겨야 하는 것은 "무엇이 실제로 쟀나"다.
 _bt, _btv, _btv_src = "NA", "NA", "unavailable"
+_bt_err = "NA"
 for _lvl in sorted(completed):
     _mp = os.path.join(sweepdir, "level_%02d" % _lvl, "measured.json")
     try:
@@ -562,10 +563,35 @@ for _lvl in sorted(completed):
     _bt = _md.get("bench_tool") or "vllm-bench-serve"
     _btv = _md.get("bench_tool_version") or "NA"
     _btv_src = _md.get("bench_tool_version_source") or "declared(도구가 버전을 자기보고하지 않는다)"
+    if _md.get("max_error_rate_declared") is not None:
+        _bt_err = _md["max_error_rate_declared"]
     break
 meta["bench_tool"] = _bt
 meta["bench_tool_version"] = _btv
 meta["bench_tool_version_source"] = _btv_src
+meta["bench_max_error_rate"] = _bt_err
+
+# ── 측정 도구 **런별 구성**(2026-09-05 · plan_26090516 3-8/3-12 · 축 A·B) ─────────
+#   digest 게이트를 걷어낸 대신 **무엇으로 쟀는지**를 인증서가 싣는다. 값은 run_bench 가 그 런에
+#   실제로 쓴 이미지에서 실측해 남긴 사이드카에서 **승계**한다 — 여기서 기록 파일을 다시 읽으면
+#   "무엇을 시켰나"가 되고, 남겨야 하는 것은 "무엇이 실제로 돌았나" 다.
+_bt_ref, _bt_dig, _bt_ep = "NA", "NA", "NA"
+for _lvl in sorted(completed):
+    _tp = os.path.join(sweepdir, "level_%02d" % _lvl, "bench_tool_%s.json" % cfg)
+    try:
+        with open(_tp, encoding="utf-8") as _f:
+            _td = json.load(_f)
+    except (OSError, ValueError):
+        continue
+    _bt_ref = _td.get("image_ref") or "NA"
+    _bt_dig = _td.get("observed_digest") or "NA"
+    _bt_ep = _td.get("endpoint") or "NA"
+    break
+meta["bench_tool_image_ref"] = _bt_ref
+meta["bench_tool_image_digest"] = _bt_dig
+meta["bench_tool_image_digest_source"] = ("measured(docker image inspect .RepoDigests)"
+                                          if _bt_dig != "NA" else "unavailable")
+meta["bench_endpoint"] = _bt_ep
 
 levels = []
 for L in sorted(completed):

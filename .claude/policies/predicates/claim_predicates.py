@@ -695,9 +695,18 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C10():
     resolver = _read(".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py")
     _require("docker" in resolver and '"pull"' not in resolver and "'pull'" not in resolver,
              'the resolver must never pull -- absence is fail-closed pre-staging, not a silent fetch')
-    _require("RC_ABSENT = 3" in resolver and "RC_DRIFT = 4" in resolver
-             and "RC_OK = 0" in resolver,
-             'absence and drift must be distinguishable exit codes, not one generic failure')
+    _require("RC_ABSENT = 3" in resolver and "RC_OK = 0" in resolver,
+             'absence must stay its own fail-closed exit code, not one generic failure')
+    # 2026-09-05 (plan_26090516 3-8 / G-C3): the digest DRIFT gate was demoted to provenance --
+    # pinning one tool version made every version bump a harness edit, which contradicts the
+    # standing decision that the bench tool defaults to the latest release. Absence is still
+    # fail-closed (staging is a human act); a digest that differs from the record is RECORDED.
+    # This assertion is the tripwire against the gate creeping back in.
+    _require("RC_DRIFT" not in resolver,
+             'the digest drift gate must stay demoted to provenance -- record what ran, do not '
+             'refuse to run because a version moved')
+    _require("matches_record" in resolver,
+             'the resolver must still report whether the local image matches the recorded digest')
 
     # The serve container is not started or stopped by the benchmark skill (the invariant's object
     # is the inference server; the measurement container is the documented exception).

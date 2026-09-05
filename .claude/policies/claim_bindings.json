@@ -1098,7 +1098,7 @@
         "path": ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py",
         "assertion_ids": [
           "RC_ABSENT",
-          "RC_DRIFT",
+          "RC_OK",
           "classify",
           "accepted_digests"
         ]

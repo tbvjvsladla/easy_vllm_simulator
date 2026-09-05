@@ -54,6 +54,13 @@ CERT_PERF = ["benchmark_mode", "verdict", "decode_tps_conc1", "rubric_authority"
              "ratio_M_over_primary", "spec_on", "accept_len", "sweep_levels",
              "sweep_truncated", "lite_included", "lite_gen_tps_warm", "lite_gen_src",
              "lite_cold_ttft_ms", "lite_kv_gib", "measured_utc"]
+# 측정 **구성**은 값이 아니라 조건이다 — 같은 수치라도 도구·버전·이미지·요청 포맷·오류 허용치가
+# 다르면 나란히 놓을 수 없다. 2026-09-05(plan_26090516 3-12 · 축 B): hint 동봉 문서에 이것을
+# **기재만** 한다(게이트 ✗ — 버전이 다르다고 hint 발행을 막지 않는다. 루브릭이 흔들리는 것은
+# 감수하고, 대신 무엇으로 쟀는지가 문서에 남아 독자가 스스로 판단한다).
+CERT_BENCH_TOOL = ["bench_tool", "bench_tool_version", "bench_tool_version_source",
+                   "bench_tool_image_ref", "bench_tool_image_digest",
+                   "bench_tool_image_digest_source", "bench_endpoint", "bench_max_error_rate"]
 
 
 def die(msg: str, code: int = 2) -> None:
@@ -485,6 +492,10 @@ def render_item3(cert: dict, cert_name: str) -> str:
         "> 아래 수치는 인증서에서 **파싱만** 한 것이다. 합성하지 않았고, 재계산하지 않았다.",
         f"> 출처: `{cert_name}`", "",
         "## 성능", "", "| 항목 | 값 |", "|---|---|", _fmt_kv(cert, CERT_PERF), "",
+        "## 측정 구성 — 무엇으로 쟀나(기재 · 게이트 아님)", "",
+        "> 도구·버전이 다르면 수치를 나란히 놓기 전에 조건부터 본다. 부재 키는 그 시점에 그 필드가",
+        "> 없었다는 뜻이다(합성하지 않는다).", "",
+        "| 항목 | 값 |", "|---|---|", _fmt_kv(cert, CERT_BENCH_TOOL), "",
         "## 강한 일치 키 — 하나라도 다르면 이 수치는 **무효**다", "",
         "| 키 | 값 |", "|---|---|", _fmt_kv(cert, CERT_STRONG), "",
         "## 소프트 지문 — 다르면 stale, 재측정 권고", "",
@@ -590,6 +601,7 @@ def cmd_collect(a) -> int:
         "runtime": {k: (man.get("runtime") or {}).get(k)
                     for k in ("health_ok", "functional_smoke_passed")},
         "benchmark": {k: cert.get(k) for k in CERT_PERF if k in cert},
+        "bench_tool": {k: cert.get(k) for k in CERT_BENCH_TOOL if k in cert},
         "benchmark_source": {"certificate": cert_p.name, "sha256": sha256_of(cert_p),
                              "parsed_not_synthesized": True},
         "slots": slots,
