@@ -1043,14 +1043,33 @@ def _self_test() -> None:
 
 
 def _require_terraform_flag(manifest_path: str) -> None:
-    """헌법 §테라포밍-완수 Flag 게이트 (fail-closed) — render/build deliverable 은 Flag 전제.
+    """헌법 §테라포밍-완수/A2A-위임 Flag 게이트 (fail-closed) — render/build deliverable 은 Flag 전제.
 
-    upstream 은 main-only 빌딩블럭이라 A2A 서브 위임 키 면제가 없다(서브는 build/render 를 안 한다).
-    recipe.py 의 `_require_terraform_flag` 와 동일 계약(약한 게이트 금지 — 통합검증 BLOCK).
-    테스트 override 는 EASY_VLLM_A2A_DELEGATED=1(정확히 "1").
+    면제 2경로 — `recipe.py` 의 `_require_terraform_flag` 와 **동일 계약**:
+      (1차·결정론) 서브 A2A 위임 양성 키 `.claude/a2a_delegation.json`(delegation=main_cluster_flag ∧
+                   issued_to=sub). 손상·역할 불일치는 면제하지 않는다(fail-closed 진행).
+      (2차·테스트) `EASY_VLLM_A2A_DELEGATED=1`(정확히 "1").
+
+    2026-09-05 정정: 이 docstring 은 "recipe.py 와 동일 계약"이라 적어 두고도 **1차 경로가 없었다** —
+      근거로 "upstream 은 main-only 빌딩블럭이라(서브는 build/render 를 안 한다)"고 적혀 있었으나,
+      그 전제가 더는 참이 아니다. `upstream-version-watch` 는 서브 tool_plane 에 실제로 배달되고
+      (node_role_contract: single/a2a-agent = 3종), 헌법 불변식 A 는 **싱글의 sub 가 자기 빌드킷을
+      자율 저작한다**고 말한다. 그 결과 서브는 정식 경로가 막혀 *테스트용* override 로 프로덕션
+      게이트를 뚫도록 내몰렸다(2026-09-05 서브가 그 우회를 거부하고 질의를 올려 발각).
+      게이트를 약화한 것이 아니라 **두 형제 게이트의 갈라짐을 메운 것**이다 — 메인에는 위임 키가
+      없으므로(키는 issued_to=sub) 메인 경로의 판정은 전과 동일하다.
     """
     if os.environ.get("EASY_VLLM_A2A_DELEGATED") == "1":
         return
+    _keyp = os.path.join(_repo_root(), ".claude", "a2a_delegation.json")
+    if os.path.isfile(_keyp):
+        try:
+            with open(_keyp, encoding="utf-8") as _kf:
+                _kd = json.load(_kf)
+            if _kd.get("delegation") == "main_cluster_flag" and _kd.get("issued_to") == "sub":
+                return
+        except Exception:
+            pass  # 손상/비유효 키 → 면제 안 함(fail-closed 진행)
     if not os.path.isfile(manifest_path):
         print("[render] FAIL: manifest 부재 — 테라포밍 미완(fail-closed). terraforming_node 로 HW스캔 + "
               "모델획득 모드(managed|ephemeral|custom)를 먼저 정하세요(info-only).", file=sys.stderr)
