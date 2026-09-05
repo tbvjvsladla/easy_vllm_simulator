@@ -78,6 +78,12 @@ def _ssh_destination(target: dict) -> str:
 #   상태가 A2A 원장의 최악 형태다. 처방: 프롬프트를 원천 차단하고, 원격 쪽에도 같은 시한을 건다.
 SSH_HARDENING = ("-o", "BatchMode=yes", "-o", "ConnectTimeout=8")
 
+# 2026-09-05(F · plan_26090516 3-4): 공식 문서 기준 **자동 재개는 대화형 claude.ai 로그인에만** 있고
+#   `-p`/게이트웨이 경로에는 없다 — 있는 것은 재시도 변수뿐이다. 서브 위임은 전부 `-p` 라
+#   일시적 API 오류 한 번이 attempt 하나를 통째로 버린다. 원격 셸에 이 변수를 실어 재시도를 켠다.
+#   (로컬 transport 는 메인 자신이라 대화형 세션과 섞이므로 켜지 않는다 — 평면이 다르다.)
+REMOTE_ENV = ("CLAUDE_CODE_RETRY_WATCHDOG=1",)
+
 
 def build_argv(request: dict) -> list[str]:
     """Provider CLI invocation argv for `request`. `local` transport returns a flat argv list;
@@ -95,6 +101,7 @@ def build_argv(request: dict) -> list[str]:
         if isinstance(timeout_seconds, (int, float)) and timeout_seconds > 0:
             # 원격 동반사망: 클라이언트만 죽으면 고아 에이전트가 남는다.
             remote_inner = f"timeout {int(timeout_seconds)} {remote_inner}"
+        remote_inner = " ".join(REMOTE_ENV) + " " + remote_inner   # env 는 timeout 앞에 온다
         remote_script = f"cd {shlex.quote(work_dir)} && {remote_inner}" if work_dir else remote_inner
         remote_command = "bash -lc " + shlex.quote(remote_script)
         return ["ssh", *SSH_HARDENING, "--", _ssh_destination(target), remote_command]
@@ -122,11 +129,24 @@ def _diag(request: dict, code: str, message: str, *, stderr: str | None = None,
         pass
 
 
+def _durations(payload) -> tuple:
+    """provider payload 가 보고한 (벽시계, API) 소요 ms. **메인이 재지 않는다** — 이 두 값의 차이가
+    정지 시간이고, 그것을 알려면 같은 시계가 잰 두 수여야 한다(2026-09-05 · F 원장)."""
+    if not isinstance(payload, dict):
+        return None, None
+    out = []
+    for key in ("duration_ms", "duration_api_ms"):
+        v = payload.get(key)
+        out.append(v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else None)
+    return out[0], out[1]
+
+
 def _result(request: dict, *, status: str, exit_code: int, reason_codes: list[str],
             model_used: list[str] | None = None, output: str | None = None,
             session_id: str | None = None, num_turns: int | None = None,
-            budget_outcome: str | None = None) -> dict:
-    # 릴레이 원장 3필드는 **모르면 null** 이다 — 그럴듯한 값으로 채우면 Layer2 보정이 거짓 위에 선다.
+            budget_outcome: str | None = None,
+            duration_ms: int | None = None, duration_api_ms: int | None = None) -> dict:
+    # 릴레이 원장 필드는 **모르면 null** 이다 — 그럴듯한 값으로 채우면 Layer2 보정이 거짓 위에 선다.
     return {
         "schema_version": request.get("schema_version", 1),
         "provider": PROVIDER_NAME,
@@ -140,6 +160,8 @@ def _result(request: dict, *, status: str, exit_code: int, reason_codes: list[st
         "session_id": session_id,
         "num_turns": num_turns,
         "budget_outcome": budget_outcome,
+        "duration_ms": duration_ms,
+        "duration_api_ms": duration_api_ms,
     }
 
 
@@ -180,7 +202,10 @@ def invoke(request: dict) -> dict:
         )
     except subprocess.TimeoutExpired:
         _diag(request, "TIMEOUT", f"provider exceeded timeout_seconds={timeout_seconds!r}")
-        return _result(request, status=STATUS_TIMEOUT, exit_code=EXIT_TIMEOUT, reason_codes=["TIMEOUT"])
+        # 2026-09-05(F): 시한 초과는 **예산이 모자란 것이 아니다**. 예산을 키워도 같은 자리서 끊긴다 —
+        #   원장이 둘을 섞으면 다음 attempt 의 처방을 정반대로 고르게 된다.
+        return _result(request, status=STATUS_TIMEOUT, exit_code=EXIT_TIMEOUT, reason_codes=["TIMEOUT"],
+                       budget_outcome="external_interruption")
     except UnicodeDecodeError:
         _diag(request, "MALFORMED_JSON", "provider stdout was not valid UTF-8")
         return _result(request, status=STATUS_MALFORMED_OUTPUT, exit_code=EXIT_MALFORMED_OUTPUT,
@@ -212,6 +237,17 @@ def invoke(request: dict) -> dict:
         if _payload is not None:
             _sess0 = _payload.get("session_id") if isinstance(_payload.get("session_id"), str) else None
             _turns0 = _payload.get("num_turns") if isinstance(_payload.get("num_turns"), int) else None
+            _d0, _da0 = _durations(_payload)
+            if _payload.get("subtype") == "error_during_execution":
+                # provider 가 "실행 도중 밖에서 끊겼다" 고 말하는 형태. 예산 서사가 아니다.
+                _diag(request, "NONZERO_EXIT",
+                      f"provider 가 실행 도중 중단됐다(subtype=error_during_execution · "
+                      f"rc={completed.returncode}).", stderr=completed.stderr)
+                return _result(request, status=STATUS_EXECUTION_FAILED,
+                               exit_code=EXIT_EXECUTION_FAILED, reason_codes=["NONZERO_EXIT"],
+                               session_id=_sess0, num_turns=_turns0,
+                               budget_outcome="external_interruption",
+                               duration_ms=_d0, duration_api_ms=_da0)
             if _payload.get("subtype") == "error_max_turns":
                 _diag(request, "TURN_BUDGET_EXHAUSTED",
                       f"provider 가 max_turns={request.get('max_turns')} 를 소진했다"
@@ -219,20 +255,26 @@ def invoke(request: dict) -> dict:
                       f"열고 session_id 로 이어라(scope ⊥ budget).")
                 return _result(request, status=STATUS_EXECUTION_FAILED,
                                exit_code=EXIT_EXECUTION_FAILED, reason_codes=["NONZERO_EXIT"],
-                               session_id=_sess0, num_turns=_turns0, budget_outcome="exhausted")
+                               session_id=_sess0, num_turns=_turns0, budget_outcome="exhausted",
+                               duration_ms=_d0, duration_api_ms=_da0)
             _diag(request, "NONZERO_EXIT",
                   f"provider exited {completed.returncode} · subtype={_payload.get('subtype')!r} "
                   f"errors={_payload.get('errors')}", stderr=completed.stderr)
             return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
                            reason_codes=["NONZERO_EXIT"], session_id=_sess0, num_turns=_turns0,
-                           budget_outcome="aborted")
+                           budget_outcome="aborted", duration_ms=_d0, duration_api_ms=_da0)
         _diag(request, "NONZERO_EXIT",
               f"provider exited {completed.returncode}"
               + (" (ssh transport: 255 = 전송 실패, host key/키인증/네트워크를 먼저 본다)"
                  if request["target"]["transport"] == "ssh" and completed.returncode == 255 else ""),
               stderr=completed.stderr, stdout=completed.stdout)
+        # 2026-09-05(F): 원격 `timeout` 이 죽인 것(124)과 밖에서 SIGTERM 을 받은 것(143)은
+        #   예산 사건이 아니라 **외생 중단**이다. 종전에는 둘 다 null 로 남아 정지 시간이
+        #   "모름" 으로 접혔다.
         return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
-                        reason_codes=["NONZERO_EXIT"])
+                       reason_codes=["NONZERO_EXIT"],
+                       budget_outcome=("external_interruption"
+                                       if completed.returncode in (124, 143) else None))
 
     # 2026-09-05: 아래 세 분기는 **진단 없이** terminal 이었다. NONZERO_EXIT 경로는 stderr 로
     #   원인을 남기는데 여기만 침묵이라, 원장에는 `PROVIDER_RESULT_INVALID` 한 단어와 null 세 개만
@@ -263,6 +305,7 @@ def invoke(request: dict) -> dict:
 
     _sess = payload.get("session_id") if isinstance(payload.get("session_id"), str) else None
     _turns = payload.get("num_turns") if isinstance(payload.get("num_turns"), int) else None
+    _dur, _dur_api = _durations(payload)
 
     denials = payload.get("permission_denials")
     if "permission_denials" in payload:
@@ -292,7 +335,8 @@ def invoke(request: dict) -> dict:
             return _result(request, status=STATUS_EXECUTION_FAILED,
                            exit_code=EXIT_EXECUTION_FAILED,
                            reason_codes=["PERMISSION_DENIED"],
-                           output=_note, session_id=_sess, num_turns=_turns)
+                           output=_note, session_id=_sess, num_turns=_turns,
+                           duration_ms=_dur, duration_api_ms=_dur_api)
 
     if payload.get("is_error") is True:
         return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
@@ -308,7 +352,7 @@ def invoke(request: dict) -> dict:
               f"같은 예산의 자동 재시도 ✗ — 더 큰 예산의 새 attempt 를 열어라(scope ⊥ budget).")
         return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
                        reason_codes=["NONZERO_EXIT"], session_id=_sess, num_turns=_turns,
-                       budget_outcome="exhausted")
+                       budget_outcome="exhausted", duration_ms=_dur, duration_api_ms=_dur_api)
 
     if payload.get("is_error") is not False or payload.get("subtype") != "success" \
             or not isinstance(payload.get("result"), str) or not payload["result"]:
@@ -319,7 +363,7 @@ def invoke(request: dict) -> dict:
               stderr=completed.stderr, stdout=completed.stdout)
         return _result(request, status=STATUS_MALFORMED_OUTPUT, exit_code=EXIT_MALFORMED_OUTPUT,
                        reason_codes=["PROVIDER_RESULT_INVALID"], session_id=_sess, num_turns=_turns,
-                       budget_outcome="unknown")
+                       budget_outcome="unknown", duration_ms=_dur, duration_api_ms=_dur_api)
 
     model_usage = payload.get("modelUsage")
     if not isinstance(model_usage, dict) or not model_usage:
@@ -370,4 +414,5 @@ def invoke(request: dict) -> dict:
     return _result(request, status=STATUS_COMPLETED, exit_code=EXIT_SUCCESS, reason_codes=[],
                     model_used=model_ids, output=payload["result"],
                     session_id=_sess, num_turns=_turns,
-                    budget_outcome=_budget_outcome(payload, request))
+                    budget_outcome=_budget_outcome(payload, request),
+                    duration_ms=_dur, duration_api_ms=_dur_api)

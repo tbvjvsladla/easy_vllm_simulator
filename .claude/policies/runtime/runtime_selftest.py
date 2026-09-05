@@ -760,6 +760,7 @@ def _test_provider_turn_exhaustion_reachable() -> None:
     provider = agent_control._load_provider("claude_code")
     payload = {"type": "result", "subtype": "error_max_turns", "is_error": True,
                "num_turns": 26, "session_id": "sess-abc",
+               "duration_ms": 812_345, "duration_api_ms": 640_000,
                "errors": ["Reached maximum number of turns (25)"],
                "result": "", "modelUsage": {}}
 
@@ -782,6 +783,13 @@ def _test_provider_turn_exhaustion_reachable() -> None:
              f"num_turns/session_id must survive a non-zero exit: {res}")
     _require(res["status"] == "execution_failed",
              "exhaustion is still a failure of that attempt -- it must not read as completed")
+    # 2026-09-05(축 F): 결과가 **실제 결과 스키마**를 통과해야 한다. 필드 몇 개만 보던 종전 검사는
+    #   새 required 필드가 빠져도 초록이었다(픽스처가 실물보다 좁다).
+    _res_schema = agent_control._load_schema(agent_control.RESULT_SCHEMA_PATH)
+    _require(not agent_control._schema_violations(res, _res_schema),
+             f"provider result violates result schema: {agent_control._schema_violations(res, _res_schema)}")
+    _require(res["duration_ms"] == 812_345 and res["duration_api_ms"] == 640_000,
+             f"provider-reported durations must survive a non-zero exit: {res}")
 
     # 음성대조: payload 가 아예 없는 비-0 종료(전송 실패)는 여전히 NONZERO_EXIT 이고 원장 3필드는 null.
     class _Broken:
@@ -795,6 +803,21 @@ def _test_provider_turn_exhaustion_reachable() -> None:
     _require(res2["reason_codes"] == ["NONZERO_EXIT"] and res2["budget_outcome"] is None
              and res2["num_turns"] is None,
              f"a transport failure has no budget story -- it must stay null, got {res2}")
+    _require(res2["duration_ms"] is None and res2["duration_api_ms"] is None,
+             f"unmeasured durations stay null (0 would read as 'finished instantly'): {res2}")
+
+    # 외생 중단(원격 timeout 124 / SIGTERM 143)은 **예산 사건이 아니다** — 원장이 둘을 갈라야
+    # 다음 attempt 의 처방이 뒤집히지 않는다(2026-09-05 · F).
+    for _rc in (124, 143):
+        class _Killed:
+            returncode, stdout, stderr = _rc, "", "Terminated"
+        provider.subprocess.run = lambda *a, **k: _Killed()
+        try:
+            res3 = provider.invoke(_request("ssh"))
+        finally:
+            provider.subprocess.run = real_run
+        _require(res3["budget_outcome"] == "external_interruption",
+                 f"rc={_rc} is an external interruption, not a budget outcome: {res3}")
 
 
 def _test_agent_provider_boundary() -> None:
@@ -834,6 +857,13 @@ def _test_agent_provider_boundary() -> None:
     # 원격 동반사망: 클라이언트 timeout 만으로는 서브에 고아 에이전트가 남는다.
     _require("timeout " in remote_shell[2] and " claude " in remote_shell[2],
              f"remote command must be wrapped in `timeout` so the sub agent dies with the client: {remote_shell[2]}")
+    # 2026-09-05(3-4): 서브 `-p` 릴레이는 재시도 워치독을 켠다. **순서가 계약이다** — env 대입은
+    #   `timeout` 앞에 와야 한다(뒤에 두면 timeout 이 `VAR=1` 을 실행 파일로 알고 즉사한다).
+    _remote_cmd = remote_shell[2].split("&&", 1)[1].strip()
+    _require(_remote_cmd.startswith("CLAUDE_CODE_RETRY_WATCHDOG=1 timeout "),
+             f"sub relay must set the retry watchdog before `timeout`: {_remote_cmd[:120]}")
+    _require("CLAUDE_CODE_RETRY_WATCHDOG" not in " ".join(local_argv),
+             "local transport is the main node's own plane -- the sub relay env must not leak into it")
 
     blocked = _request("local")
     blocked["model"] = "opus"

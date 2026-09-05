@@ -16,7 +16,9 @@
     "output",
     "session_id",
     "num_turns",
-    "budget_outcome"
+    "budget_outcome",
+    "duration_ms",
+    "duration_api_ms"
   ],
   "additionalProperties": false,
   "properties": {
@@ -124,10 +126,27 @@
         "within_budget",
         "exhausted",
         "aborted",
+        "external_interruption",
         "unknown",
         null
       ],
-      "description": "예산 결말. `exhausted` 는 terminal — 같은 예산으로 자동 재시도하지 않고 **더 큰 예산의 새 attempt** 를 연다(scope ⊥ budget · 예산 축소는 하강나선)."
+      "description": "예산 결말. `exhausted` 는 terminal — 같은 예산으로 자동 재시도하지 않고 **더 큰 예산의 새 attempt** 를 연다(scope ⊥ budget · 예산 축소는 하강나선). 2026-09-05 신설 `external_interruption`: 예산이 아니라 **밖에서 끊긴 것**(timeout · SIGTERM 143 · provider `error_during_execution`). 종전에는 이것이 `aborted`/null 로 섞여 원장이 '예산이 모자랐다' 와 '누가 끊었다' 를 구분하지 못했다 — 정지 시간을 계상하려면 갈라야 한다."
+    },
+    "duration_ms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "description": "provider 가 보고한 **벽시계** 소요(ms). 모르면 null(추측 금지). 원장의 `duration_api_ms` 와 함께 정지 시간(= wall − api)을 파생한다 — 서브가 실제로 API 를 태운 시간과 기다린 시간은 다른 사실이다."
+    },
+    "duration_api_ms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "description": "provider 가 보고한 **API** 소요(ms). 출처는 provider payload 이며 메인이 재지 않는다."
     }
   },
   "oneOf": [

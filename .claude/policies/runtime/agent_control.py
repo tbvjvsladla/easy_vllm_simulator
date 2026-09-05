@@ -183,6 +183,10 @@ def _invalid_request_result(request) -> dict:
         "session_id": None,
         "num_turns": None,
         "budget_outcome": None,
+        # 2026-09-05(F): 소요시간 2필드도 required 다. 닿지 못한 요청에는 잰 시간이 없으므로
+        # null 이 곧 사실이다(0 을 적으면 "0ms 만에 끝났다" 는 거짓이 된다).
+        "duration_ms": None,
+        "duration_api_ms": None,
     }
 
 
@@ -202,6 +206,8 @@ def _invalid_provider_result(request: dict) -> dict:
         "session_id": None,
         "num_turns": None,
         "budget_outcome": None,
+        "duration_ms": None,
+        "duration_api_ms": None,
     }
 
 

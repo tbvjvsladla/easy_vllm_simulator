@@ -609,9 +609,17 @@ Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 �
 
 | 명령 | 언제 | 무엇 | 평면 |
 |---|---|---|---|
-| `relay.py --task ...` | 첫 위임 | **선언한 예산**으로 delegate · 원장 개설(`tasks/<ctx>.json`) | B |
-| `relay.py --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기(기본 dry-run) | B |
-| `relay.py --continue --apply` | 사람이 본문을 승인 | 조립 본문 + **새로 선언한 예산** + 세션 재개로 delegate | B |
+| `relay.py --task ... --max-turns N --timeout-seconds N --budget-source "..." --resume new` | 첫 위임 | **선언한 예산·재개**로 delegate · 원장 개설(`tasks/<ctx>.json`) | B |
+| `relay.py --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기 + 예산·세션 **사실** 표시(기본 dry-run) | B |
+| `relay.py --continue --apply --max-turns N --timeout-seconds N --budget-source "..." --resume <id\|new>` | 사람이 본문을 승인 | 조립 본문 + 새로 선언한 예산 + **선언한 세션**으로 delegate | B |
+
+- **재개는 선언이다**(2026-09-05 · 축 F): 종전에는 `latest_session_id()` 가 원장을 보고 코드 규칙으로
+  정했고 그 규칙이 라이브에서 두 번 어긋났다(완결 뒤 옛 세션 반환 · 소진 세션 무조건 폐기). 이제
+  dry-run 이 **마지막 알려진 세션과 그 맥락**을 보여주고, `--resume <session_id|new>` 로 선언하지 않으면
+  fail-loud 한다. 리포트 없이 끝난 턴은 `tasks/pending_hitl.json` 에 그 세션 id 를 남긴다(침묵 종결 ✗).
+- **원장은 append-only 다**: attempt 마다 `request_path`(보낸 요청 원문)·`report_path`·`end_reason`·
+  `started_utc`/`ended_utc`(메인 실측)·`duration_ms`/`duration_api_ms`(provider 보고)를 적는다.
+  **정지 시간 = wall − api** 이며 두 값의 출처가 다르므로 섞지 않는다.
 
 - **조립기는 합성하지 않는다** — 직전 attempt 의 제어 상태(원장) · 서브가 보낸 `artifacts[]`·
   `next_steps`·`notes` · 사람이 `tasks/pending_hitl.json` 에 적은 `answer` · 원 지시. 그 넷뿐이다.

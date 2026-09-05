@@ -53,7 +53,10 @@ claude -p '<task>' --model sonnet --output-format json --max-turns <N> --allowed
 ```
 
 - main은 explicit `work_dir`에서 local subprocess로 실행한다.
-- sub는 `ssh -- <user@host> 'cd <quoted-work_dir> && <quoted-provider-command>'`로 실행한다.
+- sub는 `ssh -- <user@host> 'cd <quoted-work_dir> && CLAUDE_CODE_RETRY_WATCHDOG=1 timeout <N> <quoted-provider-command>'`로 실행한다.
+  env 대입은 **`timeout` 앞**에 온다(뒤에 두면 `timeout` 이 `VAR=1` 을 실행 파일로 알고 즉사한다 —
+  `runtime_selftest` 가 이 순서를 계약으로 고정한다). 자동 재개는 공식적으로 대화형 claude.ai 로그인에만
+  있고 `-p`/게이트웨이 경로에는 없다 — 있는 것은 이 재시도 변수뿐이라 서브 위임에만 켠다(2026-09-05).
 - `bypassPermissions`와 `--dangerously-skip-permissions`는 어떤 경로에서도 허용하지 않는다.
 - `capabilities`는 adapter 내부에서만 `Read`, `Bash`, `Edit`, `Write`로 매핑한다.
 - 긴 build/serve는 agent-control에 위임하지 않고 별도 감독 실행계약을 사용한다.
