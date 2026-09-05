@@ -3,7 +3,7 @@
   "quantization": "mxfp4",
   "max_model_len": 131072,
   "batch": 18,
-  "kv_cache_quant": "bfloat16",
+  "kv_cache_quant": "auto",
   "kv_cache_memory_bytes": 60129542144,
   "attention_backend": "TRITON_ATTN",
   "attention_backend_candidates": [

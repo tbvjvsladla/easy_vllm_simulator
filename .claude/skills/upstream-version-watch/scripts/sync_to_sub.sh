@@ -1282,7 +1282,15 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
         local _keep="" _f _dir
         while IFS= read -r _f; do
             [ -n "$_f" ] || continue
-            case "$_f" in tasks/*) continue ;; esac
+            # 서브 소유 평면(닫힌 목록):
+            #   tasks/  = 릴레이 원장·리포트(서브 쓰기 권한 평면)
+            #   docs/   = 서브의 저작·데이터 평면. 상향 회수가 **문서기반 only** 라는 계약
+            #             자체가 "서브는 자기 docs/ 에 쓴다"를 요구한다(헌법 §서브 docs 계약).
+            #             메인이 여기 두는 것은 `example.md` 스켈레톤뿐이고 그건 canon 에 있어
+            #             애초에 잔재로 잡히지 않는다. 은퇴한 스켈레톤은 비석이 담당한다.
+            case "$_f" in tasks/*|docs/*) continue ;; esac
+            # output/<t>/.env = render --materialize-env 산출물. 배달 평면이 dormant 면 서브가 만든다.
+            case "$_f" in output/*/.env) [ -n "$(printf '%s\n' "$canon" | grep -x "$_f" || true)" ] || continue ;; esac
             _dir="${_f%/*}"; [ "$_dir" = "$_f" ] && _dir="."
             if printf '%s' "${_f##*/}" | grep -qE "^${_kit_re}$" \
                && ! printf '%s\n' "$canon" | grep -qE "^${_dir}/${_kit_re}$"; then
