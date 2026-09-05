@@ -246,6 +246,14 @@ TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);
 
 # 주소는 **타겟 토폴로지의 manifest** 에서 온다. --branch both 처럼 후보가 둘이면 값이 일치해야 한다 —
 # 갈리면 어느 노드에 배달하는지가 모호해지므로 fail-closed 한다(추측으로 고르지 않는다).
+#
+# ⚠ 2026-09-06: **host 가 통로마다 다른 것은 비정상이 아니다.** 같은 물리 노드라도 싱글은 관리
+#   hostname(A2A 제어 평면)으로, 멀티는 RoCE IP(집단연산 평면)로 잡힌다 — `fetch_sub_docs.sh` 는
+#   2026-09-05(N1)에 이 사실을 반영해 "어느 통로에서 회수할지 **선언**하면 그 통로만 본다"로 고쳤는데
+#   이 스크립트는 따라오지 않았다. 그래서 `--branch both` 가 **구조적으로 불가능**하다.
+#   지금 할 수 있는 정직한 안내는 아래 메시지다(상태가 틀린 게 아니라 이 스크립트가 통로 하나만
+#   든다). 근본 교정은 SUB_HOST 를 타겟별로 나르는 것인데, 이 값이 원격 트랜잭션·롤백 경로까지
+#   관통하므로 별도 작업으로 뺀다.
 _resolve_addr_across_targets() {   # $1=host|work_dir → stdout=값 · 1=미해소 · 2=불일치
     local kind="$1" t v prev="" src=""
     for t in "${TARGETS[@]}"; do
@@ -254,6 +262,13 @@ _resolve_addr_across_targets() {   # $1=host|work_dir → stdout=값 · 1=미해
         [ -n "$v" ] || continue
         if [ -n "$prev" ] && [ "$v" != "$prev" ]; then
             echo "[sync] FAIL: 서브 $kind 가 토폴로지 manifest 간에 다르다 — $src=$prev vs output/$t=$v" >&2
+            if [ "$kind" = "host" ]; then
+                echo "  → **상태가 틀린 것이 아닐 수 있다.** 같은 노드라도 싱글은 관리 hostname(A2A 평면),"  >&2
+                echo "     멀티는 RoCE IP(집단연산 평면)로 잡히는 것이 정상이다."                              >&2
+                echo "  → 이 스크립트는 아직 통로를 하나만 든다. 통로별로 **나눠 실행**하라:"                  >&2
+                echo "       ... --branch multi   (그 다음)  ... --branch single"                              >&2
+                echo "     두 노드가 정말 서로 다른 물리 노드라면 그것도 이 방법이 맞다."                      >&2
+            fi
             return 2
         fi
         prev="$v"; src="output/$t"
