@@ -264,7 +264,10 @@ def build_placeholders(data: dict) -> tuple[dict, list[str]]:
         "HCA_DEVICES": ic.get("hca_devices") or "[]",
         "PLATFORM_PRESET": ic.get("platform_preset") or "",
         "RAY_PORT": data.get("ray_port") or "6379",
-        "GPU_MODEL": data.get("gpu_model") or (f"{gpus}x-{cpu_arch}" if gpus and cpu_arch else cpu_arch or "unknown-gpu"),
+        # GPU_MODEL 은 폴백 없음(2026-09-05 · audit_26090515 B9): 종전 `"<n>x-<arch>"`/`"unknown-gpu"` 폴백은
+        #   Agent_Card.node_identity.gpu_model → 서브 인증서 **강한 키** `gpu` 로 흘러 위조 정체성이 인증서에
+        #   실렸다. HW 사실은 manifest 가 권위이며 없으면 아래 `required` fail-loud 로 렌더가 멈춘다.
+        "GPU_MODEL": data.get("gpu_model") or "",
         # A2A 위임 키 발급 판정용(plan_26063021_14_37 D5/D7) — nodes[sub].hw_verified(동질성 검증 통과 표식). 템플릿 치환엔 미사용.
         "SUB_HW_VERIFIED": (sub.get("hw_verified") or ""),
         # ── egress attestation → 서브 페르소나(2026-09-04 · plan_26090412 B8) ──
@@ -281,7 +284,7 @@ def build_placeholders(data: dict) -> tuple[dict, list[str]]:
     #   그대로 렌더하면 서브의 정체성 권위(AgentCard)가 거짓을 싣는다. 그래서 같은 fail-loud 통로에 둔다.
     #   ⚠ SUB_RANK 는 여기 넣지 않는다 — single 의 정답이 리터럴 `null` 이라 "빈 값"과 구분돼야 한다(음성정직).
     required = ["SUB_HOST", "MASTER_HOST", "SSH_USER", "WORKSPACE_PATH", "NAS_MOUNT",
-               "CPU_ARCH", "INTERCONNECT", "INTERCONNECT_IFACE",
+               "CPU_ARCH", "GPU_MODEL", "INTERCONNECT", "INTERCONNECT_IFACE",
                "SUB_MODE", "SUB_MODE_SOURCE", "SUB_RANK_SOURCE"]
     missing = [k for k in required if not ph.get(k)]
     return ph, missing
@@ -666,11 +669,11 @@ def _self_test() -> int:
     print(f"  [{'PASS' if c1 else 'FAIL'}] manifest 파싱 + placeholders (missing={missing}, topology={ph.get('TOPOLOGY')})")
     ok &= c1
 
-    # (2) 폴백: gpu_model/mtu 누락 시 기본값
+    # (2) mtu 는 표시된 이식성 폴백(9000) · gpu_model 은 **폴백 없음** → 누락이 required 로 잡혀야 한다(B9)
     data2 = dict(data); data2.pop("gpu_model", None); data2["interconnect"] = dict(data["interconnect"]); data2["interconnect"].pop("mtu", None)
-    ph2, _ = build_placeholders(data2)
-    c2 = ph2["INTERCONNECT_MTU"] == "9000" and ph2["GPU_MODEL"] == "1x-aarch64"
-    print(f"  [{'PASS' if c2 else 'FAIL'}] 폴백 기본값(mtu=9000, gpu_model=1x-aarch64) → got mtu={ph2['INTERCONNECT_MTU']} gpu={ph2['GPU_MODEL']}")
+    ph2, missing2 = build_placeholders(data2)
+    c2 = ph2["INTERCONNECT_MTU"] == "9000" and ph2["GPU_MODEL"] == "" and "GPU_MODEL" in missing2
+    print(f"  [{'PASS' if c2 else 'FAIL'}] mtu 폴백 9000 유지 · gpu_model 누락은 fail-loud(missing 에 GPU_MODEL) → got mtu={ph2['INTERCONNECT_MTU']} gpu={ph2['GPU_MODEL']!r} missing={missing2}")
     ok &= c2
 
     # (3) 필수 누락 → fail-loud

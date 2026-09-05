@@ -2853,7 +2853,9 @@ def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C3():
     run_bench.sh's own inline gate block (extracted verbatim -- never retyped -- and executed for
     real via bash against a real, hermetic `manifest_contract.py` copy), each run through: absent
     (both credentials missing), malformed (unparseable/garbage key), wrong-role (valid JSON, wrong
-    marker), and positive (via the key alone, and separately via the manifest/Flag alone)."""
+    marker), and positive (via the key plus a Flag-less sub manifest carrying HW facts, and separately
+    via the manifest/Flag alone). Since 2026-09-05 the key exempts only the Flag checks, so key-alone
+    without a manifest is a proven NEGATIVE (exit 5), never a pass."""
     import json
 
     src = _sync_to_sub_src()
@@ -2882,8 +2884,23 @@ def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C3():
 
     orig_a2a_env = os.environ.pop("EASY_VLLM_A2A_DELEGATED", None)
     try:
+        # 2026-09-05 (audit_26090515 E2 · plan_26090516 ①): the key exempts ONLY the terraform Flag checks
+        # (manifest-absent-as-Flag · terraforming.complete/branch_verified). HW facts (topology ·
+        # gpus_per_node · model_source) are never exempt -- they come from the sub's own manifest that
+        # terraforming_node generates at install. So the positive control is key + a Flag-less sub
+        # manifest carrying HW facts, and key-alone-without-manifest is a NEGATIVE (exit 5), not a pass.
         with tempfile.TemporaryDirectory() as tmp_pos:
+            out_dir = Path(tmp_pos) / "output" / "single"
+            out_dir.mkdir(parents=True)
+            (out_dir / "manifest.yaml").write_text("topology: single\ngpus_per_node: 1\nmodel_source: managed\n")
             _recipe_gate(tmp_pos, json.dumps({"delegation": "main_cluster_flag", "issued_to": "sub"}))  # must NOT raise
+
+        with tempfile.TemporaryDirectory() as tmp_key_only:
+            try:
+                _recipe_gate(tmp_key_only, json.dumps({"delegation": "main_cluster_flag", "issued_to": "sub"}))
+                raise AssertionError("a valid key WITHOUT HW facts must refuse -- the exemption covers Flag checks only")
+            except SystemExit as e:
+                _require(e.code == 5, f'key-only (no manifest) must die() with exit 5 (HW facts required), got {e.code!r}')
 
         with tempfile.TemporaryDirectory() as tmp_absent:
             try:
@@ -3697,6 +3714,13 @@ def run_all_predicates() -> int:
             _require(direct_requires >= 1, f"{fn.__name__} has no direct explicit _require call")
             with contextlib.redirect_stdout(captured_out), contextlib.redirect_stderr(captured_err):
                 fn()
+        except SystemExit as exc:  # 2026-09-05 live: a callee's sys.exit escaping a predicate killed the whole
+            #   runner with NO payload (rc=5, empty stdout) -- verify_distribution saw only "rc=5". Report it as
+            #   this clause's failure instead of dying silently (fail-loud, full set still reported).
+            failures.append({"clause_id": clause_id,
+                             "error": f"SystemExit: {exc.code} (a callee exited the process inside the predicate)",
+                             "stdout_tail": captured_out.getvalue()[-500:],
+                             "stderr_tail": captured_err.getvalue()[-500:]})
         except Exception as exc:  # fail closed per clause while still reporting the full set
             failures.append({"clause_id": clause_id,
                              "error": f"{type(exc).__name__}: {exc}",

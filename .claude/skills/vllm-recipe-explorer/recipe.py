@@ -128,11 +128,7 @@ def resolve_tp(cfg, repo_root):
     if explicit is not None:
         return int(explicit)
     man, _mpath, topo = _read_manifest(repo_root)
-    gpus = man.get("gpus_per_node") or 1
-    try:
-        gpus = max(1, int(gpus))
-    except (TypeError, ValueError):
-        gpus = 1
+    gpus = _manifest_gpus(man, _mpath)
     mtopo = man.get("topology") or topo
     if (mtopo or "").startswith("single"):
         return gpus
@@ -170,18 +166,33 @@ def _read_manifest(repo_root):
     try:
         with open(mpath, "r", encoding="utf-8") as f:
             return (yaml.safe_load(f) or {}), mpath, topo
-    except Exception:
-        return {}, mpath, topo
+    except Exception as e:  # 손상 manifest 를 "부재"로 읽으면 하류가 기본값으로 계속 간다 — fail-loud(audit_26090515 Group D(b))
+        _die("manifest 파싱 실패(%s): %s: %s — 손상된 HW 사실은 부재가 아니다. 파일을 고치거나 terraforming_node 로 재생성하세요."
+             % (mpath, type(e).__name__, e), code=5)
 
 
-def _total_gpus(man):
+def _manifest_gpus(man, mpath):
+    """manifest 의 `gpus_per_node` — **HW 사실이지 기본값이 아니다**(2026-09-05 · audit_26090515 B4).
+
+    부재·비정수·1 미만 → fail-loud. 종전의 `gpus_per_node`→1 침묵 폴백은 메인에서는 상위 게이트가 먼저
+    죽어 닿지 않았지만 **서브(위임키 면제 경로)에서는 살아 있던 침묵 폴백**이었다 — 같은 줄이 노드에 따라
+    등급이 달랐다. 값이 없으면 TP 를 1 로 *가정*하지 않고 멈춘다(헌법: manifest = HW 사실 단일 권위).
+    """
+    raw = man.get("gpus_per_node")
+    try:
+        gpus = int(raw)
+    except (TypeError, ValueError):
+        gpus = None
+    if gpus is None or gpus < 1:
+        _die("manifest(%s) 의 gpus_per_node 가 없거나 유효하지 않다(%r) — TP 는 HW 사실이지 기본값이 아니다. "
+             "terraforming_node 스캔으로 채우세요(fail-loud · 침묵 폴백 ✗ · audit_26090515 B4)." % (mpath, raw), code=5)
+    return gpus
+
+
+def _total_gpus(man, mpath="output/<topology>/manifest.yaml"):
     """가용 GPU 합 = gpus_per_node × 노드 수.
     **topology=single → 노드 배수 1**(sub 는 control 피어이지 텐서 워커가 아님 — resolve_tp 와 동일 계약)."""
-    gpus = man.get("gpus_per_node") or 1
-    try:
-        gpus = max(1, int(gpus))
-    except (TypeError, ValueError):
-        gpus = 1
+    gpus = _manifest_gpus(man, mpath)
     if (man.get("topology") or "").startswith("single"):
         return gpus
     nodes = man.get("nodes") or []
@@ -327,40 +338,54 @@ def _require_terraform_flag(repo_root):
       (1차·결정론) 서브 A2A 위임 *양성 키* `.claude/a2a_delegation.json` 존재 — 메인이 클러스터 HW 동질성 검증 후
                    발급·전달한 증표(메인 키 `terraforming.complete` 와 **UNIQUE**). *부재로 면제하는 fail-open ✗*.
       (2차·테스트) `EASY_VLLM_A2A_DELEGATED` env — 명시 override(개명: 옛 EASY_VLLM_SKIP_FLAG_GATE).
-    그 외엔 메인 manifest Flag(complete·branch_verified·HW·model_source) 검사. (recipe = 서브 복제 런타임블럭 →
-    main-only `manifest_contract.py` 미import, 자체 리더로 동일 계약.)
+
+    **면제의 사정거리는 테라포밍 Flag 검사(manifest 부재 · complete/branch_verified)뿐이다**(2026-09-05 ·
+    audit_26090515 E2). HW 필수필드(topology·gpus_per_node)와 model_source 는 면제 뒤에도 검사한다 — 종전에는
+    면제가 조기 return 으로 HW 검사까지 건너뛰어 서브에서만 `gpus_per_node`→1 침묵 폴백이 살아 있었다.
+    서브의 HW 사실은 terraforming_node 가 설치 과정에서 생성하는 **서브 manifest** 가 권위다(과도기 파생 ✗).
+    (recipe = 서브 복제 런타임블럭 → main-only `manifest_contract.py` 미import, 자체 리더로 동일 계약.)
     """
+    exempt = None
     if os.environ.get("EASY_VLLM_A2A_DELEGATED") == "1":  # (2차) 명시 테스트 override (정확히 "1" — '0'/'false' 오인 차단)
-        return
-    keyp = os.path.join(repo_root, ".claude", "a2a_delegation.json")  # (1차) 서브 A2A 위임 양성 키
-    if os.path.isfile(keyp):                          # 존재 + 내용·역할 검증(D8: 손상/외부 파일로 메인 게이트 우회 차단)
-        try:
-            with open(keyp, encoding="utf-8") as kf:
-                kd = json.load(kf)
-            if kd.get("delegation") == "main_cluster_flag" and kd.get("issued_to") == "sub":
-                return
-        except Exception:
-            pass  # 손상/비유효 키 → 면제 안 함(fail-closed 진행)
+        exempt = "env:EASY_VLLM_A2A_DELEGATED"
+    else:
+        keyp = os.path.join(repo_root, ".claude", "a2a_delegation.json")  # (1차) 서브 A2A 위임 양성 키
+        if os.path.isfile(keyp):                          # 존재 + 내용·역할 검증(D8: 손상/외부 파일로 메인 게이트 우회 차단)
+            try:
+                with open(keyp, encoding="utf-8") as kf:
+                    kd = json.load(kf)
+                if kd.get("delegation") == "main_cluster_flag" and kd.get("issued_to") == "sub":
+                    exempt = "key:.claude/a2a_delegation.json"
+            except Exception:
+                pass  # 손상/비유효 키 → 면제 안 함(fail-closed 진행)
     man, mpath, _topo = _read_manifest(repo_root)
     if not man:
+        if exempt:
+            _die(
+                "A2A 면제(%s)는 테라포밍 Flag 검사만 면제한다 — HW 사실(manifest %s)은 여전히 필요(fail-closed). "
+                "서브 manifest 는 terraforming_node 가 설치 과정에서 생성한다(audit_26090515 E2 · 과도기 파생 ✗)." % (exempt, mpath),
+                code=5,
+            )
         _die(
             "manifest 부재(%s) ∧ A2A 위임 키 부재 — 테라포밍 미완(fail-closed). terraforming_node 로 HW스캔 + "
             "모델획득 모드(managed|ephemeral|custom)를 먼저 정하세요(info-only). HW 사실 없이 서빙전략 deliverable 생성 ✗. "
             "[A2A/서브: 메인이 동질성 검증 후 .claude/a2a_delegation.json 발급 — 테스트는 EASY_VLLM_A2A_DELEGATED=1]" % mpath,
             code=4,
         )
-    terra = man.get("terraforming") or {}
-    if terra.get("complete") is not True or terra.get("branch_verified") is not True:
-        _die(
-            "테라포밍 완수 Flag 미발급(terraforming.complete/branch_verified != true) — "
-            "terraforming_node 로 스캔·branch↔topology 3자일치 검증 완수 먼저(info-only).",
-            code=4,
-        )
+    if not exempt:
+        terra = man.get("terraforming") or {}
+        if terra.get("complete") is not True or terra.get("branch_verified") is not True:
+            _die(
+                "테라포밍 완수 Flag 미발급(terraforming.complete/branch_verified != true) — "
+                "terraforming_node 로 스캔·branch↔topology 3자일치 검증 완수 먼저(info-only).",
+                code=4,
+            )
     # manifest_contract.evaluate_contract 와 **동일 계약**(약한 게이트 금지 — 통합검증 BLOCK):
-    # Flag 켜졌어도 필수 HW사실·획득모드 없으면 거부(scan 은 model_source 없이 complete 를 emit → 게이트가 집행).
+    # Flag 켜졌어도(또는 면제됐어도) 필수 HW사실·획득모드 없으면 거부(scan 은 model_source 없이 complete 를 emit → 게이트가 집행).
     missing = [k for k in ("topology", "gpus_per_node") if not man.get(k)]
     if missing:
-        _die("Flag true 이나 필수 HW필드 누락(%s) — terraforming_node 스캔 완수 먼저(info-only)." % ", ".join(missing), code=5)
+        _die("필수 HW필드 누락(%s) — terraforming_node 스캔 완수 먼저(info-only · A2A 면제도 이 검사는 면제하지 않는다)." % ", ".join(missing), code=5)
+    _manifest_gpus(man, mpath)  # 존재해도 비정수/0 이면 여기서 fail-loud
     ms = man.get("model_source")
     if ms not in ("managed", "ephemeral", "custom"):
         _die("model_source 미설정/오류(%r) — terraforming_node 에서 획득모드(managed|ephemeral|custom) 지정 먼저(info-only)." % ms, code=5)
@@ -368,8 +393,8 @@ def _require_terraform_flag(repo_root):
 
 def _guard_tp(tp, repo_root):
     """가드(헌법 §manifest→서빙전략 배선 불변식): tp 가 가용 GPU 합 초과 시 비0종료(서빙 전 결정론 조기탐지)."""
-    man, _, _ = _read_manifest(repo_root)
-    tot = _total_gpus(man)
+    man, _mp, _ = _read_manifest(repo_root)
+    tot = _total_gpus(man, _mp)
     if tp > tot:
         _die(
             "tp=%d 가 가용 GPU 합 %d 초과(GPU 초과) — config.tensor_parallel_size 또는 "

@@ -205,17 +205,29 @@ def main():
     # --- 하드웨어 (manifest) ---
     gpu_model, gpus_per_node, ic_gbps, manifest_topology = None, 1, None, None
     if args.manifest and os.path.isfile(args.manifest):
+        # manifest 를 **줬는데** 읽지 못하거나 gpus_per_node 가 없으면 멈춘다(fail-loud · audit_26090515 B4).
+        #   종전 `int(man.get("gpus_per_node", 1) or 1)` 은 결정 경로(verdict 기대치)의 침묵 폴백이었다 —
+        #   TP 과소평가는 기대치를 낮춰 느린 서빙을 PASS 시킨다. manifest 를 주지 않은 경우(부재)만 아래
+        #   tp_source 폴백 표시로 남는다(부재는 표시, 손상·결손은 중단).
         try:
             import yaml  # PyYAML 6 (호스트)
             with open(args.manifest, "r", encoding="utf-8") as f:
                 man = yaml.safe_load(f) or {}
-            gpu_model = man.get("gpu_model")
-            gpus_per_node = int(man.get("gpus_per_node", 1) or 1)
-            manifest_topology = man.get("topology")
-            ic = man.get("interconnect") or {}
-            ic_gbps = ic.get("bandwidth_gbps")
         except Exception as e:
-            notes.append("manifest 파싱 경고: %s" % e)
+            _die("manifest 파싱 실패(%s): %s: %s — 기대치 산출의 HW 입력이 없다(fail-loud · audit_26090515 B4)"
+                 % (args.manifest, type(e).__name__, e))
+        gpu_model = man.get("gpu_model")
+        _raw_gpus = man.get("gpus_per_node")
+        try:
+            gpus_per_node = int(_raw_gpus)
+        except (TypeError, ValueError):
+            gpus_per_node = None
+        if gpus_per_node is None or gpus_per_node < 1:
+            _die("manifest(%s) 의 gpus_per_node 부재/비정수(%r) — TP 는 HW 사실이지 기본값이 아니다. "
+                 "terraforming_node 스캔으로 채우세요(fail-loud · 침묵 폴백 ✗ · audit_26090515 B4)" % (args.manifest, _raw_gpus))
+        manifest_topology = man.get("topology")
+        ic = man.get("interconnect") or {}
+        ic_gbps = ic.get("bandwidth_gbps")
 
     # tp 결정: 명시 > manifest(nodes 수 × gpus_per_node) > 1
     #   ★ tp 출처를 각인한다(2026-08-13 · plan_26081314 D2). tp 는 per_node_read = active_bytes/tp
