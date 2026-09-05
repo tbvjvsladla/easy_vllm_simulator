@@ -107,9 +107,18 @@ MODEL=$(val SERVING_MODEL_NAME); SLAVE_IP=$(val SLAVE_HOST_IP)
 #     flashinfer(python+cubin) 의존 승격 게이트인데, 빼면 **마스터만 0.6.17 이고 슬레이브는
 #     0.6.16.post3** 이 된다 — SM12X_PORT·VLLM_PRETEND_VERSION·BUILD_DOCKERFILE 이 잠복했던 것과
 #     **동일 부류의 전파 구멍**이며, 이번이 그 목록의 네 번째다. 멀티는 빌드 인자가 한 톨도 갈리면 안 된다.
+#   ⚠ VLLM_VERSION 도 **이미지 정체성의 일부**다(2026-09-05 신설 — 이 목록의 **다섯 번째**).
+#     wheel 트랙에서 어느 vLLM 을 설치할지를 정하는 값이며, compose 가 build-arg 로 넘긴다.
+#     빠지면 **마스터만 EF 가 준 버전으로 빌드되고 슬레이브는 Dockerfile 의 `ARG VLLM_VERSION`
+#     기본값(0.18.0)으로 빌드**된다 — 같은 IMAGE_TAG 를 달고 **두 노드의 내용이 갈린다**.
+#     그 상태의 TP=2 는 워커마다 다른 엔진을 돌리는 것이고, 실패하면 원인이 버전이라는 단서가
+#     태그 어디에도 없다("태그 ≠ 내용" 사고가 노드 경계로 번진 형태).
+#     이 구멍은 compose 에 VLLM_VERSION build-arg 를 되살리면서(2026-09-05) 새로 생겼다 —
+#     전달 목록이 build-arg 목록과 함께 자라지 않으면 그 순간 갈라진다.
 IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF); BDF=$(val BUILD_DOCKERFILE)
 VPV=$(val VLLM_PRETEND_VERSION); SMPORT=$(val SM12X_PORT); SDA=$(val SRC_DEPS_AUTHORITY)
-SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VREPO:+VLLM_REPO=$VREPO }${VPV:+VLLM_PRETEND_VERSION=$VPV }${SMPORT:+SM12X_PORT=$SMPORT }${SDA:+SRC_DEPS_AUTHORITY=$SDA }${VREF:+VLLM_REF=$VREF}"
+VVER=$(val VLLM_VERSION)
+SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VVER:+VLLM_VERSION=$VVER }${VREPO:+VLLM_REPO=$VREPO }${VPV:+VLLM_PRETEND_VERSION=$VPV }${SMPORT:+SM12X_PORT=$SMPORT }${SDA:+SRC_DEPS_AUTHORITY=$SDA }${VREF:+VLLM_REF=$VREF}"
 
 # ── 클러스터-평면 vars 전달(2026-08-14 신설 — 침묵 누락 3번째 인스턴스) ──────────────────
 #   위 이미지 정체성과 **같은 부류의 전파 구멍**이다: 콤보 EF 에만 있고 EFC(Band2)에는 없는 키를
@@ -347,6 +356,34 @@ if [ "$_bd" = "Dockerfile" ]; then   # wheel 트랙에만 적용(source-build �
       esac
     done
   fi
+fi
+
+# ── 빌드 결과 버전 대조 — **양 노드의 이미지 안에서 실제 vLLM 을 읽는다** (2026-09-05 신설) ──
+#   위 §태그↔빌드 대조는 *선언* 을 본다(EF 의 VLLM_VERSION / Dockerfile ARG). 그것은 마스터의
+#   의도가 태그와 맞는지만 말하고, **슬레이브가 그 의도대로 빌드됐는지는 말하지 못한다**.
+#   슬레이브는 EFC(Band2)만 받으므로 콤보 EF 의 키는 SLAVE_IMGVARS 에 손으로 담아야 도달한다 —
+#   그 목록이 build-arg 목록과 함께 자라지 않으면 그 순간 두 노드가 갈린다. 실제로 이 저장소는
+#   같은 형태를 다섯 번 겪었다(BUILD_DOCKERFILE · VLLM_PRETEND_VERSION · SM12X_PORT ·
+#   SRC_DEPS_AUTHORITY · VLLM_VERSION). **리스트를 늘리는 대신 결과를 대조한다** —
+#   무엇이 빠졌든 결과가 갈리면 여기서 걸린다.
+#   ⚠ torch 대조로는 이 사고를 못 잡는다: 0.18.0 과 0.19.0 은 둘 다 torch 2.10.0 을 핀하므로
+#     버전이 갈려도 ABI 게이트는 통과한다.
+if [ "$_bd" = "Dockerfile" ] && [ -n "$_tag_ver" ]; then
+  for _n in main sub; do
+    if [ "$_n" = "main" ]; then
+      _vv="$(docker run --rm --entrypoint python3 "$IMG" -c 'import vllm;print(vllm.__version__)' 2>/dev/null | tail -1)"
+    else
+      _vv="$(ssh -o BatchMode=yes -n "$SUB_HOST" "docker run --rm --entrypoint python3 '$IMG' -c 'import vllm;print(vllm.__version__)'" 2>/dev/null | tail -1)"
+    fi
+    case "$_vv" in
+      "") echo "[mn] FAIL(버전 대조): $_n 이미지에서 vllm 버전을 읽지 못했다 — 검증 불가는 통과가 아니다." >&2; exit 3 ;;
+      "$_tag_ver"|"$_tag_ver"+*) echo "[mn] 빌드 버전 정합($_n): vllm $_vv ← 태그 $_tag_ver" ;;
+      *)  echo "[mn] FAIL(빌드 버전 불일치): $_n 이미지의 vllm=$_vv 인데 IMAGE_TAG 는 $_tag_ver 다." >&2
+          echo "[mn]   → 두 노드가 같은 태그로 **다른 엔진**을 돌게 된다(태그가 노드 경계에서 거짓말한다)." >&2
+          echo "[mn]   → 콤보 EF 의 빌드 키가 SLAVE_IMGVARS 로 전달되는지 확인하라(현재: $SLAVE_IMGVARS)." >&2
+          exit 3 ;;
+    esac
+  done
 fi
   else echo "[mn] FAIL: 빌드(master=$MR slave=$SR). tail:"; tail -6 /tmp/mn_build_master.log /tmp/mn_build_slave.log; exit 2; fi
 fi
