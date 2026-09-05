@@ -234,16 +234,30 @@ def invoke(request: dict) -> dict:
         return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
                         reason_codes=["NONZERO_EXIT"])
 
+    # 2026-09-05: 아래 세 분기는 **진단 없이** terminal 이었다. NONZERO_EXIT 경로는 stderr 로
+    #   원인을 남기는데 여기만 침묵이라, 원장에는 `PROVIDER_RESULT_INVALID` 한 단어와 null 세 개만
+    #   남는다 — "무엇이 왔길래 result 가 아닌가" 를 아무도 알 수 없다. 사이드채널로 원문을 남긴다
+    #   (stdout 계약은 건드리지 않는다).
     try:
         payload = json.loads(completed.stdout)
-    except (ValueError, RecursionError):
+    except (ValueError, RecursionError) as exc:
+        _diag(request, "MALFORMED_JSON",
+              f"provider stdout 을 JSON 으로 읽지 못했다: {type(exc).__name__}: {exc}",
+              stderr=completed.stderr, stdout=completed.stdout)
         return _result(request, status=STATUS_MALFORMED_OUTPUT, exit_code=EXIT_MALFORMED_OUTPUT,
                        reason_codes=["MALFORMED_JSON"])
     if not isinstance(payload, dict):
+        _diag(request, "MALFORMED_JSON",
+              f"provider stdout 이 JSON 객체가 아니다(type={type(payload).__name__})",
+              stderr=completed.stderr, stdout=completed.stdout)
         return _result(request, status=STATUS_MALFORMED_OUTPUT, exit_code=EXIT_MALFORMED_OUTPUT,
                         reason_codes=["MALFORMED_JSON"])
 
     if payload.get("type") != "result":
+        _diag(request, "PROVIDER_RESULT_INVALID",
+              f"봉투가 result 가 아니다 — type={payload.get('type')!r} subtype={payload.get('subtype')!r} "
+              f"keys={sorted(payload)[:12]}",
+              stderr=completed.stderr, stdout=completed.stdout)
         return _result(request, status=STATUS_MALFORMED_OUTPUT, exit_code=EXIT_MALFORMED_OUTPUT,
                        reason_codes=["PROVIDER_RESULT_INVALID"])
 
@@ -298,6 +312,11 @@ def invoke(request: dict) -> dict:
 
     if payload.get("is_error") is not False or payload.get("subtype") != "success" \
             or not isinstance(payload.get("result"), str) or not payload["result"]:
+        _diag(request, "PROVIDER_RESULT_INVALID",
+              f"result 봉투가 성공 형태가 아니다 — is_error={payload.get('is_error')!r} "
+              f"subtype={payload.get('subtype')!r} result_type={type(payload.get('result')).__name__} "
+              f"session={_sess} turns={_turns}",
+              stderr=completed.stderr, stdout=completed.stdout)
         return _result(request, status=STATUS_MALFORMED_OUTPUT, exit_code=EXIT_MALFORMED_OUTPUT,
                        reason_codes=["PROVIDER_RESULT_INVALID"], session_id=_sess, num_turns=_turns,
                        budget_outcome="unknown")
