@@ -1,0 +1,33 @@
+# 캠페인 1 입력 (plan_26090520) — vLLM 0.18.0 × gpt-oss-20b × 타겟 H100 80GB × single(TP=1)
+# 루트 config.yaml 을 덮지 않으려고 별도 파일로 둔다.
+target_model:
+  path: /app/models/OpenAI/gpt-oss-20b
+nas_host_root: /mnt/llm/Model/hugging_face_ver_model
+tiktoken_host_path: /mnt/llm/Model/hugging_face_ver_model/OpenAI/harmony_tokenizer
+
+# ── 실측(measured) ──────────────────────────────────────────────────────────
+# 이 노드의 실제 디바이스 총량. GB10 통합메모리라 nvidia-smi memory.total 은 [N/A] 이므로
+# /proc/meminfo MemTotal 이 권위다(부재이지 결측이 아니다 — docs.md §부재와 결측의 구분).
+test_device_total_gib: 121.69
+vram_budget_gb: 121.7        # 실행 노드의 물리 예산(호스트 안전 판정용)
+safety_margin: 0.90
+
+# ── 선언(declared) — 통제변인 1 ─────────────────────────────────────────────
+# 사용자 지시 2026-09-05: "사용하는 VRAM : H100(VRAM 80GB)".
+# 실행은 GB10 에서 하지만 **타겟 HW 는 H100 80GB** 이므로, KV 절대클램프를 그 타겟 예산으로
+# 산정한다(policy:KV_ABSOLUTE_CLAMP_PORTABILITY · recipe §4.2).
+#   kv_clamp = per_card_VRAM × target_gmu − weights/TP − overhead/TP
+#            = 80 × 0.90 − 13.72 − overhead
+# ★ test_device_total_gib 에 80 을 적지 않는다 — 그건 실측이 아니고, 적으면 "쟀다"는 거짓이 된다.
+#   H100 은 references.md §4 에 미등재라 per_card_vram_gib 를 명시한다(도구가 안내하는 경로).
+target_gpu:
+  gpu_model: NVIDIA H100
+  per_card_vram_gib: 80
+  target_gmu: 0.90
+  cards_per_node: 1
+
+kv_cache_dtype_bytes: 2      # 기준 셀은 KV fp8(1 바이트). KV dtype 축을 옮기는 셀은 후보에서 바꾼다.
+serving:
+  config_name: camp1-20b-0180-a2
+  port: 8080
+  served_model_name: gpt-oss-20b

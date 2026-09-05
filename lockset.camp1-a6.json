@@ -1,0 +1,23 @@
+{
+  "id": "camp1-a6",
+  "quantization": "mxfp4",
+  "max_model_len": 131072,
+  "batch": 36,
+  "kv_cache_quant": "fp8",
+  "kv_cache_memory_bytes": 60129542144,
+  "attention_backend": "TRITON_ATTN",
+  "attention_backend_candidates": [
+    "TRITON_ATTN"
+  ],
+  "moe_backend": "flashinfer_trtllm",
+  "tool_call_parser": null,
+  "tool_call_parser_candidates": [],
+  "reasoning_parser": "openai_gptoss",
+  "reasoning_parser_candidates": [
+    "openai_gptoss"
+  ],
+  "model_capabilities": {
+    "tool_call": false,
+    "reasoning": true
+  }
+}
