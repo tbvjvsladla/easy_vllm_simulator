@@ -17,51 +17,46 @@
 ## 파일
 
 **triplet**
-- `output/multi/configs/gpt-oss-120b-gb10-0190-b1.yaml`
-- `output/multi/configs/gpt-oss-120b-gb10-0190-b1.sh`
-- `output/multi/envs/.env.gpt-oss-120b-gb10-0190-b1`
-
-**build_patch_pre**
-- `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
-- `output/multi/build_patches_src/55-src-deps-authority.sh`
-
-**build_patch_post**
-- `output/multi/build_patches/10-deepgemm.sh`
-- `output/multi/build_patches/20-triton-kernels.sh`
-- `output/multi/build_patches/30-mxfp4-triton-sm121.sh`
-- `output/multi/build_patches/40-humming-nvml-gb10.sh`
+- `output/single/configs/gpt-oss-20b-gb10-h100sim.yaml`
+- `output/single/configs/gpt-oss-20b-gb10-h100sim.sh`
+- `output/single/envs/.env.gpt-oss-20b-gb10-h100sim`
 
 **build_recipe**
-- `output/multi/Dockerfile`
-- `output/multi/requirements.txt`
+- `output/single/Dockerfile`
+- `output/single/requirements.txt`
 
 **compose**
-- `output/multi/docker-compose.yaml`
+- `output/single/docker-compose.yaml`
 
 **fork_pin** — 없음 = **stock**. `.env` 에 `VARIANT=` 줄이 없는 것이 기본값이다.
 
 ## 적용 사유 (Agent)
 
-**`triplet` — 적용.** TP=2 분산 서빙의 설정이다. `config.yaml` 이 **타겟 GPU 를 선언**하고
-(H100 · 80 GiB/카드 · `target_gmu` 0.90 · cards_per_node 1) 그 예산에서 파생한 **노드당 KV 클램프
-24,644 MiB** 를 절대값으로 고정한다. 측정은 GB10×2 통합메모리에서 났고 **클램프만 타겟 예산**이다
-(`policy:KV_ABSOLUTE_CLAMP_PORTABILITY`). `.env` 는 master/slave 컨테이너 이름과 Ray 포트 형상을 갖는다.
+**`triplet` — 적용.** 서빙에 원리적으로 필수다. 이 레시피의 특징은 `config.yaml` 이 **타겟 GPU 를
+선언**한다는 점이다(H100 · 80 GiB/카드 · `target_gmu` 0.90 · cards_per_node 1). 측정은 GB10
+통합메모리에서 이뤄졌고 **클램프만 타겟 예산**이다 — 두 자리를 섞으면 거짓이 된다
+(`policy:KV_ABSOLUTE_CLAMP_PORTABILITY`). `.sh` 러너가 엔진 인자를, `.env` 가 컨테이너 이름·포트·
+마운트 형상을 갖는다.
 
-**`build_recipe` — 적용.** 분산에서는 이 슬롯의 성격이 단일노드와 다르다 — **두 노드가 각자 같은
-이미지를 재현해야** 집단 연산 ABI 가 맞는다. 이미지를 전송하지 않기 때문이다. 그래서
-`ray`·`iproute2`·`netcat-openbsd` 스탠자가 **TP=2 의 전제**다. 이 스탠자는 원래 wheel 트랙 Dockerfile
-에 없어 손으로 얹혀 있었고, 재렌더 한 번이면 조용히 사라져 slave 가 `ray: command not found` 로
-죽는 구조였다 — 이번에 템플릿에 편입했다.
+**`build_recipe` — 적용.** NGC `26.01-py3` 위에 vLLM 0.18.0 wheel 을 얹는 **순서**가 여기 있다.
+① `pip install --no-deps` 로 얹어 NGC 의 torch 를 보존한다 — `--no-deps` 를 빼면 wheel 이 자기
+torch 를 끌어와 NGC 빌드를 밀어낸다. ② **분산 런타임 스탠자**(`iproute2`·`netcat-openbsd`·`ray`)가
+들어 있다. 단일노드에는 불필요해 보이지만 없으면 같은 이미지로 TP=2 를 시도할 때
+`ray: command not found` 로 죽는다.
 
-**`compose` — 적용.** master/slave 두 서비스와 Ray head↔worker 배선이 여기 있다. 단일노드 compose
-로는 재현되지 않는다.
+**`compose` — 적용.** 단일노드라도 서빙 성립 조건을 담는다. `oom_score_adj: 800`(통합메모리 압박 시
+커널이 데스크톱이 아니라 vLLM 을 먼저 잡게), `memlock: -1`, 그리고 **JIT 캐시 영속 마운트**다.
+캐시 마운트가 없으면 매 기동이 cold JIT 이 되어 시간뿐 아니라 **호스트 압박 리스크를 매번 새로 진다**.
 
-**`build_patch_post` — 불해당(단, 파일은 있다).** `output/multi/build_patches/` 에 4건이 존재하지만
-**활성 레시피가 그것을 참조하지 않는다.** 존재를 곧 적용으로 읽으면 *먹지 않은 패치를 재현지침으로
-배포*하게 되므로 불해당이다. 이 구분이 이 슬롯 판정의 핵심이다.
+**`runtime_patch` — 불해당.** 0.18.0 stock 이 processor·config 를 그대로 받는다. 서빙 로그에 shim
+발화가 0회다 — *부재는 미판정이 아니라 "관측했는데 필요 없었다"* 다.
 
-**`runtime_patch` — 불해당.** 0.19.0 stock 이 gpt-oss-120b 의 processor·config 를 그대로 받는다.
+**`build_patch_pre` — 불해당.** torch 접두어 일치로 prebuilt wheel 트랙이 성립한다. 컴파일이 없으니
+컴파일-전 슬롯이 성립할 자리가 없다.
 
-**`build_patch_pre` — 불해당.** prebuilt wheel 트랙이라 컴파일 자체가 없다.
+**`build_patch_post` — 불해당.** 빌드-바깥 native 의존이 없다. 시험한 커널 축이 전부 stock 으로
+낙찰됐기 때문이다(§2).
 
-**`fork_pin` — 불해당 = stock.** arch-wall 이 없었다. `.env` 에 `VARIANT=` 줄이 **없는 것**이 그 표현이다.
+**`fork_pin` — 불해당 = stock.** arch-wall 이 없었으므로 사다리(deps 패치 → 소스 게이트 → 자체 이식 →
+포크 핀)에 진입할 이유가 없었다. `.env` 에 `VARIANT=` 줄이 **없는 것**이 그 표현이다 — 값을 지우는
+게 아니라 줄이 없는 것이 기본값이다.

@@ -4,31 +4,31 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "서빙에 원리적으로 필수다. TP=2 분산과 타겟 H100 클램프(노드당 KV 24,644 MiB)를 선언하고, .env 가 master/slave 컨테이너 이름과 Ray 포트 형상을 갖는다."
+      "rationale": "서빙에 원리적으로 필수다. config.yaml 이 타겟 GPU 클램프(H100 80GiB · target_gmu 0.90 · cards_per_node 1)를 선언하고, .sh 러너가 엔진 인자를, .env 가 컨테이너·포트·마운트 형상을 갖는다."
     },
     "runtime_patch": {
       "applicable": false,
-      "rationale": "gpt-oss-120b 는 0.19.0 stock 이 processor·config 를 그대로 받는다. 몽키패치 자리가 나오지 않았다."
+      "rationale": "gpt-oss-20b 는 0.18.0 stock 이 processor·config 를 그대로 받는다. 몽키패치 자리가 나오지 않았고 서빙 로그에 shim 발화가 0회다."
     },
     "build_patch_pre": {
       "applicable": false,
-      "rationale": "prebuilt wheel 트랙이라 컴파일을 하지 않는다. 컴파일-전 슬롯이 성립할 자리가 없다."
+      "rationale": "vLLM 0.18.0 이 핀한 torch 2.10.0 과 NGC 26.01 의 2.10.0a0 이 접두어 일치해 prebuilt wheel 트랙이 성립한다 — 컴파일 자체가 없다."
     },
     "build_patch_post": {
       "applicable": false,
-      "rationale": "빌드-바깥 native 의존이 없다. output/multi/build_patches 에 파일 4건이 있으나 **활성 레시피가 참조하지 않는다** — 먹지 않은 패치를 재현지침으로 배포하지 않는다."
+      "rationale": "빌드-바깥 native 의존이 없다. 시험한 커널 축이 전부 stock 으로 낙찰돼 추가 라이브러리를 요구하지 않았다."
     },
     "build_recipe": {
       "applicable": true,
-      "rationale": "두 노드가 **각자** 같은 이미지를 재현해야 분산이 성립한다. 특히 ray·iproute2·netcat 스탠자는 TP=2 의 전제이며, 없으면 slave 가 `ray: command not found` 로 죽는다."
+      "rationale": "NGC 26.01 베이스 위에 wheel 을 --no-deps 로 얹는 순서와 분산 런타임 스탠자가 여기 있다. 이것 없이는 같은 이미지가 재현되지 않는다."
     },
     "compose": {
       "applicable": true,
-      "rationale": "master/slave 두 서비스와 Ray head↔worker 배선, 그리고 GPU 런타임·oom_score_adj·캐시 마운트가 여기 있다. 단일노드 compose 로는 재현되지 않는다."
+      "rationale": "GPU 런타임·oom_score_adj·memlock·JIT 캐시 영속 마운트가 서빙 성립 조건이다. 캐시 마운트가 없으면 매 기동이 cold JIT 이 되어 호스트 압박 리스크를 새로 진다."
     },
     "fork_pin": {
       "applicable": false,
-      "rationale": "stock 0.19.0 이 이 모델을 2노드로 서빙한다. arch-wall 이 없어 사다리에 진입할 이유가 없었다 — .env 에 VARIANT= 줄이 없다."
+      "rationale": "stock 0.18.0 이 이 모델을 서빙한다. arch-wall 이 없어 사다리에 진입할 이유가 없었다 — .env 에 VARIANT= 줄이 없다."
     }
   }
 }

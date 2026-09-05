@@ -1,0 +1,21 @@
+# OpenAI/gpt-oss-20b 서빙 설정 (vllm-recipe-explorer 생성)
+# 유래: 캠페인 1 기준선 셀 camp1-20b-0180-a0 과 **내용 동일**. 정규 이름으로 재서빙·재측정해
+#   인증서 serving_config(모델 축)와 트리플렛 basename 의 적용 증거를 성립시킨다(hint 3신호 대사).
+# 레시피: quant=mxfp4 max_model_len=131072 gpu_mem_util=0.9
+# ── VRAM 분해 (Phase 2 절대 KV 클램프 기준) ──
+#   weights: 13.72 GiB
+#   kv_cache: 56.0 GiB
+#   budget: 80.0 GiB
+# ── 타겟-GPU 이식 클램프 (host≠target, gpu_model=NVIDIA H100) ──
+# host-측정 weights/overhead 이전값. target≠host arch 면 target-margin 이 쿠션(정량보증 아님).
+# 가능하면 타겟에서 재측정(Phase-2)을 권장. per-token-KV·weights 는 GPU-불변, overhead 는 런타임 성질 일부 포함.
+model: /app/models/OpenAI/gpt-oss-20b
+host: 0.0.0.0
+port: 8000
+# gpu-memory-utilization = startup free-memory 게이트 + 총 cap(통합메모리 ≤0.90); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어
+gpu-memory-utilization: 0.9
+max-model-len: 131072
+max-num-seqs: 36
+kv-cache-memory-bytes: 60129542144
+kv-cache-dtype: fp8
+quantization: mxfp4
