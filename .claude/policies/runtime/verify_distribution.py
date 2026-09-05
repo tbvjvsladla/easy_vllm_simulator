@@ -378,11 +378,17 @@ def verify() -> dict:
                  'SRC="$TRANSACTIONAL_SRC/"'))
              and sub_text.find("prepare_transactional_source\n")
              < sub_text.find("# ═══════════════════════ DRY-RUN")},
+            # 2026-09-05(②-b): 파일시스템 예외가 manifest.yaml **하나**였을 때는 그 리터럴이 앵커였다.
+            #   카드 서명키·서브 manifest 도 render 입력이 되면서 예외가 셋이 됐고, 앵커를 **닫힌 목록**
+            #   자체로 옮긴다 — 목록이 늘면 이 검사가 빨간불이 되어 리뷰를 강제한다(tripwire 형 하드코딩).
+            #   음성 앵커(디렉터리 통째 복사 금지)는 그대로 둔다: 예외는 파일 단위여야 한다.
             {"name": "sub_transactional_source_uses_git_index",
              "ok": ("checkout-index -z --stdin" in sub_text
                     and "filesystem bytes are excluded in favor of index authority" in sub_text
                     and "ls-files -z -- .claude CLAUDE.md .gitignore output/multi output/single" in sub_text
-                    and 'install -m 0600 "${CANONICAL_SRC}output/$topology/manifest.yaml"' in sub_text
+                    and ("for render_input in manifest.yaml a2a_signing/main_ed25519.pem "
+                         "sub_manifest.yaml") in sub_text
+                    and 'install -m 0600 "${CANONICAL_SRC}output/$topology/$render_input"' in sub_text
                     and '"${CANONICAL_SRC}output/$topology/"' not in sub_text)},
             {"name": "sub_runtime_patch_transfer_is_owner_allowlisted",
              "ok": ("BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)" in sub_text

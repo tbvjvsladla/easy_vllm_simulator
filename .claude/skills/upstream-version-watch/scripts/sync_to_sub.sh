@@ -326,7 +326,11 @@ SOURCE_PORT_BUNDLE_SHA=""                          # materialize 단계에서 �
 #     처방은 전파 경로 신설이 아니라 **공유 스토리지 + manifest 포인터**다(사용자 결정 — NAS 배치).
 #       자산 정본 = `manifest.tiktoken_host_path` 가 가리키는 공유 경로. 그러면 전파가 불필요해지므로
 #       이 제외 목록은 그대로 옳다. 되돌아감 방지는 `manifest_contract.py` 의 노드-로컬 경고가 맡는다.
-BAND2_EXCLUDED_TOP=(manifest.yaml sub_provision .env benchlog cache tiktoken_cache)
+BAND2_EXCLUDED_TOP=(manifest.yaml sub_provision .env benchlog cache tiktoken_cache a2a_signing sub_manifest.yaml)
+#   a2a_signing=메인 A2A **개인 서명키**(서브는 공개 JWK 만 받는다 — 오버레이의 .claude/a2a/trusted_keys.json) ·
+#   sub_manifest.yaml=서브 manifest 의 **발급 원본**(서브 사본은 오버레이가 output/<t>/manifest.yaml 로 나른다).
+#   둘 다 render 입력이면서 비추적이라 prepare_transactional_source 가 파일시스템 예외로 스냅샷에 넣는다
+#   (2026-09-05 ②-b · plan_26090516 §7.6). 여기 등재는 배달 제외 + 삭제 보호 + 밴드 분류를 동시에 준다.
 BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)          # owner-local provenance-bound runtime patches; wildcard authority 금지
 # ↑ Dockerfile.source-build-upstage = Solar-Open2 변종 트랙(UpstageAI 포크 @ v0.22.0-solar-open2).
 #   Band2 편입 근거 = **빌드-평면**: 멀티는 클러스터-와이드 이미지라 슬레이브도 동일 이미지를 빌드해야 한다
@@ -982,9 +986,14 @@ prepare_transactional_source() {
         return 9
     fi
     # Git index bytes/modes are the accepted control/build-plane authority. Mutable or untracked
-    # output files never enter the snapshot. The sole filesystem exception is manifest.yaml: it is
-    # topology input (possibly PII), is explicitly copied mode 0600, deterministically renders the
-    # transaction, and is excluded from remote delivery by _band2_filters.
+    # output files never enter the snapshot. The filesystem exceptions are the untracked *render
+    # inputs*: manifest.yaml, the A2A signing key, and the issued sub manifest. Each is topology
+    # input (possibly PII), is explicitly copied mode 0600, deterministically renders the
+    # transaction, and is excluded from remote delivery by _band2_filters (BAND2_EXCLUDED_TOP).
+    # ⚠ 2026-09-05(②-b): 이 목록이 manifest.yaml 하나였을 때, 카드 서명·서브 manifest 를 render 입력으로
+    #   새로 만든 변경이 여기까지 오지 않아 **트랜잭션 안의 render 가 "서명키 없음" 으로 죽었다**.
+    #   메인 워킹트리에서 돌린 render 는 성공했으므로 단위검사로는 보이지 않았고, 라이브 dry-run 이
+    #   잡았다("만든 것과 도는 것은 다르다"). render 가 새 비추적 입력을 요구하면 여기도 같이 고친다.
     # ⚠ 드리프트는 **파일 이름과 함께** 말한다(2026-09-04 실측). 이전 문구는 `[sync] info:` 한 줄로
     #   "드리프트가 있다" 만 알렸고 **어느 파일인지 말하지 않았다**. 그래서 실제로 이런 일이 벌어졌다:
     #   `output/multi/requirements.txt` 를 고치고 배달했는데 스테이징을 안 해 **인덱스의 구버전이
@@ -1004,12 +1013,14 @@ prepare_transactional_source() {
     fi
     git -C "$CANONICAL_SRC" ls-files -z -- .claude CLAUDE.md .gitignore output/multi output/single \
         | git -C "$CANONICAL_SRC" checkout-index -z --stdin --prefix="$TRANSACTIONAL_SRC/"
-    local topology
+    local topology render_input
     for topology in multi single; do
-        [ -f "${CANONICAL_SRC}output/$topology/manifest.yaml" ] || continue
-        mkdir -p "$TRANSACTIONAL_SRC/output/$topology"
-        install -m 0600 "${CANONICAL_SRC}output/$topology/manifest.yaml" \
-            "$TRANSACTIONAL_SRC/output/$topology/manifest.yaml"
+        for render_input in manifest.yaml a2a_signing/main_ed25519.pem sub_manifest.yaml; do
+            [ -f "${CANONICAL_SRC}output/$topology/$render_input" ] || continue
+            mkdir -p "$(dirname "$TRANSACTIONAL_SRC/output/$topology/$render_input")"
+            install -m 0600 "${CANONICAL_SRC}output/$topology/$render_input" \
+                "$TRANSACTIONAL_SRC/output/$topology/$render_input"
+        done
     done
     SRC="$TRANSACTIONAL_SRC/"
     RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
