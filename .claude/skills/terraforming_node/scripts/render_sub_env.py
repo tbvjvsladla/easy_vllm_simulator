@@ -492,19 +492,10 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     # 3.5) A2A 위임 키 (plan_26063021_14_37 D5/D7) — 서브 HW 동질성 검증(nodes[sub].hw_verified=true) 통과 시에만 발급.
     #   메인 키(terraforming.complete@manifest)와 UNIQUE. 최소 attestation(HW사실/전체 manifest ✗ → D10 보존).
     #   recipe.py·run_bench.sh 가 이 파일 존재로 서브 게이트 면제(fail-closed 양성 키). 미검증이면 미발급 → 서브 info-only.
-    if str(ph.get("SUB_HW_VERIFIED", "")).strip().lower() == "true":
-        deleg = {
-            "delegation": "main_cluster_flag",
-            "issued_to": "sub",   # 역할 단언(D8·WARN-1): recipe.py·run_bench.sh 가 이 값으로 메인 키 오용 차단
-            "topology": ph.get("TOPOLOGY", ""),
-            "note": ("Sub operates under main-node terraforming Flag (A2A delegation). "
-                     "HW homogeneity verified by main (plan_26063021_14_37). "
-                     "Do NOT create manually on a main/standalone node."),
-        }
-        with open(os.path.join(claude, "a2a_delegation.json"), "w", encoding="utf-8") as f:
-            json.dump(deleg, f, ensure_ascii=False, indent=2)
-            f.write("\n")
-        produced.append(".claude/a2a_delegation.json")
+    # 2026-09-05(③ 3-9 · G-E1): **위임 키 발급 중단**. 여기서 만들던 `.claude/a2a_delegation.json`
+    #   은 "메인이 서브에게 준 실행 허가" 였고, 감사는 그것을 R3(에이전트 자율성 부정)로 판정했다.
+    #   대체물은 이미 이 렌더가 만든다 — 서명된 `Agent_Card.json` + `.claude/a2a/trusted_keys.json`
+    #   (정체성 증명) + 메인이 발급한 서브 manifest(완수 Flag). 게이트들은 허가가 아니라 그것을 본다.
 
     # 4) tasks/ 스캐폴드(빈 디렉토리 — git keep)
     with open(os.path.join(out_dir, "tasks", ".gitkeep"), "w") as f:
@@ -1007,24 +998,17 @@ def _self_test() -> int:
               f"출처={src_git}/{src_inj} git없는트리→fail-loud={failed_loud}")
         ok &= c5c
 
-    # (6) A2A 위임 키(plan_26063021_14_37 D5/D7): nodes[sub].hw_verified=true → 키 발급 / 부재 → 미발급(fail-closed).
+    # (6) 2026-09-05(G-E1): 위임 키 발급 검사 → **키가 더는 만들어지지 않는지** + 정체성 증명 자산이
+    #     제자리에 있는지로 바뀐다. 허가(키)가 아니라 정체성(서명 카드 + 신뢰저장소)이 계약이다.
     data6 = parse_manifest(mpath)
-    ph6a, _ = build_placeholders(data6)                       # 기본 fixture(sub hw_verified 없음) → 미발급
-    out6a = os.path.join(tmp, "sub_provision_nokey")
-    render_tree(ph6a, out6a, copy_runtime_block=False)
-    key6a_absent = not os.path.exists(os.path.join(out6a, ".claude", "a2a_delegation.json"))
-    _node(data6, "sub")["hw_verified"] = "true"               # 동질성 검증 통과 주입 → 발급
-    ph6b, _ = build_placeholders(data6)
-    out6b = os.path.join(tmp, "sub_provision_key")
-    render_tree(ph6b, out6b, copy_runtime_block=False)
-    keyp = os.path.join(out6b, ".claude", "a2a_delegation.json")
-    key6b_ok = False
-    if os.path.exists(keyp):
-        with open(keyp, encoding="utf-8") as f:
-            _kd = json.load(f)
-        key6b_ok = _kd.get("delegation") == "main_cluster_flag" and _kd.get("issued_to") == "sub"
-    c6 = key6a_absent and key6b_ok
-    print(f"  [{'PASS' if c6 else 'FAIL'}] A2A 위임 키: hw_verified 부재→미발급({key6a_absent}) · =true→발급+유효({key6b_ok})")
+    _node(data6, "sub")["hw_verified"] = "true"
+    ph6, _ = build_placeholders(data6)
+    out6 = os.path.join(tmp, "sub_provision_identity")
+    render_tree(ph6, out6, copy_runtime_block=False)
+    key_gone = not os.path.exists(os.path.join(out6, ".claude", "a2a_delegation.json"))
+    card_ok = os.path.exists(os.path.join(out6, "Agent_Card.json"))
+    c6 = key_gone and card_ok
+    print(f"  [{'PASS' if c6 else 'FAIL'}] 위임 키 폐기: 키 미생성({key_gone}) · 정체성 자산 존재({card_ok})")
     ok &= c6
 
     # (7) ★ 토폴로지 축 4필드 회귀핀(testlog_26082215 S-11 FAIL 재발 차단):

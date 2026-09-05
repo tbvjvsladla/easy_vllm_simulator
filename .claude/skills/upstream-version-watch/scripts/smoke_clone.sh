@@ -40,7 +40,6 @@ DOC_GENERATED_ARTIFACTS=(
     Dockerfile.source-build
     docker-compose.yaml
     .claude/settings.local.json
-    .claude/a2a_delegation.json
     .claude/pii_terms.txt
 )
 

@@ -36,6 +36,7 @@ import stat
 import re
 import json
 import shutil
+import subprocess
 import argparse
 
 IMAGE_NAME = "easy-vllm"
@@ -1043,33 +1044,33 @@ def _self_test() -> None:
 
 
 def _require_terraform_flag(manifest_path: str) -> None:
-    """헌법 §테라포밍-완수/A2A-위임 Flag 게이트 (fail-closed) — render/build deliverable 은 Flag 전제.
+    """헌법 §테라포밍-완수 Flag 게이트 (fail-closed) — render/build deliverable 은 Flag 전제.
 
-    면제 2경로 — `recipe.py` 의 `_require_terraform_flag` 와 **동일 계약**:
-      (1차·결정론) 서브 A2A 위임 양성 키 `.claude/a2a_delegation.json`(delegation=main_cluster_flag ∧
-                   issued_to=sub). 손상·역할 불일치는 면제하지 않는다(fail-closed 진행).
-      (2차·테스트) `EASY_VLLM_A2A_DELEGATED=1`(정확히 "1").
-
-    2026-09-05 정정: 이 docstring 은 "recipe.py 와 동일 계약"이라 적어 두고도 **1차 경로가 없었다** —
-      근거로 "upstream 은 main-only 빌딩블럭이라(서브는 build/render 를 안 한다)"고 적혀 있었으나,
-      그 전제가 더는 참이 아니다. `upstream-version-watch` 는 서브 tool_plane 에 실제로 배달되고
-      (node_role_contract: single/a2a-agent = 3종), 헌법 불변식 A 는 **싱글의 sub 가 자기 빌드킷을
-      자율 저작한다**고 말한다. 그 결과 서브는 정식 경로가 막혀 *테스트용* override 로 프로덕션
-      게이트를 뚫도록 내몰렸다(2026-09-05 서브가 그 우회를 거부하고 질의를 올려 발각).
-      게이트를 약화한 것이 아니라 **두 형제 게이트의 갈라짐을 메운 것**이다 — 메인에는 위임 키가
-      없으므로(키는 issued_to=sub) 메인 경로의 판정은 전과 동일하다.
+    2026-09-05(③ 3-9 · G-E1): **위임 키·env 면제 경로 삭제**. 서브는 이제 메인이 발급한 자기
+    manifest(`terraforming.complete/branch_verified` · `issued_by: main`)로 정규 통과하고, 그 노드가
+    메인이 프로비저닝한 것임은 **서명된 Agent Card** 가 증명한다(형제 게이트 `recipe.py`·
+    `run_bench.sh`·`lite_bench.sh` 와 같은 계약). 종전 규약은 "메인이 발급한 실행 허가가 없으면
+    서브는 아무것도 못 한다" 였고, 그 구조가 서브를 *테스트용* override 로 프로덕션 게이트를 뚫도록
+    내몰았다(2026-09-05 서브가 그 우회를 거부하고 질의를 올려 발각).
     """
-    if os.environ.get("EASY_VLLM_A2A_DELEGATED") == "1":
+    root = _repo_root()
+    card = os.path.join(root, "Agent_Card.json")
+    if os.path.isfile(card):
+        verifier = os.path.join(root, ".claude", "runtime", "a2a", "agent_card_contract.py")
+        if not os.path.isfile(verifier):
+            verifier = os.path.join(root, ".claude", "skills", "terraforming_node", "scripts",
+                                    "agent_card_contract.py")
+        if not os.path.isfile(verifier):
+            print("[render] FAIL: Agent_Card 는 있는데 검증기가 없다 — 서명을 확인할 수 없어 "
+                  "진행하지 않는다(fail-closed). 메인의 재배달이 필요하다.", file=sys.stderr)
+            sys.exit(4)
+        proc = subprocess.run([sys.executable, verifier, "prove-identity", "--repo-root", root,
+                               "--require-flag"], capture_output=True, text=True)
+        if proc.returncode != 0:
+            print("[render] FAIL: 정체성 증명 실패 — %s" % (proc.stderr or proc.stdout).strip()[:400],
+                  file=sys.stderr)
+            sys.exit(4)
         return
-    _keyp = os.path.join(_repo_root(), ".claude", "a2a_delegation.json")
-    if os.path.isfile(_keyp):
-        try:
-            with open(_keyp, encoding="utf-8") as _kf:
-                _kd = json.load(_kf)
-            if _kd.get("delegation") == "main_cluster_flag" and _kd.get("issued_to") == "sub":
-                return
-        except Exception:
-            pass  # 손상/비유효 키 → 면제 안 함(fail-closed 진행)
     if not os.path.isfile(manifest_path):
         print("[render] FAIL: manifest 부재 — 테라포밍 미완(fail-closed). terraforming_node 로 HW스캔 + "
               "모델획득 모드(managed|ephemeral|custom)를 먼저 정하세요(info-only).", file=sys.stderr)

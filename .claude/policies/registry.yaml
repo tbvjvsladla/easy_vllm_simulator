@@ -1252,8 +1252,10 @@
             "TERRAFORM_FLAG_GATE.C3"
           ],
           "assertion_ids": [
-            "KEY_OK",
-            "MC"
+            "MC",
+            "CARD",
+            "CARD_VERIFIER",
+            "SELF_ROLE"
           ]
         },
         {
@@ -1324,36 +1326,37 @@
       }
     },
     {
-      "policy_id": "A2A_DELEGATION_KEY_FAIL_CLOSED",
+      "policy_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED",
       "owner": "terraforming_node",
-      "statement": "A sub node stays info-only until main issues a positive, UNIQUE delegation key after asserting HW homogeneity, fail-closed at two enforcement points.",
+      "statement": "A sub node stays info-only until it can PROVE it was provisioned by main -- a main-signed Agent Card plus the main-issued manifest flag -- fail-closed at two enforcement points. 2026-09-05 (plan_26090516 3-9): the credential used to be an execution PERMIT (a delegation key main issued to the sub); the audit graded that R3 (it denied the agent's autonomy on work the sub can decide itself). What is gated now is identity, not permission.",
       "scope": [
+        "single-node",
         "multi-node"
       ],
       "origin_failure": "plan_26063021_14_37",
       "clauses": [
         {
-          "clause_id": "A2A_DELEGATION_KEY_FAIL_CLOSED.C1",
-          "statement": "A sub node (A2A peer) stays info-only until it holds a positive delegation key that main issues only after asserting HW homogeneity (cpu_arch, gpu_model, gpus_per_node match exactly -- homogeneous GPUs only)."
+          "clause_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1",
+          "statement": "A sub node stays info-only until it holds an identity proof that main issues only after asserting HW homogeneity (cpu_arch, gpu_model, gpus_per_node match exactly). What main issues is a signed Agent Card and a main-issued manifest, never an execution permit."
         },
         {
-          "clause_id": "A2A_DELEGATION_KEY_FAIL_CLOSED.C2",
-          "statement": "Absence of the key is never treated as exemption (that would be fail-open); the sub never self-scans to grant itself a key; terraforming_node stays permanently main-only."
+          "clause_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2",
+          "statement": "Absence, tampering or a wrong-role stamp is never treated as exemption (that would be fail-open); the sub never self-scans or self-signs to grant itself the credential -- terraforming_node and the private signing key stay main-only."
         },
         {
-          "clause_id": "A2A_DELEGATION_KEY_FAIL_CLOSED.C3",
-          "statement": "Enforcement is fail-closed at two points: the multi-node sync_to_sub propagation gate, and the single-node sub-control serve gate in recipe.py / run_bench.sh."
+          "clause_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3",
+          "statement": "Enforcement is fail-closed at two points: the sync_to_sub propagation gate, and the serve-plane gate in recipe.py / run_bench.sh / lite_bench.sh, which verify the card signature and the main-issued flag."
         },
         {
-          "clause_id": "A2A_DELEGATION_KEY_FAIL_CLOSED.C4",
-          "statement": "The main completion Flag and the sub delegation key are deliberately distinct, UNIQUE credentials -- one never substitutes for the other across the plane boundary."
+          "clause_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4",
+          "statement": "The main completion Flag and the sub's identity proof are distinct credentials -- one never substitutes for the other, and a genuine manifest never rescues a tampered signature."
         }
       ],
       "evidence": [
         {
           "path": ".claude/skills/terraforming_node/scripts/scan_node.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C1"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"
           ],
           "assertion_ids": [
             "assert_homogeneity"
@@ -1362,18 +1365,19 @@
         {
           "path": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C1"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"
           ],
           "assertion_ids": [
             "build_placeholders",
-            "parse_manifest"
+            "parse_manifest",
+            "render_tree"
           ]
         },
         {
           "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C2",
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C3"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2",
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"
           ],
           "assertion_ids": [
             "assert_sub_delegation_authorized",
@@ -1383,9 +1387,9 @@
         {
           "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C2",
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C3",
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C4"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2",
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3",
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4"
           ],
           "assertion_ids": [
             "_require_terraform_flag",
@@ -1395,37 +1399,37 @@
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C1"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"
           ],
           "assertion_ids": [
-            "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C1"
+            "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1"
           ]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C2"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2"
           ],
           "assertion_ids": [
-            "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C2"
+            "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2"
           ]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C3"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"
           ],
           "assertion_ids": [
-            "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C3"
+            "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3"
           ]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C4"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4"
           ],
           "assertion_ids": [
-            "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C4"
+            "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4"
           ]
         }
       ],

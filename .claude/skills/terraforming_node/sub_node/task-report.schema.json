@@ -167,7 +167,7 @@
         },
         "delegation_acknowledged": {
           "type": "boolean",
-          "description": "A2A 위임 키(.claude/a2a_delegation.json) 인지 echo — 메인이 위임 인가를 확인(plan_26063021_14_37 · A2A 패킷 루프 닫음). 서브 런타임블럭은 이 양성 키 하에 Flag 게이트 자동 면제(fail-closed). 키 부재면 false + status=input-required(메인이 terraforming --peer-ssh 로 검증·재발급)."
+          "description": "메인이 발급한 **정체성 증명**(서명된 Agent_Card.json + .claude/a2a/trusted_keys.json)을 이 노드가 갖고 있고 검증되는지 echo. 2026-09-05 개정: 옛 위임 키(.claude/a2a_delegation.json) 폐기 — 자격증명이 실행 허가에서 정체성 증명으로 바뀌었다. 검증 실패·부재면 false + status=input-required(메인이 재배달한다)."
         },
         "skills_loaded": {
           "type": "array",

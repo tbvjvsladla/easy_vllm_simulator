@@ -2683,108 +2683,135 @@ def predicate_TERRAFORM_FLAG_GATE_C4():
 
 
 # =============================================================================
-# A2A_DELEGATION_KEY_FAIL_CLOSED (4 clauses)
+# A2A_IDENTITY_PROOF_FAIL_CLOSED (4 clauses · 2026-09-05 개명 — 옛 A2A_DELEGATION_KEY_FAIL_CLOSED)
 # =============================================================================
+# 무엇이 바뀌었나: 자격증명이 **실행 허가**(메인이 발급한 위임 키)에서 **정체성 증명**(메인이 서명한
+# Agent Card + 메인이 발급한 서브 manifest)으로 바뀌었다. 안전 불변식(부재는 면제가 아니다 · 서브는
+# 스스로 발급하지 못한다 · 두 지점에서 fail-closed · 메인 Flag 와 서브 자격은 서로를 대체하지 않는다)은
+# 그대로다. 바뀐 것은 "허가"라는 성질이며, 그것이 R3(에이전트 자율성 부정)로 판정된 부분이다.
 
-def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C1():
-    """C1: a sub node stays info-only until main issues a key only after asserting HW homogeneity --
-    cpu_arch, gpu_model, gpus_per_node EACH exact-match, checked one dimension at a time (a flip in
-    any single one of the three, alone, must block; the other two staying silent) and a missing
-    (not merely differing) reading on any one of them must block too, never pass by omission.
-    Then executes the real main-only key-issuance sequence end-to-end: scan_node's own live source
-    is read to prove the operator-facing `hw_verified` suggestion is gated on `assert_homogeneity`'s
-    real verdict, and render_sub_env's real `parse_manifest`/`build_placeholders`/`render_tree` (the
-    production fixture `FIXTURE_MANIFEST`, not a hand-rolled stand-in) are run twice: once with no
-    hw_verified stamp (key must never appear) and once with it genuinely present (key must appear,
-    with the exact distinct role marker)."""
+def _identity_fixture(tmp, *, card=True, tamper=False, trusted=True, self_role="sub"):
+    """서브 워크스페이스 모양의 임시 트리 — 실제 렌더 산출물(카드·신뢰저장소)을 그대로 쓴다."""
+    root = Path(tmp)
+    (root / ".claude" / "runtime" / "a2a").mkdir(parents=True)
+    (root / ".claude" / "a2a").mkdir(parents=True)
+    (root / "output" / "single").mkdir(parents=True)
+    shutil.copy(REPO_ROOT / ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+                root / ".claude/runtime/a2a/agent_card_contract.py")
+    src = REPO_ROOT / "output" / "single" / "sub_provision"
+    if card and (src / "Agent_Card.json").is_file():
+        doc = json.loads((src / "Agent_Card.json").read_text(encoding="utf-8"))
+        if tamper:
+            doc["description"] = "tampered by predicate"
+        (root / "Agent_Card.json").write_text(json.dumps(doc, ensure_ascii=False, indent=2))
+    trusted_src = src / ".claude" / "a2a" / "trusted_keys.json"
+    if trusted and trusted_src.is_file():
+        shutil.copy(trusted_src, root / ".claude/a2a/trusted_keys.json")
+    man = ["topology: single", "gpus_per_node: 1", 'gpu_model: "NVIDIA GB10"',
+           "model_source: managed",
+           "terraforming:", "  complete: true", "  branch_verified: true", "  issued_by: main"]
+    if self_role:
+        man.insert(0, "self_role: %s" % self_role)
+    (root / "output" / "single" / "manifest.yaml").write_text("\n".join(man) + "\n")
+    return root
+
+
+def _identity_available() -> bool:
+    """라이브 렌더 산출물이 있어야 이 증명이 성립한다(합성 카드로 서명을 증명할 수는 없다).
+
+    ★ 2026-09-05: 이 함수의 첫 판본은 `trusted_keys.json` 을 **엉뚱한 자리**(오버레이 루트)에서
+    찾아 항상 False 를 냈고, 그 결과 C2/C3/C4 의 정체성 절반이 **조용히 건너뛰어졌다**. 음성대조
+    (게이트 무력화)가 통과하는 것을 보고 발각했다 — 가드가 조용히 no-op 인 것이 이 저장소가
+    반복해 당한 형태다. 이제 산출물 디렉터리가 **있는데** 자산이 없으면 그것은 실패다.
+    """
+    src = REPO_ROOT / "output" / "single" / "sub_provision"
+    if not src.is_dir():
+        print("[predicate] SKIPPED(identity): 렌더 산출물 부재 — 클린 체크아웃에서는 정상",
+              file=sys.stderr)
+        return False
+    card = src / "Agent_Card.json"
+    trusted = src / ".claude" / "a2a" / "trusted_keys.json"
+    _require(card.is_file() and trusted.is_file(),
+             "sub_provision 이 있는데 정체성 자산이 없다(card=%s trusted=%s) — 렌더가 자산을 "
+             "만들지 않으면 게이트는 검증할 대상이 없다" % (card.is_file(), trusted.is_file()))
+    return True
+
+
+def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1():
+    """C1: main issues the sub's credential only AFTER asserting HW homogeneity, and what it issues
+    is an identity proof -- never an execution permit.  The homogeneity matrix runs for real
+    (each of cpu_arch / gpu_model / gpus_per_node blocking alone, and a MISSING reading blocking
+    too, never passing by omission), the operator-facing `hw_verified` stamp is proven to follow
+    that verdict through `emit_manifest_block`, and the real renderer is executed to prove it
+    issues the identity assets and **never** the retired delegation key."""
     base = {"cpu_arch": "aarch64", "gpu_model": "NVIDIA GB10", "gpus_per_node": 1,
             "cuda": "13.2", "driver": "565.57.01"}
     baseline = scan_node.assert_homogeneity(base, dict(base))
-    _require(baseline['verified'] is True and baseline['blocks'] == [], 'a genuinely identical peer must verify clean -- control for the flips below')
+    _require(baseline["verified"] is True and baseline["blocks"] == [],
+             "a genuinely identical peer must verify clean -- control for the flips below")
 
     dims = {"cpu_arch": "x86_64", "gpu_model": "NVIDIA RTX 5090", "gpus_per_node": 2}
     for field, bad_value in dims.items():
-        mismatched = {**base, field: bad_value}
-        res = scan_node.assert_homogeneity(base, mismatched)
-        _require(res['verified'] is False and any((field in b for b in res['blocks'])), f'{field} mismatch alone must block homogeneity')
+        res = scan_node.assert_homogeneity(base, {**base, field: bad_value})
+        _require(res["verified"] is False and any(field in b for b in res["blocks"]),
+                 f"{field} mismatch alone must block homogeneity")
         others = [f for f in dims if f != field]
-        _require(not any((any((o in b for o in others)) for b in res['blocks'])), f'flipping {field} alone must not spuriously implicate {others}')
-
+        _require(not any(any(o in b for o in others) for b in res["blocks"]),
+                 f"flipping {field} alone must not spuriously implicate {others}")
     for field in dims:
-        missing = {**base, field: None}
-        res = scan_node.assert_homogeneity(base, missing)
-        _require(res['verified'] is False and any((field in b for b in res['blocks'])), f'{field} missing on the peer must block, never pass by omission')
+        res = scan_node.assert_homogeneity(base, {**base, field: None})
+        _require(res["verified"] is False and any(field in b for b in res["blocks"]),
+                 f"{field} missing on the peer must block, never pass by omission")
 
-    # ---- main-only key-issuance sequence: real gating source + real downstream execution ----
-    scan_src = _read(".claude/skills/terraforming_node/scripts/scan_node.py")
-    # 2026-09-03(⑬ · plan_26090317 P1): hw_verified 안내는 **별도의 "병합 지시" 블록**에 있었고 그
-    #   블록이 `homogeneity.verified` 로 게이트돼 있었다. 같은 출력 안에 "이 블록으로 덮어써라" 와
-    #   "sub 항목에 이걸 추가해라" 가 공존해 사람이 무엇을 반영해야 하는지 모호했으므로, emit 본문
-    #   하나로 합쳤다. 게이트 자체는 그대로다 — 이제 **emit 산출물을 실행해** 확인한다(더 강하다).
-    _require('hw_verified' in scan_src, 'emit must speak about hw_verified at all')
-    _verified_block = scan_node.emit_manifest_block({
+    verified_block = scan_node.emit_manifest_block({
         "topology_declared": "multi", "cpu_arch": "aarch64", "cuda_version": "132",
         "gpus_per_node": 1, "gpu_model": "NVIDIA GB10",
         "nodes": [{"role": "main", "host": "a", "hostname": "a", "ssh_user": "u", "work_dir": "/w"},
                   {"role": "sub", "host": "b", "hostname": "b", "ssh_user": "u", "work_dir": "/w"}],
         "homogeneity": {"verified": True, "peer": {"gpu_model": "NVIDIA GB10", "driver": "1", "cuda": "13.2"}},
-        "interconnect": {"type": "RoCE v2", "hca_devices": [], "gid_index": None, "socket_iface": None,
-                         "bandwidth_gbps": None, "platform_preset": None}})
-    _unverified_block = scan_node.emit_manifest_block({
+        "interconnect": {"type": "RoCE v2", "hca_devices": [], "gid_index": None,
+                         "socket_iface": None, "bandwidth_gbps": None, "platform_preset": None}})
+    unverified_block = scan_node.emit_manifest_block({
         "topology_declared": "multi", "cpu_arch": "aarch64", "cuda_version": "132",
         "gpus_per_node": 1, "gpu_model": "NVIDIA GB10",
         "nodes": [{"role": "main", "host": "a", "hostname": "a", "ssh_user": "u", "work_dir": "/w"},
                   {"role": "sub", "host": "b", "hostname": "b", "ssh_user": "u", "work_dir": "/w"}],
-        "interconnect": {"type": "RoCE v2", "hca_devices": [], "gid_index": None, "socket_iface": None,
-                         "bandwidth_gbps": None, "platform_preset": None}})
-    _require('hw_verified: true' in _verified_block,
-             'a genuinely homogeneity-verified scan must stamp hw_verified: true')
-    _require('hw_verified: true' not in _unverified_block and 'hw_verified: false' in _unverified_block,
-             'without an assert_homogeneity verdict the emit must say hw_verified: false -- never true, '
-             'and never silently omit the field (omission reads as "unknown" to a human)')
+        "interconnect": {"type": "RoCE v2", "hca_devices": [], "gid_index": None,
+                         "socket_iface": None, "bandwidth_gbps": None, "platform_preset": None}})
+    _require("hw_verified: true" in verified_block,
+             "a genuinely homogeneity-verified scan must stamp hw_verified: true")
+    _require("hw_verified: true" not in unverified_block and "hw_verified: false" in unverified_block,
+             "without an assert_homogeneity verdict the emit must say hw_verified: false -- never "
+             "true, and never silently omit the field (omission reads as 'unknown' to a human)")
 
     with tempfile.TemporaryDirectory() as tmp:
         mpath = os.path.join(tmp, "manifest.yaml")
         with open(mpath, "w", encoding="utf-8") as f:
-            f.write(render_sub_env.FIXTURE_MANIFEST)   # real production self-test fixture, not invented here
-
-        data_noverify = render_sub_env.parse_manifest(mpath)
-        ph_noverify, _ = render_sub_env.build_placeholders(data_noverify)
-        _require(ph_noverify['SUB_HW_VERIFIED'] == '', "control: the fixture's sub node carries no hw_verified stamp -- nothing to issue from")
-        out_noverify = os.path.join(tmp, "noverify")
-        render_sub_env.render_tree(ph_noverify, out_noverify, copy_runtime_block=False)
-        _require(not os.path.exists(os.path.join(out_noverify, '.claude', 'a2a_delegation.json')), 'without a genuine homogeneity-verified hw_verified stamp, the key must never be issued')
-
-        homo = scan_node.assert_homogeneity(base, dict(base))   # main runs the real check FIRST
-        _require(homo['verified'] is True, 'predicate requirement failed at original line 2384')
-        data_verified = render_sub_env.parse_manifest(mpath)
-        for n in data_verified["nodes"]:
-            if n["role"] == "sub":
-                n["hw_verified"] = "true"                        # ...only THEN does the stamp get set
-        ph_verified, _ = render_sub_env.build_placeholders(data_verified)
-        _require(ph_verified['SUB_HW_VERIFIED'] == 'true', 'predicate requirement failed at original line 2390')
-        out_verified = os.path.join(tmp, "verified")
-        render_sub_env.render_tree(ph_verified, out_verified, copy_runtime_block=False)
-        keyp = os.path.join(out_verified, ".claude", "a2a_delegation.json")
-        _require(os.path.isfile(keyp), 'predicate requirement failed at original line 2394')
-        with open(keyp, encoding="utf-8") as f:
-            kd = __import__("json").load(f)
-        _require(kd['delegation'] == 'main_cluster_flag' and kd['issued_to'] == 'sub', 'predicate requirement failed at original line 2397')
+            f.write(render_sub_env.FIXTURE_MANIFEST)
+        for stamp in (False, True):
+            data = render_sub_env.parse_manifest(mpath)
+            if stamp:
+                for node in data["nodes"]:
+                    if node["role"] == "sub":
+                        node["hw_verified"] = "true"
+            ph, _ = render_sub_env.build_placeholders(data)
+            out = os.path.join(tmp, "stamped" if stamp else "unstamped")
+            render_sub_env.render_tree(ph, out, copy_runtime_block=False)
+            _require(not os.path.exists(os.path.join(out, ".claude", "a2a_delegation.json")),
+                     "the retired delegation key must never be issued again -- the credential is an "
+                     "identity proof, not an execution permit (2026-09-05 G-E1)")
+            _require(os.path.isfile(os.path.join(out, "Agent_Card.json")),
+                     "every provisioned tree must carry the identity asset the gates verify")
 
 
-def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C2():
-    """C2: absence, malformed content, AND wrong-role placement of the key are each -- alone --
-    never treated as exemption (fail-open forbidden), proven by executing the real
-    `assert_sub_delegation_authorized` bash gate against four manifests (absent / malformed literal
-    / hw_verified stamped on the wrong role / genuine positive control). Then proves the sub
-    structurally cannot self-scan or self-issue: `render_sub_env.RUNTIME_BLOCKS` (the exact, closed
-    set of skills ever copied to a sub) is read live and must be exactly
-    {vllm-recipe-explorer, adversarial-benchmark} -- never terraforming_node -- and sync_to_sub.sh's
-    own `verify_checksums` (the function enumerating every file the overlay literally delivers) is
-    read live and must carry the real delivered runtime file `recipe.py` and the key itself, while
-    never carrying any terraforming_node path. The persona-level half of the same fact -- that
-    terraforming_node is a main-only building block, never sub-delivered -- is grounded by reading
-    the actual committed SKILL.md wording."""
+def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2():
+    """C2: absence, tampering and a wrong-role stamp are each -- alone -- never an exemption.
+    The multi-node propagation gate is executed for real over a four-manifest matrix (absent /
+    malformed / stamped on the wrong role / genuine), and the serve-plane identity gate is executed
+    for real over a three-tree matrix (card absent on a self_role: sub tree / tampered signature /
+    genuine).  The sub also structurally cannot issue its own credential: the closed set of skills
+    ever copied to a sub is read live and must never contain terraforming_node, and the private
+    signing key must never appear in what the overlay delivers."""
     src = _sync_to_sub_src()
     fn = _extract_bash_function(src, "assert_sub_delegation_authorized")
     resolver = _extract_bash_function(src, "_resolve_sub_hw_verified")
@@ -2794,233 +2821,101 @@ def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C2():
             srcdir = Path(tmp) / "output" / "multi"
             srcdir.mkdir(parents=True)
             (srcdir / "manifest.yaml").write_text(manifest_body)
-            script = f'SRC="{tmp}/"\n{resolver}\n{fn}\nassert_sub_delegation_authorized multi\necho "RC=$?"\n'
+            script = (f'SRC="{tmp}/"\n{resolver}\n{fn}\n'
+                      f'assert_sub_delegation_authorized multi\necho "RC=$?"\n')
             return _run_bash(script)
 
-    # (a) absence -- no hw_verified line anywhere.
-    proc_absent = _gate("topology: multi\nnodes:\n  - role: main\n  - role: sub\n    host: 1.2.3.4\n")
-    _require('RC=1' in proc_absent.stdout and 'STOP' in proc_absent.stderr, 'absence of hw_verified must refuse, not exempt')
+    _require("RC=1" in _gate("topology: multi\nnodes:\n  - role: main\n  - role: sub\n").stdout,
+             "absence of the verified stamp must block propagation (fail-open forbidden)")
+    _require("RC=1" in _gate("topology: multi\nnodes:\n  - role: sub\n    hw_verified: yes-please\n").stdout,
+             "a malformed stamp must block -- only the exact verified value passes")
+    _require("RC=1" in _gate("topology: multi\nnodes:\n  - role: main\n    hw_verified: true\n"
+                             "  - role: sub\n").stdout,
+             "a stamp on the WRONG role must block -- role placement is part of the credential")
+    _require("RC=0" in _gate("topology: multi\nnodes:\n  - role: main\n  - role: sub\n"
+                             "    hw_verified: true\n").stdout,
+             "positive control: a genuine sub stamp must pass, otherwise the negatives above prove nothing")
 
-    # (b) malformed -- present but not the exact literal 'true'.
-    for bad in ("false", "True", "1", "yes"):
-        proc_bad = _gate(f"topology: multi\nnodes:\n  - role: main\n  - role: sub\n    hw_verified: {bad}\n")
-        _require('RC=1' in proc_bad.stdout, f'hw_verified: {bad!r} must refuse, not exempt (malformed)')
+    if _identity_available():
+        for kind, kwargs, expect in (("card absent", {"card": False}, False),
+                                     ("tampered signature", {"tamper": True}, False),
+                                     ("genuine", {}, True)):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = _identity_fixture(tmp, **kwargs)
+                proc = _run_bash(
+                    f'python3 {shlex.quote(str(root / ".claude/runtime/a2a/agent_card_contract.py"))} '
+                    f'prove-identity --repo-root {shlex.quote(str(root))} --require-flag; echo "RC=$?"')
+                ok = "RC=0" in proc.stdout
+                _require(ok is expect,
+                         f"identity gate verdict for '{kind}' must be {expect}: {proc.stdout[-200:]}")
 
-    # (c) wrong-role -- hw_verified:true stamped on role:main must never satisfy the sub gate.
-    proc_wrongrole = _gate(
-        "topology: multi\nnodes:\n  - role: main\n    hw_verified: true\n  - role: sub\n    host: 1.2.3.4\n")
-    _require('RC=1' in proc_wrongrole.stdout, 'hw_verified on role:main must not exempt role:sub')
-
-    # control: the genuine positive case must pass.
-    proc_ok = _gate("topology: multi\nnodes:\n  - role: main\n  - role: sub\n    hw_verified: true\n")
-    _require('RC=0' in proc_ok.stdout, 'hw_verified:true on role:sub, alone, must be admitted')
-
-    # ---- sub cannot self-scan/self-issue: terraforming_node is structurally never delivered ----
-    # 2026-09-03(P2 · plan_26090317): 배달 집합은 이제 **토폴로지 계약이 정한다**(닫힌 리스트 ✗) —
-    #   ray-worker 는 0종, a2a-agent 는 3종. 그리고 upstream 은 스킬 전체가 아니라 **경로 단위**로
-    #   갈린다(해소·렌더는 가고, 노드 간 오케스트레이션은 안 간다). 불변인 것은 하나다:
-    #   **terraforming_node 는 어느 모드에서도 배달되지 않는다**(서브 자가스캔·자가발급 구조적 불가).
-    sys.path.insert(0, str(REPO_ROOT / ".claude/skills/terraforming_node/scripts"))
-    import node_role_contract as _nrc
-    for _mode in _nrc.SUB_MODES:
-        _plane = set(_nrc.tool_plane("single" if _mode == "a2a-agent" else "multi", _mode)["value"])
-        _require('terraforming_node' not in _plane,
-                 f"terraforming_node must never be in any sub tool_plane (mode={_mode})")
-    _require(set(_nrc.tool_plane("multi", "ray-worker")["value"]) == set(),
-             "a multi sub is a Ray worker that reproduces canon -- it must receive zero strategy skills")
-    _a2a = set(_nrc.tool_plane("single", "a2a-agent")["value"])
-    _require(_a2a == {'vllm-recipe-explorer', 'adversarial-benchmark', 'upstream-version-watch'},
-             f"the a2a-agent sub must receive exactly the three runtime skills, got {_a2a}")
-    _require(set(render_sub_env.RUNTIME_BLOCK_PATHS) >= _a2a,
-             'every skill the contract names must have a resolvable path in the renderer')
-    _orch = set(render_sub_env.RUNTIME_BLOCK_EXCLUDES['upstream-version-watch'])
-    _require({'scripts/sync_to_sub.sh', 'scripts/sync_branches.sh', 'scripts/fetch_sub_docs.sh'} <= _orch,
-             "main->sub orchestration scripts must be excluded from the sub's copy of "
-             "upstream-version-watch -- a sub holding them can reverse the delivery direction")
-
-    checksum_fn = _extract_bash_function(src, "verify_checksums")
-    _require('.claude/skills/vllm-recipe-explorer/recipe.py' in checksum_fn, "control: the real delivered runtime file must appear in the overlay's own checksum list")
-    _require('.claude/a2a_delegation.json' in checksum_fn, 'control: the key itself is delivered -- proving the list was read/extracted correctly')
-    _require('.claude/skills/terraforming_node' not in checksum_fn, 'the overlay-delivery enumeration itself must never name a terraforming_node path')
-
-    skill_md = _read(".claude/skills/terraforming_node/SKILL.md")
-    _require('**빌딩블럭**(메인 전용, 서브 전달 ✗): `terraforming_node`.' in skill_md,
-             'the committed persona-level fact -- terraforming_node is main-only, never sub-delivered -- '
-             'must still say so verbatim')
-    _require('RUNTIME_BLOCK_EXCLUDES' in skill_md,
-             'the committed doc must name the canonical owner of the upstream path split, so a reader '
-             'is not left with the older all-or-nothing wording')
+    blocks = set(render_sub_env.RUNTIME_BLOCK_PATHS)
+    _require("terraforming_node" not in blocks,
+             "terraforming_node must never be copied to a sub -- the sub cannot scan itself into a "
+             "credential (the issuing plane stays main-only)")
+    deliver_src = _extract_bash_function(src, "deliver_overlay") or src
+    _require("main_ed25519.pem" not in deliver_src,
+             "the private signing key must never be delivered -- a sub that could sign could issue "
+             "its own identity, which is the same fail-open the key rule forbade")
 
 
-def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C3():
-    """C3: enforcement is fail-closed at BOTH points named by the clause, each proven with a
-    positive/absent/malformed/wrong-role matrix (never a single positive path):
-    (i) the multi-node sync_to_sub propagation gate (positive control here; the negative triad is
-    proven exhaustively in C2's own matrix over the same real bash gate);
-    (ii) the single-node sub-control serve gate, bound to BOTH of its real, independent
-    implementations -- recipe.py's `_require_terraform_flag` (executed directly) and
-    run_bench.sh's own inline gate block (extracted verbatim -- never retyped -- and executed for
-    real via bash against a real, hermetic `manifest_contract.py` copy), each run through: absent
-    (both credentials missing), malformed (unparseable/garbage key), wrong-role (valid JSON, wrong
-    marker), and positive (via the key plus a Flag-less sub manifest carrying HW facts, and separately
-    via the manifest/Flag alone). Since 2026-09-05 the key exempts only the Flag checks, so key-alone
-    without a manifest is a proven NEGATIVE (exit 5), never a pass."""
-    import json
-
+def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3():
+    """C3: enforcement is fail-closed at BOTH points the clause names -- (i) the propagation gate
+    (positive control here, negative matrix in C2) and (ii) the serve-plane gate, bound to its two
+    independent implementations: recipe.py's `_require_identity_proof` (executed directly) and
+    run_bench.sh's inline gate block (extracted verbatim -- never retyped -- and executed via bash).
+    Both must refuse a self_role: sub tree whose card is absent, and both must refuse a tampered
+    signature; the retired key/env exemption must be gone from both."""
     src = _sync_to_sub_src()
-    fn = _extract_bash_function(src, "assert_sub_delegation_authorized")
-    resolver = _extract_bash_function(src, "_resolve_sub_hw_verified")
+    _require("assert_sub_delegation_authorized" in src,
+             "the propagation gate must still exist -- demotion changed the credential, not the gate")
 
-    def _sync_gate(manifest_body):
-        with tempfile.TemporaryDirectory() as tmp:
-            srcdir = Path(tmp) / "output" / "multi"
-            srcdir.mkdir(parents=True)
-            (srcdir / "manifest.yaml").write_text(manifest_body)
-            script = f'SRC="{tmp}/"\n{resolver}\n{fn}\nassert_sub_delegation_authorized multi\necho "RC=$?"\n'
-            return _run_bash(script)
+    # 독스트링은 **제거 사실을 설명하는 서사**라 검사 대상이 아니다 — 서사를 금지하면 다음 사람이
+    # 같은 것을 다시 만든다(2026-09-05 스캐너 tripwire 에서 배운 같은 교훈). 코드만 본다.
+    recipe_fn = ast.parse(inspect.getsource(recipe._require_terraform_flag).lstrip()).body[0]
+    recipe_body = recipe_fn.body[1:] if (recipe_fn.body and isinstance(recipe_fn.body[0], ast.Expr)
+                                         and isinstance(getattr(recipe_fn.body[0], "value", None),
+                                                        ast.Constant)) else recipe_fn.body
+    recipe_code = "\n".join(ast.unparse(node) for node in recipe_body)
+    _require("a2a_delegation.json" not in recipe_code and "EASY_VLLM_A2A_DELEGATED" not in recipe_code,
+             "the retired execution-permit exemption must be gone from the serve gate's CODE "
+             "(its docstring may narrate the removal)")
+    bench_src = _read(".claude/skills/adversarial-benchmark/scripts/run_bench.sh")
+    gate_block = bench_src[bench_src.index('CARD="$REPO/Agent_Card.json"'):bench_src.index('EF="$REPO')]
+    _require("EASY_VLLM_A2A_DELEGATED" not in gate_block and "a2a_delegation.json" not in gate_block,
+             "the bench gate must no longer accept the retired permit or its env override")
+    _require("prove-identity" in gate_block and "--require-flag" in gate_block,
+             "the bench gate must verify identity AND the main-issued flag")
 
-    # (i) multi-node propagation gate -- positive control (C2 owns the absent/malformed/wrong-role triad).
-    proc_pos = _sync_gate("topology: multi\nnodes:\n  - role: main\n  - role: sub\n    hw_verified: true\n")
-    _require('RC=0' in proc_pos.stdout, 'hw_verified:true must be admitted by the propagation gate')
-
-    # (ii-a) single-node sub-control serve gate, implementation 1: recipe.py's _require_terraform_flag.
-    def _recipe_gate(tmp_dir, key_content):
-        claude_dir = Path(tmp_dir) / ".claude"
-        claude_dir.mkdir(exist_ok=True)
-        if key_content is not None:
-            (claude_dir / "a2a_delegation.json").write_text(key_content)
-        recipe._require_terraform_flag(tmp_dir)
-
-    orig_a2a_env = os.environ.pop("EASY_VLLM_A2A_DELEGATED", None)
-    try:
-        # 2026-09-05 (audit_26090515 E2 · plan_26090516 ①): the key exempts ONLY the terraform Flag checks
-        # (manifest-absent-as-Flag · terraforming.complete/branch_verified). HW facts (topology ·
-        # gpus_per_node · model_source) are never exempt -- they come from the sub's own manifest that
-        # terraforming_node generates at install. So the positive control is key + a Flag-less sub
-        # manifest carrying HW facts, and key-alone-without-manifest is a NEGATIVE (exit 5), not a pass.
-        with tempfile.TemporaryDirectory() as tmp_pos:
-            out_dir = Path(tmp_pos) / "output" / "single"
-            out_dir.mkdir(parents=True)
-            (out_dir / "manifest.yaml").write_text("topology: single\ngpus_per_node: 1\nmodel_source: managed\n")
-            _recipe_gate(tmp_pos, json.dumps({"delegation": "main_cluster_flag", "issued_to": "sub"}))  # must NOT raise
-
-        with tempfile.TemporaryDirectory() as tmp_key_only:
-            try:
-                _recipe_gate(tmp_key_only, json.dumps({"delegation": "main_cluster_flag", "issued_to": "sub"}))
-                raise AssertionError("a valid key WITHOUT HW facts must refuse -- the exemption covers Flag checks only")
-            except SystemExit as e:
-                _require(e.code == 5, f'key-only (no manifest) must die() with exit 5 (HW facts required), got {e.code!r}')
-
-        with tempfile.TemporaryDirectory() as tmp_absent:
-            try:
-                _recipe_gate(tmp_absent, None)
-                raise AssertionError("absence of both key and manifest must refuse, not exempt")
-            except SystemExit as e:
-                _require(e.code == 4, 'predicate requirement failed at original line 2512')
-
-        with tempfile.TemporaryDirectory() as tmp_mal:
-            try:
-                _recipe_gate(tmp_mal, "{not valid json")
-                raise AssertionError("a malformed key file must refuse, not exempt")
-            except SystemExit as e:
-                _require(e.code == 4, 'predicate requirement failed at original line 2519')
-
-        for bad_role in ({"delegation": "main_cluster_flag", "issued_to": "main"},
-                          {"delegation": "main_cluster_flag", "issued_to": "nobody"},
-                          {"delegation": "bogus", "issued_to": "sub"}):
-            with tempfile.TemporaryDirectory() as tmp_wr:
-                try:
-                    _recipe_gate(tmp_wr, json.dumps(bad_role))
-                    raise AssertionError(f"wrong-role key {bad_role} must refuse, not exempt")
-                except SystemExit as e:
-                    _require(e.code == 4, 'predicate requirement failed at original line 2529')
-    finally:
-        if orig_a2a_env is not None:
-            os.environ["EASY_VLLM_A2A_DELEGATED"] = orig_a2a_env
-
-    # (ii-b) single-node sub-control serve gate, implementation 2: run_bench.sh's OWN inline gate,
-    # extracted verbatim (never retyped) and executed for real.
-    rb_src = _read(".claude/skills/adversarial-benchmark/scripts/run_bench.sh")
-    start = rb_src.index('MC="$REPO/.claude/skills/terraforming_node/scripts/manifest_contract.py"')
-    end = rb_src.index('PORT="${SERVING_PORT:?SERVING_PORT')
-    gate_block = rb_src[start:end]
-    _require('KEY_OK' in gate_block and 'exit 4' in gate_block and ('exit 2' in gate_block), 'predicate requirement failed at original line 2540')
-
-    mc_src = _read(".claude/skills/terraforming_node/scripts/manifest_contract.py")
-
-    def _run_bench_gate(repo, key_content=None, with_mc=False, manifest_body=None):
-        repo_p = Path(repo)
-        if key_content is not None:
-            (repo_p / ".claude").mkdir(parents=True, exist_ok=True)
-            (repo_p / ".claude" / "a2a_delegation.json").write_text(key_content)
-        if with_mc:
-            mcdir = repo_p / ".claude" / "skills" / "terraforming_node" / "scripts"
-            mcdir.mkdir(parents=True, exist_ok=True)
-            (mcdir / "manifest_contract.py").write_text(mc_src)
-        if manifest_body is not None:
-            outdir = repo_p / "output" / "single"
-            outdir.mkdir(parents=True, exist_ok=True)
-            (outdir / "manifest.yaml").write_text(manifest_body)
-        script = f'REPO="{repo}"\nTOPO="single"\nCONFIG="test"\n{gate_block}\n'
-        env = dict(os.environ)
-        env.pop("EASY_VLLM_A2A_DELEGATED", None)
-        return subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=30, env=env)
-
-    complete_manifest = ("topology: single\ngpus_per_node: 1\nmodel_source: managed\nnodes: []\n"
-                         "terraforming:\n  complete: true\n  branch_verified: true\n")
-    incomplete_manifest = ("topology: single\ngpus_per_node: 1\nmodel_source: managed\nnodes: []\n"
-                           "terraforming:\n  complete: false\n  branch_verified: true\n")
-
+    if not _identity_available():
+        return
     with tempfile.TemporaryDirectory() as tmp:
-        proc = _run_bench_gate(tmp)   # absent: no key, no MC script at all
-        _require(proc.returncode == 4 and '모두 부재' in proc.stderr, (proc.returncode, proc.stderr))
-
+        root = _identity_fixture(tmp, card=False)
+        try:
+            recipe._require_identity_proof(str(root))
+            _require(False, "recipe's gate must refuse a self_role: sub tree with no card")
+        except SystemExit as exc:
+            _require(exc.code != 0, "refusal must be a non-zero exit, not a silent pass")
     with tempfile.TemporaryDirectory() as tmp:
-        proc = _run_bench_gate(tmp, key_content=json.dumps({"delegation": "main_cluster_flag", "issued_to": "sub"}))
-        _require(proc.returncode == 2, f'a genuine key must let the gate through, got {proc.returncode}: {proc.stderr}')
-
+        root = _identity_fixture(tmp, tamper=True)
+        try:
+            recipe._require_identity_proof(str(root))
+            _require(False, "recipe's gate must refuse a tampered card")
+        except SystemExit as exc:
+            _require(exc.code != 0, "refusal must be a non-zero exit, not a silent pass")
     with tempfile.TemporaryDirectory() as tmp:
-        proc = _run_bench_gate(tmp, with_mc=True, manifest_body=complete_manifest)
-        _require(proc.returncode == 2, f'a genuine Flag-complete manifest must let the gate through, got {proc.returncode}: {proc.stderr}')
-
-    with tempfile.TemporaryDirectory() as tmp:
-        proc = _run_bench_gate(tmp, key_content="{not valid json", with_mc=True, manifest_body=incomplete_manifest)
-        _require(proc.returncode == 4 and '테라포밍-완수 Flag 미발급' in proc.stderr, 'a malformed key must not bypass -- the manifest/MC path must still be genuinely consulted')
-
-    with tempfile.TemporaryDirectory() as tmp:
-        proc = _run_bench_gate(
-            tmp, key_content=json.dumps({"delegation": "main_cluster_flag", "issued_to": "main"}),
-            with_mc=True, manifest_body=incomplete_manifest)
-        _require(proc.returncode == 4 and '테라포밍-완수 Flag 미발급' in proc.stderr, 'a wrong-role key must not bypass either')
+        root = _identity_fixture(tmp)
+        proof = recipe._require_identity_proof(str(root))
+        _require(isinstance(proof, dict) and proof.get("kid"),
+                 "positive control: a genuine card must pass and report its kid")
 
 
-def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C4():
-    """C4: the main completion Flag and the sub delegation key are deliberately distinct, UNIQUE
-    credentials that never cross-substitute, proven in three directions (no forbidden `or True`
-    escape hatch anywhere in this proof):
-    (1) a genuinely-true main Flag sitting in the SAME manifest does not, alone, satisfy the
-        propagation gate that specifically requires the sub key (`nodes[sub].hw_verified`);
-    (2) a genuinely-valid sub key sitting right next to a Flag-absent manifest does not cause the
-        main Flag's own deterministic reader (`manifest_contract`, which never even references the
-        key file) to emit/report a completion Flag;
-    (3) wrong credential shapes fail across the plane boundary in both directions -- a main-Flag-
-        shaped payload offered as the sub key is rejected by `_require_terraform_flag`, and a
-        sub-key-shaped payload substituted into the manifest's own `terraforming` block is rejected
-        by `evaluate_contract`."""
-    import json
-
-    render_src = _read(".claude/skills/terraforming_node/scripts/render_sub_env.py")
-    idx = render_src.index('"delegation": "main_cluster_flag"')
-    block = render_src[idx: idx + 400]
-    _require('"issued_to": "sub"' in block, 'predicate requirement failed at original line 2612')
-    _require('terraforming.complete' not in block, 'predicate requirement failed at original line 2613')
-
-    require_src = inspect.getsource(recipe._require_terraform_flag)
-    _require('kd.get("delegation") == "main_cluster_flag" and kd.get("issued_to") == "sub"' in require_src, 'predicate requirement failed at original line 2616')
-    _require('terra.get("complete")' in require_src, 'predicate requirement failed at original line 2617')
-    _require('UNIQUE' in inspect.getdoc(recipe._require_terraform_flag), "the gate's own documented contract must name the two credentials UNIQUE -- not merely happen to keep them structurally separate")
-
-    # (1) main Flag alone cannot stand in for the sub key where the key is specifically required.
+def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4():
+    """C4: the main completion Flag and the sub's identity proof stay distinct credentials that
+    never cross-substitute.  (1) a genuinely-true main Flag in the same manifest does not satisfy
+    the propagation gate, which asks for the sub's own measured stamp; (2) the main Flag's own
+    deterministic reader never references the identity assets; (3) a valid main-issued manifest
+    does NOT rescue a tampered card -- the signature is checked on its own axis."""
     src = _sync_to_sub_src()
     fn = _extract_bash_function(src, "assert_sub_delegation_authorized")
     resolver = _extract_bash_function(src, "_resolve_sub_hw_verified")
@@ -3030,44 +2925,27 @@ def predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C4():
         (srcdir / "manifest.yaml").write_text(
             "topology: multi\nterraforming:\n  complete: true\n  branch_verified: true\n"
             "nodes:\n  - role: main\n  - role: sub\n    host: 1.2.3.4\n")
-        script = f'SRC="{tmp}/"\n{resolver}\n{fn}\nassert_sub_delegation_authorized multi\necho "RC=$?"\n'
-        proc = _run_bash(script)
-        _require('RC=1' in proc.stdout, 'a genuinely-true main completion Flag in the same manifest must NOT stand in for the missing sub delegation key -- the two credentials are checked independently')
+        proc = _run_bash(f'SRC="{tmp}/"\n{resolver}\n{fn}\n'
+                         f'assert_sub_delegation_authorized multi\necho "RC=$?"\n')
+        _require("RC=1" in proc.stdout,
+                 "a genuinely-true main completion Flag must NOT stand in for the sub's own "
+                 "measured credential -- the two are checked independently")
 
-    # (2) sub key cannot become/emit the main completion Flag.
     mc_src = _read(".claude/skills/terraforming_node/scripts/manifest_contract.py")
-    _require('a2a' not in mc_src.lower() and 'delegation' not in mc_src.lower(), "the main Flag's own deterministic reader must never reference the sub key file -- structurally incapable of treating it as a Flag source")
-    with tempfile.TemporaryDirectory() as tmp2:
-        claude_dir = Path(tmp2) / ".claude"
-        claude_dir.mkdir()
-        (claude_dir / "a2a_delegation.json").write_text(
-            json.dumps({"delegation": "main_cluster_flag", "issued_to": "sub", "topology": "multi"}))
-        rc = manifest_contract.main(["--topology", "single", "--repo", tmp2, "--require-flag"])
-        _require(rc == manifest_contract.EXIT_NO_MANIFEST, 'a genuinely valid sub delegation key sitting next to a Flag-absent manifest must NOT cause the main Flag reader to emit/report a completion Flag')
+    _require("agent_card" not in mc_src.lower() and "trusted_keys" not in mc_src.lower(),
+             "the main Flag's reader must never reference the identity assets -- structurally "
+             "incapable of treating a card as a Flag source")
 
-    # (3) wrong credential shapes fail across the plane boundary, both directions.
-    orig_repo_root = recipe.REPO_ROOT
-    orig_a2a_env = os.environ.pop("EASY_VLLM_A2A_DELEGATED", None)
-    try:
-        with tempfile.TemporaryDirectory() as tmp3:
-            recipe.REPO_ROOT = tmp3
-            claude_dir3 = Path(tmp3) / ".claude"
-            claude_dir3.mkdir()
-            (claude_dir3 / "a2a_delegation.json").write_text(json.dumps({"complete": True, "branch_verified": True}))
-            try:
-                recipe._require_terraform_flag(tmp3)
-                raise AssertionError("a main-Flag-shaped payload in the sub key file must not exempt")
-            except SystemExit as e:
-                _require(e.code == 4, 'predicate requirement failed at original line 2666')
-    finally:
-        recipe.REPO_ROOT = orig_repo_root
-        if orig_a2a_env is not None:
-            os.environ["EASY_VLLM_A2A_DELEGATED"] = orig_a2a_env
-
-    sub_shaped = {"topology": "single", "gpus_per_node": 1, "model_source": "managed",
-                  "terraforming": {"delegation": "main_cluster_flag", "issued_to": "sub"}}
-    res = manifest_contract.evaluate_contract(sub_shaped, "single")
-    _require(res['flag'] is False and res['exit_code'] == manifest_contract.EXIT_NO_FLAG, "a sub-key-shaped payload substituted into the manifest's own terraforming block must not be accepted as the main completion Flag")
+    if not _identity_available():
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        root = _identity_fixture(tmp, tamper=True)     # manifest Flag is genuine, card is not
+        proc = _run_bash(
+            f'python3 {shlex.quote(str(root / ".claude/runtime/a2a/agent_card_contract.py"))} '
+            f'prove-identity --repo-root {shlex.quote(str(root))} --require-flag; echo "RC=$?"')
+        _require("RC=0" not in proc.stdout,
+                 "a valid main-issued Flag must not rescue a tampered signature -- the credentials "
+                 "are independent axes, never a disjunction")
 
 
 # =============================================================================
@@ -3619,10 +3497,10 @@ PREDICATES = {
     "TERRAFORM_FLAG_GATE.C2": predicate_TERRAFORM_FLAG_GATE_C2,
     "TERRAFORM_FLAG_GATE.C3": predicate_TERRAFORM_FLAG_GATE_C3,
     "TERRAFORM_FLAG_GATE.C4": predicate_TERRAFORM_FLAG_GATE_C4,
-    "A2A_DELEGATION_KEY_FAIL_CLOSED.C1": predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C1,
-    "A2A_DELEGATION_KEY_FAIL_CLOSED.C2": predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C2,
-    "A2A_DELEGATION_KEY_FAIL_CLOSED.C3": predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C3,
-    "A2A_DELEGATION_KEY_FAIL_CLOSED.C4": predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C4,
+    "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1": predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1,
+    "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2": predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2,
+    "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3": predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3,
+    "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4": predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4,
     "ARCH_WALL_VARIANT_LADDER.C1": predicate_ARCH_WALL_VARIANT_LADDER_C1,
     "ARCH_WALL_VARIANT_LADDER.C2": predicate_ARCH_WALL_VARIANT_LADDER_C2,
     "ARCH_WALL_VARIANT_LADDER.C3": predicate_ARCH_WALL_VARIANT_LADDER_C3,

@@ -114,7 +114,7 @@
   서빙전략 수립 중 recipe가 구조적 불가를 발견(감지)하는 escalation 역루프뿐이며, 그 경우도 실행은 여전히
   사람 승인 게이트를 거친다(발견은 소유가 아니다 — 상세는 workflow.md).
 - 테라포밍 완수 게이트: policy:TERRAFORM_FLAG_GATE.
-- A2A 위임 게이트: policy:A2A_DELEGATION_KEY_FAIL_CLOSED.
+- A2A 정체성 게이트: policy:A2A_IDENTITY_PROOF_FAIL_CLOSED (2026-09-05 개명 — 옛 `A2A_DELEGATION_KEY_FAIL_CLOSED`. 자격증명이 **실행 허가**에서 **정체성 증명**으로 바뀌었다: 서브는 허가를 받는 것이 아니라 자기가 메인이 프로비저닝한 노드임을 증명한다).
 - 미테라포밍 신호를 감지하면 온보딩을 능동 제안한다(스캔은 인터뷰와 승인 뒤에만 — 무단 스캔 금지는
   보존된다. 상세는 workflow.md).
 - 경량 벤치 핸드오프는 서빙 성공 시 관측용으로 자동 수행되며, 무인 자동실행 금지 원칙의 명시적 예외다
@@ -124,7 +124,7 @@
 
 ## 정책 경계
 
-- policy:A2A_DELEGATION_KEY_FAIL_CLOSED
+- policy:A2A_IDENTITY_PROOF_FAIL_CLOSED
 - policy:ARCH_WALL_VARIANT_LADDER
 - policy:GIT_SINGLE_AUTHORITY
 - policy:HINT_TAG_ACTIVATION_GATE

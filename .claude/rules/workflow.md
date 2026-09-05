@@ -21,7 +21,7 @@
 
 ## 공통 진입 게이트
 
-- S1–S4·escalation·B0–B3 전 tracked terraform validator를 실행한다. 서브 진입은 `policy:A2A_DELEGATION_KEY_FAIL_CLOSED`도 검증한다. topology는 인터뷰/manifest에서만 읽고 브랜치로 추론하지 않는다.
+- S1–S4·escalation·B0–B3 전 tracked terraform validator를 실행한다. 서브 진입은 `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED`도 검증한다(2026-09-05 개명 · 허가 → 정체성). topology는 인터뷰/manifest에서만 읽고 브랜치로 추론하지 않는다.
 - Flag가 없으면 작업을 멈추고 다음 문구로 onboarding을 제안한다: *"HW스캔이 덜 되어(Flag 미발행) HW 스펙(GPU·OS)을 알기 어려워 모델 `<HF URL>` 의 정확한 서빙전략을 세우기 어렵습니다. `terraforming_node` 로 ① HW스캔 + ② 모델 다운로드 전략(관리 NAS 경로? 컨테이너 임시 다운로드(컨테이너 down 시 삭제)? 특정 경로 저장·마운트?)을 먼저 정합시다."*
 - fresh clone 감지는 제안만 한다. 인터뷰→승인 뒤에만 스캔한다. 정본은 `policy:TERRAFORM_FLAG_GATE`와 terraforming 스킬 §0.5다.
 

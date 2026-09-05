@@ -1346,7 +1346,7 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
     #   회수 경로가 3중으로 없었기 때문에 그 상태는 영구였다: ① deliver_overlay 는 `--delete` 없는
     #   가산 rsync ② 이 검사가 잉여 키를 안 봄 ③ gitignore.template 에 무시 규칙이 없어 서브 git 이
     #   키를 추적 → 손으로 지워도 `sub.git.unstick`(git checkout --)이 되살린다.
-    #   `policy:A2A_DELEGATION_KEY_FAIL_CLOSED` 는 **발급 방향으로만** fail-closed 였고 회수 방향은
+    #   `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED`(옛 …DELEGATION_KEY…) 는 **발급 방향으로만** fail-closed 였고 회수 방향은
     #   fail-open 이었다. 오진 정정·서브 교체·HW 변경 뒤에도 서브는 계속 위임 자격을 들고 있었다.
     if [ -f "$st/.claude/a2a_delegation.json" ]; then
         echo "  ✅ .claude/a2a_delegation.json 발급(서브 hw_verified 검증) — 배달 표면 안"

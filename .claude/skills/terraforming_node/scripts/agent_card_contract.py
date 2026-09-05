@@ -428,6 +428,72 @@ def _self_test() -> int:
     return 0 if ok else 1
 
 
+# ── 정체성 증명(2026-09-05 · plan_26090516 ③ 3-9 · G-E1) ─────────────────────────
+#   위임 키(`.claude/a2a_delegation.json`)를 대체한다. 종전 규약은 "메인이 발급한 **실행 허가**가
+#   없으면 서브는 아무것도 못 한다" 였고, 감사는 그것을 R3(에이전트 자율성 부정)로 판정했다.
+#   지금 서브는 ② 이후 **자기 manifest**(main 이 발급한 Flag)와 **서명된 Agent Card** 를 갖는다 —
+#   그러므로 필요한 것은 허가가 아니라 **"이 노드는 메인이 프로비저닝했다"는 증명**이다.
+#   손상 키 fail-closed 규율은 그대로 이식한다: 카드·신뢰저장소가 없거나 서명이 깨지면 거부한다.
+CARD_REL = "Agent_Card.json"
+TRUSTED_REL = os.path.join(".claude", "a2a", "trusted_keys.json")
+
+
+def _manifest_flag(repo_root: str, topology: str) -> dict:
+    """서브가 **자기 manifest** 의 완수 Flag 를 읽는다(최소 파서 · 2026-09-05 · G-E1).
+
+    왜 여기인가: 서브에는 `manifest_contract.py` 가 없다(terraforming 은 메인 전용이라 배달되지
+    않는다). 종전에는 그 부재를 **위임 키 면제**로 메웠고, 그것이 R3 구조의 뿌리였다. 이제 서브는
+    메인이 발급한 자기 manifest 를 가지므로, 그것을 읽어 정규 통과한다. 파서는 이 파일이 이미
+    양 평면에 배달되므로 여기 둔다(새 배달 대상을 만들지 않는다).
+    """
+    path = os.path.join(repo_root, "output", topology or "single", "manifest.yaml")
+    if not os.path.isfile(path):
+        raise ContractViolation("manifest 부재(%s) — 완수 Flag 를 확인할 수 없다" % path)
+    flags, in_terra = {}, False
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            if not line[:1].isspace():
+                in_terra = line.startswith("terraforming:")
+                continue
+            if in_terra and ":" in line:
+                k, _, v = line.strip().partition(":")
+                flags[k.strip()] = v.split("#", 1)[0].strip().strip('"').lower()
+    if flags.get("complete") != "true" or flags.get("branch_verified") != "true":
+        raise ContractViolation(
+            "완수 Flag 미발급(complete=%r branch_verified=%r · %s) — 메인의 terraforming 이 "
+            "발급한다(issued_by: main)" % (flags.get("complete"), flags.get("branch_verified"), path))
+    return {"manifest": os.path.relpath(path, repo_root), "issued_by": flags.get("issued_by")}
+
+def prove_identity(repo_root: str, require_flag: bool = False) -> dict:
+    """워크스페이스의 정체성 증명을 검증한다. 실패는 예외(ContractViolation)다.
+
+    반환: {kid, role, topology, self_role} — 호출부(recipe·bench 게이트)가 그대로 로그에 적는다.
+    """
+    card_path = os.path.join(repo_root, CARD_REL)
+    trusted_path = os.path.join(repo_root, TRUSTED_REL)
+    if not os.path.isfile(card_path):
+        raise ContractViolation("Agent_Card.json 부재(%s) — 정체성 증명 없음(fail-closed)" % card_path)
+    if not os.path.isfile(trusted_path):
+        raise ContractViolation("신뢰키 저장소 부재(%s) — 서명을 검증할 수 없다(fail-closed)" % trusted_path)
+    with open(card_path, encoding="utf-8") as f:
+        card = json.load(f)
+    kid = verify_card(card, trusted_path)
+    v = validate_card(card)
+    if v:
+        raise ContractViolation("서명은 유효하나 카드 계약 위반: " + "; ".join(v))
+    params = {}
+    for ext in ((card.get("capabilities") or {}).get("extensions") or []):
+        if str(ext.get("uri", "")).startswith("urn:easy-vllm:ext:node-role"):
+            params = ext.get("params") or {}
+            break
+    out = {"kid": kid, "role": params.get("sub_mode"), "topology": params.get("topology"),
+           "rank": params.get("rank")}
+    if require_flag:
+        out.update(_manifest_flag(repo_root, out["topology"]))
+    return out
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Agent_Card(A2A v1.0.1) 계약 검증 · JWS 서명/검증")
     ap.add_argument("--self-test", action="store_true")
@@ -438,11 +504,22 @@ def main(argv=None) -> int:
     p.add_argument("--trusted-out", help="서명 공개키(JWK)를 신뢰 저장소 파일로 기록(서브 오버레이 배달용)")
     p.add_argument("--out", help="서명된 카드 출력 경로(기본 = --card 덮어쓰기)")
     p = sub.add_parser("verify"); p.add_argument("--card", required=True); p.add_argument("--trusted", required=True)
+    p = sub.add_parser("prove-identity",
+                       help="워크스페이스의 정체성 증명(서명된 카드 + 신뢰저장소)을 검증한다 — 위임 키 대체")
+    p.add_argument("--repo-root", required=True)
+    p.add_argument("--require-flag", action="store_true",
+                   help="정체성에 더해 **자기 manifest 의 완수 Flag** 까지 요구(서브의 정규 통과 경로)")
     a = ap.parse_args(argv)
     if a.self_test:
         return _self_test()
     if not a.cmd:
         ap.print_help(); return EXIT_USAGE
+    if a.cmd == "prove-identity":
+        try:
+            r = prove_identity(a.repo_root, getattr(a, "require_flag", False))
+        except (ContractViolation, ValueError, OSError) as e:
+            print("[agent-card] IDENTITY FAIL: %s" % e, file=sys.stderr); return EXIT_SIGNATURE
+        print(json.dumps(r, ensure_ascii=False)); return EXIT_OK
     if a.cmd == "keygen":
         r = keygen(a.out_dir, a.force)
         print(json.dumps(r, ensure_ascii=False)); return EXIT_OK

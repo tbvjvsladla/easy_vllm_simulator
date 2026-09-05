@@ -462,11 +462,11 @@ python3 .claude/skills/terraforming_node/scripts/node_role_contract.py \
 | B0 bootstrap | 최초 배달→서브 local git | dry-run→HITL apply | `policy:SUB_GIT_LOCAL_ONLY` |
 | B1 하향 | canonical render/output→서브 | dirty→보존 후 진행·checksum | `policy:SUB_SYNC_DIRTY_AUTOSAVE`; `upstream-version-watch/scripts/sync_to_sub.sh` |
 | B2 상향 | 서브 docs path→`sync_staging/sub_docs`→HITL 재저작 | **상향 회수(서브→메인) = 문서기반 only** | `fetch_sub_docs.sh`; patch/code 직접 회수 금지 |
-| B3 경계 | attestation+미러 docs→메인 관측 | A2A key(`policy:A2A_DELEGATION_KEY_FAIL_CLOSED`) | 메인은 서브 디스크 재스캔 금지(§2.7.2 스캔) |
+| B3 경계 | attestation+미러 docs→메인 관측 | A2A 정체성(`policy:A2A_IDENTITY_PROOF_FAIL_CLOSED`) | 메인은 서브 디스크 재스캔 금지(§2.7.2 스캔) |
 
 - 서브 개선은 `[improve]` history 에 남고 메인 저작권은 template→render→delivery 로만 행사한다(§2.7.2 저작).
 - egress-restricted 서브의 외부조사 실패도 **docs 로만** 상향한다.
-- **공통 진입 게이트**: B0–B3 진입 전 tracked terraform validator + `policy:A2A_DELEGATION_KEY_FAIL_CLOSED` 검증(`workflow.md` §공통 진입 게이트).
+- **공통 진입 게이트**: B0–B3 진입 전 tracked terraform validator + `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED` 검증(`workflow.md` §공통 진입 게이트).
 
 ### 2.7.4 권위 평면 계약 — 어느 도구가 무엇을 읽는가
 
@@ -586,7 +586,7 @@ Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 �
 
 > 신설: `plan_26081514_…_구현.md` Step 1. §2.7.1 의 *"서브 git 은 관측 장치이고 메인은 완전한 조작 권한을 갖는다"* 를 **실행 가능한 명령 시퀀스**로 만든 것. 이것이 없으면 원칙은 있는데 처방 주체가 없어 §2.7.2 실증과 같은 교착이 반복된다.
 
-**전제**: `policy:A2A_DELEGATION_KEY_FAIL_CLOSED` 통과(키 부재 → 진입 금지) · 대상은 **서브 git 과 정보량 0 상태 결손만**(콘텐츠 저작은 §2.7.2 저작 경로로).
+**전제**: `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED` 통과(정체성 증명 부재·위조 → 진입 금지) · 대상은 **서브 git 과 정보량 0 상태 결손만**(콘텐츠 저작은 §2.7.2 저작 경로로).
 
 | 명령 | 언제 | 무엇 | 평면 |
 |---|---|---|---|
