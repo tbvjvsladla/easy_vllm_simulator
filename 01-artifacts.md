@@ -17,40 +17,51 @@
 ## 파일
 
 **triplet**
-- `output/single/configs/gpt-oss-120b-gb10.yaml`
-- `output/single/configs/gpt-oss-120b-gb10.sh`
-- `output/single/envs/.env.gpt-oss-120b-gb10`
+- `output/multi/configs/gpt-oss-120b-gb10-0190-b1.yaml`
+- `output/multi/configs/gpt-oss-120b-gb10-0190-b1.sh`
+- `output/multi/envs/.env.gpt-oss-120b-gb10-0190-b1`
+
+**build_patch_pre**
+- `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
+- `output/multi/build_patches_src/55-src-deps-authority.sh`
+
+**build_patch_post**
+- `output/multi/build_patches/10-deepgemm.sh`
+- `output/multi/build_patches/20-triton-kernels.sh`
+- `output/multi/build_patches/30-mxfp4-triton-sm121.sh`
+- `output/multi/build_patches/40-humming-nvml-gb10.sh`
 
 **build_recipe**
-- `output/single/Dockerfile`
-- `output/single/requirements.txt`
+- `output/multi/Dockerfile`
+- `output/multi/requirements.txt`
 
 **compose**
-- `output/single/docker-compose.yaml`
+- `output/multi/docker-compose.yaml`
 
 **fork_pin** — 없음 = **stock**. `.env` 에 `VARIANT=` 줄이 없는 것이 기본값이다.
 
 ## 적용 사유 (Agent)
 
-**triplet — 해당.** 단일노드 최대 컨텍스트(131072) 구성이다. `gpu-memory-utilization 0.90` ·
-`max-num-seqs 16` · `kv-cache-memory-bytes` **30 GiB 총량** · `port 8000`(브리지 네트워크 + 8080:8000
-매핑이라 컨테이너 안쪽 포트다) 넷이 이 토폴로지에 묶여 있다. 같은 모델의 멀티노드 힌트는 이 넷이
-전부 다른 값을 갖는다 — 옮기지 말고 그쪽 힌트를 보라.
+**`triplet` — 적용.** TP=2 분산 서빙의 설정이다. `config.yaml` 이 **타겟 GPU 를 선언**하고
+(H100 · 80 GiB/카드 · `target_gmu` 0.90 · cards_per_node 1) 그 예산에서 파생한 **노드당 KV 클램프
+24,644 MiB** 를 절대값으로 고정한다. 측정은 GB10×2 통합메모리에서 났고 **클램프만 타겟 예산**이다
+(`policy:KV_ABSOLUTE_CLAMP_PORTABILITY`). `.env` 는 master/slave 컨테이너 이름과 Ray 포트 형상을 갖는다.
 
-**runtime_patch — 불해당.** stock harmony/tiktoken 경로가 그대로 서빙했다. Python 몽키패치가 필요한
-지점이 없었고, 없는 패치 자리를 남기면 다음 사람이 그것을 필수 단계로 읽는다.
+**`build_recipe` — 적용.** 분산에서는 이 슬롯의 성격이 단일노드와 다르다 — **두 노드가 각자 같은
+이미지를 재현해야** 집단 연산 ABI 가 맞는다. 이미지를 전송하지 않기 때문이다. 그래서
+`ray`·`iproute2`·`netcat-openbsd` 스탠자가 **TP=2 의 전제**다. 이 스탠자는 원래 wheel 트랙 Dockerfile
+에 없어 손으로 얹혀 있었고, 재렌더 한 번이면 조용히 사라져 slave 가 `ray: command not found` 로
+죽는 구조였다 — 이번에 템플릿에 편입했다.
 
-**build_patch_pre · build_patch_post — 불해당.** wheel 트랙이라 vLLM 을 컴파일하지 않으므로 컴파일
-전/후 패치가 걸릴 자리가 없다. 활성 Dockerfile 이 두 디렉터리를 참조하지 않으며, 그래서 슬롯이
-불해당이고 **archive 에도 싣지 않는다** — 실행되지 않은 패치는 재현 지침이 아니다.
+**`compose` — 적용.** master/slave 두 서비스와 Ray head↔worker 배선이 여기 있다. 단일노드 compose
+로는 재현되지 않는다.
 
-**build_recipe — 해당.** 이미지를 다시 지으려면 필요하다. 이 트랙의 핵심은 **wheel 을 `--no-deps`
-로 붙이고 의존성은 그 wheel 의 메타데이터에서 생성한 requirements 로 따로 넣는 것**이다 — 그래야
-NGC 베이스가 제공하는 torch 를 덮지 않는다.
+**`build_patch_post` — 불해당(단, 파일은 있다).** `output/multi/build_patches/` 에 4건이 존재하지만
+**활성 레시피가 그것을 참조하지 않는다.** 존재를 곧 적용으로 읽으면 *먹지 않은 패치를 재현지침으로
+배포*하게 되므로 불해당이다. 이 구분이 이 슬롯 판정의 핵심이다.
 
-**compose — 해당.** 단일노드는 브리지 네트워크에 포트 매핑이 있다. 그 사실이 트리플렛 `port` 값의
-의미를 정하므로 기동 방법을 빼면 재현이 성립하지 않는다. env 형상 템플릿을 함께 싣는 이유는
-**어떤 변수가 필요한지**가 재현 정보이기 때문이다 — 값은 각자 manifest 에서 온다.
+**`runtime_patch` — 불해당.** 0.19.0 stock 이 gpt-oss-120b 의 processor·config 를 그대로 받는다.
 
-**fork_pin — 불해당.** stock 이다. 모델 env 에 `VARIANT=` 줄이 없는 것이 그 선언이며, 부재가
-기본값이므로 포크 좌표를 걷어내는 일은 값 수정이 아니라 줄 삭제로 표현된다.
+**`build_patch_pre` — 불해당.** prebuilt wheel 트랙이라 컴파일 자체가 없다.
+
+**`fork_pin` — 불해당 = stock.** arch-wall 이 없었다. `.env` 에 `VARIANT=` 줄이 **없는 것**이 그 표현이다.

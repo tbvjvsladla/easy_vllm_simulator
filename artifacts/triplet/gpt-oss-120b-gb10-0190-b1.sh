@@ -1,5 +1,5 @@
 #!/bin/bash
-# gpt-oss-120b-gb10 서빙 스크립트 (vllm-recipe-explorer 생성, gpt-oss-20b-normal.sh 구조 동일)
+# gpt-oss-120b-gb10 멀티노드(TP=2) 서빙 스크립트 (vllm-recipe-explorer 생성, gpt-oss-20b-normal.sh 구조 동일)
 # env 파일에서 주입된 변수: CONFIG_FILE, SERVING_MODEL_NAME, TIKTOKEN_ENABLED
 
 # TIKTOKEN 환경변수 설정
@@ -12,7 +12,6 @@ fi
 if [ -f /app/configs/arm_patch.sh ]; then source /app/configs/arm_patch.sh; fi
 
 # attention backend 고정
-export VLLM_ATTENTION_BACKEND=FLASHINFER
 
 # vllm serve 실행
 vllm serve --config "/app/configs/${CONFIG_FILE}.yaml" \

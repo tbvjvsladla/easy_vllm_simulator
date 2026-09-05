@@ -1,55 +1,138 @@
-# 스켈레톤 — render_dockerfile.py(G2)가 manifest+버전해소값으로 채움
 x-gpu-common: &gpu-common
+  # 이미지 네이밍 불변식(easy-vllm:{vllm}-cu{cuda}-{arch}-{track}) — 콤보별 .env 가 IMAGE_TAG/BUILD_DOCKERFILE 선택.
+  #   build 시 이 태그로 태깅 · up 시 재사용(한 이미지가 모든 모델 서빙). source 콤보들은 같은 이미지 공유(버전은 IMAGE_TAG 기본값 참조).
+  image: ${IMAGE_TAG:-easy-vllm:0.27.0-cu133-aarch64-source}
   build:
     context: .
-    dockerfile: Dockerfile.source-build   # 트랙별: Dockerfile(wheel) | Dockerfile.source-build(source)
-  # 이미지 네이밍 불변식(easy-vllm:{vllm}-cu{cuda}-{arch}-{track}). 해소값이 기본, 콤보 env(.env.<config>)의
-  # IMAGE_TAG 가 오버라이드 — 변종/이전 버전 이미지 재사용 경로(multi 통로와 동형·plan_2026072217_1 S1).
-  image: ${IMAGE_TAG:-easy-vllm:0.27.0-cu133-aarch64-source}
+    dockerfile: ${BUILD_DOCKERFILE:-Dockerfile.source-build}   # 콤보①=Dockerfile(0.18.0 wheel) · ②③=Dockerfile.source-build(기본·torch 2.11 ABI 벽)
+    args:
+      # 빌드 변종 파라미터화(기본=stock vllm-project @ 아래 VLLM_REF 기본값). 콤보 env(.env.<config>)가 오버라이드 →
+      #   포크 변종 빌드(예 DeepSeek-V4 SM12x: jasl/vllm @ SHA → IMAGE_TAG=…-source-sm12x). plan_2026062818_1.
+      # wheel 트랙의 vLLM 버전. 이 줄이 없던 동안 wheel 빌드는 Dockerfile 의 `ARG VLLM_VERSION`
+      #   기본값에 **고정**돼 있었고, 콤보 env 가 IMAGE_TAG 만 바꾸면 태그와 내용이 갈렸다
+      #   (2026-09-04: 0.19.1 태그를 붙여도 0.18.0 wheel 이 빌드되는 상태였다). source 트랙은
+      #   VLLM_REF 가 같은 역할을 하므로 이 값은 wheel 트랙 전용이다.
+      VLLM_VERSION: ${VLLM_VERSION:-0.18.0}
+      VLLM_REPO: ${VLLM_REPO:-https://github.com/vllm-project/vllm.git}
+      VLLM_REF: ${VLLM_REF:-v0.27.0}
+      # 포크 태그가 semver 가 아니면 setuptools_scm 이 metadata 생성에서 죽는다
+      #   (2026-08-02 실측: 'sm120-pr-41834-stable-preview-20260802d' 파싱 실패).
+      #   빈 값 = 무동작이므로 stock 빌드 경로는 불변.
+      VLLM_PRETEND_VERSION: ${VLLM_PRETEND_VERSION:-}
+      # SM12X_PORT: build_patches_src/ 의 소스 이식 패치를 켜는 **변종 게이트**(기본 0=stock).
+      #   1 이면 50-dsv4-sm12x-port.sh 가 적용된다(R2 자체이식 칸).
+      #   ⚠ 이미지 정체성의 일부다 — 켠 빌드는 반드시 변종 IMAGE_TAG(…-source-sm12x)로 태깅한다.
+      #   plan_26081418 §4.2(B-2) · ledger `.claude/policies/arch_variant_ledger.json`.
+      #   ⚠ 2026-08-15: 이 줄은 R2 때 **렌더 산출물에만 손으로 추가**돼 템플릿에 없었다 —
+      #     재렌더 한 번이면 조용히 사라져 R2 가 stock 으로 빌드됐을 것이다(막힘 3분류의 침묵 누락).
+      #     R3 착수 중 렌더 대조로 발견해 여기로 역이식했다.
+      SM12X_PORT: ${SM12X_PORT:-0}
+      # SRC_DEPS_AUTHORITY: 켜면 **클론된 소스트리가 자기 의존의 권위**가 된다(기본 0 = off).
+      #   우리 requirements.txt 유래 constraint 의 `==` 핀 중 트리가 달리 핀한 것만 양보시킨다
+      #   (KNOWN_INCOMPAT 천장은 보존 · 천장 위반은 fail-loud).
+      #   SM12X_PORT 와 분리된 이유: 포크 핀 칸(R3)은 소스 이식이 불요하나 의존 양보는 필요하다.
+      SRC_DEPS_AUTHORITY: ${SRC_DEPS_AUTHORITY:-0}
+      # BUILD_JOBS: 컴파일 병렬도. **이미지 정체성이 아니다**(같은 산출물, 다른 병렬도·시간).
+      #   기본 16 은 노드가 한가할 때의 값이다 — 다른 서빙이 상주 중이면 낮춰야 한다.
+      #   2026-08-15 실측: R2 상주 시 잔여 RAM 14.5GiB(main)/19.4GiB(sub). nvcc 무거운 TU 가
+      #   수 GiB 를 쓰므로 16 병렬은 OOM 사정권이고, `oom_score_adj: 800` 때문에 커널이
+      #   **상주 vLLM 컨테이너를 먼저 죽인다** — 빌드가 서빙을 깨는 경로다.
+      BUILD_JOBS: ${BUILD_JOBS:-16}
   runtime: nvidia
+  network_mode: host
   ipc: host
-  # OOM킬러 우선희생 지정(plan_2026071019_1 §2.4) — 통합메모리 압박 시 커널이 무고한 데스크톱 프로세스가
-  # 아니라 vLLM 컨테이너를 먼저 잡게(사고 #5 교정). 계층 방어의 커널층.
+  # OOM킬러 우선희생 지정(plan_2026071019_1 §2.4) — 통합메모리 압박 시 커널이 wireplumber 류가
+  # 아니라 vLLM 컨테이너를 먼저 잡게(사고 #5 OOM킬러 4h 오발 교정. 계층 방어의 커널층).
   oom_score_adj: 800
   ulimits:
     memlock: -1
     stack: 67108864
+  devices:
+    - /dev/infiniband:/dev/infiniband
   volumes:
-    - ${NAS_MODEL_PATH:-/mnt/models}:/app/models:ro # 호스트 NAS 루트(env; 테라포밍이 manifest.nas_model_path→env 전파). PII는 compose에 baking 안 함
-    - ${QUANT_MODEL_PATH:-/mnt/models}:/app/quant_models:ro # NVFP4/quant 별도 NAS(manifest.quant_model_path → --materialize-env). multi 통로와 동형
-    - ${TIKTOKEN_HOST_PATH:-./tiktoken_cache}:/encodings:ro # tiktoken 평탄폴더(gpt-oss용). 변수명·기본값 align (P3 카탈로그)
+    # 포인터 원칙(헌법 §배포·§manifest→서빙전략 배선): PII·환경경로 비추적 — manifest → output/multi/.env 로 materialize.
+    # 각 변수의 `:-` 뒤 기본값은 **플레이스홀더**다(운영자 실경로 아님); render_dockerfile.py --materialize-env 가
+    # manifest 실값(NAS_MODEL_PATH·
+    # QUANT_MODEL_PATH·TIKTOKEN_HOST_PATH)으로 .env 를 채워 compose 변수치환(serve-time env 통로 불변식).
+    - ${NAS_MODEL_PATH:-/mnt/models}:/app/models:ro       # 모델 폴더 read-only (managed/custom 마운트원)
+    - ${QUANT_MODEL_PATH:-/mnt/models}:/app/quant_models:ro
+    - ${TIKTOKEN_HOST_PATH:-/mnt/models}:/encodings:ro
+    # 통로 self-containment(plan_2026062321_1 I1/I2): 컨테이너는 통로(output/multi/)만 마운트 — `../../`(통로 밖) reach-out 금지.
+    # ./configs = output/multi/configs = 모델 트리플릿 + render-materialize 된 러너 스크립트(serve_runner.sh·debug-init.sh).
+    #   러너 스크립트 정본 = repo-root configs/(tracked); render_dockerfile.py --materialize-configs --topology multi 가 통로로 복사(생성본·gitignored).
+    #   ⚠ 과거 `../../configs/*.sh` 런타임 오버레이는 RO 부모 안 중첩마운트로 컨테이너 시작 불가 → 폐기(plan_2026062321_1 §1).
     - ./configs:/app/configs:ro
-    # JIT/컴파일 캐시 영속(통로 self-containment — ./cache = output/<topology>/cache, gitignored).
-    #   컨테이너 재생성마다 torch.compile AOT · flashinfer autotune 캐시가 증발해 매 기동이 **cold JIT** 이 되던 문제 교정.
-    #   cold JIT 은 시간(≈12분 warmup)뿐 아니라 **호스트 하드다운 리스크**를 매번 새로 진다(uncapped nvcc 팬아웃 —
-    #   Laguna 모델카드 WARNING). 레퍼런스 레시피(호스트 venv)는 ~/.cache 가 유지되는 전제라, 이 마운트가 그 전제와의 parity.
-    #   ⚠ 컨테이너가 root 로 쓰므로 호스트 파일 소유자는 root — 정리 시 sudo 필요(gitignored 생성물).
-    - ./cache/vllm:/root/.cache/vllm
-    - ./cache/flashinfer:/root/.cache/flashinfer
+
+# ═════════════════════════════════════════════════════════════════════════════
+# NCCL/RDMA 통신 env (이전 `environment: &gpu-env` 인라인 17개) → manifest-driven 렌더로 이관 (Plan 2 S3).
+#   각 서비스가 `env_file: envs/.env.interconnect` 로 주입. 이 파일은 render_dockerfile.py --nccl-envfile 가
+#   manifest.interconnect(①환경값) + NCCL_PRESETS[dgx-spark-gb10](②프리셋) + 불변(③) 으로 생성(비추적 생성물).
+#   검증 정본/회귀 oracle: .claude/skills/upstream-version-watch/fixtures/nccl_env_dgx-spark-gb10.golden (208.2 Gb/s).
+#   ⚠ &gpu-env 앵커는 NCCL 17개가 유일 키였어서 제거 시 빈(null) 매핑 → `<<: *gpu-env` 머지가 brittle.
+#     따라서 앵커 선언 + 3서비스의 `<<: *gpu-env` 를 동반 삭제(서비스별 비-NCCL env 는 인라인 유지).
+#   근거: docs/plan/plan_2026062316_1 (Plan 2) · D1 envfile 분리 · 인터뷰 seed_8970559bf926.
+# ═════════════════════════════════════════════════════════════════════════════
 
 services:
   vllm:
     <<: *gpu-common
-    container_name: vllm_server # 디버그 모드일 시 컨테이름은 vllm_server로
+    container_name: vllm_server
     profiles: [debug]
-    ports:
-      - "8081:8000" # 디버그 포트는 8081로 고정 -> 서빙 프로필이랑 포트가 겹치지 말 것!
+    env_file:
+      - envs/.env.interconnect             # NCCL/RDMA (manifest-driven, Plan 2). debug 는 모델 config 불요
     environment:
       TIKTOKEN_ENCODINGS_BASE: /encodings
-      TIKTOKEN_RS_CACHE_DIR: /encodings
-    command: ["bash"]
+      # ★ VLLM_HOST_IP 제거 — debug-init.sh가 런타임에 자동 감지
+      # ★ SERVING_PORT 제거 — 기본값 8081 사용, 필요 시 CLI로 덮어쓰기 가능
+    command: ["bash", "--rcfile", "/app/configs/debug-init.sh"]
     tty: true
     stdin_open: true
 
-  vllm-serve:
+  # ─────────────────────────────────────────────────────────────────
+  # 마스터 노드 서빙 (Ray head + vLLM serve)
+  # ─────────────────────────────────────────────────────────────────
+  vllm-master-serve:
     <<: *gpu-common
-    container_name: ${CONTAINER_NAME:-vllm-serve-container}
-    profiles: [serve]
-    ports:
-      - "${SERVING_PORT:-8080}:8000"
+    profiles: [master]
+    container_name: ${MASTER_CONTAINER_NAME:-vllm-master-serve-container}
     environment:
       TIKTOKEN_ENCODINGS_BASE: /encodings
-      TIKTOKEN_RS_CACHE_DIR: /encodings
+      NODE_ROLE: master
+      VLLM_HOST_IP: ${MASTER_HOST_IP}      # 자기 IP = master
+      HEAD_NODE_IP: ${MASTER_HOST_IP}      # head는 자기 자신
+      RAY_PORT: ${RAY_PORT:-6379}
+      SERVING_IP: ${SERVING_IP:-0.0.0.0}
+      SERVING_PORT: ${SERVING_PORT:-8080}
+      SERVING_MODEL_NAME: ${SERVING_MODEL_NAME}
+      CONFIG_FILE: ${CONFIG_FILE:-default}
     env_file:
-      - envs/.env.${CONFIG_FILE:-default}
-    command: ["bash", "/app/configs/${CONFIG_FILE:-default}.sh"]
+      - envs/.env.interconnect             # NCCL/RDMA (manifest-driven, Plan 2). 먼저=충돌 시 per-model 우선
+      - envs/.env.cluster                  # Ray 클러스터-배포 (manifest.nodes-driven, S6): MASTER/SLAVE IP·RAY 튜닝
+      # required:false — slave-up(서브)이 compose 전체를 파싱할 때 이 master env_file 이 CONFIG_FILE 미설정→`.env.default`
+      #   부재로 choke 하지 않게(슬레이브 Band2-only 정합 · plan_2026062811_2). master 자기 invocation 은 smoke line22
+      #   guard 가 `.env.<model>` 존재를 보장하므로 정상 주입(required:false 는 *부재 시 skip* 만 — 존재 시 로드 동일).
+      - path: envs/.env.${CONFIG_FILE:-default}
+        required: false
+    command: ["bash", "/app/configs/serve_runner.sh"]
+
+  # ─────────────────────────────────────────────────────────────────
+  # 슬레이브 노드 서빙 (Ray worker --block)
+  # ─────────────────────────────────────────────────────────────────
+  vllm-slave-serve:
+    <<: *gpu-common
+    profiles: [slave]
+    container_name: ${SLAVE_CONTAINER_NAME:-vllm-slave-serve-container}
+    environment:
+      TIKTOKEN_ENCODINGS_BASE: /encodings
+      NODE_ROLE: slave
+      VLLM_HOST_IP: ${SLAVE_HOST_IP}       # 자기 IP = slave
+      HEAD_NODE_IP: ${MASTER_HOST_IP}      # master에 접속
+      RAY_PORT: ${RAY_PORT:-6379}
+      CONFIG_FILE: ${CONFIG_FILE:-default}
+    env_file:
+      # 슬레이브 = Band2-only (Ray worker 만 — vllm serve·모델 트리플렛 불요). R1 결정 완결: plan_2026062811_2.
+      #   `.env.<config>`(Band3 모델 env) 의존 제거 → 서브에 모델 트리오 전달 불요(sync_to_sub Band2 배달로 충분).
+      #   MoE JIT 보호 MAX_JOBS 는 .env.cluster(Band2 preset)로 재귀속돼 양노드 도달. CONFIG_FILE 은 기본 default(슬레이브 MODEL_SH 미사용).
+      - envs/.env.interconnect             # NCCL/RDMA (manifest-driven, Plan 2)
+      - envs/.env.cluster                  # Ray 클러스터-배포 + MAX_JOBS (manifest.nodes/preset-driven, S6+plan_2026062811_2)
+    command: ["bash", "/app/configs/serve_runner.sh"]

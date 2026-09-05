@@ -4,31 +4,31 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "단일노드 최대 컨텍스트 구성 — gmu 0.90·KV 30GiB 총량·max-model-len 131072·포트 8000(브리지 매핑 안쪽)"
+      "rationale": "서빙에 원리적으로 필수다. TP=2 분산과 타겟 H100 클램프(노드당 KV 24,644 MiB)를 선언하고, .env 가 master/slave 컨테이너 이름과 Ray 포트 형상을 갖는다."
     },
     "runtime_patch": {
       "applicable": false,
-      "rationale": "stock harmony/tiktoken 경로가 그대로 서빙했다 — 몽키패치 지점이 없었다"
+      "rationale": "gpt-oss-120b 는 0.19.0 stock 이 processor·config 를 그대로 받는다. 몽키패치 자리가 나오지 않았다."
     },
     "build_patch_pre": {
       "applicable": false,
-      "rationale": "wheel 트랙이라 컴파일이 없고 활성 Dockerfile 이 이 디렉터리를 참조하지 않는다"
+      "rationale": "prebuilt wheel 트랙이라 컴파일을 하지 않는다. 컴파일-전 슬롯이 성립할 자리가 없다."
     },
     "build_patch_post": {
       "applicable": false,
-      "rationale": "동상 — 활성 레시피가 참조하지 않아 이 이미지에 적용되지 않았다"
+      "rationale": "빌드-바깥 native 의존이 없다. output/multi/build_patches 에 파일 4건이 있으나 **활성 레시피가 참조하지 않는다** — 먹지 않은 패치를 재현지침으로 배포하지 않는다."
     },
     "build_recipe": {
       "applicable": true,
-      "rationale": "wheel --no-deps + 별도 requirements 가 베이스 torch 를 지키는 핵심이라 재생성에 필수"
+      "rationale": "두 노드가 **각자** 같은 이미지를 재현해야 분산이 성립한다. 특히 ray·iproute2·netcat 스탠자는 TP=2 의 전제이며, 없으면 slave 가 `ray: command not found` 로 죽는다."
     },
     "compose": {
       "applicable": true,
-      "rationale": "브리지 포트 매핑이 트리플렛 port 값의 의미를 정한다 — 기동 방법 없이 재현 불가"
+      "rationale": "master/slave 두 서비스와 Ray head↔worker 배선, 그리고 GPU 런타임·oom_score_adj·캐시 마운트가 여기 있다. 단일노드 compose 로는 재현되지 않는다."
     },
     "fork_pin": {
       "applicable": false,
-      "rationale": "stock 이다 — 모델 env 에 VARIANT 줄이 없는 것이 그 선언이다"
+      "rationale": "stock 0.19.0 이 이 모델을 2노드로 서빙한다. arch-wall 이 없어 사다리에 진입할 이유가 없었다 — .env 에 VARIANT= 줄이 없다."
     }
   }
 }
