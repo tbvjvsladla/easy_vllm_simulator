@@ -29,6 +29,22 @@
 # SUB_HOST·SUB_WORK_DIR 미지정 시 output/multi/manifest.yaml nodes[](role:sub)에서 해소(서브는 multi manifest 에만 정의).
 set -euo pipefail
 
+# 2026-09-05(N3 · ②-b 라이브): 미리보기를 `head -40` 으로 **말없이** 잘랐다. 무엇이 배달되는지
+# 확인하라고 만든 화면인데 꼬리가 사라지면 확인이 성립하지 않는다(가산 전용이라 파괴 위험은
+# 없었지만, "보여준다"고 적힌 것이 실제로는 일부만 보여준 것은 표시 결함이다).
+# 처방: 자르되 **잘랐다고 말한다**. 전량은 `SYNC_PREVIEW_LINES=0` 로 본다.
+preview_lines(){   # stdin → 앞부분 + (잘렸으면) 남은 줄 수 고지
+    local limit="${SYNC_PREVIEW_LINES:-40}" buf n
+    buf="$(cat)"
+    n="$(printf '%s\n' "$buf" | grep -c '' || true)"
+    if [ "$limit" = "0" ] || [ "$n" -le "$limit" ]; then
+        printf '%s\n' "$buf"
+    else
+        printf '%s\n' "$buf" | head -n "$limit"
+        echo "      … 이하 $(( n - limit ))줄 생략(전량: SYNC_PREVIEW_LINES=0)"
+    fi
+}
+
 usage() {
     cat <<'EOF'
 사용법: sync_to_sub.sh --mode <experimental|promotion> --manifest <path> [--apply] [--provision] [--branch multi|single|both]
@@ -1202,7 +1218,7 @@ preview_build() {  # $1=topology
     echo "    ⚠ 삭제 예정(--delete): ${ndel}건  (0이어야 정상 — apply 는 ALLOW_DELETE=${ALLOW_DELETE:-0} 초과 시 *삭제 前* fail-closed. 의도된 정리면 ALLOW_DELETE=${ndel})"
     [ "${ndel:-0}" -gt 0 ] && { printf '%s\n' "$out" | grep '^\*deleting' | sed 's/^/      DEL /' || true; }
     echo "    전송/생성 미리보기(최대 40줄):"
-    printf '%s\n' "$out" | grep -v '^\*deleting' | sed 's/^/      /' | head -40 || true
+    printf '%s\n' "$out" | grep -v '^\*deleting' | sed 's/^/      /' | preview_lines || true
 }
 # 에이전트환경 오버레이 rsync(가산 — --delete 없음: 서브 자작 .claude 산출물·세션상태 보호가 목적).
 # 트레이드오프(review nit): 메인이 런타임블럭에서 파일을 '제거'하면 서브에 stale 잔존 가능(동명 파일은 덮어씀 → 흔치 않음).
@@ -1454,7 +1470,7 @@ if [ "$MODE" = "dryrun" ]; then
                 preview_build "$t"
                 preview_source_port_payload "$t"
             fi
-            echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | head -40 || true
+            echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | preview_lines || true
         done
     elif [ -n "$BOOTSTRAP_POPULATE" ]; then
         echo "  --- B0 bootstrap 미리보기(multi 초기 Band2 배달) ---"
@@ -1477,7 +1493,7 @@ if [ "$MODE" = "dryrun" ]; then
                 preview_build "$t"
                 preview_source_port_payload "$t"
             fi
-            echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | head -40 || true
+            echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | preview_lines || true
         done
     fi
     echo "[sync] (위는 미리보기 — 변경 없음. 사람 확인 후 --apply. 첫 init 도 --apply 게이트.)"

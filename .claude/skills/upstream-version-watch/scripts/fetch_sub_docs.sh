@@ -46,14 +46,33 @@ _resolve_sub_work_dir_from_manifest() {   # $1=topology
     ' "$manifest"
 }
 
-_fetch_resolve() {   # $1=host|work_dir → 두 통로를 모두 보고 갈리면 fail-closed
+# 2026-09-05(N1 · ②-b 라이브): 종전 규칙은 "두 통로의 값이 다르면 상태가 잘못됐다" 였다. 그런데
+#   **같은 노드가 통로마다 다른 주소로 잡히는 것은 정상**이다 — 싱글은 관리 hostname(A2A 평면),
+#   멀티는 RoCE IP(집단연산 평면). 재설치 회수 때 실제로 그 상태를 만나 회수가 막혔고, 나는
+#   `SUB_HOST` override 로 우회했다(스크립트가 문서화한 통로였지만, 정상 상태에서 override 를
+#   요구하는 게이트는 사람에게 우회를 가르친다 · D3).
+#   교정: **어느 통로에서 회수할지 선언**하면 그 통로만 본다. 선언이 없고 두 통로가 갈릴 때만
+#   멈추되, 그때도 "상태가 틀렸다"가 아니라 "무엇을 쓸지 정하라"고 말한다.
+FETCH_TOPOLOGY="${FETCH_TOPOLOGY:-}"
+for _a in "$@"; do
+    case "$_a" in --topology=*) FETCH_TOPOLOGY="${_a#*=}" ;; esac
+done
+case "$FETCH_TOPOLOGY" in
+    ""|single|multi) ;;
+    *) echo "[fetch] FAIL: --topology 는 single|multi (받은 값: $FETCH_TOPOLOGY)" >&2; exit 4 ;;
+esac
+
+_fetch_resolve() {   # $1=host|work_dir → 선언된 통로, 없으면 두 통로(갈리면 선언 요구)
     local kind="$1" t v prev="" src=""
-    for t in single multi; do
+    for t in ${FETCH_TOPOLOGY:-single multi}; do
         if [ "$kind" = "host" ]; then v="$(_resolve_sub_host_from_manifest "$t" || true)"
         else v="$(_resolve_sub_work_dir_from_manifest "$t" || true)"; fi
         [ -n "$v" ] || continue
         if [ -n "$prev" ] && [ "$v" != "$prev" ]; then
-            echo "[fetch] FAIL: 서브 $kind 가 통로 간에 다르다 — $src=$prev vs output/$t=$v" >&2
+            echo "[fetch] FAIL: 두 통로가 서로 다른 서브 $kind 를 가리킨다 — $src=$prev vs output/$t=$v" >&2
+            echo "        같은 노드의 다른 평면일 수 있다(싱글=관리 hostname · 멀티=RoCE IP)." >&2
+            echo "        어느 통로에서 회수할지 **선언**하라: --topology=single|multi" >&2
+            echo "        (또는 SUB_HOST/SUB_WORK_DIR 를 직접 지정한다)" >&2
             return 2
         fi
         prev="$v"; src="output/$t"

@@ -793,6 +793,7 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
                          capture_output=True, text=True)
     ended = _utcnow()
     sys.stderr.write(out.stderr)
+    control_stderr = (out.stderr or "").strip()
     try:
         result = json.loads(out.stdout)
     except ValueError:
@@ -813,6 +814,10 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     with open(_ap, "w", encoding="utf-8") as f:
         json.dump({"attempt": att["attempt"], "report": report,
                    "raw_output": None if report else (result.get("output") or ""),
+                   # 2026-09-05(N6): provider 진단(`_diag` 의 stderr)을 **원장 옆에 보존**한다.
+                   #   라이브에서 malformed 로 끝났을 때 "무엇이 왔길래" 를 알 수 있는 유일한 통로가
+                   #   이 텍스트였는데, 화면을 스크롤해 지나가면 그대로 사라졌다.
+                   "control_stderr_tail": control_stderr[-4000:] or None,
                    "control": {k: result.get(k) for k in
                                ("status", "exit_code", "reason_codes", "session_id",
                                 "num_turns", "budget_outcome", "duration_ms",
@@ -862,7 +867,19 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
               f"[relay]   다음 예산은 **선언**이다: 집행된 바닥 {budget_floor(doc)} 아래로 내리면 하강나선이다.")
         return 3
     if report is None:
-        print("[relay] ⚠ 서브 리포트(JSON)를 찾지 못했다 — 산문만 왔다. 성공으로 집계하지 않는다.")
+        # 2026-09-05(N6): 종전 문구는 **검증하지 않은 원인**을 단정했다("산문만 왔다"). 라이브에서
+        #   실제로는 stdout 이 비어 있었고(provider exit 5), 그 단정 때문에 나는 서브가 형식을
+        #   어겼다고 읽었다. 관측된 것만 적는다 — 무엇이 왔는지, 제어가 뭐라고 했는지.
+        _raw = result.get("output")
+        if _raw is None or not str(_raw).strip():
+            _what = "출력이 비었다(서브가 아무것도 돌려주지 않았거나 전송이 실패했다)"
+        else:
+            _what = "출력 %d자가 왔지만 그 안에서 JSON 객체를 찾지 못했다" % len(str(_raw))
+        print("[relay] ⚠ 서브 리포트(JSON) 없음 — %s. control=%s codes=%s. 성공으로 집계하지 않는다."
+              % (_what, att["control_status"], ",".join(att["reason_codes"]) or "-"))
+        if control_stderr:
+            print("[relay]   provider 진단(끝 400자): %s" % control_stderr[-400:])
+        print("[relay]   원문 보존: %s" % att["report_path"])
         return 4
     return 0 if att["status"] == "completed" else 2
 
