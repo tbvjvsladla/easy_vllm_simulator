@@ -1,0 +1,65 @@
+# ⚠ CARRY-FORWARD 재검증 필수 — 이건 '그때-그 환경' 한정 측정이다(지도≠정답). 소비 전 재확인하라.
+#   강한 일치 키(model/gpu/vllm/quant/topology/tp): 정확일치 실패 시 이 인증서 무효.
+#   model = 체크포인트에서 파생한 **모델 축**(소문자). 운영 조합명은 serving_config 축에 따로 산다.
+#   소프트 지문(driver/cuda/image/max-len/kv-bytes/gmu/moe): 불일치 시 stale — 재측정 권고.
+#   발행 = full 모드 verdict==PASS 시만(결정론 publish_benchmark_record.py · inform-record).
+schema_version: 1
+record_type: benchmark_certificate
+verdict: PASS
+
+# --- 강한 일치 키 (정확일치 필요) ---
+model: gpt-oss-20b
+gpu_model: "NVIDIA GB10"
+vllm_version: 0.18.0
+quantization: mxfp4
+topology: single
+tensor_parallel_size: 1
+
+# --- 운영 조합명(모델 축 아님 · 정본 필드) ---
+serving_config: gpt-oss-20b
+model_source: "derived(model_path basename · lowercased)"
+
+# --- 소프트 지문 (불일치 시 stale 경고) ---
+driver_version: 580.173.02
+cuda_version: 132
+image_tag: "easy-vllm:0.18.0-cu130-aarch64-wheel"
+image_digest: "sha256:d022edd3bfaf101e0c978930716da1b6845ebb16a72c1479eb9d764469568f44"
+max_model_len: 131072
+max_num_seqs: 36
+kv_cache_memory_bytes: 60129542144
+kv_cache_dtype: fp8
+gpu_memory_utilization: 0.9
+moe_backend: marlin
+enforce_eager: N/A
+bench_tool: guidellm
+bench_tool_version: 0.7.3
+bench_tool_version_source: "measured(benchmarks.json metadata.guidellm_version)"
+attention_backend: triton_attn
+attention_backend_source: "measured(engine log)"
+attention_backend_mismatch: no
+moe_backend_source: "measured(engine log)"
+moe_backend_mismatch: unknown
+ngc_base_tag: N/A
+
+# --- 검증 결과(인증서 본문) ---
+benchmark_mode: full
+decode_tps_conc1: 45.59
+rubric_authority: explore
+primary_source: expected_achievable(roofline×MBU)
+primary_tps: 19.63
+floor_tps: 16.69
+tolerance: 0.15
+ratio_M_over_primary: 2.322
+e_search: no
+spec_on: false
+accept_len: N/A
+sweep_levels: 1,2,4,8,16
+sweep_truncated: N/A
+lite_included: true
+lite_gen_tps_warm: 45.78
+lite_gen_src: median_tpot
+lite_cold_ttft_ms: 47.7
+lite_kv_gib: 56.0
+lite_gpu_occupancy: "~69.7 GiB (serve-log 분해; nvidia-smi N/A)"
+lite_ram_occupancy: "81.6 GiB (67%)"
+measured_utc: "2026-09-05T12:22:57Z"
