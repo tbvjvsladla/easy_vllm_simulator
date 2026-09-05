@@ -813,11 +813,33 @@ $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $MOUNTVARS docker compose -f 
 #   READY_MAX 확대는 `READY_BUDGET_S=$READY_WINDOW_S` 지점에서 예산 TTL(=READY_MAX×5×3)도 함께 늘려
 #   로드 도중 선언 만료를 구조적으로 배제한다(라인번호 대신 심볼로 가리킨다 — 번호는 편집마다 낡는다).
 echo "[mn] 엔드포인트 :$PORT health 폴링(2노드 분산 로드; READY_MAX=${READY_MAX}회×5s ≈ $(( READY_WINDOW_S / 60 ))분)..."
+# ── 실패 시 엔진 로그 보존 (2026-09-06 신설) ─────────────────────────────────────
+#   왜: 위 실패 판정은 `out of memory|NCCL error|did not join|RuntimeError` 라는 **닫힌 목록**으로
+#   grep 하고 `tail -3` 만 보여준다. 그런데 vLLM 이 마지막에 찍는 줄은
+#   `RuntimeError: Engine core initialization failed. See root cause above.` 이고 —
+#   **진짜 원인은 그 "above" 에 있으며 이 목록에 걸리지 않는다.**
+#   캠페인 2 실측(2026-09-06): b5(moe=triton)·b6(mxfp4 스위치)가 이렇게 죽었는데 teardown 뒤
+#   컨테이너 로그가 사라져 **사인을 영영 알 수 없게 됐다** — 두 셀을 다시 돌려야 했다.
+#   "실패는 숨길 것이 아니라 지도가 실어야 할 정보다"(broad_search --serve-failed 주석)를
+#   이 자리도 지켜야 한다. teardown 을 견디는 곳에 양 노드 로그를 통째로 남긴다.
+_save_serve_logs() {   # $1=사유 태그
+    local dir="$REPO/output/multi/benchlog/serve_fail_${CONFIG}"
+    mkdir -p "$dir" 2>/dev/null || return 0
+    docker logs "$MC" > "$dir/master_$1.log" 2>&1 || true
+    # 슬레이브 컨테이너명은 콤보 env 의 SLAVE_CONTAINER_NAME(=$SLVC)이 정본이며, 부재 시 폴백은
+    #   compose 기본값과 같아야 한다 — 이름이 갈리면 로그를 엉뚱한 곳에서 찾는다(129행 주석 참조).
+    $SSH "$SUB_HOST" "docker logs '${SLVC:-vllm-slave-serve-container}' 2>&1" > "$dir/slave_$1.log" 2>&1 || true
+    echo "[mn] 엔진 로그 보존 → $dir (master/slave · teardown 을 견딘다)"
+    # 닫힌 목록 밖의 사인을 사람이 바로 보게 한다 — 목록을 늘리는 대신 **넓게 보여준다**.
+    echo "[mn] ── master 로그 꼬리 40줄(사인 후보) ──"
+    docker logs "$MC" 2>&1 | grep -vE "Capturing CUDA graphs|it/s\]$" | tail -40 | sed 's/^/[mn]   /'
+}
+
 READY=0
 for i in $(seq 1 "$READY_MAX"); do
   [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' http://localhost:$PORT/health 2>/dev/null)" = "200" ] && { echo "[mn] READY ~$((i*5))s"; READY=1; break; }
-  docker ps --filter name="$MC" --filter status=running -q | grep -q . || { echo "[mn] master EXITED"; docker logs "$MC" 2>&1 | tail -12; break; }
-  docker logs "$MC" 2>&1 | grep -qiE "CUDA out of memory|NCCL error|did not join|RuntimeError" && { echo "[mn] FAILURE(serve)"; docker logs "$MC" 2>&1 | grep -iE "out of memory|NCCL error|did not join|RuntimeError" | tail -3; break; }
+  docker ps --filter name="$MC" --filter status=running -q | grep -q . || { echo "[mn] master EXITED"; _save_serve_logs "exited"; docker logs "$MC" 2>&1 | tail -12; break; }
+  docker logs "$MC" 2>&1 | grep -qiE "CUDA out of memory|NCCL error|did not join|RuntimeError" && { echo "[mn] FAILURE(serve)"; _save_serve_logs "failure"; docker logs "$MC" 2>&1 | grep -iE "out of memory|NCCL error|did not join|RuntimeError" | tail -3; break; }
   sleep 5
 done
 

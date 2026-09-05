@@ -271,10 +271,22 @@ def _validate_record_shape(record) -> tuple[str, str] | None:
             if not isinstance(value, str) or not value:
                 return (f"PUBLICATION_RECORD_RAW_LOG_PATH_INVALID:{key}",
                         f"raw_log_paths.{key} must be a nonempty string")
-            expected_path = f"docs/_evidence/{record['publication_id']}.{key}.raw.jsonl"
-            if value != expected_path:
+            # simlog 은 **JSONL 사이드카를 만들지 않는다** -- append-raw 의 simlog 분기가 raw 를
+            # run 디렉터리로 **복사**하고 조기 emit 하기 때문이다(docs.md §publisher 계약: "simlog 만
+            # 복사"). 그래서 이 kind 의 producer-derived 경로는 사이드카가 아니라 **run 디렉터리**이고,
+            # 그 디렉터리의 단일 권위는 scaffolded.simlog 다.
+            #   이 분기는 producer 가 raw_log_paths['simlog'] 를 기록하기 시작한 뒤에야 처음 실행됐다
+            #   (그 전엔 record.raw_log_paths 가 항상 {} 라 루프가 0회 돌았다) -- 즉 **교정이 한 번도
+            #   돌지 않던 검증 분기를 켰고, 그 분기가 producer 와 어긋나 있었다**. simlog 을 바인딩한
+            #   모든 topic 이 finalize 불가였다(2026-09-06 첫 실증).
+            if key == "simlog":
+                expected_path = (record.get("scaffolded") or {}).get("simlog")
+            else:
+                expected_path = f"docs/_evidence/{record['publication_id']}.{key}.raw.jsonl"
+            if not expected_path or value != expected_path:
                 return (f"PUBLICATION_RECORD_RAW_LOG_PATH_MISMATCH:{key}",
-                        f"raw_log_paths.{key} must equal the producer-derived sidecar path")
+                        f"raw_log_paths.{key} must equal the producer-derived path "
+                        f"({expected_path!r})")
     return None
 
 
