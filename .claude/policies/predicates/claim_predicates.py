@@ -852,7 +852,11 @@ def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1():
     #   BUILD_DOCKERFILE·VLLM_PRETEND_VERSION·SM12X_PORT 와 **동일 부류의 전파 구멍**이 된다.
     #   `${SDA:+...}` 조건부인 이유도 앞의 셋과 같다: **부재 = stock** 이 기본이어야 한다.
     _require('SDA=$(val SRC_DEPS_AUTHORITY)' in mn, 'SRC_DEPS_AUTHORITY must be extracted from the same model env file')
-    _require('SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VREPO:+VLLM_REPO=$VREPO }${VPV:+VLLM_PRETEND_VERSION=$VPV }${SMPORT:+SM12X_PORT=$SMPORT }${SDA:+SRC_DEPS_AUTHORITY=$SDA }${VREF:+VLLM_REF=$VREF}"' in mn, 'predicate requirement failed at original line 524')
+    # VLLM_VERSION (2026-09-05, 이 목록의 다섯 번째). wheel 트랙에서 어느 vLLM 을 설치하는지를
+    # 정하며 compose 가 build-arg 로 넘긴다. 빠지면 마스터만 EF 의 버전으로, 슬레이브는
+    # Dockerfile `ARG VLLM_VERSION` 기본값으로 빌드돼 **같은 태그가 두 노드에서 다른 엔진**이 된다.
+    _require('VVER=$(val VLLM_VERSION)' in mn, 'VLLM_VERSION must be extracted from the same model env file')
+    _require('SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VVER:+VLLM_VERSION=$VVER }${VREPO:+VLLM_REPO=$VREPO }${VPV:+VLLM_PRETEND_VERSION=$VPV }${SMPORT:+SM12X_PORT=$SMPORT }${SDA:+SRC_DEPS_AUTHORITY=$SDA }${VREF:+VLLM_REF=$VREF}"' in mn, 'predicate requirement failed at original line 524')
     build_line = next(ln for ln in mn.splitlines() if "--profile slave build" in ln)
     _require('$SLAVE_IMGVARS' in build_line, 'slave build invocation must carry the image-identity vars')
 
@@ -871,7 +875,7 @@ def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1():
     # proving the slave genuinely receives the exact same image identity master reads from $EF.
     val_fn = 'val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }'
     assign_line = ('IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF); BDF=$(val BUILD_DOCKERFILE)\n'
-                   'VPV=$(val VLLM_PRETEND_VERSION); SMPORT=$(val SM12X_PORT)')
+                   'VPV=$(val VLLM_PRETEND_VERSION); SMPORT=$(val SM12X_PORT); VVER=$(val VLLM_VERSION)')
     slave_imgvars_line = next(ln for ln in mn.splitlines() if ln.strip().startswith("SLAVE_IMGVARS="))
     base_env = ("IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x\n"
                 "VLLM_REPO=https://github.com/jasl/vllm.git\n"
@@ -896,6 +900,20 @@ def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1():
     stock_out = _imgvars_for(base_env)
     _require('SM12X_PORT' not in stock_out, 'an absent SM12X_PORT must vanish from SLAVE_IMGVARS entirely (absence = stock), never leak as an empty assignment')
     _require(stock_out == 'IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x BUILD_DOCKERFILE=Dockerfile.source-build VLLM_REPO=https://github.com/jasl/vllm.git VLLM_PRETEND_VERSION=0.26.1 VLLM_REF=b5c0d43b967c', stock_out)
+
+    # (c) wheel 트랙 콤보: VLLM_VERSION 이 있으면 슬레이브가 **그 값을 그대로** 받아야 한다.
+    #     2026-09-05 실화: compose 에 VLLM_VERSION build-arg 를 되살렸는데 이 전달 목록은 그대로여서,
+    #     마스터 0.19.0 / 슬레이브 0.18.0 이 같은 IMAGE_TAG 로 빌드될 뻔했다(TP=2 가 노드마다 다른 엔진).
+    wheel_env = ("IMAGE_TAG=easy-vllm:0.19.0-cu130-aarch64-wheel\n"
+                 "BUILD_DOCKERFILE=Dockerfile\n"
+                 "VLLM_VERSION=0.19.0\n")
+    wheel_out = _imgvars_for(wheel_env)
+    _require('VLLM_VERSION=0.19.0' in wheel_out,
+             'the slave must receive the exact VLLM_VERSION the master reads from $EF -- '
+             'otherwise the same IMAGE_TAG carries a different engine on each node')
+    # 부재는 부재로 사라져야 한다(빈 대입이 새면 compose 기본값을 빈 문자열로 덮는다).
+    _require('VLLM_VERSION' not in stock_out,
+             'an absent VLLM_VERSION must vanish from SLAVE_IMGVARS entirely, never leak as an empty assignment')
 
 
 def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C2():
