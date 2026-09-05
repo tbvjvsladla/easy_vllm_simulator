@@ -87,7 +87,13 @@ def escalate(grade: str, previous_allocated: int, cap: int = None) -> dict:
     """
     base = budget(grade)
     cap = schema_max_turns() if cap is None else cap
-    want = max(int(previous_allocated * ESCALATION_FACTOR), previous_allocated + MIN_TURNS)
+    # 바닥이 둘이다: **이력**(직전 배정의 ×1.6)과 **선언된 등급**(표의 값). 둘 중 큰 쪽을 쓴다.
+    #   이력만 보면, 등급을 올려 재개할 때 표의 값보다 **낮게** 배정된다 — 2026-09-05 실측:
+    #   L2(25) 소진 뒤 `--grade L4` 로 이어받았는데 라벨만 L4 이고 예산은 40 이었다(L4=65).
+    #   그것은 선언 대비 하강이며, 이 모듈이 구조로 막겠다고 한 바로 그 방향이다.
+    want = max(int(previous_allocated * ESCALATION_FACTOR),
+               previous_allocated + MIN_TURNS,
+               base["max_turns"])
     nxt = min(want, cap)
     if nxt <= previous_allocated:
         raise SystemExit(
@@ -135,6 +141,14 @@ def _self_test() -> int:
     e2 = escalate("L2", 25)
     chk(e2["max_turns"] == 40 and "클램프" not in e2["source"],
         f"상한 미만은 종전대로 증액(클램프 표시 없음) → {e2['max_turns']}")
+    # ★ 등급 상향 재개: 라벨만 오르고 예산이 표보다 낮게 배정되면 선언 대비 하강이다.
+    e3 = escalate("L4", 25)
+    chk(e3["max_turns"] >= GRADES["L4"]["max_turns"],
+        f"등급을 올려 이어받으면 표의 값 이상을 배정한다 L2(25)→L4 = {e3['max_turns']} (표 {GRADES['L4']['max_turns']})")
+    # 음성대조: 등급을 낮춰 이어받아도 **이력 바닥**이 지켜져 축소가 되지 않는다.
+    e4 = escalate("L0", 40)
+    chk(e4["max_turns"] > 40,
+        f"등급을 낮춰 이어받아도 이력 바닥이 이긴다 40→L0 = {e4['max_turns']}")
     try:
         escalate("L4", cap)
         chk(False, "상한에서의 증액 시도는 fail-loud 여야 한다")
