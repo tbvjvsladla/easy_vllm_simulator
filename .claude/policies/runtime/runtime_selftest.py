@@ -382,7 +382,11 @@ def _test_promotion_rubric_carrier() -> None:
 #   그대로 차단된다 -- 가드를 끈 것이 아니라 통로를 이었다는 증거다.
 # =============================================================================================
 
-_HINT_TAG = "hint/0.0.0.dev0/selftest-model/gb10"
+# ★ 2026-09-04(CP7 · plan_26090415 §7.5 M1): 태그가 5세그먼트가 됐다 —
+#   `hint/<vllm>/<model>/<arch>/<recipe>`. 마지막 칸은 **인증서에서 파생**하며
+#   `hint_tag.derive_recipe_segment` 가 아래 `_HINT_CERTIFICATE` 로부터 같은 값을 낸다
+#   (이름과 측정이 어긋나면 seal 이 HINT_RECIPE_SEGMENT_MISMATCH 로 거부한다).
+_HINT_TAG = "hint/0.0.0.dev0/selftest-model/gb10/qfp8-len32768-kvfp8"
 _HINT_TOPOLOGY = "single 1노드 TP1"
 _HINT_HF_REPO = "selftest-org/selftest-model"
 _HINT_SCRIPT_REL = ".claude/skills/hint-publisher/scripts/hint_tag.py"
@@ -390,8 +394,11 @@ _HINT_TEMPLATE_REL = ".claude/skills/hint-publisher/templates/hint_recipe.templa
 _HINT_CATALOG_REL = ".claude/skills/hint-publisher/scripts/hint_catalog.py"
 
 # 인증서 carrier 케이스용 -- 실제 인증서는 lite 열을 갖는다(full ⊇ lite 불변식).
+# 레시피 축 3종을 **전부** 담는다 — 하나만 담으면 픽스처가 실물보다 좁아져 파생기의
+# 다축 결합을 시험하지 못한다(같은 계열 회귀를 하루에 네 번 겪었다).
 _HINT_CERTIFICATE = (_PROMO_CERTIFICATE.format(authority="weak")
-                     + "lite_included: true\nlite_gen_tps_warm: 26.0\n")
+                     + "lite_included: true\nlite_gen_tps_warm: 26.0\n"
+                     + "max_model_len: 32768\nkv_cache_dtype: fp8\n")
 
 # 린터 L1~L5 를 실제로 통과하는 최소 본문(합성 픽스처 -- 실제 서빙 사실이 아니다).
 _HINT_RECIPE_BODY = """selftest 합성 레시피 픽스처 — 실제 서빙 실적이 아니라 런타임 자체검사용이다.
@@ -753,6 +760,7 @@ def _test_provider_turn_exhaustion_reachable() -> None:
     provider = agent_control._load_provider("claude_code")
     payload = {"type": "result", "subtype": "error_max_turns", "is_error": True,
                "num_turns": 26, "session_id": "sess-abc",
+               "duration_ms": 812_345, "duration_api_ms": 640_000,
                "errors": ["Reached maximum number of turns (25)"],
                "result": "", "modelUsage": {}}
 
@@ -775,6 +783,13 @@ def _test_provider_turn_exhaustion_reachable() -> None:
              f"num_turns/session_id must survive a non-zero exit: {res}")
     _require(res["status"] == "execution_failed",
              "exhaustion is still a failure of that attempt -- it must not read as completed")
+    # 2026-09-05(축 F): 결과가 **실제 결과 스키마**를 통과해야 한다. 필드 몇 개만 보던 종전 검사는
+    #   새 required 필드가 빠져도 초록이었다(픽스처가 실물보다 좁다).
+    _res_schema = agent_control._load_schema(agent_control.RESULT_SCHEMA_PATH)
+    _require(not agent_control._schema_violations(res, _res_schema),
+             f"provider result violates result schema: {agent_control._schema_violations(res, _res_schema)}")
+    _require(res["duration_ms"] == 812_345 and res["duration_api_ms"] == 640_000,
+             f"provider-reported durations must survive a non-zero exit: {res}")
 
     # 음성대조: payload 가 아예 없는 비-0 종료(전송 실패)는 여전히 NONZERO_EXIT 이고 원장 3필드는 null.
     class _Broken:
@@ -788,6 +803,21 @@ def _test_provider_turn_exhaustion_reachable() -> None:
     _require(res2["reason_codes"] == ["NONZERO_EXIT"] and res2["budget_outcome"] is None
              and res2["num_turns"] is None,
              f"a transport failure has no budget story -- it must stay null, got {res2}")
+    _require(res2["duration_ms"] is None and res2["duration_api_ms"] is None,
+             f"unmeasured durations stay null (0 would read as 'finished instantly'): {res2}")
+
+    # 외생 중단(원격 timeout 124 / SIGTERM 143)은 **예산 사건이 아니다** — 원장이 둘을 갈라야
+    # 다음 attempt 의 처방이 뒤집히지 않는다(2026-09-05 · F).
+    for _rc in (124, 143):
+        class _Killed:
+            returncode, stdout, stderr = _rc, "", "Terminated"
+        provider.subprocess.run = lambda *a, **k: _Killed()
+        try:
+            res3 = provider.invoke(_request("ssh"))
+        finally:
+            provider.subprocess.run = real_run
+        _require(res3["budget_outcome"] == "external_interruption",
+                 f"rc={_rc} is an external interruption, not a budget outcome: {res3}")
 
 
 def _test_agent_provider_boundary() -> None:
@@ -804,7 +834,9 @@ def _test_agent_provider_boundary() -> None:
     provider_file = getattr(provider, "__file__", None)
     _require(isinstance(provider_file, str), "loaded provider has no source path")
     provider_source = Path(str(provider_file)).read_text(encoding="utf-8")
-    for token in ("claude -p", "--model sonnet", "--output-format json"):
+    # 2026-09-05(G-A1): `--model sonnet` 토큰 강제는 **모델 핀**이었다 — 어댑터 경계는 "claude 문법이
+    #   여기에만 산다" 를 지키면 되고, 어느 모델을 부르는지는 요청의 선언이다.
+    for token in ("claude -p", "--model", "--output-format json"):
         _require(token not in agent_source, f"provider-specific token leaked into orchestrator: {token}")
         _require(token in provider_source, f"provider adapter lost required CLI token: {token}")
 
@@ -827,12 +859,79 @@ def _test_agent_provider_boundary() -> None:
     # 원격 동반사망: 클라이언트 timeout 만으로는 서브에 고아 에이전트가 남는다.
     _require("timeout " in remote_shell[2] and " claude " in remote_shell[2],
              f"remote command must be wrapped in `timeout` so the sub agent dies with the client: {remote_shell[2]}")
+    # 2026-09-05(3-4): 서브 `-p` 릴레이는 재시도 워치독을 켠다. **순서가 계약이다** — env 대입은
+    #   `timeout` 앞에 와야 한다(뒤에 두면 timeout 이 `VAR=1` 을 실행 파일로 알고 즉사한다).
+    _remote_cmd = remote_shell[2].split("&&", 1)[1].strip()
+    _require(_remote_cmd.startswith("CLAUDE_CODE_RETRY_WATCHDOG=1 timeout "),
+             f"sub relay must set the retry watchdog before `timeout`: {_remote_cmd[:120]}")
+    _require("CLAUDE_CODE_RETRY_WATCHDOG" not in " ".join(local_argv),
+             "local transport is the main node's own plane -- the sub relay env must not leak into it")
 
-    blocked = _request("local")
-    blocked["model"] = "opus"
-    result = provider.invoke(blocked)
-    _require(result["status"] == "model_safety_blocked" and result["exit_code"] == 3,
-             f"non-Sonnet request was not blocked before execution: {result}")
+    # 2026-09-05(G-A1): 모델은 **선언**이다 — 어댑터가 막지 않고, 실제로 돈 모델을 기록한다.
+    #   종전 이 자리는 `--model opus` 를 exit 3 으로 차단했고, 그 한 줄 때문에 모델을 바꾸려면
+    #   하네스를 고쳐야 했다(모델 과적합의 정면 사례 · audit_26090515 A1).
+    _opus_payload = {"type": "result", "subtype": "success", "is_error": False,
+                     "num_turns": 2, "session_id": "sess-opus", "result": "done",
+                     "duration_ms": 4200, "duration_api_ms": 3900,
+                     "modelUsage": {"claude-opus-5": {"canonicalModel": "claude-opus-5"}}}
+
+    class _OpusRun:
+        returncode, stdout, stderr = 0, json.dumps(_opus_payload), ""
+
+    _real_run = provider.subprocess.run
+    provider.subprocess.run = lambda *a, **k: _OpusRun()
+    try:
+        declared = _request("local")
+        declared["model"] = "opus"
+        result = provider.invoke(declared)
+    finally:
+        provider.subprocess.run = _real_run
+    _require(result["status"] == "completed" and result["exit_code"] == 0,
+             f"the model is a declaration, not a gate -- opus must run: {result}")
+    _require(result["model_used"] == ["claude-opus-5"] and result["model_requested"] == "opus",
+             f"the model that actually ran must be recorded: {result}")
+    _res_schema2 = agent_control._load_schema(agent_control.RESULT_SCHEMA_PATH)
+    _require(not agent_control._schema_violations(result, _res_schema2),
+             f"non-Sonnet completed result must satisfy the result schema: {result}")
+
+    # metadata 부재는 **기록의 부재**이지 차단 사유가 아니다(model_used=[] 로 남고 결과는 유효하다).
+    _bare = dict(_opus_payload); _bare.pop("modelUsage")
+
+    class _BareRun:
+        returncode, stdout, stderr = 0, json.dumps(_bare), ""
+
+    provider.subprocess.run = lambda *a, **k: _BareRun()
+    try:
+        bare_result = provider.invoke(_request("local"))
+    finally:
+        provider.subprocess.run = _real_run
+    _require(bare_result["status"] == "completed" and bare_result["model_used"] == [],
+             f"absent model metadata must be recorded as empty, not blocked: {bare_result}")
+    _require(not agent_control._schema_violations(bare_result, _res_schema2),
+             f"metadata-less completed result must satisfy the result schema: {bare_result}")
+
+    # 2026-09-05 회귀: 권한 거부 경로는 거부된 도구 목록을 output 에 실어 돌려주는데, 결과 스키마의
+    #   execution_failed 가지가 `output: const null` 이라 그 결과가 **스키마 위반**이 됐고
+    #   orchestrator 가 PROVIDER_RESULT_INVALID 봉투로 갈아끼워 진단이 호출자에게 도달하지 못했다.
+    _denied = {"type": "result", "subtype": "success", "is_error": False, "num_turns": 1,
+               "session_id": "sess-deny", "result": "…", "duration_ms": 10, "duration_api_ms": 5,
+               "permission_denials": [{"tool_name": "Write", "tool_input": {"path": "x"}}],
+               "modelUsage": {"claude-sonnet-4-5": {"canonicalModel": "claude-sonnet-4-5"}}}
+
+    class _DeniedRun:
+        returncode, stdout, stderr = 0, json.dumps(_denied), ""
+
+    provider.subprocess.run = lambda *a, **k: _DeniedRun()
+    try:
+        denied_result = provider.invoke(_request("local"))
+    finally:
+        provider.subprocess.run = _real_run
+    _require(denied_result["reason_codes"] == ["PERMISSION_DENIED"]
+             and "permission_denials" in (denied_result["output"] or ""),
+             f"permission denial must carry its diagnosis: {denied_result}")
+    _require(not agent_control._schema_violations(denied_result, _res_schema2),
+             f"permission-denied result must satisfy the result schema: "
+             f"{agent_control._schema_violations(denied_result, _res_schema2)}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1337,6 +1436,100 @@ def _test_tripwire_executor_wiring(root: Path | None = None) -> list[str]:
     return warnings
 
 
+_WATCHDOG_PREDICATE_FILES = (
+    ".claude/skills/terraforming_node/scripts/node_blackbox/mem_watchdog_eta.sh",
+    ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
+    ".claude/skills/terraforming_node/scripts/node_blackbox/thermal_watchdog.sh",
+)
+_WATCHDOG_PREDICATE_BLOCKS = (
+    ("BB_TARGET_PREDICATE_V1", _WATCHDOG_PREDICATE_FILES),
+    # 자체시험 블록은 self-test 를 가진 두 워치독에만 있다. 협역 워치독은 --self-test 진입점이
+    # 없어 대상에서 빠지며, 그 빈자리는 술어 본문 parity 가 덮는다(같은 글자면 같은 판정이다).
+    ("BB_TARGET_PREDICATE_SELFTEST_V1",
+     (".claude/skills/terraforming_node/scripts/node_blackbox/mem_watchdog_eta.sh",
+      ".claude/skills/terraforming_node/scripts/node_blackbox/thermal_watchdog.sh")),
+)
+
+
+def _extract_marked_block(text: str, marker: str) -> str | None:
+    """`# ── <marker> …` 부터 `# ── /<marker> …` 까지를 그대로 돌려준다(없으면 None)."""
+    start = end = None
+    for lineno, line in enumerate(text.splitlines()):
+        stripped = line.strip()
+        if stripped.startswith(f"# ── /{marker}"):
+            end = lineno
+            break
+        if start is None and stripped.startswith(f"# ── {marker}"):
+            start = lineno
+    if start is None or end is None or end <= start:
+        return None
+    return "\n".join(text.splitlines()[start:end + 1])
+
+
+def _test_watchdog_target_predicate_parity(root: Path | None = None) -> None:
+    """세 워치독의 킬 대상 술어가 **글자 그대로 같은지** 확인한다 (CP0 · plan_26090415 §3.3).
+
+    왜 parity 인가: 이 술어는 세 파일에 복제돼 있고 **단일 소유가 불가능**하다 — 설치기가
+    각 스크립트를 확장자 없는 단독 바이너리로 복사하므로 공유 파일을 source 하면 현장에서
+    sibling 경로가 사라진다(2026-09-01 블랙박스 sibling import 파손 선례). 정적 파일끼리는
+    한쪽이 다른 쪽을 생성할 수 없으므로 차선은 교차검증이다(`workflow.md` §결정론 규율 ·
+    `assert_band2_top_gitignore_parity` 선례).
+
+    갈라졌을 때의 대가가 비대칭이라 침묵을 허용하지 않는다: 한 워치독만 넓은 채로 남으면
+    그 워치독이 트립할 때 **측정 컨테이너를 서빙과 함께 죽인다**. 그런데 그 사건은 OOM 압박
+    구간에서만 재현되므로 평시 시험으로는 영영 드러나지 않는다.
+
+    블록이 통째로 사라진 것도 FAIL 이다 — 부재를 "같다" 로 접으면 가드가 스스로 꺼진다.
+    """
+    root = REPO_ROOT if root is None else root
+    if not _is_canonical_repo(root):
+        return
+
+    for marker, files in _WATCHDOG_PREDICATE_BLOCKS:
+        blocks: dict[str, str] = {}
+        for rel in files:
+            path = root / rel
+            _require(path.is_file(), f"watchdog predicate carrier missing: {rel}")
+            block = _extract_marked_block(path.read_text(encoding="utf-8"), marker)
+            _require(block is not None, f"{rel} lost its {marker} block (guard would silently disarm)")
+            blocks[rel] = block
+        distinct = sorted(set(blocks.values()))
+        _require(
+            len(distinct) == 1,
+            f"{marker} diverged across {len(files)} carriers: "
+            + ", ".join(f"{rel}={hashlib.sha256(b.encode()).hexdigest()[:12]}"
+                        for rel, b in blocks.items()),
+        )
+
+    # 술어가 **살아 있는지**는 parity 가 답하지 못한다(셋 다 똑같이 망가질 수 있다).
+    # self-test 를 가진 워치독을 실제로 돌려 음성대조까지 통과하는지 본다.
+    for rel in (".claude/skills/terraforming_node/scripts/node_blackbox/mem_watchdog_eta.sh",
+                ".claude/skills/terraforming_node/scripts/node_blackbox/thermal_watchdog.sh"):
+        proc = subprocess.run(["bash", str(root / rel), "--self-test"],
+                              capture_output=True, text=True, timeout=120)
+        _require(proc.returncode == 0, f"{rel} --self-test failed: {proc.stdout[-800:]}")
+        _require("★음성대조" in proc.stdout,
+                 f"{rel} --self-test ran without the kill-target negative control")
+
+
+def _test_no_revived_antipatterns(root: Path) -> None:
+    """⑥ ③ 단계에서 **제거한 과적합 형태**가 스테이징된 변경에 되돌아왔는지(2026-09-05 · 3-13).
+
+    왜 전수 인벤토리가 아니라 닫힌 목록인가: 하네스 전체를 훑으면 3,900 히트가 나오고 그 대부분은
+    정당이다(픽스처·진단·국소 상수). 총량을 게이트로 쓰면 그 게이트 자체가 과적합이며, 그것이
+    이번 감사가 지목한 문제였다. 여기서 막는 것은 ③ 이 실제로 제거한 9가지 형태뿐이고, 검사 범위는
+    **스테이징된 파일**이라 병목 예산 안에 든다. 면제는 같은 줄의 `antipattern-ok:` 표식으로만 된다.
+    """
+    scanner = root / ".claude" / "policies" / "runtime" / "antipattern_scan.py"
+    if not scanner.is_file():
+        raise RuntimeSelftestFailure(
+            "antipattern_scan.py 가 없다 — 제거 tripwire 의 실행자가 사라졌다: %s" % scanner)
+    proc = subprocess.run([sys.executable, str(scanner), "--root", str(root), "--tripwire"],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeSelftestFailure(
+            "제거한 안티패턴이 되돌아왔다(rc=%s):\n%s" % (proc.returncode, proc.stderr.strip()[-1200:]))
+
 def run_tripwires(root: Path | None = None) -> int:
     """병목(pre-commit·authorize)에서 도는 축약 진입점. 1초 예산.
 
@@ -1354,6 +1547,7 @@ def run_tripwires(root: Path | None = None) -> int:
         _test_no_retired_hash_mechanism_prose(root)
         _test_no_duplicate_certificates(root)      # ④ plan_26090410 P4 — 사본 정리 뒤 배선
         _test_no_pii_in_deployed_artifacts(root)   # ⑤ P6 — 스캐너에 실행자가 없던 것을 배선
+        _test_no_revived_antipatterns(root)        # ⑥ 3-13 — ③ 이 제거한 형태의 부활 차단
     except RuntimeSelftestFailure as exc:
         print(f"[tripwire] FAIL {exc}", file=sys.stderr)
         return 1
@@ -1368,7 +1562,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--tripwires-only", action="store_true",
         help="run only the pre-commit tripwires (backup artifacts / tracked digest rewrite / "
-             "retired-mechanism prose / duplicate certificates / deployed-artifact PII); "
+             "retired-mechanism prose / duplicate certificates / deployed-artifact PII / "
+             "revived antipatterns); "
              "1s budget, diagnostics on stderr")
     args = parser.parse_args(argv)  # argv=None -> argparse reads sys.argv[1:]
 
@@ -1386,7 +1581,8 @@ def main(argv: list[str] | None = None) -> int:
     _test_agent_provider_boundary()
     _test_duplicate_certificate_predicate()
     _test_deployed_pii_predicate()
-    # tripwire 5종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
+    _test_watchdog_target_predicate_parity()
+    # tripwire 6종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
     # 늦는다(선례 3건). 전체 실행에서도 반드시 검사한다.
     # 비-정본 저장소에서 그 단언들이 no-op 이 되는 것은 `run_tripwires` 와 **같은 정상 경로**이며,
     # 여기서도 같은 SKIPPED 한 줄로 눈에 보이게 한다(침묵 no-op 금지).

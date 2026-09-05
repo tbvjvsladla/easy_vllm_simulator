@@ -32,8 +32,19 @@ TOPO=""; LEVELS="1,2,4,8,16"; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; VLLM_
 #   무력해져 **모든 레벨의 TPOT 이 동시에 왜곡**된다(run_bench.sh 의 BACKEND 주석 참조).
 #   판정점(동시성=1)을 스윕이 포함하므로 그 왜곡은 곧 verdict 왜곡이다.
 BACKEND="openai-chat"
+# ★ 2026-09-04(CP5 · plan_26090415 §3.1·§3.7) — 모드별 측정 도구 선택.
+#   lite 레그는 이 노브와 무관하게 **언제나 `vllm bench serve`** 다(`full = lite ∪ GuideLLM`).
+#   두 레그를 이질적으로 유지하는 것이 설계이며, 그 이질성이 실결함 2건을 잡았다(2026-09-01·09-03).
+#   `--tool guidellm` 은 **레벨 측정만** 옮긴다.
+TOOL="vllm"
+BENCH_BUDGET_MIB=""
+# 오류 허용치는 **선언에서만** 온다(기본 빈값 = 파서 기본 0 = 엄격).
+MAX_ERROR_RATE=""
 while [ $# -gt 0 ]; do case "$1" in
   --topology) TOPO="$2"; shift 2;;
+  --tool) TOOL="$2"; shift 2;;
+  --bench-budget-mib) BENCH_BUDGET_MIB="$2"; shift 2;;
+  --max-error-rate) MAX_ERROR_RATE="$2"; shift 2;;
   --backend) BACKEND="$2"; shift 2;;
   --reassemble-only) REASSEMBLE=1; shift;;
   --levels) LEVELS="$2"; shift 2;;
@@ -45,6 +56,18 @@ while [ $# -gt 0 ]; do case "$1" in
   --dry-run) DRYRUN=1; shift;;
   *) echo "[sweep_bench] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
+
+case "$TOOL" in
+  vllm) ;;
+  guidellm)
+    # 예산 미선언을 여기서 친다 — 뒤로 미루면 lite 레그와 레벨 1 을 다 돌고 나서야 드러난다.
+    case "$BENCH_BUDGET_MIB" in
+      ''|*[!0-9]*) echo "[sweep_bench] ERROR --tool guidellm 에는 --bench-budget-mib <양의 정수> 가 필수다(기본값 없음 · §4.8)" >&2; exit 2;;
+    esac
+    [ "$BENCH_BUDGET_MIB" -gt 0 ] || { echo "[sweep_bench] ERROR --bench-budget-mib 는 양수여야 한다" >&2; exit 2; }
+    ;;
+  *) echo "[sweep_bench] 알 수 없는 --tool: $TOOL (vllm|guidellm)" >&2; exit 2;;
+esac
 
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(git -C "$SDIR" rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -69,12 +92,12 @@ EF="$REPO/output/$TOPO/envs/.env.${CONFIG}"
 MANIFEST="$REPO/output/$TOPO/manifest.yaml"
 SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
 
-echo "[sweep_bench] config=$CONFIG topo=$TOPO levels=[${SORTED[*]}] in=$ILEN out=$OLEN n=$NPROMPTS warmup=$WARMUPS"
+echo "[sweep_bench] config=$CONFIG topo=$TOPO levels=[${SORTED[*]}] in=$ILEN out=$OLEN n=$NPROMPTS warmup=$WARMUPS tool=$TOOL${BENCH_BUDGET_MIB:+ bench_budget=${BENCH_BUDGET_MIB}MiB}"
 echo "[sweep_bench] sweepdir=$SWEEPDIR (판정점=동시성1 재사용)"
 if [ "$DRYRUN" = "1" ]; then
   echo "[sweep_bench] DRY-RUN — 레벨별 실행 계획:"
   for L in "${SORTED[@]}"; do
-    echo "  level $L → run_bench.sh $CONFIG --topology $TOPO --concurrency $L --out-dir $SWEEPDIR/level_$(printf '%02d' "$L")"
+    echo "  level $L → run_bench.sh $CONFIG --topology $TOPO --concurrency $L --tool $TOOL${BENCH_BUDGET_MIB:+ --bench-budget-mib $BENCH_BUDGET_MIB} --out-dir $SWEEPDIR/level_$(printf '%02d' "$L")"
   done
   echo "[sweep_bench] DRY-RUN 종료(실제 벤치·assemble 생략)"
   exit 0
@@ -145,11 +168,32 @@ COMPLETED=()
 for L in "${SORTED[@]}"; do
   LDIR="$SWEEPDIR/level_$(printf '%02d' "$L")"; mkdir -p "$LDIR"
   echo "[sweep_bench] ── level 동시성=$L ──"
-  if bash "$SDIR/run_bench.sh" "$CONFIG" --topology "$TOPO" --concurrency "$L" \
-        --input-len "$ILEN" --output-len "$OLEN" --num-prompts "$NPROMPTS" \
-        --warmups "$WARMUPS" --backend "$BACKEND" --out-dir "$LDIR"; then
-    BJSON="$LDIR/bench_${CONFIG}.json"; ELOG="$LDIR/engine_${CONFIG}.log"
-    if python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG" > "$LDIR/measured.json" 2>/dev/null \
+  RB_ARGS=("$CONFIG" --topology "$TOPO" --concurrency "$L"
+           --input-len "$ILEN" --output-len "$OLEN" --num-prompts "$NPROMPTS"
+           --warmups "$WARMUPS" --backend "$BACKEND" --out-dir "$LDIR" --tool "$TOOL")
+  [ -n "$BENCH_BUDGET_MIB" ] && RB_ARGS+=(--bench-budget-mib "$BENCH_BUDGET_MIB")
+  if bash "$SDIR/run_bench.sh" "${RB_ARGS[@]}"; then
+    ELOG="$LDIR/engine_${CONFIG}.log"
+    # 파서는 도구가 정한다 — 스키마가 다르므로 파일명도 다르고, 잘못된 파서가 조용히 빈 값을
+    # 내는 일이 없게 한다.
+    if [ "$TOOL" = "guidellm" ]; then
+      BJSON="$LDIR/guidellm_${CONFIG}.json"
+      # spec 축은 GuideLLM 이 보고하지 않는다. **같은 스윕의 lite 레그**에서 승계한다 —
+      # 이것이 `full = lite ∪ GuideLLM` 이 값으로 갚아 주는 자리다. lite 가 절삭됐으면
+      # 부재를 명시 선언한다(그 사실은 이미 truncation.log 에 남아 있다).
+      if [ -n "$LITE_RAW" ] && [ -s "$LITE_RAW" ]; then
+        PARSE_CMD=(python3 "$SDIR/parse_guidellm.py" --benchmarks-json "$BJSON"
+                   --engine-log "$ELOG" --accept-len-src "$LITE_RAW")
+      else
+        PARSE_CMD=(python3 "$SDIR/parse_guidellm.py" --benchmarks-json "$BJSON"
+                   --engine-log "$ELOG" --spec-axis-absent)
+      fi
+      [ -n "$MAX_ERROR_RATE" ] && PARSE_CMD+=(--max-error-rate "$MAX_ERROR_RATE")
+    else
+      BJSON="$LDIR/bench_${CONFIG}.json"
+      PARSE_CMD=(python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG")
+    fi
+    if "${PARSE_CMD[@]}" > "$LDIR/measured.json" 2>/dev/null \
        && python3 -c "import json,sys; d=json.load(open('$LDIR/measured.json')); sys.exit(0 if d.get('measurement_ok') else 1)"; then
       COMPLETED+=("$L"); echo "[sweep_bench] level $L ✓"
     else
@@ -197,7 +241,7 @@ fi
 fi   # ── /REASSEMBLE 분기 끝(위 측정·캡처 전량은 재조립 모드에서 건너뛴다) ──
 
 # ── sweep_index.json 조립 + meta 추출(결정론 · stdlib · fail-soft N/A) ──────────
-CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$CFGYAML" EF="$EF" MANIFEST="$MANIFEST" AGENT_CARD="$REPO/Agent_Card.json" \
+CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$CFGYAML" EF="$EF" MANIFEST="$MANIFEST" \
 SWEEPDIR="$SWEEPDIR" VLLM_VER="$VLLM_VER" COMPLETED="${COMPLETED[*]:-}" ILEN="$ILEN" \
  IMAGE_TAG_ACTUAL="$IMAGE_TAG_ACTUAL" IMAGE_DIGEST_ACTUAL="$IMAGE_DIGEST_ACTUAL" REASSEMBLE="$REASSEMBLE" \
  LITE_RAW="$LITE_RAW" SDIR="$SDIR" python3 - <<'PY'
@@ -283,19 +327,17 @@ if not vllm and vllm_build != "NA":
 if not vllm:
     _mc = re.search(r"vLLM[\s]*([0-9]+\.[0-9]+\.[0-9]+)", cfgtext)
     vllm = _mc.group(1) if _mc else "NA"
-# gpu_model: manifest > Agent_Card.json(node_identity) > NA.
-#   ⚠ 서브 노드에는 manifest.yaml 이 **설계상 부재**(D10 — sync_to_sub 가 manifest 를 배달하지 않는다; 서브 정체성은
-#   메인이 render_sub_env.py 로 렌더한 Agent_Card.json 에 산다). 폴백이 없으면 서브에서 돈 full 벤치의
-#   인증서 강한키 gpu 가 "NA" 로 발행돼 carry-forward 재검증이 무력화된다(plan_26072217 실측).
-#   Agent_Card 의 gpu_model 은 메인의 HW 동질성 스캔 산물이므로 날조가 아니라 **A2A attestation** 이다.
+# gpu_model: manifest 단일 권위(2026-09-05 · plan_26090516 §7.3 · audit_26090515 B9).
+#   종전에는 "서브 노드는 manifest 를 갖지 않는다"(D10) 는 전제로 Agent_Card.json(node_identity.gpu_model) 폴백을 두었고,
+#   그 폴백은 렌더러의 `<n>x-<arch>`/`unknown-gpu` 기본값과 이어져 위조 정체성이 인증서 **강한 키** `gpu` 로
+#   흘러갈 수 있었다. 이제 서브도 자기 manifest 를 갖는다(메인 terraforming 이 실측·발급 · self_role: sub).
+#   Agent_Card v2 는 A2A 평면 계약(능력·엔드포인트·서명)이라 HW 필드가 없다. gpu_model 이 없으면 인증서를
+#   "NA" 강한 키로 발행하지 않고 여기서 멈춘다(fail-loud).
 gpu_model = grep_yaml(mftext, "gpu_model")
 if not gpu_model:
-    try:
-        with open(os.environ.get("AGENT_CARD", ""), encoding="utf-8") as _f:
-            gpu_model = (json.load(_f).get("node_identity") or {}).get("gpu_model") or None
-    except Exception:
-        gpu_model = None
-gpu_model = gpu_model or "NA"
+    sys.stderr.write("[sweep_bench] FAIL: manifest(%s) 에 gpu_model 이 없다 — 인증서 강한 키 gpu 를 NA 로 발행하지 않는다. "
+                     "terraforming_node 스캔(서브면 scan_node.py --emit-sub-manifest)으로 채워라.\n" % os.environ.get("MANIFEST", "?"))
+    sys.exit(2)
 gpu_key = _gpu_key(gpu_model)  # 정규화 규칙은 doc_naming 한 곳(인라인 사본 제거 · 감사 D-1)
 # tp: config tensor-parallel-size > manifest 파생 > 1
 # **topology=single 이면 노드 배수 1 고정** — single manifest 의 nodes[role=sub] 는 sub-control
@@ -409,9 +451,43 @@ _quant, _quant_src, _quant_decl, _quant_mm = _measured_first(
     engine_cfg_val("quantization"), grep_yaml(cfgtext, "quantization"))
 _kvdt, _kvdt_src, _kvdt_decl, _kvdt_mm = _measured_first(
     engine_cfg_val("kv_cache_dtype"), grep_yaml(cfgtext, "kv-cache-dtype"))
-if _quant_mm.startswith("YES") or _kvdt_mm.startswith("YES"):   # 침묵 치환 금지 — 갈리면 시끄럽게
-    print("[sweep_bench] ⚠ 선언↔실측 불일치 — quantization:%s · kv_cache_dtype:%s"
-          % (_quant_mm, _kvdt_mm), file=sys.stderr)
+
+# ── 커널 백엔드 축: 요청과 **실효**가 갈릴 수 있다 (2026-09-04 · plan_26090419) ────────────────
+#   실측 계기: 트리플렛 러너가 `VLLM_ATTENTION_BACKEND=FLASHINFER` 를 export 하는데 엔진 로그는
+#   `Using TRITON_ATTN attention backend out of potential backends: ['TRITON_ATTN']` 이었다.
+#   후보 목록이 **한 개**라 요청이 조용히 무시된 것이다. 이 사실을 meta 가 싣지 않으면, 커널 축을
+#   도는 캠페인이 "FLASHINFER 로 34.5 t/s" 라는 **거짓 좌표**를 지도에 남긴다 — 이 오퍼레이션이
+#   막으려는 바로 그 오도(誤導)다.
+#   `VLLM_ATTENTION_BACKEND` 는 Band3 로컬 규약이 아니라 **vLLM 업스트림이 소유한 이름**이므로
+#   교차검증 대상으로 삼는다(envfile 의 QUANTIZATION 계열을 포기한 이유가 여기엔 해당하지 않는다).
+_shtext = read(os.path.join(os.path.dirname(os.environ["CFGYAML"]), "%s.sh" % cfg))
+_m = re.search(r"Using\s+(\S+)\s+attention backend", _elog)
+_attn_meas = _m.group(1) if _m else None
+_m = re.search(r"attention backend out of potential backends:\s*\[([^\]]*)\]", _elog)
+_attn_cands = ([c.strip().strip("'\"") for c in _m.group(1).split(",") if c.strip()] if _m else None)
+_m = re.search(r"^\s*export\s+VLLM_ATTENTION_BACKEND=(\S+)", _shtext, re.M)
+_attn_decl_raw = _m.group(1) if _m else None
+_attn, _attn_src, _attn_decl, _attn_mm = _measured_first(_attn_meas, _attn_decl_raw)
+
+# MoE 백엔드도 측정 우선으로 올린다 — 종전에는 config yaml 선언만 봐서 실측 인증서가 "N/A" 였다.
+# 실제 라인(0.19.1): `[mxfp4.py:352] Using 'MARLIN' Mxfp4 MoE backend.`
+#   0.18.0 은 `[mxfp4.py:166] Using Marlin backend` 였다 — 따옴표 유무와 어순이 버전마다 다르므로
+#   "Using <이름> … backend" 형태를 느슨하게 잡되 **이름만** 캡처한다. 못 잡으면 None 이고
+#   `_measured_first` 가 선언 평면으로 떨어진다(합성 ✗).
+_m = re.search(r"Using\s+'?([A-Za-z0-9_]+)'?\s+(?:\w+\s+)*?MoE backend", _elog) \
+     or re.search(r"mxfp4\.py[^\]]*\]\s*Using\s+'?([A-Za-z0-9_]+)'?\s+backend", _elog)
+_moe_meas = _m.group(1) if _m else None
+_moe, _moe_src, _moe_decl, _moe_mm = _measured_first(_moe_meas, grep_yaml(cfgtext, "moe-backend"))
+
+if any(x.startswith("YES") for x in (_quant_mm, _kvdt_mm, _attn_mm, _moe_mm)):
+    print("[sweep_bench] ⚠ 선언↔실측 불일치 — quantization:%s · kv_cache_dtype:%s · "
+          "attention_backend:%s · moe_backend:%s"
+          % (_quant_mm, _kvdt_mm, _attn_mm, _moe_mm), file=sys.stderr)
+# 후보가 한 개면 그 축은 **이 조합에서 선택지가 없다**. 실패가 아니라 축이 비어 있는 것이며,
+# 그 사실이 지도에 실려야 다음 캠페인이 같은 셀을 다시 돌지 않는다.
+if _attn_cands is not None and len(_attn_cands) <= 1:
+    print("[sweep_bench] ⓘ 어텐션 축 무선택 — 후보 %s (요청 %s 는 실효 없음)"
+          % (_attn_cands, _attn_decl_raw or "미선언"), file=sys.stderr)
 
 meta = {
     # 강한 일치 키
@@ -453,11 +529,69 @@ meta = {
     "kv_cache_dtype_declared": _kvdt_decl,
     "kv_cache_dtype_mismatch": _kvdt_mm,
     "gpu_memory_utilization": grep_yaml(cfgtext, "gpu-memory-utilization") or "NA",
-    "moe_backend": grep_yaml(cfgtext, "moe-backend") or "NA",
+    "moe_backend": _moe,
+    "moe_backend_source": _moe_src,
+    "moe_backend_declared": _moe_decl,
+    "moe_backend_mismatch": _moe_mm,
+    # 어텐션 축 — 값·출처·선언·불일치 + **후보 목록**. 후보가 1개면 그 축은 선택지가 없다.
+    "attention_backend": _attn,
+    "attention_backend_source": _attn_src,
+    "attention_backend_declared": _attn_decl,
+    "attention_backend_mismatch": _attn_mm,
+    "attention_backend_candidates": _attn_cands,
     "enforce_eager": grep_yaml(cfgtext, "enforce-eager") or "NA",
     "serving_model_name": grep_env(envtext, "SERVING_MODEL_NAME") or "NA",
     "model_path": grep_yaml(cfgtext, "model") or "NA",
 }
+
+# ── 측정 도구 소프트 지문 (plan_26090415 §3.6 · 2026-09-04) ──────────────────────
+#   **강한키 6종은 불변**이다. 도구를 7번째 강한키로 올리면 부재값 None 대 "N/A" 비교 때문에
+#   레거시 인증서 45장이 같은 vLLM-bench 런에 대해서도 즉시 전부 무효화된다. 같은 범주(측정 환경
+#   지문)의 처방은 이미 소프트로 굳어 있다 — runtime_selftest 가 `image_digest not in
+#   CERTIFICATE_RUN_KEY_FIELDS` 를 하드 assert 한다.
+#   값은 **파서가 산출물에서 실측한 것을 승계**한다. 여기서 TOOL 환경변수를 그대로 적으면
+#   "무엇을 시켰나"가 되고, 우리가 남겨야 하는 것은 "무엇이 실제로 쟀나"다.
+_bt, _btv, _btv_src = "NA", "NA", "unavailable"
+_bt_err = "NA"
+for _lvl in sorted(completed):
+    _mp = os.path.join(sweepdir, "level_%02d" % _lvl, "measured.json")
+    try:
+        with open(_mp, encoding="utf-8") as _f:
+            _md = json.load(_f)
+    except (OSError, ValueError):
+        continue
+    _bt = _md.get("bench_tool") or "vllm-bench-serve"
+    _btv = _md.get("bench_tool_version") or "NA"
+    _btv_src = _md.get("bench_tool_version_source") or "declared(도구가 버전을 자기보고하지 않는다)"
+    if _md.get("max_error_rate_declared") is not None:
+        _bt_err = _md["max_error_rate_declared"]
+    break
+meta["bench_tool"] = _bt
+meta["bench_tool_version"] = _btv
+meta["bench_tool_version_source"] = _btv_src
+meta["bench_max_error_rate"] = _bt_err
+
+# ── 측정 도구 **런별 구성**(2026-09-05 · plan_26090516 3-8/3-12 · 축 A·B) ─────────
+#   digest 게이트를 걷어낸 대신 **무엇으로 쟀는지**를 인증서가 싣는다. 값은 run_bench 가 그 런에
+#   실제로 쓴 이미지에서 실측해 남긴 사이드카에서 **승계**한다 — 여기서 기록 파일을 다시 읽으면
+#   "무엇을 시켰나"가 되고, 남겨야 하는 것은 "무엇이 실제로 돌았나" 다.
+_bt_ref, _bt_dig, _bt_ep = "NA", "NA", "NA"
+for _lvl in sorted(completed):
+    _tp = os.path.join(sweepdir, "level_%02d" % _lvl, "bench_tool_%s.json" % cfg)
+    try:
+        with open(_tp, encoding="utf-8") as _f:
+            _td = json.load(_f)
+    except (OSError, ValueError):
+        continue
+    _bt_ref = _td.get("image_ref") or "NA"
+    _bt_dig = _td.get("observed_digest") or "NA"
+    _bt_ep = _td.get("endpoint") or "NA"
+    break
+meta["bench_tool_image_ref"] = _bt_ref
+meta["bench_tool_image_digest"] = _bt_dig
+meta["bench_tool_image_digest_source"] = ("measured(docker image inspect .RepoDigests)"
+                                          if _bt_dig != "NA" else "unavailable")
+meta["bench_endpoint"] = _bt_ep
 
 levels = []
 for L in sorted(completed):

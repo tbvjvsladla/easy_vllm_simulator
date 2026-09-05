@@ -136,23 +136,27 @@ BUDGET_FILE = "serve_budget.env"
 #   (같은 개념이 두 곳 이상에 손으로 적힌 값)의 교과서 사례다.
 # ∴ 사본을 없애고 정본에서 파생한다. 같은 디렉터리에 배달되므로(메인 scripts/node_blackbox,
 #   서브 .claude/runtime/node_blackbox) sys.path[0] 로 import 가능하다.
-_WD_FALLBACK = {"decl_margin_mib": 3072, "decl_min_ceiling_mib": 8192}
+# 2026-09-05(G-B3): 리터럴 폴백을 **삭제**했다. 그 사본은 2026-09-01 감사에서 이미 한 번
+#   정본과 갈라진 채 발견됐고(8192/16384 vs 3072/8192), 값을 맞춰 두는 것으로는 재발을 막지
+#   못한다 — 두 자리가 있는 한 언젠가 갈라진다. 정본을 못 읽으면 **모르는 것이므로 죽는다**:
+#   틀린 상한으로 계산한 예측 경고는 없는 것보다 나쁘다(데몬과 다른 상한을 쓰는 맹점).
 try:
     from blackbox_eta import DEFAULTS as _ETA_DEFAULTS
     _WD_MARGIN_MIB = int(_ETA_DEFAULTS["decl_margin_mib"])
     _WD_MIN_CEILING_MIB = int(_ETA_DEFAULTS["decl_min_ceiling_mib"])
     _WD_CONST_SOURCE = "derived:blackbox_eta.DEFAULTS"
-except Exception as _exc:      # fail-loud 폴백 — 침묵하지 않는다(workflow.md 폴백 판정표 '정당' 칸)
-    # ★ 2026-09-01 (audit_26090109 ①): 이 폴백 리터럴 자신이 **정본과 갈라져 있었다**
-    #   (8192/16384 vs 정본 3072/8192). 파생 경로가 정상일 땐 안 보이지만, import 가
-    #   깨지는 순간 조용히 옛 상한으로 돌아간다 — 고친 결함의 그림자가 폴백에 남아 있던 셈.
-    #   값은 정본에 맞추고, 자체검사가 **tripwire 로 대조**한다(정본이 움직이면 빨간불).
-    _WD_MARGIN_MIB = _WD_FALLBACK["decl_margin_mib"]
-    _WD_MIN_CEILING_MIB = _WD_FALLBACK["decl_min_ceiling_mib"]
-    _WD_CONST_SOURCE = "fallback:literal (%s: %s)" % (type(_exc).__name__, _exc)
-    print("[blackbox_session] WARN: blackbox_eta.DEFAULTS 파생 실패 → 리터럴 사용. "
-          "예측 경고가 실제 워치독 판정과 어긋날 수 있다: %s" % _WD_CONST_SOURCE, file=sys.stderr)
+except Exception as _exc:
+    raise SystemExit(
+        "[blackbox_session] FAIL: blackbox_eta.DEFAULTS 에서 선언 상수를 읽지 못했다 — "
+        "여기에 사본을 두지 않는다(%s: %s).\n"
+        "  → 두 자리에 적힌 상수는 갈라진다(2026-09-01 감사: 사본이 옛 8192/16384 로 남아 있었다).\n"
+        "  → 같은 디렉터리의 blackbox_eta.py 가 배달됐는지 확인하라." % (type(_exc).__name__, _exc))
 MAX_TTL_S = 86400
+# 예산 선언의 기본 TTL. **이 파일이 단일 소유자다**(2026-09-05 · G-B2). 종전에는 같은 7200 이
+# run_trial · single_serve_up · budget_renew_loop · multinode_serve_smoke 에 각각 손으로 적혀
+# 다섯 자리였다 — 개념이 다섯 곳에 있으면 하나를 고쳐도 나머지가 옛값을 쓴다(margin 거울이
+# 실제로 그렇게 갈라져 "설치된 데몬이 옛값" 사고를 냈다). 다른 자리는 `budget-defaults` 로 읽는다.
+DEFAULT_TTL_S = 7200
 
 # ── TTL 정합(plan_26081415 C4) ──────────────────────────────────────────────
 # TTL 파생 배수. 근거: R0 실측 READY 소요 665 s. **로드 도중 만료**는 그 폴부터 옛 규칙
@@ -448,6 +452,18 @@ def cmd_budget_block(args):
     return 0
 
 
+def cmd_budget_defaults(args):
+    """예산 기본값을 JSON(또는 한 필드)으로 낸다. 소비자는 이것을 읽고 자기 자리에 적지 않는다."""
+    doc = {"ttl_s": DEFAULT_TTL_S, "max_ttl_s": MAX_TTL_S, "ttl_safety_mult": TTL_SAFETY_MULT,
+           "source": "single-owner:blackbox_session.py"}
+    if getattr(args, "field", None):
+        print(doc[args.field])
+    else:
+        json.dump(doc, sys.stdout, ensure_ascii=False, indent=2)
+        sys.stdout.write("\n")
+    return 0
+
+
 def cmd_clear_budget(args):
     now = _parse_now(args.now)
     path = _budget_path(args.node_dir)
@@ -535,9 +551,12 @@ def self_test():
     #   빨간불. agent_guard 에 둔 것과 **같은 술어**다: 한 파일만 고치면 결함 계열이
     #   닫히지 않는다는 것이 ① 이 가르친 전부다.
     from blackbox_eta import DEFAULTS as _CANON_S
-    ok.append(("폴백 tripwire 가 blackbox_eta.DEFAULTS 와 일치",
-               _WD_FALLBACK["decl_margin_mib"] == int(_CANON_S["decl_margin_mib"])
-               and _WD_FALLBACK["decl_min_ceiling_mib"] == int(_CANON_S["decl_min_ceiling_mib"])))
+    ok.append(("선언 상수를 정본에서 파생한다(사본 ✗ · G-B3)",
+               _WD_CONST_SOURCE == "derived:blackbox_eta.DEFAULTS"
+               and _WD_MARGIN_MIB == int(_CANON_S["decl_margin_mib"])
+               and _WD_MIN_CEILING_MIB == int(_CANON_S["decl_min_ceiling_mib"])))
+    ok.append(("리터럴 사본이 되살아나지 않았다(tripwire)",
+               "_WD_FALLBACK" not in globals()))
     with tempfile.TemporaryDirectory() as td:
         node = os.path.join(td, "node-x")
         os.makedirs(os.path.join(node, "samples"))
@@ -566,7 +585,7 @@ def self_test():
         # ── 예산 선언 (testlog_26073123 · 워치독 arm 상한) ─────────────────
         def _bud(**kw):
             base = dict(node_dir=node, mem_total_mib=124610, weights_mib=59556,
-                        kv_mib=16384, overhead_mib=12288, ttl_s=7200, expected_load_s=0,
+                        kv_mib=16384, overhead_mib=12288, ttl_s=7200, expected_load_s=0,  # antipattern-ok: G-B1-overhead-default — 자체검사 픽스처(선언된 값이지 기본값이 아니다)
                         label="glm-47-flash", now="2026-07-31T00:00:00Z")
             base.update(kw)
             return argparse.Namespace(**base)
@@ -757,9 +776,16 @@ def main():
     b.add_argument("--weights-mib", type=int, required=True, help="가중치 실측(체크포인트 크기)")
     b.add_argument("--kv-mib", type=int, required=True,
                    help="KV 절대클램프. **미선언이면 예산 선언 자체가 불가**하다(설계 의도)")
-    b.add_argument("--overhead-mib", type=int, default=12288,
-                   help="cudagraph·활성화·런타임 여유 (기본 12288 = 12 GiB, 안전측)")
-    b.add_argument("--ttl-s", type=int, default=7200, help="만료까지 초(기본 7200 · 상한 86400)")
+    # 2026-09-05(G-B1): 기본값 12288 삭제 → **필수 선언**. 그 값의 주석은 "안전측" 이라 했지만
+    #   방향이 반대였다 — overhead 를 낮게 잡으면 선언 바닥이 높게 나와 워치독 arm 상한이 정상
+    #   서빙 위로 올라간다. gpt-oss-120b/GB10 실측 overhead 는 17,971 MiB 로 기본값보다 5,683
+    #   MiB 컸고, 그 차이가 정상 로드를 사살한 실적이 있다. 노브만 추가한 2026-09-04 처방은
+    #   반쪽이었다 — 기본값이 남아 있는 한 안 넘기면 틀린 값이 **조용히** 쓰인다.
+    b.add_argument("--overhead-mib", type=int, required=True,
+                   help="cudagraph·활성화·런타임 여유(MiB). **선언 필수** — 기본값 없음. "
+                        "모르면 재보라: 로드 완료 후 MemTotal − MemAvailable − weights − kv")
+    b.add_argument("--ttl-s", type=int, default=DEFAULT_TTL_S,
+                   help="만료까지 초(기본 %d · 상한 %d)" % (DEFAULT_TTL_S, MAX_TTL_S))
     b.add_argument("--expected-load-s", type=int, default=0,
                    help="예상 READY 소요(초). 주면 TTL 이 그 %d배 미만일 때 **거부**한다"
                         "(로드 도중 만료 예약 방지 · plan_26081415 C4-3)" % TTL_SAFETY_MULT)
@@ -769,10 +795,17 @@ def main():
 
     br = sub.add_parser("renew-budget",
                         help="현행 선언의 만료만 연장(상주 서빙 · plan_26081415 C4-3)")
-    br.add_argument("--ttl-s", type=int, default=7200, help="지금부터 다시 셀 초(상한 86400)")
+    br.add_argument("--ttl-s", type=int, default=DEFAULT_TTL_S,
+                    help="지금부터 다시 셀 초(기본 %d · 상한 %d)" % (DEFAULT_TTL_S, MAX_TTL_S))
     br.add_argument("--expected-load-s", type=int, default=0)
     br.add_argument("--now", required=True)
     br.set_defaults(func=cmd_renew_budget)
+
+    bd = sub.add_parser("budget-defaults",
+                        help="예산 선언 기본값의 **단일 소유자**가 그 값을 알려준다"
+                             "(다른 스크립트가 7200 을 손으로 적지 않게)")
+    bd.add_argument("--field", choices=["ttl_s", "max_ttl_s", "ttl_safety_mult"], default=None)
+    bd.set_defaults(func=cmd_budget_defaults)
 
     bc = sub.add_parser("clear-budget", help="예산 선언 해제 → 현행 ETA 규칙 복귀")
     bc.add_argument("--now", required=True)

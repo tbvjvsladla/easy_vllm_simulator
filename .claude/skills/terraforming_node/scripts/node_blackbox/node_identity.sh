@@ -49,47 +49,30 @@ ni_valid_slug() {  # $1=후보 → 0=적합
   printf '%s' "$1" | grep -Eq "$NI_SLUG_RE"
 }
 
-# Agent_Card.json → .node_identity.role (서브측 권위).
-# JSON 을 셸로 긁지 않는다 — python3 는 이 패키지의 이미 확정된 의존이다(blackbox_*.py).
-# python3 가 없으면 **모른다고 말하고 실패**한다(hostname 으로 떨어지지 않는다).
-ni_agent_card_role() {  # $1=repo → stdout=슬러그 · 1=부재(정상 폴백) · 2=python3 부재 · 3=존재하나 판독불가
-  # 2026-09-03(F2 · plan_26090317 P1): 이전 판본은 "카드 부재" 와 "카드는 있으나 깨짐/빈 role" 을
-  #   **같은 rc=1** 로 접었다. rc=1 은 manifest 폴백을 여는 값이고, 서브 워크스페이스에는 manifest
-  #   사본이 존재할 수 있으므로 그 폴백이 `- role: main` 을 집어 **서브가 자기를 main 이라 선언**했다
-  #   (블랙박스 로그가 docs/logs/main 에 겹쳐 써져 두 노드 기록이 복구 불가로 섞인다 — 이 파일 헤더가
-  #   경고하는 바로 그 상태). 존재하는 카드의 판독 실패는 폴백 사유가 아니라 **정지 사유**다.
-  local card="$1/Agent_Card.json"
-  [ -e "$card" ] || return 1
-  if [ ! -f "$card" ]; then
-    echo "[node-identity] FAIL: $card 가 일반파일이 아니다(디렉터리/특수파일) — 정체성을 추측하지 않는다." >&2
-    return 3
-  fi
-  command -v python3 >/dev/null 2>&1 || {
-    echo "[node-identity] FAIL: $card 는 있으나 python3 가 없어 role 을 읽지 못한다." >&2
-    echo "[node-identity]       python3 설치 후 재시도하거나 --node-id=<slug> 로 명시 주입하라." >&2
-    return 2
-  }
-  local out rc
-  out="$(python3 - "$card" <<'PY'
-import json, sys
-try:
-    doc = json.load(open(sys.argv[1], encoding="utf-8"))
-except Exception as exc:
-    print("[node-identity] card unreadable: %s: %s" % (type(exc).__name__, exc), file=sys.stderr)
-    sys.exit(3)
-role = (doc.get("node_identity") or {}).get("role")
-if not isinstance(role, str) or not role.strip():
-    print("[node-identity] card present but node_identity.role is missing/empty", file=sys.stderr)
-    sys.exit(3)
-print(role.strip())
-PY
-)"; rc=$?
-  if [ "$rc" -ne 0 ]; then
-    echo "[node-identity] FAIL: $card 가 존재하나 role 판독 불가(rc=$rc) — manifest 폴백으로 넘어가지 않는다." >&2
-    echo "[node-identity]       카드를 고치거나 --node-id=<slug> 로 명시 주입하라." >&2
-    return 3
-  fi
-  printf '%s' "$out"
+# output/*/manifest.yaml → 최상위 `self_role:` 슬러그 (서브측 권위 · 2026-09-05 · plan_26090516 §7.3).
+# 종전 서브측 권위는 배달된 Agent_Card.json 의 node_identity.role 이었다. Agent_Card v2 는 A2A 1.0.1
+# 표준 필드만 최상위에 두는 **A2A 평면 계약**(능력·엔드포인트·서명)이라 노드 정체성 필드를 갖지 않는다 —
+# "이 파일이 놓인 노드가 누구인가" 는 terraforming 이 실측·발급한 서브 manifest 의 `self_role` 이 답한다.
+# 여러 manifest 가 공존하면 값이 **일치해야** 한다 — 갈리면 fail-loud(추측 금지).
+ni_manifest_self_role() {  # $1=repo → stdout=슬러그 · 1=부재(정상 폴백) · 2=계약 위반/판독불가
+  local repo="$1" mf found="" n=0 v
+  for mf in "$repo"/output/*/manifest.yaml; do
+    [ -f "$mf" ] || continue
+    if [ ! -r "$mf" ]; then
+      echo "[node-identity] FAIL: $mf 를 읽을 수 없다(권한/소유권) — 정체성 판정을 추측으로 잇지 않는다." >&2
+      return 2
+    fi
+    # 최상위(들여쓰기 0) `self_role:` 정확매칭 — 주석·따옴표 허용.
+    v="$(grep -E '^self_role:[[:space:]]*' "$mf" | head -1 | sed -E 's/^self_role:[[:space:]]*//; s/[[:space:]]*#.*$//; s/^["'"'"']//; s/["'"'"']$//')"
+    [ -n "$v" ] || continue
+    if [ -n "$found" ] && [ "$found" != "$v" ]; then
+      echo "[node-identity] FAIL: manifest 간 self_role 불일치('$found' vs '$v') — terraforming_node 로 재발급하라." >&2
+      return 2
+    fi
+    found="$v"; n=$((n + 1))
+  done
+  [ "$n" -gt 0 ] || return 1
+  printf '%s' "$found"
 }
 
 # output/*/manifest.yaml → 유일한 `- role: main` 슬러그 (메인측 권위).
@@ -132,11 +115,11 @@ ni_resolve_node_id() {  # $1=repo  $2=명시 --node-id(없으면 빈 문자열) 
     return 1
   fi
 
-  v="$(ni_agent_card_role "$repo")"; rc=$?
-  if [ "$rc" -eq 2 ] || [ "$rc" -eq 3 ]; then return 1; fi
+  v="$(ni_manifest_self_role "$repo")"; rc=$?
+  if [ "$rc" -eq 2 ]; then return 1; fi
   if [ "$rc" -eq 0 ] && [ -n "$v" ]; then
     if ni_valid_slug "$v"; then printf '%s' "$v"; return 0; fi
-    echo "[node-identity] FAIL: Agent_Card.json 의 node_identity.role='$v' 가 스킴 위반이다($NI_SLUG_RE)." >&2
+    echo "[node-identity] FAIL: manifest self_role='$v' 가 스킴 위반이다($NI_SLUG_RE)." >&2
     return 1
   fi
 
@@ -150,8 +133,8 @@ ni_resolve_node_id() {  # $1=repo  $2=명시 --node-id(없으면 빈 문자열) 
 
   # 여기가 옛 `$(hostname)` 자리다. 조용히 만들지 않는다.
   echo "[node-identity] FAIL: node_id 를 해소하지 못했다 — hostname 으로 대체하지 않는다." >&2
-  echo "[node-identity]   찾은 곳: (a) $repo/Agent_Card.json  (b) $repo/output/*/manifest.yaml 의 role: ${NI_MAIN_ROLE}" >&2
-  echo "[node-identity]   해소: 서브면 render_sub_env.py 로 Agent_Card.json 재배달 · 메인이면 manifest 를" >&2
+  echo "[node-identity]   찾은 곳: (a) $repo/output/*/manifest.yaml 의 self_role: (서브 · terraforming 발급)  (b) 동 파일의 유일한 role: ${NI_MAIN_ROLE} (메인)" >&2
+  echo "[node-identity]   해소: 서브면 메인이 scan_node.py --emit-sub-manifest → render_sub_env.py 로 서브 manifest 재배달 · 메인이면 manifest 를" >&2
   echo "[node-identity]         terraforming_node 로 채워라. 급하면 --node-id=<slug> 로 명시 주입." >&2
   return 1
 }
@@ -170,14 +153,25 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ] && [ "${1:-}" = "--self-test" ]; then
     > "$_t/output/multi/manifest.yaml"
   _ck "manifest → main" "$(ni_resolve_node_id "$_t" "" 2>/dev/null)" "main"
 
+  printf 'self_role: sub   # terraforming 발급\nnodes:\n  - role: main\n    host: 10.0.0.1\n  - role: sub\n    host: 10.0.0.2\n' \
+    > "$_t/output/multi/manifest.yaml"
+  _ck "manifest self_role 이 로스터의 main 을 이긴다(서브측 권위)" "$(ni_resolve_node_id "$_t" "" 2>/dev/null)" "sub"
+  _ck "명시가 self_role 도 이긴다" "$(ni_resolve_node_id "$_t" "main" 2>/dev/null)" "main"
+
   printf '{"node_identity": {"role": "sub"}}' > "$_t/Agent_Card.json"
-  _ck "Agent_Card 가 manifest 를 이긴다" "$(ni_resolve_node_id "$_t" "" 2>/dev/null)" "sub"
-  _ck "명시가 카드도 이긴다" "$(ni_resolve_node_id "$_t" "main" 2>/dev/null)" "main"
-
-  printf '{"node_identity": {"role": "SUB!"}}' > "$_t/Agent_Card.json"
-  _ck "카드 슬러그 위반 거부" "$(ni_resolve_node_id "$_t" "" 2>/dev/null; echo "rc=$?")" "rc=1"
-
+  printf 'nodes:\n  - role: main\n  - role: sub\n' > "$_t/output/multi/manifest.yaml"
+  _ck "Agent_Card 는 더 이상 정체성 권위가 아니다(v2 · 무시)" "$(ni_resolve_node_id "$_t" "" 2>/dev/null)" "main"
   rm -f "$_t/Agent_Card.json"
+
+  printf 'self_role: "SUB!"\nnodes:\n  - role: main\n' > "$_t/output/multi/manifest.yaml"
+  _ck "self_role 슬러그 위반 거부" "$(ni_resolve_node_id "$_t" "" 2>/dev/null; echo "rc=$?")" "rc=1"
+
+  mkdir -p "$_t/output/single"
+  printf 'self_role: sub\nnodes:\n  - role: main\n' > "$_t/output/multi/manifest.yaml"
+  printf 'self_role: main\nnodes:\n  - role: main\n' > "$_t/output/single/manifest.yaml"
+  _ck "manifest 간 self_role 불일치 → fail-loud" "$(ni_resolve_node_id "$_t" "" 2>/dev/null; echo "rc=$?")" "rc=1"
+  rm -rf "$_t/output/single"
+
   printf 'nodes:\n  - role: main\n  - role: main\n' > "$_t/output/multi/manifest.yaml"
   _ck "main 중복 → fail-loud" "$(ni_resolve_node_id "$_t" "" 2>/dev/null; echo "rc=$?")" "rc=1"
 

@@ -29,6 +29,22 @@
 # SUB_HOST·SUB_WORK_DIR 미지정 시 output/multi/manifest.yaml nodes[](role:sub)에서 해소(서브는 multi manifest 에만 정의).
 set -euo pipefail
 
+# 2026-09-05(N3 · ②-b 라이브): 미리보기를 `head -40` 으로 **말없이** 잘랐다. 무엇이 배달되는지
+# 확인하라고 만든 화면인데 꼬리가 사라지면 확인이 성립하지 않는다(가산 전용이라 파괴 위험은
+# 없었지만, "보여준다"고 적힌 것이 실제로는 일부만 보여준 것은 표시 결함이다).
+# 처방: 자르되 **잘랐다고 말한다**. 전량은 `SYNC_PREVIEW_LINES=0` 로 본다.
+preview_lines(){   # stdin → 앞부분 + (잘렸으면) 남은 줄 수 고지
+    local limit="${SYNC_PREVIEW_LINES:-40}" buf n
+    buf="$(cat)"
+    n="$(printf '%s\n' "$buf" | grep -c '' || true)"
+    if [ "$limit" = "0" ] || [ "$n" -le "$limit" ]; then
+        printf '%s\n' "$buf"
+    else
+        printf '%s\n' "$buf" | head -n "$limit"
+        echo "      … 이하 $(( n - limit ))줄 생략(전량: SYNC_PREVIEW_LINES=0)"
+    fi
+}
+
 usage() {
     cat <<'EOF'
 사용법: sync_to_sub.sh --mode <experimental|promotion> --manifest <path> [--apply] [--provision] [--branch multi|single|both]
@@ -122,6 +138,10 @@ GIT_EMAIL="${SYNC_GIT_EMAIL:-sync@easy-vllm.local}"
 MAX_DELETE="${MAX_DELETE:-50}"     # (레거시) --delete 안전캡. S4 는 아래 ALLOW_DELETE 삭제brake 가 1차 게이트.
 ALLOW_DELETE="${ALLOW_DELETE:-0}"  # (S4 d-rsync-2) 삭제 前 brake: 삭제예정 > 이 값이면 *삭제 前* fail-closed. 의도된 정리만 명시 override.
 RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
+# 역할 계약 판정기 — 배달 표면 검증이 tool_plane 을 물을 때 쓴다. 2026-09-05: 이 상수가
+#   **정의된 적이 없었다**. 검증기 본문 주석은 "경로는 파일 상단 ROLE_CONTRACT 상수"라고
+#   적고 있었으니 배선만 빠진 것이다(만든 것과 도는 것은 다르다).
+ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.py"
 PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
 PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
 
@@ -322,7 +342,11 @@ SOURCE_PORT_BUNDLE_SHA=""                          # materialize 단계에서 �
 #     처방은 전파 경로 신설이 아니라 **공유 스토리지 + manifest 포인터**다(사용자 결정 — NAS 배치).
 #       자산 정본 = `manifest.tiktoken_host_path` 가 가리키는 공유 경로. 그러면 전파가 불필요해지므로
 #       이 제외 목록은 그대로 옳다. 되돌아감 방지는 `manifest_contract.py` 의 노드-로컬 경고가 맡는다.
-BAND2_EXCLUDED_TOP=(manifest.yaml sub_provision .env benchlog cache tiktoken_cache)
+BAND2_EXCLUDED_TOP=(manifest.yaml sub_provision .env benchlog cache tiktoken_cache a2a_signing sub_manifest.yaml)
+#   a2a_signing=메인 A2A **개인 서명키**(서브는 공개 JWK 만 받는다 — 오버레이의 .claude/a2a/trusted_keys.json) ·
+#   sub_manifest.yaml=서브 manifest 의 **발급 원본**(서브 사본은 오버레이가 output/<t>/manifest.yaml 로 나른다).
+#   둘 다 render 입력이면서 비추적이라 prepare_transactional_source 가 파일시스템 예외로 스냅샷에 넣는다
+#   (2026-09-05 ②-b · plan_26090516 §7.6). 여기 등재는 배달 제외 + 삭제 보호 + 밴드 분류를 동시에 준다.
 BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)          # owner-local provenance-bound runtime patches; wildcard authority 금지
 # ↑ Dockerfile.source-build-upstage = Solar-Open2 변종 트랙(UpstageAI 포크 @ v0.22.0-solar-open2).
 #   Band2 편입 근거 = **빌드-평면**: 멀티는 클러스터-와이드 이미지라 슬레이브도 동일 이미지를 빌드해야 한다
@@ -978,9 +1002,14 @@ prepare_transactional_source() {
         return 9
     fi
     # Git index bytes/modes are the accepted control/build-plane authority. Mutable or untracked
-    # output files never enter the snapshot. The sole filesystem exception is manifest.yaml: it is
-    # topology input (possibly PII), is explicitly copied mode 0600, deterministically renders the
-    # transaction, and is excluded from remote delivery by _band2_filters.
+    # output files never enter the snapshot. The filesystem exceptions are the untracked *render
+    # inputs*: manifest.yaml, the A2A signing key, and the issued sub manifest. Each is topology
+    # input (possibly PII), is explicitly copied mode 0600, deterministically renders the
+    # transaction, and is excluded from remote delivery by _band2_filters (BAND2_EXCLUDED_TOP).
+    # ⚠ 2026-09-05(②-b): 이 목록이 manifest.yaml 하나였을 때, 카드 서명·서브 manifest 를 render 입력으로
+    #   새로 만든 변경이 여기까지 오지 않아 **트랜잭션 안의 render 가 "서명키 없음" 으로 죽었다**.
+    #   메인 워킹트리에서 돌린 render 는 성공했으므로 단위검사로는 보이지 않았고, 라이브 dry-run 이
+    #   잡았다("만든 것과 도는 것은 다르다"). render 가 새 비추적 입력을 요구하면 여기도 같이 고친다.
     # ⚠ 드리프트는 **파일 이름과 함께** 말한다(2026-09-04 실측). 이전 문구는 `[sync] info:` 한 줄로
     #   "드리프트가 있다" 만 알렸고 **어느 파일인지 말하지 않았다**. 그래서 실제로 이런 일이 벌어졌다:
     #   `output/multi/requirements.txt` 를 고치고 배달했는데 스테이징을 안 해 **인덱스의 구버전이
@@ -1000,15 +1029,18 @@ prepare_transactional_source() {
     fi
     git -C "$CANONICAL_SRC" ls-files -z -- .claude CLAUDE.md .gitignore output/multi output/single \
         | git -C "$CANONICAL_SRC" checkout-index -z --stdin --prefix="$TRANSACTIONAL_SRC/"
-    local topology
+    local topology render_input
     for topology in multi single; do
-        [ -f "${CANONICAL_SRC}output/$topology/manifest.yaml" ] || continue
-        mkdir -p "$TRANSACTIONAL_SRC/output/$topology"
-        install -m 0600 "${CANONICAL_SRC}output/$topology/manifest.yaml" \
-            "$TRANSACTIONAL_SRC/output/$topology/manifest.yaml"
+        for render_input in manifest.yaml a2a_signing/main_ed25519.pem sub_manifest.yaml; do
+            [ -f "${CANONICAL_SRC}output/$topology/$render_input" ] || continue
+            mkdir -p "$(dirname "$TRANSACTIONAL_SRC/output/$topology/$render_input")"
+            install -m 0600 "${CANONICAL_SRC}output/$topology/$render_input" \
+                "$TRANSACTIONAL_SRC/output/$topology/$render_input"
+        done
     done
     SRC="$TRANSACTIONAL_SRC/"
     RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
+    ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.py"
     PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
     PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
     REGEN_TOOL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
@@ -1186,7 +1218,7 @@ preview_build() {  # $1=topology
     echo "    ⚠ 삭제 예정(--delete): ${ndel}건  (0이어야 정상 — apply 는 ALLOW_DELETE=${ALLOW_DELETE:-0} 초과 시 *삭제 前* fail-closed. 의도된 정리면 ALLOW_DELETE=${ndel})"
     [ "${ndel:-0}" -gt 0 ] && { printf '%s\n' "$out" | grep '^\*deleting' | sed 's/^/      DEL /' || true; }
     echo "    전송/생성 미리보기(최대 40줄):"
-    printf '%s\n' "$out" | grep -v '^\*deleting' | sed 's/^/      /' | head -40 || true
+    printf '%s\n' "$out" | grep -v '^\*deleting' | sed 's/^/      /' | preview_lines || true
 }
 # 에이전트환경 오버레이 rsync(가산 — --delete 없음: 서브 자작 .claude 산출물·세션상태 보호가 목적).
 # 트레이드오프(review nit): 메인이 런타임블럭에서 파일을 '제거'하면 서브에 stale 잔존 가능(동명 파일은 덮어씀 → 흔치 않음).
@@ -1211,6 +1243,42 @@ apply_overlay_tombstones() {
     for stale in "${OVERLAY_STALE_PATHS[@]}"; do
         sub_run "rm -f -- '$stale'"
     done
+}
+
+# 배달 표면 **수렴 리포트**(2026-09-05 · 사용자 요구: "자주 바뀌는 서브가 과거 찌꺼기 없이 계속
+# 안정화되느냐"). 오버레이는 가산 배달이라 **정본에서 사라진 파일은 서브에 그대로 남는다** —
+# 비석(OVERLAY_STALE_PATHS)은 *알려진* 은퇴만 지우므로, 알려지지 않은 잔재는 아무도 보지 못했다.
+# 여기서 하는 일은 삭제가 아니라 **보이게 하는 것**이다: 정본이 배달하는 디렉터리 안에서 서브에만
+# 있는 파일을 세어 목록으로 낸다. 지우는 것은 여전히 명시 비석의 몫이다(자동 삭제 ✗ — 서브의
+# 정당한 로컬 산출물과 잔재를 기계가 가를 수 없다).
+report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 게이트 아님)
+    local st; st="$(staging_dir "$1")"
+    [ -d "$st" ] || return 0
+    local canon dirs sub_list extra n
+    canon="$(cd "$st" && find . -type f -not -path '*/__pycache__/*' -not -name '*.pyc' \
+             -printf '%P\n' | LC_ALL=C sort)"
+    [ -n "$canon" ] || return 0
+    # 비교 범위 = 정본이 **파일을 두는 그 디렉터리**뿐이며 재귀하지 않는다(-maxdepth 1).
+    #   2026-09-05 첫 실행 교정: 최상위(`docs` 등)로 잡았더니 서브가 만든 블랙박스 로그
+    #   (`docs/logs/sub/**` 8건)가 "정본에 없음" 으로 잡혔다 — 그건 잔재가 아니라 **그 노드의
+    #   산출물**이다. 리포트가 소음을 내면 사람은 리포트를 안 보게 되고, 그러면 진짜 잔재도 못 본다.
+    dirs="$(printf '%s\n' "$canon" | sed 's|/[^/]*$||' | grep -v '^\.$' | LC_ALL=C sort -u | tr '\n' ' ')"
+    [ -n "$dirs" ] || return 0
+    sub_list="$(sub_run "find $dirs -maxdepth 1 -type f -not -path '*/__pycache__/*' -not -name '*.pyc' 2>/dev/null | sed 's|^\./||' | LC_ALL=C sort" || true)"
+    [ -n "$sub_list" ] || return 0
+    extra="$(LC_ALL=C comm -13 <(printf '%s\n' "$canon") <(printf '%s\n' "$sub_list") || true)"
+    n="$(printf '%s' "$extra" | grep -c '' || true)"
+    if [ "${n:-0}" -eq 0 ]; then
+        # 성공 줄에 디렉터리 목록을 다 뿌리면 화면이 목록으로 덮여 정작 다른 판정이 안 보인다.
+        # 세 개수만 말한다(무엇을 봤는지는 실패했을 때 목록으로 나온다).
+        local _nd; _nd="$(printf '%s\n' "$dirs" | tr ' ' '\n' | grep -c '.' || true)"
+        echo "  ✅ 수렴: 배달 표면 ${_nd}개 디렉터리에 정본 밖 파일 0건 — 서브가 과거 찌꺼기 없이 정본과 같다"
+        return 0
+    fi
+    echo "  ⚠ 수렴 리포트: 정본에 없는 파일 ${n}건이 서브의 배달 표면에 있다(삭제하지 않는다 — 눈에 보이게만 한다):"
+    printf '%s\n' "$extra" | sed 's/^/      /' | preview_lines
+    echo "      → 은퇴가 확정된 경로는 OVERLAY_STALE_PATHS 비석에 등재하라(명시 삭제만 허용)."
+    return 0
 }
 
 verify_destination_retirement_consumers() {
@@ -1285,9 +1353,19 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
     #   판정 정본은 계약 판정기의 tool_plane 이다(토폴로지로 추론하지 않는다 · 경로는 파일 상단
     #   ROLE_CONTRACT 상수 — 이 함수 본문은 판정기 경로 문자열을 갖지 않는다).
     local _tp _tp_n
+    # 판정기 부재/미해소는 "tool_plane 이 비었다"와 **다른 사실**이다. 먼저 갈라야 한다 —
+    #   갈라 두지 않으면 배선 결함이 정상 계약(ray-worker 0종)으로 위장한다(2026-09-05 실측).
+    if [ ! -f "${ROLE_CONTRACT:-}" ]; then
+        # 뒤따르는 검사(위임키 회수·host-safety 모드·retirement 감사)는 계속 돌려야 한다 —
+        #   한 검사의 배선 결함이 나머지 검사를 침묵시키면 결함 하나가 여러 개를 가린다.
+        echo "  ❌ 계약 판정기 경로 미해소(ROLE_CONTRACT='${ROLE_CONTRACT:-}') — 런타임블럭 대표 요구 여부를 정할 수 없다(fail-closed)" >&2
+        fail=1
+        _tp="__UNRESOLVED__"
+    else
     _tp="$(python3 "$ROLE_CONTRACT" evaluate \
              --manifest "${SRC%/}/output/$1/manifest.yaml" --topology "$1" \
              --field tool_plane --format value 2>/dev/null || echo '__UNRESOLVED__')"
+    fi
     if [ "$_tp" = "__UNRESOLVED__" ]; then
         echo "  ❌ tool_plane 미해소 — 런타임블럭 대표 요구 여부를 정할 수 없다(fail-closed)" >&2; fail=1
     else
@@ -1304,15 +1382,17 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
     #   회수 경로가 3중으로 없었기 때문에 그 상태는 영구였다: ① deliver_overlay 는 `--delete` 없는
     #   가산 rsync ② 이 검사가 잉여 키를 안 봄 ③ gitignore.template 에 무시 규칙이 없어 서브 git 이
     #   키를 추적 → 손으로 지워도 `sub.git.unstick`(git checkout --)이 되살린다.
-    #   `policy:A2A_DELEGATION_KEY_FAIL_CLOSED` 는 **발급 방향으로만** fail-closed 였고 회수 방향은
+    #   `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED`(옛 …DELEGATION_KEY…) 는 **발급 방향으로만** fail-closed 였고 회수 방향은
     #   fail-open 이었다. 오진 정정·서브 교체·HW 변경 뒤에도 서브는 계속 위임 자격을 들고 있었다.
+    # 2026-09-05(③ 3-9 · G-E1): 위임 키는 **폐기됐다** — 렌더가 더는 만들지 않는다. 그러므로
+    #   스테이징에 있으면 그것이 오히려 결함이고(옛 렌더러가 되살아났다), 서브에 있으면 잔재다.
+    #   가산 배달만으로는 잔재가 영원히 남는다 — 사용자가 지목한 "과거 찌꺼기" 의 정확한 사례다.
     if [ -f "$st/.claude/a2a_delegation.json" ]; then
-        echo "  ✅ .claude/a2a_delegation.json 발급(서브 hw_verified 검증) — 배달 표면 안"
+        echo "[sync] FAIL(S4): 스테이징에 폐기된 위임 키가 있다 — 렌더러가 되살아났다(G-E1)" >&2
+        fail=1
     else
-        echo "  ℹ️  .claude/a2a_delegation.json 미발급(서브 hw_verified 미검증) — 배달 표면 밖"
-        # 회수: 스테이징에 없는데 목적지에 있으면 그것은 **철회된 자격의 잔재**다. 지운다.
         if sub_run "[ -f '.claude/a2a_delegation.json' ]" 2>/dev/null; then
-            echo "  ⚠ 서브에 철회된 위임 키 잔재 발견 — 회수한다(발급 게이트가 닫혔는데 키가 남아 있다)."
+            echo "  ⚠ 서브에 폐기된 위임 키 잔재 발견 — 회수한다(자격증명은 이제 서명된 카드다)."
             sub_run "rm -f -- '.claude/a2a_delegation.json'" \
                 || { echo "[sync] FAIL(S4): 위임 키 회수 실패 — 자격이 남은 채로 배달하지 않는다" >&2; return 9; }
             if sub_run "[ -f '.claude/a2a_delegation.json' ]" 2>/dev/null; then
@@ -1428,7 +1508,7 @@ if [ "$MODE" = "dryrun" ]; then
                 preview_build "$t"
                 preview_source_port_payload "$t"
             fi
-            echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | head -40 || true
+            echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | preview_lines || true
         done
     elif [ -n "$BOOTSTRAP_POPULATE" ]; then
         echo "  --- B0 bootstrap 미리보기(multi 초기 Band2 배달) ---"
@@ -1451,7 +1531,7 @@ if [ "$MODE" = "dryrun" ]; then
                 preview_build "$t"
                 preview_source_port_payload "$t"
             fi
-            echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | head -40 || true
+            echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | preview_lines || true
         done
     fi
     echo "[sync] (위는 미리보기 — 변경 없음. 사람 확인 후 --apply. 첫 init 도 --apply 게이트.)"
@@ -1625,6 +1705,7 @@ for t in "${TARGETS[@]}"; do
     verify_destination_host_safety_modes || { echo "[sync] FAIL: host-safety mode 불일치($t) — tombstone 전 중단"; exit 2; }
     verify_destination_retirement_consumers || { echo "[sync] FAIL: retirement consumer 존재($t) — tombstone 전 중단"; exit 2; }
     apply_overlay_tombstones
+    report_overlay_convergence "$t"   # 비석 적용 **뒤**에 센다 — 지운 것을 잔재로 세지 않는다
     # (5) [sync] 스크립트저작 커밋 (변경분만)
     sub_run "git add -A"
     if sub_run "git diff --cached --quiet"; then

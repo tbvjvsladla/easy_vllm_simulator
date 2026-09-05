@@ -39,9 +39,9 @@ description: >-
 - **State transitions** — 산출물 자체는 상태가 아니라 `execution-approved` 의 **전제**(HW 사실·Flag)를 만든다. runtime-ready/evidence-complete/promotion-ready 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
 - **HITL/safety boundaries** — 무단 스캔 ✗ · 무증거 manifest 기입 ✗ · 서브 work_dir 자동 신설 ✗ · 에이전트 무인 sudo ✗(§5 금지).
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
-- **Deterministic commands** — `scripts/staleness_gate.py`(조건부 preflight 트리거) · `scripts/scan_node.py`(스캔·게이트·3자일치·emit) · `scripts/render_sub_env.py`(서브 환경 렌더) · `scripts/manifest_contract.py`(Flag 리더).
+- **Deterministic commands** — `scripts/staleness_gate.py`(조건부 preflight 트리거) · `scripts/scan_node.py`(스캔·게이트·3자일치·emit · **`--emit-sub-manifest`**) · `scripts/render_sub_env.py`(서브 환경 렌더 · 카드 서명 · 서브 manifest 배달) · `scripts/manifest_contract.py`(Flag 리더) · **`scripts/agent_card_contract.py`**(Agent_Card v2 계약·JWS 서명/검증).
 - **Handoff contract** — Flag 발급 → `upstream-version-watch`(컨테이너 빌드) → `vllm-recipe-explorer`(서빙전략). 서브 전달차는 `upstream-version-watch/scripts/sync_to_sub.sh` 단일 경로.
-- **Owns (state)** — `manifest.yaml` · `terraforming-flag` · `a2a-delegation-key` · `sub-agent-env` · **`node-identity`**(§2.7.6 role+rank 스킴) · **`topology-axis-contract`**(§2.7.0 sub_mode·배달 평면 판정) · **`sub-control-plane`**(§2.7 평면 A/B·3범주·B0–B3·권위 평면·A2A 제어명령) · **`grounding-exchange`**(§2.7.8 claim/reference/citation)
+- **Owns (state)** — `manifest.yaml`(메인 + **서브 manifest** §2.7.10) · `terraforming-flag` · `a2a-delegation-key` · **`agent-card`(v2 · 서명키)** · `sub-agent-env` · **`node-identity`**(§2.7.6 role+rank 스킴) · **`topology-axis-contract`**(§2.7.0 sub_mode·배달 평면 판정) · **`sub-control-plane`**(§2.7 평면 A/B·3범주·B0–B3·권위 평면·A2A 제어명령) · **`grounding-exchange`**(§2.7.8 claim/reference/citation)
 
 ## Mandatory procedural spine
 
@@ -223,7 +223,7 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 - 메인=client(Task 발급·리포트 검증·피드백) · 서브=remote(자율 수행·자기검증 리포트 1개). A2A 어휘 차용, HTTP 서버 ✗(전송=SSH 단발 `delegate(task)` — provider 문법은 `references/agent-control-adapter.md`).
 - **검증 = push-attestation**: 서브가 self-verification(config-parse·schema·runner 문법·checksum·**로컬 스모크**)을 리포트에 담아 회신 → **메인은 리포트만 검증, 서브 워크스페이스 재스캔 ✗**.
 - **성공술어**: phase 별(comms.md). 예: config = triplet 생성 + 로컬 스모크 응답("린트 통과 ≠ 서빙됨").
-- **상태=파일**: `tasks/<context_id>.json`("파일=세션"). 턴 예산은 **grade 표**(`scripts/turn_budget.py`)가 정한다 — 옛 `max-turns=3`(reconciliation_cap 미러)은 2026-09-03 폐기됐다(캠페인 규모 태스크에서 정상 진행을 실패로 만들었다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.py --continue` 가 **본문을 조립**한다 (사람은 답·승인만 — §2.7.7a).
+- **상태=파일**: `tasks/<context_id>.json`("파일=세션"). 턴 예산은 **메인이 매 attempt 선언한다**(`--max-turns`·`--timeout-seconds`·`--budget-source`) — 옛 `max-turns=3`(2026-09-03 폐기)에 이어 그 대체물이던 **grade 표도 2026-09-05 폐기**됐다(표가 실측 없이 정본 행세를 했고 교정 소비자가 0 이었다 · `audit_26090515` G-A2). `scripts/turn_budget.py` 는 이제 선언을 **검증**만 한다(상한은 요청 스키마에서 읽는다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.py --continue` 가 **본문을 조립**한다 (사람은 답·승인만 — §2.7.7a).
 - per-task 휘발값(모델명·예산·NAS 서브디렉토리)은 **Task Message** 로(manifest 복제 아님).
 
 ### 2.5 완료 게이트 — model-less 카나리 라운드트립 (R1 정합)
@@ -231,10 +231,13 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 manifest 의 `nodes[sub]` 에서 host·ssh_user·work_dir 를 읽고 `node_role_contract` 가 정한 `sub_mode` 로
 **정체성에 맞는 카나리 문구**를 골라 request 를 조립한다(ray-worker 에게 "런타임 스킬 3종" 을 묻지 않는다).
 ```bash
-python3 scripts/bootstrap_canary.py --topology <single|multi> --emit /tmp/canary.json   # 조립(결정론)
-python3 scripts/bootstrap_canary.py --topology <single|multi> --invoke                  # HITL 승인 뒤 실행
+python3 scripts/bootstrap_canary.py --topology <single|multi> \
+    --max-turns 10 --timeout-seconds 600 --budget-source "선언: 카나리 1왕복(인스펙트 전용)" \
+    --emit /tmp/canary.json            # 조립(결정론)
+python3 scripts/bootstrap_canary.py --topology <single|multi> \
+    --max-turns 10 --timeout-seconds 600 --budget-source "..." --invoke   # HITL 승인 뒤 실행
 ```
-turn 예산은 매직상수가 아니라 **grade 표 S(8~12)** 에서 온다(`GRADE_SOURCE` 로 출처 표기 · plan_26090317 §5).
+turn 예산은 **선언**이다 — 등급표가 사라졌으므로 부르는 쪽이 값과 근거를 함께 준다(미선언 = fail-loud).
 서브 미등록·`__REQUIRED__` 센티넬 잔존 시 **조립 자체를 거부**한다(틀린 계정/경로로 접속하지 않는다).
 이전 판본은 이 자리에 `bootstrap_canary()` 라고만 적혀 있었고 **생산자가 0개**였다(실행자 없는 금지 — §2.7.1 위반).
 (실행문법 = `references/agent-control-adapter.md` §2)
@@ -355,7 +358,7 @@ turn 예산은 매직상수가 아니라 **grade 표 S(8~12)** 에서 온다(`GR
 
 | | **multi 의 sub** = Ray 워커 | **single 의 sub** = A2A 원격 에이전트 |
 |---|---|---|
-| 정체성 권위 | **manifest `nodes[]` 인덱스(rank) + role** | **`Agent_Card.json`**(정체성+능력+엔드포인트) |
+| 정체성 권위 | **manifest `nodes[]` 인덱스(rank) + role** | **`Agent_Card.json`**(A2A 1.0.1 계약: 능력·엔드포인트·**서명**) + **서브 manifest**(`self_role: sub` · HW·경로·획득 모드 — terraforming 실측·발급 · §2.7.10) |
 | 외부 정본 | NCCL rank + uniqueId · Ray head/worker | A2A Client·AgentCard·Task |
 | sub↔sub 통신 | 대칭 collective(집단 연산) | **없음** — 각자 메인하고만 대화 |
 | 제어 평면 | head 종속(SSH 제어) | client→server 호출(A2A Task 위임) |
@@ -459,11 +462,11 @@ python3 .claude/skills/terraforming_node/scripts/node_role_contract.py \
 | B0 bootstrap | 최초 배달→서브 local git | dry-run→HITL apply | `policy:SUB_GIT_LOCAL_ONLY` |
 | B1 하향 | canonical render/output→서브 | dirty→보존 후 진행·checksum | `policy:SUB_SYNC_DIRTY_AUTOSAVE`; `upstream-version-watch/scripts/sync_to_sub.sh` |
 | B2 상향 | 서브 docs path→`sync_staging/sub_docs`→HITL 재저작 | **상향 회수(서브→메인) = 문서기반 only** | `fetch_sub_docs.sh`; patch/code 직접 회수 금지 |
-| B3 경계 | attestation+미러 docs→메인 관측 | A2A key(`policy:A2A_DELEGATION_KEY_FAIL_CLOSED`) | 메인은 서브 디스크 재스캔 금지(§2.7.2 스캔) |
+| B3 경계 | attestation+미러 docs→메인 관측 | A2A 정체성(`policy:A2A_IDENTITY_PROOF_FAIL_CLOSED`) | 메인은 서브 디스크 재스캔 금지(§2.7.2 스캔) |
 
 - 서브 개선은 `[improve]` history 에 남고 메인 저작권은 template→render→delivery 로만 행사한다(§2.7.2 저작).
 - egress-restricted 서브의 외부조사 실패도 **docs 로만** 상향한다.
-- **공통 진입 게이트**: B0–B3 진입 전 tracked terraform validator + `policy:A2A_DELEGATION_KEY_FAIL_CLOSED` 검증(`workflow.md` §공통 진입 게이트).
+- **공통 진입 게이트**: B0–B3 진입 전 tracked terraform validator + `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED` 검증(`workflow.md` §공통 진입 게이트).
 
 ### 2.7.4 권위 평면 계약 — 어느 도구가 무엇을 읽는가
 
@@ -512,10 +515,10 @@ node_id ::= manifest nodes[].role 슬러그
 | 항목 | 규약 |
 |---|---|
 | **메인측 권위** | `output/<topology>/manifest.yaml` 의 `nodes[].role` |
-| **서브측 권위** | 배달된 `Agent_Card.json` → `node_identity.role` — **신규 배달 채널 불요**(이미 렌더·전달 중) |
+| **서브측 권위** | 배달된 **서브 manifest** `output/<topology>/manifest.yaml` 의 최상위 `self_role: sub`(terraforming 실측·발급 · §2.7.10). 2026-09-05 이전에는 `Agent_Card.json:node_identity.role` 이었으나 Agent_Card v2 는 A2A 평면 계약이라 정체성 필드를 갖지 않는다 |
 | **기본값** | **없음.** 해소 실패 시 `$(hostname)` 로 떨어지지 않고 **fail-loud 종료** |
-| **해소 우선순위** | ① 명시 `--node-id=<slug>` ② `Agent_Card.json`(서브측) ③ `output/*/manifest.yaml` 의 유일한 `role: main` ④ fail-loud |
-| **hostname 의 남은 자리** | gitignored 렌더 산출물의 **비권위 속성 필드**(`Agent_Card.json:node_identity.hostname`)뿐. **경로 성분·문서 산문에는 등장 금지** |
+| **해소 우선순위** | ① 명시 `--node-id=<slug>` ② `output/*/manifest.yaml` 의 `self_role`(서브측 · 여러 manifest 가 갈리면 fail-loud) ③ `output/*/manifest.yaml` 의 유일한 `role: main` ④ fail-loud |
+| **hostname 의 남은 자리** | gitignored 렌더 산출물의 **비권위 속성**(`Agent_Card.json:supportedInterfaces[].url` 의 호스트 성분 · 서브 manifest `nodes[].hostname`)뿐. **경로 성분·문서 산문에는 등장 금지** |
 | **의미 스코프** | **클러스터 스코프**(누구의 디스크에서 보든 같은 이름). 메인의 `docs/logs/sub/` = 서브 미러, 서브의 `docs/logs/sub/` = 정본. 경로 동일, 권위만 다름 |
 
 - **기본값 제거가 스킴의 핵심이었고, 지금은 제거되어 있다.** 옛 `NODE_ID="$(hostname)"` 은 헌법이 금지한 *"결정·게이트·안전 경로의 침묵 폴백"*(§결정론 규율 4종 안티패턴 판정표의 **결함** 칸)이었다 — 틀려도 조용히 새 로그 트리를 만들고, 워치독은 아무도 안 보는 곳에 기록하며, 관측 공백은 사고가 나야 발견된다. 현행 배선은 `ni_resolve_node_id` 하나가 해소하고 **실패하면 죽는다**(`node_identity.sh:ni_resolve_node_id` 마지막 분기 = 옛 hostname 자리).
@@ -543,20 +546,24 @@ rank ::= manifest nodes[] 배열 인덱스 (0..n-1)
 - multi 에서 `role: main` 이 인덱스 0 이 아니면 **위반이 아니라 note** 다(Ray/NCCL 은 head 가 배열
   첫 항목일 것을 요구하지 않는다). 다만 관례와 어긋나므로 침묵하지 않는다.
 
-#### (c) 렌더 산출물에 실릴 형태 — ✅ **배선 완료**(2026-08-22 · W-2)
+#### (c) 렌더 산출물에 실릴 형태 — ✅ **배선 완료**(2026-08-22 · W-2 → 2026-09-05 Agent_Card v2 로 이관)
 
-`Agent_Card.json:node_identity` 는 **값과 출처를 함께** 싣는다 — `rank`/`sub_mode` 는 파생값이라
-출처 없이는 하류가 측정·선언·파생을 구분하지 못한다(헌법 §결정론 규율 "출처 표시"):
+Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 축 해소값은 표준이 정한 확장 자리
+`capabilities.extensions[]` 의 **`urn:easy-vllm:ext:node-role:v1`** 하나에 **값과 출처를 함께** 싣는다 —
+`rank`/`sub_mode` 는 파생값이라 출처 없이는 하류가 측정·선언·파생을 구분하지 못한다(헌법 §결정론 규율 "출처 표시").
+검증기·서명기 = `scripts/agent_card_contract.py`(§2.7.10):
 
 ```jsonc
-"node_identity": {
-  "role": "sub",
-  "rank": null,                                    // multi 면 nodes[] 인덱스
-  "rank_source": "not-applicable:single-a2a-agent",
-  "sub_mode": "a2a-agent",
-  "sub_mode_source": "derived-from-topology",      // 선언되어 일치하면 declared-and-agrees
-  "hostname": "…"                                  // 비권위 속성 필드 — 경로 성분 ✗
-}
+"capabilities": { "extensions": [ {
+  "uri": "urn:easy-vllm:ext:node-role:v1", "required": true,
+  "params": {
+    "topology": "single",
+    "sub_mode": "a2a-agent", "sub_mode_source": "derived-from-topology",   // 선언되어 일치하면 declared-and-agrees
+    "rank": null, "rank_source": "not-applicable:single-a2a-agent",          // multi 면 nodes[] 인덱스
+    "identity_authority": "agent-card", "delivery_plane": "dormant",
+    "tool_plane": ["vllm-recipe-explorer", "adversarial-benchmark", "upstream-version-watch"],
+    "tool_plane_source": "sub-mode:a2a-agent"
+  } } ] }
 ```
 
 - 값의 산출 권위는 `node_role_contract.py` 이며 렌더러는 그것을 **적기만** 한다(두 번째 파생 구현 ✗).
@@ -579,7 +586,7 @@ rank ::= manifest nodes[] 배열 인덱스 (0..n-1)
 
 > 신설: `plan_26081514_…_구현.md` Step 1. §2.7.1 의 *"서브 git 은 관측 장치이고 메인은 완전한 조작 권한을 갖는다"* 를 **실행 가능한 명령 시퀀스**로 만든 것. 이것이 없으면 원칙은 있는데 처방 주체가 없어 §2.7.2 실증과 같은 교착이 반복된다.
 
-**전제**: `policy:A2A_DELEGATION_KEY_FAIL_CLOSED` 통과(키 부재 → 진입 금지) · 대상은 **서브 git 과 정보량 0 상태 결손만**(콘텐츠 저작은 §2.7.2 저작 경로로).
+**전제**: `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED` 통과(정체성 증명 부재·위조 → 진입 금지) · 대상은 **서브 git 과 정보량 0 상태 결손만**(콘텐츠 저작은 §2.7.2 저작 경로로).
 
 | 명령 | 언제 | 무엇 | 평면 |
 |---|---|---|---|
@@ -602,17 +609,26 @@ rank ::= manifest nodes[] 배열 인덱스 (0..n-1)
 
 | 명령 | 언제 | 무엇 | 평면 |
 |---|---|---|---|
-| `relay.py --task ...` | 첫 위임 | grade 예산으로 delegate · 원장 개설(`tasks/<ctx>.json`) | B |
-| `relay.py --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기(기본 dry-run) | B |
-| `relay.py --continue --apply` | 사람이 본문을 승인 | 조립 본문 + 증액 예산 + 세션 재개로 delegate | B |
+| `relay.py --task ... --max-turns N --timeout-seconds N --budget-source "..." --resume new` | 첫 위임 | **선언한 예산·재개**로 delegate · 원장 개설(`tasks/<ctx>.json`) | B |
+| `relay.py --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기 + 예산·세션 **사실** 표시(기본 dry-run) | B |
+| `relay.py --continue --apply --max-turns N --timeout-seconds N --budget-source "..." --resume <id\|new>` | 사람이 본문을 승인 | 조립 본문 + 새로 선언한 예산 + **선언한 세션**으로 delegate | B |
+
+- **재개는 선언이다**(2026-09-05 · 축 F): 종전에는 `latest_session_id()` 가 원장을 보고 코드 규칙으로
+  정했고 그 규칙이 라이브에서 두 번 어긋났다(완결 뒤 옛 세션 반환 · 소진 세션 무조건 폐기). 이제
+  dry-run 이 **마지막 알려진 세션과 그 맥락**을 보여주고, `--resume <session_id|new>` 로 선언하지 않으면
+  fail-loud 한다. 리포트 없이 끝난 턴은 `tasks/pending_hitl.json` 에 그 세션 id 를 남긴다(침묵 종결 ✗).
+- **원장은 append-only 다**: attempt 마다 `request_path`(보낸 요청 원문)·`report_path`·`end_reason`·
+  `started_utc`/`ended_utc`(메인 실측)·`duration_ms`/`duration_api_ms`(provider 보고)를 적는다.
+  **정지 시간 = wall − api** 이며 두 값의 출처가 다르므로 섞지 않는다.
 
 - **조립기는 합성하지 않는다** — 직전 attempt 의 제어 상태(원장) · 서브가 보낸 `artifacts[]`·
   `next_steps`·`notes` · 사람이 `tasks/pending_hitl.json` 에 적은 `answer` · 원 지시. 그 넷뿐이다.
   메인이 추측한 진행상황을 본문에 적으면 그것이 SILENT_FALLBACK 이다.
-- **정지 조건 셋**(루프를 만들면서 정지 조건을 미루지 않는다): ⓐ 직전이 `completed` 면 이을 중단점이
-  없다 ⓑ **전진 없는 attempt 가 `MAX_ATTEMPTS_BEFORE_HITL` 회 연속**이면 멈춘다(전진 = completed 또는
-  phase 변경 — 예산만 키우며 같은 벽에 부딪히는 것은 전진이 아니다) ⓒ **차단성 요청에 답이 없으면**
-  진행하지 않는다. ⓒ가 사람의 승인 정문이다 — **답이 곧 승인**이다.
+- **정지 조건 둘**(루프를 만들면서 정지 조건을 미루지 않는다): ⓐ 직전이 `completed` 면 이을 중단점이
+  없다 ⓑ **차단성 요청에 답이 없으면** 진행하지 않는다. ⓑ가 사람의 승인 정문이다 — **답이 곧 승인**이다.
+  종전의 ⓒ("전진 없는 attempt 3회 = `MAX_ATTEMPTS_BEFORE_HITL`")는 2026-09-05 삭제됐다 — 그 3 은 어떤
+  실측에서도 오지 않았고 정지 결정은 이미 `--apply` 가 쥐고 있었다. 전진 없는 연속 수는 이제 dry-run 이
+  **보여주고**(집행된 예산 바닥·직전 소진 여부와 함께), 멈출지는 그 화면을 본 쪽이 정한다.
 - **우선순위는 서브의 선언에서 나온다**: `library_request[].blocking` 을 메인이 **읽는다**(2026-09-04
   이전에는 읽는 코드가 0 이었다). 대기 목록은 `blocking` 우선, 그 안에서 attempt 순이다.
   요청 표면화는 **`hitl.needed` 를 요구하지 않는다** — 규약대로 `library_request[]` 만 실은 턴이
@@ -722,6 +738,36 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
   **자기 전송을 만들지 않는다**(헌법=왜 / 스킬=어떻게 경계 유지).
 - 양 토폴로지 공통이다(§2.7.0 분기표) — 도서관 비대칭은 sub 가 Ray 워커든 A2A 에이전트든 같다.
 
+### 2.7.9 노드 오케스트레이터 — Phase 감독 (신설 2026-09-05 · `plan_26090516` §7.4 · H1)
+
+축 C/D 결정(2026-09-05): 런타임 3종 스킬이 도는 Phase 에는 **`output/**` 산출물이 메인↔서브 데이터 통신으로
+오가지 않는다.** 완수 뒤 발행 Phase 에만, 발행에 필요한 정보가 **문서 평면으로** 서브→메인에 온다.
+헌법의 "상향 회수 = 문서기반" 불변식은 개정하지 않는다 — 오케스트레이터는 그 불변식을 Phase 로 집행한다.
+
+| Phase | 서브 | 메인(오케스트레이터) | 노드 간 이동 |
+|---|---|---|---|
+| **install** | (사람 request) 클론 → 카나리 | terraforming: `--peer-ssh` 실측 → 서브 manifest 발행(`scan_node.py --emit-sub-manifest`) → Agent_Card v2 렌더·서명 → **설치 오버레이** 배달(`sync_to_sub --provision`) → model-less 카나리 | 설치 산출물(오버레이)만 |
+| **config · build · serve · bench** | 자율(도서관 인용은 `library_request[]` 로 요청) | 릴레이 감독(원장 append-only · 재개 결정은 에이전트 · §2.7.7) | **없음** — `output/**` 이동 ✗ · 이미지 전송 ✗ |
+| **publish** | `docs/` 에 문서 발행: sweep map · benchmark 인증서/리포트 · devlog/testlog · **hint 입력 사이드카** `docs/benchmark/hint_inputs_<measured_utc>/`(렌더된 Dockerfile·compose·3+1+1·바깥영역 산출물의 사본) → task-report 에 경로 | `fetch_sub_docs.sh` 로 `docs/` 회수(simlog raw 제외) → devlog·benchmark 저작(서브 결과 신뢰 — raw 재요구 ✗) → hint 발행 입력 | 문서 평면만 |
+
+- **책임 = terraforming_node** (사용자 결정 · 발견≠소유). 인증서가 무엇을 담는가는 `adversarial-benchmark`,
+  hint 가 무엇을 싣는가는 `hint-publisher` 가 소유한다 — 오케스트레이터는 경계·Phase 전이·형식 검사만 집행한다.
+- Phase 전이의 근거는 서브 task-report 의 `phase`·`status`(schema-valid)다. 메인은 서브 디스크가 아니라 **리포트와 문서**를 검증한다.
+
+### 2.7.10 Agent_Card v2 (A2A 1.0.1) · 서브 manifest · 서명 (신설 2026-09-05 · `plan_26090516` §7.2–7.3 · H1)
+
+| 항목 | 정본 | 내용 |
+|---|---|---|
+| **표준** | `a2aproject/A2A` v1.0.1 `specification/a2a.proto`(JSON camelCase) | 필수: `name`·`description`·`supportedInterfaces[]`·`version`·`capabilities`·`defaultInputModes[]`·`defaultOutputModes[]`·`skills[]`. 선택: `provider`·`documentationUrl`·`securitySchemes`·`securityRequirements`·`signatures[]`·`iconUrl`. **표준 밖 최상위 키 금지** |
+| **전송** | `supportedInterfaces[0]` | `url: ssh://<user>@<host>` · `protocolBinding: urn:easy-vllm:a2a-binding:ssh-claude-p:v1`(커스텀 바인딩은 **URI** — 표준 §5.8·§12.7) · `protocolVersion: "1.0"`. 전송 인증 = SSH 공개키(표준 SecurityScheme 5종 밖 → `securitySchemes` 비움 · 차이는 comms.md 가 문서화) |
+| **노드 역할** | `capabilities.extensions[urn:easy-vllm:ext:node-role:v1]` | §2.7.6(c). 값은 `node_role_contract.py` 해소 · 렌더러는 적기만 |
+| **skills 6** | `inspect`·`config`·`build`·`serve`·`bench`·`publish` | `publish` = §2.7.9 발행 Phase. 6종 미만이면 계약 위반 |
+| **HW 사실** | **카드에 없다** → 서브 manifest | 카드 = "무엇을 할 수 있나"(A2A 평면) · manifest = "무엇 위에서 도나"(HW·경로·획득 모드) |
+| **서브 manifest** | `scan_node.py --topology single --peer-ssh <sub> --model-source <m> --emit-sub-manifest output/single/sub_manifest.yaml` | 메인이 `--peer-ssh` 로 실측(HW 5종·모델 환경·egress)해 조립 · 스키마 = 메인 manifest + `self_role: sub` + `terraforming.issued_by: main`. 서브는 HW 스캔 권위 데이터를 스스로 만들지 않는다. `render_sub_env.py --sub-manifest` 가 스테이징 `output/<topology>/manifest.yaml` 로 넣고 **설치 오버레이**가 배달한다(빌드킷 배달 평면 D10 과 무관) |
+| **서명** | `agent_card_contract.py keygen/sign/verify` | A2A §8.4: `signatures[]` = JWS(`EdDSA`/Ed25519 · `typ: JOSE` · `kid` = JWK 지문) over JCS(RFC 8785) 정규화(카드 − `signatures` − 기본값 필드). 키 = 설치 때 에이전트가 1회 생성(`output/<topology>/a2a_signing/` · 패스프레이즈 없음 · 0600 · 비추적). 공개키(JWK)는 `.claude/a2a/trusted_keys.json` 으로 서브에 배달. **사람 개입 0** — 매 작업·세션·캠페인마다 묻게 되면 서명을 걷어낸다(H1 조건 · plan §5) |
+| **검증기** | `agent_card_contract.py validate/verify` · `render_sub_env --self-test` | proto 필수 집합·바인딩 URI·확장 params 계약·float 금지·서명 왕복·위조 감지. 렌더는 서명 직후 자기 검증(RED 를 배달 전에) |
+| **정체성 증명** | ③단계(E1) | 위임키(실행 허가)는 **서명 카드 검증**으로 격하된다 — 게이트는 서브 manifest 의 Flag(`issued_by: main`)로 통과하고, 카드 서명이 "메인 발급"을 증명한다 |
+
 ## 3. 결정론 vs 판단 분리
 | 결정론 (스크립트) | 판단 (이 페르소나) |
 |---|---|
@@ -742,7 +788,7 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 - `scripts/render_sub_env.py` — 결정론 렌더러(manifest→`output/multi/sub_provision/` 스테이징·`--self-test`).
 - `scripts/node_role_contract.py` — **토폴로지 축 노드 계약의 단일 소유자**(§2.7.0·§2.7.6b). `evaluate --topology <t> --field {sub_mode,rank,identity_authority,delivery_plane} --format {json,value}` · `--self-test`. 배달 평면 판정의 **정본**이며 `role: sub` 존재로 추론하지 않는다. ✅ 소비자 배선 완료(2026-08-22): `sync_to_sub.sh:_single_extension_active`(배달 평면) · `render_sub_env.py::_contract_placeholders`(Agent_Card 4필드). ⚠ venv `-S` shim 을 포함한 `load_yaml` 을 자체 보유한다 — `staleness_gate._load_yaml` 과 **같은 shim 이 두 곳에 있다**. 지금은 의도된 비결합(preflight 게이트가 이 파일 부재로 죽지 않게)이며, 갈라지면 신호는 두 파서의 판정 불일치로 온다.
 - `scripts/relay.py` — **메인↔서브 턴제 릴레이 실행자**(§2.7.7a). `--task|--task-file` 첫 위임 · `--continue [--apply]` 자율 재개 · `--emit-only` · `--self-test`. 원장 `tasks/<ctx>.json`, 대기 요청 `tasks/pending_hitl.json`(사람이 `answer` 를 적는 자리).
-- `scripts/turn_budget.py` — **턴 예산 grade 표의 단일 소유자**(`--grade`·`--escalate-from`·`--self-test`). 전송 상한은 요청 스키마에서 **읽는다**(상수 복제 ✗).
+- `scripts/turn_budget.py` — **턴 예산 선언 검증기**(`--max-turns`·`--timeout-seconds`·`--source`·`--caps`·`--self-test`). 값을 만들지 않는다 — 미선언·상한초과·출처없음은 fail-loud. 전송 상한은 요청 스키마에서 **읽는다**(상수 복제 ✗). 등급표는 2026-09-05 폐기(G-A2).
 - `scripts/library_exchange.py` — **그라운딩 교환 판정기**(§2.7.8, 메인 전용). `validate --file <msg>` · `gate --request/--export/--attestation` · `--self-test`. 서브 디스크를 읽지 않는다(메시지만 본다).
 - `sub_node/` — 추적 PII-free 템플릿·정적계약: `CLAUDE.template.md`·`Agent_Card.template.json`·`settings.local.template.json`·`comms.md`·`task-report.schema.json`·**`library-exchange.schema.json`**(§2.7.8 그라운딩 교환)·`gitignore.template`.
 - 메인↔서브 [전달]·[서빙 스모크]는 `upstream-version-watch`(`sync_to_sub.sh` — `--provision` 에 에이전트환경 오버레이 포함 · `multinode_serve_smoke.sh`).

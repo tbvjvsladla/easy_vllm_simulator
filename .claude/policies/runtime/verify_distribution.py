@@ -378,11 +378,17 @@ def verify() -> dict:
                  'SRC="$TRANSACTIONAL_SRC/"'))
              and sub_text.find("prepare_transactional_source\n")
              < sub_text.find("# ═══════════════════════ DRY-RUN")},
+            # 2026-09-05(②-b): 파일시스템 예외가 manifest.yaml **하나**였을 때는 그 리터럴이 앵커였다.
+            #   카드 서명키·서브 manifest 도 render 입력이 되면서 예외가 셋이 됐고, 앵커를 **닫힌 목록**
+            #   자체로 옮긴다 — 목록이 늘면 이 검사가 빨간불이 되어 리뷰를 강제한다(tripwire 형 하드코딩).
+            #   음성 앵커(디렉터리 통째 복사 금지)는 그대로 둔다: 예외는 파일 단위여야 한다.
             {"name": "sub_transactional_source_uses_git_index",
              "ok": ("checkout-index -z --stdin" in sub_text
                     and "filesystem bytes are excluded in favor of index authority" in sub_text
                     and "ls-files -z -- .claude CLAUDE.md .gitignore output/multi output/single" in sub_text
-                    and 'install -m 0600 "${CANONICAL_SRC}output/$topology/manifest.yaml"' in sub_text
+                    and ("for render_input in manifest.yaml a2a_signing/main_ed25519.pem "
+                         "sub_manifest.yaml") in sub_text
+                    and 'install -m 0600 "${CANONICAL_SRC}output/$topology/$render_input"' in sub_text
                     and '"${CANONICAL_SRC}output/$topology/"' not in sub_text)},
             {"name": "sub_runtime_patch_transfer_is_owner_allowlisted",
              "ok": ("BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)" in sub_text
@@ -610,6 +616,8 @@ def verify() -> dict:
              ".claude/skills/terraforming_node/scripts/staleness_gate.py", "--self-test"], {0}),
         _run("terraform_manifest_contract_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/manifest_contract.py", "--self-test"], {0}),
+        _run("antipattern_scan_selftest", [sys.executable,
+             ".claude/policies/runtime/antipattern_scan.py", "--self-test"], {0}),
         _run("terraform_turn_budget_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/turn_budget.py", "--self-test"], {0}),
         _run("terraform_library_relay_selftest", [sys.executable,
@@ -697,6 +705,59 @@ def verify() -> dict:
         #   배포되는 코드 자체를 친다. 순수 정적 픽스처 — 서빙·docker·모델 불요.
         _run("benchmark_sweep_meta_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_meta.py"], {0}),
+        # Broad Search 정지 조건 평가기의 **집행** (plan_26090415 §4.7 · CP1 · 2026-09-04).
+        #   같은 이유다 — 호출자 없는 자체검사는 L2 가 아니라 L1(산문)이다. 이 평가기는 예산을
+        #   선언 없이 판정하지 않는 fail-closed 이고(§4.8), 그 거부 경로가 살아 있는지는 음성
+        #   사례 6건이 지킨다. 순수 결정론(파일·시계·서빙 불요 — 시각은 주입만 받는다).
+        _run("benchmark_sweep_stop_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/sweep_stop.py", "--self-test"], {0}),
+        # 루브릭 권한 통로의 fail-closed (plan_26090415 §1.2 · CP2 · 2026-09-04).
+        #   `--authority` 를 넘기는 실행 코드가 0건이었던 것이 explore 인증서 0건의 원인이다.
+        #   통로를 만들었으니 그 통로가 **권한을 발명하지 않는지**를 여기서 집행한다 —
+        #   기본값이 생기는 순간 "사용자가 골랐다"와 "아무도 안 골랐다"가 다시 구분 불가가 된다.
+        #   서빙·docker·모델 불요(인자 검사에서 즉시 거부되는 경로).
+        #   음성·양성 **쌍**으로 둔다. 음성만 두면 기본값을 넣어도 rc 가 안 바뀌는 다른 이유
+        #   (산출물 부재도 exit 2)로 통과해 가드가 틀린 이유로 초록이 된다 — 그래서 파일 전제를
+        #   타지 않는 `--check-args` 로 인자 평면만 친다.
+        _run("benchmark_judge_authority_required",
+             ["bash", ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh",
+              "_probe", "--check-args"], {2}),
+        _run("benchmark_judge_authority_accepted",
+             ["bash", ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh",
+              "_probe", "--authority", "weak", "--check-args"], {0}),
+        # 측정 도구 핀 해소기 (plan_26090415 §3.5 · CP3 · 2026-09-04). 순수 비교 함수 자체검사이며
+        #   docker·네트워크 불요다. P8 이 **배포되는 실제 핀**을 스키마로 검사하므로 픽스처만 보고
+        #   초록이 되지 않는다(픽스처가 실물보다 좁다 — 하루에 네 번 겪은 계열).
+        _run("benchmark_bench_tool_pin_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py", "--self-test"], {0}),
+        # GuideLLM 산출물 파서 (CP4). 실측 산출물 픽스처를 함께 검사하므로 합성 픽스처만 보고
+        #   초록이 되지 않는다.
+        _run("benchmark_parse_guidellm_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.py", "--self-test"], {0}),
+        # 광의의 탐색 결정론 3종 (CP6). 셀 종결 분류·지도 렌더러가 각각 음성 사례를 갖는다.
+        #   특히 render_sweep_map 의 R8~R10 은 **순위 금지**를 산문이 아니라 결정론으로 지킨다 —
+        #   산문으로만 적으면 다음 편집이 조용히 정렬 한 줄을 넣는다.
+        _run("benchmark_classify_cell_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/classify_cell.py", "--self-test"], {0}),
+        _run("benchmark_sweep_map_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.py", "--self-test"], {0}),
+        # Broad Search 이중 게이트의 **집행**: --confirm-risk 없이는 셀이 돌지 않는다(exit 5).
+        # single 컨테이너 관리 진입점의 **인자 평면** fail-closed (plan_26090419 P1 · 2026-09-04).
+        #   기동 경로는 예산선언·워치독 무장을 품고 있어 잘못 불리면 무보호 로드가 된다. 여기서는
+        #   docker·NAS·/proc 에 의존하지 않는 인자 검사만 친다(그 층은 어느 노드에서도 같다).
+        _run("upstream_single_up_requires_config",
+             ["bash", ".claude/skills/upstream-version-watch/scripts/single_serve_up.sh"], {3}),
+        _run("upstream_single_up_rejects_unknown_arg",
+             ["bash", ".claude/skills/upstream-version-watch/scripts/single_serve_up.sh",
+              "_probe", "--bogus"], {3}),
+        _run("upstream_inventory_rejects_unknown_topology",
+             ["bash", ".claude/skills/upstream-version-watch/scripts/container_inventory.sh",
+              "--topology", "bogus"], {2}),
+        _run("benchmark_broad_search_confirm_gate",
+             ["bash", ".claude/skills/adversarial-benchmark/scripts/broad_search.sh", "cell",
+              "--state", "/nonexistent/bs.json", "--now-utc", "2026-01-01T00:00:00Z",
+              "--cell-key", "k", "--config", "c", "--axis-citation", "x",
+              "--bench-budget-mib", "1"], {5}),
     ]
 
     with tempfile.TemporaryDirectory(prefix="easy-vllm-wiki-distribution.") as wiki:

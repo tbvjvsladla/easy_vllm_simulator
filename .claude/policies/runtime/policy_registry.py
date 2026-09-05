@@ -869,7 +869,6 @@ _EVIDENCE_RESOLUTION_REASON = {
     "path_escape": "EVIDENCE_PATH_ESCAPES_REPO",
     "symlink": "EVIDENCE_PATH_CONTAINS_SYMLINK",
     "missing": "EVIDENCE_MISSING_FILE",
-    "worktree_drift": "EVIDENCE_WORKTREE_DRIFT",
     "git_unavailable": "EVIDENCE_GIT_UNAVAILABLE",
 }
 
@@ -891,9 +890,16 @@ _EVIDENCE_RESOLUTION_REASON = {
 # drops the transcription of it:
 #   - TRACKED  : `git ls-files --stage -- <rel>` must return a blob for the path in THIS
 #                repo_root's index. Not staged (or not a repo) is not evidence.
-#   - UNDRIFTED: `git hash-object -- <rel>` (working-tree bytes, with the same attribute filters
-#                git applies when staging) must equal that indexed blob exactly.
-#   - NO GIT   : EVIDENCE_GIT_UNAVAILABLE. There is no fallback tier -- a repo_root with no git
+#   - NO GIT   : EVIDENCE_GIT_UNAVAILABLE.
+#
+# 2026-09-05 (plan_26090516 3-7 / audit_26090515 G-C1): the UNDRIFTED tier is gone. It compared
+# `git hash-object` (worktree) against the indexed blob -- a comparison git itself already
+# answers, and whose consumer-facing form is `git status --porcelain`. Asking it a second time
+# inside the policy gate had one measurable effect: any file being edited turned the whole
+# harness RED until it was staged, so `git add` became a ritual performed to satisfy a checker
+# rather than an act of staging evidence. Drift is a git question; ask git.
+# (What survives is membership -- "does this repo's index carry these bytes at all" -- which is
+# not a re-recorded digest but the tracked/untracked fact itself.) There is no fallback tier -- a repo_root with no git
 #                simply cannot prove provenance, and saying so is fail-closed. (The gitless
 #                CONSUMER that does exist -- hint_tag's read-only `match`/catalogue path -- never
 #                enters this module; `require_git_repository()` gates the rest of hint_tag, and
@@ -944,22 +950,6 @@ def _git_inside_work_tree(repo_root: Path) -> bool:
     return probe.returncode == 0 and probe.stdout.strip() == "true"
 
 
-def _git_worktree_blob_sha(repo_root: Path, rel_path: str) -> str | None:
-    """Git's canonical blob sha1 for the WORKING-TREE bytes at `rel_path`, computed by git itself
-    (`git hash-object`) so the same .gitattributes clean/eol filters that apply when the file is
-    staged apply here too -- a locally reimplemented sha1 would diverge on any filtered path.
-    None when git cannot answer (caller reports EVIDENCE_GIT_UNAVAILABLE, never 'ok')."""
-    try:
-        result = subprocess.run(["git", "hash-object", "--", rel_path], cwd=repo_root,
-                                 capture_output=True, text=True, timeout=10)
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    if result.returncode != 0:
-        return None
-    out = result.stdout.strip()
-    return out if re.fullmatch(r"[0-9a-f]{40}", out) else None
-
-
 def _has_symlink_component(repo_root: Path, rel_path: str) -> bool:
     """Checked component-by-component from repo_root (including the leaf) -- a symlink anywhere
     in the path, not merely at the final component, is rejected. Fails closed (treats an OSError
@@ -989,13 +979,13 @@ def _sha256_file(path: Path) -> str | None:
 
 def resolve_evidence_path(repo_root: Path, rel_path) -> _EvidenceResolution:
     """Admits `rel_path` only if it is a non-absolute, non-escaping repo-relative path that
-    contains no symlink at any path component, exists as a regular file, is TRACKED in
-    `repo_root`'s own git index, and whose working-tree bytes hash to exactly the blob that index
-    holds.
+    contains no symlink at any path component, exists as a regular file, and is TRACKED in
+    `repo_root`'s own git index.
 
     2026-09-03 (G2-a, plan_26090222): git is the single authority -- the evidence_manifest sha256
     comparison and the tracked_index membership/blob comparison are gone, along with the gitless
-    fallback tier (see the section comment above for why). The order below is deliberate: the
+    fallback tier (see the section comment above for why). 2026-09-05 (G-C1): the worktree-vs-index
+    blob comparison is gone too -- drift is `git status --porcelain`'s answer, not a second gate. The order below is deliberate: the
     cheap, git-independent structural rejections run first so a malformed or symlinked path never
     reaches a subprocess, and the git verdict is the last word rather than an optional extra."""
     if not isinstance(rel_path, str) or not rel_path:
@@ -1012,15 +1002,9 @@ def resolve_evidence_path(repo_root: Path, rel_path) -> _EvidenceResolution:
         return _EvidenceResolution("missing")
     if not _git_inside_work_tree(repo_root):
         return _EvidenceResolution("git_unavailable")
-    indexed_blob = _git_staged_blob_sha(repo_root, rel_path)
-    if indexed_blob is None:
+    if _git_staged_blob_sha(repo_root, rel_path) is None:
         # Regular file, but git does not carry it: an unstaged/ignored path is not evidence.
         return _EvidenceResolution("untracked")
-    worktree_blob = _git_worktree_blob_sha(repo_root, rel_path)
-    if worktree_blob is None:
-        return _EvidenceResolution("git_unavailable")
-    if worktree_blob != indexed_blob:
-        return _EvidenceResolution("worktree_drift")
     return _EvidenceResolution("ok")
 
 

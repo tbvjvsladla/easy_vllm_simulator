@@ -1,12 +1,13 @@
 {
   "schema_version": 1,
   "bindings": {
-    "A2A_DELEGATION_KEY_FAIL_CLOSED.C1": [
+    "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1": [
       {
         "path": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
         "assertion_ids": [
           "build_placeholders",
-          "parse_manifest"
+          "parse_manifest",
+          "render_tree"
         ]
       },
       {
@@ -18,11 +19,11 @@
       {
         "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
-          "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C1"
+          "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1"
         ]
       }
     ],
-    "A2A_DELEGATION_KEY_FAIL_CLOSED.C2": [
+    "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2": [
       {
         "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
         "assertion_ids": [
@@ -40,11 +41,11 @@
       {
         "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
-          "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C2"
+          "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2"
         ]
       }
     ],
-    "A2A_DELEGATION_KEY_FAIL_CLOSED.C3": [
+    "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3": [
       {
         "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
         "assertion_ids": [
@@ -62,11 +63,11 @@
       {
         "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
-          "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C3"
+          "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3"
         ]
       }
     ],
-    "A2A_DELEGATION_KEY_FAIL_CLOSED.C4": [
+    "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4": [
       {
         "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
         "assertion_ids": [
@@ -77,7 +78,7 @@
       {
         "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
-          "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C4"
+          "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4"
         ]
       }
     ],
@@ -965,8 +966,10 @@
       {
         "path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
         "assertion_ids": [
-          "KEY_OK",
-          "MC"
+          "MC",
+          "CARD",
+          "CARD_VERIFIER",
+          "SELF_ROLE"
         ]
       },
       {
@@ -987,8 +990,10 @@
       {
         "path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
         "assertion_ids": [
-          "KEY_OK",
-          "MC"
+          "MC",
+          "CARD",
+          "CARD_VERIFIER",
+          "SELF_ROLE"
         ]
       },
       {
@@ -1081,6 +1086,32 @@
         "path": ".claude/policies/predicates/claim_predicates.py",
         "assertion_ids": [
           "predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C3"
+        ]
+      }
+    ],
+    "HOST_SAFETY_LAYERED_DEFENSE.C10": [
+      {
+        "path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+        "assertion_ids": [
+          "TOOL",
+          "BENCH_BUDGET_MIB",
+          "bench_with_guidellm",
+          "bench_with_vllm"
+        ]
+      },
+      {
+        "path": ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py",
+        "assertion_ids": [
+          "RC_ABSENT",
+          "RC_OK",
+          "classify",
+          "accepted_digests"
+        ]
+      },
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_HOST_SAFETY_LAYERED_DEFENSE_C10"
         ]
       }
     ]

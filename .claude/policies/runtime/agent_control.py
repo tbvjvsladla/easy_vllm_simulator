@@ -14,8 +14,7 @@ lives entirely in the sibling provider adapter).  The production enforcement is
 Exit-code <-> status <-> reason_codes table (single source of truth):
     0   completed              reason_codes == []
     2   invalid_request        REQUEST_SCHEMA_INVALID
-    3   model_safety_blocked   model identity/request mismatch
-    4   execution_failed       NONZERO_EXIT | IS_ERROR
+    4   execution_failed       NONZERO_EXIT | IS_ERROR | PERMISSION_DENIED
     5   malformed_output       MALFORMED_JSON
     124 timeout                TIMEOUT
 
@@ -183,6 +182,10 @@ def _invalid_request_result(request) -> dict:
         "session_id": None,
         "num_turns": None,
         "budget_outcome": None,
+        # 2026-09-05(F): 소요시간 2필드도 required 다. 닿지 못한 요청에는 잰 시간이 없으므로
+        # null 이 곧 사실이다(0 을 적으면 "0ms 만에 끝났다" 는 거짓이 된다).
+        "duration_ms": None,
+        "duration_api_ms": None,
     }
 
 
@@ -202,6 +205,8 @@ def _invalid_provider_result(request: dict) -> dict:
         "session_id": None,
         "num_turns": None,
         "budget_outcome": None,
+        "duration_ms": None,
+        "duration_api_ms": None,
     }
 
 
@@ -244,7 +249,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         prog="agent_control.py",
         description="provider-neutral agent-control orchestrator (Phase 6, plan_26072506)",
-        epilog="exit codes: 0=completed 2=invalid_request 3=model_safety_blocked "
+        epilog="exit codes: 0=completed 2=invalid_request "
                "4=execution_failed 5=malformed_output 124=timeout",
     )
     sub = parser.add_subparsers(dest="cmd", required=True)

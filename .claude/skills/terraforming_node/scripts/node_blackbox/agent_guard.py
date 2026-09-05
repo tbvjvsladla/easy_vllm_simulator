@@ -154,18 +154,19 @@ def compute_eta_s(mem_avail_mib: int, rate_mib_s: float, kill_threshold_mib: int
 #   이 파일로 **전파되지 않은 것**이 결함의 전부다 — 단일 파일 교정은 결함 계열을 못 막는다.
 # ★ 폴백 리터럴은 **tripwire** 다(4종 판정표 하드코딩 '정당' 칸): `--self-test` 가 정본과
 #   리터럴 대조하므로, 정본이 움직이면 폴백 경로를 안 타도 빨간불이 켜진다.
-_DECL_FALLBACK = {"decl_margin_mib": 3072, "decl_min_ceiling_mib": 8192}
+# 2026-09-05(G-B3): 리터럴 사본 삭제. 자매 파일과 같은 처방이며 이유도 같다 — 가드가 데몬과
+#   **다른 상한**을 쓰는 것이 이 파일이 고쳤던 바로 그 결함이고, 사본이 남아 있는 한 그 위험이
+#   폴백 경로에 그대로 남는다. 정본을 못 읽으면 판정하지 않고 죽는다.
 try:
     from blackbox_eta import DEFAULTS as _ETA_DEFAULTS
     DECL_MARGIN_MIB = int(_ETA_DEFAULTS["decl_margin_mib"])
     DECL_MIN_CEILING_MIB = int(_ETA_DEFAULTS["decl_min_ceiling_mib"])
     DECL_CONST_SOURCE = "derived:blackbox_eta.DEFAULTS"
-except Exception as _exc:     # fail-loud 폴백 — 침묵하지 않는다(폴백 판정표 '정당' 칸)
-    DECL_MARGIN_MIB = _DECL_FALLBACK["decl_margin_mib"]
-    DECL_MIN_CEILING_MIB = _DECL_FALLBACK["decl_min_ceiling_mib"]
-    DECL_CONST_SOURCE = "fallback:literal (%s: %s)" % (type(_exc).__name__, _exc)
-    print("[agent_guard] WARN: blackbox_eta.DEFAULTS 파생 실패 → 리터럴 사용. "
-          "가드와 데몬이 다른 상한을 쓸 위험이 있다: %s" % DECL_CONST_SOURCE, file=sys.stderr)
+except Exception as _exc:
+    raise SystemExit(
+        "[agent_guard] FAIL: blackbox_eta.DEFAULTS 에서 선언 상수를 읽지 못했다 — "
+        "사본을 두지 않는다(%s: %s). 가드가 데몬과 다른 상한을 쓰면 정상 로드를 사살한다."
+        % (type(_exc).__name__, _exc))
 LEVEL_ORDER = (NORMAL, NOTIFY, ACT, LAST_RESORT)
 
 
@@ -499,10 +500,10 @@ def _self_test() -> int:
         "margin 이 정본과 일치 (가드 %s / 정본 %s)" % (DECL_MARGIN_MIB, _canon_margin))
     chk(DECL_MIN_CEILING_MIB == _canon_min,
         "min_ceiling 이 정본과 일치 (가드 %s / 정본 %s)" % (DECL_MIN_CEILING_MIB, _canon_min))
-    # 폴백 리터럴은 tripwire — 정본이 움직이면 폴백 경로를 안 타도 여기서 빨간불이 켜진다.
-    chk(_DECL_FALLBACK["decl_margin_mib"] == _canon_margin
-        and _DECL_FALLBACK["decl_min_ceiling_mib"] == _canon_min,
-        "폴백 tripwire 가 정본과 일치(정본 이동 시 리뷰 강제)")
+    # 2026-09-05(G-B3): 폴백 리터럴을 삭제했으므로 tripwire 도 **부재 확인**으로 바뀐다 —
+    #   값을 맞춰 두는 것으로는 재발을 못 막는다(두 자리가 있으면 언젠가 갈라진다).
+    chk("_DECL_FALLBACK" not in globals(),
+        "선언 상수의 리터럴 사본이 되살아나지 않았다(정본 파생 단일 경로)")
 
     env = {"agent_notify_s": 900.0, "agent_act_s": 300.0, "daemon_kill_s": 6.0,
            "kill_latency_max_s": 14.0, "kill_threshold_mib": 10240}

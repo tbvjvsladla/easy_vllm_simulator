@@ -15,11 +15,16 @@
 규율(참고 프로젝트 차용 — memory: hermes-control-plane-reference-turn-budget):
     · scope ⊥ budget · 소진은 terminal → **더 큰 예산의 새 attempt**(예산 축소 금지)
     · SILENT_FALLBACK 금지 — 메인이 대신 한 것을 서브 성공으로 집계하지 않는다
-    · 원장 4필드(task_grade·max_turns_allocated·max_turns_used·budget_outcome)를 매 턴 적는다
+    · 원장은 예산 서사(선언값·출처·사용량·결과)를 매 턴 적는다
+
+2026-09-05 개정(③ 3-1 · G-A2): 예산은 **등급표가 아니라 선언**이다. `--max-turns`·
+`--timeout-seconds`·`--budget-source` 를 부르는 쪽이 정하고, 이 파일은 원장의 사실(집행된 바닥·
+직전 소진 여부·전진 없는 연속 attempt 수)을 dry-run 에 **보여줄 뿐 대신 정하지 않는다**.
 """
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import subprocess
@@ -62,31 +67,89 @@ def _reached_sub(att: dict) -> bool:
     return bool(att.get("session_id") or att.get("status") or att.get("budget_outcome"))
 
 
-def latest_session_id(doc: dict):
-    """이어 붙일 세션. **완결된 attempt 의 세션은 잇지 않는다** — 새 attempt 는 새 맥락이다.
+def last_known_session(doc: dict) -> dict:
+    """**마지막으로 알려진 세션**과 그 맥락. 판정하지 않고 사실만 돌려준다.
 
-    2026-09-04 교정(감사 D3 · 라이브 재현): 종전 루프는 `completed` 를 만나도 멈추지 않고 **뒤로
-    계속 스캔**해 더 오래된 `input-required` 세션을 돌려줬다. 라이브 원장(attempt 7 = completed)에서
-    실제로 그 값이 나왔다 — 즉 **자기 독스트링을 위반**했고, 자체검사는 attempt 1건 픽스처라
-    루프가 우연히 소진되어 통과했다(`픽스처가 실물보다 좁다` 재발).
-    이제 **닿은 attempt 중 가장 최근 것 하나**가 판정한다. 닿지 못한 attempt(전송 실패)는 서브의
-    상태를 바꾸지 못했으므로 건너뛴다 — 그것이 "그 앞 attempt 가 실상태" 라는 뜻이다.
+    2026-09-05 개정(F · plan_26090516 3-3): 종전 이름은 `latest_session_id` 였고, 이 함수가
+    *재개할지 말지*를 코드 규칙으로 정했다(소진이면 새 세션 · completed 면 새 세션 · input-required
+    면 이어붙임). 그 규칙은 두 번 어긋났다 — ① 완결 뒤에도 옛 세션을 돌려줘 라이브에서 잘못
+    이어붙였고(감사 D3) ② 소진 세션을 무조건 버리는 것이 항상 옳지도 않았다(직전 산출물이 그
+    세션에만 있는 경우가 있다). 재개는 **맥락을 아는 쪽의 판단**이므로 이제 `--resume` 로
+    선언한다. 이 함수는 그 선언을 위한 재료를 보여줄 뿐이다.
+
+    닿지 못한 attempt(전송 실패)는 서브 상태를 바꾸지 못했으므로 건너뛴다.
     """
     for att in reversed(doc.get("attempts") or []):
         if not _reached_sub(att):
             continue
-        if att.get("budget_outcome") == "exhausted":
-            return None                      # 소진된 세션을 이으면 그 자리에서 또 소진된다
-        if att.get("status") in ("completed", "failed"):
-            return None                      # 완결 — 새 attempt 는 새 맥락이다
-        if att.get("status") == "input-required" and att.get("session_id"):
-            return att["session_id"]
-        return None
-    return None
+        return {"session_id": att.get("session_id"), "attempt": att.get("attempt"),
+                "status": att.get("status"), "control_status": att.get("control_status"),
+                "budget_outcome": att.get("budget_outcome")}
+    return {"session_id": None, "attempt": None, "status": None,
+            "control_status": None, "budget_outcome": None}
+
+
+END_REASONS = ("completed", "sub_input_required", "sub_failed", "budget_exhausted",
+               "external_interruption", "permission_denied", "malformed_output",
+               "invalid_request", "model_blocked", "transport_or_launch_failure", "unclassified")
+
+
+def end_reason(att: dict) -> str:
+    """이 attempt 가 **왜 끝났는가** — 원장에 남는 단일 라벨(축 F).
+
+    파생이지 선언이 아니다: 입력은 전부 이미 기록된 필드(control_status·reason_codes·
+    budget_outcome·서브 status)다. 그런데도 값을 적어 두는 이유는, 나중에 "정지 시간을 무엇으로
+    계상했나" 를 묻는 쪽이 판정 규칙이 아니라 **그때의 판정 결과**를 봐야 하기 때문이다.
+    분류 불가는 `unclassified` 로 남긴다 — 모르는 것을 아는 척하지 않는다.
+    """
+    codes = att.get("reason_codes") or []
+    control, sub = att.get("control_status"), att.get("status")
+    if "PERMISSION_DENIED" in codes:
+        return "permission_denied"
+    if att.get("budget_outcome") == "exhausted":
+        return "budget_exhausted"
+    if att.get("budget_outcome") == "external_interruption" or "TIMEOUT" in codes:
+        return "external_interruption"
+    if control == "invalid_request":
+        return "invalid_request"
+    if control == "model_safety_blocked":
+        return "model_blocked"
+    if control == "malformed_output":
+        return "malformed_output"
+    if sub == "completed" and control == "completed":
+        return "completed"
+    if sub == "input-required":
+        return "sub_input_required"
+    if sub in ("failed", "execution_failed"):
+        return "sub_failed"
+    if control == "execution_failed" and not att.get("session_id"):
+        return "transport_or_launch_failure"
+    return "unclassified"
+
+
+def require_resume(declared, last: dict) -> str:
+    """재개 선언을 검증한다. **없으면 fail-loud** — 코드가 대신 정하지 않는다(축 F · 3-3).
+
+    선언 어휘는 둘뿐이다: 이어받을 `session_id`, 또는 새 세션이면 문자열 `new`. 종전에는
+    `latest_session_id()` 가 원장을 보고 **혼자 정했고**, 그 규칙이 라이브에서 두 번 어긋났다.
+    모르면 묻는 것이 맞다 — 그래서 여기서 죽고, 죽는 자리에 마지막 알려진 세션을 함께 적는다.
+    """
+    if isinstance(declared, str) and declared.strip():
+        return declared.strip()
+    raise SystemExit(
+        "[relay] STOP: --resume 이 선언되지 않았다 — 재개 여부는 맥락을 아는 쪽이 정한다.\n"
+        f"  → 마지막 알려진 세션: {last.get('session_id') or '(없음)'} "
+        f"(attempt {last.get('attempt')} · sub_status={last.get('status')} · "
+        f"budget={last.get('budget_outcome')})\n"
+        "  → 이어받으려면 `--resume <session_id>`, 새 맥락이면 `--resume new` 를 붙여라.")
 
 
 def budget_floor(doc: dict) -> int:
-    """이 context 에서 **실제로 집행된** 최대 예산. 축소 금지의 구조적 바닥이다.
+    """이 context 에서 **실제로 집행된** 최대 예산. 이제 강제가 아니라 **보여주는 사실**이다.
+
+    2026-09-05(G-A2): 종전에는 이 값이 다음 예산의 하한으로 자동 집행됐다. 규율("소진 뒤 감액 ✗")은
+    그대로지만 그것을 지키는 주체가 표에서 **선언하는 쪽**으로 옮겨졌다 — 그래서 여기 값은
+    dry-run 이 출력하고, 무엇을 선언할지는 과업을 아는 쪽이 정한다.
 
     ⚠ 닿지 못한 attempt 는 세지 않는다(2026-09-04 라이브 실측): P4 attempt 4 는 104 를 요청했다가
     **요청 스키마가 정상 차단**해 서브에 닿지 않았다. 그 값을 바닥으로 삼으면 한 번도 집행된 적
@@ -97,33 +160,12 @@ def budget_floor(doc: dict) -> int:
                 if a.get("max_turns_allocated") and _reached_sub(a)] or [0])
 
 
-def next_budget(doc: dict, grade: str) -> dict:
-    """다음 attempt 예산. 소진 이력이 있으면 증액하고, **어떤 경우에도 바닥 아래로 내려가지 않는다**.
-
-    2026-09-04 교정(감사 D2 · 라이브 재현): 종전 루프는 `for ... break` 로 **마지막 attempt 1건만**
-    봤다. 그 1건이 소진이 아니면 즉시 grade 기본값으로 떨어진다 — 그래서 P4 에서 attempt 3 이
-    65 를 소진한 뒤 attempt 4 가 전송 실패(예산 서사 없음)하자 **attempt 5 가 다시 65 로 열렸다**.
-    소진했던 예산을 그대로 재부여한 것이며, "소진 시 예산을 줄이지 않는다"(turn_budget §②)가
-    조용히 깨졌다.
-
-    규칙 둘:
-      · 예산 서사가 **없는** attempt(전송/스키마 실패)는 건너뛴다 — 그것은 예산 사건이 아니다.
-      · 바닥(`budget_floor`)은 단조 비감소다. 한 context 안에서 예산이 내려가는 경로를 없앤다.
-    """
-    floor = budget_floor(doc)
-    last = next((a for a in reversed(doc.get("attempts") or [])
-                 if a.get("budget_outcome") is not None), None)
-    if last is not None and last.get("budget_outcome") == "exhausted":
-        return turn_budget.escalate(grade, floor or int(last["max_turns_allocated"]))
-    base = turn_budget.budget(grade)
-    if floor > base["max_turns"]:
-        base["max_turns"] = floor
-        base["source"] += f" · 이 context 의 예산 바닥 {floor} 유지(축소 금지)"
-    return base
-
-
 def stalled_attempts(doc: dict) -> int:
-    """**전진 없이** 이어진 말미 attempt 수. `MAX_ATTEMPTS_BEFORE_HITL` 의 입력이다.
+    """**전진 없이** 이어진 말미 attempt 수. dry-run 이 이 수를 보여준다.
+
+    2026-09-05(G-A2): 종전에는 이 값이 3(`MAX_ATTEMPTS_BEFORE_HITL`)에 닿으면 릴레이가 스스로
+    멈췄다. 그 숫자는 어떤 실측에서도 오지 않았고, 정지 여부는 이미 `--apply`(사람 승인 정문)가
+    쥐고 있었다 — 같은 결정을 두 자리에서 하면 한 자리는 판단을 대체하는 상수가 된다.
 
     전진의 정의는 둘뿐이다 — ⓐ `completed` ⓑ phase 가 바뀌었다. 예산만 키우며 같은 벽에 부딪히는
     것은 전진이 아니다. 이 술어가 없으면 `--continue` 는 무한 재개가 되고, 그것은 "루프를 만들면서
@@ -145,7 +187,7 @@ def stalled_attempts(doc: dict) -> int:
 DEFAULT_CAPABILITIES = ("read", "execute", "edit", "write", "search")
 
 
-def relay_header(context_id: str, attempt: int, allocated: int, grade: str) -> str:
+def relay_header(context_id: str, attempt: int, allocated: int, budget_source: str) -> str:
     """위임 본문 머리에 붙는 결정론 헤더.
 
     2026-09-04 신설(감사 D6/comms 배선 부재). `comms.md` 는 *"메인이 Task 와 함께
@@ -157,8 +199,8 @@ def relay_header(context_id: str, attempt: int, allocated: int, grade: str) -> s
         "## [relay] 위임 헤더 — 메인이 결정론으로 붙였다. 서브는 이 값을 그대로 회신한다.\n"
         f"- context_id: {context_id}\n"
         f"- attempt: {attempt}\n"
-        f"- task_grade: {grade}\n"
         f"- max_turns_allocated: {allocated}\n"
+        f"- 예산 근거(메인 선언): {budget_source}\n"
         "- 규약: 리포트 `context_id` 에 위 값을 그대로 적는다. 예산이 모자라면 **소진하지 말고**\n"
         "  `input-required` 로 끊고 남은 일을 `next_steps` 에 적어라(scope ⊥ budget).\n"
         "- 외부지식을 검색했다면 `external_search[]` 에 질의·출처·요지를 남겨라 — 그 기록이\n"
@@ -166,31 +208,54 @@ def relay_header(context_id: str, attempt: int, allocated: int, grade: str) -> s
     )
 
 
-def build_request(topology: str, manifest: str, task: str, grade: str,
+def build_request(topology: str, manifest: str, task: str, bud: dict,
                   resume_session_id=None, capabilities=None,
-                  context_id: str = None, attempt: int = 0, allocated: int = None) -> dict:
-    base = _canary.build_request(topology, manifest)   # target 해소·센티넬 거부를 그대로 재사용
-    bud = turn_budget.budget(grade)
-    allocated = bud["max_turns"] if allocated is None else int(allocated)
+                  context_id: str = None, attempt: int = 0, model: str = None) -> dict:
+    """위임 request 조립. `bud` 는 **선언된** 예산이다(`turn_budget.declare` 산출)."""
+    base = _canary.build_request(topology, manifest, max_turns=bud["max_turns"],
+                                 timeout_seconds=bud["timeout_seconds"],
+                                 budget_source=bud["source"],
+                                 model=model)  # target 해소·센티넬 거부를 재사용
+    allocated = bud["max_turns"]
     base["intent"] = "delegate"
-    base["task"] = (relay_header(context_id, attempt, allocated, grade) + task) if context_id else task
-    base["max_turns"] = allocated
-    base["timeout_seconds"] = bud["timeout_seconds"]
+    base["task"] = ((relay_header(context_id, attempt, allocated, bud["source"]) + task)
+                    if context_id else task)
     base["capabilities"] = list(capabilities or DEFAULT_CAPABILITIES)
     if resume_session_id:
         base["resume_session_id"] = resume_session_id
     return base
 
 
-def record_attempt(doc: dict, *, context_id: str, grade: str, allocated: int,
-                   result: dict, report=None, resume_requested=None) -> dict:
+def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, report=None,
+                   resume_declared=None, request_path=None,
+                   started_utc=None, ended_utc=None) -> dict:
+    """원장 한 줄을 **덧붙인다**(append-only — 앞선 attempt 는 건드리지 않는다).
+
+    2026-09-05(축 F): 요청경로·응답경로·종료사유·시작/종료 UTC·소요 2필드를 남긴다. 종전 원장은
+    "무엇을 보냈는지" 를 남기지 않아, 재개 본문이 실제로 무엇이었는지 사후에 알 수 없었다
+    (조립기는 매번 다시 조립하므로 재현도 되지 않는다).
+    시각의 출처가 다르다: `started/ended_utc` 는 **메인이 잰 벽시계**, `duration_*` 은
+    **provider 가 보고한 값**이다 — 섞으면 정지 시간(wall − api)이 두 시계의 차가 된다.
+    """
     report = report or {}
+    resume_requested = None if resume_declared in (None, "new") else resume_declared
     session = result.get("session_id")
     att = {
         "attempt": len(doc.get("attempts") or []) + 1,
-        "task_grade": {"assigned": grade,
-                       "recommended": (report.get("task_grade") or {}).get("recommended")},
-        "max_turns_allocated": allocated,
+        # 2026-09-05(G-A2): `task_grade` 대신 **선언된 예산과 그 근거**를 적는다. 등급 라벨은
+        #   어휘가 사라졌고, 남길 가치가 있는 것은 "얼마를 왜 줬는가" 다.
+        "max_turns_allocated": bud["max_turns"],
+        "timeout_seconds_allocated": bud["timeout_seconds"],
+        "budget_source": bud["source"],
+        "budget_recommended": report.get("budget_recommendation"),
+        # ── 축 F 원장(2026-09-05): 요청·응답 경로와 시간 서사
+        "request_path": request_path,
+        "started_utc": started_utc,
+        "ended_utc": ended_utc,
+        "duration_ms": result.get("duration_ms"),
+        "duration_api_ms": result.get("duration_api_ms"),
+        # 재개는 이제 **선언**이다. 무엇을 선언했는지(new 포함)를 그대로 남긴다.
+        "resume_declared": resume_declared,
         # 모르면 null — 그럴듯한 값으로 채우면 Layer2 보정이 거짓 위에 선다.
         "max_turns_used": result.get("num_turns"),
         "budget_outcome": result.get("budget_outcome"),
@@ -200,6 +265,11 @@ def record_attempt(doc: dict, *, context_id: str, grade: str, allocated: int,
         #   — 그 경우 서브는 컨텍스트를 처음부터 재구축하고, 그것이 곧 소진의 주된 원인이다.
         "resume_requested": resume_requested,
         "resume_honored": (None if not resume_requested else session == resume_requested),
+        # 2026-09-05(G-A1): 모델 게이트가 사라진 자리에 **기록**이 온다 — 무엇을 선언했고
+        #   무엇이 실제로 돌았는지. 이 두 줄이 없으면 "하네스 변경 0 으로 모델을 바꿨다" 를
+        #   나중에 증명할 수 없다.
+        "model_declared": result.get("model_requested"),
+        "model_used": result.get("model_used") or [],
         "control_status": result.get("status"),
         "reason_codes": result.get("reason_codes") or [],
         "status": report.get("status"),
@@ -212,6 +282,7 @@ def record_attempt(doc: dict, *, context_id: str, grade: str, allocated: int,
         # SILENT_FALLBACK 금지: 메인이 대신 한 것은 여기에 적히지 않는다. 서브 산출만 집계한다.
         "sub_reported": bool(report),
     }
+    att["end_reason"] = end_reason(att)
     doc["context_id"] = context_id
     doc.setdefault("attempts", []).append(att)
     return att
@@ -246,7 +317,8 @@ def sort_pending(pending: list) -> list:
                                           e.get("request_id") or ""))
 
 
-def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: int = 0) -> str | None:
+def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: int = 0,
+                    crash: dict = None) -> str | None:
     """서브가 스스로 표면화한 것을 릴레이한다(디스크 재스캔 ✗ — §2.4 push-attestation).
 
     2026-09-04 교정 3건:
@@ -274,7 +346,25 @@ def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: 
     doc["pending"] = [e for e in doc.get("pending", []) if e.get("context_id") != context_id]
 
     entry = None
-    if hitl.get("needed") or requests:
+    if crash and not (hitl.get("needed") or requests):
+        # 2026-09-05(3-3): 리포트가 없거나 제어가 실패한 턴. 서브가 요청을 남기지 못한 상태이므로
+        #   **메인이 사실만** 표면화한다 — 재개 여부는 사람·에이전트가 `--resume` 로 선언한다.
+        entry = {
+            "context_id": context_id,
+            "attempt": attempt,
+            "request_id": "relay-crash-a%02d" % attempt,
+            "source": "relay-crash",
+            "prompt": ("attempt %s 가 리포트 없이 끝났다(end_reason=%s · control=%s · %s). "
+                       "마지막 알려진 세션 = %s. 이어받으려면 `--resume <session_id>`, "
+                       "새로 열려면 `--resume new` 를 선언하라."
+                       % (crash.get("attempt"), crash.get("end_reason"), crash.get("control_status"),
+                          ",".join(crash.get("reason_codes") or []) or "코드 없음",
+                          crash.get("last_known_session") or "(없음)")),
+            "library_request": [],
+            "answer": prior.get("relay-crash-a%02d" % attempt),
+        }
+        doc["pending"].append(entry)
+    elif hitl.get("needed") or requests:
         rid = hitl.get("request_id") or (requests[0].get("request_id") if requests else None)
         entry = {
             "context_id": context_id,
@@ -402,37 +492,44 @@ def _self_test() -> int:
         print("  [%s] %s" % ("PASS" if cond else "FAIL", label))
         ok = ok and bool(cond)
 
+    BUD25 = turn_budget.declare(25, 1800, source="선언: 자체검사 픽스처")
     with tempfile.TemporaryDirectory() as d:
         lp = ledger_path(d, "ctx-1")
         doc = load_ledger(lp)
         chk(doc["attempts"] == [], "빈 원장 초기화")
 
         # ① 정상 완료 → within_budget · 세션 이어붙이지 않음(완결된 세션은 잇지 않는다)
-        record_attempt(doc, context_id="ctx-1", grade="L2", allocated=25,
+        record_attempt(doc, context_id="ctx-1", bud=BUD25,
                        result={"num_turns": 12, "budget_outcome": "within_budget",
                                "session_id": "s1", "status": "completed", "reason_codes": []},
                        report={"status": "completed", "phase": "config"})
         save_ledger(lp, doc)
-        chk(json.load(open(lp))["attempts"][0]["max_turns_used"] == 12, "원장 4필드 기록")
-        chk(latest_session_id(doc) is None, "완료된 attempt 의 세션은 재개 대상이 아니다")
+        _a0 = json.load(open(lp))["attempts"][0]
+        chk(_a0["max_turns_used"] == 12 and _a0["max_turns_allocated"] == 25
+            and _a0["timeout_seconds_allocated"] == 1800 and "선언" in _a0["budget_source"]
+            and "task_grade" not in _a0,
+            "원장이 예산 서사(선언값·timeout·출처)를 적고 등급 라벨은 남기지 않는다")
+        chk(last_known_session(doc)["session_id"] == "s1"
+            and last_known_session(doc)["status"] == "completed",
+            "마지막 알려진 세션을 **사실로** 돌려준다(재개 여부는 판정하지 않는다)")
 
         # ② input-required → 같은 세션을 잇는다
-        record_attempt(doc, context_id="ctx-1", grade="L2", allocated=25,
+        record_attempt(doc, context_id="ctx-1", bud=BUD25,
                        result={"num_turns": 5, "budget_outcome": "within_budget",
                                "session_id": "s2", "status": "completed", "reason_codes": []},
                        report={"status": "input-required", "phase": "config"})
-        chk(latest_session_id(doc) == "s2", "input-required → 같은 세션 재개(컨텍스트 재구축 회피)")
+        chk(last_known_session(doc)["session_id"] == "s2", "직전 input-required 세션이 사실로 보인다")
 
         # ③ 소진 → 세션을 잇지 않고, 다음 예산은 **더 크다**
-        record_attempt(doc, context_id="ctx-1", grade="L2", allocated=25,
+        record_attempt(doc, context_id="ctx-1", bud=BUD25,
                        result={"num_turns": 25, "budget_outcome": "exhausted",
                                "session_id": "s3", "status": "execution_failed",
                                "reason_codes": ["NONZERO_EXIT"]},
                        report=None)
-        chk(latest_session_id(doc) is None, "소진된 세션은 잇지 않는다(그 자리서 또 소진된다)")
-        nb = next_budget(doc, "L2")
-        chk(nb["max_turns"] > 25, f"소진 뒤 새 attempt 예산 증액 25 → {nb['max_turns']}")
-        chk("escalated from 25" in nb["source"], "증액 사실이 출처에 남는다")
+        _lk = last_known_session(doc)
+        chk(_lk["session_id"] == "s3" and _lk["budget_outcome"] == "exhausted",
+            "소진된 세션도 **사실로는** 보인다 — 이을지는 --resume 선언이 정한다")
+        chk(budget_floor(doc) == 25, f"집행된 예산 바닥이 사실로 남는다 → {budget_floor(doc)}")
 
         # ④ SILENT_FALLBACK 금지: 리포트 없는 attempt 는 서브 산출로 집계되지 않는다
         chk(doc["attempts"][-1]["sub_reported"] is False,
@@ -476,25 +573,24 @@ def _self_test() -> int:
             {"attempt": 2, "status": "completed", "session_id": "sB",
              "budget_outcome": "within_budget", "max_turns_allocated": 25},
         ]}
-        chk(latest_session_id(d2) is None,
-            "★음성대조: 앞에 input-required 가 있어도 **마지막이 completed 면** 잇지 않는다")
+        chk(last_known_session(d2)["session_id"] == "sB",
+            "★음성대조: 앞에 input-required 가 있어도 **마지막 것**을 돌려준다(뒤로 스캔 ✗)")
         d3 = {"attempts": [d2["attempts"][0],
                            {"attempt": 2}]}          # 전송 실패(닿지 못함) — 건너뛴다
-        chk(latest_session_id(d3) == "sA", "닿지 못한 attempt 는 서브 상태를 바꾸지 못한다(건너뛴다)")
+        chk(last_known_session(d3)["session_id"] == "sA",
+            "닿지 못한 attempt 는 서브 상태를 바꾸지 못한다(건너뛴다)")
 
-        # ⑨ 예산 바닥 — 소진과 다음 attempt 사이에 예산 서사 없는 실패가 끼어도 내려가지 않는다
+        # ⑨ 예산 바닥은 **집행된 사실**이다 — 닿지 못한 요청은 바닥이 되지 못한다(2026-09-04 실측)
         d4 = {"attempts": [
             {"attempt": 1, "budget_outcome": "exhausted", "max_turns_allocated": 25,
              "status": None, "session_id": "s1"},
-            {"attempt": 2},                                   # 스키마/전송 실패 = 예산 사건 아님
+            {"attempt": 2, "max_turns_allocated": 104},        # 스키마가 차단 = 닿지 못했다
         ]}
-        chk(next_budget(d4, "L2")["max_turns"] > 25,
-            "★음성대조: 소진 뒤 다른 실패가 끼어도 예산이 grade 기본값으로 되돌아가지 않는다")
-        d5 = {"attempts": [{"attempt": 1, "budget_outcome": "within_budget",
-                            "max_turns_allocated": 40, "status": "input-required",
-                            "session_id": "s1"}]}
-        chk(next_budget(d5, "L2")["max_turns"] == 40 and "바닥" in next_budget(d5, "L2")["source"],
-            "이미 올라간 예산은 유지되고 그 사실이 출처에 남는다(축소 금지)")
+        chk(budget_floor(d4) == 25,
+            f"★음성대조: 거절된 요청(104)은 바닥이 되지 못한다 → {budget_floor(d4)}")
+        # ★ tripwire: 예산을 대신 정하던 함수가 되살아나면 여기서 잡는다(G-A2 · 2026-09-05 삭제).
+        chk("next_budget" not in globals() and not hasattr(turn_budget, "GRADES"),
+            "예산을 자동으로 정하는 경로가 되살아나지 않았다(선언만 남는다)")
 
         # ⑩ 정지 조건 — 전진 없는 연속 attempt
         d6 = {"attempts": [{"attempt": i, "status": "input-required", "phase": "build",
@@ -550,17 +646,77 @@ def _self_test() -> int:
         chk("추측" not in body.replace("추측 없음", ""), "조립기는 추측을 적지 않는다")
 
         # ⑬ A5/A6 — 헤더 주입과 재개 검증
-        hdr = relay_header("ctx-h", 3, 40, "L3")
-        chk("context_id: ctx-h" in hdr and "max_turns_allocated: 40" in hdr,
-            "위임 헤더가 context_id·예산을 서브에게 알린다(comms.md 규약의 실배선)")
+        hdr = relay_header("ctx-h", 3, 40, "선언: 빌드 1회 — 원장 attempt 2 실측 turns=31")
+        chk("context_id: ctx-h" in hdr and "max_turns_allocated: 40" in hdr
+            and "실측 turns=31" in hdr,
+            "위임 헤더가 context_id·예산·**그 근거**를 서브에게 알린다(comms.md 규약의 실배선)")
         d9 = {"attempts": []}
-        record_attempt(d9, context_id="ctx-h", grade="L3", allocated=40,
+        record_attempt(d9, context_id="ctx-h", bud=turn_budget.declare(40, 3600, source="선언: 픽스처"),
                        result={"session_id": "other", "status": "completed"},
                        report={"status": "completed", "context_id": "ctx-h"},
-                       resume_requested="wanted")
+                       resume_declared="wanted")
         chk(d9["attempts"][0]["resume_honored"] is False,
             "★재개 불발이 원장에 남는다(침묵 새 세션 ✗)")
         chk(d9["attempts"][0]["external_search"] == [], "외부검색 기록 자리가 있다(B안 자산화 입력)")
+
+        # ⑭ 축 F — 원장 필드·재개 선언·종료사유(2026-09-05 · plan_26090516 3-2/3-3)
+        dF = {"attempts": []}
+        aF = record_attempt(dF, context_id="ctx-f", bud=turn_budget.declare(12, 900, source="선언: F"),
+                            result={"session_id": "sF", "status": "completed", "num_turns": 7,
+                                    "budget_outcome": "within_budget", "reason_codes": [],
+                                    "duration_ms": 90_000, "duration_api_ms": 61_000},
+                            report={"status": "completed", "phase": "bench"},
+                            resume_declared="new", request_path="tasks/ctx-f.requests/attempt-01.json",
+                            started_utc="2026-09-05T10:00:00Z", ended_utc="2026-09-05T10:01:30Z")
+        for k in ("request_path", "started_utc", "ended_utc", "duration_ms", "duration_api_ms",
+                  "end_reason", "resume_declared"):
+            chk(aF.get(k) is not None, f"원장이 축 F 필드를 적는다: {k}={aF.get(k)!r}")
+        chk(aF["duration_ms"] - aF["duration_api_ms"] == 29_000,
+            "정지 = wall − api 가 원장에서 파생된다(29,000ms)")
+        chk(aF["resume_declared"] == "new" and aF["resume_requested"] is None,
+            "`new` 선언은 재개 요청이 아니다(둘을 구분해 적는다)")
+        chk(aF["end_reason"] == "completed", f"종료사유 파생 → {aF['end_reason']}")
+
+        # append-only: 다음 attempt 를 적어도 앞선 줄은 **바이트 그대로** 남는다
+        _snap = json.dumps(dF["attempts"][0], sort_keys=True, ensure_ascii=False)
+        record_attempt(dF, context_id="ctx-f", bud=turn_budget.declare(20, 900, source="선언: F2"),
+                       result={"session_id": "sF2", "status": "execution_failed", "num_turns": 20,
+                               "budget_outcome": "exhausted", "reason_codes": ["NONZERO_EXIT"]},
+                       report=None, resume_declared="sF")
+        chk(json.dumps(dF["attempts"][0], sort_keys=True, ensure_ascii=False) == _snap,
+            "★append-only: 새 attempt 가 앞선 줄을 소급 수정하지 않는다")
+        chk(dF["attempts"][1]["end_reason"] == "budget_exhausted"
+            and dF["attempts"][1]["resume_requested"] == "sF",
+            "소진·재개요청이 각각의 자리에 남는다")
+        chk(end_reason({"budget_outcome": "external_interruption"}) == "external_interruption"
+            and end_reason({"reason_codes": ["TIMEOUT"], "control_status": "timeout"})
+                == "external_interruption",
+            "외생 중단(timeout/SIGTERM)은 예산 소진과 **다른 사유**로 적힌다")
+        chk(end_reason({"control_status": "execution_failed", "session_id": None})
+            == "transport_or_launch_failure"
+            and end_reason({}) == "unclassified",
+            "전송 실패와 분류 불가를 구분한다(모르는 것을 아는 척하지 않는다)")
+
+        # ⑮ 재개 선언 — 없으면 fail-loud, 마지막 알려진 세션을 함께 말한다
+        try:
+            require_resume(None, {"session_id": "sZ", "attempt": 3, "status": "input-required",
+                                  "budget_outcome": "within_budget"})
+            chk(False, "재개 미선언 → fail-loud")
+        except SystemExit as _e:
+            chk("sZ" in str(_e) and "--resume new" in str(_e),
+                "★재개 미선언은 죽되 **마지막 알려진 세션**을 함께 제시한다")
+        chk(require_resume("new", {}) == "new" and require_resume(" sX ", {}) == "sX",
+            "선언 어휘 둘(session_id · new)을 그대로 받는다")
+
+        # ⑯ 크래시 표면화 — 리포트 없는 턴에도 재개 재료가 대기 목록에 남는다
+        pc = surface_requests(d, "ctx-crash", {}, attempt=2,
+                              crash={"attempt": 2, "end_reason": "malformed_output",
+                                     "control_status": "malformed_output",
+                                     "reason_codes": ["PROVIDER_RESULT_INVALID"],
+                                     "last_known_session": "sC"})
+        _e0 = pending_for(d, "ctx-crash")
+        chk(pc is not None and _e0 and "sC" in (_e0[0].get("prompt") or ""),
+            "★리포트 없이 끝난 턴은 대기 목록에 마지막 알려진 세션을 남긴다(침묵 종결 ✗)")
     print("self-test: %s" % ("PASS" if ok else "FAIL"))
     return 0 if ok else 2
 
@@ -598,12 +754,22 @@ def assert_sub_branch(req: dict, topology: str, runner=None) -> str:
     return out
 
 
-def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume) -> int:
+def _utcnow() -> str:
+    """지금 시각(UTC). **실측이다** — 끝난 시각은 끝나 봐야 알므로 주입할 수 없다.
+
+    이 저장소의 벽시계 금지는 문서 명명·유효성 판정 평면의 규칙이다(`docs.md`). 여기 두 값은
+    원장의 시간 서사이며 판정에 쓰이지 않는다 — 그리고 이 값과 provider 가 보고한 `duration_*` 은
+    **다른 시계**이므로 원장에서도 따로 적는다.
+    """
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) -> int:
     """한 번의 위임 왕복. `--task` 진입과 `--continue` 진입이 **같은 몸통**을 쓴다."""
     attempt_no = len(doc.get("attempts") or []) + 1
-    req = build_request(a.topology, a.manifest_path, task, a.grade, resume_session_id=resume,
-                        context_id=a.context_id, attempt=attempt_no, allocated=bud["max_turns"])
-    req["timeout_seconds"] = bud["timeout_seconds"]
+    resume = None if resume_declared in (None, "new") else resume_declared
+    req = build_request(a.topology, a.manifest_path, task, bud, resume_session_id=resume,
+                        context_id=a.context_id, attempt=attempt_no, model=a.model)
 
     if a.emit_only:
         json.dump(req, sys.stdout, ensure_ascii=False, indent=2)
@@ -611,27 +777,33 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume) -> int:
         return 0
 
     branch = assert_sub_branch(req, a.topology)
-    print(f"[relay] attempt={attempt_no} grade={a.grade} "
-          f"max_turns={bud['max_turns']} ({bud['source']}) resume={resume or '(새 세션)'} "
-          f"sub_branch={branch}")
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tf:
-        json.dump(req, tf, ensure_ascii=False)
-        tmp = tf.name
-    try:
-        out = subprocess.run([sys.executable, AGENT_CONTROL, "invoke", "--request", tmp],
-                             capture_output=True, text=True)
-    finally:
-        os.unlink(tmp)
+    print(f"[relay] attempt={attempt_no} max_turns={bud['max_turns']} "
+          f"timeout={bud['timeout_seconds']}s ({bud['source']}) "
+          f"resume={resume_declared} sub_branch={branch}")
+    # 2026-09-05(축 F): 보낸 요청을 **보존한다**. 종전에는 임시파일로 보내고 지웠기 때문에 "그때
+    #   무엇을 보냈는가" 가 남지 않았고, 조립기는 매번 다시 조립하므로 재현도 되지 않았다.
+    _qdir = os.path.join(a.repo_root, TASKS_DIR_NAME, f"{a.context_id}.requests")
+    os.makedirs(_qdir, exist_ok=True)
+    _qp = os.path.join(_qdir, "attempt-%02d.json" % attempt_no)
+    with open(_qp, "w", encoding="utf-8") as f:
+        json.dump(req, f, ensure_ascii=False, indent=2, sort_keys=True)
+        f.write("\n")
+    started = _utcnow()
+    out = subprocess.run([sys.executable, AGENT_CONTROL, "invoke", "--request", _qp],
+                         capture_output=True, text=True)
+    ended = _utcnow()
     sys.stderr.write(out.stderr)
+    control_stderr = (out.stderr or "").strip()
     try:
         result = json.loads(out.stdout)
     except ValueError:
         raise SystemExit(f"[relay] FAIL: agent_control 출력을 읽지 못했다 — {out.stdout[:300]}")
 
     report = parse_report(result.get("output") or "")
-    att = record_attempt(doc, context_id=a.context_id, grade=a.grade,
-                         allocated=bud["max_turns"], result=result, report=report,
-                         resume_requested=resume)
+    att = record_attempt(doc, context_id=a.context_id, bud=bud, result=result, report=report,
+                         resume_declared=resume_declared,
+                         request_path=os.path.relpath(_qp, a.repo_root),
+                         started_utc=started, ended_utc=ended)
     # 2026-09-04(P4 라이브): 원장이 status 만 적고 **리포트 본문을 버렸다** — 나중에 "서브가 무엇을
     #   근거로 completed 라 했는가" 를 메인이 감사할 수 없었다(내가 서브를 의심했다가 dotfile 을
     #   놓친 내 실수임을 확인하는 데도 서브 워크스페이스를 다시 뒤져야 했다 — 재스캔은 계약 밖이다).
@@ -642,22 +814,41 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume) -> int:
     with open(_ap, "w", encoding="utf-8") as f:
         json.dump({"attempt": att["attempt"], "report": report,
                    "raw_output": None if report else (result.get("output") or ""),
+                   # 2026-09-05(N6): provider 진단(`_diag` 의 stderr)을 **원장 옆에 보존**한다.
+                   #   라이브에서 malformed 로 끝났을 때 "무엇이 왔길래" 를 알 수 있는 유일한 통로가
+                   #   이 텍스트였는데, 화면을 스크롤해 지나가면 그대로 사라졌다.
+                   "control_stderr_tail": control_stderr[-4000:] or None,
                    "control": {k: result.get(k) for k in
                                ("status", "exit_code", "reason_codes", "session_id",
-                                "num_turns", "budget_outcome")}},
+                                "num_turns", "budget_outcome", "duration_ms",
+                                "duration_api_ms")}},
                   f, ensure_ascii=False, indent=2, sort_keys=True)
         f.write("\n")
     att["report_path"] = os.path.relpath(_ap, a.repo_root)
     doc["task"] = doc.get("task") or task
     doc["topology"] = a.topology
-    doc["grade"] = a.grade
     doc["manifest"] = a.manifest_path
     save_ledger(lp, doc)
-    hp = surface_requests(a.repo_root, a.context_id, report or {}, attempt=att["attempt"])
+    _crash = None
+    if report is None or att["control_status"] != "completed":
+        # 3-3: 파싱 실패·프로세스 크래시는 **fail-loud + 마지막 알려진 세션 제시**다. 재개 여부는
+        #   사람·에이전트가 정하므로, 그 판단에 필요한 세션 id 를 대기 목록에 남긴다.
+        _crash = {"attempt": att["attempt"], "end_reason": att["end_reason"],
+                  "control_status": att["control_status"],
+                  "reason_codes": att["reason_codes"],
+                  "last_known_session": att.get("session_id") or last_known_session(doc)["session_id"]}
+    hp = surface_requests(a.repo_root, a.context_id, report or {}, attempt=att["attempt"],
+                          crash=_crash)
 
     print(f"[relay] 원장 → {lp}")
+    _stall = None
+    if isinstance(att.get("duration_ms"), int) and isinstance(att.get("duration_api_ms"), int):
+        _stall = att["duration_ms"] - att["duration_api_ms"]
     print(f"[relay] control={att['control_status']} sub_status={att['status']} "
-          f"turns={att['max_turns_used']}/{att['max_turns_allocated']} budget={att['budget_outcome']}")
+          f"turns={att['max_turns_used']}/{att['max_turns_allocated']} budget={att['budget_outcome']} "
+          f"end_reason={att['end_reason']}")
+    print(f"[relay] 시간: {started} → {ended} · provider wall={att.get('duration_ms')}ms "
+          f"api={att.get('duration_api_ms')}ms 정지={_stall if _stall is not None else '(모름)'}ms")
     if att["resume_honored"] is False:
         print(f"[relay] ⚠ 재개 불발: 요청한 세션 {resume} 과 다른 세션 {att['session_id']} 이 열렸다 — "
               "서브가 컨텍스트를 처음부터 재구축했을 수 있다(소진의 주된 원인). 다음 턴의 예산을 그렇게 읽어라.")
@@ -672,10 +863,23 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume) -> int:
               "(`answer` 를 적고 `--continue` 로 재개. blocking 은 답 없이는 진행하지 않는다)")
     if att["budget_outcome"] == "exhausted":
         print(f"[relay] ⚠ 예산 소진(terminal). 자동 재시도하지 않는다 — "
-              f"`relay.py --continue --context-id {a.context_id}` 로 이어라(본문은 기계가 조립한다).")
+              f"`relay.py --continue --context-id {a.context_id}` 로 이어라(본문은 기계가 조립한다).\n"
+              f"[relay]   다음 예산은 **선언**이다: 집행된 바닥 {budget_floor(doc)} 아래로 내리면 하강나선이다.")
         return 3
     if report is None:
-        print("[relay] ⚠ 서브 리포트(JSON)를 찾지 못했다 — 산문만 왔다. 성공으로 집계하지 않는다.")
+        # 2026-09-05(N6): 종전 문구는 **검증하지 않은 원인**을 단정했다("산문만 왔다"). 라이브에서
+        #   실제로는 stdout 이 비어 있었고(provider exit 5), 그 단정 때문에 나는 서브가 형식을
+        #   어겼다고 읽었다. 관측된 것만 적는다 — 무엇이 왔는지, 제어가 뭐라고 했는지.
+        _raw = result.get("output")
+        if _raw is None or not str(_raw).strip():
+            _what = "출력이 비었다(서브가 아무것도 돌려주지 않았거나 전송이 실패했다)"
+        else:
+            _what = "출력 %d자가 왔지만 그 안에서 JSON 객체를 찾지 못했다" % len(str(_raw))
+        print("[relay] ⚠ 서브 리포트(JSON) 없음 — %s. control=%s codes=%s. 성공으로 집계하지 않는다."
+              % (_what, att["control_status"], ",".join(att["reason_codes"]) or "-"))
+        if control_stderr:
+            print("[relay]   provider 진단(끝 400자): %s" % control_stderr[-400:])
+        print("[relay]   원문 보존: %s" % att["report_path"])
         return 4
     return 0 if att["status"] == "completed" else 2
 
@@ -685,7 +889,18 @@ def main() -> int:
     ap.add_argument("--topology", choices=["single", "multi"])
     ap.add_argument("--manifest", default=None)
     ap.add_argument("--context-id")
-    ap.add_argument("--grade", choices=list(turn_budget.GRADE_ORDER))
+    ap.add_argument("--max-turns", type=int, default=None,
+                    help="이 attempt 에 배정할 턴 예산(선언 필수 — 등급표 폐기 · 기본값 없음)")
+    ap.add_argument("--timeout-seconds", type=int, default=None,
+                    help="매달림 상한(scope ⊥ budget — 예산과 별개 노브)")
+    ap.add_argument("--budget-source", default=None,
+                    help="그 예산을 그렇게 정한 근거(필수 · 원장에 남는다)")
+    ap.add_argument("--model", default=None,
+                    help="위임 모델 선언(기본은 카나리 기본값). 어댑터는 모델로 차단하지 않는다 — "
+                         "실제로 돈 모델은 원장 `model_used` 가 말한다(2026-09-05 · G-A1).")
+    ap.add_argument("--resume", default=None, metavar="SESSION_ID|new",
+                    help="이어받을 provider 세션 id, 또는 새 세션이면 `new`. **선언 필수** — "
+                         "코드가 대신 정하지 않는다(2026-09-05 · 축 F).")
     ap.add_argument("--task", help="서브에 보낼 지시(또는 --task-file)")
     ap.add_argument("--task-file")
     ap.add_argument("--continue", dest="continue_", action="store_true",
@@ -709,19 +924,13 @@ def main() -> int:
         if not (doc.get("attempts") or []):
             raise SystemExit(f"[relay] STOP: 이어갈 원장이 없다 — {lp}. 첫 위임은 `--task` 로 연다.")
         a.topology = a.topology or doc.get("topology")
-        a.grade = a.grade or doc.get("grade")
-        if not (a.topology and a.grade):
-            raise SystemExit("[relay] STOP: 원장에 topology/grade 가 없다(구버전 원장) — 명시하라.")
+        if not a.topology:
+            raise SystemExit("[relay] STOP: 원장에 topology 가 없다(구버전 원장) — 명시하라.")
         a.manifest_path = a.manifest or doc.get("manifest") or os.path.join(
             REPO, "output", a.topology, "manifest.yaml")
 
-        # ── 정지 조건 셋. 루프를 만들면서 정지 조건을 나중으로 미루지 않는다.
+        # ── 정지 조건. 예산·전진 수는 **보여주고**, 멈출지는 --apply(승인 정문)가 정한다.
         stalled = stalled_attempts(doc)
-        if stalled >= turn_budget.MAX_ATTEMPTS_BEFORE_HITL:
-            raise SystemExit(
-                f"[relay] STOP: 전진 없는 attempt 가 {stalled}회 연속이다"
-                f"(한계 {turn_budget.MAX_ATTEMPTS_BEFORE_HITL}). 예산만 키우며 같은 벽에 부딪히고 있다 —\n"
-                "  → 사람이 과업을 쪼개거나 벽의 성격을 판정해야 한다(scope ⊥ budget).")
         last = next((x for x in reversed(doc["attempts"]) if _reached_sub(x)), None)
         if last and last.get("status") == "completed":
             raise SystemExit("[relay] STOP: 직전 attempt 가 completed 다 — 이을 중단점이 없다.\n"
@@ -740,23 +949,33 @@ def main() -> int:
                 f"  → tasks/{PENDING_HITL} 의 해당 항목 `answer` 에 답을 적고 다시 --continue 하라.\n"
                 "  → 이것이 사람의 승인 정문이다(답 = 승인). 답 없이 진행하면 서브가 근거 없이 결정한다.")
 
-        bud = next_budget(doc, a.grade)
-        resume = latest_session_id(doc)
+        lks = last_known_session(doc)
         task = assemble_continuation(a.repo_root, doc, pend)
+        floor = budget_floor(doc)
+        _last_out = (last or {}).get("budget_outcome")
         if not a.apply:
-            print(f"[relay] --continue DRY-RUN · context={a.context_id} grade={a.grade} "
-                  f"max_turns={bud['max_turns']} ({bud['source']}) resume={resume or '(새 세션)'}")
-            print(f"[relay] 대기 요청 {len(pend)}건(우선순위 순) · 전진 없는 연속 attempt {stalled}회")
+            # dry-run 은 **사실만** 보여준다 — 예산도 재개도 이 화면을 본 쪽이 선언한다.
+            print(f"[relay] --continue DRY-RUN · context={a.context_id}")
+            print(f"[relay] 마지막 알려진 세션: {lks['session_id'] or '(없음)'} "
+                  f"(attempt {lks['attempt']} · sub_status={lks['status']} · "
+                  f"budget={lks['budget_outcome']}) → `--resume <id|new>` 로 선언하라")
+            print(f"[relay] 예산 사실: 집행된 바닥 {floor} · 직전 결과 {_last_out} · "
+                  f"전송 상한 {turn_budget.schema_cap('max_turns')} · 대기 요청 {len(pend)}건 · "
+                  f"전진 없는 연속 attempt {stalled}회")
+            if _last_out == "exhausted":
+                print("[relay]   직전은 **소진**이다 — 같은 값으로 다시 열면 그 자리서 또 소진된다"
+                      "(감액은 하강나선 · scope ⊥ budget).")
             print("─" * 72)
             sys.stdout.write(task)
             print("─" * 72)
-            print("[relay] 위 본문으로 위임하려면 --apply 를 붙여라(사람 승인 정문).")
+            print("[relay] 위 본문으로 위임하려면 --max-turns/--timeout-seconds/--budget-source 와 "
+                  "--resume 을 선언해 --apply 하라(사람 승인 정문).")
             return 0
-        return run_attempt(a, doc, lp, task, bud, resume)
+        bud = turn_budget.declare(a.max_turns, a.timeout_seconds, source=a.budget_source or "")
+        return run_attempt(a, doc, lp, task, bud, require_resume(a.resume, lks))
 
-    for req in ("topology", "grade"):
-        if not getattr(a, req):
-            raise SystemExit(f"[relay] --{req} 필수")
+    if not a.topology:
+        raise SystemExit("[relay] --topology 필수")
     task = a.task
     if a.task_file:
         with open(a.task_file, encoding="utf-8") as f:
@@ -764,9 +983,8 @@ def main() -> int:
     if not task:
         raise SystemExit("[relay] --task 또는 --task-file 필수")
     a.manifest_path = a.manifest or os.path.join(REPO, "output", a.topology, "manifest.yaml")
-    bud = next_budget(doc, a.grade)
-    resume = latest_session_id(doc)
-    return run_attempt(a, doc, lp, task, bud, resume)
+    bud = turn_budget.declare(a.max_turns, a.timeout_seconds, source=a.budget_source or "")
+    return run_attempt(a, doc, lp, task, bud, require_resume(a.resume, last_known_session(doc)))
 
 
 if __name__ == "__main__":

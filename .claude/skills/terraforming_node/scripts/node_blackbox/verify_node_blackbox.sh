@@ -90,9 +90,15 @@ if [ "$MODE" = "crash" ]; then
   #   컨테이너를 놓친다. 이 저장소의 실측 반례: `MASTER_CONTAINER_NAME=mn-hy3-master` ·
   #   `mn-exaone45-33b-master`(.env.hy3 · .env.exaone45-33b) — 둘 다 'vllm' 미포함이라
   #   옛 게이트를 **그대로 통과**한다. 그 대가는 남의 서빙이 도는 노드의 강제 커널 패닉이다.
-  #   판정 술어는 협역 워치독의 정본(host_safety/mem_watchdog.sh `targets()`)을 그대로
-  #   재현한다 — running 으로 한정하고 ID·**이미지**·이름 세 필드를 훑는다. 이미지에는
+  #   판정은 running 으로 한정하고 ID·**이미지**·이름 세 필드를 훑는다. 이미지에는
   #   vllm 이 들어가므로(easy-vllm*·vllm/vllm-openai 등) 이름 규약과 무관하게 잡힌다.
+  # ★ 2026-09-04(CP0 · plan_26090415 §3.3): 이 게이트는 워치독의 `targets()` 를 더 이상
+  #   재현하지 않는다 — **의도적 분기이며 침묵 분기가 아니다.** 워치독은 좁혔고 여기는 넓게
+  #   둔다. 방향이 반대이기 때문이다:
+  #     워치독  — 매칭하면 `docker kill` 한다. 과잉 매칭의 대가 = **측정 도구 동반 사살**.
+  #     이 게이트 — 매칭하면 강제 커널 패닉을 **거부**한다. 과잉 매칭의 대가 = 시험 연기뿐.
+  #   즉 여기서는 넓은 술어가 fail-closed 다. 벤치 컨테이너가 돌고 있을 때 노드를 패닉시키지
+  #   않는 것도 옳다. 두 술어를 억지로 같게 두면 한쪽이 반드시 틀린 방향으로 실패한다.
   if ! _dps="$(docker ps --filter status=running --format '{{.ID}} {{.Image}} {{.Names}}' 2>&1)"; then
     say "거부: docker 상태를 조회할 수 없다(rc≠0) — 서빙 여부를 **판정할 수 없으므로** 진행하지 않는다."
     say "      docker 출력: ${_dps}"

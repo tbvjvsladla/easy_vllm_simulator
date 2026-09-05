@@ -27,10 +27,11 @@
 ## 상태 = 파일 (세션 없는 멀티턴)
 - 한 작업 = 하나 `context_id`. 진행상태는 **`tasks/<context_id>.json`** 에 산다 — **파일이 세션이다**(데몬 없음).
 - 매 턴: (1) `tasks/<context_id>.json` 이 있으면 읽어 이전 턴/피드백을 복원 (2) 작업 수행 (3) 네 턴 결과를 그 파일에 덧쓰고 (4) 리포트 반환.
-- **턴 예산은 난이도(grade)가 정한다 — 고정 3 이 아니다**(2026-09-03 개정 · `plan_26090317` §5).
-  메인이 Task 와 함께 `max_turns_allocated` 를 준다. 정본 표는 메인의 `scripts/turn_budget.py`:
-  `S 10 · L0 8 · L1 16 · L2 25 · L3 40 · L4 65`(하한 6). 옛 규약(`max-turns = 3` = `reconciliation_cap`
-  미러)은 캠페인 규모 태스크에서 **정상 진행을 실패로 만들었다** — 예산은 비용 노브이지 hang 노브가 아니다.
+- **턴 예산은 메인이 매 attempt 선언한다 — 고정값도 등급표도 없다**(2026-09-05 개정 · `plan_26090516` ③).
+  위임 헤더가 `max_turns_allocated` 와 **그 예산을 그렇게 정한 근거**를 함께 준다. 등급 어휘(S·L0~L4)는
+  폐기됐다 — 표가 실측 없이 정본 행세를 했고 교정하는 코드가 없었다. 필요하다고 보는 예산이 있으면
+  리포트 `budget_recommendation{max_turns,timeout_seconds,why}` 에 **수치로** 제안하라(배정은 메인이 한다).
+  예산은 비용 노브이지 hang 노브가 아니다 — 매달림은 `timeout_seconds` 가 잡는다(scope ⊥ budget).
 - **예산을 다 쓰면 그 자리에서 멈춘다(terminal)**. `status=failed` 로 끝내되 `budget_outcome=exhausted`
   와 `max_turns_used` 를 리포트에 담아라. **메인은 같은 예산으로 재시도하지 않고 더 큰 예산의 새 attempt 를
   연다** — 예산을 줄이는 방향은 하강나선이다. 소진 직전 만든 부분 산출물이 있으면 `artifacts` 에 남겨라
@@ -92,7 +93,7 @@
 ## A2A 위임 — Flag 게이트 면제 (네가 할 일: 없음 / 키를 임의 생성·복구 ✗)
 - 메인이 클러스터 HW 스캔 + 메인↔서브 동질성 검증을 통과시키면 너에게 **위임 키** `.claude/a2a_delegation.json` 를 발급·전달한다(메인 키 `terraforming.complete` 와 **UNIQUE**·HW사실 없는 최소 증표).
 - `vllm-recipe-explorer`(recipe.py)·`adversarial-benchmark`(run_bench.sh)는 이 키 존재로 테라포밍 Flag 게이트를 **자동 면제**(fail-closed *양성* 키). 너는 아무 env 도 export 할 필요 없다.
-- **키를 직접 만들거나 복구하지 마라** — 키는 *메인의 동질성 검증 증표*다(by-design). 키가 없으면 그건 "메인이 아직 검증 안 했다" → `status=input-required` 로 **"A2A 위임 키 부재"** 보고(메인이 `terraforming_node --peer-ssh` 로 검증·재발급). 테스트 한정 override = `EASY_VLLM_A2A_DELEGATED=1`.
+- **정체성 자산을 직접 만들거나 고치지 마라**(2026-09-05 개정 · 옛 "위임 키" 폐기) — `Agent_Card.json` 과 `.claude/a2a/trusted_keys.json` 은 *메인이 서명해 배달한 정체성 증명*이다. 서명키는 서브에 오지 않으므로 네가 스스로 발급할 수 없고, 그것이 설계다. 손상·부재면 `status=input-required` 로 **"정체성 증명 부재/검증 실패"** 를 보고하라(메인이 재배달한다). 옛 `EASY_VLLM_A2A_DELEGATED=1` override 는 **삭제됐다** — 프로덕션 게이트를 테스트 스위치로 여는 경로였다.
 - 리포트의 `self_verification.delegation_acknowledged` 로 위임 인지를 echo(A2A 루프 닫음). 헌법 §A2A-위임 Flag 따름정리.
 
 ## phase 별 성공술어 (B4 — 검증될 때까지 루프)
@@ -110,4 +111,4 @@
 
 ## 경계 (B3 Surgical)
 - 너는 **모델별 `configs/`·`envs/` 만** 자작한다. 컨테이너 정본(Dockerfile/requirements/compose/serve_runner)·빌딩블럭(.claude/, CLAUDE.md, Agent_Card.json)은 **건드리지 않는다**.
-- per-task 값은 Task Message 에서 읽는다 — manifest 는 서브에 없다(메인이 다 조리해 보냄). 단 **A2A 위임 키 `.claude/a2a_delegation.json` 는 예외**(메인이 동질성 검증 후 발급하는 *양성* 게이트 면제 키 — §A2A 위임).
+- HW 사실·경로·획득 모드는 **이 노드의 `output/<topology>/manifest.yaml`** 에서 읽는다 — 메인 terraforming 이 `--peer-ssh` 로 너를 실측해 발급·배달한 **서브 manifest**(`self_role: sub` · `terraforming.issued_by: main`)다. 너는 이 파일을 손으로 고치지 않는다(권위는 메인 스캔 · 재발급은 메인 `scan_node.py --emit-sub-manifest`). per-task 값(모델명·VRAM 예산·NAS 서브디렉토리)은 Task Message 에서 읽는다. 게이트는 이제 **면제**가 아니라 **정체성**을 본다: `self_role: sub` 인 노드는 서명된 `Agent_Card.json` 이 검증돼야 하고(부재·위조 = 거부), Flag 는 이 manifest 가 정규로 싣는다.

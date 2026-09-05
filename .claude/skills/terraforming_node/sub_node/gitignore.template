@@ -86,4 +86,4 @@ earlyoom_*.deb
 # A2A 위임 키 — 메인이 발급/회수하는 **휘발 자격**이다(2026-09-03 · S4/㉕ · plan_26090317 P1).
 # 서브 git 이 추적하면 메인이 지워도 `git checkout -- <path>`(§2.7.7 sub.git.unstick)가 되살려
 # 철회가 무효가 된다. 자격은 이력에 남길 것이 아니라 **지금 있는가**만이 의미다.
-.claude/a2a_delegation.json
+# .claude/a2a_delegation.json — 2026-09-05 폐기(G-E1): 실행 허가 → 정체성 증명(서명 카드)

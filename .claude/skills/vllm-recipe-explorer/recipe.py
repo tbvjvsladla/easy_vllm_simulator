@@ -128,11 +128,7 @@ def resolve_tp(cfg, repo_root):
     if explicit is not None:
         return int(explicit)
     man, _mpath, topo = _read_manifest(repo_root)
-    gpus = man.get("gpus_per_node") or 1
-    try:
-        gpus = max(1, int(gpus))
-    except (TypeError, ValueError):
-        gpus = 1
+    gpus = _manifest_gpus(man, _mpath)
     mtopo = man.get("topology") or topo
     if (mtopo or "").startswith("single"):
         return gpus
@@ -170,18 +166,33 @@ def _read_manifest(repo_root):
     try:
         with open(mpath, "r", encoding="utf-8") as f:
             return (yaml.safe_load(f) or {}), mpath, topo
-    except Exception:
-        return {}, mpath, topo
+    except Exception as e:  # 손상 manifest 를 "부재"로 읽으면 하류가 기본값으로 계속 간다 — fail-loud(audit_26090515 Group D(b))
+        _die("manifest 파싱 실패(%s): %s: %s — 손상된 HW 사실은 부재가 아니다. 파일을 고치거나 terraforming_node 로 재생성하세요."
+             % (mpath, type(e).__name__, e), code=5)
 
 
-def _total_gpus(man):
+def _manifest_gpus(man, mpath):
+    """manifest 의 `gpus_per_node` — **HW 사실이지 기본값이 아니다**(2026-09-05 · audit_26090515 B4).
+
+    부재·비정수·1 미만 → fail-loud. 종전의 `gpus_per_node`→1 침묵 폴백은 메인에서는 상위 게이트가 먼저
+    죽어 닿지 않았지만 **서브(위임키 면제 경로)에서는 살아 있던 침묵 폴백**이었다 — 같은 줄이 노드에 따라
+    등급이 달랐다. 값이 없으면 TP 를 1 로 *가정*하지 않고 멈춘다(헌법: manifest = HW 사실 단일 권위).
+    """
+    raw = man.get("gpus_per_node")
+    try:
+        gpus = int(raw)
+    except (TypeError, ValueError):
+        gpus = None
+    if gpus is None or gpus < 1:
+        _die("manifest(%s) 의 gpus_per_node 가 없거나 유효하지 않다(%r) — TP 는 HW 사실이지 기본값이 아니다. "
+             "terraforming_node 스캔으로 채우세요(fail-loud · 침묵 폴백 ✗ · audit_26090515 B4)." % (mpath, raw), code=5)
+    return gpus
+
+
+def _total_gpus(man, mpath="output/<topology>/manifest.yaml"):
     """가용 GPU 합 = gpus_per_node × 노드 수.
     **topology=single → 노드 배수 1**(sub 는 control 피어이지 텐서 워커가 아님 — resolve_tp 와 동일 계약)."""
-    gpus = man.get("gpus_per_node") or 1
-    try:
-        gpus = max(1, int(gpus))
-    except (TypeError, ValueError):
-        gpus = 1
+    gpus = _manifest_gpus(man, mpath)
     if (man.get("topology") or "").startswith("single"):
         return gpus
     nodes = man.get("nodes") or []
@@ -196,6 +207,32 @@ def _total_gpus(man):
 REFERENCES_MD_PATH = os.path.join(
     REPO_ROOT, ".claude", "skills", "wiki-desk", "reference", "references.md"
 )
+
+
+def _resolve_device_total_gib(cfg):
+    """디바이스 메모리 total(GiB)과 그 **출처**. 코드에 하드웨어 숫자를 적지 않는다(G-B5).
+
+    ① config 가 `test_device_total_gib` 를 선언했으면 그것(사람이 잰 값이 가장 강하다).
+    ② 아니면 `/proc/meminfo MemTotal` 실측 — 통합메모리 노드(GB10 계열)에서는 디바이스 풀이
+       곧 호스트 RAM 풀이라 이 값이 그대로 디바이스 total 이다.
+    ③ 둘 다 없으면 **추측하지 않고 죽는다**. 이 값은 overhead 유도(=예산·gmu 판정)의 입력이라
+       틀리면 조용히 틀린 상한을 만든다.
+    """
+    declared = cfg.get("test_device_total_gib")
+    if declared:
+        return float(declared), "declared(config test_device_total_gib)"
+    try:
+        with open("/proc/meminfo", encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("MemTotal:"):
+                    return (int(line.split()[1]) / (1024.0 * 1024.0),
+                            "measured(/proc/meminfo MemTotal · 통합메모리 가정)")
+    except (OSError, IndexError, ValueError):
+        pass
+    raise SystemExit(
+        "[recipe] FAIL: 디바이스 메모리 total 을 알 수 없다 — 상수를 쓰지 않는다(2026-09-05 · G-B5).\n"
+        "  → config 에 `test_device_total_gib: <실측 GiB>` 를 선언하거나, 통합메모리 노드에서 "
+        "/proc/meminfo 를 읽을 수 있게 하라.")
 
 
 def _is_unified_memory(device_total_gib, tolerance=0.05):
@@ -320,47 +357,107 @@ def _reject_target_gpu_phase1(cfg, cmd_name):
         )
 
 
+def _card_contract_path(repo_root):
+    """정체성 검증기의 위치. 메인은 스킬 아래, 서브는 물질화된 런타임 아래에 있다."""
+    for rel in (os.path.join(".claude", "runtime", "a2a", "agent_card_contract.py"),
+                os.path.join(".claude", "skills", "terraforming_node", "scripts",
+                             "agent_card_contract.py")):
+        p = os.path.join(repo_root, rel)
+        if os.path.isfile(p):
+            return p
+    return None
+
+
+def _self_role(repo_root):
+    """이 워크스페이스가 스스로 선언한 역할(manifest `self_role`). 없으면 None(= 메인 정본).
+
+    hostname·브랜치로 추론하지 않는다(헌법). 이 값이 `sub` 면 **정체성 증명이 필수**다 —
+    카드를 지우면 검사를 건너뛰는 형태가 되면 안 되기 때문이다(부재를 면제로 만들지 않는다).
+    """
+    man, _mpath, _topo = _read_manifest(repo_root)
+    if not man:
+        return None
+    role = man.get("self_role")
+    return str(role).strip().strip('"') if role else None
+
+
+def _require_identity_proof(repo_root):
+    """이 워크스페이스가 **메인이 프로비저닝한 노드**임을 증명한다(2026-09-05 · G-E1).
+
+    위임 키(`.claude/a2a_delegation.json`)를 대체한다. 종전 규약은 메인이 발급한 **실행 허가**가
+    없으면 서브를 info-only 로 묶었고, 감사는 그것을 R3(에이전트 자율성 부정)로 판정했다.
+    서브는 이제 자기 manifest(메인이 발급한 Flag)와 **서명된 Agent Card** 를 갖는다 — 필요한 것은
+    허가가 아니라 정체성이다.
+
+    판정 규칙: `Agent_Card.json` 이 있으면(= 프로비저닝된 노드) 서명이 **반드시 검증돼야 한다**.
+    카드가 없으면 메인 자신이므로 이 검사는 성립하지 않는다(no-op). 손상·위조·신뢰저장소 부재는
+    거부다 — 옛 '손상 키 fail-closed' 규율을 그대로 옮긴 자리다.
+    반환: 증명 요지(dict) 또는 None(카드 없음 = 메인).
+    """
+    card = os.path.join(repo_root, "Agent_Card.json")
+    required = _self_role(repo_root) == "sub"
+    if not os.path.isfile(card):
+        if required:
+            _die("이 노드는 manifest 가 `self_role: sub` 라고 선언하는데 **Agent_Card.json 이 없다** — "
+                 "정체성 증명 부재는 면제가 아니다(fail-closed). 메인의 재배달로 해소한다.", code=6)
+        return None
+    verifier = _card_contract_path(repo_root)
+    if verifier is None:
+        _die("Agent_Card.json 은 있는데 **검증기가 없다**(.claude/runtime/a2a/agent_card_contract.py) — "
+             "서명을 확인할 수 없으므로 진행하지 않는다(fail-closed). 메인의 재배달이 필요하다.", code=6)
+    import subprocess          # 이 모듈은 subprocess 를 지연 import 한다(서브 런타임블럭 관행)
+    proc = subprocess.run([sys.executable, verifier, "prove-identity", "--repo-root", repo_root],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        _die("정체성 증명 실패 — 이 워크스페이스의 Agent_Card 서명이 검증되지 않는다(fail-closed).\n"
+             "  %s\n  → 카드가 손상됐거나 메인이 발급한 것이 아니다. 메인의 재배달로 해소한다."
+             % (proc.stderr or proc.stdout).strip()[:400], code=6)
+    try:
+        return json.loads(proc.stdout.strip() or "{}")
+    except ValueError:
+        return {}
+
 def _require_terraform_flag(repo_root):
     """헌법 §테라포밍-완수/A2A-위임 Flag 게이트 (**fail-closed**) — 면제 없으면 info-only(작업 거부·비0종료). 강제 2층의 *결정론 백스톱*.
 
-    면제 2경로(plan_26063021_14_37 §A2A-위임 Flag 따름정리):
-      (1차·결정론) 서브 A2A 위임 *양성 키* `.claude/a2a_delegation.json` 존재 — 메인이 클러스터 HW 동질성 검증 후
-                   발급·전달한 증표(메인 키 `terraforming.complete` 와 **UNIQUE**). *부재로 면제하는 fail-open ✗*.
-      (2차·테스트) `EASY_VLLM_A2A_DELEGATED` env — 명시 override(개명: 옛 EASY_VLLM_SKIP_FLAG_GATE).
-    그 외엔 메인 manifest Flag(complete·branch_verified·HW·model_source) 검사. (recipe = 서브 복제 런타임블럭 →
-    main-only `manifest_contract.py` 미import, 자체 리더로 동일 계약.)
+    2026-09-05(③ 3-9 · G-E1): **위임 키 면제 경로를 삭제**했다. 종전에는 메인이 발급한 실행 허가
+    (`.claude/a2a_delegation.json`)나 `EASY_VLLM_A2A_DELEGATED=1` 이 Flag 검사를 면제했고, 그것이
+    "서브는 허가 없이는 아무것도 못 한다" 는 R3 구조였다. 서브는 이제 ②에서 **자기 manifest**
+    (메인이 발급한 `terraforming.complete/branch_verified` · `self_role: sub`)를 받으므로 면제가
+    필요 없다 — 정규 경로로 통과한다. 대신 프로비저닝된 노드는 **정체성 증명**(서명된 Agent Card)을
+    통과해야 한다: 옛 '손상 키 fail-closed' 규율이 옮겨 간 자리다(`_require_identity_proof`).
+
+    HW 필수필드(topology·gpus_per_node)와 model_source 는 종전처럼 검사한다(audit_26090515 E2).
+    (recipe = 서브 복제 런타임블럭 → main-only `manifest_contract.py` 미import, 자체 리더로 동일 계약.)
     """
-    if os.environ.get("EASY_VLLM_A2A_DELEGATED") == "1":  # (2차) 명시 테스트 override (정확히 "1" — '0'/'false' 오인 차단)
-        return
-    keyp = os.path.join(repo_root, ".claude", "a2a_delegation.json")  # (1차) 서브 A2A 위임 양성 키
-    if os.path.isfile(keyp):                          # 존재 + 내용·역할 검증(D8: 손상/외부 파일로 메인 게이트 우회 차단)
-        try:
-            with open(keyp, encoding="utf-8") as kf:
-                kd = json.load(kf)
-            if kd.get("delegation") == "main_cluster_flag" and kd.get("issued_to") == "sub":
-                return
-        except Exception:
-            pass  # 손상/비유효 키 → 면제 안 함(fail-closed 진행)
+    identity = _require_identity_proof(repo_root)
+    if identity:
+        print("[recipe] 정체성 증명 OK — kid=%s role=%s topology=%s"
+              % (identity.get("kid"), identity.get("role"), identity.get("topology")),
+              file=sys.stderr)
     man, mpath, _topo = _read_manifest(repo_root)
     if not man:
         _die(
-            "manifest 부재(%s) ∧ A2A 위임 키 부재 — 테라포밍 미완(fail-closed). terraforming_node 로 HW스캔 + "
-            "모델획득 모드(managed|ephemeral|custom)를 먼저 정하세요(info-only). HW 사실 없이 서빙전략 deliverable 생성 ✗. "
-            "[A2A/서브: 메인이 동질성 검증 후 .claude/a2a_delegation.json 발급 — 테스트는 EASY_VLLM_A2A_DELEGATED=1]" % mpath,
+            "manifest 부재(%s) — 테라포밍 미완(fail-closed). HW 사실 없이 서빙전략 deliverable 생성 ✗.\n"
+            "  · 메인이면: terraforming_node 로 HW스캔 + 모델획득 모드(managed|ephemeral|custom)를 먼저 정한다.\n"
+            "  · 서브면: 서브 manifest 는 **메인의 terraforming 이 설치 과정에서 생성·배달**한다"
+            "(2026-09-05 이후 — 위임 키로 면제하던 경로는 삭제됐다)." % mpath,
             code=4,
         )
     terra = man.get("terraforming") or {}
     if terra.get("complete") is not True or terra.get("branch_verified") is not True:
         _die(
             "테라포밍 완수 Flag 미발급(terraforming.complete/branch_verified != true) — "
-            "terraforming_node 로 스캔·branch↔topology 3자일치 검증 완수 먼저(info-only).",
+            "terraforming_node 로 스캔·branch↔topology 3자일치 검증 완수 먼저(info-only). "
+            "서브에서는 메인이 발급한 manifest 가 이 Flag 를 싣는다(issued_by: main).",
             code=4,
         )
     # manifest_contract.evaluate_contract 와 **동일 계약**(약한 게이트 금지 — 통합검증 BLOCK):
-    # Flag 켜졌어도 필수 HW사실·획득모드 없으면 거부(scan 은 model_source 없이 complete 를 emit → 게이트가 집행).
+    # Flag 켜졌어도(또는 면제됐어도) 필수 HW사실·획득모드 없으면 거부(scan 은 model_source 없이 complete 를 emit → 게이트가 집행).
     missing = [k for k in ("topology", "gpus_per_node") if not man.get(k)]
     if missing:
-        _die("Flag true 이나 필수 HW필드 누락(%s) — terraforming_node 스캔 완수 먼저(info-only)." % ", ".join(missing), code=5)
+        _die("필수 HW필드 누락(%s) — terraforming_node 스캔 완수 먼저(info-only)." % ", ".join(missing), code=5)
+    _manifest_gpus(man, mpath)  # 존재해도 비정수/0 이면 여기서 fail-loud
     ms = man.get("model_source")
     if ms not in ("managed", "ephemeral", "custom"):
         _die("model_source 미설정/오류(%r) — terraforming_node 에서 획득모드(managed|ephemeral|custom) 지정 먼저(info-only)." % ms, code=5)
@@ -368,8 +465,8 @@ def _require_terraform_flag(repo_root):
 
 def _guard_tp(tp, repo_root):
     """가드(헌법 §manifest→서빙전략 배선 불변식): tp 가 가용 GPU 합 초과 시 비0종료(서빙 전 결정론 조기탐지)."""
-    man, _, _ = _read_manifest(repo_root)
-    tot = _total_gpus(man)
+    man, _mp, _ = _read_manifest(repo_root)
+    tot = _total_gpus(man, _mp)
     if tp > tot:
         _die(
             "tp=%d 가 가용 GPU 합 %d 초과(GPU 초과) — config.tensor_parallel_size 또는 "
@@ -855,7 +952,12 @@ def cmd_simulate(args):
 
     # 측정 하드웨어 total(torch.cuda 기준; DGX Spark 는 nvidia-smi N/A). consolidated 메모리
     # 라인이 없는 vLLM 빌드에서 overhead = gmu_trial×device_total − weights − kv 로 유도하는 데 쓴다.
-    device_total_gib = float(cfg.get("test_device_total_gib", 121.69))
+    # 2026-09-05(G-B5): 기본값 121.69 는 **이 캠페인 호스트(GB10)의 실측치를 손으로 적은 것**이었다.
+    #   HW 사실의 권위는 manifest·실측이지 코드 상수가 아니다(헌법). 순서: 선언 > 실측 > fail-loud.
+    #   통합메모리 노드에서는 디바이스 풀이 곧 호스트 RAM 풀이므로 /proc/meminfo 가 실측 통로다.
+    device_total_gib, device_total_src = _resolve_device_total_gib(cfg)
+    print("[recipe] device_total_gib=%.2f (%s)" % (device_total_gib, device_total_src),
+          file=sys.stderr)
 
     # run_id: 인자(--run-id) 우선, 없으면 <YYYYMMDDHH>_<seq>_<주제> 결정론 생성.
     from datetime import datetime
@@ -906,6 +1008,9 @@ def cmd_simulate(args):
         #   run_trial 이 판정 근거가 없어 캡을 못 걸고, 측정 트라이얼은 계속 구조적으로 사살된다
         #   ("만든 것과 도는 것은 다르다" — 배선이 없으면 코드는 없는 것과 같다).
         "unified_memory": _is_unified_memory(device_total_gib),
+        # 예산 선언 overhead — CLI > config > run_trial 기본값. 상수 하나로 두면 워크로드마다
+        #   틀리고, 틀리는 방향이 **무장 밴드를 넓히는 쪽**이다(run_trial BUDGET_OVERHEAD_MIB 주석).
+        "overhead_mib": getattr(args, "overhead_mib", None) or cfg.get("budget_overhead_mib"),
     }
     opts = {k: v for k, v in opts.items() if v is not None}
 
@@ -1348,6 +1453,9 @@ def build_parser():
     ps.add_argument("--cap", type=int, default=DEFAULT_TRIAL_CAP, help="reconciliation_cap(기본 3)")
     ps.add_argument("--image", default=DEFAULT_TRIAL_IMAGE, help="run_trial docker 이미지")
     ps.add_argument("--timeout", type=int, default=900, help="/health 폴링 타임아웃(초)")
+    ps.add_argument("--overhead-mib", type=int, default=None,
+                    help="예산 선언 overhead(MiB). 미지정 시 config.budget_overhead_mib → "
+                         "run_trial 기본값 순. 실측값이 있으면 넘긴다")
     ps.add_argument("--force", action="store_true", help="수렴 시 3종 세트 덮어쓰기 허용")
     ps.set_defaults(func=cmd_simulate)
 
@@ -1358,7 +1466,8 @@ def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
     # 헌법 §테라포밍-완수 Flag 게이트 — deliverable 산출 서브커맨드는 Flag 전제(미발급 시 info-only·비0종료).
-    # 면제 2경로: .claude/a2a_delegation.json(서브 A2A 위임 양성키·1차) 또는 EASY_VLLM_A2A_DELEGATED(테스트 override·2차). fail-closed 결정론 백스톱.
+    # 2026-09-05(G-E1): 위임 키·env 면제 경로는 삭제됐다. 프로비저닝된 노드는 **정체성 증명**
+    # (서명된 Agent Card)을 통과해야 하고, Flag 는 자기 manifest 로 정규 통과한다. fail-closed 백스톱.
     if getattr(args, "command", None) in ("estimate", "generate", "simulate"):
         _require_terraform_flag(REPO_ROOT)
     args.func(args)

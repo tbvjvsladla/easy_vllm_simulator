@@ -50,7 +50,22 @@ fi
 #   기본값 180 이 파생·안내·루프 4곳에 `${READY_MAX:-180}` 로 손으로 적혀 있었다. 같은 개념이 두 곳
 #   이상에 적힌 값 = 4종 안티패턴의 **매직넘버 결함**(workflow.md §결정론 규율 판정표). 여기서 한 번
 #   해소하고 이후로는 `$READY_MAX` 만 참조한다 — 한 곳만 고치면 나머지가 갈리는 상태를 없앤다.
-READY_MAX="${READY_MAX:-180}"
+#   2026-09-05(G-B6): 기본값 180 **삭제**. 로드 시간은 모델·HW 의 함수이지 스크립트 상수가
+#   아니다 — 180 은 이 캠페인의 작은 모델에서 나온 수이고, hy3 는 600 이 필요했다(실측).
+#   기본값이 남아 있으면 큰 모델이 "타임아웃"으로 오판되고 그 오판이 서빙 실패로 기록된다.
+#   선언 경로: `READY_MAX=<초>`(env). 모르면 직전 런의 engine 로그에서 READY 까지 걸린 초를
+#   재고 여유를 얹어라 — 단일노드 정본(single_serve_up.sh)은 실측 근거로 600 을 쓴다.
+READY_MAX="${READY_MAX:-}"
+# 내리기 경로(--down)는 로드를 기다리지 않으므로 선언을 요구하지 않는다 — 게이트는 그것이 지키는
+# 일이 실제로 일어나는 경로에만 선다(무관한 경로를 막으면 사람이 게이트를 우회하는 법을 배운다).
+if [ "$DOWN" = "1" ] && [ -z "$READY_MAX" ]; then READY_MAX=0; fi
+case "$READY_MAX" in
+  ''|*[!0-9]*)
+    echo "[mn] FAIL: READY_MAX 가 선언되지 않았다(기본값 없음 · 2026-09-05 G-B6)." >&2
+    echo "     왜: 로드 시간은 모델·HW 의 함수다. 옛 기본 180 은 큰 모델을 타임아웃으로 오판했다." >&2
+    echo "     어떻게: READY_MAX=<초> 로 넘겨라(직전 런의 READY 도달 시간 + 여유)." >&2
+    exit 2;;
+esac
 READY_WINDOW_S=$(( READY_MAX * 5 ))
 
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -585,11 +600,23 @@ if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
   CKPT_MIB=$(printf '%s\n' "$NAS_OUT" | grep -oE 'ckpt_mib=[0-9]+' | head -1 | cut -d= -f2)
   BTP=$(printf '%s\n' "$NAS_OUT"      | grep -oE 'BUDGET_PARAMS ckpt_mib=[0-9]+ tp=[0-9]+' | grep -oE 'tp=[0-9]+' | cut -d= -f2)
   KV_MIB=$(printf '%s\n' "$NAS_OUT"   | grep -oE 'kv_mib=[0-9]+' | head -1 | cut -d= -f2)
-  OVERHEAD_MIB="${SMOKE_BUDGET_OVERHEAD_MIB:-12288}"   # blackbox_session --overhead-mib 기본값과 동일(안전측)
+  # 2026-09-05(G-B1): 기본값 12288 삭제 → **선언 필수**. 그 값은 "안전측"이 아니었다 —
+  #   낮게 잡으면 선언 바닥이 높아져 워치독 arm 상한이 정상 서빙 위로 올라간다(실측 17,971).
+  OVERHEAD_MIB="${SMOKE_BUDGET_OVERHEAD_MIB:-}"
+  if [ -z "$OVERHEAD_MIB" ]; then
+    echo "[mn] FAIL: SMOKE_BUDGET_OVERHEAD_MIB 가 선언되지 않았다 — 예산 overhead 에 기본값을 쓰지 않는다." >&2
+    echo "     왜: overhead 를 낮게 잡으면 선언 바닥이 높아져 정상 서빙이 무장 밴드에 들어간다(사살 실적)." >&2
+    echo "     어떻게: SMOKE_BUDGET_OVERHEAD_MIB=<n> 로 넘겨라. 모르면 로드 완료 후" >&2
+    echo "     (MemTotal − MemAvailable) − weights − kv 를 재서 그 값을 쓴다." >&2
+    return 2
+  fi
   # TTL 파생: 스모크 자신의 로드 타임아웃(READY_MAX×5s)의 3배 — 로드 도중 만료를 구조적으로 배제한다.
   #   현행 기본 7200s 는 하한으로 남긴다(둘 중 큰 값). 상한 86400 은 blackbox_session 이 강제한다.
   READY_BUDGET_S=$READY_WINDOW_S
-  BUDGET_TTL_S=$(( READY_BUDGET_S * 3 )); [ "$BUDGET_TTL_S" -lt 7200 ] && BUDGET_TTL_S=7200
+  # TTL 하한은 **단일 소유자**(blackbox_session)에게 묻는다 — 여기에 숫자를 다시 적지 않는다(G-B2).
+  _TTL_FLOOR="$(python3 "$MAIN_SESSION_PY" --node-dir . budget-defaults --field ttl_s 2>/dev/null || echo)"
+  case "$_TTL_FLOOR" in ''|*[!0-9]*) echo "[mn] FAIL: 예산 TTL 기본값을 blackbox_session 에서 읽지 못했다" >&2; return 2;; esac
+  BUDGET_TTL_S=$(( READY_BUDGET_S * 3 )); [ "$BUDGET_TTL_S" -lt "$_TTL_FLOOR" ] && BUDGET_TTL_S="$_TTL_FLOOR"
   [ "$BUDGET_TTL_S" -gt 86400 ] && BUDGET_TTL_S=86400
 
   if [ -z "$CKPT_MIB" ] || [ -z "$BTP" ] || [ -z "$KV_MIB" ] || [ "$BTP" -eq 0 ] 2>/dev/null; then
@@ -612,14 +639,20 @@ if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
   #   이걸 선언 후 15초 폴링으로 알게 하면 "왜 막혔는지" 가 불투명해진다. 숫자로 미리 말한다.
   #   실측(2026-08-14 · ds4f0731-x2): 파생 기본 overhead 12,288 → 상한 16,361 = 가드에 **23 MiB 부족**.
   #   R0 이 손으로 넣은 11,264 는 통과했다(17,385). 경계가 이만큼 얇다는 사실 자체가 판정 재료다.
-  #   ★ 두 상수는 워치독 기본값(`BB_DECL_MARGIN_MIB`·`BB_DECL_MIN_CEILING_MIB`)의 **거울**이다.
-  #     판정 권위는 워치독이고 여기는 예고일 뿐이라 값을 파생할 통로가 없다 — 그래서 tripwire 로
-  #     둔다(닫힌 목록: 저쪽 기본값을 바꾸면 여기도 바꿔야 한다). 한 블록 안에 같은 숫자를 네 번
-  #     손으로 적던 것을 변수 하나로 모은다(4종 안티패턴 `매직넘버·결함` = 두 곳 이상의 손글씨).
-  # 2026-08-18: 정본(blackbox_eta.DEFAULTS)이 8192/16384 → 3072/8192 로 바뀌어 거울도 함께 갱신한다
-  #   (위 ★ 주석의 tripwire 계약 — 저쪽 기본값을 바꾸면 여기도 바꾼다). 근거 testlog_26081811 §5.3.2.
-  _WD_MARGIN=3072
-  _WD_MIN_CEIL=8192
+  #   ★ 2026-09-05(G-B3): 두 상수의 **거울을 삭제**했다. 종전 주석은 "값을 파생할 통로가 없어
+  #     tripwire 로 둔다"고 했지만 통로는 있었다 — 정본 `blackbox_eta.DEFAULTS` 는 이 노드의
+  #     같은 저장소 안에 있고 import 하면 된다. 거울로 둔 대가는 이미 치렀다(2026-08-18 정본이
+  #     움직이자 손으로 따라가야 했고, 워치독 셸의 거울은 **따라가지 못해 옛값으로 남았다**).
+  _WD_CONST="$(python3 -c "
+import sys; sys.path.insert(0, '$(dirname "$MAIN_SESSION_PY")')
+from blackbox_eta import DEFAULTS as D
+print(int(D['decl_margin_mib']), int(D['decl_min_ceiling_mib']))
+" 2>/dev/null)"
+  _WD_MARGIN="${_WD_CONST%% *}"; _WD_MIN_CEIL="${_WD_CONST##* }"
+  case "${_WD_MARGIN}${_WD_MIN_CEIL}" in ''|*[!0-9]*)
+    echo "[mn] FAIL: 선언 상수를 blackbox_eta.DEFAULTS 에서 읽지 못했다 — 여기에 사본을 두지 않는다." >&2
+    return 2;;
+  esac
   _MEMTOT_MAIN=$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)
   _PRED_FLOOR=$(( _MEMTOT_MAIN - WEIGHTS_MIB - KV_MIB - OVERHEAD_MIB ))
   _PRED_CEIL=$(( _PRED_FLOOR - _WD_MARGIN ))

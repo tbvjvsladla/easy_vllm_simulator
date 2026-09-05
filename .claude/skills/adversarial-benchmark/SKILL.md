@@ -46,7 +46,7 @@ description: >-
 3. **serve 가동 확인** — `:PORT/health` 200. 로그 grep 금지(거짓양성).
 4. **측정 M** — `run_bench.sh` → `parse_bench.py`(warmup 폐기 + engine-log 교차).
 5. **외부 레퍼런스 (b) E** — Devil's Advocate 가 `references.md` warm-start → 검색 → 결과를 `--e-search {hit,empty,no}` 로 **기록**. 미시도 상태로 6단계 직행 ✗.
-6. **판정(결정론 게이트)** — `verdict_rule.py --authority {weak,explicit,explore}`(§2 — 기본 `weak`; 사용자가 목표를 HITL 명시했을 때만 `explicit`; 사용자가 *광범위 탐색/목표 미설정*을 HITL 지시했을 때만 `explore`). PASS → done-게이트 클리어 / REFUTE → 기각 리포트 + `next_strategy_hint` → recipe 재탐색 → 3단계로(cap 한정, **`explore` 에서는 해제** — 다음 항목으로 진행) / NEEDS_RUBRIC → (c) 사용자 백스톱.
+6. **판정(결정론 게이트)** — `judge_bench.sh <config> --authority {weak,explicit,explore}` (roofline→verdict 체인 · 권한 인자 필수 · 기본값 없음). 판정 규칙 자체는 `verdict_rule.py --authority {weak,explicit,explore}`(§2 — 기본 `weak`; 사용자가 목표를 HITL 명시했을 때만 `explicit`; 사용자가 *광범위 탐색/목표 미설정*을 HITL 지시했을 때만 `explore`). PASS → done-게이트 클리어 / REFUTE → 기각 리포트 + `next_strategy_hint` → recipe 재탐색 → 3단계로(cap 한정, **`explore` 에서는 해제** — 다음 항목으로 진행) / NEEDS_RUBRIC → (c) 사용자 백스톱.
 7. **종결 발행** — cap 소진 or PASS 로 종결되면 사람용 report(항상) + 인증서(PASS시만) 발행(`references/lite-and-publication.md` §2).
 
 ## Failure → reference routing
@@ -152,6 +152,7 @@ description: >-
 ## 8. 안전 / 금지
 
 - **serve 를 기동하지 않는다**(돌고 있는 serve 검증만). 미가동 시 중단·보고. — 예외는 **별도 오퍼레이션 Max**(reload 를 스스로 소유, 이중 게이트).
+  - ★ **이 금지의 목적어는 추론 서버다**(2026-09-04 명문화 · `plan_26090415` §3.2). 원문이 "어떤 컨테이너도"로 읽히면 오늘의 `docker exec` 조차 금지되어 현실과 모순된다. **측정 도구 컨테이너는 teardown 계약 하에 이 스킬이 소유한다** — full 모드의 GuideLLM 이 그것이다. 소유의 기준은 **기동이 아니라 정리**다: 실질 실패모드는 "누가 띄웠나"가 아니라 "크래시가 컨테이너를 흘렸나"이므로 `--rm` + 모든 종료 경로의 teardown trap 이 계약이며, 메모리 예산은 **선언에서만** 오고(`--bench-budget-mib` · 기본값 없음) 커널이 `--memory` 로 강제한다. Max 의 이중 게이트는 여기 적용하지 않는다 — Max 가 이중인 이유는 추론 서버를 reload 해 통합메모리 OOM 이력에 직결되기 때문이고, 측정 도구는 그 축을 건드리지 않는다. 정본 술어는 `policy:HOST_SAFETY_LAYERED_DEFENSE.C10`.
 - 모델 자동 다운로드 금지(NAS 부재면 중단). 결정론 스크립트는 외부 네트워크 호출 없음 — **단 검증기 (b) 외부검색은 허용·의무**(모델획득 격리 한정).
 - 무승인 자동 escalate/rebuild ✗(escalation 은 승인 게이트). 무한 기각·무한 루프 ✗(cap → Model-C).
 - 게이트(PASS/REFUTE)는 결정론 규칙 — LLM 다수결로 결정하지 않는다. lite 는 `verdict_rule` 에 투입하지 않는다(inform-only).
@@ -165,11 +166,19 @@ description: >-
 
 **결정론 스크립트**
 - `scripts/roofline.py` — (a) spec-aware R_fp/R_token/expected(manifest+config/index).
-- `scripts/run_bench.sh` · `scripts/parse_bench.py` — full 경로 측정 M(+engine-log 교차).
+- `scripts/run_bench.sh` · `scripts/parse_bench.py` — 측정 M(+engine-log 교차). `--tool vllm|guidellm`(기본 `vllm`)이 도구를 고른다 — **lite 는 언제나 `vllm bench serve`**, full 만 GuideLLM 으로 간다(`full = lite ∪ GuideLLM`). 두 경로를 이질적으로 유지하는 것이 설계다: 통합하면 같은 버그가 양쪽에 균일하게 먹어 **일치해 보이면서 둘 다 틀리는** 상태가 되고, 실제로 그 이질성이 실결함 2건을 잡았다(2026-09-01·09-03).
+- `scripts/parse_guidellm.py` — GuideLLM `benchmarks.json` → **`parse_bench` 와 동일 계약**의 측정 M(소비자가 도구를 몰라도 되게). 정본 지표도 그대로 `1000/median(TPOT)`. **spec 축은 추측하지 않고 요구한다** — GuideLLM 은 수용길이를 보고하지 않는데 `verdict_rule` 은 `spec_on` 으로 물리 상한을 R_token/R_fp 중에서 고르므로, 조용한 False 는 거짓 판정이 된다. `--accept-len-src`(같은 스윕 lite 레그에서 승계) 또는 `--spec-axis-absent`(부재 명시) 중 **정확히 하나**가 필수다. **`--self-test`**(G1~G11 · 실측 산출물 픽스처 포함).
 - `scripts/verdict_rule.py` — 결정론 PASS/REFUTE 게이트(**`--authority weak|explicit|explore`** = E>c>expected / c>E>expected / E>expected(c 부재)(§2), like-with-like, spec-off 강제함수, 밸런스 축 — **`explore` 에서 밸런스는 게이트가 아니라 서술**(§2.1)). `explicit` + `--target-tps` 부재, `explore` + `--target-tps` 존재, `--target-tps|--reference-tps ≤0·NaN·Inf`, `--tolerance ∉[0,1)` 은 전부 **fail-closed(exit 2)** — 침묵 폴백 금지. **`--self-test`** 로 T1~T16 결정론 자체검사(파일 입력 불요 — T16 = explore 밸런스=서술 회귀).
+- `scripts/resolve_guidellm.py` — **버전 해소(스테이징 평면)**. 기본은 **최신 릴리즈**를 GitHub Releases 에서 결정론으로 해소하고(`--version` 으로 선언 override), `--record` 로 `bench_tool_pin.json` 에 병합한다. 네트워크로 못 풀면 **조용히 옛 버전으로 떨어지지 않고 exit 3**(버전을 선언하라). **`--self-test`**(T1~T9).
+- `scripts/resolve_bench_tool.py` + `bench_tool_pin.json` — **실행 평면의 해소·기록**. 네트워크를 쓰지 않고 로컬 이미지를 확인만 한다. 이미지 부재는 **자동 pull 하지 않고 exit 3**(사전 스테이징 계약 — airgap-safe 불변식 보존). **2026-09-05(`plan_26090516` ③ 3-8 · `audit_26090515` G-C3): digest 드리프트 게이트(exit 4)는 삭제됐다** — 핀=버전고정은 "기본은 최신 릴리즈"라는 결정과 충돌해 버전을 올릴 때마다 하네스를 고쳐야 했다. digest 는 이제 **관문이 아니라 측정 provenance** 이며, 실제로 돈 이미지의 digest·요청 포맷이 런별 사이드카(`bench_tool_<config>.json`)를 거쳐 인증서 소프트 지문(`bench_tool_image_digest`·`bench_endpoint`·`bench_max_error_rate`)과 hint 동봉 문서의 **측정 구성 표**에 실린다(기재 · 게이트 ✗ · 축 A/B). **`--self-test`**(P1~P9).
+- `scripts/judge_bench.sh` — **루브릭 권한 통로**(roofline → verdict 체인). `--authority` 는 **필수이며 기본값이 없다** — 권한은 사용자 HITL 트리거이지 스크립트의 판단이 아니고, 기본값을 두면 "사용자가 약한 권한을 골랐다"와 "아무도 안 골랐다"가 구분 불가가 된다(이것이 1년간 explore 인증서 0건이었던 원인이다). 권한↔`--target-tps` 조합 규칙은 **복제하지 않고** `verdict_rule.py` 의 exit 2 를 그대로 전달한다. 루프라인 입력은 `sweep_index.json` meta 에서 **승계**한다(파생 복제 ✗).
 - `scripts/lite_bench.sh` · `scripts/lite_metrics.py` — lite 오케스트레이터 + 5종 메트릭 렌더(inform-only).
 - `scripts/sweep_bench.sh` · `scripts/render_report.py` · `scripts/publish_benchmark_record.py` — full 종결 스윕·report·인증서.
 - `scripts/max_envelope.sh` · `scripts/render_max_report.py` — **Max 오퍼레이션**(별도 정체성).
+- `scripts/broad_search.sh` — **광의의 탐색 오퍼레이션**(Max 동형 · 별도 정체성 · 이중 게이트 `--confirm-risk` ∧ 챗 Y/N). `init`/`cell`/`status`/`map`. **축을 고르지 않는다** — 축 선택·후보 생성·캠페인 안은 에이전트 판단이고(결정론이 축을 고르면 탐색 품질이 떨어진다), 이 스크립트가 소유하는 것은 게이트·안전·상태·산출물이다. **serve 를 기동하지 않는다** — 셀 materialize 는 explorer 소관이며, 미가동은 `serve_failed` 로 정직하게 기록하고 멈춘다(단일노드에 정규 기동 경로가 없다고 해서 여기서 무보호 `compose up` 으로 메우지 않는다 — D3).
+- `scripts/classify_cell.py` — 셀 종결 3분류(`measured`/`serve_failed`/`measurement_void`). `void_reason` 은 자기추론이 아니라 **노드 블랙박스 이벤트와의 시각 대조**로 채우고, 대조 실패는 `unknown` 이다(추측 ✗). dry-run 트립은 사인 후보가 아니다 — 아무것도 죽이지 않았다. 허용오차 기본 0(같은 호스트 같은 시계). **`--self-test`**(K1~K3 · C1~C6).
+- `scripts/render_sweep_map.py` — 탐색 지도 렌더러. **순위를 만들지 않는다**(목적함수 ✗ · 파레토 선언 ✗ · 셀은 **실행 순서**로만). 그 금지를 산문이 아니라 `assert_no_ranking` 이 **깊이 무제한 키 검사**로 집행하고, 위반 시 자기 산출물을 스스로 거부한다(exit 3). 미완 지도도 발행한다(`sweep_status: incomplete` · `remaining[]`). **`--self-test`**(R1~R10 · 음성대조 3건).
+- `scripts/sweep_stop.py` — **광의의 탐색(Broad Search) 정지 조건 평가기**(`stop ⟸ 남은 셀 0 ∨ 셀 수 예산 ∨ 벽시계 예산 ∨ 연속 실패 한도`). 세 한도는 전부 상태 파일의 `declared_budget` 에서만 오고 **기본값이 없다** — 미선언은 exit 2 다(깊이 HITL 이 숫자를 낳는다). 셀 종결 3분류(`measured`/`serve_failed`/`measurement_void`) 중 뒤 둘만 연속 실패로 세며, `measured` 는 verdict 가 REFUTE 여도 실패가 아니다(잴 수 있었다). 시각은 `--now-utc` 주입만. **`--self-test`**(S1~S16 · 음성 사례 6건). 종료 `0=계속 · 3=정지 · 2=판정 불가`.
 - `.claude/skills/wiki-desk/scripts/doc_naming.py` — 발행 명명 SSOT.
 
 **조건부 references(필요할 때만 연다)**

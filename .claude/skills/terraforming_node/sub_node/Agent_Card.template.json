@@ -1,75 +1,45 @@
 {
-  "_template_note": "추적되는 PII-free 템플릿. terraforming_node/render_sub_env.py 가 manifest 값을 {{ }} 에 채워 서브 워크스페이스 루트의 Agent_Card.json(gitignored)으로 렌더. A2A AgentCard 차용 — HTTP 서버 없음(전송=ssh claude -p).",
-  "name": "easy-vllm sub build-worker @ {{ SUB_HOST }}",
-  "description": "easy-vllm 서브 노드의 코드에이전트. 이 노드가 무엇인지는 node_identity.sub_mode 가 답한다 — 한 서술로 양 토폴로지를 덮지 않는다(헌법 §불변식 A). 토폴로지별 계약은 topology_contract 블록에 분리해 적었고, 이 카드에 실린 값은 node_role_contract.py 가 해소한 것이다(손저작 ✗).",
-  "topology_contract": {
-    "_note": "‘sub’ 는 토폴로지에 따라 서로 다른 존재다(헌법 §불변식 A · terraforming_node SKILL.md §2.7.0). 지금 이 노드에 적용되는 블록은 node_identity.sub_mode 가 가리키는 하나뿐이고, 나머지는 대비용이다. **브랜치로 분기하지 않는다** — 토폴로지는 manifest 가 답한다.",
-    "a2a-agent": {
-      "topology": "single",
-      "identity": "A2A 원격 에이전트(불투명 피어 · 자율 처리 · client↔server)",
-      "identity_authority": "Agent_Card.json (정체성+능력+엔드포인트)",
-      "rank_source": "not-applicable:single-a2a-agent",
-      "build": "**자기 빌드킷을 자율 저작한다.** 메인 정본의 재현이 아니며 버전 핀 커플링이 없다",
-      "serve": "standalone API 직접 서빙(자기 모델 · 자기 수명). 메인의 teardown·재기동과 무관하다",
-      "build_kit_delivery_plane": "dormant",
-      "build_kit_delivery_note": "sync_to_sub 빌드킷 배달은 멀티의 집단 연산 ABI 정합을 위한 평면이므로 single 에서는 켜지지 않는다. manifest 에 role:sub 가 등록되어도 마찬가지다 — 등록으로 열리는 것은 A2A 에이전트 제어(위임·관측)뿐이다",
-      "grounding": "빌드·서빙 결정은 도서관 참조 인용으로 그라운딩한다(헌법 §불변식 B). 도서관·사서는 메인 단독이므로 서브는 library.citation.request 로 **요청**하고 반출된 ref 를 인용한다"
-    },
-    "ray-worker": {
-      "topology": "multi",
-      "identity": "Ray 워커(위치=rank · 집단 연산 ABI 동기 · 제어평면은 head 종속)",
-      "identity_authority": "manifest nodes[] 인덱스(rank) + role 슬러그",
-      "rank_source": "manifest-nodes-index",
-      "build": "메인 정본 빌드킷을 배달받아 **동일 빌드킷에서 파생된 동일 ABI**로 빌드한다(image digest 는 노드별로 달라도 된다 — 일치해야 하는 것은 vLLM git SHA·torch·driver)",
-      "serve": "master Ray head 에 worker 로 합류. API 는 master 가 제공한다",
-      "build_kit_delivery_plane": "active",
-      "build_kit_delivery_note": "버전·드라이버 동기가 필수다 — 근거는 집단 연산 lockstep 정합이며 로드 균형이 아니다",
-      "grounding": "동일(불변식 B 는 토폴로지 무관 — 도서관 비대칭은 sub 가 Ray 워커든 A2A 에이전트든 같다)"
-    },
-    "deterministic_resolver": ".claude/skills/terraforming_node/scripts/node_role_contract.py evaluate --topology <single|multi> --field {sub_mode,rank,identity_authority,delivery_plane}"
-  },
-  "version": "1.0.0",
-  "protocol": "A2A-concept over SSH (claude -p, no HTTP/JSON-RPC server)",
-  "url": "ssh://{{ SSH_USER }}@{{ SUB_HOST }}",
+  "_template_note": "추적되는 PII-free 템플릿(A2A v1.0.1 · a2aproject/A2A specification/a2a.proto 의 AgentCard 필드만 최상위). render_sub_env.py 가 {{ }} 를 채우고 agent_card_contract.py 로 검증·JWS 서명한 뒤 서브 워크스페이스 루트 Agent_Card.json(gitignored)으로 배달한다. HW 사실(gpu_model·cpu_arch·nas 등)은 카드에 없다 — 서브 manifest.yaml(terraforming 생성)이 권위다(plan_26090516 §7.2 · H1 승인 2026-09-05).",
+  "name": "easy-vllm sub agent @ {{ SUB_HOST }}",
+  "description": "easy-vllm 서브 노드의 코드에이전트. 이 카드는 A2A 평면 계약이다 — 메인이 실측·발급한 '이 노드가 무엇을 할 수 있나'. 노드가 어떤 존재인지는 capabilities.extensions[urn:easy-vllm:ext:node-role:v1].params.sub_mode 가 답하고(헌법 §불변식 A · terraforming_node SKILL.md §2.7.0), 값은 node_role_contract.py 가 해소한 것이다(손저작 ✗). 무엇 위에서 도는지(HW·경로·획득 모드)는 이 노드의 output/<topology>/manifest.yaml 이 답한다.",
+  "supportedInterfaces": [
+    {
+      "url": "ssh://{{ SSH_USER }}@{{ SUB_HOST }}",
+      "protocolBinding": "urn:easy-vllm:a2a-binding:ssh-claude-p:v1",
+      "protocolVersion": "1.0"
+    }
+  ],
   "provider": {
     "organization": "easy-vllm (self-hosted, closed network)",
-    "url": ""
+    "url": "https://github.com/tbvjvsladla/easy_vllm"
   },
+  "version": "2.0.0",
+  "documentationUrl": ".claude/rules/comms.md",
   "capabilities": {
     "streaming": false,
     "pushNotifications": false,
-    "stateTransitionHistory": true
+    "extendedAgentCard": false,
+    "extensions": [
+      {
+        "uri": "urn:easy-vllm:ext:node-role:v1",
+        "description": "토폴로지 축 계약의 해소값(헌법 §불변식 A). 렌더러는 적기만 하고 node_role_contract.py 가 해소한다 — 값 옆의 *_source 가 측정·선언·파생을 가른다(헌법 §결정론 규율 출처 표시). 이 확장을 모르는 클라이언트는 이 노드를 다룰 수 없다(required).",
+        "required": true,
+        "params": {
+          "topology": "{{ TOPOLOGY }}",
+          "sub_mode": "{{ SUB_MODE }}",
+          "sub_mode_source": "{{ SUB_MODE_SOURCE }}",
+          "rank": {{ SUB_RANK }},
+          "rank_source": "{{ SUB_RANK_SOURCE }}",
+          "identity_authority": "{{ IDENTITY_AUTHORITY }}",
+          "delivery_plane": "{{ DELIVERY_PLANE }}",
+          "tool_plane": {{ TOOL_PLANE_JSON }},
+          "tool_plane_source": "{{ TOOL_PLANE_SOURCE }}"
+        }
+      }
+    ]
   },
   "defaultInputModes": ["application/json", "text/plain"],
   "defaultOutputModes": ["application/json"],
-  "securitySchemes": {
-    "ssh-key": {
-      "type": "ssh",
-      "description": "Case A passwordless SSH (사전조건). 메인이 ssh {{ SSH_USER }}@{{ SUB_HOST }} 로 비대화 호출."
-    }
-  },
-  "node_identity": {
-    "_derivation_note": "rank·sub_mode 는 **파생값**이다 — node_role_contract.py 가 해소하고 render_sub_env.py 는 적기만 한다(SKILL.md §2.7.6(c)). 값 옆의 *_source 가 없으면 하류가 측정·선언·파생을 구분하지 못한다(헌법 §결정론 규율 출처 표시).",
-    "role": "sub",
-    "rank": {{ SUB_RANK }},
-    "rank_source": "{{ SUB_RANK_SOURCE }}",
-    "sub_mode": "{{ SUB_MODE }}",
-    "sub_mode_source": "{{ SUB_MODE_SOURCE }}",
-    "host": "{{ SUB_HOST }}",
-    "hostname": "{{ SUB_HOSTNAME }}",
-    "master_host": "{{ MASTER_HOST }}",
-    "ray_port": "{{ RAY_PORT }}",
-    "interconnect": "{{ INTERCONNECT }}",
-    "interconnect_iface": "{{ INTERCONNECT_IFACE }}",
-    "interconnect_mtu": "{{ INTERCONNECT_MTU }}",
-    "gid_index": "{{ GID_INDEX }}",
-    "hca_devices": "{{ HCA_DEVICES }}",
-    "platform_preset": "{{ PLATFORM_PRESET }}",
-    "cpu_arch": "{{ CPU_ARCH }}",
-    "gpu_model": "{{ GPU_MODEL }}",
-    "workspace_path": "{{ WORKSPACE_PATH }}",
-    "nas_mount": "{{ NAS_MOUNT }}"
-  },
   "skills": [
     {
       "id": "inspect",
@@ -82,24 +52,40 @@
     {
       "id": "config",
       "name": "Autonomous serving-triplet authoring",
-      "description": "지정 모델의 서빙 3종(.yaml+.sh+.env)을 vllm-recipe-explorer 결정론 엔진으로 자율 생성. per-task 값(모델명·VRAM 예산·NAS 서브디렉토리)은 Task Message 에서 읽는다.",
+      "description": "지정 모델의 서빙 3종(.yaml+.sh+.env)을 vllm-recipe-explorer 결정론 엔진으로 자율 생성. HW 사실·경로·획득 모드는 이 노드의 manifest.yaml 에서, per-task 값(모델명·VRAM 예산·NAS 서브디렉토리)은 Task Message 에서 읽는다.",
       "tags": ["recipe", "triplet", "vllm-recipe-explorer", "autonomous"],
       "inputModes": ["application/json"],
       "outputModes": ["application/json"]
     },
     {
       "id": "build",
-      "name": "Container build (slave/debug)",
-      "description": "docker compose --profile <slave|debug> build. **의미가 토폴로지에서 갈린다**(topology_contract 참조): sub_mode=ray-worker 면 배달받은 메인 정본 빌드킷으로 --profile slave 빌드(동일 ABI 재현) · sub_mode=a2a-agent 면 --profile debug 로 **자기 빌드킷을 자율 저작**해 빌드한다(메인 정본의 재현이 아니다).",
+      "name": "Container build",
+      "description": "docker compose build. 의미가 토폴로지에서 갈린다(node-role 확장 참조): sub_mode=ray-worker 면 배달받은 메인 정본 빌드킷으로 --profile slave 빌드(동일 ABI 재현) · sub_mode=a2a-agent 면 자기 빌드킷을 자율 저작해 빌드한다(NGC 베이스 pull 포함 · 이미지 전송 ✗).",
       "tags": ["docker", "build", "cross-validate"],
       "inputModes": ["application/json"],
       "outputModes": ["application/json"]
     },
     {
       "id": "serve",
-      "name": "Serve — Ray worker (sub_mode=ray-worker) / standalone API (sub_mode=a2a-agent)",
-      "description": "sub_mode=ray-worker: docker compose --profile slave up — master Ray head 에 worker 합류(API 는 master). sub_mode=a2a-agent(독립서빙, T3 검증 0.23.0 E2E): standalone API 직접 서빙(절차 정본 = comms.md §phase serve 술어 single 분기 — detached up→health200(python urllib)→functional smoke→push-attestation). **분기 입력은 node_identity.sub_mode 이며 git 브랜치가 아니다**(브랜치 추론 = 헌법 금지).",
+      "name": "Serve — Ray worker (ray-worker) / standalone API (a2a-agent)",
+      "description": "sub_mode=ray-worker: --profile slave up 으로 master Ray head 에 합류(API 는 master). sub_mode=a2a-agent: standalone API 직접 서빙(절차 정본 = comms.md §phase serve 술어 single 분기). 분기 입력은 node-role 확장의 sub_mode 이며 git 브랜치가 아니다(브랜치 추론 = 헌법 금지).",
       "tags": ["ray", "serve", "nccl", "rdma", "standalone", "single-node"],
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "bench",
+      "name": "Benchmark — lite observation / Full adversarial",
+      "description": "서빙 성공 시 adversarial-benchmark 런타임블럭으로 계측. lite 는 서빙 성공 시 관측용 자동, Full 은 Task 가 지시할 때만. Full 의 측정 도구(GuideLLM)는 런 시작 시 GitHub Releases 최신 릴리즈를 결정론 해소해 런별로 핀하고 인증서·리포트에 기재한다(특정 버전 지시 시 그 버전의 독립 컨테이너). 열 한계에 닿으면 lite 로 강등하고 그 사실을 리포트에 남긴다.",
+      "tags": ["benchmark", "guidellm", "lite", "full", "adversarial-benchmark"],
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "publish",
+      "name": "Publish — 완수 결과의 문서 평면 발행",
+      "description": "config→build→serve→bench 완수 뒤 결과를 docs/ 문서 평면에 발행하고(sweep map · benchmark 인증서/리포트 · devlog/testlog · hint 입력 사이드카 docs/benchmark/hint_inputs_<measured_utc>/), task-report 로 경로를 전달한다. 런타임 Phase 동안 output/** 은 노드 밖으로 이동하지 않는다 — 발행 Phase 의 문서만 메인이 fetch_sub_docs 로 회수한다(헌법 §서브 회수 = 문서기반).",
+      "tags": ["publish", "docs", "sweep-map", "certificate", "hint-inputs"],
       "inputModes": ["application/json"],
       "outputModes": ["application/json"]
     }

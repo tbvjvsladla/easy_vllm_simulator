@@ -76,12 +76,18 @@ def manifest_tp(man, topology):
     sub-control 피어이지 텐서 워커가 아니다. 이 배수를 안 걷으면 서브가 등록된 single manifest 가
     1-GPU 노드에 TP=2 를 요구한다(δ1-1 라이브 E2E 실버그 · check_smoke_model.read_manifest_tp 와
     recipe._target_cards 가 이미 쓰는 계약).
-    그 외: nodes 있으면 len(nodes)×gpus_per_node · nodes 비면 None."""
-    gpus = man.get("gpus_per_node") or 1
+    그 외: nodes 있으면 len(nodes)×gpus_per_node · nodes 비면 None.
+
+    **gpus_per_node 부재·비정수·1 미만 → ValueError**(2026-09-05 · audit_26090515 B4). 종전 `or 1` 은
+    HW 사실을 기본값으로 대체하는 침묵 폴백이었다 — 계약의 소유자가 그 폴백을 갖고 있으면 하류 4사이트가
+    같은 것을 복제한다. 호출자(evaluate_contract)는 예외를 잡아 EXIT_MISSING_FIELD 로 돌린다."""
+    raw = man.get("gpus_per_node")
     try:
-        gpus = max(1, int(gpus))
+        gpus = int(raw)
     except (TypeError, ValueError):
-        gpus = 1
+        gpus = None
+    if gpus is None or gpus < 1:
+        raise ValueError("gpus_per_node 부재/비정수(%r) — TP 는 HW 사실이지 기본값이 아니다" % (raw,))
     if (topology or "").startswith("single"):
         return gpus
     nodes = man.get("nodes") or []
@@ -106,7 +112,12 @@ def evaluate_contract(man, topology):
         "quant_model_path": man.get("quant_model_path") or "",
         "tiktoken_host_path": man.get("tiktoken_host_path") or "",
     }
-    res["manifest_tp"] = manifest_tp(man, topology)
+    try:
+        res["manifest_tp"] = manifest_tp(man, topology)
+        tp_error = None
+    except ValueError as e:  # 부재/비정수 — 아래 필수 HW필드 검사가 EXIT_MISSING_FIELD 로 돌린다(침묵 1 ✗)
+        res["manifest_tp"] = None
+        tp_error = str(e)
 
     terra = man.get("terraforming") or {}
     if terra.get("complete") is not True:
@@ -122,6 +133,10 @@ def evaluate_contract(man, topology):
     missing = [k for k in ("topology", "gpus_per_node") if not man.get(k)]
     if missing:
         res["reason"] = "Flag true 이나 필수 HW필드 누락: %s" % ", ".join(missing)
+        res["exit_code"] = EXIT_MISSING_FIELD
+        return res
+    if tp_error:  # 존재하되 비정수/0 — `not man.get()` 은 못 잡는다
+        res["reason"] = "Flag true 이나 %s" % tp_error
         res["exit_code"] = EXIT_MISSING_FIELD
         return res
 
@@ -243,6 +258,12 @@ def _self_test():
     chk("flag-but-bad-model-source",
         {**base_ok, "model_source": "nas"},
         "single", False, EXIT_MISSING_FIELD)
+    chk("flag-but-gpus-not-int(B4)",
+        {**base_ok, "gpus_per_node": "abc"},
+        "single", False, EXIT_MISSING_FIELD)
+    chk("flag-but-gpus-zero(B4)",
+        {**base_ok, "gpus_per_node": 0},
+        "single", False, EXIT_MISSING_FIELD)
 
     # per-node model_source override 회귀(plan_26070809_46_57 §4.4 — valid-override · bad-override).
     single_sub_control = {
@@ -313,6 +334,14 @@ def _self_test():
     for name, man, topo, expect in tp_cases:
         got = manifest_tp(man, topo)
         cases.append((name, got == expect, "tp=%r (기대 %r)" % (got, expect), got))
+    # B4 음성대조: gpus_per_node 부재/비정수는 1 로 떨어지지 않고 ValueError 로 멈춘다
+    for name, man in (("tp-missing-gpus-raises(B4)", {"nodes": []}),
+                      ("tp-str-gpus-raises(B4)", {"gpus_per_node": "two", "nodes": []})):
+        try:
+            got = manifest_tp(man, "single")
+            cases.append((name, False, "예외 없이 tp=%r 반환(침묵 폴백 생존)" % (got,), got))
+        except ValueError as e:
+            cases.append((name, True, "ValueError: %s" % e, None))
 
     passed = sum(1 for _, ok, _, _ in cases if ok)
     for name, ok, reason, tp in cases:

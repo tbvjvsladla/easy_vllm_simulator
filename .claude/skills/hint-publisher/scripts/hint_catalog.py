@@ -31,7 +31,13 @@ from pathlib import Path
 
 HINTS_MARKER = "<!-- hint-index:rows -->"
 CENTRAL_FLAG = "hints/.central_authority"
-TAG_SHAPE = re.compile(r"^hint/(?P<vllm>[^/]+)/(?P<model>[^/]+)/(?P<arch>[^/]+)$")
+# ★ 2026-09-04(CP7 · plan_26090415 §7.5 M1): 태그가 5세그먼트가 됐다 —
+#   `hint/<vllm>/<model>/<arch>/<recipe>`. 이 파일은 `hint_tag.py` 의 9곳을 세던 개정
+#   표면에 **들어 있지 않았다**(계획의 실측 누락). 카탈로그 파생은 원격 태그 이름을
+#   직접 파싱하므로, 여기를 안 고치면 새 이름이 전부 "규약 밖"으로 거부되어 발행은
+#   되는데 카탈로그에 못 들어가는 상태가 된다.
+TAG_SHAPE = re.compile(
+    r"^hint/(?P<vllm>[^/]+)/(?P<model>[^/]+)/(?P<arch>[^/]+)/(?P<recipe>[^/]+)$")
 
 
 def die(msg: str, code: int = 2) -> None:
@@ -123,7 +129,7 @@ def derive_entries(repo: Path, tags: list[str]) -> list[dict]:
         anchor = git("rev-list", "-n1", tag, cwd=repo).stdout.strip()
         entries.append({
             "tag": tag, "vllm": m.group("vllm"), "model": m.group("model"),
-            "arch": m.group("arch"),
+            "arch": m.group("arch"), "recipe": m.group("recipe"),
             "brief": extract_brief(body),
             "anchor": anchor,
             "object": obj,
@@ -215,7 +221,7 @@ def _run_self_test() -> int:
             "fail-closed 로 -->\n\n진짜 brief 한 줄\n\n## 1. 벽 지도\n")
     ck("★⑤회귀 HTML 주석을 brief 로 캐지 않는다", extract_brief(warn) == "진짜 brief 한 줄")
     ck("★⑤회귀 cat-file 헤더를 brief 로 캐지 않는다",
-       extract_brief("object abc\ntype commit\ntag hint/a/b/c\n\n실제 brief\n") == "실제 brief")
+       extract_brief("object abc\ntype commit\ntag hint/a/b/c/d\n\n실제 brief\n") == "실제 brief")
     ck("인용부호 줄은 brief 아님",
        extract_brief("> ⚠ 유효맥락 …\n\nbrief 다\n") == "brief 다")
     ck("헤딩은 brief 아님", extract_brief("# 제목\n\nbrief\n") == "brief")
@@ -245,21 +251,22 @@ def _run_self_test() -> int:
         (repo / "f.txt").write_text("x\n", encoding="utf-8")
         git("add", "-A", cwd=repo)
         git("commit", "-qm", "c", cwd=repo)
-        git("tag", "-a", "hint/1.0/m/a", "-m", "brief 줄\n\n## 1. 벽\n본문", cwd=repo)
-        ents = derive_entries(repo, ["hint/1.0/m/a"])
+        git("tag", "-a", "hint/1.0/m/a/qx-len1-kvfp8", "-m", "brief 줄\n\n## 1. 벽\n본문", cwd=repo)
+        ents = derive_entries(repo, ["hint/1.0/m/a/qx-len1-kvfp8"])
         ck("파생 항목 필드", ents[0]["vllm"] == "1.0" and ents[0]["model"] == "m"
            and ents[0]["brief"] == "brief 줄" and ents[0]["published"] is True)
         ck("출처 표시", ents[0]["source"] == "remote-derived")
         ck("★음성대조 로컬 부재 태그는 합성하지 않고 죽는다",
-           expect_die(lambda: derive_entries(repo, ["hint/1.0/m/a", "hint/9.9/none/x"])) == "raised")
-        ck("★음성대조 규약 밖 태그명 거부",
-           expect_die(lambda: derive_entries(repo, ["hint/bad"])) == "raised")
+           expect_die(lambda: derive_entries(repo, ["hint/1.0/m/a/qx-len1-kvfp8", "hint/9.9/none/x/q"])) == "raised")
+        # 4세그먼트(구세대) 이름은 이제 규약 밖이다 — CP7 에서 레시피 칸이 생겼다.
+        ck("★음성대조 규약 밖 태그명 거부(4세그먼트 구세대)",
+           expect_die(lambda: derive_entries(repo, ["hint/0.1/m/a"])) == "raised")
         git("tag", "-f", "lw", cwd=repo)  # lightweight
-        git("tag", "-a", "-f", "hint/1.0/m/b", "-m", "b", cwd=repo)
-        git("tag", "-d", "hint/1.0/m/b", cwd=repo)
-        git("tag", "hint/1.0/m/b", cwd=repo)  # lightweight hint 태그
+        git("tag", "-a", "-f", "hint/1.0/m/b/qy", "-m", "b", cwd=repo)
+        git("tag", "-d", "hint/1.0/m/b/qy", cwd=repo)
+        git("tag", "hint/1.0/m/b/qy", cwd=repo)  # lightweight hint 태그
         ck("★음성대조 lightweight 태그 거부",
-           expect_die(lambda: derive_entries(repo, ["hint/1.0/m/b"])) == "raised")
+           expect_die(lambda: derive_entries(repo, ["hint/1.0/m/b/qy"])) == "raised")
 
         # ── 원격 조회 실패는 **캐시로 대체하지 않고 죽는다**(D1.1 fail-closed).
         # 2026-09-01 변이시험이 이 공백을 찾았다: E2E 프로브는 원격이 항상 성공하므로
@@ -283,8 +290,9 @@ def _run_self_test() -> int:
            expect_die(lambda: remote_hint_tags(repo, nope, allow_empty=True)) == "raised")
 
         # 살아 있는 원격 + 태그 1건 → 정상 조회
-        git("push", "-q", str(bare), "refs/tags/hint/1.0/m/a:refs/tags/hint/1.0/m/a", cwd=repo)
-        ck("살아 있는 원격에서 태그 조회", remote_hint_tags(repo, str(bare)) == ["hint/1.0/m/a"])
+        git("push", "-q", str(bare),
+            "refs/tags/hint/1.0/m/a/qx-len1-kvfp8:refs/tags/hint/1.0/m/a/qx-len1-kvfp8", cwd=repo)
+        ck("살아 있는 원격에서 태그 조회", remote_hint_tags(repo, str(bare)) == ["hint/1.0/m/a/qx-len1-kvfp8"])
 
     failed = [n for n, ok in checks if not ok]
     for n, ok in checks:

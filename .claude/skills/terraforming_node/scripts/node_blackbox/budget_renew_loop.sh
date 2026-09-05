@@ -22,7 +22,7 @@
 #
 # 사용:
 #   bash budget_renew_loop.sh --node-dir <docs/logs/<node_id>> --container <name> \
-#        [--ttl-s 7200] [--interval-s <ttl/4>] [--once] [--self-test]
+#        [--ttl-s <초>] [--interval-s <ttl/4>] [--once] [--self-test]
 #
 # 종료코드: 0=컨테이너 소멸로 정상 종료(또는 --once 성공) · 2=사용오류 · 5=갱신 실패(fail-loud)
 set -uo pipefail
@@ -60,7 +60,7 @@ rl_usage(){
 
   --node-dir    docs/logs/<node_id> (예산 선언·events 가 사는 곳)
   --container   감시할 컨테이너 이름(정확 일치). 사라지면 루프가 스스로 끝난다
-  --ttl-s       매 갱신이 미는 만료(기본 7200 · 상한 86400 은 blackbox_session 이 강제)
+  --ttl-s       매 갱신이 미는 만료(미지정 시 blackbox_session 의 기본값 · 상한도 그쪽이 강제)
   --interval-s  갱신 주기(기본 ttl/4 · 최소 60). 만료보다 훨씬 짧아야 한다 —
                 만료된 선언은 갱신되지 않는다(fail-closed)
   --once        한 번만 갱신하고 종료(배선 점검용)
@@ -68,7 +68,7 @@ rl_usage(){
 EOF
 }
 
-RL_NODE_DIR=""; RL_CONTAINER=""; RL_TTL_S=7200; RL_INTERVAL_S=""; RL_ONCE=0; RL_SELFTEST=0
+RL_NODE_DIR=""; RL_CONTAINER=""; RL_TTL_S=""; RL_INTERVAL_S=""; RL_ONCE=0; RL_SELFTEST=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --node-dir)   RL_NODE_DIR="${2:-}"; shift 2 ;;
@@ -110,9 +110,12 @@ if [ "$RL_SELFTEST" = "1" ]; then
 
     # ★ 컨테이너가 없으면 **갱신을 시도조차 하지 않고** 종료한다(선언이 서빙보다 오래 살면 안 된다).
     rl_tmp="$(mktemp -d)"; : >"$rl_tmp/renew_called"
+    # 픽스처 TTL — 이 자리들은 TTL 축을 시험하지 않으므로 값을 **명시 선언**한다(국소 상수 · 정당).
+    RL_FIXTURE_TTL_S=600
     rl_out="$(BUDGET_RENEW_PROBE='exit 1' \
               BUDGET_RENEW_SESSION_PY="$rl_tmp/should_not_run.py" \
-              bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container ghost --interval-s 60 2>&1)"; rl_r=$?
+              bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container ghost \
+                   --ttl-s "$RL_FIXTURE_TTL_S" --interval-s 60 2>&1)"; rl_r=$?
     rl_chk "컨테이너 부재 → 갱신 없이 exit 0" "$rl_r" "0"
     case "$rl_out" in *"컨테이너 부재"*) rl_r=0 ;; *) rl_r=1 ;; esac
     rl_chk "종료 사유를 남긴다(침묵 종료 ✗)" "$rl_r" "0"
@@ -123,7 +126,8 @@ if [ "$RL_SELFTEST" = "1" ]; then
     rl_chk "프로브 주입: 판정 불가 → 2(부재 1 과 구별)" "$rl_r" "2"
     printf '%s\n' 'print("ok")' >"$rl_tmp/ok2.py"
     rl_out="$(BUDGET_RENEW_PROBE='exit 2' BUDGET_RENEW_SESSION_PY="$rl_tmp/ok2.py" \
-              timeout -s KILL 3 bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container c --interval-s 1 2>&1)"; rl_r=$?
+              timeout -s KILL 3 bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container c \
+                   --ttl-s "$RL_FIXTURE_TTL_S" --interval-s 1 2>&1)"; rl_r=$?
     case "$rl_out" in *"판정 불가"*) rl_r2=0 ;; *) rl_r2=1 ;; esac
     rl_chk "판정 불가 → 종료하지 않고 갱신 계속(사유 기록)" "$rl_r2" "0"
     case "$rl_out" in *"컨테이너 부재"*) rl_r2=1 ;; *) rl_r2=0 ;; esac
@@ -132,13 +136,24 @@ if [ "$RL_SELFTEST" = "1" ]; then
     # 갱신 실패는 크게 죽는다(만료된 선언을 조용히 되살리지 않는다).
     printf '%s\n' 'import sys; sys.exit(1)' >"$rl_tmp/fail.py"
     rl_out="$(BUDGET_RENEW_PROBE='exit 0' BUDGET_RENEW_SESSION_PY="$rl_tmp/fail.py" \
-              bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container c --once 2>&1)"; rl_r=$?
+              bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container c \
+                   --ttl-s "$RL_FIXTURE_TTL_S" --once 2>&1)"; rl_r=$?
     rl_chk "갱신 거부 → exit 5(fail-loud)" "$rl_r" "5"
 
     printf '%s\n' 'print("ok")' >"$rl_tmp/ok.py"
     BUDGET_RENEW_PROBE='exit 0' BUDGET_RENEW_SESSION_PY="$rl_tmp/ok.py" \
-        bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container c --once >/dev/null 2>&1 && rl_r=0 || rl_r=1
+        bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container c --ttl-s "$RL_FIXTURE_TTL_S" \
+        --once >/dev/null 2>&1 && rl_r=0 || rl_r=1
     rl_chk "--once 성공 → exit 0" "$rl_r" "0"
+
+    # ★ TTL 기본값 파생(2026-09-05 · G-B2): --ttl-s 를 주지 않으면 **단일 소유자**에게 묻는다.
+    #   여기서 기대값도 손으로 적지 않고 같은 소유자에게 물어 대조한다(두 자리가 갈라지지 않게).
+    rl_owner_ttl="$(python3 "$RL_HERE/blackbox_session.py" --node-dir "$rl_tmp" \
+                    budget-defaults --field ttl_s 2>/dev/null)"
+    rl_out="$(BUDGET_RENEW_PROBE='exit 1' bash "${BASH_SOURCE[0]}" \
+              --node-dir "$rl_tmp" --container ghost 2>&1)"
+    case "$rl_out" in *"ttl=${rl_owner_ttl}s"*) rl_r=0 ;; *) rl_r=1 ;; esac
+    rl_chk "★ --ttl-s 미지정 → 단일 소유자(blackbox_session)의 기본값을 쓴다" "$rl_r" "0"
 
     rl_out="$(bash "${BASH_SOURCE[0]}" --container c 2>&1)"; rl_r=$?
     rl_chk "--node-dir 누락 → 사용오류 2" "$rl_r" "2"
@@ -164,7 +179,11 @@ fi
 # ── 인자 검증 (fail-closed — 빈 값으로 도는 사이드카는 아무것도 지키지 않는다) ──
 [ -n "$RL_NODE_DIR" ]  || { echo "$RL_TAG FAIL: --node-dir 필수" >&2; rl_usage >&2; exit 2; }
 [ -n "$RL_CONTAINER" ] || { echo "$RL_TAG FAIL: --container 필수(감시 대상이 없으면 종료 조건도 없다)" >&2; exit 2; }
-case "$RL_TTL_S" in ''|*[!0-9]*) echo "$RL_TAG FAIL: --ttl-s 는 양의 정수" >&2; exit 2 ;; esac
+# --ttl-s 미지정이면 **단일 소유자**의 기본값을 읽는다(여기에 7200 을 적지 않는다 · G-B2).
+if [ -z "$RL_TTL_S" ]; then
+    RL_TTL_S="$(python3 "$RL_SESSION_PY" --node-dir "${RL_NODE_DIR:-.}" budget-defaults --field ttl_s 2>/dev/null || echo)"
+fi
+case "$RL_TTL_S" in ''|*[!0-9]*) echo "$RL_TAG FAIL: --ttl-s 는 양의 정수(또는 blackbox_session 기본값 판독 실패)" >&2; exit 2 ;; esac
 [ "$RL_TTL_S" -gt 0 ] || { echo "$RL_TAG FAIL: --ttl-s 는 양의 정수" >&2; exit 2; }
 if [ -z "$RL_INTERVAL_S" ]; then RL_INTERVAL_S=$(( RL_TTL_S / 4 )); fi
 case "$RL_INTERVAL_S" in ''|*[!0-9]*) echo "$RL_TAG FAIL: --interval-s 는 양의 정수" >&2; exit 2 ;; esac

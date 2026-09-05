@@ -13,7 +13,7 @@
       "clauses": [
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C1",
-          "statement": "Layered defense = a systemd-resident mem_watchdog (broad @vllm filter) plus a harness-scoped watchdog instance auto-started by run_trial/multinode_serve_smoke.sh, container oom_score_adj=800, earlyoom as a process-level backstop, and a pre-load RAM gate that compares checkpoint total_size/TP plus a floor against MemAvailable."
+          "statement": "Layered defense = a systemd-resident mem_watchdog (broad @vllm mode) plus a harness-scoped watchdog instance auto-started by run_trial/multinode_serve_smoke.sh, container oom_score_adj=800, earlyoom as a process-level backstop, and a pre-load RAM gate that compares checkpoint total_size/TP plus a floor against MemAvailable. Broad mode selects kill targets by matching vllm against the container name and the image *repository* name only -- the registry and organisation path segments are outside the matching plane, so a measurement tool published under a vllm-named organisation is not killed alongside the server it is measuring, while servers whose container name carries no vllm are still caught through the image."
         },
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C2",
@@ -46,6 +46,10 @@
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C9",
           "statement": "Removal of the legacy host-safety installation is a separate, non-installing script (node_blackbox/purge_host_safety.sh) so no node is ever left in a partially applied purge-plus-reinstall state: it defaults to dry-run and destroys only when a human re-invokes it with --apply as root; it refuses to run before the Phase 0 journal harvest unless the operator explicitly waives the gate with --no-require-seed or names a stored seed with --seed-dir, because the mem_watchdog journal is the envelope's only initial data and is unrecoverable once the unit is removed and its journal vacuumed; every destructive step propagates its rc into a single FAIL verdict so a failed removal can never print a clean purge verdict that a reinstall would then build on; stray narrow-scope watchdog processes are terminated by PID resolved through argv field anchors only, never by a blanket pgrep -f/pkill -f match; and the GRUB config is copied to a verified backup before regeneration, with residue judged only from a readable grub.cfg -- an unreadable file is reported as undecidable, never as clean."
+        },
+        {
+          "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C10",
+          "statement": "The full-mode measurement tool runs as a separate container owned by the benchmark skill under a teardown contract, which is a host-safety concern because the load generator shares unified memory with the inference server: its memory budget is explicitly declared with no default and enforced by the kernel via --memory, it is launched with --rm and removed by a teardown trap on every exit path so a crashed run cannot leak a container that keeps holding memory, and its image is resolved from a tracked digest pin whose absence and drift are distinguishable fail-closed refusals rather than an implicit pull. The inference server itself is still never started or stopped by this skill."
         }
       ],
       "evidence": [
@@ -269,6 +273,39 @@
           ],
           "assertion_ids": [
             "predicate_HOST_SAFETY_LAYERED_DEFENSE_C9"
+          ]
+        },
+        {
+          "path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C10"
+          ],
+          "assertion_ids": [
+            "TOOL",
+            "BENCH_BUDGET_MIB",
+            "bench_with_guidellm",
+            "bench_with_vllm"
+          ]
+        },
+        {
+          "path": ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C10"
+          ],
+          "assertion_ids": [
+            "RC_ABSENT",
+            "RC_OK",
+            "classify",
+            "accepted_digests"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "HOST_SAFETY_LAYERED_DEFENSE.C10"
+          ],
+          "assertion_ids": [
+            "predicate_HOST_SAFETY_LAYERED_DEFENSE_C10"
           ]
         }
       ],
@@ -1215,8 +1252,10 @@
             "TERRAFORM_FLAG_GATE.C3"
           ],
           "assertion_ids": [
-            "KEY_OK",
-            "MC"
+            "MC",
+            "CARD",
+            "CARD_VERIFIER",
+            "SELF_ROLE"
           ]
         },
         {
@@ -1287,36 +1326,37 @@
       }
     },
     {
-      "policy_id": "A2A_DELEGATION_KEY_FAIL_CLOSED",
+      "policy_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED",
       "owner": "terraforming_node",
-      "statement": "A sub node stays info-only until main issues a positive, UNIQUE delegation key after asserting HW homogeneity, fail-closed at two enforcement points.",
+      "statement": "A sub node stays info-only until it can PROVE it was provisioned by main -- a main-signed Agent Card plus the main-issued manifest flag -- fail-closed at two enforcement points. 2026-09-05 (plan_26090516 3-9): the credential used to be an execution PERMIT (a delegation key main issued to the sub); the audit graded that R3 (it denied the agent's autonomy on work the sub can decide itself). What is gated now is identity, not permission.",
       "scope": [
+        "single-node",
         "multi-node"
       ],
       "origin_failure": "plan_26063021_14_37",
       "clauses": [
         {
-          "clause_id": "A2A_DELEGATION_KEY_FAIL_CLOSED.C1",
-          "statement": "A sub node (A2A peer) stays info-only until it holds a positive delegation key that main issues only after asserting HW homogeneity (cpu_arch, gpu_model, gpus_per_node match exactly -- homogeneous GPUs only)."
+          "clause_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1",
+          "statement": "A sub node stays info-only until it holds an identity proof that main issues only after asserting HW homogeneity (cpu_arch, gpu_model, gpus_per_node match exactly). What main issues is a signed Agent Card and a main-issued manifest, never an execution permit."
         },
         {
-          "clause_id": "A2A_DELEGATION_KEY_FAIL_CLOSED.C2",
-          "statement": "Absence of the key is never treated as exemption (that would be fail-open); the sub never self-scans to grant itself a key; terraforming_node stays permanently main-only."
+          "clause_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2",
+          "statement": "Absence, tampering or a wrong-role stamp is never treated as exemption (that would be fail-open); the sub never self-scans or self-signs to grant itself the credential -- terraforming_node and the private signing key stay main-only."
         },
         {
-          "clause_id": "A2A_DELEGATION_KEY_FAIL_CLOSED.C3",
-          "statement": "Enforcement is fail-closed at two points: the multi-node sync_to_sub propagation gate, and the single-node sub-control serve gate in recipe.py / run_bench.sh."
+          "clause_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3",
+          "statement": "Enforcement is fail-closed at two points: the sync_to_sub propagation gate, and the serve-plane gate in recipe.py / run_bench.sh / lite_bench.sh, which verify the card signature and the main-issued flag."
         },
         {
-          "clause_id": "A2A_DELEGATION_KEY_FAIL_CLOSED.C4",
-          "statement": "The main completion Flag and the sub delegation key are deliberately distinct, UNIQUE credentials -- one never substitutes for the other across the plane boundary."
+          "clause_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4",
+          "statement": "The main completion Flag and the sub's identity proof are distinct credentials -- one never substitutes for the other, and a genuine manifest never rescues a tampered signature."
         }
       ],
       "evidence": [
         {
           "path": ".claude/skills/terraforming_node/scripts/scan_node.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C1"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"
           ],
           "assertion_ids": [
             "assert_homogeneity"
@@ -1325,18 +1365,19 @@
         {
           "path": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C1"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"
           ],
           "assertion_ids": [
             "build_placeholders",
-            "parse_manifest"
+            "parse_manifest",
+            "render_tree"
           ]
         },
         {
           "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C2",
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C3"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2",
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"
           ],
           "assertion_ids": [
             "assert_sub_delegation_authorized",
@@ -1346,9 +1387,9 @@
         {
           "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C2",
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C3",
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C4"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2",
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3",
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4"
           ],
           "assertion_ids": [
             "_require_terraform_flag",
@@ -1358,37 +1399,37 @@
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C1"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"
           ],
           "assertion_ids": [
-            "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C1"
+            "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1"
           ]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C2"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2"
           ],
           "assertion_ids": [
-            "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C2"
+            "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2"
           ]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C3"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"
           ],
           "assertion_ids": [
-            "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C3"
+            "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3"
           ]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
-            "A2A_DELEGATION_KEY_FAIL_CLOSED.C4"
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4"
           ],
           "assertion_ids": [
-            "predicate_A2A_DELEGATION_KEY_FAIL_CLOSED_C4"
+            "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4"
           ]
         }
       ],
