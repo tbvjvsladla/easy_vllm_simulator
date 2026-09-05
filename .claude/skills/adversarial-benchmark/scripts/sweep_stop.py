@@ -32,12 +32,21 @@ import sys
 
 SCHEMA_VERSION = 1
 
-# 셀 종결 3분류(§4.6). 닫힌 목록이며 tripwire 다 — 새 분류를 도입하면 여기서 먼저 빨간불이 켜지고,
+# 셀 종결 분류(§4.6). 닫힌 목록이며 tripwire 다 — 새 분류를 도입하면 여기서 먼저 빨간불이 켜지고,
 # 그때 "이 분류는 연속 실패에 드는가"를 사람이 판단한다. 조용히 자라지 않게 한다.
 OUTCOME_MEASURED = "measured"
 OUTCOME_SERVE_FAILED = "serve_failed"
 OUTCOME_MEASUREMENT_VOID = "measurement_void"
-CELL_OUTCOMES = (OUTCOME_MEASURED, OUTCOME_SERVE_FAILED, OUTCOME_MEASUREMENT_VOID)
+# 2026-09-05(G-B13) 신설 분류 `not_measured` — tripwire 가 요구한 판단을 여기 적는다:
+#   **연속 실패에 들지 않고, 연속 카운터를 초기화하지도 않는다(중립)**. 이유 —
+#   ⓐ 실패가 아니다: 서빙은 성립했고 셀 구성이 기각된 것이 아니라 측정 단계에 들어가지 않았다
+#      (재조립 경로 등). 이것을 실패로 세면 정상 운용이 스윕을 멈춘다.
+#   ⓑ 성공도 아니다: 초기화해 주면 아무것도 재지 않는 셀이 연속 실패 계수를 계속 지워
+#      "재지 않으면서 도는 루프"가 정지 조건을 통과한다.
+#   무한 루프는 `max_cells`·`wall_clock_budget_s` 가 여전히 막는다.
+OUTCOME_NOT_MEASURED = "not_measured"
+CELL_OUTCOMES = (OUTCOME_MEASURED, OUTCOME_SERVE_FAILED, OUTCOME_MEASUREMENT_VOID,
+                 OUTCOME_NOT_MEASURED)
 FAILURE_OUTCOMES = (OUTCOME_SERVE_FAILED, OUTCOME_MEASUREMENT_VOID)
 
 BUDGET_KEYS = ("max_cells", "wall_clock_budget_s", "consecutive_failure_limit")
@@ -119,7 +128,12 @@ def evaluate(state, now_utc):
                 "모르는 분류를 실패로 접지 않는다 — 부재와 결측은 다르다."
                 % (pos, outcome, "|".join(CELL_OUTCOMES)))
         attempted_keys.append(key)
-        consecutive = 0 if outcome == OUTCOME_MEASURED else consecutive + 1
+        if outcome == OUTCOME_NOT_MEASURED:
+            pass                                   # 중립 — 위 상수 주석의 판단
+        elif outcome == OUTCOME_MEASURED:
+            consecutive = 0
+        else:
+            consecutive += 1
 
     remaining = [key for key in (state.get("cells_remaining") or []) if isinstance(key, str)]
     if not isinstance(state.get("cells_remaining", []), list):
@@ -256,6 +270,12 @@ def _self_test():
                  "declared_budget.basis")
 
     # S13: 모르는 분류를 실패로 접지 않는다.
+    # ★ G-B13: not_measured 는 중립이다 — 실패로도 성공으로도 세지 않는다.
+    _ev = evaluate(state([cell("c1", OUTCOME_SERVE_FAILED), cell("c2", OUTCOME_NOT_MEASURED),
+                          cell("c3", OUTCOME_SERVE_FAILED)], ["c4"]), now)
+    check("S12b not_measured 는 연속 실패를 끊지도 늘리지도 않는다(2연속 유지)",
+          _ev["consecutive_failures"] == 2, "(실제 %r)" % _ev.get("consecutive_failures"))
+
     expect_error("S13 미지의 cell_outcome → 거부(실패로 접지 않는다)",
                  state([{"cell_key": "c1", "cell_outcome": "refuted"}], ["c2"]),
                  "3분류 밖")

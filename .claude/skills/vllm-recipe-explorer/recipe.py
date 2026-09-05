@@ -209,6 +209,32 @@ REFERENCES_MD_PATH = os.path.join(
 )
 
 
+def _resolve_device_total_gib(cfg):
+    """디바이스 메모리 total(GiB)과 그 **출처**. 코드에 하드웨어 숫자를 적지 않는다(G-B5).
+
+    ① config 가 `test_device_total_gib` 를 선언했으면 그것(사람이 잰 값이 가장 강하다).
+    ② 아니면 `/proc/meminfo MemTotal` 실측 — 통합메모리 노드(GB10 계열)에서는 디바이스 풀이
+       곧 호스트 RAM 풀이라 이 값이 그대로 디바이스 total 이다.
+    ③ 둘 다 없으면 **추측하지 않고 죽는다**. 이 값은 overhead 유도(=예산·gmu 판정)의 입력이라
+       틀리면 조용히 틀린 상한을 만든다.
+    """
+    declared = cfg.get("test_device_total_gib")
+    if declared:
+        return float(declared), "declared(config test_device_total_gib)"
+    try:
+        with open("/proc/meminfo", encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("MemTotal:"):
+                    return (int(line.split()[1]) / (1024.0 * 1024.0),
+                            "measured(/proc/meminfo MemTotal · 통합메모리 가정)")
+    except (OSError, IndexError, ValueError):
+        pass
+    raise SystemExit(
+        "[recipe] FAIL: 디바이스 메모리 total 을 알 수 없다 — 상수를 쓰지 않는다(2026-09-05 · G-B5).\n"
+        "  → config 에 `test_device_total_gib: <실측 GiB>` 를 선언하거나, 통합메모리 노드에서 "
+        "/proc/meminfo 를 읽을 수 있게 하라.")
+
+
 def _is_unified_memory(device_total_gib, tolerance=0.05):
     """디바이스 메모리 풀 == 호스트 RAM 풀인가(GB10 통합메모리) — **파생** 판정. 결정론.
 
@@ -880,7 +906,12 @@ def cmd_simulate(args):
 
     # 측정 하드웨어 total(torch.cuda 기준; DGX Spark 는 nvidia-smi N/A). consolidated 메모리
     # 라인이 없는 vLLM 빌드에서 overhead = gmu_trial×device_total − weights − kv 로 유도하는 데 쓴다.
-    device_total_gib = float(cfg.get("test_device_total_gib", 121.69))
+    # 2026-09-05(G-B5): 기본값 121.69 는 **이 캠페인 호스트(GB10)의 실측치를 손으로 적은 것**이었다.
+    #   HW 사실의 권위는 manifest·실측이지 코드 상수가 아니다(헌법). 순서: 선언 > 실측 > fail-loud.
+    #   통합메모리 노드에서는 디바이스 풀이 곧 호스트 RAM 풀이므로 /proc/meminfo 가 실측 통로다.
+    device_total_gib, device_total_src = _resolve_device_total_gib(cfg)
+    print("[recipe] device_total_gib=%.2f (%s)" % (device_total_gib, device_total_src),
+          file=sys.stderr)
 
     # run_id: 인자(--run-id) 우선, 없으면 <YYYYMMDDHH>_<seq>_<주제> 결정론 생성.
     from datetime import datetime

@@ -52,8 +52,8 @@
 #       BB_DECL        (서빙 예산 선언 파일 — 기본 = BB_EVENTS 의 조부모/serve_budget.env.
 #                       blackbox_session.py declare-budget 가 쓴다. **source 하지 않는다** —
 #                       루트 데몬이 비루트 작성 파일을 source 하면 코드실행이다. sed 로만 읽는다.)
-#       BB_DECL_MARGIN_MIB      (기본 8192 — 선언 바닥에서 뺄 여유. arm 상한 = 바닥 - 여유)
-#       BB_DECL_MIN_CEILING_MIB (기본 16384 — arm 상한이 이보다 낮아지는 선언은 **거부**.
+#       BB_DECL_MARGIN_MIB      (**기본값 없음** — eta_params.env 단일 소유. 선언 바닥에서 뺄 여유)
+#       BB_DECL_MIN_CEILING_MIB (**기본값 없음** — 동상. arm 상한이 이보다 낮아지는 선언은 **거부**.
 #                                선언으로 게이트를 실명시킬 수 없게 하는 하드가드)
 #       MEMWATCH_HEARTBEAT_SEC (기본 15 · 0=끔)
 #       MEMWATCH_PIDFILE
@@ -80,8 +80,14 @@ INTERVAL="${2:-1}"
 HB_SEC="${MEMWATCH_HEARTBEAT_SEC:-15}"
 BB_PARAMS="${BB_PARAMS:-/etc/easy-vllm/eta_params.env}"
 BB_EVENTS="${BB_EVENTS:-}"
-BB_DECL_MARGIN_MIB="${BB_DECL_MARGIN_MIB:-8192}"
-BB_DECL_MIN_CEILING_MIB="${BB_DECL_MIN_CEILING_MIB:-16384}"
+# 2026-09-05(G-B3): 여기 있던 기본값 8192/16384 는 **정본과 갈라진 거울**이었다(정본 3072/8192).
+#   거울을 tripwire 라 부른 것은 "정본이 움직이면 빨간불" 이라는 뜻이지 "거울이 정본 대신 쓰여도
+#   된다"가 아니다. 이제 이 두 값은 **eta_params.env 만이 준다**. 파일이 그 값을 주지 않으면
+#   선언을 해석하지 않고(=상한 무한대, 옛 규칙 유지) **매 하트비트 크게 알린다** —
+#   데몬을 죽이지 않는 이유는 절대층(hard_floor·abs_band)이 호스트를 계속 지켜야 하기 때문이고,
+#   조용히 옛 상수로 판정하지 않는 이유는 그 침묵이 [11264, 24576) 맹점을 만든 원인이기 때문이다.
+BB_DECL_MARGIN_MIB="${BB_DECL_MARGIN_MIB:-}"
+BB_DECL_MIN_CEILING_MIB="${BB_DECL_MIN_CEILING_MIB:-}"
 # 선언 파일 기본 경로 = <node_dir>/serve_budget.env (BB_EVENTS 가 <node_dir>/events/*.jsonl 이므로 조부모)
 if [ -z "${BB_DECL:-}" ]; then
   if [ -n "$BB_EVENTS" ]; then
@@ -162,6 +168,18 @@ refresh_decl(){
   local floor exp now ceiling state reason extra _rem
   state="none"; reason=""; extra=""
   BB_ARM_CEILING_MIB=999999999
+  # 선언 해석에 필요한 두 상수가 없으면 **해석하지 않는다**(조용한 옛 상수 ✗ · G-B3).
+  case "${BB_DECL_MARGIN_MIB:-}${BB_DECL_MIN_CEILING_MIB:-}" in
+    ''|*[!0-9]*)
+      if [ "$BB_DECL_STATE" != "params_missing" ]; then
+        log "DECL params_missing — BB_DECL_MARGIN_MIB/BB_DECL_MIN_CEILING_MIB 가 $PARAMS_SRC 에 없다. \
+선언을 해석하지 않는다(상한 무한대=옛 규칙). 절대층은 그대로 무장. 고치는 법: blackbox_eta.py emit-params 로 \
+$BB_PARAMS 를 재생성하고 데몬을 재시작하라. $(ts)"
+        emit_event "budget_params_missing" "\"params_src\":\"$PARAMS_SRC\""
+        BB_DECL_STATE="params_missing"
+      fi
+      return 0 ;;
+  esac
   if [ -f "$BB_DECL" ]; then
     floor="$(_decl_field floor_mib)"; exp="$(_decl_field expires_epoch)"
     case "$floor" in ''|*[!0-9]*) floor="" ;; esac
@@ -463,6 +481,23 @@ if [ "$SELFTEST" = 1 ]; then
                                                            dchk "비숫자 floor → rejected"         rejected  999999999
   printf 'expires_epoch=%s\n' "$_future"                   > "$BB_DECL"
                                                            dchk "floor 누락 → rejected"           rejected  999999999
+  # ★ G-B3(2026-09-05): 선언 해석 상수를 파라미터가 주지 않으면 **해석하지 않고 크게 알린다**.
+  #   종전에는 여기 하드코딩 기본값(8192/16384)이 정본(3072/8192)과 갈라진 채 살아 있었고,
+  #   그 침묵이 데몬과 가드가 다른 상한을 쓰는 [11264, 24576) 맹점을 만들었다.
+  _save_m="$BB_DECL_MARGIN_MIB"; _save_c="$BB_DECL_MIN_CEILING_MIB"
+  BB_DECL_MARGIN_MIB=""; BB_DECL_MIN_CEILING_MIB=""; BB_ARM_CEILING_MIB=999999999
+  printf 'floor_mib=40960\nexpires_epoch=%s\n' "$_future" > "$BB_DECL"
+  dchk "★상수 부재 → params_missing·무한대(옛 상수로 조용히 판정 ✗)" params_missing 999999999
+  BB_DECL_MARGIN_MIB="$_save_m"; BB_DECL_MIN_CEILING_MIB="$_save_c"
+
+  # ★ tripwire(2026-09-05): 위 시험은 "부재 분기가 동작한다"만 증명한다 — 분기는 시험이 값을
+  #   비워서 도달했기 때문이다. **기본값이 되살아났는지**는 소스를 봐야 알 수 있다(역-오라클 회피).
+  if grep -qE '^BB_DECL_(MARGIN|MIN_CEILING)_MIB="\$\{BB_DECL_[A-Z_]+:-[0-9]' "${BASH_SOURCE[0]}"; then
+    echo "  [FAIL] 선언 상수에 기본값이 되살아났다 — 정본은 eta_params.env 하나다(G-B3)"; fails=1
+  else
+    echo "  [PASS] ★선언 상수에 기본값이 없다(거울 부활 tripwire)"
+  fi
+
   # ★ 주입 방어: source 했다면 부수효과가 남는다. sed 파싱이면 값이 문자셋에 걸려 거부된다.
   _CANARY=clean
   printf 'floor_mib=40960\nexpires_epoch=%s\n_CANARY=pwned\nlabel=$(id -u)\n' "$_future" > "$BB_DECL"

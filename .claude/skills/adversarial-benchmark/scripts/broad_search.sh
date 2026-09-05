@@ -211,7 +211,7 @@ MSG
 
   if [ -n "$SERVE_FAILED_REASON" ]; then
     # materialize 단계에서 죽은 셀 — 트리플렛이 없으므로 envfile·포트·측정 경로를 타지 않는다.
-    STARTED="$NOW"; ENDED="$(date -u +%FT%TZ)"; SERVE_RC=3; MEASURE_RC=0
+    STARTED="$NOW"; ENDED="$(date -u +%FT%TZ)"; SERVE_RC=3; MEASURE_RC=absent
     SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
     echo "[broad_search] serve_failed 기록 — $SERVE_FAILED_REASON"
   else
@@ -238,7 +238,9 @@ MSG
     echo "[broad_search] serve 미가동(:$PORT/health≠200) — materialize 는 vllm-recipe-explorer 소관이다" >&2
   fi
 
-  MEASURE_RC="${MEASURE_RC:-0}"
+  # 2026-09-05(G-B13): 기본 0 삭제 — "측정 안 함"과 "측정 성공"이 같은 값이 되면 재조립 경로가
+  #   아무것도 재지 않고 `measured` 로 종결된다. 부재는 `absent` 로 **명시**해 넘긴다.
+  MEASURE_RC="${MEASURE_RC:-absent}"
   SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
   if [ "$SERVE_RC" = "0" ] && [ "$REASSEMBLE" != "1" ]; then
     set +e

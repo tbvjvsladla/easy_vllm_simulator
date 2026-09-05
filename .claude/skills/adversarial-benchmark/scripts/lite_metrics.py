@@ -196,14 +196,26 @@ def render_multi(gen, ttft, caps, kv_gib):
 
 
 def build(raw):
-    topo = raw.get("topology", "single")
+    # 2026-09-05(G-B8): 기본값 "single" 삭제. **토폴로지는 인터뷰/manifest 만이 정한다** —
+    #   추론도 기본값도 헌법이 금지한다(브랜치로도 추론하지 않는다). 기본값이 있으면 멀티 산출물이
+    #   조용히 single 로 기록되고, 그 라벨은 인증서의 강한 키로 흘러간다.
+    topo = raw.get("topology")
+    if topo not in ("single", "multi"):
+        raise SystemExit("[lite_metrics] FAIL: topology 가 선언되지 않았다(%r) — 기본값을 쓰지 않는다. "
+                         "호출부가 manifest/인터뷰에서 읽어 넘겨라." % (topo,))
     warm = _load_json(raw.get("bench_warm_json"))
     cold = _load_json(raw.get("bench_cold_json"))
     engine = parse_engine_log(raw.get("engine_log"))
     gen, gen_src = gen_tps_from_bench(warm)
     ttft = cold_ttft_ms(cold)
     nodes = raw.get("nodes", [])
-    by_role = {n.get("role", "main"): n for n in nodes}
+    # 역할 기본값 "main" 도 같은 이유로 삭제 — 역할 미상 노드를 main 으로 적으면 서브 측정이
+    #   메인 열에 들어가 두 노드의 수치가 뒤바뀐다(조용한 오배치).
+    for _n in nodes:
+        if _n.get("role") not in ("main", "sub"):
+            raise SystemExit("[lite_metrics] FAIL: nodes[] 에 role 이 없다(%r) — 추측하지 않는다."
+                             % (_n.get("role"),))
+    by_role = {n["role"]: n for n in nodes}
 
     def total_gib(node):
         t = _num(node.get("gpu_smi_total_mib"))

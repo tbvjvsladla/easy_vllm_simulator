@@ -110,8 +110,46 @@ BUDGET_SESSION_PY = os.path.join(
 #   워치독 arm 상한도 같이 높아져 **정상 서빙이 무장 밴드 안에 들어간다**. 2026-09-04 실측:
 #   gpt-oss-120b/GB10 의 실제 overhead 는 17,971 MiB 로 이 기본값보다 5,683 MiB 크다.
 #   그래서 이건 기본값일 뿐이고, 워크로드가 아는 값이 있으면 `--overhead-mib` 로 넘긴다.
-BUDGET_OVERHEAD_MIB = 12288
-BUDGET_TTL_MIN_S = 7200       # declare-budget 기본 TTL. expected-load-s 의 3배 이상이어야 수락된다.
+# 2026-09-05(G-B1): 기본값 삭제. overhead 는 **워크로드 사실**이라 상수로 두면 매번 틀리고,
+# 틀린 방향이 하필 무장 밴드를 넓히는 쪽이다. 선언 경로는 후보 config 의 `overhead_mib`,
+# 또는 환경 `TRIAL_BUDGET_OVERHEAD_MIB`. 둘 다 없으면 **선언을 요구하며 죽는다**.
+BUDGET_OVERHEAD_ENV = "TRIAL_BUDGET_OVERHEAD_MIB"
+# 자체검사 픽스처가 쓰는 값 — 옛 기본값과 같은 수이지만 **여기서만 산다**(프로덕션 경로는 선언을
+# 요구한다). 픽스처 상수는 4종 안티패턴 판정표의 `매직넘버·정당` 칸이다(그 파일에서만 쓰는 국소 상수).
+_FIXTURE_OVERHEAD_MIB = 12288
+
+
+def require_overhead_mib(opts=None, env=None):
+    """예산 overhead(MiB)를 **선언에서만** 읽는다. 부재는 fail-loud(조용한 기본값 ✗)."""
+    env = os.environ if env is None else env
+    for value, where in ((_opt(opts, "overhead_mib", None) if opts is not None else None,
+                          "config candidate `overhead_mib`"),
+                         (env.get(BUDGET_OVERHEAD_ENV), "env %s" % BUDGET_OVERHEAD_ENV)):
+        if value in (None, ""):
+            continue
+        try:
+            mib = int(value)
+        except (TypeError, ValueError):
+            raise SystemExit("[trial] FAIL: overhead 선언이 정수가 아니다(%s = %r)" % (where, value))
+        if mib <= 0:
+            raise SystemExit("[trial] FAIL: overhead 선언이 양수가 아니다(%s = %r)" % (where, value))
+        return mib
+    raise SystemExit(
+        "[trial] FAIL: 예산 overhead 가 선언되지 않았다 — 기본값을 쓰지 않는다(2026-09-05 · G-B1).\n"
+        "  → 왜: overhead 를 낮게 잡으면 선언 바닥이 높아져 워치독 arm 상한이 정상 서빙 위로 올라간다.\n"
+        "     옛 기본값 12288 MiB 는 gpt-oss-120b/GB10 실측(17,971)보다 5,683 작았고 정상 로드를 죽였다.\n"
+        "  → 어떻게: 후보 config 에 `overhead_mib: <n>` 을 적거나 %s=<n> 으로 넘겨라.\n"
+        "     모르면 재라: 로드 완료 후 (MemTotal − MemAvailable) − weights − kv." % BUDGET_OVERHEAD_ENV)
+def budget_ttl_floor_s():
+    """TTL 하한을 **단일 소유자에게 물어본다**(2026-09-05 · G-B2 · 손기재 5사이트 정리)."""
+    out = subprocess.run([sys.executable, os.path.normpath(BUDGET_SESSION_PY),
+                          "--node-dir", ".", "budget-defaults", "--field", "ttl_s"],
+                         capture_output=True, text=True)
+    if out.returncode != 0 or not out.stdout.strip().isdigit():
+        raise SystemExit("[trial] FAIL: 예산 TTL 기본값을 blackbox_session 에서 읽지 못했다 — "
+                         "여기에 숫자를 다시 적지 않는다(rc=%s %s)"
+                         % (out.returncode, (out.stderr or "").strip()[:200]))
+    return int(out.stdout.strip())
 
 
 class _Opts:
@@ -824,14 +862,8 @@ def _budget_inputs(candidate: dict, opts) -> "tuple[dict | None, str]":
         tp = int(_opt(opts, "tp", 1) or 1) or 1
     except (TypeError, ValueError):
         tp = 1
-    # overhead 는 호출부가 아는 값이 있으면 그것을 쓴다. 상수로 두면 워크로드마다 틀리고,
-    # 틀린 방향이 하필 **무장 밴드를 넓히는 쪽**이다(위 상수 주석의 실측).
-    try:
-        overhead_mib = int(_opt(opts, "overhead_mib", BUDGET_OVERHEAD_MIB) or BUDGET_OVERHEAD_MIB)
-    except (TypeError, ValueError):
-        overhead_mib = BUDGET_OVERHEAD_MIB
-    if overhead_mib <= 0:
-        overhead_mib = BUDGET_OVERHEAD_MIB
+    # overhead 는 선언에서만 온다(부재 = fail-loud). 조용한 기본값이 무장 밴드를 넓힌다.
+    overhead_mib = require_overhead_mib(opts)
     return {
         "mem_total_mib": mem_total_mib,
         "weights_mib": -(-int(ckpt_bytes) // tp // (1024 * 1024)),   # ceil-div (게이트와 같은 축)
@@ -842,13 +874,13 @@ def _budget_inputs(candidate: dict, opts) -> "tuple[dict | None, str]":
 
 def _budget_declare(node_dir: str, inputs: dict, label: str, expected_load_s: float) -> bool:
     """로드 개시 **전** 선언. 순서가 판정 기준이다(사후 발행은 무의미 · C3 성공기준1)."""
-    ttl_s = max(BUDGET_TTL_MIN_S, int(expected_load_s) * 3)
+    ttl_s = max(budget_ttl_floor_s(), int(expected_load_s) * 3)
     ok, out = _budget_session(
         node_dir, "declare-budget",
         "--mem-total-mib", str(inputs["mem_total_mib"]),
         "--weights-mib", str(inputs["weights_mib"]),
         "--kv-mib", str(inputs["kv_mib"]),
-        "--overhead-mib", str(inputs.get("overhead_mib") or BUDGET_OVERHEAD_MIB),
+        "--overhead-mib", str(inputs["overhead_mib"]),
         "--ttl-s", str(ttl_s),
         "--expected-load-s", str(int(expected_load_s)),
         "--label", label,
@@ -1037,7 +1069,7 @@ def run_trial(candidate: dict, simlog_dir: str, trial_number: int, opts=None) ->
             _read_meminfo_mib("MemAvailable"),
             memwatch_thresh_mib,
             weights_mib=_w_mib,
-            overhead_mib=BUDGET_OVERHEAD_MIB,
+            overhead_mib=require_overhead_mib(opts),
         )
         if gmu_cap_info["applied"]:
             print("[trial] gmu 캡 적용: %.4f → %.4f (호스트 바닥 %dMiB + 여유 %dMiB 준수, "
@@ -1261,7 +1293,7 @@ def _self_test() -> int:
     # B1 — 캡이 걸리고, **캡 이후 착지 예상 MemAvailable 이 바닥 이상**이어야 한다.
     avail = 119215
     b = host_floor_gmu_cap(0.90, TOTAL, avail, FLOOR, weights_mib=WEIGHTS,
-                           overhead_mib=BUDGET_OVERHEAD_MIB)
+                           overhead_mib=_FIXTURE_OVERHEAD_MIB)
     check("B1.applied", b["applied"], True)
     if not b["gmu"] < 0.90:
         failures.append("B1.cap: 캡이 요청값을 낮추지 않았다(%r)" % b["gmu"])
@@ -1276,14 +1308,14 @@ def _self_test() -> int:
 
     # B3 — 여유가 충분하면 캡을 걸지 않는다(불필요한 축소 금지).
     b3 = host_floor_gmu_cap(0.50, TOTAL, avail, FLOOR, weights_mib=WEIGHTS,
-                            overhead_mib=BUDGET_OVERHEAD_MIB)
+                            overhead_mib=_FIXTURE_OVERHEAD_MIB)
     check("B3.applied", b3["applied"], False)
     check("B3.reason", b3["reason"], "not_needed")
     check("B3.gmu", b3["gmu"], 0.50)
 
     # B4 — 캡이 weights 를 굶기면 **걸지 않는다**(회복 가능한 사살 < 회복 불가한 하드 실패).
     b4 = host_floor_gmu_cap(0.90, TOTAL, 70000, FLOOR, weights_mib=WEIGHTS,
-                            overhead_mib=BUDGET_OVERHEAD_MIB)
+                            overhead_mib=_FIXTURE_OVERHEAD_MIB)
     check("B4.applied", b4["applied"], False)
     if not b4["reason"].startswith("cap_infeasible"):
         failures.append("B4.reason: got=%r want=cap_infeasible*" % b4["reason"])
@@ -1313,7 +1345,7 @@ def _self_test() -> int:
     # B6 — plan §4.3 리터럴 식은 **KV 몫의 비율**이라 gmu 상한으로 쓸 수 없다.
     #      이 호스트에서 그 식은 weights 조차 못 올리는 값을 낸다 — 그래서 총상한 축으로
     #      옮겨 적었다(host_floor_gmu_cap docstring). 그 사실을 회귀로 못박는다.
-    plan_literal = (TOTAL - FLOOR - WEIGHTS - BUDGET_OVERHEAD_MIB) / float(TOTAL)
+    plan_literal = (TOTAL - FLOOR - WEIGHTS - _FIXTURE_OVERHEAD_MIB) / float(TOTAL)
     if not plan_literal * TOTAL < WEIGHTS:
         failures.append("B6: plan 리터럴 식이 weights 를 담는다(%.0fMiB ≥ %dMiB) — 교정 근거 재확인 필요"
                         % (plan_literal * TOTAL, WEIGHTS))
@@ -1398,8 +1430,9 @@ def _main(argv: "list[str] | None" = None) -> int:
         "--overhead-mib",
         type=int,
         default=None,
-        help="예산 선언의 overhead(MiB). 미지정 시 %d. 실측값을 알면 넘긴다 — 낮게 잡으면 "
-             "선언 바닥이 높아져 워치독이 정상 서빙을 무장 밴드에 넣는다" % BUDGET_OVERHEAD_MIB,
+        help="예산 선언의 overhead(MiB). **선언 필수**(기본값 없음 · 2026-09-05 G-B1) — "
+             "후보 config `overhead_mib` 또는 env %s 로도 선언할 수 있다. 낮게 잡으면 선언 "
+             "바닥이 높아져 워치독이 정상 서빙을 무장 밴드에 넣는다" % BUDGET_OVERHEAD_ENV,
     )
     p.add_argument(
         "--no-budget",

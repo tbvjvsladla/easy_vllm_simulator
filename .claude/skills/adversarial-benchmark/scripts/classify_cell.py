@@ -29,6 +29,10 @@ import sys
 OUTCOME_SERVE_FAILED = "serve_failed"
 OUTCOME_MEASUREMENT_VOID = "measurement_void"
 OUTCOME_MEASURED = "measured"
+# 2026-09-05(G-B13): "측정하지 않았다" 는 "측정에 성공했다" 와 **다른 사실**이다. 종전에는
+#   broad_search 가 `MEASURE_RC="${MEASURE_RC:-0}"` 로 둘을 같은 0 에 접었고, serve 가 성립한
+#   재조립 경로에서 아무것도 재지 않고도 셀이 `measured` 로 종결될 수 있었다.
+OUTCOME_NOT_MEASURED = "not_measured"
 
 # 사살을 **실제로 수행한** 이벤트만 사인 후보다. `*_trip` 은 판정이고 `*_kill_ack` 이 집행이며,
 # `*_trip_dryrun` 은 관측 전용이라 여기 없다(닫힌 목록 = tripwire).
@@ -89,7 +93,10 @@ def kill_events_in_window(event_lines, started, ended, tolerance_s=0):
 
 
 def classify(serve_rc, measure_rc, kill_hits, events_scanned):
-    """rc 두 개 + 이벤트 대조 → 종결 분류. 순수 함수."""
+    """rc 두 개 + 이벤트 대조 → 종결 분류. 순수 함수.
+
+    `measure_rc is None` = **측정 단계에 들어가지 않았다**(부재). 성공(0)과 구분한다.
+    """
     if serve_rc != 0:
         return {
             "cell_outcome": OUTCOME_SERVE_FAILED,
@@ -100,6 +107,14 @@ def classify(serve_rc, measure_rc, kill_hits, events_scanned):
         }
 
     executed = [h for h in kill_hits if h["kind"] in KILL_EVENT_KINDS]
+    if measure_rc is None:
+        return {
+            "cell_outcome": OUTCOME_NOT_MEASURED,
+            "void_reason": None,
+            "void_reason_source": None,
+            "kill_events": kill_hits,
+            "note": "서빙은 성립했으나 측정 단계에 들어가지 않았다(rc 부재) — 성공으로 집계하지 않는다.",
+        }
     if measure_rc != 0:
         if executed:
             first = executed[0]
@@ -200,7 +215,8 @@ def _self_test():
 def main(argv=None):
     ap = argparse.ArgumentParser(description="광의의 탐색 셀 종결 3분류(결정론)")
     ap.add_argument("--serve-rc", type=int)
-    ap.add_argument("--measure-rc", type=int)
+    ap.add_argument("--measure-rc", default=None,
+                    help="측정 종료코드. **측정하지 않았으면 `absent`** 를 넘겨라(0 과 다른 사실이다).")
     ap.add_argument("--started-utc")
     ap.add_argument("--ended-utc")
     ap.add_argument("--events", action="append", default=[],
@@ -213,7 +229,19 @@ def main(argv=None):
 
     if args.self_test:
         return _self_test()
-    missing = [n for n, v in (("--serve-rc", args.serve_rc), ("--measure-rc", args.measure_rc),
+    if args.measure_rc in ("absent", ""):
+        args.measure_rc = None
+    elif args.measure_rc is not None:
+        try:
+            args.measure_rc = int(args.measure_rc)
+        except ValueError:
+            sys.stderr.write("[classify_cell] ERROR --measure-rc 는 정수 또는 `absent`\n")
+            return 2
+    else:
+        sys.stderr.write("[classify_cell] ERROR --measure-rc 미지정 — 부재는 `absent` 로 **명시**하라"
+                         "(빠뜨림과 부재를 구분한다)\n")
+        return 2
+    missing = [n for n, v in (("--serve-rc", args.serve_rc),
                               ("--started-utc", args.started_utc), ("--ended-utc", args.ended_utc))
                if v is None]
     if missing:

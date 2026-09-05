@@ -656,12 +656,15 @@ def _self_test():
         checks.append(("emit 파일에 DEBOUNCE_N=3", "BB_DEBOUNCE_N=3" in txt))
         # 선언된 바닥 상수가 셸로 흘러가는가 — 워치독이 읽는 **정확한 변수명**이어야 한다.
         # 이름이 어긋나면 워치독은 조용히 자기 하드코딩 기본값으로 돌고, 여기서 조정한 값은 증발한다.
-        checks.append(("emit 에 DECL_MARGIN_MIB=3072", "BB_DECL_MARGIN_MIB=3072\n" in txt))
-        checks.append(("emit 에 DECL_MIN_CEILING_MIB=8192", "BB_DECL_MIN_CEILING_MIB=8192\n" in txt))
+        # 기대값을 손으로 적지 않는다(2026-09-05 · G-B11 계열) — **정본에서 읽어** 대조한다.
+        #   값을 적어 두면 정본을 조정할 때마다 자체검사가 깨지고, 그 마찰이 곧 과적합이다.
+        _dm, _dc = int(DEFAULTS["decl_margin_mib"]), int(DEFAULTS["decl_min_ceiling_mib"])
+        checks.append(("emit 에 DECL_MARGIN_MIB=정본", "BB_DECL_MARGIN_MIB=%d\n" % _dm in txt))
+        checks.append(("emit 에 DECL_MIN_CEILING_MIB=정본", "BB_DECL_MIN_CEILING_MIB=%d\n" % _dc in txt))
         # 정수로 나가야 한다 — 셸 산술은 정수 전용이고 '8192.0' 은 워치독 비교에서 터진다.
         checks.append(("선언 상수가 정수 표기",
-                       "BB_DECL_MARGIN_MIB=3072.0" not in txt
-                       and "BB_DECL_MIN_CEILING_MIB=8192.0" not in txt))
+                       "BB_DECL_MARGIN_MIB=%d.0" % _dm not in txt
+                       and "BB_DECL_MIN_CEILING_MIB=%d.0" % _dc not in txt))
         # 가드가 가드로 작동하는가
         bad, _ = validate_params({"decl_min_ceiling_mib": 5120})   # == hard_floor
         checks.append(("최소상한 <= 절대바닥 거부", not bad))

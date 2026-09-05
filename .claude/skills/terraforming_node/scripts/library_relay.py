@@ -47,6 +47,20 @@ MAX_REFS = 6
 EXCERPT_CHARS = _gate.EXCERPT_MAX_CHARS
 
 
+def _require_topology(request):
+    """요청이 선언한 토폴로지. **기본값 없음**(2026-09-05 · G-B8).
+
+    헌법: 토폴로지는 인터뷰/manifest 만이 정하며 추론하지 않는다. 종전에는 `"single"` 기본값이
+    세 자리에 있어서, 토폴로지를 안 실은 요청이 도서관 응답에 **single 로 기록**됐다 —
+    그 라벨은 나중에 어느 평면의 교환이었는지를 판정하는 근거가 된다.
+    """
+    topo = (request or {}).get("topology")
+    if topo not in ("single", "multi"):
+        raise SystemExit("[library-relay] FAIL: request.topology 가 선언되지 않았다(%r) — "
+                         "토폴로지는 추론하지 않는다(헌법)." % (topo,))
+    return topo
+
+
 def pull(apply=True) -> list:
     """서브 docs 를 미러하고 교환 디렉터리를 나열한다. 미러 자체는 기존 통로가 소유한다."""
     if apply:
@@ -85,7 +99,7 @@ def resolve(request: dict, top: int = MAX_REFS) -> dict:
     if not os.path.isdir(WIKI_ROOT):
         return {"schema_version": SCHEMA_VERSION, "kind": "library.resolution.export",
                 "exchange_id": request["exchange_id"], "node_id": "main",
-                "topology": request.get("topology", "single"),
+                "topology": _require_topology(request),
                 "resolution": {"status": "unresolved", "librarian": "wiki-desk",
                                "reason": f"도서관 미초기화({WIKI_ROOT}) — init_wiki_desk.py 선행 필요"},
                 "references": []}
@@ -95,7 +109,7 @@ def resolve(request: dict, top: int = MAX_REFS) -> dict:
     if out.returncode != 0:
         return {"schema_version": SCHEMA_VERSION, "kind": "library.resolution.export",
                 "exchange_id": request["exchange_id"], "node_id": "main",
-                "topology": request.get("topology", "single"),
+                "topology": _require_topology(request),
                 "resolution": {"status": "unresolved", "librarian": "wiki-desk",
                                "reason": f"사서 질의 실패(rc={out.returncode}): {out.stderr[-200:]}"},
                 "references": []}
@@ -112,7 +126,7 @@ def resolve(request: dict, top: int = MAX_REFS) -> dict:
     status = "resolved" if refs else "unresolved"
     doc = {"schema_version": SCHEMA_VERSION, "kind": "library.resolution.export",
            "exchange_id": request["exchange_id"], "node_id": "main",
-           "topology": request.get("topology", "single"),
+           "topology": _require_topology(request),
            "resolution": {"status": status, "librarian": "wiki-desk"},
            "references": refs}
     if status != "resolved":

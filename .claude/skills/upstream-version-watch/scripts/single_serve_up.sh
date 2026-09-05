@@ -44,7 +44,7 @@ DRY=0; EXPLICIT_NODE_ID=""; SESSION_ID=""; RENEW=1; LABEL=""
 # READY_MAX 기본 600 = 2026-08-15 실측(대형 MoE 로드가 그 안에 든다). 넘기면 타임아웃이 정직한
 # 판정이며, 더 큰 모델은 호출부가 **명시**해서 늘린다(조용히 무한 대기하지 않는다).
 READY_MAX=600
-TTL_S=7200
+TTL_S=""            # 미지정이면 blackbox_session(단일 소유자)의 기본값을 쓴다(G-B2)
 EXPECTED_LOAD_S=""
 OVERHEAD_MIB=""
 while [ $# -gt 0 ]; do
@@ -130,6 +130,14 @@ NODE_ID="$(ni_resolve_node_id "$REPO" "$EXPLICIT_NODE_ID")" || {
   echo "$TAG FAIL: node_id 미해소 — 예산·세션 디렉터리를 정할 수 없다(fail-loud)." >&2; exit 2; }
 NODE_DIR="$REPO/docs/logs/$NODE_ID"
 SESSION_PY="$BB_DIR/blackbox_session.py"
+# TTL 기본값은 **단일 소유자**(blackbox_session)에게 묻는다 — 여기에 7200 을 다시 적지 않는다(G-B2).
+if [ -z "$TTL_S" ]; then
+  TTL_S="$(python3 "$SESSION_PY" --node-dir "$NODE_DIR" budget-defaults --field ttl_s 2>/dev/null || echo)"
+  case "$TTL_S" in ''|*[!0-9]*)
+    echo "$TAG FAIL: 예산 TTL 기본값을 blackbox_session 에서 읽지 못했다 — 숫자를 여기 다시 적지 않는다" >&2
+    exit 2;;
+  esac
+fi
 RENEW_SH="$BB_DIR/budget_renew_loop.sh"
 NOW_ISO(){ date -u +%FT%TZ; }
 
@@ -166,7 +174,17 @@ echo "$TAG 2/7 모델·RAM 게이트 : DONE (ckpt=${CKPT_MIB}MiB ÷ tp=${TP} →
 DECL_ARGS=(--node-dir "$NODE_DIR" declare-budget
            --mem-total-mib "$MEM_TOTAL_MIB" --weights-mib "$WEIGHTS_MIB" --kv-mib "$KV_MIB"
            --ttl-s "$TTL_S" --label "${LABEL:-serve-$CONFIG}" --now "$(NOW_ISO)")
-[ -n "$OVERHEAD_MIB" ] && DECL_ARGS+=(--overhead-mib "$OVERHEAD_MIB")
+# 2026-09-05(G-B1): overhead 는 **선언 필수**다. 종전에는 안 넘기면 blackbox_session 의 기본값
+#   12288 이 조용히 쓰였고, 그 값이 실측(gpt-oss-120b/GB10 17,971)보다 작아 선언 바닥을 높이고
+#   정상 서빙을 워치독 무장 밴드에 넣었다. 여기서 죽는 편이 로드 중 사살보다 싸다.
+if [ -z "$OVERHEAD_MIB" ]; then
+  echo "$TAG 3/7 예산 선언       : FAIL — --overhead-mib 가 선언되지 않았다(기본값 없음)." >&2
+  echo "$TAG     왜: 낮은 overhead 는 선언 바닥을 높여 정상 서빙을 사살 대상으로 만든다." >&2
+  echo "$TAG     어떻게: --overhead-mib <n>. 모르면 로드 완료 후" >&2
+  echo "$TAG     (MemTotal − MemAvailable) − weights − kv 를 재서 그 값을 쓴다." >&2
+  exit 2
+fi
+DECL_ARGS+=(--overhead-mib "$OVERHEAD_MIB")
 [ -n "$EXPECTED_LOAD_S" ] && DECL_ARGS+=(--expected-load-s "$EXPECTED_LOAD_S")
 if [ "$DRY" = "1" ]; then
   echo "$TAG 3/7 예산 선언       : (dry-run) python3 $SESSION_PY ${DECL_ARGS[*]}"
