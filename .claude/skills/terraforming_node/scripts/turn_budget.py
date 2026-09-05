@@ -87,8 +87,8 @@ def _self_test() -> int:
         ok = ok and bool(cond)
 
     # ★ tripwire: 등급표가 되살아나면 여기서 잡는다(2026-09-05 삭제 · G-A2).
-    revived = [n for n in ("GRADES", "GRADE_ORDER", "MIN_TURNS", "ESCALATION_FACTOR",
-                           "MAX_ATTEMPTS_BEFORE_HITL", "budget", "escalate")
+    revived = [n for n in ("GRADES", "GRADE_ORDER", "MIN_TURNS", "ESCALATION_FACTOR",  # antipattern-ok: G-A2-grade-table — tripwire 목록 자신(어휘를 적어야 검사가 성립한다)
+                           "MAX_ATTEMPTS_BEFORE_HITL", "budget", "escalate")  # antipattern-ok: G-A2-grade-table — 동상
                if n in globals()]
     chk(revived == [], f"등급표·증액계수·정지한계가 되살아나지 않았다(발견 {revived})")
 

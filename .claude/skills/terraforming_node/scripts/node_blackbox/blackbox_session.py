@@ -585,7 +585,7 @@ def self_test():
         # ── 예산 선언 (testlog_26073123 · 워치독 arm 상한) ─────────────────
         def _bud(**kw):
             base = dict(node_dir=node, mem_total_mib=124610, weights_mib=59556,
-                        kv_mib=16384, overhead_mib=12288, ttl_s=7200, expected_load_s=0,
+                        kv_mib=16384, overhead_mib=12288, ttl_s=7200, expected_load_s=0,  # antipattern-ok: G-B1-overhead-default — 자체검사 픽스처(선언된 값이지 기본값이 아니다)
                         label="glm-47-flash", now="2026-07-31T00:00:00Z")
             base.update(kw)
             return argparse.Namespace(**base)

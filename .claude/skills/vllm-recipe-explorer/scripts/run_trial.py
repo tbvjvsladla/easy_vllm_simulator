@@ -116,7 +116,7 @@ BUDGET_SESSION_PY = os.path.join(
 BUDGET_OVERHEAD_ENV = "TRIAL_BUDGET_OVERHEAD_MIB"
 # 자체검사 픽스처가 쓰는 값 — 옛 기본값과 같은 수이지만 **여기서만 산다**(프로덕션 경로는 선언을
 # 요구한다). 픽스처 상수는 4종 안티패턴 판정표의 `매직넘버·정당` 칸이다(그 파일에서만 쓰는 국소 상수).
-_FIXTURE_OVERHEAD_MIB = 12288
+_FIXTURE_OVERHEAD_MIB = 12288  # antipattern-ok: G-B1-overhead-default — 자체검사 전용 상수(프로덕션 경로는 선언을 요구한다)
 
 
 def require_overhead_mib(opts=None, env=None):

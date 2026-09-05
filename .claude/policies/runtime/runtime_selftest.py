@@ -1512,6 +1512,24 @@ def _test_watchdog_target_predicate_parity(root: Path | None = None) -> None:
                  f"{rel} --self-test ran without the kill-target negative control")
 
 
+def _test_no_revived_antipatterns(root: Path) -> None:
+    """⑥ ③ 단계에서 **제거한 과적합 형태**가 스테이징된 변경에 되돌아왔는지(2026-09-05 · 3-13).
+
+    왜 전수 인벤토리가 아니라 닫힌 목록인가: 하네스 전체를 훑으면 3,900 히트가 나오고 그 대부분은
+    정당이다(픽스처·진단·국소 상수). 총량을 게이트로 쓰면 그 게이트 자체가 과적합이며, 그것이
+    이번 감사가 지목한 문제였다. 여기서 막는 것은 ③ 이 실제로 제거한 9가지 형태뿐이고, 검사 범위는
+    **스테이징된 파일**이라 병목 예산 안에 든다. 면제는 같은 줄의 `antipattern-ok:` 표식으로만 된다.
+    """
+    scanner = root / ".claude" / "policies" / "runtime" / "antipattern_scan.py"
+    if not scanner.is_file():
+        raise RuntimeSelftestFailure(
+            "antipattern_scan.py 가 없다 — 제거 tripwire 의 실행자가 사라졌다: %s" % scanner)
+    proc = subprocess.run([sys.executable, str(scanner), "--root", str(root), "--tripwire"],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeSelftestFailure(
+            "제거한 안티패턴이 되돌아왔다(rc=%s):\n%s" % (proc.returncode, proc.stderr.strip()[-1200:]))
+
 def run_tripwires(root: Path | None = None) -> int:
     """병목(pre-commit·authorize)에서 도는 축약 진입점. 1초 예산.
 
@@ -1529,6 +1547,7 @@ def run_tripwires(root: Path | None = None) -> int:
         _test_no_retired_hash_mechanism_prose(root)
         _test_no_duplicate_certificates(root)      # ④ plan_26090410 P4 — 사본 정리 뒤 배선
         _test_no_pii_in_deployed_artifacts(root)   # ⑤ P6 — 스캐너에 실행자가 없던 것을 배선
+        _test_no_revived_antipatterns(root)        # ⑥ 3-13 — ③ 이 제거한 형태의 부활 차단
     except RuntimeSelftestFailure as exc:
         print(f"[tripwire] FAIL {exc}", file=sys.stderr)
         return 1
@@ -1543,7 +1562,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--tripwires-only", action="store_true",
         help="run only the pre-commit tripwires (backup artifacts / tracked digest rewrite / "
-             "retired-mechanism prose / duplicate certificates / deployed-artifact PII); "
+             "retired-mechanism prose / duplicate certificates / deployed-artifact PII / "
+             "revived antipatterns); "
              "1s budget, diagnostics on stderr")
     args = parser.parse_args(argv)  # argv=None -> argparse reads sys.argv[1:]
 
@@ -1562,7 +1582,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_duplicate_certificate_predicate()
     _test_deployed_pii_predicate()
     _test_watchdog_target_predicate_parity()
-    # tripwire 5종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
+    # tripwire 6종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
     # 늦는다(선례 3건). 전체 실행에서도 반드시 검사한다.
     # 비-정본 저장소에서 그 단언들이 no-op 이 되는 것은 `run_tripwires` 와 **같은 정상 경로**이며,
     # 여기서도 같은 SKIPPED 한 줄로 눈에 보이게 한다(침묵 no-op 금지).

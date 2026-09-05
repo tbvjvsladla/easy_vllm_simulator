@@ -616,6 +616,8 @@ def verify() -> dict:
              ".claude/skills/terraforming_node/scripts/staleness_gate.py", "--self-test"], {0}),
         _run("terraform_manifest_contract_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/manifest_contract.py", "--self-test"], {0}),
+        _run("antipattern_scan_selftest", [sys.executable,
+             ".claude/policies/runtime/antipattern_scan.py", "--self-test"], {0}),
         _run("terraform_turn_budget_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/turn_budget.py", "--self-test"], {0}),
         _run("terraform_library_relay_selftest", [sys.executable,
