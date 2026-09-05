@@ -61,10 +61,21 @@ def _require_topology(request):
     return topo
 
 
-def pull(apply=True) -> list:
-    """서브 docs 를 미러하고 교환 디렉터리를 나열한다. 미러 자체는 기존 통로가 소유한다."""
+def pull(topology, apply=True) -> list:
+    """서브 docs 를 미러하고 교환 디렉터리를 나열한다. 미러 자체는 기존 통로가 소유한다.
+
+    **토폴로지는 선언이다 — 기본값이 없다**(2026-09-05 · 캠페인 재개 중 발견). 두 통로는 같은
+    노드의 다른 평면이라 서브 주소가 다르고(싱글=관리 hostname · 멀티=RoCE IP), `fetch_sub_docs.sh`
+    는 그래서 `--topology` 를 요구한다. 여기서 안 넘기던 동안 pull 은 그 fail-closed 에 걸려
+    **도서관 왕복 전체가 막혀 있었다** — 같은 파일의 `_require_topology`(G-B8)가 export 경로에
+    이미 세운 규율을 pull 만 빠뜨린 형태다(계약은 있고 통로가 없는, 이 파일 머리말이 말한 바로 그것).
+    """
+    if topology not in ("single", "multi"):
+        raise SystemExit("[library-relay] FAIL: --topology 선언 필요(single|multi) — "
+                         "두 통로는 서브 주소가 다르며 추론하지 않는다(헌법).")
     if apply:
-        out = subprocess.run(["bash", FETCH, "--apply"], capture_output=True, text=True)
+        out = subprocess.run(["bash", FETCH, "--apply", "--topology=" + topology],
+                             capture_output=True, text=True)
         if out.returncode != 0:
             raise SystemExit(f"[library-relay] FAIL: 서브 docs 미러 실패\n{out.stderr[-800:]}")
     if not os.path.isdir(MIRROR):
@@ -189,6 +200,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="메인↔서브 도서관 교환 채널")
     sub = ap.add_subparsers(dest="cmd")
     p = sub.add_parser("pull", help="서브 docs 미러 후 교환 디렉터리 나열")
+    p.add_argument("--topology", choices=("single", "multi"), required=True,
+                   help="회수할 통로(선언 필수 — 두 통로는 서브 주소가 다르다)")
     p.add_argument("--no-apply", action="store_true")
     e = sub.add_parser("export", help="request → 사서 해소 → export.json")
     e.add_argument("--exchange-id", required=True)
@@ -200,7 +213,7 @@ def main() -> int:
     if a.self_test:
         return _self_test()
     if a.cmd == "pull":
-        ids = pull(apply=not a.no_apply)
+        ids = pull(a.topology, apply=not a.no_apply)
         json.dump({"exchanges": ids, "mirror": MIRROR}, sys.stdout, ensure_ascii=False, indent=2)
         sys.stdout.write("\n")
         return 0
