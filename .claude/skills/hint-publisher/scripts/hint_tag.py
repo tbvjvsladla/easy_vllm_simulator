@@ -2407,7 +2407,11 @@ def main() -> int:
     rs = sub.add_parser("recipe-segment",
                         help="인증서에서 레시피 세그먼트를 **파생**한다(손저작 방지) -- read-only")
     rs.add_argument("--certificate", required=True, help="flat 인증서 YAML 경로")
-    rs.set_defaults(func=cmd_recipe_segment)
+    # ★ `func=` 오타로 이 서브커맨드는 **도달 불가**였다(디스패처는 `fn` 만 읽는다) — 파서는
+    #   등록됐으므로 `--help` 에는 보이는데 실행하면 AttributeError 로 죽었다. 게다가 seal 의
+    #   실패 메시지가 바로 이 명령을 실행하라고 안내한다: 가드가 **죽은 문을 가리키고 있었다**
+    #   (2026-09-06 hint 발행에서 첫 실증 — 5세그먼트 전환 뒤 아무도 이 경로를 안 밟았다).
+    rs.set_defaults(fn=cmd_recipe_segment)
 
     m = sub.add_parser("match", help="근-미스 발견(축별 이식 가이드) -- read-only, ungated")
     m.add_argument("--vllm", required=True)
