@@ -45,6 +45,22 @@ COPY requirements.txt /tmp/requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r /tmp/requirements.txt
 
+# ═════════════════════════════════════════════════════════════════════════════
+# [분산서빙 런타임 의존] — source-build 트랙과 **같은 규약**이다(그 템플릿 §분산서빙 런타임 의존).
+#   2026-09-05: wheel 트랙에는 이 스탠자가 **없었다**. 그래서 output/multi/Dockerfile 에 손으로
+#   얹혀 있었고, 재렌더 한 번이면 조용히 사라져 TP=2 가 `ray: command not found` 로 죽는다
+#   (SM12X_PORT 와 같은 형태의 침묵 누락 — 실제로 2026-09-05 재렌더에서 사라진 것을 확인했다).
+#   토폴로지 조건부로 만들지 않는 이유도 동일하다: IMAGE_TAG 에 토폴로지 축이 없으므로
+#   조건부화는 이미지 정체성을 갈라 policy:VARIANT_IMAGE_BUILD_VS_SERVE_PLANE 위반이 된다.
+#   A) netcat: serve_runner.sh 의 slave 가 `nc` 로 Ray head 포트를 대기한다 → 부재 시 무한대기.
+#   B) ray   : vLLM 코어 dep 이 아니라 requirements 에 안 나온다 → 명시 설치가 유일한 통로.
+# ═════════════════════════════════════════════════════════════════════════════
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        iproute2 netcat-openbsd iputils-ping dnsutils \
+    && rm -rf /var/lib/apt/lists/*
+ARG RAY_VERSION=2.48.0
+RUN pip install ray==${RAY_VERSION}
+
 WORKDIR /workspace
 
 EXPOSE 8000
