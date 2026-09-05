@@ -146,6 +146,25 @@ case "$BACKEND" in
   *) echo "[run_bench] 알 수 없는 --backend: $BACKEND (openai-chat|openai)" >&2; exit 2 ;;
 esac
 
+# ── harmony 계열 × chat 엔드포인트 = 측정 무효 (2026-09-05 · 주석을 집행으로 승격) ──
+#   위 BACKEND 주석(2026-09-01)이 "harmony 는 chat 에서 ignore_eos 가 무력하다"를 이미 적어
+#   두었는데 **집행하는 코드가 없었다**. 그 결과 오늘 캠페인 1 A0 가 기본값 openai-chat 으로
+#   측정돼 서버 harmony 파서가 16건 중 4건을 깼고(`HarmonyError: Unexpected token 200002 while
+#   expecting start token 200006`) error_rate 0.25 로 measurement_void 가 됐다. 주석은 사람이
+#   읽어야 작동하고, 사람은 기본값을 그대로 쓴다.
+#   신호는 모델 이름이 아니라 **트리플렛 러너가 선언한 reasoning parser** 다 — 이름 매칭은
+#   새 harmony 모델을 놓치고, 러너 선언은 그 모델을 실제로 어떻게 서빙 중인지 말한다.
+#   부재는 통과다(러너가 없거나 harmony 가 아니면 이 가드는 무동작).
+_RUNNER="$REPO/output/$TOPO/configs/$CFGFILE.sh"
+if [ "$BACKEND" = "openai-chat" ] && [ -f "$_RUNNER" ] \
+   && grep -qE -- '--reasoning-parser[= ]+openai_gptoss' "$_RUNNER"; then
+  echo "[run_bench] 거부: harmony 계열(러너가 --reasoning-parser openai_gptoss 선언)을 chat 엔드포인트로 재려 한다." >&2
+  echo "  chat 에서는 --ignore-eos 가 무력하고(harmony stop 토큰이 EOS 와 별개), 서버 harmony 파서가" >&2
+  echo "  스트림 중 깨져 요청이 errored 로 빠진다 → TPOT 왜곡 또는 measurement_void." >&2
+  echo "  → --backend openai (완결 엔드포인트 /v1/completions) 로 재라." >&2
+  exit 2
+fi
+
 # ── 도구별 실행 ────────────────────────────────────────────────────────────────
 #   두 분기는 **같은 게이트를 이미 통과한 뒤** 갈라진다(Flag/A2A · envfile · health · 컨테이너 생존).
 #   게이트를 분기 안으로 복제하지 않는 것이 요점이다 — 정책 술어가 위 블록을 **원문 그대로 뽑아
