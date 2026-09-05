@@ -101,10 +101,32 @@ MIN_MEASURE_KV_MIB = 4096
 #     ② 같은 파일 계열의 선례가 이미 그 방향이다 — `preload_ram_gate.gate()` 는 크기 미상일 때
 #        "게이트 생략(음성정직·false-block 금지)" 한다.
 #     ③ 침묵은 금지된다 — 생략은 반드시 `budget-skip` 이벤트로 남는다(plan_26081415 C3 기준3).
-BUDGET_SESSION_PY = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "..", "..", "terraforming_node", "scripts", "node_blackbox", "blackbox_session.py",
-)
+def _budget_session_path():
+    """예산 세션 해소기의 위치 — **소유자 정본 → 서브 런타임 배달분** 순(2026-09-05).
+
+    같은 파일의 `_memwatch_script_path()` 가 이미 이 두-후보 패턴을 쓴다. 이 상수만 정본
+    경로 하나로 굳어 있었고, **메인에는 그 경로가 실재하므로 결함이 보이지 않았다** —
+    서브는 `.claude/runtime/node_blackbox/` 로 배달받으므로 거기엔 없다.
+
+    실증(서브가 발견 · 캠페인 1 · 2026-09-05): 서브에서 `kv_cache_memory_bytes` 를 명시하면
+    `_budget_declare()` 가 이 경로를 subprocess 로 불러 rc=2 FileNotFoundError 로 **컨테이너
+    기동 전에** 죽었다. 그것을 피하려고 클램프를 비우면 vLLM 이 KV 88.23 GiB 를 자동산정해
+    6초 만에 MemAvailable 94.9→9.47 GB 로 떨어졌고 전역 워치독이 정당하게 docker_kill 했다.
+    즉 **안전하게 서빙하는 유일한 경로가 코드로 막혀 있었다**(막힘 3분류의 침묵 누락).
+
+    부재는 여기서 죽이지 않는다 — 호출부가 `budget-skip` 이벤트로 남기는 기존 계약을 지킨다.
+    """
+    root = os.path.abspath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
+    candidates = (
+        os.path.join(root, ".claude", "skills", "terraforming_node", "scripts",
+                     "node_blackbox", "blackbox_session.py"),
+        os.path.join(root, ".claude", "runtime", "node_blackbox", "blackbox_session.py"),
+    )
+    return next((c for c in candidates if os.path.isfile(c)), candidates[0])
+
+
+BUDGET_SESSION_PY = _budget_session_path()
 # blackbox_session --overhead-mib 기본값과 동일. **이 값은 "안전측"이 아니다** —
 #   overhead 를 낮게 잡으면 선언 바닥(mem_total - weights - kv - overhead)이 **높게** 나오고,
 #   워치독 arm 상한도 같이 높아져 **정상 서빙이 무장 밴드 안에 들어간다**. 2026-09-04 실측:

@@ -200,7 +200,13 @@ MSG
   #   *이미 관측한 사실*을 지우는 것이 아니다. 여기서 막으면 "C7 은 불가"가 "C7 은 미상"이
   #   되어 지도에 구멍이 남는다(2026-09-05 실측 — 연속실패 정지가 마지막 셀 기록을 삼켰다).
   #   기록 뒤 정지 조건은 어차피 하단에서 다시 평가돼 그대로 성립한다.
-  if [ -z "$SERVE_FAILED_REASON" ]; then
+  # ★ 2026-09-05: `--reassemble-only` 도 이 게이트에서 면제한다. 근거는 `--serve-failed` 와 같다 —
+  #   측정을 돌리지 않고 셀 예산을 쓰지 않으며 **기존 산출물에서 기록만 다시 조립**한다.
+  #   면제가 없으면 그 옵션의 선언된 목적("재측정 없이 지도를 정합화하는 유일한 정식 경로")이
+  #   **스윕이 끝난 시점에 정확히 도달 불가**가 된다 — 라벨·파생키 계약이 바뀌었음을 알게 되는
+  #   때가 바로 그때다. 남는 길은 상태 파일 수기 편집(증거 위조)뿐이라 게이트가 우회를 만든다.
+  #   (캠페인 1 실측: cells_exhausted 뒤 MoE mismatch 필드를 실으려는데 이 게이트가 막았다.)
+  if [ -z "$SERVE_FAILED_REASON" ] && [ "$REASSEMBLE" != 1 ]; then
     set +e; _stop; STOPRC=$?; set -e
     if [ "$STOPRC" = "3" ]; then
       echo "[broad_search] 정지 조건 성립 — 셀을 실행하지 않는다:" >&2
@@ -317,9 +323,19 @@ cell = {
                     "gpu_model": meta.get("gpu_model"),
                     # 커널 축은 요청과 실효가 갈릴 수 있으므로 **출처·불일치·후보**까지 싣는다.
                     "attention_backend_source": meta.get("attention_backend_source"),
+                    "attention_backend_declared": meta.get("attention_backend_declared"),
                     "attention_backend_mismatch": meta.get("attention_backend_mismatch"),
                     "attention_backend_candidates": meta.get("attention_backend_candidates"),
-                    "moe_backend_source": meta.get("moe_backend_source")},
+                    # ★ 2026-09-05: MoE 도 같은 세 필드를 싣는다. 바로 위 주석이 "출처·불일치까지
+                    #   싣는다"고 적어 두었는데 **어텐션에만 적용돼 있었다** — sweep_bench 는
+                    #   `moe_backend_mismatch` 를 정확히 계산해 놓고(YES(measured=marlin
+                    #   declared=triton)) broad_search 가 그것을 버렸다. 캠페인 1 실측:
+                    #   moe-backend 를 triton·flashinfer_trtllm·cutlass 로 선언한 셀 3개가 전부
+                    #   marlin 으로 돌았는데 지도에는 그 사실이 없었다. 좌표는 실측값이라 거짓은
+                    #   아니었지만, "축을 옮겼는데 안 옮겨졌다"는 **가장 중요한 결과**가 사라졌다.
+                    "moe_backend_source": meta.get("moe_backend_source"),
+                    "moe_backend_declared": meta.get("moe_backend_declared"),
+                    "moe_backend_mismatch": meta.get("moe_backend_mismatch")},
     "verdict_narrative": (("%s · authority=%s · source=%s · floor=%s"
                            % (verdict.get("verdict"),
                               (verdict.get("rubric") or {}).get("authority"),
