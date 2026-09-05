@@ -1245,6 +1245,36 @@ apply_overlay_tombstones() {
     done
 }
 
+# 배달 표면 **수렴 리포트**(2026-09-05 · 사용자 요구: "자주 바뀌는 서브가 과거 찌꺼기 없이 계속
+# 안정화되느냐"). 오버레이는 가산 배달이라 **정본에서 사라진 파일은 서브에 그대로 남는다** —
+# 비석(OVERLAY_STALE_PATHS)은 *알려진* 은퇴만 지우므로, 알려지지 않은 잔재는 아무도 보지 못했다.
+# 여기서 하는 일은 삭제가 아니라 **보이게 하는 것**이다: 정본이 배달하는 디렉터리 안에서 서브에만
+# 있는 파일을 세어 목록으로 낸다. 지우는 것은 여전히 명시 비석의 몫이다(자동 삭제 ✗ — 서브의
+# 정당한 로컬 산출물과 잔재를 기계가 가를 수 없다).
+report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 게이트 아님)
+    local st; st="$(staging_dir "$1")"
+    [ -d "$st" ] || return 0
+    local canon dirs sub_list extra n
+    canon="$(cd "$st" && find . -type f -not -path '*/__pycache__/*' -not -name '*.pyc' \
+             -printf '%P\n' | LC_ALL=C sort)"
+    [ -n "$canon" ] || return 0
+    # 비교 범위 = 정본이 실제로 배달하는 **최상위 경로**뿐(서브의 output/·docs/·tasks/ 는 그 노드의
+    #   산출물 평면이라 비교 대상이 아니다 — 거기까지 '잔재'라 부르면 리포트가 소음이 된다).
+    dirs="$(printf '%s\n' "$canon" | awk -F/ '{print $1}' | LC_ALL=C sort -u | tr '\n' ' ')"
+    sub_list="$(sub_run "find $dirs -type f -not -path '*/__pycache__/*' -not -name '*.pyc' 2>/dev/null | sed 's|^\./||' | LC_ALL=C sort" || true)"
+    [ -n "$sub_list" ] || return 0
+    extra="$(LC_ALL=C comm -13 <(printf '%s\n' "$canon") <(printf '%s\n' "$sub_list") || true)"
+    n="$(printf '%s' "$extra" | grep -c '' || true)"
+    if [ "${n:-0}" -eq 0 ]; then
+        echo "  ✅ 수렴: 배달 표면($dirs)에 정본 밖 파일 0건 — 서브가 과거 찌꺼기 없이 정본과 같다"
+        return 0
+    fi
+    echo "  ⚠ 수렴 리포트: 정본에 없는 파일 ${n}건이 서브의 배달 표면에 있다(삭제하지 않는다 — 눈에 보이게만 한다):"
+    printf '%s\n' "$extra" | sed 's/^/      /' | preview_lines
+    echo "      → 은퇴가 확정된 경로는 OVERLAY_STALE_PATHS 비석에 등재하라(명시 삭제만 허용)."
+    return 0
+}
+
 verify_destination_retirement_consumers() {
     local stale hits fail=0 scan_py scan_q stale_q
     scan_py=$'# retirement_consumer_scan\nimport os,re,sys\nstale=sys.argv[1]\nowner=".claude/skills/upstream-version-watch/"+stale\nchars=set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-")\nneedle=re.compile(r"(?<![A-Za-z0-9_.-])"+re.escape(stale)+r"(?![A-Za-z0-9_./-])")\nhits=[]\ndef scan(path):\n if os.path.islink(path): raise RuntimeError("active scanner refuses symlink: "+path)\n data=open(path,"rb").read().decode("utf-8","replace")\n for lineno,line in enumerate(data.splitlines(),1):\n  for match in needle.finditer(line):\n   lo,hi=match.start(),match.end()\n   while lo and line[lo-1] in chars: lo-=1\n   while hi<len(line) and line[hi] in chars: hi+=1\n   token=line[lo:hi]\n   while token.startswith("./"): token=token[2:]\n   if token!=owner: hits.append(f"{path}:{lineno}:{line}")\nroots=[".claude","CLAUDE.md"]\nif os.path.exists("HINTS.md"): roots.append("HINTS.md")\nfor root in roots:\n if os.path.isdir(root):\n  for base,dirs,files in os.walk(root,onerror=lambda e: (_ for _ in ()).throw(e)):\n   dirs[:]=[d for d in dirs if d!=".git"]\n   for name in files: scan(os.path.join(base,name))\n elif os.path.exists(root): scan(root)\nprint("\\n".join(hits),end="")'
@@ -1348,13 +1378,15 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
     #   키를 추적 → 손으로 지워도 `sub.git.unstick`(git checkout --)이 되살린다.
     #   `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED`(옛 …DELEGATION_KEY…) 는 **발급 방향으로만** fail-closed 였고 회수 방향은
     #   fail-open 이었다. 오진 정정·서브 교체·HW 변경 뒤에도 서브는 계속 위임 자격을 들고 있었다.
+    # 2026-09-05(③ 3-9 · G-E1): 위임 키는 **폐기됐다** — 렌더가 더는 만들지 않는다. 그러므로
+    #   스테이징에 있으면 그것이 오히려 결함이고(옛 렌더러가 되살아났다), 서브에 있으면 잔재다.
+    #   가산 배달만으로는 잔재가 영원히 남는다 — 사용자가 지목한 "과거 찌꺼기" 의 정확한 사례다.
     if [ -f "$st/.claude/a2a_delegation.json" ]; then
-        echo "  ✅ .claude/a2a_delegation.json 발급(서브 hw_verified 검증) — 배달 표면 안"
+        echo "[sync] FAIL(S4): 스테이징에 폐기된 위임 키가 있다 — 렌더러가 되살아났다(G-E1)" >&2
+        fail=1
     else
-        echo "  ℹ️  .claude/a2a_delegation.json 미발급(서브 hw_verified 미검증) — 배달 표면 밖"
-        # 회수: 스테이징에 없는데 목적지에 있으면 그것은 **철회된 자격의 잔재**다. 지운다.
         if sub_run "[ -f '.claude/a2a_delegation.json' ]" 2>/dev/null; then
-            echo "  ⚠ 서브에 철회된 위임 키 잔재 발견 — 회수한다(발급 게이트가 닫혔는데 키가 남아 있다)."
+            echo "  ⚠ 서브에 폐기된 위임 키 잔재 발견 — 회수한다(자격증명은 이제 서명된 카드다)."
             sub_run "rm -f -- '.claude/a2a_delegation.json'" \
                 || { echo "[sync] FAIL(S4): 위임 키 회수 실패 — 자격이 남은 채로 배달하지 않는다" >&2; return 9; }
             if sub_run "[ -f '.claude/a2a_delegation.json' ]" 2>/dev/null; then
@@ -1667,6 +1699,7 @@ for t in "${TARGETS[@]}"; do
     verify_destination_host_safety_modes || { echo "[sync] FAIL: host-safety mode 불일치($t) — tombstone 전 중단"; exit 2; }
     verify_destination_retirement_consumers || { echo "[sync] FAIL: retirement consumer 존재($t) — tombstone 전 중단"; exit 2; }
     apply_overlay_tombstones
+    report_overlay_convergence "$t"   # 비석 적용 **뒤**에 센다 — 지운 것을 잔재로 세지 않는다
     # (5) [sync] 스크립트저작 커밋 (변경분만)
     sub_run "git add -A"
     if sub_run "git diff --cached --quiet"; then
