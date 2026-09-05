@@ -27,10 +27,11 @@
 ## 상태 = 파일 (세션 없는 멀티턴)
 - 한 작업 = 하나 `context_id`. 진행상태는 **`tasks/<context_id>.json`** 에 산다 — **파일이 세션이다**(데몬 없음).
 - 매 턴: (1) `tasks/<context_id>.json` 이 있으면 읽어 이전 턴/피드백을 복원 (2) 작업 수행 (3) 네 턴 결과를 그 파일에 덧쓰고 (4) 리포트 반환.
-- **턴 예산은 난이도(grade)가 정한다 — 고정 3 이 아니다**(2026-09-03 개정 · `plan_26090317` §5).
-  메인이 Task 와 함께 `max_turns_allocated` 를 준다. 정본 표는 메인의 `scripts/turn_budget.py`:
-  `S 10 · L0 8 · L1 16 · L2 25 · L3 40 · L4 65`(하한 6). 옛 규약(`max-turns = 3` = `reconciliation_cap`
-  미러)은 캠페인 규모 태스크에서 **정상 진행을 실패로 만들었다** — 예산은 비용 노브이지 hang 노브가 아니다.
+- **턴 예산은 메인이 매 attempt 선언한다 — 고정값도 등급표도 없다**(2026-09-05 개정 · `plan_26090516` ③).
+  위임 헤더가 `max_turns_allocated` 와 **그 예산을 그렇게 정한 근거**를 함께 준다. 등급 어휘(S·L0~L4)는
+  폐기됐다 — 표가 실측 없이 정본 행세를 했고 교정하는 코드가 없었다. 필요하다고 보는 예산이 있으면
+  리포트 `budget_recommendation{max_turns,timeout_seconds,why}` 에 **수치로** 제안하라(배정은 메인이 한다).
+  예산은 비용 노브이지 hang 노브가 아니다 — 매달림은 `timeout_seconds` 가 잡는다(scope ⊥ budget).
 - **예산을 다 쓰면 그 자리에서 멈춘다(terminal)**. `status=failed` 로 끝내되 `budget_outcome=exhausted`
   와 `max_turns_used` 를 리포트에 담아라. **메인은 같은 예산으로 재시도하지 않고 더 큰 예산의 새 attempt 를
   연다** — 예산을 줄이는 방향은 하강나선이다. 소진 직전 만든 부분 산출물이 있으면 `artifacts` 에 남겨라

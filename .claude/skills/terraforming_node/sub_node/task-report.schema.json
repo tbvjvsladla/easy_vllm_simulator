@@ -30,7 +30,7 @@
     "turn": {
       "type": "integer",
       "minimum": 1,
-      "description": "이 contextId 안에서 몇 번째 턴인지. **소진(max_turns_allocated 도달)은 terminal 이며 budget_outcome=exhausted 로 보고한다** — 메인은 자동 재시도 대신 **더 큰 예산의 새 attempt** 를 연다(예산을 줄이면 하강나선이다). scope ⊥ budget: hang 은 timeout+진행로그로 따로 다룬다. 2026-09-03 이전 기술은 '기본 3 초과 시 failed→Model-C' 였고, 그 값이 캠페인 규모 태스크에서 정상 진행을 실패로 만들었다(plan_26090317 §5 grade 표로 대체)."
+      "description": "이 contextId 안에서 몇 번째 턴인지. **소진(max_turns_allocated 도달)은 terminal 이며 budget_outcome=exhausted 로 보고한다** — 메인은 자동 재시도 대신 **더 큰 예산의 새 attempt** 를 연다(예산을 줄이면 하강나선이다). scope ⊥ budget: hang 은 timeout+진행로그로 따로 다룬다. 2026-09-03 이전 기술은 '기본 3 초과 시 failed→Model-C' 였고, 그 값이 캠페인 규모 태스크에서 정상 진행을 실패로 만들었다(plan_26090317 §5 가 grade 표로 대체했고, 그 표도 2026-09-05 폐기 — 예산은 선언이다)."
     },
     "phase": {
       "type": "string",
@@ -232,39 +232,32 @@
         }
       }
     },
-    "task_grade": {
-      "type": "object",
+    "budget_recommendation": {
+      "type": [
+        "object",
+        "null"
+      ],
       "additionalProperties": false,
-      "description": "난이도 등급(cold-start prior). recommended=서브가 카나리/이번 턴에 제안한 값, assigned=메인이 실제로 부여한 값. 둘이 다르면 그 차이가 Layer2 보정의 입력이다.",
+      "description": "이 과업에 필요하다고 **서브가 본** 예산과 그 이유. 2026-09-05 개정: 등급 어휘(S·L0~L4)는 폐기됐다 — 표가 실측 없이 정본 행세를 했고 교정 소비자가 0 이었다(audit_26090515 G-A2). 제안은 수치로 하고, 배정은 메인이 **선언**한다.",
       "properties": {
-        "recommended": {
+        "max_turns": {
           "type": [
-            "string",
+            "integer",
             "null"
           ],
-          "enum": [
-            "S",
-            "L0",
-            "L1",
-            "L2",
-            "L3",
-            "L4",
-            null
-          ]
+          "minimum": 1
         },
-        "assigned": {
+        "timeout_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "why": {
           "type": [
             "string",
             "null"
-          ],
-          "enum": [
-            "S",
-            "L0",
-            "L1",
-            "L2",
-            "L3",
-            "L4",
-            null
           ]
         }
       }
@@ -275,7 +268,7 @@
         "null"
       ],
       "minimum": 1,
-      "description": "이번 attempt 에 메인이 부여한 턴 예산(grade 표 파생 — 매직상수 금지)."
+      "description": "이번 attempt 에 메인이 부여한 턴 예산. 메인이 **선언**한 값이며 위임 헤더에 그 근거가 함께 온다(등급표 파생이 아니다 — 2026-09-05)."
     },
     "max_turns_used": {
       "type": [

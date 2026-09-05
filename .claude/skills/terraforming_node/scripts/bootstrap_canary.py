@@ -30,13 +30,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 AGENT_CONTROL = os.path.join(REPO, ".claude", "policies", "runtime", "agent_control.py")
 ROLE_CONTRACT = os.path.join(HERE, "node_role_contract.py")
+sys.path.insert(0, HERE)
+import turn_budget  # noqa: E402
 
-# grade S(= inspect 카나리) 의 turn 예산. 매직상수가 아니라 grade 표의 값이며 출처를 함께 둔다
-# (plan_26090317 §5 · 참고 프로젝트 `seed/hermes-subagent-control-plane/references/turn-budget-grades.md`).
-GRADE = "S"
-GRADE_MAX_TURNS = 10          # S = 8~12 의 중앙값. 실측으로 교정한다(원장 max_turns_used p90).
-GRADE_TIMEOUT_S = 600
-GRADE_SOURCE = "grade-table:S (plan_26090317 §5 · hermes turn-budget-grades)"
+# 2026-09-05(G-A2): 여기 있던 `GRADE_MAX_TURNS=10`·`GRADE_TIMEOUT_S=600` 은 등급표의 S 행을
+# 복제한 값이었다. 표가 사라졌으므로 카나리도 **예산을 선언받는다** — 부르는 쪽이 정한다.
 
 TASK_COMMON = (
     "부트스트랩 카나리다. 모델을 로드하지 말고, 빌드하지 말고, 아무 파일도 고치지 마라. "
@@ -55,7 +53,7 @@ TASK_BY_MODE = {
         "너는 A2A 원격 에이전트다(Ray 워커가 아니다). rank 는 없어야 하고, "
         "런타임 스킬 3종(vllm-recipe-explorer · adversarial-benchmark · upstream-version-watch)이 "
         "실제로 존재하는지 경로로 확인해 보고하라. "
-        "추가로 grade_recommended(S|L0|L1|L2|L3|L4)와 needs_hitl 을 notes 에 담아라."
+        "추가로 이 정도 과업에 필요하다고 보는 턴 수(budget_recommendation)와 needs_hitl 을 notes 에 담아라."
     ),
     "ray-worker": (
         "너는 멀티노드 Ray 워커다. 런타임 스킬은 받지 않는 것이 정상이므로 "
@@ -121,7 +119,10 @@ def resolve_sub_mode(topology: str, manifest: str) -> tuple[str, str]:
     return inner.get("value") or "", inner.get("source") or ""
 
 
-def build_request(topology: str, manifest_path: str) -> dict:
+def build_request(topology: str, manifest_path: str, *,
+                  max_turns: int = None, timeout_seconds: int = None,
+                  budget_source: str = None) -> dict:
+    """카나리 request 조립. 예산은 **선언받는다**(기본값 ✗ — `turn_budget` 참조)."""
     if not os.path.exists(manifest_path):
         raise SystemExit(f"[canary] FAIL: manifest 부재 — {manifest_path}")
     man = _load_yaml_min(manifest_path)
@@ -134,6 +135,7 @@ def build_request(topology: str, manifest_path: str) -> dict:
     if missing:
         raise SystemExit(f"[canary] FAIL: nodes[sub] 필수 필드 미해소 {missing} — "
                          f"추측해서 접속하지 않는다(틀린 계정/경로는 권한 평면을 바꾼다).")
+    bud = turn_budget.declare(max_turns, timeout_seconds, source=budget_source or "")
     sub_mode, mode_source = resolve_sub_mode(topology, manifest_path)
     if sub_mode not in TASK_BY_MODE:
         raise SystemExit(f"[canary] FAIL: 알 수 없는 sub_mode={sub_mode!r}(출처 {mode_source}) — "
@@ -151,9 +153,11 @@ def build_request(topology: str, manifest_path: str) -> dict:
             "ssh_user": str(sub["ssh_user"]),
             "work_dir": str(sub["work_dir"]),
         },
-        "timeout_seconds": GRADE_TIMEOUT_S,
-        "max_turns": GRADE_MAX_TURNS,
         "capabilities": ["read", "execute"],
+        # 예산은 선언된 값 두 개만 싣는다 — 요청 스키마는 `additionalProperties: false` 라
+        # 출처(source)를 여기 실으면 전송 자체가 거부된다(2026-09-05 자체검사가 잡음).
+        "timeout_seconds": bud["timeout_seconds"],
+        "max_turns": bud["max_turns"],
     }
 
 
@@ -180,18 +184,32 @@ def _self_test() -> int:
         sub = next((n for n in man["nodes"] if n.get("role") == "sub"), None)
         chk(sub and sub["host"] == "203.0.113.11" and sub["ssh_user"] == "tester"
             and sub["work_dir"] == "/srv/ws", "manifest nodes[sub] 5필드 해소")
-        req = build_request("multi", mp)
+        req = build_request("multi", mp, max_turns=10, timeout_seconds=600,
+                            budget_source="선언: 카나리 1왕복(인스펙트 전용 · 파일 수정 없음)")
         schema_path = os.path.join(REPO, ".claude", "schemas", "agent-control-request.schema.json")
         with open(schema_path, encoding="utf-8") as f:
             schema = json.load(f)
-        req_keys = set(schema.get("required", []))
-        chk(req_keys <= set(req), "request 가 스키마 required 를 모두 채움")
+        # ★ 픽스처를 실물 폭으로: required 포함 여부만 보던 종전 검사는 **미지 필드**를 못 봤다.
+        #   실제 전송 게이트(agent_control 의 구조 검증기)를 그대로 불러 대조한다.
+        sys.path.insert(0, os.path.join(REPO, ".claude", "policies", "runtime"))
+        import importlib.util as _ilu
+        _spec = _ilu.spec_from_file_location("_ac_validator", AGENT_CONTROL)
+        _ac = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_ac)
+        viol = _ac._schema_violations(req, schema)
+        chk(viol == [], f"request 가 전송 스키마를 그대로 통과한다(위반 {viol})")
         chk(req["intent"] == "bootstrap_canary" and req["target"]["role"] == "sub"
             and req["target"]["transport"] == "ssh", "intent/target 계약")
         chk("ray" not in req["task"].lower() or "Ray 워커" in req["task"],
             "multi 카나리 문구가 ray-worker 정체성을 묻는다")
-        chk(req["max_turns"] == GRADE_MAX_TURNS and GRADE_SOURCE.startswith("grade-table:"),
-            "turn 예산이 매직상수가 아니라 grade 표에서 온다(출처 표기)")
+        chk(req["max_turns"] == 10 and req["timeout_seconds"] == 600 and "source" not in req,
+            "turn 예산이 **선언**으로 들어오고 출처는 요청 밖에 남는다(등급표 ✗)")
+        # 음성대조 ⓪: 예산을 선언하지 않으면 조립되지 않는다(기본값이 없다).
+        try:
+            build_request("multi", mp)
+            chk(False, "예산 미선언 → fail-loud")
+        except SystemExit as _e:
+            chk("선언되지 않았다" in str(_e), "예산 미선언 → fail-loud(기본값을 만들지 않는다)")
 
         # 음성대조 ①: 서브 미등록이면 조립하지 않는다(추측 금지).
         mp2 = os.path.join(d, "single.yaml")
@@ -224,6 +242,11 @@ def main() -> int:
     ap.add_argument("--topology", choices=["single", "multi"])
     ap.add_argument("--manifest", default=None, help="기본 output/<topology>/manifest.yaml")
     ap.add_argument("--emit", metavar="PATH", help="request JSON 을 이 경로에 쓴다(기본: stdout)")
+    ap.add_argument("--max-turns", type=int, default=None,
+                    help="이 카나리에 배정할 턴 예산(선언 필수 — 기본값 없음)")
+    ap.add_argument("--timeout-seconds", type=int, default=None,
+                    help="매달림을 잡는 상한(scope ⊥ budget — 예산과 별개 노브)")
+    ap.add_argument("--budget-source", default=None, help="그 예산을 그렇게 정한 근거(필수)")
     ap.add_argument("--invoke", action="store_true",
                     help="조립 후 agent_control invoke 까지 실행한다(HITL 승인 뒤에만).")
     ap.add_argument("--self-test", action="store_true")
@@ -233,12 +256,14 @@ def main() -> int:
     if not a.topology:
         raise SystemExit("[canary] --topology 필수(토폴로지는 인터뷰가 정한다 — 브랜치로 추론하지 않는다)")
     manifest = a.manifest or os.path.join(REPO, "output", a.topology, "manifest.yaml")
-    req = build_request(a.topology, manifest)
+    req = build_request(a.topology, manifest, max_turns=a.max_turns,
+                        timeout_seconds=a.timeout_seconds, budget_source=a.budget_source)
     blob = json.dumps(req, ensure_ascii=False, indent=2) + "\n"
     if a.emit:
         with open(a.emit, "w", encoding="utf-8") as f:
             f.write(blob)
-        print(f"[canary] request → {a.emit} (grade={GRADE} max_turns={GRADE_MAX_TURNS} · {GRADE_SOURCE})")
+        print(f"[canary] request → {a.emit} (max_turns={req['max_turns']} "
+              f"timeout={req['timeout_seconds']}s · {a.budget_source})")
     else:
         sys.stdout.write(blob)
     if not a.invoke:

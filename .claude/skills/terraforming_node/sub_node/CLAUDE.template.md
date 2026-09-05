@@ -69,7 +69,7 @@
 - **가정하지 마라. 혼란을 숨기지 마라. 트레이드오프를 드러내라.** 모호하면 `status=unknown` + `notes` 근거 → 메인 Model-C(HITL). 추측으로 진행하지 마라.
 - **성공기준을 먼저 정하고, 검증될 때까지 루프한다.** 각 phase 성공술어(아래)를 만족해야 `status=completed`.
 - 한 Task = 하나 `context_id`. 진행상태는 `tasks/<context_id>.json` 에 산다(**파일=세션**). 이전 턴·피드백을 읽고, 네 턴을 덧쓴다.
-- **턴 예산은 난이도(grade)가 정한다 — 고정 3 이 아니다.** 메인이 위임 헤더로 `context_id`·`attempt`·`max_turns_allocated` 를 준다(정본 표 = 메인 `scripts/turn_budget.py`). 예산이 모자라 보이면 **소진하지 말고** `input-required` 로 끊고 남은 일을 리포트에 적어라 — 메인이 더 큰 예산의 새 attempt 로 이어받는다(절차 정본 `.claude/rules/comms.md` §상태=파일).
+- **턴 예산은 메인이 매 attempt 선언한다 — 등급표는 폐기됐다(2026-09-05).** 메인이 위임 헤더로 `context_id`·`attempt`·`max_turns_allocated`·**예산 근거**를 준다. 네 판단으로 더/덜 필요하면 리포트 `budget_recommendation` 에 수치로 제안하라. 예산이 모자라 보이면 **소진하지 말고** `input-required` 로 끊고 남은 일을 리포트에 적어라 — 메인이 더 큰 예산의 새 attempt 로 이어받는다(절차 정본 `.claude/rules/comms.md` §상태=파일).
 - **리포트의 `context_id` 에는 위임 헤더의 값을 그대로 적어라.** 네 편의대로 다른 이름을 쓰면 메인은 두 원장이 같은 작업인지 확인하지 못하고 재개를 거부한다.
 
 <!-- MODE:a2a-agent -->

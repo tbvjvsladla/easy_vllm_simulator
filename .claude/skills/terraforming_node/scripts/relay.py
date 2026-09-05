@@ -15,7 +15,11 @@
 규율(참고 프로젝트 차용 — memory: hermes-control-plane-reference-turn-budget):
     · scope ⊥ budget · 소진은 terminal → **더 큰 예산의 새 attempt**(예산 축소 금지)
     · SILENT_FALLBACK 금지 — 메인이 대신 한 것을 서브 성공으로 집계하지 않는다
-    · 원장 4필드(task_grade·max_turns_allocated·max_turns_used·budget_outcome)를 매 턴 적는다
+    · 원장은 예산 서사(선언값·출처·사용량·결과)를 매 턴 적는다
+
+2026-09-05 개정(③ 3-1 · G-A2): 예산은 **등급표가 아니라 선언**이다. `--max-turns`·
+`--timeout-seconds`·`--budget-source` 를 부르는 쪽이 정하고, 이 파일은 원장의 사실(집행된 바닥·
+직전 소진 여부·전진 없는 연속 attempt 수)을 dry-run 에 **보여줄 뿐 대신 정하지 않는다**.
 """
 from __future__ import annotations
 
@@ -86,7 +90,11 @@ def latest_session_id(doc: dict):
 
 
 def budget_floor(doc: dict) -> int:
-    """이 context 에서 **실제로 집행된** 최대 예산. 축소 금지의 구조적 바닥이다.
+    """이 context 에서 **실제로 집행된** 최대 예산. 이제 강제가 아니라 **보여주는 사실**이다.
+
+    2026-09-05(G-A2): 종전에는 이 값이 다음 예산의 하한으로 자동 집행됐다. 규율("소진 뒤 감액 ✗")은
+    그대로지만 그것을 지키는 주체가 표에서 **선언하는 쪽**으로 옮겨졌다 — 그래서 여기 값은
+    dry-run 이 출력하고, 무엇을 선언할지는 과업을 아는 쪽이 정한다.
 
     ⚠ 닿지 못한 attempt 는 세지 않는다(2026-09-04 라이브 실측): P4 attempt 4 는 104 를 요청했다가
     **요청 스키마가 정상 차단**해 서브에 닿지 않았다. 그 값을 바닥으로 삼으면 한 번도 집행된 적
@@ -97,33 +105,12 @@ def budget_floor(doc: dict) -> int:
                 if a.get("max_turns_allocated") and _reached_sub(a)] or [0])
 
 
-def next_budget(doc: dict, grade: str) -> dict:
-    """다음 attempt 예산. 소진 이력이 있으면 증액하고, **어떤 경우에도 바닥 아래로 내려가지 않는다**.
-
-    2026-09-04 교정(감사 D2 · 라이브 재현): 종전 루프는 `for ... break` 로 **마지막 attempt 1건만**
-    봤다. 그 1건이 소진이 아니면 즉시 grade 기본값으로 떨어진다 — 그래서 P4 에서 attempt 3 이
-    65 를 소진한 뒤 attempt 4 가 전송 실패(예산 서사 없음)하자 **attempt 5 가 다시 65 로 열렸다**.
-    소진했던 예산을 그대로 재부여한 것이며, "소진 시 예산을 줄이지 않는다"(turn_budget §②)가
-    조용히 깨졌다.
-
-    규칙 둘:
-      · 예산 서사가 **없는** attempt(전송/스키마 실패)는 건너뛴다 — 그것은 예산 사건이 아니다.
-      · 바닥(`budget_floor`)은 단조 비감소다. 한 context 안에서 예산이 내려가는 경로를 없앤다.
-    """
-    floor = budget_floor(doc)
-    last = next((a for a in reversed(doc.get("attempts") or [])
-                 if a.get("budget_outcome") is not None), None)
-    if last is not None and last.get("budget_outcome") == "exhausted":
-        return turn_budget.escalate(grade, floor or int(last["max_turns_allocated"]))
-    base = turn_budget.budget(grade)
-    if floor > base["max_turns"]:
-        base["max_turns"] = floor
-        base["source"] += f" · 이 context 의 예산 바닥 {floor} 유지(축소 금지)"
-    return base
-
-
 def stalled_attempts(doc: dict) -> int:
-    """**전진 없이** 이어진 말미 attempt 수. `MAX_ATTEMPTS_BEFORE_HITL` 의 입력이다.
+    """**전진 없이** 이어진 말미 attempt 수. dry-run 이 이 수를 보여준다.
+
+    2026-09-05(G-A2): 종전에는 이 값이 3(`MAX_ATTEMPTS_BEFORE_HITL`)에 닿으면 릴레이가 스스로
+    멈췄다. 그 숫자는 어떤 실측에서도 오지 않았고, 정지 여부는 이미 `--apply`(사람 승인 정문)가
+    쥐고 있었다 — 같은 결정을 두 자리에서 하면 한 자리는 판단을 대체하는 상수가 된다.
 
     전진의 정의는 둘뿐이다 — ⓐ `completed` ⓑ phase 가 바뀌었다. 예산만 키우며 같은 벽에 부딪히는
     것은 전진이 아니다. 이 술어가 없으면 `--continue` 는 무한 재개가 되고, 그것은 "루프를 만들면서
@@ -145,7 +132,7 @@ def stalled_attempts(doc: dict) -> int:
 DEFAULT_CAPABILITIES = ("read", "execute", "edit", "write", "search")
 
 
-def relay_header(context_id: str, attempt: int, allocated: int, grade: str) -> str:
+def relay_header(context_id: str, attempt: int, allocated: int, budget_source: str) -> str:
     """위임 본문 머리에 붙는 결정론 헤더.
 
     2026-09-04 신설(감사 D6/comms 배선 부재). `comms.md` 는 *"메인이 Task 와 함께
@@ -157,8 +144,8 @@ def relay_header(context_id: str, attempt: int, allocated: int, grade: str) -> s
         "## [relay] 위임 헤더 — 메인이 결정론으로 붙였다. 서브는 이 값을 그대로 회신한다.\n"
         f"- context_id: {context_id}\n"
         f"- attempt: {attempt}\n"
-        f"- task_grade: {grade}\n"
         f"- max_turns_allocated: {allocated}\n"
+        f"- 예산 근거(메인 선언): {budget_source}\n"
         "- 규약: 리포트 `context_id` 에 위 값을 그대로 적는다. 예산이 모자라면 **소진하지 말고**\n"
         "  `input-required` 로 끊고 남은 일을 `next_steps` 에 적어라(scope ⊥ budget).\n"
         "- 외부지식을 검색했다면 `external_search[]` 에 질의·출처·요지를 남겨라 — 그 기록이\n"
@@ -166,31 +153,35 @@ def relay_header(context_id: str, attempt: int, allocated: int, grade: str) -> s
     )
 
 
-def build_request(topology: str, manifest: str, task: str, grade: str,
+def build_request(topology: str, manifest: str, task: str, bud: dict,
                   resume_session_id=None, capabilities=None,
-                  context_id: str = None, attempt: int = 0, allocated: int = None) -> dict:
-    base = _canary.build_request(topology, manifest)   # target 해소·센티넬 거부를 그대로 재사용
-    bud = turn_budget.budget(grade)
-    allocated = bud["max_turns"] if allocated is None else int(allocated)
+                  context_id: str = None, attempt: int = 0) -> dict:
+    """위임 request 조립. `bud` 는 **선언된** 예산이다(`turn_budget.declare` 산출)."""
+    base = _canary.build_request(topology, manifest, max_turns=bud["max_turns"],
+                                 timeout_seconds=bud["timeout_seconds"],
+                                 budget_source=bud["source"])  # target 해소·센티넬 거부를 재사용
+    allocated = bud["max_turns"]
     base["intent"] = "delegate"
-    base["task"] = (relay_header(context_id, attempt, allocated, grade) + task) if context_id else task
-    base["max_turns"] = allocated
-    base["timeout_seconds"] = bud["timeout_seconds"]
+    base["task"] = ((relay_header(context_id, attempt, allocated, bud["source"]) + task)
+                    if context_id else task)
     base["capabilities"] = list(capabilities or DEFAULT_CAPABILITIES)
     if resume_session_id:
         base["resume_session_id"] = resume_session_id
     return base
 
 
-def record_attempt(doc: dict, *, context_id: str, grade: str, allocated: int,
+def record_attempt(doc: dict, *, context_id: str, bud: dict,
                    result: dict, report=None, resume_requested=None) -> dict:
     report = report or {}
     session = result.get("session_id")
     att = {
         "attempt": len(doc.get("attempts") or []) + 1,
-        "task_grade": {"assigned": grade,
-                       "recommended": (report.get("task_grade") or {}).get("recommended")},
-        "max_turns_allocated": allocated,
+        # 2026-09-05(G-A2): `task_grade` 대신 **선언된 예산과 그 근거**를 적는다. 등급 라벨은
+        #   어휘가 사라졌고, 남길 가치가 있는 것은 "얼마를 왜 줬는가" 다.
+        "max_turns_allocated": bud["max_turns"],
+        "timeout_seconds_allocated": bud["timeout_seconds"],
+        "budget_source": bud["source"],
+        "budget_recommended": report.get("budget_recommendation"),
         # 모르면 null — 그럴듯한 값으로 채우면 Layer2 보정이 거짓 위에 선다.
         "max_turns_used": result.get("num_turns"),
         "budget_outcome": result.get("budget_outcome"),
@@ -402,37 +393,40 @@ def _self_test() -> int:
         print("  [%s] %s" % ("PASS" if cond else "FAIL", label))
         ok = ok and bool(cond)
 
+    BUD25 = turn_budget.declare(25, 1800, source="선언: 자체검사 픽스처")
     with tempfile.TemporaryDirectory() as d:
         lp = ledger_path(d, "ctx-1")
         doc = load_ledger(lp)
         chk(doc["attempts"] == [], "빈 원장 초기화")
 
         # ① 정상 완료 → within_budget · 세션 이어붙이지 않음(완결된 세션은 잇지 않는다)
-        record_attempt(doc, context_id="ctx-1", grade="L2", allocated=25,
+        record_attempt(doc, context_id="ctx-1", bud=BUD25,
                        result={"num_turns": 12, "budget_outcome": "within_budget",
                                "session_id": "s1", "status": "completed", "reason_codes": []},
                        report={"status": "completed", "phase": "config"})
         save_ledger(lp, doc)
-        chk(json.load(open(lp))["attempts"][0]["max_turns_used"] == 12, "원장 4필드 기록")
+        _a0 = json.load(open(lp))["attempts"][0]
+        chk(_a0["max_turns_used"] == 12 and _a0["max_turns_allocated"] == 25
+            and _a0["timeout_seconds_allocated"] == 1800 and "선언" in _a0["budget_source"]
+            and "task_grade" not in _a0,
+            "원장이 예산 서사(선언값·timeout·출처)를 적고 등급 라벨은 남기지 않는다")
         chk(latest_session_id(doc) is None, "완료된 attempt 의 세션은 재개 대상이 아니다")
 
         # ② input-required → 같은 세션을 잇는다
-        record_attempt(doc, context_id="ctx-1", grade="L2", allocated=25,
+        record_attempt(doc, context_id="ctx-1", bud=BUD25,
                        result={"num_turns": 5, "budget_outcome": "within_budget",
                                "session_id": "s2", "status": "completed", "reason_codes": []},
                        report={"status": "input-required", "phase": "config"})
         chk(latest_session_id(doc) == "s2", "input-required → 같은 세션 재개(컨텍스트 재구축 회피)")
 
         # ③ 소진 → 세션을 잇지 않고, 다음 예산은 **더 크다**
-        record_attempt(doc, context_id="ctx-1", grade="L2", allocated=25,
+        record_attempt(doc, context_id="ctx-1", bud=BUD25,
                        result={"num_turns": 25, "budget_outcome": "exhausted",
                                "session_id": "s3", "status": "execution_failed",
                                "reason_codes": ["NONZERO_EXIT"]},
                        report=None)
         chk(latest_session_id(doc) is None, "소진된 세션은 잇지 않는다(그 자리서 또 소진된다)")
-        nb = next_budget(doc, "L2")
-        chk(nb["max_turns"] > 25, f"소진 뒤 새 attempt 예산 증액 25 → {nb['max_turns']}")
-        chk("escalated from 25" in nb["source"], "증액 사실이 출처에 남는다")
+        chk(budget_floor(doc) == 25, f"집행된 예산 바닥이 사실로 남는다 → {budget_floor(doc)}")
 
         # ④ SILENT_FALLBACK 금지: 리포트 없는 attempt 는 서브 산출로 집계되지 않는다
         chk(doc["attempts"][-1]["sub_reported"] is False,
@@ -482,19 +476,17 @@ def _self_test() -> int:
                            {"attempt": 2}]}          # 전송 실패(닿지 못함) — 건너뛴다
         chk(latest_session_id(d3) == "sA", "닿지 못한 attempt 는 서브 상태를 바꾸지 못한다(건너뛴다)")
 
-        # ⑨ 예산 바닥 — 소진과 다음 attempt 사이에 예산 서사 없는 실패가 끼어도 내려가지 않는다
+        # ⑨ 예산 바닥은 **집행된 사실**이다 — 닿지 못한 요청은 바닥이 되지 못한다(2026-09-04 실측)
         d4 = {"attempts": [
             {"attempt": 1, "budget_outcome": "exhausted", "max_turns_allocated": 25,
              "status": None, "session_id": "s1"},
-            {"attempt": 2},                                   # 스키마/전송 실패 = 예산 사건 아님
+            {"attempt": 2, "max_turns_allocated": 104},        # 스키마가 차단 = 닿지 못했다
         ]}
-        chk(next_budget(d4, "L2")["max_turns"] > 25,
-            "★음성대조: 소진 뒤 다른 실패가 끼어도 예산이 grade 기본값으로 되돌아가지 않는다")
-        d5 = {"attempts": [{"attempt": 1, "budget_outcome": "within_budget",
-                            "max_turns_allocated": 40, "status": "input-required",
-                            "session_id": "s1"}]}
-        chk(next_budget(d5, "L2")["max_turns"] == 40 and "바닥" in next_budget(d5, "L2")["source"],
-            "이미 올라간 예산은 유지되고 그 사실이 출처에 남는다(축소 금지)")
+        chk(budget_floor(d4) == 25,
+            f"★음성대조: 거절된 요청(104)은 바닥이 되지 못한다 → {budget_floor(d4)}")
+        # ★ tripwire: 예산을 대신 정하던 함수가 되살아나면 여기서 잡는다(G-A2 · 2026-09-05 삭제).
+        chk("next_budget" not in globals() and not hasattr(turn_budget, "GRADES"),
+            "예산을 자동으로 정하는 경로가 되살아나지 않았다(선언만 남는다)")
 
         # ⑩ 정지 조건 — 전진 없는 연속 attempt
         d6 = {"attempts": [{"attempt": i, "status": "input-required", "phase": "build",
@@ -550,11 +542,12 @@ def _self_test() -> int:
         chk("추측" not in body.replace("추측 없음", ""), "조립기는 추측을 적지 않는다")
 
         # ⑬ A5/A6 — 헤더 주입과 재개 검증
-        hdr = relay_header("ctx-h", 3, 40, "L3")
-        chk("context_id: ctx-h" in hdr and "max_turns_allocated: 40" in hdr,
-            "위임 헤더가 context_id·예산을 서브에게 알린다(comms.md 규약의 실배선)")
+        hdr = relay_header("ctx-h", 3, 40, "선언: 빌드 1회 — 원장 attempt 2 실측 turns=31")
+        chk("context_id: ctx-h" in hdr and "max_turns_allocated: 40" in hdr
+            and "실측 turns=31" in hdr,
+            "위임 헤더가 context_id·예산·**그 근거**를 서브에게 알린다(comms.md 규약의 실배선)")
         d9 = {"attempts": []}
-        record_attempt(d9, context_id="ctx-h", grade="L3", allocated=40,
+        record_attempt(d9, context_id="ctx-h", bud=turn_budget.declare(40, 3600, source="선언: 픽스처"),
                        result={"session_id": "other", "status": "completed"},
                        report={"status": "completed", "context_id": "ctx-h"},
                        resume_requested="wanted")
@@ -601,9 +594,8 @@ def assert_sub_branch(req: dict, topology: str, runner=None) -> str:
 def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume) -> int:
     """한 번의 위임 왕복. `--task` 진입과 `--continue` 진입이 **같은 몸통**을 쓴다."""
     attempt_no = len(doc.get("attempts") or []) + 1
-    req = build_request(a.topology, a.manifest_path, task, a.grade, resume_session_id=resume,
-                        context_id=a.context_id, attempt=attempt_no, allocated=bud["max_turns"])
-    req["timeout_seconds"] = bud["timeout_seconds"]
+    req = build_request(a.topology, a.manifest_path, task, bud, resume_session_id=resume,
+                        context_id=a.context_id, attempt=attempt_no)
 
     if a.emit_only:
         json.dump(req, sys.stdout, ensure_ascii=False, indent=2)
@@ -611,8 +603,8 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume) -> int:
         return 0
 
     branch = assert_sub_branch(req, a.topology)
-    print(f"[relay] attempt={attempt_no} grade={a.grade} "
-          f"max_turns={bud['max_turns']} ({bud['source']}) resume={resume or '(새 세션)'} "
+    print(f"[relay] attempt={attempt_no} max_turns={bud['max_turns']} "
+          f"timeout={bud['timeout_seconds']}s ({bud['source']}) resume={resume or '(새 세션)'} "
           f"sub_branch={branch}")
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as tf:
         json.dump(req, tf, ensure_ascii=False)
@@ -629,8 +621,7 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume) -> int:
         raise SystemExit(f"[relay] FAIL: agent_control 출력을 읽지 못했다 — {out.stdout[:300]}")
 
     report = parse_report(result.get("output") or "")
-    att = record_attempt(doc, context_id=a.context_id, grade=a.grade,
-                         allocated=bud["max_turns"], result=result, report=report,
+    att = record_attempt(doc, context_id=a.context_id, bud=bud, result=result, report=report,
                          resume_requested=resume)
     # 2026-09-04(P4 라이브): 원장이 status 만 적고 **리포트 본문을 버렸다** — 나중에 "서브가 무엇을
     #   근거로 completed 라 했는가" 를 메인이 감사할 수 없었다(내가 서브를 의심했다가 dotfile 을
@@ -650,7 +641,6 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume) -> int:
     att["report_path"] = os.path.relpath(_ap, a.repo_root)
     doc["task"] = doc.get("task") or task
     doc["topology"] = a.topology
-    doc["grade"] = a.grade
     doc["manifest"] = a.manifest_path
     save_ledger(lp, doc)
     hp = surface_requests(a.repo_root, a.context_id, report or {}, attempt=att["attempt"])
@@ -672,7 +662,8 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume) -> int:
               "(`answer` 를 적고 `--continue` 로 재개. blocking 은 답 없이는 진행하지 않는다)")
     if att["budget_outcome"] == "exhausted":
         print(f"[relay] ⚠ 예산 소진(terminal). 자동 재시도하지 않는다 — "
-              f"`relay.py --continue --context-id {a.context_id}` 로 이어라(본문은 기계가 조립한다).")
+              f"`relay.py --continue --context-id {a.context_id}` 로 이어라(본문은 기계가 조립한다).\n"
+              f"[relay]   다음 예산은 **선언**이다: 집행된 바닥 {budget_floor(doc)} 아래로 내리면 하강나선이다.")
         return 3
     if report is None:
         print("[relay] ⚠ 서브 리포트(JSON)를 찾지 못했다 — 산문만 왔다. 성공으로 집계하지 않는다.")
@@ -685,7 +676,12 @@ def main() -> int:
     ap.add_argument("--topology", choices=["single", "multi"])
     ap.add_argument("--manifest", default=None)
     ap.add_argument("--context-id")
-    ap.add_argument("--grade", choices=list(turn_budget.GRADE_ORDER))
+    ap.add_argument("--max-turns", type=int, default=None,
+                    help="이 attempt 에 배정할 턴 예산(선언 필수 — 등급표 폐기 · 기본값 없음)")
+    ap.add_argument("--timeout-seconds", type=int, default=None,
+                    help="매달림 상한(scope ⊥ budget — 예산과 별개 노브)")
+    ap.add_argument("--budget-source", default=None,
+                    help="그 예산을 그렇게 정한 근거(필수 · 원장에 남는다)")
     ap.add_argument("--task", help="서브에 보낼 지시(또는 --task-file)")
     ap.add_argument("--task-file")
     ap.add_argument("--continue", dest="continue_", action="store_true",
@@ -709,19 +705,13 @@ def main() -> int:
         if not (doc.get("attempts") or []):
             raise SystemExit(f"[relay] STOP: 이어갈 원장이 없다 — {lp}. 첫 위임은 `--task` 로 연다.")
         a.topology = a.topology or doc.get("topology")
-        a.grade = a.grade or doc.get("grade")
-        if not (a.topology and a.grade):
-            raise SystemExit("[relay] STOP: 원장에 topology/grade 가 없다(구버전 원장) — 명시하라.")
+        if not a.topology:
+            raise SystemExit("[relay] STOP: 원장에 topology 가 없다(구버전 원장) — 명시하라.")
         a.manifest_path = a.manifest or doc.get("manifest") or os.path.join(
             REPO, "output", a.topology, "manifest.yaml")
 
-        # ── 정지 조건 셋. 루프를 만들면서 정지 조건을 나중으로 미루지 않는다.
+        # ── 정지 조건. 예산·전진 수는 **보여주고**, 멈출지는 --apply(승인 정문)가 정한다.
         stalled = stalled_attempts(doc)
-        if stalled >= turn_budget.MAX_ATTEMPTS_BEFORE_HITL:
-            raise SystemExit(
-                f"[relay] STOP: 전진 없는 attempt 가 {stalled}회 연속이다"
-                f"(한계 {turn_budget.MAX_ATTEMPTS_BEFORE_HITL}). 예산만 키우며 같은 벽에 부딪히고 있다 —\n"
-                "  → 사람이 과업을 쪼개거나 벽의 성격을 판정해야 한다(scope ⊥ budget).")
         last = next((x for x in reversed(doc["attempts"]) if _reached_sub(x)), None)
         if last and last.get("status") == "completed":
             raise SystemExit("[relay] STOP: 직전 attempt 가 completed 다 — 이을 중단점이 없다.\n"
@@ -740,23 +730,30 @@ def main() -> int:
                 f"  → tasks/{PENDING_HITL} 의 해당 항목 `answer` 에 답을 적고 다시 --continue 하라.\n"
                 "  → 이것이 사람의 승인 정문이다(답 = 승인). 답 없이 진행하면 서브가 근거 없이 결정한다.")
 
-        bud = next_budget(doc, a.grade)
         resume = latest_session_id(doc)
         task = assemble_continuation(a.repo_root, doc, pend)
+        floor = budget_floor(doc)
+        _last_out = (last or {}).get("budget_outcome")
         if not a.apply:
-            print(f"[relay] --continue DRY-RUN · context={a.context_id} grade={a.grade} "
-                  f"max_turns={bud['max_turns']} ({bud['source']}) resume={resume or '(새 세션)'}")
-            print(f"[relay] 대기 요청 {len(pend)}건(우선순위 순) · 전진 없는 연속 attempt {stalled}회")
+            # dry-run 은 **사실만** 보여준다 — 다음 예산은 이 화면을 본 쪽이 선언한다.
+            print(f"[relay] --continue DRY-RUN · context={a.context_id} resume={resume or '(새 세션)'}")
+            print(f"[relay] 예산 사실: 집행된 바닥 {floor} · 직전 결과 {_last_out} · "
+                  f"전송 상한 {turn_budget.schema_cap('max_turns')} · 대기 요청 {len(pend)}건 · "
+                  f"전진 없는 연속 attempt {stalled}회")
+            if _last_out == "exhausted":
+                print("[relay]   직전은 **소진**이다 — 같은 값으로 다시 열면 그 자리서 또 소진된다"
+                      "(감액은 하강나선 · scope ⊥ budget).")
             print("─" * 72)
             sys.stdout.write(task)
             print("─" * 72)
-            print("[relay] 위 본문으로 위임하려면 --apply 를 붙여라(사람 승인 정문).")
+            print("[relay] 위 본문으로 위임하려면 --max-turns/--timeout-seconds/--budget-source 를 "
+                  "선언해 --apply 하라(사람 승인 정문).")
             return 0
+        bud = turn_budget.declare(a.max_turns, a.timeout_seconds, source=a.budget_source or "")
         return run_attempt(a, doc, lp, task, bud, resume)
 
-    for req in ("topology", "grade"):
-        if not getattr(a, req):
-            raise SystemExit(f"[relay] --{req} 필수")
+    if not a.topology:
+        raise SystemExit("[relay] --topology 필수")
     task = a.task
     if a.task_file:
         with open(a.task_file, encoding="utf-8") as f:
@@ -764,7 +761,7 @@ def main() -> int:
     if not task:
         raise SystemExit("[relay] --task 또는 --task-file 필수")
     a.manifest_path = a.manifest or os.path.join(REPO, "output", a.topology, "manifest.yaml")
-    bud = next_budget(doc, a.grade)
+    bud = turn_budget.declare(a.max_turns, a.timeout_seconds, source=a.budget_source or "")
     resume = latest_session_id(doc)
     return run_attempt(a, doc, lp, task, bud, resume)
 

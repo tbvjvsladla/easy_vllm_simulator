@@ -223,7 +223,7 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 - 메인=client(Task 발급·리포트 검증·피드백) · 서브=remote(자율 수행·자기검증 리포트 1개). A2A 어휘 차용, HTTP 서버 ✗(전송=SSH 단발 `delegate(task)` — provider 문법은 `references/agent-control-adapter.md`).
 - **검증 = push-attestation**: 서브가 self-verification(config-parse·schema·runner 문법·checksum·**로컬 스모크**)을 리포트에 담아 회신 → **메인은 리포트만 검증, 서브 워크스페이스 재스캔 ✗**.
 - **성공술어**: phase 별(comms.md). 예: config = triplet 생성 + 로컬 스모크 응답("린트 통과 ≠ 서빙됨").
-- **상태=파일**: `tasks/<context_id>.json`("파일=세션"). 턴 예산은 **grade 표**(`scripts/turn_budget.py`)가 정한다 — 옛 `max-turns=3`(reconciliation_cap 미러)은 2026-09-03 폐기됐다(캠페인 규모 태스크에서 정상 진행을 실패로 만들었다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.py --continue` 가 **본문을 조립**한다 (사람은 답·승인만 — §2.7.7a).
+- **상태=파일**: `tasks/<context_id>.json`("파일=세션"). 턴 예산은 **메인이 매 attempt 선언한다**(`--max-turns`·`--timeout-seconds`·`--budget-source`) — 옛 `max-turns=3`(2026-09-03 폐기)에 이어 그 대체물이던 **grade 표도 2026-09-05 폐기**됐다(표가 실측 없이 정본 행세를 했고 교정 소비자가 0 이었다 · `audit_26090515` G-A2). `scripts/turn_budget.py` 는 이제 선언을 **검증**만 한다(상한은 요청 스키마에서 읽는다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.py --continue` 가 **본문을 조립**한다 (사람은 답·승인만 — §2.7.7a).
 - per-task 휘발값(모델명·예산·NAS 서브디렉토리)은 **Task Message** 로(manifest 복제 아님).
 
 ### 2.5 완료 게이트 — model-less 카나리 라운드트립 (R1 정합)
@@ -231,10 +231,13 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 manifest 의 `nodes[sub]` 에서 host·ssh_user·work_dir 를 읽고 `node_role_contract` 가 정한 `sub_mode` 로
 **정체성에 맞는 카나리 문구**를 골라 request 를 조립한다(ray-worker 에게 "런타임 스킬 3종" 을 묻지 않는다).
 ```bash
-python3 scripts/bootstrap_canary.py --topology <single|multi> --emit /tmp/canary.json   # 조립(결정론)
-python3 scripts/bootstrap_canary.py --topology <single|multi> --invoke                  # HITL 승인 뒤 실행
+python3 scripts/bootstrap_canary.py --topology <single|multi> \
+    --max-turns 10 --timeout-seconds 600 --budget-source "선언: 카나리 1왕복(인스펙트 전용)" \
+    --emit /tmp/canary.json            # 조립(결정론)
+python3 scripts/bootstrap_canary.py --topology <single|multi> \
+    --max-turns 10 --timeout-seconds 600 --budget-source "..." --invoke   # HITL 승인 뒤 실행
 ```
-turn 예산은 매직상수가 아니라 **grade 표 S(8~12)** 에서 온다(`GRADE_SOURCE` 로 출처 표기 · plan_26090317 §5).
+turn 예산은 **선언**이다 — 등급표가 사라졌으므로 부르는 쪽이 값과 근거를 함께 준다(미선언 = fail-loud).
 서브 미등록·`__REQUIRED__` 센티넬 잔존 시 **조립 자체를 거부**한다(틀린 계정/경로로 접속하지 않는다).
 이전 판본은 이 자리에 `bootstrap_canary()` 라고만 적혀 있었고 **생산자가 0개**였다(실행자 없는 금지 — §2.7.1 위반).
 (실행문법 = `references/agent-control-adapter.md` §2)
@@ -606,17 +609,18 @@ Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 �
 
 | 명령 | 언제 | 무엇 | 평면 |
 |---|---|---|---|
-| `relay.py --task ...` | 첫 위임 | grade 예산으로 delegate · 원장 개설(`tasks/<ctx>.json`) | B |
+| `relay.py --task ...` | 첫 위임 | **선언한 예산**으로 delegate · 원장 개설(`tasks/<ctx>.json`) | B |
 | `relay.py --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기(기본 dry-run) | B |
-| `relay.py --continue --apply` | 사람이 본문을 승인 | 조립 본문 + 증액 예산 + 세션 재개로 delegate | B |
+| `relay.py --continue --apply` | 사람이 본문을 승인 | 조립 본문 + **새로 선언한 예산** + 세션 재개로 delegate | B |
 
 - **조립기는 합성하지 않는다** — 직전 attempt 의 제어 상태(원장) · 서브가 보낸 `artifacts[]`·
   `next_steps`·`notes` · 사람이 `tasks/pending_hitl.json` 에 적은 `answer` · 원 지시. 그 넷뿐이다.
   메인이 추측한 진행상황을 본문에 적으면 그것이 SILENT_FALLBACK 이다.
-- **정지 조건 셋**(루프를 만들면서 정지 조건을 미루지 않는다): ⓐ 직전이 `completed` 면 이을 중단점이
-  없다 ⓑ **전진 없는 attempt 가 `MAX_ATTEMPTS_BEFORE_HITL` 회 연속**이면 멈춘다(전진 = completed 또는
-  phase 변경 — 예산만 키우며 같은 벽에 부딪히는 것은 전진이 아니다) ⓒ **차단성 요청에 답이 없으면**
-  진행하지 않는다. ⓒ가 사람의 승인 정문이다 — **답이 곧 승인**이다.
+- **정지 조건 둘**(루프를 만들면서 정지 조건을 미루지 않는다): ⓐ 직전이 `completed` 면 이을 중단점이
+  없다 ⓑ **차단성 요청에 답이 없으면** 진행하지 않는다. ⓑ가 사람의 승인 정문이다 — **답이 곧 승인**이다.
+  종전의 ⓒ("전진 없는 attempt 3회 = `MAX_ATTEMPTS_BEFORE_HITL`")는 2026-09-05 삭제됐다 — 그 3 은 어떤
+  실측에서도 오지 않았고 정지 결정은 이미 `--apply` 가 쥐고 있었다. 전진 없는 연속 수는 이제 dry-run 이
+  **보여주고**(집행된 예산 바닥·직전 소진 여부와 함께), 멈출지는 그 화면을 본 쪽이 정한다.
 - **우선순위는 서브의 선언에서 나온다**: `library_request[].blocking` 을 메인이 **읽는다**(2026-09-04
   이전에는 읽는 코드가 0 이었다). 대기 목록은 `blocking` 우선, 그 안에서 attempt 순이다.
   요청 표면화는 **`hitl.needed` 를 요구하지 않는다** — 규약대로 `library_request[]` 만 실은 턴이
@@ -776,7 +780,7 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 - `scripts/render_sub_env.py` — 결정론 렌더러(manifest→`output/multi/sub_provision/` 스테이징·`--self-test`).
 - `scripts/node_role_contract.py` — **토폴로지 축 노드 계약의 단일 소유자**(§2.7.0·§2.7.6b). `evaluate --topology <t> --field {sub_mode,rank,identity_authority,delivery_plane} --format {json,value}` · `--self-test`. 배달 평면 판정의 **정본**이며 `role: sub` 존재로 추론하지 않는다. ✅ 소비자 배선 완료(2026-08-22): `sync_to_sub.sh:_single_extension_active`(배달 평면) · `render_sub_env.py::_contract_placeholders`(Agent_Card 4필드). ⚠ venv `-S` shim 을 포함한 `load_yaml` 을 자체 보유한다 — `staleness_gate._load_yaml` 과 **같은 shim 이 두 곳에 있다**. 지금은 의도된 비결합(preflight 게이트가 이 파일 부재로 죽지 않게)이며, 갈라지면 신호는 두 파서의 판정 불일치로 온다.
 - `scripts/relay.py` — **메인↔서브 턴제 릴레이 실행자**(§2.7.7a). `--task|--task-file` 첫 위임 · `--continue [--apply]` 자율 재개 · `--emit-only` · `--self-test`. 원장 `tasks/<ctx>.json`, 대기 요청 `tasks/pending_hitl.json`(사람이 `answer` 를 적는 자리).
-- `scripts/turn_budget.py` — **턴 예산 grade 표의 단일 소유자**(`--grade`·`--escalate-from`·`--self-test`). 전송 상한은 요청 스키마에서 **읽는다**(상수 복제 ✗).
+- `scripts/turn_budget.py` — **턴 예산 선언 검증기**(`--max-turns`·`--timeout-seconds`·`--source`·`--caps`·`--self-test`). 값을 만들지 않는다 — 미선언·상한초과·출처없음은 fail-loud. 전송 상한은 요청 스키마에서 **읽는다**(상수 복제 ✗). 등급표는 2026-09-05 폐기(G-A2).
 - `scripts/library_exchange.py` — **그라운딩 교환 판정기**(§2.7.8, 메인 전용). `validate --file <msg>` · `gate --request/--export/--attestation` · `--self-test`. 서브 디스크를 읽지 않는다(메시지만 본다).
 - `sub_node/` — 추적 PII-free 템플릿·정적계약: `CLAUDE.template.md`·`Agent_Card.template.json`·`settings.local.template.json`·`comms.md`·`task-report.schema.json`·**`library-exchange.schema.json`**(§2.7.8 그라운딩 교환)·`gitignore.template`.
 - 메인↔서브 [전달]·[서빙 스모크]는 `upstream-version-watch`(`sync_to_sub.sh` — `--provision` 에 에이전트환경 오버레이 포함 · `multinode_serve_smoke.sh`).
