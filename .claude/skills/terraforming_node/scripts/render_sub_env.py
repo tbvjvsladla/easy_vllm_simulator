@@ -614,6 +614,25 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
         os.chmod(dst, mode)
         produced.append(rel)
 
+    # 4.7) A2A 카드 검증기(2026-09-05 ②-b · plan_26090516 §7.2). host_safety·node_blackbox 와 **동형** 배선.
+    #   ★ 왜 신설했나: ②-a 는 서브에 신뢰키 저장소(.claude/a2a/trusted_keys.json)를 배달하면서
+    #     **그것을 읽는 코드를 배달하지 않았다**. 서브 재설치 라이브에서 C6(서브측 서명 검증)을 하려는
+    #     순간 드러났다 — 저장소는 있는데 검증기가 없다. 감사가 이름 붙인 "실행자 0"(가드를 놓고
+    #     실행 주체를 안 적는 것)의 재발이며, 처방은 **검증기를 서브 런타임으로 내리는 것**이다.
+    #   canonical source 는 terraforming 스킬이 소유하고(메인 전용 스킬 트리는 서브에 가지 않는다),
+    #   서브에는 헌법 runtime asset 으로 materialize 한다. stdlib + cryptography 만 쓰므로 자기완결이다.
+    #   정본 소스 = 위에서 카드 계약 검증·서명에 실제로 쓴 그 모듈의 파일이다(단일 소유 — 경로를
+    #   다시 조립하면 두 자리가 갈린다). 부재는 이 파일 상단의 `import agent_card_contract` 가 이미
+    #   fail-closed 로 잡는다(음성대조 실측: ModuleNotFoundError · rc=1). 여기에 isfile 게이트를 더
+    #   두면 **도달 불가 분기**가 된다 — 가드는 도달해야 가드다.
+    card_contract_src = _acc.__file__
+    rel = os.path.join(".claude", "runtime", "a2a", "agent_card_contract.py")
+    dst = os.path.join(out_dir, rel)
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    shutil.copyfile(card_contract_src, dst)
+    os.chmod(dst, 0o755)
+    produced.append(rel)
+
     # 5) 서브 로컬 git .gitignore (D12 — placeholder 없는 정적자산 그대로 복제)
     gi_src = os.path.join(SUBNODE_DIR, "gitignore.template")
     if os.path.isfile(gi_src):
@@ -780,7 +799,9 @@ def _self_test() -> int:
                        ".claude/runtime/node_blackbox/node_identity.sh",
                        ".claude/runtime/node_blackbox/budget_renew_loop.sh",
                        ".claude/runtime/node_blackbox/blackbox_thermal.py",
-                       ".claude/runtime/node_blackbox/thermal_watchdog.sh"]
+                       ".claude/runtime/node_blackbox/thermal_watchdog.sh",
+                       # 신뢰키 저장소를 읽는 **실행자** — 없으면 서브 서명검증이 불가능하다(②-b)
+                       ".claude/runtime/a2a/agent_card_contract.py"]
         have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
         missing_art = [p for p in base_expect if not os.path.exists(os.path.join(out, p))]
         # docs 스켈레톤: docs.md 계약 5종(DOC_TYPES) 전부 렌더됐나(simlog·benchmark 누락 회귀 차단 — review)
