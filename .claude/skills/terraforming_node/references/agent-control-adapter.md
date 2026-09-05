@@ -49,7 +49,7 @@ python3 .claude/policies/runtime/agent_control.py invoke --request /path/to/requ
 이 명령은 구현 계약 설명용이며 운영 호출자는 직접 복제하지 않고 위 orchestrator를 사용한다.
 
 ```bash
-claude -p '<task>' --model sonnet --output-format json --max-turns <N> --allowedTools <TOOLS>
+claude -p '<task>' --model <요청이 선언한 model> --output-format json --max-turns <N> --allowedTools <TOOLS>
 ```
 
 - main은 explicit `work_dir`에서 local subprocess로 실행한다.
@@ -67,8 +67,6 @@ claude -p '<task>' --model sonnet --output-format json --max-turns <N> --allowed
 `result`, Sonnet-only `modelUsage`를 모두 제공해야 한다. 다음은 stable structured nonzero result로 차단한다.
 
 - request/target/bounds/capability 위반
-- non-Sonnet 요청 또는 Opus/unknown/mixed model metadata
-- model metadata 누락
 - provider nonzero, timeout, malformed JSON
 - wrapper success-shape 또는 provider result schema 위반
 

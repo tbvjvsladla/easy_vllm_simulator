@@ -119,10 +119,17 @@ def resolve_sub_mode(topology: str, manifest: str) -> tuple[str, str]:
     return inner.get("value") or "", inner.get("source") or ""
 
 
+DEFAULT_CANARY_MODEL = "sonnet"    # 카나리 1왕복의 **기본 선언값**이지 게이트가 아니다(--model 로 바꾼다)
+
+
 def build_request(topology: str, manifest_path: str, *,
                   max_turns: int = None, timeout_seconds: int = None,
-                  budget_source: str = None) -> dict:
-    """카나리 request 조립. 예산은 **선언받는다**(기본값 ✗ — `turn_budget` 참조)."""
+                  budget_source: str = None, model: str = None) -> dict:
+    """카나리 request 조립. 예산은 **선언받는다**(기본값 ✗ — `turn_budget` 참조).
+
+    `model` 은 선언이다(2026-09-05 · G-A1): 어댑터가 모델을 막지 않으므로 여기 값도 게이트가 아니라
+    기본 선언이며, 실제로 무엇이 돌았는지는 결과의 `model_used` 가 말한다.
+    """
     if not os.path.exists(manifest_path):
         raise SystemExit(f"[canary] FAIL: manifest 부재 — {manifest_path}")
     man = _load_yaml_min(manifest_path)
@@ -144,7 +151,7 @@ def build_request(topology: str, manifest_path: str, *,
         "schema_version": 1,
         "provider": "claude_code",
         "intent": "bootstrap_canary",
-        "model": "sonnet",
+        "model": model or DEFAULT_CANARY_MODEL,
         "task": TASK_COMMON + TASK_BY_MODE[sub_mode],
         "target": {
             "role": "sub",
@@ -247,6 +254,8 @@ def main() -> int:
     ap.add_argument("--timeout-seconds", type=int, default=None,
                     help="매달림을 잡는 상한(scope ⊥ budget — 예산과 별개 노브)")
     ap.add_argument("--budget-source", default=None, help="그 예산을 그렇게 정한 근거(필수)")
+    ap.add_argument("--model", default=None,
+                    help=f"위임 모델 선언(기본 {DEFAULT_CANARY_MODEL} · 어댑터는 모델을 막지 않는다)")
     ap.add_argument("--invoke", action="store_true",
                     help="조립 후 agent_control invoke 까지 실행한다(HITL 승인 뒤에만).")
     ap.add_argument("--self-test", action="store_true")
@@ -257,7 +266,8 @@ def main() -> int:
         raise SystemExit("[canary] --topology 필수(토폴로지는 인터뷰가 정한다 — 브랜치로 추론하지 않는다)")
     manifest = a.manifest or os.path.join(REPO, "output", a.topology, "manifest.yaml")
     req = build_request(a.topology, manifest, max_turns=a.max_turns,
-                        timeout_seconds=a.timeout_seconds, budget_source=a.budget_source)
+                        timeout_seconds=a.timeout_seconds, budget_source=a.budget_source,
+                        model=a.model)
     blob = json.dumps(req, ensure_ascii=False, indent=2) + "\n"
     if a.emit:
         with open(a.emit, "w", encoding="utf-8") as f:

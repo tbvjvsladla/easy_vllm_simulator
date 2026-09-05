@@ -5,14 +5,17 @@ Implements the 7-step hybrid-publisher contract from plan_26072506 §4.4:
     1. compute a task_class's required_evidence list
     2. scaffold + a persisted publication/evidence record at task start
     3. accumulate raw evidence as work progresses (append-only, atomic)
-    4. accept Sonnet-authored narrative as EXPLICIT external input (never invented here)
+    4. accept AGENT-AUTHORED narrative as EXPLICIT external input (never invented here)
     5. delegate schema/path/identity/link/PII/verdict verification to the sibling completion_gate.py
        (never a second, reimplemented copy of those validators)
     6. restore/recreate any missing-but-reproducible scaffold item on rerun (idempotent)
     7. never fabricate: absent raw/narrative/verdict/certificate stays an explicit placeholder or
        blocker, not plausible prose
 
-Deterministic-vs-Sonnet boundary (see .claude/rules/docs.md for the published contract):
+Deterministic-vs-authored boundary (see .claude/rules/docs.md for the published contract):
+(2026-09-05 · G-A3/A4: this boundary used to be named after one model family -- "Sonnet narrative".
+ The boundary is between DETERMINISTIC output and prose written by whoever authored it; naming a
+ vendor model there made the contract read as if it depended on that model.)
     - Everything this script writes on its own (scaffold headers, provenance metadata, filenames,
       the publication record, raw-evidence log entries) is DETERMINISTIC: a pure function of its
       CLI arguments, never of a wall clock or of its own guesses about content.
@@ -79,7 +82,11 @@ CAPACITY_REJECTION_OR_GROUP = ("devlog", "testlog")
 
 _NARRATIVE_BEGIN = "<!-- NARRATIVE:BEGIN -->"
 _NARRATIVE_END = "<!-- NARRATIVE:END -->"
-_PLACEHOLDER = "_PLACEHOLDER -- Sonnet narrative pending. Do not treat as final evidence._"
+# 표식은 본문과 **따로** 둔다: 옛 스캐폴드(문구가 "Sonnet narrative pending" 이던 판본)가 디스크에
+# 남아 있어도 자리표시자로 계속 판정돼야 한다 — 이름을 바꾸면서 탐지를 잃으면, 자리표시자가
+# 서사로 승격되는 침묵 경로가 열린다(2026-09-05 · G-A4).
+_PLACEHOLDER_MARK = "_PLACEHOLDER --"
+_PLACEHOLDER = "_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._"
 
 
 def _bare_error(code: str, message: str) -> dict:
@@ -901,7 +908,7 @@ def cmd_append_raw(args: argparse.Namespace) -> None:
 
 
 # =============================================================================
-# `set-narrative` subcommand (hybrid-publisher step 4: Sonnet narrative is ALWAYS an explicit
+# `set-narrative` subcommand (hybrid-publisher step 4: authored narrative is ALWAYS an explicit
 # external file argument -- there is no code path here that synthesizes prose on its own).
 # =============================================================================
 
@@ -966,7 +973,7 @@ def _bind_existing_narrative(repo_root: Path, record: dict, args: argparse.Names
     원문에 placeholder 문구가 있으면 거부 — 그것은 저작된 문서가 아니다."""
     content_bytes, _sha = _resolve_src(repo_root, bind_rel, "NARRATIVE")
     text = content_bytes.decode("utf-8")
-    if _PLACEHOLDER in text or _NARRATIVE_BEGIN in text:
+    if _PLACEHOLDER_MARK in text or _NARRATIVE_BEGIN in text:
         _emit(_bare_error("NARRATIVE_BIND_TARGET_IS_PLACEHOLDER",
                           f"{bind_rel!r} still carries publisher scaffold markers/placeholder -- bind only an "
                           f"authored document (or use the injection path with a temporary source)"), 2)
@@ -988,7 +995,7 @@ def _bind_existing_narrative(repo_root: Path, record: dict, args: argparse.Names
                     old_text = os.read(fd, 1 << 20).decode("utf-8", errors="replace")
                 finally:
                     os.close(fd)
-                if _PLACEHOLDER in old_text and _NARRATIVE_BEGIN in old_text:
+                if _PLACEHOLDER_MARK in old_text and _NARRATIVE_BEGIN in old_text:
                     os.unlink(parts[-1], dir_fd=dir_fd)
                     scaffold_removed = True
         finally:
@@ -1520,7 +1527,7 @@ def cmd_finalize(args: argparse.Namespace) -> None:
                 except UnicodeDecodeError:
                     evidence[key] = None
                     continue
-                if _PLACEHOLDER in text:
+                if _PLACEHOLDER_MARK in text:
                     evidence[key] = None
                     continue
             evidence[key] = {"path": os.path.relpath(str(repo_root / rel), str(manifest_dir))}
@@ -1756,7 +1763,7 @@ def _build_parser() -> _PublisherArgumentParser:
     p_append.add_argument("--dest-name")
     p_append.set_defaults(func=cmd_append_raw)
 
-    p_narr = sub.add_parser("set-narrative", help="inject Sonnet-authored narrative (explicit external input only)")
+    p_narr = sub.add_parser("set-narrative", help="inject agent-authored narrative (explicit external input only)")
     p_narr.add_argument("--repo-root")
     p_narr.add_argument("--topic", required=True)
     p_narr.add_argument("--kind", required=True, choices=NARRATIVE_KINDS)

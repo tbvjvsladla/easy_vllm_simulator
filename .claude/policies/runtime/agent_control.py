@@ -14,8 +14,7 @@ lives entirely in the sibling provider adapter).  The production enforcement is
 Exit-code <-> status <-> reason_codes table (single source of truth):
     0   completed              reason_codes == []
     2   invalid_request        REQUEST_SCHEMA_INVALID
-    3   model_safety_blocked   model identity/request mismatch
-    4   execution_failed       NONZERO_EXIT | IS_ERROR
+    4   execution_failed       NONZERO_EXIT | IS_ERROR | PERMISSION_DENIED
     5   malformed_output       MALFORMED_JSON
     124 timeout                TIMEOUT
 
@@ -250,7 +249,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         prog="agent_control.py",
         description="provider-neutral agent-control orchestrator (Phase 6, plan_26072506)",
-        epilog="exit codes: 0=completed 2=invalid_request 3=model_safety_blocked "
+        epilog="exit codes: 0=completed 2=invalid_request "
                "4=execution_failed 5=malformed_output 124=timeout",
     )
     sub = parser.add_subparsers(dest="cmd", required=True)

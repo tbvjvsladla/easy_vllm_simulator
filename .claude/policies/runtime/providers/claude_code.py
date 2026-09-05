@@ -8,8 +8,17 @@ The sibling agent_control.py stays provider-neutral and only calls the two pure 
 
 Real `claude -p ... --output-format json` emits a top-level "modelUsage" object keyed by full
 model-id strings (e.g. "claude-sonnet-4-5-20250929") -> per-model token-usage stats. That wrapper
-metadata -- never the request's own "model" echo -- is what proves Sonnet actually ran. A model id
-is classified Sonnet/Opus by case-insensitive substring match on "sonnet"/"opus".
+metadata -- never the request's own "model" echo -- is what says which model actually ran, so it is
+recorded as `model_used`.
+
+2026-09-05 (plan_26090516 3-5 / audit_26090515 G-A1): this adapter used to REFUSE anything that was
+not Sonnet -- a request-level gate (`REQUESTED_MODEL_NOT_SONNET`) plus a four-way classification of
+the wrapper metadata (`OPUS_FALLBACK` / `MIXED_MODEL_USAGE` / `UNEXPECTED_MODEL_USAGE` /
+`MISSING_MODEL_METADATA`). That is model overfitting in the harness: the model is the caller's
+declaration, and pinning one vendor's model family in the control plane means every model swap is a
+harness edit. The gate is gone; the model that ran is RECORDED (`model_used`, and the relay ledger
+keeps it next to `model_requested`). Absent or odd metadata is now reported on stderr and leaves
+`model_used` empty -- unknown is written as unknown, not as a block.
 """
 from __future__ import annotations
 
@@ -19,13 +28,11 @@ import subprocess
 import sys
 
 STATUS_COMPLETED = "completed"
-STATUS_MODEL_SAFETY_BLOCKED = "model_safety_blocked"
 STATUS_EXECUTION_FAILED = "execution_failed"
 STATUS_MALFORMED_OUTPUT = "malformed_output"
 STATUS_TIMEOUT = "timeout"
 
 EXIT_SUCCESS = 0
-EXIT_MODEL_SAFETY_BLOCKED = 3
 EXIT_EXECUTION_FAILED = 4
 EXIT_MALFORMED_OUTPUT = 5
 EXIT_TIMEOUT = 124
@@ -183,11 +190,6 @@ def _budget_outcome(payload: dict, request: dict) -> str:
 def invoke(request: dict) -> dict:
     """Actually runs the `claude` provider binary (resolved via PATH) for `request` and returns a
     result dict shaped per agent-control-result.schema.json. Fail-closed (never raises)."""
-    if request["model"] != "sonnet":
-        return _result(request, status=STATUS_MODEL_SAFETY_BLOCKED,
-                       exit_code=EXIT_MODEL_SAFETY_BLOCKED,
-                       reason_codes=["REQUESTED_MODEL_NOT_SONNET"])
-
     argv = build_argv(request)
     target = request["target"]
     cwd = target.get("work_dir") if target["transport"] == "local" else None
@@ -365,51 +367,19 @@ def invoke(request: dict) -> dict:
                        reason_codes=["PROVIDER_RESULT_INVALID"], session_id=_sess, num_turns=_turns,
                        budget_outcome="unknown", duration_ms=_dur, duration_api_ms=_dur_api)
 
+    # 2026-09-05(G-A1): 실행 모델은 **기록**한다 — 막지 않는다. 형태가 이상하면 그 사실을
+    #   사이드채널로 남기고 `model_used` 를 비운다(모르는 것을 아는 척하지 않는다).
     model_usage = payload.get("modelUsage")
-    if not isinstance(model_usage, dict) or not model_usage:
-        return _result(request, status=STATUS_MODEL_SAFETY_BLOCKED, exit_code=EXIT_MODEL_SAFETY_BLOCKED,
-                        reason_codes=["MISSING_MODEL_METADATA"])
-
-    model_ids = list(model_usage.keys())
-    if not all(isinstance(model_id, str) for model_id in model_ids):
-        return _result(request, status=STATUS_MODEL_SAFETY_BLOCKED,
-                       exit_code=EXIT_MODEL_SAFETY_BLOCKED,
-                       reason_codes=["UNEXPECTED_MODEL_USAGE"])
-    has_sonnet = any("sonnet" in model_id.lower() for model_id in model_ids)
-    has_opus = any("opus" in model_id.lower() for model_id in model_ids)
-    has_unknown = any("sonnet" not in model_id.lower() and "opus" not in model_id.lower()
-                      for model_id in model_ids)
-
-    if has_sonnet and has_opus:
-        return _result(request, status=STATUS_MODEL_SAFETY_BLOCKED, exit_code=EXIT_MODEL_SAFETY_BLOCKED,
-                        reason_codes=["MIXED_MODEL_USAGE"], model_used=model_ids)
-    if has_opus:
-        return _result(request, status=STATUS_MODEL_SAFETY_BLOCKED, exit_code=EXIT_MODEL_SAFETY_BLOCKED,
-                        reason_codes=["OPUS_FALLBACK"], model_used=model_ids)
-    if has_unknown:
-        return _result(request, status=STATUS_MODEL_SAFETY_BLOCKED,
-                       exit_code=EXIT_MODEL_SAFETY_BLOCKED,
-                       reason_codes=["UNEXPECTED_MODEL_USAGE"], model_used=model_ids)
-    if not has_sonnet:
-        return _result(request, status=STATUS_MODEL_SAFETY_BLOCKED, exit_code=EXIT_MODEL_SAFETY_BLOCKED,
-                        reason_codes=["MISSING_MODEL_METADATA"], model_used=model_ids)
-
-    canonical_ids = []
-    for model_id, metadata in model_usage.items():
-        if not isinstance(metadata, dict) or not isinstance(metadata.get("canonicalModel"), str):
-            return _result(request, status=STATUS_MODEL_SAFETY_BLOCKED,
-                           exit_code=EXIT_MODEL_SAFETY_BLOCKED,
-                           reason_codes=["UNEXPECTED_MODEL_USAGE"], model_used=model_ids)
-        canonical_ids.append(metadata["canonicalModel"])
-        if metadata["canonicalModel"] != model_id:
-            return _result(request, status=STATUS_MODEL_SAFETY_BLOCKED,
-                           exit_code=EXIT_MODEL_SAFETY_BLOCKED,
-                           reason_codes=["UNEXPECTED_MODEL_USAGE"], model_used=model_ids)
-    if any("sonnet" not in model_id.lower() or "opus" in model_id.lower()
-           for model_id in canonical_ids):
-        return _result(request, status=STATUS_MODEL_SAFETY_BLOCKED,
-                       exit_code=EXIT_MODEL_SAFETY_BLOCKED,
-                       reason_codes=["UNEXPECTED_MODEL_USAGE"], model_used=model_ids)
+    model_ids = []
+    if isinstance(model_usage, dict) and model_usage:
+        model_ids = [mid for mid in model_usage if isinstance(mid, str)]
+        if len(model_ids) != len(model_usage):
+            _diag(request, "MODEL_METADATA_ODD",
+                  f"modelUsage 키에 문자열이 아닌 것이 섞였다 — 기록 가능한 것만 남긴다: {model_ids}")
+    else:
+        _diag(request, "MODEL_METADATA_ABSENT",
+              "provider 가 modelUsage 를 주지 않았다 — 어느 모델이 돌았는지 기록할 수 없다"
+              "(차단하지 않는다 · model_used=[]).")
 
     return _result(request, status=STATUS_COMPLETED, exit_code=EXIT_SUCCESS, reason_codes=[],
                     model_used=model_ids, output=payload["result"],

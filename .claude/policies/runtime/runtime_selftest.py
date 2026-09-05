@@ -834,7 +834,9 @@ def _test_agent_provider_boundary() -> None:
     provider_file = getattr(provider, "__file__", None)
     _require(isinstance(provider_file, str), "loaded provider has no source path")
     provider_source = Path(str(provider_file)).read_text(encoding="utf-8")
-    for token in ("claude -p", "--model sonnet", "--output-format json"):
+    # 2026-09-05(G-A1): `--model sonnet` 토큰 강제는 **모델 핀**이었다 — 어댑터 경계는 "claude 문법이
+    #   여기에만 산다" 를 지키면 되고, 어느 모델을 부르는지는 요청의 선언이다.
+    for token in ("claude -p", "--model", "--output-format json"):
         _require(token not in agent_source, f"provider-specific token leaked into orchestrator: {token}")
         _require(token in provider_source, f"provider adapter lost required CLI token: {token}")
 
@@ -865,11 +867,71 @@ def _test_agent_provider_boundary() -> None:
     _require("CLAUDE_CODE_RETRY_WATCHDOG" not in " ".join(local_argv),
              "local transport is the main node's own plane -- the sub relay env must not leak into it")
 
-    blocked = _request("local")
-    blocked["model"] = "opus"
-    result = provider.invoke(blocked)
-    _require(result["status"] == "model_safety_blocked" and result["exit_code"] == 3,
-             f"non-Sonnet request was not blocked before execution: {result}")
+    # 2026-09-05(G-A1): 모델은 **선언**이다 — 어댑터가 막지 않고, 실제로 돈 모델을 기록한다.
+    #   종전 이 자리는 `--model opus` 를 exit 3 으로 차단했고, 그 한 줄 때문에 모델을 바꾸려면
+    #   하네스를 고쳐야 했다(모델 과적합의 정면 사례 · audit_26090515 A1).
+    _opus_payload = {"type": "result", "subtype": "success", "is_error": False,
+                     "num_turns": 2, "session_id": "sess-opus", "result": "done",
+                     "duration_ms": 4200, "duration_api_ms": 3900,
+                     "modelUsage": {"claude-opus-5": {"canonicalModel": "claude-opus-5"}}}
+
+    class _OpusRun:
+        returncode, stdout, stderr = 0, json.dumps(_opus_payload), ""
+
+    _real_run = provider.subprocess.run
+    provider.subprocess.run = lambda *a, **k: _OpusRun()
+    try:
+        declared = _request("local")
+        declared["model"] = "opus"
+        result = provider.invoke(declared)
+    finally:
+        provider.subprocess.run = _real_run
+    _require(result["status"] == "completed" and result["exit_code"] == 0,
+             f"the model is a declaration, not a gate -- opus must run: {result}")
+    _require(result["model_used"] == ["claude-opus-5"] and result["model_requested"] == "opus",
+             f"the model that actually ran must be recorded: {result}")
+    _res_schema2 = agent_control._load_schema(agent_control.RESULT_SCHEMA_PATH)
+    _require(not agent_control._schema_violations(result, _res_schema2),
+             f"non-Sonnet completed result must satisfy the result schema: {result}")
+
+    # metadata 부재는 **기록의 부재**이지 차단 사유가 아니다(model_used=[] 로 남고 결과는 유효하다).
+    _bare = dict(_opus_payload); _bare.pop("modelUsage")
+
+    class _BareRun:
+        returncode, stdout, stderr = 0, json.dumps(_bare), ""
+
+    provider.subprocess.run = lambda *a, **k: _BareRun()
+    try:
+        bare_result = provider.invoke(_request("local"))
+    finally:
+        provider.subprocess.run = _real_run
+    _require(bare_result["status"] == "completed" and bare_result["model_used"] == [],
+             f"absent model metadata must be recorded as empty, not blocked: {bare_result}")
+    _require(not agent_control._schema_violations(bare_result, _res_schema2),
+             f"metadata-less completed result must satisfy the result schema: {bare_result}")
+
+    # 2026-09-05 회귀: 권한 거부 경로는 거부된 도구 목록을 output 에 실어 돌려주는데, 결과 스키마의
+    #   execution_failed 가지가 `output: const null` 이라 그 결과가 **스키마 위반**이 됐고
+    #   orchestrator 가 PROVIDER_RESULT_INVALID 봉투로 갈아끼워 진단이 호출자에게 도달하지 못했다.
+    _denied = {"type": "result", "subtype": "success", "is_error": False, "num_turns": 1,
+               "session_id": "sess-deny", "result": "…", "duration_ms": 10, "duration_api_ms": 5,
+               "permission_denials": [{"tool_name": "Write", "tool_input": {"path": "x"}}],
+               "modelUsage": {"claude-sonnet-4-5": {"canonicalModel": "claude-sonnet-4-5"}}}
+
+    class _DeniedRun:
+        returncode, stdout, stderr = 0, json.dumps(_denied), ""
+
+    provider.subprocess.run = lambda *a, **k: _DeniedRun()
+    try:
+        denied_result = provider.invoke(_request("local"))
+    finally:
+        provider.subprocess.run = _real_run
+    _require(denied_result["reason_codes"] == ["PERMISSION_DENIED"]
+             and "permission_denials" in (denied_result["output"] or ""),
+             f"permission denial must carry its diagnosis: {denied_result}")
+    _require(not agent_control._schema_violations(denied_result, _res_schema2),
+             f"permission-denied result must satisfy the result schema: "
+             f"{agent_control._schema_violations(denied_result, _res_schema2)}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

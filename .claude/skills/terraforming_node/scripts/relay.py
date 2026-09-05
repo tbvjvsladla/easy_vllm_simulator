@@ -210,11 +210,12 @@ def relay_header(context_id: str, attempt: int, allocated: int, budget_source: s
 
 def build_request(topology: str, manifest: str, task: str, bud: dict,
                   resume_session_id=None, capabilities=None,
-                  context_id: str = None, attempt: int = 0) -> dict:
+                  context_id: str = None, attempt: int = 0, model: str = None) -> dict:
     """위임 request 조립. `bud` 는 **선언된** 예산이다(`turn_budget.declare` 산출)."""
     base = _canary.build_request(topology, manifest, max_turns=bud["max_turns"],
                                  timeout_seconds=bud["timeout_seconds"],
-                                 budget_source=bud["source"])  # target 해소·센티넬 거부를 재사용
+                                 budget_source=bud["source"],
+                                 model=model)  # target 해소·센티넬 거부를 재사용
     allocated = bud["max_turns"]
     base["intent"] = "delegate"
     base["task"] = ((relay_header(context_id, attempt, allocated, bud["source"]) + task)
@@ -264,6 +265,11 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
         #   — 그 경우 서브는 컨텍스트를 처음부터 재구축하고, 그것이 곧 소진의 주된 원인이다.
         "resume_requested": resume_requested,
         "resume_honored": (None if not resume_requested else session == resume_requested),
+        # 2026-09-05(G-A1): 모델 게이트가 사라진 자리에 **기록**이 온다 — 무엇을 선언했고
+        #   무엇이 실제로 돌았는지. 이 두 줄이 없으면 "하네스 변경 0 으로 모델을 바꿨다" 를
+        #   나중에 증명할 수 없다.
+        "model_declared": result.get("model_requested"),
+        "model_used": result.get("model_used") or [],
         "control_status": result.get("status"),
         "reason_codes": result.get("reason_codes") or [],
         "status": report.get("status"),
@@ -763,7 +769,7 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     attempt_no = len(doc.get("attempts") or []) + 1
     resume = None if resume_declared in (None, "new") else resume_declared
     req = build_request(a.topology, a.manifest_path, task, bud, resume_session_id=resume,
-                        context_id=a.context_id, attempt=attempt_no)
+                        context_id=a.context_id, attempt=attempt_no, model=a.model)
 
     if a.emit_only:
         json.dump(req, sys.stdout, ensure_ascii=False, indent=2)
@@ -872,6 +878,9 @@ def main() -> int:
                     help="매달림 상한(scope ⊥ budget — 예산과 별개 노브)")
     ap.add_argument("--budget-source", default=None,
                     help="그 예산을 그렇게 정한 근거(필수 · 원장에 남는다)")
+    ap.add_argument("--model", default=None,
+                    help="위임 모델 선언(기본은 카나리 기본값). 어댑터는 모델로 차단하지 않는다 — "
+                         "실제로 돈 모델은 원장 `model_used` 가 말한다(2026-09-05 · G-A1).")
     ap.add_argument("--resume", default=None, metavar="SESSION_ID|new",
                     help="이어받을 provider 세션 id, 또는 새 세션이면 `new`. **선언 필수** — "
                          "코드가 대신 정하지 않는다(2026-09-05 · 축 F).")
