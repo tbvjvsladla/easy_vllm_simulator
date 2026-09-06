@@ -333,6 +333,25 @@ echo "[mn] 빌드 트랙 정합: IMAGE_TAG=$_it ↔ BUILD_DOCKERFILE=$_bd"
 #
 # 그래서 **빌드 직후 이미지 안에서** 실제 torch 를 읽어 대조한다. 양 노드 모두 본다(멀티는 빌드
 # 인자가 한 톨도 갈리면 안 된다 — 이 파일의 SLAVE_IMGVARS 규율과 같은 이유).
+# ── 노드 정합 attestation 영속 (2026-09-06 신설 · plan_26090616 ⑤ · 결함 F6) ──
+#   아래 두 대조(torch ABI · vllm 버전)는 **stdout 으로만** 말했다. 성공 경로에서는 아무것도
+#   남지 않았고, 로그 보존은 실패 분기(`_save_serve_logs`)에만 걸려 있었다. 그래서 "두 노드가
+#   같은 것을 돌렸다" 는 사실이 hint 태그에 실릴 근거가 없었다 — 멀티 태그에 메인 산출물만
+#   실린 이유 중 하나다. 성공한 대조야말로 배포될 증거이므로 **성공할 때 적는다**.
+ATTEST_DIR="$REPO/output/$TOPO/benchlog"
+ATTEST_JSON="$ATTEST_DIR/attestation_${CONFIG}.json"
+_attest_rows=""
+_attest_add() {   # $1=축 $2=노드 $3=값 $4=기대(선택)
+    mkdir -p "$ATTEST_DIR" 2>/dev/null || return 0
+    _attest_rows="${_attest_rows}${_attest_rows:+,}{\"axis\":\"$1\",\"node\":\"$2\",\"observed\":\"$3\",\"expected\":\"${4:-}\"}"
+}
+_attest_flush() {
+    mkdir -p "$ATTEST_DIR" 2>/dev/null || return 0
+    printf '{\n  "schema_version": 1,\n  "kind": "multinode_node_parity_attestation",\n  "config": "%s",\n  "topology": "%s",\n  "image_tag": "%s",\n  "provenance": "measured(docker run in each node image)",\n  "checks": [%s]\n}\n' \
+        "$CONFIG" "$TOPO" "$IMG" "$_attest_rows" > "$ATTEST_JSON"
+    echo "[mn] 노드 정합 attestation 보존 → ${ATTEST_JSON#$REPO/} (성공 경로에서도 남는다)"
+}
+
 if [ "$_bd" = "Dockerfile" ]; then   # wheel 트랙에만 적용(source-build 는 베이스 torch 를 그대로 쓴다)
   _want="$(python3 "$REPO/.claude/skills/upstream-version-watch/scripts/resolve_torch_pin.py" \
              "$_tag_ver" 2>/dev/null | python3 -c \
@@ -347,7 +366,8 @@ if [ "$_bd" = "Dockerfile" ]; then   # wheel 트랙에만 적용(source-build �
         _got="$(ssh -o BatchMode=yes -n "$SUB_HOST" "docker run --rm '$IMG' python3 -c 'import torch;print(torch.__version__)'" 2>/dev/null | tail -1)"
       fi
       case "$_got" in
-        "$_want"*) echo "[mn] ABI 정합($_n): torch $_got ← 기대 접두어 $_want" ;;
+        "$_want"*) echo "[mn] ABI 정합($_n): torch $_got ← 기대 접두어 $_want"
+                   _attest_add "torch_abi" "$_n" "$_got" "$_want*" ;;
         "") echo "[mn] FAIL(ABI): $_n 이미지에서 torch 버전을 읽지 못했다 — 검증 불가는 통과가 아니다." >&2; exit 3 ;;
         *)  echo "[mn] FAIL(ABI 불일치): $_n 이미지 torch=$_got 인데 vLLM $_tag_ver 는 $_want* 를 요구한다." >&2
             echo "[mn]   → wheel 의 _C 확장이 베이스 torch 와 ABI 가 갈린다(기동 시 undefined symbol)." >&2
@@ -377,7 +397,8 @@ if [ "$_bd" = "Dockerfile" ] && [ -n "$_tag_ver" ]; then
     fi
     case "$_vv" in
       "") echo "[mn] FAIL(버전 대조): $_n 이미지에서 vllm 버전을 읽지 못했다 — 검증 불가는 통과가 아니다." >&2; exit 3 ;;
-      "$_tag_ver"|"$_tag_ver"+*) echo "[mn] 빌드 버전 정합($_n): vllm $_vv ← 태그 $_tag_ver" ;;
+      "$_tag_ver"|"$_tag_ver"+*) echo "[mn] 빌드 버전 정합($_n): vllm $_vv ← 태그 $_tag_ver"
+                                 _attest_add "vllm_version" "$_n" "$_vv" "$_tag_ver" ;;
       *)  echo "[mn] FAIL(빌드 버전 불일치): $_n 이미지의 vllm=$_vv 인데 IMAGE_TAG 는 $_tag_ver 다." >&2
           echo "[mn]   → 두 노드가 같은 태그로 **다른 엔진**을 돌게 된다(태그가 노드 경계에서 거짓말한다)." >&2
           echo "[mn]   → 콤보 EF 의 빌드 키가 SLAVE_IMGVARS 로 전달되는지 확인하라(현재: $SLAVE_IMGVARS)." >&2
@@ -385,6 +406,7 @@ if [ "$_bd" = "Dockerfile" ] && [ -n "$_tag_ver" ]; then
     esac
   done
 fi
+_attest_flush
   else echo "[mn] FAIL: 빌드(master=$MR slave=$SR). tail:"; tail -6 /tmp/mn_build_master.log /tmp/mn_build_slave.log; exit 2; fi
 fi
 

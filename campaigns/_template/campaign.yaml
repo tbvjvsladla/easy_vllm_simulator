@@ -1,0 +1,45 @@
+{
+  "_howto": [
+    "캠페인 선언(뼈대). 확장자는 .yaml 이지만 내용은 순수 JSON 텍스트다 — 파서는 stdlib json 하나이며 PyYAML 은 이 저장소의 의존성이 아니다(registry.yaml 선례).",
+    "채우는 순서: 사용자가 빈칸(<<FILL>>)을 채우고, 에이전트가 파생값을 채운다. <<FILL>> 이 하나라도 남으면 검증기가 fail-closed 한다.",
+    "검증: python3 .claude/skills/terraforming_node/scripts/campaign_template_validator.py --campaign campaigns/<camp-id>/campaign.yaml",
+    "이 선언이 producer 경로의 원천이다 — recipe --config · broad_search --state · relay 원장 루트가 모두 여기서 파생된다(workflow.md §producer 경로 파생)."
+  ],
+  "schema_version": 1,
+
+  "id": "<<FILL>>",
+  "plan_ref": "<<FILL>>",
+  "declared_utc": "<<FILL>>",
+
+  "nodes": [
+    {"node_id": "<<FILL>>", "role": "main", "topology": "<<FILL>>", "hw": "<<FILL>>"}
+  ],
+
+  "matrix": {
+    "versions": ["<<FILL>>"],
+    "models": ["<<FILL>>"]
+  },
+
+  "order": ["<<FILL>>"],
+
+  "budgets": {
+    "smoke_budget_overhead_mib": 0,
+    "ready_max_seconds": 0
+  },
+
+  "control_variables": {
+    "model": "<<FILL>>",
+    "vllm_version": "<<FILL>>",
+    "topology": "<<FILL>>",
+    "target_gpu": "<<FILL>>"
+  },
+
+  "hint_targets": [
+    {"arch": "<<FILL>>", "node_id": "<<FILL>>", "cells": []}
+  ],
+
+  "topology_sections": {
+    "single": {},
+    "multi": {}
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "_howto": "recipe-explorer 인터뷰가 잠근 파라미터. 옛 루트 /lockset.json·/lockset.camp1-*.json 의 후속 자리다. 키 집합은 recipe-explorer 가 소유하며 여기 뼈대는 셀 정체성(id)만 강제한다.",
+  "id": "<<FILL>>",
+  "quantization": null,
+  "max_model_len": null,
+  "batch": null,
+  "kv_cache_quant": null,
+  "kv_cache_memory_bytes": null,
+  "attention_backend": null,
+  "attention_backend_candidates": [],
+  "moe_backend": null,
+  "tool_call_parser": null,
+  "tool_call_parser_candidates": [],
+  "reasoning_parser": null,
+  "reasoning_parser_candidates": [],
+  "model_capabilities": {}
+}

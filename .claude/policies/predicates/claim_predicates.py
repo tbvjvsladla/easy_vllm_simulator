@@ -1196,7 +1196,7 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C3():
     # 6-field footer contract (plan_26090222 F-6a): the three content digests were removed --
     # the footer binds an evidence ADDRESS (anchor + refs), integrity is git's job.
     fields = {
-        "version": "1", "tag": "hint/0.25.1/gpt-oss-120b/gb10", "topology": "single",
+        "version": "1", "tag": "hint/0.25.1/gpt-oss-120b/gb10-main-sim-h100/qmxfp4-len131072-kvfp8", "topology": "single",
         "anchor": "a" * 40, "manifest_ref": "docs/_evidence/x.json",
         "certificate_ref": "docs/benchmark/cert.yaml",
     }
@@ -3465,7 +3465,168 @@ def predicate_GIT_SINGLE_AUTHORITY_C2():
 # Exact clause_id -> predicate function mapping (60 entries -- parity asserted in the test class).
 # =============================================================================
 
+def _campaign_script(name: str):
+    """terraforming 의 캠페인 스크립트를 in-process 로 적재한다(`_import` 관용구)."""
+    return _import(".claude/skills/terraforming_node/scripts", name)
+
+
+def predicate_ROOT_SURFACE_REGISTRY_C1():
+    """C1: 루트 표면의 단일 권위는 등록부다.  tripwire ⑦ `_test_root_surface_registry` 를 절의
+    물질적 원자마다 RED->GREEN 으로 몬다 — 미등재 루트 추적물 · tombstone 부활 · 선언된 뼈대의
+    소실. 라이브 트리는 깨끗할 때 아무것도 증명하지 않으므로 양성이 실제로 발화해야 한다."""
+    rs = _runtime_selftest()
+    _require(rs._ROOT_REGISTRY_REL == ".claude/policies/root_registry.json",
+             f"등록부 경로가 옮겨졌다: {rs._ROOT_REGISTRY_REL}")
+    doc = rs._load_root_registry(REPO_ROOT)
+    names = {e.get("name") for e in doc["entries"]}
+    _require({"campaigns", ".claude", "CLAUDE.md"} <= names, f"등록부가 비정상: {sorted(names)[:8]}")
+    _require(any(t_.get("name") == "tasks" for t_ in doc.get("tombstones", [])),
+             "폐지된 `tasks/` 가 tombstone 으로 남아 있어야 한다")
+
+    fn = rs._test_root_surface_registry
+    with tempfile.TemporaryDirectory() as tmp:
+        root = _canonical_fixture_repo(tmp)
+        reg = root / ".claude" / "policies" / "root_registry.json"
+        base = {"schema_version": 1, "policy_id": "ROOT_SURFACE_REGISTRY",
+                "entries": [{"name": "CLAUDE.md", "kind": "file", "git": "tracked"},
+                            {"name": ".gitignore", "kind": "file", "git": "tracked"},
+                            {"name": ".claude", "kind": "dir", "git": "tracked"}],
+                "tombstones": [{"name": "config.camp1-*.yaml", "kind": "glob",
+                                "retired_utc": "2026-09-06", "successor": "campaigns/"}]}
+
+        def write(reg_doc):
+            reg.write_text(json.dumps(reg_doc, ensure_ascii=False), encoding="utf-8")
+            _fixture_git(root, "add", "-A")
+
+        write(base)
+        _require(not _tripwire_raises(fn, root),
+                 "등록부와 인덱스가 일치하면 tripwire ⑦ 는 GREEN 이어야 한다")
+
+        stray = root / "stray.md"
+        stray.write_text("x", encoding="utf-8")
+        _fixture_git(root, "add", "-A")
+        _require(_tripwire_raises(fn, root), "미등재 루트 추적물은 tripwire ⑦ 를 RED 로 만들어야 한다")
+        _fixture_git(root, "rm", "-q", "--cached", "stray.md")
+        stray.unlink()
+        _require(not _tripwire_raises(fn, root), "추적 해제하면 GREEN 으로 돌아와야 한다(끈적이지 않는다)")
+
+        leaked = root / "config.camp1-20b-0180.yaml"
+        leaked.write_text("nas: x\n", encoding="utf-8")
+        _fixture_git(root, "add", "-A")
+        _require(_tripwire_raises(fn, root),
+                 "폐지된 거처가 되살아나면 RED 여야 한다 — 이것이 21개를 흘린 이름 모양이다")
+        _fixture_git(root, "rm", "-q", "--cached", "config.camp1-20b-0180.yaml")
+        leaked.unlink()
+
+        write(dict(base, entries=base["entries"] + [{"name": "campaigns", "kind": "dir", "git": "tracked"}]))
+        _require(_tripwire_raises(fn, root),
+                 "등록부가 tracked 라고 선언한 항목이 인덱스에 없으면 RED 여야 한다(무력화 검출)")
+        write(base)
+        _require(not _tripwire_raises(fn, root), "복원하면 GREEN")
+
+        reg.unlink()
+        _fixture_git(root, "add", "-A")
+        _require(_tripwire_raises(fn, root),
+                 "등록부 자체가 사라지면 통과가 아니라 RED 다 — 무력한 가드를 통과한 가드로 보이게 하지 않는다")
+
+
+def predicate_ROOT_SURFACE_REGISTRY_C2():
+    """C2: 뼈대는 추적·인스턴스는 휘발이고, purge 는 증거가 docs 평면에 도착했을 때만 열린다.
+    `campaign_init.purge_gate_reasons` 를 선행조건마다 음성대조한다."""
+    ci = _campaign_script("campaign_init")
+    _require(ci.BOOTSTRAP == "_bootstrap", f"예약 인스턴스 id 가 바뀌었다: {ci.BOOTSTRAP}")
+    _require("_template" in ci.PURGE_KEEPS and "README.md" in ci.PURGE_KEEPS,
+             f"purge 가 뼈대를 지우면 안 된다: {ci.PURGE_KEEPS}")
+
+    saved = (ci.CAMPAIGNS, ci.ACTIVE_POINTER)
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            ci.CAMPAIGNS = Path(tmp) / "campaigns"
+            ci.ACTIVE_POINTER = ci.CAMPAIGNS / "ACTIVE"
+            prev = ci.CAMPAIGNS / "old"
+            prev.mkdir(parents=True)
+            ptr = prev / "evidence_pointers.json"
+
+            _require(ci.purge_gate_reasons("old"), "포인터 파일이 없으면 게이트는 닫혀 있어야 한다")
+            ptr.write_text(json.dumps({"pointers": []}), encoding="utf-8")
+            _require(any("0건" in r for r in ci.purge_gate_reasons("old")),
+                     "빈 목록으로 게이트를 통과시키면 안 된다(공허통과 금지)")
+            ptr.write_text(json.dumps({"pointers": [{"kind": "certificate", "path": "nope/x.yaml"}]}),
+                           encoding="utf-8")
+            _require(any("실재하지 않는다" in r for r in ci.purge_gate_reasons("old")),
+                     "포인터가 가리키는 증거가 없으면 RED")
+            ptr.write_text(json.dumps({"pointers": [{"kind": "certificate", "path": "CLAUDE.md"}]}),
+                           encoding="utf-8")
+            _require(any("relay_summary" in r for r in ci.purge_gate_reasons("old")),
+                     "원장 원문은 휘발이므로 요약 testlog 를 따로 요구해야 한다")
+            ptr.write_text(json.dumps({"pointers": [{"kind": "certificate", "path": "CLAUDE.md"},
+                                                    {"kind": "relay_summary", "path": "README.md"}]}),
+                           encoding="utf-8")
+            _require(not ci.purge_gate_reasons("old"), "전수 실재 + 요약이면 게이트가 열려야 한다")
+            ci.do_purge("old", apply=False)
+            _require(prev.is_dir(), "dry-run 이 지우면 안 된다")
+            ci.do_purge("old", apply=True)
+            _require(not prev.is_dir(), "apply 는 실제로 지워야 한다")
+    finally:
+        ci.CAMPAIGNS, ci.ACTIVE_POINTER = saved
+
+
+def predicate_ROOT_SURFACE_REGISTRY_C3():
+    """C3: 정보는 아티팩트가 나르고, proof 는 출처를 달고, producer 는 루트 기본값을 갖지 않는다."""
+    ci = _campaign_script("campaign_init")
+    cv = _campaign_script("campaign_template_validator")
+
+    # producer 경로에 루트 기본값이 남아 있지 않다 — 부재는 `_bootstrap` 으로 가지 루트로 가지 않는다.
+    for kind, kwargs in (("config", {"cell": "c1"}), ("lockset", {"cell": "c1"}),
+                         ("sweep", {"sweep": "s1"}), ("relay-root", {}), ("evidence", {})):
+        derived = str(ci.derive_path(kind, camp_id=ci.BOOTSTRAP, **kwargs))
+        _require("/campaigns/" in derived,
+                 f"파생 경로가 campaigns 밖이다({kind}): {derived}")
+        _require(not derived.rstrip("/").endswith("/tasks"),
+                 f"폐지된 루트 원장 자리가 살아 있다({kind}): {derived}")
+    raised = None
+    try:
+        ci.derive_path("config", camp_id="x")
+    except ci.PurgeGateRefusal as exc:
+        raised = exc
+    _require(raised is not None, "셀 없는 셀 입력 파생은 fail-closed 여야 한다")
+
+    # 빈칸이 곧 계약이다 — 뼈대에 <<FILL>> 이 살아 있어야 하고, 잔존하면 검증기가 막아야 한다.
+    _require(not cv.validate_template(), f"뼈대가 무너졌다: {cv.validate_template()}")
+    _require(cv.find_fill_placeholders("a: <<FILL>>\nb: 1\n") == [1],
+             "빈칸 검출기가 발화해야 한다")
+
+    # proof 는 출처를 요구한다.
+    with tempfile.TemporaryDirectory() as tmp:
+        camp = Path(tmp) / "camp-x"
+        (camp / "phases" / "main").mkdir(parents=True)
+        (camp / "cells" / "cell-a").mkdir(parents=True)
+        (camp / "cells" / "cell-a" / "config.yaml").write_text("cell_id: cell-a\n", encoding="utf-8")
+        good = json.loads((cv.TEMPLATE / "campaign.yaml").read_text(encoding="utf-8"))
+        good.pop("_howto", None)
+        good.update(id="camp-x", plan_ref="docs/plan/p.md", declared_utc="2026-09-06T00:00:00Z",
+                    nodes=[{"node_id": "main", "role": "main", "topology": "single", "hw": "gb10"}],
+                    matrix={"versions": ["0.18.0"], "models": ["m"]}, order=["cell-a"],
+                    budgets={"smoke_budget_overhead_mib": 1, "ready_max_seconds": 1},
+                    control_variables={"model": "m", "vllm_version": "0.18.0",
+                                       "topology": "single", "target_gpu": "H100"},
+                    hint_targets=[{"arch": "gb10-main-sim-h100", "node_id": "main", "cells": []}])
+        (camp / "campaign.yaml").write_text(json.dumps(good, ensure_ascii=False), encoding="utf-8")
+        st = camp / "phases" / "main" / "serve.status.json"
+        body = {"schema_version": 1, "node_id": "main", "phase": "serve", "cell_id": "cell-a",
+                "state": "done", "proof": {"predicate": "health200", "ok": True, "source": ""}}
+        st.write_text(json.dumps(body), encoding="utf-8")
+        _require(any("source 가 비었다" in p for p in cv.validate_instance(camp)),
+                 "출처 없는 proof.ok 는 차단해야 한다 — 단언이 검증을 대체하는 자리")
+        body["proof"]["source"] = "docs/testlog/t.md"
+        st.write_text(json.dumps(body), encoding="utf-8")
+        _require(not cv.validate_instance(camp), "출처가 붙으면 통과해야 한다")
+
+
 PREDICATES = {
+    "ROOT_SURFACE_REGISTRY.C1": predicate_ROOT_SURFACE_REGISTRY_C1,
+    "ROOT_SURFACE_REGISTRY.C2": predicate_ROOT_SURFACE_REGISTRY_C2,
+    "ROOT_SURFACE_REGISTRY.C3": predicate_ROOT_SURFACE_REGISTRY_C3,
     "HOST_SAFETY_LAYERED_DEFENSE.C1": predicate_HOST_SAFETY_LAYERED_DEFENSE_C1,
     "HOST_SAFETY_LAYERED_DEFENSE.C2": predicate_HOST_SAFETY_LAYERED_DEFENSE_C2,
     "HOST_SAFETY_LAYERED_DEFENSE.C3": predicate_HOST_SAFETY_LAYERED_DEFENSE_C3,
@@ -3601,7 +3762,10 @@ def run_all_predicates() -> int:
     """Execute the exact registry mapping and emit a stable production verdict."""
     failures = []
     registry_ids = _load_real_registry_clause_ids()
-    if len(PREDICATES) != 60 or set(PREDICATES) != registry_ids:
+    # 60 -> 63 (2026-09-06 · plan_26090616 ROOT_SURFACE_REGISTRY C1~C3 신설). 이 숫자는 집합
+    # 동치가 이미 보장하는 것을 한 번 더 적는 **tripwire 하드코딩**이다 — 절이 늘거나 줄면
+    # 여기서 사람 리뷰를 강제한다(workflow.md §4종 안티패턴 판정표 "정당" 칸).
+    if len(PREDICATES) != 63 or set(PREDICATES) != registry_ids:
         failures.append({"clause_id": "__mapping__", "error":
                          f"predicate/registry mismatch predicates={len(PREDICATES)} registry={len(registry_ids)}"})
     funcs = list(PREDICATES.values())

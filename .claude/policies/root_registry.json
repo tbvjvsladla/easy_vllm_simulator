@@ -1,0 +1,269 @@
+{
+  "schema_version": 1,
+  "policy_id": "ROOT_SURFACE_REGISTRY",
+  "why": "저장소 루트는 어떤 스킬도 소유하지 않는 공유 표면이라, 산출물이 흘러도 관할 게이트가 0 이었다(2026-09-06 실측: 캠페인 셀 config 10 + lockset 10 + campaign 선언 1 = 21개가 공개 원격까지 추적 누출). 이 파일이 '루트에 무엇이 살 수 있는가'의 단일 권위이며, tripwire ⑦ 이 실제 트리를 이 목록과 대조한다. 닫힌 목록인 것은 의도다 — 변경할 때 사람 리뷰를 강제하는 tripwire 형태의 하드코딩은 정당하다(workflow.md §4종 안티패턴 판정표).",
+  "authority_note": "추가/삭제는 이 파일에서만 한다. 스크립트가 루트에 새 산출물을 쓰려 하면 그것은 등재 대상이 아니라 **거처 오류**다 — 통로(campaigns/·output/·docs/)로 파생시켜라(D3: 우회하지 말고 경로를 고친다).",
+  "git_states": {
+    "tracked": "git 이 blob 으로 든다. 배포된다 — 배포강도 PII 4종이 걸린다.",
+    "ignored": "워킹트리 로컬 상태. 배포되지 않으며 운영자 지문을 담아도 된다.",
+    "either": "존재 자체가 선택적이며 추적 여부는 브랜치가 정한다."
+  },
+  "entries": [
+    {
+      "name": "CLAUDE.md",
+      "kind": "file",
+      "git": "tracked",
+      "owner": "헌법",
+      "role": "목표·불변식·안전경계·트리거·정책경계"
+    },
+    {
+      "name": "README.md",
+      "kind": "file",
+      "git": "tracked",
+      "owner": "배포자 온보딩",
+      "role": "연속 서사형 온보딩 문서"
+    },
+    {
+      "name": "HINTS.md",
+      "kind": "file",
+      "git": "tracked",
+      "owner": "hint-publisher",
+      "role": "hint 태그 카탈로그(본문은 태그 오브젝트에만)"
+    },
+    {
+      "name": ".gitignore",
+      "kind": "file",
+      "git": "tracked",
+      "owner": "저장소 경계",
+      "role": "추적 경계 정본"
+    },
+    {
+      "name": ".gitattributes",
+      "kind": "file",
+      "git": "tracked",
+      "owner": "저장소 경계",
+      "role": "속성 정의"
+    },
+    {
+      "name": ".dockerignore",
+      "kind": "file",
+      "git": "tracked",
+      "owner": "빌드 평면",
+      "role": "빌드 컨텍스트 경계"
+    },
+    {
+      "name": "Dockerfile.template",
+      "kind": "file",
+      "git": "tracked",
+      "owner": "upstream-version-watch",
+      "role": "prebuilt wheel 트랙 렌더 원천"
+    },
+    {
+      "name": "Dockerfile.source-build.template",
+      "kind": "file",
+      "git": "either",
+      "owner": "upstream-version-watch",
+      "role": "source-build 트랙 렌더 원천",
+      "branch_note": "토폴로지 분기: single-node 는 *.template 를 렌더 원천으로 추적하고, multi-node 는 손작성 `output/multi/` 구현이 유일 원천이라 루트 템플릿이 **존재하지 않는다**(.gitignore §렌더 산출물 주석). 2026-09-06 tripwire ⑦ 이 이 비대칭을 잡아 `tracked` → `either` 로 정정했다 — 등록부가 사실과 다르면 가드가 정상 상태를 RED 로 만든다."
+    },
+    {
+      "name": "docker-compose.template.yaml",
+      "kind": "file",
+      "git": "either",
+      "owner": "upstream-version-watch",
+      "role": "serve 평면 렌더 원천",
+      "branch_note": "토폴로지 분기: single-node 는 *.template 를 렌더 원천으로 추적하고, multi-node 는 손작성 `output/multi/` 구현이 유일 원천이라 루트 템플릿이 **존재하지 않는다**(.gitignore §렌더 산출물 주석). 2026-09-06 tripwire ⑦ 이 이 비대칭을 잡아 `tracked` → `either` 로 정정했다 — 등록부가 사실과 다르면 가드가 정상 상태를 RED 로 만든다."
+    },
+    {
+      "name": "manifest.template.yaml",
+      "kind": "file",
+      "git": "tracked",
+      "owner": "terraforming_node",
+      "role": "manifest 스켈레톤(실값은 manifest.yaml)"
+    },
+    {
+      "name": ".claude",
+      "kind": "dir",
+      "git": "tracked",
+      "owner": "헌법·스킬",
+      "role": "추적 빌딩블럭(rules·skills·schemas·policies·hooks)"
+    },
+    {
+      "name": "assets",
+      "kind": "dir",
+      "git": "tracked",
+      "owner": "문서",
+      "role": "산문 삽화(svg)"
+    },
+    {
+      "name": "configs",
+      "kind": "dir",
+      "git": "tracked",
+      "owner": "vllm-recipe-explorer",
+      "role": "범용 툴·generic 러너만 추적(모델별 산출물은 비추적)"
+    },
+    {
+      "name": "docs",
+      "kind": "dir",
+      "git": "tracked",
+      "owner": "wiki-desk",
+      "role": "문서 8종 평면(스켈레톤+example.md·report·인증서만 추적)"
+    },
+    {
+      "name": "envs",
+      "kind": "dir",
+      "git": "tracked",
+      "owner": "upstream-version-watch",
+      "role": "환경변수 통로(.env.example 만 추적)"
+    },
+    {
+      "name": "hints",
+      "kind": "dir",
+      "git": "tracked",
+      "owner": "hint-publisher",
+      "role": "hint 배포 레이어(index.json·families.json·계약)"
+    },
+    {
+      "name": "output",
+      "kind": "dir",
+      "git": "tracked",
+      "owner": "upstream-version-watch",
+      "role": "토폴로지별 산출물 통로(single|multi)"
+    },
+    {
+      "name": "campaigns",
+      "kind": "dir",
+      "git": "tracked",
+      "owner": "terraforming_node",
+      "role": "캠페인 아티팩트 체인 워크스페이스 — 뼈대(_template·README)만 추적, 인스턴스 campaigns/<id>/ 는 휘발"
+    },
+    {
+      "name": "seed",
+      "kind": "dir",
+      "git": "ignored",
+      "owner": "사용자",
+      "role": "사용자 보관소(배포본에 부재 가능 · 근거 pointer 만 허용)"
+    },
+    {
+      "name": "sync_staging",
+      "kind": "dir",
+      "git": "ignored",
+      "owner": "upstream-version-watch",
+      "role": "서브 docs 상향 회수 미러(fetch_sub_docs.sh 산출 · 캠페인과 수명이 다른 상시 자원)"
+    },
+    {
+      "name": "__llm-wiki",
+      "kind": "dir",
+      "git": "ignored",
+      "owner": "wiki-desk",
+      "role": "라이브 도서관 인덱스(비추적 docs 파생물)"
+    },
+    {
+      "name": "tiktoken_cache",
+      "kind": "dir",
+      "git": "ignored",
+      "owner": "vllm-recipe-explorer",
+      "role": "에어갭 토크나이저 자산"
+    },
+    {
+      "name": ".ouroboros",
+      "kind": "dir",
+      "git": "ignored",
+      "owner": "외부 도구",
+      "role": "우로보로스 세션 상태"
+    },
+    {
+      "name": ".serena",
+      "kind": "dir",
+      "git": "ignored",
+      "owner": "외부 도구",
+      "role": "serena 인덱스"
+    },
+    {
+      "name": ".hermes-claude-control",
+      "kind": "dir",
+      "git": "ignored",
+      "owner": "메인테이너 로컬",
+      "role": "제어면 오버레이(배포·전파 0건)"
+    },
+    {
+      "name": "manifest.yaml",
+      "kind": "file",
+      "git": "ignored",
+      "owner": "terraforming_node",
+      "role": "HW 사실·TP·모델 획득 모드의 단일 권위(실값)"
+    },
+    {
+      "name": "resolved.json",
+      "kind": "file",
+      "git": "ignored",
+      "owner": "upstream-version-watch",
+      "role": "S1 해소 스냅샷(bump 마다 재생성)"
+    },
+    {
+      "name": "requirements.txt",
+      "kind": "file",
+      "git": "either",
+      "owner": "upstream-version-watch",
+      "role": "렌더 산출(single 비추적 · multi 는 output/multi/ 정본)"
+    },
+    {
+      "name": ".env",
+      "kind": "file",
+      "git": "ignored",
+      "owner": "운영자",
+      "role": "루트 환경 실값"
+    },
+    {
+      "name": ".git",
+      "kind": "dir",
+      "git": "ignored",
+      "owner": "git",
+      "role": "저장소 내부"
+    }
+  ],
+  "tombstones": [
+    {
+      "name": "tasks",
+      "kind": "dir",
+      "retired_utc": "2026-09-06",
+      "successor": "campaigns/<camp-id>/relay/",
+      "why": "A2A 릴레이 원장이 루트에 살면 어느 캠페인의 왕복인지 이름으로만 구분됐고, 캠페인이 끝나도 원장이 남아 다음 캠페인의 입력과 섞였다. 활성 캠페인이 없을 때의 원장은 예약 ID `_bootstrap` 아래로 간다."
+    },
+    {
+      "name": "config.yaml",
+      "kind": "file",
+      "retired_utc": "2026-09-06",
+      "successor": "campaigns/<camp-id>/cells/<cell-id>/config.yaml",
+      "why": "recipe 탐색 입력이 루트 단일 파일이라 셀마다 변형이 생기자(`config.campaign-*.yaml`) 접두어-exact gitignore 를 빠져나가 21개가 추적 누출됐다. 셀 입력은 셀 디렉터리에 산다."
+    },
+    {
+      "name": "lockset.json",
+      "kind": "file",
+      "retired_utc": "2026-09-06",
+      "successor": "campaigns/<camp-id>/cells/<cell-id>/lockset.json",
+      "why": "config.yaml 과 같은 뿌리·같은 처방."
+    },
+    {
+      "name": "config.campaign-*.yaml",
+      "kind": "glob",
+      "retired_utc": "2026-09-06",
+      "successor": "campaigns/<camp-id>/cells/<cell-id>/config.yaml",
+      "why": "동상."
+    },
+    {
+      "name": "config.camp1-*.yaml",
+      "kind": "glob",
+      "retired_utc": "2026-09-06",
+      "successor": "campaigns/<camp-id>/cells/<cell-id>/config.yaml",
+      "why": "동상."
+    },
+    {
+      "name": "lockset.camp1-*.json",
+      "kind": "glob",
+      "retired_utc": "2026-09-06",
+      "successor": "campaigns/<camp-id>/cells/<cell-id>/lockset.json",
+      "why": "동상."
+    }
+  ]
+}

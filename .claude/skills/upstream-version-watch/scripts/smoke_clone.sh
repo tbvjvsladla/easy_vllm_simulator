@@ -262,12 +262,15 @@ a7() {
 a8() {
     local tmp rc1 rc2
     tmp="$(mktemp -d)" || { fail "A8 info-only Flag 게이트: 임시 디렉터리 생성 실패"; return; }
-    # 추적 트리만 복사(git 조작 없음 — stage-free 유지). manifest.yaml·config.yaml 은
+    # 추적 트리만 복사(git 조작 없음 — stage-free 유지). manifest.yaml 과 셀 config 는
     # gitignore 대상이라 자연 부재 → fresh-clone 상태와 동일.
+    # 2026-09-06: `recipe.py --config` 의 루트 기본값을 제거했으므로 경로를 명시한다. 그 경로는
+    # 이 트리에 존재하지 않지만, **Flag 게이트가 config 로드보다 먼저** 걸리는 것이 이 검사의
+    # 단언이다 — rc 가 4 가 아니면 게이트 순서가 뒤바뀐 것이고 그것이 곧 결함이다.
     if ! git ls-files -z | tar --null -cf - --files-from - 2>/dev/null | tar -xf - -C "$tmp" 2>/dev/null; then
         rm -rf "$tmp"; fail "A8 info-only Flag 게이트: fresh-clone 트리 구성 실패"; return
     fi
-    ( cd "$tmp" && timeout 60 python3 .claude/skills/vllm-recipe-explorer/recipe.py estimate --auto >/dev/null 2>&1 ); rc1=$?
+    ( cd "$tmp" && timeout 60 python3 .claude/skills/vllm-recipe-explorer/recipe.py estimate --auto --config campaigns/_bootstrap/cells/freshclone-probe/config.yaml >/dev/null 2>&1 ); rc1=$?
     ( cd "$tmp" && timeout 60 bash .claude/skills/adversarial-benchmark/scripts/run_bench.sh freshclone-probe >/dev/null 2>&1 ); rc2=$?
     rm -rf "$tmp"
     if [ "$rc1" -eq 4 ] && [ "$rc2" -eq 4 ]; then

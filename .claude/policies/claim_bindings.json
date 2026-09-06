@@ -1114,6 +1114,80 @@
           "predicate_HOST_SAFETY_LAYERED_DEFENSE_C10"
         ]
       }
+    ],
+    "ROOT_SURFACE_REGISTRY.C1": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_ROOT_SURFACE_REGISTRY_C1"
+        ]
+      },
+      {
+        "path": ".claude/policies/root_registry.json",
+        "assertion_ids": [
+          "entries",
+          "tombstones"
+        ]
+      },
+      {
+        "path": ".claude/policies/runtime/runtime_selftest.py",
+        "assertion_ids": [
+          "_test_root_registry_predicate",
+          "_test_root_surface_registry"
+        ]
+      }
+    ],
+    "ROOT_SURFACE_REGISTRY.C2": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_ROOT_SURFACE_REGISTRY_C2"
+        ]
+      },
+      {
+        "path": ".claude/rules/docs.md",
+        "assertion_ids": [
+          "캠페인 워크스페이스 — `campaigns/` (9번째, 두 번째 비-문서)"
+        ]
+      },
+      {
+        "path": ".claude/rules/workflow.md",
+        "assertion_ids": [
+          "purge 게이트 — 지우기 전에 증거가 docs 평면에 도착했는가",
+          "배치와 수명"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+        "assertion_ids": [
+          "PURGE_KEEPS",
+          "do_purge",
+          "purge_gate_reasons"
+        ]
+      }
+    ],
+    "ROOT_SURFACE_REGISTRY.C3": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_ROOT_SURFACE_REGISTRY_C3"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+        "assertion_ids": [
+          "active_campaign_id",
+          "derive_path"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+        "assertion_ids": [
+          "find_fill_placeholders",
+          "validate_campaign",
+          "validate_instance"
+        ]
+      }
     ]
   }
 }

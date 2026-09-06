@@ -206,12 +206,47 @@ def verify_tree(tree: str, rels: list[str], repo: Path) -> tuple[list[str], list
 ANCHOR_RE = re.compile(r"\b[0-9a-f]{40}\b")
 
 
+def anchor_branches(anchor: str, repo) -> list:
+    """앵커 커밋을 **담고 있는** 운영 브랜치들. 이름순."""
+    proc = subprocess.run(["git", "branch", "--contains", anchor, "--format=%(refname:short)"],
+                          cwd=str(repo) if repo else None, capture_output=True)
+    # 실패(앵커가 없는 트리 등)는 **빈 목록**이지 예외가 아니다 — 판정은 아래에서 "unresolved" 로
+    # 정직하게 내려간다(호출부가 fail-closed 처리하는 순수 파서의 None 과 같은 관용구).
+    names = [ln.strip() for ln in proc.stdout.decode("utf-8", "replace").splitlines() if ln.strip()]
+    return sorted(n for n in names if n in ("single-node", "multi-node", "hint"))
+
+
+def resolve_source_branch(anchor: str, working_branch: str, repo) -> tuple:
+    """`source_branch` 판정 → (값, 주석).
+
+    ★ 2026-09-06 교정(plan_26090616): 종전에는 `rev-parse --abbrev-ref HEAD`, 즉 **조립 시점의
+    체크아웃**을 그대로 적었다. 그런데 앵커는 다른 브랜치의 커밋일 수 있다 — 실제로 멀티 태그의
+    PROVENANCE 에 `source_branch: single-node` 가 박혔고 앵커는 multi-node 커밋이었다.
+    수신자는 그 줄을 읽고 **엉뚱한 브랜치를 체크아웃**한다.
+
+    판정은 "앵커를 담은 브랜치" 이며, 모호하면 모호하다고 적는다(단정 ✗).
+    """
+    contains = anchor_branches(anchor, repo)
+    if len(contains) == 1:
+        return contains[0], "derived(git branch --contains anchor)"
+    if working_branch in contains:
+        return working_branch, ("derived(anchor is on multiple branches %s; "
+                                "assembly checkout chosen)" % "|".join(contains))
+    if contains:
+        return "|".join(contains), "ambiguous(anchor on multiple branches; assembly checkout does not contain it)"
+    return working_branch, ("unresolved(no operating branch contains the anchor — "
+                            "앵커가 어느 운영 브랜치에도 없다. 조립 체크아웃을 적되 단정하지 않는다)")
+
+
 def make_provenance(anchor: str, tag: str, source_branch: str, extra: dict | None = None) -> str:
     doc = {
         "schema_version": 1,
         "kind": "hint_payload_provenance",
         "tag": tag,
         "anchor": anchor,
+        # 앵커를 담은 브랜치다 — 조립 시점의 체크아웃이 아니다(2026-09-06 교정).
+        # 조립 체크아웃은 `assembly_branch` 로 따로 적는다: 둘이 다른 것은 정상이고,
+        # 다르다는 **사실 자체**가 수신자에게 필요한 정보다.
         "source_branch": source_branch,
     }
     if extra:
@@ -251,7 +286,7 @@ def cmd_publish(a) -> int:
     rels = _read_manifest(Path(a.manifest))
 
     anchor = git("rev-parse", a.anchor + "^{commit}", cwd=repo).strip()
-    source_branch = git("rev-parse", "--abbrev-ref", "HEAD", cwd=repo).strip()
+    working_branch = git("rev-parse", "--abbrev-ref", "HEAD", cwd=repo).strip()
 
     # 앵커가 HEAD 와 다르면 **깨끗한 트리**여도 페이로드는 앵커의 트리가 아니다.
     # 정당한 경우가 있다 — 서빙은 옛 커밋 상태에서 했고 페이로드는 나중에 조립한다.
@@ -271,10 +306,16 @@ def cmd_publish(a) -> int:
                 "  그 앵커를 체크아웃해도 재현되지 않는다.\n" + dirty)
 
     # ⓒ PROVENANCE 를 페이로드 안에 만들고, 그 자체를 목록에 넣는다(트리에 들어가야 배포된다)
+    source_branch, source_branch_note = resolve_source_branch(anchor, working_branch, repo)
+    if source_branch != working_branch:
+        print(f"[hint_branch] 주의: source_branch={source_branch} ≠ 조립 체크아웃={working_branch} "
+              f"({source_branch_note}) — 앵커를 담은 브랜치를 적는다.", file=sys.stderr)
     prov_text = make_provenance(anchor, a.tag, source_branch,
                                 {"payload_files": len(rels), "generated_kst": a.generated_kst,
                                  "assembled_at_head": head,
-                                 "anchor_is_head": anchor_is_head})
+                                 "anchor_is_head": anchor_is_head,
+                                 "assembly_branch": working_branch,
+                                 "source_branch_source": source_branch_note})
     prov_path = payload / PROVENANCE_NAME
     if a.dry_run:
         rels_full = rels
@@ -316,7 +357,7 @@ def cmd_publish(a) -> int:
         die(f"트리 전수 대조 실패 — 초과 {extra} · 부족 {missing}")
 
     print(f"[hint_branch] tree      {tree}  ({len(rels_full)} 파일)")
-    print(f"[hint_branch] anchor    {anchor}  (branch={source_branch})")
+    print(f"[hint_branch] anchor    {anchor}  (source_branch={source_branch} · 조립={working_branch})")
     if a.dry_run:
         print("[hint_branch] DRY-RUN — 커밋/ref 갱신을 하지 않았다.")
         return 0

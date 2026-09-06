@@ -17,7 +17,8 @@ gitignored 스테이징 트리 `output/<topology>/sub_provision/` 로 렌더한�
   .claude/skills/wiki-desk/reference/references.md ← recipe의 on-demand 정적 reference dependency
   .gitignore                             ← gitignore.template         (복제·서브 로컬git 추적규칙, D12)
   docs/{plan,devlog,testlog,simlog,benchmark}/example.md ← terraforming owner templates (복제·발행 스켈레톤, D12)
-  tasks/.gitkeep                         ← 런타임 상태 스캐폴드(빈 디렉토리)
+  campaigns/_bootstrap/relay/.gitkeep    ← 릴레이 원장 스캐폴드(옛 tasks/ · 2026-09-06 이관)
+  campaigns/_template/**                 ← 캠페인 뼈대(메인 정본의 복제 — 서브도 같은 모양을 채운다)
 
 D12: --topology {single|multi} 로 양 토폴로지 렌더(서브 로컬 git 양 브랜치). {{ TOPOLOGY }} 치환으로 페르소나가 브랜치 맥락 인지.
 
@@ -497,10 +498,27 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     #   대체물은 이미 이 렌더가 만든다 — 서명된 `Agent_Card.json` + `.claude/a2a/trusted_keys.json`
     #   (정체성 증명) + 메인이 발급한 서브 manifest(완수 Flag). 게이트들은 허가가 아니라 그것을 본다.
 
-    # 4) tasks/ 스캐폴드(빈 디렉토리 — git keep)
-    with open(os.path.join(out_dir, "tasks", ".gitkeep"), "w") as f:
-        f.write("")
-    produced.append("tasks/.gitkeep")
+    # 4) 캠페인 워크스페이스 스캐폴드 (2026-09-06 이관 · plan_26090616 ②)
+    #    옛 `tasks/.gitkeep` 을 대신한다. 서브도 메인과 **같은 뼈대**를 받아 자기
+    #    `campaigns/<camp-id>/` 를 자율 저작한다 — 메인은 서브의 인스턴스를 읽지도 고치지도
+    #    않으며(무단 스캔 금지), 결과는 publish phase 가 만든 문서로 돌아온다.
+    #    활성 캠페인이 없을 때의 릴레이 원장은 예약 id `_bootstrap` 아래로 간다.
+    for rel in ("campaigns/_bootstrap/relay/.gitkeep",):
+        _p = os.path.join(out_dir, *rel.split("/"))
+        os.makedirs(os.path.dirname(_p), exist_ok=True)
+        with open(_p, "w") as f:
+            f.write("")
+        produced.append(rel)
+    _tpl_src = os.path.join(REPO, "campaigns", "_template")
+    if os.path.isdir(_tpl_src):
+        for _root, _dirs, _files in os.walk(_tpl_src):
+            for _f in _files:
+                _abs = os.path.join(_root, _f)
+                _rel = os.path.relpath(_abs, REPO)          # campaigns/_template/...
+                _dst = os.path.join(out_dir, _rel)
+                os.makedirs(os.path.dirname(_dst), exist_ok=True)
+                shutil.copy2(_abs, _dst)
+                produced.append(_rel.replace(os.sep, "/"))
 
     # 4.5) 호스트 안전체계(plan_26071019 §2.2).
     #   canonical source는 terraforming skill이 소유하고, 서브에는 헌법 runtime asset으로
@@ -765,7 +783,7 @@ def _self_test() -> int:
         res = render_tree(ph, out, copy_runtime_block=False)  # 런타임블럭 복제는 git 의존 → self-test 제외
         base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json",
-                       ".claude/schemas/library-exchange.schema.json", "tasks/.gitkeep",
+                       ".claude/schemas/library-exchange.schema.json", "campaigns/_bootstrap/relay/.gitkeep",
                        ".claude/rules/docs.md", ".gitignore",   # ← references.md 는 tool_plane 종속(아래 c4b)
                        # 호스트 안전체계: canonical terraforming source → constitution runtime delivery
                        ".claude/runtime/host_safety/mem_watchdog.sh",

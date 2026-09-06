@@ -778,8 +778,9 @@ def verify() -> dict:
         # It is therefore a tripwire, not a magic number: a policy whose added_at/last_reviewed_at
         # is newer than this date fails closed here until the date is deliberately moved forward.
         # Moved 2026-07-27 -> 2026-09-03 when GIT_SINGLE_AUTHORITY was registered (plan_26090222).
+        # Moved 2026-09-03 -> 2026-09-06 when ROOT_SURFACE_REGISTRY was registered (plan_26090616).
         checks.append(_run("policy_registry_verify", [sys.executable, str(policy_runner),
-                           "verify", "--as-of", "2026-09-03", "--repo-root", str(REPO)], {0}))
+                           "verify", "--as-of", "2026-09-06", "--repo-root", str(REPO)], {0}))
     else:
         checks.append({"name": "policy_registry_verify", "ok": False,
                        "error": "missing .claude/policies/runtime/policy_registry.py"})

@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "campaign_id": "<<FILL>>",
+  "_note": "docs 평면에서 태어난 증거의 포인터 목록. 인스턴스를 purge 해도 증거가 살아남는지를 이 목록으로 검사한다(workflow.md §purge 게이트). 사본이 아니라 포인터다 — 복사하면 두 자리가 갈라진다.",
+  "pointers": [
+    {"kind": "<<FILL>>", "_kind_enum": ["certificate", "bench_report", "sweep_map", "testlog", "devlog", "simlog", "relay_summary"], "path": "<<FILL>>", "cell_id": null, "node_id": null}
+  ]
+}

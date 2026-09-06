@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import re
 import shutil
@@ -296,6 +297,50 @@ def discover_slots(repo: Path, topo: str, cfg: str) -> dict:
     return slots
 
 
+# ── env 값 형상화 규칙 (2026-09-06 · plan_26090616 Q9 · 사용자 결정 "절대경로보다 신원류 형식") ──
+#
+# 종전 규칙은 **값이 `/` 로 시작하면 가린다** 하나뿐이었다. 그래서 운영자 호스트 IP·계정처럼
+# 경로가 아닌 지문은 그대로 실렸고, 반대로 `MAX_JOBS=8` 같은 재현 필수 튜닝값은 남아야 하는데
+# 남는 근거가 "우연히 `/` 로 시작하지 않아서" 였다. 판정 축을 **값의 모양이 아니라 키의 신원성**
+# 으로 바꾼다 — 그래야 새 변수가 생겨도 이름만 보고 옳게 갈린다.
+IDENTITY_KEY_AXIS = ("_HOST_IP", "_HOSTNAME", "_HOST", "_USER", "_IP", "_ADDR", "_ADDRESS",
+                     "_SSH", "_KEY", "_TOKEN", "_SECRET", "_PASSWORD", "_ACCOUNT", "_MAIL")
+# 튜닝류 — 값 자체가 **재현에 필요한 사실**이지 환경 지문이 아니다. 이 목록은 닫힌 tripwire 다:
+# 새 튜닝 변수가 생기면 여기 등재하며 그때 사람이 "정말 지문이 아닌가" 를 한 번 본다.
+TUNING_KEYS = frozenset({
+    "RAY_PORT", "MAX_JOBS", "PYTORCH_CUDA_ALLOC_CONF", "RAY_OBJECT_STORE_MEMORY",
+    "VLLM_VERSION", "IMAGE_TAG", "TENSOR_PARALLEL_SIZE", "GPU_MEMORY_UTILIZATION",
+    "MAX_MODEL_LEN", "MAX_NUM_SEQS", "KV_CACHE_DTYPE", "MOE_BACKEND", "ATTENTION_BACKEND",
+})
+
+
+def shape_env_value(key: str, val: str) -> str:
+    """`.env` 한 줄의 값 → 배포 가능한 형상. **키는 부르는 쪽이 항상 남긴다.**"""
+    upper = key.upper()
+    if upper in TUNING_KEYS:
+        return val
+    if val.startswith("/"):
+        return f"<manifest.{key.lower()}>"
+    if any(upper.endswith(suffix) or f"{suffix}_" in f"_{upper}_" for suffix in IDENTITY_KEY_AXIS):
+        return f"<manifest.nodes[].{key.lower()}>"
+    return val
+
+
+def _generic_pii_hits(text: str) -> list:
+    """배포 강도 4종 정규식 매치. 패턴의 단일 소유자는 `hint_tag.GENERIC_PII` 다 — 복제하지 않는다."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import hint_tag as _ht
+    except Exception as exc:                                  # pragma: no cover - 배선 실패는 소리내어
+        die(f"백스톱 패턴을 적재하지 못했다(hint_tag): {exc} — 스캔 없이 통과시키지 않는다")
+    hits = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        for name, pat in _ht.GENERIC_PII:
+            for m in pat.finditer(line):
+                hits.append(f"{lineno}:{name}:{m.group(0)}")
+    return hits
+
+
 def env_shape_template(text: str) -> str:
     """토폴로지 `.env` 의 **형상만** 옮긴다 — 값은 플레이스홀더로 바꾼다.
 
@@ -306,7 +351,9 @@ def env_shape_template(text: str) -> str:
     """
     out = ["# 이 파일은 **형상 템플릿**이다 — 값은 발행자 환경의 것이 아니라 플레이스홀더다.",
            "# 각 값의 정본은 manifest 의 동명 필드다. 자기 환경 값으로 채워 쓰라.",
-           "# (원본은 배포되지 않는다 — 운영자 절대경로를 담기 때문이다.)", ""]
+           "# (원본은 배포되지 않는다 — 운영자 절대경로·호스트·계정을 담기 때문이다.)",
+           "# 키는 **항상 남는다** — 어떤 변수가 필요한지가 재현의 핵심이고, 키를 지우면 수신자는",
+           "# 그 변수의 존재 자체를 모른다(멀티 클러스터 5변수가 그렇게 페이로드에서 빠졌다).", ""]
     for raw in text.splitlines():
         line = raw.rstrip()
         if not line or line.lstrip().startswith("#"):
@@ -314,11 +361,19 @@ def env_shape_template(text: str) -> str:
         if "=" not in line:
             continue
         key, val = line.split("=", 1)
-        key = key.strip()
-        # 절대경로 값만 가린다. 그 외(태그·불리언 등)는 재현에 쓰이는 사실이므로 남긴다.
-        out.append(f"{key}=<manifest.{key.lower()}>" if val.strip().startswith("/")
-                   else f"{key}={val.strip()}")
-    return "\n".join(out) + "\n"
+        key, val = key.strip(), val.strip()
+        out.append(f"{key}={shape_env_value(key, val)}")
+    shaped = "\n".join(out) + "\n"
+    # ── 2차 백스톱(2026-09-06 · plan_26090616 Q9) ──
+    # 위 형상화는 **키 축** 판정이라 새 이름의 지문 변수를 놓칠 수 있다. 그래서 형상화 뒤 결과를
+    # 배포 강도 4종 정규식으로 한 번 더 훑고, 남아 있으면 **가리지 않고 차단**한다 — 조용히 덧칠하면
+    # 형상화가 무엇을 놓쳤는지 영영 드러나지 않는다(침묵 폴백 금지).
+    residue = _generic_pii_hits(shaped)
+    if residue:
+        die("★ env 형상화 뒤에도 배포 금지 패턴이 남았다 — 조용히 덧칠하지 않는다(fail-closed):\n  "
+            + "\n  ".join(residue[:10])
+            + "\n  → 해당 키를 `IDENTITY_KEY_AXIS` 에 편입하거나, 값의 성격을 확인해 형상화 규칙을 고쳐라.")
+    return shaped
 
 
 # ---------------------------------------------------------------- 신호② 적용 증거
@@ -486,7 +541,63 @@ def render_item2(devlog_path: str | None, testlog_path: str | None) -> str:
         "그 이유를 쓴다. 성공 경로만 적으면 독자는 실패 경로를 다시 걷는다. >>", ""])
 
 
-def render_item3(cert: dict, cert_name: str) -> str:
+# ── 결손 사유코드 (2026-09-06 · plan_26090616 Q7/Q8 · 사용자 결정 "강행 발행") ──
+#
+# 정책이 바뀌었다: hint 태그는 **토큰노믹스 정책**이며 필수는 "여정 정보" 하나뿐이다. 그 밖의
+# 부재는 **차단 사유가 아니라 기재 대상**이다 — 부재로 발행을 막으면 발행돼야 할 hint 가 안 나가고
+# (2026-09-05 실측: 기대 3종 중 2종), 그러면 수신자는 "이 조합은 시도된 적 없다" 로 오독한다.
+# 차단은 **양성 검출**(서빙 성공 허위 · 3신호 모순 · PII 매치)일 때만이다.
+MISSING_CODES = {
+    "HINT_MISSING_CERTIFICATE": "인증서 부재 — full PASS 가 아니었거나 벤치마커가 발행하지 않았다. "
+                                "인증서 발행은 adversarial-benchmark 의 책임이지 발행기의 책임이 아니다.",
+    "HINT_MISSING_BENCH_REPORT": "벤치 리포트 부재 — 동시성별 곡선을 실을 수 없다.",
+    "HINT_MISSING_SWEEP_LEVELS": "부하 레벨이 1개뿐 — 부하 거동을 알 수 없다.",
+    "HINT_MISSING_LITE": "lite 관측 부재.",
+    "HINT_MISSING_SLAVE_ATTESTATION": "슬레이브 ABI attestation 부재 — 멀티에서 두 노드가 같은 것을 "
+                                      "돌렸다는 증거가 성공 경로에 보존되지 않았다.",
+    "HINT_MISSING_ENV_SHAPE": "토폴로지 env 형상 부재 — 수신자가 어떤 변수가 필요한지 모른다.",
+    "HINT_MISSING_SUB_TRIPLET": "서브 트리플렛 부재(서브는 자기 것을 자율 저작하며 메인으로 전파하지 않는다).",
+    "HINT_MISSING_PII_TERMS": "pii_terms.txt 부재 — 리터럴 스캔이 축소된 상태로 돌았다.",
+    "HINT_MISSING_MEASURED_NODE": "인증서에 측정 노드 출처가 없다 — 어느 노드가 쟀는지 단정할 수 없다.",
+}
+
+
+def _bench_section_module():
+    """`render_bench_section.py` 를 in-process 로 적재한다. 표 렌더의 **단일 소유자**이며
+    여기서 파싱을 복제하지 않는다 — 복제하면 발행기와 검증기가 갈라져 `--verify` 가 무의미해진다."""
+    path = Path(__file__).resolve().parent / "render_bench_section.py"
+    spec = importlib.util.spec_from_file_location("_hint_bench_section", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def render_missing_block(missing: list) -> str:
+    """결손을 **본문에 적는다**. 비어 있으면 그것도 적는다 — 침묵은 '없음' 과 구분되지 않는다."""
+    if not missing:
+        return "_결손 없음 — 이 절이 요구하는 증거가 모두 도착했다._"
+    lines = ["> ⚠ 아래 정보가 **부재한 채로 발행**됐다. 부재는 실패가 아니라 **기록**이며, 이 태그를",
+             "> 소비할 때 그만큼을 모른 채 소비한다는 뜻이다(강행 발행 정책 · plan_26090616 Q7/Q8).", "",
+             "| 사유코드 | 뜻 |", "|---|---|"]
+    for code in missing:
+        lines.append(f"| `{code}` | {MISSING_CODES.get(code, '미등록 사유코드 — 코드표를 갱신하라')} |")
+    return "\n".join(lines)
+
+
+def render_item3(cert: dict, cert_name: str, bench_section: str = "",
+                 missing: list | None = None) -> str:
+    missing = missing or []
+    if not cert:
+        return "\n".join([
+            "# 3. 벤치 결과 — 그리고 무엇과 비교할 수 있나", "",
+            "> **인증서가 없다.** 이 절은 인증서 없이 발행된다 — 그것이 정책이다(강행 발행).",
+            "> 인증서는 full 모드 verdict==PASS 일 때만 나오며, 그 발행은 `adversarial-benchmark` 의",
+            "> 책임이다. 부재는 '성능이 나빴다' 가 아니라 '**그 형태로 판정되지 않았다**' 는 뜻이다.", "",
+            render_missing_block(missing), "",
+            bench_section or "_동시성별 곡선도 없다(벤치 리포트 부재)._", "",
+            "## like-with-like 한정자 (Agent)", "",
+            f"{AGENT_MARK} 인증서 없이 무엇을 말할 수 있고 무엇은 말할 수 없는지 쓴다. "
+            "수치가 없다면 여정(무엇을 시도했고 어디서 멈췄나)이 이 태그의 값이다. >>", ""])
     return "\n".join([
         "# 3. 벤치 결과 — 그리고 무엇과 비교할 수 있나", "",
         "> 아래 수치는 인증서에서 **파싱만** 한 것이다. 합성하지 않았고, 재계산하지 않았다.",
@@ -500,6 +611,8 @@ def render_item3(cert: dict, cert_name: str) -> str:
         "| 키 | 값 |", "|---|---|", _fmt_kv(cert, CERT_STRONG), "",
         "## 소프트 지문 — 다르면 stale, 재측정 권고", "",
         "| 키 | 값 |", "|---|---|", _fmt_kv(cert, CERT_SOFT), "",
+        bench_section, "",
+        "## 결손 기재", "", render_missing_block(missing), "",
         "## like-with-like 한정자 (Agent)", "",
         f"{AGENT_MARK} 이 수치를 **무엇과 비교할 수 있고 무엇과는 비교할 수 없는지** 쓴다. "
         "입력 길이·동시성·데이터셋이 다르면 같은 모델·같은 하드웨어라도 몇 배씩 갈린다. "
@@ -527,10 +640,56 @@ def cmd_collect(a) -> int:
         rel = node.get("path") if isinstance(node, dict) else None
         return (man_path.parent / rel).resolve() if rel else None
 
+    # ── 인증서 부재는 **차단이 아니라 기재**다 (2026-09-06 · plan_26090616 Q7/Q8) ──
+    #   종전에는 여기서 죽었다. 그런데 인증서 발행은 `adversarial-benchmark` 의 책임이고,
+    #   "캠페인을 종료했다" 와 "hint 를 발행해야 한다" 는 **독립 사건**이다(사용자 결정).
+    #   발행기가 남의 책임 부재로 자기 발행을 막으면, 발행돼야 할 hint 가 안 나가고 수신자는
+    #   "이 조합은 시도된 적 없다" 로 오독한다. 합성은 여전히 금지다 — 없는 수치를 지어내지 않고,
+    #   **없다는 사실을 사유코드로 적는다**.
+    missing: list = []
     cert_p = ev_path("certificate")
     if not cert_p or not cert_p.is_file():
-        die(f"인증서를 찾을 수 없다: {cert_p} — 벤치 항목을 합성하지 않는다(fail-closed)")
-    cert = parse_certificate(cert_p)
+        cert, cert_name = {}, "(부재)"
+        missing.append("HINT_MISSING_CERTIFICATE")
+        print(f"[hint_collect] ⚠ 인증서 부재({cert_p}) — 결손으로 기재하고 발행을 강행한다.",
+              file=sys.stderr)
+    else:
+        cert = parse_certificate(cert_p)
+        cert_name = cert_p.name
+        if not str(cert.get("measured_node") or "").strip():
+            missing.append("HINT_MISSING_MEASURED_NODE")
+
+    # 동시성별 곡선은 **인증서가 아니라 벤치 리포트**에서 온다(인증서는 판정점 하나만 싣는다).
+    bench_section = ""
+    report_p = ev_path("bench_report") or ev_path("report")
+    if report_p and report_p.is_file():
+        _rbs = _bench_section_module()
+        try:
+            parsed = _rbs.parse_report(report_p.read_text(encoding="utf-8"))
+            bench_section = _rbs.render(parsed, report_p.name)
+            if len(parsed["levels"]) <= 1:
+                missing.append("HINT_MISSING_SWEEP_LEVELS")
+        except _rbs.BenchSectionFailure as exc:
+            print(f"[hint_collect] ⚠ 벤치 리포트 파싱 실패({report_p.name}): {exc}", file=sys.stderr)
+            missing.append("HINT_MISSING_BENCH_REPORT")
+    else:
+        missing.append("HINT_MISSING_BENCH_REPORT")
+        print("[hint_collect] ⚠ 벤치 리포트 포인터가 없다 — 동시성별 곡선 없이 발행한다.",
+              file=sys.stderr)
+    if not (repo / ".claude" / "pii_terms.txt").is_file():
+        missing.append("HINT_MISSING_PII_TERMS")
+
+    # 멀티는 **두 노드가 같은 것을 돌렸다**는 증거가 있어야 태그가 클러스터를 대표한다.
+    # 그 대조는 multinode_serve_smoke 가 하고 2026-09-06 부터 성공 경로에서도 파일로 남긴다.
+    attestation_rel = None
+    if topo == "multi":
+        attest = repo / "output" / "multi" / "benchlog" / f"attestation_{a.config_name}.json"
+        if attest.is_file():
+            attestation_rel = str(attest.relative_to(repo))
+        else:
+            missing.append("HINT_MISSING_SLAVE_ATTESTATION")
+            print(f"[hint_collect] ⚠ 노드 정합 attestation 부재({attest.name}) — 결손으로 기재한다.",
+                  file=sys.stderr)
 
     slots = discover_slots(repo, topo, a.config_name)
     if not slots["triplet"]["present"]:
@@ -590,7 +749,9 @@ def cmd_collect(a) -> int:
     (out / "01-artifacts.md").write_text(render_item1(slots), encoding="utf-8")
     (out / "02-narrative.md").write_text(render_item2(ev_rel("devlog"), ev_rel("testlog")),
                                          encoding="utf-8")
-    (out / "03-benchmark.md").write_text(render_item3(cert, cert_p.name), encoding="utf-8")
+    (out / "03-benchmark.md").write_text(
+        render_item3(cert, cert_name, bench_section=bench_section, missing=missing),
+        encoding="utf-8")
 
     payload_doc = {
         "schema_version": 1,
@@ -602,14 +763,28 @@ def cmd_collect(a) -> int:
                     for k in ("health_ok", "functional_smoke_passed")},
         "benchmark": {k: cert.get(k) for k in CERT_PERF if k in cert},
         "bench_tool": {k: cert.get(k) for k in CERT_BENCH_TOOL if k in cert},
-        "benchmark_source": {"certificate": cert_p.name, "sha256": sha256_of(cert_p),
-                             "parsed_not_synthesized": True},
+        "benchmark_source": ({"certificate": cert_name, "sha256": sha256_of(cert_p),
+                              "parsed_not_synthesized": True}
+                             if cert else {"certificate": None, "parsed_not_synthesized": True,
+                                           "absent_reason": "HINT_MISSING_CERTIFICATE"}),
+        # 결손은 페이로드에도 남는다 — 본문만 적으면 기계가 읽을 수 없고, 기계가 못 읽으면
+        # 카탈로그·검증기가 "무엇을 모른 채 발행됐는가" 를 집계하지 못한다.
+        "missing": sorted(set(missing)),
+        # 멀티 노드 정합 attestation 포인터(사본 ✗). 부재는 위 missing 이 말한다.
+        "node_parity_attestation": attestation_rel,
+        "missing_policy": ("forced_publication: 부재는 기재하고 발행한다. 차단은 양성 검출"
+                           "(서빙 성공 허위 · 3신호 모순 · PII 매치)일 때만이다 — plan_26090616 Q7/Q8."),
         "slots": slots,
         "source_channel": {
             "topology": topo,
             "read_from": "working-tree(main)",
-            "sub_note": "서브 산출물은 이 통로로 오지 않는다 — 문서기반 회수(fetch_sub_docs.sh) 뒤 "
-                        "메인이 재저작한다(docs.md 상향 회수 규약).",
+            "sub_note": ("서브 산출물은 이 통로로 오지 않는다 — 문서기반 회수(fetch_sub_docs.sh) 뒤 "
+                         "메인이 재저작한다(docs.md 상향 회수 규약). 2026-09-06 이후 그 회수분은 "
+                         "`sync_staging/sub_docs/benchmark/` 에서 열리며, 어느 노드가 쟀는지는 "
+                         "인증서 `measured_node` 가 말한다 — 서브 리포트를 --report 로 지정하면 "
+                         "이 발행기가 서브의 동시성 곡선을 그대로 렌더한다(발행 주체는 메인 단독)."),
+            "sub_publish_phase": ("서브의 publish 위상이 만든 `hint_inputs` 사이드카(task-report "
+                                  "스키마)가 이 통로의 입력이다. 서브는 태그를 발행하지 않는다."),
         },
         "artifacts": copied,
     }
@@ -938,6 +1113,107 @@ def _run_self_test() -> int:
             f"a.md\nghost.md\n{PAYLOAD_JSON}\n{DECLARATION_NAME}\n", encoding="utf-8")
         ck("★음성대조 allowlist 실물부재 차단",
            cmd_check(argparse.Namespace(payload=str(pay))) == 1)
+
+    # ── cmd_collect 실경로 (2026-09-06 신설) ────────────────────────────────────────────
+    # ★ 왜 이제서야: 이 자체검사는 `discover_slots`·`cmd_check` 만 돌았고 **`cmd_collect` 는 한 번도
+    #   실행하지 않았다**. 그래서 그 함수 안의 배선 결함(할당 전 사용)이 55/55 초록 아래에서
+    #   그대로 살아 있었다 — 픽스처가 실물보다 좁으면 시험은 초록인데 실물이 죽는다.
+    def _mk_tree(root: Path, topo: str, cfg: str) -> Path:
+        (root / "output" / topo / "configs").mkdir(parents=True, exist_ok=True)
+        (root / "output" / topo / "envs").mkdir(parents=True, exist_ok=True)
+        (root / "output" / topo / "configs" / f"{cfg}.yaml").write_text("m: d\n", encoding="utf-8")
+        (root / "output" / topo / "configs" / f"{cfg}.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+        (root / "output" / topo / "envs" / f".env.{cfg}").write_text("IMAGE_TAG=x\n", encoding="utf-8")
+        (root / "output" / topo / "envs" / f".env.{topo}").write_text(
+            "MASTER_HOST_IP=192.168.0.11\nRAY_PORT=6379\nSSH_USER=someone\n", encoding="utf-8")  # pii-scan-fixture
+        return root
+
+    def _mk_manifest(evdir: Path, cert_rel, report_rel) -> Path:
+        ev = {}
+        if cert_rel:
+            ev["certificate"] = {"path": cert_rel}
+        if report_rel:
+            ev["bench_report"] = {"path": report_rel}
+        doc = {"identity": {"model": "demo", "gpu": "GB10", "vllm": "0.19.0",
+                            "quant": "mxfp4", "topology": "single", "tp": 1},
+               "runtime": {"health_ok": True, "functional_smoke_passed": True},
+               "evidence": ev}
+        mp = evdir / "work-manifest.json"
+        mp.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+        return mp
+
+    REPORT_ROWS = ("| 동시성 | decode t/s | 출력 tok/s | 총 tok/s | TTFT p50(ms) | ITL p50(ms) | 완료/실패 |\n"
+                   "|---|---|---|---|---|---|---|\n"
+                   "| 1 ★판정점 | 45.28 | 45.30 | 226.70 | 160.76 | 21.54 | 16/0 |\n"
+                   "| 2 | 42.84 | 86.04 | 430.51 | 39.54 | 23.20 | 16/0 |\n")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        t2 = Path(tmp)
+        cfg = "demo-gb10"
+        repo2 = _mk_tree(t2 / "repo", "single", cfg)
+        evdir = t2 / "ev"
+        evdir.mkdir()
+        (evdir / "cert.yaml").write_text(
+            "verdict: PASS\nmodel: demo\ndecode_tps_conc1: 45.28\nlite_included: true\n"
+            "measured_node: main\n", encoding="utf-8")
+        (evdir / "report.md").write_text("# 리포트\n\n" + REPORT_ROWS, encoding="utf-8")
+
+        # (1) 인증서 + 리포트 모두 있는 정상 경로
+        mp = _mk_manifest(evdir, "cert.yaml", "report.md")
+        out1 = t2 / "out1"
+        rc = cmd_collect(argparse.Namespace(repo=str(repo2), manifest=str(mp), topology="single",
+                                            config_name=cfg, out=str(out1), generated_kst="2026-09-06 17:00"))
+        ck("★cmd_collect 실경로가 돈다(rc=0)", rc == 0)
+        pay1 = json.loads((out1 / PAYLOAD_JSON).read_text(encoding="utf-8"))
+        # 픽스처 레포에는 `.claude/pii_terms.txt` 가 없다 — 그 부재도 **결손으로 적히는 것이 옳다**.
+        # 여기서 기대를 넓히지 않고 실제 사유를 지목한다(합격 기준을 실물에 맞춘다).
+        ck("결손이 사유코드로만 적힌다(정상 경로)",
+           pay1.get("missing") == ["HINT_MISSING_PII_TERMS"])
+        ck("★인증서·리포트가 있으면 그 둘은 결손이 아니다",
+           "HINT_MISSING_CERTIFICATE" not in pay1["missing"]
+           and "HINT_MISSING_BENCH_REPORT" not in pay1["missing"])
+        b3 = (out1 / "03-benchmark.md").read_text(encoding="utf-8")
+        ck("동시성별 표가 벤치 절에 실린다", "부하 스윕 곡선 — 동시성별" in b3 and "| 2 |" in b3)
+        ck("판정점 표시가 표에 남는다", "★판정점" in b3)
+
+        # (2) 인증서 부재 — **죽지 않고** 결손으로 기재한다(강행 발행)
+        mp2 = _mk_manifest(evdir, None, "report.md")
+        out2 = t2 / "out2"
+        rc2 = cmd_collect(argparse.Namespace(repo=str(repo2), manifest=str(mp2), topology="single",
+                                             config_name=cfg, out=str(out2), generated_kst="2026-09-06 17:00"))
+        ck("★인증서 부재로 죽지 않는다", rc2 == 0)
+        pay2 = json.loads((out2 / PAYLOAD_JSON).read_text(encoding="utf-8"))
+        ck("★인증서 부재가 missing 에 적힌다", "HINT_MISSING_CERTIFICATE" in pay2.get("missing", []))
+        ck("결손 정책 문장이 페이로드에 남는다", "forced_publication" in (pay2.get("missing_policy") or ""))
+        ck("인증서 부재 절도 렌더된다",
+           "인증서가 없다" in (out2 / "03-benchmark.md").read_text(encoding="utf-8"))
+
+        # (3) 리포트 부재 — 곡선 없이 발행하되 사유를 적는다
+        mp3 = _mk_manifest(evdir, "cert.yaml", None)
+        out3 = t2 / "out3"
+        rc3 = cmd_collect(argparse.Namespace(repo=str(repo2), manifest=str(mp3), topology="single",
+                                             config_name=cfg, out=str(out3), generated_kst="2026-09-06 17:00"))
+        ck("★리포트 부재로도 죽지 않는다", rc3 == 0)
+        ck("★리포트 부재가 missing 에 적힌다",
+           "HINT_MISSING_BENCH_REPORT" in json.loads((out3 / PAYLOAD_JSON).read_text(encoding="utf-8")).get("missing", []))
+
+        # (4) 멀티 — 노드 정합 attestation 부재가 기재된다(이 분기가 NameError 로 죽던 자리)
+        repo4 = _mk_tree(t2 / "repo4", "multi", cfg)
+        mp4 = _mk_manifest(evdir, "cert.yaml", "report.md")
+        out4 = t2 / "out4"
+        rc4 = cmd_collect(argparse.Namespace(repo=str(repo4), manifest=str(mp4), topology="multi",
+                                             config_name=cfg, out=str(out4), generated_kst="2026-09-06 17:00"))
+        ck("★멀티 실경로가 돈다(attestation 분기 도달)", rc4 == 0)
+        pay4 = json.loads((out4 / PAYLOAD_JSON).read_text(encoding="utf-8"))
+        ck("★attestation 부재가 missing 에 적힌다",
+           "HINT_MISSING_SLAVE_ATTESTATION" in pay4.get("missing", []))
+        ck("attestation 포인터 칸이 있다", "node_parity_attestation" in pay4)
+        # env 형상화는 compose 슬롯이 있을 때만 산출된다. 슬롯 유무와 무관하게 **커널은** 직접 시험한다 —
+        # 조건부로 건너뛰면 그 조건이 거짓인 날 이 시험이 조용히 사라진다(역-오라클).
+        tpl = env_shape_template("MASTER_HOST_IP=192.168.0.11\nRAY_PORT=6379\nSSH_USER=someone\n")  # pii-scan-fixture
+        ck("★env 형상: 신원 키는 가려지고 튜닝 키는 남는다",
+           "MASTER_HOST_IP=<manifest" in tpl and "RAY_PORT=6379" in tpl
+           and "SSH_USER=<manifest" in tpl and "192.168." not in tpl)  # pii-scan-fixture
 
     failed = [n for n, ok in checks if not ok]
     for n, ok in checks:

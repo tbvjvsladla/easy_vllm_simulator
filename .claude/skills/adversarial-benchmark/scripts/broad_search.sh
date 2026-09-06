@@ -31,6 +31,11 @@
 #   빠진 무보호 기동이 오퍼레이션 안에 굳는다. 없는 경로는 **우회하지 않고 만든다**(D3).
 #   그때까지 `cell` 은 serve 미가동을 exit 3 으로 알리고 멈춘다.
 #
+# --state 의 자리(2026-09-06 · plan_26090616 ②): 호출자가 임의로 고르지 않는다 — 활성 캠페인에서
+#   파생한다.  STATE="$(python3 .claude/skills/terraforming_node/scripts/campaign_init.py \
+#                        --derive sweep --sweep <sweep-id>)"
+#   왜: 스윕 상태 파일이 캠페인 밖에 살면 캠페인이 끝나도 남아 다음 캠페인의 정지판정과 섞인다.
+#   (기본값을 두지 않는 것은 유지한다 — 부재를 조용히 루트로 폴백시키지 않는 것이 이 설계의 핵심이다.)
 # 사용: broad_search.sh init --sweep-id ID --state PATH --cells k1,k2 --control-variable TEXT
 #                            --max-cells N --wall-clock-budget-s N --consecutive-failure-limit N
 #                            --declared-by TEXT --basis TEXT --authority explore --now-utc T

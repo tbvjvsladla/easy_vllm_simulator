@@ -11,6 +11,7 @@ import argparse
 import ast
 import contextlib
 import hashlib
+import fnmatch
 import importlib.util
 import io
 import json
@@ -386,7 +387,9 @@ def _test_promotion_rubric_carrier() -> None:
 #   `hint/<vllm>/<model>/<arch>/<recipe>`. 마지막 칸은 **인증서에서 파생**하며
 #   `hint_tag.derive_recipe_segment` 가 아래 `_HINT_CERTIFICATE` 로부터 같은 값을 낸다
 #   (이름과 측정이 어긋나면 seal 이 HINT_RECIPE_SEGMENT_MISMATCH 로 거부한다).
-_HINT_TAG = "hint/0.0.0.dev0/selftest-model/gb10/qfp8-len32768-kvfp8"
+# arch 세그먼트는 2026-09-06 부터 노드 축을 요구한다(`<hw>-<main|sub|cluster>-<target>`).
+# 픽스처가 실물보다 **좁으면** 시험은 초록인데 실물이 죽는다 — 실제로 그렇게 잡혔다.
+_HINT_TAG = "hint/0.0.0.dev0/selftest-model/gb10-main-sim-h100/qfp8-len32768-kvfp8"
 _HINT_TOPOLOGY = "single 1노드 TP1"
 _HINT_HF_REPO = "selftest-org/selftest-model"
 _HINT_SCRIPT_REL = ".claude/skills/hint-publisher/scripts/hint_tag.py"
@@ -982,8 +985,16 @@ _PROSE_SCAN_EXTRA = ("CLAUDE.md", "README.md")
 # 범위 밖이고, **추적물만** 본다 — 배포되는 것은 추적물이고, 워킹트리의 비추적 로컬 설정
 # (예: 스킬 `config.yaml` 의 운영자 경로)까지 잡으면 가드가 정상 상태를 상시 RED 로 만든다.
 _FORBIDDEN_SCANNER_REL = ".claude/skills/wiki-desk/scripts/scan_forbidden_strings.py"
-_DEPLOYED_PII_PREFIXES = (".claude/", "docs/report/", "hints/")
-_DEPLOYED_PII_FILES = ("CLAUDE.md", "README.md", "HINTS.md")
+# ★ 2026-09-06 사정거리 정정(plan_26090616): 이 자리에는 세 접두어 + 세 파일의 **목록**이 있었다.
+#   목록이라 새 배포면이 생기면 조용히 늦었고, 실제로 늦었다 — 루트에 쌓인 캠페인 셀 입력 21개가
+#   운영자 NAS 절대경로를 담은 채 공개 원격까지 갔는데 이 가드의 사정거리 밖이었다. 배포되는 것은
+#   **추적물**이므로(docs.md §보관·전파 matrix) 술어를 목록에서 `추적물 전부`로 되돌린다 —
+#   allowlist 없는 파생 술어라 새 파일·새 디렉터리가 자동으로 사정거리에 든다.
+#   비용 실측(2026-09-06 · 342 추적물): 0.06s — 1초 예산 안이다.
+
+# tripwire ⑦ — 루트 표면 등록부. 저장소 루트는 어떤 스킬도 소유하지 않는 공유 표면이라, 산출물이
+# 흘러도 관할 게이트가 0 이었다. 등록부가 그 소유를 만들고 이 술어가 대조한다.
+_ROOT_REGISTRY_REL = ".claude/policies/root_registry.json"
 
 # `ls-files -s` 의 gitlink(서브모듈) 모드. 이 술어의 범위는 blob 이므로 입력에서 제외한다.
 _GITLINK_MODES = frozenset({"160000"})
@@ -1001,7 +1012,9 @@ _REPO_STATE_ASSERTIONS = (
     "tripwire②no-tracked-digest-rewrite",
     "tripwire③no-retired-hash-mechanism-prose",
     "tripwire④no-duplicate-certificates",
-    "tripwire⑤no-pii-in-deployed-artifacts",
+    "tripwire⑤no-pii-in-deployed-artifacts(추적물 전부)",
+    "tripwire⑥no-revived-antipatterns",
+    "tripwire⑦root-surface-registry",
     "executor-wiring(core.hooksPath·hook tracked)",
 )
 
@@ -1328,9 +1341,13 @@ def _import_forbidden_scanner():
 
 
 def _deployed_pii_targets(root: Path) -> list[str]:
-    """배포면에 해당하는 **추적** 경로(repo-relative)."""
-    return [rel for rel in _tracked_paths(root)
-            if rel.startswith(_DEPLOYED_PII_PREFIXES) or rel in _DEPLOYED_PII_FILES]
+    """배포면에 해당하는 경로(repo-relative) = **추적물 전부**.
+
+    추적물이 곧 배포물이다(`docs.md` §보관·전파 matrix) — 클론에 실리는 것은 인덱스에 있는 것이고,
+    인덱스에 없는 것은 어떤 수신자에게도 도달하지 않는다. 그래서 이 술어에는 allowlist 가 없다:
+    접두어 목록으로 좁히면 목록에 없는 새 배포면이 조용히 사정거리 밖에 남는다(2026-09-06 실측).
+    """
+    return list(_tracked_paths(root))
 
 
 def _test_no_pii_in_deployed_artifacts(root: Path | None = None) -> None:
@@ -1397,6 +1414,107 @@ def _test_deployed_pii_predicate() -> None:
         targets = _deployed_pii_targets(REPO_ROOT)
         _require(len(targets) > 50 and "CLAUDE.md" in targets,
                  f"deployed surface enumeration looks wrong: {len(targets)} paths")
+        # 사정거리가 다시 목록으로 좁아지는 회귀를 막는다 — 옛 세 접두어 밖의 추적물이 실제로
+        # 들어 있어야 한다(그것이 2026-09-06 에 뚫린 자리다).
+        _require(any(not r.startswith((".claude/", "docs/report/", "hints/"))
+                     and r not in ("CLAUDE.md", "README.md", "HINTS.md") for r in targets),
+                 "tripwire5 reach regressed to the old three-prefix list")
+
+
+def _load_root_registry(root: Path) -> dict:
+    """등록부를 읽는다. 부재·파손은 통과가 아니라 **FAIL** 이다 — 단일 권위가 사라지면 이 가드는
+    통과한 것이 아니라 무력한 것이고, 그 둘을 구분하지 않으면 가드가 없는 것과 같다."""
+    path = root / _ROOT_REGISTRY_REL
+    _require(path.is_file(), f"root registry missing -- tripwire7 has no authority to compare against: {path}")
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise RuntimeSelftestFailure(f"root registry unreadable: {exc}") from exc
+    _require(isinstance(doc, dict) and isinstance(doc.get("entries"), list),
+             "root registry must carry an `entries` list")
+    return doc
+
+
+def _root_names_of(paths) -> set:
+    """repo-relative 경로들의 **최상위 이름** 집합. `a/b/c` -> `a`, `x.md` -> `x.md`."""
+    return {rel.split("/", 1)[0] for rel in paths if rel}
+
+
+def _test_root_surface_registry(root: Path | None = None) -> None:
+    """tripwire ⑦ — 저장소 루트에 사는 것은 등록부가 정한 것뿐이다.
+
+    ★ 왜 tripwire 인가(2026-09-06 실측 · plan_26090616): 루트는 어떤 스킬도 소유하지 않는 공유
+    표면이었다. 캠페인이 셀마다 `config.campaign-*.yaml` 을 루트에 쓰자 `.gitignore` 의 접두어-exact
+    규칙(`/config.yaml`)이 그 변형을 놓쳤고, pre-commit PII tripwire 의 사정거리는 세 접두어였고,
+    `verify_distribution` 의 스캔 루트는 빌드 평면이었다 — **어느 게이트에도 관할이 없어서**
+    운영자 NAS 절대경로를 담은 21개 파일이 포크 5개를 가진 공개 원격까지 갔다.
+
+    처방은 규칙 하나를 더 좁히는 것이 아니라 **소유를 만드는 것**이다. 등록부가 루트 표면의 단일
+    권위이고, 이 술어는 세 방향을 대조한다:
+
+      ① 인덱스의 루트 항목 ⊆ 등록부(tracked·either)  — 새 추적 산출물이 루트에 생기면 RED
+      ② 등록부의 tracked 항목 ⊆ 인덱스               — 뼈대가 사라지면 RED(무력화 검출)
+      ③ tombstone 이름은 인덱스에 없다               — 폐지된 거처가 되살아나면 RED
+
+    ④ 워킹트리는 **경고**로만 본다(FAIL ✗): 비추적 로컬 도구가 루트에 디렉터리를 만드는 것은
+    운영자 자유이며, 그것을 차단하면 가드가 정상 상태를 상시 RED 로 만든다. 배포에 실리는 것은
+    인덱스이므로 집행은 ①~③ 이 한다.
+    """
+    root = REPO_ROOT if root is None else root
+    if not _is_canonical_repo(root):
+        return
+
+    doc = _load_root_registry(root)
+    declared = {e["name"]: e for e in doc["entries"]
+                if isinstance(e, dict) and isinstance(e.get("name"), str)}
+    trackable = {n for n, e in declared.items() if e.get("git") in ("tracked", "either")}
+    must_exist = {n for n, e in declared.items() if e.get("git") == "tracked"}
+
+    tracked = list(_tracked_paths(root))
+    _require(tracked, f"tripwire7 saw an empty index under {root} -- the comparison would be vacuous")
+    index_roots = _root_names_of(tracked)
+
+    stray = sorted(index_roots - trackable)
+    _require(not stray,
+             f"tracked root entries absent from {_ROOT_REGISTRY_REL} ({len(stray)}): {stray[:20]} "
+             f"-- an unlisted root artifact is a placement error, not a registry addition (D3)")
+
+    vanished = sorted(must_exist - index_roots)
+    _require(not vanished,
+             f"registry declares these root entries tracked but the index has none: {vanished}")
+
+    tombstoned = []
+    for tomb in doc.get("tombstones", []) or []:
+        if not isinstance(tomb, dict):
+            continue
+        name = tomb.get("name")
+        if not isinstance(name, str):
+            continue
+        hits = sorted(n for n in index_roots if fnmatch.fnmatch(n, name))
+        tombstoned += [f"{n} (retired {tomb.get('retired_utc')} -> {tomb.get('successor')})" for n in hits]
+    _require(not tombstoned,
+             f"retired root locations are tracked again ({len(tombstoned)}): {tombstoned[:20]}")
+
+
+def _test_root_registry_predicate() -> None:
+    """tripwire ⑦ 의 커널을 단위로 고정한다(라이브 트리 불요 · 양성 입력이 실제로 발화하는지).
+
+    라이브 트리는 깨끗할 때 아무것도 증명하지 않는다 — 통과가 "검출력이 있다" 를 뜻하려면 양성이
+    발화해야 한다(역-오라클 회피).
+    """
+    _require(_root_names_of(["a/b/c", "x.md", "campaigns/_template/t.json"]) == {"a", "x.md", "campaigns"},
+             "root-name derivation must cut at the first path segment")
+    _require(fnmatch.fnmatch("config.camp1-20b-0180.yaml", "config.camp1-*.yaml"),
+             "tombstone globs must match the escaped campaign variants that caused the leak")
+    _require(not fnmatch.fnmatch("configs", "config*.yaml"),
+             "the tombstone glob must not swallow the tracked `configs/` directory")
+    if _is_canonical_repo(REPO_ROOT):
+        doc = _load_root_registry(REPO_ROOT)
+        names = {e.get("name") for e in doc["entries"]}
+        _require({"campaigns", "CLAUDE.md", ".claude"} <= names,
+                 f"root registry looks wrong: {sorted(names)[:10]}")
+        _require(any(t.get("name") == "tasks" for t in doc.get("tombstones", [])),
+                 "the retired `tasks/` location must stay recorded as a tombstone")
 
 
 def _test_tripwire_executor_wiring(root: Path | None = None) -> list[str]:
@@ -1548,6 +1666,7 @@ def run_tripwires(root: Path | None = None) -> int:
         _test_no_duplicate_certificates(root)      # ④ plan_26090410 P4 — 사본 정리 뒤 배선
         _test_no_pii_in_deployed_artifacts(root)   # ⑤ P6 — 스캐너에 실행자가 없던 것을 배선
         _test_no_revived_antipatterns(root)        # ⑥ 3-13 — ③ 이 제거한 형태의 부활 차단
+        _test_root_surface_registry(root)          # ⑦ plan_26090616 — 루트 표면에 관할을 만든다
     except RuntimeSelftestFailure as exc:
         print(f"[tripwire] FAIL {exc}", file=sys.stderr)
         return 1
@@ -1563,7 +1682,7 @@ def main(argv: list[str] | None = None) -> int:
         "--tripwires-only", action="store_true",
         help="run only the pre-commit tripwires (backup artifacts / tracked digest rewrite / "
              "retired-mechanism prose / duplicate certificates / deployed-artifact PII / "
-             "revived antipatterns); "
+             "revived antipatterns / root-surface registry); "
              "1s budget, diagnostics on stderr")
     args = parser.parse_args(argv)  # argv=None -> argparse reads sys.argv[1:]
 
@@ -1581,6 +1700,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_agent_provider_boundary()
     _test_duplicate_certificate_predicate()
     _test_deployed_pii_predicate()
+    _test_root_registry_predicate()
     _test_watchdog_target_predicate_parity()
     # tripwire 6종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
     # 늦는다(선례 3건). 전체 실행에서도 반드시 검사한다.
@@ -1592,6 +1712,10 @@ def main(argv: list[str] | None = None) -> int:
     _test_no_retired_hash_mechanism_prose()
     _test_no_duplicate_certificates()
     _test_no_pii_in_deployed_artifacts()
+    # ⑥⑦ 는 2026-09-06 에 이 목록에 편입했다 — 바로 위 주석이 "축약 진입점과 같은 함수를 돈다"
+    # 라고 선언해 놓고 ⑥ 이 빠져 있었다(선언이 배선을 대체한 자리).
+    _test_no_revived_antipatterns(REPO_ROOT)
+    _test_root_surface_registry()
     for warning in _test_tripwire_executor_wiring():
         print(f"[runtime_selftest] WARN {warning}", file=sys.stderr)
     print("[runtime_selftest] PASS")

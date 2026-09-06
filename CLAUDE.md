@@ -29,6 +29,12 @@
   막는다. 통로는 체크아웃 브랜치가 선택하지만, 토폴로지 자체는 인터뷰로 결정한다(브랜치로 추론하지 않는다).
 - serve-time 변수 해소는 환경 주입이 manifest보다, manifest가 리터럴 기본값보다 우선한다(절차는
   workflow.md).
+- **캠페인 아티팩트 체인**: 여러 버전×모델을 순차로 도는 캠페인의 단계 간 정보는 **대화 기억이 아니라
+  아티팩트가 나른다** — 각 스킬은 앞 스킬이 남긴 선언·상태 파일만 읽고 자기 빈칸을 채우며, 다음 배선은
+  proof 술어가 연다. 거처는 루트 `campaigns/`(뼈대만 추적 · 인스턴스는 휘발 · 새 캠페인 init 이 직전
+  인스턴스를 purge)이고, 루트에 살 수 있는 항목의 단일 권위는 `.claude/policies/root_registry.json`
+  이다 — 등재되지 않은 루트 산출물은 추가 대상이 아니라 **거처 오류**다(D3). 상세는 workflow.md·
+  docs.md, 절차 정본은 `terraforming_node`.
 - 모델 구동 아티팩트 3+1+1(트리플렛·런타임 패치·빌드 패치)은 평면·소유·전달이 슬롯별로 다르다 —
   발견이 곧 소유는 아니다. 슬롯 판정 기준은 **"무엇을 고치나"가 아니라 "언제 성립해야 하나"**이며,
   빌드 패치는 이 때문에 pre/post 두 위상을 가진다. **각 슬롯의 소유는 단일하다** — serve 시점
@@ -55,7 +61,7 @@
   집단 연산 ABI 동기·제어평면은 head 종속)이고, 싱글의 sub는 A2A 원격 에이전트(정체성=AgentCard·
   자율 처리·client↔server)다. **한 스킴의 `role: sub`로 양자를 덮지 않는다** — 덮으면 멀티의 전파·
   동기 개념이 싱글로 새어 든다. 판정·배선은 `terraforming_node` SKILL.md §2.7.0이 소유한다(외부
-  그라운딩은 `docs/report/node-identity-topology-grounding.md`).
+  그라운딩은 `docs/report/harness_26082218_08_32_노드_정체성_토폴로지_그라운딩.md`).
 - **B. 그라운딩** — 서브의 빌드·서빙 **결정은 도서관 참조를 인용해야 성립한다**. 인용 없는 결정은
   거짓이 아니라 **누락**이며, **누락은 기계가 fail-closed로 잡고 거짓은 사람이 리뷰한다**. 도서관과
   사서는 메인 단독이다 — 복제하지 않고 차등 접근으로 연다(반출은 참조·발췌이지 복제가 아니다).
@@ -133,6 +139,7 @@
 - policy:LAST_GOOD_ROLLBACK_ANCHOR
 - policy:MODEL_ACQUISITION_TERNARY_GATE
 - policy:MODEL_TRIPLET_NO_SUB_PROPAGATION
+- policy:ROOT_SURFACE_REGISTRY
 - policy:RUNTIME_PATCH_NO_CARRY_FORWARD
 - policy:SUB_GIT_LOCAL_ONLY
 - policy:SUB_SYNC_DIRTY_AUTOSAVE

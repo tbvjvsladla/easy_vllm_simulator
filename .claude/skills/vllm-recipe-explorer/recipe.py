@@ -1423,14 +1423,14 @@ def build_parser():
     sub = p.add_subparsers(dest="command", required=True)
 
     pe = sub.add_parser("estimate", help="parse→후보→rank→report (+.last_ranking 저장)")
-    pe.add_argument("--config", default="config.yaml", help="입력 config.yaml 경로")
+    pe.add_argument("--config", required=True, help="입력 config.yaml 경로. **필수다 — 루트 기본값은 2026-09-06 에 제거했다**(plan_26090616): 기본값이 `config.yaml` 이었기 때문에 캠페인이 셀마다 만든 변형이 저장소 루트에 쌓였고 21개가 공개 원격까지 추적 누출됐다. 자리는 `campaign_init.py --derive config --cell <cell-id>` 로 파생하라.")
     src = pe.add_mutually_exclusive_group(required=True)
     src.add_argument("--auto", action="store_true", help="결정론 기본 그리드 후보 사용")
     src.add_argument("--candidates", help="LLM 생성 후보 JSON(list) 경로")
     pe.set_defaults(func=cmd_estimate)
 
     pg = sub.add_parser("generate", help=".last_ranking 의 rN → 3종 세트 + 되먹임 로그")
-    pg.add_argument("--config", default="config.yaml", help="입력 config.yaml 경로")
+    pg.add_argument("--config", required=True, help="입력 config.yaml 경로. **필수다 — 루트 기본값은 2026-09-06 에 제거했다**(plan_26090616): 기본값이 `config.yaml` 이었기 때문에 캠페인이 셀마다 만든 변형이 저장소 루트에 쌓였고 21개가 공개 원격까지 추적 누출됐다. 자리는 `campaign_init.py --derive config --cell <cell-id>` 로 파생하라.")
     pg.add_argument("--recipe-id", required=True, help="선택 레시피 id(예: r3)")
     pg.add_argument("--force", action="store_true", help="기존 파일 덮어쓰기 허용")
     pg.add_argument("--image", default=None,
@@ -1444,7 +1444,7 @@ def build_parser():
         "simulate",
         help="실서빙 trial-loop(절대 KV 클램프 수렴) → 3종 세트 + simlog + 되먹임",
     )
-    ps.add_argument("--config", default="config.yaml", help="입력 config.yaml 경로")
+    ps.add_argument("--config", required=True, help="입력 config.yaml 경로. **필수다 — 루트 기본값은 2026-09-06 에 제거했다**(plan_26090616): 기본값이 `config.yaml` 이었기 때문에 캠페인이 셀마다 만든 변형이 저장소 루트에 쌓였고 21개가 공개 원격까지 추적 누출됐다. 자리는 `campaign_init.py --derive config --cell <cell-id>` 로 파생하라.")
     ps.add_argument("--candidate", required=True, help="lock-set 후보 JSON 경로")
     ps.add_argument("--dry-run", action="store_true", help="docker 없이 mock_profile 로 배선 검증")
     ps.add_argument("--mock-profile", default=None, help="dry-run 시 사용할 vllm_profile+functional JSON 경로")

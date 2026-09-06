@@ -194,7 +194,7 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 | `.claude/schemas/task-report.schema.json` | 자기검증 스키마 | 복제 |
 | `.gitignore` | 서브 로컬 git 추적규칙(D12 — docs persist·생성물 무시) | 복제(`sub_node/gitignore.template`) |
 | `docs/{plan,devlog,testlog,simlog}/example.md` | 발행 스켈레톤(D12 — 서브 insight 문서) | 복제(메인 docs/*/example.md) |
-| `tasks/` | 런타임 상태 스캐폴드(파일=세션) | 빈 디렉토리 |
+| `campaigns/_template/**` · `campaigns/_bootstrap/relay/` | 캠페인 뼈대 + 릴레이 원장 스캐폴드(파일=세션) | 메인 뼈대 복제 + 빈 디렉토리 |
 
 추적 템플릿·정적자산은 `sub_node/`(CLAUDE.template.md·Agent_Card.template.json·settings.local.template.json·comms.md·task-report.schema.json·gitignore.template) — **PII-free**(IP·호스트 비박음, 렌더 시 manifest 에서 치환). (`docs.md`·`docs/*/example.md` 는 메인 정본을 D12 복제 — sub_node/ 외부 원천.)
 
@@ -223,7 +223,7 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 - 메인=client(Task 발급·리포트 검증·피드백) · 서브=remote(자율 수행·자기검증 리포트 1개). A2A 어휘 차용, HTTP 서버 ✗(전송=SSH 단발 `delegate(task)` — provider 문법은 `references/agent-control-adapter.md`).
 - **검증 = push-attestation**: 서브가 self-verification(config-parse·schema·runner 문법·checksum·**로컬 스모크**)을 리포트에 담아 회신 → **메인은 리포트만 검증, 서브 워크스페이스 재스캔 ✗**.
 - **성공술어**: phase 별(comms.md). 예: config = triplet 생성 + 로컬 스모크 응답("린트 통과 ≠ 서빙됨").
-- **상태=파일**: `tasks/<context_id>.json`("파일=세션"). 턴 예산은 **메인이 매 attempt 선언한다**(`--max-turns`·`--timeout-seconds`·`--budget-source`) — 옛 `max-turns=3`(2026-09-03 폐기)에 이어 그 대체물이던 **grade 표도 2026-09-05 폐기**됐다(표가 실측 없이 정본 행세를 했고 교정 소비자가 0 이었다 · `audit_26090515` G-A2). `scripts/turn_budget.py` 는 이제 선언을 **검증**만 한다(상한은 요청 스키마에서 읽는다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.py --continue` 가 **본문을 조립**한다 (사람은 답·승인만 — §2.7.7a).
+- **상태=파일**: `campaigns/<camp-id>/relay/<context_id>.json`("파일=세션" · 2026-09-06 루트 `tasks/` 에서 이관 · 활성 캠페인 부재 시 `_bootstrap`). 턴 예산은 **메인이 매 attempt 선언한다**(`--max-turns`·`--timeout-seconds`·`--budget-source`) — 옛 `max-turns=3`(2026-09-03 폐기)에 이어 그 대체물이던 **grade 표도 2026-09-05 폐기**됐다(표가 실측 없이 정본 행세를 했고 교정 소비자가 0 이었다 · `audit_26090515` G-A2). `scripts/turn_budget.py` 는 이제 선언을 **검증**만 한다(상한은 요청 스키마에서 읽는다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.py --continue` 가 **본문을 조립**한다 (사람은 답·승인만 — §2.7.7a).
 - per-task 휘발값(모델명·예산·NAS 서브디렉토리)은 **Task Message** 로(manifest 복제 아님).
 
 ### 2.5 완료 게이트 — model-less 카나리 라운드트립 (R1 정합)
@@ -609,20 +609,20 @@ Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 �
 
 | 명령 | 언제 | 무엇 | 평면 |
 |---|---|---|---|
-| `relay.py --task ... --max-turns N --timeout-seconds N --budget-source "..." --resume new` | 첫 위임 | **선언한 예산·재개**로 delegate · 원장 개설(`tasks/<ctx>.json`) | B |
+| `relay.py --task ... --max-turns N --timeout-seconds N --budget-source "..." --resume new` | 첫 위임 | **선언한 예산·재개**로 delegate · 원장 개설(`campaigns/<camp-id>/relay/<ctx>.json`) | B |
 | `relay.py --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기 + 예산·세션 **사실** 표시(기본 dry-run) | B |
 | `relay.py --continue --apply --max-turns N --timeout-seconds N --budget-source "..." --resume <id\|new>` | 사람이 본문을 승인 | 조립 본문 + 새로 선언한 예산 + **선언한 세션**으로 delegate | B |
 
 - **재개는 선언이다**(2026-09-05 · 축 F): 종전에는 `latest_session_id()` 가 원장을 보고 코드 규칙으로
   정했고 그 규칙이 라이브에서 두 번 어긋났다(완결 뒤 옛 세션 반환 · 소진 세션 무조건 폐기). 이제
   dry-run 이 **마지막 알려진 세션과 그 맥락**을 보여주고, `--resume <session_id|new>` 로 선언하지 않으면
-  fail-loud 한다. 리포트 없이 끝난 턴은 `tasks/pending_hitl.json` 에 그 세션 id 를 남긴다(침묵 종결 ✗).
+  fail-loud 한다. 리포트 없이 끝난 턴은 `campaigns/<camp-id>/relay/pending_hitl.json` 에 그 세션 id 를 남긴다(침묵 종결 ✗).
 - **원장은 append-only 다**: attempt 마다 `request_path`(보낸 요청 원문)·`report_path`·`end_reason`·
   `started_utc`/`ended_utc`(메인 실측)·`duration_ms`/`duration_api_ms`(provider 보고)를 적는다.
   **정지 시간 = wall − api** 이며 두 값의 출처가 다르므로 섞지 않는다.
 
 - **조립기는 합성하지 않는다** — 직전 attempt 의 제어 상태(원장) · 서브가 보낸 `artifacts[]`·
-  `next_steps`·`notes` · 사람이 `tasks/pending_hitl.json` 에 적은 `answer` · 원 지시. 그 넷뿐이다.
+  `next_steps`·`notes` · 사람이 `campaigns/<camp-id>/relay/pending_hitl.json` 에 적은 `answer` · 원 지시. 그 넷뿐이다.
   메인이 추측한 진행상황을 본문에 적으면 그것이 SILENT_FALLBACK 이다.
 - **정지 조건 둘**(루프를 만들면서 정지 조건을 미루지 않는다): ⓐ 직전이 `completed` 면 이을 중단점이
   없다 ⓑ **차단성 요청에 답이 없으면** 진행하지 않는다. ⓑ가 사람의 승인 정문이다 — **답이 곧 승인**이다.
@@ -787,7 +787,7 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 - `scripts/bootstrap_canary.py` — **§2.5 완료 게이트 실행자**(`--topology`·`--manifest`·`--emit`·`--invoke`·`--self-test`).
 - `scripts/render_sub_env.py` — 결정론 렌더러(manifest→`output/multi/sub_provision/` 스테이징·`--self-test`).
 - `scripts/node_role_contract.py` — **토폴로지 축 노드 계약의 단일 소유자**(§2.7.0·§2.7.6b). `evaluate --topology <t> --field {sub_mode,rank,identity_authority,delivery_plane} --format {json,value}` · `--self-test`. 배달 평면 판정의 **정본**이며 `role: sub` 존재로 추론하지 않는다. ✅ 소비자 배선 완료(2026-08-22): `sync_to_sub.sh:_single_extension_active`(배달 평면) · `render_sub_env.py::_contract_placeholders`(Agent_Card 4필드). ⚠ venv `-S` shim 을 포함한 `load_yaml` 을 자체 보유한다 — `staleness_gate._load_yaml` 과 **같은 shim 이 두 곳에 있다**. 지금은 의도된 비결합(preflight 게이트가 이 파일 부재로 죽지 않게)이며, 갈라지면 신호는 두 파서의 판정 불일치로 온다.
-- `scripts/relay.py` — **메인↔서브 턴제 릴레이 실행자**(§2.7.7a). `--task|--task-file` 첫 위임 · `--continue [--apply]` 자율 재개 · `--emit-only` · `--self-test`. 원장 `tasks/<ctx>.json`, 대기 요청 `tasks/pending_hitl.json`(사람이 `answer` 를 적는 자리).
+- `scripts/relay.py` — **메인↔서브 턴제 릴레이 실행자**(§2.7.7a). `--task|--task-file` 첫 위임 · `--continue [--apply]` 자율 재개 · `--emit-only` · `--self-test`. 원장 `campaigns/<camp-id>/relay/<ctx>.json`, 대기 요청 같은 자리의 `pending_hitl.json`(사람이 `answer` 를 적는 자리). 경로 파생의 단일 소유자는 `scripts/campaign_init.py --derive`.
 - `scripts/turn_budget.py` — **턴 예산 선언 검증기**(`--max-turns`·`--timeout-seconds`·`--source`·`--caps`·`--self-test`). 값을 만들지 않는다 — 미선언·상한초과·출처없음은 fail-loud. 전송 상한은 요청 스키마에서 **읽는다**(상수 복제 ✗). 등급표는 2026-09-05 폐기(G-A2).
 - `scripts/library_exchange.py` — **그라운딩 교환 판정기**(§2.7.8, 메인 전용). `validate --file <msg>` · `gate --request/--export/--attestation` · `--self-test`. 서브 디스크를 읽지 않는다(메시지만 본다).
 - `sub_node/` — 추적 PII-free 템플릿·정적계약: `CLAUDE.template.md`·`Agent_Card.template.json`·`settings.local.template.json`·`comms.md`·`task-report.schema.json`·**`library-exchange.schema.json`**(§2.7.8 그라운딩 교환)·`gitignore.template`.
