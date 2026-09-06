@@ -41,6 +41,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import parse_vllm_log  # noqa: E402
 import functional_smoke  # noqa: E402
+from gen_recipe_set import serve_env_pairs  # noqa: E402  (serve_env 모양의 단일 소유자 — 두 자리에 적으면 갈린다)
 import simlog_writer  # noqa: E402
 
 # ── trial 산출물의 출처(provenance) — 단일 소유 (2026-08-13 · plan_26081314 D1) ──────────────
@@ -401,6 +402,17 @@ def _build_docker_cmd(candidate: dict, image: str, container_name: str, port: in
     for k, v in (candidate.get("extra_env") or {}).items():
         cmd += ["-e", "%s=%s" % (str(k), str(v))]
 
+    # ── serve_env (선언된 서빙 env — extra_env 와 다르다) ────────────────
+    # extra_env 는 진단 전용이라 배포 3종 세트로 승격되지 않는다. 그런데 커널 스위치
+    # (VLLM_USE_FLASHINFER_MOE_MXFP4_BF16 등)는 **레시피의 일부**다 — 그것이 있고 없고가
+    # 서빙 성능을 가른다. 승격 경로가 없어서 직전 캠페인은 생성된 .sh 를 손으로 고쳐
+    # 스위치를 넣었고(output/multi/configs/*-b6.sh:16), 그 손질은 선언에서 재현되지 않으며
+    # 재생성이 덮어쓴다 — 그림자 배달 경로다. 여기와 gen_recipe_set 양쪽에 자리를 만든다.
+    # 트라이얼에도 거는 이유: 트라이얼이 KV 클램프를 수렴시키는데, 커널이 바뀌면 메모리
+    # 발자국도 바뀐다. 배포될 것과 다른 조건에서 수렴시키면 그 수렴값이 거짓이다.
+    for k, v in serve_env_pairs(candidate.get("serve_env")):
+        cmd += ["-e", "%s=%s" % (k, v)]
+
     cmd += [image]
     cmd += _build_serve_args(candidate)
     return cmd
@@ -429,6 +441,10 @@ def _audit_emitted(candidate: dict, docker_cmd: list) -> None:
         ("attention_backend", "VLLM_ATTENTION_BACKEND="),
         ("moe_backend", "--moe-backend"),
     ]
+    # serve_env: 선언했으면 **이름이 cmd 에 실제로 있어야** 한다. 축을 선언만 하고 안 거는
+    # 사고가 이 클래스의 본체다(2026-09-05: 다섯 셀이 선언과 다른 커널로 돌았다).
+    for _k, _v in serve_env_pairs(candidate.get("serve_env")):
+        field_flags.append(("serve_env", "%s=" % _k))
     # enforce_eager: false/미설정은 의도적 미emit(CUDA 그래프 기본 활성 유지).
     if candidate.get("enforce_eager"):
         field_flags.append(("enforce_eager", "--enforce-eager"))
