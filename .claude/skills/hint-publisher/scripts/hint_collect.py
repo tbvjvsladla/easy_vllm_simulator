@@ -778,8 +778,13 @@ def cmd_collect(a) -> int:
         "source_channel": {
             "topology": topo,
             "read_from": "working-tree(main)",
-            "sub_note": "서브 산출물은 이 통로로 오지 않는다 — 문서기반 회수(fetch_sub_docs.sh) 뒤 "
-                        "메인이 재저작한다(docs.md 상향 회수 규약).",
+            "sub_note": ("서브 산출물은 이 통로로 오지 않는다 — 문서기반 회수(fetch_sub_docs.sh) 뒤 "
+                         "메인이 재저작한다(docs.md 상향 회수 규약). 2026-09-06 이후 그 회수분은 "
+                         "`sync_staging/sub_docs/benchmark/` 에서 열리며, 어느 노드가 쟀는지는 "
+                         "인증서 `measured_node` 가 말한다 — 서브 리포트를 --report 로 지정하면 "
+                         "이 발행기가 서브의 동시성 곡선을 그대로 렌더한다(발행 주체는 메인 단독)."),
+            "sub_publish_phase": ("서브의 publish 위상이 만든 `hint_inputs` 사이드카(task-report "
+                                  "스키마)가 이 통로의 입력이다. 서브는 태그를 발행하지 않는다."),
         },
         "artifacts": copied,
     }
