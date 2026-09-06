@@ -69,11 +69,18 @@ SUB_TOMBSTONES = {
     "scripts/mem_watchdog.sh", "scripts/host/vllm-drop-caches.sh",
     "scripts/systemd/easy-vllm-memwatch.service", "scripts/smoke_clone.sh",
     "scripts/sync_branches.sh",
+    # 2026-09-06: 루트 `tasks/` 가 `campaigns/<id>/relay/` 로 대체되면서 서브에 남은 스캐폴드
+    #   마커를 은퇴시켰다(커밋 3263339). 오버레이는 **가산**이라 tombstone 없이는 서브에
+    #   영구 잔존한다. 여기 목록을 같이 올리지 않아 이 검사가 그 커밋 이후 계속 FAIL 이었다.
+    "tasks/.gitkeep",
 }
 SUB_RELOCATION_TOMBSTONES = {
     ".claude/rules/references.md", "scripts/install_host_safety.sh",
     "scripts/mem_watchdog.sh", "scripts/host/vllm-drop-caches.sh",
     "scripts/systemd/easy-vllm-memwatch.service",
+    # 릴레이 원장 정본이 campaigns/<camp-id>/relay/ 로 이관(2026-09-06). 대체 자리가 실재하므로
+    # 은퇴가 아니다 — 은퇴로 두면 활성 소비자 감사가 서브의 살아 있는 원장에 걸려 배달이 막힌다.
+    "tasks/.gitkeep",
 }
 SUB_RETIREMENT_TOMBSTONES = {"scripts/smoke_clone.sh", "scripts/sync_branches.sh"}
 
@@ -385,7 +392,8 @@ def verify() -> dict:
             {"name": "sub_transactional_source_uses_git_index",
              "ok": ("checkout-index -z --stdin" in sub_text
                     and "filesystem bytes are excluded in favor of index authority" in sub_text
-                    and "ls-files -z -- .claude CLAUDE.md .gitignore output/multi output/single" in sub_text
+                    and "ls-files -z -- .claude CLAUDE.md .gitignore campaigns output/multi output/single"
+                    in sub_text  # campaigns = 2026-09-06 신설 루트(커밋 4043ff4)
                     and ("for render_input in manifest.yaml a2a_signing/main_ed25519.pem "
                          "sub_manifest.yaml") in sub_text
                     and 'install -m 0600 "${CANONICAL_SRC}output/$topology/$render_input"' in sub_text
@@ -696,6 +704,21 @@ def verify() -> dict:
              ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py", "--self-test"], {0}),
         _run("recipe_run_trial_selftest", [sys.executable,
              ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py", "--self-test"], {0}),
+        # 캠페인 아티팩트 체인 3종의 **집행** (2026-09-06 배선). 이 셋은 2026-09-06 에
+        #   자체검사와 함께 태어났지만 **부르는 코드가 없었다** — 이 저장소가 이미 이름 붙인
+        #   "호출자 없는 자체검사 = L1 산문"의 재발이다(위 sweep meta 주석과 같은 사유).
+        #   무엇을 지키나: 캠페인 선언·purge 게이트·예산 선언 floor 는 캠페인 전체가 그 위에
+        #   서는 계약이고, 갈라져도 라이브 캠페인 중반까지 안 보인다.
+        #   ⚠ 플래그가 갈린다(`--selftest` 대 `--self-test`). 통일은 별건이며, 여기서는
+        #   각자가 실제로 받는 철자를 쓴다 — 틀린 철자는 usage 로 죽어 위양성이 된다.
+        _run("campaign_init_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/campaign_init.py", "--selftest"], {0}),
+        _run("campaign_template_validator_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+             "--selftest"], {0}),
+        _run("blackbox_session_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.py",
+             "--self-test"], {0}),
         # sweep meta 추출의 **집행** (plan_26082322 §3.3 · 2026-08-23 배선). 같은 이유다 —
         #   호출자 없는 자체검사는 L2 가 아니라 L1(산문)이다.
         #   무엇을 지키나: `quantization`·`kv_cache_dtype` 를 config yaml 에서만 읽던 시절,

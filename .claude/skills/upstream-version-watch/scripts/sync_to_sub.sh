@@ -671,6 +671,13 @@ OVERLAY_RELOCATION_STALE_PATHS=(
     scripts/mem_watchdog.sh
     scripts/host/vllm-drop-caches.sh
     scripts/systemd/easy-vllm-memwatch.service
+    # 2026-09-06: 릴레이 원장의 **정본 자리**가 campaigns/<camp-id>/relay/ 로 옮겨졌다.
+    #   은퇴가 아니라 이관인 이유: 서브에 대체 자리가 실재한다(CLAUDE.template/comms.md 가
+    #   가리킨다). 은퇴로 분류하면 활성 소비자 감사가 서는데, 서브의 `tasks/` 에는 **서브가
+    #   저작한 살아 있는 원장**이 남아 있어(의도적으로 건드리지 않는다) 그 감사는 정당하게
+    #   막는다 — 잘못된 분류가 배달을 교착시킨다.
+    #   ★ 2026-09-06 커밋 3263339 는 상위 배열에만 넣고 여기를 빠뜨려 파티션 단언을 깼다.
+    tasks/.gitkeep
 )
 # Main-only orchestration has no sub runtime replacement.  Deletion is retirement and therefore
 # requires an explicit active-consumer audit before these exact paths are removed.

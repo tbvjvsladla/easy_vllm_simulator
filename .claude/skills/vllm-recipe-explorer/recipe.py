@@ -769,9 +769,20 @@ def _profile_bytes(profile, key):
     return float(v) * GIB if v is not None else None
 
 
+# vLLM 이 받는 KV dtype 철자 중 **1바이트인 것 전부**. 종전에는 `== "fp8"` 하나만 봤고,
+# 그래서 `fp8_e5m2`(지수 5·가수 2 — 여전히 1바이트)가 2바이트로 계산됐다. 그러면 required_kv 가
+# 2배로 부풀어 max_safe 를 넘고, 셀이 **엔진에 닿기도 전에** `vram_infeasible` 로 죽는다.
+# 그 판정은 거짓이다 — 실제 사유는 KV 용량이 아니라 커널의 dtype 수용 여부이며, 그것은 서빙을
+# 해 봐야 안다. 거짓 사유가 지도에 실리면 다음 사람이 잘못된 결론을 상속한다.
+# (직전 캠페인에서 드러나지 않은 이유: 이 경로는 **측정 프로파일이 없는 트라이얼 1**에서만
+#  쓰이고, e5m2 셀은 그 전에 다른 이유로 죽었다.)
+_KV_ONE_BYTE_DTYPES = frozenset({"fp8", "fp8_e4m3", "fp8_e5m2"})
+
+
 def _kv_dtype_bytes(candidate):
-    """KV dtype 바이트: kv_cache_quant=="fp8" 이면 1, 아니면 2(fp16)."""
-    return 1 if candidate.get("kv_cache_quant") == "fp8" else 2
+    """KV dtype 바이트: fp8 계열이면 1, 아니면 2(fp16/bf16)."""
+    q = str(candidate.get("kv_cache_quant") or "").strip().lower()
+    return 1 if q in _KV_ONE_BYTE_DTYPES else 2
 
 
 def _read_log_text(log_path):

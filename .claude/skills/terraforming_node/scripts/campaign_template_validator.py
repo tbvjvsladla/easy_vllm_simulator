@@ -29,6 +29,8 @@ TEMPLATE = CAMPAIGNS / "_template"
 SCHEMA_REL = "campaigns/_template/campaign.schema.json"
 FILL = "<<FILL>>"
 RESERVED_IDS = ("_template", "_bootstrap")
+# 스캐폴드가 남기는 **틀** 디렉터리. 실행 순서(order)의 시민이 아니다.
+RESERVED_CELL_NAMES = ("_cell", "_node")
 
 
 class CampaignContractFailure(Exception):
@@ -138,11 +140,32 @@ def validate_campaign(campaign_path: Path, *, strict_paths: bool = True) -> list
             problems.append(f"hint_targets[{i}].node_id {target.get('node_id')!r} 가 nodes[] 에 없다")
 
     # order ↔ cells 실재
+    # ★ 2026-09-06: 종전에는 config.yaml 의 **실재**만 물었다. 그런데 스캐폴드가 남기는 틀
+    #   `cells/_cell/config.yaml` 도 실재하는 파일이라, order 를 디렉터리 목록에서 파생하면
+    #   틀이 그대로 실행 순서에 섞여 들어가고 검증기가 통과시켰다(내가 실제로 그렇게 했다).
+    #   scaffold 주석은 "빈칸이 남으면 검증기가 잡는다"고 말했지만 그 검사는 campaign.yaml
+    #   에만 걸려 있었다 — 계약과 집행이 갈라져 있었던 것이다. 여기서 붙인다.
     cells_dir = campaign_path.parent / "cells"
     for cell in doc.get("order", []):
+        if cell in RESERVED_CELL_NAMES:
+            problems.append(f"order 에 틀 디렉터리 {cell!r} 가 들어 있다 — 틀은 실행 대상이 아니다")
+            continue
         cfg = cells_dir / cell / "config.yaml"
         if strict_paths and not cfg.is_file():
             problems.append(f"order 의 셀 {cell!r} 입력이 없다: {_rel(cfg)}")
+            continue
+        if not strict_paths:
+            continue
+        # 셀 입력의 빈칸도 계약이다 — 모르는 값을 그럴듯하게 채우지 말라는 규칙(campaigns/README)
+        # 은 검사가 있어야 규칙이다.
+        for name in ("config.yaml", "lockset.json"):
+            f = cells_dir / cell / name
+            if not f.is_file():
+                continue
+            rows = find_fill_placeholders(f.read_text(encoding="utf-8"))
+            if rows:
+                problems.append(f"셀 {cell!r} 의 {name} 에 {FILL} 가 {len(rows)}행 남아 있다"
+                                f"(행 {rows[:5]})")
     return problems
 
 
@@ -242,6 +265,31 @@ def _selftest() -> int:
                for p in write(dict(good, hint_targets=[{"arch": "gb10-sub-sim-h100", "node_id": "ghost", "cells": []}]))))
         ck("예약 id 차단", any("예약 id" in p for p in write(dict(good, id="_bootstrap"))))
         ck("부재 셀 차단", any("입력이 없다" in p for p in write(dict(good, order=["cell-missing"]))))
+        # ★ 2026-09-06: order 를 cells/ 디렉터리 목록에서 파생하면 스캐폴드가 남긴 틀
+        #   `_cell` 이 그대로 섞인다. 틀의 config.yaml 은 **실재하므로** 실재 검사만으로는
+        #   통과했다(실제로 통과시켰다 — 이 시험이 그 재발을 막는다).
+        (camp / "cells" / "_cell").mkdir(parents=True)
+        (camp / "cells" / "_cell" / "config.yaml").write_text(
+            f"target_model:\n  path: {FILL}\n", encoding="utf-8")
+        ck("★틀 디렉터리가 order 에 들어가면 차단",
+           any("틀은 실행 대상이 아니다" in p for p in write(dict(good, order=["_cell"]))))
+        # 셀 입력의 빈칸도 계약이다. `_cell` 은 이름으로 먼저 걸리므로 **다른 이름**으로 시험한다
+        #   — 같은 픽스처가 두 규칙을 겸하면 어느 쪽이 발화했는지 모른다.
+        (camp / "cells" / "cell-b").mkdir(parents=True)
+        (camp / "cells" / "cell-b" / "config.yaml").write_text(
+            f"target_model:\n  path: {FILL}\n", encoding="utf-8")
+        ck("★셀 입력에 빈칸이 남으면 차단",
+           any("config.yaml 에" in p and FILL in p for p in write(dict(good, order=["cell-b"]))))
+        (camp / "cells" / "cell-b" / "lockset.json").write_text(
+            '{"id": "' + FILL + '"}\n', encoding="utf-8")
+        (camp / "cells" / "cell-b" / "config.yaml").write_text("target_model:\n  path: /x\n",
+                                                               encoding="utf-8")
+        ck("★lockset 의 빈칸도 차단",
+           any("lockset.json 에" in p for p in write(dict(good, order=["cell-b"]))))
+        # 음성대조: 빈칸을 채우면 같은 셀이 통과한다(과잉차단 아님)
+        (camp / "cells" / "cell-b" / "lockset.json").write_text('{"id": "cell-b"}\n',
+                                                                encoding="utf-8")
+        ck("★음성대조: 빈칸을 채운 셀은 통과", not write(dict(good, order=["cell-b"])))
         ck("스키마 미지 필드 차단", any("campaign.yaml" in p for p in write(dict(good, surprise=1))))
 
         # phase proof 음성대조

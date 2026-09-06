@@ -9,6 +9,8 @@
   "attention_backend": null,
   "attention_backend_candidates": [],
   "moe_backend": null,
+  "_serve_env_howto": "선언된 서빙 env(커널 스위치 등). {\"NAME\": \"1\"} 형태. 진단 전용 extra_env 와 달리 트라이얼과 배포 3종 세트 **양쪽**에 걸린다 — 검증한 조건과 배포된 조건이 갈리지 않게(2026-09-06 신설. 그전에는 자리가 없어 생성된 .sh 를 손으로 고쳤다).",
+  "serve_env": null,
   "tool_call_parser": null,
   "tool_call_parser_candidates": [],
   "reasoning_parser": null,

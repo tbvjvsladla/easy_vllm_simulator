@@ -169,6 +169,7 @@ SERVE_KNOB_KEYS = (
     "attention_backend", "tool_call_parser", "reasoning_parser",
     "moe_backend", "gdn_prefill_backend", "max_num_batched_tokens",
     "enforce_eager", "language_model_only",
+    "serve_env",              # 선언된 커널 스위치 등 — .sh 의 export 로 승격(2026-09-06)
 )
 
 
@@ -184,6 +185,28 @@ def recipe_from_candidate(candidate: dict, **extra) -> dict:
 
 
 # 파리티 검사용 대표값(타입별). 값이 yaml 에 그대로 나타나는지로 전달 여부를 판정한다.
+def serve_env_pairs(value):
+    """`serve_env` 를 (이름, 값) 목록으로 정규화한다. **이 모양의 단일 소유자**.
+
+    받는 모양: dict{NAME: VALUE}(정본) · ["NAME=VALUE", ...] · "NAME=VALUE" · None.
+    여러 모양을 받는 이유는 관대함이 아니라 **파리티 프로브 때문**이다 — 프로브는 모든
+    노브에 스칼라 sentinel 을 넣어 산출물에 나타나는지 본다. 여기서 dict 만 받으면 프로브가
+    TypeError 로 죽고, 그러면 노브 파리티라는 가드 전체가 이 필드에서 무력해진다.
+    run_trial 도 **이 함수를 import 해서** 쓴다(두 자리에 적으면 갈린다).
+    """
+    if not value:
+        return []
+    if isinstance(value, dict):
+        return [(str(k), str(v)) for k, v in sorted(value.items())]
+    items = value if isinstance(value, (list, tuple)) else [value]
+    pairs = []
+    for it in items:
+        text = str(it)
+        name, sep, val = text.partition("=")
+        pairs.append((name.strip(), val if sep else ""))
+    return pairs
+
+
 _PROBE = {
     "enforce_eager": True, "language_model_only": True,
     "max_num_batched_tokens": 4242, "batch": 4242,
@@ -263,6 +286,14 @@ def _build_sh(name, served_model_name, recipe=None):
     if attn_backend is not None:
         lines.append("# attention backend 고정")
         lines.append("export VLLM_ATTENTION_BACKEND={}".format(attn_backend))
+        lines.append("")
+    # 선언된 서빙 env(커널 스위치 등). 종전에는 자리가 없어 생성된 .sh 를 손으로 고쳤고,
+    # 그 손질은 재생성이 덮어쓰며 선언에서 재현되지 않았다(그림자 배달 경로).
+    env_pairs = serve_env_pairs(recipe.get("serve_env"))
+    if env_pairs:
+        lines.append("# 선언된 서빙 env (recipe.serve_env)")
+        for _k, _v in env_pairs:
+            lines.append("export {}={}".format(_k, _v))
         lines.append("")
     lines.append("# vllm serve 실행")
     # tool/reasoning parser 플래그: recipe 에 있을 때만 줄을 추가.
