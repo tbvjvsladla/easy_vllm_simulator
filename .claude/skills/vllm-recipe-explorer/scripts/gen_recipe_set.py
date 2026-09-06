@@ -119,6 +119,23 @@ def _build_yaml(parsed, recipe, served_model_name):
     if not _is_native_or_none(quant):
         lines.append("quantization: {}".format(str(quant).strip().lower()))
 
+    # ── 분산 스탠자 (2026-09-06) ────────────────────────────────────────────
+    # ★ 이 생성기는 단일 토폴로지만 낼 줄 알았다. 그래서 multi 트리플렛은 매번 **손으로**
+    #   `tensor-parallel-size`·`distributed-executor-backend` 두 줄을 덧붙여 만들어졌다
+    #   (직전 캠페인 결함 #8 "분산 런타임 스탠자가 템플릿에 없고 손으로만 들어가 있었음" —
+    #   그때 교정은 다른 템플릿에 들어갔고 이 생성기는 그대로였다).
+    #   손저작은 선언에서 재현되지 않고 재생성이 덮어쓴다. 자리를 만든다.
+    # TP=1 은 **적지 않는다** — vLLM 기본이고, 적으면 single 트리플렛의 기존 모양이 바뀐다
+    #   (회귀 0 원칙). 즉 이 두 줄은 분산일 때만 나타난다.
+    tp = recipe.get("tensor_parallel_size")
+    if tp is not None and int(tp) > 1:
+        lines.append("tensor-parallel-size: {}".format(int(tp)))
+        # 백엔드는 **선언된 것만** 쓴다. 기본값을 여기서 지어내면 그 순간 매직넘버다 —
+        # 어느 실행기를 쓰는지는 토폴로지·클러스터 형상의 함수이지 생성기 상수가 아니다.
+        deb = recipe.get("distributed_executor_backend")
+        if deb:
+            lines.append("distributed-executor-backend: {}".format(str(deb).strip().lower()))
+
     # ── 트라이얼이 검증한 나머지 serve 노브 (2026-08-01 파리티 교정) ──────
     # ★ 여기가 비어 있으면 **검증된 레시피 ≠ 배포된 레시피** 가 된다.
     #   실증: gpt-oss-120b 는 `--moe-backend MARLIN` 으로 트라이얼이 수렴했는데 이 yaml 에
@@ -170,6 +187,8 @@ SERVE_KNOB_KEYS = (
     "moe_backend", "gdn_prefill_backend", "max_num_batched_tokens",
     "enforce_eager", "language_model_only",
     "serve_env",              # 선언된 커널 스위치 등 — .sh 의 export 로 승격(2026-09-06)
+    "tensor_parallel_size",   # 분산 스탠자(2026-09-06) — TP>1 일 때만 yaml 에 나타난다
+    "distributed_executor_backend",
 )
 
 
