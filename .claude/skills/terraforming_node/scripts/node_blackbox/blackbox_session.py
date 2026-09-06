@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 from datetime import datetime, timezone
 
@@ -152,6 +153,34 @@ except Exception as _exc:
         "  → 두 자리에 적힌 상수는 갈라진다(2026-09-01 감사: 사본이 옛 8192/16384 로 남아 있었다).\n"
         "  → 같은 디렉터리의 blackbox_eta.py 가 배달됐는지 확인하라." % (type(_exc).__name__, _exc))
 MAX_TTL_S = 86400
+
+# ── 배포된 워치독의 트립 임계 (2026-09-06) ──────────────────────────────────
+# 왜: 선언기는 지금까지 `floor > 0` 만 봤다. 그런데 실제로 컨테이너를 죽이는 것은 이 선언이
+#   아니라 **호스트 워치독**이고, 그 임계는 유닛의 ExecStart 인자에 있다(`@vllm 10240 1`).
+#   floor 가 그 임계 이하면 정상 정상상태의 MemAvailable 이 곧 트립선 아래라는 뜻이므로
+#   **선언 산술 자체가 사살을 보장한다** — 위험이 아니라 확정이다. 여기서 죽는 편이 로드
+#   20분 뒤 사살되는 것보다 싸다.
+#   H100 이식 클램프가 KV 를 작게 묶어 두는 동안에는 이 구멍이 드러나지 않았다. 타겟을
+#   실행 하드웨어 자신으로 옮기면(2026-09-06 캠페인) 예산이 커져 정면으로 마주친다.
+# 임계는 **여기에 적지 않는다** — 사본은 갈라진다(G-B3 선례). 배포된 유닛이 단일 권위다.
+_WD_UNIT = "easy-vllm-memwatch.service"
+
+
+def watchdog_trip_mib():
+    """배포된 워치독이 실제로 쓰는 트립 임계(MiB)와 그 출처. 모르면 (None, 사유)."""
+    try:
+        out = subprocess.run(["systemctl", "show", _WD_UNIT, "-p", "ExecStart", "--value"],
+                             capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return None, "systemctl 실행 불가(%s)" % type(exc).__name__
+    if out.returncode != 0 or not out.stdout.strip():
+        return None, "유닛 %s 를 조회하지 못했다(rc=%d)" % (_WD_UNIT, out.returncode)
+    # ExecStart 표현에서 argv 를 뽑는다: ... argv[]=/usr/local/sbin/easy-vllm-memwatch @vllm 10240 1 ; ...
+    m = re.search(r"easy-vllm-memwatch\s+(\S+)\s+(\d+)", out.stdout)
+    if not m:
+        return None, "ExecStart 에서 임계 인자를 찾지 못했다"
+    return int(m.group(2)), "measured(systemctl show %s ExecStart)" % _WD_UNIT
+
 # 예산 선언의 기본 TTL. **이 파일이 단일 소유자다**(2026-09-05 · G-B2). 종전에는 같은 7200 이
 # run_trial · single_serve_up · budget_renew_loop · multinode_serve_smoke 에 각각 손으로 적혀
 # 다섯 자리였다 — 개념이 다섯 곳에 있으면 하나를 고쳐도 나머지가 옛값을 쓴다(margin 거울이
@@ -307,6 +336,23 @@ def _declare_budget(args, now):
         raise SystemExit(
             "예상 상주 %d MiB 가 총량 %d MiB 이상이다 — 이 구성은 애초에 못 올린다."
             % (resident, args.mem_total_mib))
+    # floor 가 워치독 트립선 이하면 정상 서빙이 곧 사살 대상이다(확정이지 위험이 아니다).
+    _trip, _trip_src = watchdog_trip_mib()
+    if _trip is None:
+        print("경고: 워치독 트립 임계를 알 수 없다(%s) — floor 대비 검사를 건너뛴다. "
+              "이 노드에서 워치독이 정말 안 도는지 확인하라." % _trip_src, file=sys.stderr)
+    elif floor <= _trip:
+        raise SystemExit(
+            "선언 floor %d MiB 가 워치독 트립 임계 %d MiB 이하다 — 이 구성은 정상 정상상태의\n"
+            "  MemAvailable 이 트립선 아래라는 뜻이고, 서빙이 성공해도 워치독이 죽인다.\n"
+            "  출처: %s\n"
+            "  산출: floor = mem_total(%d) - [weights(%d) + kv(%d) + overhead(%d)]\n"
+            "  → KV(--kv-mib)를 줄여라(max_num_seqs·max_model_len 하향) 또는 더 작은 모델로 가라."
+            % (floor, _trip, _trip_src, args.mem_total_mib, args.weights_mib,
+               args.kv_mib, args.overhead_mib))
+    elif floor < _trip + _WD_MARGIN_MIB:
+        print("경고: 선언 floor %d MiB 가 트립선 %d MiB 바로 위 밴드(+%d)에 있다 — "
+              "변동 한 번에 트립할 수 있다." % (floor, _trip, _WD_MARGIN_MIB), file=sys.stderr)
     expires = _epoch(now) + args.ttl_s
     path = _budget_path(args.node_dir)
     _mk_owned(args.node_dir)
@@ -602,6 +648,46 @@ def self_test():
                 if ln and not ln.startswith("#") and "=" in ln]
         ok.append(("선언 값이 워치독 문자셋 준수",
                    all(re.match(r"^[A-Za-z0-9._-]{1,64}$", v) for v in vals)))
+
+        # ── 워치독 트립선 대비 floor 게이트 (2026-09-06) ──────────────────
+        # 임계는 배포 유닛에서 파생하므로 자체검사는 그 파생기를 **픽스처로 바꿔** 판정만 본다
+        # (라이브 유닛에 앵커를 걸면 유닛이 없는 환경에서 시험이 조용히 죽는다).
+        _real_trip = globals()["watchdog_trip_mib"]
+        try:
+            globals()["watchdog_trip_mib"] = lambda: (10240, "fixture")
+            # floor = 124610 - (13123 + 99000 + 12265) = 222  → 트립선 한참 아래
+            try:
+                cmd_declare_budget(_bud(weights_mib=13123, kv_mib=99000, overhead_mib=12265,
+                                        label="kv-too-big"))
+                _raised = None
+            except SystemExit as exc:
+                _raised = str(exc)
+            ok.append(("★floor 가 트립선 이하면 선언을 거부한다",
+                       _raised is not None and "워치독 트립 임계" in _raised))
+            # 음성대조: 같은 게이트가 정상 구성은 통과시킨다(과잉차단 아님)
+            # floor = 124610 - (13123 + 53862 + 12265) = 45360
+            try:
+                cmd_declare_budget(_bud(weights_mib=13123, kv_mib=53862, overhead_mib=12265,
+                                        label="kv-native-ok"))
+                _ok2 = True
+            except SystemExit:
+                _ok2 = False
+            ok.append(("★음성대조: 트립선 위 구성은 통과한다", _ok2))
+            ok.append(("음성대조가 실제로 그 선언을 썼다",
+                       "floor_mib=45360" in open(bp, encoding="utf-8").read()))
+            # 임계를 모르면 막지 않고 큰 소리로 넘어간다(fail-loud 폴백)
+            globals()["watchdog_trip_mib"] = lambda: (None, "fixture-unknown")
+            try:
+                cmd_declare_budget(_bud(weights_mib=13123, kv_mib=99000, overhead_mib=12265,
+                                        label="trip-unknown"))
+                _ok3 = True
+            except SystemExit:
+                _ok3 = False
+            ok.append(("임계 미상이면 차단하지 않는다(경고 경로)", _ok3))
+        finally:
+            globals()["watchdog_trip_mib"] = _real_trip
+        # 뒤 시험들이 기대하는 원래 선언으로 되돌린다.
+        cmd_declare_budget(_bud())
         # 무기한 선언 금지
         for bad_ttl in (0, -1, MAX_TTL_S + 1):
             try:
@@ -669,8 +755,9 @@ def self_test():
 
         # ── 침묵 금지: 거부·차단이 events 에 남는가 (plan_26081415 C3 기준3) ──────
         #   이 자체시험이 기준3 의 재현 가능한 증거다 — 실서빙 없이 "인위 주입 → 이벤트 잔존"을
-        #   전부 검사한다. 위 거부 6건(ttl 0/-1/초과 · 상주>총량 · 불량 라벨 · TTL 하한 미달)이
-        #   입력이고, 아래가 판정이다.
+        #   전부 검사한다. 위 거부 7건(ttl 0/-1/초과 · 상주>총량 · 불량 라벨 · TTL 하한 미달
+        #   · 2026-09-06 추가: floor 가 워치독 트립선 이하)이 입력이고, 아래가 판정이다.
+        #   ★ 이 수는 닫힌 목록이다 — 새 거부 경로를 만들면 여기 수도 같이 올라간다.
         def _events():
             p = os.path.join(node, "events", "2026-07.jsonl")
             if not os.path.isfile(p):
@@ -678,7 +765,7 @@ def self_test():
             return [json.loads(ln) for ln in open(p, encoding="utf-8") if ln.strip()]
 
         rej = [e for e in _events() if e["kind"] == "budget_declare_rejected"]
-        ok.append(("★ declare 거부가 events 에 남는다(6건 전부)", len(rej) == 6))
+        ok.append(("★ declare 거부가 events 에 남는다(7건 전부)", len(rej) == 7))
         ok.append(("거부 이벤트가 사유를 담는다",
                    all(e.get("reason") for e in rej)))
         ok.append(("거부 이벤트가 입력값을 담는다(재현 가능)",
