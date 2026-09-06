@@ -51,24 +51,33 @@ def _read_json(path: Path) -> object | None:
         return None
 
 
-def active_campaign_id() -> str:
+def campaigns_dir(repo_root: str | Path | None = None) -> Path:
+    """캠페인 워크스페이스 루트. `repo_root` 를 받는 이유: 서브 워크트리·픽스처에서도 같은 규칙이
+    돌아야 하는데, 모듈 전역만 있으면 그 자리에서 규칙이 두 벌로 갈라진다."""
+    return CAMPAIGNS if repo_root is None else Path(repo_root) / "campaigns"
+
+
+def active_campaign_id(repo_root: str | Path | None = None) -> str:
     """활성 캠페인 id. 포인터가 없으면 예약 id `_bootstrap` 이다 — **루트가 아니다**.
 
     부재를 루트 폴백으로 처리하지 않는 것이 핵심이다. 폴백이 루트였기 때문에 선언을 잊은 실행이
     조용히 루트에 썼다(침묵 폴백 금지 · workflow.md §4종 안티패턴 판정표 '결함' 칸).
     """
-    if ACTIVE_POINTER.is_file():
-        name = ACTIVE_POINTER.read_text(encoding="utf-8").strip()
-        if name and (CAMPAIGNS / name).is_dir():
+    base = campaigns_dir(repo_root)
+    pointer = ACTIVE_POINTER if repo_root is None else base / "ACTIVE"
+    if pointer.is_file():
+        name = pointer.read_text(encoding="utf-8").strip()
+        if name and (base / name).is_dir():
             return name
     return BOOTSTRAP
 
 
 def derive_path(kind: str, *, cell: str | None = None, sweep: str | None = None,
-                context: str | None = None, camp_id: str | None = None) -> Path:
+                context: str | None = None, camp_id: str | None = None,
+                repo_root: str | Path | None = None) -> Path:
     """producer 출력 경로. 이 함수가 producer 경로의 **단일 소유자**다."""
-    camp = camp_id or active_campaign_id()
-    base = CAMPAIGNS / camp
+    camp = camp_id or active_campaign_id(repo_root)
+    base = campaigns_dir(repo_root) / camp
     if kind == "root":
         return base
     if kind in ("config", "lockset", "cell-status"):

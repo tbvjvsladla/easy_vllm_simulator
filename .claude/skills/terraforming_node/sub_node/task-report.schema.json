@@ -38,9 +38,11 @@
         "inspect",
         "config",
         "build",
-        "serve"
+        "serve",
+        "bench",
+        "publish"
       ],
-      "description": "inspect=부트스트랩/카나리(모델 없이 정체성·환경 self-report) · config=자율 모델 triplet 저작(vllm-recipe-explorer) · build=컨테이너 빌드 · serve=Ray worker 합류."
+      "description": "inspect=부트스트랩/카나리(모델 없이 정체성·환경 self-report) · config=자율 모델 triplet 저작(vllm-recipe-explorer) · build=컨테이너 빌드 · serve=Ray worker 합류 또는 자율 서빙 · bench=성능 계측(adversarial-benchmark) · publish=계측 결과를 메인의 hint 발행 입력으로 넘기는 위상. ★ 2026-09-06 신설(plan_26090616 ⑤): Agent_Card 는 bench·publish 능력을 선언하는데 이 enum 에는 그 두 위상이 없었다 — 서브가 완주해도 그 사실을 **보고할 위상이 없어서** 서브의 hint 태그가 구조적으로 발행 불가였다(2026-09-05 실측: 기대 3종 중 2종 발행). 명세에 실행자가 없으면 안전장치가 아니라 교착이다(헌법 노드 제어 5불변식 3)."
     },
     "status": {
       "type": "string",
@@ -84,8 +86,13 @@
               "image",
               "log",
               "report",
+              "bench-report",
+              "certificate",
+              "sweep-map",
+              "hint-inputs",
               "other"
-            ]
+            ],
+            "description": "산출물 종류. bench-report·certificate·sweep-map·hint-inputs 은 2026-09-06 신설 — 서브의 계측 증거가 메인 발행기까지 닿는 통로가 없어 멀티 태그에 메인 산출물만 실렸다."
           }
         }
       }
@@ -374,6 +381,71 @@
             "type": "boolean",
             "description": "그 근거를 채택했는가. false 도 정직한 값이다(유보)."
           }
+        }
+      }
+    },
+    "hint_inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "publish 위상의 산출 — 메인 hint 발행기가 읽는 **사이드카**다. 서브는 태그를 발행하지 않는다(발행 주체는 메인 단독). 여기 담기는 것은 포인터와 노드 출처뿐이며 측정값을 **다시 적지 않는다** — 숫자는 인증서·리포트가 이미 들고 있고, 두 번째 자리에 적으면 갈라진다.",
+      "required": [
+        "arch",
+        "measured_node",
+        "evidence"
+      ],
+      "properties": {
+        "arch": {
+          "type": "string",
+          "description": "이 기록의 hint arch 세그먼트 `<hw>-<main|sub|cluster>-<target>`. 문법 소유자는 hint_tag.py."
+        },
+        "measured_node": {
+          "type": "string",
+          "description": "실제로 측정한 노드(node_id). 인증서의 같은 이름 필드와 맞춘다 — 이 값이 없어서 메인/서브 인증서가 동명으로 충돌했다."
+        },
+        "topology": {
+          "type": "string",
+          "enum": [
+            "single",
+            "multi"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "description": "docs 평면 증거 포인터(리포트·인증서·sweep map). 서브 워크스페이스 상대경로이며, 메인은 fetch_sub_docs 로 회수한 미러에서 연다.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "path"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "bench_report",
+                  "certificate",
+                  "sweep_map",
+                  "testlog",
+                  "devlog"
+                ]
+              },
+              "path": {
+                "type": "string"
+              },
+              "cell_id": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "missing": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "이 노드가 만들지 **못한** 것의 사유코드. 부재를 침묵으로 두지 않는다 — 강행 발행 정책에서 결손은 차단이 아니라 **기재** 대상이다(plan_26090616 Q7/Q8)."
         }
       }
     }

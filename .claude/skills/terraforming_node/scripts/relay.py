@@ -4,13 +4,14 @@
 왜 턴제인가(2026-09-03 · P2 · plan_26090317 Q5):
     서브→메인 방향에는 별도 채널을 **만들지 않는다**. 폴링 inbox 는 헌법의 자동 폴링 금지와
     충돌하고, 역방향 ssh 는 서브에게 메인 접속 권한을 주는 것이며, 서브의 쓰기 허용 표면
-    (`configs/`·`envs/`·`tasks/`·`output/**`) 밖이다. 서브가 메인에게 할 말은 **이미 있는 통로**
+    (`configs/`·`envs/`·`campaigns/**`·`output/**`) 밖이다. 서브가 메인에게 할 말은 **이미 있는 통로**
     — task-report — 로 온다(§2.7.8 도 그렇게 설계돼 있다). 그러므로 릴레이는:
 
         delegate → 리포트 수신 → (input-required 면) 답을 실어 **같은 세션 재개** → …
 
-    이 파일이 그 왕복의 상태를 `tasks/<context_id>.json`(파일 = 세션)에 적고, 사람이 답해야 하는
-    것만 `tasks/pending_hitl.json` 에 표면화한다.
+    이 파일이 그 왕복의 상태를 `campaigns/<camp-id>/relay/<context_id>.json`(파일 = 세션)에 적고,
+    사람이 답해야 하는 것만 같은 자리의 `pending_hitl.json` 에 표면화한다(2026-09-06 이관 · 옛 루트
+    `tasks/` 는 폐지 · root_registry tombstone).
 
 규율(참고 프로젝트 차용 — memory: hermes-control-plane-reference-turn-budget):
     · scope ⊥ budget · 소진은 terminal → **더 큰 예산의 새 attempt**(예산 축소 금지)
@@ -38,12 +39,23 @@ sys.path.insert(0, HERE)
 import turn_budget  # noqa: E402
 import bootstrap_canary as _canary  # noqa: E402  (manifest → target 해소를 재사용)
 
-TASKS_DIR_NAME = "tasks"
 PENDING_HITL = "pending_hitl.json"
+
+# ★ 2026-09-06(plan_26090616 ②): 원장 루트가 **루트 `tasks/` 에서 활성 캠페인 아래로** 옮겨간다.
+#   왜: 루트 원장은 어느 캠페인의 왕복인지 이름으로만 구분됐고, 캠페인이 끝나도 남아 다음 캠페인
+#   입력과 섞였다. 활성 캠페인이 없을 때는 예약 id `_bootstrap` 으로 간다 — 부재를 루트 폴백으로
+#   처리하지 않는 것이 핵심이다(그 폴백이 산출물 누출의 직접 원인이었다).
+#   경로 규칙의 단일 소유자는 `campaign_init.derive_path` 이며 여기서 복제하지 않는다.
+import campaign_init as _campaign  # noqa: E402
+
+
+def relay_root(repo_root: str) -> str:
+    """이 저장소의 릴레이 원장 루트. 활성 캠페인 선언에서 파생한다(루트 기본값 없음)."""
+    return str(_campaign.derive_path("relay-root", repo_root=repo_root))
 
 
 def ledger_path(repo_root: str, context_id: str) -> str:
-    return os.path.join(repo_root, TASKS_DIR_NAME, f"{context_id}.json")
+    return os.path.join(relay_root(repo_root), f"{context_id}.json")
 
 
 def load_ledger(path: str) -> dict:
@@ -336,7 +348,7 @@ def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: 
     report = report or {}
     hitl = report.get("hitl") or {}
     requests = report.get("library_request") or []
-    path = os.path.join(repo_root, TASKS_DIR_NAME, PENDING_HITL)
+    path = os.path.join(relay_root(repo_root), PENDING_HITL)
     doc = {"schema_version": 1, "pending": []}
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
@@ -389,7 +401,7 @@ def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: 
 
 def pending_for(repo_root: str, context_id: str) -> list:
     """이 context 의 대기 요청(우선순위 순). `--continue` 가 읽는다 — **쓰기만 하던 파일에 소비자가 생긴다**."""
-    path = os.path.join(repo_root, TASKS_DIR_NAME, PENDING_HITL)
+    path = os.path.join(relay_root(repo_root), PENDING_HITL)
     if not os.path.exists(path):
         return []
     with open(path, encoding="utf-8") as f:
@@ -615,7 +627,7 @@ def _self_test() -> int:
             pending_for(d, "ctx-nb") + pending_for(d, "ctx-lib"))]
         chk(order[0] == "r1", f"★우선순위: blocking 이 먼저다(사전순이 아니다) → {order}")
         # 사람이 답을 적으면 재표면화가 그것을 지우지 않는다
-        _pp = os.path.join(d, TASKS_DIR_NAME, PENDING_HITL)
+        _pp = os.path.join(relay_root(d), PENDING_HITL)
         _doc = json.load(open(_pp, encoding="utf-8"))
         for e in _doc["pending"]:
             if e["request_id"] == "r1":
@@ -630,7 +642,7 @@ def _self_test() -> int:
             "★음성대조: 요청이 사라진 턴에는 낡은 항목이 제거된다(라이브 잔존 실측 교정)")
 
         # ⑫ A1 — 조립기는 **기록된 것만** 옮긴다
-        rd = os.path.join(d, "tasks", "ctx-c.reports")
+        rd = os.path.join(relay_root(d), "ctx-c.reports")
         os.makedirs(rd, exist_ok=True)
         json.dump({"report": {"artifacts": [{"kind": "log", "path": "output/x.json"}],
                               "next_steps": ["serve 재기동"], "notes": "KV 미정"}},
@@ -638,7 +650,7 @@ def _self_test() -> int:
         d8 = {"task": "원 지시 본문", "attempts": [
             {"attempt": 1, "status": "input-required", "phase": "build", "session_id": "s1",
              "budget_outcome": "exhausted", "max_turns_allocated": 25,
-             "report_path": "tasks/ctx-c.reports/attempt-01.json"}]}
+             "report_path": "campaigns/_bootstrap/relay/ctx-c.reports/attempt-01.json"}]}
         body = assemble_continuation(d, d8, [{"request_id": "r9", "blocking": True,
                                               "answer": "답 A", "prompt": "질문 Q"}])
         for token in ("output/x.json", "serve 재기동", "KV 미정", "답 A", "원 지시 본문", "예산 소진"):
@@ -666,7 +678,7 @@ def _self_test() -> int:
                                     "budget_outcome": "within_budget", "reason_codes": [],
                                     "duration_ms": 90_000, "duration_api_ms": 61_000},
                             report={"status": "completed", "phase": "bench"},
-                            resume_declared="new", request_path="tasks/ctx-f.requests/attempt-01.json",
+                            resume_declared="new", request_path="campaigns/_bootstrap/relay/ctx-f.requests/attempt-01.json",
                             started_utc="2026-09-05T10:00:00Z", ended_utc="2026-09-05T10:01:30Z")
         for k in ("request_path", "started_utc", "ended_utc", "duration_ms", "duration_api_ms",
                   "end_reason", "resume_declared"):
@@ -782,7 +794,7 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
           f"resume={resume_declared} sub_branch={branch}")
     # 2026-09-05(축 F): 보낸 요청을 **보존한다**. 종전에는 임시파일로 보내고 지웠기 때문에 "그때
     #   무엇을 보냈는가" 가 남지 않았고, 조립기는 매번 다시 조립하므로 재현도 되지 않았다.
-    _qdir = os.path.join(a.repo_root, TASKS_DIR_NAME, f"{a.context_id}.requests")
+    _qdir = os.path.join(relay_root(a.repo_root), f"{a.context_id}.requests")
     os.makedirs(_qdir, exist_ok=True)
     _qp = os.path.join(_qdir, "attempt-%02d.json" % attempt_no)
     with open(_qp, "w", encoding="utf-8") as f:
@@ -808,7 +820,7 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     #   근거로 completed 라 했는가" 를 메인이 감사할 수 없었다(내가 서브를 의심했다가 dotfile 을
     #   놓친 내 실수임을 확인하는 데도 서브 워크스페이스를 다시 뒤져야 했다 — 재스캔은 계약 밖이다).
     #   서브가 보낸 것은 서브가 보낸 그대로 남긴다. 없으면 산문 원문을 남긴다(추측 파싱 ✗).
-    _adir = os.path.join(a.repo_root, TASKS_DIR_NAME, f"{a.context_id}.reports")
+    _adir = os.path.join(relay_root(a.repo_root), f"{a.context_id}.reports")
     os.makedirs(_adir, exist_ok=True)
     _ap = os.path.join(_adir, "attempt-%02d.json" % att["attempt"])
     with open(_ap, "w", encoding="utf-8") as f:
@@ -946,7 +958,7 @@ def main() -> int:
             ids = ", ".join(str(e.get("request_id")) for e in blocked)
             raise SystemExit(
                 f"[relay] STOP: 답이 필요한 **차단성** 요청이 있다 — {ids}\n"
-                f"  → tasks/{PENDING_HITL} 의 해당 항목 `answer` 에 답을 적고 다시 --continue 하라.\n"
+                f"  → {relay_root(repo_root)}/{PENDING_HITL} 의 해당 항목 `answer` 에 답을 적고 다시 --continue 하라.\n"
                 "  → 이것이 사람의 승인 정문이다(답 = 승인). 답 없이 진행하면 서브가 근거 없이 결정한다.")
 
         lks = last_known_session(doc)

@@ -79,7 +79,7 @@ The sub cannot read the library — that asymmetry is deliberate (the library is
 what crosses is a *reference plus excerpt*, never a copy). So the sub sends a request and you answer.
 
 - **Where the request arrives**: the sub's task report carries `library_request[]`; the relay
-  surfaces it into `tasks/pending_hitl.json`. The three-message contract (`request` → `export` →
+  surfaces it into `campaigns/<camp-id>/relay/pending_hitl.json`. The three-message contract (`request` → `export` →
   `attestation`) and its judge live in `terraforming_node` (`SKILL.md` §2.7.8 ·
   `scripts/library_exchange.py`); the mechanics are `scripts/library_relay.py`, which calls this
   skill's `smoke_query.py` to resolve terms.
