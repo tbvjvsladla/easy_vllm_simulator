@@ -139,13 +139,22 @@ if [ "$DROP" = "0" ]; then
   echo "$TAG 3/5 페이지캐시     : SKIPPED — --no-drop-caches 로 명시 요청됨"
 elif [ ! -x "$DROP_HELPER" ]; then
   echo "$TAG 3/5 페이지캐시     : SKIPPED — 헬퍼 부재($DROP_HELPER). 설치: install_host_safety.sh"
-elif ! sudo -n true 2>/dev/null; then
-  # ★ R-0 실측: 비밀번호 없는 sudo 가 없어 조용히 빠졌다. 조용히 빠지면 "했다"와 구분되지 않는다.
-  echo "$TAG 3/5 페이지캐시     : SKIPPED — 비밀번호 없는 sudo 부재(sudo -n 실패). 잔여 페이지캐시가 남는다."
-elif run sudo -n "$DROP_HELPER" >/dev/null 2>&1; then
-  echo "$TAG 3/5 페이지캐시     : DONE"
 else
-  echo "$TAG 3/5 페이지캐시     : FAIL — 헬퍼 실행 실패" >&2; FAILED=1
+  # ★ 2026-09-06 라이브 실측: 종전에는 `sudo -n true` 로 **먼저 탐침**하고 실패하면 건너뛰었다.
+  #   그런데 이 저장소의 sudoers 위임은 `install_host_safety.sh` 가 넣는 **단일 경로 NOPASSWD**
+  #   (`/usr/local/sbin/vllm-drop-caches`)뿐이다 — `true` 는 거기 없다. 그래서 탐침은 항상 실패했고,
+  #   **실제로는 되는 일**을 "비밀번호 없는 sudo 부재"로 매번 건너뛰었다(캠페인 ⑦ a0 에서 발견).
+  #   가드가 필요 없는 능력을 검사하고, 있는 능력을 없다고 결론낸 형태다.
+  #   처방: 탐침을 없애고 **하려던 그 명령을 실제로 시도**한 뒤 결과로 가른다. 사유는 여전히
+  #   말한다(침묵 skip 금지는 이 단계의 존재 이유다) — 다만 그 사유가 이제 사실이다.
+  _drop_err="$(run sudo -n "$DROP_HELPER" 2>&1 >/dev/null)"; _drop_rc=$?
+  if [ "$_drop_rc" -eq 0 ]; then
+    echo "$TAG 3/5 페이지캐시     : DONE"
+  elif printf '%s' "$_drop_err" | grep -qi "password\|a terminal is required\|sudo:"; then
+    echo "$TAG 3/5 페이지캐시     : SKIPPED — 이 경로에 무암호 sudo 위임이 없다(install_host_safety.sh --apply 로 설치). 잔여 페이지캐시가 남는다."
+  else
+    echo "$TAG 3/5 페이지캐시     : FAIL — 헬퍼 실행 실패(rc=$_drop_rc): $_drop_err" >&2; FAILED=1
+  fi
 fi
 
 # ── 4/5 예산 선언 회수 ──────────────────────────────────────────────────────────────
