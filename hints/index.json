@@ -31,6 +31,18 @@
       "source": "remote-derived"
     },
     {
+      "tag": "hint/0.18.0/gpt-oss-20b/gb10-sub-native/qmxfp4-len131072-kvfp8",
+      "vllm": "0.18.0",
+      "model": "gpt-oss-20b",
+      "arch": "gb10-sub-native",
+      "topology": "single 1노드",
+      "brief": "서브 노드 자율 캠페인 · GB10 네이티브 예산 · KV 61,442 MiB(메인 50,133 대비 +23%) · 완결 엔드포인트 측정(오류 0/18) · 2회 차단(예산 거절 · 워치독 트립) 뒤 수렴",
+      "anchor": "15b903723e7180e514344e3e695c12ff90fc67bb",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-09-07"
+    },
+    {
       "tag": "hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8",
       "vllm": "0.19.0",
       "model": "gpt-oss-120b",
