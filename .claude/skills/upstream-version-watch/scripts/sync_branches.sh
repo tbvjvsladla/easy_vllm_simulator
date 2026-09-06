@@ -88,6 +88,14 @@ ALLOWLIST=(
     # ★ MIRROR_DIRS 에도 함께 넣는다 — 여기에만 넣으면 정본에서 지운 삽화가 대상 브랜치에
     #   유령으로 남는다(추가는 전파되고 삭제는 안 되는 비대칭).
     assets
+    # ── 캠페인 아티팩트 체인 뼈대 (2026-09-06 추가 · plan_26090616 ②) ──────────────
+    # `campaigns/README.md` 와 `campaigns/_template/**` 는 **추적 빌딩블럭**이고 인스턴스
+    # `campaigns/<camp-id>/**` 는 gitignore 로 비추적이다. 그래서 디렉터리째 넣어도 휘발
+    # 인스턴스는 따라가지 않는다(checkout 은 인덱스만 옮긴다).
+    # ★ 이 행이 없어서 첫 싱크가 뼈대를 **조용히 빼먹었다**(2026-09-06 실측) — docs/report ·
+    #   families.json · HINT_ISSUANCE_CONTRACT.md · assets 에 이은 같은 계열의 네 번째다.
+    #   새 추적 루트를 만들면 여기와 MIRROR_DIRS 두 곳을 함께 갱신해야 한다.
+    campaigns
 )
 # These directory roots are shared control-plane mirrors, not topology-local overlays. A path
 # tracked on the destination under one of these roots but absent from the source must be staged for
@@ -102,6 +110,9 @@ MIRROR_DIRS=(
     docs/report
     assets
     hints
+    # 뼈대에서 지운 틀이 대상 브랜치에 유령으로 남지 않게 한다(추가만 전파되고 삭제는 안 되는
+    # 비대칭을 막는 것이 이 목록의 존재 이유다). 인스턴스는 비추적이라 이 판정 밖이다.
+    campaigns
 )
 # Exact historical root paths removed by the self-contained owner relocation. These paths sit
 # outside MIRROR_DIRS, so checkout alone cannot remove them from an older destination branch.
