@@ -61,6 +61,12 @@ CELL_KEY=""; CONFIG=""; CITATION=""; BENCH_BUDGET=""; TOPO=""; CONFIRM=0
 #   결론은 같다: **완결 엔드포인트로 잰다.**
 BACKEND=""
 OUT_MD=""; OUT_JSON=""; REASSEMBLE=0; SERVE_FAILED_REASON=""; MAX_ERROR_RATE=""
+# 부하 레벨 목록. 빈 값이면 sweep_bench 의 기본(1,2,4,8,16)을 그대로 쓴다 — 여기서 기본을
+#   다시 적으면 같은 개념이 두 파일에 손으로 적히고 갈라진다(4종 안티패턴 · 매직넘버).
+#   2026-09-07 신설: sweep_bench 에는 --levels 가 있었으나 이 호출자가 전달하지 않아
+#   **열 예산 안에서 스윕을 짧게 도는 정식 경로가 없었다**(배선 부재 · GB10 120b multi 는
+#   연속 포화부하 4분에 SoC 95C hard ceiling 에 닿아 워치독이 서빙을 죽인다).
+LEVELS=""
 while [ $# -gt 0 ]; do case "$1" in
   --state) STATE="$2"; shift 2;;
   --now-utc) NOW="$2"; shift 2;;
@@ -78,6 +84,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --axis-citation) CITATION="$2"; shift 2;;
   --bench-budget-mib) BENCH_BUDGET="$2"; shift 2;;
   --max-error-rate) MAX_ERROR_RATE="$2"; shift 2;;
+  --levels) LEVELS="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
   --backend) BACKEND="$2"; shift 2;;
   --confirm-risk) CONFIRM=1; shift;;
@@ -258,6 +265,7 @@ MSG
     SB_ARGS=("$CONFIG" --topology "$TOPO" --tool guidellm --bench-budget-mib "$BENCH_BUDGET")
     [ -n "$BACKEND" ] && SB_ARGS+=(--backend "$BACKEND")
     [ -n "$MAX_ERROR_RATE" ] && SB_ARGS+=(--max-error-rate "$MAX_ERROR_RATE")
+    [ -n "$LEVELS" ] && SB_ARGS+=(--levels "$LEVELS")
     bash "$SDIR/sweep_bench.sh" "${SB_ARGS[@]}"
     MEASURE_RC=$?
     if [ "$MEASURE_RC" = "0" ]; then
