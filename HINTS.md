@@ -94,9 +94,13 @@ git tag -l --format='%(contents)' hint/0.24.0/deepseek-v4-flash/gb10 > seed/hint
      `git ls-remote --tags <remote> 'refs/tags/hint/*'` 이고 brief 는 태그 오브젝트에서 파싱한다.
      이전에는 여는 마커가 없어 관리 구역의 시작이 모호했고, 마커가 유실되면 전 행이
      조용히 사라질 수 있었다(감사 ⑬). -->
+| `hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8` | 0.18.0 | gpt-oss-20b | gb10-main-native |  | single 1노드 | active | — | 2026-09-07 | GB10 네이티브 예산(외부 이식 타겟 없음) · KV 절대클램프를 실행 하드웨어 자신(121.69GiB×0.90)으로 산출 · 커널 축 부재 확증(attention 후보 ['TRITON_ATTN'] 단일 · MoE marlin) |
+| `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` | 0.18.0 | gpt-oss-20b | gb10-sim-h100 | qmxfp4-len131072-kvfp8 |  | active | — |  | gpt-oss-20b 를 vLLM 0.18.0 stock wheel 로 GB10 단일노드에 최대 컨텍스트(131,072)로 서빙한 재현 키트. 핵심 발견은 성능이 아니라 **커널 축이 전부 불활성**이라는 사실이다 — 어텐션·MoE 백엔드를 무엇으로 선언해도 엔진은 triton_attn/marlin 을 쓰고, 그 사실이 로그에 남지 않는다. |
+| `hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8` | 0.19.0 | gpt-oss-120b | gb10x2-sim-h100 | qmxfp4-len131072-kvfp8 |  | active | — |  | gpt-oss-120b 를 vLLM 0.19.0 stock wheel 로 GB10 2노드 TP=2 분산 서빙한 재현 키트. 0.19.1 은 이 토폴로지로 뜨지 않으며 회귀 구간은 (0.19.0, 0.19.1] 이다. 커널 축(FlashInfer 어텐션·triton MoE·mxfp4 스위치)은 sm_121a 에서 열리지 않는다. |
 <!-- hint-index:rows -->
 | 태그 | vLLM | 모델 | arch | brief |
 |---|---|---|---|---|
-| `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` | 0.18.0 | gpt-oss-20b | gb10-sim-h100 | gpt-oss-20b 를 vLLM 0.18.0 stock wheel 로 GB10 단일노드에 최대 컨텍스트(131,072)로 서빙한 재현 키트. 핵심 발견은 성능이 아니라 **커널 축이 전부 불활성**이라는 사실이다 — 어텐션·MoE 백엔드를 무엇으로 선언해도 엔진은 triton_attn/marlin 을 쓰고, 그 사실이 로그에 남지 않는다. |
-| `hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8` | 0.19.0 | gpt-oss-120b | gb10x2-sim-h100 | gpt-oss-120b 를 vLLM 0.19.0 stock wheel 로 GB10 2노드 TP=2 분산 서빙한 재현 키트. 0.19.1 은 이 토폴로지로 뜨지 않으며 회귀 구간은 (0.19.0, 0.19.1] 이다. 커널 축(FlashInfer 어텐션·triton MoE·mxfp4 스위치)은 sm_121a 에서 열리지 않는다. |
+| `hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8` | 0.18.0 | gpt-oss-20b | gb10-main-native |  | single 1노드 | active | — | 2026-09-07 | GB10 네이티브 예산(외부 이식 타겟 없음) · KV 절대클램프를 실행 하드웨어 자신(121.69GiB×0.90)으로 산출 · 커널 축 부재 확증(attention 후보 ['TRITON_ATTN'] 단일 · MoE marlin) |
+| `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` | 0.18.0 | gpt-oss-20b | gb10-sim-h100 | qmxfp4-len131072-kvfp8 |  | active | — |  | gpt-oss-20b 를 vLLM 0.18.0 stock wheel 로 GB10 단일노드에 최대 컨텍스트(131,072)로 서빙한 재현 키트. 핵심 발견은 성능이 아니라 **커널 축이 전부 불활성**이라는 사실이다 — 어텐션·MoE 백엔드를 무엇으로 선언해도 엔진은 triton_attn/marlin 을 쓰고, 그 사실이 로그에 남지 않는다. |
+| `hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8` | 0.19.0 | gpt-oss-120b | gb10x2-sim-h100 | qmxfp4-len131072-kvfp8 |  | active | — |  | gpt-oss-120b 를 vLLM 0.19.0 stock wheel 로 GB10 2노드 TP=2 분산 서빙한 재현 키트. 0.19.1 은 이 토폴로지로 뜨지 않으며 회귀 구간은 (0.19.0, 0.19.1] 이다. 커널 축(FlashInfer 어텐션·triton MoE·mxfp4 스위치)은 sm_121a 에서 열리지 않는다. |
 <!-- hint-index:rows -->
