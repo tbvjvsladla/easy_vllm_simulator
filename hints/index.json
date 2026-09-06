@@ -43,6 +43,18 @@
       "last_verified": "2026-09-07"
     },
     {
+      "tag": "hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8",
+      "vllm": "0.19.0",
+      "model": "gpt-oss-120b",
+      "arch": "gb10x2-cluster-native",
+      "topology": "multi 2노드 TP2",
+      "brief": "GB10 x2 클러스터 · 네이티브 예산(H100 이식 클램프 제거 · KV 2.27배) · overhead 는 KV 의 함수라는 실증 · SoC 열 hard ceiling 이 연속 포화부하 4분에서 실제 벽",
+      "anchor": "80d80a3866c49a706dcb52b5c8184776e8d4660d",
+      "related": "",
+      "status": "active",
+      "last_verified": "2026-09-07"
+    },
+    {
       "tag": "hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8",
       "vllm": "0.19.0",
       "model": "gpt-oss-120b",
