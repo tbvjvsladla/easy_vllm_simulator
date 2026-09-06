@@ -29,6 +29,12 @@
   막는다. 통로는 체크아웃 브랜치가 선택하지만, 토폴로지 자체는 인터뷰로 결정한다(브랜치로 추론하지 않는다).
 - serve-time 변수 해소는 환경 주입이 manifest보다, manifest가 리터럴 기본값보다 우선한다(절차는
   workflow.md).
+- **캠페인 아티팩트 체인**: 여러 버전×모델을 순차로 도는 캠페인의 단계 간 정보는 **대화 기억이 아니라
+  아티팩트가 나른다** — 각 스킬은 앞 스킬이 남긴 선언·상태 파일만 읽고 자기 빈칸을 채우며, 다음 배선은
+  proof 술어가 연다. 거처는 루트 `campaigns/`(뼈대만 추적 · 인스턴스는 휘발 · 새 캠페인 init 이 직전
+  인스턴스를 purge)이고, 루트에 살 수 있는 항목의 단일 권위는 `.claude/policies/root_registry.json`
+  이다 — 등재되지 않은 루트 산출물은 추가 대상이 아니라 **거처 오류**다(D3). 상세는 workflow.md·
+  docs.md, 절차 정본은 `terraforming_node`.
 - 모델 구동 아티팩트 3+1+1(트리플렛·런타임 패치·빌드 패치)은 평면·소유·전달이 슬롯별로 다르다 —
   발견이 곧 소유는 아니다. 슬롯 판정 기준은 **"무엇을 고치나"가 아니라 "언제 성립해야 하나"**이며,
   빌드 패치는 이 때문에 pre/post 두 위상을 가진다. **각 슬롯의 소유는 단일하다** — serve 시점
@@ -133,6 +139,7 @@
 - policy:LAST_GOOD_ROLLBACK_ANCHOR
 - policy:MODEL_ACQUISITION_TERNARY_GATE
 - policy:MODEL_TRIPLET_NO_SUB_PROPAGATION
+- policy:ROOT_SURFACE_REGISTRY
 - policy:RUNTIME_PATCH_NO_CARRY_FORWARD
 - policy:SUB_GIT_LOCAL_ONLY
 - policy:SUB_SYNC_DIRTY_AUTOSAVE

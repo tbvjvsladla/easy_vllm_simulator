@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "scanned_utc": null,
+  "_note": "잔재 스캐너 출력 틀. purge 완료 조건은 leak·unclassified 가 모두 0 인 것이다.",
+  "workspace": [],
+  "evidence": [],
+  "volatile": [],
+  "leak": [],
+  "unclassified": []
+}

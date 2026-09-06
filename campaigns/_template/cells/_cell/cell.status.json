@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "cell_id": "<<FILL>>",
+  "node_id": "<<FILL>>",
+  "version": "<<FILL>>",
+  "model": "<<FILL>>",
+  "cell_outcome": "<<FILL>>",
+  "_cell_outcome_enum": ["pending", "measured", "serve_failed", "build_failed", "void"],
+  "measurement": {
+    "decode_tps_conc1": null,
+    "measurement_ok": false,
+    "source": null
+  },
+  "void_reason": null,
+  "void_reason_source": null,
+  "_note": "부재와 실패는 다른 사실이다 — 실패한 셀도 이 파일을 쓴다. void_reason 은 사람 문장이고 void_reason_source 는 그 판정을 낸 명령·파일이다(출처 없는 판정 금지)."
+}

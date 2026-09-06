@@ -21,8 +21,10 @@ CLAUDE.local.md
 #   파생물(추적 시 incoherent) + path-reference 로컬상태 종속. gitignore-persist로 브랜치 통합.
 #   스킬 자체(.claude/skills/wiki-desk/)는 추적. 근거 plan_2026062809_1.
 /__llm-wiki/
-# 메인↔서브 A2A 릴레이 원장(tasks/<context_id>.json · <context_id>.reports/) — 환경 런타임 상태
-#   (세션 id·서브 리포트 원문). 관측 자리이지 배포물이 아니다(2026-09-03 plan_26090317 P4).
+# ⚠ 폐지(2026-09-06 · plan_26090616): 루트 `tasks/` 는 릴레이 원장의 자리가 아니다 — 어느 캠페인의
+#   왕복인지 이름으로만 구분됐고 캠페인이 끝나도 원장이 남아 다음 캠페인 입력과 섞였다. 후속 자리는
+#   `campaigns/<camp-id>/relay/`(활성 캠페인 없으면 `_bootstrap`)이며 등록부 tombstone 이 정본이다.
+#   이 행은 **레거시 방어**로 남긴다(옛 트리·서브 오버레이가 만들면 추적되지 않도록).
 /tasks/
 
 # ===========================================
@@ -57,6 +59,9 @@ CLAUDE.local.md
 !.claude/policies/registry.yaml
 !.claude/policies/claim_bindings.json
 !.claude/policies/arch_variant_ledger.json
+# 루트 표면 등록부(policy:ROOT_SURFACE_REGISTRY 의 단일 권위). `.claude/policies/*` 에 걸려
+#   `git add` 가 조용히 no-op 이 되는 자리다 — 재포함이 없으면 등록부 자체가 배포되지 않는다.
+!.claude/policies/root_registry.json
 !.claude/policies/arch_variant_evidence/
 !.claude/policies/arch_variant_evidence/*.json
 # 재제외 (재포함 이후에 와야 적용됨 / 주석은 반드시 별도 줄 — 패턴 뒤 인라인 # 은 리터럴로 취급됨)
@@ -105,13 +110,13 @@ manifest.yaml
 /requirements.txt
 # S1 resolve 산출 스냅샷 (버전 bump마다 재생성 — 추적 안 함)
 /resolved.json
-# recipe 탐색 입력·잠금 (모델마다 재생성 · config.yaml 은 NAS/tiktoken 절대경로를 담는다).
-# 무시하지 않으면 `git add -A` 한 번에 운영자 지문이 추적 배포물로 들어간다 — 2026-09-01 실측.
-/config.yaml
-# 캠페인별 변형 입력(광의의 탐색 = 셀마다 config 하나). `/config.yaml` 과 같은 성질이며
-#   같은 NAS 절대경로를 담는다 — 패턴이 exact 라 변형이 그물을 빠져나갔다(2026-09-05 발견).
-/config.campaign-*.yaml
-/lockset.json
+# ⚠ 폐지된 거처의 **레거시 방어**(2026-09-06 · plan_26090616). recipe 탐색 입력·잠금의 정본 자리는
+#   이제 `campaigns/<camp-id>/cells/<cell-id>/` 다(등록부 tombstone). 아래 두 행은 옛 경로로 쓰는
+#   실행자·서브 오버레이가 남아도 추적되지 않게 하는 그물이며, **접두어-exact 를 쓰지 않는다** —
+#   exact 였기 때문에 `config.campaign-*`·`config.camp1-*` 변형이 세 번째로 빠져나가 21개가 공개
+#   원격까지 누출됐다(2026-09-06 감사). 접두어 glob 은 그 변형 전체를 덮는다.
+/config*.yaml
+/lockset*.json
 # tiktoken 에어갭 자산(gpt-oss harmony o200k — URL 다운로드본, 호스트 자산·배포물 아님)
 /tiktoken_cache/
 # 모델별 산출물 (범용 툴 configs/check_reqs.py 는 .py 라 미매칭 → 추적 유지)
@@ -173,6 +178,18 @@ output/*/*
 #   재포함한 순간 git 이 안으로 내려가고, files/ 는 **어떤 규칙에도 안 걸려 기본 추적**이 된다.
 #   (2026-08-13 실제 발생: 좁힌 allowlist 만으로는 92파일이 그대로 스테이징에 남았다.)
 output/*/build_patches_src/files/
+
+# ===========================================
+# campaigns/ — 캠페인 아티팩트 체인 (plan_26090616 · policy:ROOT_SURFACE_REGISTRY)
+#   뼈대(_template/ · README.md)만 추적하고 인스턴스 campaigns/<camp-id>/ 는 휘발이다.
+#   인스턴스는 셀 config 의 NAS 절대경로·세션 id·측정 원시값을 담아 배포 평면에 실릴 수 없고,
+#   매 캠페인 재생성되므로 이력으로 남길 가치가 git 이 드는 비용을 넘지 않는다.
+#   `/campaigns/*` 의 `*` 는 `/` 를 넘지 않으므로 디렉터리 재포함만으로 뼈대 내부가 살아난다
+#   (docs/report·build_patches_src 선례와 동형).
+# ===========================================
+/campaigns/*
+!/campaigns/_template/
+!/campaigns/README.md
 
 # ===========================================
 # Python

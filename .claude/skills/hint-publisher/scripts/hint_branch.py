@@ -487,11 +487,11 @@ def _run_self_test() -> int:
                     "- ${NAS_MODEL_PATH:-/mnt/models}:/app/models:ro\n", encoding="utf-8")
                 ck("★shell 기본값은 면제된다", scan_payload_pii(pay, ["leak.md"]) == [])
                 (pay / "leak.md").write_text(
-                    "NAS_MODEL_PATH=/mnt/llm/Model/real\n", encoding="utf-8")
+                    "NAS_MODEL_PATH=/mnt/fixture-nas/Model/real\n", encoding="utf-8")
                 ck("★음성대조 baking 된 실경로는 여전히 잡힌다",
                    any("abs-op-path" in h for h in scan_payload_pii(pay, ["leak.md"])))
                 (pay / "leak.md").write_text(
-                    "설명: ${VAR} 뒤에 /mnt/llm/Model/real 이 있다\n", encoding="utf-8")
+                    "설명: ${VAR} 뒤에 /mnt/fixture-nas/Model/real 이 있다\n", encoding="utf-8")
                 ck("★음성대조 치환구문 근처라도 기본값이 아니면 잡힌다",
                    any("abs-op-path" in h for h in scan_payload_pii(pay, ["leak.md"])))
                 (pay / "leak.md").write_text("정상 문서\n", encoding="utf-8")

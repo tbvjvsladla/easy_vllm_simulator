@@ -1639,6 +1639,141 @@
         "reviewer": "maintainer",
         "reason": "Added 2026-09-03. Both tripwires are wired and green on this clone, and a dated reproduction was captured the same day: deliberate RED injection on the live working tree for tripwire (1) stray .bak, an out-of-set branch and a non-hint tag, tripwire (2) a tracked-blob digest constant written into a tracked JSON in both lower and upper case, and tripwire (3) a retired mechanism name in governed prose, each followed by byte-exact restore (see docs/testlog/testlog_26090306). Kept candidate rather than active because the executor layer is WARN-only on clones that have not set core.hooksPath; promotion waits for the next full single/multi E2E, which is already a recorded follow-up."
       }
+    },
+    {
+      "policy_id": "ROOT_SURFACE_REGISTRY",
+      "owner": "terraforming_node",
+      "statement": "The repository root is a shared surface no skill owns, so what may live there is declared once in .claude/policies/root_registry.json and everything a campaign produces lives in the campaigns/ artifact chain instead: skeleton tracked, instance volatile, evidence born in the docs plane, and the next campaign's init purges the previous instance only after those evidence pointers are proven to resolve.",
+      "scope": [
+        "multi-node",
+        "single-node"
+      ],
+      "origin_failure": "2026-09-06 audit (plan_26090616): a 30h campaign wrote per-cell recipe inputs to the repository root as config.campaign-*.yaml / lockset.camp1-*.json. The root .gitignore rule was prefix-exact (/config.yaml, /lockset.json) so the varied names escaped it, the pre-commit PII tripwire's reach was .claude/ + docs/report/ + hints/, and verify_distribution scanned only the build plane -- no gate had jurisdiction over the root, and 21 files carrying operator NAS absolute paths reached a public remote with 5 forks. The same campaign published 2 of 3 expected hint tags because the information each stage needed from the previous one was carried by conversation memory rather than by an artifact, so a compacted or restarted session silently fell back to root defaults.",
+      "clauses": [
+        {
+          "clause_id": "ROOT_SURFACE_REGISTRY.C1",
+          "statement": "root_registry.json is the single authority over the repository root: every root entry is declared there with its kind, git state, owner and role, retired entries stay as tombstones naming their successor path, and an unlisted root artifact is a placement error to be re-derived into a channel (campaigns/, output/, docs/) rather than an addition to the list. The list is deliberately closed so that changing the root surface forces human review."
+        },
+        {
+          "clause_id": "ROOT_SURFACE_REGISTRY.C2",
+          "statement": "campaigns/ splits by lifetime, not by content: campaigns/README.md and campaigns/_template/** are tracked skeleton the user maintains, campaigns/<camp-id>/** is an untracked volatile instance the agent authors, and no integrity digest is placed on either -- git already carries the skeleton's bytes and the instance has no second copy to compare against. A new campaign's init purges the previous instance, and that deletion opens only when the previous instance's evidence pointers all resolve in the docs plane and its relay summary has been published as a testlog; sync_staging/ is a standing root resource outside the purge."
+        },
+        {
+          "clause_id": "ROOT_SURFACE_REGISTRY.C3",
+          "statement": "Information moves between campaign stages through artifacts, never through conversation memory: each stage reads the declaration and status files the previous stage wrote and fills its own blanks, a phase records both its result and a proof carrying the command or file that produced the judgement, a failed phase still writes its status file so absence and failure stay distinguishable, and every producer derives its output path from the active campaign declaration with no root default left in place."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/policies/root_registry.json",
+          "supports": [
+            "ROOT_SURFACE_REGISTRY.C1"
+          ],
+          "assertion_ids": [
+            "entries",
+            "tombstones"
+          ]
+        },
+        {
+          "path": ".claude/policies/runtime/runtime_selftest.py",
+          "supports": [
+            "ROOT_SURFACE_REGISTRY.C1"
+          ],
+          "assertion_ids": [
+            "_test_root_surface_registry",
+            "_test_root_registry_predicate"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "ROOT_SURFACE_REGISTRY.C1"
+          ],
+          "assertion_ids": [
+            "predicate_ROOT_SURFACE_REGISTRY_C1"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "supports": [
+            "ROOT_SURFACE_REGISTRY.C2"
+          ],
+          "assertion_ids": [
+            "purge_gate_reasons",
+            "do_purge",
+            "PURGE_KEEPS"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "ROOT_SURFACE_REGISTRY.C2"
+          ],
+          "assertion_ids": [
+            "predicate_ROOT_SURFACE_REGISTRY_C2"
+          ]
+        },
+        {
+          "path": ".claude/rules/workflow.md",
+          "supports": [
+            "ROOT_SURFACE_REGISTRY.C2"
+          ],
+          "assertion_ids": [
+            "배치와 수명",
+            "purge 게이트 — 지우기 전에 증거가 docs 평면에 도착했는가"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+          "supports": [
+            "ROOT_SURFACE_REGISTRY.C3"
+          ],
+          "assertion_ids": [
+            "validate_instance",
+            "find_fill_placeholders",
+            "validate_campaign"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "supports": [
+            "ROOT_SURFACE_REGISTRY.C3"
+          ],
+          "assertion_ids": [
+            "derive_path",
+            "active_campaign_id"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "ROOT_SURFACE_REGISTRY.C3"
+          ],
+          "assertion_ids": [
+            "predicate_ROOT_SURFACE_REGISTRY_C3"
+          ]
+        },
+        {
+          "path": ".claude/rules/docs.md",
+          "supports": [
+            "ROOT_SURFACE_REGISTRY.C2"
+          ],
+          "assertion_ids": [
+            "캠페인 워크스페이스 — `campaigns/` (9번째, 두 번째 비-문서)"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if campaigns stop producing per-cell inputs and per-node stage state -- for example a future model where a single declarative run spec is consumed end-to-end by one process with no intermediate handoff -- documented in a superseding plan that also names what replaces the root tripwire and the purge gate.",
+      "added_at": "2026-09-06",
+      "last_reproduced": "2026-09-06",
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-09-06",
+        "next_review_due": "2026-12-05",
+        "reviewer": "maintainer",
+        "reason": "Added 2026-09-06 from the plan_26090616 audit, whose finding is itself the dated reproduction: 21 root files tracked to a public remote with no gate holding jurisdiction, confirmed by git ls-files and by check-ignore on the escaped names. Kept candidate rather than active because the enforcing tripwires (root allowlist + operator-literal scan over staged blobs) land in the same plan's stage 3 and their deliberate RED injection has not been recorded yet; promotion waits for that testlog and for the campaign re-run that exercises the purge gate end to end."
+      }
     }
   ]
 }

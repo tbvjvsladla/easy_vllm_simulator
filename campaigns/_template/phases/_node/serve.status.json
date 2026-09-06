@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "node_id": "<<FILL>>",
+  "phase": "serve",
+  "cell_id": "<<FILL>>",
+  "state": "pending",
+  "_state_enum": ["pending", "running", "done", "failed"],
+  "started_utc": null,
+  "ended_utc": null,
+  "proof": {
+    "predicate": "<<FILL>>",
+    "ok": false,
+    "source": null
+  },
+  "_note": "proof.ok 는 관측이지 선언이 아니다 — source 에 그 판정을 낸 명령·파일을 적는다. 다음 phase 는 앞 phase 의 proof.ok 가 참일 때만 진입한다(workflow.md §phase 전이)."
+}

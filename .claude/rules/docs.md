@@ -20,6 +20,31 @@
 - **`docs/logs/` 는 이 명명 SSOT의 명시 예외다** — 문서가 아니라 기계판독 데이터 평면이므로
   `<type>_<YYMMDDHH>_<주제>` 규약·산문 규약을 적용하지 않는다(아래 §기계판독 데이터 평면).
 
+## 캠페인 워크스페이스 — `campaigns/` (9번째, 두 번째 비-문서)
+
+> 근거 `plan_26090616` · 소유 `terraforming_node` · 정책 `policy:ROOT_SURFACE_REGISTRY`.
+> **`docs/logs/` 와 같은 성격의 예외다** — 산문이 아니라 **단계 사이에서 정보를 나르는 기계판독
+> 아티팩트**이므로 §명명 SSOT·§공통 발행 계약·evidence chain 규약을 적용하지 않는다.
+
+| 경로 | 내용 | git | 수명 |
+|---|---|---|---|
+| `campaigns/README.md` | Agent 읽기 순서·채우기 규칙 | 추적 | 영구 |
+| `campaigns/_template/**` | 뼈대(스키마·선언·셀·phase·릴레이·스윕 틀) | 추적 | 영구 |
+| `campaigns/<camp-id>/campaign.yaml` | 캠페인 선언(matrix·순서·예산·통제변인·hint 대상) | 비추적 | 캠페인 1회 |
+| `campaigns/<camp-id>/cells/<cell>/` | 셀 입력(`config.yaml`·`lockset.json`)과 상태 | 비추적 | 동상 |
+| `campaigns/<camp-id>/phases/<node>/` | phase 상태+proof | 비추적 | 동상 |
+| `campaigns/<camp-id>/relay/` | A2A 릴레이 원장(옛 `tasks/`) | 비추적 | 동상 |
+| `campaigns/<camp-id>/sweeps/` | 스윕 상태·정지판정 | 비추적 | 동상 |
+| `campaigns/<camp-id>/evidence_pointers.json` | docs 평면 증거 포인터(purge 선행조건) | 비추적 | 동상 |
+
+- **증거는 여기서 태어나지 않는다** — 인증서·리포트·sweep map·testlog·devlog 는 `docs/` 평면에서
+  발행되고, 이 워크스페이스는 **포인터와 진행 상태만** 든다. 그래서 인스턴스를 통째로 지워도 증거가
+  살아남으며, 그 사실을 purge 게이트가 검사한다(workflow.md §purge 게이트).
+- **사람 가독성을 요구하지 않는다**(`docs/logs/` 선례). 열람이 필요하면 그때 testlog/devlog 로
+  서사를 저작한다 — 원장 원문이 아니라 요약이 문서 평면의 시민이다.
+- **PII 스캔**: 인스턴스는 비추적·비배포이므로 아래 표의 *기계생성 원시 평면* 과 같은 처방을 받는다
+  (판정 대상 밖 · 소멸은 정정이 아니라 purge). 뼈대는 추적 배포물이므로 **4종 전부**가 걸린다.
+
 ## compact document matrix
 
 | 종류 | 목표/상태 | owner·입력 | 출력 | gate | 실패 라우팅 |
@@ -88,7 +113,7 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 |---|---|---|---|
 | **배포 산출물** — hint 태그 오브젝트·`docs/report/*`·추적 템플릿(`.claude/**`·`CLAUDE.md`)·서브 전파분 | **판정** | **4종 전부**(`abs-op-path` 포함) | 제3자에게 도달한다. 운영자 절대경로는 환경 지문이므로 제거 대상 |
 | **비배포 산문** — gitignored `docs/{plan,devlog,testlog,benchmark,request}` (사람 저작분) | **판정** | `private-ipv4`·`email`·`spark-host` **3종** | 로컬 전용. `/mnt`·`/home` 경로는 재현에 필요한 정보이며 배포되지 않는다 |
-| **기계생성 원시 평면** — `docs/simlog/*`(trial vault)·`docs/logs/*`(블랙박스 데이터) | **판정 대상 밖** | — | **편집 불가가 계약**이다(§compact document matrix `simlog`=raw trial vault · §기계판독 데이터 평면). 소멸은 정정이 아니라 **수명주기 삭제**로만 일어난다 |
+| **기계생성 원시 평면** — `docs/simlog/*`(trial vault)·`docs/logs/*`(블랙박스 데이터)·`campaigns/<camp-id>/*`(캠페인 인스턴스) | **판정 대상 밖** | — | **편집 불가가 계약**이다(§compact document matrix `simlog`=raw trial vault · §기계판독 데이터 평면). 소멸은 정정이 아니라 **수명주기 삭제**로만 일어난다 |
 
 - **판정 대상 축소의 근거**(2026-08-15 실측 · `testlog_26081516` §4.1): `spark-host` 전수 251,982건 중
   **99.97%가 `docs/simlog`·`docs/logs`** 였다. 이 둘을 포함한 채로 "0건"을 기준으로 삼으면 그 기준은
@@ -129,6 +154,9 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 | `docs/logs/*` | ignored(기존 `docs/*/*` 가 이미 커버 — 새 규칙 불요) | **평시 `envelope.json` 요약만 상향**, 사고 시에만 원시 회수 | `logs_lifecycle.py`; `example.md` 스켈레톤 불요(기계 생성) |
 | `.claude/`·`CLAUDE.md` | tracked building blocks | `.claude/skills/upstream-version-watch/scripts/sync_branches.sh` | 이 문서 산출물 규약 밖 |
 | `seed/` | private/untracked | 배포본에 없을 수 있음 | 근거 pointer만 허용 |
+| `campaigns/README.md`·`campaigns/_template/**` | **tracked**(뼈대) | main→sub 오버레이 설치 · branch sync 대상 | `terraforming_node`; `campaign_template_validator.py` |
+| `campaigns/<camp-id>/**` | ignored(휘발) | 전파 ✗ — 서브는 자기 인스턴스를 자율 저작하고 결과는 문서로 회수 | 새 캠페인 init 의 purge 게이트(workflow.md) |
+| ~~`tasks/`~~ | **폐지 2026-09-06** | — | 후속 = `campaigns/<camp-id>/relay/` (활성 캠페인 없으면 `_bootstrap`) |
 
 simlog·benchmark에 폴더별 ignore 예외를 더하지 않는다. report는 tracked allowlist 행 하나로 평탄화하며, `docs/report/` 전체가 배포된다.
 

@@ -53,6 +53,49 @@ TAG_SHAPE = re.compile(r"^hint/[^/]+/[^/]+/[^/]+/[^/]+$")
 # 레시피 세그먼트는 **파생값**이다(손저작 ✗). 형태를 좁혀 두면 손으로 지은 이름이 여기서 걸린다.
 RECIPE_SHAPE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 
+# ★ 2026-09-06(plan_26090616 Q1/Q2 · 사용자 결정): arch 세그먼트에 **노드 축**이 들어간다.
+#     <hw>-<main|sub|cluster>-<target>      예) gb10-main-sim-h100 · gb10x2-cluster-sim-h100
+#   왜: hint 태그는 "이 조합이 된다"가 아니라 **"어느 노드 형상이 수행한 기록"** 이다. 옛 문법
+#   `gb10-sim-h100` 에는 수행 주체가 없어서, 같은 하드웨어의 메인·서브가 같은 이름을 원했고 —
+#   실제로 서브는 완주했는데도 태그가 나가지 못했다(2026-09-05 캠페인: 기대 3종 중 2종 발행).
+#   `cluster` 는 쌍을 **하나의 수행 정체성**으로 본다(멀티는 노드별로 갈라 발행하지 않는다).
+#   구분자는 기존 관행대로 `-` 다. 세그먼트를 6개로 늘리지 않는 이유: 모델 슬러그 인덱스를 포함해
+#   이름을 해체하는 모든 자리가 5세그먼트를 가정한다 — 축은 arch **안에서** 늘린다.
+NODE_AXIS = ("main", "sub", "cluster")
+ARCH_SHAPE = re.compile(r"^(?P<hw>[a-z0-9]+)-(?P<node>main|sub|cluster)-(?P<target>[a-z0-9][a-z0-9-]*)$")
+# 노드 축이 없던 옛 이름(`gb10-sim-h100`)을 **다른 사유로** 가려내기 위한 형태. 통과시키지 않되,
+# "형태 위반" 과 "옛 문법" 을 같은 메시지로 뭉개면 고치는 사람이 무엇을 고쳐야 할지 모른다.
+_ARCH_LEGACY_SHAPE = re.compile(r"^[a-z0-9]+-(?!main-|sub-|cluster-)[a-z0-9][a-z0-9-]*$")
+
+
+def parse_arch_segment(arch: str) -> tuple[str, str, str]:
+    """`<hw>-<node>-<target>` → (hw, node, target). **arch 해체의 단일 소유자.**"""
+    m = ARCH_SHAPE.match(arch or "")
+    if not m:
+        die(f"[hint_tag] FAIL: arch 형태 위반(<hw>-<main|sub|cluster>-<target>): {arch!r}")
+    return m.group("hw"), m.group("node"), m.group("target")
+
+
+def arch_violation(arch: str) -> str | None:
+    """arch 세그먼트의 위반 사유코드(정상이면 None). 발행기·캠페인 검증기가 **같은 커널**을 쓴다."""
+    if not arch:
+        return "HINT_ARCH_ABSENT"
+    if ARCH_SHAPE.match(arch):
+        return None
+    if _ARCH_LEGACY_SHAPE.match(arch):
+        return "HINT_ARCH_NODE_AXIS_ABSENT"
+    return "HINT_ARCH_SHAPE_VIOLATION"
+
+
+def build_arch_segment(hw: str, node: str, target: str) -> str:
+    """축 3개 → arch 세그먼트. 손으로 이어붙이는 자리를 없앤다(문법이 두 벌로 갈라지지 않게)."""
+    if node not in NODE_AXIS:
+        die(f"[hint_tag] FAIL: 노드 축은 {NODE_AXIS} 중 하나여야 한다: {node!r}")
+    arch = f"{hw}-{node}-{target}"
+    if (why := arch_violation(arch)) is not None:
+        die(f"[hint_tag] FAIL: {why} — 조립한 arch 가 문법을 위반한다: {arch!r}")
+    return arch
+
 
 def parse_hint_tag(name: str) -> tuple[str, str, str, str]:
     """`hint/<vllm>/<model>/<arch>/<recipe>` → 4-튜플. **이름 해체의 단일 소유자.**
@@ -2298,7 +2341,7 @@ def cmd_self_test(_a=None) -> int:
     ck("★음성대조 밀도 부족 검출", any("L2" in p for p in lint_body(good.replace("가" * 90, "짧음"))))
 
     # ── PII 스캔(배포면 4종)
-    ck("★PII 절대경로 검출", any("abs-op-path" in h for h in scan_text("경로 /mnt/llm/Model/x 참조", None)))
+    ck("★PII 절대경로 검출", any("abs-op-path" in h for h in scan_text("경로 /mnt/fixture-nas/Model/x 참조", None)))
     # 픽스처 값은 **합성**이다(`spark-[0-9a-f]{3,}` 을 만족하는 아무 값). 운영자 실호스트명을 쓰면
     # 이 추적·배포 파일이 그 이름을 싣게 되고, 그것이 곧 우리가 막으려는 유출이다(2026-09-04 실측:
     # 배포면 스캔이 이 줄을 `term:` 으로 잡았다). 합성 값으로도 **generic 패턴 발화**는 동일하게

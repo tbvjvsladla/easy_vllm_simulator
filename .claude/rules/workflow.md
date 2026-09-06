@@ -197,6 +197,74 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
 - **범위 밖**: 호스트 `/boot` 의 grub 백업(부팅 복구 수단이며 git 평면이 아니다) · `seed/`
   (사용자 보관소이자 비추적 평면 — 이 규약의 대상이 아니다).
 
+## 캠페인 아티팩트 체인 — `campaigns/` (2026-09-06 신설 · `policy:ROOT_SURFACE_REGISTRY`)
+
+> 왜: 여러 버전×모델을 순차로 도는 캠페인에서 단계 간 정보를 **대화 기억이 날랐다**. 세션이 끊기거나
+> 문맥이 압축되면 그 정보가 사라졌고, 각 스킬은 자기 기본값(루트 `config.yaml`·루트 `tasks/`)으로
+> 되돌아가 산출물을 관리범위 밖에 흘렸다(2026-09-06 실측: 루트 추적 누출 21개 · hint 태그 2/3 발행).
+> 처방은 규율이 아니라 **거처**다 — 나를 것을 파일로 만들고, 그 파일의 자리를 선언에서 파생시킨다.
+
+### 배치와 수명
+
+| 자리 | git | 수명 | 소유 |
+|---|---|---|---|
+| `campaigns/README.md` · `campaigns/_template/**` | **추적** | 영구(뼈대) | 사용자가 관리하는 유일한 부분 |
+| `campaigns/<camp-id>/**` | **비추적** | 캠페인 1회(휘발) | 에이전트가 저작 |
+| `campaigns/_bootstrap/**` | 비추적 | 활성 캠페인이 없을 때의 예약 인스턴스 | 온보딩·카나리 릴레이 |
+
+- **뼈대만 추적**하는 이유: 인스턴스는 운영자 절대경로·세션 id·측정 원시값을 담아 배포 평면에 실릴 수
+  없고, 매 캠페인 재생성되므로 이력으로 남길 가치가 git 이 드는 비용을 넘지 않는다. 사용자는 빈칸의
+  **모양**만 관리하고 값은 관리하지 않는다.
+- **무결성 해시를 두지 않는다** — 뼈대는 추적물이라 git 이 이미 바이트를 든다(`policy:GIT_SINGLE_AUTHORITY`
+  2문항 Q1 = 예 → 중복층). 인스턴스는 휘발이라 대조할 두 번째 자리가 애초에 성립하지 않는다.
+
+### phase 전이 — proof 술어가 다음 배선을 연다
+
+한 셀(= 버전×모델 1조합)은 노드별로 `build → serve → bench → publish` 를 지난다. 각 phase 는
+`campaigns/<id>/phases/<node>/<phase>.status.json` 에 **자기 결과와 proof** 를 적고, 다음 phase 는
+앞 phase 의 `proof.ok` 가 참일 때만 진입한다.
+
+| phase | 입력(앞 아티팩트) | 출력 | proof 술어 |
+|---|---|---|---|
+| `build` | `campaign.yaml` 의 matrix 행 · `cells/<cell>/config.yaml` | 이미지 태그·digest | 이미지가 실재하고 `--gpus=all` 기능 프로브 통과 |
+| `serve` | build status · `cells/<cell>/lockset.json` | health·엔진 로그 경로 | health 200 + 추론 1회 성공 |
+| `bench` | serve status | `docs/benchmark/` 리포트(+PASS 면 인증서) | 리포트 실재 + `measurement_ok` |
+| `publish` | bench status | `hint_inputs` 사이드카 · 증거 포인터 | 포인터 전수 실재 |
+
+- **proof 는 선언이 아니라 관측이다** — `ok: true` 옆에 `source`(그 판정을 낸 명령·파일)를 함께
+  적는다. 출처 없는 `ok` 는 단언이 검증을 대체한 것이고, 그러면 깨진 순간을 아무도 모른다.
+- phase 가 실패해도 status 파일은 **쓴다**. 부재와 실패는 다른 사실이며, 부재만 남기면 "돌지 않았다"와
+  "돌다 죽었다"가 구분되지 않는다.
+
+### producer 경로 파생 — 기본값을 루트로 두지 않는다
+
+캠페인 중 산출물을 만드는 실행자는 자기 출력 경로를 **활성 캠페인 선언에서 파생**한다. 루트 기본값은
+남기지 않는다 — 남기면 선언을 잊은 실행이 조용히 루트에 쓴다(누출 21개의 직접 원인).
+
+| 실행자 | 옛 기본값 | 파생 경로 |
+|---|---|---|
+| `vllm-recipe-explorer` `recipe.py --config` | `/config.yaml` | `campaigns/<id>/cells/<cell>/config.yaml` |
+| recipe lock-set | `/lockset.json` | `campaigns/<id>/cells/<cell>/lockset.json` |
+| `adversarial-benchmark` `broad_search.sh --state` | 호출자 임의 | `campaigns/<id>/sweeps/<sweep>.json` |
+| `terraforming_node` `relay.py` 원장 | `/tasks/` | `campaigns/<id>/relay/` (활성 캠페인 없으면 `_bootstrap`) |
+
+### purge 게이트 — 지우기 전에 증거가 docs 평면에 도착했는가
+
+새 캠페인 init 은 **직전 인스턴스를 통째로 지운 뒤** 시작한다. 그 삭제는 아래 선행조건이 모두 참일
+때만 열린다(fail-closed).
+
+1. `campaigns/<직전>/evidence_pointers.json` 의 포인터가 **전수 실재**한다(인증서·리포트·sweep map·
+   testlog·devlog). 증거는 docs 평면에서 **태어나므로** 인스턴스를 지워도 살아남는다 — 이 검사는
+   "정말 거기서 태어났는가"를 묻는 것이다.
+2. 릴레이 요약이 testlog 로 발행돼 있다(원장 원문은 휘발이지만 서사는 남는다).
+3. 삭제 실행자는 메인이고, 게이트는 새 캠페인 plan 의 HITL 이다.
+
+- 선행조건이 깨지면 purge 는 열리지 않고 **새 캠페인이 시작되지 않는다**. 증거를 흘린 채 다음 캠페인을
+  도는 것보다 멈추는 편이 싸다.
+- `sync_staging/` 은 purge 대상이 **아니다** — 서브 docs 회수 미러는 캠페인과 수명이 다른 루트 상시
+  자원이다(등록부 참조).
+- 완료 조건은 잔재 스캔 0 이다: 루트에 등록부 밖 항목 0 · 직전 `campaigns/<id>/` 부재.
+
 ## 완료 조건
 
 컨테이너 변경은 S3 PASS 전 done이 아니다. 실패는 partial apply 없이 last-good로 복구하고(`policy:LAST_GOOD_ROLLBACK_ANCHOR`), build/검증 증거는 `docs/testlog/`, 전파 서사는 `docs/devlog/`에 남긴다. bump·full benchmark·모델 다운로드는 명시된 사람 승인 없이는 실행하지 않는다.

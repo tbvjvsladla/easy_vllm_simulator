@@ -1,0 +1,31 @@
+# 셀 입력 — recipe.py --config 의 대상. 옛 루트 /config.yaml·/config.campaign-*.yaml 의 후속 자리다.
+#
+# ⚠ 이 파일은 NAS 절대경로 등 운영자 지문을 담는다. 인스턴스(campaigns/<camp-id>/)가 **비추적**인
+#   것이 이 파일이 배포 평면에 닿지 않는 유일한 근거다 — 루트에 두었을 때 21개가 공개 원격까지
+#   추적 누출됐다(root_registry tombstone · plan_26090616).
+#
+# 실측(measured)과 선언(declared)을 섞지 않는다: 타겟 HW 예산을 test_device_total_gib 에 적으면
+# "쟀다"는 거짓이 된다(CLAUDE.md §결정론 산출물은 출처를 표시한다).
+
+target_model:
+  path: <<FILL>>                      # 컨테이너 내부 모델 경로
+nas_host_root: <<FILL>>               # 호스트 NAS 루트(운영자 지문)
+tiktoken_host_path: <<FILL>>          # 필요 모델만
+
+# ── 실측(measured) ──
+test_device_total_gib: <<FILL>>       # 이 노드의 실제 총량(GB10 통합메모리는 /proc/meminfo 가 권위)
+vram_budget_gb: <<FILL>>
+safety_margin: 0.90
+
+# ── 선언(declared) · 통제변인 ──
+target_gpu:
+  gpu_model: <<FILL>>
+  per_card_vram_gib: <<FILL>>
+  target_gmu: 0.90
+  cards_per_node: 1
+
+kv_cache_dtype_bytes: 1
+serving:
+  config_name: <<FILL>>               # = cell_id. 이름이 곧 증거 연결이다(hint 게이트가 이걸로 묶는다).
+  port: 8080
+  served_model_name: <<FILL>>
