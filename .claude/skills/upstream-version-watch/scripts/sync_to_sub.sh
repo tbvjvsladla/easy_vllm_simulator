@@ -654,6 +654,16 @@ OVERLAY_STALE_PATHS=(
     scripts/systemd/easy-vllm-memwatch.service
     scripts/smoke_clone.sh
     scripts/sync_branches.sh
+    # 2026-09-06(plan_26090616 ②): 릴레이 원장이 `campaigns/<camp-id>/relay/` 로 이관되면서
+    #   루트 `tasks/` 는 폐지됐다(root_registry tombstone). 오버레이는 **가산**이라 지운 자리가
+    #   서브에 그대로 남는다 — 남으면 서브가 옛 자리에 계속 쓰고, 그 원장은 어느 캠페인의
+    #   왕복인지 알 수 없는 채로 다음 캠페인 입력과 섞인다(이관의 목적이 무효가 된다).
+    #   ★ 지우는 것은 **스캔폴드 마커뿐**이다. `tasks/` 디렉터리 자체는 건드리지 않는다 —
+    #     거기엔 서브가 저작한 살아 있는 원장이 들어 있고, 그것은 서브 소유 평면이다(무단 교정
+    #     금지). 게다가 `apply_overlay_tombstones` 는 `rm -f` 라 디렉터리를 지우지도 못한다 —
+    #     목록에 디렉터리를 적으면 **조용히 아무 일도 일어나지 않는다**(침묵 no-op).
+    #     서브의 새 작업은 CLAUDE.template/comms.md 가 가리키는 새 자리로 간다.
+    tasks/.gitkeep
 )
 OVERLAY_RELOCATION_STALE_PATHS=(
     .claude/rules/references.md
