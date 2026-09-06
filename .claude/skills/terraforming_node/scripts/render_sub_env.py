@@ -364,7 +364,10 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     claude = os.path.join(out_dir, ".claude")
     os.makedirs(os.path.join(claude, "rules"), exist_ok=True)
     os.makedirs(os.path.join(claude, "schemas"), exist_ok=True)
-    os.makedirs(os.path.join(out_dir, "tasks"), exist_ok=True)
+    # 2026-09-06(plan_26090616 ②): 옛 릴레이 원장 루트 `tasks/` 는 폐지됐다. 빈 디렉터리를
+    #   남기면 배달 게이트가 "undeclared transfer artifact" 로 막고(실측), 막지 않더라도
+    #   서브에게 "여기가 원장 자리다" 라고 계속 말한다. 새 자리는 campaigns/_bootstrap/relay/ 다.
+    os.makedirs(os.path.join(out_dir, "campaigns", "_bootstrap", "relay"), exist_ok=True)
 
     produced: list[str] = []
 
