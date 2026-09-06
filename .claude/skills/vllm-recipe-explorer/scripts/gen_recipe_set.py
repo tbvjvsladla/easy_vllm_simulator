@@ -57,7 +57,7 @@ def _build_vram_breakdown_block(breakdown):
     return lines
 
 
-def _build_yaml(parsed, recipe, served_model_name):
+def _build_yaml(parsed, recipe, served_model_name, port=8000):
     """configs/<name>.yaml 내용 문자열 생성.
 
     기존 configs/gpt-oss-20b-normal.yaml 스키마 준수:
@@ -97,7 +97,13 @@ def _build_yaml(parsed, recipe, served_model_name):
         lines.append("# 가능하면 타겟에서 재측정(Phase-2)을 권장. per-token-KV·weights 는 GPU-불변, overhead 는 런타임 성질 일부 포함.")
     lines.append("model: {}".format(container_path))
     lines.append("host: 0.0.0.0")
-    lines.append("port: 8000")
+    # ★ 2026-09-06: 여기에 8000 이 **상수로** 박혀 있었다. env 의 SERVING_PORT 는 --port 를
+    #   받는데 yaml 은 안 받으니, 둘이 갈리면 엔진은 8000 으로 리슨하고 스모크는 --port 를
+    #   폴링한다 — 서빙이 성공했는데 health 가 영영 안 뜬다(캠페인 ⑦ b0 실측: 컨테이너는
+    #   `Application startup complete` 인데 폴링은 75분 타임아웃을 향해 갔다).
+    #   직전 캠페인 트리플렛은 둘 다 8080 이라 안 걸렸는데, 그건 **손저작이었기 때문**이다.
+    #   같은 개념이 두 자리에 손으로 적힌 값 = 4종 안티패턴의 매직넘버 결함. 파생시킨다.
+    lines.append("port: {}".format(port))
     # KV 절대클램프 따름정리(헌법, E2E 실증 corrected): gpu-memory-utilization 은 **항상 emit**.
     # clamp(kv-cache-memory-bytes)가 KV 사이징·이식성을 제어하지만, gmu 는 startup free-memory 검증(free ≥ gmu×total)
     # + 총 메모리 cap 에 여전히 쓰인다(vLLM 은 gmu 를 *KV 사이징*에만 무시 — config/cache.py). 통합메모리(GB10 free/total≈0.91)는
@@ -439,7 +445,7 @@ def generate(parsed, recipe, name, repo_root, port, served_model_name, force=Fal
             raise FileExistsError(
                 "이미 존재하는 파일(덮어쓰려면 --force): " + ", ".join(existing))
 
-    yaml_text = _build_yaml(parsed, recipe, served_model_name)
+    yaml_text = _build_yaml(parsed, recipe, served_model_name, port=port)
     sh_text = _build_sh(name, served_model_name, recipe)
     env_text = _build_env(name, served_model_name, port, image=image,
                           topology=topology, vllm_version=vllm_version,
