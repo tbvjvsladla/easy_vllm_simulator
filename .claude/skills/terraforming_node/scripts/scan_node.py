@@ -984,7 +984,7 @@ def _self_test() -> int:
             "socket_iface": None, "bandwidth_gbps": None, "platform_preset": None}}, ["main"]),
         ("multi RoCE(채워짐)", {"topology_declared": "multi", "cpu_arch": "aarch64", "cuda_version": "132",
             "gpus_per_node": 1, "gpu_model": "NVIDIA GB10", "model_source": "managed",
-            "nas_model_path": "/mnt/llm/Model/hugging_face_ver_model",
+            "nas_model_path": "/srv/fixture-nas/models",  # 합성값 — 실 운영자 NAS 리터럴을 픽스처에 두지 않는다(면제보다 값 교체)
             "nodes": [{"role": "main", "host": "node-a", "hostname": "node-a", "ssh_user": "u", "work_dir": "/w"},
                       {"role": "sub", "host": "node-b", "hostname": "node-b", "ssh_user": "u", "work_dir": "/w"}],
             "homogeneity": {"verified": True, "peer": {"gpu_model": "NVIDIA GB10", "driver": "580.173.02", "cuda": "13.2"}},

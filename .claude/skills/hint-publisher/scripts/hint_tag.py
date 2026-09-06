@@ -2298,7 +2298,7 @@ def cmd_self_test(_a=None) -> int:
     ck("★음성대조 밀도 부족 검출", any("L2" in p for p in lint_body(good.replace("가" * 90, "짧음"))))
 
     # ── PII 스캔(배포면 4종)
-    ck("★PII 절대경로 검출", any("abs-op-path" in h for h in scan_text("경로 /mnt/llm/Model/x 참조", None)))
+    ck("★PII 절대경로 검출", any("abs-op-path" in h for h in scan_text("경로 /mnt/fixture-nas/Model/x 참조", None)))
     # 픽스처 값은 **합성**이다(`spark-[0-9a-f]{3,}` 을 만족하는 아무 값). 운영자 실호스트명을 쓰면
     # 이 추적·배포 파일이 그 이름을 싣게 되고, 그것이 곧 우리가 막으려는 유출이다(2026-09-04 실측:
     # 배포면 스캔이 이 줄을 `term:` 으로 잡았다). 합성 값으로도 **generic 패턴 발화**는 동일하게

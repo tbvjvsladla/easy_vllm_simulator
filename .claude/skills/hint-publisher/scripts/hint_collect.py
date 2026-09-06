@@ -770,7 +770,7 @@ def _run_self_test() -> int:
         (repo / "output" / "single" / "requirements.txt").write_text("vllm==1\n", encoding="utf-8")
         (repo / "output" / "single" / "docker-compose.yaml").write_text("services: {}\n", encoding="utf-8")
         (repo / "output" / "single" / ".env").write_text(
-            "# 주석\nNAS_MODEL_PATH=/mnt/llm/Model/x\nIMAGE_TAG=easy-vllm:1-wheel\n", encoding="utf-8")
+            "# 주석\nNAS_MODEL_PATH=/mnt/fixture-nas/Model/x\nIMAGE_TAG=easy-vllm:1-wheel\n", encoding="utf-8")
         env.write_text("IMAGE_TAG=easy-vllm:1-wheel\n", encoding="utf-8")
         sx = discover_slots(repo, "single", cfg)
         ck("build_recipe 발견(Dockerfile+requirements)",
@@ -838,10 +838,10 @@ def _run_self_test() -> int:
            and build_track_is_wheel("IMAGE_TAG=easy-vllm:1-wheel\n") is True)
 
         # env 형상 템플릿 — 절대경로만 가리고 나머지는 남긴다
-        tpl = env_shape_template("# 주석\nNAS_MODEL_PATH=/mnt/llm/Model/x\n"
+        tpl = env_shape_template("# 주석\nNAS_MODEL_PATH=/mnt/fixture-nas/Model/x\n"
                                  "IMAGE_TAG=easy-vllm:1-wheel\nTIKTOKEN_ENABLED=true\n")
         ck("★env 템플릿이 운영자 절대경로를 가린다",
-           "/mnt/llm" not in tpl and "<manifest.nas_model_path>" in tpl)
+           "/mnt/fixture-nas" not in tpl and "<manifest.nas_model_path>" in tpl)
         ck("★env 템플릿이 비-경로 값은 남긴다",
            "IMAGE_TAG=easy-vllm:1-wheel" in tpl and "TIKTOKEN_ENABLED=true" in tpl)
         ck("env 템플릿에 원본 주석이 실리지 않는다", "주석" not in tpl)
