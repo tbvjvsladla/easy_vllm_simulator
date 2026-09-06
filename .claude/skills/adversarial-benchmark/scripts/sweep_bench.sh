@@ -489,9 +489,26 @@ if _attn_cands is not None and len(_attn_cands) <= 1:
     print("[sweep_bench] ⓘ 어텐션 축 무선택 — 후보 %s (요청 %s 는 실효 없음)"
           % (_attn_cands, _attn_decl_raw or "미선언"), file=sys.stderr)
 
+# ── 측정 노드 출처 (2026-09-06 신설 · plan_26090616 ⑤) ──
+# 인증서에 **어느 노드가 쟀는지**가 없었다. 그래서 메인과 서브가 같은 모델·같은 버전을 재면
+# 파일명까지 동명이 되어 서로를 덮었고, hint 발행기는 그 인증서를 메인 것으로만 읽었다 —
+# 서브가 완주해도 그 증거가 태그에 닿는 경로가 없었다(2026-09-05 실측).
+# 축은 hint 태그의 노드 축과 **같은 어휘**를 쓴다(main|sub|cluster) — 두 자리가 다른 말을 쓰면
+# 발행기가 대조하지 못한다. 멀티의 쌍은 하나의 측정 정체성이므로 `cluster` 다(불변식 A).
+_self_role = grep_yaml(mftext, "self_role") or "main"
+if topo == "multi":
+    measured_node, measured_node_source = "cluster", "derived(topology=multi — 쌍이 하나의 측정 정체성)"
+elif _self_role == "sub":
+    measured_node, measured_node_source = "sub", "derived(manifest.self_role=sub)"
+else:
+    measured_node, measured_node_source = "main", "derived(manifest.self_role=%s)" % _self_role
+
 meta = {
     # 강한 일치 키
     "model": model_key,
+    # 측정 노드 출처(강한 키 아님 — 출처 표시다. 헌법 §결정론 규율)
+    "measured_node": measured_node,
+    "measured_node_source": measured_node_source,
     "model_source": model_source,
     # 운영 조합명(모델 축이 아니다) — 같은 모델의 사다리 칸/이미지 변종을 가르는 축.
     "serving_config": _serving_cfg,

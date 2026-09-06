@@ -134,6 +134,14 @@ def build_yaml(index, verdict):
         A("node_vram_balance_dev: %s" % scalar(b.get("balance_dev")))
         A("node_vram_balance_pass: %s" % scalar(b.get("pass")))
     A("measured_utc: %s" % scalar(index.get("generated_utc")))
+    # ── 측정 노드 출처 (2026-09-06 신설 · plan_26090616 ⑤) ──
+    # 왜: 인증서에 **어느 노드가 쟀는지**가 없었다. 그래서 메인과 서브가 같은 모델·같은 버전을
+    # 재면 파일명까지 동명이 되어 서로를 덮었고, hint 발행은 그 인증서를 메인 것으로만 읽었다 —
+    # 서브가 완주했는데도 그 증거가 태그에 닿는 경로가 아예 없었다(2026-09-05 실측).
+    # 강한 일치 키가 아니다(6키 계약을 늘리지 않는다) — **출처 표시**다(헌법 §결정론 규율).
+    # 항상 적는다: 결측이면 N/A 여야 부재와 결측이 구분된다.
+    A("measured_node: %s" % scalar(meta.get("measured_node")))
+    A("measured_node_source: %s" % scalar(meta.get("measured_node_source")))
     return "\n".join(L) + "\n"
 
 

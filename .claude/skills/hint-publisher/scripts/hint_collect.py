@@ -679,6 +679,18 @@ def cmd_collect(a) -> int:
     if not (repo / ".claude" / "pii_terms.txt").is_file():
         missing.append("HINT_MISSING_PII_TERMS")
 
+    # 멀티는 **두 노드가 같은 것을 돌렸다**는 증거가 있어야 태그가 클러스터를 대표한다.
+    # 그 대조는 multinode_serve_smoke 가 하고 2026-09-06 부터 성공 경로에서도 파일로 남긴다.
+    attestation_rel = None
+    if topo == "multi":
+        attest = repo / "output" / "multi" / "benchlog" / f"attestation_{a.config_name}.json"
+        if attest.is_file():
+            attestation_rel = str(attest.relative_to(repo))
+        else:
+            missing.append("HINT_MISSING_SLAVE_ATTESTATION")
+            print(f"[hint_collect] ⚠ 노드 정합 attestation 부재({attest.name}) — 결손으로 기재한다.",
+                  file=sys.stderr)
+
     slots = discover_slots(repo, topo, a.config_name)
     if not slots["triplet"]["present"]:
         die("★ 트리플렛이 불완전하다: " + ", ".join(slots["triplet"]["missing"]) +
@@ -758,6 +770,8 @@ def cmd_collect(a) -> int:
         # 결손은 페이로드에도 남는다 — 본문만 적으면 기계가 읽을 수 없고, 기계가 못 읽으면
         # 카탈로그·검증기가 "무엇을 모른 채 발행됐는가" 를 집계하지 못한다.
         "missing": sorted(set(missing)),
+        # 멀티 노드 정합 attestation 포인터(사본 ✗). 부재는 위 missing 이 말한다.
+        "node_parity_attestation": attestation_rel,
         "missing_policy": ("forced_publication: 부재는 기재하고 발행한다. 차단은 양성 검출"
                            "(서빙 성공 허위 · 3신호 모순 · PII 매치)일 때만이다 — plan_26090616 Q7/Q8."),
         "slots": slots,
@@ -1094,6 +1108,107 @@ def _run_self_test() -> int:
             f"a.md\nghost.md\n{PAYLOAD_JSON}\n{DECLARATION_NAME}\n", encoding="utf-8")
         ck("★음성대조 allowlist 실물부재 차단",
            cmd_check(argparse.Namespace(payload=str(pay))) == 1)
+
+    # ── cmd_collect 실경로 (2026-09-06 신설) ────────────────────────────────────────────
+    # ★ 왜 이제서야: 이 자체검사는 `discover_slots`·`cmd_check` 만 돌았고 **`cmd_collect` 는 한 번도
+    #   실행하지 않았다**. 그래서 그 함수 안의 배선 결함(할당 전 사용)이 55/55 초록 아래에서
+    #   그대로 살아 있었다 — 픽스처가 실물보다 좁으면 시험은 초록인데 실물이 죽는다.
+    def _mk_tree(root: Path, topo: str, cfg: str) -> Path:
+        (root / "output" / topo / "configs").mkdir(parents=True, exist_ok=True)
+        (root / "output" / topo / "envs").mkdir(parents=True, exist_ok=True)
+        (root / "output" / topo / "configs" / f"{cfg}.yaml").write_text("m: d\n", encoding="utf-8")
+        (root / "output" / topo / "configs" / f"{cfg}.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+        (root / "output" / topo / "envs" / f".env.{cfg}").write_text("IMAGE_TAG=x\n", encoding="utf-8")
+        (root / "output" / topo / "envs" / f".env.{topo}").write_text(
+            "MASTER_HOST_IP=192.168.0.11\nRAY_PORT=6379\nSSH_USER=someone\n", encoding="utf-8")  # pii-scan-fixture
+        return root
+
+    def _mk_manifest(evdir: Path, cert_rel, report_rel) -> Path:
+        ev = {}
+        if cert_rel:
+            ev["certificate"] = {"path": cert_rel}
+        if report_rel:
+            ev["bench_report"] = {"path": report_rel}
+        doc = {"identity": {"model": "demo", "gpu": "GB10", "vllm": "0.19.0",
+                            "quant": "mxfp4", "topology": "single", "tp": 1},
+               "runtime": {"health_ok": True, "functional_smoke_passed": True},
+               "evidence": ev}
+        mp = evdir / "work-manifest.json"
+        mp.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+        return mp
+
+    REPORT_ROWS = ("| 동시성 | decode t/s | 출력 tok/s | 총 tok/s | TTFT p50(ms) | ITL p50(ms) | 완료/실패 |\n"
+                   "|---|---|---|---|---|---|---|\n"
+                   "| 1 ★판정점 | 45.28 | 45.30 | 226.70 | 160.76 | 21.54 | 16/0 |\n"
+                   "| 2 | 42.84 | 86.04 | 430.51 | 39.54 | 23.20 | 16/0 |\n")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        t2 = Path(tmp)
+        cfg = "demo-gb10"
+        repo2 = _mk_tree(t2 / "repo", "single", cfg)
+        evdir = t2 / "ev"
+        evdir.mkdir()
+        (evdir / "cert.yaml").write_text(
+            "verdict: PASS\nmodel: demo\ndecode_tps_conc1: 45.28\nlite_included: true\n"
+            "measured_node: main\n", encoding="utf-8")
+        (evdir / "report.md").write_text("# 리포트\n\n" + REPORT_ROWS, encoding="utf-8")
+
+        # (1) 인증서 + 리포트 모두 있는 정상 경로
+        mp = _mk_manifest(evdir, "cert.yaml", "report.md")
+        out1 = t2 / "out1"
+        rc = cmd_collect(argparse.Namespace(repo=str(repo2), manifest=str(mp), topology="single",
+                                            config_name=cfg, out=str(out1), generated_kst="2026-09-06 17:00"))
+        ck("★cmd_collect 실경로가 돈다(rc=0)", rc == 0)
+        pay1 = json.loads((out1 / PAYLOAD_JSON).read_text(encoding="utf-8"))
+        # 픽스처 레포에는 `.claude/pii_terms.txt` 가 없다 — 그 부재도 **결손으로 적히는 것이 옳다**.
+        # 여기서 기대를 넓히지 않고 실제 사유를 지목한다(합격 기준을 실물에 맞춘다).
+        ck("결손이 사유코드로만 적힌다(정상 경로)",
+           pay1.get("missing") == ["HINT_MISSING_PII_TERMS"])
+        ck("★인증서·리포트가 있으면 그 둘은 결손이 아니다",
+           "HINT_MISSING_CERTIFICATE" not in pay1["missing"]
+           and "HINT_MISSING_BENCH_REPORT" not in pay1["missing"])
+        b3 = (out1 / "03-benchmark.md").read_text(encoding="utf-8")
+        ck("동시성별 표가 벤치 절에 실린다", "부하 스윕 곡선 — 동시성별" in b3 and "| 2 |" in b3)
+        ck("판정점 표시가 표에 남는다", "★판정점" in b3)
+
+        # (2) 인증서 부재 — **죽지 않고** 결손으로 기재한다(강행 발행)
+        mp2 = _mk_manifest(evdir, None, "report.md")
+        out2 = t2 / "out2"
+        rc2 = cmd_collect(argparse.Namespace(repo=str(repo2), manifest=str(mp2), topology="single",
+                                             config_name=cfg, out=str(out2), generated_kst="2026-09-06 17:00"))
+        ck("★인증서 부재로 죽지 않는다", rc2 == 0)
+        pay2 = json.loads((out2 / PAYLOAD_JSON).read_text(encoding="utf-8"))
+        ck("★인증서 부재가 missing 에 적힌다", "HINT_MISSING_CERTIFICATE" in pay2.get("missing", []))
+        ck("결손 정책 문장이 페이로드에 남는다", "forced_publication" in (pay2.get("missing_policy") or ""))
+        ck("인증서 부재 절도 렌더된다",
+           "인증서가 없다" in (out2 / "03-benchmark.md").read_text(encoding="utf-8"))
+
+        # (3) 리포트 부재 — 곡선 없이 발행하되 사유를 적는다
+        mp3 = _mk_manifest(evdir, "cert.yaml", None)
+        out3 = t2 / "out3"
+        rc3 = cmd_collect(argparse.Namespace(repo=str(repo2), manifest=str(mp3), topology="single",
+                                             config_name=cfg, out=str(out3), generated_kst="2026-09-06 17:00"))
+        ck("★리포트 부재로도 죽지 않는다", rc3 == 0)
+        ck("★리포트 부재가 missing 에 적힌다",
+           "HINT_MISSING_BENCH_REPORT" in json.loads((out3 / PAYLOAD_JSON).read_text(encoding="utf-8")).get("missing", []))
+
+        # (4) 멀티 — 노드 정합 attestation 부재가 기재된다(이 분기가 NameError 로 죽던 자리)
+        repo4 = _mk_tree(t2 / "repo4", "multi", cfg)
+        mp4 = _mk_manifest(evdir, "cert.yaml", "report.md")
+        out4 = t2 / "out4"
+        rc4 = cmd_collect(argparse.Namespace(repo=str(repo4), manifest=str(mp4), topology="multi",
+                                             config_name=cfg, out=str(out4), generated_kst="2026-09-06 17:00"))
+        ck("★멀티 실경로가 돈다(attestation 분기 도달)", rc4 == 0)
+        pay4 = json.loads((out4 / PAYLOAD_JSON).read_text(encoding="utf-8"))
+        ck("★attestation 부재가 missing 에 적힌다",
+           "HINT_MISSING_SLAVE_ATTESTATION" in pay4.get("missing", []))
+        ck("attestation 포인터 칸이 있다", "node_parity_attestation" in pay4)
+        # env 형상화는 compose 슬롯이 있을 때만 산출된다. 슬롯 유무와 무관하게 **커널은** 직접 시험한다 —
+        # 조건부로 건너뛰면 그 조건이 거짓인 날 이 시험이 조용히 사라진다(역-오라클).
+        tpl = env_shape_template("MASTER_HOST_IP=192.168.0.11\nRAY_PORT=6379\nSSH_USER=someone\n")  # pii-scan-fixture
+        ck("★env 형상: 신원 키는 가려지고 튜닝 키는 남는다",
+           "MASTER_HOST_IP=<manifest" in tpl and "RAY_PORT=6379" in tpl
+           and "SSH_USER=<manifest" in tpl and "192.168." not in tpl)  # pii-scan-fixture
 
     failed = [n for n, ok in checks if not ok]
     for n, ok in checks:
