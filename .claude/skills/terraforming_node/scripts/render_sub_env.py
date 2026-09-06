@@ -364,7 +364,10 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     claude = os.path.join(out_dir, ".claude")
     os.makedirs(os.path.join(claude, "rules"), exist_ok=True)
     os.makedirs(os.path.join(claude, "schemas"), exist_ok=True)
-    os.makedirs(os.path.join(out_dir, "tasks"), exist_ok=True)
+    # 2026-09-06(plan_26090616 ②): 옛 릴레이 원장 루트 `tasks/` 는 폐지됐다. 빈 디렉터리를
+    #   남기면 배달 게이트가 "undeclared transfer artifact" 로 막고(실측), 막지 않더라도
+    #   서브에게 "여기가 원장 자리다" 라고 계속 말한다. 새 자리는 campaigns/_bootstrap/relay/ 다.
+    os.makedirs(os.path.join(out_dir, "campaigns", "_bootstrap", "relay"), exist_ok=True)
 
     produced: list[str] = []
 
@@ -510,7 +513,16 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
             f.write("")
         produced.append(rel)
     _tpl_src = os.path.join(REPO, "campaigns", "_template")
-    if os.path.isdir(_tpl_src):
+    # 부재를 조용히 건너뛰지 않는다 — 2026-09-06 실측: sync_to_sub 의 트랜잭션 소스 경로 목록에
+    # `campaigns` 가 없어 뼈대가 도착하지 않았는데, 옛 판본의 `if isdir(...)` 이 그것을 **정상**
+    # 으로 삼켜 서브 오버레이에서 뼈대가 통째로 사라졌다. 부재는 배선 결함이므로 소리내야 한다.
+    if not os.path.isdir(_tpl_src):
+        raise SystemExit(
+            f"[render] FAIL: 캠페인 뼈대가 없다 — {_tpl_src}\n"
+            f"   서브도 메인과 같은 뼈대를 받아야 자기 campaigns/<id>/ 를 저작할 수 있다.\n"
+            f"   트랜잭션 소스에서 도는 중이라면 sync_to_sub 의 checkout-index 경로 목록에\n"
+            f"   `campaigns` 가 들어 있는지 확인하라(부재는 침묵 누락이 된다).")
+    if True:
         for _root, _dirs, _files in os.walk(_tpl_src):
             for _f in _files:
                 _abs = os.path.join(_root, _f)

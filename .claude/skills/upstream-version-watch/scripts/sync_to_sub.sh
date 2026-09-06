@@ -654,6 +654,16 @@ OVERLAY_STALE_PATHS=(
     scripts/systemd/easy-vllm-memwatch.service
     scripts/smoke_clone.sh
     scripts/sync_branches.sh
+    # 2026-09-06(plan_26090616 ②): 릴레이 원장이 `campaigns/<camp-id>/relay/` 로 이관되면서
+    #   루트 `tasks/` 는 폐지됐다(root_registry tombstone). 오버레이는 **가산**이라 지운 자리가
+    #   서브에 그대로 남는다 — 남으면 서브가 옛 자리에 계속 쓰고, 그 원장은 어느 캠페인의
+    #   왕복인지 알 수 없는 채로 다음 캠페인 입력과 섞인다(이관의 목적이 무효가 된다).
+    #   ★ 지우는 것은 **스캔폴드 마커뿐**이다. `tasks/` 디렉터리 자체는 건드리지 않는다 —
+    #     거기엔 서브가 저작한 살아 있는 원장이 들어 있고, 그것은 서브 소유 평면이다(무단 교정
+    #     금지). 게다가 `apply_overlay_tombstones` 는 `rm -f` 라 디렉터리를 지우지도 못한다 —
+    #     목록에 디렉터리를 적으면 **조용히 아무 일도 일어나지 않는다**(침묵 no-op).
+    #     서브의 새 작업은 CLAUDE.template/comms.md 가 가리키는 새 자리로 간다.
+    tasks/.gitkeep
 )
 OVERLAY_RELOCATION_STALE_PATHS=(
     .claude/rules/references.md
@@ -1032,7 +1042,7 @@ prepare_transactional_source() {
     #   연결하지 못했고, 로그를 FAIL/STOP 으로 좁혀 보는 습관이 그 한 줄을 잘라냈다.
     #   인덱스 권위 자체는 계약이므로 **차단하지 않는다** — 다만 무엇이 갈렸는지는 반드시 보인다.
     local _drift
-    _drift="$(git -C "$CANONICAL_SRC" diff --name-only -- .claude CLAUDE.md .gitignore output/multi output/single 2>/dev/null)"
+    _drift="$(git -C "$CANONICAL_SRC" diff --name-only -- .claude CLAUDE.md .gitignore campaigns output/multi output/single 2>/dev/null)"
     if [ -n "$_drift" ]; then
         # 아래 영문 한 줄은 `verify_distribution` 의 `sub_transactional_source_uses_git_index` 가
         #   앵커로 쓴다 — 트랜잭션 소스가 인덱스 권위임을 코드가 스스로 말하는 자리다. 지우지 마라
@@ -1042,7 +1052,11 @@ prepare_transactional_source() {
         printf '%s\n' "$_drift" | sed 's/^/[sync]     /' >&2
         echo "[sync]   → 방금 고친 파일이 이 목록에 있으면 'git add <파일>' 후 다시 실행하라." >&2
     fi
-    git -C "$CANONICAL_SRC" ls-files -z -- .claude CLAUDE.md .gitignore output/multi output/single \
+    # ★ `campaigns` 는 2026-09-06 추가(plan_26090616 ②). 이 목록에 없으면 추적 뼈대가 트랜잭션
+    #   소스에 **아예 도착하지 않고**, 그 위에서 도는 render 는 소스 부재를 조용히 건너뛴다 —
+    #   실측으로 서브 오버레이에 `campaigns/_template/**` 가 통째로 빠졌다. 새 추적 루트를
+    #   만들면 이 경로 목록도 함께 갱신해야 한다(ALLOWLIST·MIRROR_DIRS 와 같은 계열의 표면).
+    git -C "$CANONICAL_SRC" ls-files -z -- .claude CLAUDE.md .gitignore campaigns output/multi output/single \
         | git -C "$CANONICAL_SRC" checkout-index -z --stdin --prefix="$TRANSACTIONAL_SRC/"
     local topology render_input
     for topology in multi single; do
