@@ -245,6 +245,31 @@ def _selftest() -> int:
         ck("전수 실재 + 요약 → 게이트 열림", not purge_gate_reasons("old"))
         ck("dry-run 은 지우지 않는다", do_purge("old", apply=False) and prev.is_dir())
         ck("apply 는 지운다", do_purge("old", apply=True) is not None and not prev.is_dir())
+        # 인스턴스가 둘 남았을 때(중단·누출 흡수) 정식 경로로 둘 다 지울 수 있는가.
+        # 하나만 지워지면 남은 하나는 rm -rf 우회를 부른다.
+        good = {"pointers": [{"kind": "certificate", "path": "CLAUDE.md"},
+                             {"kind": "relay_summary", "path": "README.md"}]}
+        for _n in ("relicA", "relicB"):
+            _d = CAMPAIGNS / _n
+            _d.mkdir(parents=True)
+            (_d / "evidence_pointers.json").write_text(json.dumps(good), encoding="utf-8")
+        ck("게이트는 인스턴스마다 따로 묻는다",
+           not purge_gate_reasons("relicA") and not purge_gate_reasons("relicB"))
+        _removed = []
+        for _n in ("relicA", "relicB"):
+            _removed.extend(do_purge(_n, apply=True))
+        ck("잔재 2건을 정식 경로로 전부 지운다",
+           len(_removed) == 2 and not (CAMPAIGNS / "relicA").exists()
+           and not (CAMPAIGNS / "relicB").exists())
+        # 음성대조: 한쪽 게이트가 닫혀 있으면 그 하나만 거부되고 다른 하나는 영향받지 않는다.
+        (CAMPAIGNS / "relicC").mkdir(parents=True)
+        _refused = False
+        try:
+            do_purge("relicC", apply=True)
+        except PurgeGateRefusal:
+            _refused = True
+        ck("★음성대조: 포인터 없는 잔재는 여전히 거부된다",
+           _refused and (CAMPAIGNS / "relicC").is_dir())
     CAMPAIGNS, ACTIVE_POINTER = saved
     print("[campaign_init] " + ("PASS" if ok else "FAIL"))
     return 0 if ok else 1
@@ -260,7 +285,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--residue-scan", action="store_true")
     ap.add_argument("--init", metavar="CAMP_ID", help="새 캠페인 개설")
     ap.add_argument("--plan-ref", help="--init 의 승인 plan 경로(필수)")
-    ap.add_argument("--purge-previous", metavar="PREV_ID", help="--init 과 함께: 먼저 지울 직전 인스턴스")
+    # 반복 지정 가능(2026-09-06). 설계 의도는 "활성 인스턴스 1개"지만 현실은 그렇지 않을 수
+    # 있다 — 중단된 캠페인·루트 누출 흡수분이 인스턴스를 둘 이상 남긴다. 단일 id 만 받으면
+    # 남은 하나를 지울 정식 경로가 없어져 rm -rf 우회를 부른다(D3: 우회 대신 경로를 고친다).
+    ap.add_argument("--purge-previous", metavar="PREV_ID", action="append", default=[],
+                    help="--init 과 함께: 먼저 지울 직전 인스턴스(반복 지정 가능)")
     ap.add_argument("--apply", action="store_true", help="실제로 쓰고 지운다(기본은 dry-run)")
     ap.add_argument("--selftest", action="store_true")
     a = ap.parse_args(argv)
@@ -286,7 +315,10 @@ def main(argv: list[str] | None = None) -> int:
             if not a.plan_ref:
                 print("[campaign_init] FAIL --init 은 --plan-ref 가 필요하다(승인 없는 개설 ✗)", file=sys.stderr)
                 return 2
-            removed = do_purge(a.purge_previous, apply=a.apply) if a.purge_previous else []
+            removed = []
+            # 게이트는 **인스턴스마다** 따로 묻는다 — 하나가 열렸다고 다른 하나가 열리지 않는다.
+            for _prev in a.purge_previous:
+                removed.extend(do_purge(_prev, apply=a.apply))
             made = scaffold(a.init, a.plan_ref, apply=a.apply)
             mode = "APPLIED" if a.apply else "DRY-RUN"
             print(f"[campaign_init] {mode} purge={removed} init={made}")
