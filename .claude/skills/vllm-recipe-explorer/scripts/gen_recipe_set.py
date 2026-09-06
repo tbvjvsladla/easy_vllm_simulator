@@ -329,7 +329,8 @@ def _build_sh(name, served_model_name, recipe=None):
     return "\n".join(lines) + "\n"
 
 
-def _build_env(name, served_model_name, port, image=None):
+def _build_env(name, served_model_name, port, image=None, topology="single",
+               vllm_version=None, build_dockerfile=None):
     """envs/.env.<name> 내용 문자열 생성.
 
     기존 .env.gpt-oss-20b-normal 스키마 준수:
@@ -352,7 +353,16 @@ def _build_env(name, served_model_name, port, image=None):
     lines.append("")
     lines.append("# ─────────────── 0) 프로젝트, 컨테이너, env파일 이름 ─────────────────────")
     lines.append("COMPOSE_PROJECT_NAME=vllm_{}_project".format(name))
-    lines.append("CONTAINER_NAME={}-serving-container".format(name))
+    # ★ 컨테이너 이름은 **토폴로지의 함수**다(2026-09-06). single 은 하나, multi 는 master/slave
+    #   쌍이며 multinode_serve_smoke 가 그 두 이름으로 워치독 킬 필터를 만든다. 종전에는 single
+    #   형태만 낼 줄 알아서 multi env 를 매번 손으로 고쳐 왔고, 이번에 그 손질을 빠뜨리자 스모크가
+    #   "워치독 필터가 비었다(MASTER_CONTAINER_NAME 미설정)"로 **기동 전에** 멈췄다 — 가드가 옳게
+    #   울었지만, 울릴 필요가 없는 울음이었다(자리가 없어서 난 결손).
+    if topology == "multi":
+        lines.append("MASTER_CONTAINER_NAME={}-master-container".format(name))
+        lines.append("SLAVE_CONTAINER_NAME={}-slave-container".format(name))
+    else:
+        lines.append("CONTAINER_NAME={}-serving-container".format(name))
     lines.append("VERSION=1.0.0")
     lines.append("NVIDIA_VISIBLE_DEVICES=all")
     lines.append("")
@@ -375,10 +385,27 @@ def _build_env(name, served_model_name, port, image=None):
         sys.stderr.write(
             "[gen_recipe_set] WARN: image 미지정 → env 에 IMAGE_TAG 를 쓰지 못했다. "
             "compose 가 낡은 기본 이미지로 폴백하므로 서빙 전에 직접 채워라.\n")
+    # multi compose·스모크가 추가로 요구하는 키. **선언된 것만** 쓴다 — 지어내면 매직넘버이고,
+    # 특히 VLLM_VERSION 은 이미지 정체성 변수라 틀리면 다른 버전을 측정하고도 모른다.
+    if topology == "multi":
+        lines.append("")
+        lines.append("# ─────────────── 4) 분산(멀티노드) 전용 ──────────────────────────────")
+        if build_dockerfile:
+            lines.append("BUILD_DOCKERFILE={}".format(build_dockerfile))
+        else:
+            lines.append("# BUILD_DOCKERFILE=<미지정 — 반드시 채울 것>")
+            sys.stderr.write("[gen_recipe_set] WARN: topology=multi 인데 build_dockerfile 미지정.\n")
+        if vllm_version:
+            lines.append("VLLM_VERSION={}".format(vllm_version))
+        else:
+            lines.append("# VLLM_VERSION=<미지정 — 반드시 채울 것>")
+            sys.stderr.write("[gen_recipe_set] WARN: topology=multi 인데 vllm_version 미지정 — "
+                             "이미지 정체성 변수다(틀리면 다른 버전을 측정하고도 모른다).\n")
     return "\n".join(lines) + "\n"
 
 
-def generate(parsed, recipe, name, repo_root, port, served_model_name, force=False,
+def generate(parsed, recipe, name, repo_root, port, served_model_name, force=False, topology="single",
+             vllm_version=None, build_dockerfile=None,
              image=None):
     """3종 세트(.yaml + .sh + .env)를 생성하고 생성 경로 리스트를 반환.
 
@@ -414,7 +441,9 @@ def generate(parsed, recipe, name, repo_root, port, served_model_name, force=Fal
 
     yaml_text = _build_yaml(parsed, recipe, served_model_name)
     sh_text = _build_sh(name, served_model_name, recipe)
-    env_text = _build_env(name, served_model_name, port, image=image)
+    env_text = _build_env(name, served_model_name, port, image=image,
+                          topology=topology, vllm_version=vllm_version,
+                          build_dockerfile=build_dockerfile)
 
     with open(yaml_path, "w", encoding="utf-8") as f:
         f.write(yaml_text)
@@ -475,6 +504,17 @@ def main(argv=None):
     parser.add_argument("--port", type=int, required=True, help="SERVING_PORT")
     parser.add_argument("--served-model-name", required=True,
                         help="--served-model-name 값")
+    # ★ 2026-09-06 발견 — CLI 배선이 반쪽이었다.
+    #   ① `image` 는 generate() 인자에 있는데 CLI 에 없었다. 그래서 이 스크립트를 **독립 호출**하면
+    #      IMAGE_TAG 가 빠지고 compose 가 낡은 기본 이미지로 조용히 폴백한다 — 함수 본문 주석이
+    #      D8 로 세 번 경고한 그 사고를 CLI 경로에서는 막을 수 없었다. 경고문이 있어도 배선이
+    #      반쪽이면 사고는 난다.
+    #   ② 토폴로지 인지가 없어 multi env 는 매번 손으로 고쳐졌다(master/slave 쌍 · 분산 키).
+    parser.add_argument("--image", help="컨테이너 이미지 태그 → env 의 IMAGE_TAG")
+    parser.add_argument("--topology", default="single", choices=("single", "multi"),
+                        help="env 형태를 가른다. multi = master/slave 컨테이너 쌍 + 분산 키")
+    parser.add_argument("--vllm-version", help="multi env 의 VLLM_VERSION(이미지 정체성)")
+    parser.add_argument("--build-dockerfile", help="multi env 의 BUILD_DOCKERFILE")
     parser.add_argument("--force", action="store_true",
                         help="기존 파일 덮어쓰기 허용")
     args = parser.parse_args(argv)
@@ -484,7 +524,9 @@ def main(argv=None):
 
     try:
         paths = generate(parsed, recipe, args.name, args.repo, args.port,
-                         args.served_model_name, force=args.force)
+                         args.served_model_name, force=args.force, image=args.image,
+                         topology=args.topology, vllm_version=args.vllm_version,
+                         build_dockerfile=args.build_dockerfile)
     except FileExistsError as e:
         print("[gen_recipe_set] 중단: {}".format(e), file=sys.stderr)
         return 2
