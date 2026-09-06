@@ -75,6 +75,55 @@ def _inv(ms):
     return round(1000.0 / ms, 2) if isinstance(ms, float) and ms > 0 else None
 
 
+
+# ── 오류 분류: 도구 경계 대 서버 오류 (2026-09-06) ───────────────────────────
+# 왜: GuideLLM 의 `errored` 는 서버가 낸 오류만이 아니다. 클라이언트 스트림 파서가 거부한
+#   요청도 같은 통에 들어간다. 실측(2026-09-06 캠페인 ⑦ a0): gpt-oss harmony 가 자연 종료
+#   토큰을 내보내자 파서가
+#     ValueError('Streaming response returned an error: Unexpected token 200002 while
+#                 expecting start token 200006')
+#   로 4건을 버렸다 — 그 요청들은 **출력 토큰을 195~210개 정상 생성**했고, 성공 14건의 측정은
+#   엔진 로그와 ratio 1.02 로 일치했다. 서버는 멀쩡했다.
+#   종전 처방은 `--max-error-rate` 를 올리는 것뿐이었는데, 그러면 **진짜 서버 실패도 같이
+#   통과한다**. 허용치를 올리는 것은 경계를 지우는 것이지 가르는 것이 아니다.
+# 처방: 도구 경계를 **양성으로 지목**하고, 나머지는 전부 서버 오류로 센다(fail-closed).
+#   판정은 **두 조건 동시 충족**이다 — ① 닫힌 패턴 목록에 걸리고 ② 그 요청이 실제로 출력
+#   토큰을 냈다. 패턴만 보면 "Streaming response" 를 품은 진짜 장애가 면제되고, 토큰 수만
+#   보면 아무 오류나 면제된다.
+_TOOL_BOUNDARY_ERROR_PATTERNS = (
+    "while expecting start token",   # harmony 채널 토큰 경계(gpt-oss 계열)
+    "unexpected token",              # 동상 — 표현 변화 대비
+    "jsondecodeerror",               # 잘린 SSE 청크
+    "expecting value",               # 동상
+)
+
+
+def classify_errors(run, benchmark_index=0):
+    """errored[] 를 (도구경계 n, 서버 n, 미분류 사유 표본) 으로 가른다.
+
+    `requests.errored` 가 없는 산출물(옛 포맷·요약본)에서는 **가르지 않는다** — 모르는 것을
+    면제로 접으면 그 순간 게이트가 fail-open 이 된다. 그 경우 전량을 서버 오류로 돌린다.
+    """
+    try:
+        errored = run["benchmarks"][benchmark_index]["requests"]["errored"]
+    except (KeyError, IndexError, TypeError):
+        return None
+    boundary, server, samples = 0, 0, []
+    for rec in errored if isinstance(errored, list) else []:
+        info = rec.get("info") or {}
+        msg = str(info.get("error") or "")
+        produced = rec.get("output_tokens") or (rec.get("output_metrics") or {}).get("text_tokens")
+        low = msg.lower()
+        hit = any(pat in low for pat in _TOOL_BOUNDARY_ERROR_PATTERNS)
+        if hit and produced:
+            boundary += 1
+        else:
+            server += 1
+            if msg and len(samples) < 3:
+                samples.append(msg[:200])
+    return {"tool_boundary": boundary, "server": server, "unclassified_samples": samples}
+
+
 def build(doc, benchmark_index=0, engine_max=None, spec=None, max_error_rate=0.0):
     """GuideLLM report 문서 → parse_bench 와 동일한 측정 M. 순수 함수."""
     if not isinstance(doc, dict):
@@ -114,6 +163,20 @@ def build(doc, benchmark_index=0, engine_max=None, spec=None, max_error_rate=0.0
                      "ratio": round(engine_max / decode_tps, 2)}
 
     error_rate = (float(failed) / float(total)) if (failed is not None and total) else 0.0
+    # 도구 경계는 서버 오류가 아니다 — 가르되 **삼키지 않는다**(둘 다 싣는다).
+    cls = classify_errors(doc, benchmark_index)
+    if cls is None:
+        server_failed = failed
+        error_split_source = "unavailable(requests.errored 부재 — 전량을 서버 오류로 센다)"
+    else:
+        # ⚠ 목록(requests.errored[])이 집계(request_totals.errored)보다 길 수 있다 — warmup 구간
+        #   요청이 집계에서만 빠지기 때문이다(실측: 목록 4 대 집계 3). 그래서 이 합은 집계보다
+        #   **크게 나올 수 있고**, 그 방향은 안전하다(서버 오류를 더 세는 쪽). 반대로 맞추려고
+        #   집계 값으로 자르면 진짜 서버 오류 1건이 잘려 나갈 수 있다.
+        server_failed = cls["server"] + (incomplete or 0)
+        error_split_source = "measured(requests.errored[].info.error + output_tokens)"
+    server_error_rate = ((float(server_failed) / float(total))
+                         if (server_failed is not None and total) else 0.0)
     spec = spec or {}
     accept_len = spec.get("accept_len")
     meta = doc.get("metadata") if isinstance(doc.get("metadata"), dict) else {}
@@ -152,9 +215,16 @@ def build(doc, benchmark_index=0, engine_max=None, spec=None, max_error_rate=0.0
         #   그렇다고 조용히 삼키면 진짜 서버 오류가 묻힌다. 그래서 **삼키지 않고 선언하게** 한다:
         #   허용치는 호출자가 근거와 함께 넘기고, 실제 오류율은 산출물이 항상 싣는다.
         "error_rate": error_rate,
+        # ★ 판정은 **서버 오류율**로 한다(2026-09-06). 전체 오류율은 그대로 싣되 게이트를
+        #   흐리지 않는다 — 도구 경계 때문에 허용치를 올리면 진짜 장애까지 통과한다.
+        "server_error_rate": server_error_rate,
+        "tool_boundary_errors": None if cls is None else cls["tool_boundary"],
+        "server_errors": None if cls is None else cls["server"],
+        "unclassified_error_samples": None if cls is None else cls["unclassified_samples"],
+        "error_split_source": error_split_source,
         "max_error_rate_declared": max_error_rate,
         "measurement_ok": bool(successful and decode_tps is not None
-                               and error_rate <= max_error_rate),
+                               and server_error_rate <= max_error_rate),
         # ── 출처 표시(헌법 §결정론 규율). 값 옆에 어디서 왔는지를 둔다. ──
         "bench_tool": "guidellm",
         "bench_tool_version": tool_version,
@@ -286,7 +356,48 @@ def _self_test():
     if failures:
         sys.stderr.write("[parse_guidellm --self-test] FAIL %d 건: %s\n" % (len(failures), failures))
         return 1
-    print("[parse_guidellm --self-test] OK — G1~G14 전부 통과")
+    # ── G15~G19 오류 분류(2026-09-06) ───────────────────────────────────
+    _boundary = {"info": {"error": "ValueError('Streaming response returned an error: "
+                           "Unexpected token 200002 while expecting start token 200006')"},
+                 "output_tokens": 203}
+    _server = {"info": {"error": "HTTPStatusError: 500 Internal Server Error"},
+               "output_tokens": 0}
+    # 패턴은 맞지만 토큰을 하나도 못 낸 것 — 경계가 아니라 실패다(두 조건 동시 충족).
+    _fake = {"info": {"error": "Unexpected token while expecting start token"},
+             "output_tokens": 0}
+    import copy as _copy
+    _mk = lambda errs: _copy.deepcopy(err1)
+    _d = _copy.deepcopy(err1)
+    _d["benchmarks"][0]["requests"] = {"errored": [_boundary, _boundary, _boundary]}
+    _d["benchmarks"][0]["metrics"]["request_totals"] = {"successful": 13, "errored": 3,
+                                                        "incomplete": 0, "total": 16}
+    _o = build(_d, spec={"source": "declared-absent"}, max_error_rate=0.0)
+    check("G15 ★도구 경계 3건은 엄격 허용치에서도 measurement_ok 를 깨지 않는다",
+        _o["measurement_ok"] is True and _o["tool_boundary_errors"] == 3
+        and _o["server_errors"] == 0 and abs(_o["error_rate"] - 0.1875) < 1e-9
+        and _o["server_error_rate"] == 0.0)
+    _d2 = _copy.deepcopy(_d)
+    _d2["benchmarks"][0]["requests"] = {"errored": [_boundary, _server, _boundary]}
+    _o2 = build(_d2, spec={"source": "declared-absent"}, max_error_rate=0.0)
+    check("G16 ★음성대조 서버 오류가 섞이면 엄격 허용치에서 False",
+        _o2["measurement_ok"] is False and _o2["server_errors"] == 1
+        and _o2["tool_boundary_errors"] == 2)
+    _d3 = _copy.deepcopy(_d)
+    _d3["benchmarks"][0]["requests"] = {"errored": [_fake, _fake, _fake]}
+    _o3 = build(_d3, spec={"source": "declared-absent"}, max_error_rate=0.0)
+    check("G17 ★패턴만 맞고 토큰 0 이면 경계가 아니다(두 조건 동시 충족)",
+        _o3["measurement_ok"] is False and _o3["server_errors"] == 3
+        and _o3["tool_boundary_errors"] == 0)
+    _d4 = _copy.deepcopy(_d)
+    _d4["benchmarks"][0].pop("requests", None)
+    _o4 = build(_d4, spec={"source": "declared-absent"}, max_error_rate=0.0)
+    check("G18 ★requests 부재면 가르지 않고 전량 서버 오류(fail-closed)",
+        _o4["measurement_ok"] is False and _o4["tool_boundary_errors"] is None
+        and "unavailable" in _o4["error_split_source"])
+    check("G19 미분류 사유를 표본으로 남긴다(삼키지 않는다)",
+        _o2["unclassified_error_samples"] and "500" in _o2["unclassified_error_samples"][0])
+
+    print("[parse_guidellm --self-test] OK — G1~G19 전부 통과")
     return 0
 
 
