@@ -296,6 +296,12 @@ def _load(name):
 
 index = _load("sweep_index.json") or {}
 verdict = _load("verdict.json") or {}
+# ★ 2026-09-06: 오류 분할(도구 경계 대 서버)이 판정점 measured.json 에는 있는데 **셀 기록으로
+#   올라오지 않았다**. 그러면 지도에는 깨끗한 `measured` 셀만 보이고, 요청의 일부가 클라이언트
+#   파서에 버려졌다는 사실이 사라진다. 실측(a0): 24건 중 3건이 harmony 토큰 경계에서 errored.
+#   parse_guidellm 이 "가르되 삼키지 않는다"로 고쳐졌는데 **마지막 홉에서 다시 삼켜졌다** —
+#   바로 위 moe_backend_mismatch 주석이 적은 것과 같은 계열의 결함이다(계산은 해 놓고 버린다).
+judged = _load(os.path.join("level_01", "measured.json")) or {}
 meta = index.get("meta") or {}
 # 동시성 축은 **벡터 전부**를 싣는다(한 점으로 접으면 승자가 뒤집힌다는 실측이 있다).
 vector = {str(l.get("level")): ((l.get("measured") or {}).get("decode_tps"))
@@ -340,7 +346,16 @@ cell = {
                     #   아니었지만, "축을 옮겼는데 안 옮겨졌다"는 **가장 중요한 결과**가 사라졌다.
                     "moe_backend_source": meta.get("moe_backend_source"),
                     "moe_backend_declared": meta.get("moe_backend_declared"),
-                    "moe_backend_mismatch": meta.get("moe_backend_mismatch")},
+                    "moe_backend_mismatch": meta.get("moe_backend_mismatch"),
+                    # 오류 분할(판정점 기준). 전체 오류율과 서버 오류율을 **나란히** 둔다 —
+                    # 판정은 서버 쪽으로 하되 버려진 요청 수를 읽는 사람에게서 감추지 않는다.
+                    "error_rate": judged.get("error_rate"),
+                    "server_error_rate": judged.get("server_error_rate"),
+                    "tool_boundary_errors": judged.get("tool_boundary_errors"),
+                    "server_errors": judged.get("server_errors"),
+                    "error_split_source": judged.get("error_split_source"),
+                    "completed_requests": judged.get("completed"),
+                    "num_prompts": judged.get("num_prompts")},
     "verdict_narrative": (("%s · authority=%s · source=%s · floor=%s"
                            % (verdict.get("verdict"),
                               (verdict.get("rubric") or {}).get("authority"),
