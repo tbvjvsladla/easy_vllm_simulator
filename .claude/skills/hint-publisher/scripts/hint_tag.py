@@ -928,6 +928,18 @@ def validate_name(name: str, expect_absent: bool = True) -> tuple[str, str, str,
         die(f"[hint_tag] FAIL: 레시피 세그먼트 형태 위반(소문자 슬러그): {recipe!r}\n"
             f"        레시피는 **인증서에서 파생**한다 — `hint_tag.py recipe-segment --certificate <경로>` "
             f"가 그 값을 낸다. 손으로 짓지 않는다.")
+    # arch 세그먼트는 **어느 노드 형상이 수행했는가**를 담는다(2026-09-06 · plan_26090616 Q1/Q2).
+    # 이름이 곧 증거 연결이므로 여기서 문법을 집행한다 — 옛 이름과 형태 위반을 **다른 사유로** 가른다.
+    if (why := arch_violation(arch)) is not None:
+        if why == "HINT_ARCH_NODE_AXIS_ABSENT":
+            die(f"[hint_tag] FAIL: {why} — arch 세그먼트 {arch!r} 에 **노드 축이 없다**.\n"
+                f"        문법: <hw>-<main|sub|cluster>-<target>  (예 gb10-main-sim-h100 · "
+                f"gb10-sub-sim-h100 · gb10x2-cluster-sim-h100)\n"
+                f"        hint 태그는 '이 조합이 된다' 가 아니라 **'어느 노드 형상이 수행한 기록'** 이다. "
+                f"축이 없으면 같은 하드웨어의 메인·서브가 같은 이름을 원하고, 그때 서브의 기록은 "
+                f"완주했어도 발행되지 못한다(2026-09-05 실측).")
+        die(f"[hint_tag] FAIL: {why} — arch 세그먼트 형태 위반: {arch!r} "
+            f"(소문자 <hw>-<main|sub|cluster>-<target>)")
     prior = _existing_model_slugs().get(_norm_slug(model))
     if prior is not None and prior != model:
         die(f"[hint_tag] FAIL: 모델 슬러그 '{model}' 은 이미 발행된 '{prior}' 와 대소문자·구두점만 "
@@ -977,7 +989,7 @@ def cmd_create(a: argparse.Namespace) -> int:
     manifest, _ = _load_manifest_for_binding("hint_create", a.manifest)
     _require_hint_promotion_target("hint_create", manifest, tag=a.tag, topology=a.topology,
                                     anchor=anchor, vllm=vllm, model=model)
-    _require_serving_evidence("hint_create", manifest)
+    _require_serving_evidence("hint_create", manifest, getattr(a, "payload", None))
 
     rj: dict = {}
     rp = (ROOT / a.from_resolved)
@@ -1057,7 +1069,7 @@ def cmd_finalize(a: argparse.Namespace) -> int:
     # 에 대한 주 방어선이 실제 발행 경로에 없었던 것이다.
     # 여기는 `finalize`·`seal` 이 **공유하는** 지점이고 태그 생성보다 앞이므로, 한 줄로 양쪽이
     # 닫히고 거부 시 부작용이 0이다(승격게이트가 지킨 규율과 같다).
-    _require_serving_evidence("hint_finalize", manifest)
+    _require_serving_evidence("hint_finalize", manifest, getattr(a, "payload", None))
     footer_fields = _resolve_evidence_footer_fields("hint_finalize", manifest, resolved_manifest_path,
                                                      a.manifest, tag=a.tag, topology=a.topology, anchor=anchor)
 
@@ -1430,7 +1442,21 @@ def _no_cert_binding_source(manifest: dict) -> "str | None":
     return None
 
 
-def _require_serving_evidence(action: str, manifest: dict) -> None:
+def _payload_declared_missing(payload_dir) -> frozenset:
+    """조립 중인 페이로드 디렉터리가 선언한 결손 코드. 경로가 없거나 못 읽으면 **빈 집합**이다 —
+    읽지 못한 것을 "선언됐다" 로 처리하면 게이트가 스스로 열린다."""
+    if not payload_dir:
+        return frozenset()
+    path = Path(payload_dir) / "PAYLOAD.json"
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return frozenset()
+    missing = doc.get("missing") if isinstance(doc, dict) else None
+    return frozenset(m for m in (missing or []) if isinstance(m, str))
+
+
+def _require_serving_evidence(action: str, manifest: dict, payload_dir=None) -> None:
     """계약 v2 §3 — **발행 가능 시점**의 실질 검사. 이것이 §2 위협의 주 방어선이다.
 
     위협: "서빙이 실패했는데도 에이전트가 사용자를 속여 '서빙되었다'고 허위 기재한 정보가 배포되는 것".
@@ -1444,7 +1470,16 @@ def _require_serving_evidence(action: str, manifest: dict) -> None:
     A 없이 B 는 성립할 수 없으므로(서빙이 안 되면 측정 대상이 없다), B 는 사실상
     **'서빙되었다'의 정량 증거**다.
     """
-    problems: list[str] = []
+    # ★ v4 절단선(2026-09-06 · plan_26090616 Q7/Q8): 두 조건의 **성질이 다르다**.
+    #   A(서빙 성공)는 계약 §2 가 지목한 유일한 위협의 방어선이라 그대로 **차단**이다 — 실패를
+    #     성공으로 위장한 배포를 막는 자리이고, 서빙 실패 셀은 애초에 독립 태그를 갖지 않는다
+    #     (형제 태그의 벽 지도로 실린다 · 계획 §범위 밖).
+    #   B(lite 정량지표)는 **선택**으로 내려간다. 인증서·리포트 발행은 벤치마커의 책임이고,
+    #     캠페인 종료와 hint 발행은 독립 사건이다. 부재를 차단으로 두면 발행돼야 할 hint 가 안
+    #     나가고, 수신자에게 "발행 안 됨" 은 "시도된 적 없음" 과 구분되지 않는다.
+    #   단 **적히지 않은 부재는 여전히 차단**이다 — 면제되는 것은 "없다" 가 아니라 "없다고 적혀 있다".
+    problems: list[str] = []          # A — 무조건 차단
+    quant_missing: list[str] = []     # B — 선언돼 있으면 통과, 아니면 차단
     rt = manifest.get("runtime") if isinstance(manifest, dict) else None
     if not isinstance(rt, dict):
         problems.append("runtime 블록 부재 — 서빙 성공 증거 없음")
@@ -1469,40 +1504,49 @@ def _require_serving_evidence(action: str, manifest: dict) -> None:
     if not cert_rel and no_cert_source:
         rep_rel = (ev.get("bench_report") or {}).get("path")
         if not rep_rel:
-            problems.append(f"{no_cert_source} 경로인데 evidence.bench_report 도 없다 — lite 근거 부재")
+            quant_missing.append("HINT_MISSING_BENCH_REPORT")
         else:
             rep_path = (ROOT / "docs" / "_evidence" / rep_rel).resolve()
             try:
                 rtext = rep_path.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 rtext = ""
-                problems.append(f"bench_report 를 읽을 수 없다: {rep_rel}")
+                quant_missing.append("HINT_MISSING_BENCH_REPORT")
             if rtext:
                 if "lite 지표" not in rtext:
-                    problems.append("bench_report 에 lite 지표 절 부재 — full ⊇ lite 가 깨졌다")
+                    quant_missing.append("HINT_MISSING_LITE")
                 if not re.search(r"gen tokens/sec[^|]*\|\s*[0-9]", rtext):
-                    problems.append("bench_report 의 lite warm gen 실측값 부재")
+                    quant_missing.append("HINT_MISSING_LITE")
     elif not cert_rel:
-        problems.append("evidence.certificate 부재 — lite 정량지표를 확인할 수 없다"
-                        "(인증서-부재 바인딩을 여는 perf_waiver·explore 어느 쪽도 성립하지 않았다)")
+        quant_missing.append("HINT_MISSING_CERTIFICATE")
     else:
         cert_path = (ROOT / "docs" / "_evidence" / cert_rel).resolve()
         try:
             text = cert_path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             text = ""
-            problems.append(f"인증서를 읽을 수 없다: {cert_rel}")
+            quant_missing.append("HINT_MISSING_CERTIFICATE")
         if text:
             if not re.search(r"(?m)^lite_included:\s*true\b", text):
-                problems.append("인증서 lite_included != true — lite 정량지표 미확보"
-                                "(full ⊇ lite 불변식이 깨졌거나 lite 수집 실패)")
+                quant_missing.append("HINT_MISSING_LITE")
             if not re.search(r"(?m)^lite_gen_tps_warm:\s*[0-9]", text):
-                problems.append("인증서 lite_gen_tps_warm 실측값 부재")
+                quant_missing.append("HINT_MISSING_LITE")
+    # B 의 결손은 **페이로드가 선언했는가**로 갈린다.
+    if quant_missing:
+        declared = _payload_declared_missing(payload_dir)
+        undeclared = sorted(set(quant_missing) - declared)
+        if undeclared:
+            problems.append(
+                "정량지표 결손이 페이로드 `missing[]` 에 선언되지 않았다: " + ", ".join(undeclared)
+                + " — 적히지 않은 부재는 침묵이다(계약 v4 §5). `hint_collect` 가 이 코드를 적게 하라.")
+        else:
+            print(f"[hint_tag] NOTE {action}: 선언된 정량지표 결손이라 차단하지 않는다 — "
+                  f"{', '.join(sorted(set(quant_missing)))} (강행 발행 · 계약 v4 §3)", file=sys.stderr)
     if problems:
         _die_binding(action, ["HINT_SERVING_EVIDENCE_INSUFFICIENT"],
                      {"HINT_SERVING_EVIDENCE_INSUFFICIENT":
-                      "hints/HINT_ISSUANCE_CONTRACT.md §3 발행 조건 미충족 — "
-                      "서빙 성공과 lite 정량지표가 모두 증명돼야 한다:\n  " + "\n  ".join(problems)},
+                      "hints/HINT_ISSUANCE_CONTRACT.md §3 발행 조건 미충족 — 서빙 성공(A)은 무조건, "
+                      "정량지표(B)는 **선언되지 않은 부재**일 때 차단된다:\n  " + "\n  ".join(problems)},
                      manifest.get("identity") if isinstance(manifest, dict) else None,
                      manifest.get("task_class") if isinstance(manifest, dict) else None)
 
@@ -1627,6 +1671,45 @@ def classify_evidence_problems(per_tag: list) -> tuple[list[str], list[str]]:
     return blocking, unverifiable
 
 
+# ── 강행 발행 절단선 (2026-09-06 · plan_26090616 Q7/Q8 · 사용자 결정) ─────────────────────────
+#
+# hint 태그의 롤은 **토큰노믹스 정책**이다 — 수신자가 같은 탐색을 다시 태우지 않게 하는 것.
+# 그 목적에서 보면 "정보가 적은 태그" 는 결함이 아니라 **적은 정보** 이고, 진짜 위협은
+# **거짓 정보**(서빙 실패를 성공으로 위장한 배포)다. 그래서 절단선을 다시 긋는다:
+#
+#   차단  = 양성 검출 — 위조 · 드리프트 · 미봉인 · 3신호 모순 · PII 매치 · **선언되지 않은** 부재
+#   통과  = 선언된 부재 — 페이로드 `missing[]` 에 사유코드로 **적혀 있는** 결손
+#
+# 핵심은 "부재를 봐준다" 가 아니라 **"부재를 적었는가"** 다. 적으면 수신자가 무엇을 모른 채
+# 소비하는지 알고, 안 적으면 그것이 곧 침묵이다. 인증서 발행은 벤치마커의 책임이고 캠페인 종료와
+# hint 발행은 독립 사건이므로, 남의 책임 부재로 자기 발행을 막지 않는다.
+_MISSING_CODE_FOR_ABSENCE = {
+    "HINT_EVIDENCE_CERTIFICATE_REF_ABSENT": "HINT_MISSING_CERTIFICATE",
+    # work-manifest 는 **배포되지 않는다**. 발행자 평면에서는 있어야 하므로 매핑하지 않는다 —
+    # 여기서 면제하면 "증거 없이 발행" 이 아니라 "증거를 잃고도 발행" 이 통과한다.
+}
+
+
+def declared_missing_of(tag: str) -> frozenset:
+    """태그 페이로드가 **스스로 선언한** 결손 사유코드. 읽을 수 없으면 빈 집합(면제 없음)."""
+    data = _git_blob_bytes(f"{tag}^{{}}", "PAYLOAD.json")
+    if not data:
+        return frozenset()
+    try:
+        doc = json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return frozenset()
+    missing = doc.get("missing") if isinstance(doc, dict) else None
+    return frozenset(m for m in (missing or []) if isinstance(m, str))
+
+
+def absence_is_declared(tag: str, codes: list) -> bool:
+    """이 태그의 `unverifiable` 사유가 **전부** 페이로드에 선언돼 있는가."""
+    declared = declared_missing_of(tag)
+    mapped = [_MISSING_CODE_FOR_ABSENCE.get(c) for c in codes]
+    return bool(mapped) and all(m is not None and m in declared for m in mapped)
+
+
 def _require_all_hint_tags_evidence_valid(action: str, tags: list | None = None) -> None:
     """모든 hint 태그의 evidence-binding 검증 — **계약 v2 분류**(hints/HINT_ISSUANCE_CONTRACT.md §5).
 
@@ -1647,12 +1730,19 @@ def _require_all_hint_tags_evidence_valid(action: str, tags: list | None = None)
       - 참조 증거 부재 → unverifiable(수신자 평면 경고) — 단 **발행자 평면(verify·push)에서는 차단**
     """
     targets = tags if tags is not None else existing_hint_tags()
-    blocking, unverifiable = classify_evidence_problems(
-        [(t, _validate_hint_tag_evidence(t, action)[1]) for t in targets])
+    per_tag = [(t, _validate_hint_tag_evidence(t, action)[1]) for t in targets]
+    blocking, unverifiable = classify_evidence_problems(per_tag)
     # 배포 평면도 발행자 평면이다 — 부재/미봉인은 여기서 차단한다(사용자 결정 α의 경계).
+    # 단 2026-09-06 부터 **선언된 부재는 예외**다(강행 발행 절단선 · 바로 위 주석).
+    codes_of = {tag: [c for c, _ in probs] for tag, probs in per_tag}
     blocking = list(blocking)
-    blocking += [f"{x}: HINT_EVIDENCE_REF_ABSENT 참조 증거가 이 체크아웃에 없다 — "
-                 "배포하려면 증거를 보유해야 한다" for x in unverifiable]
+    for x in unverifiable:
+        if absence_is_declared(x, codes_of.get(x, [])):
+            print(f"[hint_tag] NOTE {x}: 선언된 결손이라 차단하지 않는다 "
+                  f"({', '.join(sorted(declared_missing_of(x)))}) — 강행 발행 정책", file=sys.stderr)
+            continue
+        blocking.append(f"{x}: HINT_EVIDENCE_REF_ABSENT 참조 증거가 이 체크아웃에 없고 "
+                        "페이로드에 결손으로 **선언되지도 않았다** — 적히지 않은 부재는 침묵이다")
     blocking += [f"{x}: HINT_TAG_UNSEALED {_r}" for x in targets if (_r := unsealed_reason(x))]
     if blocking:
         _die_binding(action, ["HINT_EVIDENCE_BINDING_INCOMPLETE"],
@@ -2355,6 +2445,25 @@ def cmd_self_test(_a=None) -> int:
        == ("0.19.1", "gpt-oss-120b", "gb10-single", "qmxfp4-len131072-kvfp8"))
     ck("★음성대조 4세그먼트(구세대)는 거부", not TAG_SHAPE.match("hint/0.19.1/gpt-oss-120b/gb10"))
     ck("★음성대조 6세그먼트도 거부", not TAG_SHAPE.match("hint/a/b/c/d/e"))
+    # ── arch 노드 축(2026-09-06 · plan_26090616 Q1/Q2) ──
+    ck("arch 3형상이 문법을 만족한다",
+       all(arch_violation(x) is None for x in
+           ("gb10-main-sim-h100", "gb10-sub-sim-h100", "gb10x2-cluster-sim-h100")))
+    ck("★음성대조 노드 축 없는 옛 이름은 **다른 사유코드**로 거부",
+       arch_violation("gb10-sim-h100") == "HINT_ARCH_NODE_AXIS_ABSENT")
+    ck("★음성대조 대문자·미지 축은 형태 위반",
+       arch_violation("GB10-main-x") == "HINT_ARCH_SHAPE_VIOLATION"
+       and arch_violation("gb10-node-x") == "HINT_ARCH_NODE_AXIS_ABSENT")
+    ck("arch 해체가 축 3개를 준다",
+       parse_arch_segment("gb10x2-cluster-sim-h100") == ("gb10x2", "cluster", "sim-h100"))
+    ck("조립기가 문법을 스스로 검사한다",
+       build_arch_segment("gb10", "sub", "sim-h100") == "gb10-sub-sim-h100")
+    _built = None
+    try:
+        build_arch_segment("gb10", "worker", "x")
+    except SystemExit as _e:
+        _built = _e
+    ck("★음성대조 미지 노드 축 조립은 거부", _built is not None)
     ck("모델 슬러그 인덱스는 그대로 [2](레시피를 맨 뒤에 붙인 이유)",
        "hint/0.19.1/gpt-oss-120b/gb10-single/q-len-kv".split("/")[2] == "gpt-oss-120b")
     ck("인증서 3축에서 파생한다",

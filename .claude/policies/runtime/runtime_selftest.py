@@ -387,7 +387,9 @@ def _test_promotion_rubric_carrier() -> None:
 #   `hint/<vllm>/<model>/<arch>/<recipe>`. 마지막 칸은 **인증서에서 파생**하며
 #   `hint_tag.derive_recipe_segment` 가 아래 `_HINT_CERTIFICATE` 로부터 같은 값을 낸다
 #   (이름과 측정이 어긋나면 seal 이 HINT_RECIPE_SEGMENT_MISMATCH 로 거부한다).
-_HINT_TAG = "hint/0.0.0.dev0/selftest-model/gb10/qfp8-len32768-kvfp8"
+# arch 세그먼트는 2026-09-06 부터 노드 축을 요구한다(`<hw>-<main|sub|cluster>-<target>`).
+# 픽스처가 실물보다 **좁으면** 시험은 초록인데 실물이 죽는다 — 실제로 그렇게 잡혔다.
+_HINT_TAG = "hint/0.0.0.dev0/selftest-model/gb10-main-sim-h100/qfp8-len32768-kvfp8"
 _HINT_TOPOLOGY = "single 1노드 TP1"
 _HINT_HF_REPO = "selftest-org/selftest-model"
 _HINT_SCRIPT_REL = ".claude/skills/hint-publisher/scripts/hint_tag.py"

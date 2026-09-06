@@ -1196,7 +1196,7 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C3():
     # 6-field footer contract (plan_26090222 F-6a): the three content digests were removed --
     # the footer binds an evidence ADDRESS (anchor + refs), integrity is git's job.
     fields = {
-        "version": "1", "tag": "hint/0.25.1/gpt-oss-120b/gb10", "topology": "single",
+        "version": "1", "tag": "hint/0.25.1/gpt-oss-120b/gb10-main-sim-h100/qmxfp4-len131072-kvfp8", "topology": "single",
         "anchor": "a" * 40, "manifest_ref": "docs/_evidence/x.json",
         "certificate_ref": "docs/benchmark/cert.yaml",
     }

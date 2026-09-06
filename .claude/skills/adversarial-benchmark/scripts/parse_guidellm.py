@@ -46,6 +46,23 @@ def _stat(metrics, path, field, stat_set=STAT_SET):
     return float(value)
 
 
+def _pct(metrics, path, pct="p99", stat_set=STAT_SET):
+    """metrics[path][stat_set]["percentiles"][pct] → float. 없으면 None(호출부가 fail-closed).
+
+    ★ 2026-09-06 신설(plan_26090616 H): 종전 산출에는 중앙값·평균만 있었다. 그런데 hint 를 읽는
+    쪽이 알아야 하는 것은 "이 레시피가 얼마나 빠른가" 만이 아니라 **얼마나 고르게 빠른가** 다 —
+    꼬리(p99)와 산포(std)가 없으면 같은 중앙값을 가진 두 레시피가 구분되지 않는다. 값은 이미
+    GuideLLM 산출에 들어 있었고 읽는 코드만 없었다.
+    """
+    node = metrics.get(path)
+    bucket = node.get(stat_set) if isinstance(node, dict) else None
+    pcts = bucket.get("percentiles") if isinstance(bucket, dict) else None
+    value = pcts.get(pct) if isinstance(pcts, dict) else None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
 def _count(metrics, key):
     totals = metrics.get("request_totals")
     if not isinstance(totals, dict):
@@ -111,6 +128,14 @@ def build(doc, benchmark_index=0, engine_max=None, spec=None, max_error_rate=0.0
         "ttft_ms_mean": _stat(metrics, "time_to_first_token_ms", "mean"),
         "itl_ms_median": _stat(metrics, "inter_token_latency_ms", "median"),
         "tpot_ms_median": tpot_median,
+        # ── 꼬리·산포 축(2026-09-06 · plan_26090616 H) ──
+        "ttft_ms_p99": _pct(metrics, "time_to_first_token_ms"),
+        "ttft_ms_std": _stat(metrics, "time_to_first_token_ms", "std_dev"),
+        "itl_ms_p99": _pct(metrics, "inter_token_latency_ms"),
+        "itl_ms_std": _stat(metrics, "inter_token_latency_ms", "std_dev"),
+        "tpot_ms_p99": _pct(metrics, "time_per_output_token_ms"),
+        "tpot_ms_std": _stat(metrics, "time_per_output_token_ms", "std_dev"),
+        "request_latency_ms_p99": _pct(metrics, "request_latency"),
         "accept_len": accept_len,
         "spec_on": bool(accept_len and accept_len > 1.05),
         "completed": successful,
