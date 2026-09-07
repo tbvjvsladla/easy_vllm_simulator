@@ -128,6 +128,14 @@
         "null"
       ],
       "description": "layer-1 통제변인(타겟 HW·모델·엔진 버전·토폴로지 등)을 활성 캠페인 선언에서 **파생**해 싣는다(손저작 ✗). 2026-09-05 요청의 통제변인 표에서 모델 행이 빠져 서브가 저장소 기본 config 의 다른 모델을 집었다 — 그 재발을 막는 자리다. 개정 창구는 메인 하나이며 서브는 리포트 control_variables_echo 로 그대로 되받는다."
+    },
+    "backend": {
+      "description": "provider 실행 백엔드(닫힌 열거). anthropic=기본(claude 바이너리) · kimi=kimi-claude shim(같은 Claude Code 하네스, 내부 LLM만 Kimi K3 — 2026-09-07 사용자 지시. shim 은 노드 로컬 비추적 자산).",
+      "type": "string",
+      "enum": [
+        "anthropic",
+        "kimi"
+      ]
     }
   }
 }

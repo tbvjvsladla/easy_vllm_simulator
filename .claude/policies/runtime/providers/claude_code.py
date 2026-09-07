@@ -38,6 +38,13 @@ EXIT_MALFORMED_OUTPUT = 5
 EXIT_TIMEOUT = 124
 
 PROVIDER_NAME = "claude_code"
+
+# 2026-09-07 (Qwen3-4B KV양자화 캠페인 · 사용자 지시): 같은 Claude Code 하네스를 내부 LLM만
+#   바꿈(Kimi K3) — provider 가 아니라 **백엔드**가 다른 것이므로 스키마의 선택 필드 `backend` 가
+#   바이너리를 고른다. 닫힌 열거(tripwire): 여기 없는 백엔드는 스키마 enum 에서 이미 걸린다.
+#   `kimi-claude` 는 노드 로컬 shim(~/.local/bin, 비추적)이며 env 라우팅(엔드포인트·키·모델 슬롯)은
+#   shim 이 소유한다 — 이 파일에 키·엔드포인트를 적지 않는다.
+BACKEND_TO_BINARY = {"anthropic": "claude", "kimi": "kimi-claude"}
 # capability → 하네스 도구. **한 capability 가 여러 도구로 갈 수 있다**(2026-09-04 · plan_26090412
 # §6.1 B안). 종전에는 1:1 이라 어휘가 곧 도구였고, 그래서 `WebSearch`/`WebFetch` 로 가는 통로가
 # **아예 존재하지 않았다** — 서브의 외부지식 획득 불가는 egress 나 위임 키 때문이 아니라 여기가
@@ -55,8 +62,9 @@ CAPABILITY_TO_TOOL = {
 def _inner_argv(request: dict) -> list[str]:
     allowed_tools = ",".join(tool for name in request["capabilities"]
                              for tool in CAPABILITY_TO_TOOL[name])
+    binary = BACKEND_TO_BINARY[request.get("backend") or "anthropic"]  # 스키마 밖 값은 KeyError fail-closed
     argv = [
-        "claude",
+        binary,
         "-p", request["task"],
         "--model", request["model"],
         "--output-format", "json",

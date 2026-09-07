@@ -248,12 +248,13 @@ def relay_header(context_id: str, attempt: int, allocated: int, budget_source: s
 def build_request(topology: str, manifest: str, task: str, bud: dict,
                   resume_session_id=None, capabilities=None,
                   context_id: str = None, attempt: int = 0, model: str = None,
-                  campaign_id: str = None, control_variables: dict = None) -> dict:
+                  campaign_id: str = None, control_variables: dict = None,
+                  backend: str = None) -> dict:
     """위임 request 조립. `bud` 는 **선언된** 예산이다(`turn_budget.declare` 산출)."""
     base = _canary.build_request(topology, manifest, max_turns=bud["max_turns"],
                                  timeout_seconds=bud["timeout_seconds"],
                                  budget_source=bud["source"],
-                                 model=model)  # target 해소·센티넬 거부를 재사용
+                                 model=model, backend=backend)  # target 해소·센티넬 거부를 재사용
     allocated = bud["max_turns"]
     base["intent"] = "delegate"
     camp_block = campaign_control_block(campaign_id, control_variables)
@@ -266,6 +267,8 @@ def build_request(topology: str, manifest: str, task: str, bud: dict,
     base["capabilities"] = list(capabilities or DEFAULT_CAPABILITIES)
     if resume_session_id:
         base["resume_session_id"] = resume_session_id
+    if backend:
+        base["backend"] = backend
     return base
 
 
@@ -985,7 +988,7 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     attempt_no = len(doc.get("attempts") or []) + 1
     resume = None if resume_declared in (None, "new") else resume_declared
     req = build_request(a.topology, a.manifest_path, task, bud, resume_session_id=resume,
-                        context_id=a.context_id, attempt=attempt_no, model=a.model,
+                        context_id=a.context_id, attempt=attempt_no, model=a.model, backend=a.backend,
                         campaign_id=getattr(a, "campaign_id", None),
                         control_variables=getattr(a, "control_variables", None))
 
@@ -1115,6 +1118,8 @@ def main() -> int:
                     help="매달림 상한(scope ⊥ budget — 예산과 별개 노브)")
     ap.add_argument("--budget-source", default=None,
                     help="그 예산을 그렇게 정한 근거(필수 · 원장에 남는다)")
+    ap.add_argument("--backend", choices=["anthropic", "kimi"], default=None,
+                    help="provider 실행 백엔드(기본 anthropic=claude · kimi=kimi-claude shim, 내부 LLM Kimi K3)")
     ap.add_argument("--model", default=None,
                     help="위임 모델 선언(기본은 카나리 기본값). 어댑터는 모델로 차단하지 않는다 — "
                          "실제로 돈 모델은 원장 `model_used` 가 말한다(2026-09-05 · G-A1).")
