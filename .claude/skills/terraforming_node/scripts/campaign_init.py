@@ -208,6 +208,32 @@ def do_purge(previous_id: str, *, apply: bool) -> list[str]:
     return [_rel(prev)]
 
 
+def sweep_bootstrap_relay(*, apply: bool) -> list[str]:
+    """`_bootstrap/relay/` 의 옛 원장을 비운다 (2026-09-07 · 사용자 결정 · plan_26090715 §4.10).
+
+    `_bootstrap` 은 **캠페인 밖 릴레이 대기실**이다. 증거 포인터를 갖지 않으므로 purge 게이트의
+    대상이 아니고, 그래서 게이트가 영구히 닫힌 채 옛 원장이 계속 쌓였다(2026-09-07 실측 6스레드).
+    방치하면 다음 캠페인의 정지판정·상관검증과 섞인다 — 새 캠페인 init 때 **함께** 비운다.
+
+    ★ 침묵 삭제 금지: 무엇을 지웠는지 목록으로 돌려주고 호출부가 출력한다. 조용한 삭제는
+      "기록이 원래 없었던 것" 과 구분되지 않는다.
+    """
+    relay = campaigns_dir() / BOOTSTRAP / "relay"
+    if not relay.is_dir():
+        return []
+    removed: list[str] = []
+    for child in sorted(relay.iterdir()):
+        if child.name == ".gitkeep":
+            continue
+        removed.append(_rel(child))
+        if apply:
+            if child.is_dir():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+    return removed
+
+
 def scaffold(camp_id: str, plan_ref: str, *, apply: bool) -> list[str]:
     if camp_id in RESERVED_IDS:
         raise PurgeGateRefusal(f"예약 id 로는 캠페인을 열 수 없다: {camp_id!r}")
@@ -801,6 +827,24 @@ def _selftest() -> int:
         ACTIVE_POINTER.write_text("w1\n", encoding="utf-8")
         ck("★음성대조 없는 인스턴스를 명시하면 거부", _boom(lambda: _writer_target("nope")))
 
+        # ── `_bootstrap` 대기실 정리(2026-09-07 · 사용자 결정) ────────────────────────────
+        _bs = CAMPAIGNS / BOOTSTRAP / "relay"
+        _bs.mkdir(parents=True, exist_ok=True)
+        (_bs / ".gitkeep").write_text("", encoding="utf-8")
+        (_bs / "old-ctx.json").write_text("{}", encoding="utf-8")
+        (_bs / "old-ctx.reports").mkdir()
+        (_bs / "pending_hitl.json").write_text("{}", encoding="utf-8")
+        _dry = sweep_bootstrap_relay(apply=False)
+        ck("dry-run 은 대기실을 지우지 않는다",
+           len(_dry) == 3 and (_bs / "old-ctx.json").is_file())
+        _did = sweep_bootstrap_relay(apply=True)
+        ck("apply 는 옛 원장·리포트·pending 을 비운다",
+           len(_did) == 3 and not (_bs / "old-ctx.json").exists()
+           and not (_bs / "old-ctx.reports").exists())
+        ck("★.gitkeep 은 남긴다(자리가 사라지면 다음 릴레이가 갈 곳이 없다)",
+           (_bs / ".gitkeep").is_file())
+        ck("비어 있으면 아무것도 지우지 않는다(멱등)", sweep_bootstrap_relay(apply=True) == [])
+
     CAMPAIGNS, ACTIVE_POINTER = saved
     print("[campaign_init] " + ("PASS" if ok else "FAIL"))
     return 0 if ok else 1
@@ -938,9 +982,16 @@ def main(argv: list[str] | None = None) -> int:
             # 게이트는 **인스턴스마다** 따로 묻는다 — 하나가 열렸다고 다른 하나가 열리지 않는다.
             for _prev in a.purge_previous:
                 removed.extend(do_purge(_prev, apply=a.apply))
+            # `_bootstrap` 대기실도 함께 비운다(사용자 결정 2026-09-07). 게이트 대상이 아니므로
+            # 여기서 정리하지 않으면 영원히 남는다.
+            swept = sweep_bootstrap_relay(apply=a.apply)
             made = scaffold(a.init, a.plan_ref, apply=a.apply)
             mode = "APPLIED" if a.apply else "DRY-RUN"
             print(f"[campaign_init] {mode} purge={removed} init={made}")
+            if swept:
+                print(f"[campaign_init] {mode} _bootstrap/relay 정리 {len(swept)}건:")
+                for _s in swept:
+                    print(f"  - {_s}")
             return 0
         ap.print_help(); return 2
     except (PurgeGateRefusal, WriterRefusal) as exc:
