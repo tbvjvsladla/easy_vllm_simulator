@@ -164,7 +164,9 @@ _LITE_BENCH_REPORT = """# bench_report selftest
 def _write_promotion_manifest(root: Path, verdict: str, benchmark_extra: dict | None,
                               certificate: str | None = None, smoke_passed: bool = True,
                               promotion_target: dict | None = None,
-                              bench_report_text: str = _LITE_BENCH_REPORT) -> Path:
+                              bench_report_text: str = _LITE_BENCH_REPORT,
+                              task_class: str = "full_benchmark",
+                              drop_evidence: tuple = ()) -> Path:
     """full_benchmark work-manifest + 그 증거 아티팩트를 `root` 안에 실제로 짓는다.
 
     승격 게이트 회귀(`_test_promotion_rubric_carrier`)와 hint 발행 회귀
@@ -193,9 +195,11 @@ def _write_promotion_manifest(root: Path, verdict: str, benchmark_extra: dict | 
 
     benchmark = {"mode": "full", "verdict": verdict}
     benchmark.update(benchmark_extra or {})
+    for _k in drop_evidence:
+        paths.pop(_k, None)
     manifest = {
         "schema_version": 1,
-        "task_class": "full_benchmark",
+        "task_class": task_class,
         "identity": dict(_PROMO_IDENTITY),
         "runtime": {"health_ok": True, "functional_smoke_passed": smoke_passed,
                     "identity": dict(_PROMO_IDENTITY), "containers": []},
@@ -692,6 +696,87 @@ def _test_hint_binding_source() -> None:
              f"a source-tree anchor was sealed as a hint tag: "
              f"rc={getattr(seal, 'returncode', None)} "
              f"stderr={getattr(seal, 'stderr', '')[-700:]!r}")
+
+
+def _test_hint_map_only_promotion() -> None:
+    """`hint_map_only` — 계약 v5 §3 의 '결손 기재 후 발행' 이 **도달 가능한** 유일한 통로.
+
+    2026-09-07 신설(plan_26090715 §4.6). 종전에는 계약이 "§3·§4·§5 는 결손 기재 후 발행" 이라
+    적었는데 코드에서 도달 불가였다 — hint_tag 가 요구하는 promotion-ready manifest 가
+    full_benchmark ∧ mode=full ∧ verdict=PASS ∧ 증거 5종일 때만 나왔기 때문이다. 그래서 사람이
+    vault 사본을 만들어 우회했다(D3 위반의 형태). 이 시험은 **문이 실제로 열리는지**와
+    **열린 문으로 성능 주장이 새어 나가지 않는지**를 함께 본다.
+    """
+    def _verify(root: Path, manifest: Path) -> dict:
+        cp = subprocess.run([sys.executable, str(root / ".claude/policies/runtime/completion_gate.py"),
+                             "verify", "--manifest", str(manifest)],
+                            cwd=str(root), capture_output=True, text=True, timeout=120)
+        try:
+            return json.loads(cp.stdout)
+        except ValueError:
+            return {"_rc": cp.returncode, "_stdout": cp.stdout[-400:], "_stderr": cp.stderr[-400:]}
+
+    with tempfile.TemporaryDirectory(prefix="hint-map-only-selftest.") as td:
+        root = Path(td).resolve()
+        _hint_repo(root)
+        # ① 인증서·bench_report·simlog **없이** 지도 발행 통로가 열린다.
+        m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC),
+                                      task_class="hint_map_only",
+                                      drop_evidence=("simlog", "bench_report"))
+        out = _verify(root, m)
+        _require(out.get("state") == "promotion-ready" and out.get("eligible_for_promotion") is True
+                 and "HINT_MAP_ONLY_PROMOTION" in (out.get("reason_codes") or []),
+                 f"hint_map_only did not reach promotion-ready without certificate/bench_report/simlog: {out}")
+
+        # ② ★음성대조 verdict=FAIL 은 사람 positive key 없이는 못 연다(§3.2 perf_waiver).
+        m = _write_promotion_manifest(root, "FAIL", dict(_PROMO_RUBRIC),
+                                      task_class="hint_map_only",
+                                      drop_evidence=("simlog", "bench_report"))
+        out = _verify(root, m)
+        _require(out.get("eligible_for_promotion") is not True
+                 and "HINT_MAP_FAIL_REQUIRES_WAIVER" in (out.get("reason_codes") or []),
+                 f"a FAIL verdict reached promotion through hint_map_only without a waiver: {out}")
+
+        # ③ waiver 4필드가 있으면 열린다 — 대가는 본문 PERF-WARNING 이고 그것은 hint_tag 가 집행한다.
+        m = _write_promotion_manifest(
+            root, "FAIL", dict(_PROMO_RUBRIC, perf_waiver={
+                "authorized_by": "selftest-operator", "authorized_at_utc": "2026-09-07T00:00:00Z",
+                "instruction": "loop-until-done 중단", "warning_flag": "PERF-WARNING: selftest"}),
+            task_class="hint_map_only", drop_evidence=("simlog", "bench_report"))
+        out = _verify(root, m)
+        _require(out.get("eligible_for_promotion") is True,
+                 f"hint_map_only with a complete perf_waiver was still blocked: {out}")
+
+        # ④ ★음성대조 여정을 담는 셋(plan·devlog·testlog)은 면제되지 않는다.
+        m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC),
+                                      task_class="hint_map_only",
+                                      drop_evidence=("simlog", "bench_report", "devlog"))
+        out = _verify(root, m)
+        _require(out.get("eligible_for_promotion") is not True,
+                 f"hint_map_only reached promotion without devlog -- the journey evidence is not optional: {out}")
+
+        # ⑤ ★음성대조 종전 경로 불변: full_benchmark 는 여전히 증거 5종을 요구한다.
+        m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC),
+                                      drop_evidence=("simlog",))
+        out = _verify(root, m)
+        _require(out.get("eligible_for_promotion") is not True,
+                 f"full_benchmark stopped requiring simlog -- the new class relaxed the old one: {out}")
+
+    # ⑥ 본문 마커 집행은 hint_tag 소관이다(평면 분리) — 그 함수가 실재하고 발화하는지 본다.
+    hint_tag = _import_hint_tag()
+    raised = None
+    try:
+        hint_tag._require_map_only_observation(
+            "selftest", {"task_class": "hint_map_only", "identity": {}}, "본문에 마커가 없다")
+    except SystemExit as exc:
+        raised = exc
+    _require(raised is not None,
+             "hint_map_only body without the OBSERVATION-ONLY marker was accepted")
+    hint_tag._require_map_only_observation(
+        "selftest", {"task_class": "hint_map_only", "identity": {}},
+        f"§5 {hint_tag.MAP_ONLY_MARKER} 관측 게재")
+    hint_tag._require_map_only_observation(
+        "selftest", {"task_class": "full_benchmark", "identity": {}}, "마커 없음(무관)")
 
 
 def _test_policy_and_evidence_lifecycle() -> None:
@@ -1750,6 +1835,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_promotion_rubric_carrier()
     _test_certificate_run_resolution()
     _test_hint_binding_source()
+    _test_hint_map_only_promotion()
     _test_policy_and_evidence_lifecycle()
     _test_provider_turn_exhaustion_reachable()
     _test_execution_approval_authorization()

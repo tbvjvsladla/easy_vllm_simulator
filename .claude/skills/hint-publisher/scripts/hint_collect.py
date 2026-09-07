@@ -142,12 +142,22 @@ def build_track_is_wheel(env_text: str) -> bool:
     return "-source" not in (tag or "")
 
 
-def discover_slots(repo: Path, topo: str, cfg: str) -> dict:
+def discover_slots(repo: Path, topo: str, cfg: str, slot_root: Path | None = None) -> dict:
     """3+1+1 슬롯을 **경로 규약에서 파생**한다.
 
     각 슬롯의 판정은 신호 ①파일 존재만 결정론이다. ②적용증거·③선언은 Phase 4.
+
+    `slot_root` (2026-09-07 · plan_26090715 §4.5 · `--node sub` 채널): 서브 노드가 수행한 캠페인의
+    태그를 발행할 때 슬롯이 사는 자리. 기본값은 메인 워킹트리(`output/<topo>`)이고, 서브 몫은
+    **메인이 문서기반으로 회수해 재저작한 디렉터리**를 명시로 받는다.
+
+    ★ 왜 자동으로 서브에서 끌어오지 않는가: 상향 회수는 **문서기반 only** 이고 코드·설정의 직접
+      회수와 서브 재스캔은 금지다(docs.md §서브 docs 계약 · 헌법 노드제어 ①). `fetch_sub_docs.sh`
+      가 configs/envs 를 명시적으로 제외하는 이유가 그것이다. 그래서 이 채널은 "서브에서 긁어오는
+      문"이 아니라 "메인이 이미 문서로 되받아 재저작한 것을 가리키는 문"이다. 그 재저작이 없으면
+      트리플렛은 **부재**이고, 면제 불가 슬롯이므로 발행은 차단된다(HINT_MISSING_SUB_TRIPLET).
     """
-    out = repo / "output" / topo
+    out = slot_root if slot_root is not None else (repo / "output" / topo)
     triplet = {
         "config_yaml": out / "configs" / f"{cfg}.yaml",
         "runner_sh": out / "configs" / f"{cfg}.sh",
@@ -184,6 +194,10 @@ def discover_slots(repo: Path, topo: str, cfg: str) -> dict:
 
     slots: dict[str, dict] = {}
     missing_triplet = [k for k, p in triplet.items() if not p.is_file()]
+    # 사유코드는 **부재의 이유**를 담아야 한다 — 같은 부재라도 메인 워킹트리에 없는 것과 서브
+    # 몫이 회수되지 않은 것은 다른 사실이고, 처방도 다르다(전자는 저작, 후자는 문서회수 왕복).
+    triplet_missing_code = ("HINT_MISSING_SUB_TRIPLET" if slot_root is not None
+                            else "HINT_MISSING_TRIPLET")
     slots["triplet"] = {
         "phase": "serve",
         "owner": "vllm-recipe-explorer",
@@ -191,6 +205,7 @@ def discover_slots(repo: Path, topo: str, cfg: str) -> dict:
         "present": not missing_triplet,
         "missing": missing_triplet,
         "exemptible": False,  # ★ 선언으로 면제 불가 — 서빙에 원리적으로 필수
+        "missing_code": triplet_missing_code,
         "slot_confidence": "1-signal(file-presence)",
     }
     slots["runtime_patch"] = {
@@ -594,7 +609,10 @@ MISSING_CODES = {
     "HINT_MISSING_SLAVE_ATTESTATION": "슬레이브 ABI attestation 부재 — 멀티에서 두 노드가 같은 것을 "
                                       "돌렸다는 증거가 성공 경로에 보존되지 않았다.",
     "HINT_MISSING_ENV_SHAPE": "토폴로지 env 형상 부재 — 수신자가 어떤 변수가 필요한지 모른다.",
-    "HINT_MISSING_SUB_TRIPLET": "서브 트리플렛 부재(서브는 자기 것을 자율 저작하며 메인으로 전파하지 않는다).",
+    "HINT_MISSING_SUB_TRIPLET": ("서브 트리플렛 부재 — 서브는 자기 것을 자율 저작하며 상향 회수는 "
+                                "**문서기반 only** 다(코드·설정 직접 회수 금지). 해소는 서브가 자기 "
+                                "트리플렛을 문서로 발행 → 메인이 재저작 → `--node sub --slot-root` 다."),
+    "HINT_MISSING_TRIPLET": "트리플렛 부재(메인 워킹트리에 config/runner/env 3종이 없다).",
     "HINT_MISSING_PII_TERMS": "pii_terms.txt 부재 — 리터럴 스캔이 축소된 상태로 돌았다.",
     "HINT_MISSING_MEASURED_NODE": "인증서에 측정 노드 출처가 없다 — 어느 노드가 쟀는지 단정할 수 없다.",
 }
@@ -670,6 +688,21 @@ def cmd_collect(a) -> int:
         die("topology 를 정할 수 없다 — manifest.identity.topology 또는 --topology 가 필요하다. "
             "브랜치로 추론하지 않는다(헌법).")
 
+    node = (getattr(a, "node", None) or "main").strip()
+    slot_root = None
+    if node != "main":
+        raw = getattr(a, "slot_root", None)
+        if not raw:
+            die(f"--node {node} 는 --slot-root 가 필요하다 — 서브 슬롯은 메인 워킹트리에 없다.\n"
+                f"  상향 회수는 **문서기반 only** 이고 코드·설정 직접 회수는 금지다"
+                f"(docs.md §서브 docs 계약). 서브가 자기 트리플렛을 문서로 발행하고, 메인이 그것을\n"
+                f"  재저작한 디렉터리를 여기에 가리켜라(configs/ · envs/ · Dockerfile 구조 그대로).")
+        slot_root = Path(raw).resolve()
+        if not slot_root.is_dir():
+            die(f"--slot-root 가 디렉터리가 아니다: {slot_root}")
+        print(f"[hint_collect] 채널: node={node} · slot_root={slot_root} "
+              f"(메인이 문서기반으로 재저작한 자리)", file=sys.stderr)
+
     # 증거 포인터는 manifest 기준 상대경로다
     ev = man.get("evidence") or {}
 
@@ -729,7 +762,12 @@ def cmd_collect(a) -> int:
             print(f"[hint_collect] ⚠ 노드 정합 attestation 부재({attest.name}) — 결손으로 기재한다.",
                   file=sys.stderr)
 
-    slots = discover_slots(repo, topo, a.config_name)
+    slots = discover_slots(repo, topo, a.config_name, slot_root=slot_root)
+    # ★ 계약이 열거만 하고 **내는 코드가 없던** 사유코드를 여기서 낸다(2026-09-07).
+    #   부재 자체는 A층(면제 불가)이 차단하지만, 차단 사유가 무엇인지는 결손 목록에 남아야
+    #   다음 사람이 "저작하면 되는가" 와 "문서회수 왕복이 필요한가" 를 구분한다.
+    if not slots["triplet"].get("present"):
+        missing.append(slots["triplet"].get("missing_code") or "HINT_MISSING_TRIPLET")
     if not slots["triplet"]["present"]:
         die("★ 트리플렛이 불완전하다: " + ", ".join(slots["triplet"]["missing"]) +
             "\n  트리플렛은 **선언으로 면제 불가**다(plan §7) — 서빙에 원리적으로 필수이므로"
@@ -1304,6 +1342,12 @@ def main() -> int:
     c.add_argument("--config-name", required=True, help="트리플렛 basename (예: gpt-oss-120b-gb10)")
     c.add_argument("--out", required=True, help="페이로드 출력 디렉터리 (비어 있어야 한다)")
     c.add_argument("--topology", default=None, help="미지정 시 manifest 에서 읽는다 (브랜치 추론 ✗)")
+    c.add_argument("--node", default="main", choices=["main", "sub"],
+                   help="슬롯이 사는 노드 평면. sub 는 --slot-root 필수(문서기반 재저작분)")
+    c.add_argument("--slot-root", default=None,
+                   help="--node sub 의 3+1+1 슬롯 루트(configs/·envs/·Dockerfile 구조). "
+                        "메인이 서브 문서를 회수해 **재저작한** 자리이며, 서브에서 직접 긁어오는 "
+                        "경로가 아니다(코드·설정 직접 회수 금지).")
     c.add_argument("--generated-kst", required=True, help="시각은 주입만 받는다(벽시계 금지)")
     c.set_defaults(fn=cmd_collect)
 

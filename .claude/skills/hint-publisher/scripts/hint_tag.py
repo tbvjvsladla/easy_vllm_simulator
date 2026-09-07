@@ -1089,6 +1089,7 @@ def cmd_finalize(a: argparse.Namespace) -> int:
 
     # perf_waiver(성능 REFUTE 사람승인)가 있으면 경고가 본문에 실제로 담겼는지 fail-closed 확인.
     _require_perf_warning("hint_finalize", manifest, body)
+    _require_map_only_observation("hint_finalize", manifest, body)
 
     terms = load_pii_terms()
     if terms is None:
@@ -1158,12 +1159,34 @@ def cmd_finalize(a: argparse.Namespace) -> int:
     return 0
 
 
+# 카탈로그 행의 **모양은 한 곳이 소유한다**(2026-09-07 정정). 종전에는 이 파일과
+# `hint_catalog.render_rows` 가 각자 렌더했고 열 수가 갈렸다 — 헤더는 5열인데 이쪽이 10셀 행을
+# 써서 HINTS.md 가 실제로 깨져 있었다(2026-09-07 실측). 두 자리가 다른 말을 하면 어느 쪽이 옳은지
+# 아무도 모른다. 이제 이 함수는 카탈로그와 **같은 6열**을 낸다.
+HINTS_COLUMNS = ("태그", "vLLM", "모델", "arch", "결손", "brief")
+
+
+def _hints_header() -> list[str]:
+    return ["| " + " | ".join(HINTS_COLUMNS) + " |",
+            "|" + "|".join("---" for _ in HINTS_COLUMNS) + "|"]
+
+
+def _md_cell(v) -> str:
+    return " ".join(str(v or "").split()).replace("|", "\\|")
+
+
+def _tag_declared_missing(tag: str) -> list:
+    """이 태그 페이로드가 스스로 선언한 결손 코드(파생 컬럼의 유일한 출처)."""
+    return sorted(declared_missing_of(tag))
+
+
 def _hints_row(e: dict) -> str:
-    return (f"| `{e['tag']}` | {e['vllm']} | {e['model']} | {e['arch']} | "
-            f"{e.get('recipe','')} | "
-            f"{e.get('topology','')} | {e.get('status','active')} | "
-            f"{e.get('superseded_by') or e.get('related') or '—'} | "
-            f"{e.get('last_verified','')} | {e.get('brief','')} |")
+    miss = e.get("missing")
+    if miss is None:
+        miss = _tag_declared_missing(e["tag"])
+    cell = "—" if not miss else _md_cell(" · ".join(miss))
+    return (f"| `{e['tag']}` | {_md_cell(e['vllm'])} | {_md_cell(e['model'])} | "
+            f"{_md_cell(e['arch'])} | {cell} | {_md_cell(e.get('brief'))} |")
 
 
 def _hints_regen(hints: list[dict]) -> bool:
@@ -1181,12 +1204,23 @@ def _hints_regen(hints: list[dict]) -> bool:
         print(f"[hint_tag] ⚠ {HINTS_FILE.name} 에 삽입 마커({HINTS_MARKER}) 가 없어 행을 쓰지 못했다 "
               f"— index.json 만 갱신됐다.", file=sys.stderr)
         return False
-    out = []
+    out, in_rows = [], False
+    header_set = {"| " + " | ".join(HINTS_COLUMNS) + " |",
+                  "| 태그 | vLLM | 모델 | arch | brief |"}
     for ln in HINTS_FILE.read_text(encoding="utf-8").splitlines():
-        if ln.startswith("| `hint/"):
-            continue  # 기존 hint 행 전부 제거
         if ln.strip() == HINTS_MARKER:
-            out.extend(_hints_row(e) for e in hints)
+            in_rows = not in_rows
+            if in_rows:                       # 여는 마커 — 여기서 전량 재생성
+                out.append(ln)
+                out.extend(_hints_header())
+                out.extend(_hints_row(e) for e in hints)
+                continue
+            out.append(ln)
+            continue
+        if in_rows:
+            continue                          # 옛 행·옛 헤더는 통째로 버린다
+        if ln.startswith("| `hint/") or ln.strip() in header_set:
+            continue                          # 마커 밖에 새어 나간 잔재도 거둔다
         out.append(ln)
     HINTS_FILE.write_text("\n".join(out) + "\n", encoding="utf-8")
     return True
@@ -1768,6 +1802,33 @@ def _require_perf_warning(action: str, manifest: dict, recipe_text: str) -> None
                       + "\n  ".join(problems)},
                      manifest.get("identity") if isinstance(manifest, dict) else None,
                      manifest.get("task_class") if isinstance(manifest, dict) else None)
+
+
+MAP_ONLY_MARKER = "OBSERVATION-ONLY"
+
+
+def _require_map_only_observation(action: str, manifest: dict, recipe_text: str) -> None:
+    """`hint_map_only` 로 발행하는 지도의 §5 는 **관측**이지 baseline 이 아니다(계약 v5 · 인터뷰 Q5).
+
+    이 통로는 인증서·bench_report·simlog 없이도 발행에 이르는 유일한 길이다. 그 대가로 §5 의
+    지위가 내려간다 — 수치는 실을 수 있지만 "이것이 이 조합의 성능 baseline 이다" 라고 말할 수
+    없다. 그것을 말하려면 full_benchmark 로 인증서를 얻어야 한다.
+
+    집행 방식은 `perf_waiver` 의 PERF-WARNING 과 같은 모양이다: **본문에 고정 토큰이 실렸는가**.
+    선언만 받고 본문을 보지 않으면 그 선언은 배포물에 도달하지 않는다(2026-08-01 선례).
+    """
+    if not isinstance(manifest, dict) or manifest.get("task_class") != "hint_map_only":
+        return
+    if MAP_ONLY_MARKER in recipe_text:
+        return
+    _die_binding(action, ["HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING"],
+                 {"HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING":
+                  f"task_class='hint_map_only' 로 발행하는데 본문에 `{MAP_ONLY_MARKER}` 마커가 없다.\n"
+                  f"  이 통로는 인증서·bench_report·simlog 없이 발행에 이르는 유일한 길이고, 그 대가로\n"
+                  f"  §5 는 **관측 게재**로 지위가 내려간다 — baseline·권고로 읽히면 안 된다.\n"
+                  f"  → §5 절에 `{MAP_ONLY_MARKER}` 를 적고, 이 수치가 무엇과 비교 가능한지 한정자를 붙여라.\n"
+                  f"  → 진짜 baseline 을 주장하려면 full_benchmark 로 인증서를 얻어라."},
+                 manifest.get("identity"), manifest.get("task_class"))
 
 
 def unsealed_reason(tag: str) -> str | None:
@@ -2655,10 +2716,22 @@ def cmd_self_test(_a=None) -> int:
        collide_suffix("hint/a/b/c/qx", "260904T0730Z") == "hint/a/b/c/qx_260904T0730Z")
     ck("★충돌 폴백을 벗기면 파생값과 대조된다(인증서 교차검증이 여전히 성립)",
        "qmxfp4-len131072-kvfp8_260904T0730Z".split("_")[0] == "qmxfp4-len131072-kvfp8")
-    ck("인덱스 행이 recipe 칸을 싣는다",
-       "| qmxfp4-len1-kvfp8 |" in _hints_row(
-           {"tag": "hint/a/b/c/qmxfp4-len1-kvfp8", "vllm": "a", "model": "b", "arch": "c",
-            "recipe": "qmxfp4-len1-kvfp8"}))
+    # 카탈로그 행 — 2026-09-07 부터 **6열 단일 모양**이다(hint_catalog.render_rows 와 같은 것).
+    #   종전에는 이 파일이 10셀 행을 쓰고 헤더는 카탈로그가 5열로 써서 HINTS.md 가 실제로
+    #   깨져 있었다. 레시피 세그먼트는 별도 칸이 아니라 **태그 문자열 안에** 산다.
+    _row = _hints_row({"tag": "hint/a/b/c/qmxfp4-len1-kvfp8", "vllm": "a", "model": "b",
+                       "arch": "c", "brief": "요지", "missing": []})
+    ck("행은 헤더와 같은 6열이다(두 렌더러가 갈라지지 않는다)",
+       _row.count("|") == len(HINTS_COLUMNS) + 1
+       and len(_hints_header()[0].split("|")) == len(_row.split("|")))
+    ck("레시피 세그먼트는 태그 문자열 안에 남는다", "qmxfp4-len1-kvfp8`" in _row)
+    ck("결손 없음은 —(대시)로 표시", "| — |" in _row)
+    ck("결손이 있으면 파생 컬럼에 실린다",
+       "HINT_MISSING_CERTIFICATE" in _hints_row(
+           {"tag": "hint/a/b/c/q", "vllm": "a", "model": "b", "arch": "c", "brief": "x",
+            "missing": ["HINT_MISSING_CERTIFICATE"]}))
+    ck("★태그 이름에는 등급을 새기지 않는다(결손은 파생 컬럼 · 이름은 불변)",
+       "MISSING" not in _row.split("|")[1])
 
     # ── 앵커 게이트(계약 §6) · 노드축 대조 · 결손 선언 (2026-09-07 · plan_26090715 §5 ①) ──────
     # ★ 이 셋은 **살아 있는 저장소 상태**를 앵커로 쓴다. hint 브랜치와 실제 태그가 있어야만

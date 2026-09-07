@@ -110,6 +110,25 @@ def md_cell(s: str) -> str:
 
 # ---------------------------------------------------------------- 파생
 
+def payload_missing(repo: Path, tag: str) -> list:
+    """태그 페이로드가 **스스로 선언한** 결손 사유코드. 읽을 수 없으면 빈 목록이다.
+
+    부재(페이로드가 없거나 낡은 태그)와 "결손 0"을 같은 값으로 접는다는 점은 알고 쓴다 —
+    카탈로그는 **비권위 캐시**이므로 여기서 fail-closed 하면 발행되지 않은 사실이 아니라
+    카탈로그 갱신이 막힌다. 판정의 권위는 `hint_tag verify` 이고 여기는 표시다.
+    """
+    out = subprocess.run(["git", "-C", str(repo), "cat-file", "-p", f"{tag}^{{}}:PAYLOAD.json"],
+                         capture_output=True, text=True)
+    if out.returncode != 0:
+        return []
+    try:
+        doc = json.loads(out.stdout)
+    except ValueError:
+        return []
+    missing = doc.get("missing") if isinstance(doc, dict) else None
+    return sorted(m for m in (missing or []) if isinstance(m, str))
+
+
 def derive_entries(repo: Path, tags: list[str]) -> list[dict]:
     entries: list[dict] = []
     missing_local: list[str] = []
@@ -133,6 +152,10 @@ def derive_entries(repo: Path, tags: list[str]) -> list[dict]:
             "brief": extract_brief(body),
             "anchor": anchor,
             "object": obj,
+            # 결손은 **파생 컬럼**이다(2026-09-07 · 인터뷰 Q5). 태그 이름에 등급을 새기지 않는다 —
+            # 이름은 불변인데 결손은 재발행으로 바뀔 수 있고, 이름에 새기면 그 순간 이름이 거짓이 된다.
+            # 출처는 페이로드가 스스로 선언한 PAYLOAD.json.missing[] 하나다(사람 판단 ✗).
+            "missing": payload_missing(repo, tag),
             "published": True,          # 원격에 있다 = 발행됐다. 이것이 유일한 근거다.
             "source": "remote-derived",  # 출처 표시(헌법 §결정론 규율)
         })
@@ -144,10 +167,14 @@ def derive_entries(repo: Path, tags: list[str]) -> list[dict]:
 
 
 def render_rows(entries: list[dict]) -> str:
-    rows = ["| 태그 | vLLM | 모델 | arch | brief |", "|---|---|---|---|---|"]
+    # `결손` 열(2026-09-07): "무엇을 모른 채 발행됐는가" 가 카탈로그에서 보여야 한다. 본문 슬롯과
+    # PAYLOAD.missing[] 에만 있으면 사람이 태그를 열어야 알 수 있고, 그러면 비교가 불가능하다.
+    rows = ["| 태그 | vLLM | 모델 | arch | 결손 | brief |", "|---|---|---|---|---|---|"]
     for e in entries:
+        miss = e.get("missing") or []
+        cell = "—" if not miss else md_cell(" · ".join(miss))
         rows.append(f"| `{e['tag']}` | {md_cell(e['vllm'])} | {md_cell(e['model'])} | "
-                    f"{md_cell(e['arch'])} | {md_cell(e['brief'])} |")
+                    f"{md_cell(e['arch'])} | {cell} | {md_cell(e['brief'])} |")
     return "\n".join(rows)
 
 

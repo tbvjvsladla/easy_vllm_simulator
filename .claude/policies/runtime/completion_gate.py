@@ -1124,6 +1124,20 @@ BASE_REQUIRED_EVIDENCE: dict[str, tuple[str, ...]] = {
     "capacity_rejection": ("plan",),  # + OR-group(devlog,testlog), special-cased below
     "minor_patch": ("verification", "commit"),
     "read_only_audit": (),
+    # 2026-09-07 신설(plan_26090715 §4.6 · 인터뷰 Q5). 계약 v4 는 "여정 정보만 필수 · §3·§4·§5 는
+    # 결손 기재 후 발행" 이라 적었지만 코드에서 **도달 가능한 경로가 없었다** — hint_tag 가 요구하는
+    # promotion-ready manifest 는 full_benchmark ∧ mode=full ∧ verdict=PASS ∧ 증거 5종일 때만
+    # 나왔다. 캠페인 ⑦ b0 의 `EVIDENCE_MISSING:simlog` 차단이 그 실증이고, 그때 사람이 vault 사본을
+    # 만들어 우회했다(계약이 열어 둔 문을 코드가 막고 사람이 우회로를 냈다 — D3 위반의 형태).
+    #
+    # `hint_map_only` = **지도만 배포하는 발행**이다. 필수는 여정을 담는 셋(plan·devlog·testlog)이고,
+    # bench_report·simlog·인증서는 **선택**이다. 대신 열리는 것도 지도뿐이다:
+    #   · §3·§4 구성 사실(트리플렛·build_recipe·compose)은 여전히 면제 불가다 — 그건 hint_collect
+    #     A층이 집행하며 이 클래스가 그 문을 건드리지 않는다(없으면 재현이 원리적으로 불가능하다).
+    #   · §5 성능은 **관측 게재만** 허용되고 baseline·권고 승격은 금지다(아래 승격 분기가 집행).
+    #   · 인증서는 여전히 PASS 때만 발행된다(publish_benchmark_record 무변경) — "성능이 검증됐다"는
+    #     주장은 이 통로로 만들 수 없다.
+    "hint_map_only": ("plan", "devlog", "testlog"),
 }
 
 PROMOTION_CAPPED_TASK_CLASSES = {"capacity_rejection", "minor_patch", "read_only_audit"}
@@ -2067,7 +2081,36 @@ def cmd_verify(args: argparse.Namespace) -> None:
         # tier only needs the manifest-level mode/verdict re-confirmation plus the capped-class gate.
         eligible = False
         if state == "evidence-complete" and task_class not in PROMOTION_CAPPED_TASK_CLASSES:
-            if task_class != "full_benchmark":
+            if task_class == "hint_map_only":
+                # 지도 발행 통로(2026-09-07 · 계약 v5 §3). 여기서 여는 것은 **지도**이지 성능 주장이
+                # 아니다. 그래서 셋을 확인한다:
+                #   ⓐ 서빙이 실제로 성립했는가(runtime tier 가 이미 강제했다 — 여기서 재확인).
+                #   ⓑ §5 를 baseline 으로 승격하려는 시도가 없는가(관측 게재만 허용).
+                #   ⓒ verdict=FAIL 자료를 실으려면 사람 positive key(perf_waiver 4필드)가 있는가.
+                # 이 분기가 묻는 것은 **하나**다: verdict=FAIL 자료를 §5 에 실으려면 사람 키가 있는가.
+                # 나머지 둘은 여기서 묻지 않는다 — 도달 불가 분기를 가드처럼 두면 안 된다.
+                #   · 서빙 성립: runtime tier 가 evidence-complete 이전에 이미 막는다. 여기까지 온
+                #     manifest 는 정의상 functional_smoke_passed 다(중복 검사는 죽은 코드가 된다).
+                #   · baseline 승격: work-manifest 스키마가 `additionalProperties: false` 라 그런
+                #     필드를 애초에 담을 수 없다. 실제로 baseline 을 주장할 수 있는 자리는 **hint 본문
+                #     §5** 이고, 그 집행은 hint_tag `_require_map_only_observation` 이 한다
+                #     (평면이 다른 것을 여기서 흉내 내면 두 자리가 갈라진다).
+                waiver = benchmark.get("perf_waiver") if isinstance(benchmark, dict) else None
+                _wf = ("authorized_by", "authorized_at_utc", "instruction", "warning_flag")
+                waiver_ok = (isinstance(waiver, dict)
+                             and all(isinstance(waiver.get(k), str) and waiver.get(k).strip()
+                                     for k in _wf))
+                if verdict == "FAIL" and not waiver_ok:
+                    add_reason("HINT_MAP_FAIL_REQUIRES_WAIVER",
+                               f"benchmark.verdict={verdict!r} 자료를 §5 에 실으려면 §3.2 perf_waiver "
+                               "4필드(사람 positive key)와 본문 PERF-WARNING 마커가 필요하다.")
+                else:
+                    eligible = True
+                    add_reason("HINT_MAP_ONLY_PROMOTION",
+                               f"task_class='hint_map_only' → 지도 발행 통로. mode={mode!r} "
+                               f"verdict={verdict!r} 는 **관측으로 게재**되며 baseline 승격은 막혀 있다. "
+                               f"§3·§4 구성 사실은 hint_collect 의 면제불가 3슬롯이 그대로 집행한다.")
+            elif task_class != "full_benchmark":
                 add_reason("PROMOTION_REQUIRES_FULL_BENCHMARK_CLASS",
                            f"task_class={task_class!r} can never reach promotion-ready -- only 'full_benchmark' may")
             elif mode != "full":
