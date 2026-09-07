@@ -12,5 +12,5 @@
     "ok": false,
     "source": null
   },
-  "_note": "proof.ok 는 관측이지 선언이 아니다 — source 에 그 판정을 낸 명령·파일을 적는다. 다음 phase 는 앞 phase 의 proof.ok 가 참일 때만 진입한다(workflow.md §phase 전이)."
+  "_note": "proof.ok 는 관측이지 선언이 아니다 — source 에 그 판정을 낸 명령·파일을 적는다. 이 파일은 **진행표**이지 진입 게이트가 아니다(2026-09-07 정정 · plan_26090715 §4.4) — 실차단은 completion_gate·purge 게이트·노드축 게이트에만 둔다. 실행자 없는 게이트는 안전장치가 아니라 교착이다(헌법 노드제어 ③). 쓰는 손은 campaign_init writer 하나다."
 }

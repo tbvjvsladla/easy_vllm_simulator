@@ -192,7 +192,145 @@ def validate_instance(camp_dir: Path) -> list[str]:
             continue
         if doc.get("cell_outcome") == "void" and not str(doc.get("void_reason_source") or "").strip():
             problems.append(f"{cell_status.parent.name}: void 인데 void_reason_source 가 비었다")
+    problems.extend(instance_predicates(camp_dir))
     return problems
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# P1~P3 — 완주를 표현할 수 있는 술어 (2026-09-07 신설 · plan_26090715 §4.4)
+#
+# 왜: 종전 검증기는 `pending` 을 합법 enum 으로만 보아 **완주 후 전부-pending 이 PASS** 였다.
+# 캠페인 ⑦ 이 그 상태로 통과했다 — sweep 은 b1~b6 을 serve_failed/measured 로 기록했는데
+# cell.status 는 pending 이었고, 선언된 노드 `sub`·`sub-mn` 은 phases/ 디렉터리 자체가 없었다.
+# 셋 다 인스턴스 안의 데이터만으로 계산되는데 하나도 없었다(audit_26090708 §1.1).
+#
+# 새 lint 계열을 만들지 않는다 — 이 셋은 purge 선행조건에 편입되는 **기존 게이트의 술어**다.
+
+# sweep 레코드의 결과 어휘 → cell_outcome 어휘. 두 자리가 다른 말을 쓰면 대조가 성립하지 않는다.
+_SWEEP_TO_CELL = {
+    "measured": "measured", "serve_failed": "serve_failed", "build_failed": "build_failed",
+    "void": "void", "pending": "pending",
+}
+
+
+def _sweep_cell_records(camp_dir: Path) -> dict:
+    """sweeps/*.json 이 든 셀별 결과. 키 = cell_key, 값 = (outcome, 출처 파일)."""
+    out: dict = {}
+    for sweep in sorted(camp_dir.glob("sweeps/*.json")):
+        try:
+            doc = json.loads(sweep.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        for cell in (doc.get("cells") or []):
+            if not isinstance(cell, dict):
+                continue
+            key = cell.get("cell_key") or cell.get("cell_id") or cell.get("config")
+            outcome = cell.get("cell_outcome") or cell.get("outcome") or cell.get("status")
+            if isinstance(key, str) and isinstance(outcome, str):
+                out[key] = (outcome, _rel(sweep))
+    return out
+
+
+def predicate_p1(camp_dir: Path) -> list[str]:
+    """P1 — sweep 레코드와 cell.status 가 같은 말을 하는가.
+
+    갈라지면 재개 에이전트가 이미 돈 셀을 다시 돈다(README 는 `pending` 인 셀이 남은 작업이라고
+    말한다). 부재는 결손이지만 **불일치는 차단**이다(인터뷰 Q2 절단선).
+    """
+    problems: list[str] = []
+    sweeps = _sweep_cell_records(camp_dir)
+    if not sweeps:
+        return problems
+    for key, (sweep_outcome, src) in sorted(sweeps.items()):
+        status_path = camp_dir / "cells" / key / "cell.status.json"
+        want = _SWEEP_TO_CELL.get(sweep_outcome)
+        if want is None:
+            continue
+        if not status_path.is_file():
+            problems.append(f"P1 {key}: sweep 은 '{sweep_outcome}' 인데 cell.status.json 이 없다 "
+                            f"(출처 {src}) — 돌았는데 상태를 아무도 적지 않았다")
+            continue
+        try:
+            doc = json.loads(status_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            problems.append(f"P1 {key}: cell.status.json 파손 — {exc}")
+            continue
+        have = doc.get("cell_outcome")
+        if have != want:
+            problems.append(f"P1 {key}: sweep='{sweep_outcome}' vs cell.status='{have}' 불일치 "
+                            f"(출처 {src}) — 두 자리가 갈라지면 재개가 이미 돈 셀을 다시 돈다")
+    return problems
+
+
+def predicate_p2(camp_dir: Path) -> list[str]:
+    """P2 — 증거가 도착한 (노드, 셀)의 phase 가 그 사실을 반영하는가.
+
+    벤치 증거(인증서·리포트)가 실재하는데 그 노드의 bench phase 가 `done` 이 아니면, 진행표가
+    증거보다 낡은 것이다. 진행표를 믿고 재개하면 이미 잰 셀을 다시 잰다.
+    """
+    problems: list[str] = []
+    ep = camp_dir / "evidence_pointers.json"
+    if not ep.is_file():
+        return problems
+    try:
+        doc = json.loads(ep.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return problems
+    bench_nodes: dict = {}
+    for ptr in (doc.get("pointers") or []):
+        if not isinstance(ptr, dict):
+            continue
+        if str(ptr.get("kind")) in ("certificate", "bench_report"):
+            node = ptr.get("node_id")
+            if isinstance(node, str) and node:
+                bench_nodes.setdefault(node, []).append(str(ptr.get("path")))
+    for node, paths in sorted(bench_nodes.items()):
+        status_path = camp_dir / "phases" / node / "bench.status.json"
+        if not status_path.is_file():
+            problems.append(f"P2 {node}: 벤치 증거 {len(paths)}건이 있는데 "
+                            f"phases/{node}/bench.status.json 이 없다 — 진행표가 증거보다 낡았다")
+            continue
+        try:
+            st = json.loads(status_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            problems.append(f"P2 {node}: bench.status.json 파손 — {exc}")
+            continue
+        if st.get("state") != "done" or (st.get("proof") or {}).get("ok") is not True:
+            problems.append(f"P2 {node}: 벤치 증거가 도착했는데 bench phase 가 "
+                            f"state={st.get('state')!r} proof.ok={(st.get('proof') or {}).get('ok')!r} "
+                            f"— 진행표가 증거보다 낡았다")
+    return problems
+
+
+def predicate_p3(camp_dir: Path) -> list[str]:
+    """P3 — 선언된 노드 전수에 phases/ 가 있는가.
+
+    `campaign.yaml.nodes[]` 에 적었는데 진행표가 없으면 그 노드는 "안 돌았다"와 "돌았는데 아무도
+    안 적었다"가 구분되지 않는다. 부재와 실패는 다른 사실이다.
+    """
+    problems: list[str] = []
+    doc = camp_dir / "campaign.yaml"
+    if not doc.is_file():
+        return problems
+    try:
+        decl = json.loads(doc.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return problems
+    for node in (decl.get("nodes") or []):
+        if not isinstance(node, dict):
+            continue
+        nid = node.get("node_id")
+        if not isinstance(nid, str) or not nid or FILL in nid:
+            continue
+        if not (camp_dir / "phases" / nid).is_dir():
+            problems.append(f"P3 {nid}: campaign.yaml 이 선언한 노드인데 phases/{nid}/ 가 없다 "
+                            f"— '안 돌았다'와 '돌았는데 아무도 안 적었다'가 구분되지 않는다")
+    return problems
+
+
+def instance_predicates(camp_dir: Path) -> list[str]:
+    """P1~P3 을 한 번에. purge 선행조건이 이 함수를 부른다."""
+    return predicate_p1(camp_dir) + predicate_p2(camp_dir) + predicate_p3(camp_dir)
 
 
 def validate_template() -> list[str]:
@@ -305,6 +443,56 @@ def _selftest() -> int:
                                   "proof": {"predicate": "health200", "ok": True,
                                             "source": "docs/testlog/t.md"}}), encoding="utf-8")
         ck("출처 있는 proof 통과", not validate_instance(camp))
+
+        # ── P1~P3 (2026-09-07 · plan_26090715 §4.4). 완주를 표현할 술어가 없어서 캠페인 ⑦ 이
+        #    전부-pending 인 채로 PASS 했다. 셋 다 인스턴스 안의 데이터만으로 계산된다.
+        (camp / "sweeps").mkdir(parents=True, exist_ok=True)
+        (camp / "sweeps" / "s1.json").write_text(json.dumps({"cells": [
+            {"cell_key": "cell-a", "cell_outcome": "measured"},
+            {"cell_key": "cell-z", "cell_outcome": "serve_failed"}]}), encoding="utf-8")
+        (camp / "cells" / "cell-a").mkdir(parents=True, exist_ok=True)
+        (camp / "cells" / "cell-a" / "cell.status.json").write_text(
+            json.dumps({"schema_version": 1, "cell_id": "cell-a", "cell_outcome": "pending"}),
+            encoding="utf-8")
+        p1 = predicate_p1(camp)
+        ck("★P1 sweep='measured' vs cell.status='pending' 불일치 검출",
+           any("cell-a" in x and "불일치" in x for x in p1))
+        ck("★P1 sweep 은 돌았다는데 cell.status.json 자체가 없으면 검출",
+           any("cell-z" in x and "없다" in x for x in p1))
+        (camp / "cells" / "cell-a" / "cell.status.json").write_text(
+            json.dumps({"schema_version": 1, "cell_id": "cell-a", "cell_outcome": "measured"}),
+            encoding="utf-8")
+        (camp / "cells" / "cell-z").mkdir(parents=True, exist_ok=True)
+        (camp / "cells" / "cell-z" / "cell.status.json").write_text(
+            json.dumps({"schema_version": 1, "cell_id": "cell-z", "cell_outcome": "serve_failed"}),
+            encoding="utf-8")
+        ck("일치하면 P1 통과", not predicate_p1(camp))
+        (camp / "sweeps" / "s1.json").unlink()
+        ck("sweep 이 없으면 P1 은 아무 말도 하지 않는다(부재 ≠ 불일치)", not predicate_p1(camp))
+
+        (camp / "evidence_pointers.json").write_text(json.dumps({"pointers": [
+            {"kind": "certificate", "path": "CLAUDE.md", "node_id": "main"},
+            {"kind": "bench_report", "path": "README.md", "node_id": "subx"}]}), encoding="utf-8")
+        p2 = predicate_p2(camp)
+        ck("★P2 벤치 증거가 왔는데 bench phase 가 없으면 검출",
+           any("subx" in x and "없다" in x for x in p2))
+        ck("★P2 벤치 증거가 왔는데 bench phase 가 pending 이면 검출(main)",
+           any("main" in x for x in p2))
+        (camp / "phases" / "main" / "bench.status.json").write_text(json.dumps(
+            {"schema_version": 1, "node_id": "main", "phase": "bench", "state": "done",
+             "proof": {"predicate": "리포트 실재", "ok": True, "source": "docs/benchmark/r.md"}}),
+            encoding="utf-8")
+        ck("bench 가 done+ok 면 그 노드는 P2 를 통과한다",
+           not any(x.startswith("P2 main") for x in predicate_p2(camp)))
+        (camp / "evidence_pointers.json").unlink()
+
+        write(dict(good, nodes=[{"node_id": "main", "role": "main", "topology": "single", "hw": "gb10"},
+                                {"node_id": "ghost", "role": "sub", "topology": "single", "hw": "gb10"}]))
+        p3 = predicate_p3(camp)
+        ck("★P3 선언된 노드에 phases/ 가 없으면 검출",
+           any("ghost" in x for x in p3) and not any("P3 main" in x for x in p3))
+        (camp / "phases" / "ghost").mkdir(parents=True, exist_ok=True)
+        ck("phases/ 가 생기면 P3 통과", not predicate_p3(camp))
     print("[campaign_template_validator] " + ("PASS" if ok else "FAIL"))
     return 0 if ok else 1
 

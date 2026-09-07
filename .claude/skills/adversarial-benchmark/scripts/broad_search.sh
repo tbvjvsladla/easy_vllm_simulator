@@ -40,6 +40,7 @@
 #                            --max-cells N --wall-clock-budget-s N --consecutive-failure-limit N
 #                            --declared-by TEXT --basis TEXT --authority explore --now-utc T
 #       broad_search.sh cell --state PATH --cell-key K --config NAME --axis-citation TEXT
+#                            --next-intent TEXT
 #                            --bench-budget-mib N --now-utc T --confirm-risk [--topology t]
 #       broad_search.sh status --state PATH --now-utc T
 #       broad_search.sh map    --state PATH --now-utc T --out-md PATH [--out-json PATH]
@@ -53,6 +54,10 @@ CMD="${1:?서브커맨드 필요: init|cell|status|map}"; shift || true
 STATE=""; NOW=""; SWEEP_ID=""; CELLS=""; CTRL=""; AUTHORITY=""
 MAX_CELLS=""; WALL=""; FAILLIMIT=""; DECLARED_BY=""; BASIS=""
 CELL_KEY=""; CONFIG=""; CITATION=""; BENCH_BUDGET=""; TOPO=""; CONFIRM=0
+# 여정 한 줄(2026-09-07 · plan_26090715 §4.3 · 인터뷰 Q4). 새 절차를 만들지 않고 **이미 도는
+# 자동쓰기**(이 셀 트랜잭션)에 인자 하나를 얹는다. 감수하지 말아야 할 유실은 여정 하나이며,
+# 벤치 결과·3+1+1 산출물은 결손 기재로 복원된다.
+NEXT_INTENT=""
 # 측정 엔드포인트. harmony 계열(gpt-oss)은 **완결 엔드포인트**로 재야 한다 —
 #   chat 에서는 `ignore_eos` 가 harmony 정지 토큰을 넘어 생성시키고, 그러면 서버의 harmony
 #   파서가 `Unexpected token … while expecting start token …` 로 일부 요청을 깬다
@@ -76,6 +81,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --cell-key) CELL_KEY="$2"; shift 2;;
   --config) CONFIG="$2"; shift 2;;
   --axis-citation) CITATION="$2"; shift 2;;
+  --next-intent) NEXT_INTENT="$2"; shift 2;;
   --bench-budget-mib) BENCH_BUDGET="$2"; shift 2;;
   --max-error-rate) MAX_ERROR_RATE="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
@@ -194,7 +200,7 @@ MSG
     exit 5
   fi
   for pair in "--cell-key:$CELL_KEY" "--config:$CONFIG" "--bench-budget-mib:$BENCH_BUDGET" \
-              "--axis-citation:$CITATION"; do
+              "--axis-citation:$CITATION" "--next-intent:$NEXT_INTENT"; do
     [ -n "${pair#*:}" ] || { echo "[broad_search] ERROR ${pair%%:*} 는 필수다" >&2; exit 2; }
   done
   [ -f "$STATE" ] || { echo "[broad_search] ERROR 상태 파일 부재: $STATE (먼저 init)" >&2; exit 2; }
@@ -279,6 +285,7 @@ MSG
 
   CELL_KEY="$CELL_KEY" CONFIG="$CONFIG" CITATION="$CITATION" SWEEPDIR="$SWEEPDIR" \
   CLS="$CLS" ENDED="$ENDED" STARTED="$STARTED" SERVE_FAILED_REASON="$SERVE_FAILED_REASON" \
+  NEXT_INTENT="$NEXT_INTENT" \
   python3 - "$STATE" <<'PY'
 import json, os, sys
 state_path = sys.argv[1]
@@ -363,6 +370,9 @@ cell = {
                               (verdict.get("rubric") or {}).get("floor")))
                           if verdict else None),
     "axis_citation": os.environ["CITATION"],
+    # 여정 한 줄 — "다음에 무엇을 할 참인가". 지도(선언)가 영토(실측)와 갈라진 지점을 남기는
+    # 유일한 자리이며, 이 체인에서 **복원 불가능한 유일한 정보**다.
+    "next_intent": os.environ.get("NEXT_INTENT") or None,
 }
 _sf = os.environ.get("SERVE_FAILED_REASON") or ""
 if _sf:
@@ -378,6 +388,23 @@ with open(state_path, "w", encoding="utf-8") as f:
     json.dump(state, f, ensure_ascii=False, indent=2)
 print("[broad_search] cell %s → %s" % (cell["cell_key"], cell["cell_outcome"]))
 PY
+  # ── 채우는 손(2026-09-07 · plan_26090715 §4.1). 이 트랜잭션이 sweep 레코드를 쓴 **바로 그
+  #    자리**에서 cell.status 와 여정 줄도 쓴다. 두 자리를 다른 시점에 쓰면 갈라지고, 갈라진 것이
+  #    캠페인 ⑦ 의 b1~b6 이다(sweep=serve_failed 인데 cell.status=pending · P1 이 그것을 잡는다).
+  #    포맷 소유는 campaign_init 하나이고 여기는 호출부다. ACTIVE=_bootstrap 이면 no-op 이다.
+  _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+  if [ -f "$_CI" ]; then
+    _OUTCOME="$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));c=[x for x in d.get('cells') or [] if x.get('cell_key')==sys.argv[2]];print((c[-1].get('cell_outcome') if c else '') or '')" "$STATE" "$CELL_KEY")"
+    if [ -n "$_OUTCOME" ]; then
+      _WARGS=(--cell-set "$CELL_KEY" --outcome "$_OUTCOME" --axis-citation "$CITATION"
+              --next-intent "$NEXT_INTENT" --utc "$ENDED")
+      [ -n "$SERVE_FAILED_REASON" ] && _WARGS+=(--void-reason "$SERVE_FAILED_REASON"
+                                                --void-reason-source "broad_search cell(엔진 로그 인용)")
+      # writer 실패는 삼키지 않는다 — 상태가 안 적혔다는 사실 자체가 다음 재개의 함정이다.
+      python3 "$_CI" "${_WARGS[@]}" \
+        || echo "[broad_search] ⚠ campaigns writer 실패 — cell.status/여정이 기록되지 않았다(위 사유 참조)" >&2
+    fi
+  fi
   set +e; _stop; rc=$?; set -e
   python3 -c "import json;d=json.load(open('$STOPJSON'));print('[broad_search] stop=%s by=%s 남은셀=%d'%(d['stop'],d['stopped_by'],len(d['cells_remaining'])))"
   exit 0

@@ -1441,7 +1441,12 @@ def predicate_LAST_GOOD_ROLLBACK_ANCHOR_C3():
         _require('github.com/' not in src and 'git@github.com' not in src, f'{rel} must not hardcode a project remote URL')
     push_src = inspect.getsource(hint_tag.cmd_push)
     _require('"--remote", default="origin"' not in push_src, 'predicate requirement failed at original line 1029')  # not asserting the arg literally this way
-    parser_src = inspect.getsource(hint_tag.main)
+    # 2026-09-07: 파서 조립이 `main` 에서 `_build_parser` 로 옮겨졌다(자체검사가 argparse 정의를
+    #   **직접** 들여다볼 수 있게 하려고 — `--payload` 가 소비자만 있고 인자가 없던 결함의 처방).
+    #   술어의 의도는 "원격 이름이 URL 이 아니라 generic git alias 를 기본값으로 쓴다" 이고, 그
+    #   토큰의 소유자가 바뀌었을 뿐이다. 소유자를 따라간다 — 앵커가 옛 자리를 가리키면 술어는
+    #   교정이 아니라 리팩터에 반응하게 된다.
+    parser_src = inspect.getsource(getattr(hint_tag, "_build_parser", hint_tag.main))
     _require('default="origin"' in parser_src, 'the remote name defaults to the generic git alias, not a URL')
 
     # NEW: "recovery restores the working tree to that anchor commit" -- performed for REAL (not

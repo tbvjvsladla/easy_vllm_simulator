@@ -448,6 +448,27 @@
           "description": "이 노드가 만들지 **못한** 것의 사유코드. 부재를 침묵으로 두지 않는다 — 강행 발행 정책에서 결손은 차단이 아니라 **기재** 대상이다(plan_26090616 Q7/Q8)."
         }
       }
+    },
+    "next_steps": {
+      "type": "array",
+      "description": "남은 일. 예산이 모자라면 소진하지 말고 `input-required` 로 끊고 여기에 적는다(scope ⊥ budget). 메인의 `assemble_continuation` 이 이 목록을 읽어 재개 본문을 만든다 — 2026-09-07 이전에는 소비자는 있는데 **스키마에 자리가 없어** 서브가 규약대로 적으면 additionalProperties:false 로 거부됐다(plan_26090715 F10).",
+      "items": {
+        "type": "string"
+      }
+    },
+    "campaign_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "메인이 위임 헤더로 보낸 campaign_id 를 **그대로** 되받아 적는다. 서브 인스턴스 디렉터리명도 이 값이어야 한다 — 이름을 짓지 않는다. 부재도 불일치도 메인이 STOP 한다(fail-closed · plan_26090715 §4.8)."
+    },
+    "control_variables_echo": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "메인이 보낸 layer-1 통제변인(타겟 HW·모델·엔진·토폴로지)을 그대로 되받아 적는다. layer-1 개정 창구는 메인 하나이며, 서브가 값을 바꿨다면 그것은 개정이 아니라 드리프트다(2026-09-05: 모델 행이 빠져 서브가 다른 모델을 집었다)."
     }
   }
 }

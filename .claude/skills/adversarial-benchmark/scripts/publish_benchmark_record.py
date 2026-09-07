@@ -178,7 +178,40 @@ def main():
     with open(outp, "w", encoding="utf-8") as f:
         f.write(y)
     sys.stderr.write("[publish_record] 인증서 발행(PASS): %s\n" % outp)
+    _register_campaign_evidence(a.sweep_index, outp, meta)
     print(outp)
+
+
+def _register_campaign_evidence(sweep_index_path: str, cert_path: str, meta: dict) -> None:
+    """증거가 docs 평면에서 **태어난 그 자리**에서 캠페인 포인터를 남긴다
+    (2026-09-07 · plan_26090715 §4.1 호출부).
+
+    왜 여기인가: 종전에는 인증서가 발행되고도 `evidence_pointers.json` 에 손으로 적어야 했다.
+    손이 빠지면 purge 게이트가 "증거가 없다"고 하거나(닫힘) 더 나쁘게는 증거가 있는데 목록에
+    없어 지워도 되는 것으로 보인다. 포맷 소유는 campaign_init writer 하나이고 여기는 호출부다.
+    ACTIVE 가 `_bootstrap` 이면 writer 가 스스로 no-op 이므로 캠페인 밖 측정은 영향이 없다.
+    실패는 **삼키지 않는다** — 인증서는 이미 발행됐으므로 죽이지는 않고 stderr 로 올린다.
+    """
+    import subprocess
+    root = repo_root(sweep_index_path)
+    ci = os.path.join(root, ".claude", "skills", "terraforming_node", "scripts", "campaign_init.py")
+    if not os.path.isfile(ci):
+        return
+    try:
+        rel = os.path.relpath(cert_path, root)
+    except ValueError:
+        return
+    node = str(meta.get("measured_node") or "").strip()
+    args = [sys.executable, ci, "--evidence-add", "--kind", "certificate", "--path", rel]
+    if node:
+        args += ["--node", node]
+    cfg = str(meta.get("config_name") or "").strip()
+    if cfg:
+        args += ["--cell", cfg]
+    cp = subprocess.run(args, capture_output=True, text=True, cwd=root, check=False)
+    if cp.returncode != 0:
+        sys.stderr.write("[publish_record] ⚠ 캠페인 증거 포인터 등재 실패 — %s\n"
+                         % (cp.stderr or "").strip())
 
 
 if __name__ == "__main__":

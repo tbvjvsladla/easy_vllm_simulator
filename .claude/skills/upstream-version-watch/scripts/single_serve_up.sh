@@ -254,6 +254,17 @@ while [ "$_waited" -lt "$READY_MAX" ]; do
   if [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://localhost:$PORT/health" 2>/dev/null)" = "200" ]; then
     echo "$TAG 7/7 health 대기     : DONE (${_waited}s)"
     echo "$TAG READY container=$CNAME port=$PORT node_id=$NODE_ID session=$SESSION_ID"
+    # ── 채우는 손: serve phase 진행표(2026-09-07 · plan_26090715 §4.1 호출부).
+    #    proof 는 **관측**이다 — 여기가 health 200 을 실제로 본 자리이고, 그 사실을 그 자리에서
+    #    적는다. 다른 시점에 적으면 선언이 관측을 대체한다. ACTIVE=_bootstrap 이면 writer 가
+    #    스스로 no-op 이므로 캠페인 밖 평시 서빙은 영향이 없다.
+    _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+    if [ -f "$_CI" ]; then
+      python3 "$_CI" --phase-set serve --node "$NODE_ID" --state done --cell "$CONFIG" \
+        --proof-predicate "health 200" --proof-ok \
+        --proof-source "single_serve_up.sh: curl http://localhost:$PORT/health = 200 (container=$CNAME · session=$SESSION_ID)" \
+        || echo "$TAG ⚠ campaigns writer 실패 — serve 진행표가 기록되지 않았다" >&2
+    fi
     exit 0
   fi
   # 컨테이너가 죽었으면 더 기다리는 것은 거짓 인내다 — 즉시 실패로 간다.
