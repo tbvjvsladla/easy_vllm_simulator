@@ -495,13 +495,20 @@ if _attn_cands is not None and len(_attn_cands) <= 1:
 # 서브가 완주해도 그 증거가 태그에 닿는 경로가 없었다(2026-09-05 실측).
 # 축은 hint 태그의 노드 축과 **같은 어휘**를 쓴다(main|sub|cluster) — 두 자리가 다른 말을 쓰면
 # 발행기가 대조하지 못한다. 멀티의 쌍은 하나의 측정 정체성이므로 `cluster` 다(불변식 A).
-_self_role = grep_yaml(mftext, "self_role") or "main"
+# ★ 2026-09-07 정직화(plan_26090715 §4.7 1차 · audit_26090708 §1.2). 종전은 `or "main"` 으로 부재를
+#   메인으로 접고도 출처를 `derived(manifest.self_role=main)` 이라고 적었다 — **부재의 기본값을 파생이라고
+#   거짓 표시**한 것이다(헌법 §결정론 규율: 모의 자체는 금지가 아니고 실측인 척하는 것이 금지다).
+#   부재는 이제 `defaulted(self_role absent)` 로 스스로를 밝힌다. 노드축 2차 대조(차단)는 이 라벨이
+#   선 뒤에 켠다 — 라벨 없이 차단부터 켜면 부재가 전부 위양성 차단이 된다.
+_self_role = grep_yaml(mftext, "self_role")
 if topo == "multi":
     measured_node, measured_node_source = "cluster", "derived(topology=multi — 쌍이 하나의 측정 정체성)"
 elif _self_role == "sub":
     measured_node, measured_node_source = "sub", "derived(manifest.self_role=sub)"
-else:
+elif _self_role:
     measured_node, measured_node_source = "main", "derived(manifest.self_role=%s)" % _self_role
+else:
+    measured_node, measured_node_source = "main", "defaulted(self_role absent)"
 
 meta = {
     # 강한 일치 키

@@ -139,6 +139,36 @@ ni_resolve_node_id() {  # $1=repo  $2=명시 --node-id(없으면 빈 문자열) 
   return 1
 }
 
+# CLI 해소기: `bash node_identity.sh --resolve [--repo <path>] [--node-id <slug>]`
+#   stdout = 슬러그 한 줄 · rc 0 = 해소 · rc 1 = fail-loud(사유는 stderr) · rc 2 = 사용법 위반.
+#
+# ★ 왜 CLI 가 필요한가(2026-09-07 · plan_26090715 §4.9 · 결함 ⑧): 이 파일은 bash `source` 전용이었고
+#   Python 소비자는 `source` 를 할 수 없었다. 그래서 `run_trial.py` 가 manifest 를 **각자 파싱**했고
+#   (`nodes[].role != "main"` → continue), 서브에서도 로스터의 `role: main` 을 집어 서브의 예산 선언을
+#   `docs/logs/main/` 으로 보냈다 — 서브 `mem_watchdog_eta` 가 자기 선언을 못 읽어 **무보호 로드**가 됐다
+#   (2026-09-05 부터). 각자 파싱 금지(SKILL.md §2.7.6)를 Python 쪽에서도 지킬 수 있게 문을 낸다.
+if [ "${BASH_SOURCE[0]}" = "${0}" ] && [ "${1:-}" = "--resolve" ]; then
+  shift
+  _ni_repo=""; _ni_explicit=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --repo)      _ni_repo="${2:-}"; shift 2 ;;
+      --repo=*)    _ni_repo="${1#--repo=}"; shift ;;
+      --node-id)   _ni_explicit="${2:-}"; shift 2 ;;
+      --node-id=*) _ni_explicit="${1#--node-id=}"; shift ;;
+      *) echo "[node-identity] FAIL: 알 수 없는 인자 '$1' — 사용법: --resolve [--repo <path>] [--node-id <slug>]" >&2; exit 2 ;;
+    esac
+  done
+  if [ -z "$_ni_repo" ]; then
+    # 이 파일 위치에서 레포 루트를 파생한다: .claude/skills/terraforming_node/scripts/node_blackbox → 5단계 위.
+    _ni_repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)" || {
+      echo "[node-identity] FAIL: 레포 루트 파생 실패 — --repo 로 명시하라." >&2; exit 1; }
+  fi
+  _ni_v="$(ni_resolve_node_id "$_ni_repo" "$_ni_explicit")" || exit 1
+  printf '%s\n' "$_ni_v"
+  exit 0
+fi
+
 # 자기검사: `bash node_identity.sh --self-test` (부수효과 없음 — 임시 디렉터리에서만 논다)
 if [ "${BASH_SOURCE[0]}" = "${0}" ] && [ "${1:-}" = "--self-test" ]; then
   _t="$(mktemp -d)"; _fail=0

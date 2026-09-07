@@ -500,9 +500,44 @@ def _hint_cli(root: Path, *args: str) -> subprocess.CompletedProcess:
                           cwd=str(root), capture_output=True, text=True, timeout=180)
 
 
+def _hint_payload_anchor(root: Path, tag: str, source_anchor: str) -> str:
+    """`refs/heads/hint` 위에 **진짜 페이로드 커밋**을 짓고 그 SHA 를 돌려준다.
+
+    ★ 2026-09-07 신설(plan_26090715 §5 ①-a). 종전 픽스처는 빈 소스 커밋을 앵커로 썼고, 그래서
+      "태그는 hint 브랜치의 페이로드 커밋을 가리킨다"(계약 §6)는 계약이 **한 번도 시험되지 않았다**.
+      픽스처가 실물보다 좁으면 그 위의 단언은 실물에서 성립하는 성질을 시험하지 못한다 —
+      실제로 native 태그 3종이 소스 커밋에 봉인된 채 전 게이트를 통과해 나갔다(audit_26090708 §2).
+      plumbing 으로 짓는 이유: 워킹트리를 건드리지 않고 배포 트리만 만들면 되기 때문이다
+      (`hint_branch.py publish` 가 실물에서 하는 일과 같은 모양).
+    """
+    def _hash_object(text: str) -> str:
+        cp = subprocess.run(["git", "-C", str(root), "hash-object", "-w", "--stdin"],
+                            input=text, capture_output=True, text=True, timeout=60, check=True)
+        return cp.stdout.strip()
+
+    payload = json.dumps({"schema_version": 1, "kind": "hint_payload_facts",
+                          "provenance": "derived", "missing": []}, ensure_ascii=False) + "\n"
+    prov = json.dumps({"version": 1, "anchor": source_anchor, "tag": tag,
+                       "source_branch": "selftest"}, ensure_ascii=False) + "\n"
+    entries = [("PAYLOAD.json", _hash_object(payload)),
+               ("PROVENANCE.json", _hash_object(prov)),
+               ("README.md", _hash_object("# hint payload (selftest fixture)\n"))]
+    tree_input = "".join(f"100644 blob {sha}\t{name}\n" for name, sha in sorted(entries))
+    tree = subprocess.run(["git", "-C", str(root), "mktree"], input=tree_input,
+                          capture_output=True, text=True, timeout=60, check=True).stdout.strip()
+    commit = subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", "-c", "user.name=selftest",
+         "-c", "user.email=selftest@example.invalid", "-C", str(root),
+         "commit-tree", tree, "-m", f"hint payload for {tag} (selftest)"],
+        capture_output=True, text=True, timeout=60, check=True).stdout.strip()
+    _hint_git(root, "update-ref", "refs/heads/hint", commit)
+    return commit
+
+
 def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = None,
                         bench_report_text: str = _LITE_BENCH_REPORT,
-                        recipe_body: str = _HINT_RECIPE_BODY) -> dict:
+                        recipe_body: str = _HINT_RECIPE_BODY,
+                        anchor_mode: str = "payload") -> dict:
     """격리 레포에서 create→seal→**catalog derive**→verify 를 실제로 돌린다.
 
     2026-09-01: `index`(손저작 색인)가 D1.1 로 폐쇄되어 카탈로그 단계를 원격 파생으로 옮겼다.
@@ -510,7 +545,12 @@ def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = 
     """
     with tempfile.TemporaryDirectory(prefix="hint-binding-selftest.") as td:
         root = Path(td).resolve()
-        anchor = _hint_repo(root)
+        source_anchor = _hint_repo(root)
+        # 계약 §6: 태그가 가리키는 것은 **페이로드 커밋**이다(소스 커밋이 아니다).
+        payload_anchor = _hint_payload_anchor(root, _HINT_TAG, source_anchor)
+        # anchor_mode="source" 는 **음성대조**다: 발행자가 hint_branch publish 를 건너뛰고 소스
+        # 트리 커밋에 봉인하려 한 그 형태(2026-09-07 native 3종). 게이트가 그것을 막아야 한다.
+        anchor = source_anchor if anchor_mode == "source" else payload_anchor
         manifest = _write_promotion_manifest(
             root, "PASS" if certificate is not None else "REFUTE", benchmark_extra,
             certificate=certificate, bench_report_text=bench_report_text,
@@ -521,7 +561,10 @@ def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = 
         # 없어졌기 때문이다(plan_26090107 §6). 신규 슬러그는 이제 플래그 없이 통과한다.
         common = ("--tag", _HINT_TAG, "--topology", _HINT_TOPOLOGY, "--commit", anchor,
                   "--hf-repo", _HINT_HF_REPO, "--manifest", str(manifest))
-        out = {"anchor": anchor, "create": _hint_cli(root, "create", *common)}
+        out = {"anchor": anchor, "source_anchor": source_anchor,
+               "payload_anchor": payload_anchor,
+               "root": str(root), "manifest": str(manifest),
+               "create": _hint_cli(root, "create", *common)}
         if out["create"].returncode != 0:
             return out
         recipe = root / "hints" / ".drafts" / "selftest_recipe.md"
@@ -636,6 +679,19 @@ def _test_hint_binding_source() -> None:
              and "PROMOTION_GATE_NOT_ELIGIBLE" in out["create"].stdout,
              f"a REFUTE run with no waiver and no explore authority was allowed to publish: "
              f"rc={out['create'].returncode} stdout={out['create'].stdout[-700:]!r}")
+
+    # ---- H6 ★ 계약 §6 — 태그는 **hint 브랜치 페이로드 커밋**을 가리킨다(2026-09-07 · plan_26090715).
+    #      소스 트리 커밋에 봉인하려 하면 `seal` 이 차단해야 한다. 이 검사가 없던 동안 native
+    #      태그 3종이 그대로 나갔고, single 태그가 multi-node 커밋에 앵커되기까지 했다.
+    out = _hint_publish_probe(dict(_PROMO_RUBRIC), anchor_mode="source")
+    _require(out["source_anchor"] != out["payload_anchor"],
+             "fixture built the same commit for source and payload — the H6 control is vacuous")
+    seal = out.get("seal")
+    _require(seal is not None and seal.returncode != 0
+             and "HINT_ANCHOR_NOT_ON_HINT_BRANCH" in (seal.stderr or "") + (seal.stdout or ""),
+             f"a source-tree anchor was sealed as a hint tag: "
+             f"rc={getattr(seal, 'returncode', None)} "
+             f"stderr={getattr(seal, 'stderr', '')[-700:]!r}")
 
 
 def _test_policy_and_evidence_lifecycle() -> None:

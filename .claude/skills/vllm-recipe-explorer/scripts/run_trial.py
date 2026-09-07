@@ -818,36 +818,46 @@ def _repo_root() -> str:
 
 
 def _budget_node_dir(opts) -> "str | None":
-    """선언을 기록할 노드 디렉터리. 명시 > manifest 파생 > None(생략).
+    """선언을 기록할 노드 디렉터리. 명시 > **해소기 호출** > None(생략 · fail-loud 로그).
 
-    **node_id = manifest nodes[].role 자체**다(node-identity 스킴 R · `terraforming_node`
-    SKILL.md §2.7.6). 별도 `node_id` 필드가 아니며, hostname 파생은 폐지됐다 —
-    원격 왕복이 실패하면 관측이 조용히 빠져 "그날 아무 일도 없었다"와 구분되지 않기 때문이다.
-    role 이 manifest 에 **실재할 때만** 값이 나온다(손으로 적은 리터럴이 아니다).
+    **각자 파싱하지 않는다**(`terraforming_node` SKILL.md §2.7.6 · 헌법 노드제어). node_id 의 단일
+    해소기는 `node_blackbox/node_identity.sh` 이고, 이 함수는 그 CLI(`--resolve`)를 부른다.
+
+    ★ 2026-09-07 교정(plan_26090715 §4.9 · 결함 ⑧). 종전 구현은 manifest 를 여기서 직접 열어
+      로스터 항목의 role 이 main 이 아니면 건너뛰고 main 을 반환했다. 서브 manifest 에도 **로스터**
+      `nodes: [- role: main, - role: sub]` 가 있으므로 서브에서도 `main` 이 나왔고, 서브의 예산
+      선언이 `docs/logs/main/` 으로 갔다 — 서브 `mem_watchdog_eta` 가 자기 선언을 못 읽어
+      **무보호 로드**가 됐다(2026-09-05 부터, 회수 미러의 `logs/main`·`logs/sub` 동시 기록이 증거).
+      해소기는 **`self_role` 을 로스터보다 먼저** 본다. 그것이 "이 파일이 놓인 노드가 누구인가" 의 답이다.
     """
     explicit = _opt(opts, "budget_node_dir", None)
     if explicit:
         return str(explicit)
-    manifest_path = _opt(opts, "manifest", None)
-    if not manifest_path or not os.path.isfile(str(manifest_path)):
+    repo = _repo_root()
+    resolver = os.path.join(repo, ".claude", "skills", "terraforming_node", "scripts",
+                            "node_blackbox", "node_identity.sh")
+    if not os.path.isfile(resolver):
+        print("[budget] node_id 해소기 부재 — %s. 선언을 생략한다(추측하지 않는다)." % resolver,
+              file=sys.stderr)
         return None
     try:
-        import yaml  # noqa: PLC0415 — 선택 의존. 부재 시 선언을 생략할 뿐 trial 은 진행한다.
-        with open(str(manifest_path), encoding="utf-8") as fh:
-            doc = yaml.safe_load(fh) or {}
-    except Exception:
+        cp = subprocess.run(["bash", resolver, "--resolve", "--repo", repo],
+                            capture_output=True, text=True, timeout=60, check=False)
+    except (OSError, subprocess.SubprocessError) as exc:
+        print("[budget] node_id 해소기 실행 실패(%s) — 선언을 생략한다." % exc, file=sys.stderr)
         return None
-    for node in (doc.get("nodes") or []):
-        if not isinstance(node, dict):
-            continue
-        role = str(node.get("role") or "")
-        if role != "main":
-            continue
-        # multi 스모크와 **같은 스킴 검증**을 건다 — 위반값으로 경로를 만들면 안 된다.
-        if not re.match(r"^[a-z][a-z0-9-]{0,31}$", role):
-            return None
-        return os.path.join(_repo_root(), "docs", "logs", role)
-    return None
+    if cp.returncode != 0:
+        # 해소기의 fail-loud 사유를 그대로 올린다(삼키면 침묵 폴백이 된다).
+        sys.stderr.write(cp.stderr or "")
+        print("[budget] node_id 미해소(rc=%d) — 선언을 생략한다." % cp.returncode, file=sys.stderr)
+        return None
+    node_id = (cp.stdout or "").strip()
+    # 해소기가 이미 스킴을 강제하지만, 경로 성분이 되므로 소비 지점에서도 다시 본다(경계 검증).
+    if not re.match(r"^[a-z][a-z0-9-]{0,31}$", node_id):
+        print("[budget] 해소기가 낸 node_id 가 스킴 위반이다(%r) — 선언을 생략한다." % node_id,
+              file=sys.stderr)
+        return None
+    return os.path.join(repo, "docs", "logs", node_id)
 
 
 def _budget_inputs(candidate: dict, opts) -> "tuple[dict | None, str]":
