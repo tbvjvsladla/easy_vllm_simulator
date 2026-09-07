@@ -383,7 +383,7 @@ DECLARATION_NAME = "slots.declaration.json"
 # 슬롯별 **관측 가능한** 적용 증거의 공급원. plan Q1: "관측되는 신호만 사용".
 # 값이 None 인 슬롯은 공급원이 **아직 없다** — 있는 척하지 않고 2신호로 강등한다.
 EVIDENCE_SOURCE = {
-    "triplet": "certificate.serving_config",
+    "triplet": "certificate 소프트지문 ↔ 트리플렛 yaml serve 노브(이름 관측은 하위호환 폴백)",
     "runtime_patch": None,      # arming 로그 미배선 (plan Q1 귀결)
     "build_patch_pre": "build_patches_src/PROVENANCE.json",
     "build_patch_post": None,   # 컴파일 후 적용을 사후 관측할 공급원이 없다
@@ -406,12 +406,50 @@ def evidence_signal(repo: Path, topo: str, slot: str, slots: dict, cert: dict) -
     if src is None:
         return None
     if slot == "triplet":
+        # ★ 2026-09-07 교정(plan_26090715 단계 ②). 종전 관측은 **이름**이었다 — 인증서의
+        #   `serving_config` 가 트리플렛 basename 에 담겼는가. 그 전제는 트리플렛 이름이
+        #   `<model>-<hw>` 라는 것이었는데, 캠페인 셀의 트리플렛은 **축 이름**을 쓴다
+        #   (`a0-kvfp8-attnauto-moeauto`). 그러면 같은 트리플렛이 그 측정을 낳았는데도 이름이
+        #   달라 `evidence=False` 가 되고, 대사표가 "먹지 않은 패치"라며 차단한다(2026-09-07 실측).
+        #   이름으로 통과시키는 대신 **관측 대상을 만든다**: 트리플렛이 선언한 serve 노브가
+        #   인증서의 소프트 지문과 같은가. 이것이 "이 설정이 저 측정을 낳았는가"의 직접 관측이다.
+        knob_map = {
+            "kv_cache_memory_bytes": "kv-cache-memory-bytes",
+            "max_model_len": "max-model-len",
+            "max_num_seqs": "max-num-seqs",
+            "kv_cache_dtype": "kv-cache-dtype",
+            "quantization": "quantization",
+        }
+        cfg_rel = slots["triplet"]["files"].get("config_yaml") or \
+            next((v for k, v in slots["triplet"]["files"].items() if str(v).endswith(".yaml")), None)
+        cfg_text = None
+        if cfg_rel:
+            cfg_path = repo / cfg_rel
+            if cfg_path.is_file():
+                cfg_text = cfg_path.read_text(encoding="utf-8", errors="replace")
+        if cfg_text is not None:
+            declared = {}
+            for line in cfg_text.splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or ":" not in line:
+                    continue
+                k, _, v = line.partition(":")
+                declared[k.strip()] = v.split("#", 1)[0].strip().strip('"').strip("'")
+            compared, agreed = 0, 0
+            for cert_key, cfg_key in knob_map.items():
+                cv, dv = cert.get(cert_key), declared.get(cfg_key)
+                if cv in (None, "", "N/A") or dv in (None, ""):
+                    continue
+                compared += 1
+                agreed += int(str(cv).strip().strip('"') == str(dv))
+            if compared >= 3:
+                # 비교 가능한 노브가 3개 이상일 때만 판정한다 — 표본이 얇으면 우연일치가 관측을
+                # 흉내 낸다. 하나라도 어긋나면 그 트리플렛은 이 측정을 낳지 않았다.
+                return agreed == compared
+        # 노브를 못 읽으면 옛 이름 관측으로 되돌아간다(구세대 트리플렛 하위호환).
         cfgname = cert.get("serving_config")
         if not cfgname:
             return None
-        # 인증서의 운영 조합명이 트리플렛 파일명에 담겨 있으면 그 트리플렛이 서빙에 쓰였다는
-        # 관측이다. 완전 일치가 아니라 포함 관계인 이유: serving_config 는 모델 축이고
-        # 트리플렛 basename 은 `<model>-<hw>` 조합이다(실측: 'gpt-oss-120b' ⊂ 'gpt-oss-120b-gb10').
         any_file = next(iter(slots["triplet"]["files"].values()), "")
         return bool(cfgname) and cfgname in Path(any_file).name
     if slot == "build_patch_pre":
@@ -1068,6 +1106,38 @@ def _run_self_test() -> int:
         ck("★대사 파일없음+해당선언 모순 검출", dialogue(False, None, True, True)[0] == "blocked")
         ck("관측불가는 2신호로 표시", confidence_of(None).startswith("2-signal")
            and confidence_of(True).startswith("3-signal"))
+
+        # ── 트리플렛 적용증거 = **serve 노브 대조**(2026-09-07 · plan_26090715 단계 ②) ─────────
+        #    이름 관측은 캠페인 셀 이름(`a0-kvfp8-…`)에서 끊긴다 — 같은 트리플렛이 그 측정을
+        #    낳았는데도 차단됐다. 이름으로 통과시키지 말고 관측 대상을 만든다.
+        _trip = t / "trip"; (_trip / "output" / "single" / "configs").mkdir(parents=True)
+        _cfg = _trip / "output" / "single" / "configs" / "a0-kvfp8-attnauto-moeauto.yaml"
+        _cfg.write_text("# 주석은 무시\nmodel: /app/models/x\ngpu-memory-utilization: 0.9\n"
+                        "max-model-len: 131072\nmax-num-seqs: 16\n"
+                        "kv-cache-memory-bytes: 52567672969\nkv-cache-dtype: fp8\n"
+                        "quantization: mxfp4\n", encoding="utf-8")
+        _rel = "output/single/configs/a0-kvfp8-attnauto-moeauto.yaml"
+        _slots = {"triplet": {"files": {"config_yaml": _rel}}}
+        _cert_ok = {"serving_config": "gpt-oss-20b", "kv_cache_memory_bytes": 52567672969,
+                    "max_model_len": 131072, "max_num_seqs": 16, "kv_cache_dtype": "fp8",
+                    "quantization": "mxfp4"}
+        ck("셀 축 이름이어도 노브가 맞으면 적용증거 O(이름 관측이었다면 X 였다)",
+           evidence_signal(_trip, "single", "triplet", _slots, _cert_ok) is True)
+        ck("★음성대조 이름 관측만으로는 이 트리플렛이 통과하지 못했다",
+           _cert_ok["serving_config"] not in Path(_rel).name)
+        ck("★음성대조 KV 가 다르면 적용증거 X(다른 설정이 그 측정을 낳았다)",
+           evidence_signal(_trip, "single", "triplet",
+                           _slots, dict(_cert_ok, kv_cache_memory_bytes=1)) is False)
+        ck("★음성대조 batch 가 다르면 적용증거 X",
+           evidence_signal(_trip, "single", "triplet",
+                           _slots, dict(_cert_ok, max_num_seqs=64)) is False)
+        ck("비교 가능한 노브가 3개 미만이면 이름 관측으로 되돌아간다(표본이 얇으면 판정하지 않는다)",
+           evidence_signal(_trip, "single", "triplet", _slots,
+                           {"serving_config": "a0-kvfp8", "max_model_len": 131072}) is True)
+        ck("★음성대조 트리플렛 yaml 이 없으면 이름 관측 폴백",
+           evidence_signal(_trip, "single", "triplet",
+                           {"triplet": {"files": {"config_yaml": "nope.yaml"}}},
+                           _cert_ok) is False)
 
         # check 게이트 (3신호 대사 포함)
         pay = t / "pay"
