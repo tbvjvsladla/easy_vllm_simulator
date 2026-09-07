@@ -78,6 +78,10 @@ OUT_MD=""; OUT_JSON=""; REASSEMBLE=0; SERVE_FAILED_REASON=""; MAX_ERROR_RATE=""
 #   **열 예산 안에서 스윕을 짧게 도는 정식 경로가 없었다**(배선 부재 · GB10 120b multi 는
 #   연속 포화부하 4분에 SoC 95C hard ceiling 에 닿아 워치독이 서빙을 죽인다).
 LEVELS=""
+# 2026-09-07 신설(같은 결함 계열 — --levels 와 동일): 프롬프트 형상(in/out/n)도 sweep_bench 에
+#   있고 여기만 없었다. KV 압력 실험(DeepTailor 류 방법론)은 긴 프롬프트가 필요한데 기본
+#   1024/256 은 풀 압력을 만들지 못한다. 빈 값이면 sweep_bench 기본을 그대로 쓴다(개념 이중기재 금지).
+ILEN=""; OLEN=""; NPROMPTS=""
 while [ $# -gt 0 ]; do case "$1" in
   --state) STATE="$2"; shift 2;;
   --now-utc) NOW="$2"; shift 2;;
@@ -98,6 +102,9 @@ while [ $# -gt 0 ]; do case "$1" in
   --bench-budget-mib) BENCH_BUDGET="$2"; shift 2;;
   --max-error-rate) MAX_ERROR_RATE="$2"; shift 2;;
   --levels) LEVELS="$2"; shift 2;;
+  --input-len) ILEN="$2"; shift 2;;
+  --output-len) OLEN="$2"; shift 2;;
+  --num-prompts) NPROMPTS="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
   --backend) BACKEND="$2"; shift 2;;
   --confirm-risk) CONFIRM=1; shift;;
@@ -316,6 +323,9 @@ PY
     [ -n "$BACKEND" ] && SB_ARGS+=(--backend "$BACKEND")
     [ -n "$MAX_ERROR_RATE" ] && SB_ARGS+=(--max-error-rate "$MAX_ERROR_RATE")
     [ -n "$LEVELS" ] && SB_ARGS+=(--levels "$LEVELS")
+    [ -n "$ILEN" ] && SB_ARGS+=(--input-len "$ILEN")
+    [ -n "$OLEN" ] && SB_ARGS+=(--output-len "$OLEN")
+    [ -n "$NPROMPTS" ] && SB_ARGS+=(--num-prompts "$NPROMPTS")
     bash "$SDIR/sweep_bench.sh" "${SB_ARGS[@]}"
     MEASURE_RC=$?
     if [ "$MEASURE_RC" = "0" ]; then

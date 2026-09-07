@@ -124,7 +124,8 @@ DEFAULT_CANARY_MODEL = "sonnet"    # 카나리 1왕복의 **기본 선언값**�
 
 def build_request(topology: str, manifest_path: str, *,
                   max_turns: int = None, timeout_seconds: int = None,
-                  budget_source: str = None, model: str = None) -> dict:
+                  budget_source: str = None, model: str = None,
+                  backend: str = None) -> dict:
     """카나리 request 조립. 예산은 **선언받는다**(기본값 ✗ — `turn_budget` 참조).
 
     `model` 은 선언이다(2026-09-05 · G-A1): 어댑터가 모델을 막지 않으므로 여기 값도 게이트가 아니라
@@ -151,7 +152,7 @@ def build_request(topology: str, manifest_path: str, *,
         "schema_version": 1,
         "provider": "claude_code",
         "intent": "bootstrap_canary",
-        "model": model or DEFAULT_CANARY_MODEL,
+        "model": model or ("k3[1m]" if backend == "kimi" else DEFAULT_CANARY_MODEL),
         "task": TASK_COMMON + TASK_BY_MODE[sub_mode],
         "target": {
             "role": "sub",
@@ -161,6 +162,7 @@ def build_request(topology: str, manifest_path: str, *,
             "work_dir": str(sub["work_dir"]),
         },
         "capabilities": ["read", "execute"],
+        **({"backend": backend} if backend else {}),  # 미지정=anthropic 기본(스키마 선택 필드)
         # 예산은 선언된 값 두 개만 싣는다 — 요청 스키마는 `additionalProperties: false` 라
         # 출처(source)를 여기 실으면 전송 자체가 거부된다(2026-09-05 자체검사가 잡음).
         "timeout_seconds": bud["timeout_seconds"],
