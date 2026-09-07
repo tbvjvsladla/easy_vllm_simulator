@@ -671,14 +671,34 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C10():
     src = _read(script)
 
     BUDGET_MARK = "--bench-budget-mib <양의 정수> 가 필수다"
-    refused = _run_bash(f'bash {shlex.quote(script)} _probe --tool guidellm 2>&1; echo "rc=$?"')
+    # 2026-09-07: `--backend` 의 기본값이 제거됐다(유예 결함 ① — 기본값이 이기면 측정 축이
+    #   침묵한다). 이 술어는 **예산 게이트**를 묻는 것이므로 그 앞의 새 필수 인자를 채워 넣고
+    #   물어야 한다 — 안 채우면 rc=2 가 나긴 하지만 **다른 이유로** 나고, 그러면 이 시험이
+    #   묻는 것을 더 이상 묻지 않게 된다(2026-09-04 에 한 번 겪은 그 실수의 형태다).
+    BK = "--backend openai"
+    refused = _run_bash(f'bash {shlex.quote(script)} _probe {BK} --tool guidellm 2>&1; echo "rc=$?"')
     _require(BUDGET_MARK in refused.stdout and "rc=2" in refused.stdout,
              f'--tool guidellm without a declared memory budget must refuse; got {refused.stdout[-300:]!r}')
     accepted = _run_bash(
-        f'bash {shlex.quote(script)} _probe --tool guidellm --bench-budget-mib 4096 2>&1; echo "rc=$?"')
+        f'bash {shlex.quote(script)} _probe {BK} --tool guidellm --bench-budget-mib 4096 2>&1; echo "rc=$?"')
     _require(BUDGET_MARK not in accepted.stdout,
              'a declared budget must get past the budget check -- otherwise the refusal above is '
              f'passing for an unrelated reason; got {accepted.stdout[-300:]!r}')
+
+    # 측정 엔드포인트 기본값 부재(2026-09-07 · 유예 결함 ①). 그 기본값 때문에 캠페인 ⑦ 은 선언이
+    # "완결 엔드포인트" 인데 실제 측정이 chat 이었다(/v1/chat/completions 158 vs /v1/completions 14).
+    # ★ 런타임 프로브로 묻지 않는다 — `--backend` 검사는 envfile·health 게이트 **뒤**라 프로브
+    #   환경에 따라 다른 게이트가 먼저 발화하고, 그러면 이 시험이 묻는 것을 더 이상 묻지 않게 된다.
+    #   소스 계약으로 고정한다(닫힌 리터럴 대조).
+    _require('BACKEND=""' in src and 'BACKEND="openai-chat"' not in src,
+             'run_bench must not carry a default request format -- the axis goes silent when a '
+             'default wins')
+    _require('--backend 는 필수다' in src,
+             'run_bench must refuse an unspecified request format with a fail-loud message')
+    sweep_src = _read(".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh")
+    _require('BACKEND=""' in sweep_src and 'BACKEND="openai-chat"' not in sweep_src,
+             'sweep_bench must not re-introduce the default the downstream script dropped -- a '
+             'default wins from whichever layer still holds it')
 
     # Kernel-enforced budget and teardown: closed literal comparison against the shipped script.
     _require('--memory "${BENCH_BUDGET_MIB}m" --memory-swap "${BENCH_BUDGET_MIB}m"' in src,
@@ -1441,7 +1461,12 @@ def predicate_LAST_GOOD_ROLLBACK_ANCHOR_C3():
         _require('github.com/' not in src and 'git@github.com' not in src, f'{rel} must not hardcode a project remote URL')
     push_src = inspect.getsource(hint_tag.cmd_push)
     _require('"--remote", default="origin"' not in push_src, 'predicate requirement failed at original line 1029')  # not asserting the arg literally this way
-    parser_src = inspect.getsource(hint_tag.main)
+    # 2026-09-07: 파서 조립이 `main` 에서 `_build_parser` 로 옮겨졌다(자체검사가 argparse 정의를
+    #   **직접** 들여다볼 수 있게 하려고 — `--payload` 가 소비자만 있고 인자가 없던 결함의 처방).
+    #   술어의 의도는 "원격 이름이 URL 이 아니라 generic git alias 를 기본값으로 쓴다" 이고, 그
+    #   토큰의 소유자가 바뀌었을 뿐이다. 소유자를 따라간다 — 앵커가 옛 자리를 가리키면 술어는
+    #   교정이 아니라 리팩터에 반응하게 된다.
+    parser_src = inspect.getsource(getattr(hint_tag, "_build_parser", hint_tag.main))
     _require('default="origin"' in parser_src, 'the remote name defaults to the generic git alias, not a URL')
 
     # NEW: "recovery restores the working tree to that anchor commit" -- performed for REAL (not
@@ -2511,6 +2536,9 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
         env["VLLM_DOCKER_ROUTE_CAPTURE"] = str(route_capture)
         completed = subprocess.run(
             ["bash", str(script_dir / "run_bench.sh"), "fixture", "--topology", "single",
+             # 2026-09-07: `--backend` 기본값이 제거됐다(유예 결함 ①). 픽스처도 명시한다 —
+             # 실물이 요구하는 것을 픽스처가 생략하면 그 순간 픽스처가 실물보다 좁아진다.
+             "--backend", "openai-chat",
              "--concurrency", "1", "--input-len", "16", "--output-len", "8",
              "--num-prompts", "1", "--warmups", "0"],
             cwd=bench_root, env=env, text=True, capture_output=True)

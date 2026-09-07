@@ -114,6 +114,20 @@
       ],
       "minLength": 1,
       "description": "이 값이 있으면 provider 는 새 세션을 열지 않고 `--resume <id>` 로 **같은 세션을 잇는다**. 턴제 릴레이(input-required → 답을 실어 재개)의 전송 계층 근거."
+    },
+    "campaign_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "이 위임이 속한 캠페인 인스턴스 id(2026-09-07 · plan_26090715 §4.8). 서브는 이 값을 리포트에 그대로 되받고 자기 인스턴스 디렉터리명도 이 값으로 쓴다 — 이름을 짓지 않는다. 종전에는 요청에 이 축이 없어 서브가 자기 인스턴스 이름을 스스로 지었고(메인 camp-26090617-gb10-native vs 서브 camp7-sub-native) 교차 상관이 불가능했다. 캠페인 밖(_bootstrap) 위임에는 싣지 않는다."
+    },
+    "control_variables": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "layer-1 통제변인(타겟 HW·모델·엔진 버전·토폴로지 등)을 활성 캠페인 선언에서 **파생**해 싣는다(손저작 ✗). 2026-09-05 요청의 통제변인 표에서 모델 행이 빠져 서브가 저장소 기본 config 의 다른 모델을 집었다 — 그 재발을 막는 자리다. 개정 창구는 메인 하나이며 서브는 리포트 control_variables_echo 로 그대로 되받는다."
     }
   }
 }

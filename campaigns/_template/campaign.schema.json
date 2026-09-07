@@ -4,69 +4,199 @@
   "title": "campaign",
   "description": "campaigns/<camp-id>/campaign.yaml (JSON text) 의 SHAPE 계약. 검증기는 campaign_template_validator.py 이며 completion_gate.validate_against_schema 와 같은 Draft-07 부분집합($ref/type/required/properties/additionalProperties/enum/const/minLength/minimum/minItems/items)만 쓴다 — pattern·oneOf 는 파이썬 수준 검사로 간다(플레이스홀더 잔존·참조 실재·proof 충족).",
   "type": "object",
-  "required": ["schema_version", "id", "plan_ref", "nodes", "matrix", "order", "budgets", "control_variables", "hint_targets", "topology_sections"],
+  "required": [
+    "schema_version",
+    "id",
+    "plan_ref",
+    "nodes",
+    "matrix",
+    "order",
+    "budgets",
+    "control_variables",
+    "hint_targets",
+    "topology_sections"
+  ],
   "additionalProperties": false,
   "properties": {
-    "schema_version": {"type": "integer", "const": 1},
-    "id": {"type": "string", "minLength": 1,
-           "description": "캠페인 식별자. 예약어 `_template`·`_bootstrap` 은 쓸 수 없다."},
-    "plan_ref": {"type": "string", "minLength": 1,
-                 "description": "이 캠페인을 승인한 plan 문서 경로. HITL 서명의 자리."},
-    "declared_utc": {"type": "string", "minLength": 1},
-    "nodes": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/node"}},
-    "matrix": {"$ref": "#/definitions/matrix"},
-    "order": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1},
-              "description": "셀 실행 순서(cell id 나열). 순차 캠페인의 정본 — 에이전트가 순서를 추론하지 않는다."},
-    "budgets": {"$ref": "#/definitions/budgets"},
-    "control_variables": {"type": "object",
-      "description": "이 캠페인에서 고정되는 변수. 서브에 전달하는 표의 정본이며, 빠지면 서브가 저장소 기본값을 집어 엉뚱한 대상을 측정한다(2026-09-05 실측)."},
-    "hint_targets": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/hint_target"}},
-    "topology_sections": {"$ref": "#/definitions/topology_sections"}
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "캠페인 식별자. 예약어 `_template`·`_bootstrap` 은 쓸 수 없다."
+    },
+    "plan_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "이 캠페인을 승인한 plan 문서 경로. HITL 서명의 자리."
+    },
+    "declared_utc": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/node"
+      }
+    },
+    "matrix": {
+      "$ref": "#/definitions/matrix"
+    },
+    "order": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "셀 실행 순서(cell id 나열). 순차 캠페인의 정본 — 에이전트가 순서를 추론하지 않는다."
+    },
+    "budgets": {
+      "$ref": "#/definitions/budgets"
+    },
+    "control_variables": {
+      "type": "object",
+      "description": "이 캠페인에서 고정되는 변수. 서브에 전달하는 표의 정본이며, 빠지면 서브가 저장소 기본값을 집어 엉뚱한 대상을 측정한다(2026-09-05 실측)."
+    },
+    "hint_targets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/hint_target"
+      }
+    },
+    "topology_sections": {
+      "$ref": "#/definitions/topology_sections"
+    },
+    "revisions": {
+      "type": "array",
+      "description": "layer-1 append-only 개정 이력. revisions[0] = t0 원본(불변).",
+      "items": {
+        "type": "object"
+      }
+    },
+    "_revisions_howto": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
   },
   "definitions": {
     "node": {
       "type": "object",
-      "required": ["node_id", "role", "topology"],
+      "required": [
+        "node_id",
+        "role",
+        "topology"
+      ],
       "additionalProperties": false,
       "properties": {
-        "node_id": {"type": "string", "minLength": 1},
-        "role": {"type": "string", "enum": ["main", "sub"]},
-        "topology": {"type": "string", "enum": ["single", "multi"]},
-        "rank": {"type": "integer", "minimum": 0,
-                 "description": "multi 에서만 의미가 있다(Ray 워커 위치). single 의 sub 는 A2A 원격 에이전트라 rank 가 없다 — 불변식 A."},
-        "hw": {"type": "string", "minLength": 1, "description": "태그 arch 세그먼트의 <hw> 축(예 gb10)."}
+        "node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "main",
+            "sub"
+          ]
+        },
+        "topology": {
+          "type": "string",
+          "enum": [
+            "single",
+            "multi"
+          ]
+        },
+        "rank": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "multi 에서만 의미가 있다(Ray 워커 위치). single 의 sub 는 A2A 원격 에이전트라 rank 가 없다 — 불변식 A."
+        },
+        "hw": {
+          "type": "string",
+          "minLength": 1,
+          "description": "태그 arch 세그먼트의 <hw> 축(예 gb10)."
+        }
       }
     },
     "matrix": {
       "type": "object",
-      "required": ["versions", "models"],
+      "required": [
+        "versions",
+        "models"
+      ],
       "additionalProperties": false,
       "properties": {
-        "versions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-        "models": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+        "versions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "models": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       }
     },
     "budgets": {
       "type": "object",
-      "required": ["smoke_budget_overhead_mib", "ready_max_seconds"],
+      "required": [
+        "smoke_budget_overhead_mib",
+        "ready_max_seconds"
+      ],
       "additionalProperties": true,
       "properties": {
-        "smoke_budget_overhead_mib": {"type": "integer", "minimum": 1,
-          "description": "선언이 없으면 arm_ceiling 이 무한대가 되어 호스트가 무방비다 — 기본값 금지."},
-        "ready_max_seconds": {"type": "integer", "minimum": 1}
+        "smoke_budget_overhead_mib": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "선언이 없으면 arm_ceiling 이 무한대가 되어 호스트가 무방비다 — 기본값 금지."
+        },
+        "ready_max_seconds": {
+          "type": "integer",
+          "minimum": 1
+        }
       }
     },
     "hint_target": {
       "type": "object",
-      "required": ["arch", "node_id"],
+      "required": [
+        "arch",
+        "node_id"
+      ],
       "additionalProperties": false,
       "properties": {
-        "arch": {"type": "string", "minLength": 1,
-                 "description": "hint 태그 arch 세그먼트 `<hw>-<main|sub|cluster>-<target>` (예 gb10-main-sim-h100)."},
-        "node_id": {"type": "string", "minLength": 1,
-                    "description": "이 태그가 기록하는 수행 노드. cluster 는 쌍을 하나의 수행 정체성으로 본다."},
-        "cells": {"type": "array", "items": {"type": "string", "minLength": 1},
-                  "description": "이 태그가 요약하는 셀 목록. 비우면 해당 노드의 전 셀."}
+        "arch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "hint 태그 arch 세그먼트 `<hw>-<main|sub|cluster>-<target>` (예 gb10-main-sim-h100)."
+        },
+        "node_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "이 태그가 기록하는 수행 노드. cluster 는 쌍을 하나의 수행 정체성으로 본다."
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "이 태그가 요약하는 셀 목록. 비우면 해당 노드의 전 셀."
+        }
       }
     },
     "topology_sections": {

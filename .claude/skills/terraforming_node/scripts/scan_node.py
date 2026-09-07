@@ -652,6 +652,12 @@ def emit_manifest_block(result: dict) -> str:
         "  complete: true",
         "  branch_verified: true   # git 브랜치 ↔ topology ↔ scan 3자일치 단언 통과",
         f"  scanned_at: \"{scanned_at}\"",
+        # 이 파일이 놓인 노드가 누구인가 — `node_identity.sh` 의 **메인측 권위**다(2026-09-07 신설 ·
+        # plan_26090715 §4.7). 서브 manifest 는 이미 `self_role: sub` 를 갖는데(build_sub_manifest)
+        # 메인 쪽에만 없었고, 그래서 인증서가 `derived(manifest.self_role=main)` 이라고 적었지만
+        # 실제로는 **부재의 기본값**이었다 — 출처를 거짓으로 표시한 것이다(헌법 §결정론 규율).
+        # 값을 두면 라벨이 참이 되고, 해소기는 로스터를 뒤지지 않고 한 줄로 답한다.
+        "self_role: main",
         f"topology: {topo}",
         f"cpu_arch: \"{result['cpu_arch']}\"",
         f"cuda_version: {cuda}",
@@ -1006,7 +1012,8 @@ def _self_test() -> int:
         preset_ok = ("platform_preset: dgx-spark-gb10" in blk or "platform_preset: generic" in blk) \
             and "platform_preset: null" not in blk and "platform_preset_source:" in blk
         # B2: 하류 필수 키가 값이든 센티넬이든 **자리로는 반드시** 있어야 한다(없으면 사람이 존재조차 모른다).
-        keys_ok = all(k in blk for k in ("model_source:", "nas_model_path:", "ssh_user:", "work_dir:"))
+        keys_ok = all(k in blk for k in ("model_source:", "nas_model_path:", "ssh_user:", "work_dir:",
+                                         "self_role: main"))
         # 센티넬 대조: 아는 케이스엔 __REQUIRED__ 가 없고, 모르는 케이스엔 있다(둘 다 확인 — 한쪽만 보면 위양성).
         # 말미 안내 주석에도 그 단어가 나오므로 **값 줄만** 센다(주석을 세면 항상 참이 되어 시험이 공허해진다).
         value_lines = [ln for ln in blk.splitlines() if not ln.lstrip().startswith("#")]

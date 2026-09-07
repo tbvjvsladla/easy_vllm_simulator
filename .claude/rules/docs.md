@@ -35,8 +35,15 @@
 | `campaigns/<camp-id>/phases/<node>/` | phase 상태+proof | 비추적 | 동상 |
 | `campaigns/<camp-id>/relay/` | A2A 릴레이 원장(옛 `tasks/`) | 비추적 | 동상 |
 | `campaigns/<camp-id>/sweeps/` | 스윕 상태·정지판정 | 비추적 | 동상 |
-| `campaigns/<camp-id>/evidence_pointers.json` | docs 평면 증거 포인터(purge 선행조건) | 비추적 | 동상 |
+| `campaigns/<camp-id>/evidence_pointers.json` | docs 평면 증거 포인터(purge 선행조건 · publish 위상에서 `frozen_utc` 로 동결) | 비추적 | 동상 |
+| `campaigns/<camp-id>/journey.jsonl` | **여정** — 이탈·반증·축 이동 사유와 다음 의도(append-only) | 비추적 | 동상 |
+| `campaigns/ACTIVE` | 살아 있는 인스턴스 **하나**의 이름(한 줄). 부재·무효 = `_bootstrap`(루트 ✗) | 비추적 | 캠페인 1회 |
+| `campaigns/_bootstrap/` | 캠페인 밖 릴레이 **대기실**(온보딩·카나리). purge 게이트 대상 ✗ · 새 init 때 함께 비운다 | 비추적 | 상시(내용은 휘발) |
 
+- **바이트를 쓰는 문은 하나다** — `terraforming_node` `campaign_init.py` 의 `--phase-set`·`--cell-set`·
+  `--evidence-add`·`--revise` 가 유일한 writer 이고, 호출부는 각 phase 의 실제 실행 스크립트다
+  (포맷 소유 1 · 호출부 N · workflow.md §캠페인 상태를 쓰는 손). 읽는 눈은 `--resume-brief` 이며
+  `campaigns/README.md` 읽기 순서 **0번**이다.
 - **증거는 여기서 태어나지 않는다** — 인증서·리포트·sweep map·testlog·devlog 는 `docs/` 평면에서
   발행되고, 이 워크스페이스는 **포인터와 진행 상태만** 든다. 그래서 인스턴스를 통째로 지워도 증거가
   살아남으며, 그 사실을 purge 게이트가 검사한다(workflow.md §purge 게이트).

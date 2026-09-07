@@ -3,9 +3,22 @@
   "schema": 2,
   "source": "remote-derived",
   "remote": "origin",
-  "generated_kst": "2026-09-06T03:23:17",
-  "count": 2,
+  "generated_kst": "2026-09-07T17:51:54",
+  "count": 5,
   "hints": [
+    {
+      "tag": "hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8",
+      "vllm": "0.18.0",
+      "model": "gpt-oss-20b",
+      "arch": "gb10-main-native",
+      "recipe": "qmxfp4-len131072-kvfp8",
+      "brief": "GB10 네이티브 예산(외부 이식 타겟 없음) · KV 절대클램프를 실행 하드웨어 자신(121.69GiB×0.90)으로 산출 · 커널 축 부재 확증(attention 후보 ['TRITON_ATTN'] 단일 · MoE marlin)",
+      "anchor": "a3fc9e82ded52ff0dfc7a31432a8d9f1ea7504fe",
+      "object": "0f08502c5076f85d29a0474b9183709c1b55db2e",
+      "missing": [],
+      "published": true,
+      "source": "remote-derived"
+    },
     {
       "tag": "hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8",
       "vllm": "0.18.0",
@@ -15,6 +28,37 @@
       "brief": "gpt-oss-20b 를 vLLM 0.18.0 stock wheel 로 GB10 단일노드에 최대 컨텍스트(131,072)로 서빙한 재현 키트. 핵심 발견은 성능이 아니라 **커널 축이 전부 불활성**이라는 사실이다 — 어텐션·MoE 백엔드를 무엇으로 선언해도 엔진은 triton_attn/marlin 을 쓰고, 그 사실이 로그에 남지 않는다.",
       "anchor": "588fd88519fe3bcdc0aca2f6a2edee330fd3c5ad",
       "object": "97fd66d0242f539a03074bc30a63d081f91ecd67",
+      "missing": [],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.18.0/gpt-oss-20b/gb10-sub-native/qmxfp4-len131072-kvfp8",
+      "vllm": "0.18.0",
+      "model": "gpt-oss-20b",
+      "arch": "gb10-sub-native",
+      "recipe": "qmxfp4-len131072-kvfp8",
+      "brief": "서브 노드 자율 캠페인 · GB10 네이티브 예산 · KV 61,442 MiB(메인 50,133 대비 +23%) · 완결 엔드포인트 측정(오류 0/18) · 2회 차단(예산 거절 · 워치독 트립) 뒤 수렴",
+      "anchor": "cb098907f278b145ec8c66428e971fde50d3c8af",
+      "object": "07d9a909549b60bea1f789d123c5e946d851643b",
+      "missing": [
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8",
+      "vllm": "0.19.0",
+      "model": "gpt-oss-120b",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "qmxfp4-len131072-kvfp8",
+      "brief": "GB10 x2 클러스터 · 네이티브 예산(H100 이식 클램프 제거 · KV 2.27배) · overhead 는 KV 의 함수라는 실증 · SoC 열 hard ceiling 이 연속 포화부하 4분에서 실제 벽",
+      "anchor": "41c133f2fc7d0341d09ee93ee1a740538bdc308d",
+      "object": "d368a70338e7cba1f5ad94add0d6b8a57db81698",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
       "published": true,
       "source": "remote-derived"
     },
@@ -27,6 +71,7 @@
       "brief": "gpt-oss-120b 를 vLLM 0.19.0 stock wheel 로 GB10 2노드 TP=2 분산 서빙한 재현 키트. 0.19.1 은 이 토폴로지로 뜨지 않으며 회귀 구간은 (0.19.0, 0.19.1] 이다. 커널 축(FlashInfer 어텐션·triton MoE·mxfp4 스위치)은 sm_121a 에서 열리지 않는다.",
       "anchor": "5f14d7db4e139bc9859dca1778080d92f7031757",
       "object": "34dfad0db6fee8a76456c938b9a84b9de7f973e9",
+      "missing": [],
       "published": true,
       "source": "remote-derived"
     }

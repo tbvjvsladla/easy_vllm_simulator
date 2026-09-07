@@ -221,8 +221,13 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
 ### phase 전이 — proof 술어가 다음 배선을 연다
 
 한 셀(= 버전×모델 1조합)은 노드별로 `build → serve → bench → publish` 를 지난다. 각 phase 는
-`campaigns/<id>/phases/<node>/<phase>.status.json` 에 **자기 결과와 proof** 를 적고, 다음 phase 는
-앞 phase 의 `proof.ok` 가 참일 때만 진입한다.
+`campaigns/<id>/phases/<node>/<phase>.status.json` 에 **자기 결과와 proof** 를 적는다.
+
+> **2026-09-07 정정**(`plan_26090715` §4.4 · 사용자 결정): 이 표는 **진행표**이지 진입 게이트가
+> 아니다. 종전 문장("다음 phase 는 앞 phase 의 `proof.ok` 가 참일 때만 진입한다")은 그것을 집행하는
+> **실행자가 0** 이었다 — 교착이 아니라 침묵 누락이었고, 헌법 노드제어 ③("처방을 누가 실행하는가를
+> 먼저 적는다")이 이 자리에서 비어 있었다. 실차단은 `completion_gate`·purge 게이트·노드축 게이트에만
+> 둔다. 대신 진행표는 **검증기 P1~P3** 이 읽고, 그 판정이 purge 선행조건이 된다.
 
 | phase | 입력(앞 아티팩트) | 출력 | proof 술어 |
 |---|---|---|---|
@@ -248,6 +253,26 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
 | `adversarial-benchmark` `broad_search.sh --state` | 호출자 임의 | `campaigns/<id>/sweeps/<sweep>.json` |
 | `terraforming_node` `relay.py` 원장 | `/tasks/` | `campaigns/<id>/relay/` (활성 캠페인 없으면 `_bootstrap`) |
 
+### 캠페인 상태를 쓰는 손 — 포맷 소유 1 · 호출부 N (2026-09-07 신설 · `plan_26090715` §4.1)
+
+거처와 게이트가 계약대로 서 있어도 **채우는 손이 없으면** 그 자리를 대화 기억이 메운다. 2026-09-06
+캠페인이 그렇게 돌았다 — 상태를 쓴 것은 세션과 함께 소멸하는 스크래치패드 스크립트였고, 저장소 안의
+producer 는 0 이었다. 이제 바이트를 쓰는 문은 하나이고, 그 문을 **각 phase 의 실제 실행 스크립트**가 부른다.
+
+| 슬롯 | 성립 시점 | 포맷 owner(단일) | 호출부(실행자) |
+|---|---|---|---|
+| `phases/<node>/<phase>.status.json` | 각 phase 종료 | `terraforming_node` `campaign_init.py --phase-set` | serve: `single_serve_up.sh` health 200 지점 · bench/build/publish: 각 owner 스크립트 종료부 |
+| `cells/<cell>/cell.status.json` + `journey.jsonl` | 셀 트랜잭션 종료 | 동 `--cell-set` | `adversarial-benchmark` `broad_search.sh cell`(sweep 레코드를 쓴 **같은 트랜잭션**) |
+| `evidence_pointers.json` | 증거 발행 직후 | 동 `--evidence-add` | `publish_benchmark_record.py`(인증서 발행 지점) · 리포트·testlog·devlog 발행자 |
+| `campaign.yaml.revisions[]` | layer-1 개정 | 동 `--revise` | 사람 승인 인자 필수 · **메인 단일 창구**(서브는 릴레이로 요청만) |
+
+- **`ACTIVE` 가 `_bootstrap` 이면 writer 는 no-op 이다** — 캠페인 밖 평시 서빙이 빈 인스턴스에 상태를
+  쓰기 시작하면 `_bootstrap` 이 캠페인 흉내를 내게 된다.
+- **읽는 눈은 `--resume-brief`** 다(README 읽기 순서 0번). 합격 기준은 그 출력만으로 **다음 셀에
+  착수**하고 **반증된 축을 재시도하지 않는 것**이다.
+- **여정 한 줄(`--next-intent`)은 새 절차가 아니라 이미 도는 자동쓰기에 얹은 인자 하나다.** 감수하지
+  말아야 할 유실은 여정 하나이며, 벤치 결과·3+1+1 산출물은 결손 기재로 복원된다.
+
 ### purge 게이트 — 지우기 전에 증거가 docs 평면에 도착했는가
 
 새 캠페인 init 은 **직전 인스턴스를 통째로 지운 뒤** 시작한다. 그 삭제는 아래 선행조건이 모두 참일
@@ -257,7 +282,14 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
    testlog·devlog). 증거는 docs 평면에서 **태어나므로** 인스턴스를 지워도 살아남는다 — 이 검사는
    "정말 거기서 태어났는가"를 묻는 것이다.
 2. 릴레이 요약이 testlog 로 발행돼 있다(원장 원문은 휘발이지만 서사는 남는다).
-3. 삭제 실행자는 메인이고, 게이트는 새 캠페인 plan 의 HITL 이다.
+3. **P1~P3 이 초록이다**(2026-09-07 신설 · `campaign_template_validator.instance_predicates`).
+   P1 = sweep 레코드와 `cell.status` 가 같은 말을 한다 · P2 = 벤치 증거가 도착한 노드의 bench
+   phase 가 그 사실을 반영한다 · P3 = 선언된 노드 전수에 `phases/` 가 있다. 셋 다 인스턴스 안의
+   데이터만으로 계산되는데 종전에는 하나도 없었고, 그래서 **완주 후 전부-`pending` 이 PASS** 였다.
+4. 삭제 실행자는 메인이고, 게이트는 새 캠페인 plan 의 HITL 이다.
+5. `_bootstrap/relay/` 의 옛 원장도 새 캠페인 init 때 **함께 비운다**(사용자 결정 2026-09-07).
+   `_bootstrap` 은 캠페인 밖 대기실이라 증거 포인터를 갖지 않으므로 purge 게이트의 대상이 아니지만,
+   방치하면 다음 캠페인의 정지판정과 섞인다.
 
 - 선행조건이 깨지면 purge 는 열리지 않고 **새 캠페인이 시작되지 않는다**. 증거를 흘린 채 다음 캠페인을
   도는 것보다 멈추는 편이 싸다.

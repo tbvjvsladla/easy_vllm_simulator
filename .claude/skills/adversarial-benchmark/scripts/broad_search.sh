@@ -40,10 +40,12 @@
 #                            --max-cells N --wall-clock-budget-s N --consecutive-failure-limit N
 #                            --declared-by TEXT --basis TEXT --authority explore --now-utc T
 #       broad_search.sh cell --state PATH --cell-key K --config NAME --axis-citation TEXT
+#                            --next-intent TEXT [--ack-uncalibrated-thermal]
 #                            --bench-budget-mib N --now-utc T --confirm-risk [--topology t]
 #       broad_search.sh status --state PATH --now-utc T
 #       broad_search.sh map    --state PATH --now-utc T --out-md PATH [--out-json PATH]
 # 종료: 0=성공 · 2=인자/선언 오류 · 3=serve 미가동(materialize 는 explorer 소관) · 5=--confirm-risk 미명시
+#       6=SoC 열 임계 미교정 미승인(--ack-uncalibrated-thermal)
 set -euo pipefail
 
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -53,6 +55,15 @@ CMD="${1:?서브커맨드 필요: init|cell|status|map}"; shift || true
 STATE=""; NOW=""; SWEEP_ID=""; CELLS=""; CTRL=""; AUTHORITY=""
 MAX_CELLS=""; WALL=""; FAILLIMIT=""; DECLARED_BY=""; BASIS=""
 CELL_KEY=""; CONFIG=""; CITATION=""; BENCH_BUDGET=""; TOPO=""; CONFIRM=0
+# 여정 한 줄(2026-09-07 · plan_26090715 §4.3 · 인터뷰 Q4). 새 절차를 만들지 않고 **이미 도는
+# 자동쓰기**(이 셀 트랜잭션)에 인자 하나를 얹는다. 감수하지 말아야 할 유실은 여정 하나이며,
+# 벤치 결과·3+1+1 산출물은 결손 기재로 복원된다.
+NEXT_INTENT=""
+# 열 임계 미교정 승인(2026-09-07 · plan_26090715 §5 ⑤-③ · 유예 결함 ③). SoC 열 파라미터 3종은
+# 외부 보고에서 역산한 값이고 **교정되지 않았다**(UNCALIBRATED). 그 사실이 산출물에 표시는 됐지만
+# **결정하는 소비자가 0** 이었다 — 실킬 3건이 그 임계로 났고 직전 인증서 1건이 오기록됐다.
+# 이 플래그가 그 소비자다: 부하를 걸기 전에 "미교정 임계로 재는 것을 안다" 를 명시하게 한다.
+ACK_UNCAL=0
 # 측정 엔드포인트. harmony 계열(gpt-oss)은 **완결 엔드포인트**로 재야 한다 —
 #   chat 에서는 `ignore_eos` 가 harmony 정지 토큰을 넘어 생성시키고, 그러면 서버의 harmony
 #   파서가 `Unexpected token … while expecting start token …` 로 일부 요청을 깬다
@@ -82,6 +93,8 @@ while [ $# -gt 0 ]; do case "$1" in
   --cell-key) CELL_KEY="$2"; shift 2;;
   --config) CONFIG="$2"; shift 2;;
   --axis-citation) CITATION="$2"; shift 2;;
+  --next-intent) NEXT_INTENT="$2"; shift 2;;
+  --ack-uncalibrated-thermal) ACK_UNCAL=1; shift;;
   --bench-budget-mib) BENCH_BUDGET="$2"; shift 2;;
   --max-error-rate) MAX_ERROR_RATE="$2"; shift 2;;
   --levels) LEVELS="$2"; shift 2;;
@@ -190,9 +203,19 @@ map)
   ;;
 
 cell)
+  # ── 무부하 파생변수(2026-09-07 · plan_26090715 §5 ⑤-④ · 유예 결함 ④) ───────────────────────
+  #   `--serve-failed`(이미 끝난 일의 기록)와 `--reassemble-only`(재측정 없는 지도 정합화)는 둘 다
+  #   **컨테이너도 벤치도 띄우지 않는다**. 그런데 종전에는 정지조건 게이트만 그 사실을 알았고
+  #   위험 게이트는 몰라서 `--confirm-risk` 를 요구했다. 그 결과 캠페인 ⑦ 의 b1·b4·b5·b6 이
+  #   **위험 플래그를 붙인 채 무위험 기록**을 남겼다 — 플래그가 "부하를 걸겠다" 는 뜻을 잃으면
+  #   다음 사람은 그것을 형식으로 읽고 진짜 위험 구간에서도 반사적으로 붙인다(게이트 의미 희석).
+  #   두 게이트가 **같은 질문**(이 호출이 로드를 하는가)을 보게 파생변수 하나로 묶는다.
+  NO_LOAD=0
+  { [ -n "$SERVE_FAILED_REASON" ] || [ "$REASSEMBLE" = 1 ]; } && NO_LOAD=1
+
   # 이중 게이트 (1) — 스크립트 플래그. (2) 는 에이전트가 챗에서 받는다(선-기록 후-위험).
-  #   재조립은 **측정하지 않으므로** 위험 게이트를 타지 않는다(부하도 재기동도 없다).
-  if [ "$CONFIRM" != 1 ] && [ "$REASSEMBLE" != 1 ]; then
+  #   무부하 호출은 위험 게이트를 타지 않는다(부하도 재기동도 없다).
+  if [ "$CONFIRM" != 1 ] && [ "$NO_LOAD" != 1 ]; then
     cat >&2 <<'MSG'
 [broad_search] ⚠ 셀 실행 거부(--confirm-risk 미명시).
   이 오퍼레이션은 통합메모리 위에서 부하를 건다 — 호스트 하드다운 계보가 있는 축이다.
@@ -200,8 +223,35 @@ cell)
 MSG
     exit 5
   fi
+  # ── 열 임계 미교정 게이트(유예 결함 ③). 무부하 호출은 열을 만들지 않으므로 대상이 아니다.
+  if [ "$NO_LOAD" != 1 ]; then
+    _UNCAL="$(REPO="$REPO" python3 - <<'PY' 2>/dev/null || true
+import importlib.util, os, sys
+_p = os.path.join(os.environ["REPO"], ".claude", "skills", "terraforming_node", "scripts",
+                  "node_blackbox", "blackbox_thermal.py")
+if os.path.isfile(_p):
+    _s = importlib.util.spec_from_file_location("_bt", _p)
+    _m = importlib.util.module_from_spec(_s); _s.loader.exec_module(_m)
+    print(",".join(getattr(_m, "UNCALIBRATED", ()) or ()))
+PY
+)"
+    if [ -n "$_UNCAL" ] && [ "$ACK_UNCAL" != 1 ]; then
+      echo "[broad_search] ⚠ 셀 실행 거부 — SoC 열 임계가 **미교정**이다(UNCALIBRATED: $_UNCAL)." >&2
+      echo "  이 값들은 외부 보고에서 역산한 것이고 이 하드웨어에서 교정된 적이 없다." >&2
+      echo "  그런데도 워치독은 이 임계로 서빙을 죽인다(실킬 3건 · 인증서 1건 오기록)." >&2
+      echo "  임계를 올리지 마라 — 그것은 정상 차단을 지우는 것이다. 대신 **알고 있음을 선언**하라:" >&2
+      echo "    --ack-uncalibrated-thermal  (셀 기록에 그 사실이 남는다)" >&2
+      echo "  교정 자체는 벤더 근거가 필요한 사람 과업이다(docs/request/ 위임 대상)." >&2
+      exit 6
+    fi
+  fi
+
+  if [ "$NO_LOAD" = 1 ] && [ "$CONFIRM" = 1 ]; then
+    echo "[broad_search] ⓘ 이 호출은 로드를 하지 않는다(serve_failed 기록 또는 재조립) — " \
+         "--confirm-risk 는 불필요하다. 위험 플래그가 형식이 되면 진짜 위험 구간에서 무뎌진다." >&2
+  fi
   for pair in "--cell-key:$CELL_KEY" "--config:$CONFIG" "--bench-budget-mib:$BENCH_BUDGET" \
-              "--axis-citation:$CITATION"; do
+              "--axis-citation:$CITATION" "--next-intent:$NEXT_INTENT"; do
     [ -n "${pair#*:}" ] || { echo "[broad_search] ERROR ${pair%%:*} 는 필수다" >&2; exit 2; }
   done
   [ -f "$STATE" ] || { echo "[broad_search] ERROR 상태 파일 부재: $STATE (먼저 init)" >&2; exit 2; }
@@ -218,7 +268,7 @@ MSG
   #   **스윕이 끝난 시점에 정확히 도달 불가**가 된다 — 라벨·파생키 계약이 바뀌었음을 알게 되는
   #   때가 바로 그때다. 남는 길은 상태 파일 수기 편집(증거 위조)뿐이라 게이트가 우회를 만든다.
   #   (캠페인 1 실측: cells_exhausted 뒤 MoE mismatch 필드를 실으려는데 이 게이트가 막았다.)
-  if [ -z "$SERVE_FAILED_REASON" ] && [ "$REASSEMBLE" != 1 ]; then
+  if [ "$NO_LOAD" != 1 ]; then
     set +e; _stop; STOPRC=$?; set -e
     if [ "$STOPRC" = "3" ]; then
       echo "[broad_search] 정지 조건 성립 — 셀을 실행하지 않는다:" >&2
@@ -287,6 +337,7 @@ MSG
 
   CELL_KEY="$CELL_KEY" CONFIG="$CONFIG" CITATION="$CITATION" SWEEPDIR="$SWEEPDIR" \
   CLS="$CLS" ENDED="$ENDED" STARTED="$STARTED" SERVE_FAILED_REASON="$SERVE_FAILED_REASON" \
+  NEXT_INTENT="$NEXT_INTENT" THERMAL_UNCAL="${_UNCAL:-}" ACK_UNCAL="$ACK_UNCAL" \
   python3 - "$STATE" <<'PY'
 import json, os, sys
 state_path = sys.argv[1]
@@ -371,6 +422,14 @@ cell = {
                               (verdict.get("rubric") or {}).get("floor")))
                           if verdict else None),
     "axis_citation": os.environ["CITATION"],
+    # 여정 한 줄 — "다음에 무엇을 할 참인가". 지도(선언)가 영토(실측)와 갈라진 지점을 남기는
+    # 유일한 자리이며, 이 체인에서 **복원 불가능한 유일한 정보**다.
+    "next_intent": os.environ.get("NEXT_INTENT") or None,
+    # 열 임계 미교정 사실을 **셀마다** 남긴다(2026-09-07 · 유예 결함 ③). 표시만 하고 아무도
+    # 읽지 않으면 그 표시는 없는 것과 같다 — 이 필드가 그 표시의 소비자이자 기록이다.
+    "thermal_uncalibrated": ([x for x in (os.environ.get("THERMAL_UNCAL") or "").split(",") if x]
+                             or None),
+    "thermal_uncalibrated_ack": os.environ.get("ACK_UNCAL") == "1",
 }
 _sf = os.environ.get("SERVE_FAILED_REASON") or ""
 if _sf:
@@ -386,6 +445,23 @@ with open(state_path, "w", encoding="utf-8") as f:
     json.dump(state, f, ensure_ascii=False, indent=2)
 print("[broad_search] cell %s → %s" % (cell["cell_key"], cell["cell_outcome"]))
 PY
+  # ── 채우는 손(2026-09-07 · plan_26090715 §4.1). 이 트랜잭션이 sweep 레코드를 쓴 **바로 그
+  #    자리**에서 cell.status 와 여정 줄도 쓴다. 두 자리를 다른 시점에 쓰면 갈라지고, 갈라진 것이
+  #    캠페인 ⑦ 의 b1~b6 이다(sweep=serve_failed 인데 cell.status=pending · P1 이 그것을 잡는다).
+  #    포맷 소유는 campaign_init 하나이고 여기는 호출부다. ACTIVE=_bootstrap 이면 no-op 이다.
+  _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+  if [ -f "$_CI" ]; then
+    _OUTCOME="$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));c=[x for x in d.get('cells') or [] if x.get('cell_key')==sys.argv[2]];print((c[-1].get('cell_outcome') if c else '') or '')" "$STATE" "$CELL_KEY")"
+    if [ -n "$_OUTCOME" ]; then
+      _WARGS=(--cell-set "$CELL_KEY" --outcome "$_OUTCOME" --axis-citation "$CITATION"
+              --next-intent "$NEXT_INTENT" --utc "$ENDED")
+      [ -n "$SERVE_FAILED_REASON" ] && _WARGS+=(--void-reason "$SERVE_FAILED_REASON"
+                                                --void-reason-source "broad_search cell(엔진 로그 인용)")
+      # writer 실패는 삼키지 않는다 — 상태가 안 적혔다는 사실 자체가 다음 재개의 함정이다.
+      python3 "$_CI" "${_WARGS[@]}" \
+        || echo "[broad_search] ⚠ campaigns writer 실패 — cell.status/여정이 기록되지 않았다(위 사유 참조)" >&2
+    fi
+  fi
   set +e; _stop; rc=$?; set -e
   python3 -c "import json;d=json.load(open('$STOPJSON'));print('[broad_search] stop=%s by=%s 남은셀=%d'%(d['stop'],d['stopped_by'],len(d['cells_remaining'])))"
   exit 0

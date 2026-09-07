@@ -1069,6 +1069,9 @@ def cmd_finalize(a: argparse.Namespace) -> int:
     # 에 대한 주 방어선이 실제 발행 경로에 없었던 것이다.
     # 여기는 `finalize`·`seal` 이 **공유하는** 지점이고 태그 생성보다 앞이므로, 한 줄로 양쪽이
     # 닫히고 거부 시 부작용이 0이다(승격게이트가 지킨 규율과 같다).
+    _require_payload_anchor("hint_finalize", a.tag, anchor)
+    _campaign = _load_campaign_evidence(getattr(a, "campaign_evidence", None))
+    _require_node_axis_match("hint_finalize", a.tag, arch, _campaign)
     _require_serving_evidence("hint_finalize", manifest, getattr(a, "payload", None))
     footer_fields = _resolve_evidence_footer_fields("hint_finalize", manifest, resolved_manifest_path,
                                                      a.manifest, tag=a.tag, topology=a.topology, anchor=anchor)
@@ -1086,6 +1089,7 @@ def cmd_finalize(a: argparse.Namespace) -> int:
 
     # perf_waiver(성능 REFUTE 사람승인)가 있으면 경고가 본문에 실제로 담겼는지 fail-closed 확인.
     _require_perf_warning("hint_finalize", manifest, body)
+    _require_map_only_observation("hint_finalize", manifest, body)
 
     terms = load_pii_terms()
     if terms is None:
@@ -1155,12 +1159,34 @@ def cmd_finalize(a: argparse.Namespace) -> int:
     return 0
 
 
+# 카탈로그 행의 **모양은 한 곳이 소유한다**(2026-09-07 정정). 종전에는 이 파일과
+# `hint_catalog.render_rows` 가 각자 렌더했고 열 수가 갈렸다 — 헤더는 5열인데 이쪽이 10셀 행을
+# 써서 HINTS.md 가 실제로 깨져 있었다(2026-09-07 실측). 두 자리가 다른 말을 하면 어느 쪽이 옳은지
+# 아무도 모른다. 이제 이 함수는 카탈로그와 **같은 6열**을 낸다.
+HINTS_COLUMNS = ("태그", "vLLM", "모델", "arch", "결손", "brief")
+
+
+def _hints_header() -> list[str]:
+    return ["| " + " | ".join(HINTS_COLUMNS) + " |",
+            "|" + "|".join("---" for _ in HINTS_COLUMNS) + "|"]
+
+
+def _md_cell(v) -> str:
+    return " ".join(str(v or "").split()).replace("|", "\\|")
+
+
+def _tag_declared_missing(tag: str) -> list:
+    """이 태그 페이로드가 스스로 선언한 결손 코드(파생 컬럼의 유일한 출처)."""
+    return sorted(declared_missing_of(tag))
+
+
 def _hints_row(e: dict) -> str:
-    return (f"| `{e['tag']}` | {e['vllm']} | {e['model']} | {e['arch']} | "
-            f"{e.get('recipe','')} | "
-            f"{e.get('topology','')} | {e.get('status','active')} | "
-            f"{e.get('superseded_by') or e.get('related') or '—'} | "
-            f"{e.get('last_verified','')} | {e.get('brief','')} |")
+    miss = e.get("missing")
+    if miss is None:
+        miss = _tag_declared_missing(e["tag"])
+    cell = "—" if not miss else _md_cell(" · ".join(miss))
+    return (f"| `{e['tag']}` | {_md_cell(e['vllm'])} | {_md_cell(e['model'])} | "
+            f"{_md_cell(e['arch'])} | {cell} | {_md_cell(e.get('brief'))} |")
 
 
 def _hints_regen(hints: list[dict]) -> bool:
@@ -1178,12 +1204,23 @@ def _hints_regen(hints: list[dict]) -> bool:
         print(f"[hint_tag] ⚠ {HINTS_FILE.name} 에 삽입 마커({HINTS_MARKER}) 가 없어 행을 쓰지 못했다 "
               f"— index.json 만 갱신됐다.", file=sys.stderr)
         return False
-    out = []
+    out, in_rows = [], False
+    header_set = {"| " + " | ".join(HINTS_COLUMNS) + " |",
+                  "| 태그 | vLLM | 모델 | arch | brief |"}
     for ln in HINTS_FILE.read_text(encoding="utf-8").splitlines():
-        if ln.startswith("| `hint/"):
-            continue  # 기존 hint 행 전부 제거
         if ln.strip() == HINTS_MARKER:
-            out.extend(_hints_row(e) for e in hints)
+            in_rows = not in_rows
+            if in_rows:                       # 여는 마커 — 여기서 전량 재생성
+                out.append(ln)
+                out.extend(_hints_header())
+                out.extend(_hints_row(e) for e in hints)
+                continue
+            out.append(ln)
+            continue
+        if in_rows:
+            continue                          # 옛 행·옛 헤더는 통째로 버린다
+        if ln.startswith("| `hint/") or ln.strip() in header_set:
+            continue                          # 마커 밖에 새어 나간 잔재도 거둔다
         out.append(ln)
     HINTS_FILE.write_text("\n".join(out) + "\n", encoding="utf-8")
     return True
@@ -1442,6 +1479,166 @@ def _no_cert_binding_source(manifest: dict) -> "str | None":
     return None
 
 
+# ── 캠페인 증거 스냅샷 통로 (2026-09-07 · plan_26090715 §4.5·§4.7 · 인터뷰 Q6) ──────────────
+# hint 발행기는 `campaigns/ACTIVE` 를 **알지 못한다**. 라이브 인스턴스를 읽으면 발행 시점마다 다른
+# 것을 읽게 되고(태그는 불변인데 입력이 흐른다), 캠페인 밖 발행이 활성 캠페인을 오독한다.
+# 통로는 하나다 — 사람이 `--campaign-evidence <evidence_pointers.json 경로>` 로 **명시**한다.
+# 그 파일은 publish 위상의 proof.ok 시점에 동결된 스냅샷이며, 서브 몫은 릴레이가 `node_id=sub` 로
+# 전사해 넣는다(메인이 서브를 직접 읽지 않는다 — 헌법 노드제어 ①).
+
+# 태그 노드 축 → 이 캠페인에서 그 축을 담당한 node_id 들.
+#   멀티의 쌍은 **하나의 측정 정체성**이므로(불변식 A) 여러 node_id 가 한 축에 모인다.
+_NODE_AXIS_TO_NODE_IDS = {
+    "main": ("main",),
+    "sub": ("sub",),
+    "cluster": ("cluster", "main-mn", "sub-mn"),
+}
+# 그 축의 인증서가 말해야 하는 measured_node 값.
+_NODE_AXIS_TO_MEASURED = {
+    "main": ("main",),
+    "sub": ("sub",),
+    "cluster": ("cluster",),
+}
+
+
+def _load_campaign_evidence(path) -> "dict | None":
+    """`evidence_pointers.json` 스냅샷을 읽는다. 경로 미지정 = None(통로를 안 쓴 것) ·
+    지정했는데 못 읽으면 **fail-loud**(읽지 못한 것을 '없다'로 접으면 게이트가 스스로 열린다)."""
+    if not path:
+        return None
+    p = Path(path) if os.path.isabs(str(path)) else (ROOT / str(path))
+    if not p.is_file():
+        die(f"[hint_tag] FAIL: --campaign-evidence 경로가 없다: {path}")
+    try:
+        doc = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        die(f"[hint_tag] FAIL: --campaign-evidence 판독 실패({exc!r}): {path}")
+    pointers = doc.get("pointers") if isinstance(doc, dict) else None
+    if not isinstance(pointers, list):
+        die(f"[hint_tag] FAIL: --campaign-evidence 에 pointers[] 가 없다: {path}")
+    return {"path": str(p), "campaign_id": doc.get("campaign_id"),
+            "frozen_utc": doc.get("frozen_utc"),
+            "pointers": [x for x in pointers if isinstance(x, dict)]}
+
+
+def _campaign_certificates_for_axis(camp: dict, node_axis: str) -> list:
+    """스냅샷에서 **이 노드 축이 낸** 인증서 포인터만 고른다."""
+    want = _NODE_AXIS_TO_NODE_IDS.get(node_axis, ())
+    return [ptr for ptr in camp["pointers"]
+            if str(ptr.get("kind") or "") == "certificate"
+            and str(ptr.get("node_id") or "") in want]
+
+
+def _cert_field(rel: str, key: str) -> "str | None":
+    """flat 인증서 YAML 의 최상위 스칼라 한 줄(파서 의존 없음 — 인증서는 flat 계약이다)."""
+    p = ROOT / rel
+    if not p.is_file():
+        return None
+    for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
+        if line.startswith(key + ":"):
+            v = line.split(":", 1)[1].strip()
+            return v.strip('"').strip("'") or None
+    return None
+
+
+def _require_node_axis_match(action: str, tag: str, arch: str, camp: "dict | None") -> list:
+    """노드축 2차 대조 — **불일치는 차단 · 부재는 결손 기재**(인터뷰 Q6).
+
+    1차(정직 라벨)는 `sweep_bench.sh` 가 `defaulted(self_role absent)` 를 적게 하고 메인 manifest 에
+    `self_role: main` 을 두는 것으로 이미 섰다. 라벨이 참이 된 뒤에야 차단을 켠다 — 순서를 뒤집으면
+    부재가 전부 위양성 차단이 된다(plan_26090715 R4).
+
+    반환: 결손 사유코드 목록(차단은 die 로 끝난다).
+    """
+    if camp is None:
+        return []
+    m = ARCH_SHAPE.match(arch)
+    if not m:                      # 문법은 validate_name 이 이미 집행했다
+        return []
+    node_axis = m.group("node")
+    certs = _campaign_certificates_for_axis(camp, node_axis)
+    if not certs:
+        print(f"[hint_tag] ⓘ 노드축 대조: 캠페인 스냅샷에 축 '{node_axis}' 의 인증서 포인터가 없다 — "
+              f"결손으로 기재하고 발행한다(부재 ≠ 불일치).", file=sys.stderr)
+        return ["HINT_MISSING_CERTIFICATE"]
+    want = _NODE_AXIS_TO_MEASURED[node_axis]
+    problems, checked = [], []
+    for ptr in certs:
+        rel = str(ptr.get("path") or "")
+        measured = _cert_field(rel, "measured_node")
+        source = _cert_field(rel, "measured_node_source")
+        topo = _cert_field(rel, "topology")
+        if measured is None:
+            print(f"[hint_tag] ⓘ 노드축 대조: {rel} 에 measured_node 가 없다(구세대 인증서) — "
+                  f"결손 기재.", file=sys.stderr)
+            problems.append("HINT_MISSING_MEASURED_NODE")
+            continue
+        checked.append((rel, measured, source, topo))
+        if measured not in want:
+            die(f"[hint_tag] FAIL({action}) HINT_ARCH_NODE_AXIS_CERT_MISMATCH: 태그 arch "
+                f"'{arch}' 의 노드 축은 '{node_axis}' 인데 인증서 {rel} 의 measured_node 는 "
+                f"'{measured}' 다(출처 {source!r}).\n"
+                f"  한 태그 = 한 노드 형상의 수행 기록이다(계약 §1). 서브가 잰 것을 main 태그로 "
+                f"봉인하면 그 기록은 영원히 잘못된 형상으로 배포된다.")
+        # cluster 전용 판정식 — 쌍은 하나의 측정 정체성이므로 인증서도 multi 여야 한다.
+        if node_axis == "cluster" and topo != "multi":
+            die(f"[hint_tag] FAIL({action}) HINT_ARCH_NODE_AXIS_CERT_MISMATCH: cluster 축인데 "
+                f"인증서 {rel} 의 topology 가 '{topo}' 다(multi 여야 한다).")
+    for rel, measured, source, topo in checked:
+        print(f"[hint_tag] ✓ 노드축 대조 {node_axis} ← {rel} (measured_node={measured} · "
+              f"topology={topo} · 출처 {source})", file=sys.stderr)
+    return problems
+
+
+HINT_BRANCH_REF = "refs/heads/hint"
+
+
+def _require_payload_anchor(action: str, tag: str, anchor: str) -> None:
+    """계약 §6 집행 — **태그는 hint 브랜치의 페이로드 커밋을 가리킨다**.
+
+    ★ 2026-09-07 신설(plan_26090715 §5 ①-a · audit_26090708 §2). 이 검사가 없어서 발행자가
+      `hint_collect → check → hint_branch publish` 를 통째로 건너뛰고 **소스 트리 커밋**에 봉인해도
+      finalize/seal/verify 가 전부 통과했다(fail-open). 실제로 native 3종이 그렇게 나갔고,
+      single 태그가 multi-node 커밋에 · multi 태그가 single-node 커밋에 앵커되는 형태까지 갔다.
+      배포 zip 을 여는 사람은 레시피 옆에 있어야 할 산출물 대신 저장소 소스를 받는다.
+
+    세 가지를 묻는다. 셋 다 저장소 안의 git 객체만으로 계산된다(네트워크 ✗ · 해시 재기재 ✗).
+      A. 앵커가 `refs/heads/hint` 의 조상인가 — 페이로드 커밋이 아니면 배포될 트리가 없다.
+      B. 앵커 트리에 `PAYLOAD.json` 이 있는가 — 페이로드의 기계판독 사실 문서.
+      C. 앵커 트리의 `PROVENANCE.json` 의 `tag` 가 이 태그와 같은가 — 남의 페이로드 재사용 차단.
+    """
+    if not anchor:
+        die(f"[hint_tag] FAIL({action}): 앵커를 해소하지 못했다.")
+    tip = git("rev-parse", "--verify", "--quiet", HINT_BRANCH_REF, check=False).stdout.strip()
+    if not tip:
+        die(f"[hint_tag] FAIL({action}): {HINT_BRANCH_REF} 브랜치가 없다 — 페이로드를 담을 자리가 "
+            f"아직 없다.\n  → `hint_branch.py publish` 로 페이로드 커밋을 먼저 만들어라.")
+    is_anc = subprocess.run(["git", "merge-base", "--is-ancestor", anchor, tip],
+                            cwd=str(ROOT), capture_output=True)
+    if is_anc.returncode != 0:
+        die(f"[hint_tag] FAIL({action}) HINT_ANCHOR_NOT_ON_HINT_BRANCH: 앵커 {anchor[:12]} 가 "
+            f"{HINT_BRANCH_REF}(tip {tip[:12]}) 의 조상이 아니다.\n"
+            f"  계약 §6: 태그는 **hint 브랜치의 페이로드 커밋**을 가리킨다. 소스 트리 커밋에 봉인하면\n"
+            f"  배포 zip 에 산출물 대신 저장소 소스가 담긴다(2026-09-07 실증: native 3종).\n"
+            f"  → `hint_collect collect` → `hint_collect check` → `hint_branch publish` 뒤\n"
+            f"    그 출력 커밋을 `--commit` 으로 넘겨라.")
+    if _git_blob_bytes(anchor, "PAYLOAD.json") is None:
+        die(f"[hint_tag] FAIL({action}) HINT_ANCHOR_PAYLOAD_ABSENT: 앵커 {anchor[:12]} 트리에 "
+            f"PAYLOAD.json 이 없다 — 페이로드 커밋이 아니다.")
+    prov_raw = _git_blob_bytes(anchor, "PROVENANCE.json")
+    if prov_raw is None:
+        die(f"[hint_tag] FAIL({action}) HINT_ANCHOR_PROVENANCE_ABSENT: 앵커 {anchor[:12]} 트리에 "
+            f"PROVENANCE.json 이 없다 — 어느 태그를 위한 페이로드인지 말하지 않는다.")
+    try:
+        prov = json.loads(prov_raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        die(f"[hint_tag] FAIL({action}) HINT_ANCHOR_PROVENANCE_UNREADABLE: {exc!r}")
+    prov_tag = prov.get("tag") if isinstance(prov, dict) else None
+    if prov_tag != tag:
+        die(f"[hint_tag] FAIL({action}) HINT_ANCHOR_PROVENANCE_TAG_MISMATCH: 앵커의 "
+            f"PROVENANCE.tag={prov_tag!r} 인데 발행하려는 태그는 {tag!r} 이다 — 남의 페이로드다.")
+
+
 def _payload_declared_missing(payload_dir) -> frozenset:
     """조립 중인 페이로드 디렉터리가 선언한 결손 코드. 경로가 없거나 못 읽으면 **빈 집합**이다 —
     읽지 못한 것을 "선언됐다" 로 처리하면 게이트가 스스로 열린다."""
@@ -1605,6 +1802,33 @@ def _require_perf_warning(action: str, manifest: dict, recipe_text: str) -> None
                       + "\n  ".join(problems)},
                      manifest.get("identity") if isinstance(manifest, dict) else None,
                      manifest.get("task_class") if isinstance(manifest, dict) else None)
+
+
+MAP_ONLY_MARKER = "OBSERVATION-ONLY"
+
+
+def _require_map_only_observation(action: str, manifest: dict, recipe_text: str) -> None:
+    """`hint_map_only` 로 발행하는 지도의 §5 는 **관측**이지 baseline 이 아니다(계약 v5 · 인터뷰 Q5).
+
+    이 통로는 인증서·bench_report·simlog 없이도 발행에 이르는 유일한 길이다. 그 대가로 §5 의
+    지위가 내려간다 — 수치는 실을 수 있지만 "이것이 이 조합의 성능 baseline 이다" 라고 말할 수
+    없다. 그것을 말하려면 full_benchmark 로 인증서를 얻어야 한다.
+
+    집행 방식은 `perf_waiver` 의 PERF-WARNING 과 같은 모양이다: **본문에 고정 토큰이 실렸는가**.
+    선언만 받고 본문을 보지 않으면 그 선언은 배포물에 도달하지 않는다(2026-08-01 선례).
+    """
+    if not isinstance(manifest, dict) or manifest.get("task_class") != "hint_map_only":
+        return
+    if MAP_ONLY_MARKER in recipe_text:
+        return
+    _die_binding(action, ["HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING"],
+                 {"HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING":
+                  f"task_class='hint_map_only' 로 발행하는데 본문에 `{MAP_ONLY_MARKER}` 마커가 없다.\n"
+                  f"  이 통로는 인증서·bench_report·simlog 없이 발행에 이르는 유일한 길이고, 그 대가로\n"
+                  f"  §5 는 **관측 게재**로 지위가 내려간다 — baseline·권고로 읽히면 안 된다.\n"
+                  f"  → §5 절에 `{MAP_ONLY_MARKER}` 를 적고, 이 수치가 무엇과 비교 가능한지 한정자를 붙여라.\n"
+                  f"  → 진짜 baseline 을 주장하려면 full_benchmark 로 인증서를 얻어라."},
+                 manifest.get("identity"), manifest.get("task_class"))
 
 
 def unsealed_reason(tag: str) -> str | None:
@@ -2339,6 +2563,16 @@ def cmd_reindex(a: argparse.Namespace) -> int:
     return 0
 
 
+def _finalize_option_strings() -> list:
+    """`finalize` 서브파서가 실제로 등록한 옵션 문자열. 자체검사가 argparse 정의를 **직접** 보게
+    한다 — 문자열을 두 곳에 적으면 배선이 빠져도 시험이 초록으로 남는다(2026-09-07 `--payload`
+    가 정확히 그 형태였다: 소비자는 `getattr(a,"payload")` 로 읽는데 인자가 없었다)."""
+    out = []
+    for act in _build_parser()._subparsers._group_actions[0].choices["finalize"]._actions:
+        out.extend(act.option_strings)
+    return out
+
+
 def cmd_self_test(_a=None) -> int:
     """결정론 자체검사 — 라이브 원격·태그 없이 도는 것만 담는다.
 
@@ -2482,10 +2716,128 @@ def cmd_self_test(_a=None) -> int:
        collide_suffix("hint/a/b/c/qx", "260904T0730Z") == "hint/a/b/c/qx_260904T0730Z")
     ck("★충돌 폴백을 벗기면 파생값과 대조된다(인증서 교차검증이 여전히 성립)",
        "qmxfp4-len131072-kvfp8_260904T0730Z".split("_")[0] == "qmxfp4-len131072-kvfp8")
-    ck("인덱스 행이 recipe 칸을 싣는다",
-       "| qmxfp4-len1-kvfp8 |" in _hints_row(
-           {"tag": "hint/a/b/c/qmxfp4-len1-kvfp8", "vllm": "a", "model": "b", "arch": "c",
-            "recipe": "qmxfp4-len1-kvfp8"}))
+    # 카탈로그 행 — 2026-09-07 부터 **6열 단일 모양**이다(hint_catalog.render_rows 와 같은 것).
+    #   종전에는 이 파일이 10셀 행을 쓰고 헤더는 카탈로그가 5열로 써서 HINTS.md 가 실제로
+    #   깨져 있었다. 레시피 세그먼트는 별도 칸이 아니라 **태그 문자열 안에** 산다.
+    _row = _hints_row({"tag": "hint/a/b/c/qmxfp4-len1-kvfp8", "vllm": "a", "model": "b",
+                       "arch": "c", "brief": "요지", "missing": []})
+    ck("행은 헤더와 같은 6열이다(두 렌더러가 갈라지지 않는다)",
+       _row.count("|") == len(HINTS_COLUMNS) + 1
+       and len(_hints_header()[0].split("|")) == len(_row.split("|")))
+    ck("레시피 세그먼트는 태그 문자열 안에 남는다", "qmxfp4-len1-kvfp8`" in _row)
+    ck("결손 없음은 —(대시)로 표시", "| — |" in _row)
+    ck("결손이 있으면 파생 컬럼에 실린다",
+       "HINT_MISSING_CERTIFICATE" in _hints_row(
+           {"tag": "hint/a/b/c/q", "vllm": "a", "model": "b", "arch": "c", "brief": "x",
+            "missing": ["HINT_MISSING_CERTIFICATE"]}))
+    ck("★태그 이름에는 등급을 새기지 않는다(결손은 파생 컬럼 · 이름은 불변)",
+       "MISSING" not in _row.split("|")[1])
+
+    # ── 앵커 게이트(계약 §6) · 노드축 대조 · 결손 선언 (2026-09-07 · plan_26090715 §5 ①) ──────
+    # ★ 이 셋은 **살아 있는 저장소 상태**를 앵커로 쓴다. hint 브랜치와 실제 태그가 있어야만
+    #   의미가 있으므로 없으면 조용히 건너뛰지 않고 그 사실을 하나의 검사로 남긴다(부재를
+    #   통과로 접으면 검사가 있는지도 모르게 죽는다 — 역-오라클 방지).
+    _hint_tip = git("rev-parse", "--verify", "--quiet", HINT_BRANCH_REF, check=False).stdout.strip()
+    ck("hint 브랜치가 있다(앵커 게이트의 전제)", bool(_hint_tip))
+    if _hint_tip:
+        def _anchor_boom(tag, anchor):
+            try:
+                _require_payload_anchor("selftest", tag, anchor)
+            except SystemExit:
+                return True
+            return False
+        _head = git("rev-parse", "HEAD").stdout.strip()
+        ck("★음성대조 소스 트리 커밋 앵커는 차단(HINT_ANCHOR_NOT_ON_HINT_BRANCH)",
+           _anchor_boom("hint/x/y/gb10-main-z/q", _head))
+        ck("★음성대조 빈 앵커는 차단", _anchor_boom("hint/x/y/gb10-main-z/q", ""))
+        # 정상 경로: 실재하는 페이로드 커밋 + 그 PROVENANCE 가 말하는 바로 그 태그.
+        _good_tag = "hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8"
+        _good_anchor = git("rev-parse", "--verify", "--quiet", _good_tag + "^{commit}",
+                           check=False).stdout.strip()
+        if _good_anchor:
+            _ok = True
+            try:
+                _require_payload_anchor("selftest", _good_tag, _good_anchor)
+            except SystemExit:
+                _ok = False
+            ck("정상 페이로드 커밋 + 일치 PROVENANCE 는 통과", _ok)
+            ck("★음성대조 남의 페이로드 재사용은 차단(PROVENANCE.tag 불일치)",
+               _anchor_boom("hint/9.9.9/other/gb10-main-z/q", _good_anchor))
+        else:
+            ck("기준 태그 부재로 앵커 정상경로 미시험(기준선을 잃었다)", False)
+
+    # 노드축 대조 — 픽스처 인증서로 3축을 모두 돈다(절대경로 포인터 허용).
+    with tempfile.TemporaryDirectory() as _ntmp:
+        _nt = Path(_ntmp)
+        def _cert(name, measured, topo):
+            f = _nt / name
+            f.write_text(f"verdict: PASS\nmodel: m\ntopology: {topo}\n"
+                         f"measured_node: {measured}\n"
+                         f"measured_node_source: derived(manifest.self_role={measured})\n",
+                         encoding="utf-8")
+            return str(f)
+        def _camp(ptrs):
+            return {"path": "<fixture>", "campaign_id": "c", "frozen_utc": None, "pointers": ptrs}
+        def _axis_boom(arch, camp):
+            try:
+                _require_node_axis_match("selftest", "t", arch, camp)
+            except SystemExit:
+                return True
+            return False
+        _c_main = _camp([{"kind": "certificate", "path": _cert("m.yaml", "main", "single"),
+                          "node_id": "main"}])
+        _c_sub = _camp([{"kind": "certificate", "path": _cert("s.yaml", "sub", "single"),
+                         "node_id": "sub"}])
+        _c_cluster = _camp([{"kind": "certificate", "path": _cert("c.yaml", "cluster", "multi"),
+                             "node_id": "main-mn"}])
+        ck("main 축 × main 인증서 → 통과", not _axis_boom("gb10-main-native", _c_main))
+        ck("sub 축 × sub 인증서 → 통과", not _axis_boom("gb10-sub-native", _c_sub))
+        ck("cluster 축 × main-mn/multi 인증서 → 통과(쌍 = 하나의 정체성)",
+           not _axis_boom("gb10x2-cluster-native", _c_cluster))
+        ck("★음성대조 main 태그 × sub 인증서 → 차단(HINT_ARCH_NODE_AXIS_CERT_MISMATCH)",
+           _axis_boom("gb10-main-native", _camp([{"kind": "certificate",
+                                                  "path": _cert("s2.yaml", "sub", "single"),
+                                                  "node_id": "main"}])))
+        ck("★음성대조 cluster 태그 × single 인증서 → 차단(cluster 전용 판정식)",
+           _axis_boom("gb10x2-cluster-native", _camp([{"kind": "certificate",
+                                                       "path": _cert("c2.yaml", "cluster", "single"),
+                                                       "node_id": "main-mn"}])))
+        ck("부재는 차단이 아니라 결손 기재(축 인증서 0건)",
+           _require_node_axis_match("selftest", "t", "gb10-main-native", _camp([]))
+           == ["HINT_MISSING_CERTIFICATE"])
+        ck("--campaign-evidence 미지정이면 대조 자체를 하지 않는다(통로 선택제)",
+           _require_node_axis_match("selftest", "t", "gb10-main-native", None) == [])
+        # 스냅샷 로더 — 부재/파손은 fail-loud 다(읽지 못한 것을 '없다'로 접지 않는다)
+        ck("스냅샷 미지정 → None", _load_campaign_evidence(None) is None)
+        def _load_boom(pth):
+            try:
+                _load_campaign_evidence(pth)
+            except SystemExit:
+                return True
+            return False
+        ck("★음성대조 없는 스냅샷 경로 → fail-loud", _load_boom(str(_nt / "nope.json")))
+        (_nt / "broken.json").write_text("{not json", encoding="utf-8")
+        ck("★음성대조 파손 스냅샷 → fail-loud", _load_boom(str(_nt / "broken.json")))
+        (_nt / "nopointers.json").write_text('{"campaign_id": "c"}', encoding="utf-8")
+        ck("★음성대조 pointers[] 없는 스냅샷 → fail-loud", _load_boom(str(_nt / "nopointers.json")))
+        (_nt / "ok.json").write_text('{"campaign_id":"c","pointers":[{"kind":"testlog","path":"x"}]}',
+                                     encoding="utf-8")
+        ck("정상 스냅샷은 pointers 를 준다",
+           len(_load_campaign_evidence(str(_nt / "ok.json"))["pointers"]) == 1)
+
+    # 결손 선언 판독(--payload 배선의 실효) — 인자가 CLI 에 없으면 이 판독기는 영원히 공집합이었다.
+    with tempfile.TemporaryDirectory() as _ptmp:
+        _pt = Path(_ptmp)
+        ck("경로 없으면 빈 집합", _payload_declared_missing(None) == frozenset())
+        ck("PAYLOAD.json 없으면 빈 집합", _payload_declared_missing(str(_pt)) == frozenset())
+        (_pt / "PAYLOAD.json").write_text('{"missing": ["HINT_MISSING_CERTIFICATE", "X"]}',
+                                          encoding="utf-8")
+        ck("PAYLOAD.missing[] 을 실제로 읽는다(--payload 배선의 실효)",
+           _payload_declared_missing(str(_pt)) == frozenset({"HINT_MISSING_CERTIFICATE", "X"}))
+        ck("finalize 파서가 --payload 를 받는다",
+           any("--payload" in str(x) for x in _finalize_option_strings()))
+        ck("finalize 파서가 --campaign-evidence 를 받는다",
+           any("--campaign-evidence" in str(x) for x in _finalize_option_strings()))
 
     bad = [n for n, ok in checks if not ok]
     for n, ok in checks:
@@ -2494,10 +2846,10 @@ def cmd_self_test(_a=None) -> int:
     return 1 if bad else 0
 
 
-def main() -> int:
+def _build_parser() -> argparse.ArgumentParser:
+    """서브커맨드 파서 조립 — **단일 소유**. 자체검사가 이 파서를 그대로 들여다본다(옵션 문자열을
+    두 곳에 적으면 배선이 빠져도 시험이 초록으로 남는다)."""
     ap = argparse.ArgumentParser(description="hint/<vllm>/<model>/<arch> 레시피-힌트 태그 관리")
-    if "--self-test" in sys.argv[1:]:
-        return cmd_self_test()
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     c = sub.add_parser("create", help="태그 검증 + 레시피 스캐폴드(TODO 슬롯)")
@@ -2510,6 +2862,12 @@ def main() -> int:
     c.add_argument("--hf-repo", help="정본 HF repo '<org>/<name>' — 슬러그가 여기서 파생된다(R1)")
     c.add_argument("--model-path", help="HF 미등록 커스텀 모델의 서빙 경로(D2 예외)")
     c.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
+    c.add_argument("--campaign-evidence", default=None,
+                   help="캠페인 증거 스냅샷(campaigns/<id>/evidence_pointers.json) 경로. hint_tag 는 "
+                        "campaigns/ACTIVE 를 읽지 않는다 — 명시 경로만 받는다(인터뷰 Q6).")
+    c.add_argument("--payload", default=None,
+                   help="조립 중인 페이로드 디렉터리(hint_collect collect 의 출력). PAYLOAD.json 의 "
+                        "missing[] 이 결손 선언으로 읽힌다 — 지정하지 않으면 선언이 **빈 집합**이다.")
     c.set_defaults(fn=cmd_create)
 
     f = sub.add_parser("finalize", help="PII fail-closed 스캔 + annotated 태그 + 인덱스")
@@ -2523,6 +2881,13 @@ def main() -> int:
     f.add_argument("--hf-repo", help="정본 HF repo '<org>/<name>' — 슬러그가 여기서 파생된다(R1)")
     f.add_argument("--model-path", help="HF 미등록 커스텀 모델의 서빙 경로(D2 예외)")
     f.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
+    f.add_argument("--campaign-evidence", default=None,
+                   help="캠페인 증거 스냅샷(campaigns/<id>/evidence_pointers.json) 경로. hint_tag 는 "
+                        "campaigns/ACTIVE 를 읽지 않는다 — 명시 경로만 받는다(인터뷰 Q6).")
+    f.add_argument("--payload", default=None,
+                   help="조립 중인 페이로드 디렉터리(hint_collect collect 의 출력). PAYLOAD.json 의 "
+                        "missing[] 이 결손 선언으로 읽힌다 — 지정하지 않으면 선언이 **빈 집합**이라 "
+                        "결손을 안고 발행할 수 없다(2026-09-07 배선 · plan_26090715 §5 ①-b).")
     f.set_defaults(fn=cmd_finalize)
 
     # `seal` = finalize 에서 **색인 갱신만 뺀 것**. Contributor 의 종착점이다(D8).
@@ -2535,6 +2900,11 @@ def main() -> int:
     sl.add_argument("--tagger-email", default="")
     sl.add_argument("--hf-repo", help="정본 HF repo '<org>/<name>' — 슬러그가 여기서 파생된다(R1)")
     sl.add_argument("--model-path", help="HF 미등록 커스텀 모델의 서빙 경로(D2 예외)")
+    sl.add_argument("--campaign-evidence", default=None,
+                   help="캠페인 증거 스냅샷(campaigns/<id>/evidence_pointers.json) 경로. hint_tag 는 "
+                        "campaigns/ACTIVE 를 읽지 않는다 — 명시 경로만 받는다(인터뷰 Q6).")
+    sl.add_argument("--payload", default=None,
+                   help="조립 중인 페이로드 디렉터리(hint_collect collect 의 출력) — finalize 와 동일")
     sl.set_defaults(fn=cmd_finalize, no_index=True)
 
     ix = sub.add_parser("index", help="로컬 hint 태그를 index.json + HINTS.md 에 편입 (중앙 전용)")
@@ -2596,7 +2966,13 @@ def main() -> int:
     ri.add_argument("--manifest", required=True, help="promotion-ready work-manifest (completion_gate.py authorize --mode promotion)")
     ri.set_defaults(fn=cmd_reindex)
 
-    a = ap.parse_args()
+    return ap
+
+
+def main() -> int:
+    if "--self-test" in sys.argv[1:]:
+        return cmd_self_test()
+    a = _build_parser().parse_args()
     if a.cmd != "match":
         require_git_repository()
     return a.fn(a)

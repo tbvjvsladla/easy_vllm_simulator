@@ -31,7 +31,9 @@ TOPO=""; LEVELS="1,2,4,8,16"; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; VLLM_
 #   전달하지 않으면 스윕 전 레벨이 openai-chat 로 돌아, harmony 계열(gpt-oss)에서 `--ignore-eos` 가
 #   무력해져 **모든 레벨의 TPOT 이 동시에 왜곡**된다(run_bench.sh 의 BACKEND 주석 참조).
 #   판정점(동시성=1)을 스윕이 포함하므로 그 왜곡은 곧 verdict 왜곡이다.
-BACKEND="openai-chat"
+# ★ 2026-09-07: 여기서도 **기본값을 없앤다**(plan_26090715 §5 ⑤-①). 하류 run_bench 가 기본값을
+#   버렸는데 이쪽이 들고 있으면 그 버림이 무효가 된다 — 기본값은 마지막 한 자리만 남아도 이긴다.
+BACKEND=""
 # ★ 2026-09-04(CP5 · plan_26090415 §3.1·§3.7) — 모드별 측정 도구 선택.
 #   lite 레그는 이 노브와 무관하게 **언제나 `vllm bench serve`** 다(`full = lite ∪ GuideLLM`).
 #   두 레그를 이질적으로 유지하는 것이 설계이며, 그 이질성이 실결함 2건을 잡았다(2026-09-01·09-03).
@@ -56,6 +58,17 @@ while [ $# -gt 0 ]; do case "$1" in
   --dry-run) DRYRUN=1; shift;;
   *) echo "[sweep_bench] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
+
+# 측정 엔드포인트 미선언을 **여기서** 친다 — 뒤로 미루면 lite 레그를 다 돌고 나서야 드러나고,
+# 그때는 이미 잘못된 포맷으로 잰 판정점이 손에 있다(2026-09-07 · 유예 결함 ①).
+case "$BACKEND" in
+  openai|openai-chat) ;;
+  "") echo "[sweep_bench] ERROR --backend 는 필수다(기본값 없음 · 2026-09-07)." >&2
+      echo "  요청 포맷은 TPOT 을 바꾸는 1급 측정 축이고, 스윕은 그 포맷으로 **전 레벨**을 잰다." >&2
+      echo "  harmony 계열(gpt-oss)은 --backend openai (완결 엔드포인트)." >&2
+      exit 2 ;;
+  *) echo "[sweep_bench] 알 수 없는 --backend: $BACKEND (openai|openai-chat)" >&2; exit 2 ;;
+esac
 
 case "$TOOL" in
   vllm) ;;
@@ -189,6 +202,10 @@ for L in "${SORTED[@]}"; do
                    --engine-log "$ELOG" --spec-axis-absent)
       fi
       [ -n "$MAX_ERROR_RATE" ] && PARSE_CMD+=(--max-error-rate "$MAX_ERROR_RATE")
+      # 벤치 종료 시 서버 생존 관측(2026-09-07 · 유예 결함 ②). run_bench 가 벤치 직후 · teardown
+      # 전에만 남길 수 있는 사실이며, 이것이 없으면 엔진 사망 중 잘린 SSE 가 도구 경계로 면제된다.
+      _PH="$LDIR/post_health_${CONFIG}.json"
+      [ -s "$_PH" ] && PARSE_CMD+=(--post-health-json "$_PH")
     else
       BJSON="$LDIR/bench_${CONFIG}.json"
       PARSE_CMD=(python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG")
@@ -495,13 +512,20 @@ if _attn_cands is not None and len(_attn_cands) <= 1:
 # 서브가 완주해도 그 증거가 태그에 닿는 경로가 없었다(2026-09-05 실측).
 # 축은 hint 태그의 노드 축과 **같은 어휘**를 쓴다(main|sub|cluster) — 두 자리가 다른 말을 쓰면
 # 발행기가 대조하지 못한다. 멀티의 쌍은 하나의 측정 정체성이므로 `cluster` 다(불변식 A).
-_self_role = grep_yaml(mftext, "self_role") or "main"
+# ★ 2026-09-07 정직화(plan_26090715 §4.7 1차 · audit_26090708 §1.2). 종전은 `or "main"` 으로 부재를
+#   메인으로 접고도 출처를 `derived(manifest.self_role=main)` 이라고 적었다 — **부재의 기본값을 파생이라고
+#   거짓 표시**한 것이다(헌법 §결정론 규율: 모의 자체는 금지가 아니고 실측인 척하는 것이 금지다).
+#   부재는 이제 `defaulted(self_role absent)` 로 스스로를 밝힌다. 노드축 2차 대조(차단)는 이 라벨이
+#   선 뒤에 켠다 — 라벨 없이 차단부터 켜면 부재가 전부 위양성 차단이 된다.
+_self_role = grep_yaml(mftext, "self_role")
 if topo == "multi":
     measured_node, measured_node_source = "cluster", "derived(topology=multi — 쌍이 하나의 측정 정체성)"
 elif _self_role == "sub":
     measured_node, measured_node_source = "sub", "derived(manifest.self_role=sub)"
-else:
+elif _self_role:
     measured_node, measured_node_source = "main", "derived(manifest.self_role=%s)" % _self_role
+else:
+    measured_node, measured_node_source = "main", "defaulted(self_role absent)"
 
 meta = {
     # 강한 일치 키
@@ -586,6 +610,25 @@ for _lvl in sorted(completed):
 meta["bench_tool"] = _bt
 meta["bench_tool_version"] = _btv
 meta["bench_tool_version_source"] = _btv_src
+
+# ── 벤치 종료 시 서버 생존(2026-09-07 · 유예 결함 ②) ─────────────────────────────────────────
+#   `RemoteProtocolError` 는 두 원인이 같은 모양으로 나온다(도구가 끊음 · 엔진이 죽어 잘림).
+#   절단선은 "벤치가 끝난 시점에 서버가 살아 있었는가" 이고, 파서가 그 관측으로 도구경계 면제를
+#   켜거나 끈다. 인증서는 그 사실을 **싣기만** 한다 — 판정은 파서가 이미 했고, 여기서 다시 하면
+#   같은 질문에 답이 둘이 된다. 관측이 없으면 None 이며 그것도 사실이다(구세대 산출물).
+_alive, _bx = None, None
+for _lvl in sorted(completed):
+    _mp = os.path.join(sweepdir, "level_%02d" % _lvl, "measured.json")
+    try:
+        with open(_mp, encoding="utf-8") as _f:
+            _md = json.load(_f)
+    except (OSError, ValueError):
+        continue
+    _alive = _md.get("server_alive_at_bench_end")
+    _bx = _md.get("boundary_exemption")
+    break
+meta["server_alive_at_bench_end"] = _alive
+meta["boundary_exemption"] = _bx
 meta["bench_max_error_rate"] = _bt_err
 
 # ── 측정 도구 **런별 구성**(2026-09-05 · plan_26090516 3-8/3-12 · 축 A·B) ─────────

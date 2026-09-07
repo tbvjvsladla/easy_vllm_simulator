@@ -98,11 +98,17 @@ _TOOL_BOUNDARY_ERROR_PATTERNS = (
 )
 
 
-def classify_errors(run, benchmark_index=0):
+def classify_errors(run, benchmark_index=0, server_alive_at_bench_end=None):
     """errored[] 를 (도구경계 n, 서버 n, 미분류 사유 표본) 으로 가른다.
 
     `requests.errored` 가 없는 산출물(옛 포맷·요약본)에서는 **가르지 않는다** — 모르는 것을
     면제로 접으면 그 순간 게이트가 fail-open 이 된다. 그 경우 전량을 서버 오류로 돌린다.
+
+    `server_alive_at_bench_end` (2026-09-07 · 유예 결함 ②): 벤치가 끝난 시점의 서버 생존 관측.
+    **False 면 도구경계 면제를 통째로 무효화**한다 — 엔진이 죽어 잘린 스트림과 도구가 끊은
+    스트림은 같은 예외(`RemoteProtocolError`)로 나오고, 죽은 서버 쪽에서는 그 예외가 도구 탓이
+    아니다. None(관측 없음)이면 종전대로 분류한다: 모르는 것을 차단으로도 면제로도 접지 않고,
+    대신 산출물이 그 사실을 `error_split_source` 로 밝힌다.
     """
     try:
         errored = run["benchmarks"][benchmark_index]["requests"]["errored"]
@@ -115,16 +121,22 @@ def classify_errors(run, benchmark_index=0):
         produced = rec.get("output_tokens") or (rec.get("output_metrics") or {}).get("text_tokens")
         low = msg.lower()
         hit = any(pat in low for pat in _TOOL_BOUNDARY_ERROR_PATTERNS)
-        if hit and produced:
+        if hit and produced and server_alive_at_bench_end is not False:
             boundary += 1
         else:
             server += 1
             if msg and len(samples) < 3:
                 samples.append(msg[:200])
-    return {"tool_boundary": boundary, "server": server, "unclassified_samples": samples}
+    return {"tool_boundary": boundary, "server": server, "unclassified_samples": samples,
+            "server_alive_at_bench_end": server_alive_at_bench_end,
+            "boundary_exemption": ("disabled(server dead at bench end)"
+                                   if server_alive_at_bench_end is False else
+                                   ("enabled(server alive)" if server_alive_at_bench_end is True
+                                    else "enabled(liveness unobserved)"))}
 
 
-def build(doc, benchmark_index=0, engine_max=None, spec=None, max_error_rate=0.0):
+def build(doc, benchmark_index=0, engine_max=None, spec=None, max_error_rate=0.0,
+          server_alive_at_bench_end=None):
     """GuideLLM report 문서 → parse_bench 와 동일한 측정 M. 순수 함수."""
     if not isinstance(doc, dict):
         raise ValueError("benchmarks.json 은 JSON 객체여야 한다")
@@ -164,7 +176,8 @@ def build(doc, benchmark_index=0, engine_max=None, spec=None, max_error_rate=0.0
 
     error_rate = (float(failed) / float(total)) if (failed is not None and total) else 0.0
     # 도구 경계는 서버 오류가 아니다 — 가르되 **삼키지 않는다**(둘 다 싣는다).
-    cls = classify_errors(doc, benchmark_index)
+    cls = classify_errors(doc, benchmark_index,
+                          server_alive_at_bench_end=server_alive_at_bench_end)
     if cls is None:
         server_failed = failed
         error_split_source = "unavailable(requests.errored 부재 — 전량을 서버 오류로 센다)"
@@ -222,6 +235,9 @@ def build(doc, benchmark_index=0, engine_max=None, spec=None, max_error_rate=0.0
         "server_errors": None if cls is None else cls["server"],
         "unclassified_error_samples": None if cls is None else cls["unclassified_samples"],
         "error_split_source": error_split_source,
+        # 벤치 종료 시 서버 생존 관측(2026-09-07 · 유예 결함 ②). None = 관측 없음 — 그 사실도 싣는다.
+        "server_alive_at_bench_end": (cls or {}).get("server_alive_at_bench_end"),
+        "boundary_exemption": (cls or {}).get("boundary_exemption", "n/a(분류 불가)"),
         "max_error_rate_declared": max_error_rate,
         "measurement_ok": bool(successful and decode_tps is not None
                                and server_error_rate <= max_error_rate),
@@ -397,7 +413,27 @@ def _self_test():
     check("G19 미분류 사유를 표본으로 남긴다(삼키지 않는다)",
         _o2["unclassified_error_samples"] and "500" in _o2["unclassified_error_samples"][0])
 
-    print("[parse_guidellm --self-test] OK — G1~G19 전부 통과")
+    # ── G20~G22 벤치 종료 시 서버 생존(2026-09-07 · 유예 결함 ②) ──────────────────────────
+    #   같은 예외가 두 원인에서 나온다: 도구가 스트림을 끊었다 vs 엔진이 죽어 잘렸다.
+    #   절단선은 "벤치가 끝난 시점에 서버가 살아 있었는가" 이고, 그 관측이 없으면 역방향
+    #   fail-open 이 열린다(엔진 사망 중 잘린 SSE 가 도구 경계로 면제된다).
+    _g = build(_d, spec={"source": "declared-absent"}, max_error_rate=0.0,
+               server_alive_at_bench_end=True)
+    check("G20 서버 생존이면 도구 경계 면제가 유지된다",
+        _g["tool_boundary_errors"] == 3 and _g["boundary_exemption"].startswith("enabled"))
+    _gd = build(_d, spec={"source": "declared-absent"}, max_error_rate=0.0,
+                server_alive_at_bench_end=False)
+    check("G21 ★음성대조 서버가 죽었으면 면제 무효 — 전량 서버 오류로 센다",
+        _gd["tool_boundary_errors"] == 0
+        and _gd["server_error_rate"] > _g["server_error_rate"]
+        and _gd["boundary_exemption"].startswith("disabled"))
+    _gn = build(_d, spec={"source": "declared-absent"}, max_error_rate=0.0)
+    check("G22 관측이 없으면 모름으로 남긴다(False 로 접지 않는다)",
+        _gn["server_alive_at_bench_end"] is None
+        and _gn["tool_boundary_errors"] == 3
+        and "unobserved" in _gn["boundary_exemption"])
+
+    print("[parse_guidellm --self-test] OK — G1~G22 전부 통과")
     return 0
 
 
@@ -410,6 +446,9 @@ def main(argv=None):
                     help="같은 스윕 lite 레그의 `vllm bench serve` JSON — spec 수용길이를 승계한다")
     ap.add_argument("--spec-axis-absent", action="store_true",
                     help="spec 축 부재를 명시 선언한다(승계원이 없을 때. 그 사실이 출력에 남는다)")
+    ap.add_argument("--post-health-json",
+                    help="run_bench 가 벤치 직후 남긴 post_health_<cfg>.json. "
+                         "server_alive_at_bench_end=false 면 도구경계 면제가 무효화된다(유예 결함 ②).")
     ap.add_argument("--max-error-rate", type=float, default=0.0,
                     help="허용 오류율(기본 0.0 = 엄격). 0 이 아닌 값을 쓰려면 호출자가 근거를 갖고 "
                          "넘겨야 한다 — 실제 오류율은 산출물이 항상 error_rate 로 싣는다(삼키지 않는다).")
@@ -444,9 +483,21 @@ def main(argv=None):
                 "source": "inherited(%s)" % args.accept_len_src}
 
     engine_max = _engine_max(args.engine_log) if args.engine_log else None
+    # 벤치 종료 시 서버 생존 — **관측 파일이 있을 때만** 읽는다. 파일이 없으면 None(모름)이고,
+    # 모름을 False 로도 True 로도 접지 않는다(부재와 결측을 가른다).
+    alive = None
+    if args.post_health_json:
+        ph = _load(args.post_health_json, "--post-health-json")
+        v = ph.get("server_alive_at_bench_end") if isinstance(ph, dict) else None
+        if not isinstance(v, bool):
+            sys.stderr.write("[parse_guidellm] ERROR --post-health-json 에 "
+                             "server_alive_at_bench_end(boolean) 가 없다: %r\n" % v)
+            return 2
+        alive = v
     doc = _load(args.benchmarks_json, "--benchmarks-json")
     try:
-        out = build(doc, args.benchmark_index, engine_max, spec, args.max_error_rate)
+        out = build(doc, args.benchmark_index, engine_max, spec, args.max_error_rate,
+                    server_alive_at_bench_end=alive)
     except ValueError as exc:
         sys.stderr.write("[parse_guidellm] ERROR %s\n" % exc)
         return 2

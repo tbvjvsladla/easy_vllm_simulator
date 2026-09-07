@@ -1,4 +1,4 @@
-# hint 태그 발행 계약 (v4 · 2026-09-06 개정 — 강행 발행 · 노드 축)
+# hint 태그 발행 계약 (v5 · 2026-09-07 개정 — 층별 정합 · 결손 가시성 3곳 · 노드축 대조)
 
 > 정본. `.claude/skills/hint-publisher/scripts/hint_tag.py` 가 이 문서의 규약을 집행한다.
 > v1(암묵) → v2(명문) 전환이며, **v2 는 발효일 이후 생성 태그에만 적용**한다(§4 소급 금지).
@@ -25,7 +25,54 @@
 v1 게이트는 이 구분을 못 해서 **형식(footer 유무)으로 차단하고 증거(서빙 성공)는 검사하지 않았다.**
 v2 는 차단 사유를 **형식 미비 → 증거 부재·위조**로 옮긴다.
 
-## 3. 발행 가능 시점 (v4 — 필수는 하나뿐이다)
+## 3. 발행 가능 시점 (v5 — 층별로 다르다)
+
+> **v5 개정(2026-09-07 · plan_26090715 §4.6 · 인터뷰 Q5)**: v4 는 "§3·§4·§5 는 결손 기재 후 발행"
+> 이라 적었는데 **코드에는 그 경로가 없었다**(audit_26090708 §3). 계약과 코드가 갈리면 사람이
+> 우회로를 낸다 — 실제로 캠페인 ⑦ b0 이 `EVIDENCE_MISSING:simlog` 로 막히자 vault 사본을 만들어
+> 통과했다(D3 위반의 형태). v5 는 **층별로 다르게** 적어 두 자리가 같은 것을 말하게 한다.
+
+| 층 | 무엇 | v5 판정 | 집행 |
+|---|---|---|---|
+| **A** | **§3·§4 구성 사실** — 트리플렛 3 · `build_recipe` · `compose` | **항상 필수**(선언으로 면제 불가) | `hint_collect` `exemptible: False` 3슬롯 |
+| **B** | 승격 tier | `full_benchmark` 는 종전대로 · **새 `hint_map_only`** 가 지도 발행 통로를 연다(plan·devlog·testlog 만 필수) | `completion_gate` `BASE_REQUIRED_EVIDENCE` |
+| **C** | `hint_tag --manifest` | 유지 — B 가 열리므로 도달 가능하다 | `hint_tag` argparse |
+| **§5** | 성능 수치 | **관측 게재만**. `baseline`·권고 승격 금지 · `mode=lite` 는 결손 선언 · `verdict=FAIL` 은 §3.2 perf_waiver 4필드 + 본문 `PERF-WARNING` | `completion_gate` + `hint_tag._require_map_only_observation`(본문 `OBSERVATION-ONLY` 마커) |
+
+**A 를 왜 안 여는가**: 트리플렛·빌드레시피·기동방법이 없으면 재현이 **원리적으로** 불가능하다.
+그건 "모르는 것"이 아니라 "지도가 아닌 것"이다. 결손 기재는 *모르는 것*에 쓰는 도구다.
+
+**결손 가시성은 세 곳이다**(하나라도 빠지면 수신자가 비교할 수 없다):
+1. 본문 §3/§4/§5 절 옆 결손 슬롯 표 · 2. `PAYLOAD.json.missing[]`(배포 페이로드 · `--payload` 로 배선) ·
+3. 카탈로그 `결손` **파생 컬럼**(`hints/index.json`·`HINTS.md`). 태그 **이름**에는 등급을 새기지 않는다 —
+이름은 불변인데 결손은 재발행으로 바뀌고, 새기는 순간 이름이 거짓이 된다.
+
+### 3.-1 태그는 hint 브랜치의 페이로드 커밋을 가리킨다 (v5 집행)
+
+계약 §6 이 이미 그렇게 적었으나 **검사하는 코드가 없었다**(fail-open). 그래서 native 태그 3종이
+소스 트리 커밋에 봉인된 채 나갔고, single 태그가 multi-node 커밋에 앵커되기까지 했다.
+v5 부터 `finalize`/`seal` 이 셋을 강제한다: 앵커가 `refs/heads/hint` 의 **조상**인가 ·
+`PAYLOAD.json` 이 앵커 트리에 있는가 · `PROVENANCE.tag` 가 이 태그인가.
+사유코드 `HINT_ANCHOR_NOT_ON_HINT_BRANCH` · `HINT_ANCHOR_PAYLOAD_ABSENT` ·
+`HINT_ANCHOR_PROVENANCE_TAG_MISMATCH`.
+
+### 3.-2 노드축 ↔ 인증서 대조 (v5 신설 · 2단계)
+
+한 태그 = 한 노드 형상의 수행 기록이다(§1). 그런데 `measured_node` 와 태그 arch 노드축의 대조가
+**어디에도 없었다** — 서브가 잰 것을 main 태그로 봉인해도 게이트가 울리지 않았다.
+
+1. **1차(정직 라벨)**: 인증서 `measured_node_source` 가 `self_role` 부재 시 `defaulted(self_role absent)`
+   로 적힌다(종전엔 부재의 기본값을 `derived(...)` 라고 **거짓 표시**했다). 메인 manifest 에도
+   `self_role: main` 을 둔다.
+2. **2차(차단)**: `--campaign-evidence <evidence_pointers.json>` 로 넘긴 스냅샷의 인증서와 대조해
+   불일치면 `HINT_ARCH_NODE_AXIS_CERT_MISMATCH` 차단. **부재는 결손 기재**(부재 ≠ 불일치).
+   cluster 축 전용 판정식: `measured_node == cluster` ∧ 인증서 `topology == multi`(쌍은 하나의 정체성).
+
+**입력 통로는 하나다** — `hint_tag` 는 `campaigns/ACTIVE` 를 **알지 못한다**. 라이브 인스턴스를 읽으면
+발행 시점마다 다른 것을 읽게 되고(태그는 불변인데 입력이 흐른다), 캠페인 밖 발행이 활성 캠페인을
+오독한다. 스냅샷은 publish 위상의 `proof.ok` 시점에 `frozen_utc` 로 동결된다.
+
+## 3.1 v4 서술 (필수는 하나 — §3 의 A 층이 그 위에 선다)
 
 > **v4 개정(2026-09-06 · plan_26090616 Q7/Q8 · 사용자 결정)**: v2 는 서빙 증거와 lite 지표
 > **둘 다** 를 필수로 걸었다. 그 결과 발행돼야 할 hint 가 발행되지 않았다 — 2026-09-05 캠페인에서
@@ -58,7 +105,7 @@ full 벤치는 동시성 레벨마다 잰다. 그런데 인증서는 판정점 �
 `scripts/render_bench_section.py` 가 바인딩된 벤치 리포트를 **결정론 파싱**해 표를 렌더하고,
 `--verify` 가 발행분을 재렌더해 **diff 0** 을 요구한다. LLM 은 이 표의 숫자를 옮기지 않는다.
 
-### 3.1 full ⊇ lite 불변식
+### 3.1.1 full ⊇ lite 불변식
 
 full 벤치는 lite 의 **상위집합**이어야 한다. 교집합이면 lite 로 잰 모델과 full 로 잰 모델의
 지표 **열(column) 집합이 달라져 조건별 비교가 깨진다**.

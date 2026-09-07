@@ -164,7 +164,9 @@ _LITE_BENCH_REPORT = """# bench_report selftest
 def _write_promotion_manifest(root: Path, verdict: str, benchmark_extra: dict | None,
                               certificate: str | None = None, smoke_passed: bool = True,
                               promotion_target: dict | None = None,
-                              bench_report_text: str = _LITE_BENCH_REPORT) -> Path:
+                              bench_report_text: str = _LITE_BENCH_REPORT,
+                              task_class: str = "full_benchmark",
+                              drop_evidence: tuple = ()) -> Path:
     """full_benchmark work-manifest + 그 증거 아티팩트를 `root` 안에 실제로 짓는다.
 
     승격 게이트 회귀(`_test_promotion_rubric_carrier`)와 hint 발행 회귀
@@ -185,6 +187,13 @@ def _write_promotion_manifest(root: Path, verdict: str, benchmark_extra: dict | 
     simlog = root / "docs" / "simlog" / "selftest_run"
     simlog.mkdir(parents=True, exist_ok=True)
     (simlog / "summary.json").write_text("{}\n", encoding="utf-8")
+    # ★ 2026-09-07: 실물 trial vault 는 **종결 기록**을 든다(`run_summary.json`). 픽스처가 그것을
+    #   빠뜨리면 "vault 존재 = run 종결" 이라는 틀린 전제 위에서 시험이 초록으로 남는다 —
+    #   실제로 그 전제 때문에 generate 실패로 종결 기록이 없는 vault 가 게이트를 통과했다
+    #   (유예 결함 ⑥). 픽스처를 실물만큼 넓힌다.
+    (simlog / "run_summary.json").write_text(
+        json.dumps({"run_id": "selftest_run", "converged": True, "trial_count": 1,
+                    "provenance": "mock"}) + "\n", encoding="utf-8")
     paths["simlog"] = os.path.relpath(simlog, evidence_dir)
     if certificate is not None:
         artifact = root / "docs" / "benchmark" / "benchmark_selftest.yaml"
@@ -193,9 +202,11 @@ def _write_promotion_manifest(root: Path, verdict: str, benchmark_extra: dict | 
 
     benchmark = {"mode": "full", "verdict": verdict}
     benchmark.update(benchmark_extra or {})
+    for _k in drop_evidence:
+        paths.pop(_k, None)
     manifest = {
         "schema_version": 1,
-        "task_class": "full_benchmark",
+        "task_class": task_class,
         "identity": dict(_PROMO_IDENTITY),
         "runtime": {"health_ok": True, "functional_smoke_passed": smoke_passed,
                     "identity": dict(_PROMO_IDENTITY), "containers": []},
@@ -500,9 +511,44 @@ def _hint_cli(root: Path, *args: str) -> subprocess.CompletedProcess:
                           cwd=str(root), capture_output=True, text=True, timeout=180)
 
 
+def _hint_payload_anchor(root: Path, tag: str, source_anchor: str) -> str:
+    """`refs/heads/hint` 위에 **진짜 페이로드 커밋**을 짓고 그 SHA 를 돌려준다.
+
+    ★ 2026-09-07 신설(plan_26090715 §5 ①-a). 종전 픽스처는 빈 소스 커밋을 앵커로 썼고, 그래서
+      "태그는 hint 브랜치의 페이로드 커밋을 가리킨다"(계약 §6)는 계약이 **한 번도 시험되지 않았다**.
+      픽스처가 실물보다 좁으면 그 위의 단언은 실물에서 성립하는 성질을 시험하지 못한다 —
+      실제로 native 태그 3종이 소스 커밋에 봉인된 채 전 게이트를 통과해 나갔다(audit_26090708 §2).
+      plumbing 으로 짓는 이유: 워킹트리를 건드리지 않고 배포 트리만 만들면 되기 때문이다
+      (`hint_branch.py publish` 가 실물에서 하는 일과 같은 모양).
+    """
+    def _hash_object(text: str) -> str:
+        cp = subprocess.run(["git", "-C", str(root), "hash-object", "-w", "--stdin"],
+                            input=text, capture_output=True, text=True, timeout=60, check=True)
+        return cp.stdout.strip()
+
+    payload = json.dumps({"schema_version": 1, "kind": "hint_payload_facts",
+                          "provenance": "derived", "missing": []}, ensure_ascii=False) + "\n"
+    prov = json.dumps({"version": 1, "anchor": source_anchor, "tag": tag,
+                       "source_branch": "selftest"}, ensure_ascii=False) + "\n"
+    entries = [("PAYLOAD.json", _hash_object(payload)),
+               ("PROVENANCE.json", _hash_object(prov)),
+               ("README.md", _hash_object("# hint payload (selftest fixture)\n"))]
+    tree_input = "".join(f"100644 blob {sha}\t{name}\n" for name, sha in sorted(entries))
+    tree = subprocess.run(["git", "-C", str(root), "mktree"], input=tree_input,
+                          capture_output=True, text=True, timeout=60, check=True).stdout.strip()
+    commit = subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", "-c", "user.name=selftest",
+         "-c", "user.email=selftest@example.invalid", "-C", str(root),
+         "commit-tree", tree, "-m", f"hint payload for {tag} (selftest)"],
+        capture_output=True, text=True, timeout=60, check=True).stdout.strip()
+    _hint_git(root, "update-ref", "refs/heads/hint", commit)
+    return commit
+
+
 def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = None,
                         bench_report_text: str = _LITE_BENCH_REPORT,
-                        recipe_body: str = _HINT_RECIPE_BODY) -> dict:
+                        recipe_body: str = _HINT_RECIPE_BODY,
+                        anchor_mode: str = "payload") -> dict:
     """격리 레포에서 create→seal→**catalog derive**→verify 를 실제로 돌린다.
 
     2026-09-01: `index`(손저작 색인)가 D1.1 로 폐쇄되어 카탈로그 단계를 원격 파생으로 옮겼다.
@@ -510,7 +556,12 @@ def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = 
     """
     with tempfile.TemporaryDirectory(prefix="hint-binding-selftest.") as td:
         root = Path(td).resolve()
-        anchor = _hint_repo(root)
+        source_anchor = _hint_repo(root)
+        # 계약 §6: 태그가 가리키는 것은 **페이로드 커밋**이다(소스 커밋이 아니다).
+        payload_anchor = _hint_payload_anchor(root, _HINT_TAG, source_anchor)
+        # anchor_mode="source" 는 **음성대조**다: 발행자가 hint_branch publish 를 건너뛰고 소스
+        # 트리 커밋에 봉인하려 한 그 형태(2026-09-07 native 3종). 게이트가 그것을 막아야 한다.
+        anchor = source_anchor if anchor_mode == "source" else payload_anchor
         manifest = _write_promotion_manifest(
             root, "PASS" if certificate is not None else "REFUTE", benchmark_extra,
             certificate=certificate, bench_report_text=bench_report_text,
@@ -521,7 +572,10 @@ def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = 
         # 없어졌기 때문이다(plan_26090107 §6). 신규 슬러그는 이제 플래그 없이 통과한다.
         common = ("--tag", _HINT_TAG, "--topology", _HINT_TOPOLOGY, "--commit", anchor,
                   "--hf-repo", _HINT_HF_REPO, "--manifest", str(manifest))
-        out = {"anchor": anchor, "create": _hint_cli(root, "create", *common)}
+        out = {"anchor": anchor, "source_anchor": source_anchor,
+               "payload_anchor": payload_anchor,
+               "root": str(root), "manifest": str(manifest),
+               "create": _hint_cli(root, "create", *common)}
         if out["create"].returncode != 0:
             return out
         recipe = root / "hints" / ".drafts" / "selftest_recipe.md"
@@ -636,6 +690,123 @@ def _test_hint_binding_source() -> None:
              and "PROMOTION_GATE_NOT_ELIGIBLE" in out["create"].stdout,
              f"a REFUTE run with no waiver and no explore authority was allowed to publish: "
              f"rc={out['create'].returncode} stdout={out['create'].stdout[-700:]!r}")
+
+    # ---- H6 ★ 계약 §6 — 태그는 **hint 브랜치 페이로드 커밋**을 가리킨다(2026-09-07 · plan_26090715).
+    #      소스 트리 커밋에 봉인하려 하면 `seal` 이 차단해야 한다. 이 검사가 없던 동안 native
+    #      태그 3종이 그대로 나갔고, single 태그가 multi-node 커밋에 앵커되기까지 했다.
+    out = _hint_publish_probe(dict(_PROMO_RUBRIC), anchor_mode="source")
+    _require(out["source_anchor"] != out["payload_anchor"],
+             "fixture built the same commit for source and payload — the H6 control is vacuous")
+    seal = out.get("seal")
+    _require(seal is not None and seal.returncode != 0
+             and "HINT_ANCHOR_NOT_ON_HINT_BRANCH" in (seal.stderr or "") + (seal.stdout or ""),
+             f"a source-tree anchor was sealed as a hint tag: "
+             f"rc={getattr(seal, 'returncode', None)} "
+             f"stderr={getattr(seal, 'stderr', '')[-700:]!r}")
+
+
+def _test_hint_map_only_promotion() -> None:
+    """`hint_map_only` — 계약 v5 §3 의 '결손 기재 후 발행' 이 **도달 가능한** 유일한 통로.
+
+    2026-09-07 신설(plan_26090715 §4.6). 종전에는 계약이 "§3·§4·§5 는 결손 기재 후 발행" 이라
+    적었는데 코드에서 도달 불가였다 — hint_tag 가 요구하는 promotion-ready manifest 가
+    full_benchmark ∧ mode=full ∧ verdict=PASS ∧ 증거 5종일 때만 나왔기 때문이다. 그래서 사람이
+    vault 사본을 만들어 우회했다(D3 위반의 형태). 이 시험은 **문이 실제로 열리는지**와
+    **열린 문으로 성능 주장이 새어 나가지 않는지**를 함께 본다.
+    """
+    def _verify(root: Path, manifest: Path) -> dict:
+        cp = subprocess.run([sys.executable, str(root / ".claude/policies/runtime/completion_gate.py"),
+                             "verify", "--manifest", str(manifest)],
+                            cwd=str(root), capture_output=True, text=True, timeout=120)
+        try:
+            return json.loads(cp.stdout)
+        except ValueError:
+            return {"_rc": cp.returncode, "_stdout": cp.stdout[-400:], "_stderr": cp.stderr[-400:]}
+
+    with tempfile.TemporaryDirectory(prefix="hint-map-only-selftest.") as td:
+        root = Path(td).resolve()
+        _hint_repo(root)
+        # ① 인증서·bench_report·simlog **없이** 지도 발행 통로가 열린다.
+        m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC),
+                                      task_class="hint_map_only",
+                                      drop_evidence=("simlog", "bench_report"))
+        out = _verify(root, m)
+        _require(out.get("state") == "promotion-ready" and out.get("eligible_for_promotion") is True
+                 and "HINT_MAP_ONLY_PROMOTION" in (out.get("reason_codes") or []),
+                 f"hint_map_only did not reach promotion-ready without certificate/bench_report/simlog: {out}")
+
+        # ② ★음성대조 verdict=FAIL 은 사람 positive key 없이는 못 연다(§3.2 perf_waiver).
+        m = _write_promotion_manifest(root, "FAIL", dict(_PROMO_RUBRIC),
+                                      task_class="hint_map_only",
+                                      drop_evidence=("simlog", "bench_report"))
+        out = _verify(root, m)
+        _require(out.get("eligible_for_promotion") is not True
+                 and "HINT_MAP_FAIL_REQUIRES_WAIVER" in (out.get("reason_codes") or []),
+                 f"a FAIL verdict reached promotion through hint_map_only without a waiver: {out}")
+
+        # ③ waiver 4필드가 있으면 열린다 — 대가는 본문 PERF-WARNING 이고 그것은 hint_tag 가 집행한다.
+        m = _write_promotion_manifest(
+            root, "FAIL", dict(_PROMO_RUBRIC, perf_waiver={
+                "authorized_by": "selftest-operator", "authorized_at_utc": "2026-09-07T00:00:00Z",
+                "instruction": "loop-until-done 중단", "warning_flag": "PERF-WARNING: selftest"}),
+            task_class="hint_map_only", drop_evidence=("simlog", "bench_report"))
+        out = _verify(root, m)
+        _require(out.get("eligible_for_promotion") is True,
+                 f"hint_map_only with a complete perf_waiver was still blocked: {out}")
+
+        # ④ ★음성대조 여정을 담는 셋(plan·devlog·testlog)은 면제되지 않는다.
+        m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC),
+                                      task_class="hint_map_only",
+                                      drop_evidence=("simlog", "bench_report", "devlog"))
+        out = _verify(root, m)
+        _require(out.get("eligible_for_promotion") is not True,
+                 f"hint_map_only reached promotion without devlog -- the journey evidence is not optional: {out}")
+
+        # ⑤ ★음성대조 종전 경로 불변: full_benchmark 는 여전히 증거 5종을 요구한다.
+        m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC),
+                                      drop_evidence=("simlog",))
+        out = _verify(root, m)
+        _require(out.get("eligible_for_promotion") is not True,
+                 f"full_benchmark stopped requiring simlog -- the new class relaxed the old one: {out}")
+
+    # ⑦ ★음성대조 종결을 말하지 않는 simlog vault 는 차단된다(2026-09-07 · 유예 결함 ⑥).
+    with tempfile.TemporaryDirectory(prefix="simlog-unterminated-selftest.") as td:
+        root = Path(td).resolve()
+        _hint_repo(root)
+        m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC))
+        vault = root / "docs" / "simlog" / "selftest_run"
+        (vault / "run_summary.json").unlink()          # 종결 기록만 뺀다 — 로그 파일은 그대로
+        cp = subprocess.run([sys.executable, str(root / ".claude/policies/runtime/completion_gate.py"),
+                             "verify", "--manifest", str(m)],
+                            cwd=str(root), capture_output=True, text=True, timeout=120)
+        out = json.loads(cp.stdout) if cp.stdout.strip().startswith("{") else {}
+        _require("EVIDENCE_SIMLOG_RUN_UNTERMINATED" in (out.get("reason_codes") or []),
+                 f"a simlog vault with no terminal record still passed the evidence gate: {out}")
+        # bench vault 장르는 run_summary 없이도 통과해야 한다(장르를 섞으면 정상 산출물이 막힌다)
+        (vault / "level_01_measured.json").write_text(
+            json.dumps({"measurement_ok": True, "decode_tps": 1.0}) + "\n", encoding="utf-8")
+        cp = subprocess.run([sys.executable, str(root / ".claude/policies/runtime/completion_gate.py"),
+                             "verify", "--manifest", str(m)],
+                            cwd=str(root), capture_output=True, text=True, timeout=120)
+        out = json.loads(cp.stdout) if cp.stdout.strip().startswith("{") else {}
+        _require("EVIDENCE_SIMLOG_RUN_UNTERMINATED" not in (out.get("reason_codes") or []),
+                 f"a bench-genre vault was blocked by a trial-genre rule: {out}")
+
+    # ⑥ 본문 마커 집행은 hint_tag 소관이다(평면 분리) — 그 함수가 실재하고 발화하는지 본다.
+    hint_tag = _import_hint_tag()
+    raised = None
+    try:
+        hint_tag._require_map_only_observation(
+            "selftest", {"task_class": "hint_map_only", "identity": {}}, "본문에 마커가 없다")
+    except SystemExit as exc:
+        raised = exc
+    _require(raised is not None,
+             "hint_map_only body without the OBSERVATION-ONLY marker was accepted")
+    hint_tag._require_map_only_observation(
+        "selftest", {"task_class": "hint_map_only", "identity": {}},
+        f"§5 {hint_tag.MAP_ONLY_MARKER} 관측 게재")
+    hint_tag._require_map_only_observation(
+        "selftest", {"task_class": "full_benchmark", "identity": {}}, "마커 없음(무관)")
 
 
 def _test_policy_and_evidence_lifecycle() -> None:
@@ -1694,6 +1865,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_promotion_rubric_carrier()
     _test_certificate_run_resolution()
     _test_hint_binding_source()
+    _test_hint_map_only_promotion()
     _test_policy_and_evidence_lifecycle()
     _test_provider_turn_exhaustion_reachable()
     _test_execution_approval_authorization()

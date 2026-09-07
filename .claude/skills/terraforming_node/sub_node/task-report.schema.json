@@ -448,6 +448,66 @@
           "description": "이 노드가 만들지 **못한** 것의 사유코드. 부재를 침묵으로 두지 않는다 — 강행 발행 정책에서 결손은 차단이 아니라 **기재** 대상이다(plan_26090616 Q7/Q8)."
         }
       }
+    },
+    "next_steps": {
+      "type": "array",
+      "description": "남은 일. 예산이 모자라면 소진하지 말고 `input-required` 로 끊고 여기에 적는다(scope ⊥ budget). 메인의 `assemble_continuation` 이 이 목록을 읽어 재개 본문을 만든다 — 2026-09-07 이전에는 소비자는 있는데 **스키마에 자리가 없어** 서브가 규약대로 적으면 additionalProperties:false 로 거부됐다(plan_26090715 F10).",
+      "items": {
+        "type": "string"
+      }
+    },
+    "campaign_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "메인이 위임 헤더로 보낸 campaign_id 를 **그대로** 되받아 적는다. 서브 인스턴스 디렉터리명도 이 값이어야 한다 — 이름을 짓지 않는다. 부재도 불일치도 메인이 STOP 한다(fail-closed · plan_26090715 §4.8)."
+    },
+    "control_variables_echo": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "메인이 보낸 layer-1 통제변인(타겟 HW·모델·엔진·토폴로지)을 그대로 되받아 적는다. layer-1 개정 창구는 메인 하나이며, 서브가 값을 바꿨다면 그것은 개정이 아니라 드리프트다(2026-09-05: 모델 행이 빠져 서브가 다른 모델을 집었다)."
+    },
+    "running_services": {
+      "type": "array",
+      "description": "이 턴이 끝난 시점에 **아직 돌고 있는** 서비스(서빙 컨테이너·백그라운드 러너). status != completed 로 끊을 때는 반드시 적는다 — 2026-09-07 유예 결함 ⑦: 위임이 예산 소진으로 끊기면 서브에 컨테이너가 남는데 원장에 그 필드가 없어 메인은 고아를 알 수 없었다(회수 미러의 budget_honored/budget_none 이벤트가 문서기반 생존 신호인데 읽는 코드가 0 이었다). 빈 배열은 '없다' 는 선언이고, 필드 부재는 '모른다' 이며 메인이 그 둘을 다르게 다룬다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "name"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "container",
+              "process",
+              "other"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "컨테이너명 또는 프로세스 식별자"
+          },
+          "port": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "왜 남겼는가(의도적 상주인가 고아인가)"
+          }
+        }
+      }
     }
   }
 }

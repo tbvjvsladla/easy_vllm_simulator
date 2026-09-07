@@ -199,6 +199,31 @@ def stalled_attempts(doc: dict) -> int:
 DEFAULT_CAPABILITIES = ("read", "execute", "edit", "write", "search")
 
 
+def campaign_control_block(campaign_id: str | None, control: dict | None) -> str:
+    """위임 헤더의 **캠페인 정체성 + layer-1 통제변인** 칸(2026-09-07 · plan_26090715 §4.8).
+
+    왜: 종전 요청에는 캠페인 id 가 없어서 서브가 자기 인스턴스 이름을 **스스로 지었다**
+    (메인 `camp-26090617-gb10-native` vs 서브 `camp7-sub-native`) — 교차 상관이 불가능했다.
+    그리고 2026-09-05 요청의 통제변인 표에는 **모델 행이 없었고**, 서브는 저장소 기본 config 의
+    다른 모델을 집었다. 나를 것을 헤더가 나른다.
+    """
+    if not campaign_id and not control:
+        return ""
+    lines = ["## [relay] 캠페인 정체성 — 서브는 이 id 로 자기 인스턴스를 만든다(이름을 짓지 않는다)\n"]
+    if campaign_id:
+        lines.append(f"- campaign_id: {campaign_id}\n")
+        lines.append(f"- 서브 인스턴스 경로: campaigns/{campaign_id}/  (디렉터리명 = campaign_id)\n")
+    if control:
+        lines.append("- layer-1 통제변인(메인 단일 창구 · 서브는 **그대로 echo** 한다):\n")
+        for k in sorted(control):
+            lines.append(f"    - {k}: {control[k]}\n")
+    lines.append("- 규약: 리포트 `campaign_id` 에 위 값을 그대로 적고, `control_variables_echo` 에\n"
+                 "  위 표를 그대로 되받아 적어라. **부재도 불일치도 메인이 STOP 한다**(fail-closed).\n"
+                 "  통제변인을 바꿔야 한다고 판단하면 스스로 바꾸지 말고 `input-required` 로 끊고\n"
+                 "  `next_steps` 에 사유를 적어라 — 개정 창구는 메인 하나다.\n\n")
+    return "".join(lines)
+
+
 def relay_header(context_id: str, attempt: int, allocated: int, budget_source: str) -> str:
     """위임 본문 머리에 붙는 결정론 헤더.
 
@@ -222,7 +247,8 @@ def relay_header(context_id: str, attempt: int, allocated: int, budget_source: s
 
 def build_request(topology: str, manifest: str, task: str, bud: dict,
                   resume_session_id=None, capabilities=None,
-                  context_id: str = None, attempt: int = 0, model: str = None) -> dict:
+                  context_id: str = None, attempt: int = 0, model: str = None,
+                  campaign_id: str = None, control_variables: dict = None) -> dict:
     """위임 request 조립. `bud` 는 **선언된** 예산이다(`turn_budget.declare` 산출)."""
     base = _canary.build_request(topology, manifest, max_turns=bud["max_turns"],
                                  timeout_seconds=bud["timeout_seconds"],
@@ -230,12 +256,105 @@ def build_request(topology: str, manifest: str, task: str, bud: dict,
                                  model=model)  # target 해소·센티넬 거부를 재사용
     allocated = bud["max_turns"]
     base["intent"] = "delegate"
-    base["task"] = ((relay_header(context_id, attempt, allocated, bud["source"]) + task)
-                    if context_id else task)
+    camp_block = campaign_control_block(campaign_id, control_variables)
+    base["task"] = ((relay_header(context_id, attempt, allocated, bud["source"]) + camp_block + task)
+                    if context_id else (camp_block + task))
+    if campaign_id:
+        base["campaign_id"] = campaign_id
+    if control_variables:
+        base["control_variables"] = dict(control_variables)
     base["capabilities"] = list(capabilities or DEFAULT_CAPABILITIES)
     if resume_session_id:
         base["resume_session_id"] = resume_session_id
     return base
+
+
+def resolve_campaign_axis(a) -> "tuple[str | None, dict | None]":
+    """요청에 실을 캠페인 정체성 + layer-1 통제변인을 **활성 캠페인 선언에서 파생**한다.
+
+    손으로 적지 않는다 — 2026-09-05 요청의 통제변인 표에서 모델 행이 빠진 것이 손저작의 결과였다.
+    `_bootstrap`(캠페인 밖)이면 싣지 않는다: 캠페인 밖 온보딩·카나리가 캠페인 정체성을 주장하면
+    그 왕복이 캠페인 흉내를 내게 된다.
+    """
+    if getattr(a, "no_campaign", False):
+        return None, None
+    camp = getattr(a, "campaign_id", None)
+    if not camp:
+        try:
+            camp = _campaign_init().active_campaign_id(a.repo_root)
+        except Exception:                                    # noqa: BLE001
+            return None, None
+    if not camp or camp == "_bootstrap":
+        return None, None
+    decl_path = os.path.join(a.repo_root, "campaigns", camp, "campaign.yaml")
+    if not os.path.isfile(decl_path):
+        return camp, None
+    try:
+        with open(decl_path, encoding="utf-8") as fh:
+            decl = json.load(fh)
+    except (OSError, ValueError):
+        return camp, None
+    revs = decl.get("revisions")
+    cur = (revs[-1].get("values") if isinstance(revs, list) and revs else None) \
+        or decl.get("control_variables") or {}
+    # `_` 로 시작하는 키는 사람 주석이다 — echo 대조의 시민이 아니다.
+    control = {k: v for k, v in cur.items()
+               if isinstance(k, str) and not k.startswith("_") and not isinstance(v, (dict, list))}
+    return camp, (control or None)
+
+
+def _campaign_init():
+    import importlib.util
+    mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "campaign_init.py")
+    spec = importlib.util.spec_from_file_location("_campaign_init_for_relay", mod_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def echo_stop_reasons(att: dict, *, context_id: str, campaign_id: str | None,
+                      control_variables: dict | None) -> list[str]:
+    """서브가 되받아 적은 정체성을 판정한다 — **부재도 불일치도 STOP**(2026-09-07 · 인터뷰 Q7).
+
+    ★ 종전 검사는 `if att["context_id_reported"] and …` 였다. 값이 있을 때만 물었으므로
+      **부재는 침묵 통과**했다. 캠페인 ⑦ 왕복 4회 중 3회가 echo 부재였고 원장은 그대로 진행했다
+      (testlog_26090716 §3). 부재를 통과시키면 "서브가 규약을 안 지켰다"와 "서브가 다른 작업을
+      하고 있다"가 구분되지 않는다 — 둘 다 이어가면 안 되는 상태다.
+
+    서브 리포트가 아예 없는 attempt(크래시)는 이 판정의 대상이 아니다. 그것은 echo 위반이 아니라
+    도달 실패이고, 이미 `end_reason` 이 말한다(같은 사실을 두 사유로 세지 않는다).
+    """
+    if not att.get("sub_reported"):
+        return []
+    reasons: list[str] = []
+    got_ctx = att.get("context_id_reported")
+    if not got_ctx:
+        reasons.append(f"context_id echo 부재 — 메인은 '{context_id}' 를 헤더로 보냈다. "
+                       f"서브가 그것을 되받지 않으면 두 원장이 같은 작업인지 확인할 수단이 없다")
+    elif got_ctx != context_id:
+        reasons.append(f"context_id 불일치 — 메인 '{context_id}' vs 서브 '{got_ctx}'")
+    if campaign_id:
+        got_camp = att.get("campaign_id_reported")
+        if not got_camp:
+            reasons.append(f"campaign_id echo 부재 — 메인은 '{campaign_id}' 를 보냈다. "
+                           f"부재를 통과시키면 서브가 자기 인스턴스 이름을 스스로 짓는다"
+                           f"(2026-09-07 실측: 서브가 'camp7-sub-native' 를 저작했다)")
+        elif got_camp != campaign_id:
+            reasons.append(f"campaign_id 불일치 — 메인 '{campaign_id}' vs 서브 '{got_camp}'")
+    if control_variables:
+        echo = att.get("control_variables_echo")
+        if not isinstance(echo, dict) or not echo:
+            reasons.append("control_variables echo 부재 — layer-1 선언은 메인 단일 창구이고 "
+                           "서브는 그대로 되받아야 한다(2026-09-05: 모델 행이 빠져 서브가 다른 "
+                           "모델을 집었다)")
+        else:
+            diff = [k for k, v in control_variables.items()
+                    if str(echo.get(k)) != str(v)]
+            if diff:
+                reasons.append("control_variables 불일치 — " + ", ".join(
+                    f"{k}: 메인 {control_variables[k]!r} vs 서브 {echo.get(k)!r}" for k in diff)
+                    + ". 서브가 선언을 바꿨다면 그것은 개정이 아니라 드리프트다")
+    return reasons
 
 
 def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, report=None,
@@ -288,6 +407,14 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
         "phase": report.get("phase"),
         # 2026-09-04(감사 D6): 서브가 회신한 정체성을 **그대로** 남기고 대조는 소비자가 한다.
         "context_id_reported": report.get("context_id"),
+        # 2026-09-07(plan_26090715 §4.8): 캠페인 정체성 echo. 대조는 소비자(--continue)가 하며
+        #   **부재도 불일치도 STOP** 이다 — 종전 `if 값 and …` 는 부재를 침묵 통과시켰다.
+        "campaign_id_reported": report.get("campaign_id"),
+        # 2026-09-07(유예 결함 ⑦): 이 턴이 끝난 시점에 아직 도는 서비스. `None` = 서브가 말하지
+        #   않았다(모름) · `[]` = 없다는 **선언**. 둘을 같은 값으로 접으면 고아 컨테이너가
+        #   "없음" 으로 보인다.
+        "running_services": report.get("running_services"),
+        "control_variables_echo": report.get("control_variables_echo"),
         # B안(2026-09-04 사용자 결정): 서브가 직접 수행한 외부검색 이력. 이것이 남아야 B안은
         #   권한 확대가 아니라 **자산화 경로**가 된다(plan §6.1).
         "external_search": report.get("external_search") or [],
@@ -729,6 +856,83 @@ def _self_test() -> int:
         _e0 = pending_for(d, "ctx-crash")
         chk(pc is not None and _e0 and "sC" in (_e0[0].get("prompt") or ""),
             "★리포트 없이 끝난 턴은 대기 목록에 마지막 알려진 세션을 남긴다(침묵 종결 ✗)")
+    # ── 캠페인 정체성 배달 + echo fail-closed (2026-09-07 · plan_26090715 §4.8) ─────────────
+    CV = {"model": "gpt-oss-20b", "vllm_version": "0.18.0", "topology": "single",
+          "target_gpu": "NVIDIA GB10"}
+    blk = campaign_control_block("camp-x", CV)
+    chk("campaign_id: camp-x" in blk, "위임 헤더가 campaign_id 를 싣는다")
+    chk("campaigns/camp-x/" in blk, "서브 인스턴스 경로를 디렉터리명 = campaign_id 로 지시한다")
+    chk(all(f"- {k}: {CV[k]}" in blk for k in CV),
+        "★layer-1 통제변인 4키가 전부 실린다(2026-09-05 에 모델 행이 빠졌다)")
+    chk("control_variables_echo" in blk and "부재도 불일치도" in blk,
+        "echo 규약과 fail-closed 를 서브에게 명시한다")
+    chk(campaign_control_block(None, None) == "",
+        "캠페인 밖(_bootstrap)에서는 캠페인 축을 싣지 않는다")
+
+    def _att(**kw):
+        base = {"sub_reported": True, "context_id_reported": "ctx-1",
+                "campaign_id_reported": "camp-x",
+                "control_variables_echo": dict(CV)}
+        base.update(kw)
+        return base
+
+    _S = lambda att: echo_stop_reasons(att, context_id="ctx-1", campaign_id="camp-x",
+                                       control_variables=CV)
+    chk(not _S(_att()), "전부 일치하면 통과")
+    chk(any("context_id echo 부재" in r for r in _S(_att(context_id_reported=None))),
+        "★음성대조 context_id echo **부재**도 STOP(종전 `if 값 and` 는 침묵 통과했다)")
+    chk(any("context_id 불일치" in r for r in _S(_att(context_id_reported="other"))),
+        "★음성대조 context_id 불일치 STOP")
+    chk(any("campaign_id echo 부재" in r for r in _S(_att(campaign_id_reported=None))),
+        "★음성대조 campaign_id echo 부재 STOP(서브가 이름을 스스로 짓는 것을 막는다)")
+    chk(any("campaign_id 불일치" in r for r in _S(_att(campaign_id_reported="camp7-sub-native"))),
+        "★음성대조 서브 자작 인스턴스명 STOP(2026-09-07 실측 형태)")
+    chk(any("control_variables echo 부재" in r for r in _S(_att(control_variables_echo=None))),
+        "★음성대조 통제변인 echo 부재 STOP")
+    _drift = dict(CV, model="gpt-oss-120b")
+    chk(any("control_variables 불일치" in r and "gpt-oss-120b" in r
+            for r in _S(_att(control_variables_echo=_drift))),
+        "★음성대조 서브가 모델을 바꾸면 드리프트로 STOP(2026-09-05 서브 120b 사건 형태)")
+    chk(_S(_att(sub_reported=False, context_id_reported=None)) == [],
+        "리포트 없는 크래시는 echo 위반이 아니다(같은 사실을 두 사유로 세지 않는다)")
+    chk(echo_stop_reasons(_att(campaign_id_reported=None, control_variables_echo=None),
+                          context_id="ctx-1", campaign_id=None, control_variables=None) == [],
+        "캠페인 축을 안 실었으면 그 echo 도 묻지 않는다")
+
+    # record_attempt 가 echo 두 필드를 실제로 원장에 옮기는가(배선 실효)
+    with tempfile.TemporaryDirectory() as d2:
+        lp2 = ledger_path(d2, "ctx-camp")
+        doc2 = load_ledger(lp2)
+        record_attempt(doc2, context_id="ctx-camp", bud=BUD25,
+                       result={"num_turns": 5, "session_id": "s", "status": "completed",
+                               "reason_codes": []},
+                       report={"status": "completed", "phase": "publish",
+                               "context_id": "ctx-camp", "campaign_id": "camp-x",
+                               "control_variables_echo": dict(CV)})
+        _a = doc2["attempts"][-1]
+        chk(_a["campaign_id_reported"] == "camp-x" and _a["control_variables_echo"] == CV,
+            "원장이 campaign echo 두 필드를 남긴다(소비자가 읽을 자리)")
+
+    # ── 고아 서비스 원장 기록(2026-09-07 · 유예 결함 ⑦) ────────────────────────────────
+    with tempfile.TemporaryDirectory() as d3:
+        lp3 = ledger_path(d3, "ctx-svc")
+        doc3 = load_ledger(lp3)
+        record_attempt(doc3, context_id="ctx-svc", bud=BUD25,
+                       result={"num_turns": 25, "budget_outcome": "exhausted", "session_id": "s",
+                               "status": "completed", "reason_codes": []},
+                       report={"status": "input-required", "context_id": "ctx-svc",
+                               "running_services": [{"kind": "container", "name": "cell-x-serving",
+                                                     "port": 8000, "note": "예산 소진 시점 상주"}]})
+        chk(doc3["attempts"][-1]["running_services"][0]["name"] == "cell-x-serving",
+            "원장이 고아 서비스를 남긴다(소비자가 읽을 자리)")
+        doc4 = load_ledger(ledger_path(d3, "ctx-svc2"))
+        record_attempt(doc4, context_id="ctx-svc2", bud=BUD25,
+                       result={"num_turns": 5, "session_id": "s", "status": "completed",
+                               "reason_codes": []},
+                       report={"status": "completed", "context_id": "ctx-svc2"})
+        chk(doc4["attempts"][-1]["running_services"] is None,
+            "★말하지 않은 것은 None(모름)이지 빈 목록(없다는 선언)이 아니다")
+
     print("self-test: %s" % ("PASS" if ok else "FAIL"))
     return 0 if ok else 2
 
@@ -781,7 +985,9 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     attempt_no = len(doc.get("attempts") or []) + 1
     resume = None if resume_declared in (None, "new") else resume_declared
     req = build_request(a.topology, a.manifest_path, task, bud, resume_session_id=resume,
-                        context_id=a.context_id, attempt=attempt_no, model=a.model)
+                        context_id=a.context_id, attempt=attempt_no, model=a.model,
+                        campaign_id=getattr(a, "campaign_id", None),
+                        control_variables=getattr(a, "control_variables", None))
 
     if a.emit_only:
         json.dump(req, sys.stdout, ensure_ascii=False, indent=2)
@@ -864,9 +1070,11 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     if att["resume_honored"] is False:
         print(f"[relay] ⚠ 재개 불발: 요청한 세션 {resume} 과 다른 세션 {att['session_id']} 이 열렸다 — "
               "서브가 컨텍스트를 처음부터 재구축했을 수 있다(소진의 주된 원인). 다음 턴의 예산을 그렇게 읽어라.")
-    if att["context_id_reported"] and att["context_id_reported"] != a.context_id:
-        print(f"[relay] ⚠ context_id 불일치: 메인 '{a.context_id}' vs 서브 '{att['context_id_reported']}' — "
-              "`--continue` 는 이 상태에서 진행하지 않는다(두 원장이 같은 작업인지 확인 불가).")
+    _echo_stop = echo_stop_reasons(att, context_id=a.context_id,
+                                   campaign_id=(a.campaign_id or doc.get("campaign_id")),
+                                   control_variables=doc.get("control_variables"))
+    for _r in _echo_stop:
+        print(f"[relay] ⚠ 정체성 echo: {_r} — `--continue` 는 이 상태에서 진행하지 않는다.")
     if att["external_search"]:
         print(f"[relay] 서브가 외부검색 {len(att['external_search'])}건을 기록했다 — 자산화 후보. "
               f"근거는 원장 attempt {att['attempt']}.external_search 에 있다.")
@@ -921,6 +1129,12 @@ def main() -> int:
                     help="--continue 와 함께: 조립한 본문으로 실제 위임한다(사람 승인 정문).")
     ap.add_argument("--emit-only", action="store_true", help="request 만 조립해 출력(실행 ✗)")
     ap.add_argument("--repo-root", default=REPO)
+    # 2026-09-07(plan_26090715 §4.8): 캠페인 정체성은 **요청에 실려 간다**. 생략하면 활성
+    #   캠페인에서 파생하고, `_bootstrap`(캠페인 밖)이면 싣지 않는다.
+    ap.add_argument("--campaign-id", default=None,
+                    help="위임에 실을 캠페인 id(생략 시 활성 캠페인 · _bootstrap 이면 미탑재)")
+    ap.add_argument("--no-campaign", action="store_true",
+                    help="캠페인 축을 싣지 않는다(캠페인 밖 온보딩·카나리)")
     ap.add_argument("--self-test", action="store_true")
     a = ap.parse_args()
     if a.self_test:
@@ -930,6 +1144,11 @@ def main() -> int:
 
     lp = ledger_path(a.repo_root, a.context_id)
     doc = load_ledger(lp)
+    a.campaign_id, a.control_variables = resolve_campaign_axis(a)
+    if a.campaign_id:
+        doc["campaign_id"] = a.campaign_id
+    if a.control_variables:
+        doc["control_variables"] = a.control_variables
 
     if a.continue_:
         # 이어가기에 필요한 것은 전부 **원장**에서 온다 — 사람이 다시 적지 않는다.
@@ -947,11 +1166,32 @@ def main() -> int:
         if last and last.get("status") == "completed":
             raise SystemExit("[relay] STOP: 직전 attempt 가 completed 다 — 이을 중단점이 없다.\n"
                              "  → 새 과업이면 새 --context-id 로 `--task` 를 연다.")
-        if last and last.get("context_id_reported") and last["context_id_reported"] != a.context_id:
-            raise SystemExit(
-                f"[relay] STOP: context_id 불일치 — 메인 '{a.context_id}' vs 서브 "
-                f"'{last['context_id_reported']}'. 두 원장이 같은 작업인지 확인되지 않았다.\n"
-                "  → 서브가 위임 헤더의 context_id 를 회신하도록 한 뒤 재개하라.")
+        if last:
+            # ── 고아 서비스 게이트(2026-09-07 · 유예 결함 ⑦) ──────────────────────────────
+            #   예산 소진으로 끊긴 턴이 서브에 컨테이너를 남겼는데 그것을 모른 채 다음 턴을 열면
+            #   두 서빙이 같은 호스트 메모리를 두고 다툰다(하드다운 계보가 있는 축이다).
+            #   `running_services` 가 **비어 있지 않으면** 회신 없이 잇지 않는다.
+            _svcs = last.get("running_services")
+            if isinstance(_svcs, list) and _svcs:
+                _names = ", ".join(str(x.get("name")) for x in _svcs if isinstance(x, dict))
+                raise SystemExit(
+                    f"[relay] STOP: 직전 턴이 서비스를 남긴 채 끝났다 — {_names}\n"
+                    f"  그 상태로 다음 턴을 열면 두 서빙이 같은 호스트 메모리를 두고 다툰다.\n"
+                    f"  → 서브에 정리를 지시하거나(A2A 제어명령), 의도적 상주면 그 사실을\n"
+                    f"    `--task` 본문에 적고 **새 context** 로 열어라(우회로 잇지 않는다).")
+            if (last.get("budget_outcome") == "exhausted"
+                    and last.get("running_services") is None):
+                print("[relay] ⚠ 직전 턴이 예산을 소진했는데 running_services 를 말하지 않았다 — "
+                      "고아 서비스 여부가 **모름**이다. 서브 규약(task-report.running_services)을 "
+                      "따르게 하라.", file=sys.stderr)
+            _stop = echo_stop_reasons(last, context_id=a.context_id,
+                                      campaign_id=(a.campaign_id or doc.get("campaign_id")),
+                                      control_variables=doc.get("control_variables"))
+            if _stop:
+                raise SystemExit(
+                    "[relay] STOP: 서브 정체성 echo 가 성립하지 않는다 — 부재도 불일치도 STOP 이다.\n"
+                    + "".join(f"  - {r}\n" for r in _stop)
+                    + "  → 서브가 위임 헤더의 값을 그대로 회신하도록 한 뒤 재개하라(우회 ✗).")
         pend = pending_for(a.repo_root, a.context_id)
         blocked = [e for e in pend if entry_blocking(e) and not e.get("answer")]
         if blocked:

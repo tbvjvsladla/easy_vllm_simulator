@@ -34,6 +34,15 @@
     "target_gpu": "<<FILL>>"
   },
 
+  "_revisions_howto": [
+    "layer-1(통제변인) 개정 이력. revisions[0] 은 t0 원본이며 **불변**이고, 위 control_variables 와 같아야 한다.",
+    "개정은 append-only 이고 **메인 단일 창구**다 — 서브는 릴레이로 요청만 하고 자기 선언에는 메인 선언을 그대로 echo 한다.",
+    "기입 경로: campaign_init.py --revise --revise-set K=V --revise-reason ... --revise-evidence ... --revise-approved-by ... --utc ...",
+    "각 항목은 사유·근거 경로·승인자·시각 4필드가 필수다. 넷 중 하나라도 없으면 그것은 개정이 아니라 드리프트다.",
+    "layer-2 셀 축(kv dtype·attention·MoE·batch)은 여기 오지 않는다 — 그쪽은 셀의 axis_citation 이 자율로 든다."
+  ],
+  "revisions": [],
+
   "hint_targets": [
     {"arch": "<<FILL>>", "node_id": "<<FILL>>", "cells": []}
   ],

@@ -19,14 +19,15 @@
     },
     "task_class": {
       "type": "string",
-      "description": "Maps to the required_evidence table in plan_26072506 section 4.4 (.claude/policies/runtime/completion_gate.py REQUIRED_EVIDENCE + required_evidence_for()).",
+      "description": "Maps to the required_evidence table in plan_26072506 section 4.4 (.claude/policies/runtime/completion_gate.py REQUIRED_EVIDENCE + required_evidence_for()). · 2026-09-07 신설 `hint_map_only`: 계약 v5 §3 의 '결손 기재 후 발행' 이 코드에서 도달 가능해지는 유일한 통로다(plan_26090715 §4.6).",
       "enum": [
         "model_serving_strategy",
         "full_benchmark",
         "harness_change",
         "capacity_rejection",
         "minor_patch",
-        "read_only_audit"
+        "read_only_audit",
+        "hint_map_only"
       ]
     },
     "identity": {
