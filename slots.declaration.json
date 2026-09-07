@@ -4,31 +4,31 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "서빙에 원리적으로 필수다. config.yaml 이 타겟 GPU 클램프(H100 80GiB · target_gmu 0.90 · cards_per_node 1)를 선언하고, .sh 러너가 엔진 인자를, .env 가 컨테이너·포트·마운트 형상을 갖는다."
+      "rationale": "KV 절대클램프 52,567,672,969 B · batch 16 · TP=1 이 이 서빙의 성립 조건이다 — serve 시점 성립분."
     },
     "runtime_patch": {
       "applicable": false,
-      "rationale": "gpt-oss-20b 는 0.18.0 stock 이 processor·config 를 그대로 받는다. 몽키패치 자리가 나오지 않았고 서빙 로그에 shim 발화가 0회다."
+      "rationale": "stock 이 harmony 를 이미 든다 — Python processor/config shim 이 필요 없었다(부재가 곧 불해당)."
     },
     "build_patch_pre": {
       "applicable": false,
-      "rationale": "vLLM 0.18.0 이 핀한 torch 2.10.0 과 NGC 26.01 의 2.10.0a0 이 접두어 일치해 prebuilt wheel 트랙이 성립한다 — 컴파일 자체가 없다."
+      "rationale": "arch-wall 미조우 — stock 0.18.0 이 sm_121 에서 그대로 컴파일됐다(소스 수정 0)."
     },
     "build_patch_post": {
       "applicable": false,
-      "rationale": "빌드-바깥 native 의존이 없다. 시험한 커널 축이 전부 stock 으로 낙찰돼 추가 라이브러리를 요구하지 않았다."
+      "rationale": "빌드-바깥 native 의존 설치가 없었다 — 컴파일 후 추가할 lib/커널이 없다."
     },
     "build_recipe": {
       "applicable": true,
-      "rationale": "NGC 26.01 베이스 위에 wheel 을 --no-deps 로 얹는 순서와 분산 런타임 스탠자가 여기 있다. 이것 없이는 같은 이미지가 재현되지 않는다."
+      "rationale": "prebuilt wheel 트랙 Dockerfile — 같은 _C ABI 를 재현하려면 이미지를 지은 레시피가 필요하다."
     },
     "compose": {
       "applicable": true,
-      "rationale": "GPU 런타임·oom_score_adj·memlock·JIT 캐시 영속 마운트가 서빙 성립 조건이다. 캐시 마운트가 없으면 매 기동이 cold JIT 이 되어 호스트 압박 리스크를 새로 진다."
+      "rationale": "단일 노드라도 GPU 예약·마운트·포트를 이 파일이 든다 — 기동 방법 없이는 재현이 불가능하다."
     },
     "fork_pin": {
       "applicable": false,
-      "rationale": "stock 0.18.0 이 이 모델을 서빙한다. arch-wall 이 없어 사다리에 진입할 이유가 없었다 — .env 에 VARIANT= 줄이 없다."
+      "rationale": ".env 에 VARIANT= 줄이 없다 = stock. 포크 좌표를 쓰지 않았다는 사실이 그 부재로 표현된다."
     }
   }
 }

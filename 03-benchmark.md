@@ -1,7 +1,7 @@
 # 3. 벤치 결과 — 그리고 무엇과 비교할 수 있나
 
 > 아래 수치는 인증서에서 **파싱만** 한 것이다. 합성하지 않았고, 재계산하지 않았다.
-> 출처: `benchmark_26090603_gpt-oss-20b_GB10_0.18.0.yaml`
+> 출처: `benchmark_26090618_gpt-oss-20b_GB10_0.18.0.yaml`
 
 ## 성능
 
@@ -9,23 +9,23 @@
 |---|---|
 | `benchmark_mode` | full |
 | `verdict` | PASS |
-| `decode_tps_conc1` | 45.54 |
+| `decode_tps_conc1` | 45.48 |
 | `rubric_authority` | explore |
 | `primary_source` | expected_achievable(roofline×MBU) |
 | `primary_tps` | 19.63 |
 | `floor_tps` | 16.69 |
 | `tolerance` | 0.15 |
-| `ratio_M_over_primary` | 2.32 |
+| `ratio_M_over_primary` | 2.317 |
 | `spec_on` | false |
 | `accept_len` | N/A |
 | `sweep_levels` | 1,2,4,8,16 |
 | `sweep_truncated` | N/A |
 | `lite_included` | true |
-| `lite_gen_tps_warm` | 45.54 |
+| `lite_gen_tps_warm` | 45.86 |
 | `lite_gen_src` | median_tpot |
-| `lite_cold_ttft_ms` | 519.1 |
-| `lite_kv_gib` | 56.0 |
-| `measured_utc` | 2026-09-05T18:12:05Z |
+| `lite_cold_ttft_ms` | 37.1 |
+| `lite_kv_gib` | 48.96 |
+| `measured_utc` | 2026-09-06T09:40:20Z |
 
 ## 측정 구성 — 무엇으로 쟀나(기재 · 게이트 아님)
 
@@ -34,9 +34,9 @@
 
 | 항목 | 값 |
 |---|---|
-| `bench_tool` | vllm-bench-serve |
-| `bench_tool_version` | N/A |
-| `bench_tool_version_source` | declared(도구가 버전을 자기보고하지 않는다) |
+| `bench_tool` | guidellm |
+| `bench_tool_version` | 0.7.3 |
+| `bench_tool_version_source` | measured(benchmarks.json metadata.guidellm_version) |
 
 ## 강한 일치 키 — 하나라도 다르면 이 수치는 **무효**다
 
@@ -58,38 +58,54 @@
 | `image_tag` | easy-vllm:0.18.0-cu130-aarch64-wheel |
 | `image_digest` | sha256:d022edd3bfaf101e0c978930716da1b6845ebb16a72c1479eb9d764469568f44 |
 | `max_model_len` | 131072 |
-| `max_num_seqs` | 36 |
-| `kv_cache_memory_bytes` | 60129542144 |
+| `max_num_seqs` | 16 |
+| `kv_cache_memory_bytes` | 52567672969 |
 | `kv_cache_dtype` | fp8 |
 | `gpu_memory_utilization` | 0.9 |
 | `moe_backend` | marlin |
 | `enforce_eager` | N/A |
 | `ngc_base_tag` | N/A |
 
+## 부하 스윕 곡선 — 동시성별 (결정론 파싱 · 손저작 ✗)
+
+> 단일 running serve 에 **동시 요청 수만** 바꿔 잰 곡선이다(reload 없음 · request-rate=inf).
+> `동시성=1` 행이 인증서의 판정점이며, 나머지 행은 그 레시피가 **부하에서 어떻게 되는지**를 말한다.
+> 출처: `bench_report_26090618_gpt-oss-20b_GB10_0.18.0.md` (bench_report) · 소수 2자리 표시 반올림 · 결측은 `N/A`(0 이 아니다).
+> 이 표는 스크립트가 파싱해 렌더한다 — 손으로 옮긴 수치가 아니며 `--verify` 가 diff 0 을 요구한다.
+
+| 동시성 | decode t/s | 출력 tok/s | 총 tok/s | TTFT p50(ms) | ITL p50(ms) | 완료/실패 |
+|---|---|---|---|---|---|---|
+| 1 ★판정점 | 45.48 | 40.57 | 213.48 | 106.00 | 21.66 | 14/2 |
+| 2 | 43.10 | 82.22 | 432.59 | 143.31 | 22.72 | 16/0 |
+| 4 | 35.31 | 95.86 | 504.37 | 171.82 | 27.86 | 13/4 |
+| 8 | 28.82 | 142.64 | 750.53 | 151.96 | 34.17 | 13/3 |
+| 16 | 23.08 | 267.43 | 1407.13 | 584.77 | 41.21 | 17/1 |
+
+_절삭된 레벨 없음(요청 전 레벨 완주)._
+
+
+## 결손 기재
+
+_결손 없음 — 이 절이 요구하는 증거가 모두 도착했다._
+
 ## like-with-like 한정자 (Agent)
 
-**측정 조건.** GuideLLM 0.7.3 · 입력 1024 tok · 출력 256 tok · 프롬프트 16개 · warmup 2 ·
-엔드포인트 `openai`(completions) · `ignore_eos=true` · 동시성 1/2/4/8/16 **전 구간 완주**
-(`sweep_truncated: N/A`). 표의 `decode_tps_conc1` 은 동시성 1 값이다.
+**비교 가능**: 같은 GB10 단일 노드 · vLLM 0.18.0 · mxfp4 · TP=1 · `max_model_len 131072` ·
+GuideLLM 0.7.3 · 입력 1024/출력 256 · `ignore_eos` on · request-rate=inf 인 판. 위 §강한 일치 키가
+하나라도 다르면 이 수치는 **무효**다.
 
-**비교할 수 있는 것**
-- 같은 강한 일치 키(gpt-oss-20b · GB10 · 0.18.0 · mxfp4 · single · TP=1)를 가진 다른 셀. 이 캠페인의
-  커널 축 8셀이 그러하며 전부 44.53~45.59 t/s 안에 있다.
-- 같은 도구·같은 입출력 길이로 잰 다른 GB10 노드의 같은 레시피. 실제로 두 번째 노드가 45.28 t/s 를
-  독립 측정했다(세 측정의 폭 0.7%).
+**비교 불가 — 특히 주의할 셋**:
+1. **엔드포인트.** 이 판은 **chat**(`/v1/chat/completions`)으로 쟀고 판정점에서 16건 중 2건이
+   harmony 파서 파손으로 errored 다. 형제 태그 `gb10-sub-native` 는 **완결**(`/v1/completions`)로
+   18/18 · 오류 0 이다. 두 값(45.48 vs 44.99)은 가까워 보이지만 **같은 조건의 측정이 아니다.**
+2. **예산 선택.** 이 판은 KV 50,133 MiB · `batch 16`, 형제 판은 KV 61,442 MiB · `batch 20` 이다.
+   batch 를 내주고 컨텍스트를 얻을지는 레시피의 **선택**이지 하드웨어의 성질이 아니다.
+3. **버전.** 0.19.0 판(`gb10x2-cluster-native`)과는 엔진 버전도 토폴로지도 다르다. 같은
+   하드웨어라는 이유로 나란히 놓지 마라.
 
-**비교할 수 없는 것**
-- ⚠ **다른 vLLM 버전의 hint 와 나란히 놓지 마라.** 같은 캠페인의 0.19.0 측정은 **모델(120b)과
-  토폴로지(TP=2)까지 함께 달라서** 차이를 버전에 귀속시킬 수 없다.
-- ⚠ **`--backend openai-chat` 으로 잰 harmony 수치와 비교 불가.** 그 경로는 `ignore_eos` 가 무력해
-  TPOT 이 크게 왜곡된 전례가 있다.
-- ⚠ **랜덤 데이터셋 하네스의 speculative-decoding 수치와 비교 불가.** 이 측정은 SD 없음
-  (`spec_on: false`)이고, 랜덤 데이터셋은 SD 를 과소평가한다.
-- ⚠ **KV 예산이 다르면 동시성 곡선이 통째로 다르다.** 이 측정은 `kv_cache_memory_bytes`
-  60,129,542,144(56 GiB)에서 났다. 그 값은 **타겟 H100 80GiB 클램프의 파생값**이지 호스트 VRAM 이
-  아니다 — 실제 H100 에서 재현하려면 같은 클램프를 선언해야 한다.
+**부하 곡선을 읽는 법**: 동시성 1→16 에서 decode 45.48 → 23.08 t/s 로 떨어지지만 총 처리량은
+213 → 1,407 tok/s 로 오른다. 어느 쪽이 목표인지에 따라 같은 표가 반대 결론을 준다 —
+**판정점(동시성 1)만 보면 부호가 뒤집힌다.**
 
-**호스트와 타겟이 다르다는 사실.** 측정 호스트는 GB10(통합메모리 128GB · aarch64 · sm_121a)이고
-`target_gpu` 선언은 H100(80 GiB/카드)이다. 따라서 이 수치는 **"H100 에서 이만큼 난다"가 아니라
-"H100 예산으로 클램프했을 때 GB10 에서 이만큼 났다"** 이다. 실카드 H100 의 대역폭·커널 가용성은
-다르므로 이 hint 는 **용량 계획의 지도**로 쓰고 성능은 그 하드웨어에서 재측정하라.
+**결측 표기**: `accept_len`·`sweep_truncated`·`enforce_eager`·`ngc_base_tag` 의 `N/A` 는
+그 시점에 그 필드가 없었다는 뜻이며 0 이 아니다.

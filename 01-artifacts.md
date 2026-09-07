@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/single/configs/gpt-oss-20b-gb10-h100sim.yaml`
-- `output/single/configs/gpt-oss-20b-gb10-h100sim.sh`
-- `output/single/envs/.env.gpt-oss-20b-gb10-h100sim`
+- `output/single/configs/a0-kvfp8-attnauto-moeauto.yaml`
+- `output/single/configs/a0-kvfp8-attnauto-moeauto.sh`
+- `output/single/envs/.env.a0-kvfp8-attnauto-moeauto`
 
 **build_recipe**
 - `output/single/Dockerfile`
@@ -32,31 +32,17 @@
 
 ## 적용 사유 (Agent)
 
-**`triplet` — 적용.** 서빙에 원리적으로 필수다. 이 레시피의 특징은 `config.yaml` 이 **타겟 GPU 를
-선언**한다는 점이다(H100 · 80 GiB/카드 · `target_gmu` 0.90 · cards_per_node 1). 측정은 GB10
-통합메모리에서 이뤄졌고 **클램프만 타겟 예산**이다 — 두 자리를 섞으면 거짓이 된다
-(`policy:KV_ABSOLUTE_CLAMP_PORTABILITY`). `.sh` 러너가 엔진 인자를, `.env` 가 컨테이너 이름·포트·
-마운트 형상을 갖는다.
-
-**`build_recipe` — 적용.** NGC `26.01-py3` 위에 vLLM 0.18.0 wheel 을 얹는 **순서**가 여기 있다.
-① `pip install --no-deps` 로 얹어 NGC 의 torch 를 보존한다 — `--no-deps` 를 빼면 wheel 이 자기
-torch 를 끌어와 NGC 빌드를 밀어낸다. ② **분산 런타임 스탠자**(`iproute2`·`netcat-openbsd`·`ray`)가
-들어 있다. 단일노드에는 불필요해 보이지만 없으면 같은 이미지로 TP=2 를 시도할 때
-`ray: command not found` 로 죽는다.
-
-**`compose` — 적용.** 단일노드라도 서빙 성립 조건을 담는다. `oom_score_adj: 800`(통합메모리 압박 시
-커널이 데스크톱이 아니라 vLLM 을 먼저 잡게), `memlock: -1`, 그리고 **JIT 캐시 영속 마운트**다.
-캐시 마운트가 없으면 매 기동이 cold JIT 이 되어 시간뿐 아니라 **호스트 압박 리스크를 매번 새로 진다**.
-
-**`runtime_patch` — 불해당.** 0.18.0 stock 이 processor·config 를 그대로 받는다. 서빙 로그에 shim
-발화가 0회다 — *부재는 미판정이 아니라 "관측했는데 필요 없었다"* 다.
-
-**`build_patch_pre` — 불해당.** torch 접두어 일치로 prebuilt wheel 트랙이 성립한다. 컴파일이 없으니
-컴파일-전 슬롯이 성립할 자리가 없다.
-
-**`build_patch_post` — 불해당.** 빌드-바깥 native 의존이 없다. 시험한 커널 축이 전부 stock 으로
-낙찰됐기 때문이다(§2).
-
-**`fork_pin` — 불해당 = stock.** arch-wall 이 없었으므로 사다리(deps 패치 → 소스 게이트 → 자체 이식 →
-포크 핀)에 진입할 이유가 없었다. `.env` 에 `VARIANT=` 줄이 **없는 것**이 그 표현이다 — 값을 지우는
-게 아니라 줄이 없는 것이 기본값이다.
+- **`triplet` (해당)** — 이 노드의 서빙은 KV 절대클램프 하나로 서고 넘어졌다. `.yaml` 이 든
+  `kv_cache_memory_bytes = 52,567,672,969 B`(50,133 MiB)와 `max_num_seqs = 16` 이 그 값이며,
+  둘 중 하나만 바꿔도 이 호스트에서는 서지 않거나 워치독에 사살된다. 러너 `.sh` 는 예산 선언 →
+  워치독 → 로드 순서를 강제한다(선언 없이 로드하면 방어가 없다).
+- **`build_recipe` (해당)** — stock vLLM 0.18.0 prebuilt wheel 트랙이다. 이미지를 지은 레시피가
+  없으면 같은 `_C` ABI 를 재현할 수 없으므로 이 슬롯은 선언으로 면제되지 않는다.
+- **`compose` (해당)** — 기동 방법 자체다. 단일 노드라도 `docker-compose.yaml` 이 GPU 예약·
+  마운트·포트를 든다. 이것 없이는 "무엇을 어떻게 띄웠나"가 남지 않는다.
+- **`runtime_patch` (불해당)** — 이 조합은 Python processor/config shim 이 필요 없었다.
+  gpt-oss 의 harmony 파서는 stock 이 이미 든다. **없어서 못 쓴 것이 아니라 쓸 일이 없었다.**
+- **`build_patch_pre` / `build_patch_post` (불해당)** — arch-wall 을 만나지 않았다. stock 0.18.0 이
+  sm_121 에서 그대로 컴파일·기동됐고, 소스 수정도 빌드-바깥 native 의존 설치도 없었다.
+- **`fork_pin` (불해당)** — `.env` 에 `VARIANT=` 줄이 없다. **줄이 없는 것이 stock 이라는 선언**이며,
+  포크 좌표를 쓰지 않았다는 사실이 그 부재로 표현된다(변종 좌표 거처 규약).
