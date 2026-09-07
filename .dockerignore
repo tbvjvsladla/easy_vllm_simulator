@@ -10,3 +10,4 @@ docker-compose.yaml
 .dockerignore
 .vscode/
 .idea/
+temp/

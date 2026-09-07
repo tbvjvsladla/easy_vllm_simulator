@@ -2,26 +2,25 @@
   "_meta": {
     "purpose": "토폴로지-중립 프로덕션 해소값 정본(SSOT). 렌더·런타임패치 검증·cleanup 이 함께 읽는다.",
     "structure": "top-level = default_track 의 해소값(기존 소비자 6곳이 그대로 읽는다). 다른 트랙은 tracks.<name> 에만 둔다 — default 를 tracks 에 중복 기재하지 않는다(목록 두 벌 = 갈라짐).",
-    "updated": "2026-09-03",
-    "why_updated": "8/11 0.27.0 bump 가 스모크 PASS·VALIDATED_SOURCE_BUILD_KEYS 승급까지 갔는데 이 정본은 0.26.0 에 멈춰 있었다(정본이 실물을 잃고 gitignored resolved.json 이 그림자로 실물을 보유). canonical 렌더는 --resolved 를 금지하므로 이 정체가 곧 '0.27.0 을 canonical 로 렌더할 수 없음'이었고, 그래서 8/11 렌더가 legacy --template 경로로 새어나갔다. [2026-09-03] tracks.wheel 을 0.19.1→0.18.0 으로 되돌림 — 사용자 명시 지시(gpt-oss-20b 를 vLLM 0.18.0 으로 서빙, 다운그레이드 의도 확인됨). S1.5 델타판정(v0.19.1→v0.18.0) axis_A=IMPACT(csrc FP4/MXFP4 커널 4파일 변경, gpt-oss 계열이 실사용) · axis_B=NO_IMPACT(stock) · unknown=∅ · 전역 IMPACT(UNDETERMINED 아님) — 사용자 승인 후 렌더 진입. 기존 gpt-oss-120b(0.19.1 검증분)는 같은 공유 이미지를 쓰므로 이 bump 로 회귀 재스모크 대상이 된다.",
+    "updated": "2026-09-07",
+    "why_updated": "Qwen3-4B KV양자화 대조군 캠페인(plan_26090720) — default_track 을 0.27.0 → 0.26.0 으로 내린다. 0.26.0 은 (26.05-py3 × 0.26.0) VALIDATED_SOURCE_BUILD_KEYS 승급 키(2026-07-30 · testlog_26073015 양노드 빌드+TP=2+스모크 PASS)가 있어 가드 정상 통과 경로다. source-build 트랙은 torch 핀을 걷어내므로(헌법 레이어 커플링) torch 2.11.0 선언과 NGC 26.05 의 torch 2.12.0a0 불일치는 트랙 설계상 정상. S1.5 judge(v0.18.0→v0.26.0): axis_A=UNDETERMINED(unknown=.yapfignore 1건, 포맷터 설정이라 빌드무관 — 사용자 게이트 ①.5 확인) · axis_B=NO_IMPACT(stock) · axis_C=NOT_IMPLEMENTED. 사용자 HITL ① 승인(2026-09-07).",
     "tracks_rationale": "사용자 지시(2026-08-13): 정본을 빌드 트랙별 두 벌로 나눈다. 갈림의 진짜 축은 브랜치나 토폴로지가 아니라 **빌드 트랙**이다 — torch 2.11+ 는 prebuilt wheel 의 _C 가 NGC alpha torch 와 C++ ABI 불일치를 일으켜 소스빌드가 강제되고, 2.10 이하만 wheel 이 성립한다. wheel 트랙은 그 대가로 구동 가능한 모델 범위가 좁다(신규 아키텍처 미지원)."
   },
-
   "default_track": "source-build",
-
-  "vllm_version": "0.27.0",
+  "vllm_version": "0.26.0",
   "torch": {
-    "pin": "2.13.0",
-    "source": "vLLM v0.27.0 pyproject.toml [build-system].requires (resolve_torch_pin.py)"
+    "pin": "2.11.0",
+    "source": "vLLM v0.26.0 pyproject.toml [build-system].requires (resolve_torch_pin.py)"
   },
   "ngc_base": {
-    "tag": "26.07-py3",
-    "cuda_version": "13.3.1.008",
-    "pytorch_build_version": "2.13.0a0+9186a08"
+    "tag": "26.05-py3",
+    "cuda_version": "13.2.1.009",
+    "pytorch_build_version": "2.12.0a0+5aff392",
+    "resolver": "VALIDATED_SOURCE_BUILD_KEYS (26.05-py3 × 0.26.0) 승급 키 채택 · imagetools 실측 2026-09-07"
   },
   "build_track": {
     "decision": "source-build",
-    "reason": "torch 2.13.0 >= 2.11 → prebuilt _C 와 NGC alpha torch 의 하드 C++ ABI 벽. _C 를 NGC torch 에 맞춰 소스컴파일해 해소.",
+    "reason": "torch 2.11.0 >= 2.11 → prebuilt _C 와 NGC alpha torch 의 하드 C++ ABI 벽. 소스빌드로 해소(검증 키 재사용).",
     "arbiter": "smoke"
   },
   "source_build": {
@@ -29,9 +28,10 @@
   },
   "wheel": {
     "cuda": "129",
-    "manylinux": "manylinux_2_28"
+    "manylinux": "manylinux_2_28",
+    "asset_name": "vllm-0.26.0+cu129-cp38-abi3-manylinux_2_28_aarch64.whl",
+    "resolver": "resolve_wheel.py 0.26.0 --arch aarch64 → 자산 실재 확인(source-build 트랙이라 미사용)"
   },
-
   "tracks": {
     "wheel": {
       "_note": "prebuilt wheel 트랙의 **성립 상한**은 0.19.1 이다(0.20.0 부터 torch 2.11.0 선언 → ABI 벽). **현재 핀은 0.18.0**(2026-09-03 사용자 명시 다운그레이드 지시 — gpt-oss-20b 서빙 목적). 0.18.0 도 torch 2.10 대라 wheel 트랙 성립 조건은 그대로 충족.",

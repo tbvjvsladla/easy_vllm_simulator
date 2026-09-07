@@ -5,7 +5,7 @@ x-gpu-common: &gpu-common
     dockerfile: Dockerfile.source-build   # 트랙별: Dockerfile(wheel) | Dockerfile.source-build(source)
   # 이미지 네이밍 불변식(easy-vllm:{vllm}-cu{cuda}-{arch}-{track}). 해소값이 기본, 콤보 env(.env.<config>)의
   # IMAGE_TAG 가 오버라이드 — 변종/이전 버전 이미지 재사용 경로(multi 통로와 동형·plan_2026072217_1 S1).
-  image: ${IMAGE_TAG:-easy-vllm:0.27.0-cu133-aarch64-source}
+  image: ${IMAGE_TAG:-easy-vllm:0.26.0-cu132-aarch64-source}
   runtime: nvidia
   ipc: host
   # OOM킬러 우선희생 지정(plan_2026071019_1 §2.4) — 통합메모리 압박 시 커널이 무고한 데스크톱 프로세스가
