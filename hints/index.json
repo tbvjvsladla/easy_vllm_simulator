@@ -13,8 +13,8 @@
       "arch": "gb10-main-native",
       "topology": "single 1노드",
       "brief": "GB10 네이티브 예산(외부 이식 타겟 없음) · KV 절대클램프를 실행 하드웨어 자신(121.69GiB×0.90)으로 산출 · 커널 축 부재 확증(attention 후보 ['TRITON_ATTN'] 단일 · MoE marlin)",
-      "anchor": "e3ccfa52258db56df88bb36b00a1c585ec6d33df",
-      "related": "",
+      "anchor": "a3fc9e82ded52ff0dfc7a31432a8d9f1ea7504fe",
+      "related": "hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8",
       "status": "active",
       "last_verified": "2026-09-07"
     },
