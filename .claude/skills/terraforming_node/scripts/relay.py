@@ -410,6 +410,10 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
         # 2026-09-07(plan_26090715 §4.8): 캠페인 정체성 echo. 대조는 소비자(--continue)가 하며
         #   **부재도 불일치도 STOP** 이다 — 종전 `if 값 and …` 는 부재를 침묵 통과시켰다.
         "campaign_id_reported": report.get("campaign_id"),
+        # 2026-09-07(유예 결함 ⑦): 이 턴이 끝난 시점에 아직 도는 서비스. `None` = 서브가 말하지
+        #   않았다(모름) · `[]` = 없다는 **선언**. 둘을 같은 값으로 접으면 고아 컨테이너가
+        #   "없음" 으로 보인다.
+        "running_services": report.get("running_services"),
         "control_variables_echo": report.get("control_variables_echo"),
         # B안(2026-09-04 사용자 결정): 서브가 직접 수행한 외부검색 이력. 이것이 남아야 B안은
         #   권한 확대가 아니라 **자산화 경로**가 된다(plan §6.1).
@@ -909,6 +913,26 @@ def _self_test() -> int:
         chk(_a["campaign_id_reported"] == "camp-x" and _a["control_variables_echo"] == CV,
             "원장이 campaign echo 두 필드를 남긴다(소비자가 읽을 자리)")
 
+    # ── 고아 서비스 원장 기록(2026-09-07 · 유예 결함 ⑦) ────────────────────────────────
+    with tempfile.TemporaryDirectory() as d3:
+        lp3 = ledger_path(d3, "ctx-svc")
+        doc3 = load_ledger(lp3)
+        record_attempt(doc3, context_id="ctx-svc", bud=BUD25,
+                       result={"num_turns": 25, "budget_outcome": "exhausted", "session_id": "s",
+                               "status": "completed", "reason_codes": []},
+                       report={"status": "input-required", "context_id": "ctx-svc",
+                               "running_services": [{"kind": "container", "name": "cell-x-serving",
+                                                     "port": 8000, "note": "예산 소진 시점 상주"}]})
+        chk(doc3["attempts"][-1]["running_services"][0]["name"] == "cell-x-serving",
+            "원장이 고아 서비스를 남긴다(소비자가 읽을 자리)")
+        doc4 = load_ledger(ledger_path(d3, "ctx-svc2"))
+        record_attempt(doc4, context_id="ctx-svc2", bud=BUD25,
+                       result={"num_turns": 5, "session_id": "s", "status": "completed",
+                               "reason_codes": []},
+                       report={"status": "completed", "context_id": "ctx-svc2"})
+        chk(doc4["attempts"][-1]["running_services"] is None,
+            "★말하지 않은 것은 None(모름)이지 빈 목록(없다는 선언)이 아니다")
+
     print("self-test: %s" % ("PASS" if ok else "FAIL"))
     return 0 if ok else 2
 
@@ -1143,6 +1167,23 @@ def main() -> int:
             raise SystemExit("[relay] STOP: 직전 attempt 가 completed 다 — 이을 중단점이 없다.\n"
                              "  → 새 과업이면 새 --context-id 로 `--task` 를 연다.")
         if last:
+            # ── 고아 서비스 게이트(2026-09-07 · 유예 결함 ⑦) ──────────────────────────────
+            #   예산 소진으로 끊긴 턴이 서브에 컨테이너를 남겼는데 그것을 모른 채 다음 턴을 열면
+            #   두 서빙이 같은 호스트 메모리를 두고 다툰다(하드다운 계보가 있는 축이다).
+            #   `running_services` 가 **비어 있지 않으면** 회신 없이 잇지 않는다.
+            _svcs = last.get("running_services")
+            if isinstance(_svcs, list) and _svcs:
+                _names = ", ".join(str(x.get("name")) for x in _svcs if isinstance(x, dict))
+                raise SystemExit(
+                    f"[relay] STOP: 직전 턴이 서비스를 남긴 채 끝났다 — {_names}\n"
+                    f"  그 상태로 다음 턴을 열면 두 서빙이 같은 호스트 메모리를 두고 다툰다.\n"
+                    f"  → 서브에 정리를 지시하거나(A2A 제어명령), 의도적 상주면 그 사실을\n"
+                    f"    `--task` 본문에 적고 **새 context** 로 열어라(우회로 잇지 않는다).")
+            if (last.get("budget_outcome") == "exhausted"
+                    and last.get("running_services") is None):
+                print("[relay] ⚠ 직전 턴이 예산을 소진했는데 running_services 를 말하지 않았다 — "
+                      "고아 서비스 여부가 **모름**이다. 서브 규약(task-report.running_services)을 "
+                      "따르게 하라.", file=sys.stderr)
             _stop = echo_stop_reasons(last, context_id=a.context_id,
                                       campaign_id=(a.campaign_id or doc.get("campaign_id")),
                                       control_variables=doc.get("control_variables"))

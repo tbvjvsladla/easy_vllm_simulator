@@ -187,6 +187,13 @@ def _write_promotion_manifest(root: Path, verdict: str, benchmark_extra: dict | 
     simlog = root / "docs" / "simlog" / "selftest_run"
     simlog.mkdir(parents=True, exist_ok=True)
     (simlog / "summary.json").write_text("{}\n", encoding="utf-8")
+    # ★ 2026-09-07: 실물 trial vault 는 **종결 기록**을 든다(`run_summary.json`). 픽스처가 그것을
+    #   빠뜨리면 "vault 존재 = run 종결" 이라는 틀린 전제 위에서 시험이 초록으로 남는다 —
+    #   실제로 그 전제 때문에 generate 실패로 종결 기록이 없는 vault 가 게이트를 통과했다
+    #   (유예 결함 ⑥). 픽스처를 실물만큼 넓힌다.
+    (simlog / "run_summary.json").write_text(
+        json.dumps({"run_id": "selftest_run", "converged": True, "trial_count": 1,
+                    "provenance": "mock"}) + "\n", encoding="utf-8")
     paths["simlog"] = os.path.relpath(simlog, evidence_dir)
     if certificate is not None:
         artifact = root / "docs" / "benchmark" / "benchmark_selftest.yaml"
@@ -761,6 +768,29 @@ def _test_hint_map_only_promotion() -> None:
         out = _verify(root, m)
         _require(out.get("eligible_for_promotion") is not True,
                  f"full_benchmark stopped requiring simlog -- the new class relaxed the old one: {out}")
+
+    # ⑦ ★음성대조 종결을 말하지 않는 simlog vault 는 차단된다(2026-09-07 · 유예 결함 ⑥).
+    with tempfile.TemporaryDirectory(prefix="simlog-unterminated-selftest.") as td:
+        root = Path(td).resolve()
+        _hint_repo(root)
+        m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC))
+        vault = root / "docs" / "simlog" / "selftest_run"
+        (vault / "run_summary.json").unlink()          # 종결 기록만 뺀다 — 로그 파일은 그대로
+        cp = subprocess.run([sys.executable, str(root / ".claude/policies/runtime/completion_gate.py"),
+                             "verify", "--manifest", str(m)],
+                            cwd=str(root), capture_output=True, text=True, timeout=120)
+        out = json.loads(cp.stdout) if cp.stdout.strip().startswith("{") else {}
+        _require("EVIDENCE_SIMLOG_RUN_UNTERMINATED" in (out.get("reason_codes") or []),
+                 f"a simlog vault with no terminal record still passed the evidence gate: {out}")
+        # bench vault 장르는 run_summary 없이도 통과해야 한다(장르를 섞으면 정상 산출물이 막힌다)
+        (vault / "level_01_measured.json").write_text(
+            json.dumps({"measurement_ok": True, "decode_tps": 1.0}) + "\n", encoding="utf-8")
+        cp = subprocess.run([sys.executable, str(root / ".claude/policies/runtime/completion_gate.py"),
+                             "verify", "--manifest", str(m)],
+                            cwd=str(root), capture_output=True, text=True, timeout=120)
+        out = json.loads(cp.stdout) if cp.stdout.strip().startswith("{") else {}
+        _require("EVIDENCE_SIMLOG_RUN_UNTERMINATED" not in (out.get("reason_codes") or []),
+                 f"a bench-genre vault was blocked by a trial-genre rule: {out}")
 
     # ⑥ 본문 마커 집행은 hint_tag 소관이다(평면 분리) — 그 함수가 실재하고 발화하는지 본다.
     hint_tag = _import_hint_tag()

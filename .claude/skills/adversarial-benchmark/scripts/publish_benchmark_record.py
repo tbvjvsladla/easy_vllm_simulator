@@ -142,6 +142,10 @@ def build_yaml(index, verdict):
     # 항상 적는다: 결측이면 N/A 여야 부재와 결측이 구분된다.
     A("measured_node: %s" % scalar(meta.get("measured_node")))
     A("measured_node_source: %s" % scalar(meta.get("measured_node_source")))
+    # 벤치 종료 시 서버 생존(2026-09-07 · 유예 결함 ②) — 소프트 지문이 아니라 **측정 유효성 사실**이다.
+    #   false 면 이 측정의 errored 는 도구 경계로 면제되지 않았다는 뜻이다(파서가 이미 반영했다).
+    A("server_alive_at_bench_end: %s" % scalar(meta.get("server_alive_at_bench_end")))
+    A("boundary_exemption: %s" % scalar(meta.get("boundary_exemption")))
     return "\n".join(L) + "\n"
 
 

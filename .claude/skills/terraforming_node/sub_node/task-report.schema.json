@@ -469,6 +469,45 @@
         "null"
       ],
       "description": "메인이 보낸 layer-1 통제변인(타겟 HW·모델·엔진·토폴로지)을 그대로 되받아 적는다. layer-1 개정 창구는 메인 하나이며, 서브가 값을 바꿨다면 그것은 개정이 아니라 드리프트다(2026-09-05: 모델 행이 빠져 서브가 다른 모델을 집었다)."
+    },
+    "running_services": {
+      "type": "array",
+      "description": "이 턴이 끝난 시점에 **아직 돌고 있는** 서비스(서빙 컨테이너·백그라운드 러너). status != completed 로 끊을 때는 반드시 적는다 — 2026-09-07 유예 결함 ⑦: 위임이 예산 소진으로 끊기면 서브에 컨테이너가 남는데 원장에 그 필드가 없어 메인은 고아를 알 수 없었다(회수 미러의 budget_honored/budget_none 이벤트가 문서기반 생존 신호인데 읽는 코드가 0 이었다). 빈 배열은 '없다' 는 선언이고, 필드 부재는 '모른다' 이며 메인이 그 둘을 다르게 다룬다.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "name"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "container",
+              "process",
+              "other"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "컨테이너명 또는 프로세스 식별자"
+          },
+          "port": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "왜 남겼는가(의도적 상주인가 고아인가)"
+          }
+        }
+      }
     }
   }
 }

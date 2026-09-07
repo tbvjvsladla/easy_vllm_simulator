@@ -1149,6 +1149,48 @@ DIR_EVIDENCE_KEYS = {"simlog"}  # the only evidence kind that must be a real dir
 MARKDOWN_LIKE_EVIDENCE_KEYS = {"plan", "devlog", "testlog", "bench_report", "report", "verification", "commit"}
 
 
+def _simlog_terminated(repo_root: Path, manifest_dir: Path, rel_path: str) -> "tuple[bool, str]":
+    """simlog vault 가 **종결을 말하는가**. 반환 (종결 여부, 사유).
+
+    2026-09-07 신설(유예 결함 ⑥). vault 의 **존재**와 run 의 **종결**은 다른 사실인데 종전 게이트는
+    앞의 것만 물었다("비어 있지 않은 정규 파일 1개"). 그래서 generate 가 실패해 종결 기록이 없는
+    vault 가 남아도 그 안의 로그 파일 하나로 통과했다 — 돌다 만 run 이 완주로 보이는 fail-open 이다.
+
+    ★ vault 는 **두 장르**다. 하나를 다른 하나의 잣대로 재면 정상 산출물이 차단된다(2026-09-07
+      실측: 멀티 벤치 vault 에 run_summary 를 요구했더니 클러스터 판이 막혔다).
+      · trial vault (`recipe.py simulate`) — 종결 기록은 `run_summary.json` 의 converged/final_class.
+      · bench vault (스윕 산출물) — 종결 기록은 `*measured*.json` 의 `measurement_ok` 키 실재.
+    둘 다 없으면 그 vault 는 자기가 끝났는지를 말하지 않는 것이고, 그때만 차단한다.
+    """
+    base = (manifest_dir / rel_path).resolve()
+    try:
+        base.relative_to(repo_root.resolve())
+    except ValueError:
+        return False, "vault 경로가 저장소 밖이다"
+    rs = base / "run_summary.json"
+    if rs.is_file():
+        try:
+            doc = json.loads(rs.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            return False, f"run_summary.json 판독 실패({exc.__class__.__name__})"
+        if not isinstance(doc, dict):
+            return False, "run_summary.json 이 객체가 아니다"
+        if doc.get("converged") is True or doc.get("final_class") not in (None, ""):
+            return True, "trial vault: run_summary 가 종결을 말한다"
+        return False, (f"trial vault 인데 run_summary 가 종결을 말하지 않는다"
+                       f"(converged={doc.get('converged')!r} final_class={doc.get('final_class')!r})")
+    measured = sorted(base.glob("*measured*.json")) + sorted(base.glob("*/measured.json"))
+    for m in measured:
+        try:
+            doc = json.loads(m.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(doc, dict) and "measurement_ok" in doc:
+            return True, f"bench vault: {m.name} 이 측정 종결을 말한다"
+    return False, ("run_summary.json 도 없고 measurement_ok 를 담은 measured 산출물도 없다 — "
+                   "이 vault 는 자기가 끝났는지를 말하지 않는다")
+
+
 def required_evidence_for(task_class: str, conditions: dict, verdict) -> list[str]:
     required = list(BASE_REQUIRED_EVIDENCE.get(task_class, ()))
     conditions = conditions or {}
@@ -1991,6 +2033,19 @@ def cmd_verify(args: argparse.Namespace) -> None:
                 all_present = False
                 status_label = r["status"] if r else "absent"
                 add_reason(f"EVIDENCE_MISSING:{key}", f"required evidence '{key}' missing/unresolvable (status={status_label})")
+            elif required and key == "simlog" and exists:
+                # ── simlog vault 는 "파일이 하나라도 있다" 로는 부족하다 (2026-09-07 · 유예 결함 ⑥) ──
+                #   종전 검사는 **비어 있지 않은 정규 파일 1개**만 물었다. 그래서 사전 저작 트리플렛 +
+                #   simulate 조합에서 generate 가 실패해 `run_summary.json` 이 없는 vault 가 남아도,
+                #   그 안의 아무 로그 파일 하나로 게이트가 통과했다 — 완주하지 않은 run 이 완주로
+                #   보이는 fail-open 이다. run 의 **종결 사실**은 run_summary 가 말한다.
+                _term, _why = _simlog_terminated(repo_root, manifest_dir, item["path"])
+                if not _term:
+                    all_present = False
+                    add_reason("EVIDENCE_SIMLOG_RUN_UNTERMINATED",
+                               f"simlog vault {item['path']!r} 가 **종결을 말하지 않는다** — {_why}. "
+                               f"파일이 있다는 것과 run 이 끝났다는 것은 다른 사실이다"
+                               f"(2026-09-07 · 유예 결함 ⑥).")
 
         or_group_key = None
         if task_class == "capacity_rejection":

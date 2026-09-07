@@ -532,6 +532,21 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 shutil.copy2(_abs, _dst)
                 produced.append(_rel.replace(os.sep, "/"))
 
+    # ★ 2026-09-07(plan_26090715 §5 ⑤ · 유예 결함 ⑤): `campaigns/README.md` 도 함께 보낸다.
+    #   뼈대 파일은 도착하는데 **읽는 법**이 안 도착했다 — README 가 Agent 읽기 순서(0번
+    #   `--resume-brief` 포함)와 채우기 규칙(`proof.ok` 는 관측이지 선언이 아니다 · 실패해도
+    #   status 는 쓴다 · 증거는 여기서 태어나지 않는다)을 담는 유일한 자리다. 서브는 스키마만으로
+    #   완주했지만 그건 운이지 계약이 아니다. 부재는 여기서도 소리낸다(침묵 누락 금지).
+    _readme_src = os.path.join(REPO, "campaigns", "README.md")
+    if not os.path.isfile(_readme_src):
+        raise SystemExit(
+            f"[render] FAIL: 캠페인 읽기 규약이 없다 — {_readme_src}\n"
+            f"   뼈대만 보내고 읽는 법을 안 보내면 서브는 빈칸의 **의미**를 모른 채 채운다.")
+    _readme_dst = os.path.join(out_dir, "campaigns", "README.md")
+    os.makedirs(os.path.dirname(_readme_dst), exist_ok=True)
+    shutil.copy2(_readme_src, _readme_dst)
+    produced.append("campaigns/README.md")
+
     # 4.5) 호스트 안전체계(plan_26071019 §2.2).
     #   canonical source는 terraforming skill이 소유하고, 서브에는 헌법 runtime asset으로
     #   materialize한다. root scripts/에 대한 숨은 source/runtime 의존성을 만들지 않는다.
@@ -796,6 +811,7 @@ def _self_test() -> int:
         base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json",
                        ".claude/schemas/library-exchange.schema.json", "campaigns/_bootstrap/relay/.gitkeep",
+                       "campaigns/README.md",
                        ".claude/rules/docs.md", ".gitignore",   # ← references.md 는 tool_plane 종속(아래 c4b)
                        # 호스트 안전체계: canonical terraforming source → constitution runtime delivery
                        ".claude/runtime/host_safety/mem_watchdog.sh",

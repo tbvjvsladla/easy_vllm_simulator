@@ -17,7 +17,11 @@ CONFIG="${1:?config_name 필요}"; shift || true
 #   (client 10.33 t/s vs engine-log 34.1 t/s — parse_bench 의 client_engine_agreement 가 검출).
 #   완결 엔드포인트(/v1/completions)에서는 같은 요청이 400/400 토큰을 낸다(finish_reason=length).
 #   ∴ 측정 무효를 우회하지 않고 **경로를 고친다**(workflow.md §막힘 3분류 — 배선 부재는 배선을 만든다).
-BACKEND="openai-chat"
+# ★ 2026-09-07(plan_26090715 §5 ⑤-① · 유예 결함 ①): 기본값을 **없앤다**. 종전 기본값
+#   `openai-chat` 은 호출자가 아무 말도 안 하면 이기는 값이었고, 그래서 캠페인 ⑦ 은 선언이
+#   "완결 엔드포인트" 인데 실제 측정은 chat 이었다(/v1/chat/completions 158 vs /v1/completions 14).
+#   측정 조건은 요청 포맷이 TPOT 을 바꾸는 **1급 축**이다 — 기본값이 이기면 그 축이 침묵한다.
+BACKEND=""
 # ★ 2026-09-04 신설(CP4 · plan_26090415 §3.1) — 측정 도구 선택.
 #   기본은 `vllm`(현행 경로 · 후방호환). lite 는 이 기본에 남고 full 만 guidellm 으로 간다
 #   (`full = lite ∪ GuideLLM`). 두 경로를 **이질적으로 유지**하는 것이 설계다 — 통합하면 같은
@@ -153,8 +157,16 @@ docker ps --filter "name=$CTR" --filter status=running -q | grep -q . \
 case "$BACKEND" in
   openai-chat) ENDPOINT=/v1/chat/completions ;;
   openai)      ENDPOINT=/v1/completions ;;
+  "") echo "[run_bench] ERROR --backend 는 필수다(기본값 없음 · 2026-09-07)." >&2
+      echo "  요청 포맷은 TPOT 을 바꾸는 1급 측정 축이다 — 기본값이 이기면 그 축이 침묵한다." >&2
+      echo "  harmony 계열(gpt-oss)은 **완결 엔드포인트** --backend openai 로 재라." >&2
+      echo "  chat 을 의도했다면 --backend openai-chat 을 **명시**하라." >&2
+      exit 2 ;;
   *) echo "[run_bench] 알 수 없는 --backend: $BACKEND (openai-chat|openai)" >&2; exit 2 ;;
 esac
+
+# ── 측정 엔드포인트의 **출처 표시**(헌법 §결정론 규율). 값 옆에 어떻게 정해졌는지를 둔다.
+BACKEND_SOURCE="declared(--backend)"
 
 # ── harmony 계열 × chat 엔드포인트 = 측정 무효 (2026-09-05 · 주석을 집행으로 승격) ──
 #   위 BACKEND 주석(2026-09-01)이 "harmony 는 chat 에서 ignore_eos 가 무력하다"를 이미 적어
@@ -165,10 +177,22 @@ esac
 #   신호는 모델 이름이 아니라 **트리플렛 러너가 선언한 reasoning parser** 다 — 이름 매칭은
 #   새 harmony 모델을 놓치고, 러너 선언은 그 모델을 실제로 어떻게 서빙 중인지 말한다.
 #   부재는 통과다(러너가 없거나 harmony 가 아니면 이 가드는 무동작).
+#   ★ 2026-09-07: 신호를 **둘**로 늘린다. 러너 선언만 보면 러너가 그 플래그를 방출하지 않는
+#   구성(캠페인 ⑦ 전 셀이 그랬다)에서 가드가 조용히 무동작한다 — "부재는 통과" 가 침묵 폴백이
+#   되는 자리다. 두 번째 신호는 **엔진 로그 실측**이다: 실제로 뜬 서버가 harmony 파서를 물고
+#   있는지는 그 로그가 말한다(선언이 아니라 관측).
 _RUNNER="$REPO/output/$TOPO/configs/$CFGFILE.sh"
-if [ "$BACKEND" = "openai-chat" ] && [ -f "$_RUNNER" ] \
-   && grep -qE -- '--reasoning-parser[= ]+openai_gptoss' "$_RUNNER"; then
-  echo "[run_bench] 거부: harmony 계열(러너가 --reasoning-parser openai_gptoss 선언)을 chat 엔드포인트로 재려 한다." >&2
+_HARMONY=0; _HARMONY_SRC=""
+if [ -f "$_RUNNER" ] && grep -qE -- '--reasoning-parser[= ]+openai_gptoss' "$_RUNNER"; then
+  _HARMONY=1; _HARMONY_SRC="declared(runner --reasoning-parser openai_gptoss)"
+elif docker logs "$CTR" 2>&1 | tail -2000 \
+     | grep -qEi 'reasoning[_-]parser.*(openai_gptoss|gpt.oss)|harmony'; then
+  _HARMONY=1; _HARMONY_SRC="measured(engine log)"
+fi
+[ "$_HARMONY" = 1 ] && BACKEND_SOURCE="$BACKEND_SOURCE · harmony=$_HARMONY_SRC"
+if [ "$BACKEND" = "openai-chat" ] && [ "$_HARMONY" = 1 ]; then
+  echo "[run_bench] harmony 신호 출처: $_HARMONY_SRC" >&2
+  echo "[run_bench] 거부: harmony 계열을 chat 엔드포인트로 재려 한다." >&2
   echo "  chat 에서는 --ignore-eos 가 무력하고(harmony stop 토큰이 EOS 와 별개), 서버 harmony 파서가" >&2
   echo "  스트림 중 깨져 요청이 errored 로 빠진다 → TPOT 왜곡 또는 measurement_void." >&2
   echo "  → --backend openai (완결 엔드포인트 /v1/completions) 로 재라." >&2
@@ -215,10 +239,12 @@ bench_with_guidellm(){
   # ★ 런별 기록(2026-09-05 · 축 A): 무엇으로 쟀는지를 산출물에 남긴다. digest 게이트를 걷어낸
   #   대신 **실제로 돈 이미지의 digest** 가 vault 에 남아 리포트·인증서가 그것을 인용한다.
   BENCH_TOOL_JSON="$OUTDIR/bench_tool_${CONFIG}.json"
-  printf '%s' "$PINJSON" | GL_ENDPOINT="$ENDPOINT" GL_OUT="$BENCH_TOOL_JSON" python3 -c '
+  printf '%s' "$PINJSON" | GL_ENDPOINT="$ENDPOINT" GL_BACKEND_SOURCE="$BACKEND_SOURCE" \
+    GL_OUT="$BENCH_TOOL_JSON" python3 -c '
 import json, os, sys
 doc = json.load(sys.stdin)
 doc["endpoint"] = os.environ["GL_ENDPOINT"]        # 측정 조건 지문(요청 포맷이 TPOT 을 바꾼다)
+doc["backend_source"] = os.environ.get("GL_BACKEND_SOURCE") or "unknown"  # 그 포맷이 어떻게 정해졌나
 with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
     json.dump(doc, f, ensure_ascii=False, indent=2); f.write("\n")
 ' 
@@ -280,7 +306,39 @@ esac
 
 docker logs "$CTR" 2>&1 | tail -800 > "$ELOG" || true
 
+# ── 벤치 종료 시 서버 생존 관측 (2026-09-07 · plan_26090715 §5 ⑤-② · 유예 결함 ②) ──────────
+#   `RemoteProtocolError` 는 두 원인이 같은 모양으로 나온다: ⓐ 도구가 스트림을 먼저 끊었다
+#   (도구 경계 · 면제 대상) ⓑ 엔진이 죽어 스트림이 잘렸다(서버 오류 · 면제 불가).
+#   둘을 가르는 절단선은 **벤치가 끝난 시점에 서버가 살아 있었는가** 인데 그 관측이 어디에도
+#   기록되지 않았다 — 그래서 엔진 사망 중 잘린 SSE 가 tool_boundary 로 면제되는 역방향
+#   fail-open 이 열려 있었다. 관측은 여기서만 할 수 있다(벤치 직후 · 아직 teardown 전).
+POST_HEALTH="$OUTDIR/post_health_${CONFIG}.json"
+_PH_CODE="$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://localhost:$PORT/health" 2>/dev/null || echo 000)"
+_PH_RUNNING="$(docker inspect -f '{{.State.Running}}' "$CTR" 2>/dev/null || echo unknown)"
+_PH_OOM="$(docker inspect -f '{{.State.OOMKilled}}' "$CTR" 2>/dev/null || echo unknown)"
+_PH_EXIT="$(docker inspect -f '{{.State.ExitCode}}' "$CTR" 2>/dev/null || echo unknown)"
+_PH_ALIVE=false
+[ "$_PH_CODE" = "200" ] && [ "$_PH_RUNNING" = "true" ] && _PH_ALIVE=true
+cat > "$POST_HEALTH" <<JSON
+{
+  "schema_version": 1,
+  "provenance": "measured",
+  "config": "$CONFIG",
+  "checked_after": "bench",
+  "server_alive_at_bench_end": $_PH_ALIVE,
+  "health_http_code": "$_PH_CODE",
+  "container_running": "$_PH_RUNNING",
+  "container_oom_killed": "$_PH_OOM",
+  "container_exit_code": "$_PH_EXIT",
+  "_note": "이 값이 false 면 errored 를 tool_boundary 로 면제할 수 없다 — 엔진이 죽어 잘린 스트림과 도구가 끊은 스트림은 같은 예외로 나온다."
+}
+JSON
+echo "[run_bench] post-bench health: alive=$_PH_ALIVE (http=$_PH_CODE running=$_PH_RUNNING oom=$_PH_OOM exit=$_PH_EXIT)"
+
 echo "[run_bench] DONE"
 echo "BENCH_TOOL=$TOOL"
+echo "BENCH_ENDPOINT=$ENDPOINT"
+echo "BENCH_BACKEND_SOURCE=$BACKEND_SOURCE"
 echo "BENCH_JSON=$BJSON"
 echo "ENGINE_LOG=$ELOG"
+echo "POST_HEALTH=$POST_HEALTH"

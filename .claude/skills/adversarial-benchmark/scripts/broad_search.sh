@@ -40,11 +40,12 @@
 #                            --max-cells N --wall-clock-budget-s N --consecutive-failure-limit N
 #                            --declared-by TEXT --basis TEXT --authority explore --now-utc T
 #       broad_search.sh cell --state PATH --cell-key K --config NAME --axis-citation TEXT
-#                            --next-intent TEXT
+#                            --next-intent TEXT [--ack-uncalibrated-thermal]
 #                            --bench-budget-mib N --now-utc T --confirm-risk [--topology t]
 #       broad_search.sh status --state PATH --now-utc T
 #       broad_search.sh map    --state PATH --now-utc T --out-md PATH [--out-json PATH]
 # 종료: 0=성공 · 2=인자/선언 오류 · 3=serve 미가동(materialize 는 explorer 소관) · 5=--confirm-risk 미명시
+#       6=SoC 열 임계 미교정 미승인(--ack-uncalibrated-thermal)
 set -euo pipefail
 
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -58,6 +59,11 @@ CELL_KEY=""; CONFIG=""; CITATION=""; BENCH_BUDGET=""; TOPO=""; CONFIRM=0
 # 자동쓰기**(이 셀 트랜잭션)에 인자 하나를 얹는다. 감수하지 말아야 할 유실은 여정 하나이며,
 # 벤치 결과·3+1+1 산출물은 결손 기재로 복원된다.
 NEXT_INTENT=""
+# 열 임계 미교정 승인(2026-09-07 · plan_26090715 §5 ⑤-③ · 유예 결함 ③). SoC 열 파라미터 3종은
+# 외부 보고에서 역산한 값이고 **교정되지 않았다**(UNCALIBRATED). 그 사실이 산출물에 표시는 됐지만
+# **결정하는 소비자가 0** 이었다 — 실킬 3건이 그 임계로 났고 직전 인증서 1건이 오기록됐다.
+# 이 플래그가 그 소비자다: 부하를 걸기 전에 "미교정 임계로 재는 것을 안다" 를 명시하게 한다.
+ACK_UNCAL=0
 # 측정 엔드포인트. harmony 계열(gpt-oss)은 **완결 엔드포인트**로 재야 한다 —
 #   chat 에서는 `ignore_eos` 가 harmony 정지 토큰을 넘어 생성시키고, 그러면 서버의 harmony
 #   파서가 `Unexpected token … while expecting start token …` 로 일부 요청을 깬다
@@ -82,6 +88,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --config) CONFIG="$2"; shift 2;;
   --axis-citation) CITATION="$2"; shift 2;;
   --next-intent) NEXT_INTENT="$2"; shift 2;;
+  --ack-uncalibrated-thermal) ACK_UNCAL=1; shift;;
   --bench-budget-mib) BENCH_BUDGET="$2"; shift 2;;
   --max-error-rate) MAX_ERROR_RATE="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
@@ -209,6 +216,29 @@ cell)
 MSG
     exit 5
   fi
+  # ── 열 임계 미교정 게이트(유예 결함 ③). 무부하 호출은 열을 만들지 않으므로 대상이 아니다.
+  if [ "$NO_LOAD" != 1 ]; then
+    _UNCAL="$(REPO="$REPO" python3 - <<'PY' 2>/dev/null || true
+import importlib.util, os, sys
+_p = os.path.join(os.environ["REPO"], ".claude", "skills", "terraforming_node", "scripts",
+                  "node_blackbox", "blackbox_thermal.py")
+if os.path.isfile(_p):
+    _s = importlib.util.spec_from_file_location("_bt", _p)
+    _m = importlib.util.module_from_spec(_s); _s.loader.exec_module(_m)
+    print(",".join(getattr(_m, "UNCALIBRATED", ()) or ()))
+PY
+)"
+    if [ -n "$_UNCAL" ] && [ "$ACK_UNCAL" != 1 ]; then
+      echo "[broad_search] ⚠ 셀 실행 거부 — SoC 열 임계가 **미교정**이다(UNCALIBRATED: $_UNCAL)." >&2
+      echo "  이 값들은 외부 보고에서 역산한 것이고 이 하드웨어에서 교정된 적이 없다." >&2
+      echo "  그런데도 워치독은 이 임계로 서빙을 죽인다(실킬 3건 · 인증서 1건 오기록)." >&2
+      echo "  임계를 올리지 마라 — 그것은 정상 차단을 지우는 것이다. 대신 **알고 있음을 선언**하라:" >&2
+      echo "    --ack-uncalibrated-thermal  (셀 기록에 그 사실이 남는다)" >&2
+      echo "  교정 자체는 벤더 근거가 필요한 사람 과업이다(docs/request/ 위임 대상)." >&2
+      exit 6
+    fi
+  fi
+
   if [ "$NO_LOAD" = 1 ] && [ "$CONFIRM" = 1 ]; then
     echo "[broad_search] ⓘ 이 호출은 로드를 하지 않는다(serve_failed 기록 또는 재조립) — " \
          "--confirm-risk 는 불필요하다. 위험 플래그가 형식이 되면 진짜 위험 구간에서 무뎌진다." >&2
@@ -299,7 +329,7 @@ MSG
 
   CELL_KEY="$CELL_KEY" CONFIG="$CONFIG" CITATION="$CITATION" SWEEPDIR="$SWEEPDIR" \
   CLS="$CLS" ENDED="$ENDED" STARTED="$STARTED" SERVE_FAILED_REASON="$SERVE_FAILED_REASON" \
-  NEXT_INTENT="$NEXT_INTENT" \
+  NEXT_INTENT="$NEXT_INTENT" THERMAL_UNCAL="${_UNCAL:-}" ACK_UNCAL="$ACK_UNCAL" \
   python3 - "$STATE" <<'PY'
 import json, os, sys
 state_path = sys.argv[1]
@@ -387,6 +417,11 @@ cell = {
     # 여정 한 줄 — "다음에 무엇을 할 참인가". 지도(선언)가 영토(실측)와 갈라진 지점을 남기는
     # 유일한 자리이며, 이 체인에서 **복원 불가능한 유일한 정보**다.
     "next_intent": os.environ.get("NEXT_INTENT") or None,
+    # 열 임계 미교정 사실을 **셀마다** 남긴다(2026-09-07 · 유예 결함 ③). 표시만 하고 아무도
+    # 읽지 않으면 그 표시는 없는 것과 같다 — 이 필드가 그 표시의 소비자이자 기록이다.
+    "thermal_uncalibrated": ([x for x in (os.environ.get("THERMAL_UNCAL") or "").split(",") if x]
+                             or None),
+    "thermal_uncalibrated_ack": os.environ.get("ACK_UNCAL") == "1",
 }
 _sf = os.environ.get("SERVE_FAILED_REASON") or ""
 if _sf:
