@@ -1,7 +1,7 @@
 # 3. 벤치 결과 — 그리고 무엇과 비교할 수 있나
 
 > 아래 수치는 인증서에서 **파싱만** 한 것이다. 합성하지 않았고, 재계산하지 않았다.
-> 출처: `benchmark_26090705_gpt-oss-120b_GB10_0.19.0.yaml`
+> 출처: `benchmark_26090707_gpt-oss-20b_GB10_0.18.0.yaml`
 
 ## 성능
 
@@ -9,23 +9,23 @@
 |---|---|
 | `benchmark_mode` | full |
 | `verdict` | PASS |
-| `decode_tps_conc1` | 50.85 |
+| `decode_tps_conc1` | 44.99 |
 | `rubric_authority` | explore |
 | `primary_source` | expected_achievable(roofline×MBU) |
-| `primary_tps` | 30.99 |
-| `floor_tps` | 26.34 |
+| `primary_tps` | 19.63 |
+| `floor_tps` | 16.69 |
 | `tolerance` | 0.15 |
-| `ratio_M_over_primary` | 1.641 |
+| `ratio_M_over_primary` | 2.292 |
 | `spec_on` | false |
 | `accept_len` | N/A |
-| `sweep_levels` | 1,2,4,8 |
-| `sweep_truncated` | level 16 truncated: parse/measurement_ok=false |
+| `sweep_levels` | 1 |
+| `sweep_truncated` | N/A |
 | `lite_included` | true |
-| `lite_gen_tps_warm` | 53.03 |
+| `lite_gen_tps_warm` | 46.52 |
 | `lite_gen_src` | median_tpot |
-| `lite_cold_ttft_ms` | 195.8 |
-| `lite_kv_gib` | 54.68 |
-| `measured_utc` | 2026-09-06T20:20:23Z |
+| `lite_cold_ttft_ms` | 109.3 |
+| `lite_kv_gib` | 60.0 |
+| `measured_utc` | 2026-09-06T22:37:02Z |
 
 ## 측정 구성 — 무엇으로 쟀나(기재 · 게이트 아님)
 
@@ -42,12 +42,12 @@
 
 | 키 | 값 |
 |---|---|
-| `model` | gpt-oss-120b |
+| `model` | gpt-oss-20b |
 | `gpu_model` | NVIDIA GB10 |
-| `vllm_version` | 0.19.0 |
+| `vllm_version` | 0.18.0 |
 | `quantization` | mxfp4 |
-| `topology` | multi |
-| `tensor_parallel_size` | 2 |
+| `topology` | single |
+| `tensor_parallel_size` | 1 |
 
 ## 소프트 지문 — 다르면 stale, 재측정 권고
 
@@ -55,14 +55,14 @@
 |---|---|
 | `driver_version` | 580.173.02 |
 | `cuda_version` | 132 |
-| `image_tag` | easy-vllm:0.19.0-cu130-aarch64-wheel |
-| `image_digest` | sha256:a0249f3a416864b3c35e5a59a2149473e5e2593ceffda6da8115684c0c6a609e |
+| `image_tag` | easy-vllm:0.18.0-cu130-aarch64-wheel |
+| `image_digest` | N/A |
 | `max_model_len` | 131072 |
 | `max_num_seqs` | 20 |
-| `kv_cache_memory_bytes` | 58712915968 |
+| `kv_cache_memory_bytes` | 64426421846 |
 | `kv_cache_dtype` | fp8 |
 | `gpu_memory_utilization` | 0.9 |
-| `moe_backend` | marlin |
+| `moe_backend` | N/A |
 | `enforce_eager` | N/A |
 | `ngc_base_tag` | N/A |
 
@@ -70,18 +70,16 @@
 
 > 단일 running serve 에 **동시 요청 수만** 바꿔 잰 곡선이다(reload 없음 · request-rate=inf).
 > `동시성=1` 행이 인증서의 판정점이며, 나머지 행은 그 레시피가 **부하에서 어떻게 되는지**를 말한다.
-> 출처: `bench_report_26090705_gpt-oss-120b_GB10_0.19.0.md` (bench_report) · 소수 2자리 표시 반올림 · 결측은 `N/A`(0 이 아니다).
+> 출처: `bench_report_26090707_gpt-oss-20b_GB10_0.18.0.md` (bench_report) · 소수 2자리 표시 반올림 · 결측은 `N/A`(0 이 아니다).
 > 이 표는 스크립트가 파싱해 렌더한다 — 손으로 옮긴 수치가 아니며 `--verify` 가 diff 0 을 요구한다.
 
 | 동시성 | decode t/s | 출력 tok/s | 총 tok/s | TTFT p50(ms) | ITL p50(ms) | 완료/실패 |
 |---|---|---|---|---|---|---|
-| 1 ★판정점 | 50.85 | 47.74 | 251.20 | 267.14 | 18.70 | 14/2 |
-| 2 | 45.55 | 90.94 | 478.50 | 135.65 | 21.51 | 16/0 |
-| 4 | 34.70 | 122.99 | 647.14 | 160.05 | 28.36 | 17/1 |
-| 8 | 26.61 | 181.95 | 957.38 | 158.73 | 37.10 | 18/0 |
+| 1 ★판정점 | 44.99 | 45.06 | 225.49 | 160.86 | 21.68 | 16/0 |
 
-**⚠ 절삭된 부하 레벨(조용히 자르지 않는다):**
-- level 16 truncated: parse/measurement_ok=false
+> ⚠ 레벨이 **하나뿐**이다 — 이 레시피의 부하 거동은 이 hint 로 알 수 없다. 곡선이 필요하면 재측정해야 한다(부재를 성능 판정으로 읽지 말 것).
+
+_절삭된 레벨 없음(요청 전 레벨 완주)._
 
 
 ## 결손 기재
@@ -91,25 +89,22 @@
 
 | 사유코드 | 뜻 |
 |---|---|
-| `HINT_MISSING_SLAVE_ATTESTATION` | 슬레이브 ABI attestation 부재 — 멀티에서 두 노드가 같은 것을 돌렸다는 증거가 성공 경로에 보존되지 않았다. |
+| `HINT_MISSING_SWEEP_LEVELS` | 부하 레벨이 1개뿐 — 부하 거동을 알 수 없다. |
 
 ## like-with-like 한정자 (Agent)
 
-**비교 가능**: GB10 **2노드 TP=2 · Ray** · vLLM 0.19.0 · mxfp4 · `max_model_len 131072` ·
-GuideLLM 0.7.3 · 입력 1024/출력 256 · `ignore_eos` on 인 판. §강한 일치 키가 하나라도 다르면 무효다.
+**비교 가능**: GB10 단일 노드 · vLLM 0.18.0 · mxfp4 · TP=1 · `max_model_len 131072` ·
+GuideLLM 0.7.3 · **완결 엔드포인트**(`/v1/completions`) · 입력 1024/출력 256 · `ignore_eos` on ·
+`batch 20` 인 판. §강한 일치 키가 하나라도 다르면 무효다.
 
-**비교 불가 — 넷**:
-1. **엔드포인트.** 이 판은 **chat**(`/v1/chat/completions`)으로 쟀고 16건 중 3건이 harmony 파서
-   파손으로 깨졌다. gpt-oss 는 완결 엔드포인트(`/v1/completions`)로 재는 것이 옳다. 형제
-   `gb10-sub-native`(완결, 18/18)와 **직접 비교하지 마라**.
-2. **토폴로지.** 단일 노드 판(`gb10-main-native`)과는 노드 수도 TP 도 다르다. 같은 하드웨어라는
-   이유로 나란히 놓으면 TP 이득과 모델 크기 차이가 뒤섞인다.
-3. **부하 시간.** 동시성 곡선 1→50.85 · 2→45.55 · 4→34.70 · 8→26.61 이고 **레벨 16 은 절삭**이다 —
-   측정 실패가 아니라 **서빙이 열로 죽었다**. 절삭된 곡선을 완주한 곡선과 나란히 놓지 마라.
-4. **KV 예산의 타겟.** 형제 태그 `gb10x2-sim-h100` 은 H100 80GiB 이식 클램프(KV 25,841,106,944 B)
-   판이다. 이 판은 그것을 걷어낸 네이티브 예산이며 KV 가 2.27배다. 두 태그를 나누는 축은 하드웨어가
-   아니라 **클램프의 타겟 선택**이다 — 그리고 그 2.27배가 속도로는 +0.5% 밖에 안 됐다.
+**비교 불가 — 셋**:
+1. **엔드포인트.** 이 판은 완결(18/18 · 오류 0), 형제 `gb10-main-native` 는 chat(16건 중 2건
+   errored). 44.99 vs 45.48 은 가까워 보이지만 **같은 조건의 측정이 아니다.**
+2. **예산 선택.** 이 판은 KV 61,442 MiB · batch 20, 형제 판은 50,133 MiB · batch 16 이다.
+   batch 를 내주고 컨텍스트를 얻는 것은 레시피의 **선택**이지 하드웨어의 성질이 아니다.
+3. **레벨 범위.** **레벨 1 만 측정됐다.** 상위 레벨(2·4·8·16)은 **절삭이 아니라 미실행**이다 —
+   위임 세션이 종료돼 착수하지 못했다(`PAYLOAD.missing[]` 에 그대로 실린다). 곡선이 필요하면
+   네가 재라. 완주한 곡선과 나란히 놓지 마라.
 
-**결손**: 노드 정합 attestation(`attestation_b0-kvfp8-attnauto-moeauto.json`)이 없다. 두 노드가
-같은 이미지 digest·같은 ABI 로 섰다는 기계 대조가 이 판에는 **부재**하며, 페이로드 `missing[]` 에
-그대로 실린다. 재현자는 양 노드 빌드 뒤 digest 를 스스로 대조하라.
+**결손**: `sweep_levels_2_4_8_16_not_executed`. 이것은 서브가 **스스로 선언한** 결손이며,
+"돌다 절삭됐다" 와 "착수하지 못했다" 는 다른 사실이다.

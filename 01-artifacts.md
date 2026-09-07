@@ -17,44 +17,39 @@
 ## 파일
 
 **triplet**
-- `output/multi/configs/b0-kvfp8-attnauto-moeauto.yaml`
-- `output/multi/configs/b0-kvfp8-attnauto-moeauto.sh`
-- `output/multi/envs/.env.b0-kvfp8-attnauto-moeauto`
-
-**build_patch_pre**
-- `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
-- `output/multi/build_patches_src/55-src-deps-authority.sh`
-
-**build_patch_post**
-- `output/multi/build_patches/10-deepgemm.sh`
-- `output/multi/build_patches/20-triton-kernels.sh`
-- `output/multi/build_patches/30-mxfp4-triton-sm121.sh`
-- `output/multi/build_patches/40-humming-nvml-gb10.sh`
+- `sync_staging/sub_slots/configs/s1-native-fp8.yaml`
+- `sync_staging/sub_slots/configs/s1-native-fp8.sh`
+- `sync_staging/sub_slots/envs/.env.s1-native-fp8`
 
 **build_recipe**
-- `output/multi/Dockerfile`
-- `output/multi/requirements.txt`
+- `sync_staging/sub_slots/Dockerfile`
 
 **compose**
-- `output/multi/docker-compose.yaml`
+- `sync_staging/sub_slots/docker-compose.yaml`
 
 **fork_pin** — 없음 = **stock**. `.env` 에 `VARIANT=` 줄이 없는 것이 기본값이다.
 
 ## 적용 사유 (Agent)
 
-- **`triplet` (해당)** — 이 판을 성립시킨 것은 세 값이다: KV 절대클램프 **55,993 MiB/노드**,
-  `distributed-executor-backend: ray`, `tensor-parallel-size: 2`. 뒤의 둘은 **yaml 에 함께** 있어야
-  한다 — TP>1 인데 분산 스탠자가 없으면 조용히 단일 노드로 뜬다. `.env` 의
-  `MASTER_CONTAINER_NAME`/`SLAVE_CONTAINER_NAME` 도 이 슬롯에 산다(없으면 워치독 필터가 비어
-  방어가 꺼진다).
-- **`build_recipe` (해당)** — stock vLLM 0.19.0 prebuilt wheel. **양 노드가 같은 이미지를 각자
-  빌드해야 한다** — 노드 간 이미지 전송은 금지다. 그러려면 이미지를 지은 레시피가 페이로드에 있어야 한다.
-- **`compose` (해당)** — 멀티에서는 기동 방법이 곧 토폴로지다. `network_mode: host` · Ray head/worker
-  역할 · 포트가 이 파일에 있고, 이것 없이는 "같은 이미지"만으로 재현되지 않는다.
-- **`runtime_patch` (불해당)** — Python shim 이 필요 없었다. 0.19.0 stock 이 harmony 를 든다.
-- **`build_patch_pre` / `build_patch_post` (불해당 · 파일은 있다)** — `output/multi/build_patches_src`
-  에 2건, `build_patches` 에 4건이 남아 있으나 **활성 wheel 레시피가 그 디렉터리를 참조하지 않는다**.
-  wheel 트랙은 컴파일 자체가 없으므로 하나도 실행되지 않았다. 먹지 않은 패치를 재현지침으로 배포하면
-  다음 사람이 그것이 필요하다고 믿는다 — 그래서 **불해당**이다(수집기가 `excluded_by_recipe` 로 사유를
-  남긴다).
-- **`fork_pin` (불해당)** — `.env` 에 `VARIANT=` 줄이 없다 = stock. arch-wall 사다리에 진입하지 않았다.
+> **이 슬롯들은 서브 노드에서 왔고, 메인이 문서기반으로 재저작한 것이다.** 상향 회수는 문서기반
+> only 이고 코드·설정의 직접 회수는 금지다 — 서브가 자기 트리플렛을 testlog 로 발행하고
+> (`testlog_26090717_camp7_s1-native-fp8_트리플렛_문서회수.md`) 메인이 그 코드펜스를 읽어 재저작했다.
+> 값은 한 글자도 고치지 않았다.
+
+- **`triplet` (해당)** — 이 판의 성립 조건은 KV 절대클램프 **64,426,421,846 B(61,442 MiB)** @
+  `max_model_len 131072` · `batch 20` 이다. 형제 판(`gb10-main-native`)이 KV 50,133 MiB · batch 16
+  인 것과 대비된다 — **batch 를 내주고 컨텍스트를 얻는 선택**이 이 트리플렛에 박혀 있다.
+  러너 `.sh` 는 tiktoken 환경변수 주입 → 런타임 패치 arming → attention 백엔드 고정 → serve 순서를
+  강제한다(그 순서가 곧 이 셀의 재현 절차다).
+- **`build_recipe` (해당)** — stock vLLM 0.18.0 prebuilt wheel. 서브는 **자기 이미지를 자율 빌드**했다
+  (노드 간 이미지 전송은 영구 금지다). 그러려면 이미지를 지은 레시피가 페이로드에 있어야 한다.
+- **`compose` (해당)** — 기동 방법. 서브가 문서에 함께 남긴 사실 하나: compose 의
+  `build.dockerfile` 기본값이 `Dockerfile.source-build` 인데 그 파일이 이 트리에 **없다**.
+  이 셀은 `IMAGE_TAG` override 로 떠서 영향이 없었지만, 기본값으로 빌드하려는 사람은 여기서 막힌다.
+  서브는 그것을 **고치지 않고 사실만** 남겼다(관측과 교정을 섞지 않았다).
+- **`runtime_patch` (불해당)** — `s1-native-fp8_patch.py` 가 없다. 그래서 러너의 `arm_patch.sh`
+  호출은 이 셀에서 **no-op** 이다. 부재가 곧 불해당이며, 러너에 호출이 있다는 것이 패치가 있다는
+  뜻은 아니다.
+- **`build_patch_pre` / `build_patch_post` (불해당)** — 서브가 `output/single/` 전체를 `find` 로
+  확인해 매치 0건임을 문서에 남겼다. arch-wall 미조우 · stock 이다.
+- **`fork_pin` (불해당)** — `.env` 에 `VARIANT=` 줄이 없다 = stock.
