@@ -102,6 +102,48 @@ MIN_MEASURE_KV_MIB = 4096
 #     ② 같은 파일 계열의 선례가 이미 그 방향이다 — `preload_ram_gate.gate()` 는 크기 미상일 때
 #        "게이트 생략(음성정직·false-block 금지)" 한다.
 #     ③ 침묵은 금지된다 — 생략은 반드시 `budget-skip` 이벤트로 남는다(plan_26081415 C3 기준3).
+def _repo_root() -> str:
+    """이 스크립트 위치에서 레포 루트를 파생한다(.claude/skills/<skill>/scripts/ → 4단계 위).
+
+    manifest 경로에서 거슬러 올라가지 않는다 — manifest 는 `output/<topology>/` 아래라 깊이가
+    다르고, 그 가정이 틀리면 로그를 **레포 밖**에 쓰게 된다.
+    """
+    return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                         "..", "..", "..", ".."))
+
+
+# 노드 도구(node_blackbox·host_safety)가 사는 두 평면. 메인은 **소유자 스킬** 아래에 있고,
+# 서브는 렌더 트리라 `.claude/runtime/<plane>/` 로 배달받는다(`render_sub_env.py`).
+_NODE_TOOL_PLANES = {
+    "node_blackbox": (".claude", "skills", "terraforming_node", "scripts", "node_blackbox"),
+    "host_safety":   (".claude", "skills", "terraforming_node", "scripts", "host_safety"),
+}
+
+
+def _node_tool_path(plane: str, name: str) -> "str | None":
+    """노드 도구의 위치 — **소유자 정본 → 서브 런타임 배달분** 순. 없으면 None.
+
+    ★ 이 두-후보 패턴의 **단일 소유자**다(2026-09-07). 종전에는 같은 패턴이 손으로 두 번 적혀
+      있었고(`_budget_session_path`·`_memwatch_script_path`), 세 번째 호출부인 node_id 해소기가
+      그 선례를 따르지 않아 **정본 경로 하나만** 들었다. 메인에는 그 경로가 실재하므로 결함이
+      보이지 않는다 — 서브에서만 부재가 되고, 하필 그 해소기는 **서브 무보호 로드를 닫으려고**
+      넣은 것이었다(결함 ⑧). 같은 개념이 여러 곳에 손으로 적히면 갈라진다는 4종 안티패턴의
+      매직넘버 결함과 같은 형태라, 처방은 주석이 아니라 **소유 단일화**다.
+    """
+    root = _repo_root()
+    owner = _NODE_TOOL_PLANES[plane]
+    candidates = (
+        os.path.join(root, *owner, name),
+        os.path.join(root, ".claude", "runtime", plane, name),
+    )
+    return next((c for c in candidates if os.path.isfile(c)), None)
+
+
+def _canonical_node_tool_path(plane: str, name: str) -> str:
+    """소유자 정본 경로(부재해도 반환). 호출부가 부재를 **자기 사유로** 알리고 싶을 때 쓴다."""
+    return os.path.join(_repo_root(), *_NODE_TOOL_PLANES[plane], name)
+
+
 def _budget_session_path():
     """예산 세션 해소기의 위치 — **소유자 정본 → 서브 런타임 배달분** 순(2026-09-05).
 
@@ -117,14 +159,8 @@ def _budget_session_path():
 
     부재는 여기서 죽이지 않는다 — 호출부가 `budget-skip` 이벤트로 남기는 기존 계약을 지킨다.
     """
-    root = os.path.abspath(os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
-    candidates = (
-        os.path.join(root, ".claude", "skills", "terraforming_node", "scripts",
-                     "node_blackbox", "blackbox_session.py"),
-        os.path.join(root, ".claude", "runtime", "node_blackbox", "blackbox_session.py"),
-    )
-    return next((c for c in candidates if os.path.isfile(c)), candidates[0])
+    return (_node_tool_path("node_blackbox", "blackbox_session.py")
+            or _canonical_node_tool_path("node_blackbox", "blackbox_session.py"))
 
 
 BUDGET_SESSION_PY = _budget_session_path()
@@ -731,14 +767,7 @@ def host_floor_gmu_cap(requested_gmu, mem_total_mib, mem_available_mib, floor_mi
 
 def _memwatch_script_path():
     """Resolve the owner-local canonical source, then the rendered sub runtime asset."""
-    root = os.path.abspath(os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
-    candidates = (
-        os.path.join(root, ".claude", "skills", "terraforming_node", "scripts",
-                     "host_safety", "mem_watchdog.sh"),
-        os.path.join(root, ".claude", "runtime", "host_safety", "mem_watchdog.sh"),
-    )
-    return next((p for p in candidates if os.path.isfile(p)), None)
+    return _node_tool_path("host_safety", "mem_watchdog.sh")
 
 
 def _start_memwatch(container_name: str, simlog_dir: str, trial_number: int,
@@ -807,16 +836,6 @@ def _budget_session(node_dir: str, *args: str) -> "tuple[bool, str]":
     return proc.returncode == 0, proc.stdout.decode("utf-8", errors="replace").strip()
 
 
-def _repo_root() -> str:
-    """이 스크립트 위치에서 레포 루트를 파생한다(.claude/skills/<skill>/scripts/ → 4단계 위).
-
-    manifest 경로에서 거슬러 올라가지 않는다 — manifest 는 `output/<topology>/` 아래라 깊이가
-    다르고, 그 가정이 틀리면 로그를 **레포 밖**에 쓰게 된다.
-    """
-    return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                         "..", "..", "..", ".."))
-
-
 def _budget_node_dir(opts) -> "str | None":
     """선언을 기록할 노드 디렉터리. 명시 > **해소기 호출** > None(생략 · fail-loud 로그).
 
@@ -834,11 +853,11 @@ def _budget_node_dir(opts) -> "str | None":
     if explicit:
         return str(explicit)
     repo = _repo_root()
-    resolver = os.path.join(repo, ".claude", "skills", "terraforming_node", "scripts",
-                            "node_blackbox", "node_identity.sh")
-    if not os.path.isfile(resolver):
-        print("[budget] node_id 해소기 부재 — %s. 선언을 생략한다(추측하지 않는다)." % resolver,
-              file=sys.stderr)
+    resolver = _node_tool_path("node_blackbox", "node_identity.sh")
+    if not resolver:
+        print("[budget] node_id 해소기 부재 — %s(정본) · .claude/runtime/node_blackbox(서브 배달분) "
+              "어디에도 없다. 선언을 생략한다(추측하지 않는다)."
+              % _canonical_node_tool_path("node_blackbox", "node_identity.sh"), file=sys.stderr)
         return None
     try:
         cp = subprocess.run(["bash", resolver, "--resolve", "--repo", repo],
