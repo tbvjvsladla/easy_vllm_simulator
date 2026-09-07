@@ -1,13 +1,13 @@
 {
-  "anchor": "e98a44dbbb452fdf83287c70841c814c7a029647",
+  "anchor": "1531fd1575e1a78235e79eaa90d97cd099baa237",
   "anchor_is_head": false,
-  "assembled_at_head": "1d8d38ba8d8a0be1183396182d52c24ae021f0e8",
+  "assembled_at_head": "282d4d41e54556bc3894241a8665a15cf25658a5",
   "assembly_branch": "single-node",
-  "generated_kst": "2026-09-07T16:35:00",
+  "generated_kst": "2026-09-07T16:40:00",
   "kind": "hint_payload_provenance",
   "payload_files": 12,
   "schema_version": 1,
-  "source_branch": "single-node",
+  "source_branch": "multi-node",
   "source_branch_source": "derived(git branch --contains anchor)",
-  "tag": "hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8"
+  "tag": "hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8"
 }

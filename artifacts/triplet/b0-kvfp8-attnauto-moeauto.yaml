@@ -1,0 +1,14 @@
+# OpenAI/gpt-oss-120b 서빙 설정 (vllm-recipe-explorer 생성)
+# 레시피: quant=mxfp4 max_model_len=131072 gpu_mem_util=0.9
+model: /app/models/OpenAI/gpt-oss-120b
+host: 0.0.0.0
+port: 8081
+# gpu-memory-utilization = startup free-memory 게이트 + 총 cap(통합메모리 ≤0.90); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어
+gpu-memory-utilization: 0.9
+max-model-len: 131072
+max-num-seqs: 20
+kv-cache-memory-bytes: 58712915968
+kv-cache-dtype: fp8
+quantization: mxfp4
+tensor-parallel-size: 2
+distributed-executor-backend: ray

@@ -1,5 +1,5 @@
 #!/bin/bash
-# a0-kvfp8-attnauto-moeauto 서빙 스크립트 (vllm-recipe-explorer 생성, gpt-oss-20b-normal.sh 구조 동일)
+# b0-kvfp8-attnauto-moeauto 서빙 스크립트 (vllm-recipe-explorer 생성, gpt-oss-20b-normal.sh 구조 동일)
 # env 파일에서 주입된 변수: CONFIG_FILE, SERVING_MODEL_NAME, TIKTOKEN_ENABLED
 
 # TIKTOKEN 환경변수 설정

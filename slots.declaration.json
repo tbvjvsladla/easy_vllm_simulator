@@ -4,31 +4,31 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "KV 절대클램프 52,567,672,969 B · batch 16 · TP=1 이 이 서빙의 성립 조건이다 — serve 시점 성립분."
+      "rationale": "KV 55,993 MiB/노드 + ray + TP=2 + MASTER/SLAVE 컨테이너명이 이 서빙의 성립 조건이다."
     },
     "runtime_patch": {
       "applicable": false,
-      "rationale": "stock 이 harmony 를 이미 든다 — Python processor/config shim 이 필요 없었다(부재가 곧 불해당)."
+      "rationale": "0.19.0 stock 이 harmony 를 든다 — Python shim 이 필요 없었다."
     },
     "build_patch_pre": {
       "applicable": false,
-      "rationale": "arch-wall 미조우 — stock 0.18.0 이 sm_121 에서 그대로 컴파일됐다(소스 수정 0)."
+      "rationale": "파일 2건은 있으나 활성 wheel 레시피가 참조하지 않는다 — 이 이미지에 먹지 않았다."
     },
     "build_patch_post": {
       "applicable": false,
-      "rationale": "빌드-바깥 native 의존 설치가 없었다 — 컴파일 후 추가할 lib/커널이 없다."
+      "rationale": "파일 4건은 있으나 동상 — wheel 트랙은 컴파일이 없어 하나도 실행되지 않았다."
     },
     "build_recipe": {
       "applicable": true,
-      "rationale": "prebuilt wheel 트랙 Dockerfile — 같은 _C ABI 를 재현하려면 이미지를 지은 레시피가 필요하다."
+      "rationale": "양 노드가 같은 이미지를 각자 빌드해야 한다(이미지 전송 금지) — 레시피 없이는 불가능하다."
     },
     "compose": {
       "applicable": true,
-      "rationale": "단일 노드라도 GPU 예약·마운트·포트를 이 파일이 든다 — 기동 방법 없이는 재현이 불가능하다."
+      "rationale": "멀티에서는 기동 방법이 곧 토폴로지다(host 네트워크·Ray 역할·포트)."
     },
     "fork_pin": {
       "applicable": false,
-      "rationale": ".env 에 VARIANT= 줄이 없다 = stock. 포크 좌표를 쓰지 않았다는 사실이 그 부재로 표현된다."
+      "rationale": ".env 에 VARIANT= 줄이 없다 = stock. arch-wall 사다리 미진입."
     }
   }
 }

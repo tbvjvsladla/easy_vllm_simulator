@@ -17,32 +17,44 @@
 ## 파일
 
 **triplet**
-- `output/single/configs/a0-kvfp8-attnauto-moeauto.yaml`
-- `output/single/configs/a0-kvfp8-attnauto-moeauto.sh`
-- `output/single/envs/.env.a0-kvfp8-attnauto-moeauto`
+- `output/multi/configs/b0-kvfp8-attnauto-moeauto.yaml`
+- `output/multi/configs/b0-kvfp8-attnauto-moeauto.sh`
+- `output/multi/envs/.env.b0-kvfp8-attnauto-moeauto`
+
+**build_patch_pre**
+- `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
+- `output/multi/build_patches_src/55-src-deps-authority.sh`
+
+**build_patch_post**
+- `output/multi/build_patches/10-deepgemm.sh`
+- `output/multi/build_patches/20-triton-kernels.sh`
+- `output/multi/build_patches/30-mxfp4-triton-sm121.sh`
+- `output/multi/build_patches/40-humming-nvml-gb10.sh`
 
 **build_recipe**
-- `output/single/Dockerfile`
-- `output/single/requirements.txt`
+- `output/multi/Dockerfile`
+- `output/multi/requirements.txt`
 
 **compose**
-- `output/single/docker-compose.yaml`
+- `output/multi/docker-compose.yaml`
 
 **fork_pin** — 없음 = **stock**. `.env` 에 `VARIANT=` 줄이 없는 것이 기본값이다.
 
 ## 적용 사유 (Agent)
 
-- **`triplet` (해당)** — 이 노드의 서빙은 KV 절대클램프 하나로 서고 넘어졌다. `.yaml` 이 든
-  `kv_cache_memory_bytes = 52,567,672,969 B`(50,133 MiB)와 `max_num_seqs = 16` 이 그 값이며,
-  둘 중 하나만 바꿔도 이 호스트에서는 서지 않거나 워치독에 사살된다. 러너 `.sh` 는 예산 선언 →
-  워치독 → 로드 순서를 강제한다(선언 없이 로드하면 방어가 없다).
-- **`build_recipe` (해당)** — stock vLLM 0.18.0 prebuilt wheel 트랙이다. 이미지를 지은 레시피가
-  없으면 같은 `_C` ABI 를 재현할 수 없으므로 이 슬롯은 선언으로 면제되지 않는다.
-- **`compose` (해당)** — 기동 방법 자체다. 단일 노드라도 `docker-compose.yaml` 이 GPU 예약·
-  마운트·포트를 든다. 이것 없이는 "무엇을 어떻게 띄웠나"가 남지 않는다.
-- **`runtime_patch` (불해당)** — 이 조합은 Python processor/config shim 이 필요 없었다.
-  gpt-oss 의 harmony 파서는 stock 이 이미 든다. **없어서 못 쓴 것이 아니라 쓸 일이 없었다.**
-- **`build_patch_pre` / `build_patch_post` (불해당)** — arch-wall 을 만나지 않았다. stock 0.18.0 이
-  sm_121 에서 그대로 컴파일·기동됐고, 소스 수정도 빌드-바깥 native 의존 설치도 없었다.
-- **`fork_pin` (불해당)** — `.env` 에 `VARIANT=` 줄이 없다. **줄이 없는 것이 stock 이라는 선언**이며,
-  포크 좌표를 쓰지 않았다는 사실이 그 부재로 표현된다(변종 좌표 거처 규약).
+- **`triplet` (해당)** — 이 판을 성립시킨 것은 세 값이다: KV 절대클램프 **55,993 MiB/노드**,
+  `distributed-executor-backend: ray`, `tensor-parallel-size: 2`. 뒤의 둘은 **yaml 에 함께** 있어야
+  한다 — TP>1 인데 분산 스탠자가 없으면 조용히 단일 노드로 뜬다. `.env` 의
+  `MASTER_CONTAINER_NAME`/`SLAVE_CONTAINER_NAME` 도 이 슬롯에 산다(없으면 워치독 필터가 비어
+  방어가 꺼진다).
+- **`build_recipe` (해당)** — stock vLLM 0.19.0 prebuilt wheel. **양 노드가 같은 이미지를 각자
+  빌드해야 한다** — 노드 간 이미지 전송은 금지다. 그러려면 이미지를 지은 레시피가 페이로드에 있어야 한다.
+- **`compose` (해당)** — 멀티에서는 기동 방법이 곧 토폴로지다. `network_mode: host` · Ray head/worker
+  역할 · 포트가 이 파일에 있고, 이것 없이는 "같은 이미지"만으로 재현되지 않는다.
+- **`runtime_patch` (불해당)** — Python shim 이 필요 없었다. 0.19.0 stock 이 harmony 를 든다.
+- **`build_patch_pre` / `build_patch_post` (불해당 · 파일은 있다)** — `output/multi/build_patches_src`
+  에 2건, `build_patches` 에 4건이 남아 있으나 **활성 wheel 레시피가 그 디렉터리를 참조하지 않는다**.
+  wheel 트랙은 컴파일 자체가 없으므로 하나도 실행되지 않았다. 먹지 않은 패치를 재현지침으로 배포하면
+  다음 사람이 그것이 필요하다고 믿는다 — 그래서 **불해당**이다(수집기가 `excluded_by_recipe` 로 사유를
+  남긴다).
+- **`fork_pin` (불해당)** — `.env` 에 `VARIANT=` 줄이 없다 = stock. arch-wall 사다리에 진입하지 않았다.
