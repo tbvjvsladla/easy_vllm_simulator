@@ -189,15 +189,29 @@ map)
   ;;
 
 cell)
+  # ── 무부하 파생변수(2026-09-07 · plan_26090715 §5 ⑤-④ · 유예 결함 ④) ───────────────────────
+  #   `--serve-failed`(이미 끝난 일의 기록)와 `--reassemble-only`(재측정 없는 지도 정합화)는 둘 다
+  #   **컨테이너도 벤치도 띄우지 않는다**. 그런데 종전에는 정지조건 게이트만 그 사실을 알았고
+  #   위험 게이트는 몰라서 `--confirm-risk` 를 요구했다. 그 결과 캠페인 ⑦ 의 b1·b4·b5·b6 이
+  #   **위험 플래그를 붙인 채 무위험 기록**을 남겼다 — 플래그가 "부하를 걸겠다" 는 뜻을 잃으면
+  #   다음 사람은 그것을 형식으로 읽고 진짜 위험 구간에서도 반사적으로 붙인다(게이트 의미 희석).
+  #   두 게이트가 **같은 질문**(이 호출이 로드를 하는가)을 보게 파생변수 하나로 묶는다.
+  NO_LOAD=0
+  { [ -n "$SERVE_FAILED_REASON" ] || [ "$REASSEMBLE" = 1 ]; } && NO_LOAD=1
+
   # 이중 게이트 (1) — 스크립트 플래그. (2) 는 에이전트가 챗에서 받는다(선-기록 후-위험).
-  #   재조립은 **측정하지 않으므로** 위험 게이트를 타지 않는다(부하도 재기동도 없다).
-  if [ "$CONFIRM" != 1 ] && [ "$REASSEMBLE" != 1 ]; then
+  #   무부하 호출은 위험 게이트를 타지 않는다(부하도 재기동도 없다).
+  if [ "$CONFIRM" != 1 ] && [ "$NO_LOAD" != 1 ]; then
     cat >&2 <<'MSG'
 [broad_search] ⚠ 셀 실행 거부(--confirm-risk 미명시).
   이 오퍼레이션은 통합메모리 위에서 부하를 건다 — 호스트 하드다운 계보가 있는 축이다.
   실행하려면 --confirm-risk 를 붙여라(에이전트는 챗 경고톤 Y/N 승인 뒤에만 붙일 것).
 MSG
     exit 5
+  fi
+  if [ "$NO_LOAD" = 1 ] && [ "$CONFIRM" = 1 ]; then
+    echo "[broad_search] ⓘ 이 호출은 로드를 하지 않는다(serve_failed 기록 또는 재조립) — " \
+         "--confirm-risk 는 불필요하다. 위험 플래그가 형식이 되면 진짜 위험 구간에서 무뎌진다." >&2
   fi
   for pair in "--cell-key:$CELL_KEY" "--config:$CONFIG" "--bench-budget-mib:$BENCH_BUDGET" \
               "--axis-citation:$CITATION" "--next-intent:$NEXT_INTENT"; do
@@ -217,7 +231,7 @@ MSG
   #   **스윕이 끝난 시점에 정확히 도달 불가**가 된다 — 라벨·파생키 계약이 바뀌었음을 알게 되는
   #   때가 바로 그때다. 남는 길은 상태 파일 수기 편집(증거 위조)뿐이라 게이트가 우회를 만든다.
   #   (캠페인 1 실측: cells_exhausted 뒤 MoE mismatch 필드를 실으려는데 이 게이트가 막았다.)
-  if [ -z "$SERVE_FAILED_REASON" ] && [ "$REASSEMBLE" != 1 ]; then
+  if [ "$NO_LOAD" != 1 ]; then
     set +e; _stop; STOPRC=$?; set -e
     if [ "$STOPRC" = "3" ]; then
       echo "[broad_search] 정지 조건 성립 — 셀을 실행하지 않는다:" >&2
