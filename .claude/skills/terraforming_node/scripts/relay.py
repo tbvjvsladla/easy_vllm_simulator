@@ -872,7 +872,13 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
     if reason == "sub_input_required":
         return {"action": "popup",
                 "reason": "서브가 input-required 로 끊었다 — 답이 필요하다(차단성이면 답이 승인이다)"}
-    if reason in ("external_interruption", "budget_exhausted"):
+    # ★ 2026-09-08 라이브: 계획은 자동 재개를 `external_interruption|budget_exhausted` 로만 적었다.
+    #   그런데 실제로 3회 중 2회는 **제어가 completed 인데 서브 리포트가 기계판독 불가**여서
+    #   `unclassified` 로 끝났다(서브가 산문으로 끝맺었다). 그 상태를 매번 사람에게 올리면 사용자
+    #   결정 D9("재개는 항상 자동, 예외는 비용 상한과 통신 단절")이 리포트 형식 미준수 하나로
+    #   무력해진다. `unclassified` 는 비용 상한도 통신 단절도 아니다 — **전진이 관측되면** 잇고,
+    #   전진이 없으면 그때 묻는다. 판정 불가는 추측의 근거가 아니라 관측을 볼 이유다.
+    if reason in ("external_interruption", "budget_exhausted", "unclassified"):
         prev = [a for a in (doc.get("attempts") or []) if _reached_sub(a)][:-1]
         moved_phase = bool(prev) and prev[-1].get("phase") != last.get("phase")
         seen = doc.get("supervisor_last_seen_utc")
@@ -880,12 +886,14 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
                            and (not seen or str(brief["last_utc"]) > str(seen)))
         if moved_phase or moved_brief:
             why = "phase 전진" if moved_phase else f"브리핑 last_utc 전진({brief.get('last_utc')})"
+            note = (" · 종료 사유는 판정 불가지만 일한 흔적이 있다"
+                    if reason == "unclassified" else "")
             return {"action": "resume",
-                    "reason": f"{reason} 이지만 전진이 보인다({why}) — 자동 재발급(D9: 항상 자동)"}
+                    "reason": f"{reason} 이지만 전진이 보인다({why}){note} — 자동 재발급(D9: 항상 자동)"}
         return {"action": "popup",
                 "reason": f"{reason} 이고 전진이 없다 — 같은 벽에 부딪히는 중이다. "
                           f"예산을 키우기 전에 사람에게 묻는다"}
-    return {"action": "popup", "reason": f"분류되지 않은 종료(end_reason={reason}) — 모르면 묻는다"}
+    return {"action": "popup", "reason": f"처음 보는 종료(end_reason={reason}) — 모르면 묻는다"}
 
 
 def record_supervisor_step(doc: dict, decision: dict, *, utc: str,
@@ -1381,6 +1389,12 @@ def _self_test() -> int:
         "★감독: 권한 거부는 **권한 거부라고** 말한다(사유가 과장되면 사람이 엉뚱한 곳을 본다)")
     chk(supervise_decide({"attempts": [_mk(end_reason="sub_input_required")]}
                          )["action"] == "popup", "감독: input-required 는 답이 승인이다")
+    _un = {"attempts": [_mk(end_reason="unclassified", phase="serve"),
+                        _mk(attempt=2, end_reason="unclassified", phase="serve")]}
+    chk(supervise_decide(_un, brief={"last_utc": "2026-09-08T07:44:28Z"})["action"] == "resume",
+        "★감독: 판정 불가라도 **전진이 관측되면** 잇는다(리포트 형식 미준수가 D9 를 무력화 ✗)")
+    chk(supervise_decide(_un)["action"] == "popup",
+        "★감독 음성대조: 판정 불가 + 전진 없음이면 묻는다(모르면서 잇지 않는다)")
     _led = {"attempts": [_mk(end_reason="budget_exhausted", phase="serve")]}
     record_supervisor_step(_led, {"action": "popup", "reason": "r"}, utc="t0",
                            brief={"last_utc": "u1"})
