@@ -52,6 +52,33 @@ SSH_RE = re.compile(
     r"ssh\b")
 
 
+# 셸이 아닌 프로그램에 heredoc 으로 넘어가는 본문은 **데이터**이지 명령이 아니다. 그 안의 `ssh`
+# 는 실행되지 않는다(2026-09-08 실측: 이 감사기 자신을 작성한 python heredoc 이 자기 픽스처에
+# 걸렸다 — 가드가 자기 소스에 걸리면 사람은 가드를 안 보게 된다). 다만 **셸에 넘기는** heredoc
+# (`bash <<EOF`)은 그대로 명령이므로 벗기지 않는다 — 벗기면 진짜 우회가 숨을 자리가 생긴다.
+_HEREDOC_RE = re.compile(r"<<-?\s*([\x27\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+_SHELL_SINKS = ("bash", "sh ", "zsh", "ssh", "dash", "/bin/sh")
+
+
+def strip_data_heredocs(cmd: str) -> str:
+    """셸이 아닌 sink 로 가는 heredoc 본문을 지운다. 남는 것이 셸 자신의 명령 흐름이다."""
+    out, pos = [], 0
+    for m in _HEREDOC_RE.finditer(cmd):
+        if m.start() < pos:
+            continue
+        delim = m.group(2)
+        line_start = cmd.rfind(chr(10), 0, m.start()) + 1
+        head = cmd[line_start:m.start()]
+        end = cmd.find(chr(10) + delim, m.end())
+        if end == -1:
+            break
+        if any(k in head for k in _SHELL_SINKS):
+            continue
+        out.append(cmd[pos:m.end()])
+        pos = end + 1 + len(delim)
+    out.append(cmd[pos:])
+    return "".join(out)
+
 def commands(transcript: Path):
     """transcript 에서 셸 명령 문자열만 뽑는다. 형식 변화에 관대하게 — 이 감사가 포맷 하나
     때문에 죽으면 그 순간 감사가 없는 것과 같다(빈 결과를 '위반 0' 으로 접지 않는다)."""
@@ -83,7 +110,8 @@ def commands(transcript: Path):
 
 def violations(transcript: Path, sub_host: str) -> list:
     out = []
-    for cmd, tool in commands(transcript):
+    for raw, tool in commands(transcript):
+        cmd = strip_data_heredocs(raw)
         if not SSH_RE.search(cmd):
             continue
         if sub_host and sub_host not in cmd:
@@ -116,6 +144,15 @@ def _selftest() -> int:
        and not hit("audit_session_ssh.py --transcript x"))
     ck("★음성대조: 경로 조각의 ssh 는 실행이 아니다",
        not hit("cat ~/.ssh/config") and not hit("ls /usr/bin/sshd"))
+    _py = "python3 - <<PYEOF" + chr(10) + "s = echo x; ssh h" + chr(10) + "PYEOF" + chr(10)
+    ck("★음성대조: 셸 아닌 sink 의 heredoc 본문은 데이터다(감사기가 자기 소스에 걸리지 않는다)",
+       hit(_py) and not hit(strip_data_heredocs(_py)))
+    _sh = "bash <<EOF" + chr(10) + "ssh h" + chr(10) + "EOF" + chr(10)
+    ck("★셸에 넘기는 heredoc 은 벗기지 않는다(진짜 우회가 숨을 자리를 만들지 않는다)",
+       hit(strip_data_heredocs(_sh)))
+    _un = "python3 - <<PYEOF" + chr(10) + "ssh h" + chr(10)
+    ck("종료 구분자가 없으면 벗기지 않는다(판독 실패를 통과로 접지 않는다)",
+       hit(strip_data_heredocs(_un)))
     print("[ssh-audit] self-test " + ("PASS" if ok else "FAIL"))
     return 0 if ok else 1
 
