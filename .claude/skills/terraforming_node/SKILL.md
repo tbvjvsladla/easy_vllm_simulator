@@ -595,11 +595,21 @@ Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 �
 | `sub.git.unstick` | 배달 검증기가 거부 | `git checkout -- <path>` / `git clean -fd <path>` — **경로 한정**, 전역 금지 | B |
 | `sub.fs.repair` | 빈 디렉터리·mode 오차 | `rmdir`/`chmod` — **정보량 0 한정**(§2.7.2 정비) · 로그 필수 | B |
 | `sub.git.log` | 상향 관측 | 서브 작업 이력 조회(내용 아닌 이력) | B(관측) |
+| `sub.campaign.brief` | attempt 사이 상시 | 서브가 `docs/logs/<node_id>/campaign_brief.json` 에 낸 진행 요약을 **회수 미러에서** 읽는다(셀·phase·여정·`last_utc`) | B(관측) |
 
 - **경로 한정이 안전장치다** — `unstick`·`repair` 는 배달 대상 경로에만 건다. `BAND2_EXCLUDED_TOP` 및 그 **하위 전부**는 대상 밖(§2.7.2 ⚠).
 - **모든 제어명령은 로그를 남긴다** — 침묵 조작은 "원래 그랬던 것"과 구분되지 않는다.
 - **바이트를 가진 것의 삭제는 이 프로토콜 밖**이다 — `ALLOW_DELETE` 게이트 관할이며, 그 안내문을 그대로 따르면 파괴가 완성되는 형태였던 선례(D5)가 있으므로 **안내문 복창 금지**.
 - 실행문법(provider 별 `claude -p` 호출 형태)은 `references/agent-control-adapter.md` 에서만 해소한다.
+- **`sub.campaign.brief` 는 유일한 진행 관측면이다**(2026-09-08 신설 · `plan_26090813` §4.2). 서브가
+  publish 마다·phase 전이마다 갱신하고, 메인은 `fetch_sub_docs.sh` 미러(`sync_staging/sub_docs/logs/
+  <node>/campaign_brief.json`) 밖에서 서브를 읽지 않는다. **왜 신설했나**: attempt 사이에 허가된
+  관측 채널이 없어서 메인이 서브를 ssh 로 32회 직접 관측했다(2026-09-07 실측 — 헌법 노드제어 ①
+  무단 스캔 금지 위반). 채널이 없으면 사람은 우회를 만든다(D3: 우회 대신 경로를 만든다).
+- **감독자의 주기 읽기는 승인된 attempt 에 종속된 관측이지 새 트리거가 아니다**(2026-09-08 명문화 ·
+  사용자 결정 D8). `relay.py --supervise-step` 은 원장과 이 브리핑을 읽고 한 번 판정해 원장에 적고
+  끝난다 — 상주하지 않으며, 스스로 새 과업을 열지 않는다. 헌법 §트리거의 "무인 자동 실행 금지" 는
+  **작업 착수**를 말하는 것이고, 이미 승인돼 도는 attempt 의 진행을 읽는 것은 그 금지의 대상이 아니다.
 
 #### 2.7.7a 턴제 릴레이와 자율 재개 (2026-09-04 · `plan_26090412`)
 
@@ -612,7 +622,21 @@ Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 �
 | `relay.py --task ... --max-turns N --timeout-seconds N --budget-source "..." --resume new` | 첫 위임 | **선언한 예산·재개**로 delegate · 원장 개설(`campaigns/<camp-id>/relay/<ctx>.json`) | B |
 | `relay.py --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기 + 예산·세션 **사실** 표시(기본 dry-run) | B |
 | `relay.py --continue --apply --max-turns N --timeout-seconds N --budget-source "..." --resume <id\|new>` | 사람이 본문을 승인 | 조립 본문 + 새로 선언한 예산 + **선언한 세션**으로 delegate | B |
+| `relay.py --supervise-step <camp> [--apply]` | attempt 사이 | 원장 + 회수 브리핑을 읽어 **한 번 판정**하고 원장에 적는다. `--apply` 면 전진이 보이는 중단을 자동 재발급 | B |
 
+- **재개 승인은 2026-09-08 부터 자동이다**(사용자 결정 D9 — 종전 "사람이 본문을 승인"). 5시간 한도
+  프로바이더만 쓰는 환경에서 매 재개마다 사람을 기다리면 그 대기가 캠페인의 벽시계를 지배한다
+  (2026-09-07 실측: HITL 응답 대기 70분이 순차 실행의 직접 원인 중 하나였다). 자동의 **예외**는
+  둘뿐이다 — 선언된 비용 상한에 닿았거나, 모델·통신 평면이 깨졌을 때. 그 둘은 팝업으로 간다.
+  전진이 없는 중단도 팝업이다(예산을 키우기 전에 묻는다).
+- **HITL 은 셀 사이에 있고 재개는 셀 안에 있다**(D16). 셀이 끝난 뒤의 전이가 `HITL` 모드면 정리 후
+  그 자리에서 사람을 기다리며, 무인이라도 기다린다 — 그것이 그 모드를 선언한 이유다.
+- **셀 하나 = context 하나**(D20). 셀 context 는 서빙→벤치를 담고 빌드는 별도 문맥이다. 2026-09-07
+  에는 셀 둘을 한 context 에 묶어 attempt 2회가 모두 캡에서 잘렸고, 서브 자신이 셀 단위를 권고했다.
+  원장은 `campaign_node`·`campaign_context_kind`·`campaign_cell` 을 **선언으로** 든다(이름 추론 ✗).
+- **시간 예산은 실측에서 파생한다**(D21): `--budget-from-phase` 가 같은 노드의 지난 phase elapsed 에서
+  파생하고, 실측이 없으면 스키마 상한을 **읽어** 그 사실을 근거에 적는다. 스키마 상한은 그대로 두고
+  값을 코드에 리터럴로 복제하지 않는다.
 - **재개는 선언이다**(2026-09-05 · 축 F): 종전에는 `latest_session_id()` 가 원장을 보고 코드 규칙으로
   정했고 그 규칙이 라이브에서 두 번 어긋났다(완결 뒤 옛 세션 반환 · 소진 세션 무조건 폐기). 이제
   dry-run 이 **마지막 알려진 세션과 그 맥락**을 보여주고, `--resume <session_id|new>` 로 선언하지 않으면
@@ -748,6 +772,7 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 |---|---|---|---|
 | **install** | (사람 request) 클론 → 카나리 | terraforming: `--peer-ssh` 실측 → 서브 manifest 발행(`scan_node.py --emit-sub-manifest`) → Agent_Card v2 렌더·서명 → **설치 오버레이** 배달(`sync_to_sub --provision`) → model-less 카나리 | 설치 산출물(오버레이)만 |
 | **config · build · serve · bench** | 자율(도서관 인용은 `library_request[]` 로 요청) | 릴레이 감독(원장 append-only · 재개 결정은 에이전트 · §2.7.7) | **없음** — `output/**` 이동 ✗ · 이미지 전송 ✗ |
+| **(모든 phase 전이)** | `campaign_init --write-brief` 로 `docs/logs/<node_id>/campaign_brief.json` 갱신 | 미러에서 그 파일 하나만 읽는다(`sub.campaign.brief`) | 브리핑은 기계판독 데이터 평면이다(산문 규약 밖) |
 | **publish** | `docs/` 에 문서 발행: sweep map · benchmark 인증서/리포트 · devlog/testlog · **hint 입력 사이드카** `docs/benchmark/hint_inputs_<measured_utc>/`(렌더된 Dockerfile·compose·3+1+1·바깥영역 산출물의 사본) → task-report 에 경로 | `fetch_sub_docs.sh` 로 `docs/` 회수(simlog raw 제외) → devlog·benchmark 저작(서브 결과 신뢰 — raw 재요구 ✗) → hint 발행 입력 | 문서 평면만 |
 
 - **책임 = terraforming_node** (사용자 결정 · 발견≠소유). 인증서가 무엇을 담는가는 `adversarial-benchmark`,

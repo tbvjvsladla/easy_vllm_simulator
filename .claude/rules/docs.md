@@ -95,6 +95,7 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 | `docs/logs/<node_id>/events/<YYYY-MM>.jsonl` | 희소·이질 이벤트(트립·킬·부정클린부팅) | 자기서술 필요, 양이 적음 | **영구** |
 | `docs/logs/<node_id>/rollup/<YYYY-MM-DD>.json` | 일별 포락선 통계 | 학습의 실제 입력 | **영구** |
 | `docs/logs/<node_id>/envelope.json` | 현재 포락선 + ETA 상수 | **에이전트가 폴링마다 읽는 유일한 파일**(수백 토큰) | 갱신 |
+| `docs/logs/<node_id>/campaign_brief.json` | 캠페인 진행 요약(셀·phase·여정·`last_utc`) | **메인이 서브 진행을 읽는 유일한 자리**(2026-09-08 · `plan_26090813` §4.2). 이 자리가 없어서 메인이 서브를 ssh 로 32회 직접 관측했다 — 채널이 없으면 사람은 우회를 만든다 | 갱신(phase 전이·publish 마다) |
 | `docs/logs/<node_id>/capture_verified.json` | proof-of-capture 판정 | 상태 권위(`installed` 아님) | 갱신 |
 | `docs/logs/<node_id>/seed/` | 레거시 저널 수확분 | 15초 해상도 재구성(canonical 아님) | 보존 |
 
@@ -163,6 +164,7 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 | `seed/` | private/untracked | 배포본에 없을 수 있음 | 근거 pointer만 허용 |
 | `campaigns/README.md`·`campaigns/_template/**` | **tracked**(뼈대) | main→sub 오버레이 설치 · branch sync 대상 | `terraforming_node`; `campaign_template_validator.py` |
 | `campaigns/<camp-id>/**` | ignored(휘발) | 전파 ✗ — 서브는 자기 인스턴스를 자율 저작하고 결과는 문서로 회수 | 새 캠페인 init 의 purge 게이트(workflow.md) |
+| **파생 선언**(`campaign_init --emit-slice <node>` 산출) | ignored(휘발) | **메인→서브 단방향**(지시서 본문에 실려 간다 · 2026-09-08 · `plan_26090813` §4.2) | 배정 SSOT 는 메인 `assignments` · 서브는 `--init --from-slice` 로 자기 인스턴스를 연다(`self_role: sub`) |
 | ~~`tasks/`~~ | **폐지 2026-09-06** | — | 후속 = `campaigns/<camp-id>/relay/` (활성 캠페인 없으면 `_bootstrap`) |
 
 simlog·benchmark에 폴더별 ignore 예외를 더하지 않는다. report는 tracked allowlist 행 하나로 평탄화하며, `docs/report/` 전체가 배포된다.
