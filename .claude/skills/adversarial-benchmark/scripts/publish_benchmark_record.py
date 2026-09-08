@@ -200,6 +200,10 @@ def _register_campaign_evidence(sweep_index_path: str, cert_path: str, meta: dic
     root = repo_root(sweep_index_path)
     ci = os.path.join(root, ".claude", "skills", "terraforming_node", "scripts", "campaign_init.py")
     if not os.path.isfile(ci):
+        # 부재는 침묵이 아니라 배선 결함이다(2026-09-08 · plan_26090813 F5). 조용히 넘어가면
+        # "캠페인 밖 측정" 과 "도구가 안 배달됐다" 가 구분되지 않는다.
+        sys.stderr.write("[publish_record] campaigns writer 부재(%s) — 인증서는 발행됐지만 "
+                         "증거 포인터를 아무도 적지 않았다\n" % ci)
         return
     try:
         rel = os.path.relpath(cert_path, root)

@@ -135,4 +135,33 @@ echo "[fetch] APPLY  $SUB_HOST:$SUB_WORK_DIR/docs/ → $DEST/  (서브 read-only
 rsync -az "${EXCLUDES[@]}" -e "$SSH_OPTS" "$SUB_HOST:$SUB_WORK_DIR/docs/" "$DEST/"
 n=$(find "$DEST" -type f 2>/dev/null | wc -l | tr -d ' ')
 echo "[fetch] 미러 완료 — $DEST ($n 파일)."
+
+# ── 캠페인 편입 (2026-09-08 · plan_26090813 D13) ───────────────────────────────────────────
+# 왜 여기인가: 종전에는 서브가 완주해도 메인 인스턴스의 `phases/sub/*`·`cells/*`·증거 포인터를
+# **사람이** 적었고, 2026-09-07 에 그 4개가 캠페인 종료 뒤 22:34:11Z 같은 초에 나타났다. 그러면
+# 진행표는 관측이 아니라 회고이고, 감독자가 읽어도 아무것도 알 수 없다. 회수가 끝난 그 자리에서
+# 편입하면 그 재저작이 사라지고, 회수분은 **서브 저작**(authored_by=<서브 node_id>)으로 남는다.
+#
+# 상향 회수는 문서기반이다(헌법 노드제어 ①) — 편입기가 읽는 것은 방금 만든 이 미러뿐이다.
+# ACTIVE=_bootstrap 이면 writer 가 스스로 no-op 이므로 캠페인 밖 회수는 영향이 없다.
+_CI="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_init.py"
+_NOW="$(date -u +%FT%TZ)"
+if [ -f "$_CI" ]; then
+    if python3 "$_CI" --import-sub "$DEST" --utc "$_NOW"; then
+        echo "[fetch] 캠페인 편입 완료 — 서브 진행표·셀·증거가 메인 인스턴스에 앉았다."
+    else
+        echo "[fetch] ⚠ 캠페인 편입 실패 — 미러는 있고 진행표는 없다(위 사유 참조)." >&2
+    fi
+    # 합격 술어(P4 동시 착수 타임라인 · P5 서브 자기저작)는 **회수 뒤**에 물어야 답이 있다.
+    # 판정만 하고 차단하지 않는다 — 진행을 막는 자리와 판정하는 자리는 분리돼 있다(plan §9 R3).
+    _CV="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_template_validator.py"
+    _CAMP="$(python3 "$_CI" --active 2>/dev/null || echo _bootstrap)"
+    if [ -f "$_CV" ] && [ "$_CAMP" != "_bootstrap" ]; then
+        echo "[fetch] 합격 술어(P4·P5) 판정 — 차단하지 않는다(관측 결과만 남긴다):"
+        python3 "$_CV" --acceptance "${SRC%/}/campaigns/$_CAMP" || true
+    fi
+else
+    echo "[fetch] ⚠ campaigns writer 부재($_CI) — 회수는 됐지만 아무도 편입하지 않았다." >&2
+fi
+
 echo "[fetch] 다음(사람): 이 문서를 열람 → 반영할 개선을 메인 템플릿/헌법/스킬에 HITL 재저작(자동 머지 없음)."

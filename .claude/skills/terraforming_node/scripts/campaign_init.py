@@ -923,6 +923,187 @@ def campaign_brief(base: Path, *, node: str, utc: str) -> dict:
     }
 
 
+# 회수 미러의 파일 이름 → 증거 종류. 이름 규약의 정본은 `doc_naming.py` 이고 여기는 **소비자**다
+# (접두어 목록은 docs.md §명명 SSOT 가 정한 것이고, 새 종류가 생기면 여기도 같이 는다).
+_EVIDENCE_PREFIX = (
+    ("benchmark/benchmark_", ".yaml", "certificate"),
+    ("benchmark/bench_report_", ".md", "bench_report"),
+    ("benchmark/sweep_map_", ".md", "sweep_map"),
+    ("testlog/testlog_", ".md", "testlog"),
+    ("devlog/devlog_", ".md", "devlog"),
+)
+
+
+def import_sub_mirror(base: Path, mirror: Path, *, utc: str,
+                      unfreeze: bool = False) -> "tuple[list[str], list[str]]":
+    """회수된 서브 미러를 메인 인스턴스에 편입한다(2026-09-08 · plan_26090813 D13).
+
+    왜 여기인가: 종전에는 서브가 완주해도 메인 인스턴스의 `phases/sub/*` 를 **사람이** 적었고,
+    그래서 4개가 캠페인 종료 뒤 같은 초에 나타났다. 회수 스크립트의 종료부가 부르면 그 재저작이
+    사라진다 — 회수분은 서브 저작(`authored_by = <서브 node_id>`)으로 남고, P5 가 그것을 본다.
+
+    상향 회수는 **문서기반**이다(헌법 노드제어 ①). 이 함수가 읽는 것은 서브 디스크가 아니라
+    `fetch_sub_docs.sh` 가 만든 미러뿐이며, 미러 밖은 보지 않는다.
+    """
+    wrote: list[str] = []
+    warnings: list[str] = []
+    briefs = sorted(mirror.glob("logs/*/campaign_brief.json"))
+    if not briefs:
+        raise WriterRefusal(
+            f"회수 미러에 브리핑이 없다: {_rel(mirror)}/logs/*/campaign_brief.json — 서브가 "
+            f"`campaign_init --write-brief` 를 돌지 않았거나 회수 범위가 docs/logs 를 뺐다. "
+            f"부재를 통과시키면 '서브가 안 돌았다'와 '관측면이 안 왔다'가 구분되지 않는다.")
+    for bpath in briefs:
+        doc = _read_json(bpath)
+        if not isinstance(doc, dict):
+            raise WriterRefusal(f"브리핑 파손: {_rel(bpath)}")
+        node = doc.get("node_id")
+        if not isinstance(node, str) or not node:
+            raise WriterRefusal(f"브리핑에 node_id 가 없다: {_rel(bpath)}")
+        if doc.get("campaign_id") and doc["campaign_id"] != base.name:
+            # 다른 캠페인의 브리핑을 편입하면 이 인스턴스의 진행표가 남의 사실을 주장한다.
+            raise WriterRefusal(
+                f"브리핑의 campaign_id({doc['campaign_id']!r})가 이 인스턴스({base.name!r})와 "
+                f"다르다 — 회수 미러가 낡았거나 캠페인이 바뀌었다")
+        for phase, st in (doc.get("phases") or {}).items():
+            if not isinstance(st, dict) or phase not in PHASE_NAMES:
+                continue
+            wrote.append(_rel(writer_set_phase(
+                base, node=node, phase=phase, state=st.get("state") or "pending",
+                predicate=f"서브 회수(brief {doc.get('generated_utc')})",
+                ok=bool(st.get("proof_ok")),
+                source=st.get("proof_source") or f"{_rel(bpath)}#phases.{phase}",
+                cell_id=None, started_utc=st.get("first_started_utc") or st.get("started_utc"),
+                ended_utc=st.get("ended_utc"), authored_by=node)))
+        for cell in (doc.get("cells") or []):
+            if not isinstance(cell, dict) or not cell.get("cell_id"):
+                continue
+            outcome = cell.get("cell_outcome")
+            if outcome not in CELL_OUTCOMES:
+                continue                 # 서브가 아직 안 적은 셀 — 부재는 결손이지 오류가 아니다
+            tps = cell.get("decode_tps_conc1")
+            cpath, jpath = writer_set_cell(
+                base, cell=cell["cell_id"], outcome=outcome, node=node,
+                version=None, model=None,
+                decode_tps=(str(tps) if isinstance(tps, (int, float)) else None),
+                measurement_source=(f"{_rel(bpath)}#cells[{cell['cell_id']}]"
+                                    if isinstance(tps, (int, float)) else None),
+                void_reason=cell.get("void_reason"),
+                void_reason_source=(f"{_rel(bpath)}#cells[{cell['cell_id']}].void_reason"
+                                    if cell.get("void_reason") else None),
+                axis_citation=cell.get("axis_citation"), next_intent=None, utc=utc)
+            wrote.append(_rel(cpath))
+            if jpath is not None:
+                wrote.append(_rel(jpath))
+        # 여정은 append-only 라 재편입이 줄을 늘린다 — 이미 있는 줄은 다시 적지 않는다(멱등).
+        # 대조 키에서 **편입 메타(언제 가져왔나)는 뺀다** — 그것이 다르다고 같은 여정이 두 번
+        # 적히면, 두 번째 줄은 새로운 사실이 아니라 회수를 한 번 더 돌렸다는 사실일 뿐이다.
+        def _jkey(e: dict) -> str:
+            return json.dumps({k: v for k, v in e.items()
+                               if k not in ("imported_from", "imported_utc")},
+                              ensure_ascii=False, sort_keys=True)
+
+        have = {_jkey(e) for e in read_journey(base) if isinstance(e, dict)}
+        for entry in (doc.get("journey_tail") or []):
+            if not isinstance(entry, dict) or _jkey(entry) in have:
+                continue
+            have.add(_jkey(entry))
+            wrote.append(_rel(writer_append_journey(
+                base, dict(entry, imported_from=_rel(bpath), imported_utc=utc))))
+    # 증거: 미러에 도착한 문서를 그 노드 태그로 등재한다. 종전에는 손으로 적었고 6건 전부
+    # node_id 가 null 이었다 — 그래서 P2 가 아무 노드도 검사하지 못했다.
+    node_ids = sorted({(_read_json(b) or {}).get("node_id") for b in briefs} - {None})
+    tag = node_ids[0] if len(node_ids) == 1 else None
+    for prefix, suffix, kind in _EVIDENCE_PREFIX:
+        head, _, name = prefix.partition("/")
+        for f in sorted((mirror / head).glob(f"{name}*{suffix}")) if (mirror / head).is_dir() else []:
+            try:
+                rel = str(f.resolve().relative_to(REPO_ROOT))
+            except ValueError:
+                continue
+            try:
+                wrote.append(_rel(writer_add_evidence(base, kind=kind, path_rel=rel, cell_id=None,
+                                                      node=tag, unfreeze=unfreeze)))
+            except WriterRefusal as exc:
+                # ★ 진행표는 이미 적혔다. 증거 등재만 거부됐다면 **거기서 멈추지 않는다** —
+                #   결손을 기재하고 진행한다(사용자 결정 D17: 결정론이 과하면 캠페인이 hang 한다).
+                #   대개는 메인이 이미 스냅샷을 동결한 뒤에 서브가 끝난 경우이고, 그때 필요한 것은
+                #   차단이 아니라 "사람이 --unfreeze 를 붙일지" 라는 질문이다.
+                warnings.append(f"증거 미등재 {rel} (kind={kind}) — {exc}")
+    return wrote, warnings
+
+
+def _sweep_sources(base: Path) -> list[Path]:
+    """측정값이 살아 있는 자리 전부. 인스턴스의 스윕 기록이 1순위이고, docs 평면의 sweep map 은
+    인스턴스가 결손일 때의 **사후 출처**다(둘 다 같은 `cell_key`·`concurrency_vector` 모양)."""
+    out = sorted(base.glob("sweeps/*.json"))
+    for d in (REPO_ROOT / "docs" / "benchmark",
+              REPO_ROOT / "sync_staging" / "sub_docs" / "benchmark"):
+        if d.is_dir():
+            out += sorted(d.glob("sweep_map_*.json"))
+    return out
+
+
+def backfill_from_docs(base: Path, *, utc: str | None = None) -> "tuple[list[str], list[str]]":
+    """결손 셀의 측정·노드를 사후 수리한다(2026-09-08 · plan_26090813 §4.4 · 사용자 결정 D17).
+
+    왜 차단이 아니라 수리인가: 결손을 게이트로 막으면 캠페인이 그 자리에서 선다(사용자 경계 —
+    "너무 결정론적이면 시스템이 무한 hang 에 빠진다"). 대신 **hint 발행 직전에** 값이 실제로
+    있는 자리(스윕 기록·sweep map)를 훑어 채우고, 그래도 없는 것은 결손으로 남긴 채 이름을 부른다.
+    """
+    repaired: list[str] = []
+    gaps: list[str] = []
+    decl = read_declaration(base)
+    v = validator()
+    records: dict = {}
+    for src in _sweep_sources(base):
+        doc = _read_json(src)
+        if not isinstance(doc, dict):
+            continue
+        for rec in (doc.get("cells") or []):
+            if not isinstance(rec, dict):
+                continue
+            key = rec.get("cell_key")
+            vec = rec.get("concurrency_vector")
+            val = vec.get("1") if isinstance(vec, dict) else None
+            if isinstance(key, str) and isinstance(val, (int, float)) and not isinstance(val, bool):
+                records.setdefault(key, (float(val), rec.get("cell_outcome"), _rel(src)))
+    cells_dir = base / "cells"
+    known = set(v.assigned_cells(decl))
+    on_disk = {p.name for p in cells_dir.iterdir()
+               if p.is_dir() and p.name != "_cell"} if cells_dir.is_dir() else set()
+    for cell in sorted(known | on_disk):
+        st = _read_json(cells_dir / cell / "cell.status.json")
+        st = st if isinstance(st, dict) else {}
+        meas = st.get("measurement") if isinstance(st.get("measurement"), dict) else {}
+        need_tps = meas.get("decode_tps_conc1") is None
+        need_node = not st.get("node_id")
+        if not (need_tps or need_node or not st):
+            continue
+        rec = records.get(cell)
+        if need_tps and rec is None:
+            gaps.append(f"{cell}: 측정값이 어느 자리에도 없다(스윕 기록·sweep map 전수 조회)")
+            if st and not need_node:
+                continue
+        tps, sweep_outcome, src = rec if rec else (None, None, None)
+        outcome = st.get("cell_outcome") or sweep_outcome or "pending"
+        if outcome not in CELL_OUTCOMES:
+            outcome = "pending"
+        cpath, _ = writer_set_cell(
+            base, cell=cell, outcome=outcome, node=st.get("node_id"),
+            version=st.get("version"), model=st.get("model"),
+            decode_tps=(str(tps) if need_tps and tps is not None else None),
+            measurement_source=((f"backfill:{src}#cells[cell_key={cell}].concurrency_vector.1")
+                                if need_tps and tps is not None else None),
+            void_reason=st.get("void_reason"), void_reason_source=st.get("void_reason_source"),
+            axis_citation=st.get("axis_citation"), next_intent=None, utc=utc)
+        after = _read_json(cpath) or {}
+        if not after.get("node_id"):
+            gaps.append(f"{cell}: 노드를 배정에서 파생하지 못했다(assignments 에 없는 셀)")
+        repaired.append(_rel(cpath))
+    return repaired, gaps
+
+
 def brief_path(node: str, repo_root: str | Path | None = None) -> Path:
     """기계판독 데이터 평면(`docs/logs/`). 산문 명명 SSOT 의 명시 예외이며 fetch_sub_docs 가
     이미 미러하는 경로다 — 새 회수 경로를 만들지 않는다."""
@@ -939,7 +1120,7 @@ def write_campaign_brief(base: Path, *, node: str, utc: str,
 
 def _selftest() -> int:
     import tempfile
-    global CAMPAIGNS, ACTIVE_POINTER
+    global CAMPAIGNS, ACTIVE_POINTER, REPO_ROOT
     ok = True
 
     def ck(label, cond):
@@ -962,7 +1143,7 @@ def _selftest() -> int:
         kind_guard = True
     ck("알 수 없는 파생 차단", kind_guard)
 
-    saved = (CAMPAIGNS, ACTIVE_POINTER)
+    saved = (CAMPAIGNS, ACTIVE_POINTER, REPO_ROOT)
     with tempfile.TemporaryDirectory() as tmp:
         CAMPAIGNS = Path(tmp) / "campaigns"
         ACTIVE_POINTER = CAMPAIGNS / "ACTIVE"
@@ -1277,7 +1458,85 @@ def _selftest() -> int:
         ck("★브리핑의 authored_by 는 자기 노드다(P5 가 사후 재저작을 가르는 자리)",
            _b["authored_by"] == "main")
 
-    CAMPAIGNS, ACTIVE_POINTER = saved
+        # ── 회수 편입 (2026-09-08 · plan_26090813 D13) ────────────────────────────────────
+        #    증거 경로는 **저장소 상대**여야 하므로 이 블록만 REPO_ROOT 를 픽스처로 옮긴다.
+        _saved_root = REPO_ROOT
+        REPO_ROOT = Path(tmp)
+        _mir = Path(tmp) / "sync_staging" / "sub_docs"
+        (_mir / "logs" / "sub").mkdir(parents=True)
+        (_mir / "testlog").mkdir(parents=True)
+        (_mir / "benchmark").mkdir(parents=True)
+        (_mir / "testlog" / "testlog_26090807_서브.md").write_text("판정\n", encoding="utf-8")
+        (_mir / "benchmark" / "bench_report_26090807_x.md").write_text("리포트\n", encoding="utf-8")
+        (_mir / "benchmark" / "notes.md").write_text("규약 밖\n", encoding="utf-8")
+        _write_json(_mir / "logs" / "sub" / "campaign_brief.json", {
+            "schema_version": 1, "campaign_id": "w1", "node_id": "sub", "self_role": "sub",
+            "authored_by": "sub", "generated_utc": "2026-09-08T22:00:00Z",
+            "cells": [{"cell_id": "c9", "cell_outcome": "measured", "decode_tps_conc1": 7.5,
+                       "axis_citation": "tq4 축", "void_reason": None}],
+            "phases": {"build": {"state": "done", "proof_ok": True, "proof_source": "docker inspect",
+                                 "first_started_utc": "2026-09-08T18:00:00Z",
+                                 "ended_utc": "2026-09-08T19:00:00Z"},
+                       "serve": {"state": "done", "proof_ok": True, "proof_source": "health 200",
+                                 "first_started_utc": "2026-09-08T19:10:00Z",
+                                 "ended_utc": "2026-09-08T19:20:00Z"}},
+            "journey_tail": [{"utc": "2026-09-08T20:00:00Z", "cell_id": "c9",
+                              "next_intent": "d 착수"}],
+            "last_utc": "2026-09-08T22:00:00Z"})
+        _n0 = len(read_journey(camp))
+        _w0, _warn0 = import_sub_mirror(camp, _mir, utc="2026-09-08T23:00:00Z")
+        ck("★동결된 스냅샷을 만나도 진행표는 적히고 증거만 결손 기재된다(차단 ✗ · D17)",
+           _warn0 and all("증거 미등재" in x for x in _warn0)
+           and (camp / "phases" / "sub" / "build.status.json").is_file())
+        _w, _warn = import_sub_mirror(camp, _mir, utc="2026-09-08T23:00:00Z", unfreeze=True)
+        _sb = _read_json(camp / "phases" / "sub" / "build.status.json")
+        ck("★회수 편입이 서브 phase 를 서브 저작으로 남긴다(사후 손저작 대체)",
+           _sb["authored_by"] == "sub" and _sb["state"] == "done"
+           and _sb["first_started_utc"] == "2026-09-08T18:00:00Z")
+        ck("★phase 시각이 서로 다르게 보존된다(P5 동일초 판정이 성립하려면 필요)",
+           _read_json(camp / "phases" / "sub" / "serve.status.json")["ended_utc"]
+           != _sb["ended_utc"])
+        _sc = _read_json(camp / "cells" / "c9" / "cell.status.json")
+        ck("★회수 편입이 셀 결과·측정·노드를 옮긴다",
+           _sc["cell_outcome"] == "measured" and _sc["measurement"]["decode_tps_conc1"] == 7.5
+           and _sc["node_id"] == "sub")
+        _ptrs = _read_json(camp / "evidence_pointers.json")["pointers"]
+        ck("★회수 문서가 **노드 태그와 함께** 증거로 등재된다(P2 공허 통과 방지)",
+           any(x["kind"] == "testlog" and x["node_id"] == "sub" for x in _ptrs)
+           and any(x["kind"] == "bench_report" and x["node_id"] == "sub" for x in _ptrs))
+        ck("★규약 밖 이름은 증거로 등재하지 않는다(이름이 곧 증거 연결)",
+           not any("notes.md" in str(x.get("path")) for x in _ptrs))
+        ck("여정 한 줄이 회수와 함께 편입된다", len(read_journey(camp)) == _n0 + 1)
+        import_sub_mirror(camp, _mir, utc="2026-09-08T23:30:00Z", unfreeze=True)
+        ck("★재편입은 여정을 늘리지 않는다(멱등)", len(read_journey(camp)) == _n0 + 1)
+        _write_json(_mir / "logs" / "sub" / "campaign_brief.json",
+                    {"schema_version": 1, "campaign_id": "다른캠페인", "node_id": "sub"})
+        ck("★음성대조 다른 캠페인의 브리핑은 편입 거부(남의 사실을 주장하지 않는다)",
+           _boom(lambda: import_sub_mirror(camp, _mir, utc="t")))
+        (_mir / "logs" / "sub" / "campaign_brief.json").unlink()
+        ck("★음성대조 브리핑 부재는 소리낸다('안 돌았다'와 '관측면이 안 왔다'는 다르다)",
+           _boom(lambda: import_sub_mirror(camp, _mir, utc="t")))
+
+        # ── 사후 수리 (2026-09-08 · plan_26090813 §4.4 · D17) ─────────────────────────────
+        (Path(tmp) / "docs" / "benchmark").mkdir(parents=True, exist_ok=True)
+        _write_json(Path(tmp) / "docs" / "benchmark" / "sweep_map_x.json", {"cells": [
+            {"cell_key": "c3", "cell_outcome": "measured", "concurrency_vector": {"1": 11.5}}]})
+        writer_set_cell(camp, cell="c4", outcome="pending", node="main", version=None, model=None,
+                        decode_tps=None, measurement_source=None, void_reason=None,
+                        void_reason_source=None, axis_citation=None, next_intent=None, utc="t")
+        _rep, _gaps = backfill_from_docs(camp, utc="2026-09-09T00:00:00Z")
+        _c3 = _read_json(camp / "cells" / "c3" / "cell.status.json")
+        ck("★결손 셀의 측정을 sweep map 에서 사후 수리한다(hint 발행 직전 · 차단 ✗)",
+           _c3["measurement"]["decode_tps_conc1"] == 11.5
+           and _c3["measurement"]["source"].startswith("backfill:"))
+        ck("★수리해도 없는 것은 **이름을 부른다**(조용한 결손 금지)",
+           any("c4" in g for g in _gaps))
+        ck("★수리는 이미 채워진 값을 덮지 않는다",
+           _read_json(camp / "cells" / "c9" / "cell.status.json")
+           ["measurement"]["decode_tps_conc1"] == 7.5)
+        REPO_ROOT = _saved_root
+
+    CAMPAIGNS, ACTIVE_POINTER, REPO_ROOT = saved
     print("[campaign_init] " + ("PASS" if ok else "FAIL"))
     return 0 if ok else 1
 
@@ -1300,9 +1559,18 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--from-slice", metavar="PATH",
                     help="--init 과 함께: 메인이 보낸 파생 선언으로 campaign.yaml 을 연다"
                          "(서브는 지시서만으로 착수한다)")
+    ap.add_argument("--backfill-from-docs", action="store_true",
+                    help="결손 셀의 측정·노드를 스윕 기록·sweep map 에서 사후 수리한다 · --utc 필수 "
+                         "(hint 발행 직전 · 차단 ✗ · 남은 결손은 이름을 부른다)")
+    ap.add_argument("--assigned-cells", metavar="NODE",
+                    help="그 노드에 배정된 셀을 쉼표로 출력한다(스윕 --cells 의 파생 원천). "
+                         "손으로 적은 목록은 선언과 갈라진다 — 갈라진 목록은 지도를 거짓말하게 만든다")
     ap.add_argument("--emit-slice", metavar="NODE",
                     help="그 노드 몫만 자른 파생 선언을 낸다(메인 오케스트레이션) · --utc 필수")
     ap.add_argument("--out", metavar="PATH", help="--emit-slice 산출 경로(생략 시 stdout)")
+    ap.add_argument("--import-sub", metavar="MIRROR",
+                    help="회수 미러(sync_staging/sub_docs)를 메인 인스턴스에 편입한다 · --utc 필수 "
+                         "(fetch_sub_docs.sh 종료부가 부른다 — 사후 손저작 대체)")
     ap.add_argument("--write-brief", action="store_true",
                     help="docs/logs/<node>/campaign_brief.json 갱신 · --node --utc 필수 "
                          "(선언된 관측면 — 메인은 이 파일 외에 서브를 읽지 않는다)")
@@ -1360,6 +1628,15 @@ def main(argv: list[str] | None = None) -> int:
                               camp_id=a.campaign_id)); return 0
         if a.resume_brief:
             sys.stdout.write(resume_brief(a.campaign_id)); return 0
+        if a.assigned_cells:
+            tgt = _writer_target(a.campaign_id)
+            if tgt is None:
+                raise PurgeGateRefusal("활성 캠페인이 없다(_bootstrap) — 배정을 물을 선언이 없다")
+            cells = validator().assigned_cells(read_declaration(tgt[0]), a.assigned_cells)
+            if not cells:
+                raise PurgeGateRefusal(
+                    f"assignments[{a.assigned_cells!r}] 가 비었다 — 이 노드에 배정된 셀이 없다")
+            print(",".join(cells)); return 0
         if a.emit_slice:
             if not a.utc:
                 raise WriterRefusal("--emit-slice 는 --utc 가 필요하다(시각은 주입만 받는다)")
@@ -1387,7 +1664,7 @@ def main(argv: list[str] | None = None) -> int:
                   f"{_rel(write_campaign_brief(tgt[0], node=a.node, utc=a.utc))}")
             return 0
         writer_ops = (a.phase_set, a.cell_set, a.evidence_add, a.freeze_evidence, a.revise,
-                      a.evidence_prune_stubs)
+                      a.evidence_prune_stubs, a.import_sub, a.backfill_from_docs)
         if any(writer_ops):
             tgt = _writer_target(a.campaign_id)
             if tgt is None:
@@ -1424,6 +1701,21 @@ def main(argv: list[str] | None = None) -> int:
                 wrote.append(_rel(writer_add_evidence(
                     base, kind=a.kind, path_rel=a.path, cell_id=a.cell, node=a.node,
                     unfreeze=a.unfreeze)))
+            if a.import_sub:
+                if not a.utc:
+                    raise WriterRefusal("--import-sub 는 --utc 가 필요하다(시각은 주입만 받는다)")
+                _w, _warn = import_sub_mirror(base, Path(a.import_sub), utc=a.utc,
+                                              unfreeze=a.unfreeze)
+                wrote += _w
+                for _x in _warn:
+                    print(f"[campaign_init] ⚠ {_x}", file=sys.stderr)
+            if a.backfill_from_docs:
+                # 시각 인자를 요구하지 않는다 — 이 연산은 어떤 타임스탬프도 쓰지 않는다. 안 쓰는
+                # 값을 요구하면 호출부가 아무 문자열이나 넣게 되고, 그 순간 그 필드는 거짓이 된다.
+                _rep, _gaps = backfill_from_docs(base, utc=a.utc)
+                wrote += _rep
+                for _g in _gaps:
+                    print(f"[campaign_init] ⚠ 남은 결손 — {_g}", file=sys.stderr)
             if a.evidence_prune_stubs:
                 epath, dropped = writer_prune_stubs(base, unfreeze=a.unfreeze)
                 wrote.append(_rel(epath))
