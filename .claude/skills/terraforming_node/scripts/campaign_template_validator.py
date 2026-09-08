@@ -357,9 +357,13 @@ def validate_instance(camp_dir: Path) -> list[str]:
 # 새 lint 계열을 만들지 않는다 — 이 셋은 purge 선행조건에 편입되는 **기존 게이트의 술어**다.
 
 # sweep 레코드의 결과 어휘 → cell_outcome 어휘. 두 자리가 다른 말을 쓰면 대조가 성립하지 않는다.
+# ★ 2026-09-08 라이브 교정: `classify_cell.py` 가 내는 `measurement_void`·`not_measured` 가 이 표에
+#   없어서 P1 은 그 셀들을 **아무 말 없이 건너뛰었다**(부재를 불일치로 세지 않는 설계가, 어휘가
+#   갈라진 순간 침묵 통과가 됐다). 두 자리가 다른 말을 쓰면 대조가 성립하지 않는다.
 _SWEEP_TO_CELL = {
     "measured": "measured", "serve_failed": "serve_failed", "build_failed": "build_failed",
     "void": "void", "pending": "pending",
+    "measurement_void": "measurement_void", "not_measured": "not_measured",
 }
 
 

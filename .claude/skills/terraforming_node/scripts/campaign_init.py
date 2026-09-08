@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -179,7 +180,13 @@ def purge_gate_reasons(previous_id: str) -> list[str]:
         if not (REPO_ROOT / rel).exists():
             reasons.append(f"{previous_id}: 증거가 실재하지 않는다 — {rel} (kind={kind})")
     # 릴레이 요약은 원장 원문이 휘발이므로 **서사가 남았는지**를 따로 묻는다.
-    if "relay_summary" not in kinds:
+    # ★ 2026-09-08(서브 라이브 지적): 종전에는 이 요구가 무조건이었다. 그런데 서브 인스턴스에는
+    #   릴레이 원장이 **없다** — 왕복의 원장은 메인이 든다. 그래서 서브의 purge 게이트는 어떤
+    #   조건에서도 열리지 않았고, 그것은 안전장치가 아니라 교착이다(헌법 노드제어 ③). 잃을 것이
+    #   없으면 요약을 요구하지 않는다: 원장이 실재할 때만 그 서사를 묻는다.
+    has_ledger = any(f.suffix == ".json" and f.name != "pending_hitl.json"
+                     for f in (prev / "relay").iterdir()) if (prev / "relay").is_dir() else False
+    if has_ledger and "relay_summary" not in kinds:
         reasons.append(f"{previous_id}: relay_summary 포인터가 없다 — 원장 원문은 휘발이므로 "
                        f"요약 testlog 가 없으면 왕복이 통째로 사라진다")
     # P1~P3 — 진행표가 실제로 완주를 표현하는가(2026-09-07 · plan_26090715 §4.4).
@@ -346,11 +353,26 @@ def scaffold(camp_id: str, plan_ref: str, *, apply: bool,
 
 PHASE_STATES = ("pending", "running", "done", "failed")
 PHASE_NAMES = ("build", "serve", "bench", "publish")
-CELL_OUTCOMES = ("pending", "measured", "serve_failed", "build_failed", "void")
+# ★ 2026-09-08 라이브 교정: 이 목록과 `classify_cell.py` 의 어휘가 **갈라져 있었다**. 분류기가
+#   `measurement_void` 를 내면 writer 가 그 값을 모른다며 거부했고, 그래서 셀 상태·여정·bench
+#   phase·브리핑이 **통째로 안 적혔다** — 측정은 성립했는데 기록만 사라진 것이다(이 계획이 고치려던
+#   결함과 정확히 같은 계열). 분류 어휘의 소유는 `classify_cell.py` 이고 여기는 그것을 **포함**해야
+#   한다. `_selftest` 의 tripwire 가 다음 분기를 커밋 전에 잡는다.
+CELL_OUTCOMES = ("pending", "measured", "serve_failed", "build_failed", "void",
+                 "measurement_void", "not_measured")
+# 남은 작업으로 세는 값(브리핑·resume-brief 가 공유한다). `not_measured` 는 아무것도 재지 않았다는
+# 뜻이라 남은 일이고, `measurement_void` 는 **잰 것이 파괴됐다**는 관측이라 반증 축이다.
+CELL_OUTCOMES_PENDING = ("pending", "not_measured")
+CELL_OUTCOMES_REFUTED = ("serve_failed", "build_failed", "void", "measurement_void")
 EVIDENCE_KINDS = ("certificate", "bench_report", "sweep_map", "testlog", "devlog", "simlog",
                   "relay_summary")
 FILL = "<<FILL>>"
 JOURNEY_NAME = "journey.jsonl"
+# ★ 2026-09-08(서브 라이브 지적): 자체검사 픽스처가 루트 `README.md` 를 증거 경로로 썼다. 그 파일은
+#   메인 워크트리에만 있고 **서브 렌더 트리에는 없다** — 그래서 배달 검증으로 돌린 `--selftest` 가
+#   그 노드에서만 FAIL 했다. 픽스처가 실물보다 좁은 것이 아니라 **한쪽 트리에만 맞았던** 것이다.
+#   이 스크립트가 사는 어느 트리에서든 실재하는 파일을 쓴다 — 자기 자신이 그 조건을 만족한다.
+_PORTABLE_EVIDENCE = ".claude/skills/terraforming_node/scripts/campaign_template_validator.py"
 
 
 class WriterRefusal(Exception):
@@ -768,9 +790,9 @@ def resume_brief(camp_id: str | None = None) -> str:
         A(f"- `{cell}` {tag} — {outcome}" + (f"  ({' · '.join(extra)})" if extra else ""))
         # 상태 파일이 아예 없는 셀도 **남은 작업**이다 — "돌지 않았다"와 "종결했다"를 같은 값으로
         # 접으면 전 셀 미개설인 새 캠페인이 '완주' 로 보인다(부재 ≠ 통과).
-        if outcome in ("pending", "(상태파일 없음)", "(미개설)"):
+        if outcome in CELL_OUTCOMES_PENDING + ("(상태파일 없음)", "(미개설)"):
             pending.append(cell)
-        if outcome in ("serve_failed", "build_failed", "void"):
+        if outcome in CELL_OUTCOMES_REFUTED:
             refuted.append((cell, cite, st.get("void_reason")))
     if not listed:
         A("- (배정된 셀 없음)")
@@ -896,9 +918,15 @@ def campaign_brief(base: Path, *, node: str, utc: str) -> dict:
     v = validator()
     cells_dir = base / "cells"
     assigned = v.assigned_cells(decl, node) or v.assigned_cells(decl)
+    # 디스크에 있는 셀 중 **다른 노드에 배정된 것**은 이 노드의 브리핑에 싣지 않는다
+    # (2026-09-08 라이브 교정): 실으면 메인 브리핑이 서브 셀까지 `pending` 으로 세고, 그 목록을
+    # 읽는 감독 스텝이 "메인이 아직 4셀 남았다" 고 오판한다. 배정되지 않은 셀은 주인이 없으므로
+    # 남긴다 — 그건 결손이고 보여야 한다.
+    others = {c for nid in v.assignments_of(decl) if nid != node
+              for c in v.assigned_cells(decl, nid)}
     on_disk = sorted(p.name for p in cells_dir.iterdir()
                      if p.is_dir() and p.name != "_cell") if cells_dir.is_dir() else []
-    listed = assigned + [c for c in on_disk if c not in assigned]
+    listed = assigned + [c for c in on_disk if c not in assigned and c not in others]
     stamps: list[str] = []
     cells = []
     for cell in listed:
@@ -943,7 +971,8 @@ def campaign_brief(base: Path, *, node: str, utc: str) -> dict:
         "plan_ref": decl.get("plan_ref"),
         "cells": cells,
         "pending_cells": [c["cell_id"] for c in cells
-                          if c["cell_outcome"] in (None, "pending")],
+                          if c["cell_outcome"] is None
+                          or c["cell_outcome"] in CELL_OUTCOMES_PENDING],
         "phases": phases,
         "journey_tail": jour[-3:],
         "evidence_pointer_count": len(ptrs or []),
@@ -1326,17 +1355,23 @@ def _selftest() -> int:
         ck("증거 부재 → 게이트 닫힘", any("실재하지 않는다" in r for r in purge_gate_reasons("old")))
         (prev / "evidence_pointers.json").write_text(json.dumps(
             {"pointers": [{"kind": "certificate", "path": "CLAUDE.md"}]}), encoding="utf-8")
+        (prev / "relay").mkdir(parents=True, exist_ok=True)
+        (prev / "relay" / "ctx.json").write_text("{}", encoding="utf-8")
         ck("릴레이 요약 부재 → 게이트 닫힘", any("relay_summary" in r for r in purge_gate_reasons("old")))
+        (prev / "relay" / "ctx.json").unlink()
+        ck("★원장이 없으면 요약을 요구하지 않는다(서브 인스턴스는 왕복 원장을 갖지 않는다)",
+           not any("relay_summary" in r for r in purge_gate_reasons("old")))
+        (prev / "relay" / "ctx.json").write_text("{}", encoding="utf-8")
         (prev / "evidence_pointers.json").write_text(json.dumps(
             {"pointers": [{"kind": "certificate", "path": "CLAUDE.md"},
-                          {"kind": "relay_summary", "path": "README.md"}]}), encoding="utf-8")
+                          {"kind": "relay_summary", "path": _PORTABLE_EVIDENCE}]}), encoding="utf-8")
         ck("전수 실재 + 요약 → 게이트 열림", not purge_gate_reasons("old"))
         ck("dry-run 은 지우지 않는다", do_purge("old", apply=False) and prev.is_dir())
         ck("apply 는 지운다", do_purge("old", apply=True) is not None and not prev.is_dir())
         # 인스턴스가 둘 남았을 때(중단·누출 흡수) 정식 경로로 둘 다 지울 수 있는가.
         # 하나만 지워지면 남은 하나는 rm -rf 우회를 부른다.
         good = {"pointers": [{"kind": "certificate", "path": "CLAUDE.md"},
-                             {"kind": "relay_summary", "path": "README.md"}]}
+                             {"kind": "relay_summary", "path": _PORTABLE_EVIDENCE}]}
         for _n in ("relicA", "relicB"):
             _d = CAMPAIGNS / _n
             _d.mkdir(parents=True)
@@ -1442,13 +1477,13 @@ def _selftest() -> int:
            len(_read_json(camp / "evidence_pointers.json")["pointers"]) == 1)
         # 비어 있는 태그는 채운다 — null node_id 를 고칠 연산이 없으면 손이 파일을 연다(F1 형태).
         _write_json(camp / "evidence_pointers.json", {"schema_version": 1, "pointers": [
-            {"kind": "bench_report", "path": "README.md", "cell_id": None, "node_id": None}]})
-        writer_add_evidence(camp, kind="bench_report", path_rel="README.md", cell_id="c1",
+            {"kind": "bench_report", "path": _PORTABLE_EVIDENCE, "cell_id": None, "node_id": None}]})
+        writer_add_evidence(camp, kind="bench_report", path_rel=_PORTABLE_EVIDENCE, cell_id="c1",
                             node="main", unfreeze=False)
         ck("★비어 있는 노드 태그는 정식 경로로 채운다(손편집 대체)",
            _read_json(camp / "evidence_pointers.json")["pointers"][0]["node_id"] == "main")
         ck("★음성대조 이미 다른 노드로 귀속된 증거는 조용히 바꾸지 않는다",
-           _boom(lambda: writer_add_evidence(camp, kind="bench_report", path_rel="README.md",
+           _boom(lambda: writer_add_evidence(camp, kind="bench_report", path_rel=_PORTABLE_EVIDENCE,
                                              cell_id=None, node="sub", unfreeze=False)))
         _write_json(camp / "evidence_pointers.json", {"schema_version": 1, "pointers": [
             {"kind": "testlog", "path": "CLAUDE.md", "cell_id": "c1", "node_id": "main"}]})
@@ -1475,12 +1510,12 @@ def _selftest() -> int:
            _after["campaign_id"] == "w1")
         writer_freeze_evidence(camp, "2026-01-01T02:00:00Z")
         ck("★음성대조 동결 뒤 추가는 거부(입력 통로가 흐르면 태그는 불변인데 근거가 움직인다)",
-           _boom(lambda: writer_add_evidence(camp, kind="devlog", path_rel="README.md",
+           _boom(lambda: writer_add_evidence(camp, kind="devlog", path_rel=_PORTABLE_EVIDENCE,
                                              cell_id=None, node=None, unfreeze=False)))
-        writer_add_evidence(camp, kind="devlog", path_rel="README.md", cell_id=None,
+        writer_add_evidence(camp, kind="devlog", path_rel=_PORTABLE_EVIDENCE, cell_id=None,
                             node="main", unfreeze=True)
         ck("사람이 --unfreeze 를 붙이면 통과",
-           any(x.get("kind") == "devlog" and x.get("path") == "README.md"
+           any(x.get("kind") == "devlog" and x.get("path") == _PORTABLE_EVIDENCE
                for x in _read_json(camp / "evidence_pointers.json")["pointers"]))
 
         writer_add_revision(camp, values={"model": "m1"}, reason="타겟 모델 전환",
@@ -1529,9 +1564,9 @@ def _selftest() -> int:
 
         # ── 다노드에서 증거의 노드 태그는 필수다 (P2 공허 통과의 뿌리) ────────────────────
         ck("★음성대조 다노드에서 --node 없는 증거는 거부",
-           _boom(lambda: writer_add_evidence(camp, kind="sweep_map", path_rel="README.md",
+           _boom(lambda: writer_add_evidence(camp, kind="sweep_map", path_rel=_PORTABLE_EVIDENCE,
                                              cell_id=None, node=None, unfreeze=True)))
-        writer_add_evidence(camp, kind="sweep_map", path_rel="README.md", cell_id="c1",
+        writer_add_evidence(camp, kind="sweep_map", path_rel=_PORTABLE_EVIDENCE, cell_id="c1",
                             node=None, unfreeze=True)
         ck("★셀을 주면 배정에서 노드를 파생한다",
            any(x.get("kind") == "sweep_map" and x.get("node_id") == "main"
@@ -1756,6 +1791,19 @@ def _selftest() -> int:
                         void_reason_source=None, axis_citation=None, next_intent=None, utc="t6")
         ck("★기록이 없으면 산출물이 `absent` 라고 말한다(부재를 침묵하지 않는다)",
            _read_json(camp / "cells" / "c1" / "cell.status.json")["grounding"]["status"] == "absent")
+
+        # ── 어휘 tripwire (2026-09-08 라이브 교정) ────────────────────────────────────────
+        #    분류기가 내는 값을 writer 가 모르면 셀 기록이 통째로 사라진다. 실제로 그랬다.
+        _cc = REPO_ROOT.parent if False else None
+        _cc_path = (Path(__file__).resolve().parents[2] / "adversarial-benchmark" / "scripts"
+                    / "classify_cell.py")
+        if _cc_path.is_file():
+            _src = _cc_path.read_text(encoding="utf-8")
+            _vocab = set(re.findall(r'^OUTCOME_[A-Z_]+\s*=\s*"([a-z_]+)"', _src, re.M))
+            ck("★분류기 어휘가 writer 어휘의 부분집합이다(갈라지면 셀 기록이 사라진다)",
+               bool(_vocab) and _vocab <= set(CELL_OUTCOMES))
+        else:
+            ck("분류기 경로를 찾지 못했다(어휘 대조 불가 — 부재를 통과로 접지 않는다)", False)
 
     CAMPAIGNS, ACTIVE_POINTER, REPO_ROOT = saved
     print("[campaign_init] " + ("PASS" if ok else "FAIL"))
