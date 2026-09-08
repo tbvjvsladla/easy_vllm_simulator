@@ -74,8 +74,20 @@ def save_ledger(path: str, doc: dict) -> None:
     os.replace(tmp, path)
 
 
+RUNNER_UNAVAILABLE = "RUNNER_UNAVAILABLE"
+
+
 def _reached_sub(att: dict) -> bool:
-    """이 attempt 가 서브에 **닿았는가**. 전송·스키마 실패는 예산 서사도 세션도 남기지 않는다."""
+    """이 attempt 가 서브에 **닿았는가**. 전송·스키마 실패는 예산 서사도 세션도 남기지 않는다.
+
+    ★ 2026-09-08: 러너 평면 실패는 **닿은 것이 아니다**. 함정은 그 봉투가 `session_id` 를 **싣고
+      온다**는 데 있다(실측: 인증 실패도 세션 id 를 준다) — 그 세션은 백엔드가 첫 요청 전에 연
+      빈 껍데기이고, 여기서 True 를 돌려주면 ⓐ 예산 바닥이 한 번도 집행된 적 없는 값이 되고
+      ⓑ 정체 카운트가 러너 회전으로 부풀고 ⓒ `last_known_session` 이 그 껍데기를 마지막 세션으로
+      돌려줘 다음 재개가 **빈 세션을 잇는다**. 한 술어를 고치면 네 소비자가 함께 옳아진다.
+    """
+    if RUNNER_UNAVAILABLE in (att.get("reason_codes") or []):
+        return False
     return bool(att.get("session_id") or att.get("status") or att.get("budget_outcome"))
 
 
@@ -103,7 +115,8 @@ def last_known_session(doc: dict) -> dict:
 
 END_REASONS = ("completed", "sub_input_required", "sub_failed", "budget_exhausted",
                "external_interruption", "permission_denied", "malformed_output",
-               "invalid_request", "model_blocked", "transport_or_launch_failure", "unclassified")
+               "invalid_request", "model_blocked", "transport_or_launch_failure",
+               "runner_unavailable", "unclassified")
 
 
 def end_reason(att: dict) -> str:
@@ -118,6 +131,10 @@ def end_reason(att: dict) -> str:
     control, sub = att.get("control_status"), att.get("status")
     if "PERMISSION_DENIED" in codes:
         return "permission_denied"
+    # 2026-09-08: 러너(백엔드×모델) 평면이 실패했다. **예산도 전송도 아니다** — 처방은 회전이고,
+    #   그래서 라벨을 따로 둔다(같은 이름이면 감독이 같은 처방을 낸다).
+    if RUNNER_UNAVAILABLE in codes:
+        return "runner_unavailable"
     if att.get("budget_outcome") == "exhausted":
         return "budget_exhausted"
     if att.get("budget_outcome") == "external_interruption" or "TIMEOUT" in codes:
@@ -248,6 +265,84 @@ def relay_header(context_id: str, attempt: int, allocated: int, budget_source: s
         "- 외부지식을 검색했다면 `external_search[]` 에 질의·출처·요지를 남겨라 — 그 기록이\n"
         "  메인의 자산이 되고, 인용 없는 결정은 거짓이 아니라 **누락**이다(헌법 불변식 B).\n\n"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════
+# 러너 사다리 (2026-09-08 · 사용자 지시)
+# ───────────────────────────────────────────────────────────────────────────────────────────
+# 어휘: **러너 = (backend, model) 한 쌍**이다. 두 축이 아니다 — shim 이 ANTHROPIC_DEFAULT_*_MODEL
+#   을 자기 슬롯으로 덮으므로 kimi 아래의 `sonnet` 은 sonnet 이 아니고, 모델 토큰은 백엔드 사이에서
+#   이식되지 않는다. 별칭 표는 **어댑터가 소유**하고 여기서는 읽기만 한다(사본 ✗).
+# 사다리 = 러너의 순서 있는 목록. 회전 = 다음 칸으로 **같은 과업·같은 예산·같은 세션 선언**을 다시
+#   발급하는 것(재시도도 예산 사건도 아니다 — 바뀌는 것은 *누가 실행하는가* 하나다).
+# 소진 = 서브에 닿은 마지막 attempt 이후 사다리를 **한 바퀴** 다 돌았는데 전부 러너 평면에서 실패.
+#   여기서만 HITL 이며, 사다리가 1칸(기본 `sonnet`)이면 첫 실패가 곧 소진이다(사용자 규격).
+DEFAULT_LADDER = ("sonnet",)
+
+
+def runner_table(repo_root: str) -> dict:
+    """별칭 → {name, backend, model}. **어댑터가 단일 권위**이며 중립 통로로 읽는다."""
+    out = subprocess.run([sys.executable, AGENT_CONTROL, "runners"],
+                         capture_output=True, text=True, cwd=repo_root)
+    if out.returncode != 0:
+        raise SystemExit(f"[relay] STOP: 러너 표를 읽지 못했다(rc={out.returncode}) — "
+                         f"{(out.stderr or out.stdout).strip()[:300]}")
+    return {r["name"]: r for r in json.loads(out.stdout)["runners"]}
+
+
+def resolve_ladder(repo_root: str, spec, *, backend=None, model=None) -> list:
+    """선언을 사다리(러너 dict 목록)로 편다. 미등재 별칭은 **STOP**(닫힌 목록).
+
+    `--runners` 가 없으면 `--backend`/`--model` 단수 선언을 1칸 사다리로 승격한다 — 옛 호출자가
+    그대로 돌고, 기본값(`sonnet` 1칸)은 이 변경 **전과 동작이 같다**.
+    """
+    table = runner_table(repo_root)
+    if spec:
+        names = [x.strip() for x in (spec.split(",") if isinstance(spec, str) else spec) if x.strip()]
+        if not names:
+            raise SystemExit("[relay] STOP: --runners 가 비었다 — 빈 사다리는 실행자가 0이다.")
+        unknown = [n for n in names if n not in table]
+        if unknown:
+            raise SystemExit(f"[relay] STOP: 등재되지 않은 러너 {unknown} — 아는 이름은 "
+                             f"{sorted(table)} 다. 새 러너는 어댑터 RUNNER_ALIASES 에 등재한다"
+                             f"(닫힌 목록이라 오타가 조용히 통과하지 않는다).")
+        return [dict(table[n]) for n in names]
+    if backend or model:
+        # 단수 선언. 별칭 표에 같은 쌍이 있으면 그 이름을 쓰고, 없으면 익명 러너로 둔다.
+        b = backend or "anthropic"
+        m = model or next((r["model"] for r in table.values() if r["backend"] == b), None)
+        if not m:
+            raise SystemExit(f"[relay] STOP: backend={b!r} 의 기본 모델을 알 수 없다 — --model 을 선언하라.")
+        named = next((r for r in table.values() if r["backend"] == b and r["model"] == m), None)
+        return [dict(named)] if named else [{"name": f"{b}:{m}", "backend": b, "model": m}]
+    return [dict(table[n]) for n in DEFAULT_LADDER]
+
+
+def ladder_names(ladder: list) -> str:
+    return " → ".join(r["name"] for r in ladder)
+
+
+def next_runner_index(doc: dict, ladder: list) -> int:
+    """다음에 쓸 칸. **커서를 저장하지 않고 원장에서 파생한다** — 같은 개념이 두 자리에 앉으면
+    갈라지고, 갈라진 쪽이 조용히 늦는다(workflow.md §4종 안티패턴)."""
+    names = [r["name"] for r in ladder]
+    for att in reversed(doc.get("attempts") or []):
+        used = (att.get("runner") or {}).get("name")
+        if used in names:
+            return (names.index(used) + 1) % len(names) \
+                if att.get("end_reason") == "runner_unavailable" else names.index(used)
+    return 0
+
+
+def consecutive_runner_unavailable(doc: dict) -> int:
+    """서브에 닿은 마지막 attempt 이후로 **연속** 러너 실패가 몇 번인가(소진 술어의 입력)."""
+    n = 0
+    for att in reversed(doc.get("attempts") or []):
+        if att.get("end_reason") == "runner_unavailable":
+            n += 1
+            continue
+        break
+    return n
 
 
 def build_request(topology: str, manifest: str, task: str, bud: dict,
@@ -445,8 +540,27 @@ def echo_stop_reasons(att: dict, *, context_id: str, campaign_id: str | None,
     return reasons
 
 
+def parse_runner_evidence(result: dict) -> dict | None:
+    """러너-불가 결과의 `output` 에 실린 증거 JSON 을 되읽는다(어댑터가 실어 보낸 그대로).
+
+    결과 스키마를 넓히는 대신 `output` 에 싣는 것이 이 저장소의 선례이고(PERMISSION_DENIED),
+    되읽는 자리를 만들지 않으면 그 증거는 **또 도달하지 못한다**.
+    """
+    if RUNNER_UNAVAILABLE not in (result.get("reason_codes") or []):
+        return None
+    text = result.get("output") or ""
+    i = text.find("{")
+    if i < 0:
+        return {"signal": "unparsed", "rotate": False}   # 모르면 회전하지 않는다
+    try:
+        ev = json.loads(text[i:])
+    except ValueError:
+        return {"signal": "unparsed", "rotate": False}
+    return ev if isinstance(ev, dict) else {"signal": "unparsed", "rotate": False}
+
+
 def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, report=None,
-                   resume_declared=None, request_path=None,
+                   resume_declared=None, request_path=None, runner=None,
                    started_utc=None, ended_utc=None) -> dict:
     """원장 한 줄을 **덧붙인다**(append-only — 앞선 attempt 는 건드리지 않는다).
 
@@ -489,6 +603,10 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
         #   나중에 증명할 수 없다.
         "model_declared": result.get("model_requested"),
         "model_used": result.get("model_used") or [],
+        # 2026-09-08: **어느 러너가 이 결정을 냈는가**. 회전이 조용하면 그 결정의 출처가 사라진다 —
+        #   약한 칸으로 내려간 것이 판단 품질을 바꿀 수 있고, 그러면 추적 가능해야 한다.
+        "runner": dict(runner) if isinstance(runner, dict) else None,
+        "runner_evidence": parse_runner_evidence(result),
         "control_status": result.get("status"),
         "reason_codes": result.get("reason_codes") or [],
         "status": report.get("status"),
@@ -581,12 +699,18 @@ def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: 
             "attempt": attempt,
             "request_id": "relay-crash-a%02d" % attempt,
             "source": "relay-crash",
-            "prompt": ("attempt %s 가 리포트 없이 끝났다(end_reason=%s · control=%s · %s). "
-                       "마지막 알려진 세션 = %s. 이어받으려면 `--resume <session_id>`, "
-                       "새로 열려면 `--resume new` 를 선언하라."
-                       % (crash.get("attempt"), crash.get("end_reason"), crash.get("control_status"),
-                          ",".join(crash.get("reason_codes") or []) or "코드 없음",
-                          crash.get("last_known_session") or "(없음)")),
+            # 2026-09-08: 사유가 다르면 문구도 달라야 한다 — 러너 사다리 소진을 "리포트 없이
+            #   끝났다" 로 적으면 사람이 서브의 과업을 들여다보게 되고, 실제 원인(실행자 평면)은
+            #   화면 밖에 남는다. 호출자가 문구를 주면 그것을 쓴다.
+            "prompt": crash.get("prompt") or (
+                      "attempt %s 가 리포트 없이 끝났다(end_reason=%s · control=%s · %s). "
+                      "마지막 알려진 세션 = %s. 이어받으려면 `--resume <session_id>`, "
+                      "새로 열려면 `--resume new` 를 선언하라."
+                      % (crash.get("attempt"), crash.get("end_reason"), crash.get("control_status"),
+                         ",".join(crash.get("reason_codes") or []) or "코드 없음",
+                         crash.get("last_known_session") or "(없음)")),
+            # 차단성은 **호출자가 선언**한다. 러너 소진은 답 없이 진행하면 같은 벽에 다시 닿는다.
+            **({"blocking": True} if crash.get("blocking") else {}),
             "library_request": [],
             "answer": prior.get("relay-crash-a%02d" % attempt),
         }
@@ -834,7 +958,7 @@ def _last_reached(doc: dict) -> dict | None:
 
 
 def supervise_decide(doc: dict, *, brief: dict | None = None,
-                     cost_cap_attempts: int | None = None) -> dict:
+                     cost_cap_attempts: int | None = None, ladder: list | None = None) -> dict:
     """원장 하나의 **다음 한 걸음**을 판정한다. 값을 만들지 않고 기록된 사실만 읽는다.
 
     전진의 정의는 둘이다 — phase 가 바뀌었거나(원장), 회수된 브리핑의 `last_utc` 가 직전 감독
@@ -845,14 +969,31 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
     if not atts:
         return {"action": "await_dispatch",
                 "reason": "이 context 에 아직 아무것도 나가지 않았다 — 지시서를 열어라"}
+    # 2026-09-08: 비용 상한은 **닿은 attempt** 만 센다. 러너 회전은 서브에 닿지 않았으므로 비용이
+    #   아니고, 세면 회전 몇 번에 상한이 소진돼 팝업이 **틀린 사유로** 뜬다.
+    _billed = len([x for x in atts if _reached_sub(x)])
+    if cost_cap_attempts and _billed >= cost_cap_attempts:
+        return {"action": "popup",
+                "reason": f"선언된 비용 상한 도달 — attempt {_billed}/{cost_cap_attempts}"
+                          f"(회전 제외 · 전체 {len(atts)}). "
+                          f"자동 재개는 여기서 멈춘다(사용자 결정 D9: 비용 상한은 팝업)"}
+    # ★ 러너 판정은 `_last_reached` **앞**에 온다. 러너 실패는 정의상 서브에 닿지 않았으므로
+    #   (`_reached_sub` 가 false) 뒤에 두면 "닿은 것이 없다" 분기가 먼저 삼켜 **회전이 도달
+    #   불가**가 된다 — 자체검사가 이 순서를 첫 실행에서 잡았다(도달 불가 분기를 가드처럼 두지 마라).
+    if (atts[-1] or {}).get("end_reason") == "runner_unavailable":
+        rungs = len(ladder or []) or 1
+        burned = consecutive_runner_unavailable(doc)
+        if burned < rungs:
+            return {"action": "rotate_runner",
+                    "reason": f"러너 평면 실패({burned}/{rungs}칸 소모) — 다음 칸으로 회전한다. "
+                              f"예산도 범위도 바꾸지 않는다(바뀌는 것은 실행자 하나)"}
+        return {"action": "popup",
+                "reason": f"러너 사다리 소진 — 선언된 {rungs}칸이 연속 {burned}회 전부 실행되지 "
+                          f"않았다. 서브가 기동되지 않는 것이고 예산·과업 문제가 아니다"}
     last = _last_reached(doc)
     if last is None:
         return {"action": "popup",
                 "reason": "attempt 가 있으나 서브에 닿은 것이 없다(전송·기동 실패) — 통신 평면 확인"}
-    if cost_cap_attempts and len(atts) >= cost_cap_attempts:
-        return {"action": "popup",
-                "reason": f"선언된 비용 상한 도달 — attempt {len(atts)}/{cost_cap_attempts}. "
-                          f"자동 재개는 여기서 멈춘다(사용자 결정 D9: 비용 상한은 팝업)"}
     reason = last.get("end_reason")
     if reason == "completed":
         return {"action": "next_cell", "reason": "직전 attempt 가 completed 다 — 이 셀은 끝났다",
@@ -956,7 +1097,8 @@ def supervise_step(a) -> int:
     for path, doc in ledgers:
         node = doc.get("campaign_node")
         brief = read_brief(a.repo_root, node)
-        decision = supervise_decide(doc, brief=brief, cost_cap_attempts=a.cost_cap_attempts)
+        decision = supervise_decide(doc, brief=brief, cost_cap_attempts=a.cost_cap_attempts,
+                                    ladder=getattr(a, "ladder", None))
         record_supervisor_step(doc, decision, utc=utc, brief=brief)
         save_ledger(path, doc)
         head = (f"[relay] 감독 · {doc.get('context_id')} (node={node} "
@@ -969,6 +1111,13 @@ def supervise_step(a) -> int:
         elif decision["action"] == "next_cell":
             print("  → 다음 셀의 지시서는 **새 context** 로 연다(셀 하나 = context 하나 · D20). "
                   "모드가 HITL 이면 열기 전에 사람에게 묻는다.")
+        elif decision["action"] == "rotate_runner":
+            if not a.apply:
+                print("  → 회전은 `--supervise-step <camp> --apply` 로 실행한다(단일 스텝).")
+            else:
+                secs, why = derive_timeout(a.repo_root, camp, node)
+                rc = max(rc, _supervise_resume(a, path, doc, secs,
+                                               f"{why} · 러너 회전(실행자 교체 · 예산 불변)"))
         elif decision["action"] == "resume":
             secs, why = derive_timeout(a.repo_root, camp, node)
             print(f"  → 예산 파생: timeout={secs or '(상한)'} · 근거: {why}")
@@ -1426,6 +1575,88 @@ def _self_test() -> int:
         f"★시간 상한({_cap}) 리터럴이 프로덕션 코드에 없다 — 상한은 스키마에서 읽는다")
     chk(_cap in _all, "음성대조: 슬라이스가 파일 전체를 지우지 않았다(도달 불가 시험 금지)")
 
+    # ── 러너 사다리 (2026-09-08) ────────────────────────────────────────────────────────
+    _tbl = runner_table(REPO)
+    chk(set(_tbl) >= {"sonnet", "haiku", "opus", "kimi-claude", "minimax-claude"},
+        "별칭 표를 **어댑터에서** 읽는다(사본 ✗) → %s" % sorted(_tbl))
+    _lad = resolve_ladder(REPO, "kimi-claude,minimax-claude,sonnet,haiku")
+    chk([r["name"] for r in _lad] == ["kimi-claude", "minimax-claude", "sonnet", "haiku"]
+        and _lad[0]["backend"] == "kimi" and _lad[2]["model"] == "sonnet",
+        "사다리는 **선언 순서 그대로**이고 각 칸이 (backend, model) 쌍으로 펴진다")
+    chk(len(resolve_ladder(REPO, None)) == 1
+        and resolve_ladder(REPO, None)[0]["name"] == "sonnet",
+        "기본 사다리는 1칸(sonnet) — 이 기능 도입 **전과 동작이 같다**")
+    try:
+        resolve_ladder(REPO, "sonnet,gpt-5")
+        chk(False, "미등재 별칭은 STOP")
+    except SystemExit as e:
+        chk("등재되지 않은 러너" in str(e), "미등재 별칭은 STOP(오타가 조용히 통과하지 않는다)")
+
+    def _ru_att(n, name, rotate=True, session="stub"):
+        return {"attempt": n, "reason_codes": [RUNNER_UNAVAILABLE], "session_id": session,
+                "runner": {"name": name}, "end_reason": "runner_unavailable",
+                "runner_evidence": {"rotate": rotate}}
+
+    _d = {"attempts": [_ru_att(1, "kimi-claude"), _ru_att(2, "minimax-claude")]}
+    chk(next_runner_index(_d, _lad) == 2, "다음 칸은 원장에서 **파생**한다(커서 저장 ✗)")
+    _d4 = {"attempts": [_ru_att(i + 1, n) for i, n in enumerate(
+        ["kimi-claude", "minimax-claude", "sonnet", "haiku"])]}
+    chk(next_runner_index(_d4, _lad) == 0, "★사다리는 **순환**한다(4 → 1)")
+    _dok = {"attempts": [_ru_att(1, "kimi-claude"),
+                         {"attempt": 2, "runner": {"name": "minimax-claude"},
+                          "status": "completed", "session_id": "s9", "end_reason": "completed"}]}
+    chk(next_runner_index(_dok, _lad) == 1,
+        "성공한 칸은 **그 자리를 지킨다**(성공 뒤 회전은 이유 없는 강등이다)")
+    chk(consecutive_runner_unavailable(_d4) == 4 and consecutive_runner_unavailable(_dok) == 0,
+        "소진 술어는 **연속** 러너 실패만 센다(서브에 닿으면 0으로 리셋)")
+
+    chk(_reached_sub(_ru_att(1, "kimi-claude")) is False,
+        "★러너 실패는 세션 스텁을 싣고 와도 **닿은 것이 아니다**(예산 바닥·정체·마지막세션 오염 ✗)")
+    chk(budget_floor({"attempts": [dict(_ru_att(1, "kimi-claude"), max_turns_allocated=40)]}) == 0,
+        "★음성대조: 회전 attempt 는 **예산 바닥이 되지 못한다**(집행된 적이 없다)")
+    chk(last_known_session({"attempts": [
+            {"attempt": 1, "session_id": "real", "status": "input-required"},
+            _ru_att(2, "kimi-claude", session="stub")]})["session_id"] == "real",
+        "★음성대조: 회전이 만든 빈 세션이 **마지막 알려진 세션을 덮지 않는다**")
+
+    chk(end_reason({"reason_codes": [RUNNER_UNAVAILABLE], "control_status": "execution_failed"})
+        == "runner_unavailable", "러너 실패는 전송·예산과 **다른 라벨**을 받는다")
+    chk(end_reason({"reason_codes": ["NONZERO_EXIT"], "control_status": "execution_failed",
+                    "session_id": "s1", "status": "failed"}) == "sub_failed",
+        "★음성대조: 서브가 일하다 실패한 것은 러너 실패로 접히지 않는다")
+
+    _dec = supervise_decide({"attempts": [_ru_att(1, "kimi-claude")]}, ladder=_lad)
+    chk(_dec["action"] == "rotate_runner", "감독: 칸이 남으면 **회전**(예산·범위 불변)")
+    _dec4 = supervise_decide(_d4, ladder=_lad)
+    chk(_dec4["action"] == "popup" and "소진" in _dec4["reason"],
+        "감독: 한 바퀴를 다 돌면 **팝업**(사용자 규격 — 다 안 되면 HITL)")
+    _dec1 = supervise_decide({"attempts": [_ru_att(1, "sonnet")]},
+                             ladder=resolve_ladder(REPO, None))
+    chk(_dec1["action"] == "popup",
+        "★사다리 1칸이면 첫 실패가 곧 소진 → 즉시 HITL(사용자 규격)")
+    _capd = supervise_decide({"attempts": [_ru_att(i + 1, n) for i, n in enumerate(
+        ["kimi-claude", "minimax-claude"])]}, ladder=_lad, cost_cap_attempts=2)
+    chk(_capd["action"] == "rotate_runner",
+        "★음성대조: 회전은 **비용이 아니다** — 상한 2에 회전 2회가 닿아도 팝업이 아니다")
+
+    _ru_out = '[runner_unavailable] {"rotate": true, "signal": "api_error", "detail": "x"}'
+    chk(parse_report(_ru_out) is not None,
+        "음성대조: `parse_report` 는 이 문자열에서 JSON 을 **집는다**(그래서 위험했다)")
+    _ru_res = {"reason_codes": [RUNNER_UNAVAILABLE], "output": _ru_out, "status": "execution_failed"}
+    _guarded = (None if RUNNER_UNAVAILABLE in (_ru_res.get("reason_codes") or [])
+                else parse_report(_ru_res["output"]))
+    chk(_guarded is None,
+        "★라이브 교정: 러너-불가 진단이 **서브 리포트로 집계되지 않는다** "
+        "(종전엔 sub_reported=true 가 적혔다 — 메인 산출을 서브 산출로 세는 형태)")
+    chk(echo_stop_reasons(_ru_att(1, "kimi-claude"), context_id="ctx-1",
+                          campaign_id=None, control_variables=None) == [],
+        "닿지 않은 attempt 에는 echo 판정을 걸지 않는다(sub_reported 가드)")
+    _pe = parse_runner_evidence({"reason_codes": [RUNNER_UNAVAILABLE],
+                                 "output": '[runner_unavailable] {"rotate": true, "signal": "api_error"}'})
+    chk(_pe and _pe["rotate"] is True, "증거는 output 에서 **되읽힌다**(실어만 보내면 또 못 닿는다)")
+    chk(parse_runner_evidence({"reason_codes": [RUNNER_UNAVAILABLE], "output": "깨진 텍스트"})
+        ["rotate"] is False, "★판독 불가 증거는 회전하지 않는다(모르면 태우지 않는다)")
+
     print("self-test: %s" % ("PASS" if ok else "FAIL"))
     return 0 if ok else 2
 
@@ -1473,12 +1704,14 @@ def _utcnow() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) -> int:
-    """한 번의 위임 왕복. `--task` 진입과 `--continue` 진입이 **같은 몸통**을 쓴다."""
+def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declared,
+                     runner: dict) -> int:
+    """한 번의 위임 왕복 — **사다리 한 칸**. `--task` 진입과 `--continue` 진입이 같은 몸통을 쓴다."""
     attempt_no = len(doc.get("attempts") or []) + 1
     resume = None if resume_declared in (None, "new") else resume_declared
     req = build_request(a.topology, a.manifest_path, task, bud, resume_session_id=resume,
-                        context_id=a.context_id, attempt=attempt_no, model=a.model, backend=a.backend,
+                        context_id=a.context_id, attempt=attempt_no,
+                        model=runner["model"], backend=runner["backend"],
                         campaign_id=getattr(a, "campaign_id", None),
                         control_variables=getattr(a, "control_variables", None))
 
@@ -1488,8 +1721,9 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
         return 0
 
     branch = assert_sub_branch(req, a.topology)
-    print(f"[relay] attempt={attempt_no} max_turns={bud['max_turns']} "
-          f"timeout={bud['timeout_seconds']}s ({bud['source']}) "
+    print(f"[relay] attempt={attempt_no} runner={runner['name']} "
+          f"(backend={runner['backend']} model={runner['model']}) "
+          f"max_turns={bud['max_turns']} timeout={bud['timeout_seconds']}s ({bud['source']}) "
           f"resume={resume_declared} sub_branch={branch}")
     # 2026-09-05(축 F): 보낸 요청을 **보존한다**. 종전에는 임시파일로 보내고 지웠기 때문에 "그때
     #   무엇을 보냈는가" 가 남지 않았고, 조립기는 매번 다시 조립하므로 재현도 되지 않았다.
@@ -1510,9 +1744,16 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     except ValueError:
         raise SystemExit(f"[relay] FAIL: agent_control 출력을 읽지 못했다 — {out.stdout[:300]}")
 
-    report = parse_report(result.get("output") or "")
+    # ★ 2026-09-08 라이브 교정(회전 1회가 알려줬다): 러너-불가 결과의 `output` 은 **어댑터가 실은
+    #   우리 진단 JSON** 이지 서브가 보낸 리포트가 아니다. 그런데 `parse_report` 는 "산문 속 JSON
+    #   객체" 를 집으므로 그것을 리포트로 집어 들었고, 그 결과 원장에 `sub_reported: true` 가
+    #   적혔다 — 서브는 한 글자도 받지 못했는데 **서브가 보고했다고 기록된 것**이다
+    #   (SILENT_FALLBACK 금지의 정확한 위반 형태: 메인이 만든 것이 서브 산출로 집계됐다).
+    #   증거는 `runner_evidence` 가 이미 제 자리에서 들고 있다.
+    report = (None if RUNNER_UNAVAILABLE in (result.get("reason_codes") or [])
+              else parse_report(result.get("output") or ""))
     att = record_attempt(doc, context_id=a.context_id, bud=bud, result=result, report=report,
-                         resume_declared=resume_declared,
+                         resume_declared=resume_declared, runner=runner,
                          request_path=os.path.relpath(_qp, a.repo_root),
                          started_utc=started, ended_utc=ended)
     # 2026-09-04(P4 라이브): 원장이 status 만 적고 **리포트 본문을 버렸다** — 나중에 "서브가 무엇을
@@ -1563,17 +1804,33 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     if att["resume_honored"] is False:
         print(f"[relay] ⚠ 재개 불발: 요청한 세션 {resume} 과 다른 세션 {att['session_id']} 이 열렸다 — "
               "서브가 컨텍스트를 처음부터 재구축했을 수 있다(소진의 주된 원인). 다음 턴의 예산을 그렇게 읽어라.")
-    _echo_stop = echo_stop_reasons(att, context_id=a.context_id,
-                                   campaign_id=(a.campaign_id or doc.get("campaign_id")),
-                                   control_variables=doc.get("control_variables"))
-    for _r in _echo_stop:
-        print(f"[relay] ⚠ 정체성 echo: {_r} — `--continue` 는 이 상태에서 진행하지 않는다.")
+    # ★ 2026-09-08 라이브 교정: echo 대조는 **서브에 닿은 attempt** 에만 뜻이 있다. 러너 평면
+    #   실패는 서브가 한 글자도 받지 못한 것이므로 "echo 부재" 는 위반이 아니라 당연한 사실이고,
+    #   그것을 경고로 찍으면 사람이 서브의 규약 위반을 의심하며 엉뚱한 곳을 본다(라이브 실측:
+    #   회전 1회에 이 경고가 그대로 떴다). 관측한 것만 적는다.
+    if _reached_sub(att):
+        _echo_stop = echo_stop_reasons(att, context_id=a.context_id,
+                                       campaign_id=(a.campaign_id or doc.get("campaign_id")),
+                                       control_variables=doc.get("control_variables"))
+        for _r in _echo_stop:
+            print(f"[relay] ⚠ 정체성 echo: {_r} — `--continue` 는 이 상태에서 진행하지 않는다.")
     if att["external_search"]:
         print(f"[relay] 서브가 외부검색 {len(att['external_search'])}건을 기록했다 — 자산화 후보. "
               f"근거는 원장 attempt {att['attempt']}.external_search 에 있다.")
     if hp:
-        print(f"[relay] ⚠ 서브가 요청을 표면화했다 → {hp} "
+        # 2026-09-08: 크래시 경로의 항목은 **메인이** 만든 것이다 — "서브가 표면화했다" 고 적으면
+        #   서브가 규약대로 물어본 것과 구분되지 않는다(관측한 것만 적는다).
+        _who = "메인이 사실을" if _crash else "서브가 요청을"
+        print(f"[relay] ⚠ {_who} 표면화했다 → {hp} "
               "(`answer` 를 적고 `--continue` 로 재개. blocking 은 답 없이는 진행하지 않는다)")
+    if att["end_reason"] == "runner_unavailable":
+        _ev = att.get("runner_evidence") or {}
+        print(f"[relay] ⚠ 러너 평면 실패 — {runner['name']}: {_ev.get('detail')} "
+              f"(signal={_ev.get('signal')} status={_ev.get('api_error_status')} "
+              f"provenance={_ev.get('provenance')} 회전가능={_ev.get('rotate')})")
+        if _ev.get("message"):
+            print(f"[relay]   백엔드가 남긴 말: {str(_ev['message'])[:300]}")
+        return 5
     if att["budget_outcome"] == "exhausted":
         print(f"[relay] ⚠ 예산 소진(terminal). 자동 재시도하지 않는다 — "
               f"`relay.py --continue --context-id {a.context_id}` 로 이어라(본문은 기계가 조립한다).\n"
@@ -1597,6 +1854,69 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     return 0 if att["status"] == "completed" else 2
 
 
+def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) -> int:
+    """사다리를 **회전하며** 한 attempt 를 성립시킨다.
+
+    회전의 실행자는 여기다(헌법 노드제어 ③ "처방을 누가 실행하는가를 먼저 적는다"). 사람 승인은
+    사다리 **선언** 시점에 이미 받았으므로, 회전은 무인 자동 착수가 아니라 *승인된 attempt 의
+    실행자 교체*다 — 감독 스텝의 자동 재발급과 같은 논리다.
+
+    ★ 세션 선언은 **회전해도 바꾸지 않는다**. 러너 실패 봉투가 싣고 온 session_id 는 백엔드가 첫
+      요청 전에 연 빈 껍데기이고, 그것을 이으면 다음 칸이 빈 세션을 재개한다(`_reached_sub` 주석).
+    """
+    ladder = a.ladder
+    start = next_runner_index(doc, ladder)
+    if len(ladder) > 1:
+        print(f"[relay] 사다리 {len(ladder)}칸: {ladder_names(ladder)} · 시작 칸 "
+              f"{ladder[start]['name']}")
+    tried = []
+    for step in range(len(ladder)):
+        runner = ladder[(start + step) % len(ladder)]
+        rc = run_attempt_once(a, doc, lp, task, bud, resume_declared, runner)
+        if a.emit_only:
+            return rc
+        last = (doc.get("attempts") or [])[-1]
+        if last.get("end_reason") != "runner_unavailable":
+            return rc
+        ev = last.get("runner_evidence") or {}
+        tried.append("%s(%s)" % (runner["name"], ev.get("detail") or ev.get("signal")))
+        if not ev.get("rotate"):
+            # 회전해도 낫지 않는 실패(요청 거절·판정 불가)는 사다리를 태우지 않는다.
+            print(f"[relay] ⚠ 회전하지 않는다 — {runner['name']} 의 실패는 러너를 바꿔도 같다. "
+                  f"사람이 봐야 한다.")
+            return rc
+        if step + 1 < len(ladder):
+            print(f"[relay] ↻ 회전 {step + 1}/{len(ladder) - 1}: {runner['name']} → "
+                  f"{ladder[(start + step + 1) % len(ladder)]['name']} "
+                  f"(같은 과업·같은 예산·같은 재개 선언 — 회전은 예산 사건이 아니다)")
+    # ── 소진: 한 바퀴를 다 돌았는데 전부 러너 평면에서 실패했다 → HITL(사용자 규격)
+    hp = surface_requests(a.repo_root, a.context_id, {}, attempt=len(doc.get("attempts") or []),
+                          crash={"attempt": len(doc.get("attempts") or []),
+                                 "end_reason": "runner_ladder_exhausted",
+                                 "control_status": "execution_failed",
+                                 "reason_codes": [RUNNER_UNAVAILABLE],
+                                 "blocking": True,
+                                 "runner_ladder": [r["name"] for r in ladder],
+                                 "runner_attempts": tried,
+                                 "prompt": (
+                                     "러너 사다리가 소진됐다 — 선언된 %d칸(%s)이 **전부 실행되지 "
+                                     "않았다**. 서브가 기동되지 않는 것이고, 예산도 과업도 아니다.\n"
+                                     "칸별 관측: %s\n"
+                                     "마지막 알려진 세션 = %s.\n"
+                                     "→ 한도 리셋을 기다릴지, 사다리에 칸을 더할지, 다른 노드로 "
+                                     "옮길지는 사람이 정한다. 답을 `answer` 에 적으면 잇는다."
+                                     % (len(ladder), ladder_names(ladder), " · ".join(tried),
+                                        last_known_session(doc)["session_id"] or "(없음)")),
+                                 "last_known_session": last_known_session(doc)["session_id"]})
+    print(f"[relay] ⛔ 러너 사다리 소진 — {len(ladder)}칸 전부 실행하지 못했다:")
+    for t in tried:
+        print(f"[relay]     · {t}")
+    print("[relay]   서브가 기동되지 않는다. 이것은 예산도 과업도 아닌 **실행자 평면**의 문제다.")
+    if hp:
+        print(f"[relay]   차단성 HITL 표면화 → {hp} (답을 적기 전까지 --continue 는 진행하지 않는다)")
+    return 3
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="메인↔서브 턴제 릴레이")
     ap.add_argument("--topology", choices=["single", "multi"])
@@ -1613,6 +1933,13 @@ def main() -> int:
     ap.add_argument("--model", default=None,
                     help="위임 모델 선언(기본은 카나리 기본값). 어댑터는 모델로 차단하지 않는다 — "
                          "실제로 돈 모델은 원장 `model_used` 가 말한다(2026-09-05 · G-A1).")
+    ap.add_argument("--runners", default=None, metavar="a,b,c",
+                    help="러너 **사다리**(순서 있는 목록 · 쉼표 구분). 예: "
+                         "`kimi-claude,minimax-claude,sonnet,haiku`. 러너 = (backend, model) 한 쌍이며 "
+                         "아는 이름은 `agent_control.py runners` 가 낸다. 러너 평면 실패(백엔드 한도·"
+                         "인증·미도달·바이너리 부재)에서 다음 칸으로 **회전**하고, 한 바퀴를 다 돌면 "
+                         "차단성 HITL 로 끊는다. 생략 시 1칸(sonnet) = 이 기능 도입 전과 동작 동일. "
+                         "--backend/--model 과 상호배타.")
     ap.add_argument("--resume", default=None, metavar="SESSION_ID|new",
                     help="이어받을 provider 세션 id, 또는 새 세션이면 `new`. **선언 필수** — "
                          "코드가 대신 정하지 않는다(2026-09-05 · 축 F).")
@@ -1649,6 +1976,11 @@ def main() -> int:
     a = ap.parse_args()
     if a.self_test:
         return _self_test()
+    # ── 사다리 해소. 두 선언 창구가 동시에 열려 있으면 **어느 쪽이 이겼는지 조용해진다**.
+    if a.runners and (a.backend or a.model):
+        raise SystemExit("[relay] STOP: --runners 와 --backend/--model 은 같은 것을 정하는 "
+                         "두 창구다 — 하나만 선언하라(사다리를 쓸 거면 --runners).")
+    a.ladder = resolve_ladder(a.repo_root, a.runners, backend=a.backend, model=a.model)
     if a.supervise_step:
         return supervise_step(a)
     if not a.context_id:

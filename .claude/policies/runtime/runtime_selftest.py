@@ -1449,6 +1449,94 @@ def _test_no_duplicate_certificates(root: Path | None = None) -> None:
              "file per (identity, measured_utc)):\n  " + "\n  ".join(lines))
 
 
+def _test_runner_ladder_classification() -> None:
+    """러너(백엔드×모델) 평면 실패 판정 — **실측 봉투**를 픽스처로 쓴다.
+
+    아래 값은 2026-09-08 에 `claude` 2.1.263 을 실제로 실패시켜 수확한 것이다(추측 문자열 ✗):
+      · 정상          rc=0  terminal_reason="completed" api_error_status=null is_error=false
+      · 인증실패      rc=1  terminal_reason="api_error" api_error_status=401  is_error=true
+      · 미도달        rc=1  terminal_reason="api_error" api_error_status=null is_error=true (ENOTFOUND)
+      · 바이너리부재  rc=127 (stdout 없음)
+      · ssh 전송실패  rc=255
+    ★ 실패 봉투도 `subtype == "success"` 다 — 봉투 형태로는 갈리지 않으므로 판정은
+      `terminal_reason` 이라는 **구조 신호**를 읽는다. 픽스처가 실물보다 좁아지지 않도록
+      각 항목은 실제로 받은 필드 조합을 그대로 쓴다.
+    """
+    provider = agent_control._load_provider("claude_code")
+    cls = provider.classify_runner_failure
+
+    _ok = {"type": "result", "subtype": "success", "is_error": False,
+           "terminal_reason": "completed", "api_error_status": None,
+           "session_id": "s-ok", "num_turns": 1}
+    _require(cls(_ok, 0, "ssh") is None, "정상 봉투가 러너 실패로 판정됐다")
+
+    _401 = {"type": "result", "subtype": "success", "is_error": True,
+            "terminal_reason": "api_error", "api_error_status": 401,
+            "session_id": "e939c9b7", "num_turns": 1, "duration_api_ms": 0,
+            "result": "Failed to authenticate. API Error: 401 ..."}
+    _ev = cls(_401, 1, "ssh")
+    _require(_ev and _ev["rotate"] is True and _ev["api_error_status"] == 401,
+             f"401 인증실패가 회전 대상으로 판정되지 않았다: {_ev}")
+
+    _dns = {"type": "result", "subtype": "success", "is_error": True,
+            "terminal_reason": "api_error", "api_error_status": None,
+            "session_id": "e14d974b", "num_turns": 1, "duration_api_ms": 0,
+            "result": "API Error: Can't reach the API server (ENOTFOUND)"}
+    _ev = cls(_dns, 1, "ssh")
+    _require(_ev and _ev["rotate"] is True and _ev["api_error_status"] is None,
+             f"백엔드 미도달이 회전 대상으로 판정되지 않았다: {_ev}")
+
+    _ev = cls(None, 127, "ssh")
+    _require(_ev and _ev["rotate"] is True and _ev["signal"] == "missing_binary",
+             "원격 바이너리 부재(rc 127)가 회전 대상이 아니다")
+
+    _require(cls(None, 255, "ssh") is None,
+             "★ssh 전송 실패(rc 255)는 회전 대상이 아니다 — 백엔드를 바꿔도 낫지 않는다")
+
+    _400 = dict(_401, api_error_status=400)
+    _ev = cls(_400, 1, "ssh")
+    _require(_ev and _ev["rotate"] is False,
+             "★요청 자체가 거절된 것(400)은 회전해도 같은 거절을 받는다")
+
+    # ★ 음성대조: 서브가 **자기 과업에 실패**한 것은 러너 실패가 아니다. 이 구분이 없으면
+    #   빌드 실패 한 번이 사다리를 통째로 태우고 틀린 서사로 HITL 한다.
+    _subfail = {"type": "result", "subtype": "success", "is_error": True,
+                "terminal_reason": "completed", "session_id": "s-real", "num_turns": 18,
+                "duration_api_ms": 40000, "result": "빌드가 실패했다"}
+    _require(cls(_subfail, 1, "ssh") is None,
+             "★음성대조: 서브 과업 실패가 러너 실패로 접혔다(사다리를 태우는 형태)")
+
+    # 만든 것과 도는 것은 다르다 — invoke() 끝까지 증거가 실제로 **도달하는지** 본다.
+    class _Run401:
+        returncode, stdout, stderr = 1, json.dumps(_401), ""
+
+    _real_run = provider.subprocess.run
+    provider.subprocess.run = lambda *a, **k: _Run401()
+    try:
+        res = provider.invoke(_request("ssh"))
+    finally:
+        provider.subprocess.run = _real_run
+    _require(res["reason_codes"] == ["RUNNER_UNAVAILABLE"],
+             f"401 이 RUNNER_UNAVAILABLE 로 오지 않았다: {res['reason_codes']}")
+    _require(res["session_id"] == "e939c9b7" and res["num_turns"] == 1,
+             "★러너 실패 결과가 세션·턴을 버렸다(종전 IS_ERROR 경로의 회귀)")
+    _require(res["output"] and "runner_unavailable" in res["output"] and "401" in res["output"],
+             f"증거가 output 에 실려 오지 않았다: {res['output']!r}")
+    _require(res["budget_outcome"] is None,
+             "러너 실패에 예산 서사를 붙였다 — 예산을 키워도 죽은 백엔드는 살아나지 않는다")
+    _require(not agent_control._schema_violations(
+        res, agent_control._load_schema(agent_control.RESULT_SCHEMA_PATH)),
+        "러너 실패 결과가 결과 스키마를 위반한다")
+
+    # 별칭 표는 어댑터가 소유하고 orchestrator 는 **옮기기만** 한다(사본 ✗).
+    _require(set(provider.RUNNER_ALIASES) >= {"opus", "sonnet", "haiku",
+                                              "kimi-claude", "minimax-claude"},
+             f"러너 별칭 표가 좁다: {sorted(provider.RUNNER_ALIASES)}")
+    for _name, (_b, _m) in provider.RUNNER_ALIASES.items():
+        _require(_b in provider.BACKEND_TO_BINARY,
+                 f"별칭 {_name} 의 backend {_b} 가 바이너리 표에 없다(닫힌 열거가 갈라졌다)")
+
+
 def _test_duplicate_certificate_predicate() -> None:
     """tripwire ④ 술어의 hermetic 자체검사(음성대조 포함)."""
     base = ("schema_version: 1\nrecord_type: benchmark_certificate\nverdict: PASS\nmodel: m\n"
@@ -1870,6 +1958,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_provider_turn_exhaustion_reachable()
     _test_execution_approval_authorization()
     _test_agent_provider_boundary()
+    _test_runner_ladder_classification()
     _test_duplicate_certificate_predicate()
     _test_deployed_pii_predicate()
     _test_root_registry_predicate()

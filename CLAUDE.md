@@ -40,6 +40,10 @@
   빌드 패치는 이 때문에 pre/post 두 위상을 가진다. **각 슬롯의 소유는 단일하다** — serve 시점
   성립분(트리플렛 3 + 런타임 패치)은 `vllm-recipe-explorer`, 빌드 시점 성립분(빌드 패치 pre/post +
   포크 핀)은 `upstream-version-watch`가 소유한다(owner 표는 workflow.md).
+- **실행자(runner)는 통제변인이 아니다** — A2A 위임의 러너(백엔드×모델)는 순서 있는 **사다리**로
+  선언하고, 러너 평면 실패에서만 다음 칸으로 회전한다. 회전은 재시도도 예산 사건도 아니며
+  (바뀌는 것은 *누가 실행하는가* 하나다), 판정하지 못한 실패에서는 **회전하지 않는다**. 한 바퀴를
+  다 돌면 사람에게 간다. policy:RUNNER_LADDER_ROTATION (정본 `terraforming_node` SKILL.md §2.7.11).
 - 포크 의존은 상시화하지 않는다 — 포크 핀 앞에 자체 이식 칸을 두되 선판정 신호에 걸리면 건너뛴다
   (policy:ARCH_WALL_VARIANT_LADDER · 절차는 workflow.md).
 - KV 캐시 이식성: policy:KV_ABSOLUTE_CLAMP_PORTABILITY.
@@ -151,6 +155,7 @@
 - policy:MODEL_ACQUISITION_TERNARY_GATE
 - policy:MODEL_TRIPLET_NO_SUB_PROPAGATION
 - policy:ROOT_SURFACE_REGISTRY
+- policy:RUNNER_LADDER_ROTATION
 - policy:RUNTIME_PATCH_NO_CARRY_FORWARD
 - policy:SUB_GIT_LOCAL_ONLY
 - policy:SUB_SYNC_DIRTY_AUTOSAVE

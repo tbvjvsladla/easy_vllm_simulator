@@ -245,6 +245,21 @@ def cmd_invoke(args: argparse.Namespace) -> None:
     _emit(result)
 
 
+def cmd_runners(args: argparse.Namespace) -> None:
+    """선택된 provider 어댑터가 아는 **러너 별칭 표**를 중립 JSON 으로 낸다.
+
+    이 파일은 provider 어휘를 알지 못한다 — 어댑터가 소유한 표를 그대로 옮길 뿐이다(라우팅).
+    호출자(relay)가 별칭을 스스로 펴면 같은 표가 두 자리에 앉고, 갈라진 쪽이 조용히 늦는다.
+    """
+    provider_module = _load_provider(args.provider)
+    aliases = getattr(provider_module, "RUNNER_ALIASES", {})
+    out = {"provider": args.provider,
+           "runners": [{"name": name, "backend": pair[0], "model": pair[1]}
+                       for name, pair in aliases.items()]}
+    print(json.dumps(out, ensure_ascii=False, sort_keys=True, indent=2))
+    sys.exit(0)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="agent_control.py",
@@ -256,6 +271,9 @@ def main() -> None:
     invoke_parser = sub.add_parser("invoke", help="invoke a provider against a request JSON file")
     invoke_parser.add_argument("--request", required=True, help="path to an agent-control-request JSON file")
     invoke_parser.set_defaults(func=cmd_invoke)
+    runners_parser = sub.add_parser("runners", help="provider 어댑터가 아는 러너 별칭 표를 출력한다")
+    runners_parser.add_argument("--provider", default=KNOWN_PROVIDERS[0], choices=list(KNOWN_PROVIDERS))
+    runners_parser.set_defaults(func=cmd_runners)
     args = parser.parse_args()
     args.func(args)
 
