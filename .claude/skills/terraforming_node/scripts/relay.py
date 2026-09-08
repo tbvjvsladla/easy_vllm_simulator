@@ -857,7 +857,15 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
     if reason == "completed":
         return {"action": "next_cell", "reason": "직전 attempt 가 completed 다 — 이 셀은 끝났다",
                 "cell": doc.get("campaign_cell")}
-    if reason in ("permission_denied", "transport_or_launch_failure", "model_blocked",
+    if reason == "permission_denied":
+        # ★ 2026-09-08 라이브 교정: 종전 문구는 "모델·통신 평면이 깨졌다" 였는데, 실제로 일어난 것은
+        #   **도구 호출 하나가 권한 평면에서 거부된 것**이었다(서브가 배달받은 스크립트를 grep 하려다).
+        #   판정(팝업)은 맞았지만 사유가 과장되면 사람이 엉뚱한 곳을 본다 — 관측한 것만 적는다.
+        return {"action": "popup",
+                "reason": "권한 평면에서 거부된 호출이 있다 — 무엇이 막혔는지 사람이 봐야 한다"
+                          "(리포트 raw_output 의 permission_denials 를 읽어라). 그냥 재개하면 "
+                          "같은 벽에 다시 닿는다"}
+    if reason in ("transport_or_launch_failure", "model_blocked",
                   "invalid_request", "malformed_output"):
         return {"action": "popup",
                 "reason": f"모델·통신 평면이 깨졌다(end_reason={reason}) — 재개로 낫는 종류가 아니다"}
@@ -1367,6 +1375,10 @@ def _self_test() -> int:
     chk(supervise_decide({"attempts": [_mk(end_reason="transport_or_launch_failure")]}
                          )["action"] == "popup",
         "★감독: 통신·모델 평면이 깨지면 재개로 낫지 않는다 → 팝업")
+    _pd = supervise_decide({"attempts": [_mk(end_reason="permission_denied")]})
+    chk(_pd["action"] == "popup" and "권한 평면" in _pd["reason"]
+        and "모델·통신" not in _pd["reason"],
+        "★감독: 권한 거부는 **권한 거부라고** 말한다(사유가 과장되면 사람이 엉뚱한 곳을 본다)")
     chk(supervise_decide({"attempts": [_mk(end_reason="sub_input_required")]}
                          )["action"] == "popup", "감독: input-required 는 답이 승인이다")
     _led = {"attempts": [_mk(end_reason="budget_exhausted", phase="serve")]}
