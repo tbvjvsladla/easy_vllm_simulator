@@ -105,6 +105,11 @@
   판정표는 workflow.md가 소유한다.
 - 오류복구·진단은 자기추론보다 권위 참조(업스트림 소스·이미지 내부·모델 설정·런타임 로그)를 우선한다.
   외부 레퍼런스 1차 진입점은 `.claude/skills/wiki-desk/reference/references.md`다.
+- **내부 도서관 참조는 서빙 진입의 선행조건이다** — 캠페인은 자기 통제변인에서 파생한 질의로 사서
+  (wiki-desk)를 부른 기록을 남기고, 그 기록 없이는 서빙·트라이얼에 진입하지 않는다. 사서가 **못
+  찾은 것은 통과**다(정직한 공백은 기재 후 진행) — 거절만 차단이다. 산출물은 자기 그라운딩을
+  스스로 밝히고, 발행은 서가에 되먹인다(정지한 서가의 "없음"은 거짓이다).
+  policy:LIBRARY_GROUNDING_FAIL_CLOSED.
 - 업스트림 핀/베이스 이미지를 가드레일·기록 없이 임의 변경하지 않는다.
 - 요청 범위 밖 기능·추상화를 선반영하지 않는다.
 - PII는 서브 회수가 문서기반이라는 사실 자체로 격리된다 — 서브 헌법의 bake 정체성은 메인 추적물로
@@ -137,6 +142,7 @@
 - policy:HOST_SAFETY_LAYERED_DEFENSE
 - policy:KV_ABSOLUTE_CLAMP_PORTABILITY
 - policy:LAST_GOOD_ROLLBACK_ANCHOR
+- policy:LIBRARY_GROUNDING_FAIL_CLOSED
 - policy:MODEL_ACQUISITION_TERNARY_GATE
 - policy:MODEL_TRIPLET_NO_SUB_PROPAGATION
 - policy:ROOT_SURFACE_REGISTRY

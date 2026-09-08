@@ -1574,6 +1574,19 @@ def cmd_finalize(args: argparse.Namespace) -> None:
     _write_evidence_dir_file(repo_root, manifest_basename, manifest_bytes, "WORK_MANIFEST")
     manifest_path = manifest_dir / manifest_basename
 
+    # ── C4 서가 입고 (2026-09-08 · policy:LIBRARY_GROUNDING_FAIL_CLOSED) ─────────────────────
+    # 발행이 끝난 그 자리에서 문서를 서가에 넣는다. 발행과 입고가 갈라지면 서가는 늘 한 캠페인
+    # 만큼 늦고, **늦은 서가의 "없음" 은 거짓**이다 — 2026-09-08 실측: 09-03 에 멈춘 서가에
+    # 147건이 미입고였고 자료는 실재했다. 실패는 발행을 죽이지 않는다(발행이 본업이다).
+    _ci = repo_root / ".claude/skills/terraforming_node/scripts/campaign_init.py"
+    if _ci.is_file():
+        _wp = subprocess.run([sys.executable, str(_ci), "--warm-start-library"],
+                             capture_output=True, text=True, cwd=str(repo_root), check=False)
+        sys.stderr.write("[evidence_publisher] 서가 입고(C4): %s\n"
+                         % ((_wp.stdout or _wp.stderr or "").strip() or "출력 없음"))
+    else:
+        sys.stderr.write("[evidence_publisher] 서가 입고 건너뜀 — %s 부재(침묵 누락 ✗)\n" % _ci)
+
     proc = subprocess.run(
         [sys.executable, str(_SCRIPTS_DIR / "completion_gate.py"), "verify",
          "--manifest", str(manifest_path), "--repo-root", str(repo_root)],

@@ -502,6 +502,16 @@ def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
     else:
         meas.pop("gap", None)
     doc["measurement"] = meas
+    # C3(policy:LIBRARY_GROUNDING_FAIL_CLOSED) — 산출물은 자기 그라운딩을 **스스로 밝힌다**.
+    # 표시가 없으면 "참조해서 정했다"와 "그냥 정했다"가 데이터에서 구분되지 않고, 그러면
+    # 헌법 불변식 B("인용 없는 결정은 누락")가 집행 불가가 된다(결정론 규율 §출처 표시와 같은 형태).
+    _g = latest_grounding(base)
+    doc["grounding"] = ({"status": ((_g[1].get("export") or {}).get("resolution") or {}).get("status"),
+                         "source": _rel(_g[0]),
+                         "gap": (_g[1].get("attestation") or {}).get("grounding_gap")}
+                        if _g else {"status": "absent", "source": None,
+                                    "gap": {"status": "absent",
+                                            "reason": "그라운딩 기록이 없다(C1 미수행)"}})
     doc["void_reason"] = void_reason
     doc["void_reason_source"] = void_reason_source
     if axis_citation is not None:
@@ -1104,6 +1114,146 @@ def backfill_from_docs(base: Path, *, utc: str | None = None) -> "tuple[list[str
     return repaired, gaps
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 그라운딩 안전불변식 (2026-09-08 신설 · policy:LIBRARY_GROUNDING_FAIL_CLOSED · plan_26090813 §4.5)
+#
+# 왜 안전불변식 강도인가(사용자 결정 D4): 도서관은 구축돼 있었고 **활용이 0** 이었다 —
+# camp-26090721 세션에서 wiki-desk 호출 0회, 서가는 09-03 이후 145건 미입고, 절차는 권고문뿐이라
+# 실행자도 게이트도 없었다. 사용자는 이것을 **사고**로 판정하고, 벤치 스킬의 "외부검색을 실제로
+# 수행했는가" 불변식과 같은 계통으로 올리라고 지시했다. 그 불변식의 모양을 그대로 따른다:
+#   진입 백스톱(fail-closed) + 자기 선언 출처 + 사람 백스톱(해소 실패는 기재 후 진행).
+#
+# ★ 누락은 기계가 fail-closed 로 잡고 거짓은 사람이 리뷰한다(헌법 불변식 B). 그래서 "사서가 못
+#   찾았다"는 차단이 아니라 **기재**다 — 차단하면 도서관에 없는 새 주제를 영영 못 돈다.
+
+GROUNDING_DIR = "grounding"
+LIBRARY_ANSWERS = ".claude/skills/wiki-desk/fixtures/project_init_answers.yaml"
+WIKI_ROOT_NAME = "__llm-wiki"
+
+
+def warm_start_library(repo_root: Path | None = None) -> str:
+    """질의 전에 서가를 증분 입고한다(C4). 정지한 서가에 물으면 **없다는 답이 거짓**이 된다.
+
+    2026-09-08 실측: 서가가 09-03 에 멈춰 있어 캠페인 문서 147건이 미입고였고, 그 상태의 사서는
+    "관련 자료 없음" 이라고 답했을 것이다 — 자료는 실재했다. 발행기·publish 위상·질의 진입이
+    모두 이 함수를 부른다(호출부 N · 실행자를 두지 않으면 그 절차는 권고문이다).
+    """
+    root = REPO_ROOT if repo_root is None else Path(repo_root)
+    script = root / ".claude/skills/wiki-desk/scripts/init_wiki_desk.py"
+    answers = root / LIBRARY_ANSWERS
+    if not (script.is_file() and answers.is_file()):
+        return f"입고 건너뜀 — 사서 도구 부재({_rel(script)})"
+    import subprocess
+    cp = subprocess.run([sys.executable, str(script), "--project-root", str(root),
+                         "--wiki-root", str(root / WIKI_ROOT_NAME), "--answers", str(answers),
+                         "--incremental"], capture_output=True, text=True, cwd=str(root),
+                        check=False)
+    if cp.returncode != 0:
+        return f"입고 실패(rc={cp.returncode}): {(cp.stderr or '').strip()[-200:]}"
+    try:
+        delta = (json.loads(cp.stdout) or {}).get("delta") or {}
+    except ValueError:
+        return "입고 완료(출력 판독 불가)"
+    return (f"입고 완료 — added={delta.get('added')} changed={delta.get('changed')} "
+            f"archived={delta.get('archived')}")
+
+
+def grounding_terms(decl: dict) -> list[str]:
+    """통제변인에서 질의어를 **파생**한다. 손으로 적으면 선언과 갈라지고, 갈라진 질의는
+    캠페인이 실제로 도는 것과 다른 것을 찾는다."""
+    cv = decl.get("control_variables") or {}
+    out: list[str] = []
+    for key in sorted(cv):
+        if key.startswith("_"):
+            continue
+        val = cv[key]
+        if isinstance(val, (str, int, float)) and not isinstance(val, bool):
+            text = str(val).strip()
+            if text and FILL not in text and len(text) <= 80:
+                out.append(text)
+    return out
+
+
+def latest_grounding(base: Path) -> "tuple[Path, dict] | None":
+    """가장 최근 그라운딩 기록. 파일명이 UTC 라 사전순 = 시간순이다."""
+    d = base / GROUNDING_DIR
+    for path in sorted(d.glob("*.json"), reverse=True) if d.is_dir() else []:
+        doc = _read_json(path)
+        if isinstance(doc, dict):
+            return path, doc
+    return None
+
+
+def grounding_reasons(base: Path) -> list[str]:
+    """그라운딩이 성립하지 않는 **사유 목록**(빈 리스트 = 통과). C2 백스톱이 이것을 읽는다.
+
+    통과 조건: 기록이 있고, 사서 판정이 `resolved` 또는 `unresolved`(정직한 공백 · 기재 후 진행).
+    `refused` 만 차단이다 — 도서관이 답을 **거절**한 것은 공백과 다른 사실이다(D5).
+    """
+    found = latest_grounding(base)
+    if found is None:
+        return [f"그라운딩 기록이 없다: {_rel(base / GROUNDING_DIR)}/ — 캠페인 착수·셀 축 변경 시 "
+                f"통제변인 파생 질의로 사서를 부른 기록이 있어야 한다"
+                f"(policy:LIBRARY_GROUNDING_FAIL_CLOSED C1). "
+                f"`campaign_init.py --ground --utc <t>` 로 물어라."]
+    path, doc = found
+    status = ((doc.get("export") or {}).get("resolution") or {}).get("status")
+    if status == "refused":
+        return [f"사서가 질의를 **거절**했다({_rel(path)}) — 공백과 거절은 다른 사실이고 "
+                f"거절은 차단이다(D5)"]
+    if status not in ("resolved", "unresolved"):
+        return [f"그라운딩 기록의 판정이 알 수 없는 값이다({_rel(path)}): {status!r}"]
+    return []
+
+
+def ground_campaign(base: Path, *, utc: str, topology: str, terms: list | None = None,
+                    warm_start: bool = True) -> "tuple[Path, dict]":
+    """통제변인 파생 질의로 사서를 부르고 3메시지 모양으로 기록한다(C1).
+
+    모양은 §2.7.8 교환 스키마와 같다 — request(무엇을 찾는가) · export(사서 회신) ·
+    attestation(그 회신을 어떻게 썼는가). 서브의 교환과 같은 모양이라 판정기가 하나다.
+    """
+    decl = read_declaration(base)
+    terms = terms or grounding_terms(decl)
+    if not terms:
+        raise WriterRefusal(
+            "통제변인에서 질의어를 파생하지 못했다 — 선언이 아직 빈칸이면 그라운딩은 "
+            "선언을 채운 뒤에 한다(진입 백스톱이 그때까지 서빙을 막는다).")
+    note = warm_start_library() if warm_start else "입고 생략(호출부 지시)"
+    import importlib.util
+    lr_path = Path(__file__).resolve().parent / "library_relay.py"
+    request = {"schema_version": 1, "kind": "library.resolution.request",
+               "exchange_id": f"{base.name}-{utc}", "node_id": "main", "topology": topology,
+               "query": {"terms": terms},
+               "purpose": "캠페인 착수 그라운딩 — 이 통제변인으로 참고할 내부 자료가 있는가"}
+    if lr_path.is_file():
+        spec = importlib.util.spec_from_file_location("_ground_library_relay", lr_path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        export = mod.resolve(request)
+    else:
+        export = {"resolution": {"status": "unresolved", "librarian": "wiki-desk",
+                                 "reason": f"채널 부재: {_rel(lr_path)}"}, "references": []}
+    status = ((export.get("resolution") or {}).get("status"))
+    doc = {
+        "schema_version": 1, "campaign_id": base.name, "asked_utc": utc,
+        "library_intake": note,
+        "request": request, "export": export,
+        "attestation": {
+            "kind": "library.resolution.attestation", "exchange_id": request["exchange_id"],
+            "node_id": "main", "status": status,
+            "cited_refs": [r.get("ref_id") for r in (export.get("references") or [])],
+            # 해소 실패는 **정직한 공백**이다 — 기재하고 진행한다(차단 ✗ · D5·D17).
+            "grounding_gap": (None if status == "resolved"
+                              else {"status": status, "asked_utc": utc,
+                                    "reason": ((export.get("resolution") or {}).get("reason"))}),
+        },
+    }
+    path = base / GROUNDING_DIR / f"{utc.replace(':', '').replace('-', '')}.json"
+    _write_json(path, doc)
+    return path, doc
+
+
 def brief_path(node: str, repo_root: str | Path | None = None) -> Path:
     """기계판독 데이터 평면(`docs/logs/`). 산문 명명 SSOT 의 명시 예외이며 fetch_sub_docs 가
     이미 미러하는 경로다 — 새 회수 경로를 만들지 않는다."""
@@ -1536,6 +1686,46 @@ def _selftest() -> int:
            ["measurement"]["decode_tps_conc1"] == 7.5)
         REPO_ROOT = _saved_root
 
+        # ── 그라운딩 안전불변식 (2026-09-08 · policy:LIBRARY_GROUNDING_FAIL_CLOSED) ────────
+        ck("★기록이 없으면 백스톱이 막는다(C2 fail-closed)",
+           any("그라운딩 기록이 없다" in r for r in grounding_reasons(camp)))
+        ck("질의어를 통제변인에서 파생한다(손저작 ✗)",
+           "m1" in grounding_terms({"control_variables": {"model": "m1", "_note": "x"}})
+           and not grounding_terms({"control_variables": {"model": FILL}}))
+
+        def _put_grounding(status, reason=None):
+            _write_json(camp / GROUNDING_DIR / "20260908T000000Z.json", {
+                "schema_version": 1, "campaign_id": "w1", "asked_utc": "2026-09-08T00:00:00Z",
+                "request": {"query": {"terms": ["m1"]}},
+                "export": {"resolution": {"status": status, "librarian": "wiki-desk",
+                                          **({"reason": reason} if reason else {})},
+                           "references": []},
+                "attestation": {"status": status,
+                                "grounding_gap": (None if status == "resolved"
+                                                  else {"status": status, "asked_utc": "t"})}})
+
+        _put_grounding("resolved")
+        ck("기록이 있으면 통과", not grounding_reasons(camp))
+        _put_grounding("unresolved", "정직한 공백")
+        ck("★사서가 못 찾은 것은 **통과**다(공백은 차단이 아니다 · D5)", not grounding_reasons(camp))
+        _put_grounding("refused")
+        ck("★사서가 **거절**한 것은 차단이다(공백과 거절은 다른 사실)",
+           any("거절" in r for r in grounding_reasons(camp)))
+        _put_grounding("unresolved", "정직한 공백")
+        writer_set_cell(camp, cell="c1", outcome="measured", node="main", version=None,
+                        model=None, decode_tps=None, measurement_source=None, void_reason=None,
+                        void_reason_source=None, axis_citation=None, next_intent=None, utc="t5")
+        _cg = _read_json(camp / "cells" / "c1" / "cell.status.json")["grounding"]
+        ck("★C3 산출물이 자기 그라운딩을 스스로 밝힌다(status·source·gap)",
+           _cg["status"] == "unresolved" and "grounding/" in _cg["source"] and _cg["gap"])
+        import shutil as _sh
+        _sh.rmtree(camp / GROUNDING_DIR)
+        writer_set_cell(camp, cell="c1", outcome="measured", node="main", version=None,
+                        model=None, decode_tps=None, measurement_source=None, void_reason=None,
+                        void_reason_source=None, axis_citation=None, next_intent=None, utc="t6")
+        ck("★기록이 없으면 산출물이 `absent` 라고 말한다(부재를 침묵하지 않는다)",
+           _read_json(camp / "cells" / "c1" / "cell.status.json")["grounding"]["status"] == "absent")
+
     CAMPAIGNS, ACTIVE_POINTER, REPO_ROOT = saved
     print("[campaign_init] " + ("PASS" if ok else "FAIL"))
     return 0 if ok else 1
@@ -1559,6 +1749,18 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--from-slice", metavar="PATH",
                     help="--init 과 함께: 메인이 보낸 파생 선언으로 campaign.yaml 을 연다"
                          "(서브는 지시서만으로 착수한다)")
+    ap.add_argument("--ground", action="store_true",
+                    help="통제변인 파생 질의로 사서를 부르고 grounding/<utc>.json 에 3메시지로 남긴다 "
+                         "· --utc 필수 (policy:LIBRARY_GROUNDING_FAIL_CLOSED C1)")
+    ap.add_argument("--terms", default=None,
+                    help="--ground 의 질의어를 쉼표로 명시(생략 시 통제변인에서 파생)")
+    ap.add_argument("--no-warm-start", action="store_true",
+                    help="--ground 전 서가 증분 입고를 생략한다(정지한 서가의 '없음' 은 거짓이다)")
+    ap.add_argument("--grounding-check", action="store_true",
+                    help="그라운딩 기록이 성립하는지 묻는다 — 진입 백스톱(C2)이 부른다. "
+                         "부재는 rc 4(fail-closed) · 활성 캠페인이 없으면 rc 0")
+    ap.add_argument("--warm-start-library", action="store_true",
+                    help="서가 증분 입고만 수행한다(C4 — 발행기·publish 위상 종료부가 부른다)")
     ap.add_argument("--backfill-from-docs", action="store_true",
                     help="결손 셀의 측정·노드를 스윕 기록·sweep map 에서 사후 수리한다 · --utc 필수 "
                          "(hint 발행 직전 · 차단 ✗ · 남은 결손은 이름을 부른다)")
@@ -1628,6 +1830,22 @@ def main(argv: list[str] | None = None) -> int:
                               camp_id=a.campaign_id)); return 0
         if a.resume_brief:
             sys.stdout.write(resume_brief(a.campaign_id)); return 0
+        if a.warm_start_library:
+            print(f"[campaign_init] {warm_start_library()}"); return 0
+        if a.grounding_check:
+            tgt = _writer_target(a.campaign_id)
+            if tgt is None:
+                print("[campaign_init] 그라운딩 검사 생략 — 활성 캠페인 없음(_bootstrap)",
+                      file=sys.stderr)
+                return 0
+            reasons = grounding_reasons(tgt[0])
+            if reasons:
+                print("[campaign_init] 그라운딩 백스톱: 통과하지 못했다 "
+                      "(policy:LIBRARY_GROUNDING_FAIL_CLOSED C2)", file=sys.stderr)
+                for r in reasons:
+                    print(f"  - {r}", file=sys.stderr)
+                return 4
+            print("[campaign_init] 그라운딩 백스톱 통과"); return 0
         if a.assigned_cells:
             tgt = _writer_target(a.campaign_id)
             if tgt is None:
@@ -1664,7 +1882,7 @@ def main(argv: list[str] | None = None) -> int:
                   f"{_rel(write_campaign_brief(tgt[0], node=a.node, utc=a.utc))}")
             return 0
         writer_ops = (a.phase_set, a.cell_set, a.evidence_add, a.freeze_evidence, a.revise,
-                      a.evidence_prune_stubs, a.import_sub, a.backfill_from_docs)
+                      a.evidence_prune_stubs, a.import_sub, a.backfill_from_docs, a.ground)
         if any(writer_ops):
             tgt = _writer_target(a.campaign_id)
             if tgt is None:
@@ -1676,6 +1894,10 @@ def main(argv: list[str] | None = None) -> int:
             if a.phase_set:
                 if not a.node or not a.state:
                     raise WriterRefusal("--phase-set 은 --node 와 --state 가 필요하다")
+                if a.phase_set == "publish" and a.state == "done":
+                    # C4 — 발행이 끝난 그 자리에서 서가에 넣는다. 발행과 입고가 갈라지면 서가는
+                    # 늘 한 캠페인만큼 늦고, 그 늦은 서가의 "없음" 은 거짓이다.
+                    print(f"[campaign_init] 서가 입고(C4) — {warm_start_library()}", file=sys.stderr)
                 wrote.append(_rel(writer_set_phase(
                     base, node=a.node, phase=a.phase_set, state=a.state,
                     predicate=a.proof_predicate, ok=a.proof_ok, source=a.proof_source,
@@ -1709,6 +1931,19 @@ def main(argv: list[str] | None = None) -> int:
                 wrote += _w
                 for _x in _warn:
                     print(f"[campaign_init] ⚠ {_x}", file=sys.stderr)
+            if a.ground:
+                if not a.utc:
+                    raise WriterRefusal("--ground 는 --utc 가 필요하다(시각은 주입만 받는다)")
+                _topo = (read_declaration(base).get("control_variables") or {}).get("topology")
+                _gp, _gd = ground_campaign(
+                    base, utc=a.utc, topology=(_topo if _topo in ("single", "multi") else "single"),
+                    terms=[t.strip() for t in (a.terms or "").split(",") if t.strip()] or None,
+                    warm_start=not a.no_warm_start)
+                wrote.append(_rel(_gp))
+                print(f"[campaign_init] 그라운딩 · {_gd['library_intake']} · "
+                      f"판정={(_gd['attestation'] or {}).get('status')} "
+                      f"참조={len((_gd.get('export') or {}).get('references') or [])}건",
+                      file=sys.stderr)
             if a.backfill_from_docs:
                 # 시각 인자를 요구하지 않는다 — 이 연산은 어떤 타임스탬프도 쓰지 않는다. 안 쓰는
                 # 값을 요구하면 호출부가 아무 문자열이나 넣게 되고, 그 순간 그 필드는 거짓이 된다.
