@@ -3630,11 +3630,11 @@ def predicate_ROOT_SURFACE_REGISTRY_C3():
         (camp / "phases" / "main").mkdir(parents=True)
         (camp / "cells" / "cell-a").mkdir(parents=True)
         (camp / "cells" / "cell-a" / "config.yaml").write_text("cell_id: cell-a\n", encoding="utf-8")
-        good = json.loads((cv.TEMPLATE / "campaign.yaml").read_text(encoding="utf-8"))
-        good.pop("_howto", None)
+        good = cv.strip_annotations(json.loads((cv.TEMPLATE / "campaign.yaml").read_text(encoding="utf-8")))
         good.update(id="camp-x", plan_ref="docs/plan/p.md", declared_utc="2026-09-06T00:00:00Z",
                     nodes=[{"node_id": "main", "role": "main", "topology": "single", "hw": "gb10"}],
-                    matrix={"versions": ["0.18.0"], "models": ["m"]}, order=["cell-a"],
+                    matrix={"versions": ["0.18.0"], "models": ["m"]},
+                    assignments={"main": [{"cell": "cell-a"}]},
                     budgets={"smoke_budget_overhead_mib": 1, "ready_max_seconds": 1},
                     control_variables={"model": "m", "vllm_version": "0.18.0",
                                        "topology": "single", "target_gpu": "H100"},
@@ -3651,7 +3651,140 @@ def predicate_ROOT_SURFACE_REGISTRY_C3():
         _require(not cv.validate_instance(camp), "출처가 붙으면 통과해야 한다")
 
 
+# ── policy:LIBRARY_GROUNDING_FAIL_CLOSED (2026-09-08 · plan_26090813 §4.5) ───────────────────
+#
+# 왜 술어가 필요한가: 이 정책 이전에 도서관 절차는 **권고문뿐**이었고 실행자도 게이트도 0 이었다.
+# 그 상태에서 절차는 30시간 캠페인 동안 한 번도 지켜지지 않았다. 술어는 "그 실행자가 실제로
+# 있는가" 를 묻는다 — 라이브 트리가 깨끗할 때 아무것도 증명하지 않으므로 **양성이 발화해야** 한다.
+
+def _grounding_fixture(ci, camp, status, reason=None):
+    """그라운딩 기록 하나를 픽스처로 놓는다(사서 왕복 없이 판정만 시험한다)."""
+    import json as _j
+    d = camp / ci.GROUNDING_DIR
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "20260908T000000Z.json").write_text(_j.dumps({
+        "schema_version": 1, "campaign_id": camp.name, "asked_utc": "2026-09-08T00:00:00Z",
+        "request": {"query": {"terms": ["m1"]}},
+        "export": {"resolution": {"status": status, "librarian": "wiki-desk",
+                                  **({"reason": reason} if reason else {})}, "references": []},
+        "attestation": {"status": status,
+                        "grounding_gap": (None if status == "resolved"
+                                          else {"status": status, "asked_utc": "t"})},
+    }, ensure_ascii=False), encoding="utf-8")
+
+
+def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C1():
+    """C1: 착수 그라운딩은 **통제변인에서 파생된** 질의로 기록된다(손저작 ✗)."""
+    ci = _campaign_script("campaign_init")
+    terms = ci.grounding_terms({"control_variables": {"model": "Qwen3-4B", "vllm_version": "0.26.0",
+                                                      "_note": "사람 주석", "big": "x" * 200}})
+    _require("Qwen3-4B" in terms and "0.26.0" in terms,
+             f"통제변인이 질의어로 파생되지 않았다: {terms}")
+    _require(not any(t.startswith("사람") for t in terms), "사람 주석(`_` 키)이 질의어로 샜다")
+    _require(not any(len(t) > 80 for t in terms), "긴 산문이 질의어로 샜다(질의가 아니라 문서다)")
+    _require(not ci.grounding_terms({"control_variables": {"model": ci.FILL}}),
+             "빈칸이 질의어가 됐다 — 모르는 값으로 도서관에 묻지 않는다")
+    src = (REPO_ROOT / ".claude/skills/terraforming_node/scripts/campaign_init.py").read_text(
+        encoding="utf-8")
+    body = _extract_python_function(src, "ground_campaign")
+    for token in ("request", "export", "attestation"):
+        _require(f'"{token}"' in body, f"그라운딩 기록에 {token} 메시지가 없다 — 3메시지 모양이 정본이다")
+
+
+def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C2():
+    """C2: 진입 백스톱은 fail-closed 이고, **공백은 통과 · 거절은 차단**이다."""
+    import tempfile
+    ci = _campaign_script("campaign_init")
+    with tempfile.TemporaryDirectory() as tmp:
+        camp = Path(tmp) / "camp-g"
+        camp.mkdir(parents=True)
+        _require(any("그라운딩 기록이 없다" in r for r in ci.grounding_reasons(camp)),
+                 "기록 부재가 통과했다 — 백스톱이 fail-closed 가 아니다")
+        _grounding_fixture(ci, camp, "resolved")
+        _require(not ci.grounding_reasons(camp), "기록이 있는데 막았다(과잉차단)")
+        _grounding_fixture(ci, camp, "unresolved", "정직한 공백")
+        _require(not ci.grounding_reasons(camp),
+                 "사서가 못 찾은 것을 차단했다 — 공백으로 막으면 새 주제를 영영 못 돈다")
+        _grounding_fixture(ci, camp, "refused")
+        _require(any("거절" in r for r in ci.grounding_reasons(camp)),
+                 "거절을 통과시켰다 — 공백과 거절은 다른 사실이다")
+    # 실행자가 실제로 있는가(주석만 있고 부르는 코드가 없던 것이 이 정책의 원인이다).
+    for rel, token in (
+            (".claude/skills/upstream-version-watch/scripts/single_serve_up.sh", "--grounding-check"),
+            (".claude/skills/vllm-recipe-explorer/scripts/run_trial.py", "--grounding-check")):
+        text = (REPO_ROOT / rel).read_text(encoding="utf-8")
+        _require(token in text, f"{rel} 에 진입 백스톱 호출이 없다 — 실행자 없는 게이트는 교착도 아니다")
+
+
+def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C3():
+    """C3: 산출물이 자기 그라운딩을 스스로 밝힌다(부재도 `absent` 로 말한다)."""
+    import json as _j
+    import tempfile
+    ci = _campaign_script("campaign_init")
+    with tempfile.TemporaryDirectory() as tmp:
+        camp = Path(tmp) / "camp-g"
+        (camp / "cells").mkdir(parents=True)
+        (camp / "campaign.yaml").write_text(_j.dumps(
+            {"schema_version": 1, "id": "camp-g", "assignments": {"main": [{"cell": "c1"}]}}),
+            encoding="utf-8")
+        ci.writer_set_cell(camp, cell="c1", outcome="pending", node="main", version=None,
+                           model=None, decode_tps=None, measurement_source=None, void_reason=None,
+                           void_reason_source=None, axis_citation=None, next_intent=None, utc="t")
+        got = _j.loads((camp / "cells" / "c1" / "cell.status.json").read_text(encoding="utf-8"))
+        _require((got.get("grounding") or {}).get("status") == "absent",
+                 "기록이 없는데 산출물이 침묵했다 — 부재와 '참조했다'가 데이터에서 갈리지 않는다")
+        _grounding_fixture(ci, camp, "unresolved", "정직한 공백")
+        ci.writer_set_cell(camp, cell="c1", outcome="pending", node="main", version=None,
+                           model=None, decode_tps=None, measurement_source=None, void_reason=None,
+                           void_reason_source=None, axis_citation=None, next_intent=None, utc="t")
+        got = _j.loads((camp / "cells" / "c1" / "cell.status.json").read_text(encoding="utf-8"))
+        g = got.get("grounding") or {}
+        _require(g.get("status") == "unresolved" and g.get("source") and g.get("gap"),
+                 f"그라운딩 자기표시가 불완전하다: {g}")
+
+
+def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C4():
+    """C4: 발행이 서가에 되먹인다 — 정지한 서가의 '없음' 은 거짓이다."""
+    ci = _campaign_script("campaign_init")
+    _require(callable(getattr(ci, "warm_start_library", None)), "입고 실행자가 없다")
+    pub = (REPO_ROOT / ".claude/policies/runtime/evidence_publisher.py").read_text(encoding="utf-8")
+    _require("--warm-start-library" in pub,
+             "발행기 종료부가 입고를 부르지 않는다 — 발행과 입고가 갈라지면 서가는 늘 한 캠페인 늦다")
+    src = (REPO_ROOT / ".claude/skills/terraforming_node/scripts/campaign_init.py").read_text(
+        encoding="utf-8")
+    _require("서가 입고(C4)" in src, "publish 위상 종료부의 입고 호출이 사라졌다")
+    body = _extract_python_function(src, "warm_start_library")
+    _require("--incremental" in body, "입고가 전체 재색인으로 바뀌었다(warm-start 계약 이탈)")
+
+
+def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C5():
+    """C5: 서브의 질문은 릴레이가 사서에게 나른다(부품은 있고 루프가 없던 자리)."""
+    relay = _campaign_script("relay")
+    _require(callable(getattr(relay, "serve_library_requests", None)),
+             "릴레이에 사서 응대 실행자가 없다")
+    rendered = relay.render_library_export(
+        {"library_export": {"resolution": {"status": "unresolved", "librarian": "wiki-desk",
+                                           "reason": "정직한 공백"}, "references": []}})
+    _require(any("unresolved" in x for x in rendered), "사서 판정이 다음 턴 본문에 실리지 않는다")
+    _require(any("grounding_gap" in x for x in rendered),
+             "공백일 때의 처방(기재 후 진행)이 본문에 실리지 않는다 — 서브는 무엇을 할지 모른다")
+    resolved = relay.render_library_export(
+        {"library_export": {"resolution": {"status": "resolved", "librarian": "wiki-desk"},
+                            "references": [{"ref_id": "R1", "path": "CLAUDE.md",
+                                            "digest": "d" * 16, "excerpt": "발췌"}]}})
+    _require(any("CLAUDE.md" in x for x in resolved), "참조가 본문에 실리지 않는다")
+    _require(not relay.render_library_export({}), "회신이 없는데 뭔가를 실었다(합성 금지)")
+    src = (REPO_ROOT / ".claude/skills/terraforming_node/scripts/relay.py").read_text(encoding="utf-8")
+    _require("serve_library_requests(" in src.split("def serve_library_requests", 1)[1],
+             "사서 응대 함수를 부르는 자리가 없다 — 부품만 있고 루프가 없던 형태의 재발")
+
+
 PREDICATES = {
+    "LIBRARY_GROUNDING_FAIL_CLOSED.C1": predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C1,
+    "LIBRARY_GROUNDING_FAIL_CLOSED.C2": predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C2,
+    "LIBRARY_GROUNDING_FAIL_CLOSED.C3": predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C3,
+    "LIBRARY_GROUNDING_FAIL_CLOSED.C4": predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C4,
+    "LIBRARY_GROUNDING_FAIL_CLOSED.C5": predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C5,
     "ROOT_SURFACE_REGISTRY.C1": predicate_ROOT_SURFACE_REGISTRY_C1,
     "ROOT_SURFACE_REGISTRY.C2": predicate_ROOT_SURFACE_REGISTRY_C2,
     "ROOT_SURFACE_REGISTRY.C3": predicate_ROOT_SURFACE_REGISTRY_C3,
@@ -3790,10 +3923,11 @@ def run_all_predicates() -> int:
     """Execute the exact registry mapping and emit a stable production verdict."""
     failures = []
     registry_ids = _load_real_registry_clause_ids()
-    # 60 -> 63 (2026-09-06 · plan_26090616 ROOT_SURFACE_REGISTRY C1~C3 신설). 이 숫자는 집합
-    # 동치가 이미 보장하는 것을 한 번 더 적는 **tripwire 하드코딩**이다 — 절이 늘거나 줄면
+    # 60 -> 63 (2026-09-06 · plan_26090616 ROOT_SURFACE_REGISTRY C1~C3 신설)
+    # 63 -> 68 (2026-09-08 · plan_26090813 LIBRARY_GROUNDING_FAIL_CLOSED C1~C5 신설). 이 숫자는
+    # 집합 동치가 이미 보장하는 것을 한 번 더 적는 **tripwire 하드코딩**이다 — 절이 늘거나 줄면
     # 여기서 사람 리뷰를 강제한다(workflow.md §4종 안티패턴 판정표 "정당" 칸).
-    if len(PREDICATES) != 63 or set(PREDICATES) != registry_ids:
+    if len(PREDICATES) != 68 or set(PREDICATES) != registry_ids:
         failures.append({"clause_id": "__mapping__", "error":
                          f"predicate/registry mismatch predicates={len(PREDICATES)} registry={len(registry_ids)}"})
     funcs = list(PREDICATES.values())

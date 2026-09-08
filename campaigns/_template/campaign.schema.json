@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://easy-vllm-simulator.local/schemas/campaign.schema.json",
   "title": "campaign",
-  "description": "campaigns/<camp-id>/campaign.yaml (JSON text) 의 SHAPE 계약. 검증기는 campaign_template_validator.py 이며 completion_gate.validate_against_schema 와 같은 Draft-07 부분집합($ref/type/required/properties/additionalProperties/enum/const/minLength/minimum/minItems/items)만 쓴다 — pattern·oneOf 는 파이썬 수준 검사로 간다(플레이스홀더 잔존·참조 실재·proof 충족).",
+  "description": "campaigns/<camp-id>/campaign.yaml (JSON text) 의 SHAPE 계약. 검증기는 campaign_template_validator.py 이며 completion_gate.validate_against_schema 와 같은 Draft-07 부분집합($ref/type/required/properties/additionalProperties/enum/const/minLength/minimum/minItems/items)만 쓴다 — pattern·oneOf 는 파이썬 수준 검사로 간다(플레이스홀더 잔존·참조 실재·STAY 위치·proof 충족). `_` 로 시작하는 최상위 키는 사람 안내문이며 검증기가 스키마 대조 전에 걷어낸다 — 안내문을 스키마에 등재하면 안내문 하나 늘 때마다 스키마가 바뀐다.",
   "type": "object",
   "required": [
     "schema_version",
@@ -10,7 +10,7 @@
     "plan_ref",
     "nodes",
     "matrix",
-    "order",
+    "assignments",
     "budgets",
     "control_variables",
     "hint_targets",
@@ -46,15 +46,6 @@
     "matrix": {
       "$ref": "#/definitions/matrix"
     },
-    "order": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "string",
-        "minLength": 1
-      },
-      "description": "셀 실행 순서(cell id 나열). 순차 캠페인의 정본 — 에이전트가 순서를 추론하지 않는다."
-    },
     "budgets": {
       "$ref": "#/definitions/budgets"
     },
@@ -64,7 +55,7 @@
     },
     "hint_targets": {
       "type": "array",
-      "minItems": 1,
+      "description": "hint 태그 대상. **빈 목록으로 출발한다** — 완주와 발행은 분리돼 있고, 예시 항목을 두면 그 예시가 인스턴스로 복사돼 게이트를 닫는다.",
       "items": {
         "$ref": "#/definitions/hint_target"
       }
@@ -79,11 +70,41 @@
         "type": "object"
       }
     },
-    "_revisions_howto": {
-      "type": "array",
-      "items": {
-        "type": "string"
+    "assignments": {
+      "type": "object",
+      "description": "노드별 셀 배정 = 배정의 단일 권위(2026-09-08 · plan_26090813 D11). 키 = node_id, 값 = 그 노드의 실행 순서. 서로 다른 노드의 리스트는 동시에 돈다 — 옛 평면 `order` 는 노드 분할을 표현하지 못해 병렬 캠페인이 순차로 돌았다.",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "$ref": "#/definitions/assignment"
+        }
       }
+    },
+    "self_role": {
+      "type": "string",
+      "enum": [
+        "main",
+        "sub"
+      ],
+      "description": "이 인스턴스를 소유한 노드의 역할. 파생 선언(--from-slice)으로 열린 서브 인스턴스에만 있으며, 회수된 브리핑이 서브 저작인지 메인의 사후 재저작인지를 P5 가 이 값으로 가른다."
+    },
+    "authored_by": {
+      "type": "string",
+      "minLength": 1,
+      "description": "이 선언을 저작한 주체. 파생 선언은 `main-derived` 다 — 배정은 메인 오케스트레이션이 정하고 실행은 서브가 자율로 한다(D12)."
+    },
+    "derived_from": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "파생의 출처 노드(보통 메인). 파생이 아니면 없다."
+    },
+    "derived_utc": {
+      "type": "string",
+      "minLength": 1,
+      "description": "파생 시각(주입). 서브 지시서 선발급 여부를 사람이 되짚는 자리."
     }
   },
   "definitions": {
@@ -195,7 +216,7 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "이 태그가 요약하는 셀 목록. 비우면 해당 노드의 전 셀."
+          "description": "이 태그가 요약하는 셀 목록. 비우면 해당 노드의 전 셀. **assignments[node_id] 의 부분집합**이어야 한다 — 배정 SSOT 는 assignments 이고 여기는 파생이다."
         }
       }
     },
@@ -203,6 +224,29 @@
       "type": "object",
       "additionalProperties": true,
       "description": "토폴로지별 부가 선언(single/multi). multi 는 클러스터 env 형상 키를 여기서 선언한다."
+    },
+    "assignment": {
+      "type": "object",
+      "required": [
+        "cell"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "cell": {
+          "type": "string",
+          "minLength": 1,
+          "description": "cells/<cell>/ 이 실재해야 한다. 틀 디렉터리 `_cell` 은 실행 대상이 아니다."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "AUTO",
+            "HITL",
+            "STAY"
+          ],
+          "description": "셀 종료 뒤의 전이. 생략 = AUTO. AUTO=정리 후 다음 셀 · HITL=정리 후 사람에게 묻고 대기 · STAY=벤치 후 서빙 유지(상주). STAY 는 리스트 마지막 항목에만 올 수 있다 — 뒤에 셀이 남으면 그 셀은 영원히 안 돈다(python 수준 검사)"
+        }
+      }
     }
   }
 }

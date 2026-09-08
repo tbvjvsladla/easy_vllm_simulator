@@ -1188,6 +1188,104 @@
           "validate_instance"
         ]
       }
+    ],
+    "LIBRARY_GROUNDING_FAIL_CLOSED.C1": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C1"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+        "assertion_ids": [
+          "ground_campaign",
+          "grounding_terms",
+          "GROUNDING_DIR"
+        ]
+      }
+    ],
+    "LIBRARY_GROUNDING_FAIL_CLOSED.C2": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C2"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+        "assertion_ids": [
+          "grounding_reasons",
+          "latest_grounding"
+        ]
+      },
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/single_serve_up.sh",
+        "assertion_ids": [
+          "_CI"
+        ]
+      },
+      {
+        "path": ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py",
+        "assertion_ids": [
+          "_main"
+        ]
+      }
+    ],
+    "LIBRARY_GROUNDING_FAIL_CLOSED.C3": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C3"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+        "assertion_ids": [
+          "writer_set_cell"
+        ]
+      }
+    ],
+    "LIBRARY_GROUNDING_FAIL_CLOSED.C4": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C4"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+        "assertion_ids": [
+          "warm_start_library"
+        ]
+      },
+      {
+        "path": ".claude/policies/runtime/evidence_publisher.py",
+        "assertion_ids": [
+          "cmd_finalize"
+        ]
+      }
+    ],
+    "LIBRARY_GROUNDING_FAIL_CLOSED.C5": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C5"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/relay.py",
+        "assertion_ids": [
+          "serve_library_requests",
+          "render_library_export"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/library_relay.py",
+        "assertion_ids": [
+          "resolve"
+        ]
+      }
     ]
   }
 }

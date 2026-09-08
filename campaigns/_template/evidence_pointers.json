@@ -2,7 +2,11 @@
   "schema_version": 1,
   "campaign_id": "<<FILL>>",
   "_note": "docs 평면에서 태어난 증거의 포인터 목록. 인스턴스를 purge 해도 증거가 살아남는지를 이 목록으로 검사한다(workflow.md §purge 게이트). 사본이 아니라 포인터다 — 복사하면 두 자리가 갈라진다.",
-  "pointers": [
-    {"kind": "<<FILL>>", "_kind_enum": ["certificate", "bench_report", "sweep_map", "testlog", "devlog", "simlog", "relay_summary"], "path": "<<FILL>>", "cell_id": null, "node_id": null}
-  ]
+  "_pointer_shape": {
+    "kind": "certificate | bench_report | sweep_map | testlog | devlog | simlog | relay_summary",
+    "path": "저장소 상대경로. 실재하지 않으면 writer 가 거부한다 — 증거는 docs 평면에서 태어난다",
+    "cell_id": "이 증거가 속한 셀 id (없으면 null)",
+    "node_id": "이 증거를 낸 노드 id. **다노드 캠페인에서는 필수**다 — 태그가 없으면 P2 가 어느 노드의 진행표를 물어야 할지 몰라 공허하게 통과한다(2026-09-08 실측: 포인터 6건 전부 null)"
+  },
+  "pointers": []
 }

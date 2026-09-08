@@ -52,7 +52,7 @@ SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(git -C "$SDIR" rev-parse --show-toplevel 2>/dev/null || pwd)"
 CMD="${1:?서브커맨드 필요: init|cell|status|map}"; shift || true
 
-STATE=""; NOW=""; SWEEP_ID=""; CELLS=""; CTRL=""; AUTHORITY=""
+STATE=""; NOW=""; SWEEP_ID=""; CELLS=""; CTRL=""; AUTHORITY=""; NODE=""
 MAX_CELLS=""; WALL=""; FAILLIMIT=""; DECLARED_BY=""; BASIS=""
 CELL_KEY=""; CONFIG=""; CITATION=""; BENCH_BUDGET=""; TOPO=""; CONFIRM=0
 # 여정 한 줄(2026-09-07 · plan_26090715 §4.3 · 인터뷰 Q4). 새 절차를 만들지 않고 **이미 도는
@@ -87,6 +87,9 @@ while [ $# -gt 0 ]; do case "$1" in
   --now-utc) NOW="$2"; shift 2;;
   --sweep-id) SWEEP_ID="$2"; shift 2;;
   --cells) CELLS="$2"; shift 2;;
+  # 배정에서 파생할 노드. `--cells` 를 함께 주면 손 목록이 이긴다(명시 > 파생) — 다만 그때는
+  # 선언과 갈릴 수 있으므로 init 이 그 사실을 로그에 남긴다.
+  --node) NODE="$2"; shift 2;;
   --control-variable) CTRL="$2"; shift 2;;
   --authority) AUTHORITY="$2"; shift 2;;
   --max-cells) MAX_CELLS="$2"; shift 2;;
@@ -148,6 +151,20 @@ _stop(){   # 상태 → 정지 판정 파일. rc 0=계속 · 3=정지 를 그대
 case "$CMD" in
 
 init)
+  # ── 셀 목록은 **선언에서 파생**한다(2026-09-08 · plan_26090813 §4.4). 손으로 적은 목록은
+  #    campaign.yaml 의 배정과 갈라지고, 갈라지면 스윕 지도가 자기가 안 돈 셀을 주장하거나
+  #    배정된 셀을 빠뜨린다. `--node` 를 주면 `assignments[<node>]` 가 그대로 온다.
+  if [ -z "$CELLS" ] && [ -n "${NODE:-}" ]; then
+    _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+    if [ ! -f "$_CI" ]; then
+      echo "[broad_search] ERROR --node 파생을 요청했는데 campaign_init 이 없다: $_CI" >&2; exit 2
+    fi
+    CELLS="$(python3 "$_CI" --assigned-cells "$NODE")" || {
+      echo "[broad_search] ERROR assignments[$NODE] 에서 셀을 파생하지 못했다(위 사유 참조)" >&2; exit 2; }
+    echo "[broad_search] cells ← assignments[$NODE] = $CELLS"
+  elif [ -n "$CELLS" ] && [ -n "${NODE:-}" ]; then
+    echo "[broad_search] (info) --cells 를 명시했으므로 assignments[$NODE] 파생을 쓰지 않는다 — 선언과 갈릴 수 있다"
+  fi
   for pair in "--sweep-id:$SWEEP_ID" "--cells:$CELLS" "--control-variable:$CTRL" \
               "--authority:$AUTHORITY" "--max-cells:$MAX_CELLS" \
               "--wall-clock-budget-s:$WALL" "--consecutive-failure-limit:$FAILLIMIT" \
@@ -463,14 +480,43 @@ PY
   if [ -f "$_CI" ]; then
     _OUTCOME="$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));c=[x for x in d.get('cells') or [] if x.get('cell_key')==sys.argv[2]];print((c[-1].get('cell_outcome') if c else '') or '')" "$STATE" "$CELL_KEY")"
     if [ -n "$_OUTCOME" ]; then
+      # ★ 2026-09-08(plan_26090813 D19): 측정값을 **호출부가 나르지 않는다**. sweep 기록을 방금
+      #   쓴 그 파일을 writer 가 직접 읽는다 — 종전에는 이 호출부가 --measurement-decode-tps 를
+      #   아예 안 넘겨서 sweep 엔 19.12 t/s 가 있는데 cell.status 의 측정이 null 이었다.
+      #   노드도 넘기지 않는다: 배정(assignments)에서 파생된다.
       _WARGS=(--cell-set "$CELL_KEY" --outcome "$_OUTCOME" --axis-citation "$CITATION"
-              --next-intent "$NEXT_INTENT" --utc "$ENDED")
+              --next-intent "$NEXT_INTENT" --utc "$ENDED" --sweep-state "$STATE")
       [ -n "$SERVE_FAILED_REASON" ] && _WARGS+=(--void-reason "$SERVE_FAILED_REASON"
                                                 --void-reason-source "broad_search cell(엔진 로그 인용)")
       # writer 실패는 삼키지 않는다 — 상태가 안 적혔다는 사실 자체가 다음 재개의 함정이다.
       python3 "$_CI" "${_WARGS[@]}" \
         || echo "[broad_search] ⚠ campaigns writer 실패 — cell.status/여정이 기록되지 않았다(위 사유 참조)" >&2
+      # bench phase 진행표 + 관측면 갱신(2026-09-08 · plan_26090813 §4.2). 노드는 셀 상태에서
+      # 되읽는다 — writer 가 배정에서 파생해 방금 적은 값이고, 여기서 두 번째 파생을 만들지 않는다.
+      _CS="$(python3 "$_CI" --derive cell-status --cell "$CELL_KEY" 2>/dev/null || true)"
+      _NODE=""
+      if [ -n "$_CS" ] && [ -f "$_CS" ]; then
+        _NODE="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('node_id') or '')" "$_CS" 2>/dev/null || true)"
+      fi
+      if [ -n "$_NODE" ]; then
+        # `set -e` 아래에서 `[ … ] && x` 는 마지막 문장일 때 스크립트를 죽인다 — if 로 적는다.
+        _BOK=(); _BSTATE="failed"
+        if [ "$_OUTCOME" = "measured" ]; then _BOK=(--proof-ok); _BSTATE="done"; fi
+        python3 "$_CI" --phase-set bench --node "$_NODE" --cell "$CELL_KEY" \
+          --state "$_BSTATE" \
+          --proof-predicate "sweep 레코드 실재 + cell_outcome=$_OUTCOME" "${_BOK[@]}" \
+          --proof-source "broad_search cell: $STATE#cells[cell_key=$CELL_KEY]" \
+          --started-utc "$STARTED" --ended-utc "$ENDED" --authored-by "$_NODE" \
+          || echo "[broad_search] ⚠ bench 진행표 기록 실패" >&2
+        python3 "$_CI" --write-brief --node "$_NODE" --utc "$ENDED" \
+          || echo "[broad_search] ⚠ campaign_brief 갱신 실패 — 감독자가 읽을 관측면이 낡았다" >&2
+      fi
     fi
+  else
+    # 부재는 침묵이 아니라 배선 결함이다(2026-09-08 · F5). 서브 오버레이에 writer 가 없던 동안
+    # 이 자리가 조용히 통과해서, 서브의 셀 상태를 캠페인 종료 뒤 메인이 대신 적었다.
+    echo "[broad_search] ⚠ campaigns writer 부재($_CI) — cell.status/여정을 아무도 적지 않았다." >&2
+    echo "[broad_search]   서브라면 오버레이 배달이 캠페인 도구를 빠뜨린 것이다(침묵 누락 ✗)." >&2
   fi
   set +e; _stop; rc=$?; set -e
   python3 -c "import json;d=json.load(open('$STOPJSON'));print('[broad_search] stop=%s by=%s 남은셀=%d'%(d['stop'],d['stopped_by'],len(d['cells_remaining'])))"

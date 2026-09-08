@@ -26,6 +26,7 @@
 """
 from __future__ import annotations
 
+import subprocess
 import argparse
 import hashlib
 import importlib.util
@@ -678,8 +679,30 @@ def render_item3(cert: dict, cert_name: str, bench_section: str = "",
 
 # ---------------------------------------------------------------- collect
 
+def _backfill_campaign_cells(repo: Path) -> None:
+    """hint 발행 **직전**에 캠페인 인스턴스의 결손 셀을 사후 수리한다
+    (2026-09-08 · plan_26090813 §4.4 · 사용자 결정 D17).
+
+    왜 여기인가: 사용자는 결손을 **하드 차단**으로 막는 것을 경계했다("너무 결정론적이면 캠페인을
+    수행하다 시스템이 무한 hang 에 빠질까 걱정"). 그래서 결손은 진행을 막지 않고, 대신 태그가
+    나가기 직전 — 근거가 굳는 마지막 시점 — 에 값이 실제로 있는 자리에서 채운다.
+    수리 자체가 실패해도 발행을 죽이지 않는다. 남은 결손은 writer 가 이름을 부른다.
+    ACTIVE=_bootstrap 이면 writer 가 스스로 no-op 이다.
+    """
+    ci = repo / ".claude/skills/terraforming_node/scripts/campaign_init.py"
+    if not ci.is_file():
+        sys.stderr.write(f"[hint_collect] campaigns writer 부재({ci}) — 결손 사후 수리를 건너뛴다\n")
+        return
+    cp = subprocess.run([sys.executable, str(ci), "--backfill-from-docs"],
+                        capture_output=True, text=True, cwd=str(repo), check=False)
+    for line in (cp.stdout + cp.stderr).splitlines():
+        if line.strip():
+            sys.stderr.write(f"[hint_collect] {line}\n")
+
+
 def cmd_collect(a) -> int:
     repo = Path(a.repo).resolve()
+    _backfill_campaign_cells(repo)
     man_path = Path(a.manifest).resolve()
     man = json.loads(man_path.read_text(encoding="utf-8"))
     ident = man.get("identity") or {}

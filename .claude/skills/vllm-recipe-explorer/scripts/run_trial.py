@@ -1515,6 +1515,32 @@ def _main(argv: "list[str] | None" = None) -> int:
     if _missing:
         p.error("%s 는 필수다(--self-test 는 예외)" % ", ".join(_missing))
 
+    # ── 그라운딩 진입 백스톱 (2026-09-08 · policy:LIBRARY_GROUNDING_FAIL_CLOSED C2) ────────
+    # 왜 여기인가: 도서관은 구축돼 있었고 **활용이 0** 이었다 — 절차가 권고문뿐이라 실행자도
+    # 게이트도 없었고, 사용자는 그것을 사고로 판정했다(2026-09-08). 벤치 스킬의 "외부검색을
+    # 실제로 수행했는가" 불변식과 같은 계통으로 트라이얼 진입에 백스톱을 둔다.
+    # 캠페인 밖(ACTIVE=_bootstrap)이면 검사기가 스스로 통과시키므로 평시 트라이얼은 영향이 없고,
+    # dry-run·mock 은 실기동이 아니므로 막지 않는다. 사서가 **못 찾은 것**은 통과다(정직한 공백).
+    #
+    # ※ plan_26090813 §4.5 는 이 자리를 `recipe.py` 라고 적었는데 이 저장소의 트라이얼 진입점은
+    #   `run_trial.py` 다(같은 스킬 · 같은 위상). 이름이 아니라 **위상**을 따라 붙인다.
+    if not (args.dry_run or args.mock_profile):
+        _ci = os.path.join(_repo_root(), ".claude", "skills", "terraforming_node",
+                           "scripts", "campaign_init.py")
+        if os.path.isfile(_ci):
+            _cp = subprocess.run([sys.executable, _ci, "--grounding-check"], check=False)
+            if _cp.returncode != 0:
+                sys.stderr.write(
+                    "[run_trial] STOP: 그라운딩 기록 없이 트라이얼에 진입하지 않는다"
+                    "(policy:LIBRARY_GROUNDING_FAIL_CLOSED C2).\n"
+                    "  → python3 %s --ground --utc <UTC> 로 사서에게 먼저 물어라.\n"
+                    "  → 사서가 못 찾으면 그 사실이 기록에 남고 그대로 통과한다"
+                    "(공백은 차단이 아니다).\n" % _ci)
+                return 4
+        else:
+            sys.stderr.write("[run_trial] ⚠ campaigns writer 부재(%s) — 그라운딩 백스톱이 "
+                             "돌지 않았다(침묵 누락 ✗).\n" % _ci)
+
     with open(args.candidate, "r", encoding="utf-8") as f:
         candidate = json.load(f)
 

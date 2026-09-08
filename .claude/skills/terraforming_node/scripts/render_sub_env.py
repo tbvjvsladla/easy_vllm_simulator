@@ -79,8 +79,24 @@ RUNTIME_BLOCK_PATHS = {
 #
 # 그래서 "스킬 전체를 주느냐 마느냐" 가 아니라 **경로 단위로 가른다**. 목록은 닫혀 있고(tripwire),
 # 새 오케스트레이션 스크립트가 생기면 아래 자체검사가 분류를 강제한다.
+# 싱글(A2A) 서브에 배달하는 캠페인 도구. **뼈대만 보내고 채우는 손을 안 보내면 그 손은 없는 것**
+# 이다 — 2026-09-07 실측: 서브 오버레이에 `campaign_init.py` 가 없어서 `broad_search`·
+# `single_serve_up` 의 `[ -f "$_CI" ]` 가드가 서브에서 **침묵 no-op** 이었고, 그 결과
+# `phases/sub/*` 는 캠페인이 끝난 뒤 메인이 같은 초에 통째로 저작했다(plan_26090813 F5).
+# 메인 전용 오케스트레이션(relay·sync·fetch)은 여기 오지 않는다 — 배달 방향이 뒤집힌다.
+CAMPAIGN_TOOLS = (
+    "campaign_init.py",                # 단일 writer + 읽는 눈 + 파생 개설(--from-slice)
+    "campaign_template_validator.py",  # 선언·인스턴스 술어(P1~P3). 스키마 엔진은 메인 소관
+)
+
 RUNTIME_BLOCK_EXCLUDES = {
     "upstream-version-watch": (
+        # ★ 2026-09-08(plan_26090813 §4.2): 메인의 **해소 결과**는 서브에 가지 않는다. 싱글의 sub 는
+        #   A2A 원격 에이전트라 자기 HW 에서 스스로 해소해야 하는데, 이 자산이 딸려가면 서브가
+        #   물을 이유 자체가 사라진다(2026-09-07 실측: 서브 library_request 5회 전부 null).
+        #   render_dockerfile 은 `--resolved` 를 받는 정규 경로가 있고, 이 자산은 그 인자가 없을 때의
+        #   **공유 폴백**이다 — 폴백이 없으면 fail-loud 하므로 침묵 누락이 되지 않는다.
+        "assets/current-production-resolution.json",
         "scripts/sync_to_sub.sh",          # 메인→서브 배달(방향이 뒤집힌다)
         "scripts/sync_branches.sh",        # 공유 빌딩블럭 브랜치 동기(메인 소관)
         "scripts/fetch_sub_docs.sh",       # 서브→메인 문서 회수(메인이 당긴다)
@@ -532,6 +548,22 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 shutil.copy2(_abs, _dst)
                 produced.append(_rel.replace(os.sep, "/"))
 
+    # 4.1) 캠페인 **채우는 손**(2026-09-08 · plan_26090813 §4.2). 싱글(A2A) 서브만 받는다 —
+    #      멀티의 sub 는 Ray 워커라 캠페인을 저작하는 주체가 아니다(불변식 A).
+    if ph.get("SUB_MODE") == "a2a-agent":
+        _ci_src = os.path.join(REPO, ".claude", "skills", "terraforming_node", "scripts")
+        _ci_dst = os.path.join(claude, "skills", "terraforming_node", "scripts")
+        os.makedirs(_ci_dst, exist_ok=True)
+        for _tool in CAMPAIGN_TOOLS:
+            _abs = os.path.join(_ci_src, _tool)
+            if not os.path.isfile(_abs):
+                raise SystemExit(
+                    f"[render] FAIL: 캠페인 도구가 없다 — {_abs}\n"
+                    f"   뼈대만 보내고 채우는 손을 안 보내면 서브의 호출부 가드가 침묵 no-op 이 된다\n"
+                    f"   (2026-09-07 실측: phases/sub/* 가 캠페인 종료 후 메인 손으로 나타났다).")
+            shutil.copy2(_abs, os.path.join(_ci_dst, _tool))
+            produced.append(f".claude/skills/terraforming_node/scripts/{_tool}")
+
     # ★ 2026-09-07(plan_26090715 §5 ⑤ · 유예 결함 ⑤): `campaigns/README.md` 도 함께 보낸다.
     #   뼈대 파일은 도착하는데 **읽는 법**이 안 도착했다 — README 가 Agent 읽기 순서(0번
     #   `--resume-brief` 포함)와 채우기 규칙(`proof.ok` 는 관측이지 선언이 아니다 · 실패해도
@@ -960,8 +992,21 @@ def _self_test() -> int:
         _ref = os.path.exists(os.path.join(_out, ".claude/skills/wiki-desk/reference/references.md"))
         # references.md 는 recipe 스킬의 의존이므로 recipe 가 갈 때만 간다.
         _ref_ok = _ref == ("vllm-recipe-explorer" in _want)
-        _c = (_got - {"wiki-desk"}) == _want and _ref_ok
-        print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} refs={_ref}")
+        # ★ 2026-09-08: `terraforming_node` 는 **스킬 전체가 아니라 캠페인 도구 2개**만 간다.
+        #   싱글(A2A) 서브만 받으며(불변식 A — 멀티의 sub 는 Ray 워커라 캠페인 저작 주체가 아니다),
+        #   메인 전용 오케스트레이션(relay·sync·fetch·scan)은 여기 오지 않는다. 아래는 **양방향**:
+        #   ① 있어야 할 2개가 있다 ② 그 밖의 terraforming 스크립트가 새지 않았다.
+        _tn = os.path.join(_out, ".claude", "skills", "terraforming_node", "scripts")
+        _tn_files = sorted(os.listdir(_tn)) if os.path.isdir(_tn) else []
+        _tn_want = sorted(CAMPAIGN_TOOLS) if _topo == "single" else []
+        _tn_ok = _tn_files == _tn_want
+        # 해소 자산은 싱글 서브에 가지 않는다 — 가면 서브가 스스로 해소할 이유가 없어진다(F4).
+        _res = os.path.exists(os.path.join(
+            _out, ".claude/skills/upstream-version-watch/assets/current-production-resolution.json"))
+        _c = ((_got - {"wiki-desk", "terraforming_node"}) == _want and _ref_ok and _tn_ok
+              and not _res)
+        print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} "
+              f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res}")
         ok &= _c
 
     # (4b-2) upstream 스킬의 **경로 단위 분할** — 서브는 해소·렌더 능력만 받고 노드 간

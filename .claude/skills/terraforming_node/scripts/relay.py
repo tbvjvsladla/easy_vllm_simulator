@@ -224,7 +224,8 @@ def campaign_control_block(campaign_id: str | None, control: dict | None) -> str
     return "".join(lines)
 
 
-def relay_header(context_id: str, attempt: int, allocated: int, budget_source: str) -> str:
+def relay_header(context_id: str, attempt: int, allocated: int, budget_source: str,
+                 timeout_seconds: int | None = None) -> str:
     """위임 본문 머리에 붙는 결정론 헤더.
 
     2026-09-04 신설(감사 D6/comms 배선 부재). `comms.md` 는 *"메인이 Task 와 함께
@@ -237,7 +238,11 @@ def relay_header(context_id: str, attempt: int, allocated: int, budget_source: s
         f"- context_id: {context_id}\n"
         f"- attempt: {attempt}\n"
         f"- max_turns_allocated: {allocated}\n"
-        f"- 예산 근거(메인 선언): {budget_source}\n"
+        # 2026-09-08(plan_26090813 §4.3): 시간 상한도 **서브가 알아야 한다**. 종전 헤더는 턴만
+        # 말했고, 그래서 서브는 자기가 몇 초 뒤에 잘리는지 모른 채 장기 작업을 시작했다 —
+        # 2026-09-07 서브 attempt 2회가 그렇게 캡에서 잘렸다(scope ⊥ budget 은 양쪽 다 알아야 성립).
+        + (f"- timeout_seconds_allocated: {timeout_seconds}\n" if timeout_seconds else "")
+        + f"- 예산 근거(메인 선언): {budget_source}\n"
         "- 규약: 리포트 `context_id` 에 위 값을 그대로 적는다. 예산이 모자라면 **소진하지 말고**\n"
         "  `input-required` 로 끊고 남은 일을 `next_steps` 에 적어라(scope ⊥ budget).\n"
         "- 외부지식을 검색했다면 `external_search[]` 에 질의·출처·요지를 남겨라 — 그 기록이\n"
@@ -258,7 +263,8 @@ def build_request(topology: str, manifest: str, task: str, bud: dict,
     allocated = bud["max_turns"]
     base["intent"] = "delegate"
     camp_block = campaign_control_block(campaign_id, control_variables)
-    base["task"] = ((relay_header(context_id, attempt, allocated, bud["source"]) + camp_block + task)
+    base["task"] = ((relay_header(context_id, attempt, allocated, bud["source"],
+                                  bud.get("timeout_seconds")) + camp_block + task)
                     if context_id else (camp_block + task))
     if campaign_id:
         base["campaign_id"] = campaign_id
@@ -313,6 +319,85 @@ def _campaign_init():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+CONTEXT_KINDS = ("build", "cell")
+
+
+def bind_campaign_context(doc: dict, *, node: str | None, kind: str | None,
+                          cell: str | None) -> None:
+    """원장에 **캠페인 축**을 못박는다(2026-09-08 · plan_26090813 §4.3).
+
+    왜 이름 파싱이 아니라 선언인가: context_id 는 사람이 짓는 문자열이고, 거기서 노드·종류를
+    추론하면 이름을 바꾸는 순간 술어가 조용히 눈이 먼다(이 저장소가 여러 번 만난 형태). P4 는
+    "서브 빌드 지시서가 메인 첫 착수보다 먼저 나갔는가" 를 이 두 필드로 읽는다.
+
+    ★ 셀 context 는 **셀 하나**다(사용자 결정 D20). 서빙→벤치가 한 attempt 의 범위이고 빌드는
+      별도 문맥이다 — 2026-09-07 에는 셀 둘을 한 context 에 묶어 2회 모두 캡에서 잘렸고,
+      서브 자신이 "셀 단위 attempt" 를 권고했다.
+    """
+    if kind is not None and kind not in CONTEXT_KINDS:
+        raise SystemExit(f"[relay] STOP: --context-kind 는 {CONTEXT_KINDS} 중 하나다: {kind!r}")
+    for key, val in (("campaign_node", node), ("campaign_context_kind", kind)):
+        if val is None:
+            continue
+        have = doc.get(key)
+        if have and have != val:
+            raise SystemExit(
+                f"[relay] STOP: 이 원장의 {key} 는 이미 {have!r} 다 — {val!r} 로 바꾸려면 "
+                f"새 context 를 열어라(한 원장이 두 정체성을 주장하면 상관검증이 무너진다).")
+        doc[key] = val
+    if cell:
+        have = doc.get("campaign_cell")
+        if have and have != cell:
+            raise SystemExit(
+                f"[relay] STOP: 이 context 는 이미 셀 {have!r} 의 것이다 — {cell!r} 은 "
+                f"**새 context** 로 연다(셀 하나 = context 하나 · D20).\n"
+                f"  셀 둘을 한 문맥에 묶으면 그 attempt 는 캡에서 잘린다(2026-09-07 실측 2/2).")
+        doc["campaign_cell"] = cell
+
+
+def derive_timeout(repo_root: str, campaign_id, node, *, margin: float = 1.5):
+    """같은 노드의 **지난 phase 실측**에서 시간 예산을 파생한다(2026-09-08 · D21).
+
+    실측이 없으면 파생하지 않고 그 사실을 말한다 — 상한 값을 여기 리터럴로 다시 적으면 그 상수가
+    두 자리에 손으로 적힌 값이 된다(workflow.md §4종 안티패턴 '매직넘버' 결함 칸). 그래서 이
+    설명문에도 그 숫자를 쓰지 않는다: 규칙을 적은 줄이 자기 스캔에 걸리면 게이트가 무의미해진다
+    (docs.md §Docker 브리지 예외의 선례와 같은 처방).
+    돌려주는 것은 (초 또는 None, 근거 문장) 이며 근거는 그대로 `budget_source` 에 실린다.
+    """
+    cap = turn_budget.schema_cap("timeout_seconds")
+    if not campaign_id or campaign_id == "_bootstrap" or not node:
+        return None, f"실측 파생 불가(캠페인·노드 미선언) — 스키마 상한 {cap} 사용"
+    pdir = os.path.join(repo_root, "campaigns", campaign_id, "phases", node)
+    spans = []
+    for name in sorted(os.listdir(pdir)) if os.path.isdir(pdir) else []:
+        if not name.endswith(".status.json"):
+            continue
+        try:
+            with open(os.path.join(pdir, name), encoding="utf-8") as fh:
+                st = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        a, b = st.get("first_started_utc") or st.get("started_utc"), st.get("ended_utc")
+        if not (isinstance(a, str) and isinstance(b, str)):
+            continue
+        try:
+            t0 = datetime.datetime.strptime(a, "%Y-%m-%dT%H:%M:%SZ")
+            t1 = datetime.datetime.strptime(b, "%Y-%m-%dT%H:%M:%SZ")
+        except ValueError:
+            continue
+        secs = int((t1 - t0).total_seconds())
+        if secs > 0:
+            spans.append((secs, name))
+    if not spans:
+        return None, f"{node} 의 phase 실측이 없다(진행표에 시각 없음) — 스키마 상한 {cap} 사용"
+    worst, where = max(spans)
+    want = int(worst * margin)
+    used = min(want, cap)
+    note = "" if used == want else f" · 스키마 상한 {cap} 으로 clamp"
+    return used, (f"{node}/{where} 실측 {worst}s x {margin} = {want}s{note} "
+                  f"(campaigns/{campaign_id}/phases 파생)")
 
 
 def echo_stop_reasons(att: dict, *, context_id: str, campaign_id: str | None,
@@ -529,6 +614,102 @@ def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: 
     return path if entry else None
 
 
+def _library_relay_module():
+    """도서관 채널의 **단일 소유자**는 `library_relay.py` 다 — 여기서 사서 질의를 다시 구현하지
+    않는다(발췌 예산·해소 규칙이 두 벌이 되면 한 벌이 조용히 늦는다)."""
+    import importlib.util
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "library_relay.py")
+    if not os.path.isfile(path):
+        return None
+    spec = importlib.util.spec_from_file_location("_relay_library_relay", path)
+    if spec is None or spec.loader is None:
+        return None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _terms_of(req: dict) -> list:
+    """요청에서 질의어를 뽑는다. `terms` 가 있으면 그대로, 없으면 질문 문장을 쓴다 —
+    서브가 규약대로 terms 를 안 채웠다고 질의를 포기하면 그것이 침묵 누락이다."""
+    terms = (req.get("query") or {}).get("terms") if isinstance(req.get("query"), dict) else None
+    terms = terms or req.get("terms")
+    if isinstance(terms, list) and terms:
+        return [str(t) for t in terms if str(t).strip()]
+    q = str(req.get("question") or req.get("prompt") or "").strip()
+    return [q] if q else []
+
+
+def serve_library_requests(repo_root: str, context_id: str, pending: list, *,
+                           topology: str) -> list:
+    """대기 중인 `library_request[]` 를 **사서가 자동 응대**한다(2026-09-08 · D5·§4.3).
+
+    왜 자동인가: 서브가 절차대로 질문을 올려도 그 질문을 사서에게 나르는 코드가 없었다 —
+    `library_relay.py` 는 있었고 릴레이에서 그것을 부르는 자리가 0 이었다(사후감사 §E). 그래서
+    2026-09-07 캠페인의 서브 요청 5회가 전부 null 이었고, wiki-desk 는 한 번도 호출되지 않았다.
+
+    해소 실패는 **정직한 공백**이다 — `unresolved` 를 그대로 실어 보내고, 서브는 그 사실을
+    `grounding_gap` 으로 적고 진행한다(차단 ✗ · D5). 거절(refused)만 차단으로 남는다.
+    """
+    lr = _library_relay_module()
+    served = []
+    if lr is None:
+        return served
+    path = os.path.join(relay_root(repo_root), PENDING_HITL)
+    if not os.path.exists(path):
+        return served
+    with open(path, encoding="utf-8") as f:
+        doc = json.load(f)
+    changed = False
+    for entry in doc.get("pending", []):
+        if entry.get("context_id") != context_id or entry.get("library_export"):
+            continue
+        reqs = entry.get("library_request") or []
+        terms = [t for r in reqs if isinstance(r, dict) for t in _terms_of(r)]
+        if not terms:
+            continue
+        request = {"schema_version": 1, "kind": "library.resolution.request",
+                   "exchange_id": f"{context_id}-a{entry.get('attempt') or 0:02d}",
+                   "node_id": "sub", "topology": topology, "query": {"terms": terms}}
+        try:
+            export = lr.resolve(request)
+        except BaseException as exc:                      # noqa: BLE001 — 사유를 삼키지 않는다
+            entry["library_export"] = {
+                "resolution": {"status": "unresolved", "librarian": "wiki-desk",
+                               "reason": f"사서 질의 중 예외: {exc!r}"}, "references": []}
+        else:
+            entry["library_export"] = export
+        entry["answered_by"] = "wiki-desk (릴레이 자동 응대)"
+        served.append(entry.get("request_id") or request["exchange_id"])
+        changed = True
+    if changed:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(doc, f, ensure_ascii=False, indent=2, sort_keys=True)
+            f.write("\n")
+    return served
+
+
+def render_library_export(entry: dict) -> list:
+    """다음 턴 본문에 실을 사서 회신. 발췌 예산의 소유자는 `library_exchange` 이고 여기는
+    **표시**만 한다 — 반출은 참조·발췌이지 복제가 아니다(헌법 불변식 B)."""
+    exp = entry.get("library_export")
+    if not isinstance(exp, dict):
+        return []
+    res = exp.get("resolution") or {}
+    out = [f"- 사서 판정: **{res.get('status')}** (librarian={res.get('librarian')})"]
+    if res.get("reason"):
+        out.append(f"  - 사유: {res['reason']}")
+    for ref in exp.get("references") or []:
+        out.append(f"  - [{ref.get('ref_id')}] `{ref.get('path')}` (digest={str(ref.get('digest'))[:12]})")
+        if ref.get("excerpt"):
+            out.append(f"        발췌: {str(ref['excerpt'])[:400]}")
+    if res.get("status") != "resolved":
+        out.append("  - **회신 없음의 처방**: 독자 지시서로 착수하되, `grounding_gap` 에 "
+                   "`{status, asked_utc}` 를 적고 셀 상태·attestation 에 남겨라. "
+                   "누락은 기재하면 진행하고, 거절(refused)만 차단이다(D5).")
+    return out
+
+
 def pending_for(repo_root: str, context_id: str) -> list:
     """이 context 의 대기 요청(우선순위 순). `--continue` 가 읽는다 — **쓰기만 하던 파일에 소비자가 생긴다**."""
     path = os.path.join(relay_root(repo_root), PENDING_HITL)
@@ -608,6 +789,14 @@ def assemble_continuation(repo_root: str, doc: dict, pending: list) -> str:
     if (report or {}).get("notes"):
         out.append(f"  - 직전 턴 메모: {report['notes']}")
 
+    served = [e for e in pending if e.get("library_export")]
+    if served:
+        out += ["", "## 도서관 회신 — 메인 사서(wiki-desk)가 자동 응대했다",
+                "(반출은 참조·발췌다. 인용 없는 결정은 거짓이 아니라 **누락**이며 누락은 기재하고 간다.)"]
+        for e in served:
+            for req in e.get("library_request") or []:
+                out.append(f"- (질문) {req.get('question') or _terms_of(req)}")
+            out += render_library_export(e)
     answered = [e for e in pending if e.get("answer")]
     if answered:
         out += ["", "## 네 질문에 대한 메인의 답"]
@@ -624,6 +813,194 @@ def assemble_continuation(repo_root: str, doc: dict, pending: list) -> str:
             out.append(f"- {e.get('prompt') or (e.get('library_request') or [{}])[0].get('question')}")
     out += ["", "## 원래 지시(변경 없음)", "", doc.get("task") or "(원장에 원 지시가 없다)"]
     return "\n".join(out) + "\n"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 감독 스텝 (2026-09-08 신설 · plan_26090813 §4.3 · 사용자 결정 D7·D9·D16·D21)
+#
+# 왜 데몬이 아닌가: 사용자는 "메인노드의 세션 리볼빙 방식을 응용" 하라고 정했다. 감독자는 상주
+# 프로세스가 아니라 **아티팩트에서 복원되는 한 걸음**이다 — 원장과 회수된 브리핑을 읽고, 한 번
+# 판정하고, 그 판정을 원장에 적고 끝난다. 깨우는 손은 하네스의 예약 wakeup 이거나 다음 세션의
+# 재개다. 상주하지 않으므로 세션이 끊겨도 잃는 것이 없다.
+#
+# ★ 이 자리가 비어 있어서 2026-09-07 에 메인이 서브를 ssh 로 32회 직접 관측했다(헌법 노드제어 ①
+#   위반). 감독자의 주기 읽기는 **승인된 attempt 에 종속된 관측**이지 새 트리거가 아니다.
+
+SUPERVISOR_ACTIONS = ("await_dispatch", "next_cell", "resume", "popup", "idle")
+
+
+def _last_reached(doc: dict) -> dict | None:
+    return next((x for x in reversed(doc.get("attempts") or []) if _reached_sub(x)), None)
+
+
+def supervise_decide(doc: dict, *, brief: dict | None = None,
+                     cost_cap_attempts: int | None = None) -> dict:
+    """원장 하나의 **다음 한 걸음**을 판정한다. 값을 만들지 않고 기록된 사실만 읽는다.
+
+    전진의 정의는 둘이다 — phase 가 바뀌었거나(원장), 회수된 브리핑의 `last_utc` 가 직전 감독
+    스텝이 본 값보다 앞섰거나. 후자를 넣는 이유는 R2 다: 전진 신호를 phase 로만 잡으면 긴 벤치
+    한 판이 통째로 '정체' 로 보인다.
+    """
+    atts = doc.get("attempts") or []
+    if not atts:
+        return {"action": "await_dispatch",
+                "reason": "이 context 에 아직 아무것도 나가지 않았다 — 지시서를 열어라"}
+    last = _last_reached(doc)
+    if last is None:
+        return {"action": "popup",
+                "reason": "attempt 가 있으나 서브에 닿은 것이 없다(전송·기동 실패) — 통신 평면 확인"}
+    if cost_cap_attempts and len(atts) >= cost_cap_attempts:
+        return {"action": "popup",
+                "reason": f"선언된 비용 상한 도달 — attempt {len(atts)}/{cost_cap_attempts}. "
+                          f"자동 재개는 여기서 멈춘다(사용자 결정 D9: 비용 상한은 팝업)"}
+    reason = last.get("end_reason")
+    if reason == "completed":
+        return {"action": "next_cell", "reason": "직전 attempt 가 completed 다 — 이 셀은 끝났다",
+                "cell": doc.get("campaign_cell")}
+    if reason == "permission_denied":
+        # ★ 2026-09-08 라이브 교정: 종전 문구는 "모델·통신 평면이 깨졌다" 였는데, 실제로 일어난 것은
+        #   **도구 호출 하나가 권한 평면에서 거부된 것**이었다(서브가 배달받은 스크립트를 grep 하려다).
+        #   판정(팝업)은 맞았지만 사유가 과장되면 사람이 엉뚱한 곳을 본다 — 관측한 것만 적는다.
+        return {"action": "popup",
+                "reason": "권한 평면에서 거부된 호출이 있다 — 무엇이 막혔는지 사람이 봐야 한다"
+                          "(리포트 raw_output 의 permission_denials 를 읽어라). 그냥 재개하면 "
+                          "같은 벽에 다시 닿는다"}
+    if reason in ("transport_or_launch_failure", "model_blocked",
+                  "invalid_request", "malformed_output"):
+        return {"action": "popup",
+                "reason": f"모델·통신 평면이 깨졌다(end_reason={reason}) — 재개로 낫는 종류가 아니다"}
+    if reason == "sub_input_required":
+        return {"action": "popup",
+                "reason": "서브가 input-required 로 끊었다 — 답이 필요하다(차단성이면 답이 승인이다)"}
+    # ★ 2026-09-08 라이브: 계획은 자동 재개를 `external_interruption|budget_exhausted` 로만 적었다.
+    #   그런데 실제로 3회 중 2회는 **제어가 completed 인데 서브 리포트가 기계판독 불가**여서
+    #   `unclassified` 로 끝났다(서브가 산문으로 끝맺었다). 그 상태를 매번 사람에게 올리면 사용자
+    #   결정 D9("재개는 항상 자동, 예외는 비용 상한과 통신 단절")이 리포트 형식 미준수 하나로
+    #   무력해진다. `unclassified` 는 비용 상한도 통신 단절도 아니다 — **전진이 관측되면** 잇고,
+    #   전진이 없으면 그때 묻는다. 판정 불가는 추측의 근거가 아니라 관측을 볼 이유다.
+    if reason in ("external_interruption", "budget_exhausted", "unclassified"):
+        prev = [a for a in (doc.get("attempts") or []) if _reached_sub(a)][:-1]
+        moved_phase = bool(prev) and prev[-1].get("phase") != last.get("phase")
+        seen = doc.get("supervisor_last_seen_utc")
+        moved_brief = bool(brief and brief.get("last_utc")
+                           and (not seen or str(brief["last_utc"]) > str(seen)))
+        if moved_phase or moved_brief:
+            why = "phase 전진" if moved_phase else f"브리핑 last_utc 전진({brief.get('last_utc')})"
+            note = (" · 종료 사유는 판정 불가지만 일한 흔적이 있다"
+                    if reason == "unclassified" else "")
+            return {"action": "resume",
+                    "reason": f"{reason} 이지만 전진이 보인다({why}){note} — 자동 재발급(D9: 항상 자동)"}
+        return {"action": "popup",
+                "reason": f"{reason} 이고 전진이 없다 — 같은 벽에 부딪히는 중이다. "
+                          f"예산을 키우기 전에 사람에게 묻는다"}
+    return {"action": "popup", "reason": f"처음 보는 종료(end_reason={reason}) — 모르면 묻는다"}
+
+
+def record_supervisor_step(doc: dict, decision: dict, *, utc: str,
+                           brief: dict | None = None) -> dict:
+    """감독 판정을 원장에 **덧붙인다**(append-only). 판정이 남지 않으면 다음 스텝이 같은 것을
+    다시 판정하고, 사람은 감독자가 무엇을 보고 그랬는지 알 수 없다."""
+    entry = dict(decision)
+    entry["utc"] = utc
+    entry["brief_last_utc"] = (brief or {}).get("last_utc")
+    doc.setdefault("supervisor_steps", []).append(entry)
+    if (brief or {}).get("last_utc"):
+        doc["supervisor_last_seen_utc"] = brief["last_utc"]
+    return entry
+
+
+def read_brief(repo_root: str, node: str | None) -> dict | None:
+    """회수된 서브 브리핑. **미러 밖은 보지 않는다** — 서브를 직접 읽으면 그것이 무단 스캔이다."""
+    if not node:
+        return None
+    path = os.path.join(repo_root, "sync_staging", "sub_docs", "logs", node,
+                        "campaign_brief.json")
+    if not os.path.isfile(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return doc if isinstance(doc, dict) else None
+
+
+def campaign_ledgers(repo_root: str, camp: str) -> list:
+    """이 캠페인의 릴레이 원장(캠페인 축이 못박힌 것만). 이름으로 추론하지 않는다."""
+    root = os.path.join(repo_root, "campaigns", camp, "relay")
+    out = []
+    for name in sorted(os.listdir(root)) if os.path.isdir(root) else []:
+        if not name.endswith(".json") or name == PENDING_HITL:
+            continue
+        path = os.path.join(root, name)
+        try:
+            with open(path, encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        if isinstance(doc, dict) and doc.get("campaign_node"):
+            out.append((path, doc))
+    return out
+
+
+def supervise_step(a) -> int:
+    """감독 한 걸음. 상주하지 않고, 판정하고, 적고, 끝난다."""
+    camp = a.supervise_step
+    ledgers = campaign_ledgers(a.repo_root, camp)
+    if not ledgers:
+        print(f"[relay] 감독: campaigns/{camp}/relay 에 캠페인 축이 못박힌 원장이 없다 — "
+              f"`--node`/`--context-kind` 를 선언하고 지시서를 열어라(이름 추론 ✗)")
+        return 0
+    utc = a.utc or _utcnow()
+    rc = 0
+    for path, doc in ledgers:
+        node = doc.get("campaign_node")
+        brief = read_brief(a.repo_root, node)
+        decision = supervise_decide(doc, brief=brief, cost_cap_attempts=a.cost_cap_attempts)
+        record_supervisor_step(doc, decision, utc=utc, brief=brief)
+        save_ledger(path, doc)
+        head = (f"[relay] 감독 · {doc.get('context_id')} (node={node} "
+                f"kind={doc.get('campaign_context_kind')} cell={doc.get('campaign_cell')})")
+        print(f"{head}\n  → {decision['action']}: {decision['reason']}")
+        if decision["action"] == "popup":
+            rc = max(rc, 3)
+            print("  → 이것은 **질문이지 차단이 아니다**. 사람이 답하면 그대로 잇는다"
+                  f"(pending: {os.path.join(relay_root(a.repo_root), PENDING_HITL)}).")
+        elif decision["action"] == "next_cell":
+            print("  → 다음 셀의 지시서는 **새 context** 로 연다(셀 하나 = context 하나 · D20). "
+                  "모드가 HITL 이면 열기 전에 사람에게 묻는다.")
+        elif decision["action"] == "resume":
+            secs, why = derive_timeout(a.repo_root, camp, node)
+            print(f"  → 예산 파생: timeout={secs or '(상한)'} · 근거: {why}")
+            if not a.apply:
+                print("  → 재발급은 `--supervise-step <camp> --apply` 로 실행한다(단일 스텝).")
+            else:
+                rc = max(rc, _supervise_resume(a, path, doc, secs, why))
+    return rc
+
+
+def _supervise_resume(a, lp: str, doc: dict, secs, why: str) -> int:
+    """전진이 보이는 중단을 **같은 세션으로** 자동 재발급한다(D9). 감독자가 선언 주체다."""
+    pend = pending_for(a.repo_root, doc.get("context_id"))
+    serve_library_requests(a.repo_root, doc.get("context_id"), pend,
+                           topology=doc.get("topology") or "single")
+    pend = pending_for(a.repo_root, doc.get("context_id"))
+    blocked = [e for e in pend if entry_blocking(e) and not e.get("answer")
+               and not e.get("library_export")]
+    if blocked:
+        print("  → STOP: 답이 필요한 차단성 요청이 남아 있다 — 자동 재발급하지 않는다.")
+        return 3
+    a.topology = a.topology or doc.get("topology")
+    a.manifest_path = a.manifest or doc.get("manifest") or os.path.join(
+        REPO, "output", a.topology or "single", "manifest.yaml")
+    a.context_id = doc.get("context_id")
+    lks = last_known_session(doc)
+    cap = turn_budget.schema_cap("max_turns")
+    turns = a.max_turns or max(budget_floor(doc), 1) or cap
+    bud = turn_budget.declare(min(turns, cap), secs or turn_budget.schema_cap("timeout_seconds"),
+                              source=f"감독 스텝 자동 재발급 · {why}")
+    task = assemble_continuation(a.repo_root, doc, pend)
+    return run_attempt(a, doc, lp, task, bud, lks.get("session_id") or "new")
 
 
 def _self_test() -> int:
@@ -936,6 +1313,119 @@ def _self_test() -> int:
         chk(doc4["attempts"][-1]["running_services"] is None,
             "★말하지 않은 것은 None(모름)이지 빈 목록(없다는 선언)이 아니다")
 
+    # ── 단계 ③: 캠페인 축 · 예산 파생 · 감독 스텝 · 사서 자동 응대 (plan_26090813) ──────────
+    import tempfile as _tf
+
+    chk("timeout_seconds_allocated" in relay_header("c", 1, 40, "근거", 3600),
+        "★위임 헤더가 시간 상한도 말한다(서브가 몇 초 뒤 잘리는지 알아야 한다)")
+    chk("timeout_seconds_allocated" not in relay_header("c", 1, 40, "근거"),
+        "시간 상한이 없으면 없다고 적지 않는다(모르는 값을 지어내지 않는다)")
+
+    _d = {}
+    bind_campaign_context(_d, node="sub", kind="cell", cell="c1")
+    chk(_d["campaign_node"] == "sub" and _d["campaign_context_kind"] == "cell"
+        and _d["campaign_cell"] == "c1", "원장이 캠페인 축을 못박는다(P4 가 읽을 자리)")
+    _raised = None
+    try:
+        bind_campaign_context(_d, node=None, kind=None, cell="c2")
+    except SystemExit as e:
+        _raised = str(e)
+    chk(_raised and "셀 하나 = context 하나" in _raised,
+        "★음성대조 한 context 에 셀 둘을 묶으면 STOP(D20 · 2026-09-07 캡 절단 2/2)")
+    _raised = None
+    try:
+        bind_campaign_context({"campaign_node": "main"}, node="sub", kind=None, cell=None)
+    except SystemExit as e:
+        _raised = str(e)
+    chk(bool(_raised), "★음성대조 한 원장이 두 노드를 주장하면 STOP")
+    _raised = None
+    try:
+        bind_campaign_context({}, node=None, kind="nope", cell=None)
+    except SystemExit as e:
+        _raised = str(e)
+    chk(bool(_raised), "★음성대조 알 수 없는 context 종류 STOP")
+
+    with _tf.TemporaryDirectory() as _t:
+        _pd = os.path.join(_t, "campaigns", "camp-x", "phases", "sub")
+        os.makedirs(_pd)
+        with open(os.path.join(_pd, "serve.status.json"), "w", encoding="utf-8") as _f:
+            json.dump({"first_started_utc": "2026-09-08T10:00:00Z",
+                       "ended_utc": "2026-09-08T10:20:00Z"}, _f)
+        _secs, _why = derive_timeout(_t, "camp-x", "sub")
+        chk(_secs == 1800 and "실측 1200s" in _why,
+            "★시간 예산을 지난 phase 실측에서 파생한다(1200s x 1.5 = 1800s)")
+        _n, _why2 = derive_timeout(_t, "camp-x", "ghost")
+        chk(_n is None and "스키마 상한" in _why2 and str(turn_budget.schema_cap("timeout_seconds")) in _why2,
+            "★실측이 없으면 파생하지 않고 **스키마 상한을 읽어** 그 사실을 적는다(3600 재기재 ✗)")
+
+    # 감독 판정 — 전진/정체/비용/단절 4분기 + 상주 0(함수 하나가 끝난다)
+    _mk = lambda **kw: dict({"attempt": 1, "session_id": "s1", "sub_reported": True,
+                             "control_status": "completed"}, **kw)
+    chk(supervise_decide({"attempts": []})["action"] == "await_dispatch",
+        "감독: 아무것도 안 나갔으면 지시서를 열라고 말한다")
+    chk(supervise_decide({"attempts": [_mk(end_reason="completed", status="completed")]}
+                         )["action"] == "next_cell", "감독: completed → 다음 셀")
+    _prog = {"attempts": [_mk(end_reason="budget_exhausted", phase="build"),
+                          _mk(attempt=2, end_reason="budget_exhausted", phase="serve")]}
+    chk(supervise_decide(_prog)["action"] == "resume",
+        "★감독: 소진이지만 phase 가 전진했으면 **자동 재발급**(D9 항상 자동)")
+    _stall = {"attempts": [_mk(end_reason="budget_exhausted", phase="serve"),
+                           _mk(attempt=2, end_reason="budget_exhausted", phase="serve")]}
+    chk(supervise_decide(_stall)["action"] == "popup",
+        "★감독: 전진이 없으면 예산을 키우기 전에 사람에게 묻는다")
+    chk(supervise_decide(_stall, brief={"last_utc": "2026-09-08T20:00:00Z"})["action"] == "resume",
+        "★감독: phase 가 그대로여도 브리핑이 전진했으면 재발급(R2 — 긴 벤치를 정체로 오판 ✗)")
+    chk(supervise_decide(dict(_stall, supervisor_last_seen_utc="2026-09-08T21:00:00Z"),
+                         brief={"last_utc": "2026-09-08T20:00:00Z"})["action"] == "popup",
+        "★감독: 브리핑이 직전 스텝이 본 값보다 앞서지 않으면 전진이 아니다")
+    chk(supervise_decide(_prog, cost_cap_attempts=2)["action"] == "popup",
+        "★감독: 선언된 비용 상한에 닿으면 자동 재개 대신 팝업(D9)")
+    chk(supervise_decide({"attempts": [_mk(end_reason="transport_or_launch_failure")]}
+                         )["action"] == "popup",
+        "★감독: 통신·모델 평면이 깨지면 재개로 낫지 않는다 → 팝업")
+    _pd = supervise_decide({"attempts": [_mk(end_reason="permission_denied")]})
+    chk(_pd["action"] == "popup" and "권한 평면" in _pd["reason"]
+        and "모델·통신" not in _pd["reason"],
+        "★감독: 권한 거부는 **권한 거부라고** 말한다(사유가 과장되면 사람이 엉뚱한 곳을 본다)")
+    chk(supervise_decide({"attempts": [_mk(end_reason="sub_input_required")]}
+                         )["action"] == "popup", "감독: input-required 는 답이 승인이다")
+    _un = {"attempts": [_mk(end_reason="unclassified", phase="serve"),
+                        _mk(attempt=2, end_reason="unclassified", phase="serve")]}
+    chk(supervise_decide(_un, brief={"last_utc": "2026-09-08T07:44:28Z"})["action"] == "resume",
+        "★감독: 판정 불가라도 **전진이 관측되면** 잇는다(리포트 형식 미준수가 D9 를 무력화 ✗)")
+    chk(supervise_decide(_un)["action"] == "popup",
+        "★감독 음성대조: 판정 불가 + 전진 없음이면 묻는다(모르면서 잇지 않는다)")
+    _led = {"attempts": [_mk(end_reason="budget_exhausted", phase="serve")]}
+    record_supervisor_step(_led, {"action": "popup", "reason": "r"}, utc="t0",
+                           brief={"last_utc": "u1"})
+    chk(len(_led["supervisor_steps"]) == 1 and _led["supervisor_last_seen_utc"] == "u1",
+        "★감독 판정이 원장에 남는다(다음 스텝이 같은 것을 다시 판정하지 않는다)")
+
+    # 사서 자동 응대 — 회신을 다음 턴 본문에 싣는다
+    _entry = {"library_request": [{"question": "Qwen3-4B fp8 kv 사례?"}],
+              "library_export": {"resolution": {"status": "unresolved", "librarian": "wiki-desk",
+                                                "reason": "정직한 공백"}, "references": []}}
+    _rend = render_library_export(_entry)
+    chk(any("unresolved" in x for x in _rend) and any("grounding_gap" in x for x in _rend),
+        "★사서가 못 찾으면 **회신 없음의 처방**까지 실어 보낸다(기재 후 진행 · D5)")
+    _entry2 = {"library_export": {"resolution": {"status": "resolved", "librarian": "wiki-desk"},
+                                  "references": [{"ref_id": "R1", "path": "CLAUDE.md",
+                                                  "digest": "abc123def456", "excerpt": "발췌"}]}}
+    chk(any("CLAUDE.md" in x for x in render_library_export(_entry2)),
+        "사서 회신은 참조·발췌로 실린다(복제 ✗ · 헌법 불변식 B)")
+    chk(_terms_of({"question": "x"}) == ["x"] and _terms_of({"query": {"terms": ["a", "b"]}}) == ["a", "b"],
+        "질의어는 terms 가 있으면 그대로, 없으면 질문 문장(포기 ✗)")
+
+    # 시간 상한 리터럴이 **프로덕션 코드**에 다시 적히지 않았다(같은 상수가 두 자리에 있으면
+    # 갈라지고, 갈라진 쪽이 조용히 늦는다 · workflow.md §매직넘버 결함 칸). 시험 픽스처는
+    # 판정 대상이 아니다 — 여기서 3600 을 쓰는 것은 헤더가 값을 그대로 나르는지 보는 용도다.
+    _all = open(os.path.abspath(__file__), encoding="utf-8").read()
+    _cap = str(turn_budget.schema_cap("timeout_seconds"))
+    _prod = _all.split("def _self_test", 1)[0] + _all.split("\nSSH_PROBE = ", 1)[-1]
+    chk(_cap not in _prod,
+        f"★시간 상한({_cap}) 리터럴이 프로덕션 코드에 없다 — 상한은 스키마에서 읽는다")
+    chk(_cap in _all, "음성대조: 슬라이스가 파일 전체를 지우지 않았다(도달 불가 시험 금지)")
+
     print("self-test: %s" % ("PASS" if ok else "FAIL"))
     return 0 if ok else 2
 
@@ -1140,15 +1630,33 @@ def main() -> int:
                     help="위임에 실을 캠페인 id(생략 시 활성 캠페인 · _bootstrap 이면 미탑재)")
     ap.add_argument("--no-campaign", action="store_true",
                     help="캠페인 축을 싣지 않는다(캠페인 밖 온보딩·카나리)")
+    # ── 캠페인 축(2026-09-08 · plan_26090813 §4.3). 이름에서 추론하지 않고 **선언**한다.
+    ap.add_argument("--node", default=None,
+                    help="이 context 를 수행하는 노드 id(원장에 못박힌다 · P4 가 읽는다)")
+    ap.add_argument("--context-kind", choices=list(CONTEXT_KINDS), default=None,
+                    help="build = 빌드 문맥 · cell = 셀 하나(서빙→벤치). 셀 하나 = context 하나(D20)")
+    ap.add_argument("--cell", default=None, help="--context-kind cell 의 셀 id(원장에 못박힌다)")
+    ap.add_argument("--budget-from-phase", action="store_true",
+                    help="--timeout-seconds 를 같은 노드의 지난 phase 실측에서 파생한다 "
+                         "(실측이 없으면 스키마 상한을 쓰고 그 사실을 근거에 적는다)")
+    ap.add_argument("--supervise-step", metavar="CAMP_ID", default=None,
+                    help="감독 한 걸음 — 원장+회수 브리핑을 읽어 판정하고 원장에 적고 끝난다. "
+                         "상주 ✗(세션 리볼빙 · D7). --apply 면 전진이 보이는 중단을 자동 재발급한다")
+    ap.add_argument("--cost-cap-attempts", type=int, default=None,
+                    help="감독 스텝의 비용 상한(선언) — 이 수에 닿으면 자동 재개 대신 팝업(D9)")
+    ap.add_argument("--utc", default=None, help="감독 스텝 기록 시각(주입 · 생략 시 메인 벽시계)")
     ap.add_argument("--self-test", action="store_true")
     a = ap.parse_args()
     if a.self_test:
         return _self_test()
+    if a.supervise_step:
+        return supervise_step(a)
     if not a.context_id:
         raise SystemExit("[relay] --context-id 필수")
 
     lp = ledger_path(a.repo_root, a.context_id)
     doc = load_ledger(lp)
+    bind_campaign_context(doc, node=a.node, kind=a.context_kind, cell=a.cell)
     a.campaign_id, a.control_variables = resolve_campaign_axis(a)
     if a.campaign_id:
         doc["campaign_id"] = a.campaign_id
@@ -1197,8 +1705,20 @@ def main() -> int:
                     "[relay] STOP: 서브 정체성 echo 가 성립하지 않는다 — 부재도 불일치도 STOP 이다.\n"
                     + "".join(f"  - {r}\n" for r in _stop)
                     + "  → 서브가 위임 헤더의 값을 그대로 회신하도록 한 뒤 재개하라(우회 ✗).")
+        # 사서 자동 응대 — 서브가 올린 질문을 wiki-desk 에 나른다(2026-09-08 · §4.3 · D5).
+        #   종전에는 `library_relay.py` 가 있고 그것을 부르는 자리가 0 이라, 절차대로 올라온
+        #   질문 5회가 전부 답 없이 남았다. 해소 실패는 정직한 공백으로 실려 간다(차단 ✗).
+        _served = serve_library_requests(a.repo_root, a.context_id,
+                                         pending_for(a.repo_root, a.context_id),
+                                         topology=a.topology or "single")
+        if _served:
+            print(f"[relay] 사서 자동 응대 {len(_served)}건 — 다음 턴 본문에 실린다: "
+                  f"{', '.join(str(x) for x in _served)}")
         pend = pending_for(a.repo_root, a.context_id)
-        blocked = [e for e in pend if entry_blocking(e) and not e.get("answer")]
+        # 사서가 답한 항목은 차단을 풀지 않는다 — 사람 답이 필요한 것과 자료가 필요한 것은
+        # 다른 종류다. 다만 `library_export` 가 실렸으면 그것 자체가 답이므로 차단에서 뺀다.
+        blocked = [e for e in pend if entry_blocking(e) and not e.get("answer")
+                   and not e.get("library_export")]
         if blocked:
             ids = ", ".join(str(e.get("request_id")) for e in blocked)
             raise SystemExit(
@@ -1240,7 +1760,12 @@ def main() -> int:
     if not task:
         raise SystemExit("[relay] --task 또는 --task-file 필수")
     a.manifest_path = a.manifest or os.path.join(REPO, "output", a.topology, "manifest.yaml")
-    bud = turn_budget.declare(a.max_turns, a.timeout_seconds, source=a.budget_source or "")
+    _timeout, _src = a.timeout_seconds, a.budget_source or ""
+    if a.budget_from_phase and _timeout is None:
+        _timeout, _why = derive_timeout(a.repo_root, a.campaign_id, a.node)
+        _timeout = _timeout or turn_budget.schema_cap("timeout_seconds")
+        _src = (f"{_src} · " if _src else "") + f"시간 예산 파생: {_why}"
+    bud = turn_budget.declare(a.max_turns, _timeout, source=_src)
     return run_attempt(a, doc, lp, task, bud, require_resume(a.resume, last_known_session(doc)))
 
 

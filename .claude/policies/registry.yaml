@@ -1774,6 +1774,181 @@
         "reviewer": "maintainer",
         "reason": "Added 2026-09-06 from the plan_26090616 audit, whose finding is itself the dated reproduction: 21 root files tracked to a public remote with no gate holding jurisdiction, confirmed by git ls-files and by check-ignore on the escaped names. Kept candidate rather than active because the enforcing tripwires (root allowlist + operator-literal scan over staged blobs) land in the same plan's stage 3 and their deliberate RED injection has not been recorded yet; promotion waits for that testlog and for the campaign re-run that exercises the purge gate end to end."
       }
+    },
+    {
+      "policy_id": "LIBRARY_GROUNDING_FAIL_CLOSED",
+      "owner": "wiki-desk",
+      "statement": "Serving and benchmarking decisions must cite the main node's library before they are made: a campaign records a librarian query derived from its own control variables, the serve/trial entry points refuse to start without that record, every artifact declares its own grounding status and source, publication feeds the shelf back so the shelf can never answer 'nothing found' from a stale index, and a sub's question is carried to the librarian by the relay rather than left unanswered. An empty answer is an honest gap that is recorded and passed; only a refusal blocks.",
+      "scope": [
+        "single-node",
+        "multi-node"
+      ],
+      "origin_failure": "2026-09-08 post-hoc audit of camp-26090721 (plan_26090813 F6): the librarian was called ZERO times during a 30h serving campaign, the shelf had been frozen since 2026-09-03 with 147 published documents never indexed, the serving-chain scripts contained no librarian call, the publishers contained no intake hook, and library_relay.py -- the physical channel built for exactly this -- had no caller in relay.py, so all five sub-side library_request entries came back null. The procedure existed only as advisory prose in SKILL.md with zero executors and zero gates, which the user judged an accident (사고) and directed to be raised to safety-invariant strength, modelled on the adversarial-benchmark external-search invariant.",
+      "clauses": [
+        {
+          "clause_id": "LIBRARY_GROUNDING_FAIL_CLOSED.C1",
+          "statement": "A campaign records a grounding exchange under campaigns/<id>/grounding/<utc>.json in the same three-message shape as the sub exchange (request/export/attestation), with the query terms DERIVED from the campaign's own control_variables rather than hand-written, so the query cannot drift from what the campaign actually runs."
+        },
+        {
+          "clause_id": "LIBRARY_GROUNDING_FAIL_CLOSED.C2",
+          "statement": "The serve and trial entry points are fail-closed backstops: without a grounding record they exit 4 and never start a container. The check is a no-op outside a campaign (ACTIVE=_bootstrap) and on dry-run/mock, so ordinary serving is unaffected. A librarian answer of 'unresolved' PASSES -- an honest gap is recorded and the work proceeds -- and only 'refused' blocks, because blocking on emptiness would make a genuinely new subject impossible to ever run."
+        },
+        {
+          "clause_id": "LIBRARY_GROUNDING_FAIL_CLOSED.C3",
+          "statement": "Artifacts declare their own grounding: every cell status carries grounding.status, grounding.source (the record it was decided against) and grounding.gap, and the absence of a record is written as status 'absent' rather than left empty -- without that field, 'decided from a reference' and 'decided from nothing' are indistinguishable in the data and the constitution's invariant B is unenforceable."
+        },
+        {
+          "clause_id": "LIBRARY_GROUNDING_FAIL_CLOSED.C4",
+          "statement": "Publication feeds the shelf: evidence_publisher finalize and the publish phase writer both trigger an incremental warm-start intake, and a grounding query warms the shelf before asking. A stale shelf's 'nothing found' is a false negative, not an absence -- on 2026-09-08 the shelf was five days and 147 documents behind while the relevant material existed on disk."
+        },
+        {
+          "clause_id": "LIBRARY_GROUNDING_FAIL_CLOSED.C5",
+          "statement": "A sub's library_request is answered automatically: the relay carries pending requests to the librarian through library_relay and loads the export into the next turn's task body, including -- when the librarian found nothing -- the explicit instruction to record a grounding_gap and proceed. The librarian stays main-only; the sub says what it is looking for and never searches the library itself."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C1"
+          ],
+          "assertion_ids": [
+            "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C1"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C1"
+          ],
+          "assertion_ids": [
+            "ground_campaign",
+            "grounding_terms",
+            "GROUNDING_DIR"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C2"
+          ],
+          "assertion_ids": [
+            "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C2"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C2"
+          ],
+          "assertion_ids": [
+            "grounding_reasons",
+            "latest_grounding"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/single_serve_up.sh",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C2"
+          ],
+          "assertion_ids": [
+            "_CI"
+          ]
+        },
+        {
+          "path": ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C2"
+          ],
+          "assertion_ids": [
+            "_main"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C3"
+          ],
+          "assertion_ids": [
+            "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C3"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C3"
+          ],
+          "assertion_ids": [
+            "writer_set_cell"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C4"
+          ],
+          "assertion_ids": [
+            "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C4"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C4"
+          ],
+          "assertion_ids": [
+            "warm_start_library"
+          ]
+        },
+        {
+          "path": ".claude/policies/runtime/evidence_publisher.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C4"
+          ],
+          "assertion_ids": [
+            "cmd_finalize"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C5"
+          ],
+          "assertion_ids": [
+            "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C5"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/relay.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C5"
+          ],
+          "assertion_ids": [
+            "serve_library_requests",
+            "render_library_export"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/library_relay.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C5"
+          ],
+          "assertion_ids": [
+            "resolve"
+          ]
+        }
+      ],
+      "added_at": "2026-09-08",
+      "last_reproduced": "2026-09-08",
+      "remove_when": "The librarian is called by the serving chain without a gate for three consecutive campaigns AND the shelf's intake is never observed to lag publication -- i.e. the behaviour has become structural rather than enforced. Until then the invariant is what makes the procedure exist at all; before it, the procedure was advisory prose with zero executors and it was followed zero times.",
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-09-08",
+        "next_review_due": "2026-12-07",
+        "reviewer": "maintainer",
+        "reason": "Added 2026-09-08 from the camp-26090721 post-hoc audit, whose finding is itself the dated reproduction (librarian calls = 0, shelf 147 documents behind, library_relay callers = 0). Kept candidate rather than active because the deliberate-RED evidence exists only as unit self-tests and the backstop has not yet blocked a live serve; promotion waits for the acceptance re-run testlog in plan_26090813 stage 6."
+      }
     }
   ]
 }

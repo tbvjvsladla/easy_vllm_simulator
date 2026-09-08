@@ -664,6 +664,10 @@ OVERLAY_STALE_PATHS=(
     #     목록에 디렉터리를 적으면 **조용히 아무 일도 일어나지 않는다**(침묵 no-op).
     #     서브의 새 작업은 CLAUDE.template/comms.md 가 가리키는 새 자리로 간다.
     tasks/.gitkeep
+    # 2026-09-08(plan_26090813 §4.2): 메인의 **해소 결과**는 싱글 서브에 가지 않는다. 오버레이는
+    #   가산이라 이미 배달된 사본은 스스로 사라지지 않고, 남으면 서브가 자기 HW 로 해소할 이유가
+    #   없어진다(2026-09-07 실측: 서브 library_request 5회 전부 null — 물을 이유가 없었다).
+    .claude/skills/upstream-version-watch/assets/current-production-resolution.json
 )
 OVERLAY_RELOCATION_STALE_PATHS=(
     .claude/rules/references.md

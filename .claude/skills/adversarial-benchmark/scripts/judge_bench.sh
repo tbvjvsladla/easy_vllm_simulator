@@ -141,3 +141,23 @@ rub = doc.get("rubric") or {}
 print("[judge_bench] verdict=%s authority=%s source=%s floor=%s"
       % (doc.get("verdict"), rub.get("authority"), rub.get("source"), rub.get("floor")))
 PY
+
+# ── 인증서 자동 발행 (2026-09-08 · plan_26090813 §4.4 · 사용자 결정 D18) ─────────────────
+# 왜 여기인가: `publish_benchmark_record.py` 는 저장소 안 **호출자가 0** 이었다. 발행기가 있는데
+# 부르는 손이 없으면 인증서는 사람이 기억해야 나오고, 기억은 캠페인을 못 넘긴다. 판정을 낸 바로
+# 이 자리가 발행 조건을 아는 유일한 자리다(verdict 와 authority 가 둘 다 여기 있다).
+#
+# **명시 권한(explicit)의 PASS 만** 자동이다. 탐색(explore)은 사용자가 목표를 안 준 상태의 측정이라
+# "검증된 한계" 를 주장할 근거가 없다 — 리포트와 sweep map 으로 남긴다. 권한 모델의 정본은
+# adversarial-benchmark SKILL.md §2 이며 여기서 두 번째 답을 만들지 않는다.
+_V="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1],encoding='utf-8')).get('verdict') or '')" "$OUT")"
+_A="$(python3 -c "import json,sys;print(((json.load(open(sys.argv[1],encoding='utf-8')).get('rubric') or {}).get('authority')) or '')" "$OUT")"
+if [ "$_V" = "PASS" ] && [ "$_A" = "explicit" ]; then
+  echo "[judge_bench] 인증서 자동 발행 — verdict=PASS · authority=explicit"
+  python3 "$SDIR/publish_benchmark_record.py" --sweep-index "$INDEX" --verdict-json "$OUT" \
+    || echo "[judge_bench] ⚠ 인증서 발행 실패 — 판정은 남았고 인증서만 없다(위 사유 참조)" >&2
+else
+  # 음성정직: "발행 안 함" 은 결손이 아니라 판정 결과다. 그 사실이 로그에 남아야 나중에
+  # "왜 인증서가 없지?" 가 조용한 누락과 구분된다.
+  echo "[judge_bench] 인증서 미발행 — verdict=$_V authority=$_A (자동 발행은 explicit ∧ PASS 뿐)"
+fi

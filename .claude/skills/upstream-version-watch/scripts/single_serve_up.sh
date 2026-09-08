@@ -220,6 +220,30 @@ else
   rollback; exit 2
 fi
 
+# ── 그라운딩 진입 백스톱 (2026-09-08 · policy:LIBRARY_GROUNDING_FAIL_CLOSED C2) ──────────────
+# 왜 여기인가: 도서관은 구축돼 있었고 **활용이 0** 이었다 — 절차가 권고문뿐이라 실행자도 게이트도
+# 없었고, 사용자는 그것을 사고로 판정했다. 벤치 스킬의 "외부검색을 실제로 수행했는가" 불변식과
+# 같은 계통으로, 서빙 진입에 백스톱을 둔다. 캠페인 밖(ACTIVE=_bootstrap)이면 writer 가 스스로
+# no-op 이므로 평시 서빙은 영향이 없다. 사서가 **못 찾은 것**은 통과다(정직한 공백은 기재 후
+# 진행) — 거절만 차단이다.
+_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+if [ "$DRY" = 1 ]; then
+  echo "$TAG (dry-run) 그라운딩 백스톱은 실기동에만 건다 — 예행은 막지 않는다"
+elif [ -f "$_CI" ]; then
+  if ! python3 "$_CI" --grounding-check; then
+    echo "$TAG STOP: 그라운딩 기록 없이 서빙에 진입하지 않는다(policy:LIBRARY_GROUNDING_FAIL_CLOSED)." >&2
+    echo "$TAG   → python3 $_CI --ground --utc <UTC> 로 사서에게 먼저 물어라." >&2
+    echo "$TAG   → 사서가 못 찾으면 그 사실이 기록에 남고 그대로 통과한다(공백은 차단이 아니다)." >&2
+    exit 4
+  fi
+else
+  echo "$TAG ⚠ campaigns writer 부재($_CI) — 그라운딩 백스톱이 돌지 않았다(침묵 누락 ✗)." >&2
+fi
+
+# 서브 진행표가 "언제 시작했나"를 갖게 하는 자리(2026-09-08 · plan_26090813 §4.7 P4).
+# 착수 시각이 없으면 동시 착수는 검증 대상이 아니라 주장이 된다.
+_SERVE_T0="$(NOW_ISO)"
+
 # ── 5/7 compose up ──────────────────────────────────────────────────────────────────
 if [ "$DRY" = "1" ]; then
   echo "$TAG 5/7 compose up      : (dry-run) docker compose -f $COMPOSE ${ENVFILES[*]} --profile serve up -d"
@@ -258,12 +282,21 @@ while [ "$_waited" -lt "$READY_MAX" ]; do
     #    proof 는 **관측**이다 — 여기가 health 200 을 실제로 본 자리이고, 그 사실을 그 자리에서
     #    적는다. 다른 시점에 적으면 선언이 관측을 대체한다. ACTIVE=_bootstrap 이면 writer 가
     #    스스로 no-op 이므로 캠페인 밖 평시 서빙은 영향이 없다.
+    #    ★ 2026-09-08(plan_26090813 F5): 이 가드는 **부재를 침묵으로** 처리했다. 서브 오버레이에
+    #      writer 가 없던 동안 이 자리는 조용히 아무것도 안 했고, 그래서 서브 진행표가 캠페인이
+    #      끝난 뒤 메인 손으로 나타났다. 부재는 이제 소리낸다 — 배선 결함과 정상 no-op 은 다르다.
     _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
     if [ -f "$_CI" ]; then
       python3 "$_CI" --phase-set serve --node "$NODE_ID" --state done --cell "$CONFIG" \
         --proof-predicate "health 200" --proof-ok \
         --proof-source "single_serve_up.sh: curl http://localhost:$PORT/health = 200 (container=$CNAME · session=$SESSION_ID)" \
+        --started-utc "$_SERVE_T0" --ended-utc "$(NOW_ISO)" --authored-by "$NODE_ID" \
         || echo "$TAG ⚠ campaigns writer 실패 — serve 진행표가 기록되지 않았다" >&2
+      python3 "$_CI" --write-brief --node "$NODE_ID" --utc "$(NOW_ISO)" \
+        || echo "$TAG ⚠ campaign_brief 갱신 실패 — 감독자가 읽을 관측면이 낡았다" >&2
+    else
+      echo "$TAG ⚠ campaigns writer 부재($_CI) — serve 진행표를 아무도 적지 않았다." >&2
+      echo "$TAG   이 노드가 서브라면 오버레이 배달이 캠페인 도구를 빠뜨린 것이다(침묵 누락 ✗)." >&2
     fi
     exit 0
   fi

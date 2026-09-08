@@ -31,8 +31,14 @@ producer 는 자기 출력 경로를 이 포인터에서 파생하며, 포인터
 campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이다 — 캠페인 밖 평시
 서빙이 빈 인스턴스에 상태를 쓰기 시작하면 `_bootstrap` 이 캠페인 흉내를 내게 된다.
 
-1. **`<camp-id>/campaign.yaml`** — 무엇을 왜 도는가. matrix(버전×모델) · `order`(셀 실행 순서) ·
-   `nodes` · `budgets`(예산 선언) · `control_variables`(통제변인) · `hint_targets`(발행할 태그).
+1. **`<camp-id>/campaign.yaml`** — 무엇을 왜 도는가. matrix(버전×모델) · **`assignments`**(노드별
+   셀 배정 = 배정의 단일 권위) · `nodes` · `budgets`(예산 선언) · `control_variables`(통제변인) ·
+   `hint_targets`(발행할 태그 · 배정에서 파생).
+   `assignments` 는 `{"<node_id>": [{"cell": "<id>", "mode": "AUTO|HITL|STAY"}, …]}` 이고 **서로
+   다른 노드의 리스트는 동시에 돈다**. `mode` 는 셀이 끝난 뒤의 전이다 — AUTO(기본·생략 가능)는
+   정리 후 다음 셀, HITL 은 정리 후 사람에게 묻고 대기, STAY 는 벤치 뒤에도 서빙을 유지한다
+   (STAY 는 리스트 **마지막**에만 온다). 옛 평면 `order` 는 2026-09-08 에 대체됐다 — 평면 목록은
+   "메인이 A·B, 서브가 C·D" 를 표현하지 못했고, 표현할 수 없는 것은 배선될 수 없었다.
 2. **`<camp-id>/phases/<node>/*.status.json`** — 어디까지 왔는가. `state` 와 `proof.ok` 를 보고
    **다음에 진입 가능한 phase** 를 정한다. `proof.ok` 가 거짓이면 그 phase 를 다시 돈다.
 3. **`<camp-id>/cells/<cell>/cell.status.json`** — 어떤 셀이 끝났고 어떤 셀이 죽었는가.
@@ -51,10 +57,17 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
 
 - **`<<FILL>>` 이 남으면 검증기가 fail-closed 한다.** 모르는 값을 그럴듯하게 채우지 말고, 모른다는
   사실 자체를 사람에게 올려라(`relay/pending_hitl.json`).
-- **바이트를 쓰는 것은 `campaign_init.py` 하나다**(2026-09-07). `--phase-set`·`--cell-set`·
-  `--evidence-add`·`--revise` 가 유일한 쓰기 문이고, 호출부는 각 phase 의 **실제 실행 스크립트
-  종료부**다(포맷 소유 1 · 호출부 N). 손으로 편집하지 마라 — 손이 빠지는 자리가 곧 다음 재개의
-  함정이다(2026-09-06 실측: 상태를 쓴 것이 세션과 함께 소멸하는 스크래치패드 스크립트였다).
+- **상태 파일에 바이트를 쓰는 것은 `campaign_init.py` 하나다**(2026-09-07). `--phase-set`·
+  `--cell-set`·`--evidence-add`·`--revise`·`--evidence-prune-stubs` 가 유일한 쓰기 문이고,
+  호출부는 각 phase 의 **실제 실행 스크립트 종료부**다(포맷 소유 1 · 호출부 N). 2026-09-06 실측:
+  상태를 쓴 것이 세션과 함께 소멸하는 스크래치패드 스크립트였다.
+- **"손으로 편집하지 마라" 의 범위는 상태 파일이다**(2026-09-08 범위 축소 · plan_26090813 D14).
+  선언(`campaign.yaml`)과 셀 입력(`config.yaml`·`lockset.json`)은 **손저작 입력**이다 — 계획
+  인터뷰에서 나온 값을 사람이 적는 자리이고, 내용이 부족하면 그때 HITL 로 묻는다. 상태·증거·여정만
+  writer 전용이다. 종전 문장은 범위를 말하지 않아 선언을 고치는 것조차 규약 위반처럼 보였다.
+- **뼈대 잔재는 손으로 지우지 말고 `--evidence-prune-stubs` 로 지운다**(2026-09-08 신설). writer 에
+  지우는 연산이 없어서 예시 포인터가 게이트를 막았을 때 손삭제가 유일한 경로였고, 손삭제의 흔적은
+  "채워야 했는데 못 채운 빈칸"과 구분되지 않았다(사후감사 §A F1 · D3: 우회 대신 경로를 만든다).
 - **`proof.ok` 는 관측이지 선언이 아니다.** 참으로 적을 때는 `proof.source` 에 그 판정을 낸 명령이나
   파일을 함께 적는다. 출처 없는 `ok` 는 단언이 검증을 대체한 것이고, 그러면 깨진 순간을 아무도 모른다.
 - **실패해도 status 파일은 쓴다.** 부재와 실패는 다른 사실이다. 부재만 남기면 "돌지 않았다"와
@@ -77,7 +90,7 @@ campaigns/
 │  ├─ relay/                    릴레이 원장 루트(옛 루트 tasks/)
 │  ├─ sweeps/                   스윕 상태·정지판정
 │  ├─ evidence_pointers.json    docs 평면 증거 포인터(purge 선행조건)
-│  └─ residue.json              잔재 스캐너 출력 틀
+│  └─ residue.json              잔재 스캐너 출력 틀(`--residue-scan --utc <t>` 가 인스턴스에 쓴다)
 ├─ ACTIVE               ← 비추적. 살아 있는 인스턴스 하나의 이름(부재 = _bootstrap)
 ├─ _bootstrap/          ← 비추적. 활성 캠페인이 없을 때의 릴레이 **대기실**(온보딩·카나리).
 │                          purge 게이트의 대상이 아니며(증거 포인터를 갖지 않는다),
