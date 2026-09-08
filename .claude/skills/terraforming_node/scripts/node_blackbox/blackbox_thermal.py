@@ -42,7 +42,7 @@
         · 재생 결과: 생존 22 일 kill **0회**, 사건일 18:24:36 kill(락업 **251 초 전**)
         · 사건일의 15:24 순간 100.79 W 버스트: 버킷 최고 **10/60** -> 미발동 (음성대조)
 
-  (b) `external_report` -- **SoC 열 축. 아직 교정되지 않았다(UNCALIBRATED).**
+  (b) `external_report` -- 과거 SoC 열 축의 출처였다. **2026-09-09 전수 교정(measured+EC 팬 커브) 완료.**
       이 노드는 SoC 열을 **오늘부터** 수집하기 시작했으므로(`blackbox_collect.py` 확장)
       과거 분포가 없다. 값은 외부 보고(NVIDIA 개발자 포럼 GB10 하드 파워오프)에서 역산했다:
       "acpitz 88->97.8도 in 5s 로 재현성 있게 하드 파워오프", "thermal_zone0/zone5 acpitz
@@ -93,10 +93,10 @@ DEFAULTS = {
     # ── GPU 전력 축 (measured) ────────────────────────────────────────────
     "gpu_pwr_w": 80,            # 이 위를 '고부하'로 센다
     "gpu_sustain_s": 60,        # 버킷이 이만큼 차면 TRIP
-    # ── SoC 열 축 (external_report · UNCALIBRATED) ────────────────────────
-    "soc_warn_c": 90,           # 지속 감시선
-    "soc_sustain_s": 30,        # SoC 는 5 초에 10도가 오른다 -- GPU 축보다 짧게 잡는다
-    "soc_hard_c": 95,           # 즉시 계층(외부 보고 96.8도 관측 직후 하드 파워오프)
+    # ── SoC 열 축 (calibrated 2026-09-09 · measured 8일 682k samples + EC 팬 커브 + 장애 시그니처) ──
+    "soc_warn_c": 97,           # 지속 감시선 = EC 팬 커브 100% 지점(플랫폼 자체 관리 천장) · calibrated 2026-09-09
+    "soc_sustain_s": 30,        # 술어 유지: 새 warn 기준 "관리 천장 위 30초 지속" = 진성 이탈만
+    "soc_hard_c": 99,           # 즉시 계층(최속 장애 스파이크 종점 97.8 + 마진 · 3-poll 디바운스) · calibrated 2026-09-09
     "soc_hard_polls": 3,        # 즉시 계층의 디바운스(ETA `debounce_polls` 와 같은 개념)
     # ── 공통 ──────────────────────────────────────────────────────────────
     "bucket_decay": 1,          # 임계 미만 poll 당 버킷 감소량
@@ -112,9 +112,9 @@ PARAM_PROVENANCE = {
     "gpu_pwr_w": "measured:docs/logs/main/samples 23일 1Hz 전수(2026-07-31~08-23) 그리드 탐색",
     "gpu_sustain_s": "measured:생존22일 최대버킷 13 vs 사건일 309 의 기하평균 부근",
     "bucket_decay": "measured:decay=1 이 분리비 23.8배로 최대(decay=2 는 23.7, 연속스트릭은 21.8)",
-    "soc_warn_c": "external_report:NVIDIA 포럼 GB10 하드파워오프(acpitz 96.8도 관측) — UNCALIBRATED",
-    "soc_sustain_s": "external_report:acpitz 88→97.8도 in 5s 보고에서 역산 — UNCALIBRATED",
-    "soc_hard_c": "external_report:하드파워오프 직전 관측 96.8도의 아래 — UNCALIBRATED",
+    "soc_warn_c": "calibrated:2026-09-09 — EC 팬 커브 100%@97°C(포럼 377044 펌웨어 복구 · 3버전 동일) + 이 유닛 8일 682k samples(max 97°C·무사고) · testlog_26090904 후속",
+    "soc_sustain_s": "calibrated:2026-09-09 — 술어(버킷 지속초)는 유지 · warn 재기준으로 진성 이탈만 걸림 · 장애 시그니처는 급상승(2°C/s)이라 hard 축이 담당",
+    "soc_hard_c": "calibrated:2026-09-09 — 장애 스파이크 종점 97.8°C(acpitz) + 마진 · 포럼 하드오프 사례는 센서 결함 진단 동반(정상 관리 상승과 다른 사건)",
     "soc_hard_polls": "inherited:blackbox_eta.DEFAULTS['debounce_polls'] 와 동일 개념(1Hz x 3폴)",
     "bucket_cap_s": "derived:2 x gpu/soc sustain — 회복이 유계이도록(손으로 적지 않는다)",
     "poll_interval_s": "design:수집기와 동일 격자",
@@ -471,20 +471,23 @@ def _self_test():
     # ── SoC 축 ────────────────────────────────────────────────────────────
     st = new_state()
     for _ in range(29):
-        r = step(st, ABSENT, 91, p)
-    chk("SoC 91도 29폴 -> 미발동", not r["trip"])
-    r = step(st, ABSENT, 91, p)
-    chk("SoC 91도 30폴 -> TRIP(soc_temp_sustained)",
-        r["trip"] and r["rule"] == "soc_temp_sustained")
+        r = step(st, ABSENT, 96, p)
+    chk("SoC 96도(warn 미만) 29폴 -> 미발동", not r["trip"])
+    r = step(st, ABSENT, 97, p)
+    r2 = None
+    for _ in range(29):
+        r2 = step(st, ABSENT, 97, p)
+    chk("SoC 97도(warn 이상) 30폴 -> TRIP(soc_temp_sustained)",
+        r2["trip"] and r2["rule"] == "soc_temp_sustained")
     st = new_state()
     for _ in range(3):
-        r = step(st, ABSENT, 97, p)
-    chk("SoC 97도 3폴 -> 즉시계층 TRIP(soc_hard_ceiling)",
+        r = step(st, ABSENT, 99, p)
+    chk("SoC 99도(hard 이상) 3폴 -> 즉시계층 TRIP(soc_hard_ceiling)",
         r["trip"] and r["rule"] == "soc_hard_ceiling")
     st = new_state()
-    r = step(st, ABSENT, 97, p)
+    r = step(st, ABSENT, 99, p)
     r = step(st, ABSENT, 60, p)
-    r = step(st, ABSENT, 97, p)
+    r = step(st, ABSENT, 99, p)
     chk("SoC 즉시계층은 연속이어야 한다(끊기면 스트릭 리셋)", not r["trip"])
     st = new_state()
     for _ in range(600):
@@ -516,7 +519,7 @@ def _self_test():
     # 축 독립: 어느 하나만 차도 kill (양쪽 충족 요구 아님)
     st = new_state()
     for _ in range(30):
-        r = step(st, 100, 91, p)            # GPU 는 10W(한산), SoC 만 뜨겁다
+        r = step(st, 100, 97, p)            # GPU 는 10W(한산), SoC 만 뜨겁다
     chk("한 축만 차도 TRIP(축 독립)", r["trip"] and r["rule"] == "soc_temp_sustained")
 
     # ── emit / 재생 ───────────────────────────────────────────────────────
@@ -530,8 +533,8 @@ def _self_test():
         chk("emit: 모든 파라미터에 출처 주석", txt.count("# 출처:") == len(DEFAULTS))
         chk("emit: 센서 타당성 밴드 동봉(핫루프가 잡음을 먹지 않게)",
             "BB_TP_SOC_PLAUSIBLE_MIN_C=-40" in txt and "BB_TP_SOC_PLAUSIBLE_MAX_C=150" in txt)
-        chk("emit: 미교정 목록을 데이터로 실어 보낸다",
-            "BB_TP_UNCALIBRATED=" in txt and "soc_warn_c" in txt)
+        chk("emit: 미교정 목록을 데이터로 실어 본다(2026-09-09 전수 교정 — 빈 목록이 정답)",
+            'BB_TP_UNCALIBRATED=""' in txt)
         chk("emit: GPU 온도가 축이 아님을 상수파일이 밝힌다", "GPU '온도'는 트립 축이" in txt)
         chk("emit: 원자적 교체(임시파일 잔재 없음)",
             not os.path.exists(env + ".tmp"))
@@ -686,8 +689,9 @@ def main(argv=None):
         print("[thermal] emit %s (gpu>=%dW %ds 지속 · soc>=%dC %ds 지속 · soc>=%dC %d폴)"
               % (args.emit_params, p["gpu_pwr_w"], p["gpu_sustain_s"], p["soc_warn_c"],
                  p["soc_sustain_s"], p["soc_hard_c"], p["soc_hard_polls"]))
-        print("[thermal] ⚠ 미교정(외부 보고 역산 — 이 노드 실측 분포 없음): %s"
-              % ", ".join(UNCALIBRATED), file=sys.stderr)
+        if UNCALIBRATED:
+            print("[thermal] ⚠ 미교정(외부 보고 역산 — 이 노드 실측 분포 없음): %s"
+                  % ", ".join(UNCALIBRATED), file=sys.stderr)
         return 0
 
     ap.error("--explain / --emit-params / --replay / --self-test 중 하나가 필요합니다")
