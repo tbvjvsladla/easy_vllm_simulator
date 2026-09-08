@@ -290,7 +290,8 @@ def sweep_bootstrap_relay(*, apply: bool) -> list[str]:
     return removed
 
 
-def scaffold(camp_id: str, plan_ref: str, *, apply: bool) -> list[str]:
+def scaffold(camp_id: str, plan_ref: str, *, apply: bool,
+             from_slice: str | None = None) -> list[str]:
     if camp_id in RESERVED_IDS:
         raise PurgeGateRefusal(f"예약 id 로는 캠페인을 열 수 없다: {camp_id!r}")
     dest = CAMPAIGNS / camp_id
@@ -305,8 +306,19 @@ def scaffold(camp_id: str, plan_ref: str, *, apply: bool) -> list[str]:
         # 안내문(`_` 접두 최상위 키)은 **뼈대에만** 산다(2026-09-08 · plan_26090813 D10).
         # 인스턴스로 복사되면 그 문장이 인스턴스의 사실인 척하고, 스캐너가 잡으면 사람이 지운다.
         doc = {k: v for k, v in doc.items() if not k.startswith("_")}
+        if from_slice:
+            # 메인이 보낸 파생 선언으로 연다. 서브는 이것 하나로 착수하며 메인의 산출물을
+            # 기다리지 않는다 — 기다리면 그것은 자율이 아니라 종속이다(사용자 정정 2026-09-08).
+            slice_doc = _read_json(Path(from_slice))
+            if not isinstance(slice_doc, dict):
+                raise PurgeGateRefusal(f"파생 선언을 읽지 못했다: {from_slice}")
+            if slice_doc.get("id") != camp_id:
+                raise PurgeGateRefusal(
+                    f"파생 선언의 id({slice_doc.get('id')!r})와 개설 이름({camp_id!r})이 다르다 "
+                    f"— 이름이 곧 증거 연결이다")
+            doc = {k: v for k, v in slice_doc.items() if not k.startswith("_")}
         doc["id"] = camp_id
-        doc["plan_ref"] = plan_ref
+        doc["plan_ref"] = doc.get("plan_ref") if from_slice else plan_ref
         (dest / "campaign.yaml").write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n",
                                             encoding="utf-8")
         # 증거 스냅샷도 같은 처방 + 자기 이름을 채운다. `campaign_id: <<FILL>>` 이 남아 있었고
@@ -794,6 +806,137 @@ def resume_brief(camp_id: str | None = None) -> str:
     return "\n".join(L) + "\n"
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 파생 선언 · 관측면 (2026-09-08 신설 · plan_26090813 §4.2)
+#
+# 왜: 싱글 토폴로지의 sub 는 A2A 원격 에이전트이고, **지시서만으로 착수**할 수 있어야 한다
+# (사용자 정정 2026-09-08: 메인의 선행 산출물을 받아야 움직이는 것은 자율이 아니라 종속이다).
+# 그래서 메인은 빌딩블럭이 아니라 **자기 몫만 담은 선언**을 보내고, 서브는 그것으로 자기
+# campaigns/ 인스턴스를 연다. 그리고 진행은 서브가 쓰고 메인이 **문서로** 가져온다 —
+# 종전에는 그 자리가 비어 있어서 메인이 ssh 로 서브를 32회 직접 관측했다(헌법 노드제어 ①).
+
+SLICE_AUTHOR = "main-derived"
+
+
+def emit_slice(base: Path, node: str, *, utc: str) -> dict:
+    """`assignments[node]` 만 남긴 파생 선언. 파생 결정은 **메인 오케스트레이션**이다(D12).
+
+    공유하는 것: id·plan_ref·matrix·budgets·control_variables·revisions(echo)·topology_sections.
+    자르는 것: nodes(그 노드 하나) · assignments(그 노드 몫) · hint_targets(발행은 메인 소관).
+    """
+    decl = read_declaration(base)
+    if not decl:
+        raise WriterRefusal(f"선언을 읽지 못했다: {_rel(base / 'campaign.yaml')}")
+    v = validator()
+    nodes = [n for n in (decl.get("nodes") or []) if isinstance(n, dict) and n.get("node_id") == node]
+    if not nodes:
+        raise WriterRefusal(f"nodes[] 에 {node!r} 가 없다 — 없는 노드에 배정을 자를 수 없다")
+    items = v.assignment_items(decl, node)
+    if not items:
+        raise WriterRefusal(f"assignments[{node!r}] 가 비었다 — 보낼 배정이 없는 지시서는 지시서가 아니다")
+    mains = [n.get("node_id") for n in (decl.get("nodes") or [])
+             if isinstance(n, dict) and n.get("role") == "main"]
+    out = {
+        "schema_version": 1,
+        "id": decl.get("id"),
+        "plan_ref": decl.get("plan_ref"),
+        "declared_utc": decl.get("declared_utc"),
+        "nodes": nodes,
+        "matrix": decl.get("matrix"),
+        "assignments": {node: items},
+        "budgets": decl.get("budgets"),
+        "control_variables": decl.get("control_variables"),
+        "revisions": decl.get("revisions") or [],
+        "hint_targets": [],
+        "topology_sections": decl.get("topology_sections") or {},
+        "self_role": nodes[0].get("role"),
+        "authored_by": SLICE_AUTHOR,
+        "derived_from": mains[0] if mains else None,
+        "derived_utc": utc,
+    }
+    return out
+
+
+def campaign_brief(base: Path, *, node: str, utc: str) -> dict:
+    """**선언된 관측면** — 서브가 자기 진행을 기계판독으로 내는 한 파일.
+
+    메인은 이 파일 외에 서브를 읽지 않는다(§2.7.7 `sub.campaign.brief`). `last_utc` 를 함께 내는
+    이유: 감독 스텝이 "전진했는가" 를 phase 변화만으로 물으면 긴 벤치 중 정체로 오판한다(R2).
+    """
+    decl = read_declaration(base)
+    v = validator()
+    cells_dir = base / "cells"
+    assigned = v.assigned_cells(decl, node) or v.assigned_cells(decl)
+    on_disk = sorted(p.name for p in cells_dir.iterdir()
+                     if p.is_dir() and p.name != "_cell") if cells_dir.is_dir() else []
+    listed = assigned + [c for c in on_disk if c not in assigned]
+    stamps: list[str] = []
+    cells = []
+    for cell in listed:
+        st = _read_json(cells_dir / cell / "cell.status.json")
+        st = st if isinstance(st, dict) else {}
+        meas = st.get("measurement") if isinstance(st.get("measurement"), dict) else {}
+        cells.append({
+            "cell_id": cell,
+            "mode": v.cell_mode(decl, node, cell),
+            "cell_outcome": st.get("cell_outcome"),
+            "decode_tps_conc1": meas.get("decode_tps_conc1"),
+            "measurement_gap": meas.get("gap"),
+            "axis_citation": st.get("axis_citation"),
+            "void_reason": st.get("void_reason"),
+        })
+    phases = {}
+    for ph in PHASE_NAMES:
+        st = _read_json(base / "phases" / node / f"{ph}.status.json")
+        if not isinstance(st, dict):
+            phases[ph] = None
+            continue
+        phases[ph] = {"state": st.get("state"),
+                      "proof_ok": bool((st.get("proof") or {}).get("ok")),
+                      "proof_source": (st.get("proof") or {}).get("source"),
+                      "first_started_utc": st.get("first_started_utc"),
+                      "started_utc": st.get("started_utc"),
+                      "ended_utc": st.get("ended_utc")}
+        stamps += [x for x in (st.get("started_utc"), st.get("ended_utc")) if isinstance(x, str)]
+    jour = read_journey(base)
+    stamps += [j.get("utc") for j in jour if isinstance(j.get("utc"), str)]
+    ep = _read_json(base / "evidence_pointers.json")
+    ptrs = (ep or {}).get("pointers") if isinstance(ep, dict) else None
+    return {
+        "schema_version": 1,
+        "generated_utc": utc,
+        "campaign_id": base.name,
+        "node_id": node,
+        "self_role": decl.get("self_role") or next(
+            (n.get("role") for n in (decl.get("nodes") or [])
+             if isinstance(n, dict) and n.get("node_id") == node), None),
+        "authored_by": node,
+        "plan_ref": decl.get("plan_ref"),
+        "cells": cells,
+        "pending_cells": [c["cell_id"] for c in cells
+                          if c["cell_outcome"] in (None, "pending")],
+        "phases": phases,
+        "journey_tail": jour[-3:],
+        "evidence_pointer_count": len(ptrs or []),
+        # 전진 신호. phase 만 보면 긴 벤치가 정체로 보인다(R2) — 여정·시각도 전진으로 센다.
+        "last_utc": max(stamps) if stamps else None,
+    }
+
+
+def brief_path(node: str, repo_root: str | Path | None = None) -> Path:
+    """기계판독 데이터 평면(`docs/logs/`). 산문 명명 SSOT 의 명시 예외이며 fetch_sub_docs 가
+    이미 미러하는 경로다 — 새 회수 경로를 만들지 않는다."""
+    root = REPO_ROOT if repo_root is None else Path(repo_root)
+    return root / "docs" / "logs" / node / "campaign_brief.json"
+
+
+def write_campaign_brief(base: Path, *, node: str, utc: str,
+                         repo_root: str | Path | None = None) -> Path:
+    path = brief_path(node, repo_root)
+    _write_json(path, campaign_brief(base, node=node, utc=utc))
+    return path
+
+
 def _selftest() -> int:
     import tempfile
     global CAMPAIGNS, ACTIVE_POINTER
@@ -1080,6 +1223,60 @@ def _selftest() -> int:
            (_bs / ".gitkeep").is_file())
         ck("비어 있으면 아무것도 지우지 않는다(멱등)", sweep_bootstrap_relay(apply=True) == [])
 
+        # ── 파생 선언(슬라이스) · 선언된 관측면 (2026-09-08 · plan_26090813 §4.2) ──────────
+        def _boom_p(fn):
+            try:
+                fn(); return False
+            except PurgeGateRefusal:
+                return True
+
+        _y2 = _read_json(camp / "campaign.yaml")
+        _y2["nodes"] = [{"node_id": "main", "role": "main"}, {"node_id": "sub", "role": "sub"}]
+        _y2["assignments"] = {"main": [{"cell": "c1"}], "sub": [{"cell": "c9", "mode": "STAY"}]}
+        _write_json(camp / "campaign.yaml", _y2)
+        _sl = emit_slice(camp, "sub", utc="2026-09-08T00:00:00Z")
+        ck("★파생 선언은 그 노드 몫만 담는다(빌딩블럭이 아니라 지시서)",
+           list(_sl["assignments"]) == ["sub"] and len(_sl["nodes"]) == 1
+           and _sl["self_role"] == "sub" and _sl["authored_by"] == SLICE_AUTHOR
+           and _sl["derived_from"] == "main")
+        ck("★파생 선언은 통제변인·예산·개정을 그대로 echo 한다(서브가 재저작 ✗)",
+           _sl["control_variables"] == _y2["control_variables"]
+           and _sl["revisions"] == _y2["revisions"])
+        ck("★hint_targets 는 파생에 실리지 않는다(발행은 메인 소관)", _sl["hint_targets"] == [])
+        ck("★음성대조 선언에 없는 노드는 자를 수 없다",
+           _boom(lambda: emit_slice(camp, "ghost", utc="t")))
+        _y3 = dict(_y2, assignments={"main": [{"cell": "c1"}]})
+        _write_json(camp / "campaign.yaml", _y3)
+        ck("★음성대조 배정이 빈 노드의 지시서는 거부(보낼 배정이 없는 지시서는 지시서가 아니다)",
+           _boom(lambda: emit_slice(camp, "sub", utc="t")))
+        _write_json(camp / "campaign.yaml", _y2)
+
+        _slp = Path(tmp) / "slice.json"
+        _slp.write_text(json.dumps(_sl, ensure_ascii=False), encoding="utf-8")
+        _slp2 = Path(tmp) / "slice2.json"
+        _slp2.write_text(json.dumps(dict(_sl, id="w2"), ensure_ascii=False), encoding="utf-8")
+        scaffold("w2", "docs/plan/ignored.md", apply=True, from_slice=str(_slp2))
+        _w2 = _read_json(CAMPAIGNS / "w2" / "campaign.yaml")
+        ck("★서브는 파생 선언 하나로 자기 인스턴스를 연다(--from-slice)",
+           _w2["self_role"] == "sub" and list(_w2["assignments"]) == ["sub"] and _w2["id"] == "w2")
+        ck("★파생으로 열면 plan_ref 는 메인 선언의 것을 지킨다(개설 인자가 덮지 않는다)",
+           _w2["plan_ref"] == _y2["plan_ref"])
+        ck("★파생 인스턴스의 증거 스냅샷도 빈칸 없이 열린다",
+           _read_json(CAMPAIGNS / "w2" / "evidence_pointers.json")["campaign_id"] == "w2")
+        ck("★음성대조 id 가 다른 슬라이스로는 열 수 없다(이름이 곧 증거 연결)",
+           _boom_p(lambda: scaffold("w3", "p", apply=True, from_slice=str(_slp))))
+
+        ACTIVE_POINTER.write_text("w1\n", encoding="utf-8")
+        _bp = write_campaign_brief(camp, node="main", utc="2026-09-08T01:00:00Z", repo_root=tmp)
+        _b = _read_json(_bp)
+        ck("★브리핑은 docs/logs/<node>/ 기계판독 평면에 앉는다(fetch 가 이미 미러하는 경로)",
+           str(_bp).replace("\\", "/").endswith("docs/logs/main/campaign_brief.json"))
+        ck("★브리핑이 셀·phase·전진시각을 담는다(메인은 이 파일 외에 서브를 읽지 않는다)",
+           _b["node_id"] == "main" and _b["cells"]
+           and _b["phases"]["serve"]["state"] == "running" and _b["last_utc"])
+        ck("★브리핑의 authored_by 는 자기 노드다(P5 가 사후 재저작을 가르는 자리)",
+           _b["authored_by"] == "main")
+
     CAMPAIGNS, ACTIVE_POINTER = saved
     print("[campaign_init] " + ("PASS" if ok else "FAIL"))
     return 0 if ok else 1
@@ -1100,6 +1297,15 @@ def main(argv: list[str] | None = None) -> int:
     # 남은 하나를 지울 정식 경로가 없어져 rm -rf 우회를 부른다(D3: 우회 대신 경로를 고친다).
     ap.add_argument("--purge-previous", metavar="PREV_ID", action="append", default=[],
                     help="--init 과 함께: 먼저 지울 직전 인스턴스(반복 지정 가능)")
+    ap.add_argument("--from-slice", metavar="PATH",
+                    help="--init 과 함께: 메인이 보낸 파생 선언으로 campaign.yaml 을 연다"
+                         "(서브는 지시서만으로 착수한다)")
+    ap.add_argument("--emit-slice", metavar="NODE",
+                    help="그 노드 몫만 자른 파생 선언을 낸다(메인 오케스트레이션) · --utc 필수")
+    ap.add_argument("--out", metavar="PATH", help="--emit-slice 산출 경로(생략 시 stdout)")
+    ap.add_argument("--write-brief", action="store_true",
+                    help="docs/logs/<node>/campaign_brief.json 갱신 · --node --utc 필수 "
+                         "(선언된 관측면 — 메인은 이 파일 외에 서브를 읽지 않는다)")
     ap.add_argument("--apply", action="store_true", help="실제로 쓰고 지운다(기본은 dry-run)")
     ap.add_argument("--selftest", action="store_true")
 
@@ -1154,6 +1360,32 @@ def main(argv: list[str] | None = None) -> int:
                               camp_id=a.campaign_id)); return 0
         if a.resume_brief:
             sys.stdout.write(resume_brief(a.campaign_id)); return 0
+        if a.emit_slice:
+            if not a.utc:
+                raise WriterRefusal("--emit-slice 는 --utc 가 필요하다(시각은 주입만 받는다)")
+            tgt = _writer_target(a.campaign_id)
+            if tgt is None:
+                raise WriterRefusal("활성 캠페인이 없다(_bootstrap) — 자를 선언이 없다")
+            doc = emit_slice(tgt[0], a.emit_slice, utc=a.utc)
+            blob = json.dumps(doc, ensure_ascii=False, indent=2) + "\n"
+            if a.out:
+                Path(a.out).parent.mkdir(parents=True, exist_ok=True)
+                Path(a.out).write_text(blob, encoding="utf-8")
+                print(f"[campaign_init] slice({a.emit_slice}) → {a.out}")
+            else:
+                sys.stdout.write(blob)
+            return 0
+        if a.write_brief:
+            if not a.node or not a.utc:
+                raise WriterRefusal("--write-brief 는 --node 와 --utc 가 필요하다")
+            tgt = _writer_target(a.campaign_id)
+            if tgt is None:
+                print("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에는 진행이 없다)",
+                      file=sys.stderr)
+                return 0
+            print(f"[campaign_init] brief → "
+                  f"{_rel(write_campaign_brief(tgt[0], node=a.node, utc=a.utc))}")
+            return 0
         writer_ops = (a.phase_set, a.cell_set, a.evidence_add, a.freeze_evidence, a.revise,
                       a.evidence_prune_stubs)
         if any(writer_ops):
@@ -1246,7 +1478,7 @@ def main(argv: list[str] | None = None) -> int:
             # `_bootstrap` 대기실도 함께 비운다(사용자 결정 2026-09-07). 게이트 대상이 아니므로
             # 여기서 정리하지 않으면 영원히 남는다.
             swept = sweep_bootstrap_relay(apply=a.apply)
-            made = scaffold(a.init, a.plan_ref, apply=a.apply)
+            made = scaffold(a.init, a.plan_ref, apply=a.apply, from_slice=a.from_slice)
             mode = "APPLIED" if a.apply else "DRY-RUN"
             print(f"[campaign_init] {mode} purge={removed} init={made}")
             if swept:

@@ -75,8 +75,18 @@ def _hint_tag_module():
 
 
 def _validate_schema(doc: object, schema: dict, where: str) -> list[str]:
-    """completion_gate 가 이미 구현한 Draft-07 부분집합을 그대로 쓴다(두 번째 엔진을 만들지 않는다)."""
+    """completion_gate 가 이미 구현한 Draft-07 부분집합을 그대로 쓴다(두 번째 엔진을 만들지 않는다).
+
+    ★ 서브 오버레이에는 이 엔진이 배달되지 않는다(`.claude/policies/` 는 배달 표면 밖이다).
+      부재를 조용히 통과시키지 않는다 — 스키마를 안 본 통과는 통과가 아니다. 대신 **무엇이 없고
+      누가 그 검증을 소유하는지**를 말한다: 선언 검증은 메인 단일 창구이고, 서브는 메인이 검증해
+      보낸 파생 선언(`--from-slice`)을 소비하며 자기 인스턴스는 P1~P3 으로 본다.
+    """
     path = REPO_ROOT / ".claude/policies/runtime/completion_gate.py"
+    if not path.is_file():
+        _die(f"스키마 엔진이 없다: {_rel(path)} — 이 트리에는 검증기만 있고 엔진이 오지 않았다. "
+             f"선언 검증은 메인 단일 창구이며(서브는 --from-slice 로 받은 선언을 소비한다), "
+             f"이 트리에서 물을 수 있는 것은 --instance 의 P1~P3 이다.")
     spec = importlib.util.spec_from_file_location("_campaign_completion_gate", path)
     gate = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gate)

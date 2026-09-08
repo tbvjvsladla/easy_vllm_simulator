@@ -80,6 +80,31 @@
           "$ref": "#/definitions/assignment"
         }
       }
+    },
+    "self_role": {
+      "type": "string",
+      "enum": [
+        "main",
+        "sub"
+      ],
+      "description": "이 인스턴스를 소유한 노드의 역할. 파생 선언(--from-slice)으로 열린 서브 인스턴스에만 있으며, 회수된 브리핑이 서브 저작인지 메인의 사후 재저작인지를 P5 가 이 값으로 가른다."
+    },
+    "authored_by": {
+      "type": "string",
+      "minLength": 1,
+      "description": "이 선언을 저작한 주체. 파생 선언은 `main-derived` 다 — 배정은 메인 오케스트레이션이 정하고 실행은 서브가 자율로 한다(D12)."
+    },
+    "derived_from": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "파생의 출처 노드(보통 메인). 파생이 아니면 없다."
+    },
+    "derived_utc": {
+      "type": "string",
+      "minLength": 1,
+      "description": "파생 시각(주입). 서브 지시서 선발급 여부를 사람이 되짚는 자리."
     }
   },
   "definitions": {
