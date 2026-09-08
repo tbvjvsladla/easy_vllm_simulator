@@ -187,8 +187,15 @@ def main(argv: list | None = None) -> int:
         print(f"  - [{row['tool']}] {row['command']}", file=sys.stderr)
     if len(bad) > a.limit:
         print(f"  … 그 외 {len(bad) - a.limit}건", file=sys.stderr)
-    print("  → 진행 관측이 필요하면 `sub.campaign.brief`(회수 미러의 campaign_brief.json)를 "
-          "읽어라. 채널이 있는데도 ssh 를 열면 그것은 우회다(D3).", file=sys.stderr)
+    print("  → 대신 쓸 허가 통로:", file=sys.stderr)
+    print("     · 도달·상태 사전 확인 → `fetch_sub_docs.sh --topology=<t>` (인자 없이 = DRY-RUN). "
+          "SSH 도달을 스스로 검사하고 무엇을 가져올지만 보여준다(서브 변경 0).", file=sys.stderr)
+    print("     · 진행 관측 → `sub.campaign.brief` = 회수 미러의 "
+          "`sync_staging/sub_docs/logs/<node>/campaign_brief.json`.", file=sys.stderr)
+    print("     · 제어·교착 해제 → `relay.py` / `agent_control.py` (§2.7.7 A2A 제어명령).",
+          file=sys.stderr)
+    print("  채널이 있는데도 ssh 를 여는 것은 우회다(D3) — 경로가 없으면 경로를 만들고, "
+          "있으면 그것을 쓴다.", file=sys.stderr)
     return 1
 
 
