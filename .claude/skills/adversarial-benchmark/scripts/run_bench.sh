@@ -270,6 +270,20 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
   [ -n "$NAS" ] || { echo "[run_bench] ERROR manifest 의 nas_model_path 를 읽지 못했다 — 토크나이저 호스트 경로를 추측하지 않는다" >&2; return 2; }
   [ -d "$HOSTTOK" ] || { echo "[run_bench] ERROR 토크나이저 호스트 경로 부재: $HOSTTOK" >&2; return 2; }
 
+  # ★ 토크나이저 전용 스테이징(2026-09-09 · 침묵 누락 배선): 모델 디렉터리를 통째로 /tok 에 마운트하면
+  #   GuideLLM 의 번들 transformers 가 config.json 의 커스텀 model_type(예: deepseek_v4)을 파싱하다
+  #   KeyError→AttributeError 로 죽는다(토큰화엔 config 가 불필요한데 죽는, 측정 아닌 도구 결함).
+  #   토큰화 파일만 복사해 마운트한다 — config.json 은 **의도적으로 제외**(모델 설정 위조가 아니라
+  #   클라이언트 토크나이저의 필요집합이다). 전 모델 공통 경로라 기성 모델 동작도 불변이다.
+  local TOKSTAGE="$OUTDIR/.tokstage"
+  rm -rf "$TOKSTAGE"; mkdir -p "$TOKSTAGE"
+  local _tf _copied=0
+  for _tf in tokenizer.json tokenizer_config.json vocab.json merges.txt \
+             special_tokens_map.json added_tokens.json chat_template.jinja; do
+    [ -f "$HOSTTOK/$_tf" ] && { cp "$HOSTTOK/$_tf" "$TOKSTAGE/"; _copied=$((_copied+1)); }
+  done
+  [ "$_copied" -ge 2 ] || { echo "[run_bench] ERROR 토크나이저 파일 스테이징 실패(${_copied}개): $HOSTTOK" >&2; return 2; }
+
   # warmup 단위 변환. vLLM 은 **요청 수**로, GuideLLM 은 **비율/시간**으로 warmup 을 센다.
   # 같은 숫자를 그대로 넘기면 "2 요청"이 "2 초"가 되어 조용히 다른 것을 잰다 — 비율로 옮기고
   # 총 요청을 warmup 만큼 늘려 **집계 대상 수를 보존**한다(근사이며, 실제 집계 수는 산출물이 밝힌다).
@@ -326,7 +340,7 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
   trap 'docker rm -f "$GLNAME" >/dev/null 2>&1 || true' RETURN
   docker rm -f "$GLNAME" >/dev/null 2>&1 || true
 
-  echo "[run_bench] bench(guidellm): image=$IMAGE budget=${BENCH_BUDGET_MIB}MiB conc=$CONC in=$ILEN out=$OLEN n=$NPROMPTS(+warm $WARMUPS) endpoint=$ENDPOINT"
+  echo "[run_bench] bench(guidellm): image=$IMAGE budget=${BENCH_BUDGET_MIB}MiB conc=$CONC in=$ILEN out=$OLEN n=$NPROMPTS(+warm $WARMUPS) endpoint=$ENDPOINT tokstage=${_copied}files"
   # ★ 호스트 사용자로 돌린다. 이미지 기본 UID(1001)로 두면 산출물 디렉터리에 **쓰지 못해**
   #   벤치를 다 돌고 마지막 저장에서 죽는다(2026-09-04 실측: PermissionError /out/…json —
   #   측정은 성립했는데 기록이 사라지는, 가장 비싼 형태의 실패다).
@@ -335,7 +349,7 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
   docker run --rm --name "$GLNAME" --network host \
     --user "$(id -u):$(id -g)" \
     --memory "${BENCH_BUDGET_MIB}m" --memory-swap "${BENCH_BUDGET_MIB}m" \
-    -v "$HOSTTOK:/tok:ro" -v "$OUTDIR:/out" \
+    -v "$TOKSTAGE:/tok:ro" -v "$OUTDIR:/out" \
     -e HOME=/tmp -e XDG_CACHE_HOME=/tmp/.cache \
     -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
     --entrypoint guidellm "$IMAGE" run \
