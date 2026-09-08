@@ -459,19 +459,34 @@ reap_renew_loops() {   # $1 = "master" | "slave"
 WD_MAIN_PID=""; WD_SUB_PID=""
 RENEW_MAIN_PID=""; RENEW_SUB_PID=""
 if [ "$WATCHDOG" = "1" ]; then
-  WFILTER="${MC%-master}"
-  # ★ 빈 필터 = fail-closed. MASTER_CONTAINER_NAME 미설정이면 `${1:-@vllm}` 이 조용히 **광역**
-  #   필터로 되돌아가, 무관한 vllm 컨테이너까지 사살 대상이 된다(2026-08-02 잔존분 중 실제 1건).
-  #   compose 의 `:-기본값` 폴백이 ⑥ env 의 multi 키 누락을 숨겼던 것과 같은 부류다 —
-  #   설정 누락은 조용한 광역화가 아니라 큰 소리로 실패해야 한다.
-  [ -n "$WFILTER" ] || { echo "[mn] FAIL: 워치독 필터가 비었다(MASTER_CONTAINER_NAME 미설정). env 를 고쳐라."; exit 2; }
+  # ★ 필터는 **노드마다 다르다**(2026-09-09 교정). 종전에는 `WFILTER="${MC%-master}"` 하나를 만들어
+  #   양 노드에 같은 값을 보냈다. 의도는 공통 접두어(`mn-<config>`)를 뽑아 docker `name=` 부분일치로
+  #   master·slave 를 함께 덮는 것이었는데, 컨테이너 명명 규약이 `-master` 에서 **`-master-container`**
+  #   로 바뀌면서 그 strip 이 **no-op** 이 됐다. 결과:
+  #       메인 ← `<cell>-master-container` → 자기 이름이라 **우연히** 매칭 1 (그래서 아무도 몰랐다)
+  #       서브 ← `<cell>-master-container` → 서브엔 그 이름이 없으므로 **매칭 0**
+  #   즉 슬레이브 협역 워치독이 "무장한 척"만 하고 아무것도 감시하지 않았다. 하드다운 #2 가 **서브**
+  #   였음을 상기하라 — 계층 2층이 서브에서만 조용히 걷혀 있었다. 실측 2026-09-09(camp DS4F-0731 L0):
+  #   메인 pid=359982 대상 1개 · 서브 pid=3753956 대상 0개, `verify_node_blackbox` 가 `no_zombie` 로 검출.
+  #   ★ 접두어를 다시 계산하는 방식(`${MC%-master-container}`)은 **쓰지 않는다** — `b-768k-kvfp8` 은
+  #     `b-768k-kvfp8-l1spec` 의 접두어라 부분일치가 다음 셀 컨테이너까지 사살 대상으로 끌어들인다.
+  #     각 노드의 **실제 이름**을 그대로 쓴다(둘 다 이미 env 에서 해소돼 있다 — 새 입력이 없다).
+  WFILTER_MAIN="$MC"
+  WFILTER_SUB="$SLVC"
+  # ★ 빈 필터 = fail-closed. 미설정이면 `${1:-@vllm}` 이 조용히 **광역** 필터로 되돌아가, 무관한
+  #   vllm 컨테이너까지 사살 대상이 된다(2026-08-02 잔존분 중 실제 1건). compose 의 `:-기본값` 폴백이
+  #   ⑥ env 의 multi 키 누락을 숨겼던 것과 같은 부류다 — 설정 누락은 조용한 광역화가 아니라 큰 소리로
+  #   실패해야 한다. 슬레이브도 같은 강도로 막는다: 종전엔 `SLAVE_CONTAINER_NAME` 미설정이 compose
+  #   기본값으로 조용히 흘러 **서브에서만** 2층이 사라졌다(:129 주석이 예고한 그 경로다).
+  [ -n "$WFILTER_MAIN" ] || { echo "[mn] FAIL: 워치독 필터가 비었다(MASTER_CONTAINER_NAME 미설정). env 를 고쳐라."; exit 2; }
+  [ -n "$WFILTER_SUB" ]  || { echo "[mn] FAIL: 슬레이브 워치독 필터가 비었다(SLAVE_CONTAINER_NAME 미설정) — 서브 협역층이 매칭 0 으로 무장한다. env 를 고쳐라."; exit 2; }
   MAIN_WATCHDOG="$REPO/.claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh"
   SUB_WATCHDOG_REL=".claude/runtime/host_safety/mem_watchdog.sh"
   [ -f "$MAIN_WATCHDOG" ] || { echo "[mn] FAIL: canonical host-safety watchdog absent: $MAIN_WATCHDOG"; exit 2; }
   reap_stale_watchdogs master
-  bash "$MAIN_WATCHDOG" "$WFILTER" "${WATCHDOG_THRESH_MIB:-10240}" 2 >/tmp/mn_watchdog_master.log 2>&1 & WD_MAIN_PID=$!
+  bash "$MAIN_WATCHDOG" "$WFILTER_MAIN" "${WATCHDOG_THRESH_MIB:-10240}" 2 >/tmp/mn_watchdog_master.log 2>&1 & WD_MAIN_PID=$!
   echo "$WD_MAIN_PID" > /tmp/mn_watchdog_master.pid
-  echo "[mn] 워치독(master) pid=$WD_MAIN_PID filter=$WFILTER thresh=${WATCHDOG_THRESH_MIB:-10240}MiB (/tmp/mn_watchdog_master.log)"
+  echo "[mn] 워치독(master) pid=$WD_MAIN_PID filter=$WFILTER_MAIN thresh=${WATCHDOG_THRESH_MIB:-10240}MiB (/tmp/mn_watchdog_master.log)"
   if $SSH "$SUB_HOST" "bash -lc '[ -f $SUB_WORK_DIR/$SUB_WATCHDOG_REL ]'" 2>/dev/null; then
     reap_stale_watchdogs slave
     # ⚠ 원격 백그라운드 detach — 3-FD 리다이렉트(</dev/null + ssh -n)만으론 여전히 hang(2026-07-11 hy3 serve#1 실증:
@@ -479,8 +494,8 @@ if [ "$WATCHDOG" = "1" ]; then
     #   백그라운드 프로세스가 ssh 세션 프로세스그룹에 남아 sshd 가 채널 EOF 를 안 보냄(stdin 분리만으론 부족).
     #   해소 = setsid(새 세션 완전 분리 → sshd 즉시 채널 close) + exit 0(원격 셸 즉시 종료) + timeout 20(백스톱:
     #   그래도 hang 시 20s 후 ssh 만 종료 — 워치독은 이미 기동·PID 는 이미 echo 됨). PID 캡처 동작 보존.
-    WD_SUB_PID=$(timeout 20 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD setsid nohup bash $SUB_WATCHDOG_REL $WFILTER ${WATCHDOG_THRESH_MIB:-10240} 2 </dev/null >/tmp/mn_watchdog_slave.log 2>&1 & echo \$!; exit 0'" 2>/dev/null || true)
-    echo "[mn] 워치독(slave) pid=${WD_SUB_PID:-?} (원격 /tmp/mn_watchdog_slave.log)"
+    WD_SUB_PID=$(timeout 20 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD setsid nohup bash $SUB_WATCHDOG_REL $WFILTER_SUB ${WATCHDOG_THRESH_MIB:-10240} 2 </dev/null >/tmp/mn_watchdog_slave.log 2>&1 & echo \$!; exit 0'" 2>/dev/null || true)
+    echo "[mn] 워치독(slave) pid=${WD_SUB_PID:-?} filter=$WFILTER_SUB (원격 /tmp/mn_watchdog_slave.log)"
   else
     echo "[mn] ⚠ 서브에 $SUB_WATCHDOG_REL 부재 — 슬레이브 워치독 생략(상시 systemd 층만. render_sub_env/sync_to_sub 재배달 필요)"
   fi
