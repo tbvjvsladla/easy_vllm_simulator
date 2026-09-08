@@ -57,6 +57,42 @@ def _read_json(path: Path) -> object | None:
         return None
 
 
+_VALIDATOR = None
+
+
+def validator():
+    """선언 규약(배정·모드·술어)의 **단일 소유자**는 검증기다. 여기서 파싱을 복제하면 두 자리가
+    갈라지고, 갈라진 쪽이 조용히 늦는다(workflow.md §결정론 규율 — 개념 중복)."""
+    global _VALIDATOR
+    if _VALIDATOR is None:
+        import importlib.util
+        mod_path = Path(__file__).resolve().parent / "campaign_template_validator.py"
+        if not mod_path.is_file():
+            raise PurgeGateRefusal(f"검증기를 찾지 못했다: {_rel(mod_path)} — 배정 규약의 소유자가 없다")
+        spec = importlib.util.spec_from_file_location("_campaign_validator", mod_path)
+        if spec is None or spec.loader is None:
+            raise PurgeGateRefusal("검증기 적재 실패")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _VALIDATOR = mod
+    return _VALIDATOR
+
+
+def read_declaration(base: Path) -> dict:
+    doc = _read_json(base / "campaign.yaml")
+    return doc if isinstance(doc, dict) else {}
+
+
+def node_of_cell(base: Path, cell: str) -> str | None:
+    """이 셀을 배정받은 노드. `--node` 를 안 줘도 상태가 노드를 갖게 하는 자리다 — 종전에는
+    호출부가 플래그를 빠뜨리면 node_id 가 null 로 남았고, 그러면 증거가 노드를 잃는다."""
+    doc = read_declaration(base)
+    for node in validator().assignments_of(doc):
+        if cell in validator().assigned_cells(doc, node):
+            return node
+    return None
+
+
 def campaigns_dir(repo_root: str | Path | None = None) -> Path:
     """캠페인 워크스페이스 루트. `repo_root` 를 받는 이유: 서브 워크트리·픽스처에서도 같은 규칙이
     돌아야 하는데, 모듈 전역만 있으면 그 자리에서 규칙이 두 벌로 갈라진다."""
@@ -173,6 +209,26 @@ def _instance_predicate_reasons(previous_id: str, prev: Path) -> list[str]:
         return [f"{previous_id}: P1~P3 판정 중 예외 — {exc!r}"]
 
 
+def residue_write(out: dict, utc: str, camp_id: str | None = None) -> Path | None:
+    """스캔 결과를 활성 인스턴스의 `residue.json` 에 남긴다(2026-09-08 · plan_26090813 §4.1).
+
+    왜: 뼈대에 `residue.json` 이 있는데 그것을 **쓰는 손이 없었다** — 죽은 파일이었다. 틀만 있고
+    산출이 없으면 다음 사람이 "스캔을 안 돌렸다"와 "돌렸는데 아무도 안 적었다"를 구분하지 못한다.
+    `_bootstrap` 이면 쓰지 않는다(캠페인 밖은 상태를 갖지 않는다).
+    """
+    camp = camp_id or active_campaign_id()
+    if camp == BOOTSTRAP:
+        return None
+    base = campaigns_dir() / camp
+    if not base.is_dir():
+        return None
+    path = base / "residue.json"
+    doc = {k: v for k, v in (_read_json(path) or {}).items() if k.startswith("_")}
+    doc.update({"schema_version": 1, "scanned_utc": utc, **out})
+    _write_json(path, doc)
+    return path
+
+
 def residue_scan() -> dict:
     """잔재 스캔. purge 완료 조건은 leak·unclassified 가 0 인 것이다."""
     out = {"workspace": [], "evidence": [], "volatile": [], "leak": [], "unclassified": []}
@@ -246,10 +302,21 @@ def scaffold(camp_id: str, plan_ref: str, *, apply: bool) -> list[str]:
         # `_cell`·`_node` 는 **틀**이다. 실제 셀·노드가 생기기 전까지 그대로 두면 검증기가
         # 빈칸 잔존으로 잡는다 — 그것이 의도다(빈칸이 곧 계약).
         doc = json.loads((dest / "campaign.yaml").read_text(encoding="utf-8"))
+        # 안내문(`_` 접두 최상위 키)은 **뼈대에만** 산다(2026-09-08 · plan_26090813 D10).
+        # 인스턴스로 복사되면 그 문장이 인스턴스의 사실인 척하고, 스캐너가 잡으면 사람이 지운다.
+        doc = {k: v for k, v in doc.items() if not k.startswith("_")}
         doc["id"] = camp_id
         doc["plan_ref"] = plan_ref
         (dest / "campaign.yaml").write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n",
                                             encoding="utf-8")
+        # 증거 스냅샷도 같은 처방 + 자기 이름을 채운다. `campaign_id: <<FILL>>` 이 남아 있었고
+        # writer 의 setdefault 는 그것을 덮지 않았다 — 부재가 아니라 **빈칸**이라 조용히 살아남았다.
+        ep_path = dest / "evidence_pointers.json"
+        ep = json.loads(ep_path.read_text(encoding="utf-8"))
+        ep = {k: v for k, v in ep.items() if not k.startswith("_")}
+        ep["campaign_id"] = camp_id
+        ep.setdefault("pointers", [])
+        ep_path.write_text(json.dumps(ep, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         ACTIVE_POINTER.write_text(camp_id + "\n", encoding="utf-8")
     made.append(f"campaigns/{camp_id}")
     return made
@@ -303,7 +370,8 @@ def _write_json(path: Path, doc: dict) -> None:
 
 def writer_set_phase(base: Path, *, node: str, phase: str, state: str, predicate: str | None,
                      ok: bool, source: str | None, cell_id: str | None,
-                     started_utc: str | None, ended_utc: str | None) -> Path:
+                     started_utc: str | None, ended_utc: str | None,
+                     authored_by: str | None = None) -> Path:
     if phase not in PHASE_NAMES:
         raise WriterRefusal(f"phase 는 {PHASE_NAMES} 중 하나여야 한다: {phase!r}")
     if state not in PHASE_STATES:
@@ -324,8 +392,18 @@ def writer_set_phase(base: Path, *, node: str, phase: str, state: str, predicate
         doc["cell_id"] = cell_id
     if started_utc:
         doc["started_utc"] = started_utc
+        # ★ `started_utc` 는 셀마다 덮어써져 **마지막 셀**을 가리킨다. 착수 시각을 묻는 술어(P4)가
+        #   그걸 읽으면 늦은 값을 보고 통과한다 — 처음 한 번만 적히는 자리를 따로 둔다.
+        if not doc.get("first_started_utc"):
+            doc["first_started_utc"] = started_utc
     if ended_utc:
         doc["ended_utc"] = ended_utc
+    if authored_by:
+        # 누가 적었는가. 서브 진행표가 서브 저작인지 메인의 사후 재저작인지는 이 필드로만 갈린다
+        # (P5). 2026-09-07 에는 `phases/sub/*` 4개가 같은 초에 메인 손으로 나타났다.
+        doc["authored_by"] = authored_by
+    doc.setdefault("authored_by", None)
+    doc.setdefault("first_started_utc", None)
     doc.setdefault("started_utc", None)
     doc.setdefault("ended_utc", None)
     doc.setdefault("cell_id", None)
@@ -333,17 +411,52 @@ def writer_set_phase(base: Path, *, node: str, phase: str, state: str, predicate
     return path
 
 
+def _sweep_measurement(sweep_path: Path, cell: str) -> "tuple[float | None, str]":
+    """sweep 레코드에서 동시성 1 디코드 처리량을 읽는다. 값 아니면 **왜 없는지**를 돌려준다.
+
+    왜 writer 가 직접 읽는가(2026-09-08 · plan_26090813 D19): 종전에는 호출부가
+    `--measurement-decode-tps` 를 넘겨야 했는데 `broad_search.sh` 의 호출부가 그 플래그를 아예
+    안 넘겼다. sweep 에는 19.12 t/s 가 적혀 있는데 cell.status 의 측정은 null 이었다 — 값이 이미
+    있는 파일을, 쓰는 손이 직접 읽으면 그 결손이 생기지 않는다.
+    """
+    doc = _read_json(sweep_path)
+    if not isinstance(doc, dict):
+        return None, f"sweep 기록을 읽지 못했다: {_rel(sweep_path)}"
+    for rec in (doc.get("cells") or []):
+        if not isinstance(rec, dict) or rec.get("cell_key") != cell:
+            continue
+        vec = rec.get("concurrency_vector")
+        val = vec.get("1") if isinstance(vec, dict) else None
+        if isinstance(val, (int, float)) and not isinstance(val, bool):
+            return float(val), (f"sweep:{_rel(sweep_path)}"
+                                f"#cells[cell_key={cell}].concurrency_vector.1")
+        return None, (f"sweep 레코드에 동시성 1 측정이 없다: {_rel(sweep_path)} cell_key={cell}")
+    return None, f"sweep 기록에 셀 {cell!r} 이 없다: {_rel(sweep_path)}"
+
+
 def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
                     version: str | None, model: str | None,
                     decode_tps: str | None, measurement_source: str | None,
                     void_reason: str | None, void_reason_source: str | None,
                     axis_citation: str | None, next_intent: str | None,
-                    utc: str | None) -> "tuple[Path, Path | None]":
+                    utc: str | None, sweep_state: str | None = None
+                    ) -> "tuple[Path, Path | None]":
     if outcome not in CELL_OUTCOMES:
         raise WriterRefusal(f"cell_outcome 은 {CELL_OUTCOMES} 중 하나여야 한다: {outcome!r}")
     if void_reason and not void_reason_source:
         raise WriterRefusal("--void-reason 에는 --void-reason-source 가 필수다(출처 없는 판정 ✗)")
+    if node is None:
+        # 배정에서 파생한다 — 호출부가 플래그를 빠뜨리면 node_id 가 null 로 남고, null 인 상태는
+        # 증거가 노드를 잃은 상태다(P2 공허 통과의 뿌리).
+        node = node_of_cell(base, cell)
     _no_fill(cell=cell, node=node or "", version=version or "", model=model or "")
+    gap: str | None = None
+    if decode_tps is None and sweep_state:
+        val, why = _sweep_measurement(Path(sweep_state), cell)
+        if val is None:
+            gap = why
+        else:
+            decode_tps, measurement_source = str(val), why
     path = base / "cells" / cell / "cell.status.json"
     doc = _read_json(path) if path.is_file() else None
     doc = doc if isinstance(doc, dict) else {"schema_version": 1}
@@ -367,6 +480,15 @@ def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
     meas.setdefault("source", None)
     if meas.get("measurement_ok") and not meas.get("source"):
         raise WriterRefusal("측정값을 적으려면 --measurement-source 가 필요하다(출처 표시)")
+    # 결손은 **기재**한다 — 차단하지 않는다(사용자 결정 D17: 결정론이 과하면 캠페인이 hang 한다).
+    # 부재를 조용히 두면 "안 쟀다"와 "쟀는데 아무도 안 옮겼다"가 구분되지 않는다.
+    if gap:
+        meas["gap"] = gap
+    elif outcome == "measured" and not meas.get("measurement_ok"):
+        meas["gap"] = ("outcome=measured 인데 측정값이 도착하지 않았다 — "
+                       "--sweep-state 또는 --measurement-decode-tps 미제공(결손 기재)")
+    else:
+        meas.pop("gap", None)
     doc["measurement"] = meas
     doc["void_reason"] = void_reason
     doc["void_reason_source"] = void_reason_source
@@ -422,6 +544,16 @@ def writer_add_evidence(base: Path, *, kind: str, path_rel: str, cell_id: str | 
         # 증거는 docs 평면에서 **태어난다** — 포인터가 가리키는 것이 없으면 그것은 포인터가 아니다.
         raise WriterRefusal(f"증거가 실재하지 않는다: {path_rel} "
                             f"(증거는 docs 평면에서 태어나고 여기엔 포인터만 둔다)")
+    if not node and cell_id:
+        node = node_of_cell(base, cell_id)
+    declared = [n for n in (read_declaration(base).get("nodes") or []) if isinstance(n, dict)]
+    if len(declared) > 1 and not node:
+        # ★ 2026-09-08: camp-26090721 의 포인터 6건이 **전부** node_id null 이었다. 그래서 P2 는
+        #   검사할 노드를 하나도 찾지 못한 채 통과했다 — 게이트가 있는데 아무것도 안 물은 것이다.
+        raise WriterRefusal(
+            f"--node 가 필요하다 — 이 캠페인은 노드가 {len(declared)}개다. 노드 태그 없는 증거는 "
+            f"'어느 노드가 낸 것인지 모르는 증거'이고, P2 는 그런 포인터를 검사하지 못해 공허하게 "
+            f"통과한다(2026-09-08 실측). 셀을 함께 주면(--cell) 배정에서 파생한다.")
     ep = base / "evidence_pointers.json"
     doc = _read_json(ep) if ep.is_file() else None
     doc = doc if isinstance(doc, dict) else {"schema_version": 1, "pointers": []}
@@ -440,6 +572,35 @@ def writer_add_evidence(base: Path, *, kind: str, path_rel: str, cell_id: str | 
     doc.setdefault("campaign_id", base.name)
     _write_json(ep, doc)
     return ep
+
+
+def writer_prune_stubs(base: Path, *, unfreeze: bool) -> "tuple[Path, list[str]]":
+    """뼈대에서 딸려온 `<<FILL>>` 스텁 포인터를 정식 경로로 지운다(2026-09-08 · plan_26090813).
+
+    왜 writer 에 지우는 연산이 필요한가: 종전 writer 는 **append 만** 했다. 그래서 뼈대의 예시
+    포인터가 인스턴스로 복사돼 purge 게이트를 막았을 때, 그것을 치울 정식 경로가 없어 사람이
+    손으로 지웠다 — 그리고 손삭제의 흔적은 "채워야 했는데 못 채운 빈칸"과 구분되지 않는다
+    (2026-09-08 사후감사 §A F1). D3: 우회하지 말고 경로를 만든다.
+
+    지우는 대상은 **빈칸이 남은 항목뿐**이다. 값이 든 포인터는 건드리지 않는다 — 증거를 지우는
+    연산이 아니라 틀 잔재를 치우는 연산이다. 무엇을 지웠는지 돌려주고 호출부가 출력한다
+    (침묵 삭제 금지 · docs.md 선례).
+    """
+    ep = base / "evidence_pointers.json"
+    doc = _read_json(ep)
+    if not isinstance(doc, dict):
+        raise WriterRefusal("evidence_pointers.json 이 없거나 파손")
+    if doc.get("frozen_utc") and not unfreeze:
+        raise WriterRefusal(f"이 스냅샷은 {doc['frozen_utc']} 에 동결됐다 — 사람이 --unfreeze 를 붙인다")
+    kept, dropped = [], []
+    for ptr in (doc.get("pointers") or []):
+        blob = json.dumps(ptr, ensure_ascii=False)
+        (dropped if FILL in blob else kept).append(blob)
+    doc["pointers"] = [json.loads(x) for x in kept]
+    if doc.get("campaign_id") == FILL:
+        doc["campaign_id"] = base.name        # 부재가 아니라 빈칸이라 setdefault 가 못 덮었다
+    _write_json(ep, doc)
+    return ep, dropped
 
 
 def writer_freeze_evidence(base: Path, utc: str) -> Path:
@@ -494,9 +655,15 @@ def _short(text, limit: int = 160) -> str:
     return t if len(t) <= limit else t[:limit - 1] + "…"
 
 
-def _order_of(doc: dict) -> list:
-    order = doc.get("order")
-    return [x for x in (order or []) if isinstance(x, str) and FILL not in x]
+def _assignment_plan(doc: dict) -> list:
+    """[(node, cell, mode)] — 노드별 배정을 표시 순서로 편다. 옛 평면 `order` 의 후속이며,
+    다른 노드의 리스트는 **동시에** 돈다는 사실이 이 자료구조의 요점이다."""
+    v = validator()
+    out: list = []
+    for node in v.assignments_of(doc):
+        for cell in v.assigned_cells(doc, node):
+            out.append((node, cell, v.cell_mode(doc, node, cell)))
+    return out
 
 
 def resume_brief(camp_id: str | None = None) -> str:
@@ -534,15 +701,16 @@ def resume_brief(camp_id: str | None = None) -> str:
       + (f" · 최신 사유: {revs[-1].get('reason')}" if len(revs) > 1 else ""))
     A(f"- plan_ref: {doc.get('plan_ref')}")
 
-    order = _order_of(doc)
+    plan = _assignment_plan(doc)
     cells_dir = base / "cells"
     found = sorted(p.name for p in cells_dir.iterdir()
                    if p.is_dir() and p.name != "_cell") if cells_dir.is_dir() else []
-    listed = order + [c for c in found if c not in order]
+    known = {c for _, c, _ in plan}
+    listed = plan + [(None, c, None) for c in found if c not in known]
     A("")
-    A("## 2. 셀 진행표 (order 순)")
+    A("## 2. 셀 진행표 (노드별 배정 순 — **다른 노드의 리스트는 동시에 돈다**)")
     pending, refuted = [], []
-    for cell in listed:
+    for node_of, cell, mode in listed:
         st = _read_json(cells_dir / cell / "cell.status.json")
         st = st if isinstance(st, dict) else {}
         outcome = st.get("cell_outcome") or ("(상태파일 없음)" if (cells_dir / cell).is_dir()
@@ -555,7 +723,8 @@ def resume_brief(camp_id: str | None = None) -> str:
             extra.append(f"decode {tps} t/s")
         if st.get("void_reason"):
             extra.append(f"void: {_short(st['void_reason'], 110)}")
-        A(f"- `{cell}` — {outcome}" + (f"  ({' · '.join(extra)})" if extra else ""))
+        tag = f"[{node_of} · {mode}]" if node_of else "[미배정]"
+        A(f"- `{cell}` {tag} — {outcome}" + (f"  ({' · '.join(extra)})" if extra else ""))
         # 상태 파일이 아예 없는 셀도 **남은 작업**이다 — "돌지 않았다"와 "종결했다"를 같은 값으로
         # 접으면 전 셀 미개설인 새 캠페인이 '완주' 로 보인다(부재 ≠ 통과).
         if outcome in ("pending", "(상태파일 없음)", "(미개설)"):
@@ -563,7 +732,7 @@ def resume_brief(camp_id: str | None = None) -> str:
         if outcome in ("serve_failed", "build_failed", "void"):
             refuted.append((cell, cite, st.get("void_reason")))
     if not listed:
-        A("- (셀 없음)")
+        A("- (배정된 셀 없음)")
 
     A("")
     A("## 3. 노드별 phase 진행표")
@@ -704,7 +873,7 @@ def _selftest() -> int:
             "schema_version": 1, "id": "w1", "plan_ref": "docs/plan/p.md",
             "declared_utc": "2026-01-01T00:00:00Z",
             "nodes": [{"node_id": "main", "role": "main"}, {"node_id": "sub", "role": "sub"}],
-            "order": ["c1", "c2"],
+            "assignments": {"main": [{"cell": "c1"}, {"cell": "c2", "mode": "STAY"}]},
             "control_variables": {"model": "m0", "vllm_version": "0.1.0"},
         }, ensure_ascii=False), encoding="utf-8")
         ACTIVE_POINTER.write_text("w1\n", encoding="utf-8")
@@ -784,13 +953,30 @@ def _selftest() -> int:
         ck("★음성대조 알 수 없는 kind 거부",
            _boom(lambda: writer_add_evidence(camp, kind="nope", path_rel="CLAUDE.md",
                                              cell_id=None, node=None, unfreeze=False)))
+        writer_add_evidence(camp, kind="simlog", path_rel="CLAUDE.md", cell_id=None,
+                            node="main", unfreeze=False)
+        _stub = _read_json(camp / "evidence_pointers.json")
+        _stub["pointers"].append({"kind": FILL, "path": FILL, "cell_id": None, "node_id": None})
+        _stub["campaign_id"] = FILL
+        _write_json(camp / "evidence_pointers.json", _stub)
+        _n_before = len(_read_json(camp / "evidence_pointers.json")["pointers"])
+        _ep, _dropped = writer_prune_stubs(camp, unfreeze=False)
+        _after = _read_json(camp / "evidence_pointers.json")
+        ck("★스텁 포인터를 정식 경로로 지운다(손삭제 대체 · F1 재발 방지)",
+           len(_dropped) == 1 and len(_after["pointers"]) == _n_before - 1)
+        ck("★값이 든 포인터는 건드리지 않는다(증거 삭제 연산이 아니다)",
+           any(x.get("path") == "CLAUDE.md" for x in _after["pointers"]))
+        ck("★campaign_id 의 빈칸도 함께 채운다(setdefault 는 빈칸을 못 덮는다)",
+           _after["campaign_id"] == "w1")
         writer_freeze_evidence(camp, "2026-01-01T02:00:00Z")
         ck("★음성대조 동결 뒤 추가는 거부(입력 통로가 흐르면 태그는 불변인데 근거가 움직인다)",
            _boom(lambda: writer_add_evidence(camp, kind="devlog", path_rel="README.md",
                                              cell_id=None, node=None, unfreeze=False)))
         writer_add_evidence(camp, kind="devlog", path_rel="README.md", cell_id=None,
-                            node=None, unfreeze=True)
-        ck("사람이 --unfreeze 를 붙이면 통과", len(_read_json(camp / "evidence_pointers.json")["pointers"]) == 2)
+                            node="main", unfreeze=True)
+        ck("사람이 --unfreeze 를 붙이면 통과",
+           any(x.get("kind") == "devlog" and x.get("path") == "README.md"
+               for x in _read_json(camp / "evidence_pointers.json")["pointers"]))
 
         writer_add_revision(camp, values={"model": "m1"}, reason="타겟 모델 전환",
                             evidence="docs/testlog/t.md", approved_by="operator",
@@ -809,6 +995,55 @@ def _selftest() -> int:
         ck("resume-brief 가 최신 개정값을 보여준다", "model: m1" in brief)
         ck("resume-brief 가 여정 마지막 줄을 보여준다", "c2 착수 — attn 축" in brief)
         ck("resume-brief 가 선언 노드의 진행표 부재를 표시한다", "sub:" in brief and "phases/ 디렉터리 없음" in brief)
+        ck("★resume-brief 가 셀마다 배정 노드와 모드를 보여준다(동시에 도는 리스트가 보인다)",
+           "[main · AUTO]" in brief and "[main · STAY]" in brief)
+
+        # ── 측정값을 writer 가 직접 읽는다 (2026-09-08 · plan_26090813 D19) ────────────────
+        (camp / "sweeps").mkdir(parents=True, exist_ok=True)
+        _sw = camp / "sweeps" / "s1.json"
+        _sw.write_text(json.dumps({"cells": [
+            {"cell_key": "c2", "cell_outcome": "measured",
+             "concurrency_vector": {"1": 19.12, "2": 19.68}}]}), encoding="utf-8")
+        writer_set_cell(camp, cell="c2", outcome="measured", node=None, version=None, model=None,
+                        decode_tps=None, measurement_source=None, void_reason=None,
+                        void_reason_source=None, axis_citation=None, next_intent=None,
+                        utc="t3", sweep_state=str(_sw))
+        _m = _read_json(camp / "cells" / "c2" / "cell.status.json")
+        ck("★writer 가 sweep 기록에서 측정값을 직접 읽는다(호출부 플래그 ✗)",
+           _m["measurement"]["decode_tps_conc1"] == 19.12
+           and "concurrency_vector.1" in _m["measurement"]["source"])
+        ck("★셀의 노드를 배정에서 파생한다(--node 를 안 줘도 null 이 남지 않는다)",
+           _m["node_id"] == "main")
+        writer_set_cell(camp, cell="c3", outcome="measured", node="main", version=None, model=None,
+                        decode_tps=None, measurement_source=None, void_reason=None,
+                        void_reason_source=None, axis_citation=None, next_intent=None,
+                        utc="t4", sweep_state=str(_sw))
+        _g = _read_json(camp / "cells" / "c3" / "cell.status.json")
+        ck("★sweep 에 그 셀이 없으면 **결손 기재**하고 통과한다(차단 ✗ · 무한 hang 경계)",
+           _g["measurement"]["decode_tps_conc1"] is None and "c3" in _g["measurement"]["gap"])
+
+        # ── 다노드에서 증거의 노드 태그는 필수다 (P2 공허 통과의 뿌리) ────────────────────
+        ck("★음성대조 다노드에서 --node 없는 증거는 거부",
+           _boom(lambda: writer_add_evidence(camp, kind="sweep_map", path_rel="README.md",
+                                             cell_id=None, node=None, unfreeze=True)))
+        writer_add_evidence(camp, kind="sweep_map", path_rel="README.md", cell_id="c1",
+                            node=None, unfreeze=True)
+        ck("★셀을 주면 배정에서 노드를 파생한다",
+           any(x.get("kind") == "sweep_map" and x.get("node_id") == "main"
+               for x in _read_json(camp / "evidence_pointers.json")["pointers"]))
+
+        # ── 착수 시각은 처음 한 번만 굳는다(P4 가 늦은 값을 보고 통과하지 않게) ──────────
+        writer_set_phase(camp, node="main", phase="serve", state="running", predicate=None,
+                         ok=False, source=None, cell_id="c1",
+                         started_utc="2026-01-01T10:00:00Z", ended_utc=None)
+        writer_set_phase(camp, node="main", phase="serve", state="running", predicate=None,
+                         ok=False, source=None, cell_id="c2",
+                         started_utc="2026-01-01T20:00:00Z", ended_utc=None, authored_by="main")
+        _p = _read_json(camp / "phases" / "main" / "serve.status.json")
+        ck("★first_started_utc 는 처음 값을 지킨다(started_utc 는 마지막 셀을 가리킨다)",
+           _p["first_started_utc"] == "2026-01-01T10:00:00Z"
+           and _p["started_utc"] == "2026-01-01T20:00:00Z")
+        ck("authored_by 가 진행표에 남는다", _p["authored_by"] == "main")
 
         writer_set_cell(camp, cell="c2", outcome="serve_failed", node="main", version=None,
                         model=None, decode_tps=None, measurement_source=None,
@@ -882,6 +1117,11 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--outcome", help="pending|measured|serve_failed|build_failed|void")
     w.add_argument("--version"); w.add_argument("--model")
     w.add_argument("--measurement-decode-tps"); w.add_argument("--measurement-source")
+    w.add_argument("--sweep-state", metavar="PATH",
+                   help="--cell-set 이 이 sweep 기록에서 측정값을 직접 읽는다 "
+                        "(호출부가 값을 나르지 않는다 · 없으면 결손 기재)")
+    w.add_argument("--authored-by", metavar="NODE",
+                   help="--phase-set: 이 진행표를 적은 주체(서브 자기저작 vs 메인 사후 재저작 판별)")
     w.add_argument("--void-reason"); w.add_argument("--void-reason-source")
     w.add_argument("--axis-citation", help="이 셀이 움직인 축의 근거(layer-2 자율)")
     w.add_argument("--next-intent", help="여정 한 줄 — 다음에 무엇을 할 참인가")
@@ -889,6 +1129,9 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--kind", help=f"증거 종류 {EVIDENCE_KINDS}")
     w.add_argument("--path", help="저장소 상대경로(실재해야 한다)")
     w.add_argument("--unfreeze", action="store_true", help="동결된 스냅샷에 사람이 명시로 추가")
+    w.add_argument("--evidence-prune-stubs", action="store_true",
+                   help="뼈대에서 딸려온 <<FILL>> 스텁 포인터를 정식 경로로 제거한다 "
+                        "(값이 든 포인터는 건드리지 않는다 · 손삭제 대체)")
     w.add_argument("--freeze-evidence", action="store_true",
                    help="publish proof.ok 시점에 증거 스냅샷을 동결한다 · --utc 필수")
     w.add_argument("--revise", action="store_true",
@@ -911,7 +1154,8 @@ def main(argv: list[str] | None = None) -> int:
                               camp_id=a.campaign_id)); return 0
         if a.resume_brief:
             sys.stdout.write(resume_brief(a.campaign_id)); return 0
-        writer_ops = (a.phase_set, a.cell_set, a.evidence_add, a.freeze_evidence, a.revise)
+        writer_ops = (a.phase_set, a.cell_set, a.evidence_add, a.freeze_evidence, a.revise,
+                      a.evidence_prune_stubs)
         if any(writer_ops):
             tgt = _writer_target(a.campaign_id)
             if tgt is None:
@@ -926,7 +1170,8 @@ def main(argv: list[str] | None = None) -> int:
                 wrote.append(_rel(writer_set_phase(
                     base, node=a.node, phase=a.phase_set, state=a.state,
                     predicate=a.proof_predicate, ok=a.proof_ok, source=a.proof_source,
-                    cell_id=a.cell, started_utc=a.started_utc, ended_utc=a.ended_utc)))
+                    cell_id=a.cell, started_utc=a.started_utc, ended_utc=a.ended_utc,
+                    authored_by=a.authored_by)))
             if a.cell_set:
                 if not a.outcome:
                     raise WriterRefusal("--cell-set 은 --outcome 이 필요하다")
@@ -936,7 +1181,8 @@ def main(argv: list[str] | None = None) -> int:
                     decode_tps=a.measurement_decode_tps,
                     measurement_source=a.measurement_source,
                     void_reason=a.void_reason, void_reason_source=a.void_reason_source,
-                    axis_citation=a.axis_citation, next_intent=a.next_intent, utc=a.utc)
+                    axis_citation=a.axis_citation, next_intent=a.next_intent, utc=a.utc,
+                    sweep_state=a.sweep_state)
                 wrote.append(_rel(cpath))
                 if jpath is not None:
                     wrote.append(_rel(jpath))
@@ -946,6 +1192,12 @@ def main(argv: list[str] | None = None) -> int:
                 wrote.append(_rel(writer_add_evidence(
                     base, kind=a.kind, path_rel=a.path, cell_id=a.cell, node=a.node,
                     unfreeze=a.unfreeze)))
+            if a.evidence_prune_stubs:
+                epath, dropped = writer_prune_stubs(base, unfreeze=a.unfreeze)
+                wrote.append(_rel(epath))
+                print(f"[campaign_init] 스텁 포인터 {len(dropped)}건 제거:", file=sys.stderr)
+                for d in dropped:
+                    print(f"  - {d}", file=sys.stderr)
             if a.freeze_evidence:
                 if not a.utc:
                     raise WriterRefusal("--freeze-evidence 는 --utc 가 필요하다(벽시계 금지)")
@@ -965,7 +1217,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[campaign_init] wrote({camp}): " + " ".join(wrote))
             return 0
         if a.residue_scan:
-            print(json.dumps(residue_scan(), ensure_ascii=False, indent=2)); return 0
+            out = residue_scan()
+            print(json.dumps(out, ensure_ascii=False, indent=2))
+            if a.utc:
+                wrote = residue_write(out, a.utc, a.campaign_id)
+                print(f"[campaign_init] residue → {_rel(wrote) if wrote else '(활성 캠페인 없음 — 미기재)'}",
+                      file=sys.stderr)
+            else:
+                print("[campaign_init] --utc 가 없어 residue.json 에 남기지 않았다"
+                      "(시각은 주입만 받는다 — 벽시계 금지)", file=sys.stderr)
+            return 0
         if a.verify_purge_gate:
             reasons = purge_gate_reasons(a.verify_purge_gate)
             if reasons:

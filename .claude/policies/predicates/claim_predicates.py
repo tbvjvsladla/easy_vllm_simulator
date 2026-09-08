@@ -3630,11 +3630,11 @@ def predicate_ROOT_SURFACE_REGISTRY_C3():
         (camp / "phases" / "main").mkdir(parents=True)
         (camp / "cells" / "cell-a").mkdir(parents=True)
         (camp / "cells" / "cell-a" / "config.yaml").write_text("cell_id: cell-a\n", encoding="utf-8")
-        good = json.loads((cv.TEMPLATE / "campaign.yaml").read_text(encoding="utf-8"))
-        good.pop("_howto", None)
+        good = cv.strip_annotations(json.loads((cv.TEMPLATE / "campaign.yaml").read_text(encoding="utf-8")))
         good.update(id="camp-x", plan_ref="docs/plan/p.md", declared_utc="2026-09-06T00:00:00Z",
                     nodes=[{"node_id": "main", "role": "main", "topology": "single", "hw": "gb10"}],
-                    matrix={"versions": ["0.18.0"], "models": ["m"]}, order=["cell-a"],
+                    matrix={"versions": ["0.18.0"], "models": ["m"]},
+                    assignments={"main": [{"cell": "cell-a"}]},
                     budgets={"smoke_budget_overhead_mib": 1, "ready_max_seconds": 1},
                     control_variables={"model": "m", "vllm_version": "0.18.0",
                                        "topology": "single", "target_gpu": "H100"},
