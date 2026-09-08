@@ -325,18 +325,26 @@ if [ "$SELFTEST" = 1 ]; then
   ck "  버킷은 cap 을 넘지 않는다(회복 유계)" "$BB_TP_GPU_BUCKET_CAP" "$TP_GPU_BUCKET"
 
   echo "SoC 열 축:"
+  # ★ 픽스처 온도는 **선언된 임계에서 파생**한다(2026-09-09 교정). 종전에는 91/97 을 손으로
+  #   적어 뒀는데, 임계를 warn 90→97 · hard 95→99 로 옮기자 세 케이스가 통째로 FAIL 했다 —
+  #   시험하려던 것은 버킷·연속 술어이지 특정 온도가 아니었으므로, 술어는 그대로 두고 입력만
+  #   임계를 따라가게 한다(헌법 §4종 안티패턴 — 파생 가능한데 손으로 적은 값).
+  #   결정론은 유지된다: 이 블록이 쓰는 임계는 바로 위에서 고정 상수로 선언된다.
+  #   _WT 는 hard 미만이 보장된다(blackbox_thermal.validate_params 가 hard>warn 을 강제).
+  _WT="$BB_TP_SOC_WARN_C"    # 지속 계층 경계 — >=warn 이며 <hard 라 즉시계층엔 걸리지 않는다
+  _HT="$BB_TP_SOC_HARD_C"    # 즉시 계층 경계
   # shellcheck disable=SC2046
-  seq_test "  91C 29폴 → 미발동" 1 "" $(rep 29 "-1:91")
+  seq_test "  ${_WT}C $((BB_TP_SOC_SUSTAIN_S - 1))폴 → 미발동" 1 "" $(rep $((BB_TP_SOC_SUSTAIN_S - 1)) "-1:$_WT")
   # shellcheck disable=SC2046
-  seq_test "  91C 30폴 → 발동(soc_temp_sustained)" 0 "soc_temp_sustained" $(rep 30 "-1:91")
+  seq_test "  ${_WT}C ${BB_TP_SOC_SUSTAIN_S}폴 → 발동(soc_temp_sustained)" 0 "soc_temp_sustained" $(rep "$BB_TP_SOC_SUSTAIN_S" "-1:$_WT")
   # shellcheck disable=SC2046
-  seq_test "  97C 3폴 → 즉시계층 발동(soc_hard_ceiling)" 0 "soc_hard_ceiling" $(rep 3 "-1:97")
-  seq_test "  즉시계층은 연속이어야 한다(끊기면 리셋)" 1 "" "-1:97" "-1:60" "-1:97"
+  seq_test "  ${_HT}C ${BB_TP_SOC_HARD_POLLS}폴 → 즉시계층 발동(soc_hard_ceiling)" 0 "soc_hard_ceiling" $(rep "$BB_TP_SOC_HARD_POLLS" "-1:$_HT")
+  seq_test "  즉시계층은 연속이어야 한다(끊기면 리셋)" 1 "" "-1:$_HT" "-1:60" "-1:$_HT"
   # shellcheck disable=SC2046
   seq_test "  평시 47C 600폴 → 미발동" 1 "" $(rep 600 "-1:47")
   # 축 독립 — GPU 는 한산한데 SoC 만 뜨겁다
   # shellcheck disable=SC2046
-  seq_test "  한 축만 차도 발동(축 독립)" 0 "soc_temp_sustained" $(rep 30 "100:91")
+  seq_test "  한 축만 차도 발동(축 독립)" 0 "soc_temp_sustained" $(rep "$BB_TP_SOC_SUSTAIN_S" "100:$_WT")
 
   echo "부재·stale 정직성:"
   # shellcheck disable=SC2046
