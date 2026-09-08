@@ -588,7 +588,26 @@ def writer_add_evidence(base: Path, *, kind: str, path_rel: str, cell_id: str | 
     pointers = pointers if isinstance(pointers, list) else []
     for ptr in pointers:
         if isinstance(ptr, dict) and ptr.get("path") == path_rel and ptr.get("kind") == kind:
-            return ep      # 멱등 — 같은 포인터를 두 번 적지 않는다
+            # 멱등 — 같은 포인터를 두 번 적지 않는다. 다만 **비어 있는 태그는 채운다**:
+            # 종전 writer 는 null 로 적힌 node_id 를 고칠 연산이 없어서, 태그를 붙이려면 손으로
+            # 파일을 여는 수밖에 없었다(F1 과 같은 형태 — 연산이 없으면 손이 들어온다).
+            # 값이 이미 있고 **다른 값을 주면 거부**한다: 조용한 덮어쓰기는 증거의 귀속을 바꾼다.
+            changed = False
+            for key, val in (("node_id", node), ("cell_id", cell_id)):
+                if val is None:
+                    continue
+                have = ptr.get(key)
+                if have in (None, ""):
+                    ptr[key] = val
+                    changed = True
+                elif have != val:
+                    raise WriterRefusal(
+                        f"이 포인터의 {key} 는 이미 {have!r} 다 — {val!r} 로 바꾸려면 사람이 "
+                        f"판단해야 한다(증거의 귀속을 조용히 바꾸지 않는다): {path_rel}")
+            if changed:
+                doc["pointers"] = pointers
+                _write_json(ep, doc)
+            return ep
     pointers.append({"kind": kind, "path": path_rel, "cell_id": cell_id, "node_id": node})
     doc["pointers"] = pointers
     doc.setdefault("campaign_id", base.name)
@@ -1421,6 +1440,18 @@ def _selftest() -> int:
                             node="main", unfreeze=False)
         ck("같은 포인터는 두 번 적지 않는다(멱등)",
            len(_read_json(camp / "evidence_pointers.json")["pointers"]) == 1)
+        # 비어 있는 태그는 채운다 — null node_id 를 고칠 연산이 없으면 손이 파일을 연다(F1 형태).
+        _write_json(camp / "evidence_pointers.json", {"schema_version": 1, "pointers": [
+            {"kind": "bench_report", "path": "README.md", "cell_id": None, "node_id": None}]})
+        writer_add_evidence(camp, kind="bench_report", path_rel="README.md", cell_id="c1",
+                            node="main", unfreeze=False)
+        ck("★비어 있는 노드 태그는 정식 경로로 채운다(손편집 대체)",
+           _read_json(camp / "evidence_pointers.json")["pointers"][0]["node_id"] == "main")
+        ck("★음성대조 이미 다른 노드로 귀속된 증거는 조용히 바꾸지 않는다",
+           _boom(lambda: writer_add_evidence(camp, kind="bench_report", path_rel="README.md",
+                                             cell_id=None, node="sub", unfreeze=False)))
+        _write_json(camp / "evidence_pointers.json", {"schema_version": 1, "pointers": [
+            {"kind": "testlog", "path": "CLAUDE.md", "cell_id": "c1", "node_id": "main"}]})
         ck("★음성대조 실재하지 않는 증거 거부",
            _boom(lambda: writer_add_evidence(camp, kind="testlog", path_rel="does/not/exist.md",
                                              cell_id=None, node=None, unfreeze=False)))
