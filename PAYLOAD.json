@@ -1,8 +1,8 @@
 {
   "artifacts": [
-    "artifacts/triplet/d-fp8w-kvfp8-yarn524k.yaml",
-    "artifacts/triplet/d-fp8w-kvfp8-yarn524k.sh",
-    "artifacts/triplet/.env.d-fp8w-kvfp8-yarn524k",
+    "artifacts/triplet/e-fp8w-kvnone-262k-tp2.yaml",
+    "artifacts/triplet/e-fp8w-kvnone-262k-tp2.sh",
+    "artifacts/triplet/.env.e-fp8w-kvnone-262k-tp2",
     "artifacts/build_recipe/Dockerfile",
     "artifacts/build_recipe/requirements.txt",
     "artifacts/compose/docker-compose.yaml"
@@ -15,36 +15,36 @@
   "benchmark": {
     "accept_len": "N/A",
     "benchmark_mode": "full",
-    "decode_tps_conc1": "44.27",
-    "floor_tps": "9.6",
+    "decode_tps_conc1": "69.81",
+    "floor_tps": "19.19",
     "lite_cold_ttft_ms": "N/A",
     "lite_gen_src": "N/A",
     "lite_gen_tps_warm": "N/A",
     "lite_included": "false",
     "lite_kv_gib": "N/A",
-    "measured_utc": "2026-09-09T07:22:00Z",
+    "measured_utc": "2026-09-09T08:39:35Z",
     "primary_source": "expected_achievable(roofline×MBU)",
-    "primary_tps": "11.29",
-    "ratio_M_over_primary": "3.921",
+    "primary_tps": "22.58",
+    "ratio_M_over_primary": "3.092",
     "rubric_authority": "weak",
     "spec_on": "false",
-    "sweep_levels": "1,2,3",
+    "sweep_levels": "1,2,4,8",
     "sweep_truncated": "N/A",
     "tolerance": "0.15",
     "verdict": "PASS"
   },
   "benchmark_source": {
-    "certificate": "benchmark_26090916_qwen3.8-27b_RTXPRO6000BlackwellServerEdition_0.28.0.yaml",
+    "certificate": "benchmark_26090917_39_35_qwen3.8-27b_RTXPRO6000BlackwellServerEdition_0.28.0.yaml",
     "parsed_not_synthesized": true,
-    "sha256": "97c62dceba213cd3cfe05a81c32c4d098cdacddf092111ea5927fbcc19183bac"
+    "sha256": "cd7e68c01329970143b57bb3df87dd9b89d86fa242afa59928fa783014878b4c"
   },
-  "generated_kst": "2026-09-09T16:29:38",
+  "generated_kst": "2026-09-09T17:59:59",
   "identity": {
     "gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
     "model": "qwen3.8-27b",
     "quant": "fp8",
     "topology": "single",
-    "tp": 1,
+    "tp": 2,
     "vllm": "0.28.0"
   },
   "kind": "hint_payload_facts",
@@ -134,9 +134,9 @@
       "evidence_source": "certificate 소프트지문 ↔ 트리플렛 yaml serve 노브(이름 관측은 하위호환 폴백)",
       "exemptible": false,
       "files": {
-        "config_yaml": "output/single/configs/d-fp8w-kvfp8-yarn524k.yaml",
-        "env_file": "output/single/envs/.env.d-fp8w-kvfp8-yarn524k",
-        "runner_sh": "output/single/configs/d-fp8w-kvfp8-yarn524k.sh"
+        "config_yaml": "output/single/configs/e-fp8w-kvnone-262k-tp2.yaml",
+        "env_file": "output/single/envs/.env.e-fp8w-kvnone-262k-tp2",
+        "runner_sh": "output/single/configs/e-fp8w-kvnone-262k-tp2.sh"
       },
       "missing": [],
       "missing_code": "HINT_MISSING_TRIPLET",
