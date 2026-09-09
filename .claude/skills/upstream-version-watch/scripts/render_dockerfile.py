@@ -681,15 +681,25 @@ def materialize_env(repo: str, topology: str, manifest: dict) -> str:
     dst_dir = os.path.join(repo, "output", topology)
     os.makedirs(dst_dir, exist_ok=True)
     dst = os.path.join(dst_dir, ".env")
+    # PLE mmap 스테이징(2026-09-09 · camp-26090918): manifest.ple_mmap_host_path 가 선언되면
+    #   compose 볼륨 ${PLE_MMAP_HOST_PATH}:/app/ple_mmap:ro 치환값으로 방출한다. 미선언이면
+    #   줄 자체를 쓰지 않는다(compose 의 `:-/mnt/models` 플레이스홀더로 떨어지고, mmap 자체는
+    #   셀 env 의 VLLM_PLE_MMAP=1 이 있을 때만 팔리므로 stock 경로는 무영향).
+    _ple_mmap = str(manifest.get("ple_mmap_host_path", "") or "").strip()
     body = (
         "# 프로젝트-레벨 env (compose 변수치환) — render_dockerfile.py --materialize-env 가 manifest 에서 생성.\n"
         "# docker compose 가 docker-compose.yaml 의 ${NAS_MODEL_PATH}·${QUANT_MODEL_PATH}·${TIKTOKEN_HOST_PATH} 치환에 사용.\n"
-        "# gitignored(output/* — PII). 손수정 금지 — manifest(nas_model_path·quant_model_path·tiktoken_host_path)를 고칠 것.\n"
+        "# gitignored(output/* — PII). 손수정 금지 — manifest(nas_model_path·quant_model_path·tiktoken_host_path·ple_mmap_host_path)를 고칠 것.\n"
         "NAS_MODEL_PATH=%s\n"
         "# QUANT_MODEL_PATH 출처(결정론 규율 — 값 옆에 출처): %s\n"
         "QUANT_MODEL_PATH=%s\n"
         "TIKTOKEN_HOST_PATH=%s\n"
     ) % (nas, quant_source, quant, tiktoken)
+    if _ple_mmap:
+        body += (
+            "# PLE_MMAP_HOST_PATH 출처(결정론 규율 — 값 옆에 출처): manifest.ple_mmap_host_path\n"
+            "PLE_MMAP_HOST_PATH=%s\n"
+        ) % _ple_mmap
     with open(dst, "w", encoding="utf-8") as f:
         f.write(body)
     return dst
