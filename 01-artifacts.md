@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/single/configs/e-fp8w-kvnone-262k-tp2.yaml`
-- `output/single/configs/e-fp8w-kvnone-262k-tp2.sh`
-- `output/single/envs/.env.e-fp8w-kvnone-262k-tp2`
+- `output/single/configs/f-fp8w-kvfp8-262k-tp2.yaml`
+- `output/single/configs/f-fp8w-kvfp8-262k-tp2.sh`
+- `output/single/envs/.env.f-fp8w-kvfp8-262k-tp2`
 
 **build_recipe**
 - `output/single/Dockerfile`
@@ -33,9 +33,9 @@
 ## 적용 사유 (Agent)
 
 - **triplet — 적용, 그대로 재현 가능**: `quantization: fp8`(가중치) · `max-model-len: 262144` ·
-  KV **무양자화**(kv-cache-dtype 미지정) · `kv-cache-memory-bytes: 71484875293`(절대 KV 클램프,
-  batch=8 기준 Phase-2 실측 수렴값) · **`tensor-parallel-size: 2`(GPU 2장 전부 사용 — 이 캠페인의
-  핵심 차이점, 명시 필수)** · `--tool-call-parser qwen3_coder --reasoning-parser qwen3`.
+  KV **fp8 양자화** · `kv-cache-memory-bytes: 72965891286`(절대 KV 클램프, batch=16 기준
+  Phase-2 실측 수렴값) · **`tensor-parallel-size: 2`(GPU 2장 전부 사용, 명시 필수)** ·
+  `--tool-call-parser qwen3_coder --reasoning-parser qwen3`.
 - **build_recipe/compose — 조건부 적용(이 환경에서는 미사용)**: Docker-in-Docker 불가 호스트라
   venv 직접설치+네이티브 프로세스로 대체(02-narrative.md 참조). Docker 가용 호스트에서는 이
   슬롯이 정본.

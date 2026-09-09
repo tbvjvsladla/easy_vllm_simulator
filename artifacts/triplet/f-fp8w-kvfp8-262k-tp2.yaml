@@ -2,19 +2,20 @@
 # 레시피: quant=fp8 max_model_len=262144 gpu_mem_util=0.9
 # ── VRAM 분해 (Phase 2 절대 KV 클램프 기준) ──
 #   weights: 14.34 GiB
-#   kv_cache: 66.57547810394317 GiB
+#   kv_cache: 67.95478173159063 GiB
 #   budget: 94.97 GiB
 # ── 타겟-GPU 이식 클램프 (host≠target, gpu_model=NVIDIA RTX PRO 6000 Blackwell Server Edition) ──
 # host-측정 weights/overhead 이전값. target≠host arch 면 target-margin 이 쿠션(정량보증 아님).
 # 가능하면 타겟에서 재측정(Phase-2)을 권장. per-token-KV·weights 는 GPU-불변, overhead 는 런타임 성질 일부 포함.
 model: /workspace/easy_vllm_simulator/models/Qwen3.8-27B
 host: 0.0.0.0
-port: 8920
+port: 8921
 # gpu-memory-utilization = startup free-memory 게이트 + 총 cap(통합메모리 ≤0.90); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어
 gpu-memory-utilization: 0.9
 max-model-len: 262144
-max-num-seqs: 8
-kv-cache-memory-bytes: 71484875293
+max-num-seqs: 16
+kv-cache-memory-bytes: 72965891286
+kv-cache-dtype: fp8
 quantization: fp8
 tensor-parallel-size: 2
 gdn-prefill-backend: triton
