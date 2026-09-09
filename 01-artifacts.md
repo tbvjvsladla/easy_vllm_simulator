@@ -1,10 +1,10 @@
-# 1. 산출물 — 무엇이 실제로 쓰였나 (셀 e-1m-kvfp8 · 변종 spec0-graph0-len1m)
+# 1. 산출물 — 무엇이 실제로 쓰였나 (셀 e-1m-kvfp8-e1combo · 변종 spec7-graph1-len1m)
 
 > 슬롯 분류는 **경로 규약에서 파생**한 결정론 산출이다(헌법 3+1+1). `slot_confidence` 함께 읽어라.
 
 | 슬롯 | 적용 |
 |---|---|
-| `triplet` | e-1m-kvfp8.yaml / .sh / .env.e-1m-kvfp8 |
+| `triplet` | e-1m-kvfp8-e1combo.yaml / .sh / .env.e-1m-kvfp8-e1combo |
 | `build_patch_post` | 10-deepgemm · 20-triton · 30-mxfp4 · 40-humming (빌드 로그 실측 적용) |
 | `build_recipe` | Dockerfile · Dockerfile.source-build · requirements.txt |
 | `compose` | docker-compose.yaml |
