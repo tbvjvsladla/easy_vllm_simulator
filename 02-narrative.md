@@ -6,49 +6,20 @@
 
 ## 읽을 원재료 (복사 대상 아님 · 포인터)
 
-- devlog: `../devlog/devlog_26090706_캠페인7_GB10네이티브_재수행_서사.md`
-- testlog: `../testlog/testlog_26090707_camp7_s1-native-fp8_수렴및측정.md`
+- devlog: `../devlog/devlog_26090912_ds4f0731_광의탐색_셀루프_서사.md`
+- testlog: `../testlog/testlog_26090912_ds4f0731_029rc6_광의탐색_종합판정.md`
 
 ## 서사
 
-**이 판의 성격.** 서브 노드가 **자율로** 완주한 캠페인이다. 메인이 서브를 스캔하거나 직접 고치지
-않았고, 정보는 전부 A2A 릴레이 리포트와 문서로 올라왔다. 왕복은 4회였고 그 중 2회가 차단이었다.
-
-**① 예산 게이트 거절(로드 전).** `budget_declare_rejected` — gmu 파생 KV 96,256 MiB 가 호스트
-floor 를 침범했다(`floor 8,161 MiB ≤ 트립 임계 10,240 MiB`). **이 게이트는 로드 전에 막으므로
-비용이 0 이다.** 우회하지 말고 값을 고치는 것이 처방이다.
-
-**② 워치독 트립(로드 중).** KV 89,000 MiB + overhead 6,144 선언으로 재시도했더니 CUDA 그래프
-캡처 3/83 에서 `TRIP MemAvailable=9924MiB < 10240MiB → docker kill`. 원인은 **로드 첨두를 못 센 것**
-이다 — 정상 상주보다 캡처 구간이 높다.
-
-**③ 수렴.** overhead 를 실측 기반 16,000 MiB 로 올리고 KV 를 required 로 클램프했다:
-`required = per_token(24,576.7 B) × max_model_len(131,072) × batch(20) = 61,442 MiB`.
-floor = 124,610 − (weights 14,049 + kv 61,442 + overhead 16,000) = **34,044 MiB**, 트립선 대비
-3.3배 여유. `trial_count: 1` 로 한 번에 섰다.
-
-**④ 측정 엔드포인트 — 이 판의 가장 중요한 발견.** gpt-oss(harmony)는 **완결 엔드포인트**
-(`/v1/completions` · `--backend openai`)로 재야 한다. chat 으로 재면 서버 harmony 파서가 스트림 중
-깨져 요청 일부가 errored 로 빠진다(`HarmonyError: Unexpected token 200002 while expecting start
-token 200006`). 이 측정은 완결 엔드포인트라 **18/18 성공 · 오류 0** 이다. 같은 모델을 chat 으로 잰
-형제 판은 16건 중 2건이 errored 였다.
-
-**메인 쪽 결함도 이 왕복이 드러냈다.** attempt 3 은 16/90 턴에서 `permission_denied` 로 끊겼는데,
-원인은 예산이 아니라 **서브 권한 템플릿에 `Write(docs/**)` 가 없던 것**이었다(메인 결함 · `15b9037`
-교정 · `1d16329` 배달). 계약이 요구하는 것을 권한이 막고 있었다 — 그래서 다음 attempt 는 예산을
-올리지 않고 90 을 유지했다(소진되지 않은 예산을 올리는 것은 근거가 없다 · `scope ⊥ budget`).
+1. **빌드**: 0.29.0rc6은 torch 2.13.0 핀 → source-build(NGC 26.07). 1차 빌드는 constraint(0.28.0 baseline)의 `flashinfer-python==0.6.16.post3`와 상류 선언 `==0.6.18`이 ResolutionImpossible로 충돌 — constraint를 상류 선언에 양보해 해소(양노드 동일 실패로 requirements 클래스 확정). (근거: testlog_26090904 §1)
+2. **서빙 진입의 4연속 fail-closed**: master/slave 컨테이너명 미emit → KV 절대클램프 미선언(155GiB 모델은 단일노드 선측정 불가라 멀티 직접 수렴으로 전환 · 시드=10GiB) → env 인라인 주석 오염 → `distributed-executor-backend: ray` 누락. 전부 가드가 정상 차단한 것이며 우회 0. (근거: testlog_26090904 §2)
+3. **arch-wall 중재**: 옛 벽(flashinfer decode_dsv4 page_block64)은 0.29.0rc6 stock이 해소 — 대신 `fp8_ds_mla layout only supports fp8 kv-cache` assert가 KV 축을 fp8 단일로 강제(sm_121a→SM120 클래스 강제 선택 · turboquant/auto 구조적 거부). 이 사실로 캠페인 KV 축이 fp8 단일로 개정됐다. (근거: testlog_26090904 §3 · trial-1c 엔진 로그)
+4. **레버 측정**: eager 기준선 17.11 t/s → cudagraph 26.14 → dspark spec(nspec7) 29.72 → **결합 31.12 t/s(+81.9%)** — 이 태그의 구성. spec accept_len 2.53(엔진 실측). (근거: sweep_map_26090912_b768k_levers.md · 종합판정 §스코어보드)
+5. **운영**: 기동 밸리(155GiB 로드의 페이지캐시)가 memwatch 절대 플로어(10240MiB)를 치는 구간이 있어 KV 클램프는 그 밸리까지 포함해 10GiB로 수렴했다. 벤치 전 캐시 드롭 필수. (근거: devlog_26090912 §수렴의 3단계)
 
 ## 되풀이하지 말 것
 
-- **`gpu_memory_utilization` 로 KV 를 정하지 마라.** 통합메모리에서 분율은 절대량을 정하지 못한다.
-  첫 두 차단이 모두 그 자리에서 났다.
-- **overhead 를 이월하지 마라.** 이 판의 실측은 16,000 MiB(KV 61,442 · batch 20)이고, 같은 모델을
-  KV 50,133 · batch 16 으로 돌린 노드는 12,265 MiB 였다. **하한으로만** 써라.
-- **로드 첨두를 예산에 넣어라.** 정상 상주로 맞추면 CUDA 그래프 캡처에서 죽는다(실측: 3/83).
-- **gpt-oss 를 chat 엔드포인트로 재고 다른 판과 비교하지 마라.** 파서 파손이 요청을 errored 로
-  빼면 표본이 편향된다. 완결 엔드포인트가 이 모델군의 기본이다.
-- **`fp8_e5m2` 를 KV dtype 으로 쓰지 마라** — 0.18.0 어텐션이 `{fp8, fp8_e4m3}` 를 하드 단언한다.
-- **compose 기본 Dockerfile 을 믿지 마라** — 이 트리의 `build.dockerfile` 기본값이 가리키는 파일이
-  없다. `IMAGE_TAG` 를 명시하면 우회되지만, 그건 우회이지 해소가 아니다.
-- **서브 산출물을 코드로 긁어오려 하지 마라.** 상향 회수는 문서기반 only 다. 이 페이로드의
-  트리플렛도 서브가 **문서로 발행**하고 메인이 재저작한 것이다.
+- **kv auto/turboquant 탐색** — 엔진이 assert로 거부(fp8_ds_mla 포맷). 이 모델+칩에서 시간을 쓰지 마라. (근거: testlog_26090904 §3)
+- **moe-backend=triton** — 엔진 거부("Mxfp4 MoE backend TRITON does not support SILU"). DS4F(fp8·silu)는 humming이 정답. (근거: 종합판정 §스코어보드 L3 · serve_fail_b-768k-kvfp8-l3moe 로그)
+- **0.25.1의 MATMUL_DECODE 레버 기대** — 0.29에 그 env가 없다. 레버는 버전마다 재확인. (근거: 종합판정 §구조 판정)
+- **18GiB/14GiB KV 클램프** — KV 용량으로는 성립하나 호스트 기동 밸리+벤치 상주가 절대 플로어와 충돌해 memwatch 킬 2회. 10GiB가 이 호스트의 binding. (근거: devlog_26090912 §수렴의 3단계)

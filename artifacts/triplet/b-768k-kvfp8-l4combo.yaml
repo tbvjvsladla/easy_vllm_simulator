@@ -1,0 +1,19 @@
+# DeepSeek-V4/DeepSeek-V4-Flash-0731 서빙 설정 (vllm-recipe-explorer 생성 → 셀 A lockset 반영)
+# 레시피: quant=fp8 max_model_len=786432 gpu_mem_util=0.85 · 셀 축: kv fp8 · ctx 768K
+model: /app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731
+host: 0.0.0.0
+port: 8080
+tensor-parallel-size: 2        # manifest 권위(len(nodes)×gpus_per_node=2) — 생성본 누락분 명시
+distributed-executor-backend: ray   # 멀티노드 TP 필수(serve_runner fail-loud 지적) — 없으면 mp 로 가서 World size>GPU(1)
+gpu-memory-utilization: 0.85
+max-model-len: 786432
+quantization: fp8
+kv-cache-dtype: fp8            # 셀 B 축 = fp8 (fp8_ds_mla 로 강제 해소됨 — 유일 지원 경로)
+kv-cache-memory-bytes: 10737418240   # 수렴 클램프 = 10GiB (3차 수렴 · binding = 호스트 기동 밸리: 14GiB 시 밸리 ~8.2GiB 가 절대플로어 10240 하회 → memwatch 킬 2회 실측
+#   · kv ≤ 124610-79577-12265-(10240+밸리마진 8GiB+벤치 4GiB) ≈ 12288MiB → 10GiB(trial-2 동밸리 생존 실증) · bytes/token 6069)
+max-num-seqs: 2                       # 동접 = 잔여 KV 최대활용(binding=밸리) · 10GiB/4552MiB = 2.25x → 2
+moe-backend: humming           # 그라욼ing: auto→MARLIN-repack OOM 전력(hint/0.25.1 · Band2 correction) · 재검증 대상
+enforce-eager: false           # L4: spec+cudagraph 결합(L1 29.72 + L2 26.14 의 상위 2레버)
+speculative-config: '{"method":"dspark","num_speculative_tokens":7}'   # ≥ dspark_block_size 5 (config.json:67) · 0.29 stock method 확인(config/speculative.py:613)
+reasoning-parser: deepseek_v4  # hermes 용처 · 0.29.0rc6 등록명 확인(vllm/reasoning/__init__.py)
+tool-call-parser: deepseek_v4  # 동상(vllm/parser 등록명 확인)

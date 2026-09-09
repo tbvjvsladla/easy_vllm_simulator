@@ -6,50 +6,36 @@
 
 | 슬롯 | 성립 시점 | owner | 존재 | 판정 강도 |
 |---|---|---|---|---|
-| `triplet` | serve | vllm-recipe-explorer | 있음 | 3-signal(file+evidence+declaration) |
+| `triplet` | serve | vllm-recipe-explorer | 있음 | 2-signal(file+declaration) |
 | `runtime_patch` | serve(arming) | vllm-recipe-explorer | 없음 | 2-signal(file+declaration) |
-| `build_patch_pre` | 컴파일 전 | upstream-version-watch | 없음 | 3-signal(file+evidence+declaration) |
-| `build_patch_post` | 컴파일 후 | upstream-version-watch | 없음 | 2-signal(file+declaration) |
-| `build_recipe` | build | upstream-version-watch | 있음 | 3-signal(file+evidence+declaration) |
-| `compose` | serve(orchestration) | upstream-version-watch | 있음 | 3-signal(file+evidence+declaration) |
+| `build_patch_pre` | 컴파일 전 | upstream-version-watch | 없음(미적용 제외) | 2-signal(file+declaration) |
+| `build_patch_post` | 컴파일 후 | upstream-version-watch | 없음(미적용 제외) | 2-signal(file+declaration) |
+| `build_recipe` | build | upstream-version-watch | 있음 | 2-signal(file+declaration) |
+| `compose` | serve(orchestration) | upstream-version-watch | 있음 | 2-signal(file+declaration) |
 | `fork_pin` | build | upstream-version-watch | 없음 | 3-signal(file+evidence+declaration) |
 
 ## 파일
 
 **triplet**
-- `sync_staging/sub_slots/configs/s1-native-fp8.yaml`
-- `sync_staging/sub_slots/configs/s1-native-fp8.sh`
-- `sync_staging/sub_slots/envs/.env.s1-native-fp8`
+- `output/multi/configs/b-768k-kvfp8-l4combo.yaml`
+- `output/multi/configs/b-768k-kvfp8-l4combo.sh`
+- `output/multi/envs/.env.b-768k-kvfp8-l4combo`
 
 **build_recipe**
-- `sync_staging/sub_slots/Dockerfile`
+- `output/multi/Dockerfile`
+- `output/multi/Dockerfile.source-build`
+- `output/multi/requirements.txt`
 
 **compose**
-- `sync_staging/sub_slots/docker-compose.yaml`
+- `output/multi/docker-compose.yaml`
 
 **fork_pin** — 없음 = **stock**. `.env` 에 `VARIANT=` 줄이 없는 것이 기본값이다.
 
 ## 적용 사유 (Agent)
 
-> **이 슬롯들은 서브 노드에서 왔고, 메인이 문서기반으로 재저작한 것이다.** 상향 회수는 문서기반
-> only 이고 코드·설정의 직접 회수는 금지다 — 서브가 자기 트리플렛을 testlog 로 발행하고
-> (`testlog_26090717_camp7_s1-native-fp8_트리플렛_문서회수.md`) 메인이 그 코드펜스를 읽어 재저작했다.
-> 값은 한 글자도 고치지 않았다.
-
-- **`triplet` (해당)** — 이 판의 성립 조건은 KV 절대클램프 **64,426,421,846 B(61,442 MiB)** @
-  `max_model_len 131072` · `batch 20` 이다. 형제 판(`gb10-main-native`)이 KV 50,133 MiB · batch 16
-  인 것과 대비된다 — **batch 를 내주고 컨텍스트를 얻는 선택**이 이 트리플렛에 박혀 있다.
-  러너 `.sh` 는 tiktoken 환경변수 주입 → 런타임 패치 arming → attention 백엔드 고정 → serve 순서를
-  강제한다(그 순서가 곧 이 셀의 재현 절차다).
-- **`build_recipe` (해당)** — stock vLLM 0.18.0 prebuilt wheel. 서브는 **자기 이미지를 자율 빌드**했다
-  (노드 간 이미지 전송은 영구 금지다). 그러려면 이미지를 지은 레시피가 페이로드에 있어야 한다.
-- **`compose` (해당)** — 기동 방법. 서브가 문서에 함께 남긴 사실 하나: compose 의
-  `build.dockerfile` 기본값이 `Dockerfile.source-build` 인데 그 파일이 이 트리에 **없다**.
-  이 셀은 `IMAGE_TAG` override 로 떠서 영향이 없었지만, 기본값으로 빌드하려는 사람은 여기서 막힌다.
-  서브는 그것을 **고치지 않고 사실만** 남겼다(관측과 교정을 섞지 않았다).
-- **`runtime_patch` (불해당)** — `s1-native-fp8_patch.py` 가 없다. 그래서 러너의 `arm_patch.sh`
-  호출은 이 셀에서 **no-op** 이다. 부재가 곧 불해당이며, 러너에 호출이 있다는 것이 패치가 있다는
-  뜻은 아니다.
-- **`build_patch_pre` / `build_patch_post` (불해당)** — 서브가 `output/single/` 전체를 `find` 로
-  확인해 매치 0건임을 문서에 남겼다. arch-wall 미조우 · stock 이다.
-- **`fork_pin` (불해당)** — `.env` 에 `VARIANT=` 줄이 없다 = stock.
+- **triplet** — 서빙의 전부: fp8 KV(fp8_ds_mla로 강제 해소되는 유일 경로) · dspark nspec7(+73.7% 레버) · cudagraph(+52.8% 레버) · moe humming(auto는 MARLIN-repack OOM 전력) · TP=2 ray(멀티 필수) · 10GiB 절대 KV 클램프(호스트 밸리 binding) · parser deepseek_v4(Hermes 용처).
+- **runtime_patch** — 불해당: stock 0.29.0rc6이 DS4F를 네이티브 지원해 serve 시점 shim이 필요 없었다.
+- **build_patch_pre/post** — 불해당: **stock 빌드**(build_patch_selectors 부재). 트리에 있던 0.27.x sm12x 이본들은 이 태그의 빌드에서 한 번도 적용되지 않았으므로 페이로드에서 제외했다(먹지 않은 패치를 배포하지 않는다).
+- **build_recipe** — 빌드 재현의 핵심: NGC 26.07(torch 2.13.0a0)×vLLM 0.29.0rc6 커플링과 requirements constraint(0.28.0 baseline + flashinfer 0.6.18 양보)가 ResolutionImpossible 회피의 실체다.
+- **compose** — master/slave Ray 오케스트레이션 재현 필수(NCCL/RoCE env 포함).
+- **fork_pin** — 불해당: stock vllm-project/vllm @ v0.29.0rc6. 0.25.1 시대와 달리 포크 불요임을 스모크가 증명했다.

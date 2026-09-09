@@ -1,54 +1,41 @@
 {
   "artifacts": [
-    "artifacts/triplet/s1-native-fp8.yaml",
-    "artifacts/triplet/s1-native-fp8.sh",
-    "artifacts/triplet/.env.s1-native-fp8",
+    "artifacts/triplet/b-768k-kvfp8-l4combo.yaml",
+    "artifacts/triplet/b-768k-kvfp8-l4combo.sh",
+    "artifacts/triplet/.env.b-768k-kvfp8-l4combo",
+    "artifacts/build_patch_pre/50-dsv4-sm12x-port.sh",
+    "artifacts/build_patch_pre/55-src-deps-authority.sh",
+    "artifacts/build_patch_post/10-deepgemm.sh",
+    "artifacts/build_patch_post/20-triton-kernels.sh",
+    "artifacts/build_patch_post/30-mxfp4-triton-sm121.sh",
+    "artifacts/build_patch_post/40-humming-nvml-gb10.sh",
     "artifacts/build_recipe/Dockerfile",
-    "artifacts/compose/docker-compose.yaml"
+    "artifacts/build_recipe/Dockerfile.source-build",
+    "artifacts/build_recipe/requirements.txt",
+    "artifacts/compose/docker-compose.yaml",
+    "artifacts/compose/topology.env.template"
   ],
-  "bench_tool": {
-    "bench_tool": "guidellm",
-    "bench_tool_version": "0.7.3",
-    "bench_tool_version_source": "measured(benchmarks.json metadata.guidellm_version)"
-  },
-  "benchmark": {
-    "accept_len": "N/A",
-    "benchmark_mode": "full",
-    "decode_tps_conc1": "44.99",
-    "floor_tps": "16.69",
-    "lite_cold_ttft_ms": "109.3",
-    "lite_gen_src": "median_tpot",
-    "lite_gen_tps_warm": "46.52",
-    "lite_included": "true",
-    "lite_kv_gib": "60.0",
-    "measured_utc": "2026-09-06T22:37:02Z",
-    "primary_source": "expected_achievable(roofline×MBU)",
-    "primary_tps": "19.63",
-    "ratio_M_over_primary": "2.292",
-    "rubric_authority": "explore",
-    "spec_on": "false",
-    "sweep_levels": "1",
-    "sweep_truncated": "N/A",
-    "tolerance": "0.15",
-    "verdict": "PASS"
-  },
+  "bench_tool": {},
+  "benchmark": {},
   "benchmark_source": {
-    "certificate": "benchmark_26090707_gpt-oss-20b_GB10_0.18.0.yaml",
-    "parsed_not_synthesized": true,
-    "sha256": "875a3342b5171820cc4cd6099fe479894e5c9d228229b54a9412784e5f465594"
+    "absent_reason": "HINT_MISSING_CERTIFICATE",
+    "certificate": null,
+    "parsed_not_synthesized": true
   },
-  "generated_kst": "2026-09-07T17:15:00",
+  "generated_kst": "2026-09-09T13:10:00",
   "identity": {
     "gpu": "NVIDIA GB10",
-    "model": "gpt-oss-20b",
-    "quant": "mxfp4",
-    "topology": "single",
-    "tp": 1,
-    "vllm": "0.18.0"
+    "model": "DeepSeek-V4-Flash-0731",
+    "quant": "fp8",
+    "topology": "multi",
+    "tp": 2,
+    "vllm": "0.29.0rc6"
   },
   "kind": "hint_payload_facts",
   "missing": [
-    "HINT_MISSING_SWEEP_LEVELS"
+    "HINT_MISSING_BENCH_REPORT",
+    "HINT_MISSING_CERTIFICATE",
+    "HINT_MISSING_SLAVE_ATTESTATION"
   ],
   "missing_policy": "forced_publication: 부재는 기재하고 발행한다. 차단은 양성 검출(서빙 성공 허위 · 3신호 모순 · PII 매치)일 때만이다 — plan_26090616 Q7/Q8.",
   "node_parity_attestation": null,
@@ -63,47 +50,60 @@
       "evidence": null,
       "evidence_source": null,
       "exemptible": true,
-      "files": [],
+      "files": [
+        "output/multi/build_patches/10-deepgemm.sh",
+        "output/multi/build_patches/20-triton-kernels.sh",
+        "output/multi/build_patches/30-mxfp4-triton-sm121.sh",
+        "output/multi/build_patches/40-humming-nvml-gb10.sh"
+      ],
       "owner": "upstream-version-watch",
       "phase": "컴파일 후",
-      "present": false,
+      "present": true,
       "slot_confidence": "2-signal(file+declaration)"
     },
     "build_patch_pre": {
-      "evidence": false,
+      "evidence": true,
       "evidence_source": "build_patches_src/PROVENANCE.json",
       "exemptible": true,
-      "files": [],
+      "files": [
+        "output/multi/build_patches_src/50-dsv4-sm12x-port.sh",
+        "output/multi/build_patches_src/55-src-deps-authority.sh"
+      ],
+      "nonconforming": [
+        "PROVENANCE.json"
+      ],
       "owner": "upstream-version-watch",
       "phase": "컴파일 전",
-      "present": false,
+      "present": true,
       "slot_confidence": "3-signal(file+evidence+declaration)"
     },
     "build_recipe": {
-      "evidence": true,
+      "evidence": null,
       "evidence_source": "certificate.image_tag ↔ .env IMAGE_TAG",
       "exemptible": false,
       "files": [
-        "sync_staging/sub_slots/Dockerfile"
+        "output/multi/Dockerfile",
+        "output/multi/Dockerfile.source-build",
+        "output/multi/requirements.txt"
       ],
       "owner": "upstream-version-watch",
       "phase": "build",
       "present": true,
-      "slot_confidence": "3-signal(file+evidence+declaration)",
-      "track": "wheel"
+      "slot_confidence": "2-signal(file+declaration)",
+      "track": "source-build"
     },
     "compose": {
-      "evidence": true,
+      "evidence": null,
       "evidence_source": "certificate.image_tag ↔ .env IMAGE_TAG",
       "exemptible": false,
       "files": [
-        "sync_staging/sub_slots/docker-compose.yaml"
+        "output/multi/docker-compose.yaml"
       ],
       "owner": "upstream-version-watch",
       "phase": "serve(orchestration)",
       "present": true,
-      "slot_confidence": "3-signal(file+evidence+declaration)",
-      "topology_env_template_from": null
+      "slot_confidence": "2-signal(file+declaration)",
+      "topology_env_template_from": "output/multi/.env"
     },
     "fork_pin": {
       "evidence": false,
@@ -128,26 +128,26 @@
       "slot_confidence": "2-signal(file+declaration)"
     },
     "triplet": {
-      "evidence": true,
+      "evidence": null,
       "evidence_source": "certificate 소프트지문 ↔ 트리플렛 yaml serve 노브(이름 관측은 하위호환 폴백)",
       "exemptible": false,
       "files": {
-        "config_yaml": "sync_staging/sub_slots/configs/s1-native-fp8.yaml",
-        "env_file": "sync_staging/sub_slots/envs/.env.s1-native-fp8",
-        "runner_sh": "sync_staging/sub_slots/configs/s1-native-fp8.sh"
+        "config_yaml": "output/multi/configs/b-768k-kvfp8-l4combo.yaml",
+        "env_file": "output/multi/envs/.env.b-768k-kvfp8-l4combo",
+        "runner_sh": "output/multi/configs/b-768k-kvfp8-l4combo.sh"
       },
       "missing": [],
-      "missing_code": "HINT_MISSING_SUB_TRIPLET",
+      "missing_code": "HINT_MISSING_TRIPLET",
       "owner": "vllm-recipe-explorer",
       "phase": "serve",
       "present": true,
-      "slot_confidence": "3-signal(file+evidence+declaration)"
+      "slot_confidence": "2-signal(file+declaration)"
     }
   },
   "source_channel": {
     "read_from": "working-tree(main)",
     "sub_note": "서브 산출물은 이 통로로 오지 않는다 — 문서기반 회수(fetch_sub_docs.sh) 뒤 메인이 재저작한다(docs.md 상향 회수 규약). 2026-09-06 이후 그 회수분은 `sync_staging/sub_docs/benchmark/` 에서 열리며, 어느 노드가 쟀는지는 인증서 `measured_node` 가 말한다 — 서브 리포트를 --report 로 지정하면 이 발행기가 서브의 동시성 곡선을 그대로 렌더한다(발행 주체는 메인 단독).",
     "sub_publish_phase": "서브의 publish 위상이 만든 `hint_inputs` 사이드카(task-report 스키마)가 이 통로의 입력이다. 서브는 태그를 발행하지 않는다.",
-    "topology": "single"
+    "topology": "multi"
   }
 }
