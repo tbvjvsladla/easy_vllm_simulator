@@ -13,6 +13,7 @@ kv-cache-memory-bytes: 10737418240   # 수렴 클램프 = 10GiB (3차 수렴 · 
 #   · kv ≤ 124610-79577-12265-(10240+밸리마진 8GiB+벤치 4GiB) ≈ 12288MiB → 10GiB(trial-2 동밸리 생존 실증) · bytes/token 6069)
 max-num-seqs: 2                       # 동접 = 잔여 KV 최대활용(binding=밸리) · 10GiB/4552MiB = 2.25x → 2
 moe-backend: humming           # 그라욼ing: auto→MARLIN-repack OOM 전력(hint/0.25.1 · Band2 correction) · 재검증 대상
-enforce-eager: true            # 첫 트라이얼: arch-wall 확정용 최소 표면 (cudagraph·MATMUL_DECODE 계열은 스윕 축)
+enforce-eager: true            # L1: spec 레버 단독 평가를 위해 eager 유지(교차는 L4)
+speculative-config: '{"method":"dspark","num_speculative_tokens":7}'   # ≥ dspark_block_size 5 (config.json:67) · 0.29 stock method 확인(config/speculative.py:613)            # 첫 트라이얼: arch-wall 확정용 최소 표면 (cudagraph·MATMUL_DECODE 계열은 스윕 축)
 reasoning-parser: deepseek_v4  # hermes 용처 · 0.29.0rc6 등록명 확인(vllm/reasoning/__init__.py)
 tool-call-parser: deepseek_v4  # 동상(vllm/parser 등록명 확인)

@@ -1,10 +1,10 @@
-# 1. 산출물 — 무엇이 실제로 쓰였나 (셀 b-768k-kvfp8 · 변종 spec0-graph0)
+# 1. 산출물 — 무엇이 실제로 쓰였나 (셀 b-768k-kvfp8-l1spec · 변종 spec7-graph0)
 
 > 슬롯 분류는 **경로 규약에서 파생**한 결정론 산출이다(헌법 3+1+1). `slot_confidence` 함께 읽어라.
 
 | 슬롯 | 적용 |
 |---|---|
-| `triplet` | b-768k-kvfp8.yaml / .sh / .env.b-768k-kvfp8 |
+| `triplet` | b-768k-kvfp8-l1spec.yaml / .sh / .env.b-768k-kvfp8-l1spec |
 | `build_patch_post` | 10-deepgemm · 20-triton · 30-mxfp4 · 40-humming (빌드 로그 실측 적용) |
 | `build_recipe` | Dockerfile · Dockerfile.source-build · requirements.txt |
 | `compose` | docker-compose.yaml |

@@ -4,7 +4,7 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "셀 b-768k-kvfp8 — KV fp8 · TP=2 ray · moe humming · parser deepseek_v4 · 10GiB 클램프"
+      "rationale": "셀 b-768k-kvfp8-l1spec — KV fp8 · TP=2 ray · moe humming · parser deepseek_v4 · 10GiB 클램프"
     },
     "runtime_patch": {
       "applicable": false,

@@ -5,7 +5,7 @@
     "HINT_MISSING_SLAVE_ATTESTATION",
     "HINT_MISSING_CERTIFICATE"
   ],
-  "variant": "spec0-graph0",
+  "variant": "spec7-graph0",
   "anchor": "PENDING",
-  "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0"
+  "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph0"
 }
