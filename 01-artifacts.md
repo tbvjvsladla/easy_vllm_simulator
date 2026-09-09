@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/single/configs/c-bf16w-kvfp8-262k.yaml`
-- `output/single/configs/c-bf16w-kvfp8-262k.sh`
-- `output/single/envs/.env.c-bf16w-kvfp8-262k`
+- `output/single/configs/d-fp8w-kvfp8-yarn524k.yaml`
+- `output/single/configs/d-fp8w-kvfp8-yarn524k.sh`
+- `output/single/envs/.env.d-fp8w-kvfp8-yarn524k`
 
 **build_recipe**
 - `output/single/Dockerfile`
@@ -32,15 +32,19 @@
 
 ## 적용 사유 (Agent)
 
-- **triplet — 적용, 그대로 재현 가능**: `quantization: none`(가중치, bf16 그대로) · `max-model-len:
-  262144` · KV **fp8 양자화** · `kv-cache-memory-bytes`(절대 KV 클램프, batch=3 기준 Phase-2 실측
-  수렴값) · `tensor-parallel-size: 1`(GPU 2장 중 1장만 — 명시 필수) · `--tool-call-parser
-  qwen3_coder --reasoning-parser qwen3`.
+- **triplet — 적용, 그대로 재현 가능**: `quantization: fp8`(가중치) · `max-model-len: 524288`
+  (YaRN factor=2.0) · `hf-overrides`(rope_parameters YaRN 오버라이드 — 모델의 실제
+  `config.json#text_config.rope_parameters` 값을 그대로 쓰고 `rope_type` 만 default→yarn,
+  `factor=2.0`) · `serve_env: VLLM_ALLOW_LONG_MAX_MODEL_LEN=1` · KV **fp8 양자화** ·
+  `kv-cache-memory-bytes: 53622289385`(절대 KV 클램프, batch=3 기준 Phase-2 실측 수렴값) ·
+  `tensor-parallel-size: 1`(GPU 2장 중 1장만 — 명시 필수) · `--tool-call-parser qwen3_coder
+  --reasoning-parser qwen3`.
 - **build_recipe/compose — 조건부 적용(이 환경에서는 미사용)**: 자매 hint
   `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvfp8`(셀 B) 와 완전히 같은
   이유로 미사용 — Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스로 대체
   (02-narrative.md 참조). Docker 가용 호스트에서는 이 슬롯이 정본.
 - **fork_pin — 불해당(stock)**: vLLM 공식 릴리즈 wheel(0.28.0). 포크·소스패치 없음.
-- **runtime_patch — 불해당**: 별도 config shim 불요 — 필요한 커널 스위치는 트리플렛 yaml CLI
-  플래그로 직접 지정.
+- **runtime_patch — 불해당**: `hf-overrides` 는 vLLM 이 CLI 플래그로 직접 받는 값이라 별도
+  Python config shim/monkeypatch 가 불필요하다 — 트리플렛(yaml/sh) 확장으로 성립한다(이번
+  캠페인에서 `gen_recipe_set.py`/`run_trial.py` 에 SERVE_KNOB 로 추가함).
 - **build_patch_pre/post — 불해당**: 소스빌드 안 함(prebuilt wheel 직접설치 트랙).
