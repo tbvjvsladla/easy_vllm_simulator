@@ -1,5 +1,5 @@
 #!/bin/bash
-# s1-native-fp8 서빙 스크립트 (vllm-recipe-explorer 생성, gpt-oss-20b-normal.sh 구조 동일)
+# b-fp8w-kvfp8-262k 서빙 스크립트 (vllm-recipe-explorer 생성, gpt-oss-20b-normal.sh 구조 동일)
 # env 파일에서 주입된 변수: CONFIG_FILE, SERVING_MODEL_NAME, TIKTOKEN_ENABLED
 
 # TIKTOKEN 환경변수 설정
@@ -12,9 +12,11 @@ fi
 if [ -f /app/configs/arm_patch.sh ]; then source /app/configs/arm_patch.sh; fi
 
 # attention backend 고정
-export VLLM_ATTENTION_BACKEND=TRITON_ATTN
+export VLLM_ATTENTION_BACKEND=FLASHINFER
 
 # vllm serve 실행
 vllm serve --config "/app/configs/${CONFIG_FILE}.yaml" \
     --served-model-name "$SERVING_MODEL_NAME" \
-    --reasoning-parser openai_gptoss
+    --enable-auto-tool-choice \
+    --tool-call-parser qwen3_coder \
+    --reasoning-parser qwen3

@@ -6,49 +6,48 @@
 
 ## 읽을 원재료 (복사 대상 아님 · 포인터)
 
-- devlog: `../devlog/devlog_26090706_캠페인7_GB10네이티브_재수행_서사.md`
-- testlog: `../testlog/testlog_26090707_camp7_s1-native-fp8_수렴및측정.md`
+- devlog: `../devlog/devlog_26090914_run_trial_native모드_추가_및_광의탐색_셀A.B.C_구성.md`
+- testlog: `../testlog/testlog_26090915_Qwen3.8.27B_광의탐색_3셀_FullBench_비교.md`
 
 ## 서사
 
-**이 판의 성격.** 서브 노드가 **자율로** 완주한 캠페인이다. 메인이 서브를 스캔하거나 직접 고치지
-않았고, 정보는 전부 A2A 릴레이 리포트와 문서로 올라왔다. 왕복은 4회였고 그 중 2회가 차단이었다.
+**증상**: 이 프로젝트의 표준 재현 경로(NGC 베이스 컨테이너 → `docker compose up`)를 쓰려 했으나,
+빌드 시작 전 `docker` 바이너리 자체가 없었다(devlog §"무엇을 했나" 1문단). 이 환경은 비특권
+Docker 컨테이너라 Docker-in-Docker 가 구조적으로 불가능했다.
 
-**① 예산 게이트 거절(로드 전).** `budget_declare_rejected` — gmu 파생 KV 96,256 MiB 가 호스트
-floor 를 침범했다(`floor 8,161 MiB ≤ 트립 임계 10,240 MiB`). **이 게이트는 로드 전에 막으므로
-비용이 0 이다.** 우회하지 말고 값을 고치는 것이 처방이다.
+**원인**: 컨테이너 안에서 또 컨테이너를 띄우려는 시도였다 — 커널 cgroup 제어권이 없는 호스트에서는
+근본적으로 막힌 길이다.
 
-**② 워치독 트립(로드 중).** KV 89,000 MiB + overhead 6,144 선언으로 재시도했더니 CUDA 그래프
-캡처 3/83 에서 `TRIP MemAvailable=9924MiB < 10240MiB → docker kill`. 원인은 **로드 첨두를 못 센 것**
-이다 — 정상 상주보다 캡처 구간이 높다.
-
-**③ 수렴.** overhead 를 실측 기반 16,000 MiB 로 올리고 KV 를 required 로 클램프했다:
-`required = per_token(24,576.7 B) × max_model_len(131,072) × batch(20) = 61,442 MiB`.
-floor = 124,610 − (weights 14,049 + kv 61,442 + overhead 16,000) = **34,044 MiB**, 트립선 대비
-3.3배 여유. `trial_count: 1` 로 한 번에 섰다.
-
-**④ 측정 엔드포인트 — 이 판의 가장 중요한 발견.** gpt-oss(harmony)는 **완결 엔드포인트**
-(`/v1/completions` · `--backend openai`)로 재야 한다. chat 으로 재면 서버 harmony 파서가 스트림 중
-깨져 요청 일부가 errored 로 빠진다(`HarmonyError: Unexpected token 200002 while expecting start
-token 200006`). 이 측정은 완결 엔드포인트라 **18/18 성공 · 오류 0** 이다. 같은 모델을 chat 으로 잰
-형제 판은 16건 중 2건이 errored 였다.
-
-**메인 쪽 결함도 이 왕복이 드러냈다.** attempt 3 은 16/90 턴에서 `permission_denied` 로 끊겼는데,
-원인은 예산이 아니라 **서브 권한 템플릿에 `Write(docs/**)` 가 없던 것**이었다(메인 결함 · `15b9037`
-교정 · `1d16329` 배달). 계약이 요구하는 것을 권한이 막고 있었다 — 그래서 다음 attempt 는 예산을
-올리지 않고 90 을 유지했다(소진되지 않은 예산을 올리는 것은 근거가 없다 · `scope ⊥ budget`).
+**해소**: vLLM 0.28.0 + torch 2.13.0(+cu129)을 프로젝트 전용 `.venv` 에 벤더 wheel로 직접 설치하고
+(`uv pip install torch==2.13.0 --index-url https://download.pytorch.org/whl/cu129`, 이어서 vLLM
+release wheel `--no-deps`), `vllm serve --config <triplet>.yaml --served-model-name Qwen3.8-27B
+--enable-auto-tool-choice --tool-call-parser qwen3_coder --reasoning-parser qwen3` 를 `CUDA_VISIBLE_
+DEVICES=0` 로 GPU 1장만 보이게 하고 **네이티브 프로세스**로 직접 띄웠다(devlog §"run_trial.py 변경
+요지"). 측정 도구(GuideLLM)도 마찬가지로 `pip install guidellm`(container 아님)로 직접 실행했다.
+이 대체 경로를 지원하려고 `run_trial.py`/`run_bench.sh`/`sweep_bench.sh` 에 `--exec-mode native`
+를 신설했다(devlog 동절). Docker 가 있는 호스트에서는 이 우회가 전혀 필요 없다 — 표준
+`docker compose up` 경로(01-artifacts.md 의 build_recipe/compose 슬롯)를 그대로 쓰면 된다.
 
 ## 되풀이하지 말 것
 
-- **`gpu_memory_utilization` 로 KV 를 정하지 마라.** 통합메모리에서 분율은 절대량을 정하지 못한다.
-  첫 두 차단이 모두 그 자리에서 났다.
-- **overhead 를 이월하지 마라.** 이 판의 실측은 16,000 MiB(KV 61,442 · batch 20)이고, 같은 모델을
-  KV 50,133 · batch 16 으로 돌린 노드는 12,265 MiB 였다. **하한으로만** 써라.
-- **로드 첨두를 예산에 넣어라.** 정상 상주로 맞추면 CUDA 그래프 캡처에서 죽는다(실측: 3/83).
-- **gpt-oss 를 chat 엔드포인트로 재고 다른 판과 비교하지 마라.** 파서 파손이 요청을 errored 로
-  빼면 표본이 편향된다. 완결 엔드포인트가 이 모델군의 기본이다.
-- **`fp8_e5m2` 를 KV dtype 으로 쓰지 마라** — 0.18.0 어텐션이 `{fp8, fp8_e4m3}` 를 하드 단언한다.
-- **compose 기본 Dockerfile 을 믿지 마라** — 이 트리의 `build.dockerfile` 기본값이 가리키는 파일이
-  없다. `IMAGE_TAG` 를 명시하면 우회되지만, 그건 우회이지 해소가 아니다.
-- **서브 산출물을 코드로 긁어오려 하지 마라.** 상향 회수는 문서기반 only 다. 이 페이로드의
-  트리플렛도 서브가 **문서로 발행**하고 메인이 재저작한 것이다.
+1. **`torchvision` 을 빼먹지 마라.** NGC 컨테이너 트랙에선 "base 제공분"이라 안 써도 됐지만, venv
+   직접설치 트랙에선 실제로 없다. `Qwen3_5ForConditionalGeneration`(이 모델의 아키텍처 클래스)는
+   텍스트 전용으로 써도 클래스 등록 단계에서 `qwen3_vl.py` → `Qwen2VLImageProcessor` 를 **정적
+   import** 하고, 그게 torchvision 을 찾는다 — `--language-model-only` 플래그로도 이 import 자체는
+   피할 수 없다(런타임이 아니라 클래스 로딩 시점이라). `uv pip install torchvision --index-url
+   https://download.pytorch.org/whl/cu129 --no-deps` 로 torch 버전은 안 건드리고 추가하면 된다
+   (testlog §환경 스냅샷 참조).
+2. **`tensor-parallel-size` 를 반드시 트리플렛 yaml에 명시하라(이 노드 GPU 중 일부만 쓸 때).**
+   생성기는 "TP=1은 vLLM 기본값이니 안 적는다"는 설계인데, 그 설계는 "이 노드의 GPU 전부를 쓴다"는
+   전제 위에 있다. GPU 2장 중 1장만 쓰면 그 전제가 깨져 하류 스크립트(sweep_bench.sh)가 manifest
+   의 `gpus_per_node`(=2)로 잘못 유추한다(testlog §알려진 결함/한계 참조). 명시하면 문제없다.
+3. **"용처=Hermes" 를 vLLM 파서명으로 오독하지 마라.** 사용자가 서빙 UX 인터뷰에서 답하는 "용처"는
+   클라이언트 측 사용 맥락(Hermes-Agent 연결 등)이지 vLLM `--tool-call-parser` 값이 아니다. 이
+   모델의 실제 tool_call 출력은 `<tool_call><function=name><parameter=..>` XML 형식이고,
+   vLLM 0.28.0 정적 레지스트리(`vllm/tool_parsers/__init__.py`)에서 `qwen3_coder`/`qwen3_xml` 이
+   정확히 이 포맷을 위한 파서다(둘 다 `Qwen3EngineToolParser` 로 동일 구현). `hermes` 파서(JSON
+   포맷)를 썼다면 tool_call 파싱이 깨졌을 것이다.
+4. **`roofline.py` 의 R_fp 를 fp8 서빙의 물리 상한으로 곧이곧대로 믿지 마라.** 이 스크립트는 체크
+   포인트의 원본(보통 bf16) 가중치 바이트만으로 계산해, fp8 로 서빙하면(실제 대역폭 요구가 절반)
+   실측이 R_fp 를 가볍게 넘어서는 게 정상이다(testlog §외부 레퍼런스 절 참조). 판정기가 이걸
+   "물리 초과"로 잡아 `NEEDS_RUBRIC` 을 낼 수 있다 — E 나 측정이 틀린 게 아니라 이 도구의 한계다.
