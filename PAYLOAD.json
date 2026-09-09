@@ -1,8 +1,8 @@
 {
   "artifacts": [
-    "artifacts/triplet/a-fp8w-kvnone-262k.yaml",
-    "artifacts/triplet/a-fp8w-kvnone-262k.sh",
-    "artifacts/triplet/.env.a-fp8w-kvnone-262k",
+    "artifacts/triplet/c-bf16w-kvfp8-262k.yaml",
+    "artifacts/triplet/c-bf16w-kvfp8-262k.sh",
+    "artifacts/triplet/.env.c-bf16w-kvfp8-262k",
     "artifacts/build_recipe/Dockerfile",
     "artifacts/build_recipe/requirements.txt",
     "artifacts/compose/docker-compose.yaml"
@@ -15,17 +15,17 @@
   "benchmark": {
     "accept_len": "N/A",
     "benchmark_mode": "full",
-    "decode_tps_conc1": "43.91",
+    "decode_tps_conc1": "26.83",
     "floor_tps": "9.6",
     "lite_cold_ttft_ms": "N/A",
     "lite_gen_src": "N/A",
     "lite_gen_tps_warm": "N/A",
     "lite_included": "false",
     "lite_kv_gib": "N/A",
-    "measured_utc": "2026-09-09T05:54:17Z",
+    "measured_utc": "2026-09-09T06:09:18Z",
     "primary_source": "expected_achievable(roofline×MBU)",
     "primary_tps": "11.29",
-    "ratio_M_over_primary": "3.889",
+    "ratio_M_over_primary": "2.376",
     "rubric_authority": "weak",
     "spec_on": "false",
     "sweep_levels": "1,2,3",
@@ -34,15 +34,15 @@
     "verdict": "PASS"
   },
   "benchmark_source": {
-    "certificate": "benchmark_26090914_qwen3.8-27b_RTXPRO6000BlackwellServerEdition_0.28.0.yaml",
+    "certificate": "benchmark_26090915_09_18_qwen3.8-27b_RTXPRO6000BlackwellServerEdition_0.28.0.yaml",
     "parsed_not_synthesized": true,
-    "sha256": "444d89b1acaf6f81cc26f7b56f530f4385f014c9ad27d847f3f9ed6d34399abf"
+    "sha256": "e5525eb16789dfa48130d95c8ce3f1607ef6a9f33340a9021efc2ec18580b487"
   },
-  "generated_kst": "2026-09-09T15:38:36",
+  "generated_kst": "2026-09-09T15:48:15",
   "identity": {
     "gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
     "model": "qwen3.8-27b",
-    "quant": "fp8",
+    "quant": "none",
     "topology": "single",
     "tp": 1,
     "vllm": "0.28.0"
@@ -134,9 +134,9 @@
       "evidence_source": "certificate 소프트지문 ↔ 트리플렛 yaml serve 노브(이름 관측은 하위호환 폴백)",
       "exemptible": false,
       "files": {
-        "config_yaml": "output/single/configs/a-fp8w-kvnone-262k.yaml",
-        "env_file": "output/single/envs/.env.a-fp8w-kvnone-262k",
-        "runner_sh": "output/single/configs/a-fp8w-kvnone-262k.sh"
+        "config_yaml": "output/single/configs/c-bf16w-kvfp8-262k.yaml",
+        "env_file": "output/single/envs/.env.c-bf16w-kvfp8-262k",
+        "runner_sh": "output/single/configs/c-bf16w-kvfp8-262k.sh"
       },
       "missing": [],
       "missing_code": "HINT_MISSING_TRIPLET",

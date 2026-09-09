@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/single/configs/a-fp8w-kvnone-262k.yaml`
-- `output/single/configs/a-fp8w-kvnone-262k.sh`
-- `output/single/envs/.env.a-fp8w-kvnone-262k`
+- `output/single/configs/c-bf16w-kvfp8-262k.yaml`
+- `output/single/configs/c-bf16w-kvfp8-262k.sh`
+- `output/single/envs/.env.c-bf16w-kvfp8-262k`
 
 **build_recipe**
 - `output/single/Dockerfile`
@@ -32,10 +32,10 @@
 
 ## 적용 사유 (Agent)
 
-- **triplet — 적용, 그대로 재현 가능**: `quantization: fp8`(가중치) · `max-model-len: 262144` ·
-  KV **무양자화**(kv-cache-dtype 미지정 = vLLM 기본 fp16/bf16) · `kv-cache-memory-bytes:
-  53633399714`(절대 KV 클램프, batch=3 기준 Phase-2 실측 수렴값) · `tensor-parallel-size: 1`
-  (GPU 2장 중 1장만 — 명시 필수) · `--tool-call-parser qwen3_coder --reasoning-parser qwen3`.
+- **triplet — 적용, 그대로 재현 가능**: `quantization: none`(가중치, bf16 그대로) · `max-model-len:
+  262144` · KV **fp8 양자화** · `kv-cache-memory-bytes`(절대 KV 클램프, batch=3 기준 Phase-2 실측
+  수렴값) · `tensor-parallel-size: 1`(GPU 2장 중 1장만 — 명시 필수) · `--tool-call-parser
+  qwen3_coder --reasoning-parser qwen3`.
 - **build_recipe/compose — 조건부 적용(이 환경에서는 미사용)**: 자매 hint
   `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvfp8`(셀 B) 와 완전히 같은
   이유로 미사용 — Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스로 대체

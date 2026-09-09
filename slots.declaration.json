@@ -2,7 +2,7 @@
   "_note": "01-artifacts.md §적용 사유 참조.",
   "schema_version": 1,
   "slots": {
-    "triplet": {"applicable": true, "rationale": "실제 서빙에 그대로 쓰인 3+1+1 트리플렛(quant/max-len/kv절대클램프/tp=1/parser)."},
+    "triplet": {"applicable": true, "rationale": "실제 서빙에 그대로 쓰인 3+1+1 트리플렛(quant=none/max-len/kv fp8절대클램프/tp=1/parser)."},
     "runtime_patch": {"applicable": false, "rationale": "별도 config shim/monkeypatch 불요 — 커널 스위치는 트리플렛 yaml CLI 플래그로 직접 지정."},
     "build_patch_pre": {"applicable": false, "rationale": "소스빌드를 하지 않았다(prebuilt wheel 직접설치 트랙)."},
     "build_patch_post": {"applicable": false, "rationale": "동상 — 컴파일이 없으므로 불해당."},
