@@ -1,20 +1,22 @@
 # models/Qwen3.8-27B 서빙 설정 (vllm-recipe-explorer 생성)
-# 레시피: quant=none max_model_len=262144 gpu_mem_util=0.9
+# 레시피: quant=fp8 max_model_len=1000000 gpu_mem_util=0.9
 # ── VRAM 분해 (Phase 2 절대 KV 클램프 기준) ──
-#   weights: 25.69 GiB
-#   kv_cache: 55.213059859350324 GiB
+#   weights: 14.71 GiB
+#   kv_cache: 62.88099039066583 GiB
 #   budget: 94.97 GiB
 # ── 타겟-GPU 이식 클램프 (host≠target, gpu_model=NVIDIA RTX PRO 6000 Blackwell Server Edition) ──
 # host-측정 weights/overhead 이전값. target≠host arch 면 target-margin 이 쿠션(정량보증 아님).
 # 가능하면 타겟에서 재측정(Phase-2)을 권장. per-token-KV·weights 는 GPU-불변, overhead 는 런타임 성질 일부 포함.
 model: /workspace/easy_vllm_simulator/models/Qwen3.8-27B
 host: 0.0.0.0
-port: 8922
+port: 8923
 # gpu-memory-utilization = startup free-memory 게이트 + 총 cap(통합메모리 ≤0.90); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어
 gpu-memory-utilization: 0.9
-max-model-len: 262144
-max-num-seqs: 13
-kv-cache-memory-bytes: 59284571602
+max-model-len: 1000000
+max-num-seqs: 4
+kv-cache-memory-bytes: 67517949317
 kv-cache-dtype: fp8
+quantization: fp8
 tensor-parallel-size: 2
 gdn-prefill-backend: triton
+hf-overrides: "{\"text_config\": {\"rope_parameters\": {\"mrope_interleaved\": true, \"mrope_section\": [11, 11, 10], \"rope_type\": \"yarn\", \"rope_theta\": 10000000, \"partial_rotary_factor\": 0.25, \"factor\": 4.0, \"original_max_position_embeddings\": 262144}}}"
