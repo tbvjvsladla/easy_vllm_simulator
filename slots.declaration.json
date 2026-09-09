@@ -1,0 +1,34 @@
+{
+  "_note": "hint_map_only 자동화 1회용 · 캠페인 camp-26090819-ds4f0731-kv3ctx2-multi 셀당 발행",
+  "schema_version": 1,
+  "slots": {
+    "triplet": {
+      "applicable": true,
+      "rationale": "셀 b-768k-kvfp8 — KV fp8 · TP=2 ray · moe humming · parser deepseek_v4 · 10GiB 클램프"
+    },
+    "runtime_patch": {
+      "applicable": false,
+      "rationale": "stock 0.29.0rc6 native — shim 불요"
+    },
+    "build_patch_pre": {
+      "applicable": false,
+      "rationale": "셀렉터 off(SM12X_PORT=0 · SRC_DEPS_AUTHORITY=0) — 이 셀 빌드에 미적용"
+    },
+    "build_patch_post": {
+      "applicable": true,
+      "rationale": "10-deepgemm·20-triton·30-mxfp4·40-humming 전부 적용됨(빌드 로그 실측) · 재현 필수"
+    },
+    "build_recipe": {
+      "applicable": true,
+      "rationale": "Dockerfile.source-build · NGC 26.07×torch 2.13.0 커플링"
+    },
+    "compose": {
+      "applicable": true,
+      "rationale": "master/slave Ray 오케스트레이션"
+    },
+    "fork_pin": {
+      "applicable": false,
+      "rationale": "stock vllm-project/vllm @ 0.29.0rc6 — 포크 불요"
+    }
+  }
+}

@@ -5,7 +5,7 @@
   "assembly_branch": "multi-node",
   "generated_kst": "2026-09-09T13:50:00",
   "kind": "hint_payload_provenance",
-  "payload_files": 11,
+  "payload_files": 16,
   "schema_version": 1,
   "source_branch": "multi-node",
   "source_branch_source": "derived(git branch --contains anchor)",
