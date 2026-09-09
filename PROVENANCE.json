@@ -3,11 +3,11 @@
   "anchor_is_head": true,
   "assembled_at_head": "d4d807a0994aecb87af26b269eae5413f381dded",
   "assembly_branch": "multi-node",
-  "generated_kst": "2026-09-09T13:20:00",
+  "generated_kst": "2026-09-09T13:50:00",
   "kind": "hint_payload_provenance",
-  "payload_files": 20,
+  "payload_files": 11,
   "schema_version": 1,
   "source_branch": "multi-node",
   "source_branch_source": "derived(git branch --contains anchor)",
-  "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/len786432-kvfp8-spec7-graph"
+  "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0"
 }
