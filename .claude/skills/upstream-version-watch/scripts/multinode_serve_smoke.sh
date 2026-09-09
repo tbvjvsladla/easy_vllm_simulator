@@ -147,7 +147,13 @@ SLAVE_IMGVARS="$SLAVE_IMGVARS $SLAVE_CLUSTERVARS"
 #   경로값에 공백 없음(SLAVE_IMGVARS 와 동형) → 무인용 prefix 안전. 헌법 serve-time env 통로 불변식.
 PENV_FILE="output/multi/.env"
 MOUNTVARS=""
-[ -f "$PENV_FILE" ] && MOUNTVARS="$(grep -E '^(NAS_MODEL_PATH|QUANT_MODEL_PATH|TIKTOKEN_HOST_PATH)=' "$PENV_FILE" | tr '\n' ' ')"
+[ -f "$PENV_FILE" ] && MOUNTVARS="$(grep -E '^(NAS_MODEL_PATH|QUANT_MODEL_PATH|TIKTOKEN_HOST_PATH|PLE_MMAP_HOST_PATH)=' "$PENV_FILE" | tr '\n' ' ')"
+# PLE mmap 셀 축 전달(2026-09-09 · camp-26090918 · 62-qwen4exp-ple-mmap): 셀 env(.env.<config>)가
+#   VLLM_PLE_MMAP=1·VLLM_PLE_MMAP_DIR 을 선언하면 슬레이브 compose 보간으로 넘긴다 — 슬레이브(Ray
+#   워커)도 모델을 띄우므로 마스터만 켜면 슬레이브는 상주 로드로 OOM/불일치가 난다. 미선언 시
+#   compose 기본 0=stock. MOUNTVARS(마운트 경로)와 분리하는 이유: 출처 파일이 다르다(프로젝트 .env
+#   vs 셀 Band3 env — Band3 는 서브로 파일 전파 금지라 env prefix 만이 도달 경로다).
+PLEVARS="$(grep -E '^VLLM_PLE_MMAP(_DIR)?=' "$EF" 2>/dev/null | tr -d ' ' | tr '\n' ' ')"
 
 # ── 서브 식별자/경로 해소(단일계약): env-file > manifest nodes[sub] > 폴백. 옛 고정 서브경로 하드코딩 제거 ──
 MANIFEST_MF="$REPO/output/multi/manifest.yaml"
@@ -338,7 +344,7 @@ echo "[mn] 빌드 트랙 정합: IMAGE_TAG=$_it ↔ BUILD_DOCKERFILE=$_bd"
 #   남지 않았고, 로그 보존은 실패 분기(`_save_serve_logs`)에만 걸려 있었다. 그래서 "두 노드가
 #   같은 것을 돌렸다" 는 사실이 hint 태그에 실릴 근거가 없었다 — 멀티 태그에 메인 산출물만
 #   실린 이유 중 하나다. 성공한 대조야말로 배포될 증거이므로 **성공할 때 적는다**.
-ATTEST_DIR="$REPO/output/$TOPO/benchlog"
+ATTEST_DIR="$REPO/output/multi/benchlog"   # $TOPO 아님 — 이 스크립트는 멀티 전용(line 298 주석과 같은 판정)
 ATTEST_JSON="$ATTEST_DIR/attestation_${CONFIG}.json"
 _attest_rows=""
 _attest_add() {   # $1=축 $2=노드 $3=값 $4=기대(선택)
@@ -348,7 +354,7 @@ _attest_add() {   # $1=축 $2=노드 $3=값 $4=기대(선택)
 _attest_flush() {
     mkdir -p "$ATTEST_DIR" 2>/dev/null || return 0
     printf '{\n  "schema_version": 1,\n  "kind": "multinode_node_parity_attestation",\n  "config": "%s",\n  "topology": "%s",\n  "image_tag": "%s",\n  "provenance": "measured(docker run in each node image)",\n  "checks": [%s]\n}\n' \
-        "$CONFIG" "$TOPO" "$IMG" "$_attest_rows" > "$ATTEST_JSON"
+        "$CONFIG" "multi" "$IMG" "$_attest_rows" > "$ATTEST_JSON"
     echo "[mn] 노드 정합 attestation 보존 → ${ATTEST_JSON#$REPO/} (성공 경로에서도 남는다)"
 }
 
@@ -371,7 +377,7 @@ if [ "$_bd" = "Dockerfile" ]; then   # wheel 트랙에만 적용(source-build �
         "") echo "[mn] FAIL(ABI): $_n 이미지에서 torch 버전을 읽지 못했다 — 검증 불가는 통과가 아니다." >&2; exit 3 ;;
         *)  echo "[mn] FAIL(ABI 불일치): $_n 이미지 torch=$_got 인데 vLLM $_tag_ver 는 $_want* 를 요구한다." >&2
             echo "[mn]   → wheel 의 _C 확장이 베이스 torch 와 ABI 가 갈린다(기동 시 undefined symbol)." >&2
-            echo "[mn]   → requirements 가 torch 를 끌어올렸는지 확인하라: 'regen_requirements.py --from-wheel-url <이 버전의 wheel> -o output/$TOPO/requirements.txt'" >&2
+            echo "[mn]   → requirements 가 torch 를 끌어올렸는지 확인하라: 'regen_requirements.py --from-wheel-url <이 버전의 wheel> -o output/multi/requirements.txt'" >&2
             exit 3 ;;
       esac
     done
@@ -825,7 +831,7 @@ fi
 echo "[mn] master 기동(Ray head + serve)..."
 env $MOUNTVARS docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master up -d >/dev/null 2>&1
 echo "[mn] slave 기동(Ray worker, SSH)..."
-$SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $MOUNTVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave up -d'" >/dev/null 2>&1
+$SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $MOUNTVARS $PLEVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave up -d'" >/dev/null 2>&1
 
 # ── 준비 폴링: 엔드포인트 health(거짓양성 회피) ──
 # READY_MAX(폴링 횟수×5s) = health 창. 환경변수로 조정한다. **기본 180(15분)은 작은 모델 기준이며,
