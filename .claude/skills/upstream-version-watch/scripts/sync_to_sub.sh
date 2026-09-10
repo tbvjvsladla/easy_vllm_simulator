@@ -1354,6 +1354,11 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
         done <<< "$extra"
         extra="$(printf "$_keep" | grep -v '^$' || true)"
     fi
+    # 노드-로컬 상태(메인 .gitignore 가 선언적으로 비추적인 경로)는 잔재가 아니다 — 파생 판정.
+    #   2026-09-10 실측 위양성 3건: `skills/*/config.yaml` ×2 · `lockset.json`. 셋 다 추적
+    #   스켈레톤(`config.example.yaml`)의 **로컬 인스턴스**이고 메인에도 같은 자리에 비추적으로 있다.
+    #   위 닫힌 목록(campaigns/·docs/·빌드킷)은 유지한다 — 이 필터는 그것을 대체하지 않고 보탠다.
+    extra="$(printf '%s\n' "$extra" | grep -v '^$' | drop_node_local_paths || true)"
     n="$(printf '%s' "$extra" | grep -c '' || true)"
     if [ "${n:-0}" -eq 0 ]; then
         # 성공 줄에 디렉터리 목록을 다 뿌리면 화면이 목록으로 덮여 정작 다른 판정이 안 보인다.
@@ -1386,6 +1391,27 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
 # ⚠ 삭제하지 않는다. `정본 0건` 은 **dormant(보내지 않기로 함)** 와 **렌더 실패** 를 구분하지 못한다 —
 #   여기서 지우면 렌더가 한 번 비는 순간 서브가 통째로 비워진다. 삭제는 토폴로지-aware 비석의 몫이다.
 RUNTIME_BLOCK_OWNED_ROOTS=(.claude/skills .claude/policies)
+# 잔재 판정에서 **노드-로컬 상태**를 걷어낸다(2026-09-10 신설 · 첫 실행이 위양성을 냈다).
+#
+# 판정은 파생이다 — 손목록을 두지 않는다:
+#   · 메인 `.gitignore` 가 **선언적으로 비추적**인 경로 → 노드-로컬 상태다. 메인에도 그 노드의
+#     사본이 있고(실측: config.yaml·lockset.json·feedback/* 전부 메인에도 비추적으로 실재),
+#     애초에 index 권위 배달의 대상이 아니었으므로 "정본이 보내다 말았다" 가 성립하지 않는다.
+#   · 메인이 **추적하는데** 정본이 이 토폴로지에 안 보내는 경로 → 진성 잔재(옛 배달의 찌꺼기).
+# 이 구분이 없으면 "정본 밖 0건" 이 **정의상 달성 불가**가 된다 — 서브가 계약대로 일할수록
+# 리포트가 커지고, 사람은 그 리포트를 안 보게 되며, 그러면 진짜 잔재도 못 본다
+# (report_overlay_convergence 가 같은 근거로 이미 편 논리 · docs.md §PII 판정 대상 축소 선례).
+drop_node_local_paths() {   # stdin=경로 목록 → stdout=노드-로컬을 걷어낸 목록
+    local all local_only
+    all="$(cat)"
+    [ -n "$all" ] || return 0
+    # check-ignore 는 **추적물을 무시로 보고하지 않는다** — 그래서 진성 잔재(추적물)는 남고
+    # 선언적 비추적만 걸러진다. 정확히 원하는 판별이다.
+    local_only="$(printf '%s\n' "$all" | git -C "${SRC%/}" check-ignore --stdin 2>/dev/null | LC_ALL=C sort || true)"
+    [ -n "$local_only" ] || { printf '%s\n' "$all"; return 0; }
+    LC_ALL=C comm -23 <(printf '%s\n' "$all" | LC_ALL=C sort) <(printf '%s\n' "$local_only") || true
+}
+
 report_runtime_block_residue() {   # $1=topology → 항상 0(정보 리포트 · 게이트 아님)
     local st; st="$(staging_dir "$1")"
     [ -d "$st" ] || return 0
@@ -1395,6 +1421,7 @@ report_runtime_block_residue() {   # $1=topology → 항상 0(정보 리포트 �
         sub_list="$(sub_run "find '$root' -type f -not -path '*/__pycache__/*' -not -name '*.pyc' 2>/dev/null | sed 's|^\./||' | LC_ALL=C sort" || true)"
         [ -n "$sub_list" ] || continue
         extra="$(LC_ALL=C comm -13 <(printf '%s\n' "$canon" | grep -v '^$') <(printf '%s\n' "$sub_list") || true)"
+        extra="$(printf '%s\n' "$extra" | grep -v '^$' | drop_node_local_paths || true)"
         n="$(printf '%s' "$extra" | grep -c '' || true)"
         [ "${n:-0}" -gt 0 ] || continue
         total=$((total + n))
