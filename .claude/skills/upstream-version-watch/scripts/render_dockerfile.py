@@ -1103,6 +1103,28 @@ def _require_terraform_flag(manifest_path: str) -> None:
         sys.exit(5)
 
 
+# `COPY <dir>/ ...` 는 그 디렉터리가 **빌드 컨텍스트에 없으면 docker build 가 죽는다**.
+# 슬롯 산출물(build_patches·build_patches_src)은 2026-09-10 추적 예외 철회로 비추적이 됐고,
+# git 은 빈 디렉터리를 들지 않으므로 **fresh clone 에는 그 디렉터리가 아예 없다**.
+# ∴ 존재를 보장하는 주체는 git 이 아니라 이 렌더러다(헌법: 배포 단위 = 스켈레톤 + 생성엔진).
+#   실측 2026-09-10: `0693af1` 이 인덱스에서 10파일을 뺀 뒤 multi 배포 클론의
+#   `build_patches{,_src}/` 가 사라졌고 그 상태의 source-build 는 COPY 에서 죽는다.
+#   로컬 워킹트리에는 파일이 남아 있어 **여기서는 보이지 않았다**(배포 클론에서만 드러나는 결함).
+# 목록을 손으로 적지 않는다 — **방금 렌더한 본문에서 파생**한다(닫힌 목록을 두면 갈라진다).
+_COPY_CONTEXT_DIR_RE = re.compile(r"^\s*COPY\s+(?:--\S+\s+)*([A-Za-z0-9._-]+)/\s+\S", re.M)
+
+
+def _ensure_copy_context_dirs(rendered: str, out_path: str) -> None:
+    """렌더 본문이 COPY 하는 상대 디렉터리를 산출물 옆에 실재시킨다(멱등)."""
+    base = os.path.dirname(os.path.abspath(out_path))
+    for d in sorted(set(_COPY_CONTEXT_DIR_RE.findall(rendered))):
+        target = os.path.join(base, d)
+        if not os.path.isdir(target):
+            os.makedirs(target, exist_ok=True)
+            print(f"[render] 빌드 컨텍스트 디렉터리 생성 → {d}/ "
+                  f"(COPY 대상 · 비추적 슬롯이라 clone 에 부재)", file=sys.stderr)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="render_dockerfile.py — G2 결정론 렌더러")
     ap.add_argument("--self-test", action="store_true", help="내장 self-test(A7 게이트 + NCCL 회귀)")
@@ -1197,6 +1219,7 @@ def main() -> None:
         with open(a.out, "w", encoding="utf-8") as f:
             f.write(out)
         print(f"[render] deterministic render → {a.out} ({len(out)} bytes)", file=sys.stderr)
+        _ensure_copy_context_dirs(out, a.out)
     else:
         sys.stdout.write(out)
 
