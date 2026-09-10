@@ -1361,24 +1361,84 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
     return 0
 }
 
-verify_destination_retirement_consumers() {
-    local stale hits fail=0 scan_py scan_q stale_q
-    scan_py=$'# retirement_consumer_scan\nimport os,re,sys\nstale=sys.argv[1]\nowner=".claude/skills/upstream-version-watch/"+stale\nchars=set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-")\nneedle=re.compile(r"(?<![A-Za-z0-9_.-])"+re.escape(stale)+r"(?![A-Za-z0-9_./-])")\nhits=[]\ndef scan(path):\n if os.path.islink(path): raise RuntimeError("active scanner refuses symlink: "+path)\n data=open(path,"rb").read().decode("utf-8","replace")\n for lineno,line in enumerate(data.splitlines(),1):\n  for match in needle.finditer(line):\n   lo,hi=match.start(),match.end()\n   while lo and line[lo-1] in chars: lo-=1\n   while hi<len(line) and line[hi] in chars: hi+=1\n   token=line[lo:hi]\n   while token.startswith("./"): token=token[2:]\n   if token!=owner: hits.append(f"{path}:{lineno}:{line}")\nroots=[".claude","CLAUDE.md"]\nif os.path.exists("HINTS.md"): roots.append("HINTS.md")\nfor root in roots:\n if os.path.isdir(root):\n  for base,dirs,files in os.walk(root,onerror=lambda e: (_ for _ in ()).throw(e)):\n   dirs[:]=[d for d in dirs if d!=".git"]\n   for name in files: scan(os.path.join(base,name))\n elif os.path.exists(root): scan(root)\nprint("\\n".join(hits),end="")'
+# 런타임블럭 **잔재 리포트**(2026-09-10 신설 · plan_26091019_2).
+#
+# 왜 위 수렴 리포트로 부족한가: 그쪽은 `-maxdepth 1` 로 **정본이 파일을 둔 디렉터리**만 본다.
+#   그런데 토폴로지 게이팅(tool_plane)이나 RUNTIME_BLOCK_EXCLUDES 로 정본이 **그 루트에 파일을
+#   하나도 두지 않게 되면**, 그 루트는 `dirs` 에 아예 오르지 못해 잔재가 **구조적으로 보이지 않는다**.
+#   2026-09-10 실측: 멀티 서브에 `.claude/skills` 196 · `.claude/policies` 18 파일이 옛 배달에서
+#   남아 있었고(정본 0건), 그중 7종은 메인 전용 오케스트레이션(sync_to_sub·sync_branches·
+#   fetch_sub_docs·smoke_clone·multinode_*)이라 §2.7.1 권한 평면 위반이었다. 오버레이는 **가산**
+#   이므로 제외표를 추가해도 **이미 간 것은 돌아오지 않는다** — 비석이 짝으로 필요하다.
+#   이 잔재가 retirement 감사를 계속 FAIL 시킨 실제 원인이었다.
+#
+# 두 루트는 **메인 단독 소유 코드 평면**이다(서브 쓰기 권한 평면은 configs/·envs/·campaigns/·
+#   output/** 뿐이라 서브가 여기 저작하지 않는다). 그래서 "정본에 없으면 잔재" 가 참이다.
+#   닫힌 목록이며 tripwire 다 — 늘리려면 이 주석을 읽고 **그 루트를 서브가 저작하는지부터** 확인하라.
+# ⚠ 삭제하지 않는다. `정본 0건` 은 **dormant(보내지 않기로 함)** 와 **렌더 실패** 를 구분하지 못한다 —
+#   여기서 지우면 렌더가 한 번 비는 순간 서브가 통째로 비워진다. 삭제는 토폴로지-aware 비석의 몫이다.
+RUNTIME_BLOCK_OWNED_ROOTS=(.claude/skills .claude/policies)
+report_runtime_block_residue() {   # $1=topology → 항상 0(정보 리포트 · 게이트 아님)
+    local st; st="$(staging_dir "$1")"
+    [ -d "$st" ] || return 0
+    local root canon sub_list extra n total=0
+    for root in "${RUNTIME_BLOCK_OWNED_ROOTS[@]}"; do
+        canon="$(cd "$st" && find "$root" -type f -not -path '*/__pycache__/*' -not -name '*.pyc' 2>/dev/null | LC_ALL=C sort || true)"
+        sub_list="$(sub_run "find '$root' -type f -not -path '*/__pycache__/*' -not -name '*.pyc' 2>/dev/null | sed 's|^\./||' | LC_ALL=C sort" || true)"
+        [ -n "$sub_list" ] || continue
+        extra="$(LC_ALL=C comm -13 <(printf '%s\n' "$canon" | grep -v '^$') <(printf '%s\n' "$sub_list") || true)"
+        n="$(printf '%s' "$extra" | grep -c '' || true)"
+        [ "${n:-0}" -gt 0 ] || continue
+        total=$((total + n))
+        echo "  ⚠ 런타임블럭 잔재: $root 에 정본 밖 파일 ${n}건 — 서브 전용 잔존(삭제하지 않는다):"
+        printf '%s\n' "$extra" | sed 's/^/      /' | preview_lines
+    done
+    if [ "$total" -eq 0 ]; then
+        echo "  ✅ 런타임블럭 잔재 0건 — 메인 소유 코드 평면이 정본과 같다"
+    else
+        echo "      → 토폴로지-aware 비석으로 은퇴시켜라. 메인 전용 오케스트레이션이 서브에 남으면 배달 방향이 뒤집힌다(§2.7.1)."
+    fi
+    return 0
+}
+
+# 활성 표면 = **정본이 배달하는 파일**이다(스테이징 트리에서 파생 — verify_checksums 와 같은 원천).
+#
+# 2026-09-10 교정(plan_26091019_2): 종전 스캐너는 서브의 `.claude` 를 통째로 걸어 **배달된 적 없는
+#   잔재**까지 읽었다. 그래서 은퇴를 *집행하는* 선언(OVERLAY_STALE_PATHS·SUB_TOMBSTONES·
+#   RUNTIME_BLOCK_EXCLUDES)과 그 `.pyc` 를 "활성 소비자" 로 셌다 — 은퇴 대상을 **이름으로 부르지
+#   않고는 은퇴시킬 수 없으므로** 그 게이트는 구조적으로 열릴 수 없었다(역-오라클).
+#   실측 2026-09-10: 히트 10건 전원이 선언·낡은 주석·`.pyc` 였고 호출부는 0건이었으며, 정작 은퇴
+#   대상 2종(scripts/smoke_clone.sh·scripts/sync_branches.sh)은 서브에서 **이미 부재**였다.
+#   ∴ 판정 범위를 "서브에 있는 모든 것" 이 아니라 "정본이 유지하는 것" 으로 좁힌다 — FAIL 메시지가
+#   원래 말하던 *active sub surfaces* 가 그 뜻이다. 잔재는 활성 표면이 아니라 **수렴 대상**이고
+#   그 처방은 삭제(scoped --delete)이지 배달 차단이 아니다(deliver_overlay 헤더 주석이 이미 지목).
+#   `owner` 면제는 살아 있다 — `.claude/rules/workflow.md` 등 정본 산문이 정규 경로를 인용한다.
+verify_destination_retirement_consumers() {  # $1=topology — 활성 표면의 도출원(스테이징 트리)
+    local topology="$1" stale hits fail=0 scan_py scan_q stale_q st canon nsurf out scanned
+    st="$(staging_dir "$topology")"
+    [ -d "$st" ] || { echo "[sync] FAIL(retirement consumer): 스테이징 부재($st) — 활성 표면을 도출할 수 없다" >&2; return 98; }
+    canon="$(cd "$st" && find . -type f -not -path '*/__pycache__/*' -not -name '*.pyc' -printf '%P\n' | LC_ALL=C sort)"
+    nsurf="$(printf '%s\n' "$canon" | grep -c . || true)"
+    # 목록이 비면 "소비자 0" 이 아니라 **도출 실패**다 — 둘을 뭉개면 게이트가 조용히 통과한다.
+    [ "${nsurf:-0}" -gt 0 ] || { echo "[sync] FAIL(retirement consumer): 정본 파일 0건($st) — 활성 표면 도출 실패" >&2; return 98; }
+    scan_py=$'# retirement_consumer_scan\nimport os,re,sys\nstale=sys.argv[1]\nowner=".claude/skills/upstream-version-watch/"+stale\nchars=set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-")\nneedle=re.compile(r"(?<![A-Za-z0-9_.-])"+re.escape(stale)+r"(?![A-Za-z0-9_./-])")\nhits=[]\ndef scan(path):\n if os.path.islink(path): raise RuntimeError("active scanner refuses symlink: "+path)\n data=open(path,"rb").read().decode("utf-8","replace")\n for lineno,line in enumerate(data.splitlines(),1):\n  for match in needle.finditer(line):\n   lo,hi=match.start(),match.end()\n   while lo and line[lo-1] in chars: lo-=1\n   while hi<len(line) and line[hi] in chars: hi+=1\n   token=line[lo:hi]\n   while token.startswith("./"): token=token[2:]\n   if token!=owner: hits.append(f"{path}:{lineno}:{line}")\nsurfaces=[x for x in sys.stdin.read().splitlines() if x.strip()]\nif not surfaces: raise SystemExit("active surface list empty")\nn=0\nfor rel in surfaces:\n if os.path.isfile(rel):\n  n+=1\n  scan(rel)\nprint(n)\nprint("\\n".join(hits),end="")'
     printf -v scan_q '%q' "$scan_py"
     for stale in "${OVERLAY_RETIREMENT_STALE_PATHS[@]}"; do
         printf -v stale_q '%q' "$stale"
-        if hits="$(sub_run "python3 -c $scan_q $stale_q")"; then
+        if out="$(printf '%s\n' "$canon" | sub_run "python3 -c $scan_q $stale_q")"; then
             :
         else
             echo "[sync] FAIL(retirement consumer): scanner/transport failed for $stale" >&2
             return 98
         fi
+        scanned="$(printf '%s\n' "$out" | head -1)"
+        hits="$(printf '%s\n' "$out" | tail -n +2)"
         if [ -n "$hits" ]; then
             echo "[sync] FAIL(retirement consumer): $stale is still referenced on active sub surfaces:" >&2
             printf '%s\n' "$hits" | sed 's/^/    /' >&2
             fail=1
         else
-            echo "  ✅ retirement consumer audit: $stale has no active sub consumer"
+            echo "  ✅ retirement consumer audit: $stale has no active sub consumer (활성 표면 ${scanned}/${nsurf} 파일 검사)"
         fi
     done
     return $fail
@@ -1699,7 +1759,7 @@ if [ $HAS_GIT = 0 ]; then
         verify_source_port_payload multi || { echo "[sync] FAIL: bootstrap source-port 무결성 불일치 — commit 전 중단"; exit 2; }
         verify_destination_runner_modes multi || { echo "[sync] FAIL: bootstrap runner destination integrity 불일치 — commit 전 중단"; exit 2; }
         verify_destination_host_safety_modes || { echo "[sync] FAIL: bootstrap host-safety mode 불일치 — tombstone 전 중단"; exit 2; }
-        verify_destination_retirement_consumers || { echo "[sync] FAIL: bootstrap retirement consumer 존재 — tombstone 전 중단"; exit 2; }
+        verify_destination_retirement_consumers multi || { echo "[sync] FAIL: bootstrap retirement consumer 존재 — tombstone 전 중단"; exit 2; }
         apply_overlay_tombstones
         sub_run "git add -A"
         sub_commit "[sync] multi initial delivery — D12 bootstrap"
@@ -1783,9 +1843,10 @@ for t in "${TARGETS[@]}"; do
         verify_destination_runner_modes "$t" || { echo "[sync] FAIL: runner destination mode 불일치($t)"; exit 2; }
     fi
     verify_destination_host_safety_modes || { echo "[sync] FAIL: host-safety mode 불일치($t) — tombstone 전 중단"; exit 2; }
-    verify_destination_retirement_consumers || { echo "[sync] FAIL: retirement consumer 존재($t) — tombstone 전 중단"; exit 2; }
+    verify_destination_retirement_consumers "$t" || { echo "[sync] FAIL: retirement consumer 존재($t) — tombstone 전 중단"; exit 2; }
     apply_overlay_tombstones
     report_overlay_convergence "$t"   # 비석 적용 **뒤**에 센다 — 지운 것을 잔재로 세지 않는다
+    report_runtime_block_residue "$t" # 정본이 "파일 0건" 을 두는 루트는 위 리포트가 구조적으로 못 본다
     # (5) [sync] 스크립트저작 커밋 (변경분만)
     sub_run "git add -A"
     if sub_run "git diff --cached --quiet"; then
