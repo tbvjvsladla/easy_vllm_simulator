@@ -1901,16 +1901,15 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1():
         'output/single/Dockerfile', 'output/single/Dockerfile.source-build',
         'output/single/Dockerfile.source-build-upstage', 'output/single/docker-compose.yaml',
         'output/single/requirements.txt',
-        'output/multi/build_patches/', 'output/multi/build_patches/*',
-        'output/single/build_patches/', 'output/single/build_patches/*',
-        'output/multi/build_patches_src/', 'output/multi/build_patches_src/*.sh',
-        'output/multi/build_patches_src/PROVENANCE.json',
-        'output/single/build_patches_src/', 'output/single/build_patches_src/*.sh',
-        'output/single/build_patches_src/PROVENANCE.json',
     ], f'unexpected output/ gitignore carve-outs -- must never re-include configs/: {reincludes}')
-    # payload 제외가 실제로 걸려 있는지 — allowlist 만으로는 files/ 가 기본 추적으로 남는다(위 주석).
-    _require('output/*/build_patches_src/files/' in gitignore,
-             'build_patches_src payload(files/) 명시 제외가 없다 — allowlist 축소만으로는 vendored 소스가 추적된다')
+    # 2026-09-10(사용자 결정): build_patches/ · build_patches_src/ 의 재포함을 **철회**했다.
+    #   그 파일들은 3+1+1 빌드 패치 슬롯의 **산출물**이고 산출물 통로의 기본 정책은 추적금지다
+    #   (CLAUDE.md: 빌딩블럭=추적 · 생성물=비추적). 손작성이라는 사실은 정본성을 말할 뿐
+    #   배포 대상임을 말하지 않는다. 배달은 hint 페이로드와 sync_to_sub 가 한다.
+    #   ⇒ 이제 `output/*/*` 가 통째로 덮으므로 `files/` 명시 제외도 **불필요**하다(있어도 무해).
+    _require(not any(('build_patches' in r for r in reincludes)),
+             'build_patches/ · build_patches_src/ 재포함이 되살아났다 — 산출물은 추적하지 않는다'
+             ' (2026-09-10 철회 · 되살리려면 CLAUDE.md 추적 규정부터 고쳐라)')
     _require(not any(('configs' in r for r in reincludes)), 'output/<topology>/configs/ (where the compose bind-mount and the runtime patch actually live) must have NO re-inclusion carve-out -- proving it is genuinely, structurally untracked')
     compose = _rendered("compose")
     _require('- ./configs:/app/configs:ro' in compose, 'the container must bind-mount the SAME blanket-ignored configs/ directory the patch lives in')
