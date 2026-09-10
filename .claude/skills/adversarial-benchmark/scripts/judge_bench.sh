@@ -112,11 +112,15 @@ if [ "$MODEL_PATH" = "NA" ]; then
 fi
 NAS_ROOT="$(sed -n 's/^[[:space:]]*nas_model_path:[[:space:]]*"\{0,1\}\([^"#]*\)"\{0,1\}.*/\1/p' \
              "$MANIFEST" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')"
+# quant 루트도 같은 문법으로(2026-09-10 · camp-26090918 — /app/quant_models 매핑의 호스트 루트)
+QUANT_ROOT="$(sed -n 's/^[[:space:]]*quant_model_path:[[:space:]]*"\{0,1\}\([^"#]*\)"\{0,1\}.*/\1/p' \
+             "$MANIFEST" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')"
 
 ROOF_CMD=(python3 "$SDIR/roofline.py" --model-path "$MODEL_PATH" --json)
 [ "$TP" != "-" ] && ROOF_CMD+=(--tp "$TP")
 [ -f "$MANIFEST" ] && ROOF_CMD+=(--manifest "$MANIFEST")
 [ -n "$NAS_ROOT" ] && ROOF_CMD+=(--nas-root "$NAS_ROOT")
+[ -n "$QUANT_ROOT" ] && ROOF_CMD+=(--quant-root "$QUANT_ROOT")
 [ -n "${RF:-}" ] && ROOF_CMD+=(--realistic-fraction "$RF")
 [ -n "${AL:-}" ] && ROOF_CMD+=(--accept-len "$AL")
 

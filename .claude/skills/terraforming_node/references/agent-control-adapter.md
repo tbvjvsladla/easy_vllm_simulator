@@ -52,19 +52,23 @@ python3 .claude/policies/runtime/agent_control.py invoke --request /path/to/requ
 claude -p '<task>' --model <요청이 선언한 model> --output-format json --max-turns <N> --allowedTools <TOOLS>
 ```
 
-### 2.1 백엔드 축 (`backend` 선택 필드 · 2026-09-07 신설)
+### 2.1 백엔드 축 (`backend` 선택 필드 · 2026-09-07 신설 · 2026-09-10 camp-26090918 확장)
 
-같은 Claude Code 하네스를 **내부 LLM만** 바꾸는 것은 provider 교체가 아니라 백엔드 선택이다
-(사용자 지시: 서브 위임은 `kimi-claude` = 오케스트레이터-워커에서 워커의 이너 하네스 LLM이 Kimi K3).
-request 의 선택 필드 `backend`(`anthropic`|`kimi`, 기본 anthropic)가 어댑터의 닫힌 열거
-`BACKEND_TO_BINARY` 를 통해 실행 바이너리를 고른다: `anthropic → claude` · `kimi → kimi-claude`.
+같은 Claude Code 하네스를 **내부 LLM만** 바꾸는 것은 provider 교체가 아니라 백엔드 선택이다.
+request 의 선택 필드 `backend`(`anthropic`|`kimi`|`minimax`, 기본 anthropic)가 어댑터의 닫힌 열거
+`BACKEND_TO_BINARY` 를 통해 실행 바이너리를 고른다:
+`anthropic → claude` · `kimi → kimi-claude` · `minimax → minimax-claude`.
 
-- `kimi-claude` 는 **노드 로컬 shim**(`~/.local/bin/kimi-claude`, 비추적)이다 — .bashrc 의 셸 함수는
+- 사용자 지시 이력:
+  - 2026-09-07(Qwen3-4B KV양자화 · camp-26090721): 서브 위임 백엔드 = `kimi-claude` (Kimi K3).
+  - 2026-09-10(Qwen3.8-Flash-Next · camp-26090918): camp 서브 호출자 = `minimax-claude` 로 전환.
+    캠페인 단계에서 서브 노드 위임 시 `--backend minimax` 를 명시하여 호출한다.
+- 각 shim 은 **노드 로컬**(`~/.local/bin/<backend>-claude`, 비추적)이다 — .bashrc 의 셸 함수는
   ssh 비대화형(`bash -lc`)에서 로드되지 않으므로 실행 파일 형태가 계약이다. env 라우팅(엔드포인트·
-  API 키·모델 슬롯)은 shim 과 `~/.kimi-claude.env`(0600)가 소유하며, **이 저장소의 추적 파일에는
+  API 키·모델 슬롯)은 shim 과 `~/<backend>-claude.env`(0600)가 소유하며, **이 저장소의 추적 파일에는
   키·엔드포인트를 적지 않는다**.
 - backend=kimi 이면 relay 가 model 기본 선언을 `k3[1m]` 로 둔다(선언일 뿐이며, 실제 실행 모델은
-  결과의 `model_used` 가 기록한다 — G-A1 계약 불변).
+  결과의 `model_used` 가 기록한다 — G-A1 계약 불변). minimax 는 shim 이 자체 모델 슬롯을 결정.
 - shim 부재는 provider 실행 실패(`NONZERO_EXIT` + stderr 진단)로 표면화된다 — 조용한 anthropic
   폴백은 없다(폴백이면 어느 모델이 돌았는지가 섞인다).
 

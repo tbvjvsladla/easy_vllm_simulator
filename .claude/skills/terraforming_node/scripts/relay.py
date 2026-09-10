@@ -1608,8 +1608,8 @@ def main() -> int:
                     help="매달림 상한(scope ⊥ budget — 예산과 별개 노브)")
     ap.add_argument("--budget-source", default=None,
                     help="그 예산을 그렇게 정한 근거(필수 · 원장에 남는다)")
-    ap.add_argument("--backend", choices=["anthropic", "kimi"], default=None,
-                    help="provider 실행 백엔드(기본 anthropic=claude · kimi=kimi-claude shim, 내부 LLM Kimi K3)")
+    ap.add_argument("--backend", choices=["anthropic", "kimi", "minimax"], default=None,
+                    help="provider 실행 백엔드(기본 anthropic=claude · kimi=kimi-claude shim · minimax=minimax-claude shim — camp-26090918 서브 호출자)")
     ap.add_argument("--model", default=None,
                     help="위임 모델 선언(기본은 카나리 기본값). 어댑터는 모델로 차단하지 않는다 — "
                          "실제로 돈 모델은 원장 `model_used` 가 말한다(2026-09-05 · G-A1).")
