@@ -2,9 +2,9 @@
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 `git ls-remote --tags <remote> 'refs/tags/hint/*'` 이고, brief 는 로컬 태그 오브젝트에서 파싱한다(합성 금지).",
   "schema": 2,
   "source": "remote-derived",
-  "remote": "origin",
-  "generated_kst": "2026-09-07T17:51:54",
-  "count": 5,
+  "remote": "github-ssh",
+  "generated_kst": "2026-09-11T04:05:00",
+  "count": 25,
   "hints": [
     {
       "tag": "hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8",
@@ -72,6 +72,335 @@
       "anchor": "5f14d7db4e139bc9859dca1778080d92f7031757",
       "object": "34dfad0db6fee8a76456c938b9a84b9de7f973e9",
       "missing": [],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvauto",
+      "vllm": "0.26.0",
+      "model": "qwen3-4b",
+      "arch": "gb10-main-sim-kv24g",
+      "recipe": "len32768-kvauto",
+      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 A 무양자화(BF16 KV).",
+      "anchor": "5879b301ce74872f517b7b451799b7bcdc1c4f41",
+      "object": "6f2651c9bda4246ecc6d80e48dc8349496ccf166",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvfp8",
+      "vllm": "0.26.0",
+      "model": "qwen3-4b",
+      "arch": "gb10-main-sim-kv24g",
+      "recipe": "len32768-kvfp8",
+      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 B FP8.",
+      "anchor": "c1338bc3cb45cc29315342cb1024aed9b7877bfa",
+      "object": "4cc6040c85567e3b9b4a46d9e523a94711eaaddd",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant3bitnc",
+      "vllm": "0.26.0",
+      "model": "qwen3-4b",
+      "arch": "gb10-sub-sim-kv24g",
+      "recipe": "len32768-kvturboquant3bitnc",
+      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 D TurboQuant 3bit.",
+      "anchor": "9f310b4d50d8ec548d2d65ee3076a2f238251de2",
+      "object": "14f0246e29a9aefd6df0f1bc4bfc2dda7ea8c8c0",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant4bitnc",
+      "vllm": "0.26.0",
+      "model": "qwen3-4b",
+      "arch": "gb10-sub-sim-kv24g",
+      "recipe": "len32768-kvturboquant4bitnc",
+      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 C TurboQuant 4bit.",
+      "anchor": "951b9869045b677b466a8ebd79bdea0ae24ea61a",
+      "object": "7f4ad5a0244560a02fa7957ffba37ef5c3219018",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/len262144-kvfp8",
+      "vllm": "0.28.0",
+      "model": "qwen3.8-27b",
+      "arch": "rtxpro6000-main-native",
+      "recipe": "len262144-kvfp8",
+      "brief": "RTX PRO 6000(1of2, 96GB) 네이티브 예산 · bf16가중치+fp8KV — 단일스트림 속도가 fp8가중치 자매셀 대비 약 40%↓(가중치 양자화가 지배) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "anchor": "1b116163dd0fa19ad426bc6970e40e1f8274ace3",
+      "object": "7aac42dbb89152ee5b57090c35cd872782e8e6d3",
+      "missing": [
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvauto",
+      "vllm": "0.28.0",
+      "model": "qwen3.8-27b",
+      "arch": "rtxpro6000-main-native",
+      "recipe": "qfp8-len262144-kvauto",
+      "brief": "RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+KV무양자화 — 동시접속 한계가 fp8KV 자매셀의 절반(batch=3) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "anchor": "711b25120e0e34b6a0db49e302c7e2acbf7bfb3a",
+      "object": "534892525d78031925acb25204a99d3995587d53",
+      "missing": [
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvfp8",
+      "vllm": "0.28.0",
+      "model": "qwen3.8-27b",
+      "arch": "rtxpro6000-main-native",
+      "recipe": "qfp8-len262144-kvfp8",
+      "brief": "RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+fp8KV 조합이 최대 동시접속(batch=6, 집계 1181.6 tok/s) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "anchor": "4254ec5cf0b13539a2089dbf71b613bf2708ae2e",
+      "object": "0d475d150d85efbcdb0695470e8b6c77aaef8595",
+      "missing": [
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len524288-kvfp8",
+      "vllm": "0.28.0",
+      "model": "qwen3.8-27b",
+      "arch": "rtxpro6000-main-native",
+      "recipe": "qfp8-len524288-kvfp8",
+      "brief": "RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+fp8KV+YaRN(524288, factor=2.0) — 단일스트림 속도는 non-YaRN 262144 자매셀과 동일(44.27 vs 44.22 t/s) · gen_recipe_set.py 에 hf_overrides SERVE_KNOB 를 신설해야 발행 가능했던 셀",
+      "anchor": "b39b131dc7680ed16e03487f18620b98d04fe2c2",
+      "object": "ff9359654aa1e2721011d4cf41436d62ec144327",
+      "missing": [
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/len262144-kvfp8",
+      "vllm": "0.28.0",
+      "model": "qwen3.8-27b",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "len262144-kvfp8",
+      "brief": "RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · bf16가중치+fp8KV — 단일스트림 속도가 fp8가중치 자매셀 대비 크게 낮음(정확도 우선 대안) · TP=1 자매셀 대비 속도 배율(~1.75배)이 fp8w 조합(~1.58배)보다 큼 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "anchor": "fb1d719dd0ca8634886b8fa36b18ef4be6851364",
+      "object": "b873a34060d10ea12a56d4d7a736b3391dab40a4",
+      "missing": [
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len1000000-kvfp8",
+      "vllm": "0.28.0",
+      "model": "qwen3.8-27b",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "qfp8-len1000000-kvfp8",
+      "brief": "RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+fp8KV+YaRN(factor=4.0, 1,000,000 컨텍스트, vLLM 공식 가이드 상한) — TP=1 캠페인이 \"물리적으로 불가\"로 추정만 했던 상한에 실측 도달 · 단일스트림 속도는 262144 자매셀과 사실상 동일 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "anchor": "124adf57c67c7ad78e4074665cf310e3830d408a",
+      "object": "a645dcb360c099dcbfe763c9b2c55248d6c5afbe",
+      "missing": [
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len262144-kvauto",
+      "vllm": "0.28.0",
+      "model": "qwen3.8-27b",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "qfp8-len262144-kvauto",
+      "brief": "RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+KV무양자화 — TP=1 자매셀 대비 단일스트림 속도 ~1.59배·동시접속 상한 batch=8 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "anchor": "cc80deec69e729ba35a4f1629e829ac5de774a2d",
+      "object": "99d9ca0df0c0b91bbadfacd1223797650a497c3a",
+      "missing": [
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len262144-kvfp8",
+      "vllm": "0.28.0",
+      "model": "qwen3.8-27b",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "qfp8-len262144-kvfp8",
+      "brief": "RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+fp8KV 조합이 이 캠페인의 최대집계처리량(batch=16, 2503.2 tok/s) · TP=1 자매셀 대비 세 배율(속도/batch/집계)이 모두 다르게 스케일 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "anchor": "fd4c5247b8fcaf6de420a86124e10eef10e980ad",
+      "object": "c44ebda0e00a95c86ab4c2c83bfaec07cd727339",
+      "missing": [
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto",
+      "vllm": "0.29.0",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len262144-kvauto",
+      "brief": "이 모델(Qwen3.8-Flash-Next-NVFP4)을 GB10 2노드 TP=2 로 세울 때 실제로 부딪힌 벽은 셋이다.",
+      "anchor": "fa39160d1a5270a634fc5a851b49cfb4f04f24eb",
+      "object": "57f6afb6bbc475b0ff3b4a486d927d7b9eadd5cd",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto_260910t0204z",
+      "vllm": "0.29.0",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len262144-kvauto_260910t0204z",
+      "brief": "이 모델(Qwen3.8-Flash-Next-NVFP4)을 GB10 2노드 TP=2 로 세울 때 실제로 부딪힌 벽은 셋이다.",
+      "anchor": "ea0b1782ac89e79afc58c1e0503d2a4711eb6679",
+      "object": "803ac1049aa81b1aa99801c775648fd2da5d12ac",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/len786432-kvfp8-spec7-graph",
+      "vllm": "0.29.0rc6",
+      "model": "deepseek-v4-flash-0731",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len786432-kvfp8-spec7-graph",
+      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · KV는 fp8_ds_mla 단일 경로 · dspark spec7+cudagraph+humming 조합으로 768K 31.12 t/s(+82%) · verdict PASS(explore)",
+      "anchor": "86144ae4dded01b87cee267a70c6d084b6df0fe9",
+      "object": "ba151cc11eebcd2d930f0f099b23880a9c5ea48f",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0",
+      "vllm": "0.29.0rc6",
+      "model": "deepseek-v4-flash-0731",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "spec0-graph0",
+      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8 · 변종 spec0-graph0 · 768K 17.11 t/s @1 · verdict PASS(explore)",
+      "anchor": "9367a5615c8f9beb6565cc493820471920d90c37",
+      "object": "5b474eed815a1abc68363f9278676a68aca41cc7",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE",
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0-len1m",
+      "vllm": "0.29.0rc6",
+      "model": "deepseek-v4-flash-0731",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "spec0-graph0-len1m",
+      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 e-1m-kvfp8 · 변종 spec0-graph0-len1m · 1M 16.67 t/s @1 · verdict PASS(explore)",
+      "anchor": "5d636e9112e0cbc72b01cbb69b4c3e2a7750c519",
+      "object": "794dc01f40cf1ed3ef0eb1af85d4496be09627cf",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE",
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph1",
+      "vllm": "0.29.0rc6",
+      "model": "deepseek-v4-flash-0731",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "spec0-graph1",
+      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8-l2graph · 변종 spec0-graph1 · 768K 26.14 t/s @1 · verdict PASS(explore)",
+      "anchor": "28ec7d2413a663388f9814291c3319acb9e1320e",
+      "object": "9c14aa83c151b798a36c7cfcb9b46f31b5d44ebb",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE",
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph0",
+      "vllm": "0.29.0rc6",
+      "model": "deepseek-v4-flash-0731",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "spec7-graph0",
+      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8-l1spec · 변종 spec7-graph0 · 768K 29.72 t/s @1 · verdict PASS(explore)",
+      "anchor": "da3f4f9215e2c068b959c4524d13f58e040a437a",
+      "object": "523efb18531763bfb8c69d2c2fc280f4e464d448",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE",
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph1-len1m",
+      "vllm": "0.29.0rc6",
+      "model": "deepseek-v4-flash-0731",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "spec7-graph1-len1m",
+      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 e-1m-kvfp8-e1combo · 변종 spec7-graph1-len1m · 1M 30.54 t/s @1 · verdict PASS(explore)",
+      "anchor": "488559a012949ecf5650b4a2feb4b8ddaef6e6a2",
+      "object": "a37acdf713f47f23d53cab4da0c7a50c0d0b1172",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE",
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
       "published": true,
       "source": "remote-derived"
     }
