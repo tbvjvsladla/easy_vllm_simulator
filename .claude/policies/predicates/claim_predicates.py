@@ -1901,15 +1901,27 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1():
         'output/single/Dockerfile', 'output/single/Dockerfile.source-build',
         'output/single/Dockerfile.source-build-upstage', 'output/single/docker-compose.yaml',
         'output/single/requirements.txt',
+        # 2026-09-10(사용자 결정): 슬롯 폴더의 **뼈대**만 추적한다. 산출물 추적 철회와 모순되지
+        #   않는다 — 철회한 것은 내용이고 이것은 폴더의 존재 선언이다. 3단(디렉터리 재포함 →
+        #   내용 전량 재제외 → .gitkeep 만 재포함)이라 항목이 넷인 것이 정상이다.
+        'output/*/build_patches/', 'output/*/build_patches_src/',
+        'output/*/build_patches/.gitkeep', 'output/*/build_patches_src/.gitkeep',
     ], f'unexpected output/ gitignore carve-outs -- must never re-include configs/: {reincludes}')
     # 2026-09-10(사용자 결정): build_patches/ · build_patches_src/ 의 재포함을 **철회**했다.
     #   그 파일들은 3+1+1 빌드 패치 슬롯의 **산출물**이고 산출물 통로의 기본 정책은 추적금지다
     #   (CLAUDE.md: 빌딩블럭=추적 · 생성물=비추적). 손작성이라는 사실은 정본성을 말할 뿐
     #   배포 대상임을 말하지 않는다. 배달은 hint 페이로드와 sync_to_sub 가 한다.
     #   ⇒ 이제 `output/*/*` 가 통째로 덮으므로 `files/` 명시 제외도 **불필요**하다(있어도 무해).
-    _require(not any(('build_patches' in r for r in reincludes)),
-             'build_patches/ · build_patches_src/ 재포함이 되살아났다 — 산출물은 추적하지 않는다'
-             ' (2026-09-10 철회 · 되살리려면 CLAUDE.md 추적 규정부터 고쳐라)')
+    #   ⇒ 단, **뼈대(.gitkeep)는 예외다**(2026-09-10 2차 결정). git 은 빈 디렉터리를 들지 않아
+    #   산출물을 인덱스에서 빼는 순간 배포 클론에서 폴더가 사라지고 `COPY build_patches/` 가 죽었다.
+    #   그래서 이 tripwire 는 "build_patches 라는 글자" 가 아니라 **무엇을 재포함하는지**를 본다 —
+    #   허용은 디렉터리 자신과 `.gitkeep` 뿐이고, 산출물 확장자가 하나라도 끼면 그대로 발화한다.
+    _bp = [r for r in reincludes if 'build_patches' in r]
+    _bp_allowed = {'output/*/build_patches/', 'output/*/build_patches_src/',
+                   'output/*/build_patches/.gitkeep', 'output/*/build_patches_src/.gitkeep'}
+    _require(set(_bp) <= _bp_allowed,
+             'build_patches/ · build_patches_src/ 의 **산출물** 재포함이 되살아났다 — 뼈대(.gitkeep)만'
+             f' 추적한다 (2026-09-10 철회 · 되살리려면 CLAUDE.md 추적 규정부터 고쳐라): {sorted(set(_bp) - _bp_allowed)}')
     _require(not any(('configs' in r for r in reincludes)), 'output/<topology>/configs/ (where the compose bind-mount and the runtime patch actually live) must have NO re-inclusion carve-out -- proving it is genuinely, structurally untracked')
     compose = _rendered("compose")
     _require('- ./configs:/app/configs:ro' in compose, 'the container must bind-mount the SAME blanket-ignored configs/ directory the patch lives in')
