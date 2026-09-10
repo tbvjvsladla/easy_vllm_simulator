@@ -9,5 +9,5 @@
   "schema_version": 1,
   "source_branch": "multi-node",
   "source_branch_source": "derived(git branch --contains anchor)",
-  "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/kvauto-len262144-res"
+  "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/kvauto-len262144-mmp"
 }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# nv4-bf-262k-res 서빙 스크립트 (vllm-recipe-explorer 생성 구조 준용)
+# nv4-bf-262k-mmp 서빙 스크립트 (vllm-recipe-explorer 생성 구조 준용)
 # env 파일에서 주입된 변수: CONFIG_FILE, SERVING_MODEL_NAME, TIKTOKEN_ENABLED
 
 # TIKTOKEN 환경변수 설정
