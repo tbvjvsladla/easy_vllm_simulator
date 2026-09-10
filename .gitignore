@@ -176,6 +176,29 @@ output/*/*
 #   `output/<t>/build_patches_src/files` (4단계)는 그 패턴에 걸리지 않는다. 위 `!` 로 디렉토리를
 #   재포함한 순간 git 이 안으로 내려가고, files/ 는 **어떤 규칙에도 안 걸려 기본 추적**이 된다.
 #   (2026-08-13 실제 발생: 좁힌 allowlist 만으로는 92파일이 그대로 스테이징에 남았다.)
+# ── 슬롯 폴더 **뼈대**는 남긴다 (2026-09-10 사용자 결정) ──────────────────────────
+#   철회한 것은 *산출물 추적*이지 *폴더의 존재 선언*이 아니다. 둘은 다르다:
+#     · 산출물(`<NN>-*.sh` · PROVENANCE.json · files/) = 비추적 — 위 철회 그대로.
+#     · 폴더 뼈대(`.gitkeep`)                          = 추적 — 어떤 폴더가 정본인지 **선언**한다.
+#   왜 필요한가: git 은 **빈 디렉터리를 들지 않는다**. 그래서 산출물을 인덱스에서 빼는 순간
+#   배포 클론에서 디렉터리 자체가 사라졌고, `Dockerfile.source-build` 의
+#   `COPY build_patches/ /tmp/build_patches/` 가 컨텍스트 부재로 죽었다(2026-09-10 실측 · 0693af1
+#   회귀 · 로컬 워킹트리엔 파일이 남아 있어 이 노드에서는 보이지 않았다).
+#   부수 이득: 정본에 없는 폴더가 슬그머니 생기는 것도 뼈대 선언이 원천 차단한다.
+#
+#   ⚠ 위 `!output/*/.gitkeep` 은 **한 단계만** 덮는다 — `output/<t>/build_patches/.gitkeep` 은
+#   두 단계라 `output/*/*` 에 그대로 걸린다. 2026-09-10 실측: single 의 2건은 규칙이 아니라
+#   **인덱스 관성**으로만 살아 있었고(지우면 다시 add 도 안 된다) multi 엔 아예 없었다 —
+#   "뼈대만 추적" 이라는 위 주석의 선언에 **집행이 없었다**. 그래서 3단이 필요하다:
+#     ① 디렉터리 재포함 — 없으면 git 이 그 안으로 내려가지도 않아 ③ 이 도달 불가가 된다
+#     ② 내용 전량 재제외 — 산출물은 계속 비추적(`files/` 4단계 경로까지 여기서 덮인다)
+#     ③ `.gitkeep` 만 재포함
+!output/*/build_patches/
+!output/*/build_patches_src/
+output/*/build_patches/*
+output/*/build_patches_src/*
+!output/*/build_patches/.gitkeep
+!output/*/build_patches_src/.gitkeep
 output/*/build_patches_src/files/
 
 # ===========================================

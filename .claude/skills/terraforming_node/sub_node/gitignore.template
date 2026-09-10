@@ -54,6 +54,16 @@ output/*/*
 #   산출물 통로(output/<t>/)의 기본 정책은 추적금지다. 손작성이라는 사실은 정본성을 말할 뿐
 #   배포 대상임을 말하지 않는다. 서브로의 배달은 sync_to_sub 와 regen_build_patches_src 가 한다.
 #   ⇒ `output/*/*` 가 통째로 덮으므로 payload(`files/`) 명시 제외도 불필요해졌다.
+# ── 슬롯 폴더 **뼈대**는 남긴다(2026-09-10 2차 결정 · 메인 .gitignore 와 동형) ──
+#   철회한 것은 *산출물*이고 이것은 *폴더의 존재 선언*이다. git 은 빈 디렉터리를 들지 않으므로
+#   뼈대가 없으면 클론에서 폴더가 사라지고 `COPY build_patches/` 가 컨텍스트 부재로 죽는다.
+#   위 `!output/*/.gitkeep` 은 **한 단계만** 덮어 두 단계 깊이엔 닿지 않는다 → 3단이 필요하다.
+!output/*/build_patches/
+!output/*/build_patches_src/
+output/*/build_patches/*
+output/*/build_patches_src/*
+!output/*/build_patches/.gitkeep
+!output/*/build_patches_src/.gitkeep
 
 # ── docs — 작업문서 gitignore-persist(브랜치 전환 persist), 스켈레톤(example.md)만 추적 ──
 docs/*/*
