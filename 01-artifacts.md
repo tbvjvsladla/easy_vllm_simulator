@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/multi/configs/nv4-bf-262k-mmp.yaml`
-- `output/multi/configs/nv4-bf-262k-mmp.sh`
-- `output/multi/envs/.env.nv4-bf-262k-mmp`
+- `output/multi/configs/nv4-bf-262k-res.yaml`
+- `output/multi/configs/nv4-bf-262k-res.sh`
+- `output/multi/envs/.env.nv4-bf-262k-res`
 
 **build_patch_pre**
 - `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
