@@ -1,8 +1,8 @@
 {
   "artifacts": [
-    "artifacts/triplet/a-kvauto.yaml",
-    "artifacts/triplet/a-kvauto.sh",
-    "artifacts/triplet/.env.a-kvauto",
+    "artifacts/triplet/b-kvfp8.yaml",
+    "artifacts/triplet/b-kvfp8.sh",
+    "artifacts/triplet/.env.b-kvfp8",
     "artifacts/build_recipe/Dockerfile",
     "artifacts/build_recipe/Dockerfile.source-build",
     "artifacts/build_recipe/requirements.txt",
@@ -115,9 +115,9 @@
       "evidence_source": "certificate 소프트지문 ↔ 트리플렛 yaml serve 노브(이름 관측은 하위호환 폴백)",
       "exemptible": false,
       "files": {
-        "config_yaml": "output/single/configs/a-kvauto.yaml",
-        "env_file": "output/single/envs/.env.a-kvauto",
-        "runner_sh": "output/single/configs/a-kvauto.sh"
+        "config_yaml": "output/single/configs/b-kvfp8.yaml",
+        "env_file": "output/single/envs/.env.b-kvfp8",
+        "runner_sh": "output/single/configs/b-kvfp8.sh"
       },
       "missing": [],
       "missing_code": "HINT_MISSING_TRIPLET",

@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/single/configs/a-kvauto.yaml`
-- `output/single/configs/a-kvauto.sh`
-- `output/single/envs/.env.a-kvauto`
+- `output/single/configs/b-kvfp8.yaml`
+- `output/single/configs/b-kvfp8.sh`
+- `output/single/envs/.env.b-kvfp8`
 
 **build_recipe**
 - `output/single/Dockerfile`
@@ -33,7 +33,7 @@
 
 ## 적용 사유 (Agent)
 
-- **`triplet`** — 적용: serve 시점 성립분. 이 셀을 가르는 유일한 축이 `kv-cache-dtype: auto` 이고 나머지(max-model-len 32768 · kv-cache-memory-bytes 11811160064 · gmu 0.9)는 4군 공통 통제변인이다.
+- **`triplet`** — 적용: serve 시점 성립분. 이 셀을 가르는 유일한 축이 `kv-cache-dtype: fp8` 이고 나머지(max-model-len 32768 · kv-cache-memory-bytes 11811160064 · gmu 0.9)는 4군 공통 통제변인이다.
 - **`runtime_patch`** — 불해당: stock 0.26.0 이 이 모델을 그대로 서빙했다 — processor/config shim 을 arming 한 적이 없고, 없어야 재현된다.
 - **`build_patch_pre`** — 불해당: 소스 수정 없이 컴파일됐다. `build_patches_src/` 는 비어 있고 활성 Dockerfile 이 참조는 하되 적용할 파일이 0건이다.
 - **`build_patch_post`** — 불해당: 빌드-바깥 native 의존 설치가 필요 없었다(추가 lib/커널 0건).

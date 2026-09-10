@@ -4,7 +4,7 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "serve 시점 성립분. 이 셀을 가르는 유일한 축이 `kv-cache-dtype: auto` 이고 나머지(max-model-len 32768 · kv-cache-memory-bytes 11811160064 · gmu 0.9)는 4군 공통 통제변인이다"
+      "rationale": "serve 시점 성립분. 이 셀을 가르는 유일한 축이 `kv-cache-dtype: fp8` 이고 나머지(max-model-len 32768 · kv-cache-memory-bytes 11811160064 · gmu 0.9)는 4군 공통 통제변인이다"
     },
     "runtime_patch": {
       "applicable": false,
