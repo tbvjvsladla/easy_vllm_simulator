@@ -307,7 +307,13 @@ BAND2_TOP=(Dockerfile Dockerfile.source-build Dockerfile.source-build-upstage do
 #   비추적 항목은 스냅샷에 없으므로 "미분류 fail-loud" 가 발화하지 못한다(gitignore 가 게이트의 눈을
 #   가린다). 목록을 세 벌 두면 또 갈라지므로 여기 한 곳에서만 선언한다.
 #   ⚠ pre 슬롯은 `workflow.md:77` 기준 **미검증 슬롯**(배관은 동작 확인, 그 위 서빙 성공 사례 없음).
-BAND2_PATCH_DIRS=(build_patches build_patches_src)
+# ⛔ 비움(2026-09-10 · 사용자 결정): build_patches · build_patches_src 의 추적 예외가 철회되면서
+#   이 배달 표면도 함께 비운다. 두 목록은 쌍이다 — `.gitignore` 에서 예외를 걷고 여기를 그대로 두면
+#   parity 검사가 정확히 "보내지 않는 것을 지우게 된다" 로 막는다(2026-09-10 실측: --apply 배달 거부).
+#   ⇒ 슬롯 산출물의 서브 배달은 index 권위 스냅샷이 아니라 `regen_build_patches_src.py`(pre 위상
+#     생성엔진)와 hint 페이로드가 맡는다. post 위상(build_patches/)의 배달 경로는 **아직 비어 있다** —
+#     그 공백은 이 비움이 만든 것이 아니라 드러낸 것이다(후속: plan_26091021 §4 후속).
+BAND2_PATCH_DIRS=()
 # 패치 디렉토리 **안쪽**의 배달 범위(payload glob)의 단일 소유(2026-08-14 신설 · R0 사전점검에서 발견).
 # ★ 무엇이 틀려 있었나: 배달 스코프와 삭제 스코프가 **서로 다른 정의**를 쓰고 있었다.
 #     배달 = git index(prepare_transactional_source) → `files/` 는 .gitignore:156 으로 비추적이라 **부재**
