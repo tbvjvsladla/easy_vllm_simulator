@@ -1,8 +1,8 @@
 {
   "artifacts": [
-    "artifacts/triplet/b-kvfp8.yaml",
-    "artifacts/triplet/b-kvfp8.sh",
-    "artifacts/triplet/.env.b-kvfp8",
+    "artifacts/triplet/c-tq4nc.yaml",
+    "artifacts/triplet/c-tq4nc.sh",
+    "artifacts/triplet/.env.c-tq4nc",
     "artifacts/build_recipe/Dockerfile",
     "artifacts/build_recipe/Dockerfile.source-build",
     "artifacts/build_recipe/requirements.txt",
@@ -65,9 +65,9 @@
       "evidence_source": "certificate.image_tag ↔ .env IMAGE_TAG",
       "exemptible": false,
       "files": [
-        "output/single/Dockerfile",
-        "output/single/Dockerfile.source-build",
-        "output/single/requirements.txt"
+        "sync_staging/sub_slots_camp26090721/Dockerfile",
+        "sync_staging/sub_slots_camp26090721/Dockerfile.source-build",
+        "sync_staging/sub_slots_camp26090721/requirements.txt"
       ],
       "owner": "upstream-version-watch",
       "phase": "build",
@@ -80,13 +80,13 @@
       "evidence_source": "certificate.image_tag ↔ .env IMAGE_TAG",
       "exemptible": false,
       "files": [
-        "output/single/docker-compose.yaml"
+        "sync_staging/sub_slots_camp26090721/docker-compose.yaml"
       ],
       "owner": "upstream-version-watch",
       "phase": "serve(orchestration)",
       "present": true,
       "slot_confidence": "2-signal(file+declaration)",
-      "topology_env_template_from": "output/single/.env"
+      "topology_env_template_from": "sync_staging/sub_slots_camp26090721/.env"
     },
     "fork_pin": {
       "evidence": false,
@@ -115,12 +115,12 @@
       "evidence_source": "certificate 소프트지문 ↔ 트리플렛 yaml serve 노브(이름 관측은 하위호환 폴백)",
       "exemptible": false,
       "files": {
-        "config_yaml": "output/single/configs/b-kvfp8.yaml",
-        "env_file": "output/single/envs/.env.b-kvfp8",
-        "runner_sh": "output/single/configs/b-kvfp8.sh"
+        "config_yaml": "sync_staging/sub_slots_camp26090721/configs/c-tq4nc.yaml",
+        "env_file": "sync_staging/sub_slots_camp26090721/envs/.env.c-tq4nc",
+        "runner_sh": "sync_staging/sub_slots_camp26090721/configs/c-tq4nc.sh"
       },
       "missing": [],
-      "missing_code": "HINT_MISSING_TRIPLET",
+      "missing_code": "HINT_MISSING_SUB_TRIPLET",
       "owner": "vllm-recipe-explorer",
       "phase": "serve",
       "present": true,

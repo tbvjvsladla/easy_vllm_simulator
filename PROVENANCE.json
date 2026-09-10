@@ -9,5 +9,5 @@
   "schema_version": 1,
   "source_branch": "single-node",
   "source_branch_source": "derived(git branch --contains anchor)",
-  "tag": "hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvfp8"
+  "tag": "hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant4bitnc"
 }

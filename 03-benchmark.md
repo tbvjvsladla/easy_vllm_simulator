@@ -21,10 +21,10 @@ OBSERVATION-ONLY — 아래 수치는 **관측 게재**이지 baseline 이 아�
 주장하지 않으며 baseline 승격 통로는 발행기가 막고 있다(`task_class=hint_map_only`).
 
 **말할 수 있는 것**
-- 같은 11.0 GiB 에서 이 dtype 이 연 KV 풀 = **160,192 토큰(2.00×)** — 엔진 보고 실측이고,
+- 같은 11.0 GiB 에서 이 dtype 이 연 KV 풀 = **232,992 토큰(2.91×)** — 엔진 보고 실측이고,
   같은 모델·같은 max-model-len 이면 다른 HW 에서도 같은 비가 나온다(**arch-invariant**).
-- 8192+1024 워크로드의 상주 요청 상한 **17건**, 확보 가능한 최대 context **131K**.
-- 스트림당 decode tok/s(동시성 1/2/4) = **20.20 / 22.38 / (L4 열사살 오염)** · judge PASS (explore · floor 10.1 · ratio 1.705).
+- 8192+1024 워크로드의 상주 요청 상한 **25건**, 확보 가능한 최대 context **131K**.
+- 스트림당 decode tok/s(동시성 1/2/4) = **18.56 / 18.75 / 14.59** · judge PASS (explore · floor 10.1 · expected_achievable 11.88).
 
 **말할 수 없는 것**
 - 실제 24GB 디스크리트 카드에서의 절대 성능. 아키텍처를 모의하지 않았다(**arch-scaled**).
@@ -33,3 +33,5 @@ OBSERVATION-ONLY — 아래 수치는 **관측 게재**이지 baseline 이 아�
 
 **like-with-like 로 비교하려면** 같은 `--kv-cache-memory-bytes`, 같은 `max-model-len`, 같은 입출력
 길이, 같은 prefix-hit 상한(≤2%)을 맞춰라. 넷 중 하나라도 다르면 이 표와 비교하지 마라.
+
+PERF-WARNING: 인증서 없음(authority=explore 는 인증서를 발행하지 않는다) · 서브 셀의 judge 원본 JSON 미회수 — 성능 수치는 회수된 서브 testlog 의 관측이며 이 태그는 인증서급 재현성·외부 대비 우위를 주장하지 않는다
