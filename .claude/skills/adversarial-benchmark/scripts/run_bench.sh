@@ -254,8 +254,17 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
   local NAS HOSTTOK
   NAS="$(sed -n 's/^[[:space:]]*nas_model_path:[[:space:]]*"\{0,1\}\([^"#]*\)"\{0,1\}.*/\1/p' \
           "$REPO/output/$TOPO/manifest.yaml" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')"
+  # /app/quant_models/* 도 되돌린다(2026-09-10 · camp-26090918): NVFP4/FP4 계열은 별도 NAS
+  #   루트(manifest.quant_model_path)라 /app/models 매핑만 있으면 호스트 경로가 어긋나
+  #   "토크나이저 부재" 로 죽는다 — 침묵 누락 배선. 미선언 manifest 에서 quant 경로가 오면
+  #   추측하지 않고 멈춘다(nas 폐백 금지 — 경로가 틀리면 벤치가 아니라 배선이 틀린 것).
+  local QUANT
+  QUANT="$(sed -n 's/^[[:space:]]*quant_model_path:[[:space:]]*"\{0,1\}\([^"#]*\)"\{0,1\}.*/\1/p'           "$REPO/output/$TOPO/manifest.yaml" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')"
   case "$MODEL_PATH" in
     /app/models/*) HOSTTOK="${NAS%/}/${MODEL_PATH#/app/models/}" ;;
+    /app/quant_models/*)
+      [ -n "$QUANT" ] || { echo "[run_bench] ERROR manifest 의 quant_model_path 부재 — /app/quant_models 매핑 불가" >&2; return 2; }
+      HOSTTOK="${QUANT%/}/${MODEL_PATH#/app/quant_models/}" ;;
     *)             HOSTTOK="$MODEL_PATH" ;;
   esac
   [ -n "$NAS" ] || { echo "[run_bench] ERROR manifest 의 nas_model_path 를 읽지 못했다 — 토크나이저 호스트 경로를 추측하지 않는다" >&2; return 2; }

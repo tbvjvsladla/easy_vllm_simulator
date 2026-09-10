@@ -37,7 +37,16 @@ def _die(msg, code=2):
     sys.exit(code)
 
 
-def _resolve_host_path(model_path, nas_host_root, nas_container_root="/app/models"):
+def _resolve_host_path(model_path, nas_host_root, nas_container_root="/app/models",
+                       quant_host_root=None, quant_container_root="/app/quant_models"):
+    # /app/quant_models 매핑(2026-09-10 · camp-26090918): NVFP4 계열은 별도 NAS 루트 —
+    #   /app/models 매핑만 있으면 컨테이너 경로가 그대로 호스트에서 조회돼 "모델 부재" 오진.
+    qprefix = quant_container_root.rstrip("/")
+    if model_path == qprefix or model_path.startswith(qprefix + "/"):
+        if not quant_host_root:
+            _die("manifest quant_model_path 미전달 — /app/quant_models 매핑 불가(추측 금지): %s" % model_path)
+        rel = model_path[len(qprefix):].lstrip("/")
+        return os.path.join(quant_host_root, rel)
     prefix = nas_container_root.rstrip("/")
     if model_path == prefix or model_path.startswith(prefix + "/"):
         rel = model_path[len(prefix):].lstrip("/")
@@ -179,6 +188,7 @@ def main():
     ap = argparse.ArgumentParser(description="디코드 성능 의심 임계 루프라인 (spec-aware R_fp/R_token)")
     ap.add_argument("--model-path", required=True, help="컨테이너 경로(/app/models/...) 또는 호스트 경로")
     ap.add_argument("--nas-root", default="/mnt/models", help="/app/models 매핑 호스트 NAS 루트")
+    ap.add_argument("--quant-root", default=None, help="/app/quant_models 매핑 호스트 루트(manifest.quant_model_path)")
     ap.add_argument("--manifest", help="manifest.yaml (gpu_model·interconnect·gpus_per_node)")
     ap.add_argument("--tp", type=int, help="tensor-parallel-size (미지정 시 manifest nodes×gpus 또는 1)")
     ap.add_argument("--accept-len", type=float, default=1.0, help="mean acceptance length(speculative). spec off=1.0")
@@ -190,7 +200,7 @@ def main():
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
-    host_dir = _resolve_host_path(args.model_path, args.nas_root)
+    host_dir = _resolve_host_path(args.model_path, args.nas_root, quant_host_root=args.quant_root)
     if not os.path.isdir(host_dir):
         _die("모델 디렉토리 없음: %s (다운로드 금지·중단)" % host_dir)
 
