@@ -363,7 +363,14 @@ SOURCE_PORT_BUNDLE_SHA=""                          # materialize 단계에서 �
 #     처방은 전파 경로 신설이 아니라 **공유 스토리지 + manifest 포인터**다(사용자 결정 — NAS 배치).
 #       자산 정본 = `manifest.tiktoken_host_path` 가 가리키는 공유 경로. 그러면 전파가 불필요해지므로
 #       이 제외 목록은 그대로 옳다. 되돌아감 방지는 `manifest_contract.py` 의 노드-로컬 경고가 맡는다.
-BAND2_EXCLUDED_TOP=(manifest.yaml sub_provision .env benchlog cache tiktoken_cache a2a_signing sub_manifest.yaml)
+BAND2_EXCLUDED_TOP=(manifest.yaml sub_provision .env benchlog cache tiktoken_cache a2a_signing sub_manifest.yaml
+                    build_patches build_patches_src)
+#   build_patches·build_patches_src=3+1+1 빌드 패치 슬롯의 **산출물**(2026-09-10 추적 예외 철회의 짝).
+#   BAND2_PATCH_DIRS 를 비우면 이 둘은 배달 목록에서 빠지지만 **분류에서도 빠져** assert_band_classification
+#   이 '미분류 top-level' 로 정당하게 막는다(실측: --apply 배달 거부). 분류는 파티션이라 배달을 그만두는
+#   것과 제외로 선언하는 것이 **한 쌍**이다 — 한쪽만 하면 침묵이 아니라 교착이 된다.
+#   여기 등재가 주는 것: 배달 제외 + 서브측 삭제 보호(rsync 는 exclude 된 수신측 항목을 지우지 않는다)
+#   + 밴드 분류. 서브가 자기 슬롯 산출물을 자율 저작해도 메인이 지우지 않는다.
 #   a2a_signing=메인 A2A **개인 서명키**(서브는 공개 JWK 만 받는다 — 오버레이의 .claude/a2a/trusted_keys.json) ·
 #   sub_manifest.yaml=서브 manifest 의 **발급 원본**(서브 사본은 오버레이가 output/<t>/manifest.yaml 로 나른다).
 #   둘 다 render 입력이면서 비추적이라 prepare_transactional_source 가 파일시스템 예외로 스냅샷에 넣는다
