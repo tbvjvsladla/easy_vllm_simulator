@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/multi/configs/nv4-bf-262k-mmp.yaml`
-- `output/multi/configs/nv4-bf-262k-mmp.sh`
-- `output/multi/envs/.env.nv4-bf-262k-mmp`
+- `output/multi/configs/nv4-f8-262k-mmp.yaml`
+- `output/multi/configs/nv4-f8-262k-mmp.sh`
+- `output/multi/envs/.env.nv4-f8-262k-mmp`
 
 **build_patch_pre**
 - `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
@@ -47,7 +47,7 @@
 ## 적용 사유 (Agent)
 
 **triplet — 적용.** 이 셀의 서빙 형상 전체가 여기 있다: `max-model-len 262144` · `tensor-parallel-size 2` ·
-`gpu-memory-utilization 0.85` · `kv-cache-dtype auto(BF16)`. 특히 **262144 는 임의로 고른 값이 아니라
+`gpu-memory-utilization 0.85` · `kv-cache-dtype fp8_e4m3`. 특히 **262144 는 임의로 고른 값이 아니라
 모델의 `max_position_embeddings` 상한 그 자체**이며, 이 캠페인에서 그보다 큰 값을 시도한 8셀이 전부
 `ValidationError` 로 무너졌다(../testlog/testlog_26091009_qwen38fn_24셀_판정.md §void 셀 · NVFP4 512k/1m). 이 파일을 받는 사람은 그 벽을
 다시 확인할 필요가 없다.

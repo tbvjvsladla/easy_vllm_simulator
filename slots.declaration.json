@@ -4,7 +4,7 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "serve 형상 전체(262144=모델 상한 · TP2 · gmu 0.85 · kv auto(BF16)) — 재현에 원리적으로 필수"
+      "rationale": "serve 형상 전체(262144=모델 상한 · TP2 · gmu 0.85 · kv fp8_e4m3) — 재현에 원리적으로 필수"
     },
     "runtime_patch": {
       "applicable": false,

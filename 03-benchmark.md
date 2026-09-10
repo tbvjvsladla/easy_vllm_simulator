@@ -17,10 +17,10 @@ _동시성별 곡선도 없다(벤치 리포트 부재)._
 
 ## like-with-like 한정자 (Agent)
 
-**말할 수 있는 것.** 이 수치는 `nv4-bf-262k-mmp` 한 형상의 관측이다 — vLLM 0.29.0rc6 + 자체이식 3종,
-NVFP4 가중치, KV `auto(BF16)`, `max-model-len 262144`, TP=2 Ray executor, GB10 2노드, 컨테이너
-profile 은 eager · async off, speculative 는 **MTP k=3 on**. `35.39` t/s 는 그 조건에서 나온 값이고,
-같은 조건을 세운 사람은 이 값 근처를 기대해도 된다. 판정은 `verdict=PASS · authority=explore · floor=2.57` 이다.
+**말할 수 있는 것.** 이 수치는 `nv4-f8-262k-mmp` 한 형상의 관측이다 — vLLM 0.29.0rc6 + 자체이식 3종,
+NVFP4 가중치, KV `fp8_e4m3`, `max-model-len 262144`, TP=2 Ray executor, GB10 2노드, 컨테이너
+profile 은 eager · async off, speculative 는 **MTP k=3 on**. `26.73 (lite only)` t/s 는 그 조건에서 나온 값이고,
+같은 조건을 세운 사람은 이 값 근처를 기대해도 된다. 판정은 `lite 측정만 성립 · verdict 미통과 · 인증서 미발행` 이다.
 
 **말할 수 없는 것.** 인증서가 없다 — full 모드 verdict 로 봉인된 계측이 아니므로 이 수치를
 **baseline 이나 권고로 승격하지 마라**. 부재는 '느렸다' 가 아니라 '그 형태로 판정되지 않았다' 는
@@ -32,9 +32,9 @@ KV dtype · `max-model-len` · TP · 그리고 **측정 도구**. 특히 specula
 뒤집힌다 — 같은 캠페인에서 MTP 를 켠 셀이 conc1 에서는 앞서고(35.39 vs 32.53) conc2 부터는
 뒤진다(29.53 vs 31.40) (../testlog/testlog_26091009_qwen38fn_24셀_판정.md §measured 셀 동시성 벡터). 한 점만 보고 레버의 우열을 말하면 틀린다.
 
-**이 셀의 동시성 벡터.** 1=35.39 · 2=29.53 · 4=22.64 · 8=15.90 · 16=11.51
+**이 셀의 동시성 벡터.** 없음 — sweep 5레벨 전부 시스템 OOM kill ×3 (서빙은 성립)
 
-**accept_len.** 2.38~2.45 — speculative 가 실제로 먹었다는 관측이다.
+**accept_len.** 1.86~2.45 — speculative 가 실제로 먹었다는 관측이다.
 
 **여정으로서의 값.** 이 태그가 나르는 가장 싼 정보는 수치가 아니라 **21셀이 어떻게 무너졌는가**다.
 §2 의 세 원인은 같은 하드웨어에서 같은 매트릭스를 짜려는 사람이 그대로 피할 수 있는 벽이다.
