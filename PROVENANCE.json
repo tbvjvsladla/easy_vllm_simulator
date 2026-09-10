@@ -1,13 +1,13 @@
 {
-  "anchor": "6e229e5fa932160e7c3cddf6fc0ddd6d4877dfa0",
-  "anchor_is_head": true,
-  "assembled_at_head": "6e229e5fa932160e7c3cddf6fc0ddd6d4877dfa0",
-  "assembly_branch": "multi-node",
-  "generated_kst": "2026-09-10T18:54:00",
+  "anchor": "65a11d9072eda4cd6ed3f01fd188aa1cae9e8ddd",
+  "anchor_is_head": false,
+  "assembled_at_head": "6ca4bb83014568f4f0f69c933f8b86bdd1264d25",
+  "assembly_branch": "single-node",
+  "generated_kst": "2026-09-11T03:50:00",
   "kind": "hint_payload_provenance",
-  "payload_files": 22,
+  "payload_files": 13,
   "schema_version": 1,
-  "source_branch": "multi-node",
+  "source_branch": "single-node",
   "source_branch_source": "derived(git branch --contains anchor)",
-  "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto_260910t0204z"
+  "tag": "hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvauto"
 }

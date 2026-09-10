@@ -1,0 +1,17 @@
+# Qwen3/Qwen3-4B 서빙 설정 (vllm-recipe-explorer 생성)
+# 레시피: quant=None max_model_len=32768 gpu_mem_util=0.9
+# ── VRAM 분해 (Phase 2 절대 KV 클램프 기준) ──
+#   weights: 7.56 GiB
+#   kv_cache: 11.0 GiB
+#   budget: 24.0 GiB
+# ── 타겟-GPU 이식 클램프 (host≠target, gpu_model=RTX 4090 (simulated on GB10)) ──
+# host-측정 weights/overhead 이전값. target≠host arch 면 target-margin 이 쿠션(정량보증 아님).
+# 가능하면 타겟에서 재측정(Phase-2)을 권장. per-token-KV·weights 는 GPU-불변, overhead 는 런타임 성질 일부 포함.
+model: /app/models/Qwen/Qwen3/Qwen3-4B
+host: 0.0.0.0
+port: 8000
+# gpu-memory-utilization = startup free-memory 게이트 + 총 cap(통합메모리 ≤0.90); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어
+gpu-memory-utilization: 0.9
+max-model-len: 32768
+kv-cache-memory-bytes: 11811160064
+kv-cache-dtype: auto

@@ -11,30 +11,25 @@
 |---|---|
 | `HINT_MISSING_CERTIFICATE` | 인증서 부재 — full PASS 가 아니었거나 벤치마커가 발행하지 않았다. 인증서 발행은 adversarial-benchmark 의 책임이지 발행기의 책임이 아니다. |
 | `HINT_MISSING_BENCH_REPORT` | 벤치 리포트 부재 — 동시성별 곡선을 실을 수 없다. |
-| `HINT_MISSING_SLAVE_ATTESTATION` | 슬레이브 ABI attestation 부재 — 멀티에서 두 노드가 같은 것을 돌렸다는 증거가 성공 경로에 보존되지 않았다. |
+| `HINT_MISSING_LITE` | lite 관측 부재. |
 
 _동시성별 곡선도 없다(벤치 리포트 부재)._
 
 ## like-with-like 한정자 (Agent)
 
-**말할 수 있는 것.** 이 수치는 `nv4-bf-262k-mmp` 한 형상의 관측이다 — vLLM 0.29.0rc6 + 자체이식 3종,
-NVFP4 가중치, KV `auto(BF16)`, `max-model-len 262144`, TP=2 Ray executor, GB10 2노드, 컨테이너
-profile 은 eager · async off, speculative 는 **MTP k=3 on**. `35.39` t/s 는 그 조건에서 나온 값이고,
-같은 조건을 세운 사람은 이 값 근처를 기대해도 된다. 판정은 `verdict=PASS · authority=explore · floor=2.57` 이다.
+OBSERVATION-ONLY — 아래 수치는 **관측 게재**이지 baseline 이 아니다. 이 태그는 성능 우위를
+주장하지 않으며 baseline 승격 통로는 발행기가 막고 있다(`task_class=hint_map_only`).
 
-**말할 수 없는 것.** 인증서가 없다 — full 모드 verdict 로 봉인된 계측이 아니므로 이 수치를
-**baseline 이나 권고로 승격하지 마라**. 부재는 '느렸다' 가 아니라 '그 형태로 판정되지 않았다' 는
-뜻이다. 슬레이브 ABI attestation 도 성공 경로에 보존되지 않아, 두 노드가 같은 것을 돌렸다는 증거는
-이미지 태그 동일성까지만이다.
+**말할 수 있는 것**
+- 같은 11.0 GiB 에서 이 dtype 이 연 KV 풀 = **80,096 토큰(1.00×)** — 엔진 보고 실측이고,
+  같은 모델·같은 max-model-len 이면 다른 HW 에서도 같은 비가 나온다(**arch-invariant**).
+- 8192+1024 워크로드의 상주 요청 상한 **8건**, 확보 가능한 최대 context **~78K**.
+- 스트림당 decode tok/s(동시성 1/2/4) = **19.12 / 19.68 / 15.24** · judge PASS (explore · floor 10.1 · ratio 1.61).
 
-**비교하려면 맞춰야 하는 축.** 동시성(이 캠페인은 conc1 을 대표값으로 적었다) · speculative 유무 ·
-KV dtype · `max-model-len` · TP · 그리고 **측정 도구**. 특히 speculative 는 동시성에 따라 부호가
-뒤집힌다 — 같은 캠페인에서 MTP 를 켠 셀이 conc1 에서는 앞서고(35.39 vs 32.53) conc2 부터는
-뒤진다(29.53 vs 31.40) (../testlog/testlog_26091009_qwen38fn_24셀_판정.md §measured 셀 동시성 벡터). 한 점만 보고 레버의 우열을 말하면 틀린다.
+**말할 수 없는 것**
+- 실제 24GB 디스크리트 카드에서의 절대 성능. 아키텍처를 모의하지 않았다(**arch-scaled**).
+- 품질(정확도) 영향. 이번 범위 밖이며 KV 를 3bit 까지 내리고도 품질을 안 쟀다는 사실은 **결손**이다.
+- 동시성 8 이상의 곡선. 열 보호가 먼저 걸려 측정 자체가 성립하지 않았다.
 
-**이 셀의 동시성 벡터.** 1=35.39 · 2=29.53 · 4=22.64 · 8=15.90 · 16=11.51
-
-**accept_len.** 2.38~2.45 — speculative 가 실제로 먹었다는 관측이다.
-
-**여정으로서의 값.** 이 태그가 나르는 가장 싼 정보는 수치가 아니라 **21셀이 어떻게 무너졌는가**다.
-§2 의 세 원인은 같은 하드웨어에서 같은 매트릭스를 짜려는 사람이 그대로 피할 수 있는 벽이다.
+**like-with-like 로 비교하려면** 같은 `--kv-cache-memory-bytes`, 같은 `max-model-len`, 같은 입출력
+길이, 같은 prefix-hit 상한(≤2%)을 맞춰라. 넷 중 하나라도 다르면 이 표와 비교하지 마라.

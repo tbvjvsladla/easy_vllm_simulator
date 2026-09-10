@@ -4,31 +4,31 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "serve 형상 전체(262144=모델 상한 · TP2 · gmu 0.85 · kv auto(BF16)) — 재현에 원리적으로 필수"
+      "rationale": "serve 시점 성립분. 이 셀을 가르는 유일한 축이 `kv-cache-dtype: auto` 이고 나머지(max-model-len 32768 · kv-cache-memory-bytes 11811160064 · gmu 0.9)는 4군 공통 통제변인이다"
     },
     "runtime_patch": {
       "applicable": false,
-      "rationale": "serve 시점 Python shim 이 필요 없었다 — 필요한 교정은 전부 컴파일 전 성립분이다"
+      "rationale": "stock 0.26.0 이 이 모델을 그대로 서빙했다 — processor/config shim 을 arming 한 적이 없고, 없어야 재현된다"
     },
     "build_patch_pre": {
-      "applicable": true,
-      "rationale": "자체이식 3종(60/62/64)이 _C 재컴파일을 요구하므로 컴파일 전이 유일한 자리"
+      "applicable": false,
+      "rationale": "소스 수정 없이 컴파일됐다. `build_patches_src/` 는 비어 있고 활성 Dockerfile 이 참조는 하되 적용할 파일이 0건이다"
     },
     "build_patch_post": {
-      "applicable": true,
-      "rationale": "컴파일 바깥 native 의존(DeepGEMM·Triton·sm_121 MXFP4·GB10 NVML) 설치"
+      "applicable": false,
+      "rationale": "빌드-바깥 native 의존 설치가 필요 없었다(추가 lib/커널 0건)"
     },
     "build_recipe": {
       "applicable": true,
-      "rationale": "위 패치들이 실제로 먹은 이미지를 지은 레시피 — 없으면 순서·베이스가 소실된다"
+      "rationale": "source-build 트랙이라 이미지가 곧 실험 조건이다 — NGC 26.05-py3 위에서 vLLM `v0.26.0`(568afb3a) 를 컴파일한 레시피 없이는 같은 엔진이 재현되지 않는다"
     },
     "compose": {
       "applicable": true,
-      "rationale": "TP=2 멀티 기동이라 master/slave 배선이 serve 성립의 전제"
+      "rationale": "KV 절대 클램프를 건 컨테이너를 어떻게 띄우는지가 이 측정의 절반이다. `.env` 실물은 배포하지 않고 변수 형상만 template 로 싣는다"
     },
     "fork_pin": {
       "applicable": false,
-      "rationale": ".env 에 VARIANT= 줄 없음 = stock — 자체이식으로 stock 위에서 성립했다"
+      "rationale": "stock 이다 — `.env` 에 `VARIANT=` 줄이 없다. 포크 의존을 만들지 않았다"
     }
   }
 }

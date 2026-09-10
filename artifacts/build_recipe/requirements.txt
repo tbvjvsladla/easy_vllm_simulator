@@ -1,13 +1,12 @@
 # vLLM 런타임 의존성 — wheel 의 Requires-Dist(METADATA) 기준(권위 소스).
-# source: https://github.com/vllm-project/vllm/releases/download/v0.28.0/vllm-0.28.0+cu129-cp38-abi3-manylinux_2_28_aarch64.whl
+# source: https://github.com/vllm-project/vllm/releases/download/v0.26.0/vllm-0.26.0+cu129-cp38-abi3-manylinux_2_28_aarch64.whl
 # base 제공분(torch/torchvision/torchaudio/setuptools)은 제외(--no-deps 보호).
 # extra(fastapi[standard] 등)는 그대로 — pip 가 빌드 시 transitive(uvicorn→uvloop) 해소.
-# ⚠ 핀 양보(2026-09-08 · requirements-fixable): flashinfer-python 0.6.16.post3→0.6.18 — constraint(0.28.0 wheel baseline)이 대상 vLLM 0.29.0rc6 선언(cuda.txt ==0.6.18)에 양보. 소스트리 자체 핀이 권위(SRC_DEPS_AUTHORITY 원칙의 stock 적용) · 양측 py3-none-any wheel PyPI 실재 확인 · == 핀 전수비교에서 유일 충돌.
 # ⚠ KNOWN_INCOMPAT 천장 적용(시간드리프트 회귀 차단; upstream 수정 시 regen_requirements.py KNOWN_INCOMPAT 에서 제거): fastapi<0.137.0; transformers<5.15.0
 PyNvVideoCodec==2.0.4
 aiohttp>=3.13.3
 anthropic>=0.71.0
-apache-tvm-ffi==0.1.11
+apache-tvm-ffi==0.1.10
 blake3
 cachetools
 cbor2
@@ -16,24 +15,23 @@ compressed-tensors==0.17.0
 depyf==0.20.0
 einops
 fastapi[standard]<0.137.0,>=0.133.0,<0.137.0
-fastsafetensors>=0.3.3
+fastsafetensors>=0.3.2
 filelock>=3.16.1
-flashinfer-python==0.6.18
-huggingface_hub>=1.27.0
-humming-kernels[cu12]==0.1.12
+flashinfer-python==0.6.14
+humming-kernels[cu12]==0.1.10
 ijson
 jsonschema>=4.23.0
 lark==1.2.2
 llguidance<1.8.0,>=1.7.0
 lm-format-enforcer==0.11.3
 mcp
-mistral_common[image]>=1.11.6
+mistral_common[image]>=1.11.5
 model-hosting-container-standards<1.0.0,>=0.1.14
 msgspec
 ninja
 numba==0.65.0
 nvidia-cudnn-frontend>=1.19.1
-nvidia-cutlass-dsl==4.6.2
+nvidia-cutlass-dsl==4.6.0
 nvtx==0.2.15
 openai-harmony>=0.0.3
 openai>=2.0.0
@@ -55,7 +53,7 @@ pydantic>=2.12.0
 python-json-logger
 pyyaml
 pyzmq>=25.0.0
-quack-kernels==0.6.4
+quack-kernels>=0.4.0
 regex
 requests>=2.26.0
 safetensors>=0.6.2
@@ -64,7 +62,7 @@ setproctitle
 six>=1.16.0
 starlette>=1.0.1
 tiktoken>=0.6.0
-tilelang==0.1.12
+tilelang==0.1.9
 tokenizers>=0.21.1
 tokenspeed-mla==0.1.8
 torchcodec>=0.14
