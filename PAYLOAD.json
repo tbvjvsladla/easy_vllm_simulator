@@ -1,8 +1,8 @@
 {
   "artifacts": [
-    "artifacts/triplet/nv4-f8-262k-mmp.yaml",
-    "artifacts/triplet/nv4-f8-262k-mmp.sh",
-    "artifacts/triplet/.env.nv4-f8-262k-mmp",
+    "artifacts/triplet/nv4-bf-262k-res.yaml",
+    "artifacts/triplet/nv4-bf-262k-res.sh",
+    "artifacts/triplet/.env.nv4-bf-262k-res",
     "artifacts/build_patch_pre/50-dsv4-sm12x-port.sh",
     "artifacts/build_patch_pre/55-src-deps-authority.sh",
     "artifacts/build_patch_pre/60-qwen4exp-nvfp4-mixed.sh",
@@ -138,9 +138,9 @@
       "evidence_source": "certificate 소프트지문 ↔ 트리플렛 yaml serve 노브(이름 관측은 하위호환 폴백)",
       "exemptible": false,
       "files": {
-        "config_yaml": "output/multi/configs/nv4-f8-262k-mmp.yaml",
-        "env_file": "output/multi/envs/.env.nv4-f8-262k-mmp",
-        "runner_sh": "output/multi/configs/nv4-f8-262k-mmp.sh"
+        "config_yaml": "output/multi/configs/nv4-bf-262k-res.yaml",
+        "env_file": "output/multi/envs/.env.nv4-bf-262k-res",
+        "runner_sh": "output/multi/configs/nv4-bf-262k-res.sh"
       },
       "missing": [],
       "missing_code": "HINT_MISSING_TRIPLET",

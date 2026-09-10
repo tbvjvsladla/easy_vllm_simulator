@@ -1,7 +1,7 @@
 {
-  "anchor": "15690d10b766730163176a5f087b1ea9e3a8eb7b",
+  "anchor": "6e229e5fa932160e7c3cddf6fc0ddd6d4877dfa0",
   "anchor_is_head": true,
-  "assembled_at_head": "15690d10b766730163176a5f087b1ea9e3a8eb7b",
+  "assembled_at_head": "6e229e5fa932160e7c3cddf6fc0ddd6d4877dfa0",
   "assembly_branch": "multi-node",
   "generated_kst": "2026-09-10T18:54:00",
   "kind": "hint_payload_provenance",
@@ -9,5 +9,5 @@
   "schema_version": 1,
   "source_branch": "multi-node",
   "source_branch_source": "derived(git branch --contains anchor)",
-  "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/kvfp8-len262144-mmp"
+  "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/kvauto-len262144-res"
 }
