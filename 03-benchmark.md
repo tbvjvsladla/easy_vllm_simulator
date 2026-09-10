@@ -21,10 +21,10 @@ OBSERVATION-ONLY — 아래 수치는 **관측 게재**이지 baseline 이 아�
 주장하지 않으며 baseline 승격 통로는 발행기가 막고 있다(`task_class=hint_map_only`).
 
 **말할 수 있는 것**
-- 같은 11.0 GiB 에서 이 dtype 이 연 KV 풀 = **232,992 토큰(2.91×)** — 엔진 보고 실측이고,
+- 같은 11.0 GiB 에서 이 dtype 이 연 KV 풀 = **277,920 토큰(3.47×)** — 엔진 보고 실측이고,
   같은 모델·같은 max-model-len 이면 다른 HW 에서도 같은 비가 나온다(**arch-invariant**).
-- 8192+1024 워크로드의 상주 요청 상한 **25건**, 확보 가능한 최대 context **131K**.
-- 스트림당 decode tok/s(동시성 1/2/4) = **18.56 / 18.75 / 14.59** · judge PASS (explore · floor 10.1 · expected_achievable 11.88).
+- 8192+1024 워크로드의 상주 요청 상한 **30건**, 확보 가능한 최대 context **131K**.
+- 스트림당 decode tok/s(동시성 1/2/4) = **17.58 / 17.63 / 13.53** · judge PASS (explore · floor 10.1 · expected_achievable 11.88).
 
 **말할 수 없는 것**
 - 실제 24GB 디스크리트 카드에서의 절대 성능. 아키텍처를 모의하지 않았다(**arch-scaled**).

@@ -1,8 +1,8 @@
 {
   "artifacts": [
-    "artifacts/triplet/c-tq4nc.yaml",
-    "artifacts/triplet/c-tq4nc.sh",
-    "artifacts/triplet/.env.c-tq4nc",
+    "artifacts/triplet/d-tq3nc.yaml",
+    "artifacts/triplet/d-tq3nc.sh",
+    "artifacts/triplet/.env.d-tq3nc",
     "artifacts/build_recipe/Dockerfile",
     "artifacts/build_recipe/Dockerfile.source-build",
     "artifacts/build_recipe/requirements.txt",
@@ -115,9 +115,9 @@
       "evidence_source": "certificate 소프트지문 ↔ 트리플렛 yaml serve 노브(이름 관측은 하위호환 폴백)",
       "exemptible": false,
       "files": {
-        "config_yaml": "sync_staging/sub_slots_camp26090721/configs/c-tq4nc.yaml",
-        "env_file": "sync_staging/sub_slots_camp26090721/envs/.env.c-tq4nc",
-        "runner_sh": "sync_staging/sub_slots_camp26090721/configs/c-tq4nc.sh"
+        "config_yaml": "sync_staging/sub_slots_camp26090721/configs/d-tq3nc.yaml",
+        "env_file": "sync_staging/sub_slots_camp26090721/envs/.env.d-tq3nc",
+        "runner_sh": "sync_staging/sub_slots_camp26090721/configs/d-tq3nc.sh"
       },
       "missing": [],
       "missing_code": "HINT_MISSING_SUB_TRIPLET",

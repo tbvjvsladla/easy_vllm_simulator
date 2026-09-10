@@ -14,4 +14,4 @@ port: 8000
 gpu-memory-utilization: 0.9
 max-model-len: 32768
 kv-cache-memory-bytes: 11811160064
-kv-cache-dtype: turboquant_4bit_nc
+kv-cache-dtype: turboquant_3bit_nc
