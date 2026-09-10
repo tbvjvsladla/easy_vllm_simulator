@@ -57,6 +57,9 @@ x-gpu-common: &gpu-common
     - ${NAS_MODEL_PATH:-/mnt/models}:/app/models:ro       # 모델 폴더 read-only (managed/custom 마운트원)
     - ${QUANT_MODEL_PATH:-/mnt/models}:/app/quant_models:ro
     - ${TIKTOKEN_HOST_PATH:-/mnt/models}:/encodings:ro
+    # PLE n-gram 테이블의 로컬 NVMe mmap 스테이징(2026-09-09 · camp-26090918 · 62-qwen4exp-ple-mmap).
+    #   NAS mmap 은 디코드 지연이라 로컬 스테이징이 전제(blazux 선례). 셀 env 의 VLLM_PLE_MMAP=1 일 때만 읽힌다.
+    - ${PLE_MMAP_HOST_PATH:-/mnt/models}:/app/ple_mmap:ro
     # 통로 self-containment(plan_2026062321_1 I1/I2): 컨테이너는 통로(output/multi/)만 마운트 — `../../`(통로 밖) reach-out 금지.
     # ./configs = output/multi/configs = 모델 트리플릿 + render-materialize 된 러너 스크립트(serve_runner.sh·debug-init.sh).
     #   러너 스크립트 정본 = repo-root configs/(tracked); render_dockerfile.py --materialize-configs --topology multi 가 통로로 복사(생성본·gitignored).
@@ -105,6 +108,9 @@ services:
       SERVING_PORT: ${SERVING_PORT:-8080}
       SERVING_MODEL_NAME: ${SERVING_MODEL_NAME}
       CONFIG_FILE: ${CONFIG_FILE:-default}
+      # PLE mmap 셀 축(62-qwen4exp-ple-mmap) — 셀 env(.env.<config>)가 1 을 주입. 미주입 시 0=stock.
+      VLLM_PLE_MMAP: ${VLLM_PLE_MMAP:-0}
+      VLLM_PLE_MMAP_DIR: ${VLLM_PLE_MMAP_DIR:-/app/ple_mmap/q38fn-nvfp4}
     env_file:
       - envs/.env.interconnect             # NCCL/RDMA (manifest-driven, Plan 2). 먼저=충돌 시 per-model 우선
       - envs/.env.cluster                  # Ray 클러스터-배포 (manifest.nodes-driven, S6): MASTER/SLAVE IP·RAY 튜닝
@@ -129,6 +135,10 @@ services:
       HEAD_NODE_IP: ${MASTER_HOST_IP}      # master에 접속
       RAY_PORT: ${RAY_PORT:-6379}
       CONFIG_FILE: ${CONFIG_FILE:-default}
+      # PLE mmap 셀 축 — 슬레이브(Ray 워커)도 모델을 띄우므로 마스터와 같은 값이어야 한다.
+      #   빠뜨리면 마스터만 mmap·슬레이브는 상주 로드로 OOM/불일치(smoke script 가 ssh prefix 로 전달).
+      VLLM_PLE_MMAP: ${VLLM_PLE_MMAP:-0}
+      VLLM_PLE_MMAP_DIR: ${VLLM_PLE_MMAP_DIR:-/app/ple_mmap/q38fn-nvfp4}
     env_file:
       # 슬레이브 = Band2-only (Ray worker 만 — vllm serve·모델 트리플렛 불요). R1 결정 완결: plan_2026062811_2.
       #   `.env.<config>`(Band3 모델 env) 의존 제거 → 서브에 모델 트리오 전달 불요(sync_to_sub Band2 배달로 충분).

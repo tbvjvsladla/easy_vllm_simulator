@@ -1,34 +1,34 @@
 {
-  "_note": "hint_map_only 자동화 1회용 · 캠페인 camp-26090819-ds4f0731-kv3ctx2-multi 셀당 발행",
+  "_note": "신호③ — **Agent 선언**. 각 슬롯의 `applicable` 을 true/false 로, `rationale` 을 한 줄로 채운다. null 이 하나라도 남으면 `hint_collect check` 가 막는다. 선언은 파일 존재·적용 증거와 **대사**되며, 셋이 어긋나면 차단이다(plan §7). ★ triplet 은 선언으로 면제할 수 없다 — 서빙에 원리적으로 필수다.",
   "schema_version": 1,
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "셀 b-768k-kvfp8-l1spec — KV fp8 · TP=2 ray · moe humming · parser deepseek_v4 · 10GiB 클램프"
+      "rationale": "serve 형상 전체(262144=모델 상한 · TP2 · gmu 0.85 · kv auto(BF16)) — 재현에 원리적으로 필수"
     },
     "runtime_patch": {
       "applicable": false,
-      "rationale": "stock 0.29.0rc6 native — shim 불요"
+      "rationale": "serve 시점 Python shim 이 필요 없었다 — 필요한 교정은 전부 컴파일 전 성립분이다"
     },
     "build_patch_pre": {
-      "applicable": false,
-      "rationale": "셀렉터 off(SM12X_PORT=0 · SRC_DEPS_AUTHORITY=0) — 이 셀 빌드에 미적용"
+      "applicable": true,
+      "rationale": "자체이식 3종(60/62/64)이 _C 재컴파일을 요구하므로 컴파일 전이 유일한 자리"
     },
     "build_patch_post": {
       "applicable": true,
-      "rationale": "10-deepgemm·20-triton·30-mxfp4·40-humming 전부 적용됨(빌드 로그 실측) · 재현 필수"
+      "rationale": "컴파일 바깥 native 의존(DeepGEMM·Triton·sm_121 MXFP4·GB10 NVML) 설치"
     },
     "build_recipe": {
       "applicable": true,
-      "rationale": "Dockerfile.source-build · NGC 26.07×torch 2.13.0 커플링"
+      "rationale": "위 패치들이 실제로 먹은 이미지를 지은 레시피 — 없으면 순서·베이스가 소실된다"
     },
     "compose": {
       "applicable": true,
-      "rationale": "master/slave Ray 오케스트레이션"
+      "rationale": "TP=2 멀티 기동이라 master/slave 배선이 serve 성립의 전제"
     },
     "fork_pin": {
       "applicable": false,
-      "rationale": "stock vllm-project/vllm @ 0.29.0rc6 — 포크 불요"
+      "rationale": ".env 에 VARIANT= 줄 없음 = stock — 자체이식으로 stock 위에서 성립했다"
     }
   }
 }

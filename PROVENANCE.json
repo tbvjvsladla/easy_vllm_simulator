@@ -1,13 +1,13 @@
 {
-  "anchor": "d4d807a0994aecb87af26b269eae5413f381dded",
+  "anchor": "15690d10b766730163176a5f087b1ea9e3a8eb7b",
   "anchor_is_head": true,
-  "assembled_at_head": "d4d807a0994aecb87af26b269eae5413f381dded",
+  "assembled_at_head": "15690d10b766730163176a5f087b1ea9e3a8eb7b",
   "assembly_branch": "multi-node",
-  "generated_kst": "2026-09-09T13:50:00",
+  "generated_kst": "2026-09-10T18:54:00",
   "kind": "hint_payload_provenance",
-  "payload_files": 16,
+  "payload_files": 22,
   "schema_version": 1,
   "source_branch": "multi-node",
   "source_branch_source": "derived(git branch --contains anchor)",
-  "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph0"
+  "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/kvauto-len262144-res"
 }
