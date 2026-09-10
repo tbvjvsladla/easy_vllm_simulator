@@ -102,7 +102,7 @@
 - **발견 ≠ 소유 (intake)**: 발견은 `vllm-recipe-explorer` crosscheck(special-dep 경보) — **메인**이면 직접 핸드오프,
   **서브**면 docs insight 상향(D12, 서브는 빌드평면 미보유). upstream-version-watch 가 **이미지에 넣는 책임**(어떻게)을 진다.
   **patch.py ✗**(native lib 은 Python 몽키패치 불가).
-- **모듈화 (Dockerfile bloat 차단)**: 패치 = **`output/<topology>/build_patches/<NN>-<name>.sh`** 모듈(추적 빌딩블럭 ·
+- **모듈화 (Dockerfile bloat 차단)**: 패치 = **`output/<topology>/build_patches/<NN>-<name>.sh`** 모듈(**비추적 산출물**(2026-09-10 철회 — 3+1+1 슬롯 산출물이라 추적금지가 기본. 배달은 hint 페이로드·sync_to_sub) ·
   **빌드 컨텍스트=output/<t>/** · 통로 격리로 single/multi 혼재 차단 · 서브 전달=`sync_to_sub`). 각자 self-contained =
   헤더(what/why/model-trigger/plan-ref) + 설치·컴파일 + **검증(fail-loud)**. `Dockerfile.source-build` 는 **단일 thin 스탠자**:
   `COPY build_patches/ /tmp/build_patches/` + `RUN for p in $(ls /tmp/build_patches/*.sh|sort); do bash "$p"||exit 1; done`.

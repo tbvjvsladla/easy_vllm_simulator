@@ -150,12 +150,13 @@ output/*/*
 !output/single/Dockerfile.source-build-upstage
 !output/single/docker-compose.yaml
 !output/single/requirements.txt
-# 빌드-바깥 패치 모듈(build_patches/<NN>-*.sh) — 손작성 빌드입력·정본(컨테이너 정의와 동급 추적).
-#   통로(output/<t>/) 격리로 single/multi 혼재 차단(산출물 통로 불변식). upstream-version-watch §4.7 · 3+1+1.
-!output/multi/build_patches/
-!output/multi/build_patches/*
-!output/single/build_patches/
-!output/single/build_patches/*
+# ⛔ 철회(2026-09-10 · 사용자 결정): build_patches/ 를 "컨테이너 정의와 동급" 으로 추적 승격했던
+#   예외를 걷는다. 근거 — 이 파일들은 3+1+1 의 **빌드 패치 슬롯 산출물**이고, 산출물 통로
+#   (output/<t>/) 의 기본 정책은 **추적금지**다(CLAUDE.md: 빌딩블럭=추적 · 생성물=비추적 ·
+#   "배포 단위 = 스켈레톤 + 생성엔진(완성품 아님)"). 손작성이라는 사실은 *정본성* 을 말할 뿐
+#   *배포 대상* 임을 말하지 않는다 — 그 둘을 뭉갠 것이 이 예외였다.
+#   실측 비대칭이 그 이탈을 드러냈다: single 은 `.gitkeep` 만, multi 는 9파일이 원격에 실려 있었다.
+#   대신 = 슬롯 산출물은 hint 페이로드(재현 키트)와 sync_to_sub 배달이 나른다.
 # 소스 이식 패치(build_patches_src/<NN>-*.sh + files/ + PROVENANCE.json) — **컴파일 前** 위상.
 #   `_C` 재컴파일이 필요한 csrc 의 유일한 자리이며 포크 사다리 3번째 칸(자체 이식)의 산출물이다.
 #   2026-08-13 신설: 이 예외가 없어 비추적 → sync_to_sub 의 index-권위 스냅샷에 부재 → 서브 배달
@@ -167,12 +168,10 @@ output/*/*
 #   어긋나고, "배포 단위 = 스켈레톤 + 생성엔진(완성품 아님)" 과도 부딪힌다.
 #   payload 는 PROVENANCE.json 의 유도식(merge-base diff → 3-way → 선별 병합)으로 재생성하고
 #   파일별 sha256 으로 검증한다. 변종 재현의 정본 경로는 이제 arch_variant_ledger 의 포크 좌표다.
-!output/multi/build_patches_src/
-!output/multi/build_patches_src/*.sh
-!output/multi/build_patches_src/PROVENANCE.json
-!output/single/build_patches_src/
-!output/single/build_patches_src/*.sh
-!output/single/build_patches_src/PROVENANCE.json
+# ⛔ 철회(2026-09-10 · 사용자 결정): 위와 같은 근거. build_patches_src/ 의 손작성 `*.sh` ·
+#   PROVENANCE.json 도 **컴파일 前 위상의 슬롯 산출물**이지 스켈레톤이 아니다.
+#   2026-08-13 이 예외를 연 사유(서브 배달 경로 부재)는 그 뒤 `regen_build_patches_src.py` 라는
+#   생성엔진이 생겨 해소됐다 — 배달은 추적 승격이 아니라 그 도구와 sync_to_sub 가 한다.
 #   ★ payload 명시 제외가 **반드시** 필요하다: `output/*/*` 의 `*` 는 `/` 를 넘지 않으므로
 #   `output/<t>/build_patches_src/files` (4단계)는 그 패턴에 걸리지 않는다. 위 `!` 로 디렉토리를
 #   재포함한 순간 git 이 안으로 내려가고, files/ 는 **어떤 규칙에도 안 걸려 기본 추적**이 된다.
@@ -291,7 +290,14 @@ docs/_evidence/
 #   인증서는 full PASS 때만 나오는 flat yaml 이고 배포강도 PII 4종 스캔 위반 0건이라 배포 가능하다.
 #   범위 주의: work-manifest(docs/_evidence/)는 **여전히 비추적**이다 — 운영자 환경 지문을 담는다.
 #   따라서 수신자 검증은 절반(인증서)까지다. 나머지 절반은 발행자 신뢰에 남는다.
-!docs/benchmark/benchmark_*.yaml
+# ⛔ 철회(2026-09-10 · 사용자 결정): `!docs/benchmark/benchmark_*.yaml` 을 걷는다.
+#   존치 사유였던 "수신자 클론에서 certificate_ref 가 열려야 한다" 는 **이미 성립하지 않았다** —
+#   같은 footer 의 `manifest_ref` 가 가리키는 `docs/_evidence/` 가 비추적이라(위 §) 수신자는
+#   어차피 verify 를 돌릴 수 없다. 반쪽 증거를 배포하느라 기계용 인증서를 배포 평면에 싣던 셈이다.
+#   덧붙여 추적된 인증서는 **브랜치에 갇힌다**(2026-09-10 실측: multi 에 커밋한 인증서가
+#   single 체크아웃에서 사라져 verify 가 EVIDENCE_MISSING 을 냈다) — 도달성 논거와 정면으로 어긋난다.
+#   verify 는 **발행자 로컬 도구**로 남는다(워킹트리에서 읽는다). 수신자용 재현 자산은 hint 태그
+#   페이로드가 나르며, 그것은 hint 브랜치 커밋이라 이 규칙과 무관하다.
 
 # ===========================================
 # D12 상향 회수 미러 (fetch_sub_docs.sh 산출 — 서브 docs/ 로컬 작업본, gitignored)
