@@ -1123,6 +1123,15 @@ def _ensure_copy_context_dirs(rendered: str, out_path: str) -> None:
             os.makedirs(target, exist_ok=True)
             print(f"[render] 빌드 컨텍스트 디렉터리 생성 → {d}/ "
                   f"(COPY 대상 · 비추적 슬롯이라 clone 에 부재)", file=sys.stderr)
+        # 뼈대 선언(2026-09-10 사용자 결정 · `.gitignore` 3단 규칙의 짝). 디렉터리만 만들면 git 이
+        # 그것을 들지 못해 **다음 클론에서 또 사라진다** — 자기 빌드킷을 자율 저작하는 노드
+        # (싱글 서브 = A2A 에이전트 · 헌법 §불변식 A)에서는 이 파일이 유일한 선언 수단이다.
+        # 산출물은 계속 비추적이다 — 추적되는 것은 이 빈 마커 하나뿐이다.
+        keep = os.path.join(target, ".gitkeep")
+        if not os.path.exists(keep):
+            with open(keep, "w", encoding="utf-8"):
+                pass
+            print(f"[render] 뼈대 선언 → {d}/.gitkeep", file=sys.stderr)
 
 
 def main() -> None:
