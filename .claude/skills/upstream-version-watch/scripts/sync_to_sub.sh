@@ -1402,12 +1402,21 @@ RUNTIME_BLOCK_OWNED_ROOTS=(.claude/skills .claude/policies)
 # 리포트가 커지고, 사람은 그 리포트를 안 보게 되며, 그러면 진짜 잔재도 못 본다
 # (report_overlay_convergence 가 같은 근거로 이미 편 논리 · docs.md §PII 판정 대상 축소 선례).
 drop_node_local_paths() {   # stdin=경로 목록 → stdout=노드-로컬을 걷어낸 목록
-    local all local_only
+    local all local_only rc=0
     all="$(cat)"
     [ -n "$all" ] || return 0
+    # ★ 기준은 `$SRC` 가 아니라 **정본 저장소**다. $SRC 는 배달 중 트랜잭션 소스(checkout-index 로
+    #   만든 **gitless** 임시 트리)로 스왑되므로 거기서 check-ignore 를 부르면 무조건 실패한다 —
+    #   2026-09-10 첫 실행에서 그렇게 필터가 통째로 no-op 이 됐고, 실측 검수가 아니었으면
+    #   "적용했다" 로 넘어갔을 자리다. REPO_ROOT 는 스크립트 위치에서 파생돼 스왑되지 않는다.
     # check-ignore 는 **추적물을 무시로 보고하지 않는다** — 그래서 진성 잔재(추적물)는 남고
     # 선언적 비추적만 걸러진다. 정확히 원하는 판별이다.
-    local_only="$(printf '%s\n' "$all" | git -C "${SRC%/}" check-ignore --stdin 2>/dev/null | LC_ALL=C sort || true)"
+    local_only="$(printf '%s\n' "$all" | git -C "$REPO_ROOT" check-ignore --stdin 2>/dev/null | LC_ALL=C sort)" || rc=$?
+    # rc=1 = "무시 대상 0건"(정상) · rc>1 = 판독 실패. 후자를 침묵으로 삼키면 필터가 조용히 죽는다.
+    if [ "$rc" -gt 1 ]; then
+        echo "  ⚠ 노드-로컬 판정 불가(git check-ignore rc=$rc · REPO_ROOT=$REPO_ROOT) — 필터 없이 전량 보고한다" >&2
+        printf '%s\n' "$all"; return 0
+    fi
     [ -n "$local_only" ] || { printf '%s\n' "$all"; return 0; }
     LC_ALL=C comm -23 <(printf '%s\n' "$all" | LC_ALL=C sort) <(printf '%s\n' "$local_only") || true
 }
