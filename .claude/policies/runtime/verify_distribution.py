@@ -422,6 +422,37 @@ def verify() -> dict:
                     and 'owner=".claude/skills/upstream-version-watch/"+stale' in sub_text
                     and 'while lo and line[lo-1] in chars' in sub_text
                     and "scanner/transport failed for $stale" in sub_text)},
+            # ── 토폴로지-aware 은퇴 (2026-09-11 · plan_26091108 후속 · 서브 클린) ──────────
+            #   오버레이는 가산이라 정본에서 사라진 것이 서브에 영구 잔존한다. 종전 비석은
+            #   **평면 목록**이라 "single 엔 있어야 하고 multi 엔 없어야 한다" 를 적을 자리가
+            #   없었다(같은 경로가 브랜치마다 정본이기도 잔재이기도 하다).
+            {"name": "sub_constitution_runtime_block_is_derived",
+             # 서브 헌법이 런타임블럭을 **하드코딩**하면 tool_plane 과 갈라진다. 실측 2026-09-11:
+             #   multi 헌법이 59행에서 "vllm-recipe-explorer 를 실행한다" 고 하고 95행에서
+             #   "런타임블럭: 없다" 고 해 **자기모순**이었다(자동 로드되는 쪽이 틀렸다).
+             "ok": (lambda t: ("{{ TOOL_PLANE_JSON }}" in t
+                               and '"skills_loaded": ["vllm-recipe-explorer"]' not in t))(
+                 (REPO / ".claude/skills/terraforming_node/sub_node/CLAUDE.template.md")
+                 .read_text(encoding="utf-8")
+                 if (REPO / ".claude/skills/terraforming_node/sub_node/CLAUDE.template.md").is_file()
+                 else "")},
+            {"name": "sub_topology_aware_retirement_wired",
+             "ok": ("retire_runtime_block_residue()" in sub_text
+                    # 대상은 손목록이 아니라 **파생**이다 — 정본이 이 토폴로지에 무엇을 주는가가 정한다.
+                    and "RUNTIME_BLOCK_OWNED_ROOTS[@]" in sub_text
+                    # 대량 삭제의 문 = 사람이 숫자를 말한다(ALLOW_DELETE 와 같은 idiom).
+                    #   ★ 앵커는 **게이트 표현식**이다. 종전 초안은 `"RETIRE_ALLOW" in sub_text`
+                    #     였는데, 그건 `RETIRE_ALLOW_REMOVED` 에도 부분일치해 음성대조가
+                    #     조용히 통과했다(2026-09-11 음성대조가 자기 앵커의 결함을 잡았다).
+                    and '[ "${RETIRE_ALLOW:-}" != "$n" ]' in sub_text
+                    and "--retire-residue) RETIRE_RESIDUE=1" in sub_text
+                    # 기본 미집행 — 잔재 삭제는 배달의 부수효과가 아니다.
+                    and "RETIRE_RESIDUE=0" in sub_text
+                    # 브랜치를 명시해 읽는다: DRY-RUN 은 서브를 checkout 하지 않으므로
+                    #   `git ls-files` 는 **다른 브랜치**의 인덱스를 본다(첫 실행 위양성 104건).
+                    and "git ls-tree -r --name-only '$t'" in sub_text
+                    # 렌더 실패를 잔재로 읽지 않는다(스테이징 0건 = fail-closed).
+                    and "렌더 실패를 잔재로 읽지 않는다" in sub_text)},
             {"name": "no_active_sub_retirement_consumers",
              "ok": not _active_retirement_consumers(),
              "details": _active_retirement_consumers()},
