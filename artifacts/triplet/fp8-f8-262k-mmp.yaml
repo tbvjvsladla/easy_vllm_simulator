@@ -1,5 +1,5 @@
-# 셀 fp8-bf-262k-mmp — camp-26090918-qwen38fn-multi · FP8 변종
-# 선언 축: variant=fp8 · kv=auto · context=262144 · PLE=mmp
+# 셀 fp8-f8-262k-mmp — camp-26090918-qwen38fn-multi · FP8 변종
+# 선언 축: variant=fp8 · kv=fp8_e4m3 · context=262144 · PLE=mmp
 # 모델: Qwen3.8-Flash-Next-FP8 (172.8GiB · PLE FP8 47.7GiB · 가중치 ~125GiB FP8 + PLE)
 model: /app/quant_models/Qwen/Qwen3.8-Flash-Next-FP8
 host: 0.0.0.0
@@ -8,7 +8,7 @@ tensor-parallel-size: 2
 distributed-executor-backend: ray
 gpu-memory-utilization: 0.85
 max-model-len: 262144
-kv-cache-dtype: auto
+kv-cache-dtype: fp8_e4m3
 kv-cache-memory-bytes: 21474836480
 enforce-eager: true
 async-scheduling: false
