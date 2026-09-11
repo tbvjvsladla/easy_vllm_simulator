@@ -1,12 +1,12 @@
 # vLLM 런타임 의존성 — wheel 의 Requires-Dist(METADATA) 기준(권위 소스).
-# source: https://github.com/vllm-project/vllm/releases/download/v0.26.0/vllm-0.26.0+cu129-cp38-abi3-manylinux_2_28_aarch64.whl
+# source: https://github.com/vllm-project/vllm/releases/download/v0.27.1/vllm-0.27.1+cu129-cp38-abi3-manylinux_2_28_aarch64.whl
 # base 제공분(torch/torchvision/torchaudio/setuptools)은 제외(--no-deps 보호).
 # extra(fastapi[standard] 등)는 그대로 — pip 가 빌드 시 transitive(uvicorn→uvloop) 해소.
 # ⚠ KNOWN_INCOMPAT 천장 적용(시간드리프트 회귀 차단; upstream 수정 시 regen_requirements.py KNOWN_INCOMPAT 에서 제거): fastapi<0.137.0; transformers<5.15.0
 PyNvVideoCodec==2.0.4
 aiohttp>=3.13.3
 anthropic>=0.71.0
-apache-tvm-ffi==0.1.10
+apache-tvm-ffi==0.1.11
 blake3
 cachetools
 cbor2
@@ -17,7 +17,7 @@ einops
 fastapi[standard]<0.137.0,>=0.133.0,<0.137.0
 fastsafetensors>=0.3.2
 filelock>=3.16.1
-flashinfer-python==0.6.14
+flashinfer-python==0.6.16.post3
 humming-kernels[cu12]==0.1.10
 ijson
 jsonschema>=4.23.0
@@ -25,7 +25,7 @@ lark==1.2.2
 llguidance<1.8.0,>=1.7.0
 lm-format-enforcer==0.11.3
 mcp
-mistral_common[image]>=1.11.5
+mistral_common[image]>=1.11.6
 model-hosting-container-standards<1.0.0,>=0.1.14
 msgspec
 ninja
@@ -53,7 +53,7 @@ pydantic>=2.12.0
 python-json-logger
 pyyaml
 pyzmq>=25.0.0
-quack-kernels>=0.4.0
+quack-kernels==0.6.1
 regex
 requests>=2.26.0
 safetensors>=0.6.2
@@ -62,7 +62,7 @@ setproctitle
 six>=1.16.0
 starlette>=1.0.1
 tiktoken>=0.6.0
-tilelang==0.1.9
+tilelang==0.1.12
 tokenizers>=0.21.1
 tokenspeed-mla==0.1.8
 torchcodec>=0.14

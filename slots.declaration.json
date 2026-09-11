@@ -1,34 +1,34 @@
 {
-  "_note": "신호③ — **Agent 선언**. 각 슬롯의 `applicable` 을 true/false 로, `rationale` 을 한 줄로 채운다. null 이 하나라도 남으면 `hint_collect check` 가 막는다. 선언은 파일 존재·적용 증거와 **대사**되며, 셋이 어긋나면 차단이다(plan §7). ★ triplet 은 선언으로 면제할 수 없다 — 서빙에 원리적으로 필수다.",
+  "_note": "신호③ — Agent 선언.",
   "schema_version": 1,
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "serve 시점 성립분. 이 셀을 가르는 유일한 축이 `kv-cache-dtype: turboquant_3bit_nc` 이고 나머지(max-model-len 32768 · kv-cache-memory-bytes 11811160064 · gmu 0.9)는 4군 공통 통제변인이다 · 서브 셀이라 메인이 회수 문서에서 재저작했다"
+      "rationale": "서빙 파라미터(kv-cache-dtype/kv-cache-memory-bytes/gpu-memory-utilization/MTP/enforce-eager) 고정 — 재현 필수(A층)"
     },
     "runtime_patch": {
       "applicable": false,
-      "rationale": "stock 0.26.0 이 이 모델을 그대로 서빙했다 — processor/config shim 을 arming 한 적이 없고, 없어야 재현된다"
+      "rationale": "Qwen4ExpForConditionalGeneration 은 serve-time 프로세서/설정 shim 불요 — 표준 경로 로드"
     },
     "build_patch_pre": {
-      "applicable": false,
-      "rationale": "소스 수정 없이 컴파일됐다. `build_patches_src/` 는 비어 있고 활성 Dockerfile 이 참조는 하되 적용할 파일이 0건이다"
+      "applicable": true,
+      "rationale": "NVFP4 mixed(60)·PLE mmap(62)·QSA fp8 KV(64) — 이 셀 축 조합(nv4·fp8kv·mmap)을 켜는 컴파일 전 소스 패치"
     },
     "build_patch_post": {
-      "applicable": false,
-      "rationale": "빌드-바깥 native 의존 설치가 필요 없었다(추가 lib/커널 0건)"
+      "applicable": true,
+      "rationale": "DeepGEMM/Triton/mxfp4/humming — 0.29.0rc6 표준 빌드 구성(이 셀 전용 아님, 이미지 공통)"
     },
     "build_recipe": {
       "applicable": true,
-      "rationale": "source-build 트랙이라 이미지가 곧 실험 조건이다 — NGC 26.05-py3 위에서 vLLM `v0.26.0`(568afb3a) 를 컴파일한 레시피 없이는 같은 엔진이 재현되지 않는다"
+      "rationale": "클러스터-와이드 이미지 정체성 — 멀티 TP=2 양 노드 동일 빌드 전제"
     },
     "compose": {
       "applicable": true,
-      "rationale": "KV 절대 클램프를 건 컨테이너를 어떻게 띄우는지가 이 측정의 절반이다. `.env` 실물은 배포하지 않고 변수 형상만 template 로 싣는다"
+      "rationale": "Ray head/worker 오케스트레이션 — 멀티 서빙 기동 필수"
     },
     "fork_pin": {
       "applicable": false,
-      "rationale": "stock 이다 — `.env` 에 `VARIANT=` 줄이 없다. 포크 의존을 만들지 않았다"
+      "rationale": "stock 빌드 — .env 에 VARIANT= 줄 없음, 포크 불요"
     }
   }
 }

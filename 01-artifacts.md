@@ -6,39 +6,56 @@
 
 | 슬롯 | 성립 시점 | owner | 존재 | 판정 강도 |
 |---|---|---|---|---|
-| `triplet` | serve | vllm-recipe-explorer | 있음 | 2-signal(file+declaration) |
+| `triplet` | serve | vllm-recipe-explorer | 있음 | 3-signal(file+evidence+declaration) |
 | `runtime_patch` | serve(arming) | vllm-recipe-explorer | 없음 | 2-signal(file+declaration) |
-| `build_patch_pre` | 컴파일 전 | upstream-version-watch | 없음 | 3-signal(file+evidence+declaration) |
-| `build_patch_post` | 컴파일 후 | upstream-version-watch | 없음 | 2-signal(file+declaration) |
-| `build_recipe` | build | upstream-version-watch | 있음 | 2-signal(file+declaration) |
-| `compose` | serve(orchestration) | upstream-version-watch | 있음 | 2-signal(file+declaration) |
+| `build_patch_pre` | 컴파일 전 | upstream-version-watch | 있음 | 3-signal(file+evidence+declaration) |
+| `build_patch_post` | 컴파일 후 | upstream-version-watch | 있음 | 2-signal(file+declaration) |
+| `build_recipe` | build | upstream-version-watch | 있음 | 3-signal(file+evidence+declaration) |
+| `compose` | serve(orchestration) | upstream-version-watch | 있음 | 3-signal(file+evidence+declaration) |
 | `fork_pin` | build | upstream-version-watch | 없음 | 3-signal(file+evidence+declaration) |
 
 ## 파일
 
 **triplet**
-- `sync_staging/sub_slots_camp26090721/configs/d-tq3nc.yaml`
-- `sync_staging/sub_slots_camp26090721/configs/d-tq3nc.sh`
-- `sync_staging/sub_slots_camp26090721/envs/.env.d-tq3nc`
+- `output/multi/configs/nv4-f8-262k-mmp.yaml`
+- `output/multi/configs/nv4-f8-262k-mmp.sh`
+- `output/multi/envs/.env.nv4-f8-262k-mmp`
+
+**build_patch_pre**
+- `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
+- `output/multi/build_patches_src/55-src-deps-authority.sh`
+- `output/multi/build_patches_src/60-qwen4exp-nvfp4-mixed.sh`
+- `output/multi/build_patches_src/62-qwen4exp-ple-mmap.sh`
+- `output/multi/build_patches_src/64-qwen4exp-qsa-fp8kv.sh`
+
+**build_patch_post**
+- `output/multi/build_patches/10-deepgemm.sh`
+- `output/multi/build_patches/20-triton-kernels.sh`
+- `output/multi/build_patches/30-mxfp4-triton-sm121.sh`
+- `output/multi/build_patches/40-humming-nvml-gb10.sh`
 
 **build_recipe**
-- `sync_staging/sub_slots_camp26090721/Dockerfile`
-- `sync_staging/sub_slots_camp26090721/Dockerfile.source-build`
-- `sync_staging/sub_slots_camp26090721/requirements.txt`
+- `output/multi/Dockerfile`
+- `output/multi/Dockerfile.source-build`
+- `output/multi/requirements.txt`
 
 **compose**
-- `sync_staging/sub_slots_camp26090721/docker-compose.yaml`
+- `output/multi/docker-compose.yaml`
 
 **fork_pin** — 없음 = **stock**. `.env` 에 `VARIANT=` 줄이 없는 것이 기본값이다.
 
 ## 적용 사유 (Agent)
 
-- **`triplet`** — 적용: serve 시점 성립분. 이 셀을 가르는 유일한 축이 `kv-cache-dtype: turboquant_3bit_nc` 이고 나머지(max-model-len 32768 · kv-cache-memory-bytes 11811160064 · gmu 0.9)는 4군 공통 통제변인이다 · 서브 셀이라 메인이 회수 문서에서 재저작했다.
-- **`runtime_patch`** — 불해당: stock 0.26.0 이 이 모델을 그대로 서빙했다 — processor/config shim 을 arming 한 적이 없고, 없어야 재현된다.
-- **`build_patch_pre`** — 불해당: 소스 수정 없이 컴파일됐다. `build_patches_src/` 는 비어 있고 활성 Dockerfile 이 참조는 하되 적용할 파일이 0건이다.
-- **`build_patch_post`** — 불해당: 빌드-바깥 native 의존 설치가 필요 없었다(추가 lib/커널 0건).
-- **`build_recipe`** — 적용: source-build 트랙이라 이미지가 곧 실험 조건이다 — NGC 26.05-py3 위에서 vLLM `v0.26.0`(568afb3a) 를 컴파일한 레시피 없이는 같은 엔진이 재현되지 않는다.
-- **`compose`** — 적용: KV 절대 클램프를 건 컨테이너를 어떻게 띄우는지가 이 측정의 절반이다. `.env` 실물은 배포하지 않고 변수 형상만 template 로 싣는다.
-- **`fork_pin`** — 불해당: stock 이다 — `.env` 에 `VARIANT=` 줄이 없다. 포크 의존을 만들지 않았다.
-
-> 이 태그가 가르는 것은 **KV 캐시 dtype 하나**다. 나머지 슬롯이 전부 비어 있다는 사실 자체가 결과다 — 이 모델·이 엔진에서 2.0~3.5× 용량은 **패치 없이** 얻어진다(arch-invariant: dtype 수용 여부는 엔진 기능이고 압축비는 층 구조에서 나온다).
+- **triplet**: 이 셀의 서빙 파라미터(kv-cache-dtype=fp8_e4m3, kv-cache-memory-bytes=20GiB,
+  gpu-memory-utilization=0.85, MTP num_speculative_tokens=3, enforce-eager)를 고정한다 — 재현의
+  최소 필수 자리(A층, 면제 불가).
+- **runtime_patch**: 불해당. 이 모델(Qwen4ExpForConditionalGeneration)은 serve-time 프로세서/설정
+  shim 이 필요 없다 — 표준 vLLM 경로로 로드된다.
+- **build_patch_pre**: NVFP4 mixed-precision 지원(60), PLE mmap 지원(62), QSA fp8 KV 지원(64)이
+  이 셀의 축 조합(variant=nv4 · kv=fp8_e4m3 · ple=mmap)을 각각 켠다 — 셋 다 컴파일 전 소스 패치라
+  post 슬롯으로는 대체 불가.
+- **build_patch_post**: DeepGEMM/Triton 커널·mxfp4 sm121 포트·humming NVML — 이 vLLM 버전
+  (0.29.0rc6)의 표준 빌드 구성이며 이 셀에 특화된 것은 아니다.
+- **build_recipe / compose**: 클러스터-와이드 이미지 정체성(BUILD_DOCKERFILE·VLLM_PRETEND_VERSION
+  등)이 양 노드에 동일해야 하는 멀티 TP=2 전제(§노드 제어 규약)의 최소 필수 자리.
+- **fork_pin**: 불해당(stock). `.env` 에 `VARIANT=` 줄이 없다 — 이 축은 포크를 요구하지 않는다.
