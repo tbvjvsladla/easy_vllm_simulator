@@ -11,19 +11,23 @@
 
 ## 서사
 
-**증상(직전 캠페인)**: `camp-26090918`에서 이 셀은 KV 캐시 산출 직후(로그 마지막 줄 "GPU KV
-cache size: 2,280,398 tokens") 08:18:29 에 호스트 워치독에 사살됐다(`docs/testlog/
-testlog_26091109_하네스교정_R0R10_역채점_음성대조.md` §2.1). 당시 원장에는 `kill_ack` 이벤트가
-이미 있었으나 사인은 "KV 양자화 단계 hang"이라는 2차 추정으로 오기록됐다. **원인**: R1/R2 교정
-전에는 예산 게이트가 셀 루프 경로를 타지 않아(침묵 누락) 무보호로 로드가 진행됐고, 실제 상주가
-예산 여유를 초과했다. **해소**: 이번 캠페인은 R1/R2 게이트를 타 정상 진행됐고(floor 15,280MiB,
-plan 사전예측 15,290 과 근사), 5개 동시성 레벨 전부 완주했다(`docs/testlog/
-testlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_판정.md` 표 #3, 34.04 t/s).
+**증상(직전 캠페인)**: `camp-26090918`에서 이 축(context 262144→524288, YaRN factor=2)을 포함한
+512k/1m 셀 8개가 ValidationError 로 즉사했고, void_reason 은 "YaRN 확장 미적용(셀 축에 미포함)"
+으로 **원인이 반대로** 기록됐다 — 실제로는 YaRN 을 서빙 인자로 번역하는 실행자가 저장소에
+아예 없었다(`docs/testlog/testlog_26091109_..._판정.md` §2.7). **원인**: vLLM 은
+`max_model_len > native max_position_embeddings` 를 로드 진입에서 즉시 거부하는데, 트리플렛에
+`hf-overrides` rope 확장 인자가 없었다. **해소**: `check_smoke_model.py` 가 로드 0초에 그 부재를
+지목하고 정확한 병합 rope 파라미터(`mrope_interleaved`+`mrope_section`+`partial_rotary_factor`
++`rope_theta` 전부 보존)를 출력하도록 R8 교정 — 그 줄을 트리플렛에 추가해 재시도하니 정상
+로드·완결 엔드포인트 추론 정합("The capital of France is" → " Paris, ..., population of
+2,148,27...") · 5레벨 완주(33.72 t/s). `mrope_interleaved=True`+`partial_rotary_factor=0.25`
+위에서 YaRN 합성이 이 하드웨어·이 vLLM 에서 **최초로 실측 검증**됐다.
 
 ## 되풀이하지 말 것
 
-"컨테이너가 사라졌다"는 관측 하나에 **hang·OOM·양자화버그 등 여러 원인을 2차 추정으로 붙이지
-말라** — 노드 블랙박스 이벤트(`docs/logs/<node>/events/*.jsonl`)와 시각 대조부터 하라. 이
-캠페인에서 그 원칙(§classify_cell.py)을 어긴 것이 직전 캠페인의 근본 결함이었다. FP8+kv=fp8_e4m3
-조합은 이 이미지에서 이제 안정적으로 완주하므로, 같은 조합이 다시 죽으면 "이 조합은 원래 그런가
-보다"가 아니라 **호스트 평면 사인부터 확인**하라.
+**컨텍스트를 네이티브 `max_position_embeddings` 이상으로 늘릴 때는 항상 `hf-overrides` rope
+확장 인자가 필요한지부터 확인하라** — 없이 로드를 시도하면 ValidationError 즉사이고, 그 죽음의
+원인을 "YaRN이 안 먹었다"로 오독하기 쉽다(직전 캠페인이 정확히 이 실수를 했다). 이 모델은
+`mrope_interleaved`+`mrope_section=[11,11,10]`+`partial_rotary_factor=0.25` 를 함께 쓰므로,
+rope 딕셔너리를 **통째로 교체하지 말고 기존 키를 전부 보존한 채 `rope_type`/`factor`/
+`original_max_position_embeddings` 만 추가**하라 — 교체하면 mrope·부분회전이 조용히 사라진다.

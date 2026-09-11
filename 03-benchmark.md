@@ -1,7 +1,7 @@
 # 3. 벤치 결과 — 그리고 무엇과 비교할 수 있나
 
 > 아래 수치는 인증서에서 **파싱만** 한 것이다. 합성하지 않았고, 재계산하지 않았다.
-> 출처: `benchmark_26091113_qwen3.8-flash-next-fp8_GB10_0.29.0.yaml`
+> 출처: `benchmark_26091114_qwen3.8-flash-next-nvfp4_GB10_0.29.0.yaml`
 
 ## 성능
 
@@ -9,23 +9,23 @@
 |---|---|
 | `benchmark_mode` | full |
 | `verdict` | PASS |
-| `decode_tps_conc1` | 34.04 |
+| `decode_tps_conc1` | 33.72 |
 | `rubric_authority` | explore |
 | `primary_source` | expected_achievable(roofline×MBU) |
-| `primary_tps` | 2.97 |
-| `floor_tps` | 2.52 |
+| `primary_tps` | 3.02 |
+| `floor_tps` | 2.57 |
 | `tolerance` | 0.15 |
-| `ratio_M_over_primary` | 11.461 |
+| `ratio_M_over_primary` | 11.166 |
 | `spec_on` | true |
-| `accept_len` | 2.4543817527010807 |
+| `accept_len` | 2.149159663865546 |
 | `sweep_levels` | 1,2,4,8,16 |
 | `sweep_truncated` | N/A |
 | `lite_included` | true |
-| `lite_gen_tps_warm` | 28.09 |
+| `lite_gen_tps_warm` | 38.43 |
 | `lite_gen_src` | median_tpot |
-| `lite_cold_ttft_ms` | 2347.7 |
+| `lite_cold_ttft_ms` | 2276.8 |
 | `lite_kv_gib` | 20.0 |
-| `measured_utc` | 2026-09-11T04:21:18Z |
+| `measured_utc` | 2026-09-11T05:03:33Z |
 
 ## 측정 구성 — 무엇으로 쟀나(기재 · 게이트 아님)
 
@@ -42,7 +42,7 @@
 
 | 키 | 값 |
 |---|---|
-| `model` | qwen3.8-flash-next-fp8 |
+| `model` | qwen3.8-flash-next-nvfp4 |
 | `gpu_model` | NVIDIA GB10 |
 | `vllm_version` | 0.29.0 |
 | `quantization` | N/A |
@@ -57,12 +57,12 @@
 | `cuda_version` | 132 |
 | `image_tag` | easy-vllm:0.29.0rc6-cu133-aarch64-source |
 | `image_digest` | sha256:85cef27827c3afcdd39721ccafe623fb5457d11978e927edc216c1bf3fede931 |
-| `max_model_len` | 262144 |
+| `max_model_len` | 524288 |
 | `max_num_seqs` | N/A |
 | `kv_cache_memory_bytes` | 21474836480 |
-| `kv_cache_dtype` | fp8_e4m3 |
+| `kv_cache_dtype` | auto |
 | `gpu_memory_utilization` | 0.85 |
-| `moe_backend` | triton |
+| `moe_backend` | flashinfer_cutlass |
 | `enforce_eager` | true |
 | `ngc_base_tag` | N/A |
 
@@ -70,16 +70,16 @@
 
 > 단일 running serve 에 **동시 요청 수만** 바꿔 잰 곡선이다(reload 없음 · request-rate=inf).
 > `동시성=1` 행이 인증서의 판정점이며, 나머지 행은 그 레시피가 **부하에서 어떻게 되는지**를 말한다.
-> 출처: `bench_report_26091113_qwen3.8-flash-next-fp8_GB10_0.29.0.md` (bench_report) · 소수 2자리 표시 반올림 · 결측은 `N/A`(0 이 아니다).
+> 출처: `bench_report_26091114_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md` (bench_report) · 소수 2자리 표시 반올림 · 결측은 `N/A`(0 이 아니다).
 > 이 표는 스크립트가 파싱해 렌더한다 — 손으로 옮긴 수치가 아니며 `--verify` 가 diff 0 을 요구한다.
 
 | 동시성 | decode t/s | 출력 tok/s | 총 tok/s | TTFT p50(ms) | ITL p50(ms) | 완료/실패 |
 |---|---|---|---|---|---|---|
-| 1 ★판정점 | 34.04 | 31.11 | 155.57 | 691.28 | 73.11 | 16/0 |
-| 2 | 25.98 | 45.92 | 229.59 | 714.38 | 90.95 | 16/0 |
-| 4 | 19.55 | 68.49 | 342.45 | 869.54 | 127.10 | 16/0 |
-| 8 | 13.17 | 85.72 | 428.59 | 1521.87 | 184.34 | 16/0 |
-| 16 | 8.78 | 102.27 | 511.36 | 5553.61 | 252.23 | 16/0 |
+| 1 ★판정점 | 33.72 | 30.07 | 150.33 | 597.55 | 66.72 | 16/0 |
+| 2 | 33.29 | 47.85 | 239.23 | 636.86 | 76.60 | 16/0 |
+| 4 | 22.23 | 70.81 | 354.04 | 703.73 | 96.72 | 16/0 |
+| 8 | 15.89 | 105.02 | 525.08 | 1253.58 | 157.98 | 16/0 |
+| 16 | 10.50 | 128.80 | 644.00 | 4215.68 | 211.42 | 16/0 |
 
 _절삭된 레벨 없음(요청 전 레벨 완주)._
 
@@ -95,8 +95,10 @@ _절삭된 레벨 없음(요청 전 레벨 완주)._
 
 ## like-with-like 한정자 (Agent)
 
-이 수치(동시성1=34.04 t/s)는 **같은 강한 일치 키 안에서만** 비교 가능하다. FP8 체크포인트는
-Unsloth 제조(`weight_block_size=[128,128]`)로 직전 캠페인과 다르다 — `new_baseline`, 편차
-계산 없음. 가장 안전한 비교쌍은 자매 셀 `fp8-bf-262k-mmp`(kv=auto, 35.37 t/s) — 같은 체크포인트,
-kv dtype 만 다르다: fp8_e4m3 KV 양자화가 이 아치에서 순수하게 약 3.8% 손실을 낸다. NVFP4 셀
-(`nv4-f8-262k-mmp` 38.18)과는 체크포인트 자체가 달라 절대 우열 비교는 사용자 판단.
+이 수치(동시성1=33.72 t/s)는 262k 셀(`nv4-f8-262k-mmp` 38.18, kv 는 다르지만)과 **약 12% 낮다**
+— 컨텍스트가 늘면서 KV 어텐션 비용이 커진 것으로 보이나 kv dtype 도 함께 달라(auto vs
+fp8_e4m3) **컨텍스트 단독 효과로 분리해 말할 수 없다**(like-with-like 위반 — 같은 kv dtype
+셀과 비교하려면 `nv4-bf-262k-mmp`가 필요한데 이번 캠페인의 22셀 집합 밖이다, 직전 캠페인에서
+hint 발행됨). **YaRN factor=2(512k) 와 factor=4(1m) 는 다른 확장 배수이므로 이 수치를 1m 축과
+직접 비교하지 말 것** — 1m 셀은 아직 이 체크포인트에서 실측되지 않았다(이 hint 발행 시점 기준).
+같은 강한 일치 키(model/gpu/vllm/quant/topology/tp) 안에서만 비교하라.

@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/multi/configs/fp8-f8-262k-mmp.yaml`
-- `output/multi/configs/fp8-f8-262k-mmp.sh`
-- `output/multi/envs/.env.fp8-f8-262k-mmp`
+- `output/multi/configs/nv4-bf-512k-mmp.yaml`
+- `output/multi/configs/nv4-bf-512k-mmp.sh`
+- `output/multi/envs/.env.nv4-bf-512k-mmp`
 
 **build_patch_pre**
 - `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
@@ -46,13 +46,14 @@
 
 ## 적용 사유 (Agent)
 
-- **triplet**: 이 셀의 서빙 파라미터(kv-cache-dtype=fp8_e4m3, kv-cache-memory-bytes=20GiB,
-  gpu-memory-utilization=0.85, MTP num_speculative_tokens=3, enforce-eager)를 고정한다 — 재현의
-  최소 필수 자리(A층, 면제 불가).
-- **runtime_patch**: 불해당. Qwen4ExpForConditionalGeneration 은 serve-time 프로세서/설정 shim
-  이 필요 없다.
-- **build_patch_pre**: NVFP4 mixed(60)·PLE mmap(62)·QSA fp8 KV(64) — 이 셀은 kv=fp8_e4m3 라
-  64(QSA fp8 KV 가드+디콴트 커널)가 직접 켜지는 축이다.
+- **triplet**: 이 셀의 서빙 파라미터를 고정한다 — 특히 **`hf-overrides` rope 확장 인자**
+  (`{"text_config":{"rope_parameters":{"mrope_interleaved":true,"mrope_section":[11,11,10],
+  "partial_rotary_factor":0.25,"rope_theta":10000000,"rope_type":"yarn","factor":2,
+  "original_max_position_embeddings":262144}}}`)가 **이 셀의 재현에 절대 필수**다 — 없으면
+  ValidationError 즉사(R8, §2 참조). A층, 면제 불가.
+- **runtime_patch**: 불해당. serve-time shim 불요.
+- **build_patch_pre**: NVFP4 mixed(60)·PLE mmap(62)·QSA fp8 KV(64) — 이미지 공통, kv=auto 라
+  64 는 실질 미사용.
 - **build_patch_post**: 0.29.0rc6 표준 빌드 구성, 이 셀 전용 아님.
 - **build_recipe / compose**: 클러스터-와이드 이미지 정체성 — 멀티 TP=2 양 노드 동일 빌드 전제.
-- **fork_pin**: 불해당(stock). `.env` 에 `VARIANT=` 줄이 없다.
+- **fork_pin**: 불해당(stock). YaRN 확장은 서빙 인자만으로 해결되며 포크가 필요 없었다.
