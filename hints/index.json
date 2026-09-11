@@ -2,9 +2,9 @@
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 `git ls-remote --tags <remote> 'refs/tags/hint/*'` 이고, brief 는 로컬 태그 오브젝트에서 파싱한다(합성 금지).",
   "schema": 2,
   "source": "remote-derived",
-  "remote": "github-ssh",
-  "generated_kst": "2026-09-11T04:05:00",
-  "count": 25,
+  "remote": "origin",
+  "generated_kst": "2026-09-11T18:00:00",
+  "count": 32,
   "hints": [
     {
       "tag": "hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8",
@@ -264,6 +264,66 @@
       "source": "remote-derived"
     },
     {
+      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvauto-plemmap",
+      "vllm": "0.29.0",
+      "model": "qwen3.8-flash-next-fp8",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len262144-kvauto-plemmap",
+      "brief": "Qwen3.8-Flash-Next FP8(Unsloth) · GB10x2 클러스터 · kv=auto · ctx262144 · PLE=mmap — decode 35.37 t/s(동시성1) · 직전 캠페인 \"서빙성공·벤치사망\" 지점, R3(budget_renew) 교정 후 5레벨 전부 완주",
+      "anchor": "7b63c5ee5ff3447f09f2ad37632bf36e6a9e44e7",
+      "object": "017670a7aff19e0641b496718e0d2185a506ef46",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap",
+      "vllm": "0.29.0",
+      "model": "qwen3.8-flash-next-fp8",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len262144-kvfp8e4m3-plemmap",
+      "brief": "Qwen3.8-Flash-Next FP8(Unsloth) · GB10x2 클러스터 · kv=fp8_e4m3 · ctx262144 · PLE=mmap — decode 34.04 t/s(동시성1) · 직전 캠페인 KV캐시산출 직후 워치독 사살(오진) 지점, R1/R2 교정 후 5레벨 전부 완주",
+      "anchor": "23f097c508bce399cf1e2dae108e16b925b5d1d6",
+      "object": "40d27b21641da84c0fbc018eaeaef47de705e57a",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvauto-plemmap",
+      "vllm": "0.29.0",
+      "model": "qwen3.8-flash-next-fp8",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len524288-kvauto-plemmap",
+      "brief": "Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=auto · ctx524288(YaRN f2) · PLE=mmap — decode 37.61 t/s(동시성1) · 예산 floor가 res 계열보다도 타이트(15,280MiB)했으나 mmap 이면 통과",
+      "anchor": "b41b272ea182a696a1fda340d3853e22cf5dfe7f",
+      "object": "ec719c7d556005b0ddd9cf94c323af708ca1cd54",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap",
+      "vllm": "0.29.0",
+      "model": "qwen3.8-flash-next-fp8",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len524288-kvfp8e4m3-plemmap",
+      "brief": "Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx524288(YaRN f2) · PLE=mmap — decode 35.94 t/s(동시성1) · kv dtype 축이 예산 floor 를 바꾸지 않음을 재확인(kv=auto 태그와 완전 동일 floor)",
+      "anchor": "81a3946fb27719610354e7ffe43905cc5bebe355",
+      "object": "0d2debaeff8d9bdec6bd368b25f8cec9f9621238",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
       "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto",
       "vllm": "0.29.0",
       "model": "qwen3.8-flash-next-nvfp4",
@@ -292,6 +352,51 @@
       "missing": [
         "HINT_MISSING_BENCH_REPORT",
         "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap",
+      "vllm": "0.29.0",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len262144-kvfp8e4m3-plemmap",
+      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx262144 · PLE=mmap — decode 38.18 t/s(동시성1) · 직전 캠페인 하네스 오진(3건) 교정 후 첫 라이브 재현",
+      "anchor": "592cab46898577f7a23303b6deb1f3635db702c6",
+      "object": "c30117f9e6353f982cbbb1bcd8bb24f32ea50f81",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvauto-plemmap",
+      "vllm": "0.29.0",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len524288-kvauto-plemmap",
+      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=auto · ctx524288(YaRN f2) · PLE=mmap — decode 33.72 t/s(동시성1) · R8 YaRN 번역기 첫 실서빙 검증 — mrope+partial_rotary_factor 위에서 YaRN 합성 정상 동작 확인",
+      "anchor": "d15a34ef6a351589b8c0f7eba2bf6651bbf46dc5",
+      "object": "0bb9730a163447e04edfc8868da5fe1312ac88b1",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap",
+      "vllm": "0.29.0",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len524288-kvfp8e4m3-plemmap",
+      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx524288(YaRN f2) · PLE=mmap — decode 34.86 t/s(동시성1) · R8 YaRN 번역기 2번째 실서빙 재현(kv=fp8 조합)",
+      "anchor": "d568980d58c78147aca77bc67f2b57353d2b93bb",
+      "object": "41116d29b9b2ed3c842d1f309f1ae06109e79285",
+      "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
       "published": true,
