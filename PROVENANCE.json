@@ -1,13 +1,13 @@
 {
-  "anchor": "41e99d1384e7d12e8eff2f0980bd3cfb3ac471fb",
+  "anchor": "e6bb6ac616f14ae3d7ee88953862ab1012f94569",
   "anchor_is_head": true,
-  "assembled_at_head": "41e99d1384e7d12e8eff2f0980bd3cfb3ac471fb",
-  "assembly_branch": "single-node",
-  "generated_kst": "2026-09-11T14:50:00",
+  "assembled_at_head": "e6bb6ac616f14ae3d7ee88953862ab1012f94569",
+  "assembly_branch": "multi-node",
+  "generated_kst": "2026-09-11T17:45:00",
   "kind": "hint_payload_provenance",
   "payload_files": 22,
   "schema_version": 1,
-  "source_branch": "single-node",
+  "source_branch": "multi-node",
   "source_branch_source": "derived(git branch --contains anchor)",
-  "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvauto-plemmap"
+  "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap"
 }

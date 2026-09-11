@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/multi/configs/nv4-bf-512k-mmp.yaml`
-- `output/multi/configs/nv4-bf-512k-mmp.sh`
-- `output/multi/envs/.env.nv4-bf-512k-mmp`
+- `output/multi/configs/nv4-f8-512k-mmp.yaml`
+- `output/multi/configs/nv4-f8-512k-mmp.sh`
+- `output/multi/envs/.env.nv4-f8-512k-mmp`
 
 **build_patch_pre**
 - `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
@@ -46,14 +46,19 @@
 
 ## 적용 사유 (Agent)
 
-- **triplet**: 이 셀의 서빙 파라미터를 고정한다 — 특히 **`hf-overrides` rope 확장 인자**
-  (`{"text_config":{"rope_parameters":{"mrope_interleaved":true,"mrope_section":[11,11,10],
-  "partial_rotary_factor":0.25,"rope_theta":10000000,"rope_type":"yarn","factor":2,
-  "original_max_position_embeddings":262144}}}`)가 **이 셀의 재현에 절대 필수**다 — 없으면
-  ValidationError 즉사(R8, §2 참조). A층, 면제 불가.
-- **runtime_patch**: 불해당. serve-time shim 불요.
-- **build_patch_pre**: NVFP4 mixed(60)·PLE mmap(62)·QSA fp8 KV(64) — 이미지 공통, kv=auto 라
-  64 는 실질 미사용.
-- **build_patch_post**: 0.29.0rc6 표준 빌드 구성, 이 셀 전용 아님.
-- **build_recipe / compose**: 클러스터-와이드 이미지 정체성 — 멀티 TP=2 양 노드 동일 빌드 전제.
-- **fork_pin**: 불해당(stock). YaRN 확장은 서빙 인자만으로 해결되며 포크가 필요 없었다.
+- **triplet**: 서빙에 원리적으로 필수(면제 불가). 이 셀의 특징은 `hf-overrides`에 실린 YaRN
+  rope 확장 인자(factor=2) — 262144 네이티브 컨텍스트를 524288로 확장하는 R8 교정의 실물이다.
+- **runtime_patch**: 없음 — 이 모델·조합은 `<model>_patch.py` 형태의 processor/config shim을
+  요구하지 않는다(vLLM 표준 rope_parameters 오버라이드만으로 충분).
+- **build_patch_pre**: 있음(60/62/64 — nvfp4-mixed·ple-mmap·qsa-fp8kv) — NVFP4 체크포인트의
+  MoE 믹스드 정밀도, PLE mmap 지원, QSA(quantized state attention) fp8 KV 경로가 소스 패치로
+  컴파일 전에 들어간다. 이 셀은 PLE=mmap·kv=fp8_e4m3이므로 62·64 둘 다 실제로 먹었다.
+- **build_patch_post**: 있음(DeepGEMM·triton-kernels·mxfp4-triton-sm121·humming-nvml) — 빌드
+  바깥 네이티브 의존. 이 조합이 구체적으로 어느 패치를 쓰는지는 엔진 로그 교차검증 전까지는
+  "관측불가"로 남긴다(2-signal — 파일 존재+선언뿐, 발화 로그 대사는 안 했다).
+- **build_recipe**: 있음 — Dockerfile.source-build(vLLM 0.29.0rc6 소스빌드) + requirements.txt.
+  이 이미지(digest sha256:85cef27...)는 캠페인 전 셀이 공유한다.
+- **compose**: 있음 — 멀티노드 2노드 Ray 오케스트레이션(docker-compose.yaml). 마스터/슬레이브
+  역할 분기, 워치독·예산게이트 스크립트가 이 위에서 동작한다.
+- **fork_pin**: 없음(stock vLLM v0.29.0rc6, 포크 오버라이드 없음) — `.env.nv4-f8-512k-mmp`에
+  `VARIANT=` 줄이 없는 것이 그 증거다.

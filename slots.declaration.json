@@ -1,34 +1,34 @@
 {
-  "_note": "신호③ — Agent 선언.",
+  "_note": "신호③ — **Agent 선언**. 각 슬롯의 `applicable` 을 true/false 로, `rationale` 을 한 줄로 채운다. null 이 하나라도 남으면 `hint_collect check` 가 막는다. 선언은 파일 존재·적용 증거와 **대사**되며, 셋이 어긋나면 차단이다(plan §7). ★ triplet 은 선언으로 면제할 수 없다 — 서빙에 원리적으로 필수다.",
   "schema_version": 1,
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "서빙 파라미터(kv-cache-dtype/kv-cache-memory-bytes/gpu-memory-utilization/MTP/enforce-eager) 고정 — 재현 필수(A층)"
+      "rationale": "서빙 필수(면제불가) — YaRN factor=2 hf-overrides 포함"
     },
     "runtime_patch": {
       "applicable": false,
-      "rationale": "Qwen4ExpForConditionalGeneration 은 serve-time 프로세서/설정 shim 불요 — 표준 경로 로드"
+      "rationale": "processor/config shim 불요 — 표준 rope_parameters 오버라이드로 충분"
     },
     "build_patch_pre": {
       "applicable": true,
-      "rationale": "NVFP4 mixed(60)·PLE mmap(62)·QSA fp8 KV(64) — 이 셀 축 조합(nv4·fp8kv·mmap)을 켜는 컴파일 전 소스 패치"
+      "rationale": "60/62/64 — nvfp4-mixed·ple-mmap·qsa-fp8kv 소스패치, 이 조합(mmap+fp8kv)에 실제 적용"
     },
     "build_patch_post": {
       "applicable": true,
-      "rationale": "DeepGEMM/Triton/mxfp4/humming — 0.29.0rc6 표준 빌드 구성(이 셀 전용 아님, 이미지 공통)"
+      "rationale": "빌드-바깥 네이티브 의존(DeepGEMM 등) — 이미지 공통, 어느 것이 발화했는지는 관측불가(2-signal)"
     },
     "build_recipe": {
       "applicable": true,
-      "rationale": "클러스터-와이드 이미지 정체성 — 멀티 TP=2 양 노드 동일 빌드 전제"
+      "rationale": "Dockerfile.source-build + requirements.txt — 이미지 재현에 필수"
     },
     "compose": {
       "applicable": true,
-      "rationale": "Ray head/worker 오케스트레이션 — 멀티 서빙 기동 필수"
+      "rationale": "멀티노드 2노드 Ray 오케스트레이션 — 이 셀은 multi TP=2로 서빙됨"
     },
     "fork_pin": {
       "applicable": false,
-      "rationale": "stock 빌드 — .env 에 VARIANT= 줄 없음, 포크 불요"
+      "rationale": "stock vLLM v0.29.0rc6 — VARIANT= 줄 부재가 곧 stock"
     }
   }
 }
