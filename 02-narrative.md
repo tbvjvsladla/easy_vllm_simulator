@@ -11,14 +11,12 @@
 
 ## 서사
 
-FP8 체크포인트(172.78GiB)는 NVFP4(123.57GiB)보다 커서 같은 mmap 조건에서도 예산 선판정
-floor가 더 좁다(이 셀 15,280MiB — nv4 mmp 셀들은 40,478MiB). 그럼에도 mmap 모드에서는 좁은
-floor가 실패를 뜻하지 않는다 — 512k 그룹의 동형 셀(`fp8-bf-512k-mmp`)도 같은 floor 값으로
-정상 완주했고, 1m에서도 재현됐다(testlog §"판정 결과").
+fp8-bf-1m-mmp(kv=auto)와 동일한 조건에서 kv-cache-dtype만 fp8_e4m3로 바꾼 대조쌍이다
+(35.39→33.27, 소폭 저하 — kv dtype 축의 일관된 경향이 262k~1m 전 구간에서 재현됐다). 이 셀로
+22셀 재수행 캠페인의 mmp 계열 측정이 11/11 전부 완결됐다(testlog §"패턴 최종 확정").
 
 ## 되풀이하지 말 것
 
-- floor의 절댓값으로 성패를 예단하지 말 것 — mmap/resident 구분이 유일한 신뢰할 만한 예측
-  변수다. `fp8-bf-1m-res`(같은 체크포인트, resident 모드)는 floor가 **음수**(−9,134MiB)로
-  로드 0초에 즉시 차단됐다 — mmap과 resident는 weights_mib 계산식 자체가 달라 floor 격차가
-  20,000MiB 이상 벌어진다(devlog §"시도 — res 계열").
+- floor 절댓값으로 성패를 예단하지 말 것 — 이 캠페인 11개 mmp 셀 전부와 11개 res 셀 전부가
+  일관되게 PLE mmap/resident 구분만으로 갈렸다(devlog §"결정 — 캠페인 종결").
+- kv-cache-dtype 축은 서빙 성립에 영향을 주지 않는다 — 성능(t/s)에만 소폭 영향을 준다.

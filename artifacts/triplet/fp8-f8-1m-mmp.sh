@@ -1,5 +1,5 @@
 #!/bin/bash
-# fp8-bf-1m-mmp 서빙 스크립트
+# fp8-f8-1m-mmp 서빙 스크립트
 
 if [ "$TIKTOKEN_ENABLED" = "true" ]; then
     export TIKTOKEN_ENCODINGS_BASE=/encodings
