@@ -291,6 +291,82 @@ def _native_weight_bytes(host_path: str, warnings: list[str]) -> int | None:
     return None
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# NVMe mmap 으로 **상주하지 않는** weight (2026-09-11 신설 · plan_26091108 R2)
+#
+# 왜: 예산 게이트의 weights 는 `ckpt_mib ÷ tp` 였다 — 체크포인트 **파일 크기** 기준이라
+#   그 일부가 NVMe mmap 으로 빠져도 같은 값이 나온다. camp-26090918 실측이 그 맹점을 정면으로
+#   보여줬다: `fp8+res`(weights 88,464 → 예상 바닥 −9,134)는 막아야 옳고 `fp8+mmp`(weights
+#   64,050 → 바닥 15,280)는 **실제로 서빙에 성공했는데**, 게이트는 둘을 같은 88,464 로 계산해
+#   둘 다 막는다. 게이트를 그대로 켜면 뜨는 셀을 죽인다.
+#
+# 닫힌 목록인 이유(§4종 안티패턴 판정표 '하드코딩' 의 **정당** 칸 = tripwire): 어떤 텐서가
+#   mmap 으로 빠지는지는 **런타임 패치가 정하는 사실**이고 체크포인트에서 파생되지 않는다.
+#   새 mmap 기구가 생기면 이 표에 줄을 더하게 하고, 그 편집이 리뷰를 강제한다.
+#   ★ 매칭이 0건이면 보정은 0 이다 — 그것이 "이 모델엔 해당 기구가 없다" 는 정직한 답이며,
+#     추측으로 보정하면 게이트가 없는 여유를 있다고 말한다.
+MMAP_OFFLOADABLE_PATTERNS = {
+    # qwen4_exp PLE n-gram 테이블 — build_patches_src/62-qwen4exp-ple-mmap.sh 가 `VLLM_PLE_MMAP=1`
+    # 일 때 이 텐서들을 NVMe mmap 으로 서빙한다(상주 ✗). 패턴 정본은 그 패치의 `_find_shards`
+    # 이고 여기는 **예산 평면의 사본**이다 — 교차검증 앵커는 preload_ram_gate 자체검사에 있다.
+    "ple_mmap": r"\.ple\.ple_embedding\.ngram_embedding\.shard_\d+\.weight$",
+}
+
+
+def offloadable_weight_bytes(host_path: str, mechanism: str,
+                             warnings: list[str]) -> int | None:
+    """`mechanism` 이 상주에서 덜어내는 weight 바이트. 결정론 — index + safetensors 헤더에서만 읽는다.
+
+    반환 None = **산출 실패**(보정하지 않는다). 0 = 산출했고 해당 텐서가 없다.
+    둘을 같은 값으로 접으면 "못 쟀다" 와 "없다" 가 구분되지 않는다.
+    """
+    import re
+    pattern = MMAP_OFFLOADABLE_PATTERNS.get(mechanism)
+    if pattern is None:
+        warnings.append(f"mmap 기구 '{mechanism}' 이 닫힌 목록에 없다 → 보정 0(추측 ✗)")
+        return None
+    index_path = os.path.join(host_path, "model.safetensors.index.json")
+    if not os.path.isfile(index_path):
+        warnings.append("index.json 부재 → mmap 오프로드 바이트 산출 불가(보정 ✗)")
+        return None
+    try:
+        with open(index_path, "r", encoding="utf-8") as f:
+            weight_map = json.load(f).get("weight_map")
+    except (OSError, ValueError) as exc:
+        warnings.append(f"index.json 읽기 실패 → mmap 오프로드 산출 불가: {exc}")
+        return None
+    if not isinstance(weight_map, dict) or not weight_map:
+        warnings.append("weight_map 이 비었다 → mmap 오프로드 산출 불가(보정 ✗)")
+        return None
+
+    rx = re.compile(pattern)
+    by_shard: dict[str, list[str]] = {}
+    for name, shard in weight_map.items():
+        if rx.search(name):
+            by_shard.setdefault(shard, []).append(name)
+    if not by_shard:
+        return 0                       # 해당 기구의 텐서가 이 모델에 없다 — 정직한 0
+
+    total = 0
+    for shard, names in by_shard.items():
+        path = os.path.join(host_path, shard)
+        try:
+            with open(path, "rb") as f:
+                hdr_len = struct.unpack("<Q", f.read(8))[0]
+                header = json.loads(f.read(hdr_len))
+        except (OSError, ValueError, struct.error) as exc:
+            warnings.append(f"샤드 헤더 읽기 실패({shard}) → mmap 오프로드 산출 불가: {exc}")
+            return None
+        for name in names:
+            entry = header.get(name) or {}
+            offs = entry.get("data_offsets")
+            if not (isinstance(offs, list) and len(offs) == 2):
+                warnings.append(f"{name}: data_offsets 부재 → mmap 오프로드 산출 불가")
+                return None
+            total += int(offs[1]) - int(offs[0])
+    return total
+
+
 def _largest_safetensors(host_path: str) -> str | None:
     """가장 큰 *.safetensors 파일 경로 (disk_bpw 실측 대상). 없으면 None."""
     files = glob.glob(os.path.join(host_path, "*.safetensors"))

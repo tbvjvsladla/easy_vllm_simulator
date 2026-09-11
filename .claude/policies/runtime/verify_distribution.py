@@ -73,6 +73,10 @@ SUB_TOMBSTONES = {
     #   마커를 은퇴시켰다(커밋 3263339). 오버레이는 **가산**이라 tombstone 없이는 서브에
     #   영구 잔존한다. 여기 목록을 같이 올리지 않아 이 검사가 그 커밋 이후 계속 FAIL 이었다.
     "tasks/.gitkeep",
+    # 2026-09-08(커밋 f7ec026): 메인의 해소 결과는 싱글 서브에 가지 않는다 — 남으면 서브가
+    #   자기 HW 로 해소할 이유가 없어진다. 위 `tasks/.gitkeep` 주석이 경고한 그대로 **이 목록을
+    #   같이 올리지 않아** 이 검사가 그 커밋 이후 계속 FAIL 이었다(같은 실패의 두 번째 발현).
+    ".claude/skills/upstream-version-watch/assets/current-production-resolution.json",
 }
 SUB_RELOCATION_TOMBSTONES = {
     ".claude/rules/references.md", "scripts/install_host_safety.sh",
@@ -82,7 +86,11 @@ SUB_RELOCATION_TOMBSTONES = {
     # 은퇴가 아니다 — 은퇴로 두면 활성 소비자 감사가 서브의 살아 있는 원장에 걸려 배달이 막힌다.
     "tasks/.gitkeep",
 }
-SUB_RETIREMENT_TOMBSTONES = {"scripts/smoke_clone.sh", "scripts/sync_branches.sh"}
+SUB_RETIREMENT_TOMBSTONES = {
+    "scripts/smoke_clone.sh", "scripts/sync_branches.sh",
+    # 대체 자리가 없는 삭제 = 은퇴(이관 ✗). 서브는 자기 HW 로 스스로 해소한다.
+    ".claude/skills/upstream-version-watch/assets/current-production-resolution.json",
+}
 
 
 def _child_python() -> list[str]:
@@ -403,7 +411,13 @@ def verify() -> dict:
                     and "--include='/configs/*_patch.py'" not in sub_text
                     and '"$build_assets"/runtime_patches/*' in sub_text)},
             {"name": "sub_retirement_consumer_audit_before_tombstone",
-             "ok": (sub_text.count("verify_destination_retirement_consumers ||") == 2
+             # ★ 2026-09-11 앵커 교정(plan_26091108 S3 부수): 종전 앵커는 **무인자 호출**
+             #   `verify_destination_retirement_consumers ||` 를 셌는데, 그 함수는 `$1=topology`
+             #   를 받도록 리팩터됐고 호출부는 `... multi ||` · `... "$t" ||` 다. 앵커가 리팩터를
+             #   따라가지 못해 이 검사가 계속 FAIL 이었다(이 저장소의 반복 결함: 앵커는 리팩터를
+             #   따라간다). 불변인 것은 **두 자리에서 fail-closed 로 부른다**는 사실이므로 그것을 센다.
+             "ok": (len(re.findall(r"verify_destination_retirement_consumers\s+\S+\s*\|\|",
+                                   sub_text)) == 2
                     and "retirement_consumer_scan" in sub_text
                     and 'owner=".claude/skills/upstream-version-watch/"+stale' in sub_text
                     and 'while lo and line[lo-1] in chars' in sub_text
@@ -776,6 +790,20 @@ def verify() -> dict:
         _run("upstream_inventory_rejects_unknown_topology",
              ["bash", ".claude/skills/upstream-version-watch/scripts/container_inventory.sh",
               "--topology", "bogus"], {2}),
+        # ── plan_26091108 하네스 교정 R1~R7 의 자체검사 (2026-09-11) ───────────────────────
+        #   셋 다 **역채점**(직전 캠페인 실측 회귀)과 **음성대조**(가드를 깨뜨려 빨간불)를 품는다.
+        #   음성대조 없는 교정은 완료로 치지 않는다 — 이 저장소의 반복 결함이다.
+        _run("upstream_budget_preflight_selftest", [sys.executable,
+             ".claude/skills/upstream-version-watch/scripts/budget_preflight.py", "--self-test"], {0}),
+        _run("recipe_preload_ram_gate_selftest", [sys.executable,
+             ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py", "--self-test"], {0}),
+        _run("recipe_escalation_predicate_selftest", [sys.executable,
+             ".claude/skills/vllm-recipe-explorer/scripts/escalation_predicate.py", "--self-test"], {0}),
+        # R8 — 컨텍스트 확장 선언을 serve 인자로 번역한다. Y3(병합)·Y11(음성대조)이 본체다:
+        #   rope 딕셔너리를 갈아끼우면 mrope·partial rotary 가 조용히 사라져 **다른 모델**이 된다.
+        _run("recipe_rope_translate_selftest", [sys.executable,
+             ".claude/skills/vllm-recipe-explorer/scripts/rope_scaling_translate.py",
+             "--self-test"], {0}),
         _run("benchmark_broad_search_confirm_gate",
              ["bash", ".claude/skills/adversarial-benchmark/scripts/broad_search.sh", "cell",
               "--state", "/nonexistent/bs.json", "--now-utc", "2026-01-01T00:00:00Z",
@@ -802,8 +830,13 @@ def verify() -> dict:
         # is newer than this date fails closed here until the date is deliberately moved forward.
         # Moved 2026-07-27 -> 2026-09-03 when GIT_SINGLE_AUTHORITY was registered (plan_26090222).
         # Moved 2026-09-03 -> 2026-09-06 when ROOT_SURFACE_REGISTRY was registered (plan_26090616).
+        # ★ `--as-of` 는 **벽시계가 아니라 핀**이다(헌법: 시각은 주입만). 그래서 정책이 추가될
+        #   때마다 사람이 함께 민다 — 그 편집이 리뷰를 강제하는 것이 이 하드코딩의 정당 근거다
+        #   (§4종 안티패턴 판정표 '하드코딩·정당' = tripwire). 밀지 않으면 새 정책이 "미래 날짜"로
+        #   읽혀 하네스가 RED 로 남는다. 2026-09-11 실측: 핀 2026-09-06 이
+        #   LIBRARY_GROUNDING_FAIL_CLOSED(2026-09-08 등재)를 미래로 읽어 위반 3건이 서 있었다.
         checks.append(_run("policy_registry_verify", [sys.executable, str(policy_runner),
-                           "verify", "--as-of", "2026-09-06", "--repo-root", str(REPO)], {0}))
+                           "verify", "--as-of", "2026-09-11", "--repo-root", str(REPO)], {0}))
     else:
         checks.append({"name": "policy_registry_verify", "ok": False,
                        "error": "missing .claude/policies/runtime/policy_registry.py"})

@@ -130,7 +130,7 @@
       "description": "layer-1 통제변인(타겟 HW·모델·엔진 버전·토폴로지 등)을 활성 캠페인 선언에서 **파생**해 싣는다(손저작 ✗). 2026-09-05 요청의 통제변인 표에서 모델 행이 빠져 서브가 저장소 기본 config 의 다른 모델을 집었다 — 그 재발을 막는 자리다. 개정 창구는 메인 하나이며 서브는 리포트 control_variables_echo 로 그대로 되받는다."
     },
     "backend": {
-      "description": "provider 실행 백엔드(닫힌 열거). anthropic=기본(claude 바이너리) · kimi=kimi-claude shim(같은 Claude Code 하네스, 내부 LLM만 Kimi K3 — 2026-09-07 사용자 지시) · minimax=minimax-claude shim(같은 하네스, 내부 LLM만 MiniMax — 2026-09-10 camp-26090918 서브 호출자 전환 사용자 지시). 각 shim 은 노드 로컬 비추적 자산.",
+      "description": "provider 실행 백엔드(닫힌 열거). anthropic=기본(claude 바이너리) · kimi=kimi-claude shim · minimax=minimax-claude shim. 셋 다 **같은 Claude Code 하네스**이고 내부 LLM만 다르므로 provider 교체가 아니라 백엔드 선택이다. shim 은 노드 로컬 비추적 자산(~/.local/bin)이며 실행 파일이어야 한다 — .bashrc 셸 함수는 ssh 비대화형에서 조기 return 으로 로드되지 않고, `timeout <n> <cmd>` 가 함수를 exec 할 수도 없다(2026-09-08 양 노드 실측). model 은 backend 에 종속된 토큰이다: 어댑터의 RUNNER_ALIASES 가 (backend, model) 쌍을 소유한다.",
       "type": "string",
       "enum": [
         "anthropic",

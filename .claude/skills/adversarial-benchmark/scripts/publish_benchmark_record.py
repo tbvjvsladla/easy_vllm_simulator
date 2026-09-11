@@ -95,7 +95,13 @@ def build_yaml(index, verdict):
               # (`VLLM_ATTENTION_BACKEND=FLASHINFER` 인데 엔진은 TRITON_ATTN 을 썼다),
               # 인증서가 요청값을 실었다면 그 인증서는 쓰지 않은 커널로 잰 것처럼 읽힌다.
               "attention_backend", "attention_backend_source", "attention_backend_mismatch",
-              "moe_backend_source", "moe_backend_mismatch"):
+              "moe_backend_source", "moe_backend_mismatch",
+              # ★ 2026-09-11(plan_26091108 R9): PLE 상주/mmap 축. 이 축이 **인증서 어디에도
+              #   없어서** camp-26090918 의 res·mmp 두 인증서가 강한키·소프트키 전부 동일했고,
+              #   hint 태그 이름이 충돌해 타임스탬프 접미사로 회피했다. 47.7GiB 가 상주하느냐
+              #   NVMe 에서 오느냐는 예산·지연을 동시에 바꾸는 축이며, 축이 없으면 그 셀은
+              #   carry-forward 대조에서 다른 셀과 구분되지 않는다.
+              "ple_mode", "ple_mode_source"):
         A("%s: %s" % (k, scalar(meta.get(k))))
     A("ngc_base_tag: %s" % scalar(meta.get("ngc_base_tag")))  # 현재 resolved.json 부재 시 N/A(fail-soft)
     A("")

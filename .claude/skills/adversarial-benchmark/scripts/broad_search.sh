@@ -41,6 +41,7 @@
 #                            --declared-by TEXT --basis TEXT --authority explore --now-utc T
 #       broad_search.sh cell --state PATH --cell-key K --config NAME --axis-citation TEXT
 #                            --next-intent TEXT [--ack-uncalibrated-thermal]
+#                            [--serve-failed REASON --serve-started-utc T] [--symptom KIND]...
 #                            --bench-budget-mib N --now-utc T --confirm-risk [--topology t]
 #       broad_search.sh status --state PATH --now-utc T
 #       broad_search.sh map    --state PATH --now-utc T --out-md PATH [--out-json PATH]
@@ -72,6 +73,7 @@ ACK_UNCAL=0
 #   결론은 같다: **완결 엔드포인트로 잰다.**
 BACKEND=""
 OUT_MD=""; OUT_JSON=""; REASSEMBLE=0; SERVE_FAILED_REASON=""; MAX_ERROR_RATE=""
+SERVE_STARTED_UTC=""; SYMPTOMS=()
 # 부하 레벨 목록. 빈 값이면 sweep_bench 의 기본(1,2,4,8,16)을 그대로 쓴다 — 여기서 기본을
 #   다시 적으면 같은 개념이 두 파일에 손으로 적히고 갈라진다(4종 안티패턴 · 매직넘버).
 #   2026-09-07 신설: sweep_bench 에는 --levels 가 있었으나 이 호출자가 전달하지 않아
@@ -121,6 +123,15 @@ while [ $# -gt 0 ]; do case "$1" in
   #   기록하지 못하면 **지도에 구멍이 남고** 다음 캠페인이 같은 벽에 다시 부딪힌다 —
   #   실패는 숨길 것이 아니라 지도가 실어야 할 정보다.
   --serve-failed) SERVE_FAILED_REASON="$2"; shift 2;;
+  # ★ 2026-09-11(plan_26091108 R4): serve 실패 기록의 **구간 시작**. 종전에는 기록 시각(NOW)을
+  #   시작으로 써서 [기록시각, 기록시각] 이라는 폭 0 구간이 됐고, 그러면 사살 이벤트와의 시각
+  #   대조가 **구조적으로 항상 빗나간다** — 분류기는 옳았는데 창이 없어 아무것도 못 봤다.
+  #   실제 서빙을 시도한 시각을 넣어야 원장이 사인을 말할 수 있다.
+  --serve-started-utc) SERVE_STARTED_UTC="$2"; shift 2;;
+  # ★ 2026-09-11(plan_26091108 R6): 반증된 셀의 **증상**. escalation 후보 원장에 실린다.
+  #   증상을 자동으로 지어내지 않는다 — 관측은 에이전트가 하고 술어 ① 판정은 결정론이 한다.
+  #   증상을 안 넘겨도 후보 줄은 **남는다**(① 미충족 + "증상이 제시되지 않았다").
+  --symptom) SYMPTOMS+=("$2"); shift 2;;
   --out-md) OUT_MD="$2"; shift 2;;
   --out-json) OUT_JSON="$2"; shift 2;;
   *) echo "[broad_search] 알 수 없는 인자: $1" >&2; exit 2;;
@@ -303,7 +314,11 @@ PY
 
   if [ -n "$SERVE_FAILED_REASON" ]; then
     # materialize 단계에서 죽은 셀 — 트리플렛이 없으므로 envfile·포트·측정 경로를 타지 않는다.
-    STARTED="$NOW"; ENDED="$(date -u +%FT%TZ)"; SERVE_RC=3; MEASURE_RC=absent
+    STARTED="${SERVE_STARTED_UTC:-$NOW}"; ENDED="$(date -u +%FT%TZ)"; SERVE_RC=3; MEASURE_RC=absent
+    if [ -z "$SERVE_STARTED_UTC" ]; then
+      echo "[broad_search] ⚠ --serve-started-utc 미지정 — 대조 구간이 [기록시각, 지금] 이라" >&2
+      echo "[broad_search]   실제 서빙 시도 구간의 사살 이벤트를 놓칠 수 있다(사인이 correlation-miss 로 남는다)." >&2
+    fi
     SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
     echo "[broad_search] serve_failed 기록 — $SERVE_FAILED_REASON"
   else
@@ -486,8 +501,27 @@ PY
       #   노드도 넘기지 않는다: 배정(assignments)에서 파생된다.
       _WARGS=(--cell-set "$CELL_KEY" --outcome "$_OUTCOME" --axis-citation "$CITATION"
               --next-intent "$NEXT_INTENT" --utc "$ENDED" --sweep-state "$STATE")
-      [ -n "$SERVE_FAILED_REASON" ] && _WARGS+=(--void-reason "$SERVE_FAILED_REASON"
-                                                --void-reason-source "broad_search cell(엔진 로그 인용)")
+      # ★ 2026-09-11(plan_26091108 R4): **관측이 단언을 이긴다.** 종전에는 호출자가 넘긴 산문이
+      #   무조건 사유 칸을 차지했고, 분류기가 원장에서 찾아낸 사인은 버려졌다. camp-26090918 의
+      #   void 3건이 그렇게 "fused_moe FP8 config 부재 추정 hang" 으로 남았다 — 실제 사인은
+      #   워치독 사살이었고 그 사실은 같은 순간 원장에 이미 있었다. 산문은 지우지 않고
+      #   `serve_failed_reason`(주장)으로 남으며, 사유 칸(판정)은 이벤트가 가져간다.
+      _EV_REASON="$(printf '%s' "$CLS" | python3 -c "
+import json,sys
+d=json.load(sys.stdin); src=d.get('void_reason_source') or ''
+print(d.get('void_reason') or '' if src.startswith('events(') else '')
+" 2>/dev/null || true)"
+      if [ -n "$_EV_REASON" ]; then
+        _EV_SRC="$(printf '%s' "$CLS" | python3 -c "import json,sys;print(json.load(sys.stdin).get('void_reason_source') or '')" 2>/dev/null || true)"
+        _WARGS+=(--void-reason "$_EV_REASON" --void-reason-source "$_EV_SRC")
+        if [ -n "$SERVE_FAILED_REASON" ]; then
+          echo "[broad_search] ⓘ 사유 칸은 이벤트 대조 결과($_EV_REASON)가 가져간다 — 호출자가 넘긴" >&2
+          echo "[broad_search]   서술은 serve_failed_reason(주장)으로 남는다. 관측 > 단언." >&2
+        fi
+      elif [ -n "$SERVE_FAILED_REASON" ]; then
+        _WARGS+=(--void-reason "$SERVE_FAILED_REASON"
+                 --void-reason-source "broad_search cell(엔진 로그 인용 · 이벤트 대조 실패)")
+      fi
       # writer 실패는 삼키지 않는다 — 상태가 안 적혔다는 사실 자체가 다음 재개의 함정이다.
       python3 "$_CI" "${_WARGS[@]}" \
         || echo "[broad_search] ⚠ campaigns writer 실패 — cell.status/여정이 기록되지 않았다(위 사유 참조)" >&2
@@ -497,6 +531,17 @@ PY
       _NODE=""
       if [ -n "$_CS" ] && [ -f "$_CS" ]; then
         _NODE="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('node_id') or '')" "$_CS" 2>/dev/null || true)"
+      fi
+      if [ -z "$_NODE" ]; then
+        # ★ 2026-09-11(plan_26091108 R10): 여기가 **조용히 건너뛰어지던 자리**다. 셀 키 어휘가
+        #   캠페인 셀 id 와 갈라지면(스윕은 레버 이름 `L0-base`, 캠페인은 축 이름 `nv4-bf-262k-res`)
+        #   `--derive cell-status` 가 배정에서 노드를 못 찾고, 그러면 bench 진행표도 campaign_brief
+        #   도 **아무 말 없이** 안 써졌다. camp-26090918 실측: 인증서 2건이 발행됐는데 bench phase 는
+        #   `running` 인 채였고, P2(purge 선행조건)가 그것을 잡을 때까지 아무도 몰랐다.
+        #   부재는 침묵이 아니라 배선 결함이다 — 이름으로 통과시키지 말고 소리를 내게 한다.
+        echo "[broad_search] ⚠ bench 진행표·브리핑 미기록 — 셀 '$CELL_KEY' 의 노드를 배정에서 파생하지" >&2
+        echo "[broad_search]   못했다(cell-status 파생='$_CS'). 셀 키가 campaign.yaml 의 assignments 에" >&2
+        echo "[broad_search]   있는 이름과 같은지 확인하라 — 어휘가 갈라지면 증거는 남고 진행표만 낡는다." >&2
       fi
       if [ -n "$_NODE" ]; then
         # `set -e` 아래에서 `[ … ] && x` 는 마지막 문장일 때 스크립트를 죽인다 — if 로 적는다.
@@ -510,6 +555,22 @@ PY
           || echo "[broad_search] ⚠ bench 진행표 기록 실패" >&2
         python3 "$_CI" --write-brief --node "$_NODE" --utc "$ENDED" \
           || echo "[broad_search] ⚠ campaign_brief 갱신 실패 — 감독자가 읽을 관측면이 낡았다" >&2
+        # ── escalation 후보(2026-09-11 · plan_26091108 R6) ────────────────────────────────
+        #   반증된 셀은 후보 원장에 **한 줄** 남는다. 발동하지 않는다 — 빌드 평면 재전략은
+        #   통제변인을 바꾸므로 캠페인 중간에 켜면 뒤의 셀이 앞의 셀과 비교 불가가 된다
+        #   (사용자 결정: 종결 시 HITL 로 묻는다). 여기는 **쌓기만** 하는 자리다.
+        case "$_OUTCOME" in
+          serve_failed|build_failed|void|measurement_void)
+            _ESC=(--escalation-add --cell "$CELL_KEY" --node "$_NODE" --utc "$ENDED"
+                  --window-start-utc "$STARTED" --window-end-utc "$ENDED")
+            for _sy in "${SYMPTOMS[@]+"${SYMPTOMS[@]}"}"; do _ESC+=(--symptom "$_sy"); done
+            for evf in "$REPO"/docs/logs/*/events/*.jsonl; do
+              [ -f "$evf" ] && _ESC+=(--events "$evf")
+            done
+            python3 "$_CI" "${_ESC[@]}" >/dev/null \
+              || echo "[broad_search] ⚠ escalation 후보 기록 실패 — 종결 HITL 이 이 셀을 못 본다" >&2
+            ;;
+        esac
       fi
     fi
   else

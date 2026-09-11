@@ -97,16 +97,34 @@ def classify(serve_rc, measure_rc, kill_hits, events_scanned):
 
     `measure_rc is None` = **측정 단계에 들어가지 않았다**(부재). 성공(0)과 구분한다.
     """
+    executed = [h for h in kill_hits if h["kind"] in KILL_EVENT_KINDS]
     if serve_rc != 0:
+        # ★ 2026-09-11(plan_26091108 R4): 이 분기가 **사살을 무시했다**. 종전에는 구간 안에
+        #   집행된 사살이 있어도 `void_reason: None` 을 내고 사유 칸을 비웠고, 그 빈자리를
+        #   사람의 산문("fused_moe FP8 config 부재 추정 hang")이 메웠다 — camp-26090918 의
+        #   void 3건이 그렇게 기록됐고, 그 서술이 근거 없는 체크포인트 재다운로드로 이어졌다.
+        #   사인은 추정이 아니라 **시각 대조**가 답한다. 분류(serve_failed)는 바꾸지 않는다 —
+        #   서빙은 실제로 성립하지 않았다. 바뀌는 것은 **왜** 다.
+        if executed:
+            first = executed[0]
+            return {
+                "cell_outcome": OUTCOME_SERVE_FAILED,
+                "void_reason": first["kind"],
+                "void_reason_source": "events(%s)" % events_scanned,
+                "kill_events": kill_hits,
+                "note": "서빙이 성립하지 않았다(rc=%s). 구간 안에서 %s 가 %s 에 **집행**됐다 — "
+                        "이 죽음은 모델·빌드 평면의 구동불가가 아니라 호스트 평면의 사살이다."
+                        % (serve_rc, first["kind"], first["ts"]),
+            }
         return {
             "cell_outcome": OUTCOME_SERVE_FAILED,
             "void_reason": None,
-            "void_reason_source": None,
+            "void_reason_source": "correlation-miss(%s)" % events_scanned,
             "kill_events": kill_hits,
-            "note": "서빙이 성립하지 않아 측정 단계에 도달하지 않았다(rc=%s)." % serve_rc,
+            "note": "서빙이 성립하지 않아 측정 단계에 도달하지 않았다(rc=%s). 구간 안에 집행된 "
+                    "사살 이벤트는 없다 — 사인을 추측하지 않는다." % serve_rc,
         }
 
-    executed = [h for h in kill_hits if h["kind"] in KILL_EVENT_KINDS]
     if measure_rc is None:
         return {
             "cell_outcome": OUTCOME_NOT_MEASURED,
@@ -181,6 +199,23 @@ def _self_test():
     check("C1 서빙 실패 → serve_failed",
           out["cell_outcome"] == OUTCOME_SERVE_FAILED and out["void_reason"] is None)
 
+    # ── R4(2026-09-11): serve 실패에서도 **사인은 시각 대조가 답한다** ──────────────────
+    out = classify(3, None, hits, "docs/logs/main/events/2026-09.jsonl")
+    check("★C7 서빙 실패 + 집행된 사살 → 분류는 serve_failed, 사인은 이벤트에서 온다",
+          out["cell_outcome"] == OUTCOME_SERVE_FAILED
+          and out["void_reason"] == "watchdog_kill_ack"
+          and out["void_reason_source"].startswith("events(")
+          and "호스트 평면의 사살" in out["note"])
+    out = classify(3, None, [], "docs/logs/main/events/2026-09.jsonl")
+    check("★C8 서빙 실패 + 대조 실패 → 사인 없음이되 **대조했음**이 남는다(추측 ✗)",
+          out["cell_outcome"] == OUTCOME_SERVE_FAILED
+          and out["void_reason"] is None
+          and out["void_reason_source"].startswith("correlation-miss("))
+    out = classify(3, None, [h for h in hits if h["kind"] in TRIP_EVENT_KINDS],
+                   "docs/logs/main/events/2026-09.jsonl")
+    check("★C9 음성대조: 트립만으로 서빙 실패를 사살이라 단정하지 않는다(집행만 사인이다)",
+          out["void_reason"] is None)
+
     out = classify(0, 4, hits, "docs/logs/main/events/2026-09.jsonl")
     check("C2 측정 실패 + 집행된 사살 → measurement_void(사인 명시)",
           out["cell_outcome"] == OUTCOME_MEASUREMENT_VOID
@@ -208,7 +243,7 @@ def _self_test():
     if failures:
         sys.stderr.write("[classify_cell --self-test] FAIL %d 건: %s\n" % (len(failures), failures))
         return 1
-    print("[classify_cell --self-test] OK — K1~K3 · C1~C6 전부 통과")
+    print("[classify_cell --self-test] OK — K1~K3 · C1~C9 전부 통과")
     return 0
 
 

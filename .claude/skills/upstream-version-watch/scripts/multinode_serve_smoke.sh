@@ -676,7 +676,14 @@ wait_budget_honored(){  # $1=events 파일 경로 $2=원격이면 "sub" · $3=�
   return 1
 }
 
-if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
+# ★ 2026-09-11(plan_26091108 R1): 종전 조건은 `BUDGET=1 ∧ WATCHDOG=1` 이었다. 그래서
+#   `--no-watchdog` 하나가 **예산 선판정 게이트까지 함께 껐다**. 그런데 `--no-watchdog` 가 끄는
+#   것은 *이 스크립트의 arming* 이지 **사살자가 아니다** — 죽인 것은 상주 systemd 유닛
+#   (`unit:easy-vllm-memwatch`·`unit:easy-vllm-blackbox-watchdog`)이고 지금도 active 다.
+#   즉 종전 결합은 **위험은 그대로 둔 채 가드만 걷어내는** 방향이었다. camp-26090918 의 사살
+#   3건이 정확히 그 상태에서 났다(원장에 budget_declare 도 budget_skipped 도 없다).
+#   선판정(산술)은 BUDGET=1 이면 항상 돌고, 선언(arming)만 WATCHDOG 에 종속시킨다.
+if [ "$BUDGET" = "1" ]; then
   CKPT_MIB=$(printf '%s\n' "$NAS_OUT" | grep -oE 'ckpt_mib=[0-9]+' | head -1 | cut -d= -f2)
   BTP=$(printf '%s\n' "$NAS_OUT"      | grep -oE 'BUDGET_PARAMS ckpt_mib=[0-9]+ tp=[0-9]+' | grep -oE 'tp=[0-9]+' | cut -d= -f2)
   KV_MIB=$(printf '%s\n' "$NAS_OUT"   | grep -oE 'kv_mib=[0-9]+' | head -1 | cut -d= -f2)
@@ -710,8 +717,30 @@ if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
     disarm_armed_watchdogs
     exit 4
   fi
-  WEIGHTS_MIB=$(( CKPT_MIB / BTP ))
-  echo "[mn] 예산 파생: weights=${WEIGHTS_MIB}MiB(ckpt ${CKPT_MIB}÷tp ${BTP}) kv=${KV_MIB}MiB overhead=${OVERHEAD_MIB}MiB ttl=${BUDGET_TTL_S}s"
+  # ── PLE mmap 보정(2026-09-11 · plan_26091108 R2) ────────────────────────────────────────
+  #   weights 는 "이 노드에 **상주할** 바이트" 여야 한다. 종전 `ckpt ÷ tp` 는 체크포인트 파일
+  #   크기 기준이라, PLE n-gram 47.7GiB 가 NVMe mmap 으로 빠져도 같은 값이 나왔다. 그래서 게이트는
+  #   `fp8+res`(막아야 옳다)와 `fp8+mmp`(camp-26090918 에서 **실제로 서빙 성공**)를 동일 계산해
+  #   둘 다 막는다 — 게이트를 그대로 켜면 뜨는 셀을 죽인다.
+  #   모드의 권위는 **셀 env 의 `VLLM_PLE_MMAP`**(serve-time 사실)이고, 크기의 권위는
+  #   `check_smoke_model` 이 index 에서 파생한 `ple_mib` 다. 둘 중 하나라도 없으면 **보정 0**
+  #   (= 현행 동작). 부재를 추측으로 메우면 게이트가 없는 여유를 있다고 말한다.
+  PLE_MIB=$(printf '%s\n' "$NAS_OUT" | grep -oE 'ple_mib=[0-9]+' | head -1 | cut -d= -f2)
+  PLE_MODE_ON=0
+  case "$PLEVARS" in *VLLM_PLE_MMAP=1*) PLE_MODE_ON=1;; esac
+  RESIDENT_CKPT_MIB="$CKPT_MIB"; PLE_NOTE="ple=resident"
+  if [ "$PLE_MODE_ON" = "1" ]; then
+    if [ -n "$PLE_MIB" ] && [ "$PLE_MIB" -gt 0 ] 2>/dev/null; then
+      RESIDENT_CKPT_MIB=$(( CKPT_MIB - PLE_MIB ))
+      PLE_NOTE="ple=mmap(−${PLE_MIB}MiB · index 파생)"
+    else
+      # 선언은 켜졌는데 크기를 못 구했다 — **보정하지 않는다**. 그 사실을 침묵시키지 않는다.
+      PLE_NOTE="ple=mmap선언·크기미상(보정 0 — 게이트가 과보수적으로 판정한다)"
+      echo "[mn] ⚠ VLLM_PLE_MMAP=1 인데 ple_mib 를 파생하지 못했다(값='$PLE_MIB') — 보정 없이 진행한다." >&2
+    fi
+  fi
+  WEIGHTS_MIB=$(( RESIDENT_CKPT_MIB / BTP ))
+  echo "[mn] 예산 파생: weights=${WEIGHTS_MIB}MiB(상주 ckpt ${RESIDENT_CKPT_MIB}÷tp ${BTP} · ${PLE_NOTE}) kv=${KV_MIB}MiB overhead=${OVERHEAD_MIB}MiB ttl=${BUDGET_TTL_S}s"
 
   # ── 선판정: arm 상한을 **선언 전에** 계산해 거부를 예고한다(plan_26081415 §1.3 구조적 상한).
   #   워치독의 `decl_min_ceiling_mib` 하드가드는 `floor - 8192 < 16384` 인 선언을 거부한다 —
@@ -723,34 +752,39 @@ if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then
   #     tripwire 로 둔다"고 했지만 통로는 있었다 — 정본 `blackbox_eta.DEFAULTS` 는 이 노드의
   #     같은 저장소 안에 있고 import 하면 된다. 거울로 둔 대가는 이미 치렀다(2026-08-18 정본이
   #     움직이자 손으로 따라가야 했고, 워치독 셸의 거울은 **따라가지 못해 옛값으로 남았다**).
-  _WD_CONST="$(python3 -c "
-import sys; sys.path.insert(0, '$(dirname "$MAIN_SESSION_PY")')
-from blackbox_eta import DEFAULTS as D
-print(int(D['decl_margin_mib']), int(D['decl_min_ceiling_mib']))
-" 2>/dev/null)"
-  _WD_MARGIN="${_WD_CONST%% *}"; _WD_MIN_CEIL="${_WD_CONST##* }"
-  case "${_WD_MARGIN}${_WD_MIN_CEIL}" in ''|*[!0-9]*)
-    echo "[mn] FAIL: 선언 상수를 blackbox_eta.DEFAULTS 에서 읽지 못했다 — 여기에 사본을 두지 않는다." >&2
-    return 2;;
-  esac
+  # ★ 2026-09-11(plan_26091108 R1·R2): 선판정 **산술의 단일 소유**는 `budget_preflight.py` 다.
+  #   종전에는 이 셸이 floor·ceiling·overhead 상한을 직접 계산했고, 같은 산술이
+  #   `single_serve_up.sh`(선판정 자체가 없었다)와 벤치 진입에도 필요했다 — 세 자리에 적으면
+  #   반드시 갈린다. 상수(decl_margin·decl_min_ceiling·abs_band)도 그 안에서 정본 import 한다.
+  _PF="$(python3 "$SDIR/budget_preflight.py" --json \
+          --mem-total-mib "$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)" \
+          --weights-mib "$WEIGHTS_MIB" --kv-mib "$KV_MIB" --overhead-mib "$OVERHEAD_MIB" 2>&1)"
+  _PF_RC=$?
+  if [ "$_PF_RC" != "0" ] && [ "$_PF_RC" != "4" ]; then
+    echo "[mn] FAIL: 예산 선판정을 수행하지 못했다(rc=$_PF_RC) — $_PF" >&2
+    return 2
+  fi
+  _pf(){ printf '%s' "$_PF" | python3 -c "import json,sys;print(json.load(sys.stdin).get(sys.argv[1]))" "$1" 2>/dev/null; }
+  _PRED_FLOOR="$(_pf floor_mib)"; _PRED_CEIL="$(_pf arm_ceiling_mib)"
+  _OH_MAX="$(_pf overhead_max_mib)"; _WD_MIN_CEIL="$(_pf decl_min_ceiling_mib)"
   _MEMTOT_MAIN=$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)
-  _PRED_FLOOR=$(( _MEMTOT_MAIN - WEIGHTS_MIB - KV_MIB - OVERHEAD_MIB ))
-  _PRED_CEIL=$(( _PRED_FLOOR - _WD_MARGIN ))
-  _OH_MAX=$(( _MEMTOT_MAIN - WEIGHTS_MIB - KV_MIB - _WD_MARGIN - _WD_MIN_CEIL ))
+  case "${_PRED_FLOOR}${_PRED_CEIL}" in ''|*None*)
+    echo "[mn] FAIL: 선판정 산출을 읽지 못했다 — $_PF" >&2; return 2;;
+  esac
   echo "[mn] 예산 선판정: 예상 바닥=${_PRED_FLOOR}MiB → arm 상한=${_PRED_CEIL}MiB (가드 최소 ${_WD_MIN_CEIL}MiB)"
-  if [ "$_PRED_CEIL" -lt "$_WD_MIN_CEIL" ]; then
-    echo "[mn] STOP(예산 게이트): arm 상한 ${_PRED_CEIL}MiB < ${_WD_MIN_CEIL}MiB — 워치독이 이 선언을 **거부**한다."
-    echo "     이 구성은 예상 상주가 커서 선언으로 보호할 수 있는 범위를 벗어난다(plan_26081415 §1.3)."
-    echo "     ⇒ 로드는 **0초도 시작하지 않았다**. 선택지:"
-    echo "        · overhead 를 실측으로 줄인다: SMOKE_BUDGET_OVERHEAD_MIB=<n> (이 노드 상한 n ≤ ${_OH_MAX})"
-    echo "        · KV 절대클램프를 낮춘다(현재 ${KV_MIB}MiB)"
-    echo "        · 무보호를 감수한다: --no-budget (그 사실이 budget_skipped 이벤트로 남는다)"
+  if [ "$_PF_RC" = "4" ]; then
+    echo "[mn] STOP(예산 게이트): 워치독이 이 선언을 **거부**한다 — 로드는 0초도 시작하지 않았다."
+    printf '%s' "$_PF" | python3 -c "
+import json,sys
+for r in (json.load(sys.stdin).get('reasons') or []): print('     · %s' % r)
+" 2>/dev/null || true
     # 숫자를 그대로 남긴다 — 경계가 23 MiB 로 얇았다는 사실(2026-08-14)이 판정 재료였고,
     # 그건 "얼마나 모자랐나"가 데이터에 있어야만 다음 사람이 다시 알 수 있다.
     budget_block_event preflight_ceiling arm_ceiling_below_min \
       "pred_floor_mib=$_PRED_FLOOR" "pred_ceiling_mib=$_PRED_CEIL" \
       "min_ceiling_mib=$_WD_MIN_CEIL" "short_by_mib=$(( _WD_MIN_CEIL - _PRED_CEIL ))" \
       "weights_mib=$WEIGHTS_MIB" "kv_mib=$KV_MIB" "overhead_mib=$OVERHEAD_MIB" \
+      "ple_mib=${PLE_MIB:-unknown}" "ple_mmap=$PLE_MODE_ON" \
       "overhead_max_mib=$_OH_MAX" "mem_total_mib=$_MEMTOT_MAIN"
     disarm_armed_watchdogs
     exit 4
@@ -790,6 +824,18 @@ print(int(D['decl_margin_mib']), int(D['decl_min_ceiling_mib']))
     return 1
   }
 
+  if [ "$WATCHDOG" != "1" ]; then
+    # 선언의 소비자(워치독 arming)를 끈 실행이다 — 선언은 생략하되 **그 사실을 원장에 남긴다**.
+    #   종전에는 여기서 stdout 한 줄만 찍고 끝났다. 그러면 나중에 "이 서빙이 게이트를 지났나"를
+    #   물을 자리가 **없다**(탈출구가 조용하면 탈출구가 아니라 구멍이다).
+    echo "[mn] ⚠ --no-watchdog: 예산 **선언**을 생략한다. 선판정은 위에서 이미 통과했다."
+    echo "[mn]   주의: 이 플래그는 사살자를 끄지 않는다 — 상주 유닛(easy-vllm-memwatch ·"
+    echo "[mn]   easy-vllm-blackbox-watchdog)은 계속 돌고, 선언이 없으면 arm 상한이 무제한이라"
+    echo "[mn]   **정상 로드가 사살 대상이 된다**(camp-26090918 실측 3건)."
+    python3 "$MAIN_SESSION_PY" --node-dir "$(budget_node_dir_main)" budget-skip \
+      --reason=--no-watchdog --label "$BUDGET_LABEL" --now "$(NOW_ISO)" 2>&1 | sed 's/^/[mn]   main: /'
+    timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $SUB_SESSION_PY --node-dir $(budget_node_dir_sub) budget-skip --reason=--no-watchdog --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn]   sub: /' || true
+  else
   echo "[mn] 예산 선언(양노드 · 로드 개시 전)..."
   BUD_RC=0; BUD_MAIN_OK=1; BUD_SUB_OK=1; BUD_SUB_MISSING=0
   declare_one main || { BUD_RC=1; BUD_MAIN_OK=0; }
@@ -815,16 +861,14 @@ print(int(D['decl_margin_mib']), int(D['decl_min_ceiling_mib']))
   fi
   BUDGET_DECLARED=1
   echo "[mn] 예산 선언 완료 — 이제 로드를 개시한다(순서: declare→honored→up)."
-elif [ "$BUDGET" != "1" ]; then
+  fi
+else
   # 탈출구가 조용하면 탈출구가 아니라 구멍이다. 양노드에 기록을 남긴다.
   echo "[mn] ⚠ --no-budget: **무보호 진입** — ETA 워치독이 현행 규칙 그대로 돈다(대형 로드 사살 위험)."
   # `--reason=<v>` 등호형을 쓴다 — 공백형이면 argparse 가 값 `--no-budget` 을 **옵션으로** 읽어 죽는다.
   python3 "$MAIN_SESSION_PY" --node-dir "$(budget_node_dir_main)" budget-skip \
     --reason=--no-budget --label "$BUDGET_LABEL" --now "$(NOW_ISO)" 2>&1 | sed 's/^/[mn]   main: /'
   timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $SUB_SESSION_PY --node-dir $(budget_node_dir_sub) budget-skip --reason=--no-budget --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn]   sub: /'
-else
-  # C3-5 회귀: 워치독을 안 띄우면 선언도 생략된다. **그 사실을 로그에 명시**한다(조용한 생략 금지).
-  echo "[mn] --no-watchdog: 예산 선언도 함께 생략한다(선언의 소비자인 워치독 층을 끄는 실행이므로)."
 fi
 
 # ── Ray 클러스터 기동 (master 먼저=head, slave 합류) ──

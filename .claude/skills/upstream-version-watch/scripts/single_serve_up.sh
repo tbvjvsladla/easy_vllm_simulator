@@ -166,9 +166,25 @@ if [ -z "$CKPT_MIB" ] || [ -z "$TP" ] || [ "$KV_MIB" = "none" ] || [ -z "$KV_MIB
   echo "$TAG 2/7 모델·RAM 게이트 : FAIL — 예산 입력을 파생하지 못했다(BUDGET_PARAMS='$BP'). config 의 kv-cache-memory-bytes 를 확인하라." >&2
   exit 3
 fi
-WEIGHTS_MIB=$(( CKPT_MIB / TP ))
+# ── PLE mmap 보정(2026-09-11 · plan_26091108 R2 · 정본 주석은 multinode_serve_smoke.sh) ──
+#   weights 는 "이 노드에 **상주할** 바이트" 다. 셀 env 가 mmap 을 선언했고 크기를 파생했을
+#   때에만 덜어낸다 — 둘 중 하나라도 없으면 보정 0(= 현행 동작)이고, 그 사실을 침묵시키지 않는다.
+PLE_MIB="$(printf '%s' "$BP" | sed -n 's/.*ple_mib=\([0-9]*\).*/\1/p')"
+PLE_MODE_ON=0
+if [ -f "$EF" ] && grep -qE '^VLLM_PLE_MMAP=1[[:space:]]*$' "$EF" 2>/dev/null; then PLE_MODE_ON=1; fi
+RESIDENT_CKPT_MIB="$CKPT_MIB"; PLE_NOTE="ple=resident"
+if [ "$PLE_MODE_ON" = "1" ]; then
+  if [ -n "$PLE_MIB" ] && [ "$PLE_MIB" -gt 0 ] 2>/dev/null; then
+    RESIDENT_CKPT_MIB=$(( CKPT_MIB - PLE_MIB ))
+    PLE_NOTE="ple=mmap(−${PLE_MIB}MiB · index 파생)"
+  else
+    PLE_NOTE="ple=mmap선언·크기미상(보정 0)"
+    echo "$TAG     ⚠ VLLM_PLE_MMAP=1 인데 ple_mib 를 파생하지 못했다(값='$PLE_MIB') — 보정 없이 진행한다." >&2
+  fi
+fi
+WEIGHTS_MIB=$(( RESIDENT_CKPT_MIB / TP ))
 MEM_TOTAL_MIB="$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)"
-echo "$TAG 2/7 모델·RAM 게이트 : DONE (ckpt=${CKPT_MIB}MiB ÷ tp=${TP} → weights=${WEIGHTS_MIB}MiB · kv=${KV_MIB}MiB · mem_total=${MEM_TOTAL_MIB}MiB)"
+echo "$TAG 2/7 모델·RAM 게이트 : DONE (상주 ckpt=${RESIDENT_CKPT_MIB}MiB ÷ tp=${TP} → weights=${WEIGHTS_MIB}MiB · ${PLE_NOTE} · kv=${KV_MIB}MiB · mem_total=${MEM_TOTAL_MIB}MiB)"
 
 # ── 3/7 서빙 예산 선언 (로드 개시 **전**) ───────────────────────────────────────────
 DECL_ARGS=(--node-dir "$NODE_DIR" declare-budget
@@ -186,6 +202,29 @@ if [ -z "$OVERHEAD_MIB" ]; then
 fi
 DECL_ARGS+=(--overhead-mib "$OVERHEAD_MIB")
 [ -n "$EXPECTED_LOAD_S" ] && DECL_ARGS+=(--expected-load-s "$EXPECTED_LOAD_S")
+
+# ── 예산 선판정(2026-09-11 신설 · plan_26091108 R1) ─────────────────────────────────
+#   ★ 이 자리에는 **선판정이 아예 없었다** — 노드 비대칭이다. 멀티는 arm 상한을 미리 계산해
+#     "왜 막히는지"를 숫자로 말하고 로드를 0초도 시작하지 않는데, 싱글은 선언을 쓰고 워치독이
+#     15초 뒤 거절하면 그때서야 알았다. 산술의 단일 소유는 budget_preflight.py 이고 여기는 호출부다.
+PF_OUT="$(python3 "$SDIR/budget_preflight.py" --json --mem-total-mib "$MEM_TOTAL_MIB" \
+          --weights-mib "$WEIGHTS_MIB" --kv-mib "$KV_MIB" --overhead-mib "$OVERHEAD_MIB" 2>&1)"
+PF_RC=$?
+if [ "$PF_RC" != "0" ] && [ "$PF_RC" != "4" ]; then
+  echo "$TAG 3/7 예산 선판정     : FAIL — 선판정을 수행하지 못했다(rc=$PF_RC) — $PF_OUT" >&2
+  exit 2
+fi
+printf '%s' "$PF_OUT" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print('floor=%sMiB arm_ceiling=%sMiB (가드 최소 %sMiB)'
+      % (d['floor_mib'], d['arm_ceiling_mib'], d['decl_min_ceiling_mib']))
+for r in d.get('reasons') or []: print('  · %s' % r)
+" 2>/dev/null | sed "s/^/$TAG     /"
+if [ "$PF_RC" = "4" ]; then
+  echo "$TAG 3/7 예산 선판정     : STOP — 워치독이 이 선언을 거부한다. 로드는 **0초도 시작하지 않았다**." >&2
+  exit 4
+fi
 if [ "$DRY" = "1" ]; then
   echo "$TAG 3/7 예산 선언       : (dry-run) python3 $SESSION_PY ${DECL_ARGS[*]}"
 elif out="$(python3 "$SESSION_PY" "${DECL_ARGS[@]}" 2>&1)"; then

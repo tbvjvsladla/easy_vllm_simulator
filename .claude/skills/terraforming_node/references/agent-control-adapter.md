@@ -52,23 +52,37 @@ python3 .claude/policies/runtime/agent_control.py invoke --request /path/to/requ
 claude -p '<task>' --model <요청이 선언한 model> --output-format json --max-turns <N> --allowedTools <TOOLS>
 ```
 
-### 2.1 백엔드 축 (`backend` 선택 필드 · 2026-09-07 신설 · 2026-09-10 camp-26090918 확장)
+### 2.1 백엔드 축 (`backend` 선택 필드 · 2026-09-07 신설)
 
-같은 Claude Code 하네스를 **내부 LLM만** 바꾸는 것은 provider 교체가 아니라 백엔드 선택이다.
-request 의 선택 필드 `backend`(`anthropic`|`kimi`|`minimax`, 기본 anthropic)가 어댑터의 닫힌 열거
-`BACKEND_TO_BINARY` 를 통해 실행 바이너리를 고른다:
-`anthropic → claude` · `kimi → kimi-claude` · `minimax → minimax-claude`.
+같은 Claude Code 하네스를 **내부 LLM만** 바꾸는 것은 provider 교체가 아니라 백엔드 선택이다
+(사용자 지시: 서브 위임은 `kimi-claude` = 오케스트레이터-워커에서 워커의 이너 하네스 LLM이 Kimi K3).
+request 의 선택 필드 `backend`(`anthropic`|`kimi`, 기본 anthropic)가 어댑터의 닫힌 열거
+`BACKEND_TO_BINARY` 를 통해 실행 바이너리를 고른다: `anthropic → claude` · `kimi → kimi-claude`.
 
-- 사용자 지시 이력:
-  - 2026-09-07(Qwen3-4B KV양자화 · camp-26090721): 서브 위임 백엔드 = `kimi-claude` (Kimi K3).
-  - 2026-09-10(Qwen3.8-Flash-Next · camp-26090918): camp 서브 호출자 = `minimax-claude` 로 전환.
-    캠페인 단계에서 서브 노드 위임 시 `--backend minimax` 를 명시하여 호출한다.
-- 각 shim 은 **노드 로컬**(`~/.local/bin/<backend>-claude`, 비추적)이다 — .bashrc 의 셸 함수는
-  ssh 비대화형(`bash -lc`)에서 로드되지 않으므로 실행 파일 형태가 계약이다. env 라우팅(엔드포인트·
-  API 키·모델 슬롯)은 shim 과 `~/<backend>-claude.env`(0600)가 소유하며, **이 저장소의 추적 파일에는
+**2026-09-08 확장 — 백엔드 3종 + 러너 사다리.** `minimax` 가 더해져 열거는
+`anthropic|kimi|minimax` 이고, 별칭 표 `RUNNER_ALIASES` 가 짧은 이름을 **(backend, model) 쌍**으로
+편다(`opus`·`sonnet`·`haiku` → anthropic · `kimi-claude` → kimi/`k3[1m]` · `minimax-claude` →
+minimax/`MiniMax-M3`). 백엔드별 기본 모델은 `BACKEND_DEFAULT_MODEL` 이 단일 소유한다 — 종전
+`k3[1m]` 리터럴이 `bootstrap_canary` 에 손으로 적혀 있던 것을 걷어냈다. 중립 통로는
+`agent_control.py runners` 이며 relay 는 이것을 읽고 자기 사본을 두지 않는다.
+회전·소진의 정본은 `SKILL.md` §2.7.11 이다.
+
+**러너 평면 실패 판정**(`classify_runner_failure`) — 이 파일이 소유한다(provider 어휘). 판정은
+문구가 아니라 **구조**를 읽는다: `terminal_reason == "api_error"` 가 1차 신호이고
+`api_error_status`(HTTP)가 회전 여부를 가른다. ★ 실패 봉투도 `subtype == "success"` 이므로 봉투
+형태로는 갈리지 않는다(2026-09-08 실측). rc 127 = 바이너리 부재(회전 ○) · rc 255 = ssh 전송
+실패(회전 ✗). 결과는 `RUNNER_UNAVAILABLE` 이며 증거는 `output` 에 JSON 으로 실린다(스키마를
+넓히지 않는다 — PERMISSION_DENIED 선례). **모르면 회전하지 않는다.**
+
+- `kimi-claude`·`minimax-claude` 는 **노드 로컬 shim**(`~/.local/bin/kimi-claude`, 비추적)이다 — .bashrc 의 셸 함수는
+  ssh 비대화형(`bash -lc`)에서 로드되지 않으므로 실행 파일 형태가 계약이다 — 2026-09-08 양 노드
+  실측으로 이유가 **둘**임이 확인됐다: ⓐ `.bashrc` 가 `case $- in *i*)` 로 조기 return 한다
+  ⓑ 어댑터가 감싸는 `timeout <n> <cmd>` 는 셸 함수를 exec 할 수 없다(둘은 독립이라 한쪽만 고쳐도
+  여전히 안 된다). env 라우팅(엔드포인트·
+  API 키·모델 슬롯)은 shim 과 `~/.kimi-claude.env`(0600)가 소유하며, **이 저장소의 추적 파일에는
   키·엔드포인트를 적지 않는다**.
-- backend=kimi 이면 relay 가 model 기본 선언을 `k3[1m]` 로 둔다(선언일 뿐이며, 실제 실행 모델은
-  결과의 `model_used` 가 기록한다 — G-A1 계약 불변). minimax 는 shim 이 자체 모델 슬롯을 결정.
+- backend 별 model 기본 선언은 어댑터의 `BACKEND_DEFAULT_MODEL` 이 준다(선언일 뿐이며, 실제 실행 모델은
+  결과의 `model_used` 가 기록한다 — G-A1 계약 불변).
 - shim 부재는 provider 실행 실패(`NONZERO_EXIT` + stderr 진단)로 표면화된다 — 조용한 anthropic
   폴백은 없다(폴백이면 어느 모델이 돌았는지가 섞인다).
 

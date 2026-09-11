@@ -84,7 +84,8 @@
           "MALFORMED_JSON",
           "TIMEOUT",
           "PROVIDER_RESULT_INVALID",
-          "PERMISSION_DENIED"
+          "PERMISSION_DENIED",
+          "RUNNER_UNAVAILABLE"
         ]
       }
     },
@@ -199,7 +200,8 @@
             "enum": [
               "NONZERO_EXIT",
               "IS_ERROR",
-              "PERMISSION_DENIED"
+              "PERMISSION_DENIED",
+              "RUNNER_UNAVAILABLE"
             ]
           }
         },

@@ -121,17 +121,24 @@ def _recipe_token(value: object, prefix: str) -> str | None:
 def derive_recipe_segment(fields: dict) -> str:
     """인증서 필드 → 레시피 세그먼트(예 `qmxfp4-len131072-kvfp8`).
 
-    축 3종 = `quantization` · `max_model_len` · `kv_cache_dtype`. 지문 해시가 아니라 **읽히는
+    축 4종 = `quantization` · `max_model_len` · `kv_cache_dtype` · `ple_mode`(2026-09-11 추가).
+    지문 해시가 아니라 **읽히는
     파생값**을 쓰는 이유: 태그가 *지도* 역할을 하려면 이름 자체가 신호를 줘야 하고, 불투명 해시는
     인증서가 이미 드는 값을 두 번째 자리에 적어 `policy:GIT_SINGLE_AUTHORITY` 와 부딪힌다.
     트리플렛 이름은 축이 못 된다 — 실적상 사람이 안 갈라 왔다(같은 모델 인증서 3장이 같은 이름).
     """
+    # ★ 2026-09-11(plan_26091108 R9): 4번째 축 `ple`. 종전 3축은 camp-26090918 의 res·mmp 를
+    #   가르지 못해 `collide_suffix` 가 타임스탬프로 유일화했고, 그 함수의 주석이 이미
+    #   **"반복되면 축을 늘려야 한다"** 고 적어 두었다 — 이것이 그 신호에 대한 응답이다.
+    #   축은 인증서에서만 온다(`ple_mode`). 인증서에 없는 레거시는 토큰이 **붙지 않아**
+    #   옛 이름이 그대로 재현된다(소급 개명 ✗ — 태그는 불변이다).
     tokens = [t for t in (_recipe_token(fields.get("quantization"), "q"),
                           _recipe_token(fields.get("max_model_len"), "len"),
-                          _recipe_token(fields.get("kv_cache_dtype"), "kv")) if t]
+                          _recipe_token(fields.get("kv_cache_dtype"), "kv"),
+                          _recipe_token(fields.get("ple_mode"), "ple")) if t]
     if not tokens:
-        die("[hint_tag] FAIL: 인증서에서 레시피 축 3종(quantization·max_model_len·kv_cache_dtype)을 "
-            "하나도 읽지 못했다 — 이름을 지어내지 않는다.")
+        die("[hint_tag] FAIL: 인증서에서 레시피 축(quantization·max_model_len·kv_cache_dtype·"
+            "ple_mode)을 하나도 읽지 못했다 — 이름을 지어내지 않는다.")
     return "-".join(tokens)
 
 

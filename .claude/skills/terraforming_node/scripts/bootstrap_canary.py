@@ -119,6 +119,16 @@ def resolve_sub_mode(topology: str, manifest: str) -> tuple[str, str]:
     return inner.get("value") or "", inner.get("source") or ""
 
 
+def _backend_default_model(backend: str | None) -> str:
+    """백엔드의 기본 모델 선언을 **어댑터에서 읽는다**(사본 ✗ · 단일 권위)."""
+    import importlib.util, os as _os
+    _p = _os.path.join(REPO, ".claude", "policies", "runtime", "providers", "claude_code.py")
+    _spec = importlib.util.spec_from_file_location("_canary_provider", _p)
+    _m = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_m)
+    return _m.BACKEND_DEFAULT_MODEL.get(backend or "anthropic", _m.BACKEND_DEFAULT_MODEL["anthropic"])
+
+
 DEFAULT_CANARY_MODEL = "sonnet"    # 카나리 1왕복의 **기본 선언값**이지 게이트가 아니다(--model 로 바꾼다)
 
 
@@ -152,7 +162,9 @@ def build_request(topology: str, manifest_path: str, *,
         "schema_version": 1,
         "provider": "claude_code",
         "intent": "bootstrap_canary",
-        "model": model or ("k3[1m]" if backend == "kimi" else DEFAULT_CANARY_MODEL),
+        # 2026-09-08: 백엔드별 기본 모델은 **어댑터가 소유한다**(BACKEND_DEFAULT_MODEL).
+        #   종전에는 `k3[1m]` 리터럴이 여기 손으로 적혀 있어, 백엔드가 늘면 갈라지는 자리였다.
+        "model": model or _backend_default_model(backend),
         "task": TASK_COMMON + TASK_BY_MODE[sub_mode],
         "target": {
             "role": "sub",

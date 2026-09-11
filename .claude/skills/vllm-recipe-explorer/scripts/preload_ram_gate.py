@@ -42,6 +42,17 @@ def checkpoint_bytes_for(host_path, warnings=None):
     return _native_weight_bytes(host_path, warnings if warnings is not None else [])
 
 
+def offloadable_bytes_for(host_path, mechanism="ple_mmap", warnings=None):
+    """NVMe mmap 으로 상주에서 빠지는 weight 바이트 — 정본은 parse_model_config(중복 저작 금지).
+
+    None = 산출 실패(보정하지 않는다) · 0 = 해당 텐서 없음.
+    """
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from parse_model_config import offloadable_weight_bytes  # noqa: E402
+    return offloadable_weight_bytes(host_path, mechanism,
+                                    warnings if warnings is not None else [])
+
+
 def try_drop_caches():
     """설치돼 있으면 sudo -n 으로 1회 실행. 성공 True. 미설치/무권한은 False(예외 없음)."""
     if not os.path.exists(DROP_HELPER):
@@ -82,8 +93,86 @@ def gate(checkpoint_bytes, tp=1, floor_mib=10240, auto_drop=True, log=None):
             "avail_before_mib": before, "avail_after_mib": avail, "dropped": dropped}
 
 
+def _self_test():
+    """mmap 오프로드 파생의 자체검사 + **거울 교차검증**(2026-09-11 · plan_26091108 R2).
+
+    예산 평면의 텐서 패턴은 런타임 패치(`62-qwen4exp-ple-mmap.sh`)의 `_find_shards` 사본이다.
+    단일 소유가 불가능한 자리(패치는 빌드 평면 · 게이트는 serve 평면)이므로 **교차검증이
+    차선**이다 — 패치가 이 워크트리에 있으면 패턴 실재를 확인하고, 없으면 그 사실을 말한다
+    (브랜치 추적물이라 워킹트리 부재가 곧 증거 부재는 아니다).
+    """
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from parse_model_config import MMAP_OFFLOADABLE_PATTERNS  # noqa: E402
+    failures = []
+
+    def ck(name, cond, detail=""):
+        print(("  [PASS] " if cond else "  [FAIL] ") + name + ("" if cond else " " + detail))
+        if not cond:
+            failures.append(name)
+
+    import re, tempfile, json as _json, struct as _struct
+    rx = re.compile(MMAP_OFFLOADABLE_PATTERNS["ple_mmap"])
+    ck("G1 패턴이 실제 텐서 이름을 잡는다",
+       bool(rx.search("model.language_model.layers.1.ple.ple_embedding."
+                      "ngram_embedding.shard_0.weight")))
+    ck("★G2 음성대조: weight_scale 은 잡지 않는다(오프로드 대상이 아니다 — 상주한다)",
+       not rx.search("model.language_model.layers.1.ple.ple_embedding."
+                     "ngram_embedding.weight_scale"))
+    ck("★G3 음성대조: 일반 MoE 전문가 텐서를 잡으면 예산이 통째로 틀어진다",
+       not rx.search("model.language_model.layers.3.mlp.experts.w13_weight"))
+
+    with tempfile.TemporaryDirectory() as td:
+        warns = []
+        ck("G4 index 부재는 None(=보정 ✗)이지 0 이 아니다",
+           offloadable_bytes_for(td, warnings=warns) is None and warns)
+        # 해당 텐서가 하나도 없는 모델 → 정직한 0(보정 0 · 현행 동작 유지)
+        hdr = {"model.layers.0.mlp.w1.weight": {"dtype": "F8_E4M3", "shape": [2, 2],
+                                                "data_offsets": [0, 4]}}
+        raw = _json.dumps(hdr).encode()
+        with open(os.path.join(td, "s.safetensors"), "wb") as f:
+            f.write(_struct.pack("<Q", len(raw))); f.write(raw); f.write(b"\0" * 4)
+        with open(os.path.join(td, "model.safetensors.index.json"), "w", encoding="utf-8") as f:
+            _json.dump({"weight_map": {k: "s.safetensors" for k in hdr}}, f)
+        warns = []
+        ck("G5 해당 텐서가 없으면 0 이다(부재와 결측을 가른다)",
+           offloadable_bytes_for(td, warnings=warns) == 0)
+        # 있으면 헤더의 data_offsets 로 정확히 센다
+        hdr["model.language_model.layers.1.ple.ple_embedding.ngram_embedding.shard_0.weight"] = {
+            "dtype": "F8_E4M3", "shape": [4, 2], "data_offsets": [4, 12]}
+        raw = _json.dumps(hdr).encode()
+        with open(os.path.join(td, "s.safetensors"), "wb") as f:
+            f.write(_struct.pack("<Q", len(raw))); f.write(raw); f.write(b"\0" * 12)
+        with open(os.path.join(td, "model.safetensors.index.json"), "w", encoding="utf-8") as f:
+            _json.dump({"weight_map": {k: "s.safetensors" for k in hdr}}, f)
+        ck("G6 오프로드 바이트를 헤더 offsets 로 정확히 센다", offloadable_bytes_for(td) == 8)
+        ck("G7 알 수 없는 기구는 보정하지 않는다(None)",
+           offloadable_bytes_for(td, mechanism="nonexistent") is None)
+
+    # 교차검증 — 패치의 패턴 리터럴이 이 사본과 같은 말을 하는가.
+    repo = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                         "..", "..", "..", ".."))
+    hits = [os.path.join(r, f)
+            for base in ("output/multi/build_patches_src", "output/single/build_patches_src")
+            for r, _d, fs in os.walk(os.path.join(repo, base)) for f in fs
+            if f.startswith("62-") and f.endswith(".sh")]
+    if hits:
+        body = open(hits[0], encoding="utf-8").read()
+        ck("★G8 교차검증: 패치의 텐서 패턴이 이 사본과 같은 말을 한다",
+           r"\.ple\.ple_embedding\.ngram_embedding\.shard_" in body,
+           "→ 패치가 움직였다. MMAP_OFFLOADABLE_PATTERNS 를 따라가라")
+    else:
+        print("  [SKIP] G8 교차검증 — 62-*.sh 가 이 워크트리에 없다(브랜치 추적물 · "
+              "워킹트리 부재 ≠ 증거 부재)")
+
+    print("[preload_ram_gate] %s" % ("PASS" if not failures else "FAIL (%d)" % len(failures)))
+    return 0 if not failures else 1
+
+
 def main():
     ap = argparse.ArgumentParser(description="로드-전 가용 RAM 게이트 (plan_26071019 §2.6)")
+    ap.add_argument("--self-test", action="store_true", help="mmap 오프로드 파생 자체검사")
+    if "--self-test" in sys.argv:
+        sys.exit(_self_test())
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--model-host-path", help="모델 디렉토리(호스트 경로) — index total_size 산출")
     src.add_argument("--checkpoint-bytes", type=int, help="체크포인트 바이트 직접 지정")

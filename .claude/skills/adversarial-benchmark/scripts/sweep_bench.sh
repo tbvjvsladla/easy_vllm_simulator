@@ -570,6 +570,18 @@ meta = {
     "kv_cache_dtype_declared": _kvdt_decl,
     "kv_cache_dtype_mismatch": _kvdt_mm,
     "gpu_memory_utilization": grep_yaml(cfgtext, "gpu-memory-utilization") or "NA",
+    # ── PLE 상주/mmap 축 (2026-09-11 신설 · plan_26091108 R9) ─────────────────────────────
+    #   ★ 이 축이 **증거 어디에도 없었다.** camp-26090918 은 PLE=resident 와 PLE=mmap 을 별개
+    #     셀로 돌았는데, 두 인증서의 강한키·소프트키가 **완전히 동일**했다 — 이름이 충돌해
+    #     hint 태그가 타임스탬프 접미사로 회피했고(`collide_suffix` 가 "축이 부족하다"고 경고한
+    #     바로 그 신호), carry-forward 대조는 둘을 같은 레시피로 읽는다. 47.7GiB 가 상주하느냐
+    #     NVMe 에서 오느냐는 예산·지연 양쪽을 바꾸는 축이고, 축이 증거에 없으면 그 셀은 재현 불가다.
+    #   권위는 **serve 시점의 셀 env** 다(트리플렛 Band3). 부재는 stock 경로 = resident 이며,
+    #   그 사실을 `defaulted` 로 스스로 밝힌다(부재를 파생이라 적지 않는다 — 2026-09-07 교훈).
+    "ple_mode": ("mmap" if grep_env(envtext, "VLLM_PLE_MMAP") == "1" else "resident"),
+    "ple_mode_source": ("declared(envfile VLLM_PLE_MMAP=1)"
+                        if grep_env(envtext, "VLLM_PLE_MMAP") == "1"
+                        else "defaulted(envfile VLLM_PLE_MMAP absent/0 = stock resident)"),
     "moe_backend": _moe,
     "moe_backend_source": _moe_src,
     "moe_backend_declared": _moe_decl,

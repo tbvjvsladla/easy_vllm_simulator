@@ -3596,8 +3596,18 @@ def predicate_ROOT_SURFACE_REGISTRY_C2():
                      "포인터가 가리키는 증거가 없으면 RED")
             ptr.write_text(json.dumps({"pointers": [{"kind": "certificate", "path": "CLAUDE.md"}]}),
                            encoding="utf-8")
+            # ★ 2026-09-11 정정(plan_26091108 S3): 이 술어는 relay_summary 를 **무조건** 요구한다고
+            #   단언했는데, 코드는 2026-09-08(`7cf39ef`)에 **원장이 실재할 때만** 묻도록 바뀌었다
+            #   — 서브 인스턴스에는 원장이 없어 게이트가 어떤 조건에서도 열리지 않았고, 그것은
+            #   안전장치가 아니라 교착이었다. 술어의 픽스처에는 `relay/` 가 없어서 조건 분기의
+            #   *한쪽만* 지나고 있었고, 그래서 코드가 움직인 뒤 술어가 빨간불로 남았다.
+            #   교정: **두 분기를 모두** 시험한다(잃을 것이 없으면 요구하지 않는다 · 있으면 요구한다).
+            _require(not any("relay_summary" in r for r in ci.purge_gate_reasons("old")),
+                     "원장이 없으면 요약을 요구하지 않는다(잃을 것이 없다 — 교착 금지)")
+            (prev / "relay").mkdir(parents=True, exist_ok=True)
+            (prev / "relay" / "ctx.json").write_text("{}", encoding="utf-8")
             _require(any("relay_summary" in r for r in ci.purge_gate_reasons("old")),
-                     "원장 원문은 휘발이므로 요약 testlog 를 따로 요구해야 한다")
+                     "원장이 실재하면 그 서사(요약 testlog)를 요구해야 한다 — 원문은 휘발이다")
             ptr.write_text(json.dumps({"pointers": [{"kind": "certificate", "path": "CLAUDE.md"},
                                                     {"kind": "relay_summary", "path": "README.md"}]}),
                            encoding="utf-8")

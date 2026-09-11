@@ -2,9 +2,9 @@
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 `git ls-remote --tags <remote> 'refs/tags/hint/*'` 이고, brief 는 로컬 태그 오브젝트에서 파싱한다(합성 금지).",
   "schema": 2,
   "source": "remote-derived",
-  "remote": "origin",
-  "generated_kst": "2026-09-10T19:20:00",
-  "count": 21,
+  "remote": "github-ssh",
+  "generated_kst": "2026-09-11T04:05:00",
+  "count": 25,
   "hints": [
     {
       "tag": "hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8",
@@ -72,6 +72,74 @@
       "anchor": "5f14d7db4e139bc9859dca1778080d92f7031757",
       "object": "34dfad0db6fee8a76456c938b9a84b9de7f973e9",
       "missing": [],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvauto",
+      "vllm": "0.26.0",
+      "model": "qwen3-4b",
+      "arch": "gb10-main-sim-kv24g",
+      "recipe": "len32768-kvauto",
+      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 A 무양자화(BF16 KV).",
+      "anchor": "5879b301ce74872f517b7b451799b7bcdc1c4f41",
+      "object": "6f2651c9bda4246ecc6d80e48dc8349496ccf166",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvfp8",
+      "vllm": "0.26.0",
+      "model": "qwen3-4b",
+      "arch": "gb10-main-sim-kv24g",
+      "recipe": "len32768-kvfp8",
+      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 B FP8.",
+      "anchor": "c1338bc3cb45cc29315342cb1024aed9b7877bfa",
+      "object": "4cc6040c85567e3b9b4a46d9e523a94711eaaddd",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant3bitnc",
+      "vllm": "0.26.0",
+      "model": "qwen3-4b",
+      "arch": "gb10-sub-sim-kv24g",
+      "recipe": "len32768-kvturboquant3bitnc",
+      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 D TurboQuant 3bit.",
+      "anchor": "9f310b4d50d8ec548d2d65ee3076a2f238251de2",
+      "object": "14f0246e29a9aefd6df0f1bc4bfc2dda7ea8c8c0",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant4bitnc",
+      "vllm": "0.26.0",
+      "model": "qwen3-4b",
+      "arch": "gb10-sub-sim-kv24g",
+      "recipe": "len32768-kvturboquant4bitnc",
+      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 C TurboQuant 4bit.",
+      "anchor": "951b9869045b677b466a8ebd79bdea0ae24ea61a",
+      "object": "7f4ad5a0244560a02fa7957ffba37ef5c3219018",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE"
+      ],
       "published": true,
       "source": "remote-derived"
     },
