@@ -11,34 +11,30 @@
 
 ## 서사
 
-**증상**: 이 모델(Qwen3.8-Flash-Next)의 네이티브 max-model-len은 262144다. 이 셀은
-context=524288(262144의 2배)를 요구했는데, YaRN rope 확장 인자 없이 트리플렛을 그대로 적용하면
-로드 자체가 불가능하다(`testlog_26091117` §"R8 실서빙 재검증" 참조 — 직전 체크포인트의
-`nv4-bf-512k-mmp`에서 최초로 이 증상을 만나 원인을 특정했다).
+**증상**: FP8 체크포인트(Qwen3.8-Flash-Next-FP8, 172.78GiB)는 NVFP4 체크포인트(123.57GiB)보다
+1.4배 크다. 이 셀(context=524288, PLE=mmap)의 예산 선판정 floor는 15,280MiB로, 같은 512k
+그룹의 resident(PLE 비-mmap) 셀들보다도 타이트했다 — mmap이 weights_mib에서 48,828MiB를
+감산해도 절대 체크포인트 크기 자체가 크기 때문이다.
 
-**원인**: 이 리포지토리의 R8 교정(`check_smoke_model.py` → `rope_scaling_translate.py`)이
-로드 0초에 rope 확장 인자 부재를 지목하고 정확한 `hf-overrides` 병합 줄을 제시한다. 이 셀은
-그 교정이 이미 검증된 이후의 재현 셀이므로, `output/multi/configs/nv4-f8-512k-mmp.yaml`에
-`hf-overrides: '{"text_config":{"rope_parameters":{"mrope_interleaved":true,"mrope_section":
-[11,11,10],"partial_rotary_factor":0.25,"rope_theta":10000000,"rope_type":"yarn","factor":2,
-"original_max_position_embeddings":262144}}}'`를 처음부터 포함시켜 착수했다(`testlog_26091117`
-표 #9).
+**원인/우려**: 사전에는 이 조합이 예산 게이트에서 차단될 가능성을 배제할 수 없었다(가드 최소
+8,192MiB 대비 여유가 7,088MiB로, 같은 그룹의 nv4 계열 mmp 셀들(여유 29,214~32,286MiB)보다
+훨씬 좁았다). 또한 이 셀도 262144 네이티브 컨텍스트를 넘는 524288을 요구하므로 R8(YaRN
+번역기) 오버라이드가 필요했다 — `hf-overrides`에 `mrope_interleaved`+`partial_rotary_factor=0.25`
++YaRN `factor=2`를 처음부터 포함시켜 착수했다.
 
-**해소**: R8 오버라이드를 포함한 상태로 정상 로드·헬스 200·기능 스모크 통과. 5레벨(1/2/4/8/16)
-벤치 전부 완주, decode t/s(동시성=1)=34.86, verdict=PASS(explore). kv_cache_dtype=fp8_e4m3와
-PLE=mmap 조합에서도 YaRN factor=2 합성이 정상 동작함을 확인했다 — R8이 모델 변종(NVFP4)×KV
-dtype(fp8) 축에서 재현됨을 보여주는 두 번째 증거다(첫 번째는 kv=auto 조합의 `nv4-bf-512k-mmp`).
-
-**예산**: 이 조합(NVFP4 체크포인트 123.57GiB, PLE=mmap)의 예산 선판정 floor=40,478MiB로
-여유가 있었다(가드 최소 8,192MiB 대비 32,286MiB 여유). PLE mmap이 weights_mib에서 48,828MiB를
-감산하는 효과가 여기서도 그대로 적용됨을 확인했다.
+**해소**: 예산 선판정 통과(floor 15,280 > 가드 최소 8,192) → 로드 정상 진행(약 24분 소요,
+FP8 체크포인트가 NVFP4보다 커서 로드 시간도 더 걸렸다) → 헬스 200 · 기능 스모크 통과 → 5레벨
+벤치 전부 완주, decode t/s(동시성=1)=37.61, verdict=PASS(explore). **타이트한 예산 마진이
+실패로 이어지지 않았다** — 이는 예산 선판정 floor가 "안전 여유가 좁다"는 신호일 뿐 반드시
+"이 조합은 서빙 불가"를 뜻하지 않는다는 증거다(반대로 NVFP4+resident 계열은 더 넓은 floor에서도
+실패했다 — §되풀이하지 말 것 참조).
 
 ## 되풀이하지 말 것
 
-- **`hf-overrides`를 나중에 추가하지 말고 처음부터 넣어라**: 이 리포지토리의 512k+ 컨텍스트
-  셀 전부(mmp 계열 4개)가 이 rope 확장 인자를 요구한다. `check_smoke_model.py`가 잡아주긴
-  하지만, 그 STOP은 실 GPU 로드 직전에 발생하므로 미리 알고 있으면 시행착오 사이클을 아낀다.
-- **같은 체크포인트의 `res`(PLE resident) 변종은 이 축과 별개로 실패한다** — NVFP4+resident+
-  512k 조합은 이 셀과 같은 rope 오버라이드를 가지고 있어도 워치독에 사살된다(`nv4-bf-512k-res`·
-  `nv4-f8-512k-res` 둘 다). PLE mmap이 성공의 전제조건이지 rope 오버라이드만으로는 부족하다 —
-  둘을 혼동해 "rope만 맞으면 된다"고 가정하지 마라.
+- **예산 선판정 floor의 절댓값만으로 성공/실패를 예단하지 마라**: 이 셀(FP8+mmap, floor
+  15,280MiB)은 nv4-bf-512k-res(NVFP4+resident, floor 16,064MiB — 더 넓은 여유)보다 floor가
+  좁았는데도 성공했고, nv4-bf-512k-res는 실패했다. **핵심 변수는 PLE mmap 여부**이지 floor
+  숫자 자체가 아니다 — resident 계열은 예산 선판정을 통과해도 실측 로드 후반에 워치독에
+  사살되는 반면, mmap 계열은 선판정 floor가 통과하면 실제로도 안정적으로 완주한다.
+- **FP8+resident(PLE 비-mmap) 조합은 예산 선판정 단계에서 즉시 차단된다**(같은 체크포인트의
+  `fp8-bf-512k-res`, floor=−9,134MiB, 로드 0초) — 이 태그와는 전혀 다른 실패 기전이다.

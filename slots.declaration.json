@@ -8,15 +8,15 @@
     },
     "runtime_patch": {
       "applicable": false,
-      "rationale": "processor/config shim 불요 — 표준 rope_parameters 오버라이드로 충분"
+      "rationale": "processor/config shim 불요"
     },
     "build_patch_pre": {
       "applicable": true,
-      "rationale": "60/62/64 — nvfp4-mixed·ple-mmap·qsa-fp8kv 소스패치, 이 조합(mmap+fp8kv)에 실제 적용"
+      "rationale": "60/62/64 소스패치 — nvfp4-mixed·ple-mmap·qsa-fp8kv, 이 조합은 kv=auto라 64 실질 미사용"
     },
     "build_patch_post": {
       "applicable": true,
-      "rationale": "빌드-바깥 네이티브 의존(DeepGEMM 등) — 이미지 공통, 어느 것이 발화했는지는 관측불가(2-signal)"
+      "rationale": "빌드-바깥 네이티브 의존 — 이미지 공통, 발화 관측불가(2-signal)"
     },
     "build_recipe": {
       "applicable": true,
@@ -24,11 +24,11 @@
     },
     "compose": {
       "applicable": true,
-      "rationale": "멀티노드 2노드 Ray 오케스트레이션 — 이 셀은 multi TP=2로 서빙됨"
+      "rationale": "멀티노드 2노드 Ray 오케스트레이션 — multi TP=2 서빙"
     },
     "fork_pin": {
       "applicable": false,
-      "rationale": "stock vLLM v0.29.0rc6 — VARIANT= 줄 부재가 곧 stock"
+      "rationale": "stock vLLM v0.29.0rc6 — VARIANT= 줄 부재"
     }
   }
 }

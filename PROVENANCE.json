@@ -3,11 +3,11 @@
   "anchor_is_head": true,
   "assembled_at_head": "e6bb6ac616f14ae3d7ee88953862ab1012f94569",
   "assembly_branch": "multi-node",
-  "generated_kst": "2026-09-11T17:45:00",
+  "generated_kst": "2026-09-11T17:52:00",
   "kind": "hint_payload_provenance",
   "payload_files": 22,
   "schema_version": 1,
   "source_branch": "multi-node",
   "source_branch_source": "derived(git branch --contains anchor)",
-  "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap"
+  "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvauto-plemmap"
 }

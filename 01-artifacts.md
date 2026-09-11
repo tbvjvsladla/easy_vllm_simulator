@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/multi/configs/nv4-f8-512k-mmp.yaml`
-- `output/multi/configs/nv4-f8-512k-mmp.sh`
-- `output/multi/envs/.env.nv4-f8-512k-mmp`
+- `output/multi/configs/fp8-bf-512k-mmp.yaml`
+- `output/multi/configs/fp8-bf-512k-mmp.sh`
+- `output/multi/envs/.env.fp8-bf-512k-mmp`
 
 **build_patch_pre**
 - `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
@@ -46,19 +46,13 @@
 
 ## 적용 사유 (Agent)
 
-- **triplet**: 서빙에 원리적으로 필수(면제 불가). 이 셀의 특징은 `hf-overrides`에 실린 YaRN
-  rope 확장 인자(factor=2) — 262144 네이티브 컨텍스트를 524288로 확장하는 R8 교정의 실물이다.
-- **runtime_patch**: 없음 — 이 모델·조합은 `<model>_patch.py` 형태의 processor/config shim을
-  요구하지 않는다(vLLM 표준 rope_parameters 오버라이드만으로 충분).
-- **build_patch_pre**: 있음(60/62/64 — nvfp4-mixed·ple-mmap·qsa-fp8kv) — NVFP4 체크포인트의
-  MoE 믹스드 정밀도, PLE mmap 지원, QSA(quantized state attention) fp8 KV 경로가 소스 패치로
-  컴파일 전에 들어간다. 이 셀은 PLE=mmap·kv=fp8_e4m3이므로 62·64 둘 다 실제로 먹었다.
-- **build_patch_post**: 있음(DeepGEMM·triton-kernels·mxfp4-triton-sm121·humming-nvml) — 빌드
-  바깥 네이티브 의존. 이 조합이 구체적으로 어느 패치를 쓰는지는 엔진 로그 교차검증 전까지는
-  "관측불가"로 남긴다(2-signal — 파일 존재+선언뿐, 발화 로그 대사는 안 했다).
-- **build_recipe**: 있음 — Dockerfile.source-build(vLLM 0.29.0rc6 소스빌드) + requirements.txt.
-  이 이미지(digest sha256:85cef27...)는 캠페인 전 셀이 공유한다.
-- **compose**: 있음 — 멀티노드 2노드 Ray 오케스트레이션(docker-compose.yaml). 마스터/슬레이브
-  역할 분기, 워치독·예산게이트 스크립트가 이 위에서 동작한다.
-- **fork_pin**: 없음(stock vLLM v0.29.0rc6, 포크 오버라이드 없음) — `.env.nv4-f8-512k-mmp`에
-  `VARIANT=` 줄이 없는 것이 그 증거다.
+- **triplet**: 서빙에 원리적으로 필수(면제 불가). `hf-overrides`에 YaRN factor=2 rope 확장
+  인자가 실려 있다 — R8 교정의 재현 실물.
+- **runtime_patch**: 없음 — 이 모델·조합은 processor/config shim을 요구하지 않는다.
+- **build_patch_pre**: 있음(60/62/64) — FP8 체크포인트의 MoE 믹스드 정밀도·PLE mmap·QSA 경로가
+  소스 패치로 컴파일 전에 들어간다. 이 셀은 kv=auto라 64(qsa-fp8kv)는 실질 미사용.
+- **build_patch_post**: 있음(DeepGEMM 등) — 빌드 바깥 네이티브 의존, 이미지 공통. 발화 여부는
+  엔진 로그 교차검증 전까지 관측불가(2-signal).
+- **build_recipe**: 있음 — Dockerfile.source-build(vLLM 0.29.0rc6 소스빌드). 캠페인 전 셀 공유.
+- **compose**: 있음 — 멀티노드 2노드 Ray 오케스트레이션. 마스터/슬레이브 역할 분기.
+- **fork_pin**: 없음(stock vLLM v0.29.0rc6) — `.env`에 `VARIANT=` 줄 부재가 그 증거.
