@@ -12,23 +12,23 @@
     },
     "build_patch_pre": {
       "applicable": true,
-      "rationale": "60/62/64 소스패치 — nvfp4-mixed·ple-mmap·qsa-fp8kv, 이 조합은 kv=auto라 64 실질 미사용"
+      "rationale": "60/62/64 — 이 조합(kv=fp8_e4m3)은 64 실제 적용"
     },
     "build_patch_post": {
       "applicable": true,
-      "rationale": "빌드-바깥 네이티브 의존 — 이미지 공통, 발화 관측불가(2-signal)"
+      "rationale": "빌드-바깥 네이티브 의존 — 발화 관측불가(2-signal)"
     },
     "build_recipe": {
       "applicable": true,
-      "rationale": "Dockerfile.source-build + requirements.txt — 이미지 재현에 필수"
+      "rationale": "Dockerfile.source-build + requirements.txt"
     },
     "compose": {
       "applicable": true,
-      "rationale": "멀티노드 2노드 Ray 오케스트레이션 — multi TP=2 서빙"
+      "rationale": "멀티노드 2노드 Ray 오케스트레이션 — multi TP=2"
     },
     "fork_pin": {
       "applicable": false,
-      "rationale": "stock vLLM v0.29.0rc6 — VARIANT= 줄 부재"
+      "rationale": "stock vLLM v0.29.0rc6"
     }
   }
 }

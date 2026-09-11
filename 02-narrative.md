@@ -11,30 +11,29 @@
 
 ## 서사
 
-**증상**: FP8 체크포인트(Qwen3.8-Flash-Next-FP8, 172.78GiB)는 NVFP4 체크포인트(123.57GiB)보다
-1.4배 크다. 이 셀(context=524288, PLE=mmap)의 예산 선판정 floor는 15,280MiB로, 같은 512k
-그룹의 resident(PLE 비-mmap) 셀들보다도 타이트했다 — mmap이 weights_mib에서 48,828MiB를
-감산해도 절대 체크포인트 크기 자체가 크기 때문이다.
+**증상**: FP8 체크포인트(172.78GiB) + kv_cache_dtype=fp8_e4m3 + context=524288(YaRN f2) 조합.
+같은 체크포인트의 kv=auto 태그(`len524288-kvauto-plemmap`)가 이미 예산 floor 15,280MiB로
+같은 그룹의 resident 셀보다도 타이트한 마진에서 성공한 바 있었다 — 이 셀은 kv dtype만 바꿔
+그 결과가 재현되는지 확인하는 자리였다.
 
-**원인/우려**: 사전에는 이 조합이 예산 게이트에서 차단될 가능성을 배제할 수 없었다(가드 최소
-8,192MiB 대비 여유가 7,088MiB로, 같은 그룹의 nv4 계열 mmp 셀들(여유 29,214~32,286MiB)보다
-훨씬 좁았다). 또한 이 셀도 262144 네이티브 컨텍스트를 넘는 524288을 요구하므로 R8(YaRN
-번역기) 오버라이드가 필요했다 — `hf-overrides`에 `mrope_interleaved`+`partial_rotary_factor=0.25`
-+YaRN `factor=2`를 처음부터 포함시켜 착수했다.
+**원인/우려**: kv_cache_dtype을 fp8로 바꾸면 KV 풀의 메모리 사용 패턴이 달라질 수 있어(같은
+체크포인트의 262k 그룹에서 kv=fp8 축이 실제로 KV 풀 확장 잠재를 가진다는 주석이 트리플렛에
+있었다), floor 산식 자체는 kv dtype 무관(weights_mib만 기준)이지만 실측 상주가 예측과
+달라질 위험을 배제할 수 없었다. 262144 네이티브를 넘는 컨텍스트라 R8(YaRN) 오버라이드도
+필요했다.
 
-**해소**: 예산 선판정 통과(floor 15,280 > 가드 최소 8,192) → 로드 정상 진행(약 24분 소요,
-FP8 체크포인트가 NVFP4보다 커서 로드 시간도 더 걸렸다) → 헬스 200 · 기능 스모크 통과 → 5레벨
-벤치 전부 완주, decode t/s(동시성=1)=37.61, verdict=PASS(explore). **타이트한 예산 마진이
-실패로 이어지지 않았다** — 이는 예산 선판정 floor가 "안전 여유가 좁다"는 신호일 뿐 반드시
-"이 조합은 서빙 불가"를 뜻하지 않는다는 증거다(반대로 NVFP4+resident 계열은 더 넓은 floor에서도
-실패했다 — §되풀이하지 말 것 참조).
+**해소**: 예산 선판정 floor=15,280MiB(kv=auto 태그와 완전 동일값 — R2 산술이 kv dtype과
+무관함을 다시 확인) → 정상 로드(약 24분) → 헬스 200 · 기능 스모크 통과 → 5레벨 벤치 완주,
+decode t/s(동시성=1)=35.94, verdict=PASS(explore). FP8+mmap 조합은 kv dtype 축(auto/fp8)
+양쪽 모두에서 성공해, mmp 계열 512k 그룹 4/4 완결의 마지막 조각이 됐다.
 
 ## 되풀이하지 말 것
 
-- **예산 선판정 floor의 절댓값만으로 성공/실패를 예단하지 마라**: 이 셀(FP8+mmap, floor
-  15,280MiB)은 nv4-bf-512k-res(NVFP4+resident, floor 16,064MiB — 더 넓은 여유)보다 floor가
-  좁았는데도 성공했고, nv4-bf-512k-res는 실패했다. **핵심 변수는 PLE mmap 여부**이지 floor
-  숫자 자체가 아니다 — resident 계열은 예산 선판정을 통과해도 실측 로드 후반에 워치독에
-  사살되는 반면, mmap 계열은 선판정 floor가 통과하면 실제로도 안정적으로 완주한다.
-- **FP8+resident(PLE 비-mmap) 조합은 예산 선판정 단계에서 즉시 차단된다**(같은 체크포인트의
-  `fp8-bf-512k-res`, floor=−9,134MiB, 로드 0초) — 이 태그와는 전혀 다른 실패 기전이다.
+- **kv_cache_dtype이 예산 선판정 floor를 바꾸지 않는다고 가정해도 된다** — 이 캠페인 전체
+  (262k·512k, NVFP4·FP8, mmap·resident 전 조합)에서 kv dtype이 floor 값을 바꾼 사례가
+  0건이었다. `kv-cache-memory-bytes`(절대 클램프, 20GiB)가 context 길이·kv dtype과 무관한
+  고정값이기 때문이다. 다만 이것이 KV 풀 자체의 실제 확장 여부까지 보증하지는 않는다 —
+  이 하네스는 클램프를 절대값으로 두므로 fp8이 이론상 압축을 제공해도 예산 계산에는 반영되지
+  않는다는 점을 혼동하지 마라.
+- **같은 체크포인트의 resident 조합은 kv dtype과 무관하게 실패한다**(`fp8-f8-512k-res`,
+  floor=−9,134MiB — kv=auto인 `fp8-bf-512k-res`와 완전 동일값) — 이 태그와는 다른 실패 기전.

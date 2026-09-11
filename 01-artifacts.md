@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/multi/configs/fp8-bf-512k-mmp.yaml`
-- `output/multi/configs/fp8-bf-512k-mmp.sh`
-- `output/multi/envs/.env.fp8-bf-512k-mmp`
+- `output/multi/configs/fp8-f8-512k-mmp.yaml`
+- `output/multi/configs/fp8-f8-512k-mmp.sh`
+- `output/multi/envs/.env.fp8-f8-512k-mmp`
 
 **build_patch_pre**
 - `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
@@ -47,12 +47,10 @@
 ## 적용 사유 (Agent)
 
 - **triplet**: 서빙에 원리적으로 필수(면제 불가). `hf-overrides`에 YaRN factor=2 rope 확장
-  인자가 실려 있다 — R8 교정의 재현 실물.
-- **runtime_patch**: 없음 — 이 모델·조합은 processor/config shim을 요구하지 않는다.
-- **build_patch_pre**: 있음(60/62/64) — FP8 체크포인트의 MoE 믹스드 정밀도·PLE mmap·QSA 경로가
-  소스 패치로 컴파일 전에 들어간다. 이 셀은 kv=auto라 64(qsa-fp8kv)는 실질 미사용.
-- **build_patch_post**: 있음(DeepGEMM 등) — 빌드 바깥 네이티브 의존, 이미지 공통. 발화 여부는
-  엔진 로그 교차검증 전까지 관측불가(2-signal).
-- **build_recipe**: 있음 — Dockerfile.source-build(vLLM 0.29.0rc6 소스빌드). 캠페인 전 셀 공유.
-- **compose**: 있음 — 멀티노드 2노드 Ray 오케스트레이션. 마스터/슬레이브 역할 분기.
-- **fork_pin**: 없음(stock vLLM v0.29.0rc6) — `.env`에 `VARIANT=` 줄 부재가 그 증거.
+  인자가 실려 있다.
+- **runtime_patch**: 없음 — processor/config shim 불요.
+- **build_patch_pre**: 있음(60/62/64) — 이 셀은 kv=fp8_e4m3라 64(qsa-fp8kv)가 실제 적용.
+- **build_patch_post**: 있음 — 빌드 바깥 네이티브 의존, 발화 여부는 관측불가(2-signal).
+- **build_recipe**: 있음 — Dockerfile.source-build. 캠페인 전 셀 공유.
+- **compose**: 있음 — 멀티노드 2노드 Ray 오케스트레이션.
+- **fork_pin**: 없음(stock vLLM v0.29.0rc6).
