@@ -11,14 +11,14 @@
 
 ## 서사
 
-nv4-bf-1m-mmp(kv=auto)와 동일한 YaRN factor=4 오버라이드 위에서, kv-cache-dtype만 fp8_e4m3로
-바꾼 두 번째 검증이다(testlog §"R8 실서빙 재검증"). KV dtype 축은 서빙 성립에 영향을 주지 않고
-decode t/s만 소폭(35.92→33.40) 달라졌다 — kv=auto가 이 조합에서 살짝 더 빠른 경향은 262k·512k
-그룹에서도 일관됐다(devlog 참조).
+FP8 체크포인트(172.78GiB)는 NVFP4(123.57GiB)보다 커서 같은 mmap 조건에서도 예산 선판정
+floor가 더 좁다(이 셀 15,280MiB — nv4 mmp 셀들은 40,478MiB). 그럼에도 mmap 모드에서는 좁은
+floor가 실패를 뜻하지 않는다 — 512k 그룹의 동형 셀(`fp8-bf-512k-mmp`)도 같은 floor 값으로
+정상 완주했고, 1m에서도 재현됐다(testlog §"판정 결과").
 
 ## 되풀이하지 말 것
 
-- kv-cache-dtype을 바꿔도 YaRN 오버라이드 재계산은 불필요하다 — 두 축(context 확장, KV 양자화)
-  은 독립이다.
-- PLE resident 모드로 이 체크포인트(NVFP4)를 1m에서 시도하지 말 것 — `nv4-f8-1m-res`가 같은
-  기전(워치독 사살, kv dtype 무관)으로 실패했다(testlog §"비-measured 셀").
+- floor의 절댓값으로 성패를 예단하지 말 것 — mmap/resident 구분이 유일한 신뢰할 만한 예측
+  변수다. `fp8-bf-1m-res`(같은 체크포인트, resident 모드)는 floor가 **음수**(−9,134MiB)로
+  로드 0초에 즉시 차단됐다 — mmap과 resident는 weights_mib 계산식 자체가 달라 floor 격차가
+  20,000MiB 이상 벌어진다(devlog §"시도 — res 계열").

@@ -4,7 +4,7 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "서빙 필수(면제불가) — YaRN factor=4 hf-overrides 포함, kv=fp8_e4m3"
+      "rationale": "서빙 필수(면제불가) — YaRN factor=4 hf-overrides 포함, kv=auto, FP8 체크포인트"
     },
     "runtime_patch": {
       "applicable": false,
@@ -12,7 +12,7 @@
     },
     "build_patch_pre": {
       "applicable": true,
-      "rationale": "60/62/64 — 이 조합(kv=fp8_e4m3, NVFP4)은 60/62/64 전부 적용"
+      "rationale": "60/62 — 이 조합(FP8, kv=auto)은 62(ple-mmap) 실제 적용"
     },
     "build_patch_post": {
       "applicable": true,

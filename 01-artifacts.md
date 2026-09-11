@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/multi/configs/nv4-f8-1m-mmp.yaml`
-- `output/multi/configs/nv4-f8-1m-mmp.sh`
-- `output/multi/envs/.env.nv4-f8-1m-mmp`
+- `output/multi/configs/fp8-bf-1m-mmp.yaml`
+- `output/multi/configs/fp8-bf-1m-mmp.sh`
+- `output/multi/envs/.env.fp8-bf-1m-mmp`
 
 **build_patch_pre**
 - `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
@@ -46,12 +46,10 @@
 
 ## 적용 사유 (Agent)
 
-- **triplet**: 서빙 재현에 원리적으로 필수. config.yaml에 R8 YaRN 번역기 오버라이드(factor=4)와
-  `kv-cache-dtype: fp8_e4m3`가 함께 인라인돼 있다.
-- **runtime_patch**: 불해당. YaRN 번역은 config.yaml의 hf-overrides로 주입되며 별도 shim 불요.
-- **build_patch_pre**: NVFP4 MoE 커널(60)·PLE mmap(62)·KV fp8 양자화(64) 전부 이 조합에 필요.
-- **build_patch_post**: 빌드-바깥 네이티브 의존이 이미지에 포함돼야 한다. 이 셀에서 발화 여부를
-  직접 관측하지는 못했다(2-signal).
+- **triplet**: 서빙 재현에 원리적으로 필수. YaRN factor=4 오버라이드가 인라인돼 있다.
+- **runtime_patch**: 불해당. 별도 shim 불요.
+- **build_patch_pre**: PLE mmap(62)이 이 조합(FP8+mmap)에 필요. NVFP4 전용 패치(60)는 불요.
+- **build_patch_post**: 빌드-바깥 네이티브 의존 — 발화 관측불가(2-signal).
 - **build_recipe**: 이미지 재현의 원리적 필수 슬롯.
 - **compose**: 멀티노드(TP=2, Ray) 오케스트레이션 필수.
 - **fork_pin**: 불해당. stock vLLM v0.29.0rc6.
