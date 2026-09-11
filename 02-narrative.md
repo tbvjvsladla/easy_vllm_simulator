@@ -11,24 +11,14 @@
 
 ## 서사
 
-이 모델(Qwen3.8-Flash-Next-NVFP4)을 1,048,576토큰(1M) 컨텍스트로 서빙하려면 네이티브 최대
-위치 인코딩(262,144)을 4배 확장해야 한다. YaRN(`rope_type: yarn`)으로 `factor: 4`,
-`original_max_position_embeddings: 262144`를 config.yaml의 `hf-overrides`에 인라인 주입해
-해결했다 — 512k 구간에서는 `factor: 2`로 동일 메커니즘이 이미 검증됐고(devlog §"배경"), 이번이
-factor=4의 첫 실서빙 검증이다(testlog §"R8 실서빙 재검증 — factor=4 완결").
-
-PLE(Persistent Layer Expert) mmap 모드가 이 캠페인 전체(262k~1m, 11/11 셀)에서 서빙 성공의
-결정적 축임이 재확인됐다(testlog §"패턴 최종 확정"). PLE resident 모드는 같은 조건에서 항상
-실패한다 — NVFP4 변종은 예산 선판정을 통과하고도 로드 중 실측 상주메모리가 예측을 초과해
-호스트 워치독에 사살되고(devlog §"시도 — res 계열"), FP8 변종은 애초에 예산 선판정 단계에서
-음수 floor로 즉시 차단된다. 이 체크포인트(nv4-bf-1m-mmp)는 mmap 모드를 썼기 때문에 성공했다.
+nv4-bf-1m-mmp(kv=auto)와 동일한 YaRN factor=4 오버라이드 위에서, kv-cache-dtype만 fp8_e4m3로
+바꾼 두 번째 검증이다(testlog §"R8 실서빙 재검증"). KV dtype 축은 서빙 성립에 영향을 주지 않고
+decode t/s만 소폭(35.92→33.40) 달라졌다 — kv=auto가 이 조합에서 살짝 더 빠른 경향은 262k·512k
+그룹에서도 일관됐다(devlog 참조).
 
 ## 되풀이하지 말 것
 
-- **YaRN factor를 컨텍스트 배율과 헷갈리지 말 것**: factor는 "네이티브 대비 배율"이지 절대
-  토큰 수가 아니다. 262k 네이티브 기준으로 512k=factor 2, 1m=factor 4다.
-  `original_max_position_embeddings`는 항상 262144로 고정 — 이 값을 실수로 바꾸면 위치
-  인코딩이 깨진다.
-- **PLE resident 모드로 1m 컨텍스트를 시도하지 말 것**: 이 체크포인트 크기(NVFP4 123.57GiB)
-  에서는 예산 선판정이 양수 floor(16,064MiB)를 내더라도 실측 로드 중 반드시 워치독에 죽는다
-  (캠페인 전체 5/5 재현, devlog §"시도 — res 계열"). PLE mmap 모드를 기본으로 쓴다.
+- kv-cache-dtype을 바꿔도 YaRN 오버라이드 재계산은 불필요하다 — 두 축(context 확장, KV 양자화)
+  은 독립이다.
+- PLE resident 모드로 이 체크포인트(NVFP4)를 1m에서 시도하지 말 것 — `nv4-f8-1m-res`가 같은
+  기전(워치독 사살, kv dtype 무관)으로 실패했다(testlog §"비-measured 셀").

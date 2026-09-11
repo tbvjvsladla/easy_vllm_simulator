@@ -1,10 +1,10 @@
 {
-  "_note": "신호③ — **Agent 선언**. 각 슬롯의 `applicable` 을 true/false 로, `rationale` 을 한 줄로 채운다. null 이 하나라도 남으면 `hint_collect check` 가 막는다. 선언은 파일 존재·적용 증거와 **대사**되며, 셋이 어긋나면 차단이다(plan §7). ★ triplet 은 선언으로 면제할 수 없다 — 서빙에 원리적으로 필수다.",
+  "_note": "신호③ — Agent 선언",
   "schema_version": 1,
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "서빙 필수(면제불가) — YaRN factor=4 hf-overrides 포함(1m 그룹 첫 검증)"
+      "rationale": "서빙 필수(면제불가) — YaRN factor=4 hf-overrides 포함, kv=fp8_e4m3"
     },
     "runtime_patch": {
       "applicable": false,
@@ -12,7 +12,7 @@
     },
     "build_patch_pre": {
       "applicable": true,
-      "rationale": "60/62/64 — 이 조합(kv=auto, NVFP4)은 60/62 계열 적용"
+      "rationale": "60/62/64 — 이 조합(kv=fp8_e4m3, NVFP4)은 60/62/64 전부 적용"
     },
     "build_patch_post": {
       "applicable": true,

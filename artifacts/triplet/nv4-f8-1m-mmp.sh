@@ -1,5 +1,5 @@
 #!/bin/bash
-# nv4-bf-1m-mmp 서빙 스크립트 (vllm-recipe-explorer 생성 구조 준용)
+# nv4-f8-1m-mmp 서빙 스크립트 (vllm-recipe-explorer 생성 구조 준용)
 
 if [ "$TIKTOKEN_ENABLED" = "true" ]; then
     export TIKTOKEN_ENCODINGS_BASE=/encodings
