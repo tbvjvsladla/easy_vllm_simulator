@@ -3,8 +3,8 @@
   "schema": 2,
   "source": "remote-derived",
   "remote": "origin",
-  "generated_kst": "2026-09-11T18:00:00",
-  "count": 32,
+  "generated_kst": "2026-09-11T22:05:00",
+  "count": 36,
   "hints": [
     {
       "tag": "hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8",
@@ -264,6 +264,36 @@
       "source": "remote-derived"
     },
     {
+      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvauto-plemmap",
+      "vllm": "0.29.0",
+      "model": "qwen3.8-flash-next-fp8",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len1048576-kvauto-plemmap",
+      "brief": "Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=auto · ctx1048576(YaRN f4) · PLE=mmap — decode 35.39 t/s(동시성1) · 예산 floor가 nv4 mmp 셀들보다 타이트(15,280MiB)했으나 mmap이면 통과",
+      "anchor": "fc72b0602bd2f2953285e9651ee720fa06995adc",
+      "object": "0079e0c18d50f82d044c8dd463c8abd8852e1f7a",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap",
+      "vllm": "0.29.0",
+      "model": "qwen3.8-flash-next-fp8",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len1048576-kvfp8e4m3-plemmap",
+      "brief": "Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx1048576(YaRN f4) · PLE=mmap — decode 33.27 t/s(동시성1) · mmp 계열 22셀 재수행 캠페인 완결(11/11 성공)",
+      "anchor": "2d1d173961d84913ee1591781d86197454ccd5c5",
+      "object": "0752c3c3b0f525f2b49c0692162b0ed5af9eab94",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
       "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvauto-plemmap",
       "vllm": "0.29.0",
       "model": "qwen3.8-flash-next-fp8",
@@ -317,6 +347,36 @@
       "brief": "Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx524288(YaRN f2) · PLE=mmap — decode 35.94 t/s(동시성1) · kv dtype 축이 예산 floor 를 바꾸지 않음을 재확인(kv=auto 태그와 완전 동일 floor)",
       "anchor": "81a3946fb27719610354e7ffe43905cc5bebe355",
       "object": "0d2debaeff8d9bdec6bd368b25f8cec9f9621238",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvauto-plemmap",
+      "vllm": "0.29.0",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len1048576-kvauto-plemmap",
+      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=auto · ctx1048576(YaRN f4) · PLE=mmap — decode 35.92 t/s(동시성1) · R8 YaRN factor=4 첫 실서빙 검증, mmp 계열 캠페인 통산 11/11 성공",
+      "anchor": "3b480fe4da636a77dfdd7a490ff12de3a32ed0de",
+      "object": "4f444d96e7665677b8cab34fd884f3700dce3b1c",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap",
+      "vllm": "0.29.0",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "arch": "gb10x2-cluster-native",
+      "recipe": "len1048576-kvfp8e4m3-plemmap",
+      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx1048576(YaRN f4) · PLE=mmap — decode 33.40 t/s(동시성1) · R8 YaRN factor=4 2번째 검증(kv dtype 축)",
+      "anchor": "97fc87f0b8c3ec9445967f09f602d6be723fdff7",
+      "object": "14cc574b267e024de128bd126dcfcf240a296009",
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
