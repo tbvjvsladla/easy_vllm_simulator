@@ -53,6 +53,8 @@ usage() {
   --manifest   work-manifest JSON; relative paths use the caller's original CWD (required)
   --apply      execute delivery (default: dry-run)
   --provision  allow missing remote work directory creation with --apply
+  --retire-residue  retire main-only residue the canonical render does NOT deliver for this
+               topology (tracked files only; requires RETIRE_ALLOW=<exact count>)
   --branch     multi, single, or both (default: multi)
   --help, -h   print this help without repo, manifest, host, or transport checks
 EOF
@@ -65,6 +67,9 @@ ORIGINAL_CWD="$(pwd)"
 GATE_MODE=""; HAVE_MODE=0
 MANIFEST_ARG=""; HAVE_MANIFEST=0
 MODE="dryrun"; PROVISION=0; BRANCH="multi"
+# 토폴로지-aware 은퇴(2026-09-11). **기본 미집행** — 잔재 삭제는 배달의 부수효과가 아니라
+#   사람이 숫자로 승인하는 별도 행위다(D5: 안내문이 분류를 잘못 말하면 가드가 있어도 사고가 난다).
+RETIRE_RESIDUE=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --help|-h) usage; exit 0 ;;
@@ -76,6 +81,7 @@ while [ $# -gt 0 ]; do
             MANIFEST_ARG="$2"; HAVE_MANIFEST=1; shift 2 ;;
         --apply) MODE="apply"; shift ;;
         --provision) PROVISION=1; shift ;;
+        --retire-residue) RETIRE_RESIDUE=1; shift ;;
         --branch)
             [ $# -ge 2 ] || { echo "[sync] FAIL: --branch requires multi|single|both" >&2; exit 2; }
             BRANCH="$2"; shift 2 ;;
@@ -1398,7 +1404,11 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
 #   아니다. 닫힌 목록이며 tripwire 다 — 늘리려면 이 주석을 읽고 그 루트의 저작 주체부터 확인하라.
 # ⚠ 삭제하지 않는다. `정본 0건` 은 **dormant(보내지 않기로 함)** 와 **렌더 실패** 를 구분하지 못한다 —
 #   여기서 지우면 렌더가 한 번 비는 순간 서브가 통째로 비워진다. 삭제는 토폴로지-aware 비석의 몫이다.
-RUNTIME_BLOCK_OWNED_ROOTS=(.claude/skills .claude/policies)
+# ★ 2026-09-11 확장(plan_26091108 후속 · 서브 클린): `.claude/hooks`·`.claude/pii_terms.txt` 를
+#   더한다. 둘 다 **메인 전용 추적 빌딩블럭**이고 어느 토폴로지에도 배달되지 않는데, 옛 배달의
+#   사본이 서브에 남아 있었다(실측 multi: hooks 1 · pii_terms 1). 소유 루트에 없으면 잔재 리포트가
+#   구조적으로 못 본다 — 못 보는 것은 은퇴시킬 수도 없다.
+RUNTIME_BLOCK_OWNED_ROOTS=(.claude/skills .claude/policies .claude/hooks .claude/pii_terms.txt)
 # 잔재 판정에서 **노드-로컬 상태**를 걷어낸다(2026-09-10 신설 · 첫 실행이 위양성을 냈다).
 #
 # 판정은 파생이다 — 손목록을 두지 않는다:
@@ -1452,6 +1462,144 @@ report_runtime_block_residue() {   # $1=topology → 항상 0(정보 리포트 �
         echo "         오케스트레이션이 서브에 남으면 배달 방향이 뒤집힌다(§2.7.1). (b) 서브 스킬이"
         echo "         저작하는 런타임 상태면 그대로 둔다(잔재가 아니다)."
     fi
+    return 0
+}
+
+# ── 토폴로지-aware 은퇴 (2026-09-11 신설 · plan_26091108 후속 · 서브 클린작업) ──────────────
+#
+# 왜 있는가. 오버레이는 **가산**이라 정본에서 사라진 것이 서브에 영구 잔존한다. 그런데 은퇴 기구
+# (`OVERLAY_STALE_PATHS`)는 **평면 목록**이라 토폴로지를 표현하지 못했다 — "single 엔 있어야 하고
+# multi 엔 없어야 한다" 를 적을 자리가 없다. 그래서 `report_runtime_block_residue` 는 잔재를
+# **탐지만** 하고 "토폴로지-aware 비석으로 은퇴하라" 고 사람에게 넘겼는데, 그 비석이 없었다.
+#
+# 실측(2026-09-11 · 서브 노드):
+#   multi  브랜치 — 정본이 주는 스킬 0종(`tool_plane(multi,ray-worker)=[]`)인데 서브엔 6종 190파일
+#                   + policies 18 + hooks 1 + pii_terms 1 = **210 추적파일 전량 잔재**
+#   single 브랜치 — 정본이 주는 108파일과 거의 일치(105) = 잔재가 아니라 **낡음**
+#   즉 같은 경로가 한 브랜치에선 정본이고 다른 브랜치에선 잔재다. 평면 목록으로는 불가능하다.
+#
+# ★ 대상을 **손으로 적지 않는다.** 은퇴 집합은 잔재 리포트와 **같은 파생**을 쓴다:
+#     대상 = (서브 추적물 under 소유루트) − (정본 스테이징이 그 루트에 두는 파일) − (노드-로컬)
+#   선언은 `RUNTIME_BLOCK_OWNED_ROOTS` 하나뿐이고, 무엇을 지울지는 **정본이 지금 무엇을 주는가**가
+#   정한다. tool_plane 이 바뀌면 은퇴 집합이 자동으로 따라간다(선언이 낡아 사고가 나지 않는다).
+#
+# 안전 속성 넷:
+#   ① **추적물만** 지운다 — 서브가 저작한 비추적 상태는 대상이 아니다(무단 교정 금지).
+#   ② `drop_node_local_paths` 로 노드-로컬(메인에서도 비추적)을 걷어낸다.
+#   ③ 활성 소비자 감사(`verify_destination_retirement_consumers`)를 **먼저** 통과해야 한다 —
+#      호출부가 살아 있는 파일은 지우지 않는다. 이 함수는 그 뒤에만 불린다.
+#   ④ **선언된 수와 정확히 일치**해야 집행한다(`RETIRE_ALLOW=<n>`). ALLOW_DELETE 와 같은 idiom 이며,
+#      "몇 개를 지우는지 사람이 숫자로 말한다" 가 대량 삭제의 유일한 문이다. 기본은 **미집행**이다.
+#
+# ⚠ D5 교훈: 안내문이 분류를 잘못 말하면 가드가 있어도 사고가 난다. 그래서 이 함수는 기본 off 이고,
+#   dry-run 이 **지울 목록 전량**을 먼저 보여주며, 숫자 불일치는 fail-closed 다.
+# 잔재 파생 — 리포트와 은퇴가 **같은 원천**을 쓴다(두 자리에 적으면 갈라진다).
+#   대상 = (서브 추적물 under 소유루트) − (정본 스테이징이 그 루트에 두는 것) − (노드-로컬)
+_derive_runtime_block_residue() {   # $1=topology $2=staging → stdout=경로 목록
+    local t="$1" st="$2" root canon sub_list extra all=""
+    for root in "${RUNTIME_BLOCK_OWNED_ROOTS[@]}"; do
+        canon="$(cd "$st" && find "$root" -type f -not -path '*/__pycache__/*' -not -name '*.pyc' 2>/dev/null | LC_ALL=C sort || true)"
+        # ★ 브랜치를 **명시**해 읽는다. `git ls-files` 는 지금 체크아웃된 브랜치의 인덱스를 보는데,
+        #   DRY-RUN 은 서브를 checkout 하지 않으므로 그 목록은 **다른 브랜치의 것**이 된다 —
+        #   2026-09-11 첫 실행이 그 위양성을 냈다(single 미리보기가 multi 인덱스를 읽어 104건).
+        # ★ `core.quotePath=false` 필수. 기본값은 비-ASCII 경로를 `\353\205\270` 로 **이스케이프**해
+        #   돌려주고, 그 문자열로 `rm -f` 를 부르면 존재하지 않는 경로를 지운다(조용히 no-op).
+        #   2026-09-11 실측: 한글 파일명 1건이 그렇게 살아남았다 — 이 저장소가 전에도 겪은 트랩이다
+        #   (`git ls-files` quotePath 거짓 drift · verify_distribution 선례).
+        sub_list="$(sub_run "git -c core.quotePath=false ls-tree -r --name-only '$t' -- '$root' 2>/dev/null | LC_ALL=C sort" < /dev/null || true)"
+        [ -n "$sub_list" ] || continue
+        extra="$(LC_ALL=C comm -13 <(printf '%s\n' "$canon" | grep -v '^$') <(printf '%s\n' "$sub_list") || true)"
+        extra="$(printf '%s\n' "$extra" | grep -v '^$' | drop_node_local_paths || true)"
+        [ -n "$extra" ] && all="${all}${extra}"$'\n'
+    done
+    printf '%s' "$all" | grep -v '^$' || true
+}
+
+retire_runtime_block_residue() {   # $1=topology $2=dry(1|0) → 0=ok · 9=게이트 거부
+    local t="$1" dry="$2"
+    local st; st="$(staging_dir "$t")"
+    [ -d "$st" ] || { echo "[sync] FAIL(retire): 스테이징 부재($st) — 잔재를 도출할 수 없다" >&2; return 9; }
+    # 스테이징이 통째로 비었으면 "정본이 아무것도 안 준다" 가 아니라 **렌더 실패**다.
+    #   그 상태에서 파생하면 서브 전부가 잔재가 된다 — 부재와 결측을 가르는 자리.
+    local nst; nst="$(cd "$st" && find . -type f | grep -c . || true)"
+    [ "${nst:-0}" -gt 0 ] || { echo "[sync] FAIL(retire): 정본 스테이징 파일 0건 — 렌더 실패를 잔재로 읽지 않는다" >&2; return 9; }
+
+    local all n
+    all="$(_derive_runtime_block_residue "$t" "$st")"
+    n="$(printf '%s' "$all" | grep -c '' || true)"
+    if [ "${n:-0}" -eq 0 ]; then
+        echo "  ✅ 은퇴 대상 0건 — 메인 소유 코드 평면이 정본과 같다($t)"
+        return 0
+    fi
+    echo "  [$t] 토폴로지-aware 은퇴 대상 ${n}건(서브 **추적물** 중 정본이 이 토폴로지에 주지 않는 것):"
+    printf '%s\n' "$all" | sed 's/^/      - /' | preview_lines
+    if [ "$dry" = "1" ]; then
+        echo "      (미리보기 — 집행하려면 --retire-residue 와 RETIRE_ALLOW=$n 를 함께 준다)"
+        return 0
+    fi
+    if [ "$RETIRE_RESIDUE" != "1" ]; then
+        echo "      → 집행하지 않았다(--retire-residue 미지정). 잔재는 서브 에이전트의 노이즈다 —"
+        echo "         메인 전용 오케스트레이션이 남으면 배달 방향이 뒤집힌다(§2.7.1)."
+        return 0
+    fi
+    if [ "${RETIRE_ALLOW:-}" != "$n" ]; then
+        echo "[sync] FAIL(retire/$t): 선언된 수와 실제가 다르다 — RETIRE_ALLOW='${RETIRE_ALLOW:-미선언}' ≠ ${n}." >&2
+        echo "[sync]   대량 삭제의 유일한 문은 **사람이 숫자를 말하는 것**이다(ALLOW_DELETE 와 같은 idiom)." >&2
+        echo "[sync]   목록을 확인하고 RETIRE_ALLOW=${n} 로 다시 부르라." >&2
+        return 9
+    fi
+    # 집행 — `git rm` 이 아니라 `rm -f` 다. 뒤따르는 `git add -A` 가 삭제를 인덱스에 싣고
+    #   `[sync]` 커밋이 그 사실을 기록한다(기존 apply_overlay_tombstones 와 같은 계약).
+    #
+    # ★ 2026-09-11 첫 실행이 잡은 결함: 종전 초안은 `while read f; do sub_run "rm -f '$f'"; done`
+    #   이었는데 **ssh 가 루프의 stdin 을 통째로 삼켜** 첫 한 건만 지워졌다(190 → 189). 그런데
+    #   함수는 "✅ 209건 집행" 이라고 **단언**했다 — 단언이 검증을 대체하면 깨진 순간을 아무도
+    #   모른다. 처방 둘: (a) 한 번의 원격 호출로 배치 삭제한다(stdin 을 쓰지 않는다)
+    #   (b) 집행 뒤 **다시 세어** 0 이 아니면 실패로 돌린다.
+    local f args="" cnt=0
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        args+=" $(printf '%q' "$f")"
+        cnt=$((cnt + 1))
+        if [ "$cnt" -ge 100 ]; then
+            sub_run "rm -f --$args" < /dev/null || { echo "[sync] FAIL(retire/$t): 배치 삭제 실패" >&2; return 9; }
+            args=""; cnt=0
+        fi
+    done <<< "$all"
+    if [ -n "$args" ]; then
+        sub_run "rm -f --$args" < /dev/null || { echo "[sync] FAIL(retire/$t): 배치 삭제 실패" >&2; return 9; }
+    fi
+    # 고아 `__pycache__` 정리 — `.pyc` 는 잔재 파생에서 제외되므로(빌드 산물) 삭제 대상이 아니지만,
+    #   `.py` 가 사라진 자리에 남은 `.pyc` 는 **그 자체가 죽은 코드**이고 디렉터리를 비지 않게 만들어
+    #   껍데기 정리까지 막는다(2026-09-11 실측 91건). 파생물이라 언제든 재생성되므로 삭제가 안전하다.
+    #   판정은 파생이다: **형제 `.py` 가 하나도 없는** `__pycache__` 만 지운다.
+    local root2
+    for root2 in "${RUNTIME_BLOCK_OWNED_ROOTS[@]}"; do
+        sub_run "[ ! -d '$root2' ] || find '$root2' -type d -name __pycache__ -exec sh -c '[ -z \"\$(find \"\$(dirname \"\$1\")\" -maxdepth 1 -name \"*.py\" -print -quit)\" ] && rm -rf \"\$1\"' _ {} \; 2>/dev/null || true" < /dev/null || true
+    done
+    # 빈 디렉터리 정리 — `rm -f` 는 디렉터리를 지우지 못해 껍데기가 남는다(침묵 no-op 선례).
+    for root2 in "${RUNTIME_BLOCK_OWNED_ROOTS[@]}"; do
+        # 루트 자신도 비었으면 지운다 — 정본이 이 토폴로지에 아무것도 두지 않는 루트의 빈 껍데기는
+        #   에이전트에게 "여기 뭔가 있다" 는 잘못된 신호다. 서브가 저작한 노드-로컬 상태가 있으면
+        #   비어 있지 않으므로 자동으로 보존된다(실측: vllm-recipe-explorer/{config.yaml,feedback,lockset}).
+        sub_run "[ ! -d '$root2' ] || find '$root2' -type d -empty -delete 2>/dev/null || true" < /dev/null || true
+    done
+    # ── 사후 검증(게이트) — 지웠다고 **말하지 말고 다시 센다** ─────────────────────────
+    #   파일 수가 아니라 **잔재 수**가 판정이다(정본 배달분은 남아야 정상이다).
+    #   ★ 워킹트리 삭제는 아직 인덱스에 없으므로 ls-tree 는 옛 목록을 본다 — 그래서 여기서는
+    #     인덱스가 아니라 **파일시스템 실재**로 다시 판정한다(뒤따르는 git add -A 가 인덱스를 맞춘다).
+    local still miss=0 f2
+    while IFS= read -r f2; do
+        [ -n "$f2" ] || continue
+        still="$(sub_run "[ -e '$f2' ] && echo 1 || echo 0" < /dev/null || echo 1)"
+        [ "$still" = "0" ] || miss=$((miss + 1))
+    done <<< "$(printf '%s\n' "$all" | head -20)"
+    if [ "$miss" -gt 0 ]; then
+        echo "[sync] FAIL(retire/$t): 집행했다고 적었으나 표본 20건 중 ${miss}건이 서브에 **아직 있다**." >&2
+        echo "[sync]   단언이 검증을 대체하면 깨진 순간을 아무도 모른다 — 배달을 여기서 멈춘다." >&2
+        return 9
+    fi
+    echo "  ✅ [$t] 은퇴 집행 ${n}건 — 표본 검증 통과 · 다음 [sync] 커밋이 그 사실을 기록한다"
     return 0
 }
 
@@ -1703,6 +1851,8 @@ if [ "$MODE" = "dryrun" ]; then
                 preview_source_port_payload "$t"
             fi
             echo "    오버레이 미리보기(가산 — 삭제 없음):"; deliver_overlay "$t" 1 | sed 's/^/      /' | preview_lines || true
+            # 토폴로지-aware 은퇴 미리보기(2026-09-11) — 무엇을 지울지는 apply 전에 **전량** 보인다.
+            retire_runtime_block_residue "$t" 1 || true
         done
     elif [ -n "$BOOTSTRAP_POPULATE" ]; then
         echo "  --- B0 bootstrap 미리보기(multi 초기 Band2 배달) ---"
@@ -1901,6 +2051,9 @@ for t in "${TARGETS[@]}"; do
     apply_overlay_tombstones
     report_overlay_convergence "$t"   # 비석 적용 **뒤**에 센다 — 지운 것을 잔재로 세지 않는다
     report_runtime_block_residue "$t" # 정본이 "파일 0건" 을 두는 루트는 위 리포트가 구조적으로 못 본다
+    # 토폴로지-aware 은퇴(2026-09-11) — 위 감사(retirement consumer)를 통과한 뒤에만 부른다.
+    #   기본은 미집행이고, `--retire-residue` + `RETIRE_ALLOW=<정확한 수>` 가 함께 와야 지운다.
+    retire_runtime_block_residue "$t" 0 || { echo "[sync] FAIL: 은퇴 게이트 거부($t)" >&2; exit 2; }
     # (5) [sync] 스크립트저작 커밋 (변경분만)
     sub_run "git add -A"
     if sub_run "git diff --cached --quiet"; then

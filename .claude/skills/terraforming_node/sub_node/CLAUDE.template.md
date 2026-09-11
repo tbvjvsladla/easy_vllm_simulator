@@ -96,7 +96,12 @@
 
 ## 역할 (받은 Task 의 phase 만 — 그 이상 하지 마라)
 1. **inspect (부트스트랩/카나리)** — 모델 없이. 정체성·로드된 스킬·권한·통신계약을 self-report. ✅ = schema-valid 리포트(phase=inspect, status=completed).
+<!-- MODE:ray-worker -->
+2. **config (트리플렛 자작 ✗)** — 멀티의 너는 **Ray 워커**다. 서빙 트리플렛은 이 노드에서 저작하지 않는다(`policy:MODEL_TRIPLET_NO_SUB_PROPAGATION` — Band3 는 서브로 전파되지 않으며, serve 시점 값은 메인이 compose 보간으로 넘긴다). 네가 자작하는 것은 없고, 받은 빌드킷과 주입된 env 로 합류만 한다. ✅ = 받은 것으로 합류 성공.
+<!-- /MODE:ray-worker -->
+<!-- MODE:a2a-agent -->
 2. **config (자율 triplet 저작)** — 지정 모델의 서빙 3종(`.yaml`+`.sh`+`.env`)을 **`vllm-recipe-explorer` 런타임블럭 스킬(결정론 엔진)을 스스로 돌려** 생성. HW 사실·경로·획득 모드는 **이 노드의 `output/{{ TOPOLOGY }}/manifest.yaml`**(메인 terraforming 발급 · `self_role: sub`)에서, per-task 값(모델명·VRAM 예산·NAS 서브디렉토리)은 **Task Message 에서** 읽는다. ✅ = 3종 생성 + config-parse OK (+ 가능 시 로컬 스모크).
+<!-- /MODE:a2a-agent -->
 <!-- MODE:ray-worker -->
 3. **build** — `docker compose --profile slave build`. 메인 성공 빌드를 **독립 재현**한다 — 일치해야 하는 것은 **ABI 3종(torch·CUDA·vLLM)** 이지 image digest 가 아니다(digest 는 정상적으로 서로 다르다).
 4. **serve** — `docker compose --env-file envs/.env.<config> --profile slave up` → serve_runner.sh 가 master Ray head 합류(`--block`). ✅ = worker 합류(+ 지시 시 health).
@@ -118,7 +123,7 @@
 
 ## 절대 규칙 (B3 Surgical — 건드릴 것만)
 - **컨테이너 정본 불가침**: `Dockerfile`·`requirements.txt`·`docker-compose.yaml`·`serve_runner.sh` 는 메인이 rsync 로 주는 정본. **수정 금지.** 너는 모델별 `configs/`·`envs/` 만 자작.
-- **빌딩블럭 비편집**: `.claude/`·`CLAUDE.md`·`Agent_Card.json` 은 메인 소유. 단 `.claude/skills/vllm-recipe-explorer/`(런타임블럭)은 **실행**한다(편집 아님).
+- **빌딩블럭 비편집**: `.claude/`·`CLAUDE.md`·`Agent_Card.json` 은 메인 소유. 네 **런타임블럭**(실행 대상 · 편집 아님)은 `{{ TOOL_PLANE_JSON }}` 이며, 이 목록은 `tool_plane({{ TOPOLOGY }}, {{ SUB_MODE }})` 이 정한다(출처 `{{ TOOL_PLANE_SOURCE }}`). **빈 목록이면 이 노드에는 런타임블럭이 없다** — 그 경우 `.claude/skills/` 아래에 무엇이 보이더라도 그것은 옛 배달의 잔재이고, 실행 대상이 아니다(메인 전용 오케스트레이션을 서브에서 돌리면 배달 방향이 뒤집힌다).
 - **모델 다운로드 금지**: NAS(`{{ NAS_MOUNT }}`, read-only) 부재 → 중단·보고. 절대 받지 않는다.
 - **로컬 git 허용 · 원격 금지**: 작업공간은 로컬 레포 — `git add/commit/checkout/switch/branch/status/diff/log/stash` **허용**(브랜치전환·`[improve]` 자기개선 추적·clean-tree 핸드셰이크용). 단 **`git push`·`git pull`·`git fetch`·`git remote`·`git clone` 금지**(origin 영구 없음). `[sync]` 커밋은 **메인 스크립트가 저작**(네가 아님) — 너는 `[improve]` 만 저작.
 - **백업 금지 · git 이 단일 권위**: 고치기 전에 `.bak`/`.orig` 사본을 두거나 `backup` 브랜치·폴더를 만들지 마라 — 되돌리기는 `git diff` · `git checkout -- <path>` 다. 추적물의 해시를 다른 파일에 다시 적지도 마라(같은 사실이 두 자리에 갈라진다). **너의 refs = `single`·`multi` 브랜치 + 메인이 배달한 것**뿐이며 그 밖의 브랜치·태그를 새로 만들지 않는다. **집행은 메인이다** — 배달 표면에 `.claude/policies/` 가 없어(registry·술어·런타임 게이트는 네게 오지 않는다) 이 규약을 기계로 검사하는 주체는 메인이고, 너는 지키고 리포트로 보고한다.
@@ -137,7 +142,7 @@
   "artifacts": [{"path": "configs/<model>.yaml", "kind": "triplet-yaml"}],
   "errors": [],
   "failure_class": "none|requirements-fixable|source-build-class|resource_oom|nccl_rdma_connectivity|ray_join_timeout|unknown",
-  "self_verification": {"checks_run": ["identity","skills_loaded","permissions"], "schema_valid": true, "identity_ok": true, "skills_loaded": ["vllm-recipe-explorer"]},
+  "self_verification": {"checks_run": ["identity","skills_loaded","permissions"], "schema_valid": true, "identity_ok": true, "skills_loaded": {{ TOOL_PLANE_JSON }}},
   "notes": "메인이 알아야 할 한두 줄"
 }
 ```
