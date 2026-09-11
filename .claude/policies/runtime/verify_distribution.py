@@ -450,7 +450,9 @@ def verify() -> dict:
                     and "RETIRE_RESIDUE=0" in sub_text
                     # 브랜치를 명시해 읽는다: DRY-RUN 은 서브를 checkout 하지 않으므로
                     #   `git ls-files` 는 **다른 브랜치**의 인덱스를 본다(첫 실행 위양성 104건).
-                    and "git ls-tree -r --name-only '$t'" in sub_text
+                    #   그리고 `core.quotePath=false` — 기본값은 비-ASCII 경로를 이스케이프해
+                    #   돌려주고, 그 문자열로 rm 을 부르면 조용히 아무것도 안 지운다(실측 1건 생존).
+                    and "git -c core.quotePath=false ls-tree -r --name-only '$t'" in sub_text
                     # 렌더 실패를 잔재로 읽지 않는다(스테이징 0건 = fail-closed).
                     and "렌더 실패를 잔재로 읽지 않는다" in sub_text)},
             {"name": "no_active_sub_retirement_consumers",
