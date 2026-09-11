@@ -31,21 +31,34 @@ import json
 import os
 import sys
 
-_ETA_DIR = os.path.normpath(os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "..", "..", "terraforming_node", "scripts", "node_blackbox"))
+# ★ 노드 도구는 **소유자 정본 → 서브 런타임 배달분** 순으로 찾는다(2026-09-11 서브 라이브 교정).
+#   종전에는 `.claude/skills/terraforming_node/scripts/node_blackbox/` 하나만 들었는데, 그 스킬은
+#   서브에 **배달되지 않는다**(`tool_plane` 이 정한다) — 서브는 `.claude/runtime/node_blackbox/` 로
+#   받는다. 메인에는 정본이 실재하므로 결함이 보이지 않고 **서브에서만** 부재가 된다. 이 저장소가
+#   이미 겪은 형태다(결함 ⑧: node_id 해소기가 서브에서 부재였고, 하필 그것이 서브 무보호 로드를
+#   닫으려던 장치였다). 두-후보 패턴의 단일 소유는 `run_trial._node_tool_path` 이고 여기는 같은 규약을 따른다.
+_REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
+_ETA_CANDIDATES = (
+    os.path.join(_REPO, ".claude", "skills", "terraforming_node", "scripts", "node_blackbox"),
+    os.path.join(_REPO, ".claude", "runtime", "node_blackbox"),
+)
 
 
 def constants():
     """선언 상수의 정본. 여기에 사본을 두지 않는다."""
-    if _ETA_DIR not in sys.path:
-        sys.path.insert(0, _ETA_DIR)
+    for _d in _ETA_CANDIDATES:
+        if os.path.isfile(os.path.join(_d, "blackbox_eta.py")):
+            if _d not in sys.path:
+                sys.path.insert(0, _d)
+            break
     try:
         from blackbox_eta import DEFAULTS as D  # noqa: E402
     except ImportError as exc:
         raise SystemExit(
             "[budget-preflight] FAIL: 선언 상수를 blackbox_eta.DEFAULTS 에서 읽지 못했다(%s).\n"
-            "  여기에 사본을 두지 않는다 — 거울은 정본이 움직일 때 조용히 옛값으로 남는다." % exc)
+            "  찾은 자리: %s\n"
+            "  여기에 사본을 두지 않는다 — 거울은 정본이 움직일 때 조용히 옛값으로 남는다."
+            % (exc, " · ".join(_ETA_CANDIDATES)))
     return (int(D["decl_margin_mib"]), int(D["decl_min_ceiling_mib"]), int(D["abs_band_mib"]))
 
 
@@ -212,6 +225,14 @@ def _self_test():
            "--overhead-mib" not in body)
     else:
         print("  [SKIP] R3 배선 앵커 — run_bench.sh 부재")
+
+    # ★ 서브 이식성 앵커(2026-09-11 서브 라이브가 잡았다): 노드 도구는 메인 정본과 **서브 런타임
+    #   배달분** 두 자리에 있을 수 있다. 한 자리만 들면 메인에서는 초록이고 서브에서만 죽는다 —
+    #   그리고 그 죽음은 하필 서브에서 예산 게이트를 닫으려던 장치에서 난다(결함 ⑧과 같은 형태).
+    ck("★서브 이식성: 노드 도구를 정본·런타임 두 자리에서 찾는다(한 자리만 들면 서브에서 죽는다)",
+       len(_ETA_CANDIDATES) == 2
+       and _ETA_CANDIDATES[0].endswith(os.path.join("terraforming_node", "scripts", "node_blackbox"))
+       and _ETA_CANDIDATES[1].endswith(os.path.join(".claude", "runtime", "node_blackbox")))
 
     m, mc, ab = constants()
     ck("상수를 정본에서 읽는다(거울 ✗)", (m, mc, ab) == (3072, 8192, 10240),

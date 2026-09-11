@@ -1493,6 +1493,28 @@ report_runtime_block_residue() {   # $1=topology → 항상 0(정보 리포트 �
 #
 # ⚠ D5 교훈: 안내문이 분류를 잘못 말하면 가드가 있어도 사고가 난다. 그래서 이 함수는 기본 off 이고,
 #   dry-run 이 **지울 목록 전량**을 먼저 보여주며, 숫자 불일치는 fail-closed 다.
+# 잔재 파생 — 리포트와 은퇴가 **같은 원천**을 쓴다(두 자리에 적으면 갈라진다).
+#   대상 = (서브 추적물 under 소유루트) − (정본 스테이징이 그 루트에 두는 것) − (노드-로컬)
+_derive_runtime_block_residue() {   # $1=topology $2=staging → stdout=경로 목록
+    local t="$1" st="$2" root canon sub_list extra all=""
+    for root in "${RUNTIME_BLOCK_OWNED_ROOTS[@]}"; do
+        canon="$(cd "$st" && find "$root" -type f -not -path '*/__pycache__/*' -not -name '*.pyc' 2>/dev/null | LC_ALL=C sort || true)"
+        # ★ 브랜치를 **명시**해 읽는다. `git ls-files` 는 지금 체크아웃된 브랜치의 인덱스를 보는데,
+        #   DRY-RUN 은 서브를 checkout 하지 않으므로 그 목록은 **다른 브랜치의 것**이 된다 —
+        #   2026-09-11 첫 실행이 그 위양성을 냈다(single 미리보기가 multi 인덱스를 읽어 104건).
+        # ★ `core.quotePath=false` 필수. 기본값은 비-ASCII 경로를 `\353\205\270` 로 **이스케이프**해
+        #   돌려주고, 그 문자열로 `rm -f` 를 부르면 존재하지 않는 경로를 지운다(조용히 no-op).
+        #   2026-09-11 실측: 한글 파일명 1건이 그렇게 살아남았다 — 이 저장소가 전에도 겪은 트랩이다
+        #   (`git ls-files` quotePath 거짓 drift · verify_distribution 선례).
+        sub_list="$(sub_run "git -c core.quotePath=false ls-tree -r --name-only '$t' -- '$root' 2>/dev/null | LC_ALL=C sort" < /dev/null || true)"
+        [ -n "$sub_list" ] || continue
+        extra="$(LC_ALL=C comm -13 <(printf '%s\n' "$canon" | grep -v '^$') <(printf '%s\n' "$sub_list") || true)"
+        extra="$(printf '%s\n' "$extra" | grep -v '^$' | drop_node_local_paths || true)"
+        [ -n "$extra" ] && all="${all}${extra}"$'\n'
+    done
+    printf '%s' "$all" | grep -v '^$' || true
+}
+
 retire_runtime_block_residue() {   # $1=topology $2=dry(1|0) → 0=ok · 9=게이트 거부
     local t="$1" dry="$2"
     local st; st="$(staging_dir "$t")"
@@ -1502,20 +1524,8 @@ retire_runtime_block_residue() {   # $1=topology $2=dry(1|0) → 0=ok · 9=게�
     local nst; nst="$(cd "$st" && find . -type f | grep -c . || true)"
     [ "${nst:-0}" -gt 0 ] || { echo "[sync] FAIL(retire): 정본 스테이징 파일 0건 — 렌더 실패를 잔재로 읽지 않는다" >&2; return 9; }
 
-    local root canon sub_list extra all="" n
-    for root in "${RUNTIME_BLOCK_OWNED_ROOTS[@]}"; do
-        canon="$(cd "$st" && find "$root" -type f -not -path '*/__pycache__/*' -not -name '*.pyc' 2>/dev/null | LC_ALL=C sort || true)"
-        # ★ 브랜치를 **명시**해 읽는다. `git ls-files` 는 지금 체크아웃된 브랜치의 인덱스를 보는데,
-        #   DRY-RUN 은 서브를 checkout 하지 않으므로 그 목록은 **다른 브랜치의 것**이 된다 —
-        #   2026-09-11 첫 실행이 그 위양성을 냈다(single 미리보기가 multi 인덱스를 읽어 104건).
-        #   미리보기와 집행이 다른 수를 말하면 사람이 승인한 숫자가 집행을 가리키지 않는다.
-        sub_list="$(sub_run "git ls-tree -r --name-only '$t' -- '$root' 2>/dev/null | LC_ALL=C sort" || true)"
-        [ -n "$sub_list" ] || continue
-        extra="$(LC_ALL=C comm -13 <(printf '%s\n' "$canon" | grep -v '^$') <(printf '%s\n' "$sub_list") || true)"
-        extra="$(printf '%s\n' "$extra" | grep -v '^$' | drop_node_local_paths || true)"
-        [ -n "$extra" ] && all="${all}${extra}"$'\n'
-    done
-    all="$(printf '%s' "$all" | grep -v '^$' || true)"
+    local all n
+    all="$(_derive_runtime_block_residue "$t" "$st")"
     n="$(printf '%s' "$all" | grep -c '' || true)"
     if [ "${n:-0}" -eq 0 ]; then
         echo "  ✅ 은퇴 대상 0건 — 메인 소유 코드 평면이 정본과 같다($t)"
@@ -1540,16 +1550,56 @@ retire_runtime_block_residue() {   # $1=topology $2=dry(1|0) → 0=ok · 9=게�
     fi
     # 집행 — `git rm` 이 아니라 `rm -f` 다. 뒤따르는 `git add -A` 가 삭제를 인덱스에 싣고
     #   `[sync]` 커밋이 그 사실을 기록한다(기존 apply_overlay_tombstones 와 같은 계약).
-    local f
+    #
+    # ★ 2026-09-11 첫 실행이 잡은 결함: 종전 초안은 `while read f; do sub_run "rm -f '$f'"; done`
+    #   이었는데 **ssh 가 루프의 stdin 을 통째로 삼켜** 첫 한 건만 지워졌다(190 → 189). 그런데
+    #   함수는 "✅ 209건 집행" 이라고 **단언**했다 — 단언이 검증을 대체하면 깨진 순간을 아무도
+    #   모른다. 처방 둘: (a) 한 번의 원격 호출로 배치 삭제한다(stdin 을 쓰지 않는다)
+    #   (b) 집행 뒤 **다시 세어** 0 이 아니면 실패로 돌린다.
+    local f args="" cnt=0
     while IFS= read -r f; do
         [ -n "$f" ] || continue
-        sub_run "rm -f -- '$f'" || { echo "[sync] FAIL(retire/$t): 삭제 실패 — $f" >&2; return 9; }
+        args+=" $(printf '%q' "$f")"
+        cnt=$((cnt + 1))
+        if [ "$cnt" -ge 100 ]; then
+            sub_run "rm -f --$args" < /dev/null || { echo "[sync] FAIL(retire/$t): 배치 삭제 실패" >&2; return 9; }
+            args=""; cnt=0
+        fi
     done <<< "$all"
-    # 빈 디렉터리 정리 — `rm -f` 는 디렉터리를 지우지 못해 껍데기가 남는다(침묵 no-op 선례).
-    for root in "${RUNTIME_BLOCK_OWNED_ROOTS[@]}"; do
-        sub_run "[ ! -d '$root' ] || find '$root' -type d -empty -delete 2>/dev/null || true" || true
+    if [ -n "$args" ]; then
+        sub_run "rm -f --$args" < /dev/null || { echo "[sync] FAIL(retire/$t): 배치 삭제 실패" >&2; return 9; }
+    fi
+    # 고아 `__pycache__` 정리 — `.pyc` 는 잔재 파생에서 제외되므로(빌드 산물) 삭제 대상이 아니지만,
+    #   `.py` 가 사라진 자리에 남은 `.pyc` 는 **그 자체가 죽은 코드**이고 디렉터리를 비지 않게 만들어
+    #   껍데기 정리까지 막는다(2026-09-11 실측 91건). 파생물이라 언제든 재생성되므로 삭제가 안전하다.
+    #   판정은 파생이다: **형제 `.py` 가 하나도 없는** `__pycache__` 만 지운다.
+    local root2
+    for root2 in "${RUNTIME_BLOCK_OWNED_ROOTS[@]}"; do
+        sub_run "[ ! -d '$root2' ] || find '$root2' -type d -name __pycache__ -exec sh -c '[ -z \"\$(find \"\$(dirname \"\$1\")\" -maxdepth 1 -name \"*.py\" -print -quit)\" ] && rm -rf \"\$1\"' _ {} \; 2>/dev/null || true" < /dev/null || true
     done
-    echo "  ✅ [$t] 은퇴 집행 ${n}건 — 다음 [sync] 커밋이 그 사실을 기록한다"
+    # 빈 디렉터리 정리 — `rm -f` 는 디렉터리를 지우지 못해 껍데기가 남는다(침묵 no-op 선례).
+    for root2 in "${RUNTIME_BLOCK_OWNED_ROOTS[@]}"; do
+        # 루트 자신도 비었으면 지운다 — 정본이 이 토폴로지에 아무것도 두지 않는 루트의 빈 껍데기는
+        #   에이전트에게 "여기 뭔가 있다" 는 잘못된 신호다. 서브가 저작한 노드-로컬 상태가 있으면
+        #   비어 있지 않으므로 자동으로 보존된다(실측: vllm-recipe-explorer/{config.yaml,feedback,lockset}).
+        sub_run "[ ! -d '$root2' ] || find '$root2' -type d -empty -delete 2>/dev/null || true" < /dev/null || true
+    done
+    # ── 사후 검증(게이트) — 지웠다고 **말하지 말고 다시 센다** ─────────────────────────
+    #   파일 수가 아니라 **잔재 수**가 판정이다(정본 배달분은 남아야 정상이다).
+    #   ★ 워킹트리 삭제는 아직 인덱스에 없으므로 ls-tree 는 옛 목록을 본다 — 그래서 여기서는
+    #     인덱스가 아니라 **파일시스템 실재**로 다시 판정한다(뒤따르는 git add -A 가 인덱스를 맞춘다).
+    local still miss=0 f2
+    while IFS= read -r f2; do
+        [ -n "$f2" ] || continue
+        still="$(sub_run "[ -e '$f2' ] && echo 1 || echo 0" < /dev/null || echo 1)"
+        [ "$still" = "0" ] || miss=$((miss + 1))
+    done <<< "$(printf '%s\n' "$all" | head -20)"
+    if [ "$miss" -gt 0 ]; then
+        echo "[sync] FAIL(retire/$t): 집행했다고 적었으나 표본 20건 중 ${miss}건이 서브에 **아직 있다**." >&2
+        echo "[sync]   단언이 검증을 대체하면 깨진 순간을 아무도 모른다 — 배달을 여기서 멈춘다." >&2
+        return 9
+    fi
+    echo "  ✅ [$t] 은퇴 집행 ${n}건 — 표본 검증 통과 · 다음 [sync] 커밋이 그 사실을 기록한다"
     return 0
 }
 
