@@ -28,13 +28,13 @@ description: >-
 - **Goal** — 돌고 있는 serve 의 디코드 성능을 3중 루브릭(루프라인 R · 외부 E · 사용자 c)으로 적대 검증해 PASS/REFUTE 를 결정론으로 판정하고, 기각 시 재탐색 힌트를 낸다.
 - **When to invoke** — "성능 검증/벤치마크" 지시 · recipe 서빙 성공 직후 lite 자동 핸드오프 · 멀티노드 VRAM 밸런스 의심 · (별도 오퍼레이션) Max envelope 특성화 승인 시.
 - **Inputs** — `config.yaml`(대상 config_name·`reference_tps`/`target_tps`/`tolerance`/`realistic_fraction`) · **루브릭 authority 상태 3종**(§2 — 기본 `weak`, 사용자 HITL 트리거 시 `explicit` 또는 `explore`) · 라이브 serve(`:PORT/health` 200) · manifest(gpu_model·interconnect·topology) · 모델 config/safetensors index.
-- **Outputs** — `verdict.json`(PASS/REFUTE/NEEDS_RUBRIC/INVALID + failure_axis + next_strategy_hint) · lite 채팅 표(inform-only) · full 종결 시 `docs/benchmark/` report(항상) + 인증서(PASS시만).
+- **Outputs** — `verdict.json`(PASS/REFUTE/NEEDS_RUBRIC/INVALID + failure_axis) · lite 채팅 표(inform-only) · full 종결 시 `docs/benchmark/` report(항상) + 인증서(PASS시만).
 - **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 7단계(순서 고정).
 - **State transitions** — full PASS + 인증서로 `promotion-ready` 의 성능 조건을 채운다(lite 는 어떤 상태도 진행시키지 않는다). 최종 상태 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
 - **HITL/safety boundaries** — **serve 를 기동하지 않는다**(미가동 시 중단·보고) · 모델 자동 다운로드 ✗ · 무승인 escalate/rebuild ✗ · 무한 기각 ✗(cap → Model-C) · 게이트는 규칙(LLM 다수결 ✗).
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
 - **Deterministic commands** — `scripts/roofline.py` · `run_bench.sh` · `parse_bench.py` · `verdict_rule.py` · `lite_bench.sh` · `lite_metrics.py` · `sweep_bench.sh` · `render_report.py` · `publish_benchmark_record.py` · `max_envelope.sh` · `render_max_report.py`.
-- **Handoff contract** — REFUTE → `vllm-recipe-explorer` 재탐색 자극(`next_strategy_hint`, 에이전트 매개) · 구조적 → `upstream-version-watch` escalation · 증거 조회/입고 → `wiki-desk`(sidecar).
+- **Handoff contract** — 반증된 셀 → `campaigns/<id>/escalation_candidates.jsonl` 에 후보 한 줄(`campaign_init --escalation-add`) · 종결 시 `--escalation-summary` 를 사람이 읽고 발동 여부를 정한다 · 구조적 → `upstream-version-watch` escalation · 증거 조회/입고 → `wiki-desk`(sidecar).
 - **Owns (state)** — `bench-verdict` · `bench-report` · `bench-certificate` · `max-envelope`
 
 ## Mandatory procedural spine
@@ -46,7 +46,7 @@ description: >-
 3. **serve 가동 확인** — `:PORT/health` 200. 로그 grep 금지(거짓양성).
 4. **측정 M** — `run_bench.sh` → `parse_bench.py`(warmup 폐기 + engine-log 교차).
 5. **외부 레퍼런스 (b) E** — Devil's Advocate 가 `references.md` warm-start → 검색 → 결과를 `--e-search {hit,empty,no}` 로 **기록**. 미시도 상태로 6단계 직행 ✗.
-6. **판정(결정론 게이트)** — `judge_bench.sh <config> --authority {weak,explicit,explore}` (roofline→verdict 체인 · 권한 인자 필수 · 기본값 없음). 판정 규칙 자체는 `verdict_rule.py --authority {weak,explicit,explore}`(§2 — 기본 `weak`; 사용자가 목표를 HITL 명시했을 때만 `explicit`; 사용자가 *광범위 탐색/목표 미설정*을 HITL 지시했을 때만 `explore`). PASS → done-게이트 클리어 / REFUTE → 기각 리포트 + `next_strategy_hint` → recipe 재탐색 → 3단계로(cap 한정, **`explore` 에서는 해제** — 다음 항목으로 진행) / NEEDS_RUBRIC → (c) 사용자 백스톱.
+6. **판정(결정론 게이트)** — `judge_bench.sh <config> --authority {weak,explicit,explore}` (roofline→verdict 체인 · 권한 인자 필수 · 기본값 없음). 판정 규칙 자체는 `verdict_rule.py --authority {weak,explicit,explore}`(§2 — 기본 `weak`; 사용자가 목표를 HITL 명시했을 때만 `explicit`; 사용자가 *광범위 탐색/목표 미설정*을 HITL 지시했을 때만 `explore`). PASS → done-게이트 클리어 / REFUTE → 기각 리포트 + **escalation 후보 적재** → 종결 HITL(cap 한정, **`explore` 에서는 해제** — 다음 항목으로 진행) / NEEDS_RUBRIC → (c) 사용자 백스톱.
 7. **종결 발행** — cap 소진 or PASS 로 종결되면 사람용 report(항상) + 인증서(PASS시만) 발행(`references/lite-and-publication.md` §2).
 
 ## Failure → reference routing
@@ -139,11 +139,11 @@ description: >-
 | **루브릭 못 *충족*** | M < 루브릭, recipe 재탐색해도 미달 | → `reconciliation_cap` 한정 루프 → 소진 시 **구조적**=escalation 역루프(upstream rebuild) / **전략소진**=음성정직+best-so-far. **무한 기각·무한 루프 금지** |
 
 - 매 iteration = serve(재)기동(recipe/compose) → 벤치 측정 → 적대 판정. teardown 규율 = recipe Phase-2 동일(통합메모리 OOM 보호).
-- **누가 누구를 부르나**: 이 스킬은 *측정+판정+힌트*만 소유. **재탐색은 recipe-explorer 가**(에이전트가 `next_strategy_hint` 를 recipe 에 전달 — 스킬↔스킬 직접호출 아님). recipe 측정/serve 재구현 금지.
+- **누가 누구를 부르나**: 이 스킬은 *측정+판정+후보 적재*만 소유. **재탐색은 recipe-explorer 가** 한다. ★ 2026-09-11(plan_26091108 R6): 종전 문장은 `next_strategy_hint` 를 에이전트가 나른다고 적었는데 **그 이름을 생성하거나 소비하는 코드가 저장소 전체에 0 건**이었다 — 산문에만 있는 루프는 돌지 않는다(camp-26090918 은 셀이 12번 죽는 동안 전략 재수립을 한 번도 제안하지 않았다). 이름을 은퇴시키고 실제 기구로 바꾼다: `broad_search.sh cell` 이 반증 셀마다 `campaign_init --escalation-add` 로 후보를 쌓고(각 줄은 술어 ① 판정을 함께 든다), 캠페인 **종결 시** `--escalation-summary` 가 그것을 사람에게 올린다. 중간 발동하지 않는 이유: 빌드 평면 재전략은 통제변인을 바꾸므로 그 뒤 셀이 앞 셀과 비교 불가가 된다. recipe 측정/serve 재구현 금지.
 
 ## 7. 스킬 경계 / 인터페이스
 
-- **↔ recipe-explorer**: recipe 의 측정·serve 인프라를 **소비**, 위에 적대 루브릭/게이트만 얹는다. 기각 시 `next_strategy_hint` 로 재탐색 **자극**(feasibility 탐색은 recipe, performance 목표는 이 스킬이 주입).
+- **↔ recipe-explorer**: recipe 의 측정·serve 인프라를 **소비**, 위에 적대 루브릭/게이트만 얹는다. 기각 시 escalation 후보로 적재하고 종결 HITL 이 재탐색을 **승인**한다(feasibility 탐색은 recipe, performance 목표는 이 스킬이 주입). 술어 ① 의 판정 소유는 `vllm-recipe-explorer/scripts/escalation_predicate.py` 다.
 - **↔ upstream-version-watch**: "루브릭 못 충족 + 구조적" → **escalation 역루프** 핸드오프(M≪expected + 외부 확증 = 적대 증거). upstream 이 버전핀/rebuild 소유(승인 게이트).
 - **↔ wiki-desk**: 진입 시 warm-start(이전 동일 모델/HW 성능 증거 우선소비), 새 testlog 발행 시 입고. wiki 는 **sidecar** — 벤치 report/인증서/verdict 의 **소유자가 아니다**(이 스킬이 소유).
 - **블럭 분류 = 런타임블럭(서브 복제)**: 서브가 자기 모델에 자율 실행. **(b) 외부검색 arm = 서브도 웹 도구를 직접 갖는다**(2026-09-04 B안) — 검색 이력은 `external_search[]` 로 메인에 회수돼 자산이 된다. egress 가 `online` 이 아니면 **빈손을 빈손이라고 보고**하고 루프라인-only 로 판정한다(빈손과 미수행은 다른 사실이다). lite 스크립트(`lite_bench.sh`·`lite_metrics.py`)도 런타임블럭이라 **git-tracked 로 서브 자동 전파**.

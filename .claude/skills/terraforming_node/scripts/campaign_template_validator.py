@@ -440,6 +440,49 @@ def declared_node_ids(camp_dir: Path, role: str | None = None) -> list[str]:
     return out
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 측정노드 어휘 → 진행노드 어휘 (2026-09-11 신설 · plan_26091108 R0)
+#
+# 왜: 두 어휘가 갈라져 있었고 P2 가 그 둘을 **문자열 동일성**으로 이었다.
+#   · 증거 쪽 — `sweep_bench.sh` 는 multi 토폴로지에서 `measured_node="cluster"` 를 파생한다
+#     ("쌍이 하나의 측정 정체성"). 그 값이 인증서에 실려 `--evidence-add --node cluster` 로 온다.
+#   · 진행 쪽 — `phases/<node>/` 의 <node> 는 `campaign.yaml.nodes[]` 의 선언 노드(main·sub)다.
+#   따라서 **multi 캠페인은 벤치 증거가 도착하는 순간 P2 가 반드시 실패한다** — phases/cluster/ 는
+#   어떤 실행자도 만들지 않기 때문이다. purge 게이트가 구조적으로 열릴 수 없었다는 뜻이고,
+#   실제로 camp-26090918(multi · 인증서 2건)에서 그 상태가 관측됐다.
+#
+# 처방: 파생 축을 **선언 노드 집합으로 해소**한다. `cluster` 는 "이 캠페인의 선언 노드들이 함께
+#   낸 하나의 측정" 이므로, 그 측정을 구동한 노드 **하나**의 bench 진행표가 그것을 반영하면 족하다
+#   (multi 에서 GuideLLM 은 API 서버가 뜬 노드에만 붙는다 — `run_bench.sh --network host`).
+#   전 노드를 요구하면 Ray 워커(sub)의 없는 bench 진행표를 요구하게 되어 과잉차단이다.
+#
+# 이 목록은 **거울이다** — 정본은 producer(`sweep_bench.sh`)의 리터럴이고, 여기 사본이 갈라지면
+#   P2 가 조용히 눈이 먼다. 그래서 셀프테스트가 producer 파일을 열어 리터럴 실재를 교차검증한다
+#   (workflow.md §결정론 규율: "단일 소유가 불가능하면 교차검증이 차선이다").
+DERIVED_MEASUREMENT_NODES = ("cluster",)
+
+# 교차검증 앵커 — producer 의 코드 토큰(주석 ✗ · 리팩터를 따라간다).
+_DERIVED_NODE_PRODUCER = (
+    ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+    'measured_node, measured_node_source = "cluster"',
+)
+
+
+def resolve_measurement_node(tag: str, declared: list[str]) -> tuple[list[str], str]:
+    """측정 증거의 node_id 를 진행표 노드 후보로 해소한다.
+
+    반환 `(candidates, kind)`:
+      · `([tag], "declared")`   — 선언 노드 그 자체. 그 노드의 bench 진행표를 묻는다.
+      · `(declared, "derived")` — 파생 측정축(`cluster`). 후보 **중 하나**가 반영하면 통과.
+      · `([], "unknown")`       — 어느 어휘에도 없다. 오타를 조용히 통과시키지 않는다.
+    """
+    if tag in declared:
+        return [tag], "declared"
+    if tag in DERIVED_MEASUREMENT_NODES:
+        return list(declared), "derived"
+    return [], "unknown"
+
+
 def predicate_p2(camp_dir: Path) -> list[str]:
     """P2 — 증거가 도착한 (노드, 셀)의 phase 가 그 사실을 반영하는가.
 
@@ -483,20 +526,42 @@ def predicate_p2(camp_dir: Path) -> list[str]:
             f"P2 벤치 증거 {bench_total}건이 **전부** 노드 태그가 없다 — 이 상태의 P2 는 아무 노드도 "
             f"검사하지 않고 통과한다(공허 통과 금지 · 2026-09-08 재발 방지)")
     for node, paths in sorted(bench_nodes.items()):
-        status_path = camp_dir / "phases" / node / "bench.status.json"
-        if not status_path.is_file():
-            problems.append(f"P2 {node}: 벤치 증거 {len(paths)}건이 있는데 "
-                            f"phases/{node}/bench.status.json 이 없다 — 진행표가 증거보다 낡았다")
+        # 2026-09-11(R0): 증거의 노드 태그는 **측정 어휘**이고 phases/ 는 **진행 어휘**다.
+        #   둘을 문자열 동일성으로 이으면 multi 의 파생축(`cluster`)에서 항상 실패한다.
+        candidates, kind = resolve_measurement_node(node, nodes)
+        if kind == "unknown":
+            problems.append(
+                f"P2 {node}: 벤치 증거 {len(paths)}건의 노드 태그가 선언 노드({', '.join(nodes) or '없음'})"
+                f"에도 파생 측정축({', '.join(DERIVED_MEASUREMENT_NODES)})에도 없다 — "
+                f"어느 노드가 잰 것인지 해소할 수 없다(오타 또는 미선언 노드)")
             continue
-        try:
-            st = json.loads(status_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError) as exc:
-            problems.append(f"P2 {node}: bench.status.json 파손 — {exc}")
+        seen: list[str] = []
+        reflected = False
+        for cand in candidates:
+            status_path = camp_dir / "phases" / cand / "bench.status.json"
+            if not status_path.is_file():
+                continue
+            try:
+                st = json.loads(status_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as exc:
+                problems.append(f"P2 {cand}: bench.status.json 파손 — {exc}")
+                seen.append(cand)
+                continue
+            seen.append("%s(state=%r proof.ok=%r)"
+                        % (cand, st.get("state"), (st.get("proof") or {}).get("ok")))
+            if st.get("state") == "done" and (st.get("proof") or {}).get("ok") is True:
+                reflected = True
+                break
+        if reflected:
             continue
-        if st.get("state") != "done" or (st.get("proof") or {}).get("ok") is not True:
-            problems.append(f"P2 {node}: 벤치 증거가 도착했는데 bench phase 가 "
-                            f"state={st.get('state')!r} proof.ok={(st.get('proof') or {}).get('ok')!r} "
+        if not seen:
+            where = (f"phases/{candidates[0]}/bench.status.json" if kind == "declared"
+                     else "선언 노드 어디에도 bench.status.json")
+            problems.append(f"P2 {node}: 벤치 증거 {len(paths)}건이 있는데 {where} 이 없다 "
                             f"— 진행표가 증거보다 낡았다")
+            continue
+        problems.append(f"P2 {node}: 벤치 증거가 도착했는데 bench phase 가 그것을 반영하지 않는다 "
+                        f"— {'; '.join(seen)} (진행표가 증거보다 낡았다)")
     return problems
 
 
@@ -932,11 +997,44 @@ def _selftest() -> int:
         ck("단일노드에서는 그 하나의 노드에 귀속되어 bench phase 를 묻는다",
            any(x.startswith("P2 main") for x in predicate_p2(c2)))
 
+        # ── R0: 측정노드 어휘(`cluster`) → 진행노드 어휘 해소 (2026-09-11 · plan_26091108) ──
+        #    이 넷이 없으면 multi 캠페인의 purge 게이트가 구조적으로 열리지 않는다.
+        decl2(two_nodes, {"main": [{"cell": "cell-a"}], "sub": [{"cell": "cell-c"}]})
+        (c2 / "evidence_pointers.json").write_text(json.dumps({"pointers": [
+            {"kind": "certificate", "path": "CLAUDE.md", "cell_id": "cell-a",
+             "node_id": "cluster"}]}), encoding="utf-8")
+        ck("★R0 파생축 cluster 는 선언 노드 어디에도 bench 진행표가 없으면 검출",
+           any("cluster" in x and "선언 노드 어디에도" in x for x in predicate_p2(c2)))
+        (c2 / "phases" / "main").mkdir(parents=True, exist_ok=True)
+        (c2 / "phases" / "main" / "bench.status.json").write_text(json.dumps({
+            "schema_version": 1, "node_id": "main", "phase": "bench", "state": "running",
+            "proof": {"predicate": "리포트 실재", "ok": False, "source": "sweep_index.json"}}),
+            encoding="utf-8")
+        ck("★R0 진행표가 있어도 done+ok 가 아니면 반영하지 않은 것이다",
+           any("cluster" in x and "반영하지 않는다" in x for x in predicate_p2(c2)))
+        (c2 / "phases" / "main" / "bench.status.json").write_text(json.dumps({
+            "schema_version": 1, "node_id": "main", "phase": "bench", "state": "done",
+            "proof": {"predicate": "리포트 실재", "ok": True, "source": "docs/benchmark/r.md"}}),
+            encoding="utf-8")
+        ck("★R0 구동 노드 하나가 반영하면 통과(Ray 워커의 없는 bench 를 요구하지 않는다)",
+           not any(x.startswith("P2 cluster") for x in predicate_p2(c2)))
+        (c2 / "evidence_pointers.json").write_text(json.dumps({"pointers": [
+            {"kind": "certificate", "path": "CLAUDE.md", "cell_id": "cell-a",
+             "node_id": "maiin"}]}), encoding="utf-8")
+        ck("★R0 어느 어휘에도 없는 태그는 오타로 지목한다(조용한 통과 ✗)",
+           any("maiin" in x and "해소할 수 없다" in x for x in predicate_p2(c2)))
+        # 교차검증 — 이 파일의 파생축 목록은 거울이다. 정본(producer)의 리터럴이 사라지면
+        # 여기 사본이 조용히 틀린 말을 하게 되므로, 리터럴 실재를 시험이 붙잡는다.
+        _prod = REPO_ROOT / _DERIVED_NODE_PRODUCER[0]
+        ck("★R0 파생축 리터럴이 producer 에 실재한다(거울 갈라짐 방지)",
+           _prod.is_file() and _DERIVED_NODE_PRODUCER[1] in _prod.read_text(encoding="utf-8"))
+        (c2 / "phases" / "main" / "bench.status.json").unlink()
+
         decl2(two_nodes, {"main": [{"cell": "cell-a"}], "sub": [{"cell": "cell-c"}]})
         (c2 / "evidence_pointers.json").unlink()
         ck("★P4 는 메인 시각이 없으면 그 사실을 말한다",
            any("시각이 하나도 없다" in x for x in predicate_p4(c2)))
-        (c2 / "phases" / "main").mkdir(parents=True)
+        (c2 / "phases" / "main").mkdir(parents=True, exist_ok=True)
         (c2 / "phases" / "main" / "build.status.json").write_text(json.dumps({
             "schema_version": 1, "node_id": "main", "phase": "build", "state": "done",
             "first_started_utc": "2026-09-08T10:00:00Z", "started_utc": "2026-09-08T20:00:00Z",

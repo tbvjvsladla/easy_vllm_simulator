@@ -468,12 +468,39 @@ def _sweep_measurement(sweep_path: Path, cell: str) -> "tuple[float | None, str]
     return None, f"sweep 기록에 셀 {cell!r} 이 없다: {_rel(sweep_path)}"
 
 
+def _sweep_image(sweep_path: Path, cell: str) -> "tuple[dict | None, str]":
+    """sweep 레코드에서 **이미지 정체성**(digest·tag)을 읽는다 (2026-09-11 · plan_26091108 R5).
+
+    왜 셀 좌표에 이미지 축이 필요한가: 셀 간 비교는 **같은 이미지 안에서만** 성립한다. 태그는
+    이름이라 같은 태그가 다른 내용을 가리킬 수 있고(2026-08 실측: 0.27.1 소스 빌드가 wheel 태그로
+    나갔다), 그때 지도는 두 다른 빌드를 한 축 위에 나란히 놓는다. digest 는 내용이다.
+    측정 평면에는 이미 있었고(sweep meta) **셀 평면으로 올라오지 않았다** — 그 한 홉이 빠져서
+    캠페인 아티팩트만 보면 어떤 이미지로 잰 것인지 알 수 없었다.
+    """
+    doc = _read_json(sweep_path)
+    if not isinstance(doc, dict):
+        return None, f"sweep 기록을 읽지 못했다: {_rel(sweep_path)}"
+    for rec in (doc.get("cells") or []):
+        if not isinstance(rec, dict) or rec.get("cell_key") != cell:
+            continue
+        coord = rec.get("coordinates") if isinstance(rec.get("coordinates"), dict) else {}
+        dig, tag = coord.get("image_digest"), coord.get("image_tag")
+        if not dig:
+            return None, (f"sweep 레코드에 image_digest 가 없다: {_rel(sweep_path)} "
+                          f"cell_key={cell} (측정 평면이 그 좌표를 싣지 않았다)")
+        return ({"digest": str(dig), "tag": (str(tag) if tag else None),
+                 "source": (f"sweep:{_rel(sweep_path)}"
+                            f"#cells[cell_key={cell}].coordinates.image_digest")}, "")
+    return None, f"sweep 기록에 셀 {cell!r} 이 없다: {_rel(sweep_path)}"
+
+
 def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
                     version: str | None, model: str | None,
                     decode_tps: str | None, measurement_source: str | None,
                     void_reason: str | None, void_reason_source: str | None,
                     axis_citation: str | None, next_intent: str | None,
-                    utc: str | None, sweep_state: str | None = None
+                    utc: str | None, sweep_state: str | None = None,
+                    image_digest: str | None = None, image_tag: str | None = None
                     ) -> "tuple[Path, Path | None]":
     if outcome not in CELL_OUTCOMES:
         raise WriterRefusal(f"cell_outcome 은 {CELL_OUTCOMES} 중 하나여야 한다: {outcome!r}")
@@ -524,6 +551,36 @@ def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
     else:
         meas.pop("gap", None)
     doc["measurement"] = meas
+
+    # ── 이미지 축(R5) — 파생 우선, 선언 보조, 모순은 거부 ─────────────────────────────────
+    #   **차단하지 않는다**: 결손은 기재하고 진행한다(진행을 막는 자리는 선언 확인 팝업·purge
+    #   게이트·발행 게이트 셋뿐이다). 다만 파생값과 선언값이 **다르면** 그것은 결손이 아니라
+    #   거짓이므로 거부한다 — 둘 중 하나는 틀렸고, 틀린 좌표는 지도를 조용히 오염시킨다.
+    img = doc.get("image") if isinstance(doc.get("image"), dict) else {}
+    derived, why = (None, "")
+    if sweep_state:
+        derived, why = _sweep_image(Path(sweep_state), cell)
+    if derived and image_digest and derived["digest"] != image_digest:
+        raise WriterRefusal(
+            "이미지 좌표가 모순이다 — 선언=%s · sweep 파생=%s (%s). 결손이 아니라 거짓이므로 "
+            "기재하지 않는다. 어느 쪽이 이 셀을 실제로 돌린 이미지인지 먼저 가려라."
+            % (image_digest, derived["digest"], derived["source"]))
+    if derived:
+        img.update(derived)
+        img.pop("gap", None)
+    elif image_digest:
+        img.update({"digest": image_digest, "tag": image_tag,
+                    "source": "campaign_init --image-digest(선언)"})
+        img.pop("gap", None)
+    else:
+        img.setdefault("digest", None)
+        img.setdefault("tag", image_tag)
+        img.setdefault("source", None)
+        img["gap"] = (why or "이미지 digest 가 도착하지 않았다 — --sweep-state 도 --image-digest 도 "
+                             "없다. 셀 간 비교는 같은 digest 안에서만 성립하므로, 이 셀은 "
+                             "다른 셀과 나란히 놓을 수 없다(결손 기재).")
+    doc["image"] = img
+
     # C3(policy:LIBRARY_GROUNDING_FAIL_CLOSED) — 산출물은 자기 그라운딩을 **스스로 밝힌다**.
     # 표시가 없으면 "참조해서 정했다"와 "그냥 정했다"가 데이터에서 구분되지 않고, 그러면
     # 헌법 불변식 B("인용 없는 결정은 누락")가 집행 불가가 된다(결정론 규율 §출처 표시와 같은 형태).
@@ -551,6 +608,111 @@ def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
             "axis_citation": axis_citation, "next_intent": next_intent,
             "source": "campaign_init --cell-set"})
     return path, journey
+
+
+ESCALATION_NAME = "escalation_candidates.jsonl"
+
+
+def judge_escalation_predicate(symptoms, *, events=None, started_utc=None, ended_utc=None) -> dict:
+    """술어 ① 을 **소유자에게 묻는다** — 판정 로직을 여기 복제하지 않는다.
+
+    정본은 `vllm-recipe-explorer/scripts/escalation_predicate.py` 이고(사살 어휘의 정본은 다시
+    `classify_cell.py` 다), 이 함수는 호출부다. 소유자가 없으면 **추측하지 않고** 그 사실을
+    판정에 싣는다 — 없는 판정을 `false` 로 적으면 "① 이 서지 않았다" 와 "물을 데가 없었다" 가
+    구분되지 않는다.
+    """
+    import importlib.util
+    mod_path = (Path(__file__).resolve().parents[2] / "vllm-recipe-explorer" / "scripts"
+                / "escalation_predicate.py")
+    if not mod_path.is_file():
+        return {"predicate_1": None, "model_plane_standing": [], "model_plane_refuted": [],
+                "host_plane_ignored": [], "unknown_symptoms": list(symptoms or []),
+                "evidence_source": "none",
+                "reasons": [f"술어 ① 판정기가 없다({mod_path}) — 판정 불가를 false 로 적지 않는다. "
+                            f"vllm-recipe-explorer 배달을 확인하라."]}
+    spec = importlib.util.spec_from_file_location("_escalation_predicate", mod_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    hits = []
+    scanned = "none"
+    if events and started_utc and ended_utc:
+        classify = mod._load_classifier()
+        lines = []
+        for path in events:
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    lines.extend(fh.readlines())
+            except OSError:
+                continue
+        hits = classify.kill_events_in_window(
+            lines, classify._utc(started_utc, "--window-start-utc"),
+            classify._utc(ended_utc, "--window-end-utc"), 0)
+        scanned = ",".join(events)
+    return mod.judge(symptoms or [], hits, scanned)
+
+
+def writer_append_escalation(base: Path, entry: dict) -> Path:
+    """escalation 후보 한 줄 (2026-09-11 신설 · plan_26091108 R6). append-only.
+
+    왜 있는가. 헌법은 escalation 역루프를 갖고 SKILL.md 는 `next_strategy_hint` 로 재탐색을
+    자극한다고 적었는데, **그 이름을 생성하거나 소비하는 코드가 저장소 전체에 0 건**이었다.
+    산문에만 있는 루프는 돌지 않는다 — camp-26090918 은 셀이 12번 죽는 동안 빌드·서빙 전략의
+    재수립을 한 번도 제안하지 않았다.
+
+    왜 **원장에 쌓고 종결 시 묻는가**(사용자 결정 · plan 옵션 ii): 빌드 평면까지 건드리는
+    재전략은 이미지 재빌드를 뜻하고, 그것을 캠페인 중간에 발동시키면 통제변인이 캠페인 도중
+    바뀐다 — 그 뒤의 셀은 앞의 셀과 비교할 수 없게 된다. 그래서 후보는 **쌓기만** 하고 발동은
+    종결 시 사람이 판단한다.
+
+    ★ 후보 ≠ escalation. 각 줄은 술어 ①(`escalation_predicate.py`)의 판정을 **함께** 든다 —
+      호스트 평면 사인으로 죽은 셀은 후보 목록에 남되 `predicate_1: false` 로 남아, 종결
+      HITL 이 "이건 예산 문제지 빌드 문제가 아니다" 를 데이터로 읽는다.
+    """
+    path = base / ESCALATION_NAME
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n")
+    return path
+
+
+def read_escalations(base: Path) -> list:
+    path = base / ESCALATION_NAME
+    if not path.is_file():
+        return []
+    out = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(rec, dict):
+            out.append(rec)
+    return out
+
+
+def escalation_summary(base: Path) -> dict:
+    """종결 HITL 이 읽는 요약. **판정하지 않는다** — 세어서 보여주고 사람이 정한다."""
+    rows = read_escalations(base)
+    standing = [r for r in rows if r.get("predicate_1") is True]
+    host = [r for r in rows if r.get("predicate_1") is False
+            and (r.get("host_plane_ignored") or r.get("model_plane_refuted"))]
+    return {
+        "campaign_id": base.name,
+        "total": len(rows),
+        "predicate_1_standing": len(standing),
+        "host_plane_only": len(host),
+        "cells_standing": sorted({str(r.get("cell_id")) for r in standing}),
+        "cells_host_plane": sorted({str(r.get("cell_id")) for r in host}),
+        "hitl_required": bool(standing),
+        "rows": rows,
+        "_note": ("술어 ① 이 선 후보가 하나라도 있으면 캠페인 종결 시 사람에게 묻는다 — 빌드 평면 "
+                  "재전략(포크 핀·빌드 패치·이미지 재빌드)은 통제변인을 바꾸므로 캠페인 중간에 "
+                  "발동하지 않는다. ① 이 서지 않은 줄은 예산·호스트 평면의 일이며 그 처방은 "
+                  "R1~R3 의 게이트가 이미 갖고 있다."),
+    }
 
 
 def writer_append_journey(base: Path, entry: dict) -> Path:
@@ -1805,6 +1967,64 @@ def _selftest() -> int:
         else:
             ck("분류기 경로를 찾지 못했다(어휘 대조 불가 — 부재를 통과로 접지 않는다)", False)
 
+        # ── R5 이미지 축 · R6 escalation 후보 (2026-09-11 · plan_26091108) ──────────────
+        (camp / "sweeps").mkdir(parents=True, exist_ok=True)
+        _sw = camp / "sweeps" / "img.json"
+        _sw.write_text(json.dumps({"cells": [{"cell_key": "ci1", "cell_outcome": "measured",
+            "coordinates": {"image_digest": "sha256:aaa", "image_tag": "t:1"},
+            "concurrency_vector": {"1": 9.5}}]}), encoding="utf-8")
+        writer_set_cell(camp, cell="ci1", outcome="measured", node="main", version=None,
+                        model=None, decode_tps=None, measurement_source=None, void_reason=None,
+                        void_reason_source=None, axis_citation=None, next_intent=None,
+                        utc="2026-09-11T00:00:00Z", sweep_state=str(_sw))
+        _ci1 = _read_json(camp / "cells" / "ci1" / "cell.status.json") or {}
+        ck("★R5 이미지 좌표를 sweep 에서 파생한다(호출부가 나르지 않는다)",
+           (_ci1.get("image") or {}).get("digest") == "sha256:aaa"
+           and "sweep:" in ((_ci1.get("image") or {}).get("source") or ""))
+        writer_set_cell(camp, cell="ci2", outcome="measured", node="main", version=None,
+                        model=None, decode_tps=None, measurement_source=None, void_reason=None,
+                        void_reason_source=None, axis_citation=None, next_intent=None,
+                        utc="2026-09-11T00:00:00Z")
+        _ci2 = _read_json(camp / "cells" / "ci2" / "cell.status.json") or {}
+        ck("★R5 digest 가 없으면 **결손을 기재**한다(차단 ✗ — 진행을 막는 자리는 셋뿐)",
+           (_ci2.get("image") or {}).get("digest") is None
+           and "digest" in ((_ci2.get("image") or {}).get("gap") or ""))
+        ck("★R5 음성대조: 파생값과 다른 digest 를 선언하면 거부한다(결손이 아니라 거짓)",
+           _boom(lambda: writer_set_cell(camp, cell="ci1", outcome="measured", node="main",
+                 version=None, model=None, decode_tps=None, measurement_source=None,
+                 void_reason=None, void_reason_source=None, axis_citation=None,
+                 next_intent=None, utc="2026-09-11T00:00:00Z", sweep_state=str(_sw),
+                 image_digest="sha256:bbb")))
+
+        _kill = ['{"ts":"2026-09-11T00:00:30Z","kind":"watchdog_kill_ack","source":"unit:x"}']
+        _evp = camp / "ev.jsonl"
+        _evp.write_text("\n".join(_kill), encoding="utf-8")
+        v_host = judge_escalation_predicate(["serve_init_immediate_death"], events=[str(_evp)],
+                                            started_utc="2026-09-11T00:00:00Z",
+                                            ended_utc="2026-09-11T00:01:00Z")
+        writer_append_escalation(camp, {"utc": "2026-09-11T00:01:00Z", "cell_id": "ehost",
+                                        "predicate_1": v_host["predicate_1"],
+                                        "host_plane_ignored": v_host["host_plane_ignored"],
+                                        "model_plane_refuted": v_host["model_plane_refuted"]})
+        v_std = judge_escalation_predicate(["config_arch_unsupported"])
+        writer_append_escalation(camp, {"utc": "2026-09-11T00:02:00Z", "cell_id": "estand",
+                                        "predicate_1": v_std["predicate_1"],
+                                        "host_plane_ignored": v_std["host_plane_ignored"],
+                                        "model_plane_refuted": v_std["model_plane_refuted"]})
+        _sum = escalation_summary(camp)
+        ck("★R6 사살로 죽은 셀은 후보에 남되 술어 ① 이 서지 않는다(예산 문제와 빌드 문제를 가른다)",
+           _sum["cells_host_plane"] == ["ehost"] and _sum["predicate_1_standing"] == 1)
+        ck("★R6 모델 평면 증상은 ① 이 서고 종결 HITL 을 요구한다",
+           _sum["cells_standing"] == ["estand"] and _sum["hitl_required"] is True)
+        ck("★R6 음성대조: 후보가 하나도 없으면 HITL 을 요구하지 않는다(과잉차단 ✗)",
+           escalation_summary(camp / "___none")["hitl_required"] is False)
+        _bs = (Path(__file__).resolve().parents[2] / "adversarial-benchmark" / "scripts"
+               / "broad_search.sh")
+        ck("★R6 producer 배선 앵커: 반증 셀에서 후보를 쌓는 호출부가 실재한다",
+           _bs.is_file() and "--escalation-add" in _bs.read_text(encoding="utf-8"))
+        ck("★R10 셀 키 어휘가 갈라져 노드를 못 구하면 **소리를 낸다**(종전엔 조용히 건너뛰었다)",
+           _bs.is_file() and "bench 진행표·브리핑 미기록" in _bs.read_text(encoding="utf-8"))
+
     CAMPAIGNS, ACTIVE_POINTER, REPO_ROOT = saved
     print("[campaign_init] " + ("PASS" if ok else "FAIL"))
     return 0 if ok else 1
@@ -1838,6 +2058,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--grounding-check", action="store_true",
                     help="그라운딩 기록이 성립하는지 묻는다 — 진입 백스톱(C2)이 부른다. "
                          "부재는 rc 4(fail-closed) · 활성 캠페인이 없으면 rc 0")
+    ap.add_argument("--escalation-summary", action="store_true",
+                    help="캠페인 종결 HITL 이 읽는 escalation 후보 요약(JSON) — 판정하지 않고 "
+                         "센다. 술어 ① 이 선 후보가 있으면 hitl_required=true")
     ap.add_argument("--warm-start-library", action="store_true",
                     help="서가 증분 입고만 수행한다(C4 — 발행기·publish 위상 종료부가 부른다)")
     ap.add_argument("--backfill-from-docs", action="store_true",
@@ -1873,8 +2096,22 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--version"); w.add_argument("--model")
     w.add_argument("--measurement-decode-tps"); w.add_argument("--measurement-source")
     w.add_argument("--sweep-state", metavar="PATH",
-                   help="--cell-set 이 이 sweep 기록에서 측정값을 직접 읽는다 "
+                   help="--cell-set 이 이 sweep 기록에서 측정값·이미지 좌표를 직접 읽는다 "
                         "(호출부가 값을 나르지 않는다 · 없으면 결손 기재)")
+    w.add_argument("--escalation-add", action="store_true",
+                   help="escalation 후보 한 줄을 원장에 쌓는다 · --cell --utc 필수 "
+                        "(--symptom 반복 · 술어 ① 은 escalation_predicate.py 가 판정한다)")
+    w.add_argument("--symptom", action="append", default=[],
+                   help="--escalation-add 의 관측 증상(반복 가능). 호스트 평면 사인은 술어 ① 을 "
+                        "만들지 못하지만 **기록은 남는다**(부재와 무관은 다른 사실)")
+    w.add_argument("--events", action="append", default=[],
+                   help="--escalation-add 의 시각 대조용 노드 블랙박스 events jsonl(반복 가능)")
+    w.add_argument("--window-start-utc", help="--escalation-add 의 대조 구간 시작")
+    w.add_argument("--window-end-utc", help="--escalation-add 의 대조 구간 끝")
+    w.add_argument("--image-digest", metavar="SHA",
+                   help="이 셀을 돌린 이미지의 digest(태그 ✗ — 태그는 이름이고 digest 는 내용이다). "
+                        "--sweep-state 로 파생되면 그쪽이 이기고, 둘이 다르면 거부한다")
+    w.add_argument("--image-tag", metavar="TAG", help="사람이 읽는 이름(비교 권위 아님)")
     w.add_argument("--authored-by", metavar="NODE",
                    help="--phase-set: 이 진행표를 적은 주체(서브 자기저작 vs 메인 사후 재저작 판별)")
     w.add_argument("--void-reason"); w.add_argument("--void-reason-source")
@@ -1949,6 +2186,15 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 sys.stdout.write(blob)
             return 0
+        if a.escalation_summary:
+            tgt = _writer_target(a.campaign_id)
+            if tgt is None:
+                print(json.dumps({"campaign_id": None, "total": 0, "hitl_required": False,
+                                  "_note": "ACTIVE=_bootstrap — 캠페인 밖에는 후보가 없다"},
+                                 ensure_ascii=False))
+                return 0
+            print(json.dumps(escalation_summary(tgt[0]), ensure_ascii=False, indent=2))
+            return 0
         if a.write_brief:
             if not a.node or not a.utc:
                 raise WriterRefusal("--write-brief 는 --node 와 --utc 가 필요하다")
@@ -1961,7 +2207,8 @@ def main(argv: list[str] | None = None) -> int:
                   f"{_rel(write_campaign_brief(tgt[0], node=a.node, utc=a.utc))}")
             return 0
         writer_ops = (a.phase_set, a.cell_set, a.evidence_add, a.freeze_evidence, a.revise,
-                      a.evidence_prune_stubs, a.import_sub, a.backfill_from_docs, a.ground)
+                      a.evidence_prune_stubs, a.import_sub, a.backfill_from_docs, a.ground,
+                      a.escalation_add)
         if any(writer_ops):
             tgt = _writer_target(a.campaign_id)
             if tgt is None:
@@ -1992,10 +2239,29 @@ def main(argv: list[str] | None = None) -> int:
                     measurement_source=a.measurement_source,
                     void_reason=a.void_reason, void_reason_source=a.void_reason_source,
                     axis_citation=a.axis_citation, next_intent=a.next_intent, utc=a.utc,
-                    sweep_state=a.sweep_state)
+                    sweep_state=a.sweep_state,
+                    image_digest=a.image_digest, image_tag=a.image_tag)
                 wrote.append(_rel(cpath))
                 if jpath is not None:
                     wrote.append(_rel(jpath))
+            if a.escalation_add:
+                if not a.cell or not a.utc:
+                    raise WriterRefusal("--escalation-add 는 --cell 과 --utc 가 필요하다")
+                verdict = judge_escalation_predicate(
+                    a.symptom, events=a.events,
+                    started_utc=a.window_start_utc, ended_utc=a.window_end_utc)
+                epath = writer_append_escalation(base, {
+                    "utc": a.utc, "cell_id": a.cell, "node_id": a.node,
+                    "symptoms": list(a.symptom),
+                    "predicate_1": verdict["predicate_1"],
+                    "model_plane_standing": verdict["model_plane_standing"],
+                    "model_plane_refuted": verdict["model_plane_refuted"],
+                    "host_plane_ignored": verdict["host_plane_ignored"],
+                    "unknown_symptoms": verdict["unknown_symptoms"],
+                    "evidence_source": verdict["evidence_source"],
+                    "reasons": verdict["reasons"],
+                    "source": "campaign_init --escalation-add"})
+                wrote.append(_rel(epath))
             if a.evidence_add:
                 if not a.kind or not a.path:
                     raise WriterRefusal("--evidence-add 는 --kind 와 --path 가 필요하다")

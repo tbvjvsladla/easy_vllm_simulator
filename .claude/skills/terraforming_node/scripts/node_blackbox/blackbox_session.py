@@ -395,6 +395,32 @@ def _declare_budget(args, now):
     return 0
 
 
+def cmd_budget_status(args):
+    """현행 선언을 **읽는** 통로 (2026-09-11 신설 · plan_26091108 R3).
+
+    왜: 선언을 쓰는 문은 있었는데 **읽는 문이 없었다**. 벤치 진입에서 "지금 선언된 바닥이
+    얼마인가" 를 물어야 하는데 통로가 없으니 호출부가 예산 파일을 직접 파싱하게 되고, 그러면
+    워치독·여기·거기 셋이 같은 파일을 각자 읽는 형태가 된다(반드시 갈린다). 파서의 단일 소유는
+    이 파일이고 여기는 그것을 그대로 내보낸다.
+
+    종료: 0=선언 있음 · 3=선언 없음/파손(부재는 실패가 아니라 사실이므로 rc 를 가른다).
+    """
+    cur = _read_budget(args.node_dir)
+    if cur is None:
+        print(json.dumps({"declared": False, "path": _budget_path(args.node_dir)},
+                         ensure_ascii=False))
+        return 3
+    now_epoch = _epoch(_parse_now(args.now)) if getattr(args, "now", None) else None
+    out = dict(cur)
+    out["declared"] = True
+    out["path"] = _budget_path(args.node_dir)
+    if now_epoch is not None:
+        out["remaining_s"] = cur["expires_epoch"] - now_epoch
+        out["expired"] = cur["expires_epoch"] <= now_epoch
+    print(json.dumps(out, ensure_ascii=False))
+    return 0
+
+
 def cmd_renew_budget(args):
     """현행 선언의 **만료만** 연장한다 — 상주 서빙(`--keep-up`)의 TTL 결속(plan_26081415 C4-3).
 
@@ -879,6 +905,11 @@ def main():
     b.add_argument("--label")
     b.add_argument("--now", required=True, help="YYYY-MM-DDTHH:MM:SSZ (벽시계 금지)")
     b.set_defaults(func=cmd_declare_budget)
+
+    bst = sub.add_parser("budget-status",
+                         help="현행 선언을 JSON 으로 읽는다(벤치 진입 게이트의 입력 · rc 3=미선언)")
+    bst.add_argument("--now", help="주면 remaining_s·expired 를 함께 낸다")
+    bst.set_defaults(func=cmd_budget_status)
 
     br = sub.add_parser("renew-budget",
                         help="현행 선언의 만료만 연장(상주 서빙 · plan_26081415 C4-3)")

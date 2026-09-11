@@ -701,6 +701,14 @@ OVERLAY_RELOCATION_STALE_PATHS=(
 OVERLAY_RETIREMENT_STALE_PATHS=(
     scripts/smoke_clone.sh
     scripts/sync_branches.sh
+    # ★ 2026-09-11(plan_26091108 S3 부수 교정): 2026-09-08 커밋 `f7ec026` 이 이 경로를 상위
+    #   `OVERLAY_STALE_PATHS` 에만 넣고 여기를 빠뜨려 **파티션 단언이 깨져 있었다** — 바로 위
+    #   `tasks/.gitkeep` 주석이 "커밋 3263339 는 상위 배열에만 넣고 여기를 빠뜨렸다" 고 적어 둔
+    #   그 실패가 다음 편집에서 그대로 재발했다(목록이 거울이면 갈라진다).
+    #   은퇴로 분류하는 근거는 이 파일 자신의 주석이다 — 메인의 해소 결과는 **싱글 서브에 가지
+    #   않으며** 서브에 대체 자리가 없다(서브는 자기 HW 로 스스로 해소한다). 대체가 없는 삭제는
+    #   이관이 아니라 은퇴이고, 그래서 활성 소비자 감사를 먼저 받는다.
+    .claude/skills/upstream-version-watch/assets/current-production-resolution.json
 )
 
 # ── 서브 git 헬퍼 ──

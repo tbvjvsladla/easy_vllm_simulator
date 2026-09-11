@@ -54,6 +54,29 @@ def read_config_kv_mib(config_yaml):
     return None
 
 
+def read_config_max_model_len(config_yaml):
+    """트리플렛 yaml 의 `max-model-len`. 없으면 None."""
+    with open(config_yaml, encoding="utf-8") as f:
+        for line in f:
+            m = re.match(r"\s*max[-_]model[-_]len\s*:\s*(\d+)", line)
+            if m:
+                return int(m.group(1))
+    return None
+
+
+def triplet_declares_rope_override(config_yaml):
+    """트리플렛이 rope 확장을 **실제로** 싣고 있는가(주석 ✗ · 값이 있어야 한다)."""
+    with open(config_yaml, encoding="utf-8") as f:
+        for line in f:
+            if re.match(r"\s*#", line):
+                continue                      # 주석은 인자가 아니다
+            if re.search(r"(hf[-_]overrides|rope[-_]scaling)\s*:", line):
+                return True
+            if "VLLM_ALLOW_LONG_MAX_MODEL_LEN" in line:
+                return True
+    return False
+
+
 def read_manifest_tp(base):
     """<base>/manifest.yaml 에서 TP = gpus_per_node × 노드 수(role: 라인 수, nodes 비면 1).
     **topology=single 이면 노드 배수 = 1 고정** — single 의 nodes[role=sub]는 sub-control 피어이지
@@ -195,6 +218,47 @@ def main():
         #   **로드 13분**을 태우고서야 이루어졌다. index.json 키 스캔은 0.07초다.
         #   여기 배선하는 이유: 도구만 만들고 호출을 안 하면 교훈이 파일 단위로 갇힌다.
         #   ⚠ 조기 차단 전용이다 — PASS 는 서빙 성공을 뜻하지 않는다(R1-a 는 로더를 통과했다).
+        # ── 컨텍스트 확장 선판정(2026-09-11 신설 · plan_26091108 R8) ──────────────────────
+        #   vLLM 은 `max_model_len > max_position_embeddings` 를 **로드 진입에서** ValidationError
+        #   로 친다. 그 판정을 여기로 당긴다 — camp-26090918 에서 이 죽음이 "YaRN 확장 미적용
+        #   (셀 축에 미포함)" 으로 기록돼 **원인이 반대로** 남았고, 축 자체가 없었다는 거짓이 8셀의
+        #   사인이 됐다. 같은 판정을 0.1초에 하고, 막는 대신 **넣을 줄을 그대로 찍어 준다.**
+        _mml = read_config_max_model_len(cfg)
+        if _mml is not None:
+            _tr = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
+                               "vllm-recipe-explorer", "scripts", "rope_scaling_translate.py")
+            _tr = os.path.normpath(_tr)
+            if os.path.isfile(_tr):
+                import json as _json
+                import subprocess
+                _r = subprocess.run([sys.executable, _tr, "--model-dir", host_path,
+                                     "--target-len", str(_mml), "--json"],
+                                    capture_output=True, text=True)
+                try:
+                    _rope = _json.loads(_r.stdout)
+                except ValueError:
+                    _rope = None
+                if _rope and _rope.get("needed") and not triplet_declares_rope_override(cfg):
+                    print("[NAS-check] STOP: max-model-len=%d 이 모델 네이티브 %s(%s)를 넘는데 "
+                          "트리플렛에 rope 확장 인자가 없다." % (
+                              _mml, _rope.get("native_max_position_embeddings"),
+                              _rope.get("native_source")), file=sys.stderr)
+                    print("     ⇒ 이대로 로드하면 vLLM 이 ValidationError 로 즉사한다. "
+                          "로드는 **0초도 시작하지 않았다**.", file=sys.stderr)
+                    if _rope.get("hf_overrides"):
+                        print("     트리플렛에 이 줄을 넣어라(기존 rope 키를 전부 실은 병합 결과다 — "
+                              "갈아끼우면 mrope·partial rotary 가 사라진다):", file=sys.stderr)
+                        print("       hf-overrides: '%s'"
+                              % _json.dumps(_rope["hf_overrides"], separators=(",", ":")),
+                              file=sys.stderr)
+                    for _u in (_rope.get("unknowns") or []):
+                        print("     ⚠ 미검증: %s" % _u, file=sys.stderr)
+                    for _why in (_rope.get("reasons") or []):
+                        print("     · %s" % _why, file=sys.stderr)
+                    sys.exit(9)
+            else:
+                print("[NAS-check] ⚠ rope 번역기 부재 — 컨텍스트 확장 선판정 생략", file=sys.stderr)
+
         if not a.no_spec_layout_check:
             spec_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                        "check_spec_layout.py")
@@ -242,9 +306,20 @@ def main():
                     #   weights 는 노드당 몫이므로 스모크가 ckpt÷tp 로 나눈다(R0 실측 79,578 과 일치).
                     if a.emit_gate_params and ckpt:
                         kvm = read_config_kv_mib(cfg)
-                        print("[NAS-check] BUDGET_PARAMS ckpt_mib=%d tp=%d kv_mib=%s"
+                        # ★ 2026-09-11(plan_26091108 R2): `ple_mib` 를 함께 싣는다. weights 는
+                        #   `ckpt ÷ tp` 인데 그 일부가 NVMe mmap 으로 빠지면 **상주하지 않는다** —
+                        #   파일 크기 기준이라 res/mmp 가 같은 값이 되고, 게이트가 실제로 뜨는
+                        #   셀(camp-26090918 `fp8+mmp`, 실서빙 성공)을 죽인다. 모드 판정은 여기서
+                        #   하지 않는다: 그건 serve 평면의 사실(`VLLM_PLE_MMAP`)이고 스모크가 든다.
+                        #   여기는 **모델 사실**(이 체크포인트에서 빠질 수 있는 바이트)만 낸다.
+                        _n0 = len(warns)
+                        _ple = preload_ram_gate.offloadable_bytes_for(host_path, warnings=warns)
+                        for w in warns[_n0:]:
+                            print(f"[NAS-check] ⚠ {w}", file=sys.stderr)
+                        print("[NAS-check] BUDGET_PARAMS ckpt_mib=%d tp=%d kv_mib=%s ple_mib=%s"
                               % (int(ckpt / (1024 * 1024)), tp,
-                                 kvm if kvm is not None else "none"))
+                                 kvm if kvm is not None else "none",
+                                 int(_ple / (1024 * 1024)) if _ple is not None else "unknown"))
                     if res["ok"] and not res.get("skipped"):
                         print("[NAS-check] RAM-gate PASS: MemAvailable=%sMiB ≥ required=%sMiB(ckpt÷tp=%d+floor)"
                               % (res["avail_after_mib"], res["required_mib"], tp))

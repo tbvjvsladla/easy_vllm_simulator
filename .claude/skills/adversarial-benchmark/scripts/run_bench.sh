@@ -277,6 +277,50 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
   TOTAL_REQ=$(( NPROMPTS + WARMUPS ))
   WARM_FRAC="$(python3 -c "print(round($WARMUPS/max($TOTAL_REQ,1), 4))")"
 
+  # ── 벤치 진입 예산 게이트(2026-09-11 신설 · plan_26091108 R3) ─────────────────────────
+  #   ★ 종전에는 **끊겨 있었다**: 이 컨테이너는 `--memory ${BENCH_BUDGET_MIB}m` 하드 제한을
+  #     갖는데, 서빙 예산 선언은 `weights+kv+overhead` 만 파생하고 벤치 몫을 잇는 코드가 0 건이었다.
+  #     그 결과 camp-26090918 의 `fp8-bf-262k-mmp` 은 **서빙에 성공하고 벤치에서 죽었다**
+  #     (바닥 15,280 − 8,192 = 7,088 < 절대밴드 10,240).
+  #   ★ 위상: serve overhead 에 **더하지 않는다.** 이 컨테이너는 로드 시점에 상주하지 않으므로
+  #     로드 게이트에 상주분으로 넣으면 그만큼 과보수적으로 틀려 뜰 수 있는 셀을 죽인다.
+  #     묻는 자리는 **여기**(벤치 진입)이고, 묻는 것은 "지금 선언된 바닥에서 이 몫을 빼도
+  #     절대밴드가 남는가" 다.
+  #   ★ 노드: GuideLLM 은 `--network host` 로 `localhost:$PORT` 에 붙으므로 **API 서버가 뜬
+  #     노드에만** 존재한다(multi 에서는 메인). 그래서 이 노드의 선언만 본다 — 양 노드에
+  #     같은 몫을 반영하면 서브 예산이 없는 비용을 계상한다.
+  local _BB_DIR="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox"
+  local _SESSION_PY="$_BB_DIR/blackbox_session.py"
+  local _PREFLIGHT="$REPO/.claude/skills/upstream-version-watch/scripts/budget_preflight.py"
+  if [ -f "$_BB_DIR/node_identity.sh" ] && [ -f "$_SESSION_PY" ] && [ -f "$_PREFLIGHT" ]; then
+    # shellcheck source=/dev/null
+    . "$_BB_DIR/node_identity.sh"
+    local _NID _NDIR _BSTAT _BRC _FLOOR
+    if _NID="$(ni_resolve_node_id "$REPO" "" 2>/dev/null)" && [ -n "$_NID" ]; then
+      _NDIR="$REPO/docs/logs/$_NID"
+      _BSTAT="$(python3 "$_SESSION_PY" --node-dir "$_NDIR" budget-status --now "$(date -u +%FT%TZ)" 2>/dev/null)"; _BRC=$?
+      if [ "$_BRC" = "0" ]; then
+        _FLOOR="$(printf '%s' "$_BSTAT" | python3 -c "import json,sys;print(json.load(sys.stdin)['floor_mib'])" 2>/dev/null)"
+        if [ -n "$_FLOOR" ]; then
+          if ! python3 "$_PREFLIGHT" --floor-mib "$_FLOOR" --bench-budget-mib "$BENCH_BUDGET_MIB"; then
+            echo "[run_bench] STOP(벤치 예산 게이트): 이 몫으로 벤치를 띄우면 서빙이 사정거리에 든다." >&2
+            echo "[run_bench]   벤치를 **시작하지 않았다**. --bench-budget-mib 를 위 상한 이하로 낮추거나" >&2
+            echo "[run_bench]   KV 절대클램프를 낮춰 바닥을 올려라(그래야 둘 다 산다)." >&2
+            return 5
+          fi
+          # 선언이 벤치 도중 만료되면 워치독은 옛 규칙(무제한 arm)으로 돌아간다. 시계만 민다
+          #   — 바닥은 건드리지 않는다(원 산출 provenance 보존).
+          python3 "$_SESSION_PY" --node-dir "$_NDIR" renew-budget --now "$(date -u +%FT%TZ)" \
+            >/dev/null 2>&1 || echo "[run_bench] ⚠ 예산 TTL 갱신 실패 — 벤치 도중 만료 위험" >&2
+        fi
+      else
+        # 부재는 침묵이 아니다 — 선언 없이 뜬 서빙 위에서 재고 있다는 사실을 남긴다.
+        echo "[run_bench] ⚠ 이 노드($_NID)에 서빙 예산 선언이 없다 — 벤치 진입 게이트를 적용할 수 없다." >&2
+        echo "[run_bench]   서빙이 무보호로 떴다는 뜻이고, 벤치 컨테이너가 그 위에 얹힌다." >&2
+      fi
+    fi
+  fi
+
   local GLNAME="guidellm-bench-${CONFIG}-c${CONC}"
   # teardown 계약: 정상·비정상·시그널 어느 경로로 나가도 컨테이너를 남기지 않는다.
   trap 'docker rm -f "$GLNAME" >/dev/null 2>&1 || true' RETURN

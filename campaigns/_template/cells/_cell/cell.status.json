@@ -5,13 +5,25 @@
   "version": "<<FILL>>",
   "model": "<<FILL>>",
   "cell_outcome": "<<FILL>>",
-  "_cell_outcome_enum": ["pending", "measured", "serve_failed", "build_failed", "void"],
+  "_cell_outcome_enum": [
+    "pending",
+    "measured",
+    "serve_failed",
+    "build_failed",
+    "void"
+  ],
   "measurement": {
     "decode_tps_conc1": null,
     "measurement_ok": false,
     "source": null
   },
+  "image": {
+    "digest": null,
+    "tag": null,
+    "source": null,
+    "gap": "<<FILL>> 또는 파생 — 셀 간 비교는 같은 digest 안에서만 성립한다"
+  },
   "void_reason": null,
   "void_reason_source": null,
-  "_note": "부재와 실패는 다른 사실이다 — 실패한 셀도 이 파일을 쓴다. void_reason 은 사람 문장이고 void_reason_source 는 그 판정을 낸 명령·파일이다(출처 없는 판정 금지)."
+  "_note": "부재와 실패는 다른 사실이다 — 실패한 셀도 이 파일을 쓴다. void_reason 은 사람 문장이고 void_reason_source 는 그 판정을 낸 명령·파일이다(출처 없는 판정 금지). image.digest 는 **내용**이고 tag 는 이름이다 — 같은 태그가 다른 빌드를 가리킨 실측이 있어(0.27.1 소스가 wheel 태그로) 비교 권위는 digest 다. --sweep-state 로 파생되며, 선언값과 다르면 writer 가 거부한다(결손이 아니라 거짓)."
 }
