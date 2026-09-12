@@ -192,10 +192,25 @@ def append(repo: Path, entry: dict) -> dict:
     if problems:
         return {"status": "rejected", "problems": problems}
     doc = load(repo)
-    existing = {e.get("entry_id") for e in doc.get("entries") or []}
-    if entry["entry_id"] in existing:
+    entries = doc.get("entries") or []
+    for prior in entries:
+        if prior.get("entry_id") != entry["entry_id"]:
+            continue
+        # 같은 id 가 **같은 내용**으로 이미 있으면 재기록은 no-op 이다(멱등).
+        #
+        # 왜: 종료 시퀀스는 ④ 원장 -> ⑤ 동기화 -> ⑥ 서브 순서인데, ④ 가 성공하고 ⑤ 가 RED 로
+        # 멈추는 일이 실제로 일어난다(2026-09-12 첫 실행: DIRTY_WORKTREE). 그때 재실행하면 ④ 가
+        # 자기가 방금 적은 항목을 보고 거부했다 -- 즉 **append-only 를 지키려던 규칙이 사람을
+        # 원장 손편집으로 몰았다**. 되돌릴 수 없는 규칙은 우회를 만든다.
+        #
+        # 내용이 **다르면** 여전히 거부한다. 그것은 재실행이 아니라 이력 덮어쓰기이고, 이 규칙이
+        # 실제로 막아야 하는 것은 그쪽이다.
+        if prior == entry:
+            return {"status": "already-recorded", "entry_id": entry["entry_id"],
+                    "total": len(entries), "path": LEDGER_REL}
         return {"status": "rejected",
-                "problems": [f"entry_id 중복: {entry['entry_id']} -- 원장은 append-only 다"]}
+                "problems": [f"entry_id 중복이고 내용이 다르다: {entry['entry_id']} -- "
+                             "원장은 append-only 다(재실행이면 같은 바이트여야 한다)"]}
     doc.setdefault("entries", []).append(entry)
     doc["schema_version"] = SCHEMA_VERSION
     save(repo, doc)
@@ -249,7 +264,12 @@ def _self_test() -> int:
         root = Path(td)
         (root / ".claude/policies").mkdir(parents=True)
         ck("첫 append", append(root, good)["status"] == "appended")
-        ck("중복 거부(append-only)", append(root, good)["status"] == "rejected")
+        # 같은 바이트의 재실행은 통과(멱등) · 내용이 갈린 같은 id 는 거부(이력 덮어쓰기)
+        ck("동일 재append = 멱등", append(root, good)["status"] == "already-recorded",
+           append(root, good))
+        drifted = dict(good, departure_commit="cafef00")
+        ck("내용 다른 중복 = 거부", append(root, drifted)["status"] == "rejected",
+           append(root, drifted))
         ck("적재", len(load(root)["entries"]) == 1)
 
     print("[layer_ledger] self-test PASS", file=sys.stderr)

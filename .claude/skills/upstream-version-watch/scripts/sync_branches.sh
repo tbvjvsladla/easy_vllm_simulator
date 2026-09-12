@@ -383,12 +383,37 @@ fi
 # 모르는 자리로 옮겨 가고, 다음 사람에게는 "누가 언제 왜" 가 없는 상태로 보인다. 끝내지 못한 작업은
 # 커밋하거나 되돌리는 것이 헌법의 요구(§완료 조건: 작업 단위가 끝나면 미커밋 0)이고, 그 선택은
 # 사람의 것이다.
-_DIRTY="$(git status --porcelain)"
-if [ -n "$_DIRTY" ]; then
+#
+# 예외는 **하나**뿐이고 무손실 증명이 있다: 워킹트리 바이트가 이미 `$SRC_BRANCH` 와 동일한 경로.
+# checkout 이 쓸 바이트 == 지금 있는 바이트이므로 덮어써도 잃을 것이 0 이다.
+#
+# 이 예외가 없으면 바로 아래 **자기 일관성 가드가 출력하는 처방**
+# (`git checkout <SRC> -- <이 스크립트>`)을 그대로 따른 사람이 여기서 막힌다. 안내대로 했는데
+# 막히는 것은 안전장치가 아니라 **교착**이다(헌법 노드제어 ③ — 실행자 없는 처방). 2026-09-12
+# 종료 시퀀스 첫 실행이 정확히 그렇게 죽었다: 시퀀스가 가드를 만족시키려 스크립트를 당겨오자
+# 그 행위가 이 게이트를 발화시켰다.
+#
+# 예외에 들지 **않는** 것: 미추적(정본에 비교할 바이트가 없고 `git add -A` 가 쓸어 담는다) ·
+# 삭제 · 정본에 없는 경로. 이것들은 종전대로 RED 다.
+_DIRTY="$(git -c core.quotePath=false status --porcelain)"
+_RISK=""
+while IFS= read -r _line; do
+    [ -n "$_line" ] || continue
+    _p="${_line:3}"
+    case "$_p" in *" -> "*) _p="${_p##* -> }" ;; esac          # rename/copy 는 목적지를 본다
+    case "$_p" in \"*\") _p="${_p#\"}"; _p="${_p%\"}" ;; esac      # 특수문자 경로의 인용 해제
+    if [ -f "$_p" ] && git cat-file -e "$SRC_BRANCH:$_p" 2>/dev/null \
+       && [ "$(git hash-object -- "$_p")" = "$(git rev-parse "$SRC_BRANCH:$_p")" ]; then
+        continue
+    fi
+    _RISK="${_RISK}${_line}"$'\n'
+done <<< "$_DIRTY"
+if [ -n "$_RISK" ]; then
     echo "[sync-branches] FAIL(DIRTY_WORKTREE): 대상 브랜치 $DST_BRANCH 에 미커밋 변경이 있습니다." >&2
-    printf '%s\n' "$_DIRTY" | head -40 >&2
+    printf '%s' "$_RISK" | head -40 >&2
     echo "[sync-branches]   동기화는 덮어쓰기이므로 이 변경들은 경고 없이 사라집니다." >&2
     echo "[sync-branches]   커밋하거나 되돌린 뒤 다시 실행하세요(자동 보관하지 않습니다)." >&2
+    echo "[sync-branches]   (내용이 이미 $SRC_BRANCH 와 바이트 동일한 경로는 위 목록에서 빠집니다 — 잃을 것이 없습니다.)" >&2
     exit 8
 fi
 
