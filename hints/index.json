@@ -3,7 +3,7 @@
   "schema": 2,
   "source": "remote-derived",
   "remote": "origin",
-  "generated_kst": "2026-09-11T22:05:00",
+  "generated_kst": "2026-09-13T04:52:04",
   "count": 36,
   "hints": [
     {
@@ -384,34 +384,30 @@
       "source": "remote-derived"
     },
     {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-plemmap",
       "vllm": "0.29.0",
       "model": "qwen3.8-flash-next-nvfp4",
       "arch": "gb10x2-cluster-native",
-      "recipe": "len262144-kvauto",
-      "brief": "이 모델(Qwen3.8-Flash-Next-NVFP4)을 GB10 2노드 TP=2 로 세울 때 실제로 부딪힌 벽은 셋이다.",
-      "anchor": "fa39160d1a5270a634fc5a851b49cfb4f04f24eb",
-      "object": "57f6afb6bbc475b0ff3b4a486d927d7b9eadd5cd",
+      "recipe": "len262144-kvauto-plemmap",
+      "brief": "Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드 TP=2 로 세울 때, **PLE 를 NVMe mmap 으로 서빙하는 트랙**은",
+      "anchor": "8564c4c8cb6b7e3406d4533d822c675347807a0f",
+      "object": "d61f6e55e96f0503da56fd7a39299f11d0fa728c",
       "missing": [
-        "HINT_MISSING_BENCH_REPORT",
-        "HINT_MISSING_CERTIFICATE",
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
       "published": true,
       "source": "remote-derived"
     },
     {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto_260910t0204z",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-pleresident",
       "vllm": "0.29.0",
       "model": "qwen3.8-flash-next-nvfp4",
       "arch": "gb10x2-cluster-native",
-      "recipe": "len262144-kvauto_260910t0204z",
-      "brief": "이 모델(Qwen3.8-Flash-Next-NVFP4)을 GB10 2노드 TP=2 로 세울 때 실제로 부딪힌 벽은 셋이다.",
-      "anchor": "ea0b1782ac89e79afc58c1e0503d2a4711eb6679",
-      "object": "803ac1049aa81b1aa99801c775648fd2da5d12ac",
+      "recipe": "len262144-kvauto-pleresident",
+      "brief": "Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드 TP=2 로 세울 때, **PLE(per-layer n-gram embedding)를",
+      "anchor": "04dc2d6bf2132d0419fea81a8db407f8764a6495",
+      "object": "dbf99dad01afe33a6ae1cc027950393fe34e8c4f",
       "missing": [
-        "HINT_MISSING_BENCH_REPORT",
-        "HINT_MISSING_CERTIFICATE",
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
       "published": true,
