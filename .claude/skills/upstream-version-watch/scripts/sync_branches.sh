@@ -7,7 +7,7 @@
 # 구현 스켈레톤 중 토폴로지 분기분(멀티 compose/serve)·사용자 실값(config.yaml·*.local.json·manifest.yaml)·
 # seed·작업 문서는 동기화하지 않는다(allowlist only).
 #
-# 방식(SAFE): git 워크트리 인지 복사. multi-node 브랜치 체크아웃 상태에서 `git checkout main -- <경로>` 로
+# 방식(SAFE): git 워크트리 인지 복사. 대상 브랜치 체크아웃 상태에서 `git checkout <출발> -- <경로>` 로
 #   정본 콘텐츠를 working-dir 에 가져온다. 커밋은 사람이 한다(자동 커밋 안 함 — HITL).
 #
 # HITL 안전장치: 기본은 DRY-RUN(미리보기만). 실제 복사는 명시적으로 --apply 를 줘야 한다.
@@ -28,23 +28,19 @@
 # 트리거 = 수동(사람이 "브랜치 동기화" 지시 / 모든 작업 종료 후 질의). 자동 훅 없음.
 set -euo pipefail
 
-SRC_BRANCH="${SRC_BRANCH:-main}"
-DST_BRANCH="${DST_BRANCH:-multi-node}"
-
-# ── hint 브랜치는 sync 대상이 아니다 (plan_26090107 R7 · 2026-09-01) ────────────────
-#   hint 는 **빌딩블럭이 아니라 산출물**이다. 그 브랜치의 트리는 `hint_branch.py` 가 allowlist 로
-#   매번 새로 짓는 페이로드이며, 코드·스킬이 들어가면 그 순간 합격기준 A1(archive 에 `.claude/`
-#   엔트리 0)이 깨진다. 위 ALLOWLIST 는 `.claude/skills` 를 통째로 복사하므로 방향을 착각하면
-#   **산출물 브랜치를 빌딩블럭으로 덮어쓴다** — 되돌리려면 페이로드를 다시 지어야 한다.
-#   기본값으로는 닿지 않지만, 환경변수 override 가 있으므로 **명시적으로 막는다**.
-for _b in "$SRC_BRANCH" "$DST_BRANCH"; do
-    case "$_b" in
-        hint|refs/heads/hint)
-            echo "[sync_branches] 거부: hint 브랜치는 sync 대상이 아니다(산출물 · plan R7)." >&2
-            echo "  hint 페이로드는 hint_branch.py publish 가 allowlist 로 새로 짓는다." >&2
-            exit 2 ;;
-    esac
-done
+# ── 출발/대상 브랜치 (2026-09-12 재정의 · plan_26091210 §3.5) ─────────────────────
+#   종전: `SRC_BRANCH` 기본값이 `main` 이었고 **그 브랜치는 실재하지 않았다**. 스크립트는 자기를
+#   "정본 main → multi-node 단방향 미러" 라고 선언했지만 실무는 환경변수로 방향을 바꿔 양방향
+#   99회를 돌았다 — 선언과 실행이 갈라진 채로.
+#
+#   지금: **출발 브랜치는 `--from` 으로 명시해야 한다**(기본값 없음). 그 브랜치가 *그 순간의*
+#   공통층 정본이고(양방향 허용) 대상은 **현재 체크아웃**이다. `DST_BRANCH` 를 환경변수로 명시하면
+#   아래 대상 가드가 그 값으로 검사하고, 생략하면 체크아웃에서 파생한다.
+#
+#   hint 브랜치 거부 가드는 **인자 파싱 뒤**로 옮겼다 — 여기서는 SRC 가 아직 비어 있어 판정할
+#   값이 없다(가드는 확정된 값을 봐야 가드다).
+SRC_BRANCH=""
+DST_BRANCH="${DST_BRANCH:-}"
 
 # ── 공유 allowlist (정본 main → multi-node 복사 대상만) ──
 #   주의: 토폴로지 분기 구현체·사용자 실값은 여기 넣지 않는다(브랜치별 독립).
@@ -174,7 +170,11 @@ ROOT_RELOCATION_REPLACEMENTS=(
 
 usage() {
     cat <<'EOF'
-사용법: sync_branches.sh --mode <experimental|promotion> --manifest <path> [--apply] [--help]
+사용법: sync_branches.sh --from <출발 브랜치> --mode <experimental|promotion> --manifest <path> [--apply] [--help]
+
+  --from <브랜치>                  **필수**. 공통층의 출발(정본) 브랜치. 대상은 현재 체크아웃이다.
+                                    양방향 허용 — 출발 브랜치가 *그 순간의* 정본이라는 뜻이지
+                                    영구 정본이 따로 있다는 뜻이 아니다.
 
   --mode <experimental|promotion>  completion_gate.py authorize 인가 모드(필수).
                                     실행 전 반드시 이 side-effect 인가를 통과해야 한다(HITL 게이트).
@@ -183,11 +183,12 @@ usage() {
   --apply                          실제 복사 수행(기본은 DRY-RUN 미리보기만).
   --help, -h                       이 도움말을 출력하고 종료(레포/브랜치 확인을 전혀 하지 않음).
 
-환경변수: SRC_BRANCH(기본 main) · DST_BRANCH(기본 multi-node)
+환경변수: DST_BRANCH(생략 시 현재 체크아웃에서 파생 — 명시하면 대상 가드가 그 값으로 검사한다).
+          SRC_BRANCH 는 더 이상 읽지 않는다 — 출발 브랜치는 `--from` 으로만 정해진다.
 
 예:
-  bash .claude/skills/upstream-version-watch/scripts/sync_branches.sh --mode promotion --manifest manifests/sync.json
-  bash .claude/skills/upstream-version-watch/scripts/sync_branches.sh --mode experimental --manifest manifests/sync.json --apply
+  bash .claude/skills/upstream-version-watch/scripts/sync_branches.sh --from multi-node --mode promotion --manifest manifests/sync.json
+  bash .claude/skills/upstream-version-watch/scripts/sync_branches.sh --from multi-node --mode experimental --manifest manifests/sync.json --apply
 EOF
 }
 
@@ -198,6 +199,8 @@ HAVE_MODE=0
 MANIFEST_ARG=""
 HAVE_MANIFEST=0
 SYNC_ACTION="dryrun"
+FROM_BRANCH=""
+HAVE_FROM=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -223,6 +226,15 @@ while [ $# -gt 0 ]; do
             HAVE_MANIFEST=1
             shift 2
             ;;
+        --from)
+            if [ $# -lt 2 ]; then
+                echo "[sync-branches] FAIL: --from 뒤에 출발 브랜치 이름이 필요합니다." >&2
+                exit 2
+            fi
+            FROM_BRANCH="$2"
+            HAVE_FROM=1
+            shift 2
+            ;;
         --apply)
             SYNC_ACTION="apply"
             shift
@@ -231,6 +243,34 @@ while [ $# -gt 0 ]; do
             echo "[sync-branches] FAIL: 알 수 없는 인자: $1 (도움말: --help)" >&2
             exit 2
             ;;
+    esac
+done
+
+# ── 출발 브랜치 확정 (파싱 뒤에 한다 — 아래 hint 가드가 **확정된 값**을 봐야 한다) ──
+if [ "$HAVE_FROM" -ne 1 ] || [ -z "$FROM_BRANCH" ]; then
+    echo "[sync-branches] FAIL: --from <출발 브랜치> 는 필수입니다." >&2
+    echo "  출발 브랜치가 그 순간의 공통층 정본이고, 대상은 현재 체크아웃입니다." >&2
+    echo "  예: bash .../sync_branches.sh --from multi-node --mode promotion --manifest <work.json>" >&2
+    exit 2
+fi
+SRC_BRANCH="$FROM_BRANCH"
+
+# ── hint 브랜치는 sync 대상이 아니다 (plan_26090107 R7 · 2026-09-01) ────────────────
+#   hint 는 **빌딩블럭이 아니라 산출물**이다. 그 브랜치의 트리는 `hint_branch.py` 가 allowlist 로
+#   매번 새로 짓는 페이로드이며, 코드·스킬이 들어가면 그 순간 합격기준 A1(archive 에 `.claude/`
+#   엔트리 0)이 깨진다. ALLOWLIST 는 `.claude/skills` 를 통째로 복사하므로 방향을 착각하면
+#   **산출물 브랜치를 빌딩블럭으로 덮어쓴다** — 되돌리려면 페이로드를 다시 지어야 한다.
+#
+#   ★ 2026-09-12: 이 가드를 **인자 파싱 뒤로 옮겼다**(plan_26091210 A10). 종전에는 파일 상단에서
+#     env 기본값을 보고 판정했는데, `--from` 도입 후 그 자리에서는 SRC 가 아직 비어 있어
+#     `--from hint` 가 그대로 통과했을 것이다. 가드는 **확정된 값**을 봐야 가드다.
+for _b in "$SRC_BRANCH" "$DST_BRANCH"; do
+    [ -n "$_b" ] || continue
+    case "$_b" in
+        hint|refs/heads/hint)
+            echo "[sync_branches] 거부: hint 브랜치는 sync 대상이 아니다(산출물 · plan R7)." >&2
+            echo "  hint 페이로드는 hint_branch.py publish 가 allowlist 로 새로 짓는다." >&2
+            exit 2 ;;
     esac
 done
 
@@ -317,6 +357,9 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     echo "[sync-branches] FAIL: git 레포 안에서 실행해야 합니다."; exit 3
 fi
 CUR_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+# 대상은 **현재 체크아웃**이다. 환경변수로 명시했다면 그 값을 그대로 두어 아래 가드가 어긋남을
+# 잡게 한다 — 파생이 가드를 삼키면 그 가드는 살아 있는 척하는 죽은 검사가 된다.
+DST_BRANCH="${DST_BRANCH:-$CUR_BRANCH}"
 if [ "$CUR_BRANCH" != "$DST_BRANCH" ]; then
     echo "[sync-branches] FAIL: 현재 브랜치=$CUR_BRANCH 이지만 대상은 $DST_BRANCH 입니다."
     echo "[sync-branches]   먼저 'git checkout $DST_BRANCH' 후 다시 실행하세요(working-dir 보호)."
@@ -324,6 +367,61 @@ if [ "$CUR_BRANCH" != "$DST_BRANCH" ]; then
 fi
 if ! git rev-parse --verify "$SRC_BRANCH" >/dev/null 2>&1; then
     echo "[sync-branches] FAIL: 정본 브랜치 '$SRC_BRANCH' 가 없습니다."; exit 3
+fi
+if [ "$SRC_BRANCH" = "$DST_BRANCH" ]; then
+    echo "[sync-branches] FAIL: --from 과 대상이 같은 브랜치입니다($SRC_BRANCH)." >&2
+    echo "[sync-branches]   자기 자신에서 동기화할 것은 없습니다 — 반대 브랜치를 체크아웃하세요." >&2
+    exit 3
+fi
+
+# ── RED ①: 대상 워킹트리에 미커밋 변경이 있으면 멈춘다 (2026-09-12 · plan_26091210 §3.5) ──
+#
+# 아래 `git checkout <SRC> -- PATHS` 는 **머지가 아니라 덮어쓰기**다. 미커밋 편집이 그 경로에 있으면
+# 경고 없이 사라진다(감사 등급 ⑥ — 이 스크립트 전체에 dirty 검사가 0건이었다).
+#
+# **자동 stash 는 하지 않는다.** stash 는 되돌릴 수 있는 것처럼 보이지만 그 순간 작업물이 사람이
+# 모르는 자리로 옮겨 가고, 다음 사람에게는 "누가 언제 왜" 가 없는 상태로 보인다. 끝내지 못한 작업은
+# 커밋하거나 되돌리는 것이 헌법의 요구(§완료 조건: 작업 단위가 끝나면 미커밋 0)이고, 그 선택은
+# 사람의 것이다.
+_DIRTY="$(git status --porcelain)"
+if [ -n "$_DIRTY" ]; then
+    echo "[sync-branches] FAIL(DIRTY_WORKTREE): 대상 브랜치 $DST_BRANCH 에 미커밋 변경이 있습니다." >&2
+    printf '%s\n' "$_DIRTY" | head -40 >&2
+    echo "[sync-branches]   동기화는 덮어쓰기이므로 이 변경들은 경고 없이 사라집니다." >&2
+    echo "[sync-branches]   커밋하거나 되돌린 뒤 다시 실행하세요(자동 보관하지 않습니다)." >&2
+    exit 8
+fi
+
+# ── RED ②: 대상 브랜치의 공통층이 출발 브랜치에 없는 변경을 들고 있는가 ──────────────
+#
+# 이 동기화는 머지가 아니라 덮어쓰기다. 대상에만 있는 더 새로운 공통층 변경이 있으면 그대로
+# 사라진다 -- 그래서 실무에 "cherry-pick 선행" 관행이 자랐고, 그 관행은 사람이 기억해야만 도는
+# 절차였다. 이제 기계가 판정한다. 판정 기준은 **원장이 기록한 동기 지점 이후의 공통층 diff** 다.
+#
+# 원장이 비어 있으면(첫 실행) RED 가 아니라 **안내**다 -- 동기 지점이 없는 것은 갈라짐이 아니라
+# 아직 한 번도 동기화한 적이 없다는 사실이다. 부트스트랩 일회성(선례: 해시 원장 경계).
+_LEDGER="$REPO_ROOT/.claude/skills/upstream-version-watch/scripts/layer_ledger.py"
+if [ -f "$_LEDGER" ]; then
+    _DIV_JSON="$(python3 "$_LEDGER" divergence --repo "$REPO_ROOT" --branch "$DST_BRANCH" 2>/dev/null || true)"
+    _DIV_STATUS="$(printf '%s' "$_DIV_JSON" | python3 -c '
+import json, sys
+try:
+    print((json.load(sys.stdin) or {}).get("status") or "unknown")
+except Exception:
+    print("unreadable")
+' 2>/dev/null || echo unreadable)"
+    case "$_DIV_STATUS" in
+        diverged)
+            echo "[sync-branches] FAIL(COMMON_LAYER_DIVERGED): 대상 $DST_BRANCH 의 공통층이 출발 브랜치에 없는 변경을 들고 있습니다." >&2
+            printf '%s\n' "$_DIV_JSON" >&2
+            echo "[sync-branches]   덮어쓰면 그 변경은 사라집니다 — 위 커밋을 먼저 출발 브랜치로 옮기세요." >&2
+            exit 9 ;;
+        clean)
+            echo "[sync-branches] 공통층 갈라짐 검사: clean(동기 지점 이후 대상-only 변경 0)" ;;
+        *)
+            echo "[sync-branches] 공통층 갈라짐 검사: **판정 불가**($_DIV_STATUS) — 원장에 동기 지점이 없습니다." >&2
+            echo "[sync-branches]   첫 동기화(부트스트랩)이거나 중단된 시퀀스입니다. 아래 diff 를 사람이 직접 확인하세요." >&2 ;;
+    esac
 fi
 
 # ── pre-flight: 이 스크립트 자신이 정본과 동일 버전인가 (self-overwrite 위험 차단) ──
@@ -447,6 +545,21 @@ fi
 #   다른 쪽을 생성할 수 없으므로 교차검증이 차선이다).
 PATHS+=(':(exclude)*.topology.md')
 
+# ── hint 카탈로그 제외 (2026-09-12 · plan_26091210 §3.5) ──────────────────────────
+#   `hints/index.json` 과 `HINTS.md` 는 **원격 발행 태그에서 파생되는 데이터**다(진실원천 =
+#   `git ls-remote --tags`). 복사로 옮기면 한쪽 브랜치의 *로컬 상태 스냅샷* 이 정본 행세를 하게
+#   된다 — 손저작 카탈로그 평면이 폐쇄된 이유가 그것이다. 양 브랜치가 각자
+#   `hint_catalog.py derive --remote <원격>` 으로 재파생하면 같은 결과에 수렴한다(태그는 브랜치
+#   무관 전역이므로). `hints/` 의 나머지 추적 파일(families.json·계약서·pins)은 빌딩블럭이므로
+#   **계속 동기화한다** — 디렉터리째 빼면 그 셋이 다시 갈라진다(2026-08-20 선례 3건).
+PATHS+=(':(exclude)hints/index.json' ':(exclude)HINTS.md')
+
+# ── 분류표 원장 제외 ───────────────────────────────────────────────────────────────
+#   원장은 append-only 이고 **양 브랜치가 각자 항목을 쌓는다**. 덮어쓰면 반대 브랜치가 승인한
+#   분류 이력이 사라지고, 그러면 "이 교정이 어느 판정을 거쳤는가" 를 다음 사람이 알 수 없다.
+#   수렴은 복사가 아니라 `layer_ledger.py merge`(entry_id 합집합)가 한다.
+PATHS+=(':(exclude).claude/policies/branch_layer_ledger.json')
+
 # Resolve every destination-only tracked path before the first mutation. This is an exact mirror
 # only for MIRROR_DIRS; topology outputs/configs and ignored work documents are intentionally not
 # included. Source object lookup prevents a stale local file from laundering itself as authority.
@@ -486,8 +599,12 @@ done
 
 if [ "$SYNC_ACTION" = "dryrun" ]; then
     echo "[sync-branches] DRY-RUN  $SRC_BRANCH → $DST_BRANCH (working-dir 변경 안 함 — --apply 로 실행)"
-    echo "[sync-branches] 동기화 대상(allowlist):"
+    echo "[sync-branches] 동기화 대상(allowlist · 마지막 :(exclude) 항목들이 특화층·카탈로그·원장을 뺀다):"
     printf '  - %s\n' "${PATHS[@]}"
+    echo "[sync-branches] 전파하지 않는 것:"
+    echo "  ✗ *.topology.md          특화층 — 같은 경로에 브랜치별 내용(옮기면 두 브랜치가 다시 같아진다)"
+    echo "  ✗ hints/index.json·HINTS.md  카탈로그 — 원격 태그에서 각 브랜치가 재파생한다"
+    echo "  ✗ branch_layer_ledger.json   분류표 원장 — 양쪽이 각자 쌓고 merge 로 수렴한다"
     echo "[sync-branches] 정본과 현재 working-dir 의 차이(없으면 이미 동일):"
     git diff --stat "$SRC_BRANCH" -- "${PATHS[@]}" || true
     if [ "${#DELETE_PATHS[@]}" -gt 0 ]; then
