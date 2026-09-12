@@ -64,9 +64,15 @@ ALLOWLIST=(
     # 브랜치별로 갈린다. allowlist 에 없어서 single-node 에서 발행한 태그가 multi-node 로
     # 전파되지 않았고, 2026-08-14 실측에서 **실태그 40건 : multi-node 인덱스 35건**으로 벌어져
     # 있었다 — 배포받은 사람이 어느 브랜치를 체크아웃했느냐에 따라 카탈로그가 달라지는 상태.
-    # README 도 같은 성격(배포 서사)이라 함께 묶어 브랜치 간 동일성을 보장한다.
+    #
+    # ⚠ **`HINTS.md` 는 2026-09-12 에 이 목록에서 빠졌다**(plan_26091210 §3.5 · Q11). 갈라짐을
+    #   고치는 수단이 **복사에서 재파생으로** 바뀌었기 때문이다(아래 §hint 카탈로그 제외). 목표
+    #   (브랜치 간 동일)는 그대로이고 방법만 바뀌었다. 여기 남겨 두면 같은 경로가 positive 와
+    #   `:(exclude)` 에 **동시에** 놓여 git pathspec 이 0건 매치로 죽는다 — 2026-09-12 종료 시퀀스
+    #   첫 실행이 APPLY 직후 `error: pathspec 'HINTS.md' did not match any file(s)` 로 죽었다.
+    #
+    # README 는 같은 성격(배포 서사)이라 **계속 여기 남아** 브랜치 간 동일성을 보장한다.
     # (docs/report 가 tracked 예외로 승격되며 겪은 것과 같은 계열의 침묵 누락이다.)
-    HINTS.md
     README.md
     # ★ 파일 열거가 아니라 **디렉터리 단위**다(2026-08-20 교정). 개별 열거는 같은 사고를
     #   **세 번** 냈다: ① families.json 신설 커밋에서 곧바로 미배선 ② HINT_ISSUANCE_CONTRACT.md
@@ -584,6 +590,27 @@ PATHS+=(':(exclude)hints/index.json' ':(exclude)HINTS.md')
 #   분류 이력이 사라지고, 그러면 "이 교정이 어느 판정을 거쳤는가" 를 다음 사람이 알 수 없다.
 #   수렴은 복사가 아니라 `layer_ledger.py merge`(entry_id 합집합)가 한다.
 PATHS+=(':(exclude).claude/policies/branch_layer_ledger.json')
+
+# ── 구조 검사: allowlist 와 제외 목록이 같은 경로를 가리키는가 ──────────────────────
+#   git pathspec 은 positive 와 `:(exclude)` 가 같은 경로를 가리키면 **0건 매치**가 되어
+#   `error: pathspec '<경로>' did not match any file(s) known to git` 로 죽는다. 그 메시지는
+#   "파일이 없다"고 말하지만 실제 원인은 **두 목록이 싸운 것**이라, 사람이 파일을 열어봐도
+#   왜 죽었는지 알 수 없다(2026-09-12 `HINTS.md` 실측 — 8월 allowlist 와 9월 제외가 충돌).
+#   어느 쪽이 옳은지는 **사람이 정한다** — 도구가 한쪽을 고르면 의도가 조용히 뒤집힌다.
+_CONTRADICT=""
+for _p in "${PATHS[@]}"; do
+    [ "${_p#:(exclude)}" = "$_p" ] || continue          # 제외 항목 자신은 건너뛴다
+    for _q in "${PATHS[@]}"; do
+        [ "$_q" = ":(exclude)${_p}" ] && _CONTRADICT="${_CONTRADICT}  ${_p}"$'\n'
+    done
+done
+if [ -n "$_CONTRADICT" ]; then
+    echo "[sync-branches] FAIL(PATHSPEC_CONTRADICTION): 같은 경로가 allowlist 와 제외 목록에 동시에 있습니다." >&2
+    printf '%s' "$_CONTRADICT" >&2
+    echo "[sync-branches]   git 은 이것을 '파일 없음'으로 보고하지만 원인은 두 목록의 충돌입니다." >&2
+    echo "[sync-branches]   한쪽을 지우세요 — 동기화할 것이면 제외에서, 아니면 allowlist 에서." >&2
+    exit 3
+fi
 
 # Resolve every destination-only tracked path before the first mutation. This is an exact mirror
 # only for MIRROR_DIRS; topology outputs/configs and ignored work documents are intentionally not
