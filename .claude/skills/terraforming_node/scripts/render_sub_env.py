@@ -106,6 +106,13 @@ RUNTIME_BLOCK_EXCLUDES = {
     ),
 }
 DOCS_RULES = os.path.join(REPO, ".claude", "rules", "docs.md")     # 문서규약(정적계약 — 서브 테라포밍, D12)
+# 특화헌법(2026-09-12 · plan_26091210 A7 · policy BRANCH_CONSTITUTION_LAYERING). **명시 등록이 필요하다** —
+#   서브로 가는 `.claude/rules/*` 는 이 파일이 이름 하나하나로 정하는 닫힌 목록이고(`comms.md`·`docs.md`
+#   둘뿐이었다), 규약에 맞는 파일이 자동으로 따라가지 않는다. 등록하지 않으면 서브는 자기 토폴로지의
+#   헌법을 **영원히 받지 못한다**.
+#   `orchestration.topology.md` 는 여기 없다 — `terraforming_node` 자체가 서브로 가지 않기 때문이고,
+#   그것은 결함이 아니라 의도다(오케스트레이션은 메인의 일이다).
+TOPOLOGY_RULES = os.path.join(REPO, ".claude", "rules", "strategy.topology.md")
 DOC_SKELETONS = os.path.join(SKILL_DIR, "templates", "document_skeletons")  # 배포 포함 docs/*/example.md 정본(D12)
 RECIPE_REFERENCE = os.path.join(REPO, ".claude", "skills", "wiki-desk", "reference", "references.md")
 
@@ -474,6 +481,12 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     if os.path.isfile(DOCS_RULES):
         shutil.copyfile(DOCS_RULES, os.path.join(claude, "rules", "docs.md"))
         produced.append(".claude/rules/docs.md")
+
+    # 특화헌법 — 서브는 메인과 **같은 브랜치**이므로 이 체크아웃의 특화층이 곧 서브의 것이다
+    # (policy BRANCH_CONSTITUTION_LAYERING · 메인 single ⇒ 서브 single, 메인 multi ⇒ 서브 multi).
+    if os.path.isfile(TOPOLOGY_RULES):
+        shutil.copyfile(TOPOLOGY_RULES, os.path.join(claude, "rules", "strategy.topology.md"))
+        produced.append(".claude/rules/strategy.topology.md")
 
     # recipe.py resolves GPU/source-verification facts from this on-demand dependency.  Copy only
     # the dependency, not the main-only wiki-desk capability, so sub runtime closure stays minimal.
@@ -845,6 +858,9 @@ def _self_test() -> int:
                        ".claude/schemas/library-exchange.schema.json", "campaigns/_bootstrap/relay/.gitkeep",
                        "campaigns/README.md",
                        ".claude/rules/docs.md", ".gitignore",   # ← references.md 는 tool_plane 종속(아래 c4b)
+                       # 특화헌법: 서브가 자기 토폴로지의 헌법을 받는지 fail-loud 로 확인한다
+                       #   (등록을 잊으면 조용히 안 가고, 서브는 그 사실을 스스로 알 수 없다)
+                       ".claude/rules/strategy.topology.md",
                        # 호스트 안전체계: canonical terraforming source → constitution runtime delivery
                        ".claude/runtime/host_safety/mem_watchdog.sh",
                        ".claude/runtime/host_safety/install_host_safety.sh",
