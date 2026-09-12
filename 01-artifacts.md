@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/multi/configs/nv4-bf-262k-res-kv8g-gmu80.yaml`
-- `output/multi/configs/nv4-bf-262k-res-kv8g-gmu80.sh`
-- `output/multi/envs/.env.nv4-bf-262k-res-kv8g-gmu80`
+- `output/multi/configs/nv4-bf-262k-mmp.yaml`
+- `output/multi/configs/nv4-bf-262k-mmp.sh`
+- `output/multi/envs/.env.nv4-bf-262k-mmp`
 
 **build_patch_pre**
 - `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
@@ -46,20 +46,15 @@
 
 ## 적용 사유 (Agent)
 
-- **triplet (3-signal)** — 이 레시피의 정체 그 자체다. `gpu-memory-utilization: 0.80` ·
-  `kv-cache-memory-bytes: 8589934592` · `max-num-seqs: 8` · `max-num-batched-tokens: 2048` 네 값이
-  res 를 여는 조합이며, 하나라도 되돌리면 워치독 사정거리로 들어간다(02 서사 참조). `.env` 에
-  `VLLM_PLE_MMAP` 줄이 **없다**는 사실이 곧 PLE resident 선언이다 — 부재가 기본값이다.
-- **build_patch_pre (3-signal)** — `60-qwen4exp-nvfp4-mixed.sh`(NVFP4 혼합정밀 로더)와
-  `64-qwen4exp-qsa-fp8kv.sh` 는 이 아키텍처가 vLLM 0.29.0rc6 에서 서는 전제다.
-  `62-qwen4exp-ple-mmap.sh` 는 이 셀에서 **켜지 않았지만** 포함한다 — 같은 이미지가 mmap 자매셀도
-  서빙하며, 스위치는 빌드가 아니라 `.env` 가 쥔다(빌드/서브 평면 분리).
-- **build_patch_post (2-signal)** — 컴파일 이후 native 의존(deepgemm·triton 커널·mxfp4 sm121·
-  humming NVML). 서빙 로그로 개별 발화를 관측하지 않았으므로 **관측불가**로 정직하게 표시한다.
-- **build_recipe / compose (3-signal)** — 이미지를 재현하는 최소 집합. 이미지는 **전송하지 않고
-  각 노드가 자기 것을 빌드한다**(이 배포 라인의 불변식) — 그래서 digest 가 아니라 이 레시피가
-  재현의 단위다.
-- **runtime_patch — 불해당** — 이 모델은 serve 시점 Python shim 이 필요 없다. 부재는 통과가 아니라
-  **해당 없음**이며, 있었다면 `policy:RUNTIME_PATCH_NO_CARRY_FORWARD` 에 따라 이 셀 전용으로만 쓴다.
-- **fork_pin — 불해당(stock)** — 포크 핀 없이 상류 `v0.29.0rc6` 태그로 빌드했다. `.env` 에
-  `VARIANT=` 줄이 없는 것이 그 선언이다.
+- **triplet (3-signal)** — `VLLM_PLE_MMAP=1` 과 `VLLM_PLE_MMAP_DIR` 두 줄이 이 트랙의 정체다.
+  그 줄이 있으면 n-gram 테이블 47.68 GiB 가 상주에서 빠져 예산 floor 가 16,064 → 40,478 로 열린다.
+  스테이징 디렉터리(NVMe)가 실재해야 하며, 없으면 로드가 디스크를 못 찾는다.
+- **build_patch_pre (3-signal)** — `62-qwen4exp-ple-mmap.sh` 가 **이 트랙의 전제**다(자매
+  resident 태그에서는 포함하되 켜지 않는다). `60-nvfp4-mixed`·`64-qsa-fp8kv` 는 아키텍처가
+  0.29.0rc6 에서 서는 조건.
+- **build_patch_post (2-signal)** — 컴파일 이후 native 의존. 서빙 로그로 개별 발화를 관측하지
+  않아 **관측불가**로 표시한다(부재와 미관측은 다른 사실이다).
+- **build_recipe / compose (3-signal)** — 이미지를 전송하지 않고 각 노드가 빌드하므로 재현 단위는
+  digest 가 아니라 이 레시피다.
+- **runtime_patch — 불해당** · **fork_pin — 불해당(stock)**: `.env` 에 `VARIANT=` 줄이 없는 것이
+  stock 선언이다.

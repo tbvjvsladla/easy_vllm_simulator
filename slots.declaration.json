@@ -4,31 +4,31 @@
  "slots": {
   "triplet": {
    "applicable": true,
-   "rationale": "이 레시피의 정체 — gmu 0.80·KV 8192MiB·max-num-seqs 8·max-num-batched-tokens 2048 네 값이 PLE resident 를 여는 조합이고, .env 에 VLLM_PLE_MMAP 줄이 없는 것이 resident 선언이다"
+   "rationale": "VLLM_PLE_MMAP=1 과 스테이징 경로 두 줄이 이 트랙의 정체이며, 그 줄이 예산 floor 를 16,064→40,478 로 연다"
   },
   "runtime_patch": {
    "applicable": false,
-   "rationale": "이 모델은 serve 시점 Python processor/config shim 이 불요하다 — 부재는 통과가 아니라 해당 없음이다"
+   "rationale": "serve 시점 Python shim 불요 — 부재는 통과가 아니라 해당 없음이다"
   },
   "build_patch_pre": {
    "applicable": true,
-   "rationale": "60-nvfp4-mixed 와 64-qsa-fp8kv 는 이 아키텍처가 0.29.0rc6 에서 서는 전제다. 62-ple-mmap 은 이 셀에서 켜지 않았으나 같은 이미지가 mmap 자매셀도 서빙하므로 포함한다(스위치는 빌드가 아니라 .env 가 쥔다)"
+   "rationale": "62-qwen4exp-ple-mmap.sh 가 이 트랙의 전제다. 60-nvfp4-mixed·64-qsa-fp8kv 는 아키텍처가 0.29.0rc6 에서 서는 조건"
   },
   "build_patch_post": {
    "applicable": true,
-   "rationale": "컴파일 이후 native 의존(deepgemm·triton 커널·mxfp4 sm121·humming NVML). 서빙 로그로 개별 발화를 관측하지 않아 증거는 관측불가로 표시한다"
+   "rationale": "컴파일 이후 native 의존. 서빙 로그로 개별 발화를 관측하지 않아 증거는 관측불가로 표시한다"
   },
   "build_recipe": {
    "applicable": true,
-   "rationale": "이미지는 전송하지 않고 각 노드가 자기 것을 빌드하므로 digest 가 아니라 이 레시피가 재현 단위다"
+   "rationale": "이미지를 전송하지 않고 각 노드가 빌드하므로 재현 단위는 digest 가 아니라 이 레시피다"
   },
   "compose": {
    "applicable": true,
-   "rationale": "2노드 Ray 기동의 배선(master/slave·포트·마운트) — 토폴로지 재현에 필수"
+   "rationale": "2노드 Ray 기동 배선 — 토폴로지 재현에 필수"
   },
   "fork_pin": {
    "applicable": false,
-   "rationale": "stock 빌드다 — 포크 핀 없이 상류 v0.29.0rc6 태그로 빌드했고 .env 에 VARIANT= 줄이 없는 것이 그 선언이다"
+   "rationale": "stock 빌드 — 상류 v0.29.0rc6 태그로 빌드했고 .env 에 VARIANT= 줄이 없는 것이 그 선언이다"
   }
  }
 }
