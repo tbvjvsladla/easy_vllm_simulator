@@ -84,6 +84,15 @@ def _st_header(path):
 
 _ROUTED_RE = re.compile(r"\.experts\.")          # routed experts (indexed or fused). shared_experts 는 '_experts' 라 미매치.
 _MTP_RE = re.compile(r"(^|\.)mtp[\._]|\.mtp_block\.|model\.layers\.\d+\.mtp")
+# PLE(per-layer n-gram embedding) — **행 단위 gather** 라 토큰당 전체를 읽지 않는다.
+#   2026-09-12 발견(camp-26091216): 이 패턴이 없어 PLE 47.68GiB 가 dense 로 합산돼
+#   active 를 11.29→58.97GiB 로 6배 부풀렸고, R_fp 가 45.0→8.62 로 내려갔다. 그 결과
+#   **실측 46.7 t/s 가 자기 물리상한을 5.4배 초과**하는 판정이 나왔다(모형 반증).
+#   빼는 근거 3중: ① n-gram 은 해당 행만 gather(토큰당 heads_per_ngram×ple_embed_dim
+#   ≈ 20KiB = active 의 0.0002%) ② 그래서 NVMe mmap 서빙(VLLM_PLE_MMAP=1)이 성립한다 —
+#   매 토큰 전체를 읽어야 하면 디스크로 못 낸다 ③ 예산 게이트(`resident_weights_mib`)는
+#   이미 같은 바이트를 `ple_mib` 로 **분리해 왔다**(48,828MiB = 47.68GiB, 일치).
+_PLE_RE = re.compile(r"\.ple\.ple_embedding\.|\.ngram_embedding\.")
 
 
 def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
@@ -103,6 +112,7 @@ def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
 
     dense = 0       # 항상 읽힘: attention·shared_experts·embed·norm·lm_head
     routed = 0      # routed experts 전체 합(이후 k/n 스케일)
+    ple = 0         # PLE n-gram 테이블 — 행 gather 라 active 제외(_PLE_RE 주석 참조)
     for sh in sorted(shards):
         hdr = _st_header(os.path.join(host_dir, sh))
         for name, meta in hdr.items():
@@ -114,6 +124,9 @@ def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
             nbytes = int(off[1]) - int(off[0])
             if _MTP_RE.search(name):
                 continue  # MTP draft 모듈 = R_fp(메인 forward) 제외(accept_len 으로 모델링)
+            if _PLE_RE.search(name):
+                ple += nbytes   # 세지만 active 에 넣지 않는다(0 으로 숨기면 출처가 사라진다)
+                continue
             if _ROUTED_RE.search(name) and "shared_expert" not in name:
                 routed += nbytes
             else:
@@ -123,7 +136,7 @@ def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
     k = int(num_experts_per_tok or 0)
     n = int(num_experts)
     active_routed = int(routed * (k / n)) if k > 0 else 0
-    return dense + active_routed, dense, routed, k, n
+    return dense + active_routed, dense, routed, k, n, ple
 
 
 def _total_bytes_dense(host_dir):
@@ -278,12 +291,17 @@ def main():
     ic_gbps = args.interconnect_gbps if args.interconnect_gbps else ic_gbps
 
     # --- 활성 바이트 (per forward pass) ---
+    ple_b = 0
     if is_moe:
-        active_bytes, dense_b, routed_b, k, n = _active_bytes_moe(host_dir, num_experts, n_per_tok)
+        active_bytes, dense_b, routed_b, k, n, ple_b = _active_bytes_moe(host_dir, num_experts, n_per_tok)
         notes.append("MoE active = dense %.2fGiB + (%d/%d)×routed %.2fGiB" % (dense_b/GIB, k, n, routed_b/GIB))
     else:
         active_bytes = _total_bytes_dense(host_dir)
         notes.append("dense 모델 — active = 전 가중치")
+    if ple_b:
+        notes.append("PLE n-gram %.2fGiB 는 active 제외(행 gather) — 포함하면 active 가 %.2fGiB 로 "
+                     "부풀어 실측이 자기 물리상한을 넘는다(2026-09-12 camp-26091216 실증)"
+                     % (ple_b/GIB, (active_bytes + ple_b)/GIB))
 
     per_node_read = active_bytes / tp
     bw_bytes = bw_gbps * 1e9                      # GB/s → bytes/s
@@ -319,6 +337,10 @@ def main():
         "interconnect_gbps": ic_gbps,
         "active_bytes": int(active_bytes),
         "active_gib": round(active_bytes / GIB, 3),
+        # PLE 는 0 으로 숨기지 않고 **분리해 기재**한다(헌법 §결정론 산출물은 출처를 표시한다) —
+        # 값이 안 보이면 "PLE 가 없는 모델"과 "빼고 계산했다"가 구분되지 않는다.
+        "ple_excluded_bytes": int(ple_b),
+        "ple_excluded_gib": round(ple_b / GIB, 3),
         "per_node_read_gib": round(per_node_read / GIB, 3),
         "t_weight_ms": round(t_weight * 1e3, 4),
         "t_comm_ms": round(t_comm * 1e3, 4),
