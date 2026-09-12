@@ -769,6 +769,10 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 
 ### 2.7.9 노드 오케스트레이터 — Phase 감독 (신설 2026-09-05 · `plan_26090516` §7.4 · H1)
 
+> **브랜치별 오케스트레이션 전략은 특화층이 소유한다** — `references/orchestration.topology.md`
+> (같은 경로가 반대 브랜치에서는 다른 내용이고 브랜치 동기화가 옮기지 않는다 ·
+> policy:BRANCH_CONSTITUTION_LAYERING). 이 절은 토폴로지 무관한 감독 기계만 갖는다.
+
 축 C/D 결정(2026-09-05): 런타임 3종 스킬이 도는 Phase 에는 **`output/**` 산출물이 메인↔서브 데이터 통신으로
 오가지 않는다.** 완수 뒤 발행 Phase 에만, 발행에 필요한 정보가 **문서 평면으로** 서브→메인에 온다.
 헌법의 "상향 회수 = 문서기반" 불변식은 개정하지 않는다 — 오케스트레이터는 그 불변식을 Phase 로 집행한다.
@@ -800,7 +804,7 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 
 ### 2.7.11 러너 사다리 — A2A 위임의 **실행자 축**과 회전 (신설 2026-09-08 · 사용자 지시)
 
-> **정본은 여기다.** 헌법에는 "왜" 한 줄(`policy:RUNNER_LADDER_ROTATION`)만 남고,
+> **정본은 여기다.** 헌법에는 "왜" 한 줄만 남고(`policy:` 접두 없음 — registry 등재 정책이 아니다),
 > 어휘·판정·회전·소진은 이 절이 소유한다. 실행 문법(바이너리·별칭 표)은
 > `references/agent-control-adapter.md` §2.1 이 소유한다.
 

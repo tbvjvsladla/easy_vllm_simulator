@@ -2279,9 +2279,20 @@ def main(argv: list[str] | None = None) -> int:
             if a.ground:
                 if not a.utc:
                     raise WriterRefusal("--ground 는 --utc 가 필요하다(시각은 주입만 받는다)")
+                # ★ 2026-09-12 (plan_26091210 A13): 여기 있던 `else "single"` 침묵 폴백을 걷어냈다.
+                #   선언이 비거나 오염됐을 때 조용히 single 을 적었고, **그 거짓이 실제로 기록됐다** —
+                #   활성 캠페인의 그라운딩 기록이 `request.topology: single` 을 들고 있는데 선언도
+                #   브랜치도 multi 였다. 그라운딩은 서빙 진입의 선행조건이므로(정직한 공백은 통과·
+                #   거절만 차단) 그 자리에 **거짓 사실**이 실리면 fail-closed 가 무의미해진다.
+                #   폴백이 아니라 거부가 옳다: 선언을 고치는 것은 사람의 일이다.
                 _topo = (read_declaration(base).get("control_variables") or {}).get("topology")
+                if _topo not in ("single", "multi"):
+                    raise WriterRefusal(
+                        "--ground 는 활성 캠페인의 control_variables.topology 를 요구한다 — "
+                        f"현재 값 {_topo!r}. 기본값으로 대체하지 않는다(그라운딩 기록에 거짓 사실이 "
+                        "실리면 fail-closed 백스톱이 무의미해진다). 선언을 먼저 고쳐라.")
                 _gp, _gd = ground_campaign(
-                    base, utc=a.utc, topology=(_topo if _topo in ("single", "multi") else "single"),
+                    base, utc=a.utc, topology=_topo,
                     terms=[t.strip() for t in (a.terms or "").split(",") if t.strip()] or None,
                     warm_start=not a.no_warm_start)
                 wrote.append(_rel(_gp))

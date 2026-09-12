@@ -1286,6 +1286,101 @@
           "resolve"
         ]
       }
+    ],
+    "BRANCH_CONSTITUTION_LAYERING.C1": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_BRANCH_CONSTITUTION_LAYERING_C1"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+        "assertion_ids": [
+          "LAYER_SUFFIX",
+          "LAYER_PATHSPEC",
+          "LAYER_EXCLUDE_PATHSPEC",
+          "layer_files"
+        ]
+      },
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+        "assertion_ids": [
+          "PATHS"
+        ]
+      }
+    ],
+    "BRANCH_CONSTITUTION_LAYERING.C2": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_BRANCH_CONSTITUTION_LAYERING_C2"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+        "assertion_ids": [
+          "_HEADER_DECL",
+          "HEADER_WINDOW",
+          "read_layer_header"
+        ]
+      }
+    ],
+    "BRANCH_CONSTITUTION_LAYERING.C3": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_BRANCH_CONSTITUTION_LAYERING_C3"
+        ]
+      },
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+        "assertion_ids": [
+          "ALLOWLIST",
+          "MIRROR_DIRS",
+          "REPORT_ADD",
+          "REPORT_CONFLICT"
+        ]
+      }
+    ],
+    "BRANCH_CONSTITUTION_LAYERING.C4": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_BRANCH_CONSTITUTION_LAYERING_C4"
+        ]
+      },
+      {
+        "path": ".claude/policies/runtime/runtime_selftest.py",
+        "assertion_ids": [
+          "_TOPOLOGY_ONLY_VOCABULARY",
+          "_TOPOLOGY_VOCABULARY_EXEMPTIONS",
+          "_vocabulary_offenders",
+          "_common_layer_prose"
+        ]
+      }
+    ],
+    "BRANCH_CONSTITUTION_LAYERING.C5": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_BRANCH_CONSTITUTION_LAYERING_C5"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+        "assertion_ids": [
+          "evaluate",
+          "BRANCH_TO_TOPOLOGY"
+        ]
+      },
+      {
+        "path": ".claude/policies/runtime/runtime_selftest.py",
+        "assertion_ids": [
+          "_test_topology_layer_parity",
+          "_test_topology_layer_parity_predicate"
+        ]
+      }
     ]
   }
 }

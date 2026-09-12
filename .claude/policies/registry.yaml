@@ -1949,6 +1949,172 @@
         "reviewer": "maintainer",
         "reason": "Added 2026-09-08 from the camp-26090721 post-hoc audit, whose finding is itself the dated reproduction (librarian calls = 0, shelf 147 documents behind, library_relay callers = 0). Kept candidate rather than active because the deliberate-RED evidence exists only as unit self-tests and the backstop has not yet blocked a live serve; promotion waits for the acceptance re-run testlog in plan_26090813 stage 6."
       }
+    },
+    {
+      "policy_id": "BRANCH_CONSTITUTION_LAYERING",
+      "owner": "upstream-version-watch",
+      "statement": "The constitution is split into a common layer that must be byte-identical across the single-node and multi-node branches, and a topology-specialized layer that lives at the same path with branch-specific content and is never propagated by branch synchronisation. The branch selects which specialized layer and which per-topology output tree is read; it is a filter, not the authority on topology. The authority remains the per-topology manifest, and any disagreement between branch, specialized self-declaration, manifest, and the active campaign declaration is fail-closed and never auto-corrected.",
+      "scope": [
+        "single-node",
+        "multi-node"
+      ],
+      "origin_failure": "2026-09-11: a 14-cell multi-node campaign ran under a single-node checkout for hours and the only tripwire that fired was the user. The 2026-09-12 audit found the mechanism: the constitution declared that topology is never inferred from the branch, but that declaration had zero executors while 13 code sites derived topology from the branch name and used it to choose the per-topology manifest, so in the execution plane 'the manifest is the authority' had inverted into 'the branch chooses the manifest'. Meanwhile the synchronisation script, self-described as a one-way mirror whose source branch does not exist, had been run 99 times in both directions with an allowlist covering everything not topology-specific and no dirty-tree check, so the two branches converged to byte-identical building blocks and the single/multi distinction survived only as prose nobody enforced.",
+      "clauses": [
+        {
+          "clause_id": "BRANCH_CONSTITUTION_LAYERING.C1",
+          "statement": "A constitution file is topology-specialized if and only if its path matches the suffix convention *.topology.md. Membership is derived from the path, never from a hand-maintained per-file registration: a list that must be edited alongside each new file is the shape that produced four silent omissions in the branch-synchronisation allowlist. The convention is expressed once as a git pathspec and both the predicate that enumerates specialized files and the synchronisation that excludes them use that same pathspec, because pathlib and git disagree about what a leading double-star matches and a split there would be silent."
+        },
+        {
+          "clause_id": "BRANCH_CONSTITUTION_LAYERING.C2",
+          "statement": "Every specialized file carries a self-declaration header in its body: a line beginning with a bold topology marker naming single or multi, within the first ten lines, exactly once. The declaration lives in the body rather than in frontmatter or an HTML comment because the disposition of unrecognized frontmatter keys is not documented behaviour and block HTML comments are stripped before context injection; either would let the bytes the predicate reads diverge from the context the agent reads. The format is closed, so a malformed, absent, or duplicated declaration fails rather than degrading quietly."
+        },
+        {
+          "clause_id": "BRANCH_CONSTITUTION_LAYERING.C3",
+          "statement": "Branch synchronisation copies the common layer only. Specialized files are excluded from the checkout pathspec in either direction, and the exclusion is carried inside the path array rather than appended to the checkout invocation, whose exact text is asserted elsewhere. The hint catalog is re-derived on each branch from the remote publishing tags rather than copied. Outbound reports converge by union: paths absent on the destination are added, identical paths are skipped, and a path present on both with different content stops the run instead of being overwritten, because a report is an append-only announcement whose publication time is fixed."
+        },
+        {
+          "clause_id": "BRANCH_CONSTITUTION_LAYERING.C4",
+          "statement": "Common-layer constitutional prose carries no vocabulary that is true of only one topology. The vocabulary is a closed list held by the enforcing tripwire so that widening or narrowing it forces a review, comparison is case-sensitive, and every exemption must carry a written reason. This is the second line of defence against misclassification: a correction wrongly promoted to the common layer is caught on the opposite branch even after a human approved it."
+        },
+        {
+          "clause_id": "BRANCH_CONSTITUTION_LAYERING.C5",
+          "statement": "Branch, specialized self-declaration, the topology recorded in the per-topology manifest, and the active campaign's declared topology must agree. A single deterministic predicate decides this, is executed at commit time and at serving, benchmarking, and delivery entry points, and never auto-corrects, because choosing which side to correct would re-invert the authority the policy exists to protect. Absence and disagreement are different findings: untracked inputs that are simply not present are reported as absent and do not fail, while the count of legs actually judged is always disclosed so a partial judgment is never read as a full one."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C1"
+          ],
+          "assertion_ids": [
+            "predicate_BRANCH_CONSTITUTION_LAYERING_C1"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C1"
+          ],
+          "assertion_ids": [
+            "LAYER_SUFFIX",
+            "LAYER_PATHSPEC",
+            "LAYER_EXCLUDE_PATHSPEC",
+            "layer_files"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C1"
+          ],
+          "assertion_ids": [
+            "PATHS"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C2"
+          ],
+          "assertion_ids": [
+            "predicate_BRANCH_CONSTITUTION_LAYERING_C2"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C2"
+          ],
+          "assertion_ids": [
+            "_HEADER_DECL",
+            "HEADER_WINDOW",
+            "read_layer_header"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C3"
+          ],
+          "assertion_ids": [
+            "predicate_BRANCH_CONSTITUTION_LAYERING_C3"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C3"
+          ],
+          "assertion_ids": [
+            "ALLOWLIST",
+            "MIRROR_DIRS",
+            "REPORT_ADD",
+            "REPORT_CONFLICT"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C4"
+          ],
+          "assertion_ids": [
+            "predicate_BRANCH_CONSTITUTION_LAYERING_C4"
+          ]
+        },
+        {
+          "path": ".claude/policies/runtime/runtime_selftest.py",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C4"
+          ],
+          "assertion_ids": [
+            "_TOPOLOGY_ONLY_VOCABULARY",
+            "_TOPOLOGY_VOCABULARY_EXEMPTIONS",
+            "_vocabulary_offenders",
+            "_common_layer_prose"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C5"
+          ],
+          "assertion_ids": [
+            "predicate_BRANCH_CONSTITUTION_LAYERING_C5"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C5"
+          ],
+          "assertion_ids": [
+            "evaluate",
+            "BRANCH_TO_TOPOLOGY"
+          ]
+        },
+        {
+          "path": ".claude/policies/runtime/runtime_selftest.py",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C5"
+          ],
+          "assertion_ids": [
+            "_test_topology_layer_parity",
+            "_test_topology_layer_parity_predicate"
+          ]
+        }
+      ],
+      "added_at": "2026-09-12",
+      "last_reproduced": "2026-09-12",
+      "remove_when": "Removable only if the two branches stop being independent deployment lines: for example if a single tree serves both topologies from one checkout with the manifest alone selecting the output path, so that no constitutional text is branch-dependent and nothing needs excluding from synchronisation. Until then, removing this policy returns the repository to the state the 2026-09-11 incident came from: a declaration with no executor, and a synchronisation allowlist that quietly makes the two branches the same.",
+      "status": "candidate",
+      "review": {
+        "state": "current",
+        "last_reviewed_at": "2026-09-12",
+        "next_review_due": "2026-12-11",
+        "reviewer": "maintainer",
+        "reason": "Added 2026-09-12 from plan_26091210 and its audit, which is itself the dated reproduction: byte-identical building blocks across both branches, 13 branch-derived topology sites, 99 bidirectional synchronisation runs with no dirty check, and a 14-cell campaign run under the wrong checkout. Kept candidate rather than active because the closing-sequence harness and its deliberate-RED negative controls land in the same plan's later stages; promotion waits for that acceptance testlog."
+      }
     }
   ]
 }

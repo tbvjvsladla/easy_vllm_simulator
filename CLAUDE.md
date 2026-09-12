@@ -13,7 +13,9 @@
 - 토폴로지(단일/다노드)·노드 수·역할·인터커넥트는 manifest에서 읽는다(테라포밍이 인터뷰로 채운다).
 - 배포 단위 = 스켈레톤 + 생성엔진(완성품 아님). 누구든 클론 후 자기 환경을 테라포밍해 쓴다.
 - 브랜치: single-node = 단일노드 전용 · multi-node = 분산 전용. 두 브랜치는 버전 핀이 독립이며
-  둘 다 배포 대상이다. 공유 빌딩블럭 동기화는 사람 질의로 수동 실행한다.
+  둘 다 배포 대상이다. **브랜치는 권위가 아니라 필터다** — 어느 헌법 특화층과 어느 `output/<t>/` 를
+  읽는가를 고를 뿐이고, 토폴로지 사실의 권위는 manifest 다. 동기화는 **공통층만** 옮기며 특화층은
+  방향과 무관하게 전파하지 않는다. policy:BRANCH_CONSTITUTION_LAYERING.
 
 ## 불변식
 
@@ -27,6 +29,8 @@
 - 이미지 네이밍: 이미지 하나가 모든 모델을 서빙한다(모델별로 이미지를 분기하지 않는다).
 - 산출물 통로: 빌드/렌더 산출물과 manifest 실값은 토폴로지별 산출물 디렉터리에 두어 단일/멀티 혼재를
   막는다. 통로는 체크아웃 브랜치가 선택하지만, 토폴로지 자체는 인터뷰로 결정한다(브랜치로 추론하지 않는다).
+  이 문장의 **집행자**는 4자일치 술어다 — 브랜치·특화헌법 자기선언·manifest·활성 캠페인 선언이 어긋나면
+  pre-commit 과 진입 게이트가 fail-closed 로 막고 자동 교정하지 않는다(policy:BRANCH_CONSTITUTION_LAYERING).
 - serve-time 변수 해소는 환경 주입이 manifest보다, manifest가 리터럴 기본값보다 우선한다(절차는
   workflow.md).
 - **캠페인 아티팩트 체인**: 여러 버전×모델을 순차로 도는 캠페인의 단계 간 정보는 **대화 기억이 아니라
@@ -43,7 +47,9 @@
 - **실행자(runner)는 통제변인이 아니다** — A2A 위임의 러너(백엔드×모델)는 순서 있는 **사다리**로
   선언하고, 러너 평면 실패에서만 다음 칸으로 회전한다. 회전은 재시도도 예산 사건도 아니며
   (바뀌는 것은 *누가 실행하는가* 하나다), 판정하지 못한 실패에서는 **회전하지 않는다**. 한 바퀴를
-  다 돌면 사람에게 간다. policy:RUNNER_LADDER_ROTATION (정본 `terraforming_node` SKILL.md §2.7.11).
+  다 돌면 사람에게 간다. 정본은 `terraforming_node` SKILL.md §2.7.11 이다 — 이 규약은 **registry 등재
+  정책이 아니므로** `policy:` 접두를 붙이지 않는다(2026-09-12 강등: 접두가 붙어 있었으나 registry 에
+  같은 ID 가 없어 두 해 동안 아무도 검사하지 않는 유령 참조였다).
 - 포크 의존은 상시화하지 않는다 — 포크 핀 앞에 자체 이식 칸을 두되 선판정 신호에 걸리면 건너뛴다
   (policy:ARCH_WALL_VARIANT_LADDER · 절차는 workflow.md).
 - KV 캐시 이식성: policy:KV_ABSOLUTE_CLAMP_PORTABILITY.
@@ -61,11 +67,12 @@
 - 모델 트리플렛 서브 미전파: policy:MODEL_TRIPLET_NO_SUB_PROPAGATION.
 - 서브 git은 로컬 전용이다: policy:SUB_GIT_LOCAL_ONLY.
 - 서브 동기화는 dirty를 만나면 보존 후 진행한다: policy:SUB_SYNC_DIRTY_AUTOSAVE.
-- **A. 토폴로지 축** — 노드 정체성·자율성의 **제1축은 토폴로지**다. 멀티의 sub는 Ray 워커(위치=rank·
-  집단 연산 ABI 동기·제어평면은 head 종속)이고, 싱글의 sub는 A2A 원격 에이전트(정체성=AgentCard·
-  자율 처리·client↔server)다. **한 스킴의 `role: sub`로 양자를 덮지 않는다** — 덮으면 멀티의 전파·
-  동기 개념이 싱글로 새어 든다. 판정·배선은 `terraforming_node` SKILL.md §2.7.0이 소유한다(외부
-  그라운딩은 `docs/report/harness_26082218_08_32_노드_정체성_토폴로지_그라운딩.md`).
+- **A. 토폴로지 축** — 노드 정체성·자율성의 **제1축은 토폴로지**다. 두 토폴로지의 sub 는 이름만 같을 뿐
+  **다른 존재**이며, **한 스킴의 `role: sub`로 양자를 덮지 않는다** — 덮으면 한쪽의 전파·동기 개념이
+  다른 쪽으로 새어 든다. *각각이 무엇인가*는 이 체크아웃의 특화헌법(`.claude/rules/strategy.topology.md`)이
+  말하고, *왜 둘이 다른가*의 비교는 `terraforming_node` SKILL.md §2.7.0이 소유한다(양 토폴로지가 함께
+  읽어야 하므로 공통이다). 판정·배선도 §2.7.0이며 외부 그라운딩은
+  `docs/report/harness_26082218_08_32_노드_정체성_토폴로지_그라운딩.md`.
 - **B. 그라운딩** — 서브의 빌드·서빙 **결정은 도서관 참조를 인용해야 성립한다**. 인용 없는 결정은
   거짓이 아니라 **누락**이며, **누락은 기계가 fail-closed로 잡고 거짓은 사람이 리뷰한다**. 도서관과
   사서는 메인 단독이다 — 복제하지 않고 차등 접근으로 연다(반출은 참조·발췌이지 복제가 아니다).
@@ -84,12 +91,9 @@
      사유가 된다. 막힘 3종 분류(정상 차단·침묵 누락·오배달)의 정본은 workflow.md다.
   5. **발견은 소유가 아니다** — 발견한 주체와 처방을 소유한 주체가 다를 수 있으며, 소유자는 owner
      표가 정한다(3+1+1 슬롯·escalation 역루프 모두 이 원칙의 사례다).
-- single-node은 manifest에 서브가 등록되면 **A2A 에이전트 제어** 확장기능을 얻는다 — 얻는 것은 위임·
-  관측이지 **멀티의 빌드킷 배달·버전 동기 평면이 아니다**(불변식 A). 서브 등록은 배달 평면을 켜지
-  못하며, 싱글 서브는 자기 빌드킷을 자율 저작한다. 활성 게이트는 결정론이고 상세는
-  `terraforming_node` SKILL.md §2.7.0이다. **싱글 서브도 자기 manifest 를 갖는다** — 메인 terraforming 이
-  실측·생성·배달하며(`self_role: sub` · Flag `issued_by: main`), Agent_Card 는 A2A 평면 계약(능력·엔드포인트·
-  서명)이지 HW 사실의 자리가 아니다(2026-09-05 · plan_26090516 §7).
+- **서브에 무엇이 열리는가는 토폴로지가 정한다** — 배달 평면·서브 정체·활성 스킬은 manifest 에서
+  `node_role_contract` 가 파생하고, *이 브랜치에서 그것이 무엇이며 왜 그런가*는 특화헌법이 말한다.
+  헌법은 그 값을 재기재하지 않는다(파생 가능한데 손으로 적으면 두 자리가 갈라진다).
 - last-good 롤백 앵커: policy:LAST_GOOD_ROLLBACK_ANCHOR.
 - hint 태그 활성화: policy:HINT_TAG_ACTIVATION_GATE.
 - 로그가 곧 에이전트다: 작업은 로그/문서 발행으로 잔존한다. container-gen·서빙전략·브랜치싱크·온보딩은
@@ -139,13 +143,15 @@
   감독자는 상주하지 않고 한 걸음마다 판정을 원장에 적고 끝난다. 자동으로 하는 것은 **끊긴 것의
   재발급**뿐이고(전진이 보일 때만), 비용 상한·통신 단절·전진 없음은 사람에게 묻는다
   (2026-09-08 명문화 · `terraforming_node` SKILL.md §2.7.7).
-- 컨테이너 변경은 요구된 스모크(단일·멀티 양쪽)를 통과하기 전 완료로 판정하지 않는다. 로컬 빌드와 스모크를
+- 컨테이너 변경은 **이 체크아웃 토폴로지의** 요구된 기능 스모크를 통과하기 전 완료로 판정하지 않는다
+  (반대 토폴로지의 산출물 통로는 이 체크아웃에 없다 — 범위는 특화헌법이 적는다). 로컬 빌드와 스모크를
   통과한 코드만 last-good 커밋으로 남긴다.
 
 ## 정책 경계
 
 - policy:A2A_IDENTITY_PROOF_FAIL_CLOSED
 - policy:ARCH_WALL_VARIANT_LADDER
+- policy:BRANCH_CONSTITUTION_LAYERING
 - policy:GIT_SINGLE_AUTHORITY
 - policy:HINT_TAG_ACTIVATION_GATE
 - policy:HOST_SAFETY_LAYERED_DEFENSE
@@ -155,7 +161,6 @@
 - policy:MODEL_ACQUISITION_TERNARY_GATE
 - policy:MODEL_TRIPLET_NO_SUB_PROPAGATION
 - policy:ROOT_SURFACE_REGISTRY
-- policy:RUNNER_LADDER_ROTATION
 - policy:RUNTIME_PATCH_NO_CARRY_FORWARD
 - policy:SUB_GIT_LOCAL_ONLY
 - policy:SUB_SYNC_DIRTY_AUTOSAVE
@@ -164,6 +169,10 @@
 
 ## 조건부 참조
 
+- **이 체크아웃 토폴로지에서만 참인 것**(서브 정체의 "왜" · 배달 평면 · 스모크 범위 · 실패 라우팅)은
+  `.claude/rules/strategy.topology.md`. 오케스트레이션 전략은
+  `.claude/skills/terraforming_node/references/orchestration.topology.md`. 둘 다 **특화층**이라 같은
+  경로가 반대 브랜치에서는 다른 내용이고 동기화가 옮기지 않는다(policy:BRANCH_CONSTITUTION_LAYERING).
 - 다단계 전파 절차(해소·패치·동기화·스모크·커밋·escalation·양방향 브랜치싱크)는
   `.claude/rules/workflow.md`.
 - 호환성 사례·서빙전략 배선 공식·적대적 벤치마크 메커니즘·계측 vault 스키마는

@@ -869,7 +869,7 @@ def verify() -> dict:
         #   읽혀 하네스가 RED 로 남는다. 2026-09-11 실측: 핀 2026-09-06 이
         #   LIBRARY_GROUNDING_FAIL_CLOSED(2026-09-08 등재)를 미래로 읽어 위반 3건이 서 있었다.
         checks.append(_run("policy_registry_verify", [sys.executable, str(policy_runner),
-                           "verify", "--as-of", "2026-09-11", "--repo-root", str(REPO)], {0}))
+                           "verify", "--as-of", "2026-09-12", "--repo-root", str(REPO)], {0}))
     else:
         checks.append({"name": "policy_registry_verify", "ok": False,
                        "error": "missing .claude/policies/runtime/policy_registry.py"})

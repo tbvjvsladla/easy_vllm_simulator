@@ -32,6 +32,11 @@ EXIT_USAGE = 2
 EXIT_NO_MANIFEST = 3
 EXIT_NO_FLAG = 4
 EXIT_MISSING_FIELD = 5
+#: 인자 topology 와 **실제 사실**(manifest 자신의 선언 · 체크아웃 브랜치)이 어긋난다.
+#: 2026-09-12 신설(plan_26091210 A2 · policy BRANCH_CONSTITUTION_LAYERING C5). 종전에는 두 구멍이
+#: 열려 있었다 — ⓐ `evaluate_contract` 가 manifest 안의 `topology` 를 인자와 **한 번도 대조하지
+#: 않았고** ⓑ `multi-node` 체크아웃에서 `--topology single --require-flag` 가 exit 0 을 냈다(실측).
+EXIT_TOPOLOGY_MISMATCH = 6
 
 VALID_MODES = ("managed", "ephemeral", "custom")
 
@@ -59,6 +64,27 @@ def resolve_topology(repo, explicit):
     if branch == "multi-node":
         return "multi"
     return None  # 불명 — 호출자가 --topology 명시해야
+
+
+def branch_topology_conflict(repo, explicit):
+    """명시된 topology 가 **체크아웃 브랜치가 고르는 통로**와 어긋나면 사유를, 아니면 None.
+
+    ★ 발화 조건은 **브랜치가 알려진 토폴로지로 해소될 때만**이다. 비-git 트리(배포 클론 스모크가
+      쓰는 임시 디렉터리)·detached HEAD 에서는 종전 동작을 그대로 둔다 — 거기서 새로 죽으면
+      배포 검증이 기대하는 종료코드가 바뀐다.
+
+    브랜치는 권위가 아니라 필터다(policy BRANCH_CONSTITUTION_LAYERING). 그러므로 이 함수는
+    "브랜치가 맞다" 고 말하지 않는다 — **둘이 어긋났다는 사실**만 말하고 어느 쪽을 고칠지는
+    사람이 정한다(자동 교정 금지).
+    """
+    if not explicit:
+        return None
+    derived = resolve_topology(repo, None)
+    if derived is None or derived == explicit:
+        return None
+    return ("요청 topology=%r 이 체크아웃 브랜치가 고르는 통로 %r 와 다르다 — 브랜치를 바꾸거나 "
+            "요청을 바꿔라(자동 교정하지 않는다). 정본 술어: topology_parity.py"
+            % (explicit, derived))
 
 
 def effective_model_source(node, top_level_ms):
@@ -134,6 +160,13 @@ def evaluate_contract(man, topology):
     if missing:
         res["reason"] = "Flag true 이나 필수 HW필드 누락: %s" % ", ".join(missing)
         res["exit_code"] = EXIT_MISSING_FIELD
+        return res
+    if man.get("topology") != topology:
+        # manifest 가 토폴로지 사실의 권위다. 인자가 그와 다르면 호출부가 **다른 통로의 사실로**
+        # 판정하려는 것이고, 그 조합이 2026-09-11 사고의 형태다(멀티 캠페인을 싱글 통로에서 실행).
+        res["reason"] = ("manifest 선언 topology=%r 과 요청 topology=%r 이 다르다 — manifest 가 권위다"
+                         % (man.get("topology"), topology))
+        res["exit_code"] = EXIT_TOPOLOGY_MISMATCH
         return res
     if tp_error:  # 존재하되 비정수/0 — `not man.get()` 은 못 잡는다
         res["reason"] = "Flag true 이나 %s" % tp_error
@@ -364,6 +397,14 @@ def main(argv=None):
         return _self_test()
 
     repo = os.path.abspath(args.repo)
+    conflict = branch_topology_conflict(repo, args.topology)
+    if conflict:
+        if args.json:
+            print(json.dumps({"flag": False, "reason": conflict, "topology": args.topology,
+                              "redirect": REDIRECT_TEMPLATE}, ensure_ascii=False))
+        else:
+            print(conflict, file=sys.stderr)
+        return EXIT_TOPOLOGY_MISMATCH
     topology = resolve_topology(repo, args.topology)
     if not topology:
         print("topology 불명 — --topology 명시 필요(git 브랜치가 single-node/multi-node 아님)", file=sys.stderr)

@@ -58,6 +58,10 @@ CLAUDE.local.md
 !.claude/policies/provenance/
 !.claude/policies/registry.yaml
 !.claude/policies/claim_bindings.json
+# 분류표 원장(2026-09-12 · plan_26091210 §3.7). 위 C-4 비대칭의 같은 형태다 — 재포함 한 줄이
+#   없으면 `git add` 가 조용히 no-op 이 되고, 원장이 추적되지 않으면 "이 교정이 어느 판정을
+#   거쳤는가" 가 다음 사람에게 아예 보이지 않는다.
+!.claude/policies/branch_layer_ledger.json
 !.claude/policies/arch_variant_ledger.json
 # 루트 표면 등록부(policy:ROOT_SURFACE_REGISTRY 의 단일 권위). `.claude/policies/*` 에 걸려
 #   `git add` 가 조용히 no-op 이 되는 자리다 — 재포함이 없으면 등록부 자체가 배포되지 않는다.
