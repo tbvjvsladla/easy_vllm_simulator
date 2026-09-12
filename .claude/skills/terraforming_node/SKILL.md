@@ -800,7 +800,7 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 
 ### 2.7.11 러너 사다리 — A2A 위임의 **실행자 축**과 회전 (신설 2026-09-08 · 사용자 지시)
 
-> **정본은 여기다.** 헌법에는 "왜" 한 줄(`policy:RUNNER_LADDER_ROTATION`)만 남고,
+> **정본은 여기다.** 헌법에는 "왜" 한 줄만 남고(`policy:` 접두 없음 — registry 등재 정책이 아니다),
 > 어휘·판정·회전·소진은 이 절이 소유한다. 실행 문법(바이너리·별칭 표)은
 > `references/agent-control-adapter.md` §2.1 이 소유한다.
 
