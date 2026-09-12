@@ -142,7 +142,7 @@ print(json.dumps({
     "entry_id": "<FILL: 예 sync-YYYYMMDDHHMM>",
     "utc": "<FILL: 시각은 주입만 받는다>",
     "departure": cur,
-    "departure_commit": "<FILL: ④에서 원장 커밋 직후의 SHA>",
+    "departure_commit": "<FILL: 분류한 시점의 출발 브랜치 HEAD — 원장 파일은 동기화 제외라 ④ 커밋과 공통층이 같다>",
     "approved_by": "<FILL: 사람>",
     "approved_utc": "<FILL>",
     "_reach": reach,
