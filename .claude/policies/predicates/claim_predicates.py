@@ -3800,7 +3800,202 @@ def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C5():
              "사서 응대 함수를 부르는 자리가 없다 — 부품만 있고 루프가 없던 형태의 재발")
 
 
+def _topology_parity():
+    """4자일치 술어를 소유자에게서 적재한다(규약 문자열을 여기서 두 번째로 적지 않는다)."""
+    return _import(".claude/skills/terraforming_node/scripts", "topology_parity")
+
+
+def _layer_fixture(tmp: str, header_topology: str, *, branch: str = "single-node") -> "Path":
+    """정본 마커를 갖춘 픽스처에 특화헌법 한 장을 심는다. 브랜치는 기본 `single-node` 다."""
+    root = _canonical_fixture_repo(tmp)
+    if branch != "single-node":
+        _fixture_git(root, "checkout", "-q", "-b", branch)
+    spec = root / ".claude" / "rules" / "strategy.topology.md"
+    spec.write_text(f"# s\n\n**topology: {header_topology}**\n", encoding="utf-8")
+    _fixture_git(root, "add", "-A")
+    return root
+
+
+def predicate_BRANCH_CONSTITUTION_LAYERING_C1():
+    """C1: 특화층 소속은 **경로 규약에서 파생**되고 손등록 목록이 아니다.
+
+    규약 문자열이 술어(python)와 동기화(bash) 두 자리에 같은 형태로 있어야 하고, 열거는
+    `pathlib` 이 아니라 git 이 해야 한다 -- 두 엔진의 glob 의미가 다르기 때문이다(선행 `**/` 가
+    git 에서는 디렉터리 0개를 매치하지 않는다). 갈라지면 *술어가 보는 집합* 과 *sync 가 제외하는
+    집합* 이 달라지고, 그 갈라짐은 조용하다.
+    """
+    tp = _topology_parity()
+    _require(tp.LAYER_SUFFIX == ".topology.md", f"접미사 규약이 바뀌었다: {tp.LAYER_SUFFIX}")
+    _require(tp.LAYER_PATHSPEC == "*.topology.md",
+             f"경로 규약은 선행 `**/` 없는 형태여야 한다: {tp.LAYER_PATHSPEC}")
+    _require(not tp.LAYER_PATHSPEC.startswith("**/"),
+             "선행 `**/` 는 git pathspec 에서 루트 파일을 놓친다 -- 그 형태를 쓰면 안 된다")
+    _require(tp.LAYER_EXCLUDE_PATHSPEC == ":(exclude)" + tp.LAYER_PATHSPEC,
+             f"제외 pathspec 이 규약에서 파생되지 않는다: {tp.LAYER_EXCLUDE_PATHSPEC}")
+
+    sync = _read(".claude/skills/upstream-version-watch/scripts/sync_branches.sh")
+    _require(tp.LAYER_EXCLUDE_PATHSPEC in sync,
+             "동기화가 특화층을 제외하지 않는다 -- 두 자리가 갈라지면 다음 sync 가 특화 파일을 "
+             "반대 브랜치로 실어 두 브랜치를 다시 같게 만든다")
+
+    src = _read(".claude/skills/terraforming_node/scripts/topology_parity.py")
+    body = src[src.index("def layer_files("):src.index("def _load_manifest(")]
+    _require("ls-files" in body and ".glob(" not in body,
+             "특화층 열거는 git 이 해야 한다 -- pathlib 의 `**` 의미가 git 과 달라 두 집합이 갈린다")
+    _require("손등록" not in body, "경로 규약 파생을 손등록 목록으로 되돌리면 안 된다")
+
+    # 라이브: 규약에 맞는 파일은 등록 없이 그대로 잡힌다.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = _layer_fixture(tmp, "single")
+        found = [pp.name for pp in tp.layer_files(root)]
+        _require(found == ["strategy.topology.md"],
+                 f"규약에 맞는 파일이 자동으로 잡히지 않았다: {found}")
+        other = root / ".claude" / "rules" / "plain.md"
+        other.write_text("# plain\n", encoding="utf-8")
+        _fixture_git(root, "add", "-A")
+        _require([pp.name for pp in tp.layer_files(root)] == ["strategy.topology.md"],
+                 "규약 밖 파일이 특화층으로 잡혔다")
+
+
+def predicate_BRANCH_CONSTITUTION_LAYERING_C2():
+    """C2: 자기선언 헤더는 **본문의 닫힌 형식**이고 정확히 하나다.
+
+    frontmatter 도 HTML 주석도 아닌 이유는 둘 다 *술어가 읽는 바이트* 와 *에이전트가 읽는
+    컨텍스트* 를 갈라 놓을 수 있기 때문이다. 관대한 파싱이면 어긋남이 조용해지므로 형식을 닫는다.
+    """
+    tp = _topology_parity()
+    _require(tp.HEADER_WINDOW >= 1, "헤더 창이 비었다")
+    src = _read(".claude/skills/terraforming_node/scripts/topology_parity.py")
+    _require("frontmatter" in src and "문서화된 동작이 아니" in src,
+             "본문 선언을 택한 사유가 파일에서 사라지면 다음 사람이 frontmatter 로 되돌린다")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        good = root / "a.topology.md"
+        good.write_text("# t\n\n**topology: multi** · layer\n", encoding="utf-8")
+        _require(tp.read_layer_header(good) == ("multi", "ok"), "정상 헤더를 읽지 못했다")
+
+        for name, text, why in (
+            ("none", "# t\n선언 없음\n", "선언 부재"),
+            ("loose", "topology: multi\n", "닫히지 않은 형식"),
+            ("html", "<!-- topology: multi -->\n", "HTML 주석(컨텍스트에서 제거된다)"),
+            ("front", "---\ntopology: multi\n---\n", "frontmatter(처분이 문서화돼 있지 않다)"),
+            ("dup", "**topology: multi**\n**topology: single**\n", "선언 2개"),
+            ("late", "\n" * (tp.HEADER_WINDOW + 2) + "**topology: multi**\n", "창 밖 선언"),
+        ):
+            f = root / f"{name}.topology.md"
+            f.write_text(text, encoding="utf-8")
+            _require(tp.read_layer_header(f)[0] is None,
+                     f"{why} 가 헤더로 받아들여졌다 -- 형식이 닫혀 있지 않다")
+
+
+def predicate_BRANCH_CONSTITUTION_LAYERING_C3():
+    """C3: 동기화는 **공통층만** 옮긴다 -- 특화층 제외 · 카탈로그 재파생 · report 합집합.
+
+    report 는 발행 시점이 고정된 append-only 공지다. 미러 삭제를 걸어 두면 반대편 전용 발행본이
+    동기화 때마다 사라진다(2026-09-12 실측: 한 방향 4건 · 반대 방향 1건).
+    """
+    sync = _read(".claude/skills/upstream-version-watch/scripts/sync_branches.sh")
+    mirror = sync[sync.index("MIRROR_DIRS=("):sync.index("ROOT_RELOCATION_TOMBSTONES=(")]
+    executable = "\n".join(ln.split("#", 1)[0] for ln in mirror.splitlines())
+    _require("docs/report" not in executable,
+             "docs/report 가 미러 삭제 목록으로 돌아왔다 -- append-only 공지는 미러가 될 수 없다")
+
+    _require("REPORT_CONFLICT" in sync and "REPORT_ADD" in sync,
+             "report 합집합 판정이 사라졌다")
+    _require("exit 7" in sync, "같은 경로 다른 내용에서 멈추는 종료코드가 없다")
+    for token in ("git rev-parse --verify --quiet \"$SRC_BRANCH:$f\"",
+                  "git rev-parse --verify --quiet \"HEAD:$f\""):
+        _require(token in sync,
+                 f"report 비교가 git-대-git 이 아니다 -- 워킹트리 해시는 eol 변환이 끼어든다: {token}")
+    _require("docs/report/*) ;;" in sync,
+             "삭제 루프의 report 차단 arm 이 사라졌다 -- 미러에서 뺀 지금 이것이 유일한 차단막이다")
+
+    tp = _topology_parity()
+    _require(tp.LAYER_EXCLUDE_PATHSPEC in sync, "특화층 제외가 동기화에 없다")
+    checkout = next(ln for ln in sync.splitlines()
+                    if ln.strip().startswith('git checkout "$SRC_BRANCH"'))
+    _require(checkout.strip() == 'git checkout "$SRC_BRANCH" -- "${PATHS[@]}"',
+             "제외는 배열 안에서 해결해야 한다 -- 이 줄에 인자를 덧붙이면 정책 술어와 배포검증이 "
+             f"동시에 깨진다: {checkout.strip()}")
+
+
+def predicate_BRANCH_CONSTITUTION_LAYERING_C4():
+    """C4: 공통층 산문에는 한쪽 토폴로지에서만 참인 어휘가 없다.
+
+    이것이 오분류의 **2차 방어**다 -- 사람이 분류표를 잘못 승인해도 반대 브랜치에서 여기서 걸린다.
+    목록은 닫혀 있고(변경 시 리뷰 강제), 면제는 사유를 함께 적어야 등재된다.
+    """
+    rs = _runtime_selftest()
+    vocab = rs._TOPOLOGY_ONLY_VOCABULARY
+    _require(set(vocab) == {"single", "multi"}, f"어휘 목록의 축이 바뀌었다: {sorted(vocab)}")
+    _require(all(terms for terms in vocab.values()), "한쪽 어휘 목록이 비었다")
+    for entry in rs._TOPOLOGY_VOCABULARY_EXEMPTIONS:
+        _require(len(entry) == 4 and isinstance(entry[3], str) and len(entry[3]) > 20,
+                 f"면제에 사유가 없다 -- 사유 없는 면제는 조용한 구멍이다: {entry[:3]}")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / ".claude" / "rules").mkdir(parents=True)
+        term = vocab["multi"][0]
+        (root / "CLAUDE.md").write_text(f"# c\n서브는 {term} 다.\n", encoding="utf-8")
+        _require(rs._vocabulary_offenders(root), "공통층의 토폴로지 전용 어휘가 발화하지 않았다")
+        (root / "CLAUDE.md").write_text("# c\n서브의 정체는 토폴로지가 정한다.\n", encoding="utf-8")
+        _require(not rs._vocabulary_offenders(root), "음성대조 실패 -- 어휘가 없는데 발화했다")
+        (root / ".claude" / "rules" / "strategy.topology.md").write_text(
+            f"**topology: multi**\n서브는 {term} 다.\n", encoding="utf-8")
+        _require(not rs._vocabulary_offenders(root),
+                 "특화층이 공통층 스캔에 들어왔다 -- 거기 있는 것이 정상이다")
+
+
+def predicate_BRANCH_CONSTITUTION_LAYERING_C5():
+    """C5: 4자일치는 fail-closed 이고 **자동 교정하지 않는다**. 부재와 불일치를 가른다.
+
+    자동으로 한쪽에 맞추면 그 순간 권위가 다시 뒤집힌다 -- 그것이 이 정책이 막으려는 바로 그 일이다.
+    비추적 다리(manifest·캠페인)의 부재를 위반으로 세면 미테라포밍 클론이 커밋조차 못 한다.
+    """
+    tp = _topology_parity()
+    rs = _runtime_selftest()
+    fn = rs._test_topology_layer_parity
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = _layer_fixture(tmp, "single")
+        res = tp.evaluate(root)
+        _require(res["verdict"] == "PASS", f"일치 상태가 PASS 가 아니다: {res['reasons']}")
+        _require(res["legs"]["manifest"]["status"] == "absent"
+                 and res["legs"]["campaign"]["status"] == "absent",
+                 "비추적 다리의 부재는 absent 여야 한다(위반이 아니다)")
+        _require(res["legs_checked"] == 2,
+                 f"2자 판정을 4자처럼 보고하면 안 된다: {res['legs_checked']}")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = _layer_fixture(tmp, "multi")          # 브랜치 single-node ↔ 헤더 multi
+        res = tp.evaluate(root)
+        _require("LAYER_HEADER_MISMATCH" in res["reason_codes"],
+                 f"2026-09-11 사고의 형태가 발화하지 않았다: {res['reason_codes']}")
+        _require(res["verdict"] == "RED" and res["remediation"],
+                 "불일치에 해소 안내가 없다")
+        _require("자동 교정하지 않는다" in res["remediation"],
+                 "자동 교정 금지가 출력에서 사라졌다")
+        _require(_tripwire_raises(fn, root), "tripwire 가 불일치에서 fail-closed 하지 않았다")
+        before = (root / ".claude" / "rules" / "strategy.topology.md").read_text(encoding="utf-8")
+        tp.evaluate(root)
+        _require((root / ".claude" / "rules" / "strategy.topology.md").read_text(encoding="utf-8") == before,
+                 "술어가 파일을 고쳤다 -- 이 술어는 읽기만 해야 한다")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = _canonical_fixture_repo(tmp)          # 추적 특화 파일 0개
+        res = tp.evaluate(root)
+        _require("LAYER_ABSENT" in res["reason_codes"],
+                 f"추적 입력의 부재는 위반이어야 한다: {res['reason_codes']}")
+
+
 PREDICATES = {
+    "BRANCH_CONSTITUTION_LAYERING.C1": predicate_BRANCH_CONSTITUTION_LAYERING_C1,
+    "BRANCH_CONSTITUTION_LAYERING.C2": predicate_BRANCH_CONSTITUTION_LAYERING_C2,
+    "BRANCH_CONSTITUTION_LAYERING.C3": predicate_BRANCH_CONSTITUTION_LAYERING_C3,
+    "BRANCH_CONSTITUTION_LAYERING.C4": predicate_BRANCH_CONSTITUTION_LAYERING_C4,
+    "BRANCH_CONSTITUTION_LAYERING.C5": predicate_BRANCH_CONSTITUTION_LAYERING_C5,
     "LIBRARY_GROUNDING_FAIL_CLOSED.C1": predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C1,
     "LIBRARY_GROUNDING_FAIL_CLOSED.C2": predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C2,
     "LIBRARY_GROUNDING_FAIL_CLOSED.C3": predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C3,
@@ -3945,10 +4140,11 @@ def run_all_predicates() -> int:
     failures = []
     registry_ids = _load_real_registry_clause_ids()
     # 60 -> 63 (2026-09-06 · plan_26090616 ROOT_SURFACE_REGISTRY C1~C3 신설)
-    # 63 -> 68 (2026-09-08 · plan_26090813 LIBRARY_GROUNDING_FAIL_CLOSED C1~C5 신설). 이 숫자는
+    # 63 -> 68 (2026-09-08 · plan_26090813 LIBRARY_GROUNDING_FAIL_CLOSED C1~C5 신설).
+    # 68 -> 73 (2026-09-12 · plan_26091210 BRANCH_CONSTITUTION_LAYERING C1~C5 신설). 이 숫자는
     # 집합 동치가 이미 보장하는 것을 한 번 더 적는 **tripwire 하드코딩**이다 — 절이 늘거나 줄면
     # 여기서 사람 리뷰를 강제한다(workflow.md §4종 안티패턴 판정표 "정당" 칸).
-    if len(PREDICATES) != 68 or set(PREDICATES) != registry_ids:
+    if len(PREDICATES) != 73 or set(PREDICATES) != registry_ids:
         failures.append({"clause_id": "__mapping__", "error":
                          f"predicate/registry mismatch predicates={len(PREDICATES)} registry={len(registry_ids)}"})
     funcs = list(PREDICATES.values())

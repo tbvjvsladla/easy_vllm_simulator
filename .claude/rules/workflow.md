@@ -10,8 +10,8 @@
 | init | `terraforming_node` | 인터뷰 답·노드 사실 | manifest·완수 Flag | plan HITL→스캔→attestation | 스킬 §0.5·`manifest_contract.py` |
 | S1 resolve | `upstream-version-watch` | 목표 vLLM·manifest | torch/NGC/CUDA/build-track/deps 해소값 | HITL ① | 스킬 `references/resolve-and-render.md` |
 | S1.5 judge | `upstream-version-watch` | from/to ref·resolved·(이식 트랙이면)PROVENANCE | `resolved.json#upstream_delta` 3축 attestation | HITL ①.5 | `judge_version_delta.py`(비-0 = 수집 실패) |
-| S2 patch | `upstream-version-watch` | S1 해소값·두 topology | 렌더된 이미지/serve 입력 | 양 브랜치 diff HITL ② | 스킬 §2·renderer |
-| S2.5 sync | `upstream-version-watch` | multi manifest·렌더 산출물 | 검증된 메인→서브 배달 | dry-run→apply·checksum | `sync_to_sub.sh` |
+| S2 patch | `upstream-version-watch` | S1 해소값·이 체크아웃 topology | 렌더된 이미지/serve 입력 | diff HITL ② | 스킬 §2·renderer |
+| S2.5 sync | `upstream-version-watch` | manifest·렌더 산출물 | 검증된 메인→서브 배달 | dry-run→apply·checksum | `sync_to_sub.sh`(어느 평면이 열리는지는 특화헌법) |
 | S3 smoke | upstream + recipe | 렌더 산출물·모델·HW | 기능 스모크·분류·risk memo | 아래 HITL ③ | `classify_failure.py`·owner reference |
 | S4 commit | 사람 + upstream | S3 PASS 증거 | 로컬 last-good·문서·선택적 전파 | 최종 HITL ④ | `policy:LAST_GOOD_ROLLBACK_ANCHOR` |
 | benchmark | `adversarial-benchmark` | 성공 recipe·manifest | lite 관측 또는 full report/certificate | full 수동 게이트 | 해당 skill references/scripts |
@@ -21,7 +21,7 @@
 
 ## 공통 진입 게이트
 
-- S1–S4·escalation·B0–B3 전 tracked terraform validator를 실행한다. 서브 진입은 `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED`도 검증한다(2026-09-05 개명 · 허가 → 정체성). topology는 인터뷰/manifest에서만 읽고 브랜치로 추론하지 않는다.
+- S1–S4·escalation·B0–B3 전 tracked terraform validator를 실행한다. 서브 진입은 `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED`도 검증한다(2026-09-05 개명 · 허가 → 정체성). topology는 인터뷰/manifest에서만 읽고 브랜치로 추론하지 않는다 — 이 문장의 집행자는 4자일치 술어 `topology_parity.py` 이고, 어긋남은 fail-closed 다(policy:BRANCH_CONSTITUTION_LAYERING).
 - Flag가 없으면 작업을 멈추고 다음 문구로 onboarding을 제안한다: *"HW스캔이 덜 되어(Flag 미발행) HW 스펙(GPU·OS)을 알기 어려워 모델 `<HF URL>` 의 정확한 서빙전략을 세우기 어렵습니다. `terraforming_node` 로 ① HW스캔 + ② 모델 다운로드 전략(관리 NAS 경로? 컨테이너 임시 다운로드(컨테이너 down 시 삭제)? 특정 경로 저장·마운트?)을 먼저 정합시다."*
 - fresh clone 감지는 제안만 한다. 인터뷰→승인 뒤에만 스캔한다. 정본은 `policy:TERRAFORM_FLAG_GATE`와 terraforming 스킬 §0.5다.
 
@@ -36,10 +36,10 @@ S1.5 judge  → `judge_version_delta.py` 로 버전 델타 3축 판정(A 빌드�
    HITL 게이트 ①.5 → 사람 확인: ⓐ axis_A 가 정말 ∅ 인지 ⓑ axis_B.silent_revert_risk 처리 계획
                      ⓒ unknown[] 이 비었는지. **UNDETERMINED 면 렌더 진입 금지**
    (조건부) HITL 게이트 ①.6 → 출구① 상속을 쓸 때만: `INHERITED_SOURCE_BUILD_KEYS` 한 줄을 **사람이 손으로** 추가
-S2 patch    → single·multi를 같은 해소값에서 렌더; serve-time env는 manifest보다 우선
+S2 patch    → 이 체크아웃 topology 를 S1 해소값에서 렌더; serve-time env는 manifest보다 우선
    verify   → 변경이 S1에 직결되고 topology 산출물 통로가 분리됨
    HITL 게이트 ② → 각 브랜치 diff 확인
-S2.5 sync   → multi만 dry-run 후 선택적 tracked runtime·위임키·산출물 배달
+S2.5 sync   → dry-run 후 선택적 배달. **어느 평면이 열리는가는 특화헌법이 정한다**
 S3 smoke    → 모델/NAS→RAM/host preflight→build/serve→health/inference
    verify   → 요구 topology 기능 스모크 PASS
    실패     → classify_failure.py reason에 따라 owner route
@@ -61,7 +61,7 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋
 | source-build-class | upstream `references/source-build.md` | ABI 증거→HITL→동결→clean build→S3 |
 | NGC base mismatch | `resolve_ngc_tag.py` + source-build owner | 후보 헤더/로그 증거→HITL→해소값 override→S3 |
 | stock-구조적-불가 | upstream arch variant owner | 아래 사다리·증거·승인 후 S3 |
-| multi OOM/NCCL/Ray | upstream multi reference | 증거 보존→Model-C |
+| 토폴로지 전용 실패(분산 런타임 등) | 특화헌법 §실패 라우팅이 owner 를 정한다 | 증거 보존→Model-C |
 | **러너 평면 실패**(백엔드 한도·인증·미도달·바이너리 부재) | `relay.py` 사다리 회전 → 소진 시 사람 | 판정은 `terminal_reason` 구조 신호 · 회전은 예산 사건 ✗ · **한 바퀴 소진 = 차단성 HITL**. 정본 `terraforming_node` SKILL.md **§2.7.11** |
 | unknown | 사람 | `{proposed_class,evidence}`만 제시; 승인 전 무행동 |
 | recipe 중 구조적 불가 발견 | recipe §5.5→upstream §3.6 | 공식 bump / 포크 SHA pin / 음성정직; cap 뒤 Model-C |
@@ -70,7 +70,7 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
 
 ### 변종 좌표의 거처 (2026-08-13 신설 · 신규 변종부터 적용)
 
-포크 좌표(`VLLM_REPO`·`VLLM_REF`·변종 `IMAGE_TAG`)는 이름이 모델별일 뿐 성질은 **빌드 평면**이다. 그런데 `.env.<model>` 은 Band3(모델 트리플렛)라 `policy:MODEL_TRIPLET_NO_SUB_PROPAGATION` 이 서브 전달을 막는다 — 그 결과 스모크가 슬레이브에 값을 몰래 보간하는 **그림자 배달 경로**가 자라났다(2026-08-13 발견).
+포크 좌표(`VLLM_REPO`·`VLLM_REF`·변종 `IMAGE_TAG`)는 이름이 모델별일 뿐 성질은 **빌드 평면**이다. 그런데 `.env.<model>` 은 Band3(모델 트리플렛)라 `policy:MODEL_TRIPLET_NO_SUB_PROPAGATION` 이 서브 전달을 막는다 — 그 결과 스모크가 서브에 값을 몰래 보간하는 **그림자 배달 경로**가 자라났다(2026-08-13 발견).
 
 - **좌표는 `.claude/policies/arch_variant_ledger.json`(tracked·Band2)에 등재한다.** 스키마는 기존 `source_build_variants` 항목(`variant_id`·`vllm_repo`·`vllm_ref`·`image_tag`·`evidence`·`status`)을 따른다.
 - **`.env.<model>` 에는 `VARIANT=<variant_id>` 한 줄만** 둔다. 줄이 **없으면 stock** 이다 — 부재가 기본값이므로 "까다로운 절차를 벗겨낸 상태"가 값 수정이 아니라 줄 삭제로 표현되고, 오설정이 구조적으로 어려워진다.
@@ -294,8 +294,10 @@ producer 는 0 이었다. 이제 바이트를 쓰는 문은 하나이고, 그 �
   `<camp>-<node>-build` 별도 문맥이다. 원장은 `campaign_node`·`campaign_context_kind`·`campaign_cell` 을
   **선언으로** 든다(이름 추론 ✗ — 이름을 바꾸면 술어가 조용히 눈이 먼다). 2026-09-07 에는 셀 둘을 한
   context 에 묶어 attempt 2회가 모두 시간 캡에서 잘렸다.
-- **싱글 토폴로지의 착수 순서는 서브 지시서가 먼저다**(사용자 결정): 캠페인 init 직후, 메인 첫 셀 착수
-  **전에** `assignments[sub]` 파생 선언으로 서브 build context 를 연다. 술어 P4 가 그 시각 순서를 본다.
+- **착수 순서와 셀의 단위는 토폴로지가 정한다** — 노드별 리스트를 동시에 돌릴 수 있는지, 서브 지시서가
+  메인 첫 셀보다 먼저여야 하는지는 특화헌법
+  (`.claude/skills/terraforming_node/references/orchestration.topology.md`)이 소유한다. 술어 P4 가 그
+  시각 순서를 본다.
 - **감독은 상주가 아니라 한 걸음**이다(`relay.py --supervise-step <camp>`): 원장과 회수된 브리핑을 읽고
   판정해 원장에 `supervisor_step` 을 적고 끝난다. 깨우는 손은 하네스의 예약 wakeup 또는 다음 세션의
   재개다(세션 리볼빙의 응용). 판정 4분기 — `completed`→다음 셀 · 중단∧전진→**자동 재발급** ·
@@ -339,7 +341,8 @@ producer 는 0 이었다. 이제 바이트를 쓰는 문은 하나이고, 그 �
 S2.5 가 서브에 배달한 내용은 메인의 S4 커밋 전까지 **미검증 후보**다. S3 실패로 메인이 커밋 없이
 last-good 로 복구하면, 서브의 `[sync]` 커밋은 이력으로만 남기고 내용은 메인 정본에 수렴시켜야 한다
 — 서브는 미검증 후보를 last-good 앵커 커밋으로 승격하지 않으며, 되돌림은 다음 B1 전파가 index 권위로
-수행한다(2026-07-30 쌍노드 하드다운 때 현실화: 서브만 메인 미커밋 내용의 커밋을 보유).
+수행한다(2026-07-30 하드다운 때 현실화: 서브만 메인 미커밋 내용의 커밋을 보유). 이 전이가 **어느
+토폴로지에서 열리는가**는 특화헌법이 정한다 — 배달 평면이 dormant 인 쪽에서는 이 문단이 성립하지 않는다.
 
 > **last-good 는 커밋이지 태그·ref 가 아니다**(2026-09-03 정정 · `policy:LAST_GOOD_ROLLBACK_ANCHOR`).
 > 앵커는 스모크를 통과한 **마지막 로컬 커밋**이며, 이를 가리키는 별도의 태그나 브랜치를 만들지 않는다

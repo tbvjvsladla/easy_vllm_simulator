@@ -158,9 +158,9 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 | 경로 | Git 상태 | main/sub 전파 | owner/gate |
 |---|---|---|---|
 | `docs/{plan,devlog,testlog,simlog,benchmark,request,checklist}/*` | 작업 산출물 ignored; `example.md`만 tracked | 브랜치 전환에 working copy 유지; build rsync 제외 | `.gitignore`의 `docs/*/*` + `!docs/*/example.md` |
-| `docs/report/*` | **유일한 tracked docs 산출물 예외** | main-only; branch sync 대상 | `!docs/report/*`, PII gate |
+| `docs/report/*` | **유일한 tracked docs 산출물 예외** | main-only; 브랜치 간 **합집합 수렴**(추가만 · 같은 경로 다른 내용은 RED) | `!docs/report/*`, PII gate |
 | `docs/logs/*` | ignored(기존 `docs/*/*` 가 이미 커버 — 새 규칙 불요) | **평시 `envelope.json` 요약만 상향**, 사고 시에만 원시 회수 | `logs_lifecycle.py`; `example.md` 스켈레톤 불요(기계 생성) |
-| `.claude/`·`CLAUDE.md` | tracked building blocks | `.claude/skills/upstream-version-watch/scripts/sync_branches.sh` | 이 문서 산출물 규약 밖 |
+| `.claude/`·`CLAUDE.md` | tracked building blocks | `sync_branches.sh` — **공통층만**. `*.topology.md`(특화층)는 같은 경로에 브랜치별 내용을 들고 전파되지 않는다 | 이 문서 산출물 규약 밖 · policy:BRANCH_CONSTITUTION_LAYERING |
 | `seed/` | private/untracked | 배포본에 없을 수 있음 | 근거 pointer만 허용 |
 | `campaigns/README.md`·`campaigns/_template/**` | **tracked**(뼈대) | main→sub 오버레이 설치 · branch sync 대상 | `terraforming_node`; `campaign_template_validator.py` |
 | `campaigns/<camp-id>/**` | ignored(휘발) | 전파 ✗ — 서브는 자기 인스턴스를 자율 저작하고 결과는 문서로 회수 | 새 캠페인 init 의 purge 게이트(workflow.md) |

@@ -429,6 +429,24 @@ if [ "${#PATHS[@]}" -eq 0 ]; then
     echo "[sync-branches] FAIL: 복사할 allowlist 경로가 정본에 하나도 없습니다."; exit 2
 fi
 
+# ── 특화헌법 제외 (2026-09-12 · plan_26091210 §3.5 · policy BRANCH_CONSTITUTION_LAYERING C1·C3) ──
+#
+# 특화층은 **같은 경로에 브랜치별로 다른 내용**을 드는 파일이다. 동기화가 이것을 옮기면 두 브랜치가
+# 다시 같아지고, 이 개편이 없애려던 상태로 돌아간다. 그래서 방향과 무관하게 절대 전파하지 않는다.
+#
+# ★ 제외를 **배열 원소로** 넣는 이유(둘 다 실측):
+#   ① 아래 apply 의 `git checkout … -- "${PATHS[@]}"` 줄은 정책 술어와 배포검증이 **문자 그대로**
+#      단언하는 앵커다. 그 줄에 인자를 덧붙이면 두 검사가 동시에 깨진다.
+#   ② 위 열거는 `git ls-tree` 인데 ls-tree 는 exclude 매직을 fatal 로 거부한다. 반면
+#      `git checkout` 과 `git diff` 는 받는다 — 그래서 제외는 소비자(checkout/diff) 쪽에서만 성립한다.
+#
+# ★ 선행 `**/` 를 쓰지 않는 이유: git pathspec 의 선행 `**/` 는 디렉터리 0개를 매치하지 않아
+#   루트 파일이 빠져나간다(실측). 이 문자열의 단일 권위는
+#   `.claude/skills/terraforming_node/scripts/topology_parity.py` 의 `LAYER_EXCLUDE_PATHSPEC` 이고,
+#   여기 리터럴과의 일치는 runtime_selftest 의 tripwire 가 교차검증한다(정적 파일끼리는 한쪽이
+#   다른 쪽을 생성할 수 없으므로 교차검증이 차선이다).
+PATHS+=(':(exclude)*.topology.md')
+
 # Resolve every destination-only tracked path before the first mutation. This is an exact mirror
 # only for MIRROR_DIRS; topology outputs/configs and ignored work documents are intentionally not
 # included. Source object lookup prevents a stale local file from laundering itself as authority.

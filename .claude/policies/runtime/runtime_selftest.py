@@ -1186,6 +1186,7 @@ _REPO_STATE_ASSERTIONS = (
     "tripwire⑤no-pii-in-deployed-artifacts(추적물 전부)",
     "tripwire⑥no-revived-antipatterns",
     "tripwire⑦root-surface-registry",
+    "tripwire⑧branch-constitution-layering(4자일치·공통층 어휘)",
     "executor-wiring(core.hooksPath·hook tracked)",
 )
 
@@ -1776,6 +1777,185 @@ def _test_root_registry_predicate() -> None:
                  "the retired `tasks/` location must stay recorded as a tombstone")
 
 
+# ── tripwire ⑧ — 브랜치 헌법 2계층 (2026-09-12 신설 · plan_26091210 · BRANCH_CONSTITUTION_LAYERING)
+
+#: 공통층 산문에 들어서는 안 되는 **한쪽 토폴로지 전용 어휘**. 닫힌 목록이라 변경 시 리뷰가 강제된다
+#: (`workflow.md` §4종 안티패턴 판정표의 하드코딩 **정당** 칸 = tripwire).
+#:
+#: 대소문자를 구분한다 — `Ray 워커`(멀티의 sub 정체)와 `ray 워커`(양 토폴로지 공통 교훈 문장)는
+#: 다른 말이고, 무시하면 후자가 위양성으로 잡힌다(2026-09-12 실측).
+#: 비교·대조 문장("왜 두 토폴로지가 다른가")은 애초에 공통층의 시민이므로 이 목록에 넣지 않는다.
+_TOPOLOGY_ONLY_VOCABULARY = {
+    "multi": ("Ray 워커", "ray-worker", "집단 연산", "빌드킷 배달", "동일 ABI",
+              "슬레이브", "양노드", "쌍노드"),
+    "single": ("a2a-agent", "A2A 원격 에이전트", "위임 셀", "push-attestation"),
+}
+
+#: 면제 — (파일, 어휘, 그 줄의 고유 부분문자열, 사유). **닫힌 목록이고 사유가 없으면 등재할 수 없다.**
+#: 면제가 생기는 유일한 정당 사유는 *그 문장을 고칠 수 없다* 는 외부 제약이다.
+_TOPOLOGY_VOCABULARY_EXEMPTIONS = (
+    (".claude/rules/workflow.md", "양노드", "clean 빌드(양노드) → 스모크",
+     "policy_registry.py 의 ARCH_WALL_VARIANT_LADDER 사다리 검사가 이 문구를 verbatim 으로 "
+     "요구한다 — 고치면 정책 검증이 깨진다. 어휘는 남지만 그 문장은 사다리 순서 서술이라 "
+     "양 토폴로지가 함께 읽는다."),
+)
+
+
+def _load_topology_parity(root: Path):
+    """4자일치 술어를 소유자에게서 적재한다(규약 문자열을 여기서 두 번째로 적지 않는다)."""
+    path = root / ".claude/skills/terraforming_node/scripts/topology_parity.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("_runtime_selftest_topology_parity", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _common_layer_prose(root: Path) -> list[Path]:
+    """공통층 산문 = 헌법 본문 + rules 최상위 `.md` 에서 **특화층을 뺀 것**.
+
+    특화층 식별은 접미사 규약 하나로 한다(파일별 손등록 금지 — 손등록 목록은 새 파일이 생길 때마다
+    조용히 늦는다. `sync_branches.sh` allowlist 가 같은 형태로 네 번 침묵 누락을 냈다).
+    """
+    suffix = ".topology.md"
+    out = [root / "CLAUDE.md"]
+    rules = root / ".claude/rules"
+    if rules.is_dir():
+        out += sorted(p for p in rules.glob("*.md") if not p.name.endswith(suffix))
+    return [p for p in out if p.is_file()]
+
+
+def _vocabulary_offenders(root: Path) -> list[str]:
+    """공통층 산문에서 토폴로지 전용 어휘를 찾는다. 면제는 줄 단위로만 적용된다."""
+    offenders: list[str] = []
+    for path in _common_layer_prose(root):
+        rel = str(path.relative_to(root))
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue
+        for topo, terms in _TOPOLOGY_ONLY_VOCABULARY.items():
+            for term in terms:
+                for lineno, line in enumerate(lines, 1):
+                    if term not in line:
+                        continue
+                    if any(e_rel == rel and e_term == term and e_frag in line
+                           for e_rel, e_term, e_frag, _why in _TOPOLOGY_VOCABULARY_EXEMPTIONS):
+                        continue
+                    offenders.append(f"{rel}:{lineno} '{term}' ({topo} 전용)")
+    return offenders
+
+
+def _test_topology_layer_parity(root: Path | None = None) -> None:
+    """tripwire ⑧ — 헌법 2계층이 서 있고, 브랜치가 나머지 셋과 어긋나지 않는다.
+
+    ★ 왜 tripwire 인가(2026-09-11 실측): 헌법은 "브랜치로 토폴로지를 추론하지 않는다"고 선언해
+    왔는데 **그 선언을 집행하는 실행자가 0** 이었고, 반대 방향으로 파생하는 코드는 13곳이었다.
+    그래서 멀티 캠페인 14셀이 `single-node` 체크아웃에서 돌았고 울린 트립와이어는 사람뿐이었다.
+
+    세 가지를 본다:
+      ① **4자일치** — 판정은 `topology_parity.py` 가 단독 소유한다(여기서 규칙을 복제하지 않는다).
+      ② **공통층 어휘** — 한쪽 토폴로지에서만 참인 문장이 양 브랜치가 읽는 자리에 있으면 FAIL.
+         이것이 오분류의 **2차 방어**다: 사람이 분류표를 잘못 승인해도 반대 브랜치에서 여기서 걸린다.
+      ③ **교차검증** — 경로 규약 문자열이 술어(python)와 동기화(bash) 두 자리에 같은 형태로 있는가.
+         정적 파일끼리는 한쪽이 다른 쪽을 생성할 수 없으므로 교차검증이 차선이다(선례: BAND2_TOP ↔ .gitignore).
+    """
+    root = REPO_ROOT if root is None else root
+    parity = _load_topology_parity(root)
+    _require(parity is not None,
+             "topology_parity.py 가 없다 — 4자일치 술어의 소유자가 사라지면 이 tripwire 는 "
+             "판정할 근거가 없다")
+
+    res = parity.evaluate(root)
+    _require(res["verdict"] == "PASS",
+             "topology parity RED (" + ", ".join(res["reason_codes"]) + "): "
+             + " · ".join(res["reasons"]))
+
+    offenders = _vocabulary_offenders(root)
+    _require(not offenders,
+             f"공통층 산문에 토폴로지 전용 어휘가 있다 ({len(offenders)}건) — 그 문장은 특화층으로 "
+             f"가거나 양 토폴로지를 함께 말하도록 고쳐야 한다: {offenders[:12]}")
+
+    sync = root / ".claude/skills/upstream-version-watch/scripts/sync_branches.sh"
+    if sync.is_file():
+        try:
+            sync_src = sync.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            sync_src = ""
+        _require(parity.LAYER_EXCLUDE_PATHSPEC in sync_src,
+                 f"동기화가 특화층을 제외하지 않는다 — {parity.LAYER_EXCLUDE_PATHSPEC!r} 리터럴이 "
+                 "sync_branches.sh 에 없다. 이 두 자리가 갈라지면 다음 sync 가 특화 파일을 "
+                 "반대 브랜치로 실어 두 브랜치를 다시 같게 만든다")
+
+
+def _test_topology_layer_parity_predicate() -> None:
+    """tripwire ⑧ 의 커널을 격리 픽스처로 고정한다 — **양성이 실제로 발화하는지**.
+
+    라이브 트리는 깨끗할 때 아무것도 증명하지 않는다(역-오라클 회피). 여기서 만드는 불일치는
+    2026-09-11 사고의 형태 그대로다: 브랜치 `multi-node` · 특화 헤더 `single`.
+    """
+    parity = _load_topology_parity(REPO_ROOT)
+    _require(parity is not None, "topology_parity.py 를 적재하지 못했다")
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        subprocess.run(["git", "init", "-q", "-b", "multi-node", str(root)],
+                       check=True, capture_output=True, timeout=60)
+        rules = root / ".claude/rules"
+        rules.mkdir(parents=True)
+        spec_file = rules / "strategy.topology.md"
+
+        # 양성 ① — 헤더가 브랜치와 어긋난다(사고의 형태)
+        spec_file.write_text("# s\n\n**topology: single**\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(root), "add", "-A"], check=True,
+                       capture_output=True, timeout=60)
+        res = parity.evaluate(root)
+        _require("LAYER_HEADER_MISMATCH" in res["reason_codes"],
+                 f"브랜치 multi-node ↔ 헤더 single 이 발화하지 않았다: {res['reason_codes']}")
+
+        # 음성 — 헤더를 브랜치에 맞추면 통과한다(비추적 다리는 absent 로 빠진다)
+        spec_file.write_text("# s\n\n**topology: multi**\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(root), "add", "-A"], check=True,
+                       capture_output=True, timeout=60)
+        res = parity.evaluate(root)
+        _require(res["verdict"] == "PASS", f"일치 상태가 PASS 가 아니다: {res['reasons']}")
+        _require(res["legs"]["manifest"]["status"] == "absent"
+                 and res["legs"]["campaign"]["status"] == "absent",
+                 "비추적 다리의 부재는 absent 로 표시돼야 한다(위반이 아니다) — "
+                 f"{res['legs']['manifest']['status']}/{res['legs']['campaign']['status']}")
+        _require(res["legs_checked"] == 2,
+                 f"3자·2자 판정을 4자처럼 보고하면 안 된다: legs_checked={res['legs_checked']}")
+
+        # 양성 ② — 추적 특화 파일이 0개면 RED(추적 입력의 부재는 위반이다)
+        subprocess.run(["git", "-C", str(root), "rm", "-q", "--cached",
+                        ".claude/rules/strategy.topology.md"], check=True,
+                       capture_output=True, timeout=60)
+        res = parity.evaluate(root)
+        _require("LAYER_ABSENT" in res["reason_codes"],
+                 f"특화 파일 0개가 발화하지 않았다: {res['reason_codes']}")
+
+    # 어휘 스캐너의 양성·음성
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        (root / ".claude/rules").mkdir(parents=True)
+        (root / "CLAUDE.md").write_text("# c\n서브는 Ray 워커다.\n", encoding="utf-8")
+        _require(_vocabulary_offenders(root),
+                 "공통층의 멀티 전용 어휘가 발화하지 않았다")
+        (root / "CLAUDE.md").write_text("# c\n서브의 정체는 토폴로지가 정한다.\n", encoding="utf-8")
+        _require(not _vocabulary_offenders(root), "음성대조 실패 — 어휘가 없는데 발화했다")
+        # 특화층은 스캔 대상이 아니다(거기 있는 것이 정상이다)
+        (root / ".claude/rules/strategy.topology.md").write_text(
+            "**topology: multi**\n서브는 Ray 워커다.\n", encoding="utf-8")
+        _require(not _vocabulary_offenders(root),
+                 "특화층 파일이 공통층 스캔에 들어왔다 — 접미사 규약이 안 먹었다")
+        # 면제는 줄 단위로만 듣는다
+        _require(any(e[0] == ".claude/rules/workflow.md" for e in _TOPOLOGY_VOCABULARY_EXEMPTIONS),
+                 "면제 목록이 비었다 — verbatim 잠금 문장에 대한 면제가 사라지면 라이브가 RED 가 된다")
+
+
 def _test_tripwire_executor_wiring(root: Path | None = None) -> list[str]:
     """실행자 자기검사 — `core.hooksPath` 설정과 훅 파일의 **추적 여부**.
 
@@ -1926,6 +2106,7 @@ def run_tripwires(root: Path | None = None) -> int:
         _test_no_pii_in_deployed_artifacts(root)   # ⑤ P6 — 스캐너에 실행자가 없던 것을 배선
         _test_no_revived_antipatterns(root)        # ⑥ 3-13 — ③ 이 제거한 형태의 부활 차단
         _test_root_surface_registry(root)          # ⑦ plan_26090616 — 루트 표면에 관할을 만든다
+        _test_topology_layer_parity(root)          # ⑧ plan_26091210 — 브랜치 헌법 2계층·4자일치
     except RuntimeSelftestFailure as exc:
         print(f"[tripwire] FAIL {exc}", file=sys.stderr)
         return 1
@@ -1941,7 +2122,7 @@ def main(argv: list[str] | None = None) -> int:
         "--tripwires-only", action="store_true",
         help="run only the pre-commit tripwires (backup artifacts / tracked digest rewrite / "
              "retired-mechanism prose / duplicate certificates / deployed-artifact PII / "
-             "revived antipatterns / root-surface registry); "
+             "revived antipatterns / root-surface registry / branch-constitution layering); "
              "1s budget, diagnostics on stderr")
     args = parser.parse_args(argv)  # argv=None -> argparse reads sys.argv[1:]
 
@@ -1962,6 +2143,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_duplicate_certificate_predicate()
     _test_deployed_pii_predicate()
     _test_root_registry_predicate()
+    _test_topology_layer_parity_predicate()
     _test_watchdog_target_predicate_parity()
     # tripwire 6종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
     # 늦는다(선례 3건). 전체 실행에서도 반드시 검사한다.
@@ -1977,6 +2159,7 @@ def main(argv: list[str] | None = None) -> int:
     # 라고 선언해 놓고 ⑥ 이 빠져 있었다(선언이 배선을 대체한 자리).
     _test_no_revived_antipatterns(REPO_ROOT)
     _test_root_surface_registry()
+    _test_topology_layer_parity()
     for warning in _test_tripwire_executor_wiring():
         print(f"[runtime_selftest] WARN {warning}", file=sys.stderr)
     print("[runtime_selftest] PASS")
