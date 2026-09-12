@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "entry_id": "sync-202609120616",
+      "utc": "2026-09-12T06:16:53Z",
+      "departure": "multi-node",
+      "departure_commit": "7e0e3a1",
+      "approved_by": "coag-ash (종료 시퀀스 ③ 팝업: \"승인 — 20행 전부 common_promote\" · 2026-09-12 KST)",
+      "approved_utc": "2026-09-12T06:23:19Z",
+      "_reach": "single-node vs HEAD 트리차이 (원장 비어 있음 — 부트스트랩)",
+      "_note": "20행 전부 common_promote. 특화층(*.topology.md)은 경로 규약으로 열거에서 구조적으로 제외되므로 이 표에 오를 수 없고, branch_only 는 '공통층에 잘못 들어온 것'을 뜻한다 — Step 2 에서 17곳을 이미 내려 잔존 0. 20파일 전체를 토폴로지 전용 어휘 12종으로 기계 스캔했고 적중한 자리는 전부 두 토폴로지를 비교/분기하는 코드였다(SKILL.md §2.7.0 이 공통으로 못박은 범주).",
+      "classification": [
+        {
+          "file": ".claude/policies/claim_bindings.json",
+          "verdict": "common_promote",
+          "reason": "절↔술어 바인딩은 registry 의 절 집합과 **정확히 같아야** 한다(하네스가 등식으로 검사). 한쪽만 5절을 들면 반대 브랜치의 policy_registry verify 가 절 부재로 깨진다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/predicates/claim_predicates.py",
+          "verdict": "common_promote",
+          "reason": "신설 술어 C1~C5 는 *이 체크아웃의* 특화층을 읽어 판정한다 — single-node 에 없으면 그 브랜치는 자기 헌법을 검사할 술어가 아예 없다. 술어 본문은 토폴로지 중립이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/registry.yaml",
+          "verdict": "common_promote",
+          "reason": "BRANCH_CONSTITUTION_LAYERING 은 '두 브랜치가 어떻게 갈라지는가'의 계약이다. 한쪽만 등재하면 그 정책이 규율하려는 대칭 자체가 성립하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/constitution_lint.py",
+          "verdict": "common_promote",
+          "reason": "WARN 전용 린트. 대상은 '이 체크아웃의 헌법'이고 특화층은 접미어 규약으로 식별하므로 브랜치별 분기가 없다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/runtime_selftest.py",
+          "verdict": "common_promote",
+          "reason": "tripwire ⑧ 이 이 개편의 실행자다. 어휘표는 **양 토폴로지를 다 들고** 각 브랜치가 반대쪽 목록으로 자기 공통층을 훑는다 — 대칭이라 한쪽만 두면 반대 브랜치는 무방비다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/verify_distribution.py",
+          "verdict": "common_promote",
+          "reason": "절 수 하드코딩 68→73 과 as-of 핀. 두 브랜치 모두 배포 대상이므로 같은 수를 알아야 한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rules/docs.md",
+          "verdict": "common_promote",
+          "reason": "보관·전파 표의 '공통층만 전파' 행. 전파 규칙은 양쪽이 같이 읽어야 성립한다 — 한쪽만 알면 반대 방향 sync 가 옛 규칙으로 돈다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rules/workflow.md",
+          "verdict": "common_promote",
+          "reason": "진입 게이트의 4자일치 문장과 특화헌법 포인터. 포인터를 '특화헌법이 정한다'로 토폴로지 중립으로 썼으므로 양쪽이 각자의 파일을 가리킨다. 유일한 multi 어휘 '양노드'(69행)는 policy_registry 가 verbatim 으로 잠근 인용이라 면제 등록돼 있다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "§2.7.0 의 두 토폴로지 **비교**는 양쪽이 읽어야 하므로 정의상 공통이다(§2.7.0 자체 규정). 유령 policy ID 강등분도 양 브랜치 산문에 동일하게 있었다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "verdict": "common_promote",
+          "reason": "--ground 의 침묵 폴백 제거. 싱글 캠페인도 같은 자리에서 거짓 topology 를 기록할 수 있었고, 교정은 '선언을 읽고 어긋나면 거부'라 토폴로지 중립이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+          "verdict": "common_promote",
+          "reason": "EXIT_TOPOLOGY_MISMATCH 와 브랜치-토폴로지 충돌 검사. 브랜치가 해소될 때만 발화하고 기대값을 브랜치에서 파생하므로 양쪽에서 각자 맞게 동작한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "서브 오버레이에 특화헌법 경로를 등재. single 의 서브도 자기 특화헌법을 받아야 하며, 등재는 경로 규약 하나라 브랜치 무관이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+          "verdict": "common_promote",
+          "reason": "4자일치 술어이자 경로 규약의 단일 소유자. 없는 브랜치는 집행자가 0 이 된다 — 이 개편이 고치려던 상태 그 자체다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "종료 시퀀스 ②③ 절차 정본. 시퀀스는 어느 브랜치에서도 출발하므로 절차가 양쪽에 있어야 한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/closing_sequence.sh",
+          "verdict": "common_promote",
+          "reason": "출발/반대 브랜치를 실행 시점에 계산하는 대칭 실행자. single-node 에서 종료 시퀀스를 돌리려면 거기에도 있어야 한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/layer_ledger.py",
+          "verdict": "common_promote",
+          "reason": "원장 **도구**는 공통이고 원장 **파일**은 동기화 제외다 — 둘을 갈라 둔 것이 이 설계의 요점이다. 도구가 없으면 반대 브랜치는 자기 원장을 읽지도 쓰지도 못한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/push_branches.py",
+          "verdict": "common_promote",
+          "reason": "두 운영 브랜치를 미는 소비자. 어느 쪽에서 종료하든 같은 두 ref 를 민다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+          "verdict": "common_promote",
+          "reason": "--from 필수화·RED 3종·제외 목록. 반대 브랜치가 옛 의미(출발 브랜치 추론)를 들고 있으면 거기서 시작한 sync 가 다른 규칙으로 돈다. 자기 일관성 가드도 대상 브랜치에 같은 스크립트를 요구한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".gitignore",
+          "verdict": "common_promote",
+          "reason": "재포함 규칙 `!.claude/policies/branch_layer_ledger.json`. 각 브랜치가 **자기** 원장을 추적해야 하므로 규칙은 공통이고 내용만 브랜치별이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "CLAUDE.md",
+          "verdict": "common_promote",
+          "reason": "공통 헌법 본문. 이 브랜치에서만 참인 산문은 Step 2 에서 이미 특화층으로 내렸고, tripwire ⑧ 어휘 스캔이 잔존 0 을 확인했다.",
+          "provenance": "agent-judged"
+        }
+      ]
+    }
+  ]
+}
