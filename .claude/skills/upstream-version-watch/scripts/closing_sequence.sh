@@ -106,9 +106,9 @@ preflight() {
 emit_skeleton() {
     # 분류표의 **빈칸**을 만든다. 판정(verdict)·근거(reason)는 비워 둔다 — 채우는 것은 Agent 의 일이고,
     # 여기서 기본값을 넣으면 그 기본값이 판정인 척하게 된다(침묵 폴백 금지).
-    python3 - "$REPO" "$CUR" "$LEDGER" <<'PY'
+    python3 - "$REPO" "$CUR" "$LEDGER" "$OTHER" <<'PY'
 import json, subprocess, sys
-repo, cur, ledger = sys.argv[1], sys.argv[2], sys.argv[3]
+repo, cur, ledger, other = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 
 def git(*a):
     p = subprocess.run(["git", "-C", repo, *a], capture_output=True, text=True)
@@ -123,14 +123,20 @@ except Exception:
 base = sp.get("commit")
 spec = json.loads(subprocess.run([sys.executable, ledger, "common-layer", "--repo", repo],
                                  capture_output=True, text=True).stdout or "{}")
-paths = (spec.get("include") or []) + (spec.get("exclude") or []) + [":(exclude)docs/report"]
-files = []
-if base:
-    files = [f for f in git("diff", "--name-only", "-z", base, "HEAD", "--", *paths).split("\0") if f]
-    reach = f"{base}..HEAD"
-else:
-    files = [f for f in git("diff", "--name-only", "-z", "HEAD~1", "HEAD", "--", *paths).split("\0") if f]
-    reach = "HEAD~1..HEAD (동기 지점 없음 — 부트스트랩)"
+# 도달범위는 "동기 지점 이후 내가 무엇을 바꿨나"가 아니라 **"이 동기화가 무엇을 바꾸나"**다.
+# 둘은 같지 않다 -- 부트스트랩(동기 지점 없음)에서 전자는 계산조차 불가능하고, 종전 구현은
+# `HEAD~1..HEAD` 로 물러서서 **마지막 커밋 한 건만** 열거했다(2026-09-12 실측: 실제 이동 20파일 중
+# 1건만 나왔다). 분류표가 이동분을 덜 보여 주면 ③ 사람 게이트는 보지 못한 것을 승인하게 되고,
+# 그러면 게이트가 이름만 남는다.
+#
+# 반대 브랜치와의 **트리 차이**는 두 경우 모두에서 정확히 이동분이다 -- 바뀌었다 되돌아온 파일을
+# 자동으로 빼고, 대상 브랜치만 움직인 파일(= 이 동기화가 되돌려 버릴 것)을 드러낸다. 동기 지점은
+# 여전히 조회해 `_reach` 에 적는다(사람이 "어디서부터인가"를 읽을 수 있어야 한다).
+paths = ((spec.get("include") or []) + ["docs/benchmark"]
+         + (spec.get("exclude") or []) + [":(exclude)docs/report"])
+files = [f for f in git("diff", "--name-only", "-z", other, "HEAD", "--", *paths).split("\0") if f]
+reach = (f"{other} vs HEAD 트리차이 · 동기 지점 {base[:12]}" if base
+         else f"{other} vs HEAD 트리차이 (원장 비어 있음 — 부트스트랩)")
 
 print(json.dumps({
     "entry_id": "<FILL: 예 sync-YYYYMMDDHHMM>",
