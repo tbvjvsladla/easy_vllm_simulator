@@ -1,8 +1,8 @@
 {
   "artifacts": [
-    "artifacts/triplet/fp8-f8-1m-mmp.yaml",
-    "artifacts/triplet/fp8-f8-1m-mmp.sh",
-    "artifacts/triplet/.env.fp8-f8-1m-mmp",
+    "artifacts/triplet/nv4-bf-262k-res-kv8g-gmu80.yaml",
+    "artifacts/triplet/nv4-bf-262k-res-kv8g-gmu80.sh",
+    "artifacts/triplet/.env.nv4-bf-262k-res-kv8g-gmu80",
     "artifacts/build_patch_pre/50-dsv4-sm12x-port.sh",
     "artifacts/build_patch_pre/55-src-deps-authority.sh",
     "artifacts/build_patch_pre/60-qwen4exp-nvfp4-mixed.sh",
@@ -24,19 +24,19 @@
     "bench_tool_version_source": "declared(도구가 버전을 자기보고하지 않는다)"
   },
   "benchmark": {
-    "accept_len": "2.139644351464435",
+    "accept_len": "2.481818181818182",
     "benchmark_mode": "full",
-    "decode_tps_conc1": "33.27",
-    "floor_tps": "2.52",
-    "lite_cold_ttft_ms": "2853.7",
+    "decode_tps_conc1": "46.7",
+    "floor_tps": "45.65",
+    "lite_cold_ttft_ms": "1743.2",
     "lite_gen_src": "median_tpot",
-    "lite_gen_tps_warm": "30.71",
+    "lite_gen_tps_warm": "36.9",
     "lite_included": "true",
-    "lite_kv_gib": "20.0",
-    "measured_utc": "2026-09-11T12:19:52Z",
-    "primary_source": "expected_achievable(roofline×MBU)",
-    "primary_tps": "2.97",
-    "ratio_M_over_primary": "11.202",
+    "lite_kv_gib": "8.0",
+    "measured_utc": "2026-09-12T14:27:16Z",
+    "primary_source": "E(external_reference)",
+    "primary_tps": "53.7",
+    "ratio_M_over_primary": "0.87",
     "rubric_authority": "explore",
     "spec_on": "true",
     "sweep_levels": "1,2,4,8,16",
@@ -45,14 +45,14 @@
     "verdict": "PASS"
   },
   "benchmark_source": {
-    "certificate": "benchmark_26091121_qwen3.8-flash-next-fp8_GB10_0.29.0.yaml",
+    "certificate": "benchmark_26091223_qwen3.8-flash-next-nvfp4_GB10_0.29.0.yaml",
     "parsed_not_synthesized": true,
-    "sha256": "c27e1af3bbec7b8073e743bd6f754e9020fc7700b9109d727f2b4d21458a6fb0"
+    "sha256": "93c178ca0c93d534bded74409f3dd2eb5f089a6d50bc73469891ab9fbbfb8775"
   },
-  "generated_kst": "2026-09-11T22:01:00",
+  "generated_kst": "2026-09-13T04:44:39",
   "identity": {
     "gpu": "NVIDIA GB10",
-    "model": "qwen3.8-flash-next-fp8",
+    "model": "qwen3.8-flash-next-nvfp4",
     "quant": "N/A",
     "topology": "multi",
     "tp": 2,
@@ -160,9 +160,9 @@
       "evidence_source": "certificate 소프트지문 ↔ 트리플렛 yaml serve 노브(이름 관측은 하위호환 폴백)",
       "exemptible": false,
       "files": {
-        "config_yaml": "output/multi/configs/fp8-f8-1m-mmp.yaml",
-        "env_file": "output/multi/envs/.env.fp8-f8-1m-mmp",
-        "runner_sh": "output/multi/configs/fp8-f8-1m-mmp.sh"
+        "config_yaml": "output/multi/configs/nv4-bf-262k-res-kv8g-gmu80.yaml",
+        "env_file": "output/multi/envs/.env.nv4-bf-262k-res-kv8g-gmu80",
+        "runner_sh": "output/multi/configs/nv4-bf-262k-res-kv8g-gmu80.sh"
       },
       "missing": [],
       "missing_code": "HINT_MISSING_TRIPLET",

@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/multi/configs/fp8-f8-1m-mmp.yaml`
-- `output/multi/configs/fp8-f8-1m-mmp.sh`
-- `output/multi/envs/.env.fp8-f8-1m-mmp`
+- `output/multi/configs/nv4-bf-262k-res-kv8g-gmu80.yaml`
+- `output/multi/configs/nv4-bf-262k-res-kv8g-gmu80.sh`
+- `output/multi/envs/.env.nv4-bf-262k-res-kv8g-gmu80`
 
 **build_patch_pre**
 - `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
@@ -46,10 +46,20 @@
 
 ## 적용 사유 (Agent)
 
-- **triplet**: 서빙 재현에 원리적으로 필수. YaRN factor=4 + kv-cache-dtype=fp8_e4m3.
-- **runtime_patch**: 불해당. 별도 shim 불요.
-- **build_patch_pre**: PLE mmap(62)·KV fp8 양자화(64) 이 조합에 필요.
-- **build_patch_post**: 빌드-바깥 네이티브 의존 — 발화 관측불가(2-signal).
-- **build_recipe**: 이미지 재현의 원리적 필수 슬롯.
-- **compose**: 멀티노드(TP=2, Ray) 오케스트레이션 필수.
-- **fork_pin**: 불해당. stock vLLM v0.29.0rc6. 이 셀은 캠페인의 마지막 measured 셀이다.
+- **triplet (3-signal)** — 이 레시피의 정체 그 자체다. `gpu-memory-utilization: 0.80` ·
+  `kv-cache-memory-bytes: 8589934592` · `max-num-seqs: 8` · `max-num-batched-tokens: 2048` 네 값이
+  res 를 여는 조합이며, 하나라도 되돌리면 워치독 사정거리로 들어간다(02 서사 참조). `.env` 에
+  `VLLM_PLE_MMAP` 줄이 **없다**는 사실이 곧 PLE resident 선언이다 — 부재가 기본값이다.
+- **build_patch_pre (3-signal)** — `60-qwen4exp-nvfp4-mixed.sh`(NVFP4 혼합정밀 로더)와
+  `64-qwen4exp-qsa-fp8kv.sh` 는 이 아키텍처가 vLLM 0.29.0rc6 에서 서는 전제다.
+  `62-qwen4exp-ple-mmap.sh` 는 이 셀에서 **켜지 않았지만** 포함한다 — 같은 이미지가 mmap 자매셀도
+  서빙하며, 스위치는 빌드가 아니라 `.env` 가 쥔다(빌드/서브 평면 분리).
+- **build_patch_post (2-signal)** — 컴파일 이후 native 의존(deepgemm·triton 커널·mxfp4 sm121·
+  humming NVML). 서빙 로그로 개별 발화를 관측하지 않았으므로 **관측불가**로 정직하게 표시한다.
+- **build_recipe / compose (3-signal)** — 이미지를 재현하는 최소 집합. 이미지는 **전송하지 않고
+  각 노드가 자기 것을 빌드한다**(이 배포 라인의 불변식) — 그래서 digest 가 아니라 이 레시피가
+  재현의 단위다.
+- **runtime_patch — 불해당** — 이 모델은 serve 시점 Python shim 이 필요 없다. 부재는 통과가 아니라
+  **해당 없음**이며, 있었다면 `policy:RUNTIME_PATCH_NO_CARRY_FORWARD` 에 따라 이 셀 전용으로만 쓴다.
+- **fork_pin — 불해당(stock)** — 포크 핀 없이 상류 `v0.29.0rc6` 태그로 빌드했다. `.env` 에
+  `VARIANT=` 줄이 없는 것이 그 선언이다.

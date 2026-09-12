@@ -6,17 +6,45 @@
 
 ## 읽을 원재료 (복사 대상 아님 · 포인터)
 
-- devlog: `../devlog/devlog_26091121_qwen38fn_22셀재수행_캠페인완주_서사.md`
-- testlog: `../testlog/testlog_26091121_qwen38fn_22셀재수행_캠페인완주_판정.md`
+- devlog: `../devlog/devlog_26091304_qwen38fn_res최소조건_후속캠페인.md`
+- testlog: `../testlog/testlog_26091304_qwen38fn_res최소조건_262k재발행_판정.md`
 
 ## 서사
 
-fp8-bf-1m-mmp(kv=auto)와 동일한 조건에서 kv-cache-dtype만 fp8_e4m3로 바꾼 대조쌍이다
-(35.39→33.27, 소폭 저하 — kv dtype 축의 일관된 경향이 262k~1m 전 구간에서 재현됐다). 이 셀로
-22셀 재수행 캠페인의 mmp 계열 측정이 11/11 전부 완결됐다(testlog §"패턴 최종 확정").
+**증상** — 이 모델의 PLE(per-layer n-gram embedding, 47.68 GiB)를 메모리에 상주시키는 구성
+(`VLLM_PLE_MMAP` 미설정)은 GB10×2 클러스터에서 **12전 12패**였다. 예산 게이트가 통과시킨 조합조차
+로드 중 호스트 워치독에 사살됐다(testlog §3.2 · 직전 캠페인 24전략 리포트 §2).
+
+**원인은 예산이 아니라 `gpu-memory-utilization` 천장이었다.** 예산식
+`floor = MemTotal − weights − kv − overhead` 는 정확하며 네 조합에서 1 MiB 오차 없이 재현된다
+(testlog §3.1). 262k 가 실제로 요구하는 KV 는 노드당 3,072 MiB(bf16)인데 20,480 MiB 를 잡고 있어
+과잉이 명백했고, 그래서 KV 를 8,192 로 회수했다 — **그런데도 죽었다**. 회수한 12,288 MiB 를
+로드 피크가 12,392 되먹었기 때문이다(testlog §3.2 표). 거의 정확한 상쇄는 우연이 아니다:
+vLLM 은 `gpu-memory-utilization` 천장까지 쓰므로 KV 를 비우면 다른 버퍼가 그 자리를 채운다.
+
+**해소** — 천장 자체를 내렸다. `0.85 → 0.80` 이 5,562 MiB 를 열었고(예측 6,231 과 근사),
+워치독 임계 대비 여유가 **+390 → +5,952 MiB** 로 벌어졌다(testlog §3.2). 배치 레버
+(`max-num-seqs 8` · `max-num-batched-tokens 2048`)의 실효는 544 MiB 로, 그것만으로는
+재현 가능한 마진이 되지 못했다.
+
+**결과** — context 262144 를 **낮추지 않고** 서빙이 성립했고, 디코드 46.7 t/s 로 같은 캠페인의
+mmap 자매셀(38.81)을 **20% 앞선다**(testlog §1). PLE 가 메모리에 있으면 n-gram 룩업이 매 토큰
+NVMe gather 를 타지 않기 때문이다. 외부 레퍼런스의 2노드 resident 구성(median 53.7 t/s)의
+0.87 배이며, 판정은 `PASS`(authority explore · floor 45.65)다(testlog §2).
 
 ## 되풀이하지 말 것
 
-- floor 절댓값으로 성패를 예단하지 말 것 — 이 캠페인 11개 mmp 셀 전부와 11개 res 셀 전부가
-  일관되게 PLE mmap/resident 구분만으로 갈렸다(devlog §"결정 — 캠페인 종결").
-- kv-cache-dtype 축은 서빙 성립에 영향을 주지 않는다 — 성능(t/s)에만 소폭 영향을 준다.
+- **KV 클램프를 더 내리는 계단(4,096 → 3,072)** — 착수하지 않았다. `8,192` 에서 이미
+  "회수분이 로드 피크로 들어간다"가 관측됐고(testlog §3.2), 계단을 내려가도 같은 상쇄가 반복된다.
+  **예산 수치가 좋아지는 것과 실제로 사는 것은 다른 사실이다.**
+- **`--enforce-eager` 를 새 레버로 기대하는 것** — 이 트랙은 **이미 켜져 있다**(트리플렛 yaml 참조:
+  CUDA graph 캡처 스파이크 ~10 GiB 회피). 끄는 여지가 남아 있다고 가정하면 없는 예산을 세게 된다.
+- **PLE 가 TP 샤딩되지 않는다는 가정** — 반증됐다. vLLM 소스의 `PLEVocabParallelEmbedding` 은
+  `VocabParallelEmbedding` 상속이고 체크포인트 shard 를 TP vocab 범위로 잘라 적재한다. 예산식의
+  `ckpt ÷ tp` 는 정확하다(testlog §3.1).
+- **스모크 로그만 보고 사살 원인을 찾는 것** — 이 구성의 사살은 협역 워치독이 아니라 systemd L1
+  절대층(`rule: absolute`)이 집행하므로 스모크 로그에 남지 않는다. 노드 블랙박스 이벤트 원장을
+  함께 봐야 "원인 불명 미준비"로 오인하지 않는다(testlog §3.2).
+- **FP8 변종에 같은 레시피를 기대하는 것** — FP8 체크포인트는 resident 시 노드당 88,464 MiB 라
+  선언 게이트가 context 8,192 아래에서만 열리고, 실측 피크를 대입하면 16,664 MiB 초과다
+  (testlog §4). 32k·16k 는 로드 0초로 차단됨을 실증했고 8k·4k 는 **미시도**로 남겼다.

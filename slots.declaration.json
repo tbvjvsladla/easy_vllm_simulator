@@ -1,34 +1,34 @@
 {
-  "_note": "신호③ — Agent 선언",
-  "schema_version": 1,
-  "slots": {
-    "triplet": {
-      "applicable": true,
-      "rationale": "서빙 필수(면제불가) — YaRN factor=4 hf-overrides 포함, kv=fp8_e4m3, FP8 체크포인트"
-    },
-    "runtime_patch": {
-      "applicable": false,
-      "rationale": "processor/config shim 불요"
-    },
-    "build_patch_pre": {
-      "applicable": true,
-      "rationale": "62/64 — 이 조합(FP8, kv=fp8_e4m3)은 62(ple-mmap)·64(qsa-fp8kv) 실제 적용"
-    },
-    "build_patch_post": {
-      "applicable": true,
-      "rationale": "빌드-바깥 네이티브 의존 — 발화 관측불가(2-signal)"
-    },
-    "build_recipe": {
-      "applicable": true,
-      "rationale": "Dockerfile.source-build + requirements.txt"
-    },
-    "compose": {
-      "applicable": true,
-      "rationale": "멀티노드 2노드 Ray 오케스트레이션 — multi TP=2"
-    },
-    "fork_pin": {
-      "applicable": false,
-      "rationale": "stock vLLM v0.29.0rc6"
-    }
+ "_note": "신호③ — **Agent 선언**. 각 슬롯의 `applicable` 을 true/false 로, `rationale` 을 한 줄로 채운다. null 이 하나라도 남으면 `hint_collect check` 가 막는다. 선언은 파일 존재·적용 증거와 **대사**되며, 셋이 어긋나면 차단이다(plan §7). ★ triplet 은 선언으로 면제할 수 없다 — 서빙에 원리적으로 필수다.",
+ "schema_version": 1,
+ "slots": {
+  "triplet": {
+   "applicable": true,
+   "rationale": "이 레시피의 정체 — gmu 0.80·KV 8192MiB·max-num-seqs 8·max-num-batched-tokens 2048 네 값이 PLE resident 를 여는 조합이고, .env 에 VLLM_PLE_MMAP 줄이 없는 것이 resident 선언이다"
+  },
+  "runtime_patch": {
+   "applicable": false,
+   "rationale": "이 모델은 serve 시점 Python processor/config shim 이 불요하다 — 부재는 통과가 아니라 해당 없음이다"
+  },
+  "build_patch_pre": {
+   "applicable": true,
+   "rationale": "60-nvfp4-mixed 와 64-qsa-fp8kv 는 이 아키텍처가 0.29.0rc6 에서 서는 전제다. 62-ple-mmap 은 이 셀에서 켜지 않았으나 같은 이미지가 mmap 자매셀도 서빙하므로 포함한다(스위치는 빌드가 아니라 .env 가 쥔다)"
+  },
+  "build_patch_post": {
+   "applicable": true,
+   "rationale": "컴파일 이후 native 의존(deepgemm·triton 커널·mxfp4 sm121·humming NVML). 서빙 로그로 개별 발화를 관측하지 않아 증거는 관측불가로 표시한다"
+  },
+  "build_recipe": {
+   "applicable": true,
+   "rationale": "이미지는 전송하지 않고 각 노드가 자기 것을 빌드하므로 digest 가 아니라 이 레시피가 재현 단위다"
+  },
+  "compose": {
+   "applicable": true,
+   "rationale": "2노드 Ray 기동의 배선(master/slave·포트·마운트) — 토폴로지 재현에 필수"
+  },
+  "fork_pin": {
+   "applicable": false,
+   "rationale": "stock 빌드다 — 포크 핀 없이 상류 v0.29.0rc6 태그로 빌드했고 .env 에 VARIANT= 줄이 없는 것이 그 선언이다"
   }
+ }
 }
