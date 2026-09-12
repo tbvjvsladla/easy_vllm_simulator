@@ -248,8 +248,23 @@ for _ev in "${STAGED_EVIDENCE[@]}"; do rm -f "$WT/$_ev"; done
 # **같은 노드의 같은 저장소**라는 사실을 근거로 이 시퀀스가 놓는다(파생 뒤 남기지 않는다).
 if [ -f "$CATALOG" ] && [ -f "$REPO/hints/.central_authority" ]; then
     cp -p "$REPO/hints/.central_authority" "$WT/hints/.central_authority"
-    ( cd "$WT" && python3 "$WT/.claude/skills/hint-publisher/scripts/hint_catalog.py" derive \
-          --repo "$WT" --remote "$REMOTE" ) || echo "[closing]   ⚠ 카탈로그 재파생 실패(원격 조회) — 기재하고 진행" >&2
+    # 시각은 주입만 받는다 -- 분류표의 `utc` 가 이 동기화 사건의 주입된 시각이므로 그것을 KST 로
+    # 옮겨 쓴다(벽시계 조회 ✗). `--repo` 는 **서브커맨드 앞**이다(뒤에 두면 argparse 가 잉여
+    # 인자로 거부한다 -- 2026-09-12 실측: 이 호출은 인자 둘이 틀려 **한 번도 성공한 적이 없었다**).
+    _KST="$(python3 - "$ENTRY_FILE" <<'PY'
+import datetime, json, sys
+utc = json.load(open(sys.argv[1], encoding="utf-8"))["utc"]
+dt = datetime.datetime.strptime(utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+print(dt.astimezone(datetime.timezone(datetime.timedelta(hours=9))).strftime("%Y-%m-%dT%H:%M:%S"))
+PY
+)" || _KST=""
+    if [ -z "$_KST" ]; then
+        echo "[closing]   ⚠ 분류표 utc 를 KST 로 옮기지 못해 카탈로그 재파생을 건너뛴다 — 기재하고 진행" >&2
+    else
+        ( cd "$WT" && python3 "$WT/.claude/skills/hint-publisher/scripts/hint_catalog.py" \
+              --repo "$WT" derive --remote "$REMOTE" --generated-kst "$_KST" ) \
+            || echo "[closing]   ⚠ 카탈로그 재파생 실패 — 기재하고 진행(원인은 위 출력)" >&2
+    fi
     rm -f "$WT/hints/.central_authority"
 fi
 
