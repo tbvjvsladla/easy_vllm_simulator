@@ -27,6 +27,8 @@
 set -euo pipefail
 
 SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd -P)"
+# 호출 시점 CWD -- 상대 경로 인자는 **어떤 cd 도 하기 전에** 이 값으로 해소한다.
+CALLER_CWD="$(pwd -P)"
 REPO=""
 ACTION=""
 ENTRY_FILE=""
@@ -194,8 +196,53 @@ WT="$REPO/../$(basename "$REPO").wt-$OTHER"
 git -C "$REPO" worktree add -q "$WT" "$OTHER"
 # 자기 일관성 가드가 요구하는 순서: 스크립트만 먼저 당겨온 뒤 실행한다.
 git -C "$WT" checkout "$CUR" -- .claude/skills/upstream-version-watch/scripts/sync_branches.sh
+
+# ── 승인 증거를 워크트리에 임시 배치한다 ──────────────────────────────────────────
+# 왜: `completion_gate authorize` 는 `--repo-root` **아래에서만** 증거를 해소한다(경로 탈출 차단).
+#     워크트리에서 sync 를 돌리면 그 repo-root 는 워크트리인데, 계획서(`docs/plan/`)와
+#     work-manifest(`docs/_evidence/`)는 **비추적이라 워크트리에 존재하지 않는다**. 그래서 사람이
+#     승인한 작업이 EXECUTION_APPROVAL_PLAN_PATH_UNREADABLE 로 막힌다 -- 가드가 제 일을 한 것이
+#     아니라 **배선이 없어 조용히 안 가는** 쪽이다(막힘 3분류의 '침묵 누락'). 2026-09-12 첫 실행
+#     준비에서 발견했다.
+#     아래 카탈로그 중앙권위 마커와 **같은 처방**이다: 같은 노드의 같은 저장소라는 사실을 근거로
+#     이 시퀀스가 놓고, 쓰고 나면 지운다. 둘 다 비추적이라 ⑤의 커밋에 섞이지 않는다.
+EV_RELS="$(python3 - "$REPO" "$CALLER_CWD" "$WORK_MANIFEST" <<'PY'
+import json, os, sys
+repo = os.path.realpath(sys.argv[1])
+cwd, arg = sys.argv[2], sys.argv[3]
+man = os.path.realpath(arg if os.path.isabs(arg) else os.path.join(cwd, arg))
+if not os.path.isfile(man):
+    sys.exit(f"work-manifest 가 없다: {man}")
+
+def rel_under(path, what):
+    rel = os.path.relpath(path, repo)
+    if rel.startswith(".."):
+        sys.exit(f"{what} 가 저장소 밖이다(게이트가 해소하지 못한다): {path}")
+    return rel
+
+print(rel_under(man, "work-manifest"))
+plan = (json.load(open(man, encoding="utf-8")).get("execution_approval") or {}).get("plan_path")
+if plan:
+    print(rel_under(os.path.realpath(os.path.join(os.path.dirname(man), plan)), "plan"))
+PY
+)" || exit 5
+
+STAGED_EVIDENCE=()
+MANIFEST_REL=""
+while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
+    [ -f "$REPO/$rel" ] || { echo "[closing] FAIL: 승인 증거가 없다: $rel" >&2; exit 5; }
+    mkdir -p "$WT/$(dirname "$rel")"
+    cp -p "$REPO/$rel" "$WT/$rel"
+    STAGED_EVIDENCE+=("$rel")
+    [ -n "$MANIFEST_REL" ] || MANIFEST_REL="$rel"
+done <<< "$EV_RELS"
+echo "[closing]   승인 증거 ${#STAGED_EVIDENCE[@]}건을 워크트리에 임시 배치(비추적 · 사용 후 제거)"
+
 ( cd "$WT" && bash "$WT/.claude/skills/upstream-version-watch/scripts/sync_branches.sh" \
-      --from "$CUR" --mode "$GATE_MODE" --manifest "$WORK_MANIFEST" --apply ) || exit 5
+      --from "$CUR" --mode "$GATE_MODE" --manifest "$MANIFEST_REL" --apply ) || exit 5
+
+for _ev in "${STAGED_EVIDENCE[@]}"; do rm -f "$WT/$_ev"; done
 
 # 카탈로그는 복사가 아니라 재파생이다. 중앙권위 마커는 비추적이라 워크트리에 없으므로,
 # **같은 노드의 같은 저장소**라는 사실을 근거로 이 시퀀스가 놓는다(파생 뒤 남기지 않는다).
