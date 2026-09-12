@@ -107,7 +107,13 @@ MIRROR_DIRS=(
     .claude/schemas
     .claude/policies
     .claude/hooks
-    docs/report
+    # ⚠ `docs/report` 는 2026-09-12 에 **이 목록에서 빠졌다**(plan_26091210 Step 0-a).
+    #   미러는 "정본에 없으면 대상에서 지운다" 인데, report 는 발행 시점이 고정된 **append-only
+    #   공지**라 어느 방향이든 삭제가 곧 손실이다. 실측(2026-09-12): 이 줄이 있는 상태의
+    #   single→multi 는 multi 전용 4건을, multi→single 은 single 전용 1건을 지웠다 — 인증서가
+    #   같은 이유로 이미 미러에서 빠져 있었는데(아래 §의도적 비대칭) report 만 남아 있었다.
+    #   대신 report 는 **합집합으로 수렴**한다(추가만 · 동일하면 skip · 같은 경로 다른 내용은
+    #   사고이므로 RED). 그 판정은 아래 PATHS 열거 자리가 갖는다.
     assets
     hints
     # 뼈대에서 지운 틀이 대상 브랜치에 유령으로 남지 않게 한다(추가만 전파되고 삭제는 안 되는
@@ -375,11 +381,49 @@ done
 #   측정 시점에 고정되는 **append-only 증거**다. 미러로 만들면 정본에 없는 = 반대 브랜치가
 #   자기 환경에서 발행한 인증서가 동기화 때마다 삭제된다. 양방향 동기화를 거치며 두 브랜치가
 #   **합집합**으로 수렴하는 것이 옳다(유령 파일이 아니라 보존이다).
+#
+# ★ `docs/report/*` 는 **전수 복사가 아니라 합집합 수렴**이다(2026-09-12 · plan_26091210 Step 0-a).
+#   위 인증서 문단이 편 논리를 report 에도 그대로 적용한 것이다 — 둘 다 발행 시점이 고정된
+#   append-only 산출물이고, 어느 브랜치에서 발행했는지는 수신자에게 아무 의미가 없다.
+#     ⓐ 대상에 없다        → 복사한다(PATHS 에 추가)
+#     ⓑ 대상에 있고 동일    → 건너뛴다(할 일이 없다)
+#     ⓒ 대상에 있고 다르다  → **사고다**. 같은 경로를 두 번 발행했다는 뜻이므로 덮어쓰지 않고 멈춘다.
+#   비교는 git-대-git(`git rev-parse <ref>:<path>`)으로 한다. 워킹트리 해시(`git hash-object`)로
+#   잡으면 `.gitattributes` 의 eol 변환이 끼어들어 판정이 흔들린다. 열거는 `-z` NUL 이어야 한다 —
+#   `--name-only` 의 기본 quotePath 가 한글 경로를 이스케이프해 거짓 drift 를 만든 선례가 있다.
+REPORT_ADD=()
+REPORT_CONFLICT=()
+REPORT_SKIP=0
 while IFS= read -r -d '' f; do
     case "$f" in
-        docs/report/*|docs/*/example.md|docs/benchmark/benchmark_*.yaml) PATHS+=("$f") ;;
+        docs/report/*)
+            _src_blob="$(git rev-parse --verify --quiet "$SRC_BRANCH:$f" || true)"
+            _dst_blob="$(git rev-parse --verify --quiet "HEAD:$f" || true)"
+            if [ -z "$_dst_blob" ]; then
+                PATHS+=("$f"); REPORT_ADD+=("$f")
+            elif [ "$_src_blob" = "$_dst_blob" ]; then
+                REPORT_SKIP=$((REPORT_SKIP + 1))
+            else
+                REPORT_CONFLICT+=("$f")
+            fi
+            ;;
+        docs/*/example.md|docs/benchmark/benchmark_*.yaml) PATHS+=("$f") ;;
     esac
 done < <(git ls-tree -r -z --name-only "$SRC_BRANCH" -- docs/ 2>/dev/null)
+
+# 합집합 수렴의 유일한 RED. 여기서 멈추는 편이 싸다 — 덮어쓰면 한쪽 발행본이 이력에만 남는다.
+if [ "${#REPORT_CONFLICT[@]}" -gt 0 ]; then
+    echo "[sync-branches] FAIL(REPORT_CONFLICT): 같은 경로가 두 브랜치에 **다른 내용**으로 있습니다." >&2
+    echo "[sync-branches]   report 는 append-only 공지라 같은 경로를 두 번 발행한 것 자체가 사고입니다." >&2
+    for f in "${REPORT_CONFLICT[@]}"; do
+        echo "[sync-branches]   - $f" >&2
+        echo "[sync-branches]       $SRC_BRANCH=$(git rev-parse --short "$SRC_BRANCH:$f")  HEAD=$(git rev-parse --short "HEAD:$f")" >&2
+    done
+    echo "[sync-branches]   해소: 둘 중 하나를 새 발행 시각의 파일명으로 다시 내거나, 한쪽 커밋을" >&2
+    echo "[sync-branches]         cherry-pick 으로 상대 브랜치에 먼저 실어 두 자리를 같게 만드세요." >&2
+    echo "[sync-branches]   덮어쓰기는 하지 않습니다." >&2
+    exit 7
+fi
 
 if [ "${#PATHS[@]}" -eq 0 ]; then
     echo "[sync-branches] FAIL: 복사할 allowlist 경로가 정본에 하나도 없습니다."; exit 2
@@ -397,8 +441,11 @@ for mirror_dir in "${MIRROR_DIRS[@]}"; do
         fi
     done < <(git ls-files -z -- "$mirror_dir")
 done
-# docs/report is already covered above. Mirror only skeleton names elsewhere under docs/; active
-# plans and other generated documentation remain branch-local and cannot enter DELETE_PATHS.
+# `docs/report/*` 는 삭제 판정에서 **영구히 빠진다**(2026-09-12 · plan_26091210 Step 0-a). 종전 주석은
+# "이미 위에서 다룬다" 였는데, 그 '위'는 MIRROR_DIRS 였고 거기서 report 가 빠지면서 아래 빈 arm 이
+# **유일한 삭제 차단막**이 됐다 — 이 arm 을 지우면 report 가 곧바로 DELETE_PATHS 로 들어간다.
+# Mirror only skeleton names elsewhere under docs/; active plans and other generated documentation
+# remain branch-local and cannot enter DELETE_PATHS.
 while IFS= read -r -d '' dest_path; do
     case "$dest_path" in
         docs/report/*) ;;
@@ -429,6 +476,11 @@ if [ "$SYNC_ACTION" = "dryrun" ]; then
         echo "[sync-branches] source에 없는 destination tracked path (apply 시 삭제 staging):"
         printf '  - %s\n' "${DELETE_PATHS[@]}"
     fi
+    echo "[sync-branches] docs/report 합집합 수렴: 추가 ${#REPORT_ADD[@]}건 · 동일 skip ${REPORT_SKIP}건 · 충돌 0건"
+    if [ "${#REPORT_ADD[@]}" -gt 0 ]; then
+        printf '  + %s\n' "${REPORT_ADD[@]}"
+    fi
+    echo "[sync-branches]   (대상에만 있는 report 는 삭제 대상이 아닙니다 — MIRROR_DIRS 밖입니다.)"
     echo "[sync-branches] (위는 미리보기. 변경 사항을 사람이 확인 후 --apply)"
     exit 0
 fi
