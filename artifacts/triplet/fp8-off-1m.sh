@@ -1,5 +1,5 @@
 #!/bin/bash
-# nv4-off-262k 서빙 스크립트 (vllm-recipe-explorer 생성, gpt-oss-20b-normal.sh 구조 동일)
+# fp8-off-1m 서빙 스크립트 (vllm-recipe-explorer 생성, gpt-oss-20b-normal.sh 구조 동일)
 # env 파일에서 주입된 변수: CONFIG_FILE, SERVING_MODEL_NAME, TIKTOKEN_ENABLED
 
 # TIKTOKEN 자산 경로 미선언(manifest.tiktoken_host_path 비어 있음) — export 생략
