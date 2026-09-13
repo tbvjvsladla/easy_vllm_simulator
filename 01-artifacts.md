@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/single/configs/nv4-dev-262k.yaml`
-- `output/single/configs/nv4-dev-262k.sh`
-- `output/single/envs/.env.nv4-dev-262k`
+- `output/single/configs/nv4-off-262k.yaml`
+- `output/single/configs/nv4-off-262k.sh`
+- `output/single/envs/.env.nv4-off-262k`
 
 **build_recipe**
 - `output/single/Dockerfile`
@@ -34,7 +34,7 @@
 
 - **triplet — 적용.** 서빙에 원리적으로 필수다. 이 형상의 핵심은 세 줄이다 —
   `kv-cache-memory-bytes`(16 GiB 절대클램프) · `max-model-len: 262144`(없음(원본 상한)) · `enforce-eager`.
-  PLE 배치는 상주(오프로드 노브 없음) 로 선언된다. `max-num-seqs: 8` 도 이 트리플렛의 통제변인이다 —
+  PLE 배치는 `--engram-config '{"cpu_offload":true}'` 로 선언된다. `max-num-seqs: 8` 도 이 트리플렛의 통제변인이다 —
   값이 다르면 부하 곡선이 비교 불가가 된다.
 - **runtime_patch — 불해당.** Python processor/config shim 이 필요한 지점이 없었다. 이 아치 지원이
   엔진 커밋에 이미 들어와 있어 런타임에 모델 설정을 고칠 자리가 나오지 않았다.
