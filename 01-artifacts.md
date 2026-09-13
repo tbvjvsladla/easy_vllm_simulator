@@ -17,28 +17,39 @@
 ## 파일
 
 **triplet**
-- `sync_staging/sub_slots_camp26090721/configs/d-tq3nc.yaml`
-- `sync_staging/sub_slots_camp26090721/configs/d-tq3nc.sh`
-- `sync_staging/sub_slots_camp26090721/envs/.env.d-tq3nc`
+- `output/single/configs/fp8-off-512k.yaml`
+- `output/single/configs/fp8-off-512k.sh`
+- `output/single/envs/.env.fp8-off-512k`
 
 **build_recipe**
-- `sync_staging/sub_slots_camp26090721/Dockerfile`
-- `sync_staging/sub_slots_camp26090721/Dockerfile.source-build`
-- `sync_staging/sub_slots_camp26090721/requirements.txt`
+- `output/single/Dockerfile`
+- `output/single/requirements.txt`
 
 **compose**
-- `sync_staging/sub_slots_camp26090721/docker-compose.yaml`
+- `output/single/docker-compose.yaml`
 
 **fork_pin** — 없음 = **stock**. `.env` 에 `VARIANT=` 줄이 없는 것이 기본값이다.
 
 ## 적용 사유 (Agent)
 
-- **`triplet`** — 적용: serve 시점 성립분. 이 셀을 가르는 유일한 축이 `kv-cache-dtype: turboquant_3bit_nc` 이고 나머지(max-model-len 32768 · kv-cache-memory-bytes 11811160064 · gmu 0.9)는 4군 공통 통제변인이다 · 서브 셀이라 메인이 회수 문서에서 재저작했다.
-- **`runtime_patch`** — 불해당: stock 0.26.0 이 이 모델을 그대로 서빙했다 — processor/config shim 을 arming 한 적이 없고, 없어야 재현된다.
-- **`build_patch_pre`** — 불해당: 소스 수정 없이 컴파일됐다. `build_patches_src/` 는 비어 있고 활성 Dockerfile 이 참조는 하되 적용할 파일이 0건이다.
-- **`build_patch_post`** — 불해당: 빌드-바깥 native 의존 설치가 필요 없었다(추가 lib/커널 0건).
-- **`build_recipe`** — 적용: source-build 트랙이라 이미지가 곧 실험 조건이다 — NGC 26.05-py3 위에서 vLLM `v0.26.0`(568afb3a) 를 컴파일한 레시피 없이는 같은 엔진이 재현되지 않는다.
-- **`compose`** — 적용: KV 절대 클램프를 건 컨테이너를 어떻게 띄우는지가 이 측정의 절반이다. `.env` 실물은 배포하지 않고 변수 형상만 template 로 싣는다.
-- **`fork_pin`** — 불해당: stock 이다 — `.env` 에 `VARIANT=` 줄이 없다. 포크 의존을 만들지 않았다.
+이 레시피에 **실제로 필요했던 것**과, 없는 것이 왜 없는지를 적는다.
 
-> 이 태그가 가르는 것은 **KV 캐시 dtype 하나**다. 나머지 슬롯이 전부 비어 있다는 사실 자체가 결과다 — 이 모델·이 엔진에서 2.0~3.5× 용량은 **패치 없이** 얻어진다(arch-invariant: dtype 수용 여부는 엔진 기능이고 압축비는 층 구조에서 나온다).
+- **`triplet`(적용)** — `fp8-off-512k.{yaml,sh}` + `.env`. 이 조합의 핵심은 세 줄이다:
+  `kv-cache-memory-bytes`(절대 클램프) · `hf-overrides`(YaRN) · `enforce-eager`.
+  ★ **`hf-overrides` 가 없으면 512K 는 로드 진입에서 죽는다.** 그리고 그 값에
+  `max_position_embeddings: 524288` 이 **함께** 들어가야 한다 — vLLM 은 `rope_type` 이 yarn
+  계열이면 factor 를 곱하지 않고 이 필드를 그대로 상한으로 쓴다(`config/model.py::
+  _get_and_verify_max_len` 의 명시 분기). `rope_parameters` 만 보내면 **확장이 조용히 무효**가
+  되고, 게이트는 "rope 인자가 있다"만 보므로 통과시킨다(근거: `devlog_26091314` §되풀이하지 말 것 4).
+- **`build_recipe`(적용)** — 이 트랙은 컨테이너를 만들지 않는다. 재현 입력은 **엔진 커밋 핀**이다:
+  `https://wheels.vllm.ai/30118ba27d1d923bdd91f97d945528dcb4a862c1`. 7자 축약 SHA 는 404 다.
+- **`compose`(적용 · 형상만)** — 이 트랙은 compose 를 쓰지 않고 `vllm serve` 를 호스트 프로세스로
+  띄운다. 대신 어떤 env 가 필요한지의 **형상**을 싣는다(값은 각자 manifest 에서 온다).
+- **`runtime_patch`(불해당)** — Python processor/config shim 이 필요한 지점이 없었다. 아치 지원이
+  엔진에 이미 있고, 모델 설정을 런타임에 고쳐야 할 자리가 나오지 않았다.
+- **`build_patch_pre` / `build_patch_post`(불해당)** — 선행 계획서는 자체이식 3종(NVFP4 PLE ·
+  PLE 오프로드 · KV fp8)을 계획했으나, 앞의 둘은 **upstream main 에 정식 기능으로 들어와** 패치가
+  불필요해졌고(`ModelOptMixedPrecisionConfig` · `Qwen4ExpPLEPinnedHostEmbedding`), KV fp8 은
+  upstream 도 여전히 막혀 있어 **패치로 열 수 있는 것이 아니다**(아래 §2).
+- **`fork_pin`(불해당)** — 포크가 필요 없었다. 필요한 것은 포크가 아니라 **더 새로운 커밋**이었다.
+

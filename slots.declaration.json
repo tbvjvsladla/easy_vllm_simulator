@@ -4,31 +4,31 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "serve 시점 성립분. 이 셀을 가르는 유일한 축이 `kv-cache-dtype: turboquant_3bit_nc` 이고 나머지(max-model-len 32768 · kv-cache-memory-bytes 11811160064 · gmu 0.9)는 4군 공통 통제변인이다 · 서브 셀이라 메인이 회수 문서에서 재저작했다"
+      "rationale": "서빙에 원리적으로 필수. 이 레시피의 핵심은 kv-cache-memory-bytes 절대클램프 · hf-overrides(YaRN, max_position_embeddings 포함) · enforce-eager 세 줄이다"
     },
     "runtime_patch": {
       "applicable": false,
-      "rationale": "stock 0.26.0 이 이 모델을 그대로 서빙했다 — processor/config shim 을 arming 한 적이 없고, 없어야 재현된다"
+      "rationale": "Python processor/config shim 이 필요한 지점이 없었다 — 아치 지원이 엔진에 이미 있고 런타임에 모델 설정을 고칠 자리가 나오지 않았다"
     },
     "build_patch_pre": {
       "applicable": false,
-      "rationale": "소스 수정 없이 컴파일됐다. `build_patches_src/` 는 비어 있고 활성 Dockerfile 이 참조는 하되 적용할 파일이 0건이다"
+      "rationale": "계획했던 NVFP4 PLE 이식이 upstream main 에 ModelOptMixedPrecisionConfig 로 정식화돼 패치가 불필요해졌다. 컴파일 전 소스 수정 없음"
     },
     "build_patch_post": {
       "applicable": false,
-      "rationale": "빌드-바깥 native 의존 설치가 필요 없었다(추가 lib/커널 0건)"
+      "rationale": "빌드 바깥 native 의존을 설치할 일이 없었다. 이 트랙은 컨테이너를 빌드하지 않고 배포 wheel 을 쓴다"
     },
     "build_recipe": {
       "applicable": true,
-      "rationale": "source-build 트랙이라 이미지가 곧 실험 조건이다 — NGC 26.05-py3 위에서 vLLM `v0.26.0`(568afb3a) 를 컴파일한 레시피 없이는 같은 엔진이 재현되지 않는다"
+      "rationale": "컨테이너를 만들지 않는 트랙이므로 재현 입력은 엔진 커밋 핀이다 — wheels.vllm.ai 의 40자 full SHA 인덱스(7자 축약은 404)"
     },
     "compose": {
       "applicable": true,
-      "rationale": "KV 절대 클램프를 건 컨테이너를 어떻게 띄우는지가 이 측정의 절반이다. `.env` 실물은 배포하지 않고 변수 형상만 template 로 싣는다"
+      "rationale": "compose 를 실행하지는 않으나 어떤 env 가 필요한지의 형상은 재현에 필수다. 값은 각자 manifest 에서 온다(운영자 경로는 싣지 않는다)"
     },
     "fork_pin": {
       "applicable": false,
-      "rationale": "stock 이다 — `.env` 에 `VARIANT=` 줄이 없다. 포크 의존을 만들지 않았다"
+      "rationale": "포크가 필요 없었다. 필요한 것은 포크가 아니라 더 새로운 upstream 커밋이었다"
     }
   }
 }

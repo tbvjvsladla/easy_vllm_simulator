@@ -1,13 +1,13 @@
 {
-  "anchor": "65a11d9072eda4cd6ed3f01fd188aa1cae9e8ddd",
-  "anchor_is_head": false,
-  "assembled_at_head": "6ca4bb83014568f4f0f69c933f8b86bdd1264d25",
+  "anchor": "135b615deb0e56d87f8e92020fba6ccc1b4f69b2",
+  "anchor_is_head": true,
+  "assembled_at_head": "135b615deb0e56d87f8e92020fba6ccc1b4f69b2",
   "assembly_branch": "single-node",
-  "generated_kst": "2026-09-11T03:50:00",
+  "generated_kst": "2026-09-13T14:45:21",
   "kind": "hint_payload_provenance",
-  "payload_files": 13,
+  "payload_files": 11,
   "schema_version": 1,
   "source_branch": "single-node",
   "source_branch_source": "derived(git branch --contains anchor)",
-  "tag": "hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant3bitnc"
+  "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len524288-kvauto-pleoffload"
 }

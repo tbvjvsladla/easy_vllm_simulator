@@ -11,27 +11,24 @@
 |---|---|
 | `HINT_MISSING_CERTIFICATE` | 인증서 부재 — full PASS 가 아니었거나 벤치마커가 발행하지 않았다. 인증서 발행은 adversarial-benchmark 의 책임이지 발행기의 책임이 아니다. |
 | `HINT_MISSING_BENCH_REPORT` | 벤치 리포트 부재 — 동시성별 곡선을 실을 수 없다. |
-| `HINT_MISSING_LITE` | lite 관측 부재. |
+| `HINT_MISSING_PII_TERMS` | pii_terms.txt 부재 — 리터럴 스캔이 축소된 상태로 돌았다. |
 
 _동시성별 곡선도 없다(벤치 리포트 부재)._
 
 ## like-with-like 한정자 (Agent)
 
-OBSERVATION-ONLY — 아래 수치는 **관측 게재**이지 baseline 이 아니다. 이 태그는 성능 우위를
-주장하지 않으며 baseline 승격 통로는 발행기가 막고 있다(`task_class=hint_map_only`).
+**인증서가 없다 — 이 수치는 `OBSERVATION-ONLY` 관측 게재다.**
 
-**말할 수 있는 것**
-- 같은 11.0 GiB 에서 이 dtype 이 연 KV 풀 = **277,920 토큰(3.47×)** — 엔진 보고 실측이고,
-  같은 모델·같은 max-model-len 이면 다른 HW 에서도 같은 비가 나온다(**arch-invariant**).
-- 8192+1024 워크로드의 상주 요청 상한 **30건**, 확보 가능한 최대 context **131K**.
-- 스트림당 decode tok/s(동시성 1/2/4) = **17.58 / 17.63 / 13.53** · judge PASS (explore · floor 10.1 · expected_achievable 11.88).
+말할 수 있는 것: 같은 하네스·같은 측정조건에서 셀 간 **상대 비교**. 각 셀 표준조건 3회(MTP 2회)를
+돌려 자체 산포를 함께 냈다.
 
-**말할 수 없는 것**
-- 실제 24GB 디스크리트 카드에서의 절대 성능. 아키텍처를 모의하지 않았다(**arch-scaled**).
-- 품질(정확도) 영향. 이번 범위 밖이며 KV 를 3bit 까지 내리고도 품질을 안 쟀다는 사실은 **결손**이다.
-- 동시성 8 이상의 곡선. 열 보호가 먼저 걸려 측정 자체가 성립하지 않았다.
+말할 수 없는 것: 이 수치를 baseline 이나 SLA 로 쓰는 것. full bench(동시성 곡선·집계 처리량)를
+수행하지 않았고 인증서도 없다. 동시성은 전 셀 **1** 이다 — 배치 성능은 이 태그가 말하지 않는다.
 
-**like-with-like 로 비교하려면** 같은 `--kv-cache-memory-bytes`, 같은 `max-model-len`, 같은 입출력
-길이, 같은 prefix-hit 상한(≤2%)을 맞춰라. 넷 중 하나라도 다르면 이 표와 비교하지 마라.
+**like-with-like 한정자** — 아래 조건이 하나라도 다르면 비교 불가:
+동시성 1 · 입력 1024 · 출력 256 · 요청 8 · warmup 2 · `--backend openai`(완결 엔드포인트) ·
+`enforce-eager` · TP=2 · KV 절대클램프 16 GiB/GPU · GPU **Max-Q 판**(Server Edition 아님).
 
-PERF-WARNING: 인증서 없음(authority=explore 는 인증서를 발행하지 않는다) · 서브 셀의 judge 원본 JSON 미회수 — 성능 수치는 회수된 서브 testlog 의 관측이며 이 태그는 인증서급 재현성·외부 대비 우위를 주장하지 않는다
+**재현 밴드는 셀 간 이식되지 않는다.** 같은 하네스에서 한 셀은 0.34%, 다른 셀은 5.96% 로 10배
+차이가 났다. 단일 측정으로 셀 간 차이를 판정하지 마라 — 밴드 밖일 때만 축 효과로 읽어야 한다.
+
