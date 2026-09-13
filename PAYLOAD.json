@@ -1,8 +1,8 @@
 {
   "artifacts": [
-    "artifacts/triplet/nv4-off-1m.yaml",
-    "artifacts/triplet/nv4-off-1m.sh",
-    "artifacts/triplet/.env.nv4-off-1m",
+    "artifacts/triplet/fp8-dev-262k.yaml",
+    "artifacts/triplet/fp8-dev-262k.sh",
+    "artifacts/triplet/.env.fp8-dev-262k",
     "artifacts/build_recipe/Dockerfile",
     "artifacts/build_recipe/requirements.txt",
     "artifacts/compose/docker-compose.yaml"
@@ -17,8 +17,8 @@
   "generated_kst": "2026-09-13T21:41:20",
   "identity": {
     "gpu": "NVIDIA RTX PRO 6000 Blackwell Max-Q Workstation Edition x2",
-    "model": "qwen3.8-flash-next-nvfp4",
-    "quant": "nvfp4",
+    "model": "qwen3.8-flash-next-fp8",
+    "quant": "fp8",
     "topology": "single",
     "tp": 2,
     "vllm": "0.1.1.dev53+g30118ba27"
@@ -110,9 +110,9 @@
       "evidence_source": "certificate 소프트지문 ↔ 트리플렛 yaml serve 노브(이름 관측은 하위호환 폴백)",
       "exemptible": false,
       "files": {
-        "config_yaml": "output/single/configs/nv4-off-1m.yaml",
-        "env_file": "output/single/envs/.env.nv4-off-1m",
-        "runner_sh": "output/single/configs/nv4-off-1m.sh"
+        "config_yaml": "output/single/configs/fp8-dev-262k.yaml",
+        "env_file": "output/single/envs/.env.fp8-dev-262k",
+        "runner_sh": "output/single/configs/fp8-dev-262k.sh"
       },
       "missing": [],
       "missing_code": "HINT_MISSING_TRIPLET",
