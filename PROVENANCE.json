@@ -3,11 +3,11 @@
   "anchor_is_head": true,
   "assembled_at_head": "72c21d733272d67b0255dca0222d056bc636637c",
   "assembly_branch": "single-node",
-  "generated_kst": "2026-09-13T21:46:24",
+  "generated_kst": "2026-09-13T21:46:25",
   "kind": "hint_payload_provenance",
   "payload_files": 11,
   "schema_version": 1,
   "source_branch": "single-node",
   "source_branch_source": "derived(git branch --contains anchor)",
-  "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleresident"
+  "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleoffload"
 }
