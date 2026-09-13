@@ -4,11 +4,11 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "서빙에 원리적으로 필수. 이 레시피의 핵심은 kv-cache-memory-bytes 절대클램프 · hf-overrides(YaRN, max_position_embeddings 포함) · enforce-eager 세 줄이다"
+      "rationale": "서빙에 원리적으로 필수. 핵심은 kv-cache-memory-bytes(16 GiB 절대클램프) · max-model-len 262144(없음(원본 상한)) · enforce-eager · max-num-seqs 8 네 줄이다"
     },
     "runtime_patch": {
       "applicable": false,
-      "rationale": "Python processor/config shim 이 필요한 지점이 없었다 — 아치 지원이 엔진에 이미 있고 런타임에 모델 설정을 고칠 자리가 나오지 않았다"
+      "rationale": "Python processor/config shim 이 필요한 지점이 없었다 — 아치 지원이 엔진 커밋에 이미 있다"
     },
     "build_patch_pre": {
       "applicable": false,
@@ -24,7 +24,7 @@
     },
     "compose": {
       "applicable": true,
-      "rationale": "compose 를 실행하지는 않으나 어떤 env 가 필요한지의 형상은 재현에 필수다. 값은 각자 manifest 에서 온다(운영자 경로는 싣지 않는다)"
+      "rationale": "compose 를 실행하지는 않으나 어떤 env 가 필요한지의 형상은 재현에 필수다. 값은 각자 manifest 에서 온다"
     },
     "fork_pin": {
       "applicable": false,

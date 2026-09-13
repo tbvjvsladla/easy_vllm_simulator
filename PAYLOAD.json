@@ -1,8 +1,8 @@
 {
   "artifacts": [
-    "artifacts/triplet/fp8-off-512k.yaml",
-    "artifacts/triplet/fp8-off-512k.sh",
-    "artifacts/triplet/.env.fp8-off-512k",
+    "artifacts/triplet/nv4-dev-262k.yaml",
+    "artifacts/triplet/nv4-dev-262k.sh",
+    "artifacts/triplet/.env.nv4-dev-262k",
     "artifacts/build_recipe/Dockerfile",
     "artifacts/build_recipe/requirements.txt",
     "artifacts/compose/docker-compose.yaml"
@@ -14,20 +14,18 @@
     "certificate": null,
     "parsed_not_synthesized": true
   },
-  "generated_kst": "2026-09-13T14:42:08",
+  "generated_kst": "2026-09-13T21:40:41",
   "identity": {
     "gpu": "NVIDIA RTX PRO 6000 Blackwell Max-Q Workstation Edition x2",
-    "model": "Qwen/Qwen3.8-Flash-Next-FP8",
-    "quant": "fp8",
+    "model": "qwen3.8-flash-next-nvfp4",
+    "quant": "nvfp4",
     "topology": "single",
     "tp": 2,
     "vllm": "0.1.1.dev53+g30118ba27"
   },
   "kind": "hint_payload_facts",
   "missing": [
-    "HINT_MISSING_BENCH_REPORT",
-    "HINT_MISSING_CERTIFICATE",
-    "HINT_MISSING_PII_TERMS"
+    "HINT_MISSING_CERTIFICATE"
   ],
   "missing_policy": "forced_publication: 부재는 기재하고 발행한다. 차단은 양성 검출(서빙 성공 허위 · 3신호 모순 · PII 매치)일 때만이다 — plan_26090616 Q7/Q8.",
   "node_parity_attestation": null,
@@ -112,9 +110,9 @@
       "evidence_source": "certificate 소프트지문 ↔ 트리플렛 yaml serve 노브(이름 관측은 하위호환 폴백)",
       "exemptible": false,
       "files": {
-        "config_yaml": "output/single/configs/fp8-off-512k.yaml",
-        "env_file": "output/single/envs/.env.fp8-off-512k",
-        "runner_sh": "output/single/configs/fp8-off-512k.sh"
+        "config_yaml": "output/single/configs/nv4-dev-262k.yaml",
+        "env_file": "output/single/envs/.env.nv4-dev-262k",
+        "runner_sh": "output/single/configs/nv4-dev-262k.sh"
       },
       "missing": [],
       "missing_code": "HINT_MISSING_TRIPLET",

@@ -17,9 +17,9 @@
 ## 파일
 
 **triplet**
-- `output/single/configs/fp8-off-512k.yaml`
-- `output/single/configs/fp8-off-512k.sh`
-- `output/single/envs/.env.fp8-off-512k`
+- `output/single/configs/nv4-dev-262k.yaml`
+- `output/single/configs/nv4-dev-262k.sh`
+- `output/single/envs/.env.nv4-dev-262k`
 
 **build_recipe**
 - `output/single/Dockerfile`
@@ -32,24 +32,18 @@
 
 ## 적용 사유 (Agent)
 
-이 레시피에 **실제로 필요했던 것**과, 없는 것이 왜 없는지를 적는다.
-
-- **`triplet`(적용)** — `fp8-off-512k.{yaml,sh}` + `.env`. 이 조합의 핵심은 세 줄이다:
-  `kv-cache-memory-bytes`(절대 클램프) · `hf-overrides`(YaRN) · `enforce-eager`.
-  ★ **`hf-overrides` 가 없으면 512K 는 로드 진입에서 죽는다.** 그리고 그 값에
-  `max_position_embeddings: 524288` 이 **함께** 들어가야 한다 — vLLM 은 `rope_type` 이 yarn
-  계열이면 factor 를 곱하지 않고 이 필드를 그대로 상한으로 쓴다(`config/model.py::
-  _get_and_verify_max_len` 의 명시 분기). `rope_parameters` 만 보내면 **확장이 조용히 무효**가
-  되고, 게이트는 "rope 인자가 있다"만 보므로 통과시킨다(근거: `devlog_26091314` §되풀이하지 말 것 4).
-- **`build_recipe`(적용)** — 이 트랙은 컨테이너를 만들지 않는다. 재현 입력은 **엔진 커밋 핀**이다:
-  `https://wheels.vllm.ai/30118ba27d1d923bdd91f97d945528dcb4a862c1`. 7자 축약 SHA 는 404 다.
-- **`compose`(적용 · 형상만)** — 이 트랙은 compose 를 쓰지 않고 `vllm serve` 를 호스트 프로세스로
-  띄운다. 대신 어떤 env 가 필요한지의 **형상**을 싣는다(값은 각자 manifest 에서 온다).
-- **`runtime_patch`(불해당)** — Python processor/config shim 이 필요한 지점이 없었다. 아치 지원이
-  엔진에 이미 있고, 모델 설정을 런타임에 고쳐야 할 자리가 나오지 않았다.
-- **`build_patch_pre` / `build_patch_post`(불해당)** — 선행 계획서는 자체이식 3종(NVFP4 PLE ·
-  PLE 오프로드 · KV fp8)을 계획했으나, 앞의 둘은 **upstream main 에 정식 기능으로 들어와** 패치가
-  불필요해졌고(`ModelOptMixedPrecisionConfig` · `Qwen4ExpPLEPinnedHostEmbedding`), KV fp8 은
-  upstream 도 여전히 막혀 있어 **패치로 열 수 있는 것이 아니다**(아래 §2).
-- **`fork_pin`(불해당)** — 포크가 필요 없었다. 필요한 것은 포크가 아니라 **더 새로운 커밋**이었다.
-
+- **triplet — 적용.** 서빙에 원리적으로 필수다. 이 형상의 핵심은 세 줄이다 —
+  `kv-cache-memory-bytes`(16 GiB 절대클램프) · `max-model-len: 262144`(없음(원본 상한)) · `enforce-eager`.
+  PLE 배치는 상주(오프로드 노브 없음) 로 선언된다. `max-num-seqs: 8` 도 이 트리플렛의 통제변인이다 —
+  값이 다르면 부하 곡선이 비교 불가가 된다.
+- **runtime_patch — 불해당.** Python processor/config shim 이 필요한 지점이 없었다. 이 아치 지원이
+  엔진 커밋에 이미 들어와 있어 런타임에 모델 설정을 고칠 자리가 나오지 않았다.
+- **build_patch_pre — 불해당.** 컴파일 전 소스 수정 없음. 선행 계획서가 자체이식하려던 NVFP4 PLE
+  패치는 착수 시점에 upstream main 이 `ModelOptMixedPrecisionConfig` 로 정식화해 불필요해졌다.
+- **build_patch_post — 불해당.** 빌드 바깥 native 의존을 설치할 일이 없었다. 이 트랙은 컨테이너를
+  빌드하지 않고 배포 wheel 을 쓴다.
+- **build_recipe — 적용.** 컨테이너를 만들지 않으므로 재현 입력은 **엔진 커밋 핀 하나**다.
+  `wheels.vllm.ai` 인덱스는 **40자 full SHA** 여야 한다(7자 축약은 404).
+- **compose — 적용.** compose 를 실행하지는 않지만 *어떤 env 가 필요한가*의 형상은 재현에 필수다.
+  값은 각자 manifest 에서 온다 — 운영자 경로는 싣지 않는다.
+- **fork_pin — 불해당.** 포크가 필요 없었다. 필요했던 것은 포크가 아니라 **더 새로운 upstream 커밋**이다.
