@@ -4,7 +4,7 @@
   "slots": {
     "triplet": {
       "applicable": true,
-      "rationale": "서빙에 원리적으로 필수. 핵심은 kv-cache-memory-bytes(4 GiB 절대클램프) · max-model-len 262144(없음(원본 상한)) · enforce-eager · max-num-seqs 4 네 줄이다"
+      "rationale": "서빙에 원리적으로 필수. 핵심은 kv-cache-memory-bytes(16 GiB 절대클램프) · max-model-len 524288(YaRN factor 2) · enforce-eager · max-num-seqs 8 네 줄이다"
     },
     "runtime_patch": {
       "applicable": false,
