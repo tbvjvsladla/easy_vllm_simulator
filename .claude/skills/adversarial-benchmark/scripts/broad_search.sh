@@ -38,7 +38,7 @@
 #   (기본값을 두지 않는 것은 유지한다 — 부재를 조용히 루트로 폴백시키지 않는 것이 이 설계의 핵심이다.)
 # 사용: broad_search.sh init --sweep-id ID --state PATH --cells k1,k2 --control-variable TEXT
 #                            --max-cells N --wall-clock-budget-s N --consecutive-failure-limit N
-#                            --declared-by TEXT --basis TEXT --authority explore --now-utc T
+#                            --declared-by TEXT --basis TEXT --authority explore --now-utc T [--repeats N]
 #       broad_search.sh cell --state PATH --cell-key K --config NAME --axis-citation TEXT
 #                            --next-intent TEXT [--ack-uncalibrated-thermal]
 #                            [--serve-failed REASON --serve-started-utc T] [--symptom KIND]...
@@ -85,6 +85,10 @@ LEVELS=""
 #   있고 여기만 없었다. KV 압력 실험(DeepTailor 류 방법론)은 긴 프롬프트가 필요한데 기본
 #   1024/256 은 풀 압력을 만들지 못한다. 빈 값이면 sweep_bench 기본을 그대로 쓴다(개념 이중기재 금지).
 ILEN=""; OLEN=""; NPROMPTS=""
+# full bench 반복 수(2026-09-14 · plan_26091407 §4.4). init 에서만 받는다 — 빈 값이면 캠페인 선언
+#   (`campaign.yaml budgets.repeats` · 미선언이면 full 정의값)에서 파생한다. 파생·값역·하한의 소유는
+#   `repeat_axis.py resolve` 이고 여기서는 부르기만 한다(기본값을 이 파일에 다시 적지 않는다).
+REPEATS=""
 while [ $# -gt 0 ]; do case "$1" in
   --state) STATE="$2"; shift 2;;
   --now-utc) NOW="$2"; shift 2;;
@@ -111,6 +115,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --input-len) ILEN="$2"; shift 2;;
   --output-len) OLEN="$2"; shift 2;;
   --num-prompts) NPROMPTS="$2"; shift 2;;
+  --repeats) REPEATS="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
   --backend) BACKEND="$2"; shift 2;;
   --confirm-risk) CONFIRM=1; shift;;
@@ -146,6 +151,19 @@ if [ -z "$TOPO" ]; then
 fi
 
 STOPJSON="${STATE%.json}.stop.json"
+
+# 상태 파일이 캠페인 스윕 자리(`campaigns/<id>/sweeps/`, 예약 id 제외)에 있으면 그 <id> 를, 아니면 빈 값을 낸다.
+#   셀 출처 precheck 와 반복 수 파생이 **같은 규칙**으로 캠페인 문맥을 정한다 — 두 자리가 따로 파싱하면
+#   한쪽만 고쳐지는 순간 게이트와 예산이 서로 다른 캠페인을 본다.
+_state_campaign(){
+  local abs camps rest camp
+  abs="$(realpath -m -- "$1")"; camps="$(realpath -m -- "$REPO/campaigns")"
+  case "$abs" in "$camps"/*) ;; *) return 0;; esac
+  rest="${abs#"$camps"/}"; camp="${rest%%/*}"
+  case "${rest#*/}" in sweeps/*) ;; *) return 0;; esac
+  case "$camp" in _bootstrap|_template) return 0;; esac
+  printf '%s' "$camp"
+}
 
 _stop(){   # 상태 → 정지 판정 파일. rc 0=계속 · 3=정지 를 그대로 돌려준다.
   # ★ 여기서 `set -e` 를 다시 켜지 않는다. 셸 옵션은 함수 지역이 아니라 **전역**이라,
@@ -184,10 +202,21 @@ init)
     [ -n "${pair#*:}" ] || { echo "[broad_search] ERROR ${pair%%:*} 는 필수다(선언 없이 스윕을 열지 않는다 · §4.8)" >&2; exit 2; }
   done
   [ -e "$STATE" ] && { echo "[broad_search] ERROR 상태 파일이 이미 있다: $STATE (덮어쓰지 않는다)" >&2; exit 2; }
+  # ── 반복 수 예산(2026-09-14 · plan_26091407 §4.4). 셀 비용 = 레벨 × 반복이라 벽시계 예산의 근거에 반복이
+  #    실려야 한다. 캠페인 선언에서 파생해 declared_budget 에 **출처와 함께** 적고, 각 셀은 이 값을 sweep_bench 에
+  #    넘긴다(스윕 도중 선언이 바뀌어도 셀끼리 반복 수가 갈라지지 않는다). 해소 실패는 스윕을 열지 않는다.
+  _RA=(resolve)
+  if [ -n "$REPEATS" ]; then _RA+=(--repeats "$REPEATS"); fi
+  _ST_CAMP="$(_state_campaign "$STATE")"
+  if [ -n "$_ST_CAMP" ]; then _RA+=(--campaign-id "$_ST_CAMP"); fi
+  _RR="$(python3 "$SDIR/repeat_axis.py" "${_RA[@]}")" || {
+    echo "[broad_search] ERROR 반복 수를 해소하지 못했다(위 사유) — 선언 없이 스윕을 열지 않는다(§4.8)" >&2; exit 2; }
+  IFS=$'\x1f' read -r REP_N REP_SRC _REP_KIND <<< "$_RR"
   mkdir -p "$(dirname "$STATE")"
   SWEEP_ID="$SWEEP_ID" CELLS="$CELLS" CTRL="$CTRL" AUTHORITY="$AUTHORITY" \
   MAX_CELLS="$MAX_CELLS" WALL="$WALL" FAILLIMIT="$FAILLIMIT" \
   DECLARED_BY="$DECLARED_BY" BASIS="$BASIS" NOW="$NOW" TOPO="$TOPO" \
+  REP_N="$REP_N" REP_SRC="$REP_SRC" \
   python3 - "$STATE" <<'PY'
 import json, os, sys
 cells = [c.strip() for c in os.environ["CELLS"].split(",") if c.strip()]
@@ -210,6 +239,9 @@ state = {
         "max_cells": _pos("MAX_CELLS"),
         "wall_clock_budget_s": _pos("WALL"),
         "consecutive_failure_limit": _pos("FAILLIMIT"),
+        # 반복 수 — 값역·하한은 repeat_axis 가 이미 판정했다. 출처를 값 옆에 둔다.
+        "repeats": _pos("REP_N"),
+        "repeats_source": os.environ["REP_SRC"],
         "declared_by": os.environ["DECLARED_BY"],
         "basis": os.environ["BASIS"],
     },
@@ -311,6 +343,22 @@ PY
       python3 -c "import json;d=json.load(open('$STOPJSON'));print('  stopped_by:', d['stopped_by'])" >&2
       exit 0
     fi
+    # ── 반복 수 예산 진입 게이트(2026-09-14 · plan_26091407 §4.4 · 리뷰 정정) ──────────────────────────
+    #   새 run 을 소비하는 자리는 이 경로 하나다. 셀 비용 = 레벨 × 반복이므로 스윕 선언에 반복 수가 없으면
+    #   (반복 축 신설 전 상태 파일) 여기서 멈춘다 — 셀마다 캠페인 선언을 다시 해소해 메우면 같은 지도 안에서
+    #   반복 수가 갈라지고, 벽시계 예산을 승인한 근거에 반복이 없던 스윕에 3배 비용이 조용히 붙는다.
+    #   정지 평가기(sweep_stop)는 부재를 None·absent 로 **기재만** 한다(status·map·재조립 같은 읽기 경로를
+    #   막지 않는다). 값의 유효성(정수 ∧ ≥ full 정의)은 위 `_stop` 이 이미 판정했다.
+    _DR="$(python3 -c 'import json,sys
+b = json.load(open(sys.argv[1], encoding="utf-8")).get("declared_budget") or {}
+print("%s\x1f%s" % (b.get("repeats", ""), b.get("repeats_source") or "출처 미기재"))' "$STATE")"
+    IFS=$'\x1f' read -r _DECL_REP _DECL_REP_SRC <<< "$_DR"
+    if [ -z "$_DECL_REP" ]; then
+      echo "[broad_search] ERROR declared_budget.repeats 미선언 — 반복 축 신설 전 상태 파일이다(셀 비용 = 레벨 × 반복)." >&2
+      echo "[broad_search]   새 run 을 소비하는 셀 진입은 막는다. 새 스윕으로 init 하라(init 이 캠페인 선언 budgets.repeats ·" >&2
+      echo "[broad_search]   미선언이면 full 정의값에서 파생해 출처와 함께 적는다). status·map·재조립은 그대로 쓸 수 있다." >&2
+      exit 2
+    fi
   fi
 
   if [ -n "$SERVE_FAILED_REASON" ]; then
@@ -353,27 +401,16 @@ PY
     exit 2
   fi
   _PC_ARGS=(--lockset-precheck --cell "$CELL_KEY")
-  _STATE_ABS="$(realpath -m -- "$STATE")"
-  _CAMPS_ABS="$(realpath -m -- "$REPO/campaigns")"
-  case "$_STATE_ABS" in
-    "$_CAMPS_ABS"/*)
-      _PC_REST="${_STATE_ABS#"$_CAMPS_ABS"/}"
-      _PC_CAMP="${_PC_REST%%/*}"
-      case "${_PC_REST#*/}" in
-        sweeps/*)
-          if [ "$_PC_CAMP" != "_bootstrap" ] && [ "$_PC_CAMP" != "_template" ]; then
-            _PC_ARGS+=(--campaign-id "$_PC_CAMP")
-            _PC_ACTIVE="$(python3 "$_CI_PC" --active 2>/dev/null || echo '?')"
-            if [ "$_PC_ACTIVE" != "$_PC_CAMP" ]; then
-              echo "[broad_search] ⚠ 상태 파일은 campaigns/$_PC_CAMP 인데 활성 캠페인은 '$_PC_ACTIVE' 다 —" >&2
-              echo "[broad_search]   셀 출처는 상태 파일의 캠페인($_PC_CAMP)으로 판정한다(포인터 유실이 게이트를 열지 않는다)." >&2
-              echo "[broad_search]   cell.status writer 는 활성 캠페인을 따르므로 포인터를 먼저 바로잡아라." >&2
-            fi
-          fi
-          ;;
-      esac
-      ;;
-  esac
+  _PC_CAMP="$(_state_campaign "$STATE")"
+  if [ -n "$_PC_CAMP" ]; then
+    _PC_ARGS+=(--campaign-id "$_PC_CAMP")
+    _PC_ACTIVE="$(python3 "$_CI_PC" --active 2>/dev/null || echo '?')"
+    if [ "$_PC_ACTIVE" != "$_PC_CAMP" ]; then
+      echo "[broad_search] ⚠ 상태 파일은 campaigns/$_PC_CAMP 인데 활성 캠페인은 '$_PC_ACTIVE' 다 —" >&2
+      echo "[broad_search]   셀 출처는 상태 파일의 캠페인($_PC_CAMP)으로 판정한다(포인터 유실이 게이트를 열지 않는다)." >&2
+      echo "[broad_search]   cell.status writer 는 활성 캠페인을 따르므로 포인터를 먼저 바로잡아라." >&2
+    fi
+  fi
   set +e
   CELL_PROV="$(python3 "$_CI_PC" "${_PC_ARGS[@]}")"
   _PCRC=$?
@@ -436,6 +473,10 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
     [ -n "$ILEN" ] && SB_ARGS+=(--input-len "$ILEN")
     [ -n "$OLEN" ] && SB_ARGS+=(--output-len "$OLEN")
     [ -n "$NPROMPTS" ] && SB_ARGS+=(--num-prompts "$NPROMPTS")
+    # 반복 수는 **스윕 선언**(init 이 캠페인 선언에서 파생해 적은 declared_budget.repeats)을 그대로 넘긴다 —
+    #   셀마다 다시 해소하면 스윕 도중 선언이 바뀔 때 같은 지도 안에서 반복 수가 갈라진다(2026-09-14).
+    #   선언이 없으면 위 진입 게이트가 이미 exit 2 로 멈췄다(기본값을 발명하지 않는다).
+    SB_ARGS+=(--repeats "$_DECL_REP" --repeats-source "sweep state declared_budget.repeats ← $_DECL_REP_SRC")
     bash "$SDIR/sweep_bench.sh" "${SB_ARGS[@]}"
     MEASURE_RC=$?
     if [ "$MEASURE_RC" = "0" ]; then
@@ -448,17 +489,15 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
   ENDED="$(date -u +%FT%TZ)"
   fi
 
-  EVARGS=()
-  for evf in "$REPO"/docs/logs/*/events/*.jsonl; do
-    [ -f "$evf" ] && EVARGS+=(--events "$evf")
-  done
+  # 블랙박스 events 의 자리(docs/logs/<node>/events/*.jsonl)는 분류기가 소유한다(`--events-from-repo`) —
+  #   sweep_bench 종료부의 bench_mode 판정과 같은 발견 규칙을 쓰려고 호출부마다 glob 을 다시 적지 않는다.
   CLS="$(python3 "$SDIR/classify_cell.py" --serve-rc "$SERVE_RC" --measure-rc "$MEASURE_RC" \
-          --started-utc "$STARTED" --ended-utc "$ENDED" "${EVARGS[@]+"${EVARGS[@]}"}")"
+          --started-utc "$STARTED" --ended-utc "$ENDED" --events-from-repo "$REPO")"
 
   CELL_KEY="$CELL_KEY" CONFIG="$CONFIG" CITATION="$CITATION" SWEEPDIR="$SWEEPDIR" \
   CLS="$CLS" ENDED="$ENDED" STARTED="$STARTED" SERVE_FAILED_REASON="$SERVE_FAILED_REASON" \
   NEXT_INTENT="$NEXT_INTENT" THERMAL_UNCAL="${_UNCAL:-}" ACK_UNCAL="$ACK_UNCAL" \
-  CELL_PROV="${CELL_PROV:-}" \
+  CELL_PROV="${CELL_PROV:-}" SDIR="$SDIR" \
   python3 - "$STATE" <<'PY'
 import json, os, sys
 state_path = sys.argv[1]
@@ -476,6 +515,20 @@ def _load(name):
 
 index = _load("sweep_index.json") or {}
 verdict = _load("verdict.json") or {}
+
+
+def _bench_mode_fields():
+    """판정 기록(classify_cell 사이드카) → 셀 기록 필드. 부재·판독 실패·낡음은 null + 그 사유다(추측 ✗)."""
+    keys = ("bench_mode", "bench_mode_source", "downgrade_reason", "downgrade_reason_source", "downgrade_correlation")
+    if cls.get("cell_outcome") != "measured":
+        return dict({k: None for k in keys}, bench_mode_source=(
+            "not_applicable(cell_outcome=%s — 측정이 성립하지 않은 셀에는 bench_mode 가 없다)" % cls.get("cell_outcome")))
+    sys.path.insert(0, os.environ["SDIR"])
+    import classify_cell as _cc
+    record, status = _cc.read_bench_mode_record(os.path.join(sweepdir, "sweep_index.json"), index)
+    if record is None:
+        return dict({k: None for k in keys}, bench_mode_source="not_evaluated(판정 기록 %s)" % status)
+    return {k: record.get(k) for k in keys}
 # ★ 2026-09-06: 오류 분할(도구 경계 대 서버)이 판정점 measured.json 에는 있는데 **셀 기록으로
 #   올라오지 않았다**. 그러면 지도에는 깨끗한 `measured` 셀만 보이고, 요청의 일부가 클라이언트
 #   파서에 버려졌다는 사실이 사라진다. 실측(a0): 24건 중 3건이 harmony 토큰 경계에서 errored.
@@ -504,6 +557,12 @@ cell = {
                      "image_tag", "image_digest", "moe_backend", "attention_backend",
                      "gpu_memory_utilization", "max_num_seqs")},
     "concurrency_vector": vector or None,
+    # 반복 축(2026-09-14 · plan_26091407 §4.4). 요약은 sweep_bench 가 raw runs[] 에서 낸 것이고(레벨별 완주·
+    #   재현 밴드·스윕이 멈춘 자리), bench_mode·강등 사유는 분류기의 **판정 기록**(sweep_bench 종료부가 부른
+    #   classify_cell 의 bench_mode.json)을 그대로 옮긴 값이다 — 여기서 다시 판정하지 않는다(판정 기록은 하나다 ·
+    #   인증서 발행기도 같은 기록을 읽는다). 측정이 성립하지 않은 셀의 index 는 이전 스윕의 것일 수 있어 싣지 않는다.
+    "repetition": (index.get("repetition") if cls.get("cell_outcome") == "measured" else None),
+    **_bench_mode_fields(),
     # 용량 축은 속도와 **합치지 않고 나란히** 둔다.
     "capacity": {"kv_cache_memory_bytes": meta.get("kv_cache_memory_bytes"),
                  "max_model_len": meta.get("max_model_len")},

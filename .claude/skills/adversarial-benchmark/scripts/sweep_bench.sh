@@ -11,17 +11,41 @@
 #
 # 사용: sweep_bench.sh <config_name> [--topology single|multi] [--levels 1,2,4,8,16] [--backend openai-chat|openai]
 #        [--input-len N] [--output-len N] [--num-prompts N] [--warmups N] [--vllm-version X] [--dry-run]
-#        [--reassemble-only]
+#        [--repeats N [--repeats-source TEXT]] [--campaign-id ID] [--reassemble-only]
+#
+# ★ 반복 축(2026-09-14 · plan_26091407 §4.4 · 사용자 결정 Q3) — full 의 정의는 `lite ∪ GuideLLM × 반복 ≥3` 이다.
+#   · 반복 대상은 **레벨 측정 레그**(`--tool` 이 고른 도구 · full 에서는 GuideLLM)다. lite 선행 레그는 반복하지
+#     않는다 — cold TTFT 는 warmup 0 첫 요청이라 두 번째부터는 cold 가 아니고, lite 는 inform-only 스냅샷이다.
+#     레벨 run 들의 spec 축 승계원은 그 **한 번의** lite warm JSON 을 함께 쓴다(`_spec_axis_args`).
+#   · 반복 수 = `--repeats N` > 활성 캠페인(`--campaign-id` 가 있으면 그 캠페인) `campaign.yaml budgets.repeats` >
+#     full 정의값 3. 해소·값역·하한의 소유는 `repeat_axis.py` 이며 출처는 `repetition.requested_source` 에 남는다.
+#     **N<3 명시는 exit 2** 다(full 정의 위반 — lite 만 원하면 lite_bench.sh). 선언을 읽지 못해도 exit 2 다.
+#     `--reassemble-only` 에 반복 인자를 주면 exit 2 다(재조립은 측정 시점 index 의 요청 반복을 승계한다).
+#   · 레벨마다 run 1..N 을 같은 serve 에 연속으로 잰다(`repeat_kind=warm-rerun` · cold-restart 는 선언 슬롯만).
+#     run 1 은 `level_NN/` 에(종전 배치 그대로 — 판정점·인증서·judge_bench 승계가 읽는 대표 run), run k≥2 는
+#     `level_NN/run_KK/` 에 쓴다. 레벨 종료 시 `repeat_axis.py aggregate-level` 이 대표 measured.json 에
+#     `runs[]`·`repro_band_pct`·`repro_band_source=measured(n=N)`·`repeat_kind` 를 덧붙인다(대표 필드는 그대로).
+#   · run 1 실패 = 종전 적응 상한 클램프(레벨 절삭 · 경계 사실은 `repetition.clamp_run`). run k≥2 실패
+#     (measurement_ok=false · run_bench 비0) = **반복 중단 즉시 신호** — 남은 반복과 상위 레벨을 멈추고
+#     truncation.log 에 적는다(끊긴 동시성은 반복해 버티지 못한 포화 경계라 상위도 무너진다 — 클램프와 같은
+#     이유). 스윕이 멈춘 자리는 `repetition.stop` 하나다. 이 스크립트는 raw runs[] 와 즉시 신호만 쓰고,
+#     종료부에서 판정 소유자 `classify_cell.py`(bench-mode 모드)를 **불러** 판정 기록 `bench_mode.json` 을
+#     남긴다(판정 규칙은 여기 없다 — 정규 경로 sweep_bench → judge_bench → render_report 에서도 기록이 생긴다).
+#     분산(밴드 폭)은 강등 사유가 아니다. 정상 경로(판정점 반복 완주 · 사살 없음 · 포화 경계 클램프 포함)는
+#     강등 경로를 밟지 않는다.
 #
 # --reassemble-only: **측정하지 않고** 기존 SWEEPDIR 의 raw(level_NN/measured.json · lite raw ·
-#   truncation.log)에서 sweep_index.json 만 다시 조립한다. 라벨/파생키 계약이 바뀌었을 때
+#   truncation.log)에서 sweep_index.json 만 다시 조립한다(복원 레벨은 **기존 index 의 levels[]** 로 한정 —
+#   디스크에 남은 이전 스윕의 level_NN 을 이번 측정에 섞지 않는다). 라벨/파생키 계약이 바뀌었을 때
 #   (예: 2026-08-15 model 강한키 파생 교정 · 2026-08-23 quantization/kv_cache_dtype 실측 승격)
 #   **재측정 없이** 산출물을 정합화하는 유일한 정식 경로다 —
 #   대안은 인증서 수기 편집(=증거 위조)이거나 재측정(=측정치가 아니라 라벨 문제인데 비용 지불)뿐이다.
 #   측정시각(`generated_utc`)·실측 image_tag 는 **기존 index 에서 승계**한다(측정이 안 바뀌었으니
 #   측정시각도 안 바뀐다). 기존 index 가 없으면 시각을 날조하는 대신 fail-closed 로 멈춘다.
-# 산출: output/<topo>/benchlog/sweep_<config>/{level_NN/{bench_<config>.json,engine_<config>.log,measured.json},
-#        truncation.log, sweep_index.json}  ← render_report.py·publish_benchmark_record.py 가 소비.
+# 산출: output/<topo>/benchlog/sweep_<config>/{level_NN/{bench_<config>.json|guidellm_<config>.json,engine_<config>.log,
+#          measured.json(대표 run + runs[]·repro_band),repeat_run.json, run_KK/{…,measured.json,repeat_run.json}},
+#        truncation.log, sweep_index.json, bench_mode.json(writer: classify_cell.py)}
+#        ← render_report.py·publish_benchmark_record.py·judge_bench.sh·broad_search.sh 가 소비.
 # 종료: 0=성공(레벨 ≥1 완료) · 2=인자/전제 오류 · 3=판정점(레벨1) 측정 불가(serve 미가동/게이트 등).
 set -euo pipefail
 
@@ -35,14 +59,19 @@ TOPO=""; LEVELS="1,2,4,8,16"; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; VLLM_
 #   버렸는데 이쪽이 들고 있으면 그 버림이 무효가 된다 — 기본값은 마지막 한 자리만 남아도 이긴다.
 BACKEND=""
 # ★ 2026-09-04(CP5 · plan_26090415 §3.1·§3.7) — 모드별 측정 도구 선택.
-#   lite 레그는 이 노브와 무관하게 **언제나 `vllm bench serve`** 다(`full = lite ∪ GuideLLM`).
+#   lite 레그는 이 노브와 무관하게 **언제나 `vllm bench serve`** 다(도구 구성 `full = lite ∪ GuideLLM` · 반복 축은 위 ★).
 #   두 레그를 이질적으로 유지하는 것이 설계이며, 그 이질성이 실결함 2건을 잡았다(2026-09-01·09-03).
 #   `--tool guidellm` 은 **레벨 측정만** 옮긴다.
 TOOL="vllm"
 BENCH_BUDGET_MIB=""
 # 오류 허용치는 **선언에서만** 온다(기본 빈값 = 파서 기본 0 = 엄격).
 MAX_ERROR_RATE=""
+# 반복 축(위 헤더 ★). 빈 값 = repeat_axis 가 캠페인 선언·full 정의에서 해소한다(여기에 기본 숫자를 적지 않는다).
+REPEATS_ARG=""; REPEATS_SOURCE_ARG=""; CAMPAIGN_ID=""
 while [ $# -gt 0 ]; do case "$1" in
+  --repeats) REPEATS_ARG="$2"; shift 2;;
+  --repeats-source) REPEATS_SOURCE_ARG="$2"; shift 2;;
+  --campaign-id) CAMPAIGN_ID="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
   --tool) TOOL="$2"; shift 2;;
   --bench-budget-mib) BENCH_BUDGET_MIB="$2"; shift 2;;
@@ -58,6 +87,13 @@ while [ $# -gt 0 ]; do case "$1" in
   --dry-run) DRYRUN=1; shift;;
   *) echo "[sweep_bench] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
+
+# 재조립은 측정하지 않는다 — 반복 인자를 받으면 조용히 버리지 않고 거부한다(요청 반복은 측정 시점 index 에서 승계).
+if [ "$REASSEMBLE" = "1" ] && { [ -n "$REPEATS_ARG" ] || [ -n "$REPEATS_SOURCE_ARG" ] || [ -n "$CAMPAIGN_ID" ]; }; then
+  echo "[sweep_bench] ERROR --reassemble-only 에는 --repeats/--repeats-source/--campaign-id 를 줄 수 없다 —" >&2
+  echo "  재조립은 측정하지 않으므로 요청 반복·출처를 **측정 시점** index 에서 승계한다(측정하지 않은 반복 수 ✗)." >&2
+  exit 2
+fi
 
 # 측정 엔드포인트 미선언을 **여기서** 친다 — 뒤로 미루면 lite 레그를 다 돌고 나서야 드러나고,
 # 그때는 이미 잘못된 포맷으로 잰 판정점이 손에 있다(2026-09-07 · 유예 결함 ①).
@@ -84,6 +120,19 @@ esac
 
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(git -C "$SDIR" rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# 반복 수 해소 — **어떤 부하도 걸기 전에** 친다(뒤로 미루면 lite 레그를 다 돌고 나서야 선언 오류가 드러난다).
+#   재조립은 측정하지 않으므로 해소하지 않는다 — 측정 시점의 요청 반복을 기존 index 에서 승계한다(아래 PY).
+REPEATS=""; REPEATS_SOURCE=""; REPEAT_KIND=""
+if [ "$REASSEMBLE" != "1" ]; then
+  _RA=(resolve)
+  if [ -n "$REPEATS_ARG" ]; then _RA+=(--repeats "$REPEATS_ARG"); fi
+  if [ -n "$REPEATS_SOURCE_ARG" ]; then _RA+=(--repeats-source "$REPEATS_SOURCE_ARG"); fi
+  if [ -n "$CAMPAIGN_ID" ]; then _RA+=(--campaign-id "$CAMPAIGN_ID"); fi
+  _RR="$(python3 "$SDIR/repeat_axis.py" "${_RA[@]}")" || {
+    echo "[sweep_bench] ERROR 반복 수를 해소하지 못했다(위 사유) — 측정하지 않는다(full 정의: 반복 ≥3)" >&2; exit 2; }
+  IFS=$'\x1f' read -r REPEATS REPEATS_SOURCE REPEAT_KIND <<< "$_RR"
+fi
 if [ -z "$TOPO" ]; then
   BR="$(git -C "$REPO" rev-parse --abbrev-ref HEAD 2>/dev/null || echo)"
   case "$BR" in multi-node) TOPO=multi;; single-node) TOPO=single;; *) TOPO=single;; esac
@@ -107,10 +156,11 @@ SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
 
 echo "[sweep_bench] config=$CONFIG topo=$TOPO levels=[${SORTED[*]}] in=$ILEN out=$OLEN n=$NPROMPTS warmup=$WARMUPS tool=$TOOL${BENCH_BUDGET_MIB:+ bench_budget=${BENCH_BUDGET_MIB}MiB}"
 echo "[sweep_bench] sweepdir=$SWEEPDIR (판정점=동시성1 재사용)"
+[ "$REASSEMBLE" = "1" ] || echo "[sweep_bench] 반복 $REPEATS × 레벨 · $REPEAT_KIND · 출처 $REPEATS_SOURCE (lite 선행 레그는 1회)"
 if [ "$DRYRUN" = "1" ]; then
   echo "[sweep_bench] DRY-RUN — 레벨별 실행 계획:"
   for L in "${SORTED[@]}"; do
-    echo "  level $L → run_bench.sh $CONFIG --topology $TOPO --concurrency $L --tool $TOOL${BENCH_BUDGET_MIB:+ --bench-budget-mib $BENCH_BUDGET_MIB} --out-dir $SWEEPDIR/level_$(printf '%02d' "$L")"
+    echo "  level $L × run 1..$REPEATS → run_bench.sh $CONFIG --topology $TOPO --concurrency $L --tool $TOOL${BENCH_BUDGET_MIB:+ --bench-budget-mib $BENCH_BUDGET_MIB} --out-dir $SWEEPDIR/level_$(printf '%02d' "$L")[/run_KK]"
   done
   echo "[sweep_bench] DRY-RUN 종료(실제 벤치·assemble 생략)"
   exit 0
@@ -129,16 +179,25 @@ TRUNCLOG="$SWEEPDIR/truncation.log"
 if [ "$REASSEMBLE" = "1" ]; then
   # 완료 레벨을 **디스크에서** 복원한다. 판정 기준은 최초 루프와 동일(measured.json 의
   # measurement_ok=true) — 기준을 새로 쓰면 두 벌이 되어 어긋난다.
+  # ★ 2026-09-14(리뷰 정정): 복원 대상은 **기존 index 의 levels[]** 로 한정한다. 스윕 디렉터리에는 이전 스윕이
+  #   남긴 level_NN 이 있을 수 있고(이번 측정이 클램프·반복 중단으로 그 레벨에 닿지 않았다), 디스크 전체를 훑으면
+  #   그 낡은 레벨(자기 runs[] 포함)이 측정시각을 승계한 이번 index 에 부활한다. index 가 측정의 권위다.
+  _PRIOR_LEVELS="$(python3 -c '
+import json, sys
+doc = json.load(open(sys.argv[1], encoding="utf-8"))
+print(" ".join(str(lv.get("level")) for lv in doc.get("levels") or []
+               if isinstance(lv, dict) and isinstance(lv.get("level"), int) and not isinstance(lv.get("level"), bool)))
+' "$SWEEPDIR/sweep_index.json")" || { echo "[sweep_bench] --reassemble-only: 기존 index 판독 실패 — 중단" >&2; exit 2; }
   COMPLETED=()
-  for _d in "$SWEEPDIR"/level_*; do
-    [ -d "$_d" ] || continue
+  for _lv in $_PRIOR_LEVELS; do
+    _d="$SWEEPDIR/level_$(printf '%02d' "$_lv")"
     _m="$_d/measured.json"; [ -s "$_m" ] || continue
     python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get('measurement_ok') else 1)" "$_m" \
       || continue
-    COMPLETED+=("$(basename "$_d" | sed 's/^level_0*//')")
+    COMPLETED+=("$_lv")
   done
   if [ "${#COMPLETED[@]}" -eq 0 ]; then
-    echo "[sweep_bench] --reassemble-only: 복원 가능한 레벨 0개(measurement_ok) — 중단" >&2; exit 3
+    echo "[sweep_bench] --reassemble-only: 기존 index levels[] 중 복원 가능한 레벨 0개(measurement_ok) — 중단" >&2; exit 3
   fi
   IFS=$'\n' COMPLETED=($(printf '%s\n' "${COMPLETED[@]}" | sort -n)); unset IFS
   case " ${COMPLETED[*]} " in *" 1 "*) :;; *) echo "[sweep_bench] --reassemble-only: 판정점(레벨1) 부재 — 중단" >&2; exit 3;; esac
@@ -221,57 +280,106 @@ print(warm)
 }
 # <<< spec-axis-args
 
+# spec 축 승계원은 lite 레그가 정한다 — lite 는 스윕당 1회이므로 판정도 **1회**다(run 마다 다시 물으면 같은 무효
+#   사유가 레벨 × 반복만큼 절삭 로그에 쌓인다). 레벨 run 전부가 이 SPEC_AXIS_ARGS 를 함께 쓴다.
+if [ "$TOOL" = "guidellm" ]; then
+  _spec_axis_args "$LITE_RAW" "$TRUNCLOG" "$SDIR"
+fi
+
 COMPLETED=()
+REPEAT_STOP=0
+# 클램프(레벨 첫 run 실패)가 난 레벨 — 그 레벨은 index levels 에 실리지 않으므로 경계 사실(repeat_run.json)을
+#   조립부에 따로 넘긴다(블랙박스 사살 대조 창 · classify_cell). 판정점(레벨1) 첫 run 실패는 exit 3 이라 해당 없음.
+CLAMP_LEVEL=""
 for L in "${SORTED[@]}"; do
   LDIR="$SWEEPDIR/level_$(printf '%02d' "$L")"; mkdir -p "$LDIR"
-  echo "[sweep_bench] ── level 동시성=$L ──"
-  RB_ARGS=("$CONFIG" --topology "$TOPO" --concurrency "$L"
-           --input-len "$ILEN" --output-len "$OLEN" --num-prompts "$NPROMPTS"
-           --warmups "$WARMUPS" --backend "$BACKEND" --out-dir "$LDIR" --tool "$TOOL")
-  [ -n "$BENCH_BUDGET_MIB" ] && RB_ARGS+=(--bench-budget-mib "$BENCH_BUDGET_MIB")
-  if bash "$SDIR/run_bench.sh" "${RB_ARGS[@]}"; then
-    ELOG="$LDIR/engine_${CONFIG}.log"
-    # 파서는 도구가 정한다 — 스키마가 다르므로 파일명도 다르고, 잘못된 파서가 조용히 빈 값을
-    # 내는 일이 없게 한다.
-    if [ "$TOOL" = "guidellm" ]; then
-      BJSON="$LDIR/guidellm_${CONFIG}.json"
-      # spec 축은 GuideLLM 이 보고하지 않는다. **같은 스윕의 lite 레그**에서 승계한다(위 `_spec_axis_args`).
-      # 승계원 해석·판정은 `_spec_axis_args`(위 정의 · 자체검사가 바이트 그대로 실행)가 한다.
-      _spec_axis_args "$LITE_RAW" "$TRUNCLOG" "$SDIR"
-      PARSE_CMD=(python3 "$SDIR/parse_guidellm.py" --benchmarks-json "$BJSON"
-                 --engine-log "$ELOG" "${SPEC_AXIS_ARGS[@]}")
-      [ -n "$MAX_ERROR_RATE" ] && PARSE_CMD+=(--max-error-rate "$MAX_ERROR_RATE")
-      # 벤치 종료 시 서버 생존 관측(2026-09-07 · 유예 결함 ②). run_bench 가 벤치 직후 · teardown
-      # 전에만 남길 수 있는 사실이며, 이것이 없으면 엔진 사망 중 잘린 SSE 가 도구 경계로 면제된다.
-      _PH="$LDIR/post_health_${CONFIG}.json"
-      [ -s "$_PH" ] && PARSE_CMD+=(--post-health-json "$_PH")
-    else
-      BJSON="$LDIR/bench_${CONFIG}.json"
-      PARSE_CMD=(python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG")
+  # 이전 스윕의 반복 산출물을 걷어낸다 — 남아 있으면 이번 레벨의 runs[] 에 **다른 측정의 run** 이 섞인다.
+  rm -rf "$LDIR"/run_[0-9][0-9]* "$LDIR/repeat_run.json"
+  echo "[sweep_bench] ── level 동시성=$L (반복 $REPEATS · $REPEAT_KIND) ──"
+  for ((K = 1; K <= REPEATS; K++)); do
+    if [ "$K" = 1 ]; then RDIR="$LDIR"; else RDIR="$LDIR/run_$(printf '%02d' "$K")"; mkdir -p "$RDIR"; fi
+    RUN_STARTED="$(date -u +%FT%TZ)"
+    RB_ARGS=("$CONFIG" --topology "$TOPO" --concurrency "$L"
+             --input-len "$ILEN" --output-len "$OLEN" --num-prompts "$NPROMPTS"
+             --warmups "$WARMUPS" --backend "$BACKEND" --out-dir "$RDIR" --tool "$TOOL")
+    [ -n "$BENCH_BUDGET_MIB" ] && RB_ARGS+=(--bench-budget-mib "$BENCH_BUDGET_MIB")
+    RB_RC=0; PARSE_RC=0; RUN_OK=0; _PERR=""
+    bash "$SDIR/run_bench.sh" "${RB_ARGS[@]}" || RB_RC=$?
+    if [ "$RB_RC" = "0" ]; then
+      ELOG="$RDIR/engine_${CONFIG}.log"
+      # 파서는 도구가 정한다 — 스키마가 다르므로 파일명도 다르고, 잘못된 파서가 조용히 빈 값을
+      # 내는 일이 없게 한다.
+      if [ "$TOOL" = "guidellm" ]; then
+        BJSON="$RDIR/guidellm_${CONFIG}.json"
+        # spec 축은 GuideLLM 이 보고하지 않는다. **같은 스윕의 lite 레그**에서 승계한다(위 `_spec_axis_args` ·
+        # 루프 앞에서 1회 판정 · 자체검사가 함수 구간을 바이트 그대로 실행).
+        PARSE_CMD=(python3 "$SDIR/parse_guidellm.py" --benchmarks-json "$BJSON"
+                   --engine-log "$ELOG" "${SPEC_AXIS_ARGS[@]}")
+        [ -n "$MAX_ERROR_RATE" ] && PARSE_CMD+=(--max-error-rate "$MAX_ERROR_RATE")
+        # 벤치 종료 시 서버 생존 관측(2026-09-07 · 유예 결함 ②). run_bench 가 벤치 직후 · teardown
+        # 전에만 남길 수 있는 사실이며, 이것이 없으면 엔진 사망 중 잘린 SSE 가 도구 경계로 면제된다.
+        _PH="$RDIR/post_health_${CONFIG}.json"
+        [ -s "$_PH" ] && PARSE_CMD+=(--post-health-json "$_PH")
+      else
+        BJSON="$RDIR/bench_${CONFIG}.json"
+        PARSE_CMD=(python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG")
+      fi
+      # 파서의 거부 사유를 버리지 않는다(2026-09-14 리뷰 정정) — 종전 `2>/dev/null` 은 파서가 exit 2 로
+      #   이유를 말해도 절삭 로그에 "파싱 실패" 만 남겨, 레벨 1 중단(exit 3)의 원인을 아무도 읽을 수 없었다.
+      _PERR="$(mktemp)"
+      "${PARSE_CMD[@]}" > "$RDIR/measured.json" 2>"$_PERR" || PARSE_RC=$?
+      if [ "$PARSE_RC" = "0" ] \
+         && python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get('measurement_ok') else 1)" "$RDIR/measured.json"; then
+        RUN_OK=1
+      fi
     fi
-    # 파서의 거부 사유를 버리지 않는다(2026-09-14 리뷰 정정) — 종전 `2>/dev/null` 은 파서가 exit 2 로
-    #   이유를 말해도 절삭 로그에 "파싱 실패" 만 남겨, 레벨 1 중단(exit 3)의 원인을 아무도 읽을 수 없었다.
-    _PERR="$(mktemp)"
-    if "${PARSE_CMD[@]}" > "$LDIR/measured.json" 2>"$_PERR" \
-       && python3 -c "import json,sys; d=json.load(open('$LDIR/measured.json')); sys.exit(0 if d.get('measurement_ok') else 1)"; then
-      rm -f "$_PERR"
-      COMPLETED+=("$L"); echo "[sweep_bench] level $L ✓"
-    else
-      echo "[sweep_bench] level $L 측정 파싱 실패 → 절삭" | tee -a "$TRUNCLOG"
-      if [ -s "$_PERR" ]; then tail -n 5 "$_PERR" | sed 's/^/  parse stderr: /' | tee -a "$TRUNCLOG"; fi
-      rm -f "$_PERR"
-      echo "level $L truncated: parse/measurement_ok=false" >> "$TRUNCLOG"
-      [ "$L" = "1" ] && { echo "[sweep_bench] 판정점(레벨1) 측정 불가 — 중단" >&2; exit 3; }
+    RUN_ENDED="$(date -u +%FT%TZ)"
+    # run 경계 사실(시각·rc) — 반복 중단의 시각 대조 창이 여기서 온다(사인 확정은 classify_cell).
+    python3 "$SDIR/repeat_axis.py" record-run --run-dir "$RDIR" --level "$L" --run "$K" \
+      --started-utc "$RUN_STARTED" --ended-utc "$RUN_ENDED" --run-bench-rc "$RB_RC" --parse-rc "$PARSE_RC" >/dev/null \
+      || echo "[sweep_bench] ⚠ level $L run $K 경계 사실 기록 실패 — 이 레벨의 runs[] 집계가 판정 불가로 남는다" | tee -a "$TRUNCLOG"
+    if [ "$RUN_OK" = "1" ]; then
+      [ -n "$_PERR" ] && rm -f "$_PERR"
+      [ "$K" = 1 ] && COMPLETED+=("$L")
+      echo "[sweep_bench] level $L run $K/$REPEATS ✓"
+      continue
+    fi
+    if [ "$K" = 1 ]; then
+      # 레벨 첫 run 실패 = 종전 적응 상한 클램프(레벨 절삭). 반복 축 판정 대상이 아니다.
+      if [ "$RB_RC" != "0" ]; then
+        echo "level $L truncated: run_bench exit $RB_RC (serve health-drop/게이트/bench 실패 — 상위 레벨 중단)" | tee -a "$TRUNCLOG"
+        if [ "$L" = "1" ]; then
+          echo "[sweep_bench] 판정점(레벨1) 측정 불가(run_bench exit $RB_RC) — serve 미가동/게이트 확인" >&2; exit 3
+        fi
+      else
+        echo "[sweep_bench] level $L 측정 파싱 실패 → 절삭" | tee -a "$TRUNCLOG"
+        if [ -s "$_PERR" ]; then tail -n 5 "$_PERR" | sed 's/^/  parse stderr: /' | tee -a "$TRUNCLOG"; fi
+        echo "level $L truncated: parse/measurement_ok=false" >> "$TRUNCLOG"
+        [ -n "$_PERR" ] && rm -f "$_PERR"
+        [ "$L" = "1" ] && { echo "[sweep_bench] 판정점(레벨1) 측정 불가 — 중단" >&2; exit 3; }
+      fi
+      [ -n "$_PERR" ] && rm -f "$_PERR"
+      CLAMP_LEVEL="$L"
+      REPEAT_STOP=1   # 적응 클램프: 낮은 레벨 실패면 상위도 실패 → 중단
       break
     fi
-  else
-    RC=$?
-    echo "level $L truncated: run_bench exit $RC (serve health-drop/게이트/bench 실패 — 상위 레벨 중단)" | tee -a "$TRUNCLOG"
-    if [ "$L" = "1" ]; then
-      echo "[sweep_bench] 판정점(레벨1) 측정 불가(run_bench exit $RC) — serve 미가동/게이트 확인" >&2; exit 3
-    fi
-    break   # 적응 클램프: 낮은 레벨 실패면 상위도 실패 → 중단
-  fi
+    # run k≥2 실패 = 반복 중단 **즉시 신호**. 대표 run 은 이미 섰으므로 레벨은 측정 레벨로 남고,
+    #   남은 반복·상위 레벨은 멈춘다(무너진 서빙 위에서 더 재면 사인이 원인에서 멀어진다).
+    echo "[sweep_bench] ⚠ level $L run $K/$REPEATS 실패 → 반복 중단(즉시 신호 · bench_mode 확정은 classify_cell)" | tee -a "$TRUNCLOG"
+    if [ -n "$_PERR" ] && [ -s "$_PERR" ]; then tail -n 5 "$_PERR" | sed 's/^/  parse stderr: /' | tee -a "$TRUNCLOG"; fi
+    [ -n "$_PERR" ] && rm -f "$_PERR"
+    echo "level $L truncated-above: run $K repeat-break(run_bench exit $RB_RC · parse rc $PARSE_RC · measurement_ok=false) — 남은 반복·상위 레벨 중단" >> "$TRUNCLOG"
+    REPEAT_STOP=1
+    break
+  done
+  case " ${COMPLETED[*]:-} " in
+    *" $L "*)
+      python3 "$SDIR/repeat_axis.py" aggregate-level --level-dir "$LDIR" --requested "$REPEATS" \
+        --requested-source "$REPEATS_SOURCE" --kind "$REPEAT_KIND" \
+        || echo "[sweep_bench] ⚠ level $L 반복 집계 실패(위 사유) — runs[] 없는 레벨로 남아 bench_mode 가 판정 불가가 된다" | tee -a "$TRUNCLOG"
+      ;;
+  esac
+  [ "$REPEAT_STOP" = "1" ] && break
 done
 
 # ── 실제 측정 대상 이미지 캡처(2026-08-13 신설) ────────────────────────────────
@@ -305,6 +413,7 @@ fi   # ── /REASSEMBLE 분기 끝(위 측정·캡처 전량은 재조립 모�
 # ── sweep_index.json 조립 + meta 추출(결정론 · stdlib · fail-soft N/A) ──────────
 CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$CFGYAML" EF="$EF" MANIFEST="$MANIFEST" \
 SWEEPDIR="$SWEEPDIR" VLLM_VER="$VLLM_VER" COMPLETED="${COMPLETED[*]:-}" ILEN="$ILEN" \
+ REPEATS="$REPEATS" REPEATS_SOURCE="$REPEATS_SOURCE" REPEAT_KIND="$REPEAT_KIND" CLAMP_LEVEL="${CLAMP_LEVEL:-}" \
  IMAGE_TAG_ACTUAL="$IMAGE_TAG_ACTUAL" IMAGE_DIGEST_ACTUAL="$IMAGE_DIGEST_ACTUAL" REASSEMBLE="$REASSEMBLE" \
  LITE_RAW="$LITE_RAW" SDIR="$SDIR" python3 - <<'PY'
 import json, os, re, glob, sys, datetime
@@ -828,6 +937,36 @@ if _lraw and os.path.isfile(_lraw):
     except Exception as e:                      # fail-soft, 단 침묵하지 않는다
         lite_block = {"raw_json": _lraw, "error": "lite_metrics 산정 실패: %s" % e}
 
+# ── 반복 축 요약 (2026-09-14 · plan_26091407 §4.4) ────────────────────────────────────────────
+#   레벨별 완주·재현 밴드·반복 중단 즉시 신호. 요약 함수의 소유는 repeat_axis 이고 분류기도 같은 함수로 raw
+#   runs[] 에서 다시 계산한다(이 블록을 믿지 않는다). 재조립은 **측정 시점의 요청 반복**을 기존 index 에서
+#   승계한다 — 지금 캠페인 선언을 다시 읽으면 측정하지 않은 반복 수가 실린다(spec 지문 승계와 같은 규율).
+import repeat_axis as _ra
+if reassemble:
+    _prep = prior.get("repetition") if isinstance(prior.get("repetition"), dict) else {}
+    _rep_n = _prep.get("requested")
+    _rep_src = _prep.get("requested_source") or "absent(기존 index 에 반복 축 기록 없음 — 신설 전 조립)"
+    _rep_kind = _prep.get("kind")
+    _clamp_run = _prep.get("clamp_run")      # 측정 시점의 클램프 경계 사실(디스크를 다시 읽지 않는다)
+else:
+    _rep_n = int(os.environ["REPEATS"]) if (os.environ.get("REPEATS") or "").isdigit() else None
+    _rep_src = os.environ.get("REPEATS_SOURCE") or None
+    _rep_kind = os.environ.get("REPEAT_KIND") or None
+    _clamp_run = None
+    _cl = os.environ.get("CLAMP_LEVEL") or ""
+    if _cl.isdigit():
+        _cl_meta = os.path.join(sweepdir, "level_%02d" % int(_cl), _ra.RUN_META_NAME)
+        try:
+            with open(_cl_meta, encoding="utf-8") as f:
+                _clamp_run = json.load(f)
+            if not isinstance(_clamp_run, dict):
+                raise ValueError("객체가 아니다")
+        except (OSError, ValueError) as e:
+            # 판독 실패를 "클램프 없음" 으로 접지 않는다 — 창이 없다는 사실을 분류기가 unavailable 로 남긴다.
+            _clamp_run = {"level": int(_cl), "run": 1, "unreadable": "%s: %s" % (_cl_meta, e)}
+repetition = _ra.summarize(levels, requested=_rep_n, requested_source=_rep_src, kind=_rep_kind,
+                           clamp_run=_clamp_run)
+
 index = {
     "config": cfg, "topology": topo,
     # 재조립은 측정시각을 승계한다 — 측정이 안 바뀌었는데 시각이 바뀌면 인증서 `measured_utc` 와
@@ -841,6 +980,7 @@ index = {
     # truncated 에도 남는다. 소비자(report/인증서)는 이 블록을 그대로 렌더한다.
     "lite": lite_block,
     "levels": levels,
+    "repetition": repetition,
     "truncated": trunc,
     "input_len": int(os.environ.get("ILEN", "0") or 0),
 }
@@ -850,5 +990,22 @@ with open(outp, "w", encoding="utf-8") as f:
 print("[sweep_bench] sweep_index.json → %s (완료 레벨 %s · 절삭 %d건)"
       % (outp, [l["level"] for l in levels], len(trunc)))
 PY
+
+# ── bench_mode 판정 기록(2026-09-14 · plan_26091407 §4.4 · 리뷰 정정) ─────────────────────────────────
+#   판정 소유자는 classify_cell.py 다 — 여기서는 **부르기만** 한다(규칙 복제 ✗). 정규 경로(sweep_bench →
+#   judge_bench → render_report · publish)에 호출자가 없으면 기록이 생기지 않아 리포트는 영원히 "미확정" 이고
+#   인증서·단계 ⑤ 가 읽을 자리가 없다. 재조립도 부른다(측정시각 승계라 기록이 같은 측정에 묶인다).
+#   실패는 스윕을 죽이지 않되 침묵하지 않는다 — 기록이 없으면 리포트는 '미확정', full 인증서는 미발행이다.
+if _BM_OUT="$(python3 "$SDIR/classify_cell.py" --sweep-index "$SWEEPDIR/sweep_index.json" \
+               --events-from-repo "$REPO" --write-bench-mode)"; then
+  printf '%s' "$_BM_OUT" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+print("[sweep_bench] bench_mode=%s · 사유 %s · 대조 %s · 기록 %s\n[sweep_bench]   출처: %s" % (
+      d.get("bench_mode"), d.get("downgrade_reason"), d.get("downgrade_correlation"), d.get("record_path"),
+      d.get("bench_mode_source")))' || true
+else
+  echo "[sweep_bench] ⚠ bench_mode 판정 기록 실패(위 사유) — 리포트는 '미확정', full 인증서는 발행되지 않는다" >&2
+fi
 
 echo "[sweep_bench] DONE — SWEEP_INDEX=$SWEEPDIR/sweep_index.json"

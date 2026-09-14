@@ -44,13 +44,70 @@
   **동시성만** 변화(reload 0 — 벤치마커 "기동 안 함" 불변식 보존). **판정점(동시성=1) 강제 포함** → verdict 재사용(재측정 0).
   **적응 상한 클램프 + 절삭 로그**(레벨 실패 시 상위 중단·"레벨 N 절삭" 기록 — silent truncation ✗). 각 레벨 = `run_bench.sh`
   메커니즘 재사용(Flag/A2A 게이트 전이). config-space(batch×maxlen) reload 는 이 스윕 **밖**(Max/explorer 소관).
+- **full 의 정의 = `lite ∪ GuideLLM × 반복 ≥3`**(2026-09-14 · `plan_26091407` §4.4 · 사용자 결정 Q3) — 레벨마다 같은
+  serve 에 **반복 ≥3**(`repeat_kind=warm-rerun` · `cold-restart` 는 선언 슬롯만). 반복은 분산·신뢰성의 최소조건이다:
+  1회 측정에는 산포 추정치가 없고, 다른 도구·조건의 밴드를 빌리면 추론이 틀린다(`audit_26091323` §2.4b).
+  - **반복 수**: `sweep_bench.sh --repeats N` > 활성 캠페인 `campaign.yaml budgets.repeats` > full 정의값 3
+    (해소·하한의 소유 `repeat_axis.py` · 출처는 `sweep_index.repetition.requested_source`). **N<3 은 exit 2** —
+    반복을 낮춰 full 을 선언하지 않는다(lite 만 재려면 §1 lite 통로). Broad Search 에서는 `init` 이 이 값을
+    `declared_budget.repeats` 로 예산에 싣고 `cell` 이 넘긴다(셀 비용 = 레벨 × 반복 — 벽시계 예산의 근거).
+  - **반복 대상은 레벨 측정 레그**다. lite 선행 레그는 1회(cold TTFT 는 반복하면 cold 가 아니다)이고, 레벨 run
+    들이 그 lite warm JSON 을 spec 승계원으로 함께 쓴다.
+  - **raw**: run 1 = `level_NN/`(대표 run · 종전 배치), run k≥2 = `level_NN/run_KK/`. 대표 `measured.json` 은 파서
+    필드를 그대로 두고 `runs[]`·`repeats_completed`·`repro_band_pct`·`repro_band_source=measured(n=N)`·
+    `repeat_kind` 를 덧붙인다 — judge_bench 의 accept_len 승계·verdict·인증서는 **대표 run 1회**를 읽는다(평균·합성 ✗).
+    재현 밴드 = `(max−min)/mean×100`(완주 run 의 decode_tps · 2회 미만이면 N/A)이며 **기재**다.
+  - **스윕이 멈춘 자리(즉시 신호 · `sweep_index.repetition.stop`)**: 레벨 첫 run 실패는 종전 적응 상한 클램프(절삭 ·
+    `stop.kind=clamp` · 그 레벨은 index levels 에 없으므로 경계 사실은 `repetition.clamp_run`)다. run k≥2 실패
+    (measurement_ok=false · run_bench 비0)는 **반복 중단**(`stop.kind=repeat-break`)으로 남은 반복·상위 레벨을
+    멈춘다 — 끊긴 동시성은 반복해 버티지 못한 포화 경계라 상위도 무너진다(클램프와 같은 이유 · 요청 N>3 에서
+    완주가 이미 ≥3 인 레벨이어도 같다). 시각 대조 창 = 직전 run 시작~끊긴 run 끝(클램프는 아래 측정 레벨의 마지막 run 시작~
+    클램프 run 끝).
+  - **강등(기계 이벤트만 · 확정 `classify_cell.py` post-hoc)** — 반복 조건의 범위는 **판정점**(동시성 1 · 인증서·판정이
+    묶이는 레벨)이다(2026-09-14 리뷰 정정: 종전의 "측정 레벨 전체 완주 min" 은 같은 포화 경계를 첫 run 실패면 full·
+    둘째 run 실패면 lite 로 반대로 판정했다):
+    ① 멈춘 자리의 창 안에 **집행된** 블랙박스 사살(KILL_EVENT_KINDS · 허용오차 0)이 있으면 레벨·run 순번과 무관하게
+       `bench_mode=lite` · `downgrade_reason=blackbox_kill`(사용자 결정 — kill 이벤트는 기계 이벤트 트리거다 · 가장 흔한
+       실사살 형태인 높은 동시성 레벨의 첫 run 사살을 절삭으로 삼키지 않는다)
+    ② 그 밖에 판정점 완주 ≥3 → `full`(경계 레벨의 반복 중단·첫 run 실패는 클램프 · 기재)
+    ③ 판정점에서 끊겨 완주 <3 → `lite` · `run_failed`(트립 단독·시각 불일치·이벤트 미관측 포함 — 관측된 신호 그대로 · 추측 ✗)
+    ④ runs[] 부재 레벨(옛 산출물·집계 실패)·판정점 부재·끊김 없는 정의 미만·경계 밖 정의 미만 → 판정하지 않는다(null)
+    대조 여부는 구조 필드 `downgrade_correlation` ∈ {`matched`, `miss`, `not_scanned`, `unavailable`, `not_applicable`}.
+    **분산(밴드 폭)은 강등 사유가 아니다.**
+  - **판정 기록을 쓰는 손**: `sweep_bench.sh` 종료부가 `classify_cell.py --sweep-index … --events-from-repo <repo>
+    --write-bench-mode` 를 부른다(측정·재조립 둘 다) — 정규 경로(sweep_bench → judge_bench → render_report·인증서)와
+    Broad Search 가 **같은 기록 하나**를 읽는다. 기록은 원자적으로 쓰이고 `sweep_index_generated_utc` 로 측정에 묶인다.
+  - **읽는 자리**(단계 ⑤ lite hint 통로가 결정론으로 읽는다): 스윕 디렉터리의 `bench_mode.json`(정본 · 판독은
+    `classify_cell.read_bench_mode_record` → `ok`·`absent`·`unreadable`·`stale`)과 Broad Search 셀 기록(그 정본의 사본:
+    `bench_mode`·`bench_mode_source`·`downgrade_reason`·`downgrade_reason_source`·`downgrade_correlation` + sweep 요약
+    `repetition`). **강등된 lite** = 사유 값 · **선언된 lite-only** = 사유 null ∧ `bench_mode_source` 가 `declared(` 로
+    시작(판독 규칙 `classify_cell.bench_mode_kind`).
+  - **반복 수 출처의 자리별 키**(같은 개념 · 각 문서의 이름공간을 따른다 — 단계 ⑤ 측정 구성 표가 읽을 때 대응표):
+
+    | 자리 | 반복 수 | 출처 |
+    |---|---|---|
+    | `repeat_axis.py resolve` 출력(sweep_bench 셸 변수) | `REPEATS` | `REPEATS_SOURCE` |
+    | `sweep_index.json` `repetition` | `requested` | `requested_source` |
+    | 대표 `level_NN/measured.json` | `repeats_requested` | `repeats_requested_source` |
+    | Broad Search 상태 `declared_budget` | `repeats` | `repeats_source` |
+    | `sweep_stop.py` 정지 판정 | `declared_budget.repeats` | `budget_repeats_source`(미선언이면 `absent(…)`) |
+
+  - ⚠ 정상 E2E(판정점 반복 완주 · 사살 없음 — 포화 경계에서 스윕이 멈추는 클램프 포함)는 강등 경로를 밟지 않는다 —
+    그 경로는 `scripts/selftest_sweep_repeats.py` 실패주입이 지킨다.
 - **사람용 report(항상)** — `render_report.py --sweep-index <sweep_index.json> --verdict-json <verdict> [--roofline-json]`
   → `docs/benchmark/bench_report_<YYMMDDHH>_<model>_<gpu>_<vllm>.md`. **PASS/FAIL 무관 발행**("왜 느렸나"도 사람이 봐야).
   **inform-only**(verdict 를 *표시만* — 판정권한 ✗·verdict_rule 독점) · 결정론 렌더(LLM 표·숫자 저작 ✗) · N/A fail-soft.
+  bench_mode 판정 기록의 부재·판독 실패·다른 측정의 기록은 **발행을 막지 않고** "미확정 — 사유" 로 적는다(명시
+  `--bench-mode-json` 이 그러면 exit 2).
 - **기계용 인증서(PASS시만)** — `publish_benchmark_record.py --sweep-index … --verdict-json …`
   → `docs/benchmark/benchmark_<YYMMDDHH>_<model>_<gpu>_<vllm>.yaml`. **flat 계약**(중첩 ✗ — 소비자 stdlib 독해) +
   **carry-forward 재검증 헤더**(강한키=model/gpu/vllm/quant/topology/tp 정확일치 + 소프트지문=driver/cuda/image/max-len/
-  kv-bytes/gmu/moe 불일치 시 stale). verdict≠PASS 면 **미발행**(report 만).
+  kv-bytes/gmu/moe 불일치 시 stale). verdict≠PASS 면 **미발행**(report 만). 반복 축 산출물(`repetition.requested`
+  가 정수)이면 bench_mode 판정 기록이 **full 일 때만** 발행한다 — 강등(lite)·기록 부재·낡음·판정 불가(집계 실패 등)는
+  PASS 여도 `benchmark_mode: full` 인증서를 **내지 않는다**(2026-09-14 · 거짓 주장 ✗ · 강등 셀의 통로는 lite ·
+  plan §4.5 `--downgrade-from full_benchmark` → map_only 는 인증서를 요구하지 않는다). 발행기는 완주 수를 다시 세지
+  않고 판정 기록을 읽는다. 반복 축 이전 산출물(repetition 없음)은 종전대로다.
+  인증서는 대표 run 1회 값과 스윕 측정시각 1개만 실어 반복이 인증서 키(강한 6키 + `measured_utc`)를 늘리지 않는다.
   **`rubric_authority: weak|explicit|explore`** 를 검증결과 블록에 함께 싣는다(2026-08-22 · `plan_26082219` A6) —
   승격 판정기(`completion_gate.py`)가 *어느 권한에서 잰 판정인지*를 인증서에서 직접 읽어야 explore 계약
   (성능 판정=서술 · 승격 게이트=서빙 성립+유효 측정)을 집행할 수 있다. 결측은 `N/A` fail-soft이며,

@@ -822,6 +822,21 @@ def verify() -> dict:
              ".claude/skills/adversarial-benchmark/scripts/classify_cell.py", "--self-test"], {0}),
         _run("benchmark_sweep_map_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.py", "--self-test"], {0}),
+        # full bench 반복 축의 **집행** (plan_26091407 §4.4 · §7 O4 · 2026-09-14 배선). 호출자 없는 자체검사는
+        #   L1(산문)이다(위 선례). 무엇을 지키나: full 정의(`lite ∪ GuideLLM × 반복 ≥3`)와 강등 트리거(판정점 run 실패 ·
+        #   스윕이 멈춘 자리의 블랙박스 kill 만 · 분산 ✗ · 포화 경계 클램프 ✗)는 sweep_bench 레벨 루프 → repeat_axis 집계 →
+        #   sweep_bench 종료부가 부르는 classify_cell 판정 기록 → render_report·인증서 발행·broad_search 셀 기록·정지
+        #   평가에 걸쳐 있다. 순수 함수 층(repeat_axis: schema 하한 교차검증·밴드 역채점·해소 우선순위·반복 조건 범위)과
+        #   실행 층(배포되는 스크립트 바이트 사본을 임시 git 저장소에서 · 부하 도구는 shim · 실측 GuideLLM 픽스처)을
+        #   둘 다 친다. 실행 층 음성대조: 실패주입(판정점 run_failed · 시각 일치 사살 → blackbox_kill · 트립 단독·시각
+        #   불일치 → run_failed · 클램프 레벨 첫 run 사살 → blackbox_kill · 경계 레벨 반복 중단 → full(대칭) · 집계 실패 →
+        #   판정 불가·인증서 미발행) · 분산만 큼 → full · 반복 <3 선언 → 부하 전 exit 2 · 판정 기록 결손 → 리포트는
+        #   발행·인증서는 미발행 · 재조립 레벨 부활 ✗ · repeats 미선언 상태 파일 → 셀 진입 거부(status·map 은 통과).
+        #   E2E 정상 경로는 강등 경로를 밟지 않으므로 이것이 그 경로의 상시 증거다 — GPU·docker·NAS 불요.
+        _run("benchmark_repeat_axis_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py", "--self-test"], {0}),
+        _run("benchmark_sweep_repeats_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.py"], {0}),
         # Broad Search 이중 게이트의 **집행**: --confirm-risk 없이는 셀이 돌지 않는다(exit 5).
         # single 컨테이너 관리 진입점의 **인자 평면** fail-closed (plan_26090419 P1 · 2026-09-04).
         #   기동 경로는 예산선언·워치독 무장을 품고 있어 잘못 불리면 무보호 로드가 된다. 여기서는

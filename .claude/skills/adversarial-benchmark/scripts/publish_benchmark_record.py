@@ -171,6 +171,22 @@ def main():
                          % verdict.get("verdict"))
         return  # exit 0 — 정상(발행 조건 미충족)
 
+    # ── full 정의(반복 ≥3) 미확인 → 미발행 (2026-09-14 · plan_26091407 §4.4 · 리뷰 정정) ─────────────────
+    #   이 인증서는 `benchmark_mode: full` 을 **주장**한다. 그 주장의 근거는 bench_mode 판정 기록(classify_cell 이
+    #   sweep_bench 종료부에서 쓴 bench_mode.json)이고, 여기서 완주 수를 다시 세지 않는다(판정 소유자는 하나다).
+    #   · 반복 축 산출물(index.repetition.requested 가 정수) — 판정 기록이 full 일 때만 발행한다. lite(강등)면
+    #     강등 셀의 통로는 lite 다(plan §4.5 `--downgrade-from full_benchmark` → map_only 는 인증서를 요구하지
+    #     않는다 · 여기에 full 인증서를 내면 hint 바인딩이 강등 셀에 full 증거를 묶는다). 기록 부재·판독 실패·
+    #     낡음·판정 불가(집계 실패로 runs[] 가 빈 레벨 등)도 발행하지 않는다 — 모름은 반복 증거의 부재다.
+    #   · 반복 축 이전 산출물(repetition 블록 없음 · 재조립 승계 requested=None) — 판정할 근거가 없어 종전대로 발행한다.
+    #   판정(verdict)은 건드리지 않는다 — 거짓 주장을 적지 않는 발행 조건이다. 인증서는 반복이 몇 번이든 **대표
+    #   run 1회** 값만 싣고 측정시각도 스윕 1개라, 반복이 인증서 키(강한 6키 + measured_utc)를 늘리지 않는다.
+    _unmet = _full_definition_unmet(index, a.sweep_index)
+    if _unmet:
+        sys.stderr.write("[publish_record] %s → 인증서(benchmark_mode: full) 미발행 — bench_mode·강등 사유 확정은 "
+                         "classify_cell, 강등 셀의 발행 통로는 lite(plan_26091407 §4.5)\n" % _unmet)
+        return  # exit 0 — 정상(발행 조건 미충족)
+
     y = build_yaml(index, verdict)
     meta = index.get("meta", {})
     import sys as _s, os as _o; _s.path.insert(0, _o.path.dirname(_o.path.abspath(__file__)))
@@ -190,6 +206,31 @@ def main():
     sys.stderr.write("[publish_record] 인증서 발행(PASS): %s\n" % outp)
     _register_campaign_evidence(a.sweep_index, outp, meta)
     print(outp)
+
+
+def _full_definition_unmet(index, sweep_index_path):
+    """반복 축 산출물인데 판정 기록이 full 이 아니면(또는 확인하지 못하면) 사유 문자열, 아니면 None.
+    판정의 소유는 `classify_cell.py`(기록 판독 `read_bench_mode_record` · 판독 규칙 `bench_mode_kind`)다 — 복제 ✗.
+    적재하지 못하면 판정 불가로 멈춘다(exit 2) — full 이라고 적는 자리에서 그 정의를 확인하지 못한 채 발행하지 않는다."""
+    rep = index.get("repetition")
+    requested = rep.get("requested") if isinstance(rep, dict) else None
+    if not (isinstance(requested, int) and not isinstance(requested, bool)):
+        return None        # 반복 축 이전 산출물 — 판정 근거 없음(종전대로)
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        import classify_cell
+    except ImportError as exc:
+        sys.stderr.write("[publish_record] ERROR classify_cell 적재 실패(bench_mode 판정 기록 판독 불가): %s\n" % exc)
+        sys.exit(2)
+    record, status = classify_cell.read_bench_mode_record(sweep_index_path, index)
+    if record is None:
+        return ("반복 축 산출물(요청 반복 %d)인데 bench_mode 판정 기록을 쓸 수 없다 — %s · full 정의 충족을 확인하지 "
+                "못했다" % (requested, status))
+    kind = classify_cell.bench_mode_kind(record)
+    if kind == "full":
+        return None
+    return ("bench_mode 판정 기록 = %s(bench_mode=%s · downgrade_reason=%s · 출처 %s)"
+            % (kind, record.get("bench_mode"), record.get("downgrade_reason"), record.get("bench_mode_source")))
 
 
 def _register_campaign_evidence(sweep_index_path: str, cert_path: str, meta: dict) -> None:

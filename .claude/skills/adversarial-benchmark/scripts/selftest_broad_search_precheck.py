@@ -50,6 +50,9 @@ COPIES = (
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.py",
     ".claude/skills/terraforming_node/scripts/campaign_init.py",
     ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+    # 반복 축 소유자(2026-09-14 · plan_26091407 §4.4) — init 이 declared_budget.repeats 를 여기서 파생하고
+    # 정지 평가기·분류기가 full 정의 하한을 여기서 읽는다. 사본에 없으면 init 이 스윕을 열지 않는다(fail-closed).
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py",
 )
 # 부하를 거는 스크립트는 사본에 **두지 않는다** — 경로가 잘못 열려도 실행할 대상이 없다.
 NEVER_COPY = (

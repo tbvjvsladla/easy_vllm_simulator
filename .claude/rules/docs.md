@@ -60,7 +60,7 @@
 | `devlog/` | 작업 중·후 narrative | 작업 owner·실행 사건 | 결정·시도/폐기·최종상태·재개지침 | 사실/경로 확인 | `PARKED:`·후속 checkbox |
 | `testlog/` | evidence verdict | 검증 owner·resolve/config/log | command·관측·환경 snapshot·PASS/FAIL | 실제 smoke/검증 | root cause+owner route |
 | `simlog/` | raw trial vault | recipe/smoke scripts·per-trial facts | log/profile/candidate/smoke/history/summary | run 완결성 | testlog에서 누락 명시 |
-| `benchmark/` | full 계측 | `adversarial-benchmark`·측정값 | 항상 report, PASS만 flat certificate | verdict owner·재현성 | FAIL report만; 합성 금지 |
+| `benchmark/` | full 계측(`lite ∪ GuideLLM × 반복 ≥3`) | `adversarial-benchmark`·측정값 | 항상 report, PASS만 flat certificate(반복 축 산출물은 bench_mode 판정 기록 = full 일 때만) | verdict owner·재현성 | FAIL report만; 강등(lite) 셀은 full 인증서 ✗; 합성 금지 |
 | `report/` | 배포자 공지 | 사람·공지 본문 | self-contained HTML/MD 최신본 | PII·배포 검토 | 자동발행/위키색인/서브전파 금지 |
 | `request/` | **사람 수행 지시** | 에이전트·범위/전제/한계 | 전제→절차→검증→회수물 순의 실행가능 매뉴얼 | 절차가 실제 실행가능한지(버전·명령 핀) | 수행자 피드백→개정 발행 |
 | `checklist/` | bot 전용 단계 트래킹 | 검증 owner·3-Phase(Planner/Builder/Validator) 상태 | phase별 항목 체크 + 재개지침 | 최신 snapshot(YYMMDDHH) 기준 | 최신 체크리스트로 복귀 |

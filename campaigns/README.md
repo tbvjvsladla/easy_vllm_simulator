@@ -39,6 +39,12 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
    정리 후 다음 셀, HITL 은 정리 후 사람에게 묻고 대기, STAY 는 벤치 뒤에도 서빙을 유지한다
    (STAY 는 리스트 **마지막**에만 온다). 옛 평면 `order` 는 2026-09-08 에 대체됐다 — 평면 목록은
    "메인이 A·B, 서브가 C·D" 를 표현하지 못했고, 표현할 수 없는 것은 배선될 수 없었다.
+   `budgets.repeats` 는 **full bench 반복 수**다(2026-09-14 · `plan_26091407` §4.4 · full = lite ∪ GuideLLM ×
+   반복 ≥3 · 생략 = 3 · 3 미만 선언 ✗). `sweep_bench.sh` 가 `--repeats` 미지정 시 이 값으로 레벨마다 반복하고,
+   `broad_search.sh init` 이 스윕 예산 `declared_budget.repeats` 로 옮겨 셀마다 쓴다 — 벽시계 예산은 셀 × 레벨
+   × 반복으로 잡는다. 반복이 성립하지 않은 셀은 기계 이벤트(판정점 run 실패·스윕이 멈춘 자리의 블랙박스 kill)로만
+   lite 로 강등되며(확정 `classify_cell.py` · 포화 경계 클램프는 강등이 아니다), 그 판정은 스윕 디렉터리
+   `bench_mode.json`(정본 · `sweep_bench.sh` 종료부가 쓴다)과 그 사본인 스윕 셀 기록에 남는다.
 2. **`<camp-id>/phases/<node>/*.status.json`** — 어디까지 왔는가. `state` 와 `proof.ok` 를 보고
    **다음에 진입 가능한 phase** 를 정한다. `proof.ok` 가 거짓이면 그 phase 를 다시 돈다.
 3. **`<camp-id>/cells/<cell>/cell.status.json`** — 어떤 셀이 끝났고 어떤 셀이 죽었는가.

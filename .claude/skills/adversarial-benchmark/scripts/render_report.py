@@ -49,7 +49,73 @@ def repo_root(start):
     return os.getcwd()
 
 
-def build_md(index, verdict, roofline):
+def _bench_mode_view(index, record, record_status):
+    """bench_mode 판정 기록(classify_cell 사이드카 · `read_bench_mode_record` 판독 결과) → 한 줄 서술.
+    기록이 없거나·판독 실패·다른 측정의 것이면 '미확정' 과 그 사유를 적는다(추측 ✗ · full 로 접지 않는다)."""
+    if not isinstance(record, dict):
+        return "미확정 — %s" % record_status
+    mode, reason = record.get("bench_mode"), record.get("downgrade_reason")
+    if mode is None:
+        return "미확정 — %s" % (record.get("bench_mode_source") or "사유 N/A")
+    corr = record.get("downgrade_correlation")
+    if reason:
+        return ("**%s** — 반복 불성립(기계 이벤트)으로 **강등** · 사유 `%s` · 사살 대조 `%s` (%s)"
+                % (mode, reason, corr, record.get("downgrade_reason_source")))
+    return "**%s** · 사살 대조 `%s` (%s)" % (mode, corr, record.get("bench_mode_source"))
+
+
+def _repetition_section(index, bench_mode_record, bench_mode_status):
+    """반복 축 · 재현 밴드 절. 스윕 표(render_bench_section 이 파싱하는 형식 계약)와 **별개 표**로 둔다."""
+    L = []
+    A = L.append
+    rep = index.get("repetition") if isinstance(index.get("repetition"), dict) else None
+    A("## 반복 축 · 재현 밴드 (full 정의 = lite ∪ GuideLLM × 반복 ≥3)")
+    A("")
+    A("> full 정의는 레벨마다 같은 running serve 에 **반복 ≥3** 이다. 위 스윕 표와 판정점·인증서는 **대표 run(첫 완주 run) "
+      "하나**의 값이다(평균·합성 ✗). 재현 밴드는 **기재**다 — 판정 게이트는 불변이고 분산은 강등 사유가 "
+      "아니다. 반복 불성립(판정점 run 실패 · 스윕이 멈춘 자리의 블랙박스 kill)만 셀을 lite 로 강등하며 확정은 "
+      "`classify_cell.py` 가 한다. 포화 경계에서 스윕이 멈춘 것(적응 상한 클램프)은 강등이 아니다.")
+    A("")
+    A("- bench_mode: %s" % _bench_mode_view(index, bench_mode_record, bench_mode_status))
+    if rep is None:
+        A("")
+        A("> ⚠ **반복 축 기록 없음** — 반복 축 신설(2026-09-14) 전 산출물이거나 재조립 원천에 runs[] 가 없다. "
+          "이 리포트의 수치는 단일 run 이며 **산포 추정치가 없다**(다른 도구·조건의 밴드를 빌려 쓰지 말 것).")
+        A("")
+        return L
+    A("- 요청 반복: %s (%s) · 종류 `%s` · 레벨별 완주 min %s"
+      % (na(rep.get("requested")), na(rep.get("requested_source")), na(rep.get("kind")),
+         na(rep.get("completed_min"))))
+    stop = rep.get("stop")
+    if isinstance(stop, dict):
+        what = "반복 중단" if stop.get("kind") == "repeat-break" else "적응 상한 클램프(레벨 첫 run 실패)"
+        A("- ⚠ **스윕이 멈춘 자리 — %s**: level %s run %s — %s (남은 반복·상위 레벨은 측정하지 않았다 · "
+          "조용히 자르지 않는다)" % (what, stop.get("level"), stop.get("run"), na(stop.get("detail"))))
+    if rep.get("unrecorded_levels"):
+        A("- ⚠ runs[] 가 없는 레벨: %s (집계 실패 또는 이전 산출물 — 완주 0 회로 읽지 말 것)"
+          % rep["unrecorded_levels"])
+    A("")
+    A("| 동시성 | 완주/요청 | decode t/s (run 순) | 재현 밴드 % | 밴드 출처 |")
+    A("|---|---|---|---|---|")
+    for lv in index.get("levels", []):
+        m = lv.get("measured") or {}
+        runs = m.get("runs") if isinstance(m.get("runs"), list) else None
+        if runs is None:
+            A("| %s | N/A | N/A | N/A | runs[] 없음 |" % lv.get("level"))
+            continue
+        seq = " / ".join((fnum(r.get("decode_tps")) if r.get("measurement_ok") else "✗(run %s)" % r.get("run"))
+                         for r in runs)
+        A("| %s | %s/%s | %s | %s | %s |" % (lv.get("level"), na(m.get("repeats_completed")),
+                                           na(m.get("repeats_requested")), seq,
+                                           fnum(m.get("repro_band_pct")), na(m.get("repro_band_source"))))
+    A("")
+    A("_밴드 = %s · 지표 %s · 완주 run 만 · 2회 미만이면 정의되지 않는다(N/A) · 레벨 run 시도 합 %s._"
+      % (rep.get("band_formula") or "N/A", rep.get("band_metric") or "N/A", na(rep.get("runs_attempted"))))
+    A("")
+    return L
+
+
+def build_md(index, verdict, roofline, bench_mode_record=None, bench_mode_status="absent(판정 기록을 넘기지 않았다)"):
     meta = index.get("meta", {})
     model = meta.get("model", "NA")
     gpu = meta.get("gpu_model", "NA")
@@ -150,6 +216,10 @@ def build_md(index, verdict, roofline):
         A("_절삭된 레벨 없음(요청 전 레벨 완주)._")
         A("")
 
+    # --- 반복 축 · 재현 밴드 (2026-09-14 · plan_26091407 §4.4) ---
+    # 스윕 표·절삭 블록 **뒤**에 둔다 — 그 둘의 형식은 hint 발행기(render_bench_section)의 파싱 계약이다.
+    lines.extend(_repetition_section(index, bench_mode_record, bench_mode_status))
+
     # --- 루프라인 컨텍스트 ---
     A("## 루프라인 컨텍스트 (결정론 상한 — 의심 임계, SLA 아님)")
     A("")
@@ -197,6 +267,9 @@ def main():
     ap.add_argument("--sweep-index", required=True, help="sweep_bench.sh 산출 sweep_index.json")
     ap.add_argument("--verdict-json", required=True, help="verdict_rule.py 출력 JSON(판정점)")
     ap.add_argument("--roofline-json", help="roofline.py 출력 JSON(선택 — rubric 에 없으면 보강)")
+    ap.add_argument("--bench-mode-json",
+                    help="classify_cell 의 bench_mode 판정 기록(생략 시 sweep_index 옆 사이드카 — 부재·판독 실패·다른 "
+                         "측정의 기록이면 '미확정' 으로 적고 발행한다 · 명시 경로가 그러면 exit 2)")
     ap.add_argument("--out-dir", help="출력 디렉토리(기본 <repo>/docs/benchmark)")
     ap.add_argument("--stdout", action="store_true", help="파일 기록 대신 표준출력(테스트)")
     a = ap.parse_args()
@@ -204,8 +277,18 @@ def main():
     index = load(a.sweep_index, "sweep-index")
     verdict = load(a.verdict_json, "verdict-json")
     roofline = load(a.roofline_json, "roofline-json") if a.roofline_json else None
+    # bench_mode 판정 기록: 판독(자리·신선도)의 소유는 classify_cell 이다. 관례 자리(스윕 디렉터리 사이드카)의
+    # 부재·판독 실패·낡음은 리포트 발행을 막지 않고 '미확정 — 사유' 로 적는다 — 리포트는 PASS/FAIL 무관 **항상**
+    # 발행이고, 파생 기록의 결손을 발행 실패로 격상하지 않는다(리뷰 정정). 사람이 **명시**한 경로가 그러면 인자
+    # 오류라 exit 2 다.
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from classify_cell import read_bench_mode_record
+    bm_record, bm_status = read_bench_mode_record(a.sweep_index, index, a.bench_mode_json)
+    if a.bench_mode_json and bm_record is None:
+        sys.stderr.write("[render_report] ERROR --bench-mode-json 을 쓸 수 없다: %s\n" % bm_status)
+        sys.exit(2)
 
-    md = build_md(index, verdict, roofline)
+    md = build_md(index, verdict, roofline, bm_record, bm_status)
     meta = index.get("meta", {})
     import sys as _s, os as _o; _s.path.insert(0, _o.path.dirname(_o.path.abspath(__file__)))
     from doc_naming import bench_filename, scan_bench_dir

@@ -72,6 +72,16 @@ def build(state, stop):
             "capacity": cell.get("capacity"),
             "verdict_narrative": cell.get("verdict_narrative"),
             "measurement": cell.get("measurement"),
+            # 반복 축(2026-09-14 · plan_26091407 §4.4). 레벨별 완주 수·재현 밴드·반복 중단을 **나란히** 싣는다 —
+            # 밴드는 기재이지 평가가 아니며, 밴드로 셀을 줄 세우지 않는다(이 문서의 비순위 계약).
+            "repetition": cell.get("repetition"),
+            # bench_mode 확정은 classify_cell 이다. 강등된 lite 는 사유가 값이고, 사유 null 의 lite 는
+            # 선언된 lite-only 다 — 두 경우를 한 칸에 뭉개지 않게 사유·출처를 함께 싣는다.
+            "bench_mode": cell.get("bench_mode"),
+            "bench_mode_source": cell.get("bench_mode_source"),
+            "downgrade_reason": cell.get("downgrade_reason"),
+            "downgrade_reason_source": cell.get("downgrade_reason_source"),
+            "downgrade_correlation": cell.get("downgrade_correlation"),
             "void_reason": cell.get("void_reason"),
             "void_reason_source": cell.get("void_reason_source"),
             "failure_note": cell.get("note"),
@@ -96,6 +106,10 @@ def build(state, stop):
         "declared_budget": stop.get("declared_budget"),
         "budget_declared_by": stop.get("budget_declared_by"),
         "budget_basis": stop.get("budget_basis"),
+        "budget_repeats_source": stop.get("budget_repeats_source"),
+        "runs_attempted": stop.get("runs_attempted"),
+        "repeats_mismatch": stop.get("repeats_mismatch"),
+        "repeats_unrecorded": stop.get("repeats_unrecorded"),
         "rubric_authority": state.get("rubric_authority"),
         "control_variable": state.get("control_variable"),
         "cells": rows,
@@ -128,7 +142,23 @@ def render_markdown(doc):
     A("| 선언 예산 | `%s` |" % json.dumps(doc.get("declared_budget"), ensure_ascii=False))
     A("| 예산 승인 | %s |" % (doc.get("budget_declared_by") or "N/A"))
     A("| 예산 근거 | %s |" % (doc.get("budget_basis") or "N/A"))
+    A("| 반복 수 출처 | %s |" % (doc.get("budget_repeats_source") or "N/A"))
+    A("| 레벨 run 시도 합 | %s |" % _na(doc.get("runs_attempted")))
     A("")
+    if doc.get("repeats_mismatch"):
+        A("⚠ **선언 예산과 다른 반복으로 잰 셀**: %s"
+          % ", ".join("`%s`(요청 %s · 선언 %s)" % (m.get("cell_key"), m.get("requested"),
+                                                  m.get("declared_budget_repeats"))
+                      for m in doc["repeats_mismatch"]))
+        A("> 예산 근거(벽시계 = 셀 × 레벨 × 반복)가 그 셀에서 달라졌다 — 정지 조건은 아니고 기재다.")
+        A("")
+    if (doc.get("declared_budget") or {}).get("repeats", "absent") is None:
+        A("⚠ **예산 선언에 반복 수가 없다**(반복 축 신설 전 상태) — 벽시계 예산 근거에 반복 배수가 없고, 새 셀 진입은 거부된다.")
+        A("")
+    if doc.get("repeats_unrecorded"):
+        A("⚠ **반복 기록이 없는 측정 셀**: %s — 반복 축 신설 전 산출물이거나 집계가 실패했다(0 회로 읽지 말 것)."
+          % ", ".join("`%s`" % c for c in doc["repeats_unrecorded"]))
+        A("")
     if doc.get("cells_remaining"):
         A("**미완이다.** 남은 셀: %s" % ", ".join("`%s`" % c for c in doc["cells_remaining"]))
         A("")
@@ -146,6 +176,7 @@ def render_markdown(doc):
         A("- 동시성 축(전 벡터): `%s`" % json.dumps(row.get("concurrency_vector"), ensure_ascii=False))
         A("- 용량 축(속도와 합치지 않는다): `%s`" % json.dumps(row.get("capacity"), ensure_ascii=False))
         A("- 측정 조건·도구: `%s`" % json.dumps(row.get("measurement"), ensure_ascii=False))
+        A("- %s" % _repetition_line(row))
         if row.get("verdict_narrative"):
             A("- 판정 서술: %s" % row["verdict_narrative"])
         if row.get("void_reason"):
@@ -155,6 +186,37 @@ def render_markdown(doc):
         A("- 축 근거(도서관 인용): %s" % (row.get("axis_citation") or "**누락**"))
         A("")
     return "\n".join(out) + "\n"
+
+
+def _na(v):
+    return "N/A" if v is None else v
+
+
+def _repetition_line(row):
+    """반복 축 한 줄. 미완(반복 중단)·미기록·미확정을 **각자의 말**로 적는다(조용한 빈칸 ✗)."""
+    rep = row.get("repetition")
+    mode, reason = row.get("bench_mode"), row.get("downgrade_reason")
+    if mode is None:
+        mode_txt = "bench_mode 미확정(`%s`)" % (row.get("bench_mode_source") or "기록 없음")
+    elif reason:
+        mode_txt = "bench_mode=`%s` · **강등** 사유 `%s` · 사살 대조 `%s` (출처 `%s`)" % (
+            mode, reason, row.get("downgrade_correlation"), row.get("downgrade_reason_source"))
+    else:
+        mode_txt = "bench_mode=`%s` · 사살 대조 `%s` (출처 `%s`)" % (
+            mode, row.get("downgrade_correlation"), row.get("bench_mode_source"))
+    if not isinstance(rep, dict):
+        return "반복 축: 기록 없음 · %s" % mode_txt
+    stop = rep.get("stop")
+    brk_txt = ""
+    if isinstance(stop, dict):
+        what = "반복 중단" if stop.get("kind") == "repeat-break" else "적응 상한 클램프"
+        brk_txt = (" · **스윕이 멈춘 자리 — %s**(level %s run %s — 남은 반복·상위 레벨 미측정)"
+                   % (what, stop.get("level"), stop.get("run")))
+    return ("반복 축(요청 %s · %s · %s): 레벨별 완주 `%s` · 재현 밴드 %%(%s) `%s`%s · %s"
+            % (_na(rep.get("requested")), rep.get("requested_source") or "출처 N/A", rep.get("kind") or "종류 N/A",
+               json.dumps(rep.get("completed_by_level"), ensure_ascii=False),
+               rep.get("band_formula") or "N/A",
+               json.dumps(rep.get("band_pct_by_level"), ensure_ascii=False), brk_txt, mode_txt))
 
 
 def _self_test():
@@ -228,10 +290,64 @@ def _self_test():
     ok_value["cells"][0]["cell_key"] = "best-effort-len131072"
     check("R10 값에 들어간 단어는 위반이 아니다(키만 본다)", assert_no_ranking(ok_value) is None)
 
+    # ── R11~R16 반복 축·bench_mode 표시(2026-09-14 · plan_26091407 §4.4) ────────────────────────
+    def rep(completed, bands, brk=None, requested=3):
+        return {"requested": requested, "requested_source": "declared(sweep state)", "kind": "warm-rerun",
+                "completed_by_level": completed, "band_pct_by_level": bands, "band_formula": "(max-min)/mean*100",
+                "completed_min": min(completed.values()), "runs_attempted": sum(completed.values()), "stop": brk}
+    state2 = {"sweep_id": "bs_rep", "rubric_authority": "explore", "control_variable": "fixture", "cells": [
+        {"cell_key": "full-a", "cell_outcome": "measured", "axis_citation": "wiki: x",
+         "concurrency_vector": {"1": 30.0, "2": 55.0},
+         "repetition": rep({"1": 3, "2": 3}, {"1": 0.6, "2": 41.5}),
+         "bench_mode": "full", "bench_mode_source": "runs[](레벨별 완주 min=3 ≥ full 정의 3)",
+         "downgrade_reason": None},
+        {"cell_key": "lite-b", "cell_outcome": "measured", "axis_citation": "wiki: y",
+         "concurrency_vector": {"1": 28.0},
+         "repetition": rep({"1": 1}, {"1": None},
+                           brk={"kind": "repeat-break", "level": 1, "run": 2, "signal": "run_failed"}),
+         "bench_mode": "lite", "bench_mode_source": "runs[](레벨별 완주 min=1 < full 정의 3)",
+         "downgrade_reason": "blackbox_kill", "downgrade_reason_source": "events(e.jsonl) · thermal_kill_ack"},
+        {"cell_key": "legacy-c", "cell_outcome": "measured", "axis_citation": "wiki: z",
+         "bench_mode": None, "bench_mode_source": "not_evaluated(runs[] 부재 레벨 [1])"},
+    ]}
+    stop2 = dict(stop, cells_remaining=[], sweep_status="complete", runs_attempted=7,
+                 budget_repeats_source="declared(campaigns/camp-x/campaign.yaml budgets.repeats)",
+                 repeats_mismatch=[{"cell_key": "lite-b", "requested": 5, "declared_budget_repeats": 3}],
+                 repeats_unrecorded=["legacy-c"])
+    doc2 = build(state2, stop2)
+    md2 = render_markdown(doc2)
+    check("R11 반복 축이 레벨별 완주·재현 밴드로 실린다(밴드 41.5% 도 그대로 — 분산은 평가가 아니다)",
+          '"1": 3, "2": 3' in md2 and '"2": 41.5' in md2 and "bench_mode=`full`" in md2, md2[-900:])
+    check("R12 반복 축 필드가 순위 금지 단언을 통과한다(키 이름이 판단을 담지 않는다 · 표에 순위 열 없음)",
+          assert_no_ranking(doc2) is None
+          and not any(("| %s" % h.lower()) in md2.lower() for h in FORBIDDEN_HEADERS))
+    check("R13 강등된 lite 는 사유와 출처가 보인다", "**강등** 사유 `blackbox_kill`" in md2)
+    check("R14 미완 표시 — 스윕이 멈춘 자리(반복 중단)가 이름으로 남는다", "**스윕이 멈춘 자리 — 반복 중단**(level 1 run 2" in md2)
+    check("R15 기록 없는 셀은 '기록 없음 · 미확정' 이다(빈칸 ✗)",
+          "반복 축: 기록 없음 · bench_mode 미확정(`not_evaluated(" in md2)
+    check("R16 예산과 다른 반복·기록 없는 측정 셀·run 합이 헤더에 기재된다",
+          "선언 예산과 다른 반복으로 잰 셀" in md2 and "`legacy-c`" in md2 and "| 레벨 run 시도 합 | 7 |" in md2)
+    # R17 음성대조: 누군가 밴드로 셀을 줄 세우는 필드를 넣으면 여전히 거부한다.
+    poisoned3 = json.loads(json.dumps(doc2))
+    poisoned3["cells"][0]["repetition"]["top"] = "full-a"
+    try:
+        assert_no_ranking(poisoned3)
+    except RenderError as exc:
+        check("R17 ★음성대조: 반복 축 안에 순위 필드를 심어도 거부", "repetition.top" in str(exc))
+    else:
+        check("R17 ★음성대조: 반복 축 안에 순위 필드를 심어도 거부", False, "(예외가 나지 않았다)")
+
+    # R18 반복 수 미선언(신설 전 상태 파일)도 지도를 낸다 — 부재를 3 으로 적지 않고 경고로 남긴다.
+    stop3 = dict(stop2, declared_budget=dict(stop2.get("declared_budget") or {}, repeats=None),
+                 budget_repeats_source="absent(fixture)", repeats_mismatch=None)
+    md3 = render_markdown(build(state2, stop3))
+    check("R18 ★반복 수 미선언 상태 → 지도 발행 · '예산 선언에 반복 수가 없다' 경고 · 출처 absent",
+          "예산 선언에 반복 수가 없다" in md3 and "absent(fixture)" in md3 and "선언 예산과 다른 반복" not in md3)
+
     if failures:
         sys.stderr.write("[render_sweep_map --self-test] FAIL %d 건: %s\n" % (len(failures), failures))
         return 1
-    print("[render_sweep_map --self-test] OK — R1~R10 전부 통과")
+    print("[render_sweep_map --self-test] OK — R1~R18 전부 통과")
     return 0
 
 

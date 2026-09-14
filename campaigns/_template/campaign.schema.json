@@ -193,7 +193,7 @@
         "repeats": {
           "type": "integer",
           "minimum": 3,
-          "description": "full bench 정의의 반복 수(2026-09-14 · plan_26091407 §4.4). 분산·신뢰성의 최소조건이라 3 미만은 선언할 수 없다 — 반복 불성립은 선언을 낮추는 것이 아니라 기계 이벤트(run 실패·블랙박스 kill)가 셀을 lite 로 강등하는 경로다. 생략 = full 정의값 3(소비자 sweep_bench --repeats · 단계 ④ 배선)."
+          "description": "full bench 정의의 반복 수(2026-09-14 · plan_26091407 §4.4). 분산·신뢰성의 최소조건이라 3 미만은 선언할 수 없다 — 반복 불성립은 선언을 낮추는 것이 아니라 기계 이벤트(run 실패·블랙박스 kill)가 셀을 lite 로 강등하는 경로다. 생략 = full 정의값 3. 소비자: sweep_bench.sh(--repeats 미지정 시 repeat_axis.py resolve) · broad_search.sh init(declared_budget.repeats). 이 minimum 은 repeat_axis.FULL_REPEATS_MIN 과 자체검사가 교차검증한다."
         }
       }
     },

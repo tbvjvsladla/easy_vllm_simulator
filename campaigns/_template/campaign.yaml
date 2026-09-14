@@ -36,7 +36,8 @@
 
   "_budgets_howto": [
     "smoke_budget_overhead_mib·ready_max_seconds 는 기본값이 없다 — 0 이 남으면 검증기가 막는다(선언 없으면 arm_ceiling 이 무한대라 호스트가 무방비다).",
-    "repeats = full bench 정의의 반복 수(2026-09-14 · plan_26091407 §4.4 · 사용자 결정 Q3). 분산·신뢰성의 최소조건이라 3 미만은 선언할 수 없다 — 반복이 성립하지 않으면 선언을 낮추는 것이 아니라 기계 이벤트(run 실패·블랙박스 kill)가 그 셀을 lite 로 강등한다. 생략은 full 정의값 3 이다. ⚠ 지금은 선언 슬롯일 뿐 이 값을 읽는 실행자가 없다 — 소비자(sweep_bench --repeats)와 강등 경로는 plan_26091407 단계 ④ 에서 배선된다."
+    "repeats = full bench 정의의 반복 수(2026-09-14 · plan_26091407 §4.4 · 사용자 결정 Q3 · full = lite ∪ GuideLLM × 반복 ≥3). 분산·신뢰성의 최소조건이라 3 미만은 선언할 수 없다 — 반복이 성립하지 않으면 선언을 낮추는 것이 아니라 기계 이벤트(run 실패·블랙박스 kill)가 그 셀을 lite 로 강등한다(확정 classify_cell · 분산은 강등 사유 ✗). 생략은 full 정의값 3 이다(출처에 defaulted 로 남는다).",
+    "repeats 를 읽는 실행자: sweep_bench.sh 가 --repeats 미지정 시 이 값으로 레벨마다 반복하고(repeat_axis.py resolve · 출처 sweep_index.repetition.requested_source), broad_search.sh init 이 이 값을 스윕 예산 declared_budget.repeats 로 옮겨 각 셀이 그 값을 쓴다(셀 비용 = 레벨 × 반복 — 벽시계 예산의 근거에 반복을 넣어라)."
   ],
   "budgets": {
     "smoke_budget_overhead_mib": 0,
