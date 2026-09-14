@@ -18,7 +18,8 @@ fail-closed
     원격 조회에 실패하면 **캐시로 대체하지 않고 중단한다.** 침묵 폴백은 카탈로그를 조용히 낡게
     만들고, 낡은 카탈로그는 "기록이 원래 없었던 것"과 구분되지 않는다(docs.md 부재≠결측).
     원격에 있는데 로컬에 태그 오브젝트가 없으면 **brief 를 지어낼 수 없으므로** 역시 중단한다
-    (`git fetch --tags` 를 하라고 말한다). 합성 금지가 여기서도 그대로다.
+    (조회한 그 원격에서 `refs/tags/hint/*` 를 fetch 하라고 말하고 전용 종료코드
+    `EXIT_LOCAL_TAG_OBJECT_MISSING` 으로 끝난다 · 자동 fetch 는 하지 않는다). 합성 금지가 여기서도 그대로다.
 """
 from __future__ import annotations
 
@@ -39,6 +40,11 @@ CENTRAL_FLAG = "hints/.central_authority"
 #   되는데 카탈로그에 못 들어가는 상태가 된다.
 TAG_SHAPE = re.compile(
     r"^hint/(?P<vllm>[^/]+)/(?P<model>[^/]+)/(?P<arch>[^/]+)/(?P<recipe>[^/]+)$")
+
+# 원격에만 있는 태그의 **로컬 태그 오브젝트 부재** 전용 종료코드(2026-09-14 · ⑧-pre D2 S7). 다른 실패(원격 조회 실패·
+#   규약 밖 이름·lightweight 태그 = 기본 2)와 갈라야 호출부(종료 시퀀스 ⑤)가 **원인을 말하고** 사람에게 fetch 명령을
+#   건넬 수 있다 -- 종전에는 모든 실패가 2 라 "원인은 위 출력" 한 줄로 뭉개졌다. 호출부는 이 상수를 이 파일에서 읽는다.
+EXIT_LOCAL_TAG_OBJECT_MISSING = 4
 
 
 def die(msg: str, code: int = 2) -> None:
@@ -163,7 +169,19 @@ def bench_mode_cell(doc: "dict | None") -> "tuple[str, str]":
     return cell, f"payload(PAYLOAD.measurement_config · {mc.get('source') or '출처 미표시'})"
 
 
-def derive_entries(repo: Path, tags: list[str]) -> list[dict]:
+def _main_worktree(repo: Path) -> Path:
+    """`repo` 가 속한 저장소의 **주 워크트리** 경로. 안내 명령에 찍을 자리다.
+
+    왜(2026-09-14 ⑧-pre D2 리뷰): 종료 시퀀스 ⑤ 는 파생기를 **임시 워크트리**(`<repo>.wt-<반대>`)에서 돌리고 곧바로
+    지운다. 안내가 `git -C <임시 워크트리>` 를 찍으면 사람이 읽는 순간 그 경로는 없다. 태그 ref 는 워크트리가 아니라
+    저장소 공용이므로 주 워크트리에서 fetch 해도 같다. 찾지 못하면 `repo` 를 그대로 쓴다(안내 문자열일 뿐 판정이 아니다).
+    """
+    listing = git("worktree", "list", "--porcelain", cwd=repo, check=False)
+    first = listing.stdout.splitlines()[0] if listing.returncode == 0 and listing.stdout else ""
+    return Path(first[len("worktree "):]) if first.startswith("worktree ") else repo
+
+
+def derive_entries(repo: Path, tags: list[str], remote: str | None = None) -> list[dict]:
     entries: list[dict] = []
     missing_local: list[str] = []
     for tag in tags:
@@ -198,9 +216,14 @@ def derive_entries(repo: Path, tags: list[str]) -> list[dict]:
             "source": "remote-derived",  # 출처 표시(헌법 §결정론 규율)
         })
     if missing_local:
+        # 해소 명령은 **조회한 그 원격**을 가리켜야 한다 -- `git fetch --tags` 는 기본 원격(origin)을 보므로
+        #   `--remote` 가 다른 이름이면 엉뚱한 곳을 긁고 같은 실패를 되풀이한다(2026-09-14 실측: 원격 전용 태그 10건).
+        fetch = (f"git -C {_main_worktree(repo)} fetch {remote} 'refs/tags/hint/*:refs/tags/hint/*'" if remote
+                 else "git fetch <원격> 'refs/tags/hint/*:refs/tags/hint/*'")
         die("원격에 있으나 **로컬에 태그 오브젝트가 없다** — brief 를 지어낼 수 없다(합성 금지):\n  "
             + "\n  ".join(missing_local[:10])
-            + f"\n  (총 {len(missing_local)}건)  →  `git fetch --tags` 후 다시 실행하라.")
+            + f"\n  (총 {len(missing_local)}건)  →  `{fetch}` 후 다시 실행하라(자동 fetch 하지 않는다).",
+            code=EXIT_LOCAL_TAG_OBJECT_MISSING)
     return entries
 
 
@@ -233,7 +256,7 @@ def cmd_derive(a) -> int:
     if not (repo / CENTRAL_FLAG).exists():
         die(f"{CENTRAL_FLAG} 부재 — 카탈로그는 중앙 저장소만 갱신한다(권한 비대칭).")
     tags = remote_hint_tags(repo, a.remote, allow_empty=a.allow_empty)
-    entries = derive_entries(repo, tags)
+    entries = derive_entries(repo, tags, remote=a.remote)
     rows = render_rows(entries)
 
     idx_p = repo / "hints" / "index.json"
@@ -282,6 +305,13 @@ def _run_self_test() -> int:
             fn()
         except SystemExit:
             return "raised"
+        return None
+
+    def die_code(fn):
+        try:
+            fn()
+        except SystemExit as exc:
+            return exc.code
         return None
 
     # brief 추출 — ⑤ 의 두 오염 경로
@@ -355,6 +385,26 @@ def _run_self_test() -> int:
            and _lite["bench_mode_source"].startswith("payload("))
         ck("★음성대조 로컬 부재 태그는 합성하지 않고 죽는다",
            expect_die(lambda: derive_entries(repo, ["hint/1.0/m/a/qx-len1-kvfp8", "hint/9.9/none/x/q"])) == "raised")
+        # ⑧-pre D2 S7: 원인별 종료코드 -- 로컬 오브젝트 부재만 전용 코드이고 다른 실패는 기본 코드다(호출부가 원인을 말한다)
+        ck("★S7 로컬 태그 오브젝트 부재 = 전용 종료코드",
+           die_code(lambda: derive_entries(repo, ["hint/9.9/none/x/q"], remote="fx")) == EXIT_LOCAL_TAG_OBJECT_MISSING)
+        ck("★S7 음성대조 규약 밖 이름은 전용 코드가 아니다(원인을 섞지 않는다)",
+           die_code(lambda: derive_entries(repo, ["hint/0.1/m/a"])) not in (None, EXIT_LOCAL_TAG_OBJECT_MISSING))
+        import io, contextlib
+        _buf = io.StringIO()
+        with contextlib.redirect_stderr(_buf):
+            die_code(lambda: derive_entries(repo, ["hint/9.9/none/x/q"], remote="fx"))
+        ck("★S7 해소 명령은 조회한 그 원격을 가리킨다(기본 원격 `--tags` 가 아니다)",
+           "fetch fx 'refs/tags/hint/*:refs/tags/hint/*'" in _buf.getvalue() and "--tags" not in _buf.getvalue())
+        # 임시 워크트리에서 파생해도 안내는 **주 워크트리**를 가리킨다(종료 시퀀스 ⑤ 는 파생 직후 워크트리를 지운다)
+        _wt = Path(tmp) / "r.wt-other"
+        git("worktree", "add", "-q", "--detach", str(_wt), cwd=repo)
+        _buf = io.StringIO()
+        with contextlib.redirect_stderr(_buf):
+            die_code(lambda: derive_entries(_wt, ["hint/9.9/none/x/q"], remote="fx"))
+        ck("★S7 임시 워크트리에서 파생해도 fetch 안내는 주 워크트리 경로다(곧 지워질 경로를 찍지 않는다)",
+           f"git -C {repo.resolve()} fetch fx" in _buf.getvalue() and str(_wt) not in _buf.getvalue())
+        git("worktree", "remove", "--force", str(_wt), cwd=repo)
         # 4세그먼트(구세대) 이름은 이제 규약 밖이다 — CP7 에서 레시피 칸이 생겼다.
         ck("★음성대조 규약 밖 태그명 거부(4세그먼트 구세대)",
            expect_die(lambda: derive_entries(repo, ["hint/0.1/m/a"])) == "raised")

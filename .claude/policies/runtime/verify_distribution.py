@@ -871,6 +871,17 @@ def verify() -> dict:
         #   음성대조 없는 교정은 완료로 치지 않는다 — 이 저장소의 반복 결함이다.
         _run("upstream_budget_preflight_selftest", [sys.executable,
              ".claude/skills/upstream-version-watch/scripts/budget_preflight.py", "--self-test"], {0}),
+        # ── 브랜치 동기화·서브 전파 기구 (2026-09-14 · plan_26091407 §9 ⑧-pre D2 S1~S7) ─────────────────
+        #   `layer_ledger`·`push_branches` 의 자체검사와 종료 시퀀스 기구 전체에 **호출자가 0** 이었다 -- 그래서
+        #   갈라짐 검사가 한 방향에서 구조적으로 울릴 수 없고(원장 부재), 서브 전파가 체크아웃과 다른 토폴로지
+        #   통로로 특화헌법을 보낼 수 있었는데 아무 검사도 그것을 실행하지 않았다(호출자 없는 자체검사 = L1 산문).
+        #   셋 다 격리 임시 저장소·임시 bare 원격·ssh shim 에서 돌고 음성대조(결함 재현 변이)를 품는다 -- 원격·서브 무관.
+        _run("upstream_layer_ledger_selftest", [sys.executable,
+             ".claude/skills/upstream-version-watch/scripts/layer_ledger.py", "--self-test"], {0}),
+        _run("upstream_push_branches_selftest", [sys.executable,
+             ".claude/skills/upstream-version-watch/scripts/push_branches.py", "--self-test"], {0}),
+        _run("upstream_branch_sync_mechanics_selftest", [sys.executable,
+             ".claude/skills/upstream-version-watch/scripts/selftest_branch_sync.py"], {0}),
         _run("recipe_preload_ram_gate_selftest", [sys.executable,
              ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py", "--self-test"], {0}),
         _run("recipe_escalation_predicate_selftest", [sys.executable,

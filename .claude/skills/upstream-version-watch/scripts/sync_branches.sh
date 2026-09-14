@@ -429,30 +429,78 @@ fi
 # 사라진다 -- 그래서 실무에 "cherry-pick 선행" 관행이 자랐고, 그 관행은 사람이 기억해야만 도는
 # 절차였다. 이제 기계가 판정한다. 판정 기준은 **원장이 기록한 동기 지점 이후의 공통층 diff** 다.
 #
-# 원장이 비어 있으면(첫 실행) RED 가 아니라 **안내**다 -- 동기 지점이 없는 것은 갈라짐이 아니라
-# 아직 한 번도 동기화한 적이 없다는 사실이다. 부트스트랩 일회성(선례: 해시 원장 경계).
-_LEDGER="$REPO_ROOT/.claude/skills/upstream-version-watch/scripts/layer_ledger.py"
-if [ -f "$_LEDGER" ]; then
-    _DIV_JSON="$(python3 "$_LEDGER" divergence --repo "$REPO_ROOT" --branch "$DST_BRANCH" 2>/dev/null || true)"
-    _DIV_STATUS="$(printf '%s' "$_DIV_JSON" | python3 -c '
+# ★ 2026-09-14(⑧-pre D2 S1·S2): 이 검사는 **구조적으로 울릴 수 없었다**. 셋이 겹쳐 있었다:
+#   ⓐ 원장은 동기화 제외라 대상 워크트리(multi→single 이면 single-node)에 **없다** → 늘 empty-ledger.
+#   ⓑ 종료 시퀀스는 ④ 에서 이번 항목을 먼저 적은 뒤 여기로 오는데, 판정기는 **마지막 항목만** 봐서
+#      아직 착지하지 않은 항목을 보고 늘 판정 불가였다. 재실행 회차의 착지도 원장 기록 커밋과 달라 못 찾았다.
+#   ⓒ 판정 불가는 안내 한 줄 뒤 **그대로 진행**했다 -- 자동 시퀀스 안에서는 아무도 그 줄을 읽지 않는다.
+#   처방: 원장은 출발 브랜치 ref 에서 **읽기만** 한다(`--ledger-ref` · 복제 ✗ · policy:GIT_SINGLE_AUTHORITY) ·
+#   동기 지점은 원장 항목을 거꾸로 훑어 **실제로 내려앉은 공통층 트리**로 찾는다 · 동기 지점이 없으면
+#   `--counterpart` 로 blob 조상 판정을 한다. 그래서 결과는 clean/diverged 둘 중 하나이고, 그 밖(판정기
+#   자체의 실패 · 원장 무결성 결함 · 판정기 부재)은 **멈춘다**(COMMON_LAYER_UNJUDGED) -- 판정하지 못한 덮어쓰기를
+#   통과로 두지 않는다.
+# ★ 처방을 따르면 풀려야 한다(2026-09-14 ⑧-pre D2 리뷰 교정): 대상 전용 변경을 출발 브랜치로 옮기면(cherry-pick)
+#   판정기가 그 파일을 **흡수**(absorbed)로 뺀다 -- 종전 판정은 동기 지점 이후 대상 diff 만 봐서 옮긴 뒤에도 영원히
+#   diverged 였다(안내대로 했는데 막히는 교착).
+#
+# ★ 판정기도 정본 버전이어야 한다 -- 아래 자기 일관성 가드와 **같은 논리**다. 반대 브랜치 워크트리의
+#   `layer_ledger.py` 는 반대 브랜치 판본이라, 판정 규칙이 바뀐 회차에는 옛 규칙(또는 모르는 인자로 죽는
+#   판정기)이 판정한다. 그래서 출발 브랜치와 바이트가 다르면 판정 전에 멈추고 당겨오라고 말한다
+#   (종료 시퀀스는 sync_branches.sh 와 함께 미리 당겨온다 · RED ① 은 출발 브랜치와 바이트 동일한 경로를 뺀다).
+_LEDGER_REL=".claude/skills/upstream-version-watch/scripts/layer_ledger.py"
+_LEDGER="$REPO_ROOT/$_LEDGER_REL"
+if git cat-file -e "$SRC_BRANCH:$_LEDGER_REL" 2>/dev/null; then
+    if [ ! -f "$_LEDGER" ] || [ "$(git hash-object -- "$_LEDGER")" != "$(git rev-parse "$SRC_BRANCH:$_LEDGER_REL")" ]; then
+        echo "[sync-branches] FAIL(LEDGER_JUDGE_STALE): 갈라짐 판정기가 정본($SRC_BRANCH)과 다릅니다 — 옛 규칙으로 판정하지 않습니다." >&2
+        echo "[sync-branches]   먼저 판정기만 당겨온 뒤 다시 실행하세요(RED ① 은 정본과 바이트 동일한 경로를 막지 않습니다):" >&2
+        echo "[sync-branches]     git checkout $SRC_BRANCH -- $_LEDGER_REL" >&2
+        exit 3
+    fi
+    _DIV_RC=0
+    # stdout 은 JSON 계약이다 -- 진단(stderr)을 섞으면 경고 한 줄이 판정 불가를 만든다. 진단은 따로 받아 멈출 때 보인다.
+    _DIV_ERR="$(mktemp)"
+    _DIV_JSON="$(python3 "$_LEDGER" divergence --repo "$REPO_ROOT" --branch "$DST_BRANCH" \
+                     --counterpart "$SRC_BRANCH" --ledger-ref "$SRC_BRANCH" 2>"$_DIV_ERR")" || _DIV_RC=$?
+    _DIV_STDERR="$(head -c 4000 "$_DIV_ERR")"; rm -f "$_DIV_ERR"
+    _DIV_SUMMARY="$(printf '%s' "$_DIV_JSON" | python3 -c '
 import json, sys
 try:
-    print((json.load(sys.stdin) or {}).get("status") or "unknown")
+    d = json.load(sys.stdin) or {}
 except Exception:
-    print("unreadable")
-' 2>/dev/null || echo unreadable)"
+    print("unreadable\t-\t-\t-")
+    raise SystemExit(0)
+sp = d.get("sync_point") or {}
+print("\t".join([d.get("status") or "unknown", d.get("basis") or "-", (d.get("base") or "-")[:12],
+                 sp.get("status") or "-", str(len(d.get("absorbed") or []))]))
+' 2>/dev/null || printf 'unreadable\t-\t-\t-\t0')"
+    IFS=$'\t' read -r _DIV_STATUS _DIV_BASIS _DIV_BASE _DIV_SP _DIV_ABSORBED <<< "$_DIV_SUMMARY"
     case "$_DIV_STATUS" in
         diverged)
             echo "[sync-branches] FAIL(COMMON_LAYER_DIVERGED): 대상 $DST_BRANCH 의 공통층이 출발 브랜치에 없는 변경을 들고 있습니다." >&2
+            echo "[sync-branches]   판정 근거: basis=$_DIV_BASIS · base=$_DIV_BASE · 동기 지점=$_DIV_SP" >&2
             printf '%s\n' "$_DIV_JSON" >&2
-            echo "[sync-branches]   덮어쓰면 그 변경은 사라집니다 — 위 커밋을 먼저 출발 브랜치로 옮기세요." >&2
+            echo "[sync-branches]   덮어쓰면 그 변경은 사라집니다 — 보존할 변경이면 위 커밋을 먼저 출발 브랜치($SRC_BRANCH)로 옮기세요" >&2
+            echo "[sync-branches]   (옮기면 이 검사가 흡수로 인식합니다). 버릴 변경이면 사람이 $DST_BRANCH 에서 되돌린 뒤 다시 실행하세요." >&2
             exit 9 ;;
         clean)
-            echo "[sync-branches] 공통층 갈라짐 검사: clean(동기 지점 이후 대상-only 변경 0)" ;;
+            _DIV_WEAK=""
+            [ "$_DIV_BASIS" != "blob-ancestry" ] || _DIV_WEAK=" · ⚠ 약한 판정(동기 지점 없음 — 새 판본을 받은 적 없는 되돌림은 보이지 않는다 · 아래 diff 를 사람이 확인하세요)"
+            echo "[sync-branches] 공통층 갈라짐 검사: clean(덮으면 사라질 대상 변경 0 · 흡수 ${_DIV_ABSORBED:-0}건 · basis=$_DIV_BASIS · base=$_DIV_BASE · 동기 지점=$_DIV_SP$_DIV_WEAK)" ;;
         *)
-            echo "[sync-branches] 공통층 갈라짐 검사: **판정 불가**($_DIV_STATUS) — 원장에 동기 지점이 없습니다." >&2
-            echo "[sync-branches]   첫 동기화(부트스트랩)이거나 중단된 시퀀스입니다. 아래 diff 를 사람이 직접 확인하세요." >&2 ;;
+            echo "[sync-branches] FAIL(COMMON_LAYER_UNJUDGED): 공통층 갈라짐을 판정하지 못했습니다(status=$_DIV_STATUS · rc=$_DIV_RC)." >&2
+            printf '%s\n' "$_DIV_JSON" | head -40 >&2
+            [ -z "$_DIV_STDERR" ] || printf '%s\n' "$_DIV_STDERR" >&2
+            echo "[sync-branches]   판정하지 못한 덮어쓰기는 통과로 두지 않습니다 — 판정기 출력의 원인을 고친 뒤 다시 실행하세요." >&2
+            exit 10 ;;
     esac
+else
+    # 판정기 도입(2026-09-12) 이전의 출발 브랜치다. 판정할 규칙이 그 브랜치에 없다 -- 그래도 **멈춘다**(⑧-pre D2 리뷰 교정).
+    #   종전에는 경고 한 줄 뒤 판정 없이 덮었다 = 위 COMMON_LAYER_UNJUDGED 가 없앤 바로 그 통과다. 운영 브랜치 둘은
+    #   이미 판정기를 들고 있으므로(`--from` 은 hint 외 아무 브랜치나 받는다) 이 자리는 옛 브랜치에서의 동기화뿐이고,
+    #   그것은 판정 없는 덮어쓰기를 사람이 따로 정할 일이다. 우회 인자는 두지 않는다.
+    echo "[sync-branches] FAIL(COMMON_LAYER_UNJUDGED): 출발 브랜치 $SRC_BRANCH 에 갈라짐 판정기($_LEDGER_REL)가 없습니다 — 판정하지 못한 덮어쓰기는 통과로 두지 않습니다." >&2
+    echo "[sync-branches]   판정기 도입(2026-09-12) 이전 브랜치입니다. 운영 브랜치(single-node·multi-node)를 출발로 쓰세요." >&2
+    exit 10
 fi
 
 # ── pre-flight: 이 스크립트 자신이 정본과 동일 버전인가 (self-overwrite 위험 차단) ──
