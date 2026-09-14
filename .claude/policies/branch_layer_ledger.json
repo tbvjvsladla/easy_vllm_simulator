@@ -581,6 +581,29 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-202609142015",
+      "utc": "2026-09-14T20:15:50Z",
+      "departure": "multi-node",
+      "departure_commit": "0c74e13152c3fcdf3ff50e44299b5416e4b2314f",
+      "approved_by": "coag-ash (싱글 서브 차단 팝업 응답 \"2번 … 종결명령 추가 후 싱글노드 전파로 넘어가자\")",
+      "approved_utc": "2026-09-14T20:15:50Z",
+      "_reach": "single-node vs HEAD 트리차이 · 동기 지점 e13c7a680f7a(departure-landed)",
+      "classification": [
+        {
+          "file": ".claude/rules/workflow.md",
+          "verdict": "common_promote",
+          "reason": "§purge 게이트에 종결(`campaign_init --close`) 한 줄 규약 추가 — purge 없이 ACTIVE 만 내려 캠페인 사이 창을 여는 유일한 정식 경로. 캠페인 체인 계약은 양 토폴로지 공통층이며 특화 사실을 담지 않는다(0c74e13).",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "verdict": "common_promote",
+          "reason": "`--close <id> --utc --apply` 신설 — purge 게이트와 같은 선행조건 · 인스턴스 보존 · journey 기재 · ACTIVE=_bootstrap · 멱등. 종결된 캠페인이 ACTIVE 로 남아 반대 토폴로지 체크아웃의 4자일치를 막던 결함 교정으로, 캠페인 단일 writer 는 양 토폴로지가 같은 코드를 쓴다(0c74e13).",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
