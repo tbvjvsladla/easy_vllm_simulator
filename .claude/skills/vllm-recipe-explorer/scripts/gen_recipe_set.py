@@ -66,8 +66,8 @@ def _build_yaml(parsed, recipe, served_model_name, port=8000):
 
     Phase 2 확장(recipe 에 해당 키가 있을 때만 반영):
       max-num-seqs(batch) / kv-cache-memory-bytes / kv-cache-dtype,
-      gpu-memory-utilization 은 safety_margin(디바이스 풀 상한),
-      상단 vram_breakdown 주석 블록.
+      gpu-memory-utilization 은 deploy_gmu(= target_gpu.target_gmu · 2026-09-14 plan_26091407 §4.3),
+      상단 vram_breakdown 주석 블록, batch_source·gmu_source 출처 주석(있을 때만 — serve 노브가 아니다).
     """
     container_path = parsed.get("model_path_container")
     model_id = parsed.get("model_id", "")
@@ -86,6 +86,17 @@ def _build_yaml(parsed, recipe, served_model_name, port=8000):
     lines.append("# {} 서빙 설정 (vllm-recipe-explorer 생성)".format(model_id))
     lines.append("# 레시피: quant={} max_model_len={} gpu_mem_util={}".format(
         quant, max_model_len, gmu))
+    # 값 옆 출처(2026-09-14 · plan_26091407 §4.2·§4.3 · §결정론 규율): explorer 가 lockset 에 각인한
+    # batch_source·gmu_source 를 yaml 에도 싣는다 — yaml 만 받은 사람이 max-num-seqs 가 선언 요구인지 KV-fit 인지
+    # 손레버인지 가를 수 없던 자리다(F1: 손값 8 이 "측정 산물" 로 읽혔다). 주석 줄이라 serve 인자에 닿지 않고,
+    # `키:` 형태를 쓰지 않아 grep_yaml·read_config_* 류의 줄머리 매칭에도 걸리지 않는다.
+    _prov_bits = []
+    if recipe.get("batch_source"):
+        _prov_bits.append("max-num-seqs ← batch_source={}".format(recipe.get("batch_source")))
+    if recipe.get("gmu_source"):
+        _prov_bits.append("gpu-memory-utilization ← gmu_source={}".format(recipe.get("gmu_source")))
+    if _prov_bits:
+        lines.append("# 출처(explorer 각인): " + " · ".join(_prov_bits))
     # VRAM 분해 주석 블록(vram_breakdown 있을 때만).
     lines.extend(_build_vram_breakdown_block(breakdown))
     # 타겟-GPU 이식 정직성 주석(recipe.target_gpu 있을 때만 — §4.9, plan_26070809_47_07).
@@ -105,11 +116,17 @@ def _build_yaml(parsed, recipe, served_model_name, port=8000):
     #   같은 개념이 두 자리에 손으로 적힌 값 = 4종 안티패턴의 매직넘버 결함. 파생시킨다.
     lines.append("port: {}".format(port))
     # KV 절대클램프 따름정리(헌법, E2E 실증 corrected): gpu-memory-utilization 은 **항상 emit**.
-    # clamp(kv-cache-memory-bytes)가 KV 사이징·이식성을 제어하지만, gmu 는 startup free-memory 검증(free ≥ gmu×total)
-    # + 총 메모리 cap 에 여전히 쓰인다(vLLM 은 gmu 를 *KV 사이징*에만 무시 — config/cache.py). 통합메모리(GB10 free/total≈0.91)는
-    # 기본 0.92 가 startup OOM → gmu ≤ 0.90 명시 필수. 이식성은 절대 clamp 가 준다(gmu-derived KV 는 호스트 VRAM 차이로 비이식).
+    # clamp(kv-cache-memory-bytes)가 KV 사이징·이식성을 제어한다. 2026-09-14 정정(plan_26091407 F5 · vLLM 소스
+    # `gpu_worker.determine_available_memory`·`utils.request_memory`): 클램프를 주면 KV 프로파일링 자체를 건너뛰고,
+    # gmu 가 소스에서 관여하는 자리는 **기동 전 free ≥ ceil(total×gmu) 검사**다 — 총량 cap·할당자 cap 을 거는 코드는
+    # 소스에 없다. 반면 0.85→0.80 이 5,562MiB 여유를 연 **관측**은 사실이다. 그래서 emit 주석은 관측과 기전을 가른다:
+    # "총량 cap" 은 관측된 작용으로 남기고 기전은 미확정으로 적는다(종전 주석은 둘을 한 문장의 기전 주장으로 적었다).
+    # ⚠ 정책 KV_ABSOLUTE_CLAMP_PORTABILITY.C2 문장(registry.yaml "startup free-memory gate and total cap")과 그 술어
+    #   (claim_predicates C2 — 이 줄에 'startup free-memory 게이트'·'cap' 을 요구)는 헌법층이라 이 단계에서 고치지 않는다.
+    #   이 주석은 C2 를 부정하지 않고 그 "cap" 을 관측으로 한정한다 — C2 문장의 관측/기전 분리는 사람 결정(HITL) 후속이다.
+    # 통합메모리(GB10 free/total≈0.91)는 기본 0.92 가 그 기동 전 검사에서 막히므로 gmu ≤ 0.90 명시가 필수다.
     if kv_bytes is not None:
-        lines.append("# gpu-memory-utilization = startup free-memory 게이트 + 총 cap(통합메모리 ≤0.90); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어")
+        lines.append("# gpu-memory-utilization = startup free-memory 게이트(기동 전 free ≥ ceil(total×gmu) · 통합메모리 ≤0.90) + 총량 cap 은 관측된 작용(0.85→0.80 이 여유를 열었다 · vLLM 소스에서 기전 미확정); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어")
     lines.append("gpu-memory-utilization: {}".format(gmu))
     lines.append("max-model-len: {}".format(max_model_len))
     # max-num-seqs(batch) 줄: recipe 에 batch 있을 때만.
@@ -175,9 +192,10 @@ _PARITY_EXEMPT = {
     "served_model_name",      # .env/.sh 로 전달
     "model_id",               # 주석/이름용
     "extra_env",              # 트라이얼 전용(임시 실험 env) — 배포 3종 세트로 승격하지 않는다
-    # gmu 는 **config.safety_margin 이 권위**다(디바이스 풀 상한 = 배포 정책). candidate 값은
-    # 트라이얼-로컬이며 배포로 승격하지 않는다 — 의도된 분기. 다만 둘이 다르면 "검증한 gmu ≠
-    # 배포된 gmu" 가 되므로 recipe.py 가 불일치를 경고한다(조용한 분기 금지).
+    # 배포 gmu 의 권위는 **deploy_gmu = target_gpu.target_gmu** 다(2026-09-14 · plan_26091407 §4.3 — 종전
+    # config.safety_margin 은 예산 검증 게이트 승수로 분리됐다). candidate 값은 트라이얼-로컬(host 바닥 캡이
+    # 걸릴 수 있다)이며 배포로 승격하지 않는다 — 의도된 분기. 둘이 다르면 "검증한 gmu ≠ 배포된 gmu" 가 되므로
+    # recipe.py 가 trial_gmu ↔ deploy_gmu 불일치를 경고한다(조용한 분기 금지).
     "gpu_memory_utilization",
 }
 
@@ -201,7 +219,7 @@ SERVE_KNOB_KEYS = (
 def recipe_from_candidate(candidate: dict, **extra) -> dict:
     """수렴 candidate → gen_recipe_set 이 읽는 recipe dict. 추가 키는 extra 로 덮어쓴다.
 
-    extra 용례: gpu_memory_utilization(=safety_margin) · target_gpu · vram_breakdown.
+    extra 용례: gpu_memory_utilization(=deploy_gmu) · target_gpu · vram_breakdown · batch_source·gmu_source(출처 주석).
     """
     r = {k: candidate.get(k) for k in SERVE_KNOB_KEYS}
     r["id"] = candidate.get("id")

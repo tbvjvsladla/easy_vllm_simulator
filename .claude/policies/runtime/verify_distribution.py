@@ -851,6 +851,14 @@ def verify() -> dict:
         #   앞에서 멈추므로 lockset 없이도 계약이 유지된다).
         _run("benchmark_broad_search_provenance_precheck", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.py"], {0}),
+        # gmu 두 역할 분리 · max-num-seqs 산식 · lockset 기계 각인의 **집행** (plan_26091407 §4.2·§4.3 · §7 O3 ·
+        #   2026-09-14 배선). 호출자 없는 자체검사는 L1(산문)이다(위 선례). 함수 층(역할 분리·derive_batch 3경우·
+        #   sim_classify adjust_target=batch·클램프 경계)과 CLI 층(배포되는 recipe.py 바이트 사본을 임시 저장소에서
+        #   `simulate --mock-profile` 로 main() 부터 lockset 쓰기까지)과 가짜 엔진 층(클램프에 비례하는 엔진 토큰 ·
+        #   첫 트라이얼 OOM · TP=2 · per-token 불일치 — 정적 mock 이 못 치는 위상 2)을 음성대조와 함께 친다. mock 산출물이
+        #   trial_provenance=mock 으로 자기를 밝히는지까지 단언한다 — docker·NAS·GPU 불요.
+        _run("recipe_gmu_roles_batch_selftest", [sys.executable,
+             ".claude/skills/vllm-recipe-explorer/scripts/selftest_gmu_roles_batch.py"], {0}),
     ]
 
     with tempfile.TemporaryDirectory(prefix="easy-vllm-wiki-distribution.") as wiki:

@@ -501,10 +501,18 @@ def _sweep_image(sweep_path: Path, cell: str) -> "tuple[dict | None, str]":
 # fail-closed 로 막고, **불일치 기재**(`_cell_provenance` ← `--cell-set`)는 선언과 서빙 실물의 드리프트를
 # cell.status 에 적을 뿐 막지 않는다. 표시 어휘의 소유는 검증기(`LOCKSET_PROVENANCE`)이고 여기는 호출부다.
 
-# 대조 수단이 아직 없는 노브 — 단계 ②(explorer 의 max-num-seqs = min(요구, KV-fit) 산식·2-위상 트라이얼)가
-# 재계산값을 내면 그때 대조를 얹는다. 이름으로 남기는 이유: 대조하지 않은 노브를 "불일치 0건"으로
-# 읽으면 안 쟀다와 일치했다가 구분되지 않는다(plan_26091407 §4.2).
-PROVENANCE_PENDING_KNOBS = ("batch", "kv_cache_memory_bytes")
+# 대조 수단이 아직 없는 노브의 이름표. 이름으로 남기는 이유: 대조하지 않은 노브를 "불일치 0건"으로 읽으면
+# 안 쟀다와 일치했다가 구분되지 않는다. 2026-09-14 단계 ②(plan_26091407 §4.2·§4.3)가 explorer 파생값을 lockset 에
+# 기계 각인하게 되면서 batch·KV 클램프도 대조 수단을 얻었다(아래 _LOCKSET_KNOB_COMPARE) — 지금은 비어 있다.
+PROVENANCE_PENDING_KNOBS: tuple[str, ...] = ()
+
+# explorer 파생 노브의 대조: lockset(explorer 가 잠근 값) ↔ sweep 기록(서빙 yaml 이 실제로 실은 값).
+#   (lockset 키, sweep 블록, sweep 키, lockset *_source 키). sweep 키 이름은 broad_search.sh 가 셀 기록에 싣는
+#   이름 그대로다(coordinates.max_num_seqs = 서빙 yaml max-num-seqs · capacity.kv_cache_memory_bytes = 클램프).
+_LOCKSET_KNOB_COMPARE = (
+    ("batch", "coordinates", "max_num_seqs", "batch_source"),
+    ("kv_cache_memory_bytes", "capacity", "kv_cache_memory_bytes", "kv_source"),
+)
 
 
 def _active_pointer_fact() -> str:
@@ -557,19 +565,20 @@ def lockset_precheck(cell: str, camp_id: str | None = None) -> dict:
             "reason": why}
 
 
-def _sweep_coordinate(sweep_path: Path, cell: str, key: str) -> "tuple[object, str]":
-    """sweep 레코드 좌표 하나. (값, 출처) — 값이 없으면 (None, 없는 이유)."""
+def _sweep_coordinate(sweep_path: Path, cell: str, key: str,
+                      block: str = "coordinates") -> "tuple[object, str]":
+    """sweep 레코드 좌표 하나(`block` = coordinates | capacity). (값, 출처) — 값이 없으면 (None, 없는 이유)."""
     doc = _read_json(sweep_path)
     if not isinstance(doc, dict):
         return None, f"sweep 기록을 읽지 못했다: {_rel(sweep_path)}"
     for rec in (doc.get("cells") or []):
         if not isinstance(rec, dict) or rec.get("cell_key") != cell:
             continue
-        coord = rec.get("coordinates") if isinstance(rec.get("coordinates"), dict) else {}
+        coord = rec.get(block) if isinstance(rec.get(block), dict) else {}
         if key not in coord or coord.get(key) in (None, "", "NA"):
-            return None, (f"sweep 레코드에 {key} 좌표가 없다: {_rel(sweep_path)} cell_key={cell} "
+            return None, (f"sweep 레코드에 {block}.{key} 가 없다: {_rel(sweep_path)} cell_key={cell} "
                           f"(서빙 yaml 에 그 키가 없었거나 측정 평면이 싣지 않았다)")
-        return coord.get(key), (f"sweep:{_rel(sweep_path)}#cells[cell_key={cell}].coordinates.{key}")
+        return coord.get(key), (f"sweep:{_rel(sweep_path)}#cells[cell_key={cell}].{block}.{key}")
     return None, f"sweep 기록에 셀 {cell!r} 이 없다: {_rel(sweep_path)}"
 
 
@@ -605,6 +614,17 @@ def _declared_target_gmu(cfg_path: Path) -> "tuple[float | None, str]":
     return val, f"{_rel(cfg_path)}#target_gpu.target_gmu"
 
 
+def _lockset_stamp(ldoc: dict) -> "str | None":
+    """lockset 표시가 누구 손에서 왔는가. explorer-phase2 ∧ trial_provenance(어휘 안) = `machine` · explorer-phase2 만 =
+    `self-declared` · hand-authored = `hand` · 그 외(부재·어휘 밖) = None. 판정이 아니라 옮겨 적기다(기재)."""
+    prov = ldoc.get("provenance")
+    if prov == "hand-authored":
+        return "hand"
+    if prov != "explorer-phase2":
+        return None
+    return "machine" if ldoc.get("trial_provenance") in ("measured", "mock", "dry-run") else "self-declared"
+
+
 def _cell_provenance(base: Path, cell: str, node: str | None, sweep_state: str | None,
                      prior: dict, prior_mismatch: list) -> "tuple[dict, list]":
     """셀 출처 표시 + 선언↔서빙 실물 드리프트. 반환 `(provenance, provenance_mismatch)`.
@@ -635,6 +655,12 @@ def _cell_provenance(base: Path, cell: str, node: str | None, sweep_state: str |
             # 출처 표시가 성립하지 않는 사유(precheck 와 같은 함수). 진입에서 이미 막혔을 셀이라도
             # 여기서는 사실로만 적는다 — 기재 자리가 게이트를 흉내 내지 않는다.
             "lockset_gap": validator().lockset_provenance_reason(lock),
+            # 기계 각인 여부(2026-09-14 · plan_26091407 단계 ② · 리뷰 교정): explorer 수렴 각인은 trial_provenance
+            # (measured|mock|dry-run)를 함께 적는다. 그 칸 없이 explorer-phase2 만 있으면 절차 자기선언이다 — 둘을
+            # 같은 표시로 옮기면 소비자가 mock 수렴·손 라벨을 실측 각인과 가르지 못한다(기재 · 차단 ✗).
+            "lockset_trial_provenance": (ldoc.get("trial_provenance")
+                                         if isinstance(ldoc.get("trial_provenance"), str) else None),
+            "lockset_stamp": _lockset_stamp(ldoc),
             "compared": list(prior.get("compared") or []),
             "compare_gaps": list(prior.get("compare_gaps") or []),
             "pending_knobs": pending}
@@ -661,6 +687,58 @@ def _cell_provenance(base: Path, cell: str, node: str | None, sweep_state: str |
                           "observed": observed, "observed_source": osrc,
                           "lockset_provenance": prov["lockset"],
                           "lockset_gmu_source": ldoc.get("gmu_source")})
+    # explorer 파생 노브(2026-09-14 · plan_26091407 §4.2 · 단계 ① 이 남긴 슬롯): lockset 에 잠긴 값 ↔ 서빙 실물.
+    #   lockset 쪽이 비었으면(파일 부재·값 null = "아직 정하지 않았다") 대조 불가로 적는다 — null 을 "없음과 일치"
+    #   로 읽으면 explorer 가 정하지 않은 노브에 사람이 손으로 넣은 서빙 값이 조용히 정상으로 보인다.
+    #   ★ lockset 이 비었는데(null = "아직 정하지 않았다") 서빙 yaml 이 수를 싣고 있으면 **불일치로 기재**한다
+    #     (declared=null · declared_state=undetermined) — F1 형태(lockset 은 침묵, yaml 에 손값 8)가 바로 이것이다.
+    #     양쪽 다 비었을 때만 대조 불가다(리뷰 교정 2026-09-14: 종전 초안은 lockset null 을 sweep 을 읽기 전에 대조
+    #     불가로 접어 손값이 provenance_mismatch[] 에 영영 닿지 않았다).
+    for lkey, block, skey, src_key in _LOCKSET_KNOB_COMPARE:
+        declared_k = _as_number(ldoc.get(lkey))
+        observed_raw_k, osrc_k = _sweep_coordinate(Path(sweep_state), cell, skey, block)
+        observed_k = _as_number(observed_raw_k)
+        if observed_k is None:
+            gaps.append(f"{lkey} 대조 불가 — "
+                        + (osrc_k if observed_raw_k is None
+                           else f"서빙 값이 수가 아니다: {observed_raw_k!r} ({osrc_k})")
+                        + ("" if declared_k is not None
+                           else f" · lockset {lkey} 도 수로 잠겨 있지 않다({prov['lockset_source'] or 'lockset 부재'})")
+                        + " (직전 기재 유지)")
+            continue
+        compared.append(lkey)
+        if declared_k is None:
+            fresh.append({"knob": lkey,
+                          "declared": None, "declared_state": "undetermined",
+                          "declared_source": (f"{prov['lockset_source']}#{lkey}" if prov["lockset_source"]
+                                              else "lockset 부재"),
+                          "observed": observed_k, "observed_source": osrc_k,
+                          "lockset_provenance": prov["lockset"],
+                          f"lockset_{src_key}": ldoc.get(src_key)})
+        elif declared_k != observed_k:
+            fresh.append({"knob": lkey,
+                          "declared": declared_k, "declared_source": f"{prov['lockset_source']}#{lkey}",
+                          "observed": observed_k, "observed_source": osrc_k,
+                          "lockset_provenance": prov["lockset"],
+                          f"lockset_{src_key}": ldoc.get(src_key)})
+    # 손레버 batch ↔ explorer 재계산(plan §4.0 Q1 "hand 면 재계산과 대조해 불일치 기재"): explorer 는 손레버를 덮어쓰지
+    #   않고 같은 산식이 냈을 값을 lockset `batch_derivation.derived_batch_would_be` 에 남긴다. yaml↔lockset 대조는
+    #   손레버 셀에서 자명하게 일치하므로(둘 다 손값) 이 대조가 없으면 "손 8 vs KV-fit 64" 가 cell.status 어디에도 없다.
+    if ldoc.get("batch_source") == "hand-lever":
+        der = ldoc.get("batch_derivation") if isinstance(ldoc.get("batch_derivation"), dict) else {}
+        hand_b, would_b = _as_number(ldoc.get("batch")), _as_number(der.get("derived_batch_would_be"))
+        if hand_b is None or would_b is None:
+            gaps.append("batch_hand_lever 대조 불가 — lockset 손레버 batch 또는 explorer 재계산값"
+                        "(batch_derivation.derived_batch_would_be)이 수가 아니다 (직전 기재 유지)")
+        else:
+            compared.append("batch_hand_lever")
+            if hand_b != would_b:
+                fresh.append({"knob": "batch_hand_lever",
+                              "declared": hand_b, "declared_source": f"{prov['lockset_source']}#batch(batch_source=hand-lever)",
+                              "observed": would_b,
+                              "observed_source": f"{prov['lockset_source']}#batch_derivation.derived_batch_would_be",
+                              "observed_source_kind": der.get("derived_batch_source_would_be"),
+                              "lockset_provenance": prov["lockset"]})
     prov["compared"] = compared
     prov["compare_gaps"] = gaps
     kept = [m for m in prior_mismatch if isinstance(m, dict) and m.get("knob") not in compared]
@@ -2295,9 +2373,11 @@ def _selftest() -> int:
         ck("셀 출처 표시가 lockset 에서 옮겨진다(writer 가 직접 읽는다)",
            (_cm.get("provenance") or {}).get("lockset") == "hand-authored"
            and (_cm.get("provenance") or {}).get("lockset_gap") is None)
-        ck("★대조하지 않은 노브는 이름으로 남는다(안 쟀다 ≠ 일치했다 · 단계 ② 슬롯)",
-           set((_cm.get("provenance") or {}).get("pending_knobs") or []) == {"batch", "kv_cache_memory_bytes"}
-           and (_cm.get("provenance") or {}).get("compared") == ["gpu_memory_utilization"])
+        ck("★lockset 에 잠기지 않은 파생 노브는 '일치' 가 아니라 대조 불가로 이름이 남는다(안 쟀다 ≠ 일치했다)",
+           (_cm.get("provenance") or {}).get("pending_knobs") == []
+           and (_cm.get("provenance") or {}).get("compared") == ["gpu_memory_utilization"]
+           and sum(1 for g in (_cm.get("provenance") or {}).get("compare_gaps") or []
+                   if g.startswith(("batch 대조 불가", "kv_cache_memory_bytes 대조 불가"))) == 2)
         _cm = _set_cm(None)
         ck("★sweep 없이 다시 적어도 직전 불일치 기재를 지우지 않는다(부재가 관측을 덮지 않는다)",
            len(_cm.get("provenance_mismatch") or []) == 1)
@@ -2322,6 +2402,100 @@ def _selftest() -> int:
         _sweep_gmu("0.85")
         _cm = _set_cm(str(_swp))
         ck("★다시 대조해 일치하면 그 노브의 기재만 교체된다(0 건)", _cm.get("provenance_mismatch") == [])
+        # ── 단계 ② 슬롯: explorer 파생 노브(batch·KV 클램프) — lockset ↔ 서빙 실물(sweep) 대조 ──────────────
+        _write_json(camp / "cells" / "cm" / "lockset.json",
+                    {"id": "cm", "provenance": "explorer-phase2", "gmu_source": "target_gmu",
+                     "batch": 24, "batch_source": "kv-fit-measured",
+                     "kv_cache_memory_bytes": 21474836480, "kv_source": "measured-clamp"})
+
+        def _sweep_knobs(seqs, kvb):
+            _swp.write_text(json.dumps({"cells": [{"cell_key": "cm", "cell_outcome": "measured",
+                "coordinates": {"gpu_memory_utilization": "0.85", "max_num_seqs": seqs,
+                                "image_digest": "sha256:ccc"},
+                "capacity": {"kv_cache_memory_bytes": kvb},
+                "concurrency_vector": {"1": 5.0}}]}), encoding="utf-8")
+
+        _sweep_knobs("8", "21474836480")
+        _cm = _set_cm(str(_swp))
+        _mm = _cm.get("provenance_mismatch") or []
+        ck("★파생 노브 불일치 기재: 서빙 max-num-seqs 8(손레버) ≠ lockset batch 24 — 출처·어휘 칸과 함께(F1 형태)",
+           len(_mm) == 1 and _mm[0]["knob"] == "batch" and _mm[0]["declared"] == 24 and _mm[0]["observed"] == 8
+           and _mm[0]["declared_source"].endswith("lockset.json#batch")
+           and "coordinates.max_num_seqs" in _mm[0]["observed_source"]
+           and _mm[0]["lockset_batch_source"] == "kv-fit-measured")
+        ck("★파생 노브 대조 목록: gmu·batch·KV 클램프 셋 다 대조했고 대조 불가 0 · pending 0",
+           (_cm.get("provenance") or {}).get("compared")
+           == ["gpu_memory_utilization", "batch", "kv_cache_memory_bytes"]
+           and (_cm.get("provenance") or {}).get("compare_gaps") == []
+           and (_cm.get("provenance") or {}).get("pending_knobs") == [])
+        ck("★파생 노브 불일치도 기재일 뿐 셀 결과를 바꾸지 않는다(차단 ✗)", _cm.get("cell_outcome") == "measured")
+        _sweep_knobs("NA", "21474836480")
+        _cm = _set_cm(str(_swp))
+        ck("★서빙 yaml 에 max-num-seqs 가 없으면(NA) 불일치가 아니라 대조 불가 — 직전 batch 기재는 유지된다(부재 ≠ 일치)",
+           any(g.startswith("batch 대조 불가") for g in (_cm.get("provenance") or {}).get("compare_gaps") or [])
+           and "batch" not in ((_cm.get("provenance") or {}).get("compared") or [])
+           and [m["knob"] for m in _cm.get("provenance_mismatch") or []] == ["batch"])
+        _sweep_knobs("24", "10737418240")
+        _cm = _set_cm(str(_swp))
+        _mm = _cm.get("provenance_mismatch") or []
+        ck("★KV 클램프 불일치 기재(capacity.kv_cache_memory_bytes) · batch 가 일치로 돌아오면 그 기재만 사라진다",
+           len(_mm) == 1 and _mm[0]["knob"] == "kv_cache_memory_bytes" and _mm[0]["observed"] == 10737418240
+           and _mm[0]["lockset_kv_source"] == "measured-clamp")
+        _sweep_knobs("24", "21474836480")
+        _cm = _set_cm(str(_swp))
+        ck("★파생 노브 음성대조: 셋 다 같으면 기재 0 건",
+           _cm.get("provenance_mismatch") == [] and len((_cm.get("provenance") or {}).get("compared") or []) == 3)
+        ck("★각인 여부 기재: explorer-phase2 인데 trial_provenance 가 없으면 self-declared(기계 각인과 가른다)",
+           (_cm.get("provenance") or {}).get("lockset_stamp") == "self-declared"
+           and (_cm.get("provenance") or {}).get("lockset_trial_provenance") is None)
+        _write_json(camp / "cells" / "cm" / "lockset.json",
+                    {"id": "cm", "provenance": "explorer-phase2", "gmu_source": "target_gmu",
+                     "batch": 24, "batch_source": "kv-fit-measured", "trial_provenance": "mock",
+                     "kv_cache_memory_bytes": 21474836480, "kv_source": "measured-clamp"})
+        _cm = _set_cm(str(_swp))
+        ck("★각인 여부 기재: explorer 수렴 각인(trial_provenance=mock)은 machine · mock 이 cell.status 까지 옮겨진다",
+           (_cm.get("provenance") or {}).get("lockset_stamp") == "machine"
+           and (_cm.get("provenance") or {}).get("lockset_trial_provenance") == "mock")
+        # lockset 은 비었는데(null) 서빙 yaml 이 손값을 싣는 F1 형태 — 대조 불가가 아니라 불일치(undetermined)다.
+        _write_json(camp / "cells" / "cm" / "lockset.json",
+                    {"id": "cm", "provenance": "hand-authored", "gmu_source": "target_gmu",
+                     "batch": None, "kv_cache_memory_bytes": 21474836480, "kv_source": "hand"})
+        _sweep_knobs("8", "21474836480")
+        _cm = _set_cm(str(_swp))
+        _mm = _cm.get("provenance_mismatch") or []
+        ck("★lockset batch=null ∧ 서빙 max-num-seqs 8 → 불일치 기재(declared=null · undetermined · F1 형태)",
+           len(_mm) == 1 and _mm[0]["knob"] == "batch" and _mm[0]["declared"] is None
+           and _mm[0]["declared_state"] == "undetermined" and _mm[0]["observed"] == 8
+           and "batch" in ((_cm.get("provenance") or {}).get("compared") or [])
+           and (_cm.get("provenance") or {}).get("lockset_stamp") == "hand")
+        _sweep_knobs("NA", "21474836480")
+        _cm = _set_cm(str(_swp))
+        ck("★음성대조: lockset batch=null ∧ 서빙 max-num-seqs 없음 → 대조 불가(양쪽 부재는 불일치가 아니다) · 직전 기재 유지",
+           any(g.startswith("batch 대조 불가") and "lockset batch 도" in g
+               for g in (_cm.get("provenance") or {}).get("compare_gaps") or [])
+           and [m["knob"] for m in _cm.get("provenance_mismatch") or []] == ["batch"])
+        # 손레버 ↔ explorer 재계산 대조(plan §4.0 Q1).
+        _write_json(camp / "cells" / "cm" / "lockset.json",
+                    {"id": "cm", "provenance": "explorer-phase2", "gmu_source": "target_gmu", "trial_provenance": "mock",
+                     "batch": 8, "batch_source": "hand-lever",
+                     "batch_derivation": {"derived_batch_would_be": 64,
+                                          "derived_batch_source_would_be": "declared-requirement"},
+                     "kv_cache_memory_bytes": 21474836480, "kv_source": "measured-clamp"})
+        _sweep_knobs("8", "21474836480")
+        _cm = _set_cm(str(_swp))
+        _mm = _cm.get("provenance_mismatch") or []
+        ck("★손레버 batch 8 ↔ explorer 재계산 64 → batch_hand_lever 불일치 기재(yaml↔lockset 은 자명 일치)",
+           [m["knob"] for m in _mm] == ["batch_hand_lever"] and _mm[0]["declared"] == 8 and _mm[0]["observed"] == 64
+           and "derived_batch_would_be" in _mm[0]["observed_source"]
+           and _mm[0]["observed_source_kind"] == "declared-requirement"
+           and "batch_hand_lever" in ((_cm.get("provenance") or {}).get("compared") or []))
+        _ld = _read_json(camp / "cells" / "cm" / "lockset.json")
+        _ld["batch_derivation"]["derived_batch_would_be"] = 8
+        _write_json(camp / "cells" / "cm" / "lockset.json", _ld)
+        _cm = _set_cm(str(_swp))
+        ck("★손레버 음성대조: 재계산값이 손값과 같으면 기재 0 건 · 대조 사실은 남는다",
+           _cm.get("provenance_mismatch") == []
+           and "batch_hand_lever" in ((_cm.get("provenance") or {}).get("compared") or []))
         (camp / "cells" / "cm" / "lockset.json").unlink()
         _cm = _set_cm(None)
         ck("★writer 는 lockset 부재를 거부하지 않고 사유로 기재한다(진입 게이트는 precheck 하나)",

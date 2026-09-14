@@ -307,7 +307,7 @@ deps 패치 → 소스-게이트 패치 → 자체 이식 → 포크 SHA 핀 →
 ```text
   weights  +  overhead  +  KV   ≤   메모리 예산 × gpu-memory-utilization
      ↑           ↑          ↑
-     │           │          └ per-token-KV × max-model-len × max-num-seqs
+     │           │          └ per-token-KV × max(max-model-len, 대표 요청 길이 × max-num-seqs)
      │           └ 런타임·CUDA 그래프 등 (모델이 정하는 불변량)
      └ 모델 크기
 
@@ -319,8 +319,8 @@ deps 패치 → 소스-게이트 패치 → 자체 이식 → 포크 SHA 핀 →
 | `overhead` | 모델·런타임이 정하는 불변량 (측정값) |
 | `per-token-KV` | 모델 구조 × **KV 양자화** |
 | `max-model-len` | **사용자 요구** — 위 1) context window |
-| `max-num-seqs` | **측정 산물** — 위 2) concurrency 요구를 받아 실측 near-max 로 확정 |
-| `gpu-memory-utilization` | HW(GPU)의 VRAM에서 사용자가 허용한 한도값(비율 단위) |
+| `max-num-seqs` | **explorer 파생** — `min(위 2) concurrency 요구, KV-fit)` · KV-fit = 엔진이 보고한 KV 토큰(실측) ÷ 대표 요청 길이. 요구가 KV-fit 을 넘으면 KV-fit 으로 낮추고 사유를 남긴다(요구를 지키려면 context·KV 양자화·예산을 바꿔 다시 돈다). 요구를 선언하지 않으면 적지 않는다(vLLM 기본 상한) |
+| `gpu-memory-utilization` | HW(GPU)의 VRAM에서 사용자가 허용한 한도값(비율 단위) — 셀 선언 `target_gpu.target_gmu` 가 곧 배포값이다(`target_gpu` 가 없는 호스트 흐름은 `safety_margin` 값을 이어받고 그 사실을 `gmu_source=hand` 로 표시). 예산 검증 게이트 승수 `safety_margin` 과는 **다른 칸**이다 |
 | `kv-cache-memory-bytes` | **결정되는 산출값**(**절대 바이트**) — 외부 이식 시 필요정보 |
 
 > ⚠️ **weight 양자화**는 로드하는 모델의 양자화 정보 기준, **KV 양자화**는 모델 서빙 CLI 플래그를 통해서 결정
@@ -345,7 +345,8 @@ deps 패치 → 소스-게이트 패치 → 자체 이식 → 포크 SHA 핀 →
 | `envs/.env.<model>` | **환경** — `SERVING_PORT` · `SERVING_MODEL_NAME` · `CONFIG_FILE` · 컨테이너명 · 그리고 변종이면 `VARIANT` 한 줄 |
 
 `.yaml` 을 열면 §3 도입의 부등식이 그대로 값으로 앉아 있습니다 — `kv-cache-memory-bytes` 는 수렴된
-절대 바이트, `max-num-seqs` 는 실측 near-max. **공식이 아니라 측정이 채운 자리**입니다.
+절대 바이트, `max-num-seqs` 는 선언한 동시성 요구와 실측 KV-fit 중 작은 값. **공식이 아니라 측정이 채운 자리**이고,
+그 출처(`batch_source`·`gmu_source`·`kv_source`)는 셀 `lockset.json` 에 익스플로러가 직접 적습니다.
 
 > 🔒 **모델 트리플렛은 서브 노드로 전파되지 않으며,** 워커 노드도 자체 서빙전략을 기동해 HW환경에 최적화된 트리플렛을 자체 생산합니다.
 

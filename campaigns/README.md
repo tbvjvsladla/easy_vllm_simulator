@@ -92,21 +92,28 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
 | **선언** | 사람(계획 인터뷰) — 적는 것이 정당하다 | context 길이 · 변종 · PLE 모드 · KV dtype · TP · 통제변인 · **동시성 요구**(`concurrency_requirement`) · **KV-fit 대표 요청 길이**(`typical_request_tokens`) · 타겟 gmu(`target_gpu.target_gmu`) | `cells/<cell>/config.yaml` 의 `declared_axes:` 블록 + `target_gpu` |
 | **explorer 파생** | `vllm-recipe-explorer` — 측정·재조정한다 | max-num-seqs · KV 클램프(`kv-cache-memory-bytes`) · 서빙 yaml `gpu-memory-utilization` | `cells/<cell>/lockset.json` (+ 생성된 3종 세트) |
 
-- **`declared_axes` 는 explorer 의 입력 슬롯이지 서빙 인자가 아니다.** 지금은 **선언 슬롯일 뿐 읽는
-  코드가 없다** — 소비자(explorer 의 `max-num-seqs = min(concurrency_requirement, KV-fit)` 산식 ·
-  `declared_axes.tp` ↔ manifest 대조)는 plan_26091407 단계 ② 에서 배선된다. `declared_axes.tp` 는 선언이고,
-  TP 의 권위는 여전히 manifest 다 — 둘이 다르면 선언이 틀린 것이다. 통제변인(layer-1)의 정본은
-  `campaign.yaml` 이며 셀은 자기 스윕의 통제변인 문장만 적는다(복제하지 않는다).
+- **`declared_axes` 는 explorer 의 입력 슬롯이지 서빙 인자가 아니다.** 읽는 코드는 `recipe.py simulate` 다
+  (2026-09-14 · plan_26091407 단계 ②): `concurrency_requirement`·`typical_request_tokens` 는
+  `max-num-seqs = min(concurrency_requirement, KV_fit@typical_request_tokens)` 산식의 입력이고(요구 null·부재면 batch 를
+  산출하지 않는다 — max-num-seqs 미emit · KV-fit 은 참고값 · 대표 길이 null 은 `max_model_len` 으로 보수 산정 — 대체 사실은 lockset
+  `batch_derivation` 에 적힌다),
+  `declared_axes.tp` 는 해소 TP 와 대조해 **기재만** 한다(lockset `declared_axes_check` · 차단 ✗). 나머지 축(context 길이 ·
+  변종 · PLE 모드 · KV dtype · 통제변인)은 아직 **읽는 코드가 없는 선언**이다 — 셀 lockset·서빙 인자가 따로 든다.
+  `declared_axes.tp` 는 선언이고, TP 의 권위는 여전히 manifest 다 — 둘이 다르면 선언이 틀린 것이다. 통제변인(layer-1)의
+  정본은 `campaign.yaml` 이며 셀은 자기 스윕의 통제변인 문장만 적는다(복제하지 않는다).
 - **`declared_axes` 의 빈칸도 계약이다** — `--instance` 검증은 배정 셀 config 에 남은 `<<FILL>>` 을
   막는다(위 §채우기 규칙). 모르는 값을 그럴듯하게 채우지 않는다: 요구가 없는 축(lite 만 재는 셀의
   `concurrency_requirement`·`typical_request_tokens` 등)은 `null` 로 **"선언하지 않았다"** 를 적는다.
 - **lockset 의 `provenance` 는 필수 표시다** — `explorer-phase2`(explorer Phase-2 절차가 잠갔다) 또는
-  `hand-authored`(그 절차 밖에서 사람이 적었다). 뼈대에서는 `<<FILL>>` 로 출발한다. ⚠ **지금 이 값을
-  각인하는 코드는 없다** — `recipe.py` 는 lockset 을 읽기만 하고, 표시는 Phase-2 lockset 을 저작하는 쪽이
-  적는 **절차 자기선언**이다. 그래서 `explorer-phase2` 는 아직 `hand-authored` 와 기계적으로 구분되지
-  않는다(explorer 경로의 기계 각인은 plan_26091407 단계 ② 의 `recipe.py` 편집 범위 · 후속). 예외 노브는
-  `*_source` 로 값의 출처를 가른다: `batch_source` ∈ {`declared-requirement`, `kv-fit-measured`,
-  `hand-lever`} · `gmu_source` ∈ {`target_gmu`, `hand`} · `kv_source` ∈ {`measured-clamp`, `hand`}. null 은
+  `hand-authored`(그 절차 밖에서 사람이 적었다). 뼈대에서는 `<<FILL>>` 로 출발한다. **실행자**: `recipe.py simulate` 가
+  셀 lockset 을 `--candidate` 로 받아 수렴하면 그 파일에(`--lockset-out` 생략 가능 — 캠페인 셀 lockset 이면 제자리가 기본)
+  `provenance=explorer-phase2` 와 예외 노브의 `*_source`·`trial_provenance`(measured|mock|dry-run)를 **기계 각인**한다
+  (2026-09-14 · plan_26091407 단계 ② — 그 전까지 이 표시는 절차 자기선언뿐이었다). 아직 트라이얼을 거치지 않은 lockset
+  (인터뷰 산물 포함)은 `hand-authored` 로 출발하고 수렴 각인이 바꾼다. `trial_provenance` 없이 `explorer-phase2` 만 적힌
+  lockset 은 절차 자기선언이다 — `--cell-set` 이 `provenance.lockset_stamp`(machine|self-declared|hand)와
+  `lockset_trial_provenance` 로 가른다(기재). 예외 노브는 `*_source` 로 값의 출처를 가른다:
+  `batch_source` ∈ {`declared-requirement`, `kv-fit-measured`, `hand-lever`} · `gmu_source` ∈ {`target_gmu`, `hand`} ·
+  `kv_source` ∈ {`measured-clamp`, `hand`}. null 은
   "아직 정하지 않았다"이다. 어휘 정본은 검증기 상수이고 뼈대의 `_*_enum` 은 교차검증되는 안내 사본이다.
 - **막는 자리는 하나다**: `broad_search.sh cell` 이 측정 진입에서 lockset 부재·`provenance` 부재·목록 밖
   값을 exit 2 로 거부한다(셀 materialize 는 explorer 소관 · 스윕 셀 키가 캠페인 셀 id 와 갈라지면 그 이름의
@@ -118,10 +125,14 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
   "출처 표시 없음" 이 아니라 **판정 불가**로 따로 알리고 역시 exit 2 다 — 그때 lockset 라벨을 고치지 않는다.
 - **불일치는 기재한다(차단 ✗)**: `--cell-set` 이 서빙 yaml gmu(sweep 좌표)와 선언 `target_gmu` 가 다르면
   `cell.status.provenance_mismatch[]` 에 양쪽 값·출처를 적는다. 이번 호출에서 대조하지 못한 노브(좌표
-  NA·PyYAML 부재·sweep 없음)는 **직전 기재를 유지**한다(부재 ≠ 일치). 아직 대조 수단이 없는 노브(batch·KV
-  클램프 — explorer 재계산 산식이 들어오면 채운다)는 `provenance.pending_knobs[]` 에 이름으로 남는다 —
-  목록에 없는 노브를 "일치"로 읽지 않는다. 메인 인스턴스에 회수 편입된 서브 배정 셀은
-  `provenance.observability=not_observable` 이다(부재가 아니라 관측 불가 — 메인은 서브 인스턴스를 읽지 않는다).
+  NA·PyYAML 부재·sweep 없음)는 **직전 기재를 유지**한다(부재 ≠ 일치). explorer 파생 노브도 같은 자리에서 대조한다
+  (2026-09-14 · 단계 ②): lockset `batch` ↔ 서빙 yaml `max-num-seqs`(sweep `coordinates.max_num_seqs`) · lockset
+  `kv_cache_memory_bytes` ↔ 서빙 클램프(sweep `capacity.kv_cache_memory_bytes`) · 손레버 batch ↔ explorer 재계산
+  (`batch_hand_lever` — lockset `batch_derivation.derived_batch_would_be`). lockset 쪽이 비었는데(null = "아직 정하지
+  않았다") 서빙이 수를 실으면 `declared=null`·`declared_state=undetermined` **불일치**로 적고(손값이 lockset 밖에서 들어온
+  F1 형태), 양쪽 다 비었을 때만 **대조 불가**로 적는다. 대조 수단이 없는 노브가 생기면
+  `provenance.pending_knobs[]` 에 이름으로 남는다(지금은 비어 있다) — 목록에 없는 노브를 "일치"로 읽지 않는다.
+  메인 인스턴스에 회수 편입된 서브 배정 셀은 `provenance.observability=not_observable` 이다(부재가 아니라 관측 불가 — 메인은 서브 인스턴스를 읽지 않는다).
 - **메인이 관측할 수 있는 배정 셀의 표시 전수는 합격 술어 P6 가 관측한다**(`campaign_template_validator
   --acceptance`) — purge 선행조건이 아니다. 표시가 빠진 셀이 다음 캠페인을 영원히 막으면 그것은
   안전장치가 아니라 교착이다. 메인 인스턴스의 서브 배정 셀은 P6 적색 대상이 아니고(서브 진입 precheck 가

@@ -22,13 +22,22 @@
 #   로드 게이트에 상주분으로 넣으면 그만큼 과보수적으로 틀려 뜰 수 있는 셀을 죽인다. 3+1+1 슬롯
 #   판정과 같은 물음이다 — **"무엇을 고치나" 가 아니라 "언제 성립해야 하나"**.
 #
+# ★ `--declared-gmu`(2026-09-14 · plan_26091407 §4.3 · 사용자 결정 Q2·Q9)은 **기재 전용**이다. 서빙 yaml 의
+#   gpu-memory-utilization 을 받아 `expected_vllm_share = gmu × MemTotal` 과 `residual = share − weights − kv` 를
+#   provenance=declared 로 **병기**할 뿐, arm 산식·declare_ok·bench_ok·종료코드에는 들어가지 않는다(게이트 ✗).
+#   왜 게이트가 아닌가: vLLM 소스상 kv-cache-memory-bytes 를 주면 gmu 가 관여하는 자리는 기동 전 `free ≥ ceil(total×gmu)`
+#   검사이고 총량 캡을 거는 코드는 없다(`gpu_worker.determine_available_memory`·`utils.request_memory`). 그런데 0.85→0.80 이
+#   5,562MiB 를 연 관측(총량 cap 처럼 작용)은 사실이라 기전이 미확정이다 — **기재가 먼저, 게이트는 실측이 쌓인 뒤**다
+#   (plan_26091407 F5·R4).
+#
 # 사용: budget_preflight.py --mem-total-mib N --ckpt-mib N --kv-mib N --overhead-mib N --tp N
-#         [--ple-mib N] [--ple-mmap] [--bench-budget-mib N] [--json]
+#         [--ple-mib N] [--ple-mmap] [--bench-budget-mib N] [--declared-gmu G] [--json]
 #       budget_preflight.py --self-test
 # 종료: 0=통과 · 4=선언 불가(로드 차단) · 5=벤치 진입 불가 · 2=인자 오류
 import argparse
 import json
 import os
+import re
 import sys
 
 # ★ 노드 도구는 **소유자 정본 → 서브 런타임 배달분** 순으로 찾는다(2026-09-11 서브 라이브 교정).
@@ -125,6 +134,32 @@ def preflight(mem_total_mib, weights_mib, kv_mib, overhead_mib, bench_budget_mib
         "abs_band_mib": abs_band,
         "reasons": reasons,
     }
+
+
+def declared_gmu_row(declared_gmu, mem_total_mib=None, weights_mib=None, kv_mib=None):
+    """`--declared-gmu` 기재 행. 순수 함수 — **판정에 쓰지 않는다**(호출부는 이 행을 출력에 덧붙이기만 한다).
+
+    status: recorded(산출) · invalid(0 < gmu ≤ 1 밖 — 멈추지 않고 사실로 적는다) · not_applicable(벤치 진입
+    경로 — weights·kv 입력이 없어 몫·잔차를 물을 수 없다). 멈추지 않는 이유: 이 행이 종료코드를 바꾸면
+    기재가 게이트로 격상되고, 호출부(서빙 스모크)에 실패 경로가 새로 생긴다.
+    """
+    row = {"provenance": "declared", "gmu": float(declared_gmu), "status": "recorded",
+           "mem_total_mib": None, "expected_vllm_share_mib": None, "weights_mib": None, "kv_mib": None,
+           "residual_mib": None,
+           "note": ("기재 전용(게이트 ✗) — kv 클램프 시 vLLM 은 gmu 를 기동 전 free ≥ ceil(total×gmu) 검사에만 쓴다"
+                    "(총량 캡 코드는 소스에 없고 캡처럼 작용한 관측만 있다 · 기전 미확정 · plan_26091407 F5). "
+                    "residual = 예상 몫 − weights − kv")}
+    if not (0.0 < float(declared_gmu) <= 1.0):
+        row.update(status="invalid", note="gmu 는 (0, 1] 이어야 한다 — 산출하지 않고 사실만 적는다(기재 · 차단 ✗)")
+        return row
+    if mem_total_mib is None or weights_mib is None or kv_mib is None:
+        row.update(status="not_applicable",
+                   note="벤치 진입 경로(선언된 바닥 사용)는 weights·kv 입력이 없다 — 몫·잔차를 묻지 않는다")
+        return row
+    share = int(float(declared_gmu) * int(mem_total_mib))
+    row.update(mem_total_mib=int(mem_total_mib), expected_vllm_share_mib=share, weights_mib=int(weights_mib),
+               kv_mib=int(kv_mib), residual_mib=share - int(weights_mib) - int(kv_mib))
+    return row
 
 
 def _self_test():
@@ -234,6 +269,84 @@ def _self_test():
        and _ETA_CANDIDATES[0].endswith(os.path.join("terraforming_node", "scripts", "node_blackbox"))
        and _ETA_CANDIDATES[1].endswith(os.path.join(".claude", "runtime", "node_blackbox")))
 
+    # ── --declared-gmu 기재 행 (2026-09-14 · plan_26091407 §4.3 · §7 O3) ─────────────────────────
+    #   두 가지를 친다: ① 기재 행이 실제 CLI 출력에 선다 ② **인자 유무로 기존 출력이 바이트 단위로 같다**
+    #   (arm 산식·기존 필드·종료코드). ②가 깨지면 기재가 판정을 흔든 것이다. CLI 를 그대로 돌린다 —
+    #   함수만 부르면 main() 의 출력 조립(키 순서·텍스트 줄)이 증명되지 않는다.
+    import subprocess as _sp
+
+    def _cli(*argv):
+        p = _sp.run([sys.executable, os.path.abspath(__file__), *argv], capture_output=True, text=True,
+                    timeout=60)
+        return p.returncode, p.stdout
+
+    w_res, _ = resident_weights_mib(CKPT["nv4"], TP, PLE, False)
+    for label, w_case in (("통과 구성 nv4+res", w_res), ("차단 구성 fp8+res", CKPT["fp8"] // TP)):
+        base = ("--mem-total-mib", str(MEM), "--weights-mib", str(w_case), "--kv-mib", str(KV),
+                "--overhead-mib", str(OH))
+        rc0, j0 = _cli("--json", *base)
+        rc1, j1 = _cli("--json", *base, "--declared-gmu", "0.85")
+        d0, d1 = json.loads(j0), json.loads(j1)
+        row = d1.get("declared_gmu_row") or {}
+        ck("★기재 %s: 기재 행이 선다(provenance=declared · 예상 몫 = gmu×MemTotal · 잔차 = 몫−weights−kv)" % label,
+           row.get("provenance") == "declared" and row.get("status") == "recorded"
+           and row.get("expected_vllm_share_mib") == int(0.85 * MEM)
+           and row.get("residual_mib") == int(0.85 * MEM) - w_case - KV, "→ %s" % row)
+        ck("★기재 %s: 인자 유무로 종료코드·기존 JSON 필드가 바이트 동일(arm 산식 불변 · 게이트 ✗)" % label,
+           rc0 == rc1 and "declared_gmu_row" not in d0
+           and json.dumps({k: v for k, v in d1.items() if k != "declared_gmu_row"}, ensure_ascii=False)
+           == j0.strip(), "→ rc %s/%s" % (rc0, rc1))
+        rc2, t0 = _cli(*base)
+        rc3, t1 = _cli(*base, "--declared-gmu", "0.85")
+        ck("★기재 %s: 텍스트 출력은 기존 바이트가 그대로 앞에 서고 기재 줄 1행만 뒤에 붙는다" % label,
+           rc2 == rc3 and t1.startswith(t0) and t1[len(t0):].count("\n") == 1
+           and "declared-gmu" in t1[len(t0):], "→ tail=%r" % t1[len(t0):])
+    rc4, j4 = _cli("--json", "--mem-total-mib", str(MEM), "--weights-mib", str(w_res), "--kv-mib", str(KV),
+                   "--overhead-mib", str(OH), "--declared-gmu", "1.5")
+    ck("★기재 음성대조: 범위 밖 gmu 는 멈추지 않고 invalid 로 적는다(종료코드 불변 — 실패 경로 신설 ✗)",
+       rc4 == 0 and (json.loads(j4).get("declared_gmu_row") or {}).get("status") == "invalid", "→ rc=%s" % rc4)
+    rc5, j5 = _cli("--json", "--floor-mib", "30000", "--bench-budget-mib", "8192", "--declared-gmu", "0.85")
+    ck("★기재: 벤치 진입 경로(바닥 선언)에서는 not_applicable 로 적는다(몫·잔차를 지어내지 않는다)",
+       rc5 == 0 and (json.loads(j5).get("declared_gmu_row") or {}).get("status") == "not_applicable",
+       "→ rc=%s %s" % (rc5, j5))
+    rc6, t6 = _cli("--floor-mib", "30000", "--bench-budget-mib", "8192", "--declared-gmu", "0.85")
+    ck("★기재 텍스트: 산출하지 않은 행(not_applicable)은 None 산술을 찍지 않고 사유만 싣는다",
+       rc6 == 0 and "status=not_applicable" in t6 and "None" not in t6, "→ %r" % t6)
+    if os.path.isfile(_mn):
+        body = open(_mn, encoding="utf-8").read()
+        # 배선: 호출부가 **함수 산출**을 인자로 넘기고 기재 줄을 찍는다(코드 토큰).
+        ck("★기재 배선 앵커: 멀티 선판정 호출부가 서빙 yaml gmu 를 --declared-gmu 로 넘긴다",
+           '_DECL_GMU="$(_yaml_declared_gmu "output/multi/configs/${CONFIG}.yaml")"' in body
+           and '_DECL_GMU_ARGS=(--declared-gmu "$_DECL_GMU")' in body and "declared_gmu_row" in body)
+        # 추출: 문자열 앵커는 정규식·경로가 깨져도 초록이다 — 함수 **본문을 그대로** bash 로 실행해 픽스처로 친다.
+        _fn = re.search(r"^_yaml_declared_gmu\(\)\{.*?^\}$", body, re.MULTILINE | re.DOTALL)
+        ck("★기재 추출 함수가 스모크에 실재한다(_yaml_declared_gmu)", _fn is not None)
+        if _fn is not None:
+            import tempfile as _tf
+            cases = (
+                ("수치", "model: x\ngpu-memory-utilization: 0.85\nmax-model-len: 8192\n", "0.85"),
+                ("따옴표+주석", "gpu-memory-utilization: \"0.8\"   # 손 편집\n", "0.8"),
+                ("밑줄 키", "gpu_memory_utilization: 0.9\n", "0.9"),
+                ("주석 줄만(생성기 설명 주석)", "# gpu-memory-utilization = startup free-memory 게이트\n", ""),
+                ("키 부재", "model: x\nmax-model-len: 8192\n", ""),
+                ("비수치", "gpu-memory-utilization: auto\n", ""),
+                ("점 두 개", "gpu-memory-utilization: 0.8.5\n", ""),
+                ("첫 줄만(중복 키)", "gpu-memory-utilization: 0.7\ngpu-memory-utilization: 0.9\n", "0.7"),
+            )
+            with _tf.TemporaryDirectory(prefix="pf_yaml_gmu_") as td:
+                for label, text, want in cases:
+                    fx = os.path.join(td, "c.yaml")
+                    with open(fx, "w", encoding="utf-8") as fh:
+                        fh.write(text)
+                    p = _sp.run(["bash", "-c", 'set -uo pipefail\n%s\n_yaml_declared_gmu "$1"' % _fn.group(0),
+                                 "_", fx], capture_output=True, text=True, timeout=30)
+                    ck("★기재 추출(%s) → %r" % (label, want), p.returncode == 0 and p.stdout == want,
+                       "→ rc=%s out=%r err=%r" % (p.returncode, p.stdout, p.stderr[-200:]))
+                p = _sp.run(["bash", "-c", 'set -uo pipefail\n%s\n_yaml_declared_gmu "$1"' % _fn.group(0),
+                             "_", os.path.join(td, "absent.yaml")], capture_output=True, text=True, timeout=30)
+                ck("★기재 추출(파일 부재) → 빈 문자열 · 실패 경로 없음", p.returncode == 0 and p.stdout == "",
+                   "→ rc=%s out=%r" % (p.returncode, p.stdout))
+
     m, mc, ab = constants()
     ck("상수를 정본에서 읽는다(거울 ✗)", (m, mc, ab) == (3072, 8192, 10240),
        "→ %s" % ((m, mc, ab),))
@@ -254,6 +367,16 @@ def _emit(a, out):
              "n/a" if out["bench_ok"] is None else ("OK" if out["bench_ok"] else "BLOCK")))
     for r in out["reasons"]:
         print("  - %s" % r)
+    row = out.get("declared_gmu_row")
+    if row is not None:   # 기재 행은 **맨 뒤 한 줄** — 인자가 없을 때의 출력 바이트를 그대로 둔다
+        if row["status"] == "recorded":
+            print("  ⓘ declared-gmu 기재(게이트 ✗ · provenance=%s · status=%s): gmu=%s × MemTotal %sMiB = 예상 vLLM 몫 "
+                  "%sMiB · 잔차(몫 − weights − kv) %sMiB"
+                  % (row["provenance"], row["status"], row["gmu"], row["mem_total_mib"],
+                     row["expected_vllm_share_mib"], row["residual_mib"]))
+        else:   # 산출하지 않은 행에 None 산술을 찍지 않는다 — 사유 문장만 싣는다(리뷰 교정 2026-09-14)
+            print("  ⓘ declared-gmu 기재(게이트 ✗ · provenance=%s · status=%s): gmu=%s — %s"
+                  % (row["provenance"], row["status"], row["gmu"], row["note"]))
 
 
 def main():
@@ -270,6 +393,8 @@ def main():
     ap.add_argument("--bench-budget-mib", type=int, default=0)
     ap.add_argument("--floor-mib", type=int,
                     help="이미 선언된 바닥(벤치 진입 게이트용 — 바닥을 재산출하지 않는다)")
+    ap.add_argument("--declared-gmu", type=float, default=None,
+                    help="서빙 yaml 의 gpu-memory-utilization — 예상 vLLM 몫·잔차를 **기재만** 한다(게이트 ✗)")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
     if a.self_test:
@@ -279,6 +404,8 @@ def main():
         out = preflight(0, 0, 0, 0, a.bench_budget_mib, floor_mib=a.floor_mib)
         out["weights_mib"] = None
         out["ple_applied_mib"] = None
+        if a.declared_gmu is not None:
+            out["declared_gmu_row"] = declared_gmu_row(a.declared_gmu)
         _emit(a, out)
         sys.exit(0 if out["bench_ok"] is not False else 5)
     for name in ("mem_total_mib", "kv_mib", "overhead_mib"):
@@ -296,6 +423,9 @@ def main():
     out = preflight(a.mem_total_mib, weights, a.kv_mib, a.overhead_mib, a.bench_budget_mib)
     out["weights_mib"] = weights
     out["ple_applied_mib"] = applied
+    if a.declared_gmu is not None:
+        # 판정(out 의 기존 필드·종료코드)이 확정된 **뒤에** 덧붙인다 — 기재가 판정에 닿을 순서가 없다.
+        out["declared_gmu_row"] = declared_gmu_row(a.declared_gmu, a.mem_total_mib, weights, a.kv_mib)
     _emit(a, out)
     if not out["declare_ok"]:
         sys.exit(4)

@@ -7,20 +7,29 @@
 
 ```bash
 # 배선/수렴 검증(docker 없이): mock-profile 의 vllm_profile+functional 로 결정론 테스트.
+#   수렴 각인은 run_summary.json 에만 남는다(캠페인 밖 lockset 은 --lockset-out 없이는 덮어쓰지 않는다).
 python3 recipe.py simulate --config config.yaml --candidate lockset.json \
   --dry-run --mock-profile mock.json --run-id 2026062122_1_qwen_sim --cap 3
 
-# 실서빙(컨테이너 띄움): NAS 모델 존재 전제.
-python3 recipe.py simulate --config config.yaml --candidate lockset.json \
+# 실서빙(컨테이너 띄움): NAS 모델 존재 전제. 각인한 lockset 을 남길 자리를 --lockset-out 으로 준다.
+python3 recipe.py simulate --config config.yaml --candidate lockset.json --lockset-out lockset.json \
   --image vllm-src-022:clean --topic qwen36-27b --cap 3
+
+# 캠페인 셀: 자리를 파생하고(campaign_init.py --derive config|lockset --cell <id>) 셀 lockset 을 --candidate 로 주면
+#   --lockset-out 을 생략해도 수렴 각인(provenance=explorer-phase2 · *_source · trial_provenance)이 그 파일에 쓰인다.
+python3 recipe.py simulate --config "$(python3 campaign_init.py --derive config --cell <id>)" \
+  --candidate "$(python3 campaign_init.py --derive lockset --cell <id>)" --topic <id> --cap 3
 ```
 
 루프(cap 기본 3 = reconciliation_cap, workflow S3 와 동일):
 
 ```text
 run_trial(candidate)            # docker run -d → /health 200 폴링 → functional_smoke → logs → parse_vllm_log → teardown
-  → sim_classify(trial, budget, margin)
-      none           → 수렴. gen_recipe_set 3종 세트 + simlog write_summary + feedback(converged=True, 실측)
+  → sim_classify(trial, budget, gate_margin[, typical_request_tokens])   # gate_margin=safety_margin (배포 gmu 아님 · plan_26091407 §4.3)
+      none           → 측정 트라이얼이면: batch 산출(min(요구, KV-fit) · 요구 없으면 미정) → 클램프 산정(required ≤ 천장 budget × deploy_gmu) → 재검증 트라이얼
+                       잠정 클램프(batch 산출 전 vram_oom 분) 트라이얼이면: 배포 천장 환산 KV-fit 으로 batch 산출 → 클램프 재산정 → 재검증
+                       클램프 트라이얼 batch > 엔진 KV-fit → adjust_target=batch 로 낮춰 재검증(실패 아님 · 산식 재조정)
+                       그 외 → 수렴. gen_recipe_set 3종 세트 + lockset 각인(--lockset-out · 캠페인 셀 lockset 이면 기본) + simlog write_summary + feedback(converged=True, 실측)
                        → 최종 serve-up 후 §2 마무리(lite 벤치 자동 핸드오프 · opt-out 경고 1줄 · 용처 팝업/유지·down)
       vram_oom       → 조정: kv_cache_memory_bytes = min(required, max_safe)  [실측 weights/overhead 기반]
       functional     → 조정: 실패한 soft 변수를 *_candidates 다음 후보로 폴백

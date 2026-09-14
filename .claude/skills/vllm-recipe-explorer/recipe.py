@@ -18,6 +18,7 @@ CLI 예:
 """
 
 import argparse
+import copy
 import json
 import os
 import re
@@ -298,14 +299,25 @@ def resolve_target_gpu_budget(cfg, tp):
     """target_gpu 블록(config-time 의도, §4.1) → (per_card_vram_gib, target_gmu, gpu_model).
 
     산정식(§4.2): kv_clamp_perGPU = per_card_VRAM×target_gmu − weights_total/TP − overhead_total/TP.
-    이 함수는 (budget_gib, margin) 만 해소한다 — `/TP` 분할은 `_resolve_clamp_kv(tp_divisor=tp)` 가 적용.
+    이 함수는 (budget_gib, deploy_gmu) 만 해소한다 — `/TP` 분할은 `_resolve_clamp_kv(tp_divisor=tp)` 가 적용.
+    ★ 반환 둘째 값은 **배포 gmu**(deploy_gmu = safe_gmu 의 정본)이지 예산 검증 게이트 승수가 아니다
+      (2026-09-14 · plan_26091407 §4.3 · Q2·Q9). 게이트 승수는 config.safety_margin(gate_margin)이고
+      둘을 가르는 자리는 호출부 `_gpu_roles` 다. 종전 호출부는 이 값을 `margin` 한 변수로 받아
+      게이트 천장·클램프 산식·배포 yaml gmu 를 한꺼번에 움직였다(F4 — 셀 config 10개가 전부 (0.90, 0.85) 쌍).
     통합메모리 타겟은 target_gmu>0.90 을 0.90 으로 하드클램프+경고(§4.4). discrete 는 in-scope·하드클램프 없음.
+    target_gmu 미선언은 **fail-loud** 다 — 종전 기본 0.90 은 선언처럼 보이는 상수였고, 배포 gmu 에는
+    실측 통로가 없으므로 헌법 순서(선언 > 실측 > fail-loud)상 남는 것은 멈추는 것뿐이다.
     """
     tgt = cfg.get("target_gpu") or {}
     gpu_model = tgt.get("gpu_model")
     if not gpu_model:
         _die("config.target_gpu.gpu_model 누락(타겟 GPU 이식 경로엔 필수 — plan_26070809_47_07 §4.1)")
-    target_gmu = float(tgt.get("target_gmu", 0.90))
+    if tgt.get("target_gmu") is None:
+        _die("config.target_gpu.target_gmu 누락 — 배포 gmu(safe_gmu)의 정본이며 기본값을 두지 않는다"
+             "(2026-09-14 · plan_26091407 §4.3). 타겟에서 돌 gpu-memory-utilization 을 선언하라"
+             "(통합메모리 타겟은 ≤ 0.90). 예산 검증 게이트 승수는 별개 칸 config.safety_margin 이다.",
+             code=5)
+    target_gmu = float(tgt["target_gmu"])
     per_card_vram_gib = tgt.get("per_card_vram_gib")
     looked_up, is_unified = _lookup_gpu_spec(gpu_model)
     if per_card_vram_gib is None:
@@ -342,6 +354,220 @@ def _target_tp(cfg, repo_root):
     nodes = man.get("nodes") or []
     node_count = max(1, len(nodes))
     return cards_per_node * node_count
+
+
+# host 흐름 simulate: 선언 예산(vram_budget_gb)과 노드 per_card_vram 이 "같은 값" 으로 읽히는 허용오차.
+#   국소 상수(이 판정에서만 쓴다). GB 표기와 GiB 실측의 반올림(예: 120 vs 121.69 = 1.4%)은 통과시키고
+#   carve-out(24 vs 121.69)은 가른다.
+_HOST_BUDGET_MATCH_TOLERANCE = 0.05
+
+
+def _host_target_gpu(cfg, repo_root):
+    """host 흐름(target_gpu 미정의) → **이 노드의 사실로** target_gpu 블록을 채운다(host == target).
+
+    2026-09-14(plan_26091407 §4.3): 두 흐름이 같은 해소 경로(`resolve_target_gpu_budget`)를 타게 한다.
+    종전 host 흐름은 `vram_budget_gb × safety_margin` 을 KV 천장으로, safety_margin 을 배포 gmu 로 썼고
+    타겟 흐름은 per_card_vram × target_gmu 를 썼다 — 같은 물음(배포 gmu 와 그 예산)에 답이 둘이었다.
+    이 함수는 **관측 HW 사실 평면**(manifest)을 읽는다. config-time 의도 평면인
+    `resolve_target_gpu_budget` 은 여전히 그 평면을 읽지 않는다(KV_ABSOLUTE_CLAMP_PORTABILITY C4 분리 유지).
+
+    칸별 해소(선언 > 실측·참조 > fail-loud — 추측하지 않는다):
+      · gpu_model      = manifest `gpu_model`
+      · per_card_vram  = 통합메모리(references.md 헤더)면 `_resolve_device_total_gib`(선언 test_device_total_gib
+                         > /proc/meminfo) · 그 외는 선언 test_device_total_gib > references.md §4 역룩업
+      · target_gmu     = config.safety_margin **명시값 승계** — host 흐름에는 target_gmu 칸이 없다.
+                         승계 사실은 호출부가 lockset `gmu_source` 와 stderr 에 표시한다(침묵 폴백 ✗).
+                         명시값이 없으면 멈춘다(기본값 0.90 을 배포 gmu 로 쓰지 않는다)
+      · cards_per_node = manifest `gpus_per_node`
+    반환: (block, sources) — sources 는 칸마다 값의 출처 문장이다(§결정론 규율 출처 표시).
+    """
+    man, mpath, _topo = _read_manifest(repo_root)
+    gpu_model = str(man.get("gpu_model") or "").strip().strip('"')
+    if not gpu_model:
+        _die("host 흐름(target_gpu 미정의)인데 manifest(%s) 에 gpu_model 이 없다 — 이 노드 GPU 의 per-card "
+             "VRAM·통합메모리 여부를 정할 근거가 없다(추측 ✗). terraforming_node 스캔으로 채우거나 "
+             "config.target_gpu 블록을 선언하라(plan_26091407 §4.3)." % mpath, code=5)
+    looked_up, is_unified = _lookup_gpu_spec(gpu_model)
+    declared_total = cfg.get("test_device_total_gib")
+    if is_unified:
+        per_card, per_card_src = _resolve_device_total_gib(cfg)
+        per_card_src = "통합메모리(references.md 헤더) → " + per_card_src
+    elif declared_total:
+        per_card, per_card_src = float(declared_total), "declared(config test_device_total_gib)"
+    elif looked_up is not None:
+        per_card, per_card_src = float(looked_up), "references.md §4 역룩업(gpu_model=%s)" % gpu_model
+    else:
+        _die("host 흐름: gpu_model=%r 의 per-card VRAM 을 정할 수 없다 — references.md §4 미등재 · 통합메모리 "
+             "표지 없음 · config.test_device_total_gib 미선언. 셋 중 하나를 채워라(호스트 RAM 을 VRAM 으로 "
+             "가정하지 않는다)." % gpu_model, code=5)
+    if cfg.get("safety_margin") is None:
+        _die("host 흐름: 배포 gmu 를 정할 선언이 없다 — config.target_gpu.target_gmu(타겟 흐름)도 "
+             "config.safety_margin 명시값(host 흐름 승계)도 없다. 기본값 0.90 을 배포 gmu 로 쓰지 않는다"
+             "(2026-09-14 · plan_26091407 §4.3).", code=5)
+    block = {"gpu_model": gpu_model, "per_card_vram_gib": float(per_card),
+             "target_gmu": float(cfg["safety_margin"]),
+             "cards_per_node": _manifest_gpus(man, mpath)}
+    sources = {"gpu_model": "manifest.gpu_model",
+               "per_card_vram_gib": per_card_src,
+               "target_gmu": ("config.safety_margin 승계(host 흐름 — target_gpu.target_gmu 칸이 없다 · "
+                              "gate_margin 과 같은 값을 배포에 쓴다)"),
+               "cards_per_node": "manifest.gpus_per_node"}
+    return block, sources
+
+
+def _gpu_roles(cfg, tp, repo_root):
+    """gmu 의 두 역할을 **가른다**(2026-09-14 · plan_26091407 §4.3 · 사용자 결정 Q2·Q9).
+
+      · gate_margin = config.safety_margin — 예산 검증 게이트 승수(`sim_classify` 천장 = budget × gate_margin ·
+                      되먹임 `safety_margin_threshold`).
+      · deploy_gmu  = target_gpu.target_gmu — 배포 yaml `gpu-memory-utilization` 이자 클램프 산식
+                      kv_clamp = per_card_vram × deploy_gmu − weights/TP − overhead/TP 의 승수.
+                      신설 필드가 아니다 — safe_gmu 는 target_gmu 그 자체다.
+
+    종전 `margin` 변수 하나가 네 역할(클램프 산식·검증 게이트·배포 yaml·되먹임 임계)을 겸했고, 타겟 흐름은
+    `resolve_target_gpu_budget` 이 target_gmu 를 그 자리에 반환해 **게이트 승수까지 target_gmu 로** 바뀌었다.
+    host 흐름(target_gpu 미정의)은 `_host_target_gpu` 가 블록을 채워 같은 해소 경로를 탄다.
+
+    tp_divisor: 타겟 흐름은 종전대로 TP(host 측정 불변량을 타겟 TP 로 이식) · host 흐름은 1(host == target 이라
+    이식이 없다 — 종전 host 흐름 동작 유지). 반환 dict 의 `*_source` 는 값 옆의 출처다.
+    """
+    gate_declared = cfg.get("safety_margin") is not None
+    gate_margin = float(cfg["safety_margin"]) if gate_declared else DEFAULT_SAFETY_MARGIN
+    roles = {
+        "gate_margin": gate_margin,
+        "gate_margin_source": ("config.safety_margin" if gate_declared
+                               else "DEFAULT_SAFETY_MARGIN(config.safety_margin 미선언 — Phase-1 과 같은 기본값)"),
+        "gate_margin_role": "예산 검증 게이트 승수(sim_classify 천장 = budget × gate_margin)",
+        "deploy_gmu_role": "배포 yaml gpu-memory-utilization · 클램프 산식 per_card_vram × deploy_gmu − weights/TP − overhead/TP",
+    }
+    if cfg.get("target_gpu"):
+        ttp = _target_tp(cfg, repo_root)
+        if ttp != tp:
+            _die(
+                "측정 TP(%d) ≠ 타겟 TP(%d, cards_per_node×node_count) — 1→N 외삽 금지(plan_26070809_47_07 §4.3). "
+                "config.tensor_parallel_size 를 타겟에 맞추거나 manifest nodes[]/target_gpu.cards_per_node 를 "
+                "정합시키세요." % (tp, ttp),
+                code=6,
+            )
+        tgt = cfg.get("target_gpu") or {}
+        declared_gmu = tgt.get("target_gmu")
+        budget, deploy_gmu, gpu_model = resolve_target_gpu_budget(cfg, tp)
+        roles.update({
+            "flow": "target", "tp_divisor": tp,
+            "budget_source": ("config target_gpu.per_card_vram_gib" if tgt.get("per_card_vram_gib") is not None
+                              else "references.md §4 역룩업(gpu_model=%s)" % gpu_model),
+            "deploy_gmu_source": "config target_gpu.target_gmu",
+            # lockset 어휘(소유 = campaign_template_validator.LOCKSET_KNOB_SOURCES) — 배포값이 정본 칸에서 왔다.
+            "gmu_source": "target_gmu",
+        })
+    else:
+        block, sources = _host_target_gpu(cfg, repo_root)
+        declared_gmu = block["target_gmu"]
+        budget, deploy_gmu, gpu_model = resolve_target_gpu_budget({"target_gpu": block}, tp)
+        roles.update({
+            "flow": "host", "tp_divisor": 1,
+            "budget_source": "host 흐름 · " + sources["per_card_vram_gib"],
+            "deploy_gmu_source": sources["target_gmu"],
+            # 정본 칸(target_gpu.target_gmu)이 아닌 선언에서 왔다 → `hand`(사람이 적은 다른 칸). 승계 사실은
+            # deploy_gmu_source 가 문장으로 말한다 — `target_gmu` 로 적으면 정본 칸을 읽은 척이 된다.
+            "gmu_source": "hand",
+            "host_target_gpu": block,
+        })
+        # 선언 예산(vram_budget_gb) ↔ 이 노드 per_card_vram — 둘이 갈라지면 **멈춘다**(리뷰 교정 2026-09-14).
+        #   종전 host 흐름은 vram_budget_gb 를 예산으로 썼다(carve-out 24 GiB 가 정당한 선언이었다). per_card 실측이
+        #   그 선언을 조용히 덮으면 선언 > 실측 순서가 뒤집히고, 24 GiB 로 선언한 config 가 121 GiB 클램프를 rc 0 으로
+        #   낸다. 반대로 선언을 이기게 두면 plan §4.3 의 "host 흐름 per_card = 이 노드 사실" 이 죽은 코드가 된다.
+        #   두 권위가 어긋난 자리에서 어느 쪽을 고를지 추측하지 않는다 — 정합하면(허용오차 안) 그대로 가고,
+        #   어긋나면 carve-out 은 target_gpu 블록으로 선언하게 한다(타겟 흐름이 그 선언을 정본으로 읽는다).
+        _vb = cfg.get("vram_budget_gb")
+        if _vb is not None and budget:
+            _gap = abs(float(_vb) - float(budget)) / float(budget)
+            if _gap > _HOST_BUDGET_MATCH_TOLERANCE:
+                _die("host 흐름 simulate: config.vram_budget_gb=%s 가 이 노드 per_card_vram=%.2f GiB(%s)와 %.1f%% "
+                     "다르다(허용 %.0f%%) — 선언 예산과 노드 사실 중 어느 쪽을 클램프 천장·검증 게이트에 쓸지 추측하지 "
+                     "않는다. carve-out(가상 예산)이면 target_gpu 블록(gpu_model·per_card_vram_gib·target_gmu)으로 "
+                     "선언하고, 이 노드 전체가 예산이면 vram_budget_gb 를 per_card_vram 에 맞춰라(plan_26091407 §4.3)."
+                     % (_vb, float(budget), sources["per_card_vram_gib"], 100 * _gap,
+                        100 * _HOST_BUDGET_MATCH_TOLERANCE), code=5)
+            roles["budget_source"] += " · config.vram_budget_gb=%s 와 정합(차 %.1f%%)" % (_vb, 100 * _gap)
+    roles.update({"budget_gib": float(budget), "gpu_model": gpu_model, "deploy_gmu": float(deploy_gmu),
+                  "deploy_gmu_declared": float(declared_gmu)})
+    if abs(float(declared_gmu) - float(deploy_gmu)) > 1e-9:
+        roles["deploy_gmu_source"] += " · 통합메모리 하드클램프 %.2f→%.2f" % (float(declared_gmu), float(deploy_gmu))
+    return roles
+
+
+# ── lockset 출처 어휘 — **소유자는 campaign_template_validator** (2026-09-14 · plan_26091407 §4.2·§4.3) ──
+#   explorer 가 lockset 에 `provenance`·`*_source` 를 기계 각인한다. 어휘 목록은 여기 두지 않는다 — 측정 진입
+#   precheck·합격 술어 P6 가 읽는 바로 그 상수를 읽고, 각인하는 값 하나하나를 그 목록으로 교차검증한다
+#   (_SWEEP_TO_CELL 선례: 두 자리에 적으면 한쪽이 조용히 늦는다). 싱글 서브에도 같은 경로로 배달된다
+#   (render_sub_env CAMPAIGN_TOOLS). 없으면 각인하지 않고 멈춘다 — 사본으로 메우면 그것이 거울이다.
+_LOCKSET_VOCAB_REL = os.path.join(".claude", "skills", "terraforming_node", "scripts",
+                                  "campaign_template_validator.py")
+_LOCKSET_VOCAB = None
+
+
+def _lockset_vocab():
+    """(LOCKSET_PROVENANCE, LOCKSET_KNOB_SOURCES) 를 소유자 모듈에서 읽는다."""
+    global _LOCKSET_VOCAB
+    if _LOCKSET_VOCAB is None:
+        path = os.path.join(REPO_ROOT, _LOCKSET_VOCAB_REL)
+        if not os.path.isfile(path):
+            _die("lockset 출처 어휘의 소유자가 없다: %s — explorer 는 provenance·*_source 를 각인하므로 "
+                 "어휘 없이 진행하지 않는다(사본을 두지 않는다 · 메인이면 저장소 손상, 서브면 재배달)."
+                 % _LOCKSET_VOCAB_REL, code=5)
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("_recipe_lockset_vocab", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _LOCKSET_VOCAB = (tuple(mod.LOCKSET_PROVENANCE),
+                          {k: tuple(v) for k, v in mod.LOCKSET_KNOB_SOURCES.items()})
+    return _LOCKSET_VOCAB
+
+
+def _is_campaign_cell_lockset(path):
+    """`campaigns/<camp-id>/cells/<cell>/lockset.json`(이 저장소 · 뼈대 `_template` 제외)인가 — 경로 모양만 본다."""
+    if not path:
+        return False
+    try:
+        rel = os.path.relpath(os.path.realpath(path), os.path.realpath(REPO_ROOT))
+    except ValueError:
+        return False
+    parts = rel.split(os.sep)
+    return (len(parts) == 5 and parts[0] == "campaigns" and parts[1] != "_template"
+            and parts[2] == "cells" and parts[4] == "lockset.json")
+
+
+def _stamp(key, value):
+    """explorer 가 **각인하는** 출처 값 하나를 소유자 어휘로 교차검증해 돌려준다. None 은 '아직 정하지 않았다'.
+
+    어휘 밖이면 멈춘다 — 여기 들어오는 값은 explorer 자신이 고른 것이라 어휘 밖은 내부 결함이다.
+    입력 lockset 이 들고 온 값은 이 함수가 아니라 `_input_source` 가 읽는다(기재 항목을 게이트로 올리지 않는다).
+    """
+    if value is None:
+        return None
+    prov, knobs = _lockset_vocab()
+    allowed = prov if key == "provenance" else knobs.get(key)
+    if allowed is None or value not in allowed:
+        _die("lockset 각인 값이 어휘 밖이다: %s=%r (허용 %s · 소유 %s) — explorer 내부 결함이다."
+             % (key, value, allowed, _LOCKSET_VOCAB_REL), code=5)
+    return value
+
+
+def _input_source(key, value):
+    """입력 lockset 이 들고 온 `*_source` 를 읽는다. 반환 (어휘 안의 값|None, 이탈 사유|None).
+
+    어휘 밖 값은 **멈추지 않고** 사유로 돌려준다 — 검증기 P6 도 그것을 ⓘ 줄로 기재할 뿐 막지 않는다.
+    호출부는 이탈을 "사람이 적은 출처 미상 값" 으로 다루고(덮어쓰지 않는다) 그 사실을 기록에 싣는다.
+    """
+    if value is None:
+        return None, None
+    _prov, knobs = _lockset_vocab()
+    allowed = knobs.get(key) or ()
+    if value in allowed:
+        return value, None
+    return None, ("입력 lockset %s=%r 는 어휘 밖이다(허용 %s · 소유 %s) — 출처 미상의 사람 값으로 본다"
+                  % (key, value, allowed, _LOCKSET_VOCAB_REL))
 
 
 def _reject_target_gpu_phase1(cfg, cmd_name):
@@ -609,9 +835,10 @@ def cmd_estimate(args):
         file=sys.stderr,
     )
     print(
-        "[recipe] ⚠ Phase-1(estimate→generate)은 near-max batch(max-num-seqs)·절대 KV 클램프(kv-cache-memory-bytes)를 "
-        "emit하지 않는다(공식 per-token이 sliding-window/GQA에서 부정확 — 결함#4). near-max batch는 simulate(Phase-2) "
-        "또는 serve 로그의 kv_cache_tokens/max_concurrency 측정으로만 산정하라(SKILL §5).",
+        "[recipe] ⚠ Phase-1(estimate→generate)은 max-num-seqs·절대 KV 클램프(kv-cache-memory-bytes)를 "
+        "emit하지 않는다(공식 per-token이 sliding-window/GQA에서 부정확 — 결함#4). max-num-seqs 는 simulate(Phase-2)가 "
+        "min(declared_axes.concurrency_requirement, KV_fit@typical_request_tokens) 로 엔진 보고 kv_cache_tokens 에서 "
+        "산정한다(references/kv-clamp.md §3 · plan_26091407 §4.2).",
         file=sys.stderr,
     )
 
@@ -858,7 +1085,221 @@ def _enrich_overhead(profile, device_total_gib, gmu_fallback=None, kv_was_explic
     return profile
 
 
-def _resolve_clamp_kv(parsed, candidate, profile, budget, margin, kv_dtype_bytes, tp_divisor=1):
+# ===========================================================================
+# max-num-seqs 산식 (2026-09-14 · plan_26091407 §4.2 · 사용자 결정 Q5)
+#   max_num_seqs = min(concurrency_requirement, KV_fit@typical_request_tokens)
+#   KV_fit@L     = floor(kv_fit_tokens ÷ L)   — kv_fit_tokens 는 엔진 보고 `GPU KV cache size` 토큰 실측에서 온다
+#   입력은 셀 config.yaml `declared_axes`(선언 계층 · 단계 ① 규약)이고 산출은 lockset `batch`·`batch_source`.
+#   2-위상: 첫 통과 트라이얼(보통 언클램프 측정)에서 batch 를 정하고 → 그 batch 로 클램프를 산정해 →
+#   다음 트라이얼이 클램프+batch 고정으로 재검증한다(sim_classify 가 엔진 보고 토큰으로 KV-fit 을 다시 잰다).
+#   batch 와 클램프가 서로를 입력으로 삼는 순환을 **위상을 나눠** 끊는다.
+#   종전: batch 는 lockset 의 손값이었고(`recipe.py batch = candidate.get("batch") or 1`) parse_vllm_log 가
+#   파싱한 kv_cache_tokens·max_concurrency 의 소비자는 0 이었다(F2). 무릎·열벽은 여기서 재지 않는다 —
+#   adversarial-benchmark 스윕·노드 블랙박스가 재서 escalation_candidates / hint input 으로 넘긴다
+#   (트리플렛 직접 쓰기 ✗). max-num-batched-tokens 모델링은 범위 밖이다(plan_26091407 §9 후속).
+# ===========================================================================
+
+# 어휘 **안에서** 무엇이 explorer 파생인가 — 분류는 explorer 소관이고 어휘 자체는 검증기 소유다.
+#   두 목록이 갈라지면(검증기가 값을 개명) `_batch_plan` 이 첫 호출에서 멈춘다(사본이 조용히 늦지 않게).
+_BATCH_DERIVED_SOURCES = ("declared-requirement", "kv-fit-measured")
+_KV_DERIVED_SOURCES = ("measured-clamp",)
+
+
+def _declared_axis(cfg, key, strict=True):
+    """셀 config `declared_axes.<key>` 의 양의 정수 선언. 반환 (값|None, 상태, 출처 문장).
+
+    상태: declared(수) · null(명시적으로 "선언하지 않았다" — 단계 ① 규약) · absent(블록·키 없음 — 캠페인 밖 config)
+    · malformed(strict=False 일 때만).
+    strict=True(산식 입력 — concurrency_requirement·typical_request_tokens): 그 외 모양(<<FILL>>·문자열·0 이하)은
+      **선언 결함**이라 멈춘다 — 부재로 접으면 거짓 선언이 산식에서 사라진다.
+    strict=False(기재 전용 — declared_axes.tp): 멈추지 않고 malformed 와 사유를 돌려준다. 기재 항목의 모양 결함이
+      simulate 전체를 멈추면 기재가 게이트로 격상된다(리뷰 교정 2026-09-14).
+    """
+    axes = cfg.get("declared_axes")
+    if axes is None:
+        return None, "absent", "config.declared_axes 블록 없음"
+    if not isinstance(axes, dict):
+        if not strict:
+            return None, "malformed", "config.declared_axes 가 매핑이 아니다(%s)" % type(axes).__name__
+        _die("config.declared_axes 는 매핑이어야 한다(%r)" % type(axes).__name__, code=5)
+    if key not in axes:
+        return None, "absent", "config.declared_axes.%s 키 없음" % key
+    val = axes[key]
+    if val is None:
+        return None, "null", "config.declared_axes.%s=null(선언하지 않았다)" % key
+    if isinstance(val, bool) or not isinstance(val, int) or val < 1:
+        if not strict:
+            return None, "malformed", ("config.declared_axes.%s=%r 는 양의 정수 또는 null 이 아니다(기재 · 차단 ✗)"
+                                       % (key, val))
+        _die("config.declared_axes.%s=%r 는 양의 정수 또는 null 이어야 한다 — 모르면 null 로 '선언하지 "
+             "않았다'를 적는다(campaigns/README.md §셀 값의 두 계층)." % (key, val), code=5)
+    return val, "declared", "config.declared_axes.%s" % key
+
+
+def _batch_plan(candidate, cfg):
+    """입력 lockset 의 explorer 파생 칸(batch·KV 클램프)을 어떻게 다룰지 정한다. 반환 plan dict —
+    **candidate 를 제자리 수정할 수 있다**(파생 칸을 비운다).
+
+    batch:
+      · mode=hand-lever : lockset 이 batch 를 들고 있고 batch_source 가 null·hand-lever·어휘 밖이다(사람이 적은 값).
+                          explorer 는 **덮어쓰지 않는다**(Q1 표시+대조) — 같은 산식이 냈을 값은 대조용으로만 기재한다.
+      · mode=derive     : 그 외. batch_source 가 직전 explorer 산출(declared-requirement·kv-fit-measured)이면
+                          그 batch 는 **승계하지 않고** 비운 뒤 다시 잰다(carry-forward ✗ · prior_batch 로 기재).
+    KV 클램프:
+      · kv_source=measured-clamp(직전 explorer 산출)이면 비운다 — 그 클램프는 직전 batch 로 산정됐으므로 남기면
+        이번 batch 가 옛 클램프에 묶이고, trial1 이 클램프 트라이얼이 되어 2-위상(언클램프 실측 → 클램프 재검증)이
+        성립하지 않는다(prior_kv 로 기재). 그 외(hand·null·어휘 밖)는 사람이 적은 클램프라 유지한다(종전 동작).
+    """
+    _prov, knobs = _lockset_vocab()
+    for _key, _derived in (("batch_source", _BATCH_DERIVED_SOURCES), ("kv_source", _KV_DERIVED_SOURCES)):
+        if not set(_derived) <= set(knobs.get(_key) or ()):
+            _die("explorer 파생 분류 %s=%s 가 소유자 어휘 %s 밖이다 — 검증기 어휘가 바뀌었는데 분류가 따라가지 "
+                 "않았다(%s)." % (_key, _derived, knobs.get(_key), _LOCKSET_VOCAB_REL), code=5)
+    lock_batch = candidate.get("batch")
+    # 모양 검사(리뷰 교정 2026-09-14): '<<FILL>>' 같은 비수치가 int() traceback 으로 죽지 않게 안내와 함께 멈춘다.
+    #   정수값 실수(8.0)는 종전 `int(batch)` 가 받던 모양이라 그대로 받는다(비회귀).
+    if lock_batch is not None and (isinstance(lock_batch, bool) or not isinstance(lock_batch, (int, float))
+                                   or lock_batch < 1 or int(lock_batch) != lock_batch):
+        _die("lockset batch=%r 는 양의 정수 또는 null 이어야 한다 — 비워 두면(null) explorer 가 "
+             "min(concurrency_requirement, KV_fit@L) 로 산출하고, 사람이 적은 수는 손레버로 보존된다"
+             "(references/kv-clamp.md §3)." % (lock_batch,), code=5)
+    lock_src, src_anomaly = _input_source("batch_source", candidate.get("batch_source"))
+    lock_kv = candidate.get("kv_cache_memory_bytes")
+    kv_src, kv_anomaly = _input_source("kv_source", candidate.get("kv_source"))
+    req, req_state, req_src = _declared_axis(cfg, "concurrency_requirement")
+    typ, typ_state, typ_src = _declared_axis(cfg, "typical_request_tokens")
+    max_len = candidate.get("max_model_len")
+    if typ is not None and max_len is not None and typ > int(max_len):
+        _die("config.declared_axes.typical_request_tokens=%d > max_model_len=%s — 요청 한 건은 max_model_len 을 "
+             "넘을 수 없다(선언 결함)." % (typ, max_len), code=5)
+    plan = {"mode": "derive", "requirement": req, "requirement_state": req_state,
+            "requirement_source": req_src, "typical": typ, "typical_state": typ_state,
+            "typical_source": typ_src, "prior_batch": None, "lockset_batch_source": lock_src,
+            "prior_kv": None, "lockset_kv_source": kv_src,
+            "input_source_anomalies": [a for a in (src_anomaly, kv_anomaly) if a]}
+    if lock_batch is not None and lock_src not in _BATCH_DERIVED_SOURCES:
+        plan["mode"] = "hand-lever"
+        plan["hand_batch"] = int(lock_batch)
+    elif lock_batch is not None:
+        plan["prior_batch"] = lock_batch
+        candidate["batch"] = None
+    if lock_kv is not None and kv_src in _KV_DERIVED_SOURCES:
+        plan["prior_kv"] = lock_kv
+        candidate["kv_cache_memory_bytes"] = None
+    return plan
+
+
+def _kv_fit_length(plan, candidate):
+    """KV-fit 대표 길이 L(= 클램프 산식의 request_tokens). derive 모드이고 batch 가 정해졌을 때만 값이 있다."""
+    if plan.get("mode") != "derive" or candidate.get("batch") is None:
+        return None
+    return int(plan["typical"]) if plan.get("typical") is not None else int(candidate["max_model_len"])
+
+
+def _kv_fit_tokens(profile, budget, deploy_gmu, tp_divisor, clamp_bytes):
+    """배포 KV 가 담을 토큰 수(kv_fit_tokens)와 출처. 엔진 보고 `GPU KV cache size` 토큰이 기점이다.
+
+      · 배포 클램프 트라이얼(clamp_bytes 설정) — 엔진이 이미 배포 KV 로 떴다 → 보고 토큰 그대로.
+      · 언클램프 측정 트라이얼 — 엔진 보고 토큰은 **측정 풀**(host 캡 gmu · host 예산)의 토큰이다. 배포 KV 천장
+        max_safe = budget × deploy_gmu − weights/TP − overhead/TP 로 환산한다(max_safe ÷ (측정 per-token × 블록정렬
+        버퍼)). host == target 이고 캡이 없으면 보고 토큰과 거의 같다 — 환산은 캡(host_floor_gmu_cap)·타겟 이식에서
+        값을 바꾸고, 버퍼는 **다음 위상의 클램프가 실제로 담을 수 있는 토큰**으로 세기 위해 곱한다: 클램프 산식이
+        required = per_token × L × batch × KV_BLOCK_ALIGN_BUFFER 이므로 버퍼 없이 센 KV-fit 을 batch 로 쓰면
+        required 가 max_safe 를 버퍼만큼 넘어 vram_infeasible 이 된다(경계에서 산식이 자기 산출을 거부한다).
+    반환 (tokens|None, source). None 이면 산출 불가 사유가 source 에 있다(부재를 0 으로 접지 않는다).
+    ★ clamp_bytes 는 **배포될 클램프**일 때만 준다(입력 lockset 의 사람 클램프). 트라이얼 루프가 batch 를 정하기
+      전에 잡은 **잠정 클램프**(첫 트라이얼 vram_oom → max_model_len 1건 기준 재산정)는 배포값이 아니므로 호출부가
+      None 을 넘겨 환산 경로를 탄다 — 그 작은 클램프의 엔진 토큰을 KV-fit 으로 쓰면 요구가 거짓 사유로 깎인다
+      (리뷰 교정 2026-09-14: 요구 16·배포 천장 KV-fit 83 인 구성이 batch 4 kv-fit-measured 로 각인됐다).
+    """
+    kv_tok = (profile or {}).get("kv_cache_tokens")
+    kv_gib = (profile or {}).get("kv_cache_gib")
+    if not kv_tok:
+        return None, "엔진 보고 kv_cache_tokens 부재(로그 키 미관측 · mock 프로파일에 없음)"
+    if clamp_bytes is not None:
+        return int(kv_tok), "engine kv_cache_tokens=%d (배포 클램프 트라이얼 — 환산 없음)" % int(kv_tok)
+    weights_b = _profile_bytes(profile, "weights_gib")
+    overhead_b = _profile_bytes(profile, "non_kv_overhead_gib")
+    if not kv_gib or weights_b is None or overhead_b is None:
+        return None, "언클램프 트라이얼인데 kv_cache_gib·weights·overhead 실측 중 부재 — 배포 천장으로 환산 불가"
+    if tp_divisor and tp_divisor > 1:
+        weights_b, overhead_b = weights_b / tp_divisor, overhead_b / tp_divisor
+    max_safe = max_safe_kv_bytes(budget, deploy_gmu, weights_b, overhead_b)
+    per_token = float(kv_gib) * GIB / float(kv_tok)
+    if max_safe <= 0:
+        return 0, "배포 KV 천장 max_safe=%d ≤ 0 (weights+overhead 가 budget×deploy_gmu 를 채운다)" % max_safe
+    tokens = int(max_safe // (per_token * KV_BLOCK_ALIGN_BUFFER))
+    # 부동소수 경계: 클램프 산식과 **같은 식**(int(per_token × tokens × 버퍼))으로 되짚어 천장을 넘으면 한 칸 내린다.
+    while tokens > 0 and int(per_token * tokens * KV_BLOCK_ALIGN_BUFFER) > max_safe:
+        tokens -= 1
+    return tokens, ("언클램프 측정 환산: 배포 KV 천장 %d B ÷ (per_token %.1f B × 블록정렬 버퍼 %.2f) — per_token = 측정 KV "
+                    "%d B ÷ engine kv_cache_tokens %d"
+                    % (max_safe, per_token, KV_BLOCK_ALIGN_BUFFER, int(float(kv_gib) * GIB), int(kv_tok)))
+
+
+def derive_batch(plan, max_model_len, kv_fit_tokens, kv_fit_source):
+    """max_num_seqs = min(concurrency_requirement, KV_fit@L). 순수 함수 — 반환은 lockset `batch_derivation` 의 몸.
+
+    선언 상태별 동작(출처는 전부 기록된다):
+      · 요구 선언 ∧ KV-fit 산출 → 요구 ≤ KV-fit: batch=요구 · declared-requirement
+                                   요구 > KV-fit: batch=KV-fit · kv-fit-measured (낮춘 사유 기재 — README loop-until-done:
+                                   context·KV dtype 를 재조정할지는 사람이 본다)
+      · 요구 null/부재 → batch **미정**(max-num-seqs 미emit · vLLM 기본 admission 상한 · 클램프는 max_model_len 1건
+                         기준 — 종전 동작). KV-fit 은 산출되면 **참고값으로만** 기재한다(`kv_fit` · batch 로 쓰지 않는다).
+                         리뷰 교정(2026-09-14): 종전 초안은 여기서 batch=KV-fit@max_model_len(near-max)을 냈다 —
+                         그 batch 의 required 는 배포 천장 전체라 선언 없는 config(캠페인 밖 기본 경로) 모두가 천장
+                         클램프를 받았고, 통합메모리에서는 run_trial 의 호스트 바닥 캡이 클램프 트라이얼에 걸리지 않아
+                         워치독 사살 구성이 된다. 또 엔진 max_concurrency(최악 길이)는 plan §4.2 가 **기재**로 둔 보수
+                         하한이지 산출값이 아니다. 요구가 없으면 산식이 줄일 대상도 없다 — 선언이 먼저다.
+      · KV-fit 산출 불가 → 요구 선언이면 batch=요구 · declared-requirement(**검증 안 됨** 기재) · 아니면 batch 미정
+      · typical_request_tokens null/부재 → L = max_model_len(최악 길이 — 보수 산정 · 대체 사실 기재)
+    """
+    typ = plan.get("typical")
+    length = int(typ) if typ is not None else (int(max_model_len) if max_model_len is not None else None)
+    rec = {
+        "formula": "max_num_seqs = min(concurrency_requirement, KV_fit@L) · KV_fit@L = floor(kv_fit_tokens ÷ L)",
+        "mode": plan.get("mode"), "applied": plan.get("mode") == "derive",
+        "concurrency_requirement": plan.get("requirement"),
+        "concurrency_requirement_state": plan.get("requirement_state"),
+        "concurrency_requirement_source": plan.get("requirement_source"),
+        "kv_fit_length": length,
+        "kv_fit_length_source": (plan.get("typical_source") if typ is not None else
+                                 "max_model_len=%s 대체 — %s · 최악 길이로 보수 산정"
+                                 % (max_model_len, plan.get("typical_source"))),
+        "kv_fit_tokens": kv_fit_tokens, "kv_fit_tokens_source": kv_fit_source,
+        "kv_fit": None, "batch": None, "batch_source": None, "verified": None, "reason": "",
+        "prior_batch": plan.get("prior_batch"),
+    }
+    req = plan.get("requirement")
+    if kv_fit_tokens is None or not length:
+        if req is not None:
+            rec.update(batch=int(req), batch_source="declared-requirement", verified=False,
+                       reason="KV-fit 산출 불가(%s) — 선언 요구 %d 를 **검증 없이** 채택" % (kv_fit_source, req))
+        else:
+            rec["reason"] = ("KV-fit 산출 불가(%s) ∧ 동시성 요구 %s — batch 미정(max-num-seqs 미emit · vLLM 기본 "
+                             "admission 상한)" % (kv_fit_source, plan.get("requirement_state")))
+        return rec
+    fit = int(kv_fit_tokens) // int(length)
+    rec["kv_fit"] = fit
+    if req is None:
+        # 요구가 없으면 줄일 대상도 없다 — batch 를 만들지 않고 KV-fit 은 참고값으로만 남긴다(docstring 리뷰 교정).
+        rec["reason"] = ("동시성 요구 %s → batch 를 산출하지 않는다(max-num-seqs 미emit · vLLM 기본 admission 상한 · "
+                         "클램프는 max_model_len 1건 기준). KV-fit %d(@L=%d)은 참고값으로만 기재한다 — 요구가 있으면 "
+                         "declared_axes.concurrency_requirement 로 선언하라" % (plan.get("requirement_state"), fit, length))
+        return rec
+    floor_note = "" if fit >= 1 else " · KV-fit 0(대표 요청 1건도 배포 KV 에 들지 않는다 — 1 로 두고 클램프 산정이 판정한다)"
+    if req <= fit:
+        rec.update(batch=int(req), batch_source="declared-requirement",
+                   reason="요구 %d ≤ KV-fit %d(@L=%d) → 요구 채택" % (req, fit, length))
+    else:
+        rec.update(batch=max(fit, 1), batch_source="kv-fit-measured",
+                   reason=("요구 %d > KV-fit %d(@L=%d) → KV-fit 으로 낮춤. 요구를 지키려면 context·KV dtype·예산을 "
+                           "재조정해 다시 돈다(loop-until-done)%s" % (req, fit, length, floor_note)))
+    return rec
+
+
+def _resolve_clamp_kv(parsed, candidate, profile, budget, deploy_gmu, kv_dtype_bytes, tp_divisor=1,
+                      request_tokens=None):
     """실측 profile(weights/overhead) 로 절대 KV 클램프 = min(required, max_safe) 산정.
 
     OOM-critical 경로 — 순수 결정론(확률론 금지). 반환 dict:
@@ -868,6 +1309,16 @@ def _resolve_clamp_kv(parsed, candidate, profile, budget, margin, kv_dtype_bytes
 
     tp_divisor(기본 1 — 회귀 0): >1 이면 타겟-GPU 이식 경로(plan_26070809_47_07 §4.2) — host 측정
     weights_total/overhead_total(GPU-불변 기하량)을 타겟 TP 로 나눠 per-GPU 클램프를 산정한다.
+
+    deploy_gmu(2026-09-14 · plan_26091407 §4.3 · Q9): 천장 승수는 **배포 gmu**(target_gpu.target_gmu)다 —
+    max_safe = budget × deploy_gmu − weights/TP − overhead/TP. 예산 검증 게이트 승수(safety_margin)는 여기
+    오지 않는다(sim_classify 소관). 종전 인자명 `margin` 이 두 역할을 겸했다(위치 인자는 그대로다).
+
+    request_tokens(2026-09-14 · §4.2): batch 를 **KV-fit 산식**으로 정했을 때의 대표 요청 길이 L.
+    주면 required 토큰 = max(max_model_len, L × batch) — batch 건의 대표 요청과 최악 길이 1건(vLLM 기동 검사)을
+    함께 담는 최소량이다. 안 주면(손레버 batch · 구 lockset) 종전 식 max_model_len × batch 그대로다(회귀 0).
+    KV-fit 으로 정한 batch 에 최악 길이 × batch 를 요구하면 대표 길이로 센 동시성을 최악 길이로 다시 세어 거의
+    항상 vram_infeasible 이 된다 — max_num_seqs 는 admission 상한이고 KV 부족은 선점·대기라 합법이다(F3).
     """
     weights_b = _profile_bytes(profile, "weights_gib")
     overhead_b = _profile_bytes(profile, "non_kv_overhead_gib")
@@ -880,6 +1331,7 @@ def _resolve_clamp_kv(parsed, candidate, profile, budget, margin, kv_dtype_bytes
     # candidate.get("batch", 1) 는 키가 *존재하지만 값이 JSON null*(자유변수 표기 — lockset.json 관례)
     # 인 경우를 못 잡는다(.get 의 default 는 키 부재에만 적용) → TypeError(2026-08-11 gemma-4-e2b-it 실측).
     batch = int(candidate.get("batch") or 1)
+    req_tokens = max(max_len, int(request_tokens) * batch) if request_tokens else None
     # required_kv: 측정 트라이얼이 per-token KV(kv_available/kv_tokens)를 주면 그 측정값을 쓴다.
     # 하이브리드(GDN/linear-attention) 모델은 전 레이어가 full-KV 가 아니라 dims 공식이 과대추정한다
     # (Qwen3.6: 공식 262144 vs 실측 ~70600 B/token, 3.7×). 측정 per-token 이 정확. 없으면 공식 폴백.
@@ -894,10 +1346,17 @@ def _resolve_clamp_kv(parsed, candidate, profile, budget, margin, kv_dtype_bytes
         # required_kv_bytes()(estimate_vram.py, 공식-only 폴백 경로)에도 동형 버퍼가 적용되나
         # 이 measured-per-token 경로가 실제로 항상 우선 실행되므로 여기가 진짜 적용점이다.
         # 상수는 estimate_vram.KV_BLOCK_ALIGN_BUFFER **단일 소유**(2026-08-13 — 매직넘버 두 벌 제거).
-        required = int(per_token * max_len * batch * KV_BLOCK_ALIGN_BUFFER)
-    else:
+        if req_tokens is None:
+            required = int(per_token * max_len * batch * KV_BLOCK_ALIGN_BUFFER)
+        else:
+            required = int(per_token * req_tokens * KV_BLOCK_ALIGN_BUFFER)
+    elif req_tokens is None:
         required = required_kv_bytes(parsed, max_len, batch, kv_dtype_bytes)
-    max_safe = max_safe_kv_bytes(budget, margin, weights_b, overhead_b)
+    else:
+        required = required_kv_bytes(parsed, req_tokens, 1, kv_dtype_bytes)
+    basis = ("max_model_len=%d×batch=%d" % (max_len, batch) if req_tokens is None else
+             "max(max_model_len=%d, L=%d×batch=%d)=%d tokens" % (max_len, int(request_tokens), batch, req_tokens))
+    max_safe = max_safe_kv_bytes(budget, deploy_gmu, weights_b, overhead_b)
     if max_safe <= 0:
         return {"kv": None, "fail": {
             "failure_class": "vram_infeasible", "adjust_target": None,
@@ -905,39 +1364,68 @@ def _resolve_clamp_kv(parsed, candidate, profile, budget, margin, kv_dtype_bytes
     if required > max_safe:
         return {"kv": None, "fail": {
             "failure_class": "vram_infeasible", "adjust_target": None,
-            "note": ("required_kv=%d > max_safe_kv=%d (실측 기반) → "
-                     "max_model_len·batch 를 KV 로 만족 불가(HITL)." % (required, max_safe))},
+            "note": ("required_kv=%d > max_safe_kv=%d (실측 기반 · %s) → "
+                     "max_model_len·batch 를 KV 로 만족 불가(HITL)." % (required, max_safe, basis))},
             "note": ""}
     kv = int(min(required, max_safe))
     return {"kv": kv, "fail": None,
-            "note": "kv=min(required=%d, max_safe=%d)=%d." % (required, max_safe, kv)}
+            "note": "kv=min(required=%d, max_safe=%d)=%d. (%s)" % (required, max_safe, kv, basis)}
 
 
 def cmd_simulate(args):
     cfg = load_config(args.config)
-    model_path, nas_root, budget, margin, kv_bytes_cfg, container_root = _cfg_common(cfg, REPO_ROOT)
+    model_path, nas_root, _vram_budget_cfg, _safety_cfg, kv_bytes_cfg, container_root = _cfg_common(cfg, REPO_ROOT)
     tp = resolve_tp(cfg, REPO_ROOT)
     _guard_tp(tp, REPO_ROOT)
+    # lockset 출처 어휘의 소유자를 **트라이얼 전에** 확인한다 — 몇 시간 돈 뒤 각인 단계에서 멈추면 늦다.
+    _lockset_vocab()
+    _lockset_out = getattr(args, "lockset_out", None)
+    if not _lockset_out and _is_campaign_cell_lockset(args.candidate):
+        # 캠페인 셀 lockset 을 입력으로 받았으면 수렴 각인은 **그 자리**에 쓴다(리뷰 교정 2026-09-14). 플래그를 잊은
+        # 실행이 각인을 run_summary 에만 남기면 셀 lockset 의 explorer-phase2 가 다시 절차 자기선언으로 돌아간다 —
+        # 단계 ① 이 넘긴 이월 항목("기계가 자동 기입")이 호출부 기억에 달리게 된다. 캠페인 밖 lockset 은 종전대로
+        # 선택이다(입력 파일을 기본으로 덮어쓰지 않는다).
+        _lockset_out = args.candidate
+        print("[recipe] ⓘ --candidate 가 캠페인 셀 lockset 이다 — 수렴 각인을 그 파일에 쓴다(--lockset-out 기본값): %s"
+              % args.candidate, file=sys.stderr)
+    if (_lockset_out and os.path.exists(_lockset_out) and not args.force
+            and os.path.realpath(_lockset_out) != os.path.realpath(args.candidate)):
+        _die("--lockset-out 대상이 이미 있다: %s — --candidate 와 같은 파일(셀 lockset materialize)이 아니면 "
+             "--force 로만 덮어쓴다." % _lockset_out)
 
-    # ── 타겟-GPU 이식형 예산 (host≠target — plan_26070809_47_07 §4) ──
-    # target_gpu 미정의 시 tp_divisor=1·budget/margin 무변경(기존 host 흐름 완전 보존).
-    tp_divisor = 1
-    if cfg.get("target_gpu"):
-        ttp = _target_tp(cfg, REPO_ROOT)
-        if ttp != tp:
-            _die(
-                "측정 TP(%d) ≠ 타겟 TP(%d, cards_per_node×node_count) — 1→N 외삽 금지(plan_26070809_47_07 §4.3). "
-                "config.tensor_parallel_size 를 타겟에 맞추거나 manifest nodes[]/target_gpu.cards_per_node 를 "
-                "정합시키세요." % (tp, ttp),
-                code=6,
-            )
-        budget, margin, target_gpu_model = resolve_target_gpu_budget(cfg, tp)
-        tp_divisor = tp
-        print(
-            "[recipe] 타겟-GPU 이식 경로 활성: gpu_model=%s per_card_vram_gib=%.2f target_gmu=%.2f TP=%d(÷%d)"
-            % (target_gpu_model, budget, margin, tp, tp_divisor),
-            file=sys.stderr,
-        )
+    # ── gmu 두 역할 + 예산 (2026-09-14 · plan_26091407 §4.3) ──────────────────────────────────
+    #   gate_margin(=safety_margin · 예산 검증 게이트 승수)과 deploy_gmu(=target_gpu.target_gmu · 배포값이자
+    #   클램프 산식 승수)를 가른다. host 흐름도 target_gpu 블록을 채워 같은 해소 경로를 탄다.
+    roles = _gpu_roles(cfg, tp, REPO_ROOT)
+    budget = roles["budget_gib"]
+    gate_margin = roles["gate_margin"]
+    deploy_gmu = roles["deploy_gmu"]
+    tp_divisor = roles["tp_divisor"]
+    print(
+        "[recipe] gmu 역할(%s 흐름): deploy_gmu=%.3f (%s) · gate_margin=%.3f (%s) · budget=per_card_vram %.2f GiB "
+        "(%s) · gpu_model=%s · TP=%d(÷%d) · lockset gmu_source=%s"
+        % (roles["flow"], deploy_gmu, roles["deploy_gmu_source"], gate_margin, roles["gate_margin_source"],
+           budget, roles["budget_source"], roles["gpu_model"], tp, tp_divisor, roles["gmu_source"]),
+        file=sys.stderr,
+    )
+    if roles["gmu_source"] != "target_gmu":
+        print("[recipe] ⚠ 배포 gmu 가 정본 칸(target_gpu.target_gmu)에서 오지 않았다 — %s. lockset gmu_source=%s 로 "
+              "각인한다." % (roles["deploy_gmu_source"], roles["gmu_source"]), file=sys.stderr)
+    if deploy_gmu > gate_margin + 1e-9:
+        print("[recipe] ⓘ deploy_gmu %.3f > gate_margin %.3f — 클램프 산식 천장(budget×deploy_gmu)이 검증 게이트 천장"
+              "(budget×gate_margin)보다 높다. 게이트는 weights+overhead 만 본다(기재 · 차단 ✗)."
+              % (deploy_gmu, gate_margin), file=sys.stderr)
+    # 선언 TP(declared_axes.tp) ↔ manifest 파생 TP — **기재**만 한다(TP 의 권위는 manifest · 다르면 선언이 틀린 것).
+    #   모양 결함(문자열·실수 등)도 멈추지 않고 malformed 로 적는다 — 산식 입력이 아니기 때문이다(strict=False).
+    _dtp, _dtp_state, _dtp_src = _declared_axis(cfg, "tp", strict=False)
+    declared_axes_check = {"tp": {"declared": _dtp, "declared_state": _dtp_state, "declared_source": _dtp_src,
+                                  "resolved": tp, "resolved_source": "resolve_tp(config override > manifest)",
+                                  "match": (None if _dtp is None else _dtp == tp)}}
+    if _dtp is not None and _dtp != tp:
+        print("[recipe] ⚠ declared_axes.tp=%d ≠ 해소 TP=%d — TP 의 권위는 manifest 다. 선언을 고쳐라(기재 · 차단 ✗)."
+              % (_dtp, tp), file=sys.stderr)
+    elif _dtp_state == "malformed":
+        print("[recipe] ⚠ %s — 해소 TP=%d 와 대조하지 못했다(기재 · 차단 ✗)." % (_dtp_src, tp), file=sys.stderr)
 
     # parse(결정론) — NAS 부재/해소 실패 시 traceback 금지(클린 어보트로 통일).
     try:
@@ -948,7 +1436,27 @@ def cmd_simulate(args):
         _die(f"모델 config 해소 실패: {e}")
 
     candidate = _load_candidate(args.candidate)
+    # 입력 lockset 원본 — 수렴 시 explorer 가 **파생 칸만** 갱신해 되쓴다. 아래 주입(model_path_container·
+    # served_model_name·gpu_memory_utilization)은 트라이얼 입력이지 lockset 칸이 아니다 — 되쓰면 다음 실행에서
+    # 옛 gmu 가 setdefault 로 되살아나 deploy_gmu 를 이긴다.
+    raw_lockset = copy.deepcopy(candidate)
     kv_dtype_bytes = _kv_dtype_bytes(candidate)
+    # max-num-seqs 산식 계획(§4.2). 직전 explorer 산출(batch·KV 클램프)은 여기서 비운다(재측정 · carry-forward ✗).
+    # 입력이 들고 온 출처 칸의 어휘 이탈은 멈추지 않고 기록한다(P6 와 같은 등급 — 기재).
+    batch_plan = _batch_plan(candidate, cfg)
+    kv_origin = "input" if candidate.get("kv_cache_memory_bytes") is not None else None
+    print("[recipe] max-num-seqs 계획: mode=%s · 요구=%s(%s) · 대표 길이=%s(%s)%s%s"
+          % (batch_plan["mode"], batch_plan["requirement"], batch_plan["requirement_state"],
+             batch_plan["typical"], batch_plan["typical_state"],
+             (" · 손레버 batch=%d 유지(덮어쓰기 ✗ · KV-fit 은 대조 기재)" % batch_plan["hand_batch"]
+              if batch_plan["mode"] == "hand-lever" else
+              (" · 직전 산출 batch=%s 는 승계하지 않는다" % batch_plan["prior_batch"]
+               if batch_plan["prior_batch"] is not None else "")),
+             (" · 직전 산출 KV 클램프=%s 는 승계하지 않는다(trial1 을 언클램프 실측으로 되돌린다)"
+              % batch_plan["prior_kv"] if batch_plan["prior_kv"] is not None else "")),
+          file=sys.stderr)
+    for _anom in batch_plan["input_source_anomalies"]:
+        print("[recipe] ⚠ %s(기재 · 차단 ✗)" % _anom, file=sys.stderr)
 
     # candidate 에 parse 산출 모델 식별자 + 서빙명을 주입(실 docker 가 올바른 모델을
     # 올바른 served-model-name 으로 서빙하도록 — 스모크가 이 이름으로 호출). setdefault=lockset 우선.
@@ -957,9 +1465,10 @@ def cmd_simulate(args):
     _serving0 = cfg.get("serving") or {}
     if _serving0.get("served_model_name"):
         candidate.setdefault("served_model_name", _serving0.get("served_model_name"))
-    # gpu-memory-utilization = safety_margin(디바이스 풀 상한). 통합메모리(GB10)서 vLLM
-    # 기본 0.92 가 free 초과 OOM → margin 으로 명시(SKILL §5). 실 KV 는 절대 클램프가 제어.
-    candidate.setdefault("gpu_memory_utilization", margin)
+    # 트라이얼 gmu 기본값 = deploy_gmu(배포될 값으로 검증한다). 통합메모리(GB10)서 vLLM 기본 0.92 는
+    # 기동 전 free ≥ ceil(total×gmu) 검사에 걸리므로 명시한다(SKILL §5). 실 KV 는 절대 클램프가 제어.
+    # lockset 이 gpu_memory_utilization 을 들고 있으면 그것이 **트라이얼-로컬** 값으로 이긴다(분기는 수렴 시 경고).
+    candidate.setdefault("gpu_memory_utilization", deploy_gmu)
 
     # 측정 하드웨어 total(torch.cuda 기준; DGX Spark 는 nvidia-smi N/A). consolidated 메모리
     # 라인이 없는 vLLM 빌드에서 overhead = gmu_trial×device_total − weights − kv 로 유도하는 데 쓴다.
@@ -1030,6 +1539,10 @@ def cmd_simulate(args):
     converged = False
     final_trial = None
     final_class = None
+    batch_decided = batch_plan["mode"] == "hand-lever"
+    clamp_provisional = False   # 트라이얼 루프가 batch 산출 **전에** 잡은 클램프인가(배포값 아님 — 위상 1 에서 재산정)
+    batch_derivation = None
+    engine_obs = []       # 트라이얼마다 엔진 보고 KV 토큰·max_concurrency(최악 길이 — 보수 하한 기재)
 
     for trial_number in range(1, cap + 1):
         print(
@@ -1090,6 +1603,12 @@ def cmd_simulate(args):
                                        else candidate.get("gpu_memory_utilization")),
                          kv_was_explicit=candidate.get("kv_cache_memory_bytes") is not None)
         final_trial = trial
+        _prof = trial.get("vllm_profile") or {}
+        engine_obs.append({"trial_number": trial_number,
+                           "clamped": candidate.get("kv_cache_memory_bytes") is not None,
+                           "batch": candidate.get("batch"),
+                           "kv_cache_tokens": _prof.get("kv_cache_tokens"),
+                           "max_concurrency": _prof.get("max_concurrency")})
 
         # ── per-trial simlog 증거 4종 기록(SKILL.md §6) ───────────────────
         #   trialNN_vllm.log / _profile.json / _candidate.yaml / _smoke.json.
@@ -1107,7 +1626,11 @@ def cmd_simulate(args):
         )
 
         # ── 결정론 분류 ────────────────────────────────────────────────────
-        verdict = sim_classify(trial, budget_gib=budget, safety_margin=margin)
+        # 게이트 승수는 gate_margin 이다(deploy_gmu 가 아니다). batch 가 산식으로 정해진 뒤의 트라이얼은
+        # 엔진 보고 토큰으로 KV-fit 을 다시 잰다(2-위상의 재검증 · adjust_target=batch).
+        verdict = sim_classify(trial, budget_gib=budget, safety_margin=gate_margin,
+                               typical_request_tokens=(_kv_fit_length(batch_plan, candidate)
+                                                       if batch_decided else None))
         final_class = verdict
         fclass = verdict.get("failure_class")
         adjust = verdict.get("adjust_target")
@@ -1119,17 +1642,124 @@ def cmd_simulate(args):
         # 클램프를 산정해 candidate 에 박고, 클램프 적용 검증 트라이얼을 한 번 더 돈다.
         # (이 스킬의 산출물 핵심 = config 에 박히는 --kv-cache-memory-bytes 절대값.)
         if fclass == "none":
+            # ── 위상 1: batch 산출(첫 통과 트라이얼 · §4.2) ─────────────────────────────
+            #   잠정 클램프(batch 산출 전 vram_oom 재산정분)는 배포값이 아니다 → 환산 경로(None)로 KV-fit 을 잰다.
+            _fit_tokens, _fit_src = _kv_fit_tokens(_prof, budget, deploy_gmu, tp_divisor,
+                                                   (None if clamp_provisional
+                                                    else candidate.get("kv_cache_memory_bytes")))
+            batch_before = candidate.get("batch")
+            if not batch_decided:
+                batch_derivation = derive_batch(batch_plan, candidate.get("max_model_len"), _fit_tokens, _fit_src)
+                batch_decided = True
+                candidate["batch"] = batch_derivation["batch"]
+                print("[recipe] max-num-seqs 산출 → batch=%s (%s) :: %s"
+                      % (candidate["batch"], batch_derivation["batch_source"], batch_derivation["reason"]),
+                      file=sys.stderr)
+                if clamp_provisional and candidate.get("batch") is None:
+                    # batch 를 산출하지 않았다(요구 없음·KV-fit 산출 불가) → 잠정 클램프의 산정 기준(max_model_len 1건)이
+                    # 곧 최종 기준이다. 방금 통과한 이 트라이얼이 그 클램프의 검증이므로 수렴한다 — 재산정하면 블록 반올림
+                    # 만큼 바이트가 흔들려 같은 모양의 클램프로 빈 트라이얼을 한 번 더 돈다.
+                    clamp_provisional = False
+                    converged = True
+                    break
+                if clamp_provisional:
+                    # 잠정 클램프는 batch 없이(max_model_len 1건) 산정됐다 → **산출 batch 로 required 를 재계산**해
+                    # 클램프를 다시 잡고 재검증한다(plan §4.2 "required_kv 는 산출된 batch 로 재계산"). 같은 값이면 이
+                    # 트라이얼이 곧 재검증이므로 수렴한다(빈 트라이얼을 돌지 않는다).
+                    clamp_before = candidate.get("kv_cache_memory_bytes")
+                    res = _resolve_clamp_kv(
+                        parsed, candidate, _prof,
+                        budget, deploy_gmu, kv_dtype_bytes, tp_divisor=tp_divisor,
+                        request_tokens=_kv_fit_length(batch_plan, candidate),
+                    )
+                    record = {"trial_number": trial_number, "failure_class": "measure",
+                              "adjust_target": "kv_cache_memory_bytes",
+                              "note": ("잠정 클램프(batch 산출 전 vram_oom 재산정분) 트라이얼 통과 → max-num-seqs 산출 → "
+                                       "산출 batch 로 클램프 재산정 후 재검증 트라이얼."),
+                              "before": {"kv_cache_memory_bytes": clamp_before, "batch": batch_before}}
+                    if res["fail"] is not None or res["kv"] is None:
+                        final_class = res["fail"] or {
+                            "failure_class": "unknown", "adjust_target": None,
+                            "note": "잠정 클램프 트라이얼 통과했으나 weights/overhead 실측 부재 → 클램프 재산정 불가(HITL)."}
+                        record["after_note"] = final_class["note"]
+                        correction_history.append(record)
+                        simlog_writer.append_correction(run_dir, record)
+                        break
+                    clamp_provisional = False
+                    kv_origin = "trial-loop"
+                    if int(res["kv"]) == int(clamp_before) and candidate.get("batch") == batch_before:
+                        converged = True
+                        break
+                    candidate["kv_cache_memory_bytes"] = int(res["kv"])
+                    record["after"] = {"kv_cache_memory_bytes": int(res["kv"]), "batch": candidate.get("batch")}
+                    record["after_note"] = res["note"]
+                    correction_history.append(record)
+                    simlog_writer.append_correction(run_dir, record)
+                    continue
+                if candidate.get("kv_cache_memory_bytes") is not None:
+                    # 클램프가 이미 있는 트라이얼(입력 클램프)에서 batch 가 새로 정해졌다 → 그 batch 로 재검증한다.
+                    if candidate["batch"] != batch_before:
+                        record = {"trial_number": trial_number, "failure_class": "measure",
+                                  "adjust_target": "batch",
+                                  "note": "통과 트라이얼에서 max-num-seqs 산출 → batch 고정 재검증 트라이얼.",
+                                  "before": {"batch": batch_before}, "after": {"batch": candidate["batch"]},
+                                  "after_note": batch_derivation["reason"]}
+                        correction_history.append(record)
+                        simlog_writer.append_correction(run_dir, record)
+                        continue
+                    converged = True
+                    break
+            elif batch_derivation is None and batch_plan["mode"] == "hand-lever":
+                # 손레버는 덮어쓰지 않는다 — 같은 산식이 냈을 값을 **대조용으로** 기재한다(Q1 표시+대조).
+                batch_derivation = derive_batch(batch_plan, candidate.get("max_model_len"), _fit_tokens, _fit_src)
+                batch_derivation.update({"derived_batch_would_be": batch_derivation["batch"],
+                                         "derived_batch_source_would_be": batch_derivation["batch_source"],
+                                         "batch": candidate.get("batch"), "batch_source": "hand-lever",
+                                         "applied": False,
+                                         "reason": "손레버 batch=%s 유지(측정 산물 아님) · 산식 대조: %s"
+                                                   % (candidate.get("batch"), batch_derivation["reason"])})
+            if adjust == "batch" and verdict.get("kv_fit") is not None and batch_plan["mode"] == "derive":
+                # ── 위상 2 재검증 실패: 클램프 트라이얼의 엔진 보고 토큰이 batch × L 을 못 담는다 → batch 하향 ──
+                #   클램프는 **다시 산정하지 않는다**(위상 분리 — 낮춘 batch 는 같은 클램프 안에 들어간다는 것이 방금
+                #   엔진이 보고한 사실이다. 클램프를 따라 줄이면 batch↔클램프가 서로를 입력으로 삼아 진동한다).
+                new_batch = max(int(verdict["kv_fit"]), 1)
+                record = {"trial_number": trial_number, "failure_class": fclass, "adjust_target": "batch",
+                          "note": verdict.get("note"), "before": {"batch": batch_before},
+                          "after": {"batch": new_batch},
+                          "after_note": "KV-fit 재검증 → batch %s→%d 하향 후 재검증 트라이얼." % (batch_before, new_batch)}
+                candidate["batch"] = new_batch
+                _der = dict(batch_derivation or {})
+                _der["phase2_adjustments"] = list(_der.get("phase2_adjustments") or []) + [{
+                    "trial_number": trial_number, "batch_before": batch_before, "batch_after": new_batch,
+                    "kv_fit_check": verdict.get("kv_fit_check")}]
+                _der.update(batch=new_batch, batch_source="kv-fit-measured", kv_fit=int(verdict["kv_fit"]),
+                            verified=None,
+                            reason=("클램프 트라이얼 %d 의 엔진 보고 KV 토큰으로 KV-fit %d 재측정 → batch %s 에서 낮춤"
+                                    "(위상 1: %s)" % (trial_number, int(verdict["kv_fit"]), batch_before,
+                                                     (batch_derivation or {}).get("reason"))))
+                batch_derivation = _der
+                correction_history.append(record)
+                simlog_writer.append_correction(run_dir, record)
+                if trial_number == cap:
+                    # 마지막 칸에서 낮췄다 — 트라이얼은 통과했지만 낮춘 batch 의 재검증을 돌 칸이 없다. HITL 요약이
+                    # "failure_class=none" 만 보이면 왜 멈췄는지 읽히지 않으므로 사유를 note 에 싣는다(리뷰 교정 2026-09-14).
+                    final_class = dict(verdict, note=(
+                        "cap(%d) 소진 — 위상 2 가 batch 를 %s→%d 로 낮췄으나 재검증 트라이얼을 돌 칸이 없다(트라이얼 자체는 "
+                        "통과). --cap 을 늘려 다시 돈다 — 산식 경로는 측정·클램프 검증·위상 2 재검증까지 최소 3칸이 든다. "
+                        "원 분류: %s" % (cap, batch_before, new_batch, verdict.get("note"))))
+                continue
             if candidate.get("kv_cache_memory_bytes") is None:
                 res = _resolve_clamp_kv(
-                    parsed, candidate, trial.get("vllm_profile") or {},
-                    budget, margin, kv_dtype_bytes, tp_divisor=tp_divisor,
+                    parsed, candidate, _prof,
+                    budget, deploy_gmu, kv_dtype_bytes, tp_divisor=tp_divisor,
+                    request_tokens=_kv_fit_length(batch_plan, candidate),
                 )
                 record = {
                     "trial_number": trial_number,
                     "failure_class": "measure",
                     "adjust_target": "kv_cache_memory_bytes",
-                    "note": "측정 트라이얼 통과 → 절대 KV 클램프 산정 후 검증 트라이얼.",
-                    "before": {"kv_cache_memory_bytes": None},
+                    "note": "측정 트라이얼 통과 → (max-num-seqs 산출) → 절대 KV 클램프 산정 후 검증 트라이얼.",
+                    "before": {"kv_cache_memory_bytes": None, "batch": batch_before},
                 }
                 if res["fail"] is not None:
                     final_class = res["fail"]
@@ -1147,7 +1777,8 @@ def cmd_simulate(args):
                     simlog_writer.append_correction(run_dir, record)
                     break
                 candidate["kv_cache_memory_bytes"] = res["kv"]
-                record["after"] = {"kv_cache_memory_bytes": res["kv"]}
+                kv_origin = "trial-loop"
+                record["after"] = {"kv_cache_memory_bytes": res["kv"], "batch": candidate.get("batch")}
                 record["after_note"] = res["note"]
                 correction_history.append(record)
                 simlog_writer.append_correction(run_dir, record)
@@ -1177,7 +1808,8 @@ def cmd_simulate(args):
             # 결정론 KV 재산정(helper): weights/overhead 실측 → kv = min(required, max_safe).
             res = _resolve_clamp_kv(
                 parsed, candidate, trial.get("vllm_profile") or {},
-                budget, margin, kv_dtype_bytes, tp_divisor=tp_divisor,
+                budget, deploy_gmu, kv_dtype_bytes, tp_divisor=tp_divisor,
+                request_tokens=_kv_fit_length(batch_plan, candidate),
             )
             if res["fail"] is not None:
                 final_class = res["fail"]
@@ -1204,7 +1836,14 @@ def cmd_simulate(args):
                 new_kv = res["kv"]
                 record["after_note"] = res["note"]
             candidate["kv_cache_memory_bytes"] = int(new_kv)
+            kv_origin = "trial-loop"
+            # batch 가 아직 산출되지 않았다면(derive 모드 · 첫 통과 전 OOM) 이 클램프는 max_model_len 1건 기준의
+            # **잠정값**이다 — 통과 트라이얼의 위상 1 이 배포 천장으로 KV-fit 을 환산하고 산출 batch 로 다시 잡는다.
+            clamp_provisional = not batch_decided
             record["after"] = {"kv_cache_memory_bytes": int(new_kv)}
+            if clamp_provisional:
+                record["after_note"] = (record.get("after_note") or "") + (
+                    " (잠정 클램프 — batch 산출 전이다. 통과 트라이얼에서 산출 batch 로 재산정한다)")
 
         elif adjust in ("attention_backend", "tool_call_parser", "reasoning_parser"):
             # soft 변수 폴백: *_candidates 순서에서 다음 후보로 교체.
@@ -1237,22 +1876,119 @@ def cmd_simulate(args):
         correction_history.append(record)
         simlog_writer.append_correction(run_dir, record)
 
+    # 산식·재검증 기록을 한 자리로 모은다(수렴·미수렴 요약과 lockset 이 같은 몸을 싣는다).
+    if batch_derivation is not None:
+        # 엔진 max_concurrency 는 "max_model_len 최악 길이 요청만 온다면" 의 동시성이다 — 대표 길이로 센 KV-fit 보다
+        # 항상 작거나 같으므로 **보수 하한**이다. 산식 입력으로 쓰지 않고 트라이얼마다 나란히 적는다(F2: 파싱돼 있었는데
+        # 소비자가 0 이었다).
+        batch_derivation["engine_max_concurrency"] = {
+            "note": "엔진 보고 max_concurrency 는 max_model_len 최악 길이 기준이다 — 보수 하한으로 기재(산식 입력 ✗)",
+            "trials": [{"trial_number": o["trial_number"], "clamped": o["clamped"], "batch": o["batch"],
+                        "max_concurrency": o["max_concurrency"],
+                        "conservative_floor": (int(o["max_concurrency"]) if o["max_concurrency"] is not None
+                                               else None),
+                        "kv_cache_tokens": o["kv_cache_tokens"]}
+                       for o in engine_obs]}
+        _chk = (final_class or {}).get("kv_fit_check")
+        batch_derivation["verification"] = _chk
+        if batch_plan["mode"] == "derive" and batch_derivation.get("batch") is not None:
+            # 위상 2 결과를 값 옆에 적는다 — 산출(위상 1)만 적고 재검증 결과를 비워 두면 "검증했다"와 "산출만 했다"가
+            # 구분되지 않는다. 재검증을 못 했으면(엔진 토큰 미관측 등) 검증 안 됨으로 적는다(일치로 접지 않는다).
+            batch_derivation["verified"] = bool(_chk and _chk.get("checked") and not _chk.get("exceeds"))
+            if not batch_derivation["verified"]:
+                batch_derivation["verified_gap"] = ((_chk or {}).get("reason")
+                                                    or "클램프 트라이얼 재검증 기록이 없다(수렴 전 종료 또는 위상 2 미도달)")
+        if batch_plan["input_source_anomalies"]:
+            batch_derivation["input_source_anomalies"] = list(batch_plan["input_source_anomalies"])
+        if batch_plan.get("prior_kv") is not None:
+            batch_derivation["prior_kv"] = batch_plan["prior_kv"]
+        batch_derivation["out_of_scope"] = (
+            "무릎(동시성 대비 처리량 포화)·열벽은 explorer 가 재지 않는다 — adversarial-benchmark 스윕·노드 블랙박스가 재서 "
+            "escalation_candidates / hint input 으로 넘긴다(트리플렛 직접 쓰기 ✗). max-num-batched-tokens 모델링 범위 밖.")
+    lockset_ctx = {"raw": raw_lockset, "plan": batch_plan, "derivation": batch_derivation,
+                   "roles": roles, "kv_origin": kv_origin, "declared_axes_check": declared_axes_check,
+                   "out": _lockset_out}
+
     # ── 수렴 처리 ──────────────────────────────────────────────────────────
     if converged:
         return _simulate_converged(
-            args, cfg, parsed, candidate, final_trial, tp, budget, margin,
-            run_dir, run_id, correction_history,
+            args, cfg, parsed, candidate, final_trial, tp, roles,
+            run_dir, run_id, correction_history, lockset_ctx,
         )
 
     # ── 미수렴(cap 소진 / infeasible / unknown) → Model-C HITL 보고 ─────────
     _simulate_hitl(
         run_dir, run_id, candidate, final_trial, final_class, correction_history, cap,
+        lockset_ctx=lockset_ctx,
     )
 
 
-def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
-                        run_dir, run_id, correction_history):
-    """수렴 시: 실측 채운 recipe → gen_recipe_set 3종 세트 + write_summary + feedback."""
+_GMU_ROLE_KEYS = ("flow", "deploy_gmu", "deploy_gmu_source", "deploy_gmu_declared", "deploy_gmu_role",
+                  "gate_margin", "gate_margin_source", "gate_margin_role", "budget_gib", "budget_source",
+                  "gpu_model", "tp_divisor")
+
+
+def _gmu_roles_record(roles, trial=None, candidate=None):
+    """요약·lockset 에 싣는 gmu 역할 기록. 트라이얼 gmu(측정용 · host 캡이 걸릴 수 있다)는 배포 gmu 와 **다른 칸**이다."""
+    rec = {k: roles.get(k) for k in _GMU_ROLE_KEYS}
+    if trial is not None:
+        eff = trial.get("effective_gmu")
+        rec["trial_gmu"] = eff if eff is not None else (candidate or {}).get("gpu_memory_utilization")
+        rec["trial_gmu_source"] = ("run_trial.effective_gmu(실제 emit 값)" if eff is not None
+                                   else "candidate.gpu_memory_utilization(트라이얼 요청값)")
+    return rec
+
+
+def _build_lockset(candidate, ctx, trial_provenance, trial):
+    """수렴 candidate → lockset. **입력 lockset 의 칸을 보존**하고 explorer 파생 칸과 출처만 갱신·각인한다.
+
+    각인(2026-09-14 · plan_26091407 §4.2·§4.3 · 단계 ① 이월 항목): `provenance=explorer-phase2` 와
+    `batch_source`·`gmu_source`·`kv_source` 를 **기계가** 적는다 — 종전 표시는 저작자의 절차 자기선언뿐이었다.
+    값은 전부 소유자 어휘로 교차검증된다(`_stamp`). `*_source` 는 **어느 규칙이 값을 냈는가**이고, 그 규칙의
+    입력이 실측이었는지는 `trial_provenance`(run_trial 어휘 measured|mock|dry-run)가 말한다 — mock 으로 수렴한
+    lockset 이 `kv-fit-measured` 를 들고 있어도 `trial_provenance=mock`·`measured=false` 가 옆에 선다(실측인 척 ✗).
+    """
+    raw, roles, plan, der = ctx["raw"], ctx["roles"], ctx["plan"], ctx["derivation"]
+    out = copy.deepcopy(raw)
+    for key in ("batch", "kv_cache_memory_bytes", "attention_backend", "tool_call_parser", "reasoning_parser"):
+        out[key] = candidate.get(key)
+    if plan["mode"] == "hand-lever":
+        batch_source = "hand-lever"
+    else:
+        batch_source = (der or {}).get("batch_source")
+    # KV 클램프: 트라이얼 루프가 산정했으면 measured-clamp, 입력 클램프를 바꾸지 않고 검증만 했으면 hand
+    #   (직전 explorer 산출 클램프는 `_batch_plan` 이 이미 비웠으므로 여기 "input" 으로 오는 것은 사람 값뿐이다).
+    if candidate.get("kv_cache_memory_bytes") is None:
+        kv_source = None
+    elif ctx["kv_origin"] == "trial-loop":
+        kv_source = "measured-clamp"
+    else:
+        kv_source = "hand"
+    out.update({
+        "provenance": _stamp("provenance", "explorer-phase2"),
+        "batch_source": _stamp("batch_source", batch_source),
+        "kv_source": _stamp("kv_source", kv_source),
+        "gmu_source": _stamp("gmu_source", roles["gmu_source"]),
+        "_explorer_stamp_howto": (
+            "recipe.py simulate 수렴이 기계 각인한 칸(2026-09-14 · plan_26091407 §4.2·§4.3): provenance·batch·"
+            "batch_source·kv_cache_memory_bytes·kv_source·gmu_source·trial_provenance·batch_derivation·gmu_roles. "
+            "*_source 는 값을 낸 규칙이고, 그 규칙의 입력이 실측이었는지는 trial_provenance 가 말한다. "
+            "kv_source=hand 는 입력 lockset 클램프를 트라이얼이 바꾸지 않고 검증만 했다는 뜻이다."),
+        "trial_provenance": trial_provenance,
+        "measured": trial_provenance == PROVENANCE_MEASURED,
+        "batch_derivation": der,
+        "gmu_roles": _gmu_roles_record(roles, trial, candidate),
+        "declared_axes_check": ctx["declared_axes_check"],
+    })
+    return out
+
+
+def _simulate_converged(args, cfg, parsed, candidate, trial, tp, roles,
+                        run_dir, run_id, correction_history, lockset_ctx):
+    """수렴 시: 실측 채운 recipe → gen_recipe_set 3종 세트 + lockset 각인 + write_summary + feedback."""
+    budget = roles["budget_gib"]
+    deploy_gmu = roles["deploy_gmu"]
+    gate_margin = roles["gate_margin"]
     profile = trial.get("vllm_profile") or {}
     weights_gib = profile.get("weights_gib")
     overhead_gib = profile.get("non_kv_overhead_gib")
@@ -1285,15 +2021,24 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
     #   예전엔 여기 dict 리터럴이 9개 필드만 복사해, 생성기를 고쳐도 노브가 이 홉에서
     #   조용히 떨어졌다(2026-08-01 moe_backend 실증 — 트라이얼 통과 ↔ 배포물 즉사).
     #   홉이 둘이면 둘 다 고쳐야 하는데 그걸 잊는 것이 결함 계열의 본질이라 홉을 하나로 모았다.
-    # gmu 분기 가시화: 트라이얼이 쓴 값과 배포에 박히는 값(safety_margin)이 다르면 알린다.
-    _cand_gmu = candidate.get("gpu_memory_utilization")
-    if _cand_gmu is not None and abs(float(_cand_gmu) - float(margin)) > 1e-9:
-        print("[recipe] ⚠ gmu 분기: 트라이얼 %.3f ↔ 배포(config.safety_margin) %.3f — "
-              "검증한 값과 배포되는 값이 다르다. 의도한 것이 아니면 config.safety_margin 을 맞춰라."
-              % (float(_cand_gmu), float(margin)), file=sys.stderr)
+    # gmu 분기 가시화(2026-09-14 새 이름): 최종 트라이얼이 **실제로 emit 한** trial_gmu 와 배포에 박히는
+    # deploy_gmu(= target_gpu.target_gmu)가 다르면 알린다. 트라이얼 gmu 는 측정 평면(host 바닥 캡이 걸릴 수 있다)
+    # 이고 deploy_gmu 는 배포 평면이다 — 같은 이름으로 부르면 둘이 갈린 사실이 보이지 않는다.
+    _gmu_rec = _gmu_roles_record(roles, trial, candidate)
+    _trial_gmu = _gmu_rec.get("trial_gmu")
+    if _trial_gmu is not None and abs(float(_trial_gmu) - float(deploy_gmu)) > 1e-9:
+        print("[recipe] ⚠ gmu 분기: trial_gmu %.3f (%s) ↔ deploy_gmu %.3f (%s) — 검증한 값과 배포되는 값이 다르다. "
+              "의도한 것이 아니면 lockset 의 gpu_memory_utilization 을 지우거나 target_gpu.target_gmu 를 맞춰라."
+              % (float(_trial_gmu), _gmu_rec.get("trial_gmu_source"), float(deploy_gmu),
+                 roles["deploy_gmu_source"]), file=sys.stderr)
+    _final_prov = trial.get("provenance")
+    lockset = _build_lockset(candidate, lockset_ctx, _final_prov, trial)
     recipe = recipe_from_candidate(candidate, **{
-        # gpu-memory-utilization = safety_margin(디바이스 풀 상한; 실제 KV 는 절대 클램프가 제어).
-        "gpu_memory_utilization": margin,
+        # gpu-memory-utilization = deploy_gmu(target_gpu.target_gmu · 기동 전 free 검사에 쓰인다; 실제 KV 는 절대 클램프).
+        "gpu_memory_utilization": deploy_gmu,
+        # 값 옆 출처(§결정론 규율) — 생성기가 yaml 주석으로 싣는다. serve 노브가 아니다.
+        "batch_source": lockset.get("batch_source"),
+        "gmu_source": lockset.get("gmu_source"),
         # target_gpu 활성 시 gen_recipe_set 이 트리플렛 헤더에 이식 정직성 주석을 단다(§4.9, plan_26070809_47_07).
         "target_gpu": cfg.get("target_gpu"),
         "vram_breakdown": {
@@ -1319,6 +2064,19 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
     print("[recipe] 수렴 — 생성된 3종 세트:")
     for p in paths:
         print(f"  - {p}")
+    _lockset_out = lockset_ctx.get("out")
+    if _lockset_out:
+        os.makedirs(os.path.dirname(os.path.abspath(_lockset_out)) or ".", exist_ok=True)
+        with open(_lockset_out, "w", encoding="utf-8") as fh:
+            json.dump(lockset, fh, ensure_ascii=False, indent=2)
+            fh.write("\n")
+        print(f"[recipe] lockset 각인(provenance=explorer-phase2 · batch_source={lockset['batch_source']} · "
+              f"gmu_source={lockset['gmu_source']} · kv_source={lockset['kv_source']} · "
+              f"trial_provenance={_final_prov}): {_lockset_out}")
+    else:
+        print("[recipe] ⓘ --lockset-out 미지정 ∧ --candidate 가 캠페인 셀 lockset 이 아니다 — 각인된 lockset 은 "
+              "run_summary.json 의 lockset 칸에만 남는다(셀 lockset 에 남기려면 --lockset-out 으로 경로를 넘겨라).",
+              file=sys.stderr)
 
     # simlog run_summary.
     #   provenance 각인(2026-08-13 · plan_26081314 D1): 수렴한 레시피가 **무엇을 근거로** 수렴했는지를
@@ -1329,7 +2087,6 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
     #   **수렴 성공 경로에서만** 터지므로 오래 숨어 있었다(대부분의 실행은 Model-C HITL 로 끝난다).
     #   3종 세트는 이미 생성된 뒤 죽어서 "파일은 있는데 run_summary 가 없는" 상태가 됐다 —
     #   evidence chain 이 끊긴다. 2026-08-16 첫 수렴 실행에서 발각(testlog_26081607 §10).
-    _final_prov = trial.get("provenance")
     summary = {
         "run_id": run_id,
         "converged": True,
@@ -1340,6 +2097,11 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
         "correction_history": correction_history,
         "provenance": _final_prov,
         "measured": _final_prov == PROVENANCE_MEASURED,
+        # 2026-09-14(plan_26091407 §4.2·§4.3): gmu 두 역할 · max-num-seqs 산식 · 각인된 lockset.
+        "gmu_roles": _gmu_rec,
+        "batch_derivation": lockset.get("batch_derivation"),
+        "lockset": lockset,
+        "lockset_out": _lockset_out,
     }
     if _final_prov != PROVENANCE_MEASURED:
         print(f"[recipe] ⚠ 이 레시피는 실측이 아니다(provenance={_final_prov}) — "
@@ -1356,11 +2118,13 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
         "model_id": parsed.get("model_id"),
         "quantization": candidate.get("quantization"),
         "max_model_len": candidate.get("max_model_len"),
-        "gpu_memory_utilization": margin,
+        "gpu_memory_utilization": deploy_gmu,
         "vram_budget_gb": budget,
         "estimated_vram_gb": total_gib,
         "tensor_parallel_size": tp,
-        "safety_margin_threshold": margin,
+        "safety_margin_threshold": gate_margin,
+        "batch_source": lockset.get("batch_source"),
+        "gmu_source": lockset.get("gmu_source"),
         "selection_timestamp": datetime.now().isoformat(),
         "actual_vram_gb": total_gib,
         "serve_success": True,
@@ -1385,8 +2149,8 @@ def _simulate_converged(args, cfg, parsed, candidate, trial, tp, budget, margin,
 
 
 def _simulate_hitl(run_dir, run_id, candidate, trial, final_class,
-                   correction_history, cap):
-    """미수렴 → Model-C HITL 보고(증거 simlog 경로 제시) + 비0 종료."""
+                   correction_history, cap, lockset_ctx=None):
+    """미수렴 → Model-C HITL 보고(증거 simlog 경로 제시) + 비0 종료. lockset 은 각인하지 않는다(수렴 산물이 아니다)."""
     fclass = (final_class or {}).get("failure_class", "unknown")
     note = (final_class or {}).get("note", "")
     log_path = (trial or {}).get("log_path")
@@ -1407,6 +2171,9 @@ def _simulate_hitl(run_dir, run_id, candidate, trial, final_class,
         "provenance": _final_prov,
         "measured": _final_prov == PROVENANCE_MEASURED,
     }
+    if lockset_ctx:
+        summary["gmu_roles"] = _gmu_roles_record(lockset_ctx["roles"], trial, candidate)
+        summary["batch_derivation"] = lockset_ctx.get("derivation")
     simlog_writer.write_summary(run_dir, summary)
 
     print("[recipe] ── Model-C (HITL) — 자동 수렴 실패 ──", file=sys.stderr)
@@ -1468,6 +2235,12 @@ def build_parser():
                     help="예산 선언 overhead(MiB). 미지정 시 config.budget_overhead_mib → "
                          "run_trial 기본값 순. 실측값이 있으면 넘긴다")
     ps.add_argument("--force", action="store_true", help="수렴 시 3종 세트 덮어쓰기 허용")
+    ps.add_argument("--lockset-out", default=None,
+                    help="수렴 시 기계 각인한 lockset(provenance=explorer-phase2 · batch_source·gmu_source·kv_source "
+                         "· trial_provenance)을 쓸 경로. 캠페인 셀이면 `campaign_init.py --derive lockset --cell <id>` "
+                         "로 파생한 셀 lockset(보통 --candidate 와 같은 파일)을 준다. 다른 기존 파일은 --force 로만 "
+                         "덮어쓴다. 미지정이면: --candidate 가 캠페인 셀 lockset(campaigns/<id>/cells/<cell>/lockset.json)"
+                         "이면 그 파일에 쓰고, 그 밖이면 run_summary.json 의 lockset 칸에만 남는다(plan_26091407 §4.2)")
     ps.set_defaults(func=cmd_simulate)
 
     return p

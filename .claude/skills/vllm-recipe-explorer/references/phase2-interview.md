@@ -7,14 +7,17 @@
 
 1. **타깃 GPU / VRAM 예산** (필수, 0순위 · 폴백 명문화 D10) — *"따로 시뮬레이션 타겟 GPU 가 있나요?"* 물어 분기한다:
    **스킵/"호스트" 답변 → 호스트 GPU 기준**(manifest HW사실) · **명시 타겟 → `config.target_gpu`**(γ 시뮬레이터 모드,
-   **VRAM 수준 한정** 시뮬레이션). 예: RTX PRO 6000 96GB. → `config.yaml` 의 `vram_budget_gb`(스칼라, 하위호환) 또는
-   host≠target 이식이면 구조화 `target_gpu` 블록(`kv-clamp.md` §타겟-GPU 이식형 예산).
+   **VRAM 수준 한정** 시뮬레이션). 예: RTX PRO 6000 96GB. → host≠target 이식(또는 carve-out)이면 구조화 `target_gpu` 블록
+   (`target_gmu` 필수 — 배포 gmu 의 정본 · `kv-clamp.md` §타겟-GPU 이식형 예산). 호스트 기준이면 블록을 비워 두고
+   simulate 가 manifest 에서 채운다(`vram_budget_gb` 스칼라는 Phase-1 예산 · 2026-09-14 plan_26091407 §4.3).
    **이전 전제**: host 에서 측정한 attention backend 와 타겟이 동일해야 KV 레이아웃·overhead 가 유효 이전된다 —
    트리플렛 헤더에 명시 pin(`gen_recipe_set.py` 가 이미 `attention_backend` 를 emit).
 2. **weight quant?** — prequantized 면 native 고정. 비prequantized 면 `none`/`fp8`(awq/gptq 는 비prequantized 경고).
 3. **KV quant?** — `null`(fp16, 2바이트) 또는 `fp8`(1바이트). KV 캐시를 절반으로 줄여 더 긴 context/batch 확보.
-4. **batch**(=동시요청수, `--max-num-seqs`) → 정한 뒤 **max-model-len** — *최대 가능값을 제안*한다
-   (`estimate_vram.max_feasible_max_len` 이 천장 내 2의 거듭제곱 최대 길이를 결정론으로 계산).
+4. **동시성 요구·대표 요청 길이** → **max-model-len** — batch(`--max-num-seqs`) 값을 묻지 않는다. 사람에게 묻는 것은
+   **선언**(`declared_axes.concurrency_requirement`·`typical_request_tokens` — 모르면 null)이고, batch 는 trial-loop 이
+   `min(요구, KV_fit@L)` 로 산출한다(`kv-clamp.md` §3 max-num-seqs 산식 · 2026-09-14 plan_26091407 §4.2). max-model-len 은
+   *최대 가능값을 제안*한다(`estimate_vram.max_feasible_max_len` 이 천장 내 2의 거듭제곱 최대 길이를 결정론으로 계산).
 5. **tool / reasoning 파서** — **외부 교차검증**(HF 모델카드·docs, *에이전트 수행*): 모델이 tool_call·reasoning 을 지원하는지,
    vLLM 파서명이 무엇인지 에이전트가 확인한다(예: `hermes`/`qwen3`). 미지원이면 N/A(스모크에서 스킵).
    - **파서명은 공식 docs 에서 얻은 뒤 반드시 빌드 이미지에 version-exact 확증한 후에만 emit 한다(가정 금지)**:
@@ -37,27 +40,30 @@
 
 | 계층 | 의미 | 키 |
 |------|------|----|
-| **lock** | 인터뷰로 고정, 루프가 안 바꿈 | `quantization, max_model_len, batch, kv_cache_quant` |
+| **lock** | 인터뷰로 고정, 루프가 안 바꿈 | `quantization, max_model_len, kv_cache_quant` (+ 손레버 `batch` — 사람이 적으면 루프가 덮어쓰지 않고 `batch_source=hand-lever` 로 표시) |
 | **soft** | 실패 시 `*_candidates` 순서로 폴백 | `attention_backend, tool_call_parser, reasoning_parser` |
-| **free** | 루프가 결정론으로 산정 | `kv_cache_memory_bytes` |
+| **free** | 루프가 결정론으로 산정 | `kv_cache_memory_bytes` · `batch`(= `min(concurrency_requirement, KV_fit@typical_request_tokens)` · 2-위상 트라이얼) |
 
 인터뷰 산물 = **lock-set JSON**(`lockset.json`). soft 변수마다 순서있는 `*_candidates` 폴백 리스트와
 `model_capabilities: {tool_call, reasoning}` 를 채워 `recipe.py simulate` 에 투입한다.
 
-**출처 표시**(2026-09-14 · plan_26091407 §4.0): 이 인터뷰가 잠근 lockset 은 `"provenance": "explorer-phase2"`
-를 적는다(이 절차 밖에서 사람이 손으로 적은 lockset 은 `hand-authored`). 캠페인 셀에서는 이 표시가 없으면
-`broad_search.sh cell` 이 측정 진입에서 exit 2 로 멈춘다. ⚠ **실행자**: 지금 이 표시를 적는 것은 lockset 을
-저작하는 쪽(이 인터뷰를 수행한 에이전트)이다 — `recipe.py` 는 lockset 을 읽기만 하고 각인하지 않으므로
-`explorer-phase2` 는 절차 자기선언이며 `hand-authored` 와 기계적으로 구분되지 않는다. explorer 경로의
-**기계 각인**(`recipe.py simulate` 수렴 산출물이 provenance·`*_source` 를 적는 것)은 plan_26091407 단계 ②
-(`recipe.py` 편집 범위)의 후속으로 넘긴다 — 그 전까지 이 문단이 표시의 유일한 실행 지시다. 예외 노브는 값의 출처를 `*_source` 로 가른다 —
-`batch_source`(declared-requirement|kv-fit-measured|hand-lever) · `gmu_source`(target_gmu|hand) ·
-`kv_source`(measured-clamp|hand). 어휘의 소유는 `campaign_template_validator.py`(`LOCKSET_PROVENANCE` ·
-`LOCKSET_KNOB_SOURCES`)이고, 이 표시 필드는 serve-args 가 아니다(`run_trial`·3종 세트는 읽지 않는다).
-아래 예시의 `batch: 8` 은 **형식 예시**다 — batch 산식 `min(선언 동시성 요구, KV-fit)` 은 plan_26091407 §4.2 단계가 이 자리를 갱신한다.
+**출처 표시**(2026-09-14 · plan_26091407 §4.0·§4.2·§4.3): lockset 의 `provenance` 는 누가 만들었는가다 —
+`explorer-phase2`(trial-loop 가 수렴해 잠갔다) 또는 `hand-authored`(그 절차 밖에서 사람이 적었다). 캠페인 셀에서는
+이 표시가 없으면 `broad_search.sh cell` 이 측정 진입에서 exit 2 로 멈춘다. **실행자**: `recipe.py simulate` 가 수렴하면
+`--lockset-out <경로>`(미지정이면 `--candidate` 가 캠페인 셀 lockset 일 때 그 파일)에 `provenance=explorer-phase2` 와 예외 노브의
+`*_source` 를 **기계 각인**한다 — `batch_source`(declared-requirement|kv-fit-measured|hand-lever) · `gmu_source`(target_gmu|hand) ·
+`kv_source`(measured-clamp|hand) · `trial_provenance`(measured|mock|dry-run — mock 수렴이 실측인 척하지 않게) ·
+`batch_derivation`(산식 입력·KV-fit·재검증·엔진 max_concurrency 보수 하한) · `gmu_roles`(deploy_gmu·gate_margin 과 출처).
+어휘의 소유는 `campaign_template_validator.py`(`LOCKSET_PROVENANCE` · `LOCKSET_KNOB_SOURCES`)이고 explorer 는 각인하는 값을
+그 상수로 교차검증한다(입력 lockset 이 들고 온 어휘 밖 출처는 멈추지 않고 기재한다). 이 표시 필드는 serve-args 가 아니다
+(`run_trial`·3종 세트는 읽지 않는다 — yaml 에는 주석 줄로만 실린다). 인터뷰 산물 lockset 은 **batch 를 비워 둔다**(null) —
+사람이 batch 를 적으면 손레버로 보존·표시되고, 직전 explorer 산출 batch·클램프는 다음 실행이 승계하지 않고 다시 잰다.
+인터뷰 산물은 **아직 트라이얼을 거치지 않았으므로 `hand-authored` 로 출발**한다(아래 예시) — `explorer-phase2` 를 미리 적으면
+각인 전까지 그 표시는 절차 자기선언이다. 수렴 각인이 `explorer-phase2` 로 바꾸고, 각인 여부는 `trial_provenance` 칸이
+말한다(`campaign_init --cell-set` 이 cell.status 에 `lockset_stamp` = machine|self-declared|hand 로 옮긴다 · 기재).
 
 ```json
-{ "id": "s1", "provenance": "explorer-phase2", "quantization": "none", "max_model_len": 32768, "batch": 8,
+{ "id": "s1", "provenance": "hand-authored", "quantization": "none", "max_model_len": 32768, "batch": null,
   "kv_cache_quant": null, "kv_cache_memory_bytes": null,
   "attention_backend": "FLASHINFER", "attention_backend_candidates": ["FLASHINFER", "FLASH_ATTN"],
   "tool_call_parser": null, "tool_call_parser_candidates": [],
