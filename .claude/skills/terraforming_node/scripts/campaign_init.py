@@ -494,6 +494,179 @@ def _sweep_image(sweep_path: Path, cell: str) -> "tuple[dict | None, str]":
     return None, f"sweep 기록에 셀 {cell!r} 이 없다: {_rel(sweep_path)}"
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 셀 출처 (2026-09-14 · plan_26091407 §4.0 · 사용자 결정 Q1·Q8)
+#
+# 두 자리가 있다. **진입 precheck**(`lockset_precheck` ← `broad_search.sh cell`)는 표시 부재·무효만
+# fail-closed 로 막고, **불일치 기재**(`_cell_provenance` ← `--cell-set`)는 선언과 서빙 실물의 드리프트를
+# cell.status 에 적을 뿐 막지 않는다. 표시 어휘의 소유는 검증기(`LOCKSET_PROVENANCE`)이고 여기는 호출부다.
+
+# 대조 수단이 아직 없는 노브 — 단계 ②(explorer 의 max-num-seqs = min(요구, KV-fit) 산식·2-위상 트라이얼)가
+# 재계산값을 내면 그때 대조를 얹는다. 이름으로 남기는 이유: 대조하지 않은 노브를 "불일치 0건"으로
+# 읽으면 안 쟀다와 일치했다가 구분되지 않는다(plan_26091407 §4.2).
+PROVENANCE_PENDING_KNOBS = ("batch", "kv_cache_memory_bytes")
+
+
+def _active_pointer_fact() -> str:
+    """ACTIVE 포인터의 **실제 상태** 한 줄. `_bootstrap` 으로 접힌 이유를 판정 사유에 싣는다 —
+    포인터 부재·무효 이름(오타·purge 뒤 잔존)·명시 `_bootstrap` 이 같은 문장으로 보이면 운영자는
+    "캠페인 밖 호출" 과 "포인터를 잃은 캠페인 호출" 을 구분하지 못한다."""
+    if not ACTIVE_POINTER.is_file():
+        return "ACTIVE 포인터 부재"
+    try:
+        name = ACTIVE_POINTER.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        return f"ACTIVE 포인터 읽기 실패({exc})"
+    if not name:
+        return "ACTIVE 포인터가 비었다"
+    if name == BOOTSTRAP:
+        return "ACTIVE=_bootstrap(명시)"
+    if not (CAMPAIGNS / name).is_dir():
+        return f"ACTIVE={name!r} 무효(campaigns/{name} 디렉터리 없음)"
+    return f"ACTIVE={name}"
+
+
+def lockset_precheck(cell: str, camp_id: str | None = None) -> dict:
+    """측정 진입 전 셀 출처 precheck. `status` ∈ passed | refused | not_applicable.
+
+    ★ `_bootstrap`(활성 캠페인 없음)은 **not_applicable** 이다. 캠페인 밖 호출에는 셀 입력의 거처
+      자체가 없고(writer 도 no-op 인 같은 경계), 거기서 막으면 해소 경로가 "대기실에 lockset 을
+      만든다" 뿐이라 `_bootstrap` 이 캠페인 흉내를 내게 된다(D3: 게이트가 우회를 만든다). 대신
+      조용히 넘기지 않는다 — 호출부가 이 판정을 stderr 와 셀 기록에 **이름으로** 남긴다.
+    """
+    camp = camp_id or active_campaign_id()
+    if camp == BOOTSTRAP:
+        return {"status": "not_applicable", "campaign_id": BOOTSTRAP, "cell": cell,
+                "lockset": None, "provenance": None,
+                "reason": (f"{_active_pointer_fact() if camp_id is None else '--campaign-id=_bootstrap'}"
+                           f" → _bootstrap — 캠페인 셀 문맥이 없어 lockset 의 거처가 없다"
+                           f"(writer no-op 과 같은 경계). 셀 출처 precheck 대상이 아니다")}
+    base = campaigns_dir() / camp
+    if not base.is_dir():
+        raise WriterRefusal(f"인스턴스가 없다: campaigns/{camp} — 출처를 물을 셀이 없다")
+    path = base / "cells" / cell / "lockset.json"
+    why = validator().lockset_provenance_reason(path)
+    doc = _read_json(path) if path.is_file() else None
+    prov = doc.get("provenance") if isinstance(doc, dict) else None
+    if why is not None and node_of_cell(base, cell) is None:
+        # R10 계열: 셀 키 어휘가 캠페인 셀 id 와 갈라지면 lockset 이 "없는" 것으로 보인다.
+        why += (f" · 셀 키 {cell!r} 가 campaigns/{camp}/campaign.yaml 의 assignments 에도 없다"
+                f"(스윕 셀 키가 캠페인 셀 id 와 같은 이름인지 확인하라)")
+    return {"status": "refused" if why else "passed", "campaign_id": camp, "cell": cell,
+            "lockset": _rel(path), "provenance": prov if isinstance(prov, str) else None,
+            "reason": why}
+
+
+def _sweep_coordinate(sweep_path: Path, cell: str, key: str) -> "tuple[object, str]":
+    """sweep 레코드 좌표 하나. (값, 출처) — 값이 없으면 (None, 없는 이유)."""
+    doc = _read_json(sweep_path)
+    if not isinstance(doc, dict):
+        return None, f"sweep 기록을 읽지 못했다: {_rel(sweep_path)}"
+    for rec in (doc.get("cells") or []):
+        if not isinstance(rec, dict) or rec.get("cell_key") != cell:
+            continue
+        coord = rec.get("coordinates") if isinstance(rec.get("coordinates"), dict) else {}
+        if key not in coord or coord.get(key) in (None, "", "NA"):
+            return None, (f"sweep 레코드에 {key} 좌표가 없다: {_rel(sweep_path)} cell_key={cell} "
+                          f"(서빙 yaml 에 그 키가 없었거나 측정 평면이 싣지 않았다)")
+        return coord.get(key), (f"sweep:{_rel(sweep_path)}#cells[cell_key={cell}].coordinates.{key}")
+    return None, f"sweep 기록에 셀 {cell!r} 이 없다: {_rel(sweep_path)}"
+
+
+def _as_number(val) -> "float | None":
+    if isinstance(val, bool):
+        return None
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
+def _declared_target_gmu(cfg_path: Path) -> "tuple[float | None, str]":
+    """셀 config 의 선언 target_gpu.target_gmu. (값, 출처) — 없으면 (None, 없는 이유).
+
+    config.yaml 은 YAML 이라 PyYAML 을 **지연 import** 한다. 없으면 대조 불가를 사유로 돌려준다 —
+    이 자리는 기재이지 게이트가 아니므로 fail-loud 기재(gap)가 정당하고, 조용히 '일치'로 접지 않는다.
+    """
+    if not cfg_path.is_file():
+        return None, f"셀 config 부재: {_rel(cfg_path)}"
+    try:
+        import yaml
+    except ImportError:
+        return None, "PyYAML 부재 — 선언 target_gmu 를 읽지 못했다(대조 불가 · 기재)"
+    try:
+        doc = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        return None, f"셀 config 파손({_rel(cfg_path)}): {exc}"
+    tgt = doc.get("target_gpu") if isinstance(doc, dict) else None
+    val = _as_number(tgt.get("target_gmu")) if isinstance(tgt, dict) else None
+    if val is None:
+        return None, f"셀 config 에 target_gpu.target_gmu 가 수로 선언되지 않았다: {_rel(cfg_path)}"
+    return val, f"{_rel(cfg_path)}#target_gpu.target_gmu"
+
+
+def _cell_provenance(base: Path, cell: str, node: str | None, sweep_state: str | None,
+                     prior: dict, prior_mismatch: list) -> "tuple[dict, list]":
+    """셀 출처 표시 + 선언↔서빙 실물 드리프트. 반환 `(provenance, provenance_mismatch)`.
+
+    ★ 관측 불가와 부재를 가른다: 메인 인스턴스에서 서브 배정 셀(회수 편입·사후 수리 경로)은 lockset 을
+      서브 인스턴스가 저작하고 메인은 읽지 않는다. 그 셀에 "lockset 부재 … hand-authored 로 표시" 를
+      적으면 관측 불가가 부재로 기재되고 메인에게 서브 셀에 거짓 출처를 붙이라는 처방까지 준다.
+      판정은 P6 와 같은 함수(`lockset_observable`)가 한다.
+    ★ 대조하지 못한 노브는 **직전 기재를 유지**한다 — 부재(sweep 없음·좌표 NA·PyYAML 부재)가 과거
+      관측을 덮으면 안 된다. 이번 호출이 실제로 대조한 노브(`compared`)의 기재만 교체된다.
+    """
+    decl = read_declaration(base)
+    pending = list(PROVENANCE_PENDING_KNOBS)
+    if not validator().lockset_observable(decl, node):
+        return ({"observability": "not_observable",
+                 "observability_reason": (f"서브 배정 셀(node={node}) — lockset 은 서브 인스턴스가 저작하고 "
+                                          f"precheck 도 서브 진입에서 집행한다. 메인은 서브 인스턴스를 "
+                                          f"읽지 않으며 브리핑은 lockset 출처를 싣지 않는다(헌법 노드제어 ①)"),
+                 "lockset": None, "lockset_source": None, "lockset_gap": None,
+                 "compared": [], "compare_gaps": [], "pending_knobs": pending},
+                list(prior_mismatch))
+    lock = base / "cells" / cell / "lockset.json"
+    ldoc = _read_json(lock) if lock.is_file() else None
+    ldoc = ldoc if isinstance(ldoc, dict) else {}
+    prov = {"observability": "observed", "observability_reason": None,
+            "lockset": ldoc.get("provenance") if isinstance(ldoc.get("provenance"), str) else None,
+            "lockset_source": _rel(lock) if lock.is_file() else None,
+            # 출처 표시가 성립하지 않는 사유(precheck 와 같은 함수). 진입에서 이미 막혔을 셀이라도
+            # 여기서는 사실로만 적는다 — 기재 자리가 게이트를 흉내 내지 않는다.
+            "lockset_gap": validator().lockset_provenance_reason(lock),
+            "compared": list(prior.get("compared") or []),
+            "compare_gaps": list(prior.get("compare_gaps") or []),
+            "pending_knobs": pending}
+    if not sweep_state:
+        return prov, list(prior_mismatch)
+    fresh: list[dict] = []
+    compared: list[str] = []
+    gaps: list[str] = []
+    declared, dsrc = _declared_target_gmu(base / "cells" / cell / "config.yaml")
+    observed_raw, osrc = _sweep_coordinate(Path(sweep_state), cell, "gpu_memory_utilization")
+    observed = _as_number(observed_raw)
+    if declared is None:
+        gaps.append(f"gpu_memory_utilization 대조 불가 — {dsrc} (직전 기재 유지)")
+    elif observed is None:
+        gaps.append("gpu_memory_utilization 대조 불가 — "
+                    + (osrc if observed_raw is None
+                       else f"서빙 gmu 가 수가 아니다: {observed_raw!r} ({osrc})")
+                    + " (직전 기재 유지)")
+    else:
+        compared.append("gpu_memory_utilization")
+        if declared != observed:
+            fresh.append({"knob": "gpu_memory_utilization",
+                          "declared": declared, "declared_source": dsrc,
+                          "observed": observed, "observed_source": osrc,
+                          "lockset_provenance": prov["lockset"],
+                          "lockset_gmu_source": ldoc.get("gmu_source")})
+    prov["compared"] = compared
+    prov["compare_gaps"] = gaps
+    kept = [m for m in prior_mismatch if isinstance(m, dict) and m.get("knob") not in compared]
+    return prov, kept + fresh
+
+
 def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
                     version: str | None, model: str | None,
                     decode_tps: str | None, measurement_source: str | None,
@@ -580,6 +753,15 @@ def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
                              "없다. 셀 간 비교는 같은 digest 안에서만 성립하므로, 이 셀은 "
                              "다른 셀과 나란히 놓을 수 없다(결손 기재).")
     doc["image"] = img
+
+    # ── 셀 출처(2026-09-14 · plan_26091407 §4.0) — **기재만 한다**(차단 ✗ · Q1 "표시+대조") ─────
+    #   진입을 막는 자리는 `broad_search.sh cell` precheck 하나이고, 여기는 선언(config.yaml)과 서빙
+    #   실물(sweep 좌표)이 갈라진 사실을 남긴다. 승자 셀 yaml 의 gmu 0.80 이 config target_gmu 0.85 와
+    #   달랐는데 그 사실이 어떤 산출물에도 없었다(F1). 값은 호출부가 나르지 않고 writer 가 직접 읽는다.
+    _prior = doc.get("provenance") if isinstance(doc.get("provenance"), dict) else {}
+    _prior_mm = doc.get("provenance_mismatch") if isinstance(doc.get("provenance_mismatch"), list) else []
+    doc["provenance"], doc["provenance_mismatch"] = _cell_provenance(
+        base, cell, node, sweep_state, _prior, _prior_mm)
 
     # C3(policy:LIBRARY_GROUNDING_FAIL_CLOSED) — 산출물은 자기 그라운딩을 **스스로 밝힌다**.
     # 표시가 없으면 "참조해서 정했다"와 "그냥 정했다"가 데이터에서 구분되지 않고, 그러면
@@ -1878,6 +2060,11 @@ def _selftest() -> int:
         ck("★회수 편입이 셀 결과·측정·노드를 옮긴다",
            _sc["cell_outcome"] == "measured" and _sc["measurement"]["decode_tps_conc1"] == 7.5
            and _sc["node_id"] == "sub")
+        _scp = _sc.get("provenance") or {}
+        ck("★회수 편입된 서브 셀은 lockset '부재' 가 아니라 **관측 불가**로 기재된다(P6 와 같은 판정 · "
+           "메인에게 hand-authored 처방 ✗)",
+           _scp.get("observability") == "not_observable" and _scp.get("lockset_gap") is None
+           and "hand-authored" not in json.dumps(_sc, ensure_ascii=False))
         _ptrs = _read_json(camp / "evidence_pointers.json")["pointers"]
         ck("★회수 문서가 **노드 태그와 함께** 증거로 등재된다(P2 공허 통과 방지)",
            any(x["kind"] == "testlog" and x["node_id"] == "sub" for x in _ptrs)
@@ -2025,6 +2212,124 @@ def _selftest() -> int:
         ck("★R10 셀 키 어휘가 갈라져 노드를 못 구하면 **소리를 낸다**(종전엔 조용히 건너뛰었다)",
            _bs.is_file() and "bench 진행표·브리핑 미기록" in _bs.read_text(encoding="utf-8"))
 
+        # ── 셀 출처 precheck · 불일치 기재 (2026-09-14 · plan_26091407 §4.0) ──────────────────
+        #    precheck 는 표시 부재·무효만 막고(hand-authored 통과), writer 는 드리프트를 **기재만** 한다.
+        import contextlib as _ctx
+        import io as _io
+        ACTIVE_POINTER.write_text("w1\n", encoding="utf-8")
+        (camp / "cells" / "c1").mkdir(parents=True, exist_ok=True)
+        _lk = camp / "cells" / "c1" / "lockset.json"
+        _lk.unlink(missing_ok=True)
+        _v = lockset_precheck("c1")
+        ck("★precheck: lockset 부재는 refused 이고 사유가 explorer 소관을 말한다",
+           _v["status"] == "refused" and "explorer 소관" in (_v["reason"] or ""))
+        _write_json(_lk, {"id": "c1", "provenance": "hand-authored"})
+        _v = lockset_precheck("c1")
+        ck("★precheck 음성대조: hand-authored 는 통과한다(손작성은 금지가 아니라 표시 대상)",
+           _v["status"] == "passed" and _v["provenance"] == "hand-authored" and _v["reason"] is None)
+        _write_json(_lk, {"id": "c1", "provenance": "explorer"})
+        ck("★precheck: 목록 밖 provenance 는 refused", lockset_precheck("c1")["status"] == "refused")
+        _write_json(_lk, dict(_read_json(TEMPLATE / "cells" / "_cell" / "lockset.json"), id="c1"))
+        ck("★precheck: 뼈대 복사본(<<FILL>>)은 출처를 말하지 않은 것이다",
+           lockset_precheck("c1")["status"] == "refused")
+        _vz = lockset_precheck("zz-not-assigned")
+        ck("★precheck: 배정에 없는 셀 키는 어휘 갈라짐 가능성까지 말한다(R10 계열)",
+           _vz["status"] == "refused" and "assignments 에도 없다" in (_vz["reason"] or ""))
+
+        def _cli(*argv):
+            _o, _e = _io.StringIO(), _io.StringIO()
+            with _ctx.redirect_stdout(_o), _ctx.redirect_stderr(_e):
+                rc = main(list(argv))
+            return rc, _o.getvalue(), _e.getvalue()
+
+        _rc, _out, _err = _cli("--lockset-precheck", "--cell", "c1")
+        ck("★CLI: refused 는 rc 2 이고 판정 JSON 은 stdout · 사유는 stderr",
+           _rc == 2 and json.loads(_out)["status"] == "refused" and "거부" in _err)
+        _write_json(_lk, {"id": "c1", "provenance": "explorer-phase2"})
+        _rc, _out, _err = _cli("--lockset-precheck", "--cell", "c1")
+        ck("★CLI 음성대조: explorer-phase2 는 rc 0", _rc == 0 and json.loads(_out)["status"] == "passed")
+        _rc, _out, _err = _cli("--lockset-precheck")
+        ck("★CLI: --cell 없는 precheck 는 거부(rc≠0 — 셀 없는 출처는 없다)", _rc != 0)
+        ACTIVE_POINTER.write_text(BOOTSTRAP + "\n", encoding="utf-8")
+        _rc, _out, _err = _cli("--lockset-precheck", "--cell", "c1")
+        ck("★_bootstrap 은 not_applicable 이고 rc 0 이되 **이름으로 말한다**(조용한 우회 ✗)",
+           _rc == 0 and json.loads(_out)["status"] == "not_applicable" and "대상 아님" in _err)
+        ACTIVE_POINTER.write_text("camp-typo\n", encoding="utf-8")
+        _vt = lockset_precheck("c1")
+        ck("★무효 포인터(오타·purge 잔존)는 사유에 **실제 포인터 내용**을 싣는다('명시 _bootstrap' 과 구분)",
+           _vt["status"] == "not_applicable" and "camp-typo" in (_vt["reason"] or "")
+           and "무효" in (_vt["reason"] or ""))
+        ck("★--campaign-id 로 캠페인을 주면 포인터와 무관하게 그 캠페인 셀을 판정한다(포인터 유실 ≠ 게이트 개방)",
+           lockset_precheck("c1", "w1")["status"] == "passed")
+        ACTIVE_POINTER.write_text("w1\n", encoding="utf-8")
+
+        (camp / "cells" / "cm").mkdir(parents=True, exist_ok=True)
+        (camp / "cells" / "cm" / "config.yaml").write_text(
+            "target_gpu:\n  gpu_model: GB10\n  target_gmu: 0.85   # 선언\n", encoding="utf-8")
+        _write_json(camp / "cells" / "cm" / "lockset.json",
+                    {"id": "cm", "provenance": "hand-authored", "gmu_source": "hand"})
+        _swp = camp / "sweeps" / "prov.json"
+
+        def _sweep_gmu(val):
+            _swp.write_text(json.dumps({"cells": [{"cell_key": "cm", "cell_outcome": "measured",
+                "coordinates": {"gpu_memory_utilization": val, "image_digest": "sha256:ccc"},
+                "concurrency_vector": {"1": 5.0}}]}), encoding="utf-8")
+
+        def _set_cm(sweep):
+            writer_set_cell(camp, cell="cm", outcome="measured", node="main", version=None,
+                            model=None, decode_tps=None, measurement_source=None, void_reason=None,
+                            void_reason_source=None, axis_citation=None, next_intent=None,
+                            utc="2026-09-14T00:00:00Z", sweep_state=sweep)
+            return _read_json(camp / "cells" / "cm" / "cell.status.json") or {}
+
+        _sweep_gmu("0.80")
+        _cm = _set_cm(str(_swp))
+        _mm = _cm.get("provenance_mismatch") or []
+        ck("★불일치 기재: 서빙 yaml gmu 0.80 ≠ 선언 target_gmu 0.85 가 cell.status 에 남는다(F1 재현)",
+           len(_mm) == 1 and _mm[0]["knob"] == "gpu_memory_utilization"
+           and _mm[0]["declared"] == 0.85 and _mm[0]["observed"] == 0.8
+           and "target_gpu.target_gmu" in _mm[0]["declared_source"]
+           and "coordinates.gpu_memory_utilization" in _mm[0]["observed_source"]
+           and _mm[0]["lockset_gmu_source"] == "hand")
+        ck("★불일치는 기재일 뿐 셀 결과를 바꾸지 않는다(차단 ✗)", _cm.get("cell_outcome") == "measured")
+        ck("셀 출처 표시가 lockset 에서 옮겨진다(writer 가 직접 읽는다)",
+           (_cm.get("provenance") or {}).get("lockset") == "hand-authored"
+           and (_cm.get("provenance") or {}).get("lockset_gap") is None)
+        ck("★대조하지 않은 노브는 이름으로 남는다(안 쟀다 ≠ 일치했다 · 단계 ② 슬롯)",
+           set((_cm.get("provenance") or {}).get("pending_knobs") or []) == {"batch", "kv_cache_memory_bytes"}
+           and (_cm.get("provenance") or {}).get("compared") == ["gpu_memory_utilization"])
+        _cm = _set_cm(None)
+        ck("★sweep 없이 다시 적어도 직전 불일치 기재를 지우지 않는다(부재가 관측을 덮지 않는다)",
+           len(_cm.get("provenance_mismatch") or []) == 1)
+        _sweep_gmu("0.85")
+        _cm = _set_cm(str(_swp))
+        ck("★불일치 음성대조: 같으면 기재 0 건이고 대조했다는 사실은 남는다",
+           _cm.get("provenance_mismatch") == []
+           and (_cm.get("provenance") or {}).get("compared") == ["gpu_memory_utilization"])
+        _sweep_gmu("NA")
+        _cm = _set_cm(str(_swp))
+        ck("★서빙 gmu 가 없으면 불일치가 아니라 **대조 불가**로 기재한다(일치로 접지 않는다)",
+           _cm.get("provenance_mismatch") == [] and (_cm.get("provenance") or {}).get("compared") == []
+           and any("대조 불가" in g for g in (_cm.get("provenance") or {}).get("compare_gaps") or []))
+        _sweep_gmu("0.80")
+        _set_cm(str(_swp))
+        _sweep_gmu("NA")
+        _cm = _set_cm(str(_swp))
+        ck("★불일치 기재 직후 대조 불가(sweep 좌표 NA)가 와도 직전 불일치를 지우지 않는다(부재 ≠ 일치)",
+           len(_cm.get("provenance_mismatch") or []) == 1
+           and (_cm.get("provenance_mismatch") or [{}])[0].get("observed") == 0.8
+           and any("대조 불가" in g for g in (_cm.get("provenance") or {}).get("compare_gaps") or []))
+        _sweep_gmu("0.85")
+        _cm = _set_cm(str(_swp))
+        ck("★다시 대조해 일치하면 그 노브의 기재만 교체된다(0 건)", _cm.get("provenance_mismatch") == [])
+        (camp / "cells" / "cm" / "lockset.json").unlink()
+        _cm = _set_cm(None)
+        ck("★writer 는 lockset 부재를 거부하지 않고 사유로 기재한다(진입 게이트는 precheck 하나)",
+           (_cm.get("provenance") or {}).get("lockset") is None
+           and "부재" in ((_cm.get("provenance") or {}).get("lockset_gap") or ""))
+        ck("★precheck producer 배선 앵커: broad_search.sh cell 이 --lockset-precheck 를 부른다",
+           _bs.is_file() and "--lockset-precheck" in _bs.read_text(encoding="utf-8"))
+
     CAMPAIGNS, ACTIVE_POINTER, REPO_ROOT = saved
     print("[campaign_init] " + ("PASS" if ok else "FAIL"))
     return 0 if ok else 1
@@ -2058,6 +2363,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--grounding-check", action="store_true",
                     help="그라운딩 기록이 성립하는지 묻는다 — 진입 백스톱(C2)이 부른다. "
                          "부재는 rc 4(fail-closed) · 활성 캠페인이 없으면 rc 0")
+    ap.add_argument("--lockset-precheck", action="store_true",
+                    help="셀 출처 precheck(--cell 필수) — lockset 존재 ∧ provenance ∈ 목록이면 rc 0, "
+                         "부재·무효면 rc 2(fail-closed). 활성 캠페인이 없으면(_bootstrap) 대상이 아님을 "
+                         "밝히고 rc 0. 판정 JSON 은 stdout, 사유는 stderr (broad_search.sh cell 이 부른다)")
     ap.add_argument("--escalation-summary", action="store_true",
                     help="캠페인 종결 HITL 이 읽는 escalation 후보 요약(JSON) — 판정하지 않고 "
                          "센다. 술어 ① 이 선 후보가 있으면 hitl_required=true")
@@ -2162,6 +2471,18 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"  - {r}", file=sys.stderr)
                 return 4
             print("[campaign_init] 그라운딩 백스톱 통과"); return 0
+        if a.lockset_precheck:
+            if not a.cell:
+                raise WriterRefusal("--lockset-precheck 는 --cell 이 필요하다(셀 없는 출처는 없다)")
+            verdict = lockset_precheck(a.cell, a.campaign_id)
+            print(json.dumps(verdict, ensure_ascii=False))
+            if verdict["status"] == "refused":
+                print(f"[campaign_init] 셀 출처 precheck 거부 — {verdict['reason']}", file=sys.stderr)
+                return 2
+            if verdict["status"] == "not_applicable":
+                print(f"[campaign_init] ⓘ 셀 출처 precheck 대상 아님 — {verdict['reason']}",
+                      file=sys.stderr)
+            return 0
         if a.assigned_cells:
             tgt = _writer_target(a.campaign_id)
             if tgt is None:

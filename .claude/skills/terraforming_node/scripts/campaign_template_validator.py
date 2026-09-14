@@ -34,6 +34,17 @@ RESERVED_CELL_NAMES = ("_cell", "_node")
 # 셀 전이 모드(2026-09-08 · plan_26090813 D11). 생략은 AUTO 이고, STAY 는 리스트 마지막에만 온다.
 ASSIGNMENT_MODES = ("AUTO", "HITL", "STAY")
 DEFAULT_MODE = "AUTO"
+# 셀 출처(2026-09-14 · plan_26091407 §4.0 · 사용자 결정 Q1·Q8). **어휘의 단일 소유자는 이 파일이다** —
+#   측정 진입 precheck(`campaign_init --lockset-precheck` ← `broad_search.sh cell`)와 합격 술어 P6 가
+#   같은 목록을 읽는다. 두 자리에 적으면 한쪽이 조용히 늦는다(_SWEEP_TO_CELL 선례).
+#   손작성은 금지가 아니라 표시 대상이다: `hand-authored` 는 통과하고, fail-closed 는 **표시 부재**뿐이다.
+LOCKSET_PROVENANCE = ("explorer-phase2", "hand-authored")
+# 예외 노브의 출처 어휘. 값이 없으면(null) '아직 정하지 않았다'이고, 목록 밖 값만 P6 가 기재한다(차단 ✗).
+LOCKSET_KNOB_SOURCES = {
+    "batch_source": ("declared-requirement", "kv-fit-measured", "hand-lever"),
+    "gmu_source": ("target_gmu", "hand"),
+    "kv_source": ("measured-clamp", "hand"),
+}
 
 
 class CampaignContractFailure(Exception):
@@ -732,9 +743,122 @@ def discover_briefs(camp_dir: Path) -> list:
     return sorted(mirror.glob("logs/*/campaign_brief.json"))
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# P6 — 셀 출처 표시 (2026-09-14 신설 · plan_26091407 §4.0 · 사용자 결정 Q1·Q8)
+#
+# 왜: 활성 캠페인 셀 11/11 에 lockset.json 이 없었고 서빙 yaml 은 explorer Phase-2 없이 손으로
+#   적혔다(승자 셀 yaml 의 gmu 0.80 은 config target_gmu 0.85 와 달랐다). 그런데 이 검증기는 lockset
+#   부재를 `continue` 로 넘겼다 — "측정 산물" 이라 적힌 값이 사람이 적은 값이었다는 사실을 가리는
+#   자리가 0 이었다(F1).
+# ★ 왜 acceptance 인가(purge 선행조건 ✗): 표시가 빠진 셀이 **다음 캠페인을 영원히 막는** 재발 패턴을
+#   피한다(P4·P5 와 같은 이유 · plan §9 R3). 셀 출처로 진행을 막는 자리는 측정 진입 precheck 하나이고
+#   (`broad_search.sh cell` → exit 2), 여기는 캠페인이 설계대로 표시를 남겼는지 **관측**한다.
+
+def lockset_provenance_reason(path: Path) -> str | None:
+    """lockset 출처 표시가 성립하지 않는 **사유**(None = 성립). precheck 와 P6 가 공유한다.
+
+    fail-closed 대상은 표시 **부재·무효**뿐이다 — `hand-authored` 는 사유가 아니다(Q1: 손작성 허용).
+    `<<FILL>>` 은 목록 밖 값으로 거부된다: 뼈대를 복사만 하고 채우지 않은 lockset 은 출처를 말하지
+    않은 것이다.
+    """
+    if not path.is_file():
+        return (f"lockset 부재: {_rel(path)} — 셀 출처(provenance)를 말할 자리가 없다"
+                f"(셀 materialize 는 explorer 소관 · 손작성이면 provenance=hand-authored 로 표시)")
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return f"lockset 파손({_rel(path)}): {exc}"
+    if not isinstance(doc, dict):
+        return f"lockset 최상위가 객체가 아니다: {_rel(path)}"
+    prov = doc.get("provenance")
+    if prov is None:
+        return (f"lockset provenance 부재: {_rel(path)} — 값 {LOCKSET_PROVENANCE} 중 하나로 출처를 "
+                f"표시하라(손작성은 금지가 아니라 표시 대상이다)")
+    if prov not in LOCKSET_PROVENANCE:
+        return (f"lockset provenance 무효: {prov!r} ({_rel(path)}) — 허용 {LOCKSET_PROVENANCE}")
+    return None
+
+
+def lockset_knob_source_reasons(path: Path) -> list[str]:
+    """예외 노브 `*_source` 의 목록 밖 값. null 은 '아직 정하지 않았다'라 사유가 아니다."""
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []                          # 파손은 provenance 사유가 이미 말한다(같은 사실을 두 번 세지 않는다)
+    if not isinstance(doc, dict):
+        return []
+    out: list[str] = []
+    for key, allowed in LOCKSET_KNOB_SOURCES.items():
+        val = doc.get(key)
+        if val is not None and val not in allowed:
+            out.append(f"{key}={val!r} 가 목록 밖이다(허용 {allowed})")
+    return out
+
+
+def lockset_observable(decl: dict, node: str | None) -> bool:
+    """이 인스턴스가 셀 lockset 을 **관측할 수 있는가**. P6 와 `--cell-set` writer 기재가 공유한다.
+
+    메인 인스턴스에서 role=sub 노드에 배정된 셀은 서브가 자기 인스턴스에서 lockset 을 저작하고
+    (서브의 precheck 가 진입에서 집행한다), 메인은 그 인스턴스를 직접 읽지 않는다(헌법 노드제어 ① ·
+    상향 회수는 문서기반 · 브리핑은 lockset 출처를 싣지 않는다). 그 자리의 "없음" 은 부재가 아니라
+    **관측 불가**다 — 두 판정기가 이 구분을 따로 적으면 한쪽은 건너뛰고 다른 쪽은 "부재" 를 기재하는
+    모순이 난다(2026-09-14 리뷰 실증). 파생 선언으로 열린 서브 인스턴스(self_role=sub)는 자기 배정
+    전수를 관측한다.
+    """
+    if decl.get("self_role") == "sub":
+        return True
+    roles = {n.get("node_id"): n.get("role") for n in (decl.get("nodes") or []) if isinstance(n, dict)}
+    return roles.get(node) != "sub"
+
+
+def p6_observations(camp_dir: Path) -> "tuple[list[str], list[str]]":
+    """P6 판정 `(problems, notes)`. problems 만 합격 여부를 가르고, notes 는 **이름으로 남기는 관측**이다.
+
+    P6 의 합격 정의는 plan_26091407 §4.0 그대로 "관측 가능한 배정 셀 전수에 provenance 표시가 있다"
+    이다. 거기서 벗어나는 두 사실은 적색이 아니라 notes 로 간다:
+      · 관측 대상 밖 셀(메인 인스턴스의 서브 배정 셀) — 조용히 건너뛰면 "P6 초록" 이 그 셀들에 대해
+        공허 통과가 된다. 건너뛴 셀을 이름으로 남긴다(writer 의 pending_knobs 와 같은 원칙).
+      · 노브 `*_source` 의 목록 밖 값 — 합격 정의에 없는 조건으로 적색을 내면 E2E 술어 ⑥(P6 초록)의
+        뜻이 계획서 밖에서 넓어진다. 기재하고 차단하지 않는다.
+    """
+    problems: list[str] = []
+    notes: list[str] = []
+    decl = read_declaration(camp_dir)
+    if not decl:
+        return problems, notes
+    for node in assignments_of(decl):
+        cells = [c for c in assigned_cells(decl, node) if c not in RESERVED_CELL_NAMES]
+        if not lockset_observable(decl, node):
+            if cells:
+                notes.append(f"P6 ⓘ 관측 대상 밖(서브 인스턴스 소관 · 메인은 서브 인스턴스를 읽지 않는다) "
+                             f"node={node}: {', '.join(cells)}")
+            continue
+        for cell in cells:
+            lockset = camp_dir / "cells" / cell / "lockset.json"
+            why = lockset_provenance_reason(lockset)
+            if why is not None:
+                problems.append(f"P6 {cell}: {why}")
+                continue
+            for extra in lockset_knob_source_reasons(lockset):
+                notes.append(f"P6 ⓘ {cell}: {extra} — 노브 출처 어휘가 갈라지면 대조가 성립하지 않는다"
+                             f"(기재 · 차단 ✗)")
+    return problems, notes
+
+
+def predicate_p6(camp_dir: Path) -> list[str]:
+    """P6 — 관측 가능한 배정 셀 전수에 lockset 출처 표시가 있는가(적색 사유만). notes 는 p6_observations."""
+    return p6_observations(camp_dir)[0]
+
+
 def acceptance_predicates(camp_dir: Path) -> list[str]:
-    """P4·P5. 합격 판정(⑥)과 fetch 종료부가 부르고, **purge 게이트는 부르지 않는다**."""
-    return predicate_p4(camp_dir) + predicate_p5(camp_dir, brief_paths=discover_briefs(camp_dir))
+    """P4·P5·P6. 합격 판정(⑥)과 fetch 종료부가 부르고, **purge 게이트는 부르지 않는다**."""
+    return (predicate_p4(camp_dir) + predicate_p5(camp_dir, brief_paths=discover_briefs(camp_dir))
+            + predicate_p6(camp_dir))
+
+
+def acceptance_notes(camp_dir: Path) -> list[str]:
+    """합격 술어의 비차단 관측 줄(현재 P6 만). `--acceptance` 가 판정과 함께 출력한다."""
+    return p6_observations(camp_dir)[1]
 
 
 def validate_template() -> list[str]:
@@ -754,6 +878,33 @@ def validate_template() -> list[str]:
     tpl = TEMPLATE / "campaign.yaml"
     if tpl.is_file() and not find_fill_placeholders(tpl.read_text(encoding="utf-8")):
         problems.append("뼈대 campaign.yaml 에 <<FILL>> 이 하나도 없다 — 빈칸이 곧 계약이다")
+    # 셀 출처 칸(2026-09-14 · plan_26091407 §4.0). 측정 진입 precheck 와 P6 가 이 키를 읽는다 —
+    # 뼈대에서 칸이 사라지면 새 셀은 전부 진입에서 멈추는데, 그 원인이 뼈대라는 사실은 멀리서 보인다.
+    # 빈칸(<<FILL>>)으로 남아 있어야 한다: 기본값을 두면 "아무도 출처를 말하지 않았다"가 사라진다.
+    lock_tpl = TEMPLATE / "cells/_cell/lockset.json"
+    if lock_tpl.is_file():
+        try:
+            lock_doc = json.loads(lock_tpl.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            problems.append(f"뼈대 lockset.json 파손: {exc}")
+        else:
+            if not isinstance(lock_doc, dict) or lock_doc.get("provenance") != FILL:
+                problems.append("뼈대 lockset.json 의 provenance 가 빈칸(<<FILL>>)이 아니다 — 출처는 "
+                                "셀마다 사람이나 explorer 가 말해야 하며 뼈대가 기본값을 줄 수 없다")
+            missing = [k for k in LOCKSET_KNOB_SOURCES if not (isinstance(lock_doc, dict) and k in lock_doc)]
+            if missing:
+                problems.append(f"뼈대 lockset.json 에 노브 출처 칸이 없다: {missing}")
+            # 어휘 교차검증 — 뼈대의 `_*_enum` 배열은 저작자가 읽는 **안내 사본**이고 정본은 위 상수다.
+            #   정적 파일끼리는 한쪽이 다른 쪽을 생성할 수 없으므로 교차검증이 차선이다
+            #   (workflow.md §결정론 규율 · assert_band2_top_gitignore_parity 선례). 대조가 없으면
+            #   뼈대 안내만 조용히 갈라지고, 저작자는 precheck 가 거부할 값을 안내대로 적는다.
+            if isinstance(lock_doc, dict):
+                expect = {"_provenance_enum": LOCKSET_PROVENANCE,
+                          **{f"_{k}_enum": v for k, v in LOCKSET_KNOB_SOURCES.items()}}
+                for key, allowed in expect.items():
+                    if lock_doc.get(key) != list(allowed):
+                        problems.append(f"뼈대 lockset.json 의 {key}={lock_doc.get(key)!r} 가 검증기 어휘 "
+                                        f"{list(allowed)} 와 다르다 — 안내 사본이 정본에서 갈라졌다")
     return problems
 
 
@@ -764,6 +915,7 @@ def _write_brief(path: Path, doc: dict) -> Path:
 
 def _selftest() -> int:
     """음성대조 포함. 라이브 트리는 깨끗할 때 아무것도 증명하지 않는다 — 양성이 발화해야 한다."""
+    global TEMPLATE                       # 뼈대 음성대조가 사본 뼈대로 잠시 옮긴다(끝에서 복원)
     import tempfile
     ok = True
 
@@ -806,6 +958,13 @@ def _selftest() -> int:
         ck("예산 기본값 차단",
            any("smoke_budget_overhead_mib" in p
                for p in write(dict(good, budgets={"smoke_budget_overhead_mib": 0, "ready_max_seconds": 600}))))
+        # budgets.repeats(2026-09-14 · plan_26091407 §4.4) — full 정의의 반복 수. 생략은 정의값 3 이라
+        #   합법이고, 3 미만 선언은 정의와 모순이라 스키마가 막는다. 소비자 배선은 단계 ④ 다.
+        _b = dict(good["budgets"])
+        ck("budgets.repeats 생략은 합법(소비자가 full 정의값 3 을 쓴다)", not write(dict(good, budgets=_b)))
+        ck("budgets.repeats=3 선언 통과", not write(dict(good, budgets=dict(_b, repeats=3))))
+        ck("★budgets.repeats<3 선언은 차단(반복 ≥3 이 full 의 정의다)",
+           any("repeats" in p for p in write(dict(good, budgets=dict(_b, repeats=2)))))
         ck("통제변인 공란 차단",
            any("control_variables.model" in p
                for p in write(dict(good, control_variables=dict(good["control_variables"], model="")))))
@@ -1088,6 +1247,107 @@ def _selftest() -> int:
         ck("★P5 회수 brief 의 self_role 이 sub 가 아니면 검출",
            any("self_role" in x for x in predicate_p5(
                c2, brief_paths=[_write_brief(Path(tmp) / "brief.json", {"self_role": "main"})])))
+
+        # ── P6 셀 출처 표시 (2026-09-14 · plan_26091407 §4.0) ──────────────────────────────
+        #    양성(표시 부재·무효가 발화)과 음성대조(손작성 표시는 통과 · 관측 불가 셀은 요구 ✗)를 둘 다
+        #    둔다 — 음성대조가 없으면 "모든 셀을 막는 술어" 도 초록으로 보인다.
+        c6 = Path(tmp) / "camp-6"
+        for _c in ("p6-a", "p6-b", "p6-s"):
+            (c6 / "cells" / _c).mkdir(parents=True)
+            (c6 / "cells" / _c / "config.yaml").write_text(f"cell_id: {_c}\n", encoding="utf-8")
+        _decl6 = dict(good, id="camp-6", hint_targets=[],
+                      nodes=[{"node_id": "main", "role": "main", "topology": "single", "hw": "gb10"},
+                             {"node_id": "subx", "role": "sub", "topology": "single", "hw": "gb10"}],
+                      assignments={"main": [{"cell": "p6-a"}, {"cell": "p6-b"}],
+                                   "subx": [{"cell": "p6-s"}]})
+        (c6 / "campaign.yaml").write_text(json.dumps(_decl6, ensure_ascii=False), encoding="utf-8")
+
+        def _lock(cell: str, doc: dict | None) -> None:
+            path = c6 / "cells" / cell / "lockset.json"
+            if doc is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+
+        _lock("p6-a", None)
+        _lock("p6-b", {"id": "p6-b", "provenance": "hand-authored"})
+        p6 = predicate_p6(c6)
+        ck("★P6 배정 셀의 lockset 부재를 검출(종전 검증기는 부재를 continue 로 넘겼다)",
+           any(x.startswith("P6 p6-a") and "부재" in x for x in p6))
+        ck("★P6 음성대조: hand-authored 표시는 통과한다(손작성은 금지가 아니라 표시 대상)",
+           not any(x.startswith("P6 p6-b") for x in p6))
+        ck("★P6 메인 인스턴스는 서브 배정 셀의 lockset 을 요구하지 않는다(관측 불가 · 영구 적색 ✗)",
+           not any(x.startswith("P6 p6-s") for x in p6))
+        ck("★P6 관측 대상 밖 셀은 조용히 건너뛰지 않고 이름으로 남는다(공허 통과 ✗ · notes)",
+           any("관측 대상 밖" in x and "p6-s" in x and "node=subx" in x for x in acceptance_notes(c6))
+           and not any("p6-s" in x for x in acceptance_predicates(c6)))
+        ck("관측 가능성 판정은 한 함수다(메인 인스턴스 · role=sub 노드 = 관측 불가)",
+           not lockset_observable(_decl6, "subx") and lockset_observable(_decl6, "main")
+           and lockset_observable(_decl6, None)
+           and lockset_observable(dict(_decl6, self_role="sub"), "subx"))
+        # 뼈대를 복사만 한 lockset — 빈칸은 목록 밖 값으로 거부된다.
+        _tpl_lock = json.loads((TEMPLATE / "cells/_cell/lockset.json").read_text(encoding="utf-8"))
+        _lock("p6-a", dict(_tpl_lock, id="p6-a"))
+        ck("★P6 뼈대 복사본(provenance=<<FILL>>)은 출처를 말하지 않은 것이다",
+           any(x.startswith("P6 p6-a") and "무효" in x for x in predicate_p6(c6)))
+        _lock("p6-a", {"id": "p6-a", "provenance": "explorer"})
+        ck("★P6 목록 밖 provenance 를 검출(어휘 갈라짐)",
+           any(x.startswith("P6 p6-a") and "무효" in x for x in predicate_p6(c6)))
+        _lock("p6-a", {"id": "p6-a"})
+        ck("★P6 provenance 키 자체가 없으면 검출",
+           any(x.startswith("P6 p6-a") and "부재" in x for x in predicate_p6(c6)))
+        _lock("p6-a", {"id": "p6-a", "provenance": "explorer-phase2", "batch_source": "guess",
+                       "gmu_source": None, "kv_source": "measured-clamp"})
+        _p6x, _p6n = p6_observations(c6)
+        ck("★P6 노브 출처가 목록 밖이면 **기재**한다(null 은 '아직 안 정함'이라 사유 아님)",
+           any("batch_source" in x for x in _p6n) and not any("gmu_source" in x for x in _p6n)
+           and not any("kv_source" in x for x in _p6n))
+        ck("★P6 음성대조: 노브 출처 이탈은 적색이 아니다(합격 정의 = provenance 표시 · E2E ⑥ 의미 고정)",
+           not any(x.startswith("P6 p6-a") for x in _p6x))
+        _lock("p6-a", {"id": "p6-a", "provenance": "explorer-phase2", "batch_source": "kv-fit-measured",
+                       "gmu_source": "target_gmu", "kv_source": "measured-clamp"})
+        ck("★P6 음성대조: 표시가 전수 성립하면 P6 는 아무 말도 하지 않는다", not predicate_p6(c6))
+        (c6 / "campaign.yaml").write_text(json.dumps(dict(
+            _decl6, self_role="sub", nodes=[_decl6["nodes"][1]],
+            assignments={"subx": [{"cell": "p6-s"}]}), ensure_ascii=False), encoding="utf-8")
+        ck("★P6 서브 자기 인스턴스(self_role=sub)에서는 자기 배정 셀을 요구한다",
+           any(x.startswith("P6 p6-s") for x in predicate_p6(c6)))
+        (c6 / "campaign.yaml").write_text(json.dumps(_decl6, ensure_ascii=False), encoding="utf-8")
+        _lock("p6-a", None)
+        ck("★P6 는 acceptance 에 배선돼 있다(fetch 종료부가 실제로 부르는 함수)",
+           any(x.startswith("P6 p6-a") for x in acceptance_predicates(c6)))
+        ck("★P6 는 purge 선행조건이 아니다(표시 누락 셀이 다음 캠페인을 영원히 막지 않는다)",
+           not any(x.startswith("P6") for x in instance_predicates(c6)))
+        ck("★precheck 와 P6 가 같은 사유 함수를 쓴다(hand-authored 통과 · 부재 거부)",
+           lockset_provenance_reason(c6 / "cells" / "p6-b" / "lockset.json") is None
+           and lockset_provenance_reason(c6 / "cells" / "p6-a" / "lockset.json") is not None)
+
+        # 뼈대 음성대조 — 사본 뼈대에서 출처 칸에 기본값을 박으면 뼈대 검증이 발화한다.
+        import shutil as _shutil
+        _saved_tpl = TEMPLATE
+        _tpl_copy = Path(tmp) / "tpl"
+        _shutil.copytree(_saved_tpl, _tpl_copy)
+        _tl = _tpl_copy / "cells/_cell/lockset.json"
+        try:
+            TEMPLATE = _tpl_copy
+            ck("사본 뼈대는 그대로 완결이다(음성대조의 기준선)", not validate_template())
+            _tl.write_text(json.dumps(dict(_tpl_lock, provenance="hand-authored"), ensure_ascii=False),
+                           encoding="utf-8")
+            ck("★뼈대 lockset 이 출처 기본값을 가지면 발화한다(빈칸이 곧 계약)",
+               any("provenance" in x for x in validate_template()))
+            _tl.write_text(json.dumps({k: v for k, v in _tpl_lock.items() if k != "kv_source"},
+                                      ensure_ascii=False), encoding="utf-8")
+            ck("★뼈대 lockset 에서 노브 출처 칸이 사라지면 발화한다",
+               any("kv_source" in x for x in validate_template()))
+            _tl.write_text(json.dumps(dict(_tpl_lock, _provenance_enum=["explorer", "manual"],
+                                           _gmu_source_enum=["log"]), ensure_ascii=False),
+                           encoding="utf-8")
+            _drift = validate_template()
+            ck("★뼈대 안내 어휘(_*_enum)가 검증기 상수에서 갈라지면 발화한다(교차검증)",
+               any("_provenance_enum" in x for x in _drift) and any("_gmu_source_enum" in x for x in _drift)
+               and not any("_kv_source_enum" in x for x in _drift))
+        finally:
+            TEMPLATE = _saved_tpl
     print("[campaign_template_validator] " + ("PASS" if ok else "FAIL"))
     return 0 if ok else 1
 
@@ -1098,14 +1358,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--instance", help="검증할 campaigns/<id>/ 디렉터리")
     ap.add_argument("--template", action="store_true", help="뼈대 자체를 검증")
     ap.add_argument("--acceptance", metavar="INSTANCE",
-                    help="합격 술어 P4(동시 착수 타임라인)·P5(서브 자기저작)만 판정한다 — "
-                         "purge 게이트와 분리된 자리다(진행을 막지 않는다)")
+                    help="합격 술어 P4(동시 착수 타임라인)·P5(서브 자기저작)·P6(셀 출처 표시)만 "
+                         "판정한다 — purge 게이트와 분리된 자리다(진행을 막지 않는다)")
     ap.add_argument("--selftest", action="store_true")
     a = ap.parse_args(argv)
     try:
         if a.selftest:
             return _selftest()
         problems: list[str] = []
+        notes: list[str] = []
         if a.template or not (a.campaign or a.instance or a.acceptance):
             problems += validate_template()
         if a.campaign:
@@ -1114,9 +1375,13 @@ def main(argv: list[str] | None = None) -> int:
             problems += validate_instance(Path(a.instance))
         if a.acceptance:
             problems += acceptance_predicates(Path(a.acceptance))
+            notes += acceptance_notes(Path(a.acceptance))
     except CampaignContractFailure as exc:
         print(f"[campaign_template_validator] FAIL {exc}", file=sys.stderr)
         return 1
+    # 비차단 관측 줄 — 판정과 무관하게 먼저 낸다(적색 여부가 관측 대상 밖 셀의 존재를 가리지 않게).
+    for n in notes:
+        print(f"  {n}")
     if problems:
         print(f"[campaign_template_validator] FAIL ({len(problems)})", file=sys.stderr)
         for p in problems:

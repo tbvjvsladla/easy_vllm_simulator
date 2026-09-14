@@ -842,6 +842,15 @@ def verify() -> dict:
               "--state", "/nonexistent/bs.json", "--now-utc", "2026-01-01T00:00:00Z",
               "--cell-key", "k", "--config", "c", "--axis-citation", "x",
               "--bench-budget-mib", "1"], {5}),
+        # 셀 출처 precheck 의 **집행** (plan_26091407 §4.0 · §7 O1 · 2026-09-14 배선).
+        #   precheck 는 셸 진입 경로 안에 있어 단위 함수 시험(campaign_init --selftest)만으로는 그 호출이
+        #   실제 측정 진입에 서 있는지 증명하지 못한다 — 호출자 없는 자체검사는 L1(산문)이다(위 선례).
+        #   배포되는 스크립트의 바이트 사본을 임시 git 저장소에서 돌려 부재·무효 → exit 2, hand-authored
+        #   통과, 불일치 기재, 캠페인 밖 not_applicable 표시를 음성대조와 함께 친다. 부하 스크립트는
+        #   사본에 없고 curl 은 shim 이라 서빙·docker·GPU 불요다(위 confirm_gate 는 exit 5 로 precheck
+        #   앞에서 멈추므로 lockset 없이도 계약이 유지된다).
+        _run("benchmark_broad_search_provenance_precheck", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.py"], {0}),
     ]
 
     with tempfile.TemporaryDirectory(prefix="easy-vllm-wiki-distribution.") as wiki:

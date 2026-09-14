@@ -17,11 +17,32 @@ test_device_total_gib: <<FILL>>       # 이 노드의 실제 총량(GB10 통합�
 vram_budget_gb: <<FILL>>
 safety_margin: 0.90
 
+# ── 선언 계층(declared_axes) · 사람이 적는 것이 정당한 값 (2026-09-14 · plan_26091407 §4.0) ──
+# 셀의 값은 두 계층이다. **선언**(아래 블록)은 캠페인 설계가 정하는 축이라 사람이 적는 것이 정당하고,
+# **explorer 파생**(max-num-seqs·KV 클램프·서빙 yaml gpu-memory-utilization)은 vllm-recipe-explorer 가
+# 측정·재조정해 lockset.json 에 잠근다 — 파생값을 여기 손으로 적지 않는다. gmu 의 선언 입력은 아래
+# target_gpu.target_gmu 하나이고 배포값은 거기서 파생된다. 종전에는 승자 셀 config 에 이 축들을 손으로
+# 넣었고 뼈대에 자리가 없어 셀마다 모양이 달랐다(F1). 이 블록은 explorer 의 **입력 슬롯**이지 서빙 인자가
+# 아니다(recipe.py 는 declared_axes.tp 로 TP 를 정하지 않는다 — TP 의 권위는 여전히 manifest 다).
+# ⚠ 지금은 이 블록을 읽는 코드가 없다 — 소비자(max-num-seqs 산식 · tp↔manifest 대조)는 plan_26091407
+#   단계 ② 에서 배선된다. 빈칸은 --instance 검증이 막으므로, 요구가 없는 축은 추측하지 말고 null
+#   ("선언하지 않았다")로 적는다.
+declared_axes:
+  context_len: <<FILL>>               # max-model-len 선언(토큰)
+  variant: <<FILL>>                   # stock | <variant_id>(arch_variant_ledger.json 등재명)
+  ple_mode: <<FILL>>                  # resident | mmap | none(PLE 없는 모델)
+  kv_cache_dtype: <<FILL>>            # auto | fp8 | … (vLLM --kv-cache-dtype 어휘)
+  tp: <<FILL>>                        # 선언 TP. manifest 파생값과 다르면 선언이 틀린 것이다
+  control_variable: <<FILL>>          # 이 셀이 속한 스윕의 통제변인 문장(broad_search init --control-variable 과 같은 문장).
+                                      #   layer-1 control_variables 의 정본은 campaign.yaml 이다 — 여기 복제하지 않는다.
+  concurrency_requirement: <<FILL>>   # 사용자 동시성 요구(동시 요청 수). max-num-seqs 산식의 선언 입력 · 요구 없음(lite 만 재는 셀 등) = null
+  typical_request_tokens: <<FILL>>    # KV-fit 대표 요청 길이(입력+출력 토큰). KV_fit = kv_cache_tokens ÷ 이 값 · 선언 안 함 = null
+
 # ── 선언(declared) · 통제변인 ──
 target_gpu:
   gpu_model: <<FILL>>
   per_card_vram_gib: <<FILL>>
-  target_gmu: 0.90
+  target_gmu: 0.90                  # 타겟에서 돌 gmu(safe_gmu 의 정본). 서빙 yaml gpu-memory-utilization 과 다르면 cell.status.provenance_mismatch[] 에 기재된다
   cards_per_node: 1
 
 kv_cache_dtype_bytes: 1

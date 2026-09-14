@@ -45,7 +45,8 @@
 #                            --bench-budget-mib N --now-utc T --confirm-risk [--topology t]
 #       broad_search.sh status --state PATH --now-utc T
 #       broad_search.sh map    --state PATH --now-utc T --out-md PATH [--out-json PATH]
-# 종료: 0=성공 · 2=인자/선언 오류 · 3=serve 미가동(materialize 는 explorer 소관) · 5=--confirm-risk 미명시
+# 종료: 0=성공 · 2=인자/선언 오류(셀 출처 lockset provenance 부재·무효 포함 — 캠페인 셀 한정)
+#       3=serve 미가동(materialize 는 explorer 소관) · 5=--confirm-risk 미명시
 #       6=SoC 열 임계 미교정 미승인(--ack-uncalibrated-thermal)
 set -euo pipefail
 
@@ -320,10 +321,87 @@ PY
       echo "[broad_search]   실제 서빙 시도 구간의 사살 이벤트를 놓칠 수 있다(사인이 correlation-miss 로 남는다)." >&2
     fi
     SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
+    CELL_PROV='{"status": "not_evaluated", "reason": "--serve-failed 기록 — 트리플렛이 없는 실패 기록은 셀 출처 precheck 를 타지 않는다(envfile 검사와 같은 면제)"}'
     echo "[broad_search] serve_failed 기록 — $SERVE_FAILED_REASON"
   else
   EF="$REPO/output/$TOPO/envs/.env.$CONFIG"
   [ -f "$EF" ] || { echo "[broad_search] ERROR envfile 없음: $EF — 셀 materialize 는 explorer 소관이다" >&2; exit 2; }
+  # ── 셀 출처 precheck (2026-09-14 · plan_26091407 §4.0 · 사용자 결정 Q1·Q8) ─────────────────────
+  #   셀 11/11 이 lockset 없이 손작성 yaml 로 측정됐고, 그 사실을 가리는 자리가 0 이었다(F1). 셀 출처에
+  #   관한 **유일한** fail-closed 자리이며 대상은 표시 부재·무효뿐이다 — `hand-authored` 는 통과한다
+  #   (손작성은 금지가 아니라 표시 대상). 선언과 서빙 실물의 불일치는 막지 않고 writer 가
+  #   cell.status.provenance_mismatch[] 에 기재한다. 서빙 스모크는 캠페인을 모르는 계층이라 손대지 않는다.
+  #   · 판정·어휘 소유: campaign_init --lockset-precheck ← campaign_template_validator.LOCKSET_PROVENANCE
+  #   · 캠페인 밖(상태 파일이 캠페인 밖 ∧ ACTIVE=_bootstrap): 셀 입력의 거처가 없어 **대상이 아니다**. 막으면 해소 경로가
+  #     "대기실에 lockset 을 만든다" 뿐이라 게이트가 우회를 만든다(D3). 대신 조용히 넘기지 않는다 —
+  #     stderr 한 줄과 셀 기록의 cell_provenance.status=not_applicable 로 이름을 남긴다.
+  #   · `--serve-failed` 는 이 분기를 타지 않는다(트리플렛이 없는 실패 기록 — envfile 검사와 같은 면제).
+  #   · `--reassemble-only` 는 탄다: 재조립도 셀을 측정 좌표로 다시 기록하고, 해소 경로(출처 표시)가 있다.
+  #   · 캠페인 문맥은 **포인터 하나로 정하지 않는다**: `--state` 가 `campaigns/<X>/sweeps/` 아래이고
+  #     X 가 `_bootstrap` 이 아니면 X 의 셀을 판정한다(`--campaign-id X`). 포인터가 없거나 무효(오타·
+  #     purge 잔존)라는 이유로 캠페인 셀의 게이트가 열리면 그것이 조용한 우회다. 그 밖(상태 파일이
+  #     캠페인 밖)이면 ACTIVE 가 정한다.
+  #   · 판정자 rc·JSON 을 **분류**한다: `refused`(rc 2 ∧ JSON status=refused)만 "출처 표시 없음" 이고,
+  #     그 밖의 비0·파싱 불가는 **판정 불가**(배선 결함)다. 둘에 같은 안내를 내면 운영자는 lockset 에
+  #     거짓 `hand-authored` 를 덮어쓰고도 여전히 막힌다(workflow.md §막힘 3분류 — 안내문이 분류를
+  #     잘못 말하면 가드가 있어도 사고가 난다).
+  _CI_PC="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+  if [ ! -f "$_CI_PC" ]; then
+    # 판정자가 없으면 판정하지 않은 것이다 — 게이트 경로의 부재를 통과로 접지 않는다.
+    echo "[broad_search] ERROR 셀 출처 precheck 판정자 부재: $_CI_PC — 판정 불가(fail-closed)." >&2
+    echo "[broad_search]   서브라면 오버레이 배달이 캠페인 도구를 빠뜨린 것이다(render_sub_env CAMPAIGN_TOOLS)." >&2
+    exit 2
+  fi
+  _PC_ARGS=(--lockset-precheck --cell "$CELL_KEY")
+  _STATE_ABS="$(realpath -m -- "$STATE")"
+  _CAMPS_ABS="$(realpath -m -- "$REPO/campaigns")"
+  case "$_STATE_ABS" in
+    "$_CAMPS_ABS"/*)
+      _PC_REST="${_STATE_ABS#"$_CAMPS_ABS"/}"
+      _PC_CAMP="${_PC_REST%%/*}"
+      case "${_PC_REST#*/}" in
+        sweeps/*)
+          if [ "$_PC_CAMP" != "_bootstrap" ] && [ "$_PC_CAMP" != "_template" ]; then
+            _PC_ARGS+=(--campaign-id "$_PC_CAMP")
+            _PC_ACTIVE="$(python3 "$_CI_PC" --active 2>/dev/null || echo '?')"
+            if [ "$_PC_ACTIVE" != "$_PC_CAMP" ]; then
+              echo "[broad_search] ⚠ 상태 파일은 campaigns/$_PC_CAMP 인데 활성 캠페인은 '$_PC_ACTIVE' 다 —" >&2
+              echo "[broad_search]   셀 출처는 상태 파일의 캠페인($_PC_CAMP)으로 판정한다(포인터 유실이 게이트를 열지 않는다)." >&2
+              echo "[broad_search]   cell.status writer 는 활성 캠페인을 따르므로 포인터를 먼저 바로잡아라." >&2
+            fi
+          fi
+          ;;
+      esac
+      ;;
+  esac
+  set +e
+  CELL_PROV="$(python3 "$_CI_PC" "${_PC_ARGS[@]}")"
+  _PCRC=$?
+  set -e
+  _PC_STATUS="$(printf '%s' "$CELL_PROV" | python3 -c "
+import json, sys
+try:
+    d = json.loads(sys.stdin.read())
+except ValueError:
+    d = None
+print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str) else '')
+" 2>/dev/null || true)"
+  if [ "$_PCRC" = "2" ] && [ "$_PC_STATUS" = "refused" ]; then
+    echo "[broad_search] ERROR 셀 출처 precheck 거부(위 사유 참조) — 셀 '$CELL_KEY' 의 lockset.json 이 없거나" >&2
+    echo "[broad_search]   provenance(explorer-phase2|hand-authored) 표시가 없다/목록 밖이다. 셀 materialize 는 explorer 소관이다" >&2
+    echo "[broad_search]   (vllm-recipe-explorer Phase-2 가 잠근 lockset 을 쓰거나, 손으로 적었다면 hand-authored 로 표시하라." >&2
+    echo "[broad_search]    셀 키는 campaign.yaml assignments 의 셀 id 와 같은 이름이어야 한다)." >&2
+    exit 2
+  fi
+  if [ "$_PCRC" != "0" ] || { [ "$_PC_STATUS" != "passed" ] && [ "$_PC_STATUS" != "not_applicable" ]; }; then
+    echo "[broad_search] ERROR 셀 출처 precheck 판정 불가(rc=$_PCRC · status='${_PC_STATUS:-없음}') — 판정자가" >&2
+    echo "[broad_search]   판정하지 못했다(배선 결함: 검증기 부재·인스턴스 부재·인자 오류·예외). 출처 표시 문제가 아니므로" >&2
+    echo "[broad_search]   lockset 라벨을 고치지 말고 위 사유를 해소하라(fail-closed)." >&2
+    exit 2
+  fi
+  if [ "$_PC_STATUS" = "not_applicable" ]; then
+    echo "[broad_search] ⓘ 셀 출처 precheck 대상 아님(캠페인 밖 호출 — 사유는 위 판정자 줄) — 셀 기록에 그 사실을 남긴다" >&2
+  fi
   PORT="$(sed -n 's/^SERVING_PORT=//p' "$EF" | head -1)"
   [ -n "$PORT" ] || { echo "[broad_search] ERROR SERVING_PORT 미정($EF)" >&2; exit 2; }
 
@@ -380,6 +458,7 @@ PY
   CELL_KEY="$CELL_KEY" CONFIG="$CONFIG" CITATION="$CITATION" SWEEPDIR="$SWEEPDIR" \
   CLS="$CLS" ENDED="$ENDED" STARTED="$STARTED" SERVE_FAILED_REASON="$SERVE_FAILED_REASON" \
   NEXT_INTENT="$NEXT_INTENT" THERMAL_UNCAL="${_UNCAL:-}" ACK_UNCAL="$ACK_UNCAL" \
+  CELL_PROV="${CELL_PROV:-}" \
   python3 - "$STATE" <<'PY'
 import json, os, sys
 state_path = sys.argv[1]
@@ -472,7 +551,15 @@ cell = {
     "thermal_uncalibrated": ([x for x in (os.environ.get("THERMAL_UNCAL") or "").split(",") if x]
                              or None),
     "thermal_uncalibrated_ack": os.environ.get("ACK_UNCAL") == "1",
+    # 셀 출처 precheck 판정(2026-09-14 · plan_26091407 §4.0). 통과·대상 아님·미평가를 **셀마다**
+    # 남긴다 — 캠페인 밖 호출에서 precheck 가 적용되지 않았다는 사실이 stderr 와 함께 사라지면
+    # 그것이 조용한 우회다. 판정 JSON 이 파손이면 파손이라고 적는다(없는 판정을 통과로 접지 않는다).
+    "cell_provenance": None,
 }
+try:
+    cell["cell_provenance"] = json.loads(os.environ.get("CELL_PROV") or "null")
+except ValueError:
+    cell["cell_provenance"] = {"status": "unreadable", "raw": os.environ.get("CELL_PROV")}
 _sf = os.environ.get("SERVE_FAILED_REASON") or ""
 if _sf:
     # 사유는 **인용**이다 — 로그의 실제 문장을 옮긴다. 요약·추측 ✗.

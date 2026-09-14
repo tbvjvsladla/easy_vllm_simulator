@@ -44,8 +44,20 @@
 인터뷰 산물 = **lock-set JSON**(`lockset.json`). soft 변수마다 순서있는 `*_candidates` 폴백 리스트와
 `model_capabilities: {tool_call, reasoning}` 를 채워 `recipe.py simulate` 에 투입한다.
 
+**출처 표시**(2026-09-14 · plan_26091407 §4.0): 이 인터뷰가 잠근 lockset 은 `"provenance": "explorer-phase2"`
+를 적는다(이 절차 밖에서 사람이 손으로 적은 lockset 은 `hand-authored`). 캠페인 셀에서는 이 표시가 없으면
+`broad_search.sh cell` 이 측정 진입에서 exit 2 로 멈춘다. ⚠ **실행자**: 지금 이 표시를 적는 것은 lockset 을
+저작하는 쪽(이 인터뷰를 수행한 에이전트)이다 — `recipe.py` 는 lockset 을 읽기만 하고 각인하지 않으므로
+`explorer-phase2` 는 절차 자기선언이며 `hand-authored` 와 기계적으로 구분되지 않는다. explorer 경로의
+**기계 각인**(`recipe.py simulate` 수렴 산출물이 provenance·`*_source` 를 적는 것)은 plan_26091407 단계 ②
+(`recipe.py` 편집 범위)의 후속으로 넘긴다 — 그 전까지 이 문단이 표시의 유일한 실행 지시다. 예외 노브는 값의 출처를 `*_source` 로 가른다 —
+`batch_source`(declared-requirement|kv-fit-measured|hand-lever) · `gmu_source`(target_gmu|hand) ·
+`kv_source`(measured-clamp|hand). 어휘의 소유는 `campaign_template_validator.py`(`LOCKSET_PROVENANCE` ·
+`LOCKSET_KNOB_SOURCES`)이고, 이 표시 필드는 serve-args 가 아니다(`run_trial`·3종 세트는 읽지 않는다).
+아래 예시의 `batch: 8` 은 **형식 예시**다 — batch 산식 `min(선언 동시성 요구, KV-fit)` 은 plan_26091407 §4.2 단계가 이 자리를 갱신한다.
+
 ```json
-{ "id": "s1", "quantization": "none", "max_model_len": 32768, "batch": 8,
+{ "id": "s1", "provenance": "explorer-phase2", "quantization": "none", "max_model_len": 32768, "batch": 8,
   "kv_cache_quant": null, "kv_cache_memory_bytes": null,
   "attention_backend": "FLASHINFER", "attention_backend_candidates": ["FLASHINFER", "FLASH_ATTN"],
   "tool_call_parser": null, "tool_call_parser_candidates": [],
