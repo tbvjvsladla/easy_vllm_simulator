@@ -15,6 +15,14 @@
     ② `--report <bench_report_*.md>` — `docs/benchmark/` 에서 태어난 **바인딩된 증거**라 살아남는다.
        `render_report.py` 가 결정론으로 낸 표를 되읽는다(두 스크립트 사이의 형식이 계약이다).
 
+    ③ 경량 리포트(`mode: lite` · 2026-09-14 · plan_26091407 §4.5) — 스윕 표가 **없다**(동시성 곡선을 재지 않았다).
+       이때는 `## lite 지표` 표를 그대로 옮긴 절을 렌더한다(lite_metrics 가 이미 결정론으로 쓴 표 · 재산정 ✗).
+
+  측정 구성 표(두 리포트 공통 · `render_report.py MEASUREMENT_CONFIG_TITLE`)는 `parse_measurement_config` 가 되읽는다 —
+  bench_mode · 도구 · 반복 N · downgrade_reason 을 hint 동봉 문서·PAYLOAD·카탈로그로 나르는 **유일한 파서**다.
+  lite 지표 존재 판정(`lite_metrics_present`)도 여기 하나다 — hint_tag(`HINT_MISSING_LITE` 요구)와 hint_collect(그 코드를
+  적는 손)가 같은 술어를 쓴다(두 판정기가 갈리면 "적으라고 요구하는데 적는 손이 다른 기준을 쓴다" 가 된다).
+
   렌더: render_bench_section.py --report docs/benchmark/bench_report_....md
   대조: render_bench_section.py --verify --section <03-benchmark.md> --report <...>
   전수: render_bench_section.py --verify --all --hints-dir <dir>
@@ -35,6 +43,19 @@ REPORT_HEADER = "| 동시성 | decode t/s | 출력 tok/s | 총 tok/s | TTFT p50(
 REPORT_TRUNC_MARK = "**⚠ 절삭된 부하 레벨"
 REPORT_NO_TRUNC = "_절삭된 레벨 없음"
 VERDICT_MARK = "★판정점"
+# ── 경량 리포트 · 측정 구성 표 계약(2026-09-14 · plan_26091407 §4.5) ─────────────────────────────────────────────
+#   writer = adversarial-benchmark `render_report.py`(`MEASUREMENT_CONFIG_TITLE`·`MEASUREMENT_CONFIG_KEYS` · `mode: lite` 헤더
+#   · `## lite 지표` 절). 이 문자열들이 두 스크립트 사이의 계약이다 — 어긋나면 selftest_lite_report.py 가 실물 렌더로 잡는다.
+MEASUREMENT_CONFIG_TITLE = "## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)"
+MEASUREMENT_CONFIG_KEYS = ("bench_mode", "bench_mode_kind", "bench_mode_source", "downgrade_reason",
+                           "downgrade_reason_source", "bench_tool", "bench_tool_version", "bench_tool_version_source",
+                           "repeats", "repeats_source", "repeats_completed")
+_MEASUREMENT_INT_KEYS = ("repeats", "repeats_completed")
+REPORT_LITE_MODE_LINE = "mode: lite"
+REPORT_LITE_SECTION_PREFIX = "## lite 지표"
+LITE_SECTION_TITLE = "## lite 지표 — 서빙 성공 직후 스냅샷 (결정론 파싱 · 손저작 ✗)"
+# lite 지표 존재 술어의 두 조건 — 절이 있고 · gen tokens/sec 행에 **수치**가 있다(N/A 는 결손이다).
+_LITE_GEN_TPS_ROW = re.compile(r"gen tokens/sec[^|]*\|\s*[0-9]")
 
 
 class BenchSectionFailure(Exception):
@@ -107,6 +128,108 @@ def parse_report(text: str) -> dict:
             elif ln.strip():
                 break
     return {"levels": levels, "truncated": truncated, "source_kind": "bench_report"}
+
+
+def is_lite_report(text: str) -> bool:
+    """경량 리포트인가 — 헤더 줄 `mode: lite` 가 **한 줄로** 서 있을 때만(본문 서술 속 문자열은 아니다)."""
+    return any(ln.strip() == REPORT_LITE_MODE_LINE for ln in (text or "").splitlines())
+
+
+def lite_metrics_present(text: str) -> bool:
+    """리포트에 lite 정량지표가 **실측값으로** 실렸는가(`HINT_MISSING_LITE` 의 단일 술어).
+
+    종전 hint_tag 의 두 인라인 검사(`'lite 지표' in text` · gen tokens/sec 행 수치)를 그대로 옮겼다 — 판정 기준은
+    바뀌지 않았고 자리만 하나가 됐다. full 리포트(`## lite 지표 (full ⊇ lite …)`)와 경량 리포트 모두 같은 표를 싣는다."""
+    text = text or ""
+    return "lite 지표" in text and _LITE_GEN_TPS_ROW.search(text) is not None
+
+
+def _unescape_cell(cell: str) -> str:
+    return cell.replace("\\|", "|").strip()
+
+
+def _split_row(line: str) -> list:
+    """`| a | b\\|c |` → ['a', 'b|c'] — 이스케이프된 `|` 는 칸 구분자가 아니다."""
+    body = line.strip()
+    if body.startswith("|"):
+        body = body[1:]
+    if body.endswith("|") and not body.endswith("\\|"):
+        body = body[:-1]
+    return [_unescape_cell(c) for c in re.split(r"(?<!\\)\|", body)]
+
+
+def parse_measurement_config(text: str) -> "dict | None":
+    """리포트의 측정 구성 표 → {키: 값}. 절이 **없으면 None**(측정 구성 표 신설 전 리포트 — 부재는 미기재다).
+
+    절은 있는데 표가 깨졌거나 모르는 키가 섞였으면 FAIL 이다(빈 dict 로 접으면 "기재 없음" 과 "파싱이 깨졌다" 가
+    구분되지 않는다). 값 `N/A` 는 None · 반복 수는 정수로 읽는다."""
+    lines = (text or "").splitlines()
+    try:
+        start = next(i for i, ln in enumerate(lines) if ln.strip() == MEASUREMENT_CONFIG_TITLE)
+    except StopIteration:
+        return None
+    out: dict = {}
+    seen_table = False
+    for ln in lines[start + 1:]:
+        stripped = ln.strip()
+        if stripped.startswith("## "):
+            break
+        if not stripped.startswith("|"):
+            if seen_table and not stripped:
+                break
+            continue
+        cells = _split_row(stripped)
+        if len(cells) != 2:
+            raise BenchSectionFailure(f"측정 구성 표 행이 2칸이 아니다: {stripped!r}")
+        key, value = cells
+        if key in ("키", "---") or set(key) <= {"-"}:
+            seen_table = True
+            continue
+        if key not in MEASUREMENT_CONFIG_KEYS:
+            raise BenchSectionFailure(f"측정 구성 표에 계약 밖 키가 있다: {key!r} — render_report 와 계약이 갈라졌다")
+        seen_table = True
+        if value.upper() == "N/A" or value == "":
+            out[key] = None
+        elif key in _MEASUREMENT_INT_KEYS and re.fullmatch(r"-?[0-9]+", value):
+            out[key] = int(value)
+        else:
+            out[key] = value
+    if not out:
+        raise BenchSectionFailure("측정 구성 절은 있는데 표 행이 하나도 없다 — 빈 기재로 접지 않는다")
+    return out
+
+
+def parse_lite_report(text: str) -> dict:
+    """경량 리포트의 `## lite 지표` 표 → 구조화(행을 **그대로** 보존 · 수치 재가공 ✗). 표가 없으면 FAIL."""
+    lines = (text or "").splitlines()
+    try:
+        start = next(i for i, ln in enumerate(lines) if ln.strip().startswith(REPORT_LITE_SECTION_PREFIX))
+    except StopIteration:
+        raise BenchSectionFailure("리포트에 `## lite 지표` 절이 없다 — 빈 lite 절을 내지 않는다.")
+    table: list = []
+    for ln in lines[start + 1:]:
+        stripped = ln.strip()
+        if stripped.startswith("## "):
+            break
+        if stripped.startswith("|"):
+            table.append(stripped)
+        elif table:
+            break
+    if len(table) < 3:
+        raise BenchSectionFailure("`## lite 지표` 절에 표(머리행·구분행·값행)가 없다 — lite 산정 실패를 빈 표로 접지 않는다.")
+    return {"table": table, "source_kind": "bench_report(lite)"}
+
+
+def render_lite(parsed: dict, source_name: str) -> str:
+    """경량 리포트 lite 표 → hint 절. `render` 와 같이 발행기·검증기가 공유하는 커널이다."""
+    out = [LITE_SECTION_TITLE, "",
+           "> 서빙 성공 직후의 **lite 스냅샷**이다 — cold 1회 + warm burst 1회. 동시성 곡선·반복·판정·인증서가 없다.",
+           "> 성능 baseline 이 아니며(OBSERVATION-ONLY) 수신자는 자기 환경에서 재측정한다.",
+           f"> 출처: `{source_name}` ({parsed['source_kind']}) · 표는 리포트의 행을 그대로 옮긴다(재산정 ✗ · `--verify` diff 0).",
+           ""]
+    out += list(parsed["table"])
+    out.append("")
+    return "\n".join(out)
 
 
 def parse_sweep_index(doc: dict) -> dict:
@@ -187,15 +310,18 @@ def build_from_args(a) -> tuple[str, str]:
         return render(parse_sweep_index(json.loads(p.read_text(encoding="utf-8"))), p.name), p.name
     if a.report:
         p = Path(a.report)
-        return render(parse_report(p.read_text(encoding="utf-8")), p.name), p.name
+        text = p.read_text(encoding="utf-8")
+        if is_lite_report(text):
+            return render_lite(parse_lite_report(text), p.name), p.name
+        return render(parse_report(text), p.name), p.name
     raise BenchSectionFailure("--sweep-index 또는 --report 가 필요하다(출처 없이 표를 만들지 않는다)")
 
 
-def extract_section(text: str) -> str | None:
-    """발행된 문서에서 이 절만 잘라낸다(다음 `## ` 헤딩 직전까지)."""
+def extract_section(text: str, title: str = SECTION_TITLE) -> str | None:
+    """발행된 문서에서 이 절만 잘라낸다(다음 `## ` 헤딩 직전까지). 경량 리포트 절은 `title=LITE_SECTION_TITLE`."""
     lines = text.splitlines()
     try:
-        start = next(i for i, ln in enumerate(lines) if ln.strip() == SECTION_TITLE)
+        start = next(i for i, ln in enumerate(lines) if ln.strip() == title)
     except StopIteration:
         return None
     end = len(lines)
@@ -258,6 +384,46 @@ def _selftest() -> int:
     ck("절 부재는 None", extract_section("# 아무것도 없음\n") is None)
     tampered = doc.replace("50.58", "99.99")
     ck("★음성대조: 한 숫자만 손대도 diff 가 잡는다", extract_section(tampered).strip() != body.strip())
+    # ── 경량 리포트 · 측정 구성 표 (2026-09-14 · plan_26091407 §4.5) ──────────────────────────────────────────────
+    lite_doc = "\n".join([
+        "# 경량 성능 보고서(lite)", "", REPORT_LITE_MODE_LINE, "", "> 생성일 2026-01-01T00:00:00Z.", "",
+        MEASUREMENT_CONFIG_TITLE, "", "> 기재다.", "", "| 키 | 값 |", "|---|---|",
+        "| bench_mode | lite |", "| bench_mode_kind | declared-lite |",
+        "| bench_mode_source | declared(a \\| b) |", "| downgrade_reason | N/A |", "| repeats | 1 |", "",
+        "## lite 지표 (서빙 성공 직후 스냅샷 · inform-only)", "", "> 설명", "",
+        "| 메트릭 | 값 |", "|---|---|", "| gen tokens/sec (warm) | 26.00 t/s |", "| cold-start TTFT | 120 ms |", "",
+        "## 측정 환경 스냅샷", ""])
+    mc = parse_measurement_config(lite_doc)
+    ck("측정 구성 표를 키→값으로 읽는다(N/A=None · 반복 정수 · 이스케이프 `|` 복원)",
+       mc == {"bench_mode": "lite", "bench_mode_kind": "declared-lite", "bench_mode_source": "declared(a | b)",
+              "downgrade_reason": None, "repeats": 1})
+    ck("★측정 구성 절 부재는 None(미기재 — 파싱 실패와 다르다)", parse_measurement_config(report) is None)
+    raised = None
+    try:
+        parse_measurement_config(lite_doc.replace("| repeats | 1 |", "| surprise | 1 |"))
+    except BenchSectionFailure as exc:
+        raised = exc
+    ck("★음성대조: 계약 밖 키는 FAIL(계약이 갈라진 것을 조용히 버리지 않는다)", raised is not None)
+    ck("경량 리포트 판별은 헤더 줄로만", is_lite_report(lite_doc) and not is_lite_report(report)
+       and not is_lite_report("본문에 mode: lite 라는 말이 섞였을 뿐\n"))
+    ck("lite 지표 술어: 수치 행이 있으면 참", lite_metrics_present(lite_doc))
+    ck("★음성대조 lite 지표 술어: gen tokens/sec 가 N/A 면 거짓(결손)",
+       not lite_metrics_present(lite_doc.replace("26.00 t/s", "N/A")))
+    ck("★음성대조 lite 지표 술어: 절이 없으면 거짓", not lite_metrics_present(report))
+    lite_body = render_lite(parse_lite_report(lite_doc), "bench_report_x.md")
+    ck("lite 절이 표를 행 그대로 옮긴다", "| gen tokens/sec (warm) | 26.00 t/s |" in lite_body
+       and lite_body.startswith(LITE_SECTION_TITLE))
+    doc2 = "머리\n\n" + lite_body + "\n## 다음\n"
+    ck("lite 절 추출이 왕복한다", extract_section(doc2, LITE_SECTION_TITLE).strip() == lite_body.strip())
+    ck("★음성대조: lite 절 숫자 손댐을 diff 가 잡는다",
+       extract_section(doc2.replace("26.00", "99.00"), LITE_SECTION_TITLE).strip() != lite_body.strip())
+    raised = None
+    try:
+        parse_lite_report("# r\n\nmode: lite\n\n## lite 지표\n\n> 산정 실패\n")
+    except BenchSectionFailure as exc:
+        raised = exc
+    ck("★음성대조: 표 없는 lite 절은 빈 절이 아니라 FAIL", raised is not None)
+
     print("[render_bench_section] " + ("PASS" if ok else "FAIL"))
     return 0 if ok else 1
 
@@ -277,7 +443,8 @@ def main(argv: list[str] | None = None) -> int:
         if a.verify:
             if not a.section:
                 raise BenchSectionFailure("--verify 는 --section 이 필요하다")
-            published = extract_section(Path(a.section).read_text(encoding="utf-8"))
+            published = extract_section(Path(a.section).read_text(encoding="utf-8"),
+                                        body.splitlines()[0].strip())
             if published is None:
                 raise BenchSectionFailure(f"발행 문서에 벤치 절이 없다: {a.section}")
             if published.strip() != body.strip():

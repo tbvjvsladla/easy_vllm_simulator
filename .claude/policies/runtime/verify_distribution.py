@@ -655,6 +655,13 @@ def verify() -> dict:
              ".claude/skills/hint-publisher/scripts/hint_tag.py", "--self-test"], {0}),
         _run("hint_collect_selftest", [sys.executable,
              ".claude/skills/hint-publisher/scripts/hint_collect.py", "--self-test"], {0}),
+        # 2026-09-14(plan_26091407 §4.5): 카탈로그 파생기와 리포트 파서의 자체검사에도 **호출자가 없었다**. 단계 ⑤ 가
+        #   `bench_mode` 파생 컬럼(과거 태그 = 미기재)과 측정 구성 표·경량 리포트 파싱을 여기에 올렸으므로 같은 날 배선한다
+        #   — 아무도 부르지 않는 자체검사는 침묵 누락이다(위 2026-09-04 주석과 같은 결함 계열).
+        _run("hint_catalog_selftest", [sys.executable,
+             ".claude/skills/hint-publisher/scripts/hint_catalog.py", "--self-test"], {0}),
+        _run("hint_bench_section_selftest", [sys.executable,
+             ".claude/skills/hint-publisher/scripts/render_bench_section.py", "--selftest"], {0}),
         _run("terraform_scan_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/scan_node.py", "--self-test"], {0}),
         _run("terraform_render_selftest", [sys.executable,
@@ -837,6 +844,16 @@ def verify() -> dict:
              ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py", "--self-test"], {0}),
         _run("benchmark_sweep_repeats_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.py"], {0}),
+        # lite hint 통로의 **리포트 평면** (plan_26091407 §4.5 · §7 O5 · 2026-09-14 배선). 호출자 없는 자체검사는 L1(산문)이다.
+        #   무엇을 지키나: lite 만 잰 셀도 hint 를 내려면 바인딩할 문서가 있어야 하는데 lite_bench 는 문서를 내지 않았다
+        #   (audit_26091323 §1.2 A2). 배포되는 lite_bench.sh 사본을 격리 저장소에서 shim(docker·curl·nvidia-smi)으로 돌려
+        #   `--publish-report` 종결부가 경량 리포트(mode: lite · 측정 구성 표 · lite 지표)를 명명 SSOT 로 내는지 친다.
+        #   음성대조: 기본(자동 핸드오프)은 미발행 · 발행 실패는 exit 5 이되 raw 는 남고 플래그 없는 경로는 exit 0 ·
+        #   측정시각 부재 exit 2 · 모드 혼합 exit 2 · full 스윕 lite 레그는 발행하지 않는다(full 리포트 stem 보호) ·
+        #   명명 키는 sweep_bench 조립 heredoc 실행과 교차검증 · full 리포트 측정 구성 표(full/강등/기록 부재).
+        #   seal 까지의 끝단(격리 원격 create→seal→catalog→verify)은 runtime_selftest 의 map_only 프로브가 지킨다.
+        _run("benchmark_lite_report_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/selftest_lite_report.py"], {0}),
         # Broad Search 이중 게이트의 **집행**: --confirm-risk 없이는 셀이 돌지 않는다(exit 5).
         # single 컨테이너 관리 진입점의 **인자 평면** fail-closed (plan_26090419 P1 · 2026-09-04).
         #   기동 경로는 예산선언·워치독 무장을 품고 있어 잘못 불리면 무보호 로드가 된다. 여기서는

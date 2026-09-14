@@ -30,6 +30,26 @@
   재스캔 금지"(A2A 경계)와 **다른 평면**이다. 서브 probe 실패 시 graceful — 마스터 단독 + 실패 음성정직 표기.
 - **down 시나리오**: "테스트만 하고 down" 케이스도 serve → **lite 수행** → 결과 표시 → down(라이브 엔드포인트가 있는 동안 측정).
   용처 매뉴얼은 생략(recipe-explorer 소관).
+- **경량 리포트 발행(`--publish-report` · 2026-09-14 · `plan_26091407` §4.5 · 사용자 결정 Q4·Q10)**: lite 만 잰 셀도 hint 를
+  낸다. 그 hint(`hint_map_only`)가 바인딩할 문서를 `lite_bench.sh <config> … --publish-report` 의 종결부가
+  `render_report.py --lite-only --lite-raw-json <raw>` 로 발행한다 — `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`
+  (full 리포트와 **같은 접두사·같은 명명 SSOT** · publisher 정규식·work-manifest 스키마 무변경). 본문 = 헤더 `mode: lite` ·
+  **측정 구성 표**(`bench_mode=lite` · `bench_mode_kind=declared-lite`(기록 모양은 `classify_cell.declared_lite_record`) · 도구
+  `vllm-bench-serve` · 반복 1 · `downgrade_reason` 없음) · lite 지표 5종 표(lite_metrics 표 그대로) · 환경 스냅샷. 판정·루프라인·
+  동시성 곡선·인증서는 **없다**. 명명 키(model·gpu·vllm)는 raw 가 남긴 config yaml·envfile·manifest·엔진 로그 경로에서
+  `sweep_bench` 조립부와 같은 규칙으로 파생하고(`render_report.lite_identity` · 두 자리는 `scripts/selftest_lite_report.py` 가
+  교차검증), 측정시각은 raw 의 `measured_utc`(부하 직전 호스트 UTC)다 — 없으면 exit 2(날조 ✗).
+  - **기본은 발행하지 않는다**(자동 핸드오프 경로에 부작용 ✗): ① 서빙 직후 자동 lite 는 **관측·inform-only 한정** 예외다.
+    ② `sweep_bench.sh` 가 이 스크립트를 lite 레그로 부른다 — 레그가 리포트를 내면 같은 시간대·같은 조합의 full 리포트가
+    `_MM_SS` 로 밀려 인증서와 stem 이 갈라지고 `publish-benchmark` 가 `…_STEM_MISMATCH` 로 거부한다(full ⊇ lite 이므로 full
+    리포트가 lite 표를 이미 품는다). ③ 발행 실패(명명 키 불성립·충돌)는 요청한 호출에서만 **exit 5** 이고 raw·warm·cold·엔진
+    로그는 남는다(재측정 없이 `render_report.py --lite-only` 로 재렌더).
+  - ⚠ 같은 모델·GPU·버전의 **full 스윕과 같은 시간대(KST 시)** 에 `--publish-report` 를 돌리면 ②와 같은 이름 밀림이 생긴다.
+    lite-only 로 선언한 셀에서만 쓰고, 같은 조합의 full 셀과 같은 KST 시에 두지 않는다. 가드는 아직 없다 — 이름 밀림은
+    lite 고유 결함이 아니라 `doc_naming` 이 report·인증서를 **종류별로 따로** 스캔하는 구조의 결함이다(같은 시간대 full 스윕
+    둘 중 앞 스윕이 인증서 없이 끝나도 같다). 교정 자리는 명명 SSOT(후속).
+  - 바인딩: `evidence_publisher.py publish-lite-report --topic <map_only 토픽> --bench-report-src <그 리포트>`(복사 ✗ · 측정 구성
+    표가 `bench_mode | lite` 라고 말하는 리포트만 받는다). 결손 코드·카탈로그 컬럼은 hint-publisher 소관(계약 §3.0.1).
 - **자동 핸드오프 = 헌법 명시 예외**: recipe→adversarial **lite 한정** 자동 수행은 "무인 자동실행 없음" 트리거 정책의
   **명시 예외**다(안전망 데몬 예외와 동형 — 관측·inform-only 한정). **full 벤치·bump·다운로드의 완전-수동 속성은 불변**.
   Flag 게이트: lite 는 이미 Flag-게이트된 serve 위에서 돈다(전이적) + `lite_bench.sh` 가 `run_bench.sh` 와 동형
@@ -98,7 +118,14 @@
   → `docs/benchmark/bench_report_<YYMMDDHH>_<model>_<gpu>_<vllm>.md`. **PASS/FAIL 무관 발행**("왜 느렸나"도 사람이 봐야).
   **inform-only**(verdict 를 *표시만* — 판정권한 ✗·verdict_rule 독점) · 결정론 렌더(LLM 표·숫자 저작 ✗) · N/A fail-soft.
   bench_mode 판정 기록의 부재·판독 실패·다른 측정의 기록은 **발행을 막지 않고** "미확정 — 사유" 로 적는다(명시
-  `--bench-mode-json` 이 그러면 exit 2).
+  `--bench-mode-json` 이 그러면 exit 2). 판정 절 앞에 **측정 구성 표**(`bench_mode`·`bench_mode_kind`·출처·`downgrade_reason`·
+  도구·버전·요청 반복·판정점 완주)를 싣는다 — 경량 리포트와 같은 제목·키이고(`render_report.MEASUREMENT_CONFIG_*` =
+  hint 파서 `render_bench_section.MEASUREMENT_CONFIG_*`), 강등 셀의 리포트는 이 표가 `bench_mode | lite` 라고 말하므로
+  같은 lite 통로의 바인딩 대상이 된다(`evidence_publisher init --downgrade-from full_benchmark --downgrade-reason <사유>`
+  가 full_benchmark 토픽을 map_only 로 재분류하며 바인딩을 보존한다 · 사유 어휘 = `classify_cell.DOWNGRADE_REASONS` ·
+  재분류는 바인딩된 리포트의 이 표가 `downgraded-lite` 와 같은 사유를 말할 때만 열린다 — 선언만으로는 열리지 않는다).
+  표의 `*_source` 칸에는 블랙박스 events 파일 경로가 들어갈 수 있다 — 리포트는 비배포 docs 평면이라 그대로 두고, hint
+  발행기는 이 칸을 배포 페이로드로 옮기지 않는다.
 - **기계용 인증서(PASS시만)** — `publish_benchmark_record.py --sweep-index … --verdict-json …`
   → `docs/benchmark/benchmark_<YYMMDDHH>_<model>_<gpu>_<vllm>.yaml`. **flat 계약**(중첩 ✗ — 소비자 stdlib 독해) +
   **carry-forward 재검증 헤더**(강한키=model/gpu/vllm/quant/topology/tp 정확일치 + 소프트지문=driver/cuda/image/max-len/
@@ -126,5 +153,6 @@
   계약은 인증서와 **동일**하다(`floor>0` ∧ `ratio` 유한 ∧ `primary_source` 실재) — 완화가 아니라 carrier
   교체이며, `weak`/`explicit` REFUTE 는 여전히 `perf_waiver` 없이는 열리지 않는다.
 - **비용 규율**: 재탐색 루프 **내부는 값싼 단일점 판정** 유지 · 스윕·리치리포트는 **종결 1회**만. 오케스트레이션은
-  **에이전트 매개**(스킬↔스킬 직접호출 ✗). **done-게이트는 여전히 verdict 독점** · lite 는 발행 안 함(채팅 표만).
+  **에이전트 매개**(스킬↔스킬 직접호출 ✗). **done-게이트는 여전히 verdict 독점** · lite 는 기본적으로 채팅 표만이고
+  문서는 lite-only 셀이 `--publish-report` 로 명시할 때만 낸다(§1 · 판정·인증서는 어느 경우에도 없다).
 - 발행 경로·명명 SSOT = `.claude/skills/wiki-desk/scripts/doc_naming.py`(generated_utc→KST) · 증거 계약은 `.claude/policies/runtime/completion_gate.py` 가 판정.

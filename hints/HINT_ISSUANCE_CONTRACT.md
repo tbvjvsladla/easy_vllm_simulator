@@ -47,6 +47,34 @@ v2 는 차단 사유를 **형식 미비 → 증거 부재·위조**로 옮긴다
 3. 카탈로그 `결손` **파생 컬럼**(`hints/index.json`·`HINTS.md`). 태그 **이름**에는 등급을 새기지 않는다 —
 이름은 불변인데 결손은 재발행으로 바뀌고, 새기는 순간 이름이 거짓이 된다.
 
+### 3.0.1 C행의 실제 통로 — lite 만 잰 셀 (2026-09-14 · plan_26091407 §4.5 · 사용자 결정 Q4·Q10)
+
+C행("B 가 열리므로 도달 가능하다")은 v5 에서 **승격 게이트까지만** 참이었다 — `hint_tag seal` 의 바인딩 판정자가
+`hint_map_only` 를 몰라 봉인에서 죽었고(`HINT_CERTIFICATE_EVIDENCE_MISSING` · audit_26091323 §1), lite 는 바인딩할
+문서를 내지 않았다. 이제 통로가 끝까지 선다. **C행은 그대로이고, 약속을 코드가 따라왔다.**
+
+- **바인딩 대상**: 인증서는 full·PASS 전용이라 lite 셀에는 구조적으로 없다. `hint_map_only` 는 bench_report 를 묶는다 —
+  선언된 lite-only 셀은 **경량 리포트**(`lite_bench.sh --publish-report` → `render_report.py --lite-only` · 헤더 `mode: lite` ·
+  `evidence_publisher publish-lite-report` 로 바인딩), 반복 불성립으로 강등된 셀은 그 스윕의 리포트(`evidence_publisher init
+  --downgrade-from full_benchmark --downgrade-reason <run_failed|blackbox_kill>` 가 바인딩을 보존한 채 재분류)다.
+  재분류는 **대조**다 — 바인딩된 리포트의 측정 구성 표가 강등(`downgraded-lite`)과 같은 사유를 말할 때만 열린다(사람의
+  선언만으로는 열리지 않는다 · 표가 full·부재·다른 사유면 `INIT_DOWNGRADE_EVIDENCE_MISMATCH`).
+  인증서·roofline·verdict 를 요구하지 않는다. `HINT_MISSING_LITE` 는 그 리포트의 lite 지표 표로 판정한다.
+- **등급 기재**: 기존 **측정 구성 표**(도구·버전을 싣던 자리)에 `bench_mode` · 도구(`vllm-bench-serve` | `guidellm <버전>`) ·
+  반복 N · `downgrade_reason` 을 싣는다(리포트 → `hint_collect` 파싱 → 본문 03 · `PAYLOAD.measurement_config`).
+  배포 평면에는 **열거·수치 칸과 출처 포인터**(`bench_report(<파일명>)`)만 싣는다 — 리포트 표의 자유 서술 출처
+  (`*_source` · 블랙박스 events 절대경로가 섞일 수 있다)는 바인딩된 리포트에 남는다.
+  측정이 **lite 로 기재됐으면**(측정 구성 표 `bench_mode=lite` · 경량 리포트 헤더 `mode: lite` · record `benchmark.mode=lite`)
+  `PAYLOAD.missing[]` 에 **`BENCH_MODE_LITE`** 를 싣는다. bench_mode 를 읽지 못한 측정(표 없는 과거 리포트 · 판정 기록
+  부재)에는 코드를 붙이지 않는다 — 모름을 lite 로 접으면 합성이다. 그 사실은 카탈로그 파생 컬럼 **`bench_mode`** 가 말한다
+  (`full` · `lite(선언)` · `lite(강등·<사유>)` · `lite`(종류를 못 읽은 lite) · 과거 태그 `미기재` · 측정 구성은 있으나 값을 못
+  읽은 측정 `미확정`). 표가 깨졌으면 출처가 `unparseable(…)` 로 따로 보인다. 이름 5세그먼트는 불변이다.
+- **레시피 세그먼트**: 인증서가 없으면 셀 lockset 선언(+ 같은 셀 `config.yaml` `declared_axes.ple_mode`)에서 같은 커널로
+  파생하고, `seal --lockset` 을 주면 이름을 그 선언과 대조한다(인증서가 있으면 인증서가 이긴다 · 파생 출처를 남긴다).
+  `--lockset` 은 **선택**이다 — 생략하면 explore·perf_waiver 와 같이 "대조 생략" 경고만 남기고 봉인한다. lockset 의
+  provenance 부재는 **기재**(경고 · 출처에 미표시)이지 차단이 아니다(차단 자리는 `broad_search.sh cell` 측정 진입 하나).
+  ple 선언을 읽지 못하면 토큰 없이 경고한다. §5 `OBSERVATION-ONLY` 마커는 그대로 요구된다.
+
 ### 3.-1 태그는 hint 브랜치의 페이로드 커밋을 가리킨다 (v5 집행)
 
 계약 §6 이 이미 그렇게 적었으나 **검사하는 코드가 없었다**(fail-open). 그래서 native 태그 3종이

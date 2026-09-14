@@ -605,7 +605,8 @@ MISSING_CODES = {
     "HINT_MISSING_CERTIFICATE": "인증서 부재 — full PASS 가 아니었거나 벤치마커가 발행하지 않았다. "
                                 "인증서 발행은 adversarial-benchmark 의 책임이지 발행기의 책임이 아니다.",
     "HINT_MISSING_BENCH_REPORT": "벤치 리포트 부재 — 동시성별 곡선을 실을 수 없다.",
-    "HINT_MISSING_SWEEP_LEVELS": "부하 레벨이 1개뿐 — 부하 거동을 알 수 없다.",
+    "HINT_MISSING_SWEEP_LEVELS": ("부하 레벨이 1개 이하 — 부하 거동을 알 수 없다(경량 리포트는 동시성 곡선을 "
+                                  "재지 않는다)."),
     "HINT_MISSING_LITE": "lite 관측 부재.",
     "HINT_MISSING_SLAVE_ATTESTATION": "슬레이브 ABI attestation 부재 — 멀티에서 두 노드가 같은 것을 "
                                       "돌렸다는 증거가 성공 경로에 보존되지 않았다.",
@@ -616,7 +617,30 @@ MISSING_CODES = {
     "HINT_MISSING_TRIPLET": "트리플렛 부재(메인 워킹트리에 config/runner/env 3종이 없다).",
     "HINT_MISSING_PII_TERMS": "pii_terms.txt 부재 — 리터럴 스캔이 축소된 상태로 돌았다.",
     "HINT_MISSING_MEASURED_NODE": "인증서에 측정 노드 출처가 없다 — 어느 노드가 쟀는지 단정할 수 없다.",
+    # 2026-09-14(plan_26091407 §4.5 · 사용자 결정 Q10): 등급 표지는 태그 이름에 새기지 않는다. full 정의
+    #   (lite ∪ GuideLLM × 반복 ≥3)를 충족하지 않은 측정은 이 코드로 **기재**한다 — 측정 구성 표가 사유를 싣는다.
+    "BENCH_MODE_LITE": ("full bench 정의(lite ∪ GuideLLM × 반복 ≥3)를 충족하지 않았다고 **기재된** 측정이다 — 선언된 "
+                        "lite-only 셀이거나 반복 불성립(기계 이벤트)으로 강등된 셀이다. 수치는 lite 스냅샷(또는 강등 셀의 "
+                        "대표 run 1회)이라 산포 추정치·인증서가 없다. 어느 쪽인지·강등 사유는 측정 구성 표"
+                        "(bench_mode_kind · downgrade_reason)가 말한다. bench_mode 를 읽지 못한 측정(미확정·미기재)에는 "
+                        "붙이지 않는다 — 모름을 lite 로 접으면 합성이다(그 사실은 카탈로그 bench_mode 칸이 말한다)."),
 }
+
+# 측정 구성의 **키 집합**은 리포트 파서(`render_bench_section.MEASUREMENT_CONFIG_KEYS`)가 소유한다. 여기서는 hint 문서에
+# 싣는 행 이름만 고른다(값의 복제가 아니다 — tripwire 칸). 도구는 이름·버전을 한 칸으로 합쳐 보여준다.
+MEASUREMENT_ROWS = (("bench_mode", "bench_mode"), ("bench_mode_kind", "bench_mode_kind"),
+                    ("도구", "_tool"), ("반복 N", "repeats"),
+                    ("판정점 완주", "repeats_completed"), ("downgrade_reason", "downgrade_reason"),
+                    ("측정 구성 출처", "source"))
+# ★ 배포 평면(PAYLOAD.json · 03-benchmark.md)에 싣는 측정 구성 키 = **열거형·수치 칸만**(2026-09-14 교정).
+#   리포트 표의 `*_source`(bench_mode_source · downgrade_reason_source · repeats_source · bench_tool_version_source)는
+#   **자유 서술 출처**다 — sweep_bench 가 `classify_cell --events-from-repo "$REPO"`(절대경로)로 부르면 강등 사유 출처에
+#   블랙박스 events 파일의 **운영자 절대경로**가 그대로 박히고, `--repeats-source` 는 사람이 적는 문장이다. 그 문자열을
+#   PAYLOAD 로 옮기면 `hint_branch publish` 의 4종 PII 스캔이 fail-closed 로 죽어 강등 셀 통로(사용자 결정 "강등 셀도 같은
+#   통로")와 스윕이 멈춘 full 셀의 hint 가 발행 불가가 된다. 출처 서술의 정본은 바인딩된 리포트(docs 평면 · 비배포)에 남고,
+#   배포 평면은 그 문서를 가리키는 `source`(`bench_report(<파일명>)`)로 출처를 표시한다(출처 표시 ≠ 서술 복제).
+DISTRIBUTED_MEASUREMENT_KEYS = ("bench_mode", "bench_mode_kind", "downgrade_reason", "bench_tool", "bench_tool_version",
+                                "repeats", "repeats_completed")
 
 
 def _bench_section_module():
@@ -641,8 +665,67 @@ def render_missing_block(missing: list) -> str:
     return "\n".join(lines)
 
 
+def measurement_config_of(cert: dict, cert_name: str, report_mc: "dict | None", report_name: "str | None", *,
+                          report_state: "str | None" = None, report_lite_header: bool = False,
+                          manifest_mode: "str | None" = None) -> dict:
+    """측정 구성(bench_mode · 도구 · 반복 N · downgrade_reason) → PAYLOAD·본문 공용 dict. **파싱만 한다**(합성 ✗).
+
+    출처 우선순위: 리포트 측정 구성 표(render_report 가 bench_mode 판정 기록·반복 요약에서 결정론으로 쓴 것) > 인증서
+    (`benchmark_mode`·`bench_tool*` — 반복 수는 인증서에 없다) > 경량 리포트 헤더 `mode: lite` > work-manifest
+    `benchmark.mode=lite` > 부재. 앞 소스에 없는 키만 뒤 소스로 채우고, 어느 쪽에서 왔는지 `source` 에 적는다.
+
+    - `report_state`: `parsed`(표를 읽었다) · `absent`(표 신설 전 리포트 — 미기재) · `unparseable`(표는 있는데 깨졌다 —
+      **부재로 접지 않는다**: 출처가 `unparseable(…)` 로 따로 보인다) · None(리포트 없음).
+    - 헤더·manifest 는 **lite 쪽으로만** 채운다. `mode: lite` 헤더는 경량 리포트 writer 만 쓰고, record 의 `lite` 는
+      `publish-lite-report`(표 lite 대조)·`init --downgrade-from`(표 강등 대조) 또는 사람이 lite 로 선언한 init 만 쓴다.
+      반대로 record 의 `full` 은 init 시점 선언이라 **full 정의(반복 ≥3) 충족의 증거가 아니다** — full 로 채우지 않는다.
+    - 배포 평면에 싣는 키는 `DISTRIBUTED_MEASUREMENT_KEYS` 뿐이다(자유 서술 `*_source` 는 싣지 않는다 — 위 상수 주석)."""
+    out = {k: None for k in DISTRIBUTED_MEASUREMENT_KEYS}
+    sources = []
+    if isinstance(report_mc, dict):
+        for k in DISTRIBUTED_MEASUREMENT_KEYS:
+            if report_mc.get(k) is not None:
+                out[k] = report_mc[k]
+        sources.append(f"bench_report({report_name})")
+    elif report_state == "unparseable":
+        # 사유 문자열(파서 예외)은 표 행 원문을 담을 수 있어 배포 평면에 옮기지 않는다 — 발행 로그(stderr)에 남는다.
+        sources.append(f"unparseable(bench_report({report_name}) 측정 구성 표 — 파싱 실패 · 사유는 수집 로그)")
+    if cert:
+        filled = False
+        for k, ck in (("bench_mode", "benchmark_mode"), ("bench_tool", "bench_tool"),
+                      ("bench_tool_version", "bench_tool_version")):
+            v = cert.get(ck)
+            if out[k] is None and v not in (None, "", "N/A", "NA"):
+                out[k] = v
+                filled = True
+        if filled:
+            sources.append(f"certificate({cert_name})")
+    if out["bench_mode"] is None and report_lite_header:
+        out["bench_mode"] = "lite"
+        sources.append(f"bench_report({report_name}) 헤더 mode: lite")
+    if out["bench_mode"] is None and manifest_mode == "lite":
+        out["bench_mode"] = "lite"
+        sources.append("work-manifest(benchmark.mode=lite)")
+    out["source"] = " + ".join(sources) if sources else "absent(측정 구성 표·인증서 모두 없다 — 미기재)"
+    return out
+
+
+def _measurement_block(mc: "dict | None") -> str:
+    """측정 구성 행 — 도구·반복·bench_mode·강등 사유. 값이 없으면 `미기재`(0·빈칸 ✗)."""
+    mc = mc or {"source": "absent(측정 구성 미수집)"}
+    tool = mc.get("bench_tool")
+    if tool and mc.get("bench_tool_version"):
+        tool = f"{tool} {mc['bench_tool_version']}"
+    view = dict(mc, _tool=tool)
+    rows = []
+    for label, key in MEASUREMENT_ROWS:
+        v = view.get(key)
+        rows.append(f"| `{label}` | {'미기재' if v is None else v} |")
+    return "\n".join(rows)
+
+
 def render_item3(cert: dict, cert_name: str, bench_section: str = "",
-                 missing: list | None = None) -> str:
+                 missing: list | None = None, measurement: "dict | None" = None) -> str:
     missing = missing or []
     if not cert:
         return "\n".join([
@@ -651,6 +734,9 @@ def render_item3(cert: dict, cert_name: str, bench_section: str = "",
             "> 인증서는 full 모드 verdict==PASS 일 때만 나오며, 그 발행은 `adversarial-benchmark` 의",
             "> 책임이다. 부재는 '성능이 나빴다' 가 아니라 '**그 형태로 판정되지 않았다**' 는 뜻이다.", "",
             render_missing_block(missing), "",
+            "## 측정 구성 — 무엇으로 쟀나(기재 · 게이트 아님)", "",
+            "> 등급은 태그 이름이 아니라 이 표가 말한다. `bench_mode=lite` 면 full 정의를 충족하지 않은 측정이다.", "",
+            "| 항목 | 값 |", "|---|---|", _measurement_block(measurement), "",
             bench_section or "_동시성별 곡선도 없다(벤치 리포트 부재)._", "",
             "## like-with-like 한정자 (Agent)", "",
             f"{AGENT_MARK} 인증서 없이 무엇을 말할 수 있고 무엇은 말할 수 없는지 쓴다. "
@@ -663,7 +749,7 @@ def render_item3(cert: dict, cert_name: str, bench_section: str = "",
         "## 측정 구성 — 무엇으로 쟀나(기재 · 게이트 아님)", "",
         "> 도구·버전이 다르면 수치를 나란히 놓기 전에 조건부터 본다. 부재 키는 그 시점에 그 필드가",
         "> 없었다는 뜻이다(합성하지 않는다).", "",
-        "| 항목 | 값 |", "|---|---|", _fmt_kv(cert, CERT_BENCH_TOOL), "",
+        "| 항목 | 값 |", "|---|---|", _measurement_block(measurement), _fmt_kv(cert, CERT_BENCH_TOOL), "",
         "## 강한 일치 키 — 하나라도 다르면 이 수치는 **무효**다", "",
         "| 키 | 값 |", "|---|---|", _fmt_kv(cert, CERT_STRONG), "",
         "## 소프트 지문 — 다르면 stale, 재측정 권고", "",
@@ -755,17 +841,42 @@ def cmd_collect(a) -> int:
 
     # 동시성별 곡선은 **인증서가 아니라 벤치 리포트**에서 온다(인증서는 판정점 하나만 싣는다).
     bench_section = ""
+    report_mc, report_mc_state, report_is_lite = None, None, False
     report_p = ev_path("bench_report") or ev_path("report")
     if report_p and report_p.is_file():
         _rbs = _bench_section_module()
+        report_text = report_p.read_text(encoding="utf-8")
         try:
-            parsed = _rbs.parse_report(report_p.read_text(encoding="utf-8"))
-            bench_section = _rbs.render(parsed, report_p.name)
-            if len(parsed["levels"]) <= 1:
-                missing.append("HINT_MISSING_SWEEP_LEVELS")
+            # 측정 구성 표(bench_mode · 도구 · 반복 · 강등 사유 — 2026-09-14 · plan_26091407 §4.5). 표 신설 전 리포트는
+            #   None(미기재)이고, 절은 있는데 깨졌으면 파서가 FAIL 한다 — 그 경우 출처를 `unparseable(…)` 로 따로 적는다
+            #   (부재로 접지 않는다 · 사유 원문은 이 로그에만).
+            report_mc = _rbs.parse_measurement_config(report_text)
+            report_mc_state = "parsed" if report_mc is not None else "absent"
         except _rbs.BenchSectionFailure as exc:
-            print(f"[hint_collect] ⚠ 벤치 리포트 파싱 실패({report_p.name}): {exc}", file=sys.stderr)
-            missing.append("HINT_MISSING_BENCH_REPORT")
+            report_mc_state = "unparseable"
+            print(f"[hint_collect] ⚠ 측정 구성 표 파싱 실패({report_p.name}): {exc}", file=sys.stderr)
+        report_is_lite = _rbs.is_lite_report(report_text)
+        if report_is_lite:
+            # 경량 리포트(lite-only 셀)는 스윕 표를 **애초에 갖지 않는다** — 그것을 "리포트 부재" 로 적으면 거짓이다.
+            #   부하 곡선이 없다는 사실은 SWEEP_LEVELS 로, lite 표 자체의 결손은 HINT_MISSING_LITE 로 적는다.
+            missing.append("HINT_MISSING_SWEEP_LEVELS")
+            try:
+                bench_section = _rbs.render_lite(_rbs.parse_lite_report(report_text), report_p.name)
+            except _rbs.BenchSectionFailure as exc:
+                print(f"[hint_collect] ⚠ 경량 리포트 lite 표 파싱 실패({report_p.name}): {exc}", file=sys.stderr)
+        else:
+            try:
+                parsed = _rbs.parse_report(report_text)
+                bench_section = _rbs.render(parsed, report_p.name)
+                if len(parsed["levels"]) <= 1:
+                    missing.append("HINT_MISSING_SWEEP_LEVELS")
+            except _rbs.BenchSectionFailure as exc:
+                print(f"[hint_collect] ⚠ 벤치 리포트 파싱 실패({report_p.name}): {exc}", file=sys.stderr)
+                missing.append("HINT_MISSING_BENCH_REPORT")
+        if not cert and not _rbs.lite_metrics_present(report_text):
+            # 인증서가 없으면 lite 정량지표의 근거 문서는 이 리포트다(hint_tag `_require_serving_evidence` 가 같은 술어로
+            #   요구한다). 요구하는 자리와 적는 자리가 **같은 술어**를 쓴다 — 종전에는 적는 손이 0 이었다.
+            missing.append("HINT_MISSING_LITE")
     else:
         missing.append("HINT_MISSING_BENCH_REPORT")
         print("[hint_collect] ⚠ 벤치 리포트 포인터가 없다 — 동시성별 곡선 없이 발행한다.",
@@ -784,6 +895,20 @@ def cmd_collect(a) -> int:
             missing.append("HINT_MISSING_SLAVE_ATTESTATION")
             print(f"[hint_collect] ⚠ 노드 정합 attestation 부재({attest.name}) — 결손으로 기재한다.",
                   file=sys.stderr)
+
+    _man_bench = man.get("benchmark") if isinstance(man.get("benchmark"), dict) else {}
+    measurement = measurement_config_of(cert, cert_name, report_mc, report_p.name if report_p else None,
+                                        report_state=report_mc_state, report_lite_header=report_is_lite,
+                                        manifest_mode=_man_bench.get("mode"))
+    if _man_bench.get("mode") == "lite" and measurement.get("bench_mode") == "full":
+        # 기재 평면이라 막지 않는다 — 다만 두 자리가 다른 말을 한다는 사실을 삼키지 않는다(리포트 표가 이긴다).
+        print(f"[hint_collect] ⚠ work-manifest benchmark.mode=lite 인데 측정 구성({measurement['source']})은 full 이라 "
+              f"말한다 — 리포트 표를 싣는다. 재분류·바인딩 경로를 확인하라.", file=sys.stderr)
+    if measurement.get("bench_mode") == "lite":
+        # 등급은 이름이 아니라 결손 목록·측정 구성 표·카탈로그 파생 컬럼에 적힌다(계약 §3 결손 가시성 세 곳).
+        #   조건은 **lite 로 기재됐을 때**다(표 · 경량 리포트 헤더 · record benchmark.mode=lite). 읽지 못한 측정(None)은
+        #   붙이지 않는다 — 계약 §3.0.1 문장과 같은 규칙이다.
+        missing.append("BENCH_MODE_LITE")
 
     slots = discover_slots(repo, topo, a.config_name, slot_root=slot_root)
     # ★ 계약이 열거만 하고 **내는 코드가 없던** 사유코드를 여기서 낸다(2026-09-07).
@@ -849,7 +974,7 @@ def cmd_collect(a) -> int:
     (out / "02-narrative.md").write_text(render_item2(ev_rel("devlog"), ev_rel("testlog")),
                                          encoding="utf-8")
     (out / "03-benchmark.md").write_text(
-        render_item3(cert, cert_name, bench_section=bench_section, missing=missing),
+        render_item3(cert, cert_name, bench_section=bench_section, missing=missing, measurement=measurement),
         encoding="utf-8")
 
     payload_doc = {
@@ -862,6 +987,9 @@ def cmd_collect(a) -> int:
                     for k in ("health_ok", "functional_smoke_passed")},
         "benchmark": {k: cert.get(k) for k in CERT_PERF if k in cert},
         "bench_tool": {k: cert.get(k) for k in CERT_BENCH_TOOL if k in cert},
+        # 측정 구성(bench_mode · 도구 · 반복 · 강등 사유) — 카탈로그 `bench_mode` 파생 컬럼의 **유일한 출처**다
+        #   (hint_catalog.bench_mode_cell). 이 키가 없는 과거 페이로드는 카탈로그에 `미기재` 로 보인다.
+        "measurement_config": measurement,
         "benchmark_source": ({"certificate": cert_name, "sha256": sha256_of(cert_p),
                               "parsed_not_synthesized": True}
                              if cert else {"certificate": None, "parsed_not_synthesized": True,
@@ -1259,7 +1387,7 @@ def _run_self_test() -> int:
             "MASTER_HOST_IP=192.168.0.11\nRAY_PORT=6379\nSSH_USER=someone\n", encoding="utf-8")  # pii-scan-fixture
         return root
 
-    def _mk_manifest(evdir: Path, cert_rel, report_rel) -> Path:
+    def _mk_manifest(evdir: Path, cert_rel, report_rel, benchmark: "dict | None" = None) -> Path:
         ev = {}
         if cert_rel:
             ev["certificate"] = {"path": cert_rel}
@@ -1269,6 +1397,8 @@ def _run_self_test() -> int:
                             "quant": "mxfp4", "topology": "single", "tp": 1},
                "runtime": {"health_ok": True, "functional_smoke_passed": True},
                "evidence": ev}
+        if benchmark is not None:
+            doc["benchmark"] = benchmark
         mp = evdir / "work-manifest.json"
         mp.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
         return mp
@@ -1327,6 +1457,125 @@ def _run_self_test() -> int:
         ck("★리포트 부재로도 죽지 않는다", rc3 == 0)
         ck("★리포트 부재가 missing 에 적힌다",
            "HINT_MISSING_BENCH_REPORT" in json.loads((out3 / PAYLOAD_JSON).read_text(encoding="utf-8")).get("missing", []))
+
+        # (3b) 경량 리포트(lite-only 셀 · 2026-09-14 · plan_26091407 §4.5) — 스윕 표가 없는 것은 "리포트 부재" 가 아니다.
+        _rbs = _bench_section_module()
+
+        def _mc_table(rows: dict) -> str:
+            return "\n".join([_rbs.MEASUREMENT_CONFIG_TITLE, "", "| 키 | 값 |", "|---|---|"]
+                             + [f"| {k} | {v} |" for k, v in rows.items()]) + "\n"
+        lite_rows = {"bench_mode": "lite", "bench_mode_kind": "declared-lite",
+                     "bench_mode_source": "declared(lite_bench · lite-only 셀)", "downgrade_reason": "N/A",
+                     "bench_tool": "vllm-bench-serve", "bench_tool_version": "N/A", "repeats": "1",
+                     "repeats_source": "lite(cold 1회 + warm burst 1회)", "repeats_completed": "1"}
+        lite_table = ("| 메트릭 | 값 |\n|---|---|\n| gen tokens/sec (warm) | 26.00 t/s |\n"
+                      "| cold-start TTFT | 120 ms |\n")
+        (evdir / "lite.md").write_text(
+            "# 경량 성능 보고서(lite)\n\nmode: lite\n\n> 생성일 2026-09-14T00:00:00Z.\n\n" + _mc_table(lite_rows)
+            + "\n## lite 지표 (서빙 성공 직후 스냅샷 · inform-only)\n\n" + lite_table, encoding="utf-8")
+        out5 = t2 / "out5"
+        rc5 = cmd_collect(argparse.Namespace(repo=str(repo2), manifest=str(_mk_manifest(evdir, None, "lite.md")),
+                                             topology="single", config_name=cfg, out=str(out5),
+                                             generated_kst="2026-09-14 09:00"))
+        pay5 = json.loads((out5 / PAYLOAD_JSON).read_text(encoding="utf-8"))
+        b5 = (out5 / "03-benchmark.md").read_text(encoding="utf-8")
+        ck("★lite 리포트: 죽지 않고 BENCH_MODE_LITE 를 결손 목록에 적는다(등급은 이름이 아니라 목록에)",
+           rc5 == 0 and "BENCH_MODE_LITE" in pay5["missing"])
+        ck("★lite 리포트: 스윕 표 부재를 HINT_MISSING_BENCH_REPORT 로 적지 않는다(리포트는 있다) · 곡선 부재는 SWEEP_LEVELS",
+           "HINT_MISSING_BENCH_REPORT" not in pay5["missing"] and "HINT_MISSING_SWEEP_LEVELS" in pay5["missing"])
+        ck("★lite 리포트만으로 HINT_MISSING_LITE 가 적히지 않는다(lite 지표 표가 있다)",
+           "HINT_MISSING_LITE" not in pay5["missing"])
+        _m5 = pay5.get("measurement_config") or {}
+        ck("PAYLOAD.measurement_config 가 측정 구성 표를 파싱해 싣는다(bench_mode·kind·도구·반복·출처)",
+           _m5.get("bench_mode") == "lite" and _m5.get("bench_mode_kind") == "declared-lite"
+           and _m5.get("bench_tool") == "vllm-bench-serve" and _m5.get("repeats") == 1
+           and _m5.get("downgrade_reason") is None and _m5.get("source") == "bench_report(lite.md)")
+        ck("03-benchmark 에 측정 구성 표(bench_mode · 도구 · 반복 N · downgrade_reason)와 lite 절이 실린다",
+           "## 측정 구성 — 무엇으로 쟀나" in b5 and "| `bench_mode` | lite |" in b5 and "| `도구` | vllm-bench-serve |" in b5
+           and "| `반복 N` | 1 |" in b5 and "| `downgrade_reason` | 미기재 |" in b5
+           and _rbs.LITE_SECTION_TITLE in b5 and "| gen tokens/sec (warm) | 26.00 t/s |" in b5)
+        (evdir / "lite_na.md").write_text((evdir / "lite.md").read_text(encoding="utf-8").replace("26.00 t/s", "N/A"),
+                                          encoding="utf-8")
+        out6 = t2 / "out6"
+        cmd_collect(argparse.Namespace(repo=str(repo2), manifest=str(_mk_manifest(evdir, None, "lite_na.md")),
+                                       topology="single", config_name=cfg, out=str(out6), generated_kst="2026-09-14 09:00"))
+        ck("★음성대조 lite 표의 gen tokens/sec 가 N/A 면 HINT_MISSING_LITE 를 **적는다**(요구하는 술어와 같은 술어)",
+           "HINT_MISSING_LITE" in json.loads((out6 / PAYLOAD_JSON).read_text(encoding="utf-8"))["missing"])
+        # 강등 셀 — full 모양 리포트(스윕 표)인데 측정 구성 표가 lite · run_failed 라고 말한다.
+        #   ★ 출처 서술은 **실물 모양**으로 싣는다: sweep_bench 는 `classify_cell --events-from-repo "$REPO"`(절대경로)를 넘기고
+        #   classify_cell 은 그 events 파일 경로를 downgrade_reason_source 에 그대로 적는다. 경로 없는 출처 문자열로 초록이면
+        #   `hint_branch publish` 의 4종 PII 스캔에서 죽는 통로를 모른다(2026-09-14 리뷰 발견 · 픽스처가 실물보다 좁았다).
+        _abs_events = "/home/op-fixture/ws/repo/docs/logs/main/events/2026-09.jsonl"  # pii-scan-fixture: 절대 events 경로의 실물 모양
+        down_rows = dict(lite_rows, bench_mode_kind="downgraded-lite",
+                         bench_mode_source="반복 조건 불성립(판정점 run 2 실패)",
+                         downgrade_reason="run_failed",
+                         downgrade_reason_source=(f"stop[repeat-break · level=1 · run=2](rc=3) · "
+                                                  f"correlation-miss({_abs_events} · 창 [a, b] tol=0s)"),
+                         bench_tool="guidellm", bench_tool_version="0.7.3",
+                         repeats="3", repeats_source=f"declared(argv --repeats · {_abs_events})",
+                         repeats_completed="2")
+        (evdir / "down.md").write_text("# 리포트\n\n" + _mc_table(down_rows) + "\n## lite 지표 (full ⊇ lite)\n\n"
+                                       + lite_table + "\n" + REPORT_ROWS, encoding="utf-8")
+        out7 = t2 / "out7"
+        cmd_collect(argparse.Namespace(repo=str(repo2), manifest=str(_mk_manifest(evdir, None, "down.md")),
+                                       topology="single", config_name=cfg, out=str(out7), generated_kst="2026-09-14 09:00"))
+        pay7 = json.loads((out7 / PAYLOAD_JSON).read_text(encoding="utf-8"))
+        b7 = (out7 / "03-benchmark.md").read_text(encoding="utf-8")
+        ck("★강등 셀도 같은 통로: BENCH_MODE_LITE · downgrade_reason · 스윕 곡선은 그대로 렌더",
+           "BENCH_MODE_LITE" in pay7["missing"] and pay7["measurement_config"]["downgrade_reason"] == "run_failed"
+           and "| `도구` | guidellm 0.7.3 |" in b7 and "| `판정점 완주` | 2 |" in b7 and "| 2 |" in b7
+           and "HINT_MISSING_BENCH_REPORT" not in pay7["missing"])
+        _down_src = (evdir / "down.md").read_text(encoding="utf-8")
+        ck("★음성대조(픽스처 유효성): 강등 리포트 표의 출처 서술에는 4종 스캔이 잡는 절대경로가 실제로 있다",
+           any(":abs-op-path:" in h for h in _generic_pii_hits(_down_src)))
+        _pay7_text = (out7 / PAYLOAD_JSON).read_text(encoding="utf-8")
+        ck("★강등 셀 PAYLOAD.json·03-benchmark.md 에 4종 PII 매치 0(자유 서술 `*_source` 를 배포 평면에 옮기지 않는다)",
+           _generic_pii_hits(_pay7_text) == [] and _generic_pii_hits(b7) == [])
+        ck("PAYLOAD.measurement_config 키 = 배포 키 + source(자유 서술 출처 칸 없음)",
+           set(pay7["measurement_config"]) == set(DISTRIBUTED_MEASUREMENT_KEYS) | {"source"}
+           and pay7["measurement_config"]["source"] == "bench_report(down.md)")
+        # full(인증서 PASS) — 측정 구성 표가 full 이면 결손 코드를 붙이지 않는다
+        (evdir / "full.md").write_text("# 리포트\n\n" + _mc_table(dict(down_rows, bench_mode="full", bench_mode_kind="full",
+                                                                          downgrade_reason="N/A", repeats_completed="3"))
+                                       + "\n" + REPORT_ROWS, encoding="utf-8")
+        out8 = t2 / "out8"
+        cmd_collect(argparse.Namespace(repo=str(repo2), manifest=str(_mk_manifest(evdir, "cert.yaml", "full.md")),
+                                       topology="single", config_name=cfg, out=str(out8), generated_kst="2026-09-14 09:00"))
+        pay8 = json.loads((out8 / PAYLOAD_JSON).read_text(encoding="utf-8"))
+        ck("★음성대조 full 측정은 BENCH_MODE_LITE 를 붙이지 않는다",
+           "BENCH_MODE_LITE" not in pay8["missing"] and pay8["measurement_config"]["bench_mode"] == "full")
+        ck("과거 리포트(측정 구성 표 없음)는 미기재로 남는다(인증서 benchmark_mode 도 없으면 bench_mode=None)",
+           pay1.get("measurement_config", {}).get("bench_mode") is None
+           and pay1["measurement_config"]["source"].startswith("absent(")
+           and "BENCH_MODE_LITE" not in pay1["missing"])
+        ck("인증서 benchmark_mode 는 리포트 표가 없을 때 채움값이다(출처 표시)",
+           measurement_config_of({"benchmark_mode": "full", "bench_tool": "guidellm"}, "c.yaml", None, "r.md")
+           == dict(measurement_config_of({}, "", None, None), bench_mode="full", bench_tool="guidellm",
+                   source="certificate(c.yaml)"))
+        # BENCH_MODE_LITE 의 조건 = **lite 로 기재된** 측정(표 · 경량 리포트 헤더 · record benchmark.mode=lite).
+        #   읽지 못한 측정은 붙이지 않는다(계약 §3.0.1). 세 신호를 각각 · 모름은 모름으로.
+        def _collect_case(name, report_rel, benchmark):
+            out_c = t2 / name
+            cmd_collect(argparse.Namespace(repo=str(repo2), manifest=str(_mk_manifest(evdir, None, report_rel, benchmark)),
+                                           topology="single", config_name=cfg, out=str(out_c),
+                                           generated_kst="2026-09-14 09:00"))
+            return json.loads((out_c / PAYLOAD_JSON).read_text(encoding="utf-8"))
+        pay9 = _collect_case("out9", "report.md", {"mode": "lite", "verdict": None})
+        ck("★표 없는 과거 리포트라도 record benchmark.mode=lite(map_only 바인딩·재분류가 쓴 값)면 BENCH_MODE_LITE · 출처 표시",
+           "BENCH_MODE_LITE" in pay9["missing"] and pay9["measurement_config"]["bench_mode"] == "lite"
+           and "work-manifest(benchmark.mode=lite)" in pay9["measurement_config"]["source"])
+        pay10 = _collect_case("out10", "report.md", {"mode": "full", "verdict": "REFUTE"})
+        ck("★음성대조 record 의 full(init 선언)은 full 정의 충족의 증거가 아니다 — 표가 없으면 미기재 · 코드 없음",
+           "BENCH_MODE_LITE" not in pay10["missing"] and pay10["measurement_config"]["bench_mode"] is None
+           and pay10["measurement_config"]["source"].startswith("absent("))
+        (evdir / "lite_broken.md").write_text((evdir / "lite.md").read_text(encoding="utf-8")
+                                              .replace("| repeats | 1 |", "| surprise | 1 |"), encoding="utf-8")
+        pay11 = _collect_case("out11", "lite_broken.md", None)
+        ck("★경량 리포트 헤더(mode: lite)가 있고 표가 깨졌으면: BENCH_MODE_LITE · 출처 unparseable(부재로 접지 않는다)",
+           "BENCH_MODE_LITE" in pay11["missing"] and pay11["measurement_config"]["bench_mode"] == "lite"
+           and pay11["measurement_config"]["source"].startswith("unparseable(bench_report(lite_broken.md)")
+           and "헤더 mode: lite" in pay11["measurement_config"]["source"]
+           and "surprise" not in json.dumps(pay11["measurement_config"], ensure_ascii=False))
 
         # (4) 멀티 — 노드 정합 attestation 부재가 기재된다(이 분기가 NameError 로 죽던 자리)
         repo4 = _mk_tree(t2 / "repo4", "multi", cfg)

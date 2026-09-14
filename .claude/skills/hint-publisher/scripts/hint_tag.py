@@ -118,7 +118,7 @@ def _recipe_token(value: object, prefix: str) -> str | None:
     return f"{prefix}{slug}" if slug else None
 
 
-def derive_recipe_segment(fields: dict) -> str:
+def derive_recipe_segment(fields: dict, source: str = "인증서") -> str:
     """인증서 필드 → 레시피 세그먼트(예 `qmxfp4-len131072-kvfp8`).
 
     축 4종 = `quantization` · `max_model_len` · `kv_cache_dtype` · `ple_mode`(2026-09-11 추가).
@@ -137,9 +137,96 @@ def derive_recipe_segment(fields: dict) -> str:
                           _recipe_token(fields.get("kv_cache_dtype"), "kv"),
                           _recipe_token(fields.get("ple_mode"), "ple")) if t]
     if not tokens:
-        die("[hint_tag] FAIL: 인증서에서 레시피 축(quantization·max_model_len·kv_cache_dtype·"
+        die(f"[hint_tag] FAIL: {source}에서 레시피 축(quantization·max_model_len·kv_cache_dtype·"
             "ple_mode)을 하나도 읽지 못했다 — 이름을 지어내지 않는다.")
     return "-".join(tokens)
+
+
+# ── 레시피 세그먼트의 두 번째 소스: lockset 선언 (2026-09-14 · plan_26091407 §4.5 · 사용자 결정 Q10) ──────────────
+# 인증서는 full·PASS 전용이라 lite 만 잰 셀(`hint_map_only`)에는 **구조적으로** 없다. 그 셀의 이름을 손으로 짓지 않게,
+# 셀 lockset(① 셀 출처 표시가 붙은 explorer 잠금 파일)에서 같은 커널(`derive_recipe_segment`)로 파생한다.
+# 우선순위는 **인증서 > lockset** 이고(측정 > 선언), 어느 소스로 파생했는지 출처를 적는다.
+# lockset 키 → 레시피 축 대응(키 이름의 소유는 recipe-explorer · `gen_recipe_set.py` 가 `kv_cache_quant` 를
+# `kv-cache-dtype` 으로 emit 한다).
+LOCKSET_RECIPE_KEYS = (("quantization", "quantization"), ("max_model_len", "max_model_len"),
+                       ("kv_cache_dtype", "kv_cache_quant"))
+# ★ `ple_mode` 축(2026-09-14 리뷰 교정): lockset 에는 자리가 없지만 **같은 셀 디렉터리의 선언 계층**
+#   (`cells/<cell>/config.yaml` `declared_axes.ple_mode` · 단계 ① 뼈대)에 있다. 이 축은 res·mmp 두 셀의 이름 충돌을
+#   가르려고 넣은 축이라(plan_26091108 R9) 조용히 빠지면 lite 셀 hint 가 PLE 모드가 다른 두 셀에 같은 이름을 준다.
+#   어휘는 뼈대 주석 `resident | mmap | none` 이다(tripwire 칸 · 인증서 쪽 값 `resident`/`mmap` 과 같은 철자). `none`(PLE 없는
+#   모델)은 토큰을 붙이지 않는다. 읽지 못했거나 선언이 비면 토큰 없이 **큰 소리로** 남긴다(부재 ≠ 파생).
+DECLARED_PLE_MODES = ("resident", "mmap")
+DECLARED_PLE_NONE = "none"
+
+
+def _declared_ple_mode(cell_dir: Path) -> "tuple[str | None, str, bool]":
+    """셀 config.yaml `declared_axes.ple_mode` → (토큰 값 | None, 출처 조각, 확정 여부). 확정 = 선언을 읽어 값 또는
+    `none` 을 얻었다. 미확정(파일·PyYAML·선언 부재)은 호출부가 경고한다 — 게이트가 아니라 기재다."""
+    cfg = cell_dir / "config.yaml"
+    if not cfg.is_file():
+        return None, "ple=미확인(셀 config.yaml 부재 — declared_axes.ple_mode 를 읽지 못했다)", False
+    try:
+        import yaml  # 호스트 PyYAML(campaign_init·roofline 과 같은 의존) — 부재는 fail-loud 로 토큰 없이 진행
+    except ImportError:
+        return None, "ple=미확인(PyYAML 부재 — declared_axes.ple_mode 를 읽지 못했다)", False
+    try:
+        doc = yaml.safe_load(cfg.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        return None, f"ple=미확인(셀 config.yaml 판독 실패: {type(exc).__name__})", False
+    axes = doc.get("declared_axes") if isinstance(doc, dict) else None
+    value = axes.get("ple_mode") if isinstance(axes, dict) else None
+    if value in DECLARED_PLE_MODES:
+        return value, f"ple=declared_axes.ple_mode({value})", True
+    if value == DECLARED_PLE_NONE:
+        return None, "ple=declared_axes.ple_mode(none — PLE 없는 모델 · 토큰 없음)", True
+    return None, f"ple=미선언(declared_axes.ple_mode={value!r} · 어휘 {DECLARED_PLE_MODES + (DECLARED_PLE_NONE,)})", False
+
+
+def _campaign_validator():
+    """셀 출처 어휘의 단일 소유자(`campaign_template_validator.lockset_provenance_reason`)를 늦게 적재한다.
+    여기서 어휘를 다시 적으면 precheck·P6·발행기 세 자리가 갈라진다(검증기 헤더의 _SWEEP_TO_CELL 선례)."""
+    path = ROOT / ".claude" / "skills" / "terraforming_node" / "scripts" / "campaign_template_validator.py"
+    if not path.is_file():
+        die(f"[hint_tag] FAIL(fail-closed): 셀 출처 판정기({path.relative_to(ROOT)})가 없다 — lockset 에서 레시피를 "
+            "파생하지 않는다(출처를 확인하지 못한 선언으로 이름을 짓지 않는다).")
+    import importlib.util as _ilu
+    spec = _ilu.spec_from_file_location("_hint_campaign_validator", path)
+    module = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def recipe_fields_from_lockset(path_str: str) -> "tuple[dict, str, bool]":
+    """셀 lockset(+ 같은 셀의 declared_axes.ple_mode) → (레시피 축 fields, 출처 문자열, 출처 표시 성립 여부).
+
+    - lockset 파일이 없거나 JSON 객체가 아니면 **입력 오류로 멈춘다** — 읽을 선언이 없으면 이름을 지을 재료 자체가 없다.
+    - 출처 표시(provenance) 부재·무효는 **기재**다(경고 + 출처 문자열에 표시 · 세 번째 반환값 False). fail-closed 자리는
+      계획서 Q8 이 `broad_search.sh cell` 측정 진입 precheck 하나로 정했다 — 이름 파생기에서 두 번째 차단을 만들지 않는다.
+    - `ple_mode` 는 같은 셀 디렉터리 config.yaml 의 선언에서 읽는다(위 `_declared_ple_mode`). 미확정이면 경고한다."""
+    p = Path(path_str) if os.path.isabs(path_str) else (ROOT / path_str)
+    try:
+        doc = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        die(f"[hint_tag] FAIL HINT_LOCKSET_UNREADABLE: 셀 lockset 을 읽을 수 없다({path_str}: {type(exc).__name__}) — "
+            "선언 없이 레시피 세그먼트를 짓지 않는다.")
+    if not isinstance(doc, dict):
+        die(f"[hint_tag] FAIL HINT_LOCKSET_UNREADABLE: 셀 lockset 최상위가 객체가 아니다({path_str}).")
+    reason = _campaign_validator().lockset_provenance_reason(p)
+    if reason is not None:
+        print(f"[hint_tag] ⚠ HINT_LOCKSET_PROVENANCE_UNMARKED(기재 · 차단 ✗): {reason} — 이 선언이 누구의 것인지 표시되지 "
+              "않았다. 이름은 선언값에서 파생하되 출처 문자열에 미표시로 남긴다.", file=sys.stderr)
+    fields = {axis: doc.get(key) for axis, key in LOCKSET_RECIPE_KEYS}
+    ple_value, ple_note, ple_settled = _declared_ple_mode(p.parent)
+    fields["ple_mode"] = ple_value
+    if not ple_settled:
+        print(f"[hint_tag] ⚠ 레시피 세그먼트 ple 축 {ple_note} — PLE 모델이면 resident·mmap 두 셀이 같은 이름을 받는다. "
+              "셀 config.yaml declared_axes.ple_mode 를 resident|mmap|none 으로 선언하라.", file=sys.stderr)
+    try:
+        rel = str(p.resolve().relative_to(ROOT))
+    except ValueError:
+        rel = p.name
+    prov = doc.get("provenance") if reason is None else f"미표시({doc.get('provenance')!r})"
+    return fields, f"lockset({rel} · provenance={prov}) · {ple_note}", reason is None
 
 
 def collide_suffix(name: str, timestamp: str) -> str:
@@ -750,7 +837,8 @@ def _require_hint_promotion_target(action: str, manifest: dict, *, tag: str, top
 
 
 def _resolve_evidence_footer_fields(action: str, manifest: dict, resolved_manifest_path: Path,
-                                     manifest_arg_str: str, *, tag: str, topology: str, anchor: str) -> dict[str, str]:
+                                     manifest_arg_str: str, *, tag: str, topology: str, anchor: str,
+                                     lockset: "str | None" = None) -> dict[str, str]:
     """Independently (re-)resolves every value the durable evidence-binding footer records.
     NEVER trusts the common completion_gate.py gate's prior approval as a substitute for
     hint_tag.py's own read here -- an unsafe/missing manifest/certificate is rejected despite the
@@ -789,10 +877,17 @@ def _resolve_evidence_footer_fields(action: str, manifest: dict, resolved_manife
                          identity, manifest.get("task_class"))
         cert_path_str = _binding_artifact_path(manifest)
         if not cert_path_str:
+            # 사유코드는 그대로 두고(안정 코드) **어느 문서가 빠졌는지**를 경로별로 말한다 — map_only 에서 "인증서가
+            # 없다" 고만 적으면 고칠 사람이 인증서를 만들러 간다(그 셀에는 인증서가 구조적으로 없다).
+            _msg = ("manifest has no evidence.certificate.path -- cannot bind a durable "
+                    "evidence footer without a certificate artifact to hash")
+            if _no_cert_binding_source(manifest) == "hint_map_only":
+                _msg = ("task_class='hint_map_only' binds the lite bench_report, but manifest has no "
+                        "evidence.bench_report.path -- publish the lite report "
+                        "(lite_bench.sh --publish-report) and bind it "
+                        "(evidence_publisher.py publish-lite-report) before sealing")
             _die_binding(action, ["HINT_CERTIFICATE_EVIDENCE_MISSING"],
-                         {"HINT_CERTIFICATE_EVIDENCE_MISSING":
-                          "manifest has no evidence.certificate.path -- cannot bind a durable "
-                          "evidence footer without a certificate artifact to hash"},
+                         {"HINT_CERTIFICATE_EVIDENCE_MISSING": _msg},
                          identity, manifest.get("task_class"))
         # capture_content=True: 레시피 세그먼트를 이 바이트로 대조한다(CP7). 경로를 다시 열지 않고
         # **이미 안전 해소된 그 바이트**를 쓰는 것이 요점이다 — 두 번 열면 TOCTOU 창이 생긴다.
@@ -831,6 +926,10 @@ def _resolve_evidence_footer_fields(action: str, manifest: dict, resolved_manife
                           f"refusing to bind a recipe segment that cannot be checked against it"},
                          identity, manifest.get("task_class"))
         _expected_recipe = derive_recipe_segment(_cert_fields)
+        if lockset:
+            # 측정 > 선언 — 인증서가 묶였으면 lockset 은 대조 소스가 아니다. 무시한 사실을 조용히 삼키지 않는다.
+            print(f"[hint_tag] ⓘ --lockset 은 쓰지 않았다 — 인증서 {cert_path_str!r} 가 바인딩돼 레시피 세그먼트의 "
+                  f"파생 출처는 인증서다(측정 > 선언).", file=sys.stderr)
         if _tag_recipe.split("_")[0] != _expected_recipe:   # `_<timestamp>` 충돌 폴백을 벗긴다
             _die_binding(action, ["HINT_RECIPE_SEGMENT_MISMATCH"],
                          {"HINT_RECIPE_SEGMENT_MISMATCH":
@@ -839,14 +938,33 @@ def _resolve_evidence_footer_fields(action: str, manifest: dict, resolved_manife
                           f"derived, not authored; run "
                           f"`hint_tag.py recipe-segment --certificate {cert_path_str}`"},
                          identity, manifest.get("task_class"))
+    elif lockset:
+        # 인증서가 **애초에 존재할 수 없는** 발행 경로(perf_waiver · explore · hint_map_only)에서 레시피 세그먼트의
+        # 두 번째 소스 = 셀 lockset 선언(2026-09-14 · plan_26091407 §4.5). 인증서가 있으면 위 분기가 이기므로
+        # 여기는 인증서 부재일 때만 온다(측정 > 선언). 대조 결과와 출처를 남긴다.
+        _lk_fields, _lk_source, _lk_marked = recipe_fields_from_lockset(lockset)
+        _expected_recipe = derive_recipe_segment(_lk_fields, source=_lk_source)
+        if _tag_recipe.split("_")[0] != _expected_recipe:
+            _die_binding(action, ["HINT_RECIPE_SEGMENT_MISMATCH"],
+                         {"HINT_RECIPE_SEGMENT_MISMATCH":
+                          f"tag recipe segment {_tag_recipe!r} does not match the segment derived "
+                          f"from the cell lockset ({_expected_recipe!r} · source={_lk_source}) -- the name "
+                          f"must be derived, not authored; run "
+                          f"`hint_tag.py recipe-segment --lockset {lockset}`"},
+                         identity, manifest.get("task_class"))
+        print(f"[hint_tag] ✓ 레시피 세그먼트 {_tag_recipe!r} ← 파생 출처 {_lk_source} "
+              f"(인증서 부재 · 바인딩 대상 {cert_path_str!r} · 선언과 일치 — 측정과의 일치는 아니다"
+              f"{'' if _lk_marked else ' · 선언의 출처 표시가 없다'})",
+              file=sys.stderr)
     else:
-        # 인증서가 **애초에 존재할 수 없는** 발행 경로다(perf_waiver · explore — 인증서는 PASS
-        # 때만 나온다). 그때 바인딩 대상은 항상 발행되는 bench_report 이고, 리포트는 flat
-        # 인증서가 아니므로 레시피 세그먼트를 측정과 대조할 근거가 **없다**.
+        # 인증서가 **애초에 존재할 수 없는** 발행 경로다(perf_waiver · explore · hint_map_only — 인증서는 PASS·full
+        # 때만 나온다). 그때 바인딩 대상은 bench_report 이고, 리포트는 flat 인증서가 아니므로 레시피 세그먼트를
+        # 측정과 대조할 근거가 **없다**. lockset(`--lockset`)을 주면 선언과 대조한다(위 분기).
         # 조용히 넘기지 않는다 — 무엇을 확인하지 못했는지 큰 소리로 남긴다(대조 부재 ≠ 대조 통과).
         print(f"[hint_tag] ⚠ 레시피 세그먼트 대조 생략: 바인딩 대상이 인증서가 아니라 "
               f"{cert_path_str!r} 다(인증서는 PASS 때만 발행된다). 세그먼트 {_tag_recipe!r} 의 "
-              f"형태는 검증됐으나 **측정과의 일치는 검증되지 않았다**.", file=sys.stderr)
+              f"형태는 검증됐으나 **측정·선언과의 일치는 검증되지 않았다** "
+              f"(셀 lockset 이 있으면 --lockset 으로 대조하라).", file=sys.stderr)
 
     # r_manifest / r_cert 의 status 검사는 위에서 이미 끝났다 — footer 는 그 **주소**만 싣고
     # digest 는 싣지 않는다(F-6a). 안전 resolve 자체가 발행 시점 게이트이고, 읽는 쪽은 매 판독마다
@@ -1081,7 +1199,8 @@ def cmd_finalize(a: argparse.Namespace) -> int:
     _require_node_axis_match("hint_finalize", a.tag, arch, _campaign)
     _require_serving_evidence("hint_finalize", manifest, getattr(a, "payload", None))
     footer_fields = _resolve_evidence_footer_fields("hint_finalize", manifest, resolved_manifest_path,
-                                                     a.manifest, tag=a.tag, topology=a.topology, anchor=anchor)
+                                                     a.manifest, tag=a.tag, topology=a.topology, anchor=anchor,
+                                                     lockset=getattr(a, "lockset", None))
 
     recipe = Path(a.recipe) if os.path.isabs(a.recipe) else (ROOT / a.recipe)
     if not recipe.is_file():
@@ -1169,8 +1288,11 @@ def cmd_finalize(a: argparse.Namespace) -> int:
 # 카탈로그 행의 **모양은 한 곳이 소유한다**(2026-09-07 정정). 종전에는 이 파일과
 # `hint_catalog.render_rows` 가 각자 렌더했고 열 수가 갈렸다 — 헤더는 5열인데 이쪽이 10셀 행을
 # 써서 HINTS.md 가 실제로 깨져 있었다(2026-09-07 실측). 두 자리가 다른 말을 하면 어느 쪽이 옳은지
-# 아무도 모른다. 이제 이 함수는 카탈로그와 **같은 6열**을 낸다.
-HINTS_COLUMNS = ("태그", "vLLM", "모델", "arch", "결손", "brief")
+# 아무도 모른다. 이제 이 함수는 카탈로그와 **같은 열**을 낸다(2026-09-14 `bench_mode` 파생 열 추가 — 7열 ·
+# 열 이름·순서의 대조는 자체검사가 `hint_catalog.CATALOG_COLUMNS` 와 직접 한다).
+HINTS_COLUMNS = ("태그", "vLLM", "모델", "arch", "bench_mode", "결손", "brief")
+# 열이 바뀌기 전 헤더들 — 재생성할 때 마커 밖으로 새어 나간 옛 헤더를 거두는 인식표다(렌더에는 쓰지 않는다).
+_HINTS_LEGACY_HEADERS = ("| 태그 | vLLM | 모델 | arch | brief |", "| 태그 | vLLM | 모델 | arch | 결손 | brief |")
 
 
 def _hints_header() -> list[str]:
@@ -1187,13 +1309,42 @@ def _tag_declared_missing(tag: str) -> list:
     return sorted(declared_missing_of(tag))
 
 
+_catalog_module_cache = None
+
+
+def _catalog_module():
+    """카탈로그 파생기(`hint_catalog.py` · 같은 디렉터리) — `bench_mode` 칸 파생 규칙의 단일 소유자(행마다 다시 적재 ✗)."""
+    global _catalog_module_cache
+    if _catalog_module_cache is None:
+        import importlib.util as _ilu
+        path = Path(__file__).resolve().parent / "hint_catalog.py"
+        spec = _ilu.spec_from_file_location("_hint_tag_catalog", path)
+        module = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _catalog_module_cache = module
+    return _catalog_module_cache
+
+
+def _tag_bench_mode_cell(tag: str) -> str:
+    """이 태그 페이로드가 적은 측정 구성에서 파생한 bench_mode 칸(카탈로그와 같은 규칙 · 과거 태그는 `미기재`)."""
+    data = _git_blob_bytes(f"{tag}^{{}}", "PAYLOAD.json")
+    try:
+        doc = json.loads(data.decode("utf-8")) if data else None
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        doc = None
+    return _catalog_module().bench_mode_cell(doc)[0]
+
+
 def _hints_row(e: dict) -> str:
     miss = e.get("missing")
     if miss is None:
         miss = _tag_declared_missing(e["tag"])
+    bench_mode = e.get("bench_mode")
+    if bench_mode is None:
+        bench_mode = _tag_bench_mode_cell(e["tag"])
     cell = "—" if not miss else _md_cell(" · ".join(miss))
     return (f"| `{e['tag']}` | {_md_cell(e['vllm'])} | {_md_cell(e['model'])} | "
-            f"{_md_cell(e['arch'])} | {cell} | {_md_cell(e.get('brief'))} |")
+            f"{_md_cell(e['arch'])} | {_md_cell(bench_mode)} | {cell} | {_md_cell(e.get('brief'))} |")
 
 
 def _hints_regen(hints: list[dict]) -> bool:
@@ -1212,8 +1363,7 @@ def _hints_regen(hints: list[dict]) -> bool:
               f"— index.json 만 갱신됐다.", file=sys.stderr)
         return False
     out, in_rows = [], False
-    header_set = {"| " + " | ".join(HINTS_COLUMNS) + " |",
-                  "| 태그 | vLLM | 모델 | arch | brief |"}
+    header_set = {"| " + " | ".join(HINTS_COLUMNS) + " |", *_HINTS_LEGACY_HEADERS}
     for ln in HINTS_FILE.read_text(encoding="utf-8").splitlines():
         if ln.strip() == HINTS_MARKER:
             in_rows = not in_rows
@@ -1456,8 +1606,16 @@ def _no_cert_binding_source(manifest: dict) -> "str | None":
                         explore 는 waiver 를 요구하지 **않는다** — 요구하면 그 자동개방이 여기서
                         다시 죽는다(2026-08-24 실측한 그 죽은 코드의 hint 평면 쌍둥이).
 
-    둘 다 아니면 None(=차단). 요구를 낮추는 것이 아니라 **바인딩 대상 문서가 다를 뿐**이며, lite
-    실측 자체는 어느 경로든 **항상 발행되는 bench_report** 에 실려 있다.
+      · `hint_map_only` — 지도 발행 통로(계약 v5 §3 C행 · 2026-09-14 · plan_26091407 §4.5). lite 만 잰 셀
+                        (선언된 lite-only · 반복 불성립으로 강등된 셀)은 인증서가 **구조적으로** 없다(인증서는 full·PASS
+                        전용). 바인딩 대상은 경량 bench_report(`render_report.py --lite-only`) 또는 강등 셀의 리포트다.
+                        종전에는 이 판정자가 map_only 를 몰라서 승격 게이트는 열렸는데 seal 이
+                        HINT_CERTIFICATE_EVIDENCE_MISSING 으로 죽었다(audit_26091323 §1 A1 · work-manifest 13건 전부).
+                        인증서·roofline·verdict 를 요구하지 않는다 — 대가는 본문 OBSERVATION-ONLY 마커와 PAYLOAD 결손
+                        목록의 BENCH_MODE_LITE 다(성능 주장이 이 문으로 새지 않는다).
+
+    셋 다 아니면 None(=차단). 요구를 낮추는 것이 아니라 **바인딩 대상 문서가 다를 뿐**이며, lite
+    실측 자체는 어느 경로든 **bench_report** 에 실려 있다(`HINT_MISSING_LITE` 는 그 문서로 판정한다).
 
     ★ 이 판정이 여러 곳에 각각 박히면 즉시 불일치가 난다(`_binding_artifact_path` 주석의 2026-08-01
       실측: finalize 는 리포트로 묶었는데 verify 는 인증서와 대조해 FAIL). 그래서 발행 조건 검사
@@ -1474,6 +1632,10 @@ def _no_cert_binding_source(manifest: dict) -> "str | None":
     benchmark = benchmark if isinstance(benchmark, dict) else {}
     if benchmark.get("perf_waiver"):
         return "perf_waiver"
+    if manifest.get("task_class") == "hint_map_only":
+        # 클래스 선언만으로 여는 이유: 그 클래스로 승격 게이트를 통과했다는 것 자체가 여정 증거(plan·devlog·testlog)
+        #   와 서빙 성립을 이미 뜻한다(completion_gate HINT_MAP_ONLY_PROMOTION). 여기서 다시 묻지 않는다(평면 분리).
+        return "hint_map_only"
     contract = getattr(_cgate(), "_manifest_rubric_contract", None)
     if contract is None:
         # fail-loud: 침묵 폴백(=조용히 차단)이면 "explore 인데 왜 막혔나"를 영원히 못 읽는다.
@@ -1696,9 +1858,10 @@ def _require_serving_evidence(action: str, manifest: dict, payload_dir=None) -> 
             problems.append("컨테이너가 oom_killed — 서빙 성공으로 볼 수 없다")
 
     # B: lite 정량지표. 통상은 인증서에서 읽는다.
-    #    ★ 단 **인증서가 구조적으로 존재할 수 없는 두 경로**(perf_waiver · explore)가 있다 —
-    #      publish_benchmark_record 가 PASS 때만 인증서를 내기 때문이다(그 규칙은 유지한다).
-    #      그러나 lite 실측 자체는 **항상 발행되는 bench_report** 에 실려 있으므로, 그 두 경로에서는
+    #    ★ 단 **인증서가 구조적으로 존재할 수 없는 세 경로**(perf_waiver · explore · hint_map_only)가 있다 —
+    #      publish_benchmark_record 가 PASS·full 때만 인증서를 내기 때문이다(그 규칙은 유지한다).
+    #      그러나 lite 실측 자체는 **bench_report** 에 실려 있으므로(map_only 는 경량 리포트 또는 강등 셀의
+    #      리포트 · 2026-09-14), 그 세 경로에서는
     #      리포트를 B 의 근거로 삼는다. "증거가 없다"가 아니라 "증거가 다른 문서에 있다" 이므로
     #      요구 강도를 낮추는 것이 아니다. 어느 경로가 열렸는지의 판정은
     #      `_no_cert_binding_source` 단독 소유다(바인딩 대상과 발행 조건이 갈리지 않도록).
@@ -1716,11 +1879,10 @@ def _require_serving_evidence(action: str, manifest: dict, payload_dir=None) -> 
             except OSError:
                 rtext = ""
                 quant_missing.append("HINT_MISSING_BENCH_REPORT")
-            if rtext:
-                if "lite 지표" not in rtext:
-                    quant_missing.append("HINT_MISSING_LITE")
-                if not re.search(r"gen tokens/sec[^|]*\|\s*[0-9]", rtext):
-                    quant_missing.append("HINT_MISSING_LITE")
+            # lite 지표 존재 술어는 리포트 파서 소유(`render_bench_section.lite_metrics_present`)다 — 결손 코드를 **적는 손**
+            #   (hint_collect)이 같은 술어를 쓴다. 종전의 두 인라인 검사와 기준은 같다(절 존재 ∧ gen tokens/sec 수치).
+            if rtext and not _bench_section().lite_metrics_present(rtext):
+                quant_missing.append("HINT_MISSING_LITE")
     elif not cert_rel:
         quant_missing.append("HINT_MISSING_CERTIFICATE")
     else:
@@ -1755,12 +1917,30 @@ def _require_serving_evidence(action: str, manifest: dict, payload_dir=None) -> 
                      manifest.get("task_class") if isinstance(manifest, dict) else None)
 
 
+def _bench_section():
+    """리포트 파서(`render_bench_section.py` · 같은 디렉터리)를 늦게 적재한다 — lite 지표 술어의 단일 소유자."""
+    global _bench_section_module
+    if _bench_section_module is None:
+        import importlib.util as _ilu
+        path = Path(__file__).resolve().parent / "render_bench_section.py"
+        if not path.is_file():
+            die(f"[hint_tag] FAIL(fail-closed): {path.name} 가 없다 — lite 지표 결손 판정을 할 수 없어 통과시키지 않는다.")
+        spec = _ilu.spec_from_file_location("_hint_tag_bench_section", path)
+        module = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _bench_section_module = module
+    return _bench_section_module
+
+
+_bench_section_module = None
+
+
 def _binding_artifact_path(manifest: dict) -> "str | None":
     """footer 가 해시로 묶을 **계측 산출물 경로**의 단일 소유자.
 
-    통상은 인증서다. 단 인증서가 애초에 존재할 수 없는 경로가 둘 있고(perf_waiver · explore —
-    publish_benchmark_record 가 PASS 때만 발행하며 그 규칙은 유지) 그때는 **항상 발행되는
-    bench_report** 를 바인딩 대상으로 삼는다. 요구를 낮추는 게 아니라 대상 문서가 다를 뿐이다.
+    통상은 인증서다. 단 인증서가 애초에 존재할 수 없는 경로가 셋 있고(perf_waiver · explore · hint_map_only —
+    publish_benchmark_record 가 PASS·full 때만 발행하며 그 규칙은 유지) 그때는 **bench_report**(map_only 는 경량
+    리포트 또는 강등 셀의 리포트)를 바인딩 대상으로 삼는다. 요구를 낮추는 게 아니라 대상 문서가 다를 뿐이다.
     어느 경로가 열렸는지는 `_no_cert_binding_source` 가 단독으로 판정한다.
 
     ★ 이 판정이 finalize·verify 두 곳에 **각각 박혀 있어** 한쪽만 고치면 즉시 불일치가 난다
@@ -1817,7 +1997,8 @@ MAP_ONLY_MARKER = "OBSERVATION-ONLY"
 def _require_map_only_observation(action: str, manifest: dict, recipe_text: str) -> None:
     """`hint_map_only` 로 발행하는 지도의 §5 는 **관측**이지 baseline 이 아니다(계약 v5 · 인터뷰 Q5).
 
-    이 통로는 인증서·bench_report·simlog 없이도 발행에 이르는 유일한 길이다. 그 대가로 §5 의
+    이 통로는 인증서·simlog 없이도 발행에 이르는 유일한 길이다(승격 게이트는 bench_report 도 요구하지 않고, 봉인의
+    바인딩 대상이 경량 bench_report 다 — 2026-09-14). 그 대가로 §5 의
     지위가 내려간다 — 수치는 실을 수 있지만 "이것이 이 조합의 성능 baseline 이다" 라고 말할 수
     없다. 그것을 말하려면 full_benchmark 로 인증서를 얻어야 한다.
 
@@ -1831,7 +2012,7 @@ def _require_map_only_observation(action: str, manifest: dict, recipe_text: str)
     _die_binding(action, ["HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING"],
                  {"HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING":
                   f"task_class='hint_map_only' 로 발행하는데 본문에 `{MAP_ONLY_MARKER}` 마커가 없다.\n"
-                  f"  이 통로는 인증서·bench_report·simlog 없이 발행에 이르는 유일한 길이고, 그 대가로\n"
+                  f"  이 통로는 인증서·simlog 없이 발행에 이르는 유일한 길이고(바인딩 대상은 경량 bench_report), 그 대가로\n"
                   f"  §5 는 **관측 게재**로 지위가 내려간다 — baseline·권고로 읽히면 안 된다.\n"
                   f"  → §5 절에 `{MAP_ONLY_MARKER}` 를 적고, 이 수치가 무엇과 비교 가능한지 한정자를 붙여라.\n"
                   f"  → 진짜 baseline 을 주장하려면 full_benchmark 로 인증서를 얻어라."},
@@ -2024,10 +2205,19 @@ def cmd_push(a: argparse.Namespace) -> int:
 
 # ── match (근-미스 발견) ──────────────────────────────────────────────────────
 def cmd_recipe_segment(a: argparse.Namespace) -> int:
-    """인증서 → 레시피 세그먼트. 발행자가 이름을 짓지 못하게 하는 것이 목적이다(`derive_slug` 와 동형).
+    """인증서(또는 인증서가 구조적으로 없는 셀의 lockset) → 레시피 세그먼트. 발행자가 이름을 짓지 못하게 하는 것이
+    목적이다(`derive_slug` 와 동형). 소스는 **정확히 하나**이고, 어느 소스로 파생했는지 stderr 에 출처를 적는다.
 
     read-only 이며 태그를 만들지 않는다 — 사람/에이전트가 이 값을 받아 이름을 조립한다.
     """
+    if bool(a.certificate) == bool(getattr(a, "lockset", None)):
+        die("[hint_tag] FAIL: --certificate 와 --lockset 중 **정확히 하나**를 준다(인증서가 있으면 인증서 — 측정 > 선언).")
+    if a.lockset:
+        fields, source, _marked = recipe_fields_from_lockset(a.lockset)
+        segment = derive_recipe_segment(fields, source=source)
+        print(f"[hint_tag] 레시피 세그먼트 출처: {source}", file=sys.stderr)
+        print(segment)
+        return 0
     path = Path(a.certificate)
     if not path.is_absolute():
         path = ROOT / path
@@ -2038,7 +2228,9 @@ def cmd_recipe_segment(a: argparse.Namespace) -> int:
     fields, ok = _cgate().parse_flat_certificate(text)
     if not ok:
         die(f"[hint_tag] FAIL: flat 인증서로 파싱되지 않는다: {a.certificate}")
-    print(derive_recipe_segment(fields))
+    segment = derive_recipe_segment(fields)
+    print(f"[hint_tag] 레시피 세그먼트 출처: certificate({a.certificate})", file=sys.stderr)
+    print(segment)
     return 0
 
 
@@ -2728,9 +2920,18 @@ def cmd_self_test(_a=None) -> int:
     #   깨져 있었다. 레시피 세그먼트는 별도 칸이 아니라 **태그 문자열 안에** 산다.
     _row = _hints_row({"tag": "hint/a/b/c/qmxfp4-len1-kvfp8", "vllm": "a", "model": "b",
                        "arch": "c", "brief": "요지", "missing": []})
-    ck("행은 헤더와 같은 6열이다(두 렌더러가 갈라지지 않는다)",
+    ck("행은 헤더와 같은 열 수다(두 렌더러가 갈라지지 않는다)",
        _row.count("|") == len(HINTS_COLUMNS) + 1
        and len(_hints_header()[0].split("|")) == len(_row.split("|")))
+    ck("★카탈로그 파생기와 열 이름·순서가 같다(bench_mode 열 · 2026-09-14)",
+       tuple(HINTS_COLUMNS) == tuple(_catalog_module().CATALOG_COLUMNS) and "bench_mode" in HINTS_COLUMNS)
+    _lrow = _hints_row({"tag": "hint/a/b/c/q", "vllm": "a", "model": "b", "arch": "c", "brief": "x",
+                        "missing": ["BENCH_MODE_LITE"], "bench_mode": "lite(선언)"})
+    ck("bench_mode 칸이 제 열에 실린다(이름이 아니라 파생 컬럼)",
+       [c.strip() for c in _lrow.split("|")][HINTS_COLUMNS.index("bench_mode") + 1] == "lite(선언)"
+       and "lite" not in _lrow.split("|")[1])
+    ck("★과거 태그(페이로드 없음)는 bench_mode 를 '미기재' 로 표시한다",
+       _tag_bench_mode_cell("hint/none/none/none-main-none/none") == _catalog_module().BENCH_MODE_ABSENT)
     ck("레시피 세그먼트는 태그 문자열 안에 남는다", "qmxfp4-len1-kvfp8`" in _row)
     ck("결손 없음은 —(대시)로 표시", "| — |" in _row)
     ck("결손이 있으면 파생 컬럼에 실린다",
@@ -2739,6 +2940,98 @@ def cmd_self_test(_a=None) -> int:
             "missing": ["HINT_MISSING_CERTIFICATE"]}))
     ck("★태그 이름에는 등급을 새기지 않는다(결손은 파생 컬럼 · 이름은 불변)",
        "MISSING" not in _row.split("|")[1])
+
+    # ── hint_map_only 바인딩 · lockset 레시피 소스 (2026-09-14 · plan_26091407 §4.5 · O5) ──────────────────────
+    _mo = {"task_class": "hint_map_only", "benchmark": {"mode": "lite", "verdict": None},
+           "evidence": {"bench_report": {"path": "../benchmark/bench_report_x.md"}}}
+    ck("★hint_map_only 가 인증서-부재 바인딩을 연다(종전: None → seal 사망)", _no_cert_binding_source(_mo) == "hint_map_only")
+    ck("map_only 는 경량 bench_report 를 바인딩한다", _binding_artifact_path(_mo) == "../benchmark/bench_report_x.md")
+    ck("인증서가 있으면 인증서가 이긴다(map_only 여도)",
+       _binding_artifact_path(dict(_mo, evidence=dict(_mo["evidence"], certificate={"path": "c.yaml"}))) == "c.yaml")
+    ck("★음성대조 map_only 인데 리포트가 없으면 바인딩 대상 없음(None → seal 거부)",
+       _binding_artifact_path(dict(_mo, evidence={})) is None)
+    ck("perf_waiver 는 map_only 보다 먼저 판정된다(경고 대가가 사라지지 않는다)",
+       _no_cert_binding_source(dict(_mo, benchmark={"perf_waiver": {"authorized_by": "x"}})) == "perf_waiver")
+    ck("★음성대조 full_benchmark · waiver ✗ · explore ✗ 는 여전히 차단(None)",
+       _no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {"verdict": "REFUTE"}}) is None)
+    ck("lite 지표 술어는 리포트 파서 소유 함수를 쓴다",
+       _bench_section().lite_metrics_present("## lite 지표\n| gen tokens/sec (warm) | 26.00 t/s |\n")
+       and not _bench_section().lite_metrics_present("## lite 지표\n| gen tokens/sec (warm) | N/A |\n"))
+    with tempfile.TemporaryDirectory() as _ltmp:
+        _lk = Path(_ltmp) / "lockset.json"
+        _lk.write_text(json.dumps({"id": "c1", "provenance": "explorer-phase2", "quantization": "fp8",
+                                   "max_model_len": 32768, "kv_cache_quant": "fp8"}), encoding="utf-8")
+        _lf, _ls, _lm = recipe_fields_from_lockset(str(_lk))
+        ck("★lockset 선언에서 레시피 세그먼트를 파생한다(kv_cache_quant → kv 축) · 출처에 provenance",
+           derive_recipe_segment(_lf, source=_ls) == "qfp8-len32768-kvfp8" and _lm
+           and _ls.startswith("lockset(") and "provenance=explorer-phase2" in _ls)
+        ck("셀 config.yaml 이 없으면 ple 축은 미확인으로 출처에 남는다(토큰 없음 · 경고)",
+           _lf.get("ple_mode") is None and "ple=미확인" in _ls)
+
+        def _lk_run(doc):
+            _lk.write_text(json.dumps(doc), encoding="utf-8")
+            try:
+                return recipe_fields_from_lockset(str(_lk))
+            except SystemExit:
+                return None
+        _nop = _lk_run({"id": "c1", "quantization": "fp8", "max_model_len": 32768})
+        ck("★provenance 부재는 **기재**다 — 멈추지 않고 출처 미표시로 남긴다(차단 자리는 broad_search precheck 하나 · Q8)",
+           _nop is not None and _nop[2] is False and "provenance=미표시(" in _nop[1]
+           and derive_recipe_segment(_nop[0], source=_nop[1]) == "qfp8-len32768")
+        _fill = _lk_run({"id": "c1", "provenance": "<<FILL>>", "max_model_len": 32768})
+        ck("뼈대 빈칸(<<FILL>>) provenance 도 미표시로 기재된다", _fill is not None and _fill[2] is False)
+        _hand = _lk_run({"id": "c1", "provenance": "hand-authored", "max_model_len": 1024})
+        ck("hand-authored 는 표시가 성립한 선언이다", _hand is not None and _hand[2] is True)
+        _gone = True
+        try:
+            recipe_fields_from_lockset(str(Path(_ltmp) / "absent" / "lockset.json"))
+            _gone = False
+        except SystemExit:
+            pass
+        _lk.write_text("{not json", encoding="utf-8")
+        _broken = True
+        try:
+            recipe_fields_from_lockset(str(_lk))
+            _broken = False
+        except SystemExit:
+            pass
+        ck("★음성대조 없는·깨진 lockset 은 입력 오류로 멈춘다(읽을 선언이 없으면 이름 재료가 없다)", _gone and _broken)
+
+        # ple_mode 축 — 같은 셀의 declared_axes 선언(res·mmp 두 셀이 서로 다른 이름을 받아야 한다 · plan_26091108 R9 의 축)
+        import importlib.util as _ilu_ple
+        _base_lk = {"id": "c1", "provenance": "explorer-phase2", "quantization": "nvfp4",
+                    "max_model_len": 262144, "kv_cache_quant": "fp8"}
+
+        def _ple_case(name, cfg_text):
+            cdir = Path(_ltmp) / "cells" / name
+            cdir.mkdir(parents=True, exist_ok=True)
+            (cdir / "lockset.json").write_text(json.dumps(_base_lk), encoding="utf-8")
+            if cfg_text is not None:
+                (cdir / "config.yaml").write_text(cfg_text, encoding="utf-8")
+            f, s, _m = recipe_fields_from_lockset(str(cdir / "lockset.json"))
+            return derive_recipe_segment(f, source=s), s
+        if _ilu_ple.find_spec("yaml") is not None:
+            _res = _ple_case("res", "declared_axes:\n  ple_mode: resident   # 상주\n  context_len: 262144\n")
+            _mmp = _ple_case("mmp", "declared_axes:\n  ple_mode: mmap\n")
+            _non = _ple_case("non", "declared_axes:\n  ple_mode: none\n")
+            _unf = _ple_case("unf", "declared_axes:\n  ple_mode: <<FILL>>\n")
+            ck("★PLE 셀: declared_axes.ple_mode 가 resident·mmap 이면 lockset 소스 이름이 서로 다르다(인증서 소스와 같은 ple 토큰)",
+               _res[0] == "qnvfp4-len262144-kvfp8-pleresident" and _mmp[0] == "qnvfp4-len262144-kvfp8-plemmap"
+               and _res[0] == derive_recipe_segment({"quantization": "nvfp4", "max_model_len": 262144,
+                                                    "kv_cache_dtype": "fp8", "ple_mode": "resident"})
+               and "ple=declared_axes.ple_mode(resident)" in _res[1])
+            ck("PLE 없는 모델(none)은 토큰을 붙이지 않는다 · 선언 빈칸은 미선언으로 출처에 남는다",
+               _non[0] == "qnvfp4-len262144-kvfp8" and "none" in _non[1]
+               and _unf[0] == "qnvfp4-len262144-kvfp8" and "ple=미선언" in _unf[1])
+        else:
+            _nyaml = _ple_case("noyaml", "declared_axes:\n  ple_mode: mmap\n")
+            ck("PyYAML 부재 호스트: ple 축은 미확인으로 **출처에 남는다**(조용히 빠지지 않는다)", "PyYAML 부재" in _nyaml[1])
+    _rs_opts = [o for act in _build_parser()._subparsers._group_actions[0].choices["recipe-segment"]._actions
+                for o in act.option_strings]
+    _seal_opts = [o for act in _build_parser()._subparsers._group_actions[0].choices["seal"]._actions
+                  for o in act.option_strings]
+    ck("recipe-segment · finalize · seal 파서가 --lockset 을 받는다",
+       "--lockset" in _rs_opts and "--lockset" in _seal_opts and "--lockset" in _finalize_option_strings())
 
     # ── 앵커 게이트(계약 §6) · 노드축 대조 · 결손 선언 (2026-09-07 · plan_26090715 §5 ①) ──────
     # ★ 이 셋은 **살아 있는 저장소 상태**를 앵커로 쓴다. hint 브랜치와 실제 태그가 있어야만
@@ -2895,6 +3188,9 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="조립 중인 페이로드 디렉터리(hint_collect collect 의 출력). PAYLOAD.json 의 "
                         "missing[] 이 결손 선언으로 읽힌다 — 지정하지 않으면 선언이 **빈 집합**이라 "
                         "결손을 안고 발행할 수 없다(2026-09-07 배선 · plan_26090715 §5 ①-b).")
+    f.add_argument("--lockset", default=None,
+                   help="인증서 없는 발행(hint_map_only 등)의 레시피 세그먼트를 셀 lockset 선언과 대조한다 — "
+                        "provenance 표시 필수 · 인증서가 있으면 인증서가 이긴다(plan_26091407 §4.5)")
     f.set_defaults(fn=cmd_finalize)
 
     # `seal` = finalize 에서 **색인 갱신만 뺀 것**. Contributor 의 종착점이다(D8).
@@ -2912,6 +3208,8 @@ def _build_parser() -> argparse.ArgumentParser:
                         "campaigns/ACTIVE 를 읽지 않는다 — 명시 경로만 받는다(인터뷰 Q6).")
     sl.add_argument("--payload", default=None,
                    help="조립 중인 페이로드 디렉터리(hint_collect collect 의 출력) — finalize 와 동일")
+    sl.add_argument("--lockset", default=None,
+                    help="인증서 없는 발행의 레시피 세그먼트 대조용 셀 lockset — finalize 와 동일")
     sl.set_defaults(fn=cmd_finalize, no_index=True)
 
     ix = sub.add_parser("index", help="로컬 hint 태그를 index.json + HINTS.md 에 편입 (중앙 전용)")
@@ -2935,7 +3233,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
     rs = sub.add_parser("recipe-segment",
                         help="인증서에서 레시피 세그먼트를 **파생**한다(손저작 방지) -- read-only")
-    rs.add_argument("--certificate", required=True, help="flat 인증서 YAML 경로")
+    rs.add_argument("--certificate", default=None, help="flat 인증서 YAML 경로(있으면 이 소스가 이긴다)")
+    rs.add_argument("--lockset", default=None,
+                    help="인증서가 구조적으로 없는 셀(hint_map_only)의 lockset.json — provenance 표시 필수 · "
+                         "--certificate 와 함께 쓰지 않는다(plan_26091407 §4.5)")
     # ★ `func=` 오타로 이 서브커맨드는 **도달 불가**였다(디스패처는 `fn` 만 읽는다) — 파서는
     #   등록됐으므로 `--help` 에는 보이는데 실행하면 AttributeError 로 죽었다. 게다가 seal 의
     #   실패 메시지가 바로 이 명령을 실행하라고 안내한다: 가드가 **죽은 문을 가리키고 있었다**

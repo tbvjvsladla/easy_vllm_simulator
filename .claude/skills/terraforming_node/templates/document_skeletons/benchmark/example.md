@@ -63,5 +63,5 @@ docs/benchmark/max_envelope_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md  ← Max 
 
 ## 발행 시점 / 비용 규율
 
-- report = **모든 full 런 종결**(PASS/FAIL) · 인증서 = **PASS 종결시만**. lite 모드는 발행 안 함(채팅 표만).
+- report = **모든 full 런 종결**(PASS/FAIL) · 인증서 = **PASS 종결시만**. lite 모드는 기본 채팅 표만 — lite-only 셀은 `lite_bench.sh --publish-report` 로 같은 접두사의 경량 리포트(`mode: lite` · 인증서 없음)를 낸다.
 - 스윕/리치 리포트는 **재탐색 루프 매 회차가 아니라 종결 1회**(비용 규율 — 루프 내부는 값싼 단일점 판정).

@@ -9,7 +9,7 @@
 - **충돌 시에만 `_MM_SS`**를 붙인다. 같은 type/hour의 기본형과 해당 충돌형이 점유되면 새 형식/덮어쓰기 없이 `NamingCollisionExhausted`로 fail-closed한다.
 - 주제는 간결한 한국어 `_` slug. 평면 `docs/파일.md`, 상대날짜, `_seq_`는 금지한다.
 - simlog: `docs/simlog/<YYMMDDHH>[_<MM>_<SS>]_<주제>/` (run 디렉터리).
-- benchmark: `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`는 항상, `docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`은 PASS 때만 발행한다. report prefix 정본은 `bench_report_`; timestamp/collision은 `.claude/skills/wiki-desk/scripts/doc_naming.py`.
+- benchmark: `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`는 항상, `docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`은 PASS 때만 발행한다. report prefix 정본은 `bench_report_`; timestamp/collision은 `.claude/skills/wiki-desk/scripts/doc_naming.py`. lite 만 잰 셀의 **경량 리포트**(헤더 `mode: lite` · 측정 구성 표 + lite 지표 · 판정·인증서 없음)도 같은 접두사·같은 명명으로 발행하되 `lite_bench.sh --publish-report` 로 **명시할 때만**이다 — 서빙 직후 자동 lite 핸드오프와 full 스윕의 lite 레그는 발행하지 않는다(2026-09-14 · `plan_26091407` §4.5).
 - **sweep map(광의의 탐색 지도)**: `docs/benchmark/sweep_map_<YYMMDDHH>[_MM_SS]_<주제>.md`(+ 동명 `.json`). 2026-09-04 신설(`plan_26090415` §4.5·M5). 인증서는 **셀 단위**로 나가고 이 문서는 그 셀들의 **지도**다 — 판정(testlog)도 단일 계측(certificate)도 아니므로 세 번째 이름을 쓴다. `docs/benchmark/` 에 두는 이유: 같은 evidence chain 안에 있고 **비추적·비배포**라 운영자 경로가 배포 평면으로 새지 않는다(`docs/report/` 로 올리면 4종 PII 강도가 걸린다). 미완이어도 발행하며 `sweep_status: incomplete` 로 표시한다 — 숨기면 "돌다 말았다"와 "돌지 않았다"가 구분되지 않는다. **순위 필드 금지**는 `render_sweep_map.py` 가 결정론으로 집행한다.
 - outbound report: `docs/report/<분류>_<YYMMDDHH>[_MM_SS]_<한글제목>.<html|md>`; 분류는 짧은 영문 키워드
   (`perf|harness|audit|example` 등), 한글제목은 간결한 한국어 `_` slug. 발행 시점이 고정된다(최신본 갱신이
@@ -60,7 +60,7 @@
 | `devlog/` | 작업 중·후 narrative | 작업 owner·실행 사건 | 결정·시도/폐기·최종상태·재개지침 | 사실/경로 확인 | `PARKED:`·후속 checkbox |
 | `testlog/` | evidence verdict | 검증 owner·resolve/config/log | command·관측·환경 snapshot·PASS/FAIL | 실제 smoke/검증 | root cause+owner route |
 | `simlog/` | raw trial vault | recipe/smoke scripts·per-trial facts | log/profile/candidate/smoke/history/summary | run 완결성 | testlog에서 누락 명시 |
-| `benchmark/` | full 계측(`lite ∪ GuideLLM × 반복 ≥3`) | `adversarial-benchmark`·측정값 | 항상 report, PASS만 flat certificate(반복 축 산출물은 bench_mode 판정 기록 = full 일 때만) | verdict owner·재현성 | FAIL report만; 강등(lite) 셀은 full 인증서 ✗; 합성 금지 |
+| `benchmark/` | full 계측(`lite ∪ GuideLLM × 반복 ≥3`) · lite-only 셀의 경량 report | `adversarial-benchmark`·측정값 | 항상 report, PASS만 flat certificate(반복 축 산출물은 bench_mode 판정 기록 = full 일 때만) · lite-only 셀은 `--publish-report` 명시 시 경량 report(`mode: lite` · 인증서 ✗) | verdict owner·재현성 | FAIL report만; 강등(lite) 셀은 full 인증서 ✗; 합성 금지 |
 | `report/` | 배포자 공지 | 사람·공지 본문 | self-contained HTML/MD 최신본 | PII·배포 검토 | 자동발행/위키색인/서브전파 금지 |
 | `request/` | **사람 수행 지시** | 에이전트·범위/전제/한계 | 전제→절차→검증→회수물 순의 실행가능 매뉴얼 | 절차가 실제 실행가능한지(버전·명령 핀) | 수행자 피드백→개정 발행 |
 | `checklist/` | bot 전용 단계 트래킹 | 검증 owner·3-Phase(Planner/Builder/Validator) 상태 | phase별 항목 체크 + 재개지침 | 최신 snapshot(YYMMDDHH) 기준 | 최신 체크리스트로 복귀 |
@@ -177,10 +177,11 @@ simlog·benchmark에 폴더별 ignore 예외를 더하지 않는다. report는 t
 
 | command | 입력→출력 | fail-closed gate |
 |---|---|---|
-| `init` | task class→deterministic scaffold/publication record | 기존 narrative/raw 비덮어쓰기 |
+| `init` | task class→deterministic scaffold/publication record · `--downgrade-from full_benchmark --downgrade-reason <run_failed\|blackbox_kill>` = 반복 불성립 셀의 **유일한** 클래스 재분류(→ `hint_map_only` · `benchmark.mode=lite` · verdict·바인딩 보존 · `reclassification` 기록 · 사유는 바인딩된 리포트 측정 구성 표와 **대조**) | 기존 narrative/raw 비덮어쓰기 · 그 밖의 클래스 전환·되돌림·사유 없음·어휘 밖 사유·인증서 바인딩된 record·리포트 미바인딩·표가 강등(같은 사유)을 말하지 않는 record 는 거부 |
 | `append-raw` | repo-relative regular UTF-8 evidence→append-only entry (`simlog` 만 **복사** — `output/*` 는 다음 런이 덮어쓰는 휘발 소스라 보존이 정당) | absolute/escape/symlink/FIFO/empty/wrong type 거부 |
 | `set-narrative` | 명시 narrative file→provenance-bound marker | publisher 산문 합성 금지 |
 | `publish-benchmark` | 벤치 스킬이 `docs/benchmark/` 에 발행한 report/certificate **원본에 바인딩**(복사 ✗ · 2026-09-04 plan_26090410) · 인증서는 측정 키(강한 6키+`measured_utc`)로 되찾아 정확히 1건일 때만 · PASS→FAIL 전이는 unbind(unlink ✗) | 규약 위치·이름 밖 src 거부 · 같은 측정 2건+ `AMBIGUOUS` · FAIL certificate·누락 certificate 합성 금지 |
+| `publish-lite-report` | `hint_map_only` 토픽에 벤치 스킬이 발행한 경량 bench_report **원본에 바인딩**(복사 ✗ · 2026-09-14) · `benchmark.mode=lite` | 규약 위치·이름 밖 src 거부 · 측정 구성 표를 **파싱해** `bench_mode=lite` 가 아니면 거부(표 밖 줄 매치 ✗) · 다른 클래스 토픽 거부 |
 | `record-capacity-rejection` | 검증된 gate pointer→record | fabricated evidence 금지 |
 | `finalize` | record→work manifest→completion gate | identity/PII/verdict 자체판정 금지 |
 

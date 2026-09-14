@@ -297,6 +297,18 @@ def _bench_mode_record(mode, source, reason=None, reason_source=None, repetition
             "repetition": repetition, "repetition_kill_events": kill_hits or []}
 
 
+def declared_lite_record(detail):
+    """**선언된 lite-only** 판정 기록 — lite 통로(단계 ⑤ · `render_report.py --lite-only`)가 쓰는 모양.
+
+    이 파일이 내는 lite 는 언제나 강등(사유 필수)이고, 선언된 lite-only 는 full 을 시도하지 않은 셀이라 강등 사유가
+    없다. 그 기록의 **모양**(키 집합 · `declared(` 출처 접두사 · 대조 not_applicable)은 어휘 소유자인 여기서 만든다 —
+    소비자가 손으로 dict 를 지으면 `bench_mode_kind` 가 읽는 규칙과 조용히 갈라진다(2026-09-14 · plan_26091407 §4.5)."""
+    text = str(detail or "").strip()
+    if not text:
+        raise ValueError("declared_lite_record: 선언 출처 설명이 비었다 — 누가 lite 만 재기로 했는지 적는다")
+    return _bench_mode_record(BENCH_MODE_LITE, "%s%s)" % (BENCH_MODE_SOURCE_DECLARED_PREFIX, text))
+
+
 def classify_bench_mode(index, event_lines, events_scanned, tolerance_s=0):
     """sweep_index(대표 run 의 runs[] · repetition.clamp_run 포함) + 블랙박스 이벤트 → bench_mode 확정.
     순수 함수(파일 I/O 없음). `events_scanned` = 판독한 events 파일 목록(또는 쉼표 문자열 · "none"/빈 값 = 0개).
@@ -533,6 +545,17 @@ def _self_test():
                                "bench_mode_source": "runs[]"}) == "undetermined"
           and bench_mode_kind({"bench_mode": "lite", "downgrade_reason": "variance"}) == "undetermined"
           and bench_mode_kind(None) == "undetermined")
+    _decl = declared_lite_record("lite_bench · lite-only 셀")
+    check("D12b 선언 lite 기록 빌더(단계 ⑤ lite 통로가 쓴다) → declared-lite · 사유 null · 대조 not_applicable",
+          bench_mode_kind(_decl) == "declared-lite" and _decl["downgrade_reason"] is None
+          and _decl["downgrade_correlation"] == CORRELATION_NOT_APPLICABLE
+          and set(_decl) == set(_bench_mode_record(None, "x")), _decl)
+    try:
+        declared_lite_record("  ")
+        _empty_ok = False
+    except ValueError:
+        _empty_ok = True
+    check("★D12c 음성대조: 출처 설명 없는 선언 lite 기록은 만들지 않는다", _empty_ok)
 
     clamp = {"level": 2, "run": 1, "started_utc": "2026-09-04T10:05:00Z", "ended_utc": "2026-09-04T10:05:30Z",
              "run_bench_rc": 3, "parse_rc": 0}
