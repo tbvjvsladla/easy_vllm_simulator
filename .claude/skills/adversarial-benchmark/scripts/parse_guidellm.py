@@ -13,8 +13,9 @@
 #   그래서 이 파서는 spec 축을 **추측하지 않고 요구**한다. 둘 중 하나가 반드시 있어야 한다:
 #     --accept-len-src <vllm bench serve JSON>  : 같은 스윕의 lite 레그에서 **승계**(측정 > 공식)
 #     --spec-axis-absent                        : 축 부재를 **명시 선언**(그 사실이 출력에 남는다)
-#   부재와 결측을 가르는 것이 이 요구의 전부다. `full = lite ∪ GuideLLM` 이므로 정상 경로에서는
-#   lite 레그가 늘 있고, 승계가 기본 경로다.
+#   부재와 결측을 가르는 것이 이 요구의 전부다. full 의 도구 구성이 `lite ∪ GuideLLM` 이므로(반복 축을 포함한
+#   정의 `lite ∪ GuideLLM × 반복 ≥3` 은 SKILL.md **full bench 의 정의**) 정상 경로에서는 lite 레그가 늘 있고,
+#   승계가 기본 경로다.
 #
 # 사용: parse_guidellm.py --benchmarks-json PATH
 #         (--accept-len-src PATH | --spec-axis-absent)

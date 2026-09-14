@@ -24,7 +24,8 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
 - **최종 recipe 는 gpu-memory-utilization + kv-cache-memory-bytes 를 함께 emit 한다 (KV 절대클램프 따름정리, E2E 실증)**:
   KV 는 측정된 절대 클램프가 제어하며 이게 **이식성**을 준다(gmu-derived KV 는 호스트 VRAM 차이로 비이식).
   **단 gmu 도 필수** — vLLM 소스(`gpu_worker.determine_available_memory`·`utils.request_memory`)상 클램프를 주면 KV
-  프로파일링 전체를 건너뛰고, gmu 는 **기동 전 `free ≥ ceil(total×gmu)` 검사**에만 관여한다. GB10 등 통합메모리
+  사이징용 메모리 측정(`memory_profiling`)은 건너뛰고(`max_num_batched_tokens` 더미 `profile_run` 은 여전히 돈다 — 컴파일용),
+  gmu 는 **기동 전 `free ≥ ceil(total×gmu)` 검사**에만 관여한다. GB10 등 통합메모리
   (free/total≈0.91)는 OS ~11GiB 점유로 기본 `0.92` 가 그 검사에서 막힌다(`Free memory < desired GPU memory utilization`)
   → **통합메모리 gmu ≤ `0.90` 명시 필수**(값은 `deploy_gmu` = `target_gpu.target_gmu`). ∴ gmu=기동 전 free 검사, clamp=KV 사이징·이식성.
 - **관측과 기전을 가른다**(2026-09-14 정정 · plan_26091407 F5): 종전 이 절은 gmu 가 "startup 검증 + **총 cap**" 이라고

@@ -24,9 +24,10 @@ CONFIG="${1:?config_name 필요}"; shift || true
 BACKEND=""
 # ★ 2026-09-04 신설(CP4 · plan_26090415 §3.1) — 측정 도구 선택.
 #   기본은 `vllm`(현행 경로 · 후방호환). lite 는 이 기본에 남고 full 만 guidellm 으로 간다
-#   (`full = lite ∪ GuideLLM`). 두 경로를 **이질적으로 유지**하는 것이 설계다 — 통합하면 같은
-#   버그가 양쪽에 균일하게 먹어 "일치해 보이면서 둘 다 틀리는" 상태가 된다(실결함 2건이 이질성
-#   덕에 잡혔다: 2026-09-01·09-03).
+#   (도구 구성 `full = lite ∪ GuideLLM` · 반복 축을 포함한 정의 `lite ∪ GuideLLM × 반복 ≥3` 은 SKILL.md
+#   **full bench 의 정의** — 이 스크립트는 한 번의 측정이고 반복은 sweep_bench 가 돈다). 두 경로를
+#   **이질적으로 유지**하는 것이 설계다 — 통합하면 같은 버그가 양쪽에 균일하게 먹어 "일치해 보이면서
+#   둘 다 틀리는" 상태가 된다(실결함 2건이 이질성 덕에 잡혔다: 2026-09-01·09-03).
 TOOL="vllm"
 TOOL_VERSION=""      # 미선언이면 기록의 default_version(= 마지막 스테이징분)
 BENCH_BUDGET_MIB=""

@@ -3190,7 +3190,8 @@ def _build_parser() -> argparse.ArgumentParser:
                         "결손을 안고 발행할 수 없다(2026-09-07 배선 · plan_26090715 §5 ①-b).")
     f.add_argument("--lockset", default=None,
                    help="인증서 없는 발행(hint_map_only 등)의 레시피 세그먼트를 셀 lockset 선언과 대조한다 — "
-                        "provenance 표시 필수 · 인증서가 있으면 인증서가 이긴다(plan_26091407 §4.5)")
+                        "선택(생략하면 대조 생략 경고만) · provenance 부재는 기재(경고 + 출처 미표시 · 차단 ✗) · "
+                        "인증서가 있으면 인증서가 이긴다(plan_26091407 §4.5)")
     f.set_defaults(fn=cmd_finalize)
 
     # `seal` = finalize 에서 **색인 갱신만 뺀 것**. Contributor 의 종착점이다(D8).
@@ -3233,10 +3234,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
     rs = sub.add_parser("recipe-segment",
                         help="인증서에서 레시피 세그먼트를 **파생**한다(손저작 방지) -- read-only")
-    rs.add_argument("--certificate", default=None, help="flat 인증서 YAML 경로(있으면 이 소스가 이긴다)")
+    rs.add_argument("--certificate", default=None,
+                    help="flat 인증서 YAML 경로 — --lockset 과 **정확히 하나**만 준다(둘 다·둘 다 없음 = 오류). 셀에 인증서가 "
+                         "있으면 인증서를 준다(측정 > 선언 · 우선순위는 호출자가 고르는 것이지 두 소스를 받아 고르지 않는다)")
     rs.add_argument("--lockset", default=None,
-                    help="인증서가 구조적으로 없는 셀(hint_map_only)의 lockset.json — provenance 표시 필수 · "
-                         "--certificate 와 함께 쓰지 않는다(plan_26091407 §4.5)")
+                    help="인증서가 구조적으로 없는 셀(hint_map_only)의 lockset.json — provenance 부재는 기재"
+                         "(경고 + 출처 미표시 · 차단 ✗) · --certificate 와 함께 쓰지 않는다(plan_26091407 §4.5)")
     # ★ `func=` 오타로 이 서브커맨드는 **도달 불가**였다(디스패처는 `fn` 만 읽는다) — 파서는
     #   등록됐으므로 `--help` 에는 보이는데 실행하면 AttributeError 로 죽었다. 게다가 seal 의
     #   실패 메시지가 바로 이 명령을 실행하라고 안내한다: 가드가 **죽은 문을 가리키고 있었다**

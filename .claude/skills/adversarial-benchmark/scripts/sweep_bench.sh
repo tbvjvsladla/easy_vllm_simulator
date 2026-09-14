@@ -239,7 +239,8 @@ fi
 # >>> spec-axis-args (selftest_sweep_meta.py 가 이 구간을 **바이트 그대로** 뽑아 실행한다 — 복제 ✗)
 # GuideLLM 레벨 파서의 spec 축 인자를 정해 전역 배열 SPEC_AXIS_ARGS 에 싣는다.
 #   spec 축은 GuideLLM 이 보고하지 않으므로 **같은 스윕의 lite 레그**에서 승계한다 — 이것이
-#   `full = lite ∪ GuideLLM` 이 값으로 갚아 주는 자리다. 승계원이 없으면 부재를 명시 선언한다.
+#   도구 구성 `full = lite ∪ GuideLLM` 이 값으로 갚아 주는 자리다(반복 축을 포함한 정의는 위 헤더 ★ ·
+#   `lite ∪ GuideLLM × 반복 ≥3`). 승계원이 없으면 부재를 명시 선언한다.
 #   ★ 2026-09-14(plan_26091407 §4.1 · 항목 1): 승계원은 lite **raw 포인터 문서가 아니라** 그것이 가리키는
 #     `vllm bench serve` warm JSON 이다. 종전에는 `lite_raw_<cfg>.json`(키: bench_warm_json·bench_cold_json·
 #     engine_log·nodes)을 그대로 넘겨, 파서가 그 문서 최상위에서 수용길이를 찾다 **None 을 승계**했다 —
