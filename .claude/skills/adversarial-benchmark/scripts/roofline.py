@@ -9,12 +9,63 @@
 #   R_token = mean_accept_len × R_fp                          (speculative=MTP 시 token/sec)
 #   → no-MTP 서브는 R_fp 와, MTP 서브는 R_token 와 비교(like-with-like). spec on 이면 token/s 가 R_fp 초과 가능.
 #   expected_achievable = realistic_fraction × R_token        (MBU 보정; batch=1 MoE 통상 0.25~0.4)
+#                       = realistic_fraction × accept_len × R_fp
+#   ★ accept_len 은 **물리 상한(R_token)과 합격선(expected_achievable) 양쪽에** 곱해진다(2026-09-14 ·
+#     plan_26091407 F6). E·c 가 없으면 expected 가 사다리 primary 이므로, accept_len 을 조용히 1.0 으로
+#     두면 상한과 문턱이 **함께** 내려간다 — "단조·무해" 가 아니다. 그래서 값 옆에 출처
+#     (`accept_len_source`)를 싣고, 그 출처의 닫힌 어휘를 이 파일 한 곳에서 정의한다(아래).
 #
 # 결정론 · stdlib only · 외부 네트워크 호출 없음. 입력=manifest(하드웨어)+모델 config/index(NAS 로컬).
 # CONTRACT: JSON 출력 키는 verdict_rule.py 가 소비한다(고정).
-import argparse, json, os, re, struct, sys
+import argparse, json, math, os, re, struct, sys
 
 GIB = 1024 ** 3
+
+# ── accept_len 출처 어휘 (2026-09-14 · plan_26091407 §4.1 · 항목 1) ─────────────────────────────
+# 이 필드를 **내는** 곳이 여기이므로 닫힌 어휘도 여기 한 곳에만 적는다(`tp_source`·`bandwidth_source`
+# 관행). 소비자(`verdict_rule.py` · `judge_bench.sh`)는 import 해서 쓴다 — 목록을 두 곳에 손으로 적으면
+# 한쪽만 늘어나는 순간 판정기가 새 출처를 "모르는 값" 으로 읽는다(매직넘버 결함 칸).
+#   measured        : 판정 레벨 `level_NN/measured.json` 의 실측을 **승계**했다(정본 = 실측)
+#   declared        : 사람이 `--accept-len` 으로 **명시**했다(실측이 아니라는 사실을 숨기지 않는다)
+#   declared-absent : spec 이 **선언되지 않았다** — 1.0 은 자리표시자가 아니라 정상값이다(결손 아님)
+#   absent          : 실측도 명시도 부재 선언도 없다 — 1.0 은 **자리표시자**다. 그것이 결손인지
+#                     (spec 선언 on) 판별 불가인지(지문 없는 과거 sweep)는 판정기가 사유로 정한다
+#                     (`verdict_rule.py` 의 SPEC_ACCEPT_LEN_MISSING — 소유는 판정기).
+# ⚠ 같은 토큰이 한 층 아래에서 **다른 뜻**으로 쓰인다(2026-09-14 리뷰 정정): `parse_guidellm.py` 의
+#   `measured.json.spec_axis_source=declared-absent` 는 "spec 승계원(같은 스윕 lite 레그)이 없다고 **명시했다**"
+#   는 뜻이지 spec 이 꺼졌다는 뜻이 아니다 — lite 가 절삭되면 spec 이 켜진 서빙에도 그 값이 찍힌다. 그래서
+#   그 값은 이 어휘로 옮기지 않는다: 이 파일 기준으로는 `absent`(선언 on|unknown) 또는 `declared-absent`
+#   (선언 off)이며, 어느 쪽인지는 sweep meta 의 spec 선언 지문만 정한다. judge_bench 는 파서 쪽 값을
+#   `measured.spec_axis_source=` 라벨을 붙여 evidence 에만 싣는다.
+ACCEPT_LEN_MEASURED = "measured"
+ACCEPT_LEN_DECLARED = "declared"
+ACCEPT_LEN_DECLARED_ABSENT = "declared-absent"
+ACCEPT_LEN_ABSENT = "absent"
+ACCEPT_LEN_SOURCES = (ACCEPT_LEN_MEASURED, ACCEPT_LEN_DECLARED,
+                      ACCEPT_LEN_DECLARED_ABSENT, ACCEPT_LEN_ABSENT)
+# 값을 **싣는** 출처 — 이 둘만 R_token 을 세울 자격이 있다. 나머지 둘은 값이 없다는 뜻이다.
+ACCEPT_LEN_VALUE_SOURCES = (ACCEPT_LEN_MEASURED, ACCEPT_LEN_DECLARED)
+
+
+def accept_len_state(raw):
+    """accept_len 유효성의 **단일 술어**. ('valid', v) | ('invalid', raw) | ('unset', None). 순수함수.
+
+    평균 수용길이(mean acceptance length)는 정의상 ≥ 1 이다 — 매 디코드 스텝이 최소 1 토큰을 낸다
+    (vLLM `spec_decode_acceptance_length = 1 + accepted/drafts`). 그래서 유한 ∧ ≥ 1 만 유효다.
+    bool 은 int 의 서브클래스라 수치로 받지 않는다(`verdict_rule.rubric_candidate` 와 같은 규율).
+    종전 `max(1.0, accept)` 는 0.5·NaN 을 **조용히** 1.0 으로 눕혔다 — `max(1.0, nan)` 도 1.0 이다.
+    """
+    if raw is None:
+        return ("unset", None)
+    if isinstance(raw, bool):
+        return ("invalid", raw)
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return ("invalid", raw)
+    if math.isnan(v) or math.isinf(v) or v < 1.0:
+        return ("invalid", raw)
+    return ("valid", v)
 
 # gpu_model(부분문자열, 대소문자무시) → peak 메모리 대역폭 GB/s(=GiBytes 아님, 10^9 bytes/s 관례).
 # 참조-그라운디드 하드웨어 스펙(datasheet). 미지 모델 = fail-loud(추측 금지 — 헌법 §결정론).
@@ -84,6 +135,15 @@ def _st_header(path):
 
 _ROUTED_RE = re.compile(r"\.experts\.")          # routed experts (indexed or fused). shared_experts 는 '_experts' 라 미매치.
 _MTP_RE = re.compile(r"(^|\.)mtp[\._]|\.mtp_block\.|model\.layers\.\d+\.mtp")
+# PLE(per-layer n-gram embedding) — **행 단위 gather** 라 토큰당 전체를 읽지 않는다.
+#   2026-09-12 발견(camp-26091216): 이 패턴이 없어 PLE 47.68GiB 가 dense 로 합산돼
+#   active 를 11.29→58.97GiB 로 6배 부풀렸고, R_fp 가 45.0→8.62 로 내려갔다. 그 결과
+#   **실측 46.7 t/s 가 자기 물리상한을 5.4배 초과**하는 판정이 나왔다(모형 반증).
+#   빼는 근거 3중: ① n-gram 은 해당 행만 gather(토큰당 heads_per_ngram×ple_embed_dim
+#   ≈ 20KiB = active 의 0.0002%) ② 그래서 NVMe mmap 서빙(VLLM_PLE_MMAP=1)이 성립한다 —
+#   매 토큰 전체를 읽어야 하면 디스크로 못 낸다 ③ 예산 게이트(`resident_weights_mib`)는
+#   이미 같은 바이트를 `ple_mib` 로 **분리해 왔다**(48,828MiB = 47.68GiB, 일치).
+_PLE_RE = re.compile(r"\.ple\.ple_embedding\.|\.ngram_embedding\.")
 
 
 def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
@@ -103,6 +163,7 @@ def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
 
     dense = 0       # 항상 읽힘: attention·shared_experts·embed·norm·lm_head
     routed = 0      # routed experts 전체 합(이후 k/n 스케일)
+    ple = 0         # PLE n-gram 테이블 — 행 gather 라 active 제외(_PLE_RE 주석 참조)
     for sh in sorted(shards):
         hdr = _st_header(os.path.join(host_dir, sh))
         for name, meta in hdr.items():
@@ -114,6 +175,9 @@ def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
             nbytes = int(off[1]) - int(off[0])
             if _MTP_RE.search(name):
                 continue  # MTP draft 모듈 = R_fp(메인 forward) 제외(accept_len 으로 모델링)
+            if _PLE_RE.search(name):
+                ple += nbytes   # 세지만 active 에 넣지 않는다(0 으로 숨기면 출처가 사라진다)
+                continue
             if _ROUTED_RE.search(name) and "shared_expert" not in name:
                 routed += nbytes
             else:
@@ -123,7 +187,7 @@ def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
     k = int(num_experts_per_tok or 0)
     n = int(num_experts)
     active_routed = int(routed * (k / n)) if k > 0 else 0
-    return dense + active_routed, dense, routed, k, n
+    return dense + active_routed, dense, routed, k, n, ple
 
 
 def _total_bytes_dense(host_dir):
@@ -174,6 +238,31 @@ def _total_bytes_dense(host_dir):
     return total
 
 
+def resolve_accept_len(value, source):
+    """(accept, source) — CLI 두 인자의 **조합 계약**. 모순은 조용히 고치지 않고 멈춘다(exit 2).
+
+    · 값 ∧ 출처 미지정 → declared(종전 `--accept-len L` 호출 호환: 값을 넘긴 것은 호출자의 명시다)
+    · 값 ∧ 출처 ∈ {declared-absent, absent} → 모순("값이 없다" 고 말하면서 값을 줬다)
+    · 값 없음 ∧ 출처 ∈ {measured, declared} → 모순(값을 주장하는 출처인데 값이 없다)
+    · 값 없음 ∧ 출처 미지정 → absent(1.0 은 자리표시자 — 판정기가 뜻을 정한다)
+    · 값이 무효(비유한·<1) → 멈춘다. 종전의 `max(1.0, …)` 침묵 클램프를 대체한다.
+    """
+    if value is not None:
+        src = source or ACCEPT_LEN_DECLARED
+        if src not in ACCEPT_LEN_VALUE_SOURCES:
+            _die("--accept-len %r 과 --accept-len-source %s 는 모순이다 — %s 는 값이 없다는 뜻이다"
+                 % (value, src, src))
+        state, v = accept_len_state(value)
+        if state != "valid":
+            _die("--accept-len=%r 는 유효한 평균 수용길이가 아니다(유한 ∧ ≥1) — 조용히 1.0 으로 "
+                 "눕히지 않는다(accept_len 은 R_token 과 expected_achievable 양쪽에 곱해진다)" % (value,))
+        return v, src
+    src = source or ACCEPT_LEN_ABSENT
+    if src in ACCEPT_LEN_VALUE_SOURCES:
+        _die("--accept-len-source %s 는 값을 주장하는데 --accept-len 이 없다" % src)
+    return 1.0, src
+
+
 def _bandwidth_gbps(gpu_model, override):
     if override:
         return float(override), "override"
@@ -191,7 +280,18 @@ def main():
     ap.add_argument("--quant-root", default=None, help="/app/quant_models 매핑 호스트 루트(manifest.quant_model_path)")
     ap.add_argument("--manifest", help="manifest.yaml (gpu_model·interconnect·gpus_per_node)")
     ap.add_argument("--tp", type=int, help="tensor-parallel-size (미지정 시 manifest nodes×gpus 또는 1)")
-    ap.add_argument("--accept-len", type=float, default=1.0, help="mean acceptance length(speculative). spec off=1.0")
+    # ★ 기본값 1.0 을 **인자에서 걷어냈다**(2026-09-14 · plan_26091407 F6). 종전 `default=1.0` 은
+    #   "spec off 라서 1.0" 과 "아무도 안 넘겨서 1.0" 을 구분하지 못했고, judge_bench 는 사람이 줄 때만
+    #   넘겨서 **spec 이 켜진 스윕 11건이 1.0 으로 조용히 판정**됐다. 값이 없으면 여전히 1.0 으로
+    #   계산하되(인자 호환) 그 1.0 이 무엇인지 `accept_len_source` 가 밝힌다.
+    ap.add_argument("--accept-len", type=float, default=None,
+                    help="mean acceptance length(speculative, ≥1). 값만 주면 출처=declared(호출자 명시)")
+    ap.add_argument("--accept-len-source", choices=list(ACCEPT_LEN_SOURCES), default=None,
+                    help="accept_len 출처(%s). measured|declared 는 --accept-len 필수 · "
+                         "declared-absent|absent 는 --accept-len 금지. 미지정: 값 있음=declared · 없음=absent"
+                         % "|".join(ACCEPT_LEN_SOURCES))
+    ap.add_argument("--accept-len-evidence", default=None,
+                    help="출처의 근거(예: level_01/measured.json · sweep_index.meta.spec_declared=off) — 기재만")
     ap.add_argument("--bandwidth-gbps", type=float, help="노드당 peak 메모리 대역폭 GB/s override")
     ap.add_argument("--interconnect-gbps", type=float, help="노드간 대역폭 Gb/s(bits) override")
     ap.add_argument("--act-dtype-bytes", type=int, default=2, help="활성 dtype 바이트(all-reduce 메시지, 기본 bf16=2)")
@@ -199,6 +299,9 @@ def main():
     ap.add_argument("--realistic-fraction", type=float, default=0.35, help="MBU 보정(batch=1 MoE 통상 0.25~0.4). expected=fraction×R")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
+    # accept_len 조합 계약은 **모델을 읽기 전에** 판정한다(fail-fast · 2026-09-14 리뷰 정정) — 모순·무효 인자로
+    #   멈출 호출이 NAS 헤더 스캔부터 할 이유가 없다. 호출부의 산출물 보호는 judge_bench 의 원자적 교체가 맡는다.
+    accept, accept_src = resolve_accept_len(args.accept_len, args.accept_len_source)
 
     host_dir = _resolve_host_path(args.model_path, args.nas_root, quant_host_root=args.quant_root)
     if not os.path.isdir(host_dir):
@@ -278,12 +381,17 @@ def main():
     ic_gbps = args.interconnect_gbps if args.interconnect_gbps else ic_gbps
 
     # --- 활성 바이트 (per forward pass) ---
+    ple_b = 0
     if is_moe:
-        active_bytes, dense_b, routed_b, k, n = _active_bytes_moe(host_dir, num_experts, n_per_tok)
+        active_bytes, dense_b, routed_b, k, n, ple_b = _active_bytes_moe(host_dir, num_experts, n_per_tok)
         notes.append("MoE active = dense %.2fGiB + (%d/%d)×routed %.2fGiB" % (dense_b/GIB, k, n, routed_b/GIB))
     else:
         active_bytes = _total_bytes_dense(host_dir)
         notes.append("dense 모델 — active = 전 가중치")
+    if ple_b:
+        notes.append("PLE n-gram %.2fGiB 는 active 제외(행 gather) — 포함하면 active 가 %.2fGiB 로 "
+                     "부풀어 실측이 자기 물리상한을 넘는다(2026-09-12 camp-26091216 실증)"
+                     % (ple_b/GIB, (active_bytes + ple_b)/GIB))
 
     per_node_read = active_bytes / tp
     bw_bytes = bw_gbps * 1e9                      # GB/s → bytes/s
@@ -303,8 +411,8 @@ def main():
     if denom <= 0:
         _die("루프라인 분모 0 — 입력 확인")
     r_fp = 1.0 / denom
-    accept = max(1.0, float(args.accept_len))
-    r_token = accept * r_fp
+    r_token = accept * r_fp   # accept·accept_src 는 인자 파싱 직후 resolve_accept_len 이 확정했다
+    # expected 에도 accept 가 곱해진다(헤더 ★) — 출처 없는 accept 는 합격선을 움직일 자격이 없다.
     expected = args.realistic_fraction * r_token
     comm_bound = t_comm > t_weight
 
@@ -319,11 +427,19 @@ def main():
         "interconnect_gbps": ic_gbps,
         "active_bytes": int(active_bytes),
         "active_gib": round(active_bytes / GIB, 3),
+        # PLE 는 0 으로 숨기지 않고 **분리해 기재**한다(헌법 §결정론 산출물은 출처를 표시한다) —
+        # 값이 안 보이면 "PLE 가 없는 모델"과 "빼고 계산했다"가 구분되지 않는다.
+        "ple_excluded_bytes": int(ple_b),
+        "ple_excluded_gib": round(ple_b / GIB, 3),
         "per_node_read_gib": round(per_node_read / GIB, 3),
         "t_weight_ms": round(t_weight * 1e3, 4),
         "t_comm_ms": round(t_comm * 1e3, 4),
         "comm_bound": comm_bound,
         "accept_len": accept,
+        # 출처 표시(tp_source·bandwidth_source 와 동형). 이 값이 1.0 일 때 그것이 **정상값**
+        # (declared-absent)인지 **자리표시자**(absent)인지를 산출물이 스스로 밝힌다.
+        "accept_len_source": accept_src,
+        "accept_len_evidence": args.accept_len_evidence,
         "R_fp": round(r_fp, 2),
         "R_token": round(r_token, 2),
         "realistic_fraction": args.realistic_fraction,

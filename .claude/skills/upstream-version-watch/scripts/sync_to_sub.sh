@@ -24,7 +24,8 @@
 #   bash sync_to_sub.sh --mode experimental --manifest <work.json>             # 승인된 실험 DRY-RUN
 #   bash sync_to_sub.sh --mode promotion --manifest <work.json> --apply          # promotion-ready 실행
 #   bash sync_to_sub.sh --mode promotion --manifest <work.json> --apply --provision
-#   bash sync_to_sub.sh --mode promotion --manifest <work.json> --apply --branch single|both
+#   bash sync_to_sub.sh --mode promotion --manifest <work.json> --apply --branch single   # single-node 체크아웃에서만
+#   (--branch 는 이 체크아웃의 토폴로지와 같아야 한다 · both 는 진입 가드가 거부한다 -- 2026-09-14 ⑧-pre D2 S6)
 # 환경변수 override: SUB_HOST(<ssh_user>@<host>) · SRC · SUB_WORK_DIR · SYNC_GIT_NAME · SYNC_GIT_EMAIL.
 # SUB_HOST·SUB_WORK_DIR 미지정 시 output/multi/manifest.yaml nodes[](role:sub)에서 해소(서브는 multi manifest 에만 정의).
 set -euo pipefail
@@ -47,7 +48,7 @@ preview_lines(){   # stdin → 앞부분 + (잘렸으면) 남은 줄 수 고지
 
 usage() {
     cat <<'EOF'
-사용법: sync_to_sub.sh --mode <experimental|promotion> --manifest <path> [--apply] [--provision] [--branch multi|single|both]
+사용법: sync_to_sub.sh --mode <experimental|promotion> --manifest <path> [--apply] [--provision] [--branch multi|single]
 
   --mode       side-effect authorization mode (required)
   --manifest   work-manifest JSON; relative paths use the caller's original CWD (required)
@@ -55,14 +56,18 @@ usage() {
   --provision  allow missing remote work directory creation with --apply
   --retire-residue  retire main-only residue the canonical render does NOT deliver for this
                topology (tracked files only; requires RETIRE_ALLOW=<exact count>)
-  --branch     multi, single, or both (default: multi)
+  --branch     multi, single, or both (default: multi). Must equal this checkout's specialized
+               constitution topology (4-way parity with --expect); `both` is refused -- one checkout
+               holds exactly one specialized layer (exit 12, before authorization)
   --help, -h   print this help without repo, manifest, host, or transport checks
 EOF
 }
 
 # Parse before repo/topology/host/transport discovery.  Missing required gate flags are
 # intentionally forwarded to completion_gate.py so its stable authorization JSON is the sole
-# fail-closed machine contract.
+# fail-closed machine contract for authorization.  One read-only check runs before it: the
+# delivery-topology guard below (exit 12, stderr only, no JSON) -- it reads this checkout's
+# parity legs and nothing else, so a refused delivery still has zero side effects (2026-09-14).
 ORIGINAL_CWD="$(pwd)"
 GATE_MODE=""; HAVE_MODE=0
 MANIFEST_ARG=""; HAVE_MANIFEST=0
@@ -94,6 +99,81 @@ case "$BRANCH" in multi|single|both) ;; *) echo "[sync] FAIL: --branch must be m
 # Gate location is immutable and derived from this script, never from caller-controlled SRC.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.py"
+
+# ── 배달 통로 ↔ 체크아웃 특화층 가드 (2026-09-14 · ⑧-pre D2 S6 · policy:BRANCH_CONSTITUTION_LAYERING C5 "delivery entry") ──
+# 왜: 이 배달은 **체크아웃의 인덱스**를 렌더해 서브의 `--branch` 브랜치에 박는다. 그런데 `--branch` 와 체크아웃이
+#   같은 토폴로지인지 묻는 자리가 없었다(2026-09-14 ⑧ 분석 발견). 어긋나면 두 사고가 **조용히** 난다:
+#     ⓐ 멀티 체크아웃 + --branch single → render_sub_env 가 이 체크아웃의 `strategy.topology.md`(multi) 를
+#        서브 single 브랜치에 복사한다 = 특화층 오배달(정책이 막으려는 바로 그것).
+#     ⓑ 싱글 체크아웃 + 기본값 --branch multi → single-node 가 추적하는 옛 output/multi 빌드킷(낡은 버전 핀)이
+#        서브 multi 브랜치에 **다운그레이드**로 배달된다. 삭제가 아니라 덮어쓰기라 D5 삭제 가드가 보지 못한다.
+# 판정은 4자일치 술어 하나가 소유한다(`topology_parity.py evaluate --expect`: 브랜치 ↔ 특화헌법 자기선언 ↔
+#   manifest ↔ 활성 캠페인 ↔ 호출부 기대값). 헤더 파서를 여기 다시 적지 않는다. 렌더러도 복사 직전에 같은 파서로
+#   자기 입력을 한 번 더 대조한다(render_sub_env.topology_rules_mismatch · 트랜잭션 소스의 인덱스 바이트).
+# 위치: 인가·탐색·렌더·원격 **이전**이다 -- 읽기만 하는 판정이라 부작용 0 인 시점에 멈춘다.
+# 막힘 3분류: **정상 차단**이다. 우회 인자·환경변수는 없다. 해소는 맞는 체크아웃에서 맞는 --branch 로 다시 도는 것뿐이다
+#   (종료 시퀀스 ⑥ 은 `topology_parity --format value` 로 이 값을 정하므로 늘 통과한다).
+TOPOLOGY_GUARD_EXIT=12
+PARITY_SCRIPT="$REPO_ROOT/.claude/skills/terraforming_node/scripts/topology_parity.py"
+GUARD_SRC="${SRC:-$REPO_ROOT/}"
+GUARD_SRC="${GUARD_SRC%/}"
+# 안내는 **원인별**이다(2026-09-14 ⑧-pre D2 리뷰): 4자일치 RED 를 한 문장으로 뭉개면, --branch 는 맞는데 manifest·캠페인
+#   선언이 어긋난 체크아웃에게 "그 브랜치를 체크아웃한 저장소에서 다시 하라" 고 말하게 된다 -- 방금 그렇게 한 사람에게.
+#   안내문이 분류를 잘못 말하면 가드가 있어도 사고가 난다(workflow.md §막힘 3분류 D5). 그래서 JSON 으로 받아
+#   EXPECT_MISMATCH **만** 인 경우(체크아웃 자체는 자기 통로에서 PASS)와 체크아웃 자체가 RED 인 경우를 가른다.
+#   통과 때도 몇 개의 다리로 판정했는지 밝힌다(C5: legs_judged 공개 -- 3자 판정이 4자 판정처럼 읽히지 않게).
+assert_delivery_topology() {
+    local verdict_json="" rc=0 summary="" verdict="" topo="" codes="" legs=""
+    if [ "$BRANCH" = "both" ]; then
+        echo "[sync] STOP(TOPOLOGY_DELIVERY_BOTH): 한 체크아웃은 특화층을 **하나만** 든다 — --branch both 는 한 통로가 반대 토폴로지의 특화헌법·빌드킷을 받는다." >&2
+        echo "  → 통로별로 그 토폴로지 브랜치를 체크아웃한 저장소에서 나눠 실행하라: multi-node 체크아웃에서 --branch multi · single-node 체크아웃에서 --branch single" >&2
+        return 1
+    fi
+    if [ ! -f "$PARITY_SCRIPT" ]; then
+        echo "[sync] STOP(TOPOLOGY_DELIVERY_UNJUDGED): 4자일치 술어가 없다($PARITY_SCRIPT) — 체크아웃과 --branch 의 일치를 판정할 소유자가 없으면 배달하지 않는다." >&2
+        return 1
+    fi
+    verdict_json="$(python3 "$PARITY_SCRIPT" evaluate --repo "$GUARD_SRC" --expect "$BRANCH" --format json)" || rc=$?
+    summary="$(printf '%s' "$verdict_json" | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    raise SystemExit(1)
+# 빈 칸은 "-" 로 채운다 -- 탭은 IFS 공백이라 빈 필드가 접히면 뒤 칸이 앞으로 밀린다.
+print("\t".join([d.get("verdict") or "-", d.get("topology") or "-", ",".join(d.get("reason_codes") or []) or "-",
+                 ",".join(d.get("legs_judged") or []) + "(" + str(d.get("legs_checked")) + "/4)"]))
+for r in d.get("reasons") or []:
+    print(r)
+' 2>/dev/null)" || summary=""
+    if [ -z "$summary" ]; then
+        echo "[sync] STOP(TOPOLOGY_DELIVERY_UNJUDGED): 4자일치 술어의 판정을 읽지 못했다(rc=$rc) — 판정 없이 배달하지 않는다." >&2
+        return 1
+    fi
+    IFS=$'\t' read -r verdict topo codes legs <<< "$(printf '%s\n' "$summary" | head -n 1)"
+    if [ "$rc" -eq 0 ] && [ "$verdict" = "PASS" ] && [ "$topo" = "$BRANCH" ]; then
+        echo "[sync] 배달 통로 대조 PASS: --branch $BRANCH == 체크아웃 통로 · 4자일치 판정 다리 $legs" >&2
+        return 0
+    fi
+    printf '%s\n' "$summary" | tail -n +2 | sed 's/^/[topology_parity] /' >&2
+    if [ "$codes" = "EXPECT_MISMATCH" ] && [ "$topo" != "-" ]; then
+        # 체크아웃 자체는 자기 통로('$topo')에서 정합이다 -- 틀린 것은 --branch 값 하나다(흔한 형태: 기본값 multi 를 잊음).
+        echo "[sync] STOP(TOPOLOGY_DELIVERY_MISMATCH): --branch $BRANCH 는 이 체크아웃($GUARD_SRC)의 통로 '$topo' 와 다르다(판정 다리 $legs)." >&2
+        echo "  → 이대로 배달하면 이 체크아웃의 특화헌법·빌드킷이 서브의 '$BRANCH' 브랜치로 간다(특화층 오배달 · 옛 빌드킷 다운그레이드)." >&2
+        echo "  → 해소(둘 중 무엇을 배달하려는지 사람이 정한다 · 자동 교정·우회 인자 없음):" >&2
+        echo "       ① 이 체크아웃의 토폴로지를 배달하려면: 같은 명령에 --branch $topo" >&2
+        echo "       ② '$BRANCH' 를 배달하려면: '$BRANCH' 토폴로지 브랜치를 체크아웃한 저장소에서 --branch $BRANCH" >&2
+    else
+        # 체크아웃 자체가 4자일치를 통과하지 못한다 -- --branch 를 바꿔도, 다른 체크아웃으로 가라는 말도 답이 아니다.
+        echo "[sync] STOP(TOPOLOGY_DELIVERY_MISMATCH): 이 체크아웃($GUARD_SRC) 자체가 4자일치를 통과하지 못한다(reason_codes=${codes:-없음} · 판정 다리 $legs)." >&2
+        echo "  → 브랜치·특화헌법 자기선언·manifest·활성 캠페인 선언 중 어긋난 다리가 위 [topology_parity] 줄에 있다." >&2
+        echo "  → 해소: 그 선언(manifest · 활성 캠페인 · 특화헌법)을 고치거나 올바른 체크아웃으로 옮긴 뒤 다시 실행하라." >&2
+        echo "     어느 쪽인지는 사람이 정한다(자동 교정·우회 인자 없음 · policy:BRANCH_CONSTITUTION_LAYERING)." >&2
+    fi
+    return 1
+}
+assert_delivery_topology || exit "$TOPOLOGY_GUARD_EXIT"
+
 RESOLVED_MANIFEST=""
 if [ "$HAVE_MANIFEST" -eq 1 ]; then
     case "$MANIFEST_ARG" in
@@ -135,7 +215,8 @@ print(json.dumps({
     exit 2
 fi
 
-# Authorization passed. Existing source override and all operational discovery begin only here.
+# Authorization passed. Existing source override and all operational discovery begin only here
+# (the only earlier read is the side-effect-free delivery-topology guard above, which reads SRC's parity legs).
 SRC="${SRC:-$REPO_ROOT/}"
 CANONICAL_SRC="${SRC%/}/"
 SSH_OPTS="${SYNC_SSH_COMMAND:-ssh -o BatchMode=yes -o ConnectTimeout=8}"
@@ -250,6 +331,9 @@ assert_sub_delegation_authorized() {  # $1=topology → 0=인가(hw_verified:tru
 # 타겟 브랜치 목록 — 주소 해소가 이 목록을 쓰므로 먼저 정한다.
 TARGETS=(); case "$BRANCH" in multi) TARGETS=(multi);; single) TARGETS=(single);; both) TARGETS=(multi single);; esac
 
+# ⚠ 2026-09-14(⑧-pre D2 S6): `--branch both` 는 이제 진입 가드(assert_delivery_topology)가 인가 전에 exit 12 로
+#   거부한다 -- 한 체크아웃은 특화층을 하나만 들기 때문이다. 그래서 아래의 "후보가 둘" 경로(와 exit 4 안내)는
+#   현재 도달하지 않는다. TARGETS 배열 모양은 뒤의 부트스트랩·precheck 가 공유하므로 걷지 않고 남긴다.
 # 주소는 **타겟 토폴로지의 manifest** 에서 온다. --branch both 처럼 후보가 둘이면 값이 일치해야 한다 —
 # 갈리면 어느 노드에 배달하는지가 모호해지므로 fail-closed 한다(추측으로 고르지 않는다).
 #

@@ -24,7 +24,7 @@ D12: --topology {single|multi} 로 양 토폴로지 렌더(서브 로컬 git 양
 
 전달은 sync_to_sub.sh --provision(별도). 이 스크립트는 렌더까지만(결정론).
 stdlib 만. PII(실 manifest)는 읽되 gitignored 스테이징으로만 쓴다(추적물엔 안 씀).
-종료코드: 0=성공, 2=필수 manifest 필드 누락, 3=입력/IO 오류.
+종료코드: 0=성공, 2=필수 manifest 필드 누락, 3=입력/IO 오류, 5=특화헌법 자기선언 ↔ --topology 불일치(렌더 전 차단).
 """
 from __future__ import annotations
 import argparse
@@ -32,6 +32,7 @@ import glob
 import hashlib
 import json
 import os
+import pathlib
 import re
 import shutil
 import subprocess
@@ -103,6 +104,9 @@ RUNTIME_BLOCK_EXCLUDES = {
         "scripts/smoke_clone.sh",          # 배포본 클론 검증(메인 소관 · 이미 retirement 대상)
         "scripts/multinode_comms_smoke.sh",  # 노드 간 통신 스모크(메인이 양노드를 향해 쓴다)
         "scripts/multinode_serve_smoke.sh",  # 동상
+        # 종료 시퀀스 기구(sync_to_sub·sync_branches·closing_sequence·layer_ledger·push_branches)의 격리 픽스처 검사.
+        #   그 대상 절반이 위에서 제외되므로 서브에서는 돌 수 없고, 도는 자리(verify_distribution)도 메인 전용이다.
+        "scripts/selftest_branch_sync.py",
     ),
 }
 DOCS_RULES = os.path.join(REPO, ".claude", "rules", "docs.md")     # 문서규약(정적계약 — 서브 테라포밍, D12)
@@ -123,6 +127,7 @@ sys.path.insert(0, HERE)
 import node_role_contract as _contract  # noqa: E402  (형제 스크립트 — 위 sys.path 선행 필요)
 import agent_card_contract as _acc      # noqa: E402  Agent_Card v2 계약·JWS 서명(단일 소유 · plan_26090516 §7.2)
 import manifest_contract as _mc         # noqa: E402  서브 manifest Flag 계약 리더(§7.3)
+import topology_parity as _parity       # noqa: E402  특화헌법 자기선언 파서의 단일 소유자(policy BRANCH_CONSTITUTION_LAYERING C2)
 
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Z_]+)\s*\}\}")
 # 템플릿 전용 머리말(렌더 산출물에서 제거) — md 템플릿의 "이건 템플릿이다" 메타 블록.
@@ -370,6 +375,27 @@ def _unrendered(text: str) -> list[str]:
 
 
 # ── 렌더 한 판 (스테이징 트리 산출) ──
+def topology_rules_mismatch(topology: str, rules_path: str | None = None) -> str | None:
+    """렌더가 복사할 특화헌법의 자기선언이 `topology` 와 다르면 사유 문자열, 같으면 None.
+
+    왜(2026-09-14 · ⑧-pre D2 S6): 렌더러는 `strategy.topology.md` 를 **자기가 도는 트리**에서 복사해 서브의
+    `--topology` 브랜치 오버레이로 만든다. 멀티 체크아웃에서 `--topology single` 로 돌면 멀티 특화헌법이 서브 single
+    브랜치로 간다 -- 그런데 그것을 묻는 자리가 없었다. 판정은 **복사할 바로 그 바이트**로 한다(sync_to_sub 의
+    트랜잭션 소스 안에서는 인덱스 바이트다). 파서는 4자일치 술어의 것을 쓴다(파서 복제 ✗).
+    부재도 불일치로 본다 -- 자기선언 없는 특화층을 배달하면 서브는 자기가 어느 토폴로지의 헌법을 받았는지 모른다.
+    """
+    path = rules_path or TOPOLOGY_RULES
+    if not os.path.isfile(path):
+        return f"특화헌법이 없다({path}) — 서브 '{topology}' 브랜치에 배달할 자기선언이 없다"
+    declared, why = _parity.read_layer_header(pathlib.Path(path))
+    if declared is None:
+        return f"특화헌법 자기선언을 읽지 못했다({path}): {why}"
+    if declared != topology:
+        return (f"특화헌법({path})은 topology={declared} 를 선언하는데 렌더 통로는 --topology {topology} 다 — "
+                f"이 트리의 특화층을 서브 '{topology}' 브랜치로 보내면 반대 토폴로지 헌법이 배달된다")
+    return None
+
+
 def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 tracked_list: list | None = None, signing_key: str | None = None,
                 sub_manifest_path: str | None = None) -> dict:
@@ -1211,6 +1237,25 @@ def _self_test() -> int:
           f"violations={ph8.get('SUB_CONTRACT_VIOLATIONS')!r})")
     ok &= c8
 
+    # (9) 특화헌법 자기선언 ↔ 렌더 통로(⑧-pre D2 S6). 라이브 헤더에 기대지 않는다 -- 이 검사는 두 브랜치 모두에서
+    #     같은 결과를 내야 하므로 픽스처 헤더로 친다(체크아웃 CLI 층의 음성대조는 selftest_branch_sync 가 맡는다).
+    _rules = os.path.join(tmp, "strategy.topology.md")
+    _cases = []
+    for _hdr, _topo, _want_ok in (("multi", "multi", True), ("single", "single", True),
+                                  ("multi", "single", False), ("single", "multi", False)):
+        with open(_rules, "w", encoding="utf-8") as f:
+            f.write(f"# s\n\n**topology: {_hdr}** · layer: topology\n")
+        _why = topology_rules_mismatch(_topo, _rules)
+        _cases.append((_why is None) == _want_ok)
+    with open(_rules, "w", encoding="utf-8") as f:
+        f.write("# s\n\n선언 없음\n")
+    _malformed = topology_rules_mismatch("multi", _rules) is not None
+    _absent = topology_rules_mismatch("multi", os.path.join(tmp, "absent.topology.md")) is not None
+    c9 = all(_cases) and _malformed and _absent
+    print(f"  [{'PASS' if c9 else 'FAIL'}] 특화헌법 ↔ --topology 대조: 일치 2 통과 · 불일치 2 거부={_cases} · "
+          f"선언 없음 거부={_malformed} · 부재 거부={_absent}")
+    ok &= c9
+
     # (템플릿 PII-free 는 upstream-version-watch owner-local smoke_clone.sh A4가 단일 게이트로 검사)
     shutil.rmtree(tmp, ignore_errors=True)
     print(f"self-test: {'PASS' if ok else 'FAIL'}")
@@ -1238,6 +1283,15 @@ def main() -> int:
 
     if args.self_test:
         return _self_test()
+
+    # 특화헌법 ↔ 통로 대조는 **어떤 읽기·쓰기보다 먼저**다(⑧-pre D2 S6) -- 막히면 스테이징 트리를 만들지도 않는다.
+    #   정상 차단이다: 우회 인자 없음. 해소는 그 토폴로지 브랜치를 체크아웃한 트리에서 도는 것뿐이다.
+    _mismatch = topology_rules_mismatch(args.topology)
+    if _mismatch:
+        print(f"[render] STOP(TOPOLOGY_RULES_MISMATCH): {_mismatch}\n"
+              f"        해소: '{args.topology}' 토폴로지 브랜치를 체크아웃한 트리에서 --topology {args.topology} 로 렌더하라"
+              f"(자동 교정·우회 인자 없음 · policy:BRANCH_CONSTITUTION_LAYERING)", file=sys.stderr)
+        return 5
 
     manifest = args.manifest or os.path.join(REPO, "output", args.topology, "manifest.yaml")
     out_dir = args.out or os.path.join(REPO, "output", args.topology, "sub_provision")
@@ -1281,9 +1335,12 @@ def main() -> int:
         print(f"   + {p}")
     # 2026-09-03(B0 · plan_26090317 P1): 여기서 찍던 명령은 필수 인가 인자(--mode·--manifest)가 없어
     #   completion_gate 가 CLI_USAGE_ERROR 로 거부했다 — 렌더 성공 화면이 실행 불가 명령을 안내하고 있었다.
+    # 2026-09-14(⑧-pre D2 리뷰): 같은 결함이 다시 났다 -- 배달 통로 가드(sync_to_sub exit 12)가 `--branch` 와 체크아웃의
+    #   일치를 요구하게 됐는데 여기서는 `--branch` 를 빼고 찍어, single 렌더 뒤 안내대로 치면 기본값 multi 로 막혔다.
+    #   렌더가 방금 대조를 통과한 통로가 곧 그 값이다(파생 가능한 값을 사람이 다시 고르게 하지 않는다).
     print("[render] 다음(HITL · 인가 인자 필수):")
     print("   bash .claude/skills/upstream-version-watch/scripts/sync_to_sub.sh \\")
-    print("        --mode experimental --manifest <work-manifest.json> --apply --provision")
+    print(f"        --mode experimental --manifest <work-manifest.json> --apply --provision --branch {args.topology}")
     print("   ↑ work-manifest 발행 절차 = terraforming_node SKILL.md §2.3 '인가 체인'")
     return 0
 

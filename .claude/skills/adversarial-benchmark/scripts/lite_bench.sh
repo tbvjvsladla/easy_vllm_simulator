@@ -9,11 +9,23 @@
 #   multi = 서브 **SSH 읽기전용 probe**(nvidia-smi/proc·meminfo — health 폴링과 동형 관측평면, 재스캔 ✗).
 # 산정·표 렌더는 결정론 lite_metrics.py.
 #
-# 사용: lite_bench.sh <config_name> [--topology single|multi] [--burst-n N] [--out-dir DIR] [--no-sub-probe]
+# ★ 경량 리포트 발행(2026-09-14 · plan_26091407 §4.5 · 사용자 결정 Q4·Q10) — **`--publish-report` 를 줄 때만** 종결부에서
+#   `render_report.py --lite-only` 로 `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`(헤더 `mode: lite`
+#   · 측정 구성 표 · lite 지표 표)를 발행한다. lite 만 잰 셀의 hint(`hint_map_only`)가 이 문서를 바인딩한다.
+#   기본값이 발행하지 않는 이유(자동 경로에 부작용을 만들지 않는다):
+#     ① 서빙 성공 직후 자동 lite 핸드오프는 헌법의 **관측·inform-only 한정** 예외다 — 문서 발행이라는 산출을 거기에 얹지 않는다.
+#     ② full 스윕(`sweep_bench.sh`)이 이 스크립트를 lite 레그로 부른다. 레그가 리포트를 내면 같은 시간대·같은 조합의 full
+#        리포트가 `_MM_SS` 접미로 밀려 인증서와 stem 이 갈라지고, publisher 가 PUBLISH_BENCHMARK_REPORT_CERTIFICATE_STEM_MISMATCH
+#        로 거부한다(full 발행 체인이 lite 때문에 깨진다). full 리포트는 lite 표를 이미 품는다(full ⊇ lite).
+#     ③ 발행 실패(명명 키 불성립·충돌)가 lite 측정 자체를 실패로 만들지 않게, 요청한 호출에서만 exit 5 로 알린다
+#        (측정 산출물 raw/warm/cold/엔진 로그는 그대로 남는다).
+#
+# 사용: lite_bench.sh <config_name> [--topology single|multi] [--burst-n N] [--out-dir DIR] [--no-sub-probe] [--publish-report]
+# 종료: 0=측정 완료(요청 시 리포트 발행 포함) · 2=인자/파일 부재 · 3=serve 미가동 · 4=정체성/Flag 게이트 · 5=리포트 발행 실패(측정은 남음)
 set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
-TOPO=""; BURST_N=3; OUTDIR=""; SUB_PROBE=1; BACKEND="openai-chat"
+TOPO=""; BURST_N=3; OUTDIR=""; SUB_PROBE=1; BACKEND="openai-chat"; PUBLISH_REPORT=0
 # ★ 2026-09-01 신설 — run_bench.sh·sweep_bench.sh 와 같은 backend 노브(기본값 동일, 후방호환).
 #   왜: harmony 계열(gpt-oss)은 chat 엔드포인트에서 `--ignore-eos` 가 무력해 생성이 조기 종료되고
 #   median_tpot 이 크게 부풀려진다. 실측: 같은 서빙에서 lite(chat) 16.43 t/s vs full(completions)
@@ -25,6 +37,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --burst-n) BURST_N="$2"; shift 2;;
   --out-dir) OUTDIR="$2"; shift 2;;
   --no-sub-probe) SUB_PROBE=0; shift;;
+  --publish-report) PUBLISH_REPORT=1; shift;;
   *) echo "[lite_bench] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
 case "$BACKEND" in
@@ -35,8 +48,18 @@ esac
 
 REPO="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 if [ -z "$TOPO" ]; then
-  BR="$(git -C "$REPO" rev-parse --abbrev-ref HEAD 2>/dev/null || echo)"
-  case "$BR" in multi-node) TOPO=multi;; single-node) TOPO=single;; *) TOPO=single;; esac  # unknown→single(run_bench.sh 정합)
+  # ★ 2026-09-14(⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고 브랜치로 추론하지 않는다"): 종전 관용구는
+  #   브랜치 이름에서 토폴로지를 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 —
+  #   서명 카드 노드는 카드↔자기 manifest, 메인은 4자일치 술어(topology_parity), 둘 다 아니면 fail-loud.
+  #   아래 Flag 게이트와 같은 평면이다: manifest 가 없으면(3) 미테라포밍 info-only, 정하지 못하면 fail-closed — 둘 다 exit 4.
+  _TOPO_RC=0; TOPO="$(python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/resolve_topology.py" --repo "$REPO")" || _TOPO_RC=$?
+  if [ "$_TOPO_RC" = 3 ]; then
+    echo "[lite_bench] 토폴로지 사실(manifest) 부재 — 미테라포밍 info-only. terraforming_node 로 HW스캔·검증 먼저." >&2
+    exit 4
+  elif [ "$_TOPO_RC" != 0 ]; then
+    echo "[lite_bench] 토폴로지를 정하지 못했다(위 사유) — info-only(fail-closed). --topology single|multi 로 명시할 수 있다." >&2
+    exit 4
+  fi
 fi
 
 # 헌법 §테라포밍-완수 Flag 게이트 — 결정론 백스톱(**fail-closed**).
@@ -119,6 +142,9 @@ _bench() {  # $1=out.json $2=num-prompts $3=warmups
     && docker exec "$CTR" cat /tmp/lite_tmp.json > "$1"
 }
 
+# 측정시각 — 리포트 이름의 시간 토큰이자 "같은 측정인가" 판정 근거다(doc_naming). 부하를 걸기 직전의 호스트 UTC 를
+#   **측정 사실**로 raw 에 남긴다(sweep_bench 의 run 경계 시각과 같은 자격 · 리포트 렌더러는 이 값을 날조하지 않고 요구한다).
+MEASURED_UTC="$(date -u +%FT%TZ)"
 echo "[lite_bench] cold(단일·warmup0) + warm burst(N=$BURST_N·conc1·warmup1) ..."
 _bench "$COLD" 1 0 || { echo "[lite_bench] cold bench 실패" >&2; : > "$COLD"; }
 _bench "$WARM" "$BURST_N" 1 || { echo "[lite_bench] warm bench 실패" >&2; : > "$WARM"; }
@@ -162,8 +188,12 @@ if [ "$TOPO" = "multi" ] && [ "$SUB_PROBE" = 1 ]; then
   fi
 fi
 
+# 명명 입력(config_name·config_yaml·env_file·manifest)은 경량 리포트가 모델·GPU·버전 축을 **파생**하는 자리다
+#   (sweep_bench 조립부와 같은 규칙 · render_report.lite_identity). 값을 여기서 미리 해석하지 않고 경로만 남긴다.
 cat > "$RAW" <<JSON
 {"topology":"$TOPO","burst_n":$BURST_N,
+ "config_name":"$CONFIG","measured_utc":"$MEASURED_UTC","backend":"$BACKEND","endpoint":"$LITE_ENDPOINT",
+ "config_yaml":"$CFGYAML","env_file":"$EF","manifest":"$REPO/output/$TOPO/manifest.yaml",
  "bench_warm_json":"$WARM","bench_cold_json":"$COLD","engine_log":"$ELOG",
  "nodes":[$NODES_JSON]}
 JSON
@@ -171,4 +201,15 @@ JSON
 echo "[lite_bench] 표 렌더(inform-only):"
 python3 "$REPO/.claude/skills/adversarial-benchmark/scripts/lite_metrics.py" --raw-json "$RAW"
 echo ""
+if [ "$PUBLISH_REPORT" = "1" ]; then
+  if REPORT_PATH="$(python3 "$REPO/.claude/skills/adversarial-benchmark/scripts/render_report.py" --lite-only --lite-raw-json "$RAW")"; then
+    echo "[lite_bench] 경량 리포트 발행 → $REPORT_PATH (mode: lite · hint_map_only 바인딩 대상)"
+  else
+    echo "[lite_bench] ⚠ 경량 리포트 발행 실패(위 사유) — 측정 산출물은 남았다: RAW=$RAW" >&2
+    echo "[lite_bench]   원인을 고친 뒤 재측정 없이 다시 렌더할 수 있다: render_report.py --lite-only --lite-raw-json $RAW" >&2
+    exit 5
+  fi
+else
+  echo "[lite_bench] 리포트 미발행(기본 · 자동 핸드오프 경로) — lite-only 셀의 hint 통로는 --publish-report 로 경량 리포트를 낸다"
+fi
 echo "[lite_bench] DONE  RAW=$RAW  (inform-only — PASS/FAIL 없음)"

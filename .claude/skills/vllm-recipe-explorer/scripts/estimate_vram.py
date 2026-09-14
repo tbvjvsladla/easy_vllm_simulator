@@ -229,9 +229,15 @@ def estimate(
 # ===========================================================================
 # Phase 2 — 절대 KV 클램프 모델 (CONTRACT v1).
 #   vLLM 인자 --kv-cache-memory-bytes 로 GPU당 KV 바이트를 절대값으로 고정한다.
-#   설정 시 gpu-memory-utilization 은 무시되며(=safety_margin 풀 상한으로만 emit),
+#   ★ 2026-09-14 정정(plan_26091407 F5 · vLLM 소스 `gpu_worker.determine_available_memory`·`utils.request_memory`):
+#     종전 문장 "설정 시 gpu-memory-utilization 은 무시" 는 절반만 맞았다. 클램프를 주면 KV 프로파일링 자체를 건너뛰어
+#     gmu 가 KV 사이징에 쓰이지 않는 것은 맞지만, gmu 는 **기동 전 request_memory 의 free ≥ ceil(total×gmu) 검사**에는
+#     여전히 관여한다. 총량 캡·할당자 캡은 소스에 없다. gmu 를 낮추자 여유가 열린 관측(한 셀 · 유효맥락과 수치는
+#     `references/kv-clamp.md` §1 — 다른 토폴로지·GPU 로 옮기지 않는다)은 사실이나 그 기전은 미확정이다(관측 ≠ 기전). 배포 yaml 의 gmu 는 recipe.py 가 deploy_gmu(= target_gpu.target_gmu)로 emit 한다.
 #   총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes  (gmu로 나누지 않음 —
-#   Phase1 estimate() 공식과 다름). 검증 = total <= budget_gib*safety_margin*GIB.
+#   Phase1 estimate() 공식과 다름). 승수는 역할이 둘이다(recipe.py `_gpu_roles`): 클램프 천장
+#   `max_safe_kv_bytes(budget, deploy_gmu, …)` 과 트라이얼 검증 게이트 `budget × gate_margin(=safety_margin)`
+#   (sim_classify). 아래 함수의 `safety_margin` 인자명은 Phase-1 호출부와 공유하는 **승수 자리**의 이름이다.
 # 아래 함수는 모두 importable. 기존 estimate()/_activation_bytes 는 손대지 않는다.
 # ===========================================================================
 
@@ -282,10 +288,13 @@ def max_safe_kv_bytes(
     weights_bytes: float,
     overhead_bytes: float,
 ) -> int:
-    """천장(budget*margin) 안에서 KV 에 줄 수 있는 최대 바이트.
+    """천장(budget*승수) 안에서 KV 에 줄 수 있는 최대 바이트.
 
     max_safe_kv_bytes = int(budget_gib*safety_margin*GIB) - weights_bytes - overhead_bytes.
     음수일 수 있음(=weights+overhead 만으로 천장 초과 → vram_infeasible 신호).
+    `safety_margin` 은 승수 자리다 — Phase-2 클램프 산식(recipe._resolve_clamp_kv)은 여기에 **deploy_gmu**
+    (= target_gpu.target_gmu)를 넣고, Phase-1 max_feasible_* 는 config.safety_margin 을 넣는다
+    (2026-09-14 · plan_26091407 §4.3 역할 분리 — 인자명은 호출부 비회귀를 위해 두었다).
     """
     return int(budget_gib * safety_margin * GIB) - int(weights_bytes) - int(overhead_bytes)
 

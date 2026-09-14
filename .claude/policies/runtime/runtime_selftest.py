@@ -147,8 +147,8 @@ _PROMO_RUBRIC = {"rubric_authority": "explore", "floor_tps": 22.1,
 
 
 # bench_report 는 **PASS/REFUTE 무관하게 항상 발행되는** 문서라, 인증서가 구조적으로 없는 경로
-# (perf_waiver · explore)에서 lite 정량지표의 유일한 근거가 된다(hint_tag `_require_serving_evidence`
-# B 브랜치). 그래서 공용 픽스처의 리포트도 **실제로 lite 절과 실측 열을 갖는다** -- 빈 리포트를 쓰면
+# (perf_waiver · explore · hint_map_only — map_only 는 경량 리포트 또는 강등 셀의 리포트 · 2026-09-14)에서 lite 정량지표의
+# 유일한 근거가 된다(hint_tag `_require_serving_evidence` B 브랜치). 그래서 공용 픽스처의 리포트도 **실제로 lite 절과 실측 열을 갖는다** -- 빈 리포트를 쓰면
 # 그 브랜치가 늘 실패해 "통과했다"를 증명할 수 없다.
 _LITE_BENCH_REPORT = """# bench_report selftest
 
@@ -406,6 +406,13 @@ _HINT_HF_REPO = "selftest-org/selftest-model"
 _HINT_SCRIPT_REL = ".claude/skills/hint-publisher/scripts/hint_tag.py"
 _HINT_TEMPLATE_REL = ".claude/skills/hint-publisher/templates/hint_recipe.template.md"
 _HINT_CATALOG_REL = ".claude/skills/hint-publisher/scripts/hint_catalog.py"
+# lite hint 통로(2026-09-14 · plan_26091407 §4.5 · O5)가 격리 레포에서 실제로 부르는 사본들. hint_tag 는 lite 지표 술어를
+# render_bench_section 에서, lockset 출처 어휘를 campaign_template_validator 에서 늦게 적재하고, 페이로드는 hint_collect 가
+# 짓는다 — 셋 중 하나라도 빠지면 격리 프로브가 실물과 다른 경로를 밟는다(픽스처가 실물보다 좁아진다).
+_HINT_COLLECT_REL = ".claude/skills/hint-publisher/scripts/hint_collect.py"
+_HINT_BENCH_SECTION_REL = ".claude/skills/hint-publisher/scripts/render_bench_section.py"
+_CAMPAIGN_VALIDATOR_REL = ".claude/skills/terraforming_node/scripts/campaign_template_validator.py"
+_RENDER_REPORT_REL = ".claude/skills/adversarial-benchmark/scripts/render_report.py"
 
 # 인증서 carrier 케이스용 -- 실제 인증서는 lite 열을 갖는다(full ⊇ lite 불변식).
 # 레시피 축 3종을 **전부** 담는다 — 하나만 담으면 픽스처가 실물보다 좁아져 파생기의
@@ -482,7 +489,7 @@ def _hint_repo(root: Path) -> str:
     """
     for rel in (".claude/policies/runtime", ".claude/schemas",
                 ".claude/skills/hint-publisher/scripts",
-                ".claude/skills/hint-publisher/templates", "hints"):
+                ".claude/skills/hint-publisher/templates", ".claude/skills/terraforming_node/scripts", "hints"):
         (root / rel).mkdir(parents=True, exist_ok=True)
     shutil.copy2(RUNTIME_DIR / "completion_gate.py", root / ".claude/policies/runtime/completion_gate.py")
     for name in ("work-manifest.schema.json", "completion-manifest.schema.json",
@@ -491,6 +498,8 @@ def _hint_repo(root: Path) -> str:
     shutil.copy2(CLAUDE_DIR.parent / _HINT_SCRIPT_REL, root / _HINT_SCRIPT_REL)
     shutil.copy2(CLAUDE_DIR.parent / _HINT_TEMPLATE_REL, root / _HINT_TEMPLATE_REL)
     shutil.copy2(CLAUDE_DIR.parent / _HINT_CATALOG_REL, root / _HINT_CATALOG_REL)
+    for rel in (_HINT_COLLECT_REL, _HINT_BENCH_SECTION_REL, _CAMPAIGN_VALIDATOR_REL):
+        shutil.copy2(CLAUDE_DIR.parent / rel, root / rel)
     # 카탈로그 관리 구역은 **마커 쌍**이다(2026-09-01 D1.1). 여는 마커가 없던 옛 형식은
     # 구역의 시작이 모호해 마커 유실 시 전 행이 조용히 사라질 수 있었다(감사 ⑬).
     (root / "HINTS.md").write_text(
@@ -511,7 +520,7 @@ def _hint_cli(root: Path, *args: str) -> subprocess.CompletedProcess:
                           cwd=str(root), capture_output=True, text=True, timeout=180)
 
 
-def _hint_payload_anchor(root: Path, tag: str, source_anchor: str) -> str:
+def _hint_payload_anchor(root: Path, tag: str, source_anchor: str, payload_doc: dict | None = None) -> str:
     """`refs/heads/hint` 위에 **진짜 페이로드 커밋**을 짓고 그 SHA 를 돌려준다.
 
     ★ 2026-09-07 신설(plan_26090715 §5 ①-a). 종전 픽스처는 빈 소스 커밋을 앵커로 썼고, 그래서
@@ -526,7 +535,8 @@ def _hint_payload_anchor(root: Path, tag: str, source_anchor: str) -> str:
                             input=text, capture_output=True, text=True, timeout=60, check=True)
         return cp.stdout.strip()
 
-    payload = json.dumps({"schema_version": 1, "kind": "hint_payload_facts",
+    payload = json.dumps(payload_doc if payload_doc is not None else
+                         {"schema_version": 1, "kind": "hint_payload_facts",
                           "provenance": "derived", "missing": []}, ensure_ascii=False) + "\n"
     prov = json.dumps({"version": 1, "anchor": source_anchor, "tag": tag,
                        "source_branch": "selftest"}, ensure_ascii=False) + "\n"
@@ -545,42 +555,101 @@ def _hint_payload_anchor(root: Path, tag: str, source_anchor: str) -> str:
     return commit
 
 
+# 격리 hint 레포의 셀 트리플렛(합성) — hint_collect 는 이 셋이 없으면 페이로드를 짓지 않는다(면제 불가 슬롯).
+_HINT_CELL = "selftest-cell"
+
+
+def _hint_collect_payload(root: Path, manifest: Path) -> tuple[subprocess.CompletedProcess, Path, dict | None]:
+    """격리 레포에서 **실제 hint_collect** 로 페이로드를 짓는다(PAYLOAD.json 을 손으로 쓰지 않는다)."""
+    for rel, text in ((f"output/single/configs/{_HINT_CELL}.yaml", "model: /models/selftest-org/selftest-model\n"),
+                      (f"output/single/configs/{_HINT_CELL}.sh", "#!/bin/sh\n"),
+                      (f"output/single/envs/.env.{_HINT_CELL}", "IMAGE_TAG=easy-vllm:0.0.0-selftest\n")):
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(text, encoding="utf-8")
+    out_dir = root / "payload_out"
+    shutil.rmtree(out_dir, ignore_errors=True)
+    proc = subprocess.run([sys.executable, "-B", str(root / _HINT_COLLECT_REL), "--repo", str(root), "collect",
+                           "--manifest", str(manifest), "--config-name", _HINT_CELL, "--out", str(out_dir),
+                           "--generated-kst", "2026-01-01T00:00:00"],
+                          cwd=str(root), capture_output=True, text=True, timeout=180)
+    doc = None
+    if proc.returncode == 0:
+        doc = json.loads((out_dir / "PAYLOAD.json").read_text(encoding="utf-8"))
+    return proc, out_dir, doc
+
+
 def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = None,
                         bench_report_text: str = _LITE_BENCH_REPORT,
                         recipe_body: str = _HINT_RECIPE_BODY,
-                        anchor_mode: str = "payload") -> dict:
+                        anchor_mode: str = "payload", task_class: str = "full_benchmark",
+                        drop_evidence: tuple = (), collect_payload: bool = False,
+                        lockset: dict | None = None) -> dict:
     """격리 레포에서 create→seal→**catalog derive**→verify 를 실제로 돌린다.
 
     2026-09-01: `index`(손저작 색인)가 D1.1 로 폐쇄되어 카탈로그 단계를 원격 파생으로 옮겼다.
     프로브가 임시 bare 원격을 만들고 태그를 push 한 뒤 파생한다 — 발행 사실을 실제로 만든다.
+
+    2026-09-14(plan_26091407 §4.5 · O5): `task_class` 인자. `hint_map_only` 로 부르면 lite 만 잰 셀의 통로를 밟는다 —
+    `collect_payload=True` 면 **실제 hint_collect** 가 manifest 의 증거에서 PAYLOAD.json(결손 목록 · 측정 구성)을 짓고
+    그 문서로 페이로드 커밋을 만든 뒤 `--payload` 로 넘긴다. 실물 순서(finalize → collect → hint 커밋 →
+    promotion_target)를 **따르되 두 단계는 대역**이다: ① work-manifest 는 `evidence_publisher finalize` 가 아니라
+    `_write_promotion_manifest` 가 짓는다(finalize 끝단은 evidence_publisher 자체검사가 map_only promotion-ready 까지 친다)
+    ② 페이로드 커밋은 `hint_branch publish` 가 아니라 git 배관(`_hint_payload_anchor`)으로 짓는다 — 그래서 hint_branch 의
+    트리 대조·4종 PII 스캔은 여기서 돌지 않는다(배포 평면 PII 는 hint_collect 자체검사가 강등 셀 실물 모양 출처로 친다).
+    `lockset` 을 주면 셀 lockset(+ 같은 셀 config.yaml `declared_axes`)을 쓰고 `seal --lockset` 으로 레시피 세그먼트를
+    선언과 대조한다. 원격은 격리 디렉터리 **안**에 둔다 — 실 저장소에는 태그·ref 가 하나도 생기지 않는다.
     """
     with tempfile.TemporaryDirectory(prefix="hint-binding-selftest.") as td:
-        root = Path(td).resolve()
+        root = (Path(td) / "repo").resolve()
+        root.mkdir()
         source_anchor = _hint_repo(root)
+        verdict = "PASS" if certificate is not None else "REFUTE"
+        payload_doc, payload_dir, out = None, None, {}
+        if collect_payload:
+            # promotion_target 은 페이로드 커밋을 가리키므로 **먼저** 증거만 담긴 manifest 로 수집한다.
+            manifest = _write_promotion_manifest(root, verdict, benchmark_extra, certificate=certificate,
+                                                 bench_report_text=bench_report_text, task_class=task_class,
+                                                 drop_evidence=drop_evidence)
+            out["collect"], payload_dir, payload_doc = _hint_collect_payload(root, manifest)
+            if out["collect"].returncode != 0:
+                return out
+            out["payload_doc"] = payload_doc
+            out["benchmark_md"] = (payload_dir / "03-benchmark.md").read_text(encoding="utf-8")
         # 계약 §6: 태그가 가리키는 것은 **페이로드 커밋**이다(소스 커밋이 아니다).
-        payload_anchor = _hint_payload_anchor(root, _HINT_TAG, source_anchor)
+        payload_anchor = _hint_payload_anchor(root, _HINT_TAG, source_anchor, payload_doc)
         # anchor_mode="source" 는 **음성대조**다: 발행자가 hint_branch publish 를 건너뛰고 소스
         # 트리 커밋에 봉인하려 한 그 형태(2026-09-07 native 3종). 게이트가 그것을 막아야 한다.
         anchor = source_anchor if anchor_mode == "source" else payload_anchor
         manifest = _write_promotion_manifest(
-            root, "PASS" if certificate is not None else "REFUTE", benchmark_extra,
+            root, verdict, benchmark_extra,
             certificate=certificate, bench_report_text=bench_report_text,
             promotion_target={"kind": "hint", "tag": _HINT_TAG,
-                              "topology": _HINT_TOPOLOGY, "anchor": anchor})
+                              "topology": _HINT_TOPOLOGY, "anchor": anchor},
+            task_class=task_class, drop_evidence=drop_evidence)
         # `--allow-new-slug` 는 2026-09-01 제거됐다 — 슬러그 정본표(CANONICAL_SLUGS)가 사라지고
         # 철자 충돌 대조가 **발행된 태그에서 파생**되도록 바뀌면서 '표에 없음'이라는 상태 자체가
         # 없어졌기 때문이다(plan_26090107 §6). 신규 슬러그는 이제 플래그 없이 통과한다.
         common = ("--tag", _HINT_TAG, "--topology", _HINT_TOPOLOGY, "--commit", anchor,
                   "--hf-repo", _HINT_HF_REPO, "--manifest", str(manifest))
-        out = {"anchor": anchor, "source_anchor": source_anchor,
-               "payload_anchor": payload_anchor,
-               "root": str(root), "manifest": str(manifest),
-               "create": _hint_cli(root, "create", *common)}
+        if payload_dir is not None:
+            common += ("--payload", str(payload_dir))
+        out.update({"anchor": anchor, "source_anchor": source_anchor,
+                    "payload_anchor": payload_anchor,
+                    "root": str(root), "manifest": str(manifest),
+                    "create": _hint_cli(root, "create", *common)})
         if out["create"].returncode != 0:
             return out
         recipe = root / "hints" / ".drafts" / "selftest_recipe.md"
         recipe.write_text(recipe_body, encoding="utf-8")
-        out["seal"] = _hint_cli(root, "seal", *common, "--recipe", str(recipe),
+        seal_extra: tuple = ()
+        if lockset is not None:
+            lk = root / "campaigns" / "selftest-camp" / "cells" / _HINT_CELL / "lockset.json"
+            lk.parent.mkdir(parents=True, exist_ok=True)
+            lk.write_text(json.dumps(lockset), encoding="utf-8")
+            # 실물 셀처럼 선언 계층을 곁에 둔다(ple 축의 출처 · 픽스처 모델은 PLE 가 없다 → none).
+            (lk.parent / "config.yaml").write_text("declared_axes:\n  ple_mode: none\n", encoding="utf-8")
+            seal_extra = ("--lockset", str(lk))
+        out["seal"] = _hint_cli(root, "seal", *common, "--recipe", str(recipe), *seal_extra,
                                 "--tagger-name", "selftest",
                                 "--tagger-email", "selftest@example.invalid")
         if out["seal"].returncode != 0:
@@ -590,7 +659,7 @@ def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = 
         # 그래서 프로브도 진짜로 원격을 만들고 거기에 push 한 뒤 파생한다. 원격을 만들지 않으면
         # "발행됐다"의 증거가 없어 카탈로그가 비는 것이 **정상 동작**이므로, 그 경로를 시험하려면
         # 발행 사실 자체를 만들어야 한다.
-        bare = root.parent / (root.name + ".remote.git")
+        bare = Path(td) / "remote.git"
         _hint_git(root, "init", "--bare", "-q", str(bare))
         _hint_git(root, "push", "-q", str(bare),
                   f"refs/tags/{_HINT_TAG}:refs/tags/{_HINT_TAG}")
@@ -598,6 +667,8 @@ def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = 
             [sys.executable, "-B", str(root / _HINT_CATALOG_REL), "--repo", str(root),
              "derive", "--remote", str(bare), "--generated-kst", "2026-01-01T00:00:00"],
             cwd=str(root), capture_output=True, text=True)
+        out["index"] = json.loads((root / "hints" / "index.json").read_text(encoding="utf-8"))
+        out["hints_md"] = (root / "HINTS.md").read_text(encoding="utf-8")
         out["verify"] = _hint_cli(root, "verify", "--manifest", str(manifest))
         return out
 
@@ -807,6 +878,127 @@ def _test_hint_map_only_promotion() -> None:
         f"§5 {hint_tag.MAP_ONLY_MARKER} 관측 게재")
     hint_tag._require_map_only_observation(
         "selftest", {"task_class": "full_benchmark", "identity": {}}, "마커 없음(무관)")
+
+
+def _real_lite_report_text(workdir: Path) -> str:
+    """**배포되는 렌더러**(`render_report.py --lite-only`)가 합성 lite raw 로 낸 경량 리포트 본문.
+
+    픽스처 문자열(`_LITE_BENCH_REPORT`)을 쓰지 않는 이유: lite 통로의 합격 기준은 "경량 리포트**만으로**
+    HINT_MISSING_LITE 가 발화하지 않는다" 이고, 그 리포트는 렌더러가 만든다 — 손으로 쓴 리포트로 초록이면 렌더러와
+    발행기 사이의 계약(측정 구성 표 · lite 지표 표 · `mode: lite`)이 갈라져도 모른다(픽스처가 실물보다 좁다).
+    값은 합성이며 GPU·docker·서빙에 닿지 않는다(provenance: lite raw 의 파일은 이 함수가 쓴다)."""
+    workdir.mkdir(parents=True, exist_ok=True)
+    files = {
+        "warm.json": json.dumps({"completed": 3, "failed": 0, "median_tpot_ms": 38.46, "output_throughput": 25.9}),
+        "cold.json": json.dumps({"completed": 1, "failed": 0, "median_ttft_ms": 120.0}),
+        "engine.log": "INFO GPU KV cache size: 154,192 tokens\nINFO Available KV cache memory: 20.5 GiB\n",
+        "cfg.yaml": "model: /models/selftest-org/selftest-model\nmax-model-len: 32768\n",
+        "env": "IMAGE_TAG=easy-vllm:0.0.0-selftest\nSERVING_MODEL_NAME=selftest-model\n",
+        "manifest.yaml": 'gpu_model: "NVIDIA GB10"\n',
+    }
+    for name, text in files.items():
+        (workdir / name).write_text(text, encoding="utf-8")
+    raw = {"topology": "single", "burst_n": 3, "config_name": _HINT_CELL, "measured_utc": "2026-01-01T00:00:00Z",
+           "backend": "openai", "endpoint": "/v1/completions", "config_yaml": str(workdir / "cfg.yaml"),
+           "env_file": str(workdir / "env"), "manifest": str(workdir / "manifest.yaml"),
+           "bench_warm_json": str(workdir / "warm.json"), "bench_cold_json": str(workdir / "cold.json"),
+           "engine_log": str(workdir / "engine.log"),
+           "nodes": [{"role": "main", "gpu_smi_used_mib": None, "gpu_smi_total_mib": None,
+                      "ram_total_kib": 128000000, "ram_avail_kib": 64000000}]}
+    (workdir / "raw.json").write_text(json.dumps(raw), encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k != "EASY_VLLM_VERSION"}
+    proc = subprocess.run([sys.executable, "-B", str(CLAUDE_DIR.parent / _RENDER_REPORT_REL), "--lite-only",
+                           "--lite-raw-json", str(workdir / "raw.json"), "--stdout"],
+                          capture_output=True, text=True, timeout=120, env=env)
+    _require(proc.returncode == 0 and proc.stdout.strip(),
+             f"render_report --lite-only failed on a synthetic lite raw: rc={proc.returncode} "
+             f"stderr={proc.stderr[-600:]!r}")
+    return proc.stdout
+
+
+# 지도 발행 본문 — 린터 L1~L5 를 통과하는 공용 본문에 §5 관측 마커를 싣는다(map_only 대가 · hint_tag 가 집행).
+_HINT_MAP_ONLY_RECIPE_BODY = _HINT_RECIPE_BODY.replace(
+    "## 6. 재검증",
+    "OBSERVATION-ONLY — 이 절의 수치는 lite 스냅샷 관측이며 baseline·권고가 아니다(합성 픽스처).\n\n## 6. 재검증")
+_HINT_MAP_ONLY_BENCHMARK = {"mode": "lite", "verdict": None}
+_HINT_MAP_ONLY_LOCKSET = {"id": _HINT_CELL, "provenance": "explorer-phase2", "quantization": "fp8",
+                          "max_model_len": 32768, "kv_cache_quant": "fp8"}
+
+
+def _test_hint_map_only_publication() -> None:
+    """O5 — lite 만 잰 셀의 hint 가 격리 원격에서 create→seal→catalog→verify 를 **완주**한다(plan_26091407 §4.5 · §7 O5).
+
+    2026-09-14 신설. 종전에는 `hint_map_only` 가 승격 게이트는 통과하는데 seal 이 HINT_CERTIFICATE_EVIDENCE_MISSING 으로
+    죽었다(audit_26091323 §1 · work-manifest 13건 전부 · 이 통로로 봉인된 태그 0). 이 시험은 **실물 순서**를 밟는다:
+    배포되는 render_report 가 경량 리포트를 쓰고 → 실제 hint_collect 가 PAYLOAD(결손 · 측정 구성)를 짓고 → 그 페이로드
+    커밋에 seal 한다(셀 lockset 과 레시피 대조) → 격리 bare 원격에 push → 카탈로그 파생 → verify.
+    음성대조: 경량 리포트가 바인딩되지 않은 map_only 는 seal 이 여전히 거부 · lockset 선언과 어긋난 이름은 거부.
+    """
+    with tempfile.TemporaryDirectory(prefix="lite-report-selftest.") as td:
+        lite_text = _real_lite_report_text(Path(td))
+    _require("mode: lite" in lite_text and "| bench_mode | lite |" in lite_text,
+             f"real lite report lost its mode header / measurement-config row: {lite_text[:600]!r}")
+
+    out = _hint_publish_probe(dict(_HINT_MAP_ONLY_BENCHMARK), bench_report_text=lite_text,
+                              recipe_body=_HINT_MAP_ONLY_RECIPE_BODY, task_class="hint_map_only",
+                              drop_evidence=("simlog",), collect_payload=True, lockset=dict(_HINT_MAP_ONLY_LOCKSET))
+    for step in ("collect", "create", "seal", "catalog", "verify"):
+        proc = out.get(step)
+        _require(proc is not None and proc.returncode == 0,
+                 f"hint_map_only (lite-only cell) publication died at `{step}`: "
+                 f"rc={getattr(proc, 'returncode', None)} stdout={getattr(proc, 'stdout', '')[-900:]!r} "
+                 f"stderr={getattr(proc, 'stderr', '')[-900:]!r}")
+    _require("certificate_ref: ../benchmark/bench_report_selftest.md" in out["tag_object"],
+             f"map_only footer did not bind the lite bench_report: {out['tag_object'][-500:]!r}")
+    seal_text = (out["seal"].stdout or "") + (out["seal"].stderr or "")
+    _require("HINT_MISSING_LITE" not in seal_text,
+             f"the lite bench_report alone must satisfy the lite-metrics requirement (HINT_MISSING_LITE fired): "
+             f"{seal_text[-900:]!r}")
+    _require("lockset(" in seal_text and "HINT_RECIPE_SEGMENT_MISMATCH" not in seal_text,
+             f"seal did not derive the recipe segment from the cell lockset: {seal_text[-900:]!r}")
+    payload = out["payload_doc"]
+    mc = payload.get("measurement_config") or {}
+    _require("BENCH_MODE_LITE" in payload.get("missing", []) and "HINT_MISSING_LITE" not in payload.get("missing", [])
+             and mc.get("bench_mode") == "lite" and mc.get("bench_mode_kind") == "declared-lite"
+             and mc.get("repeats") == 1 and mc.get("bench_tool") == "vllm-bench-serve"
+             and mc.get("downgrade_reason") is None,
+             f"PAYLOAD must carry BENCH_MODE_LITE and the parsed measurement config: {payload!r}")
+    md = out["benchmark_md"]
+    _require(all(row in md for row in ("| `bench_mode` | lite |", "| `도구` | vllm-bench-serve |",
+                                       "| `반복 N` | 1 |", "| `downgrade_reason` | 미기재 |")),
+             f"03-benchmark.md measurement-config table is missing bench_mode/tool/repeats/downgrade_reason rows: {md!r}")
+    entries = [e for e in out["index"].get("hints", []) if e.get("tag") == _HINT_TAG]
+    _require(len(entries) == 1 and entries[0].get("bench_mode") == "lite(선언)"
+             and "BENCH_MODE_LITE" in (entries[0].get("missing") or []),
+             f"catalog did not derive the bench_mode column from the remote tag payload: {out['index']!r}")
+    _require("| bench_mode |" in out["hints_md"] and "| lite(선언) |" in out["hints_md"],
+             f"HINTS.md row lacks the derived bench_mode column: {out['hints_md'][-600:]!r}")
+
+    # ★음성대조 1 — 경량 리포트가 바인딩되지 않은 map_only: 결손을 선언해 create 는 지나가도 seal 은 거부한다.
+    neg = _hint_publish_probe(dict(_HINT_MAP_ONLY_BENCHMARK), bench_report_text=lite_text,
+                              recipe_body=_HINT_MAP_ONLY_RECIPE_BODY, task_class="hint_map_only",
+                              drop_evidence=("simlog", "bench_report"), collect_payload=True)
+    _require(neg.get("collect") is not None and neg["collect"].returncode == 0
+             and "HINT_MISSING_BENCH_REPORT" in (neg.get("payload_doc") or {}).get("missing", []),
+             f"negative-control fixture did not declare the missing report: {neg.get('collect')!r}")
+    _require(neg.get("create") is not None and neg["create"].returncode == 0,
+             f"negative-control create should pass on a declared absence: {getattr(neg.get('create'), 'stdout', '')!r}")
+    seal = neg.get("seal")
+    _require(seal is not None and seal.returncode != 0
+             and "HINT_CERTIFICATE_EVIDENCE_MISSING" in (seal.stdout or "")
+             and "publish-lite-report" in (seal.stdout or ""),
+             f"a map_only hint without a bound lite report was sealed: rc={getattr(seal, 'returncode', None)} "
+             f"stdout={getattr(seal, 'stdout', '')[-700:]!r}")
+
+    # ★음성대조 2 — 셀 lockset 선언과 어긋난 레시피 이름은 인증서가 없어도 거부한다(이름은 파생값이다).
+    neg = _hint_publish_probe(dict(_HINT_MAP_ONLY_BENCHMARK), bench_report_text=lite_text,
+                              recipe_body=_HINT_MAP_ONLY_RECIPE_BODY, task_class="hint_map_only",
+                              drop_evidence=("simlog",), collect_payload=True,
+                              lockset=dict(_HINT_MAP_ONLY_LOCKSET, max_model_len=65536))
+    seal = neg.get("seal")
+    _require(seal is not None and seal.returncode != 0 and "HINT_RECIPE_SEGMENT_MISMATCH" in (seal.stdout or ""),
+             f"a recipe segment contradicting the cell lockset was sealed: rc={getattr(seal, 'returncode', None)} "
+             f"stdout={getattr(seal, 'stdout', '')[-700:]!r}")
 
 
 def _test_policy_and_evidence_lifecycle() -> None:
@@ -2135,6 +2327,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_certificate_run_resolution()
     _test_hint_binding_source()
     _test_hint_map_only_promotion()
+    _test_hint_map_only_publication()
     _test_policy_and_evidence_lifecycle()
     _test_provider_turn_exhaustion_reachable()
     _test_execution_approval_authorization()

@@ -276,9 +276,11 @@ def _build_serve_args(candidate: dict) -> list:
     if candidate.get("max_num_batched_tokens") is not None:
         args += ["--max-num-batched-tokens", str(int(candidate["max_num_batched_tokens"]))]
 
-    # ── gpu-memory-utilization (디바이스 풀 상한 = safety_margin) ───────
-    # 통합메모리(GB10)는 시스템이 일부 점유 → vLLM 기본 0.92 가 free 초과 OOM.
-    # SKILL §5: gmu 는 풀 상한(=margin)으로만 emit; 실제 KV 는 절대 클램프가 제어.
+    # ── gpu-memory-utilization (트라이얼 gmu — 기본값은 recipe 의 deploy_gmu = target_gpu.target_gmu) ───────
+    # 통합메모리(GB10)는 시스템이 일부 점유 → vLLM 기본 0.92 가 기동 전 free ≥ ceil(total×gmu) 검사에서 막힌다.
+    # 클램프가 있으면 실제 KV 는 절대 클램프가 제어한다(소스상 gmu 가 관여하는 자리는 그 기동 전 검사다 · 총량 cap 은
+    # 관측된 작용이고 기전 미확정 · 2026-09-14 plan_26091407 F5·§4.3 정정: 종전 주석의 "=safety_margin" 은 예산 검증
+    # 게이트 승수와 배포 gmu 를 한 이름으로 불렀다).
     gmu = candidate.get("gpu_memory_utilization")
     if gmu is not None:
         args += ["--gpu-memory-utilization", str(float(gmu))]
@@ -465,8 +467,10 @@ def _audit_emitted(candidate: dict, docker_cmd: list) -> None:
     caps = candidate.get("model_capabilities") or {}
 
     # (candidate 키, 기대 플래그) — 값-무관, 플래그 존재만 확인.
-    # gpu-memory-utilization 은 항상 필수 — startup free-memory 게이트(free ≥ gmu×total) + 총 cap.
-    # vLLM 은 클램프 설정 시 gmu 를 *KV 사이징*에만 무시(config/cache.py)할 뿐, startup 검증엔 여전히 쓴다(E2E 실증).
+    # gpu-memory-utilization 은 항상 필수 — startup free-memory 게이트(기동 전 free ≥ ceil(total×gmu)).
+    # vLLM 은 클램프 설정 시 KV 프로파일링을 건너뛰어 gmu 를 KV 사이징에 쓰지 않을 뿐, 기동 전 검사엔 여전히 쓴다(E2E 실증).
+    # 총량 cap 은 관측된 작용(한 셀 관측 · 유효맥락은 references/kv-clamp.md §1)이고 소스에서 기전은 미확정이다(2026-09-14 · plan_26091407 F5 —
+    # 종전 이 줄의 "+ 총 cap" 은 기전 주장이었다 · 위 _build_serve_args 주석과 같은 정정).
     field_flags = [
         ("gpu_memory_utilization", "--gpu-memory-utilization"),
         ("max_model_len", "--max-model-len"),

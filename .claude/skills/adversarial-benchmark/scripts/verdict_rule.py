@@ -32,6 +32,22 @@
 #   ⇒ primary 는 항상 유한 양수이며, 따라서 `floor > 0` 과 `ratio ≠ null` 이 **구조적으로 보장**된다.
 #
 # like-with-like: spec on 서브는 R_token, off 서브는 R_fp 기준(루프라인이 이미 accept_len 반영해 산출).
+# ★ spec 축의 **선언**을 입력으로 받는다(`--spec-declared on|off|unknown` · 2026-09-14 · plan_26091407 §4.1):
+#   accept_len 은 루프라인에서 R_token = accept_len × R_fp 와 expected_achievable = realistic_fraction ×
+#   accept_len × R_fp **양쪽에** 곱해진다 — E·c 가 없으면 expected 가 primary 이므로 accept_len 은
+#   물리 상한만이 아니라 **합격선 자체**를 움직인다. 그래서 그 값의 출처(roofline.accept_len_source)를
+#   선언과 대조해 분기한다:
+#     off                         → R_fp(결손 아님 — spec 이 없으니 1.0 이 정상이다)
+#     on ∧ accept_len 실측/명시   → R_token (명시는 accept_len_source=declared 로 드러난다)
+#     on ∧ accept_len 결손/무효   → NEEDS_RUBRIC · reason_code=SPEC_ACCEPT_LEN_MISSING
+#                                   (failure_axis=establish · **자동 대체 ✗** — 1.0 으로 메우면 상한과
+#                                    합격선이 함께 내려가 판정이 조용히 틀린다)
+#     unknown(지문 없는 과거 sweep) → 종전 동작 보존(measured.spec_on 이 고른다) · 출처만 표시
+#   off ∧ 실측 spec_on 은 선언↔실측 불일치다 — 측정 > 선언(sweep_bench `_measured_first` 와 같은 규율)으로
+#   R_token 을 쓰고 불일치를 **기재**한다(게이트로 격상하지 않는다).
+#   off ∧ 실측 spec_off 인데 accept_len > 1(대개 사람 명시)이 곱해졌으면 상한은 R_fp 이되 그 사실을
+#   `spec_axis.mismatch` 에 기재한다("1.0 이 정상" 이라고 서술하지 않는다 · 게이트 ✗).
+#   SPEC_ACCEPT_LEN_MISSING 의 **소유는 이 파일**이다 — 다른 곳은 이 상수를 인용만 한다.
 # E-search 상태 표면(--e-search hit|empty|no): 외부검색(E) 시도 여부를 출력에 *기록*한다 —
 #   roofline-only 강등(reference/target 부재)이 침묵으로 지나가지 않게 warning 필드로 표면화(self-preference 차단).
 #   verdict 자체는 불변(warning-only — 결정론 게이트 보존). egress-restricted 서브 = --e-search empty 로
@@ -42,7 +58,13 @@
 #     전부 기록하되(balance.pass=false · gates_verdict=false) verdict 를 뒤집지 않는다. weak/explicit 은
 #     종전 그대로 REFUTE(failure_axis="balance"). 출력의 balance.gates_verdict 가 어느 쪽인지 스스로 밝힌다.
 # CONTRACT: 출력 verdict JSON. stdlib only. `--self-test` = 결정론 단위 자체검사(픽스처 파일 불요).
-import argparse, json, math, sys
+import argparse, json, math, os, sys
+
+# accept_len 출처 어휘·유효성 술어의 **소유는 roofline.py**(그 필드를 내는 곳)다 — 여기서 목록을 다시
+# 적지 않고 import 한다. 두 벌이 되면 한쪽만 늘어나는 순간 판정기가 새 출처를 모르는 값으로 읽는다.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from roofline import (ACCEPT_LEN_SOURCES, ACCEPT_LEN_VALUE_SOURCES,  # noqa: E402
+                      accept_len_state)
 
 # 사다리 칸 라벨 — **한 곳에만** 적는다(같은 개념이 두 곳에 손으로 적히면 매직넘버 결함 칸).
 SRC_E = "E(external_reference)"
@@ -50,6 +72,11 @@ SRC_C = "c(user_target)"
 SRC_EXPECTED = "expected_achievable(roofline×MBU)"
 
 AUTHORITIES = ("weak", "explicit", "explore")
+
+# spec 축 선언의 닫힌 값역 — sweep_index.meta.spec_declared 의 값이 그대로 들어온다(부재 = unknown).
+SPEC_DECLARED = ("on", "off", "unknown")
+# 사유 코드(기계 분기용) — **소유는 이 파일**. judge_bench·testlog·E2E 술어는 인용만 한다.
+REASON_SPEC_ACCEPT_LEN_MISSING = "SPEC_ACCEPT_LEN_MISSING"
 
 AUTHORITY_NOTE = {
     "weak": "weak(기본): 외부 레퍼런스(E)가 정본",
@@ -119,7 +146,8 @@ def _finite_measure(raw):
 # D3 — CLI 입력 계약 (loud reject · fail-closed)
 # =============================================================================
 
-def _validate_cli(authority, reference_tps, target_tps, tolerance, node_vram_gib, balance_tol):
+def _validate_cli(authority, reference_tps, target_tps, tolerance, node_vram_gib, balance_tol,
+                  spec_declared="unknown"):
     """(opts, errors) 반환. errors 가 비지 않으면 호출부가 exit 2 한다. 순수함수.
 
     ★ `--target-tps 0` 을 explore 로 **자동 매핑하지 않는다**(loud reject) — 트리거는 사용자만
@@ -154,6 +182,10 @@ def _validate_cli(authority, reference_tps, target_tps, tolerance, node_vram_gib
                       "루브릭 값과 무관하게 **공허 PASS** 가 된다(같은 결함의 두 번째 입구)." % (tolerance,))
         tol_v = None
 
+    if spec_declared not in SPEC_DECLARED:
+        errors.append("--spec-declared 는 %s 중 하나여야 한다(받은 값: %r)"
+                      % ("|".join(SPEC_DECLARED), spec_declared))
+
     node_vals = None
     if node_vram_gib:
         try:
@@ -173,8 +205,77 @@ def _validate_cli(authority, reference_tps, target_tps, tolerance, node_vram_gib
         "tolerance": tol_v,
         "node_vram": node_vals,
         "balance_tol": balance_tol,
+        "spec_declared": spec_declared,
     }
     return opts, errors
+
+
+# =============================================================================
+# spec 축 — 선언 × accept_len 출처 → 물리 상한 선택 · 결손 판정 (순수함수 · 2026-09-14)
+# =============================================================================
+
+def resolve_spec_axis(spec_declared, roofline, measured):
+    """spec 축을 해소한다. 순수함수 — I/O·전역 없음.
+
+    반환 dict(판정 산출물 `rubric.spec_axis` 로 그대로 실린다 — 출처 표시):
+      declared            : on|off|unknown (입력 그대로)
+      accept_len          : roofline.accept_len (루프라인이 R_token·expected 에 곱한 값)
+      accept_len_source   : roofline.accept_len_source (구세대 roofline 은 None)
+      accept_len_evidence : roofline.accept_len_evidence
+      measured_spec_on    : measured.spec_on (측정이 본 spec 축)
+      limit               : 'R_token' | 'R_fp' | None(결손 — 상한을 세울 수 없다)
+      basis               : 선택 근거 한 줄
+      missing             : True 면 SPEC_ACCEPT_LEN_MISSING
+      mismatch            : 선언↔실측 불일치 기재(없으면 None)
+
+    ★ 출처 없는 accept_len 은 실측으로 승격하지 않는다 — `accept_len_source` 가 없는 구세대 roofline 은
+      값이 2.48 이어도 "누가 적었는지" 를 말하지 못한다. 그래서 on 에서는 결손이다(unknown 은 종전 보존).
+    """
+    src = roofline.get("accept_len_source")
+    raw = roofline.get("accept_len")
+    state, al_val = accept_len_state(raw)
+    measured_spec_on = bool(measured.get("spec_on"))
+    has_value = src in ACCEPT_LEN_VALUE_SOURCES and state == "valid"
+    axis = {"declared": spec_declared, "accept_len": raw, "accept_len_source": src,
+            "accept_len_evidence": roofline.get("accept_len_evidence"),
+            "measured_spec_on": measured_spec_on,
+            "limit": None, "basis": None, "missing": False, "mismatch": None}
+    if spec_declared == "on":
+        if has_value:
+            axis["limit"] = "R_token"
+            axis["basis"] = "spec 선언 on ∧ accept_len 출처=%s" % src
+        else:
+            axis["missing"] = True
+            if src not in ACCEPT_LEN_SOURCES:
+                why = "roofline.accept_len_source 부재(구세대 산출물 — 값의 출처를 말하지 못한다)"
+            elif src in ACCEPT_LEN_VALUE_SOURCES:
+                why = "accept_len=%r 무효(유한 ∧ ≥1 아님)" % (raw,)
+            else:
+                why = "accept_len 출처=%s(실측·명시 없음)" % src
+            axis["basis"] = "spec 선언 on 인데 %s" % why
+    elif spec_declared == "off":
+        if measured_spec_on:
+            # 선언↔실측 불일치 — 측정 > 선언. 기재하고 게이트로 격상하지 않는다.
+            axis["limit"] = "R_token"
+            axis["basis"] = "선언 off ↔ 실측 spec_on — 측정 우선"
+            axis["mismatch"] = ("YES(declared=off · measured spec_on accept_len=%r)"
+                                % (measured.get("accept_len"),))
+        elif has_value and al_val > 1.0:
+            # 선언 off ∧ 실측 spec_off 인데 루프라인에는 1 을 넘는 accept_len(대개 사람 명시)이 곱해졌다 —
+            #   R_token·expected_achievable(합격선)이 그 값만큼 올라가 있다. 상한은 실측대로 R_fp 로 두되
+            #   "1.0 이 정상" 이라고 서술하면 거짓이므로 **그대로 기재**한다(게이트 ✗ · 2026-09-14 리뷰 정정).
+            axis["limit"] = "R_fp"
+            axis["basis"] = ("선언 off ∧ 실측 spec_off 인데 accept_len 출처=%s 값=%r 이 R_token·expected_achievable "
+                             "에 곱해졌다 — 상한은 R_fp" % (src, raw))
+            axis["mismatch"] = "YES(declared=off · accept_len_source=%s accept_len=%r)" % (src, raw)
+        else:
+            axis["limit"] = "R_fp"
+            axis["basis"] = "spec 미선언(off) — accept_len 1.0 이 정상(결손 아님)"
+    else:
+        # unknown: 지문 없는 과거 sweep — 오늘의 동작(measured.spec_on)을 보존하고 출처만 표시한다.
+        axis["limit"] = "R_token" if measured_spec_on else "R_fp"
+        axis["basis"] = "spec 선언 지문 부재(unknown) — 종전 규율(measured.spec_on) 보존"
+    return axis
 
 
 # =============================================================================
@@ -246,6 +347,7 @@ def build_verdict(measured, roofline, opts):
             "reason": "측정 실패(completed=%s failed=%s decode_tps=%r) — 재측정 필요" % (
                 measured.get("completed"), measured.get("failed"), measured.get("decode_tps")),
             "measured_decode_tps": measured.get("decode_tps"), "rubric": None,
+            "reason_code": None,
             "e_search": e_search,
         }
 
@@ -264,6 +366,34 @@ def build_verdict(measured, roofline, opts):
         "loop_until_done": loop_until_done,
         "candidates": candidates,
     }
+    spec_axis = resolve_spec_axis(opts.get("spec_declared", "unknown"), roofline, measured)
+    rubric_common["spec_axis"] = spec_axis
+
+    # --- spec 선언 ∧ accept_len 결손 → 루브릭 못 세움 (SPEC_ACCEPT_LEN_MISSING) ---
+    # ★ 사다리 판정보다 **앞**이다: accept_len 이 expected_achievable 에도 곱해지므로 결손이면 expected 칸
+    #   자체가 틀린 값이고, E·c 가 낙찰돼도 물리 상한(R_token)을 세울 수 없다. 1.0 으로 대체하지 않는다.
+    if spec_axis["missing"]:
+        rub = dict(rubric_common)
+        rub.update({"primary": None, "source": None, "floor": None, "ratio_M_over_primary": None})
+        return {
+            "verdict": "NEEDS_RUBRIC", "failure_axis": "establish",
+            "reason_code": REASON_SPEC_ACCEPT_LEN_MISSING,
+            "structural_or_strategy": None,
+            "reason": ("루브릭 못 세움(%s): %s. accept_len 은 R_token 과 expected_achievable"
+                       "(= realistic_fraction × accept_len × R_fp) 양쪽에 곱해지므로 1.0 으로 메우면 "
+                       "물리 상한과 합격선이 함께 내려간다 — 자동 대체하지 않는다."
+                       % (REASON_SPEC_ACCEPT_LEN_MISSING, spec_axis["basis"])),
+            "measured_decode_tps": M,
+            "measured_spec_on": spec_on,
+            "measured_accept_len": accept_M,
+            "rubric": rub,
+            "authority": authority,
+            "e_search": e_search,
+            "ask_user": ("spec(speculative) 이 선언된 서빙인데 accept_len 실측이 없습니다. 판정 레벨의 "
+                         "측정이 수용길이를 싣도록 재측정하거나(lite 레그 `vllm bench serve` 의 "
+                         "spec_decode_acceptance_length), 값을 알고 있으면 `judge_bench.sh --accept-len L` "
+                         "로 명시하세요(출처는 declared 로 기록됩니다)."),
+        }
 
     # --- establish 실패 → 사용자 백스톱 ---
     # ★ 상류 산출물(roofline.expected_achievable)의 invalid 는 exit 하지 않는다 — 우리 CLI 입력이
@@ -276,6 +406,7 @@ def build_verdict(measured, roofline, opts):
             "verdict": "NEEDS_RUBRIC", "failure_axis": "establish",
             "structural_or_strategy": None,
             "reason": "루브릭 못 세움: 사다리의 유효 후보가 없다(부재 또는 invalid) → (c) 사용자 백스톱 필요",
+            "reason_code": None,
             "measured_decode_tps": M, "rubric": rub,
             "authority": authority,
             "e_search": e_search,
@@ -300,9 +431,11 @@ def build_verdict(measured, roofline, opts):
     # "루브릭 못 *세움*" 축). 이는 M 이 나쁜 것이 아니므로 REFUTE 가 아니라 NEEDS_RUBRIC 이며,
     # 사용자에게 되묻는다. 판정을 조용히 뒤집지 않고 필요 대역폭을 역산해 **왜** 불가능한지 보인다.
     #   · 비교 대상 R 은 spec 축을 따른다(spec on → R_token · off → R_fp) — like-with-like 의 기존 규율.
+    #     축의 선택은 `resolve_spec_axis` 한 곳이 한다(선언 × accept_len 출처 · unknown 은 종전 measured.spec_on).
     #   · R 을 산출할 수 없으면(루프라인 부재) 검사를 건너뛴다 — 없는 근거로 기각하지 않는다.
-    R_phys = R_token if spec_on else R_fp
-    physical = {"limit_source": "R_token(spec on)" if spec_on else "R_fp(spec off)",
+    _limit_token = spec_axis["limit"] == "R_token"
+    R_phys = R_token if _limit_token else R_fp
+    physical = {"limit_source": "R_token(spec on)" if _limit_token else "R_fp(spec off)",
                 "limit_tps": R_phys, "exceeds": False, "required_bandwidth_gbps": None}
     if isinstance(R_phys, (int, float)) and R_phys > 0 and primary > R_phys:
         physical["exceeds"] = True
@@ -316,6 +449,7 @@ def build_verdict(measured, roofline, opts):
         _req = physical["required_bandwidth_gbps"]
         return {
             "verdict": "NEEDS_RUBRIC", "failure_axis": "establish",
+            "reason_code": None,
             "structural_or_strategy": None,
             "reason": ("루브릭 못 세움(물리 초과): 정본 문턱 %s t/s [%s] 가 이 구성의 물리 상한 %s t/s [%s] 를 "
                        "넘는다%s. 도달 불가능한 문턱으로 낸 REFUTE 는 측정이 아니라 루브릭의 결함이다."
@@ -387,6 +521,7 @@ def build_verdict(measured, roofline, opts):
     out = {
         "verdict": verdict,
         "failure_axis": axis,
+        "reason_code": None,
         "structural_or_strategy": sos if verdict == "REFUTE" else None,
         "measured_decode_tps": M,
         "measured_spec_on": spec_on,
@@ -450,6 +585,7 @@ def build_verdict(measured, roofline, opts):
 
 # =============================================================================
 # 자체검사 (--self-test) — plan_26082219 §6.1 T1~T15 + T16(explore 밸런스=서술 · U1 후속)
+#   + T17(물리 초과) + T18~T23(spec 축 선언 × accept_len 출처 · plan_26091407 §4.1)
 # =============================================================================
 
 _FIX_MEASURED = {"decode_tps": 34.0, "spec_on": True, "accept_len": 1.85,
@@ -461,7 +597,7 @@ _FIX_ROOFLINE = {"R_fp": 30.0, "R_token": 45.0, "expected_achievable": 12.6,
 def _st_opts(**kw):
     """자체검사용: _validate_cli 를 **실제로** 통과시킨 opts 를 만든다(검증기를 우회하지 않는다)."""
     base = {"authority": "weak", "reference_tps": None, "target_tps": None,
-            "tolerance": 0.15, "node_vram_gib": None, "balance_tol": 0.10}
+            "tolerance": 0.15, "node_vram_gib": None, "balance_tol": 0.10, "spec_declared": "unknown"}
     extra = {"spec_supported": kw.pop("spec_supported", False), "e_search": kw.pop("e_search", "no")}
     base.update(kw)
     opts, errors = _validate_cli(**base)
@@ -643,13 +779,145 @@ def _self_test():
         _, e = _st_opts(reference_tps=41.0, tolerance=bad)
         check("T15[%r]" % bad, bool(e), "--tolerance %r 가 거부되지 않았다(공허 PASS 두 번째 입구)" % bad)
 
+    # =========================================================================
+    # T18~ spec 축 선언 × accept_len 출처 (2026-09-14 · plan_26091407 §4.1 · 항목 1)
+    #   픽스처 수치는 승자 셀(nv4-bf-262k-res-kv8g-gmu80)의 **모양**을 그대로 쓴다: R_fp=45.03 ·
+    #   실측 accept_len 2.4818 → R_token 111.75 · E=53.7(explore) · M=46.7. E 가 R_fp 보다 크고 R_token
+    #   보다 작다 — accept_len 을 1.0 으로 떨어뜨리면 **물리 초과 NEEDS_RUBRIC 으로 뒤집히는** 구간이다.
+    # =========================================================================
+    _acc = 2.481818181818182
+    _rfp = 45.03
+    def _roof(accept, source, evidence=None):
+        r = {"R_fp": _rfp, "R_token": round(accept * _rfp, 2),
+             "expected_achievable": round(0.35 * accept * _rfp, 2),
+             "accept_len": accept, "gpu_model": "NVIDIA GB10", "tp": 2, "bandwidth_gbps": 273.0}
+        if source is not None:
+            r["accept_len_source"] = source
+            r["accept_len_evidence"] = evidence
+        return r
+    _m_on = {"decode_tps": 46.7, "spec_on": True, "accept_len": _acc,
+             "completed": 16, "failed": 0, "measurement_ok": True}
+    _m_absent = {"decode_tps": 46.7, "spec_on": False, "accept_len": None,
+                 "completed": 16, "failed": 0, "measurement_ok": True}
+    _m_off = {"decode_tps": 20.0, "spec_on": False, "accept_len": None,
+              "completed": 16, "failed": 0, "measurement_ok": True}
+
+    def _nr_spec(v):
+        return (v and v["verdict"] == "NEEDS_RUBRIC" and v.get("failure_axis") == "establish"
+                and v.get("reason_code") == REASON_SPEC_ACCEPT_LEN_MISSING
+                and v["rubric"]["floor"] is None and v["rubric"]["primary"] is None
+                and v["rubric"]["spec_axis"]["missing"] is True)
+
+    # --- T18 ★: spec 선언 on ∧ accept_len 결손(roofline 출처=absent) → NEEDS_RUBRIC + SPEC_ACCEPT_LEN_MISSING ---
+    v, e = run("T18", measured=_m_absent, roofline=_roof(1.0, "absent", "level_01/measured.json accept_len=None"),
+               authority="explore", reference_tps=53.7, spec_declared="on", e_search="hit")
+    check("T18", not e and _nr_spec(v) and "expected_achievable" in (v.get("reason") or ""),
+          "spec on ∧ 결손이 SPEC_ACCEPT_LEN_MISSING 이 아니다: %r" % (
+              e or {"verdict": (v or {}).get("verdict"), "code": (v or {}).get("reason_code")}))
+    # T18b: 출처가 값을 주장해도 값이 무효(<1·NaN)면 결손이다 — 조용히 1.0 으로 눕히지 않는다
+    for bad in (0.5, float("nan"), True):
+        v, e = run("T18b", measured=_m_absent, roofline=_roof(1.0, "measured") | {"accept_len": bad},
+                   authority="explore", reference_tps=53.7, spec_declared="on")
+        check("T18b[%r]" % (bad,), not e and _nr_spec(v),
+              "무효 accept_len=%r 가 결손으로 잡히지 않았다: %r" % (bad, e or (v or {}).get("verdict")))
+    # T18c: 출처 필드 없는 구세대 roofline(값 2.48) — on 에서는 실측으로 승격하지 않는다
+    v, e = run("T18c", measured=_m_on, roofline=_roof(_acc, None),
+               authority="explore", reference_tps=53.7, spec_declared="on")
+    check("T18c", not e and _nr_spec(v) and "부재" in v["rubric"]["spec_axis"]["basis"],
+          "출처 없는 accept_len 이 실측으로 승격됐다: %r" % (e or (v or {}).get("rubric", {}).get("spec_axis")))
+    # T18d 음성대조: 같은 입력에서 accept_len 이 **실측 승계**면 결손이 아니다 — R_token 111.75 로 PASS
+    v, e = run("T18d", measured=_m_on, roofline=_roof(_acc, "measured", "level_01/measured.json"),
+               authority="explore", reference_tps=53.7, spec_declared="on", e_search="hit")
+    check("T18d", not e and v and v["verdict"] == "PASS" and v.get("reason_code") is None
+          and abs(v["rubric"]["physical"]["limit_tps"] - 111.75) < 0.02   # 픽스처 반올림(45.03×2.4818=111.76)
+          and v["rubric"]["physical"]["limit_source"].startswith("R_token")
+          and v["rubric"]["spec_axis"]["accept_len_source"] == "measured"
+          and v["rubric"]["floor"] > 0 and v["rubric"]["ratio_M_over_primary"] is not None,
+          "실측 승계가 R_token PASS 로 판정되지 않았다: %r" % (
+              e or {"verdict": (v or {}).get("verdict"), "physical": ((v or {}).get("rubric") or {}).get("physical")}))
+
+    # --- T19 ★: spec 미선언(off) — 1.0 은 결손이 아니다 → R_fp 상한 · NEEDS_RUBRIC 아님 ---
+    v, e = run("T19", measured=_m_off, roofline=_roof(1.0, "declared-absent", "sweep_index.meta.spec_declared=off"),
+               authority="explore", spec_declared="off", e_search="empty")
+    check("T19", not e and v and v["verdict"] == "PASS" and v.get("reason_code") is None
+          and v["rubric"]["physical"]["limit_source"].startswith("R_fp")
+          and v["rubric"]["spec_axis"]["missing"] is False
+          and v["rubric"]["spec_axis"]["accept_len_source"] == "declared-absent"
+          and v["rubric"]["floor"] > 0,
+          "spec off 가 R_fp 정상 판정이 아니다: %r" % (
+              e or {"verdict": (v or {}).get("verdict"), "axis": ((v or {}).get("rubric") or {}).get("spec_axis")}))
+    # T19b: off 인데 실측이 spec_on — 측정 우선(R_token) · 불일치 **기재**(게이트 ✗)
+    v, e = run("T19b", measured=_m_on, roofline=_roof(_acc, "measured"),
+               authority="explore", reference_tps=53.7, spec_declared="off")
+    check("T19b", not e and v and v["verdict"] == "PASS"
+          and v["rubric"]["physical"]["limit_source"].startswith("R_token")
+          and (v["rubric"]["spec_axis"]["mismatch"] or "").startswith("YES"),
+          "선언 off ↔ 실측 on 불일치가 측정 우선·기재로 처리되지 않았다: %r" % (
+              e or ((v or {}).get("rubric") or {}).get("spec_axis")))
+    # T19c: off ∧ 실측 spec_off 인데 사람 명시 accept_len 3.0 이 곱해졌다 — 상한은 R_fp 이되 basis 가
+    #   "1.0 이 정상" 이라고 거짓 서술하지 않고 mismatch 에 기재한다(게이트 ✗ · 판정 동작은 종전과 같다).
+    _roof_c = {"R_fp": 30.0, "R_token": 90.0, "expected_achievable": 31.5, "accept_len": 3.0,
+               "accept_len_source": "declared", "accept_len_evidence": "argv(--accept-len)"}
+    v, e = run("T19c", measured=_m_off, roofline=_roof_c, authority="explore", spec_declared="off")
+    _ax = ((v or {}).get("rubric") or {}).get("spec_axis") or {}
+    check("T19c", not e and v and _ax.get("limit") == "R_fp"
+          and "정상" not in (_ax.get("basis") or "") and "expected_achievable" in (_ax.get("basis") or "")
+          and (_ax.get("mismatch") or "").startswith("YES(declared=off · accept_len_source=declared"),
+          "off ∧ 명시 accept_len>1 이 '1.0 이 정상' 으로 거짓 서술되거나 기재되지 않았다: %r" % (e or _ax))
+    # T19d 음성대조: 같은 off 에서 accept_len 이 declared-absent 1.0 이면 mismatch 는 없고 basis 는 '정상' 이다
+    v, e = run("T19d", measured=_m_off, roofline=_roof(1.0, "declared-absent"), authority="explore",
+               spec_declared="off")
+    _ax = ((v or {}).get("rubric") or {}).get("spec_axis") or {}
+    check("T19d", not e and v and _ax.get("mismatch") is None and "정상" in (_ax.get("basis") or ""),
+          "off ∧ declared-absent 1.0 에 불일치가 잘못 기재됐다: %r" % (e or _ax))
+
+    # --- T20: 사람 명시(declared) — 실측이 없어도 명시값은 R_token 을 세우고 출처가 드러난다 ---
+    v, e = run("T20", measured=_m_absent, roofline=_roof(_acc, "declared", "argv(--accept-len)"),
+               authority="explore", reference_tps=53.7, spec_declared="on")
+    check("T20", not e and v and v["verdict"] == "PASS"
+          and v["rubric"]["spec_axis"]["accept_len_source"] == "declared"
+          and v["rubric"]["physical"]["limit_source"].startswith("R_token"),
+          "declared provenance 가 R_token 판정으로 드러나지 않았다: %r" % (
+              e or ((v or {}).get("rubric") or {}).get("spec_axis")))
+
+    # --- T21: unknown(지문 없는 과거 sweep) — 종전 동작 보존(measured.spec_on 이 고른다) · 출처 표시 ---
+    v, e = run("T21", measured=_m_on, roofline=_roof(_acc, None),
+               authority="explore", reference_tps=53.7)            # spec_declared 기본 = unknown
+    check("T21", not e and v and v["verdict"] == "PASS"
+          and v["rubric"]["spec_axis"]["declared"] == "unknown"
+          and v["rubric"]["physical"]["limit_source"].startswith("R_token"),
+          "unknown 이 종전 동작(measured.spec_on → R_token)을 보존하지 않았다: %r" % (
+              e or ((v or {}).get("rubric") or {}).get("spec_axis")))
+    # T21b ★역채점(교정 전 결함의 재현): unknown ∧ 루프라인 accept_len 이 조용한 1.0(R_token=R_fp)이면
+    #   같은 측정이 **물리 초과 NEEDS_RUBRIC** 으로 뒤집힌다 — 이 대조가 T18d 가 공허하지 않다는 증거다.
+    v, e = run("T21b", measured=_m_on, roofline=_roof(1.0, None),
+               authority="explore", reference_tps=53.7)
+    check("T21b", not e and v and v["verdict"] == "NEEDS_RUBRIC" and v.get("reason_code") is None
+          and v["rubric"]["physical"]["exceeds"] is True,
+          "조용한 1.0 의 결함 재현(물리 초과 NEEDS_RUBRIC)이 나오지 않았다 — 픽스처가 accept_len 에 둔감하다: %r" % (
+              e or (v or {}).get("verdict")))
+
+    # --- T22: --spec-declared 값역 밖 → exit 2 ---
+    _, e = _st_opts(spec_declared="maybe")
+    check("T22", bool(e), "--spec-declared 값역 밖이 거부되지 않았다")
+
+    # --- T23 ★ 공허 PASS 불변식은 spec 축 경로에서도 유지된다 ---
+    for tid, md, rf, kw in (("T23-on", _m_on, _roof(_acc, "measured"), dict(spec_declared="on")),
+                            ("T23-off", _m_off, _roof(1.0, "declared-absent"), dict(spec_declared="off")),
+                            ("T23-decl", _m_absent, _roof(_acc, "declared"), dict(spec_declared="on"))):
+        v, e = run(tid, measured=md, roofline=rf, authority="explore", **kw)
+        rub = (v or {}).get("rubric") or {}
+        check(tid, not e and v["verdict"] in ("PASS", "REFUTE") and rub.get("floor") is not None
+              and rub["floor"] > 0 and rub.get("ratio_M_over_primary") is not None,
+              "spec 축 경로에서 불변식 위반(floor>0 ∧ ratio≠null): %r" % (e or rub))
+
     if failures:
         sys.stderr.write("[verdict --self-test] FAIL %d 건:\n" % len(failures))
         for f in failures:
             sys.stderr.write("  - %s\n" % f)
         return 1
-    sys.stdout.write("[verdict --self-test] OK — T1~T17 전부 통과"
-                     "(공허 PASS 경로 부재 + explore 밸런스=서술 단언 포함)\n")
+    sys.stdout.write("[verdict --self-test] OK — T1~T23 전부 통과"
+                     "(공허 PASS 경로 부재 + explore 밸런스=서술 + spec 축 SPEC_ACCEPT_LEN_MISSING 단언 포함)\n")
     return 0
 
 
@@ -669,6 +937,11 @@ def main():
                          "E 는 어느 쪽이든 rubric.reference_E 로 보존.")
     ap.add_argument("--tolerance", type=float, default=0.15, help="PASS 허용오차(기본 15%%, 0≤tol<1)")
     ap.add_argument("--spec-supported", action="store_true", help="모델이 speculative(MTP) 지원 — off 면 강제함수")
+    ap.add_argument("--spec-declared", choices=list(SPEC_DECLARED), default="unknown",
+                    help="서빙 선언의 spec 축(sweep_index.meta.spec_declared 승계). off=R_fp(결손 아님) · "
+                         "on=R_token(accept_len 실측/명시 필수 — 결손이면 NEEDS_RUBRIC+%s) · "
+                         "unknown(기본 · 지문 없는 과거 sweep)=종전 measured.spec_on 보존"
+                         % REASON_SPEC_ACCEPT_LEN_MISSING)
     ap.add_argument("--e-search", choices=["hit", "empty", "no"], default="no",
                     help="외부검색(E) 상태: hit=시도·발견 / empty=시도·빈손 / no=미시도(기본). 출력에 기록(판정 불변)")
     ap.add_argument("--node-vram-gib", default=None,
@@ -677,7 +950,7 @@ def main():
     ap.add_argument("--balance-tol", type=float, default=0.10,
                     help="노드간 VRAM 밸런스 허용편차(기본 0.10=10%%)")
     ap.add_argument("--self-test", action="store_true",
-                    help="결정론 자체검사(T1~T17) — 파일 입력 불요. 0=전부 통과 · 1=실패 나열")
+                    help="결정론 자체검사(T1~T23) — 파일 입력 불요. 0=전부 통과 · 1=실패 나열")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
@@ -689,7 +962,8 @@ def main():
         sys.exit(2)
 
     opts, errors = _validate_cli(args.authority, args.reference_tps, args.target_tps,
-                                 args.tolerance, args.node_vram_gib, args.balance_tol)
+                                 args.tolerance, args.node_vram_gib, args.balance_tol,
+                                 spec_declared=args.spec_declared)
     if errors:
         for msg in errors:
             sys.stderr.write("[verdict] ERROR %s\n" % msg)

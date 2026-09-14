@@ -4,7 +4,7 @@
 # 계약:  stop ⟸ (남은 셀 없음) ∨ (셀 수 예산 소진) ∨ (벽시계 예산 소진) ∨ (연속 실패 ≥ 한도)
 #
 # ★ 이 스크립트에는 **예산 상수가 없다.** 세 한도는 전부 상태 파일의 `declared_budget` 에서 오며,
-#   하나라도 없으면 판정하지 않고 exit 2 다. 근거는 §4.8 의 HITL 2단이다 — 대화 층(깊이 승인)이
+#   하나라도 없으면 판정하지 않고 exit 2 다(반복 수는 아래 BUDGET_REPEATS_KEY — 기재 항목). 근거는 §4.8 의 HITL 2단이다 — 대화 층(깊이 승인)이
 #   숫자를 낳고, 스크립트 층은 그 숫자를 받기만 한다. 그래서 여기서 기본값을 발명하면 두 층 중
 #   하나가 조용히 사라진다: 기본값이 있으면 아무도 깊이를 승인하지 않아도 스윕이 돈다.
 #   정상 경로에서 이 거부는 발동하지 않으며, 발동하면 대화 층을 건너뛴 비정상 호출이라는 뜻이다.
@@ -51,6 +51,20 @@ FAILURE_OUTCOMES = (OUTCOME_SERVE_FAILED, OUTCOME_MEASUREMENT_VOID)
 
 BUDGET_KEYS = ("max_cells", "wall_clock_budget_s", "consecutive_failure_limit")
 BUDGET_PROVENANCE_KEYS = ("declared_by", "basis")
+# ★ 2026-09-14(plan_26091407 §4.4): 반복 수도 **예산 선언에 실린다**. full 정의가 `반복 ≥3` 을 포함하면서 셀
+#   하나의 비용이 레벨 × 반복으로 늘었고, 벽시계 예산을 승인한 사람이 그 배수를 모르면 "12분 × 6셀" 근거가
+#   조용히 3배로 틀린다. 그래서 broad_search init 이 캠페인 선언에서 파생해 `declared_budget.repeats` 로 적고,
+#   여기서는 그 값·출처와 소비(`runs_attempted` · `repeats_mismatch[]`)를 **기재**한다. 정지 술어는 바꾸지 않는다
+#   — 비용 초과는 벽시계·셀 수 한도가 이미 멈추고, 반복 수를 정지 조건에 넣을 식(런당 시간)은 선언에 없다.
+#   **기본값을 두지 않는다**: 미선언(반복 축 신설 전 상태 파일)은 3 으로 메우지 않고 `None` + 출처
+#   `absent(…)` 로 적는다. 판정을 막지 않는 이유 — status·map·재조립은 새 run 을 소비하지 않는 읽기 경로이고,
+#   여기서 exit 2 로 막으면 끝난 스윕의 지도 재렌더가 불가능해진다(리뷰 정정). 새 run 을 소비하는 자리
+#   (`broad_search.sh cell` 측정 진입)는 미선언이면 exit 2 다 — fail-closed 는 비용을 새로 쓰는 경로에만 둔다.
+#   선언이 **있는데** 무효(비정수·full 정의 3 미만)면 다른 한도와 같이 exit 2 다(선언 파손은 부재가 아니다).
+#   하한(full 정의)의 소유는 `repeat_axis.FULL_REPEATS_MIN` 이다.
+BUDGET_REPEATS_KEY = "repeats"
+REPEATS_ABSENT_SOURCE = ("absent(declared_budget 에 반복 수가 없다 — 반복 축 신설 전 상태 파일 · 읽기 경로는 판정하고 "
+                         "측정 진입(broad_search cell)은 거부된다)")
 
 STOP_CELLS_EXHAUSTED = "cells_exhausted"
 STOP_CELL_BUDGET = "cell_budget_exhausted"
@@ -89,7 +103,7 @@ def _positive_int(container, key, where):
 
 
 def evaluate(state, now_utc):
-    """상태 → 정지 판정. 순수 함수이며 파일·시계·환경을 읽지 않는다."""
+    """상태 → 정지 판정. 순수 함수이며 파일·시계·환경을 읽지 않는다(full 정의 하한만 소유 모듈을 import)."""
     if not isinstance(state, dict):
         raise StopEvalError("상태는 JSON 객체여야 한다")
 
@@ -98,6 +112,16 @@ def evaluate(state, now_utc):
         raise StopEvalError(
             "declared_budget 부재 — 셀 수·벽시계·연속 실패 한도를 선언 없이 판정하지 않는다(§4.8)")
     limits = {key: _positive_int(budget, key, "declared_budget") for key in BUDGET_KEYS}
+    if BUDGET_REPEATS_KEY in budget:
+        repeats = _positive_int(budget, BUDGET_REPEATS_KEY, "declared_budget")
+        full_min = _full_repeats_min()
+        if repeats < full_min:
+            raise StopEvalError("declared_budget.repeats=%d 는 full 정의(반복 ≥%d) 위반이다 — 반복 수를 낮춰 "
+                                "예산을 맞추지 않는다(셀 수·벽시계로 맞춘다)" % (repeats, full_min))
+        repeats_source = budget.get("repeats_source")
+    else:
+        repeats = None      # 기본값 발명 ✗ — 부재를 이름으로 남긴다(위 BUDGET_REPEATS_KEY 주석)
+        repeats_source = REPEATS_ABSENT_SOURCE
     for key in BUDGET_PROVENANCE_KEYS:
         text = budget.get(key)
         if not isinstance(text, str) or not text.strip():
@@ -115,6 +139,8 @@ def evaluate(state, now_utc):
 
     attempted_keys = []
     consecutive = 0
+    runs_attempted = 0
+    repeats_mismatch, repeats_unrecorded = [], []
     for pos, cell in enumerate(cells):
         if not isinstance(cell, dict):
             raise StopEvalError("cells[%d] 는 객체여야 한다" % pos)
@@ -128,6 +154,18 @@ def evaluate(state, now_utc):
                 "모르는 분류를 실패로 접지 않는다 — 부재와 결측은 다르다."
                 % (pos, outcome, "|".join(CELL_OUTCOMES)))
         attempted_keys.append(key)
+        # 반복 소비(기재). 측정이 성립한 셀만 run 을 소비했다 — 그 셀에 반복 기록이 없으면 "0 회" 로
+        # 접지 않고 이름으로 남긴다(부재 ≠ 0).
+        rep = cell.get("repetition")
+        if isinstance(rep, dict):
+            if isinstance(rep.get("runs_attempted"), int) and not isinstance(rep.get("runs_attempted"), bool):
+                runs_attempted += rep["runs_attempted"]
+            if repeats is not None and rep.get("requested") != repeats:
+                repeats_mismatch.append({"cell_key": key, "requested": rep.get("requested"),
+                                         "requested_source": rep.get("requested_source"),
+                                         "declared_budget_repeats": repeats})
+        elif outcome == OUTCOME_MEASURED:
+            repeats_unrecorded.append(key)
         if outcome == OUTCOME_NOT_MEASURED:
             pass                                   # 중립 — 위 상수 주석의 판단
         elif outcome == OUTCOME_MEASURED:
@@ -169,11 +207,30 @@ def evaluate(state, now_utc):
         "cells_remaining": remaining,
         "consecutive_failures": consecutive,
         "elapsed_s": elapsed_s,
-        "declared_budget": dict(limits),
+        "declared_budget": dict(limits, repeats=repeats),
         "budget_declared_by": budget["declared_by"],
         "budget_basis": budget["basis"],
+        "budget_repeats_source": repeats_source,
+        # 반복 축 소비(기재 · 정지 조건 아님). runs_attempted = 셀 기록 repetition.runs_attempted 의 합
+        #   (= 레벨 run 시도 합: 측정 레벨 runs[] + 클램프 레벨 첫 run · repeat_axis.summarize).
+        "runs_attempted": runs_attempted,
+        # 선언이 없으면 대조할 기준이 없다 — 빈 목록(불일치 없음)이 아니라 None(대조 안 함)이다.
+        "repeats_mismatch": repeats_mismatch if repeats is not None else None,
+        "repeats_unrecorded": repeats_unrecorded,
         "evaluated_utc": now_utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
+
+
+def _full_repeats_min():
+    """full 정의 하한의 소유자(`repeat_axis.py`)를 읽는다. 적재하지 못하면 판정하지 않는다 — 하한을 여기
+    다시 적으면 같은 개념이 두 곳에 손으로 적힌다(매직넘버 결함 칸)."""
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        import repeat_axis
+    except ImportError as exc:
+        raise StopEvalError("repeat_axis 적재 실패(full 정의 하한의 소유자 부재): %s" % exc)
+    return repeat_axis.FULL_REPEATS_MIN
 
 
 def _self_test():
@@ -196,6 +253,7 @@ def _self_test():
             check(name, False, "(예외가 나지 않았다)")
 
     budget = {"max_cells": 6, "wall_clock_budget_s": 3600, "consecutive_failure_limit": 3,
+              "repeats": 3, "repeats_source": "declared(fixture campaign.yaml budgets.repeats)",
               "declared_by": "hitl:2026-09-04 깊이 승인", "basis": "직전 로드 실측 12분 × 6셀"}
 
     def state(cells, remaining, planned=6, started="2026-09-04T09:00:00Z", budget_over=None):
@@ -292,15 +350,40 @@ def _self_test():
 
     # S16: 예산·근거는 산출물이 스스로 밝힌다(출처 표시 규율).
     out = evaluate(state([cell("c1", OUTCOME_MEASURED)], ["c2"]), now)
-    check("S16 산출물이 예산과 승인 출처를 싣는다",
-          out["declared_budget"] == {k: budget[k] for k in BUDGET_KEYS}
+    check("S16 산출물이 예산과 승인 출처를 싣는다(반복 수·그 출처 포함)",
+          out["declared_budget"] == dict({k: budget[k] for k in BUDGET_KEYS}, repeats=3)
           and out["budget_declared_by"] == budget["declared_by"]
-          and out["budget_basis"] == budget["basis"])
+          and out["budget_basis"] == budget["basis"]
+          and out["budget_repeats_source"] == budget["repeats_source"])
+
+    # S17~S20: 반복 수 예산(2026-09-14 · plan_26091407 §4.4). 기본값이 없고, 하한은 full 정의다.
+    broken = dict(budget)
+    del broken["repeats"]
+    out = evaluate(state([cell("c1", OUTCOME_MEASURED)], ["c2"]) | {"declared_budget": broken}, now)
+    check("S17 ★declared_budget.repeats 미선언(신설 전 상태) → 판정은 한다(읽기 경로) · 3 으로 메우지 않고 None · "
+          "출처 absent · 대조 안 함(None) · 정지 술어 불변",
+          out["declared_budget"]["repeats"] is None and out["budget_repeats_source"].startswith("absent(")
+          and out["repeats_mismatch"] is None and out["stop"] is False, out)
+    expect_error("S18 ★repeats=2(full 정의 위반) → 거부", state([], ["c1"], budget_over={"repeats": 2}),
+                 "full 정의")
+    expect_error("S18b repeats 비정수 → 거부", state([], ["c1"], budget_over={"repeats": "3"}), "양의 정수")
+
+    def rcell(key, requested, runs, outcome=OUTCOME_MEASURED):
+        return {"cell_key": key, "cell_outcome": outcome,
+                "repetition": {"requested": requested, "requested_source": "declared(x)",
+                               "runs_attempted": runs}}
+    out = evaluate(state([rcell("c1", 3, 6), rcell("c2", 5, 10), cell("c3", OUTCOME_MEASURED),
+                          cell("c4", OUTCOME_SERVE_FAILED)], ["c5"]), now)
+    check("S19 셀이 요청한 반복 ≠ 선언 → repeats_mismatch 기재 · 정지 조건은 불변(기재를 게이트로 격상 ✗)",
+          out["stop"] is False and [m["cell_key"] for m in out["repeats_mismatch"]] == ["c2"]
+          and out["repeats_mismatch"][0]["declared_budget_repeats"] == 3, out)
+    check("S20 runs_attempted 는 반복 기록의 합 · 측정 셀인데 기록이 없으면 이름으로 남긴다(부재 ≠ 0회)",
+          out["runs_attempted"] == 16 and out["repeats_unrecorded"] == ["c3"], out)
 
     if failures:
         sys.stderr.write("[sweep_stop --self-test] FAIL %d 건: %s\n" % (len(failures), failures))
         return 1
-    print("[sweep_stop --self-test] OK — S1~S16 전부 통과")
+    print("[sweep_stop --self-test] OK — S1~S20 전부 통과")
     return 0
 
 
@@ -308,7 +391,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="Broad Search 정지 조건 평가기(결정론)")
     ap.add_argument("--state", help="스윕 상태 JSON 경로('-' = stdin)")
     ap.add_argument("--now-utc", help="현재 시각(ISO-8601 UTC). 주입만 사용한다 — 벽시계 금지")
-    ap.add_argument("--self-test", action="store_true", help="결정론 자체검사(S1~S16)")
+    ap.add_argument("--self-test", action="store_true", help="결정론 자체검사(S1~S20)")
     args = ap.parse_args(argv)
 
     if args.self_test:

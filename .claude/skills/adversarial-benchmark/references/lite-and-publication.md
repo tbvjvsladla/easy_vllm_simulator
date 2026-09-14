@@ -30,6 +30,26 @@
   재스캔 금지"(A2A 경계)와 **다른 평면**이다. 서브 probe 실패 시 graceful — 마스터 단독 + 실패 음성정직 표기.
 - **down 시나리오**: "테스트만 하고 down" 케이스도 serve → **lite 수행** → 결과 표시 → down(라이브 엔드포인트가 있는 동안 측정).
   용처 매뉴얼은 생략(recipe-explorer 소관).
+- **경량 리포트 발행(`--publish-report` · 2026-09-14 · `plan_26091407` §4.5 · 사용자 결정 Q4·Q10)**: lite 만 잰 셀도 hint 를
+  낸다. 그 hint(`hint_map_only`)가 바인딩할 문서를 `lite_bench.sh <config> … --publish-report` 의 종결부가
+  `render_report.py --lite-only --lite-raw-json <raw>` 로 발행한다 — `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`
+  (full 리포트와 **같은 접두사·같은 명명 SSOT** · publisher 정규식·work-manifest 스키마 무변경). 본문 = 헤더 `mode: lite` ·
+  **측정 구성 표**(`bench_mode=lite` · `bench_mode_kind=declared-lite`(기록 모양은 `classify_cell.declared_lite_record`) · 도구
+  `vllm-bench-serve` · 반복 1 · `downgrade_reason` 없음) · lite 지표 5종 표(lite_metrics 표 그대로) · 환경 스냅샷. 판정·루프라인·
+  동시성 곡선·인증서는 **없다**. 명명 키(model·gpu·vllm)는 raw 가 남긴 config yaml·envfile·manifest·엔진 로그 경로에서
+  `sweep_bench` 조립부와 같은 규칙으로 파생하고(`render_report.lite_identity` · 두 자리는 `scripts/selftest_lite_report.py` 가
+  교차검증), 측정시각은 raw 의 `measured_utc`(부하 직전 호스트 UTC)다 — 없으면 exit 2(날조 ✗).
+  - **기본은 발행하지 않는다**(자동 핸드오프 경로에 부작용 ✗): ① 서빙 직후 자동 lite 는 **관측·inform-only 한정** 예외다.
+    ② `sweep_bench.sh` 가 이 스크립트를 lite 레그로 부른다 — 레그가 리포트를 내면 같은 시간대·같은 조합의 full 리포트가
+    `_MM_SS` 로 밀려 인증서와 stem 이 갈라지고 `publish-benchmark` 가 `…_STEM_MISMATCH` 로 거부한다(full ⊇ lite 이므로 full
+    리포트가 lite 표를 이미 품는다). ③ 발행 실패(명명 키 불성립·충돌)는 요청한 호출에서만 **exit 5** 이고 raw·warm·cold·엔진
+    로그는 남는다(재측정 없이 `render_report.py --lite-only` 로 재렌더).
+  - ⚠ 같은 모델·GPU·버전의 **full 스윕과 같은 시간대(KST 시)** 에 `--publish-report` 를 돌리면 ②와 같은 이름 밀림이 생긴다.
+    lite-only 로 선언한 셀에서만 쓰고, 같은 조합의 full 셀과 같은 KST 시에 두지 않는다. 가드는 아직 없다 — 이름 밀림은
+    lite 고유 결함이 아니라 `doc_naming` 이 report·인증서를 **종류별로 따로** 스캔하는 구조의 결함이다(같은 시간대 full 스윕
+    둘 중 앞 스윕이 인증서 없이 끝나도 같다). 교정 자리는 명명 SSOT(후속).
+  - 바인딩: `evidence_publisher.py publish-lite-report --topic <map_only 토픽> --bench-report-src <그 리포트>`(복사 ✗ · 측정 구성
+    표가 `bench_mode | lite` 라고 말하는 리포트만 받는다). 결손 코드·카탈로그 컬럼은 hint-publisher 소관(계약 §3.0.1).
 - **자동 핸드오프 = 헌법 명시 예외**: recipe→adversarial **lite 한정** 자동 수행은 "무인 자동실행 없음" 트리거 정책의
   **명시 예외**다(안전망 데몬 예외와 동형 — 관측·inform-only 한정). **full 벤치·bump·다운로드의 완전-수동 속성은 불변**.
   Flag 게이트: lite 는 이미 Flag-게이트된 serve 위에서 돈다(전이적) + `lite_bench.sh` 가 `run_bench.sh` 와 동형
@@ -44,13 +64,108 @@
   **동시성만** 변화(reload 0 — 벤치마커 "기동 안 함" 불변식 보존). **판정점(동시성=1) 강제 포함** → verdict 재사용(재측정 0).
   **적응 상한 클램프 + 절삭 로그**(레벨 실패 시 상위 중단·"레벨 N 절삭" 기록 — silent truncation ✗). 각 레벨 = `run_bench.sh`
   메커니즘 재사용(Flag/A2A 게이트 전이). config-space(batch×maxlen) reload 는 이 스윕 **밖**(Max/explorer 소관).
+- **full 의 정의 = `lite ∪ GuideLLM × 반복 ≥3`**(2026-09-14 · `plan_26091407` §4.4 · 사용자 결정 Q3) — 레벨마다 같은
+  serve 에 **반복 ≥3**(`repeat_kind=warm-rerun` · `cold-restart` 는 선언 슬롯만). 반복은 분산·신뢰성의 최소조건이다:
+  1회 측정에는 산포 추정치가 없고, 다른 도구·조건의 밴드를 빌리면 추론이 틀린다(`audit_26091323` §2.4b).
+  - **반복 수**: `sweep_bench.sh --repeats N` > 활성 캠페인 `campaign.yaml budgets.repeats` > full 정의값 3
+    (해소·하한의 소유 `repeat_axis.py` · 출처는 `sweep_index.repetition.requested_source`). **N<3 은 exit 2** —
+    반복을 낮춰 full 을 선언하지 않는다(lite 만 재려면 §1 lite 통로). Broad Search 에서는 `init` 이 이 값을
+    `declared_budget.repeats` 로 예산에 싣고 `cell` 이 넘긴다(셀 비용 = 레벨 × 반복 — 벽시계 예산의 근거).
+  - **반복 대상은 레벨 측정 레그**다. lite 선행 레그는 1회(cold TTFT 는 반복하면 cold 가 아니다)이고, 레벨 run
+    들이 그 lite warm JSON 을 spec 승계원으로 함께 쓴다.
+  - **raw**: run 1 = `level_NN/`(대표 run · 종전 배치), run k≥2 = `level_NN/run_KK/`. 대표 `measured.json` 은 파서
+    필드를 그대로 두고 `runs[]`·`repeats_completed`·`repro_band_pct`·`repro_band_source=measured(n=N)`·
+    `repeat_kind` 를 덧붙인다 — judge_bench 의 accept_len 승계·verdict·인증서는 **대표 run 1회**를 읽는다(평균·합성 ✗).
+    재현 밴드 = `(max−min)/mean×100`(완주 run 의 decode_tps · 2회 미만이면 N/A)이며 **기재**다.
+  - **스윕이 멈춘 자리(즉시 신호 · `sweep_index.repetition.stop`)**: 레벨 첫 run 실패는 종전 적응 상한 클램프(절삭 ·
+    `stop.kind=clamp` · 그 레벨은 index levels 에 없으므로 경계 사실은 `repetition.clamp_run`)다. run k≥2 실패
+    (measurement_ok=false · run_bench 비0)는 **반복 중단**(`stop.kind=repeat-break`)으로 남은 반복·상위 레벨을
+    멈춘다 — 끊긴 동시성은 반복해 버티지 못한 포화 경계라 상위도 무너진다(클램프와 같은 이유 · 요청 N>3 에서
+    완주가 이미 ≥3 인 레벨이어도 같다). 시각 대조 창 = 직전 run 시작~끊긴 run 끝(클램프는 아래 측정 레벨의 마지막 run 시작~
+    클램프 run 끝).
+  - **강등(기계 이벤트만 · 확정 `classify_cell.py` post-hoc)** — 반복 조건의 범위는 **판정점**(동시성 1 · 인증서·판정이
+    묶이는 레벨)이다(2026-09-14 리뷰 정정: 종전의 "측정 레벨 전체 완주 min" 은 같은 포화 경계를 첫 run 실패면 full·
+    둘째 run 실패면 lite 로 반대로 판정했다):
+    ① 멈춘 자리의 창 안에 **집행된** 블랙박스 사살(KILL_EVENT_KINDS · 같은 노드 허용오차 0)이 있으면 레벨·run 순번과 무관하게
+       `bench_mode=lite` · `downgrade_reason=blackbox_kill`(사용자 결정 — kill 이벤트는 기계 이벤트 트리거다 · 가장 흔한
+       실사살 형태인 높은 동시성 레벨의 첫 run 사살을 절삭으로 삼키지 않는다). **대조하는 것은 이 저장소에서 events 가
+       판독된 대조 대상 노드뿐이다** — 대조 대상 노드 = single 은 측정 노드 하나 · multi 는 서빙 참여 노드 전부(manifest
+       `nodes[].role` · `node_role_contract`)이고, **이 노드가 누구인가**는 노드 정체성 해소기(`node_identity.sh --resolve` ·
+       self_role → 유일한 `role: main` · 블랙박스가 쓰는 `docs/logs/<node_id>` 와 같은 답)가 정한다. 다른 노드의 기록은
+       `fetch_sub_docs.sh` 회수 미러(`sync_staging/sub_docs/logs/<node>/events`)에 있을 때만 읽는다. 미회수·회수가 창 끝보다
+       이른 노드는 `not_scanned`(보지 못했음), 노드 간 시계 허용오차가 선언되지 않은 원격 미스는 `unavailable` 로 **기재**한다 —
+       둘 다 강등 트리거가 아니다. 노드 계획이 서지 않아도(계약 위반·옛 index·측정 정체성 모순) **이 노드의 기록은 대조**하고
+       (같은 호스트·같은 시계) 정하지 못한 나머지는 `(미정)` 으로 `not_scanned` 에 남긴다(2026-09-14 · ⑧ 분석 발견 T1 · 종전
+       "모든 노드 events · 같은 시계" 규칙은 multi 서브 사살을 miss 로 읽어 거짓 full 을 냈다 · 리뷰 정정: 계획 불성립에서 이 노드의
+       사살까지 버리면 같은 거짓 full 이 반대편에서 생긴다)
+    ② 그 밖에 판정점 완주 ≥3 → `full`(경계 레벨의 반복 중단·첫 run 실패는 클램프 · 기재)
+    ③ 판정점에서 끊겨 완주 <3 → `lite` · `run_failed`(트립 단독·시각 불일치·이벤트 미관측 포함 — 관측된 신호 그대로 · 추측 ✗).
+       "이벤트 미관측" 은 **이 저장소에서 events 가 회수된 대조 대상 노드만** 본 결과다 — 미회수 노드는 `not_scanned` 로 남는다
+    ④ runs[] 부재 레벨(옛 산출물·집계 실패)·판정점 부재·끊김 없는 정의 미만·경계 밖 정의 미만 → 판정하지 않는다(null)
+    대조 여부는 구조 필드 `downgrade_correlation` ∈ {`matched`, `miss`, `not_scanned`, `unavailable`, `not_applicable`}
+    (집계: 대조 대상 노드 중 matched 가 하나라도 있으면 matched > 창을 덮는 기록을 못 본 노드가 있으면 not_scanned >
+    원격 허용오차 미선언이면 unavailable > miss) · 노드별 사실은 판정 기록 `events_scan.nodes[]`(node · remote · files ·
+    status ∈ {matched, miss, not_scanned, not_covered, skew_undeclared} · tolerance_s·tolerance_source)가 든다. 원격 노드의
+    창 안 매치는 허용오차 선언 없이도 matched 이며(오판 방향이 강등·인증서 억제라 보수 · 미스만 선언을 요구하는 비대칭 — 사람 결정
+    대기 · plan_26091407 §9), 그 사실은 노드 요약에 `허용오차 미선언 — 0s · 창 안 매치만 인정` 으로 드러난다.
+    **분산(밴드 폭)은 강등 사유가 아니다.**
+  - **대조 불확실성이 드러나는 자리**(2026-09-14 · T1 · 기재 항목을 게이트로 격상하지 않는다):
+    | 자리 | 드러나는 방식 |
+    |---|---|
+    | `bench_mode` | 불변 — runs[] 가 정한다(대조 불가는 기계 이벤트가 아니다 · 사용자 결정 Q3·Q7) |
+    | 인증서 억제 | 불변 — 판정 기록이 `full` 이면 발행 규칙 그대로(대조 불가를 발행 차단으로 격상 ✗). 판정 기록에 `downgrade_correlation`·`events_scan` 이 남는다 |
+    | 사람용 리포트 반복 축 절 `bench_mode` 행(full 행·강등 행 모두) | 사살 대조 `not_scanned`·`unavailable` + "⚠ 대조 불가(보지 못했음 — 사살 없음이 아니다)" + 대조 노드 요약(`classify_cell.events_scan_summary` · 출처 서술에 이미 있으면 한 번만) |
+    | 측정 구성 표 `bench_mode_source`·`downgrade_reason_source` | 출처 서술에 `not-scanned(… 대조 노드[main=miss · sub(원격)=not_scanned(회수본 없음 …)])` |
+    | 인증서 필드 | **싣지 않는다** — 인증서는 판정 기록을 바인딩할 뿐 대조 범위 필드가 없다(full 인증서가 서브 not_scanned 인 채 발행될 수 있다 · 스키마 개정은 hint 계약과 함께 결정 · plan_26091407 §9 후속) |
+    | hint 측정 구성 표(배포 평면) | **싣지 않는다** — 배포 키는 열거형·수치(`hint_collect.DISTRIBUTED_MEASUREMENT_KEYS`)이고 출처 서술은 PII 사유로 배포되지 않는다. 대조 범위는 바인딩된 리포트(docs 평면)에서 읽는다. 배포 열거형으로 올릴지는 hint 계약 개정 사안이다(plan_26091407 §9 후속) |
+    | Broad Search 셀 기록 | `downgrade_correlation` 사본 · 셀 종결 사인 출처 `not-scanned(`/`correlation-unavailable(` 접두사 |
+  - **multi 에서 결론을 내는 순서**: 스윕 종료 시 서브 기록은 보통 아직 회수되지 않았다(→ `not_scanned`). `fetch_sub_docs.sh --topology=multi --apply`
+    (통로를 **선언**한다 — 두 통로 manifest 의 서브 host 가 다르면 선언 없이는 exit 4)
+    로 회수한 뒤 `sweep_bench.sh <config> --topology multi --reassemble-only [--cross-node-tolerance-s N --cross-node-tolerance-source <출처>]`
+    로 판정 기록을 다시 쓰고(측정시각 승계 · 재측정 0) 판정·발행을 잇는다. 노드 간 허용오차는 **선언으로만** 온다(두 노드 시계 동기
+    오차를 잰 명령·시각을 출처로 적는다 · 매직넘버 ✗).
+  - **판정 기록을 쓰는 손**: `sweep_bench.sh` 종료부가 `classify_cell.py --sweep-index … --events-from-repo <repo>
+    --manifest output/<topology>/manifest.yaml --write-bench-mode` 를 부른다(측정·재조립 둘 다 · 대조 대상 노드는 index meta
+    `topology`·`measured_node` 와 manifest 로 정한다) — 정규 경로(sweep_bench → judge_bench → render_report·인증서)와
+    Broad Search 가 **같은 기록 하나**를 읽는다. 기록은 원자적으로 쓰이고 `sweep_index_generated_utc` 로 측정에 묶인다.
+  - **읽는 자리**(단계 ⑤ lite hint 통로가 결정론으로 읽는다): 스윕 디렉터리의 `bench_mode.json`(정본 · 판독은
+    `classify_cell.read_bench_mode_record` → `ok`·`absent`·`unreadable`·`stale`)과 Broad Search 셀 기록(그 정본의 사본:
+    `bench_mode`·`bench_mode_source`·`downgrade_reason`·`downgrade_reason_source`·`downgrade_correlation` + sweep 요약
+    `repetition`). **강등된 lite** = 사유 값 · **선언된 lite-only** = 사유 null ∧ `bench_mode_source` 가 `declared(` 로
+    시작(판독 규칙 `classify_cell.bench_mode_kind`).
+  - **반복 수 출처의 자리별 키**(같은 개념 · 각 문서의 이름공간을 따른다 — 단계 ⑤ 측정 구성 표가 읽을 때 대응표):
+
+    | 자리 | 반복 수 | 출처 |
+    |---|---|---|
+    | `repeat_axis.py resolve` 출력(sweep_bench 셸 변수) | `REPEATS` | `REPEATS_SOURCE` |
+    | `sweep_index.json` `repetition` | `requested` | `requested_source` |
+    | 대표 `level_NN/measured.json` | `repeats_requested` | `repeats_requested_source` |
+    | Broad Search 상태 `declared_budget` | `repeats` | `repeats_source` |
+    | `sweep_stop.py` 정지 판정 | `declared_budget.repeats` | `budget_repeats_source`(미선언이면 `absent(…)`) |
+
+  - ⚠ 정상 E2E(판정점 반복 완주 · 사살 없음 — 포화 경계에서 스윕이 멈추는 클램프 포함)는 강등 경로를 밟지 않는다 —
+    그 경로는 `scripts/selftest_sweep_repeats.py` 실패주입이 지킨다.
 - **사람용 report(항상)** — `render_report.py --sweep-index <sweep_index.json> --verdict-json <verdict> [--roofline-json]`
   → `docs/benchmark/bench_report_<YYMMDDHH>_<model>_<gpu>_<vllm>.md`. **PASS/FAIL 무관 발행**("왜 느렸나"도 사람이 봐야).
   **inform-only**(verdict 를 *표시만* — 판정권한 ✗·verdict_rule 독점) · 결정론 렌더(LLM 표·숫자 저작 ✗) · N/A fail-soft.
+  bench_mode 판정 기록의 부재·판독 실패·다른 측정의 기록은 **발행을 막지 않고** "미확정 — 사유" 로 적는다(명시
+  `--bench-mode-json` 이 그러면 exit 2). 판정 절 앞에 **측정 구성 표**(`bench_mode`·`bench_mode_kind`·출처·`downgrade_reason`·
+  도구·버전·요청 반복·판정점 완주)를 싣는다 — 경량 리포트와 같은 제목·키이고(`render_report.MEASUREMENT_CONFIG_*` =
+  hint 파서 `render_bench_section.MEASUREMENT_CONFIG_*`), 강등 셀의 리포트는 이 표가 `bench_mode | lite` 라고 말하므로
+  같은 lite 통로의 바인딩 대상이 된다(`evidence_publisher init --downgrade-from full_benchmark --downgrade-reason <사유>`
+  가 full_benchmark 토픽을 map_only 로 재분류하며 바인딩을 보존한다 · 사유 어휘 = `classify_cell.DOWNGRADE_REASONS` ·
+  재분류는 바인딩된 리포트의 이 표가 `downgraded-lite` 와 같은 사유를 말할 때만 열린다 — 선언만으로는 열리지 않는다).
+  표의 `*_source` 칸에는 블랙박스 events 파일 경로가 들어갈 수 있다 — 리포트는 비배포 docs 평면이라 그대로 두고, hint
+  발행기는 이 칸을 배포 페이로드로 옮기지 않는다.
 - **기계용 인증서(PASS시만)** — `publish_benchmark_record.py --sweep-index … --verdict-json …`
   → `docs/benchmark/benchmark_<YYMMDDHH>_<model>_<gpu>_<vllm>.yaml`. **flat 계약**(중첩 ✗ — 소비자 stdlib 독해) +
   **carry-forward 재검증 헤더**(강한키=model/gpu/vllm/quant/topology/tp 정확일치 + 소프트지문=driver/cuda/image/max-len/
-  kv-bytes/gmu/moe 불일치 시 stale). verdict≠PASS 면 **미발행**(report 만).
+  kv-bytes/gmu/moe 불일치 시 stale). verdict≠PASS 면 **미발행**(report 만). 반복 축 산출물(`repetition.requested`
+  가 정수)이면 bench_mode 판정 기록이 **full 일 때만** 발행한다 — 강등(lite)·기록 부재·낡음·판정 불가(집계 실패 등)는
+  PASS 여도 `benchmark_mode: full` 인증서를 **내지 않는다**(2026-09-14 · 거짓 주장 ✗ · 강등 셀의 통로는 lite ·
+  plan §4.5 `--downgrade-from full_benchmark` → map_only 는 인증서를 요구하지 않는다). 발행기는 완주 수를 다시 세지
+  않고 판정 기록을 읽는다. 반복 축 이전 산출물(repetition 없음)은 종전대로다.
+  인증서는 대표 run 1회 값과 스윕 측정시각 1개만 실어 반복이 인증서 키(강한 6키 + `measured_utc`)를 늘리지 않는다.
   **`rubric_authority: weak|explicit|explore`** 를 검증결과 블록에 함께 싣는다(2026-08-22 · `plan_26082219` A6) —
   승격 판정기(`completion_gate.py`)가 *어느 권한에서 잰 판정인지*를 인증서에서 직접 읽어야 explore 계약
   (성능 판정=서술 · 승격 게이트=서빙 성립+유효 측정)을 집행할 수 있다. 결측은 `N/A` fail-soft이며,
@@ -69,5 +184,6 @@
   계약은 인증서와 **동일**하다(`floor>0` ∧ `ratio` 유한 ∧ `primary_source` 실재) — 완화가 아니라 carrier
   교체이며, `weak`/`explicit` REFUTE 는 여전히 `perf_waiver` 없이는 열리지 않는다.
 - **비용 규율**: 재탐색 루프 **내부는 값싼 단일점 판정** 유지 · 스윕·리치리포트는 **종결 1회**만. 오케스트레이션은
-  **에이전트 매개**(스킬↔스킬 직접호출 ✗). **done-게이트는 여전히 verdict 독점** · lite 는 발행 안 함(채팅 표만).
+  **에이전트 매개**(스킬↔스킬 직접호출 ✗). **done-게이트는 여전히 verdict 독점** · lite 는 기본적으로 채팅 표만이고
+  문서는 lite-only 셀이 `--publish-report` 로 명시할 때만 낸다(§1 · 판정·인증서는 어느 경우에도 없다).
 - 발행 경로·명명 SSOT = `.claude/skills/wiki-desk/scripts/doc_naming.py`(generated_utc→KST) · 증거 계약은 `.claude/policies/runtime/completion_gate.py` 가 판정.

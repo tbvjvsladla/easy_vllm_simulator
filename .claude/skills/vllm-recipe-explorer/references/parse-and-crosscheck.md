@@ -30,8 +30,8 @@
 | config.json 파싱 | **결정론 스크립트** | `parse_model_config.py` — text_config 중첩·safetensors 헤더 실측 |
 | **모델카드 교차검증**(§3) | **결정론** | `crosscheck_model_card.py` — 번들 README(HF 원본카드)+inference/reqs+dtype 실측 ↔ config 합치 + 외부(HF API) 파라미터-총계 이중검증. coarse-quant 함정·special-dep 사전경보·`du -sh` 오염 방지. MISMATCH=비0(게이트) |
 | 후보 **생성**(brainstorm) | **LLM (이 단계만 확률론)** | 3축 조합 다양성이 가치(Generate&Filter 의 Generator) |
-| VRAM 추정 **공식**(per-token KV) | **결정론 — 단 상한(upper bound)** | `estimate_vram.py` full-attention 가정 공식. sliding-window/GQA서 **과대추정**(gemma 8×·gpt-oss 1.9×) → OOM 보수 게이트엔 유효, near-max batch엔 **부정확** |
-| VRAM **실측 분해**(near-max 정본) | **결정론 — 측정 정본** | serve KV log(`kv_cache_tokens`/`max_concurrency`) 또는 Phase-2. **near-max batch·절대 KV 클램프는 측정으로만** |
+| VRAM 추정 **공식**(per-token KV) | **결정론 — 단 상한(upper bound)** | `estimate_vram.py` full-attention 가정 공식. sliding-window/GQA서 **과대추정**(gemma 8×·gpt-oss 1.9×) → OOM 보수 게이트엔 유효, batch(max-num-seqs) 산정엔 **부정확** |
+| VRAM **실측 분해**(KV-fit 정본) | **결정론 — 측정 정본** | serve KV log(`kv_cache_tokens`) 또는 Phase-2. **batch·절대 KV 클램프는 측정으로만** — batch = `min(concurrency_requirement, KV_fit@typical_request_tokens)`(`kv-clamp.md` §3 · plan_26091407 §4.2) · 엔진 `max_concurrency`(최악 길이)는 보수 하한 기재 |
 | 하드 안전 게이트(margin) | **결정론** | 예산×margin 초과 후보 탈락(zero tolerance) |
 | Judge 랭킹(headroom→context) | **결정론** 정렬 | 품질·속도 인자 없음 |
 | 3종 세트 생성 | **결정론** 템플릿 | 기존 워크스페이스 스키마 준수 |
@@ -116,7 +116,7 @@ python3 recipe.py generate --config config.yaml --recipe-id r3
 - **출력 통로 = `output/<topology>/{configs,envs}/`**(compose 가 마운트하는 통로와 정합 — 결함#3, `testlog_26062422`).
   - `configs/<name>.yaml` — `model: <container_path>`, `host 0.0.0.0`, `port 8000`, `gpu-memory-utilization`/`max-model-len`,
     `quantization` 은 **native/none 이 아닐 때만**.
-    ⚠ **Phase-1(estimate→generate)은 `max-num-seqs`(near-max batch)·`kv-cache-memory-bytes`(절대클램프)를 emit 하지 않는다**
+    ⚠ **Phase-1(estimate→generate)은 `max-num-seqs`(선언 요구·KV-fit 산출 batch — `kv-clamp.md` §3)·`kv-cache-memory-bytes`(절대클램프)를 emit 하지 않는다**
     (rank_recipes 는 batch 미산정 — 결함#4). 이 둘은 **Phase-2(simulate) 측정 산물**이다.
   - `configs/<name>.sh` — TIKTOKEN 가드 + `vllm serve --config ... --served-model-name`.
   - `envs/.env.<name>` — `COMPOSE_PROJECT_NAME·CONTAINER_NAME·VERSION·NVIDIA_VISIBLE_DEVICES·SERVING_IP/PORT·TIKTOKEN_ENABLED·SERVING_MODEL_NAME·CONFIG_FILE`.

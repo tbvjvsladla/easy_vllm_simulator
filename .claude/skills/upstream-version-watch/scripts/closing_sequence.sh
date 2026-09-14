@@ -100,7 +100,9 @@ preflight() {
 
     echo "[closing] ① 공통층 변경 열거"
     local sp
-    sp="$(python3 "$LEDGER" sync-point --repo "$REPO" --branch "$CUR" 2>/dev/null || echo '{}')"
+    # 상대와 반대 브랜치 원장을 함께 준다(⑧-pre D2 S1·S2) -- 출발 측 동기 지점은 **착지한 출발 커밋**이다.
+    sp="$(python3 "$LEDGER" sync-point --repo "$REPO" --branch "$CUR" --counterpart "$OTHER" \
+              --ledger-ref "$OTHER" 2>/dev/null || echo '{}')"
     printf '%s\n' "$sp" | sed 's/^/  /'
     return $rc
 }
@@ -109,22 +111,24 @@ emit_skeleton() {
     # 분류표의 **빈칸**을 만든다. 판정(verdict)·근거(reason)는 비워 둔다 — 채우는 것은 Agent 의 일이고,
     # 여기서 기본값을 넣으면 그 기본값이 판정인 척하게 된다(침묵 폴백 금지).
     python3 - "$REPO" "$CUR" "$LEDGER" "$OTHER" <<'PY'
-import json, subprocess, sys
+import importlib.util, json, subprocess, sys
+from pathlib import Path
 repo, cur, ledger, other = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+
+# 공통층 pathspec 과 빈칸 자리표시자는 **원장 소유자**에게서 받는다(⑧-pre D2 S3·S4). 종전에는 여기서
+# `["docs/benchmark"]` 를 손으로 덧붙였고 자리표시자 철자도 따로 적었다 -- 그래서 docs/*/example.md 변경이
+# 빈칸에 안 보였고, 원장은 그 철자를 몰라 채우지 않은 분류표를 통과시켰다.
+_spec = importlib.util.spec_from_file_location("_closing_layer_ledger", ledger)
+L = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(L)
 
 def git(*a):
     p = subprocess.run(["git", "-C", repo, *a], capture_output=True, text=True)
     return p.stdout if p.returncode == 0 else ""
 
-sp = {}
-try:
-    sp = json.loads(subprocess.run([sys.executable, ledger, "sync-point", "--repo", repo,
-                                    "--branch", cur], capture_output=True, text=True).stdout or "{}")
-except Exception:
-    pass
+sp = L.sync_point(Path(repo), cur, counterpart=other, ledger_refs=[other])
 base = sp.get("commit")
-spec = json.loads(subprocess.run([sys.executable, ledger, "common-layer", "--repo", repo],
-                                 capture_output=True, text=True).stdout or "{}")
+spec = L.common_layer(Path(repo))
 # 도달범위는 "동기 지점 이후 내가 무엇을 바꿨나"가 아니라 **"이 동기화가 무엇을 바꾸나"**다.
 # 둘은 같지 않다 -- 부트스트랩(동기 지점 없음)에서 전자는 계산조차 불가능하고, 종전 구현은
 # `HEAD~1..HEAD` 로 물러서서 **마지막 커밋 한 건만** 열거했다(2026-09-12 실측: 실제 이동 20파일 중
@@ -134,22 +138,24 @@ spec = json.loads(subprocess.run([sys.executable, ledger, "common-layer", "--rep
 # 반대 브랜치와의 **트리 차이**는 두 경우 모두에서 정확히 이동분이다 -- 바뀌었다 되돌아온 파일을
 # 자동으로 빼고, 대상 브랜치만 움직인 파일(= 이 동기화가 되돌려 버릴 것)을 드러낸다. 동기 지점은
 # 여전히 조회해 `_reach` 에 적는다(사람이 "어디서부터인가"를 읽을 수 있어야 한다).
-paths = ((spec.get("include") or []) + ["docs/benchmark"]
-         + (spec.get("exclude") or []) + [":(exclude)docs/report"])
+# 빈칸은 **옮기는 것 전부**를 보인다(판정 pathspec 이 아니라 도달범위) -- 인증서처럼 충돌 검사 없이 덮는 경로를 빼면
+# 사람이 승인하는 표에서 보이지 않는 채 덮인다(⑧-pre D2 리뷰 교정).
+paths = spec["reach_pathspec"]
 files = [f for f in git("diff", "--name-only", "-z", other, "HEAD", "--", *paths).split("\0") if f]
-reach = (f"{other} vs HEAD 트리차이 · 동기 지점 {base[:12]}" if base
-         else f"{other} vs HEAD 트리차이 (원장 비어 있음 — 부트스트랩)")
+reach = (f"{other} vs HEAD 트리차이 · 동기 지점 {base[:12]}({sp.get('status')})" if base
+         else f"{other} vs HEAD 트리차이 (동기 지점 없음 — {sp.get('status')})")
+F = L.FILL_MARK
 
 print(json.dumps({
-    "entry_id": "<FILL: 예 sync-YYYYMMDDHHMM>",
-    "utc": "<FILL: 시각은 주입만 받는다>",
+    "entry_id": f"{F}: 예 sync-YYYYMMDDHHMM>",
+    "utc": f"{F}: 시각은 주입만 받는다>",
     "departure": cur,
-    "departure_commit": "<FILL: 분류한 시점의 출발 브랜치 HEAD — 원장 파일은 동기화 제외라 ④ 커밋과 공통층이 같다>",
-    "approved_by": "<FILL: 사람>",
-    "approved_utc": "<FILL>",
+    "departure_commit": f"{F}: 분류한 시점의 출발 브랜치 HEAD — 원장 파일은 동기화 제외라 ④ 커밋과 공통층이 같다>",
+    "approved_by": f"{F}: 사람>",
+    "approved_utc": f"{F}>",
     "_reach": reach,
     "classification": [
-        {"file": f, "verdict": "<common_promote|branch_only>", "reason": "<FILL>",
+        {"file": f, "verdict": "<common_promote|branch_only>", "reason": f"{F}>",
          "provenance": "agent-judged"} for f in files
     ],
 }, ensure_ascii=False, indent=2))
@@ -168,6 +174,13 @@ fi
 [ -n "$ENTRY_FILE" ] || { echo "[closing] FAIL: execute 는 --entry-file 이 필요하다(③ 승인된 분류표)." >&2; exit 2; }
 [ -n "$GATE_MODE" ] && [ -n "$WORK_MANIFEST" ] || { echo "[closing] FAIL: execute 는 --mode 와 --manifest 가 필요하다." >&2; exit 2; }
 [ -f "$ENTRY_FILE" ] || { echo "[closing] FAIL: 분류표 파일이 없다: $ENTRY_FILE" >&2; exit 2; }
+# 채우지 않은 분류표는 **어떤 부작용보다 먼저** 거부한다(⑧-pre D2 S4). 원장 ④ 도 같은 검사로 거부하지만,
+# 거기까지 가면 전제 확인·잔존 워크트리 검사를 이미 지난 뒤라 "승인된 표가 틀렸다" 가 늦게 드러난다.
+# 판정 규칙은 원장 소유자(`layer_ledger validate`) 하나다 -- 여기서 자리표시자 철자를 다시 적지 않는다.
+if ! python3 "$LEDGER" validate --entry-file "$ENTRY_FILE" >&2; then
+    echo "[closing] FAIL: 분류표가 원장 계약을 통과하지 못한다(빈 필드·자리표시자·판정 값역) — ③ 승인 전에 채워야 한다." >&2
+    exit 2
+fi
 
 preflight || exit $?
 
@@ -195,7 +208,10 @@ echo "[closing] ⑤ 동기화 — 반대 브랜치 워크트리에서 공통층�
 WT="$REPO/../$(basename "$REPO").wt-$OTHER"
 git -C "$REPO" worktree add -q "$WT" "$OTHER"
 # 자기 일관성 가드가 요구하는 순서: 스크립트만 먼저 당겨온 뒤 실행한다.
-git -C "$WT" checkout "$CUR" -- .claude/skills/upstream-version-watch/scripts/sync_branches.sh
+# 갈라짐 판정기(layer_ledger.py)도 같은 이유로 함께 당긴다(⑧-pre D2 S1) -- 반대 브랜치 판본의 판정기는
+# 옛 규칙으로 판정하거나 모르는 인자로 죽고, sync_branches 는 그 경우 LEDGER_JUDGE_STALE 로 멈춘다.
+git -C "$WT" checkout "$CUR" -- .claude/skills/upstream-version-watch/scripts/sync_branches.sh \
+    .claude/skills/upstream-version-watch/scripts/layer_ledger.py
 
 # ── 승인 증거를 워크트리에 임시 배치한다 ──────────────────────────────────────────
 # 왜: `completion_gate authorize` 는 `--repo-root` **아래에서만** 증거를 해소한다(경로 탈출 차단).
@@ -261,9 +277,28 @@ PY
     if [ -z "$_KST" ]; then
         echo "[closing]   ⚠ 분류표 utc 를 KST 로 옮기지 못해 카탈로그 재파생을 건너뛴다 — 기재하고 진행" >&2
     else
+        _CAT_RC=0
         ( cd "$WT" && python3 "$WT/.claude/skills/hint-publisher/scripts/hint_catalog.py" \
-              --repo "$WT" derive --remote "$REMOTE" --generated-kst "$_KST" ) \
-            || echo "[closing]   ⚠ 카탈로그 재파생 실패 — 기재하고 진행(원인은 위 출력)" >&2
+              --repo "$WT" derive --remote "$REMOTE" --generated-kst "$_KST" ) || _CAT_RC=$?
+        if [ "$_CAT_RC" -ne 0 ]; then
+            # 원인을 **말한다**(⑧-pre D2 S7). 종전 "(원인은 위 출력)" 은 원격에만 있는 태그의 로컬 오브젝트 부재를
+            # 다른 실패와 구분하지 않았고, 해소 명령도 원격 이름 없이 남겼다. 종료코드의 정본은 파생기 상수다
+            # (`hint_catalog.EXIT_LOCAL_TAG_OBJECT_MISSING` · 방금 돈 그 파일에서 읽는다 · 손으로 다시 적지 않는다).
+            # 자동 fetch 는 하지 않는다 -- 원격 태그를 로컬로 들이는 것은 사람이 정한다(기재하고 진행 규약 유지).
+            _CAT_MISSING_RC="$(python3 -c 'import importlib.util, sys
+s = importlib.util.spec_from_file_location("_closing_hint_catalog", sys.argv[1])
+m = importlib.util.module_from_spec(s)
+s.loader.exec_module(m)
+print(getattr(m, "EXIT_LOCAL_TAG_OBJECT_MISSING", ""))' "$WT/.claude/skills/hint-publisher/scripts/hint_catalog.py" 2>/dev/null || true)"
+            if [ -n "$_CAT_MISSING_RC" ] && [ "$_CAT_RC" = "$_CAT_MISSING_RC" ]; then
+                echo "[closing]   ⚠ 카탈로그 재파생 실패 — 원인: 원격 $REMOTE 에만 있는 hint 태그의 **로컬 태그 오브젝트 부재**(brief 를 지어낼 수 없다 · 합성 금지)." >&2
+                echo "[closing]     해소(사람 · 자동 fetch 하지 않는다): git -C \"$REPO\" fetch $REMOTE 'refs/tags/hint/*:refs/tags/hint/*'" >&2
+                echo "[closing]     그 뒤 $OTHER 체크아웃에서 재파생: python3 .claude/skills/hint-publisher/scripts/hint_catalog.py --repo . derive --remote $REMOTE --generated-kst <KST>" >&2
+                echo "[closing]     — 기재하고 진행($OTHER 카탈로그는 이번 회차에 갱신되지 않았다)" >&2
+            else
+                echo "[closing]   ⚠ 카탈로그 재파생 실패(rc=$_CAT_RC) — 기재하고 진행(원인은 위 출력)" >&2
+            fi
+        fi
     fi
     rm -f "$WT/hints/.central_authority"
 fi

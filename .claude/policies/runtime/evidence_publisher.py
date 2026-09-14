@@ -21,10 +21,10 @@ Deterministic-vs-authored boundary (see .claude/rules/docs.md for the published 
       CLI arguments, never of a wall clock or of its own guesses about content.
     - The only prose this script ever places into a document is content it was given via an
       EXPLICIT FILE ARGUMENT (`set-narrative --narrative-file`, `publish-benchmark
-      --bench-report-src`/`--certificate-src`) -- there is no code path that synthesizes
+      --bench-report-src`/`--certificate-src`, `publish-lite-report --bench-report-src`) -- there is no code path that synthesizes
       narrative, measured numbers, a verdict, or a certificate from its own inference.
 
-Subcommands: init | append-raw | set-narrative | publish-benchmark | finalize | (--self-test)
+Subcommands: init | append-raw | set-narrative | publish-benchmark | publish-lite-report | finalize | (--self-test)
 
 stdlib only, no third-party dependencies -- reuses the constitution completion gate and
 wiki-desk owner-local doc_naming.py rather than reimplementing their logic (path-safety resolvers, the
@@ -129,6 +129,89 @@ def _record_path(repo_root: Path, topic: str) -> Path:
 # subcommand goes through (_load_record), rather than re-guarded ad hoc at each call site.
 _RECORD_OBJECT_OR_NULL_FIELDS = ("capacity_rejection",)
 
+# ── 재분류(강등) — full_benchmark → hint_map_only (2026-09-14 · plan_26091407 §4.5 · 사용자 결정 Q10) ─────────────────
+# full bench 의 정의는 `lite ∪ GuideLLM × 반복 ≥3` 이고, 반복이 **기계 이벤트**(판정점 run 실패 · 블랙박스 kill)로 성립하지
+# 않은 셀은 lite 로 강등된다(확정 `classify_cell.py`). 그 셀은 full 인증서를 받지 못하므로(`publish_benchmark_record` 억제)
+# full_benchmark 토픽은 `EVIDENCE_MISSING:certificate` 로 영원히 finalize 할 수 없고, 같은 토픽을 map_only 로 다시 init 하면
+# 종전에는 INIT_IMMUTABLE_REBIND 가 막았다(`BENCHMARK_CARRY_FIELDS` 주석이 상정한 전이가 도달 불가였다 — 메모리 ①).
+# 이 전이 **하나만** 정식 경로로 연다. 되돌림(map_only → full)·다른 클래스 전환은 여전히 REBIND 다.
+#   · 사유는 필수이고 강등 어휘(`classify_cell.DOWNGRADE_REASONS` — 소유는 그 파일)여야 한다. 분산 같은 비-기계 사유는 없다.
+#   · ★ 사유는 **선언이 아니라 대조**다(2026-09-14 리뷰 교정): 직전 record 에 바인딩된 bench_report 의 측정 구성 표를
+#     읽어 `classify_cell.bench_mode_kind` 가 `downgraded-lite` 이고 표의 `downgrade_reason` 이 `--downgrade-reason` 과 같을
+#     때만 연다. 종전에는 어휘 검사뿐이라 표가 `bench_mode | full` 이라 말하는 토픽도 사람의 한 마디로 map_only 가 됐고
+#     (REBIND 예외가 강등 셀 밖으로 샜다) record 는 lite · 리포트는 full 이라는 모순이 발행까지 갔다. 강등의 확정은
+#     classify_cell 이 기계 이벤트로 하고(계획서 §4.4) 그 판정은 render_report 가 표에 적는다 — 여기서는 그 표를 읽는다.
+#   · 재분류는 `benchmark.mode` 를 `lite` 로 **함께** 바꾼다(강등 = full 정의 미충족 — 두 칸이 다른 말을 하지 않게).
+#     verdict·rubric·바인딩된 bench_report 는 보존한다(합성 ✗ · 강등 셀의 리포트가 곧 lite 통로의 바인딩 대상이다).
+#   · 출처는 record.reclassification 에 남긴다(누가 · 무엇에서 · 왜 — `reason_source`).
+OPTIONAL_RECORD_FIELDS = ("reclassification",)
+DOWNGRADE_FROM_CLASSES = ("full_benchmark",)
+DOWNGRADE_TO_CLASS = "hint_map_only"
+# 시각 칸은 두지 않는다 — init 이 받는 시각은 토픽의 `generated_utc`(불변)뿐이라 재분류 시각이 아니다. 그 값을 "재분류 시각"
+#   이름으로 적으면 기록이 거짓을 말한다(시각은 주입만 받는다 · 주입할 칸이 없으면 적지 않는다).
+_RECLASSIFICATION_KEYS = {"from", "to", "reason", "reason_source"}
+
+
+def _load_owner_module(rel_path: str, module_name: str, error_code: str, purpose: str, attrs: tuple):
+    """다른 스킬이 소유한 어휘·파서를 늦게 적재한다(복제 ✗ · 적재 실패는 fail-closed — 대조 없이 통과시키지 않는다)."""
+    path = _REPO_ROOT / rel_path
+    try:
+        import importlib.util as _ilu
+        spec = _ilu.spec_from_file_location(module_name, path)
+        module = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        for attr in attrs:
+            getattr(module, attr)
+    except (OSError, AttributeError, ImportError, SyntaxError) as exc:
+        _emit(_bare_error(error_code, f"cannot load {purpose} owner {path}: {exc} -- refusing to continue without it"), 2)
+    return module
+
+
+def _classify_cell_module():
+    """강등 어휘·판독 규칙의 소유자 `adversarial-benchmark/scripts/classify_cell.py`."""
+    return _load_owner_module(".claude/skills/adversarial-benchmark/scripts/classify_cell.py",
+                              "_evidence_publisher_classify_cell", "DOWNGRADE_REASON_VOCABULARY_UNAVAILABLE",
+                              "the downgrade vocabulary", ("DOWNGRADE_REASONS", "BENCH_MODE_LITE", "bench_mode_kind"))
+
+
+def _downgrade_reasons() -> tuple:
+    """강등 사유 어휘 — 소유자 classify_cell 에서 읽는다."""
+    return tuple(_classify_cell_module().DOWNGRADE_REASONS)
+
+
+def report_measurement_config(report_text: str) -> "tuple[dict | None, str]":
+    """bench_report 본문 → (측정 구성 표 dict | None, 상태). 파서의 단일 소유자는 hint-publisher
+    `render_bench_section.parse_measurement_config` 다(표 writer = render_report · 두 자리의 일치는 selftest_lite_report L10).
+
+    상태: `parsed` · `absent(…)`(표 신설 전 리포트) · `unparseable(…)`(절은 있는데 깨졌다). 줄 단위 문자열 매치를 쓰지 않는
+    이유: 표 밖 산문에 같은 모양의 줄이 섞여도 참이 되고, 표가 깨진 리포트도 통과한다(2026-09-14 리뷰 발견)."""
+    rbs = _load_owner_module(".claude/skills/hint-publisher/scripts/render_bench_section.py",
+                             "_evidence_publisher_bench_section", "MEASUREMENT_CONFIG_PARSER_UNAVAILABLE",
+                             "the measurement-config parser", ("parse_measurement_config", "BenchSectionFailure"))
+    try:
+        mc = rbs.parse_measurement_config(report_text)
+    except rbs.BenchSectionFailure as exc:
+        return None, f"unparseable({exc})"
+    if mc is None:
+        return None, "absent(측정 구성 표 없음 — 표 신설 전 리포트)"
+    return mc, "parsed"
+
+
+def _bound_report_measurement_config(repo_root: Path, report_rel: str, error_prefix: str) -> "tuple[dict | None, str]":
+    report_bytes, _sha = _resolve_src(repo_root, report_rel, error_prefix)
+    return report_measurement_config(report_bytes.decode("utf-8"))
+
+
+def _reclassification_shape_error(value, task_class) -> "str | None":
+    if not isinstance(value, dict) or set(value) != _RECLASSIFICATION_KEYS:
+        return f"reclassification must be an object with keys {sorted(_RECLASSIFICATION_KEYS)}"
+    if value["from"] not in DOWNGRADE_FROM_CLASSES or value["to"] != DOWNGRADE_TO_CLASS or task_class != DOWNGRADE_TO_CLASS:
+        return (f"reclassification must record {DOWNGRADE_FROM_CLASSES} -> {DOWNGRADE_TO_CLASS!r} on a "
+                f"{DOWNGRADE_TO_CLASS!r} record (got {value.get('from')!r} -> {value.get('to')!r} on {task_class!r})")
+    if any(not isinstance(value[k], str) or not value[k] for k in ("reason", "reason_source")):
+        return "reclassification reason/reason_source must be non-empty strings"
+    return None
+
 # P2-FINAL-02: cmd_finalize indexes record["task_class"]/record["identity"] UNCONDITIONALLY (no
 # `.get()`) -- a persisted record missing either key (e.g. a bare `{}`, or an object some other
 # field of which was tampered away) reached that raw bracket access and surfaced an uncaught
@@ -154,7 +237,9 @@ def _validate_record_shape(record) -> tuple[str, str] | None:
         "benchmark", "required_evidence", "or_group_scaffolded", "capacity_rejection_required",
         "scaffolded", "narrative_status", "raw_log_paths", "capacity_rejection",
     }
-    unknown_fields = set(record) - allowed_fields
+    # 선택 필드 — 재분류(`init --downgrade-from`)를 거친 record 에만 있다. 필수 집합에 넣으면 그 이전의 모든 record 가
+    #   판독 불가가 된다(producer 가 한 번도 쓰지 않은 필드를 요구하는 것이다).
+    unknown_fields = set(record) - allowed_fields - set(OPTIONAL_RECORD_FIELDS)
     missing_fields = allowed_fields - set(record)
     if unknown_fields:
         return ("PUBLICATION_RECORD_UNKNOWN_FIELDS",
@@ -214,6 +299,10 @@ def _validate_record_shape(record) -> tuple[str, str] | None:
             return (f"PUBLICATION_RECORD_FIELD_NOT_AN_OBJECT:{field}",
                     f"publication record field {field!r} must be a JSON object, "
                     f"got {type(record[field]).__name__}")
+    if "reclassification" in record:
+        reclass_error = _reclassification_shape_error(record["reclassification"], record["task_class"])
+        if reclass_error:
+            return ("PUBLICATION_RECORD_RECLASSIFICATION_INVALID", reclass_error)
     for field in _RECORD_OBJECT_OR_NULL_FIELDS:
         if field in record and record[field] is not None and not isinstance(record[field], dict):
             return (f"PUBLICATION_RECORD_FIELD_NOT_AN_OBJECT:{field}",
@@ -1626,6 +1715,76 @@ def cmd_init(args: argparse.Namespace) -> None:
                           f"task_class must be one of {task_class_choices}, got {args.task_class!r}"), 2)
 
     prior = _load_record(repo_root, args.topic) or {}
+    reclassification = prior.get("reclassification")
+    downgrade_from = getattr(args, "downgrade_from", None)
+    downgrade_reason = getattr(args, "downgrade_reason", None)
+    if downgrade_reason is not None and downgrade_from is None:
+        _emit(_bare_error("INIT_DOWNGRADE_REASON_WITHOUT_FROM",
+                          "--downgrade-reason is only meaningful with --downgrade-from"), 2)
+    if downgrade_from is not None:
+        # 정식 재분류 경로(위 상수 주석). 전제를 **하나도** 추정하지 않는다: 대상 클래스 · 사유 어휘 · 직전 record 의 클래스.
+        if args.task_class != DOWNGRADE_TO_CLASS:
+            _emit(_bare_error("INIT_DOWNGRADE_TARGET_INVALID",
+                              f"--downgrade-from {downgrade_from!r} reclassifies only into "
+                              f"--task-class {DOWNGRADE_TO_CLASS!r}, got {args.task_class!r}"), 2)
+        if not downgrade_reason:
+            _emit(_bare_error("INIT_DOWNGRADE_REASON_REQUIRED",
+                              "--downgrade-from requires --downgrade-reason (a machine-event downgrade reason recorded "
+                              "by classify_cell -- reclassification without a reason is a silent class change)"), 2)
+        reasons = _downgrade_reasons()
+        if downgrade_reason not in reasons:
+            _emit(_bare_error("INIT_DOWNGRADE_REASON_UNKNOWN",
+                              f"--downgrade-reason {downgrade_reason!r} is not a machine-event downgrade reason "
+                              f"{list(reasons)} (variance is never a downgrade reason)"), 2)
+        if not prior:
+            _emit(_bare_error("INIT_DOWNGRADE_PRIOR_ABSENT",
+                              f"topic {args.topic!r} has no publication record -- nothing to downgrade; init a "
+                              f"{DOWNGRADE_TO_CLASS!r} topic directly for a declared lite-only cell"), 2)
+        prior_class = prior.get("task_class")
+        if prior_class == downgrade_from:
+            reclassification = {"from": downgrade_from, "to": DOWNGRADE_TO_CLASS, "reason": downgrade_reason,
+                                "reason_source": None}   # 아래 증거 대조가 채운다(대조 전에는 기록하지 않는다)
+        elif (prior_class == DOWNGRADE_TO_CLASS and isinstance(reclassification, dict)
+              and reclassification.get("from") == downgrade_from and reclassification.get("reason") == downgrade_reason):
+            pass  # 같은 재분류의 재실행 — 멱등(기록은 그대로)
+        else:
+            _emit(_bare_error("INIT_DOWNGRADE_PRIOR_MISMATCH",
+                              f"topic {args.topic!r} was initialized with task_class={prior_class!r}"
+                              + (f" (already reclassified from {reclassification.get('from')!r} with reason "
+                                 f"{reclassification.get('reason')!r})" if isinstance(reclassification, dict) else "")
+                              + f" -- --downgrade-from {downgrade_from!r} does not apply"), 2)
+        if (prior.get("scaffolded") or {}).get("certificate"):
+            # 강등 셀은 full 인증서를 받지 못한다(publish_benchmark_record 억제). 인증서가 묶여 있으면 "강등됐다" 는 주장과
+            #   record 가 서로 다른 말을 한다 — 어느 쪽이 참인지 여기서 고르지 않는다.
+            _emit(_bare_error("INIT_DOWNGRADE_CERTIFICATE_BOUND",
+                              f"topic {args.topic!r} has a bound certificate "
+                              f"{prior['scaffolded']['certificate']!r} -- a downgraded cell never receives a full "
+                              f"certificate; refusing to reclassify a contradictory record"), 2)
+        if args.benchmark_mode not in (None, "lite"):
+            _emit(_bare_error("INIT_DOWNGRADE_MODE_CONTRADICTION",
+                              f"a downgrade reclassifies the measurement to benchmark.mode='lite'; "
+                              f"--benchmark-mode {args.benchmark_mode!r} contradicts it"), 2)
+        if prior_class == downgrade_from:
+            # 증거 대조 — 새 재분류일 때만(멱등 재실행은 이미 대조를 마친 기록이다). 강등을 말하는 문서는 바인딩된 리포트의
+            #   측정 구성 표 하나다(classify_cell 판정 기록 → render_report). 표가 없거나 깨졌거나 강등이 아니라고 말하면 거부.
+            report_rel = (prior.get("scaffolded") or {}).get("bench_report")
+            if not report_rel:
+                _emit(_bare_error("INIT_DOWNGRADE_REPORT_ABSENT",
+                                  f"topic {args.topic!r} has no bound bench_report -- a downgrade is recorded in the "
+                                  f"sweep report's measurement-config table (publish-benchmark binds it); nothing "
+                                  f"shows this cell was downgraded"), 2)
+            mc, mc_state = _bound_report_measurement_config(repo_root, report_rel, "INIT_DOWNGRADE_REPORT")
+            cc = _classify_cell_module()
+            kind = cc.bench_mode_kind(mc)
+            if not (isinstance(mc, dict) and kind == "downgraded-lite" and mc.get("downgrade_reason") == downgrade_reason):
+                _emit(_bare_error("INIT_DOWNGRADE_EVIDENCE_MISMATCH",
+                                  f"bound bench_report {report_rel!r} does not record this downgrade -- measurement-config "
+                                  f"table state={mc_state}, bench_mode={(mc or {}).get('bench_mode')!r}, kind={kind!r}, "
+                                  f"downgrade_reason={(mc or {}).get('downgrade_reason')!r} vs --downgrade-reason "
+                                  f"{downgrade_reason!r}; a downgrade comes only from classify_cell's machine-event "
+                                  f"record, never from the operator's word"), 2)
+            reclassification["reason_source"] = (f"derived(bench_report({report_rel}) 측정 구성 표 · kind={kind} · "
+                                                 f"downgrade_reason={downgrade_reason} = --downgrade-reason 대조 일치)")
     prior_benchmark_value = prior.get("benchmark")
     prior_benchmark_for_required = prior_benchmark_value if isinstance(prior_benchmark_value, dict) else {}
     verdict = (args.benchmark_verdict if args.benchmark_verdict is not None
@@ -1648,9 +1807,13 @@ def cmd_init(args: argparse.Namespace) -> None:
             "conditions": conditions,
         }
         mismatches = [field for field, value in immutable.items() if prior.get(field) != value]
+        if downgrade_from is not None and "task_class" in mismatches:
+            mismatches.remove("task_class")   # 위에서 검증을 마친 정식 재분류 — 그 외 불변 필드는 그대로 묶인다
         prior_benchmark_for_rebind = prior.get("benchmark")
         if isinstance(prior_benchmark_for_rebind, dict):
             for field, value in (("mode", args.benchmark_mode), ("verdict", args.benchmark_verdict)):
+                if downgrade_from is not None and field == "mode":
+                    continue                  # 재분류가 mode 를 lite 로 바꾼다(모순은 위에서 이미 거부)
                 if value is not None and prior_benchmark_for_rebind.get(field) not in (None, value):
                     mismatches.append(f"benchmark.{field}")
         if mismatches:
@@ -1710,6 +1873,8 @@ def cmd_init(args: argparse.Namespace) -> None:
     for field in BENCHMARK_CARRY_FIELDS:
         if prior_benchmark.get(field) is not None:
             benchmark[field] = prior_benchmark[field]
+    if isinstance(reclassification, dict):
+        benchmark["mode"] = "lite"   # 강등 = full 정의 미충족(재실행에서도 같은 값으로 수렴한다)
     record = {
         "schema_version": SCHEMA_VERSION,
         "publication_id": args.topic,
@@ -1726,6 +1891,8 @@ def cmd_init(args: argparse.Namespace) -> None:
         "raw_log_paths": prior.get("raw_log_paths", {}),
         "capacity_rejection": prior.get("capacity_rejection"),
     }
+    if isinstance(reclassification, dict):
+        record["reclassification"] = reclassification
     record_path = _save_record(repo_root, args.topic, record)
 
     _emit({
@@ -1739,6 +1906,67 @@ def cmd_init(args: argparse.Namespace) -> None:
         "created_now": sorted(created_now),
         "already_existed": sorted(already_existed),
         "record_path": _repo_relative(repo_root, record_path),
+        "reclassification": reclassification if isinstance(reclassification, dict) else None,
+    }, 0)
+
+
+# =============================================================================
+# `publish-lite-report` -- hint_map_only 토픽에 lite 리포트를 **바인딩**한다 (2026-09-14 · plan_26091407 §4.5)
+# =============================================================================
+# 왜 별도 명령인가: `publish-benchmark` 는 full_benchmark 전용이고(mode=full · verdict 필수 · 인증서 짝) `append-raw` 는
+# bench_report 를 받지 않는다. 그래서 선언된 lite-only 셀의 map_only 토픽에는 경량 리포트를 실을 publisher 통로가 **0** 이었고,
+# manifest 손저작이 관행이 됐다(메모리 ① · 계약 v5 C행이 약속한 통로의 한 층 아래 결손). 이 명령은 publish-benchmark 와
+# 같은 규율로 **바인딩만** 한다(복사 ✗ · 규약 위치·이름 · 발행자는 벤치 스킬).
+#   · 대상 = task_class hint_map_only 토픽만(full_benchmark 는 publish-benchmark · 강등 셀은 init --downgrade-from 이 이미
+#     바인딩된 리포트를 보존한다).
+#   · 리포트는 측정 구성 표에서 `bench_mode` 가 lite 라고 말해야 한다 — full 리포트를 lite 로 묶는 거짓 바인딩을 막는다.
+#     판정은 **표를 파싱해서** 한다(`report_measurement_config` · 줄 매치 ✗). 표의 writer 는 `render_report.py`
+#     (measurement_config_section)이고 writer 산출물이 이 술어를 통과하는지는 selftest_lite_report.py 가 대조한다.
+#   · 리포트 이름의 조합 토큰(model·gpu·vllm)과 record.identity 를 대조하지 **않는다** — 이름의 gpu 토큰은 manifest
+#     gpu_model 정규화(`gb10-24gsim` 같은 시뮬 표기 포함)이고 vllm 토큰은 이미지 태그 X.Y.Z 라 identity(`GB10` · `0.29.0rc6`)와
+#     모양이 다르다. 두 모양 사이의 사상 소유자가 없는데 여기서 짓으면 정상 바인딩을 거부한다(publish-benchmark 도 리포트는 같다).
+#   · record.benchmark.mode = lite · verdict·rubric 은 보존(만들지 않는다) · measured_utc 는 인증서가 없으므로 None.
+LITE_BENCH_MODE = "lite"   # classify_cell.BENCH_MODE_LITE 와 같은 철자(selftest_lite_report L10 대조)
+
+
+def cmd_publish_lite_report(args: argparse.Namespace) -> None:
+    repo_root = _resolve_repo_root(args.repo_root)
+    _validate_topic_or_die(args.topic)
+    _validate_required_utc_timestamp(args.generated_utc, "generated-utc")
+    record = _require_record(repo_root, args.topic)
+    if record.get("task_class") != DOWNGRADE_TO_CLASS:
+        _emit(_bare_error("PUBLISH_LITE_REPORT_WRONG_TASK_CLASS",
+                          f"topic {args.topic!r} was initialized with task_class={record.get('task_class')!r}, "
+                          f"not {DOWNGRADE_TO_CLASS!r} (full_benchmark binds its report with publish-benchmark)"), 2)
+    error_prefix = "PUBLISH_LITE_REPORT_BENCH_REPORT"
+    report_src_rel = _require_canonical_bench_src(repo_root, args.bench_report_src, "bench_report", error_prefix)
+    report_bytes, _sha = _resolve_src(repo_root, report_src_rel, error_prefix)
+    try:
+        report_text = report_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        report_text = ""
+    mc, mc_state = report_measurement_config(report_text)
+    if not (isinstance(mc, dict) and mc.get("bench_mode") == LITE_BENCH_MODE):
+        _emit(_bare_error("PUBLISH_LITE_REPORT_NOT_LITE",
+                          f"{report_src_rel!r} measurement-config table does not say bench_mode=lite (state={mc_state}, "
+                          f"bench_mode={(mc or {}).get('bench_mode')!r}) -- refusing to bind a non-lite (or pre-contract) "
+                          f"report as the lite evidence of a map-only topic"), 2)
+    scaffolded = record.setdefault("scaffolded", {})
+    binding_events: dict = {}
+    if scaffolded.get("bench_report") not in (None, report_src_rel):
+        binding_events["bench_report_rebound_from"] = scaffolded.get("bench_report")
+    scaffolded["bench_report"] = report_src_rel             # 바인딩 — 바이트는 쓰지 않는다
+    benchmark = dict(record.get("benchmark") or {})
+    benchmark["mode"] = "lite"
+    benchmark.setdefault("verdict", None)
+    record["benchmark"] = benchmark
+    record["required_evidence"] = required_evidence_for(record["task_class"], record["conditions"],
+                                                        benchmark.get("verdict"))
+    _save_record(repo_root, args.topic, record)
+    _emit({
+        "schema_version": SCHEMA_VERSION, "ok": True, "reason_codes": [], "messages": {},
+        "publication_id": args.topic, "bench_report_path": report_src_rel, "benchmark_mode": "lite",
+        "binding": {"bench_report": "bound", **binding_events},
     }, 0)
 
 
@@ -1772,6 +2000,11 @@ def _build_parser() -> _PublisherArgumentParser:
     p_init.add_argument("--benchmark-mode", choices=bench_mode_choices)
     p_init.add_argument("--benchmark-verdict", choices=bench_verdict_choices)
     p_init.add_argument("--report-slug")
+    p_init.add_argument("--downgrade-from", choices=list(DOWNGRADE_FROM_CLASSES),
+                        help="정식 재분류: 반복 불성립으로 강등된 셀의 full_benchmark 토픽을 hint_map_only 로 다시 init 한다"
+                             "(--task-class hint_map_only · --downgrade-reason 필수 · 되돌림 ✗ · plan_26091407 §4.5)")
+    p_init.add_argument("--downgrade-reason",
+                        help="강등 사유 — classify_cell.DOWNGRADE_REASONS 어휘(run_failed|blackbox_kill)")
     p_init.set_defaults(func=cmd_init)
 
     all_evidence_kinds = list(gate.WORK_SCHEMA["properties"]["evidence"]["properties"].keys())
@@ -1818,6 +2051,14 @@ def _build_parser() -> _PublisherArgumentParser:
                               "승격 판정기가 루브릭 권한을 읽게 한다(인증서는 PASS 전용이라 "
                               "REFUTE 의 carrier 가 못 된다 — plan_26082405).")
     p_bench.set_defaults(func=cmd_publish_benchmark)
+
+    p_lite = sub.add_parser("publish-lite-report",
+                            help="hint_map_only 토픽에 경량(lite) bench_report 를 바인딩한다(복사 ✗ · 측정 구성 표 bench_mode=lite 필수)")
+    p_lite.add_argument("--repo-root")
+    p_lite.add_argument("--topic", required=True)
+    p_lite.add_argument("--generated-utc", required=True)
+    p_lite.add_argument("--bench-report-src", required=True)
+    p_lite.set_defaults(func=cmd_publish_lite_report)
 
     p_fin = sub.add_parser("finalize", help="build a work-manifest from the publication record and delegate to completion_gate.py verify")
     p_fin.add_argument("--repo-root")
@@ -2011,6 +2252,178 @@ def _self_test() -> None:
                 or (repo_root / plan_src).exists():
             raise RuntimeError(f"re-init must not synthesize a missing BOUND original: {out!r}")
 
+        # ── 재분류(강등) · lite 리포트 바인딩 (2026-09-14 · plan_26091407 §4.5 · O5) ─────────────────────────────
+        def down_init(topic, task_class, *extra):
+            return invoke(["init", "--repo-root", str(repo_root), "--topic", topic, "--task-class", task_class,
+                           "--generated-utc", "2026-01-01T03:00:00Z", "--identity-json", str(repo_root / "identity.json"),
+                           *extra])
+
+        def codes(out):
+            return (out or {}).get("reason_codes", [])
+        # 측정 구성 표 픽스처 — 제목은 파서 소유자에서 읽는다(여기서 다시 적으면 파서와 갈라져도 초록이다).
+        mc_title = _load_owner_module(".claude/skills/hint-publisher/scripts/render_bench_section.py",
+                                      "_evidence_publisher_selftest_bench_section", "SELFTEST_PARSER_UNAVAILABLE",
+                                      "the measurement-config parser", ("MEASUREMENT_CONFIG_TITLE",)).MEASUREMENT_CONFIG_TITLE
+
+        def mc_report(measured_utc, **rows):
+            return (f"# report\n생성일 {measured_utc}.\n\n{mc_title}\n\n| 키 | 값 |\n|---|---|\n"
+                    + "".join(f"| {k} | {v} |\n" for k, v in rows.items()))
+
+        def full_topic_with_report(topic, stem, text):
+            rel = f"docs/benchmark/bench_report_{stem}.md"
+            (repo_root / rel).write_text(text, encoding="utf-8")
+            code, out = down_init(topic, "full_benchmark", "--benchmark-mode", "full", "--benchmark-verdict", "PASS")
+            if not (code == 0 and out and out.get("ok")):
+                raise RuntimeError(f"downgrade fixture init {topic} failed: {out!r}")
+            code, out = invoke(["publish-benchmark", "--repo-root", str(repo_root), "--topic", topic, "--verdict", "PASS",
+                                "--generated-utc", "2026-01-01T03:05:00Z", "--bench-report-src", rel])
+            if not (code == 0 and out and out.get("pending_certificate") is True):
+                raise RuntimeError(f"downgrade fixture publish {topic} (full 정의 미충족 → 인증서 억제 상태) failed: {out!r}")
+            return rel
+        drep = full_topic_with_report("down", "26010112_self-test-model_GB10_0.0.0", mc_report(
+            "2026-01-01T03:00:00Z", bench_mode="lite", bench_mode_kind="downgraded-lite",
+            bench_mode_source="반복 조건 불성립(판정점 run 2 실패)", downgrade_reason="run_failed"))
+        # ★음성대조 — 사유 어휘는 맞는데 **강등을 기록하지 않은** 리포트: 표가 full · 표 없는 과거 리포트 · 리포트 미바인딩.
+        #   종전(어휘 검사뿐)에는 셋 다 map_only 로 재분류됐다(record=lite · 리포트=full 모순이 발행까지 갔다).
+        full_topic_with_report("downfull", "26010114_self-test-model_GB10_0.0.0", mc_report(
+            "2026-01-01T03:10:00Z", bench_mode="full", bench_mode_kind="full", bench_mode_source="반복 조건 성립",
+            downgrade_reason="N/A"))
+        full_topic_with_report("downlegacy", "26010115_self-test-model_GB10_0.0.0",
+                               "# report\n생성일 2026-01-01T03:20:00Z.\n\n| 동시성 | decode t/s |\n|---|---|\n| 1 | 9 |\n")
+        code, out = down_init("downnoreport", "full_benchmark", "--benchmark-mode", "full", "--benchmark-verdict", "PASS")
+        if not (code == 0 and out and out.get("ok")):
+            raise RuntimeError(f"downgrade fixture init downnoreport failed: {out!r}")
+        for topic, reason, want in (("downfull", "run_failed", "INIT_DOWNGRADE_EVIDENCE_MISMATCH"),
+                                    ("downlegacy", "run_failed", "INIT_DOWNGRADE_EVIDENCE_MISMATCH"),
+                                    ("down", "blackbox_kill", "INIT_DOWNGRADE_EVIDENCE_MISMATCH"),
+                                    ("downnoreport", "run_failed", "INIT_DOWNGRADE_REPORT_ABSENT")):
+            code, out = down_init(topic, "hint_map_only", "--downgrade-from", "full_benchmark", "--downgrade-reason", reason)
+            if not (code == 2 and want in codes(out)):
+                raise RuntimeError(f"★downgrade of {topic!r} with reason {reason!r} must reject with {want} "
+                                   f"(the bound report does not record that downgrade), got {out!r}")
+            rec_neg = json.loads((repo_root / f"docs/_evidence/{topic}.json").read_text(encoding="utf-8"))
+            if rec_neg["task_class"] != "full_benchmark" or "reclassification" in rec_neg:
+                raise RuntimeError(f"★a rejected downgrade must leave the record untouched: {rec_neg!r}")
+        for argv, want in (
+                ((), "INIT_IMMUTABLE_REBIND"),                                           # 종전 불변: 플래그 없는 클래스 전환
+                (("--downgrade-from", "full_benchmark"), "INIT_DOWNGRADE_REASON_REQUIRED"),
+                (("--downgrade-from", "full_benchmark", "--downgrade-reason", "variance"), "INIT_DOWNGRADE_REASON_UNKNOWN"),
+                (("--downgrade-reason", "run_failed"), "INIT_DOWNGRADE_REASON_WITHOUT_FROM"),
+                (("--downgrade-from", "full_benchmark", "--downgrade-reason", "run_failed", "--benchmark-mode", "full"),
+                 "INIT_DOWNGRADE_MODE_CONTRADICTION")):
+            code, out = down_init("down", "hint_map_only", *argv)
+            if not (code == 2 and want in codes(out)):
+                raise RuntimeError(f"★downgrade negative {argv!r} must reject with {want}, got {out!r}")
+        code, out = down_init("down", "harness_change", "--downgrade-from", "full_benchmark",
+                              "--downgrade-reason", "run_failed")
+        if not (code == 2 and "INIT_DOWNGRADE_TARGET_INVALID" in codes(out)):
+            raise RuntimeError(f"★downgrade into a class other than hint_map_only must reject, got {out!r}")
+        code, out = down_init("nope", "hint_map_only", "--downgrade-from", "full_benchmark",
+                              "--downgrade-reason", "run_failed")
+        if not (code == 2 and "INIT_DOWNGRADE_PRIOR_ABSENT" in codes(out)):
+            raise RuntimeError(f"★downgrade without a prior record must reject, got {out!r}")
+        code, out = down_init("down", "hint_map_only", "--downgrade-from", "full_benchmark",
+                              "--downgrade-reason", "run_failed")
+        if not (code == 0 and out and out.get("ok") and out.get("required_evidence") == ["plan", "devlog", "testlog"]
+                and (out.get("reclassification") or {}).get("reason") == "run_failed"):
+            raise RuntimeError(f"downgrade full_benchmark → hint_map_only with a reason must pass, got {out!r}")
+        rec = json.loads((repo_root / "docs/_evidence/down.json").read_text(encoding="utf-8"))
+        if not (rec["task_class"] == "hint_map_only" and rec["benchmark"]["mode"] == "lite"
+                and rec["benchmark"]["verdict"] == "PASS" and rec["scaffolded"]["bench_report"] == drep
+                and rec["reclassification"]["from"] == "full_benchmark"
+                and rec["reclassification"]["reason_source"].startswith(f"derived(bench_report({drep})")):
+            raise RuntimeError(f"downgrade must preserve verdict/binding, set mode=lite and record provenance: {rec!r}")
+        code, out = down_init("down", "hint_map_only", "--downgrade-from", "full_benchmark",
+                              "--downgrade-reason", "run_failed")
+        if not (code == 0 and out and out.get("ok")):
+            raise RuntimeError(f"re-running the same downgrade must be idempotent, got {out!r}")
+        code, out = down_init("down", "hint_map_only")
+        if not (code == 0 and out and (out.get("reclassification") or {}).get("from") == "full_benchmark"):
+            raise RuntimeError(f"a plain re-init of a reclassified topic must carry the reclassification, got {out!r}")
+        code, out = down_init("down", "full_benchmark")
+        if not (code == 2 and "INIT_IMMUTABLE_REBIND" in codes(out)):
+            raise RuntimeError(f"★reverting a downgrade (map_only → full_benchmark) must stay REBIND, got {out!r}")
+        code, out = down_init("down", "hint_map_only", "--downgrade-from", "full_benchmark",
+                              "--downgrade-reason", "blackbox_kill")
+        if not (code == 2 and "INIT_DOWNGRADE_PRIOR_MISMATCH" in codes(out)):
+            raise RuntimeError(f"★re-downgrading with a different reason must reject, got {out!r}")
+        # 'bench' 토픽(full_benchmark)은 위에서 PASS→REFUTE 로 인증서가 unbind 됐다 — 인증서를 다시 묶어 모순 record 를 만든다.
+        rec_b = json.loads((repo_root / "docs/_evidence/bench.json").read_text(encoding="utf-8"))
+        rec_b["scaffolded"]["certificate"] = cert_rel
+        (repo_root / "docs/_evidence/bench.json").write_text(json.dumps(rec_b), encoding="utf-8")
+        code, out = invoke(["init", "--repo-root", str(repo_root), "--topic", "bench", "--task-class", "hint_map_only",
+                            "--generated-utc", "2026-01-01T02:00:00Z", "--identity-json", str(repo_root / "identity.json"),
+                            "--downgrade-from", "full_benchmark", "--downgrade-reason", "run_failed"])
+        if not (code == 2 and "INIT_DOWNGRADE_CERTIFICATE_BOUND" in codes(out)):
+            raise RuntimeError(f"★a record with a bound certificate is not a downgraded cell, got {out!r}")
+
+        # publish-lite-report — 선언된 lite-only 셀의 map_only 토픽에 경량 리포트를 **바인딩**한다(복사 ✗)
+        lstem = "26010113_self-test-model_GB10_0.0.0"
+        lrep = f"docs/benchmark/bench_report_{lstem}.md"
+        (repo_root / lrep).write_text("# 경량\n\nmode: lite\n\n" + mc_report(
+            "2026-01-01T04:00:00Z", bench_mode="lite", bench_mode_kind="declared-lite",
+            bench_mode_source="declared(lite_bench · lite-only 셀)"), encoding="utf-8")
+        code, out = down_init("lite", "hint_map_only")
+        if not (code == 0 and out and out.get("ok")):
+            raise RuntimeError(f"map_only init failed: {out!r}")
+        before = sorted(os.listdir(repo_root / "docs" / "benchmark"))
+
+        def lite_bind(topic, src):
+            return invoke(["publish-lite-report", "--repo-root", str(repo_root), "--topic", topic,
+                           "--generated-utc", "2026-01-01T04:05:00Z", "--bench-report-src", src])
+        code, out = lite_bind("lite", rep_rel)          # 'bench' 픽스처의 full 리포트 — 측정 구성 표가 lite 라고 말하지 않는다
+        if not (code == 2 and "PUBLISH_LITE_REPORT_NOT_LITE" in codes(out)):
+            raise RuntimeError(f"★a non-lite report must not be bound as lite evidence, got {out!r}")
+        code, out = lite_bind("bench", lrep)
+        if not (code == 2 and "PUBLISH_LITE_REPORT_WRONG_TASK_CLASS" in codes(out)):
+            raise RuntimeError(f"★full_benchmark topic must use publish-benchmark, got {out!r}")
+        # ★음성대조 — 표 **밖**에 표지 모양의 줄만 있는 문서(종전 줄 매치는 통과시켰다) · 표는 있는데 full 이라 말하는 리포트
+        stray = "docs/benchmark/bench_report_26010116_self-test-model_GB10_0.0.0.md"
+        (repo_root / stray).write_text("# 산문\n생성일 2026-01-01T04:01:00Z.\n\n| bench_mode | lite |\n", encoding="utf-8")
+        code, out = lite_bind("lite", stray)
+        if not (code == 2 and "PUBLISH_LITE_REPORT_NOT_LITE" in codes(out)):
+            raise RuntimeError(f"★a lone `| bench_mode | lite |` line outside a measurement-config table must not bind, got {out!r}")
+        code, out = lite_bind("lite", "docs/benchmark/bench_report_26010114_self-test-model_GB10_0.0.0.md")
+        if not (code == 2 and "PUBLISH_LITE_REPORT_NOT_LITE" in codes(out)):
+            raise RuntimeError(f"★a report whose table says bench_mode=full must not bind as lite evidence, got {out!r}")
+        before = sorted(os.listdir(repo_root / "docs" / "benchmark"))   # 음성대조 픽스처를 쓴 뒤의 목록이 기준이다
+        (repo_root / "docs/_evidence/inputs/lite.md").write_text((repo_root / lrep).read_text(encoding="utf-8"),
+                                                                 encoding="utf-8")
+        code, out = lite_bind("lite", "docs/_evidence/inputs/lite.md")
+        if not (code == 2 and "PUBLISH_LITE_REPORT_BENCH_REPORT_SRC_NOT_CANONICAL" in codes(out)):
+            raise RuntimeError(f"★non-canonical lite report src must be rejected, got {out!r}")
+        code, out = lite_bind("lite", lrep)
+        if not (code == 0 and out and out.get("bench_report_path") == lrep and out.get("benchmark_mode") == "lite"):
+            raise RuntimeError(f"publish-lite-report must bind the canonical lite report, got {out!r}")
+        if sorted(os.listdir(repo_root / "docs" / "benchmark")) != before:
+            raise RuntimeError("publish-lite-report must not create files under docs/benchmark/ (no copies)")
+        # 발행자 경로 끝단: 서사 3종 + 경량 리포트 → finalize 가 promotion-ready(지도 발행 통로)에 도달한다
+        for kind in ("plan", "devlog", "testlog"):
+            src = f"docs/_evidence/inputs/lite_{kind}.md"
+            (repo_root / src).write_text(f"# {kind}\n경량 셀 서사.\n", encoding="utf-8")
+            code, out = invoke(["set-narrative", "--repo-root", str(repo_root), "--topic", "lite", "--kind", kind,
+                                "--narrative-file", src, "--author", "selftest", "--generated-utc", "2026-01-01T04:06:00Z"])
+            if code != 0:
+                raise RuntimeError(f"lite narrative {kind} failed: {out!r}")
+        rec_l = json.loads((repo_root / "docs/_evidence/lite.json").read_text(encoding="utf-8"))
+        mdir = repo_root / "docs" / "_evidence"
+        (repo_root / "pii_l.json").write_text(json.dumps({"passed": True, "scanned_paths": sorted(
+            os.path.relpath(str(repo_root / rec_l["scaffolded"][k]), str(mdir))
+            for k in ("plan", "devlog", "testlog", "bench_report"))}), encoding="utf-8")
+        (repo_root / "runtime_l.json").write_text(json.dumps({
+            "health_ok": True, "functional_smoke_passed": True, "identity": identity,
+            "containers": [{"name": "svc", "restart_count": 0, "oom_killed": False}]}), encoding="utf-8")
+        code, out = invoke(["finalize", "--repo-root", str(repo_root), "--topic", "lite",
+                            "--pii-scan-json", str(repo_root / "pii_l.json"),
+                            "--runtime-json", str(repo_root / "runtime_l.json")])
+        if not (isinstance(out, dict) and out.get("eligible_for_promotion") is True
+                and "HINT_MAP_ONLY_PROMOTION" in codes(out)):
+            raise RuntimeError(f"a map_only topic with a bound lite report must reach the map publication path: {out!r}")
+        man = json.loads((mdir / "lite.work-manifest.json").read_text(encoding="utf-8"))
+        if not ((man["evidence"].get("bench_report") or {}).get("path", "").endswith(f"bench_report_{lstem}.md")
+                and man["benchmark"]["mode"] == "lite" and man["evidence"].get("certificate") is None):
+            raise RuntimeError(f"work-manifest must carry the lite report as bench_report evidence (schema unchanged): {man!r}")
+
         # listdir 실패는 fail-closed (감사 A-3). ★ `-1` 은 CPython path_t 의 "fd 아님" 센티널이라
         #   cwd 를 열어 버린다 — 진짜 닫힌 fd 번호(EBADF)를 써야 음성대조가 성립한다.
         closed_fd = os.open(str(repo_root), os.O_RDONLY | os.O_DIRECTORY)
@@ -2034,7 +2447,7 @@ def main(argv=None) -> None:
         _self_test()
         return
     if not args.cmd:
-        _emit(_bare_error("CLI_USAGE_ERROR", "no subcommand given (init|append-raw|set-narrative|publish-benchmark|finalize)"), 2)
+        _emit(_bare_error("CLI_USAGE_ERROR", "no subcommand given (init|append-raw|set-narrative|publish-benchmark|publish-lite-report|finalize)"), 2)
     args.func(args)
 
 

@@ -38,14 +38,16 @@
 #   (기본값을 두지 않는 것은 유지한다 — 부재를 조용히 루트로 폴백시키지 않는 것이 이 설계의 핵심이다.)
 # 사용: broad_search.sh init --sweep-id ID --state PATH --cells k1,k2 --control-variable TEXT
 #                            --max-cells N --wall-clock-budget-s N --consecutive-failure-limit N
-#                            --declared-by TEXT --basis TEXT --authority explore --now-utc T
+#                            --declared-by TEXT --basis TEXT --authority explore --now-utc T [--repeats N]
 #       broad_search.sh cell --state PATH --cell-key K --config NAME --axis-citation TEXT
 #                            --next-intent TEXT [--ack-uncalibrated-thermal]
 #                            [--serve-failed REASON --serve-started-utc T] [--symptom KIND]...
 #                            --bench-budget-mib N --now-utc T --confirm-risk [--topology t]
+#                            [--cross-node-tolerance-s N --cross-node-tolerance-source TEXT]  (multi 원격 노드 사살 대조 · 선언으로만)
 #       broad_search.sh status --state PATH --now-utc T
 #       broad_search.sh map    --state PATH --now-utc T --out-md PATH [--out-json PATH]
-# 종료: 0=성공 · 2=인자/선언 오류 · 3=serve 미가동(materialize 는 explorer 소관) · 5=--confirm-risk 미명시
+# 종료: 0=성공 · 2=인자/선언 오류(셀 출처 lockset provenance 부재·무효 포함 — 캠페인 셀 한정)
+#       3=serve 미가동(materialize 는 explorer 소관) · 5=--confirm-risk 미명시
 #       6=SoC 열 임계 미교정 미승인(--ack-uncalibrated-thermal)
 set -euo pipefail
 
@@ -80,10 +82,16 @@ SERVE_STARTED_UTC=""; SYMPTOMS=()
 #   **열 예산 안에서 스윕을 짧게 도는 정식 경로가 없었다**(배선 부재 · GB10 120b multi 는
 #   연속 포화부하 4분에 SoC 95C hard ceiling 에 닿아 워치독이 서빙을 죽인다).
 LEVELS=""
+# 노드 간 사살 대조 허용오차(2026-09-14 · ⑧ 분석 발견 T1) — 값·출처 짝으로 sweep_bench·셀 종결 분류에 그대로 넘긴다(선언으로만).
+XNODE_TOL=""; XNODE_TOL_SRC=""
 # 2026-09-07 신설(같은 결함 계열 — --levels 와 동일): 프롬프트 형상(in/out/n)도 sweep_bench 에
 #   있고 여기만 없었다. KV 압력 실험(DeepTailor 류 방법론)은 긴 프롬프트가 필요한데 기본
 #   1024/256 은 풀 압력을 만들지 못한다. 빈 값이면 sweep_bench 기본을 그대로 쓴다(개념 이중기재 금지).
 ILEN=""; OLEN=""; NPROMPTS=""
+# full bench 반복 수(2026-09-14 · plan_26091407 §4.4). init 에서만 받는다 — 빈 값이면 캠페인 선언
+#   (`campaign.yaml budgets.repeats` · 미선언이면 full 정의값)에서 파생한다. 파생·값역·하한의 소유는
+#   `repeat_axis.py resolve` 이고 여기서는 부르기만 한다(기본값을 이 파일에 다시 적지 않는다).
+REPEATS=""
 while [ $# -gt 0 ]; do case "$1" in
   --state) STATE="$2"; shift 2;;
   --now-utc) NOW="$2"; shift 2;;
@@ -107,9 +115,12 @@ while [ $# -gt 0 ]; do case "$1" in
   --bench-budget-mib) BENCH_BUDGET="$2"; shift 2;;
   --max-error-rate) MAX_ERROR_RATE="$2"; shift 2;;
   --levels) LEVELS="$2"; shift 2;;
+  --cross-node-tolerance-s) XNODE_TOL="$2"; shift 2;;
+  --cross-node-tolerance-source) XNODE_TOL_SRC="$2"; shift 2;;
   --input-len) ILEN="$2"; shift 2;;
   --output-len) OLEN="$2"; shift 2;;
   --num-prompts) NPROMPTS="$2"; shift 2;;
+  --repeats) REPEATS="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
   --backend) BACKEND="$2"; shift 2;;
   --confirm-risk) CONFIRM=1; shift;;
@@ -139,12 +150,44 @@ esac; done
 
 [ -n "$STATE" ] || { echo "[broad_search] ERROR --state 는 필수다" >&2; exit 2; }
 [ -n "$NOW" ]   || { echo "[broad_search] ERROR --now-utc 는 필수다(벽시계 금지 — 시각은 주입만)" >&2; exit 2; }
-if [ -z "$TOPO" ]; then
-  BR="$(git -C "$REPO" rev-parse --abbrev-ref HEAD 2>/dev/null || echo)"
-  case "$BR" in multi-node) TOPO=multi;; single-node) TOPO=single;; *) TOPO=single;; esac
+# 노드 간 허용오차는 값·출처가 짝이다 — **셀 진입 전**에 친다(2026-09-14 리뷰 정정). 종전에는 그대로 넘겨 셀 종결 분류가
+#   exit 2 를 내는 순간 `set -e` 로 죽었고, 이미 끝난 health 프로브·스윕·--serve-failed 사실이 셀 기록 없이 사라졌다.
+#   검사 규칙은 sweep_bench.sh 진입 검사와 같다(그 스크립트가 받는 인자를 그대로 넘기는 호출부다).
+if { [ -n "$XNODE_TOL" ] && [ -z "$XNODE_TOL_SRC" ]; } || { [ -z "$XNODE_TOL" ] && [ -n "$XNODE_TOL_SRC" ]; }; then
+  echo "[broad_search] ERROR --cross-node-tolerance-s 와 --cross-node-tolerance-source 는 함께 준다(출처 없는 숫자 ✗)" >&2; exit 2
 fi
+case "$XNODE_TOL" in
+  *[!0-9]*) echo "[broad_search] ERROR --cross-node-tolerance-s 는 0 이상 정수(초)다: '$XNODE_TOL'" >&2; exit 2;;
+esac
+# 토폴로지 해소 — **쓰는 서브커맨드(init·cell)에서만** 부른다. status·map 은 토폴로지를 읽지 않고, cell 의 위험 게이트
+#   (--confirm-risk · exit 5)는 해소 가능 여부와 무관하게 먼저 울려야 한다(인자 평면 가드 보존).
+# ★ 2026-09-14(⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고 브랜치로 추론하지 않는다"): 종전 관용구는 여기서
+#   브랜치 이름으로 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 — 서명 카드 노드는
+#   카드↔자기 manifest, 메인은 4자일치 술어(topology_parity), 둘 다 아니면 fail-loud.
+_resolve_topo(){
+  [ -n "$TOPO" ] && return 0
+  local _rc=0
+  TOPO="$(python3 "$SDIR/resolve_topology.py" --repo "$REPO")" || _rc=$?
+  if [ "$_rc" != 0 ]; then
+    echo "[broad_search] ERROR 토폴로지를 정하지 못했다(위 사유) — --topology single|multi 로 명시하라(브랜치 이름으로 고르지 않는다)" >&2
+    exit 2
+  fi
+}
 
 STOPJSON="${STATE%.json}.stop.json"
+
+# 상태 파일이 캠페인 스윕 자리(`campaigns/<id>/sweeps/`, 예약 id 제외)에 있으면 그 <id> 를, 아니면 빈 값을 낸다.
+#   셀 출처 precheck 와 반복 수 파생이 **같은 규칙**으로 캠페인 문맥을 정한다 — 두 자리가 따로 파싱하면
+#   한쪽만 고쳐지는 순간 게이트와 예산이 서로 다른 캠페인을 본다.
+_state_campaign(){
+  local abs camps rest camp
+  abs="$(realpath -m -- "$1")"; camps="$(realpath -m -- "$REPO/campaigns")"
+  case "$abs" in "$camps"/*) ;; *) return 0;; esac
+  rest="${abs#"$camps"/}"; camp="${rest%%/*}"
+  case "${rest#*/}" in sweeps/*) ;; *) return 0;; esac
+  case "$camp" in _bootstrap|_template) return 0;; esac
+  printf '%s' "$camp"
+}
 
 _stop(){   # 상태 → 정지 판정 파일. rc 0=계속 · 3=정지 를 그대로 돌려준다.
   # ★ 여기서 `set -e` 를 다시 켜지 않는다. 셸 옵션은 함수 지역이 아니라 **전역**이라,
@@ -183,10 +226,22 @@ init)
     [ -n "${pair#*:}" ] || { echo "[broad_search] ERROR ${pair%%:*} 는 필수다(선언 없이 스윕을 열지 않는다 · §4.8)" >&2; exit 2; }
   done
   [ -e "$STATE" ] && { echo "[broad_search] ERROR 상태 파일이 이미 있다: $STATE (덮어쓰지 않는다)" >&2; exit 2; }
+  _resolve_topo
+  # ── 반복 수 예산(2026-09-14 · plan_26091407 §4.4). 셀 비용 = 레벨 × 반복이라 벽시계 예산의 근거에 반복이
+  #    실려야 한다. 캠페인 선언에서 파생해 declared_budget 에 **출처와 함께** 적고, 각 셀은 이 값을 sweep_bench 에
+  #    넘긴다(스윕 도중 선언이 바뀌어도 셀끼리 반복 수가 갈라지지 않는다). 해소 실패는 스윕을 열지 않는다.
+  _RA=(resolve)
+  if [ -n "$REPEATS" ]; then _RA+=(--repeats "$REPEATS"); fi
+  _ST_CAMP="$(_state_campaign "$STATE")"
+  if [ -n "$_ST_CAMP" ]; then _RA+=(--campaign-id "$_ST_CAMP"); fi
+  _RR="$(python3 "$SDIR/repeat_axis.py" "${_RA[@]}")" || {
+    echo "[broad_search] ERROR 반복 수를 해소하지 못했다(위 사유) — 선언 없이 스윕을 열지 않는다(§4.8)" >&2; exit 2; }
+  IFS=$'\x1f' read -r REP_N REP_SRC _REP_KIND <<< "$_RR"
   mkdir -p "$(dirname "$STATE")"
   SWEEP_ID="$SWEEP_ID" CELLS="$CELLS" CTRL="$CTRL" AUTHORITY="$AUTHORITY" \
   MAX_CELLS="$MAX_CELLS" WALL="$WALL" FAILLIMIT="$FAILLIMIT" \
   DECLARED_BY="$DECLARED_BY" BASIS="$BASIS" NOW="$NOW" TOPO="$TOPO" \
+  REP_N="$REP_N" REP_SRC="$REP_SRC" \
   python3 - "$STATE" <<'PY'
 import json, os, sys
 cells = [c.strip() for c in os.environ["CELLS"].split(",") if c.strip()]
@@ -209,6 +264,9 @@ state = {
         "max_cells": _pos("MAX_CELLS"),
         "wall_clock_budget_s": _pos("WALL"),
         "consecutive_failure_limit": _pos("FAILLIMIT"),
+        # 반복 수 — 값역·하한은 repeat_axis 가 이미 판정했다. 출처를 값 옆에 둔다.
+        "repeats": _pos("REP_N"),
+        "repeats_source": os.environ["REP_SRC"],
         "declared_by": os.environ["DECLARED_BY"],
         "basis": os.environ["BASIS"],
     },
@@ -290,6 +348,7 @@ PY
     [ -n "${pair#*:}" ] || { echo "[broad_search] ERROR ${pair%%:*} 는 필수다" >&2; exit 2; }
   done
   [ -f "$STATE" ] || { echo "[broad_search] ERROR 상태 파일 부재: $STATE (먼저 init)" >&2; exit 2; }
+  _resolve_topo
 
   # 진입 전 정지 조건. 이미 멈춰야 하는 스윕에 셀을 하나 더 밀어 넣지 않는다.
   #   단 `--serve-failed` 는 **이미 끝난 일의 기록**이다 — 컨테이너도 벤치도 띄우지 않고
@@ -310,6 +369,22 @@ PY
       python3 -c "import json;d=json.load(open('$STOPJSON'));print('  stopped_by:', d['stopped_by'])" >&2
       exit 0
     fi
+    # ── 반복 수 예산 진입 게이트(2026-09-14 · plan_26091407 §4.4 · 리뷰 정정) ──────────────────────────
+    #   새 run 을 소비하는 자리는 이 경로 하나다. 셀 비용 = 레벨 × 반복이므로 스윕 선언에 반복 수가 없으면
+    #   (반복 축 신설 전 상태 파일) 여기서 멈춘다 — 셀마다 캠페인 선언을 다시 해소해 메우면 같은 지도 안에서
+    #   반복 수가 갈라지고, 벽시계 예산을 승인한 근거에 반복이 없던 스윕에 3배 비용이 조용히 붙는다.
+    #   정지 평가기(sweep_stop)는 부재를 None·absent 로 **기재만** 한다(status·map·재조립 같은 읽기 경로를
+    #   막지 않는다). 값의 유효성(정수 ∧ ≥ full 정의)은 위 `_stop` 이 이미 판정했다.
+    _DR="$(python3 -c 'import json,sys
+b = json.load(open(sys.argv[1], encoding="utf-8")).get("declared_budget") or {}
+print("%s\x1f%s" % (b.get("repeats", ""), b.get("repeats_source") or "출처 미기재"))' "$STATE")"
+    IFS=$'\x1f' read -r _DECL_REP _DECL_REP_SRC <<< "$_DR"
+    if [ -z "$_DECL_REP" ]; then
+      echo "[broad_search] ERROR declared_budget.repeats 미선언 — 반복 축 신설 전 상태 파일이다(셀 비용 = 레벨 × 반복)." >&2
+      echo "[broad_search]   새 run 을 소비하는 셀 진입은 막는다. 새 스윕으로 init 하라(init 이 캠페인 선언 budgets.repeats ·" >&2
+      echo "[broad_search]   미선언이면 full 정의값에서 파생해 출처와 함께 적는다). status·map·재조립은 그대로 쓸 수 있다." >&2
+      exit 2
+    fi
   fi
 
   if [ -n "$SERVE_FAILED_REASON" ]; then
@@ -320,10 +395,77 @@ PY
       echo "[broad_search]   실제 서빙 시도 구간의 사살 이벤트를 놓칠 수 있다(사인이 correlation-miss 로 남는다)." >&2
     fi
     SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
+    CELL_PROV='{"status": "not_evaluated", "reason": "--serve-failed 기록 — 트리플렛이 없는 실패 기록은 셀 출처 precheck 를 타지 않는다(envfile 검사와 같은 면제)"}'
     echo "[broad_search] serve_failed 기록 — $SERVE_FAILED_REASON"
   else
   EF="$REPO/output/$TOPO/envs/.env.$CONFIG"
   [ -f "$EF" ] || { echo "[broad_search] ERROR envfile 없음: $EF — 셀 materialize 는 explorer 소관이다" >&2; exit 2; }
+  # ── 셀 출처 precheck (2026-09-14 · plan_26091407 §4.0 · 사용자 결정 Q1·Q8) ─────────────────────
+  #   셀 11/11 이 lockset 없이 손작성 yaml 로 측정됐고, 그 사실을 가리는 자리가 0 이었다(F1). 셀 출처에
+  #   관한 **유일한** fail-closed 자리이며 대상은 표시 부재·무효뿐이다 — `hand-authored` 는 통과한다
+  #   (손작성은 금지가 아니라 표시 대상). 선언과 서빙 실물의 불일치는 막지 않고 writer 가
+  #   cell.status.provenance_mismatch[] 에 기재한다. 서빙 스모크는 캠페인을 모르는 계층이라 손대지 않는다.
+  #   · 판정·어휘 소유: campaign_init --lockset-precheck ← campaign_template_validator.LOCKSET_PROVENANCE
+  #   · 캠페인 밖(상태 파일이 캠페인 밖 ∧ ACTIVE=_bootstrap): 셀 입력의 거처가 없어 **대상이 아니다**. 막으면 해소 경로가
+  #     "대기실에 lockset 을 만든다" 뿐이라 게이트가 우회를 만든다(D3). 대신 조용히 넘기지 않는다 —
+  #     stderr 한 줄과 셀 기록의 cell_provenance.status=not_applicable 로 이름을 남긴다.
+  #   · `--serve-failed` 는 이 분기를 타지 않는다(트리플렛이 없는 실패 기록 — envfile 검사와 같은 면제).
+  #   · `--reassemble-only` 는 탄다: 재조립도 셀을 측정 좌표로 다시 기록하고, 해소 경로(출처 표시)가 있다.
+  #   · 캠페인 문맥은 **포인터 하나로 정하지 않는다**: `--state` 가 `campaigns/<X>/sweeps/` 아래이고
+  #     X 가 `_bootstrap` 이 아니면 X 의 셀을 판정한다(`--campaign-id X`). 포인터가 없거나 무효(오타·
+  #     purge 잔존)라는 이유로 캠페인 셀의 게이트가 열리면 그것이 조용한 우회다. 그 밖(상태 파일이
+  #     캠페인 밖)이면 ACTIVE 가 정한다.
+  #   · 판정자 rc·JSON 을 **분류**한다: `refused`(rc 2 ∧ JSON status=refused)만 "출처 표시 없음" 이고,
+  #     그 밖의 비0·파싱 불가는 **판정 불가**(배선 결함)다. 둘에 같은 안내를 내면 운영자는 lockset 에
+  #     거짓 `hand-authored` 를 덮어쓰고도 여전히 막힌다(workflow.md §막힘 3분류 — 안내문이 분류를
+  #     잘못 말하면 가드가 있어도 사고가 난다).
+  _CI_PC="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+  if [ ! -f "$_CI_PC" ]; then
+    # 판정자가 없으면 판정하지 않은 것이다 — 게이트 경로의 부재를 통과로 접지 않는다.
+    echo "[broad_search] ERROR 셀 출처 precheck 판정자 부재: $_CI_PC — 판정 불가(fail-closed)." >&2
+    echo "[broad_search]   서브라면(측정 스킬이 tool_plane 으로 열리는 서브만 이 경로에 온다 · node_role_contract) 메인의 오버레이 배달이" >&2
+    echo "[broad_search]   캠페인 도구를 빠뜨린 것이다 — 메인이 재배달한다(tool_plane 이 비는 서브에는 이 스크립트가 배달되지 않는다)." >&2
+    exit 2
+  fi
+  _PC_ARGS=(--lockset-precheck --cell "$CELL_KEY")
+  _PC_CAMP="$(_state_campaign "$STATE")"
+  if [ -n "$_PC_CAMP" ]; then
+    _PC_ARGS+=(--campaign-id "$_PC_CAMP")
+    _PC_ACTIVE="$(python3 "$_CI_PC" --active 2>/dev/null || echo '?')"
+    if [ "$_PC_ACTIVE" != "$_PC_CAMP" ]; then
+      echo "[broad_search] ⚠ 상태 파일은 campaigns/$_PC_CAMP 인데 활성 캠페인은 '$_PC_ACTIVE' 다 —" >&2
+      echo "[broad_search]   셀 출처는 상태 파일의 캠페인($_PC_CAMP)으로 판정한다(포인터 유실이 게이트를 열지 않는다)." >&2
+      echo "[broad_search]   cell.status writer 는 활성 캠페인을 따르므로 포인터를 먼저 바로잡아라." >&2
+    fi
+  fi
+  set +e
+  CELL_PROV="$(python3 "$_CI_PC" "${_PC_ARGS[@]}")"
+  _PCRC=$?
+  set -e
+  _PC_STATUS="$(printf '%s' "$CELL_PROV" | python3 -c "
+import json, sys
+try:
+    d = json.loads(sys.stdin.read())
+except ValueError:
+    d = None
+print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str) else '')
+" 2>/dev/null || true)"
+  if [ "$_PCRC" = "2" ] && [ "$_PC_STATUS" = "refused" ]; then
+    echo "[broad_search] ERROR 셀 출처 precheck 거부(위 사유 참조) — 셀 '$CELL_KEY' 의 lockset.json 이 없거나" >&2
+    echo "[broad_search]   provenance(explorer-phase2|hand-authored) 표시가 없다/목록 밖이다. 셀 materialize 는 explorer 소관이다" >&2
+    echo "[broad_search]   (vllm-recipe-explorer Phase-2 가 잠근 lockset 을 쓰거나, 손으로 적었다면 hand-authored 로 표시하라." >&2
+    echo "[broad_search]    셀 키는 campaign.yaml assignments 의 셀 id 와 같은 이름이어야 한다)." >&2
+    exit 2
+  fi
+  if [ "$_PCRC" != "0" ] || { [ "$_PC_STATUS" != "passed" ] && [ "$_PC_STATUS" != "not_applicable" ]; }; then
+    echo "[broad_search] ERROR 셀 출처 precheck 판정 불가(rc=$_PCRC · status='${_PC_STATUS:-없음}') — 판정자가" >&2
+    echo "[broad_search]   판정하지 못했다(배선 결함: 검증기 부재·인스턴스 부재·인자 오류·예외). 출처 표시 문제가 아니므로" >&2
+    echo "[broad_search]   lockset 라벨을 고치지 말고 위 사유를 해소하라(fail-closed)." >&2
+    exit 2
+  fi
+  if [ "$_PC_STATUS" = "not_applicable" ]; then
+    echo "[broad_search] ⓘ 셀 출처 precheck 대상 아님(캠페인 밖 호출 — 사유는 위 판정자 줄) — 셀 기록에 그 사실을 남긴다" >&2
+  fi
   PORT="$(sed -n 's/^SERVING_PORT=//p' "$EF" | head -1)"
   [ -n "$PORT" ] || { echo "[broad_search] ERROR SERVING_PORT 미정($EF)" >&2; exit 2; }
 
@@ -355,9 +497,14 @@ PY
     [ -n "$BACKEND" ] && SB_ARGS+=(--backend "$BACKEND")
     [ -n "$MAX_ERROR_RATE" ] && SB_ARGS+=(--max-error-rate "$MAX_ERROR_RATE")
     [ -n "$LEVELS" ] && SB_ARGS+=(--levels "$LEVELS")
+    [ -n "$XNODE_TOL$XNODE_TOL_SRC" ] && SB_ARGS+=(--cross-node-tolerance-s "$XNODE_TOL" --cross-node-tolerance-source "$XNODE_TOL_SRC")
     [ -n "$ILEN" ] && SB_ARGS+=(--input-len "$ILEN")
     [ -n "$OLEN" ] && SB_ARGS+=(--output-len "$OLEN")
     [ -n "$NPROMPTS" ] && SB_ARGS+=(--num-prompts "$NPROMPTS")
+    # 반복 수는 **스윕 선언**(init 이 캠페인 선언에서 파생해 적은 declared_budget.repeats)을 그대로 넘긴다 —
+    #   셀마다 다시 해소하면 스윕 도중 선언이 바뀔 때 같은 지도 안에서 반복 수가 갈라진다(2026-09-14).
+    #   선언이 없으면 위 진입 게이트가 이미 exit 2 로 멈췄다(기본값을 발명하지 않는다).
+    SB_ARGS+=(--repeats "$_DECL_REP" --repeats-source "sweep state declared_budget.repeats ← $_DECL_REP_SRC")
     bash "$SDIR/sweep_bench.sh" "${SB_ARGS[@]}"
     MEASURE_RC=$?
     if [ "$MEASURE_RC" = "0" ]; then
@@ -370,16 +517,19 @@ PY
   ENDED="$(date -u +%FT%TZ)"
   fi
 
-  EVARGS=()
-  for evf in "$REPO"/docs/logs/*/events/*.jsonl; do
-    [ -f "$evf" ] && EVARGS+=(--events "$evf")
-  done
-  CLS="$(python3 "$SDIR/classify_cell.py" --serve-rc "$SERVE_RC" --measure-rc "$MEASURE_RC" \
-          --started-utc "$STARTED" --ended-utc "$ENDED" "${EVARGS[@]+"${EVARGS[@]}"}")"
+  # 블랙박스 events 의 자리와 **대조 대상 노드**는 분류기가 소유한다(`--events-from-repo` · `--topology` · manifest) —
+  #   sweep_bench 종료부의 bench_mode 판정과 같은 발견 규칙을 쓰려고 호출부마다 glob 을 다시 적지 않는다.
+  #   ★ 2026-09-14(⑧ 분석 발견 T1): 종전에는 저장소의 모든 노드 events 를 같은 시계로 대조했다 — single 은 다른 노드의
+  #     사살을 이 셀의 사인으로, multi 는 회수되지 않은 서브 사살을 "없음" 으로 읽었다. 노드 계획은 토폴로지 사실에서 온다.
+  _CLS_ARGS=(--serve-rc "$SERVE_RC" --measure-rc "$MEASURE_RC" --started-utc "$STARTED" --ended-utc "$ENDED"
+             --events-from-repo "$REPO" --topology "$TOPO" --manifest "$REPO/output/$TOPO/manifest.yaml")
+  [ -n "$XNODE_TOL$XNODE_TOL_SRC" ] && _CLS_ARGS+=(--cross-node-tolerance-s "$XNODE_TOL" --cross-node-tolerance-source "$XNODE_TOL_SRC")
+  CLS="$(python3 "$SDIR/classify_cell.py" "${_CLS_ARGS[@]}")"
 
   CELL_KEY="$CELL_KEY" CONFIG="$CONFIG" CITATION="$CITATION" SWEEPDIR="$SWEEPDIR" \
   CLS="$CLS" ENDED="$ENDED" STARTED="$STARTED" SERVE_FAILED_REASON="$SERVE_FAILED_REASON" \
   NEXT_INTENT="$NEXT_INTENT" THERMAL_UNCAL="${_UNCAL:-}" ACK_UNCAL="$ACK_UNCAL" \
+  CELL_PROV="${CELL_PROV:-}" SDIR="$SDIR" \
   python3 - "$STATE" <<'PY'
 import json, os, sys
 state_path = sys.argv[1]
@@ -397,6 +547,20 @@ def _load(name):
 
 index = _load("sweep_index.json") or {}
 verdict = _load("verdict.json") or {}
+
+
+def _bench_mode_fields():
+    """판정 기록(classify_cell 사이드카) → 셀 기록 필드. 부재·판독 실패·낡음은 null + 그 사유다(추측 ✗)."""
+    keys = ("bench_mode", "bench_mode_source", "downgrade_reason", "downgrade_reason_source", "downgrade_correlation")
+    if cls.get("cell_outcome") != "measured":
+        return dict({k: None for k in keys}, bench_mode_source=(
+            "not_applicable(cell_outcome=%s — 측정이 성립하지 않은 셀에는 bench_mode 가 없다)" % cls.get("cell_outcome")))
+    sys.path.insert(0, os.environ["SDIR"])
+    import classify_cell as _cc
+    record, status = _cc.read_bench_mode_record(os.path.join(sweepdir, "sweep_index.json"), index)
+    if record is None:
+        return dict({k: None for k in keys}, bench_mode_source="not_evaluated(판정 기록 %s)" % status)
+    return {k: record.get(k) for k in keys}
 # ★ 2026-09-06: 오류 분할(도구 경계 대 서버)이 판정점 measured.json 에는 있는데 **셀 기록으로
 #   올라오지 않았다**. 그러면 지도에는 깨끗한 `measured` 셀만 보이고, 요청의 일부가 클라이언트
 #   파서에 버려졌다는 사실이 사라진다. 실측(a0): 24건 중 3건이 harmony 토큰 경계에서 errored.
@@ -425,6 +589,12 @@ cell = {
                      "image_tag", "image_digest", "moe_backend", "attention_backend",
                      "gpu_memory_utilization", "max_num_seqs")},
     "concurrency_vector": vector or None,
+    # 반복 축(2026-09-14 · plan_26091407 §4.4). 요약은 sweep_bench 가 raw runs[] 에서 낸 것이고(레벨별 완주·
+    #   재현 밴드·스윕이 멈춘 자리), bench_mode·강등 사유는 분류기의 **판정 기록**(sweep_bench 종료부가 부른
+    #   classify_cell 의 bench_mode.json)을 그대로 옮긴 값이다 — 여기서 다시 판정하지 않는다(판정 기록은 하나다 ·
+    #   인증서 발행기도 같은 기록을 읽는다). 측정이 성립하지 않은 셀의 index 는 이전 스윕의 것일 수 있어 싣지 않는다.
+    "repetition": (index.get("repetition") if cls.get("cell_outcome") == "measured" else None),
+    **_bench_mode_fields(),
     # 용량 축은 속도와 **합치지 않고 나란히** 둔다.
     "capacity": {"kv_cache_memory_bytes": meta.get("kv_cache_memory_bytes"),
                  "max_model_len": meta.get("max_model_len")},
@@ -457,11 +627,17 @@ cell = {
                     "error_split_source": judged.get("error_split_source"),
                     "completed_requests": judged.get("completed"),
                     "num_prompts": judged.get("num_prompts")},
-    "verdict_narrative": (("%s · authority=%s · source=%s · floor=%s"
+    # 사유 코드는 **있을 때만** 덧붙인다(2026-09-14 · plan_26091407 §4.1). 없으면 이 줄이 삼킨다 —
+    #   SPEC_ACCEPT_LEN_MISSING(spec 선언 ∧ accept_len 결손)과 다른 NEEDS_RUBRIC(사다리 후보 없음·물리
+    #   초과)이 지도에서 똑같이 "NEEDS_RUBRIC · source=None · floor=None" 으로 보인다. 코드의 소유는
+    #   verdict_rule.py 이고 여기서는 인용만 한다(없는 판정의 서술 모양은 종전 그대로).
+    "verdict_narrative": (("%s · authority=%s · source=%s · floor=%s%s"
                            % (verdict.get("verdict"),
                               (verdict.get("rubric") or {}).get("authority"),
                               (verdict.get("rubric") or {}).get("source"),
-                              (verdict.get("rubric") or {}).get("floor")))
+                              (verdict.get("rubric") or {}).get("floor"),
+                              (" · reason_code=%s" % verdict["reason_code"])
+                              if verdict.get("reason_code") else ""))
                           if verdict else None),
     "axis_citation": os.environ["CITATION"],
     # 여정 한 줄 — "다음에 무엇을 할 참인가". 지도(선언)가 영토(실측)와 갈라진 지점을 남기는
@@ -472,7 +648,15 @@ cell = {
     "thermal_uncalibrated": ([x for x in (os.environ.get("THERMAL_UNCAL") or "").split(",") if x]
                              or None),
     "thermal_uncalibrated_ack": os.environ.get("ACK_UNCAL") == "1",
+    # 셀 출처 precheck 판정(2026-09-14 · plan_26091407 §4.0). 통과·대상 아님·미평가를 **셀마다**
+    # 남긴다 — 캠페인 밖 호출에서 precheck 가 적용되지 않았다는 사실이 stderr 와 함께 사라지면
+    # 그것이 조용한 우회다. 판정 JSON 이 파손이면 파손이라고 적는다(없는 판정을 통과로 접지 않는다).
+    "cell_provenance": None,
 }
+try:
+    cell["cell_provenance"] = json.loads(os.environ.get("CELL_PROV") or "null")
+except ValueError:
+    cell["cell_provenance"] = {"status": "unreadable", "raw": os.environ.get("CELL_PROV")}
 _sf = os.environ.get("SERVE_FAILED_REASON") or ""
 if _sf:
     # 사유는 **인용**이다 — 로그의 실제 문장을 옮긴다. 요약·추측 ✗.
@@ -564,9 +748,11 @@ print(d.get('void_reason') or '' if src.startswith('events(') else '')
             _ESC=(--escalation-add --cell "$CELL_KEY" --node "$_NODE" --utc "$ENDED"
                   --window-start-utc "$STARTED" --window-end-utc "$ENDED")
             for _sy in "${SYMPTOMS[@]+"${SYMPTOMS[@]}"}"; do _ESC+=(--symptom "$_sy"); done
-            for evf in "$REPO"/docs/logs/*/events/*.jsonl; do
-              [ -f "$evf" ] && _ESC+=(--events "$evf")
-            done
+            # 시각 대조용 events 는 셀 종결 분류기가 **노드 계획으로 판독한 파일 그대로** 넘긴다(2026-09-14 · T1) —
+            #   종전의 `docs/logs/*/events` 전수 glob 은 발견 규칙의 두 번째 사본이었고 다른 노드의 사살까지 넘겼다.
+            while IFS= read -r evf; do
+              [ -n "$evf" ] && [ -f "$evf" ] && _ESC+=(--events "$evf")
+            done < <(printf '%s' "$CLS" | python3 -c "import json,sys;print('\n'.join(json.load(sys.stdin).get('events_scanned') or []))" 2>/dev/null || true)
             python3 "$_CI" "${_ESC[@]}" >/dev/null \
               || echo "[broad_search] ⚠ escalation 후보 기록 실패 — 종결 HITL 이 이 셀을 못 본다" >&2
             ;;
@@ -577,7 +763,7 @@ print(d.get('void_reason') or '' if src.startswith('events(') else '')
     # 부재는 침묵이 아니라 배선 결함이다(2026-09-08 · F5). 서브 오버레이에 writer 가 없던 동안
     # 이 자리가 조용히 통과해서, 서브의 셀 상태를 캠페인 종료 뒤 메인이 대신 적었다.
     echo "[broad_search] ⚠ campaigns writer 부재($_CI) — cell.status/여정을 아무도 적지 않았다." >&2
-    echo "[broad_search]   서브라면 오버레이 배달이 캠페인 도구를 빠뜨린 것이다(침묵 누락 ✗)." >&2
+    echo "[broad_search]   서브라면(측정 스킬이 tool_plane 으로 열리는 서브 · node_role_contract) 오버레이 배달이 캠페인 도구를 빠뜨린 것이다(침묵 누락 ✗)." >&2
   fi
   set +e; _stop; rc=$?; set -e
   python3 -c "import json;d=json.load(open('$STOPJSON'));print('[broad_search] stop=%s by=%s 남은셀=%d'%(d['stop'],d['stopped_by'],len(d['cells_remaining'])))"

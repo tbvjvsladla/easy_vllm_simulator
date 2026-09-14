@@ -123,6 +123,28 @@ python3 .../hint_tag.py push --tag '<태그>' --manifest $M --apply
 python3 .../hint_catalog.py derive --remote <원격> --generated-kst <…>
 ```
 
+> **lite 만 잰 셀(`hint_map_only`) — 인증서 없이 끝까지 가는 통로**(2026-09-14 · plan_26091407 §4.5 · 계약 §3.0.1).
+> 인증서는 full·PASS 전용이라 lite 셀에는 구조적으로 없다. 대신 **bench_report 를 바인딩**한다:
+> ```bash
+> # 선언된 lite-only 셀 — 경량 리포트 발행 → map_only 토픽에 바인딩(복사 ✗)
+> bash .claude/skills/adversarial-benchmark/scripts/lite_bench.sh <cfg> --topology <t> --backend <b> --publish-report
+> python3 .claude/policies/runtime/evidence_publisher.py init --topic $T --task-class hint_map_only ...
+> python3 .claude/policies/runtime/evidence_publisher.py publish-lite-report --topic $T \
+>         --bench-report-src docs/benchmark/bench_report_<…>.md --generated-utc <…>
+> # 반복 불성립으로 강등된 셀 — full_benchmark 토픽을 사유와 함께 재분류(바인딩된 리포트 보존 · 되돌림 ✗)
+> #   사유는 선언이 아니라 대조다: 바인딩된 리포트의 측정 구성 표가 downgraded-lite · 같은 사유를 말해야 열린다
+> python3 .claude/policies/runtime/evidence_publisher.py init --topic $T --task-class hint_map_only \
+>         --downgrade-from full_benchmark --downgrade-reason <run_failed|blackbox_kill> ...
+> # 봉인 — 레시피 세그먼트는 셀 lockset 선언(+ 같은 셀 config.yaml declared_axes.ple_mode)과 대조한다
+> #   (인증서가 있으면 인증서가 이긴다 · --lockset 은 선택 — 생략하면 대조 생략 경고만 · provenance 부재는 경고)
+> python3 .../hint_tag.py recipe-segment --lockset campaigns/<id>/cells/<cell>/lockset.json
+> python3 .../hint_tag.py seal ... --payload $P --lockset campaigns/<id>/cells/<cell>/lockset.json
+> ```
+> 인증서·roofline·verdict 를 요구하지 않는다. 대가는 셋이다 — 본문 §5 `OBSERVATION-ONLY` 마커(없으면 seal 차단) ·
+> `PAYLOAD.missing[]` 의 `BENCH_MODE_LITE`(lite 로 **기재된** 측정만 — 읽지 못한 측정은 카탈로그 `미기재`/`미확정`) ·
+> 측정 구성 표의 `bench_mode`/도구/반복 N/`downgrade_reason`(hint_collect 가 리포트에서 파싱 · 배포 평면에는 열거·수치 칸과
+> 리포트 포인터만 — 자유 서술 `*_source` 는 리포트에 남는다). 리포트가 바인딩되지 않은 map_only 는 seal 이 `HINT_CERTIFICATE_EVIDENCE_MISSING` 으로 거부한다.
+
 > **앵커가 둘이다 — 헷갈리지 마라.**
 > `--anchor`(④) = 산출물을 **만든** 소스 커밋. 재현하려면 체크아웃할 상태다.
 > `--commit`(⑤) = 태그가 **가리킬** hint 페이로드 커밋.
@@ -135,8 +157,9 @@ hint_collect  collect --manifest --config-name --out --generated-kst [--topology
               check   --payload                     저작 완료 + 3신호 대사 fail-closed
 hint_branch   publish --payload --manifest --tag --anchor --message --generated-kst
               build-tree / verify-tree              트리 전수 == allowlist 완전일치
-hint_catalog  derive  --remote --generated-kst      원격 발행 태그 → index.json + HINTS.md
+hint_catalog  derive  --remote --generated-kst      원격 발행 태그 → index.json + HINTS.md(파생 컬럼 bench_mode · 결손)
 hint_tag      create / seal / verify / reverify / push / match / collect / orphans
+              recipe-segment --certificate <인증서> | --lockset <셀 lockset>   이름 파생(소스 정확히 하나 · 출처 표시)
               ✗ index · reindex — **폐쇄됨**(D1.1). 카탈로그는 hint_catalog derive 가 소유한다
 ```
 
@@ -150,7 +173,7 @@ hint_tag      create / seal / verify / reverify / push / match / collect / orpha
 |---|---|---|
 | 1 | `01-artifacts.md` — 슬롯 판정 + **적용/불해당 사유** | 결정론(표) + Agent(사유) |
 | 2 | `02-narrative.md` — 증상→원인→해소 + "되풀이하지 말 것" | **Agent**(인용 필수 · 원문 전재 ✗) |
-| 3 | `03-benchmark.md` — 수치 + like-with-like 한정자 | 결정론(파싱 · 합성 ✗) + Agent(한정자) |
+| 3 | `03-benchmark.md` — 수치 + **측정 구성 표**(bench_mode · 도구 · 반복 N · downgrade_reason) + like-with-like 한정자 | 결정론(파싱 · 합성 ✗) + Agent(한정자) |
 
 기계 사실은 `PAYLOAD.json`, Agent 선언은 `slots.declaration.json`, 앵커는 `PROVENANCE.json`.
 **재현 자산 실물**은 `artifacts/` 아래 슬롯별로 놓인다:
@@ -217,6 +240,9 @@ family 가 `index.json` 이 아니라 별도 파일인 이유: 카탈로그는 *
 - **태그는 불변** — 발행 후 이름·본문을 고치지 않는다. 교정은 새 태그로 한다.
 - **카탈로그는 손으로 쓰지 않는다** — 진실원천은 `git ls-remote`. 원격 조회에 실패하면
   캐시로 대체하지 않고 **중단**한다. 낡은 카탈로그는 부재와 구분되지 않는다.
+- **등급은 이름에 새기지 않는다** — `bench_mode` 는 태그 페이로드의 `measurement_config` 에서 카탈로그가 파생하는
+  컬럼이다(`hint_catalog.bench_mode_cell` 단일 소유 · `hint_tag` 로컬 색인도 같은 함수). 그 키가 없는 과거 태그는
+  `미기재` 로 보인다 — full 로도 lite 로도 접지 않는다.
 - **hint 브랜치를 메인 워킹트리에 체크아웃하지 않는다** — 배관만 쓴다(체크아웃 0회).
   브랜치 전환이 산출물을 파괴한 실측 이력이 있다.
 - **hint 브랜치는 빌딩블럭이 아니라 산출물**이므로 `sync_branches` 대상이 아니다.

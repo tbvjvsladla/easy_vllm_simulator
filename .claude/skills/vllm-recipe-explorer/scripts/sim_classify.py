@@ -8,7 +8,7 @@ run_trial.py 의 trial_result(load_ok·vllm_profile·functional·error_excerpt)�
   vram_oom        → load 실패 + OOM 시그니처(adjust kv_cache_memory_bytes)
   vram_infeasible → load OK 인데 weights+overhead 만으로 천장 초과(adjust null, HITL)
   functional      → load OK·VRAM OK·functional.passed False(adjust= 실패한 soft 변수)
-  none            → 모두 OK
+  none            → 모두 OK(adjust null) — 단 KV-fit 재검증이 batch 하향을 요구하면 adjust batch
   unknown         → 그 외(Model-C, adjust null)
 
 classify_failure.py 의 정규식 1차 분류 + estimate_vram.py 의 GIB/판정 스타일을 따른다.
@@ -40,15 +40,62 @@ def _profile_gib(profile: dict, key: str):
     return float(v) if v is not None else None
 
 
-def classify(trial_result: dict, budget_gib: float, safety_margin: float) -> dict:
+def kv_fit_check(trial_result: dict, typical_request_tokens) -> dict:
+    """클램프 트라이얼의 **엔진 보고 KV 토큰**으로 max-num-seqs 산식을 재검증한다. 순수 함수.
+
+    plan_26091407 §4.2 의 2-위상 중 위상 2: `KV_fit@L = floor(kv_cache_tokens ÷ L)` 를 배포 클램프로 뜬 엔진이
+    실제로 보고한 토큰으로 다시 재고, candidate.batch 가 그것을 넘으면 `exceeds=True` 다.
+    판정 불가(대표 길이 미지정 · 클램프 미설정 = 측정 트라이얼 · batch 미정 · 토큰 미관측 · KV-fit 0)는
+    exceeds=False 와 **사유**로 돌려준다 — 판정 불가를 '넘지 않았다'로 읽지 않게 `checked` 를 따로 둔다.
+    """
+    cand = trial_result.get("candidate") or {}
+    profile = trial_result.get("vllm_profile") or {}
+    out = {"checked": False, "exceeds": False, "kv_fit": None, "batch": cand.get("batch"),
+           "kv_fit_length": typical_request_tokens, "kv_cache_tokens": profile.get("kv_cache_tokens"),
+           "reason": ""}
+    if not typical_request_tokens:
+        out["reason"] = "대표 길이 L 미지정(손레버 batch 이거나 batch 미정) — 재검증 대상 아님"
+        return out
+    if cand.get("kv_cache_memory_bytes") is None:
+        out["reason"] = "클램프 미설정(측정 트라이얼) — 엔진 토큰이 배포 KV 가 아니다"
+        return out
+    if cand.get("batch") is None:
+        out["reason"] = "batch 미정 — 재검증할 값이 없다"
+        return out
+    if not profile.get("kv_cache_tokens"):
+        out["reason"] = "엔진 보고 kv_cache_tokens 미관측 — 재검증 불가(일치로 접지 않는다)"
+        return out
+    fit = int(profile["kv_cache_tokens"]) // int(typical_request_tokens)
+    out["kv_fit"] = fit
+    if fit < 1:
+        out["reason"] = ("KV-fit 0 — 엔진 KV 토큰 %d 가 대표 길이 %d 보다 작다(판정 불가 · 선언을 확인하라)"
+                         % (int(profile["kv_cache_tokens"]), int(typical_request_tokens)))
+        return out
+    out["checked"] = True
+    out["exceeds"] = int(cand["batch"]) > fit
+    out["reason"] = ("batch %d %s KV-fit %d (= 엔진 KV 토큰 %d ÷ L %d)"
+                     % (int(cand["batch"]), ">" if out["exceeds"] else "≤", fit,
+                        int(profile["kv_cache_tokens"]), int(typical_request_tokens)))
+    return out
+
+
+def classify(trial_result: dict, budget_gib: float, safety_margin: float,
+             typical_request_tokens=None) -> dict:
     """단일 트라이얼 결과의 실패 결정론 분류 + 조정 대상 선정.
 
     trial_result = run_trial.py 출력
         {load_ok, vllm_profile, functional, error_excerpt, ...}.
+    safety_margin = **예산 검증 게이트 승수**(gate_margin = config.safety_margin). 배포 gmu(target_gmu)가
+      아니다 — 2026-09-14(plan_26091407 §4.3) 역할 분리 전에는 타겟 흐름에서 target_gmu 가 이 자리로 들어왔다.
+    typical_request_tokens(선택 · 2026-09-14 §4.2): max-num-seqs 를 KV-fit 산식으로 정한 뒤의 대표 요청 길이.
+      주면 모두-OK 분기에서 `kv_fit_check` 를 돌리고, batch 가 엔진 보고 KV-fit 을 넘으면
+      failure_class=none · adjust_target=batch · kv_fit=<재측정값> 을 돌려준다. **실패가 아니다** — vLLM 에서
+      max_num_seqs 는 admission 상한이고 KV 부족은 선점·대기라 합법이다. 산식(min(요구, KV-fit))을 지키려는
+      파생값 재조정이다. 안 주면 종전 동작 그대로다(기존 호출부 비회귀).
 
-    반환: {failure_class, adjust_target, note}.
+    반환: {failure_class, adjust_target, note} (+ typical 을 주면 kv_fit_check · 하향 시 kv_fit).
       failure_class ∈ none|vram_oom|vram_infeasible|functional|unknown.
-      adjust_target ∈ kv_cache_memory_bytes|attention_backend|tool_call_parser|reasoning_parser|null.
+      adjust_target ∈ kv_cache_memory_bytes|attention_backend|tool_call_parser|reasoning_parser|batch|null.
     """
     result: dict = {
         "failure_class": "unknown",
@@ -200,6 +247,16 @@ def classify(trial_result: dict, budget_gib: float, safety_margin: float) -> dic
         result["failure_class"] = "none"
         result["adjust_target"] = None
         result["note"] = "load OK·VRAM OK·functional 통과 → 수렴."
+        if typical_request_tokens:
+            chk = kv_fit_check(trial_result, typical_request_tokens)
+            result["kv_fit_check"] = chk
+            if chk["checked"] and chk["exceeds"]:
+                result["adjust_target"] = "batch"
+                result["kv_fit"] = chk["kv_fit"]
+                result["note"] = ("load OK·VRAM OK·functional 통과 — 단 KV-fit 재검증: %s → batch 를 KV-fit 으로 "
+                                  "낮춰 재검증(실패 아님 · 산식 재조정)." % chk["reason"])
+            else:
+                result["note"] += " KV-fit 재검증: %s." % chk["reason"]
         return result
 
     # ── 그 외(functional 결과 없음 등) → unknown(HITL) ─────────────────
@@ -215,13 +272,17 @@ def _main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--trial", required=True, help="run_trial 출력 JSON 경로")
     p.add_argument("--budget", type=float, required=True, help="vram_budget_gib")
-    p.add_argument("--margin", type=float, required=True, help="safety_margin (디바이스 풀 상한 비율)")
+    p.add_argument("--margin", type=float, required=True,
+                   help="safety_margin = 예산 검증 게이트 승수(gate_margin · 배포 gmu 가 아니다)")
+    p.add_argument("--typical-request-tokens", type=int, default=None,
+                   help="(선택) KV-fit 대표 요청 길이 — 주면 클램프 트라이얼의 batch 를 엔진 보고 KV-fit 으로 재검증")
     args = p.parse_args(argv)
 
     with open(args.trial, "r", encoding="utf-8") as f:
         trial_result = json.load(f)
 
-    result = classify(trial_result, budget_gib=args.budget, safety_margin=args.margin)
+    result = classify(trial_result, budget_gib=args.budget, safety_margin=args.margin,
+                      typical_request_tokens=args.typical_request_tokens)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

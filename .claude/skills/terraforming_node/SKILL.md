@@ -213,8 +213,10 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
   #    그 값을 work-manifest 의 execution_approval 에 기입한다(plan_sha256 = 그 plan 바이트의 sha256).
   #    → allowed_actions 에 `sync_to_sub` 가 있어야 인가가 열린다.
   # ③ 전달
-  bash .claude/skills/upstream-version-watch/scripts/sync_to_sub.sh       --mode experimental --manifest <work-manifest.json> --apply --provision --branch <multi|single|both>
+  bash .claude/skills/upstream-version-watch/scripts/sync_to_sub.sh       --mode experimental --manifest <work-manifest.json> --apply --provision --branch <이 체크아웃의 토폴로지: multi|single>
   ```
+  — `--branch` 는 **이 체크아웃의 특화헌법·4자일치가 말하는 토폴로지와 같아야** 한다. 어긋나거나 `both` 면 인가 전에
+  exit 12 로 멈춘다(특화층 오배달 · 옛 빌드킷 다운그레이드 차단 · 2026-09-14). 렌더 성공 화면은 렌더한 통로를 그대로 찍는다.
   — 메인 rsync(코드) **이후** 스테이징을 서브 루트로 **오버레이(--delete 없음)**. 빌딩블럭 스킬·manifest 는 전달 안 됨(런타임블럭만).
   - `--mode promotion` 은 verify 가 `promotion-ready` 에 도달한 경우에만 열린다(hint·last-good 평면). 서브 배달은 통상 `experimental`.
 - **단일 전달차**: 코드+에이전트환경 모두 sync_to_sub.sh 한 경로. dry-run 기본 → 사람 검토 후 --apply.
@@ -489,6 +491,7 @@ python3 .claude/skills/terraforming_node/scripts/node_role_contract.py \
 | sync 하위행위 | 평면 | 게이트 | 실행 주체 |
 |---|---|---|---|
 | **전달 콘텐츠 결정**(무엇을 보낼지·핀·해소값) | **A** | 사용자 서명(HITL 게이트 ②) | 사람 |
+| 배달 통로 대조(`--branch` ↔ 체크아웃 특화헌법·4자일치 · 렌더 직전 자기선언 재대조) | **A** 진입 전제 | fail-closed · 정상 차단(우회 인자 ✗ · 2026-09-14) | 스크립트(`sync_to_sub.sh` · `render_sub_env.py`) |
 | **dry-run → apply** | **A** | 사용자 승인 | 사람 |
 | 서브 dirty 보존(`[autosave]` commit) | **B** | 소실 방지 — **메인 자율** | 메인 |
 | 서브 git `checkout`·`clean`(unstick) | **B** | 소실 방지 — **메인 자율** | 메인 |

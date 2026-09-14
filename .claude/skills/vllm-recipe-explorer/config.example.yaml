@@ -5,8 +5,14 @@ target_model:
 nas_host_root: /mnt/models                 # /app/models 가 매핑되는 호스트 NAS 루트 (# 실제 NAS 경로로 교체)
 # tiktoken_host_path: /mnt/models/tiktoken_cache   # (선택) gpt-oss 등 harmony/tiktoken 필요 모델용 호스트측 flat tiktoken 캐시 경로.
                                            #         컨테이너 /encodings:ro 로 마운트됨. 사전적재 전제 — 런타임 다운로드 없음.
-vram_budget_gb: 24                         # carve-out 가상 GPU 예산(예: RTX4090=24) — host 흐름(target_gpu 미정의 시).
-safety_margin: 0.90                        # 하드게이트 임계(기본 0.90)
+vram_budget_gb: 24                         # Phase-1(estimate) 가상 GPU 예산(예: RTX4090=24). simulate 의 예산은 per_card_vram 이다 —
+                                           #   host 흐름은 이 노드(manifest gpu_model · 통합메모리면 test_device_total_gib 선언 > /proc/meminfo)에서,
+                                           #   carve-out 이면 아래 target_gpu 블록으로 선언한다(2026-09-14 · plan_26091407 §4.3).
+                                           #   host 흐름 simulate 는 이 값이 노드 per_card 와 5% 넘게 다르면 exit 5 로 멈춘다(어느 쪽인지 추측 ✗).
+safety_margin: 0.90                        # gate_margin — 예산 검증 게이트 승수(Phase-1 하드게이트 · Phase-2 트라이얼 분류 천장).
+                                           #   배포 gmu 가 아니다: 배포 gpu-memory-utilization 은 target_gpu.target_gmu(deploy_gmu)다.
+                                           #   target_gpu 가 없는 host 흐름 simulate 만 이 **명시값**을 deploy_gmu 로 승계하고
+                                           #   lockset gmu_source=hand 로 표시한다(미선언이면 simulate 는 멈춘다).
 kv_cache_dtype_bytes: 2                    # KV dtype 바이트(기본 2=fp16)
 # tensor_parallel_size: 1                  # (선택) 미지정 시 manifest(nodes×gpus_per_node) 자동결정(git 브랜치 추론 아님 — CLAUDE.md §manifest→서빙전략 배선 불변식)
 # target_gpu:                              # (선택) host≠target 이식 경로 — 있으면 Phase-1(estimate/generate) 거부,
@@ -14,7 +20,11 @@ kv_cache_dtype_bytes: 2                    # KV dtype 바이트(기본 2=fp16)
 #   gpu_model: "NVIDIA RTX PRO 6000"        #   references.md §4 테이블 역룩업 키(per-card VRAM 해소)
 #   per_card_vram_gib: 96                   #   (선택) 테이블 미등재/오버라이드 시 명시(quick-win 우회)
 #   cards_per_node: 1                       #   기본 1. N장은 명시(타겟 TP = cards_per_node × manifest node 수)
-#   target_gmu: 0.90                        #   기본 0.90. 통합메모리 타겟은 gmu>0.90 이면 자동 0.90 하드클램프.
+#   target_gmu: 0.90                        #   필수(기본값 없음 — 미선언 simulate exit 5). deploy_gmu = 배포 yaml gpu-memory-utilization 이자
+#                                           #   클램프 산식 per_card_vram × target_gmu − weights/TP − overhead/TP 의 승수. 통합메모리 타겟은 >0.90 이면 0.90 하드클램프.
+# declared_axes:                           # (선택 · Phase-2) max-num-seqs 산식의 선언 입력 — max_num_seqs = min(요구, KV_fit@L)
+#   concurrency_requirement: 16            #   사용자 동시성 요구. null/부재 = 요구 없음 → batch 미정(max-num-seqs 미emit · KV-fit 은 참고값)
+#   typical_request_tokens: 8192           #   KV-fit 대표 요청 길이 L(입력+출력). null/부재 → max_model_len 으로 보수 산정(대체 사실 기재)
 serving:
   config_name: gpt-oss-20b-rtx4090         # 생성될 3종 세트 base 이름
   port: 8902

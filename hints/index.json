@@ -3,9 +3,181 @@
   "schema": 2,
   "source": "remote-derived",
   "remote": "github-ssh",
-  "generated_kst": "2026-09-12T15:16:53",
-  "count": 36,
+  "generated_kst": "2026-09-15T05:00:39",
+  "count": 46,
   "hints": [
+    {
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len1048576-kvauto-pleoffload",
+      "vllm": "0.1.1.dev53+g30118ba27",
+      "model": "qwen3.8-flash-next-fp8",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "qfp8-len1048576-kvauto-pleoffload",
+      "brief": "FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로",
+      "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
+      "object": "20609a11c438a04ac8ba426be106a67d2dac5d37",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleoffload",
+      "vllm": "0.1.1.dev53+g30118ba27",
+      "model": "qwen3.8-flash-next-fp8",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "qfp8-len262144-kvauto-pleoffload",
+      "brief": "FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로",
+      "anchor": "2e40aff9726424bd78e9ead5d0ee834bbbb31436",
+      "object": "4c2fb6683e5abcbc9056c32b35dc7cb9f479d6b3",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleresident",
+      "vllm": "0.1.1.dev53+g30118ba27",
+      "model": "qwen3.8-flash-next-fp8",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "qfp8-len262144-kvauto-pleresident",
+      "brief": "FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로",
+      "anchor": "fd112b1b881f26ef04e19fa2742951e6818f3147",
+      "object": "3541b9999afb3df292f685004e04c5d8a54eb0f2",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len524288-kvauto-pleoffload",
+      "vllm": "0.1.1.dev53+g30118ba27",
+      "model": "qwen3.8-flash-next-fp8",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "qfp8-len524288-kvauto-pleoffload",
+      "brief": "Qwen3.8-Flash-Next-FP8 를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로 서빙한 경로. 정식 릴리스로는 이 계열이 아예 로드되지 않으며, KV 양자화 축은 이 아치에서 닫혀 있고, MTP 가 2.3배를 준다.",
+      "anchor": "06d89c47e3fb2c4e7404a4ca59dcfad74c0c9906",
+      "object": "0c8dba95f80b8e425bd6d6e2c82b9b7c324ec86f",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_PII_TERMS"
+      ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleoffload",
+      "vllm": "0.1.1.dev53+g30118ba27",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "qnvfp4-len1048576-kvauto-pleoffload",
+      "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로",
+      "anchor": "d04bb3cf47dcbfb4adad35bb0e58f2f4dc1f6206",
+      "object": "777b8145540df7fcb0c9134e1e7500dc374363c2",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleresident",
+      "vllm": "0.1.1.dev53+g30118ba27",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "qnvfp4-len1048576-kvauto-pleresident",
+      "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로",
+      "anchor": "e4507c917311b9b6d237ac7baba36d39deae34b4",
+      "object": "10772ce063c73e1824ff871e8f78d5ed91239820",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleoffload",
+      "vllm": "0.1.1.dev53+g30118ba27",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "qnvfp4-len262144-kvauto-pleoffload",
+      "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로",
+      "anchor": "2c7c3c3a71d0a759ff6f60cd7c0b271cf46b5d6e",
+      "object": "dd41be7903291c414a3dabfb38550a3878302e79",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleresident",
+      "vllm": "0.1.1.dev53+g30118ba27",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "qnvfp4-len262144-kvauto-pleresident",
+      "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로",
+      "anchor": "9a1d2192f23d42d112889b37f0d1733037564c4a",
+      "object": "779f53fec599708c912fa6a709218ef22b1330c8",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleoffload",
+      "vllm": "0.1.1.dev53+g30118ba27",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "qnvfp4-len524288-kvauto-pleoffload",
+      "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로",
+      "anchor": "da2c3a063ee7126bf8f1145c4f83c9758138d441",
+      "object": "f0be8bfb5b36405e3d7698a0b27690253064a27c",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "published": true,
+      "source": "remote-derived"
+    },
+    {
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleresident",
+      "vllm": "0.1.1.dev53+g30118ba27",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "arch": "rtxpro6000x2-main-native",
+      "recipe": "qnvfp4-len524288-kvauto-pleresident",
+      "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로",
+      "anchor": "26f5ec2bbc13423ca8007cbbdf500aa051c59c5b",
+      "object": "8b28b4ac6e97a4a6f54fd862fa24f977a2cfefeb",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "published": true,
+      "source": "remote-derived"
+    },
     {
       "tag": "hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8",
       "vllm": "0.18.0",
@@ -16,6 +188,8 @@
       "anchor": "a3fc9e82ded52ff0dfc7a31432a8d9f1ea7504fe",
       "object": "0f08502c5076f85d29a0474b9183709c1b55db2e",
       "missing": [],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -29,6 +203,8 @@
       "anchor": "588fd88519fe3bcdc0aca2f6a2edee330fd3c5ad",
       "object": "97fd66d0242f539a03074bc30a63d081f91ecd67",
       "missing": [],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -44,6 +220,8 @@
       "missing": [
         "HINT_MISSING_SWEEP_LEVELS"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -59,6 +237,8 @@
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -72,6 +252,8 @@
       "anchor": "5f14d7db4e139bc9859dca1778080d92f7031757",
       "object": "34dfad0db6fee8a76456c938b9a84b9de7f973e9",
       "missing": [],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -89,6 +271,8 @@
         "HINT_MISSING_CERTIFICATE",
         "HINT_MISSING_LITE"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -106,6 +290,8 @@
         "HINT_MISSING_CERTIFICATE",
         "HINT_MISSING_LITE"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -123,6 +309,8 @@
         "HINT_MISSING_CERTIFICATE",
         "HINT_MISSING_LITE"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -140,6 +328,8 @@
         "HINT_MISSING_CERTIFICATE",
         "HINT_MISSING_LITE"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -155,6 +345,8 @@
       "missing": [
         "HINT_MISSING_LITE"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -170,6 +362,8 @@
       "missing": [
         "HINT_MISSING_LITE"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -185,6 +379,8 @@
       "missing": [
         "HINT_MISSING_LITE"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -200,6 +396,8 @@
       "missing": [
         "HINT_MISSING_LITE"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -215,6 +413,8 @@
       "missing": [
         "HINT_MISSING_LITE"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -230,6 +430,8 @@
       "missing": [
         "HINT_MISSING_LITE"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -245,6 +447,8 @@
       "missing": [
         "HINT_MISSING_LITE"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -260,6 +464,8 @@
       "missing": [
         "HINT_MISSING_LITE"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -275,6 +481,8 @@
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -290,6 +498,8 @@
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -305,6 +515,8 @@
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -320,6 +532,8 @@
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -335,6 +549,8 @@
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -350,6 +566,8 @@
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -365,6 +583,8 @@
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -380,40 +600,42 @@
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
     {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-plemmap",
       "vllm": "0.29.0",
       "model": "qwen3.8-flash-next-nvfp4",
       "arch": "gb10x2-cluster-native",
-      "recipe": "len262144-kvauto",
-      "brief": "이 모델(Qwen3.8-Flash-Next-NVFP4)을 GB10 2노드 TP=2 로 세울 때 실제로 부딪힌 벽은 셋이다.",
-      "anchor": "fa39160d1a5270a634fc5a851b49cfb4f04f24eb",
-      "object": "57f6afb6bbc475b0ff3b4a486d927d7b9eadd5cd",
+      "recipe": "len262144-kvauto-plemmap",
+      "brief": "Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드 TP=2 로 세울 때, **PLE 를 NVMe mmap 으로 서빙하는 트랙**은",
+      "anchor": "8564c4c8cb6b7e3406d4533d822c675347807a0f",
+      "object": "d61f6e55e96f0503da56fd7a39299f11d0fa728c",
       "missing": [
-        "HINT_MISSING_BENCH_REPORT",
-        "HINT_MISSING_CERTIFICATE",
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
     {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto_260910t0204z",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-pleresident",
       "vllm": "0.29.0",
       "model": "qwen3.8-flash-next-nvfp4",
       "arch": "gb10x2-cluster-native",
-      "recipe": "len262144-kvauto_260910t0204z",
-      "brief": "이 모델(Qwen3.8-Flash-Next-NVFP4)을 GB10 2노드 TP=2 로 세울 때 실제로 부딪힌 벽은 셋이다.",
-      "anchor": "ea0b1782ac89e79afc58c1e0503d2a4711eb6679",
-      "object": "803ac1049aa81b1aa99801c775648fd2da5d12ac",
+      "recipe": "len262144-kvauto-pleresident",
+      "brief": "Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드 TP=2 로 세울 때, **PLE(per-layer n-gram embedding)를",
+      "anchor": "04dc2d6bf2132d0419fea81a8db407f8764a6495",
+      "object": "dbf99dad01afe33a6ae1cc027950393fe34e8c4f",
       "missing": [
-        "HINT_MISSING_BENCH_REPORT",
-        "HINT_MISSING_CERTIFICATE",
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -429,6 +651,8 @@
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -444,6 +668,8 @@
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -459,6 +685,8 @@
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -476,6 +704,8 @@
         "HINT_MISSING_CERTIFICATE",
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -494,6 +724,8 @@
         "HINT_MISSING_LITE",
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -512,6 +744,8 @@
         "HINT_MISSING_LITE",
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -530,6 +764,8 @@
         "HINT_MISSING_LITE",
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -548,6 +784,8 @@
         "HINT_MISSING_LITE",
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     },
@@ -566,6 +804,8 @@
         "HINT_MISSING_LITE",
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
       "source": "remote-derived"
     }

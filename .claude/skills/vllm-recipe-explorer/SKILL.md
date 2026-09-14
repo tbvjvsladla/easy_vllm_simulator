@@ -28,7 +28,7 @@ description: >-
 
 - **Goal** — 한 모델 × 이 하드웨어에서 **실서빙되는** 레시피(3종 세트 .yaml+.sh+.env)를 만들고, KV 를 측정 기반 절대 클램프로 고정해 이식 가능하게 한다.
 - **When to invoke** — "이 모델 어떤 설정으로 띄울까" · VRAM 예산 맞춤 · KV/batch/파서/backend 튜닝 · 실서빙 검증 요청. Flag 미발급이면 info-only 로만.
-- **Inputs** — `config.yaml`(모델 경로·예산·margin·serving 이름) · 모델 `config.json`+safetensors(NAS) · `output/<topology>/manifest.yaml`(TP·NAS·host_safety) · Phase 2 는 `lockset.json`.
+- **Inputs** — `config.yaml`(모델 경로·예산·`safety_margin`=gate_margin·`target_gpu.target_gmu`=deploy_gmu·`declared_axes`·serving 이름) · 모델 `config.json`+safetensors(NAS) · `output/<topology>/manifest.yaml`(TP·NAS·host_safety·host 흐름 gpu_model) · Phase 2 는 `lockset.json`.
 - **Outputs** — `output/<t>/configs/<name>.{yaml,sh}` + `envs/.env.<name>` · `feedback/.last_ranking.json` · Phase 2 는 `docs/simlog/<run_id>/` 원시증거 + 수렴 레시피 · 라이브 serve.
 - **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 9단계(순서 고정).
 - **State transitions** — serve `/health` 200 + 기능 스모크 통과로 `runtime-ready` 를 만든다. `evidence-complete`/`promotion-ready` 는 `.claude/policies/runtime/completion_gate.py` 소유(이 문서가 자체 판정 ✗).
@@ -51,7 +51,11 @@ description: >-
 5. **rank + 하드게이트**(결정론) → 리포트 → **HITL 로 `recipe_id` 선택**. 전부 FAIL 이면 인피저블 단정 전 2단계 의무.
 6. **generate**(Phase 1 종료 가능 지점) — 3종 세트 emit. `max-num-seqs`·`kv-cache-memory-bytes` 는 여기서 emit 하지 않는다(측정 산물).
 7. **Phase 2 인터뷰 → lock-set**(`references/phase2-interview.md`) — 타깃 GPU 0순위, soft 변수 `*_candidates` 채움.
-8. **trial-loop**(`recipe.py simulate`) — 로드-전 RAM 게이트 → run_trial → `sim_classify` → 조정 → 반복(cap 3). 최소 2-트라이얼(측정→클램프 검증)로 **절대 KV 클램프 수렴**(`references/kv-clamp.md`).
+8. **trial-loop**(`recipe.py simulate`) — 로드-전 RAM 게이트 → run_trial → `sim_classify` → 조정 → 반복(cap 3). 최소 2-트라이얼의 **2-위상**(언클램프 실측 → batch 산출 → 클램프+batch 고정 재검증)으로 **절대 KV 클램프와 max-num-seqs 수렴**(`references/kv-clamp.md` §1·§3):
+   - **gmu 두 역할**(2026-09-14 · plan_26091407 §4.3): `deploy_gmu` = `target_gpu.target_gmu`(배포 yaml `gpu-memory-utilization` · 클램프 천장 승수 · 미선언 exit 5) ≠ `gate_margin` = `safety_margin`(트라이얼 검증 게이트 승수). host 흐름은 manifest 에서 target_gpu 를 채워 같은 경로를 탄다(deploy_gmu 는 safety_margin 명시값 승계 · `gmu_source=hand` 로 표시).
+   - **max-num-seqs**(§4.2): `max_num_seqs = min(concurrency_requirement, KV_fit@typical_request_tokens)` · `KV_fit@L = floor(kv_fit_tokens ÷ L)` — kv_fit_tokens 는 엔진 보고 `kv_cache_tokens` 에서 온다(배포 클램프 트라이얼은 그대로, 언클램프·잠정 클램프 트라이얼은 배포 천장으로 환산 `max_safe ÷ (per_token × 블록정렬 버퍼)`). 입력은 셀 `declared_axes`, 엔진 `max_concurrency`(최악 길이)는 보수 하한으로 기재만. 요구 > KV-fit 이면 낮추고 사유를 적는다. **요구가 없으면 batch 를 만들지 않는다**(max-num-seqs 미emit · 1건 클램프 · KV-fit 은 참고값). 손레버 batch 는 덮어쓰지 않고 표시한다. 무릎·열벽은 explorer 밖(벤치 스윕·블랙박스)이 재서 `escalation_candidates`/hint input 으로 넘긴다. 산식 경로는 cap 3칸이 기본이다(첫 OOM·위상 2 하향이 겹치면 더).
+   - **host 흐름 예산**: 선언 `vram_budget_gb` 가 노드 per_card 와 5% 넘게 다르면 exit 5(carve-out 은 `target_gpu` 블록으로 선언).
+   - **수렴 각인**: `--lockset-out`(미지정이면 캠페인 셀 lockset `--candidate` 제자리)에 `provenance=explorer-phase2`·`batch_source`·`gmu_source`·`kv_source`·`trial_provenance` 를 기계가 적는다(어휘 소유 = `campaign_template_validator.py`). 자체검사 `scripts/selftest_gmu_roles_batch.py`(함수·CLI·가짜 엔진 3층 · verify_distribution 이 매번 부른다).
 9. **마무리**(`references/serving-closeout.md`) — lite 벤치 핸드오프 → opt-out 경고 → 유지/down 분기 → 용처 매뉴얼 → (S4 종결 후) hint 제안.
 
 ## Failure → reference routing

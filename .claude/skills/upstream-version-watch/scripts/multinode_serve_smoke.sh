@@ -756,7 +756,13 @@ if [ "$BUDGET" = "1" ]; then
   #   종전에는 이 셸이 floor·ceiling·overhead 상한을 직접 계산했고, 같은 산술이
   #   `single_serve_up.sh`(선판정 자체가 없었다)와 벤치 진입에도 필요했다 — 세 자리에 적으면
   #   반드시 갈린다. 상수(decl_margin·decl_min_ceiling·abs_band)도 그 안에서 정본 import 한다.
-  _PF="$(python3 "$SDIR/budget_preflight.py" --json \
+  # ★ 2026-09-14(plan_26091407 §4.3): 서빙되는 yaml 의 gpu-memory-utilization 을 기재 입력으로 넘겨
+  #   예상 vLLM 몫(gmu × MemTotal)·잔차(몫 − weights − kv)를 **기재만** 받는다 — arm 산식·종료코드는 불변(게이트 ✗).
+  #   yaml 에 수치가 없으면 기재 행이 없다(실패 경로를 새로 만들지 않는다). 이 스크립트는 캠페인을 모르는
+  #   계층이라 target_gmu 와의 대조는 여기서 하지 않는다 — 대조는 campaign_init --cell-set 이 기재한다.
+  #   ★ 2026-09-14(⑧ 분석 발견 T3): yaml → gmu 추출 규칙은 budget_preflight.py(`--declared-gmu-yaml`)가 단일 소유한다 —
+  #     이 셸에 있던 추출 함수를 싱글 기동에 옮겨 적으면 같은 규칙이 두 셸에 손으로 적히므로 경로 한 줄만 넘긴다.
+  _PF="$(python3 "$SDIR/budget_preflight.py" --json --declared-gmu-yaml "output/multi/configs/${CONFIG}.yaml" \
           --mem-total-mib "$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)" \
           --weights-mib "$WEIGHTS_MIB" --kv-mib "$KV_MIB" --overhead-mib "$OVERHEAD_MIB" 2>&1)"
   _PF_RC=$?
@@ -772,6 +778,14 @@ if [ "$BUDGET" = "1" ]; then
     echo "[mn] FAIL: 선판정 산출을 읽지 못했다 — $_PF" >&2; return 2;;
   esac
   echo "[mn] 예산 선판정: 예상 바닥=${_PRED_FLOOR}MiB → arm 상한=${_PRED_CEIL}MiB (가드 최소 ${_WD_MIN_CEIL}MiB)"
+  echo "[mn] declared-gmu 기재(게이트 ✗): $(printf '%s' "$_PF" | python3 -c "
+import json,sys
+r=json.load(sys.stdin).get('declared_gmu_row')
+print('서빙 yaml 에 gpu-memory-utilization 수치 없음 — 기재 행 없음' if r is None else
+      'gmu=%s 예상 vLLM 몫=%sMiB 잔차(몫−weights−kv)=%sMiB provenance=%s status=%s 전제=%s'
+      % (r.get('gmu'), r.get('expected_vllm_share_mib'), r.get('residual_mib'), r.get('provenance'), r.get('status'),
+         str(r.get('premise') or '').split(' — ', 1)[0]))
+" 2>/dev/null || echo '기재 행을 읽지 못했다(판정 무관)')"
   if [ "$_PF_RC" = "4" ]; then
     echo "[mn] STOP(예산 게이트): 워치독이 이 선언을 **거부**한다 — 로드는 0초도 시작하지 않았다."
     printf '%s' "$_PF" | python3 -c "

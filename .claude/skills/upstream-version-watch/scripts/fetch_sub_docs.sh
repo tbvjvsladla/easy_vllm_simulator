@@ -152,12 +152,12 @@ if [ -f "$_CI" ]; then
     else
         echo "[fetch] ⚠ 캠페인 편입 실패 — 미러는 있고 진행표는 없다(위 사유 참조)." >&2
     fi
-    # 합격 술어(P4 동시 착수 타임라인 · P5 서브 자기저작)는 **회수 뒤**에 물어야 답이 있다.
+    # 합격 술어(P4 동시 착수 타임라인 · P5 서브 자기저작 · P6 셀 출처 표시)는 **회수 뒤**에 물어야 답이 있다.
     # 판정만 하고 차단하지 않는다 — 진행을 막는 자리와 판정하는 자리는 분리돼 있다(plan §9 R3).
     _CV="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_template_validator.py"
     _CAMP="$(python3 "$_CI" --active 2>/dev/null || echo _bootstrap)"
     if [ -f "$_CV" ] && [ "$_CAMP" != "_bootstrap" ]; then
-        echo "[fetch] 합격 술어(P4·P5) 판정 — 차단하지 않는다(관측 결과만 남긴다):"
+        echo "[fetch] 합격 술어(P4·P5·P6) 판정 — 차단하지 않는다(관측 결과만 남긴다):"
         python3 "$_CV" --acceptance "${SRC%/}/campaigns/$_CAMP" || true
     fi
 else
