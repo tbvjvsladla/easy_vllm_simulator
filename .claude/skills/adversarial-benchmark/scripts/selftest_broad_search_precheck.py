@@ -28,6 +28,8 @@ precheck 는 셸 스크립트 안에 있으므로 단위 함수 시험(`campaign
   J 판정자(campaign_init.py) 부재       → exit 2, health 프로브 전 · 통과로 접지 않는다
   K 검증기 부재(판정자 예외 rc 1)        → exit 2 '판정 불가' · "hand-authored 로 표시" 안내 ✗(오분류 방지)
   L 포인터 무효(오타) ∧ 상태 파일이 캠페인 안 → 상태 파일의 캠페인으로 판정(부재 → exit 2 · 표시 → 통과)
+  M 판정 사유 코드의 마지막 홉  verdict.json 의 reason_code(SPEC_ACCEPT_LEN_MISSING)가 셀 기록 verdict_narrative 에
+                                 실린다 · 음성대조: reason_code=null 이면 서술 모양은 종전 그대로(plan_26091407 §4.1)
 
 사용: python3 selftest_broad_search_precheck.py   (exit 0 = 전부 통과)
 """
@@ -287,6 +289,28 @@ def main() -> int:
            r.returncode == 0 and cp.get("status") == "passed" and cp.get("campaign_id") == CAMP,
            f"rc={r.returncode} {json.dumps(cp)} {r.stderr[-400:]}")
         _write(root / "campaigns" / "ACTIVE", CAMP + "\n")
+
+        # M — 판정 사유 코드가 지도 층(셀 기록)까지 올라오는가. 재조립 경로는 sweep 의 verdict.json 을 읽는다.
+        verdict_path = root / "output" / "single" / "benchlog" / f"sweep_{CONFIG}" / "verdict.json"
+        _lockset(root, {"id": CELL, "provenance": "hand-authored"})
+        _write(verdict_path, json.dumps({"verdict": "NEEDS_RUBRIC", "failure_axis": "establish",
+                                         "reason_code": "SPEC_ACCEPT_LEN_MISSING",
+                                         "rubric": {"authority": "explore", "source": None, "floor": None}}))
+        st = _init_state(root, env, CAMP, "m")
+        r = _cell(root, env, st, "--reassemble-only")
+        narr = _record(st).get("verdict_narrative") or ""
+        ck("M verdict.reason_code 가 셀 기록 verdict_narrative 에 실린다(마지막 홉에서 삼키지 않는다)",
+           r.returncode == 0 and narr.endswith(" · reason_code=SPEC_ACCEPT_LEN_MISSING")
+           and narr.startswith("NEEDS_RUBRIC · authority=explore"), f"rc={r.returncode} {narr!r} {r.stderr[-300:]}")
+        _write(verdict_path, json.dumps({"verdict": "PASS", "reason_code": None,
+                                         "rubric": {"authority": "explore", "source": "E", "floor": 1.0}}))
+        st = _init_state(root, env, CAMP, "m2")
+        r = _cell(root, env, st, "--reassemble-only")
+        narr = _record(st).get("verdict_narrative") or ""
+        ck("M 음성대조: reason_code=null 이면 서술은 종전 모양 그대로(사유 꼬리 없음)",
+           r.returncode == 0 and narr == "PASS · authority=explore · source=E · floor=1.0",
+           f"rc={r.returncode} {narr!r}")
+        verdict_path.unlink()
 
     if failures:
         print(f"[selftest_broad_search_precheck] FAIL {len(failures)}건:", file=sys.stderr)

@@ -733,7 +733,7 @@ def verify() -> dict:
              ".claude/skills/adversarial-benchmark/fixtures/measured_pass.json", "--roofline",
              ".claude/skills/adversarial-benchmark/fixtures/roofline_sample.json"], {0}),
         # 공허 PASS 게이트의 **집행** (plan_26082219 B2 · 2026-08-22 배선).
-        #   `verdict_rule.py --self-test`(T1~T15) 는 "--target-tps 0 으로 PASS 를 만들 수 있는 경로가
+        #   `verdict_rule.py --self-test`(T1~T23) 는 "--target-tps 0 으로 PASS 를 만들 수 있는 경로가
         #   코드 어디에도 없다"를 단언한다. 그러나 **자체검사에 호출자가 없으면 그것은 L2 가 아니라
         #   L1(산문)** 이다 — 2026-08-16 실측(`gen_recipe_set --check-parity` tripwire 가 호출자 0 개라
         #   실제 위반이 커밋과 이 검증기를 그대로 통과했다)이 그 실증이다. 여기서 매 검증마다 돌린다.
@@ -795,6 +795,17 @@ def verify() -> dict:
         _run("benchmark_judge_authority_accepted",
              ["bash", ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh",
               "_probe", "--authority", "weak", "--check-args"], {0}),
+        # accept_len 승계 · spec 선언 승계 · SPEC_ACCEPT_LEN_MISSING · 발행 억제의 **집행**
+        #   (plan_26091407 §4.1 · §7 O2 · 2026-09-14 배선). 호출자 없는 자체검사는 L1(산문)이다(위 선례).
+        #   무엇을 지키나: judge_bench 가 사람이 줄 때만 accept_len 을 넘겨 roofline 기본 1.0 이 조용히
+        #   낙찰됐고(roofline.json 47/49), 그 1.0 은 R_token 과 expected_achievable(합격선) 양쪽을 내렸다.
+        #   판정기 단위 시험(verdict_rule T18~)만으로는 승계가 **셸 체인에 서 있는지** 증명하지 못하므로
+        #   배포되는 judge_bench.sh·roofline.py·verdict_rule.py 의 바이트 사본을 임시 git 저장소에서 돌린다.
+        #   인증서 발행기는 사본에 없고 스텁이라(docs/·campaigns/ 에 닿지 않는다) 서빙·docker·NAS·GPU 불요다.
+        #   음성대조: spec on ∧ 결손 → SPEC_ACCEPT_LEN_MISSING · 무효 명시 exit 2(제자리여도 정본 짝 불변) ·
+        #   roofline 조합 모순 exit 2 · 억제 없는 explicit PASS 는 발행기를 실제로 부른다(억제가 공허하지 않다).
+        _run("benchmark_judge_bench_selftest",
+             ["bash", ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh", "--self-test"], {0}),
         # 측정 도구 핀 해소기 (plan_26090415 §3.5 · CP3 · 2026-09-04). 순수 비교 함수 자체검사이며
         #   docker·네트워크 불요다. P8 이 **배포되는 실제 핀**을 스키마로 검사하므로 픽스처만 보고
         #   초록이 되지 않는다(픽스처가 실물보다 좁다 — 하루에 네 번 겪은 계열).

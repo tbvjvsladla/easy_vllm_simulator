@@ -536,11 +536,17 @@ cell = {
                     "error_split_source": judged.get("error_split_source"),
                     "completed_requests": judged.get("completed"),
                     "num_prompts": judged.get("num_prompts")},
-    "verdict_narrative": (("%s · authority=%s · source=%s · floor=%s"
+    # 사유 코드는 **있을 때만** 덧붙인다(2026-09-14 · plan_26091407 §4.1). 없으면 이 줄이 삼킨다 —
+    #   SPEC_ACCEPT_LEN_MISSING(spec 선언 ∧ accept_len 결손)과 다른 NEEDS_RUBRIC(사다리 후보 없음·물리
+    #   초과)이 지도에서 똑같이 "NEEDS_RUBRIC · source=None · floor=None" 으로 보인다. 코드의 소유는
+    #   verdict_rule.py 이고 여기서는 인용만 한다(없는 판정의 서술 모양은 종전 그대로).
+    "verdict_narrative": (("%s · authority=%s · source=%s · floor=%s%s"
                            % (verdict.get("verdict"),
                               (verdict.get("rubric") or {}).get("authority"),
                               (verdict.get("rubric") or {}).get("source"),
-                              (verdict.get("rubric") or {}).get("floor")))
+                              (verdict.get("rubric") or {}).get("floor"),
+                              (" · reason_code=%s" % verdict["reason_code"])
+                              if verdict.get("reason_code") else ""))
                           if verdict else None),
     "axis_citation": os.environ["CITATION"],
     # 여정 한 줄 — "다음에 무엇을 할 참인가". 지도(선언)가 영토(실측)와 갈라진 지점을 남기는

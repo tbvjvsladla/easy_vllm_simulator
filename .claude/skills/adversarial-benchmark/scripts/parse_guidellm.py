@@ -254,6 +254,32 @@ def build(doc, benchmark_index=0, engine_max=None, spec=None, max_error_rate=0.0
     }
 
 
+def inherit_accept_len(src, path):
+    """`--accept-len-src` 문서 → spec 승계 dict. 순수함수(파일 I/O 없음).
+
+    ★ 2026-09-14(plan_26091407 §4.1 · 항목 1): 승계원이 `vllm bench serve` 결과가 **아니면 거부**한다
+      (ValueError). 종전에는 sweep_bench 가 lite **raw 포인터 문서**(키: bench_warm_json·nodes …)를 넘겼고,
+      이 함수의 전신은 그 문서의 최상위에서 수용길이를 못 찾자 `accept_len=None` 을
+      `inherited(...)` 출처로 **조용히 승계**했다 — spec 을 선언한 GuideLLM 스윕이 전부 결손으로 기록된
+      뿌리다(warm JSON 에는 실측 2.2069 가 있었다). 수용길이 키가 없는 **정상 bench 결과**(spec off)는
+      None 승계가 맞으므로, 가르는 기준은 bench 결과의 서명(`completed`)이다.
+    """
+    if not isinstance(src, dict):
+        raise ValueError("--accept-len-src 는 JSON 객체여야 한다: %s" % path)
+    value = src.get("spec_decode_acceptance_length")
+    if value is None:
+        value = src.get("accept_len")
+    if value is None and "completed" not in src:
+        hint = (" — lite raw 포인터 문서로 보인다(bench_warm_json=%r). 가리키는 warm JSON 을 넘겨라"
+                % src.get("bench_warm_json")) if "bench_warm_json" in src else ""
+        raise ValueError("--accept-len-src 가 `vllm bench serve` 결과가 아니다(수용길이 키도 completed "
+                         "도 없다): %s%s" % (path, hint))
+    if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float))):
+        raise ValueError("--accept-len-src 의 수용길이가 수가 아니다: %r" % (value,))
+    return {"accept_len": float(value) if value is not None else None,
+            "source": "inherited(%s)" % path}
+
+
 def _load(path, label):
     try:
         with open(path, encoding="utf-8") as handle:
@@ -433,7 +459,30 @@ def _self_test():
         and _gn["tool_boundary_errors"] == 3
         and "unobserved" in _gn["boundary_exemption"])
 
-    print("[parse_guidellm --self-test] OK — G1~G22 전부 통과")
+    # ── G23~G25 spec 승계원의 모양(2026-09-14 · plan_26091407 §4.1) ─────────────────────────
+    #   승계원은 `vllm bench serve` 결과여야 한다. lite raw **포인터 문서**를 넘기면 종전에는
+    #   accept_len=None 이 inherited 출처로 조용히 승계됐다(spec 선언 GuideLLM 스윕 전부 결손의 뿌리).
+    _warm_spec = {"completed": 3, "failed": 0, "median_tpot_ms": 21.4,
+                  "spec_decode_acceptance_length": 2.2069}
+    _g23 = inherit_accept_len(_warm_spec, "lite_warm_x.json")
+    check("G23 bench 결과의 수용길이를 승계한다",
+          _g23["accept_len"] == 2.2069 and _g23["source"] == "inherited(lite_warm_x.json)")
+    _g24 = inherit_accept_len({"completed": 3, "failed": 0, "median_tpot_ms": 30.0}, "lite_warm_y.json")
+    check("G24 spec 키 없는 정상 bench 결과(spec off)는 None 승계가 맞다",
+          _g24["accept_len"] is None and _g24["source"].startswith("inherited("))
+    try:
+        inherit_accept_len({"topology": "multi", "burst_n": 3, "bench_warm_json": "lite_warm_x.json",
+                            "bench_cold_json": "lite_cold_x.json", "nodes": []}, "lite_raw_x.json")
+    except ValueError as exc:
+        check("G25 ★음성대조 lite raw 포인터 문서는 거부한다(조용한 None 승계 ✗)",
+              "bench_warm_json" in str(exc) and "vllm bench serve" in str(exc), "(실제 %r)" % str(exc))
+    else:
+        check("G25 ★음성대조 lite raw 포인터 문서는 거부한다(조용한 None 승계 ✗)", False, "(예외가 나지 않았다)")
+    if failures:
+        sys.stderr.write("[parse_guidellm --self-test] FAIL %d 건: %s\n" % (len(failures), failures))
+        return 1
+
+    print("[parse_guidellm --self-test] OK — G1~G25 전부 통과")
     return 0
 
 
@@ -473,14 +522,11 @@ def main(argv=None):
     spec = {"accept_len": None, "source": "declared-absent"}
     if args.accept_len_src:
         src = _load(args.accept_len_src, "--accept-len-src")
-        value = src.get("spec_decode_acceptance_length") if isinstance(src, dict) else None
-        if value is None and isinstance(src, dict):
-            value = src.get("accept_len")
-        if value is not None and not isinstance(value, (int, float)):
-            sys.stderr.write("[parse_guidellm] ERROR --accept-len-src 의 수용길이가 수가 아니다: %r\n" % value)
+        try:
+            spec = inherit_accept_len(src, args.accept_len_src)
+        except ValueError as exc:
+            sys.stderr.write("[parse_guidellm] ERROR %s\n" % exc)
             return 2
-        spec = {"accept_len": float(value) if value is not None else None,
-                "source": "inherited(%s)" % args.accept_len_src}
 
     engine_max = _engine_max(args.engine_log) if args.engine_log else None
     # 벤치 종료 시 서버 생존 — **관측 파일이 있을 때만** 읽는다. 파일이 없으면 None(모름)이고,

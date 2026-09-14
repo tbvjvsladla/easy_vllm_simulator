@@ -19,7 +19,11 @@
 성립한다 — *문턱도 지표도 사라진 PASS*(공허 PASS)는 구조적으로 만들 수 없다(`plan_26082219` D1).
 
 - **(a) 결정론 루프라인 = 척추(매번 먼저)**: `roofline.py` → `R_fp`(forward-pass/sec 상한, 100% MBU 낙관 천장)·
-  `R_token = accept_len × R_fp`(speculative)·`expected_achievable = realistic_fraction × R_token`. **의심 임계**(SLA 아님).
+  `R_token = accept_len × R_fp`(speculative)·`expected_achievable = realistic_fraction × R_token
+  = realistic_fraction × accept_len × R_fp`. **의심 임계**(SLA 아님).
+  ⚠ **accept_len 은 합격선에도 곱해진다** — E·c 가 없으면 expected 가 primary 이므로, accept_len 을
+  조용히 1.0 으로 두면 물리 상한과 문턱이 **함께** 내려간다(2026-09-14 · plan_26091407 F6: roofline.json
+  49건 중 47건이 1.0 이었고 그중 spec 이 켜진 스윕 약 11건은 실측값이 있었다).
 - **(b) 외부 레퍼런스 E = 목표치**: 검증기(Devil's Advocate)가 **외부검색 수행** — 동일 HW 에서 남들이 내는 실제 달성치
   (HF 카드·포럼·vLLM PR — **1차 진입점 = `.claude/skills/wiki-desk/reference/references.md` §3·§4 warm-start → 미스 시 신규 검색 →
   히트 baseline 재입고**). 혼자 루프라인을 안 믿고 E 로 정밀화. **E 가 진짜 판별자**(측정>공식). **메인은 E 검색을
@@ -30,6 +34,23 @@
 
 **spec-aware(중요)**: no-MTP 서브는 `R_fp` 와, MTP 서브는 `R_token` 와 비교(like-with-like). speculative 면 token/s 가
 단일패스 천장 `R_fp` 를 *초과* 가능 → 섞으면 M-vs-R 무의미(dogfood BLOCK 교훈).
+
+**spec 축은 선언과 실측을 대조해 정한다**(2026-09-14 · plan_26091407 §4.1):
+
+- **정본 = 실측, 승계는 자동**: `judge_bench.sh` 는 `--accept-len` 이 없으면 판정 레벨 `measured.json` 의
+  accept_len 을 루프라인에 넘긴다(`accept_len_source=measured`). 사람이 넘기면 `declared` 로 드러난다.
+- **선언 지문**: `sweep_bench.sh` 가 서빙 yaml(·러너 sh)의 `speculative-config` 로 `meta.spec_declared` 를
+  남기고, `judge_bench` 가 그것을 `verdict_rule.py --spec-declared` 로 승계한다.
+- **분기**: 선언 off → `R_fp`(1.0 이 정상 · `declared-absent`) · 선언 on ∧ 실측/명시 → `R_token` ·
+  선언 on ∧ 결손/무효 → `NEEDS_RUBRIC` + `SPEC_ACCEPT_LEN_MISSING`(axis=establish · **자동 대체 ✗**) ·
+  지문 없는 과거 sweep(`unknown`) → 종전 `measured.spec_on` 규율 보존(출처만 표시).
+- **선언↔실측 불일치는 기재한다(게이트 ✗)**: 선언 off ∧ 실측 spec_on → `R_token`(측정 > 선언) +
+  `spec_axis.mismatch` · 선언 off ∧ 실측 spec_off 인데 accept_len > 1(대개 사람 명시)이 곱해졌다 → 상한 `R_fp`
+  + `spec_axis.mismatch`("1.0 이 정상" 이라고 서술하지 않는다 — 그 값은 이미 합격선에 곱해졌다).
+  사람 `--accept-len` 이 유효 실측을 덮으면 `declared` 이되 `accept_len_evidence` 에 `shadowed measured=<v>` 가 남는다.
+- ⚠ **같은 토큰, 다른 층**: `parse_guidellm` 의 `measured.json.spec_axis_source=declared-absent` 는 "lite 승계원이
+  없다고 명시했다" 는 뜻이다(lite 절삭이면 spec 이 켜진 서빙에도 찍힌다). roofline 의 `accept_len_source=declared-absent`
+  (spec 미선언 — 1.0 이 정상)로 옮기지 않으며, 어느 쪽인지는 sweep meta 의 spec 선언 지문만 정한다.
 
 ## 2. 노드간 VRAM 밸런스 축 (멀티노드 — γ, `plan_26070809_47_07`)
 
@@ -72,9 +93,11 @@ decode-tps 축과 **직교**한 별도 루브릭 축. recipe-explorer 가 산정
   cap+escalation 이 종료를 강제한다.
 - 오케스트레이션: 렌즈 fan-out = 병렬 에이전트(동시 공격 → verdict_rule 투입).
 
-`verdict_rule.py` 출력 = `{verdict: PASS|REFUTE|NEEDS_RUBRIC|INVALID, failure_axis, structural_or_strategy(힌트),
+`verdict_rule.py` 출력 = `{verdict: PASS|REFUTE|NEEDS_RUBRIC|INVALID, failure_axis, **reason_code**, structural_or_strategy(힌트),
 rubric{primary,source,floor,ratio_M_over_primary,R_fp,R_token,expected,reference_E,target_c,
-**authority**,**loop_until_done**,**candidates[]**}, refuted_claims[], diagnosis_hint[]}`.
+**authority**,**loop_until_done**,**candidates[]**,**spec_axis**}, refuted_claims[], diagnosis_hint[]}`.
+`reason_code` 는 기계 분기용 사유 코드다(현재 `SPEC_ACCEPT_LEN_MISSING` 만 싣고, 그 밖은 `null`).
+`spec_axis` 는 선언·accept_len·출처·선택된 상한·결손·불일치를 그대로 싣는다.
 `candidates[]` 는 사다리 세 칸의 3-state(`valid`/`invalid`/`unset`/`absent-by-authority`)를 그대로
 표면화한다 — 하류(리포트·인증서·사람)가 *어느 칸이 왜 낙찰됐는지*를 추론이 아니라 **조회**로 안다.
 

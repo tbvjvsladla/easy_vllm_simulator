@@ -20,17 +20,43 @@
 # 입력은 `sweep_index.json` 하나다 — model_path·tp·manifest 파생을 여기서 다시 하지 않는다
 #   (sweep_bench.sh 가 이미 실측해 meta 에 넣었다. 파생을 복제하면 두 벌이 어긋난다).
 #
+# ★ accept_len 은 **승계 XOR 부재 명시**다(2026-09-14 · plan_26091407 §4.1 · F6).
+#   종전에는 사람이 `--accept-len` 을 줄 때만 루프라인에 넘겼고, 안 주면 roofline 기본 1.0 이 **조용히**
+#   낙찰됐다 — roofline.json 49건 중 47건이 1.0 이었고 그중 약 11건은 spec 이 켜진 채 실측값이 있었다.
+#   그 1.0 은 R_token 만이 아니라 expected_achievable(= realistic_fraction × accept_len × R_fp)에도
+#   곱해져 **합격선을 함께 내린다**. 한 층 아래 `parse_guidellm.py` 가 이미 가진 규율
+#   (`--accept-len-src` XOR `--spec-axis-absent` + `spec_axis_source`)을 여기에 동형으로 적용한다:
+#     사람 명시 `--accept-len L`             → --accept-len L --accept-len-source declared
+#     판정 레벨 measured.json 의 유효 실측    → --accept-len v --accept-len-source measured (승계)
+#     실측 없음 ∧ meta.spec_declared=off     → --accept-len-source declared-absent (1.0 이 정상)
+#     실측 없음 ∧ on|unknown                 → --accept-len-source absent (결손 여부는 판정기가 정한다)
+#   spec 선언 지문(`meta.spec_declared` — sweep_bench 가 서빙 yaml 에서 읽는다)은 판정기에
+#   `--spec-declared on|off|unknown` 으로 **승계**한다(부재 = unknown · 여기서 yaml 을 다시 읽지 않는다).
+#   결손의 사유코드(SPEC_ACCEPT_LEN_MISSING)와 accept_len 유효성 술어는 여기서 복제하지 않는다 —
+#   각각 `verdict_rule.py`·`roofline.py` 가 소유하고 이 스크립트는 import 해서 쓴다.
+#
 # 사용: judge_bench.sh <config_name> --authority weak|explicit|explore
 #         [--topology single|multi] [--sweep-dir DIR] [--level N]
 #         [--target-tps X] [--reference-tps E] [--e-search hit|empty|no]
 #         [--tolerance T] [--realistic-fraction F] [--accept-len L] [--spec-supported]
-#         [--node-vram-gib "a,b"] [--out FILE] [--dry-run]
-# 산출: <sweep_dir>/roofline.json · <sweep_dir>/verdict.json (또는 --out)
+#         [--node-vram-gib "a,b"] [--out FILE] [--out-dir DIR] [--no-publish] [--dry-run]
+#       judge_bench.sh --self-test      (격리 임시 저장소에서 승계·명시·spec off·결손·발행 억제를 실행 검증)
+# 산출: <sweep_dir>/roofline.json · <sweep_dir>/verdict.json (또는 --out · --out-dir)
+#   --out-dir DIR : roofline.json·verdict.json 을 sweep 디렉터리가 아니라 DIR 에 쓴다(오프라인 재판정 ·
+#                   원 판정 산출물 불변). 자리를 옮긴 판정은 그 스윕의 정본 verdict 가 아니므로
+#                   **인증서 자동 발행을 억제한다**(--no-publish 를 함의).
+#   --no-publish  : 제자리 판정이어도 인증서 자동 발행을 건너뛴다(기재 로그는 남긴다).
 # 종료: 0=판정 산출 · 2=인자/전제 오류 · 3=판정점 측정치 부재 · 그 외=하위 스크립트 rc 전달
 set -euo pipefail
 
+if [ "${1:-}" = "--self-test" ]; then
+  # 자체검사 본문은 별도 파일이다(파이썬 단언이 셸 heredoc 보다 읽기 쉽다). 검사 대상은 이 파일의
+  # **바이트 사본**이므로 여기 적힌 코드가 그대로 시험된다.
+  exec python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/selftest_judge_bench.py"
+fi
+
 CONFIG="${1:?config_name 필요}"; shift || true
-AUTHORITY=""; TOPO=""; SWEEPDIR=""; LEVEL=1; OUT=""; DRYRUN=0; CHECK_ARGS=0
+AUTHORITY=""; TOPO=""; SWEEPDIR=""; LEVEL=1; OUT=""; OUTDIR=""; NO_PUBLISH=0; DRYRUN=0; CHECK_ARGS=0
 PASS_ARGS=(); SPEC=0
 while [ $# -gt 0 ]; do case "$1" in
   --authority)          AUTHORITY="$2"; shift 2;;
@@ -42,6 +68,8 @@ while [ $# -gt 0 ]; do case "$1" in
   --sweep-dir)          SWEEPDIR="$2"; shift 2;;
   --level)              LEVEL="$2"; shift 2;;
   --out)                OUT="$2"; shift 2;;
+  --out-dir)            OUTDIR="$2"; shift 2;;
+  --no-publish)         NO_PUBLISH=1; shift;;
   --dry-run)            DRYRUN=1; shift;;
   --spec-supported)     SPEC=1; shift;;
   # 판정기·루프라인이 소유한 노브는 **주어졌을 때만** 전달한다. 여기서 기본값을 복제하면
@@ -77,9 +105,18 @@ fi
 [ -n "$SWEEPDIR" ] || SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
 INDEX="$SWEEPDIR/sweep_index.json"
 MANIFEST="$REPO/output/$TOPO/manifest.yaml"
-[ -n "$OUT" ] || OUT="$SWEEPDIR/verdict.json"
-ROOF="$SWEEPDIR/roofline.json"
-MEASURED="$SWEEPDIR/level_$(printf '%02d' "$LEVEL")/measured.json"
+# 판정 산출 자리: 기본은 sweep 디렉터리(broad_search·render_report 가 거기서 읽는다).
+#   --out-dir 은 재판정용 자리다 — 원 판정 산출물을 덮지 않는다.
+if [ -n "$OUTDIR" ]; then
+  ROOF="$OUTDIR/roofline.json"
+  [ -n "$OUT" ] || OUT="$OUTDIR/verdict.json"
+  NO_PUBLISH=1
+else
+  ROOF="$SWEEPDIR/roofline.json"
+  [ -n "$OUT" ] || OUT="$SWEEPDIR/verdict.json"
+fi
+LEVEL_REL="level_$(printf '%02d' "$LEVEL")/measured.json"
+MEASURED="$SWEEPDIR/$LEVEL_REL"
 
 if [ ! -f "$INDEX" ]; then
   echo "[judge_bench] ERROR sweep_index.json 부재: $INDEX — 먼저 sweep_bench.sh 를 돌려라" >&2; exit 2
@@ -110,6 +147,53 @@ PY
 if [ "$MODEL_PATH" = "NA" ]; then
   echo "[judge_bench] ERROR sweep_index.meta.model_path 가 NA — 루프라인 입력이 성립하지 않는다" >&2; exit 2
 fi
+
+# spec 축 승계(위 헤더 ★). 한 줄 = US(\x1f) 구분 4필드: spec_declared · accept_len(없으면 -) · 출처 · 근거.
+#   구분자를 탭이 아니라 US 로 두는 이유: 탭은 IFS 공백류라 빈 필드가 접혀 뒤 필드가 밀린다.
+#   유효성 술어는 roofline.accept_len_state 를 **import** 한다(복제 ✗). 사람 명시값의 유효성은 여기서
+#   판정하지 않고 roofline 이 exit 2 로 거부한다(값역의 단일 소유자).
+#   파싱이 실패하면(측정 JSON 손상 등) 빈 줄로 흘리지 않고 멈춘다 — 빈 값이 absent 로 접히면 결손이 위장된다.
+_SPEC_ROW="$(
+  SDIR="$SDIR" AL_HUMAN="${AL:-}" LEVEL_REL="$LEVEL_REL" python3 - "$INDEX" "$MEASURED" <<'PY'
+import json, os, sys
+sys.path.insert(0, os.environ["SDIR"])
+from roofline import (ACCEPT_LEN_ABSENT, ACCEPT_LEN_DECLARED, ACCEPT_LEN_DECLARED_ABSENT,
+                      ACCEPT_LEN_MEASURED, accept_len_state)
+from verdict_rule import SPEC_DECLARED
+
+meta = (json.load(open(sys.argv[1], encoding="utf-8")).get("meta") or {})
+declared = meta.get("spec_declared")
+# 값역 밖·부재는 unknown 이다 — 모르는 선언을 off 로 접으면 결손이 "정상 1.0" 으로 위장한다.
+declared = declared if declared in SPEC_DECLARED else "unknown"
+rel = os.environ["LEVEL_REL"]
+human = os.environ.get("AL_HUMAN") or ""
+md = json.load(open(sys.argv[2], encoding="utf-8"))
+raw = md.get("accept_len") if isinstance(md, dict) else None
+state, val = accept_len_state(raw)
+# 파서 쪽 `spec_axis_source` 는 **다른 층의 어휘**다(parse_guidellm: 승계원 부재 선언 ≠ roofline
+#   declared-absent — roofline.py 어휘 주석). 출처로 옮기지 않고 층 이름을 붙여 근거에만 싣는다.
+axis_src = md.get("spec_axis_source") if isinstance(md, dict) else None
+axis_note = " · measured.spec_axis_source=%s" % axis_src if axis_src else ""
+if human:
+    # 사람 명시가 이긴다(declared). 그러나 덮은 실측을 **지우지 않는다** — 명시값은 expected_achievable
+    #   (합격선)에도 곱해지므로, 실측과 다른 명시는 흔적 없이 문턱을 옮긴다(측정 > 선언 · 기재만 · 게이트 ✗).
+    ev = "argv(--accept-len)"
+    if state == "valid":
+        ev += " · shadowed measured=%r(%s)" % (val, rel)
+    row = (declared, human, ACCEPT_LEN_DECLARED, ev)
+elif state == "valid":
+    row = (declared, repr(val), ACCEPT_LEN_MEASURED, rel + axis_note)
+elif declared == "off":
+    # 선언의 출처도 싣는다 — 재조립·소급으로 **현재 파일에서** 뽑은 off 는 retro 표지를 달고 온다.
+    row = (declared, "-", ACCEPT_LEN_DECLARED_ABSENT,
+           "sweep_index.meta.spec_declared=off(%s) · %s accept_len=%r"
+           % (meta.get("spec_declared_source"), rel, raw))
+else:
+    row = (declared, "-", ACCEPT_LEN_ABSENT, "%s accept_len=%r(%s)%s" % (rel, raw, state, axis_note))
+print("\x1f".join(str(x).replace("\x1f", " ") for x in row))
+PY
+)" || { echo "[judge_bench] ERROR spec 축 승계 입력 해석 실패($INDEX · $MEASURED) — 판정하지 않는다" >&2; exit 2; }
+IFS=$'\x1f' read -r SPEC_DECLARED AL_VALUE AL_SOURCE AL_EVIDENCE <<< "$_SPEC_ROW"
 NAS_ROOT="$(sed -n 's/^[[:space:]]*nas_model_path:[[:space:]]*"\{0,1\}\([^"#]*\)"\{0,1\}.*/\1/p' \
              "$MANIFEST" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')"
 # quant 루트도 같은 문법으로(2026-09-10 · camp-26090918 — /app/quant_models 매핑의 호스트 루트)
@@ -122,28 +206,43 @@ ROOF_CMD=(python3 "$SDIR/roofline.py" --model-path "$MODEL_PATH" --json)
 [ -n "$NAS_ROOT" ] && ROOF_CMD+=(--nas-root "$NAS_ROOT")
 [ -n "$QUANT_ROOT" ] && ROOF_CMD+=(--quant-root "$QUANT_ROOT")
 [ -n "${RF:-}" ] && ROOF_CMD+=(--realistic-fraction "$RF")
-[ -n "${AL:-}" ] && ROOF_CMD+=(--accept-len "$AL")
+[ "$AL_VALUE" != "-" ] && ROOF_CMD+=(--accept-len "$AL_VALUE")
+ROOF_CMD+=(--accept-len-source "$AL_SOURCE" --accept-len-evidence "$AL_EVIDENCE")
 
-VERDICT_CMD=(python3 "$SDIR/verdict_rule.py" --measured "$MEASURED" --roofline "$ROOF"
-             --authority "$AUTHORITY" "${PASS_ARGS[@]+"${PASS_ARGS[@]}"}")
+# 산출은 **짝으로 원자적 교체**한다(2026-09-14 리뷰 정정). 종전 `> "$ROOF"` 는 하위 스크립트가 돌기 전에
+#   파일을 비웠다 — 제자리 재판정이 exit 2(무효 `--accept-len` 등)로 끝나면 정본 sweep 의 roofline.json 은
+#   0 바이트, verdict.json 은 옛 판정으로 남아 짝이 찢어졌다(broad_search·render_report 가 둘을 함께 읽는다).
+#   그래서 둘 다 임시 자리에 쓰고, 둘 다 성공했을 때만 교체한다. 판정기는 임시 roofline 을 읽는다.
+ROOF_TMP="$ROOF.partial.$$"
+OUT_TMP="$OUT.partial.$$"
+
+VERDICT_CMD=(python3 "$SDIR/verdict_rule.py" --measured "$MEASURED" --roofline "$ROOF_TMP"
+             --authority "$AUTHORITY" --spec-declared "$SPEC_DECLARED"
+             "${PASS_ARGS[@]+"${PASS_ARGS[@]}"}")
 [ "$SPEC" = 1 ] && VERDICT_CMD+=(--spec-supported)
 
 # 실제로 넘긴 argv 를 남긴다 — 어느 권한으로 잰 판정인지는 산출물의 rubric.authority 가 밝히지만,
 # **무엇을 넘기지 않았는지**는 argv 만이 말한다(플래그 누락이 이 결함의 원인이었다).
-echo "[judge_bench] authority=$AUTHORITY topo=$TOPO level=$LEVEL"
+echo "[judge_bench] authority=$AUTHORITY topo=$TOPO level=$LEVEL spec_declared=$SPEC_DECLARED accept_len=$AL_VALUE source=$AL_SOURCE"
 echo "[judge_bench] roofline: ${ROOF_CMD[*]}"
 echo "[judge_bench] verdict : ${VERDICT_CMD[*]}"
 if [ "$DRYRUN" = 1 ]; then echo "[judge_bench] DRY-RUN — 실행하지 않는다"; exit 0; fi
+[ -z "$OUTDIR" ] || mkdir -p "$OUTDIR"   # dry-run 은 자리조차 만들지 않는다
 
-"${ROOF_CMD[@]}" > "$ROOF"
-"${VERDICT_CMD[@]}" > "$OUT"
+trap 'rm -f "$ROOF_TMP" "$OUT_TMP"' EXIT
+"${ROOF_CMD[@]}" > "$ROOF_TMP"
+"${VERDICT_CMD[@]}" > "$OUT_TMP"
+mv -f "$ROOF_TMP" "$ROOF"
+mv -f "$OUT_TMP" "$OUT"
+trap - EXIT
 echo "[judge_bench] DONE — ROOFLINE=$ROOF VERDICT=$OUT"
 python3 - "$OUT" <<'PY'
 import json, sys
 doc = json.load(open(sys.argv[1], encoding="utf-8"))
 rub = doc.get("rubric") or {}
-print("[judge_bench] verdict=%s authority=%s source=%s floor=%s"
-      % (doc.get("verdict"), rub.get("authority"), rub.get("source"), rub.get("floor")))
+print("[judge_bench] verdict=%s authority=%s source=%s floor=%s reason_code=%s"
+      % (doc.get("verdict"), rub.get("authority"), rub.get("source"), rub.get("floor"),
+         doc.get("reason_code")))
 PY
 
 # ── 인증서 자동 발행 (2026-09-08 · plan_26090813 §4.4 · 사용자 결정 D18) ─────────────────
@@ -156,7 +255,10 @@ PY
 # adversarial-benchmark SKILL.md §2 이며 여기서 두 번째 답을 만들지 않는다.
 _V="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1],encoding='utf-8')).get('verdict') or '')" "$OUT")"
 _A="$(python3 -c "import json,sys;print(((json.load(open(sys.argv[1],encoding='utf-8')).get('rubric') or {}).get('authority')) or '')" "$OUT")"
-if [ "$_V" = "PASS" ] && [ "$_A" = "explicit" ]; then
+if [ "$NO_PUBLISH" = 1 ]; then
+  # 억제도 결과다 — 로그에 남겨야 "왜 인증서가 없지?" 가 조용한 누락과 구분된다.
+  echo "[judge_bench] 인증서 발행 억제 — verdict=$_V authority=$_A (--no-publish${OUTDIR:+ · --out-dir=$OUTDIR 는 정본 판정 자리가 아니다})"
+elif [ "$_V" = "PASS" ] && [ "$_A" = "explicit" ]; then
   echo "[judge_bench] 인증서 자동 발행 — verdict=PASS · authority=explicit"
   python3 "$SDIR/publish_benchmark_record.py" --sweep-index "$INDEX" --verdict-json "$OUT" \
     || echo "[judge_bench] ⚠ 인증서 발행 실패 — 판정은 남았고 인증서만 없다(위 사유 참조)" >&2

@@ -177,6 +177,50 @@ else
   LITE_RAW=""
 fi
 
+# >>> spec-axis-args (selftest_sweep_meta.py 가 이 구간을 **바이트 그대로** 뽑아 실행한다 — 복제 ✗)
+# GuideLLM 레벨 파서의 spec 축 인자를 정해 전역 배열 SPEC_AXIS_ARGS 에 싣는다.
+#   spec 축은 GuideLLM 이 보고하지 않으므로 **같은 스윕의 lite 레그**에서 승계한다 — 이것이
+#   `full = lite ∪ GuideLLM` 이 값으로 갚아 주는 자리다. 승계원이 없으면 부재를 명시 선언한다.
+#   ★ 2026-09-14(plan_26091407 §4.1 · 항목 1): 승계원은 lite **raw 포인터 문서가 아니라** 그것이 가리키는
+#     `vllm bench serve` warm JSON 이다. 종전에는 `lite_raw_<cfg>.json`(키: bench_warm_json·bench_cold_json·
+#     engine_log·nodes)을 그대로 넘겨, 파서가 그 문서 최상위에서 수용길이를 찾다 **None 을 승계**했다 —
+#     spec 을 선언한 GuideLLM 스윕의 measured.json 이 전부 accept_len=null 이 된 뿌리다(실측:
+#     sweep_nv4-bf-262k-res 의 warm JSON 에는 spec_decode_acceptance_length=2.2069 가 있었다). 포인터 해석은
+#     lite_metrics 가 이미 쓰는 `bench_warm_json` 키 하나로 한다.
+#   ★ 그 warm JSON 이 승계원 모양인지는 **파서가 받기 전에** 파서의 술어(`inherit_accept_len` import ·
+#     복제 ✗)로 판정한다(리뷰 정정). 받지 못할 문서(잘린 JSON·bench 결과 아닌 모양)를 그대로 넘기면 파서가
+#     exit 2 로 끝나고, 레벨 1 에서는 스윕 전체가 exit 3 으로 죽는다 — inform-only lite 레그의 결손이
+#     판정점 측정 불가로 격상되는 것이다. 무효면 사유를 truncation.log 에 적고 부재 명시로 강등한다:
+#     spec 이 선언된 셀은 판정기에서 SPEC_ACCEPT_LEN_MISSING 으로 크게 드러나고, 스윕은 살아남는다.
+_spec_axis_args() {   # $1=lite raw 경로(빈 값 = lite 절삭) · $2=truncation.log · $3=스크립트 디렉터리
+  local raw="$1" trunclog="$2" sdir="$3" out="" rc=0
+  SPEC_AXIS_ARGS=(--spec-axis-absent)
+  # lite 절삭·raw 부재는 이미 truncation.log 에 적혀 있다(여기서 다시 적지 않는다).
+  if [ -z "$raw" ] || [ ! -s "$raw" ]; then return 0; fi
+  out="$(python3 -c '
+import json, os, sys
+sys.path.insert(0, sys.argv[1])
+from parse_guidellm import inherit_accept_len
+try:
+    doc = json.load(open(sys.argv[2], encoding="utf-8"))
+    warm = doc.get("bench_warm_json") if isinstance(doc, dict) else None
+    if not warm:
+        raise ValueError("lite raw 에 bench_warm_json 이 없다")
+    if not os.path.isfile(warm) or os.path.getsize(warm) == 0:
+        raise ValueError("bench_warm_json 부재/빈 파일: %s" % warm)
+    inherit_accept_len(json.load(open(warm, encoding="utf-8")), warm)
+except (OSError, ValueError) as exc:
+    sys.exit("%s: %s" % (type(exc).__name__, exc))
+print(warm)
+' "$sdir" "$raw" 2>&1)" || rc=$?
+  if [ "$rc" = 0 ] && [ -n "$out" ]; then
+    SPEC_AXIS_ARGS=(--accept-len-src "$out")
+  else
+    echo "[sweep_bench] ⚠ spec 축 승계원 무효 — 부재 명시로 강등(rc=$rc): ${out:-사유 없음}" | tee -a "$trunclog"
+  fi
+}
+# <<< spec-axis-args
+
 COMPLETED=()
 for L in "${SORTED[@]}"; do
   LDIR="$SWEEPDIR/level_$(printf '%02d' "$L")"; mkdir -p "$LDIR"
@@ -191,16 +235,11 @@ for L in "${SORTED[@]}"; do
     # 내는 일이 없게 한다.
     if [ "$TOOL" = "guidellm" ]; then
       BJSON="$LDIR/guidellm_${CONFIG}.json"
-      # spec 축은 GuideLLM 이 보고하지 않는다. **같은 스윕의 lite 레그**에서 승계한다 —
-      # 이것이 `full = lite ∪ GuideLLM` 이 값으로 갚아 주는 자리다. lite 가 절삭됐으면
-      # 부재를 명시 선언한다(그 사실은 이미 truncation.log 에 남아 있다).
-      if [ -n "$LITE_RAW" ] && [ -s "$LITE_RAW" ]; then
-        PARSE_CMD=(python3 "$SDIR/parse_guidellm.py" --benchmarks-json "$BJSON"
-                   --engine-log "$ELOG" --accept-len-src "$LITE_RAW")
-      else
-        PARSE_CMD=(python3 "$SDIR/parse_guidellm.py" --benchmarks-json "$BJSON"
-                   --engine-log "$ELOG" --spec-axis-absent)
-      fi
+      # spec 축은 GuideLLM 이 보고하지 않는다. **같은 스윕의 lite 레그**에서 승계한다(위 `_spec_axis_args`).
+      # 승계원 해석·판정은 `_spec_axis_args`(위 정의 · 자체검사가 바이트 그대로 실행)가 한다.
+      _spec_axis_args "$LITE_RAW" "$TRUNCLOG" "$SDIR"
+      PARSE_CMD=(python3 "$SDIR/parse_guidellm.py" --benchmarks-json "$BJSON"
+                 --engine-log "$ELOG" "${SPEC_AXIS_ARGS[@]}")
       [ -n "$MAX_ERROR_RATE" ] && PARSE_CMD+=(--max-error-rate "$MAX_ERROR_RATE")
       # 벤치 종료 시 서버 생존 관측(2026-09-07 · 유예 결함 ②). run_bench 가 벤치 직후 · teardown
       # 전에만 남길 수 있는 사실이며, 이것이 없으면 엔진 사망 중 잘린 SSE 가 도구 경계로 면제된다.
@@ -210,11 +249,17 @@ for L in "${SORTED[@]}"; do
       BJSON="$LDIR/bench_${CONFIG}.json"
       PARSE_CMD=(python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG")
     fi
-    if "${PARSE_CMD[@]}" > "$LDIR/measured.json" 2>/dev/null \
+    # 파서의 거부 사유를 버리지 않는다(2026-09-14 리뷰 정정) — 종전 `2>/dev/null` 은 파서가 exit 2 로
+    #   이유를 말해도 절삭 로그에 "파싱 실패" 만 남겨, 레벨 1 중단(exit 3)의 원인을 아무도 읽을 수 없었다.
+    _PERR="$(mktemp)"
+    if "${PARSE_CMD[@]}" > "$LDIR/measured.json" 2>"$_PERR" \
        && python3 -c "import json,sys; d=json.load(open('$LDIR/measured.json')); sys.exit(0 if d.get('measurement_ok') else 1)"; then
+      rm -f "$_PERR"
       COMPLETED+=("$L"); echo "[sweep_bench] level $L ✓"
     else
       echo "[sweep_bench] level $L 측정 파싱 실패 → 절삭" | tee -a "$TRUNCLOG"
+      if [ -s "$_PERR" ]; then tail -n 5 "$_PERR" | sed 's/^/  parse stderr: /' | tee -a "$TRUNCLOG"; fi
+      rm -f "$_PERR"
       echo "level $L truncated: parse/measurement_ok=false" >> "$TRUNCLOG"
       [ "$L" = "1" ] && { echo "[sweep_bench] 판정점(레벨1) 측정 불가 — 중단" >&2; exit 3; }
       break
@@ -506,6 +551,78 @@ if _attn_cands is not None and len(_attn_cands) <= 1:
     print("[sweep_bench] ⓘ 어텐션 축 무선택 — 후보 %s (요청 %s 는 실효 없음)"
           % (_attn_cands, _attn_decl_raw or "미선언"), file=sys.stderr)
 
+# ── spec 선언 지문 (2026-09-14 신설 · plan_26091407 §4.1 · 항목 1) ─────────────────────────────
+# 판정기는 accept_len 결손을 **선언과 대조해서만** 가를 수 있다: spec 을 선언하지 않은 서빙의 1.0 은
+# 정상이고, 선언한 서빙의 1.0 은 결손이다(SPEC_ACCEPT_LEN_MISSING · 소유 verdict_rule.py). 그 선언이
+# 증거 어디에도 없어서 judge_bench 는 두 경우를 구분하지 못했다(roofline.json 47/49 가 1.0).
+# 권위는 **서빙 트리플렛의 선언**이다 — config yaml 의 `speculative-config`(주석 줄은 선언이 아니다),
+# 그리고 러너 .sh 가 인자로 넣는 `--speculative-config`. 실측(accept_len)은 measured.json 이 따로 들고,
+# 둘의 대조·불일치 기재는 판정기가 한다(여기서 판정하지 않는다).
+# config yaml 자체가 없으면 `off` 가 아니라 `unknown` 이다 — 읽지 못한 선언을 "없다" 로 접으면
+# 결손이 "정상 1.0" 으로 위장한다(부재와 결측을 가른다).
+def spec_declared_fingerprint(cfg_path, cfg_text, sh_text):
+    """(state, k, source). state ∈ {on, off, unknown}. k = num_speculative_tokens(모르면 None).
+    순수 파서 — 파일 존재 여부는 호출부가 cfg_path 로 넘긴다."""
+    if not cfg_path or not os.path.isfile(cfg_path):
+        return "unknown", None, "absent(config yaml 부재 — 선언을 읽지 못했다)"
+    lines = cfg_text.splitlines()
+    for i, line in enumerate(lines):
+        m = re.match(r"^([ \t]*)speculative[-_]config[ \t]*:(.*)$", line)
+        if not m:
+            continue
+        indent = len(m.group(1).expandtabs())
+        body = re.sub(r"[ \t]+#.*$", "", m.group(2)).strip()
+        if not body:   # 블록 매핑 형태(다음 줄들이 더 깊게 들여쓰기)
+            block = []
+            for nxt in lines[i + 1:]:
+                if not nxt.strip() or nxt.lstrip().startswith("#"):
+                    continue
+                if len(nxt.expandtabs()) - len(nxt.expandtabs().lstrip()) <= indent:
+                    break
+                block.append(re.sub(r"[ \t]+#.*$", "", nxt).strip())
+            body = " ".join(block)
+        raw = body.strip().strip("'\"")
+        if raw.lower() in ("", "null", "none", "~", "{}", "false"):
+            return "off", None, "declared(config yaml speculative-config=%s)" % (raw or "빈 값")
+        return "on", _spec_k(raw), "declared(config yaml speculative-config)"
+    for line in sh_text.splitlines():
+        if line.lstrip().startswith("#"):
+            continue
+        m = re.search(r"--speculative[-_]config[ \t=]+(\S.*)$", line)
+        if m:
+            return "on", _spec_k(m.group(1)), "declared(runner sh --speculative-config)"
+    return "off", None, "declared(config yaml·runner sh 에 speculative-config 없음)"
+
+
+def _spec_k(text):
+    """선언 문자열에서 num_speculative_tokens 를 뽑는다. JSON 우선, 아니면 키=값 형태. 없으면 None."""
+    raw = text.strip().strip("'\"")
+    try:
+        obj = json.loads(raw)
+        k = obj.get("num_speculative_tokens") if isinstance(obj, dict) else None
+    except ValueError:
+        k = None
+    if k is None:
+        mk = re.search(r"num_speculative_tokens\W+(\d+)", text)
+        k = int(mk.group(1)) if mk else None
+    return k if isinstance(k, int) and not isinstance(k, bool) else None
+
+
+_spec_state, _spec_k_val, _spec_src = spec_declared_fingerprint(os.environ.get("CFGYAML"), cfgtext, _shtext)
+# 재조립은 **측정 시점의 선언**을 승계한다(2026-09-14 리뷰 정정 · image_tag 승계와 같은 규율). 지문은
+#   서빙 파일에서 읽으므로 측정 뒤에 yaml 이 편집됐으면 재계산값은 측정하지 않은 선언이다 — 옛 GuideLLM
+#   스윕(승계 결함으로 accept_len=null)의 spec 줄을 나중에 지운 뒤 재조립하면 off → declared-absent 로
+#   SPEC_ACCEPT_LEN_MISSING 이 가려진다. 기존 index 에 지문이 있으면 그대로 승계하고, 없으면(지문 신설 전
+#   조립) 현재 파일로 계산하되 그 한계를 출처에 **retro 표지**로 붙인다(게이트 ✗ · 기재만).
+if reassemble:
+    _pm_spec = prior.get("meta") or {}
+    if _pm_spec.get("spec_declared") in ("on", "off", "unknown"):
+        _spec_state = _pm_spec["spec_declared"]
+        _spec_k_val = _pm_spec.get("spec_declared_k")
+        _spec_src = _pm_spec.get("spec_declared_source") or "inherited(기존 sweep_index · 출처 미기재)"
+    else:
+        _spec_src = "retro(reassemble · 현재 config 기준 · 측정 시점 보장 없음) %s" % _spec_src
+
 # ── 측정 노드 출처 (2026-09-06 신설 · plan_26090616 ⑤) ──
 # 인증서에 **어느 노드가 쟀는지**가 없었다. 그래서 메인과 서브가 같은 모델·같은 버전을 재면
 # 파일명까지 동명이 되어 서로를 덮었고, hint 발행기는 그 인증서를 메인 것으로만 읽었다 —
@@ -593,6 +710,10 @@ meta = {
     "attention_backend_mismatch": _attn_mm,
     "attention_backend_candidates": _attn_cands,
     "enforce_eager": grep_yaml(cfgtext, "enforce-eager") or "NA",
+    # spec 선언 지문(위 스탠자) — judge_bench 가 판정기에 `--spec-declared` 로 승계한다.
+    "spec_declared": _spec_state,
+    "spec_declared_k": _spec_k_val,
+    "spec_declared_source": _spec_src,
     "serving_model_name": grep_env(envtext, "SERVING_MODEL_NAME") or "NA",
     "model_path": grep_yaml(cfgtext, "model") or "NA",
 }
