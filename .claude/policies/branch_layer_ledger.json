@@ -132,6 +132,455 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-202609142000",
+      "utc": "2026-09-14T20:00:39Z",
+      "departure": "multi-node",
+      "departure_commit": "aa05d1fcc0a9c4c4ae46b6e2f1dcd9c42c819569",
+      "approved_by": "coag-ash (③ 분류표 73행 승인 팝업 응답 \"승인 — 동기화·멀티 서브 진행 (권장)\")",
+      "approved_utc": "2026-09-14T20:00:39Z",
+      "_reach": "single-node vs HEAD 트리차이 · 동기 지점 15129f024ef4(departure-landed)",
+      "classification": [
+        {
+          "file": ".claude/policies/runtime/evidence_publisher.py",
+          "verdict": "common_promote",
+          "reason": "강등 셀 full_benchmark→hint_map_only 재분류(init --downgrade-from)와 lite 경량 리포트 바인딩(publish-lite-report)을 추가했다. 증거 발행 게이트는 헌법 runtime 이라 토폴로지와 무관하다. classify_cell.py·render_bench_section.py 심볼을 늦게 적재하므로 두 파일과 한 벌로 옮겨야 한다. single-node blob 은 동기 지점 7e0e3a1 과 같다(손실 0).",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/runtime_selftest.py",
+          "verdict": "common_promote",
+          "reason": "hint_map_only(lite 만 잰 셀)가 격리 원격에서 collect→create→seal→catalog→verify 까지 가는지 치는 프로브를 추가했다. 발행 통로 회귀검사라 양 체크아웃에서 같아야 한다. output/single·GB10 은 격리 픽스처다. render_report --lite-only·campaign_template_validator·hint_collect 에 실행 의존하므로 함께 옮기지 않으면 single-node 가 RED 다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/verify_distribution.py",
+          "verdict": "common_promote",
+          "reason": "새 자체검사 9종의 호출자를 배선했다. 배포 검증기는 공통층이다. 호출 대상 신설 파일 6개(repeat_axis·selftest 5종)가 single-node 에 없으므로 그 파일들과 함께 옮기지 않으면 single-node verify 가 실패한다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참) (추가 e4c3a51 · 동기화 기구 교정 — 양방향 공용)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rules/docs.md",
+          "verdict": "common_promote",
+          "reason": "benchmark 행에 full 정의(lite ∪ GuideLLM × 반복 ≥3)와 lite-only 경량 리포트를, publisher 표에 init --downgrade-from·publish-lite-report 를 넣었다. 문서 발행 계약은 공통층이며 토폴로지 고정 문장이 없다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rules/workflow.md",
+          "verdict": "common_promote",
+          "reason": "§배정 계층에 셀 출처 precheck(lockset provenance 부재·무효면 broad_search cell exit 2)와 불일치 기재·P6 관측을 넣었다. 셀 단위 진입 규칙이라 양 토폴로지 캠페인이 읽는다. '서브 배정 셀은 서브 진입 precheck 가 집행' 은 single 에서만 주어가 있고 multi 에서는 공허하게 참이라 이동이 필요 없다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "full bench 정의(lite ∪ GuideLLM × 반복 ≥3), accept_len 출처 규칙·SPEC_ACCEPT_LEN_MISSING, 셀 출처 precheck, lite 경량 리포트, 새 스크립트 설명을 추가했다. 벤치 판정 계약은 노드 수와 무관하고, 새 문장은 manifest·--topology 로 분기하는 스크립트를 설명한다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/config.example.yaml",
+          "verdict": "common_promote",
+          "reason": "accept_len 은 config 키가 아니라 판정 레벨 실측에서 승계한다는 주석 5줄만 추가됐다. 두 토폴로지 모두 judge_bench 승계 규칙을 따른다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/references/lite-and-publication.md",
+          "verdict": "common_promote",
+          "reason": "lite 경량 리포트 발행, full 반복 축, 강등 규칙, bench_mode 판정 기록 위치, 인증서 발행 조건(판정 기록이 full 일 때만)을 추가했다. 발행 게이트와 hint lite 통로의 공통 정본이다. 특화 주의(후속): 강등 규칙 ①(멈춘 자리 창 안 집행 사살 → lite)은 이 저장소 docs/logs/<node>/events 에 있는 노드만 대조한다는 한정이 없다. multi 에서는 서브 이벤트가 분류 전에 회수되지 않아 서브 사살에는 ①이 구조적으로 발화하지 않는다. 공통층 한정문 1줄로 고친다(branch_only 사유 아님). (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/references/rubric-and-lenses.md",
+          "verdict": "common_promote",
+          "reason": "accept_len 이 합격선(expected_achievable)에도 곱해진다는 경고, spec 선언×실측 분기표, verdict 출력의 reason_code·spec_axis 필드를 추가했다. 루브릭 판정 규칙이라 두 토폴로지가 따른다. §2 노드간 VRAM 밸런스 절은 기존 내용이며 바뀌지 않았다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+          "verdict": "common_promote",
+          "reason": "셀 출처 precheck(lockset provenance 없으면 exit 2), 반복 수 예산(declared_budget.repeats), 셀 기록의 bench_mode·repetition·cell_provenance, reason_code 인용을 추가했다. single a2a 서브도 광의탐색을 돌리므로 양쪽에 필요하다. 경로는 --topology 파생이다. 특화 주의(경미·후속): 판정자 부재 안내 '서브라면 오버레이 배달이 캠페인 도구를 빠뜨린 것' 은 tool_plane 이 벤치를 여는 서브(single)에서만 참이다 — 'tool_plane 에 adversarial-benchmark 가 열린 서브라면' 으로 바꾸기를 권한다. 동작 변화: declared_budget.repeats 없는 기존 스윕 상태 파일은 cell 진입이 막힌다(새 init 필요). (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/classify_cell.py",
+          "verdict": "common_promote",
+          "reason": "bench_mode 확정 모드(판정점 반복 성립=full · 끊김=lite·run_failed · 멈춘 자리 창 안 집행 사살=lite·blackbox_kill), 원자적 판정 기록 bench_mode.json 과 판독 규칙, EVENTS_REPO_GLOB 발견 규칙을 소유한다. 인증서·리포트·hint lite 통로가 두 토폴로지에서 이 기록을 읽는다. 특화 주의(검증자 이의 채택 · 후속): EVENTS_REPO_GLOB=docs/logs/*/events/*.jsonl 은 메인 저장소에 있는 이벤트만 본다. multi 에서는 서브(Ray 워커) 이벤트가 서브 쪽 docs/logs 에 남고 fetch_sub_docs 는 sync_staging/sub_docs 로 회수하므로 glob 에 걸리지 않는다 → 판정점 위 레벨의 서브 사살이 miss 로 읽혀 거짓 full 이 날 수 있다(메인 사살은 lite 로 강등되는 비대칭). single 에서는 수동으로 둔 docs/logs/sub(09-11 배치 · 마지막 kill_ack 09-11)만 해당해 현재 실위험이 아니다. 허용오차 0 의 '같은 호스트 같은 시계' 전제도 교차노드에는 성립하지 않는다. 처방은 topology.md 이동이 아니라 공통층에서 manifest·node_role_contract 로 대조 노드를 고르고 multi 는 서브 이벤트 회수 또는 not_scanned 명시 + 선언된 허용오차다. 결함은 이미 multi-node HEAD 에 있고 동기화가 새로 만들지 않는다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh",
+          "verdict": "common_promote",
+          "reason": "accept_len 을 '승계 XOR 부재 명시'(measured/declared/declared-absent/absent)로 바꾸고, spec_declared 승계·roofline/verdict 원자적 교체·--out-dir·--no-publish·--self-test 를 추가했다. 조용한 1.0 이 합격선을 내리던 결함은 토폴로지 무관이다. 경로는 output/$TOPO 파생이고, 브랜치명 TOPO 폴백은 기존 코드다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
+          "verdict": "common_promote",
+          "reason": "--publish-report(기본 off)로 lite-only 셀 경량 리포트를 내는 종결부(실패 시 exit 5)와 raw 의 measured_utc·명명 입력 경로를 추가했다. lite-only hint 통로는 양 토폴로지 공통이다. multi 서브 SSH probe 는 기존 TOPO 분기다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/max_envelope.sh",
+          "verdict": "common_promote",
+          "reason": "브랜치 이름으로 TOPO 를 추론하던 줄을 걷어내고 resolve_topology.py(--topology > manifest 파생 > fail-loud)로 해소한다(692297b T8). 헌법 '브랜치로 추론하지 않는다'는 양 토폴로지 공통 불변식이라 공통층이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.py",
+          "verdict": "common_promote",
+          "reason": "spec 승계원이 lite raw 포인터 문서이면 inherit_accept_len 이 거부하도록 고쳤다(G23~G25). spec 선언 GuideLLM 스윕이 전부 결손으로 기록되던 파서 결함 교정이라 양쪽에 필요하다. G25 픽스처의 topology multi 는 시험 데이터다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.py",
+          "verdict": "common_promote",
+          "reason": "반복 축 산출물은 classify_cell 판정 기록이 full 일 때만 benchmark_mode: full 인증서를 낸다(강등·부재·낡음·판정 불가면 PASS 여도 미발행). 거짓 full 을 막는 발행 조건이라 두 토폴로지 인증서에 같이 걸린다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/render_report.py",
+          "verdict": "common_promote",
+          "reason": "측정 구성 표(hint 파서 계약 MEASUREMENT_CONFIG_*), 반복 축·재현 밴드 절, bench_mode 미확정 표기, --lite-only 경량 리포트를 추가했다. 리포트 형식 계약은 hint-publisher 와 공유하는 공통 정본이며, 명명 키는 manifest gpu_model 에서 파생한다. render_bench_section.py 와 한 벌이다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.py",
+          "verdict": "common_promote",
+          "reason": "셀마다 반복 축(요청·완주·밴드·멈춘 자리)과 bench_mode·강등 사유를, 헤더에 반복 수 출처·run 시도 합·선언 불일치·미기록 경고를 추가했다(순위 금지 유지 · R11~R18). 광의탐색 지도는 양쪽이 발행한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py",
+          "verdict": "common_promote",
+          "reason": "full bench 반복 축의 단일 소유자로 신설했다(FULL_REPEATS_MIN=3·schema 교차검증·반복 수 해소·run 집계·판정점 반복 조건). sweep_bench·broad_search·classify_cell·sweep_stop 이 두 토폴로지에서 import 한다. REPO_ROOT=parents[4] 는 메인 트리와 single 서브 렌더 트리에서 모두 성립한다. single-node 에 없는 신설 파일 — 덮어쓸 대상이 없다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/resolve_topology.py",
+          "verdict": "common_promote",
+          "reason": "신설 공용 토폴로지 해소기(692297b T8) — 명시 인자 > 서명 카드 노드는 카드·자기 manifest 일치 > 메인은 4자일치 PASS ∧ 통로 manifest > fail-loud. 벤치 6종이 import 하며 싱글 서브 렌더 산출물 사본에서도 single 로 해소됨을 검증했다. 양 토폴로지가 같은 규칙으로 쓰므로 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/roofline.py",
+          "verdict": "common_promote",
+          "reason": "accept_len 출처 어휘·유효성 술어를 추가하고 조용한 max(1.0, …) 클램프를 exit 2 로 바꿨으며 --accept-len-source/evidence 를 받는다. PLE n-gram 텐서를 active 에서 빼는 교정(daf2958)도 포함한다. 물리 상한 계산은 토폴로지 공통이고 PLE 판별은 텐서 이름 패턴이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+          "verdict": "common_promote",
+          "reason": "도구 구성 주석에 '반복 축 정의는 SKILL.md, 반복은 sweep_bench 가 돈다' 를 덧붙인 주석 변경뿐이다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.py",
+          "verdict": "common_promote",
+          "reason": "broad_search 셀 출처 precheck 격리 음성대조(A~M)를 신설했다. 배포 사본을 임시 git 저장소에서 돌리고 verify_distribution 이 매번 부르는 공통 게이트 증거다. 픽스처 topology single 은 격리 시험 데이터다. single-node 에 없는 신설 파일 — 덮어쓸 대상이 없다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_judge_bench.py",
+          "verdict": "common_promote",
+          "reason": "judge_bench 의 accept_len 승계·명시·spec off·결손·원자적 교체·발행 억제를 격리 실행으로 단언하는 자체검사(J1~J11)를 신설했다. judge_bench --self-test·verify_distribution 이 부른다. GB10·topology single 은 픽스처 값이다. single-node 에 없는 신설 파일 — 덮어쓸 대상이 없다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_lite_report.py",
+          "verdict": "common_promote",
+          "reason": "lite_bench --publish-report 종결부·경량 리포트 계약·측정 구성 표·명명 키·두 스킬 사이 계약 상수(L1~L10) 자체검사를 신설했다. hint-publisher render_bench_section.py 와 evidence_publisher.py 신규 심볼을 import 하므로 그 두 파일과 함께 옮긴다. single-node 에 없는 신설 파일 — 덮어쓸 대상이 없다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_meta.py",
+          "verdict": "common_promote",
+          "reason": "spec 선언 지문(S1~S10)과 _spec_axis_args 호출부 바이트 실행(W1~W7)을 추가했다. sweep_bench 조립부 회귀를 지키는 공통 자체검사다. 특화 주의(후속): REAL_CFG(RC1~RC3)가 비추적 운영자 산출물 output/multi/configs/*.yaml 3종을 하드코딩했다 — 새 클론에서는 SKIP, 같은 워킹트리의 single-node 에서는 반대 토폴로지 통로를 읽고, 기대값이 라이브 config 에 묶여 재렌더 시 양 브랜치가 RED 가 될 수 있다(라이브 데이터 앵커). 스냅샷 본문을 픽스처로 인라인하는 교정을 권한다(branch_only 사유 아님). (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.py",
+          "verdict": "common_promote",
+          "reason": "반복 축 전 체인(sweep_bench 레벨 루프 → repeat_axis 집계 → classify_cell 확정 → render_report·인증서 → broad_search 셀 기록·정지 평가)을 shim 으로 격리 실행하는 실패주입 자체검사를 신설했다. 강등 경로의 유일한 상시 증거이며 픽스처는 격리 저장소다. single-node 에 없는 신설 파일 — 덮어쓸 대상이 없다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+          "verdict": "common_promote",
+          "reason": "레벨마다 run 1..N 반복, repeat_axis 해소·집계, spec 선언 지문(meta.spec_declared), warm JSON 승계(_spec_axis_args), 재조립 승계, 종료부 classify_cell 판정 기록 호출을 추가했다. full bench 정의 자체라 두 토폴로지에서 같다. 특화 주의(검증자 이의 채택 · 후속): 종료부 classify_cell --events-from-repo 는 메인 저장소 이벤트만 대조한다. multi(measured_node=cluster)에서는 서브 사살이 보이지 않아 거짓 full 이 구조적으로 가능하고, single 은 수동 배치 로그에서만 거짓 강등이 가능하다(classify_cell.py 행의 처방). 브랜치명 TOPO 폴백은 기존 코드다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/sweep_stop.py",
+          "verdict": "common_promote",
+          "reason": "declared_budget.repeats 를 기재하고(무효면 exit 2, 미선언이면 None·absent · 읽기 경로는 막지 않음) runs_attempted·repeats_mismatch·repeats_unrecorded 를 싣는다. 하한은 repeat_axis 에서 import 하며 정지 술어는 바뀌지 않았다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py",
+          "verdict": "common_promote",
+          "reason": "--spec-declared 와 roofline.accept_len_source 를 대조해 물리 상한을 고르는 resolve_spec_axis 를 추가했다(spec 선언 ∧ 결손 = NEEDS_RUBRIC + SPEC_ACCEPT_LEN_MISSING · 자동 대체 없음). 모든 판정에 reason_code 가 붙고 자체검사는 T18~T23 이다. 판정 코드는 토폴로지를 보지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "lite 만 잰 셀(hint_map_only)을 인증서 없이 봉인까지 가게 하는 절차(경량 리포트 바인딩·강등 재분류·seal --lockset)와 명령표·측정 구성 표·bench_mode 파생 컬럼 원칙을 추가했다. hint 발행 스킬은 브랜치 무관 배포 레이어이고 예시는 --topology <t> 플레이스홀더다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hint_catalog.py",
+          "verdict": "common_promote",
+          "reason": "원격 태그 PAYLOAD.measurement_config 에서 bench_mode 파생 컬럼(full·lite(선언)·lite(강등·사유)·미기재·미확정)을 만들고 카탈로그를 7열로 늘렸다. 카탈로그는 태그에서 파생되는 전역 산출이라 양 브랜치 파생기가 같아야 한다. (추가 e4c3a51 · 동기화 기구 교정 — 양방향 공용)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hint_collect.py",
+          "verdict": "common_promote",
+          "reason": "경량·강등 리포트에서 측정 구성 표를 파싱해 PAYLOAD.measurement_config·03-benchmark 행에 싣고 lite 측정에만 BENCH_MODE_LITE 결손을 붙인다(배포 평면에는 열거·수치만 · PII 방어). 토폴로지를 manifest 에서 읽는 공통 엔진이다. /home/op-fixture 리터럴은 pii-scan-fixture 면제 표식이 붙은 음성대조 픽스처다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hint_tag.py",
+          "verdict": "common_promote",
+          "reason": "hint_map_only 를 인증서-부재 바인딩 경로로 인정해 경량 bench_report 를 묶고, 레시피 세그먼트를 셀 lockset 에서 파생·대조하며(seal --lockset), HINTS 행에 bench_mode 열을 넣었다. 607c61b 는 --lockset·--certificate help 를 실제 동작에 맞췄다. campaign_template_validator.lockset_provenance_reason·render_bench_section·hint_catalog 심볼을 적재하므로 함께 옮겨야 한다(부재면 lockset 경로가 fail-closed 로 die).",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/render_bench_section.py",
+          "verdict": "common_promote",
+          "reason": "render_report 와의 계약에 측정 구성 표 파서, 경량 리포트 판별·lite 절 렌더, lite 지표 존재 단일 술어(lite_metrics_present)를 추가했다. hint_tag·hint_collect·evidence_publisher 가 같은 파서를 쓰고 문자열 계약의 writer 는 render_report.py 라 둘을 한 벌로 옮긴다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "sync_to_sub --branch 는 이 체크아웃의 토폴로지와 같아야 한다는 사용법·가드 표 행 추가(e4c3a51 S6). 오배달 차단 규칙은 양 토폴로지 체크아웃이 모두 읽어야 하므로 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "verdict": "common_promote",
+          "reason": "셀 출처 precheck(--lockset-precheck · 부재·무효면 rc 2)와 --cell-set 의 선언↔실제 서빙 값 차이(gmu·batch·KV 클램프·손레버 batch) 기록을 추가했다. 분기는 캠페인 선언(assignments·role·self_role)과 ACTIVE 로만 한다. 특화 주의(경미): not_observable 사유 문장은 A2A 서브(single)를 전제하지만 role=sub 배정 셀이 있을 때만 발화하고 multi 는 assignments 에 메인만 있어 쓰이지 않는다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+          "verdict": "common_promote",
+          "reason": "lockset 출처 어휘(LOCKSET_PROVENANCE·LOCKSET_KNOB_SOURCES)의 단일 소유자로 정하고 합격 술어 P6·뼈대 lockset 교차검증을 추가했다. recipe.py·campaign_init·broad_search·hint_tag 가 이 상수를 읽고 single 서브에도 CAMPAIGN_TOOLS 로 배달된다. docstring 의 서브 저작 전제는 코드가 role·self_role 로 분기하므로 이동 불요다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "렌더 직전 복사하려는 strategy.topology.md 자기선언과 --branch 를 재대조해 어긋나면 exit 5(e4c3a51 S6). 특화층을 옮기는 것이 아니라 오배달을 막는 가드이며 양 체크아웃에서 같은 코드가 돈다 — 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/templates/document_skeletons/benchmark/example.md",
+          "verdict": "common_promote",
+          "reason": "서브에 렌더되는 benchmark 뼈대에 'lite 만 잰 셀은 lite_bench.sh --publish-report 로 경량 리포트(인증서 없음)' 한 줄을 추가했다. docs/benchmark/example.md 와 같은 줄이라 한 벌로 옮긴다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "§종료 시퀀스에 갈라짐 판정 규칙(원장 ref 읽기 · 착지 트리 동치 동기 지점 · COMMON_LAYER_UNJUDGED · 판정기 판본 일치 · 서브 전파 통로 = 체크아웃) 절 추가(e4c3a51). 동기화 기구는 양방향 공용이라 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/configs/hy3.yaml",
+          "verdict": "common_promote",
+          "reason": "주석만 바뀌었다 — gmu '총-cap' 기전 주장을 '관측된 작용 · 기전 미확정' 으로 한정해 kv-clamp.md·gen_recipe_set 정정과 맞췄다. 파일은 이미 두 브랜치에 같은 바이트로 있고 verify_distribution 이 양쪽에서 존재를 확인하므로 갈라 두면 공통층 안에 기전 서술 두 벌이 남는다. 파일 자체는 멀티 전용 자산(sync_to_sub 가 topology=multi 에서만 install)이나 이번 두 줄은 토폴로지 무관 문장이고, yaml 은 *.topology.md 로 옮길 수 없다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/budget_preflight.py",
+          "verdict": "common_promote",
+          "reason": "기록 전용 인자 --declared-gmu(예상 vLLM 몫 = gmu × MemTotal · 잔차 기재 · arm 산식·종료코드 불변)를 추가했다. single 서브에도 배달되는 공통 산술 소유자다. 자체검사가 multinode_serve_smoke.sh 본문을 isfile 가드로 읽으므로 두 파일을 한 벌로 옮긴다. 특화 주의(검증자 이의 채택 · 후속): 주석 25~31행이 '0.85→0.80 이 5,562MiB 를 연 관측'(perf_26091305 = multi TP=2 · GB10×2 한 셀)을 유효맥락 없이 인용한다. gmu × MemTotal 은 통합메모리 전제다(이산 GPU 에서는 MemTotal=호스트 RAM 이라 잔차가 무의미). 호출부는 멀티 스모크에만 있고 single_serve_up.sh 는 미배선(plan_26091407 §9 후속). (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/closing_sequence.sh",
+          "verdict": "common_promote",
+          "reason": "execute 가 부작용 전에 분류표 자리표시자를 거부(S4) · ⑤ 에서 layer_ledger.py 도 워크트리로 선반입(S1) · 카탈로그 재파생 실패 원인·fetch 안내(S7)(e4c3a51). 출발 브랜치가 어느 쪽이든 같은 시퀀스라 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/fetch_sub_docs.sh",
+          "verdict": "common_promote",
+          "reason": "회수 종료부 합격 술어 안내 주석·echo 에 P6(셀 출처 표시)을 추가했다. 실제 호출은 campaign_template_validator --acceptance 그대로이고 메인이 서브 문서를 회수하는 공통 스크립트다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/layer_ledger.py",
+          "verdict": "common_promote",
+          "reason": "원장을 출발 ref 에서 읽는 --ledger-ref(S1) · 착지 트리 동치로 동기 지점 해소(S2) · 공통층 pathspec 을 sync_branches case 암에서 단일 파생해 docs/*/example.md 포함(S3) · FILL_MARK 거부 validate(S4)(e4c3a51). 양방향 판정기라 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+          "verdict": "common_promote",
+          "reason": "서빙 yaml gpu-memory-utilization 을 뽑는 _yaml_declared_gmu 와 budget_preflight --declared-gmu 전달 한 줄을 추가했다. 멀티 전용 스크립트지만 공통층에 있고(서브 배달 제외 목록 등재) 공통 budget_preflight 자체검사가 이 함수 본문을 실행하므로, 한쪽만 옮기면 single-node 자체검사가 RED 가 되거나 스모크가 모르는 인자로 실패한다. output/multi 고정 경로 1곳 추가는 기존 성격 그대로다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/push_branches.py",
+          "verdict": "common_promote",
+          "reason": "브랜치별 SystemExit 을 잡아 항상 JSON 결과를 내고 남은 브랜치도 시도(S5 · 강제 push 없음 불변)(e4c3a51). 두 운영 브랜치 공용이라 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/selftest_branch_sync.py",
+          "verdict": "common_promote",
+          "reason": "신설 격리 자체검사 — 임시 저장소·bare 원격·ssh 스텁에서 closing_sequence multi→single 실행과 sync_to_sub/render 가드 음성대조(e4c3a51). verify_distribution 이 양 브랜치에서 부르므로 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/single_serve_up.sh",
+          "verdict": "common_promote",
+          "reason": "예산 선판정에 멀티 스모크와 같은 기재 입력 --declared-gmu-yaml 1행 배선(게이트 ✗ · arm 산식 불변)(692297b T3). 싱글 정규 기동 경로지만 공통층 스킬 스크립트이며 multi-node 체크아웃에도 동일하게 존재해야 한다(스크립트 단위 특화층 없음).",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+          "verdict": "common_promote",
+          "reason": "RED② 가 출발 ref 원장으로 실제 판정(S1) · 판정 불가는 COMMON_LAYER_UNJUDGED exit 10 으로 정지 · 판정기 판본 불일치 LEDGER_JUDGE_STALE(e4c3a51). 동기화 도구 자체라 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "verdict": "common_promote",
+          "reason": "--branch 가 이 체크아웃의 4자일치 토폴로지와 다르거나 both 면 인가·렌더·원격 이전에 exit 12(S6 · topology_parity --expect 재사용)(e4c3a51). 멀티 체크아웃→single 오배달과 single 체크아웃→옛 multi 빌드킷 다운그레이드를 함께 막는 양방향 가드라 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "trial-loop 8단계 정의를 바꿨다(deploy_gmu=target_gmu 대 gate_margin=safety_margin · max-num-seqs = min(요구, KV_fit@L) · 2-위상 트라이얼 · lockset 기계 각인). explorer 는 single 서브와 양 토폴로지 메인이 읽고, gpu_model 은 output/<topology>/manifest 에서 읽는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/config.example.yaml",
+          "verdict": "common_promote",
+          "reason": "safety_margin 은 게이트 승수이고 배포 gmu 는 target_gpu.target_gmu(필수 · 기본값 없음)라는 의미 정정과 declared_axes 예시(동시성 요구·대표 요청 길이)를 추가했다. 새 recipe.py 계약의 입력 예시라 양쪽에 필요하다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/recipe.py",
+          "verdict": "common_promote",
+          "reason": "margin 하나가 겸하던 네 역할을 _gpu_roles 로 분리했다. target_gmu 미선언이면 exit 5, max-num-seqs 2-위상 산출·재검증, 수렴 lockset 에 provenance·*_source 기계 각인. 분기는 manifest·config 로만 하고 자체검사가 single(GB10)·multi TP=2 를 모두 친다. 특화 주의(경미): '싱글 서브에도 같은 경로로 배달' 주석은 배달 평면 재기재 성격이라 'tool_plane 이 explorer 를 여는 서브(node_role_contract 파생)' 로 바꾸기를 권한다. _read_manifest 의 브랜치명 통로 선택은 기존 코드다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/references/kv-clamp.md",
+          "verdict": "common_promote",
+          "reason": "gmu 서술을 기동 전 free 검사(소스 확인)와 총량 cap(관측)으로 가르고, 클램프 천장(deploy_gmu)과 검증 게이트(gate_margin)를 분리했으며 §3 batch 정의를 산식·2-위상·손레버 규약으로 바꿨다. KV 산식 공통 정본이다. 특화 주의(후속 · 검증자 이의 일부 채택): ① '0.85→0.80 이 5,562MiB 를 연 관측(perf_26091305)' 에 유효맥락(multi TP=2 · GB10×2 · Qwen3.8-FN · 0.29.0rc6)을 붙인다. ② 35행 '서빙 스모크의 budget_preflight --declared-gmu 기재' 는 멀티 스모크에만 배선돼 있고(single_serve_up 미배선 · plan §9 후속) gmu × MemTotal 은 통합메모리 전제라 그 한정을 적는다. 인용 리포트는 docs/report 합집합 수렴으로 single-node 에도 따라간다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/references/parse-and-crosscheck.md",
+          "verdict": "common_promote",
+          "reason": "역할표와 Phase-1 emit 경고의 'near-max batch' 를 'KV-fit 기반 batch 산식' 으로 바꿔 kv-clamp.md §3 과 용어를 맞춘 세 줄 정합이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/references/phase2-interview.md",
+          "verdict": "common_promote",
+          "reason": "인터뷰가 batch 값 대신 동시성 요구·대표 요청 길이(declared_axes)를 묻고, batch 를 free(산출)로 옮기고, lockset 출처 표시(hand-authored → 수렴 각인 explorer-phase2)를 추가했다. single 서브와 양 메인의 Phase-2 공통 절차다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/references/serving-closeout.md",
+          "verdict": "common_promote",
+          "reason": "simulate 예시에 --lockset-out·캠페인 셀 경로 파생(campaign_init --derive)을 넣고 루프 분기를 gate_margin 분류·위상 1 batch 산출·잠정 클램프 재산정·adjust_target=batch 로 갱신했다. 새 recipe.py 동작을 설명하는 공통 절차다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
+          "verdict": "common_promote",
+          "reason": "코드는 그대로이고 주석·docstring 만 바뀌었다('gmu 는 클램프 시 무시' 를 기동 전 free 검사로 한정 · max_safe_kv_bytes 승수 자리에 호출부별 deploy_gmu/safety_margin 명시). recipe.py 역할 분리와 짝이다. 특화 주의(경미·후속): 0.85→0.80 관측이 유효맥락 없이 적혔다(kv-clamp.md §1 포인터로 대체 권장). (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py",
+          "verdict": "common_promote",
+          "reason": "생성 yaml 에 batch_source·gmu_source 출처 주석을 추가하고 gmu 주석을 기전/관측으로 가르며 gpu-memory-utilization 권위를 deploy_gmu 로 바꿨다. 3종 세트 생성기는 양 토폴로지 공유이고 C2 술어 토큰('startup free-memory 게이트'·'cap')은 유지된다. 특화 주의(후속 · 실제로 새는 자리): 클램프가 있으면 생성물 주석에 '(0.85→0.80 이 여유를 열었다 …)' 가 찍혀 single 을 포함한 모든 토폴로지·모델 산출물에 multi TP=2 한 셀의 관측이 박힌다. C2 토큰은 남기고 괄호를 'kv-clamp.md §1 관측' 포인터로 바꾼다(branch_only 사유 아님). (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py",
+          "verdict": "common_promote",
+          "reason": "주석만 바뀌었다 — 트라이얼 gmu 기본값 출처를 deploy_gmu 로, gmu 는 기동 전 검사이며 총량 cap 은 관측이라고 정정했다. serve 인자 조립 코드는 그대로다. 특화 주의(경미·후속): 0.85→0.80 관측이 맥락 없이 주석에 있다(처방은 kv-clamp.md 와 같다). (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/selftest_gmu_roles_batch.py",
+          "verdict": "common_promote",
+          "reason": "gmu 역할 분리·max-num-seqs 산식·lockset 기계 각인을 함수·CLI·가짜 엔진 3층으로 치는 자체검사를 신설했다. verify_distribution 이 부르고 single(GB10)·multi TP=2 manifest 픽스처를 output/single·output/multi 에 모두 써서 통로 선택에 기대지 않는다. single-node 에 없는 신설 파일 — 덮어쓸 대상이 없다. (추가 692297b · ⑧ 분석 발견 교정: 노드 인지 kill 이벤트 대조 · 브랜치명 토폴로지 추론 제거 · 유효맥락/문구 정리 — manifest 로 분기해 양 토폴로지에서 참)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/sim_classify.py",
+          "verdict": "common_promote",
+          "reason": "kv_fit_check 순수 함수와 선택 인자 typical_request_tokens 를 추가했다(클램프 트라이얼 batch > 엔진 KV-fit 이면 adjust_target=batch). 인자 없는 기존 호출부 결과는 그대로이고 분류기는 양 토폴로지 공유다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "README.md",
+          "verdict": "common_promote",
+          "reason": "KV 예산 부등식의 KV 항을 max(max-model-len, 대표 요청 길이 × max-num-seqs) 로, max-num-seqs 를 min(동시성 요구, KV-fit) 인 explorer 파생값으로, gpu-memory-utilization 을 셀 target_gmu 단일 권위로 바로잡았다. 온보딩 서사는 양 브랜치 동일 문서다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/README.md",
+          "verdict": "common_promote",
+          "reason": "budgets.repeats(생략 3 · 3 미만 금지)와 기계 이벤트 강등 설명, '셀 값의 두 계층(선언 declared_axes · explorer 파생 lockset)' 절(provenance 의무·precheck·불일치 기재·P6)을 추가했다. 캠페인 뼈대는 추적 빌딩블럭이다. '회수 편입된 서브 배정 셀 = not_observable' 은 single 에서만 주어가 있고 multi 에서는 공허하게 참이라 이동 불요다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/_template/campaign.schema.json",
+          "verdict": "common_promote",
+          "reason": "budgets.repeats(integer · minimum 3) 스키마를 추가했다. full bench 반복 하한이라 양 토폴로지 선언 검증에 같다. repeat_axis.FULL_REPEATS_MIN 과 자체검사가 교차검증하므로 repeat_axis.py 와 함께 옮긴다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/_template/campaign.yaml",
+          "verdict": "common_promote",
+          "reason": "budgets 에 repeats: 3 과 _budgets_howto(무기본값 경고 · 반복 소비자 · 벽시계 예산에 반복 포함)를 추가했다. 뼈대 선언은 양 토폴로지 공통이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/_template/cells/_cell/cell.status.json",
+          "verdict": "common_promote",
+          "reason": "셀 상태 뼈대에 provenance 블록(observability·lockset 출처·stamp·compared·pending_knobs)과 provenance_mismatch[] 를 추가했다. writer 는 campaign_init --cell-set 이고 선언↔서빙 실물 드리프트 기재는 양 토폴로지 공통이다. _note 의 서브 배정 셀 not_observable 은 single 에서만 발생하는 조건부 값이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/_template/cells/_cell/config.yaml",
+          "verdict": "common_promote",
+          "reason": "선언 계층 declared_axes(context_len·variant·ple_mode·kv_cache_dtype·tp·control_variable·concurrency_requirement·typical_request_tokens)를 <<FILL>> 로 신설하고 target_gmu 를 배포 gmu 의 선언 입력으로 명시했다. 셀 입력 뼈대라 양 토폴로지가 같다. declared_axes.tp 는 manifest 권위를 유지하며 TP≥2 를 전제하지 않는다. 동작 변화: 새 빈칸이 채워지지 않으면 셀이 --instance·precheck 에서 멈춘다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/_template/cells/_cell/lockset.json",
+          "verdict": "common_promote",
+          "reason": "lockset 뼈대에 provenance(<<FILL>> · explorer-phase2|hand-authored)와 batch_source·kv_source·gmu_source 및 어휘 안내 사본을 추가했다. 측정 진입 precheck·recipe.py 기계 각인의 자리다. _*_enum 을 campaign_template_validator 상수(single-node 에 부재)와 --template 이 교차검증하므로 함께 옮긴다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "docs/benchmark/example.md",
+          "verdict": "common_promote",
+          "reason": "발행 규율 한 줄을 고쳤다(lite 는 기본 채팅 표만 · lite-only 셀은 lite_bench.sh --publish-report 로 같은 접두사의 경량 리포트, 인증서 없음). 추적 skeleton 이라 양 브랜치 동일해야 하고 terraforming_node 뼈대 benchmark/example.md 와 한 벌이다. 이 경로는 layer_ledger divergence 에는 안 보이고(_diff_pathspec 이 docs/*/example.md 를 포함하지 않음) skeleton 에만 보인다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "hints/HINT_ISSUANCE_CONTRACT.md",
+          "verdict": "common_promote",
+          "reason": "§3.0.1 을 신설해 C행(lite 만 잰 셀)의 통로(경량 리포트 바인딩·강등 재분류 대조·측정 구성 표·BENCH_MODE_LITE·bench_mode 파생 컬럼·lockset 레시피 세그먼트)를 명문화했다. hint 발행 계약은 브랜치 무관 배포 레이어다. hints/ 에서 동기화 제외는 index.json·HINTS.md 뿐이다.",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
