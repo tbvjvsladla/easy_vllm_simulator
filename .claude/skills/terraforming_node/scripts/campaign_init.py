@@ -271,6 +271,41 @@ def do_purge(previous_id: str, *, apply: bool) -> list[str]:
     return [_rel(prev)]
 
 
+def close_campaign(camp_id: str, *, utc: str | None, apply: bool) -> str:
+    """활성 캠페인을 **종결**한다 — ACTIVE 만 `_bootstrap` 으로 되돌리고 인스턴스는 지우지 않는다.
+
+    왜 있나(2026-09-15 · plan_26091407 §5 ⑧ 싱글 서브 회차): ACTIVE 를 내리는 정식 경로가
+    `--init --purge-previous`(= 다음 캠페인 개설) 하나뿐이었다. 그래서 캠페인 사이 창이 존재하지
+    않았고, 종결된 multi 캠페인이 ACTIVE 로 남은 동안 single-node 체크아웃의 4자일치는 늘
+    CAMPAIGN_MISMATCH 였다 — 반대 토폴로지 작업(싱글 서브 전파 등)을 여는 길이 ACTIVE 손편집이라는
+    우회뿐이었다(D3: 우회 대신 경로를 고친다).
+
+    선행조건은 purge 게이트와 **같다**(증거 포인터 전수 실재 · 릴레이 요약 · P1~P3). 종결 뒤에 증거가
+    흩어지면 다음 init 의 purge 가 막히므로, 닫는 시점에 그 조건을 먼저 묻는다. 인스턴스는 남아
+    다음 `--init --purge-previous <id>` 가 지운다. 멱등: 이미 `_bootstrap` 이면 no-op 이다
+    (성공이 자기 검사를 깨뜨리지 않게).
+    """
+    if camp_id in RESERVED_IDS:
+        raise PurgeGateRefusal(f"예약 id 는 종결 대상이 아니다: {camp_id!r}")
+    active = active_campaign_id()
+    if active == BOOTSTRAP:
+        return f"no-op — 활성 캠페인이 없다(ACTIVE=_bootstrap · {_active_pointer_fact()})"
+    if active != camp_id:
+        raise PurgeGateRefusal(f"활성 캠페인은 {active!r} 다 — {camp_id!r} 를 종결할 수 없다"
+                               f"(이름이 곧 증거 연결이다)")
+    if not utc:
+        raise PurgeGateRefusal("--close 는 --utc 가 필요하다(시각은 주입만 받는다 — 벽시계 금지)")
+    reasons = purge_gate_reasons(camp_id)
+    if reasons:
+        raise PurgeGateRefusal("종결 선행조건(= purge 게이트)이 닫혀 있다:\n  - " + "\n  - ".join(reasons))
+    if apply:
+        writer_append_journey(CAMPAIGNS / camp_id, {
+            "utc": utc, "kind": "campaign_closed",
+            "note": "ACTIVE → _bootstrap (인스턴스 보존 · 다음 --init --purge-previous 가 지운다)"})
+        ACTIVE_POINTER.write_text(BOOTSTRAP + "\n", encoding="utf-8")
+    return f"closed {camp_id} → ACTIVE=_bootstrap (인스턴스 보존: campaigns/{camp_id})"
+
+
 def sweep_bootstrap_relay(*, apply: bool) -> list[str]:
     """`_bootstrap/relay/` 의 옛 원장을 비운다 (2026-09-07 · 사용자 결정 · plan_26090715 §4.10).
 
@@ -1817,6 +1852,40 @@ def _selftest() -> int:
             _refused = True
         ck("★음성대조: 포인터 없는 잔재는 여전히 거부된다",
            _refused and (CAMPAIGNS / "relicC").is_dir())
+        # ── 종결(--close) — ACTIVE 만 내리고 인스턴스는 남긴다(2026-09-15) ──────────────
+        _cl = CAMPAIGNS / "closeme"
+        _cl.mkdir(parents=True)
+        ACTIVE_POINTER.write_text("closeme\n", encoding="utf-8")
+        _refused = False
+        try:
+            close_campaign("closeme", utc="2026-09-15T00:00:00Z", apply=True)
+        except PurgeGateRefusal:
+            _refused = True
+        ck("★종결 음성대조: 증거 포인터 없는 활성 캠페인은 종결을 거부하고 ACTIVE 를 그대로 둔다",
+           _refused and active_campaign_id() == "closeme")
+        (_cl / "evidence_pointers.json").write_text(json.dumps(good), encoding="utf-8")
+        _refused = False
+        try:
+            close_campaign("other", utc="2026-09-15T00:00:00Z", apply=True)
+        except PurgeGateRefusal:
+            _refused = True
+        ck("종결 음성대조: 활성이 아닌 id 는 거부", _refused and active_campaign_id() == "closeme")
+        _refused = False
+        try:
+            close_campaign("closeme", utc=None, apply=True)
+        except PurgeGateRefusal:
+            _refused = True
+        ck("종결 음성대조: --utc 없으면 거부(벽시계 금지)", _refused and active_campaign_id() == "closeme")
+        close_campaign("closeme", utc="2026-09-15T00:00:00Z", apply=False)
+        ck("종결 dry-run 은 ACTIVE 를 바꾸지 않는다", active_campaign_id() == "closeme")
+        _msg = close_campaign("closeme", utc="2026-09-15T00:00:00Z", apply=True)
+        ck("종결 apply → ACTIVE=_bootstrap · 인스턴스 보존 · 여정 기재",
+           active_campaign_id() == BOOTSTRAP and _cl.is_dir()
+           and any(j.get("kind") == "campaign_closed" for j in read_journey(_cl)) and "closed" in _msg)
+        ck("종결은 멱등이다(이미 _bootstrap 이면 no-op)",
+           "no-op" in close_campaign("closeme", utc="2026-09-15T00:00:00Z", apply=True))
+        ck("종결 뒤 같은 인스턴스는 purge 로 지울 수 있다",
+           not purge_gate_reasons("closeme") and do_purge("closeme", apply=True) and not _cl.exists())
         # ── 단일 writer + resume-brief (2026-09-07 · plan_26090715 §4.1·§4.4) ──────────────
         camp = CAMPAIGNS / "w1"
         for sub in ("cells", "phases", "sweeps", "relay"):
@@ -2518,6 +2587,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--cell"); ap.add_argument("--sweep"); ap.add_argument("--context")
     ap.add_argument("--campaign-id", help="파생 대상 캠페인(생략 시 활성)")
     ap.add_argument("--verify-purge-gate", metavar="PREV_ID", help="직전 인스턴스의 purge 선행조건 검사")
+    ap.add_argument("--close", metavar="CAMP_ID",
+                    help="활성 캠페인 종결 — purge 게이트와 같은 선행조건을 묻고 ACTIVE 만 _bootstrap 으로 "
+                         "되돌린다(인스턴스 보존) · --utc 필수 · 기본 dry-run(--apply 로 실행)")
     ap.add_argument("--residue-scan", action="store_true")
     ap.add_argument("--init", metavar="CAMP_ID", help="새 캠페인 개설")
     ap.add_argument("--plan-ref", help="--init 의 승인 plan 경로(필수)")
@@ -2847,6 +2919,10 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"  - {r}", file=sys.stderr)
                 return 1
             print("[campaign_init] purge 게이트 열림"); return 0
+        if a.close:
+            msg = close_campaign(a.close, utc=a.utc, apply=a.apply)
+            mode = "APPLIED" if a.apply else "DRY-RUN"
+            print(f"[campaign_init] {mode} {msg}"); return 0
         if a.init:
             if not a.plan_ref:
                 print("[campaign_init] FAIL --init 은 --plan-ref 가 필요하다(승인 없는 개설 ✗)", file=sys.stderr)
