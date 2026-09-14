@@ -604,6 +604,23 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-202609142020",
+      "utc": "2026-09-14T20:20:29Z",
+      "departure": "multi-node",
+      "departure_commit": "83ae48cf5fb35ef2c889c9ce9d93be1ea2e4145f",
+      "approved_by": "coag-ash (G1-b 싱글 서브 회차 승인 범위 — 배달 경로 결함 교정은 D3 경로 수리)",
+      "approved_utc": "2026-09-14T20:15:50Z",
+      "_reach": "single-node vs HEAD 트리차이 · 동기 지점 962c370db586(departure-landed)",
+      "classification": [
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "종료 시퀀스 기구(closing_sequence·layer_ledger·push_branches)를 서브 런타임블럭 제외표에 등재하고 분류 tripwire 후보를 .sh·.py × 확장 키워드로 넓힌다(83ae48c). 싱글 서브 배달이 retirement consumer 로 멈춘 경로 결함 교정이며 렌더러는 양 토폴로지 체크아웃에서 같은 코드가 돈다 — 공통.",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
