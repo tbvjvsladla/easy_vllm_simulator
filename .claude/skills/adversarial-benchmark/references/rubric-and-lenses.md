@@ -105,7 +105,7 @@ rubric{primary,source,floor,ratio_M_over_primary,R_fp,R_token,expected,reference
 
 사람이 작성한 `config.yaml`(영속·비추적). 없으면 `config.example.yaml` 참고. 핵심 키:
 
-- `serving.config_name`(검증 대상 트리플렛 키) · `topology`(미지정 시 브랜치 파생).
+- `serving.config_name`(검증 대상 트리플렛 키) · `topology`(미지정 시 manifest 파생 — `scripts/resolve_topology.py` · 브랜치 이름 추론 ✗).
 - `reference_tps`(E, 선택 — 미지정 시 검증기 외부검색) · `target_tps`(c, 선택) · `tolerance`(기본 0.15).
   ⚠ `reference_tps`·`target_tps` 에 **`0`/`NULL`(빈 값) 을 '게이트 미설정'의 뜻으로 쓰지 않는다** —
   상수 0 은 루브릭이 될 수 없어 `verdict_rule.py` 가 **exit 2 로 거부**한다(공허 PASS 차단). *키를

@@ -41,11 +41,23 @@
   V1★ 분산만 크다(TPOT 20/30/45) → full(분산은 강등 사유 ✗)
   A1★ --repeats 2 명시 → exit 2 · 부하 도구 미호출 / A2★ 캠페인 선언 repeats=2 → exit 2 · 미호출
   A3★ --reassemble-only 에 --repeats → exit 2(조용히 버리지 않는다)
+  A4★ 노드 간 사살 대조 허용오차에 출처가 없거나 정수가 아니다 → exit 2 · 부하 전(매직넘버 ✗)
   B1  broad_search init → declared_budget.repeats=3 + 출처(캠페인 선언) · cell 이 그 값을 sweep_bench 에 넘긴다
   B2  broad_search cell 정상 → 셀 기록 bench_mode=full(판정 기록 그대로) · repetition 요약 · 정지 평가 runs_attempted
   B3★ broad_search cell 에서 shim 이 run 2 에 사살 이벤트를 남기고 죽는다 → 셀 기록 lite · blackbox_kill
   B4★ declared_budget.repeats 없는 상태 파일 → 셀 진입 exit 2(새 run 소비 경로 · 기본값 발명 ✗)
   B5★ 같은 상태 파일의 status·map(읽기 경로)은 막히지 않는다 — 반복 수는 absent 로 기재
+  B6★ broad_search 에 노드 간 허용오차 짝이 맞지 않거나 정수가 아니다 → 셀 진입 전 exit 2(측정·--serve-failed 둘 다 · 셀 기록 0)
+  B7★ broad_search --serve-failed 셀 종결(single · self_role 없는 manifest) → 대조 노드는 소유자 규칙으로 선 이 노드(main) ·
+      구간 안 사살 → 사인 = 이벤트(노드 계획 불성립으로 not-scanned 에 접히지 않는다)
+  M1★ multi 배선 끝-끝(sweep_bench --topology multi · meta.measured_node=cluster · --manifest · node_role_contract):
+      스윕 직후 서브 미회수 → full ∧ not_scanned · 회수 미러가 창을 덮고 허용오차 미선언 → unavailable ·
+      `--reassemble-only --cross-node-tolerance-s 15 --cross-node-tolerance-source …` → 창 끝+10s 서브 사살이 blackbox_kill
+      (전달된 허용오차·출처가 판정 기록에 실린다 — 전달 줄을 지우면 unavailable 로 남아 적색)
+  M2★ broad_search multi --serve-failed 가 허용오차를 셀 종결 분류에 전달한다(구간 시작 10s 전 서브 사살: 선언 15 → 사인 = 이벤트 ·
+      선언 없음 → 사인 null · not-scanned)
+  R★  리포트 bench_mode 행 — 대조 not_scanned 이면 강등 행(F3)·full 행(F7) 모두 '⚠ 대조 불가' 표지 · 노드 요약은 한 번만 ·
+      대조 miss(F6)에는 표지 없음(음성대조)
 
 사용: python3 selftest_sweep_repeats.py [-v]   (exit 0 = 전부 통과)
 """
@@ -71,6 +83,8 @@ COPIES = (
     f"{AB}/scripts/roofline.py", f"{AB}/scripts/verdict_rule.py", f"{AB}/scripts/publish_benchmark_record.py",
     f"{AB}/fixtures/guidellm_benchmarks_sample.json",
     f"{TN}/campaign_init.py", f"{TN}/campaign_template_validator.py",
+    # 대조 대상 노드 판정의 소유자 — multi 참여 노드(node_role_contract) · 이 노드가 누구인가(node_identity.sh --resolve).
+    f"{TN}/node_role_contract.py", f"{TN}/node_blackbox/node_identity.sh",
     "campaigns/_template/campaign.schema.json",
 )
 SHIM_SENTINEL = "SELFTEST_SWEEP_REPEATS_SHIM"
@@ -162,8 +176,10 @@ class Sandbox:
         _write(self.sdir / "lite_bench.sh", LITE_BENCH_SHIM.replace("@SENTINEL@", SHIM_SENTINEL), 0o755)
         _write(self.bindir / "curl", "#!/bin/sh\nprintf 200\n", 0o755)
         subprocess.run(["git", "init", "-q", str(self.root)], check=True, timeout=60)
+        # self_role 은 일부러 없다(sweep_bench `defaulted(self_role absent)` 가 다루는 살아 있는 모양) — 이 노드는 소유자
+        #   규칙(node_identity.sh: self_role → 유일한 role: main)으로 선다. nodes[] 로스터는 실물 manifest 모양 그대로다.
         _write(self.root / "output/single/manifest.yaml",
-               'topology: single\ngpus_per_node: 1\ngpu_model: "NVIDIA GB10"\n')
+               'topology: single\ngpus_per_node: 1\ngpu_model: "NVIDIA GB10"\nnodes:\n  - role: main\n')
         self.model = self.root / "models/fx-dense"
         _write(self.model / "config.json", json.dumps({"hidden_size": 64, "num_hidden_layers": 2}))
         header = json.dumps({"w": {"dtype": "F16", "shape": [1365000000],
@@ -188,12 +204,12 @@ class Sandbox:
         for c in cells:
             _write(self.camp / "cells" / c / "lockset.json", json.dumps({"id": c, "provenance": "hand-authored"}))
 
-    def config(self, cfg: str) -> None:
-        _write(self.root / f"output/single/configs/{cfg}.yaml", f"model: {self.model}\nmax-model-len: 4096\n")
-        _write(self.root / f"output/single/envs/.env.{cfg}", f"SERVING_PORT=18080\nSERVING_MODEL_NAME={cfg}\n")
+    def config(self, cfg: str, topo: str = "single") -> None:
+        _write(self.root / f"output/{topo}/configs/{cfg}.yaml", f"model: {self.model}\nmax-model-len: 4096\n")
+        _write(self.root / f"output/{topo}/envs/.env.{cfg}", f"SERVING_PORT=18080\nSERVING_MODEL_NAME={cfg}\n")
 
-    def sweep_dir(self, cfg: str) -> Path:
-        return self.root / "output/single/benchlog" / f"sweep_{cfg}"
+    def sweep_dir(self, cfg: str, topo: str = "single") -> Path:
+        return self.root / f"output/{topo}/benchlog" / f"sweep_{cfg}"
 
     def calls(self) -> list[str]:
         p = self.root / "SHIM_CALLS"
@@ -460,6 +476,12 @@ def main() -> int:
            "**스윕이 멈춘 자리 — 반복 중단**: level 1 run 2" in cp.stdout and "✗(run 2)" in cp.stdout
            and "**강등** · 사유 `run_failed`" in cp.stdout, cp.stdout[-900:])
 
+        def bench_mode_line(md):
+            return next((ln for ln in md.splitlines() if "bench_mode: " in ln), "")
+        _bl = bench_mode_line(cp.stdout)
+        ck("R★ 강등 행(lite · run_failed)도 대조 not_scanned 이면 '⚠ 대조 불가' 표지 · 노드 요약은 한 번만",
+           "⚠ **대조 불가**" in _bl and _bl.count("대조 노드[") == 1, _bl)
+
         # ── F4 비대칭 교정: 경계 레벨 2 의 run 2 실패 ───────────────────────────────────────
         sb.clear_events()
         cp = sb.sweep("cfg-g", plan={"fail": {"2:2": "measurement"}})
@@ -490,12 +512,18 @@ def main() -> int:
         ck("F6★ 같은 자리 트립 단독 → full 유지(사인 불충분 · 대조 miss)",
            cp.returncode == 0 and s_t.get("bench_mode") == "full" and s_t.get("downgrade_correlation") == "miss"
            and "사인 불충분" in (s_t.get("bench_mode_source") or ""), s_t)
+        _bl = bench_mode_line(report("cfg-t").stdout)
+        ck("R★ 음성대조: 대조 miss(이 노드 기록을 봤다) 행에는 '대조 불가' 표지가 없다 · 노드 요약은 한 번",
+           _bl and "대조 불가" not in _bl and _bl.count("대조 노드[") == 1, _bl)
         sb.clear_events()
         cp = sb.sweep("cfg-c", plan={"fail": {"2:1": "rc"}})
         s_c = side("cfg-c")
         ck("F7 경계 레벨 2 첫 run 실패(rc) · events 0 → full · 대조 not_scanned(F4 와 같은 판정)",
            cp.returncode == 0 and s_c.get("bench_mode") == "full" and s_c.get("downgrade_correlation") == "not_scanned",
            s_c)
+        _bl = bench_mode_line(report("cfg-c").stdout)
+        ck("R★ full 행 · 대조 not_scanned → '⚠ 대조 불가' 표지 · 노드 요약은 한 번만(분류기 출처와 겹쳐 두 번 찍지 않는다)",
+           "**full**" in _bl and "⚠ **대조 불가**" in _bl and _bl.count("대조 노드[") == 1, _bl)
 
         # ── F8 집계 실패 ──────────────────────────────────────────────────────────────────
         cp = sb.sweep("cfg-u", plan={"fail": {"1:2": "norecord"}}, levels="1")
@@ -526,6 +554,13 @@ def main() -> int:
         ck("A2★ 캠페인 선언 budgets.repeats=2 → exit 2 · 미호출(기본값 대체 ✗)",
            cp.returncode == 2 and sb.calls() == [], (cp.returncode, sb.calls(), cp.stderr[-300:]))
         sb.declare(repeats=3)
+        # A4 — 노드 간 사살 대조 허용오차는 값·출처 짝(2026-09-14 · ⑧ 분석 발견 T1). 부하 전에 친다(매직넘버 ✗).
+        sb.reset_calls()
+        cp = sb.sweep("cfg-a", "--cross-node-tolerance-s", "2")
+        cp2 = sb.sweep("cfg-a", "--cross-node-tolerance-s", "x", "--cross-node-tolerance-source", "fixture")
+        ck("A4★ 출처 없는 노드 간 허용오차 · 정수 아닌 값 → exit 2 · 부하 도구 미호출",
+           cp.returncode == 2 and cp2.returncode == 2 and sb.calls() == [] and "함께 준다" in cp.stderr,
+           (cp.returncode, cp2.returncode, sb.calls(), cp.stderr[-300:]))
 
         # ── B broad_search 배선 ─────────────────────────────────────────────────────────────
         sb.clear_events()
@@ -543,22 +578,49 @@ def main() -> int:
            and db.get("repeats_source") == f"declared(campaigns/{CAMP}/campaign.yaml budgets.repeats)",
            (cp.returncode, db, cp.stderr[-300:]))
 
-        def cell(key, cfg, plan_):
+        def cell(key, cfg, plan_, *extra):
             sb.config(cfg)
             return sb.run(["bash", bs, "cell", "--state", str(state), "--cell-key", key, "--config", cfg,
                            "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
                            "--backend", "openai", "--levels", "1", "--num-prompts", "4", "--now-utc", now,
-                           "--topology", "single", "--confirm-risk"], plan=plan_)
+                           "--topology", "single", "--confirm-risk", *extra], plan=plan_)
 
         def record(key, path=None):
             rows = [c for c in (sb.load(path or state) or {}).get("cells") or [] if c.get("cell_key") == key]
             return rows[-1] if rows else {}
 
+        # B6 — 노드 간 허용오차 짝 검사는 셀 진입 전(2026-09-14 리뷰 정정 · 종전에는 셀 종결 분류에서 set -e 로 죽어 기록이 사라졌다)
         sb.reset_calls()
-        cp = cell("cell-a", "cfg-ba", {"tpot": {"1": [25.0, 25.5, 24.5]}})
+        sb.config("cfg-ba")
+        cp6a = sb.run(["bash", bs, "cell", "--state", str(state), "--cell-key", "cell-a", "--config", "cfg-ba",
+                       "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
+                       "--backend", "openai", "--levels", "1", "--now-utc", now, "--topology", "single", "--confirm-risk",
+                       "--cross-node-tolerance-s", "5"])
+        cp6b = sb.run(["bash", bs, "cell", "--state", str(state), "--cell-key", "cell-a", "--config", "cfg-ba",
+                       "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
+                       "--now-utc", now, "--topology", "single", "--serve-failed", "fixture",
+                       "--serve-started-utc", now, "--cross-node-tolerance-source", "only-source"])
+        cp6c = sb.run(["bash", bs, "cell", "--state", str(state), "--cell-key", "cell-a", "--config", "cfg-ba",
+                       "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
+                       "--now-utc", now, "--topology", "single", "--serve-failed", "fixture",
+                       "--serve-started-utc", now, "--cross-node-tolerance-s", "x", "--cross-node-tolerance-source", "s"])
+        ck("B6★ 허용오차 짝 불일치(측정 · --serve-failed)·비정수 → 셀 진입 전 exit 2 · 부하 도구 미호출 · 셀 기록 0",
+           cp6a.returncode == 2 and cp6b.returncode == 2 and cp6c.returncode == 2 and sb.calls() == []
+           and "함께 준다" in cp6a.stderr and "함께 준다" in cp6b.stderr and "정수" in cp6c.stderr
+           and not (sb.load(state) or {}).get("cells"),
+           (cp6a.returncode, cp6b.returncode, cp6c.returncode, sb.calls(), cp6a.stderr[-300:], cp6c.stderr[-200:]))
+
+        sb.reset_calls()
+        # 허용오차 선언을 함께 준다 — single 은 원격 노드가 없어 판정은 그대로이고, broad_search → sweep_bench 전달만 본다(B1).
+        cp = cell("cell-a", "cfg-ba", {"tpot": {"1": [25.0, 25.5, 24.5]}},
+                  "--cross-node-tolerance-s", "7", "--cross-node-tolerance-source", "fixture-forward")
         rec = record("cell-a")
         stop = sb.load(sb.camp / "sweeps" / "bs.stop.json") or {}
         ma = sb.load(sb.sweep_dir("cfg-ba") / "level_01/measured.json") or {}
+        _scan_ba = side("cfg-ba").get("events_scan") or {}
+        ck("B1 cell 이 노드 간 허용오차 선언(값·출처)을 sweep_bench 에 넘긴다(판정 기록 events_scan 에 실린다 · 판정은 불변)",
+           _scan_ba.get("cross_node_tolerance_s") == 7 and _scan_ba.get("cross_node_tolerance_source") == "fixture-forward",
+           _scan_ba)
         ck("B1 cell 이 스윕 선언의 반복 수를 sweep_bench 에 넘긴다(출처에 sweep state 경유가 남는다)",
            cp.returncode == 0 and len([c for c in sb.calls() if "level=" in c]) == 3
            and "sweep state declared_budget.repeats" in (ma.get("repeats_requested_source") or ""),
@@ -611,10 +673,109 @@ def main() -> int:
            and "예산 선언에 반복 수가 없다" in out_md.read_text(encoding="utf-8"),
            (cp_s.returncode, cp_s.stdout[-300:], cp_s.stderr[-300:], cp_m.returncode, cp_m.stderr[-300:]))
 
+        # ── B7 셀 종결 대조 노드 = 소유자 규칙으로 선 이 노드(self_role 없는 manifest) ──────────────────────────
+        sb.clear_events()
+        _write(sb.root / "docs/logs/main/events/2026-09.jsonl",
+               json.dumps({"ts": "2026-09-01T00:00:30Z", "kind": "watchdog_kill_ack", "source": "fixture", "mode": "armed"}) + "\n")
+        cp = sb.run(["bash", bs, "cell", "--state", str(state), "--cell-key", "cell-sf", "--config", "cfg-sf",
+                     "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
+                     "--now-utc", now, "--topology", "single", "--serve-failed", "materialize-fixture",
+                     "--serve-started-utc", "2026-09-01T00:00:00Z"])
+        rec = record("cell-sf")
+        ck("B7★ --serve-failed single · self_role 없는 manifest ∧ 이 노드 구간 안 사살 → 사인 = 이벤트 · 대조 노드[main=matched]",
+           cp.returncode == 0 and rec.get("cell_outcome") == "serve_failed" and rec.get("void_reason") == "watchdog_kill_ack"
+           and str(rec.get("void_reason_source")).startswith("events(") and "대조 노드[main=matched" in rec.get("void_reason_source", ""),
+           (cp.returncode, rec.get("void_reason"), rec.get("void_reason_source"), cp.stderr[-500:]))
+
+        # ── M1 multi 배선 끝-끝: sweep_bench → classify_cell(meta.measured_node=cluster · --manifest · node_role_contract) ──
+        sb.clear_events()
+        _write(sb.root / "output/multi/manifest.yaml",
+               'topology: multi\ngpus_per_node: 1\ngpu_model: "NVIDIA GB10"\nnodes:\n  - role: main\n    host: 192.0.2.10\n'
+               '  - role: sub\n    host: 192.0.2.11\n')
+        sb.config("cfg-m", topo="multi")
+        cp = sb.run(["bash", str(sb.sdir / "sweep_bench.sh"), "cfg-m", "--topology", "multi", "--tool", "guidellm",
+                     "--bench-budget-mib", "1024", "--backend", "openai", "--levels", "1,2", "--num-prompts", "4"],
+                    plan={"fail": {"2:1": "rc"}})
+        dm = sb.sweep_dir("cfg-m", topo="multi")
+        idx_m = sb.load(dm / "sweep_index.json") or {}
+        s_m = sb.load(dm / "bench_mode.json") or {}
+        scan_m = s_m.get("events_scan") or {}
+
+        def mstatus(rec_, node):
+            return next((e.get("status") for e in (rec_.get("events_scan") or {}).get("nodes") or []
+                         if e.get("node") == node), None)
+        ck("M1★ multi 스윕 직후(서브 미회수) → full ∧ not_scanned · meta.measured_node=cluster · 계획 = manifest 노드 전부"
+           "(self_role 없이 이 노드 main)",
+           cp.returncode == 0 and (idx_m.get("meta") or {}).get("measured_node") == "cluster"
+           and s_m.get("bench_mode") == "full" and s_m.get("downgrade_correlation") == "not_scanned"
+           and (scan_m.get("plan") or {}).get("nodes") == ["main", "sub"]
+           and (scan_m.get("plan") or {}).get("self_node") == "main"
+           and mstatus(s_m, "sub") == "not_scanned",
+           (cp.returncode, (idx_m.get("meta") or {}).get("measured_node"), s_m.get("bench_mode"),
+            s_m.get("downgrade_correlation"), scan_m.get("plan"), cp.stderr[-600:]))
+        stop_m = (idx_m.get("repetition") or {}).get("stop") or {}
+        import datetime as _dtm
+        _end = _dtm.datetime.strptime(stop_m.get("window_end_utc") or "2000-01-01T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ")
+
+        def _ts(sec):
+            return (_end + _dtm.timedelta(seconds=sec)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        mirror = sb.root / "sync_staging/sub_docs/logs/sub/events/2026-09.jsonl"
+        _write(mirror, json.dumps({"ts": _ts(10), "kind": "watchdog_kill_ack", "source": "fixture", "mode": "armed"}) + "\n"
+               + json.dumps({"ts": _ts(120), "kind": "serve_stop", "source": "fixture"}) + "\n")
+        _write(sb.root / "docs/logs/main/events/2026-09.jsonl",
+               json.dumps({"ts": _ts(120), "kind": "budget_renew", "source": "fixture"}) + "\n")
+        reassemble_m = ["bash", str(sb.sdir / "sweep_bench.sh"), "cfg-m", "--topology", "multi", "--backend", "openai",
+                        "--reassemble-only"]
+        cp = sb.run(reassemble_m)
+        s_m = sb.load(dm / "bench_mode.json") or {}
+        ck("M1★ 회수 미러가 창을 덮고 허용오차 미선언 → full ∧ unavailable · sub=skew_undeclared(창 끝+10s 사살을 넓혀 잡지 않는다)",
+           cp.returncode == 0 and stop_m.get("kind") == "clamp" and s_m.get("bench_mode") == "full"
+           and s_m.get("downgrade_correlation") == "unavailable" and mstatus(s_m, "sub") == "skew_undeclared"
+           and mstatus(s_m, "main") == "miss", (cp.returncode, stop_m, s_m.get("downgrade_correlation"),
+                                                s_m.get("events_scan"), cp.stderr[-400:]))
+        cp = sb.run(reassemble_m + ["--cross-node-tolerance-s", "15", "--cross-node-tolerance-source", "fixture-clock"])
+        s_m = sb.load(dm / "bench_mode.json") or {}
+        _sub = next((e for e in (s_m.get("events_scan") or {}).get("nodes") or [] if e.get("node") == "sub"), {})
+        ck("M1★ --reassemble-only 에 선언된 허용오차 15s·출처 → 판정 기록에 실린다 · 창 끝+10s 서브 사살 → lite · blackbox_kill",
+           cp.returncode == 0 and (s_m.get("events_scan") or {}).get("cross_node_tolerance_s") == 15
+           and _sub.get("tolerance_source") == "declared(fixture-clock)" and _sub.get("status") == "matched"
+           and s_m.get("bench_mode") == "lite" and s_m.get("downgrade_reason") == "blackbox_kill",
+           (cp.returncode, s_m.get("events_scan"), s_m.get("bench_mode"), s_m.get("downgrade_reason"), cp.stderr[-400:]))
+
+        # ── M2 broad_search multi --serve-failed 의 셀 종결 분류 전달 ─────────────────────────────────────────
+        sb.clear_events()
+        shutil.rmtree(sb.root / "sync_staging", ignore_errors=True)
+        _write(mirror, json.dumps({"ts": "2026-09-01T00:00:00Z", "kind": "watchdog_kill_ack", "source": "fixture",
+                                   "mode": "armed"}) + "\n")
+        state_m = sb.camp / "sweeps" / "bs_multi.json"
+        cp = sb.run(["bash", bs, "init", "--sweep-id", "bsm", "--state", str(state_m), "--cells", "cell-m1,cell-m2",
+                     "--control-variable", "fixture", "--max-cells", "10", "--wall-clock-budget-s", "999999999",
+                     "--consecutive-failure-limit", "5", "--declared-by", "selftest", "--basis", "fixture",
+                     "--authority", "explore", "--now-utc", now, "--topology", "multi"])
+        m_init = cp.returncode
+
+        def sf_multi(key, *extra):
+            return sb.run(["bash", bs, "cell", "--state", str(state_m), "--cell-key", key, "--config", "cfg-mf",
+                           "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
+                           "--now-utc", now, "--topology", "multi", "--serve-failed", "materialize-fixture",
+                           "--serve-started-utc", "2026-09-01T00:00:10Z", *extra])
+        cp = sf_multi("cell-m1", "--cross-node-tolerance-s", "15", "--cross-node-tolerance-source", "fixture-clock")
+        rec = record("cell-m1", state_m)
+        ck("M2★ broad_search multi --serve-failed 가 선언된 허용오차를 셀 종결 분류에 넘긴다(구간 시작 10s 전 서브 사살 → 사인 = 이벤트)",
+           m_init == 0 and cp.returncode == 0 and rec.get("void_reason") == "watchdog_kill_ack"
+           and "sub(원격)=matched" in str(rec.get("void_reason_source")),
+           (m_init, cp.returncode, rec.get("void_reason"), rec.get("void_reason_source"), cp.stderr[-500:]))
+        cp = sf_multi("cell-m2")
+        rec = record("cell-m2", state_m)
+        ck("M2★ 음성대조: 같은 사실에 허용오차 선언 없음 → 사인 null · not-scanned(창을 넓히지 않는다 · 낡은 미러는 not_covered)",
+           cp.returncode == 0 and rec.get("void_reason") is None
+           and str(rec.get("void_reason_source")).startswith("not-scanned("),
+           (cp.returncode, rec.get("void_reason"), rec.get("void_reason_source"), cp.stderr[-500:]))
+
     if failures:
         print("[selftest_sweep_repeats] FAIL %d건: %s" % (len(failures), failures), file=sys.stderr)
         return 1
-    print("[selftest_sweep_repeats] PASS — N1~N8 · R1 · F1~F8 · V1 · A1~A3 · B1~B5(실패주입·음성대조 포함)")
+    print("[selftest_sweep_repeats] PASS — N1~N8 · R1 · F1~F8 · V1 · A1~A4 · B1~B7 · M1~M2 · R★(실패주입·음성대조 포함)")
     return 0
 
 

@@ -86,16 +86,47 @@
   - **강등(기계 이벤트만 · 확정 `classify_cell.py` post-hoc)** — 반복 조건의 범위는 **판정점**(동시성 1 · 인증서·판정이
     묶이는 레벨)이다(2026-09-14 리뷰 정정: 종전의 "측정 레벨 전체 완주 min" 은 같은 포화 경계를 첫 run 실패면 full·
     둘째 run 실패면 lite 로 반대로 판정했다):
-    ① 멈춘 자리의 창 안에 **집행된** 블랙박스 사살(KILL_EVENT_KINDS · 허용오차 0)이 있으면 레벨·run 순번과 무관하게
+    ① 멈춘 자리의 창 안에 **집행된** 블랙박스 사살(KILL_EVENT_KINDS · 같은 노드 허용오차 0)이 있으면 레벨·run 순번과 무관하게
        `bench_mode=lite` · `downgrade_reason=blackbox_kill`(사용자 결정 — kill 이벤트는 기계 이벤트 트리거다 · 가장 흔한
-       실사살 형태인 높은 동시성 레벨의 첫 run 사살을 절삭으로 삼키지 않는다)
+       실사살 형태인 높은 동시성 레벨의 첫 run 사살을 절삭으로 삼키지 않는다). **대조하는 것은 이 저장소에서 events 가
+       판독된 대조 대상 노드뿐이다** — 대조 대상 노드 = single 은 측정 노드 하나 · multi 는 서빙 참여 노드 전부(manifest
+       `nodes[].role` · `node_role_contract`)이고, **이 노드가 누구인가**는 노드 정체성 해소기(`node_identity.sh --resolve` ·
+       self_role → 유일한 `role: main` · 블랙박스가 쓰는 `docs/logs/<node_id>` 와 같은 답)가 정한다. 다른 노드의 기록은
+       `fetch_sub_docs.sh` 회수 미러(`sync_staging/sub_docs/logs/<node>/events`)에 있을 때만 읽는다. 미회수·회수가 창 끝보다
+       이른 노드는 `not_scanned`(보지 못했음), 노드 간 시계 허용오차가 선언되지 않은 원격 미스는 `unavailable` 로 **기재**한다 —
+       둘 다 강등 트리거가 아니다. 노드 계획이 서지 않아도(계약 위반·옛 index·측정 정체성 모순) **이 노드의 기록은 대조**하고
+       (같은 호스트·같은 시계) 정하지 못한 나머지는 `(미정)` 으로 `not_scanned` 에 남긴다(2026-09-14 · ⑧ 분석 발견 T1 · 종전
+       "모든 노드 events · 같은 시계" 규칙은 multi 서브 사살을 miss 로 읽어 거짓 full 을 냈다 · 리뷰 정정: 계획 불성립에서 이 노드의
+       사살까지 버리면 같은 거짓 full 이 반대편에서 생긴다)
     ② 그 밖에 판정점 완주 ≥3 → `full`(경계 레벨의 반복 중단·첫 run 실패는 클램프 · 기재)
-    ③ 판정점에서 끊겨 완주 <3 → `lite` · `run_failed`(트립 단독·시각 불일치·이벤트 미관측 포함 — 관측된 신호 그대로 · 추측 ✗)
+    ③ 판정점에서 끊겨 완주 <3 → `lite` · `run_failed`(트립 단독·시각 불일치·이벤트 미관측 포함 — 관측된 신호 그대로 · 추측 ✗).
+       "이벤트 미관측" 은 **이 저장소에서 events 가 회수된 대조 대상 노드만** 본 결과다 — 미회수 노드는 `not_scanned` 로 남는다
     ④ runs[] 부재 레벨(옛 산출물·집계 실패)·판정점 부재·끊김 없는 정의 미만·경계 밖 정의 미만 → 판정하지 않는다(null)
-    대조 여부는 구조 필드 `downgrade_correlation` ∈ {`matched`, `miss`, `not_scanned`, `unavailable`, `not_applicable`}.
+    대조 여부는 구조 필드 `downgrade_correlation` ∈ {`matched`, `miss`, `not_scanned`, `unavailable`, `not_applicable`}
+    (집계: 대조 대상 노드 중 matched 가 하나라도 있으면 matched > 창을 덮는 기록을 못 본 노드가 있으면 not_scanned >
+    원격 허용오차 미선언이면 unavailable > miss) · 노드별 사실은 판정 기록 `events_scan.nodes[]`(node · remote · files ·
+    status ∈ {matched, miss, not_scanned, not_covered, skew_undeclared} · tolerance_s·tolerance_source)가 든다. 원격 노드의
+    창 안 매치는 허용오차 선언 없이도 matched 이며(오판 방향이 강등·인증서 억제라 보수 · 미스만 선언을 요구하는 비대칭 — 사람 결정
+    대기 · plan_26091407 §9), 그 사실은 노드 요약에 `허용오차 미선언 — 0s · 창 안 매치만 인정` 으로 드러난다.
     **분산(밴드 폭)은 강등 사유가 아니다.**
+  - **대조 불확실성이 드러나는 자리**(2026-09-14 · T1 · 기재 항목을 게이트로 격상하지 않는다):
+    | 자리 | 드러나는 방식 |
+    |---|---|
+    | `bench_mode` | 불변 — runs[] 가 정한다(대조 불가는 기계 이벤트가 아니다 · 사용자 결정 Q3·Q7) |
+    | 인증서 억제 | 불변 — 판정 기록이 `full` 이면 발행 규칙 그대로(대조 불가를 발행 차단으로 격상 ✗). 판정 기록에 `downgrade_correlation`·`events_scan` 이 남는다 |
+    | 사람용 리포트 반복 축 절 `bench_mode` 행(full 행·강등 행 모두) | 사살 대조 `not_scanned`·`unavailable` + "⚠ 대조 불가(보지 못했음 — 사살 없음이 아니다)" + 대조 노드 요약(`classify_cell.events_scan_summary` · 출처 서술에 이미 있으면 한 번만) |
+    | 측정 구성 표 `bench_mode_source`·`downgrade_reason_source` | 출처 서술에 `not-scanned(… 대조 노드[main=miss · sub(원격)=not_scanned(회수본 없음 …)])` |
+    | 인증서 필드 | **싣지 않는다** — 인증서는 판정 기록을 바인딩할 뿐 대조 범위 필드가 없다(full 인증서가 서브 not_scanned 인 채 발행될 수 있다 · 스키마 개정은 hint 계약과 함께 결정 · plan_26091407 §9 후속) |
+    | hint 측정 구성 표(배포 평면) | **싣지 않는다** — 배포 키는 열거형·수치(`hint_collect.DISTRIBUTED_MEASUREMENT_KEYS`)이고 출처 서술은 PII 사유로 배포되지 않는다. 대조 범위는 바인딩된 리포트(docs 평면)에서 읽는다. 배포 열거형으로 올릴지는 hint 계약 개정 사안이다(plan_26091407 §9 후속) |
+    | Broad Search 셀 기록 | `downgrade_correlation` 사본 · 셀 종결 사인 출처 `not-scanned(`/`correlation-unavailable(` 접두사 |
+  - **multi 에서 결론을 내는 순서**: 스윕 종료 시 서브 기록은 보통 아직 회수되지 않았다(→ `not_scanned`). `fetch_sub_docs.sh --topology=multi --apply`
+    (통로를 **선언**한다 — 두 통로 manifest 의 서브 host 가 다르면 선언 없이는 exit 4)
+    로 회수한 뒤 `sweep_bench.sh <config> --topology multi --reassemble-only [--cross-node-tolerance-s N --cross-node-tolerance-source <출처>]`
+    로 판정 기록을 다시 쓰고(측정시각 승계 · 재측정 0) 판정·발행을 잇는다. 노드 간 허용오차는 **선언으로만** 온다(두 노드 시계 동기
+    오차를 잰 명령·시각을 출처로 적는다 · 매직넘버 ✗).
   - **판정 기록을 쓰는 손**: `sweep_bench.sh` 종료부가 `classify_cell.py --sweep-index … --events-from-repo <repo>
-    --write-bench-mode` 를 부른다(측정·재조립 둘 다) — 정규 경로(sweep_bench → judge_bench → render_report·인증서)와
+    --manifest output/<topology>/manifest.yaml --write-bench-mode` 를 부른다(측정·재조립 둘 다 · 대조 대상 노드는 index meta
+    `topology`·`measured_node` 와 manifest 로 정한다) — 정규 경로(sweep_bench → judge_bench → render_report·인증서)와
     Broad Search 가 **같은 기록 하나**를 읽는다. 기록은 원자적으로 쓰이고 `sweep_index_generated_utc` 로 측정에 묶인다.
   - **읽는 자리**(단계 ⑤ lite hint 통로가 결정론으로 읽는다): 스윕 디렉터리의 `bench_mode.json`(정본 · 판독은
     `classify_cell.read_bench_mode_record` → `ok`·`absent`·`unreadable`·`stale`)과 Broad Search 셀 기록(그 정본의 사본:

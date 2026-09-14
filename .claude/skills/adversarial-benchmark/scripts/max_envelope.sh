@@ -33,10 +33,6 @@ esac; done
 
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(git -C "$SDIR" rev-parse --show-toplevel 2>/dev/null || pwd)"
-if [ -z "$TOPO" ]; then
-  BR="$(git -C "$REPO" rev-parse --abbrev-ref HEAD 2>/dev/null || echo)"
-  case "$BR" in multi-node) TOPO=multi;; single-node) TOPO=single;; *) TOPO=single;; esac
-fi
 
 # ── 안전 게이트 (1): --confirm-risk 명시 (경고톤) ──────────────────────────────
 if [ "$CONFIRM" != 1 ] && [ "$DRYRUN" != 1 ]; then
@@ -48,6 +44,18 @@ if [ "$CONFIRM" != 1 ] && [ "$DRYRUN" != 1 ]; then
   실행하려면: max_envelope.sh <config> --confirm-risk   (에이전트는 챗 경고톤 Y/N 승인 후에만 이 플래그를 붙일 것)
 WARN
   exit 5
+fi
+
+# ── 토폴로지 해소 — 안전 게이트 **뒤**에 둔다(인자 평면 가드가 해소 가능 여부와 무관하게 먼저 울린다) ──
+if [ -z "$TOPO" ]; then
+  # ★ 2026-09-14(⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고 브랜치로 추론하지 않는다"): 종전 관용구는
+  #   브랜치 이름에서 토폴로지를 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 —
+  #   서명 카드 노드는 카드↔자기 manifest, 메인은 4자일치 술어(topology_parity), 둘 다 아니면 fail-loud.
+  _TOPO_RC=0; TOPO="$(python3 "$SDIR/resolve_topology.py" --repo "$REPO")" || _TOPO_RC=$?
+  if [ "$_TOPO_RC" != 0 ]; then
+    echo "[max_envelope] ERROR 토폴로지를 정하지 못했다(위 사유) — --topology single|multi 로 명시하라(브랜치 이름으로 고르지 않는다)" >&2
+    exit 2
+  fi
 fi
 
 CFGYAML="$REPO/output/$TOPO/configs/${CONFIG}.yaml"

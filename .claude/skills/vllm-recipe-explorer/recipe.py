@@ -500,8 +500,9 @@ def _gpu_roles(cfg, tp, repo_root):
 # ── lockset 출처 어휘 — **소유자는 campaign_template_validator** (2026-09-14 · plan_26091407 §4.2·§4.3) ──
 #   explorer 가 lockset 에 `provenance`·`*_source` 를 기계 각인한다. 어휘 목록은 여기 두지 않는다 — 측정 진입
 #   precheck·합격 술어 P6 가 읽는 바로 그 상수를 읽고, 각인하는 값 하나하나를 그 목록으로 교차검증한다
-#   (_SWEEP_TO_CELL 선례: 두 자리에 적으면 한쪽이 조용히 늦는다). 싱글 서브에도 같은 경로로 배달된다
-#   (render_sub_env CAMPAIGN_TOOLS). 없으면 각인하지 않고 멈춘다 — 사본으로 메우면 그것이 거울이다.
+#   (_SWEEP_TO_CELL 선례: 두 자리에 적으면 한쪽이 조용히 늦는다). explorer 가 tool_plane 으로 열리는 서브
+#   (`node_role_contract.TOOL_PLANE_BY_SUB_MODE`)에는 같은 상대경로로 배달된다 — tool_plane 이 비는 서브에는 explorer 자체가
+#   가지 않는다. 없으면 각인하지 않고 멈춘다 — 사본으로 메우면 그것이 거울이다.
 _LOCKSET_VOCAB_REL = os.path.join(".claude", "skills", "terraforming_node", "scripts",
                                   "campaign_template_validator.py")
 _LOCKSET_VOCAB = None
@@ -514,14 +515,31 @@ def _lockset_vocab():
         path = os.path.join(REPO_ROOT, _LOCKSET_VOCAB_REL)
         if not os.path.isfile(path):
             _die("lockset 출처 어휘의 소유자가 없다: %s — explorer 는 provenance·*_source 를 각인하므로 "
-                 "어휘 없이 진행하지 않는다(사본을 두지 않는다 · 메인이면 저장소 손상, 서브면 재배달)."
+                 "어휘 없이 진행하지 않는다(사본을 두지 않는다 · 메인이면 저장소 손상, explorer 가 tool_plane 으로 열린 서브면 재배달)."
                  % _LOCKSET_VOCAB_REL, code=5)
         import importlib.util
-        spec = importlib.util.spec_from_file_location("_recipe_lockset_vocab", path)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        _LOCKSET_VOCAB = (tuple(mod.LOCKSET_PROVENANCE),
-                          {k: tuple(v) for k, v in mod.LOCKSET_KNOB_SOURCES.items()})
+        # ★ 2026-09-14(⑧ 분석 발견 T7): 파일은 있는데 어휘 상수가 없거나(옛 판 validator · 배달이 한쪽만 수렴) 적재가 깨지면
+        #   종전에는 AttributeError traceback 으로 죽었다 — 원인도 해소 경로도 말하지 않는 죽음이다. 같은 fail-loud 로 멈추되
+        #   무엇이 어긋났는지와 누가 고치는지를 말한다(사본으로 메우지 않는다).
+        try:
+            spec = importlib.util.spec_from_file_location("_recipe_lockset_vocab", path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+        except Exception as exc:  # noqa: BLE001 — 적재 실패의 종류와 무관하게 원인을 싣고 멈춘다
+            _die("lockset 출처 어휘의 소유자를 적재하지 못했다: %s — %s: %s. explorer 는 어휘 없이 각인하지 않는다"
+                 "(메인이면 저장소 손상 · explorer 가 tool_plane 으로 열린 서브면 메인의 재배달)."
+                 % (_LOCKSET_VOCAB_REL, type(exc).__name__, exc), code=5)
+        missing = [name for name in ("LOCKSET_PROVENANCE", "LOCKSET_KNOB_SOURCES") if not hasattr(mod, name)]
+        if missing:
+            _die("lockset 출처 어휘의 소유자(%s)에 %s 가 없다 — 옛 판 검증기다(explorer 와 캠페인 도구가 같은 배달로 수렴하지 "
+                 "않았다). explorer 는 어휘 없이 각인하지 않는다 — 메인이면 저장소를 확인하고, explorer 가 tool_plane 으로 열린 "
+                 "서브면 메인이 두 파일을 함께 재배달한다." % (_LOCKSET_VOCAB_REL, ", ".join(missing)), code=5)
+        try:
+            _LOCKSET_VOCAB = (tuple(mod.LOCKSET_PROVENANCE),
+                              {k: tuple(v) for k, v in mod.LOCKSET_KNOB_SOURCES.items()})
+        except (TypeError, AttributeError) as exc:
+            _die("lockset 출처 어휘의 모양이 계약과 다르다(%s · LOCKSET_PROVENANCE=목록 · LOCKSET_KNOB_SOURCES=노브→목록): %s"
+                 % (_LOCKSET_VOCAB_REL, exc), code=5)
     return _LOCKSET_VOCAB
 
 

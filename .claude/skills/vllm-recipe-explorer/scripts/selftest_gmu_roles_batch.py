@@ -14,6 +14,7 @@ lockset 에 `provenance`·`*_source` 를 **기계가** 적는 것이다. 이 파
      U3 fail-loud 음성대조 · U4 derive_batch 3경우 + 경계(요구 == KV-fit) + 요구 없음(batch 미정)
      U5 sim_classify adjust_target=batch(+경계·음성대조) · U6 클램프 산식(버퍼 일관 · required = max(len, L×batch))
      U7 게이트 승수 ≠ 클램프 승수 · U8 각인 어휘 · 선언 축 모양(tp 는 기재 · batch 는 fail-loud) · 셀 lockset 경로 판정
+     U9 lockset 어휘 소유자 모양 결함(상수 없음·적재 예외·모양 불일치) → exit 5 안내(traceback ✗) + 음성대조
   E  CLI 층(subprocess · 임시 저장소에 **배포되는 바이트 사본**을 같은 상대경로로 놓고 `recipe.py simulate
      --mock-profile` 로 main() 의 Flag 게이트부터 3종 세트·lockset 쓰기까지 통째로 돈다):
      E1 요구 ≤ KV-fit(+입력 lockset 오염 ✗ · tp 불일치 기재) · E2 요구 > KV-fit · E3 요구 없음(batch 미정 · 1건 클램프)
@@ -308,6 +309,30 @@ def unit_layer(tmp: Path) -> None:
         ("campaigns", "camp-x", "lockset.json"))]
     ck("U8 캠페인 셀 lockset 경로 판정: 인스턴스 셀만 참(뼈대 _template·다른 파일·루트·깊이 다름은 거짓)",
        shapes == [True, False, False, False, False], repr(shapes))
+
+    # U9 — lockset 어휘 소유자가 **있는데 모양이 다르다**(옛 판 검증기 · 적재 실패): traceback 이 아니라 exit 5 안내
+    #   (2026-09-14 · ⑧ 분석 발견 T7). 모듈 사본을 따로 적재해 REPO_ROOT 만 임시 트리로 돌린다 — 위 사례들의 모듈 상태를 건드리지 않는다.
+    rv = _load("_selftest_recipe_vocab", SKILL / "recipe.py")
+    vroot = tmp / "vocab_root"
+    vfile = vroot / rv._LOCKSET_VOCAB_REL
+    vfile.parent.mkdir(parents=True, exist_ok=True)
+    rv.REPO_ROOT = str(vroot)
+    for label, body, want in (
+            ("어휘 상수 없음(옛 판)", "LOCKSET_KNOB_SOURCES = {}\n", "LOCKSET_PROVENANCE"),
+            ("적재 예외(구문 오류)", "def broken(:\n", "SyntaxError"),
+            ("모양 불일치(노브 표가 dict 아님)", "LOCKSET_PROVENANCE = ('explorer-phase2',)\nLOCKSET_KNOB_SOURCES = 3\n", "모양")):
+        vfile.write_text(body, encoding="utf-8")
+        rv._LOCKSET_VOCAB = None
+        died, code, err = _dies(rv._lockset_vocab)
+        ck("U9 lockset 어휘 소유자 %s → traceback 이 아니라 exit 5 · 원인(%s)을 말한다" % (label, want),
+           died and code == 5 and want in err, "died=%s code=%s err=%r" % (died, code, err[-300:]))
+    vfile.write_text("LOCKSET_PROVENANCE = ('explorer-phase2', 'hand-authored')\n"
+                     "LOCKSET_KNOB_SOURCES = {'batch_source': ('declared-requirement',)}\n", encoding="utf-8")
+    rv._LOCKSET_VOCAB = None
+    died, code, _ = _dies(rv._lockset_vocab)
+    ck("U9 음성대조: 계약 모양의 소유자는 그대로 적재된다(가드가 전부를 막으면 가드가 아니다)",
+       not died and rv._LOCKSET_VOCAB == (("explorer-phase2", "hand-authored"), {"batch_source": ("declared-requirement",)}),
+       repr(rv._LOCKSET_VOCAB))
     sys.path.remove(str(SKILL / "scripts"))
 
 

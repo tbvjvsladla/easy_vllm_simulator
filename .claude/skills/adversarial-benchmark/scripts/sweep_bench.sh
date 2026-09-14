@@ -12,6 +12,7 @@
 # 사용: sweep_bench.sh <config_name> [--topology single|multi] [--levels 1,2,4,8,16] [--backend openai-chat|openai]
 #        [--input-len N] [--output-len N] [--num-prompts N] [--warmups N] [--vllm-version X] [--dry-run]
 #        [--repeats N [--repeats-source TEXT]] [--campaign-id ID] [--reassemble-only]
+#        [--cross-node-tolerance-s N --cross-node-tolerance-source TEXT]   (multi 원격 노드 사살 대조 · 선언으로만)
 #
 # ★ 반복 축(2026-09-14 · plan_26091407 §4.4 · 사용자 결정 Q3) — full 의 정의는 `lite ∪ GuideLLM × 반복 ≥3` 이다.
 #   · 반복 대상은 **레벨 측정 레그**(`--tool` 이 고른 도구 · full 에서는 GuideLLM)다. lite 선행 레그는 반복하지
@@ -68,7 +69,12 @@ BENCH_BUDGET_MIB=""
 MAX_ERROR_RATE=""
 # 반복 축(위 헤더 ★). 빈 값 = repeat_axis 가 캠페인 선언·full 정의에서 해소한다(여기에 기본 숫자를 적지 않는다).
 REPEATS_ARG=""; REPEATS_SOURCE_ARG=""; CAMPAIGN_ID=""
+# 노드 간 사살 대조 허용오차(2026-09-14 · ⑧ 분석 발견 T1). **선언으로만** 온다 — 값과 출처를 함께 받아 판정 소유자
+#   (classify_cell)에 넘긴다. 미선언이면 원격 노드 창을 넓히지 않고 미스를 결론내지 않는다(unavailable · 강등 트리거 ✗).
+XNODE_TOL=""; XNODE_TOL_SRC=""
 while [ $# -gt 0 ]; do case "$1" in
+  --cross-node-tolerance-s) XNODE_TOL="$2"; shift 2;;
+  --cross-node-tolerance-source) XNODE_TOL_SRC="$2"; shift 2;;
   --repeats) REPEATS_ARG="$2"; shift 2;;
   --repeats-source) REPEATS_SOURCE_ARG="$2"; shift 2;;
   --campaign-id) CAMPAIGN_ID="$2"; shift 2;;
@@ -94,6 +100,14 @@ if [ "$REASSEMBLE" = "1" ] && { [ -n "$REPEATS_ARG" ] || [ -n "$REPEATS_SOURCE_A
   echo "  재조립은 측정하지 않으므로 요청 반복·출처를 **측정 시점** index 에서 승계한다(측정하지 않은 반복 수 ✗)." >&2
   exit 2
 fi
+
+# 노드 간 허용오차는 값·출처가 짝이다 — 부하 전에 친다(판정 기록 단계에서야 드러나면 스윕 한 판이 기록 없이 끝난다).
+if { [ -n "$XNODE_TOL" ] && [ -z "$XNODE_TOL_SRC" ]; } || { [ -z "$XNODE_TOL" ] && [ -n "$XNODE_TOL_SRC" ]; }; then
+  echo "[sweep_bench] ERROR --cross-node-tolerance-s 와 --cross-node-tolerance-source 는 함께 준다(출처 없는 숫자 ✗)" >&2; exit 2
+fi
+case "$XNODE_TOL" in
+  *[!0-9]*) echo "[sweep_bench] ERROR --cross-node-tolerance-s 는 0 이상 정수(초)다: '$XNODE_TOL'" >&2; exit 2;;
+esac
 
 # 측정 엔드포인트 미선언을 **여기서** 친다 — 뒤로 미루면 lite 레그를 다 돌고 나서야 드러나고,
 # 그때는 이미 잘못된 포맷으로 잰 판정점이 손에 있다(2026-09-07 · 유예 결함 ①).
@@ -134,8 +148,14 @@ if [ "$REASSEMBLE" != "1" ]; then
   IFS=$'\x1f' read -r REPEATS REPEATS_SOURCE REPEAT_KIND <<< "$_RR"
 fi
 if [ -z "$TOPO" ]; then
-  BR="$(git -C "$REPO" rev-parse --abbrev-ref HEAD 2>/dev/null || echo)"
-  case "$BR" in multi-node) TOPO=multi;; single-node) TOPO=single;; *) TOPO=single;; esac
+  # ★ 2026-09-14(⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고 브랜치로 추론하지 않는다"): 종전 관용구는
+  #   브랜치 이름에서 토폴로지를 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 —
+  #   서명 카드 노드는 카드↔자기 manifest, 메인은 4자일치 술어(topology_parity), 둘 다 아니면 fail-loud.
+  _TOPO_RC=0; TOPO="$(python3 "$SDIR/resolve_topology.py" --repo "$REPO")" || _TOPO_RC=$?
+  if [ "$_TOPO_RC" != 0 ]; then
+    echo "[sweep_bench] ERROR 토폴로지를 정하지 못했다(위 사유) — --topology single|multi 로 명시하라(브랜치 이름으로 고르지 않는다)" >&2
+    exit 2
+  fi
 fi
 
 # 레벨 파싱: 정렬·중복제거 + 판정점(1) 강제 포함(verdict 재사용 보장).
@@ -997,14 +1017,20 @@ PY
 #   judge_bench → render_report · publish)에 호출자가 없으면 기록이 생기지 않아 리포트는 영원히 "미확정" 이고
 #   인증서·단계 ⑤ 가 읽을 자리가 없다. 재조립도 부른다(측정시각 승계라 기록이 같은 측정에 묶인다).
 #   실패는 스윕을 죽이지 않되 침묵하지 않는다 — 기록이 없으면 리포트는 '미확정', full 인증서는 미발행이다.
-if _BM_OUT="$(python3 "$SDIR/classify_cell.py" --sweep-index "$SWEEPDIR/sweep_index.json" \
-               --events-from-repo "$REPO" --write-bench-mode)"; then
+#   ★ 2026-09-14(⑧ 분석 발견 T1): 대조 대상 노드는 분류기가 이 스윕의 meta(topology · measured_node)와 manifest 로 정한다
+#     (single = 측정 노드 · multi = 서빙 참여 노드 전부 · 원격 노드는 fetch_sub_docs 회수 미러). multi 에서 서브 기록이
+#     아직 회수되지 않았으면 대조는 not_scanned 로 **기재**된다 — 회수 뒤 `--reassemble-only` 로 이 기록을 다시 쓴다.
+_BM_ARGS=(--sweep-index "$SWEEPDIR/sweep_index.json" --events-from-repo "$REPO" --manifest "$MANIFEST" --write-bench-mode)
+[ -n "$XNODE_TOL" ] && _BM_ARGS+=(--cross-node-tolerance-s "$XNODE_TOL" --cross-node-tolerance-source "$XNODE_TOL_SRC")
+if _BM_OUT="$(python3 "$SDIR/classify_cell.py" "${_BM_ARGS[@]}")"; then
   printf '%s' "$_BM_OUT" | python3 -c '
 import json, sys
+sys.path.insert(0, sys.argv[1])
+from classify_cell import events_scan_summary
 d = json.load(sys.stdin)
-print("[sweep_bench] bench_mode=%s · 사유 %s · 대조 %s · 기록 %s\n[sweep_bench]   출처: %s" % (
+print("[sweep_bench] bench_mode=%s · 사유 %s · 대조 %s · 기록 %s\n[sweep_bench]   출처: %s\n[sweep_bench]   %s" % (
       d.get("bench_mode"), d.get("downgrade_reason"), d.get("downgrade_correlation"), d.get("record_path"),
-      d.get("bench_mode_source")))' || true
+      d.get("bench_mode_source"), events_scan_summary(d.get("events_scan")) or "대조 노드 기록 없음"))' "$SDIR" || true
 else
   echo "[sweep_bench] ⚠ bench_mode 판정 기록 실패(위 사유) — 리포트는 '미확정', full 인증서는 발행되지 않는다" >&2
 fi

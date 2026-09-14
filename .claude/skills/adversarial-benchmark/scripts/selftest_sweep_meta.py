@@ -232,13 +232,37 @@ SPEC_CASES = [
                               "declared(config yaml speculative-config)"}),
 ]
 
-# 실 config 스냅샷(있으면) — 캠페인 셀 yaml 의 실제 두 형태(JSON 선언 · 주석 처리된 OFF)를 친다.
+# 실 config 형태 — 캠페인 셀 yaml 의 실제 세 형태(JSON 선언 · 행말 긴 주석 · 주석 처리된 OFF)를 친다.
+# ★ 2026-09-14(⑧ 분석 발견 T5): 종전에는 비추적 운영자 스냅샷 `output/multi/configs/*.yaml` 3종을 경로로 읽었다. 그러면
+#   ① 새 클론·워크트리에서는 SKIP 이라 이 회귀가 **돌지 않고** ② single 체크아웃의 같은 워킹트리에서는 **반대 토폴로지 통로**를
+#   읽으며 ③ 운영자가 그 config 를 다시 렌더하면 두 브랜치의 verify_distribution 이 함께 RED 가 된다(라이브 데이터 앵커).
+#   필요한 바이트(spec 선언 줄과 그 곁의 함정 줄)를 발췌해 **추적 픽스처로 인라인**한다 — 모양은 2026-09 멀티 캠페인 셀
+#   yaml 그대로다(발췌 · 운영자 경로 없음 · 모델 경로는 컨테이너 마운트 표기).
 REAL_CFG = [
-    ("RC1 승자 셀 MTP k=3", "output/multi/configs/nv4-bf-262k-res-kv8g-gmu80.yaml",
+    ("RC1 승자 셀 MTP k=3(JSON 문자열 · 곁에 레버 주석 줄)",
+     "model: /app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4\n"
+     "tensor-parallel-size: 2\n"
+     "gpu-memory-utilization: 0.80   # 마진 레버 — KV↔피크 상쇄의 천장 가설 검증\n"
+     "enforce-eager: true            # 승계 통제변인(캡처 스파이크 ~10GiB 회피)\n"
+     "async-scheduling: false        # MTP+async 금지(0.29 자동비활성 안 탐 — 명시 필수)\n"
+     "speculative-config: '{\"method\":\"mtp\",\"num_speculative_tokens\":3}'\n"
+     "max-num-batched-tokens: 2048    # 피크 억제 레버 ② — 프로파일링 더미 배치가 사살 지점이었다\n",
      {"spec_declared": "on", "spec_declared_k": 3}),
-    ("RC2 dspark k=7(행말 긴 주석)", "output/multi/configs/b-768k-kvfp8-l1spec.yaml",
+    ("RC2 dspark k=7(행말 긴 주석 · 주석 안에 콜론·숫자)",
+     "model: /app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731\n"
+     "enforce-eager: true            # L1: spec 레버 단독 평가를 위해 eager 유지(교차는 L4)\n"
+     "speculative-config: '{\"method\":\"dspark\",\"num_speculative_tokens\":7}'   # ≥ dspark_block_size 5 "
+     "(config.json:67) · 0.29 stock method 확인(config/speculative.py:613)            # 첫 트라이얼: arch-wall 확정용 최소 표면 "
+     "(cudagraph·MATMUL_DECODE 계열은 스윕 축)\n"
+     "reasoning-parser: deepseek_v4  # 등록명 확인(vllm/reasoning/__init__.py)\n",
      {"spec_declared": "on", "spec_declared_k": 7}),
-    ("RC3 MTP OFF 주석 줄", "output/multi/configs/q38fn-nvfp4.yaml",
+    ("RC3 MTP OFF 주석 줄(주석 안의 method=mtp · k=3 문구는 선언이 아니다)",
+     "model: /app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4\n"
+     "kv-cache-memory-bytes: 21474836480   # 20GiB/노드 절대클립 — 스모크용 보수값\n"
+     "# MTP 스모크 = B1/B2 의 직접 중재 대상. method=mtp 는 speculative.py:821 이 model_type 을\n"
+     "# qwen4_exp_mtp 로 자동 유도(architectures=[Qwen4ExpMTP]). k=3 = 공식 체크포인트 실측 최적.\n"
+     "#speculative-config: MTP OFF (결정론 분리 시험 2026-09-09)\n"
+     "# 금지 조합(커뮤니티 그라운딩): MTP + --async-scheduling — 명시 미설정 유지\n",
      {"spec_declared": "off"}),
 ]
 
@@ -371,13 +395,9 @@ def main():
         pass
 
     repo = SDIR.parents[3]
-    for name, rel, expect in REAL_CFG:
-        p = repo / rel
-        if not p.is_file():
-            print("[selftest_sweep_meta] SKIP 실 config 부재 — %s" % rel)
-            continue
+    for name, cfg_text, expect in REAL_CFG:
         try:
-            meta = build_meta(cfg_text=p.read_text(encoding="utf-8", errors="replace"))
+            meta = build_meta(cfg_text=cfg_text)
         except Exception as exc:                                    # noqa: BLE001
             failures.append("실 config %s: 실행 예외 %s: %s" % (name, type(exc).__name__, exc))
             continue

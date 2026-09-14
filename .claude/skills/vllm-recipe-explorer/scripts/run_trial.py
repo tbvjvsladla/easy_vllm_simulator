@@ -469,7 +469,7 @@ def _audit_emitted(candidate: dict, docker_cmd: list) -> None:
     # (candidate 키, 기대 플래그) — 값-무관, 플래그 존재만 확인.
     # gpu-memory-utilization 은 항상 필수 — startup free-memory 게이트(기동 전 free ≥ ceil(total×gmu)).
     # vLLM 은 클램프 설정 시 KV 프로파일링을 건너뛰어 gmu 를 KV 사이징에 쓰지 않을 뿐, 기동 전 검사엔 여전히 쓴다(E2E 실증).
-    # 총량 cap 은 관측된 작용(0.85→0.80 이 여유를 열었다)이고 소스에서 기전은 미확정이다(2026-09-14 · plan_26091407 F5 —
+    # 총량 cap 은 관측된 작용(한 셀 관측 · 유효맥락은 references/kv-clamp.md §1)이고 소스에서 기전은 미확정이다(2026-09-14 · plan_26091407 F5 —
     # 종전 이 줄의 "+ 총 cap" 은 기전 주장이었다 · 위 _build_serve_args 주석과 같은 정정).
     field_flags = [
         ("gpu_memory_utilization", "--gpu-memory-utilization"),

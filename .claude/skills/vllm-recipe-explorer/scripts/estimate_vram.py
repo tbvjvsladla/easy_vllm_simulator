@@ -232,8 +232,8 @@ def estimate(
 #   ★ 2026-09-14 정정(plan_26091407 F5 · vLLM 소스 `gpu_worker.determine_available_memory`·`utils.request_memory`):
 #     종전 문장 "설정 시 gpu-memory-utilization 은 무시" 는 절반만 맞았다. 클램프를 주면 KV 프로파일링 자체를 건너뛰어
 #     gmu 가 KV 사이징에 쓰이지 않는 것은 맞지만, gmu 는 **기동 전 request_memory 의 free ≥ ceil(total×gmu) 검사**에는
-#     여전히 관여한다. 총량 캡·할당자 캡은 소스에 없다. 0.85→0.80 이 5,562MiB 를 연 관측은 사실이나 그 기전은
-#     미확정이다(관측 ≠ 기전). 배포 yaml 의 gmu 는 recipe.py 가 deploy_gmu(= target_gpu.target_gmu)로 emit 한다.
+#     여전히 관여한다. 총량 캡·할당자 캡은 소스에 없다. gmu 를 낮추자 여유가 열린 관측(한 셀 · 유효맥락과 수치는
+#     `references/kv-clamp.md` §1 — 다른 토폴로지·GPU 로 옮기지 않는다)은 사실이나 그 기전은 미확정이다(관측 ≠ 기전). 배포 yaml 의 gmu 는 recipe.py 가 deploy_gmu(= target_gpu.target_gmu)로 emit 한다.
 #   총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes  (gmu로 나누지 않음 —
 #   Phase1 estimate() 공식과 다름). 승수는 역할이 둘이다(recipe.py `_gpu_roles`): 클램프 천장
 #   `max_safe_kv_bytes(budget, deploy_gmu, …)` 과 트라이얼 검증 게이트 `budget × gate_margin(=safety_margin)`

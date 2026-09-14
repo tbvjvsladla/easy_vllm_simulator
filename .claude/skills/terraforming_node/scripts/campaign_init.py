@@ -641,8 +641,10 @@ def _cell_provenance(base: Path, cell: str, node: str | None, sweep_state: str |
     if not validator().lockset_observable(decl, node):
         return ({"observability": "not_observable",
                  "observability_reason": (f"서브 배정 셀(node={node}) — lockset 은 서브 인스턴스가 저작하고 "
-                                          f"precheck 도 서브 진입에서 집행한다. 메인은 서브 인스턴스를 "
-                                          f"읽지 않으며 브리핑은 lockset 출처를 싣지 않는다(헌법 노드제어 ①)"),
+                                          f"precheck 는 측정 스킬이 tool_plane 으로 열린 서브의 진입에서 집행한다"
+                                          f"(node_role_contract — tool_plane 이 비는 서브에는 이 precheck 의 집행자가 없고, "
+                                          f"서브 배정은 토폴로지 오케스트레이션 전략이 정한다). "
+                                          f"메인은 서브 인스턴스를 읽지 않으며 브리핑은 lockset 출처를 싣지 않는다(헌법 노드제어 ①)"),
                  "lockset": None, "lockset_source": None, "lockset_gap": None,
                  "compared": [], "compare_gaps": [], "pending_knobs": pending},
                 list(prior_mismatch))

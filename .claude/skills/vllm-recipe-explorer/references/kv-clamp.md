@@ -29,11 +29,16 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
   (free/total≈0.91)는 OS ~11GiB 점유로 기본 `0.92` 가 그 검사에서 막힌다(`Free memory < desired GPU memory utilization`)
   → **통합메모리 gmu ≤ `0.90` 명시 필수**(값은 `deploy_gmu` = `target_gpu.target_gmu`). ∴ gmu=기동 전 free 검사, clamp=KV 사이징·이식성.
 - **관측과 기전을 가른다**(2026-09-14 정정 · plan_26091407 F5): 종전 이 절은 gmu 가 "startup 검증 + **총 cap**" 이라고
-  한 문장의 기전으로 적었다. 총량 cap·할당자 cap 을 거는 코드는 소스에 **없다**. 반면 같은 셀에서 gmu 0.85→0.80 이
-  5,562MiB 의 여유를 연 **관측**(`perf_26091305`)은 사실이다 — gmu 가 총량 cap **처럼 작용한** 관측은 남기고 기전은
-  미확정으로 둔다. 생성 yaml 의 주석도 같은 분리로 적는다(`gen_recipe_set.py` · "총량 cap 은 관측된 작용"). 그래서 서빙
-  스모크의 `budget_preflight --declared-gmu` 는 예상 vLLM 몫(gmu × MemTotal)·잔차를 **기재만** 하고 게이트로 쓰지 않는다
-  (overhead(gmu) 함수형은 기재가 쌓인 뒤 별도 결정 · plan §9 R4).
+  한 문장의 기전으로 적었다. 총량 cap·할당자 cap 을 거는 코드는 소스에 **없다**. 반면 gmu 0.85→0.80 이 5,562MiB 의
+  여유를 연 **관측**(`perf_26091305`)은 사실이다 — gmu 가 총량 cap **처럼 작용한** 관측은 남기고 기전은 미확정으로 둔다.
+  ⚠ **유효맥락은 한 셀이다**: multi TP=2(GB10×2 · 통합메모리) · Qwen3.8-Flash-Next NVFP4 · PLE resident · vLLM 0.29.0rc6 ·
+  KV 클램프 8,192MiB/노드 · `max-num-batched-tokens` 2048. 다른 토폴로지·GPU·모델·버전으로 수치를 옮기지 않는다(이 절이
+  이 관측의 정본 서술 자리이고, 코드 주석은 여기를 가리킨다). 생성 yaml 의 주석도 같은 분리로 적는다(`gen_recipe_set.py` ·
+  "총량 cap 은 관측된 작용"). 그래서 서빙 기동의 예산 선판정(`single_serve_up.sh` · `multinode_serve_smoke.sh` 둘 다 ·
+  `budget_preflight --declared-gmu-yaml <서빙 yaml>` — 추출 규칙은 budget_preflight 단일 소유)은 예상 vLLM 몫(gmu × MemTotal)·
+  잔차를 **기재만** 하고 게이트로 쓰지 않는다(overhead(gmu) 함수형은 기재가 쌓인 뒤 별도 결정 · plan §9 R4).
+  ⚠ 그 산식은 **통합메모리 전제**다(MemTotal = 디바이스 풀). discrete GPU 에서는 MemTotal 이 호스트 RAM 이라 몫·잔차가 vLLM
+  몫을 뜻하지 않는다 — 기재 행이 `premise` 필드로 그 전제를 스스로 밝히며, 판정에 쓰지 않는다.
   ⚠ **헌법층 미결**: 정책 `KV_ABSOLUTE_CLAMP_PORTABILITY.C2` 문장(`.claude/policies/registry.yaml` — "startup free-memory gate
   and total cap")과 그 술어(`claim_predicates.py` C2 — 생성 주석 줄에 `startup free-memory 게이트`·`cap` 을 요구)는 이 단계에서
   고치지 않았다(plan §1 범위 밖 · 기초레이어). 위 문장은 C2 를 부정하지 않고 그 "total cap" 을 관측으로 한정한다. C2 문장의

@@ -557,15 +557,6 @@ SUB_RENEW_SH="$SUB_WORK_DIR/.claude/runtime/node_blackbox/budget_renew_loop.sh"
 MAIN_REGEN_PY="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/regen_envelope.py"
 SUB_REGEN_PY="$SUB_WORK_DIR/.claude/runtime/node_blackbox/regen_envelope.py"
 NOW_ISO(){ date -u +%FT%TZ; }
-# 서빙 yaml 의 gpu-memory-utilization 수치 한 줄 — 수 모양이 아니거나 없으면 빈 문자열(호출부가 인자를 생략한다).
-#   기재 전용 입력이다(budget_preflight --declared-gmu · plan_26091407 §4.3). 함수로 둔 이유: 추출이 깨져도(경로·정규식)
-#   문자열 앵커만 보는 검사는 초록이라, budget_preflight --self-test 가 이 함수 **본문을 그대로 실행**해 픽스처로 친다.
-_yaml_declared_gmu(){  # $1=서빙 yaml 경로
-  local _v
-  _v="$(grep -E '^[[:space:]]*gpu[-_]memory[-_]utilization[[:space:]]*:' "$1" 2>/dev/null \
-        | head -1 | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*(#.*)?$//; s/["'"'"']//g' || true)"
-  case "$_v" in ''|*[!0-9.]*|*.*.*|.) printf '' ;; *) printf '%s' "$_v" ;; esac
-}
 
 # ── 서빙 종료(단일 소유) ─────────────────────────────────────────────────────────────────────
 #   2026-08-16 함수화. 이 5단계는 원래 `KEEP != 1` 분기 **안에만** 있었고, 그래서 `--keep-up` 상주분을
@@ -765,14 +756,13 @@ if [ "$BUDGET" = "1" ]; then
   #   종전에는 이 셸이 floor·ceiling·overhead 상한을 직접 계산했고, 같은 산술이
   #   `single_serve_up.sh`(선판정 자체가 없었다)와 벤치 진입에도 필요했다 — 세 자리에 적으면
   #   반드시 갈린다. 상수(decl_margin·decl_min_ceiling·abs_band)도 그 안에서 정본 import 한다.
-  # ★ 2026-09-14(plan_26091407 §4.3): 서빙되는 yaml 의 gpu-memory-utilization 을 `--declared-gmu` 로 넘겨
+  # ★ 2026-09-14(plan_26091407 §4.3): 서빙되는 yaml 의 gpu-memory-utilization 을 기재 입력으로 넘겨
   #   예상 vLLM 몫(gmu × MemTotal)·잔차(몫 − weights − kv)를 **기재만** 받는다 — arm 산식·종료코드는 불변(게이트 ✗).
-  #   값이 없거나 수 모양이 아니면 인자를 생략한다(실패 경로를 새로 만들지 않는다). 이 스크립트는 캠페인을 모르는
+  #   yaml 에 수치가 없으면 기재 행이 없다(실패 경로를 새로 만들지 않는다). 이 스크립트는 캠페인을 모르는
   #   계층이라 target_gmu 와의 대조는 여기서 하지 않는다 — 대조는 campaign_init --cell-set 이 기재한다.
-  _DECL_GMU="$(_yaml_declared_gmu "output/multi/configs/${CONFIG}.yaml")"
-  _DECL_GMU_ARGS=()
-  [ -n "$_DECL_GMU" ] && _DECL_GMU_ARGS=(--declared-gmu "$_DECL_GMU")
-  _PF="$(python3 "$SDIR/budget_preflight.py" --json ${_DECL_GMU_ARGS[@]+"${_DECL_GMU_ARGS[@]}"} \
+  #   ★ 2026-09-14(⑧ 분석 발견 T3): yaml → gmu 추출 규칙은 budget_preflight.py(`--declared-gmu-yaml`)가 단일 소유한다 —
+  #     이 셸에 있던 추출 함수를 싱글 기동에 옮겨 적으면 같은 규칙이 두 셸에 손으로 적히므로 경로 한 줄만 넘긴다.
+  _PF="$(python3 "$SDIR/budget_preflight.py" --json --declared-gmu-yaml "output/multi/configs/${CONFIG}.yaml" \
           --mem-total-mib "$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)" \
           --weights-mib "$WEIGHTS_MIB" --kv-mib "$KV_MIB" --overhead-mib "$OVERHEAD_MIB" 2>&1)"
   _PF_RC=$?
@@ -791,9 +781,10 @@ if [ "$BUDGET" = "1" ]; then
   echo "[mn] declared-gmu 기재(게이트 ✗): $(printf '%s' "$_PF" | python3 -c "
 import json,sys
 r=json.load(sys.stdin).get('declared_gmu_row')
-print('서빙 yaml 에 gpu-memory-utilization 수치 없음 — 인자 생략' if r is None else
-      'gmu=%s 예상 vLLM 몫=%sMiB 잔차(몫−weights−kv)=%sMiB provenance=%s status=%s'
-      % (r.get('gmu'), r.get('expected_vllm_share_mib'), r.get('residual_mib'), r.get('provenance'), r.get('status')))
+print('서빙 yaml 에 gpu-memory-utilization 수치 없음 — 기재 행 없음' if r is None else
+      'gmu=%s 예상 vLLM 몫=%sMiB 잔차(몫−weights−kv)=%sMiB provenance=%s status=%s 전제=%s'
+      % (r.get('gmu'), r.get('expected_vllm_share_mib'), r.get('residual_mib'), r.get('provenance'), r.get('status'),
+         str(r.get('premise') or '').split(' — ', 1)[0]))
 " 2>/dev/null || echo '기재 행을 읽지 못했다(판정 무관)')"
   if [ "$_PF_RC" = "4" ]; then
     echo "[mn] STOP(예산 게이트): 워치독이 이 선언을 **거부**한다 — 로드는 0초도 시작하지 않았다."

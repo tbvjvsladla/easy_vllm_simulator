@@ -3,7 +3,7 @@
 
 serving:
   config_name: deepseek-v4-flash      # 검증 대상 트리플렛 키(.env.<config>/configs/<config>.yaml 와 동일)
-# topology: multi                     # (선택) 미지정 시 git 브랜치 파생(single-node→single, multi-node→multi)
+# topology: multi                     # (선택) 미지정 시 manifest 파생(resolve_topology.py — 서명 카드 노드는 카드↔자기 manifest · 메인은 4자일치 술어 · 브랜치 이름 추론 ✗)
 
 # === 루브릭 (3중 방어막) ===
 # reference_tps:                      # (선택) E = 외부 현실-달성치. 미지정 시 검증기(Devil's Advocate)가 외부검색(HF카드·포럼·PR).

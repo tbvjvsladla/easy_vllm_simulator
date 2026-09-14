@@ -43,6 +43,7 @@
 #                            --next-intent TEXT [--ack-uncalibrated-thermal]
 #                            [--serve-failed REASON --serve-started-utc T] [--symptom KIND]...
 #                            --bench-budget-mib N --now-utc T --confirm-risk [--topology t]
+#                            [--cross-node-tolerance-s N --cross-node-tolerance-source TEXT]  (multi 원격 노드 사살 대조 · 선언으로만)
 #       broad_search.sh status --state PATH --now-utc T
 #       broad_search.sh map    --state PATH --now-utc T --out-md PATH [--out-json PATH]
 # 종료: 0=성공 · 2=인자/선언 오류(셀 출처 lockset provenance 부재·무효 포함 — 캠페인 셀 한정)
@@ -81,6 +82,8 @@ SERVE_STARTED_UTC=""; SYMPTOMS=()
 #   **열 예산 안에서 스윕을 짧게 도는 정식 경로가 없었다**(배선 부재 · GB10 120b multi 는
 #   연속 포화부하 4분에 SoC 95C hard ceiling 에 닿아 워치독이 서빙을 죽인다).
 LEVELS=""
+# 노드 간 사살 대조 허용오차(2026-09-14 · ⑧ 분석 발견 T1) — 값·출처 짝으로 sweep_bench·셀 종결 분류에 그대로 넘긴다(선언으로만).
+XNODE_TOL=""; XNODE_TOL_SRC=""
 # 2026-09-07 신설(같은 결함 계열 — --levels 와 동일): 프롬프트 형상(in/out/n)도 sweep_bench 에
 #   있고 여기만 없었다. KV 압력 실험(DeepTailor 류 방법론)은 긴 프롬프트가 필요한데 기본
 #   1024/256 은 풀 압력을 만들지 못한다. 빈 값이면 sweep_bench 기본을 그대로 쓴다(개념 이중기재 금지).
@@ -112,6 +115,8 @@ while [ $# -gt 0 ]; do case "$1" in
   --bench-budget-mib) BENCH_BUDGET="$2"; shift 2;;
   --max-error-rate) MAX_ERROR_RATE="$2"; shift 2;;
   --levels) LEVELS="$2"; shift 2;;
+  --cross-node-tolerance-s) XNODE_TOL="$2"; shift 2;;
+  --cross-node-tolerance-source) XNODE_TOL_SRC="$2"; shift 2;;
   --input-len) ILEN="$2"; shift 2;;
   --output-len) OLEN="$2"; shift 2;;
   --num-prompts) NPROMPTS="$2"; shift 2;;
@@ -145,10 +150,29 @@ esac; done
 
 [ -n "$STATE" ] || { echo "[broad_search] ERROR --state 는 필수다" >&2; exit 2; }
 [ -n "$NOW" ]   || { echo "[broad_search] ERROR --now-utc 는 필수다(벽시계 금지 — 시각은 주입만)" >&2; exit 2; }
-if [ -z "$TOPO" ]; then
-  BR="$(git -C "$REPO" rev-parse --abbrev-ref HEAD 2>/dev/null || echo)"
-  case "$BR" in multi-node) TOPO=multi;; single-node) TOPO=single;; *) TOPO=single;; esac
+# 노드 간 허용오차는 값·출처가 짝이다 — **셀 진입 전**에 친다(2026-09-14 리뷰 정정). 종전에는 그대로 넘겨 셀 종결 분류가
+#   exit 2 를 내는 순간 `set -e` 로 죽었고, 이미 끝난 health 프로브·스윕·--serve-failed 사실이 셀 기록 없이 사라졌다.
+#   검사 규칙은 sweep_bench.sh 진입 검사와 같다(그 스크립트가 받는 인자를 그대로 넘기는 호출부다).
+if { [ -n "$XNODE_TOL" ] && [ -z "$XNODE_TOL_SRC" ]; } || { [ -z "$XNODE_TOL" ] && [ -n "$XNODE_TOL_SRC" ]; }; then
+  echo "[broad_search] ERROR --cross-node-tolerance-s 와 --cross-node-tolerance-source 는 함께 준다(출처 없는 숫자 ✗)" >&2; exit 2
 fi
+case "$XNODE_TOL" in
+  *[!0-9]*) echo "[broad_search] ERROR --cross-node-tolerance-s 는 0 이상 정수(초)다: '$XNODE_TOL'" >&2; exit 2;;
+esac
+# 토폴로지 해소 — **쓰는 서브커맨드(init·cell)에서만** 부른다. status·map 은 토폴로지를 읽지 않고, cell 의 위험 게이트
+#   (--confirm-risk · exit 5)는 해소 가능 여부와 무관하게 먼저 울려야 한다(인자 평면 가드 보존).
+# ★ 2026-09-14(⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고 브랜치로 추론하지 않는다"): 종전 관용구는 여기서
+#   브랜치 이름으로 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 — 서명 카드 노드는
+#   카드↔자기 manifest, 메인은 4자일치 술어(topology_parity), 둘 다 아니면 fail-loud.
+_resolve_topo(){
+  [ -n "$TOPO" ] && return 0
+  local _rc=0
+  TOPO="$(python3 "$SDIR/resolve_topology.py" --repo "$REPO")" || _rc=$?
+  if [ "$_rc" != 0 ]; then
+    echo "[broad_search] ERROR 토폴로지를 정하지 못했다(위 사유) — --topology single|multi 로 명시하라(브랜치 이름으로 고르지 않는다)" >&2
+    exit 2
+  fi
+}
 
 STOPJSON="${STATE%.json}.stop.json"
 
@@ -202,6 +226,7 @@ init)
     [ -n "${pair#*:}" ] || { echo "[broad_search] ERROR ${pair%%:*} 는 필수다(선언 없이 스윕을 열지 않는다 · §4.8)" >&2; exit 2; }
   done
   [ -e "$STATE" ] && { echo "[broad_search] ERROR 상태 파일이 이미 있다: $STATE (덮어쓰지 않는다)" >&2; exit 2; }
+  _resolve_topo
   # ── 반복 수 예산(2026-09-14 · plan_26091407 §4.4). 셀 비용 = 레벨 × 반복이라 벽시계 예산의 근거에 반복이
   #    실려야 한다. 캠페인 선언에서 파생해 declared_budget 에 **출처와 함께** 적고, 각 셀은 이 값을 sweep_bench 에
   #    넘긴다(스윕 도중 선언이 바뀌어도 셀끼리 반복 수가 갈라지지 않는다). 해소 실패는 스윕을 열지 않는다.
@@ -323,6 +348,7 @@ PY
     [ -n "${pair#*:}" ] || { echo "[broad_search] ERROR ${pair%%:*} 는 필수다" >&2; exit 2; }
   done
   [ -f "$STATE" ] || { echo "[broad_search] ERROR 상태 파일 부재: $STATE (먼저 init)" >&2; exit 2; }
+  _resolve_topo
 
   # 진입 전 정지 조건. 이미 멈춰야 하는 스윕에 셀을 하나 더 밀어 넣지 않는다.
   #   단 `--serve-failed` 는 **이미 끝난 일의 기록**이다 — 컨테이너도 벤치도 띄우지 않고
@@ -397,7 +423,8 @@ print("%s\x1f%s" % (b.get("repeats", ""), b.get("repeats_source") or "출처 미
   if [ ! -f "$_CI_PC" ]; then
     # 판정자가 없으면 판정하지 않은 것이다 — 게이트 경로의 부재를 통과로 접지 않는다.
     echo "[broad_search] ERROR 셀 출처 precheck 판정자 부재: $_CI_PC — 판정 불가(fail-closed)." >&2
-    echo "[broad_search]   서브라면 오버레이 배달이 캠페인 도구를 빠뜨린 것이다(render_sub_env CAMPAIGN_TOOLS)." >&2
+    echo "[broad_search]   서브라면(측정 스킬이 tool_plane 으로 열리는 서브만 이 경로에 온다 · node_role_contract) 메인의 오버레이 배달이" >&2
+    echo "[broad_search]   캠페인 도구를 빠뜨린 것이다 — 메인이 재배달한다(tool_plane 이 비는 서브에는 이 스크립트가 배달되지 않는다)." >&2
     exit 2
   fi
   _PC_ARGS=(--lockset-precheck --cell "$CELL_KEY")
@@ -470,6 +497,7 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
     [ -n "$BACKEND" ] && SB_ARGS+=(--backend "$BACKEND")
     [ -n "$MAX_ERROR_RATE" ] && SB_ARGS+=(--max-error-rate "$MAX_ERROR_RATE")
     [ -n "$LEVELS" ] && SB_ARGS+=(--levels "$LEVELS")
+    [ -n "$XNODE_TOL$XNODE_TOL_SRC" ] && SB_ARGS+=(--cross-node-tolerance-s "$XNODE_TOL" --cross-node-tolerance-source "$XNODE_TOL_SRC")
     [ -n "$ILEN" ] && SB_ARGS+=(--input-len "$ILEN")
     [ -n "$OLEN" ] && SB_ARGS+=(--output-len "$OLEN")
     [ -n "$NPROMPTS" ] && SB_ARGS+=(--num-prompts "$NPROMPTS")
@@ -489,10 +517,14 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
   ENDED="$(date -u +%FT%TZ)"
   fi
 
-  # 블랙박스 events 의 자리(docs/logs/<node>/events/*.jsonl)는 분류기가 소유한다(`--events-from-repo`) —
+  # 블랙박스 events 의 자리와 **대조 대상 노드**는 분류기가 소유한다(`--events-from-repo` · `--topology` · manifest) —
   #   sweep_bench 종료부의 bench_mode 판정과 같은 발견 규칙을 쓰려고 호출부마다 glob 을 다시 적지 않는다.
-  CLS="$(python3 "$SDIR/classify_cell.py" --serve-rc "$SERVE_RC" --measure-rc "$MEASURE_RC" \
-          --started-utc "$STARTED" --ended-utc "$ENDED" --events-from-repo "$REPO")"
+  #   ★ 2026-09-14(⑧ 분석 발견 T1): 종전에는 저장소의 모든 노드 events 를 같은 시계로 대조했다 — single 은 다른 노드의
+  #     사살을 이 셀의 사인으로, multi 는 회수되지 않은 서브 사살을 "없음" 으로 읽었다. 노드 계획은 토폴로지 사실에서 온다.
+  _CLS_ARGS=(--serve-rc "$SERVE_RC" --measure-rc "$MEASURE_RC" --started-utc "$STARTED" --ended-utc "$ENDED"
+             --events-from-repo "$REPO" --topology "$TOPO" --manifest "$REPO/output/$TOPO/manifest.yaml")
+  [ -n "$XNODE_TOL$XNODE_TOL_SRC" ] && _CLS_ARGS+=(--cross-node-tolerance-s "$XNODE_TOL" --cross-node-tolerance-source "$XNODE_TOL_SRC")
+  CLS="$(python3 "$SDIR/classify_cell.py" "${_CLS_ARGS[@]}")"
 
   CELL_KEY="$CELL_KEY" CONFIG="$CONFIG" CITATION="$CITATION" SWEEPDIR="$SWEEPDIR" \
   CLS="$CLS" ENDED="$ENDED" STARTED="$STARTED" SERVE_FAILED_REASON="$SERVE_FAILED_REASON" \
@@ -716,9 +748,11 @@ print(d.get('void_reason') or '' if src.startswith('events(') else '')
             _ESC=(--escalation-add --cell "$CELL_KEY" --node "$_NODE" --utc "$ENDED"
                   --window-start-utc "$STARTED" --window-end-utc "$ENDED")
             for _sy in "${SYMPTOMS[@]+"${SYMPTOMS[@]}"}"; do _ESC+=(--symptom "$_sy"); done
-            for evf in "$REPO"/docs/logs/*/events/*.jsonl; do
-              [ -f "$evf" ] && _ESC+=(--events "$evf")
-            done
+            # 시각 대조용 events 는 셀 종결 분류기가 **노드 계획으로 판독한 파일 그대로** 넘긴다(2026-09-14 · T1) —
+            #   종전의 `docs/logs/*/events` 전수 glob 은 발견 규칙의 두 번째 사본이었고 다른 노드의 사살까지 넘겼다.
+            while IFS= read -r evf; do
+              [ -n "$evf" ] && [ -f "$evf" ] && _ESC+=(--events "$evf")
+            done < <(printf '%s' "$CLS" | python3 -c "import json,sys;print('\n'.join(json.load(sys.stdin).get('events_scanned') or []))" 2>/dev/null || true)
             python3 "$_CI" "${_ESC[@]}" >/dev/null \
               || echo "[broad_search] ⚠ escalation 후보 기록 실패 — 종결 HITL 이 이 셀을 못 본다" >&2
             ;;
@@ -729,7 +763,7 @@ print(d.get('void_reason') or '' if src.startswith('events(') else '')
     # 부재는 침묵이 아니라 배선 결함이다(2026-09-08 · F5). 서브 오버레이에 writer 가 없던 동안
     # 이 자리가 조용히 통과해서, 서브의 셀 상태를 캠페인 종료 뒤 메인이 대신 적었다.
     echo "[broad_search] ⚠ campaigns writer 부재($_CI) — cell.status/여정을 아무도 적지 않았다." >&2
-    echo "[broad_search]   서브라면 오버레이 배달이 캠페인 도구를 빠뜨린 것이다(침묵 누락 ✗)." >&2
+    echo "[broad_search]   서브라면(측정 스킬이 tool_plane 으로 열리는 서브 · node_role_contract) 오버레이 배달이 캠페인 도구를 빠뜨린 것이다(침묵 누락 ✗)." >&2
   fi
   set +e; _stop; rc=$?; set -e
   python3 -c "import json;d=json.load(open('$STOPJSON'));print('[broad_search] stop=%s by=%s 남은셀=%d'%(d['stop'],d['stopped_by'],len(d['cells_remaining'])))"

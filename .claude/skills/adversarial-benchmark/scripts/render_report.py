@@ -65,10 +65,21 @@ def _bench_mode_view(index, record, record_status):
     if mode is None:
         return "미확정 — %s" % (record.get("bench_mode_source") or "사유 N/A")
     corr = record.get("downgrade_correlation")
+    # 대조 대상 노드별 사실(2026-09-14 · ⑧ 분석 발견 T1) — 서술은 어휘 소유자(classify_cell)가 만든다. `not_scanned`·
+    #   `unavailable` 은 "사살 없음" 이 아니라 "보지 못했음" 이며 강등 트리거도 아니다(기재 · 사용자 결정 Q3·Q7).
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from classify_cell import events_scan_summary
+    scope = events_scan_summary(record.get("events_scan"))
+    # 표지는 bench_mode 행 전체에 붙는다(강등 행도 — lite·run_failed 이면서 대조 not_scanned 일 수 있다 · 2026-09-14 리뷰 정정).
+    unseen = (" · ⚠ **대조 불가**(보지 못했음 — 사살 없음이 아니다 · 강등 트리거 아님 · 기재)"
+              if corr in ("not_scanned", "unavailable") else "")
+    source = record.get("downgrade_reason_source") if reason else record.get("bench_mode_source")
+    # 분류기가 출처 서술에 이미 노드 요약을 실었으면 다시 붙이지 않는다(한 행에 같은 요약 두 번 ✗).
+    tail = (" · %s" % scope) if scope and scope not in str(source or "") else ""
     if reason:
-        return ("**%s** — 반복 불성립(기계 이벤트)으로 **강등** · 사유 `%s` · 사살 대조 `%s` (%s)"
-                % (mode, reason, corr, record.get("downgrade_reason_source")))
-    return "**%s** · 사살 대조 `%s` (%s)" % (mode, corr, record.get("bench_mode_source"))
+        return ("**%s** — 반복 불성립(기계 이벤트)으로 **강등** · 사유 `%s` · 사살 대조 `%s`%s%s (%s)"
+                % (mode, reason, corr, unseen, tail, source))
+    return "**%s** · 사살 대조 `%s`%s%s (%s)" % (mode, corr, unseen, tail, source)
 
 
 def _repetition_section(index, bench_mode_record, bench_mode_status):
