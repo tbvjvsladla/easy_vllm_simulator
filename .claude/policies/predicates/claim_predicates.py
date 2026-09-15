@@ -1717,13 +1717,21 @@ def predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C1():
     _require('kv-cache-memory-bytes' not in yaml_text_no_kv, 'without a measured absolute value, no kv-cache-memory-bytes line (gmu-derived or otherwise) may appear -- KV sizing is never approximated from the gmu ratio alone')
 
 
+C2_GMU_EMIT_COMMENT = ("# gpu-memory-utilization = startup free-memory 게이트(기동 전 free ≥ ceil(total×gmu) · "
+                       "통합메모리 ≤0.90) + 총량 cap 은 관측된 작용(한 셀 관측 · 유효맥락 kv-clamp.md §1 · vLLM 소스에서 "
+                       "기전 미확정); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어")
+
+
 def predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C2():
-    """C2: gmu is still emitted as the startup free-memory gate/cap, clamped to <= 0.90 on
-    unified-memory targets; discrete targets are in-scope with no hard clamp. AND: the final
-    emission (gen_recipe_set._build_yaml, same real generator as C1) co-emits gpu-memory-utilization
-    ALONGSIDE kv-cache-memory-bytes (never one without the other once an absolute KV value exists),
-    with the real generated comment marking gmu's role as the free-memory gate/cap only -- proving
-    the co-emission and the role division are both actual generator behavior, not documentation."""
+    """C2: gmu is still emitted as the startup free-memory gate/cap (관측) with the unified-memory
+    <= 0.90 clamp as the only settled mechanism (기전); discrete targets are in-scope with no hard
+    clamp. AND: the final emission (gen_recipe_set._build_yaml, same real generator as C1) co-emits
+    gpu-memory-utilization ALONGSIDE kv-cache-memory-bytes (never one without the other once an
+    absolute KV value exists).
+    닫힌 리터럴 tripwire(2026-09-15 · Q2 (c)): 생성 주석은 C2_GMU_EMIT_COMMENT 와 **한 줄 전체 일치**여야
+    한다 — 부분 문자열이 아니다. 생성기(gen_recipe_set)든 registry 문장이든 어느 한쪽을 고치면 이
+    술어가 울려 그 변경에 리뷰를 강제한다(정적 파일끼리는 한쪽이 다른 쪽을 생성할 수 없으므로
+    교차검증이 차선이다 — workflow.md §결정론 규율)."""
     per_card, gmu, model = recipe.resolve_target_gpu_budget(
         {"target_gpu": {"gpu_model": "NVIDIA RTX PRO 6000", "target_gmu": 0.95}}, tp=1)
     _require(per_card == 96.0 and gmu == 0.95 and (model == 'NVIDIA RTX PRO 6000'), 'discrete GPU: no hard clamp, per-card VRAM from references.md')
@@ -1733,14 +1741,15 @@ def predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C2():
     _require(gmu2 == 0.9, 'unified-memory GPU (GB10) must hard-clamp target_gmu to 0.90')
 
     # Co-emission proof: with an absolute KV value present, BOTH lines appear together, plus the
-    # real generated comment stating gmu is only the startup free-memory gate/total cap once the
-    # absolute clamp is set.
+    # real generated comment — 닫힌 리터럴 전체 일치로.
     parsed = {"model_path_container": "/app/models/org/model", "model_id": "org/model"}
     recipe_with_kv = {"quantization": "native", "gpu_memory_utilization": gmu2,
                       "max_model_len": 8192, "kv_cache_memory_bytes": 987654321}
     lines = gen_recipe_set._build_yaml(parsed, recipe_with_kv, "served").splitlines()
     _require('gpu-memory-utilization: 0.9' in lines and 'kv-cache-memory-bytes: 987654321' in lines, 'gpu-memory-utilization must be co-emitted alongside kv-cache-memory-bytes, never dropped')
-    _require(any(('startup free-memory 게이트' in ln and 'cap' in ln for ln in lines)), 'the generated yaml must carry the real comment marking gmu as gate/cap only once the absolute KV clamp controls sizing')
+    _require(C2_GMU_EMIT_COMMENT in lines,
+             'the generated yaml must carry the EXACT C2 comment literal (closed tripwire) — a wording '
+             'change in the generator or in C2_GMU_EMIT_COMMENT must force review, not pass silently')
 
     # Without an absolute KV value, gmu is still emitted (it is the sole safety mechanism in that
     # mode) but the gate/cap-only annotation comment must NOT appear (that framing only applies once

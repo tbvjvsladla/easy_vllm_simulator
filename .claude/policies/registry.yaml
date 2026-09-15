@@ -835,7 +835,7 @@
         },
         {
           "clause_id": "KV_ABSOLUTE_CLAMP_PORTABILITY.C2",
-          "statement": "gpu-memory-utilization is still emitted alongside it, but only as the startup free-memory gate and total cap (clamped to <= 0.90 on unified-memory targets); vLLM itself ignores gmu for KV sizing once the absolute byte value is set."
+          "statement": "gpu-memory-utilization is still emitted alongside the absolute KV clamp, with its role divided between observation and mechanism: as OBSERVATION it has acted as a startup free-memory gate and total cap (a one-cell observation -- the mechanism is not confirmed in vLLM source), while the only settled MECHANISM is the hard clamp to <= 0.90 on unified-memory targets. KV sizing and portability are controlled by the absolute kv-cache-memory-bytes value; vLLM itself ignores gmu for KV sizing once the absolute byte value is set."
         },
         {
           "clause_id": "KV_ABSOLUTE_CLAMP_PORTABILITY.C3",
