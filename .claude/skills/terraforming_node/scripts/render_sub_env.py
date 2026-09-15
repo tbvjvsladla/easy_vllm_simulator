@@ -1009,15 +1009,20 @@ def _self_test() -> int:
         with open(os.path.join(_out, ".claude/settings.local.json"), encoding="utf-8") as f:
             _st = json.load(f)
         _al, _dn = _st["permissions"]["allow"], _st["permissions"]["deny"]
-        _in_allow = any(x.endswith(f"/{_KIT})") and x.startswith("Write(") for x in _al)
-        _in_deny = any(x.endswith(f"/{_KIT})") and x.startswith("Write(") for x in _dn)
+        # 2026-09-15: 파일 권한 검사기는 `Edit(path)` 만 매칭한다 — `Write(path)` 는 경고만 내고
+        #   아무것도 막지도 열지도 않는다. 그래서 판정은 `Edit(` 로 하고, `Write(` 가 되살아나면 잡는다.
+        _in_allow = any(x.endswith(f"/{_KIT})") and x.startswith("Edit(") for x in _al)
+        _in_deny = any(x.endswith(f"/{_KIT})") and x.startswith("Edit(") for x in _dn)
+        _no_write_rule = not any(x.startswith("Write(") for x in _al + _dn)
         # 접두어가 산출물에 새면 권한 문자열 자체가 무효가 된다(조용히 아무것도 매칭 안 함).
         _no_marker = not any(x.startswith("MODE:") for x in _al + _dn)
         # 모드 무관 항목은 양쪽 모두에 그대로 남아야 한다(필터가 과잉 삭제하지 않았는가).
         _common = ("Bash(git push:*)" in _dn and f"Edit({_ph['WORKSPACE_PATH']}/.claude/**)" in _dn)
-        _c = (_in_allow == _want_allow) and (_in_deny != _want_allow) and _no_marker and _common
+        _c = ((_in_allow == _want_allow) and (_in_deny != _want_allow) and _no_marker and _common
+              and _no_write_rule)
         print(f"  [{'PASS' if _c else 'FAIL'}] 권한 평면 {_topo}({_label}): "
-              f"allow={_in_allow} deny={_in_deny} 마커제거={_no_marker} 공통보존={_common}")
+              f"allow={_in_allow} deny={_in_deny} 마커제거={_no_marker} 공통보존={_common} "
+              f"Write(path)부재={_no_write_rule}")
         ok &= _c
     # 음성대조: 미지 MODE 접두는 조용히 지우지 않고 fail-loud 한다.
     try:

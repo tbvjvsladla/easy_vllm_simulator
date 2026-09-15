@@ -48,14 +48,19 @@ REASON_RUNNER_UNAVAILABLE = "RUNNER_UNAVAILABLE"
 #   바이너리를 고른다. 닫힌 열거(tripwire): 여기 없는 백엔드는 스키마 enum 에서 이미 걸린다.
 #   `kimi-claude` 는 노드 로컬 shim(~/.local/bin, 비추적)이며 env 라우팅(엔드포인트·키·모델 슬롯)은
 #   shim 이 소유한다 — 이 파일에 키·엔드포인트를 적지 않는다.
-BACKEND_TO_BINARY = {"anthropic": "claude", "kimi": "kimi-claude", "minimax": "minimax-claude"}
+#   2026-09-15: `meta`(Muse Spark · `meta-claude` shim) 추가. ⚠ shim 은 auto mode 의 안전 판정 호출까지
+#   자기 모델로 보낸다 — 그 엔드포인트가 판정에 응답하지 못하면 판정이 필요한 도구가 전부 선다
+#   (위임 `-p` 는 렌더된 `defaultMode: default` 를 타므로 판정 호출이 없다 · adapter.md §2.1).
+BACKEND_TO_BINARY = {"anthropic": "claude", "kimi": "kimi-claude", "minimax": "minimax-claude",
+                     "meta": "meta-claude"}
 
 # 백엔드별 **기본 모델 선언**. 2026-09-08 이관: 종전에는 `k3[1m]` 리터럴이 어댑터 밖
 #   (`bootstrap_canary.build_request`)에 손으로 적혀 있었다 — 백엔드가 셋이 되면 갈라지는 자리다
 #   (workflow.md §4종 안티패턴 · 매직넘버 결함 칸: "같은 개념이 두 곳 이상에 손으로 적힌 값").
 #   모델 토큰의 의미는 **백엔드에 종속된다** — shim 이 ANTHROPIC_DEFAULT_*_MODEL 을 자기 슬롯으로
 #   덮으므로 kimi 아래의 `sonnet` 은 sonnet 이 아니다. 그래서 러너는 두 축이 아니라 한 쌍이다.
-BACKEND_DEFAULT_MODEL = {"anthropic": "sonnet", "kimi": "k3[1m]", "minimax": "MiniMax-M3"}
+BACKEND_DEFAULT_MODEL = {"anthropic": "sonnet", "kimi": "k3[1m]", "minimax": "MiniMax-M3",
+                         "meta": "muse-spark-1.3"}
 
 # 러너 별칭 → (backend, model) 쌍. **닫힌 목록**이며 변경 시 리뷰를 강제하는 tripwire 다
 #   (안티패턴 판정표 하드코딩 **정당** 칸). 사용자가 부르는 짧은 이름(`sonnet`·`kimi-claude`)을
@@ -66,6 +71,7 @@ RUNNER_ALIASES = {
     "haiku":          ("anthropic", "haiku"),
     "kimi-claude":    ("kimi", BACKEND_DEFAULT_MODEL["kimi"]),
     "minimax-claude": ("minimax", BACKEND_DEFAULT_MODEL["minimax"]),
+    "meta-claude":    ("meta", BACKEND_DEFAULT_MODEL["meta"]),
 }
 
 # ── 러너 평면 실패 판정 (2026-09-08 · 실측 수확분 + 공식문서) ────────────────────────────────

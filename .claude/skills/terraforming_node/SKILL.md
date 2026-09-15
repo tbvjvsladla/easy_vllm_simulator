@@ -814,8 +814,15 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 **어휘.** 러너 = **(backend, model) 한 쌍**이다. 두 축이 아니다 — shim 이
 `ANTHROPIC_DEFAULT_*_MODEL` 을 자기 슬롯으로 덮으므로 kimi 아래의 `sonnet` 은 sonnet 이 아니고,
 모델 토큰은 백엔드 사이에서 **이식되지 않는다**. 별칭(`sonnet`·`opus`·`haiku`·`kimi-claude`·
-`minimax-claude`)을 쌍으로 펴는 **닫힌 표**는 어댑터가 소유하고, 중립 통로는
+`minimax-claude`·`meta-claude`)을 쌍으로 펴는 **닫힌 표**는 어댑터가 소유하고, 중립 통로는
 `agent_control.py runners` 다(사본 ✗).
+
+> ⚠ **shim 은 판정 모델까지 덮는다**(2026-09-15 실측). auto mode 의 안전 판정 호출도 shim 의 모델
+> 슬롯을 타므로, 그 엔드포인트가 판정에 응답하지 못하면 Edit·Bash·Agent 가 전부
+> `<model> is temporarily unavailable, so auto mode cannot determine the safety of <Tool>` 로 선다
+> (Read 만 통과 · **권한 거부가 아니다**). 위임 `-p` 는 렌더된 `defaultMode: default` 로 돌아 이 판정을
+> 타지 않는다. 대화형 메인을 shim 으로 띄울 때는 auto mode 를 쓰지 않는다. 서브의 root 관리설정은
+> 머신 전체·최상위라 **서브에만** 둔다 — 메인에 깔면 `Edit(<ws>/.claude/**)` deny 가 하네스 수정을 막는다.
 
 **사다리와 회전.** 사다리 = 러너의 순서 있는 목록(`relay.py --runners a,b,c`). 회전 = **같은 과업·
 같은 예산·같은 재개 선언**을 다음 칸으로 다시 발급하는 것이다. 사다리는 **순환**한다(4→1→…).
