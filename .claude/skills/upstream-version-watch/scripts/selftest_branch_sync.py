@@ -605,12 +605,101 @@ def test_closing_sequence() -> None:
            (r.returncode, out[-1000:]))
 
 
+def test_branch_sync_delete_respects_excludes() -> None:
+    """S8 -- sync_branches 삭제 판정이 PATHS 의 :(exclude) 를 존중한다(2026-09-15 실측 결함).
+
+    single→multi 방향에서 source(single)에 없는 `branch_layer_ledger.json` 이 삭제 staging 에
+    올랐다 — 제외는 복사 소비자(checkout/diff)에만 적용되고 미러 삭제 루프에는 미적용이었다.
+    제외 경로는 브랜치별로 각자 쌓는 자리라 지우면 반대 브랜치의 이력이 사라진다.
+    양성대조: 제외 목록에 없는 source-부재 미러 파일은 여전히 삭제된다.
+    음성대조: `_is_sync_excluded` 호출을 걷어낸 변이 사본은 원장을 지운다."""
+    for mutant in (False, True):
+        with tempfile.TemporaryDirectory() as td:
+            sb = Sandbox(Path(td).resolve())
+            repo = sb.root / "repo"
+            repo.mkdir()
+            sb.git(repo, "init", "-q", "-b", "single-node")
+            reps = _relocation_replacements()
+            for rel in {SYNC_BRANCHES, GATE, PARITY, LAYER_LEDGER, ".gitignore",
+                        *(f".claude/schemas/{s}" for s in SCHEMAS), *reps}:
+                _copy_real(repo, rel)
+            _write(repo, "CLAUDE.md", "# 헌법 v1\n")
+            _write(repo, ".claude/rules/common.md", "공통층 v1\n")
+            _write(repo, ".claude/rules/dest_only.md", "이 커밋에만 있는 파일(다음 커밋에서 삭제)\n")
+            _write(repo, TOPOLOGY_RULES, "# 특화헌법\n\n**topology: single** · layer: topology\n")
+            sb.git(repo, "add", "-A")
+            sb.git(repo, "commit", "-qm", "A1 source")
+            sb.git(repo, "branch", "multi-node")
+            sb.git(repo, "rm", "-q", ".claude/rules/dest_only.md")
+            sb.git(repo, "commit", "-qm", "A2 source: dest_only.md 삭제(미러 삭제의 정당한 형태)")
+
+            # 대상(multi) 체크아웃: 원장(제외) · 삭제 전 커밋의 고아 · 특화층(제외) 을 추적
+            sb.git(repo, "checkout", "-q", "multi-node")
+            _write(repo, LEDGER_REL, json.dumps({"schema_version": 1, "entries": [
+                {"entry_id": "sync-x", "utc": ENTRY_UTC, "departure": "multi-node",
+                 "departure_commit": "0" * 40, "approved_by": "selftest", "approved_utc": APPROVED_AT,
+                 "classification": [{"file": "CLAUDE.md", "verdict": "common_promote",
+                                     "reason": "픽스처", "provenance": "agent-judged"}]}]},
+                   ensure_ascii=False) + "\n")
+            _write(repo, TOPOLOGY_RULES, "# 특화헌법\n\n**topology: multi** · layer: topology\n")
+            sb.git(repo, "add", "-A")
+            sb.git(repo, "commit", "-qm", "B 대상 전용(원장·특화층)")
+
+            atoms = ["approved_by: selftest", f"approved_at_utc: {APPROVED_AT}",
+                     "allowed_action: sync_branches"]
+            plan = repo / "docs/plan/p_selftest.md"
+            plan.parent.mkdir(parents=True, exist_ok=True)
+            plan.write_text("# selftest plan\n\n## Execution approval\n\n" + "\n".join(atoms) + "\n",
+                            encoding="utf-8")
+            manifest = repo / "docs/_evidence/wm_selftest.json"
+            manifest.parent.mkdir(parents=True, exist_ok=True)
+            manifest.write_text(json.dumps({
+                "schema_version": 1, "task_class": "harness_change",
+                "identity": {"model": "m", "gpu": "g", "vllm": "v", "quant": None,
+                             "topology": "multi", "tp": 1},
+                "evidence": {"plan": {"path": "../plan/p_selftest.md"}},
+                "pii_scan": {"passed": True},
+                "execution_approval": {"approved": True, "approved_by": "selftest",
+                                       "approved_at_utc": APPROVED_AT,
+                                       "plan_path": "../plan/p_selftest.md",
+                                       "plan_sha256": hashlib.sha256(plan.read_bytes()).hexdigest(),
+                                       "approval_anchor": "## Execution approval",
+                                       "approval_atoms": atoms,
+                                       "allowed_actions": ["sync_branches"]}},
+                ensure_ascii=False), encoding="utf-8")
+
+            script = repo / SYNC_BRANCHES
+            if mutant:
+                src = script.read_text(encoding="utf-8")
+                anchor = '        _is_sync_excluded "$dest_path" && continue\n'
+                ck("변이 앵커(exclude 존중 줄) 1건", src.count(anchor) == 1, src.count(anchor))
+                mutant_script = repo / "docs/_evidence/sync_mutated.sh"   # gitignore 평면 — dirty 가드를 울리지 않고 레포 안에 둔다(스크립트가 자기 경로에서 레포를 찾는다)
+                mutant_script.write_text(src.replace(anchor, ""), encoding="utf-8")
+                script = mutant_script
+
+            r = sb.run(["bash", str(script), "--from", "single-node", "--mode", "experimental",
+                        "--manifest", "docs/_evidence/wm_selftest.json", "--apply"], cwd=repo)
+            out = r.stdout + r.stderr
+            ledger_alive = (repo / LEDGER_REL).is_file()
+            topo_alive = (repo / TOPOLOGY_RULES).is_file() and \
+                "**topology: multi**" in (repo / TOPOLOGY_RULES).read_text(encoding="utf-8")
+            orphan_gone = not (repo / ".claude/rules/dest_only.md").is_file()
+            if not mutant:
+                ck("S8: exclude 경로(원장·특화층)는 삭제되지 않고, 미제외 고아는 삭제된다",
+                   r.returncode == 0 and ledger_alive and topo_alive and orphan_gone,
+                   (r.returncode, ledger_alive, topo_alive, orphan_gone, out[-600:]))
+            else:
+                ck("★S8 음성대조: exclude 존중을 걷어낸 변이는 원장을 지운다(이 검사가 결함을 잡는다)",
+                   not ledger_alive and orphan_gone, (r.returncode, ledger_alive, out[-400:]))
+
+
 def main() -> int:
     for rel in (SYNC_TO_SUB, SYNC_BRANCHES, LAYER_LEDGER, CLOSING, PARITY, RENDER, GATE, CATALOG):
         if not (REAL / rel).is_file():
             print(f"[selftest_branch_sync] FAIL: 검사 대상이 없다: {rel}", file=sys.stderr)
             return 1
-    for test in (test_sync_to_sub_guard, test_render_guard, test_closing_sequence):
+    for test in (test_sync_to_sub_guard, test_render_guard, test_closing_sequence,
+                 test_branch_sync_delete_respects_excludes):
         try:
             test()
         except Exception as exc:  # noqa: BLE001 -- 픽스처 구성 실패도 FAIL 로 센다(침묵 통과 ✗)
