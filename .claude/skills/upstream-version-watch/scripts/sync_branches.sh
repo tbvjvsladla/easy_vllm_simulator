@@ -663,10 +663,29 @@ fi
 # Resolve every destination-only tracked path before the first mutation. This is an exact mirror
 # only for MIRROR_DIRS; topology outputs/configs and ignored work documents are intentionally not
 # included. Source object lookup prevents a stale local file from laundering itself as authority.
+#
+# ★ 삭제 판정도 PATHS 의 :(exclude) 를 존중한다(2026-09-15 · plan_26091523 후속). 제외는 복사
+#   소비자(checkout/diff)쪽에만 적용되고 이 루프는 미적용이었다 — 그래서 source 에 없는
+#   branch_layer_ledger.json 을 single→multi 방향에서 삭제 staging 에 올렸다(실측). 제외된
+#   경로는 브랜치별 내용을 각자 쌓는 자리라, 동기화가 지우면 반대 브랜치의 이력이 사라진다.
+_EXCLUDE_GLOBS=()
+for _p in "${PATHS[@]}"; do
+    [ "${_p#:(exclude)}" != "$_p" ] && _EXCLUDE_GLOBS+=("${_p#:(exclude)}")
+done
+_is_sync_excluded() {
+    local _path="$1" _g
+    for _g in "${_EXCLUDE_GLOBS[@]}"; do
+        case "$_path" in
+            $_g|*/$_g) return 0 ;;   # '*.topology.md' 같은 basename 글롭은 임의 깊이에 적용
+        esac
+    done
+    return 1
+}
 DELETE_PATHS=()
 for mirror_dir in "${MIRROR_DIRS[@]}"; do
     while IFS= read -r -d '' dest_path; do
         [ -n "$dest_path" ] || continue
+        _is_sync_excluded "$dest_path" && continue
         if ! git cat-file -e "$SRC_BRANCH:$dest_path" 2>/dev/null; then
             DELETE_PATHS+=("$dest_path")
         fi

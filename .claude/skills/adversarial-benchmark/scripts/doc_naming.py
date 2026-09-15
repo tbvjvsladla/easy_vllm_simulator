@@ -15,6 +15,13 @@
   읽을 수 없으면 같은 측정으로 **간주하지 않는다**(fail-closed · 종전 `except: None` 은 무경고
   덮어쓰기 경로였다 — 감사 A-3/D-1).
 
+슬롯 합집합(2026-09-15 · plan_26091523 F2 · STEM_MISMATCH 교정):
+  report·certificate·envelope 는 한 측정의 **짝 산출물**이다. 점유 판정이 kind 별로 갈라지면
+  같은 시간대·같은 combo 에서 report 는 `_MM_SS` 를 달고 cert 는 base 를 다는(또는 그 역)
+  어긋난 stem 쌍이 나간다. 그래서 `bench_filename` 의 슬롯 판정은 (시간토큰[, 분·초], combo)
+  자리를 **kind 무관 합집합**으로 본다 — 한 측정의 두 산출물은 항상 같은 슬롯(base 또는 같은
+  `_MM_SS`)을 택한다. 호출부는 `scan_bench_dir` 를 **필터 없이** 넘긴다.
+
 순수성: `bench_filename` 은 파일시스템을 만지지 않는다 — 기존 파일의 측정 시각 매핑을 인자로 받는다.
 IO 는 `scan_bench_dir` 하나에만 있다(호출부가 명시적으로 부른다). 벽시계·난수 호출 없음.
 """
@@ -41,6 +48,47 @@ class NamingCollisionExhausted(ValueError):
 class NamingSourceUnreadable(ValueError):
     """충돌 후보 파일의 측정 시각을 읽지 못했다 — "같은 측정인가" 를 판정할 수 없으므로 덮어쓰지도
     접미를 붙이지도 않는다(침묵 덮어쓰기 금지)."""
+
+
+_BENCH_NAME_RE = _re.compile(
+    r"^(?:bench_report|benchmark|max_envelope)_(?P<tok>\d{8}|NA)"
+    r"(?:_(?P<mm>\d{2})_(?P<ss>\d{2}))?_(?P<combo>.+)\.(?:md|yaml)$")
+
+
+def _slot_occupants(existing, yymmddhh, combo, mm=None, ss=None, exclude_name=None):
+    """같은 (시간토큰[, 분·초], combo) 슬롯을 **kind 무관하게** 점유한 (이름, 측정시각) 목록.
+    짝 산출물이 같은 슬롯을 타게 하는 합집합 판정의 유일한 계산 자리. `mm=None` 이면 base 슬롯,
+    값이 있으면 그 `_MM_SS` 접미 슬롯 — 둘은 다른 자리다. 규약 이름이 아닌 파일(sweep_map 등)은
+    정규식이 걸러낸다."""
+    out = []
+    for name, mts in (existing or {}).items():
+        if name == exclude_name:
+            continue
+        m = _BENCH_NAME_RE.match(name)
+        if not m or m.group("tok") != yymmddhh or m.group("combo") != combo:
+            continue
+        if (mm is None) != (m.group("mm") is None):
+            continue
+        if mm is not None and (m.group("mm"), m.group("ss")) != (mm, ss):
+            continue
+        out.append((name, mts))
+    return out
+
+
+def _align_or_fail(occupants, generated_utc, slot_desc):
+    """점유자 집합에 대한 합집합 슬롯 판정: 비어 있으면 None(슬롯 사용 가능) · 전부 **같은 측정**이면
+    그 측정시각 문자열(짝 정렬 — 슬롯 사용 가능) · 하나라도 시각 불독이면 NamingSourceUnreadable ·
+    그 외(다른 측정 점유)는 False(슬롯 사용 불가)."""
+    if not occupants:
+        return None
+    stamps = {t for _, t in occupants}
+    if None in stamps:
+        raise NamingSourceUnreadable(
+            "bench_filename: %s 슬롯 점유 파일 %s 의 측정시각을 읽지 못한다 — 같은 측정인지 판정 "
+            "불가라 덮어쓰기·접미 모두 거부" % (slot_desc, [n for n, t in occupants if t is None]))
+    if stamps == {str(generated_utc)}:
+        return str(generated_utc)
+    return False
 
 
 def kst_tokens(generated_utc):
@@ -77,7 +125,9 @@ def measurement_ts(text):
 def scan_bench_dir(out_dir, kind=None):
     """{basename: 측정시각 | None} — 이 모듈의 **유일한 IO**. `kind` 를 주면 그 접두 파일만.
     읽기 실패·시각 부재는 None 으로 **표시**한다(삼키지 않는다) — 그 이름이 충돌 후보가 되는 순간
-    `bench_filename` 이 NamingSourceUnreadable 로 죽는다."""
+    `bench_filename` 이 NamingSourceUnreadable 로 죽는다.
+    `bench_filename` 에 넘길 때는 **필터 없이** 스캔한다 — 슬롯 판정이 kind 무관 합집합이라
+    필터 스캔은 짝 산출물의 점유를 숨겨 STEM_MISMATCH 를 다시 만든다(2026-09-15 교정)."""
     out: dict = {}
     if not out_dir or not _os.path.isdir(out_dir):
         return out
@@ -99,9 +149,11 @@ def bench_filename(kind, meta, generated_utc, existing=None, ext=None):
     """kind ∈ {bench_report, benchmark, max_envelope}. `meta` = model/gpu_key/vllm_version(부재는
     리터럴 'NA' — 합성하지 않는다). `existing` = `scan_bench_dir()` 결과(또는 None = stdout 모드).
 
-    규칙: base 가 비어 있으면 base · base 가 **같은 측정**이면 base(멱등 덮어쓰기) · 다른 측정이면
-    `_MM_SS` · 그 접미 이름도 다른 측정이면 NamingCollisionExhausted · 후보의 측정 시각을 못 읽으면
-    NamingSourceUnreadable."""
+    규칙: base 가 비어 있고 base 슬롯(시간,combo)에 다른 kind 의 **다른 측정**도 없으면 base ·
+    base 가 **같은 측정**(또는 슬롯의 점유가 전부 같은 측정의 짝 산출물)이면 base(멱등 덮어쓰기/짝 정렬) ·
+    다른 측정이 슬롯을 점유했으면 `_MM_SS` · 그 접미 슬롯도 다른 측정이면 NamingCollisionExhausted ·
+    후보의 측정 시각을 못 읽으면 NamingSourceUnreadable. 슬롯 점유는 **kind 무관 합집합**으로 본다
+    (STEM_MISMATCH 교정 — 모듈 docstring §슬롯 합집합)."""
     if kind not in BENCH_KIND_DEFAULT_EXT:
         raise ValueError("bench_filename: kind must be one of %r, got %r"
                          % (tuple(BENCH_KIND_DEFAULT_EXT), kind))
@@ -110,27 +162,52 @@ def bench_filename(kind, meta, generated_utc, existing=None, ext=None):
     yymmddhh, mm, ss = kst_tokens(generated_utc)
     combo = "%s_%s_%s" % (meta.get("model", "NA"), meta.get("gpu_key", "NA"), meta.get("vllm_version", "NA"))
     base = "%s_%s_%s.%s" % (kind, yymmddhh, combo, ext)
-    if not existing or base not in existing:
+    if not existing:
         return base
-    ts = existing[base]
-    if ts is None:
-        raise NamingSourceUnreadable(
-            "bench_filename: %r exists but its measurement timestamp is unreadable — cannot decide "
-            "same-vs-different measurement, refusing to overwrite or suffix" % base)
-    if ts == str(generated_utc):
-        return base
+    if base in existing:
+        # 자기 kind 의 base 점유 — 같은 측정이면 멱등, 다른 측정이면 접미로
+        ts = existing[base]
+        if ts is None:
+            raise NamingSourceUnreadable(
+                "bench_filename: %r exists but its measurement timestamp is unreadable — cannot decide "
+                "same-vs-different measurement, refusing to overwrite or suffix" % base)
+        if ts == str(generated_utc):
+            return base
+    else:
+        # 자기 kind 의 base 는 비었지만, 같은 슬롯을 다른 kind 가 점유했을 수 있다 — 합집합 판정
+        aligned = _align_or_fail(_slot_occupants(existing, yymmddhh, combo),
+                                 generated_utc, "base(%s,%s)" % (yymmddhh, combo))
+        if aligned is None or aligned is not False:
+            # base 슬롯 사용 가능 — 단, **같은 측정의 짝이 이미 접미 슬롯**에 있으면 그 접미로 정렬한다
+            # (cert 가 접미로 나간 뒤 report 가 base 로 오면 다시 어긋난다 — 접미는 측정당 하나뿐이라
+            # 첫 일치가 곧 그 측정의 슬롯이다)
+            for name, mts in existing.items():
+                m = _BENCH_NAME_RE.match(name)
+                if (m and m.group("tok") == yymmddhh and m.group("combo") == combo
+                        and m.group("mm") is not None and mts == str(generated_utc)):
+                    return "%s_%s_%s_%s_%s.%s" % (
+                        kind, yymmddhh, m.group("mm"), m.group("ss"), combo, ext)
+            return base
     suffixed = "%s_%s_%s_%s_%s.%s" % (kind, yymmddhh, mm, ss, combo, ext)
-    if suffixed not in existing:
-        return suffixed
-    ts2 = existing[suffixed]
-    if ts2 is None:
-        raise NamingSourceUnreadable(
-            "bench_filename: %r exists but its measurement timestamp is unreadable" % suffixed)
-    if ts2 == str(generated_utc):
+    if suffixed in existing:
+        ts2 = existing[suffixed]
+        if ts2 is None:
+            raise NamingSourceUnreadable(
+                "bench_filename: %r exists but its measurement timestamp is unreadable" % suffixed)
+        if ts2 == str(generated_utc):
+            return suffixed
+        raise NamingCollisionExhausted(
+            "bench_filename: both %r and %r are occupied by OTHER measurements (%s, %s) — canon permits "
+            "only unsuffixed or a single _MM_SS suffix" % (base, suffixed, ts if base in existing else "-", ts2))
+    aligned = _align_or_fail(
+        _slot_occupants(existing, yymmddhh, combo, mm=mm, ss=ss), generated_utc,
+        "suffix(%s_%s_%s,%s)" % (yymmddhh, mm, ss, combo))
+    if aligned is None or aligned is not False:
         return suffixed
     raise NamingCollisionExhausted(
-        "bench_filename: both %r and %r are occupied by OTHER measurements (%s, %s) — canon permits "
-        "only unsuffixed or a single _MM_SS suffix" % (base, suffixed, ts, ts2))
+        "bench_filename: suffix slot %r is occupied by OTHER measurement(s) %s of a sibling kind — "
+        "canon permits only unsuffixed or a single _MM_SS suffix"
+        % (suffixed, [n for n, _ in _slot_occupants(existing, yymmddhh, combo, mm=mm, ss=ss)]))
 
 
 def _require(condition, message):
@@ -192,6 +269,35 @@ def _self_test():
     _require(scanned["bench_report_no_ts.md"] is None, "시각 없는 파일은 None 으로 **표시**")
     _require(set(scan_bench_dir(d, "benchmark")) == {"benchmark_x.yaml"}, "kind 필터")
     _require(scan_bench_dir(_os.path.join(d, "absent")) == {}, "부재 디렉터리 = {}")
+
+    # 슬롯 합집합(STEM_MISMATCH 교정 · 2026-09-15) — 짝 산출물은 kind 무관으로 같은 슬롯을 탄다
+    cert_base = "benchmark_26072501_solar-open2-250b_GB10_0.22.0.yaml"
+    cert_sfx = "benchmark_26072501_45_00_solar-open2-250b_GB10_0.22.0.yaml"
+    _require(bench_filename("bench_report", meta, T1, {cert_base: T1}) == base,
+             "다른 kind base 가 **같은 측정** → base 로 짝 정렬")
+    _require(bench_filename("bench_report", meta, T2, {cert_base: T1}) == sfx2,
+             "★STEM_MISMATCH: 다른 kind base 가 다른 측정 → report 도 _MM_SS(옛 규칙은 base 반환)")
+    _require(bench_filename("benchmark", meta, T2, {base: T2}) == cert_base,
+             "report base 가 같은 측정 → cert 도 base 로 짝 정렬")
+    _require(bench_filename("benchmark", meta, T2, {base: T1}) == cert_sfx,
+             "★STEM_MISMATCH 역방향: report base 가 다른 측정 → cert 도 _MM_SS")
+    _require(bench_filename("bench_report", meta, T2, {cert_sfx: T2}) == sfx2,
+             "다른 kind 접미가 같은 측정 → 같은 접미로 짝 정렬")
+    _require(bench_filename("bench_report", meta, T3, {cert_sfx: T2}) == base,
+             "base 슬롯이 비고 다른 측정의 짝이 접미에 있으면 base 사용 가능(측정별 stem 은 그대로 정합)")
+    try:
+        bench_filename("bench_report", meta, T2, {base: T1, cert_sfx: "2026-07-24T16:10:00Z"})
+        raise AssertionError("접미 슬롯이 다른 kind 의 다른 측정에 점유 → Exhausted 기대")
+    except NamingCollisionExhausted:
+        pass
+    try:
+        bench_filename("bench_report", meta, T2, {cert_base: None})
+        raise AssertionError("★음성대조 다른 kind 점유자의 시각 불독도 raise")
+    except NamingSourceUnreadable:
+        pass
+    _require(bench_filename("max_envelope", meta, T2, {cert_base: T1})
+             == "max_envelope_26072501_45_00_solar-open2-250b_GB10_0.22.0.md",
+             "세 번째 kind 도 같은 합집합 규칙")
     print("[doc_naming] self-test PASS")
 
 

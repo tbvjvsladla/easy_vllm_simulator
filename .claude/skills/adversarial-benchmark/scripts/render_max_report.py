@@ -107,7 +107,7 @@ def main():
     from doc_naming import bench_filename, scan_bench_dir
     _outdir = a.out_dir or os.path.join(repo_root(a.max_index), "docs", "benchmark")
     fname = bench_filename("max_envelope", meta, idx.get("generated_utc"),
-                           (None if a.stdout else scan_bench_dir(_outdir, "max_envelope")), "md")
+                           (None if a.stdout else scan_bench_dir(_outdir)), "md")
     if a.stdout:
         sys.stdout.write(md); return
     outdir = a.out_dir or os.path.join(repo_root(a.max_index), "docs", "benchmark")

@@ -194,7 +194,7 @@ def main():
     _outdir = a.out_dir or os.path.join(repo_root(a.sweep_index), "docs", "benchmark")
     # 같은 측정 = 덮어쓰기 · 다른 측정 = _MM_SS · 판독 불가 = fail-loud (doc_naming 규약)
     fname = bench_filename("benchmark", meta, index.get("generated_utc"),
-                           (None if a.stdout else scan_bench_dir(_outdir, "benchmark")), "yaml")
+                           (None if a.stdout else scan_bench_dir(_outdir)), "yaml")
     if a.stdout:
         sys.stdout.write(y)
         return
