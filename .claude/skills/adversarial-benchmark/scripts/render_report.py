@@ -496,7 +496,7 @@ def main_lite(a):
     outdir = a.out_dir or os.path.join(repo_root(a.lite_raw_json), "docs", "benchmark")
     try:
         fname = bench_filename("bench_report", identity, measured_utc,
-                               (None if a.stdout else scan_bench_dir(outdir, "bench_report")), "md")
+                               (None if a.stdout else scan_bench_dir(outdir)), "md")
     except (NamingCollisionExhausted, NamingSourceUnreadable) as exc:
         sys.stderr.write("[render_report] ERROR 명명 충돌 — 덮어쓰지도 새 접미를 발명하지도 않는다: %s\n" % exc)
         sys.exit(2)
@@ -558,7 +558,7 @@ def main():
     from doc_naming import bench_filename, scan_bench_dir
     _outdir = a.out_dir or os.path.join(repo_root(a.sweep_index), "docs", "benchmark")
     fname = bench_filename("bench_report", meta, index.get("generated_utc"),
-                           (None if a.stdout else scan_bench_dir(_outdir, "bench_report")), "md")
+                           (None if a.stdout else scan_bench_dir(_outdir)), "md")
 
     if a.stdout:
         sys.stdout.write(md)
