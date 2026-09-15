@@ -74,7 +74,13 @@ minimax/`MiniMax-M3`). 백엔드별 기본 모델은 `BACKEND_DEFAULT_MODEL` 이
 실패(회전 ✗). 결과는 `RUNNER_UNAVAILABLE` 이며 증거는 `output` 에 JSON 으로 실린다(스키마를
 넓히지 않는다 — PERMISSION_DENIED 선례). **모르면 회전하지 않는다.**
 
-- `kimi-claude`·`minimax-claude` 는 **노드 로컬 shim**(`~/.local/bin/kimi-claude`, 비추적)이다 — .bashrc 의 셸 함수는
+**2026-09-15 — 백엔드 4종.** `meta`(`meta-claude` shim · 기본 모델 `muse-spark-1.3`)가 더해졌다. 백엔드
+어휘는 바이너리 표·기본모델 표·요청 스키마 enum 세 자리에 있고 `runtime_selftest` 가 셋의 일치를
+교차검증한다. `relay.py`·`bootstrap_canary.py` 의 `--backend` 선택지는 스키마 enum 에서 읽는다.
+⚠ shim 은 auto mode 판정 호출까지 자기 모델로 보낸다 — 대화형 세션을 shim 으로 띄울 때는 auto mode 를
+쓰지 않는다(판정 불가 오류는 권한 거부가 아니다 · 정본 `SKILL.md` §2.7.11).
+
+- `kimi-claude`·`minimax-claude`·`meta-claude` 는 **노드 로컬 shim**(`~/.local/bin/<name>`, 비추적)이다 — .bashrc 의 셸 함수는
   ssh 비대화형(`bash -lc`)에서 로드되지 않으므로 실행 파일 형태가 계약이다 — 2026-09-08 양 노드
   실측으로 이유가 **둘**임이 확인됐다: ⓐ `.bashrc` 가 `case $- in *i*)` 로 조기 return 한다
   ⓑ 어댑터가 감싸는 `timeout <n> <cmd>` 는 셸 함수를 exec 할 수 없다(둘은 독립이라 한쪽만 고쳐도

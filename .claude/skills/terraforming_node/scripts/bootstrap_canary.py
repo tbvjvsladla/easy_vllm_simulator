@@ -129,6 +129,17 @@ def _backend_default_model(backend: str | None) -> str:
     return _m.BACKEND_DEFAULT_MODEL.get(backend or "anthropic", _m.BACKEND_DEFAULT_MODEL["anthropic"])
 
 
+def backend_choices() -> list:
+    """CLI `--backend` 선택지. **전송 스키마 enum 을 읽는다**(2026-09-15) — 종전 relay 의
+    `choices=[...]` 손사본은 백엔드가 늘 때마다 갈라지는 자리였다(매직넘버 결함 칸)."""
+    with open(turn_budget.REQUEST_SCHEMA, encoding="utf-8") as f:
+        enum = (((json.load(f).get("properties") or {}).get("backend") or {}).get("enum"))
+    if not isinstance(enum, list) or not enum:
+        raise SystemExit(f"[canary] FAIL: 요청 스키마에서 backend enum 을 읽지 못했다 — "
+                         f"{turn_budget.REQUEST_SCHEMA}")
+    return enum
+
+
 DEFAULT_CANARY_MODEL = "sonnet"    # 카나리 1왕복의 **기본 선언값**이지 게이트가 아니다(--model 로 바꾼다)
 
 
@@ -269,7 +280,9 @@ def main() -> int:
                     help="매달림을 잡는 상한(scope ⊥ budget — 예산과 별개 노브)")
     ap.add_argument("--budget-source", default=None, help="그 예산을 그렇게 정한 근거(필수)")
     ap.add_argument("--model", default=None,
-                    help=f"위임 모델 선언(기본 {DEFAULT_CANARY_MODEL} · 어댑터는 모델을 막지 않는다)")
+                    help=f"위임 모델 선언(기본 = 백엔드의 기본 모델 · 어댑터는 모델을 막지 않는다)")
+    ap.add_argument("--backend", choices=backend_choices(), default=None,
+                    help="서브 러너 백엔드(생략 = anthropic). 러너를 바꿔 A2A 평면을 검증할 때 쓴다")
     ap.add_argument("--invoke", action="store_true",
                     help="조립 후 agent_control invoke 까지 실행한다(HITL 승인 뒤에만).")
     ap.add_argument("--self-test", action="store_true")
@@ -281,7 +294,7 @@ def main() -> int:
     manifest = a.manifest or os.path.join(REPO, "output", a.topology, "manifest.yaml")
     req = build_request(a.topology, manifest, max_turns=a.max_turns,
                         timeout_seconds=a.timeout_seconds, budget_source=a.budget_source,
-                        model=a.model)
+                        model=a.model, backend=a.backend)
     blob = json.dumps(req, ensure_ascii=False, indent=2) + "\n"
     if a.emit:
         with open(a.emit, "w", encoding="utf-8") as f:
