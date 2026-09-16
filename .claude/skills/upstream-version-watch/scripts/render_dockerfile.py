@@ -271,11 +271,17 @@ def load_resolved(path: str) -> dict:
 
 
 def load_manifest(path: str) -> dict:
-    """manifest.yaml 로드. pyyaml 있으면 사용, 없으면 flat-YAML 미니파서(stdlib)."""
+    """manifest.yaml 로드. pyyaml 있으면 사용, 없으면 flat-YAML 미니파서(stdlib).
+    FileNotFoundError 는 **삼키지 않는다** — sync_to_sub 의 prepare_transactional_source 가
+    resolve_render_input 으로 미리 채워두지 못한 입력이 누락된 정직한 실패이며, raw traceback 이
+    그대로 위로 올라가 sync_to_sub 가 rc=4 로 정규화한다(plan_26091607 · H1 fix).
+    """
     try:
         import yaml  # type: ignore
         with open(path, encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        raise
     except Exception:
         d = _load_yaml_flat(path)
         ic = _parse_interconnect_block(path)   # 폴백: 중첩 interconnect 블록 보강(Plan 2 — flat 파서가 못 읽음)
