@@ -1239,8 +1239,24 @@ prepare_transactional_source() {
     #   cross-worktree 해소(`resolve_render_input`)를 도입한다. required 항목은 어느 워크트리에도
     #   없으면 fail-closed (rc=4); optional 항목은 없으면 그대로 진행.
     local topology render_input _rri_rc
-    for topology in multi single; do
-        for render_input in manifest.yaml a2a_signing/main_ed25519.pem sub_manifest.yaml; do
+    # ★ plan_26091607 후속: required 를 topology 별로 분리(2026-09-16 · H4 전 단계 보강).
+    # multi 토폴로지는 a2a_signing 을 요구한다(A2A identity proof · policy:A2A_IDENTITY_PROOF_FAIL_CLOSED).
+    # multi 토폴로지는 sub_manifest.yaml 을 *요구하지 않는다* — sub_manifest 는 single 토폴로지에서만
+    # 발급된다(render_sub_env.py:1329 "multi(ray-worker): 서브 manifest 는 이 계획 범위 밖").
+    # 단일 required 목록을 모든 토폴로지에 적용하면 multi sync 가 의도하지 않게 STOP 되므로,
+    # 토폴로지별 required 화이트리스트로 갈래. H4 에서 multi 측 manifest 정식 발급 절차가
+    # 들어오면 이 화이트리스트는 그 절차의 부속 검증 자료로 흡수된다.
+    #
+    # 또한 dormant single 확장은 resolve_render_input 의 대상에서 제외한다 — single manifest 가
+    # 부재해 dormant(fail-closed) 처리되는 통로에서 single 측 required 를 fail-loud 하는 것은
+    # 의도하지 않은 STOP 이다. TARGETS 와 SINGLE_ACTIVE 는 332·1973 번 줄에서 확정되므로,
+    # 여기서는 그 값을 그대로 따른다.
+    local -A REQUIRED=(
+        [multi]="manifest.yaml a2a_signing/main_ed25519.pem"
+        [single]="manifest.yaml a2a_signing/main_ed25519.pem sub_manifest.yaml"
+    )
+    for topology in "${TARGETS[@]}"; do
+        for render_input in ${REQUIRED[$topology]}; do
             resolve_render_input "$topology" "$render_input" || return 4
         done
     done
