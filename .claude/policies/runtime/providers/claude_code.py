@@ -53,7 +53,7 @@ REASON_RUNNER_UNAVAILABLE = "RUNNER_UNAVAILABLE"
 #   2026-09-15: `meta`(Muse Spark · `meta-claude` shim) 추가. ⚠ shim 은 auto mode 의 안전 판정 호출까지
 #   자기 모델로 보낸다 — 그 엔드포인트가 판정에 응답하지 못하면 판정이 필요한 도구가 전부 선다
 #   (위임 `-p` 는 렌더된 `defaultMode: default` 를 타므로 판정 호출이 없다 · adapter.md §2.1).
-BACKEND_TO_BINARY = {
+BACKEND_TO_BINARY = {  # value = canonical .bashrc provider function (anthropic uses executable claude)
     "anthropic": "claude",
     "kimi": "kimi-claude",
     "minimax": "minimax-claude",
@@ -162,22 +162,23 @@ CAPABILITY_TO_TOOL = {
 def _inner_argv(request: dict) -> list[str]:
     allowed_tools = ",".join(tool for name in request["capabilities"]
                              for tool in CAPABILITY_TO_TOOL[name])
-    binary = BACKEND_TO_BINARY[request.get("backend") or "anthropic"]  # 스키마 밖 값은 KeyError fail-closed
-    argv = [
-        binary,
+    backend = request.get("backend") or "anthropic"
+    runner = BACKEND_TO_BINARY[backend]
+    claude_args = [
         "-p", request["task"],
         "--model", request["model"],
         "--output-format", "json",
         "--max-turns", str(request["max_turns"]),
         "--allowedTools", allowed_tools,
     ]
-    # 2026-09-03(P2 · plan_26090317): 턴제 릴레이. `input-required` 로 끊긴 세션에 답을 실어
-    #   **같은 세션을 잇는다** — 새 세션이면 서브가 컨텍스트를 처음부터 재구축하고, 그 비용이
-    #   곧 턴 소진의 주된 원인이었다(참고 프로젝트 e2e-lessons: max-turns 2/4 실패·6 성공).
     resume = request.get("resume_session_id")
     if isinstance(resume, str) and resume.strip():
-        argv += ["--resume", resume.strip()]
-    return argv
+        claude_args += ["--resume", resume.strip()]
+    if backend == "anthropic":
+        return [runner, *claude_args]
+    # Provider profiles are .bashrc functions backed by ~/.config/claude-providers/*.env,
+    # not executable shims. Positional forwarding avoids interpolating task text into shell code.
+    return ["bash", "-ic", f'{runner} "$@"', runner, *claude_args]
 
 
 def _ssh_destination(target: dict) -> str:
@@ -368,7 +369,8 @@ def invoke(request: dict) -> dict:
             # 러너 바이너리가 이 노드에 없다 — 사다리의 다음 칸은 있을 수 있으므로 회전 대상이다.
             return _runner_unavailable(request, {
                 "signal": "missing_binary", "rotate": True, "provenance": "measured",
-                "binary": argv[0], "detail": f"{argv[0]!r} 를 실행할 수 없다(PATH 부재)"}, None)
+                "binary": BACKEND_TO_BINARY[request.get("backend") or "anthropic"],
+                "detail": "선택한 provider profile 함수 또는 실행기를 사용할 수 없다"}, None)
         _diag(request, "NONZERO_EXIT",
               f"provider could not be executed: {type(exc).__name__}: {exc} · argv[0]={argv[0]!r}")
         return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
