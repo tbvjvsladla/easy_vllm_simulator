@@ -657,7 +657,8 @@ fi
 # 얹으면 전이가 없어 이벤트가 안 나온다. 그래서 clear → declare 순서로 전이를 강제한다.
 wait_budget_honored(){  # $1=events 파일 경로 $2=원격이면 "sub" · $3=선언 시각(epoch)
   local f="$1" where="$2" t0="$3" i line
-  for i in $(seq 1 15); do
+  # Watchdog heartbeat is 15s; allow two full cycles plus scheduling slack.
+  for i in $(seq 1 40); do
     if [ "$where" = "sub" ]; then
       line=$(timeout 15 $SSH -n "$SUB_HOST" "tail -20 '$f' 2>/dev/null | grep -F '\"budget_honored\"' | tail -1" 2>/dev/null || true)
     else
@@ -832,7 +833,7 @@ for r in (json.load(sys.stdin).get('reasons') or []): print('     · %s' % r)
       echo "[mn]   $where: budget_honored ✓ $hon"
       return 0
     fi
-    echo "[mn]   $where: budget_honored 미검출(15s) — 선언은 썼으나 워치독이 수락하지 않았다."
+    echo "[mn]   $where: budget_honored 미검출(40s) — 선언은 썼으나 워치독이 수락하지 않았다."
     echo "[mn]   $where: 확인 → systemctl is-active easy-vllm-blackbox-watchdog · tail $ev"
     echo "[mn]   $where: 흔한 원인 = arm 상한(floor-8192)이 최소 16384MiB 미만 → 워치독이 거부(선언으로 게이트를 실명시킬 수 없다)"
     return 1
