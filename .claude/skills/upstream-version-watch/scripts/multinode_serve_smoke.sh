@@ -655,21 +655,19 @@ fi
 # `budget_honored` 는 **상시 ETA 워치독**(systemd)이 선언 파일을 재평가해 찍는다. 그런데 그 로그는
 # **상태 전이에서만** 나온다(refresh_decl: state != BB_DECL_STATE) — 이미 honored 상태에서 새 선언을
 # 얹으면 전이가 없어 이벤트가 안 나온다. 그래서 clear → declare 순서로 전이를 강제한다.
-wait_budget_honored(){  # $1=events 파일 경로 $2=원격이면 "sub" · $3=선언 시각(epoch)
-  local f="$1" where="$2" t0="$3" i line
-  # Watchdog heartbeat is 15s; allow two full cycles plus scheduling slack.
+wait_budget_event(){  # $1=events path $2=main|sub $3=epoch lower bound $4=kind
+  local f="$1" where="$2" t0="$3" kind="$4" i line ets
   for i in $(seq 1 40); do
     if [ "$where" = "sub" ]; then
-      line=$(timeout 15 $SSH -n "$SUB_HOST" "tail -20 '$f' 2>/dev/null | grep -F '\"budget_honored\"' | tail -1" 2>/dev/null || true)
+      line=$(timeout 15 $SSH -n "$SUB_HOST" "tail -30 '$f' 2>/dev/null | grep -F '\"$kind\"' | tail -1" 2>/dev/null || true)
     else
-      line=$(tail -20 "$f" 2>/dev/null | grep -F '"budget_honored"' | tail -1 || true)
+      line=$(tail -30 "$f" 2>/dev/null | grep -F "\"$kind\"" | tail -1 || true)
     fi
     if [ -n "$line" ]; then
-      # 옛 이벤트를 새 것으로 오인하지 않는다 — 선언 시각 이후여야 한다.
-      local ets
       ets=$(printf '%s' "$line" | sed -n 's/.*"ts":"\([^"]*\)".*/\1/p')
       if [ -n "$ets" ] && [ "$(date -u -d "$ets" +%s 2>/dev/null || echo 0)" -ge "$t0" ]; then
-        printf '%s' "$line"; return 0
+        printf '%s' "$line"
+        return 0
       fi
     fi
     sleep 1
@@ -816,20 +814,29 @@ for r in (json.load(sys.stdin).get('reasons') or []): print('     · %s' % r)
       [ -n "$memtot" ] || { echo "[mn]   sub: MemTotal 조회 실패"; return 1; }
     fi
     ev="$nd/events/watchdog.jsonl"
-    t0=$(date +%s)
+    local clear_t0
+    clear_t0=$(date +%s)
     if [ "$where" = "main" ]; then
       python3 "$py" --node-dir "$nd" clear-budget --now "$(NOW_ISO)" >/dev/null 2>&1
+      wait_budget_event "$ev" main "$clear_t0" budget_none >/dev/null || {
+        echo "[mn]   main: clear-budget 상태 전이 미관측"; return 1; }
+      t0=$(date +%s)
       out=$(python3 "$py" --node-dir "$nd" declare-budget --mem-total-mib "$memtot" \
               --weights-mib "$WEIGHTS_MIB" --kv-mib "$KV_MIB" --overhead-mib "$OVERHEAD_MIB" \
               --ttl-s "$BUDGET_TTL_S" --expected-load-s "$READY_BUDGET_S" \
               --label "$BUDGET_LABEL" --now "$(NOW_ISO)" 2>&1) || {
         echo "[mn]   main: declare-budget 실패 — $out"; return 1; }
     else
-      out=$(timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $py --node-dir $nd clear-budget --now $(NOW_ISO) >/dev/null 2>&1; python3 $py --node-dir $nd declare-budget --mem-total-mib $memtot --weights-mib $WEIGHTS_MIB --kv-mib $KV_MIB --overhead-mib $OVERHEAD_MIB --ttl-s $BUDGET_TTL_S --expected-load-s $READY_BUDGET_S --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1) || {
+      timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $py --node-dir $nd clear-budget --now $(NOW_ISO)'" >/dev/null 2>&1 || {
+        echo "[mn]   sub: clear-budget 실패"; return 1; }
+      wait_budget_event "$ev" sub "$clear_t0" budget_none >/dev/null || {
+        echo "[mn]   sub: clear-budget 상태 전이 미관측"; return 1; }
+      t0=$(date +%s)
+      out=$(timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $py --node-dir $nd declare-budget --mem-total-mib $memtot --weights-mib $WEIGHTS_MIB --kv-mib $KV_MIB --overhead-mib $OVERHEAD_MIB --ttl-s $BUDGET_TTL_S --expected-load-s $READY_BUDGET_S --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1) || {
         echo "[mn]   sub: declare-budget 실패 — $out"; return 1; }
     fi
     printf '%s\n' "$out" | sed "s/^/[mn]   $where: /"
-    if hon=$(wait_budget_honored "$ev" "$([ "$where" = sub ] && echo sub || echo main)" "$t0"); then
+    if hon=$(wait_budget_event "$ev" "$([ "$where" = sub ] && echo sub || echo main)" "$t0" budget_honored); then
       echo "[mn]   $where: budget_honored ✓ $hon"
       return 0
     fi
