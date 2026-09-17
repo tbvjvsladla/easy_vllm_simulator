@@ -17,7 +17,7 @@ gitignored 스테이징 트리 `output/<topology>/sub_provision/` 로 렌더한�
   .claude/skills/wiki-desk/reference/references.md ← recipe의 on-demand 정적 reference dependency
   .gitignore                             ← gitignore.template         (복제·서브 로컬git 추적규칙, D12)
   docs/{plan,devlog,testlog,simlog,benchmark}/example.md ← terraforming owner templates (복제·발행 스켈레톤, D12)
-  campaigns/_bootstrap/relay/.gitkeep    ← 릴레이 원장 스캐폴드(옛 tasks/ · 2026-09-06 이관)
+  campaigns/_bootstrap/relay/            ← 런타임 디렉터리(마커도 비추적 · 옛 tasks/ 이관)
   campaigns/_template/**                 ← 캠페인 뼈대(메인 정본의 복제 — 서브도 같은 모양을 채운다)
 
 D12: --topology {single|multi} 로 양 토폴로지 렌더(서브 로컬 git 양 브랜치). {{ TOPOLOGY }} 치환으로 페르소나가 브랜치 맥락 인지.
@@ -552,12 +552,8 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     #    `campaigns/<camp-id>/` 를 자율 저작한다 — 메인은 서브의 인스턴스를 읽지도 고치지도
     #    않으며(무단 스캔 금지), 결과는 publish phase 가 만든 문서로 돌아온다.
     #    활성 캠페인이 없을 때의 릴레이 원장은 예약 id `_bootstrap` 아래로 간다.
-    for rel in ("campaigns/_bootstrap/relay/.gitkeep",):
-        _p = os.path.join(out_dir, *rel.split("/"))
-        os.makedirs(os.path.dirname(_p), exist_ok=True)
-        with open(_p, "w") as f:
-            f.write("")
-        produced.append(rel)
+    # _bootstrap is runtime-only. Keep its directory in the rendered filesystem, but never
+    # create a marker that sub git add -A could preserve as a tracked campaign artifact.
     _tpl_src = os.path.join(REPO, "campaigns", "_template")
     # 부재를 조용히 건너뛰지 않는다 — 2026-09-06 실측: sync_to_sub 의 트랜잭션 소스 경로 목록에
     # `campaigns` 가 없어 뼈대가 도착하지 않았는데, 옛 판본의 `if isdir(...)` 이 그것을 **정상**
@@ -872,7 +868,7 @@ def _self_test() -> int:
         res = render_tree(ph, out, copy_runtime_block=False)  # 런타임블럭 복제는 git 의존 → self-test 제외
         base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json",
-                       ".claude/schemas/library-exchange.schema.json", "campaigns/_bootstrap/relay/.gitkeep",
+                       ".claude/schemas/library-exchange.schema.json",
                        "campaigns/README.md",
                        ".claude/rules/docs.md", ".gitignore",   # ← references.md 는 tool_plane 종속(아래 c4b)
                        # 특화헌법: 서브가 자기 토폴로지의 헌법을 받는지 fail-loud 로 확인한다
