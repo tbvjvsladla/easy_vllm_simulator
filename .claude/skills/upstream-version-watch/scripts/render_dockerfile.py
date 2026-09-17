@@ -68,7 +68,10 @@ NCCL_PRESETS = {
         "NCCL_IB_MERGE_NICS": "1",
         "NCCL_IB_QPS_PER_CONNECTION": "4",
         "NCCL_IB_SPLIT_DATA_ON_QPS": "0",
-        "NCCL_NET_GDR_LEVEL": "SYS",
+        # GB10/CUDA13: forcing SYS selects an RDMA registration path that failed on both
+        # large and small TP=2 models (`ibv_reg_mr_iova2: Cannot allocate memory`). LOC is the
+        # approved OFAT diagnostic; performance remains a separate benchmark question.
+        "NCCL_NET_GDR_LEVEL": "LOC",
         "NCCL_NET_GDR_C2C": "1",
         "NCCL_NET_GDR_READ": "1",
         "NCCL_CROSS_NIC": "1",
