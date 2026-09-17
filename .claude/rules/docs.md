@@ -164,7 +164,7 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 | `seed/` | private/untracked | 배포본에 없을 수 있음 | 근거 pointer만 허용 |
 | `campaigns/README.md`·`campaigns/_template/**` | **tracked**(뼈대) | main→sub 오버레이 설치 · branch sync 대상 | `terraforming_node`; `campaign_template_validator.py` |
 | `campaigns/<camp-id>/**` | ignored(휘발) | 전파 ✗ — 서브는 자기 인스턴스를 자율 저작하고 결과는 문서로 회수 | 새 캠페인 init 의 purge 게이트(workflow.md) |
-| **파생 선언**(`campaign_init --emit-slice <node>` 산출) | ignored(휘발) | **메인→서브 단방향**(지시서 본문에 실려 간다 · 2026-09-08 · `plan_26090813` §4.2) | 배정 SSOT 는 메인 `assignments` · 서브는 `--init --from-slice` 로 자기 인스턴스를 연다(`self_role: sub`) |
+| **파생 선언**(`campaign_init --emit-slice <node>` 산출) | ignored(휘발) | **메인→서브 단방향**(독립 campaign executor만 relay 지시서 JSON→stdin으로 전달 · 2026-09-18) | 배정 SSOT 는 메인 `assignments`; sub는 `--init --from-slice -`로 stdin 선언을 소비한다. `--from-slice <PATH>`는 호환 입력이며, 독립 instance를 열지 않는 sub mode에는 보내지 않는다. |
 | ~~`tasks/`~~ | **폐지 2026-09-06** | — | 후속 = `campaigns/<camp-id>/relay/` (활성 캠페인 없으면 `_bootstrap`) |
 
 simlog·benchmark에 폴더별 ignore 예외를 더하지 않는다. report는 tracked allowlist 행 하나로 평탄화하며, `docs/report/` 전체가 배포된다.

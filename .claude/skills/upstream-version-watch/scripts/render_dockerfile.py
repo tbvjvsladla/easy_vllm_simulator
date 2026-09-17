@@ -68,9 +68,19 @@ NCCL_PRESETS = {
         "NCCL_IB_MERGE_NICS": "1",
         "NCCL_IB_QPS_PER_CONNECTION": "4",
         "NCCL_IB_SPLIT_DATA_ON_QPS": "0",
-        "NCCL_NET_GDR_LEVEL": "SYS",
-        "NCCL_NET_GDR_C2C": "1",
-        "NCCL_NET_GDR_READ": "1",
+        # GB10/CUDA13: forcing SYS selects an RDMA registration path that failed on both
+        # large and small TP=2 models (`ibv_reg_mr_iova2: Cannot allocate memory`). LOC is the
+        # approved OFAT diagnostic; performance remains a separate benchmark question.
+        "NCCL_NET_GDR_LEVEL": "LOC",
+        # LOC alone still selected DMABUF GDR on GB10 because the C2C override remained active.
+        # Approved second OFAT: disable only that override before considering broader GDR disablement.
+        "NCCL_NET_GDR_C2C": "0",
+        # LOC+C2C=0+DMABUF=0 still failed general ibv_reg_mr_iova2 registration.
+        # Approved final fine-grained OFAT: disable GPU-buffer GDR reads while retaining IB.
+        "NCCL_NET_GDR_READ": "0",
+        # LOC+C2C=0 still selected `GPU Direct RDMA (DMABUF)` and failed ibv_reg_mr_iova2.
+        # Approved third OFAT disables only DMA-BUF registration while retaining IB/RoCE.
+        "NCCL_DMABUF_ENABLE": "0",
         "NCCL_CROSS_NIC": "1",
     },
     # 튜닝 0 프리셋 — 비-DGX 플랫폼의 "시도→comms 스모크 중재" 경로(전방호환 시도-우선 따름정리 ·
@@ -81,7 +91,12 @@ NCCL_PRESETS = {
 NCCL_INVARIANTS = {                     # ③ universal — 인터커넥트 무관 디버그/안전
     "NCCL_DEBUG": "INFO",
     "NCCL_DEBUG_SUBSYS": "INIT,NET,GRAPH,ENV",
-    "NCCL_IB_DISABLE": "0",            # RoCE 상존 전제(dgx-spark). 비-RDMA 프리셋 생기면 ②로 이동(seam)
+    # GB10 TP=2 functional baseline after all fine-grained GDR controls still failed
+    # ibv_reg_mr_iova2. Socket transport isolates Ray/vLLM functionality from the IB path.
+    "NCCL_IB_DISABLE": "1",
+    # NCCL_IB_DISABLE does not suppress external IBext plugins. Force the documented internal
+    # Socket network for the functional baseline so no verbs plugin can still register memory.
+    "NCCL_NET": "Socket",            # RoCE 상존 전제(dgx-spark). 비-RDMA 프리셋 생기면 ②로 이동(seam)
 }
 # socket_iface 한 값을 참조하는 ① env 키들(NCCL bootstrap·gloo·torch·UCX·OpenMPI).
 _IFACE_ENV_KEYS = ("NCCL_SOCKET_IFNAME", "GLOO_SOCKET_IFNAME", "TP_SOCKET_IFNAME",
@@ -986,7 +1001,8 @@ def _self_test() -> None:
         only_r = {k: rendered[k] for k in rendered if golden.get(k) != rendered[k]}
         only_g = {k: golden[k] for k in golden if rendered.get(k) != golden[k]}
         raise AssertionError(f"NCCL 렌더 != golden(집합 동치 위반)\n  rendered-side={only_r}\n  golden-side={only_g}")
-    _require(len(rendered) == 17, f"NCCL 17키 기대, got {len(rendered)}")
+    _require(len(rendered) == len(golden),
+             f"NCCL 키 수는 golden에서 파생되어야 한다({len(golden)} 기대, got {len(rendered)})")
     # fail-loud ①: 미지 platform_preset → KeyError
     try:
         build_nccl_env({"interconnect": {**man_ic["interconnect"], "platform_preset": "no-such-preset"}})

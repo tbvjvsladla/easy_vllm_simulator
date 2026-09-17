@@ -655,20 +655,19 @@ fi
 # `budget_honored` 는 **상시 ETA 워치독**(systemd)이 선언 파일을 재평가해 찍는다. 그런데 그 로그는
 # **상태 전이에서만** 나온다(refresh_decl: state != BB_DECL_STATE) — 이미 honored 상태에서 새 선언을
 # 얹으면 전이가 없어 이벤트가 안 나온다. 그래서 clear → declare 순서로 전이를 강제한다.
-wait_budget_honored(){  # $1=events 파일 경로 $2=원격이면 "sub" · $3=선언 시각(epoch)
-  local f="$1" where="$2" t0="$3" i line
-  for i in $(seq 1 15); do
+wait_budget_event(){  # $1=events path $2=main|sub $3=epoch lower bound $4=kind
+  local f="$1" where="$2" t0="$3" kind="$4" i line ets
+  for i in $(seq 1 40); do
     if [ "$where" = "sub" ]; then
-      line=$(timeout 15 $SSH -n "$SUB_HOST" "tail -20 '$f' 2>/dev/null | grep -F '\"budget_honored\"' | tail -1" 2>/dev/null || true)
+      line=$(timeout 15 $SSH -n "$SUB_HOST" "tail -30 '$f' 2>/dev/null | grep -F '\"$kind\"' | tail -1" 2>/dev/null || true)
     else
-      line=$(tail -20 "$f" 2>/dev/null | grep -F '"budget_honored"' | tail -1 || true)
+      line=$(tail -30 "$f" 2>/dev/null | grep -F "\"$kind\"" | tail -1 || true)
     fi
     if [ -n "$line" ]; then
-      # 옛 이벤트를 새 것으로 오인하지 않는다 — 선언 시각 이후여야 한다.
-      local ets
       ets=$(printf '%s' "$line" | sed -n 's/.*"ts":"\([^"]*\)".*/\1/p')
       if [ -n "$ets" ] && [ "$(date -u -d "$ets" +%s 2>/dev/null || echo 0)" -ge "$t0" ]; then
-        printf '%s' "$line"; return 0
+        printf '%s' "$line"
+        return 0
       fi
     fi
     sleep 1
@@ -695,14 +694,14 @@ if [ "$BUDGET" = "1" ]; then
     echo "     왜: overhead 를 낮게 잡으면 선언 바닥이 높아져 정상 서빙이 무장 밴드에 들어간다(사살 실적)." >&2
     echo "     어떻게: SMOKE_BUDGET_OVERHEAD_MIB=<n> 로 넘겨라. 모르면 로드 완료 후" >&2
     echo "     (MemTotal − MemAvailable) − weights − kv 를 재서 그 값을 쓴다." >&2
-    return 2
+    exit 4
   fi
   # TTL 파생: 스모크 자신의 로드 타임아웃(READY_MAX×5s)의 3배 — 로드 도중 만료를 구조적으로 배제한다.
   #   현행 기본 7200s 는 하한으로 남긴다(둘 중 큰 값). 상한 86400 은 blackbox_session 이 강제한다.
   READY_BUDGET_S=$READY_WINDOW_S
   # TTL 하한은 **단일 소유자**(blackbox_session)에게 묻는다 — 여기에 숫자를 다시 적지 않는다(G-B2).
   _TTL_FLOOR="$(python3 "$MAIN_SESSION_PY" --node-dir . budget-defaults --field ttl_s 2>/dev/null || echo)"
-  case "$_TTL_FLOOR" in ''|*[!0-9]*) echo "[mn] FAIL: 예산 TTL 기본값을 blackbox_session 에서 읽지 못했다" >&2; return 2;; esac
+  case "$_TTL_FLOOR" in ''|*[!0-9]*) echo "[mn] FAIL: 예산 TTL 기본값을 blackbox_session 에서 읽지 못했다" >&2; exit 4;; esac
   BUDGET_TTL_S=$(( READY_BUDGET_S * 3 )); [ "$BUDGET_TTL_S" -lt "$_TTL_FLOOR" ] && BUDGET_TTL_S="$_TTL_FLOOR"
   [ "$BUDGET_TTL_S" -gt 86400 ] && BUDGET_TTL_S=86400
 
@@ -768,14 +767,14 @@ if [ "$BUDGET" = "1" ]; then
   _PF_RC=$?
   if [ "$_PF_RC" != "0" ] && [ "$_PF_RC" != "4" ]; then
     echo "[mn] FAIL: 예산 선판정을 수행하지 못했다(rc=$_PF_RC) — $_PF" >&2
-    return 2
+    exit 4
   fi
   _pf(){ printf '%s' "$_PF" | python3 -c "import json,sys;print(json.load(sys.stdin).get(sys.argv[1]))" "$1" 2>/dev/null; }
   _PRED_FLOOR="$(_pf floor_mib)"; _PRED_CEIL="$(_pf arm_ceiling_mib)"
   _OH_MAX="$(_pf overhead_max_mib)"; _WD_MIN_CEIL="$(_pf decl_min_ceiling_mib)"
   _MEMTOT_MAIN=$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)
   case "${_PRED_FLOOR}${_PRED_CEIL}" in ''|*None*)
-    echo "[mn] FAIL: 선판정 산출을 읽지 못했다 — $_PF" >&2; return 2;;
+    echo "[mn] FAIL: 선판정 산출을 읽지 못했다 — $_PF" >&2; exit 4;;
   esac
   echo "[mn] 예산 선판정: 예상 바닥=${_PRED_FLOOR}MiB → arm 상한=${_PRED_CEIL}MiB (가드 최소 ${_WD_MIN_CEIL}MiB)"
   echo "[mn] declared-gmu 기재(게이트 ✗): $(printf '%s' "$_PF" | python3 -c "
@@ -805,7 +804,7 @@ for r in (json.load(sys.stdin).get('reasons') or []): print('     · %s' % r)
   fi
 
   declare_one(){ # $1=main|sub → 0=honored · 비0=실패(사유는 표준출력)
-    local where="$1" nd py memtot t0 ev out hon
+    local where="$1" nd py memtot t0 ev out hon had_decl
     if [ "$where" = "main" ]; then
       nd="$(budget_node_dir_main)"; py="$MAIN_SESSION_PY"
       memtot=$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)
@@ -815,24 +814,39 @@ for r in (json.load(sys.stdin).get('reasons') or []): print('     · %s' % r)
       [ -n "$memtot" ] || { echo "[mn]   sub: MemTotal 조회 실패"; return 1; }
     fi
     ev="$nd/events/watchdog.jsonl"
-    t0=$(date +%s)
+    local clear_t0
+    clear_t0=$(date +%s)
     if [ "$where" = "main" ]; then
+      [ -f "$nd/serve_budget.env" ] && had_decl=1 || had_decl=0
       python3 "$py" --node-dir "$nd" clear-budget --now "$(NOW_ISO)" >/dev/null 2>&1
+      if [ "$had_decl" = 1 ]; then
+        wait_budget_event "$ev" main "$clear_t0" budget_none >/dev/null || {
+          echo "[mn]   main: clear-budget 상태 전이 미관측"; return 1; }
+      fi
+      t0=$(date +%s)
       out=$(python3 "$py" --node-dir "$nd" declare-budget --mem-total-mib "$memtot" \
               --weights-mib "$WEIGHTS_MIB" --kv-mib "$KV_MIB" --overhead-mib "$OVERHEAD_MIB" \
               --ttl-s "$BUDGET_TTL_S" --expected-load-s "$READY_BUDGET_S" \
               --label "$BUDGET_LABEL" --now "$(NOW_ISO)" 2>&1) || {
         echo "[mn]   main: declare-budget 실패 — $out"; return 1; }
     else
-      out=$(timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $py --node-dir $nd clear-budget --now $(NOW_ISO) >/dev/null 2>&1; python3 $py --node-dir $nd declare-budget --mem-total-mib $memtot --weights-mib $WEIGHTS_MIB --kv-mib $KV_MIB --overhead-mib $OVERHEAD_MIB --ttl-s $BUDGET_TTL_S --expected-load-s $READY_BUDGET_S --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1) || {
+      had_decl=$(timeout 15 $SSH -n "$SUB_HOST" "test -f '$nd/serve_budget.env' && echo 1 || echo 0" 2>/dev/null || echo 0)
+      timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $py --node-dir $nd clear-budget --now $(NOW_ISO)'" >/dev/null 2>&1 || {
+        echo "[mn]   sub: clear-budget 실패"; return 1; }
+      if [ "$had_decl" = 1 ]; then
+        wait_budget_event "$ev" sub "$clear_t0" budget_none >/dev/null || {
+          echo "[mn]   sub: clear-budget 상태 전이 미관측"; return 1; }
+      fi
+      t0=$(date +%s)
+      out=$(timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $py --node-dir $nd declare-budget --mem-total-mib $memtot --weights-mib $WEIGHTS_MIB --kv-mib $KV_MIB --overhead-mib $OVERHEAD_MIB --ttl-s $BUDGET_TTL_S --expected-load-s $READY_BUDGET_S --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1) || {
         echo "[mn]   sub: declare-budget 실패 — $out"; return 1; }
     fi
     printf '%s\n' "$out" | sed "s/^/[mn]   $where: /"
-    if hon=$(wait_budget_honored "$ev" "$([ "$where" = sub ] && echo sub || echo main)" "$t0"); then
+    if hon=$(wait_budget_event "$ev" "$([ "$where" = sub ] && echo sub || echo main)" "$t0" budget_honored); then
       echo "[mn]   $where: budget_honored ✓ $hon"
       return 0
     fi
-    echo "[mn]   $where: budget_honored 미검출(15s) — 선언은 썼으나 워치독이 수락하지 않았다."
+    echo "[mn]   $where: budget_honored 미검출(40s) — 선언은 썼으나 워치독이 수락하지 않았다."
     echo "[mn]   $where: 확인 → systemctl is-active easy-vllm-blackbox-watchdog · tail $ev"
     echo "[mn]   $where: 흔한 원인 = arm 상한(floor-8192)이 최소 16384MiB 미만 → 워치독이 거부(선언으로 게이트를 실명시킬 수 없다)"
     return 1

@@ -17,7 +17,7 @@ gitignored 스테이징 트리 `output/<topology>/sub_provision/` 로 렌더한�
   .claude/skills/wiki-desk/reference/references.md ← recipe의 on-demand 정적 reference dependency
   .gitignore                             ← gitignore.template         (복제·서브 로컬git 추적규칙, D12)
   docs/{plan,devlog,testlog,simlog,benchmark}/example.md ← terraforming owner templates (복제·발행 스켈레톤, D12)
-  campaigns/_bootstrap/relay/.gitkeep    ← 릴레이 원장 스캐폴드(옛 tasks/ · 2026-09-06 이관)
+  campaigns/_bootstrap/relay/            ← 런타임 디렉터리(마커도 비추적 · 옛 tasks/ 이관)
   campaigns/_template/**                 ← 캠페인 뼈대(메인 정본의 복제 — 서브도 같은 모양을 채운다)
 
 D12: --topology {single|multi} 로 양 토폴로지 렌더(서브 로컬 git 양 브랜치). {{ TOPOLOGY }} 치환으로 페르소나가 브랜치 맥락 인지.
@@ -421,10 +421,8 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     claude = os.path.join(out_dir, ".claude")
     os.makedirs(os.path.join(claude, "rules"), exist_ok=True)
     os.makedirs(os.path.join(claude, "schemas"), exist_ok=True)
-    # 2026-09-06(plan_26090616 ②): 옛 릴레이 원장 루트 `tasks/` 는 폐지됐다. 빈 디렉터리를
-    #   남기면 배달 게이트가 "undeclared transfer artifact" 로 막고(실측), 막지 않더라도
-    #   서브에게 "여기가 원장 자리다" 라고 계속 말한다. 새 자리는 campaigns/_bootstrap/relay/ 다.
-    os.makedirs(os.path.join(out_dir, "campaigns", "_bootstrap", "relay"), exist_ok=True)
+    # Runtime campaign directories are created on demand by campaign_init/relay. The rendered
+    # transfer tree must not contain an empty _bootstrap directory or a tracked marker.
 
     produced: list[str] = []
 
@@ -552,12 +550,8 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     #    `campaigns/<camp-id>/` 를 자율 저작한다 — 메인은 서브의 인스턴스를 읽지도 고치지도
     #    않으며(무단 스캔 금지), 결과는 publish phase 가 만든 문서로 돌아온다.
     #    활성 캠페인이 없을 때의 릴레이 원장은 예약 id `_bootstrap` 아래로 간다.
-    for rel in ("campaigns/_bootstrap/relay/.gitkeep",):
-        _p = os.path.join(out_dir, *rel.split("/"))
-        os.makedirs(os.path.dirname(_p), exist_ok=True)
-        with open(_p, "w") as f:
-            f.write("")
-        produced.append(rel)
+    # _bootstrap is runtime-only. Keep its directory in the rendered filesystem, but never
+    # create a marker that sub git add -A could preserve as a tracked campaign artifact.
     _tpl_src = os.path.join(REPO, "campaigns", "_template")
     # 부재를 조용히 건너뛰지 않는다 — 2026-09-06 실측: sync_to_sub 의 트랜잭션 소스 경로 목록에
     # `campaigns` 가 없어 뼈대가 도착하지 않았는데, 옛 판본의 `if isdir(...)` 이 그것을 **정상**
@@ -578,21 +572,20 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 shutil.copy2(_abs, _dst)
                 produced.append(_rel.replace(os.sep, "/"))
 
-    # 4.1) 캠페인 **채우는 손**(2026-09-08 · plan_26090813 §4.2). 싱글(A2A) 서브만 받는다 —
-    #      멀티의 sub 는 Ray 워커라 캠페인을 저작하는 주체가 아니다(불변식 A).
-    if ph.get("SUB_MODE") == "a2a-agent":
-        _ci_src = os.path.join(REPO, ".claude", "skills", "terraforming_node", "scripts")
-        _ci_dst = os.path.join(claude, "skills", "terraforming_node", "scripts")
-        os.makedirs(_ci_dst, exist_ok=True)
-        for _tool in CAMPAIGN_TOOLS:
-            _abs = os.path.join(_ci_src, _tool)
-            if not os.path.isfile(_abs):
-                raise SystemExit(
-                    f"[render] FAIL: 캠페인 도구가 없다 — {_abs}\n"
-                    f"   뼈대만 보내고 채우는 손을 안 보내면 서브의 호출부 가드가 침묵 no-op 이 된다\n"
-                    f"   (2026-09-07 실측: phases/sub/* 가 캠페인 종료 후 메인 손으로 나타났다).")
-            shutil.copy2(_abs, os.path.join(_ci_dst, _tool))
-            produced.append(f".claude/skills/terraforming_node/scripts/{_tool}")
+    # 4.1) Campaign state writer/validator are orchestration infrastructure, not runtime strategy
+    # skills. Both a2a-agent and ray-worker subs must write their own phase/brief facts; otherwise
+    # the main can only fabricate phases/sub after the run (P2/P3/P4 wiring failure).
+    _ci_src = os.path.join(REPO, ".claude", "skills", "terraforming_node", "scripts")
+    _ci_dst = os.path.join(claude, "skills", "terraforming_node", "scripts")
+    os.makedirs(_ci_dst, exist_ok=True)
+    for _tool in CAMPAIGN_TOOLS:
+        _abs = os.path.join(_ci_src, _tool)
+        if not os.path.isfile(_abs):
+            raise SystemExit(
+                f"[render] FAIL: 캠페인 도구가 없다 — {_abs}\n"
+                "   뼈대만 보내고 채우는 손을 안 보내면 phases/sub가 실행자 0이 된다.")
+        shutil.copy2(_abs, os.path.join(_ci_dst, _tool))
+        produced.append(f".claude/skills/terraforming_node/scripts/{_tool}")
 
     # ★ 2026-09-07(plan_26090715 §5 ⑤ · 유예 결함 ⑤): `campaigns/README.md` 도 함께 보낸다.
     #   뼈대 파일은 도착하는데 **읽는 법**이 안 도착했다 — README 가 Agent 읽기 순서(0번
@@ -872,7 +865,7 @@ def _self_test() -> int:
         res = render_tree(ph, out, copy_runtime_block=False)  # 런타임블럭 복제는 git 의존 → self-test 제외
         base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json",
-                       ".claude/schemas/library-exchange.schema.json", "campaigns/_bootstrap/relay/.gitkeep",
+                       ".claude/schemas/library-exchange.schema.json",
                        "campaigns/README.md",
                        ".claude/rules/docs.md", ".gitignore",   # ← references.md 는 tool_plane 종속(아래 c4b)
                        # 특화헌법: 서브가 자기 토폴로지의 헌법을 받는지 fail-loud 로 확인한다
@@ -1036,7 +1029,7 @@ def _self_test() -> int:
         #   ① 있어야 할 2개가 있다 ② 그 밖의 terraforming 스크립트가 새지 않았다.
         _tn = os.path.join(_out, ".claude", "skills", "terraforming_node", "scripts")
         _tn_files = sorted(os.listdir(_tn)) if os.path.isdir(_tn) else []
-        _tn_want = sorted(CAMPAIGN_TOOLS) if _topo == "single" else []
+        _tn_want = sorted(CAMPAIGN_TOOLS)
         _tn_ok = _tn_files == _tn_want
         # 해소 자산은 싱글 서브에 가지 않는다 — 가면 서브가 스스로 해소할 이유가 없어진다(F4).
         _res = os.path.exists(os.path.join(
