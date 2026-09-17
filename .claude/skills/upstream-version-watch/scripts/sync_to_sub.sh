@@ -1135,6 +1135,7 @@ transactional_exit() {
     cleanup_transactional_source
     exit "$rc"
 }
+
 prepare_transactional_source() {
     # Rendering is intentionally destructive/idempotent inside its output root.  Never point it at
     # the caller's canonical working tree: dry-run must be byte/mode read-only, and apply preflight
@@ -1180,14 +1181,29 @@ prepare_transactional_source() {
     #   만들면 이 경로 목록도 함께 갱신해야 한다(ALLOWLIST·MIRROR_DIRS 와 같은 계열의 표면).
     git -C "$CANONICAL_SRC" ls-files -z -- .claude CLAUDE.md .gitignore campaigns output/multi output/single \
         | git -C "$CANONICAL_SRC" checkout-index -z --stdin --prefix="$TRANSACTIONAL_SRC/"
-    local topology render_input
-    for topology in multi single; do
-        for render_input in manifest.yaml a2a_signing/main_ed25519.pem sub_manifest.yaml; do
-            [ -f "${CANONICAL_SRC}output/$topology/$render_input" ] || continue
-            mkdir -p "$(dirname "$TRANSACTIONAL_SRC/output/$topology/$render_input")"
-            install -m 0600 "${CANONICAL_SRC}output/$topology/$render_input" \
-                "$TRANSACTIONAL_SRC/output/$topology/$render_input"
-        done
+    # ★ plan_26091607 (H2·H3): filesystem-exception 루프의 침묵 스킵(`|| continue`)을 fail-loud 로 뒤집고,
+    #   cross-worktree 해소(`resolve_render_input`)를 도입한다. required 항목은 어느 워크트리에도
+    #   없으면 fail-closed (rc=4); optional 항목은 없으면 그대로 진행.
+    local topology render_input src_input dst_input
+    for topology in "${TARGETS[@]}"; do
+        render_input="manifest.yaml"
+        src_input="${CANONICAL_SRC}output/$topology/$render_input"
+        dst_input="$TRANSACTIONAL_SRC/output/$topology/$render_input"
+        if [ ! -f "$src_input" ]; then
+            echo "[sync] FAIL: required render input missing: output/$topology/$render_input" >&2
+            return 4
+        fi
+        mkdir -p "$(dirname "$dst_input")" || return 9
+        install -m 0600 "$src_input" "$dst_input" || return 9
+        render_input="sub_manifest.yaml"
+        src_input="${CANONICAL_SRC}output/$topology/$render_input"
+        dst_input="$TRANSACTIONAL_SRC/output/$topology/$render_input"
+        if [ -f "$src_input" ]; then
+            mkdir -p "$(dirname "$dst_input")" || return 9
+            install -m 0600 "$src_input" "$dst_input" || return 9
+        else
+            echo "[sync] info: optional render input absent: output/$topology/$render_input" >&2
+        fi
     done
     SRC="$TRANSACTIONAL_SRC/"
     RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"

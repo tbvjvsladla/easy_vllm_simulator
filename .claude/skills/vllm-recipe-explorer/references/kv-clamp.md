@@ -39,10 +39,10 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
   잔차를 **기재만** 하고 게이트로 쓰지 않는다(overhead(gmu) 함수형은 기재가 쌓인 뒤 별도 결정 · plan §9 R4).
   ⚠ 그 산식은 **통합메모리 전제**다(MemTotal = 디바이스 풀). discrete GPU 에서는 MemTotal 이 호스트 RAM 이라 몫·잔차가 vLLM
   몫을 뜻하지 않는다 — 기재 행이 `premise` 필드로 그 전제를 스스로 밝히며, 판정에 쓰지 않는다.
-  ⚠ **헌법층 미결**: 정책 `KV_ABSOLUTE_CLAMP_PORTABILITY.C2` 문장(`.claude/policies/registry.yaml` — "startup free-memory gate
-  and total cap")과 그 술어(`claim_predicates.py` C2 — 생성 주석 줄에 `startup free-memory 게이트`·`cap` 을 요구)는 이 단계에서
-  고치지 않았다(plan §1 범위 밖 · 기초레이어). 위 문장은 C2 를 부정하지 않고 그 "total cap" 을 관측으로 한정한다. C2 문장의
-  관측/기전 분리와 술어 앵커 강화는 사람 결정(HITL) 후속이다.
+  C2 문장·술어의 정본 = `registry.yaml` 의 `KV_ABSOLUTE_CLAMP_PORTABILITY.C2`(관측/기전 분리 — 2026-09-15 확정 ·
+  plan_26091523 §4 (d))와 `claim_predicates.py` 의 `predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C2` 다. 술어는 생성
+  주석을 닫힌 리터럴(`C2_GMU_EMIT_COMMENT`)로 요구하므로, 이 §1 의 관측 서술과 생성기 주석이 갈라지면 술어가
+  울린다(의도된 결합 — 리뷰 강제). 위 문장은 C2 를 부정하지 않고 그 "total cap" 을 관측으로 한정한다.
 - 이식성 = 선언된 절대 필요량(weights+overhead+kv) 이상 GPU 서 동일 구동(작은 GPU 자동맞춤 ✗, GPU당 값이라 TP 의존).
 
 ## 2. 타겟-GPU 이식형 예산 (host≠target — `plan_26070809_47_07`)

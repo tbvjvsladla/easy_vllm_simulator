@@ -271,20 +271,20 @@ def load_resolved(path: str) -> dict:
 
 
 def load_manifest(path: str) -> dict:
-    """manifest.yaml 로드. pyyaml 있으면 사용, 없으면 flat-YAML 미니파서(stdlib)."""
+    """Load a manifest; use the stdlib parser only when PyYAML itself is unavailable."""
     try:
         import yaml  # type: ignore
-        with open(path, encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
-    except Exception:
+    except ImportError:
         d = _load_yaml_flat(path)
-        ic = _parse_interconnect_block(path)   # 폴백: 중첩 interconnect 블록 보강(Plan 2 — flat 파서가 못 읽음)
+        ic = _parse_interconnect_block(path)
         if ic:
             d["interconnect"] = ic
-        nodes = _parse_nodes_block(path)       # 폴백: 중첩 nodes[] 블록 보강(S6 — .env.cluster 가 소비)
+        nodes = _parse_nodes_block(path)
         if nodes:
             d["nodes"] = nodes
         return d
+    with open(path, encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
 
 
 def _load_yaml_flat(path: str) -> dict:

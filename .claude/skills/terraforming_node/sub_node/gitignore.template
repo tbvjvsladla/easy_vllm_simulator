@@ -8,7 +8,14 @@ __pycache__/
 *.py[cod]
 *.so
 
-# ── A2A 런타임 세션 상태 + per-run 스크립트 스크래치(파일=세션 — 추적 안 함) ──
+# ── 캠페인 런타임 인스턴스 ──
+# 메인과 동일하게 틀(README.md + _template/**)만 추적한다. ACTIVE, _bootstrap 및
+# campaigns/<camp-id>/**(cmap/phase/cell/relay 중간 산출물 포함)는 checkout 대상이 아니다.
+/campaigns/*
+!/campaigns/_template/
+!/campaigns/README.md
+
+# 폐지된 옛 원장 경로의 방어심층(새 원장은 campaigns/* 아래라 위 규칙이 덮는다).
 tasks/*
 !tasks/.gitkeep
 # ── tiktoken 에어갭 자산(gpt-oss o200k — 서브가 사전적재/자체복구. 호스트 자산·배포물 아님, 메인 .gitignore 정합) ──

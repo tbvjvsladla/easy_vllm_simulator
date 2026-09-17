@@ -399,6 +399,7 @@
             "enum": [
               "sync_to_sub",
               "sync_branches",
+              "a2a_delegate",
               "hint_create",
               "hint_finalize",
               "hint_verify",

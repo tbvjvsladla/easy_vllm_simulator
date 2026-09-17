@@ -123,9 +123,9 @@ def _build_yaml(parsed, recipe, served_model_name, port=8000):
     #   찍히는 줄에는 수치를 싣지 않고** 수치·유효맥락의 정본 서술 자리(`references/kv-clamp.md` §1)를 가리킨다
     #   (2026-09-14 · ⑧ 분석 발견 T4). 그래서 emit 주석은 관측과 기전을 가른다:
     # "총량 cap" 은 관측된 작용으로 남기고 기전은 미확정으로 적는다(종전 주석은 둘을 한 문장의 기전 주장으로 적었다).
-    # ⚠ 정책 KV_ABSOLUTE_CLAMP_PORTABILITY.C2 문장(registry.yaml "startup free-memory gate and total cap")과 그 술어
-    #   (claim_predicates C2 — 이 줄에 'startup free-memory 게이트'·'cap' 을 요구)는 헌법층이라 이 단계에서 고치지 않는다.
-    #   이 주석은 C2 를 부정하지 않고 그 "cap" 을 관측으로 한정한다 — C2 문장의 관측/기전 분리는 사람 결정(HITL) 후속이다.
+    # C2 문장·술어의 정본 = registry.yaml KV_ABSOLUTE_CLAMP_PORTABILITY.C2(관측/기전 분리 · 2026-09-15 확정)와
+    #   claim_predicates.predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C2 다 — 술어는 아래 emit 주석을 **닫힌 리터럴**
+    #   (C2_GMU_EMIT_COMMENT)로 요구한다. 이 줄을 고치면 술어가 울리고, 그것은 의도된 결합이다(리뷰 강제).
     # 통합메모리(GB10 free/total≈0.91)는 기본 0.92 가 그 기동 전 검사에서 막히므로 gmu ≤ 0.90 명시가 필수다.
     if kv_bytes is not None:
         lines.append("# gpu-memory-utilization = startup free-memory 게이트(기동 전 free ≥ ceil(total×gmu) · 통합메모리 ≤0.90) + 총량 cap 은 관측된 작용(한 셀 관측 · 유효맥락 kv-clamp.md §1 · vLLM 소스에서 기전 미확정); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어")

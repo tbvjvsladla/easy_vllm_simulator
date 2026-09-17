@@ -2,85 +2,22 @@
   "schema_version": 1,
   "bindings": {
     "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1": [
-      {
-        "path": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
-        "assertion_ids": [
-          "build_placeholders",
-          "parse_manifest",
-          "render_tree"
-        ]
-      },
-      {
-        "path": ".claude/skills/terraforming_node/scripts/scan_node.py",
-        "assertion_ids": [
-          "assert_homogeneity"
-        ]
-      },
-      {
-        "path": ".claude/policies/predicates/claim_predicates.py",
-        "assertion_ids": [
-          "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1"
-        ]
-      }
+      {"path": ".claude/policies/runtime/a2a_identity.py", "assertion_ids": ["stage_remote_peer", "activate_peer", "resolve_state_dir"]},
+      {"path": ".claude/policies/predicates/claim_predicates.py", "assertion_ids": ["predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1"]}
     ],
     "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2": [
-      {
-        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
-        "assertion_ids": [
-          "assert_band_classification",
-          "assert_sub_delegation_authorized"
-        ]
-      },
-      {
-        "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
-        "assertion_ids": [
-          "_guard_tp",
-          "_require_terraform_flag"
-        ]
-      },
-      {
-        "path": ".claude/policies/predicates/claim_predicates.py",
-        "assertion_ids": [
-          "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2"
-        ]
-      }
+      {"path": ".claude/policies/runtime/a2a_identity.py", "assertion_ids": ["sign_envelope", "verify_envelope", "consume_attempt"]},
+      {"path": ".claude/skills/terraforming_node/scripts/relay.py", "assertion_ids": ["build_signed_attempt", "verify_signed_report"]},
+      {"path": ".claude/policies/predicates/claim_predicates.py", "assertion_ids": ["predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2"]}
     ],
     "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3": [
-      {
-        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
-        "assertion_ids": [
-          "assert_band_classification",
-          "assert_sub_delegation_authorized"
-        ]
-      },
-      {
-        "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
-        "assertion_ids": [
-          "_guard_tp",
-          "_require_terraform_flag"
-        ]
-      },
-      {
-        "path": ".claude/policies/predicates/claim_predicates.py",
-        "assertion_ids": [
-          "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3"
-        ]
-      }
+      {"path": ".claude/policies/runtime/a2a_executor.py", "assertion_ids": ["authorize", "execute"]},
+      {"path": ".claude/policies/predicates/claim_predicates.py", "assertion_ids": ["predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3"]}
     ],
     "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4": [
-      {
-        "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
-        "assertion_ids": [
-          "_guard_tp",
-          "_require_terraform_flag"
-        ]
-      },
-      {
-        "path": ".claude/policies/predicates/claim_predicates.py",
-        "assertion_ids": [
-          "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4"
-        ]
-      }
+      {"path": ".claude/policies/runtime/a2a_identity.py", "assertion_ids": ["revoke_epoch", "consume_attempt"]},
+      {"path": ".claude/policies/runtime/providers/claude_code.py", "assertion_ids": ["strict_ssh_options"]},
+      {"path": ".claude/policies/predicates/claim_predicates.py", "assertion_ids": ["predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4"]}
     ],
     "ARCH_WALL_VARIANT_LADDER.C1": [
       {
