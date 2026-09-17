@@ -220,6 +220,14 @@
       "git": "ignored",
       "owner": "git",
       "role": "저장소 내부"
+    },
+    {
+      "name": "tests",
+      "kind": "dir",
+      "git": "tracked",
+      "owner": "policy-runtime",
+      "role": "공통 런타임·정책의 요구 기반 회귀검증 자산. 테스트는 실제 호출 경계를 검증하며 production secret·상태·산출물을 만들지 않는다.",
+      "branch_note": "양 토폴로지 공통층으로 동기화한다. 토폴로지 특화 기대값은 특화 테스트 경로에서만 분리한다."
     }
   ],
   "tombstones": [

@@ -23,9 +23,11 @@ keeps it next to `model_requested`). Absent or odd metadata is now reported on s
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import subprocess
 import sys
+from pathlib import Path
 
 STATUS_COMPLETED = "completed"
 STATUS_EXECUTION_FAILED = "execution_failed"
@@ -51,26 +53,33 @@ REASON_RUNNER_UNAVAILABLE = "RUNNER_UNAVAILABLE"
 #   2026-09-15: `meta`(Muse Spark · `meta-claude` shim) 추가. ⚠ shim 은 auto mode 의 안전 판정 호출까지
 #   자기 모델로 보낸다 — 그 엔드포인트가 판정에 응답하지 못하면 판정이 필요한 도구가 전부 선다
 #   (위임 `-p` 는 렌더된 `defaultMode: default` 를 타므로 판정 호출이 없다 · adapter.md §2.1).
-BACKEND_TO_BINARY = {"anthropic": "claude", "kimi": "kimi-claude", "minimax": "minimax-claude",
-                     "meta": "meta-claude"}
+BACKEND_TO_BINARY = {
+    "anthropic": "claude",
+    "kimi": "kimi-claude",
+    "minimax": "minimax-claude",
+    "openai": "openai-claude",
+    "meta": "meta-claude",
+}
 
-# 백엔드별 **기본 모델 선언**. 2026-09-08 이관: 종전에는 `k3[1m]` 리터럴이 어댑터 밖
-#   (`bootstrap_canary.build_request`)에 손으로 적혀 있었다 — 백엔드가 셋이 되면 갈라지는 자리다
-#   (workflow.md §4종 안티패턴 · 매직넘버 결함 칸: "같은 개념이 두 곳 이상에 손으로 적힌 값").
-#   모델 토큰의 의미는 **백엔드에 종속된다** — shim 이 ANTHROPIC_DEFAULT_*_MODEL 을 자기 슬롯으로
-#   덮으므로 kimi 아래의 `sonnet` 은 sonnet 이 아니다. 그래서 러너는 두 축이 아니라 한 쌍이다.
-BACKEND_DEFAULT_MODEL = {"anthropic": "sonnet", "kimi": "k3[1m]", "minimax": "MiniMax-M3",
-                         "meta": "muse-spark-1.3"}
+# Backend-specific declarations.  An explicitly selected backend never falls
+# back to another binary/model.  Availability is measured by invocation.
+BACKEND_DEFAULT_MODEL = {
+    "anthropic": "sonnet",
+    "kimi": "k3[1m]",
+    "minimax": "MiniMax-M3",
+    "openai": "gpt-5.6-sol",
+    "meta": "muse-spark-1.3",
+}
 
-# 러너 별칭 → (backend, model) 쌍. **닫힌 목록**이며 변경 시 리뷰를 강제하는 tripwire 다
-#   (안티패턴 판정표 하드코딩 **정당** 칸). 사용자가 부르는 짧은 이름(`sonnet`·`kimi-claude`)을
-#   기계가 쓰는 쌍으로 펴는 유일한 자리이고, `agent_control.py runners` 가 이것을 중립으로 노출한다.
+# Closed runner vocabulary.  The OpenAI entry records the user-selected shim
+# contract; a missing executable produces RUNNER_UNAVAILABLE, never Sonnet/Meta.
 RUNNER_ALIASES = {
     "opus":           ("anthropic", "opus"),
     "sonnet":         ("anthropic", "sonnet"),
     "haiku":          ("anthropic", "haiku"),
     "kimi-claude":    ("kimi", BACKEND_DEFAULT_MODEL["kimi"]),
     "minimax-claude": ("minimax", BACKEND_DEFAULT_MODEL["minimax"]),
+    "openai-claude":  ("openai", BACKEND_DEFAULT_MODEL["openai"]),
     "meta-claude":    ("meta", BACKEND_DEFAULT_MODEL["meta"]),
 }
 
@@ -182,7 +191,22 @@ def _ssh_destination(target: dict) -> str:
 #   timeout_seconds(최대 3600s)까지 멈추고, 그 TIMEOUT 뒤에도 **원격 claude 는 계속 돌며 서브
 #   워크스페이스를 편집한다**(tty 가 없어 SIGHUP 이 없다). 메인은 실패로 기록했는데 서브는 살아 있는
 #   상태가 A2A 원장의 최악 형태다. 처방: 프롬프트를 원천 차단하고, 원격 쪽에도 같은 시한을 건다.
-SSH_HARDENING = ("-o", "BatchMode=yes", "-o", "ConnectTimeout=8")
+def strict_ssh_options(state_root: str, peer_id: str) -> tuple[str, ...]:
+    """Ambient-free SSH transport pins, separate from A2A message identity."""
+    root = Path(state_root)
+    known_hosts = root / "known_hosts"
+    client_key = root / "ssh" / peer_id / "client_key"
+    if not known_hosts.is_file() or known_hosts.is_symlink():
+        raise ValueError("strict SSH known_hosts is missing or unsafe")
+    if not client_key.is_file() or client_key.is_symlink():
+        raise ValueError("strict SSH client key is missing or unsafe")
+    return (
+        "-F", "/dev/null", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8",
+        "-o", "StrictHostKeyChecking=yes", "-o", f"UserKnownHostsFile={known_hosts}",
+        "-o", "GlobalKnownHostsFile=/dev/null", "-o", "IdentitiesOnly=yes",
+        "-o", f"IdentityFile={client_key}", "-o", "ForwardAgent=no",
+        "-o", "ClearAllForwardings=yes", "-o", "RequestTTY=no",
+    )
 
 # 2026-09-05(F · plan_26090516 3-4): 공식 문서 기준 **자동 재개는 대화형 claude.ai 로그인에만** 있고
 #   `-p`/게이트웨이 경로에는 없다 — 있는 것은 재시도 변수뿐이다. 서브 위임은 전부 `-p` 라
@@ -192,9 +216,7 @@ REMOTE_ENV = ("CLAUDE_CODE_RETRY_WATCHDOG=1",)
 
 
 def build_argv(request: dict) -> list[str]:
-    """Provider CLI invocation argv for `request`. `local` transport returns a flat argv list;
-    `ssh` transport wraps it in a single ssh invocation, safely shell-quoting host/user/work_dir
-    (never `bypassPermissions` / `--dangerously-skip-permissions`)."""
+    """Build local or strict-pinned SSH argv without ambient SSH authority."""
     target = request["target"]
     inner = _inner_argv(request)
     transport = target["transport"]
@@ -205,12 +227,16 @@ def build_argv(request: dict) -> list[str]:
         remote_inner = " ".join(shlex.quote(tok) for tok in inner)
         timeout_seconds = request.get("timeout_seconds")
         if isinstance(timeout_seconds, (int, float)) and timeout_seconds > 0:
-            # 원격 동반사망: 클라이언트만 죽으면 고아 에이전트가 남는다.
             remote_inner = f"timeout {int(timeout_seconds)} {remote_inner}"
-        remote_inner = " ".join(REMOTE_ENV) + " " + remote_inner   # env 는 timeout 앞에 온다
+        remote_inner = f"{' '.join(REMOTE_ENV)} {remote_inner}"
         remote_script = f"cd {shlex.quote(work_dir)} && {remote_inner}" if work_dir else remote_inner
         remote_command = "bash -lc " + shlex.quote(remote_script)
-        return ["ssh", *SSH_HARDENING, "--", _ssh_destination(target), remote_command]
+        state_root = target.get("a2a_state_root")
+        peer_id = target.get("peer_id")
+        if not isinstance(state_root, str) or not isinstance(peer_id, str):
+            raise ValueError("ssh target requires a2a_state_root and peer_id for strict pins")
+        return ["ssh", *strict_ssh_options(state_root, peer_id), "--",
+                _ssh_destination(target), remote_command]
     raise ValueError(f"unsupported transport: {transport!r}")
 
 

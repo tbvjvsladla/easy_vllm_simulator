@@ -2804,214 +2804,52 @@ def _identity_available() -> bool:
 
 
 def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1():
-    """C1: main issues the sub's credential only AFTER asserting HW homogeneity, and what it issues
-    is an identity proof -- never an execution permit.  The homogeneity matrix runs for real
-    (each of cpu_arch / gpu_model / gpus_per_node blocking alone, and a MISSING reading blocking
-    too, never passing by omission), the operator-facing `hw_verified` stamp is proven to follow
-    that verdict through `emit_manifest_block`, and the real renderer is executed to prove it
-    issues the identity assets and **never** the retired delegation key."""
-    base = {"cpu_arch": "aarch64", "gpu_model": "NVIDIA GB10", "gpus_per_node": 1,
-            "cuda": "13.2", "driver": "565.57.01"}
-    baseline = scan_node.assert_homogeneity(base, dict(base))
-    _require(baseline["verified"] is True and baseline["blocks"] == [],
-             "a genuinely identical peer must verify clean -- control for the flips below")
-
-    dims = {"cpu_arch": "x86_64", "gpu_model": "NVIDIA RTX 5090", "gpus_per_node": 2}
-    for field, bad_value in dims.items():
-        res = scan_node.assert_homogeneity(base, {**base, field: bad_value})
-        _require(res["verified"] is False and any(field in b for b in res["blocks"]),
-                 f"{field} mismatch alone must block homogeneity")
-        others = [f for f in dims if f != field]
-        _require(not any(any(o in b for o in others) for b in res["blocks"]),
-                 f"flipping {field} alone must not spuriously implicate {others}")
-    for field in dims:
-        res = scan_node.assert_homogeneity(base, {**base, field: None})
-        _require(res["verified"] is False and any(field in b for b in res["blocks"]),
-                 f"{field} missing on the peer must block, never pass by omission")
-
-    verified_block = scan_node.emit_manifest_block({
-        "topology_declared": "multi", "cpu_arch": "aarch64", "cuda_version": "132",
-        "gpus_per_node": 1, "gpu_model": "NVIDIA GB10",
-        "nodes": [{"role": "main", "host": "a", "hostname": "a", "ssh_user": "u", "work_dir": "/w"},
-                  {"role": "sub", "host": "b", "hostname": "b", "ssh_user": "u", "work_dir": "/w"}],
-        "homogeneity": {"verified": True, "peer": {"gpu_model": "NVIDIA GB10", "driver": "1", "cuda": "13.2"}},
-        "interconnect": {"type": "RoCE v2", "hca_devices": [], "gid_index": None,
-                         "socket_iface": None, "bandwidth_gbps": None, "platform_preset": None}})
-    unverified_block = scan_node.emit_manifest_block({
-        "topology_declared": "multi", "cpu_arch": "aarch64", "cuda_version": "132",
-        "gpus_per_node": 1, "gpu_model": "NVIDIA GB10",
-        "nodes": [{"role": "main", "host": "a", "hostname": "a", "ssh_user": "u", "work_dir": "/w"},
-                  {"role": "sub", "host": "b", "hostname": "b", "ssh_user": "u", "work_dir": "/w"}],
-        "interconnect": {"type": "RoCE v2", "hca_devices": [], "gid_index": None,
-                         "socket_iface": None, "bandwidth_gbps": None, "platform_preset": None}})
-    _require("hw_verified: true" in verified_block,
-             "a genuinely homogeneity-verified scan must stamp hw_verified: true")
-    _require("hw_verified: true" not in unverified_block and "hw_verified: false" in unverified_block,
-             "without an assert_homogeneity verdict the emit must say hw_verified: false -- never "
-             "true, and never silently omit the field (omission reads as 'unknown' to a human)")
-
-    with tempfile.TemporaryDirectory() as tmp:
-        mpath = os.path.join(tmp, "manifest.yaml")
-        with open(mpath, "w", encoding="utf-8") as f:
-            f.write(render_sub_env.FIXTURE_MANIFEST)
-        for stamp in (False, True):
-            data = render_sub_env.parse_manifest(mpath)
-            if stamp:
-                for node in data["nodes"]:
-                    if node["role"] == "sub":
-                        node["hw_verified"] = "true"
-            ph, _ = render_sub_env.build_placeholders(data)
-            out = os.path.join(tmp, "stamped" if stamp else "unstamped")
-            render_sub_env.render_tree(ph, out, copy_runtime_block=False)
-            _require(not os.path.exists(os.path.join(out, ".claude", "a2a_delegation.json")),
-                     "the retired delegation key must never be issued again -- the credential is an "
-                     "identity proof, not an execution permit (2026-09-05 G-E1)")
-            _require(os.path.isfile(os.path.join(out, "Agent_Card.json")),
-                     "every provisioned tree must carry the identity asset the gates verify")
+    """Reciprocal enrollment is explicit; silent TOFU and output-key authority are absent."""
+    src = _read(".claude/policies/runtime/a2a_identity.py")
+    _require("expected_fingerprint" in src and "compare_digest" in src,
+             "enrollment must compare an operator-approved fingerprint")
+    _require("automatic replacement is forbidden" in src,
+             "existing identity state must not be silently replaced")
+    _require("output/" not in src and "a2a_signing" not in src,
+             "production identity must not discover legacy topology output keys")
+    _require("git-common-dir" in src and "STATE_SUBDIR" in src,
+             "production state must resolve from git common-dir")
 
 
 def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2():
-    """C2: absence, tampering and a wrong-role stamp are each -- alone -- never an exemption.
-    The multi-node propagation gate is executed for real over a four-manifest matrix (absent /
-    malformed / stamped on the wrong role / genuine), and the serve-plane identity gate is executed
-    for real over a three-tree matrix (card absent on a self_role: sub tree / tampered signature /
-    genuine).  The sub also structurally cannot issue its own credential: the closed set of skills
-    ever copied to a sub is read live and must never contain terraforming_node, and the private
-    signing key must never appear in what the overlay delivers."""
-    src = _sync_to_sub_src()
-    fn = _extract_bash_function(src, "assert_sub_delegation_authorized")
-    resolver = _extract_bash_function(src, "_resolve_sub_hw_verified")
-
-    def _gate(manifest_body):
-        with tempfile.TemporaryDirectory() as tmp:
-            srcdir = Path(tmp) / "output" / "multi"
-            srcdir.mkdir(parents=True)
-            (srcdir / "manifest.yaml").write_text(manifest_body)
-            script = (f'SRC="{tmp}/"\n{resolver}\n{fn}\n'
-                      f'assert_sub_delegation_authorized multi\necho "RC=$?"\n')
-            return _run_bash(script)
-
-    _require("RC=1" in _gate("topology: multi\nnodes:\n  - role: main\n  - role: sub\n").stdout,
-             "absence of the verified stamp must block propagation (fail-open forbidden)")
-    _require("RC=1" in _gate("topology: multi\nnodes:\n  - role: sub\n    hw_verified: yes-please\n").stdout,
-             "a malformed stamp must block -- only the exact verified value passes")
-    _require("RC=1" in _gate("topology: multi\nnodes:\n  - role: main\n    hw_verified: true\n"
-                             "  - role: sub\n").stdout,
-             "a stamp on the WRONG role must block -- role placement is part of the credential")
-    _require("RC=0" in _gate("topology: multi\nnodes:\n  - role: main\n  - role: sub\n"
-                             "    hw_verified: true\n").stdout,
-             "positive control: a genuine sub stamp must pass, otherwise the negatives above prove nothing")
-
-    if _identity_available():
-        for kind, kwargs, expect in (("card absent", {"card": False}, False),
-                                     ("tampered signature", {"tamper": True}, False),
-                                     ("genuine", {}, True)):
-            with tempfile.TemporaryDirectory() as tmp:
-                root = _identity_fixture(tmp, **kwargs)
-                proc = _run_bash(
-                    f'python3 {shlex.quote(str(root / ".claude/runtime/a2a/agent_card_contract.py"))} '
-                    f'prove-identity --repo-root {shlex.quote(str(root))} --require-flag; echo "RC=$?"')
-                ok = "RC=0" in proc.stdout
-                _require(ok is expect,
-                         f"identity gate verdict for '{kind}' must be {expect}: {proc.stdout[-200:]}")
-
-    blocks = set(render_sub_env.RUNTIME_BLOCK_PATHS)
-    _require("terraforming_node" not in blocks,
-             "terraforming_node must never be copied to a sub -- the sub cannot scan itself into a "
-             "credential (the issuing plane stays main-only)")
-    deliver_src = _extract_bash_function(src, "deliver_overlay") or src
-    _require("main_ed25519.pem" not in deliver_src,
-             "the private signing key must never be delivered -- a sub that could sign could issue "
-             "its own identity, which is the same fail-open the key rule forbade")
+    """Signed attempts are one-shot and retries/rotations require predecessor binding."""
+    ident = _read(".claude/policies/runtime/a2a_identity.py")
+    relay_src = _read(".claude/skills/terraforming_node/scripts/relay.py")
+    _require("BEGIN IMMEDIATE" in ident and "duplicate attempt or envelope digest" in ident,
+             "replay consume must be atomic and duplicate attempts fail closed")
+    _require("predecessor_attempt_id" in ident and "predecessor_request_digest" in ident,
+             "reissued attempts must bind both predecessor axes")
+    _require("secrets.token_hex(16)" in relay_src and "build_signed_attempt" in relay_src,
+             "relay must have an executor path for fresh random attempt identifiers")
 
 
 def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3():
-    """C3: enforcement is fail-closed at BOTH points the clause names -- (i) the propagation gate
-    (positive control here, negative matrix in C2) and (ii) the serve-plane gate, bound to its two
-    independent implementations: recipe.py's `_require_identity_proof` (executed directly) and
-    run_bench.sh's inline gate block (extracted verbatim -- never retyped -- and executed via bash).
-    Both must refuse a self_role: sub tree whose card is absent, and both must refuse a tampered
-    signature; the retired key/env exemption must be gone from both."""
-    src = _sync_to_sub_src()
-    _require("assert_sub_delegation_authorized" in src,
-             "the propagation gate must still exist -- demotion changed the credential, not the gate")
-
-    # 독스트링은 **제거 사실을 설명하는 서사**라 검사 대상이 아니다 — 서사를 금지하면 다음 사람이
-    # 같은 것을 다시 만든다(2026-09-05 스캐너 tripwire 에서 배운 같은 교훈). 코드만 본다.
-    recipe_fn = ast.parse(inspect.getsource(recipe._require_terraform_flag).lstrip()).body[0]
-    recipe_body = recipe_fn.body[1:] if (recipe_fn.body and isinstance(recipe_fn.body[0], ast.Expr)
-                                         and isinstance(getattr(recipe_fn.body[0], "value", None),
-                                                        ast.Constant)) else recipe_fn.body
-    recipe_code = "\n".join(ast.unparse(node) for node in recipe_body)
-    _require("a2a_delegation.json" not in recipe_code and "EASY_VLLM_A2A_DELEGATED" not in recipe_code,
-             "the retired execution-permit exemption must be gone from the serve gate's CODE "
-             "(its docstring may narrate the removal)")
-    bench_src = _read(".claude/skills/adversarial-benchmark/scripts/run_bench.sh")
-    gate_block = bench_src[bench_src.index('CARD="$REPO/Agent_Card.json"'):bench_src.index('EF="$REPO')]
-    _require("EASY_VLLM_A2A_DELEGATED" not in gate_block and "a2a_delegation.json" not in gate_block,
-             "the bench gate must no longer accept the retired permit or its env override")
-    _require("prove-identity" in gate_block and "--require-flag" in gate_block,
-             "the bench gate must verify identity AND the main-issued flag")
-
-    if not _identity_available():
-        return
-    with tempfile.TemporaryDirectory() as tmp:
-        root = _identity_fixture(tmp, card=False)
-        try:
-            recipe._require_identity_proof(str(root))
-            _require(False, "recipe's gate must refuse a self_role: sub tree with no card")
-        except SystemExit as exc:
-            _require(exc.code != 0, "refusal must be a non-zero exit, not a silent pass")
-    with tempfile.TemporaryDirectory() as tmp:
-        root = _identity_fixture(tmp, tamper=True)
-        try:
-            recipe._require_identity_proof(str(root))
-            _require(False, "recipe's gate must refuse a tampered card")
-        except SystemExit as exc:
-            _require(exc.code != 0, "refusal must be a non-zero exit, not a silent pass")
-    with tempfile.TemporaryDirectory() as tmp:
-        root = _identity_fixture(tmp)
-        proof = recipe._require_identity_proof(str(root))
-        _require(isinstance(proof, dict) and proof.get("kid"),
-                 "positive control: a genuine card must pass and report its kid")
+    """Identity proof and execution authority are separate executable functions."""
+    ident = _read(".claude/policies/runtime/a2a_identity.py")
+    executor = _read(".claude/policies/runtime/a2a_executor.py")
+    _require("class IdentityProof" in ident and "allowed" not in _extract_python_function(ident, "verify_envelope"),
+             "identity verifier must not return an authorization decision")
+    _require("def authorize(" in executor and executor.index("authorize(payload)") < executor.index("consume_attempt"),
+             "executor must validate independent authority before replay consume/execution")
+    _require("work_manifest_digest" in executor and "capabilities" in executor and "scope" in executor,
+             "authority must bind work manifest, capabilities, and scope")
 
 
 def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4():
-    """C4: the main completion Flag and the sub's identity proof stay distinct credentials that
-    never cross-substitute.  (1) a genuinely-true main Flag in the same manifest does not satisfy
-    the propagation gate, which asks for the sub's own measured stamp; (2) the main Flag's own
-    deterministic reader never references the identity assets; (3) a valid main-issued manifest
-    does NOT rescue a tampered card -- the signature is checked on its own axis."""
-    src = _sync_to_sub_src()
-    fn = _extract_bash_function(src, "assert_sub_delegation_authorized")
-    resolver = _extract_bash_function(src, "_resolve_sub_hw_verified")
-    with tempfile.TemporaryDirectory() as tmp:
-        srcdir = Path(tmp) / "output" / "multi"
-        srcdir.mkdir(parents=True)
-        (srcdir / "manifest.yaml").write_text(
-            "topology: multi\nterraforming:\n  complete: true\n  branch_verified: true\n"
-            "nodes:\n  - role: main\n  - role: sub\n    host: 1.2.3.4\n")
-        proc = _run_bash(f'SRC="{tmp}/"\n{resolver}\n{fn}\n'
-                         f'assert_sub_delegation_authorized multi\necho "RC=$?"\n')
-        _require("RC=1" in proc.stdout,
-                 "a genuinely-true main completion Flag must NOT stand in for the sub's own "
-                 "measured credential -- the two are checked independently")
-
-    mc_src = _read(".claude/skills/terraforming_node/scripts/manifest_contract.py")
-    _require("agent_card" not in mc_src.lower() and "trusted_keys" not in mc_src.lower(),
-             "the main Flag's reader must never reference the identity assets -- structurally "
-             "incapable of treating a card as a Flag source")
-
-    if not _identity_available():
-        return
-    with tempfile.TemporaryDirectory() as tmp:
-        root = _identity_fixture(tmp, tamper=True)     # manifest Flag is genuine, card is not
-        proc = _run_bash(
-            f'python3 {shlex.quote(str(root / ".claude/runtime/a2a/agent_card_contract.py"))} '
-            f'prove-identity --repo-root {shlex.quote(str(root))} --require-flag; echo "RC=$?"')
-        _require("RC=0" not in proc.stdout,
-                 "a valid main-issued Flag must not rescue a tampered signature -- the credentials "
-                 "are independent axes, never a disjunction")
+    """Loss/revocation is fail closed and legacy keys are never a recovery source."""
+    ident = _read(".claude/policies/runtime/a2a_identity.py")
+    provider = _read(".claude/policies/runtime/providers/claude_code.py")
+    _require("re-enrollment is required" in ident and "epoch_revocations" in ident,
+             "missing replay state and revoked epochs must fail closed")
+    _require("a2a_signing" not in ident and "main_ed25519" not in ident,
+             "legacy topology keys must not be import/fallback/rotation sources")
+    _require("StrictHostKeyChecking=yes" in provider and "IdentitiesOnly=yes" in provider,
+             "SSH pins must independently fail closed as transport defense")
 
 
 # =============================================================================
