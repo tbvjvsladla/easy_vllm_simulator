@@ -91,7 +91,9 @@ NCCL_PRESETS = {
 NCCL_INVARIANTS = {                     # ③ universal — 인터커넥트 무관 디버그/안전
     "NCCL_DEBUG": "INFO",
     "NCCL_DEBUG_SUBSYS": "INIT,NET,GRAPH,ENV",
-    "NCCL_IB_DISABLE": "0",            # RoCE 상존 전제(dgx-spark). 비-RDMA 프리셋 생기면 ②로 이동(seam)
+    # GB10 TP=2 functional baseline after all fine-grained GDR controls still failed
+    # ibv_reg_mr_iova2. Socket transport isolates Ray/vLLM functionality from the IB path.
+    "NCCL_IB_DISABLE": "1",            # RoCE 상존 전제(dgx-spark). 비-RDMA 프리셋 생기면 ②로 이동(seam)
 }
 # socket_iface 한 값을 참조하는 ① env 키들(NCCL bootstrap·gloo·torch·UCX·OpenMPI).
 _IFACE_ENV_KEYS = ("NCCL_SOCKET_IFNAME", "GLOO_SOCKET_IFNAME", "TP_SOCKET_IFNAME",
