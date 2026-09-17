@@ -72,7 +72,9 @@ NCCL_PRESETS = {
         # large and small TP=2 models (`ibv_reg_mr_iova2: Cannot allocate memory`). LOC is the
         # approved OFAT diagnostic; performance remains a separate benchmark question.
         "NCCL_NET_GDR_LEVEL": "LOC",
-        "NCCL_NET_GDR_C2C": "1",
+        # LOC alone still selected DMABUF GDR on GB10 because the C2C override remained active.
+        # Approved second OFAT: disable only that override before considering broader GDR disablement.
+        "NCCL_NET_GDR_C2C": "0",
         "NCCL_NET_GDR_READ": "1",
         "NCCL_CROSS_NIC": "1",
     },
