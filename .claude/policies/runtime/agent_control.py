@@ -146,13 +146,7 @@ def _request_contract_violations(request: dict) -> list[str]:
     #   위임이 나간다. 서브 위임은 계정이 곧 권한 평면이므로 여기서 fail-closed 한다.
     if transport == "ssh" and (not isinstance(target.get("ssh_user"), str) or not target["ssh_user"]):
         out.append("$.target.ssh_user: required for ssh (계정 미지정 위임은 권한 평면을 바꾼다)")
-    if transport == "ssh" and (not isinstance(target.get("peer_id"), str) or not target["peer_id"]):
-        out.append("$.target.peer_id: reciprocal enrollment peer id required for ssh")
-    if transport == "ssh" and (not isinstance(target.get("a2a_state_root"), str)
-                                or not target["a2a_state_root"]):
-        out.append("$.target.a2a_state_root: strict transport pin state required for ssh")
     return out
-
 
 
 def _invalid_request_result(request) -> dict:
@@ -222,9 +216,9 @@ def _emit(result: dict) -> None:
 
 
 def cmd_invoke(args: argparse.Namespace) -> None:
+    request_path = Path(args.request)
     try:
-        raw = sys.stdin.read() if args.request == "-" else Path(args.request).read_text(encoding="utf-8")
-        request = json.loads(raw)
+        request = json.loads(request_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, ValueError, RecursionError):
         _emit(_invalid_request_result(None))
         return
@@ -234,6 +228,8 @@ def cmd_invoke(args: argparse.Namespace) -> None:
     if not violations:
         violations.extend(_request_contract_violations(request))
     if violations:
+        # 2026-09-03(F4): 위반 목록을 계산해 놓고 버렸다 — 사용자는 무엇이 틀렸는지 알 수 없었다.
+        #   stdout 은 안정 JSON 계약이므로 stderr 로 낸다.
         for v in violations:
             print(f"[agent-control] REQUEST_SCHEMA_INVALID: {v}", file=sys.stderr)
         _emit(_invalid_request_result(request if isinstance(request, dict) else None))
@@ -241,8 +237,10 @@ def cmd_invoke(args: argparse.Namespace) -> None:
 
     provider_module = _load_provider(request["provider"])
     result = provider_module.invoke(request)
+
     result_schema = _load_schema(RESULT_SCHEMA_PATH)
-    if _schema_violations(result, result_schema):
+    result_violations = _schema_violations(result, result_schema)
+    if result_violations:
         result = _invalid_provider_result(request)
     _emit(result)
 

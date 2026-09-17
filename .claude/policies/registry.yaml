@@ -835,7 +835,7 @@
         },
         {
           "clause_id": "KV_ABSOLUTE_CLAMP_PORTABILITY.C2",
-          "statement": "gpu-memory-utilization is still emitted alongside the absolute KV clamp, with its role divided between observation and mechanism: as OBSERVATION it has acted as a startup free-memory gate and total cap (a one-cell observation -- the mechanism is not confirmed in vLLM source), while the only settled MECHANISM is the hard clamp to <= 0.90 on unified-memory targets. KV sizing and portability are controlled by the absolute kv-cache-memory-bytes value; vLLM itself ignores gmu for KV sizing once the absolute byte value is set."
+          "statement": "gpu-memory-utilization is still emitted alongside it, but only as the startup free-memory gate and total cap (clamped to <= 0.90 on unified-memory targets); vLLM itself ignores gmu for KV sizing once the absolute byte value is set."
         },
         {
           "clause_id": "KV_ABSOLUTE_CLAMP_PORTABILITY.C3",
@@ -1328,7 +1328,7 @@
     {
       "policy_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED",
       "owner": "terraforming_node",
-      "statement": "A2A peer identity is an endpoint-local reciprocal Ed25519 enrollment and signed attempt envelope. Identity proof never grants execution authority; replay state is consumed before execution, and legacy topology-output keys are never inherited.",
+      "statement": "A2A endpoint identity is the already-provisioned SSH public-key relationship verified by terraforming; Git author and work-manifest approval atoms record human/work attribution, while assignment and scope separately authorize execution. Agent Card is capability metadata, not a second credential.",
       "scope": [
         "single-node",
         "multi-node"
@@ -1337,26 +1337,26 @@
       "clauses": [
         {
           "clause_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1",
-          "statement": "Every endpoint accepts envelopes only from an explicitly reciprocally enrolled Ed25519 key bound to an opaque peer ID and active epoch; first enrollment requires human fingerprint comparison and silent TOFU is forbidden."
+          "statement": "Terraforming must verify non-interactive SSH public-key authentication and reject host-key mismatch or client-key rejection; unverified reachability is not identity."
         },
         {
           "clause_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2",
-          "statement": "Every request/report is signed and attempt-bound; duplicates always fail, while resume, reissue and runner rotation use a new attempt bound to its predecessor ID and digest."
+          "statement": "Git user identity and exact work-manifest approval atoms record who approved and authored work, but do not replace SSH endpoint authentication or grant execution by themselves."
         },
         {
           "clause_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3",
-          "statement": "Identity verification returns proof only; current HITL/work-manifest, campaign assignment, capability, scope and instruction authorization independently decide execution."
+          "statement": "Execution additionally requires current work-manifest HITL, campaign assignment, capability and scope checks; authenticated SSH never substitutes for authorization."
         },
         {
           "clause_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4",
-          "statement": "Rotation requires old-key transition, new proof-of-possession and reciprocal acknowledgement; loss or compromise revokes the epoch and requires manual re-enrollment, with no legacy output-key or automatic-recovery fallback."
+          "statement": "Agent Card remains unsigned capability and endpoint metadata; no topology-output private key, co-delivered trust store, or app-level fingerprint/digest ledger is an identity authority."
         }
       ],
       "evidence": [
         {
-          "path": ".claude/policies/runtime/a2a_identity.py",
+          "path": ".claude/skills/terraforming_node/scripts/scan_node.py",
           "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"],
-          "assertion_ids": ["stage_remote_peer", "activate_peer", "resolve_state_dir"]
+          "assertion_ids": ["collect_peer_hw", "_peer_ssh_diag"]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
@@ -1364,14 +1364,9 @@
           "assertion_ids": ["predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1"]
         },
         {
-          "path": ".claude/policies/runtime/a2a_identity.py",
+          "path": ".claude/policies/runtime/completion_gate.py",
           "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C2"],
-          "assertion_ids": ["sign_envelope", "verify_envelope", "consume_attempt"]
-        },
-        {
-          "path": ".claude/skills/terraforming_node/scripts/relay.py",
-          "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C2"],
-          "assertion_ids": ["build_signed_attempt", "verify_signed_report"]
+          "assertion_ids": ["cmd_authorize"]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
@@ -1379,9 +1374,14 @@
           "assertion_ids": ["predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2"]
         },
         {
-          "path": ".claude/policies/runtime/a2a_executor.py",
+          "path": ".claude/policies/runtime/completion_gate.py",
           "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"],
-          "assertion_ids": ["authorize", "execute"]
+          "assertion_ids": ["cmd_authorize"]
+        },
+        {
+          "path": ".claude/policies/runtime/agent_control.py",
+          "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"],
+          "assertion_ids": ["_request_contract_violations", "cmd_invoke"]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
@@ -1389,14 +1389,9 @@
           "assertion_ids": ["predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3"]
         },
         {
-          "path": ".claude/policies/runtime/a2a_identity.py",
+          "path": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
           "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C4"],
-          "assertion_ids": ["revoke_epoch", "consume_attempt"]
-        },
-        {
-          "path": ".claude/policies/runtime/providers/claude_code.py",
-          "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C4"],
-          "assertion_ids": ["strict_ssh_options"]
+          "assertion_ids": ["render_tree"]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",

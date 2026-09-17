@@ -62,7 +62,7 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋
 | NGC base mismatch | `resolve_ngc_tag.py` + source-build owner | 후보 헤더/로그 증거→HITL→해소값 override→S3 |
 | stock-구조적-불가 | upstream arch variant owner | 아래 사다리·증거·승인 후 S3 |
 | 토폴로지 전용 실패(분산 런타임 등) | 특화헌법 §실패 라우팅이 owner 를 정한다 | 증거 보존→Model-C |
-| **러너 평면 실패**(백엔드 한도·인증·미도달·바이너리 부재) | `relay.py` 사다리 회전 → 소진 시 사람 | 구조 신호가 회전 가능을 판정한다. 회전·resume·재발급은 같은 과업이라도 **새 attempt_id**를 만들고 직전 request digest에 서명 결속한다. identity proof는 실행 승인과 별개다. 정본 `terraforming_node` SKILL.md **§2.7.11** |
+| **러너 평면 실패**(백엔드 한도·인증·미도달·바이너리 부재) | `relay.py` 사다리 회전 → 소진 시 사람 | 판정은 `terminal_reason` 구조 신호 · 회전은 예산 사건 ✗ · **한 바퀴 소진 = 차단성 HITL**. 정본 `terraforming_node` SKILL.md **§2.7.11** |
 | unknown | 사람 | `{proposed_class,evidence}`만 제시; 승인 전 무행동 |
 | recipe 중 구조적 불가 발견 | recipe §5.5→upstream §3.6 | 공식 bump / 포크 SHA pin / 음성정직; cap 뒤 Model-C |
 

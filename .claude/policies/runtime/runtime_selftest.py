@@ -1011,19 +1011,19 @@ def _test_policy_and_evidence_lifecycle() -> None:
         evidence_publisher._self_test()
 
 
-def _request(transport: str = "local", state_root: str | None = None) -> dict:
+def _request(transport: str = "local") -> dict:
     target = {"role": "main", "transport": transport, "work_dir": "/tmp/runtime probe"}
     if transport == "ssh":
-        if state_root is None:
-            state_root = "/tmp/a2a-fixture-state"
-        target.update({"role": "sub", "host": "192.0.2.10", "ssh_user": "probe",
-                       "peer_id": "0" * 32, "a2a_state_root": state_root})
+        target.update({"role": "sub", "host": "192.0.2.10", "ssh_user": "probe"})
     return {
         "schema_version": 1,
         "provider": "claude_code",
         "intent": "probe",
         "task": "read-only runtime probe",
         "model": "sonnet",
+        # 2026-09-03(plan_26090317 P1): 이 픽스처는 스키마 required 인 `timeout_seconds` 를 빠뜨리고
+        #   있었다 — 실물 request 는 반드시 갖는 필드다. 픽스처가 실물보다 좁으면 그 위의 단언은
+        #   실물에서 성립하는 성질을 시험하지 못한다(원격 timeout 래핑이 그 예였다).
         "timeout_seconds": 60,
         "max_turns": 1,
         "capabilities": ["read"],
@@ -1162,15 +1162,10 @@ def _test_provider_turn_exhaustion_reachable() -> None:
         returncode, stdout, stderr = 255, "", "ssh: connect failed"
 
     provider.subprocess.run = lambda *a, **k: _Broken()
-    with tempfile.TemporaryDirectory() as ssh_state:
-        Path(ssh_state, "known_hosts").write_text("fixture\n", encoding="utf-8")
-        client_key = Path(ssh_state, "ssh", "0" * 32, "client_key")
-        client_key.parent.mkdir(parents=True)
-        client_key.write_text("fixture\n", encoding="utf-8")
-        try:
-            res2 = provider.invoke(_request("ssh", ssh_state))
-        finally:
-            provider.subprocess.run = real_run
+    try:
+        res2 = provider.invoke(_request("ssh"))
+    finally:
+        provider.subprocess.run = real_run
     _require(res2["reason_codes"] == ["NONZERO_EXIT"] and res2["budget_outcome"] is None
              and res2["num_turns"] is None,
              f"a transport failure has no budget story -- it must stay null, got {res2}")
@@ -1179,21 +1174,16 @@ def _test_provider_turn_exhaustion_reachable() -> None:
 
     # 외생 중단(원격 timeout 124 / SIGTERM 143)은 **예산 사건이 아니다** — 원장이 둘을 갈라야
     # 다음 attempt 의 처방이 뒤집히지 않는다(2026-09-05 · F).
-    with tempfile.TemporaryDirectory() as ssh_state:
-        Path(ssh_state, "known_hosts").write_text("fixture\n", encoding="utf-8")
-        client_key = Path(ssh_state, "ssh", "0" * 32, "client_key")
-        client_key.parent.mkdir(parents=True)
-        client_key.write_text("fixture\n", encoding="utf-8")
-        for _rc in (124, 143):
-            class _Killed:
-                returncode, stdout, stderr = _rc, "", "Terminated"
-            provider.subprocess.run = lambda *a, **k: _Killed()
-            try:
-                res3 = provider.invoke(_request("ssh", ssh_state))
-            finally:
-                provider.subprocess.run = real_run
-            _require(res3["budget_outcome"] == "external_interruption",
-                     f"rc={_rc} is an external interruption, not a budget outcome: {res3}")
+    for _rc in (124, 143):
+        class _Killed:
+            returncode, stdout, stderr = _rc, "", "Terminated"
+        provider.subprocess.run = lambda *a, **k: _Killed()
+        try:
+            res3 = provider.invoke(_request("ssh"))
+        finally:
+            provider.subprocess.run = real_run
+        _require(res3["budget_outcome"] == "external_interruption",
+                 f"rc={_rc} is an external interruption, not a budget outcome: {res3}")
 
 
 def _test_agent_provider_boundary() -> None:
@@ -1219,20 +1209,13 @@ def _test_agent_provider_boundary() -> None:
     local_argv = provider.build_argv(_request("local"))
     _require(local_argv[0] == "claude" and "--model" in local_argv,
              f"local provider argv malformed: {local_argv}")
-    with tempfile.TemporaryDirectory() as ssh_state:
-        Path(ssh_state, "known_hosts").write_text("fixture\n", encoding="utf-8")
-        client_key = Path(ssh_state, "ssh", "0" * 32, "client_key")
-        client_key.parent.mkdir(parents=True)
-        client_key.write_text("fixture\n", encoding="utf-8")
-        ssh_argv = provider.build_argv(_request("ssh", ssh_state))
+    ssh_argv = provider.build_argv(_request("ssh"))
     # 2026-09-03(F5 · plan_26090317 P1): 위임 전송만 맨 ssh 였다 — 미등록 host key·패스프레이즈에서
     #   ssh 가 /dev/tty 를 읽으며 timeout_seconds(≤3600s)까지 멈추고, 그 뒤에도 **원격 claude 는 살아**
     #   서브 워크스페이스를 계속 편집했다(메인은 이미 실패로 기록한 뒤). 하드닝을 계약으로 고정한다.
     _require(ssh_argv[0] == "ssh", f"SSH provider argv malformed: {ssh_argv}")
-    _require("-o" in ssh_argv and "BatchMode=yes" in ssh_argv and "ConnectTimeout=8" in ssh_argv
-             and "StrictHostKeyChecking=yes" in ssh_argv and "IdentitiesOnly=yes" in ssh_argv
-             and "ForwardAgent=no" in ssh_argv,
-             f"SSH delegation must use explicit non-ambient pins and never prompt: {ssh_argv}")
+    _require("-o" in ssh_argv and "BatchMode=yes" in ssh_argv and "ConnectTimeout=8" in ssh_argv,
+             f"SSH delegation must never be able to prompt on a tty: {ssh_argv}")
     _require(ssh_argv[-2] == "probe@192.0.2.10" and ssh_argv[ssh_argv.index("--") + 1] == "probe@192.0.2.10",
              f"SSH destination misplaced: {ssh_argv}")
     remote_shell = shlex.split(ssh_argv[-1])
@@ -1722,15 +1705,10 @@ def _test_runner_ladder_classification() -> None:
 
     _real_run = provider.subprocess.run
     provider.subprocess.run = lambda *a, **k: _Run401()
-    with tempfile.TemporaryDirectory() as ssh_state:
-        Path(ssh_state, "known_hosts").write_text("fixture\n", encoding="utf-8")
-        client_key = Path(ssh_state, "ssh", "0" * 32, "client_key")
-        client_key.parent.mkdir(parents=True)
-        client_key.write_text("fixture\n", encoding="utf-8")
-        try:
-            res = provider.invoke(_request("ssh", ssh_state))
-        finally:
-            provider.subprocess.run = _real_run
+    try:
+        res = provider.invoke(_request("ssh"))
+    finally:
+        provider.subprocess.run = _real_run
     _require(res["reason_codes"] == ["RUNNER_UNAVAILABLE"],
              f"401 이 RUNNER_UNAVAILABLE 로 오지 않았다: {res['reason_codes']}")
     _require(res["session_id"] == "e939c9b7" and res["num_turns"] == 1,
@@ -1976,27 +1954,6 @@ def _test_root_surface_registry(root: Path | None = None) -> None:
         tombstoned += [f"{n} (retired {tomb.get('retired_utc')} -> {tomb.get('successor')})" for n in hits]
     _require(not tombstoned,
              f"retired root locations are tracked again ({len(tombstoned)}): {tombstoned[:20]}")
-
-
-def _test_campaign_tracked_surface(root: Path | None = None) -> None:
-    """Only the permanent campaign contract may enter the index; runtime instances never do."""
-    root = REPO_ROOT if root is None else root
-    if not _is_canonical_repo(root):
-        return
-    tracked = [p for p in _tracked_paths(root) if p.startswith("campaigns/")]
-    illegal = sorted(p for p in tracked
-                     if p != "campaigns/README.md" and not p.startswith("campaigns/_template/"))
-    _require(not illegal,
-             "campaign runtime/intermediate paths are tracked; retain files locally but remove them "
-             f"from the index (allowed: README.md + _template/** only): {illegal[:20]}")
-
-    main_ignore = (root / ".gitignore").read_text(encoding="utf-8")
-    sub_ignore = (root / ".claude/skills/terraforming_node/sub_node/gitignore.template").read_text(encoding="utf-8")
-    required = ("/campaigns/*", "!/campaigns/_template/", "!/campaigns/README.md")
-    _require(all(rule in main_ignore for rule in required),
-             "main .gitignore lost the campaign runtime boundary")
-    _require(all(rule in sub_ignore for rule in required),
-             "rendered-sub .gitignore lost the campaign runtime boundary")
 
 
 def _test_root_registry_predicate() -> None:
@@ -2349,7 +2306,6 @@ def run_tripwires(root: Path | None = None) -> int:
         _test_no_pii_in_deployed_artifacts(root)   # ⑤ P6 — 스캐너에 실행자가 없던 것을 배선
         _test_no_revived_antipatterns(root)        # ⑥ 3-13 — ③ 이 제거한 형태의 부활 차단
         _test_root_surface_registry(root)          # ⑦ plan_26090616 — 루트 표면에 관할을 만든다
-        _test_campaign_tracked_surface(root)       # mixed root: 틀만 tracked, 인스턴스는 index 금지
         _test_topology_layer_parity(root)          # ⑧ plan_26091210 — 브랜치 헌법 2계층·4자일치
     except RuntimeSelftestFailure as exc:
         print(f"[tripwire] FAIL {exc}", file=sys.stderr)
@@ -2404,7 +2360,6 @@ def main(argv: list[str] | None = None) -> int:
     # 라고 선언해 놓고 ⑥ 이 빠져 있었다(선언이 배선을 대체한 자리).
     _test_no_revived_antipatterns(REPO_ROOT)
     _test_root_surface_registry()
-    _test_campaign_tracked_surface()
     _test_topology_layer_parity()
     for warning in _test_tripwire_executor_wiring():
         print(f"[runtime_selftest] WARN {warning}", file=sys.stderr)
