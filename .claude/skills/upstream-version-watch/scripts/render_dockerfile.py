@@ -76,6 +76,9 @@ NCCL_PRESETS = {
         # Approved second OFAT: disable only that override before considering broader GDR disablement.
         "NCCL_NET_GDR_C2C": "0",
         "NCCL_NET_GDR_READ": "1",
+        # LOC+C2C=0 still selected `GPU Direct RDMA (DMABUF)` and failed ibv_reg_mr_iova2.
+        # Approved third OFAT disables only DMA-BUF registration while retaining IB/RoCE.
+        "NCCL_DMABUF_ENABLE": "0",
         "NCCL_CROSS_NIC": "1",
     },
     # 튜닝 0 프리셋 — 비-DGX 플랫폼의 "시도→comms 스모크 중재" 경로(전방호환 시도-우선 따름정리 ·
@@ -991,7 +994,8 @@ def _self_test() -> None:
         only_r = {k: rendered[k] for k in rendered if golden.get(k) != rendered[k]}
         only_g = {k: golden[k] for k in golden if rendered.get(k) != golden[k]}
         raise AssertionError(f"NCCL 렌더 != golden(집합 동치 위반)\n  rendered-side={only_r}\n  golden-side={only_g}")
-    _require(len(rendered) == 17, f"NCCL 17키 기대, got {len(rendered)}")
+    _require(len(rendered) == len(golden),
+             f"NCCL 키 수는 golden에서 파생되어야 한다({len(golden)} 기대, got {len(rendered)})")
     # fail-loud ①: 미지 platform_preset → KeyError
     try:
         build_nccl_env({"interconnect": {**man_ic["interconnect"], "platform_preset": "no-such-preset"}})
