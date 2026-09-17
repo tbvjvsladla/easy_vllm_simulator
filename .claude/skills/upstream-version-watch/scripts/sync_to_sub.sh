@@ -1135,61 +1135,6 @@ transactional_exit() {
     cleanup_transactional_source
     exit "$rc"
 }
-
-# ── plan_26091607 (H3): cross-worktree render-input 해소 ─────────────────────
-# `output/<topology>/<​filename>` 을 (1) 현재 워크트리 → (2) 호스트의 모든 git 워크트리 후보 전체
-# 순서로 해소. `--branch` 필터 사용하지 않음 (interview 결정 2026-09-16 · 후보 전체 스캔).
-# 다른 워크트리에서 읽어올 때는 read-only (mode 0400). 발견 즉시 transactional source 에 install.
-# 호출 시점에 다음 변수가 준비돼야 한다:
-#   CANONICAL_SRC    — sync 가 돌아가는 워크트리 (REPO_ROOT 와 같음)
-#   TRANSACTIONAL_SRC — mktemp 로 막 만든 staging dir (mode 0700)
-# 발견 못 하면 fail-closed rc=4 — 침묵 스킵(`|| continue`)을 H2 fix 로 제거.
-# 권한 규약: output/<topology>/ 의 *쓰기* 권한은 그 토폴로지 브랜치를 든 워크트리 단일 — 다른 워크트리는
-#   read-only 참조만 허용(인터뷰 결정 · 양 토폴로지 대칭).
-resolve_render_input() {
-    local topology="$1"
-    local filename="$2"
-    local dest="$TRANSACTIONAL_SRC/output/$topology/$filename"
-
-    # 1) 현재 워크트리 우선 (D10 main 후보 1순위)
-    if [ -f "${CANONICAL_SRC}output/$topology/$filename" ]; then
-        mkdir -p "$(dirname "$dest")" || return 9
-        install -m 0400 "${CANONICAL_SRC}output/$topology/$filename" "$dest" || return 9
-        return 0
-    fi
-
-    # 2) 형제 워크트리 후보 전체 스캔 (--branch 필터 ✗)
-    if [ -d "${CANONICAL_SRC}/.git" ] || [ -f "${CANONICAL_SRC}/.git" ]; then
-        local wt="" branch="" wt_path
-        # git worktree list --porcelain: worktree <path> / branch <ref> 가 토폴로지별 두 줄씩 옴.
-        while IFS= read -r line; do
-            case "$line" in
-                "worktree "*) wt="${line#worktree }" ;;
-                "branch "*)   branch="${line#branch }" ;;
-                "")           wt=""; branch="" ;;
-            esac
-            if [ -n "$wt" ] && [ -n "$branch" ]; then
-                wt_path="$wt"
-                if [ -f "$wt_path/output/$topology/$filename" ]; then
-                    # read-only 로 끌어옴 — 다른 워크트리의 output/<t>/ 는 그 토폴로지 권한자만 쓰기 가능.
-                    # 따라서 mode 0400 (root read-only) 으로 install — sync 의 빌드 평면은 transactional source
-                    # 를 직접 읽으므로 0400 도 사용 가능. 그리고 rsync 가 0400 그대로 sub 에 넘기지만,
-                    # BAND2_EXCLUDED_TOP 가 manifest 등 render 입력을 *배달 제외* 하므로 sub 에는 안 간다.
-                    mkdir -p "$(dirname "$dest")" || { wt=""; branch=""; return 9; }
-                    install -m 0400 "$wt_path/output/$topology/$filename" "$dest" || { wt=""; branch=""; return 9; }
-                    wt=""; branch=""
-                    return 0
-                fi
-                wt=""; branch=""
-            fi
-        done < <(git -C "$CANONICAL_SRC" worktree list --porcelain 2>/dev/null)
-    fi
-
-    # 3) 모두 miss — fail-loud
-    echo "[sync] FAIL: render 입력 ${topology}/${filename} 부재 — 어느 worktree 의 output/${topology}/ 에도 없음 (D10 main 후보 없음)" >&2
-    return 4
-}
-
 prepare_transactional_source() {
     # Rendering is intentionally destructive/idempotent inside its output root.  Never point it at
     # the caller's canonical working tree: dry-run must be byte/mode read-only, and apply preflight
@@ -1235,13 +1180,13 @@ prepare_transactional_source() {
     #   만들면 이 경로 목록도 함께 갱신해야 한다(ALLOWLIST·MIRROR_DIRS 와 같은 계열의 표면).
     git -C "$CANONICAL_SRC" ls-files -z -- .claude CLAUDE.md .gitignore campaigns output/multi output/single \
         | git -C "$CANONICAL_SRC" checkout-index -z --stdin --prefix="$TRANSACTIONAL_SRC/"
-    # ★ plan_26091607 (H2·H3): filesystem-exception 루프의 침묵 스킵(`|| continue`)을 fail-loud 로 뒤집고,
-    #   cross-worktree 해소(`resolve_render_input`)를 도입한다. required 항목은 어느 워크트리에도
-    #   없으면 fail-closed (rc=4); optional 항목은 없으면 그대로 진행.
-    local topology render_input _rri_rc
+    local topology render_input
     for topology in multi single; do
         for render_input in manifest.yaml a2a_signing/main_ed25519.pem sub_manifest.yaml; do
-            resolve_render_input "$topology" "$render_input" || return 4
+            [ -f "${CANONICAL_SRC}output/$topology/$render_input" ] || continue
+            mkdir -p "$(dirname "$TRANSACTIONAL_SRC/output/$topology/$render_input")"
+            install -m 0600 "${CANONICAL_SRC}output/$topology/$render_input" \
+                "$TRANSACTIONAL_SRC/output/$topology/$render_input"
         done
     done
     SRC="$TRANSACTIONAL_SRC/"

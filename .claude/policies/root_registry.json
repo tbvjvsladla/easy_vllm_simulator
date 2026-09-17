@@ -220,14 +220,6 @@
       "git": "ignored",
       "owner": "git",
       "role": "저장소 내부"
-    },
-    {
-      "name": "tests",
-      "kind": "dir",
-      "git": "tracked",
-      "owner": "upstream-version-watch",
-      "role": "하네스 패치 회귀 검증 자산(plan_26091607). sync_to_sub 의 resolve_render_input 등 빌드 평면 패치 묶음과 1:1 대응되는 시나리오 스크립트의 거처. 디렉터리 자체는 root_registry 가 닫힌 목록이지만(naming·role·owner 가 강제), tests/<cell>.sh 가 패치 회귀 자산이라는 역할은 2026-09-16 사용자 명시 결정(팝업 응답 · 등재)으로 정당화 — authority_note 가 요구하는 사람 리뷰를 거쳤다. pre-commit tripwire ⑦ 가 이 등재를 확인한다.",
-      "branch_note": "tests/ 는 양 토폴로지 공통 빌딩블럭 — single-node·multi-node 양 브랜치에 모두 추적. 토폴로지별 시나리오가 갈라지면 tests/single/·tests/multi/ 로 갈라진다(현 단계는 resolve_render_input 단일 시나리오)."
     }
   ],
   "tombstones": [
