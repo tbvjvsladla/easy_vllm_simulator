@@ -31,8 +31,6 @@ import os
 import subprocess
 import sys
 import tempfile
-import secrets
-from pathlib import Path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
@@ -40,8 +38,6 @@ AGENT_CONTROL = os.path.join(REPO, ".claude", "policies", "runtime", "agent_cont
 sys.path.insert(0, HERE)
 import turn_budget  # noqa: E402
 import bootstrap_canary as _canary  # noqa: E402  (manifest → target 해소를 재사용)
-sys.path.insert(0, os.path.join(REPO, ".claude", "policies", "runtime"))
-import a2a_identity as _identity  # noqa: E402
 
 PENDING_HITL = "pending_hitl.json"
 
@@ -351,9 +347,9 @@ def consecutive_runner_unavailable(doc: dict) -> int:
 
 def build_request(topology: str, manifest: str, task: str, bud: dict,
                   resume_session_id=None, capabilities=None,
-                  context_id: str | None = None, attempt: int = 0, model: str | None = None,
-                  campaign_id: str | None = None, control_variables: dict | None = None,
-                  backend: str | None = None) -> dict:
+                  context_id: str = None, attempt: int = 0, model: str = None,
+                  campaign_id: str = None, control_variables: dict = None,
+                  backend: str = None) -> dict:
     """위임 request 조립. `bud` 는 **선언된** 예산이다(`turn_budget.declare` 산출)."""
     base = _canary.build_request(topology, manifest, max_turns=bud["max_turns"],
                                  timeout_seconds=bud["timeout_seconds"],
@@ -375,121 +371,6 @@ def build_request(topology: str, manifest: str, task: str, bud: dict,
     if backend:
         base["backend"] = backend
     return base
-
-
-def build_signed_attempt(repo_root: str, remote_peer_id: str, request: dict,
-                         instruction_id: str, authorization: dict,
-                         predecessor: dict | None = None) -> dict:
-    """Create a fresh authenticated attempt; proof never supplies authority."""
-    payload = {
-        "instruction_id": instruction_id,
-        "agent_request": request,
-        "authorization": authorization,
-    }
-    if predecessor:
-        payload["predecessor_attempt_id"] = predecessor["attempt_id"]
-        payload["predecessor_request_digest"] = predecessor["request_digest"]
-    state = _identity.resolve_state_dir(repo_root)
-    return _identity.sign_envelope(state, remote_peer_id, {
-        "envelope_type": "request",
-        "attempt_id": secrets.token_hex(16),
-        "payload": payload,
-        "payload_digest": _identity.digest(payload),
-    })
-
-
-def verify_signed_report(repo_root: str, report_envelope: dict,
-                         request_envelope: dict) -> dict:
-    """Authenticate, bind and consume a report before relay parsing or attribution."""
-    state = _identity.resolve_state_dir(repo_root)
-    proof = _identity.verify_envelope(state, report_envelope, "report")
-    if proof.sender_peer_id != request_envelope.get("recipient_peer_id"):
-        raise _identity.IdentityError("report signer is not the requested peer")
-    payload = report_envelope["payload"]
-    expected = _identity.digest(request_envelope)
-    if payload.get("request_envelope_digest") != expected:
-        raise _identity.IdentityError("report is not bound to the dispatched request")
-    if payload.get("request_attempt_id") != request_envelope.get("attempt_id"):
-        raise _identity.IdentityError("report attempt mismatch")
-    request_payload = request_envelope.get("payload") or {}
-    if payload.get("instruction_id") != request_payload.get("instruction_id"):
-        raise _identity.IdentityError("report instruction mismatch")
-    result = payload.get("control_result")
-    if not isinstance(result, dict) or payload.get("control_result_digest") != _identity.digest(result):
-        raise _identity.IdentityError("report control result digest mismatch")
-    requested = request_payload.get("agent_request") or {}
-    expected_runner = {"backend": requested.get("backend", "anthropic"),
-                       "model": requested.get("model")}
-    if payload.get("runner") != expected_runner:
-        raise _identity.IdentityError("report runner does not match the signed request")
-    _identity.consume_attempt(state, proof, {}, _utcnow(), message_kind="report")
-    return {"identity_proof": proof, "payload": payload}
-
-
-def authorize_attempt(repo_root: str, work_manifest: str, request: dict,
-                      instruction_id: str) -> dict:
-    """Reuse the scoped HITL gate and bind its verdict to this exact instruction/request."""
-    gate = os.path.join(repo_root, ".claude", "policies", "runtime", "completion_gate.py")
-    cp = subprocess.run([
-        sys.executable, gate, "authorize", "--manifest", work_manifest,
-        "--mode", "experimental", "--action", "a2a_delegate", "--repo-root", repo_root,
-    ], capture_output=True, text=True)
-    try:
-        verdict = json.loads(cp.stdout)
-    except ValueError as exc:
-        raise SystemExit("[relay] STOP: A2A 실행 승인 판정을 읽지 못했다") from exc
-    if cp.returncode != 0 or verdict.get("authorized") is not True:
-        codes = ",".join(verdict.get("reason_codes") or []) or "UNKNOWN"
-        raise SystemExit(f"[relay] STOP: A2A 실행 미승인 — {codes}")
-    manifest_path = os.path.abspath(work_manifest)
-    with open(manifest_path, "rb") as f:
-        manifest_digest = __import__("hashlib").sha256(f.read()).hexdigest()
-    return {
-        "status": "authorized",
-        "instruction_id": instruction_id,
-        "work_manifest_digest": manifest_digest,
-        "capabilities": list(request["capabilities"]),
-        "scope": {"target_peer_id": request["target"]["peer_id"],
-                  "task_digest": _identity.digest(request["task"])},
-        "gate": {"action": "a2a_delegate", "authorization_state": verdict.get("authorization_state")},
-        "campaign": {"campaign_id": request.get("campaign_id"),
-                     "control_variables": request.get("control_variables")},
-    }
-
-
-def invoke_signed_sub(request: dict, request_envelope: dict, repo_root: str) -> tuple[subprocess.CompletedProcess, dict]:
-    """Invoke only the authenticated sub executor over independently pinned SSH."""
-    runtime = os.path.join(repo_root, ".claude", "policies", "runtime")
-    provider_dir = os.path.join(runtime, "providers")
-    if provider_dir not in sys.path:
-        sys.path.insert(0, provider_dir)
-    import claude_code as provider  # noqa: E402
-    import shlex
-    target = request["target"]
-    remote = (
-        f"cd {shlex.quote(target['work_dir'])} && "
-        f"timeout {int(request['timeout_seconds'])} "
-        "python3 .claude/policies/runtime/a2a_executor.py "
-        "--request-envelope - --repo . --consumed-utc "
-        + shlex.quote(_utcnow())
-    )
-    argv = ["ssh", *provider.strict_ssh_options(target["a2a_state_root"], target["peer_id"]),
-            "--", f"{target['ssh_user']}@{target['host']}", remote]
-    try:
-        out = subprocess.run(argv, input=json.dumps(request_envelope, ensure_ascii=False),
-                             capture_output=True, text=True,
-                             timeout=request.get("timeout_seconds"))
-    except subprocess.TimeoutExpired as exc:
-        out = subprocess.CompletedProcess(argv, 124, exc.stdout or "", exc.stderr or "remote executor timed out")
-    except OSError as exc:
-        out = subprocess.CompletedProcess(argv, 127, "", f"transport launch failed: {type(exc).__name__}: {exc}")
-    if out.returncode != 0:
-        return out, {}
-    try:
-        report_envelope = json.loads(out.stdout)
-    except ValueError as exc:
-        raise SystemExit("[relay] FAIL: 서명된 report envelope를 읽지 못했다") from exc
-    return out, verify_signed_report(repo_root, report_envelope, request_envelope)
 
 
 def resolve_campaign_axis(a) -> "tuple[str | None, dict | None]":
@@ -1696,7 +1577,7 @@ def _self_test() -> int:
 
     # ── 러너 사다리 (2026-09-08) ────────────────────────────────────────────────────────
     _tbl = runner_table(REPO)
-    chk(set(_tbl) >= {"sonnet", "haiku", "opus", "kimi-claude", "minimax-claude", "meta-claude", "openai-claude"},
+    chk(set(_tbl) >= {"sonnet", "haiku", "opus", "kimi-claude", "minimax-claude", "meta-claude"},
         "별칭 표를 **어댑터에서** 읽는다(사본 ✗) → %s" % sorted(_tbl))
     _lad = resolve_ladder(REPO, "kimi-claude,minimax-claude,sonnet,haiku")
     chk([r["name"] for r in _lad] == ["kimi-claude", "minimax-claude", "sonnet", "haiku"]
@@ -1825,7 +1706,7 @@ def _utcnow() -> str:
 
 def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declared,
                      runner: dict) -> int:
-    """한 번의 인증된 위임 왕복 — 사다리 한 칸이며 매 호출은 새 attempt_id를 쓴다."""
+    """한 번의 위임 왕복 — **사다리 한 칸**. `--task` 진입과 `--continue` 진입이 같은 몸통을 쓴다."""
     attempt_no = len(doc.get("attempts") or []) + 1
     resume = None if resume_declared in (None, "new") else resume_declared
     req = build_request(a.topology, a.manifest_path, task, bud, resume_session_id=resume,
@@ -1833,96 +1714,142 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
                         model=runner["model"], backend=runner["backend"],
                         campaign_id=getattr(a, "campaign_id", None),
                         control_variables=getattr(a, "control_variables", None))
-    state = _identity.resolve_state_dir(a.repo_root)
-    endpoint = _identity._read_json(state / "endpoint.json")
-    remote_peer_id = getattr(a, "peer_id", None)
-    if not remote_peer_id:
-        raise SystemExit("[relay] STOP: --peer-id 필수 — role/branch/host에서 identity를 추론하지 않는다.")
-    req["target"]["peer_id"] = remote_peer_id
-    req["target"]["a2a_state_root"] = str(state)
-    instruction_id = getattr(a, "instruction_id", None)
-    if not instruction_id:
-        raise SystemExit("[relay] STOP: --instruction-id 필수")
-    work_manifest = getattr(a, "work_manifest", None)
-    if not work_manifest:
-        raise SystemExit("[relay] STOP: --work-manifest 필수 — identity proof가 실행 승인을 대신하지 않는다.")
-    authorization = authorize_attempt(a.repo_root, work_manifest, req, instruction_id)
-    last = next((x for x in reversed(doc.get("attempts") or [])
-                 if x.get("verified_report") is True), None)
-    predecessor = None
-    if last:
-        predecessor = {"attempt_id": last.get("attempt_id"),
-                       "request_digest": last.get("request_envelope_digest")}
-        if not all(predecessor.values()):
-            raise SystemExit("[relay] STOP: 이전 attempt의 signed predecessor 사실이 없다")
-    signed = build_signed_attempt(a.repo_root, remote_peer_id, req, instruction_id,
-                                  authorization, predecessor)
-    req_digest = _identity.digest(signed)
+
     if a.emit_only:
-        json.dump(signed, sys.stdout, ensure_ascii=False, indent=2)
+        json.dump(req, sys.stdout, ensure_ascii=False, indent=2)
         sys.stdout.write("\n")
         return 0
 
     branch = assert_sub_branch(req, a.topology)
-    print(f"[relay] attempt={attempt_no} attempt_id={signed['attempt_id']} runner={runner['name']} "
-          f"max_turns={bud['max_turns']} timeout={bud['timeout_seconds']}s resume={resume_declared} "
-          f"sub_branch={branch}")
-    qdir = os.path.join(relay_root(a.repo_root), f"{a.context_id}.requests")
-    os.makedirs(qdir, exist_ok=True)
-    qp = os.path.join(qdir, "attempt-%02d.json" % attempt_no)
-    with open(qp, "w", encoding="utf-8") as f:
-        json.dump(signed, f, ensure_ascii=False, indent=2, sort_keys=True)
+    print(f"[relay] attempt={attempt_no} runner={runner['name']} "
+          f"(backend={runner['backend']} model={runner['model']}) "
+          f"max_turns={bud['max_turns']} timeout={bud['timeout_seconds']}s ({bud['source']}) "
+          f"resume={resume_declared} sub_branch={branch}")
+    # 2026-09-05(축 F): 보낸 요청을 **보존한다**. 종전에는 임시파일로 보내고 지웠기 때문에 "그때
+    #   무엇을 보냈는가" 가 남지 않았고, 조립기는 매번 다시 조립하므로 재현도 되지 않았다.
+    _qdir = os.path.join(relay_root(a.repo_root), f"{a.context_id}.requests")
+    os.makedirs(_qdir, exist_ok=True)
+    _qp = os.path.join(_qdir, "attempt-%02d.json" % attempt_no)
+    with open(_qp, "w", encoding="utf-8") as f:
+        json.dump(req, f, ensure_ascii=False, indent=2, sort_keys=True)
         f.write("\n")
     started = _utcnow()
-    out, verified = invoke_signed_sub(req, signed, a.repo_root)
+    out = subprocess.run([sys.executable, AGENT_CONTROL, "invoke", "--request", _qp],
+                         capture_output=True, text=True)
     ended = _utcnow()
-    sys.stderr.write(out.stderr or "")
-    if out.returncode != 0 or not verified:
-        reason = ("TIMEOUT" if out.returncode == 124 else
-                  "SSH_TRANSPORT_FAILED" if out.returncode == 255 else
-                  "REMOTE_EXECUTOR_UNAVAILABLE" if out.returncode == 127 else
-                  "REMOTE_EXECUTOR_FAILED")
-        result = {"status": "timeout" if out.returncode == 124 else "execution_failed",
-                  "exit_code": out.returncode, "reason_codes": [reason],
-                  "session_id": None, "num_turns": None,
-                  "budget_outcome": "external_interruption", "output": ""}
-        report = None
-    else:
-        result = verified["payload"]["control_result"]
-        report = (None if RUNNER_UNAVAILABLE in (result.get("reason_codes") or [])
-                  else parse_report(result.get("output") or ""))
+    sys.stderr.write(out.stderr)
+    control_stderr = (out.stderr or "").strip()
+    try:
+        result = json.loads(out.stdout)
+    except ValueError:
+        raise SystemExit(f"[relay] FAIL: agent_control 출력을 읽지 못했다 — {out.stdout[:300]}")
+
+    # ★ 2026-09-08 라이브 교정(회전 1회가 알려줬다): 러너-불가 결과의 `output` 은 **어댑터가 실은
+    #   우리 진단 JSON** 이지 서브가 보낸 리포트가 아니다. 그런데 `parse_report` 는 "산문 속 JSON
+    #   객체" 를 집으므로 그것을 리포트로 집어 들었고, 그 결과 원장에 `sub_reported: true` 가
+    #   적혔다 — 서브는 한 글자도 받지 못했는데 **서브가 보고했다고 기록된 것**이다
+    #   (SILENT_FALLBACK 금지의 정확한 위반 형태: 메인이 만든 것이 서브 산출로 집계됐다).
+    #   증거는 `runner_evidence` 가 이미 제 자리에서 들고 있다.
+    report = (None if RUNNER_UNAVAILABLE in (result.get("reason_codes") or [])
+              else parse_report(result.get("output") or ""))
     att = record_attempt(doc, context_id=a.context_id, bud=bud, result=result, report=report,
                          resume_declared=resume_declared, runner=runner,
-                         request_path=os.path.relpath(qp, a.repo_root),
+                         request_path=os.path.relpath(_qp, a.repo_root),
                          started_utc=started, ended_utc=ended)
-    att["attempt_id"] = signed["attempt_id"]
-    att["request_envelope_digest"] = req_digest
-    att["identity_sender_peer_id"] = endpoint["peer_id"]
-    att["verified_report"] = bool(verified)
-    adir = os.path.join(relay_root(a.repo_root), f"{a.context_id}.reports")
-    os.makedirs(adir, exist_ok=True)
-    apath = os.path.join(adir, "attempt-%02d.json" % att["attempt"])
-    with open(apath, "w", encoding="utf-8") as f:
-        json.dump({"attempt": att["attempt"], "attempt_id": signed["attempt_id"],
-                   "verified_identity": bool(verified), "report": report,
-                   "transport": {"returncode": out.returncode,
-                                 "stderr_tail": (out.stderr or "")[-4000:] or None},
+    # 2026-09-04(P4 라이브): 원장이 status 만 적고 **리포트 본문을 버렸다** — 나중에 "서브가 무엇을
+    #   근거로 completed 라 했는가" 를 메인이 감사할 수 없었다(내가 서브를 의심했다가 dotfile 을
+    #   놓친 내 실수임을 확인하는 데도 서브 워크스페이스를 다시 뒤져야 했다 — 재스캔은 계약 밖이다).
+    #   서브가 보낸 것은 서브가 보낸 그대로 남긴다. 없으면 산문 원문을 남긴다(추측 파싱 ✗).
+    _adir = os.path.join(relay_root(a.repo_root), f"{a.context_id}.reports")
+    os.makedirs(_adir, exist_ok=True)
+    _ap = os.path.join(_adir, "attempt-%02d.json" % att["attempt"])
+    with open(_ap, "w", encoding="utf-8") as f:
+        json.dump({"attempt": att["attempt"], "report": report,
+                   "raw_output": None if report else (result.get("output") or ""),
+                   # 2026-09-05(N6): provider 진단(`_diag` 의 stderr)을 **원장 옆에 보존**한다.
+                   #   라이브에서 malformed 로 끝났을 때 "무엇이 왔길래" 를 알 수 있는 유일한 통로가
+                   #   이 텍스트였는데, 화면을 스크롤해 지나가면 그대로 사라졌다.
+                   "control_stderr_tail": control_stderr[-4000:] or None,
                    "control": {k: result.get(k) for k in
                                ("status", "exit_code", "reason_codes", "session_id",
-                                "num_turns", "budget_outcome", "duration_ms", "duration_api_ms")}},
+                                "num_turns", "budget_outcome", "duration_ms",
+                                "duration_api_ms")}},
                   f, ensure_ascii=False, indent=2, sort_keys=True)
         f.write("\n")
-    att["report_path"] = os.path.relpath(apath, a.repo_root)
+    att["report_path"] = os.path.relpath(_ap, a.repo_root)
     doc["task"] = doc.get("task") or task
     doc["topology"] = a.topology
     doc["manifest"] = a.manifest_path
     save_ledger(lp, doc)
+    _crash = None
+    if report is None or att["control_status"] != "completed":
+        # 3-3: 파싱 실패·프로세스 크래시는 **fail-loud + 마지막 알려진 세션 제시**다. 재개 여부는
+        #   사람·에이전트가 정하므로, 그 판단에 필요한 세션 id 를 대기 목록에 남긴다.
+        _crash = {"attempt": att["attempt"], "end_reason": att["end_reason"],
+                  "control_status": att["control_status"],
+                  "reason_codes": att["reason_codes"],
+                  "last_known_session": att.get("session_id") or last_known_session(doc)["session_id"]}
+    hp = surface_requests(a.repo_root, a.context_id, report or {}, attempt=att["attempt"],
+                          crash=_crash)
+
     print(f"[relay] 원장 → {lp}")
+    _stall = None
+    if isinstance(att.get("duration_ms"), int) and isinstance(att.get("duration_api_ms"), int):
+        _stall = att["duration_ms"] - att["duration_api_ms"]
+    print(f"[relay] control={att['control_status']} sub_status={att['status']} "
+          f"turns={att['max_turns_used']}/{att['max_turns_allocated']} budget={att['budget_outcome']} "
+          f"end_reason={att['end_reason']}")
+    print(f"[relay] 시간: {started} → {ended} · provider wall={att.get('duration_ms')}ms "
+          f"api={att.get('duration_api_ms')}ms 정지={_stall if _stall is not None else '(모름)'}ms")
+    if att["resume_honored"] is False:
+        print(f"[relay] ⚠ 재개 불발: 요청한 세션 {resume} 과 다른 세션 {att['session_id']} 이 열렸다 — "
+              "서브가 컨텍스트를 처음부터 재구축했을 수 있다(소진의 주된 원인). 다음 턴의 예산을 그렇게 읽어라.")
+    # ★ 2026-09-08 라이브 교정: echo 대조는 **서브에 닿은 attempt** 에만 뜻이 있다. 러너 평면
+    #   실패는 서브가 한 글자도 받지 못한 것이므로 "echo 부재" 는 위반이 아니라 당연한 사실이고,
+    #   그것을 경고로 찍으면 사람이 서브의 규약 위반을 의심하며 엉뚱한 곳을 본다(라이브 실측:
+    #   회전 1회에 이 경고가 그대로 떴다). 관측한 것만 적는다.
+    if _reached_sub(att):
+        _echo_stop = echo_stop_reasons(att, context_id=a.context_id,
+                                       campaign_id=(a.campaign_id or doc.get("campaign_id")),
+                                       control_variables=doc.get("control_variables"))
+        for _r in _echo_stop:
+            print(f"[relay] ⚠ 정체성 echo: {_r} — `--continue` 는 이 상태에서 진행하지 않는다.")
+    if att["external_search"]:
+        print(f"[relay] 서브가 외부검색 {len(att['external_search'])}건을 기록했다 — 자산화 후보. "
+              f"근거는 원장 attempt {att['attempt']}.external_search 에 있다.")
+    if hp:
+        # 2026-09-08: 크래시 경로의 항목은 **메인이** 만든 것이다 — "서브가 표면화했다" 고 적으면
+        #   서브가 규약대로 물어본 것과 구분되지 않는다(관측한 것만 적는다).
+        _who = "메인이 사실을" if _crash else "서브가 요청을"
+        print(f"[relay] ⚠ {_who} 표면화했다 → {hp} "
+              "(`answer` 를 적고 `--continue` 로 재개. blocking 은 답 없이는 진행하지 않는다)")
     if att["end_reason"] == "runner_unavailable":
+        _ev = att.get("runner_evidence") or {}
+        print(f"[relay] ⚠ 러너 평면 실패 — {runner['name']}: {_ev.get('detail')} "
+              f"(signal={_ev.get('signal')} status={_ev.get('api_error_status')} "
+              f"provenance={_ev.get('provenance')} 회전가능={_ev.get('rotate')})")
+        if _ev.get("message"):
+            print(f"[relay]   백엔드가 남긴 말: {str(_ev['message'])[:300]}")
         return 5
     if att["budget_outcome"] == "exhausted":
+        print(f"[relay] ⚠ 예산 소진(terminal). 자동 재시도하지 않는다 — "
+              f"`relay.py --continue --context-id {a.context_id}` 로 이어라(본문은 기계가 조립한다).\n"
+              f"[relay]   다음 예산은 **선언**이다: 집행된 바닥 {budget_floor(doc)} 아래로 내리면 하강나선이다.")
         return 3
     if report is None:
+        # 2026-09-05(N6): 종전 문구는 **검증하지 않은 원인**을 단정했다("산문만 왔다"). 라이브에서
+        #   실제로는 stdout 이 비어 있었고(provider exit 5), 그 단정 때문에 나는 서브가 형식을
+        #   어겼다고 읽었다. 관측된 것만 적는다 — 무엇이 왔는지, 제어가 뭐라고 했는지.
+        _raw = result.get("output")
+        if _raw is None or not str(_raw).strip():
+            _what = "출력이 비었다(서브가 아무것도 돌려주지 않았거나 전송이 실패했다)"
+        else:
+            _what = "출력 %d자가 왔지만 그 안에서 JSON 객체를 찾지 못했다" % len(str(_raw))
+        print("[relay] ⚠ 서브 리포트(JSON) 없음 — %s. control=%s codes=%s. 성공으로 집계하지 않는다."
+              % (_what, att["control_status"], ",".join(att["reason_codes"]) or "-"))
+        if control_stderr:
+            print("[relay]   provider 진단(끝 400자): %s" % control_stderr[-400:])
+        print("[relay]   원문 보존: %s" % att["report_path"])
         return 4
     return 0 if att["status"] == "completed" else 2
 
@@ -2025,12 +1952,6 @@ def main() -> int:
                     help="--continue 와 함께: 조립한 본문으로 실제 위임한다(사람 승인 정문).")
     ap.add_argument("--emit-only", action="store_true", help="request 만 조립해 출력(실행 ✗)")
     ap.add_argument("--repo-root", default=REPO)
-    ap.add_argument("--peer-id", default=None,
-                    help="reciprocal enrollment에서 고정한 원격 opaque peer id(추론 금지)")
-    ap.add_argument("--instruction-id", default=None,
-                    help="승인 원장과 signed envelope를 묶는 현재 instruction id")
-    ap.add_argument("--work-manifest", default=None,
-                    help="a2a_delegate를 명시 승인한 work-manifest JSON")
     # 2026-09-07(plan_26090715 §4.8): 캠페인 정체성은 **요청에 실려 간다**. 생략하면 활성
     #   캠페인에서 파생하고, `_bootstrap`(캠페인 밖)이면 싣지 않는다.
     ap.add_argument("--campaign-id", default=None,
@@ -2135,7 +2056,7 @@ def main() -> int:
             ids = ", ".join(str(e.get("request_id")) for e in blocked)
             raise SystemExit(
                 f"[relay] STOP: 답이 필요한 **차단성** 요청이 있다 — {ids}\n"
-                f"  → {relay_root(a.repo_root)}/{PENDING_HITL} 의 해당 항목 `answer` 에 답을 적고 다시 --continue 하라.\n"
+                f"  → {relay_root(repo_root)}/{PENDING_HITL} 의 해당 항목 `answer` 에 답을 적고 다시 --continue 하라.\n"
                 "  → 이것이 사람의 승인 정문이다(답 = 승인). 답 없이 진행하면 서브가 근거 없이 결정한다.")
 
         lks = last_known_session(doc)

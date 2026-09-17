@@ -409,8 +409,10 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 sub_manifest_path: str | None = None) -> dict:
     """치환된 placeholders 로 스테이징 트리를 만든다. 반환 = 산출 매니페스트(검증용).
 
-    `signing_key` is retained only as a compatibility parameter and must be None. Agent Card is
-    discovery metadata; live message identity is reciprocal enrollment in git-common-dir state.
+    `signing_key`(2026-09-05 · plan_26090516 §7.2 H1(A)): 메인 Ed25519 PEM. 렌더된 Agent_Card 를
+    A2A §8.4 JWS 로 서명하고 공개키(JWK)를 `.claude/a2a/trusted_keys.json` 으로 함께 싣는다 — 서브·메인
+    게이트가 이 저장소로 검증한다. **사람 개입 0**(H1 조건). None 이면 서명하지 않는다(self-test 전용 —
+    main() 은 키 부재를 fail-loud 로 막는다).
     `sub_manifest_path`(§7.3): terraforming 이 실측·생성한 서브 manifest. 스테이징의
     `output/<topology>/manifest.yaml` 로 복제한다(설치 산출물 — 빌드킷 배달 평면(D10)과 무관).
     """
@@ -462,7 +464,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     if violations:
         raise SystemExit("[render] FAIL: Agent_Card 계약 위반 — " + "; ".join(violations))
     if signing_key:
-        raise SystemExit("[render] FAIL: legacy Agent Card signing key is not an identity source; reciprocal enrollment is separate")
+        raise SystemExit("[render] FAIL: legacy Agent Card signing key is not an identity source; SSH is the endpoint identity")
 
     # 1.6) 서브 manifest (설치 산출물 · terraforming 실측) → 스테이징 output/<topology>/manifest.yaml
     if sub_manifest_path:
@@ -489,13 +491,6 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     for schema_name in SUB_SCHEMAS:
         schema_dst = os.path.join(claude, "schemas", schema_name)
         shutil.copyfile(os.path.join(SUBNODE_DIR, schema_name), schema_dst)
-        with open(schema_dst, encoding="utf-8") as f:
-            json.load(f)
-        produced.append(f".claude/schemas/{schema_name}")
-    for schema_name in ("agent-control-request.schema.json", "agent-control-result.schema.json"):
-        schema_src = os.path.join(REPO, ".claude", "schemas", schema_name)
-        schema_dst = os.path.join(claude, "schemas", schema_name)
-        shutil.copyfile(schema_src, schema_dst)
         with open(schema_dst, encoding="utf-8") as f:
             json.load(f)
         produced.append(f".claude/schemas/{schema_name}")
@@ -544,8 +539,13 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
             produced.append(".claude/skills/ (런타임블럭 0종 — tool_plane=%s)"
                             % (ph.get("TOOL_PLANE_SOURCE") or "unknown"))
 
-    # 3.5) Live A2A identity is not rendered. Each endpoint enrolls reciprocal peer keys in its
-    # git-common-dir; renderer absence never creates or imports identity material.
+    # 3.5) A2A 위임 키 (plan_26063021_14_37 D5/D7) — 서브 HW 동질성 검증(nodes[sub].hw_verified=true) 통과 시에만 발급.
+    #   메인 키(terraforming.complete@manifest)와 UNIQUE. 최소 attestation(HW사실/전체 manifest ✗ → D10 보존).
+    #   recipe.py·run_bench.sh 가 이 파일 존재로 서브 게이트 면제(fail-closed 양성 키). 미검증이면 미발급 → 서브 info-only.
+    # 2026-09-05(③ 3-9 · G-E1): **위임 키 발급 중단**. 여기서 만들던 `.claude/a2a_delegation.json`
+    #   은 "메인이 서브에게 준 실행 허가" 였고, 감사는 그것을 R3(에이전트 자율성 부정)로 판정했다.
+    #   대체물은 이미 이 렌더가 만든다 — 서명된 `Agent_Card.json` + `.claude/a2a/trusted_keys.json`
+    #   (정체성 증명) + 메인이 발급한 서브 manifest(완수 Flag). 게이트들은 허가가 아니라 그것을 본다.
 
     # 4) 캠페인 워크스페이스 스캐폴드 (2026-09-06 이관 · plan_26090616 ②)
     #    옛 `tasks/.gitkeep` 을 대신한다. 서브도 메인과 **같은 뼈대**를 받아 자기
@@ -712,7 +712,17 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
         os.chmod(dst, mode)
         produced.append(rel)
 
-    # 4.7) Agent Card structure validator (discovery metadata only).
+    # 4.7) A2A 카드 검증기(2026-09-05 ②-b · plan_26090516 §7.2). host_safety·node_blackbox 와 **동형** 배선.
+    #   ★ 왜 신설했나: ②-a 는 서브에 신뢰키 저장소(.claude/a2a/trusted_keys.json)를 배달하면서
+    #     **그것을 읽는 코드를 배달하지 않았다**. 서브 재설치 라이브에서 C6(서브측 서명 검증)을 하려는
+    #     순간 드러났다 — 저장소는 있는데 검증기가 없다. 감사가 이름 붙인 "실행자 0"(가드를 놓고
+    #     실행 주체를 안 적는 것)의 재발이며, 처방은 **검증기를 서브 런타임으로 내리는 것**이다.
+    #   canonical source 는 terraforming 스킬이 소유하고(메인 전용 스킬 트리는 서브에 가지 않는다),
+    #   서브에는 헌법 runtime asset 으로 materialize 한다. stdlib + cryptography 만 쓰므로 자기완결이다.
+    #   정본 소스 = 위에서 카드 계약 검증·서명에 실제로 쓴 그 모듈의 파일이다(단일 소유 — 경로를
+    #   다시 조립하면 두 자리가 갈린다). 부재는 이 파일 상단의 `import agent_card_contract` 가 이미
+    #   fail-closed 로 잡는다(음성대조 실측: ModuleNotFoundError · rc=1). 여기에 isfile 게이트를 더
+    #   두면 **도달 불가 분기**가 된다 — 가드는 도달해야 가드다.
     card_contract_src = _acc.__file__
     rel = os.path.join(".claude", "runtime", "a2a", "agent_card_contract.py")
     dst = os.path.join(out_dir, rel)
@@ -720,26 +730,6 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     shutil.copyfile(card_contract_src, dst)
     os.chmod(dst, 0o755)
     produced.append(rel)
-
-    # 4.8) signed-attempt identity runtime. Live values remain in each clone's git-common-dir;
-    # only tracked verifier/executor code is materialized to the sub.
-    for source_name in ("a2a_identity.py", "a2a_executor.py", "agent_control.py"):
-        src = os.path.join(REPO, ".claude", "policies", "runtime", source_name)
-        if not os.path.isfile(src):
-            raise SystemExit(f"[render] FAIL: A2A runtime source missing: {src}")
-        dst_rel = os.path.join(".claude", "policies", "runtime", source_name)
-        dst = os.path.join(out_dir, dst_rel)
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        shutil.copyfile(src, dst)
-        os.chmod(dst, 0o755)
-        produced.append(dst_rel)
-    provider_src = os.path.join(REPO, ".claude", "policies", "runtime", "providers", "claude_code.py")
-    provider_rel = os.path.join(".claude", "policies", "runtime", "providers", "claude_code.py")
-    provider_dst = os.path.join(out_dir, provider_rel)
-    os.makedirs(os.path.dirname(provider_dst), exist_ok=True)
-    shutil.copyfile(provider_src, provider_dst)
-    os.chmod(provider_dst, 0o755)
-    produced.append(provider_rel)
 
     # 5) 서브 로컬 git .gitignore (D12 — placeholder 없는 정적자산 그대로 복제)
     gi_src = os.path.join(SUBNODE_DIR, "gitignore.template")
@@ -760,8 +750,6 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     produced.append(f"docs/*/example.md ({len(DOC_TYPES)} skeletons)")
 
     return {"out_dir": out_dir, "produced": produced}
-
-
 
 
 def _copy_tracked(src_skill: str, dst: str, tracked_list: list | None = None,
@@ -884,10 +872,7 @@ def _self_test() -> int:
         res = render_tree(ph, out, copy_runtime_block=False)  # 런타임블럭 복제는 git 의존 → self-test 제외
         base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json",
-                       ".claude/schemas/library-exchange.schema.json",
-                       ".claude/schemas/agent-control-request.schema.json",
-                       ".claude/schemas/agent-control-result.schema.json",
-                       "campaigns/_bootstrap/relay/.gitkeep",
+                       ".claude/schemas/library-exchange.schema.json", "campaigns/_bootstrap/relay/.gitkeep",
                        "campaigns/README.md",
                        ".claude/rules/docs.md", ".gitignore",   # ← references.md 는 tool_plane 종속(아래 c4b)
                        # 특화헌법: 서브가 자기 토폴로지의 헌법을 받는지 fail-loud 로 확인한다
@@ -917,12 +902,8 @@ def _self_test() -> int:
                        ".claude/runtime/node_blackbox/budget_renew_loop.sh",
                        ".claude/runtime/node_blackbox/blackbox_thermal.py",
                        ".claude/runtime/node_blackbox/thermal_watchdog.sh",
-                       # Agent Card remains discovery metadata; this validates its structure only.
-                       ".claude/runtime/a2a/agent_card_contract.py",
-                       ".claude/policies/runtime/a2a_identity.py",
-                       ".claude/policies/runtime/a2a_executor.py",
-                       ".claude/policies/runtime/agent_control.py",
-                       ".claude/policies/runtime/providers/claude_code.py"]
+                       # 신뢰키 저장소를 읽는 **실행자** — 없으면 서브 서명검증이 불가능하다(②-b)
+                       ".claude/runtime/a2a/agent_card_contract.py"]
         have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
         missing_art = [p for p in base_expect if not os.path.exists(os.path.join(out, p))]
         # docs 스켈레톤: docs.md 계약 5종(DOC_TYPES) 전부 렌더됐나(simlog·benchmark 누락 회귀 차단 — review)
@@ -939,9 +920,7 @@ def _self_test() -> int:
         # JSON 유효
         for p in ("Agent_Card.json", ".claude/settings.local.json",
                   ".claude/schemas/task-report.schema.json",
-                  ".claude/schemas/library-exchange.schema.json",
-                  ".claude/schemas/agent-control-request.schema.json",
-                  ".claude/schemas/agent-control-result.schema.json"):
+                  ".claude/schemas/library-exchange.schema.json"):
             with open(os.path.join(out, p), encoding="utf-8") as f:
                 json.load(f)
         # settings: 로컬 git allow + 원격 deny 정합(D12-02)
@@ -951,15 +930,8 @@ def _self_test() -> int:
         git_ok = ("Bash(git commit:*)" in allow and "Bash(git checkout:*)" in allow
                   and "Bash(git commit:*)" not in deny
                   and all(f"Bash(git {r}:*)" in deny for r in ("push", "pull", "fetch", "remote", "clone")))
-        with open(os.path.join(out, ".gitignore"), encoding="utf-8") as f:
-            rendered_ignore = f.read()
-        campaign_ignore_ok = ("/campaigns/*" in rendered_ignore
-                              and "!/campaigns/_template/" in rendered_ignore
-                              and "!/campaigns/README.md" in rendered_ignore)
-        c4 = have and not leftover and git_ok and docs_contract_ok and campaign_ignore_ok
-        print(f"  [{'PASS' if c4 else 'FAIL'}] 전체 렌더(미치환={leftover}, 누락아티팩트={missing_art}, "
-              f"git권한정합={git_ok}, 캠페인인스턴스무시={campaign_ignore_ok}, "
-              f"docs계약5종={sorted(rendered_doc_types)})")
+        c4 = have and not leftover and git_ok and docs_contract_ok
+        print(f"  [{'PASS' if c4 else 'FAIL'}] 전체 렌더(미치환={leftover}, 누락아티팩트={missing_art}, git권한정합={git_ok}, docs계약5종={sorted(rendered_doc_types)})")
         ok &= c4
     except SystemExit as e:
         print(f"  [FAIL] 렌더 예외: {e}")
@@ -1156,17 +1128,17 @@ def _self_test() -> int:
               f"출처={src_git}/{src_inj} git없는트리→fail-loud={failed_loud}")
         ok &= c5c
 
-    # (6) No live identity credential is rendered; Agent Card remains metadata only.
+    # (6) 2026-09-05(G-E1): 위임 키 발급 검사 → **키가 더는 만들어지지 않는지** + 정체성 증명 자산이
+    #     제자리에 있는지로 바뀐다. 허가(키)가 아니라 정체성(서명 카드 + 신뢰저장소)이 계약이다.
     data6 = parse_manifest(mpath)
     _node(data6, "sub")["hw_verified"] = "true"
     ph6, _ = build_placeholders(data6)
     out6 = os.path.join(tmp, "sub_provision_identity")
     render_tree(ph6, out6, copy_runtime_block=False)
-    no_live_credential = (not os.path.exists(os.path.join(out6, ".claude", "a2a_delegation.json"))
-                          and not os.path.exists(os.path.join(out6, ".claude", "a2a", "trusted_keys.json")))
+    key_gone = not os.path.exists(os.path.join(out6, ".claude", "a2a_delegation.json"))
     card_ok = os.path.exists(os.path.join(out6, "Agent_Card.json"))
-    c6 = no_live_credential and card_ok
-    print(f"  [{'PASS' if c6 else 'FAIL'}] identity credential 미렌더={no_live_credential} · card metadata={card_ok}")
+    c6 = key_gone and card_ok
+    print(f"  [{'PASS' if c6 else 'FAIL'}] 위임 키 폐기: 키 미생성({key_gone}) · 정체성 자산 존재({card_ok})")
     ok &= c6
 
     # (7) ★ 토폴로지 축 4필드 회귀핀(testlog_26082215 S-11 FAIL 재발 차단):
@@ -1211,15 +1183,39 @@ def _self_test() -> int:
           f"single={single_ok}, 판정기일치={owner_ok}) → multi rank={card_m.get('rank')!r} / single rank={card_s.get('rank')!r}")
     ok &= c7
 
-    # (7b) Agent Card remains unsigned discovery metadata; live identity is reciprocal enrollment.
+    # (7b) Agent_Card v2 = A2A 1.0.1 표준 필드만 최상위 + 서명 왕복 + 서브 manifest 배달 (plan_26090516 §7.2/§7.3)
     with open(os.path.join(out7s, "Agent_Card.json"), encoding="utf-8") as f:
         card_full = json.load(f)
     v7b = _acc.validate_card(card_full) + _acc.require_skills(card_full)
-    unsigned_ok = not card_full.get("signatures")
-    no_trust_store = not os.path.exists(os.path.join(out7s, ".claude", "a2a", "trusted_keys.json"))
-    c7b = not v7b and unsigned_ok and no_trust_store
-    print(f"  [{'PASS' if c7b else 'FAIL'}] Agent_Card=discovery metadata: "
-          f"계약={not v7b} unsigned={unsigned_ok} legacy-trust-store-부재={no_trust_store}")
+    std_ok = not v7b and "node_identity" not in card_full and "topology_contract" not in card_full
+    sub_man_path = os.path.join(tmp, "sub_manifest.yaml")
+    with open(sub_man_path, "w", encoding="utf-8") as f:
+        f.write("self_role: sub\ntopology: single\ncpu_arch: aarch64\ngpus_per_node: 1\n"
+                "gpu_model: SUB-GPU\nmodel_source: managed\nnas_model_path: /srv/test-models\n"
+                "terraforming:\n  complete: true\n  branch_verified: true\n  issued_by: main\n"
+                "nodes:\n  - role: main\n    host: 203.0.113.10\n  - role: sub\n    host: 203.0.113.11\n")
+    ph7b, _ = build_placeholders(data7s, sub_manifest=parse_manifest(sub_man_path))
+    out7b = os.path.join(tmp, "sub_provision_metadata")
+    render_tree(ph7b, out7b, copy_runtime_block=False, sub_manifest_path=sub_man_path)
+    with open(os.path.join(out7b, "Agent_Card.json"), encoding="utf-8") as f:
+        rendered_card = json.load(f)
+    unsigned_ok = not rendered_card.get("signatures")
+    trust_absent = not os.path.exists(os.path.join(out7b, ".claude", "a2a", "trusted_keys.json"))
+    sub_copied = os.path.isfile(os.path.join(out7b, "output", "single", "manifest.yaml"))
+    hw_from_sub = ph7b["GPU_MODEL"] == "SUB-GPU"
+    bad_sub = os.path.join(tmp, "sub_manifest_bad.yaml")
+    with open(sub_man_path, encoding="utf-8") as f, open(bad_sub, "w", encoding="utf-8") as g:
+        g.write(f.read().replace("self_role: sub", "self_role: main"))
+    try:
+        render_tree(ph7b, os.path.join(tmp, "sub_provision_badsub"), copy_runtime_block=False,
+                    sub_manifest_path=bad_sub)
+        bad_caught = False
+    except SystemExit as e:
+        bad_caught = "self_role" in str(e)
+    c7b = std_ok and unsigned_ok and trust_absent and sub_copied and hw_from_sub and bad_caught
+    print(f"  [{'PASS' if c7b else 'FAIL'}] Agent_Card metadata: 표준={std_ok} unsigned={unsigned_ok} "
+          f"trust-store-부재={trust_absent} 서브manifest={sub_copied} HW출처={hw_from_sub} "
+          f"self_role≠sub거부={bad_caught}")
     ok &= c7b
 
     # (8) 계약 위반(single 에 ray-worker 선언) → 렌더 fail-loud(빈 정체성 렌더 금지)
@@ -1290,9 +1286,7 @@ def main() -> int:
     if not os.path.isfile(manifest):
         print(f"[render] FAIL: manifest 없음 — {manifest} (terraforming_node 스캔/인터뷰로 먼저 채우세요)", file=sys.stderr)
         return 3
-    # Message identity is enrolled separately in each clone's git-common-dir. Rendering never
-    # discovers, creates, reads, or copies private signing material.
-    signing_key = None
+    signing_key = None  # SSH public-key authentication is the endpoint identity; no second credential.
     sub_manifest = args.sub_manifest or os.path.join(REPO, "output", args.topology, "sub_manifest.yaml")
     if not os.path.isfile(sub_manifest):
         if args.topology == "single":

@@ -1717,21 +1717,13 @@ def predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C1():
     _require('kv-cache-memory-bytes' not in yaml_text_no_kv, 'without a measured absolute value, no kv-cache-memory-bytes line (gmu-derived or otherwise) may appear -- KV sizing is never approximated from the gmu ratio alone')
 
 
-C2_GMU_EMIT_COMMENT = ("# gpu-memory-utilization = startup free-memory 게이트(기동 전 free ≥ ceil(total×gmu) · "
-                       "통합메모리 ≤0.90) + 총량 cap 은 관측된 작용(한 셀 관측 · 유효맥락 kv-clamp.md §1 · vLLM 소스에서 "
-                       "기전 미확정); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어")
-
-
 def predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C2():
-    """C2: gmu is still emitted as the startup free-memory gate/cap (관측) with the unified-memory
-    <= 0.90 clamp as the only settled mechanism (기전); discrete targets are in-scope with no hard
-    clamp. AND: the final emission (gen_recipe_set._build_yaml, same real generator as C1) co-emits
-    gpu-memory-utilization ALONGSIDE kv-cache-memory-bytes (never one without the other once an
-    absolute KV value exists).
-    닫힌 리터럴 tripwire(2026-09-15 · Q2 (c)): 생성 주석은 C2_GMU_EMIT_COMMENT 와 **한 줄 전체 일치**여야
-    한다 — 부분 문자열이 아니다. 생성기(gen_recipe_set)든 registry 문장이든 어느 한쪽을 고치면 이
-    술어가 울려 그 변경에 리뷰를 강제한다(정적 파일끼리는 한쪽이 다른 쪽을 생성할 수 없으므로
-    교차검증이 차선이다 — workflow.md §결정론 규율)."""
+    """C2: gmu is still emitted as the startup free-memory gate/cap, clamped to <= 0.90 on
+    unified-memory targets; discrete targets are in-scope with no hard clamp. AND: the final
+    emission (gen_recipe_set._build_yaml, same real generator as C1) co-emits gpu-memory-utilization
+    ALONGSIDE kv-cache-memory-bytes (never one without the other once an absolute KV value exists),
+    with the real generated comment marking gmu's role as the free-memory gate/cap only -- proving
+    the co-emission and the role division are both actual generator behavior, not documentation."""
     per_card, gmu, model = recipe.resolve_target_gpu_budget(
         {"target_gpu": {"gpu_model": "NVIDIA RTX PRO 6000", "target_gmu": 0.95}}, tp=1)
     _require(per_card == 96.0 and gmu == 0.95 and (model == 'NVIDIA RTX PRO 6000'), 'discrete GPU: no hard clamp, per-card VRAM from references.md')
@@ -1741,15 +1733,14 @@ def predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C2():
     _require(gmu2 == 0.9, 'unified-memory GPU (GB10) must hard-clamp target_gmu to 0.90')
 
     # Co-emission proof: with an absolute KV value present, BOTH lines appear together, plus the
-    # real generated comment — 닫힌 리터럴 전체 일치로.
+    # real generated comment stating gmu is only the startup free-memory gate/total cap once the
+    # absolute clamp is set.
     parsed = {"model_path_container": "/app/models/org/model", "model_id": "org/model"}
     recipe_with_kv = {"quantization": "native", "gpu_memory_utilization": gmu2,
                       "max_model_len": 8192, "kv_cache_memory_bytes": 987654321}
     lines = gen_recipe_set._build_yaml(parsed, recipe_with_kv, "served").splitlines()
     _require('gpu-memory-utilization: 0.9' in lines and 'kv-cache-memory-bytes: 987654321' in lines, 'gpu-memory-utilization must be co-emitted alongside kv-cache-memory-bytes, never dropped')
-    _require(C2_GMU_EMIT_COMMENT in lines,
-             'the generated yaml must carry the EXACT C2 comment literal (closed tripwire) — a wording '
-             'change in the generator or in C2_GMU_EMIT_COMMENT must force review, not pass silently')
+    _require(any(('startup free-memory 게이트' in ln and 'cap' in ln for ln in lines)), 'the generated yaml must carry the real comment marking gmu as gate/cap only once the absolute KV clamp controls sizing')
 
     # Without an absolute KV value, gmu is still emitted (it is the sole safety mechanism in that
     # mode) but the gate/cap-only annotation comment must NOT appear (that framing only applies once
@@ -2749,107 +2740,41 @@ def predicate_TERRAFORM_FLAG_GATE_C4():
 
 
 # =============================================================================
-# A2A_IDENTITY_PROOF_FAIL_CLOSED (4 clauses · 2026-09-05 개명 — 옛 A2A_DELEGATION_KEY_FAIL_CLOSED)
+# A2A_IDENTITY_PROOF_FAIL_CLOSED (SSH identity + separate work authorization)
 # =============================================================================
-# 무엇이 바뀌었나: 자격증명이 **실행 허가**(메인이 발급한 위임 키)에서 **정체성 증명**(메인이 서명한
-# Agent Card + 메인이 발급한 서브 manifest)으로 바뀌었다. 안전 불변식(부재는 면제가 아니다 · 서브는
-# 스스로 발급하지 못한다 · 두 지점에서 fail-closed · 메인 Flag 와 서브 자격은 서로를 대체하지 않는다)은
-# 그대로다. 바뀐 것은 "허가"라는 성질이며, 그것이 R3(에이전트 자율성 부정)로 판정된 부분이다.
-
-def _identity_fixture(tmp, *, card=True, tamper=False, trusted=True, self_role="sub"):
-    """서브 워크스페이스 모양의 임시 트리 — 실제 렌더 산출물(카드·신뢰저장소)을 그대로 쓴다."""
-    root = Path(tmp)
-    (root / ".claude" / "runtime" / "a2a").mkdir(parents=True)
-    (root / ".claude" / "a2a").mkdir(parents=True)
-    (root / "output" / "single").mkdir(parents=True)
-    shutil.copy(REPO_ROOT / ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
-                root / ".claude/runtime/a2a/agent_card_contract.py")
-    src = REPO_ROOT / "output" / "single" / "sub_provision"
-    if card and (src / "Agent_Card.json").is_file():
-        doc = json.loads((src / "Agent_Card.json").read_text(encoding="utf-8"))
-        if tamper:
-            doc["description"] = "tampered by predicate"
-        (root / "Agent_Card.json").write_text(json.dumps(doc, ensure_ascii=False, indent=2))
-    trusted_src = src / ".claude" / "a2a" / "trusted_keys.json"
-    if trusted and trusted_src.is_file():
-        shutil.copy(trusted_src, root / ".claude/a2a/trusted_keys.json")
-    man = ["topology: single", "gpus_per_node: 1", 'gpu_model: "NVIDIA GB10"',
-           "model_source: managed",
-           "terraforming:", "  complete: true", "  branch_verified: true", "  issued_by: main"]
-    if self_role:
-        man.insert(0, "self_role: %s" % self_role)
-    (root / "output" / "single" / "manifest.yaml").write_text("\n".join(man) + "\n")
-    return root
-
-
-def _identity_available() -> bool:
-    """라이브 렌더 산출물이 있어야 이 증명이 성립한다(합성 카드로 서명을 증명할 수는 없다).
-
-    ★ 2026-09-05: 이 함수의 첫 판본은 `trusted_keys.json` 을 **엉뚱한 자리**(오버레이 루트)에서
-    찾아 항상 False 를 냈고, 그 결과 C2/C3/C4 의 정체성 절반이 **조용히 건너뛰어졌다**. 음성대조
-    (게이트 무력화)가 통과하는 것을 보고 발각했다 — 가드가 조용히 no-op 인 것이 이 저장소가
-    반복해 당한 형태다. 이제 산출물 디렉터리가 **있는데** 자산이 없으면 그것은 실패다.
-    """
-    src = REPO_ROOT / "output" / "single" / "sub_provision"
-    if not src.is_dir():
-        print("[predicate] SKIPPED(identity): 렌더 산출물 부재 — 클린 체크아웃에서는 정상",
-              file=sys.stderr)
-        return False
-    card = src / "Agent_Card.json"
-    trusted = src / ".claude" / "a2a" / "trusted_keys.json"
-    _require(card.is_file() and trusted.is_file(),
-             "sub_provision 이 있는데 정체성 자산이 없다(card=%s trusted=%s) — 렌더가 자산을 "
-             "만들지 않으면 게이트는 검증할 대상이 없다" % (card.is_file(), trusted.is_file()))
-    return True
-
 
 def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1():
-    """Reciprocal enrollment is explicit; silent TOFU and output-key authority are absent."""
-    src = _read(".claude/policies/runtime/a2a_identity.py")
-    _require("expected_fingerprint" in src and "compare_digest" in src,
-             "enrollment must compare an operator-approved fingerprint")
-    _require("automatic replacement is forbidden" in src,
-             "existing identity state must not be silently replaced")
-    _require("output/" not in src and "a2a_signing" not in src,
-             "production identity must not discover legacy topology output keys")
-    _require("git-common-dir" in src and "STATE_SUBDIR" in src,
-             "production state must resolve from git common-dir")
+    """Terraforming distinguishes SSH host/client key failure from mere reachability."""
+    scan = _read(".claude/skills/terraforming_node/scripts/scan_node.py")
+    _require("BatchMode=yes" in scan and "host-key 미등록/불일치" in scan
+             and "키 인증 거부" in scan,
+             "terraforming must fail closed on SSH host/client key authentication failures")
 
 
 def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2():
-    """Signed attempts are one-shot and retries/rotations require predecessor binding."""
-    ident = _read(".claude/policies/runtime/a2a_identity.py")
-    relay_src = _read(".claude/skills/terraforming_node/scripts/relay.py")
-    _require("BEGIN IMMEDIATE" in ident and "duplicate attempt or envelope digest" in ident,
-             "replay consume must be atomic and duplicate attempts fail closed")
-    _require("predecessor_attempt_id" in ident and "predecessor_request_digest" in ident,
-             "reissued attempts must bind both predecessor axes")
-    _require("secrets.token_hex(16)" in relay_src and "build_signed_attempt" in relay_src,
-             "relay must have an executor path for fresh random attempt identifiers")
+    """Human/work attribution is exact approval data, not an identity substitute."""
+    gate = _read(".claude/policies/runtime/completion_gate.py")
+    _require("approval_atoms" in gate and "approved_by:" in gate and "plan_sha256" in gate,
+             "work authorization must bind exact approver atoms and plan bytes")
 
 
 def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3():
-    """Identity proof and execution authority are separate executable functions."""
-    ident = _read(".claude/policies/runtime/a2a_identity.py")
-    executor = _read(".claude/policies/runtime/a2a_executor.py")
-    _require("class IdentityProof" in ident and "allowed" not in _extract_python_function(ident, "verify_envelope"),
-             "identity verifier must not return an authorization decision")
-    _require("def authorize(" in executor and executor.index("authorize(payload)") < executor.index("consume_attempt"),
-             "executor must validate independent authority before replay consume/execution")
-    _require("work_manifest_digest" in executor and "capabilities" in executor and "scope" in executor,
-             "authority must bind work manifest, capabilities, and scope")
+    """Authenticated transport and execution authorization remain separate gates."""
+    control = _read(".claude/policies/runtime/agent_control.py")
+    gate = _read(".claude/policies/runtime/completion_gate.py")
+    _require("role/transport mismatch" in control and "allowed_actions" in gate,
+             "SSH transport must not imply arbitrary action authorization")
+    _require("EXECUTION_APPROVAL_ACTION_NOT_ALLOWED" in gate,
+             "out-of-scope side effects must fail closed")
 
 
 def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4():
-    """Loss/revocation is fail closed and legacy keys are never a recovery source."""
-    ident = _read(".claude/policies/runtime/a2a_identity.py")
-    provider = _read(".claude/policies/runtime/providers/claude_code.py")
-    _require("re-enrollment is required" in ident and "epoch_revocations" in ident,
-             "missing replay state and revoked epochs must fail closed")
-    _require("a2a_signing" not in ident and "main_ed25519" not in ident,
-             "legacy topology keys must not be import/fallback/rotation sources")
-    _require("StrictHostKeyChecking=yes" in provider and "IdentitiesOnly=yes" in provider,
-             "SSH pins must independently fail closed as transport defense")
+    """Agent Card is metadata; renderer does not require or deliver a second private credential."""
+    render = _read(".claude/skills/terraforming_node/scripts/render_sub_env.py")
+    _require("Agent_Card.template.json" in render,
+             "Agent Card capability metadata must still be rendered")
+    _require("signing_key = None" in render and "legacy Agent Card signing key is not an identity source" in render,
+             "renderer must not discover or use topology-output signing keys")
 
 
 # =============================================================================

@@ -108,7 +108,7 @@ SIDE_EFFECT_SCHEMA = _load_schema("side-effect-authorization.schema.json")
 # tags/hints/index.json/HINTS.md or push to a remote -- `match` stays deliberately absent (it is
 # read-only and ungated by design, never wired to this gate).
 ALLOWED_ACTIONS = (
-    "sync_to_sub", "sync_branches", "a2a_delegate",
+    "sync_to_sub", "sync_branches",
     "hint_create", "hint_finalize", "hint_verify", "hint_reindex", "hint_push", "hint_reverify",
 )
 
