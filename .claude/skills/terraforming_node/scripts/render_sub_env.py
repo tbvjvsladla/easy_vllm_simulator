@@ -572,21 +572,20 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 shutil.copy2(_abs, _dst)
                 produced.append(_rel.replace(os.sep, "/"))
 
-    # 4.1) 캠페인 **채우는 손**(2026-09-08 · plan_26090813 §4.2). 싱글(A2A) 서브만 받는다 —
-    #      멀티의 sub 는 Ray 워커라 캠페인을 저작하는 주체가 아니다(불변식 A).
-    if ph.get("SUB_MODE") == "a2a-agent":
-        _ci_src = os.path.join(REPO, ".claude", "skills", "terraforming_node", "scripts")
-        _ci_dst = os.path.join(claude, "skills", "terraforming_node", "scripts")
-        os.makedirs(_ci_dst, exist_ok=True)
-        for _tool in CAMPAIGN_TOOLS:
-            _abs = os.path.join(_ci_src, _tool)
-            if not os.path.isfile(_abs):
-                raise SystemExit(
-                    f"[render] FAIL: 캠페인 도구가 없다 — {_abs}\n"
-                    f"   뼈대만 보내고 채우는 손을 안 보내면 서브의 호출부 가드가 침묵 no-op 이 된다\n"
-                    f"   (2026-09-07 실측: phases/sub/* 가 캠페인 종료 후 메인 손으로 나타났다).")
-            shutil.copy2(_abs, os.path.join(_ci_dst, _tool))
-            produced.append(f".claude/skills/terraforming_node/scripts/{_tool}")
+    # 4.1) Campaign state writer/validator are orchestration infrastructure, not runtime strategy
+    # skills. Both a2a-agent and ray-worker subs must write their own phase/brief facts; otherwise
+    # the main can only fabricate phases/sub after the run (P2/P3/P4 wiring failure).
+    _ci_src = os.path.join(REPO, ".claude", "skills", "terraforming_node", "scripts")
+    _ci_dst = os.path.join(claude, "skills", "terraforming_node", "scripts")
+    os.makedirs(_ci_dst, exist_ok=True)
+    for _tool in CAMPAIGN_TOOLS:
+        _abs = os.path.join(_ci_src, _tool)
+        if not os.path.isfile(_abs):
+            raise SystemExit(
+                f"[render] FAIL: 캠페인 도구가 없다 — {_abs}\n"
+                "   뼈대만 보내고 채우는 손을 안 보내면 phases/sub가 실행자 0이 된다.")
+        shutil.copy2(_abs, os.path.join(_ci_dst, _tool))
+        produced.append(f".claude/skills/terraforming_node/scripts/{_tool}")
 
     # ★ 2026-09-07(plan_26090715 §5 ⑤ · 유예 결함 ⑤): `campaigns/README.md` 도 함께 보낸다.
     #   뼈대 파일은 도착하는데 **읽는 법**이 안 도착했다 — README 가 Agent 읽기 순서(0번
@@ -1030,7 +1029,7 @@ def _self_test() -> int:
         #   ① 있어야 할 2개가 있다 ② 그 밖의 terraforming 스크립트가 새지 않았다.
         _tn = os.path.join(_out, ".claude", "skills", "terraforming_node", "scripts")
         _tn_files = sorted(os.listdir(_tn)) if os.path.isdir(_tn) else []
-        _tn_want = sorted(CAMPAIGN_TOOLS) if _topo == "single" else []
+        _tn_want = sorted(CAMPAIGN_TOOLS)
         _tn_ok = _tn_files == _tn_want
         # 해소 자산은 싱글 서브에 가지 않는다 — 가면 서브가 스스로 해소할 이유가 없어진다(F4).
         _res = os.path.exists(os.path.join(
