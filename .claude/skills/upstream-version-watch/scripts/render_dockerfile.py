@@ -75,7 +75,9 @@ NCCL_PRESETS = {
         # LOC alone still selected DMABUF GDR on GB10 because the C2C override remained active.
         # Approved second OFAT: disable only that override before considering broader GDR disablement.
         "NCCL_NET_GDR_C2C": "0",
-        "NCCL_NET_GDR_READ": "1",
+        # LOC+C2C=0+DMABUF=0 still failed general ibv_reg_mr_iova2 registration.
+        # Approved final fine-grained OFAT: disable GPU-buffer GDR reads while retaining IB.
+        "NCCL_NET_GDR_READ": "0",
         # LOC+C2C=0 still selected `GPU Direct RDMA (DMABUF)` and failed ibv_reg_mr_iova2.
         # Approved third OFAT disables only DMA-BUF registration while retaining IB/RoCE.
         "NCCL_DMABUF_ENABLE": "0",
