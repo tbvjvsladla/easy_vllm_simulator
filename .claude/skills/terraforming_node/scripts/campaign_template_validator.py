@@ -735,12 +735,19 @@ def predicate_p5(camp_dir: Path, *, brief_paths: list | None = None) -> list[str
 
 
 def discover_briefs(camp_dir: Path) -> list:
-    """회수된 서브 브리핑. 메인은 `fetch_sub_docs` 가 만든 미러 밖을 보지 않는다 —
-    직접 스캔은 헌법 노드제어 ①(무단 스캔 금지) 위반이다."""
+    """Return only this campaign's briefs from the standing docs mirror."""
     mirror = REPO_ROOT / "sync_staging" / "sub_docs"
     if not mirror.is_dir():
         return []
-    return sorted(mirror.glob("logs/*/campaign_brief.json"))
+    found = []
+    for path in sorted(mirror.glob("logs/*/campaign_brief.json")):
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError):
+            continue                    # unrelated historical mirror residue
+        if isinstance(doc, dict) and doc.get("campaign_id") == camp_dir.name:
+            found.append(path)
+    return found
 
 
 # ─────────────────────────────────────────────────────────────────────────────

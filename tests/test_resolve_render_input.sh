@@ -10,6 +10,10 @@ fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 grep -q 'required render input missing' "$SYNC" || fail 'required miss is not fail-loud'
 grep -q 'optional render input absent' "$SYNC" || fail 'optional miss is not recorded'
 if grep -q 'worktree list --porcelain' "$SYNC"; then fail 'sibling worktree discovery remains'; fi
+grep -q 'render_input="manifest.yaml"' "$SYNC" || fail 'manifest is no longer a required transactional input'
+grep -q 'render_input="sub_manifest.yaml"' "$SYNC" || fail 'sub manifest is no longer an optional transactional input'
+grep -q 'install -m 0600 "$src_input" "$dst_input"' "$SYNC" \
+    || fail 'render inputs are not copied with restrictive mode'
 if grep -q 'a2a_signing/main_ed25519.pem' "$SYNC"; then fail 'legacy private key remains a render input'; fi
 python3 - "$RENDER" <<'PY'
 import importlib.util, pathlib, sys, tempfile

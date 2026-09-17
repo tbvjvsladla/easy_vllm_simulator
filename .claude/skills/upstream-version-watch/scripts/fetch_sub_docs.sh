@@ -144,10 +144,13 @@ echo "[fetch] 미러 완료 — $DEST ($n 파일)."
 #
 # 상향 회수는 문서기반이다(헌법 노드제어 ①) — 편입기가 읽는 것은 방금 만든 이 미러뿐이다.
 # ACTIVE=_bootstrap 이면 writer 가 스스로 no-op 이므로 캠페인 밖 회수는 영향이 없다.
+# DEST는 장기 보존 mirror다. 현재 캠페인 scope는 rsync 경로가 아니라 brief의 campaign_id와
+# evidence_pointers claims를 import_sub_mirror가 대조해 집행한다.
 _CI="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_init.py"
 _NOW="$(date -u +%FT%TZ)"
 if [ -f "$_CI" ]; then
-    if python3 "$_CI" --import-sub "$DEST" --utc "$_NOW"; then
+    _CAMP="$(python3 "$_CI" --active 2>/dev/null || echo _bootstrap)"
+    if python3 "$_CI" --campaign-id "$_CAMP" --import-sub "$DEST" --utc "$_NOW"; then
         echo "[fetch] 캠페인 편입 완료 — 서브 진행표·셀·증거가 메인 인스턴스에 앉았다."
     else
         echo "[fetch] ⚠ 캠페인 편입 실패 — 미러는 있고 진행표는 없다(위 사유 참조)." >&2

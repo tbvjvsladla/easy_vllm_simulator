@@ -345,11 +345,31 @@ def consecutive_runner_unavailable(doc: dict) -> int:
     return n
 
 
+def campaign_slice_block(topology: str, campaign_id: str | None, delegated_node: str | None) -> str:
+    """Carry an independent single-node sub declaration in the A2A task body only."""
+    if topology != "single" or not campaign_id or not delegated_node:
+        return ""
+    ci = _campaign_init()
+    base = ci.Path(REPO) / "campaigns" / campaign_id
+    decl = ci.read_declaration(base)
+    node_doc = next((node for node in (decl.get("nodes") or [])
+                     if isinstance(node, dict) and node.get("node_id") == delegated_node), None)
+    if not isinstance(node_doc, dict) or node_doc.get("role") != "sub":
+        return ""
+    # emit_slice owns assignment validation; do not duplicate its slicing rules here.
+    slice_doc = ci.emit_slice(base, delegated_node, utc="delegated-task-body")
+    blob = json.dumps(slice_doc, ensure_ascii=False, indent=2)
+    return ("## [relay] main-derived campaign declaration — stdin으로만 소비(중간 파일 생성 금지)\n"
+            f"아래 JSON을 정확히 stdin으로 넘겨 `campaign_init.py --init {campaign_id} "
+            f"--plan-ref {slice_doc.get('plan_ref')} --from-slice - --apply` 를 실행하라.\n"
+            "```json\n" + blob + "\n```\n\n")
+
+
 def build_request(topology: str, manifest: str, task: str, bud: dict,
                   resume_session_id=None, capabilities=None,
                   context_id: str = None, attempt: int = 0, model: str = None,
                   campaign_id: str = None, control_variables: dict = None,
-                  backend: str = None) -> dict:
+                  backend: str = None, delegated_node: str | None = None) -> dict:
     """위임 request 조립. `bud` 는 **선언된** 예산이다(`turn_budget.declare` 산출)."""
     base = _canary.build_request(topology, manifest, max_turns=bud["max_turns"],
                                  timeout_seconds=bud["timeout_seconds"],
@@ -358,9 +378,10 @@ def build_request(topology: str, manifest: str, task: str, bud: dict,
     allocated = bud["max_turns"]
     base["intent"] = "delegate"
     camp_block = campaign_control_block(campaign_id, control_variables)
+    slice_block = campaign_slice_block(topology, campaign_id, delegated_node)
     base["task"] = ((relay_header(context_id, attempt, allocated, bud["source"],
-                                  bud.get("timeout_seconds")) + camp_block + task)
-                    if context_id else (camp_block + task))
+                                  bud.get("timeout_seconds")) + camp_block + slice_block + task)
+                    if context_id else (camp_block + slice_block + task))
     if campaign_id:
         base["campaign_id"] = campaign_id
     if control_variables:
@@ -1397,6 +1418,9 @@ def _self_test() -> int:
         "echo 규약과 fail-closed 를 서브에게 명시한다")
     chk(campaign_control_block(None, None) == "",
         "캠페인 밖(_bootstrap)에서는 캠페인 축을 싣지 않는다")
+    # Ray worker는 main-owned distributed cell에 참여할 뿐 독립 sub campaign을 열지 않는다.
+    chk(campaign_slice_block("multi", "camp-x", "sub") == "",
+        "★multi Ray-worker request에는 autonomous slice를 싣지 않는다")
 
     def _att(**kw):
         base = {"sub_reported": True, "context_id_reported": "ctx-1",
@@ -1713,7 +1737,8 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
                         context_id=a.context_id, attempt=attempt_no,
                         model=runner["model"], backend=runner["backend"],
                         campaign_id=getattr(a, "campaign_id", None),
-                        control_variables=getattr(a, "control_variables", None))
+                        control_variables=getattr(a, "control_variables", None),
+                        delegated_node=getattr(a, "node", None))
 
     if a.emit_only:
         json.dump(req, sys.stdout, ensure_ascii=False, indent=2)

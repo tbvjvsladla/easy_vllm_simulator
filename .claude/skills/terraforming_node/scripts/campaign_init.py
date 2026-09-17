@@ -332,6 +332,20 @@ def sweep_bootstrap_relay(*, apply: bool) -> list[str]:
     return removed
 
 
+def _load_slice(source: str) -> dict:
+    """Read one main-derived declaration from a file or the A2A task body stdin."""
+    if source == "-":
+        try:
+            doc = json.loads(sys.stdin.read())
+        except ValueError as exc:
+            raise PurgeGateRefusal(f"stdin 파생 선언 JSON을 읽지 못했다: {exc}") from exc
+    else:
+        doc = _read_json(Path(source))
+    if not isinstance(doc, dict):
+        raise PurgeGateRefusal(f"파생 선언을 읽지 못했다: {source}")
+    return doc
+
+
 def scaffold(camp_id: str, plan_ref: str, *, apply: bool,
              from_slice: str | None = None) -> list[str]:
     if camp_id in RESERVED_IDS:
@@ -349,11 +363,8 @@ def scaffold(camp_id: str, plan_ref: str, *, apply: bool,
         # 인스턴스로 복사되면 그 문장이 인스턴스의 사실인 척하고, 스캐너가 잡으면 사람이 지운다.
         doc = {k: v for k, v in doc.items() if not k.startswith("_")}
         if from_slice:
-            # 메인이 보낸 파생 선언으로 연다. 서브는 이것 하나로 착수하며 메인의 산출물을
-            # 기다리지 않는다 — 기다리면 그것은 자율이 아니라 종속이다(사용자 정정 2026-09-08).
-            slice_doc = _read_json(Path(from_slice))
-            if not isinstance(slice_doc, dict):
-                raise PurgeGateRefusal(f"파생 선언을 읽지 못했다: {from_slice}")
+            # `-` 는 relay가 task body에 실은 한 JSON 선언이다. 중간 파일을 만들지 않는다.
+            slice_doc = _load_slice(from_slice)
             if slice_doc.get("id") != camp_id:
                 raise PurgeGateRefusal(
                     f"파생 선언의 id({slice_doc.get('id')!r})와 개설 이름({camp_id!r})이 다르다 "
@@ -363,8 +374,6 @@ def scaffold(camp_id: str, plan_ref: str, *, apply: bool,
         doc["plan_ref"] = doc.get("plan_ref") if from_slice else plan_ref
         (dest / "campaign.yaml").write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n",
                                             encoding="utf-8")
-        # 증거 스냅샷도 같은 처방 + 자기 이름을 채운다. `campaign_id: <<FILL>>` 이 남아 있었고
-        # writer 의 setdefault 는 그것을 덮지 않았다 — 부재가 아니라 **빈칸**이라 조용히 살아남았다.
         ep_path = dest / "evidence_pointers.json"
         ep = json.loads(ep_path.read_text(encoding="utf-8"))
         ep = {k: v for k, v in ep.items() if not k.startswith("_")}
@@ -1418,6 +1427,8 @@ def campaign_brief(base: Path, *, node: str, utc: str) -> dict:
     stamps += [j.get("utc") for j in jour if isinstance(j.get("utc"), str)]
     ep = _read_json(base / "evidence_pointers.json")
     ptrs = (ep or {}).get("pointers") if isinstance(ep, dict) else None
+    claims = [dict(ptr) for ptr in (ptrs or []) if isinstance(ptr, dict)
+              and ptr.get("node_id") == node]
     return {
         "schema_version": 1,
         "generated_utc": utc,
@@ -1435,6 +1446,9 @@ def campaign_brief(base: Path, *, node: str, utc: str) -> dict:
         "phases": phases,
         "journey_tail": jour[-3:],
         "evidence_pointer_count": len(ptrs or []),
+        # 이 brief가 주장하는 node-scoped evidence membership. 원천은 campaign instance의
+        # evidence_pointers.json이고, importer는 filename/시각 추측 대신 이 선언만 소비한다.
+        "evidence_pointers": claims,
         # 전진 신호. phase 만 보면 긴 벤치가 정체로 보인다(R2) — 여정·시각도 전진으로 센다.
         "last_utc": max(stamps) if stamps else None,
     }
@@ -1453,100 +1467,90 @@ _EVIDENCE_PREFIX = (
 
 def import_sub_mirror(base: Path, mirror: Path, *, utc: str,
                       unfreeze: bool = False) -> "tuple[list[str], list[str]]":
-    """회수된 서브 미러를 메인 인스턴스에 편입한다(2026-09-08 · plan_26090813 D13).
-
-    왜 여기인가: 종전에는 서브가 완주해도 메인 인스턴스의 `phases/sub/*` 를 **사람이** 적었고,
-    그래서 4개가 캠페인 종료 뒤 같은 초에 나타났다. 회수 스크립트의 종료부가 부르면 그 재저작이
-    사라진다 — 회수분은 서브 저작(`authored_by = <서브 node_id>`)으로 남고, P5 가 그것을 본다.
-
-    상향 회수는 **문서기반**이다(헌법 노드제어 ①). 이 함수가 읽는 것은 서브 디스크가 아니라
-    `fetch_sub_docs.sh` 가 만든 미러뿐이며, 미러 밖은 보지 않는다.
-    """
+    """Import only the current campaign's declared brief claims from a shared docs mirror."""
     wrote: list[str] = []
     warnings: list[str] = []
-    briefs = sorted(mirror.glob("logs/*/campaign_brief.json"))
-    if not briefs:
+    discovered = sorted(mirror.glob("logs/*/campaign_brief.json"))
+    if not discovered:
         raise WriterRefusal(
             f"회수 미러에 브리핑이 없다: {_rel(mirror)}/logs/*/campaign_brief.json — 서브가 "
-            f"`campaign_init --write-brief` 를 돌지 않았거나 회수 범위가 docs/logs 를 뺐다. "
-            f"부재를 통과시키면 '서브가 안 돌았다'와 '관측면이 안 왔다'가 구분되지 않는다.")
-    for bpath in briefs:
+            "`campaign_init --write-brief` 를 돌지 않았거나 회수 범위가 docs/logs 를 뺐다.")
+    briefs: list[tuple[Path, dict]] = []
+    for bpath in discovered:
         doc = _read_json(bpath)
         if not isinstance(doc, dict):
             raise WriterRefusal(f"브리핑 파손: {_rel(bpath)}")
+        if doc.get("campaign_id") != base.name:
+            continue                    # standing mirror's historical campaign, not an error
         node = doc.get("node_id")
         if not isinstance(node, str) or not node:
             raise WriterRefusal(f"브리핑에 node_id 가 없다: {_rel(bpath)}")
-        if doc.get("campaign_id") and doc["campaign_id"] != base.name:
-            # 다른 캠페인의 브리핑을 편입하면 이 인스턴스의 진행표가 남의 사실을 주장한다.
-            raise WriterRefusal(
-                f"브리핑의 campaign_id({doc['campaign_id']!r})가 이 인스턴스({base.name!r})와 "
-                f"다르다 — 회수 미러가 낡았거나 캠페인이 바뀌었다")
+        briefs.append((bpath, doc))
+    if not briefs:
+        raise WriterRefusal(f"현재 캠페인({base.name})의 브리핑이 회수 미러에 없다 — "
+                            "다른 캠페인의 역사로 현재 진행표를 만들지 않는다")
+    for bpath, doc in briefs:
+        node = doc["node_id"]
         for phase, st in (doc.get("phases") or {}).items():
             if not isinstance(st, dict) or phase not in PHASE_NAMES:
                 continue
             wrote.append(_rel(writer_set_phase(
                 base, node=node, phase=phase, state=st.get("state") or "pending",
                 predicate=f"서브 회수(brief {doc.get('generated_utc')})",
-                ok=bool(st.get("proof_ok")),
-                source=st.get("proof_source") or f"{_rel(bpath)}#phases.{phase}",
+                ok=bool(st.get("proof_ok")), source=st.get("proof_source") or f"{_rel(bpath)}#phases.{phase}",
                 cell_id=None, started_utc=st.get("first_started_utc") or st.get("started_utc"),
                 ended_utc=st.get("ended_utc"), authored_by=node)))
         for cell in (doc.get("cells") or []):
-            if not isinstance(cell, dict) or not cell.get("cell_id"):
+            if not isinstance(cell, dict) or not cell.get("cell_id") or cell.get("cell_outcome") not in CELL_OUTCOMES:
                 continue
-            outcome = cell.get("cell_outcome")
-            if outcome not in CELL_OUTCOMES:
-                continue                 # 서브가 아직 안 적은 셀 — 부재는 결손이지 오류가 아니다
             tps = cell.get("decode_tps_conc1")
             cpath, jpath = writer_set_cell(
-                base, cell=cell["cell_id"], outcome=outcome, node=node,
-                version=None, model=None,
-                decode_tps=(str(tps) if isinstance(tps, (int, float)) else None),
-                measurement_source=(f"{_rel(bpath)}#cells[{cell['cell_id']}]"
-                                    if isinstance(tps, (int, float)) else None),
+                base, cell=cell["cell_id"], outcome=cell["cell_outcome"], node=node,
+                version=None, model=None, decode_tps=str(tps) if isinstance(tps, (int, float)) else None,
+                measurement_source=f"{_rel(bpath)}#cells[{cell['cell_id']}]" if isinstance(tps, (int, float)) else None,
                 void_reason=cell.get("void_reason"),
-                void_reason_source=(f"{_rel(bpath)}#cells[{cell['cell_id']}].void_reason"
-                                    if cell.get("void_reason") else None),
+                void_reason_source=f"{_rel(bpath)}#cells[{cell['cell_id']}].void_reason" if cell.get("void_reason") else None,
                 axis_citation=cell.get("axis_citation"), next_intent=None, utc=utc)
             wrote.append(_rel(cpath))
             if jpath is not None:
                 wrote.append(_rel(jpath))
-        # 여정은 append-only 라 재편입이 줄을 늘린다 — 이미 있는 줄은 다시 적지 않는다(멱등).
-        # 대조 키에서 **편입 메타(언제 가져왔나)는 뺀다** — 그것이 다르다고 같은 여정이 두 번
-        # 적히면, 두 번째 줄은 새로운 사실이 아니라 회수를 한 번 더 돌렸다는 사실일 뿐이다.
-        def _jkey(e: dict) -> str:
-            return json.dumps({k: v for k, v in e.items()
-                               if k not in ("imported_from", "imported_utc")},
+        def _jkey(entry: dict) -> str:
+            return json.dumps({k: v for k, v in entry.items() if k not in ("imported_from", "imported_utc")},
                               ensure_ascii=False, sort_keys=True)
-
-        have = {_jkey(e) for e in read_journey(base) if isinstance(e, dict)}
+        have = {_jkey(entry) for entry in read_journey(base) if isinstance(entry, dict)}
         for entry in (doc.get("journey_tail") or []):
-            if not isinstance(entry, dict) or _jkey(entry) in have:
-                continue
-            have.add(_jkey(entry))
-            wrote.append(_rel(writer_append_journey(
-                base, dict(entry, imported_from=_rel(bpath), imported_utc=utc))))
-    # 증거: 미러에 도착한 문서를 그 노드 태그로 등재한다. 종전에는 손으로 적었고 6건 전부
-    # node_id 가 null 이었다 — 그래서 P2 가 아무 노드도 검사하지 못했다.
-    node_ids = sorted({(_read_json(b) or {}).get("node_id") for b in briefs} - {None})
-    tag = node_ids[0] if len(node_ids) == 1 else None
-    for prefix, suffix, kind in _EVIDENCE_PREFIX:
-        head, _, name = prefix.partition("/")
-        for f in sorted((mirror / head).glob(f"{name}*{suffix}")) if (mirror / head).is_dir() else []:
+            if isinstance(entry, dict) and _jkey(entry) not in have:
+                have.add(_jkey(entry))
+                wrote.append(_rel(writer_append_journey(
+                    base, dict(entry, imported_from=_rel(bpath), imported_utc=utc))))
+        claims = doc.get("evidence_pointers")
+        if claims is None:
+            warnings.append(f"브리핑에 scoped evidence_pointers 가 없다: {_rel(bpath)} — 진행표만 편입")
+            continue
+        if not isinstance(claims, list):
+            raise WriterRefusal(f"브리핑 evidence_pointers 가 목록이 아니다: {_rel(bpath)}")
+        for claim in claims:
+            if not isinstance(claim, dict):
+                raise WriterRefusal(f"브리핑 evidence claim 이 객체가 아니다: {_rel(bpath)}")
+            kind, path, claim_node = claim.get("kind"), claim.get("path"), claim.get("node_id")
+            if kind not in EVIDENCE_KINDS or not isinstance(path, str) or not path.startswith("docs/"):
+                raise WriterRefusal(f"브리핑 evidence claim 형식이 무효다: {claim!r}")
+            if claim_node != node:
+                raise WriterRefusal(f"브리핑 evidence claim node_id({claim_node!r})가 brief node({node!r})와 다르다")
+            local = (mirror / path.removeprefix("docs/")).resolve()
             try:
-                rel = str(f.resolve().relative_to(REPO_ROOT))
-            except ValueError:
+                local.relative_to(mirror.resolve())
+            except ValueError as exc:
+                raise WriterRefusal(f"브리핑 evidence 경로가 mirror 밖으로 벗어난다: {path}") from exc
+            if not local.is_file():
+                warnings.append(f"증거 미등재 {_rel(local)} (brief가 선언했으나 미러에 없다)")
                 continue
             try:
-                wrote.append(_rel(writer_add_evidence(base, kind=kind, path_rel=rel, cell_id=None,
-                                                      node=tag, unfreeze=unfreeze)))
+                wrote.append(_rel(writer_add_evidence(
+                    base, kind=kind, path_rel=str(local.relative_to(REPO_ROOT)),
+                    cell_id=claim.get("cell_id"), node=node, unfreeze=unfreeze)))
             except WriterRefusal as exc:
-                # ★ 진행표는 이미 적혔다. 증거 등재만 거부됐다면 **거기서 멈추지 않는다** —
-                #   결손을 기재하고 진행한다(사용자 결정 D17: 결정론이 과하면 캠페인이 hang 한다).
-                #   대개는 메인이 이미 스냅샷을 동결한 뒤에 서브가 끝난 경우이고, 그때 필요한 것은
-                #   차단이 아니라 "사람이 --unfreeze 를 붙일지" 라는 질문이다.
-                warnings.append(f"증거 미등재 {rel} (kind={kind}) — {exc}")
+                warnings.append(f"증거 미등재 {_rel(local)} (kind={kind}) — {exc}")
     return wrote, warnings
 
 
@@ -2155,6 +2159,23 @@ def _selftest() -> int:
            _read_json(CAMPAIGNS / "w2" / "evidence_pointers.json")["campaign_id"] == "w2")
         ck("★음성대조 id 가 다른 슬라이스로는 열 수 없다(이름이 곧 증거 연결)",
            _boom_p(lambda: scaffold("w3", "p", apply=True, from_slice=str(_slp))))
+        # A2A 지시서 본문은 파일을 만들지 않고 stdin으로 한 선언만 나른다.
+        _stdin = sys.stdin
+        try:
+            sys.stdin = __import__("io").StringIO(json.dumps(dict(_sl, id="w4"), ensure_ascii=False))
+            scaffold("w4", "docs/plan/ignored.md", apply=True, from_slice="-")
+        finally:
+            sys.stdin = _stdin
+        _w4 = _read_json(CAMPAIGNS / "w4" / "campaign.yaml")
+        ck("★stdin 파생 선언도 파일 입력과 같은 sub 인스턴스를 연다",
+           _w4["self_role"] == "sub" and _w4["plan_ref"] == _y2["plan_ref"])
+        _stdin = sys.stdin
+        try:
+            sys.stdin = __import__("io").StringIO("{")
+            _bad_stdin = _boom_p(lambda: scaffold("w5", "p", apply=True, from_slice="-"))
+        finally:
+            sys.stdin = _stdin
+        ck("★음성대조 파손 stdin 선언은 fail-closed", _bad_stdin)
 
         ACTIVE_POINTER.write_text("w1\n", encoding="utf-8")
         _bp = write_campaign_brief(camp, node="main", utc="2026-09-08T01:00:00Z", repo_root=tmp)
@@ -2178,6 +2199,10 @@ def _selftest() -> int:
         (_mir / "testlog" / "testlog_26090807_서브.md").write_text("판정\n", encoding="utf-8")
         (_mir / "benchmark" / "bench_report_26090807_x.md").write_text("리포트\n", encoding="utf-8")
         (_mir / "benchmark" / "notes.md").write_text("규약 밖\n", encoding="utf-8")
+        (_mir / "benchmark" / "bench_report_19990101_historical.md").write_text("과거\n", encoding="utf-8")
+        (_mir / "logs" / "old").mkdir(parents=True)
+        _write_json(_mir / "logs" / "old" / "campaign_brief.json", {
+            "campaign_id": "old-campaign", "node_id": "old", "self_role": "main"})
         _write_json(_mir / "logs" / "sub" / "campaign_brief.json", {
             "schema_version": 1, "campaign_id": "w1", "node_id": "sub", "self_role": "sub",
             "authored_by": "sub", "generated_utc": "2026-09-08T22:00:00Z",
@@ -2191,6 +2216,11 @@ def _selftest() -> int:
                                  "ended_utc": "2026-09-08T19:20:00Z"}},
             "journey_tail": [{"utc": "2026-09-08T20:00:00Z", "cell_id": "c9",
                               "next_intent": "d 착수"}],
+            "evidence_pointers": [
+                {"kind": "testlog", "path": "docs/testlog/testlog_26090807_서브.md",
+                 "cell_id": None, "node_id": "sub"},
+                {"kind": "bench_report", "path": "docs/benchmark/bench_report_26090807_x.md",
+                 "cell_id": "c9", "node_id": "sub"}],
             "last_utc": "2026-09-08T22:00:00Z"})
         _n0 = len(read_journey(camp))
         _w0, _warn0 = import_sub_mirror(camp, _mir, utc="2026-09-08T23:00:00Z")
@@ -2218,8 +2248,11 @@ def _selftest() -> int:
         ck("★회수 문서가 **노드 태그와 함께** 증거로 등재된다(P2 공허 통과 방지)",
            any(x["kind"] == "testlog" and x["node_id"] == "sub" for x in _ptrs)
            and any(x["kind"] == "bench_report" and x["node_id"] == "sub" for x in _ptrs))
-        ck("★규약 밖 이름은 증거로 등재하지 않는다(이름이 곧 증거 연결)",
-           not any("notes.md" in str(x.get("path")) for x in _ptrs))
+        ck("★규약 밖·과거 mirror 문서는 claim 없이 evidence가 되지 않는다",
+           not any("notes.md" in str(x.get("path")) or "historical" in str(x.get("path"))
+                   for x in _ptrs))
+        ck("★다른 campaign brief는 shared mirror 역사로 무시한다",
+           all(x.get("node_id") != "old" for x in _ptrs))
         ck("여정 한 줄이 회수와 함께 편입된다", len(read_journey(camp)) == _n0 + 1)
         import_sub_mirror(camp, _mir, utc="2026-09-08T23:30:00Z", unfreeze=True)
         ck("★재편입은 여정을 늘리지 않는다(멱등)", len(read_journey(camp)) == _n0 + 1)
@@ -2598,9 +2631,9 @@ def main(argv: list[str] | None = None) -> int:
     # 남은 하나를 지울 정식 경로가 없어져 rm -rf 우회를 부른다(D3: 우회 대신 경로를 고친다).
     ap.add_argument("--purge-previous", metavar="PREV_ID", action="append", default=[],
                     help="--init 과 함께: 먼저 지울 직전 인스턴스(반복 지정 가능)")
-    ap.add_argument("--from-slice", metavar="PATH",
+    ap.add_argument("--from-slice", metavar="PATH|-",
                     help="--init 과 함께: 메인이 보낸 파생 선언으로 campaign.yaml 을 연다"
-                         "(서브는 지시서만으로 착수한다)")
+                         " (`-` = A2A 지시서 본문의 stdin JSON)")
     ap.add_argument("--ground", action="store_true",
                     help="통제변인 파생 질의로 사서를 부르고 grounding/<utc>.json 에 3메시지로 남긴다 "
                          "· --utc 필수 (policy:LIBRARY_GROUNDING_FAIL_CLOSED C1)")
