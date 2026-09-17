@@ -804,7 +804,7 @@ for r in (json.load(sys.stdin).get('reasons') or []): print('     · %s' % r)
   fi
 
   declare_one(){ # $1=main|sub → 0=honored · 비0=실패(사유는 표준출력)
-    local where="$1" nd py memtot t0 ev out hon
+    local where="$1" nd py memtot t0 ev out hon had_decl
     if [ "$where" = "main" ]; then
       nd="$(budget_node_dir_main)"; py="$MAIN_SESSION_PY"
       memtot=$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)
@@ -817,9 +817,12 @@ for r in (json.load(sys.stdin).get('reasons') or []): print('     · %s' % r)
     local clear_t0
     clear_t0=$(date +%s)
     if [ "$where" = "main" ]; then
+      [ -f "$nd/serve_budget.env" ] && had_decl=1 || had_decl=0
       python3 "$py" --node-dir "$nd" clear-budget --now "$(NOW_ISO)" >/dev/null 2>&1
-      wait_budget_event "$ev" main "$clear_t0" budget_none >/dev/null || {
-        echo "[mn]   main: clear-budget 상태 전이 미관측"; return 1; }
+      if [ "$had_decl" = 1 ]; then
+        wait_budget_event "$ev" main "$clear_t0" budget_none >/dev/null || {
+          echo "[mn]   main: clear-budget 상태 전이 미관측"; return 1; }
+      fi
       t0=$(date +%s)
       out=$(python3 "$py" --node-dir "$nd" declare-budget --mem-total-mib "$memtot" \
               --weights-mib "$WEIGHTS_MIB" --kv-mib "$KV_MIB" --overhead-mib "$OVERHEAD_MIB" \
@@ -827,10 +830,13 @@ for r in (json.load(sys.stdin).get('reasons') or []): print('     · %s' % r)
               --label "$BUDGET_LABEL" --now "$(NOW_ISO)" 2>&1) || {
         echo "[mn]   main: declare-budget 실패 — $out"; return 1; }
     else
+      had_decl=$(timeout 15 $SSH -n "$SUB_HOST" "test -f '$nd/serve_budget.env' && echo 1 || echo 0" 2>/dev/null || echo 0)
       timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $py --node-dir $nd clear-budget --now $(NOW_ISO)'" >/dev/null 2>&1 || {
         echo "[mn]   sub: clear-budget 실패"; return 1; }
-      wait_budget_event "$ev" sub "$clear_t0" budget_none >/dev/null || {
-        echo "[mn]   sub: clear-budget 상태 전이 미관측"; return 1; }
+      if [ "$had_decl" = 1 ]; then
+        wait_budget_event "$ev" sub "$clear_t0" budget_none >/dev/null || {
+          echo "[mn]   sub: clear-budget 상태 전이 미관측"; return 1; }
+      fi
       t0=$(date +%s)
       out=$(timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $py --node-dir $nd declare-budget --mem-total-mib $memtot --weights-mib $WEIGHTS_MIB --kv-mib $KV_MIB --overhead-mib $OVERHEAD_MIB --ttl-s $BUDGET_TTL_S --expected-load-s $READY_BUDGET_S --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1) || {
         echo "[mn]   sub: declare-budget 실패 — $out"; return 1; }
