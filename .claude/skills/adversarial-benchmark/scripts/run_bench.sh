@@ -286,8 +286,9 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
   #   KeyError→AttributeError 로 죽는다(토큰화엔 config 가 불필요한데 죽는, 측정 아닌 도구 결함).
   #   토큰화 파일만 복사해 마운트한다 — config.json 은 **의도적으로 제외**(모델 설정 위조가 아니라
   #   클라이언트 토크나이저의 필요집합이다). 전 모델 공통 경로라 기성 모델 동작도 불변이다.
-  local TOKSTAGE
-  TOKSTAGE="$(cd "$OUTDIR" && pwd)/.tokstage"
+  local ABS_OUTDIR TOKSTAGE
+  ABS_OUTDIR="$(cd "$OUTDIR" && pwd)"
+  TOKSTAGE="$ABS_OUTDIR/.tokstage"
   rm -rf "$TOKSTAGE"; mkdir -p "$TOKSTAGE"
   local _tf _copied=0
   for _tf in tokenizer.json tokenizer_config.json vocab.json merges.txt \
@@ -361,7 +362,7 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
   docker run --rm --name "$GLNAME" --network host \
     --user "$(id -u):$(id -g)" \
     --memory "${BENCH_BUDGET_MIB}m" --memory-swap "${BENCH_BUDGET_MIB}m" \
-    -v "$TOKSTAGE:/tok:ro" -v "$OUTDIR:/out" \
+    -v "$TOKSTAGE:/tok:ro" -v "$ABS_OUTDIR:/out" \
     -e HOME=/tmp -e XDG_CACHE_HOME=/tmp/.cache \
     -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
     --entrypoint guidellm "$IMAGE" run \
