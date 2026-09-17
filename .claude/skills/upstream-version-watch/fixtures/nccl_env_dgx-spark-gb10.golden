@@ -11,6 +11,7 @@
 NCCL_DEBUG=INFO
 NCCL_DEBUG_SUBSYS=INIT,NET,GRAPH,ENV
 NCCL_IB_DISABLE=1
+NCCL_NET=Socket
 
 # ── ① 환경값 (manifest.interconnect: hca_devices / gid_index / socket_iface) ──
 NCCL_IB_HCA==rocep1s0f1,roceP2p1s0f1
