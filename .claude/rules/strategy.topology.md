@@ -36,7 +36,7 @@ SKILL.md §2.7.0 이며, 파생값을 여기에 다시 적지 않는다.
 
 ## 배달 평면은 active 다
 
-- S2.5 sync 는 이 브랜치에서 **열린다** — `sync_to_sub.sh` 가 dry-run 뒤 tracked runtime·위임키·빌드킷
+- S2.5 sync 는 이 브랜치에서 **열린다** — `sync_to_sub.sh` 가 dry-run 뒤 tracked runtime·unsigned capability Card·빌드킷
   산출물을 서브에 배달하고 checksum 으로 검증한다. 절차 정본은 `workflow.md` §상태·owner 계약의
   S2.5 행과 SKILL.md §2.7.5 다. 공통층의 "S2.5 배달분은 메인 S4 커밋 전까지 미검증 후보다" 문단은
   **이 브랜치에서 성립한다**.
