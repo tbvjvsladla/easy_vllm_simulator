@@ -1388,13 +1388,17 @@ def _execution_approval_section_atoms(plan_bytes: bytes, anchor: str) -> list[st
         stripped = line.lstrip(" \t")
         marker = stripped[:1]
         run = len(stripped) - len(stripped.lstrip(marker)) if marker in ("`", "~") else 0
-        if fence_marker is None and run >= 3:
+        remainder = stripped[run:]
+        # CommonMark: backtick info strings cannot contain a backtick; a tilde opener may
+        # contain either marker.  This prevents malformed fence text from hiding approval.
+        valid_opener = run >= 3 and (marker != "`" or "`" not in remainder)
+        if fence_marker is None and valid_opener:
             fence_marker, fence_len = marker, run
             continue
         if fence_marker is not None:
-            # Markdown closes only with the opener's marker and at least its run length.
-            # Shorter or opposite fences are content, and nested openers never toggle state.
-            if marker == fence_marker and run >= fence_len:
+            # A closer must repeat the marker for at least opener length and have only
+            # whitespace after it. Shorter/opposite/trailing-text lines are fenced content.
+            if marker == fence_marker and run >= fence_len and not remainder.strip(" \t"):
                 fence_marker, fence_len = None, 0
             continue
         if line == anchor:
