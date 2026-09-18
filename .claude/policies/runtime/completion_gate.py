@@ -1382,11 +1382,22 @@ def _execution_approval_section_atoms(plan_bytes: bytes, anchor: str) -> list[st
     except UnicodeDecodeError:
         return None
     sections = []
-    fenced = False
+    fence_marker: str | None = None
+    fence_len = 0
     for i, line in enumerate(lines):
-        if line.lstrip().startswith(("```", "~~~")):
-            fenced = not fenced
-        elif not fenced and line == anchor:
+        stripped = line.lstrip(" \t")
+        marker = stripped[:1]
+        run = len(stripped) - len(stripped.lstrip(marker)) if marker in ("`", "~") else 0
+        if fence_marker is None and run >= 3:
+            fence_marker, fence_len = marker, run
+            continue
+        if fence_marker is not None:
+            # Markdown closes only with the opener's marker and at least its run length.
+            # Shorter or opposite fences are content, and nested openers never toggle state.
+            if marker == fence_marker and run >= fence_len:
+                fence_marker, fence_len = None, 0
+            continue
+        if line == anchor:
             section = []
             for candidate in lines[i + 1:]:
                 if candidate.startswith("#"):
