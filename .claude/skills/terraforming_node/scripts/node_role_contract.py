@@ -57,10 +57,11 @@ SUB_MODE_BY_TOPOLOGY = {
 }
 SUB_MODES = tuple(sorted(set(SUB_MODE_BY_TOPOLOGY.values())))
 
-# 정체성 **권위**가 어디에 있는가(누가 "이 노드는 누구인가"를 답하는가).
+# Endpoint authentication is the provisioned SSH relationship. Node role is a manifest
+# fact; Agent Card only advertises capabilities and is never an identity authority.
 IDENTITY_AUTHORITY_BY_TOPOLOGY = {
-    "single": "agent-card",              # Agent_Card.json (정체성+능력+엔드포인트)
-    "multi": "manifest-rank-and-role",   # manifest nodes[] 인덱스(rank) + role 슬러그
+    "single": "ssh-endpoint-auth-and-manifest-role",
+    "multi": "manifest-rank-and-role",
 }
 
 # 빌드킷 배달(rsync) 평면이 존재하는 이유는 **집단 연산 ABI 정합**이다 — 같은 바이너리·드라이버로
@@ -456,8 +457,8 @@ def _self_test():
         == "RANK_AMBIGUOUS_ROLE")
 
     # ── 정체성 권위 · 배달 평면 ───────────────────────────────────────────────
-    chk("single 정체성 권위 = agent-card",
-        identity_authority("single")["value"] == "agent-card")
+    chk("single 정체성 권위 = SSH endpoint auth + manifest role",
+        identity_authority("single")["value"] == "ssh-endpoint-auth-and-manifest-role")
     chk("multi 정체성 권위 = manifest-rank-and-role",
         identity_authority("multi")["value"] == "manifest-rank-and-role")
     chk("★ single(a2a-agent) 배달 평면 = dormant (plan_26082214 §4.4 회귀핀)",

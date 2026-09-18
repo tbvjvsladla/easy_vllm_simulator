@@ -77,7 +77,6 @@
       "Edit({{ WORKSPACE_PATH }}/docs/request/**)",
       "Edit({{ WORKSPACE_PATH }}/docs/checklist/**)",
       "Edit({{ WORKSPACE_PATH }}/CLAUDE.md)",
-      "Edit({{ WORKSPACE_PATH }}/Agent_Card.json)",
       "Bash(git push:*)",
       "Bash(git pull:*)",
       "Bash(git fetch:*)",

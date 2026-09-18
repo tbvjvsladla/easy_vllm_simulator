@@ -39,9 +39,9 @@ description: >-
 - **State transitions** — 산출물 자체는 상태가 아니라 `execution-approved` 의 **전제**(HW 사실·Flag)를 만든다. runtime-ready/evidence-complete/promotion-ready 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
 - **HITL/safety boundaries** — 무단 스캔 ✗ · 무증거 manifest 기입 ✗ · 서브 work_dir 자동 신설 ✗ · 에이전트 무인 sudo ✗(§5 금지).
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
-- **Deterministic commands** — `scripts/staleness_gate.py`(조건부 preflight 트리거) · `scripts/scan_node.py`(스캔·게이트·3자일치·emit · **`--emit-sub-manifest`**) · `scripts/render_sub_env.py`(서브 환경 렌더 · 카드 서명 · 서브 manifest 배달) · `scripts/manifest_contract.py`(Flag 리더) · **`scripts/agent_card_contract.py`**(Agent_Card v2 계약·JWS 서명/검증).
+- **Deterministic commands** — `scripts/staleness_gate.py`(조건부 preflight 트리거) · `scripts/scan_node.py`(스캔·게이트·3자일치·emit · **`--emit-sub-manifest`**) · `scripts/render_sub_env.py`(서브 환경·unsigned capability Card·서브 manifest 렌더) · `scripts/manifest_contract.py`(Flag·`issued_by: main` readiness 리더) · **`scripts/agent_card_contract.py`**(Agent Card 구조·capability metadata 검증).
 - **Handoff contract** — Flag 발급 → `upstream-version-watch`(컨테이너 빌드) → `vllm-recipe-explorer`(서빙전략). 서브 전달차는 `upstream-version-watch/scripts/sync_to_sub.sh` 단일 경로.
-- **Owns (state)** — `manifest.yaml`(메인 + **서브 manifest** §2.7.10) · `terraforming-flag` · `a2a-delegation-key` · **`agent-card`(v2 · 서명키)** · `sub-agent-env` · **`node-identity`**(§2.7.6 role+rank 스킴) · **`topology-axis-contract`**(§2.7.0 sub_mode·배달 평면 판정) · **`sub-control-plane`**(§2.7 평면 A/B·3범주·B0–B3·권위 평면·A2A 제어명령) · **`grounding-exchange`**(§2.7.8 claim/reference/citation)
+- **Owns (state)** — `manifest.yaml`(메인 + **서브 manifest** §2.7.10) · `terraforming-flag` · **`agent-card`(unsigned capability/discovery metadata)** · `sub-agent-env` · **`node-identity`**(manifest role+rank 스킴) · **`topology-axis-contract`**(§2.7.0 sub_mode·배달 평면 판정) · **`sub-control-plane`**(§2.7 평면 A/B·3범주·B0–B3·권위 평면·A2A 제어명령) · **`grounding-exchange`**(§2.7.8 claim/reference/citation)
 
 ## Mandatory procedural spine
 
@@ -123,7 +123,7 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
       --check-egress --model-source <managed|ephemeral|custom> \
       [--bandwidth-gbps <합산 실측> --per-port-gbps <포트당 실측>] [--emit-manifest]
   ```
-  - `--peer-ip` 만: 게이트는 통과하지만 **서브 HW 동질성 검증이 통째로 생략**돼 `hw_verified` 미발급 → A2A 위임 키가 영구히 안 나온다(서브 info-only).
+  - `--peer-ip` 만: 게이트는 통과하지만 **서브 HW 동질성 검증이 통째로 생략**돼 `hw_verified`와 메인 발급 서브 manifest readiness가 성립하지 않는다(서브 info-only).
   - `--peer-ssh` 만: `nodes[]` 자체가 만들어지지 않고 도달성 미검증으로 **γ blocked(exit 2)**.
   - 2026-09-03 이전에는 이 조합이 저장소 어디에도 적혀 있지 않았다(B1) — 두 실패 모두 조용했다.
 - 단일: `python3 scripts/scan_node.py --topology single [--compose output/single/docker-compose.yaml]`
@@ -802,9 +802,9 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 | **skills 6** | `inspect`·`config`·`build`·`serve`·`bench`·`publish` | `publish` = §2.7.9 발행 Phase. 6종 미만이면 계약 위반 |
 | **HW 사실** | **카드에 없다** → 서브 manifest | 카드 = "무엇을 할 수 있나"(A2A 평면) · manifest = "무엇 위에서 도나"(HW·경로·획득 모드) |
 | **서브 manifest** | `scan_node.py --topology single --peer-ssh <sub> --model-source <m> --emit-sub-manifest output/single/sub_manifest.yaml` | 메인이 `--peer-ssh` 로 실측(HW 5종·모델 환경·egress)해 조립 · 스키마 = 메인 manifest + `self_role: sub` + `terraforming.issued_by: main`. 서브는 HW 스캔 권위 데이터를 스스로 만들지 않는다. `render_sub_env.py --sub-manifest` 가 스테이징 `output/<topology>/manifest.yaml` 로 넣고 **설치 오버레이**가 배달한다(빌드킷 배달 평면 D10 과 무관) |
-| **서명** | `agent_card_contract.py keygen/sign/verify` | A2A §8.4: `signatures[]` = JWS(`EdDSA`/Ed25519 · `typ: JOSE` · `kid` = JWK 지문) over JCS(RFC 8785) 정규화(카드 − `signatures` − 기본값 필드). 키 = 설치 때 에이전트가 1회 생성(`output/<topology>/a2a_signing/` · 패스프레이즈 없음 · 0600 · 비추적). 공개키(JWK)는 `.claude/a2a/trusted_keys.json` 으로 서브에 배달. **사람 개입 0** — 매 작업·세션·캠페인마다 묻게 되면 서명을 걷어낸다(H1 조건 · plan §5) |
-| **검증기** | `agent_card_contract.py validate/verify` · `render_sub_env --self-test` | proto 필수 집합·바인딩 URI·확장 params 계약·float 금지·서명 왕복·위조 감지. 렌더는 서명 직후 자기 검증(RED 를 배달 전에) |
-| **정체성 증명** | ③단계(E1) | 위임키(실행 허가)는 **서명 카드 검증**으로 격하된다 — 게이트는 서브 manifest 의 Flag(`issued_by: main`)로 통과하고, 카드 서명이 "메인 발급"을 증명한다 |
+| **Card 보안 경계** | `agent_card_contract.py validate` | Card는 unsigned capability/discovery metadata다. `signatures`·JWS·별도 trust store는 계약 밖이며 endpoint 인증이나 실행 허가를 대신하지 않는다. |
+| **검증기** | `agent_card_contract.py validate` · `render_sub_env --self-test` | 필수 필드·바인딩 URI·node-role 확장·skills·float 금지를 검증하고 credential 필드 재도입을 거부한다. |
+| **정체성·준비성** | SSH + `manifest_contract.py` | SSH public-key/known-host가 endpoint를 인증한다. manifest가 role·rank·HW 사실을 소유하며, sub readiness는 Flag와 `terraforming.issued_by: main`을 요구한다. 실행 허가는 work manifest·campaign assignment·scope가 별도로 소유한다. |
 
 ### 2.7.11 러너 사다리 — A2A 위임의 **실행자 축**과 회전 (신설 2026-09-08 · 사용자 지시)
 

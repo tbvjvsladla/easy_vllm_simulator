@@ -9,21 +9,10 @@
 #     ② 메인의 detached HEAD·임의 이름 브랜치는 multi 체크아웃이어도 single 통로(output/single)를 읽는다.
 #   같은 관용구가 6곳에 손으로 적혀 있었다(같은 개념 여러 곳 = 4종 안티패턴 하드코딩 결함 칸). 여기 한 곳으로 모은다.
 #
-# ★ 이 파일은 **판정하지 않는다** — 이미 있는 두 단일 소유자를 부르고 그 답을 옮긴다(파생 복제 ✗):
-#   · 서명된 `Agent_Card.json` 이 있는 노드(메인이 프로비저닝한 서브): 정체성 권위는 카드다
-#     (`node_role_contract.IDENTITY_AUTHORITY_BY_TOPOLOGY` single → agent-card). 검증은 `agent_card_contract.py
-#     prove-identity`(run_bench·lite_bench 게이트와 같은 두-후보 경로)가 하고, 여기서는 그 출력의 `topology` 를 읽는다.
-#     그 값은 서브 자기 manifest(`output/<t>/manifest.yaml` · 메인 발급)의 `topology` 와 **같아야** 한다 — 카드는
-#     정체성 권위이고 manifest 는 사실 권위라 둘이 갈리면 어느 쪽도 고르지 않는다(5).
-#   · 카드가 없는 노드(메인): 4자일치 술어 `topology_parity.py evaluate` — 브랜치는 **필터**(어느 output/<t> 를 읽나)
-#     이고 사실 권위는 manifest 이며 둘의 일치는 그 술어가 판정한다(policy:BRANCH_CONSTITUTION_LAYERING C5).
-#     술어가 PASS 여도 그 통로의 manifest 다리가 `absent` 면 토폴로지 사실이 없는 것이다 — 필터만으로 고르지 않는다(3).
-#   · 둘 다 아니면 fail-loud. 호출부는 `--topology` 로 명시할 수 있다(환경 주입 > manifest — 헌법 serve-time 우선순위 방향).
-#
-# ★ 부재와 불일치를 가른다(topology_parity A1 과 같은 절단선): manifest 가 **한 장도 없는** 트리(fresh clone ·
-#   git 밖 export · 워크트리)는 미테라포밍이다 — 존재는 policy:TERRAFORM_FLAG_GATE 의 몫이므로 3 으로 알리고
-#   호출부가 자기 Flag 게이트 의미로 옮긴다(run_bench·lite_bench = exit 4 · smoke_clone A8 계약 보존).
-#   manifest 가 있는데 정하지 못하면(술어 RED·카드 검증 실패·카드↔manifest 불일치·판정자 부재) 5 다.
+# ★ 이 파일은 topology_parity의 결과만 옮긴다. manifest가 토폴로지 사실의 권위이고,
+# 브랜치는 그 manifest 통로를 고르는 필터다. Agent Card는 unsigned capability metadata라
+# topology와 runtime readiness의 입력이 아니다. manifest가 한 장도 없으면 미테라포밍(3),
+# parity가 RED이거나 없으면 해소 불가(5)다. 호출부는 --topology를 명시할 수 있다.
 #
 # 사용: resolve_topology.py --repo REPO      → stdout 에 `single|multi` 한 줄 · stderr 에 출처 한 줄
 #       resolve_topology.py --self-test      (해소기 단위 R* · 벤치 6종 바이트 사본 실행 S* · 음성대조 포함)
@@ -40,10 +29,6 @@ EXIT_USAGE = 2
 EXIT_UNTERRAFORMED = 3
 EXIT_UNRESOLVED = 5
 
-CARD_REL = "Agent_Card.json"
-# 두-후보 순서는 run_bench.sh·lite_bench.sh 게이트(`CARD_VERIFIER`)와 같다: 서브 배달분 → 메인 정본.
-CARD_VERIFIER_RELS = (os.path.join(".claude", "runtime", "a2a", "agent_card_contract.py"),
-                      os.path.join(".claude", "skills", "terraforming_node", "scripts", "agent_card_contract.py"))
 PARITY_REL = os.path.join(".claude", "skills", "terraforming_node", "scripts", "topology_parity.py")
 TAG = "[resolve_topology]"
 
@@ -80,47 +65,14 @@ def resolve(repo, python=None):
     repo = os.path.abspath(repo)
     manifests = _manifests(repo)
 
-    card = os.path.join(repo, CARD_REL)
-    if os.path.isfile(card):
-        verifier = next((os.path.join(repo, rel) for rel in CARD_VERIFIER_RELS
-                         if os.path.isfile(os.path.join(repo, rel))), None)
-        if verifier is None:
-            return EXIT_UNRESOLVED, None, ("Agent_Card.json 은 있는데 검증기가 없다(%s) — 서명을 확인하지 못한 카드의 "
-                                           "topology 를 쓰지 않는다. 메인의 재배달이 필요하다" % " | ".join(CARD_VERIFIER_RELS))
-        rc, out, err = _run([python, verifier, "prove-identity", "--repo-root", repo])
-        if rc != 0:
-            return EXIT_UNRESOLVED, None, ("정체성 증명 실패(rc=%s) — 검증되지 않은 카드의 topology 를 쓰지 않는다: %s"
-                                           % (rc, (err or out).strip()[-300:]))
-        try:
-            proof = json.loads(out.strip() or "{}")
-        except ValueError:
-            proof = None
-        topo = proof.get("topology") if isinstance(proof, dict) else None
-        if not isinstance(topo, str) or not topo or os.path.basename(topo) != topo or topo.startswith("."):
-            return EXIT_UNRESOLVED, None, "검증된 카드가 통로 이름으로 쓸 수 있는 topology 를 싣지 않는다(%r)" % (topo,)
-        channel = os.path.join(repo, "output", topo, "manifest.yaml")
-        if not os.path.isfile(channel):
-            if manifests:
-                return EXIT_UNRESOLVED, None, ("카드는 topology=%s 라고 말하는데 그 통로의 manifest(output/%s/manifest.yaml)가 "
-                                               "없고 다른 통로 manifest 만 있다(%s) — 정체성과 사실이 갈린다"
-                                               % (topo, topo, ", ".join(os.path.relpath(m, repo) for m in manifests)))
-            return EXIT_UNTERRAFORMED, None, ("카드는 topology=%s 라고 말하지만 이 노드의 manifest 가 없다 — "
-                                              "서브 manifest 는 메인의 terraforming 이 발급·배달한다" % topo)
-        declared = _manifest_topology_line(channel)
-        if declared != topo:
-            return EXIT_UNRESOLVED, None, ("카드 topology=%s ≠ output/%s/manifest.yaml#topology=%r — 정체성 권위(카드)와 "
-                                           "사실 권위(manifest)가 갈리면 어느 쪽도 고르지 않는다" % (topo, topo, declared))
-        return EXIT_OK, topo, ("agent-card(prove-identity 서명 검증 · kid=%s) = output/%s/manifest.yaml#topology"
-                               % (proof.get("kid"), topo))
-
     if not manifests:
         return EXIT_UNTERRAFORMED, None, ("output/*/manifest.yaml 이 한 장도 없다(토폴로지 사실 부재 · "
                                           "존재는 policy:TERRAFORM_FLAG_GATE 의 몫). terraforming_node 로 manifest 를 "
                                           "채우거나 --topology 를 명시하라")
     parity = os.path.join(repo, PARITY_REL)
     if not os.path.isfile(parity):
-        return EXIT_UNRESOLVED, None, ("카드도 4자일치 판정자(%s)도 없다 — manifest 는 있는데 어느 통로가 이 노드의 "
-                                       "사실인지 정할 소유자가 없다(서브라면 정체성 증명 Agent_Card 배달 결손)" % PARITY_REL)
+        return EXIT_UNRESOLVED, None, ("4자일치 판정자(%s)가 없다 — manifest는 있지만 어느 통로가 이 노드의 "
+                                       "사실인지 확인할 수 없다" % PARITY_REL)
     rc, out, err = _run([python, parity, "evaluate", "--repo", repo, "--format", "json"])
     try:
         verdict = json.loads(out) if out.strip() else None
@@ -168,46 +120,15 @@ def _self_test():
     def git(root, *args):
         return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, timeout=60)
 
-    stub_verifier = ("import json, os, sys\n"
-                     "mode = os.environ.get('RT_STUB_CARD', 'single')\n"
-                     "if mode == 'fail':\n    sys.stderr.write('stub: signature broken\\n'); sys.exit(3)\n"
-                     "print(json.dumps({'kid': 'stub-kid', 'role': 'a2a-agent', 'topology': mode}))\n")
-
-    # ── R: 해소기 단위(카드 경로 = 검증기 스텁 · 테스트 평면의 외부 의존 차단 · 메인 경로 = 배포되는 술어 그대로) ──
+    # ── R: manifest-only unit coverage ──
     with tempfile.TemporaryDirectory(prefix="resolve_topology_R.") as td:
-        sub = os.path.join(td, "sub")
-        write(os.path.join(sub, CARD_REL), "{}")
-        write(os.path.join(sub, CARD_VERIFIER_RELS[0]), stub_verifier)
-        write(os.path.join(sub, "output", "single", "manifest.yaml"), "self_role: sub\ntopology: single\n")
-        os.environ["RT_STUB_CARD"] = "single"
-        rc, topo, why = resolve(sub)
-        ck("R1 서브(카드 검증 통과 · manifest 일치) → single · 출처 agent-card", rc == 0 and topo == "single"
-           and why.startswith("agent-card("), (rc, topo, why))
-        os.environ["RT_STUB_CARD"] = "fail"
-        rc, topo, why = resolve(sub)
-        ck("★R2 음성대조: 카드 서명 검증 실패 → 5(검증 안 된 카드의 topology 를 쓰지 않는다)",
-           rc == EXIT_UNRESOLVED and topo is None and "정체성 증명 실패" in why, (rc, why))
-        os.environ["RT_STUB_CARD"] = "multi"
-        rc, topo, why = resolve(sub)
-        ck("★R3 음성대조: 카드 multi ∧ manifest 는 single 통로에만 → 5(정체성과 사실이 갈린다)",
-           rc == EXIT_UNRESOLVED and "갈린다" in why, (rc, why))
-        write(os.path.join(sub, "output", "single", "manifest.yaml"), "self_role: sub\ntopology: multi\n")
-        os.environ["RT_STUB_CARD"] = "single"
-        rc, topo, why = resolve(sub)
-        ck("★R4 음성대조: 카드 single ≠ manifest#topology multi → 5", rc == EXIT_UNRESOLVED and "≠" in why, (rc, why))
-        os.remove(os.path.join(sub, CARD_VERIFIER_RELS[0]))
-        rc, topo, why = resolve(sub)
-        ck("★R5 음성대조: 카드는 있는데 검증기 부재 → 5", rc == EXIT_UNRESOLVED and "검증기가 없다" in why, (rc, why))
-        os.environ.pop("RT_STUB_CARD", None)
-
         bare = os.path.join(td, "bare")
         os.makedirs(bare)
         rc, topo, why = resolve(bare)
-        ck("R6 카드·manifest 모두 없음(fresh export) → 3 미테라포밍(판정자 유무와 무관)", rc == EXIT_UNTERRAFORMED, (rc, why))
+        ck("R1 manifest 없음 → 3 미테라포밍", rc == EXIT_UNTERRAFORMED and topo is None, (rc, why))
         write(os.path.join(bare, "output", "single", "manifest.yaml"), "self_role: sub\ntopology: single\n")
         rc, topo, why = resolve(bare)
-        ck("★R7 음성대조: manifest 는 있는데 카드도 판정자도 없음 → 5(unknown→single 침묵 기본값 ✗)",
-           rc == EXIT_UNRESOLVED and topo is None, (rc, why))
+        ck("R2 manifest 있으나 parity 없음 → 5", rc == EXIT_UNRESOLVED and topo is None, (rc, why))
 
     have_git = shutil.which("git") is not None
     if not have_git:

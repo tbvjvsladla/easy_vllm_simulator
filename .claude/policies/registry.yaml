@@ -1252,10 +1252,7 @@
             "TERRAFORM_FLAG_GATE.C3"
           ],
           "assertion_ids": [
-            "MC",
-            "CARD",
-            "CARD_VERIFIER",
-            "SELF_ROLE"
+            "MC"
           ]
         },
         {

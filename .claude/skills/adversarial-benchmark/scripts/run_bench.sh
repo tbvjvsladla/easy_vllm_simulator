@@ -86,54 +86,11 @@ if [ -z "$TOPO" ]; then
   fi
 fi
 
-# 헌법 §테라포밍-완수 Flag 게이트 — 결정론 백스톱(**fail-closed**).
-# 2026-09-05(③ 3-9 · G-E1): **위임 키 면제 경로 삭제**. 종전에는 메인이 발급한 실행 허가
-#   (.claude/a2a_delegation.json)나 EASY_VLLM_A2A_DELEGATED=1 이 이 게이트를 면제했고, 그것이
-#   "서브는 허가 없이 아무것도 못 한다"는 R3 구조였다. 서브는 이제 자기 manifest(메인 발급 Flag)와
-#   **서명된 Agent Card** 를 가지므로 정규 경로로 통과한다 — 허가가 아니라 **정체성**을 본다.
-#   · 프로비저닝된 노드(카드 있음): 카드 서명 검증 + 자기 manifest Flag (검증기는 배달된 런타임).
-#   · 메인(카드 없음): 종전대로 manifest_contract --require-flag.
-#   · 둘 다 아니면 fail-closed(exit 4).
-CARD="$REPO/Agent_Card.json"
-CARD_VERIFIER="$REPO/.claude/runtime/a2a/agent_card_contract.py"
-[ -f "$CARD_VERIFIER" ] || CARD_VERIFIER="$REPO/.claude/skills/terraforming_node/scripts/agent_card_contract.py"
+# Terraform readiness is manifest/Flag/topology-based. SSH authenticates a provisioned
+# endpoint; unsigned Agent Card metadata is not an execution credential.
 MC="$REPO/.claude/skills/terraforming_node/scripts/manifest_contract.py"
-# 역할은 manifest 가 말한다(hostname·브랜치 추론 ✗). `self_role: sub` 면 카드 **부재도 거부**다 —
-# 카드를 지우면 검사를 건너뛰는 형태가 되면 부재가 곧 면제가 된다(옛 결함의 거울상).
-# ★ 2026-09-06 교정(plan_26090616 ⑥ · smoke_clone A8 이 RED 였던 자리): 종전 한 줄은
-#   `sed ... 2>/dev/null | head -1 | ...` 였다. stderr 는 지웠지만 **rc 는 남는다** — 파일이 없으면
-#   sed 가 2 를 내고 `set -euo pipefail` 이 스크립트를 그 자리에서 죽였다(rc=2). 그래서 fresh-clone
-#   에서는 바로 아래 Flag 게이트(rc=4)가 **한 번도 도달되지 않았다** — 가드가 그 가드를 위해 만든
-#   상황에서만 죽어 있었다. 부재는 정상 경로이므로 명시적으로 빈 역할로 흘려보낸다(침묵 폴백이
-#   아니라 부재의 정직한 표현이며, 미테라포밍 판정의 권위는 아래 Flag 게이트가 갖는다).
-SELF_ROLE=""
-_ROLE_MANIFEST="$REPO/output/$TOPO/manifest.yaml"
-if [ -f "$_ROLE_MANIFEST" ]; then
-  SELF_ROLE="$(sed -n 's/^self_role:[[:space:]]*//p' "$_ROLE_MANIFEST" \
-              | head -1 | tr -cd 'a-z' | head -c 16)"
-fi
-if [ "$SELF_ROLE" = "sub" ] && [ ! -f "$CARD" ]; then
-  echo "[run_bench] manifest 가 self_role: sub 인데 Agent_Card.json 이 없다 — 정체성 증명 부재는 면제가 아니다(fail-closed)." >&2
-  exit 4
-fi
-if [ -f "$CARD" ]; then
-  if [ ! -f "$CARD_VERIFIER" ]; then
-    echo "[run_bench] Agent_Card 는 있는데 검증기가 없다 — 서명을 확인할 수 없어 진행하지 않는다(fail-closed)." >&2
-    echo "[run_bench]   메인의 재배달이 필요하다(.claude/runtime/a2a/agent_card_contract.py)." >&2
-    exit 4
-  fi
-  if ! GATE_OUT="$(python3 "$CARD_VERIFIER" prove-identity --repo-root "$REPO" --require-flag 2>&1)"; then
-    echo "[run_bench] 정체성 증명 실패 — info-only(fail-closed):" >&2
-    printf '%s\n' "$GATE_OUT" | sed "s|^|[run_bench]   |" >&2
-    exit 4
-  fi
-elif [ -f "$MC" ]; then
-  if ! python3 "$MC" --topology "$TOPO" --repo "$REPO" --require-flag >/dev/null 2>&1; then
-    echo "[run_bench] 테라포밍-완수 Flag 미발급 — info-only. terraforming_node 로 HW스캔·검증 먼저." >&2
-    exit 4
-  fi
-else
-  echo "[run_bench] 정체성 증명·테라포밍 Flag 모두 부재 — info-only(fail-closed)." >&2
+if [ ! -f "$MC" ] || ! python3 "$MC" --topology "$TOPO" --repo "$REPO" --require-flag >/dev/null 2>&1; then
+  echo "[run_bench] 테라포밍-완수 Flag 미발급 — info-only(fail-closed; topology 준비성 미확인)." >&2
   exit 4
 fi
 EF="$REPO/output/$TOPO/envs/.env.$CONFIG"

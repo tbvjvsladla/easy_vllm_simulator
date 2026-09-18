@@ -154,6 +154,11 @@ def evaluate_contract(man, topology):
         res["reason"] = "terraforming.branch_verified != true (§1.5 3자일치 미통과 — info-only)"
         res["exit_code"] = EXIT_NO_FLAG
         return res
+    if man.get("self_role") == "sub" and terra.get("issued_by") != "main":
+        res["reason"] = ("self_role=sub 이지만 terraforming.issued_by != 'main' — "
+                         "메인이 발급한 서브 manifest가 아니므로 readiness를 인정하지 않는다")
+        res["exit_code"] = EXIT_NO_FLAG
+        return res
 
     # 필수 HW사실 (보수적: Flag 켜졌어도 핵심 필드 없으면 거부)
     missing = [k for k in ("topology", "gpus_per_node") if not man.get(k)]
@@ -268,6 +273,16 @@ def _self_test():
         "terraforming": {"complete": True, "branch_verified": True},
     }
     chk("valid-single", dict(base_ok), "single", True, EXIT_OK)
+    sub_ok = {**base_ok, "self_role": "sub",
+              "terraforming": {"complete": True, "branch_verified": True, "issued_by": "main"}}
+    chk("valid-sub-issued-by-main", sub_ok, "single", True, EXIT_OK)
+    for label, issued in (("missing", None), ("sub", "sub"), ("unknown", "unknown")):
+        terra = {"complete": True, "branch_verified": True}
+        if issued is not None:
+            terra["issued_by"] = issued
+        chk("sub-issued-by-%s-rejected" % label,
+            {**base_ok, "self_role": "sub", "terraforming": terra},
+            "single", False, EXIT_NO_FLAG)
 
     multi_ok = {
         "topology": "multi", "gpus_per_node": 1, "model_source": "ephemeral",

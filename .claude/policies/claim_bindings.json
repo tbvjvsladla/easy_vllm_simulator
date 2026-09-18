@@ -929,10 +929,7 @@
       {
         "path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
         "assertion_ids": [
-          "MC",
-          "CARD",
-          "CARD_VERIFIER",
-          "SELF_ROLE"
+          "MC"
         ]
       },
       {
@@ -953,10 +950,7 @@
       {
         "path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
         "assertion_ids": [
-          "MC",
-          "CARD",
-          "CARD_VERIFIER",
-          "SELF_ROLE"
+          "MC"
         ]
       },
       {

@@ -1,5 +1,5 @@
 {
-  "_template_note": "추적되는 PII-free 템플릿(A2A v1.0.1 · a2aproject/A2A specification/a2a.proto 의 AgentCard 필드만 최상위). render_sub_env.py 가 {{ }} 를 채우고 agent_card_contract.py 로 검증·JWS 서명한 뒤 서브 워크스페이스 루트 Agent_Card.json(gitignored)으로 배달한다. HW 사실(gpu_model·cpu_arch·nas 등)은 카드에 없다 — 서브 manifest.yaml(terraforming 생성)이 권위다(plan_26090516 §7.2 · H1 승인 2026-09-05).",
+  "_template_note": "추적되는 PII-free 템플릿(A2A v1.0.1 AgentCard 필드만 최상위). render_sub_env.py가 {{ }}를 채워 구조만 검증한 unsigned capability/discovery metadata로 서브 워크스페이스 루트 Agent_Card.json(gitignored)에 배달한다. SSH는 endpoint 인증, 서브 manifest.yaml(terraforming 생성)은 role·HW·readiness Flag 권위다.",
   "name": "easy-vllm sub agent @ {{ SUB_HOST }}",
   "description": "easy-vllm 서브 노드의 코드에이전트. 이 카드는 A2A 평면 계약이다 — 메인이 실측·발급한 '이 노드가 무엇을 할 수 있나'. 노드가 어떤 존재인지는 capabilities.extensions[urn:easy-vllm:ext:node-role:v1].params.sub_mode 가 답하고(헌법 §불변식 A · terraforming_node SKILL.md §2.7.0), 값은 node_role_contract.py 가 해소한 것이다(손저작 ✗). 무엇 위에서 도는지(HW·경로·획득 모드)는 이 노드의 output/<topology>/manifest.yaml 이 답한다.",
   "supportedInterfaces": [

@@ -133,7 +133,7 @@ RECIPE_REFERENCE = os.path.join(REPO, ".claude", "skills", "wiki-desk", "referen
 # 그 갈림이 2026-08-22 진단의 형태였다(SKILL.md §2.7.6(c) · 헌법 §불변식 A).
 sys.path.insert(0, HERE)
 import node_role_contract as _contract  # noqa: E402  (형제 스크립트 — 위 sys.path 선행 필요)
-import agent_card_contract as _acc      # noqa: E402  Agent_Card v2 계약·JWS 서명(단일 소유 · plan_26090516 §7.2)
+import agent_card_contract as _acc      # noqa: E402  Agent Card metadata contract
 import manifest_contract as _mc         # noqa: E402  서브 manifest Flag 계약 리더(§7.3)
 import topology_parity as _parity       # noqa: E402  특화헌법 자기선언 파서의 단일 소유자(policy BRANCH_CONSTITUTION_LAYERING C2)
 
@@ -405,16 +405,14 @@ def topology_rules_mismatch(topology: str, rules_path: str | None = None) -> str
 
 
 def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
-                tracked_list: list | None = None, signing_key: str | None = None,
+                tracked_list: list | None = None,
                 sub_manifest_path: str | None = None) -> dict:
     """치환된 placeholders 로 스테이징 트리를 만든다. 반환 = 산출 매니페스트(검증용).
 
-    `signing_key`(2026-09-05 · plan_26090516 §7.2 H1(A)): 메인 Ed25519 PEM. 렌더된 Agent_Card 를
-    A2A §8.4 JWS 로 서명하고 공개키(JWK)를 `.claude/a2a/trusted_keys.json` 으로 함께 싣는다 — 서브·메인
-    게이트가 이 저장소로 검증한다. **사람 개입 0**(H1 조건). None 이면 서명하지 않는다(self-test 전용 —
-    main() 은 키 부재를 fail-loud 로 막는다).
-    `sub_manifest_path`(§7.3): terraforming 이 실측·생성한 서브 manifest. 스테이징의
-    `output/<topology>/manifest.yaml` 로 복제한다(설치 산출물 — 빌드킷 배달 평면(D10)과 무관).
+    Agent Card is unsigned capability/discovery metadata. Provisioned endpoint
+    authentication is SSH, and runtime readiness derives from the issued sub
+    manifest Flag and topology contract. `sub_manifest_path` is copied to
+    `output/<topology>/manifest.yaml`.
     """
     if os.path.isdir(out_dir):
         shutil.rmtree(out_dir)
@@ -450,19 +448,18 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
         produced.append(dest_rel)
         return dest
 
-    # 1) 렌더 3종 (md=머리말 strip · json=_메타키 drop+유효성)
+    # 1) Render capability metadata and local policy. Agent Card remains an unsigned
+    # discovery document, not a runtime identity credential.
     _render_file("CLAUDE.template.md", "CLAUDE.md", "md")
     card_path = _render_file("Agent_Card.template.json", "Agent_Card.json", "json")
     _render_file("settings.local.template.json", ".claude/settings.local.json", "json")
 
-    # 1.5) Agent_Card v2 계약 검증 + JWS 서명 (A2A v1.0.1 · agent_card_contract.py 단일 소유)
+    # 1.5) Preserve structural validation without signing, trust stores, or runtime verifier.
     with open(card_path, encoding="utf-8") as f:
         card = json.load(f)
     violations = _acc.validate_card(card) + _acc.require_skills(card)
     if violations:
-        raise SystemExit("[render] FAIL: Agent_Card 계약 위반 — " + "; ".join(violations))
-    if signing_key:
-        raise SystemExit("[render] FAIL: legacy Agent Card signing key is not an identity source; SSH is the endpoint identity")
+        raise SystemExit("[render] FAIL: Agent Card capability contract violation — " + "; ".join(violations))
 
     # 1.6) 서브 manifest (설치 산출물 · terraforming 실측) → 스테이징 output/<topology>/manifest.yaml
     if sub_manifest_path:
@@ -537,13 +534,8 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
             produced.append(".claude/skills/ (런타임블럭 0종 — tool_plane=%s)"
                             % (ph.get("TOOL_PLANE_SOURCE") or "unknown"))
 
-    # 3.5) A2A 위임 키 (plan_26063021_14_37 D5/D7) — 서브 HW 동질성 검증(nodes[sub].hw_verified=true) 통과 시에만 발급.
-    #   메인 키(terraforming.complete@manifest)와 UNIQUE. 최소 attestation(HW사실/전체 manifest ✗ → D10 보존).
-    #   recipe.py·run_bench.sh 가 이 파일 존재로 서브 게이트 면제(fail-closed 양성 키). 미검증이면 미발급 → 서브 info-only.
-    # 2026-09-05(③ 3-9 · G-E1): **위임 키 발급 중단**. 여기서 만들던 `.claude/a2a_delegation.json`
-    #   은 "메인이 서브에게 준 실행 허가" 였고, 감사는 그것을 R3(에이전트 자율성 부정)로 판정했다.
-    #   대체물은 이미 이 렌더가 만든다 — 서명된 `Agent_Card.json` + `.claude/a2a/trusted_keys.json`
-    #   (정체성 증명) + 메인이 발급한 서브 manifest(완수 Flag). 게이트들은 허가가 아니라 그것을 본다.
+    # Runtime readiness is deliberately not rendered as a credential. The delivered
+    # sub manifest carries the issued Flag and role; SSH authenticates the endpoint.
 
     # 4) 캠페인 워크스페이스 스캐폴드 (2026-09-06 이관 · plan_26090616 ②)
     #    옛 `tasks/.gitkeep` 을 대신한다. 서브도 메인과 **같은 뼈대**를 받아 자기
@@ -705,24 +697,6 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
         os.chmod(dst, mode)
         produced.append(rel)
 
-    # 4.7) A2A 카드 검증기(2026-09-05 ②-b · plan_26090516 §7.2). host_safety·node_blackbox 와 **동형** 배선.
-    #   ★ 왜 신설했나: ②-a 는 서브에 신뢰키 저장소(.claude/a2a/trusted_keys.json)를 배달하면서
-    #     **그것을 읽는 코드를 배달하지 않았다**. 서브 재설치 라이브에서 C6(서브측 서명 검증)을 하려는
-    #     순간 드러났다 — 저장소는 있는데 검증기가 없다. 감사가 이름 붙인 "실행자 0"(가드를 놓고
-    #     실행 주체를 안 적는 것)의 재발이며, 처방은 **검증기를 서브 런타임으로 내리는 것**이다.
-    #   canonical source 는 terraforming 스킬이 소유하고(메인 전용 스킬 트리는 서브에 가지 않는다),
-    #   서브에는 헌법 runtime asset 으로 materialize 한다. stdlib + cryptography 만 쓰므로 자기완결이다.
-    #   정본 소스 = 위에서 카드 계약 검증·서명에 실제로 쓴 그 모듈의 파일이다(단일 소유 — 경로를
-    #   다시 조립하면 두 자리가 갈린다). 부재는 이 파일 상단의 `import agent_card_contract` 가 이미
-    #   fail-closed 로 잡는다(음성대조 실측: ModuleNotFoundError · rc=1). 여기에 isfile 게이트를 더
-    #   두면 **도달 불가 분기**가 된다 — 가드는 도달해야 가드다.
-    card_contract_src = _acc.__file__
-    rel = os.path.join(".claude", "runtime", "a2a", "agent_card_contract.py")
-    dst = os.path.join(out_dir, rel)
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
-    shutil.copyfile(card_contract_src, dst)
-    os.chmod(dst, 0o755)
-    produced.append(rel)
 
     # 5) 서브 로컬 git .gitignore (D12 — placeholder 없는 정적자산 그대로 복제)
     gi_src = os.path.join(SUBNODE_DIR, "gitignore.template")
@@ -894,9 +868,7 @@ def _self_test() -> int:
                        ".claude/runtime/node_blackbox/node_identity.sh",
                        ".claude/runtime/node_blackbox/budget_renew_loop.sh",
                        ".claude/runtime/node_blackbox/blackbox_thermal.py",
-                       ".claude/runtime/node_blackbox/thermal_watchdog.sh",
-                       # 신뢰키 저장소를 읽는 **실행자** — 없으면 서브 서명검증이 불가능하다(②-b)
-                       ".claude/runtime/a2a/agent_card_contract.py"]
+                       ".claude/runtime/node_blackbox/thermal_watchdog.sh"]
         have = all(os.path.exists(os.path.join(out, p)) for p in base_expect)
         missing_art = [p for p in base_expect if not os.path.exists(os.path.join(out, p))]
         # docs 스켈레톤: docs.md 계약 5종(DOC_TYPES) 전부 렌더됐나(simlog·benchmark 누락 회귀 차단 — review)
@@ -1193,7 +1165,7 @@ def _self_test() -> int:
     with open(os.path.join(out7b, "Agent_Card.json"), encoding="utf-8") as f:
         rendered_card = json.load(f)
     unsigned_ok = not rendered_card.get("signatures")
-    trust_absent = not os.path.exists(os.path.join(out7b, ".claude", "a2a", "trusted_keys.json"))
+    trust_absent = not os.path.exists(os.path.join(out7b, ".claude", "a2a"))
     sub_copied = os.path.isfile(os.path.join(out7b, "output", "single", "manifest.yaml"))
     hw_from_sub = ph7b["GPU_MODEL"] == "SUB-GPU"
     bad_sub = os.path.join(tmp, "sub_manifest_bad.yaml")
@@ -1279,7 +1251,6 @@ def main() -> int:
     if not os.path.isfile(manifest):
         print(f"[render] FAIL: manifest 없음 — {manifest} (terraforming_node 스캔/인터뷰로 먼저 채우세요)", file=sys.stderr)
         return 3
-    signing_key = None  # SSH public-key authentication is the endpoint identity; no second credential.
     sub_manifest = args.sub_manifest or os.path.join(REPO, "output", args.topology, "sub_manifest.yaml")
     if not os.path.isfile(sub_manifest):
         if args.topology == "single":
@@ -1305,7 +1276,7 @@ def main() -> int:
             blob = f.read()
         tracked = [x for x in (blob.split("\0") if "\0" in blob else blob.splitlines()) if x.strip()]
     res = render_tree(ph, out_dir, copy_runtime_block=not args.no_runtime_block, tracked_list=tracked,
-                      signing_key=signing_key, sub_manifest_path=sub_manifest)
+                      sub_manifest_path=sub_manifest)
     print(f"[render] OK → {res['out_dir']}")
     for p in res["produced"]:
         print(f"   + {p}")

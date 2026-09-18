@@ -1070,53 +1070,23 @@ def _self_test() -> None:
 
 
 def _require_terraform_flag(manifest_path: str) -> None:
-    """헌법 §테라포밍-완수 Flag 게이트 (fail-closed) — render/build deliverable 은 Flag 전제.
-
-    2026-09-05(③ 3-9 · G-E1): **위임 키·env 면제 경로 삭제**. 서브는 이제 메인이 발급한 자기
-    manifest(`terraforming.complete/branch_verified` · `issued_by: main`)로 정규 통과하고, 그 노드가
-    메인이 프로비저닝한 것임은 **서명된 Agent Card** 가 증명한다(형제 게이트 `recipe.py`·
-    `run_bench.sh`·`lite_bench.sh` 와 같은 계약). 종전 규약은 "메인이 발급한 실행 허가가 없으면
-    서브는 아무것도 못 한다" 였고, 그 구조가 서브를 *테스트용* override 로 프로덕션 게이트를 뚫도록
-    내몰았다(2026-09-05 서브가 그 우회를 거부하고 질의를 올려 발각).
-    """
-    root = _repo_root()
-    card = os.path.join(root, "Agent_Card.json")
-    if os.path.isfile(card):
-        verifier = os.path.join(root, ".claude", "runtime", "a2a", "agent_card_contract.py")
-        if not os.path.isfile(verifier):
-            verifier = os.path.join(root, ".claude", "skills", "terraforming_node", "scripts",
-                                    "agent_card_contract.py")
-        if not os.path.isfile(verifier):
-            print("[render] FAIL: Agent_Card 는 있는데 검증기가 없다 — 서명을 확인할 수 없어 "
-                  "진행하지 않는다(fail-closed). 메인의 재배달이 필요하다.", file=sys.stderr)
-            sys.exit(4)
-        proc = subprocess.run([sys.executable, verifier, "prove-identity", "--repo-root", root,
-                               "--require-flag"], capture_output=True, text=True)
-        if proc.returncode != 0:
-            print("[render] FAIL: 정체성 증명 실패 — %s" % (proc.stderr or proc.stdout).strip()[:400],
-                  file=sys.stderr)
-            sys.exit(4)
-        return
+    """Require readiness through the manifest-contract owner."""
     if not os.path.isfile(manifest_path):
-        print("[render] FAIL: manifest 부재 — 테라포밍 미완(fail-closed). terraforming_node 로 HW스캔 + "
-              "모델획득 모드(managed|ephemeral|custom)를 먼저 정하세요(info-only).", file=sys.stderr)
+        print("[render] FAIL: manifest 부재 — 테라포밍 미완(fail-closed).", file=sys.stderr)
         sys.exit(4)
-    man = load_manifest(manifest_path)
-    terra = man.get("terraforming") or {}
-    if terra.get("complete") is not True or terra.get("branch_verified") is not True:
-        print("[render] FAIL: 테라포밍 완수 Flag 미발급(terraforming.complete/branch_verified != true) — "
-              "terraforming_node 로 스캔·branch↔topology 3자일치 검증 완수 먼저(info-only).", file=sys.stderr)
+    try:
+        man = load_manifest(manifest_path)
+        scripts = os.path.join(_repo_root(), ".claude", "skills", "terraforming_node", "scripts")
+        if scripts not in sys.path:
+            sys.path.insert(0, scripts)
+        import manifest_contract as contract
+        result = contract.evaluate_contract(man, man.get("topology"))
+    except (ImportError, OSError, ValueError) as exc:
+        print("[render] FAIL: manifest readiness 판정 불가(fail-closed): %s" % exc, file=sys.stderr)
         sys.exit(4)
-    missing = [k for k in ("topology", "gpus_per_node") if not man.get(k)]
-    if missing:
-        print("[render] FAIL: Flag true 이나 필수 HW필드 누락(%s) — terraforming_node 스캔 완수 먼저(info-only)."
-              % ", ".join(missing), file=sys.stderr)
-        sys.exit(5)
-    ms = man.get("model_source")
-    if ms not in ("managed", "ephemeral", "custom"):
-        print("[render] FAIL: model_source 미설정/오류(%r) — terraforming_node 에서 획득모드 지정 먼저(info-only)."
-              % ms, file=sys.stderr)
-        sys.exit(5)
+    if not result.get("flag"):
+        print("[render] FAIL: manifest/Flag readiness 거부 — %s" % result.get("reason"), file=sys.stderr)
+        sys.exit(int(result.get("exit_code") or 4))
 
 
 # `COPY <dir>/ ...` 는 그 디렉터리가 **빌드 컨텍스트에 없으면 docker build 가 죽는다**.
