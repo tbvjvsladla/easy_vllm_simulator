@@ -1996,6 +1996,12 @@ if [ "$HAS_GIT" != "0" ]; then
         || { echo "[sync] STOP(F7): 서브 현재 브랜치 판독 실패 — 원복 지점을 모른 채 배달하지 않는다." >&2; exit 8; }
     [ "$REMOTE_ORIGINAL_BRANCH" != "HEAD" ] \
         || { echo "[sync] STOP(F7): 서브가 detached HEAD — 원복이 no-op 이 되므로 배달 거부. 서브에서 브랜치를 체크아웃하라." >&2; exit 8; }
+    # AUTO scope never authorizes topology branch checkout: it can delete tracked paths
+    # before delivery and must therefore be covered by a fresh explicit approval.
+    if [ "$PROPAGATION_SCOPE" = "1" ] && [ "$REMOTE_ORIGINAL_BRANCH" != "$BRANCH" ]; then
+        echo "[sync] STOP(PROPAGATION_SCOPE_BRANCH_TRANSITION): established scope permits no remote branch transition (current=$REMOTE_ORIGINAL_BRANCH target=$BRANCH); obtain fresh explicit approval." >&2
+        exit 8
+    fi
 fi
 SINGLE_PLANE_SOURCE="fail-closed:unevaluated"
 SINGLE_ACTIVE=0; _single_extension_active && SINGLE_ACTIVE=1
