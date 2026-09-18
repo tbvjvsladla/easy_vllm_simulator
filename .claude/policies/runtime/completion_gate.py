@@ -1369,6 +1369,36 @@ _PLAN_PATH_STATUS_TO_REASON_CODE = {
 }
 
 
+_PROPAGATION_NODE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+_PROPAGATION_SSH_HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*@[A-Za-z0-9][A-Za-z0-9.-]*$")
+_PROPAGATION_WORK_DIR_RE = re.compile(r"^/(?:[A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+$")
+
+
+def _propagation_scope_atoms(scope: dict[str, Any]) -> list[str]:
+    return [
+        f"propagation_topology: {scope['topology']}",
+        f"propagation_node_id: {scope['node_id']}",
+        f"propagation_ssh_host: {scope['ssh_host']}",
+        f"propagation_work_dir: {scope['work_dir']}",
+        f"propagation_planes: {','.join(scope['planes'])}",
+    ]
+
+
+def _propagation_scope_error(scope: dict[str, Any]) -> tuple[str, str] | None:
+    node_id, ssh_host, work_dir = scope["node_id"], scope["ssh_host"], scope["work_dir"]
+    if not _PROPAGATION_NODE_ID_RE.fullmatch(node_id):
+        return ("PROPAGATION_AUTHORIZATION_NODE_ID_INVALID", "node_id must contain no whitespace or shell metacharacters")
+    if not _PROPAGATION_SSH_HOST_RE.fullmatch(ssh_host) or ".." in ssh_host:
+        return ("PROPAGATION_AUTHORIZATION_SSH_HOST_INVALID", "ssh_host must be a normalized user@host token")
+    if (not _PROPAGATION_WORK_DIR_RE.fullmatch(work_dir) or "//" in work_dir or "/./" in work_dir
+            or "/../" in work_dir or work_dir.endswith("/.") or work_dir.endswith("/..")):
+        return ("PROPAGATION_AUTHORIZATION_WORK_DIR_INVALID", "work_dir must be a normalized non-root absolute safe path")
+    expected_planes = ["overlay"] if scope["topology"] == "single" else ["band2", "overlay"]
+    if scope["planes"] != expected_planes:
+        return ("PROPAGATION_AUTHORIZATION_PLANES_INVALID", "planes must be canonical for topology")
+    return None
+
+
 def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, repo_root: Path) -> None:
     try:
         text = _read_manifest_text(manifest_path)
@@ -1420,6 +1450,14 @@ def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, rep
         if not _is_valid_utc_timestamp(propagation_authorization["approved_utc"]):
             add_reason("PROPAGATION_AUTHORIZATION_TIMESTAMP_INVALID",
                        "propagation_authorization.approved_utc is not a valid UTC timestamp")
+            fail(2)
+        scope_error = _propagation_scope_error(propagation_authorization)
+        if scope_error is not None:
+            add_reason(*scope_error)
+            fail(2)
+        if propagation_authorization["approved_utc"] != execution_approval["approved_at_utc"]:
+            add_reason("PROPAGATION_AUTHORIZATION_TIMESTAMP_MISMATCH",
+                       "propagation authorization time must equal execution approval time")
             fail(2)
         if propagation_authorization["topology"] != identity["topology"]:
             add_reason("PROPAGATION_AUTHORIZATION_TOPOLOGY_MISMATCH",
@@ -1477,6 +1515,8 @@ def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, rep
         f"approved_at_utc: {execution_approval['approved_at_utc']}",
         *[f"allowed_action: {value}" for value in execution_approval["allowed_actions"]],
     ]
+    if action == "sync_to_sub" and propagation_authorization is not None:
+        expected_atoms.extend(_propagation_scope_atoms(propagation_authorization))
     if execution_approval["approval_atoms"] != expected_atoms:
         add_reason("EXECUTION_APPROVAL_ATOMS_INVALID",
                    "approval_atoms must exactly equal the deterministic atoms derived from approver, time, and actions")

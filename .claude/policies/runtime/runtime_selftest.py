@@ -1044,8 +1044,15 @@ def _test_execution_approval_authorization() -> None:
     import subprocess as _sp
     gate = REPO_ROOT / ".claude/policies/runtime/completion_gate.py"
     approved_by, approved_at = "selftest", "2026-01-01T00:00:00Z"
-    atoms = [f"approved_by: {approved_by}", f"approved_at_utc: {approved_at}",
-             "allowed_action: sync_to_sub"]
+    base_atoms = [f"approved_by: {approved_by}", f"approved_at_utc: {approved_at}",
+                  "allowed_action: sync_to_sub"]
+    scope = {"status": "approved", "topology": "single", "node_id": "sub-1",
+             "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
+             "planes": ["overlay"], "approved_utc": approved_at}
+    scope_atoms = ["propagation_topology: single", "propagation_node_id: sub-1",
+                   "propagation_ssh_host: probe@node.example", "propagation_work_dir: /srv/vllm",
+                   "propagation_planes: overlay"]
+    atoms = base_atoms + scope_atoms
     plan_body = ("# selftest plan\n\n## Execution approval\n\n" + "\n".join(atoms) + "\n")
 
     with tempfile.TemporaryDirectory() as td:
@@ -1068,7 +1075,7 @@ def _test_execution_approval_authorization() -> None:
             execution_approval = over.pop("execution_approval", None)
             ea = {"approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
                   "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
-                  "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]}
+                  "approval_atoms": list(base_atoms), "allowed_actions": ["sync_to_sub"]}
             if execution_approval is not None:
                 ea = execution_approval
             else:
@@ -1103,12 +1110,7 @@ def _test_execution_approval_authorization() -> None:
             "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
             "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
             "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]
-        }, propagation_authorization={
-            "status": "approved", "topology": "single", "node_id": "sub-1",
-            "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
-            "planes": ["overlay"], "approved_utc": "2026-01-02T00:00:00Z",
-            "approval_atoms": list(atoms)
-        }), "propagation")
+        }, propagation_authorization={**scope, "approval_atoms": list(atoms)}), "propagation")
         _require(propagation.get("allowed") is True,
                  f"approved exact propagation scope must admit sync_to_sub: {propagation}")
 
@@ -1117,7 +1119,7 @@ def _test_execution_approval_authorization() -> None:
         no_execution_manifest["propagation_authorization"] = {
             "status": "approved", "topology": "single", "node_id": "sub-1",
             "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
-            "planes": ["overlay"], "approved_utc": "2026-01-02T00:00:00Z",
+            "planes": ["overlay"], "approved_utc": approved_at,
             "approval_atoms": list(atoms)}
         no_execution = _run(no_execution_manifest, "no_execution")
         _require(no_execution.get("allowed") is False
@@ -1131,12 +1133,28 @@ def _test_execution_approval_authorization() -> None:
         }, propagation_authorization={
             "status": "approved", "topology": "multi", "node_id": "sub-1",
             "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
-            "planes": ["band2", "overlay"], "approved_utc": "2026-01-02T00:00:00Z",
+            "planes": ["band2", "overlay"], "approved_utc": approved_at,
             "approval_atoms": list(atoms)
         }), "bad_propagation")
         _require(bad_propagation.get("allowed") is False
                  and "PROPAGATION_AUTHORIZATION_TOPOLOGY_MISMATCH" in bad_propagation.get("reason_codes", []),
                  f"propagation scope topology drift must be rejected: {bad_propagation}")
+
+        changed_destination = _run(_manifest(execution_approval={
+            "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
+            "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
+            "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]
+        }, propagation_authorization={**scope, "work_dir": "/srv/other", "approval_atoms": list(atoms)}), "changed_destination")
+        _require(changed_destination.get("allowed") is False and "EXECUTION_APPROVAL_ATOMS_INVALID" in changed_destination.get("reason_codes", []),
+                 f"destination drift outside approved plan bytes must invalidate the approval atoms: {changed_destination}")
+
+        shell_destination = _run(_manifest(execution_approval={
+            "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
+            "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
+            "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]
+        }, propagation_authorization={**scope, "work_dir": "/srv/vllm;id", "approval_atoms": list(atoms)}), "shell_destination")
+        _require(shell_destination.get("allowed") is False and "PROPAGATION_AUTHORIZATION_WORK_DIR_INVALID" in shell_destination.get("reason_codes", []),
+                 f"shell metacharacter destination must be rejected: {shell_destination}")
 
         bad_sha = _run(_manifest(plan_sha256="0" * 64), "bad_sha")
         _require(bad_sha.get("allowed") is False
