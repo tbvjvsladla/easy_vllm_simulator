@@ -589,7 +589,7 @@ def build_sub_manifest(result: dict, peer_hw: dict, main_manifest: dict, scanned
     homo = result.get("homogeneity") or {}
     man: dict = {
         "self_role": "sub",
-        "topology": "single",
+        "topology": result.get("declared_topology") or result.get("topology") or main_manifest.get("topology"),
         "cpu_arch": peer_hw.get("cpu_arch"),
         "cuda_version": cuda,
         "gpus_per_node": peer_hw.get("gpus_per_node"),
@@ -1153,7 +1153,7 @@ def _self_test() -> int:
     # 서브 manifest 조립 회귀 (plan_26090516 §7.3): 메인 실측 → Flag 계약 통과 · self_role · 결정론 cuda 축약
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import manifest_contract as _mc  # noqa: E402
-    _fx_result = {"model_source": "managed", "nas_model_path": "/srv/test-models",
+    _fx_result = {"declared_topology": "single", "model_source": "managed", "nas_model_path": "/srv/test-models",
                   "homogeneity": {"verified": True, "verified_rule": "single:peer-observed(gpus>=1)"},
                   "nodes": [{"role": "main", "host": "203.0.113.10"}, {"role": "sub", "host": "203.0.113.11", "hw_verified": True}]}
     _fx_peer = {"cpu_arch": "aarch64", "gpu_model": "NVIDIA TEST", "gpus_per_node": 1, "cuda": "13.2", "driver": "580.0.1"}
@@ -1486,11 +1486,11 @@ def main() -> int:
                                       "(plan_26063021_14_37 D3) — ") + result["gate"].get("note", "")
             exit_code = 2
 
-    # ── 서브 manifest 발행 (single · --peer-ssh · plan_26090516 §7.3) — 서브도 manifest 를 갖는다 ──
+    # ── 서브 manifest 발행 (--peer-ssh 실측 전제) — 양 topology의 sub도 자기 manifest를 갖는다 ──
     if args.emit_sub_manifest:
         _homo = result.get("homogeneity") or {}
-        if args.topology != "single" or not args.peer_ssh:
-            sys.stderr.write("[scan] FAIL: --emit-sub-manifest 는 --topology single 과 --peer-ssh 가 함께 있어야 한다(서브 실측이 전제).\n")
+        if args.topology not in ("single", "multi") or not args.peer_ssh:
+            sys.stderr.write("[scan] FAIL: --emit-sub-manifest 는 명시 topology와 --peer-ssh가 함께 있어야 한다(서브 실측이 전제).\n")
             return 2
         if result["gate"]["status"] != "ok" or not _homo.get("verified"):
             sys.stderr.write("[scan] FAIL: 서브 manifest 발행 금지 — gate=%s · 서브 관측=%s (%s)\n"
@@ -1513,7 +1513,7 @@ def main() -> int:
         sub_man = build_sub_manifest(result, _homo.get("peer") or {}, _main_man, egress_peer=egress_peer)
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import manifest_contract as _mc  # noqa: E402 — 발행 전 Flag 계약 자기 검증(배달 뒤 서브에서 죽는 것을 여기서 잡는다)
-        _res = _mc.evaluate_contract(sub_man, "single")
+        _res = _mc.evaluate_contract(sub_man, args.topology)
         if not _res.get("flag"):
             sys.stderr.write("[scan] FAIL: 조립한 서브 manifest 가 테라포밍 계약을 통과하지 못한다 — %s\n" % _res.get("reason"))
             return 2
