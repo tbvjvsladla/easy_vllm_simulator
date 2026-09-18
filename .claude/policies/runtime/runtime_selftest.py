@@ -1167,6 +1167,13 @@ def _test_execution_approval_authorization() -> None:
         _require(shell_destination.get("allowed") is False and "PROPAGATION_AUTHORIZATION_WORK_DIR_INVALID" in shell_destination.get("reason_codes", []),
                  f"shell metacharacter destination must be rejected: {shell_destination}")
 
+        # Static integration tripwire: this guard is positioned before the B1 transaction and
+        # checkout, so a same-scope invocation cannot delete opposite-branch tracked paths.
+        sync_script = (REPO_ROOT / ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh").read_text(encoding="utf-8")
+        guard = "STOP(PROPAGATION_SCOPE_BRANCH_TRANSITION)"
+        _require(guard in sync_script and sync_script.index(guard) < sync_script.index("begin_remote_transaction \"$t\" 0"),
+                 "established scope must reject branch transition before B1 transaction")
+
         bad_sha = _run(_manifest(plan_sha256="0" * 64), "bad_sha")
         _require(bad_sha.get("allowed") is False
                  and "EXECUTION_APPROVAL_PLAN_DIGEST_MISMATCH" in bad_sha.get("reason_codes", []),
