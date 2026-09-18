@@ -1106,10 +1106,23 @@ def _test_execution_approval_authorization() -> None:
         }, propagation_authorization={
             "status": "approved", "topology": "single", "node_id": "sub-1",
             "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
-            "planes": ["overlay"], "approved_utc": "2026-01-02T00:00:00Z"
+            "planes": ["overlay"], "approved_utc": "2026-01-02T00:00:00Z",
+            "approval_atoms": list(atoms)
         }), "propagation")
         _require(propagation.get("allowed") is True,
                  f"approved exact propagation scope must admit sync_to_sub: {propagation}")
+
+        no_execution_manifest = _manifest()
+        no_execution_manifest.pop("execution_approval")
+        no_execution_manifest["propagation_authorization"] = {
+            "status": "approved", "topology": "single", "node_id": "sub-1",
+            "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
+            "planes": ["overlay"], "approved_utc": "2026-01-02T00:00:00Z",
+            "approval_atoms": list(atoms)}
+        no_execution = _run(no_execution_manifest, "no_execution")
+        _require(no_execution.get("allowed") is False
+                 and "PROPAGATION_AUTHORIZATION_EXECUTION_APPROVAL_ABSENT" in no_execution.get("reason_codes", []),
+                 f"standalone propagation scope must be rejected: {no_execution}")
 
         bad_propagation = _run(_manifest(execution_approval={
             "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
@@ -1118,7 +1131,8 @@ def _test_execution_approval_authorization() -> None:
         }, propagation_authorization={
             "status": "approved", "topology": "multi", "node_id": "sub-1",
             "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
-            "planes": ["band2", "overlay"], "approved_utc": "2026-01-02T00:00:00Z"
+            "planes": ["band2", "overlay"], "approved_utc": "2026-01-02T00:00:00Z",
+            "approval_atoms": list(atoms)
         }), "bad_propagation")
         _require(bad_propagation.get("allowed") is False
                  and "PROPAGATION_AUTHORIZATION_TOPOLOGY_MISMATCH" in bad_propagation.get("reason_codes", []),
@@ -1512,11 +1526,15 @@ def _test_no_backup_artifacts(root: Path | None = None) -> None:
 
     branches = {b for b in _git_out(root, "for-each-ref", "--format=%(refname:short)",
                                    "refs/heads").split("\n") if b}
-    # SDK-isolated worktrees necessarily create worktree-agent-* refs.  They are ephemeral
-    # execution isolation, not user-maintained backup branches, so retain the invariant for
-    # all durable branch names without making every local test/commit impossible.
-    stray = sorted(b for b in branches if b not in _ALLOWED_BRANCHES and not b.startswith("worktree-agent-"))
-    _require(not stray, f"refs/heads must be allowed durable branches or isolated worktrees: {stray}")
+    # Exempt only refs that Git itself reports as registered worktrees.  A prefix is not proof:
+    # a user-created `worktree-agent-*` branch could otherwise become an unreviewed backup ref.
+    registered = set()
+    worktrees = _git_out(root, "worktree", "list", "--porcelain").splitlines()
+    for line in worktrees:
+        if line.startswith("branch refs/heads/"):
+            registered.add(line.removeprefix("branch refs/heads/"))
+    stray = sorted(b for b in branches if b not in _ALLOWED_BRANCHES and b not in registered)
+    _require(not stray, f"refs/heads must be allowed durable branches or registered worktrees: {stray}")
 
     tags = {t for t in _git_out(root, "tag", "-l").split("\n") if t}
     bad_tags = sorted(t for t in tags if not t.startswith(_ALLOWED_TAG_PREFIX))

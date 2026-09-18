@@ -1410,10 +1410,13 @@ def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, rep
         }, exit_code)
 
     propagation_authorization = manifest.get("propagation_authorization")
-    # An established propagation scope is intentionally narrower than an execution approval:
-    # it permits only the non-destructive sync_to_sub path.  The transport script compares its
-    # exact topology/node/host/work_dir/planes before it can mutate a destination.
+    # Scope is durable metadata, not a self-authorizing grant. It is bound to the existing
+    # execution approval's plan anchor and deterministic atoms below.
     if action == "sync_to_sub" and propagation_authorization is not None:
+        if execution_approval is None:
+            add_reason("PROPAGATION_AUTHORIZATION_EXECUTION_APPROVAL_ABSENT",
+                       "propagation_authorization requires a verified execution_approval")
+            fail(1)
         if not _is_valid_utc_timestamp(propagation_authorization["approved_utc"]):
             add_reason("PROPAGATION_AUTHORIZATION_TIMESTAMP_INVALID",
                        "propagation_authorization.approved_utc is not a valid UTC timestamp")
@@ -1422,11 +1425,6 @@ def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, rep
             add_reason("PROPAGATION_AUTHORIZATION_TOPOLOGY_MISMATCH",
                        "propagation_authorization.topology must equal identity.topology")
             fail(2)
-        _emit_authorization({
-            "schema_version": SCHEMA_VERSION, "mode": mode, "action": action,
-            "task_class": task_class, "authorization_state": "execution-approved", "allowed": True,
-            "reason_codes": [], "messages": {}, "identity": identity,
-        }, 0)
 
     if execution_approval is None:
         add_reason("EXECUTION_APPROVAL_ABSENT", "manifest has no execution_approval or approved propagation_authorization block")
@@ -1512,6 +1510,12 @@ def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, rep
                    f"action {action!r} is not in execution_approval.allowed_actions "
                    f"{execution_approval['allowed_actions']!r}")
         fail(1)
+
+    if action == "sync_to_sub" and propagation_authorization is not None:
+        if propagation_authorization["approval_atoms"] != expected_atoms:
+            add_reason("PROPAGATION_AUTHORIZATION_APPROVAL_ATOMS_MISMATCH",
+                       "propagation_authorization.approval_atoms must exactly repeat execution_approval approval atoms")
+            fail(2)
 
     _emit_authorization({
         "schema_version": SCHEMA_VERSION, "mode": mode, "action": action,
