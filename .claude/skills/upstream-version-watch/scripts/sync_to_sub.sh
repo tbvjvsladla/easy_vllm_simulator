@@ -417,17 +417,15 @@ DEST="${SUB_WORK_DIR}/"
 PROPAGATION_SCOPE=0
 PA_TOPOLOGY=""; PA_NODE_ID=""; PA_SSH_HOST=""; PA_WORK_DIR=""; PA_PLANES=""
 if [ -n "$RESOLVED_MANIFEST" ]; then
-    pa_fields="$(python3 - "$RESOLVED_MANIFEST" <<'PY'
+    # Gate owns scope validation and returns the scope from the exact manifest bytes it read.
+    # Do not reread the caller path here: that would permit an authorization/transport TOCTOU.
+    pa_fields="$(printf '%s' "$gate_stdout" | python3 -c '
 import json, sys
 try:
-    pa = (json.load(open(sys.argv[1], encoding="utf-8")).get("propagation_authorization") or {})
-    if pa:
-        print("\t".join([pa.get("status", ""), pa.get("topology", ""), pa.get("node_id", ""),
-                           pa.get("ssh_host", ""), pa.get("work_dir", ""), ",".join(pa.get("planes", []))]))
-except (OSError, ValueError, TypeError):
-    pass
-PY
-)"
+ d=json.load(sys.stdin); pa=d.get("propagation_scope") or {}
+ if pa: print("\t".join([pa["status"],pa["topology"],pa["node_id"],pa["ssh_host"],pa["work_dir"],",".join(pa["planes"])]))
+except (ValueError, KeyError, TypeError): pass
+')"
     if [ -n "$pa_fields" ]; then
         IFS=$'\t' read -r PA_STATUS PA_TOPOLOGY PA_NODE_ID PA_SSH_HOST PA_WORK_DIR PA_PLANES <<< "$pa_fields"
         [ "$PA_STATUS" = "approved" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_STATUS): status must be approved" >&2; exit 4; }
@@ -438,11 +436,6 @@ PY
         [ "$PA_WORK_DIR" = "$SUB_WORK_DIR" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_WORK_DIR): approved work_dir differs from resolved destination" >&2; exit 4; }
         [ -z "$CALLER_SUB_HOST" ] || [ "$CALLER_SUB_HOST" = "$PA_SSH_HOST" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_HOST_OVERRIDE): SUB_HOST does not match approved ssh_host" >&2; exit 4; }
         [ -z "$CALLER_SUB_WORK_DIR" ] || [ "$CALLER_SUB_WORK_DIR" = "$PA_WORK_DIR" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_WORK_DIR_OVERRIDE): SUB_WORK_DIR does not match approved work_dir" >&2; exit 4; }
-        case "$PA_TOPOLOGY:$PA_PLANES" in
-            single:overlay) ;;
-            multi:overlay,band2|multi:band2,overlay) ;;
-            *) echo "[sync] STOP(PROPAGATION_SCOPE_PLANES): required exact planes are single=overlay, multi=band2+overlay" >&2; exit 4 ;;
-        esac
         [ "$PROVISION" = "0" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_PROVISION): established propagation cannot provision" >&2; exit 5; }
         [ "$RETIRE_RESIDUE" = "0" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_RETIRE): established propagation cannot retire residue" >&2; exit 5; }
         PROPAGATION_SCOPE=1
@@ -1095,12 +1088,8 @@ build_remote_touch_inventory() { # $1=topology $2=output file
 }
 
 begin_remote_transaction() { # $1=topology $2=bootstrap(0/1)
-    if [ "$PROPAGATION_SCOPE" = "1" ]; then
-        # The normal transaction creates/removes remote backup paths.  Established scope is
-        # deliberately deletion-free, so its preflight has already excluded every operation
-        # that could require rollback; do not create a transaction at all.
-        return 0
-    fi
+    # Overwrite/checkout/stage/final-checkout remain mutations even on deletion-free scopes;
+    # retain a complete rollback transaction so injected verification failures restore state.
     local t="$1" bootstrap="$2" list part tx head branch inv_t
     list="$(mktemp "${TMPDIR:-/tmp}/easy-vllm-sync-paths.XXXXXX")"
     : >"$list"

@@ -87,6 +87,10 @@
       "type": "object",
       "additionalProperties": { "type": "string" }
     },
+    "propagation_scope": {
+      "description": "Validated scope from the exact work-manifest bytes read by a successful sync_to_sub authorization; null for all other outcomes.",
+      "type": ["object", "null"]
+    },
     "identity": {
       "type": ["object", "null"],
       "description": "Echo of the input manifest's identity block (experimental mode) or the underlying verify evaluation's identity echo (promotion mode)."

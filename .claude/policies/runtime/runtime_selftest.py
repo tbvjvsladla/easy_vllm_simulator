@@ -1053,7 +1053,7 @@ def _test_execution_approval_authorization() -> None:
                    "propagation_ssh_host: probe@node.example", "propagation_work_dir: /srv/vllm",
                    "propagation_planes: overlay"]
     atoms = base_atoms + scope_atoms
-    plan_body = ("# selftest plan\n\n## Execution approval\n\n" + "\n".join(atoms) + "\n")
+    plan_body = ("# selftest plan\n\n## Execution approval\n" + "\n".join(base_atoms) + "\n")
 
     with tempfile.TemporaryDirectory() as td:
         repo = Path(td) / "repo"
@@ -1091,6 +1091,17 @@ def _test_execution_approval_authorization() -> None:
                        if propagation_authorization is not None else {})}
 
         def _run(man, name):
+            # Scope cases get their own approved plan bytes and digest; the base fixture stays
+            # a non-propagation approval with only its legacy atoms.
+            ea = man.get("execution_approval")
+            if man.get("propagation_authorization") and isinstance(ea, dict):
+                scoped_plan = "# selftest plan\n\n## Execution approval\n" + "\n".join(ea["approval_atoms"]) + "\n"
+                plan_path.write_text(scoped_plan, encoding="utf-8")
+                ea["plan_sha256"] = hashlib.sha256(plan_path.read_bytes()).hexdigest()
+            else:
+                plan_path.write_text(plan_body, encoding="utf-8")
+                if isinstance(ea, dict) and name not in ("bad_sha", "no_anchor"):
+                    ea["plan_sha256"] = hashlib.sha256(plan_path.read_bytes()).hexdigest()
             mp = repo / "docs/_evidence" / f"{name}.json"
             mp.write_text(json.dumps(man, ensure_ascii=False), encoding="utf-8")
             out = _sp.run([sys.executable, str(gate), "authorize", "--action", "sync_to_sub",
