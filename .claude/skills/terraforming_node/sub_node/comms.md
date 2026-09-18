@@ -91,11 +91,10 @@
 - **DON'T** "파일 만들었음"으로 completed 선언하지 마라 — **린트 통과 ≠ 서빙됨**. 성공술어를 만족해야 completed.
 - 메인은 네 디스크가 아니라 **네 리포트**를 검증한다. 그러니 **정직하게** attest 하라(허위 attest = 신뢰 붕괴).
 
-## A2A 위임 — Flag 게이트 면제 (네가 할 일: 없음 / 키를 임의 생성·복구 ✗)
-- 메인이 클러스터 HW 스캔 + 메인↔서브 동질성 검증을 통과시키면 너에게 **위임 키** `.claude/a2a_delegation.json` 를 발급·전달한다(메인 키 `terraforming.complete` 와 **UNIQUE**·HW사실 없는 최소 증표).
-- `vllm-recipe-explorer`(recipe.py)·`adversarial-benchmark`(run_bench.sh)는 이 키 존재로 테라포밍 Flag 게이트를 **자동 면제**(fail-closed *양성* 키). 너는 아무 env 도 export 할 필요 없다.
-- **정체성 자산을 직접 만들거나 고치지 마라**(2026-09-05 개정 · 옛 "위임 키" 폐기) — `Agent_Card.json` 과 `.claude/a2a/trusted_keys.json` 은 *메인이 서명해 배달한 정체성 증명*이다. 서명키는 서브에 오지 않으므로 네가 스스로 발급할 수 없고, 그것이 설계다. 손상·부재면 `status=input-required` 로 **"정체성 증명 부재/검증 실패"** 를 보고하라(메인이 재배달한다). 옛 `EASY_VLLM_A2A_DELEGATED=1` override 는 **삭제됐다** — 프로덕션 게이트를 테스트 스위치로 여는 경로였다.
-- 리포트의 `self_verification.delegation_acknowledged` 로 위임 인지를 echo(A2A 루프 닫음). 헌법 §A2A-위임 Flag 따름정리.
+## 서브 준비성 — manifest/Flag/topology (자격증명·면제 없음)
+- SSH public-key 관계가 메인이 프로비저닝한 endpoint를 인증한다. 실행 준비성은 배달된 서브 manifest의 `self_role: sub`·`terraforming.complete`·`branch_verified`·`issued_by: main`과 topology 계약으로 fail-closed 판정한다.
+- `Agent_Card.json`은 메인이 배달한 unsigned capability/discovery metadata다. 직접 고치지 마라. 부재·손상은 capability discovery 결손으로 `status=input-required`에 보고하되 실행 게이트의 면제가 되거나 실행을 막지 않는다.
+- 리포트의 `self_verification.identity_ok`에는 manifest Flag와 topology 계약을 대조한 결과를 기록한다.
 
 ## phase 별 성공술어 (B4 — 검증될 때까지 루프)
 | phase | completed 조건 |
@@ -106,10 +105,10 @@
 | serve | **multi**: `--profile slave up` 으로 master Ray head 합류(+ 지시 시 로컬 health). **single(독립서빙, T3 검증 — 0.23.0 E2E)**: `--profile serve up -d`(env export: NAS_MODEL_PATH·TIKTOKEN_HOST_PATH·CONFIG_FILE·SERVING_PORT) → `:PORT/health` http200 폴링(**python urllib — curl deny**) → 로컬 functional smoke(완성/reasoning, finish=stop). "startup complete" 로그는 거짓양성. |
 
 ## Message 타입
-- **instruction**(메인→서브): 수행할 Task(phase + per-task 값: 모델명·VRAM 예산·NAS 모델 서브디렉토리). **single 서빙 태스크**면 추가 슬롯: max_model_len·served_model_name·SERVING_PORT·reasoning_parser. 운영 절차(env export·detached up·health200 python·reasoning max_tokens)는 §phase serve 술어(single 분기)에 있으니 매번 재기술 불요. **신규 vLLM build-job**(메인 upstream 발동분)은 빌드-잡 인가를 패킷에 담아 전달하되, *전파 자체*는 메인이 네 위임 키를 확인한 뒤에만 한다(§A2A 위임 — `sync_to_sub` 전파 게이트).
+- **instruction**(메인→서브): 수행할 Task(phase + per-task 값: 모델명·VRAM 예산·NAS 모델 서브디렉토리). **single 서빙 태스크**면 추가 슬롯: max_model_len·served_model_name·SERVING_PORT·reasoning_parser. 운영 절차(env export·detached up·health200 python·reasoning max_tokens)는 §phase serve 술어(single 분기)에 있으니 매번 재기술 불요. **신규 vLLM build-job**은 승인된 패킷과 manifest/Flag/topology 준비성이 모두 확인된 경우에만 전파한다.
 - **feedback**(메인→서브): "여기가 틀렸으니 이렇게 고쳐". 너는 **직접 고쳐** 다음 턴에 재-attest(자기교정).
 - **report**(서브→메인): task-report.schema.json JSON 1개.
 
 ## 경계 (B3 Surgical)
 - 너는 **모델별 `configs/`·`envs/` 만** 자작한다. 컨테이너 정본(Dockerfile/requirements/compose/serve_runner)·빌딩블럭(.claude/, CLAUDE.md, Agent_Card.json)은 **건드리지 않는다**.
-- HW 사실·경로·획득 모드는 **이 노드의 `output/<topology>/manifest.yaml`** 에서 읽는다 — 메인 terraforming 이 `--peer-ssh` 로 너를 실측해 발급·배달한 **서브 manifest**(`self_role: sub` · `terraforming.issued_by: main`)다. 너는 이 파일을 손으로 고치지 않는다(권위는 메인 스캔 · 재발급은 메인 `scan_node.py --emit-sub-manifest`). per-task 값(모델명·VRAM 예산·NAS 서브디렉토리)은 Task Message 에서 읽는다. 게이트는 이제 **면제**가 아니라 **정체성**을 본다: `self_role: sub` 인 노드는 서명된 `Agent_Card.json` 이 검증돼야 하고(부재·위조 = 거부), Flag 는 이 manifest 가 정규로 싣는다.
+- HW 사실·경로·획득 모드와 노드 role은 **이 노드의 `output/<topology>/manifest.yaml`** 에서 읽는다 — 메인 terraforming 이 `--peer-ssh` 로 너를 실측해 발급·배달한 **서브 manifest**(`self_role: sub` · `terraforming.issued_by: main`)다. 너는 이 파일을 손으로 고치지 않는다(권위는 메인 스캔 · 재발급은 메인 `scan_node.py --emit-sub-manifest`). per-task 값(모델명·VRAM 예산·NAS 서브디렉토리)은 Task Message 에서 읽는다. SSH는 endpoint 인증만 담당하며, Flag와 topology 계약이 실행 준비성을 결정한다.

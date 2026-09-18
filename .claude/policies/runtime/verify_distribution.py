@@ -231,23 +231,11 @@ def _active_retirement_consumers() -> list[str]:
 
 
 def _terraform_flag_issued() -> bool:
-    """info-only(미테라포밍) 게이트의 *적용 가능 여부*를 결정론으로 판별한다.
+    """Determine applicability through the authoritative manifest Flag only.
 
-    권위는 소유 스크립트에 위임한다(계약 중복 금지): run_bench.sh 와 동일하게
-    terraforming_node 의 manifest_contract.py --require-flag 를 실제 실행하고,
-    A2A 면제 2경로(양성 키·테스트 env)는 recipe.py _require_terraform_flag 와 동형으로 읽는다.
-    fail-closed: 판별 불가·부정이면 False — 그 경우 검사를 *실행*하는 안전 방향으로 떨어진다.
+    No delegation file, environment override, or Agent Card can bypass readiness.
+    Indeterminate or negative results are fail-closed.
     """
-    if os.environ.get("EASY_VLLM_A2A_DELEGATED") == "1":
-        return True
-    key = REPO / ".claude" / "a2a_delegation.json"
-    try:
-        if key.is_file():
-            kd = json.loads(key.read_text(encoding="utf-8"))
-            if kd.get("delegation") == "main_cluster_flag" and kd.get("issued_to") == "sub":
-                return True
-    except Exception:
-        pass  # 손상/비유효 키 → 면제 안 함(fail-closed)
     mc = REPO / ".claude/skills/terraforming_node/scripts/manifest_contract.py"
     if not mc.is_file():
         return False
@@ -731,7 +719,7 @@ def verify() -> dict:
     else:
         checks += [
             _run("recipe_info_only_gate", [sys.executable,
-                 ".claude/skills/vllm-recipe-explorer/recipe.py", "estimate", "--auto"], {4}),
+                 ".claude/skills/vllm-recipe-explorer/recipe.py", "estimate", "--config", "/nonexistent/config.yaml", "--auto"], {4}),
             _run("benchmark_info_only_gate", ["bash",
                  ".claude/skills/adversarial-benchmark/scripts/run_bench.sh", "freshclone-probe"], {4}),
         ]

@@ -523,10 +523,10 @@ BAND2_EXCLUDED_TOP=(manifest.yaml sub_provision .env benchlog cache tiktoken_cac
 #   것과 제외로 선언하는 것이 **한 쌍**이다 — 한쪽만 하면 침묵이 아니라 교착이 된다.
 #   여기 등재가 주는 것: 배달 제외 + 서브측 삭제 보호(rsync 는 exclude 된 수신측 항목을 지우지 않는다)
 #   + 밴드 분류. 서브가 자기 슬롯 산출물을 자율 저작해도 메인이 지우지 않는다.
-#   a2a_signing=메인 A2A **개인 서명키**(서브는 공개 JWK 만 받는다 — 오버레이의 .claude/a2a/trusted_keys.json) ·
+#   a2a_signing=retired local private material. It remains excluded defensively so an
+#   abandoned key directory can never reach a sub; it is not a render input or runtime dependency.
 #   sub_manifest.yaml=서브 manifest 의 **발급 원본**(서브 사본은 오버레이가 output/<t>/manifest.yaml 로 나른다).
-#   둘 다 render 입력이면서 비추적이라 prepare_transactional_source 가 파일시스템 예외로 스냅샷에 넣는다
-#   (2026-09-05 ②-b · plan_26090516 §7.6). 여기 등재는 배달 제외 + 삭제 보호 + 밴드 분류를 동시에 준다.
+#   여기 등재는 배달 제외 + 삭제 보호 + 밴드 분류를 동시에 준다.
 BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)          # owner-local provenance-bound runtime patches; wildcard authority 금지
 # ↑ Dockerfile.source-build-upstage = Solar-Open2 변종 트랙(UpstageAI 포크 @ v0.22.0-solar-open2).
 #   Band2 편입 근거 = **빌드-평면**: 멀티는 클러스터-와이드 이미지라 슬레이브도 동일 이미지를 빌드해야 한다
@@ -1214,14 +1214,10 @@ prepare_transactional_source() {
         return 9
     fi
     # Git index bytes/modes are the accepted control/build-plane authority. Mutable or untracked
-    # output files never enter the snapshot. The filesystem exceptions are the untracked *render
-    # inputs*: manifest.yaml, the A2A signing key, and the issued sub manifest. Each is topology
-    # input (possibly PII), is explicitly copied mode 0600, deterministically renders the
-    # transaction, and is excluded from remote delivery by _band2_filters (BAND2_EXCLUDED_TOP).
-    # ⚠ 2026-09-05(②-b): 이 목록이 manifest.yaml 하나였을 때, 카드 서명·서브 manifest 를 render 입력으로
-    #   새로 만든 변경이 여기까지 오지 않아 **트랜잭션 안의 render 가 "서명키 없음" 으로 죽었다**.
-    #   메인 워킹트리에서 돌린 render 는 성공했으므로 단위검사로는 보이지 않았고, 라이브 dry-run 이
-    #   잡았다("만든 것과 도는 것은 다르다"). render 가 새 비추적 입력을 요구하면 여기도 같이 고친다.
+    # output files never enter the snapshot. The filesystem exceptions are the untracked render
+    # inputs manifest.yaml and issued sub_manifest.yaml. Both are copied mode 0600 and excluded
+    # from remote delivery by _band2_filters (BAND2_EXCLUDED_TOP). Retired signing material is
+    # deliberately neither copied nor used as a render input.
     # ⚠ 드리프트는 **파일 이름과 함께** 말한다(2026-09-04 실측). 이전 문구는 `[sync] info:` 한 줄로
     #   "드리프트가 있다" 만 알렸고 **어느 파일인지 말하지 않았다**. 그래서 실제로 이런 일이 벌어졌다:
     #   `output/multi/requirements.txt` 를 고치고 배달했는데 스테이징을 안 해 **인덱스의 구버전이

@@ -2444,7 +2444,6 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
       it never even touches the gate."""
     with tempfile.TemporaryDirectory() as tmp:
         orig_repo_root, orig_argv = recipe.REPO_ROOT, sys.argv
-        orig_a2a_env = os.environ.pop("EASY_VLLM_A2A_DELEGATED", None)
         recipe.REPO_ROOT = tmp
         try:
             for cmd, extra in (
@@ -2462,8 +2461,6 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
         finally:
             recipe.REPO_ROOT = orig_repo_root
             sys.argv = orig_argv
-            if orig_a2a_env is not None:
-                os.environ["EASY_VLLM_A2A_DELEGATED"] = orig_a2a_env
 
         main_src = inspect.getsource(recipe.main)
         _require('in ("estimate", "generate", "simulate")' in main_src and '_require_terraform_flag(REPO_ROOT)' in main_src, 'the live dispatch source must gate exactly {estimate, generate, simulate} -- not a wider or narrower set -- through the real _require_terraform_flag call')
@@ -2625,7 +2622,6 @@ def predicate_TERRAFORM_FLAG_GATE_C3():
         # that removed only the gate CALL from main(), while leaving the helper itself intact,
         # would slip past a test that called the helper directly instead).
         orig_repo_root, orig_argv = recipe.REPO_ROOT, sys.argv
-        orig_a2a_env = os.environ.pop("EASY_VLLM_A2A_DELEGATED", None)
         recipe.REPO_ROOT = tmp
         try:
             sys.argv = ["recipe.py", "estimate", "--config", os.path.join(tmp, "config.yaml"), "--auto"]
@@ -2637,8 +2633,6 @@ def predicate_TERRAFORM_FLAG_GATE_C3():
         finally:
             recipe.REPO_ROOT = orig_repo_root
             sys.argv = orig_argv
-            if orig_a2a_env is not None:
-                os.environ["EASY_VLLM_A2A_DELEGATED"] = orig_a2a_env
 
         # Layer 1b: run_bench.sh's second-layer command, manifest_contract.py --require-flag,
         # executed for real (the actual production entrypoint) against the same hermetic
@@ -2773,8 +2767,9 @@ def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4():
     render = _read(".claude/skills/terraforming_node/scripts/render_sub_env.py")
     _require("Agent_Card.template.json" in render,
              "Agent Card capability metadata must still be rendered")
-    _require("signing_key = None" in render and "legacy Agent Card signing key is not an identity source" in render,
-             "renderer must not discover or use topology-output signing keys")
+    forbidden = ("signing_key", "a2a_signing", "trusted_keys.json", "runtime/a2a")
+    _require(not [token for token in forbidden if token in render],
+             "renderer must not discover, render, or deliver retired signing/trust runtime material")
 
 
 # =============================================================================
