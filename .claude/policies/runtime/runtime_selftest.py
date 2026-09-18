@@ -2008,11 +2008,19 @@ def _test_runner_ladder_classification() -> None:
 
     # 별칭 표는 어댑터가 소유하고 orchestrator 는 **옮기기만** 한다(사본 ✗).
     _require(set(provider.RUNNER_ALIASES) >= {"opus", "sonnet", "haiku",
-                                              "kimi-claude", "minimax-claude"},
+                                              "kimi-claude", "minimax-claude", "meta-claude",
+                                              "openai-claude"},
              f"러너 별칭 표가 좁다: {sorted(provider.RUNNER_ALIASES)}")
     for _name, (_b, _m) in provider.RUNNER_ALIASES.items():
         _require(_b in provider.BACKEND_TO_BINARY,
                  f"별칭 {_name} 의 backend {_b} 가 바이너리 표에 없다(닫힌 열거가 갈라졌다)")
+    # 2026-09-15: 백엔드 어휘는 세 자리(바이너리 표 · 기본모델 표 · 전송 스키마 enum)에 있다. 정적
+    #   파일끼리는 한쪽이 다른 쪽을 생성할 수 없으므로 **교차검증**이 차선이다(workflow.md §결정론 규율).
+    _enum = set(agent_control._load_schema(agent_control.REQUEST_SCHEMA_PATH)
+                ["properties"]["backend"]["enum"])
+    _require(_enum == set(provider.BACKEND_TO_BINARY) == set(provider.BACKEND_DEFAULT_MODEL),
+             f"백엔드 어휘가 갈라졌다: schema={sorted(_enum)} "
+             f"binary={sorted(provider.BACKEND_TO_BINARY)} model={sorted(provider.BACKEND_DEFAULT_MODEL)}")
 
 
 def _test_duplicate_certificate_predicate() -> None:
