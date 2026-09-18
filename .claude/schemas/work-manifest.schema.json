@@ -278,6 +278,10 @@
       "description": "Phase 3 (plan_26072506) OPTIONAL block: a PRE-RUNTIME side-effect authorization (plan section 4.3's 'execution-approved' concept -- plan + HITL + scoped manifest). This is NOT a 4th completion-manifest lifecycle state (see completion-manifest.schema.json, unchanged by this phase) -- it is consumed only by `.claude/policies/runtime/completion_gate.py authorize --mode experimental`, which grants a narrowly scoped pre-promotion side effect (e.g. an experimental main->sub sync) independently of runtime/evidence/promotion state. Absent entirely means 'not approved for anything' (.claude/policies/runtime/completion_gate.py: EXECUTION_APPROVAL_ABSENT).",
       "$ref": "#/definitions/executionApproval"
     },
+    "propagation_authorization": {
+      "description": "Established non-destructive main-to-existing-sub propagation scope. It is consumed only by sync_to_sub; a valid approved scope replaces a per-operation execution approval. Provisioning, retirement, and any deletion remain separately gated.",
+      "$ref": "#/definitions/propagationAuthorization"
+    },
     "promotion_target": {
       "description": "Phase 3 review-remediation OPTIONAL block: binds this manifest's promotion authorization to ONE specific hint-tag side effect (.claude/skills/hint-publisher/scripts/hint_tag.py). Generic completion-gate promotion (sync_to_sub, sync_branches, and `authorize --mode promotion` in general) remains valid without this block -- it is required ONLY by .claude/skills/hint-publisher/scripts/hint_tag.py's own gated subcommands, layered on top of (never inside) the shared completion_gate.py state machine. When present, hint_tag.py cross-checks tag/topology/anchor for an EXACT match against the requesting command's own --tag/--topology/resolved commit SHA, and cross-checks the manifest's own `identity` block against the tag's <vllm>/<model> segments and derived topology class -- enforced entirely in .claude/skills/hint-publisher/scripts/hint_tag.py, not by this schema (this generic Draft-07-subset validator has no pattern/format keyword support -- exact string equality and full-length checks are done in Python).",
       "$ref": "#/definitions/promotionTarget"
@@ -408,6 +412,22 @@
             ]
           }
         }
+      }
+    },
+    "propagationAuthorization": {
+      "type": "object",
+      "required": ["status", "topology", "node_id", "ssh_host", "work_dir", "planes", "approved_utc"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "type": "string", "const": "approved" },
+        "topology": { "type": "string", "enum": ["single", "multi"] },
+        "node_id": { "type": "string", "minLength": 1 },
+        "ssh_host": { "type": "string", "minLength": 1 },
+        "work_dir": { "type": "string", "minLength": 1 },
+        "planes": {
+          "type": "array", "minItems": 1, "items": { "type": "string", "enum": ["overlay", "band2"] }
+        },
+        "approved_utc": { "type": "string", "minLength": 1 }
       }
     },
     "promotionTarget": {
