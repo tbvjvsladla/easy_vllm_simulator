@@ -1353,6 +1353,7 @@ def _authorize_bare_result(mode, action, code: str, message: str) -> dict:
 
 def _emit_authorization(obj: dict, exit_code: int) -> None:
     obj.setdefault("messages", {})
+    obj.setdefault("propagation_scope", None)
     _emit_with_schema(obj, exit_code, SIDE_EFFECT_SCHEMA)
 
 
@@ -1372,6 +1373,28 @@ _PLAN_PATH_STATUS_TO_REASON_CODE = {
 _PROPAGATION_NODE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _PROPAGATION_SSH_HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*@[A-Za-z0-9][A-Za-z0-9.-]*$")
 _PROPAGATION_WORK_DIR_RE = re.compile(r"^/(?:[A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+$")
+
+
+def _execution_approval_section_atoms(plan_bytes: bytes, anchor: str) -> list[str] | None:
+    """Read exactly one non-fenced approval section; atoms must be contiguous."""
+    try:
+        lines = plan_bytes.decode("utf-8").splitlines()
+    except UnicodeDecodeError:
+        return None
+    sections = []
+    fenced = False
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith(("```", "~~~")):
+            fenced = not fenced
+        elif not fenced and line == anchor:
+            section = []
+            for candidate in lines[i + 1:]:
+                if candidate.startswith("#"):
+                    break
+                if candidate.strip():
+                    section.append(candidate)
+            sections.append(section)
+    return sections[0] if len(sections) == 1 else None
 
 
 def _propagation_scope_atoms(scope: dict[str, Any]) -> list[str]:
@@ -1535,10 +1558,12 @@ def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, rep
     except UnicodeDecodeError:
         add_reason("EXECUTION_APPROVAL_PLAN_UTF8_INVALID", "execution approval plan must be valid UTF-8")
         fail(2)
-    required_lines = [execution_approval["approval_anchor"], *expected_atoms]
-    if any(line not in plan_lines for line in required_lines):
+    # Approval text is a single authority section, not an unconstrained string bag. Atoms
+    # must be contiguous and canonical there; fenced examples and duplicate headings do not count.
+    section_atoms = _execution_approval_section_atoms(plan_bytes, execution_approval["approval_anchor"])
+    if section_atoms != expected_atoms:
         add_reason("EXECUTION_APPROVAL_PLAN_ATOMS_MISSING",
-                   "resolved plan does not contain the exact approval anchor and derived approval atoms")
+                   "plan must contain exactly one non-fenced Execution approval section with contiguous canonical approval atoms")
         fail(2)
 
     if execution_approval["approved"] is not True:
@@ -1562,6 +1587,8 @@ def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, rep
         "task_class": task_class, "authorization_state": "execution-approved", "allowed": True,
         "reason_codes": [], "messages": {},
         "identity": identity,
+        "propagation_scope": (propagation_authorization
+                              if action == "sync_to_sub" and propagation_authorization is not None else None),
     }, 0)
 
 
