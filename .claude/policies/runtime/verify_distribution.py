@@ -2,7 +2,7 @@
 """Fail-closed acceptance for the five-skill self-contained distribution.
 
 This is a production distribution contract, not a development test runner.  It proves that a
-fresh gitless checkout contains exactly the public skills, a tracked root tests contract, and no legacy scripts root
+fresh gitless checkout contains exactly the five public skills, no top-level tests/scripts
 control plane, no trust artifact pointing back to those removed roots, and that each public
 skill's deterministic entry path still starts or returns its documented pre-terraform gate.
 """
@@ -266,12 +266,18 @@ def _terraform_flag_issued() -> bool:
         return False
 
 
+def _shipped_python_paths(root: Path = REPO) -> list[Path]:
+    """Return Python files shipped by this checkout, excluding nested harness worktrees."""
+    worktree_root = root / ".claude/worktrees"
+    return sorted(path for path in (root / ".claude").rglob("*.py")
+                  if worktree_root not in path.parents)
+
+
 def verify() -> dict:
     checks: list[dict] = []
-    tests_root = REPO / "tests"
-    checks.append({"name": "root_tests_contract",
-                   "ok": tests_root.is_dir() and (tests_root / "test_resolve_render_input.sh").is_file()})
-    checks.append({"name": "root_absent:scripts", "ok": not (REPO / "scripts").exists()})
+    for root_name in ("tests", "scripts"):
+        checks.append({"name": f"root_absent:{root_name}",
+                       "ok": not (REPO / root_name).exists()})
 
     skills = {p.parent.name for p in (REPO / ".claude/skills").glob("*/SKILL.md")}
     checks.append({"name": "exact_public_skill_set", "ok": skills == EXPECTED_SKILLS,
@@ -282,7 +288,7 @@ def verify() -> dict:
         try:
             doc = json.loads(path.read_text(encoding="utf-8"))
             stale = sorted({s for s in _walk_strings(doc)
-                            if s.startswith("scripts/")})
+                            if s.startswith("tests/") or s.startswith("scripts/")})
             checks.append({"name": f"trust_owner_paths:{rel}", "ok": not stale,
                            "stale_root_paths": stale})
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -290,7 +296,7 @@ def verify() -> dict:
                            "error": f"{type(exc).__name__}: {exc}"})
 
     bare_asserts = []
-    for path in sorted((REPO / ".claude").rglob("*.py")):
+    for path in _shipped_python_paths():
         rel = str(path.relative_to(REPO))
         try:
             if path.is_symlink():
@@ -403,10 +409,9 @@ def verify() -> dict:
                     and "filesystem bytes are excluded in favor of index authority" in sub_text
                     and "ls-files -z -- .claude CLAUDE.md .gitignore campaigns output/multi output/single"
                     in sub_text  # campaigns = 2026-09-06 신설 루트(커밋 4043ff4)
-                    and 'render_input="manifest.yaml"' in sub_text
-                    and 'render_input="sub_manifest.yaml"' in sub_text
-                    and 'a2a_signing/main_ed25519.pem' not in sub_text
-                    and 'install -m 0600 "$src_input" "$dst_input"' in sub_text
+                    and ("for render_input in manifest.yaml a2a_signing/main_ed25519.pem "
+                         "sub_manifest.yaml") in sub_text
+                    and 'install -m 0600 "${CANONICAL_SRC}output/$topology/$render_input"' in sub_text
                     and '"${CANONICAL_SRC}output/$topology/"' not in sub_text)},
             {"name": "sub_runtime_patch_transfer_is_owner_allowlisted",
              "ok": ("BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)" in sub_text

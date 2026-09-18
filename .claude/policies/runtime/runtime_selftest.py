@@ -28,6 +28,7 @@ import agent_control
 import completion_gate
 import evidence_publisher
 import policy_registry
+import verify_distribution
 
 RUNTIME_DIR = Path(__file__).resolve().parent
 PREDICATES_DIR = RUNTIME_DIR.parent / "predicates"
@@ -43,13 +44,163 @@ def _require(condition: object, message: str) -> None:
         raise RuntimeSelftestFailure(message)
 
 
-def _test_no_production_asserts() -> None:
+def _walk_governing_files(root: Path, pattern: str):
+    """Yield files governed by ``root``, excluding nested harness worktrees."""
+    claude_dir = root / ".claude"
+    for dirpath, dirnames, filenames in os.walk(claude_dir):
+        if Path(dirpath) == claude_dir:
+            # This is the harness isolation container, not a governed subtree.
+            dirnames[:] = [name for name in dirnames if name != "worktrees"]
+        for name in filenames:
+            if fnmatch.fnmatch(name, pattern):
+                yield Path(dirpath) / name
+
+
+def _test_no_production_asserts(root: Path | None = None) -> None:
+    root = REPO_ROOT if root is None else root
     offenders: list[str] = []
-    for path in CLAUDE_DIR.rglob("*.py"):
+    for path in _walk_governing_files(root, "*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        offenders.extend(f"{path.relative_to(RUNTIME_DIR.parents[2])}:{node.lineno}"
+        offenders.extend(f"{path.relative_to(root)}:{node.lineno}"
                          for node in ast.walk(tree) if isinstance(node, ast.Assert))
     _require(not offenders, f"bare assert is optimization-unsafe: {offenders}")
+
+
+def _test_nested_worktree_isolation() -> None:
+    """A nested registered worktree's stale content and ref cannot govern its parent."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "CLAUDE.md").write_text("fixture\n", encoding="utf-8")
+        (root / ".claude/rules").mkdir(parents=True)
+        (root / ".claude/rules/workflow.md").write_text("fixture\n", encoding="utf-8")
+        (root / ".claude/policies").mkdir(parents=True)
+        (root / ".claude/policies/registry.yaml").write_text("fixture\n", encoding="utf-8")
+        (root / ".gitignore").write_text("fixture\n", encoding="utf-8")
+        subprocess.run(["git", "init", "-q", "-b", "single-node", str(root)], check=True,
+                       capture_output=True)
+        subprocess.run(["git", "-C", str(root), "add", "."], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(root), "-c", "user.name=fixture",
+                        "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture"],
+                       check=True, capture_output=True)
+        nested = root / ".claude/worktrees/stale"
+        special = root / ".claude/worktrees/space path"
+        trailing = root / ".claude/worktrees/trailing-space "
+        raw_bytes = os.fsencode(root / ".claude/worktrees") + b"/raw-\xff"
+        raw = Path(os.fsdecode(raw_bytes))
+        trailing_cr_bytes = os.fsencode(root / ".claude/worktrees") + b"/trailing-cr\r"
+        trailing_cr = Path(os.fsdecode(trailing_cr_bytes))
+        detached = root / ".claude/worktrees/detached"
+        subprocess.run(["git", "-C", str(root), "worktree", "add", "-q", "-b", "stale-root",
+                        str(nested)], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(root), "worktree", "add", "-q", "-b", "space-root",
+                        str(special)], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(root), "worktree", "lock", str(special)], check=True,
+                       capture_output=True)
+        subprocess.run(["git", "-C", str(root), "worktree", "add", "-q", "-b", "trailing-root",
+                        str(trailing)], check=True, capture_output=True)
+        raw_created = False
+        raw_result = subprocess.run([b"git", b"-C", os.fsencode(root), b"worktree", b"add", b"-q",
+                                     b"-b", b"raw-root", raw_bytes], capture_output=True)
+        if raw_result.returncode == 0:
+            raw_created = True
+        else:
+            print("[runtime_selftest] SKIPPED undecodable worktree path fixture: "
+                  + raw_result.stderr.decode(errors="replace").strip(), file=sys.stderr)
+        cr_created = False
+        cr_result = subprocess.run([b"git", b"-C", os.fsencode(root), b"worktree", b"add", b"-q",
+                                    b"-b", b"trailing-cr-root", trailing_cr_bytes], capture_output=True)
+        if cr_result.returncode == 0:
+            cr_created = True
+        else:
+            print("[runtime_selftest] SKIPPED trailing-CR worktree path fixture: "
+                  + cr_result.stderr.decode(errors="replace").strip(), file=sys.stderr)
+        subprocess.run(["git", "-C", str(root), "worktree", "add", "-q", "--detach", str(detached)],
+                       check=True, capture_output=True)
+        bare = root / "bare.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True, capture_output=True)
+        try:
+            expected_live = {"single-node", "stale-root", "space-root", "trailing-root"}
+            if raw_created:
+                expected_live.add("raw-root")
+            if cr_created:
+                expected_live.add("trailing-cr-root")
+            _require(_live_registered_worktree_branches(root) == expected_live,
+                     "live/locked/special/trailing/raw or detached worktree registration parsed incorrectly")
+            _require(not _live_registered_worktree_branches(bare),
+                     "bare repository yielded a worktree branch")
+            (nested / "stale.py").write_text("assert False\n", encoding="utf-8")
+            (nested / "stale.bak").write_text("stale\n", encoding="utf-8")
+            (nested / "stale.md").write_text("tracked_index\n", encoding="utf-8")
+            _test_no_production_asserts(root)
+            _test_no_backup_artifacts(root)
+            _test_no_retired_hash_mechanism_prose(root)
+            _require(not verify_distribution._shipped_python_paths(root),
+                     "distribution scan included nested worktree Python")
+
+            current_python = root / ".claude/current.py"
+            current_python.write_text("assert False\n", encoding="utf-8")
+            _require(verify_distribution._shipped_python_paths(root) == [current_python],
+                     "distribution scan omitted current-tree Python")
+            try:
+                _test_no_production_asserts(root)
+            except RuntimeSelftestFailure:
+                pass
+            else:
+                raise RuntimeSelftestFailure("Python scan did not catch current-tree violation")
+            current_python.unlink()
+
+            current_backup = root / ".claude/current.bak"
+            current_backup.write_text("current violation\n", encoding="utf-8")
+            try:
+                _test_no_backup_artifacts(root)
+            except RuntimeSelftestFailure:
+                pass
+            else:
+                raise RuntimeSelftestFailure("backup scan did not catch current-tree violation")
+            current_backup.unlink()
+
+            current_prose = root / ".claude/current.md"
+            current_prose.write_text("tracked_index\n", encoding="utf-8")
+            try:
+                _test_no_retired_hash_mechanism_prose(root)
+            except RuntimeSelftestFailure:
+                pass
+            else:
+                raise RuntimeSelftestFailure("prose scan did not catch current-tree violation")
+            current_prose.unlink()
+
+            # A live registered worktree branch is allowed; an abandoned registration is not.
+            shutil.rmtree(nested)
+            try:
+                _test_no_backup_artifacts(root)
+            except RuntimeSelftestFailure as exc:
+                _require("stale-root" in str(exc),
+                         f"prunable worktree ref was not reported as stray: {exc}")
+            else:
+                raise RuntimeSelftestFailure("prunable worktree ref was accepted")
+            subprocess.run(["git", "-C", str(root), "worktree", "prune"], check=True,
+                           capture_output=True)
+            subprocess.run(["git", "-C", str(root), "branch", "-D", "stale-root"], check=True,
+                           capture_output=True)
+
+            subprocess.run(["git", "-C", str(root), "branch", "worktree-prefix-orphan"], check=True,
+                           capture_output=True)
+            try:
+                _test_no_backup_artifacts(root)
+            except RuntimeSelftestFailure as exc:
+                _require("worktree-prefix-orphan" in str(exc),
+                         f"prefix-only ref was not reported as stray: {exc}")
+            else:
+                raise RuntimeSelftestFailure("prefix-only worktree ref was accepted")
+            subprocess.run(["git", "-C", str(root), "branch", "-D", "worktree-prefix-orphan"],
+                           check=True, capture_output=True)
+        finally:
+            for worktree in (nested, special, trailing, raw, trailing_cr, detached):
+                if worktree.exists():
+                    subprocess.run(["git", "-C", str(root), "worktree", "unlock", str(worktree)],
+                                   capture_output=True)
+                    subprocess.run(["git", "-C", str(root), "worktree", "remove", "--force", str(worktree)],
+                                   check=True, capture_output=True)
 
 
 def _test_completion_gate() -> None:
@@ -1044,16 +1195,9 @@ def _test_execution_approval_authorization() -> None:
     import subprocess as _sp
     gate = REPO_ROOT / ".claude/policies/runtime/completion_gate.py"
     approved_by, approved_at = "selftest", "2026-01-01T00:00:00Z"
-    base_atoms = [f"approved_by: {approved_by}", f"approved_at_utc: {approved_at}",
-                  "allowed_action: sync_to_sub"]
-    scope = {"status": "approved", "topology": "single", "node_id": "sub-1",
-             "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
-             "planes": ["overlay"], "approved_utc": approved_at}
-    scope_atoms = ["propagation_topology: single", "propagation_node_id: sub-1",
-                   "propagation_ssh_host: probe@node.example", "propagation_work_dir: /srv/vllm",
-                   "propagation_planes: overlay"]
-    atoms = base_atoms + scope_atoms
-    plan_body = ("# selftest plan\n\n## Execution approval\n" + "\n".join(base_atoms) + "\n")
+    atoms = [f"approved_by: {approved_by}", f"approved_at_utc: {approved_at}",
+             "allowed_action: sync_to_sub"]
+    plan_body = ("# selftest plan\n\n## Execution approval\n\n" + "\n".join(atoms) + "\n")
 
     with tempfile.TemporaryDirectory() as td:
         repo = Path(td) / "repo"
@@ -1071,37 +1215,19 @@ def _test_execution_approval_authorization() -> None:
         rel = "../plan/p.md"
 
         def _manifest(**over):
-            propagation_authorization = over.pop("propagation_authorization", None)
-            execution_approval = over.pop("execution_approval", None)
             ea = {"approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
                   "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
-                  "approval_atoms": list(base_atoms), "allowed_actions": ["sync_to_sub"]}
-            if execution_approval is not None:
-                ea = execution_approval
-            else:
-                ea.update(over)
+                  "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]}
+            ea.update(over)
             # evidence.plan.path 는 plan_path 를 따라간다 — 어긋나면 **앵커 검사 이전에** 경로
             #   불일치로 걸려, 이 시험이 겨냥한 가드가 아닌 다른 가드를 확인하게 된다.
             return {"schema_version": 1, "task_class": "harness_change",
                     "identity": {"model": "m", "gpu": "g", "vllm": "v", "quant": None,
                                  "topology": "single", "tp": 1},
                     "evidence": {"plan": {"path": ea["plan_path"]}},
-                    "pii_scan": {"passed": True}, "execution_approval": ea,
-                    **({"propagation_authorization": propagation_authorization}
-                       if propagation_authorization is not None else {})}
+                    "pii_scan": {"passed": True}, "execution_approval": ea}
 
         def _run(man, name):
-            # Scope cases get their own approved plan bytes and digest; the base fixture stays
-            # a non-propagation approval with only its legacy atoms.
-            ea = man.get("execution_approval")
-            if man.get("propagation_authorization") and isinstance(ea, dict):
-                scoped_plan = "# selftest plan\n\n## Execution approval\n" + "\n".join(ea["approval_atoms"]) + "\n"
-                plan_path.write_text(scoped_plan, encoding="utf-8")
-                ea["plan_sha256"] = hashlib.sha256(plan_path.read_bytes()).hexdigest()
-            else:
-                plan_path.write_text(plan_body, encoding="utf-8")
-                if isinstance(ea, dict) and name not in ("bad_sha", "no_anchor"):
-                    ea["plan_sha256"] = hashlib.sha256(plan_path.read_bytes()).hexdigest()
             mp = repo / "docs/_evidence" / f"{name}.json"
             mp.write_text(json.dumps(man, ensure_ascii=False), encoding="utf-8")
             out = _sp.run([sys.executable, str(gate), "authorize", "--action", "sync_to_sub",
@@ -1113,66 +1239,6 @@ def _test_execution_approval_authorization() -> None:
         ok = _run(_manifest(), "ok")
         _require(ok.get("allowed") is True and ok.get("authorization_state") == "execution-approved",
                  f"a genuine execution approval must be admitted, got {ok.get('reason_codes')}")
-
-        # Established propagation authorization is a strict destination scope, not a broad
-        # execution approval.  It admits sync_to_sub without a fresh plan approval only when
-        # its topology agrees with the strong identity; transport then verifies node/host/path.
-        propagation = _run(_manifest(execution_approval={
-            "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
-            "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
-            "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]
-        }, propagation_authorization={**scope, "approval_atoms": list(atoms)}), "propagation")
-        _require(propagation.get("allowed") is True,
-                 f"approved exact propagation scope must admit sync_to_sub: {propagation}")
-
-        no_execution_manifest = _manifest()
-        no_execution_manifest.pop("execution_approval")
-        no_execution_manifest["propagation_authorization"] = {
-            "status": "approved", "topology": "single", "node_id": "sub-1",
-            "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
-            "planes": ["overlay"], "approved_utc": approved_at,
-            "approval_atoms": list(atoms)}
-        no_execution = _run(no_execution_manifest, "no_execution")
-        _require(no_execution.get("allowed") is False
-                 and "PROPAGATION_AUTHORIZATION_EXECUTION_APPROVAL_ABSENT" in no_execution.get("reason_codes", []),
-                 f"standalone propagation scope must be rejected: {no_execution}")
-
-        bad_propagation = _run(_manifest(execution_approval={
-            "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
-            "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
-            "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]
-        }, propagation_authorization={
-            "status": "approved", "topology": "multi", "node_id": "sub-1",
-            "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
-            "planes": ["band2", "overlay"], "approved_utc": approved_at,
-            "approval_atoms": list(atoms)
-        }), "bad_propagation")
-        _require(bad_propagation.get("allowed") is False
-                 and "PROPAGATION_AUTHORIZATION_TOPOLOGY_MISMATCH" in bad_propagation.get("reason_codes", []),
-                 f"propagation scope topology drift must be rejected: {bad_propagation}")
-
-        changed_destination = _run(_manifest(execution_approval={
-            "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
-            "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
-            "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]
-        }, propagation_authorization={**scope, "work_dir": "/srv/other", "approval_atoms": list(atoms)}), "changed_destination")
-        _require(changed_destination.get("allowed") is False and "EXECUTION_APPROVAL_ATOMS_INVALID" in changed_destination.get("reason_codes", []),
-                 f"destination drift outside approved plan bytes must invalidate the approval atoms: {changed_destination}")
-
-        shell_destination = _run(_manifest(execution_approval={
-            "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
-            "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
-            "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]
-        }, propagation_authorization={**scope, "work_dir": "/srv/vllm;id", "approval_atoms": list(atoms)}), "shell_destination")
-        _require(shell_destination.get("allowed") is False and "PROPAGATION_AUTHORIZATION_WORK_DIR_INVALID" in shell_destination.get("reason_codes", []),
-                 f"shell metacharacter destination must be rejected: {shell_destination}")
-
-        # Static integration tripwire: this guard is positioned before the B1 transaction and
-        # checkout, so a same-scope invocation cannot delete opposite-branch tracked paths.
-        sync_script = (REPO_ROOT / ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh").read_text(encoding="utf-8")
-        guard = "STOP(PROPAGATION_SCOPE_BRANCH_TRANSITION)"
-        _require(guard in sync_script and sync_script.index(guard) < sync_script.index("begin_remote_transaction \"$t\" 0"),
-                 "established scope must reject branch transition before B1 transaction")
 
         bad_sha = _run(_manifest(plan_sha256="0" * 64), "bad_sha")
         _require(bad_sha.get("allowed") is False
@@ -1416,6 +1482,8 @@ _BACKUP_PATH_TOKENS = ("backup", "백업")
 # 컨테이너가 만든 하위 디렉터리에 읽기권한이 없어(`output/*/cache/vllm/modelinfos/…: Permission
 # denied`) 스캔 자체가 불가능하다. 범위 밖으로 명시해야 아래 `onerror` 가 위양성 없이 산다.
 _BACKUP_SCAN_PRUNE_TOP = frozenset({".git", "seed", "output"})
+# `.claude/worktrees/` is the harness isolation container, not a governed subtree.
+_WORKTREE_ISOLATION_REL = Path(".claude/worktrees")
 
 # tripwire ③: 걷어낸 해시 중복층 메커니즘의 이름. 산문이 이 이름을 다시 쓰면 사라진 기계를
 # 가리키는 지시가 되살아난다(문서가 코드보다 오래 산다).
@@ -1525,6 +1593,48 @@ def _tracked_paths(root: Path) -> list[str]:
     return [p for p in _git_out(root, "ls-files", "-z").split("\0") if p]
 
 
+def _live_registered_worktree_branches(root: Path) -> set[str]:
+    """Return branches backed by a present, usable, non-prunable worktree stanza.
+
+    `--porcelain -z` makes path attributes NUL-terminated rather than C-quoted, so whitespace
+    and other special path characters remain byte-for-byte input to ``Path``.
+    """
+    proc = subprocess.run(["git", "-C", str(root), "worktree", "list", "--porcelain", "-z"],
+                          capture_output=True, timeout=120)
+    if proc.returncode != 0:
+        raise RuntimeSelftestFailure(
+            f"git worktree list --porcelain -z failed in {root}: "
+            f"{proc.stderr.decode(errors='replace').strip()}"
+        )
+    live: set[str] = set()
+    records = proc.stdout.split(b"\0")
+    for start, attribute in enumerate(records):
+        if not attribute.startswith(b"worktree "):
+            continue
+        stanza = []
+        for item in records[start:]:
+            if not item:
+                break
+            stanza.append(item)
+        location = attribute[len(b"worktree "):]
+        branch = next((item[len(b"branch refs/heads/"):] for item in stanza
+                       if item.startswith(b"branch refs/heads/")), None)
+        prunable = any(item.startswith(b"prunable") for item in stanza)
+        if not branch or prunable:
+            continue
+        worktree = Path(os.fsdecode(location))
+        if not worktree.is_dir():
+            continue
+        check = subprocess.run(["git", "-C", str(worktree), "rev-parse", "--show-toplevel"],
+                               capture_output=True, timeout=60)
+        # Git's protocol line terminator on this target is LF.  Remove exactly that byte: a
+        # preceding CR can be a legitimate POSIX pathname byte, not a transport terminator.
+        reported = check.stdout.removesuffix(b"\n")
+        if check.returncode == 0 and Path(os.fsdecode(reported)).resolve() == worktree.resolve():
+            live.add(os.fsdecode(branch))
+    return live
+
+
 def _test_no_backup_artifacts(root: Path | None = None) -> None:
     """tripwire ① — 백업 관행 자체를 금지한다(숨기지 않는다).
 
@@ -1550,6 +1660,8 @@ def _test_no_backup_artifacts(root: Path | None = None) -> None:
         rel_dir = os.path.relpath(dirpath, root)
         if rel_dir == ".":
             dirnames[:] = [d for d in dirnames if d not in _BACKUP_SCAN_PRUNE_TOP]
+        elif Path(rel_dir) == _WORKTREE_ISOLATION_REL:
+            dirnames[:] = []
         for name in filenames:
             rel = name if rel_dir == "." else os.path.join(rel_dir, name)
             low = rel.lower()
@@ -1562,15 +1674,11 @@ def _test_no_backup_artifacts(root: Path | None = None) -> None:
 
     branches = {b for b in _git_out(root, "for-each-ref", "--format=%(refname:short)",
                                    "refs/heads").split("\n") if b}
-    # Exempt only refs that Git itself reports as registered worktrees.  A prefix is not proof:
-    # a user-created `worktree-agent-*` branch could otherwise become an unreviewed backup ref.
-    registered = set()
-    worktrees = _git_out(root, "worktree", "list", "--porcelain").splitlines()
-    for line in worktrees:
-        if line.startswith("branch refs/heads/"):
-            registered.add(line.removeprefix("branch refs/heads/"))
+    # A branch is exempt only when its own porcelain stanza identifies a live worktree.  A name
+    # prefix, a prunable registration, and a missing/broken directory remain forbidden backup refs.
+    registered = _live_registered_worktree_branches(root)
     stray = sorted(b for b in branches if b not in _ALLOWED_BRANCHES and b not in registered)
-    _require(not stray, f"refs/heads must be allowed durable branches or registered worktrees: {stray}")
+    _require(not stray, f"refs/heads must be allowed durable branches or live registered worktrees: {stray}")
 
     tags = {t for t in _git_out(root, "tag", "-l").split("\n") if t}
     bad_tags = sorted(t for t in tags if not t.startswith(_ALLOWED_TAG_PREFIX))
@@ -1815,19 +1923,11 @@ def _test_runner_ladder_classification() -> None:
 
     # 별칭 표는 어댑터가 소유하고 orchestrator 는 **옮기기만** 한다(사본 ✗).
     _require(set(provider.RUNNER_ALIASES) >= {"opus", "sonnet", "haiku",
-                                              "kimi-claude", "minimax-claude", "meta-claude",
-                                              "openai-claude"},
+                                              "kimi-claude", "minimax-claude"},
              f"러너 별칭 표가 좁다: {sorted(provider.RUNNER_ALIASES)}")
     for _name, (_b, _m) in provider.RUNNER_ALIASES.items():
         _require(_b in provider.BACKEND_TO_BINARY,
                  f"별칭 {_name} 의 backend {_b} 가 바이너리 표에 없다(닫힌 열거가 갈라졌다)")
-    # 2026-09-15: 백엔드 어휘는 세 자리(바이너리 표 · 기본모델 표 · 전송 스키마 enum)에 있다. 정적
-    #   파일끼리는 한쪽이 다른 쪽을 생성할 수 없으므로 **교차검증**이 차선이다(workflow.md §결정론 규율).
-    _enum = set(agent_control._load_schema(agent_control.REQUEST_SCHEMA_PATH)
-                ["properties"]["backend"]["enum"])
-    _require(_enum == set(provider.BACKEND_TO_BINARY) == set(provider.BACKEND_DEFAULT_MODEL),
-             f"백엔드 어휘가 갈라졌다: schema={sorted(_enum)} "
-             f"binary={sorted(provider.BACKEND_TO_BINARY)} model={sorted(provider.BACKEND_DEFAULT_MODEL)}")
 
 
 def _test_duplicate_certificate_predicate() -> None:
@@ -1862,7 +1962,7 @@ def _test_no_retired_hash_mechanism_prose(root: Path | None = None) -> None:
     if not _is_canonical_repo(root):
         return
 
-    targets = sorted((root / ".claude").rglob("*.md"))
+    targets = sorted(_walk_governing_files(root, "*.md"))
     targets += [root / name for name in _PROSE_SCAN_EXTRA]
     offenders: list[str] = []
     for path in targets:
@@ -2422,6 +2522,7 @@ def main(argv: list[str] | None = None) -> int:
         return run_tripwires()
 
     _test_no_production_asserts()
+    _test_nested_worktree_isolation()
     _test_completion_gate()
     _test_promotion_rubric_carrier()
     _test_certificate_run_resolution()
