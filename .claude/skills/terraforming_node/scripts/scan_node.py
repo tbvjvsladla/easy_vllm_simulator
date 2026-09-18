@@ -993,8 +993,8 @@ def _self_test() -> int:
         ("multi RoCE(채워짐)", {"topology_declared": "multi", "cpu_arch": "aarch64", "cuda_version": "132",
             "gpus_per_node": 1, "gpu_model": "NVIDIA GB10", "model_source": "managed",
             "nas_model_path": "/srv/fixture-nas/models",  # 합성값 — 실 운영자 NAS 리터럴을 픽스처에 두지 않는다(면제보다 값 교체)
-            "nodes": [{"role": "main", "host": "node-a", "hostname": "node-a", "ssh_user": "u", "work_dir": "/w"},
-                      {"role": "sub", "host": "node-b", "hostname": "node-b", "ssh_user": "u", "work_dir": "/w"}],
+            "nodes": [{"role": "main", "node_id": "main", "host": "node-a", "hostname": "node-a", "ssh_user": "u", "work_dir": "/w"},
+                      {"role": "sub", "node_id": "sub", "host": "node-b", "hostname": "node-b", "ssh_user": "u", "work_dir": "/w"}],
             "homogeneity": {"verified": True, "peer": {"gpu_model": "NVIDIA GB10", "driver": "580.173.02", "cuda": "13.2"}},
             "interconnect": {"type": "RoCE v2", "hca_devices": ["mlx5_0"], "gid_index": 3, "mtu": 9000,
             "socket_iface": "enp1s0f0", "bandwidth_gbps": 208.2, "platform_preset": "dgx-spark-gb10"}}, ["main", "sub"]),
