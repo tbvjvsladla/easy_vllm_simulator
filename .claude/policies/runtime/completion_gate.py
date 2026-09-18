@@ -1409,8 +1409,27 @@ def _cmd_authorize_experimental(mode: str, action: str, manifest_path: Path, rep
             "identity": identity,
         }, exit_code)
 
+    propagation_authorization = manifest.get("propagation_authorization")
+    # An established propagation scope is intentionally narrower than an execution approval:
+    # it permits only the non-destructive sync_to_sub path.  The transport script compares its
+    # exact topology/node/host/work_dir/planes before it can mutate a destination.
+    if action == "sync_to_sub" and propagation_authorization is not None:
+        if not _is_valid_utc_timestamp(propagation_authorization["approved_utc"]):
+            add_reason("PROPAGATION_AUTHORIZATION_TIMESTAMP_INVALID",
+                       "propagation_authorization.approved_utc is not a valid UTC timestamp")
+            fail(2)
+        if propagation_authorization["topology"] != identity["topology"]:
+            add_reason("PROPAGATION_AUTHORIZATION_TOPOLOGY_MISMATCH",
+                       "propagation_authorization.topology must equal identity.topology")
+            fail(2)
+        _emit_authorization({
+            "schema_version": SCHEMA_VERSION, "mode": mode, "action": action,
+            "task_class": task_class, "authorization_state": "execution-approved", "allowed": True,
+            "reason_codes": [], "messages": {}, "identity": identity,
+        }, 0)
+
     if execution_approval is None:
-        add_reason("EXECUTION_APPROVAL_ABSENT", "manifest has no execution_approval block")
+        add_reason("EXECUTION_APPROVAL_ABSENT", "manifest has no execution_approval or approved propagation_authorization block")
         fail(1)
 
     # Every required key below is guaranteed present by the schema-shape pass above (execution_

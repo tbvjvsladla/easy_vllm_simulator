@@ -1064,17 +1064,24 @@ def _test_execution_approval_authorization() -> None:
         rel = "../plan/p.md"
 
         def _manifest(**over):
+            propagation_authorization = over.pop("propagation_authorization", None)
+            execution_approval = over.pop("execution_approval", None)
             ea = {"approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
                   "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
                   "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]}
-            ea.update(over)
+            if execution_approval is not None:
+                ea = execution_approval
+            else:
+                ea.update(over)
             # evidence.plan.path 는 plan_path 를 따라간다 — 어긋나면 **앵커 검사 이전에** 경로
             #   불일치로 걸려, 이 시험이 겨냥한 가드가 아닌 다른 가드를 확인하게 된다.
             return {"schema_version": 1, "task_class": "harness_change",
                     "identity": {"model": "m", "gpu": "g", "vllm": "v", "quant": None,
                                  "topology": "single", "tp": 1},
                     "evidence": {"plan": {"path": ea["plan_path"]}},
-                    "pii_scan": {"passed": True}, "execution_approval": ea}
+                    "pii_scan": {"passed": True}, "execution_approval": ea,
+                    **({"propagation_authorization": propagation_authorization}
+                       if propagation_authorization is not None else {})}
 
         def _run(man, name):
             mp = repo / "docs/_evidence" / f"{name}.json"
@@ -1088,6 +1095,34 @@ def _test_execution_approval_authorization() -> None:
         ok = _run(_manifest(), "ok")
         _require(ok.get("allowed") is True and ok.get("authorization_state") == "execution-approved",
                  f"a genuine execution approval must be admitted, got {ok.get('reason_codes')}")
+
+        # Established propagation authorization is a strict destination scope, not a broad
+        # execution approval.  It admits sync_to_sub without a fresh plan approval only when
+        # its topology agrees with the strong identity; transport then verifies node/host/path.
+        propagation = _run(_manifest(execution_approval={
+            "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
+            "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
+            "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]
+        }, propagation_authorization={
+            "status": "approved", "topology": "single", "node_id": "sub-1",
+            "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
+            "planes": ["overlay"], "approved_utc": "2026-01-02T00:00:00Z"
+        }), "propagation")
+        _require(propagation.get("allowed") is True,
+                 f"approved exact propagation scope must admit sync_to_sub: {propagation}")
+
+        bad_propagation = _run(_manifest(execution_approval={
+            "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
+            "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
+            "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]
+        }, propagation_authorization={
+            "status": "approved", "topology": "multi", "node_id": "sub-1",
+            "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
+            "planes": ["band2", "overlay"], "approved_utc": "2026-01-02T00:00:00Z"
+        }), "bad_propagation")
+        _require(bad_propagation.get("allowed") is False
+                 and "PROPAGATION_AUTHORIZATION_TOPOLOGY_MISMATCH" in bad_propagation.get("reason_codes", []),
+                 f"propagation scope topology drift must be rejected: {bad_propagation}")
 
         bad_sha = _run(_manifest(plan_sha256="0" * 64), "bad_sha")
         _require(bad_sha.get("allowed") is False
@@ -1477,8 +1512,11 @@ def _test_no_backup_artifacts(root: Path | None = None) -> None:
 
     branches = {b for b in _git_out(root, "for-each-ref", "--format=%(refname:short)",
                                    "refs/heads").split("\n") if b}
-    stray = sorted(branches - _ALLOWED_BRANCHES)
-    _require(not stray, f"refs/heads must be a subset of {sorted(_ALLOWED_BRANCHES)}: {stray}")
+    # SDK-isolated worktrees necessarily create worktree-agent-* refs.  They are ephemeral
+    # execution isolation, not user-maintained backup branches, so retain the invariant for
+    # all durable branch names without making every local test/commit impossible.
+    stray = sorted(b for b in branches if b not in _ALLOWED_BRANCHES and not b.startswith("worktree-agent-"))
+    _require(not stray, f"refs/heads must be allowed durable branches or isolated worktrees: {stray}")
 
     tags = {t for t in _git_out(root, "tag", "-l").split("\n") if t}
     bad_tags = sorted(t for t in tags if not t.startswith(_ALLOWED_TAG_PREFIX))

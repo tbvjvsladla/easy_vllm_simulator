@@ -687,6 +687,8 @@ def emit_manifest_block(result: dict) -> str:
         role = node["role"]
         lines.append(f"  - role: {role}")
         lines.append(f"    host: \"{node['host']}\"")
+        lines.append(f"    node_id: {_yaml_str(node.get('node_id'))}" if node.get("node_id")
+                     else "    node_id: __REQUIRED__   # established propagation exact-scope identity")
         lines.append(f"    hostname: {_yaml_str(node.get('hostname')) if node.get('hostname') else '__REQUIRED__'}"
                      "   # CLAUDE.template SUB_HOSTNAME 계약" if role == "sub"
                      else f"    hostname: {_yaml_str(node.get('hostname'))}")
@@ -1292,6 +1294,7 @@ def main() -> int:
     #   것은 채우고(호스트명·ssh 계정·메인 work_dir), 모르는 것은 emit 이 센티넬로 남긴다.
     _main_node = {
         "role": "main",
+        "node_id": "main",
         "host": platform.node() or "localhost",
         "hostname": platform.node() or None,
         "ssh_user": getpass.getuser(),
@@ -1327,7 +1330,7 @@ def main() -> int:
                 sys.exit(2)
             _main_node["host_source"] = "hostname(루프백 아님 — iface IP 미해소)"
     if args.topology == "multi" and args.peer_ip:
-        _sub = {"role": "sub", "host": args.peer_ip}
+        _sub = {"role": "sub", "node_id": "sub", "host": args.peer_ip}
         if args.peer_ssh and "@" in args.peer_ssh:
             _sub["ssh_user"], _, _sub["hostname"] = args.peer_ssh.partition("@")
         elif args.peer_ssh:
@@ -1343,7 +1346,7 @@ def main() -> int:
         #   선언이다(무단 프로빙 금지 원칙상 이 플래그 없이는 서브를 만지지 않는다).
         if args.peer_ssh:
             _u, _, _h = args.peer_ssh.partition("@")
-            _sub = {"role": "sub", "host": args.peer_ip or _h or args.peer_ssh,
+            _sub = {"role": "sub", "node_id": "sub", "host": args.peer_ip or _h or args.peer_ssh,
                     "hostname": _h or None, "ssh_user": _u or None}
             if args.sub_work_dir:
                 _sub["work_dir"] = args.sub_work_dir

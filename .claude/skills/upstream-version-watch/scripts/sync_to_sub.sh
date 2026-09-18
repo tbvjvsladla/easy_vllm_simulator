@@ -219,7 +219,11 @@ fi
 # (the only earlier read is the side-effect-free delivery-topology guard above, which reads SRC's parity legs).
 SRC="${SRC:-$REPO_ROOT/}"
 CANONICAL_SRC="${SRC%/}/"
-SSH_OPTS="${SYNC_SSH_COMMAND:-ssh -o BatchMode=yes -o ConnectTimeout=8}"
+# Never accept transport options that can replace the trust policy.  The existing known_hosts
+# database is the authority: unknown or changed fingerprints must stop before mutation.
+KNOWN_HOSTS_FILE="${SYNC_KNOWN_HOSTS_FILE:-$HOME/.ssh/known_hosts}"
+[ -r "$KNOWN_HOSTS_FILE" ] || { echo "[sync] STOP(SSH_KNOWN_HOSTS_MISSING): existing known_hosts is unreadable: $KNOWN_HOSTS_FILE" >&2; exit 3; }
+SSH_OPTS="ssh -o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$KNOWN_HOSTS_FILE"
 GIT_NAME="${SYNC_GIT_NAME:-easy-vllm sync (main)}"      # [sync] 커밋 = 스크립트저작 표식
 GIT_EMAIL="${SYNC_GIT_EMAIL:-sync@easy-vllm.local}"
 MAX_DELETE="${MAX_DELETE:-50}"     # (레거시) --delete 안전캡. S4 는 아래 ALLOW_DELETE 삭제brake 가 1차 게이트.
@@ -255,6 +259,15 @@ _resolve_sub_work_dir_from_manifest() {   # $1=topology
         /^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { in_sub=1; next }
         /^[[:space:]]*-[[:space:]]*role:/             { in_sub=0 }
         in_sub && /^[[:space:]]*work_dir:/ { sub(/^[[:space:]]*work_dir:[[:space:]]*/, ""); sub(/[[:space:]]*#.*/, ""); gsub(/[ "\r]/, ""); print; exit }
+    ' "$manifest"
+}
+_resolve_sub_node_id_from_manifest() {   # $1=topology
+    local manifest="${SRC%/}/output/${1:-multi}/manifest.yaml"
+    [ -f "$manifest" ] || return 1
+    awk '
+        /^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ { in_sub=1; next }
+        /^[[:space:]]*-[[:space:]]*role:/             { in_sub=0 }
+        in_sub && /^[[:space:]]*node_id:/ { sub(/^[[:space:]]*node_id:[[:space:]]*/, ""); sub(/[[:space:]]*#.*/, ""); gsub(/[ "\r]/, ""); print; exit }
     ' "$manifest"
 }
 # single 확장 활성? — 판정 입력은 `role: sub` 의 **존재**가 아니라 **정체성 계약(sub_mode)** 이다.
@@ -367,19 +380,63 @@ _resolve_addr_across_targets() {   # $1=host|work_dir → stdout=값 · 1=미해
     printf '%s' "$prev"
 }
 
+CALLER_SUB_HOST="${SUB_HOST:-}"
+CALLER_SUB_WORK_DIR="${SUB_WORK_DIR:-}"
 if [ -z "${SUB_HOST:-}" ]; then
     SUB_HOST="$(_resolve_addr_across_targets host)" || { [ $? = 2 ] && exit 4; SUB_HOST=""; }
 fi
 if [ -z "${SUB_WORK_DIR:-}" ]; then
     SUB_WORK_DIR="$(_resolve_addr_across_targets work_dir)" || { [ $? = 2 ] && exit 4; SUB_WORK_DIR=""; }
 fi
-[ -z "${SUB_WORK_DIR:-}" ] && SUB_WORK_DIR="${SRC%/}"
+if [ -z "${SUB_WORK_DIR:-}" ]; then
+    echo "[sync] STOP(SUB_WORK_DIR_UNRESOLVED): manifest nodes[sub].work_dir is required; source-directory fallback is forbidden." >&2
+    exit 4
+fi
 if [ -z "${SUB_HOST:-}" ]; then
     echo "[sync] FAIL: 서브노드 주소 미해소 — SUB_HOST(<ssh_user>@<host>) 지정 또는" >&2
     echo "       output/{${TARGETS[*]}}/manifest.yaml 의 nodes[](role:sub) 에 host·ssh_user 채우기." >&2
     exit 4
 fi
 DEST="${SUB_WORK_DIR}/"
+
+# An approved propagation scope is exact, not an ambient permission.  Caller overrides are
+# allowed only when they repeat the registered destination verbatim; neither host nor work_dir
+# may silently redirect an established authorization.
+PROPAGATION_SCOPE=0
+PA_TOPOLOGY=""; PA_NODE_ID=""; PA_SSH_HOST=""; PA_WORK_DIR=""; PA_PLANES=""
+if [ -n "$RESOLVED_MANIFEST" ]; then
+    pa_fields="$(python3 - "$RESOLVED_MANIFEST" <<'PY'
+import json, sys
+try:
+    pa = (json.load(open(sys.argv[1], encoding="utf-8")).get("propagation_authorization") or {})
+    if pa:
+        print("\t".join([pa.get("status", ""), pa.get("topology", ""), pa.get("node_id", ""),
+                           pa.get("ssh_host", ""), pa.get("work_dir", ""), ",".join(pa.get("planes", []))]))
+except (OSError, ValueError, TypeError):
+    pass
+PY
+)"
+    if [ -n "$pa_fields" ]; then
+        IFS=$'\t' read -r PA_STATUS PA_TOPOLOGY PA_NODE_ID PA_SSH_HOST PA_WORK_DIR PA_PLANES <<< "$pa_fields"
+        [ "$PA_STATUS" = "approved" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_STATUS): status must be approved" >&2; exit 4; }
+        [ "$PA_TOPOLOGY" = "$BRANCH" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_TOPOLOGY): approved topology=$PA_TOPOLOGY differs from --branch $BRANCH" >&2; exit 4; }
+        [ "$PA_SSH_HOST" = "$SUB_HOST" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_HOST): approved ssh_host differs from resolved destination" >&2; exit 4; }
+        PA_MANIFEST_NODE_ID="$(_resolve_sub_node_id_from_manifest "$BRANCH" || true)"
+        [ -n "$PA_MANIFEST_NODE_ID" ] && [ "$PA_NODE_ID" = "$PA_MANIFEST_NODE_ID" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_NODE_ID): approved node_id differs from manifest nodes[sub].node_id or is absent" >&2; exit 4; }
+        [ "$PA_WORK_DIR" = "$SUB_WORK_DIR" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_WORK_DIR): approved work_dir differs from resolved destination" >&2; exit 4; }
+        [ -z "$CALLER_SUB_HOST" ] || [ "$CALLER_SUB_HOST" = "$PA_SSH_HOST" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_HOST_OVERRIDE): SUB_HOST does not match approved ssh_host" >&2; exit 4; }
+        [ -z "$CALLER_SUB_WORK_DIR" ] || [ "$CALLER_SUB_WORK_DIR" = "$PA_WORK_DIR" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_WORK_DIR_OVERRIDE): SUB_WORK_DIR does not match approved work_dir" >&2; exit 4; }
+        case "$PA_TOPOLOGY:$PA_PLANES" in
+            single:overlay) ;;
+            multi:overlay,band2|multi:band2,overlay) ;;
+            *) echo "[sync] STOP(PROPAGATION_SCOPE_PLANES): required exact planes are single=overlay, multi=band2+overlay" >&2; exit 4 ;;
+        esac
+        [ "$PROVISION" = "0" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_PROVISION): established propagation cannot provision" >&2; exit 5; }
+        [ "$RETIRE_RESIDUE" = "0" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_RETIRE): established propagation cannot retire residue" >&2; exit 5; }
+        PROPAGATION_SCOPE=1
+        echo "[sync] propagation authorization: approved node=$PA_NODE_ID topology=$PA_TOPOLOGY planes=$PA_PLANES (same-scope non-destructive only)" >&2
+    fi
+fi
 
 # ── S4 Band2 빌드킷 keying(전파 = output/<t>/ 의 Band2 만 · plan_26062417 rev3 R1) ──
 # Band1(루트 템플릿·scripts·resolved.json)은 rsync 소스가 output/<t>/ 라 구조적으로 빠지고,
@@ -1371,6 +1428,10 @@ deliver_build() {  # $1=topology $2=dry(0/1)
             return 9
         fi
     fi
+    if [ "$PROPAGATION_SCOPE" = "1" ] && [ "$1" = "multi" ] && [ "${ndel:-0}" -gt 0 ]; then
+        echo "[sync] STOP(PROPAGATION_SCOPE_DELETE_PREVIEW): multi established AUTO permits only a zero-deletion build preview; ${ndel} deletion(s) require a new HITL authorization." >&2
+        return 9
+    fi
     if [ "${ndel:-0}" -gt "${ALLOW_DELETE:-0}" ]; then
         echo "[sync] STOP(S4 삭제brake): $1 삭제예정 ${ndel}건 > ALLOW_DELETE=${ALLOW_DELETE:-0} — 삭제 前 fail-closed(부분삭제 없음). 의도된 정리면 ALLOW_DELETE=${ndel} 로 재실행." >&2
         return 9
@@ -1906,6 +1967,10 @@ case "$_hg_rc" in
     *) echo "[sync] STOP(F6): 서브 .git 존재 여부 판독 불가(rc=$_hg_rc) — 모르는 상태에서 B0 를 발동하지 않는다." >&2
        echo "       확인: $SSH_OPTS '$SUB_HOST' \"ls -d '$SUB_WORK_DIR/.git'\"" >&2; exit 3 ;;
 esac
+if [ "$PROPAGATION_SCOPE" = "1" ] && [ "$HAS_GIT" = "0" ]; then
+    echo "[sync] STOP(PROPAGATION_SCOPE_B0): approved same-scope propagation does not authorize B0/bootstrap; existing sub git is required." >&2
+    exit 5
+fi
 if [ "$HAS_GIT" != "0" ]; then
     REMOTE_ORIGINAL_BRANCH="$(sub_branch_current)" \
         || { echo "[sync] STOP(F7): 서브 현재 브랜치 판독 실패 — 원복 지점을 모른 채 배달하지 않는다." >&2; exit 8; }
