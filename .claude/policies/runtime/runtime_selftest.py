@@ -1195,9 +1195,16 @@ def _test_execution_approval_authorization() -> None:
     import subprocess as _sp
     gate = REPO_ROOT / ".claude/policies/runtime/completion_gate.py"
     approved_by, approved_at = "selftest", "2026-01-01T00:00:00Z"
-    atoms = [f"approved_by: {approved_by}", f"approved_at_utc: {approved_at}",
-             "allowed_action: sync_to_sub"]
-    plan_body = ("# selftest plan\n\n## Execution approval\n\n" + "\n".join(atoms) + "\n")
+    base_atoms = [f"approved_by: {approved_by}", f"approved_at_utc: {approved_at}",
+                  "allowed_action: sync_to_sub"]
+    scope = {"status": "approved", "topology": "single", "node_id": "sub-1",
+             "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
+             "planes": ["overlay"], "approved_utc": approved_at}
+    scope_atoms = ["propagation_topology: single", "propagation_node_id: sub-1",
+                   "propagation_ssh_host: probe@node.example", "propagation_work_dir: /srv/vllm",
+                   "propagation_planes: overlay"]
+    atoms = base_atoms + scope_atoms
+    plan_body = ("# selftest plan\n\n## Execution approval\n" + "\n".join(base_atoms) + "\n")
 
     with tempfile.TemporaryDirectory() as td:
         repo = Path(td) / "repo"
@@ -1215,19 +1222,37 @@ def _test_execution_approval_authorization() -> None:
         rel = "../plan/p.md"
 
         def _manifest(**over):
+            propagation_authorization = over.pop("propagation_authorization", None)
+            execution_approval = over.pop("execution_approval", None)
             ea = {"approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
                   "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
-                  "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]}
-            ea.update(over)
+                  "approval_atoms": list(base_atoms), "allowed_actions": ["sync_to_sub"]}
+            if execution_approval is not None:
+                ea = execution_approval
+            else:
+                ea.update(over)
             # evidence.plan.path 는 plan_path 를 따라간다 — 어긋나면 **앵커 검사 이전에** 경로
             #   불일치로 걸려, 이 시험이 겨냥한 가드가 아닌 다른 가드를 확인하게 된다.
             return {"schema_version": 1, "task_class": "harness_change",
                     "identity": {"model": "m", "gpu": "g", "vllm": "v", "quant": None,
                                  "topology": "single", "tp": 1},
                     "evidence": {"plan": {"path": ea["plan_path"]}},
-                    "pii_scan": {"passed": True}, "execution_approval": ea}
+                    "pii_scan": {"passed": True}, "execution_approval": ea,
+                    **({"propagation_authorization": propagation_authorization}
+                       if propagation_authorization is not None else {})}
 
         def _run(man, name):
+            # Scope cases get their own approved plan bytes and digest; the base fixture stays
+            # a non-propagation approval with only its legacy atoms.
+            ea = man.get("execution_approval")
+            if man.get("propagation_authorization") and isinstance(ea, dict):
+                scoped_plan = "# selftest plan\n\n## Execution approval\n" + "\n".join(ea["approval_atoms"]) + "\n"
+                plan_path.write_text(scoped_plan, encoding="utf-8")
+                ea["plan_sha256"] = hashlib.sha256(plan_path.read_bytes()).hexdigest()
+            else:
+                plan_path.write_text(plan_body, encoding="utf-8")
+                if isinstance(ea, dict) and name not in ("bad_sha", "no_anchor"):
+                    ea["plan_sha256"] = hashlib.sha256(plan_path.read_bytes()).hexdigest()
             mp = repo / "docs/_evidence" / f"{name}.json"
             mp.write_text(json.dumps(man, ensure_ascii=False), encoding="utf-8")
             out = _sp.run([sys.executable, str(gate), "authorize", "--action", "sync_to_sub",
@@ -1239,6 +1264,66 @@ def _test_execution_approval_authorization() -> None:
         ok = _run(_manifest(), "ok")
         _require(ok.get("allowed") is True and ok.get("authorization_state") == "execution-approved",
                  f"a genuine execution approval must be admitted, got {ok.get('reason_codes')}")
+
+        # Established propagation authorization is a strict destination scope, not a broad
+        # execution approval.  It admits sync_to_sub without a fresh plan approval only when
+        # its topology agrees with the strong identity; transport then verifies node/host/path.
+        propagation = _run(_manifest(execution_approval={
+            "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
+            "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
+            "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]
+        }, propagation_authorization={**scope, "approval_atoms": list(atoms)}), "propagation")
+        _require(propagation.get("allowed") is True,
+                 f"approved exact propagation scope must admit sync_to_sub: {propagation}")
+
+        no_execution_manifest = _manifest()
+        no_execution_manifest.pop("execution_approval")
+        no_execution_manifest["propagation_authorization"] = {
+            "status": "approved", "topology": "single", "node_id": "sub-1",
+            "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
+            "planes": ["overlay"], "approved_utc": approved_at,
+            "approval_atoms": list(atoms)}
+        no_execution = _run(no_execution_manifest, "no_execution")
+        _require(no_execution.get("allowed") is False
+                 and "PROPAGATION_AUTHORIZATION_EXECUTION_APPROVAL_ABSENT" in no_execution.get("reason_codes", []),
+                 f"standalone propagation scope must be rejected: {no_execution}")
+
+        bad_propagation = _run(_manifest(execution_approval={
+            "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
+            "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
+            "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]
+        }, propagation_authorization={
+            "status": "approved", "topology": "multi", "node_id": "sub-1",
+            "ssh_host": "probe@node.example", "work_dir": "/srv/vllm",
+            "planes": ["band2", "overlay"], "approved_utc": approved_at,
+            "approval_atoms": list(atoms)
+        }), "bad_propagation")
+        _require(bad_propagation.get("allowed") is False
+                 and "PROPAGATION_AUTHORIZATION_TOPOLOGY_MISMATCH" in bad_propagation.get("reason_codes", []),
+                 f"propagation scope topology drift must be rejected: {bad_propagation}")
+
+        changed_destination = _run(_manifest(execution_approval={
+            "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
+            "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
+            "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]
+        }, propagation_authorization={**scope, "work_dir": "/srv/other", "approval_atoms": list(atoms)}), "changed_destination")
+        _require(changed_destination.get("allowed") is False and "EXECUTION_APPROVAL_ATOMS_INVALID" in changed_destination.get("reason_codes", []),
+                 f"destination drift outside approved plan bytes must invalidate the approval atoms: {changed_destination}")
+
+        shell_destination = _run(_manifest(execution_approval={
+            "approved": True, "approved_by": approved_by, "approved_at_utc": approved_at,
+            "plan_path": rel, "plan_sha256": sha, "approval_anchor": "## Execution approval",
+            "approval_atoms": list(atoms), "allowed_actions": ["sync_to_sub"]
+        }, propagation_authorization={**scope, "work_dir": "/srv/vllm;id", "approval_atoms": list(atoms)}), "shell_destination")
+        _require(shell_destination.get("allowed") is False and "PROPAGATION_AUTHORIZATION_WORK_DIR_INVALID" in shell_destination.get("reason_codes", []),
+                 f"shell metacharacter destination must be rejected: {shell_destination}")
+
+        # Static integration tripwire: this guard is positioned before the B1 transaction and
+        # checkout, so a same-scope invocation cannot delete opposite-branch tracked paths.
+        sync_script = (REPO_ROOT / ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh").read_text(encoding="utf-8")
+        guard = "STOP(PROPAGATION_SCOPE_BRANCH_TRANSITION)"
+        _require(guard in sync_script and sync_script.index(guard) < sync_script.index("begin_remote_transaction \"$t\" 0"),
+                 "established scope must reject branch transition before B1 transaction")
 
         bad_sha = _run(_manifest(plan_sha256="0" * 64), "bad_sha")
         _require(bad_sha.get("allowed") is False
