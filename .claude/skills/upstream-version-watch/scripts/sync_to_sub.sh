@@ -219,11 +219,23 @@ fi
 # (the only earlier read is the side-effect-free delivery-topology guard above, which reads SRC's parity legs).
 SRC="${SRC:-$REPO_ROOT/}"
 CANONICAL_SRC="${SRC%/}/"
-# Never accept transport options that can replace the trust policy.  The existing known_hosts
-# database is the authority: unknown or changed fingerprints must stop before mutation.
-KNOWN_HOSTS_FILE="${SYNC_KNOWN_HOSTS_FILE:-$HOME/.ssh/known_hosts}"
-[ -r "$KNOWN_HOSTS_FILE" ] || { echo "[sync] STOP(SSH_KNOWN_HOSTS_MISSING): existing known_hosts is unreadable: $KNOWN_HOSTS_FILE" >&2; exit 3; }
-SSH_OPTS="ssh -o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$KNOWN_HOSTS_FILE"
+# The canonical user known_hosts is the sole host-key authority. Do not allow an override:
+# an alternate file could silently replace the approved trust database.
+KNOWN_HOSTS_FILE="$HOME/.ssh/known_hosts"
+if [ ! -f "$KNOWN_HOSTS_FILE" ] || [ -L "$KNOWN_HOSTS_FILE" ] || [ ! -r "$KNOWN_HOSTS_FILE" ]; then
+    echo "[sync] STOP(SSH_KNOWN_HOSTS_INVALID): canonical known_hosts must be a readable regular non-symlink: $KNOWN_HOSTS_FILE" >&2
+    exit 3
+fi
+# A root-managed file is acceptable, but group/world write permits replacement of host identity.
+kh_mode="$(stat -c '%a' -- "$KNOWN_HOSTS_FILE")"; kh_owner="$(stat -c '%u' -- "$KNOWN_HOSTS_FILE")"
+if { [ "$kh_owner" != "$(id -u)" ] && [ "$kh_owner" != "0" ]; } || [ $((8#$kh_mode & 022)) -ne 0 ]; then
+    echo "[sync] STOP(SSH_KNOWN_HOSTS_UNSAFE): canonical known_hosts owner/mode is unsafe" >&2
+    exit 3
+fi
+SSH_ARGV=(ssh -o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$KNOWN_HOSTS_FILE")
+printf -v SSH_RSH '%q ' "${SSH_ARGV[@]}"
+SSH_RSH="${SSH_RSH% }"
+ssh_run() { "${SSH_ARGV[@]}" "$@"; }
 GIT_NAME="${SYNC_GIT_NAME:-easy-vllm sync (main)}"      # [sync] 커밋 = 스크립트저작 표식
 GIT_EMAIL="${SYNC_GIT_EMAIL:-sync@easy-vllm.local}"
 MAX_DELETE="${MAX_DELETE:-50}"     # (레거시) --delete 안전캡. S4 는 아래 ALLOW_DELETE 삭제brake 가 1차 게이트.
@@ -863,11 +875,11 @@ OVERLAY_RETIREMENT_STALE_PATHS=(
 #   손상 rc128)를 **정상 상태**로 접고 있었다 — `2>/dev/null` 로 사유까지 지운 채. "모르는 것" 과 "없는 것" 이
 #   같은 값이 되면 그 위의 게이트는 전부 fail-open 이다(dirty 미보존 배달 · B0 오발동 · origin-0 거짓확증).
 #   처방: 원인을 살리고(stderr 유지) rc 를 전파하며, `[ -d ]` 는 rc 1(부재)만 부재로 읽는다.
-sub_run()  { $SSH_OPTS "$SUB_HOST" "cd '$SUB_WORK_DIR' && $1"; }
+sub_run()  { ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && $1"; }
 # 0=존재 · 1=부재(확정) · 2=판독불가(트랜스포트/권한) — 호출부는 2 를 fail-closed 로 다뤄야 한다.
 sub_has_git() {
     local rc=0
-    $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR/.git' ]" || rc=$?
+    ssh_run "$SUB_HOST" "[ -d '$SUB_WORK_DIR/.git' ]" || rc=$?
     case "$rc" in 0) return 0 ;; 1) return 1 ;; *) return 2 ;; esac
 }
 sub_dirty() { sub_run "git status --porcelain"; }
@@ -985,7 +997,7 @@ validate_inventory_tree() { # $1=root  $2=1 이면 BAND2_EXCLUDED_TOP 최상위 
 prune_remote_empty_dirs() { # $1=topology → 0=ok(제거분 로그), 9=실패
     local root="${DEST}output/$1" skip out
     skip="$(IFS=:; printf '%s' "${BAND2_EXCLUDED_TOP[*]}")"
-    out="$($SSH_OPTS "$SUB_HOST" "python3 -c 'import os,sys
+    out="$(ssh_run "$SUB_HOST" "python3 -c 'import os,sys
 root,skip=sys.argv[1],set(x for x in sys.argv[2].split(\":\") if x)
 if not os.path.isdir(root): raise SystemExit(0)
 removed=[]
@@ -1025,7 +1037,7 @@ validate_remote_deletion_tree() { # $1=topology
     prune_remote_empty_dirs "$1" || return 9
     local root="${DEST}output/$1" skip bad
     skip="$(IFS=:; printf '%s' "${BAND2_EXCLUDED_TOP[*]}")"
-    bad="$($SSH_OPTS "$SUB_HOST" "python3 -c 'import os,sys
+    bad="$(ssh_run "$SUB_HOST" "python3 -c 'import os,sys
 root,skip=sys.argv[1],set(x for x in sys.argv[2].split(\":\") if x)
 if not os.path.isdir(root): raise SystemExit(0)
 hits=[]
@@ -1065,7 +1077,7 @@ build_remote_touch_inventory() { # $1=topology $2=output file
         validate_remote_deletion_tree "$t" || return 9
         _band2_filters || return 9
         scan="$(mktemp "${TMPDIR:-/tmp}/easy-vllm-delete-scan.XXXXXX")"
-        if ! rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_OPTS" \
+        if ! rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_RSH" \
             "${SRC}output/$t/" "$SUB_HOST:${DEST}output/$t/" >"$scan" 2>&1; then
             echo "[sync] FAIL: deletion inventory dry-run failed" >&2
             rm -f "$scan"; return 9
@@ -1083,6 +1095,12 @@ build_remote_touch_inventory() { # $1=topology $2=output file
 }
 
 begin_remote_transaction() { # $1=topology $2=bootstrap(0/1)
+    if [ "$PROPAGATION_SCOPE" = "1" ]; then
+        # The normal transaction creates/removes remote backup paths.  Established scope is
+        # deliberately deletion-free, so its preflight has already excluded every operation
+        # that could require rollback; do not create a transaction at all.
+        return 0
+    fi
     local t="$1" bootstrap="$2" list part tx head branch inv_t
     list="$(mktemp "${TMPDIR:-/tmp}/easy-vllm-sync-paths.XXXXXX")"
     : >"$list"
@@ -1100,9 +1118,9 @@ begin_remote_transaction() { # $1=topology $2=bootstrap(0/1)
             || { echo "[sync] FAIL(F8): 서브에 브랜치 '$t' 가 없거나 판독 불가 — 빈 head 로 트랜잭션을 등록하지 않는다." >&2; return 9; }
         branch="$t"
     fi
-    if ! $SSH_OPTS "$SUB_HOST" "set -eu; umask 077; tx='$tx'; rm -rf -- \"\$tx\"; mkdir -p \"\$tx/backup\"; cat >\"\$tx/paths\"; : >\"\$tx/dirs\"; : >\"\$tx/existing-dirs\"; if [ -d '$SUB_WORK_DIR' ]; then : >\"\$tx/workdir-existed\"; [ '$bootstrap' != 1 ] || cp -a -- '$SUB_WORK_DIR' \"\$tx/workdir-backup\"; cd '$SUB_WORK_DIR'; while IFS= read -r p; do d=\$(dirname \"\$p\"); while [ \"\$d\" != . ]; do printf '%s\\n' \"\$d\" >>\"\$tx/dirs\"; [ ! -d \"\$d\" ] || printf '%s %s\\n' \"\$(stat -c '%a' \"\$d\")\" \"\$d\" >>\"\$tx/existing-dirs\"; d=\$(dirname \"\$d\"); done; if [ -e \"\$p\" ] || [ -L \"\$p\" ]; then mkdir -p \"\$tx/backup/\$(dirname \"\$p\")\"; cp -a -- \"\$p\" \"\$tx/backup/\$p\"; fi; done <\"\$tx/paths\"; elif [ '$bootstrap' = 1 ]; then : >\"\$tx/workdir-absent\"; else exit 9; fi; sort -u -o \"\$tx/dirs\" \"\$tx/dirs\"; sort -u -k2,2 -o \"\$tx/existing-dirs\" \"\$tx/existing-dirs\"" <"$list"; then
+    if ! ssh_run "$SUB_HOST" "set -eu; umask 077; tx='$tx'; rm -rf -- \"\$tx\"; mkdir -p \"\$tx/backup\"; cat >\"\$tx/paths\"; : >\"\$tx/dirs\"; : >\"\$tx/existing-dirs\"; if [ -d '$SUB_WORK_DIR' ]; then : >\"\$tx/workdir-existed\"; [ '$bootstrap' != 1 ] || cp -a -- '$SUB_WORK_DIR' \"\$tx/workdir-backup\"; cd '$SUB_WORK_DIR'; while IFS= read -r p; do d=\$(dirname \"\$p\"); while [ \"\$d\" != . ]; do printf '%s\\n' \"\$d\" >>\"\$tx/dirs\"; [ ! -d \"\$d\" ] || printf '%s %s\\n' \"\$(stat -c '%a' \"\$d\")\" \"\$d\" >>\"\$tx/existing-dirs\"; d=\$(dirname \"\$d\"); done; if [ -e \"\$p\" ] || [ -L \"\$p\" ]; then mkdir -p \"\$tx/backup/\$(dirname \"\$p\")\"; cp -a -- \"\$p\" \"\$tx/backup/\$p\"; fi; done <\"\$tx/paths\"; elif [ '$bootstrap' = 1 ]; then : >\"\$tx/workdir-absent\"; else exit 9; fi; sort -u -o \"\$tx/dirs\" \"\$tx/dirs\"; sort -u -k2,2 -o \"\$tx/existing-dirs\" \"\$tx/existing-dirs\"" <"$list"; then
         rm -f "$list"
-        if ! $SSH_OPTS "$SUB_HOST" "rm -rf -- '$tx'"; then
+        if ! ssh_run "$SUB_HOST" "rm -rf -- '$tx'"; then
             echo "[sync] CRITICAL: failed transaction creation left recovery path $SUB_HOST:$tx" >&2
         fi
         return 9
@@ -1110,7 +1128,7 @@ begin_remote_transaction() { # $1=topology $2=bootstrap(0/1)
     rm -f "$list"
     REMOTE_TX_DIRS+=("$tx"); REMOTE_TX_BRANCHES+=("$branch"); REMOTE_TX_HEADS+=("$head"); REMOTE_TX_BOOTSTRAPS+=("$bootstrap")
     REMOTE_TX_ACTIVE=1
-    echo "[sync] remote rollback transaction prepared: branch=$branch paths=$($SSH_OPTS "$SUB_HOST" "wc -l < '$tx/paths'")"
+    echo "[sync] remote rollback transaction prepared: branch=$branch paths=$(ssh_run "$SUB_HOST" "wc -l < '$tx/paths'")"
 }
 
 # 원격 git 락 유계 대기. 롤백의 모든 git 조작 앞에 선다.
@@ -1124,7 +1142,7 @@ begin_remote_transaction() { # $1=topology $2=bootstrap(0/1)
 #   가 살아 있었다 — 지웠다면 진행 중인 인덱스 쓰기를 깨뜨렸을 것이다. 판별만 하고 처방은 사람에게 넘긴다.
 wait_for_remote_git_lock() {  # $1=최대 대기초(기본 90)
     local max="${1:-90}"
-    $SSH_OPTS "$SUB_HOST" "
+    ssh_run "$SUB_HOST" "
         lock='$SUB_WORK_DIR/.git/index.lock'
         [ -e \"\$lock\" ] || exit 0
         echo '[sync] 원격 git 락 관측 — 최대 ${max}s 대기(자동 삭제하지 않는다)' >&2
@@ -1149,16 +1167,16 @@ rollback_remote_transactions() {
     wait_for_remote_git_lock 90 || echo "[sync] WARN: 원격 락이 남은 채로 롤백을 시도한다 — 실패할 수 있다." >&2
     local i tx branch head fail=0 root_tx="${REMOTE_TX_DIRS[0]}"
     if [ "${REMOTE_TX_BOOTSTRAPS[0]}" = "1" ]; then
-        $SSH_OPTS "$SUB_HOST" "set -eu; if [ -f '$root_tx/workdir-absent' ]; then rm -rf -- '$SUB_WORK_DIR'; elif [ -f '$root_tx/workdir-existed' ]; then rm -rf -- '$SUB_WORK_DIR'; mkdir -p -- \"\$(dirname '$SUB_WORK_DIR')\"; cp -a -- '$root_tx/workdir-backup' '$SUB_WORK_DIR'; else echo '[sync] FAIL: bootstrap transaction lacks workdir origin marker' >&2; exit 9; fi" || fail=1
+        ssh_run "$SUB_HOST" "set -eu; if [ -f '$root_tx/workdir-absent' ]; then rm -rf -- '$SUB_WORK_DIR'; elif [ -f '$root_tx/workdir-existed' ]; then rm -rf -- '$SUB_WORK_DIR'; mkdir -p -- \"\$(dirname '$SUB_WORK_DIR')\"; cp -a -- '$root_tx/workdir-backup' '$SUB_WORK_DIR'; else echo '[sync] FAIL: bootstrap transaction lacks workdir origin marker' >&2; exit 9; fi" || fail=1
     else
         for ((i=${#REMOTE_TX_DIRS[@]}-1; i>=0; i--)); do
             tx="${REMOTE_TX_DIRS[$i]}"; branch="${REMOTE_TX_BRANCHES[$i]}"; head="${REMOTE_TX_HEADS[$i]}"
-            $SSH_OPTS "$SUB_HOST" "set -eu; cd '$SUB_WORK_DIR'; git reset --hard; git checkout -q '$branch'; git reset --hard '$head'; while IFS= read -r p; do rm -rf -- \"\$p\"; done <'$tx/paths'" || fail=1
+            ssh_run "$SUB_HOST" "set -eu; cd '$SUB_WORK_DIR'; git reset --hard; git checkout -q '$branch'; git reset --hard '$head'; while IFS= read -r p; do rm -rf -- \"\$p\"; done <'$tx/paths'" || fail=1
         done
         if [ -z "$REMOTE_ORIGINAL_BRANCH" ]; then
             fail=1
         else
-            $SSH_OPTS "$SUB_HOST" "set -eu; cd '$SUB_WORK_DIR'; git reset --hard; git checkout -q '$REMOTE_ORIGINAL_BRANCH'; git reset --hard; while IFS= read -r p; do rm -rf -- \"\$p\"; [ ! -e '$root_tx/backup/'\"\$p\" ] && [ ! -L '$root_tx/backup/'\"\$p\" ] || { mkdir -p \"\$(dirname \"\$p\")\"; cp -a -- '$root_tx/backup/'\"\$p\" \"\$p\"; }; done <'$root_tx/paths'; tac '$root_tx/dirs' | while IFS= read -r d; do cut -d' ' -f2- '$root_tx/existing-dirs' | grep -Fqx \"\$d\" || rmdir -- \"\$d\" 2>/dev/null || true; done; while read -r m d; do chmod \"\$m\" \"\$d\"; done <'$root_tx/existing-dirs'" || fail=1
+            ssh_run "$SUB_HOST" "set -eu; cd '$SUB_WORK_DIR'; git reset --hard; git checkout -q '$REMOTE_ORIGINAL_BRANCH'; git reset --hard; while IFS= read -r p; do rm -rf -- \"\$p\"; [ ! -e '$root_tx/backup/'\"\$p\" ] && [ ! -L '$root_tx/backup/'\"\$p\" ] || { mkdir -p \"\$(dirname \"\$p\")\"; cp -a -- '$root_tx/backup/'\"\$p\" \"\$p\"; }; done <'$root_tx/paths'; tac '$root_tx/dirs' | while IFS= read -r d; do cut -d' ' -f2- '$root_tx/existing-dirs' | grep -Fqx \"\$d\" || rmdir -- \"\$d\" 2>/dev/null || true; done; while read -r m d; do chmod \"\$m\" \"\$d\"; done <'$root_tx/existing-dirs'" || fail=1
         fi
     fi
     if [ "$fail" -ne 0 ]; then
@@ -1167,7 +1185,7 @@ rollback_remote_transactions() {
         return 11
     fi
     for tx in "${REMOTE_TX_DIRS[@]}"; do
-        $SSH_OPTS "$SUB_HOST" "rm -rf -- '$tx'" || echo "[sync] WARNING: rollback succeeded but backup cleanup failed: $SUB_HOST:$tx" >&2
+        ssh_run "$SUB_HOST" "rm -rf -- '$tx'" || echo "[sync] WARNING: rollback succeeded but backup cleanup failed: $SUB_HOST:$tx" >&2
     done
     REMOTE_TX_DIRS=(); REMOTE_TX_BRANCHES=(); REMOTE_TX_HEADS=(); REMOTE_TX_BOOTSTRAPS=(); REMOTE_TX_ACTIVE=0
 }
@@ -1178,7 +1196,7 @@ finalize_remote_transactions() {
     # impossible partial rollback after one transaction backup has been removed.
     REMOTE_TX_ACTIVE=0
     for tx in "${REMOTE_TX_DIRS[@]:-}"; do
-        [ -z "$tx" ] || $SSH_OPTS "$SUB_HOST" "rm -rf -- '$tx'" \
+        [ -z "$tx" ] || ssh_run "$SUB_HOST" "rm -rf -- '$tx'" \
             || echo "[sync] WARNING: successful sync left recovery backup: $SUB_HOST:$tx" >&2
     done
     REMOTE_TX_DIRS=(); REMOTE_TX_BRANCHES=(); REMOTE_TX_HEADS=(); REMOTE_TX_BOOTSTRAPS=()
@@ -1327,6 +1345,9 @@ build_source_port_bundle() {  # $1=topology $2=출력경로 → SOURCE_PORT_BUND
 }
 
 source_port_active() {  # $1=topology → 0=이식 변종 존재
+    # Source-port replacement removes its remote temporary bundle, so it is outside the
+    # established deletion-free propagation scope.
+    [ "$PROPAGATION_SCOPE" != "1" ] || return 1
     [ -d "${SRC%/}/output/$1/$SOURCE_PORT_DIR/$SOURCE_PORT_PAYLOAD" ]
 }
 
@@ -1341,18 +1362,18 @@ deliver_source_port_payload() {  # $1=topology → 0=ok/해당없음
     local_bundle="$(mktemp "${TMPDIR:-/tmp}/easy-vllm-source-port.XXXXXX.tar.gz")"
     build_source_port_bundle "$t" "$local_bundle" || { rm -f "$local_bundle"; return 9; }
     echo "[sync] [$t] source-port 번들 배달 — $(stat -c %s "$local_bundle") bytes sha256=$SOURCE_PORT_BUNDLE_SHA"
-    if ! rsync -a -e "$SSH_OPTS" "$local_bundle" "$SUB_HOST:$remote_bundle"; then
+    if ! rsync -a -e "$SSH_RSH" "$local_bundle" "$SUB_HOST:$remote_bundle"; then
         echo "[sync] FAIL(source-port/$t): 번들 전송 실패" >&2; rm -f "$local_bundle"; return 9
     fi
     rm -f "$local_bundle"
     # 해체·검증은 서브에서 수행한다 — 배달된 PROVENANCE.json(추적물)이 그쪽 판정 권위다.
-    if ! $SSH_OPTS "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - unbundle \
+    if ! ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - unbundle \
             --root 'output/$t/$SOURCE_PORT_DIR' --bundle '$remote_bundle' \
             --expect-sha256 '$SOURCE_PORT_BUNDLE_SHA'" <"$REGEN_TOOL"; then
         rc=9
         echo "[sync] FAIL(source-port/$t): 서브 해체·검증 실패 — 기존 payload 는 보존된다(교체는 검증 뒤에만)." >&2
     fi
-    $SSH_OPTS "$SUB_HOST" "rm -f -- '$remote_bundle'" \
+    ssh_run "$SUB_HOST" "rm -f -- '$remote_bundle'" \
         || echo "[sync] WARNING(source-port/$t): 서브에 번들 잔존 — 이미지 COPY 오염 방지를 위해 수동 제거 필요: $remote_bundle" >&2
     return $rc
 }
@@ -1361,7 +1382,7 @@ deliver_source_port_payload() {  # $1=topology → 0=ok/해당없음
 verify_source_port_payload() {  # $1=topology
     local t="$1"
     source_port_active "$t" || return 0
-    if $SSH_OPTS "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - verify \
+    if ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - verify \
             --root 'output/$t/$SOURCE_PORT_DIR'" <"$REGEN_TOOL" | sed 's/^/  /'; then
         echo "  ✅ output/$t/$SOURCE_PORT_DIR/$SOURCE_PORT_PAYLOAD (서브 무결성)"
         return 0
@@ -1378,7 +1399,7 @@ preview_source_port_payload() {  # $1=topology (dry-run 미리보기)
     remote_dir="${DEST}output/$t/$SOURCE_PORT_DIR"
     echo "    source-port payload(번들 평면 — rsync 와 별개):"
     echo "      로컬 검증분: $(find "${SRC%/}/output/$t/$SOURCE_PORT_DIR/$SOURCE_PORT_PAYLOAD" -type f | wc -l)파일(인덱스 PROVENANCE 대조 통과)"
-    n="$($SSH_OPTS "$SUB_HOST" "[ -d '$remote_dir/$SOURCE_PORT_PAYLOAD' ] && find '$remote_dir/$SOURCE_PORT_PAYLOAD' -type f | wc -l || echo 0" 2>/dev/null || echo unknown)"
+    n="$(ssh_run "$SUB_HOST" "[ -d '$remote_dir/$SOURCE_PORT_PAYLOAD' ] && find '$remote_dir/$SOURCE_PORT_PAYLOAD' -type f | wc -l || echo 0" 2>/dev/null || echo unknown)"
     echo "      서브 현재분: ${n}파일 → --apply 시 **전량 교체**(선언 밖 잔재는 제거된다 · 제거분은 로그로 남는다)"
 }
 
@@ -1391,7 +1412,7 @@ deliver_build() {  # $1=topology $2=dry(0/1)
     _band2_filters || return 9
     local src="${SRC%/}/output/$1/" dst="${DEST}output/$1/"
     if [ "$2" = "1" ]; then
-        rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_OPTS" "$src" "$SUB_HOST:$dst"
+        rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_RSH" "$src" "$SUB_HOST:$dst"
         return
     fi
     # apply: (d-rsync-2) 삭제 前 brake — dry-run 으로 삭제예정 세고 ALLOW_DELETE 초과 시 *삭제 前* fail-closed(부분삭제 0)
@@ -1402,7 +1423,7 @@ deliver_build() {  # $1=topology $2=dry(0/1)
     #   여기서 미리 치우면 rsync 의 삭제예정이 0 이 되어 브레이크가 정상 통과한다.
     prune_remote_empty_dirs "$1" || return 9
     local ndel dry_out
-    if ! dry_out="$(rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_OPTS" "$src" "$SUB_HOST:$dst" 2>&1)"; then
+    if ! dry_out="$(rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_RSH" "$src" "$SUB_HOST:$dst" 2>&1)"; then
         echo "[sync] FAIL: deletion brake dry-run failed before apply" >&2
         return 9
     fi
@@ -1436,7 +1457,13 @@ deliver_build() {  # $1=topology $2=dry(0/1)
         echo "[sync] STOP(S4 삭제brake): $1 삭제예정 ${ndel}건 > ALLOW_DELETE=${ALLOW_DELETE:-0} — 삭제 前 fail-closed(부분삭제 없음). 의도된 정리면 ALLOW_DELETE=${ndel} 로 재실행." >&2
         return 9
     fi
-    rsync -az --delete --max-delete="${ALLOW_DELETE:-0}" "${FILT[@]}" -e "$SSH_OPTS" "$src" "$SUB_HOST:$dst"
+    if [ "$PROPAGATION_SCOPE" = "1" ]; then
+        # Re-run without --delete after the zero-deletion preview; no remote deletion-capable
+        # operation remains in the established authorization path.
+        rsync -az "${FILT[@]}" -e "$SSH_RSH" "$src" "$SUB_HOST:$dst"
+    else
+        rsync -az --delete --max-delete="${ALLOW_DELETE:-0}" "${FILT[@]}" -e "$SSH_RSH" "$src" "$SUB_HOST:$dst"
+    fi
 }
 # dry-run 빌드 미리보기 — 삭제(--delete) 라인을 head 절단 **이전에 전량 보장 노출**(HITL 게이트 ③ '삭제 0' 신뢰성, review major).
 preview_build() {  # $1=topology
@@ -1455,7 +1482,7 @@ deliver_overlay() {  # $1=topology $2=dry
     local st; st="$(staging_dir "$1")"
     [ -d "$st" ] || { echo "[sync] (info) 스테이징 없음($st) — render 선행 필요"; return 0; }
     local dry=(); [ "$2" = "1" ] && dry=(--dry-run --itemize-changes)
-    rsync -az "${dry[@]}" "${OVERLAY_EXCLUDES[@]}" -e "$SSH_OPTS" "$st/" "$SUB_HOST:$DEST"
+    rsync -az "${dry[@]}" "${OVERLAY_EXCLUDES[@]}" -e "$SSH_RSH" "$st/" "$SUB_HOST:$DEST"
     if [ "$2" = "1" ]; then
         local stale
         for stale in "${OVERLAY_STALE_PATHS[@]}"; do
@@ -1467,9 +1494,13 @@ deliver_overlay() {  # $1=topology $2=dry
 # Apply exact tombstones only after replacement checksums and modes have passed.  This function is
 # deliberately separate from additive rsync so a failed replacement can never delete the fallback.
 apply_overlay_tombstones() {
+    if [ "$PROPAGATION_SCOPE" = "1" ]; then
+        echo "[sync] established propagation: overlay tombstones skipped (remote deletion requires new HITL authorization)." >&2
+        return 0
+    fi
     local stale
     for stale in "${OVERLAY_STALE_PATHS[@]}"; do
-        sub_run "rm -f -- '$stale'"
+        ssh_run "$SUB_HOST" "rm -f -- '$stale'"
     done
 }
 
@@ -1829,7 +1860,7 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
     for f in "${BAND2_TOP[@]}"; do
         [ -f "${SRC%/}/output/$1/$f" ] || continue
         L=$(md5sum "${SRC%/}/output/$1/$f" | awk '{print $1}')
-        R=$($SSH_OPTS "$SUB_HOST" "md5sum '${SUB_WORK_DIR}/output/$1/$f' 2>/dev/null" | awk '{print $1}')
+        R=$(ssh_run "$SUB_HOST" "md5sum '${SUB_WORK_DIR}/output/$1/$f' 2>/dev/null" | awk '{print $1}')
         [ -n "$L" ] && [ "$L" = "$R" ] && echo "  ✅ output/$1/$f" || { echo "  ❌ output/$1/$f: main=$L sub=$R"; fail=1; }
     done
     fi
@@ -1909,7 +1940,7 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
     while IFS= read -r line; do
         [ -n "$line" ] || continue
         RSUM["${line#*  }"]="${line%% *}"
-    done < <(printf '%s\n' "$rels" | $SSH_OPTS "$SUB_HOST" \
+    done < <(printf '%s\n' "$rels" | ssh_run "$SUB_HOST" \
         "cd '$SUB_WORK_DIR' && while IFS= read -r _p; do if [ -f \"\$_p\" ]; then md5sum -- \"\$_p\"; fi; done" 2>/dev/null)
     ok_n=0; all_n=0
     while IFS= read -r f; do
@@ -1933,7 +1964,7 @@ verify_destination_host_safety_modes() {
         .claude/runtime/host_safety/host/vllm-drop-caches.sh \
         .claude/runtime/host_safety/systemd/easy-vllm-memwatch.service; do
         case "$f" in *.service) expected=644;; *) expected=755;; esac
-        mode="$($SSH_OPTS "$SUB_HOST" "stat -c '%a' '$SUB_WORK_DIR/$f' 2>/dev/null" || true)"
+        mode="$(ssh_run "$SUB_HOST" "stat -c '%a' '$SUB_WORK_DIR/$f' 2>/dev/null" || true)"
         if [ "$mode" != "$expected" ]; then
             echo "  ❌ destination host-safety mode $f=${mode:-missing}, expected=$expected" >&2
             fail=1
@@ -1957,7 +1988,7 @@ preflight_topology() {  # $1=active topology
 }
 
 # ── pre-flight ──
-if ! $SSH_OPTS "$SUB_HOST" 'echo ok' >/dev/null 2>&1; then
+if ! ssh_run "$SUB_HOST" 'echo ok' >/dev/null 2>&1; then
     echo "[sync] FAIL: $SUB_HOST 에 SSH 불가 (키 인증·네트워크 확인)"; exit 3
 fi
 HAS_GIT=0; _hg_rc=0; sub_has_git || _hg_rc=$?
@@ -1965,7 +1996,7 @@ case "$_hg_rc" in
     0) HAS_GIT=1 ;;
     1) HAS_GIT=0 ;;
     *) echo "[sync] STOP(F6): 서브 .git 존재 여부 판독 불가(rc=$_hg_rc) — 모르는 상태에서 B0 를 발동하지 않는다." >&2
-       echo "       확인: $SSH_OPTS '$SUB_HOST' \"ls -d '$SUB_WORK_DIR/.git'\"" >&2; exit 3 ;;
+       echo "       확인: ssh_run '$SUB_HOST' \"ls -d '$SUB_WORK_DIR/.git'\"" >&2; exit 3 ;;
 esac
 if [ "$PROPAGATION_SCOPE" = "1" ] && [ "$HAS_GIT" = "0" ]; then
     echo "[sync] STOP(PROPAGATION_SCOPE_B0): approved same-scope propagation does not authorize B0/bootstrap; existing sub git is required." >&2
@@ -2075,9 +2106,9 @@ done
 # 그 상태에서 배달을 시작하면 rsync 가 중간에 죽고, 롤백의 `rm` 마저 Permission denied 로 실패해
 # **CRITICAL + 반쯤 갈린 서브**로 끝난다(2026-09-03 실측). 원인은 소유권인데 증상은 rsync 오류라
 # 사람이 원인에 도달하지 못한다. 그러므로 **아무것도 건드리기 전에** 여기서 확인하고 처방을 말한다.
-if $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
-    if ! $SSH_OPTS "$SUB_HOST" "[ -w '$SUB_WORK_DIR' ]" 2>/dev/null; then
-        _owner="$($SSH_OPTS "$SUB_HOST" "stat -c '%U:%G %a' '$SUB_WORK_DIR'" 2>/dev/null || echo '판독불가')"
+if ssh_run "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
+    if ! ssh_run "$SUB_HOST" "[ -w '$SUB_WORK_DIR' ]" 2>/dev/null; then
+        _owner="$(ssh_run "$SUB_HOST" "stat -c '%U:%G %a' '$SUB_WORK_DIR'" 2>/dev/null || echo '판독불가')"
         echo "[sync] STOP: 서브 작업경로에 쓸 수 없다 — $SUB_HOST:$SUB_WORK_DIR (소유 $_owner)" >&2
         echo "       원인 후보: 프로젝트 경로 완전삭제 후 root 로 도는 노드블랙박스 데몬이 경로를 재생성했다." >&2
         echo "       처방(서브에서 사람이 1회 · sudo):" >&2
@@ -2088,7 +2119,7 @@ if $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
 fi
 
 # R2 HITL 게이트: 서브 work_dir 부재 시 자동신설 금지(--provision 필요).
-if ! $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
+if ! ssh_run "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
     if [ "$PROVISION" != "1" ]; then
         echo "[sync] STOP(R2): 서브 작업경로 부재 — $SUB_HOST:$SUB_WORK_DIR" >&2
         echo "       ❓ 신설하려면 --provision 을 더한다. 인가 인자(--mode·--manifest)는 생략 불가:" >&2
@@ -2098,7 +2129,7 @@ if ! $SSH_OPTS "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
     fi
     begin_remote_transaction "${BOOTSTRAP_POPULATE:-${TARGETS[0]}}" 1 || { echo "[sync] FAIL: provision 전 rollback transaction 생성 실패"; exit 9; }
     BOOTSTRAP_TX_PREPARED=1
-    sub_run_mk() { $SSH_OPTS "$SUB_HOST" "mkdir -p -- '$SUB_WORK_DIR' && : >'${REMOTE_TX_DIRS[0]}/provisioned'"; }
+    sub_run_mk() { ssh_run "$SUB_HOST" "mkdir -p -- '$SUB_WORK_DIR' && : >'${REMOTE_TX_DIRS[0]}/provisioned'"; }
     echo "[sync] PROVISION(승인됨): mkdir -p $SUB_HOST:$SUB_WORK_DIR"; sub_run_mk || { echo "[sync] FAIL: work_dir 신설 실패"; exit 5; }
     PROVISIONED_BY_SYNC=1
 fi
@@ -2112,7 +2143,7 @@ if [ $HAS_GIT = 0 ]; then
         || { echo "[sync] FAIL: bootstrap rollback transaction 생성 실패"; exit 9; }
     # Complete multi source preflight already passed before optional provision and this branch.
     # base = .gitignore 만(서브 로컬 추적규칙). 이후 multi 에만 전체 배달 → single 은 base(dormant) 로 격리.
-    rsync -az -e "$SSH_OPTS" "$st/.gitignore" "$SUB_HOST:$DEST.gitignore"
+    rsync -az -e "$SSH_RSH" "$st/.gitignore" "$SUB_HOST:$DEST.gitignore"
     sub_run "git init -q"
     sub_run "git add .gitignore"
     sub_commit "[sync] bootstrap base (.gitignore) — D12 서브 로컬 git"

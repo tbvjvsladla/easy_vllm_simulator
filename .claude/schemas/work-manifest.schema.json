@@ -416,7 +416,7 @@
     },
     "propagationAuthorization": {
       "type": "object",
-      "required": ["status", "topology", "node_id", "ssh_host", "work_dir", "planes", "approved_utc"],
+      "required": ["status", "topology", "node_id", "ssh_host", "work_dir", "planes", "approved_utc", "approval_atoms"],
       "additionalProperties": false,
       "properties": {
         "status": { "type": "string", "const": "approved" },
@@ -427,7 +427,8 @@
         "planes": {
           "type": "array", "minItems": 1, "items": { "type": "string", "enum": ["overlay", "band2"] }
         },
-        "approved_utc": { "type": "string", "minLength": 1 }
+        "approved_utc": { "type": "string", "minLength": 1 },
+        "approval_atoms": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
       }
     },
     "promotionTarget": {
