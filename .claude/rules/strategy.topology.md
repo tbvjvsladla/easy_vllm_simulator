@@ -22,8 +22,8 @@
 
 ## 서브는 A2A 원격 에이전트다 — 그래서 동기가 필요 없다
 
-싱글의 `sub` 는 **A2A 원격 에이전트**다: 정체성 권위는 `Agent_Card.json`(능력·엔드포인트·서명)과
-서브 자신의 manifest(`self_role: sub`)이고, 자율적으로 처리하며 통신은 client↔server 다. `sub_mode`
+싱글의 `sub` 는 **A2A 원격 에이전트**다: SSH public-key/known-host 관계가 endpoint를 인증하고,
+메인이 발급한 서브 manifest(`self_role: sub` · `terraforming.issued_by: main`)가 role·readiness 사실을 소유한다. `Agent_Card.json`은 unsigned capability/discovery metadata다. 서브는 자율적으로 처리하며 통신은 client↔server 다. `sub_mode`
 는 `a2a-agent` 이고 sub↔sub 통신은 없다 — 각자 메인하고만 대화한다. **이 문단은 "왜"만 적는다** —
 판정·배선의 정본은 `node_role_contract.py`(manifest 파생)와 SKILL.md §2.7.0 이며, 파생값을 여기에
 다시 적지 않는다.
@@ -39,7 +39,7 @@
 ## 배달 평면은 dormant · 오버레이만 열린다
 
 - S2.5 의 **빌드킷 평면은 이 브랜치에서 dormant** 다(`node_role_contract` 의 `delivery_plane` 판정).
-  대신 **에이전트 환경 오버레이**(헌법·comms·런타임 스킬·블랙박스·위임키)는 배달된다 — 그것이
+  대신 **에이전트 환경 오버레이**(헌법·comms·런타임 스킬·블랙박스·capability Card)는 배달된다 — 그것이
   확장기능의 내용이다. 절차 정본은 SKILL.md §2.7.5 다.
 - 공통층의 "S2.5 배달분은 메인 S4 커밋 전까지 미검증 후보다" 문단은 **빌드킷 평면 이야기이므로 이
   브랜치에서는 성립하지 않는다**. 오버레이 배달에는 그 되돌림 규약이 적용되지 않는다.
