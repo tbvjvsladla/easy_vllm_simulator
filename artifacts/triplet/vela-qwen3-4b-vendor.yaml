@@ -1,0 +1,16 @@
+# vela-qwen3-4b-vendor — A/B arm: vendor 배포본 · VELA × stock vLLM 0.27.1 × Qwen/Qwen3-4B · 1x H100 TP=1
+# 근거 plan_26092112. 통제변인은 아래 전부 동일하고 **바뀌는 것은 설치된 vela 배포본 하나**다.
+# 평면: 네이티브 venv. model: 은 호스트 절대경로(벤치 하네스가 --tokenizer 로 연다).
+# model: 로컬 체크포인트 **절대경로**다(네이티브 평면이라 컨테이너 경로가 아니다).
+#   값은 각자 환경의 것이며 정본은 manifest 의 nas_model_path 다 — 그 아래 Qwen3-4B
+#   스냅샷을 두고 그 경로를 적는다. 벤치 하네스가 이 값을 --tokenizer 로 연다.
+model: <manifest.nas_model_path>/Qwen3-4B
+tensor-parallel-size: 1
+gpu-memory-utilization: 0.28
+max-model-len: 32768
+max-num-seqs: 8
+max-num-batched-tokens: 16384
+# 아래 둘은 엔진 기본값을 **명시**한 것이다(동작 변경 없음). 인증서의 소프트 지문이 이 값으로
+#   실측됐고, 설정과 측정이 같은 것을 말하는지 기계가 대조할 수 있어야 한다.
+kv-cache-dtype: auto
+# speculative decoding 미선언(spec off). 커널 모드는 AOT 고정(VELA_KERNEL_MODE=aot).

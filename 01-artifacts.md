@@ -8,53 +8,50 @@
 |---|---|---|---|---|
 | `triplet` | serve | vllm-recipe-explorer | 있음 | 3-signal(file+evidence+declaration) |
 | `runtime_patch` | serve(arming) | vllm-recipe-explorer | 없음 | 2-signal(file+declaration) |
-| `build_patch_pre` | 컴파일 전 | upstream-version-watch | 있음 | 3-signal(file+evidence+declaration) |
-| `build_patch_post` | 컴파일 후 | upstream-version-watch | 있음 | 2-signal(file+declaration) |
-| `build_recipe` | build | upstream-version-watch | 있음 | 3-signal(file+evidence+declaration) |
-| `compose` | serve(orchestration) | upstream-version-watch | 있음 | 3-signal(file+evidence+declaration) |
+| `build_patch_pre` | 컴파일 전 | upstream-version-watch | 없음 | 3-signal(file+evidence+declaration) |
+| `build_patch_post` | 컴파일 후 | upstream-version-watch | 없음 | 2-signal(file+declaration) |
+| `build_recipe` | build | upstream-version-watch | 있음 | 2-signal(file+declaration) |
+| `compose` | serve(orchestration) | upstream-version-watch | 있음 | 2-signal(file+declaration) |
 | `fork_pin` | build | upstream-version-watch | 없음 | 3-signal(file+evidence+declaration) |
 
 ## 파일
 
 **triplet**
-- `output/multi/configs/nv4-bf-262k-mmp.yaml`
-- `output/multi/configs/nv4-bf-262k-mmp.sh`
-- `output/multi/envs/.env.nv4-bf-262k-mmp`
-
-**build_patch_pre**
-- `output/multi/build_patches_src/50-dsv4-sm12x-port.sh`
-- `output/multi/build_patches_src/55-src-deps-authority.sh`
-- `output/multi/build_patches_src/60-qwen4exp-nvfp4-mixed.sh`
-- `output/multi/build_patches_src/62-qwen4exp-ple-mmap.sh`
-- `output/multi/build_patches_src/64-qwen4exp-qsa-fp8kv.sh`
-
-**build_patch_post**
-- `output/multi/build_patches/10-deepgemm.sh`
-- `output/multi/build_patches/20-triton-kernels.sh`
-- `output/multi/build_patches/30-mxfp4-triton-sm121.sh`
-- `output/multi/build_patches/40-humming-nvml-gb10.sh`
+- `output/single/native/configs/vela-qwen3-4b-vendor.yaml`
+- `output/single/native/configs/vela-qwen3-4b-vendor.sh`
+- `output/single/native/envs/.env.vela-qwen3-4b-vendor`
 
 **build_recipe**
-- `output/multi/Dockerfile`
-- `output/multi/Dockerfile.source-build`
-- `output/multi/requirements.txt`
+- `output/single/native/requirements.txt`
 
 **compose**
-- `output/multi/docker-compose.yaml`
+- `output/single/native/configs/vela-qwen3-4b-vendor.sh`
 
 **fork_pin** — 없음 = **stock**. `.env` 에 `VARIANT=` 줄이 없는 것이 기본값이다.
 
 ## 적용 사유 (Agent)
 
-- **triplet (3-signal)** — `VLLM_PLE_MMAP=1` 과 `VLLM_PLE_MMAP_DIR` 두 줄이 이 트랙의 정체다.
-  그 줄이 있으면 n-gram 테이블 47.68 GiB 가 상주에서 빠져 예산 floor 가 16,064 → 40,478 로 열린다.
-  스테이징 디렉터리(NVMe)가 실재해야 하며, 없으면 로드가 디스크를 못 찾는다.
-- **build_patch_pre (3-signal)** — `62-qwen4exp-ple-mmap.sh` 가 **이 트랙의 전제**다(자매
-  resident 태그에서는 포함하되 켜지 않는다). `60-nvfp4-mixed`·`64-qsa-fp8kv` 는 아키텍처가
-  0.29.0rc6 에서 서는 조건.
-- **build_patch_post (2-signal)** — 컴파일 이후 native 의존. 서빙 로그로 개별 발화를 관측하지
-  않아 **관측불가**로 표시한다(부재와 미관측은 다른 사실이다).
-- **build_recipe / compose (3-signal)** — 이미지를 전송하지 않고 각 노드가 빌드하므로 재현 단위는
-  digest 가 아니라 이 레시피다.
-- **runtime_patch — 불해당** · **fork_pin — 불해당(stock)**: `.env` 에 `VARIANT=` 줄이 없는 것이
-  stock 선언이다.
+**triplet — 해당.** 서빙 설정·러너·환경 세 개가 없으면 이 조합을 세울 수 없다. 이 평면에서
+러너는 특히 중요하다 — 기동 주체가 벤더 CLI 라서, 어떤 인자와 **어떤 환경변수**로 부르는지가
+러너에만 적혀 있다. 그중 커널 모드 고정은 성능 재현의 필수 조건이다(서사 ④).
+`.env` 는 **형상만** 실렸다(값은 각자 환경의 것) — 키 이름이 재현 정보이고 값은 지문이다.
+
+**build_recipe — 해당.** 이 평면에는 이미지 빌드가 없다. 대신 **고정 의존 집합**이 재현 레시피다.
+실린 핀 목록은 실제로 돈 환경의 실측이며 합성분이 없다. 엔진 버전이 **정확히** 맞아야 하는
+조합이라(플러그인이 특정 버전 내부에 결합한다) 이 핀 집합이 곧 성립 조건이다.
+⚠ 적용 증거는 **관측 불가(2-signal)** 다 — 이 슬롯의 관측원은 이미지 태그 대조인데 네이티브
+평면에는 이미지가 없다. '없음' 이 아니라 '모름' 이며, 그 사실을 숨기지 않는다.
+
+**compose — 해당(러너로 충족).** 이 슬롯의 뜻은 *기동 방법* 이고, 네이티브 평면의 기동 방법은
+compose 파일이 아니라 러너다. 그래서 트리플렛 러너와 같은 파일을 가리킨다 — 중복이 아니라
+**같은 사실을 두 뜻에서 요구**하는 것이며, 이 페이로드가 `plane=native` 로 그 사실을 밝힌다.
+적용 증거는 build_recipe 와 같은 이유로 관측 불가다.
+
+**runtime_patch — 불해당.** 이 서빙은 Python 런타임 패치를 쓰지 않았다. 플러그인이 이미 자기
+결합을 수행하므로 그 위에 얹을 shim 이 필요하지 않았다. 파일도 없고 적용 흔적도 없다.
+
+**build_patch_pre / build_patch_post — 불해당.** 소스를 컴파일하지 않았다. 배포본이 사전컴파일된
+자산을 싣고 오고 엔진은 공식 배포판을 그대로 쓴다 — 패치를 끼울 컴파일 단계 자체가 없다.
+
+**fork_pin — 불해당(stock).** 포크나 변종 핀을 쓰지 않았다. 공식 배포판 엔진 + 배포본 wheel 조합
+그대로이며, `.env` 에 변종 선언 줄이 없는 것이 그 사실의 표현이다.

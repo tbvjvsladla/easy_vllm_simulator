@@ -1,34 +1,34 @@
 {
- "_note": "신호③ — **Agent 선언**. 각 슬롯의 `applicable` 을 true/false 로, `rationale` 을 한 줄로 채운다. null 이 하나라도 남으면 `hint_collect check` 가 막는다. 선언은 파일 존재·적용 증거와 **대사**되며, 셋이 어긋나면 차단이다(plan §7). ★ triplet 은 선언으로 면제할 수 없다 — 서빙에 원리적으로 필수다.",
- "schema_version": 1,
- "slots": {
-  "triplet": {
-   "applicable": true,
-   "rationale": "VLLM_PLE_MMAP=1 과 스테이징 경로 두 줄이 이 트랙의 정체이며, 그 줄이 예산 floor 를 16,064→40,478 로 연다"
-  },
-  "runtime_patch": {
-   "applicable": false,
-   "rationale": "serve 시점 Python shim 불요 — 부재는 통과가 아니라 해당 없음이다"
-  },
-  "build_patch_pre": {
-   "applicable": true,
-   "rationale": "62-qwen4exp-ple-mmap.sh 가 이 트랙의 전제다. 60-nvfp4-mixed·64-qsa-fp8kv 는 아키텍처가 0.29.0rc6 에서 서는 조건"
-  },
-  "build_patch_post": {
-   "applicable": true,
-   "rationale": "컴파일 이후 native 의존. 서빙 로그로 개별 발화를 관측하지 않아 증거는 관측불가로 표시한다"
-  },
-  "build_recipe": {
-   "applicable": true,
-   "rationale": "이미지를 전송하지 않고 각 노드가 빌드하므로 재현 단위는 digest 가 아니라 이 레시피다"
-  },
-  "compose": {
-   "applicable": true,
-   "rationale": "2노드 Ray 기동 배선 — 토폴로지 재현에 필수"
-  },
-  "fork_pin": {
-   "applicable": false,
-   "rationale": "stock 빌드 — 상류 v0.29.0rc6 태그로 빌드했고 .env 에 VARIANT= 줄이 없는 것이 그 선언이다"
+  "_note": "신호③ — **Agent 선언**. 각 슬롯의 `applicable` 을 true/false 로, `rationale` 을 한 줄로 채운다. null 이 하나라도 남으면 `hint_collect check` 가 막는다. 선언은 파일 존재·적용 증거와 **대사**되며, 셋이 어긋나면 차단이다(plan §7). ★ triplet 은 선언으로 면제할 수 없다 — 서빙에 원리적으로 필수다.",
+  "schema_version": 1,
+  "slots": {
+    "triplet": {
+      "applicable": true,
+      "rationale": "서빙 설정·러너·환경 3종 — 이 조합을 세우는 데 원리적으로 필수. 러너에만 적힌 커널 모드 고정이 성능 재현의 조건이다."
+    },
+    "runtime_patch": {
+      "applicable": false,
+      "rationale": "Python 런타임 패치를 쓰지 않았다 — 플러그인이 자기 결합을 수행해 shim 이 불필요했다. 파일·적용 흔적 모두 없다."
+    },
+    "build_patch_pre": {
+      "applicable": false,
+      "rationale": "소스를 컴파일하지 않았다 — 패치를 끼울 컴파일 단계 자체가 없다(사전컴파일 자산 + 공식 배포판 엔진)."
+    },
+    "build_patch_post": {
+      "applicable": false,
+      "rationale": "동상 — 컴파일 후 단계가 없다. 네이티브 의존을 추가 설치하지도 않았다."
+    },
+    "build_recipe": {
+      "applicable": true,
+      "rationale": "이 평면에는 이미지 빌드가 없고 고정 의존 집합이 재현 레시피다. 엔진 버전이 정확히 맞아야 성립하므로 핀 집합이 곧 성립 조건이다."
+    },
+    "compose": {
+      "applicable": true,
+      "rationale": "슬롯의 뜻인 '기동 방법' 을 네이티브 평면에서는 러너가 충족한다(plane=native 기재). compose 파일은 이 평면에 원리적으로 없다."
+    },
+    "fork_pin": {
+      "applicable": false,
+      "rationale": "포크·변종 핀 없음 = stock. .env 에 변종 선언 줄이 없는 것이 그 표현이다."
+    }
   }
- }
 }
