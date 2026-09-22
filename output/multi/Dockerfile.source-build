@@ -106,8 +106,14 @@ if needs:
     print(f"[patch] strip-hoist applied to {n} file(s)")
     if n == 0:
         print("[patch][WARN] hoist 미수용인데 register_opaque_type(hoist=) 미발견 — 상류 변경 의심(P6 재검토)", file=sys.stderr)
+    status = f"applied\tstrip-hoist {n} file(s)" if n else "skipped\thoist 미수용인데 대상 미발견(상류 변경 의심 · WARN)"
 else:
     print("[patch] strip-hoist skipped (register_opaque_type accepts hoist / opaque_object 부재)")
+    status = "skipped\tregister_opaque_type accepts hoist / opaque_object 부재"
+import os
+os.makedirs("/opt/easy-vllm/ledger.d", exist_ok=True)
+with open("/opt/easy-vllm/ledger.d/inline.strip-hoist.status", "w", encoding="utf-8") as fh:
+    fh.write(status + "\n")
 PY
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -122,6 +128,12 @@ PY
 #   ⚠ 폴더 부재/비어있음은 **정상**(no-op) — stock 빌드 경로 불변. 단 COPY 대상이므로 디렉터리 자체는
 #     존재해야 한다(통로마다 `.gitkeep` 유지 — 2026-08-13 실증).
 #   패치 추가 = 파일 drop(이 스탠자 무수정). fail-loud.
+#   ★ 2026-09-21 빌드 원장 원시 캡처(plan_26092119 §4.5): 패치는 skip 과 적용을 **둘 다 exit 0** 으로
+#     끝내 왔다(skip 은 자유 문장뿐 — 태그2 hint 가 skip 된 50·55 를 "적용"으로 실은 원인). 루프는 이제
+#     패치마다 `ledger.d/pre.<파일>.{rc,sha256,log,status}` 를 남기고, 분류는 마지막 RUN(원장 스탠자)이 한다.
+#     상태 프로토콜: 패치는 `$EASY_VLLM_PATCH_STATUS` 파일에 `applied<TAB>메모` 또는 `skipped<TAB>사유`
+#     한 줄을 쓸 수 있다(선택 · 없으면 로그 토큰 → 종료코드 순으로 폴백하고 그 출처를 원장에 적는다).
+#     로그는 스트리밍 그대로 보이고(tee) 원장엔 꼬리 64KiB 만 남는다. POSIX sh 로만 쓴다(베이스마다 셸이 다르다).
 # ═════════════════════════════════════════════════════════════════════════════
 #   ★ 2026-08-14 신설 — SM12X_PORT 변종 게이트(plan_26081418 §4.2 B-2 · G-4).
 #     게이트가 없던 동안 이 스탠자는 **무조건**이었다: 이식 스크립트를 디렉터리에 놓는 순간
@@ -149,7 +161,15 @@ COPY build_patches_src/ /tmp/build_patches_src/
 RUN export SM12X_PORT="${SM12X_PORT}"; export SRC_DEPS_AUTHORITY="${SRC_DEPS_AUTHORITY}"; \
     echo "[build-patch-src] SM12X_PORT=${SM12X_PORT} ($([ "${SM12X_PORT}" = "1" ] && echo '변종: 소스 이식 적용' || echo 'stock: 이식 스킵'))"; \
     echo "[build-patch-src] SRC_DEPS_AUTHORITY=${SRC_DEPS_AUTHORITY:-0} ($([ "${SRC_DEPS_AUTHORITY}" = "1" ] && echo '소스트리가 자기 의존의 권위' || echo 'off: constraint 그대로'))"; \
-    for p in $(ls /tmp/build_patches_src/*.sh 2>/dev/null | sort); do echo "[build-patch-src] applying $p"; bash "$p" || exit 1; done
+    L=/opt/easy-vllm/ledger.d; mkdir -p "$L"; ls -A /tmp/build_patches_src > "$L/pre.inventory" 2>/dev/null || :; \
+    for p in $(ls /tmp/build_patches_src/*.sh 2>/dev/null | sort); do \
+      b=$(basename "$p"); echo "[build-patch-src] applying $p"; \
+      sha256sum "$p" | cut -d' ' -f1 > "$L/pre.$b.sha256"; rm -f "$L/pre.$b.status" "$L/pre.$b.rc"; \
+      { EASY_VLLM_PATCH_STATUS="$L/pre.$b.status" bash "$p"; echo "$?" > "$L/pre.$b.rc"; } 2>&1 | tee "$L/pre.$b.log"; \
+      rc=$(cat "$L/pre.$b.rc" 2>/dev/null || echo missing); \
+      tail -c 65536 "$L/pre.$b.log" > "$L/pre.$b.log.t" && mv "$L/pre.$b.log.t" "$L/pre.$b.log"; \
+      [ "$rc" = 0 ] || { echo "[build-patch-src] FAIL $b rc=$rc"; exit 1; }; \
+    done
 
 # 포크 핀 빌드 대비 — setuptools_scm 버전 파싱 우회(빈 값이면 무동작 = stock 경로 불변).
 #   근거(2026-08-02 실측): 포크 @ 임의 SHA 빌드가 양 노드에서 동일하게 죽었다 —
@@ -176,7 +196,16 @@ RUN --mount=type=cache,target=/root/.ccache \
 #   build_patches 는 output/<t>/ 통로에 격리(산출물 통로 불변식 — single/multi 혼재 차단). plan_2026062812_1.
 # ═════════════════════════════════════════════════════════════════════════════
 COPY build_patches/ /tmp/build_patches/
-RUN for p in $(ls /tmp/build_patches/*.sh 2>/dev/null | sort); do echo "[build-patch] applying $p"; bash "$p" || exit 1; done
+#   원장 원시 캡처는 위 pre 루프와 같은 모양이다(접두 `post.` · 상태 프로토콜 동일).
+RUN L=/opt/easy-vllm/ledger.d; mkdir -p "$L"; ls -A /tmp/build_patches > "$L/post.inventory" 2>/dev/null || :; \
+    for p in $(ls /tmp/build_patches/*.sh 2>/dev/null | sort); do \
+      b=$(basename "$p"); echo "[build-patch] applying $p"; \
+      sha256sum "$p" | cut -d' ' -f1 > "$L/post.$b.sha256"; rm -f "$L/post.$b.status" "$L/post.$b.rc"; \
+      { EASY_VLLM_PATCH_STATUS="$L/post.$b.status" bash "$p"; echo "$?" > "$L/post.$b.rc"; } 2>&1 | tee "$L/post.$b.log"; \
+      rc=$(cat "$L/post.$b.rc" 2>/dev/null || echo missing); \
+      tail -c 65536 "$L/post.$b.log" > "$L/post.$b.log.t" && mv "$L/post.$b.log.t" "$L/post.$b.log"; \
+      [ "$rc" = 0 ] || { echo "[build-patch] FAIL $b rc=$rc"; exit 1; }; \
+    done
 
 # ═════════════════════════════════════════════════════════════════════════════
 # [분산서빙 런타임 의존] — **토폴로지 조건부가 아니다**(IMAGE_TAG 에 토폴로지 축 없음 → 단일/멀티
@@ -211,6 +240,171 @@ RUN set -eu; \
     python3 -c "import ray; print('[build] ray ' + ray.__version__)" \
       || { echo "[build][FAIL] ray import 실패 — 분산 서빙 불가"; exit 1; }; \
     echo "[build] verified: vllm/nc/nvcc/ray (런타임 _C 검증은 serve 단계)"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# [빌드 원장] /opt/easy-vllm/build_ledger.json — 이미지 자기서술(render_dockerfile.py 단일 소유 주입)
+#   build-arg 목록 = 이 템플릿의 `^ARG` 줄에서 렌더 시 파생 · 분류 = 상태 줄 > 로그 토큰 > 종료코드.
+#   **마지막 RUN** 이어야 한다 — 이 레이어만 바뀌면 `_C` 컴파일 캐시가 보존된다.
+#   `import vllm._C` 금지(빌드 시 libcuda 없음) · 베이스 사실은 파일에서 읽는다(ARG 가 ENV 를 가린다).
+# ═════════════════════════════════════════════════════════════════════════════
+RUN python3 - <<'PY'
+import hashlib, json, os, platform, re, subprocess
+from importlib import metadata
+ROOT = os.environ.get("EASY_VLLM_LEDGER_ROOT") or "/opt/easy-vllm"
+D = os.path.join(ROOT, "ledger.d")
+ARGS = ["VLLM_REPO", "VLLM_REF", "TORCH_CUDA_ARCH", "BUILD_JOBS", "SM12X_PORT", "SRC_DEPS_AUTHORITY", "VLLM_PRETEND_VERSION", "RAY_VERSION"]
+DOCKERFILE = "Dockerfile.source-build"
+PATCH_DIRS = {"pre": "/tmp/build_patches_src", "post": "/tmp/build_patches"}
+SLOTS = (("pre", "build_patch_pre"), ("post", "build_patch_post"))
+VLLM_SRC = "/workspace/vllm-src"
+SKIP_TOKEN = re.compile(r"(\] skip —|— skip\b|— skip\()")
+TRIGGER = re.compile(r"^#\s*model-trigger\s*:\s*(.+?)\s*$", re.M)
+STATUS = re.compile(r"^(applied|skipped)\t(.*)$")
+errors = {}
+def _read(path):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            return fh.read()
+    except OSError:
+        return None
+def _sha256(path):
+    try:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except OSError:
+        return None
+def _run(key, *cmd):
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        errors[key] = type(exc).__name__
+        return None
+    if proc.returncode != 0:
+        errors[key] = "rc=%d %s" % (proc.returncode, (proc.stderr or "").strip()[-200:])
+        return None
+    return proc.stdout
+def _dist(name):
+    try:
+        return metadata.version(name)
+    except metadata.PackageNotFoundError:
+        errors["dist:" + name] = "not-installed"
+        return None
+def _status(path):
+    text = _read(path)
+    if text is None:
+        return None, None
+    lines = text.splitlines()
+    line = lines[0] if lines else ""
+    m = STATUS.match(line)
+    if m:
+        return (m.group(1), m.group(2).strip() or None), None
+    return None, "형식 밖 상태 줄: %r" % line[:120]
+def _listing():
+    return sorted(os.listdir(D)) if os.path.isdir(D) else []
+def _patch_rows(phase):
+    rows = []
+    head = phase + "."
+    for entry in _listing():
+        if not (entry.startswith(head) and entry.endswith(".rc")):
+            continue
+        name = entry[len(head):-len(".rc")]
+        base = os.path.join(D, head + name)
+        rc = (_read(base + ".rc") or "").strip()
+        row = {"phase": phase, "file": name,
+               "exit_code": int(rc) if rc.lstrip("-").isdigit() else None,
+               "script_sha256": (_read(base + ".sha256") or "").strip() or None,
+               "log_tail_sha256": _sha256(base + ".log")}
+        status, err = _status(base + ".status")
+        if err:
+            row["status_file_error"] = err
+        if status:
+            row.update(result=status[0], reason=status[1], result_source="status-file")
+        else:
+            log = _read(base + ".log") or ""
+            hit = next((ln.strip() for ln in log.splitlines() if SKIP_TOKEN.search(ln)), None)
+            if hit:
+                row.update(result="skipped", reason=hit, result_source="log-token")
+            else:
+                row.update(result="applied", reason=None, result_source="exit-code")
+        m = TRIGGER.search(_read(os.path.join(PATCH_DIRS[phase], name)) or "")
+        row["declared_model_trigger"] = m.group(1) if m else None
+        rows.append(row)
+    return rows
+def _inline_rows():
+    rows = []
+    for entry in _listing():
+        if not (entry.startswith("inline.") and entry.endswith(".status")):
+            continue
+        status, err = _status(os.path.join(D, entry))
+        row = {"phase": "inline", "file": entry[len("inline."):-len(".status")], "exit_code": None,
+               "script_sha256": None, "log_tail_sha256": None, "declared_model_trigger": None}
+        if status:
+            row.update(result=status[0], reason=status[1], result_source="status-file")
+        else:
+            row.update(result="unobserved", reason=err, result_source="none")
+        rows.append(row)
+    return rows
+base = {"source": {}}
+for field, env_name in (("ngc_pytorch_version", "NVIDIA_PYTORCH_VERSION"),
+                        ("pytorch_build_version", "PYTORCH_BUILD_VERSION")):
+    if env_name in ARGS:
+        base[field] = None
+        base["source"][field] = "shadowed-by-ARG:" + env_name
+    else:
+        base[field] = os.environ.get(env_name) or None
+        base["source"][field] = "base-image ENV " + env_name
+cuda_text = _read("/usr/local/cuda/version.json")
+base["cuda_version"] = None
+if cuda_text:
+    try:
+        base["cuda_version"] = (json.loads(cuda_text).get("cuda") or {}).get("version")
+    except ValueError:
+        errors["cuda_version_json"] = "unparsable"
+else:
+    errors["cuda_version_json"] = "absent"
+base["source"]["cuda_version"] = "/usr/local/cuda/version.json"
+vllm = {"git_sha": None, "describe": None, "dist_version": _dist("vllm"), "direct_url": None}
+if os.path.isdir(os.path.join(VLLM_SRC, ".git")):
+    out = _run("vllm_git_sha", "git", "-C", VLLM_SRC, "rev-parse", "HEAD")
+    vllm["git_sha"] = out.strip() if out else None
+    out = _run("vllm_describe", "git", "-C", VLLM_SRC, "describe", "--tags", "--match", "v*")
+    vllm["describe"] = out.strip() if out else None
+try:
+    direct = metadata.distribution("vllm").read_text("direct_url.json")
+    vllm["direct_url"] = json.loads(direct) if direct else None
+except (metadata.PackageNotFoundError, ValueError):
+    pass
+inventory = {}
+for phase, slot in SLOTS:
+    text = _read(os.path.join(D, phase + ".inventory"))
+    if text is not None:
+        inventory[slot] = sorted(x for x in text.splitlines() if x)
+os.makedirs(ROOT, exist_ok=True)
+freeze = _run("pip_freeze", "python3", "-m", "pip", "freeze", "--all")
+if freeze is not None:
+    with open(os.path.join(ROOT, "pip-freeze.txt"), "w", encoding="utf-8") as fh:
+        fh.write(freeze)
+patches = _patch_rows("pre") + _patch_rows("post") + _inline_rows()
+ledger = {
+    "schema_version": 1, "kind": "easy_vllm_build_ledger",
+    "provenance": "measured(build-time, in-image)",
+    "dockerfile": DOCKERFILE,
+    "track": "source-build" if DOCKERFILE.startswith("Dockerfile.source-build") else "wheel",
+    "build_args": {k: os.environ.get(k) for k in ARGS},
+    "base": base, "vllm": vllm, "torch": {"dist_version": _dist("torch")},
+    "cpu_arch": platform.machine(),
+    "slots_supported": sorted(inventory), "context_inventory": inventory,
+    "patches": patches,
+    "requirements_sha256": _sha256("/tmp/requirements.txt"),
+    "pip_freeze_sha256": hashlib.sha256(freeze.encode("utf-8")).hexdigest() if freeze is not None else None,
+    "errors": errors,
+}
+path = os.path.join(ROOT, "build_ledger.json")
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(ledger, fh, ensure_ascii=False, indent=1, sort_keys=True)
+    fh.write("\n")
+print("[build-ledger] %s — patches=%d slots=%s errors=%s" % (path, len(patches), sorted(inventory), sorted(errors)))
+PY
 
 WORKDIR /workspace
 EXPOSE 8000

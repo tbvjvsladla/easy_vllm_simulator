@@ -57,7 +57,7 @@ _SHARED_TEMPLATES = {
     ("multi", "compose"): "docker-compose.multi.template.yaml",
 }
 
-# ── NCCL/RDMA 통신 env (Plan 2: docker-compose 하드코딩 17개 → manifest-driven 렌더) ──────────
+# ── NCCL/RDMA 통신 env (Plan 2: 당시 docker-compose 하드코딩 17개 → manifest-driven 렌더) ─────
 #   3-tier taxonomy: ①환경값 = manifest.interconnect(hca_devices/gid_index/socket_iface)
 #                     ②프리셋 = NCCL_PRESETS[platform_preset]  ③불변 = NCCL_INVARIANTS.
 #   배포 기준 = dgx-spark-gb10 단일 프리셋. 다른 플랫폼은 배포자 코드에이전트가 확장(선반영 금지·Karpathy B2).
@@ -524,9 +524,9 @@ def build_context(manifest: dict, resolved: dict) -> dict:
     }
 
 
-# ── NCCL envfile 빌드 (Plan 2 — manifest.interconnect + preset → 17 KEY=VALUE) ───────────────
+# ── NCCL envfile 빌드 (Plan 2 — manifest.interconnect + preset → KEY=VALUE · 키 수는 golden 에서 파생) ──
 def build_nccl_env(manifest: dict) -> dict:
-    """manifest.interconnect + NCCL_PRESETS + NCCL_INVARIANTS → NCCL env 17개 dict.
+    """manifest.interconnect + NCCL_PRESETS + NCCL_INVARIANTS → NCCL env dict(키 수 = ①+②+③ 합, 자체검사가 golden 과 대조).
     결정론적 lookup·문자열포맷만(확률 추론 없음). 결손/미지 키는 fail-loud."""
     ic = manifest.get("interconnect")
     if not ic:
@@ -573,9 +573,9 @@ def render_nccl_envfile(manifest: dict) -> str:
     return "\n".join(header + body) + "\n"
 
 
-# ── 클러스터 envfile 빌드 (S6 — manifest.nodes + preset → 8 KEY=VALUE) ────────────────────────
+# ── 클러스터 envfile 빌드 (S6 — manifest.nodes + preset → KEY=VALUE · 키 수는 golden 에서 파생) ────
 def build_cluster_env(manifest: dict) -> dict:
-    """manifest.nodes[] + CLUSTER_PRESETS + CLUSTER_INVARIANTS → Ray 클러스터-배포 env 8개 dict.
+    """manifest.nodes[] + CLUSTER_PRESETS + CLUSTER_INVARIANTS → Ray 클러스터-배포 env dict(키 수는 golden 과 대조).
     결정론적 lookup·문자열포맷만. 결손/미지 키 fail-loud(무증거 진행 금지)."""
     nodes = manifest.get("nodes")
     if not nodes:
@@ -622,6 +622,71 @@ def render_cluster_envfile(manifest: dict) -> str:
     ]
     body = [f"{k}={env[k]}" for k in sorted(env)]
     return "\n".join(header + body) + "\n"
+
+
+# ── env 키의 층(tier) 판정 — 공개 API (2026-09-21 · plan_26092119 §4.5·§4.6 · hint compose 슬롯) ──────
+#   `.env.cluster`·`.env.interconnect` 는 3층(① manifest 환경값 · ② 플랫폼 프리셋 · ③ 불변)으로 렌더된다.
+#   hint 는 이 두 파일을 **형상 템플릿**으로 싣는데(① 값만 `<manifest.…>` 로 치환 · ②③ 은 재현 사실이라
+#   리터럴 유지), 옛 hint_collect 는 그 층을 **키 이름 접미사 휴리스틱**(TUNING_KEYS·IDENTITY_KEY_AXIS)으로
+#   손으로 다시 적었다 — CLUSTER_PRESETS 4키를 중복하고 RAY_memory_*·NCCL 전부를 빠뜨렸다(코드맵 §4.4).
+#   층의 정본은 이 파일의 렌더 함수이므로 여기서 **파생**한다:
+#     ③ invariant = NCCL_INVARIANTS ∪ CLUSTER_INVARIANTS (렌더 순서상 마지막 writer — 우선)
+#     ② preset    = 어느 프리셋 표든 그 키를 가진 것(detail = 프리셋 이름)
+#     ① env       = 탐침 manifest(자리표시 값)로 build_*_env 를 실제로 돌려 **값에 탐침이 실린 키**
+#                   (detail = 그 탐침이 온 manifest 필드) — ① 키 목록을 손으로 다시 적지 않는다.
+#   규약 밖 키 = ("unknown", None) — 순수 판정기의 None 반환이며, 호출부(hintlib.artifacts)가
+#   HINT_ENV_TIER_UNKNOWN 으로 fail-closed 한다(workflow.md §4종 판정표 폴백-정당).
+_ENV_TIER_PROBES = {
+    "__probe_hca__": "interconnect.hca_devices",
+    "__probe_gid__": "interconnect.gid_index",
+    "__probe_iface__": "interconnect.socket_iface",
+    "__probe_main_host__": "nodes[main].host",
+    "__probe_sub_host__": "nodes[sub].host",
+    "__probe_main_ssh__": "nodes[main].ssh_user",
+    "__probe_sub_ssh__": "nodes[sub].ssh_user",
+}
+_ENV_TIER_CACHE: dict = {}
+
+
+def _env_tier_probe_env() -> dict:
+    """탐침 manifest 로 두 렌더러를 돌린 ① 환경값 키 → 값. 프리셋은 두 표에 공통인 첫 이름을 쓴다
+    (② 키는 아래 판정에서 먼저 걸러지므로 어느 프리셋이든 ① 판정은 같다)."""
+    if "probe" in _ENV_TIER_CACHE:
+        return _ENV_TIER_CACHE["probe"]
+    common = sorted(set(NCCL_PRESETS) & set(CLUSTER_PRESETS))
+    if not common:
+        raise KeyError("NCCL_PRESETS 와 CLUSTER_PRESETS 에 공통 프리셋이 없다 — env_tier 탐침 불가(fail-loud)")
+    probe = {
+        "interconnect": {"hca_devices": ["__probe_hca__"], "gid_index": "__probe_gid__",
+                         "socket_iface": "__probe_iface__", "platform_preset": common[0]},
+        "nodes": [{"role": "main", "host": "__probe_main_host__", "ssh_user": "__probe_main_ssh__"},
+                  {"role": "sub", "host": "__probe_sub_host__", "ssh_user": "__probe_sub_ssh__"}],
+    }
+    env = dict(build_nccl_env(probe))
+    env.update(build_cluster_env(probe))
+    _ENV_TIER_CACHE["probe"] = env
+    return env
+
+
+def env_tier(key: str) -> tuple:
+    """`.env.cluster`/`.env.interconnect` 키의 층 → (tier, detail).
+
+    tier ∈ {"env", "preset", "invariant"} · detail = env 면 manifest 필드 경로(예 "nodes[main].host"),
+    preset 이면 그 키를 가진 프리셋 이름(쉼표 결합), invariant 면 None. 규약 밖 키 = ("unknown", None).
+    """
+    key = str(key)
+    if key in NCCL_INVARIANTS or key in CLUSTER_INVARIANTS:
+        return ("invariant", None)
+    presets = sorted({name for table in (NCCL_PRESETS, CLUSTER_PRESETS)
+                      for name, keys in table.items() if key in keys})
+    if presets:
+        return ("preset", ",".join(presets))
+    value = _env_tier_probe_env().get(key)
+    if value is not None:
+        for sentinel, field in _ENV_TIER_PROBES.items():
+            if sentinel in str(value):
+                return ("env", field)
+    return ("unknown", None)
 
 
 def _parse_env_pairs(text: str) -> dict:
@@ -730,6 +795,217 @@ def _substitute(text: str, context: dict) -> str:
     return text
 
 
+# ── 빌드 원장(build ledger) 스탠자 — 단일 소유 (2026-09-21 · plan_26092119 §4.5 · 코드맵 build_plane §2) ──
+#   왜: 태그2(camp-26091216)의 hint 는 **skip 된 패치(50·55)를 "적용됨"으로 실었다**. 패치는 skip 과 적용을
+#   둘 다 `exit 0` 으로 끝내고 skip 은 자유 문장으로만 말했으며(K4), 옛 "적용 증거"는 skip 된 50번 자신의
+#   PROVENANCE.json 이었다(K3). 이미지가 자기 빌드를 서술하지 않으면 그 사실은 빌드 로그와 함께 사라진다.
+#   처방: 두 Dockerfile 템플릿이 `/opt/easy-vllm/build_ledger.json` 을 이미지 안에 남긴다.
+#     · 패치 루프는 **원시 사실만** `ledger.d/` 에 남긴다(종료코드·스크립트 sha256·로그 꼬리·상태 줄).
+#     · 분류·조립은 이 스탠자 — **마지막 RUN** — 가 한다. 분류 로직을 고쳐도 이 레이어만 다시 빌드되고
+#       `_C` 컴파일 캐시는 보존된다(캐시 불변식 · 자체검사가 "마지막 RUN" 을 확인한다).
+#     · 분류 우선순위: 패치가 쓴 상태 줄(`EASY_VLLM_PATCH_STATUS` 파일, `applied|skipped<TAB>사유`) >
+#       로그 토큰(옛 패치의 `] skip —`/`— skip` 자유 문장 · 라벨 `log-token`) > 종료코드(`exit-code` — 자기보고 없음).
+#     · build-arg 목록은 **템플릿 자신의 `^ARG` 줄에서 파생**한다 — 새 ARG 는 원장에 자동 기록된다(손목록 ✗).
+#     · `import vllm._C` 금지(빌드 시 libcuda 없음 — source-build.md §1.5). 버전은 importlib.metadata 로만 읽는다.
+#     · 베이스 사실은 **파일**에서 읽는다 — wheel 트랙 `ARG CUDA_VERSION=130` 이 NGC ENV `CUDA_VERSION` 을 가린다(K8).
+#       같은 이름의 ARG 가 가리는 ENV 는 값 대신 `shadowed-by-ARG` 로 적는다(추측 ✗).
+#     · 셸 무관(K8): wheel 베이스는 `/bin/sh -c`, 26.07 은 `/bin/bash -c` — 논리는 python3 에 둔다.
+#   policy:GIT_SINGLE_AUTHORITY: 원장은 git 이 드는 바이트의 digest 재기재가 아니라 **빌드 시점 적용 결과**
+#   (Q1 아니오 · Q2 아니오 — 상류 클론·네트워크 의존·게이트 평가에 달렸다)이므로 맹점층이다 — 유지 정당.
+#   ⚠ 두 템플릿에 이 코드를 손으로 두 벌 적지 않는다 — `{{ BUILD_LEDGER_STANZA }}` 한 자리로 주입한다.
+_LEDGER_ARG_RE = re.compile(r"^ARG\s+([A-Za-z_][A-Za-z0-9_]*)", re.M)
+_LEDGER_STANZA_HEAD = (
+    "# ═════════════════════════════════════════════════════════════════════════════\n"
+    "# [빌드 원장] /opt/easy-vllm/build_ledger.json — 이미지 자기서술(render_dockerfile.py 단일 소유 주입)\n"
+    "#   build-arg 목록 = 이 템플릿의 `^ARG` 줄에서 렌더 시 파생 · 분류 = 상태 줄 > 로그 토큰 > 종료코드.\n"
+    "#   **마지막 RUN** 이어야 한다 — 이 레이어만 바뀌면 `_C` 컴파일 캐시가 보존된다.\n"
+    "#   `import vllm._C` 금지(빌드 시 libcuda 없음) · 베이스 사실은 파일에서 읽는다(ARG 가 ENV 를 가린다).\n"
+    "# ═════════════════════════════════════════════════════════════════════════════\n"
+)
+# heredoc 본문(따옴표 친 구분자 → Docker 변수 확장 없음). 줄머리 `#` 주석을 두지 않는다(해석 차이 회피).
+_LEDGER_PY = r'''import hashlib, json, os, platform, re, subprocess
+from importlib import metadata
+ROOT = os.environ.get("EASY_VLLM_LEDGER_ROOT") or "/opt/easy-vllm"
+D = os.path.join(ROOT, "ledger.d")
+ARGS = __EASY_VLLM_LEDGER_ARGS__
+DOCKERFILE = __EASY_VLLM_LEDGER_DOCKERFILE__
+PATCH_DIRS = {"pre": "/tmp/build_patches_src", "post": "/tmp/build_patches"}
+SLOTS = (("pre", "build_patch_pre"), ("post", "build_patch_post"))
+VLLM_SRC = "/workspace/vllm-src"
+SKIP_TOKEN = re.compile(r"(\] skip —|— skip\b|— skip\()")
+TRIGGER = re.compile(r"^#\s*model-trigger\s*:\s*(.+?)\s*$", re.M)
+STATUS = re.compile(r"^(applied|skipped)\t(.*)$")
+errors = {}
+def _read(path):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            return fh.read()
+    except OSError:
+        return None
+def _sha256(path):
+    try:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except OSError:
+        return None
+def _run(key, *cmd):
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        errors[key] = type(exc).__name__
+        return None
+    if proc.returncode != 0:
+        errors[key] = "rc=%d %s" % (proc.returncode, (proc.stderr or "").strip()[-200:])
+        return None
+    return proc.stdout
+def _dist(name):
+    try:
+        return metadata.version(name)
+    except metadata.PackageNotFoundError:
+        errors["dist:" + name] = "not-installed"
+        return None
+def _status(path):
+    text = _read(path)
+    if text is None:
+        return None, None
+    lines = text.splitlines()
+    line = lines[0] if lines else ""
+    m = STATUS.match(line)
+    if m:
+        return (m.group(1), m.group(2).strip() or None), None
+    return None, "형식 밖 상태 줄: %r" % line[:120]
+def _listing():
+    return sorted(os.listdir(D)) if os.path.isdir(D) else []
+def _patch_rows(phase):
+    rows = []
+    head = phase + "."
+    for entry in _listing():
+        if not (entry.startswith(head) and entry.endswith(".rc")):
+            continue
+        name = entry[len(head):-len(".rc")]
+        base = os.path.join(D, head + name)
+        rc = (_read(base + ".rc") or "").strip()
+        row = {"phase": phase, "file": name,
+               "exit_code": int(rc) if rc.lstrip("-").isdigit() else None,
+               "script_sha256": (_read(base + ".sha256") or "").strip() or None,
+               "log_tail_sha256": _sha256(base + ".log")}
+        status, err = _status(base + ".status")
+        if err:
+            row["status_file_error"] = err
+        if status:
+            row.update(result=status[0], reason=status[1], result_source="status-file")
+        else:
+            log = _read(base + ".log") or ""
+            hit = next((ln.strip() for ln in log.splitlines() if SKIP_TOKEN.search(ln)), None)
+            if hit:
+                row.update(result="skipped", reason=hit, result_source="log-token")
+            else:
+                row.update(result="applied", reason=None, result_source="exit-code")
+        m = TRIGGER.search(_read(os.path.join(PATCH_DIRS[phase], name)) or "")
+        row["declared_model_trigger"] = m.group(1) if m else None
+        rows.append(row)
+    return rows
+def _inline_rows():
+    rows = []
+    for entry in _listing():
+        if not (entry.startswith("inline.") and entry.endswith(".status")):
+            continue
+        status, err = _status(os.path.join(D, entry))
+        row = {"phase": "inline", "file": entry[len("inline."):-len(".status")], "exit_code": None,
+               "script_sha256": None, "log_tail_sha256": None, "declared_model_trigger": None}
+        if status:
+            row.update(result=status[0], reason=status[1], result_source="status-file")
+        else:
+            row.update(result="unobserved", reason=err, result_source="none")
+        rows.append(row)
+    return rows
+base = {"source": {}}
+for field, env_name in (("ngc_pytorch_version", "NVIDIA_PYTORCH_VERSION"),
+                        ("pytorch_build_version", "PYTORCH_BUILD_VERSION")):
+    if env_name in ARGS:
+        base[field] = None
+        base["source"][field] = "shadowed-by-ARG:" + env_name
+    else:
+        base[field] = os.environ.get(env_name) or None
+        base["source"][field] = "base-image ENV " + env_name
+cuda_text = _read("/usr/local/cuda/version.json")
+base["cuda_version"] = None
+if cuda_text:
+    try:
+        base["cuda_version"] = (json.loads(cuda_text).get("cuda") or {}).get("version")
+    except ValueError:
+        errors["cuda_version_json"] = "unparsable"
+else:
+    errors["cuda_version_json"] = "absent"
+base["source"]["cuda_version"] = "/usr/local/cuda/version.json"
+vllm = {"git_sha": None, "describe": None, "dist_version": _dist("vllm"), "direct_url": None}
+if os.path.isdir(os.path.join(VLLM_SRC, ".git")):
+    out = _run("vllm_git_sha", "git", "-C", VLLM_SRC, "rev-parse", "HEAD")
+    vllm["git_sha"] = out.strip() if out else None
+    out = _run("vllm_describe", "git", "-C", VLLM_SRC, "describe", "--tags", "--match", "v*")
+    vllm["describe"] = out.strip() if out else None
+try:
+    direct = metadata.distribution("vllm").read_text("direct_url.json")
+    vllm["direct_url"] = json.loads(direct) if direct else None
+except (metadata.PackageNotFoundError, ValueError):
+    pass
+inventory = {}
+for phase, slot in SLOTS:
+    text = _read(os.path.join(D, phase + ".inventory"))
+    if text is not None:
+        inventory[slot] = sorted(x for x in text.splitlines() if x)
+os.makedirs(ROOT, exist_ok=True)
+freeze = _run("pip_freeze", "python3", "-m", "pip", "freeze", "--all")
+if freeze is not None:
+    with open(os.path.join(ROOT, "pip-freeze.txt"), "w", encoding="utf-8") as fh:
+        fh.write(freeze)
+patches = _patch_rows("pre") + _patch_rows("post") + _inline_rows()
+ledger = {
+    "schema_version": 1, "kind": "easy_vllm_build_ledger",
+    "provenance": "measured(build-time, in-image)",
+    "dockerfile": DOCKERFILE,
+    "track": "source-build" if DOCKERFILE.startswith("Dockerfile.source-build") else "wheel",
+    "build_args": {k: os.environ.get(k) for k in ARGS},
+    "base": base, "vllm": vllm, "torch": {"dist_version": _dist("torch")},
+    "cpu_arch": platform.machine(),
+    "slots_supported": sorted(inventory), "context_inventory": inventory,
+    "patches": patches,
+    "requirements_sha256": _sha256("/tmp/requirements.txt"),
+    "pip_freeze_sha256": hashlib.sha256(freeze.encode("utf-8")).hexdigest() if freeze is not None else None,
+    "errors": errors,
+}
+path = os.path.join(ROOT, "build_ledger.json")
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(ledger, fh, ensure_ascii=False, indent=1, sort_keys=True)
+    fh.write("\n")
+print("[build-ledger] %s — patches=%d slots=%s errors=%s" % (path, len(patches), sorted(inventory), sorted(errors)))
+'''
+
+
+def ledger_build_args(template_text: str) -> list:
+    """템플릿 자신의 `^ARG <NAME>` 줄 → 원장이 기록할 build-arg 이름(선언 순서 · 중복 제거).
+
+    `_ensure_copy_context_dirs` 와 같은 관용(렌더 본문에서 파생)이다 — 목록을 손으로 적으면 새 ARG 가
+    원장에서 조용히 빠진다(SLAVE_IMGVARS 가 build-arg 와 따로 자라며 다섯 번 겪은 그 형태)."""
+    return list(dict.fromkeys(_LEDGER_ARG_RE.findall(template_text)))
+
+
+def ledger_dockerfile_name(template_path: str) -> str:
+    """원장의 `dockerfile` 값 = **실제 렌더한 템플릿**의 이름(`.template` 제거).
+
+    build_context 의 DOCKERFILE 은 resolved 의 트랙에서 오므로 템플릿과 갈릴 수 있다(예: 다른 트랙의
+    resolved 로 렌더) — 이미지가 자기를 서술하는 값은 입력 선언이 아니라 쓰인 파일에서 파생한다."""
+    name = os.path.basename(str(template_path))
+    return name[:-len(".template")] if name.endswith(".template") else name
+
+
+def build_ledger_stanza(build_args: list, dockerfile: str) -> str:
+    """원장 조립 RUN 스탠자(헤더 주석 + python3 heredoc). 끝 개행 없음(템플릿 줄이 개행을 가진다)."""
+    body = (_LEDGER_PY.replace("__EASY_VLLM_LEDGER_ARGS__", json.dumps(list(build_args)))
+            .replace("__EASY_VLLM_LEDGER_DOCKERFILE__", json.dumps(str(dockerfile))))
+    return _LEDGER_STANZA_HEAD + "RUN python3 - <<'PY'\n" + body + "PY"
+
+
 def render(template_path: str, manifest: dict, version_resolution: dict) -> str:
     """스켈레톤 + manifest/해소값 → 완성 산출물 문자열. (G2 구현)
 
@@ -748,6 +1024,10 @@ def render(template_path: str, manifest: dict, version_resolution: dict) -> str:
     with open(template_path, encoding="utf-8") as f:
         text = f.read()
     ctx = build_context(manifest, version_resolution)
+    # 원장 스탠자는 build_context(manifest, resolved) 가 아니라 **템플릿 자신**에서 파생한다 — ARG 목록과
+    # 파일 이름은 입력 선언이 아니라 렌더되는 본문의 사실이다(build_context 시그니처 불변: 모델/패치 입력 ✗).
+    ctx["BUILD_LEDGER_STANZA"] = build_ledger_stanza(ledger_build_args(text),
+                                                     ledger_dockerfile_name(template_path))
     out = _substitute(text, ctx)
     # wheel 트랙 무결성: wheel URL 의 cuXXX 가 비면(데이터 누락) fail-loud
     if "vllm-${VLLM_VERSION}+cu${CUDA_VERSION}" in text and not ctx.get("CUDA_VERSION"):
@@ -1015,7 +1295,8 @@ def _self_test() -> None:
         raise AssertionError("interconnect 필드 결손인데 통과(fail-loud 위반)")
     except ValueError:
         pass
-    print("[render] NCCL self-test OK — .env.interconnect 17키 == golden 집합 동치 · 미지preset/결손 fail-loud 정상")
+    # 키 수는 golden 에서 파생한다 — 옛 문구의 "17키" 는 golden(19)과 갈라진 낡은 리터럴이었다(코드맵 K12).
+    print(f"[render] NCCL self-test OK — .env.interconnect {len(golden)}키 == golden 집합 동치 · 미지preset/결손 fail-loud 정상")
 
     # ── 클러스터 envfile 회귀(S6): golden 대비 집합 동치 + fail-loud (노드값=RFC5737 합성=PII-free) ──
     cgolden_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1030,7 +1311,8 @@ def _self_test() -> None:
         only_r = {k: crendered[k] for k in crendered if cgolden.get(k) != crendered[k]}
         only_g = {k: cgolden[k] for k in cgolden if crendered.get(k) != cgolden[k]}
         raise AssertionError(f"cluster 렌더 != golden(집합 동치 위반)\n  rendered-side={only_r}\n  golden-side={only_g}")
-    _require(len(crendered) == 9, f"cluster 9키 기대, got {len(crendered)}")   # 8→9: MAX_JOBS Band2 재귀속(plan_26062811_30_33)
+    # 키 수는 golden 에서 파생한다(8→9: MAX_JOBS Band2 재귀속 plan_26062811_30_33 — 리터럴을 두면 다시 갈린다).
+    _require(len(crendered) == len(cgolden), f"cluster {len(cgolden)}키 기대(golden), got {len(crendered)}")
     try:                                   # fail-loud ①: 미지 platform_preset → KeyError
         build_cluster_env({**man_nodes, "interconnect": {"platform_preset": "no-such"}})
         raise AssertionError("미지 platform_preset 인데 통과(fail-loud 위반)")
@@ -1042,7 +1324,10 @@ def _self_test() -> None:
         raise AssertionError("sub 노드 결손인데 통과(fail-loud 위반)")
     except ValueError:
         pass
-    print("[render] cluster self-test OK — .env.cluster 9키 == golden 집합 동치 · 미지preset/노드결손 fail-loud 정상")
+    print(f"[render] cluster self-test OK — .env.cluster {len(cgolden)}키 == golden 집합 동치 · 미지preset/노드결손 fail-loud 정상")
+
+    _env_tier_self_test(golden, cgolden)
+    _ledger_self_test()
 
     # ── materialize self-test: shared SSOT → 통로 복사 멱등·실행권한·fail-loud ──
     import tempfile
@@ -1067,6 +1352,230 @@ def _self_test() -> None:
         finally:
             SHARED_ASSET_DIR = original_assets
     print("[render] materialize self-test OK — 러너 스크립트 통로 복사(멱등·권한·fail-loud) 정상")
+
+
+def _env_tier_self_test(nccl_golden: dict, cluster_golden: dict) -> None:
+    """env_tier(key) 공개 API — golden 두 벌의 모든 키가 규약 층을 받고, ① 키는 탐침에서 파생된다."""
+    allowed = {"env", "preset", "invariant"}
+    for key in sorted(set(nccl_golden) | set(cluster_golden)):
+        tier, detail = env_tier(key)
+        _require(tier in allowed, f"env_tier({key!r}) = {tier!r} — golden 키가 규약 층 밖")
+        if tier == "env":
+            _require(detail and not detail.startswith("__"), f"env_tier({key!r}) detail 이 manifest 필드가 아님: {detail!r}")
+        if tier == "invariant":
+            _require(detail is None, f"invariant 의 detail 은 None 이어야 한다: {key!r}={detail!r}")
+    # 대표 사실(렌더 함수와 대조) — ① 은 manifest 필드, ② 는 프리셋 이름, ③ 은 불변.
+    _require(env_tier("MASTER_HOST_IP") == ("env", "nodes[main].host"), env_tier("MASTER_HOST_IP"))
+    _require(env_tier("SLAVE_HOST_IP") == ("env", "nodes[sub].host"), env_tier("SLAVE_HOST_IP"))
+    _require(env_tier("NCCL_SOCKET_IFNAME") == ("env", "interconnect.socket_iface"), env_tier("NCCL_SOCKET_IFNAME"))
+    _require(env_tier("NCCL_IB_HCA") == ("env", "interconnect.hca_devices"), env_tier("NCCL_IB_HCA"))
+    _require(env_tier("RAY_PORT") == ("invariant", None), env_tier("RAY_PORT"))
+    _require(env_tier("NCCL_IB_DISABLE") == ("invariant", None), env_tier("NCCL_IB_DISABLE"))
+    _require(env_tier("NCCL_NET_GDR_LEVEL") == ("preset", "dgx-spark-gb10"), env_tier("NCCL_NET_GDR_LEVEL"))
+    _require(env_tier("MAX_JOBS") == ("preset", "dgx-spark-gb10"), env_tier("MAX_JOBS"))
+    # ① 키 집합은 손목록이 아니라 탐침 파생 — golden 에서 env 층으로 판정된 키와 정확히 같아야 한다.
+    derived_env = {k for k in set(nccl_golden) | set(cluster_golden) if env_tier(k)[0] == "env"}
+    _require(derived_env == set(_IFACE_ENV_KEYS) | {"NCCL_IB_HCA", "NCCL_IB_GID_INDEX", "MASTER_HOST_IP",
+                                                    "SLAVE_HOST_IP", "SSH_USER"},
+             f"① 환경값 키 집합이 렌더 함수와 갈라졌다: {sorted(derived_env)}")
+    # ★ 음성대조: 규약 밖 키는 unknown 이다(조용히 preset/env 로 흡수 ✗ — 호출부가 fail-closed 한다).
+    _require(env_tier("NOT_A_RENDERED_KEY") == ("unknown", None), env_tier("NOT_A_RENDERED_KEY"))
+    _require(env_tier("CONFIG_FILE") == ("unknown", None), "CONFIG_FILE 은 Band2 렌더 키가 아니다")
+    print(f"[render] env_tier self-test OK — golden {len(set(nccl_golden) | set(cluster_golden))}키 전수 층 판정 · "
+          f"① {len(derived_env)}키 탐침 파생 · 규약 밖 unknown(음성대조)")
+
+
+def _ledger_stanza_of(rendered: str) -> tuple:
+    """렌더 본문에서 원장 heredoc 본문과 그 RUN 줄 위치를 찾는다(없으면 fail-loud)."""
+    marker = "RUN python3 - <<'PY'\nimport hashlib, json, os, platform, re, subprocess\n"
+    idx = rendered.find(marker)
+    _require(idx >= 0, "렌더 본문에 빌드 원장 스탠자가 없다")
+    _require(rendered.find(marker, idx + 1) < 0, "빌드 원장 스탠자가 두 번 이상 나온다")
+    body_start = idx + len("RUN python3 - <<'PY'\n")
+    body_end = rendered.index("\nPY\n", body_start)
+    return idx, rendered[body_start:body_end + 1], body_end
+
+
+def _ledger_self_test() -> None:
+    """빌드 원장 스탠자 — 파생(ARG)·배치(마지막 RUN)·금지(`import vllm`)·분류(실행) 를 실제로 태운다."""
+    import tempfile
+    man = {"cpu_arch": "aarch64", "nas_model_path": "/nas"}
+    res_src = {"vllm_version": "0.26.0", "torch": {"pin": "2.12.0"},
+               "ngc_base": {"tag": "26.05-py3", "cuda_version": "13.2.0.046"},
+               "build_track": {"decision": "source-build"}, "source_build": {"torch_cuda_arch": "12.1a"},
+               "wheel": {}}
+    res_whl = {"vllm_version": "0.18.0", "torch": {"pin": "2.10.0"},
+               "ngc_base": {"tag": "26.01-py3", "cuda_version": "13.1"},
+               "build_track": {"decision": "wheel"}, "source_build": {},
+               "wheel": {"cuda": "130", "manylinux": "manylinux_2_35"}}
+    cases = (("Dockerfile.source-build.template", res_src, "Dockerfile.source-build"),
+             ("Dockerfile.template", res_whl, "Dockerfile"))
+    ledger_body = None
+    for tname, res, dname in cases:
+        tpath = os.path.join(SHARED_TEMPLATE_DIR, tname)
+        with open(tpath, encoding="utf-8") as fh:
+            ttext = fh.read()
+        out = render(tpath, man, res)
+        idx, body, body_end = _ledger_stanza_of(out)
+        args = ledger_build_args(ttext)
+        _require(args, f"{tname}: 템플릿에 ARG 가 없다(파생 원천 부재)")
+        _require(f"ARGS = {json.dumps(args)}\n" in body, f"{tname}: 원장 ARGS 가 템플릿 ^ARG 줄과 다르다")
+        rendered_args = set(_LEDGER_ARG_RE.findall(out))
+        _require(rendered_args == set(args), f"{tname}: 렌더 본문 ARG {sorted(rendered_args)} ≠ 원장 {args}")
+        _require(f"DOCKERFILE = {json.dumps(dname)}\n" in body, f"{tname}: 원장 dockerfile 이름이 템플릿 파생이 아니다")
+        # 캐시 불변식: 원장 조립은 **마지막 RUN** 이다(뒤에 RUN 이 오면 분류 수정이 그 레이어들까지 무효화).
+        _require(not re.search(r"^RUN\b", out[body_end:], re.M), f"{tname}: 원장 스탠자 뒤에 RUN 이 있다(마지막이어야 한다)")
+        # 금지: 빌드 시 vllm import(= _C 로드 시도) — libcuda 가 없어 죽는다(source-build.md §1.5).
+        _require(not re.search(r"^\s*(import\s+vllm|from\s+vllm)", body, re.M), f"{tname}: 원장이 vllm 을 import 한다")
+        compile(body, f"<ledger:{tname}>", "exec")   # 문법 오류는 SyntaxError 로 fail-loud
+        ledger_body = ledger_body or body
+    # ★ 음성대조(e 의 원장판): 템플릿에 ARG 한 줄을 더하면 **코드 수정 없이** 원장이 그것을 기록한다.
+    with tempfile.TemporaryDirectory() as td:
+        with open(os.path.join(SHARED_TEMPLATE_DIR, "Dockerfile.source-build.template"), encoding="utf-8") as fh:
+            ttext = fh.read()
+        probe = os.path.join(td, "Dockerfile.source-build.template")
+        with open(probe, "w", encoding="utf-8") as fh:
+            fh.write(ttext.replace("ARG BUILD_JOBS=16\n", "ARG BUILD_JOBS=16\nARG SELFTEST_NEW_ARG=0\n", 1))
+        _, body2, _ = _ledger_stanza_of(render(probe, man, res_src))
+        _require('"SELFTEST_NEW_ARG"' in body2, "새 ARG 가 원장 목록에 자동으로 들어가지 않았다(손목록 회귀)")
+        # 분류기 실행 — 상태 줄 > 로그 토큰 > 종료코드 우선순위와 형식 밖 상태 줄의 폴백을 실제로 태운다.
+        root = os.path.join(td, "ledger-root")
+        d = os.path.join(root, "ledger.d")
+        os.makedirs(d)
+        files = {
+            "pre.inventory": ".gitkeep\n50-gated.sh\n60-marked.sh\n70-badstatus.sh\n",
+            "pre.50-gated.sh.rc": "0\n", "pre.50-gated.sh.sha256": "aa\n",
+            "pre.50-gated.sh.log": "[50-gated] skip — SM12X_PORT=0 (stock 빌드 경로 불변)\n",
+            "pre.60-marked.sh.rc": "0\n", "pre.60-marked.sh.sha256": "bb\n",
+            "pre.60-marked.sh.log": "[60] did work — skip nothing\n",
+            "pre.60-marked.sh.status": "applied\tmarker ok\n",
+            "pre.70-badstatus.sh.rc": "0\n", "pre.70-badstatus.sh.sha256": "cc\n",
+            "pre.70-badstatus.sh.log": "[70] 이미 적용됨 — skip\n",
+            "pre.70-badstatus.sh.status": "done\n",
+            "post.inventory": "10-plain.sh\n",
+            "post.10-plain.sh.rc": "0\n", "post.10-plain.sh.sha256": "dd\n",
+            "post.10-plain.sh.log": "building...\n",
+            "inline.strip-hoist.status": "skipped\taccepts hoist\n",
+        }
+        for name, text in files.items():
+            with open(os.path.join(d, name), "w", encoding="utf-8") as fh:
+                fh.write(text)
+        env = dict(os.environ, EASY_VLLM_LEDGER_ROOT=root, VLLM_REF="v9.9.9", BUILD_JOBS="4",
+                   NVIDIA_PYTORCH_VERSION="26.05")
+        env.pop("SM12X_PORT", None)
+        proc = subprocess.run([sys.executable, "-c", ledger_body], env=env, capture_output=True, text=True,
+                              timeout=180)
+        _require(proc.returncode == 0, f"원장 조립 실행 실패: {proc.stderr[-800:]}")
+        with open(os.path.join(root, "build_ledger.json"), encoding="utf-8") as fh:
+            led = json.load(fh)
+        rows = {(r["phase"], r["file"]): r for r in led["patches"]}
+        _require(rows[("pre", "50-gated.sh")]["result"] == "skipped"
+                 and rows[("pre", "50-gated.sh")]["result_source"] == "log-token",
+                 f"★ 자유 문장 skip 이 log-token 으로 분류되지 않았다: {rows.get(('pre', '50-gated.sh'))}")
+        _require(rows[("pre", "60-marked.sh")]["result"] == "applied"
+                 and rows[("pre", "60-marked.sh")]["result_source"] == "status-file",
+                 "상태 줄이 로그 토큰보다 우선하지 않았다")
+        bad = rows[("pre", "70-badstatus.sh")]
+        _require(bad["result_source"] == "log-token" and "status_file_error" in bad,
+                 f"★ 형식 밖 상태 줄이 조용히 채택되거나 오류 표시 없이 버려졌다: {bad}")
+        _require(rows[("post", "10-plain.sh")]["result"] == "applied"
+                 and rows[("post", "10-plain.sh")]["result_source"] == "exit-code",
+                 "자기보고 없는 적용이 exit-code 출처로 기록되지 않았다")
+        _require(rows[("inline", "strip-hoist")]["result"] == "skipped", "inline 상태가 원장에 없다")
+        _require(led["slots_supported"] == ["build_patch_post", "build_patch_pre"], led["slots_supported"])
+        _require(led["build_args"]["VLLM_REF"] == "v9.9.9" and led["build_args"]["BUILD_JOBS"] == "4",
+                 "build_args 가 환경(ARG)에서 읽히지 않았다")
+        _require(led["build_args"].get("SM12X_PORT") is None, "정의되지 않은 ARG 를 값으로 지어냈다")
+        _require(led["base"]["ngc_pytorch_version"] == "26.05", "베이스 ENV 가 읽히지 않았다")
+        _require(led["track"] == "source-build" and led["dockerfile"] == "Dockerfile.source-build", led["track"])
+        _require(led["provenance"].startswith("measured"), "원장에 출처 표시가 없다")
+    _ledger_loop_self_test(man, res_src, ledger_body)
+    print("[render] build-ledger self-test OK — ARG 파생(★새 ARG 자동)·마지막 RUN·vllm import 금지·"
+          "분류(상태줄>로그토큰>종료코드 · ★형식 밖 상태줄) 실행 대조 정상")
+
+
+def _run_instructions(rendered: str) -> list:
+    """렌더 본문의 RUN 명령(백슬래시 연속줄 결합 · heredoc 본문 제외)."""
+    out, cur = [], None
+    for line in rendered.splitlines():
+        if cur is None:
+            if line.startswith("RUN ") and "<<" not in line:
+                cur = line[4:]
+                if not cur.rstrip().endswith("\\"):
+                    out.append(cur); cur = None
+                else:
+                    cur = cur.rstrip()[:-1]
+            continue
+        stripped = line.rstrip()
+        if stripped.endswith("\\"):
+            cur += " " + stripped[:-1].strip()
+        else:
+            out.append(cur + " " + stripped.strip()); cur = None
+    return out
+
+
+def _ledger_loop_self_test(man: dict, res_src: dict, ledger_body: str) -> None:
+    """source 템플릿의 pre/post 루프 RUN 을 **그 텍스트 그대로** POSIX `sh` 로 실행한다(경로만 임시로 바꿈).
+
+    원시 캡처(rc·sha256·log·status·inventory)가 실제로 남는지, 0 이 아닌 종료가 여전히 빌드를 멈추는지
+    (fail-loud 불변식), 그리고 그 캡처를 원장 조립기가 읽어 분류하는지까지 한 번에 태운다."""
+    import shutil as _sh
+    import tempfile
+    sh = _sh.which("sh")
+    _require(sh, "POSIX sh 가 없다 — 루프 실행 대조 불가(fail-loud)")
+    out = render(os.path.join(SHARED_TEMPLATE_DIR, "Dockerfile.source-build.template"), man, res_src)
+    runs = _run_instructions(out)
+    pre = [r for r in runs if "/tmp/build_patches_src/*.sh" in r]
+    post = [r for r in runs if "/tmp/build_patches/*.sh" in r]
+    _require(len(pre) == 1 and len(post) == 1, f"pre/post 루프 RUN 을 하나씩 찾지 못했다: pre={len(pre)} post={len(post)}")
+    with tempfile.TemporaryDirectory() as td:
+        src, pst, root = (os.path.join(td, n) for n in ("src", "post", "root"))
+        os.makedirs(src); os.makedirs(pst)
+
+        def loop(cmd: str) -> subprocess.CompletedProcess:
+            cmd = (cmd.replace("/tmp/build_patches_src", src).replace("/tmp/build_patches", pst)
+                   .replace("/opt/easy-vllm", root))
+            return subprocess.run([sh, "-c", cmd], capture_output=True, text=True, timeout=60)
+
+        with open(os.path.join(src, ".gitkeep"), "w", encoding="utf-8"):
+            pass
+        with open(os.path.join(src, "50-gated.sh"), "w", encoding="utf-8") as fh:
+            fh.write('echo "[50-gated] skip — SM12X_PORT=${SM12X_PORT:-0} (stock)"\nexit 0\n')
+        with open(os.path.join(src, "60-marked.sh"), "w", encoding="utf-8") as fh:
+            fh.write('# model-trigger : Fixture4ForCausalLM\n'
+                     'printf "applied\\tfixture marker\\n" > "$EASY_VLLM_PATCH_STATUS"\necho patched\n')
+        with open(os.path.join(pst, "10-plain.sh"), "w", encoding="utf-8") as fh:
+            fh.write("echo building\n")
+        p1, p2 = loop(pre[0]), loop(post[0])
+        _require(p1.returncode == 0 and p2.returncode == 0, f"루프 실행 실패: {p1.stderr[-400:]} {p2.stderr[-400:]}")
+        _require("[build-patch-src] applying" in p1.stdout and "patched" in p1.stdout,
+                 "패치 출력이 빌드 로그로 흐르지 않는다(tee 누락)")
+        d = os.path.join(root, "ledger.d")
+        for name in ("pre.inventory", "post.inventory", "pre.50-gated.sh.rc", "pre.50-gated.sh.sha256",
+                     "pre.50-gated.sh.log", "pre.60-marked.sh.status", "post.10-plain.sh.rc"):
+            _require(os.path.isfile(os.path.join(d, name)), f"루프가 원시 사실 {name} 을 남기지 않았다")
+        env = dict(os.environ, EASY_VLLM_LEDGER_ROOT=root)
+        body = ledger_body.replace('"pre": "/tmp/build_patches_src"', f'"pre": {json.dumps(src)}') \
+                          .replace('"post": "/tmp/build_patches"', f'"post": {json.dumps(pst)}')
+        proc = subprocess.run([sys.executable, "-c", body], env=env, capture_output=True, text=True, timeout=180)
+        _require(proc.returncode == 0, f"원장 조립 실패: {proc.stderr[-600:]}")
+        with open(os.path.join(root, "build_ledger.json"), encoding="utf-8") as fh:
+            rows = {(r["phase"], r["file"]): r for r in json.load(fh)["patches"]}
+        _require(rows[("pre", "50-gated.sh")]["result"] == "skipped", rows.get(("pre", "50-gated.sh")))
+        _require(rows[("pre", "60-marked.sh")]["result_source"] == "status-file"
+                 and rows[("pre", "60-marked.sh")]["declared_model_trigger"] == "Fixture4ForCausalLM",
+                 rows.get(("pre", "60-marked.sh")))
+        _require(rows[("post", "10-plain.sh")]["result_source"] == "exit-code", rows.get(("post", "10-plain.sh")))
+        _require(rows[("pre", "50-gated.sh")]["script_sha256"] and len(rows[("pre", "50-gated.sh")]["script_sha256"]) == 64,
+                 "스크립트 sha256 이 루프에서 캡처되지 않았다")
+        # ★ 음성대조: 0 이 아닌 종료는 여전히 빌드를 멈춘다(원장 캡처가 fail-loud 를 삼키면 안 된다).
+        with open(os.path.join(src, "70-broken.sh"), "w", encoding="utf-8") as fh:
+            fh.write("echo boom\nexit 3\n")
+        p3 = loop(pre[0])
+        _require(p3.returncode != 0 and "FAIL 70-broken.sh rc=3" in p3.stdout,
+                 f"★ 실패한 패치가 빌드를 멈추지 않았다(rc={p3.returncode}): {p3.stdout[-300:]}")
+    print("[render] build-ledger loop self-test OK — pre/post RUN 텍스트를 POSIX sh 로 실행 · 원시 캡처 → 원장 분류 · "
+          "★실패 패치 fail-loud 유지")
 
 
 def _require_terraform_flag(manifest_path: str) -> None:

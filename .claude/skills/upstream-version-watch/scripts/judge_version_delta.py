@@ -56,8 +56,11 @@ HTTP_TIMEOUT = 30
 # 근거(measured 2026-08-22):
 #   ① vLLM v0.27.1 루트 트리 전수 — GET /repos/vllm-project/vllm/git/trees/v0.27.1
 #   ② 우리 소스빌드가 상류에서 **실제로 소비하는 것** —
-#      templates/Dockerfile.source-build.template L73-75(git clone) · L77(use_existing_torch.py)
-#      · L82(pyproject[build-system]) · L167(pip install -e .).
+#      templates/Dockerfile.source-build.template 의 네 줄 — 줄 번호는 템플릿이 자라면 밀리므로 **리터럴**로 찾는다
+#      (docs.md "가변 파일의 line 번호에는 literal 을 병기"): `RUN git clone --filter=blob:none ${VLLM_REPO}`(L73-75)
+#      · `RUN python3 use_existing_torch.py`(L77) · `['build-system']['requires']`(L82 · pyproject[build-system])
+#      · `pip install --no-build-isolation -e .`(L187).
+#      줄 번호는 2026-09-22 빌드 원장 스탠자 추가 뒤의 값이다(옛 인용 L167 → L187 — 원장 캡처 줄이 앞에 끼었다).
 #      → 우리는 상류 `docker/**` 도 `.buildkite/**` 도 소비하지 않는다. 그래서 그 둘은 axis_A 밖이다.
 #
 # ⚠ 오분류 비용은 비대칭이다: 누락(빌드입력을 딴 평면으로) → **거짓 NO_IMPACT**(위험),

@@ -21,7 +21,8 @@
    build-system.requires **수동 설치**(`--no-build-isolation` 전제) → `pip install --no-build-isolation -e .` 컴파일 →
    실패 시 `classify_failure` → LLM 패치 제안(bjk110 힌트) → **Model-C HITL** → 소스 패치 → ccache 증분 재컴파일.
 4. **서빙 스모크**: config.yaml 모델. `docker exec -d` 로 serve(긴 로드 → 타임아웃·로그 안정). gpt-oss 는 harmony 사전적재(런타임-fetch 미의존) 인코딩 필요.
-5. **동결 + 재현**: 성공 레시피 → `Dockerfile.source-build`. **clean 재빌드 + 스모크 = DONE**(인터랙티브 성공만으론 부족).
+5. **동결 + 재현**: 성공 레시피 → `Dockerfile.source-build`. **clean 재빌드 + 스모크 + 빌드 원장 실재 = DONE**
+   (인터랙티브 성공만으론 부족 · 원장 = 이미지 안 `/opt/easy-vllm/build_ledger.json`, §4.1).
    **빌드검증 불변식**: 빌드스테이지 검증은 `import vllm._C` 금지(빌드스테이지엔 `libcuda.so.1` 드라이버 부재 → 거짓실패) →
    `importlib.util.find_spec('vllm')` 만 사용. 실 `_C` 로드/서빙은 **런타임 스모크가 최종 중재**.
 
@@ -104,14 +105,53 @@
   **patch.py ✗**(native lib 은 Python 몽키패치 불가).
 - **모듈화 (Dockerfile bloat 차단)**: 패치 = **`output/<topology>/build_patches/<NN>-<name>.sh`** 모듈(**비추적 산출물**(2026-09-10 철회 — 3+1+1 슬롯 산출물이라 추적금지가 기본. 배달은 hint 페이로드·sync_to_sub) ·
   **빌드 컨텍스트=output/<t>/** · 통로 격리로 single/multi 혼재 차단 · 서브 전달=`sync_to_sub`). 각자 self-contained =
-  헤더(what/why/model-trigger/plan-ref) + 설치·컴파일 + **검증(fail-loud)**. `Dockerfile.source-build` 는 **단일 thin 스탠자**:
-  `COPY build_patches/ /tmp/build_patches/` + `RUN for p in $(ls /tmp/build_patches/*.sh|sort); do bash "$p"||exit 1; done`.
-  → **패치 추가 = 파일 drop(Dockerfile 무수정)** · 폴더 listing = self-documenting 레지스트리(카탈로그 ✗).
+  헤더(what/why/model-trigger/plan-ref) + 설치·컴파일 + **검증(fail-loud)**. `Dockerfile.source-build` 는 **thin 스탠자 +
+  원장 원시 캡처**: `COPY build_patches/ /tmp/build_patches/` + 정렬 루프(패치마다 `bash "$p"` · 0 이 아니면 `exit 1`)가
+  패치별 종료코드·sha256·로그 꼬리·상태 줄을 `ledger.d/` 에 남긴다(2026-09-21 · §4.1).
+  → **패치 추가 = 파일 drop(Dockerfile 무수정)** 은 그대로다 · 폴더 listing 이 아니라 **원장이 "무엇이 실제로 돌았나"** 를 말한다.
 - **절차 (probe → 모듈 → 동결)**: ① probe(인터랙티브 컨테이너서 설치·컴파일·작동확인 — sm arch 지원 포함) →
   ② `build_patches/<NN>-<name>.sh` 저작 → ③ clean 재빌드 + 서빙 스모크 = **DONE**. 중간삽입이 필요한 드문 케이스만
   `Dockerfile.source-build` inline-marker(`# build-patch:<name> START/END`) fallback.
 - **이미지 네이밍 불변식 보존**: 빌드-바깥 lib 은 범용(flashinfer 처럼) — DSA 안 쓰는 모델은 무시. 모델-키잉 이미지 ✗.
   첫 사례 = `10-deepgemm.sh`(DeepSeek-V4-Flash).
+
+### 4.1 빌드 원장(build ledger) — `/opt/easy-vllm/build_ledger.json` (2026-09-21 · plan_26092119 §4.5)
+
+**왜**: 패치는 skip 과 적용을 **둘 다 `exit 0`** 으로 끝낸다 — skip 은 `[50-…] skip — SM12X_PORT=0 …` 같은 자유 문장뿐이었다.
+태그2(camp-26091216) hint 는 그래서 **skip 된 50·55 를 "적용된 빌드 패치"로 실었고**, 옛 "적용 증거"는 skip 된 50번 자신의
+`PROVENANCE.json` 이었다. 폴더에 **있음** 은 **적용됨** 이 아니다. 이미지가 자기 빌드를 서술하지 않으면 그 사실은 빌드 로그와 함께 사라진다.
+
+- **스탠자 계약**(두 템플릿 공통 · `render_dockerfile.py` 가 `{{ BUILD_LEDGER_STANZA }}` 한 자리로 **단일 소유** 주입):
+  - pre/post 루프는 **원시 사실만** 남긴다: `ledger.d/<pre|post>.<파일>.{rc,sha256,log,status}` + `<pre|post>.inventory`(`ls -A`).
+    로그는 `tee` 로 빌드 출력에 그대로 흐르고 원장엔 꼬리 64KiB 만 남는다. POSIX sh 만 쓴다(wheel 베이스 `/bin/sh -c` ↔ 26.07 `/bin/bash -c`).
+  - 인라인 패치(source `strip-hoist` · wheel `HAS_OPAQUE_TYPE`)는 `ledger.d/inline.<이름>.status` 한 줄을 쓴다.
+  - 분류·조립은 **마지막 RUN**(검증 RUN 뒤 · `WORKDIR` 앞) 한 곳 — 분류 로직을 고쳐도 그 레이어만 다시 빌드되고 `_C` 컴파일 캐시는
+    보존된다. 원장 도입 자체는 pre 루프 텍스트가 바뀌므로 **1회** 컴파일 캐시를 깬다(비용 기록).
+  - build-arg 목록은 **템플릿 자신의 `^ARG` 줄에서 렌더 시 파생**한다(손목록 ✗ — 새 ARG 는 자동 기록). `dockerfile` 값은 렌더한
+    템플릿 이름에서 파생한다(resolved 의 트랙 선언 ✗).
+  - `import vllm._C` 금지(빌드 시 libcuda 없음 · §1 step 5 불변식) — 버전은 `importlib.metadata` 로만 읽는다.
+  - 베이스 사실은 **파일**에서 읽는다(`/usr/local/cuda/version.json`). wheel 트랙 `ARG CUDA_VERSION=130` 이 NGC ENV `CUDA_VERSION` 을
+    가리기 때문이다 — 같은 이름의 ARG 가 가리는 ENV 는 값 대신 `shadowed-by-ARG` 로 적는다(추측 ✗).
+- **상태 프로토콜**(패치 작성자용 · 선택): 루프는 패치마다 `EASY_VLLM_PATCH_STATUS=<파일>` 을 넘긴다. 패치는 그 파일에
+  `applied<TAB>메모` 또는 `skipped<TAB>사유` **한 줄**을 쓰고 `exit 0` 한다. 분류 우선순위 = 상태 줄(`status-file`) >
+  옛 패치의 로그 토큰(`] skip —`·`— skip`·`— skip(` → `log-token`, 라벨된 폴백) > 종료코드(`exit-code` = "적용(자기보고 없음)").
+  형식 밖 상태 줄은 채택하지 않고 `status_file_error` 로 표시한 뒤 폴백한다. 실패(0 아닌 종료)는 여전히 빌드를 멈춘다.
+- **스키마**(`schema_version: 1` · `provenance: measured(build-time, in-image)`): `dockerfile`·`track`·`build_args`(ARG 전부) ·
+  `base{ngc_pytorch_version, pytorch_build_version, cuda_version, source}` · `vllm{git_sha, describe(git describe --tags --match 'v*'),
+  dist_version, direct_url}` · `torch.dist_version` · `cpu_arch` · `slots_supported` · `context_inventory` ·
+  `patches[{phase: pre|post|inline, file, script_sha256, exit_code, result: applied|skipped|unobserved, reason, result_source,
+  log_tail_sha256, declared_model_trigger(# model-trigger 헤더)}]` · `requirements_sha256` · `pip_freeze_sha256`(+ `/opt/easy-vllm/pip-freeze.txt`) ·
+  `errors`. 벽시계 시각은 없다(이미지 `Created` 가 이미 든다).
+- **적용 ≠ 모델 요구**: post 패치(10–40 · 공유 이미지 arch-enablement)는 적용됐으면 적용으로 기록된다. 그것이 "이 모델의 요구" 인지는
+  `declared_model_trigger` 가 말하고, 해석(공유 이미지의 일부)은 hint 가 싣는다(X10).
+- **읽는 자**: 멀티는 `multinode_serve_smoke.sh` 가 serve 시점에 두 노드 **실행 중 컨테이너**에서 캡처해 attestation v2 에 싣는다
+  (`multinode-build.md`) — hint 는 그 파일만 읽는다(서브 무단 스캔 ✗ · 노드 제어 ①).
+- **옛 이미지**(원장 도입 전): `applied_set: unobservable` 로 기재한다(침묵 폴백 ✗ · 차단 ✗). `docker history` 의 build-arg 와 패치
+  자기게이트 규칙으로 만든 재구성은 **라벨된 재구성**(`reconstructed(docker-history+gate)`)이지 관측이 아니다.
+- **policy:GIT_SINGLE_AUTHORITY**: 원장은 추적물 digest 의 재기재가 아니라 **빌드 시점 적용 결과**다(Q1 아니오 · Q2 아니오 — 상류 클론·
+  네트워크 의존·게이트 평가에 달렸다) → 맹점층이라 유지가 정당하다. 스크립트 sha256 은 비추적 슬롯 산출물(2026-09-10~)의 것이다.
+- **철회 조건의 대가**: 원장을 이미지 `LABEL` 로 축소하면 build-arg(정적 치환)만 남고 **패치별 결과(RUN 출력)는 잃는다** —
+  태그2 의 skip 오기 같은 사고를 다시 못 잡는다.
 
 ## 5. 도커 패치 범위 래더 (최하단 → 상단)
 
