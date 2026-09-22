@@ -45,6 +45,23 @@ LOCKSET_KNOB_SOURCES = {
     "gmu_source": ("target_gmu", "hand"),
     "kv_source": ("measured-clamp", "hand"),
 }
+# hint 발행 사전승인(2026-09-21 · plan_26092119 O6 · SPEC X3). **승인 모양의 단일 소유자는 이 파일이다** —
+#   writer(`campaign_init --hint-approve`)는 쓰기 전에 여기 판정을 부르고, 읽는 쪽(hint 발행기 `continue`)은
+#   `hint_approval_for` 를 부른다. 세 자리에 모양을 적으면 한쪽이 조용히 늦는다(LOCKSET_PROVENANCE 선례).
+#   스키마 enum(`definitions.hint_approval.properties.source.enum`)은 안내 사본이고 뼈대 검증이 교차대조한다.
+HINT_APPROVAL_FIELDS = ("approved_by", "approved_utc", "source")
+HINT_APPROVAL_SOURCES = ("declaration-popup", "publish-popup")
+# 선언 확인 팝업이 O6 의 기본 승인 자리다(진행을 막는 세 자리 중 하나 · workflow.md 2026-09-08 D17).
+HINT_APPROVAL_DEFAULT_SOURCE = "declaration-popup"
+# 폐기된 hint_target 키. `arch` = 2026-09-21 D8(이름은 도구가 전량 파생) — 손으로 적은 arch 는 파생 가능한
+#   값의 손사본이고, 그 검사 때문에 이 검증기가 옛 발행기 모듈을 파일 적재하던 **양방향 결합**이 있었다.
+#   그 적재기는 모듈이 없으면 None 을 돌려 검사를 조용히 건너뛰었다(fail-open · 코드맵 H3) — 키를 폐기하면서
+#   적재기도 함께 걷어냈다. 이 목록은 남은 키가 **왜** 거부되는지를 말하기 위한 닫힌 목록(tripwire)이다.
+HINT_TARGET_RETIRED_KEYS = {"arch": "태그 이름은 발행 도구가 전량 파생한다(2026-09-21 D8) — "
+                                    "손으로 적은 arch 는 '파생 가능한데 손으로 적은 값'이다"}
+# 주입 시각 모양. 발행 페이로드가 이 값을 그대로 옮기고 발행기는 같은 모양만 받는다 — 모양이 다른 승인은
+#   봉인 직전에야 터진다. 저장소 관행(블랙박스 ISO_RE 등)과 같은 국소 상수다.
+APPROVAL_UTC_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
 class CampaignContractFailure(Exception):
@@ -71,18 +88,6 @@ def _load_json(path: Path, what: str) -> object:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         _die(f"{what} 파손({path}): {exc}")
-
-
-def _hint_tag_module():
-    """arch 문법의 **단일 소유자**는 발행기다. 여기서 정규식을 복제하면 두 자리가 갈라지고,
-    갈라진 쪽이 조용히 늦는다(workflow.md §결정론 규율 — 개념 중복)."""
-    path = REPO_ROOT / ".claude/skills/hint-publisher/scripts/hint_tag.py"
-    if not path.is_file():
-        return None
-    spec = importlib.util.spec_from_file_location("_campaign_hint_tag", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def _validate_schema(doc: object, schema: dict, where: str) -> list[str]:
@@ -192,6 +197,119 @@ def cell_mode(doc: dict, node: str, cell: str) -> str:
     return DEFAULT_MODE
 
 
+# ── hint 발행 사전승인 (2026-09-21 · plan_26092119 O6 · SPEC X3) ─────────────────────────────
+# 왜: O6 는 "셀마다 팝업" 대신 **선언 확인 팝업에서 발행 대상 셀 목록을 사전승인**하기로 했다(AUTO
+#   캠페인이 셀마다 멈추지 않게 · 2026-09-08 "진행을 막는 자리는 셋뿐" 정합). 그런데 그 팝업은 산문에만
+#   있고 **기계 기록이 어디에도 없었다**(코드맵 G3) — 기록 없는 승인은 다음 세션에서 사라진다. 그래서
+#   승인을 hint_targets 항목으로 적고, 모양의 판정을 여기 한 곳에 둔다. 무인 자동 태깅 ✗ 는 그대로다:
+#   사람이 명시 셀 목록을 승인했다는 사실을 전사한 것이지 기계가 고른 것이 아니다.
+
+def retired_hint_key_reasons(doc: dict) -> list[str]:
+    """폐기된 hint_target 키가 남은 자리와 **그 이유**. 스키마(additionalProperties:false)도 막지만 스키마
+    메시지는 '모르는 키' 라고만 말한다 — 이유를 모르면 사람은 키 이름만 바꿔 다시 넣는다."""
+    out: list[str] = []
+    targets = doc.get("hint_targets")
+    for i, target in enumerate(targets if isinstance(targets, list) else []):
+        if not isinstance(target, dict):
+            continue
+        for key, why in HINT_TARGET_RETIRED_KEYS.items():
+            if key in target:
+                out.append(f"hint_targets[{i}].{key} 는 폐기된 키다 — {why}. 키를 지우고 승인은 "
+                           f"`campaign_init.py --hint-approve` 로 적는다")
+    return out
+
+
+def hint_approval_reason(approval) -> str | None:
+    """승인 한 건의 결함 사유(None = 완결). 세 필드 모두 비-빈 · 빈칸 없음 · 시각은 주입 모양 · 출처는 목록 안.
+
+    반쪽 승인(누가만 있고 언제가 없는 것)은 승인이 아니다 — `--revise` 의 4필드 규율과 같은 이유다
+    ("넷 중 하나라도 없으면 그것은 개정이 아니라 드리프트다")."""
+    if not isinstance(approval, dict):
+        return "approval 이 없다 — 사람 승인의 전사가 없는 항목은 사전승인이 아니다"
+    for field in HINT_APPROVAL_FIELDS:
+        val = approval.get(field)
+        if not isinstance(val, str) or not val.strip():
+            return f"approval.{field} 가 비었다 — 반쪽 승인은 승인이 아니다"
+        if FILL in val:
+            return f"approval.{field} 에 {FILL} 이 남아 있다 — 모르는 값을 그럴듯하게 채우지 않는다"
+    if not APPROVAL_UTC_RE.match(approval["approved_utc"]):
+        return (f"approval.approved_utc {approval['approved_utc']!r} 가 주입 시각 모양(YYYY-MM-DDTHH:MM:SSZ)이 "
+                f"아니다 — 발행 페이로드는 이 모양만 옮긴다")
+    if approval["source"] not in HINT_APPROVAL_SOURCES:
+        return f"approval.source {approval['source']!r} 가 목록 밖이다(허용 {list(HINT_APPROVAL_SOURCES)})"
+    return None
+
+
+def hint_target_reasons(doc: dict) -> list[str]:
+    """hint_targets 전체의 결함(빈 리스트 = 통과). validate_campaign 과 writer(`--hint-approve`)가 같은 판정을
+    부른다 — writer 는 검증기가 거부할 선언을 만들지 않는다."""
+    problems: list[str] = list(retired_hint_key_reasons(doc))
+    targets = doc.get("hint_targets")
+    if targets is None:
+        return problems
+    if not isinstance(targets, list):
+        return problems + ["hint_targets 가 목록이 아니다"]
+    if targets and doc.get("self_role") == "sub":
+        # 발행은 메인 소관이다 — 파생 선언은 hint_targets 를 비워 보내고(emit_slice), 서브는 발행기를 켜지
+        # 않는다(orchestration.topology.md). 서브 인스턴스의 승인 기록은 읽는 쪽이 없는 거짓 약속이다.
+        problems.append("self_role=sub 인스턴스에 hint_targets 가 있다 — 발행 승인은 메인 선언에만 적는다")
+    node_ids = {n.get("node_id") for n in (doc.get("nodes") or []) if isinstance(n, dict)}
+    approved_at: dict = {}
+    for i, target in enumerate(targets):
+        if not isinstance(target, dict):
+            problems.append(f"hint_targets[{i}] 가 객체가 아니다")
+            continue
+        nid = target.get("node_id")
+        if nid not in node_ids:
+            problems.append(f"hint_targets[{i}].node_id {nid!r} 가 nodes[] 에 없다")
+            continue
+        cells = target.get("cells")
+        if not isinstance(cells, list) or not cells:
+            # ★ 2026-09-21: 종전엔 '비우면 그 노드의 전 셀' 이었다. 사전승인에서 그 해석은 빈 목록을
+            #   백지 승인으로 만든다 — 사람이 보지 않은 셀까지 승인된 것으로 읽힌다(코드맵 §3.2).
+            problems.append(f"hint_targets[{i}].cells 가 비었다 — 승인할 셀을 명시 열거한다"
+                            f"(빈 목록 = 전 셀 해석은 폐기 · 백지 승인 ✗)")
+            cells = []
+        # 배정 SSOT 는 assignments 이고 hint_targets 는 **파생**이다. 두 자리가 갈라지면 태그가
+        # 자기가 요약하지 않은 셀을 주장한다 — 이름이 곧 증거 연결이라 그 주장은 게이트를 지난다.
+        assigned_here = set(assigned_cells(doc, nid))
+        for c in cells:
+            if not isinstance(c, str) or not c.strip() or FILL in c:
+                problems.append(f"hint_targets[{i}].cells 에 빈 셀 이름 {c!r} 이 있다")
+                continue
+            if c not in assigned_here:
+                problems.append(f"hint_targets[{i}].cells 의 {c!r} 이 assignments[{nid!r}] 에 없다 "
+                                f"— 배정 SSOT 는 assignments 이고 hint_targets 는 파생이다")
+            if c in approved_at:
+                problems.append(f"hint_targets[{i}].cells 의 {c!r} 은 이미 hint_targets[{approved_at[c]}] 가 "
+                                f"승인했다 — 한 셀의 승인은 하나다(어느 전사가 그 셀의 승인인지 갈리지 않는다)")
+            else:
+                approved_at[c] = i
+        why = hint_approval_reason(target.get("approval"))
+        if why is not None:
+            problems.append(f"hint_targets[{i}] {why}")
+    return problems
+
+
+def hint_approval_for(doc: dict, cell: str, node: str | None = None) -> dict | None:
+    """이 셀의 발행 사전승인(없으면 None). **읽는 쪽의 판정 원천**이다 — hint 발행기 `continue` 는 승인을
+    직접 파싱하지 않고 이 함수를 부른다(모양 판정이 두 벌이 되지 않게).
+
+    fail-closed: hint_targets 에 결함이 하나라도 있으면 어떤 승인도 읽지 않는다 — 모양이 무너진 기록에서
+    어느 줄이 진짜 승인인지 가를 수 없다. 사유는 `hint_target_reasons(doc)` 가 말한다.
+    `node` 를 주면 그 선언 노드의 항목만 본다(측정 노드 축 → 선언 노드 해소는 호출부 몫 ·
+    `resolve_measurement_node`)."""
+    if hint_target_reasons(doc):
+        return None
+    for i, target in enumerate(doc.get("hint_targets") or []):
+        if node is not None and target.get("node_id") != node:
+            continue
+        if cell in (target.get("cells") or []):
+            return {"index": i, "node_id": target["node_id"], "cells": list(target["cells"]),
+                    "approval": {k: target["approval"][k] for k in HINT_APPROVAL_FIELDS}}
+    return None
+
+
 def validate_campaign(campaign_path: Path, *, strict_paths: bool = True) -> list[str]:
     """캠페인 선언 1건을 검증하고 **위반 목록**을 돌려준다(빈 리스트 = 통과)."""
     problems: list[str] = []
@@ -219,6 +337,8 @@ def validate_campaign(campaign_path: Path, *, strict_paths: bool = True) -> list
 
     schema = _load_json(REPO_ROOT / SCHEMA_REL, "campaign schema")
     problems += _validate_schema(doc, schema, campaign_path.name)
+    # 폐기 키는 스키마도 막지만 스키마는 '모르는 키' 라고만 말한다 — 조기 반환 전에 이유를 함께 싣는다.
+    problems += retired_hint_key_reasons(doc)
     if problems:
         return problems
 
@@ -244,24 +364,11 @@ def validate_campaign(campaign_path: Path, *, strict_paths: bool = True) -> list
         if not str(doc.get("control_variables", {}).get(key, "")).strip():
             problems.append(f"control_variables.{key} 공란 — 서브가 저장소 기본값으로 되돌아간다(2026-09-05 실측)")
 
-    # hint 대상: arch 문법은 발행기가 소유한다(여기서 복제하지 않는다).
-    ht = _hint_tag_module()
-    for i, target in enumerate(doc.get("hint_targets", [])):
-        arch = target.get("arch", "")
-        if ht is not None and (why := ht.arch_violation(arch)) is not None:
-            problems.append(f"hint_targets[{i}].arch {arch!r}: {why} "
-                            f"(문법 <hw>-<main|sub|cluster>-<target>)")
-        nid = target.get("node_id")
-        if nid not in node_ids:
-            problems.append(f"hint_targets[{i}].node_id {nid!r} 가 nodes[] 에 없다")
-            continue
-        # 배정 SSOT 는 assignments 이고 hint_targets 는 **파생**이다. 두 자리가 갈라지면 태그가
-        # 자기가 요약하지 않은 셀을 주장한다 — 이름이 곧 증거 연결이라 그 주장은 게이트를 지난다.
-        assigned_here = set(assigned_cells(doc, nid))
-        for c in (target.get("cells") or []):
-            if isinstance(c, str) and c not in assigned_here:
-                problems.append(f"hint_targets[{i}].cells 의 {c!r} 이 assignments[{nid!r}] 에 없다 "
-                                f"— 배정 SSOT 는 assignments 이고 hint_targets 는 파생이다")
+    # hint 발행 사전승인(2026-09-21 · O6): 노드 실재 · 명시 셀 ⊆ 배정 · 승인 전사 완결 · 한 셀 한 승인.
+    #   ★ 이 자리는 종전에 옛 발행기 모듈을 파일 적재해 arch 문법을 물었고, 모듈이 없으면 검사를 조용히
+    #   건너뛰었다(fail-open · 코드맵 H3). arch 가 폐기되면서(D8) 이 검증기는 발행기에서 아무것도 읽지
+    #   않는다 — 남은 간선은 발행기 → 이 검증기 한 방향뿐이다(plan §4.9 순환 제거).
+    problems += hint_target_reasons(doc)
 
     # ── 배정 ↔ cells 실재 (2026-09-08 · plan_26090813 D11 — 옛 평면 `order` 의 후속) ──────
     # ★ 2026-09-06: 종전에는 config.yaml 의 **실재**만 물었다. 그런데 스캐폴드가 남기는 틀
@@ -914,6 +1021,45 @@ def validate_template() -> list[str]:
                     if lock_doc.get(key) != list(allowed):
                         problems.append(f"뼈대 lockset.json 의 {key}={lock_doc.get(key)!r} 가 검증기 어휘 "
                                         f"{list(allowed)} 와 다르다 — 안내 사본이 정본에서 갈라졌다")
+    # hint 사전승인 모양(2026-09-21 · O6) — 스키마의 승인 정의는 이 파일 상수의 사본이다. 정적 파일끼리는
+    #   한쪽이 다른 쪽을 생성할 수 없으므로 교차검증이 차선이다(위 lockset `_*_enum` 선례). 대조가 없으면
+    #   스키마만 조용히 갈라지고, writer 가 쓴 승인을 스키마가 거부하거나 그 반대가 된다.
+    problems += _hint_schema_parity(TEMPLATE / "campaign.schema.json")
+    if tpl.is_file():
+        try:
+            tpl_doc = json.loads(tpl.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            tpl_doc = None
+        if not isinstance(tpl_doc, dict) or tpl_doc.get("hint_targets") != []:
+            # 성장 배열은 빈 목록으로 출발한다 — 예시 승인이 인스턴스로 복사되면 사람이 하지 않은 승인이 된다.
+            problems.append("뼈대 campaign.yaml 의 hint_targets 가 빈 목록이 아니다 — 예시 승인이 인스턴스로 "
+                            "복사되면 사람이 하지 않은 승인이 기록된다")
+    return problems
+
+
+def _hint_schema_parity(schema_path: Path) -> list[str]:
+    """스키마의 hint_target/hint_approval 정의가 검증기 상수와 같은 말을 하는가."""
+    try:
+        defs = json.loads(schema_path.read_text(encoding="utf-8")).get("definitions") or {}
+    except (OSError, ValueError, AttributeError) as exc:
+        return [f"뼈대 campaign.schema.json 파손: {exc}"]
+    problems: list[str] = []
+    target = defs.get("hint_target") or {}
+    approval = defs.get("hint_approval") or {}
+    for key in HINT_TARGET_RETIRED_KEYS:
+        if key in (target.get("properties") or {}):
+            problems.append(f"뼈대 스키마 hint_target 에 폐기 키 {key!r} 가 살아 있다")
+    if target.get("additionalProperties") is not False:
+        problems.append("뼈대 스키마 hint_target 의 additionalProperties 가 false 가 아니다 — 폐기 키가 조용히 통과한다")
+    if ((target.get("properties") or {}).get("cells") or {}).get("minItems") != 1:
+        problems.append("뼈대 스키마 hint_target.cells 의 minItems 가 1 이 아니다 — 빈 목록이 백지 승인이 된다")
+    if list(approval.get("required") or []) != list(HINT_APPROVAL_FIELDS):
+        problems.append(f"뼈대 스키마 hint_approval.required={approval.get('required')!r} 가 검증기 "
+                        f"{list(HINT_APPROVAL_FIELDS)} 와 다르다 — 안내 사본이 정본에서 갈라졌다")
+    enum = ((approval.get("properties") or {}).get("source") or {}).get("enum")
+    if enum != list(HINT_APPROVAL_SOURCES):
+        problems.append(f"뼈대 스키마 hint_approval.source.enum={enum!r} 가 검증기 {list(HINT_APPROVAL_SOURCES)} "
+                        f"와 다르다 — 안내 사본이 정본에서 갈라졌다")
     return problems
 
 
@@ -938,6 +1084,14 @@ def _selftest() -> int:
 
     base = json.loads((TEMPLATE / "campaign.yaml").read_text(encoding="utf-8"))
     base.pop("_howto", None)
+    # hint 사전승인 픽스처(2026-09-21 · O6) — 옛 픽스처는 폐기된 arch 문법(`gb10-main-sim-h100`)과
+    #   '비우면 전 셀' cells 를 썼다. 정상 선언은 완결된 승인 한 건을 든다(양성이 모양 전체를 지나게).
+    _appr = {"approved_by": '사용자(발화 전사) — "cell-a 발행 승인"',
+             "approved_utc": "2026-09-06T00:00:00Z", "source": HINT_APPROVAL_DEFAULT_SOURCE}
+
+    def _ht(node: str = "main", cells=("cell-a",), **over) -> dict:
+        return {"node_id": node, "cells": list(cells), "approval": dict(_appr, **over)}
+
     good = dict(base, id="camp-x", plan_ref="docs/plan/p.md", declared_utc="2026-09-06T00:00:00Z",
                 nodes=[{"node_id": "main", "role": "main", "topology": "single", "hw": "gb10"}],
                 matrix={"versions": ["0.18.0"], "models": ["gpt-oss-20b"]},
@@ -945,7 +1099,7 @@ def _selftest() -> int:
                 budgets={"smoke_budget_overhead_mib": 12265, "ready_max_seconds": 600},
                 control_variables={"model": "gpt-oss-20b", "vllm_version": "0.18.0",
                                    "topology": "single", "target_gpu": "H100"},
-                hint_targets=[{"arch": "gb10-main-sim-h100", "node_id": "main", "cells": []}])
+                hint_targets=[_ht()])
 
     with tempfile.TemporaryDirectory() as tmp:
         camp = Path(tmp) / "camp-x"
@@ -977,12 +1131,55 @@ def _selftest() -> int:
         ck("통제변인 공란 차단",
            any("control_variables.model" in p
                for p in write(dict(good, control_variables=dict(good["control_variables"], model="")))))
-        ck("옛 arch 문법 차단(노드 축 부재)",
-           any("HINT_ARCH_NODE_AXIS_ABSENT" in p
-               for p in write(dict(good, hint_targets=[{"arch": "gb10-sim-h100", "node_id": "main", "cells": []}]))))
+        # ── hint 발행 사전승인 (2026-09-21 · plan_26092119 O6 · D8) ─────────────────────────
+        #    옛 음성대조("옛 arch 문법 차단")는 arch 문법을 발행기 모듈에 물었다 — 모듈이 없으면 검사가
+        #    조용히 꺼져 **이 음성대조만** 적색이 됐을 것이다(코드맵 H3). arch 는 이제 모양째 폐기다.
+        _arch_left = write(dict(good, hint_targets=[dict(_ht(), arch="gb10-main-sim-h100")]))
+        ck("★남은 arch 키는 차단하고 **이유**(D8 · 도구 파생)를 말한다(스키마의 '모르는 키' 만으로 두지 않는다)",
+           any("arch" in p and "D8" in p for p in _arch_left)
+           and any("SCHEMA_UNKNOWN_PROPERTY" in p and "arch" in p for p in _arch_left))
+        ck("★옛 모양({arch, node_id, cells: []}) 그대로는 통과하지 못한다",
+           len(write(dict(good, hint_targets=[{"arch": "gb10-main-sim-h100", "node_id": "main",
+                                               "cells": []}]))) >= 3)
         ck("미지의 노드 참조 차단",
-           any("nodes[] 에 없다" in p
-               for p in write(dict(good, hint_targets=[{"arch": "gb10-sub-sim-h100", "node_id": "ghost", "cells": []}]))))
+           any("nodes[] 에 없다" in p for p in write(dict(good, hint_targets=[_ht(node="ghost")]))))
+        ck("★빈 cells 차단(옛 '비우면 전 셀' = 사전승인에선 백지 승인)",
+           any("cells" in p and "minItems" in p for p in write(dict(good, hint_targets=[_ht(cells=())])))
+           and any("백지 승인" in p for p in hint_target_reasons(dict(good, hint_targets=[_ht(cells=())]))))
+        ck("★approval 자체가 없으면 차단(전사 없는 항목은 사전승인이 아니다)",
+           any("approval" in p for p in write(dict(good, hint_targets=[
+               {"node_id": "main", "cells": ["cell-a"]}]))))
+        _half = dict(_ht()); _half["approval"] = {"approved_by": _appr["approved_by"], "source": "declaration-popup"}
+        ck("★반쪽 승인 차단(approved_utc 부재)",
+           any("approved_utc" in p for p in write(dict(good, hint_targets=[_half])))
+           and hint_approval_reason(_half["approval"]) is not None)
+        ck("★공백뿐인 approved_by 차단(스키마 minLength 는 통과하는 모양이라 python 수준이 잡는다)",
+           any("approved_by" in p and "비었다" in p for p in write(dict(good, hint_targets=[_ht(approved_by="   ")]))))
+        ck("★승인 필드의 <<FILL>> 차단",
+           any(FILL in p for p in write(dict(good, hint_targets=[_ht(approved_by=FILL)])))
+           and FILL in (hint_approval_reason(dict(_appr, approved_by=FILL)) or ""))
+        ck("★주입 시각 모양이 아닌 approved_utc 차단(발행 페이로드는 이 모양만 옮긴다)",
+           any("approved_utc" in p and "모양" in p
+               for p in write(dict(good, hint_targets=[_ht(approved_utc="2026-09-06 00:00")]))))
+        ck("★목록 밖 approval.source 차단",
+           any("source" in p for p in write(dict(good, hint_targets=[_ht(source="chat")])))
+           and "목록 밖" in (hint_approval_reason(dict(_appr, source="chat")) or ""))
+        ck("★self_role=sub 인스턴스의 승인 기록 차단(발행은 메인 소관 · 파생 선언은 비워 보낸다)",
+           any("self_role=sub" in p for p in write(dict(good, self_role="sub"))))
+        ck("★음성대조: 완결 승인은 사유가 없다 · 기본 출처는 출처 목록 안이다",
+           hint_approval_reason(_appr) is None and HINT_APPROVAL_DEFAULT_SOURCE in HINT_APPROVAL_SOURCES
+           and not hint_target_reasons(good))
+        _got = hint_approval_for(good, "cell-a")
+        ck("★읽는 눈: 승인된 셀은 그 전사를 돌려준다(노드 필터 포함)",
+           _got is not None and _got["approval"] == _appr and _got["node_id"] == "main"
+           and hint_approval_for(good, "cell-a", "main") == _got)
+        ck("★읽는 눈 음성대조: 승인 안 된 셀 · 다른 노드 필터는 None",
+           hint_approval_for(good, "cell-b") is None and hint_approval_for(good, "cell-a", "subx") is None)
+        ck("★읽는 눈 fail-closed: 승인 기록에 결함이 하나라도 있으면 어떤 승인도 읽지 않는다",
+           hint_approval_for(dict(good, hint_targets=[_ht(), _ht(node="ghost")]), "cell-a") is None)
+        _src = Path(__file__).read_text(encoding="utf-8")
+        ck("★검증기가 발행기 모듈을 적재하지 않는다(순환 제거 · 부재 시 조용히 건너뛰던 H3 재발 방지)",
+           ("hint" + "-publisher") not in _src and ("hint" + "_tag") not in _src)
         ck("예약 id 차단", any("예약 id" in p for p in write(dict(good, id="_bootstrap"))))
         ck("부재 셀 차단",
            any("입력이 없다" in p for p in write(dict(good, assignments=_as(["cell-missing"])))))
@@ -1010,7 +1207,9 @@ def _selftest() -> int:
         # 음성대조: 빈칸을 채우면 같은 셀이 통과한다(과잉차단 아님)
         (camp / "cells" / "cell-b" / "lockset.json").write_text('{"id": "cell-b"}\n',
                                                                 encoding="utf-8")
-        ck("★음성대조: 빈칸을 채운 셀은 통과", not write(dict(good, assignments=_as(["cell-b"]))))
+        # 이 시험은 셀 입력만 본다 — 승인 픽스처(cell-a)가 배정 밖으로 밀려 섞이지 않게 비운다.
+        ck("★음성대조: 빈칸을 채운 셀은 통과",
+           not write(dict(good, assignments=_as(["cell-b"]), hint_targets=[])))
         ck("스키마 미지 필드 차단", any("campaign.yaml" in p for p in write(dict(good, surprise=1))))
 
         # ── 안내문 면제 (2026-09-08 · D10). 안내문이 자기 스캔에 걸리면 사람이 그것을 지운다.
@@ -1050,8 +1249,20 @@ def _selftest() -> int:
         ck("★배정이 비면 차단", any("assignments 가 비었다" in p for p in write(dict(good, assignments={}))))
         ck("★hint_targets.cells 가 배정 밖이면 차단(배정 SSOT 는 assignments)",
            any("assignments" in p and "파생" in p for p in write(dict(good,
-               hint_targets=[{"arch": "gb10-main-sim-h100", "node_id": "main",
-                              "cells": ["cell-zzz"]}]))))
+               hint_targets=[_ht(cells=("cell-zzz",))]))))
+        ck("★다른 노드에 배정된 셀을 이 노드의 승인으로 적으면 차단(배정의 노드가 승인의 노드다)",
+           any("cell-c" in p and "assignments['main']" in p
+               for p in write(dict(good, nodes=nodes2, assignments=two, hint_targets=[_ht(cells=("cell-c",))]))))
+        ck("★한 셀의 승인은 하나다(두 승인 사건이 같은 셀을 들면 차단)",
+           any("한 셀의 승인은 하나다" in p for p in write(dict(good,
+               hint_targets=[_ht(), _ht(approved_utc="2026-09-07T00:00:00Z")]))))
+        ck("★음성대조: 같은 노드의 서로 다른 셀을 두 승인 사건으로 적으면 통과(항목 하나 = 승인 사건 하나)",
+           not write(dict(good, assignments=_as(["cell-a", "cell-b"]),
+                          hint_targets=[_ht(), _ht(cells=("cell-b",), approved_utc="2026-09-07T00:00:00Z",
+                                                   source="publish-popup")])))
+        ck("★음성대조: 두 노드가 각자 자기 배정 셀을 승인하면 통과",
+           not write(dict(good, nodes=nodes2, assignments=two,
+                          hint_targets=[_ht(), _ht(node="subx", cells=("cell-c",))])))
         write(good)
 
         # phase proof 음성대조
@@ -1355,6 +1566,30 @@ def _selftest() -> int:
             ck("★뼈대 안내 어휘(_*_enum)가 검증기 상수에서 갈라지면 발화한다(교차검증)",
                any("_provenance_enum" in x for x in _drift) and any("_gmu_source_enum" in x for x in _drift)
                and not any("_kv_source_enum" in x for x in _drift))
+            _tl.write_text(json.dumps(_tpl_lock, ensure_ascii=False), encoding="utf-8")
+            # hint 사전승인 모양의 교차검증(2026-09-21 · O6) — 스키마 사본이 상수에서 갈라지면 발화한다.
+            _ts = _tpl_copy / "campaign.schema.json"
+            _schema_ok = json.loads(_ts.read_text(encoding="utf-8"))
+            ck("★기준선: 사본 스키마의 승인 정의는 검증기 상수와 같다", not _hint_schema_parity(_ts))
+            _bad = json.loads(json.dumps(_schema_ok))
+            _bad["definitions"]["hint_approval"]["properties"]["source"]["enum"] = ["declaration-popup"]
+            _bad["definitions"]["hint_target"]["properties"]["arch"] = {"type": "string"}
+            del _bad["definitions"]["hint_target"]["properties"]["cells"]["minItems"]
+            _ts.write_text(json.dumps(_bad, ensure_ascii=False), encoding="utf-8")
+            _hdrift = validate_template()
+            ck("★스키마 승인 출처 enum 이 상수에서 갈라지면 발화한다",
+               any("source.enum" in x for x in _hdrift))
+            ck("★스키마에 폐기 키 arch 가 되살아나면 발화한다", any("폐기 키 'arch'" in x for x in _hdrift))
+            ck("★스키마 cells 의 minItems 가 사라지면 발화한다(빈 목록 = 백지 승인)",
+               any("minItems" in x for x in _hdrift))
+            _ts.write_text(json.dumps(_schema_ok, ensure_ascii=False), encoding="utf-8")
+            _ty = _tpl_copy / "campaign.yaml"
+            _tyd = json.loads(_ty.read_text(encoding="utf-8"))
+            _ty.write_text(json.dumps(dict(_tyd, hint_targets=[_ht()]), ensure_ascii=False), encoding="utf-8")
+            ck("★뼈대 선언에 예시 승인이 들면 발화한다(사람이 하지 않은 승인이 인스턴스로 복사된다)",
+               any("hint_targets" in x for x in validate_template()))
+            _ty.write_text(json.dumps(_tyd, ensure_ascii=False), encoding="utf-8")
+            ck("원복하면 사본 뼈대는 다시 완결이다", not validate_template())
         finally:
             TEMPLATE = _saved_tpl
     print("[campaign_template_validator] " + ("PASS" if ok else "FAIL"))

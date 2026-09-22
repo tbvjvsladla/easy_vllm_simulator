@@ -383,16 +383,15 @@
     "hint_inputs": {
       "type": "object",
       "additionalProperties": false,
-      "description": "publish 위상의 산출 — 메인 hint 발행기가 읽는 **사이드카**다. 서브는 태그를 발행하지 않는다(발행 주체는 메인 단독). 여기 담기는 것은 포인터와 노드 출처뿐이며 측정값을 **다시 적지 않는다** — 숫자는 인증서·리포트가 이미 들고 있고, 두 번째 자리에 적으면 갈라진다.",
+      "description": "publish 위상의 산출 — 메인이 회수하는 **문서 평면 참조 사이드카**다. 서브는 태그를 발행하지 않는다(발행 주체는 메인 단독). 여기 담기는 것은 포인터와 노드 출처뿐이며 측정값을 **다시 적지 않는다** — 숫자는 인증서·리포트가 이미 들고 있고, 두 번째 자리에 적으면 갈라진다. ⚠ 2026-09-22(plan_26092119): 메인 hint 발행기(`hint.py publish`)는 이 사이드카를 **읽지 않는다** — 발행 자격은 선언이 아니라 관측(serve proof · post_health · lite_warm)이고, 서브에서만 측정한 셀은 메인이 그 관측을 볼 수 없어 `HINT_QUALIFICATION_UNOBSERVED` 로 막힌다. 서브 단독 셀의 발행 경로는 열린 설계 항목이다(클러스터 셀은 메인이 관측한다).",
       "required": [
-        "arch",
         "measured_node",
         "evidence"
       ],
       "properties": {
         "arch": {
           "type": "string",
-          "description": "이 기록의 hint arch 세그먼트 `<hw>-<main|sub|cluster>-<target>`. 문법 소유자는 hint_tag.py."
+          "description": "폐기된 입력(2026-09-22 · plan_26092119 D8) — 태그 이름은 발행기가 **전량 파생**한다(`hintlib/naming.py` `build_arch` · `<hw>-<G>g<N>n-<main|sub|cluster>-<target>` · 노드 축은 manifest 와 measured_node 에서). 서브가 적은 값은 이름에 쓰이지 않고 검사되지도 않는다. 필수에서 뺐고, 서브에 배달된 옛 스키마 사본이 이 필드를 계속 쓰므로 서브 재배달(G1)로 사본이 수렴할 때까지만 허용한다."
         },
         "measured_node": {
           "type": "string",

@@ -103,7 +103,8 @@ SSH_OPTS="ssh -o BatchMode=yes -o ConnectTimeout=8"
 # 대용량 simlog 원시 trial 로그는 기본 제외(회수는 사람이 읽는 종합문서가 목적 — 빌드/원시증거 불요).
 # 회수 범위 = 서브 docs/ 문서 평면 전체(2026-09-05 · plan_26090516 §7.4 노드 오케스트레이터 publish Phase):
 #   plan · devlog · testlog · benchmark(인증서 yaml · bench_report · sweep map · **hint 입력 사이드카**
-#   docs/benchmark/hint_inputs_<measured_utc>/) — 메인은 이 문서들로 devlog·benchmark 를 저작하고 hint 를 발행한다.
+#   docs/benchmark/hint_inputs_<measured_utc>/) — 메인은 이 문서들로 devlog·benchmark 를 저작한다. hint 사이드카는 참조용이다
+#   (2026-09-22 plan_26092119: 메인 `hint.py publish` 는 읽지 않는다 — 발행 자격은 관측이라 서브 단독 셀 발행은 열린 설계).
 #   output/** (렌더 산출물·raw 로그·이미지)은 회수 경로가 없다 — 문서기반 불변식(헌법). simlog raw 는 --with-simlog-raw 일 때만.
 EXCLUDES=(--exclude '__pycache__' --exclude '*.pyc')
 [ "$WITH_SIMLOG_RAW" -eq 0 ] && EXCLUDES+=(--exclude 'simlog/*/trial*' --exclude 'simlog/*/*.log')

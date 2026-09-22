@@ -22,14 +22,14 @@ description: >-
 - **Goal** — 대상 vLLM 버전을 결정론으로 해소해 컨테이너 레이어(NGC 베이스·wheel·deps·빌드트랙) bump 를 제안하고, 승인된 핀으로 렌더·빌드·스모크까지 몰고 간다.
 - **When to invoke** — 사람의 "업데이트/bump" 지시 · `vllm-recipe-explorer` §5.5 escalation 수신 · arch-wall 로 변종 트랙 결정이 필요할 때. 자동 폴링·cron ✗.
 - **Inputs** — `config.yaml`(대상 버전·스모크 config_name·`ngc_probe_start`·`reconciliation_cap`) · `output/<topology>/manifest.yaml`(HW 사실·model_source) · 실패 시 빌드/serve 로그.
-- **Outputs** — `resolved.json`(torch핀·NGC태그·wheel·build_track·변종·**`upstream_delta` 델타 attestation**) · `output/<t>/{Dockerfile*,docker-compose.yaml,requirements.txt,.env}` · bump 제안표 + risk-memo · 스모크 판정.
+- **Outputs** — `resolved.json`(torch핀·NGC태그·wheel·build_track·변종·**`upstream_delta` 델타 attestation**) · `output/<t>/{Dockerfile*,docker-compose.yaml,requirements.txt,.env}` · bump 제안표 + risk-memo · 스모크 판정 · **이미지 안 빌드 원장 `/opt/easy-vllm/build_ledger.json`**(`references/source-build.md` §4.1) · **멀티 스모크의 `output/multi/benchlog/{attestation,serve_proof}_<cell>.json`**(`references/multinode-build.md` 6).
 - **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 8단계(순서 고정).
 - **State transitions** — Flag(전제) → 스모크 PASS 로 이미지의 `runtime-ready` 근거를 만든다. `evidence-complete`/`promotion-ready` 판정은 `.claude/policies/runtime/completion_gate.py` 소유(이 문서가 자체 판정 ✗).
 - **HITL/safety boundaries** — 핀 변경·빌드·push 는 workflow S1–S4 HITL 게이트 · 스모크 모델 자동 다운로드 ✗ · 무증거 NGC/repo 오버라이드 ✗ · 추측 단정 ✗("확인 필요").
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
-- **Deterministic commands** — `scripts/resolve_torch_pin.py` · `resolve_ngc_tag.py` · `resolve_wheel.py` · `regen_requirements.py` · `resolve_build_track.py` · **`judge_version_delta.py`** · `render_dockerfile.py` · `check_smoke_model.py` · `classify_failure.py` · `sync_to_sub.sh` · `multinode_serve_smoke.sh` · **`single_serve_up.sh`** · **`single_serve_down.sh`** · `container_inventory.sh`.
+- **Deterministic commands** — `scripts/resolve_torch_pin.py` · `resolve_ngc_tag.py` · `resolve_wheel.py` · `regen_requirements.py` · `resolve_build_track.py` · **`judge_version_delta.py`** · `render_dockerfile.py`(+ 공개 `env_tier(key)`) · **`slave_forward.py`**(멀티 slave 전달 집합 · compose 참조 파생 단일 소유 — 스모크·hint 공용) · `check_smoke_model.py` · `classify_failure.py` · `sync_to_sub.sh` · `multinode_serve_smoke.sh` · **`single_serve_up.sh`** · **`single_serve_down.sh`** · `container_inventory.sh`.
 - **Handoff contract** — 입력 ← `terraforming_node`(Flag·HW) · escalation ← `vllm-recipe-explorer` §5.5 / `adversarial-benchmark` §7 · 출력 → rebuild 이미지로 `vllm-recipe-explorer` 전략수립 재개.
-- **Owns (state)** — `resolved.json` · `image-identity` · `build-track` · `sub-delivery` · **`build-patch(pre/post)`** · **`fork-pin`**(포크 좌표·arch-wall 변종)
+- **Owns (state)** — `resolved.json` · `image-identity` · `build-track` · `sub-delivery` · **`build-patch(pre/post)`** · **`fork-pin`**(포크 좌표·arch-wall 변종) · **`build-ledger`**(이미지 자기서술 · 멀티 serve 시점 attestation v2·serve proof)
 - **3+1+1 소유 경계**(`plan_26081514` Q3/Step 4 · owner 표 정본 = `.claude/rules/workflow.md` §3+1+1): **빌드 시점에 성립하는 것**이 이 스킬 소유다 — `build_patches_src/`(pre · 컴파일 **전** 소스 수정) · `build_patches/`(post · 컴파일 **후** native 의존) · 포크 핀(`VLLM_REPO`/`VLLM_REF`)·변종 `IMAGE_TAG`. **serve 시점에 성립하는 것**(트리플렛 3 + 런타임 패치 `<model>_patch.py`)은 `vllm-recipe-explorer` 소유이며 이 스킬이 저작하지 않는다. **발견 ≠ 소유** — explorer 가 §5.5 로 발견해 넘긴 것을 이 스킬이 **소유·처방**한다(수신점 = 아래 §escalation 수신).
 
 ## Mandatory procedural spine
@@ -45,7 +45,7 @@ description: >-
 5. **(multi) sync to sub** — `sync_to_sub.sh` dry-run → `--apply`. Band2-only 전달 경계 = `references/multinode-build.md`.
 6. **smoke** — NAS 체크(⑤) → 빌드 → 실서빙 스모크(단일 `docker compose`, 멀티 `multinode_serve_smoke.sh`). 실패면 ⑥`classify_failure.py` 로 분기 → §Failure routing. HITL 게이트 ③.
 7. **escalation 수신 판정**(있을 때만) — 아래 §escalation 3출구.
-8. **종결** — 커밋·문서·전파(workflow S4) 후 hint 태그 제안(아래 §hint). HITL 게이트 ④.
+8. **종결** — 커밋·문서·전파(workflow S4). hint 태그 제안은 셀 단위다(아래 §hint). HITL 게이트 ④.
 
 ## Failure → reference routing
 
@@ -73,13 +73,16 @@ description: >-
 
 ## hint 태그 발동 (bump closer) — **소유는 `hint-publisher`**
 
-**전작업 완료 후** — bump 사이클이 **서빙성공+커밋+문서+전파까지 끝난** S4 종결부에서, 새 `(vllm×model×arch)` 면
-hint 태그 발행을 **제안(Y/N)** 한다(**무인 자동 태깅 ✗**).
+bump 사이클 안에서 서빙·측정·문서가 끝난 **셀마다**, 그 셀의 파생 이름(`hint.py name --campaign <id> --cell <cell>` · 캠페인 밖이면 `--publication <topic>`)이 새 태그이면
+hint 발행을 제안한다. 발동 규칙(셀 단위 · 제안 Y/N · 무인 자동 태깅 금지 · 승인 기록)의 정본은 `.claude/skills/hint-publisher/SKILL.md`
+§1 이다 — 여기서 다시 적지 않는다. 옛 "bump 전체 종결부" 트리거는 발행을 캠페인 완주와 분리한 2026-09-08 결정과 어긋나 은퇴했다
+(2026-09-21 `plan_26092119` §4.10).
 
 > **2026-08-20 이관**(`plan_26082009`): 절차·엔진·계약·템플릿·린터의 정본은 **스킬 `hint-publisher`** 다.
 > 이 스킬은 **제안 트리거만** 갖는다 — 발행 조건 A(서빙 성공)는 `vllm-recipe-explorer`,
 > B(lite 계측)는 `adversarial-benchmark` 소유이므로 엔진이 여기 있을 이유가 없었다(배치 오류).
-> 넘길 때 함께 전달할 것: 앵커 커밋 · topology · promotion-ready work-manifest 경로 · 정본 HF repo.
+> 넘길 때 함께 전달할 것: 캠페인 id + 셀 id(캠페인 밖이면 발행 기록 토픽). 이름·증거·승격 기록은 `hint.py publish` 가 셀 증거에서
+> 파생한다(손 JSON ✗ · 2026-09-21).
 
 절차 `.claude/skills/hint-publisher/SKILL.md` · 헌법 §hint 배포 레이어 따름정리 §발동 시점 ·
 절차-홈 `workflow.md` S4 · 설계 `plan_26070222`·`plan_26071607`·`plan_26082008`. main-only(서브 미전파).
@@ -117,7 +120,8 @@ hint 태그 발행을 **제안(Y/N)** 한다(**무인 자동 태깅 ✗**).
 
 분류표·근거·린트 요약을 한국어 팝업으로 제시하고 승인/수정/중단을 받는다. 승인 이후 ④~⑦에는
 **추가 프롬프트가 없다** — git 자동화는 `hint-publisher` 가 이미 갖춘 자격증명 경로를 재사용한다
-(`push_branches.py` 는 그 모듈의 소비자이지 복제가 아니다).
+(`push_branches.py` 는 공개 API `hintlib.tag.git_push_authenticated` 의 소비자이지 복제가 아니다 · https 원격만 토큰이 필요하고
+ssh · 로컬 경로 원격은 토큰 불요).
 
 ### 이중 방어
 

@@ -552,7 +552,8 @@ if tp is None:
 # 한 모델을 여러 사다리 칸으로 가르려면 한 엔드포인트 평면에서 이름이 갈려야 하므로
 # `ds4f0731-x2-sm12x` 처럼 (모델×토폴로지×이미지변종) 조합을 이름에 담게 된다. 그러면 그 조합명이
 # 인증서의 **모델 축**에 실리고, 두 요구가 동시에 만족될 수 없게 된다:
-#   hint_tag.py      : identity.model == 태그의 <model> 세그먼트(= 모델 슬러그)
+#   hint 발행기      : identity.model == 태그의 <model> 세그먼트(= 모델 슬러그 · 당시 hint_tag.py ·
+#                      2026-09-22 부터 `hintlib/naming.py` derive_slug — 이 파일의 아래 두 줄을 자체검사가 교차 대조한다)
 #   completion_gate  : 인증서.model == identity.model
 # 2026-08-15 이 충돌로 HINT 발행이 실제로 막혔다(`testlog_26081519` §9 B3). 0.26.1 때는
 # SERVING_MODEL_NAME 이 마침 모델 슬러그였기에 잠복했을 뿐이다.

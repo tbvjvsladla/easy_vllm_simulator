@@ -64,7 +64,10 @@ LEDGER="$REPO/.claude/skills/upstream-version-watch/scripts/layer_ledger.py"
 SYNC="$REPO/.claude/skills/upstream-version-watch/scripts/sync_branches.sh"
 SUBSYNC="$REPO/.claude/skills/upstream-version-watch/scripts/sync_to_sub.sh"
 PUSHER="$REPO/.claude/skills/upstream-version-watch/scripts/push_branches.py"
-CATALOG="$REPO/.claude/skills/hint-publisher/scripts/hint_catalog.py"
+# 카탈로그 파생기 = hint-publisher 단일 진입 `hint.py catalog derive`(2026-09-22 · plan_26092119 §4.9 — 옛 파생기 퇴역).
+# 종료코드·행 표지 상수는 `hintlib/catalog.py` 가 소유한다(파일 경로 단독 적재 가능 계약 · 코드맵 H5).
+CATALOG="$REPO/.claude/skills/hint-publisher/scripts/hint.py"
+CATALOG_LIB_REL=".claude/skills/hint-publisher/scripts/hintlib/catalog.py"
 
 CUR="$(git -C "$REPO" symbolic-ref --quiet --short HEAD || true)"
 case "$CUR" in
@@ -278,22 +281,47 @@ PY
         echo "[closing]   ⚠ 분류표 utc 를 KST 로 옮기지 못해 카탈로그 재파생을 건너뛴다 — 기재하고 진행" >&2
     else
         _CAT_RC=0
-        ( cd "$WT" && python3 "$WT/.claude/skills/hint-publisher/scripts/hint_catalog.py" \
-              --repo "$WT" derive --remote "$REMOTE" --generated-kst "$_KST" ) || _CAT_RC=$?
-        if [ "$_CAT_RC" -ne 0 ]; then
-            # 원인을 **말한다**(⑧-pre D2 S7). 종전 "(원인은 위 출력)" 은 원격에만 있는 태그의 로컬 오브젝트 부재를
-            # 다른 실패와 구분하지 않았고, 해소 명령도 원격 이름 없이 남겼다. 종료코드의 정본은 파생기 상수다
-            # (`hint_catalog.EXIT_LOCAL_TAG_OBJECT_MISSING` · 방금 돈 그 파일에서 읽는다 · 손으로 다시 적지 않는다).
-            # 자동 fetch 는 하지 않는다 -- 원격 태그를 로컬로 들이는 것은 사람이 정한다(기재하고 진행 규약 유지).
-            _CAT_MISSING_RC="$(python3 -c 'import importlib.util, sys
-s = importlib.util.spec_from_file_location("_closing_hint_catalog", sys.argv[1])
+        # `--record-missing`(2026-09-22 · plan_26092119 X15/D10): 원격에만 있는 태그(타 PC 발행 등)의 로컬 오브젝트 부재가
+        # 카탈로그 갱신 **전체**를 막지 않는다 -- 그 태그를 `object: absent-local` 행(brief '—' · 합성 ✗)으로 싣고 rc 0 이다.
+        # 옛 기본 계약에서는 그런 태그 1건 때문에 반대 브랜치 카탈로그가 갱신되지 않았다(원격 47 / 로컬 46 · 코드맵 K4).
+        ( cd "$WT" && python3 "$WT/.claude/skills/hint-publisher/scripts/hint.py" --repo "$WT" catalog derive \
+              --remote "$REMOTE" --generated-kst "$_KST" --record-missing ) || _CAT_RC=$?
+        # 원인을 **말한다**(⑧-pre D2 S7). 종전 "(원인은 위 출력)" 은 원격에만 있는 태그의 로컬 오브젝트 부재를
+        # 다른 실패와 구분하지 않았고, 해소 명령도 원격 이름 없이 남겼다. 분류에 쓰는 종료코드·행 표지는 파생기 상수다(`hintlib/catalog.py` 의
+        # `EXIT_LOCAL_TAG_OBJECT_MISSING`·`OBJECT_ABSENT_LOCAL` · 방금 돈 그 판본의 **파일**에서 읽는다 · 손으로 다시 적지
+        # 않는다). 부재 행 수는 방금 쓴 index 에서 센다(stdout 문장 파싱 ✗ — 판정은 기계 필드로). 상수나 index 를 읽지
+        # 못하면 칸이 빈다 -- rc≠0 이면 "원인은 위 출력" 으로, rc 0 이면 "분류 불가" 경고로 떨어진다(분류 불가를 "부재
+        # 0건" 으로 접지 않는다 · 2026-09-22 리뷰: rc 0 쪽은 아무 말 없이 지나가 부재 행을 가렸다).
+        # 자동 fetch 는 하지 않는다 -- 원격 태그를 로컬로 들이는 것은 사람이 정한다(기재하고 진행 규약 유지).
+        _CAT_CLASS="$(python3 -c 'import importlib.util, json, sys
+s = importlib.util.spec_from_file_location("_closing_hintlib_catalog", sys.argv[1])
 m = importlib.util.module_from_spec(s)
 s.loader.exec_module(m)
-print(getattr(m, "EXIT_LOCAL_TAG_OBJECT_MISSING", ""))' "$WT/.claude/skills/hint-publisher/scripts/hint_catalog.py" 2>/dev/null || true)"
+absent = ""
+if sys.argv[3] == "0":
+    try:
+        doc = json.load(open(sys.argv[2], encoding="utf-8"))
+        absent = sum(1 for e in doc.get("hints") or [] if isinstance(e, dict) and e.get("object") == m.OBJECT_ABSENT_LOCAL)
+    except (OSError, ValueError, AttributeError):
+        absent = ""
+print(getattr(m, "EXIT_LOCAL_TAG_OBJECT_MISSING", ""), absent)' \
+            "$WT/$CATALOG_LIB_REL" "$WT/hints/index.json" "$_CAT_RC" 2>/dev/null || true)"
+        _CAT_MISSING_RC=""; _CAT_ABSENT_N=""
+        read -r _CAT_MISSING_RC _CAT_ABSENT_N <<< "$_CAT_CLASS" || true
+        _CAT_REDERIVE="python3 .claude/skills/hint-publisher/scripts/hint.py --repo . catalog derive --remote $REMOTE --generated-kst <KST> --record-missing"
+        if [ "$_CAT_RC" -eq 0 ] && [ -z "$_CAT_ABSENT_N" ]; then
+            echo "[closing]   ⚠ 카탈로그 재파생 rc 0 — 로컬 오브젝트 부재 행 수를 읽지 못했다(파생기 상수 또는 $OTHER 의 hints/index.json 판독 불가 · 분류 불가 ≠ 부재 0건). 위 [hint catalog] NOTE 출력을 확인한다 — 기재하고 진행" >&2
+        elif [ "$_CAT_RC" -eq 0 ] && [ "$_CAT_ABSENT_N" != "0" ]; then
+            echo "[closing]   ⚠ 카탈로그 재파생 — 원인: 원격 $REMOTE 에만 있는 hint 태그의 **로컬 태그 오브젝트 부재** ${_CAT_ABSENT_N}건(brief 를 지어낼 수 없다 · 합성 금지)." >&2
+            echo "[closing]     해소(사람 · 자동 fetch 하지 않는다): git -C \"$REPO\" fetch $REMOTE 'refs/tags/hint/*:refs/tags/hint/*'" >&2
+            echo "[closing]     그 뒤 $OTHER 체크아웃에서 재파생: $_CAT_REDERIVE" >&2
+            echo "[closing]     — 기재하고 진행($OTHER 카탈로그는 그 태그를 object: absent-local 행(brief '—')으로 싣고 갱신됐다)" >&2
+        elif [ "$_CAT_RC" -ne 0 ]; then
             if [ -n "$_CAT_MISSING_RC" ] && [ "$_CAT_RC" = "$_CAT_MISSING_RC" ]; then
+                # `--record-missing` 을 모르는 판본에서만 온다(기본 계약의 rc 4) -- 그 분류를 그대로 둔다.
                 echo "[closing]   ⚠ 카탈로그 재파생 실패 — 원인: 원격 $REMOTE 에만 있는 hint 태그의 **로컬 태그 오브젝트 부재**(brief 를 지어낼 수 없다 · 합성 금지)." >&2
                 echo "[closing]     해소(사람 · 자동 fetch 하지 않는다): git -C \"$REPO\" fetch $REMOTE 'refs/tags/hint/*:refs/tags/hint/*'" >&2
-                echo "[closing]     그 뒤 $OTHER 체크아웃에서 재파생: python3 .claude/skills/hint-publisher/scripts/hint_catalog.py --repo . derive --remote $REMOTE --generated-kst <KST>" >&2
+                echo "[closing]     그 뒤 $OTHER 체크아웃에서 재파생: $_CAT_REDERIVE" >&2
                 echo "[closing]     — 기재하고 진행($OTHER 카탈로그는 이번 회차에 갱신되지 않았다)" >&2
             else
                 echo "[closing]   ⚠ 카탈로그 재파생 실패(rc=$_CAT_RC) — 기재하고 진행(원인은 위 출력)" >&2
@@ -301,6 +329,9 @@ print(getattr(m, "EXIT_LOCAL_TAG_OBJECT_MISSING", ""))' "$WT/.claude/skills/hint
         fi
     fi
     rm -f "$WT/hints/.central_authority"
+elif [ -f "$REPO/hints/.central_authority" ]; then
+    # 중앙 권위를 선언한 체크아웃인데 파생기가 없다 -- 조용히 건너뛰면 "재파생했다"와 구분되지 않는다(침묵 누락 ✗).
+    echo "[closing]   ⚠ 카탈로그 파생기 부재($CATALOG) — 재파생 건너뜀 · 기재하고 진행($OTHER 카탈로그는 이번 회차에 갱신되지 않았다)" >&2
 fi
 
 if git -C "$WT" diff --cached --quiet && git -C "$WT" diff --quiet; then

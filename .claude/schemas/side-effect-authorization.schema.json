@@ -60,11 +60,11 @@
       "enum": ["experimental", "promotion", null]
     },
     "action": {
-      "description": "Echo of --action. null only when a CLI usage error occurred before --action could even be parsed. hint_* values gate hint_tag.py's mutating or evidence-validating commands; read-only match remains ungated.",
+      "description": "Echo of --action. null only when a CLI usage error occurred before --action could even be parsed. hint_* values gate the hint-publisher single CLI's (.claude/skills/hint-publisher/scripts/hint.py, HINT_ACTION_FOR_CMD) side-effecting or evidence-validating commands: continue (hint-branch payload commit + tag seal) = hint_finalize, verify (this one tag, before push) = hint_verify, push (exact refspec of this one tag) = hint_push. publish/lint/excerpt/name/catalog and the read-only match are not actions of their own (publish only asks the hint_finalize answer in advance, before any scaffold); the read-only match stays ungated and gitless. hint_create/hint_reindex/hint_reverify were removed on 2026-09-22 (plan_26092119 X4) with the retired hint_tag.py subcommands.",
       "type": ["string", "null"],
       "enum": [
         "sync_to_sub", "sync_branches",
-        "hint_create", "hint_finalize", "hint_verify", "hint_reindex", "hint_push", "hint_reverify",
+        "hint_finalize", "hint_verify", "hint_push",
         null
       ]
     },

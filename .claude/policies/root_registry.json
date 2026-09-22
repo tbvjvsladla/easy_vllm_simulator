@@ -28,7 +28,7 @@
       "kind": "file",
       "git": "tracked",
       "owner": "hint-publisher",
-      "role": "hint 태그 카탈로그(본문은 태그 오브젝트에만)"
+      "role": "hint 태그 카탈로그(원격 발행 태그에서 전량 파생 · 본문은 태그 zip 의 00-hint.md)"
     },
     {
       "name": ".gitignore",
@@ -121,7 +121,7 @@
       "kind": "dir",
       "git": "tracked",
       "owner": "hint-publisher",
-      "role": "hint 배포 레이어(index.json·families.json·계약)"
+      "role": "hint 배포 레이어(index.json·vocab.json·계약 · 발행 draft 는 비추적 .drafts/)"
     },
     {
       "name": "output",

@@ -104,12 +104,22 @@ SIDE_EFFECT_SCHEMA = _load_schema("side-effect-authorization.schema.json")
 # work-manifest.schema.json's executionApproval.allowed_actions.items.enum and
 # side-effect-authorization.schema.json's action enum; the owner-local production
 # `runtime_selftest.py::_test_completion_gate` guards against drift between the three. The
-# hint_* actions are the owner-local hint-publisher hint_tag.py subcommands that mutate git
-# tags/hints/index.json/HINTS.md or push to a remote -- `match` stays deliberately absent (it is
-# read-only and ungated by design, never wired to this gate).
+# hint_* actions are the gated commands of the owner-local hint-publisher single CLI
+# (`.claude/skills/hint-publisher/scripts/hint.py` · `HINT_ACTION_FOR_CMD`): `continue` (payload
+# commit on the hint branch + tag seal) = hint_finalize, `verify` (this one tag, before push) =
+# hint_verify, `push` (exact refspec of this one tag) = hint_push. `publish`, `lint`, `excerpt`,
+# `name`, `catalog` and `match` stay deliberately absent -- publish/lint/excerpt/name make no tag or
+# branch (publish asks the hint_finalize answer in advance, before its scaffold, but never gates a
+# ref write of its own), catalog derives from remote tags, match is read-only and must run gitless
+# (never wired here).
+# 2026-09-22 (plan_26092119 X4): `hint_create`, `hint_reindex` and `hint_reverify` were deleted
+# together with the retired hint_tag.py subcommands they gated (create = scaffold now ungated
+# `publish`; reindex/reverify = closed paths, the catalog is re-derived from remote tags). Old
+# local work-manifests that still list them in execution_approval.allowed_actions become
+# schema-invalid on purpose: the gate covers only the publication being made (D10), never old ones.
 ALLOWED_ACTIONS = (
     "sync_to_sub", "sync_branches",
-    "hint_create", "hint_finalize", "hint_verify", "hint_reindex", "hint_push", "hint_reverify",
+    "hint_finalize", "hint_verify", "hint_push",
 )
 
 
@@ -1006,6 +1016,26 @@ def _manifest_rubric_contract(benchmark) -> dict:
     return out
 
 
+# ---- 공개 별칭 (2026-09-21 · plan_26092119 §4.9 "completion_gate 파서를 공개 API 로 단일화") ----------------
+# hint-publisher(`hintlib.evidence`)는 이 게이트의 **사설 심볼을 부르지 않는다**. 옛 `hint_tag.py` 는
+# `_lexical_components`·`_manifest_rubric_contract` 를 밑줄 이름 그대로 불렀고, 그래서 이 파일의 사설 이름을
+# 바꾸는 순간 발행기가 조용히 깨지는 결합이 숨어 있었다(코드맵 policy_callers §2.7). 별칭은 **같은 함수 객체**다 —
+# 두 번째 구현이 아니므로 판정이 갈라질 수 없다(포인터 원칙). 사설 이름은 이 파일 안의 기존 호출부를 위해 남긴다.
+lexical_components = _lexical_components
+manifest_rubric_contract = _manifest_rubric_contract
+
+# ---- PII 면제 커버리지 (2026-09-21 · plan_26092119 X5 · docs.md §PII 스캔 적용 범위) --------------------------
+# docs.md 는 `docs/simlog/*`(trial/bench vault)를 **기계생성 원시 평면 — 판정 대상 밖**으로 둔다(편집 불가가 계약 ·
+# spark-host 전수 매치의 99.97% 가 거기 있었다 · plan_26081516 H3). 그런데 이 게이트는 full_benchmark 의 필수 증거
+# simlog 경로가 `pii_scan.scanned_paths` 에 있기를 요구했고, 그래서 정직한 도구는 이 칸을 채울 수 없었다 — 기존
+# manifest 들은 스캔하지 않은 simlog 를 "스캔했다" 고 적었다(docs.md: "좁은 패턴으로 스캔하고 통과를 선언하면 그
+# 선언 자체가 거짓이다"). 처방은 **면제의 기재**다: `pii_scan.exempt_paths[{path, reason}]` 에 simlog 를 적고,
+# 이 게이트는 kind=simlog 필수 증거에 한해 아래 사유 문자열이 붙은 면제를 커버리지로 인정한다. 다른 kind 의 면제는
+# 커버리지가 아니다(사람이 저작하는 평면은 판정 대상이다 — 면제 칸이 우회로가 되지 않게 닫힌 목록으로 둔다).
+PII_MACHINE_RAW_EXEMPTION_REASON = "machine-raw(docs.md §PII 판정 대상 밖)"
+PII_EXEMPTIBLE_EVIDENCE_KEYS = ("simlog",)
+
+
 def _certificate_number(raw):
     """Parses ONE flat-certificate scalar into a finite float. Returns None for absent / empty /
     'N/A' / non-numeric / NaN / +-Inf -- i.e. every shape that cannot serve as a threshold. Pure
@@ -1125,15 +1155,16 @@ BASE_REQUIRED_EVIDENCE: dict[str, tuple[str, ...]] = {
     "minor_patch": ("verification", "commit"),
     "read_only_audit": (),
     # 2026-09-07 신설(plan_26090715 §4.6 · 인터뷰 Q5). 계약 v4 는 "여정 정보만 필수 · §3·§4·§5 는
-    # 결손 기재 후 발행" 이라 적었지만 코드에서 **도달 가능한 경로가 없었다** — hint_tag 가 요구하는
+    # 결손 기재 후 발행" 이라 적었지만 코드에서 **도달 가능한 경로가 없었다** — 당시 hint_tag 가 요구하는
     # promotion-ready manifest 는 full_benchmark ∧ mode=full ∧ verdict=PASS ∧ 증거 5종일 때만
     # 나왔다. 캠페인 ⑦ b0 의 `EVIDENCE_MISSING:simlog` 차단이 그 실증이고, 그때 사람이 vault 사본을
     # 만들어 우회했다(계약이 열어 둔 문을 코드가 막고 사람이 우회로를 냈다 — D3 위반의 형태).
     #
     # `hint_map_only` = **지도만 배포하는 발행**이다. 필수는 여정을 담는 셋(plan·devlog·testlog)이고,
     # bench_report·simlog·인증서는 **선택**이다. 대신 열리는 것도 지도뿐이다:
-    #   · §3·§4 구성 사실(트리플렛·build_recipe·compose)은 여전히 면제 불가다 — 그건 hint_collect
-    #     A층이 집행하며 이 클래스가 그 문을 건드리지 않는다(없으면 재현이 원리적으로 불가능하다).
+    #   · §3·§4 구성 사실(트리플렛·build_recipe·compose)은 여전히 면제 불가다 — 그건 hint-publisher
+    #     `hintlib.artifacts`(A층 · 2026-09-22 옛 hint_collect 에서 이관)가 집행하며 이 클래스가 그 문을
+    #     건드리지 않는다(없으면 재현이 원리적으로 불가능하다).
     #   · §5 성능은 **관측 게재만** 허용되고 baseline·권고 승격은 금지다(아래 승격 분기가 집행).
     #   · 인증서는 여전히 PASS 때만 발행된다(publish_benchmark_record 무변경) — "성능이 검증됐다"는
     #     주장은 이 통로로 만들 수 없다.
@@ -1674,7 +1705,8 @@ def _authorize_tripwire_failure(repo_root: Path) -> str | None:
     """부 실행자 — `authorize` 병목에서 tripwire 3종을 돌린다(실패 사유 문자열 또는 None).
 
     ⚠ stdout 계약: 이 함수는 **절대 stdout 에 쓰지 않는다**. `authorize` 의 JSON stdout 을
-    파싱하는 소비자가 셋이다 — `sync_branches.sh` · `hint_tag.py` · **`sync_to_sub.sh`**
+    파싱하는 소비자가 셋이다 — `sync_branches.sh` · `hint.py`(`hintlib.evidence.authorize` · 2026-09-22
+    옛 `hint_tag.py` 에서 이관) · **`sync_to_sub.sh`**
     (`authorize --action sync_to_sub`). 진단 한 줄이라도 새면 셋이 한꺼번에 깨진다.
     자식 프로세스의 stdout/stderr 는 캡처해 삼키고, 사유는 반환값으로만 돌려준다.
 
@@ -1685,7 +1717,7 @@ def _authorize_tripwire_failure(repo_root: Path) -> str | None:
     ★ 2026-09-03 (적대검증 MAJOR ①): 두 제외 경로는 `return None` 으로 **조용히** 빠져나갔고,
     호출부는 그것을 "tripwire 가 통과했다"와 구분하지 못했다. 이제 제외될 때마다 **사유가 담긴
     SKIPPED 한 줄을 stderr 로** 낸다. 제외 자체는 그대로 정상 경로다 — 바뀐 것은 가시성뿐이다.
-    ⚠ stdout 은 절대 건드리지 않는다(`sync_branches.sh`·`sync_to_sub.sh`·`hint_tag.py` 셋이
+    ⚠ stdout 은 절대 건드리지 않는다(`sync_branches.sh`·`sync_to_sub.sh`·`hint.py` 셋이
     이 명령의 stdout 을 `json.loads` 한다). 자식의 stdout/stderr 도 그대로 삼킨다.
     """
     selftest = Path(__file__).resolve().parent / "runtime_selftest.py"
@@ -1813,6 +1845,12 @@ def cmd_verify(args: argparse.Namespace) -> None:
         if _is_absolute_path_string(scanned_path):
             absolute_violations.append((f"ABSOLUTE_PII_SCANNED_PATH:{idx}",
                                         f"pii_scan.scanned_paths[{idx}] {scanned_path!r} must be relative to the manifest, not absolute"))
+    # 면제 경로도 같은 입력 계약이다(X5 · 2026-09-21) — 면제 칸이 절대경로 통로가 되면 위 검사가 옆문으로 샌다.
+    for idx, exempt in enumerate(pii_scan.get("exempt_paths") or []):
+        exempt_path = exempt.get("path") if isinstance(exempt, dict) else None
+        if isinstance(exempt_path, str) and _is_absolute_path_string(exempt_path):
+            absolute_violations.append((f"ABSOLUTE_PII_EXEMPT_PATH:{idx}",
+                                        f"pii_scan.exempt_paths[{idx}].path {exempt_path!r} must be relative to the manifest, not absolute"))
     if absolute_violations:
         for code, msg in absolute_violations:
             add_reason(code, msg)
@@ -2167,15 +2205,28 @@ def cmd_verify(args: argparse.Namespace) -> None:
         # its own raw gate_evidence path -- CAPACITY_GATE_RAW_PII_COVERAGE_GAP fix). ----
         pii_ok = pii_scan.get("passed") is True
         scanned_paths = set(pii_scan.get("scanned_paths") or [])
+        # X5(2026-09-21): 면제는 **경로 + 사유** 쌍으로만 읽는다. 사유 문자열이 정확히 일치하고 그 증거가
+        #   면제 가능 kind(simlog)일 때만 커버리지로 친다 — 사유 없는 면제·다른 kind 의 면제는 커버리지가 아니다.
+        exempt_reasons = {e.get("path"): e.get("reason") for e in (pii_scan.get("exempt_paths") or [])
+                          if isinstance(e, dict) and isinstance(e.get("path"), str)}
         pii_check_keys = list(required_keys) + ([or_group_key] if or_group_key else [])
         pii_coverage_ok = True
         for key in pii_check_keys:
             item = evidence.get(key)
             item_path = (item or {}).get("path")
             if item_path and item_path not in scanned_paths:
+                if (key in PII_EXEMPTIBLE_EVIDENCE_KEYS
+                        and exempt_reasons.get(item_path) == PII_MACHINE_RAW_EXEMPTION_REASON):
+                    continue  # 기계생성 원시 평면 — 판정 대상 밖이라는 사실이 **기재**됐다(스캔한 척 ✗)
                 pii_coverage_ok = False
+                exempt_note = ""
+                if item_path in exempt_reasons:
+                    exempt_note = (f" (exempt_paths entry present, but only {list(PII_EXEMPTIBLE_EVIDENCE_KEYS)} "
+                                   f"evidence with reason {PII_MACHINE_RAW_EXEMPTION_REASON!r} counts as coverage; "
+                                   f"got key={key!r} reason={exempt_reasons[item_path]!r})")
                 add_reason(f"PII_SCAN_COVERAGE_INCOMPLETE:{key}",
-                           f"required evidence '{key}' path {item_path!r} not present in pii_scan.scanned_paths")
+                           f"required evidence '{key}' path {item_path!r} not present in pii_scan.scanned_paths"
+                           + exempt_note)
         if task_class == "capacity_rejection" and capacity_rejection and capacity_rejection.get("gate_evidence"):
             gate_path = capacity_rejection["gate_evidence"]
             if gate_path not in scanned_paths:
@@ -2253,7 +2304,9 @@ def cmd_verify(args: argparse.Namespace) -> None:
                 #     manifest 는 정의상 functional_smoke_passed 다(중복 검사는 죽은 코드가 된다).
                 #   · baseline 승격: work-manifest 스키마가 `additionalProperties: false` 라 그런
                 #     필드를 애초에 담을 수 없다. 실제로 baseline 을 주장할 수 있는 자리는 **hint 본문
-                #     §5** 이고, 그 집행은 hint_tag `_require_map_only_observation` 이 한다
+                #     §5** 이고, 그 집행은 hint-publisher `hintlib.template` 린트가 **00-hint.md** 본문의
+                #     `OBSERVATION-ONLY` 마커로 한다(HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING · 2026-09-22 옛
+                #     hint_tag `_require_map_only_observation` 에서 이관 — 본문이 태그 zip 안으로 옮겨졌다 · D4)
                 #     (평면이 다른 것을 여기서 흉내 내면 두 자리가 갈라진다).
                 waiver = benchmark.get("perf_waiver") if isinstance(benchmark, dict) else None
                 _wf = ("authorized_by", "authorized_at_utc", "instruction", "warning_flag")
@@ -2269,7 +2322,9 @@ def cmd_verify(args: argparse.Namespace) -> None:
                     add_reason("HINT_MAP_ONLY_PROMOTION",
                                f"task_class='hint_map_only' → 지도 발행 통로. mode={mode!r} "
                                f"verdict={verdict!r} 는 **관측으로 게재**되며 baseline 승격은 막혀 있다. "
-                               f"§3·§4 구성 사실은 hint_collect 의 면제불가 3슬롯이 그대로 집행한다.")
+                               f"§3·§4 구성 사실은 hint-publisher hintlib.artifacts 의 면제불가 3슬롯이 "
+                               f"그대로 집행하고, 본문 OBSERVATION-ONLY 마커는 hintlib.template 린트(00-hint.md)가 "
+                               f"집행한다.")
             elif task_class != "full_benchmark":
                 add_reason("PROMOTION_REQUIRES_FULL_BENCHMARK_CLASS",
                            f"task_class={task_class!r} can never reach promotion-ready -- only 'full_benchmark' may")
@@ -2305,7 +2360,9 @@ def cmd_verify(args: argparse.Namespace) -> None:
                 # **사람의 지시로만** 중단할 수 있다(2026-08-01 사용자 결정).
                 # 그래서 이 예외는 에이전트가 추론으로 열 수 없는 **positive key** 다 —
                 # 네 필드가 전부 비어있지 않아야 하고, 하나라도 없으면 종전대로 차단한다.
-                # 대가: waiver 가 있으면 배포 산출물에 경고 플래그가 **강제**된다(hint_tag 가 집행).
+                # 대가: waiver 가 있으면 배포 산출물에 경고 플래그가 **강제**된다(hint-publisher
+                #       `hintlib.template` 린트가 00-hint.md 본문의 PERF-WARNING + warning_flag 원문으로 집행 ·
+                #       HINT_PERF_WARNING_MISSING · 2026-09-22 옛 hint_tag 에서 이관).
                 # 주의: 이 waiver 는 승격만 연다. 인증서는 여전히 PASS 때만 발행된다
                 #       (publish_benchmark_record 무변경) — "성능이 검증됐다"는 주장은 못 만든다.
                 waiver = benchmark.get("perf_waiver") if isinstance(benchmark, dict) else None

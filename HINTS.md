@@ -1,146 +1,139 @@
-# hint 태그 카탈로그 — 검증된 서빙 레시피 곁눈질 (Token Economy)
+<!-- 이 파일 **전체**가 생성물이다 — `hint.py catalog derive` 가 원격 발행 태그에서 통째로 다시 만든다(plan_26092119 §4.10). 손으로 고치지 마라: 다음 derive 에서 사라진다. 진실원천 = 원격의 refs/tags/hint/* 광고 · 색인 = hints/index.json(같은 derive 가 쓴다). -->
+# hint 태그 카탈로그 — 검증된 서빙 여정의 지도
 
-> 이 파일은 [`README.md`](./README.md) 「부록 B」에서 링크로 갈라져 나온 **hint 태그 전용 카탈로그**입니다.
-> 태그가 늘수록(현재 20+종) README 본문이 무거워지는 문제를 피하려고 분리했습니다 — README 는 *여정*을,
-> 여기는 *카탈로그와 사용법*을 담습니다. 표는 `.claude/skills/hint-publisher/scripts/hint_tag.py`가 **결정론으로 자동 재생성**합니다
-> (index = `hints/index.json` = 진실원천 · 사람이 표를 손으로 쓰지 않습니다). 설계 근거 = `docs/plan/plan_26070222`.
+> 원격 `origin` 의 발행 태그 **47건**에서 파생 · 생성 `2026-09-22T09:00:00` KST · 문법 세대: `v6` 0 · `legacy-5seg-node` 45 · `legacy-5seg` 2 · 로컬 오브젝트 부재(미수령) 1건.
+> 표를 사람이 쓰지 않는다 — "발행됐다"는 원격에 태그가 있다는 사실 하나로만 성립한다(카탈로그 바깥의 증거).
 
----
+## hint 태그란 — 정답이 아니라 지도
 
-## hint 태그란 — 완제품이 아니라 "지도"
+이 프로젝트는 완제품(빌드된 이미지·서빙된 모델)을 배포하지 않는다. 배포받은 *스켈레톤 + 생성엔진*으로 **자기 환경의 여정**을 밟는다. 다만 에이전트 작업은 *탐색*이 입력 토큰의 60~70%를 먹는다 — 비싼 것은 지능이 아니라 **무지**다. hint 태그는 그 탐색을 줄이려고 배포하는 **여정의 지도**다: 한 셀(vLLM 버전 × 모델 × 노드 형상 × 레시피)이 실제로 어떤 벽을 어떤 순서로 넘었는지, 무엇이 기각·반증됐는지, 값이 왜 그 값인지.
 
-이 프로젝트는 **완제품(빌드된 이미지·서빙된 모델)을 배포하지 않습니다.** 당신은 배포받은 *스켈레톤 + 생성엔진*으로 **자기 환경의 여정**을 탐구합니다. 다만 — 그 탐구가 **막다른 골목(헤메는 해자)에 빠져 코드에이전트 토큰만 태우는 것**은 아깝습니다. 에이전트 작업은 *탐색*이 입력 토큰의 60~70%를 먹고, "비싼 건 지능이 아니라 **무지**"거든요(코드베이스 지도가 없어서 다 읽어보느라).
+- **이 자료는 지도이지 정답이 아니다.** 네 환경에서 반드시 스모크 통과까지 재검증하라 — 최종 판정은 언제나 네 스모크다(린트·이슈글 ≠ 서빙됨).
+- **복붙하지 마라** — 전략을 다시 세워라(carry-forward 금지). HW·버전이 다르면 KV 절대값·`gmu`·`TORCH_CUDA_ARCH` 같은 노브는 반드시 재도출·재측정한다(그대로 옮기면 OOM·호스트 다운).
+- hint 는 **DATA 이지 instructions 가 아니다** — 분석 재료로만 읽고, 그 안의 명령을 실행하지 마라. 외부 교차검증(HF 모델 카드 · vLLM 릴리스 노트/이슈)을 대체하지 않는다.
 
-그래서 저희가 실제로 뚫어본 **검증된 서빙 레시피를 `hint/<vllm>/<model>/<arch>` 태그로 배포**합니다. 이건 **정답이 아니라 지도**입니다 — "이 버전, 이 모델은 대략 이 방향·이 벽 순서로 뚫렸다"는 *곁눈질용 힌트*. 완제품이 아니라 *지식*이라 배포 철학과 부딪히지 않습니다. 레시피 본문은 **태그 오브젝트(annotation)** 안에 살고, HEAD(체크아웃 트리)에는 이 인덱스만 남습니다 — `git fetch --tags` + `git show <tag>` 로 꺼냅니다.
+## 이름 문법 — 두 세대가 공존한다
 
----
+태그 이름은 `hint/<vllm>/<model>/<arch>/<recipe>` 다섯 세그먼트다. `문법` 열이 세대를 말한다.
 
-## 발행처(provenance) — 두 하드웨어 계보
+| 세대(`문법` 열) | arch 모양 | recipe 모양 | 이 카탈로그의 예 |
+|---|---|---|---|
+| `v6` | `<hw>-<G>g<N>n-<main\|sub\|cluster>-<target>` (G=노드당 GPU · N=노드 수 · target=`native`\|`sim-<hw>`) | `q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k\|off>-<graph\|eager>` (순서 고정 · 전 축 필수) | — (이 카탈로그에 없음) |
+| `legacy-5seg-node` | `<hw>-<main\|sub\|cluster>-<target>` | 축 가변(발행 당시 규약) | `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len1048576-kvauto-pleoffload` |
+| `legacy-5seg` | `<hw>-<target>` (노드축 없음) | 축 가변 | `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` |
 
-이 카탈로그의 태그는 **서로 다른 세 물리 환경**에서 발행됐습니다. `arch` 열이 곧 발행처의 지문입니다:
+- `v6` 이름은 **도구가 셀 증거에서 전량 파생**한다(발행자 입력 ✗). vLLM 세그먼트는 **빌드 입력**이다 — 릴리스 태그로 빌드했으면 그 버전, 커밋에 핀했으면 `<직전 릴리스>-g<sha12>`. 엔진 자기보고 버전은 `00-hint.md` 사실 블록에 따로 적힌다. 셀 1개 = 태그 1개.
+- 옛 세대의 hw 토큰 `x2` 는 두 뜻으로 쓰였다 — 한 노드의 GPU 2장(예: `rtxpro6000x2`)과 노드 2대(예: `gb10x2`). `v6` 는 `<G>g<N>n` 으로 둘을 가른다.
+- **옛 세대 행은 그대로 나열한다.** 원격에 올라간 태그는 교정·리콜하지 않는다 — 개정판은 새 이름의 **신규 발행**으로만 나온다. `문법` 열은 판정이 아니라 읽는 법 안내다.
 
-| `arch` 패턴 | 발행처 | 의미 |
-|---|---|---|
-| `gb10` · `gb10x2` | **주력 검증기** — 2× NVIDIA DGX Spark(GB10 superchip, aarch64, sm_121a, 128GB **통합메모리**, CUDA 13.2) | 이 프로젝트가 개발·주력 검증된 환경. 단일/멀티노드(Ray TP=2·RoCE) 실측. |
-| `gb10-sim-<타겟>` · `gb10x2-sim-<타겟>` | 위 GB10 에서 **타겟-GPU 시뮬레이션** | 측정=호스트(GB10)·클램프=타겟 예산으로 이식(「여정 3」타겟 GPU 시뮬레이션). 실카드 부재 상태 검증. |
-| `rtxpro6000` *(sim 접미어 없음)* | **이기종 배포처** — **Ubuntu 22.04 · x86_64 · RTX PRO 6000(Blackwell, discrete, sm_120, 96GB) · host RAM 60GiB** | 이 스켈레톤을 배포받은 *전혀 다른 물리 머신*에서 vLLM 0.25.0/0.25.1 로 **여정 4 성능 적대검증까지** 완주한 크로스-하드웨어 재현 증거(7종 PASS · 4종 host-RAM/커널 천장으로 정직하게 REFUTE). |
-| `rtx5090` | **컨슈머 GPU · 가상화 호스트** — **WSL2(Docker Desktop) · x86_64 · RTX 5090(Blackwell 컨슈머, discrete, sm_120, 32GB)** | 카탈로그에서 유일한 *컨슈머 카드* + 유일한 *가상화 호스트*. 여기서만 나타나는 벽이 있습니다 — vLLM 이 WSL2 를 감지하면 pinned memory/UVA 를 **기본 OFF** 시켜 엔진 초기화가 `RuntimeError: UVA is not available` 로 죽습니다(GPU arch 무관 · **호스트-locked**). 기능 사이클 PASS, 성능 게이트는 미실행. |
-
-> 🌐 **왜 이게 중요한가** — `rtxpro6000` 네이티브 태그들은 *통합메모리 GB10 과 완전히 다른 축*(디스크리트 VRAM 충분 · host RAM 부족 · x86 리눅스)에서, 같은 생성엔진이 각 모델의 벽(Mistral 네이티브 포맷·MoE 커널 JIT host 폭증·Mamba 캐시블록 한계·MARLIN mxfp4 커널 천장 등)을 뚫고 서빙+성능게이트까지 돌린 이력입니다. 「개발자의 편지 — 범용성에 관하여」가 말한 *"다른 하드웨어에서 돌려본다면 그 자체가 다음 챕터"* 의 실증입니다.
->
-> 그리고 `rtx5090` 은 **벽이 GPU 에만 있는 게 아니라는** 증거입니다 — 같은 sm_120 인데도 `rtxpro6000` 에는 없던 실패가 *호스트 가상화* 때문에 생겼습니다. 그래서 hint 본문은 노브를 `arch-locked`(GPU 종속)와 `호스트-locked`(OS·가상화 종속)로 **나눠서** 표시합니다. 남의 태그를 볼 때 *어떤 축에 묶인 노브인지* 를 먼저 보세요.
-
----
-
-## 막혔을 때 이렇게 쓰세요
-
-힌트를 `seed/`(이 프로젝트가 `.gitignore` 로 두는 **에이전트 참조용 비추적 폴더**)에 내려받아, 코드에이전트에게 읽히면 됩니다:
+## 태그 받아 읽기
 
 ```bash
-# 1) 어떤 힌트가 있나
-git fetch --tags
-git tag -l 'hint/*'
-
-# 2) 고른 힌트의 '레시피 본문만' → seed/ 에 저장
-#    (git show <tag> 는 커밋 diff 까지 딸려오니, 본문만 뽑는 아래 명령을 쓰세요)
-mkdir -p seed/hints
-git tag -l --format='%(contents)' hint/0.24.0/deepseek-v4-flash/gb10 > seed/hints/deepseek-v4-flash.md
+# 1) 무엇이 있나 — 원격 조회만(아무것도 받지 않는다)
+git ls-remote <원격> 'refs/tags/hint/*'
+# 2) 고른 태그 하나만 받는다
+git fetch <원격> 'refs/tags/<태그>:refs/tags/<태그>'
+# 3) 태그 = zip(재현 키트) — seed/ 아래에 푼다
+mkdir -p seed/hints/<이름>
+git archive --format=zip -o seed/hints/<이름>.zip <태그>
+unzip -q seed/hints/<이름>.zip -d seed/hints/<이름>
 ```
 
-그리고 코드에이전트에게: *"`seed/hints/deepseek-v4-flash.md` 를 읽고, `vllm-recipe-explorer` 인터뷰의 warm-start 근거로 넣어서, 평소대로 plan → 레시피 수렴 → 스모크 게이트를 밟아 전략을 **다시 세워봐**."*
+GitHub 원격이라면 그 태그의 "Source code (zip)" 로 git 없이 같은 트리를 받는다(최상위에 `<저장소>-<태그>` 폴더가 한 겹 더 붙는다 — 그 안에서 `00-hint.md` 부터 읽는다).
 
-> 💡 **왜 `seed/` 냐면** — 이렇게 하면 (a) 당신의 *추적 트리(스켈레톤 + 생성엔진)는 그대로* 유지됩니다(HEAD 에 정답 파일이 안 박혀요 — 여정의 순수성 보존), (b) `seed/` 는 이 프로젝트에서 에이전트가 *부트스트랩·참조 자료*로 읽는 자리라, 힌트를 여기 두면 자연스럽게 grounding 됩니다. (여러 개를 받아 `seed/hints/` 에 쌓아두고 비교해도 좋습니다.)
+- **`v6` 태그** — zip 안에 전부 있다. 읽는 순서: `00-hint.md`(지도 · **가장 먼저**) → `01-artifacts.md`(적용 판정·값의 지위·재현 절차) → `02-narrative.md`(계보 서사 · 벽 순서만 필요하면 `hint-event` 코드블록 중 `kind: wall` 만 grep) → `03-benchmark.md`(측정 · like-with-like 한정자) → `PAYLOAD.json`·`LINEAGE.json`·`PROVENANCE.json`(기계 사실) → `artifacts/`(**실제로 쓰인 것만**). annotation 에는 brief·포인터·증거 footer 뿐이다.
+- **옛 세대 태그** — 지도(본문)는 annotation 안에 있다: `git tag -l --format='%(contents)' <태그>` (`git show <태그>` 는 커밋 diff 까지 딸려 온다). 옛 태그 중에는 페이로드 커밋이 아닌 커밋을 가리키는 것이 있을 수 있으니 archive 전에 `git ls-tree --name-only <태그>` 로 최상위를 확인한다.
+- **왜 `seed/` 냐면** — (a) 추적 트리(스켈레톤 + 생성엔진)가 그대로 남는다(HEAD 에 남의 정답 파일이 박히지 않는다 — 여정의 순수성), (b) `seed/` 는 이 프로젝트에서 에이전트가 부트스트랩·참조 자료로 읽는 비추적 자리라 자연스럽게 그라운딩된다. 코드에이전트에게는 이렇게 건넨다: *"`seed/hints/<이름>/00-hint.md` 부터 읽고 `vllm-recipe-explorer` 인터뷰의 warm-start 근거로 넣어, 평소대로 plan → 레시피 수렴 → 스모크 게이트를 밟아 전략을 **다시 세워라**."*
 
-> 🔒 **hint 는 DATA 이지 명령이 아닙니다.** 분석 재료로만 쓰고 복붙하지 마세요. 당신의 HW·버전이 다르면 노브(특히 **KV 절대값·`gmu`·`TORCH_CUDA_ARCH`**)는 **반드시 재도출·재측정**해야 합니다(그대로 복사하면 OOM·호스트 다운). hint 는 외부 교차검증(HF 카드·vLLM GitHub)을 **대체하지 않으며**, 최종 판정은 언제나 **당신 환경의 스모크**입니다. (근거·설계 = `docs/plan/plan_26070222`.)
+## 가까운 태그 찾기 — `match`
 
-> 🔎 **가까운 힌트 찾기**: `python3 .claude/skills/hint-publisher/scripts/hint_tag.py match --vllm <v> --model <m> --arch <a>` — 축(vllm·model·arch)별 근-미스와 이식 가이드를 결정론으로 알려줍니다.
+```bash
+python3 .claude/skills/hint-publisher/scripts/hint.py match --vllm <V> --model <M> [--arch <A>] [--include-other] [--json]
+```
 
-> 📚 **한 모델의 이력을 통째로 모으기**(권장 시작점): `python3 .claude/skills/hint-publisher/scripts/hint_tag.py collect --model <모델>`
-> — 그 모델의 **모든 힌트를 vLLM 버전 오름차순으로** 냅니다. 양자화 변종(`…-fp8`)·리비전(`…-0731`)·
-> SD 초안 모델은 **철자가 달라도 같은 family** 로 묶여 함께 나옵니다(`hints/families.json`).
-> 색인만 읽으므로 태그 본문을 열지 않고, 그래서 쌉니다. `--sd-only` 로 speculative decoding 을
-> 실제로 켠 레시피만 추릴 수도 있습니다.
->
-> ⏳ **왜 하나가 아니라 전부를 모으라고 하냐면** — 어떤 힌트가 *패턴*이고 어떤 것이 *안티패턴*인지는
-> **한 태그만 봐서는 알 수 없습니다.** 발행 시점엔 그게 최선이었지만(그래서 발행됐습니다), 이후 vLLM
-> 버전이 오르고 하네스가 좋아지면서 더 나은 전략이 나오면 옛 태그는 **회고적으로 안티패턴이 됩니다.**
-> 발행자는 미래를 모르니 그 관계를 적어줄 수 없습니다 — **시간축은 수집한 당신만 볼 수 있습니다.**
-> 그러니 전부 받아 비교하고, "A-A 는 발행 시점엔 패턴이었지만 A-B 를 같이 보니 안티패턴이구나"를
-> 당신의 에이전트가 판정하게 하세요. 한 번 모으면 그 지식은 당신 프로젝트에 **남습니다**.
+- git 없이 `hints/index.json` 만 읽는다(배포 아카이브에서도 동작).
+- 모델 비교는 **정규화 슬러그 동치**(대소문자·구두점 무시 — `gemma-4-E2B-it` = `gemma-4-e2b-it` · `Org/Name` 으로 물어도 된다) + **base_model 관계**(`v6` 태그만 · 페이로드 `PAYLOAD.identity.base_model` 에서 파생)다 — 같은 기반 모델의 양자화 변종·원본을 함께 찾는다.
+- 관계없는 모델은 기본으로 숨긴다(`--include-other` 로 본다). vLLM·arch 가 다르면 무엇을 다시 확인해야 하는지 행마다 안내한다.
+- **관계 판정은 도구가 하지 않는다.** 어떤 태그가 패턴이고 어떤 것이 안티패턴인지는 한 태그만 봐서는 알 수 없다 — 발행 시점엔 그게 최선이었지만, 버전이 오르고 더 나은 전략이 나오면 옛 태그는 회고적으로 안티패턴이 된다. 발행자는 미래를 모르니 그 관계를 적어줄 수 없다 — **시간축은 수집한 당신만 볼 수 있다.** 같은 모델의 태그를 전부 받아 버전 순으로 비교하게 하라.
 
-> 🪜 **같은 모델에 힌트가 여러 개면 "사다리"입니다** — arch 슬롯의 접미어가 칸을 나타냅니다.
-> 아래로 갈수록 표준에서 멀어지고(성능↑) 재현 난이도·의존이 커집니다. **낮은 칸부터** 올라가세요.
->
-> | 칸 | 태그 | 스택 | decode |
-> |---|---|---|---|
-> | 1 노멀 | `hint/0.26.0/deepseek-v4-flash-0731/gb10x2` | stock 0.26.0 · 128K · spec ✗ | 19.65 t/s |
-> | 2 컨텍스트 | `…/gb10x2-1m` | stock 0.26.0 · **1M** · spec ✗ | 18.36 t/s |
-> | 3 변종 | `hint/0.26.1/…/gb10x2-dspark-1m` | **포크 핀**(jasl PR#41834) · 1M · **DSpark** | **31.01 t/s** |
->
-> ⚠ **1칸 태그 본문에 사실오류 3건이 있습니다**(기존 태그는 재작성하지 않는 방침 — 정정은 2·3칸 §0):
-> ① "fp8 단일" → 실제 routed experts 는 **MXFP4**(전체의 89%) ② "stock 에 dspark 없다" → **있으나
-> 커널이 없어 못 쓴다** ③ "기대 13.20" → 그건 **PASS 문턱**(`floor_tps`)이고 기대치는 15.53.
-> ③은 이 캠페인 태그 **4종 전부**에 있습니다 — 자기 측정치를 문턱과 비교하면 18% 후하게 자평하게 됩니다.
+## 열 설명
 
----
+| 열 | 뜻 | 출처 |
+|---|---|---|
+| 태그 | 원격에 발행된 태그 이름 그대로(recipe 세그먼트 포함) | 원격 `git ls-remote` |
+| 문법 | 이름 문법 세대 — 판정이 아니라 **읽는 법** 안내 | `hintlib.naming.parse_tag`·`grammar_of` |
+| vLLM | 이름의 vLLM 세그먼트(v6 = 빌드 입력: 릴리스 태그 또는 `<직전 릴리스>-g<sha12>`) | 태그 이름 |
+| 모델 | 모델 슬러그(체크포인트 basename 소문자) | 태그 이름 |
+| arch | 하드웨어·노드 형상 | 태그 이름 |
+| bench_mode | `full` · `lite(선언)` · `lite(강등·<사유>)` · `lite` · `미확정` · `미기재`(측정 구성 기재 전 페이로드) · `미수령`(로컬 오브젝트 부재) | 페이로드 `PAYLOAD.json` 의 `measurement_config` |
+| 결손 | 페이로드가 **스스로 선언한** 결손 사유코드 · `—` = 선언 0 · `미수령` = 로컬 오브젝트 부재로 읽지 못함 · `미선언` = 태그는 있으나 결손을 선언하지 않음(`PAYLOAD.json` 을 읽지 못했거나 `missing[]` 목록이 없는 옛 형식 — 선언 0 과 다르다) | 페이로드 `PAYLOAD.json` 의 `missing[]` |
+| brief | v6 = annotation 첫 문단 · 옛 문법 = annotation 의 첫 서술 줄 · `—` = 본문 없음(로컬 오브젝트 미수령 또는 annotation 없는 태그 · 합성 ✗) | 태그 오브젝트(annotation) |
+
+## arch 분포 (파생)
+
+| arch | 문법 | 태그 수 |
+|---|---|---|
+| `gb10x2-cluster-native` | `legacy-5seg-node` | 20 |
+| `rtxpro6000x2-main-native` | `legacy-5seg-node` | 14 |
+| `rtxpro6000-main-native` | `legacy-5seg-node` | 4 |
+| `gb10-main-sim-kv24g` | `legacy-5seg-node` | 2 |
+| `gb10-sub-sim-kv24g` | `legacy-5seg-node` | 2 |
+| `gb10-main-native` | `legacy-5seg-node` | 1 |
+| `gb10-sim-h100` | `legacy-5seg` | 1 |
+| `gb10-sub-native` | `legacy-5seg-node` | 1 |
+| `gb10x2-sim-h100` | `legacy-5seg` | 1 |
+| `h10080gb-main-native` | `legacy-5seg-node` | 1 |
 
 ## 카탈로그
 
-> 아래 표는 `hint_tag.py` 가 index 에서 재생성합니다(`| \`hint/…\`` 로 시작하는 행은 자동 관리 — 손으로 편집 금지).
-> `status`=active/superseded · `superseded-by / related`=후속 태그 또는 근거 문서 · `last-verified`=마지막 reverify 일자 · `한줄`=태그 본문 첫 줄(brief).
-
-<!-- ⚠ 아래 두 마커 사이는 **기계 생성 구역**이다(plan_26090107 D1.1). 손으로 고치지 마라 —
-     `hint_catalog.py derive` 가 **원격 발행 태그**에서 통째로 다시 만든다. 진실원천은
-     `git ls-remote --tags <remote> 'refs/tags/hint/*'` 이고 brief 는 태그 오브젝트에서 파싱한다.
-     이전에는 여는 마커가 없어 관리 구역의 시작이 모호했고, 마커가 유실되면 전 행이
-     조용히 사라질 수 있었다(감사 ⑬). -->
 <!-- hint-index:rows -->
-| 태그 | vLLM | 모델 | arch | bench_mode | 결손 | brief |
-|---|---|---|---|---|---|---|
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len1048576-kvauto-pleoffload` | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-fp8 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로 |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleoffload` | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-fp8 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로 |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleresident` | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-fp8 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로 |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len524288-kvauto-pleoffload` | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-fp8 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_PII_TERMS | Qwen3.8-Flash-Next-FP8 를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로 서빙한 경로. 정식 릴리스로는 이 계열이 아예 로드되지 않으며, KV 양자화 축은 이 아치에서 닫혀 있고, MTP 가 2.3배를 준다. |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleoffload` | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-nvfp4 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로 |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleresident` | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-nvfp4 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로 |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleoffload` | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-nvfp4 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로 |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleresident` | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-nvfp4 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로 |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleoffload` | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-nvfp4 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로 |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleresident` | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-nvfp4 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로 |
-| `hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8` | 0.18.0 | gpt-oss-20b | gb10-main-native | 미기재 | — | GB10 네이티브 예산(외부 이식 타겟 없음) · KV 절대클램프를 실행 하드웨어 자신(121.69GiB×0.90)으로 산출 · 커널 축 부재 확증(attention 후보 ['TRITON_ATTN'] 단일 · MoE marlin) |
-| `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` | 0.18.0 | gpt-oss-20b | gb10-sim-h100 | 미기재 | — | gpt-oss-20b 를 vLLM 0.18.0 stock wheel 로 GB10 단일노드에 최대 컨텍스트(131,072)로 서빙한 재현 키트. 핵심 발견은 성능이 아니라 **커널 축이 전부 불활성**이라는 사실이다 — 어텐션·MoE 백엔드를 무엇으로 선언해도 엔진은 triton_attn/marlin 을 쓰고, 그 사실이 로그에 남지 않는다. |
-| `hint/0.18.0/gpt-oss-20b/gb10-sub-native/qmxfp4-len131072-kvfp8` | 0.18.0 | gpt-oss-20b | gb10-sub-native | 미기재 | HINT_MISSING_SWEEP_LEVELS | 서브 노드 자율 캠페인 · GB10 네이티브 예산 · KV 61,442 MiB(메인 50,133 대비 +23%) · 완결 엔드포인트 측정(오류 0/18) · 2회 차단(예산 거절 · 워치독 트립) 뒤 수렴 |
-| `hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8` | 0.19.0 | gpt-oss-120b | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | GB10 x2 클러스터 · 네이티브 예산(H100 이식 클램프 제거 · KV 2.27배) · overhead 는 KV 의 함수라는 실증 · SoC 열 hard ceiling 이 연속 포화부하 4분에서 실제 벽 |
-| `hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8` | 0.19.0 | gpt-oss-120b | gb10x2-sim-h100 | 미기재 | — | gpt-oss-120b 를 vLLM 0.19.0 stock wheel 로 GB10 2노드 TP=2 분산 서빙한 재현 키트. 0.19.1 은 이 토폴로지로 뜨지 않으며 회귀 구간은 (0.19.0, 0.19.1] 이다. 커널 축(FlashInfer 어텐션·triton MoE·mxfp4 스위치)은 sm_121a 에서 열리지 않는다. |
-| `hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvauto` | 0.26.0 | qwen3-4b | gb10-main-sim-kv24g | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE | Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 A 무양자화(BF16 KV). |
-| `hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvfp8` | 0.26.0 | qwen3-4b | gb10-main-sim-kv24g | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE | Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 B FP8. |
-| `hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant3bitnc` | 0.26.0 | qwen3-4b | gb10-sub-sim-kv24g | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE | Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 D TurboQuant 3bit. |
-| `hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant4bitnc` | 0.26.0 | qwen3-4b | gb10-sub-sim-kv24g | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE | Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 C TurboQuant 4bit. |
-| `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/len262144-kvfp8` | 0.28.0 | qwen3.8-27b | rtxpro6000-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000(1of2, 96GB) 네이티브 예산 · bf16가중치+fp8KV — 단일스트림 속도가 fp8가중치 자매셀 대비 약 40%↓(가중치 양자화가 지배) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
-| `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvauto` | 0.28.0 | qwen3.8-27b | rtxpro6000-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+KV무양자화 — 동시접속 한계가 fp8KV 자매셀의 절반(batch=3) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
-| `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvfp8` | 0.28.0 | qwen3.8-27b | rtxpro6000-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+fp8KV 조합이 최대 동시접속(batch=6, 집계 1181.6 tok/s) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
-| `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len524288-kvfp8` | 0.28.0 | qwen3.8-27b | rtxpro6000-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+fp8KV+YaRN(524288, factor=2.0) — 단일스트림 속도는 non-YaRN 262144 자매셀과 동일(44.27 vs 44.22 t/s) · gen_recipe_set.py 에 hf_overrides SERVE_KNOB 를 신설해야 발행 가능했던 셀 |
-| `hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/len262144-kvfp8` | 0.28.0 | qwen3.8-27b | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · bf16가중치+fp8KV — 단일스트림 속도가 fp8가중치 자매셀 대비 크게 낮음(정확도 우선 대안) · TP=1 자매셀 대비 속도 배율(~1.75배)이 fp8w 조합(~1.58배)보다 큼 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
-| `hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len1000000-kvfp8` | 0.28.0 | qwen3.8-27b | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+fp8KV+YaRN(factor=4.0, 1,000,000 컨텍스트, vLLM 공식 가이드 상한) — TP=1 캠페인이 "물리적으로 불가"로 추정만 했던 상한에 실측 도달 · 단일스트림 속도는 262144 자매셀과 사실상 동일 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
-| `hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len262144-kvauto` | 0.28.0 | qwen3.8-27b | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+KV무양자화 — TP=1 자매셀 대비 단일스트림 속도 ~1.59배·동시접속 상한 batch=8 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
-| `hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len262144-kvfp8` | 0.28.0 | qwen3.8-27b | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+fp8KV 조합이 이 캠페인의 최대집계처리량(batch=16, 2503.2 tok/s) · TP=1 자매셀 대비 세 배율(속도/batch/집계)이 모두 다르게 스케일 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
-| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvauto-plemmap` | 0.29.0 | qwen3.8-flash-next-fp8 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=auto · ctx1048576(YaRN f4) · PLE=mmap — decode 35.39 t/s(동시성1) · 예산 floor가 nv4 mmp 셀들보다 타이트(15,280MiB)했으나 mmap이면 통과 |
-| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap` | 0.29.0 | qwen3.8-flash-next-fp8 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx1048576(YaRN f4) · PLE=mmap — decode 33.27 t/s(동시성1) · mmp 계열 22셀 재수행 캠페인 완결(11/11 성공) |
-| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvauto-plemmap` | 0.29.0 | qwen3.8-flash-next-fp8 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next FP8(Unsloth) · GB10x2 클러스터 · kv=auto · ctx262144 · PLE=mmap — decode 35.37 t/s(동시성1) · 직전 캠페인 "서빙성공·벤치사망" 지점, R3(budget_renew) 교정 후 5레벨 전부 완주 |
-| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap` | 0.29.0 | qwen3.8-flash-next-fp8 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next FP8(Unsloth) · GB10x2 클러스터 · kv=fp8_e4m3 · ctx262144 · PLE=mmap — decode 34.04 t/s(동시성1) · 직전 캠페인 KV캐시산출 직후 워치독 사살(오진) 지점, R1/R2 교정 후 5레벨 전부 완주 |
-| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvauto-plemmap` | 0.29.0 | qwen3.8-flash-next-fp8 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=auto · ctx524288(YaRN f2) · PLE=mmap — decode 37.61 t/s(동시성1) · 예산 floor가 res 계열보다도 타이트(15,280MiB)했으나 mmap 이면 통과 |
-| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap` | 0.29.0 | qwen3.8-flash-next-fp8 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx524288(YaRN f2) · PLE=mmap — decode 35.94 t/s(동시성1) · kv dtype 축이 예산 floor 를 바꾸지 않음을 재확인(kv=auto 태그와 완전 동일 floor) |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvauto-plemmap` | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=auto · ctx1048576(YaRN f4) · PLE=mmap — decode 35.92 t/s(동시성1) · R8 YaRN factor=4 첫 실서빙 검증, mmp 계열 캠페인 통산 11/11 성공 |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap` | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx1048576(YaRN f4) · PLE=mmap — decode 33.40 t/s(동시성1) · R8 YaRN factor=4 2번째 검증(kv dtype 축) |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-plemmap` | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드 TP=2 로 세울 때, **PLE 를 NVMe mmap 으로 서빙하는 트랙**은 |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-pleresident` | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드 TP=2 로 세울 때, **PLE(per-layer n-gram embedding)를 |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap` | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx262144 · PLE=mmap — decode 38.18 t/s(동시성1) · 직전 캠페인 하네스 오진(3건) 교정 후 첫 라이브 재현 |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvauto-plemmap` | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=auto · ctx524288(YaRN f2) · PLE=mmap — decode 33.72 t/s(동시성1) · R8 YaRN 번역기 첫 실서빙 검증 — mrope+partial_rotary_factor 위에서 YaRN 합성 정상 동작 확인 |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap` | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx524288(YaRN f2) · PLE=mmap — decode 34.86 t/s(동시성1) · R8 YaRN 번역기 2번째 실서빙 재현(kv=fp8 조합) |
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/len786432-kvfp8-spec7-graph` | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · KV는 fp8_ds_mla 단일 경로 · dspark spec7+cudagraph+humming 조합으로 768K 31.12 t/s(+82%) · verdict PASS(explore) |
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0` | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8 · 변종 spec0-graph0 · 768K 17.11 t/s @1 · verdict PASS(explore) |
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0-len1m` | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 e-1m-kvfp8 · 변종 spec0-graph0-len1m · 1M 16.67 t/s @1 · verdict PASS(explore) |
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph1` | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8-l2graph · 변종 spec0-graph1 · 768K 26.14 t/s @1 · verdict PASS(explore) |
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph0` | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8-l1spec · 변종 spec7-graph0 · 768K 29.72 t/s @1 · verdict PASS(explore) |
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph1-len1m` | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 e-1m-kvfp8-e1combo · 변종 spec7-graph1-len1m · 1M 30.54 t/s @1 · verdict PASS(explore) |
+| 태그 | 문법 | vLLM | 모델 | arch | bench_mode | 결손 | brief |
+|---|---|---|---|---|---|---|---|
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len1048576-kvauto-pleoffload` | legacy-5seg-node | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-fp8 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로 |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleoffload` | legacy-5seg-node | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-fp8 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로 |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleresident` | legacy-5seg-node | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-fp8 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로 |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len524288-kvauto-pleoffload` | legacy-5seg-node | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-fp8 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_PII_TERMS | Qwen3.8-Flash-Next-FP8 를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로 서빙한 경로. 정식 릴리스로는 이 계열이 아예 로드되지 않으며, KV 양자화 축은 이 아치에서 닫혀 있고, MTP 가 2.3배를 준다. |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleoffload` | legacy-5seg-node | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-nvfp4 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로 |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleresident` | legacy-5seg-node | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-nvfp4 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로 |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleoffload` | legacy-5seg-node | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-nvfp4 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로 |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleresident` | legacy-5seg-node | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-nvfp4 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로 |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleoffload` | legacy-5seg-node | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-nvfp4 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로 |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleresident` | legacy-5seg-node | 0.1.1.dev53+g30118ba27 | qwen3.8-flash-next-nvfp4 | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_CERTIFICATE | NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로 |
+| `hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8` | legacy-5seg-node | 0.18.0 | gpt-oss-20b | gb10-main-native | 미기재 | — | GB10 네이티브 예산(외부 이식 타겟 없음) · KV 절대클램프를 실행 하드웨어 자신(121.69GiB×0.90)으로 산출 · 커널 축 부재 확증(attention 후보 ['TRITON_ATTN'] 단일 · MoE marlin) |
+| `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` | legacy-5seg | 0.18.0 | gpt-oss-20b | gb10-sim-h100 | 미기재 | 미선언 | gpt-oss-20b 를 vLLM 0.18.0 stock wheel 로 GB10 단일노드에 최대 컨텍스트(131,072)로 서빙한 재현 키트. 핵심 발견은 성능이 아니라 **커널 축이 전부 불활성**이라는 사실이다 — 어텐션·MoE 백엔드를 무엇으로 선언해도 엔진은 triton_attn/marlin 을 쓰고, 그 사실이 로그에 남지 않는다. |
+| `hint/0.18.0/gpt-oss-20b/gb10-sub-native/qmxfp4-len131072-kvfp8` | legacy-5seg-node | 0.18.0 | gpt-oss-20b | gb10-sub-native | 미기재 | HINT_MISSING_SWEEP_LEVELS | 서브 노드 자율 캠페인 · GB10 네이티브 예산 · KV 61,442 MiB(메인 50,133 대비 +23%) · 완결 엔드포인트 측정(오류 0/18) · 2회 차단(예산 거절 · 워치독 트립) 뒤 수렴 |
+| `hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8` | legacy-5seg-node | 0.19.0 | gpt-oss-120b | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | GB10 x2 클러스터 · 네이티브 예산(H100 이식 클램프 제거 · KV 2.27배) · overhead 는 KV 의 함수라는 실증 · SoC 열 hard ceiling 이 연속 포화부하 4분에서 실제 벽 |
+| `hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8` | legacy-5seg | 0.19.0 | gpt-oss-120b | gb10x2-sim-h100 | 미기재 | 미선언 | gpt-oss-120b 를 vLLM 0.19.0 stock wheel 로 GB10 2노드 TP=2 분산 서빙한 재현 키트. 0.19.1 은 이 토폴로지로 뜨지 않으며 회귀 구간은 (0.19.0, 0.19.1] 이다. 커널 축(FlashInfer 어텐션·triton MoE·mxfp4 스위치)은 sm_121a 에서 열리지 않는다. |
+| `hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvauto` | legacy-5seg-node | 0.26.0 | qwen3-4b | gb10-main-sim-kv24g | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE | Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 A 무양자화(BF16 KV). |
+| `hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvfp8` | legacy-5seg-node | 0.26.0 | qwen3-4b | gb10-main-sim-kv24g | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE | Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 B FP8. |
+| `hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant3bitnc` | legacy-5seg-node | 0.26.0 | qwen3-4b | gb10-sub-sim-kv24g | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE | Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 D TurboQuant 3bit. |
+| `hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant4bitnc` | legacy-5seg-node | 0.26.0 | qwen3-4b | gb10-sub-sim-kv24g | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE | Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 C TurboQuant 4bit. |
+| `hint/0.27.1/qwen3-4b/h10080gb-main-native/len32768-kvauto-pleresident` | legacy-5seg-node | 0.27.1 | qwen3-4b | h10080gb-main-native | 미수령 | 미수령 | — |
+| `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/len262144-kvfp8` | legacy-5seg-node | 0.28.0 | qwen3.8-27b | rtxpro6000-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000(1of2, 96GB) 네이티브 예산 · bf16가중치+fp8KV — 단일스트림 속도가 fp8가중치 자매셀 대비 약 40%↓(가중치 양자화가 지배) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
+| `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvauto` | legacy-5seg-node | 0.28.0 | qwen3.8-27b | rtxpro6000-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+KV무양자화 — 동시접속 한계가 fp8KV 자매셀의 절반(batch=3) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
+| `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvfp8` | legacy-5seg-node | 0.28.0 | qwen3.8-27b | rtxpro6000-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+fp8KV 조합이 최대 동시접속(batch=6, 집계 1181.6 tok/s) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
+| `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len524288-kvfp8` | legacy-5seg-node | 0.28.0 | qwen3.8-27b | rtxpro6000-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+fp8KV+YaRN(524288, factor=2.0) — 단일스트림 속도는 non-YaRN 262144 자매셀과 동일(44.27 vs 44.22 t/s) · gen_recipe_set.py 에 hf_overrides SERVE_KNOB 를 신설해야 발행 가능했던 셀 |
+| `hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/len262144-kvfp8` | legacy-5seg-node | 0.28.0 | qwen3.8-27b | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · bf16가중치+fp8KV — 단일스트림 속도가 fp8가중치 자매셀 대비 크게 낮음(정확도 우선 대안) · TP=1 자매셀 대비 속도 배율(~1.75배)이 fp8w 조합(~1.58배)보다 큼 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
+| `hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len1000000-kvfp8` | legacy-5seg-node | 0.28.0 | qwen3.8-27b | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+fp8KV+YaRN(factor=4.0, 1,000,000 컨텍스트, vLLM 공식 가이드 상한) — TP=1 캠페인이 "물리적으로 불가"로 추정만 했던 상한에 실측 도달 · 단일스트림 속도는 262144 자매셀과 사실상 동일 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
+| `hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len262144-kvauto` | legacy-5seg-node | 0.28.0 | qwen3.8-27b | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+KV무양자화 — TP=1 자매셀 대비 단일스트림 속도 ~1.59배·동시접속 상한 batch=8 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
+| `hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len262144-kvfp8` | legacy-5seg-node | 0.28.0 | qwen3.8-27b | rtxpro6000x2-main-native | 미기재 | HINT_MISSING_LITE | RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+fp8KV 조합이 이 캠페인의 최대집계처리량(batch=16, 2503.2 tok/s) · TP=1 자매셀 대비 세 배율(속도/batch/집계)이 모두 다르게 스케일 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체 |
+| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvauto-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-fp8 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=auto · ctx1048576(YaRN f4) · PLE=mmap — decode 35.39 t/s(동시성1) · 예산 floor가 nv4 mmp 셀들보다 타이트(15,280MiB)했으나 mmap이면 통과 |
+| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-fp8 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx1048576(YaRN f4) · PLE=mmap — decode 33.27 t/s(동시성1) · mmp 계열 22셀 재수행 캠페인 완결(11/11 성공) |
+| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvauto-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-fp8 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next FP8(Unsloth) · GB10x2 클러스터 · kv=auto · ctx262144 · PLE=mmap — decode 35.37 t/s(동시성1) · 직전 캠페인 "서빙성공·벤치사망" 지점, R3(budget_renew) 교정 후 5레벨 전부 완주 |
+| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-fp8 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next FP8(Unsloth) · GB10x2 클러스터 · kv=fp8_e4m3 · ctx262144 · PLE=mmap — decode 34.04 t/s(동시성1) · 직전 캠페인 KV캐시산출 직후 워치독 사살(오진) 지점, R1/R2 교정 후 5레벨 전부 완주 |
+| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvauto-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-fp8 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=auto · ctx524288(YaRN f2) · PLE=mmap — decode 37.61 t/s(동시성1) · 예산 floor가 res 계열보다도 타이트(15,280MiB)했으나 mmap 이면 통과 |
+| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-fp8 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx524288(YaRN f2) · PLE=mmap — decode 35.94 t/s(동시성1) · kv dtype 축이 예산 floor 를 바꾸지 않음을 재확인(kv=auto 태그와 완전 동일 floor) |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvauto-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=auto · ctx1048576(YaRN f4) · PLE=mmap — decode 35.92 t/s(동시성1) · R8 YaRN factor=4 첫 실서빙 검증, mmp 계열 캠페인 통산 11/11 성공 |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx1048576(YaRN f4) · PLE=mmap — decode 33.40 t/s(동시성1) · R8 YaRN factor=4 2번째 검증(kv dtype 축) |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드 TP=2 로 세울 때, **PLE 를 NVMe mmap 으로 서빙하는 트랙**은 |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-pleresident` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드 TP=2 로 세울 때, **PLE(per-layer n-gram embedding)를 |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx262144 · PLE=mmap — decode 38.18 t/s(동시성1) · 직전 캠페인 하네스 오진(3건) 교정 후 첫 라이브 재현 |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvauto-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=auto · ctx524288(YaRN f2) · PLE=mmap — decode 33.72 t/s(동시성1) · R8 YaRN 번역기 첫 실서빙 검증 — mrope+partial_rotary_factor 위에서 YaRN 합성 정상 동작 확인 |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx524288(YaRN f2) · PLE=mmap — decode 34.86 t/s(동시성1) · R8 YaRN 번역기 2번째 실서빙 재현(kv=fp8 조합) |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/len786432-kvfp8-spec7-graph` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · KV는 fp8_ds_mla 단일 경로 · dspark spec7+cudagraph+humming 조합으로 768K 31.12 t/s(+82%) · verdict PASS(explore) |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8 · 변종 spec0-graph0 · 768K 17.11 t/s @1 · verdict PASS(explore) |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0-len1m` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 e-1m-kvfp8 · 변종 spec0-graph0-len1m · 1M 16.67 t/s @1 · verdict PASS(explore) |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph1` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8-l2graph · 변종 spec0-graph1 · 768K 26.14 t/s @1 · verdict PASS(explore) |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph0` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8-l1spec · 변종 spec7-graph0 · 768K 29.72 t/s @1 · verdict PASS(explore) |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph1-len1m` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 e-1m-kvfp8-e1combo · 변종 spec7-graph1-len1m · 1M 30.54 t/s @1 · verdict PASS(explore) |
 <!-- hint-index:rows -->

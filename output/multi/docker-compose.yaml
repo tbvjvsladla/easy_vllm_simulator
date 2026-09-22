@@ -61,17 +61,22 @@ x-gpu-common: &gpu-common
     #   NAS mmap 은 디코드 지연이라 로컬 스테이징이 전제(blazux 선례). 셀 env 의 VLLM_PLE_MMAP=1 일 때만 읽힌다.
     - ${PLE_MMAP_HOST_PATH:-/mnt/models}:/app/ple_mmap:ro
     # 통로 self-containment(plan_2026062321_1 I1/I2): 컨테이너는 통로(output/multi/)만 마운트 — `../../`(통로 밖) reach-out 금지.
-    # ./configs = output/multi/configs = 모델 트리플릿 + render-materialize 된 러너 스크립트(serve_runner.sh·debug-init.sh).
-    #   러너 스크립트 정본 = repo-root configs/(tracked); render_dockerfile.py --materialize-configs --topology multi 가 통로로 복사(생성본·gitignored).
+    # ./configs = output/multi/configs = 모델 트리플릿 + render-materialize 된 러너 스크립트(serve_runner.sh·debug-init.sh·arm_patch.sh).
+    #   러너 스크립트 정본 = .claude/skills/upstream-version-watch/assets/configs/(tracked · render_dockerfile.SHARED_ASSET_DIR ·
+    #   RUNNER_SCRIPTS); render_dockerfile.py --materialize-configs --topology multi 가 통로로 복사(생성본·gitignored).
+    #   repo-root configs/ 는 정본이 아니다(2026-09-22 정정 — 옛 주석이 그쪽을 정본이라 적었고, 그 serve_runner.sh 는
+    #   자산 정본과 갈라진 낡은 사본이다 · 컨테이너가 마운트하는 것은 이 통로의 materialize 본뿐이다).
     #   ⚠ 과거 `../../configs/*.sh` 런타임 오버레이는 RO 부모 안 중첩마운트로 컨테이너 시작 불가 → 폐기(plan_2026062321_1 §1).
     - ./configs:/app/configs:ro
 
 # ═════════════════════════════════════════════════════════════════════════════
-# NCCL/RDMA 통신 env (이전 `environment: &gpu-env` 인라인 17개) → manifest-driven 렌더로 이관 (Plan 2 S3).
+# NCCL/RDMA 통신 env (이전 `environment: &gpu-env` 인라인 블록) → manifest-driven 렌더로 이관 (Plan 2 S3).
+#   키 목록·개수는 렌더 함수(render_dockerfile.build_nccl_env)가 정한다 — 2026-09-22 파생값 19키(= golden 행 수 · ①7 + ②8
+#   + ③4). 옛 주석의 "17개" 는 golden 과 갈라진 낡은 리터럴이었다(코드맵 K12) · 개수를 여기서 손으로 갱신하지 않는다.
 #   각 서비스가 `env_file: envs/.env.interconnect` 로 주입. 이 파일은 render_dockerfile.py --nccl-envfile 가
 #   manifest.interconnect(①환경값) + NCCL_PRESETS[dgx-spark-gb10](②프리셋) + 불변(③) 으로 생성(비추적 생성물).
 #   검증 정본/회귀 oracle: .claude/skills/upstream-version-watch/fixtures/nccl_env_dgx-spark-gb10.golden (208.2 Gb/s).
-#   ⚠ &gpu-env 앵커는 NCCL 17개가 유일 키였어서 제거 시 빈(null) 매핑 → `<<: *gpu-env` 머지가 brittle.
+#   ⚠ &gpu-env 앵커는 NCCL 키만 담고 있어서 제거 시 빈(null) 매핑 → `<<: *gpu-env` 머지가 brittle.
 #     따라서 앵커 선언 + 3서비스의 `<<: *gpu-env` 를 동반 삭제(서비스별 비-NCCL env 는 인라인 유지).
 #   근거: docs/plan/plan_2026062316_1 (Plan 2) · D1 envfile 분리 · 인터뷰 seed_8970559bf926.
 # ═════════════════════════════════════════════════════════════════════════════

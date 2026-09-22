@@ -81,7 +81,7 @@
       "build_patch_selectors": {
         "SM12X_PORT": "1"
       },
-      "_selector_note": "0.27.0 항목과 동일 배선. `ARG SM12X_PORT=0`(Dockerfile.source-build.template L131) + 스모크의 `$(val SM12X_PORT)` → SLAVE_IMGVARS 전달(multinode_serve_smoke.sh L96·97)로 클러스터-와이드가 증명된다. 부재 = stock 이므로 등재되지 않은 빌드는 스크립트가 디렉터리에 있어도 적용되지 않는다.",
+      "_selector_note": "0.27.0 항목과 동일 배선. `ARG SM12X_PORT=0`(Dockerfile.source-build.template) + 멀티 스모크의 SLAVE_IMGVARS 가 `slave_forward.py` 의 image_identity 그룹(compose build-arg 참조에서 파생 · 값은 마스터와 같은 모델 env `$EF`)으로 전달되어 클러스터-와이드가 증명된다 — policy_registry 가 그 파생을 실행해 확인한다. 2026-09-21(plan_26092119 §4.6): 옛 배선 `$(val SM12X_PORT)` → SLAVE_IMGVARS 손목록(multinode_serve_smoke.sh L96·97)은 build-arg 와 따로 자라 다섯 번 침묵 누락돼 폐기됐다. 부재 = stock 이므로 등재되지 않은 빌드는 스크립트가 디렉터리에 있어도 적용되지 않는다.",
       "image_tag": "easy-vllm:0.27.1-cu133-aarch64-source-sm12x",
       "_image_tag_note": "0.27.0 R2 이미지(`easy-vllm:0.27.0-cu133-aarch64-source-sm12x`)는 **롤백 앵커**이자 상주 대상일 수 있으므로 태그를 재사용하지 않는다 — 배선이 다른 이미지가 같은 이름을 갖는 것은 불변식이 아니라 결함이다(plan_26081410 §10.3.2.1 · schema v3 근거).",
       "port_manifest": {

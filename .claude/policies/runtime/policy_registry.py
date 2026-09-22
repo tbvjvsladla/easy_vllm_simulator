@@ -901,9 +901,11 @@ _EVIDENCE_RESOLUTION_REASON = {
 # (What survives is membership -- "does this repo's index carry these bytes at all" -- which is
 # not a re-recorded digest but the tracked/untracked fact itself.) There is no fallback tier -- a repo_root with no git
 #                simply cannot prove provenance, and saying so is fail-closed. (The gitless
-#                CONSUMER that does exist -- hint_tag's read-only `match`/catalogue path -- never
-#                enters this module; `require_git_repository()` gates the rest of hint_tag, and
-#                the governance harness runs only in a git clone.)
+#                CONSUMER that does exist -- the hint-publisher CLI's read-only `hint.py match`
+#                path (formerly hint_tag's `match`/catalogue path; replaced 2026-09-21,
+#                plan_26092119) -- never enters this module; `hintlib.core.resolve_repo` requires a
+#                git checkout for every other command, and the governance harness runs only in a
+#                git clone.)
 # The symlink gate is NOT delegated to git: git tracks a symlink as its own blob, so a symlinked
 # component would resolve as "tracked and undrifted" while pointing outside the reviewed tree.
 # `evidence_manifest`/`tracked_index` parameters are gone from every signature in this module --
@@ -1549,6 +1551,53 @@ def check_removal_full(doc: dict, policy_id: str, as_of: datetime.date, schema: 
                                       expected_tree_sha256=expected_tree, expected_as_of=as_of)
 
 
+_SLAVE_FORWARD_REL = ".claude/skills/upstream-version-watch/scripts/slave_forward.py"
+_COMPOSE_MULTI_TEMPLATE_REL = ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml"
+
+
+def _slave_forward_groups(repo_root: Path) -> tuple[dict | None, str | None]:
+    """(group -> keys, None) from `slave_forward.candidates(<multi compose template>)` of THIS repo_root,
+    or (None, reason) when it cannot be run.
+
+    2026-09-21 (plan_26092119 §4.6 · build_plane K5): the slave forward set moved out of a hand list in
+    multinode_serve_smoke.sh into slave_forward.py, which derives it from the compose's ${VAR}
+    references. The hand list grew apart from the build-args five times (BUILD_DOCKERFILE 07-24 ·
+    VLLM_PRETEND_VERSION 08-02 · SM12X_PORT 08-14 · SRC_DEPS_AUTHORITY 08-15 · VLLM_VERSION 09-05).
+    The derivation is loaded from repo_root's own file (a fixture root runs its own copy -- the module
+    name is derived from the path so a real-repo module is never reused for a fixture). A load or run
+    failure is returned as a REASON, never folded into None-means-unwired: "could not judge" and "not
+    wired" are different verdicts (workflow.md 판정표: a silent fallback on a gate path is the defect)."""
+    import importlib.util
+    sf_path = repo_root / _SLAVE_FORWARD_REL
+    compose = repo_root / _COMPOSE_MULTI_TEMPLATE_REL
+    for rel_path, path in ((_SLAVE_FORWARD_REL, sf_path), (_COMPOSE_MULTI_TEMPLATE_REL, compose)):
+        if not path.is_file():
+            return None, f"{rel_path} is absent"
+    name = "_policy_registry_slave_forward_" + hashlib.sha256(str(sf_path).encode("utf-8")).hexdigest()[:16]
+    try:
+        spec = importlib.util.spec_from_file_location(name, sf_path)
+        if spec is None or spec.loader is None:
+            return None, f"cannot build an import spec for {_SLAVE_FORWARD_REL}"
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module  # dataclasses resolve their module through sys.modules
+        spec.loader.exec_module(module)
+        groups = module.candidates(compose)
+    except Exception as exc:  # noqa: BLE001 -- reported as the reason (fail-closed), never swallowed
+        return None, f"slave_forward.candidates failed: {type(exc).__name__}: {exc}"
+    if not isinstance(groups, dict) or not isinstance(groups.get("image_identity"), list):
+        return None, f"slave_forward.candidates returned no image_identity group: {groups!r}"
+    return groups, None
+
+
+def _smoke_forwards_image_identity(smoke: str) -> bool:
+    """(2a) text wiring of the multi smoke: SLAVE_IMGVARS is assigned from slave_forward.py's image_identity
+    group, and that derivation is fed the SAME model env file ($EF) the master builds/serves with. The retired
+    hand-list idiom (`$(val <NAME>)` + `<NAME>=$` on the SLAVE_IMGVARS line) does NOT satisfy it (2026-09-21)."""
+    imgvars_line = next((ln for ln in smoke.splitlines() if ln.strip().startswith("SLAVE_IMGVARS=")), "")
+    return ('SF="$SDIR/slave_forward.py"' in smoke and '--cell-env "$EF"' in smoke
+            and '"$SF" prefix --group image_identity' in imgvars_line)
+
+
 def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
     """Fail-closed contract for the arch-wall variant ledger and promotion procedure.
 
@@ -1706,6 +1755,14 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
         smoke = (repo_root / smoke_rel).read_text(encoding="utf-8")
     except (OSError, UnicodeError):
         smoke = ""   # 선택자를 선언한 항목이 있을 때만 위반이 된다(아래 validate_build_patch_selectors).
+    # slave 전달 파생(slave_forward.candidates)은 선택자를 가진 항목이 처음 물을 때 **한 번만** 돌린다 -- 항목마다
+    # 모듈을 다시 적재하지 않는다. 결과 (groups, 사유) 를 그대로 기억한다(실패도 한 번 판정한 사실이다).
+    sf_state: dict = {}
+
+    def forward_groups():
+        if "groups" not in sf_state:
+            sf_state["groups"], sf_state["why"] = _slave_forward_groups(repo_root)
+        return sf_state["groups"], sf_state["why"]
 
     def validate_candidate_evidence(name, item, pfx):
         """CANDIDATE 는 승인 아티팩트가 아니라 **사다리 근거**를 증거로 갖는다.
@@ -1744,9 +1801,17 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
         선택자는 build-arg 이름 -> 값이다. 정적 파일끼리는 한쪽이 다른 쪽을 생성할 수 없으므로
         (workflow.md §결정론 규율 "단일 소유가 불가능하면 교차검증이 차선") 원장 선언을 두 배선과 대조한다:
           (1) Dockerfile 템플릿에 `ARG <NAME>=0` -- **부재 = stock** 이 기본이어야 침묵 변종화가 막힌다.
-          (2) 멀티 스모크가 같은 모델 env 에서 값을 뽑아(`$(val <NAME>)`) SLAVE_IMGVARS 로 전달 --
+          (2) 멀티 스모크가 같은 모델 env 에서 값을 받아 SLAVE_IMGVARS 로 전달 --
               멀티는 클러스터-와이드 이미지가 전제라 빌드 인자가 한 톨이라도 갈리면 마스터만 변종이 된다.
         (2)를 요구하는 것이 곧 "serve 평면이 아니라 build 평면의 값"이라는 증명이다.
+
+        2026-09-21(plan_26092119 §4.6): (2)의 배선이 손목록 idiom(`$(val <NAME>)` + SLAVE_IMGVARS 줄의
+        `<NAME>=$`)에서 `slave_forward.py`(compose 참조 파생 · 단일 소유)로 옮겨졌다. 옛 idiom 을 grep 하면
+        옳은 새 배선이 위반으로 읽히고, 스모크에 옛 idiom 을 되살리면 다섯 번 침묵 누락된 손목록이 돌아온다.
+        이제 (2)는 둘을 본다 -- (a) 스모크가 SLAVE_IMGVARS 를 그 함수(`image_identity` 그룹)에서 받고 그
+        함수에 **같은 모델 env**(`--cell-env "$EF"`)를 먹이는가(텍스트 배선) (b) 그 함수가 compose 템플릿에서
+        이 선택자를 image_identity 로 **실제로 파생하는가**(실행). 파생을 돌릴 수 없으면 '배선 없음' 이 아니라
+        판정 불가(WIRING_UNREADABLE)로 보고한다.
         """
         if not isinstance(selectors, dict) or not selectors:
             fail("ARCH_VARIANT_PORT_SELECTORS_INVALID",
@@ -1769,12 +1834,20 @@ def arch_variant_contract_violations(repo_root: Path = REPO_ROOT) -> list:
                 fail("ARCH_VARIANT_PORT_SELECTOR_WIRING_UNREADABLE",
                      f"{name!r} selector {arg!r} cannot be proven cluster-wide: {smoke_rel} is unreadable", sub)
                 continue
-            imgvars_line = next((ln for ln in smoke.splitlines()
-                                 if ln.strip().startswith("SLAVE_IMGVARS=")), "")
-            if f"$(val {arg})" not in smoke or f"{arg}=$" not in imgvars_line:
+            if not _smoke_forwards_image_identity(smoke):
                 fail("ARCH_VARIANT_PORT_SELECTOR_NOT_CLUSTER_WIDE",
-                     f"{name!r} selector {arg!r} is not read from the model env file and propagated to the slave "
-                     f"as image identity", sub)
+                     f"{name!r} selector {arg!r} is not propagated to the slave as image identity: SLAVE_IMGVARS is "
+                     f"not assigned from slave_forward.py (image_identity) fed the model env file ($EF)", sub)
+                continue
+            groups, why = forward_groups()
+            if groups is None:
+                fail("ARCH_VARIANT_PORT_SELECTOR_WIRING_UNREADABLE",
+                     f"{name!r} selector {arg!r} cannot be proven cluster-wide: {why}", sub)
+                continue
+            if arg not in groups["image_identity"]:
+                fail("ARCH_VARIANT_PORT_SELECTOR_NOT_CLUSTER_WIDE",
+                     f"{name!r} selector {arg!r} is not derived by slave_forward.py as cluster-wide image identity "
+                     f"from the multi compose template (the compose must pass it as a build-arg)", sub)
 
     def validate_port_manifest(name, port_manifest, pfx):
         """이식 원장(provenance). 결정론 앵커는 `upstream_base_sha` 다 -- vllm_ref 가 stock 릴리스 태그일
@@ -2168,8 +2241,10 @@ def cmd_check_removal(args: argparse.Namespace) -> None:
 
 
 def _self_test() -> int:
-    """Deterministic in-memory round-trip -- no filesystem/registry dependency. Exercises the
-    date-chronology, decoupled 90-day/as-of, and retirement-closure logic directly."""
+    """Deterministic in-memory round-trip -- no registry dependency. Exercises the
+    date-chronology, decoupled 90-day/as-of, and retirement-closure logic directly, then the
+    build-plane selector wiring negative controls (`_self_test_selector_wiring` -- the one part that
+    reads this checkout's slave_forward/render_dockerfile/compose template, copied into a temp root)."""
     ok_policy = {
         "policy_id": "SELFTEST_OK", "owner": "x", "statement": "s", "scope": ["single-node"],
         "origin_failure": "plan_x",
@@ -2202,8 +2277,52 @@ def _self_test() -> int:
                 "AS_OF_STATE_MISMATCH"}
     if not expected <= codes:
         raise RuntimeError(f"self-test BAD fixture missing expected codes: {expected - codes}, got {codes}")
+    _self_test_selector_wiring()
     print("[policy_registry] --self-test PASS")
     return 0
+
+
+def _self_test_selector_wiring() -> None:
+    """Negative controls for the build-plane selector check (2) that replaced the retired `$(val ARG)` grep
+    (2026-09-21 · plan_26092119 §4.6). The claim predicates only exercise its POSITIVE path on the real
+    tree; without these, either half could be deleted and nothing would go red. Runs on copies of this
+    checkout's slave_forward.py / render_dockerfile.py / multi compose template in a temp root (the real
+    files are only read)."""
+    import tempfile
+    wired = ('SF="$SDIR/slave_forward.py"\nSFA=(--cell-env "$EF" --compose "$COMPOSE_MULTI")\n'
+             'SLAVE_IMGVARS="$(python3 "$SF" prefix --group image_identity,cluster "${SFA[@]}")"\n')
+    retired = ('IMG=$(val IMAGE_TAG); SMPORT=$(val SM12X_PORT)\n'
+               'SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${SMPORT:+SM12X_PORT=$SMPORT }"\n')
+    if not _smoke_forwards_image_identity(wired):
+        raise RuntimeError("self-test: the slave_forward wiring must satisfy check (2a)")
+    for label, text in (("the retired hand list", retired),
+                        ("a derivation fed another env file", wired.replace('"$EF"', '"$EFC"')),
+                        ("a derivation of the cluster group only", wired.replace("image_identity,cluster", "cluster"))):
+        if _smoke_forwards_image_identity(text):
+            raise RuntimeError(f"self-test: {label} must NOT satisfy check (2a)")
+    rels = (_SLAVE_FORWARD_REL, ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py",
+            _COMPOSE_MULTI_TEMPLATE_REL)
+    with tempfile.TemporaryDirectory(prefix="policy-registry-sf-") as td:
+        root = Path(td)
+        for rel in rels:
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(REPO_ROOT / rel, root / rel)
+        groups, why = _slave_forward_groups(root)
+        if groups is None or "SM12X_PORT" not in groups["image_identity"]:
+            raise RuntimeError(f"self-test: the compose template must derive SM12X_PORT as image identity ({why})")
+        compose = root / _COMPOSE_MULTI_TEMPLATE_REL
+        text = compose.read_text(encoding="utf-8")
+        dropped = "".join(ln for ln in text.splitlines(keepends=True) if not ln.lstrip().startswith("SM12X_PORT:"))
+        if dropped == text:
+            raise RuntimeError("self-test: the compose template no longer declares the SM12X_PORT build-arg line")
+        compose.write_text(dropped, encoding="utf-8")
+        groups, why = _slave_forward_groups(root)
+        if groups is None or "SM12X_PORT" in groups["image_identity"]:
+            raise RuntimeError(f"self-test: a compose without the build-arg must not derive it ({why})")
+        (root / _SLAVE_FORWARD_REL).unlink()
+        groups, why = _slave_forward_groups(root)
+        if groups is not None or not why:
+            raise RuntimeError("self-test: an absent slave_forward.py must be 'cannot judge' with a reason")
 
 
 def main() -> None:

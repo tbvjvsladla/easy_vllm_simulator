@@ -132,7 +132,8 @@ def _cgate():
     """`completion_gate.validate_against_schema`(Draft-07 부분집합 일반 검증기)를 재적재한다.
 
     서브 배포에서는 동거 사본으로, 메인 레이아웃에서는 `.claude/policies/runtime/` 정본 경로에서
-    적재한다 — `hint_tag.py::_cgate` 와 같은 두-레이아웃 패턴. 없으면 **모른다고 말하고 실패**한다
+    적재한다 — hint-publisher `hintlib/evidence.py::cgate` 와 같은 두-레이아웃 패턴(2026-07-31 메인
+    finalize/verify 가 ModuleNotFoundError 로 죽은 선례에서 나왔다). 없으면 **모른다고 말하고 실패**한다
     (자체 검증기로 조용히 갈아타지 않는다 — 그러면 두 판정기가 갈린다).
     """
     global _cgate_module

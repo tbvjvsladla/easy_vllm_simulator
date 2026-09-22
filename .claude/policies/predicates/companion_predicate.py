@@ -45,24 +45,56 @@ class TestHostSafetyLayeredDefenseCompanion(unittest.TestCase):
 
 
 class TestLastGoodRollbackAnchorCompanion(unittest.TestCase):
-    """LAST_GOOD_ROLLBACK_ANCHOR.C1/C3: the rollback anchor is a LOCAL commit; hint_tag.py's push
-    path structurally protects that by refusing any --tag outside the hint/ namespace, so the
-    rendered refspec can never widen to `refs/tags/*` and carry local refs to a public origin.
+    """LAST_GOOD_ROLLBACK_ANCHOR.C1/C3: the rollback anchor is a LOCAL commit; the hint push path
+    structurally protects that by pushing exactly one refspec `refs/tags/<tag>:refs/tags/<tag>` for a
+    single `hint/` name -- never `--tags`, never a glob, never a branch -- so no local ref can ride
+    along to a public origin.
 
     2026-09-03 (plan_26090222 F-6c): this used to pin cmd_verify's origin-side `ls-remote --tags
     origin last-good-*` scan instead. That scan was deleted -- it asserted a condition about a tag
-    this repo never creates, while the guard that actually prevents the leak lives in cmd_push."""
+    this repo never creates, while the guard that actually prevents the leak lives in the push path.
 
-    def test_hint_tag_push_refuses_refs_outside_hint_namespace(self):
-        src = _read(".claude/skills/hint-publisher/scripts/hint_tag.py")
+    2026-09-21 (plan_26092119 O2 · O5): the push path moved from hint_tag.cmd_push (a `--tag`
+    fnmatch pattern rendered into the glob refspec `refs/tags/hint/*`) to hintlib/tag.py push_tag
+    (one exact, validated tag). The glob refspec literal must not come back: fnmatch selection and
+    git's glob disagree on `?`/`[...]`, so the verified set and the pushed set could differ."""
+
+    _TAG_PY = ".claude/skills/hint-publisher/scripts/hintlib/tag.py"
+
+    def _functions(self):
+        src = _read(self._TAG_PY)
         tree = ast.parse(src)
-        push = next((n for n in ast.walk(tree)
-                     if isinstance(n, ast.FunctionDef) and n.name == "cmd_push"), None)
-        self.assertIsNotNone(push, "hint_tag.cmd_push must exist")
-        push_src = ast.get_source_segment(src, push) or ""
-        self.assertIn('if not a.tag.startswith("hint/")', push_src)
-        self.assertIn('refspec = "refs/tags/hint/*"', push_src)
-        self.assertNotIn('"--tags"', push_src)
+        return src, {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+
+    def test_hint_push_sends_exactly_one_tag_refspec(self):
+        src, fns = self._functions()
+        for name in ("push_tag", "_tag_ref", "check_ref_format", "git_push_authenticated"):
+            self.assertIn(name, fns, f"hintlib.tag.{name} must exist")
+        push_src = ast.get_source_segment(src, fns["push_tag"]) or ""
+        self.assertIn("check_ref_format(repo, tag)", push_src)
+        self.assertIn('refspec = f"{ref}:{ref}"', push_src)
+        self.assertIn('return f"refs/tags/{tag}"', ast.get_source_segment(src, fns["_tag_ref"]) or "")
+        guard_src = ast.get_source_segment(src, fns["check_ref_format"]) or ""
+        self.assertIn("not tag.startswith(core.HINT_TAG_PREFIX)", guard_src)
+        self.assertIn("_GLOB_CHARS", guard_src)
+        self.assertIn('HINT_TAG_PREFIX = "hint/"', _read(".claude/skills/hint-publisher/scripts/hintlib/core.py"))
+        self.assertNotIn('"refs/tags/hint/*"', push_src)
+        for name in ("push_tag", "git_push_authenticated"):
+            literals = {n.value for n in ast.walk(fns[name])
+                        if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+            self.assertNotIn("--tags", literals, f"{name} must never pass --tags")
+
+    def test_retired_glob_push_cli_is_gone(self):
+        # O5: no shim -- the old CLI whose push rendered the glob refspec must not linger beside the new path,
+        # under its old name or any other. Judged as a CLOSED list of the scripts dir's top-level programs (a
+        # tripwire: adding one forces this review) rather than by naming the retired file -- a live path to the
+        # retired CLI here would itself be an "old CLI reference" for the AC11 grep (plan_26092119 §7).
+        scripts = REPO_ROOT / ".claude/skills/hint-publisher/scripts"
+        top = sorted(p.name for p in scripts.iterdir() if p.is_file() and p.suffix in (".py", ".sh"))
+        self.assertEqual(top, ["hint.py", "render_bench_section.py"],
+                         "hint-publisher/scripts must hold only the single CLI and the bench-section renderer "
+                         "(+ hintlib/) -- a retired CLI must be removed, not kept as a shim")
+        self.assertTrue((scripts / "hintlib" / "tag.py").is_file(), "the push path lives in hintlib/tag.py")
 
     def test_sync_branches_never_tags_or_hard_resets(self):
         # LAST_GOOD_ROLLBACK_ANCHOR.C2: single-node/multi-node roll back independently -- the

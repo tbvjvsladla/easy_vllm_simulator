@@ -166,14 +166,19 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C1": [
       {
-        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hintlib/tag.py",
         "assertion_ids": [
-          "_build_evidence_footer",
-          "_tag_object_body",
-          "cmd_match",
-          "cmd_push",
-          "scan_text",
-          "validate_name"
+          "annotation",
+          "seal",
+          "verify_local"
+        ]
+      },
+      {
+        "path": ".claude/skills/hint-publisher/scripts/hintlib/branch.py",
+        "assertion_ids": [
+          "PAYLOAD_ALLOWLIST_TOP",
+          "commit_payload",
+          "require_payload_anchor"
         ]
       },
       {
@@ -185,14 +190,17 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C2": [
       {
-        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hintlib/pii.py",
         "assertion_ids": [
-          "_build_evidence_footer",
-          "_tag_object_body",
-          "cmd_match",
-          "cmd_push",
-          "scan_text",
-          "validate_name"
+          "GENERIC_PII",
+          "scan_text"
+        ]
+      },
+      {
+        "path": ".claude/skills/hint-publisher/scripts/hintlib/branch.py",
+        "assertion_ids": [
+          "commit_violations",
+          "synthetic_identity"
         ]
       },
       {
@@ -204,14 +212,10 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C3": [
       {
-        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hintlib/template.py",
         "assertion_ids": [
-          "_build_evidence_footer",
-          "_tag_object_body",
-          "cmd_match",
-          "cmd_push",
-          "scan_text",
-          "validate_name"
+          "REVALIDATION_BANNERS",
+          "lint"
         ]
       },
       {
@@ -223,14 +227,21 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C4": [
       {
-        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
+        "path": ".claude/skills/terraforming_node/scripts/node_role_contract.py",
         "assertion_ids": [
-          "_build_evidence_footer",
-          "_tag_object_body",
-          "cmd_match",
-          "cmd_push",
-          "scan_text",
-          "validate_name"
+          "TOOL_PLANE_BY_SUB_MODE"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+        "assertion_ids": [
+          "emit_slice"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+        "assertion_ids": [
+          "hint_target_reasons"
         ]
       },
       {
@@ -242,14 +253,11 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C5": [
       {
-        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hintlib/tag.py",
         "assertion_ids": [
-          "_build_evidence_footer",
-          "_tag_object_body",
-          "cmd_match",
-          "cmd_push",
-          "scan_text",
-          "validate_name"
+          "PUSH_SCOPE_ARGS",
+          "git_push_authenticated",
+          "push_tag"
         ]
       },
       {
@@ -261,14 +269,27 @@
     ],
     "HINT_TAG_ACTIVATION_GATE.C6": [
       {
-        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hint.py",
         "assertion_ids": [
-          "_build_evidence_footer",
-          "_tag_object_body",
-          "cmd_match",
-          "cmd_push",
-          "scan_text",
-          "validate_name"
+          "HINT_ACTION_FOR_CMD"
+        ]
+      },
+      {
+        "path": ".claude/skills/hint-publisher/scripts/hintlib/evidence.py",
+        "assertion_ids": [
+          "approval_for"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+        "assertion_ids": [
+          "hint_approval_for"
+        ]
+      },
+      {
+        "path": ".claude/skills/hint-publisher/scripts/hintlib/tag.py",
+        "assertion_ids": [
+          "name_collision"
         ]
       },
       {
@@ -566,9 +587,9 @@
     ],
     "LAST_GOOD_ROLLBACK_ANCHOR.C1": [
       {
-        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hintlib/tag.py",
         "assertion_ids": [
-          "cmd_push"
+          "push_tag"
         ]
       },
       {
@@ -595,9 +616,15 @@
     ],
     "LAST_GOOD_ROLLBACK_ANCHOR.C3": [
       {
-        "path": ".claude/skills/hint-publisher/scripts/hint_tag.py",
+        "path": ".claude/skills/hint-publisher/scripts/hintlib/tag.py",
         "assertion_ids": [
-          "cmd_push"
+          "push_tag"
+        ]
+      },
+      {
+        "path": ".claude/skills/hint-publisher/scripts/hint.py",
+        "assertion_ids": [
+          "_build_parser"
         ]
       },
       {
@@ -1000,6 +1027,14 @@
         "assertion_ids": [
           "IMG",
           "SLAVE_IMGVARS"
+        ]
+      },
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/slave_forward.py",
+        "assertion_ids": [
+          "candidates",
+          "derive",
+          "prefix"
         ]
       },
       {
