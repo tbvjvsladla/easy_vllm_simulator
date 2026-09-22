@@ -62,8 +62,11 @@
   "revisions": [],
 
   "_hint_targets_howto": [
-    "hint 태그 대상. 빈 목록으로 출발하며 **발행을 결정할 때** 채운다 — 완주와 발행은 분리돼 있고(사용자 결정 2026-09-08), 다음 캠페인 init 의 purge 전이면 언제든 채울 수 있다.",
-    "모양: {\"arch\": \"<hw>-<main|sub|cluster>-<target>\", \"node_id\": \"<선언된 노드>\", \"cells\": [\"<그 노드에 배정된 셀>\", …]}. cells 를 비우면 그 노드의 전 셀이다."
+    "hint 발행 **사전승인** 기록(2026-09-21 · plan_26092119 O6). 빈 목록으로 출발하며 사람이 셀 목록을 승인한 그때 채운다 — 기본 자리는 캠페인 선언 확인 팝업이고(진행을 막는 세 자리 중 하나), 완주와 발행은 분리돼 있으므로(사용자 결정 2026-09-08) 다음 캠페인 init 의 purge 전이면 언제든 채울 수 있다.",
+    "모양: {\"node_id\": \"<선언된 노드>\", \"cells\": [\"<그 노드에 배정된 셀>\", …], \"approval\": {\"approved_by\": \"<사람 발화의 전사>\", \"approved_utc\": \"YYYY-MM-DDTHH:MM:SSZ\", \"source\": \"declaration-popup|publish-popup\"}}. 항목 하나 = 승인 사건 하나이고, 한 셀의 승인은 하나다.",
+    "기입 경로: campaign_init.py --hint-approve --node N --cells a,b --approved-by \"<전사>\" --utc <UTC> [--source declaration-popup|publish-popup] [--campaign-id ID] — node·cells·approved-by·utc 넷 중 하나라도 없으면 승인이 아니다(--revise 와 같은 규율). 같은 승인을 다시 적으면 멱등이고, 다른 승인으로 이미 승인된 셀은 옛 승인을 지킨다(귀속을 조용히 바꾸지 않는다).",
+    "cells 는 **명시 열거**다 — 옛 '비우면 그 노드의 전 셀' 해석은 폐기했다(사전승인으로 쓰면 빈 목록이 백지 승인이 된다). arch 는 적지 않는다 — 태그 이름은 발행 도구가 전량 파생한다(D8 · 손으로 적은 arch 는 검증기가 거부한다).",
+    "approved_by 는 봉인 시 발행 페이로드로 복사된다 — 사람 이름·연락처 대신 역할로 적는다(예: 사용자(발화 전사) — \"…\"). 파생 선언(--emit-slice)에는 실리지 않는다(발행은 메인 소관)."
   ],
   "hint_targets": [],
 

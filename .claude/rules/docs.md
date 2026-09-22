@@ -109,7 +109,7 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 
 ## PII 스캔 적용 범위 (2026-07-31 확정)
 
-정본 패턴은 `.claude/skills/hint-publisher/scripts/hint_tag.py` 의 `GENERIC_PII` 4종
+정본 패턴은 `.claude/skills/hint-publisher/scripts/hintlib/pii.py` 의 `GENERIC_PII` 4종
 (`private-ipv4`·`email`·`abs-op-path`·`spark-host`) + `.claude/pii_terms.txt` 리터럴이다.
 **적용 강도는 산출물이 배포되는지로 갈린다** — 배포되지 않는 것에 배포 기준을 적용하면 게이트가
 과잉차단되고, 배포되는 것에 완화 기준을 적용하면 유출된다.
@@ -135,7 +135,10 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
   계획·판정 문서가 비준수가 된다 — 정보를 잃는 대신 얻는 안전이 없다.
 - work-manifest 의 `pii_scan.passed` 는 **위 표의 해당 강도로 실제 스캔한 결과**만 적는다.
   좁은 패턴으로 스캔하고 통과를 선언하면 그 선언 자체가 거짓이다(2026-07-31 실제 발생).
-- `hint_tag finalize`/`verify` 의 fail-closed 스캔은 이 완화와 **무관하게 4종 전부**를 강제한다 —
+  위 표의 *판정 대상 밖* 평면(simlog 등)을 스캔하지 않았으면 `scanned_paths` 가 아니라
+  `pii_scan.exempt_paths[{path, reason}]` 에 적는다 — `completion_gate` 는 kind=simlog 필수 증거에 한해 reason 이
+  `machine-raw(docs.md §PII 판정 대상 밖)` 인 면제만 커버리지로 인정한다(2026-09-21 · `plan_26092119` X5).
+- `hint.py continue`(페이로드 커밋·봉인)·`verify`·`push` 의 fail-closed 스캔은 이 완화와 **무관하게 4종 전부**를 강제한다 —
   배포 경로의 최종 권위는 그쪽이다.
 - **Docker 기본 브리지 예외(비배포 원시로그 한정)**: 엔진 로그에 나오는 Docker 고정 기본 `docker0`
   서브넷(`172.17.x.x/16`)은 모든 Docker 호스트에 동일하게 존재하며 운영자 네트워크를
@@ -183,6 +186,7 @@ simlog·benchmark에 폴더별 ignore 예외를 더하지 않는다. report는 t
 | `publish-benchmark` | 벤치 스킬이 `docs/benchmark/` 에 발행한 report/certificate **원본에 바인딩**(복사 ✗ · 2026-09-04 plan_26090410) · 인증서는 측정 키(강한 6키+`measured_utc`)로 되찾아 정확히 1건일 때만 · PASS→FAIL 전이는 unbind(unlink ✗) | 규약 위치·이름 밖 src 거부 · 같은 측정 2건+ `AMBIGUOUS` · FAIL certificate·누락 certificate 합성 금지 |
 | `publish-lite-report` | `hint_map_only` 토픽에 벤치 스킬이 발행한 경량 bench_report **원본에 바인딩**(복사 ✗ · 2026-09-14) · `benchmark.mode=lite` | 규약 위치·이름 밖 src 거부 · 측정 구성 표를 **파싱해** `bench_mode=lite` 가 아니면 거부(표 밖 줄 매치 ✗) · 다른 클래스 토픽 거부 |
 | `record-capacity-rejection` | 검증된 gate pointer→record | fabricated evidence 금지 |
+| `set-promotion-target` | hint 태그 1건(`tag`·`topology`·`anchor` = 페이로드 커밋)→**발행 기록**의 `promotion_target`(다음 `finalize` 가 manifest 로 방출 · 2026-09-21 `plan_26092119` X6) | 기록 부재·모양 위반(`hint/` 이름공간·40자 앵커) 거부 · manifest 직접 쓰기 ✗(writer 1) · 재바인딩은 `rebound_from` 으로 표면화 |
 | `finalize` | record→work manifest→completion gate | identity/PII/verdict 자체판정 금지 |
 
 시각은 `--generated-utc`/`--recorded-utc` 입력만 사용한다. required evidence와 최종 상태는 각각 `completion_gate.required_evidence_for()`와 `completion_gate.py verify`가 소유한다.

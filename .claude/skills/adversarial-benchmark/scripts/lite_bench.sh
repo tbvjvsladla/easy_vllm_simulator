@@ -20,12 +20,13 @@
 #     ③ 발행 실패(명명 키 불성립·충돌)가 lite 측정 자체를 실패로 만들지 않게, 요청한 호출에서만 exit 5 로 알린다
 #        (측정 산출물 raw/warm/cold/엔진 로그는 그대로 남는다).
 #
-# 사용: lite_bench.sh <config_name> [--topology single|multi] [--burst-n N] [--out-dir DIR] [--no-sub-probe] [--publish-report]
+# 사용: lite_bench.sh <config_name> [--topology single|multi] [--serve-plane docker|native] [--host-endpoint URL]
+#        [--burst-n N] [--out-dir DIR] [--no-sub-probe] [--publish-report]
 # 종료: 0=측정 완료(요청 시 리포트 발행 포함) · 2=인자/파일 부재 · 3=serve 미가동 · 4=정체성/Flag 게이트 · 5=리포트 발행 실패(측정은 남음)
 set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
-TOPO=""; BURST_N=3; OUTDIR=""; SUB_PROBE=1; BACKEND="openai-chat"; PUBLISH_REPORT=0
+TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; BURST_N=3; OUTDIR=""; SUB_PROBE=1; BACKEND="openai-chat"; PUBLISH_REPORT=0
 # ★ 2026-09-01 신설 — run_bench.sh·sweep_bench.sh 와 같은 backend 노브(기본값 동일, 후방호환).
 #   왜: harmony 계열(gpt-oss)은 chat 엔드포인트에서 `--ignore-eos` 가 무력해 생성이 조기 종료되고
 #   median_tpot 이 크게 부풀려진다. 실측: 같은 서빙에서 lite(chat) 16.43 t/s vs full(completions)
@@ -33,6 +34,9 @@ TOPO=""; BURST_N=3; OUTDIR=""; SUB_PROBE=1; BACKEND="openai-chat"; PUBLISH_REPOR
 #   그 왜곡이 인증서의 lite_* 필드로 그대로 발행된다.
 while [ $# -gt 0 ]; do case "$1" in
   --topology) TOPO="$2"; shift 2;;
+  --serve-plane) SERVE_PLANE="$2"; shift 2;;
+  --host-endpoint) HOST_ENDPOINT="$2"; shift 2;;
+  --client-vllm) CLIENT_VLLM="$2"; shift 2;;
   --backend) BACKEND="$2"; shift 2;;
   --burst-n) BURST_N="$2"; shift 2;;
   --out-dir) OUTDIR="$2"; shift 2;;
@@ -40,6 +44,22 @@ while [ $# -gt 0 ]; do case "$1" in
   --publish-report) PUBLISH_REPORT=1; shift;;
   *) echo "[lite_bench] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
+case "$SERVE_PLANE" in
+  docker|native) ;;
+  *) echo "[lite_bench] 알 수 없는 --serve-plane: $SERVE_PLANE (docker|native)" >&2; exit 2;;
+esac
+if [ "$SERVE_PLANE" = "native" ] && { [ -z "$HOST_ENDPOINT" ] || [ -z "$CLIENT_VLLM" ]; }; then
+  echo "[lite_bench] ERROR --serve-plane native에는 --host-endpoint URL 과 --client-vllm <전용 venv/bin/vllm>이 필수다." >&2; exit 2
+fi
+if [ "$SERVE_PLANE" = "native" ] && [[ ! "$HOST_ENDPOINT" =~ ^https?://[^/[:space:]]+(:[0-9]+)?$ ]]; then
+  echo "[lite_bench] ERROR --host-endpoint는 경로 없는 http(s) origin 이어야 한다: $HOST_ENDPOINT" >&2; exit 2
+fi
+if [ "$SERVE_PLANE" = "docker" ] && { [ -n "$HOST_ENDPOINT" ] || [ -n "$CLIENT_VLLM" ]; }; then
+  echo "[lite_bench] ERROR --host-endpoint/--client-vllm은 --serve-plane native에서만 준다." >&2; exit 2
+fi
+if [ "$SERVE_PLANE" = "native" ] && { [ ! -x "$CLIENT_VLLM" ] || [ -L "$CLIENT_VLLM" ]; }; then
+  echo "[lite_bench] ERROR --client-vllm이 실행 가능한 regular non-symlink 파일이 아니다: $CLIENT_VLLM" >&2; exit 2
+fi
 case "$BACKEND" in
   openai-chat) LITE_ENDPOINT=/v1/chat/completions ;;
   openai)      LITE_ENDPOINT=/v1/completions ;;
@@ -78,10 +98,14 @@ set -a; . "$EF"; set +a
 PORT="${SERVING_PORT:?SERVING_PORT 미정}"
 MODEL_NAME="${SERVING_MODEL_NAME:?SERVING_MODEL_NAME 미정}"
 CFGFILE="${CONFIG_FILE:-$CONFIG}"
-if [ "$TOPO" = "multi" ]; then
-  CTR="${MASTER_CONTAINER_NAME:?MASTER_CONTAINER_NAME 미정}"; INPORT="$PORT"
+if [ "$SERVE_PLANE" = "docker" ]; then
+  if [ "$TOPO" = "multi" ]; then
+    CTR="${MASTER_CONTAINER_NAME:?MASTER_CONTAINER_NAME 미정}"; INPORT="$PORT"
+  else
+    CTR="${CONTAINER_NAME:-vllm-serve-container}"; INPORT=8000
+  fi
 else
-  CTR="${CONTAINER_NAME:-vllm-serve-container}"; INPORT=8000
+  CTR=""; INPORT=""
 fi
 CFGYAML="$REPO/output/$TOPO/configs/$CFGFILE.yaml"
 [ -f "$CFGYAML" ] || { echo "[lite_bench] config yaml 없음: $CFGYAML" >&2; exit 2; }
@@ -93,20 +117,36 @@ WARM="$OUTDIR/lite_warm_${CONFIG}.json"; COLD="$OUTDIR/lite_cold_${CONFIG}.json"
 ELOG="$OUTDIR/lite_engine_${CONFIG}.log"; RAW="$OUTDIR/lite_raw_${CONFIG}.json"
 
 # serve 가동 확인(이 스킬은 기동 안 함).
-echo "[lite_bench] precheck http://localhost:$PORT/health"
-[ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://localhost:$PORT/health" 2>/dev/null)" = "200" ] \
-  || { echo "[lite_bench] serve 미가동(:$PORT/health≠200). recipe/compose 로 먼저 기동." >&2; exit 3; }
-docker ps --filter "name=$CTR" --filter status=running -q | grep -q . \
-  || { echo "[lite_bench] 컨테이너 $CTR 미실행" >&2; exit 3; }
+if [ "$SERVE_PLANE" = "docker" ]; then
+  BASE_URL="http://localhost:$PORT"
+  echo "[lite_bench] precheck $BASE_URL/health"
+  [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$BASE_URL/health" 2>/dev/null)" = "200" ] \
+    || { echo "[lite_bench] serve 미가동(:$PORT/health≠200). recipe/compose 로 먼저 기동." >&2; exit 3; }
+  docker ps --filter "name=$CTR" --filter status=running -q | grep -q . \
+    || { echo "[lite_bench] 컨테이너 $CTR 미실행" >&2; exit 3; }
+else
+  BASE_URL="${HOST_ENDPOINT%/}"
+  echo "[lite_bench] native precheck $BASE_URL/health"
+  [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$BASE_URL/health" 2>/dev/null)" = "200" ] \
+    || { echo "[lite_bench] native serve 미가동($BASE_URL/health≠200). native producer로 먼저 기동." >&2; exit 3; }
+fi
 
 _bench() {  # $1=out.json $2=num-prompts $3=warmups
-  docker exec "$CTR" bash -lc "cd /tmp && vllm bench serve \
-    --backend $BACKEND --base-url http://localhost:$INPORT --endpoint $LITE_ENDPOINT \
-    --model '$MODEL_NAME' --tokenizer '$MODEL_PATH' --trust-remote-code \
-    --dataset-name random --random-input-len 512 --random-output-len 128 --random-range-ratio 0 \
-    --num-prompts $2 --max-concurrency 1 --request-rate inf --ignore-eos --num-warmups $3 \
-    --save-result --result-dir /tmp --result-filename 'lite_tmp.json'" \
-    && docker exec "$CTR" cat /tmp/lite_tmp.json > "$1"
+  if [ "$SERVE_PLANE" = "docker" ]; then
+    docker exec "$CTR" bash -lc "cd /tmp && vllm bench serve \
+      --backend $BACKEND --base-url $BASE_URL --endpoint $LITE_ENDPOINT \
+      --model '$MODEL_NAME' --tokenizer '$MODEL_PATH' --trust-remote-code \
+      --dataset-name random --random-input-len 512 --random-output-len 128 --random-range-ratio 0 \
+      --num-prompts $2 --max-concurrency 1 --request-rate inf --ignore-eos --num-warmups $3 \
+      --save-result --result-dir /tmp --result-filename 'lite_tmp.json'" \
+      && docker exec "$CTR" cat /tmp/lite_tmp.json > "$1"
+  else
+    "$CLIENT_VLLM" bench serve --backend "$BACKEND" --base-url "$BASE_URL" --endpoint "$LITE_ENDPOINT" \
+      --model "$MODEL_NAME" --tokenizer "$MODEL_PATH" --trust-remote-code \
+      --dataset-name random --random-input-len 512 --random-output-len 128 --random-range-ratio 0 \
+      --num-prompts "$2" --max-concurrency 1 --request-rate inf --ignore-eos --num-warmups "$3" \
+      --save-result --result-dir "$(dirname "$1")" --result-filename "$(basename "$1")"
+  fi
 }
 
 # 측정시각 — 리포트 이름의 시간 토큰이자 "같은 측정인가" 판정 근거다(doc_naming). 부하를 걸기 직전의 호스트 UTC 를
@@ -115,7 +155,11 @@ MEASURED_UTC="$(date -u +%FT%TZ)"
 echo "[lite_bench] cold(단일·warmup0) + warm burst(N=$BURST_N·conc1·warmup1) ..."
 _bench "$COLD" 1 0 || { echo "[lite_bench] cold bench 실패" >&2; : > "$COLD"; }
 _bench "$WARM" "$BURST_N" 1 || { echo "[lite_bench] warm bench 실패" >&2; : > "$WARM"; }
-docker logs "$CTR" 2>&1 | tail -800 > "$ELOG" || true
+if [ "$SERVE_PLANE" = "docker" ]; then
+  docker logs "$CTR" 2>&1 | tail -800 > "$ELOG" || true
+else
+  : > "$ELOG"  # native producer owns server-log proof; lite owns client measurements only.
+fi
 
 # ── per-node readings 수집(읽기전용) ──────────────────────────────────────────
 _smi() {  # nvidia-smi 메모리(통합메모리는 N/A 반환 — 값 그대로 캡처, lite_metrics 가 폴백)
@@ -132,7 +176,7 @@ RMT="${MAIN_MEM%%|*}"; RMA="${MAIN_MEM#*|}"
 
 NODES_JSON="{\"role\":\"main\",\"gpu_smi_used_mib\":$(_jnum "$MU"),\"gpu_smi_total_mib\":$(_jnum "$MT"),\"ram_total_kib\":$(_jnum "$RMT"),\"ram_avail_kib\":$(_jnum "$RMA")}"
 
-if [ "$TOPO" = "multi" ] && [ "$SUB_PROBE" = 1 ]; then
+if [ "$SERVE_PLANE" = "docker" ] && [ "$TOPO" = "multi" ] && [ "$SUB_PROBE" = 1 ]; then
   # 서브 식별 해소(단일계약): env-file > manifest nodes[sub] > 폴백 (multinode_serve_smoke.sh 동형)
   _mf_sub() { local m="$REPO/output/multi/manifest.yaml"; [ -f "$m" ] || return 1
     awk -v f="$1" '
@@ -158,7 +202,7 @@ fi
 # 명명 입력(config_name·config_yaml·env_file·manifest)은 경량 리포트가 모델·GPU·버전 축을 **파생**하는 자리다
 #   (sweep_bench 조립부와 같은 규칙 · render_report.lite_identity). 값을 여기서 미리 해석하지 않고 경로만 남긴다.
 cat > "$RAW" <<JSON
-{"topology":"$TOPO","burst_n":$BURST_N,
+{"topology":"$TOPO","serve_plane":"$SERVE_PLANE","host_endpoint":"$BASE_URL","burst_n":$BURST_N,
  "config_name":"$CONFIG","measured_utc":"$MEASURED_UTC","backend":"$BACKEND","endpoint":"$LITE_ENDPOINT",
  "config_yaml":"$CFGYAML","env_file":"$EF","manifest":"$REPO/output/$TOPO/manifest.yaml",
  "bench_warm_json":"$WARM","bench_cold_json":"$COLD","engine_log":"$ELOG",

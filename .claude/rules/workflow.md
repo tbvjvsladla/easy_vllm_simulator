@@ -51,7 +51,7 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋
 
 - S2 runtime patch는 `validate_runtime_patch.py`→materialize/arm→S3 순서이며 `policy:RUNTIME_PATCH_NO_CARRY_FORWARD`; 모델 triplet은 `policy:MODEL_TRIPLET_NO_SUB_PROPAGATION`; variant image/serve 입력은 `policy:VARIANT_IMAGE_BUILD_VS_SERVE_PLANE`을 따른다.
 - S3 모델 부재는 `policy:MODEL_ACQUISITION_TERNARY_GATE`; 모든 load/build/cleanup은 `policy:HOST_SAFETY_LAYERED_DEFENSE`; KV 산출은 `policy:KV_ABSOLUTE_CLAMP_PORTABILITY`. 실제 명령·health 판정·cleanup은 각 skill script가 소유한다.
-- S4 뒤 공유 빌딩블럭 동기화는 사람 질의로만 `.claude/skills/upstream-version-watch/scripts/sync_branches.sh`; hint 후보는 `policy:HINT_TAG_ACTIVATION_GATE`와 `.claude/skills/hint-publisher/scripts/hint_tag.py`의 match→create→judgment→finalize→verify 순서만 허용한다.
+- S4 뒤 공유 빌딩블럭 동기화는 사람 질의로만 `.claude/skills/upstream-version-watch/scripts/sync_branches.sh`; hint 발행은 셀 단위(그 셀의 서빙·측정·문서 완료 후 · 제안 Y/N)이며 `policy:HINT_TAG_ACTIVATION_GATE`와 `.claude/skills/hint-publisher/scripts/hint.py`의 publish(스캐폴드 후 정지)→서사 저작→continue(승인→린트→커밋→봉인→이 태그 검증→태그 1개 push→카탈로그) 순서만 허용한다(match 는 읽기 전용).
 
 ## 실패 라우팅
 
@@ -235,7 +235,7 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
 | `build` | `campaign.yaml` 의 matrix 행 · `cells/<cell>/config.yaml` | 이미지 태그·digest | 이미지가 실재하고 `--gpus=all` 기능 프로브 통과 |
 | `serve` | build status · `cells/<cell>/lockset.json` | health·엔진 로그 경로 | health 200 + 추론 1회 성공 |
 | `bench` | serve status | `docs/benchmark/` 리포트(+PASS 면 인증서) | 리포트 실재 + `measurement_ok` |
-| `publish` | bench status | `hint_inputs` 사이드카 · 증거 포인터 | 포인터 전수 실재 |
+| `publish` | bench status | 메인: 셀 hint 태그 1개(`hint.py continue` · 셀의 승인 기록 필요) · 서브: `hint_inputs` 문서 평면 참조 사이드카(발행기는 읽지 않는다 — 서브 단독 셀 발행은 열린 설계) · 증거 포인터 | 메인: push 뒤 원격 태그 오브젝트 SHA = 로컬(`refs/tags/<tag>@<sha>`) · 서브: 포인터 전수 실재 |
 
 - **proof 는 선언이 아니라 관측이다** — `ok: true` 옆에 `source`(그 판정을 낸 명령·파일)를 함께
   적는다. 출처 없는 `ok` 는 단언이 검증을 대체한 것이고, 그러면 깨진 순간을 아무도 모른다.
@@ -285,7 +285,9 @@ producer 는 0 이었다. 이제 바이트를 쓰는 문은 하나이고, 그 �
 
 - **배정의 단일 권위는 `assignments`** 다: `{"<node_id>": [{"cell": "<id>", "mode": "AUTO|HITL|STAY"}, …]}`.
   리스트 순서가 그 노드의 실행 순서이고, **서로 다른 노드의 리스트는 동시에 돈다**. `hint_targets[].cells`
-  는 여기서 파생된다(검증기가 부분집합을 검사한다). 옛 `order` 는 대체됐다.
+  는 여기서 파생된다(검증기가 부분집합을 검사한다). 옛 `order` 는 대체됐다. 캠페인 셀의 **발행 게이트**는 선언 확인
+  팝업에서 받아 `campaign_init.py --hint-approve` 로 적은 `hint_targets[].approval`(셀별 사전 Y/N · 2026-09-21 O6)이다 — 셀마다
+  멈추지 않되 무인 자동 태깅은 없다.
 - **전이 모드**는 셀이 끝난 뒤의 행동이다 — `AUTO`(기본·생략 가능) = 정리 후 다음 셀 · `HITL` = 정리 후
   사람에게 묻고 대기(무인이라도 기다린다) · `STAY` = 벤치 뒤에도 서빙 유지. **STAY 는 각 노드 리스트의
   마지막에만** 올 수 있다(뒤에 셀이 남으면 그 셀은 영원히 돌지 않는다 · python 수준 검사).

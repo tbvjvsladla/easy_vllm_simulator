@@ -33,7 +33,8 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
 
 1. **`<camp-id>/campaign.yaml`** — 무엇을 왜 도는가. matrix(버전×모델) · **`assignments`**(노드별
    셀 배정 = 배정의 단일 권위) · `nodes` · `budgets`(예산 선언) · `control_variables`(통제변인) ·
-   `hint_targets`(발행할 태그 · 배정에서 파생).
+   `hint_targets`(hint 발행 **사전승인** 기록 — 노드 · 명시 셀 목록 · 사람 승인의 전사 · 셀은 배정의
+   부분집합 · 아래 §hint 발행 사전승인).
    `assignments` 는 `{"<node_id>": [{"cell": "<id>", "mode": "AUTO|HITL|STAY"}, …]}` 이고 **서로
    다른 노드의 리스트는 동시에 돈다**. `mode` 는 셀이 끝난 뒤의 전이다 — AUTO(기본·생략 가능)는
    정리 후 다음 셀, HITL 은 정리 후 사람에게 묻고 대기, STAY 는 벤치 뒤에도 서빙을 유지한다
@@ -51,8 +52,13 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
    `cell_outcome` 이 `pending` 인 셀만 남은 작업이다. `provenance` 는 그 셀 lockset 의 출처이고
    `provenance_mismatch[]` 는 선언과 서빙 실물이 갈라진 자리다(아래 §셀 값의 두 계층).
 4. **`<camp-id>/evidence_pointers.json`** — 지금까지의 증거가 docs 평면 어디에 있는가.
-   `frozen_utc` 가 있으면 publish 위상에서 **동결된 스냅샷**이다(hint 발행의 입력 통로) —
-   이후 추가는 사람이 `--unfreeze` 를 붙여야 열린다. 태그는 불변인데 근거가 움직이면 안 된다.
+   `frozen_utc` 가 있으면 사람이 명시로 건 **캠페인 전체 동결**이다(`--freeze-evidence`) — 이후 추가는
+   사람이 `--unfreeze` 를 붙여야 열린다.
+   **hint 발행기는 동결하지 않는다**(2026-09-21 · plan_26092119 D9 셀 단위 발행). 첫 셀의 발행이 전체를
+   얼리면 이후 셀의 증거 등록(인증서 포인터 포함)이 전부 막힌다 — 캠페인이 도는 중에 발행이 캠페인을
+   막는 것이다. "태그는 불변인데 근거가 움직이면 안 된다"(2026-09-07 인터뷰 Q6)는 요구는 그대로이고,
+   그것을 지는 자리가 바뀌었다: 발행기가 그 셀 몫 포인터만 걸러 **봉인된 페이로드**
+   (`PAYLOAD.json` 의 `evidence_pointers`)에 복사한다. 이 파일은 계속 자라도 태그 안의 스냅샷은 움직이지 않는다.
 5. **`<camp-id>/journey.jsonl`** — **여정**. 이탈·반증·축 이동 사유와 "다음에 무엇을 할 참"이
    append-only 로 쌓인다. 벤치 결과·3+1+1 산출물은 결손 기재로 복원되지만 여정은 복원되지
    않는다 — 이 체인에서 유일하게 감수하지 말아야 할 유실이다.
@@ -65,7 +71,7 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
 - **`<<FILL>>` 이 남으면 검증기가 fail-closed 한다.** 모르는 값을 그럴듯하게 채우지 말고, 모른다는
   사실 자체를 사람에게 올려라(`relay/pending_hitl.json`).
 - **상태 파일에 바이트를 쓰는 것은 `campaign_init.py` 하나다**(2026-09-07). `--phase-set`·
-  `--cell-set`·`--evidence-add`·`--revise`·`--evidence-prune-stubs` 가 유일한 쓰기 문이고,
+  `--cell-set`·`--evidence-add`·`--revise`·`--evidence-prune-stubs`·`--hint-approve` 가 유일한 쓰기 문이고,
   호출부는 각 phase 의 **실제 실행 스크립트 종료부**다(포맷 소유 1 · 호출부 N). 2026-09-06 실측:
   상태를 쓴 것이 세션과 함께 소멸하는 스크래치패드 스크립트였다.
 - **"손으로 편집하지 마라" 의 범위는 상태 파일이다**(2026-09-08 범위 축소 · plan_26090813 D14).
@@ -144,6 +150,31 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
   안전장치가 아니라 교착이다. 메인 인스턴스의 서브 배정 셀은 P6 적색 대상이 아니고(서브 진입 precheck 가
   집행한다) `P6 ⓘ 관측 대상 밖` 줄로 **이름이 남는다**. 노브 `*_source` 목록 밖 값도 `ⓘ` 줄로 기재될 뿐
   P6 를 적색으로 만들지 않는다(P6 의 합격 정의는 provenance 표시다).
+
+## hint 발행 사전승인 — `hint_targets` (2026-09-21 · plan_26092119 O6)
+
+> 왜: 발행은 셀 1개 = 태그 1개이고(D9), 무인 자동 태깅은 금지다. 셀마다 팝업을 띄우면 AUTO 캠페인이
+> 셀마다 멈춘다 — 그래서 O6 는 **캠페인 선언 확인 팝업에서 발행 대상 셀 목록을 사전승인**하기로 했다
+> (2026-09-08 "진행을 막는 자리는 셋뿐" 정합). 그런데 그 팝업은 산문에만 있었고 **기계 기록이 0** 이었다.
+> 기록 없는 승인은 다음 세션에서 사라진다. 이 칸이 그 기록이다.
+
+- **모양**: `{"node_id": "<선언 노드>", "cells": ["<그 노드의 배정 셀>", …], "approval": {"approved_by":
+  "<사람 발화의 전사>", "approved_utc": "YYYY-MM-DDTHH:MM:SSZ", "source": "declaration-popup|publish-popup"}}`.
+  항목 하나 = 승인 사건 하나이고, **한 셀의 승인은 하나다**.
+- **쓰는 손**: `campaign_init.py --hint-approve --node N --cells a,b --approved-by "<전사>" --utc <UTC>
+  [--source declaration-popup|publish-popup] [--campaign-id ID]`. node·cells·approved-by·utc 넷 중 하나라도
+  없으면 승인이 아니다(`--revise` 와 같은 규율). 같은 승인을 다시 적으면 멱등이고, 다른 승인으로 이미 승인된
+  셀은 **옛 승인을 지킨다**(귀속을 조용히 바꾸지 않는다). `_bootstrap` 이면 no-op 이고, 서브 인스턴스
+  (`self_role=sub`)에는 적지 않는다 — 발행은 메인 소관이며 파생 선언(`--emit-slice`)은 이 칸을 비워 보낸다.
+- **판정의 단일 소유자**: `campaign_template_validator.py` 의 `hint_target_reasons`(검증) · `hint_approval_for`
+  (읽기)다. 셀은 배정의 부분집합(배정의 노드가 승인의 노드) · 세 승인 필드 모두 비-빈 · `<<FILL>>` 금지 · 시각은
+  주입 모양. writer 는 쓰기 전에 같은 판정을 부르므로 검증기가 거부할 선언을 만들지 않는다.
+- **읽는 눈**: hint 발행기 `continue` 가 봉인·push **전에** 이 셀의 승인을 찾는다. 없으면 멈추고(사람 Y/N 을 받아
+  전사하라), 있으면 그 전사를 봉인 페이로드에 복사한다. 결함이 하나라도 있으면 어떤 승인도 읽지 않는다(fail-closed).
+- **폐기한 것**: `arch` 키(D8 — 태그 이름은 발행 도구가 전량 파생하므로 손으로 적은 arch 는 파생 가능한 값의 손사본이다.
+  그 검사 때문에 검증기가 발행기 모듈을 적재하던 결합도 함께 걷었다) · `cells: []` = "그 노드의 전 셀" 해석(사전승인에서
+  빈 목록은 백지 승인이 된다 — 이제 1개 이상 명시 열거).
+- `approved_by` 는 봉인 시 발행 페이로드로 복사된다 — 사람 이름·연락처 대신 역할로 적는다(예: `사용자(발화 전사) — "…"`).
 
 ## 구조
 

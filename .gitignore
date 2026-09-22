@@ -333,8 +333,9 @@ sync_staging/
 
 # ===========================================
 # hint 배포 레이어 (plan_2026070222_1)
-#   hints/index.json = 추적(HEAD 기계-인덱스, 본문 없음) / hints/.drafts/ = hint_tag.py create 스캐폴드(비추적).
-#   레시피 본문은 annotated 태그 오브젝트에만 존재([A]=B) — HEAD엔 레시피 파일 없음.
+#   hints/index.json = 추적(HEAD 기계-인덱스, 본문 없음) / hints/.drafts/ = `hint.py publish` 스캐폴드(비추적 ·
+#   draft 마다 payload/·state.json·inputs/). 지도·서사·재현 키트는 태그가 가리키는 hint 브랜치 페이로드 커밋의
+#   zip 안에만 있다(2026-09-22 v6 · annotated 본문은 요약+포인터+footer 뿐) — HEAD엔 레시피 파일 없음.
 # ===========================================
 hints/.drafts/
 
@@ -354,5 +355,5 @@ tests/harness/fixtures/completion/_runtime_scratch/
 tests/harness/fixtures/policy_registry/removal_artifacts/_runtime_scratch/
 
 # hint 중앙권위 마커 — 배포본에 실리면 안 된다(plan_26082009 D8: 색인·배포는 중앙 전용).
-#   부재가 곧 fail-closed 이므로 Contributor 환경에서는 index/reindex/push 가 자동으로 막힌다.
+#   부재가 곧 fail-closed 이므로 Contributor 환경에서는 catalog derive/push 가 자동으로 막힌다(hint.py · 봉인은 --no-push 로 가능).
 hints/.central_authority

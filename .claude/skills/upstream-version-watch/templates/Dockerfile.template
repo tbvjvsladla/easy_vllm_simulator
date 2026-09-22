@@ -21,8 +21,10 @@ RUN CPU_ARCH=$(uname -m) \
 # 조건부 패치: NGC torch(2.11 alpha)의 register_opaque_type 가 hoist 인자를 안 받을 때만
 # LayerName opaque-type 최적화를 끈다(Phase 2 구간 호환). torch 2.10대(이 앵커)에선 opaque_object 자체가
 # 없거나 HAS_OPAQUE_TYPE=False 라 안전하게 skip 된다(서빙 기능엔 무영향).
+#   ★ 2026-09-21: 결과를 빌드 원장(ledger.d/inline.has-opaque-type.status)에 남긴다(plan_26092119 §4.5).
+#     치환 대상 문자열이 없으면 파일은 그대로다 — 그때 "disabled" 라고 말하지 않고 skipped 로 적는다.
 RUN python3 - <<'PY'
-import inspect, pathlib
+import inspect, os, pathlib
 needs = False
 try:
     from torch._library.opaque_object import register_opaque_type
@@ -31,14 +33,24 @@ except Exception:
     needs = False  # torch 2.10 등 opaque_object 미존재 → 패치 불요
 p = pathlib.Path("/usr/local/lib/python3.12/dist-packages/vllm/utils/torch_utils.py")
 if needs and p.exists():
-    s = p.read_text().replace(
+    old = p.read_text()
+    s = old.replace(
         'HAS_OPAQUE_TYPE = is_torch_equal_or_newer("2.11.0.dev")',
         'HAS_OPAQUE_TYPE = False  # patched: NGC torch register_opaque_type lacks hoist arg',
     )
     p.write_text(s)
-    print("[patch] HAS_OPAQUE_TYPE disabled (NGC torch hoist mismatch)")
+    if s != old:
+        print("[patch] HAS_OPAQUE_TYPE disabled (NGC torch hoist mismatch)")
+        status = "applied\tHAS_OPAQUE_TYPE disabled (NGC torch hoist mismatch)"
+    else:
+        print("[patch][WARN] HAS_OPAQUE_TYPE 치환 대상 문자열 미발견 — 상류 변경 의심")
+        status = "skipped\thoist 미수용인데 치환 대상 문자열 미발견(WARN)"
 else:
     print("[patch] skipped (torch supports hoist / no opaque_object / file missing)")
+    status = "skipped\ttorch supports hoist / no opaque_object / file missing"
+os.makedirs("/opt/easy-vllm/ledger.d", exist_ok=True)
+with open("/opt/easy-vllm/ledger.d/inline.has-opaque-type.status", "w", encoding="utf-8") as fh:
+    fh.write(status + "\n")
 PY
 
 COPY requirements.txt /tmp/requirements.txt
@@ -60,6 +72,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 ARG RAY_VERSION=2.48.0
 RUN pip install ray==${RAY_VERSION}
+
+{{ BUILD_LEDGER_STANZA }}
 
 WORKDIR /workspace
 

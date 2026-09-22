@@ -55,7 +55,7 @@
     },
     "hint_targets": {
       "type": "array",
-      "description": "hint 태그 대상. **빈 목록으로 출발한다** — 완주와 발행은 분리돼 있고, 예시 항목을 두면 그 예시가 인스턴스로 복사돼 게이트를 닫는다.",
+      "description": "hint 발행 **사전승인** 기록(2026-09-21 · plan_26092119 O6). 항목 하나 = 승인 사건 하나(노드 · 명시 셀 목록 · 사람 승인의 전사). **빈 목록으로 출발한다** — 완주와 발행은 분리돼 있고, 예시 항목을 두면 그 예시가 인스턴스로 복사돼 게이트를 닫는다. writer 는 `campaign_init.py --hint-approve` 이고 읽는 쪽은 hint 발행기 `continue`(승인 확인이 봉인보다 먼저)다. 한 셀의 승인은 하나다(두 항목에 같은 셀 ✗ — 검증기 python 수준 검사).",
       "items": {
         "$ref": "#/definitions/hint_target"
       }
@@ -200,28 +200,58 @@
     "hint_target": {
       "type": "object",
       "required": [
-        "arch",
-        "node_id"
+        "node_id",
+        "cells",
+        "approval"
       ],
       "additionalProperties": false,
       "properties": {
-        "arch": {
-          "type": "string",
-          "minLength": 1,
-          "description": "hint 태그 arch 세그먼트 `<hw>-<main|sub|cluster>-<target>` (예 gb10-main-sim-h100)."
-        },
         "node_id": {
           "type": "string",
           "minLength": 1,
-          "description": "이 태그가 기록하는 수행 노드. cluster 는 쌍을 하나의 수행 정체성으로 본다."
+          "description": "승인 대상 수행 노드. 이름의 arch 축은 발행기가 manifest와 측정 노드에서 전량 파생한다."
         },
         "cells": {
           "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
           "items": {
             "type": "string",
             "minLength": 1
           },
-          "description": "이 태그가 요약하는 셀 목록. 비우면 해당 노드의 전 셀. **assignments[node_id] 의 부분집합**이어야 한다 — 배정 SSOT 는 assignments 이고 여기는 파생이다."
+          "description": "사람이 발행을 사전승인한 셀의 명시 목록. 빈 목록=전 셀 해석은 백지 승인이라 폐기했다. assignments[node_id]의 부분집합이어야 한다."
+        },
+        "approval": {
+          "$ref": "#/definitions/hint_approval"
+        }
+      }
+    },
+    "hint_approval": {
+      "type": "object",
+      "required": [
+        "approved_by",
+        "approved_utc",
+        "source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "approved_by": {
+          "type": "string",
+          "minLength": 1,
+          "description": "승인한 사람의 발화 전사."
+        },
+        "approved_utc": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "description": "주입한 승인 UTC 시각."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "declaration-popup",
+            "publish-popup"
+          ],
+          "description": "사람 승인을 받은 HITL 자리."
         }
       }
     },

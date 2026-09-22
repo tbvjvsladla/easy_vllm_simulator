@@ -83,77 +83,37 @@ val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }
 MC=$(val MASTER_CONTAINER_NAME); PORT=$(val SERVING_PORT)
 MODEL=$(val SERVING_MODEL_NAME); SLAVE_IP=$(val SLAVE_HOST_IP)
 
-# ── 이미지 정체성 전달(멀티 = 클러스터-와이드: 슬레이브가 마스터와 동일 이미지여야) ──
-#   콤보 EF 에서 IMAGE_TAG/BUILD_DOCKERFILE/VLLM_REPO/VLLM_REF '만' 읽어 슬레이브 compose 보간에 전달한다(빌드-평면 인프라).
-#   마스터는 --env-file $EF 로 자동 획득. 슬레이브는 EFC(Band2)만 받으므로 비-기본 이미지 변종(예 포크 …-source-sm12x)을
-#   못 봐 stock 으로 빌드/기동하는 불일치가 난다 → 이 4개만 명시 전달.
-#   ⚠ BUILD_DOCKERFILE 누락 결함(Solar-Open2 가 최초 노출, 2026-07-24): 슬레이브 build 는 --env-file $EFC(Band2)
-#     만 받으므로 BUILD_DOCKERFILE 이 compose 기본값(Dockerfile.source-build)으로 폴백 → 변종 트랙(예
-#     Dockerfile.source-build-upstage)서 **슬레이브만 다른 Dockerfile 로 빌드**. 종전 콤보는 전부
-#     BUILD_DOCKERFILE=Dockerfile.source-build(=기본값)이라 잠복했다. 이미지 정체성의 일부이므로 동반 전달.
-#   ⚠ 모델 serve config(CONFIG_FILE)는 전달 안 함 → 슬레이브 Band2-only 보존(슬레이브 컨테이너 env 는 compose env_file=
-#     .env.interconnect+.env.cluster 만, CONFIG_FILE=default 유지). 값에 공백 없음(URL/태그/SHA) → 무인용 prefix 안전.
-#   근거: plan_26062818 §S2.5 R10 · 슬레이브 Band2-only(plan_26062811_30_33).
-#   ⚠ VLLM_PRETEND_VERSION 도 **이미지 정체성의 일부**다(2026-08-02 신설). 포크 태그가 semver 가
-#     아닐 때 setuptools_scm 을 우회하는 값인데, 이걸 빼면 **마스터만 빌드되고 슬레이브는 같은
-#     지점에서 죽는다** — BUILD_DOCKERFILE 이 잠복했던 것과 동일한 부류의 전파 구멍이다.
-#     멀티는 클러스터-와이드 이미지가 전제이므로 빌드 인자는 한 톨도 갈라지면 안 된다.
-#   ⚠ SM12X_PORT 도 **이미지 정체성의 일부**다(2026-08-14 신설 · plan_26081418 G-4).
-#     build_patches_src/ 의 소스 이식 패치를 켜는 변종 게이트인데, 빼면 **마스터만 이식본이
-#     되고 슬레이브는 stock 으로 빌드**된다 — 클러스터-와이드 이미지 전제가 깨져
-#     BUILD_DOCKERFILE·VLLM_PRETEND_VERSION 이 잠복했던 것과 **동일 부류의 전파 구멍**이다.
-#     멀티는 빌드 인자가 한 톨도 갈라지면 안 된다.
-#   ⚠ SRC_DEPS_AUTHORITY 도 **이미지 정체성의 일부**다(2026-08-15 신설 · R3 포크 핀).
-#     flashinfer(python+cubin) 의존 승격 게이트인데, 빼면 **마스터만 0.6.17 이고 슬레이브는
-#     0.6.16.post3** 이 된다 — SM12X_PORT·VLLM_PRETEND_VERSION·BUILD_DOCKERFILE 이 잠복했던 것과
-#     **동일 부류의 전파 구멍**이며, 이번이 그 목록의 네 번째다. 멀티는 빌드 인자가 한 톨도 갈리면 안 된다.
-#   ⚠ VLLM_VERSION 도 **이미지 정체성의 일부**다(2026-09-05 신설 — 이 목록의 **다섯 번째**).
-#     wheel 트랙에서 어느 vLLM 을 설치할지를 정하는 값이며, compose 가 build-arg 로 넘긴다.
-#     빠지면 **마스터만 EF 가 준 버전으로 빌드되고 슬레이브는 Dockerfile 의 `ARG VLLM_VERSION`
-#     기본값(0.18.0)으로 빌드**된다 — 같은 IMAGE_TAG 를 달고 **두 노드의 내용이 갈린다**.
-#     그 상태의 TP=2 는 워커마다 다른 엔진을 돌리는 것이고, 실패하면 원인이 버전이라는 단서가
-#     태그 어디에도 없다("태그 ≠ 내용" 사고가 노드 경계로 번진 형태).
-#     이 구멍은 compose 에 VLLM_VERSION build-arg 를 되살리면서(2026-09-05) 새로 생겼다 —
-#     전달 목록이 build-arg 목록과 함께 자라지 않으면 그 순간 갈라진다.
-IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF); BDF=$(val BUILD_DOCKERFILE)
-VPV=$(val VLLM_PRETEND_VERSION); SMPORT=$(val SM12X_PORT); SDA=$(val SRC_DEPS_AUTHORITY)
-VVER=$(val VLLM_VERSION)
-SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VVER:+VLLM_VERSION=$VVER }${VREPO:+VLLM_REPO=$VREPO }${VPV:+VLLM_PRETEND_VERSION=$VPV }${SMPORT:+SM12X_PORT=$SMPORT }${SDA:+SRC_DEPS_AUTHORITY=$SDA }${VREF:+VLLM_REF=$VREF}"
-
-# ── 클러스터-평면 vars 전달(2026-08-14 신설 — 침묵 누락 3번째 인스턴스) ──────────────────
-#   위 이미지 정체성과 **같은 부류의 전파 구멍**이다: 콤보 EF 에만 있고 EFC(Band2)에는 없는 키를
-#   슬레이브가 못 봐 compose `${VAR:-기본값}` 으로 **조용히 폴백**한다. 두 키가 해당한다:
-#     · RAY_PORT             — 폴백 6379. 마스터가 head 를 6383 에 띄우면 슬레이브는 6379 로 접속을
-#                              시도해 `nc -z` 5분 대기 후 join 실패한다. **클러스터 랑데부 주소의
-#                              절반**이므로 갈리면 그 순간 클러스터가 성립하지 않는다.
-#     · SLAVE_CONTAINER_NAME — 폴백 vllm-slave-serve-container. 워치독 필터(`${MC%-master}` =
-#                              mn-<config>)가 **매칭 0** 이 되어 슬레이브 협역 워치독이 아무것도
-#                              감시하지 않는다(로그엔 "매칭 0" 만 남고 트립은 영원히 안 온다).
-#                              하드다운 #2 가 **서브 노드**였음을 상기하라 — 이 폴백은 계층 2층을
-#                              서브에서만 조용히 걷어낸다(devlog_26080212 의 ⑥ 결함과 동일 부류).
-#   ⚠ 왜 지금까지 안 터졌나: 과거 멀티 런은 **전부 RAY_PORT=6379**(=compose 기본값)라 값이 우연히
-#     일치했다(docs/simlog 26070213·26072500 실측). 콤보별 포트 분리(plan_26081310 §X2)를 실제로
-#     쓰는 첫 런에서 활성화되는 잠복 결함이다. 컨테이너명 쪽은 이미 2026-08-02 에 "엉뚱한 이름으로
-#     떠 있었고 아무도 몰랐다"로 한 번 드러났다(마스터측만 교정됐다).
-#   CONFIG_FILE 은 여기 포함하지 않는다 — 슬레이브 Band2-only 보존(위 주석과 동일 근거).
-RAYP=$(val RAY_PORT); SLVC=$(val SLAVE_CONTAINER_NAME)
-SLAVE_CLUSTERVARS="${RAYP:+RAY_PORT=$RAYP }${SLVC:+SLAVE_CONTAINER_NAME=$SLVC}"
-SLAVE_IMGVARS="$SLAVE_IMGVARS $SLAVE_CLUSTERVARS"
-
-# ── 마운트 vars 전달(결함#2b · plan_26070119): materialize-env 산출(output/multi/.env)은 compose 가
-#   --env-file 사용 시 auto-load 하지 않는다(--env-file 이 기본 .env 자동로드를 대체) → NAS/quant/tiktoken 마운트가
-#   docker-compose.yaml 의 ${NAS_MODEL_PATH:-/mnt/models} 기본으로 폴백 → 컨테이너가 모델을 못 찾음(serve 즉사).
-#   해소: 마운트 경로를 shell-env(compose 보간 최고 우선순위)로 명시 주입 — 마스터(env prefix)·슬레이브(ssh prefix) 동일.
-#   경로값에 공백 없음(SLAVE_IMGVARS 와 동형) → 무인용 prefix 안전. 헌법 serve-time env 통로 불변식.
+# ── slave 전달 집합 — 실제 compose 참조에서 **파생**한다(2026-09-21 · plan_26092119 §4.6) ──────────
+#   slave 는 `--env-file $EFC`(Band2)만 받으므로 셀 env(Band3)의 값은 ssh 명령 앞 env prefix 로만 닿는다.
+#   그 prefix 가 compose build-arg·보간 변수와 **따로 손으로** 자라는 동안 같은 부류의 침묵 누락이 이어졌다:
+#     BUILD_DOCKERFILE(07-24 Solar-Open2) → VLLM_PRETEND_VERSION(08-02) → SM12X_PORT·RAY_PORT·
+#     SLAVE_CONTAINER_NAME(08-14) → SRC_DEPS_AUTHORITY·BUILD_JOBS(08-15) → VLLM_VERSION(09-05) → PLE(09-09).
+#   빠질 때마다 "마스터만 변종 · slave 는 compose 기본값" 이 됐다(같은 IMAGE_TAG, 다른 내용).
+#   이제 목록은 없다: slave_forward.py 가 **이 스크립트가 실제로 쓰는** compose 의 ${VAR} 참조에서 파생하고
+#   (새 build-arg 는 코드 수정 없이 전달), 각 키의 날짜 박힌 사고 이력은 slave_forward.WHY 가 데이터로 든다
+#   (hint sub_recipe 가 같은 함수·같은 이력을 싣는다 — 두 벌 ✗).
+#   의미(X11): 첫 일치 · 빈 값은 키째 생략(부재 = stock — 빈 대입은 compose 기본값을 빈 문자열로 덮는다) ·
+#   인용 없는 원격 셸 prefix 에 안전하지 않은 값은 **fail-closed**(exit 3).
+#   CONFIG_FILE 은 영구 제외 — slave Band2-only(plan_2026062811_2 · policy:MODEL_TRIPLET_NO_SUB_PROPAGATION).
+#   ⚠ 파생이 목록 실패를 줄여도 **결과 대조는 계속한다**(2026-09-05 "리스트를 늘리는 대신 결과를 대조한다") —
+#     빌드 후 이미지 안 대조와 serve 시점 attestation v2 가 남은 갈림을 잡는다.
+SF="$SDIR/slave_forward.py"
+[ -f "$SF" ] || { echo "[mn] FAIL: $SF 없음 — slave 전달 집합의 정본 부재(손목록으로 되돌리지 않는다)"; exit 3; }
 PENV_FILE="output/multi/.env"
-MOUNTVARS=""
-[ -f "$PENV_FILE" ] && MOUNTVARS="$(grep -E '^(NAS_MODEL_PATH|QUANT_MODEL_PATH|TIKTOKEN_HOST_PATH|PLE_MMAP_HOST_PATH)=' "$PENV_FILE" | tr '\n' ' ')"
-# PLE mmap 셀 축 전달(2026-09-09 · camp-26090918 · 62-qwen4exp-ple-mmap): 셀 env(.env.<config>)가
-#   VLLM_PLE_MMAP=1·VLLM_PLE_MMAP_DIR 을 선언하면 슬레이브 compose 보간으로 넘긴다 — 슬레이브(Ray
-#   워커)도 모델을 띄우므로 마스터만 켜면 슬레이브는 상주 로드로 OOM/불일치가 난다. 미선언 시
-#   compose 기본 0=stock. MOUNTVARS(마운트 경로)와 분리하는 이유: 출처 파일이 다르다(프로젝트 .env
-#   vs 셀 Band3 env — Band3 는 서브로 파일 전파 금지라 env prefix 만이 도달 경로다).
-PLEVARS="$(grep -E '^VLLM_PLE_MMAP(_DIR)?=' "$EF" 2>/dev/null | tr -d ' ' | tr '\n' ' ')"
+# 결함#2b 배선의 부재는 **소리 낸다**(audit_26090115: `--materialize-env` 를 빠뜨리면 옛 스모크는 MOUNTVARS="" 로 조용히
+#   진행했고 compose 기본 마운트가 모델 부재로 이어졌다). 차단은 새 게이트라 사람 결정 몫 — 여기서는 경고만 한다.
+[ -f "$PENV_FILE" ] || echo "[mn] ⚠ $PENV_FILE 부재 — 마운트 경로(NAS/QUANT/TIKTOKEN/PLE)가 셀 env 또는 compose 기본값으로 폴백한다(render_dockerfile.py --materialize-env --topology multi 로 생성)." >&2
+COMPOSE_MULTI="output/multi/docker-compose.yaml"
+SFA=(--cell-env "$EF" --project-env "$PENV_FILE" --compose "$COMPOSE_MULTI" --cluster-env "$EFC")
+IMG=$(val IMAGE_TAG); BDF=$(val BUILD_DOCKERFILE)
+# 이미지 정체성 + 클러스터 랑데부(RAY_PORT·SLAVE_CONTAINER_NAME 등 Band2 키의 셀 덮어쓰기)를 한 prefix 로 — 옛
+#   `SLAVE_IMGVARS="$SLAVE_IMGVARS $SLAVE_CLUSTERVARS"` 합성과 같은 구성이다(build·up·down 세 호출부가 쓴다).
+SLAVE_IMGVARS="$(python3 "$SF" prefix --group image_identity,cluster "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(image_identity,cluster) 파생 실패 — 위 사유를 고쳐라"; exit 3; }
+SLAVE_BUILDVARS="$(python3 "$SF" prefix --group build_tuning "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(build_tuning) 파생 실패"; exit 3; }
+MOUNTVARS="$(python3 "$SF" prefix --group mount "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(mount) 파생 실패"; exit 3; }
+PLEVARS="$(python3 "$SF" prefix --group serve_env "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(serve_env) 파생 실패"; exit 3; }
+BJOBS=$(val BUILD_JOBS)                 # 로컬 표시용(빌드 병렬도 안내) — 전달은 위 SLAVE_BUILDVARS 가 한다
+SLVC=$(val SLAVE_CONTAINER_NAME)        # slave 워치독 필터·로그 회수·갱신 루프가 쓰는 실제 이름
 
 # ── 서브 식별자/경로 해소(단일계약): env-file > manifest nodes[sub] > 폴백. 옛 고정 서브경로 하드코딩 제거 ──
 MANIFEST_MF="$REPO/output/multi/manifest.yaml"
@@ -247,14 +207,178 @@ fi
 
 # ── 빌드 병렬도 전달(2026-08-15 신설) ────────────────────────────────────────
 #   BUILD_JOBS 는 **이미지 정체성이 아니다**(같은 산출물, 다른 병렬도) — 그래서 SLAVE_IMGVARS 가
-#   아니라 별도 그룹으로 넘긴다(SLAVE_CLUSTERVARS 와 같은 선례). 다만 **양 노드에 똑같이** 가야
-#   한다: 슬레이브만 기본값 16 으로 컴파일하면 거기서 OOM 이 난다(하드다운 #2 가 서브였다).
-#   마스터는 `--env-file $EF` 로 자동 획득하므로 명시 전달은 슬레이브 몫이다.
-BJOBS=$(val BUILD_JOBS)
-SLAVE_BUILDVARS="${BJOBS:+BUILD_JOBS=$BJOBS}"
+#   아니라 별도 그룹(slave_forward `build_tuning` · NON_IDENTITY_BUILD_ARGS)으로 넘긴다. 다만 **양 노드에
+#   똑같이** 가야 한다: 슬레이브만 기본값 16 으로 컴파일하면 거기서 OOM 이 난다(하드다운 #2 가 서브였다).
+#   마스터는 `--env-file $EF` 로 자동 획득하므로 명시 전달은 슬레이브 몫이다(값은 위 SLAVE_BUILDVARS).
+
+# ── 캠페인 진행표 writer(2026-09-21 · plan_26092119 §4.8 ①② · 코드맵 K7) ──────────────────────────
+#   멀티에는 build·serve 진행표를 쓰는 손이 **없었다**(싱글은 single_serve_up.sh 가 serve 를 쓴다). 그래서
+#   hint 발행 자격(관측: serve proof)을 멀티 셀에서 찾을 곳이 없었다. 셀 = $CONFIG(캠페인 셀 id).
+#   **이 스크립트를 돌리는 노드(= master 가 로컬인 메인)의 진행표만** 적는다(자기 저작 · single_serve_up.sh 와 같은 규칙):
+#     · 멀티 셀은 클러스터 셀이고 그 진행표 노드는 셀을 배정받은 노드다(orchestration.topology.md "assignments 에는
+#       메인만" · hint evidence/publish 도 배정 노드의 진행표를 읽는다).
+#     · `phases/<node>/<phase>.status.json` 은 노드당 한 자리라 **마지막 쓰기가 이긴다** — 메인이 phases/<sub> 를 쓰면
+#       서브가 자기 셀로 적은 진행표를 덮는다(2026-09-17 camp-26091717 에는 서브 자기저작 진행표가 실재했다).
+#     · 메인이 서브의 진행표를 적는 것은 P5 가 결함으로 잡는 형태다(상향 회수는 문서기반 `--import-sub` · 노드 제어 ①).
+#     slave(Ray 워커)의 빌드·기동 결과는 이 진행표의 proof 출처(양 노드 rc · attestation v2)에 실린다.
+#   ACTIVE=_bootstrap(캠페인 밖)이면 writer 가 스스로 no-op 이다. writer 부재는 **소리 낸다**(single 2026-09-08 F5).
+_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+_campaign_phase() {   # $1=phase $2=state $3=proof_ok(1|0) $4=predicate $5=source $6=started_utc
+  if [ ! -f "$_CI" ]; then
+    echo "[mn] ⚠ campaigns writer 부재($_CI) — $1 진행표를 아무도 적지 않았다(침묵 누락 ✗)." >&2
+    return 0
+  fi
+  local _ok=()
+  [ "$3" = "1" ] && _ok=(--proof-ok)
+  python3 "$_CI" --phase-set "$1" --node "$MAIN_NODE_ID" --state "$2" --cell "$CONFIG" \
+    --proof-predicate "$4" "${_ok[@]}" --proof-source "$5" \
+    --started-utc "$6" --ended-utc "$(date -u +%FT%TZ)" --authored-by "$MAIN_NODE_ID" \
+    || echo "[mn] ⚠ campaigns writer 실패 — $1 진행표($MAIN_NODE_ID)가 기록되지 않았다" >&2
+}
+#   빌드 phase 는 게이트·대조의 `exit` 가 여러 갈래라 EXIT 트랩으로 닫는다: 열린 채 끝나면 failed 로 적는다
+#   (부재와 실패는 다른 사실이다 — "돌지 않았다" 와 "돌다 죽었다" 를 가른다). 종료코드는 바꾸지 않는다.
+_BUILD_PHASE_OPEN=0; _BUILD_T0=""
+_close_open_build_phase() {
+  local _rc=$?
+  rm -f "${ATTEST_ROWS:-}" 2>/dev/null   # 대조 행 임시파일은 --build 에서만 생긴다 — 어느 exit 갈래로 끝나도 남기지 않는다
+  if [ "${_BUILD_PHASE_OPEN:-0}" = "1" ]; then
+    _BUILD_PHASE_OPEN=0
+    _campaign_phase build failed 0 "양 노드 compose build rc=0 + 빌드 후 대조" \
+      "multinode_serve_smoke.sh: build 단계가 rc=$_rc 로 끝났다(빌드 실패·트랙/버전/ABI 대조 거부 — 위 [mn] FAIL 줄)" "$_BUILD_T0"
+  fi
+}
+
+# ── 노드 정합 attestation v2 (2026-09-21 · plan_26092119 §4.6 · X12 · 코드맵 K1/K2) ─────────────────
+#   v1 은 `--build` 성공 분기 **안에서만** 쓰였고 두 대조가 **wheel 트랙 전용**이라 source-build 이미지는
+#   `checks: []` 였다(K1). 태그2 셀은 빌드를 다른 config 이름으로 했기 때문에 셀 이름의 파일 자체가 없었다(K2).
+#   v2: 셀 이름($CONFIG)으로 **serve 시점**에 두 노드의 **실행 중 컨테이너**에서 캡처한다 —
+#     build_ledger.json(없으면 옛 이미지: unobservable) · vllm git sha · vllm/torch 배포판 버전 · 호스트 driver.
+#   축별 판정 equal|differ|unobservable 은 **기록만** 한다 — differ 를 차단할지는 사람 결정(D-5)이다.
+#   ⚠ image digest 는 판정 축이 아니다(strategy.topology.md: "동일 이미지가 아니라 동일 ABI" — 2026-08-22 성공한
+#     두 컨테이너의 digest 가 달랐다). 기록만 한다.
+#   policy:GIT_SINGLE_AUTHORITY: git 이 들지 않는 실행 시점 사실(맹점층)이다. 파일은 output/multi/benchlog(비추적).
+ATTEST_DIR="$REPO/output/multi/benchlog"   # $TOPO 아님 — 이 스크립트는 멀티 전용
+ATTEST_JSON="$ATTEST_DIR/attestation_${CONFIG}.json"
+ATTEST_ROWS="/tmp/mn_attest_rows.${CONFIG}.$$"   # 이번 실행의 빌드 후 대조 행(필요할 때만 생긴다 · serve 기록 후 지운다)
+_attest_add() {   # $1=축 $2=노드 $3=값 $4=기대(선택) — TSV 로 모으고 JSON 조립은 파이썬이 한다(따옴표 깨짐 ✗)
+  printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "${4:-}" >> "$ATTEST_ROWS"
+}
+_attest_run() {   # $1=main|sub · 나머지 = 명령 argv. sub 는 argv 를 %q 로 인용해 원격 셸에 그대로 넘긴다
+  local n="$1"; shift
+  if [ "$n" = "sub" ]; then timeout 30 $SSH -n "$SUB_HOST" "$(printf '%q ' "$@")"; else "$@"; fi
+}
+_attest_capture_node() {   # $1=main|sub $2=컨테이너 $3=캡처 디렉터리 — 실패는 파일 부재로 남는다(기록 전용)
+  local n="$1" c="$2" d="$3"
+  # 버전은 importlib.metadata 로만 읽는다 — `import vllm` 은 엔진을 적재한다(관측이 관측 대상을 건드리면 안 된다).
+  _attest_run "$n" docker exec "$c" cat /opt/easy-vllm/build_ledger.json > "$d/$n.ledger.json" 2>/dev/null || rm -f "$d/$n.ledger.json"
+  _attest_run "$n" docker exec "$c" git -C /workspace/vllm-src rev-parse HEAD > "$d/$n.vllm_sha" 2>/dev/null || rm -f "$d/$n.vllm_sha"
+  _attest_run "$n" docker exec "$c" python3 -c "import importlib.metadata as m;print(m.version('vllm'))" > "$d/$n.vllm_dist" 2>/dev/null || rm -f "$d/$n.vllm_dist"
+  _attest_run "$n" docker exec "$c" python3 -c "import importlib.metadata as m;print(m.version('torch'))" > "$d/$n.torch" 2>/dev/null || rm -f "$d/$n.torch"
+  _attest_run "$n" docker inspect -f '{{.Image}}' "$c" > "$d/$n.image_id" 2>/dev/null || rm -f "$d/$n.image_id"
+  _attest_run "$n" nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1 > "$d/$n.driver"
+  [ -s "$d/$n.driver" ] || rm -f "$d/$n.driver"
+  printf '%s' "$c" > "$d/$n.container"
+}
+_attest_write() {   # $1=phase(build|serve) $2=캡처 디렉터리(serve 만) — 실패해도 진행은 막지 않는다
+  mkdir -p "$ATTEST_DIR" 2>/dev/null || { echo "[mn] ⚠ $ATTEST_DIR 생성 실패 — attestation 미기록"; return 0; }
+  if python3 - "$ATTEST_JSON" "$CONFIG" "$IMG" "$1" "${2:-}" "$ATTEST_ROWS" "$SF" "$MAIN_NODE_ID" "$SUB_NODE_ID" <<'PY'
+import hashlib, json, os, re, sys
+out, config, image, phase, cap, rows_path, sf, main_id, sub_id = sys.argv[1:10]
+sys.path.insert(0, os.path.dirname(sf))
+import slave_forward
+def read(p):
+    try:
+        with open(p, encoding="utf-8") as fh:
+            return fh.read().strip() or None
+    except OSError:
+        return None
+checks = []
+for line in (read(rows_path) or "").splitlines():
+    axis, node, observed, expected = (line.split("\t") + ["", "", "", ""])[:4]
+    checks.append({"axis": axis, "node": node, "observed": observed, "expected": expected, "phase": "build"})
+doc = {"schema_version": 2, "kind": "multinode_node_parity_attestation", "config": config, "topology": "multi",
+       "image_tag": image, "phase": phase, "checks": checks,
+       "parity_blocking": False,
+       "parity_note": "기록 전용 — differ 를 차단할지는 사람 결정(D-5). image digest 는 판정 축이 아니다(동일 ABI ≠ 동일 이미지)."}
+if phase == "build":
+    doc["provenance"] = "measured(docker run in each node image · 이번 실행 --build 대조)"
+else:
+    doc["provenance"] = "measured(docker exec in each running container · host nvidia-smi)"
+    exempt = sorted(slave_forward.NON_IDENTITY_BUILD_ARGS)
+    nodes = {}
+    for role, node_id in (("main", main_id), ("sub", sub_id)):
+        raw = read(os.path.join(cap, role + ".ledger.json"))
+        ledger, status = None, "unobservable(capture failed or legacy image without /opt/easy-vllm/build_ledger.json)"
+        if raw:
+            try:
+                ledger, status = json.loads(raw), "observed"
+            except ValueError:
+                status = "unobservable(ledger unparsable)"
+        if status == "observed" and not isinstance(ledger, dict):
+            ledger, status = None, "unobservable(ledger is not a JSON object)"
+        sha = (ledger.get("vllm") or {}).get("git_sha") if isinstance(ledger, dict) else None
+        sha_src = "build_ledger.vllm.git_sha" if sha else None
+        if not sha:
+            cand = read(os.path.join(cap, role + ".vllm_sha"))
+            if cand and re.fullmatch(r"[0-9a-f]{40}", cand):
+                sha, sha_src = cand, "docker exec git -C /workspace/vllm-src rev-parse HEAD"
+        nodes[role] = {"node_id": node_id, "container": read(os.path.join(cap, role + ".container")),
+                       "image_id": read(os.path.join(cap, role + ".image_id")),
+                       "build_ledger": ledger, "build_ledger_status": status,
+                       "vllm_sha": sha, "vllm_sha_source": sha_src,
+                       "vllm_dist_version": read(os.path.join(cap, role + ".vllm_dist")),
+                       "torch": read(os.path.join(cap, role + ".torch")),
+                       "driver": read(os.path.join(cap, role + ".driver"))}
+    def identity(led):
+        if not isinstance(led, dict):
+            return None
+        args = {k: v for k, v in (led.get("build_args") or {}).items() if k not in exempt}
+        pats = sorted((p.get("phase"), p.get("file"), p.get("script_sha256"), p.get("result"))
+                      for p in (led.get("patches") or []) if isinstance(p, dict))
+        body = {"dockerfile": led.get("dockerfile"), "build_args": args, "patches": pats,
+                "vllm_git_sha": (led.get("vllm") or {}).get("git_sha")}
+        return hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+    def verdict(a, b):
+        return "unobservable" if a is None or b is None else ("equal" if a == b else "differ")
+    parity = {}
+    for axis in ("vllm_sha", "torch", "driver"):
+        a, b = nodes["main"][axis], nodes["sub"][axis]
+        parity[axis] = {"verdict": verdict(a, b), "main": a, "sub": b}
+    la, lb = identity(nodes["main"]["build_ledger"]), identity(nodes["sub"]["build_ledger"])
+    parity["build_ledger"] = {"verdict": verdict(la, lb), "main_identity_sha256": la, "sub_identity_sha256": lb,
+                              "identity_exempt_build_args": exempt,
+                              "compared": "dockerfile · build_args(− exempt) · patches(phase,file,script_sha256,result) · vllm git sha"}
+    # serve 시점 관측도 **대조 행**(`checks` 의 {axis,node,observed,expected})으로 싣는다 — v1 부터 행을 읽는 소비자
+    #   (hint evidence 의 결손 판정: 행 0 = HINT_MISSING_ATTESTATION_PARITY_ROWS)가 `--build` 없이 서빙만 한 셀
+    #   (태그2 가 그랬다)을 "대조 없음" 으로 적지 않게. expected = 상대 노드의 관측값(정합 = 두 노드가 같다).
+    #   **양 노드를 다 관측한 축만** 행이 된다 — 한쪽만 본 값(예: ssh 불통으로 서브 캡처 실패)을 행으로 만들면 소비자가
+    #   "대조가 있었다" 로 읽는다(행 ≥ 1 = 결손 아님). 그 값은 nodes/parity(unobservable)에 그대로 남는다 — 전부 못 봤으면
+    #   행 0 이 결손을 말한다(관측 불가를 대조로 지어내지 않는다).
+    ident = {"main": la, "sub": lb}
+    for axis in ("vllm_sha", "torch", "driver", "build_ledger_identity"):
+        key = "build_ledger" if axis == "build_ledger_identity" else axis
+        if parity[key]["verdict"] not in ("equal", "differ"):
+            continue
+        for role, other in (("main", "sub"), ("sub", "main")):
+            got = ident[role] if axis == "build_ledger_identity" else nodes[role][axis]
+            want = ident[other] if axis == "build_ledger_identity" else nodes[other][axis]
+            checks.append({"axis": axis, "node": role, "observed": got, "expected": want,
+                           "expected_source": f"parity:{other}", "phase": "serve", "verdict": parity[key]["verdict"]})
+    doc["nodes"] = nodes
+    doc["parity"] = parity
+with open(out, "w", encoding="utf-8") as fh:
+    json.dump(doc, fh, ensure_ascii=False, indent=2, sort_keys=True)
+    fh.write("\n")
+summary = " ".join(f"{k}={v['verdict']}" for k, v in sorted((doc.get("parity") or {}).items()))
+print(f"[mn] 노드 정합 attestation v2({phase}) → {os.path.relpath(out)} {summary}".rstrip())
+PY
+  then :; else echo "[mn] ⚠ attestation 기록 실패(기록 전용 — 진행은 막지 않는다)"; fi
+}
 
 # ── 빌드(옵션, 양 노드 병렬) ──
 if [ "$BUILD" = "1" ]; then
+_BUILD_T0="$(date -u +%FT%TZ)"; _BUILD_PHASE_OPEN=1
+trap _close_open_build_phase EXIT     # 아래 어느 exit 로 끝나도 build 진행표가 failed 로 닫힌다
 # ── 빌드 트랙 ↔ 이미지 태그 정합 게이트 (2026-09-04 실측) ─────────────────────────
 #
 # 이미지 네이밍 불변식은 `easy-vllm:{vllm}-cu{cuda}-{arch}-{track}` 이라 **track 이 태그 안에 있다**.
@@ -302,8 +426,10 @@ if [ -n "$_tag_ver" ]; then
       _bld_ver="$(val VLLM_VERSION)"
       [ -n "$_bld_ver" ] || _bld_ver="$(sed -n 's/^ARG VLLM_VERSION=\(.*\)$/\1/p' "output/multi/Dockerfile" 2>/dev/null | head -1)"
       _src="env/Dockerfile-ARG" ;;
+    # VLLM_REF 가 셀 env 에 없으면 compose 기본값이 쓰인다 — 그 값을 **compose 에서 읽는다**. 옛 하드 폴백
+    #   "0.27.1" 은 compose 기본값이 v0.29.0rc6 로 바뀐 뒤에도 남아 대조를 거짓으로 만들었다(코드맵 K10 · 매직넘버 결함).
     *) _bld_ver="$(val VLLM_REF)"; _bld_ver="${_bld_ver#v}"; _src="VLLM_REF"
-       [ -n "$_bld_ver" ] || { _bld_ver="0.27.1"; _src="compose 기본값"; } ;;
+       [ -n "$_bld_ver" ] || { _bld_ver="$(python3 "$SF" default --compose "$COMPOSE_MULTI" --key VLLM_REF 2>/dev/null)"; _bld_ver="${_bld_ver#v}"; _src="compose 기본값(slave_forward default)"; } ;;
   esac
   if [ -z "$_bld_ver" ]; then
     echo "[mn] FAIL(버전 판정 불가): 태그 버전 '$_tag_ver' 에 대응하는 빌드 버전을 읽지 못했다($_src)." >&2
@@ -344,19 +470,7 @@ echo "[mn] 빌드 트랙 정합: IMAGE_TAG=$_it ↔ BUILD_DOCKERFILE=$_bd"
 #   남지 않았고, 로그 보존은 실패 분기(`_save_serve_logs`)에만 걸려 있었다. 그래서 "두 노드가
 #   같은 것을 돌렸다" 는 사실이 hint 태그에 실릴 근거가 없었다 — 멀티 태그에 메인 산출물만
 #   실린 이유 중 하나다. 성공한 대조야말로 배포될 증거이므로 **성공할 때 적는다**.
-ATTEST_DIR="$REPO/output/multi/benchlog"   # $TOPO 아님 — 이 스크립트는 멀티 전용(line 298 주석과 같은 판정)
-ATTEST_JSON="$ATTEST_DIR/attestation_${CONFIG}.json"
-_attest_rows=""
-_attest_add() {   # $1=축 $2=노드 $3=값 $4=기대(선택)
-    mkdir -p "$ATTEST_DIR" 2>/dev/null || return 0
-    _attest_rows="${_attest_rows}${_attest_rows:+,}{\"axis\":\"$1\",\"node\":\"$2\",\"observed\":\"$3\",\"expected\":\"${4:-}\"}"
-}
-_attest_flush() {
-    mkdir -p "$ATTEST_DIR" 2>/dev/null || return 0
-    printf '{\n  "schema_version": 1,\n  "kind": "multinode_node_parity_attestation",\n  "config": "%s",\n  "topology": "%s",\n  "image_tag": "%s",\n  "provenance": "measured(docker run in each node image)",\n  "checks": [%s]\n}\n' \
-        "$CONFIG" "multi" "$IMG" "$_attest_rows" > "$ATTEST_JSON"
-    echo "[mn] 노드 정합 attestation 보존 → ${ATTEST_JSON#$REPO/} (성공 경로에서도 남는다)"
-}
+#   (2026-09-21) 기록기는 최상위 `_attest_add`/`_attest_write`(v2)로 올라갔다 — 이 분기는 행만 더한다.
 
 if [ "$_bd" = "Dockerfile" ]; then   # wheel 트랙에만 적용(source-build 는 베이스 torch 를 그대로 쓴다)
   _want="$(python3 "$REPO/.claude/skills/upstream-version-watch/scripts/resolve_torch_pin.py" \
@@ -387,8 +501,9 @@ fi
 # ── 빌드 결과 버전 대조 — **양 노드의 이미지 안에서 실제 vLLM 을 읽는다** (2026-09-05 신설) ──
 #   위 §태그↔빌드 대조는 *선언* 을 본다(EF 의 VLLM_VERSION / Dockerfile ARG). 그것은 마스터의
 #   의도가 태그와 맞는지만 말하고, **슬레이브가 그 의도대로 빌드됐는지는 말하지 못한다**.
-#   슬레이브는 EFC(Band2)만 받으므로 콤보 EF 의 키는 SLAVE_IMGVARS 에 손으로 담아야 도달한다 —
-#   그 목록이 build-arg 목록과 함께 자라지 않으면 그 순간 두 노드가 갈린다. 실제로 이 저장소는
+#   슬레이브는 EFC(Band2)만 받으므로 콤보 EF 의 키는 SLAVE_IMGVARS 에 담겨야 도달한다(2026-09-21 부터
+#   slave_forward 가 compose 에서 파생 — 그 전엔 손목록이었다). 목록이 build-arg 와 함께 자라지 않으면
+#   그 순간 두 노드가 갈린다. 실제로 이 저장소는
 #   같은 형태를 다섯 번 겪었다(BUILD_DOCKERFILE · VLLM_PRETEND_VERSION · SM12X_PORT ·
 #   SRC_DEPS_AUTHORITY · VLLM_VERSION). **리스트를 늘리는 대신 결과를 대조한다** —
 #   무엇이 빠졌든 결과가 갈리면 여기서 걸린다.
@@ -412,11 +527,15 @@ if [ "$_bd" = "Dockerfile" ] && [ -n "$_tag_ver" ]; then
     esac
   done
 fi
-_attest_flush
+_attest_write build
+_BUILD_PHASE_OPEN=0
+_campaign_phase build done 1 "양 노드 compose build rc=0 + 빌드 후 대조(wheel: torch ABI·vllm 버전)" \
+  "multinode_serve_smoke.sh: compose build master rc=$MR · slave rc=$SR (image=$IMG) · ${ATTEST_JSON#$REPO/}" "$_BUILD_T0"
   else echo "[mn] FAIL: 빌드(master=$MR slave=$SR). tail:"; tail -6 /tmp/mn_build_master.log /tmp/mn_build_slave.log; exit 2; fi
 fi
 
 if [ "$BUILD_ONLY" = "1" ]; then
+  rm -f "$ATTEST_ROWS"
   echo "[mn] --build-only 종료(서빙·스모크 미수행). 이미지: $IMG"
   echo "[mn] 다음 단계는 로드-전 게이트를 **정상적으로** 타야 한다 — 가중치 RAM 이 실제로 필요하다."
   exit 0
@@ -900,6 +1019,7 @@ else
 fi
 
 # ── Ray 클러스터 기동 (master 먼저=head, slave 합류) ──
+_SERVE_T0="$(date -u +%FT%TZ)"   # serve 진행표 착수 시각(P4 가 읽는 first_started_utc 의 원천)
 echo "[mn] master 기동(Ray head + serve)..."
 env $MOUNTVARS docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master up -d >/dev/null 2>&1
 echo "[mn] slave 기동(Ray worker, SSH)..."
@@ -950,9 +1070,10 @@ _save_serve_logs() {   # $1=사유 태그
     docker logs "$MC" 2>&1 | grep -vE "Capturing CUDA graphs|it/s\]$" | tail -40 | sed 's/^/[mn]   /'
 }
 
-READY=0
+READY=0; LAST_HTTP=""
 for i in $(seq 1 "$READY_MAX"); do
-  [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' http://localhost:$PORT/health 2>/dev/null)" = "200" ] && { echo "[mn] READY ~$((i*5))s"; READY=1; break; }
+  LAST_HTTP="$(curl -s -m 5 -o /dev/null -w '%{http_code}' http://localhost:$PORT/health 2>/dev/null)"
+  [ "$LAST_HTTP" = "200" ] && { echo "[mn] READY ~$((i*5))s"; READY=1; break; }
   docker ps --filter name="$MC" --filter status=running -q | grep -q . || { echo "[mn] master EXITED"; _save_serve_logs "exited"; docker logs "$MC" 2>&1 | tail -12; break; }
   docker logs "$MC" 2>&1 | grep -qiE "CUDA out of memory|NCCL error|did not join|RuntimeError" && { echo "[mn] FAILURE(serve)"; _save_serve_logs "failure"; docker logs "$MC" 2>&1 | grep -iE "out of memory|NCCL error|did not join|RuntimeError" | tail -3; break; }
   sleep 5
@@ -981,6 +1102,7 @@ fi
 #     ③ 둘 다 비었음                          → FAIL (종전과 동일)
 #   ②의 탈출구는 `SMOKE_ALLOW_REASONING_ONLY=1` 이며, 쓰면 **크게 로그를 남긴다**(침묵 완화 ✗).
 RESULT=2
+SMOKE_VERDICT="not-attempted"; SMOKE_EVIDENCE=""; CH_CLEN=""; CH_RLEN=""; CH_FR=""; CO_LEN=""
 if [ "$READY" = "1" ]; then
   printf '{"model":"%s","messages":[{"role":"user","content":"2+2= ? \xec\x88\xab\xec\x9e\x90\xeb\xa7\x8c \xeb\x8b\xb5\xed\x95\x98\xec\x84\xb8\xec\x9a\x94."}],"max_tokens":256}' "$MODEL" > /tmp/mn_req.json
   curl -s -m 120 "http://localhost:$PORT/v1/chat/completions" -H "Content-Type: application/json" -d @/tmp/mn_req.json -o /tmp/mn_resp.json
@@ -1003,7 +1125,8 @@ except Exception:
 
   case "$CH_VERDICT" in
     content)
-      echo "[mn] SMOKE PASS — evidence=chat.content (content_len=$CH_CLEN fr=$CH_FR)"; RESULT=0 ;;
+      echo "[mn] SMOKE PASS — evidence=chat.content (content_len=$CH_CLEN fr=$CH_FR)"; RESULT=0
+      SMOKE_VERDICT="pass"; SMOKE_EVIDENCE="chat.content" ;;
     reasoning-only)
       # 파서 우회 프로브: reasoning 파서가 content 를 비워도 /v1/completions 는 원시 텍스트를 돌려준다.
       echo "[mn] ⚠ chat content 가 비었다(reasoning_len=$CH_RLEN · fr=$CH_FR) — 생성 실재를 /v1/completions 로 확증한다."
@@ -1021,20 +1144,85 @@ except Exception:
         echo "[mn] SMOKE PASS — evidence=v1.completions (text_len=$CO_LEN · chat.reasoning_len=$CH_RLEN)"
         echo "[mn]   ⚠ 그러나 chat content 는 비어 있다(fr=$CH_FR). reasoning 파서가 활성인데 사고 블록이"
         echo "[mn]     max_tokens 안에서 끝나지 않은 형태다 — 서빙 레시피(max_tokens·reasoning-parser)를 점검하라."
-        RESULT=0
+        RESULT=0; SMOKE_VERDICT="pass"; SMOKE_EVIDENCE="v1.completions"
       elif [ "${SMOKE_ALLOW_REASONING_ONLY:-0}" = "1" ]; then
         echo "[mn] SMOKE PASS(완화) — evidence=chat.reasoning only · SMOKE_ALLOW_REASONING_ONLY=1 탈출구 사용"
         echo "[mn]   ⚠ /v1/completions 확증에 실패했다(text_len=${CO_LEN:-0}). 이 PASS 는 생성 실재를 증명하지 않는다."
-        RESULT=0
+        # 완화 PASS 는 생성 실재를 증명하지 않는다 — serve_proof 에는 pass 가 아니라 그 사실대로 적는다
+        #   (hint 발행 자격 X8 은 이 값을 추론 관측으로 인정하지 않는다).
+        RESULT=0; SMOKE_VERDICT="relaxed-reasoning-only"; SMOKE_EVIDENCE="chat.reasoning(relaxed)"
       else
+        SMOKE_VERDICT="fail"
         echo "[mn] SMOKE FAIL — 생성 실재 미확증: chat content 비었고 /v1/completions 도 비었다(text_len=${CO_LEN:-0})."
         echo "[mn]   reasoning 만으로 통과시키려면 SMOKE_ALLOW_REASONING_ONLY=1 (완화는 로그에 남는다). raw:"
         head -c 300 /tmp/mn_resp_compl.json; echo
       fi ;;
     *)
+      SMOKE_VERDICT="fail"
       echo "[mn] SMOKE FAIL — content·reasoning 모두 비었다(verdict=$CH_VERDICT). raw:"
       head -c 300 /tmp/mn_resp.json; echo ;;
   esac
+fi
+
+# ── serve 시점 관측 영속 (2026-09-21 · plan_26092119 §4.6·§4.8 · X8/X12 · 코드맵 K1/K7) ──────────────
+#   ① attestation v2 — 두 노드의 **실행 중** 컨테이너에서 원장·vllm sha·torch·driver 를 캡처(기록 전용 · 차단 ✗).
+#      컨테이너가 떠 있을 때(READY)만 캡처한다 — 죽은 컨테이너를 캡처하면 "관측 불가" 가 "불일치" 처럼 남는다.
+#   ② serve_proof_<CONFIG>.json — health + 추론 1회의 **관측** 결과. hint 발행 자격(X8)의 1순위 입력이다.
+#      실패도 적는다(최신 관측이 옛 PASS 를 덮어야 한다 — 옛 PASS 가 남으면 죽은 셀이 자격을 얻는다).
+#      시각은 넣지 않는다(데이터 평면 벽시계 ✗ — 캠페인 진행표의 ended_utc 가 시각을 든다).
+#   ③ 캠페인 serve 진행표 — proof 는 ② 파일을 출처로 가리킨다(선언이 관측을 대체하지 않게).
+if [ "$READY" = "1" ]; then
+  _CAP="$(mktemp -d -t mn_attest_cap.XXXXXX 2>/dev/null || echo "/tmp/mn_attest_cap.$$")"; mkdir -p "$_CAP"
+  _attest_capture_node main "$MC" "$_CAP"
+  _attest_capture_node sub "${SLVC:-vllm-slave-serve-container}" "$_CAP"
+  _attest_write serve "$_CAP"
+  rm -rf "$_CAP"
+else
+  echo "[mn] attestation v2(serve) 생략 — READY 에 도달하지 못해 실행 중 컨테이너가 없다(관측 불가를 불일치로 적지 않는다)."
+fi
+rm -f "$ATTEST_ROWS"
+SERVE_PROOF="$REPO/output/multi/benchlog/serve_proof_${CONFIG}.json"
+mkdir -p "$(dirname "$SERVE_PROOF")" 2>/dev/null
+_ATT_REF=""; [ "$READY" = "1" ] && [ -f "$ATTEST_JSON" ] && _ATT_REF="${ATTEST_JSON#$REPO/}"
+if python3 - "$SERVE_PROOF" "$CONFIG" "$READY" "$LAST_HTTP" "$SMOKE_VERDICT" "$SMOKE_EVIDENCE" "${CH_CLEN:-}" \
+     "${CO_LEN:-}" "${CH_RLEN:-}" "${CH_FR:-}" "$IMG" "$MC" "$_ATT_REF" <<'PY'
+import json, sys
+(out, config, ready, http, verdict, evidence, clen, colen, rlen, fr, image, mc, att) = sys.argv[1:14]
+def num(v):
+    return int(v) if v.isdigit() else None
+# content_len = **추론 증거가 된 생성 텍스트의 길이**(SPEC §6.1 · hint 발행 자격 X8 이 `content_len ≥ 1` 을 요구한다).
+#   evidence=chat.content → chat content 길이 · evidence=v1.completions → 파서 우회 completions 텍스트 길이 ·
+#   완화 PASS(reasoning 만)·실패 → 0(생성 텍스트를 관측하지 못했다) · 추론 미시도 → null.
+#   ⚠ v1.completions PASS 에 chat content 길이(0)를 적으면 진짜 PASS 가 자격을 잃는다 — chat 쪽 길이는 따로 둔다.
+if verdict == "not-attempted":
+    content_len = None
+elif verdict == "pass" and evidence == "chat.content":
+    content_len = num(clen)
+elif verdict == "pass" and evidence == "v1.completions":
+    content_len = num(colen)
+else:
+    content_len = 0
+doc = {"schema_version": 1, "kind": "multinode_serve_proof", "config": config, "topology": "multi",
+       "ready": ready == "1", "health_http": num(http),
+       "inference_verdict": verdict, "evidence": evidence or None,
+       "content_len": content_len, "chat_content_len": num(clen),
+       "completion_text_len": num(colen), "reasoning_len": num(rlen),
+       "finish_reason": fr or None, "image_tag": image or None, "master_container": mc or None,
+       "attestation_ref": att or None, "provenance": "measured(multinode_serve_smoke)"}
+with open(out, "w", encoding="utf-8") as fh:
+    json.dump(doc, fh, ensure_ascii=False, indent=2, sort_keys=True)
+    fh.write("\n")
+PY
+then echo "[mn] serve proof → ${SERVE_PROOF#$REPO/} (verdict=$SMOKE_VERDICT evidence=${SMOKE_EVIDENCE:-없음})"
+else echo "[mn] ⚠ serve proof 기록 실패 — hint 발행 자격을 이 셀에서 관측할 수 없다"; fi
+if [ "$RESULT" = "0" ] && [ "$SMOKE_VERDICT" = "pass" ]; then
+  _campaign_phase serve done 1 "health 200 + 추론 1회" \
+    "multinode_serve_smoke.sh: /health=200 · 추론 evidence=$SMOKE_EVIDENCE → ${SERVE_PROOF#$REPO/}" "$_SERVE_T0"
+else
+  # 완화 PASS(reasoning-only)는 스모크 종료코드는 0 이지만 proof 술어(추론 1회 관측)를 만족하지 않는다 —
+  #   진행표는 그 사실대로 proof.ok 없이 적는다(술어를 낮추지 않는다).
+  _campaign_phase serve "$([ "$RESULT" = "0" ] && echo done || echo failed)" 0 "health 200 + 추론 1회" \
+    "multinode_serve_smoke.sh: ready=$READY health=${LAST_HTTP:-none} verdict=$SMOKE_VERDICT → ${SERVE_PROOF#$REPO/}" "$_SERVE_T0"
 fi
 
 # ── 정리 ──

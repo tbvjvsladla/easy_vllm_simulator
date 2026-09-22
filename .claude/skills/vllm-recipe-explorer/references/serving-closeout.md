@@ -80,7 +80,19 @@ Phase 2 수렴(`none`) + 최종 serve-up 성공 후, **최종 서빙유지 판�
   - **외부검색 평면**: 획득모드와 무관하게 허용(서빙전략 외부 교차검증과 동일 평면). 검색 실패 시 **음성정직 + curl 기본 안내 폴백**.
     **egress-restricted 서브 = 메인 릴레이**.
   - **무답/"아몰랑"**: 외부검색 생략 — **OpenAI-호환 엔드포인트 curl 예시만**.
-- **⑤ hint 태그 발동 신호 (신규모델 closer · 전작업 완료 후 · main-only)**: ①~④ 마무리가 끝나고 workflow S4(커밋·문서·전파)까지
-  종결된 **최후**에, 이 서빙이 **새 `(vllm×model×arch)` 조합**이면 hint 태그 발행을 **제안(Y/N)** 한다. **recipe 는 트리거·신호만** —
-  엔진(`.claude/skills/hint-publisher/scripts/hint_tag.py`)·발행 소유·push 는 workflow S4/헌법 §hint 배포 레이어 따름정리(무인 자동 태깅 ✗).
+- **⑤ hint 태그 발동 신호 (셀 closer · 그 셀의 서빙·측정·문서 완료 후 · main-only)**: ①~④ 마무리가 끝나고 **그 셀의**
+  서빙·측정(lite 이상)·문서(testlog·devlog 발행) 가 끝난 뒤, 이 셀의 파생 이름이 **새 태그**이면 hint 태그 발행을 **제안(Y/N)**
+  한다. 캠페인 완주를 기다리지 않는다(셀 1개 = 태그 1개 · 2026-09-08 "발행을 캠페인 완주와 분리" · plan_26092119 D9).
+  이름은 사람도 recipe 도 짓지 않는다 — 발행기가 전량 파생하고, 미리보기는 읽기 전용
+  `hint.py name --campaign <id> --cell <cell>` 이다(이미 원격에 있는 이름은 publish 가 `HINT_NAME_COLLISION` 으로 막는다).
+  **recipe 는 트리거·신호만** — 발행은 hint-publisher 단일 진입 `.claude/skills/hint-publisher/scripts/hint.py` 가 소유한다:
+  `hint.py publish --campaign <id> --cell <cell> --generated-utc <UTC>`(증거·발행 자격 관측·이름·계보·산출물 → 스캐폴드 후 **정지**) → Agent 가 PROMPT
+  절의 서사·hint-event·발췌를 저작 → `hint.py continue --campaign <id> --cell <cell> --generated-utc <UTC>`(**승인 확인이 먼저**
+  — 없으면 브랜치·태그 부수효과 0 인 채 `HINT_APPROVAL_ABSENT` 로 정지 → 린트 → hint 브랜치 배관 커밋 → 봉인·로컬 검증 →
+  그 태그 1개 push → 원격 SHA 대조 → 카탈로그 재파생). 승인은 캠페인 셀이면 선언 확인 팝업에서 받은 `hint_targets[].approval`
+  (`campaign_init.py --hint-approve`)이고, 그 밖은 `continue --approved-by "<사람 발화 전사>" --approved-utc <UTC>` 다.
+  셀 문서(testlog·devlog)는 `campaign_init.py --evidence-add` 로 그 셀의 포인터에 등록돼 있어야 publish 가 발행 기록을 만든다
+  (없으면 `HINT_NARRATIVE_EVIDENCE_ABSENT`).
+  push 는 `refs/tags/hint/<그 태그>` 하나뿐이며 hint 브랜치는 밀지 않는다(무인 자동 태깅 ✗). 캠페인 밖 입력 형태
+  (`--publication <topic> --replay`)와 절차 정본은 hint-publisher SKILL.md 다.
   egress-restricted 서브 = 발행 ✗(main-only) · 증상만 상향.

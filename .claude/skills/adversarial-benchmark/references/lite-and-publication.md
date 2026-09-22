@@ -49,7 +49,9 @@
     lite 고유 결함이 아니라 `doc_naming` 이 report·인증서를 **종류별로 따로** 스캔하는 구조의 결함이다(같은 시간대 full 스윕
     둘 중 앞 스윕이 인증서 없이 끝나도 같다). 교정 자리는 명명 SSOT(후속).
   - 바인딩: `evidence_publisher.py publish-lite-report --topic <map_only 토픽> --bench-report-src <그 리포트>`(복사 ✗ · 측정 구성
-    표가 `bench_mode | lite` 라고 말하는 리포트만 받는다). 결손 코드·카탈로그 컬럼은 hint-publisher 소관(계약 §3.0.1).
+    표가 `bench_mode | lite` 라고 말하는 리포트만 받는다). 결손 코드(`hintlib/evidence.py` `MISSING_CODES`)·카탈로그 컬럼
+    (`hintlib/catalog.py` `CATALOG_COLUMNS`)은 hint-publisher 소관이다(계약 `hints/HINT_ISSUANCE_CONTRACT.md` 의 lite 셀 통로 절 —
+    옛 인용 §3.0.1 · 절 번호는 계약 개정으로 바뀔 수 있어 정의 자리를 함께 적는다).
 - **자동 핸드오프 = 헌법 명시 예외**: recipe→adversarial **lite 한정** 자동 수행은 "무인 자동실행 없음" 트리거 정책의
   **명시 예외**다(안전망 데몬 예외와 동형 — 관측·inform-only 한정). **full 벤치·bump·다운로드의 완전-수동 속성은 불변**.
   Flag 게이트: lite 는 이미 Flag-게이트된 serve 위에서 돈다(전이적) + `lite_bench.sh` 가 `run_bench.sh` 와 동형
@@ -117,7 +119,7 @@
     | 사람용 리포트 반복 축 절 `bench_mode` 행(full 행·강등 행 모두) | 사살 대조 `not_scanned`·`unavailable` + "⚠ 대조 불가(보지 못했음 — 사살 없음이 아니다)" + 대조 노드 요약(`classify_cell.events_scan_summary` · 출처 서술에 이미 있으면 한 번만) |
     | 측정 구성 표 `bench_mode_source`·`downgrade_reason_source` | 출처 서술에 `not-scanned(… 대조 노드[main=miss · sub(원격)=not_scanned(회수본 없음 …)])` |
     | 인증서 필드 | **싣지 않는다** — 인증서는 판정 기록을 바인딩할 뿐 대조 범위 필드가 없다(full 인증서가 서브 not_scanned 인 채 발행될 수 있다 · 스키마 개정은 hint 계약과 함께 결정 · plan_26091407 §9 후속) |
-    | hint 측정 구성 표(배포 평면) | **싣지 않는다** — 배포 키는 열거형·수치(`hint_collect.DISTRIBUTED_MEASUREMENT_KEYS`)이고 출처 서술은 PII 사유로 배포되지 않는다. 대조 범위는 바인딩된 리포트(docs 평면)에서 읽는다. 배포 열거형으로 올릴지는 hint 계약 개정 사안이다(plan_26091407 §9 후속) |
+    | hint 측정 구성 표(배포 평면) | **싣지 않는다** — 배포 키는 열거형·수치(`hintlib/evidence.py` `DISTRIBUTED_MEASUREMENT_KEYS` → 페이로드 `PAYLOAD.measurement_config` · 측정 수치 자체는 `PAYLOAD.measurement`)이고 출처 서술은 PII 사유로 배포되지 않는다(출처 표시는 읽은 문서의 파일 이름만 적는 `source` 칸 하나 — `bench_report(<파일명>)`·`certificate(<파일명>)`·발행 기록). 대조 범위는 바인딩된 리포트(docs 평면)에서 읽는다. 배포 열거형으로 올릴지는 hint 계약 개정 사안이다(plan_26091407 §9 후속) |
     | Broad Search 셀 기록 | `downgrade_correlation` 사본 · 셀 종결 사인 출처 `not-scanned(`/`correlation-unavailable(` 접두사 |
   - **multi 에서 결론을 내는 순서**: 스윕 종료 시 서브 기록은 보통 아직 회수되지 않았다(→ `not_scanned`). `fetch_sub_docs.sh --topology=multi --apply`
     (통로를 **선언**한다 — 두 통로 manifest 의 서브 host 가 다르면 선언 없이는 exit 4)

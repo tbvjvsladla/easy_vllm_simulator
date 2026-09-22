@@ -17,9 +17,10 @@ not keyword overlap, not a restatement of the clause's own prose).
 Execution strategy per clause (documented again inline, at each predicate):
   - Pure Python functions (recipe.py, manifest_contract.py, scan_node.py, preload_ram_gate.py,
     render_dockerfile.py, render_sub_env.py, classify_failure.py, resolve_ngc_tag.py,
-    crosscheck_model_card.py, hint_tag.py, cleanup_docker.py) are imported and CALLED directly with
-    controlled inputs (real repo state or a hermetic tempdir), asserting on real return values --
-    not merely that the function exists.
+    crosscheck_model_card.py, cleanup_docker.py, and the hint-publisher package `hintlib` + its CLI
+    `hint.py` -- the latter two loaded lazily inside the HINT/LAST_GOOD predicates only) are imported
+    and CALLED directly with controlled inputs (real repo state or a hermetic tempdir), asserting on
+    real return values -- not merely that the function exists.
   - Bash-only logic that is safe to isolate (no SSH/network/docker side effects) is executed for
     real: the exact function body is extracted verbatim from its source file (never retyped) via
     brace-depth matching, combined with the module-level arrays/constants it references, and run
@@ -117,28 +118,210 @@ def _import(rel_dir: str, name: str):
     return importlib.import_module(name)
 
 
-def _import_hint_tag():
-    if (REPO_ROOT / ".git").exists():
-        return _import(".claude/skills/hint-publisher/scripts", "hint_tag")
-    # Clean-index exports intentionally have no .git.  hint_tag resolves ROOT at import time;
-    # substitute only that read-only rev-parse call so pure scanners/parsers and source
-    # inspection remain testable without weakening hint_tag's production fail-closed behavior.
+# ---------------------------------------------------------------------------
+# hint-publisher is loaded LAZILY, inside the HINT/LAST_GOOD predicates only.
+#
+# 2026-09-21 (plan_26092119 · 코드맵 policy_callers H1): the old `hint_tag = _import_hint_tag()` ran at
+# module import time, so a single missing hint-engine file stopped ALL 73 predicates before
+# `run_all_predicates` even started. A load failure is now that clause's own PredicateFailure.
+# The old gitless workaround (temporarily swapping `subprocess.run` so hint_tag's import-time
+# `git rev-parse --show-toplevel` answered) is gone with it: `hintlib` never runs git at import
+# (package invariant), so a clean-index export loads it without any patch.
+# ---------------------------------------------------------------------------
+_HINT_SCRIPTS_REL = ".claude/skills/hint-publisher/scripts"
+_HINT_CLI_REL = f"{_HINT_SCRIPTS_REL}/hint.py"
+_HINT_SKILL_REL = ".claude/skills/hint-publisher/SKILL.md"
+_HINT_TEMPLATE_00_REL = ".claude/skills/hint-publisher/templates/00-hint.prompt.md"
+_UPSTREAM_SKILL_REL = ".claude/skills/upstream-version-watch/SKILL.md"
+# A v6 name derived for the plan's tag-2 cell (AC4) -- a fixture only; nothing here reads a live tag.
+_HINT_FIXTURE_TAG = ("hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/"
+                     "qnvfp4-len262144-kvauto-plemmap-spec3-eager")
+_HINT_FIXTURE_UTC = "2026-09-21T10:21:01Z"
+# Operator identity planted on purpose (repo config AND env) to prove it never ships. The e-mail is
+# assembled from fragments: this file is a tracked deployment artifact under the 4-pattern PII
+# scan, and an e-mail-shaped literal here would trip the gate it guards (2026-08-06 self-scan).
+_HINT_OPERATOR_NAME = "Operator Realname"
+_HINT_OPERATOR_EMAIL = "@".join(["operator.realname", "corp.example"])
+_HINT_OPERATOR_ENV = {"GIT_AUTHOR_NAME": _HINT_OPERATOR_NAME, "GIT_AUTHOR_EMAIL": _HINT_OPERATOR_EMAIL,
+                      "GIT_COMMITTER_NAME": _HINT_OPERATOR_NAME, "GIT_COMMITTER_EMAIL": _HINT_OPERATOR_EMAIL}
+_HINT_CLI_CACHE: dict = {}
+
+
+def _hintlib(*names: str):
+    """`hintlib.<name>` modules from the repo's hint-publisher (one module -> the module, several ->
+    a tuple). A load failure fails only the calling clause (H1)."""
+    scripts = str(REPO_ROOT / _HINT_SCRIPTS_REL)
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    try:
+        mods = tuple(importlib.import_module(f"hintlib.{name}") for name in names)
+    except Exception as exc:  # noqa: BLE001 -- reported as this clause's failure, never swallowed
+        raise PredicateFailure(f"hintlib load failed ({', '.join(names)}): {type(exc).__name__}: {exc}") from exc
+    return mods[0] if len(mods) == 1 else mods
+
+
+def _hint_cli():
+    """The single hint-publisher CLI (`hint.py`, SPEC §4), loaded from its path without running
+    `main`. Absent or failing to import = this clause fails (it never falls back to a retired CLI)."""
+    path = REPO_ROOT / _HINT_CLI_REL
+    if str(path) in _HINT_CLI_CACHE:
+        return _HINT_CLI_CACHE[str(path)]
+    _require(path.is_file(), f"{_HINT_CLI_REL} is absent -- the single hint-publisher CLI (SPEC §4) is missing")
+    _hintlib("core")  # puts scripts/ on sys.path exactly as hint.py itself expects
     import importlib.util
-    path = REPO_ROOT / ".claude" / "skills" / "hint-publisher" / "scripts" / "hint_tag.py"
-    spec = importlib.util.spec_from_file_location("_policy_predicate_hint_tag", path)
-    _require(spec is not None and spec.loader is not None, 'predicate requirement failed at original line 98')
+    name = "_policy_predicate_hint_cli"
+    spec = importlib.util.spec_from_file_location(name, path)
+    _require(spec is not None and spec.loader is not None, f"cannot build an import spec for {_HINT_CLI_REL}")
     module = importlib.util.module_from_spec(spec)
-    original_run = subprocess.run
-    def scoped_run(args, *a, **kw):
-        if list(args) == ["git", "rev-parse", "--show-toplevel"]:
-            return subprocess.CompletedProcess(args, 0, stdout=str(REPO_ROOT) + "\n", stderr="")
-        return original_run(args, *a, **kw)
-    subprocess.run = scoped_run
+    sys.modules[name] = module
     try:
         spec.loader.exec_module(module)
-    finally:
-        subprocess.run = original_run
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 -- import must be side-effect free (SPEC §0.3)
+        sys.modules.pop(name, None)
+        raise PredicateFailure(f"{_HINT_CLI_REL} failed to import: {type(exc).__name__}: {exc}") from exc
+    _HINT_CLI_CACHE[str(path)] = module
     return module
+
+
+def _argparse_subcommands(parser) -> dict:
+    """{subcommand name: its ArgumentParser} of an argparse parser (first sub-parser group)."""
+    import argparse
+    for action in parser._actions:  # noqa: SLF001 -- argparse exposes sub-parsers only here
+        if isinstance(action, argparse._SubParsersAction):  # noqa: SLF001
+            return dict(action.choices)
+    return {}
+
+
+def _string_constants(src: str) -> set:
+    """Every str literal in `src` except docstrings (AST -- comments and docstrings never count)."""
+    tree = ast.parse(src)
+    docstrings = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            body = getattr(node, "body", [])
+            if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) \
+                    and isinstance(body[0].value.value, str):
+                docstrings.add(id(body[0].value))
+    return {node.value for node in ast.walk(tree)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings}
+
+
+@contextlib.contextmanager
+def _hint_sandbox(prefix: str):
+    """A temp dir + `branch.selftest_env` isolation (operator global/system git config cut off; the
+    operator identity planted in env on purpose). Every remote is a bare repo inside this dir -- no
+    predicate touches the real repo's refs, tags or hint branch."""
+    branch = _hintlib("branch")
+    with tempfile.TemporaryDirectory(prefix=prefix) as td:
+        tmp = Path(td)
+        with branch.selftest_env(tmp, _HINT_OPERATOR_ENV):
+            yield tmp
+
+
+def _hint_footer(anchor: str, tag: str = _HINT_FIXTURE_TAG) -> dict:
+    return {"version": "1", "tag": tag, "topology": "multi TP=2(Ray)", "anchor": anchor,
+            "manifest_ref": "docs/_evidence/fixture.work-manifest.json",
+            "certificate_ref": "../benchmark/benchmark_fixture.yaml"}
+
+
+def _hint_payload_commit(tmp: Path, *, name: str = "payload", extra_files: dict | None = None,
+                         repo: Path | None = None) -> dict:
+    """Walk the real publication path once in an isolated repo: v6 payload tree -> `branch.commit_payload`
+    (plumbing onto refs/heads/hint). The repo carries the operator identity in its git config and a
+    fixture pii_terms file (never the real one)."""
+    branch, core = _hintlib("branch", "core")
+    if repo is None:
+        repo = branch.selftest_repo(tmp)
+    source = core.git_out(repo, "rev-parse", "HEAD")
+    pdir = tmp / name
+    branch.write_fixture_payload(pdir, _HINT_FIXTURE_TAG, source_anchor=source, extra_files=extra_files)
+    anchor = branch.commit_payload(repo, pdir, message=branch.commit_message(pdir, generated_utc=_HINT_FIXTURE_UTC),
+                                   generated_utc=_HINT_FIXTURE_UTC)
+    return {"repo": repo, "source": source, "payload": pdir, "anchor": anchor}
+
+
+# O6 ordering over hint.py's intra-module call graph (C6). A same-function line comparison is not enough:
+# 2026-09-22 policy review -- hint.py consults `evidence.approval_for` inside the helper `_approval`, while
+# `continue_` makes the commit/seal/push calls, so "approval_for precedes side effects in the same function"
+# held vacuously; moving `_approval(...)` below `branch.commit_payload(...)`, or deleting it, stayed green.
+_HINT_APPROVAL_CALLS = frozenset({"approval_for"})
+# Every side effect that must never run before the recorded Y/N ...
+_HINT_SIDE_EFFECT_CALLS = frozenset({"commit_payload", "seal", "set_promotion_target", "push_tag"})
+# ... and the ones that may never be reachable from an entry point without it. `push_tag` is not here:
+# the standalone `push` re-sends a tag that only an approved `continue` could have sealed.
+_HINT_GATED_CALLS = frozenset({"commit_payload", "seal", "set_promotion_target"})
+
+
+def _approval_order_problems(src: str) -> list:
+    """Problems (empty = the O6 order holds) for a hint CLI source, judged transitively over its own functions.
+
+    (A) In every production function, no call that reaches a side effect but not the approval may precede
+        the first call that reaches the approval (a call reaching both is judged inside its callee).
+    (B) No production function may expose a gated side effect (a call to it, or to a local function that
+        exposes it, with no approval-reaching call earlier in the same function) while being an entry
+        point -- i.e. not called by name from any production function (`set_defaults(fn=...)` handlers).
+    (C) Non-vacuity: `commit_payload` and `seal` are called directly in production code, and at least one
+        production function consults the approval before a gated call.
+    Test-plane functions (`*selftest*`, `*self_test*`, `_fx*`) are neither judged nor counted as callers."""
+    fns: dict = {}
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            name = node.name
+            if "selftest" in name or "self_test" in name or name.startswith("_fx"):
+                continue
+            calls = []
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.Call):
+                    f = sub.func
+                    callee = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
+                    if callee:
+                        calls.append((sub.lineno, callee))
+            fns.setdefault(name, []).extend(sorted(calls))
+
+    def closure(seed) -> set:
+        """Local functions that reach `seed` (direct names, or a set of local names) -- exact fixpoint, cycle-safe."""
+        out = {n for n, calls in fns.items() if any(c in seed for _, c in calls)}
+        while True:
+            more = {n for n, calls in fns.items() if n not in out and any(c in out for _, c in calls)}
+            if not more:
+                return out
+            out |= more
+
+    reach = {k: closure(v) for k, v in (("approval", _HINT_APPROVAL_CALLS), ("side", _HINT_SIDE_EFFECT_CALLS),
+                                         ("gated", _HINT_GATED_CALLS))}
+    targets = {"approval": _HINT_APPROVAL_CALLS, "side": _HINT_SIDE_EFFECT_CALLS, "gated": _HINT_GATED_CALLS}
+
+    def hits(callee: str, kind: str) -> bool:
+        return callee in targets[kind] or callee in reach[kind]
+
+    first_ok = {n: min((ln for ln, c in calls if hits(c, "approval")), default=None) for n, calls in fns.items()}
+    problems = []
+    guarded_somewhere = False
+    for name, calls in fns.items():
+        ok = first_ok[name]
+        for ln, c in calls:
+            if hits(c, "side") and not hits(c, "approval") and ok is not None and ln < ok:
+                problems.append(f"{name}: {c} (line {ln}) runs before the approval is consulted (line {ok})")
+            if hits(c, "gated") and ok is not None and ok < ln:
+                guarded_somewhere = True
+    # exposure = a gated call (direct, or through an exposing local function) with no approval-reaching call before it.
+    exposed = {n for n, calls in fns.items()
+               if any(c in _HINT_GATED_CALLS and (first_ok[n] is None or ln < first_ok[n]) for ln, c in calls)}
+    while True:
+        more = {n for n, calls in fns.items() if n not in exposed
+                and any(c in exposed and (first_ok[n] is None or ln < first_ok[n]) for ln, c in calls)}
+        if not more:
+            break
+        exposed |= more
+    called = {c for calls in fns.values() for _, c in calls}
+    for name in sorted(exposed - called):
+        problems.append(f"{name}: an entry point reaches a branch/tag side effect without consulting the approval")
+    for gated in ("commit_payload", "seal"):
+        if not any(c == gated for calls in fns.values() for _, c in calls):
+            problems.append(f"no production call to {gated} -- the approval order cannot be judged (vacuous)")
+    if not guarded_somewhere:
+        problems.append("no production function consults the approval before a gated side effect")
+    return problems
 
 
 # ---------------------------------------------------------------------------
@@ -154,7 +337,6 @@ render_dockerfile = _import(".claude/skills/upstream-version-watch/scripts", "re
 crosscheck_model_card = _import(".claude/skills/vllm-recipe-explorer/scripts", "crosscheck_model_card")
 gen_recipe_set = _import(".claude/skills/vllm-recipe-explorer/scripts", "gen_recipe_set")
 cleanup_docker = _import(".claude/skills/vllm-recipe-explorer/scripts", "cleanup_docker")
-hint_tag = _import_hint_tag()
 policy_registry = _import(".claude/policies/runtime", "policy_registry")
 recipe = _import(".claude/skills/vllm-recipe-explorer", "recipe")
 
@@ -851,38 +1033,28 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C9():
 
 def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1():
     """C1: a non-default image variant is cluster-wide on the build plane -- every node, including
-    Band2-only slaves, must build/run the exact same image identity (IMAGE_TAG/VLLM_REPO/VLLM_REF)."""
+    Band2-only slaves, must build/run the exact same image identity (IMAGE_TAG/VLLM_REPO/VLLM_REF).
+
+    2026-09-21 재작성(plan_26092119 §4.6 · 코드맵 build_plane K5): slave 전달 집합의 정본이 스모크의 손목록
+    (`${IMG:+IMAGE_TAG=$IMG }…`)에서 `slave_forward.py` 의 **compose 참조 파생**으로 옮겨졌다. 그 손목록은
+    build-arg 와 따로 자라며 다섯 번 침묵 누락됐고(BUILD_DOCKERFILE 07-24 · VLLM_PRETEND_VERSION 08-02 ·
+    SM12X_PORT 08-14 · SRC_DEPS_AUTHORITY 08-15 · VLLM_VERSION 09-05), 옛 술어는 SRC_DEPS_AUTHORITY 를
+    대입문 목록에서 빠뜨려 **실행하지 않았다**(잠복 공백). 이제 술어는 스모크가 그 함수에서 값을 받는지
+    확인하고, 같은 함수를 **정책이 읽는 템플릿 렌더 compose** 위에서 벡터 (a)~(e)로 실제로 돌린다."""
     mn = _read(".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh")
     _require('val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }' in mn, 'image-identity vars must be extracted from the SAME model env file ($EF) master build/up loads')
-    _require('IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF); BDF=$(val BUILD_DOCKERFILE)' in mn, 'predicate requirement failed at original line 523')
-    # 2026-08-02: VLLM_PRETEND_VERSION 이 이미지 정체성에 추가됐다(포크 태그가 semver 가 아닐 때
-    #   setuptools_scm 우회값). 마스터만 갖고 슬레이브가 못 받으면 **슬레이브만 빌드가 죽는다** —
-    #   BUILD_DOCKERFILE 이 과거에 잠복했던 것과 동일한 전파 구멍이라 불변식을 확장한다.
-    _require('VPV=$(val VLLM_PRETEND_VERSION)' in mn, 'VLLM_PRETEND_VERSION must be extracted from the same model env file')
-    # 2026-08-14: SM12X_PORT 도 이미지 정체성에 추가됐다(plan_26081418 G-4). build_patches_src/ 의
-    #   소스 이식 패치를 켜는 **변종 게이트**이므로, 빠지면 마스터만 이식본이 되고 슬레이브는 stock
-    #   으로 빌드된다 — BUILD_DOCKERFILE·VLLM_PRETEND_VERSION 과 동일 부류의 전파 구멍이다.
-    #   `${SMPORT:+...}` 조건부인 이유는 **부재 = stock** 이 기본이기 때문이다(빈 값이면 prefix 자체가
-    #   사라져야 하며, `SM12X_PORT=` 를 빈 값으로 흘리면 안 된다). 아래 반증실험이 그 조건을 실증한다.
-    _require('SMPORT=$(val SM12X_PORT)' in mn, 'SM12X_PORT must be extracted from the same model env file')
-    # 2026-08-15: SRC_DEPS_AUTHORITY 가 네 번째로 이미지 정체성에 추가됐다(R3 포크 핀이 노출).
-    #   flashinfer(python+cubin) 의존 승격 게이트다. SM12X_PORT 에서 갈라낸 이유는 두 관심사가
-    #   달라서다 — 포크 핀 칸은 **소스 이식이 불요한데 의존 승격은 필요**하고, 게이트가 하나면
-    #   그 칸을 켤 수도 끌 수도 없다. 빠지면 마스터만 0.6.17, 슬레이브는 0.6.16.post3 이 되어
-    #   BUILD_DOCKERFILE·VLLM_PRETEND_VERSION·SM12X_PORT 와 **동일 부류의 전파 구멍**이 된다.
-    #   `${SDA:+...}` 조건부인 이유도 앞의 셋과 같다: **부재 = stock** 이 기본이어야 한다.
-    _require('SDA=$(val SRC_DEPS_AUTHORITY)' in mn, 'SRC_DEPS_AUTHORITY must be extracted from the same model env file')
-    # VLLM_VERSION (2026-09-05, 이 목록의 다섯 번째). wheel 트랙에서 어느 vLLM 을 설치하는지를
-    # 정하며 compose 가 build-arg 로 넘긴다. 빠지면 마스터만 EF 의 버전으로, 슬레이브는
-    # Dockerfile `ARG VLLM_VERSION` 기본값으로 빌드돼 **같은 태그가 두 노드에서 다른 엔진**이 된다.
-    _require('VVER=$(val VLLM_VERSION)' in mn, 'VLLM_VERSION must be extracted from the same model env file')
-    _require('SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${BDF:+BUILD_DOCKERFILE=$BDF }${VVER:+VLLM_VERSION=$VVER }${VREPO:+VLLM_REPO=$VREPO }${VPV:+VLLM_PRETEND_VERSION=$VPV }${SMPORT:+SM12X_PORT=$SMPORT }${SDA:+SRC_DEPS_AUTHORITY=$SDA }${VREF:+VLLM_REF=$VREF}"' in mn, 'predicate requirement failed at original line 524')
+    _require('IMG=$(val IMAGE_TAG)' in mn, 'the master-side IMG must still be read from the same model env file ($EF)')
+    _require('SF="$SDIR/slave_forward.py"' in mn, 'the smoke must bind the single-owner forward derivation (slave_forward.py) next to itself')
+    _require('COMPOSE_MULTI="output/multi/docker-compose.yaml"' in mn and '--compose "$COMPOSE_MULTI"' in mn and '--cell-env "$EF"' in mn,
+             'the forward set must be derived from the SAME compose and the SAME model env file the smoke runs with')
+    assign = next((ln for ln in mn.splitlines() if ln.startswith("SLAVE_IMGVARS=")), "")
+    _require('"$SF" prefix --group image_identity,cluster' in assign,
+             'SLAVE_IMGVARS must be assigned from slave_forward.py (image_identity,cluster) -- no hand-written list')
+    _require('${IMG:+IMAGE_TAG=' not in mn, 'the retired hand-written SLAVE_IMGVARS list must not come back')
     build_line = next(ln for ln in mn.splitlines() if "--profile slave build" in ln)
     _require('$SLAVE_IMGVARS' in build_line, 'slave build invocation must carry the image-identity vars')
 
-    # NEW: "every node ... must build AND run" -- covers master too, and covers `up` not just
-    # `build`. The master must build/run from the SAME env file ($EF) the vars were extracted from,
-    # and the slave must carry those same vars into its `up` invocation, not just its `build` one.
+    # "every node ... must build AND run" -- covers master too, and covers `up` not just `build`.
     master_build_line = next(ln for ln in mn.splitlines() if "--profile master build" in ln)
     master_up_line = next(ln for ln in mn.splitlines() if "--profile master up" in ln)
     slave_up_line = next(ln for ln in mn.splitlines() if "--profile slave up" in ln)
@@ -890,50 +1062,69 @@ def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1():
     _require('--env-file "$EF"' in master_up_line, 'master must also RUN (not just build) from that same env file')
     _require('$SLAVE_IMGVARS' in slave_up_line, 'slave must also RUN (not just build) with the same image-identity vars')
 
-    # Execute the REAL extraction+propagation for real (not a static grep of variable names): run
-    # val() and the SLAVE_IMGVARS assignment verbatim in bash against a synthetic combo env file,
-    # proving the slave genuinely receives the exact same image identity master reads from $EF.
-    val_fn = 'val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }'
-    assign_line = ('IMG=$(val IMAGE_TAG); VREPO=$(val VLLM_REPO); VREF=$(val VLLM_REF); BDF=$(val BUILD_DOCKERFILE)\n'
-                   'VPV=$(val VLLM_PRETEND_VERSION); SMPORT=$(val SM12X_PORT); VVER=$(val VLLM_VERSION)')
-    slave_imgvars_line = next(ln for ln in mn.splitlines() if ln.strip().startswith("SLAVE_IMGVARS="))
+    # Execute the REAL derivation (not a grep of names) against the policy-read template render.
+    sf = _import(".claude/skills/upstream-version-watch/scripts", "slave_forward")
+    compose_text = _rendered("compose")
     base_env = ("IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x\n"
                 "VLLM_REPO=https://github.com/jasl/vllm.git\n"
                 "VLLM_REF=b5c0d43b967c\n"
                 "BUILD_DOCKERFILE=Dockerfile.source-build\n"
                 "VLLM_PRETEND_VERSION=0.26.1\n")
+    variant_ids = {"IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x", "BUILD_DOCKERFILE=Dockerfile.source-build",
+                   "VLLM_REPO=https://github.com/jasl/vllm.git", "VLLM_PRETEND_VERSION=0.26.1", "VLLM_REF=b5c0d43b967c"}
+    with tempfile.TemporaryDirectory() as tmp:
+        compose = Path(tmp) / "docker-compose.yaml"
+        compose.write_text(compose_text, encoding="utf-8")
+        project = Path(tmp) / "project.env"
+        project.write_text("", encoding="utf-8")
+        ef = Path(tmp) / "combo.env"
 
-    def _imgvars_for(env_text: str) -> str:
-        with tempfile.TemporaryDirectory() as tmp:
-            ef = Path(tmp) / "combo.env"
-            ef.write_text(env_text)
-            script = f'EF="{ef}"\n{val_fn}\n{assign_line}\n{slave_imgvars_line.strip()}\necho "$SLAVE_IMGVARS"\n'
-            proc = _run_bash(script)
-            _require(proc.returncode == 0, proc.stderr)
-            return proc.stdout.strip()
+        def imgvars(env_text: str, compose_path: Path = compose) -> set:
+            ef.write_text(env_text, encoding="utf-8")
+            return set(sf.prefix(sf.derive(ef, project, compose_path), "image_identity").split())
 
-    # (a) 변종 콤보: 이식 게이트가 켜져 있으면 슬레이브가 그 값을 그대로 받는다.
-    _require(_imgvars_for(base_env + "SM12X_PORT=1\n") == 'IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x BUILD_DOCKERFILE=Dockerfile.source-build VLLM_REPO=https://github.com/jasl/vllm.git VLLM_PRETEND_VERSION=0.26.1 SM12X_PORT=1 VLLM_REF=b5c0d43b967c', 'the slave must receive the exact SM12X_PORT gate value the master reads from $EF')
-    # (b) 반증실험 — stock 콤보(키 부재): `${SMPORT:+...}` 조건이 prefix 를 통째로 지워야 한다.
-    #     빈 `SM12X_PORT=` 가 새면 compose `${SM12X_PORT:-0}` 기본값이 **빈 문자열로 덮여** stock 게이트
-    #     비교(`= "1"`)가 아니라 build-arg 자체가 갈리므로, 부재/빈값 구분이 정책 보호의 일부다.
-    stock_out = _imgvars_for(base_env)
-    _require('SM12X_PORT' not in stock_out, 'an absent SM12X_PORT must vanish from SLAVE_IMGVARS entirely (absence = stock), never leak as an empty assignment')
-    _require(stock_out == 'IMAGE_TAG=easy-vllm:0.25.1-cu132-aarch64-source-sm12x BUILD_DOCKERFILE=Dockerfile.source-build VLLM_REPO=https://github.com/jasl/vllm.git VLLM_PRETEND_VERSION=0.26.1 VLLM_REF=b5c0d43b967c', stock_out)
+        # structural: every build-arg referenced by the compose (except non-identity tuning) is image identity.
+        groups = sf.candidates(compose)
+        for key in ("IMAGE_TAG", "BUILD_DOCKERFILE", "VLLM_VERSION", "VLLM_REPO", "VLLM_REF",
+                    "VLLM_PRETEND_VERSION", "SM12X_PORT", "SRC_DEPS_AUTHORITY"):
+            _require(key in groups["image_identity"], f'{key} must be derived as cluster-wide image identity from the compose')
+        _require("BUILD_JOBS" in groups["build_tuning"] and "BUILD_JOBS" not in groups["image_identity"],
+                 'BUILD_JOBS is build tuning (same output, different parallelism), never image identity')
+        _require(all("CONFIG_FILE" not in keys for keys in groups.values()),
+                 'CONFIG_FILE must never be forwarded -- the slave stays Band2-only')
 
-    # (c) wheel 트랙 콤보: VLLM_VERSION 이 있으면 슬레이브가 **그 값을 그대로** 받아야 한다.
-    #     2026-09-05 실화: compose 에 VLLM_VERSION build-arg 를 되살렸는데 이 전달 목록은 그대로여서,
-    #     마스터 0.19.0 / 슬레이브 0.18.0 이 같은 IMAGE_TAG 로 빌드될 뻔했다(TP=2 가 노드마다 다른 엔진).
-    wheel_env = ("IMAGE_TAG=easy-vllm:0.19.0-cu130-aarch64-wheel\n"
-                 "BUILD_DOCKERFILE=Dockerfile\n"
-                 "VLLM_VERSION=0.19.0\n")
-    wheel_out = _imgvars_for(wheel_env)
-    _require('VLLM_VERSION=0.19.0' in wheel_out,
-             'the slave must receive the exact VLLM_VERSION the master reads from $EF -- '
-             'otherwise the same IMAGE_TAG carries a different engine on each node')
-    # 부재는 부재로 사라져야 한다(빈 대입이 새면 compose 기본값을 빈 문자열로 덮는다).
-    _require('VLLM_VERSION' not in stock_out,
-             'an absent VLLM_VERSION must vanish from SLAVE_IMGVARS entirely, never leak as an empty assignment')
+        # (a) 변종 콤보: 이식 게이트가 켜져 있으면 슬레이브가 그 값을 그대로 받는다.
+        _require(imgvars(base_env + "SM12X_PORT=1\n") == variant_ids | {"SM12X_PORT=1"},
+                 'the slave must receive the exact SM12X_PORT gate value the master reads from $EF')
+        # (b) 반증실험 -- stock 콤보(키 부재)·빈 값: prefix 에서 통째로 사라져야 한다. 빈 `SM12X_PORT=` 가 새면
+        #     compose `${SM12X_PORT:-0}` 기본값이 빈 문자열로 덮여 build-arg 자체가 갈린다(부재 = stock).
+        stock_out = imgvars(base_env)
+        _require(stock_out == variant_ids, f'stock combo must forward exactly the identity it declares: {sorted(stock_out)}')
+        _require(not any(t.startswith("SM12X_PORT") for t in imgvars(base_env + "SM12X_PORT=\n")),
+                 'an empty SM12X_PORT must vanish from SLAVE_IMGVARS entirely, never leak as an empty assignment')
+        # (c) wheel 트랙 콤보: VLLM_VERSION 을 그대로 받아야 한다(2026-09-05 -- 마스터 0.19.0 / 슬레이브 0.18.0 위험).
+        wheel_out = imgvars("IMAGE_TAG=easy-vllm:0.19.0-cu130-aarch64-wheel\nBUILD_DOCKERFILE=Dockerfile\nVLLM_VERSION=0.19.0\n")
+        _require('VLLM_VERSION=0.19.0' in wheel_out,
+                 'the slave must receive the exact VLLM_VERSION the master reads from $EF -- '
+                 'otherwise the same IMAGE_TAG carries a different engine on each node')
+        _require(not any(t.startswith("VLLM_VERSION") for t in stock_out),
+                 'an absent VLLM_VERSION must vanish from SLAVE_IMGVARS entirely, never leak as an empty assignment')
+        # (d) SRC_DEPS_AUTHORITY(2026-08-15) -- 옛 술어가 실행하지 않던 네 번째 전파 구멍을 이제 실행한다.
+        _require('SRC_DEPS_AUTHORITY=1' in imgvars(base_env + "SRC_DEPS_AUTHORITY=1\n"),
+                 'the slave must receive the SRC_DEPS_AUTHORITY dependency-authority gate the master reads from $EF')
+        # CONFIG_FILE 은 셀 env 가 정해도 넘기지 않는다(Band2-only 보존).
+        ef.write_text(base_env + "CONFIG_FILE=some-model\n", encoding="utf-8")
+        _require('CONFIG_FILE' not in sf.prefix(sf.derive(ef, project, compose), *sf.GROUPS),
+                 'the per-model CONFIG_FILE must never reach the slave through the env prefix')
+        # (e) 새 build-arg 를 compose 에 더하면 **코드 수정 없이** 전달된다 -- 다섯 번의 재발 원인(목록이 build-arg 와
+        #     따로 자람)이 구조적으로 닫혔음을 실행으로 보인다.
+        grown = Path(tmp) / "grown-compose.yaml"
+        _require('      SM12X_PORT: ${SM12X_PORT:-0}\n' in compose_text, 'rendered compose must declare the SM12X_PORT build-arg')
+        grown.write_text(compose_text.replace('      SM12X_PORT: ${SM12X_PORT:-0}\n',
+                                              '      SM12X_PORT: ${SM12X_PORT:-0}\n      PREDICATE_NEW_ARG: ${PREDICATE_NEW_ARG:-0}\n', 1),
+                         encoding="utf-8")
+        _require('PREDICATE_NEW_ARG=1' in imgvars(base_env + "PREDICATE_NEW_ARG=1\n", grown),
+                 'a build-arg newly added to the compose must be forwarded to the slave without any code change')
 
 
 def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C2():
@@ -1119,245 +1310,588 @@ def predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C3():
 
 # =============================================================================
 # HINT_TAG_ACTIVATION_GATE (6 clauses)
+#
+# 2026-09-21 rewrite (plan_26092119 §4.10 · SPEC §5.8): the clauses now bind to the hint-publisher
+# public API (`hintlib.{tag,branch,pii,template,evidence}` + `hint.py`) instead of the retired
+# `hint_tag.py` subcommand sources. Every predicate walks the REAL functions in an isolated repo
+# (`_hint_sandbox`) -- no live tag, hint branch, campaign or network is read or written.
 # =============================================================================
 
 def predicate_HINT_TAG_ACTIVATION_GATE_C1():
-    """C1: validated recipes are published as hint tags containing distilled knowledge only --
-    HEAD stays a pure skeleton (no recipe files at HEAD, only the index); the tag body is the sole
-    object. Verified: `cmd_create`'s scaffold is written only to the gitignored `.drafts` staging
-    dir, and `cmd_finalize` streams the recipe body straight into the git tag message (`-F -`)
-    without ever writing recipe content into a tracked path."""
-    _require(hint_tag.DRAFTS_DIR == hint_tag.ROOT / 'hints' / '.drafts', 'predicate requirement failed at original line 725')
-    gitignore = _read(".gitignore")
-    _require('hints/.drafts/' in gitignore, 'the scaffold staging dir must be gitignored (never at HEAD)')
+    """C1: a hint tag is an annotated tag on a hint-branch PAYLOAD commit (never a source-tree commit);
+    the payload tree is built by plumbing from a closed allowlist without touching the main working
+    tree, so the tag's archive (zip) is exactly the reproduction kit; the annotation is only brief +
+    zip pointer + 6-field evidence footer, streamed through stdin with --cleanup=verbatim."""
+    branch, tag, core = _hintlib("branch", "tag", "core")
+    code = branch.code_of
 
-    src = inspect.getsource(hint_tag.cmd_finalize)
-    _require('git(' in src and '"-F", "-"' in src, 'the tag message must be streamed via stdin, not a tracked file')
-    tree = ast.parse(inspect.getsource(hint_tag))
-    finalize_writes_tracked_file = False
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == "cmd_finalize":
-            for sub in ast.walk(node):
-                if isinstance(sub, ast.Call) and isinstance(sub.func, ast.Attribute) and sub.func.attr == "write_text":
-                    finalize_writes_tracked_file = True
-    _require(not finalize_writes_tracked_file, 'finalize must never write recipe content to a tracked file')
+    # The scaffold is authored in a gitignored draft (X2) -- a payload never stands on a tracked path.
+    _require(core.REL_DRAFTS == "hints/.drafts", f'the scaffold staging dir moved: {core.REL_DRAFTS!r}')
+    _require('hints/.drafts/' in _read(".gitignore"), 'the scaffold staging dir must be gitignored (never at HEAD)')
 
-    # NEW: "distilled knowledge only ... never a finished, copy-paste-ready recipe payload" is
-    # enforced in code by the real B1 backstop -- feed it the exact violating input (an absolute
-    # host-scoped number with NO re-measure qualifier, i.e. a value ready to copy-paste verbatim)
-    # and prove it's genuinely refused; the same value WITH a re-measure qualifier is accepted.
-    copy_paste_ready_body = "권장: kv-cache-memory-bytes 17179869184, gmu 0.80 그대로 사용하세요."
-    try:
-        hint_tag._assert_remeasure(copy_paste_ready_body)
-        raise AssertionError("a copy-paste-ready absolute host number with no re-measure qualifier must be refused")
-    except SystemExit as e:
-        _require(e.code == 1, 'predicate requirement failed at original line 749')
+    # The payload tree is a CLOSED allowlist (tripwire): 8 top-level files + artifacts/<slot>/**.
+    _require(tuple(branch.PAYLOAD_ALLOWLIST_TOP) == ("README.md", "00-hint.md", "01-artifacts.md", "02-narrative.md",
+                                                     "03-benchmark.md", "PAYLOAD.json", "LINEAGE.json", "PROVENANCE.json"),
+             f'payload top-level allowlist drifted: {branch.PAYLOAD_ALLOWLIST_TOP}')
+    for rel in ("notes.txt", ".claude/skills/x.py", "artifacts/triplet/.git/config", "artifacts/unknown/x",
+                "artifacts/compose/.gitattributes"):
+        _require(branch.allowlist_violation(rel) is not None, f'{rel!r} must be outside the payload allowlist')
+    _require(branch.allowlist_violation("artifacts/compose/sub_recipe.json") is None, 'a slot file must be admitted')
 
-    distilled_body = "시작점: kv-cache-memory-bytes ≈ 17179869184 bytes — 반드시 재측정(measure) 후 대입, 비이식."
-    hint_tag._assert_remeasure(distilled_body)  # must NOT raise -- a genuinely distilled, re-measured value
+    # footer v1 = the evidence ADDRESS, 6 fields (plan_26090222 F-6a: the three content digests were
+    # removed -- integrity is git's job; the anchor is the commit git hashes).
+    fields = _hint_footer("a" * 40)
+    _require(tuple(tag.FOOTER_FIELDS) == tuple(fields), 'footer contract must be exactly the 6 address fields, in order')
+    footer = tag.build_footer(**fields)
+    _require(tag.parse_footer(footer) == fields, 'round-tripped footer must equal the original fields exactly')
+    _require(code(lambda: tag.parse_footer(footer.replace("anchor: " + "a" * 40 + "\n", "")))
+             == "HINT_EVIDENCE_BINDING_MALFORMED", 'a footer missing a required field must be rejected, not accepted')
+    _require(code(lambda: tag.parse_footer(footer.replace("certificate_ref:", "certificate_sha256: " + "b" * 64
+                                                          + "\ncertificate_ref:")))
+             == "HINT_EVIDENCE_BINDING_MALFORMED", 'a retired digest key must stay rejected (F-6a)')
+    # annotation = brief + zip pointer + footer, and NOTHING else (D4: the map moved into the zip).
+    brief = "픽스처 셀의 요약 문단이다."
+    msg = tag.annotation(brief, fields)
+    _require(msg == f"{brief}\n\n{tag.ANNOTATION_POINTER}\n\n{footer}",
+             'the annotation must be exactly brief + zip pointer + footer')
+    _require("00-hint.md" in tag.ANNOTATION_POINTER, 'the pointer must send the reader to 00-hint.md inside the zip')
+    _require(code(lambda: tag.parse_annotation(msg + "덧붙임\n")) == "HINT_ANNOTATION_SHAPE",
+             'any byte beyond the canonical annotation shape must be rejected')
+
+    # The one `git tag -a` call site streams the message through stdin (`-F -`, never a tracked file)
+    # with --cleanup=verbatim (2026-08-20: git's default cleanup=strip dropped every `## ` line --
+    # "49/49 tags with 0 headings" was first blamed on the authors).
+    tag_calls = []
+    for top in ast.parse(inspect.getsource(tag)).body:
+        if not isinstance(top, ast.FunctionDef) or "selftest" in top.name:
+            continue  # the module selftest creates its own fixture tags -- production call sites only
+        for node in ast.walk(top):
+            if isinstance(node, ast.Call):
+                consts = [a.value for a in node.args if isinstance(a, ast.Constant) and isinstance(a.value, str)]
+                if "tag" in consts and "-a" in consts:
+                    tag_calls.append(consts)
+    _require(len(tag_calls) == 1, f'exactly one production `git tag -a` call site must create hint tags: {tag_calls}')
+    argv = tag_calls[0]
+    _require("--cleanup=verbatim" in argv, 'the tag message must be kept verbatim (2026-08-20 `## ` loss)')
+    _require("-F" in argv and argv[argv.index("-F") + 1:argv.index("-F") + 2] == ["-"],
+             'the tag message must be streamed via stdin (`-F -`), never written to a tracked file')
+
+    with _hint_sandbox("hint-c1-") as tmp:
+        fx = _hint_payload_commit(tmp)
+        repo, source, anchor = fx["repo"], fx["source"], fx["anchor"]
+        # plumbing only: HEAD, the index and tracked files of the main tree are untouched.
+        _require(core.git_out(repo, "rev-parse", "HEAD") == source, 'the payload commit must not move HEAD')
+        _require(core.git(repo, "diff", "--quiet", check=False).returncode == 0
+                 and core.git(repo, "diff", "--cached", "--quiet", check=False).returncode == 0,
+                 'the payload commit must not touch the main working tree or index')
+        _require(core.git_out(repo, "ls-files").split() == ["src.txt"], 'no payload file may become a tracked source file')
+        _require(core.git_out(repo, "rev-parse", "--verify", branch.HINT_BRANCH_REF) == anchor,
+                 'the payload commit must be the tip of refs/heads/hint')
+        # ★ a source-tree commit is refused (2026-09-07: three native tags were sealed on source commits,
+        #   so their zips shipped repository source instead of the reproduction kit).
+        _require(code(lambda: tag.seal(repo, _HINT_FIXTURE_TAG, source,
+                                       tag.annotation(branch.FX_BRIEF, _hint_footer(source)),
+                                       generated_utc=_HINT_FIXTURE_UTC)) == "HINT_ANCHOR_NOT_ON_HINT_BRANCH",
+                 'sealing a hint tag on a source-tree commit must be refused')
+        # ★ a file outside the allowlist never enters the tree (the branch does not move).
+        _require(code(lambda: _hint_payload_commit(tmp, name="outside", repo=repo,
+                                                   extra_files={"notes.txt": "x\n"}))
+                 == "HINT_PAYLOAD_TREE_OUTSIDE_ALLOWLIST", 'a payload file outside the allowlist must be refused')
+        # ★ the brief is MACHINE-EXTRACTED from the payload's 00-hint.md §0.1 -- a hand-written brief (one that
+        #   says something the zip does not) is refused before the tag object exists.
+        refused = None
+        try:
+            tag.seal(repo, _HINT_FIXTURE_TAG, anchor, tag.annotation("손으로 쓴 다른 요약이다.", _hint_footer(anchor)),
+                     generated_utc=_HINT_FIXTURE_UTC)
+        except core.HintError as exc:
+            refused = exc
+        _require(refused is not None and refused.code == "HINT_SEAL_REFUSED"
+                 and "HINT_ANNOTATION_BRIEF_MISMATCH" in tag.problem_codes(getattr(refused, "problems", ())),
+                 f'an annotation brief that is not the 00-hint.md §0.1 extraction must be refused: {refused!r}')
+        _require(branch.hint_tip(repo) == anchor and tag.tag_ref_kind(repo, _HINT_FIXTURE_TAG) is None,
+                 'refusals must leave the hint branch and the tag namespace untouched')
+
+        message = tag.annotation(branch.FX_BRIEF, _hint_footer(anchor))
+        tag.seal(repo, _HINT_FIXTURE_TAG, anchor, message, generated_utc=_HINT_FIXTURE_UTC)
+        obj = tag.read_tag(repo, _HINT_FIXTURE_TAG) or {}
+        _require(obj.get("target") == anchor and obj.get("target_type") == "commit",
+                 'the tag must point at the hint-branch payload commit')
+        _require(obj.get("body") == message, 'the tag body must be exactly the annotation bytes (brief + pointer + footer)')
+        _require(tag.verify_local(repo, _HINT_FIXTURE_TAG) == [], 'a freshly sealed tag must verify locally')
+        # The zip IS the reproduction kit: the archive of the tag == the allowlisted payload tree.
+        import tarfile
+        arc = subprocess.run(["git", "archive", "--format=tar", _HINT_FIXTURE_TAG], cwd=repo, capture_output=True)
+        _require(arc.returncode == 0, arc.stderr.decode("utf-8", "replace"))
+        names = sorted(m.name for m in tarfile.open(fileobj=io.BytesIO(arc.stdout)).getmembers() if m.isfile())
+        declared = sorted(json.loads((fx["payload"] / "PROVENANCE.json").read_text(encoding="utf-8"))["payload_files"])
+        _require(names == declared, f'the tag archive must be exactly the payload tree: {names} != {declared}')
+        _require(set(branch.PAYLOAD_ALLOWLIST_TOP) <= set(names) and "src.txt" not in names
+                 and not any(n.startswith(".claude/") for n in names),
+                 'the archive must carry the whole kit (00-hint.md first) and no repository source')
 
 
 def predicate_HINT_TAG_ACTIVATION_GATE_C2():
-    """C2: PII strip/scan over the full tag object AND tagger identity is fail-closed -- a scan
-    failure blocks tag creation/finalization outright. Executes the real `scan_text` detector."""
+    """C2: PII scanning is fail-closed on everything that ships -- payload tree, file names, commit
+    message and annotation (deployment profile = 4 patterns + literal terms) -- and the payload
+    commit's author/committer and the tagger must be the synthetic project identity (equality, not
+    mere PII-cleanliness). A hit blocks the commit/seal/push before the object exists."""
+    pii, branch, tag, core = _hintlib("pii", "branch", "tag", "core")
     terms = ["forbidden-secret-token"]
     # Single RFC1918 fixture literal for this predicate -- reused by every positive case below so
     # the tracked deployment file gains no further private-range literals (plan_26081514 §6.4 note).
     genuine_ip = '192.168.1.5'  # pii-scan-fixture: 탐지기 양성 케이스 — 삭제하면 시험이 죽는다
-    _require(hint_tag.scan_text('this text contains forbidden-secret-token here', terms) != [], 'predicate requirement failed at original line 759')
-    _require(hint_tag.scan_text(f'{genuine_ip} is a private ip', terms) != [], 'predicate requirement failed at original line 760')
-    _require(hint_tag.scan_text('nothing sensitive here at all', terms) == [], 'predicate requirement failed at original line 761')
 
-    # NEW (plan_26081514 §6.4 tripwire, merged plan_26081516 H1): the ipv4 branch cannot tell a
-    # document section number from an address on shape alone, so `scan_text` excludes matches
-    # anchored by `§` or a heading marker. This NEGATIVE half is the tripwire: with only the
-    # positive fixture above, the whole exclusion could be deleted and the self-test would stay
-    # green. Positive and negative must move together or review is not forced.
-    # The section number is assembled from fragments on purpose: this file is a TRACKED deployment
-    # artifact where all four PII patterns are enforced, so spelling an ipv4-shaped literal here
-    # would make the fixture trip the very gate it guards (docs.md already states the same rule for
-    # its own prose). Not obfuscation -- a self-reference guard.
+    def hits(text: str, **kw) -> list:
+        return [str(h) for h in pii.scan_text(text, terms, **kw)]
+
+    _require(hits('this text contains forbidden-secret-token here') != [], 'a literal PII term must be detected')
+    _require(hits(f'{genuine_ip} is a private ip') != [], 'an RFC1918 address must be detected')
+    _require(hits('nothing sensitive here at all') == [], 'clean text must not be flagged')
+    # plan_26081514 §6.4 tripwire (merged plan_26081516 H1): the ipv4 branch cannot tell a document
+    # section number from an address on shape alone, so the scanner excludes matches anchored by `§`
+    # or a heading marker. This NEGATIVE half is the tripwire -- with only the positive fixture the
+    # whole exclusion could be deleted and nothing would go red. The section number is assembled
+    # from fragments: an ipv4-shaped literal in this tracked file would trip the gate it guards
+    # (2026-08-06 self-scan). Not obfuscation -- a self-reference guard.
     sec = '10.' + '1.2'
-    _require(hint_tag.scan_text(f'본문 §{sec} 를 참조', terms) == [],
-             'a §-anchored document section number must not be flagged as a private ipv4')
-    _require(hint_tag.scan_text(f'#### {sec} 관측된 부작용', terms) == [],
-             'a heading-anchored document section number must not be flagged as a private ipv4')
-    # ...and the exclusion must not SWALLOW a genuine address that follows a section anchor -- the
-    # failure mode a `search`-stops-at-first-match implementation would have introduced.
-    after_anchor = hint_tag.scan_text(f'§{sec} 요약\n서브 노드 {genuine_ip} 도달', terms)
-    _require([h for h in after_anchor if h.startswith('private-ipv4:')] != [],
+    _require(hits(f'본문 §{sec} 를 참조') == [], 'a §-anchored document section number must not be flagged as a private ipv4')
+    _require(hits(f'#### {sec} 관측된 부작용') == [], 'a heading-anchored section number must not be flagged as a private ipv4')
+    # ...and the exclusion must not SWALLOW a genuine address after a section anchor (every match is walked).
+    _require([h for h in hits(f'§{sec} 요약\n서브 노드 {genuine_ip} 도달') if h.startswith('private-ipv4:')] != [],
              'a genuine private ipv4 following a section anchor must still be flagged')
-    # tagger identity check explicitly skips the 'email' generic pattern (a tagger MUST have one)
-    # but still catches a known PII literal.
-    hits = hint_tag.scan_text("Alice <alice@example.com>", ["Alice"], skip_generic=frozenset({"email"}))
-    _require(any((h.startswith('term:') for h in hits)), 'predicate requirement failed at original line 765')
-    no_email_flag = hint_tag.scan_text("bob@example.com", [], skip_generic=frozenset({"email"}))
-    _require(not any((h.startswith('email:') for h in no_email_flag)), 'predicate requirement failed at original line 767')
+    # docs.md §PII: whatever ships is scanned with all 4 generic patterns.
+    _require(set(pii.PROFILES["deploy"]) == set(pii.GENERIC_PII) == {"private-ipv4", "email", "abs-op-path", "spark-host"},
+             f'the deployment profile must carry all 4 generic patterns: {pii.PROFILES.get("deploy")}')
+    # The identity profile skips `email` (an identity always has one) but still catches a known literal.
+    email = "@".join(["bob", "example.com"])
+    _require(any(h.startswith("term:") for h in [str(h) for h in pii.scan_text("Alice <x>", ["Alice"], profile="identity")]),
+             'the identity scan must still catch a known PII literal')
+    _require(not [h for h in hits(email, profile="identity") if h.startswith("email:")]
+             and [h for h in hits(email) if h.startswith("email:")],
+             'only the identity profile may skip the email pattern')
 
-    fin_src = inspect.getsource(hint_tag.cmd_finalize)
-    scan_body_idx = fin_src.index("hits = scan_text(body, terms)")
-    die_idx = fin_src.index("if hits:")
-    tag_idx = fin_src.index('"tag", "-a", a.tag')
-    _require(scan_body_idx < die_idx < tag_idx, 'a PII hit must die() BEFORE the tag object is created')
-
-    # NEW: "the tagger identity that ships inside the pushed tag" must ALSO be fail-closed BEFORE
-    # both tag creation and the rest of finalization (index.json/HINTS.md writes) -- not just the
-    # body scan checked above.
-    idhits_idx = fin_src.index("idhits = scan_text(")
-    idhits_die_idx = fin_src.index("if idhits:")
-    index_write_idx = fin_src.index("idx = _load_index()")
-    _require(idhits_idx < idhits_die_idx < tag_idx < index_write_idx, 'a tagger-identity PII hit must die() before the tag object is created AND before index.json/HINTS.md are written -- blocking both creation and finalization outright')
+    with _hint_sandbox("hint-c2-") as tmp:
+        fx = _hint_payload_commit(tmp)
+        repo, anchor = fx["repo"], fx["anchor"]
+        # the operator identity sits in the repo config AND the env -- it must reach no shipped object.
+        raw_commit = core.git_bytes(repo, "cat-file", "commit", anchor)
+        ids = branch.parse_ident_headers(raw_commit.decode("utf-8"))
+        _require(ids["author"]["ident"] == ids["committer"]["ident"] == branch.synthetic_identity(),
+                 'the payload commit author/committer must be the synthetic project identity')
+        _require(_HINT_OPERATOR_NAME.encode() not in raw_commit and _HINT_OPERATOR_EMAIL.encode() not in raw_commit,
+                 'the operator identity must never ship inside the payload commit (2026-09-21 K1: 57/57 did)')
+        # ★ a PII hit in the payload tree blocks the commit before the hint branch moves.
+        leak = {"artifacts/triplet/leak.yaml": f"note: {branch.FIXTURE_TERM}\n"}
+        _require(branch.code_of(lambda: _hint_payload_commit(tmp, name="leak", repo=repo, extra_files=leak))
+                 == "HINT_PAYLOAD_PII", 'a PII literal in the payload tree must block the payload commit')
+        _require(branch.hint_tip(repo) == anchor, 'a PII hit must stop BEFORE the hint branch moves')
+        # ★ file NAMES ship too (the tree object carries them). A publisher-built payload also lists every name in
+        #   PROVENANCE.json, so its content scan would catch the name first -- this control therefore judges a
+        #   commit built by hand (another PC, old tooling) whose tree gains a clean-bodied file with a PII NAME
+        #   that no manifest lists: the object-level check must still name it.
+        blob = core.git(repo, "hash-object", "-w", "--stdin", input_text="k: v\n").stdout.strip()
+        idx = {"GIT_INDEX_FILE": str(tmp / "c2-index")}
+        core.git(repo, "read-tree", anchor, env_extra=idx)
+        core.git(repo, "update-index", "--add", "--cacheinfo",
+                 f"100644,{blob},artifacts/triplet/{branch.FIXTURE_TERM}.yaml", env_extra=idx)
+        named_tree = core.git(repo, "write-tree", env_extra=idx).stdout.strip()
+        named = core.git(repo, "commit-tree", named_tree, "-p", anchor, "--no-gpg-sign",
+                         input_text=f"{_HINT_FIXTURE_TAG}\n", env_extra=branch.identity_env(_HINT_FIXTURE_UTC)).stdout.strip()
+        _require("HINT_PAYLOAD_PATH_PII"
+                 in tag.problem_codes(branch.commit_violations(repo, named, _HINT_FIXTURE_TAG, pii.require_terms(repo))),
+                 'a PII literal in a payload file NAME must be refused even when every file body is clean')
+        # ★ identity is judged by EQUALITY: an operator-authored commit over the same clean tree is refused.
+        tree = core.git_out(repo, "rev-parse", f"{anchor}^{{tree}}")
+        op_commit = core.git(repo, "commit-tree", tree, "-p", anchor, "--no-gpg-sign", input_text=f"{_HINT_FIXTURE_TAG}\n",
+                             env_extra=_HINT_OPERATOR_ENV).stdout.strip()
+        _require("HINT_COMMIT_IDENTITY_NOT_SYNTHETIC"
+                 in tag.problem_codes(branch.commit_violations(repo, op_commit, _HINT_FIXTURE_TAG, pii.require_terms(repo))),
+                 'a payload commit carrying the operator identity must be refused even when its tree is clean')
+        # ★ a PII hit in the annotation refuses the seal before the tag object exists.
+        refused = None
+        try:
+            tag.seal(repo, _HINT_FIXTURE_TAG, anchor,
+                     tag.annotation(f"요약 {branch.FIXTURE_TERM} 누출", _hint_footer(anchor)),
+                     generated_utc=_HINT_FIXTURE_UTC)
+        except core.HintError as exc:
+            refused = exc
+        _require(refused is not None and refused.code == "HINT_SEAL_REFUSED"
+                 and "HINT_TAG_PII" in tag.problem_codes(getattr(refused, "problems", ())),
+                 f'a PII hit in the annotation must refuse the seal: {refused!r}')
+        _require(tag.tag_ref_kind(repo, _HINT_FIXTURE_TAG) is None, 'a refused seal must leave no tag behind')
+        # ★ a tag whose TAGGER is the operator fails local verification, so it can never be pushed.
+        message = tag.annotation(branch.FX_BRIEF, _hint_footer(anchor))
+        epoch = int(core.parse_utc(_HINT_FIXTURE_UTC).timestamp())
+        head = (f"object {anchor}\ntype commit\ntag {_HINT_FIXTURE_TAG}\n"
+                f"tagger {_HINT_OPERATOR_NAME} <{_HINT_OPERATOR_EMAIL}> {epoch} +0000\n\n")
+        mk = subprocess.run(["git", "mktag"], cwd=repo, input=(head + message).encode("utf-8"), capture_output=True)
+        _require(mk.returncode == 0, mk.stderr.decode("utf-8", "replace"))
+        op_tag = mk.stdout.decode("ascii").strip()
+        core.git(repo, "update-ref", f"refs/tags/{_HINT_FIXTURE_TAG}", op_tag)
+        _require("HINT_TAGGER_NOT_SYNTHETIC" in tag.problem_codes(tag.verify_local(repo, _HINT_FIXTURE_TAG)),
+                 'a tag whose tagger is not the synthetic identity must fail local verification')
+        bare = tmp / "origin.git"
+        core.git(tmp, "init", "-q", "--bare", str(bare))
+        _require(branch.code_of(lambda: tag.push_tag(repo, str(bare), _HINT_FIXTURE_TAG)) == "HINT_PUSH_UNVERIFIED",
+                 'an unverified (operator-tagged) tag must never be pushed')
+        _require(core.git_out(bare, "for-each-ref", "--format=%(refname)") == "", 'the refused push must leave the remote empty')
+        core.git(repo, "update-ref", "-d", f"refs/tags/{_HINT_FIXTURE_TAG}", op_tag)
+        # the real seal stamps the synthetic tagger even with the operator identity in env and config.
+        tag.seal(repo, _HINT_FIXTURE_TAG, anchor, message, generated_utc=_HINT_FIXTURE_UTC)
+        sealed = tag.read_tag(repo, _HINT_FIXTURE_TAG) or {}
+        _require((sealed.get("tagger") or {}).get("ident") == branch.synthetic_identity(),
+                 'the sealed tag tagger must be the synthetic project identity')
+        _require(_HINT_OPERATOR_EMAIL.encode() not in sealed.get("raw", b""), 'the operator identity must not ship in the tag object')
 
 
 def predicate_HINT_TAG_ACTIVATION_GATE_C3():
-    """C3: every hint carries a mandatory carry-forward revalidation header (a map, not an answer)
-    so a stale hint can never be treated as executable without re-verification. Round-trips the
-    real footer builder/parser and confirms a missing field is rejected, not silently accepted."""
-    # 6-field footer contract (plan_26090222 F-6a): the three content digests were removed --
-    # the footer binds an evidence ADDRESS (anchor + refs), integrity is git's job.
-    fields = {
-        "version": "1", "tag": "hint/0.25.1/gpt-oss-120b/gb10-main-sim-h100/qmxfp4-len131072-kvfp8", "topology": "single",
-        "anchor": "a" * 40, "manifest_ref": "docs/_evidence/x.json",
-        "certificate_ref": "docs/benchmark/cert.yaml",
-    }
-    _require(tuple(hint_tag._FOOTER_FIELDS) == tuple(fields),
-             'footer contract must be exactly the 6 address fields, in order')
-    footer_text = hint_tag._build_evidence_footer(fields)
-    parsed = hint_tag._parse_evidence_footer(footer_text.split("\n\n", 1)[-1] if "\n\n" in footer_text else
-                                              "\n" + footer_text)
-    _require(parsed == fields, 'round-tripped footer must equal the original fields exactly')
-
-    broken = footer_text.replace("anchor: " + "a" * 40 + "\n", "")
-    try:
-        hint_tag._parse_evidence_footer("\n" + broken)
-        raise AssertionError("a footer missing a required field must raise HintEvidenceBindingError")
-    except hint_tag.HintEvidenceBindingError as e:
-        _require(e.code == 'HINT_EVIDENCE_BINDING_MALFORMED', 'predicate requirement failed at original line 806')
-
-    # NEW: "a map, not an answer" + mandatory re-verification against the CONSUMER's OWN smoke --
-    # grounded in the actual committed template every hint body is built from (cmd_create reads
-    # this exact file; these fixed sentences are outside every {{...}}/TODO(judgment) slot so they
-    # survive verbatim into every finalized hint, since finalize only rejects leftover TODO markers,
-    # never strips the surrounding fixed prose).
-    tpl = _read(".claude/skills/hint-publisher/templates/hint_recipe.template.md")
-    fixed_lines = (
+    """C3: every hint carries the fixed carry-forward revalidation banner (a map, not an answer;
+    re-verify through the consumer's own smoke; do not copy-paste) OUTSIDE every PROMPT block and
+    comment of the 00-hint template -- so sealing cannot remove it -- and the payload linter blocks a
+    00-hint.md missing any banner line (HINT_BANNER_ABSENT)."""
+    template = _hintlib("template")
+    banners = (
         "이 자료는 **지도이지 정답이 아니다.**",
         "네 환경에서 반드시 **스모크 통과까지 재검증**. 최종 판정 = 네 스모크(린트·이슈글 ≠ 서빙됨).",
         "복붙 ✗ = 전략을 **다시 세워라**(carry-forward 금지 · 지도 not 정답).",
     )
-    for fixed_line in fixed_lines:
-        _require(fixed_line in tpl, f'template must carry the fixed carry-forward-revalidation line: {fixed_line!r}')
-        _require('{{' not in fixed_line and 'TODO(judgment' not in fixed_line, 'this must be FIXED prose (never a {{...}}-substituted or judgment-authored slot) so it survives verbatim into every finalized hint')
-    _require(hint_tag.TEMPLATE_FILE == hint_tag.ROOT / '.claude' / 'skills' /
-             'hint-publisher' / 'templates' / 'hint_recipe.template.md',
-             'hint tagger must consume its owner-local template')
-    create_src = inspect.getsource(hint_tag.cmd_create)
-    _require('TEMPLATE_FILE.read_text' in create_src, 'every hint scaffold must originate from this exact template')
+    _require(tuple(template.REVALIDATION_BANNERS) == banners, f'the C3 banner lines drifted: {template.REVALIDATION_BANNERS}')
+    _require(set(banners) <= set(template.BANNER_LINES), 'the linted banner set must include the C3 banner lines')
+    tpl = _read(_HINT_TEMPLATE_00_REL)
+    visible = re.sub(r"<!--.*?-->", "", tpl, flags=re.S)
+    for line in banners:
+        # FIXED prose outside every PROMPT/FACT comment: seal replaces PROMPT blocks, so a banner
+        # inside one would vanish from the shipped 00-hint.md (옛 hint_recipe.template.md 12·45·47행).
+        _require(line in visible, f'00-hint template must carry the banner outside every PROMPT block/comment: {line!r}')
+
+    with tempfile.TemporaryDirectory(prefix="hint-c3-") as td:
+        payload = Path(td) / "payload"
+        payload.mkdir()
+
+        def lint_codes(text00: str) -> set:
+            (payload / "00-hint.md").write_text(text00, encoding="utf-8")
+            found = template.lint(REPO_ROOT, payload, lineage={}, facts={}, substitute=lambda t: t, pii_terms=[])
+            return {f["code"] for f in found}
+
+        _require("HINT_BANNER_ABSENT" not in lint_codes(tpl), 'the shipped 00-hint template must satisfy the banner rule')
+        for line in banners:
+            src_line = next(ln for ln in tpl.splitlines() if line in ln)
+            _require("HINT_BANNER_ABSENT" in lint_codes(tpl.replace(src_line + "\n", "", 1)),
+                     f'removing a banner line must block the payload: {line!r}')
+            _require("HINT_BANNER_ABSENT" in lint_codes(tpl.replace(src_line, "<!-- " + src_line + " -->", 1)),
+                     f'a banner hidden inside a comment must not count: {line!r}')
+        # Sealing replaces every PROMPT block and keeps the banner (fixture prose stands in for the author).
+        for name in template.TEMPLATE_FILES:
+            raw = _read(f".claude/skills/hint-publisher/templates/{name}.prompt.md")
+            (payload / f"{name}.md").write_text(re.sub(r"<<AGENT:.*?>>", "픽스처 산문.", raw), encoding="utf-8")
+        template.seal_prompts(payload)
+        sealed = (payload / "00-hint.md").read_text(encoding="utf-8")
+        _require("<!-- PROMPT" not in sealed, 'seal must replace every PROMPT block')
+        _require(all(line in sealed for line in banners), 'the banner must survive sealing verbatim')
 
 
 def predicate_HINT_TAG_ACTIVATION_GATE_C4():
     """C4: publication is main-only, the same plane as references.md, independent of sub egress
-    state -- sub nodes never author or publish hints. Verified structurally: hint_tag.py contains
-    no SSH/sub-node delivery mechanism at all (it only ever touches the LOCAL git repo it was
-    invoked in)."""
-    src = inspect.getsource(hint_tag)
-    for banned in ("SUB_HOST", "ssh ", '"ssh"', "sub_host", "paramiko"):
-        _require(banned not in src, f'hint_tag.py must never reference a sub-node delivery mechanism ({banned!r})')
-    _require(hint_tag.repo_root.__doc__ is None or 'git' in inspect.getsource(hint_tag.repo_root), 'predicate requirement failed at original line 837')
-    _require('"rev-parse", "--show-toplevel"' in inspect.getsource(hint_tag.repo_root), 'predicate requirement failed at original line 838')
+    state -- the hint engine never invokes SSH or the sub delivery/relay tooling, the main->sub
+    delivery never carries the engine or the hints/ tree, the sub's runtime-skill plane never
+    includes hint-publisher, and a sub's derived campaign slice carries no hint_targets."""
+    engine = [REPO_ROOT / _HINT_CLI_REL, *sorted((REPO_ROOT / _HINT_SCRIPTS_REL / "hintlib").glob("*.py"))]
+    _require(engine[0].is_file(), f'{_HINT_CLI_REL} is absent -- the engine to inspect is incomplete')
+    _require(len(engine) > 1, 'hintlib/*.py is absent -- the engine to inspect is incomplete')
+    remote_exec = {"ssh", "scp", "sftp", "rsync", "sshpass"}
+    process_spawners = {"run", "Popen", "call", "check_call", "check_output", "system", "popen",
+                        "execv", "execvp", "execvpe", "spawnlp", "getoutput", "getstatusoutput"}
+    banned_modules = {"paramiko", "fabric", "asyncssh", "relay", "render_sub_env", "node_role_contract", "library_relay"}
+    sub_tooling = ("sync_to_sub.sh", "relay.py", "render_sub_env", "fetch_sub_docs.sh", "library_relay",
+                   "node_role_contract", "a2a_delegation")
+    for path in engine:
+        src = path.read_text(encoding="utf-8")
+        rel = path.relative_to(REPO_ROOT).as_posix() if path.is_relative_to(REPO_ROOT) else str(path)
+        # AST, not text: docstrings legitimately explain ssh/scp remote URL schemes (tag.py) and the
+        # sub recipe (artifacts.py) -- what must not exist is an ssh EXECUTION path or a sub-tooling call.
+        for node in ast.walk(ast.parse(src)):
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                mods = [a.name for a in node.names] if isinstance(node, ast.Import) else [node.module or ""]
+                for mod in mods:
+                    _require(mod.split(".")[0] not in banned_modules,
+                             f'{rel} must not import a remote-shell/sub-delivery module ({mod!r})')
+            # An argv literal led by a remote-shell program is refused wherever it is built -- not only as the
+            # direct argument of a spawn call (`cmd = ["rsync", ...]; subprocess.run(cmd)` must not slip through;
+            # 2026-09-22 policy review mutation). The engine has no such list today, so this costs no exemption.
+            if isinstance(node, (ast.List, ast.Tuple)) and node.elts \
+                    and isinstance(node.elts[0], ast.Constant) and isinstance(node.elts[0].value, str):
+                _require(node.elts[0].value not in remote_exec,
+                         f'{rel} must never build a remote-shell argv ({node.elts[0].value!r}) -- publication is local')
+            callee = ""
+            if isinstance(node, ast.Call):
+                callee = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
+            if callee in process_spawners and node.args:
+                first = node.args[0]
+                if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                    _require(not first.value.lstrip().startswith(tuple(f"{x} " for x in remote_exec)),
+                             f'{rel} must never execute a remote shell command string')
+        for literal in _string_constants(src):
+            _require(not any(tok in literal for tok in sub_tooling),
+                     f'{rel} must never reference sub delivery/A2A tooling ({literal[:80]!r})')
 
-    # NEW: "independent of sub egress state" -- hint_tag.py never even references the A2A
-    # delegation/egress concepts that gate sub-facing behavior elsewhere in this project, so its
-    # publication path structurally cannot branch on them at all.
-    for egress_token in ("egress", "delegation", "a2a", "A2A"):
-        _require(egress_token not in src, f'hint_tag.py must never reference sub egress/A2A state ({egress_token!r})')
-
-    # NEW: "main-only ... sub nodes never author or publish hints" -- the only two main→sub
-    # delivery scripts in this project never deliver the hint-tag engine or the hints/ tree at all,
-    # so a sub node structurally has no path to author or publish a hint tag.
+    # main->sub delivery never carries the engine or the hints/ tree (a bare "hint" is not banned:
+    # sync_to_sub.sh legitimately mentions "hint 페이로드" in a comment).
+    delivery_tokens = ("hint-publisher", "hintlib", "hint.py", "hint_tag", "hints/", "HINTS.md")
     sync_src = _sync_to_sub_src()
-    _require('hint_tag' not in sync_src and 'hints/' not in sync_src, 'sync_to_sub.sh must never deliver the hint-tag engine or hints/ tree to a sub node')
+    _require(not [t for t in delivery_tokens if t in sync_src], 'sync_to_sub.sh must never deliver the hint engine or hints/ tree')
     render_sub_env_src = _read(".claude/skills/terraforming_node/scripts/render_sub_env.py")
-    _require('hint_tag' not in render_sub_env_src and '"hints"' not in render_sub_env_src, 'render_sub_env.py must never stage the hint-tag engine/tree for sub delivery')
+    _require(not [t for t in (*delivery_tokens, '"hints"') if t in render_sub_env_src],
+             'render_sub_env.py must never stage the hint engine/tree for sub delivery')
+
+    # The sub's runtime-skill plane (derived from the manifest identity contract) never includes the publisher.
+    nrc = _import(".claude/skills/terraforming_node/scripts", "node_role_contract")
+    for topology in nrc.TOPOLOGIES:
+        for mode in nrc.SUB_MODES:
+            plane = nrc.tool_plane(topology, mode)["value"]
+            _require("hint-publisher" not in plane, f'a {mode} sub must never receive hint-publisher: {plane}')
+
+    # A sub's derived campaign slice carries no publication approval, and a sub instance holding one is refused.
+    ci = _campaign_script("campaign_init")
+    cv = _campaign_script("campaign_template_validator")
+    approval = {"approved_by": "fixture transcription", "approved_utc": _HINT_FIXTURE_UTC, "source": "declaration-popup"}
+    decl = {"schema_version": 1, "id": "camp-fx", "plan_ref": "docs/plan/p.md", "declared_utc": _HINT_FIXTURE_UTC,
+            "nodes": [{"node_id": "main", "role": "main", "topology": "multi", "hw": "gb10"},
+                      {"node_id": "sub", "role": "sub", "topology": "multi", "hw": "gb10"}],
+            "assignments": {"main": [{"cell": "cell-a"}], "sub": [{"cell": "cell-s"}]},
+            "hint_targets": [{"node_id": "sub", "cells": ["cell-s"], "approval": approval}]}
+    with tempfile.TemporaryDirectory(prefix="hint-c4-") as td:
+        camp = Path(td) / "camp-fx"
+        camp.mkdir()
+        (camp / "campaign.yaml").write_text(json.dumps(decl, ensure_ascii=False), encoding="utf-8")
+        sliced = ci.emit_slice(camp, "sub", utc=_HINT_FIXTURE_UTC)
+    _require(sliced.get("self_role") == "sub" and sliced.get("hint_targets") == [],
+             f'the sub slice must carry no hint_targets (publication is main-only): {sliced.get("hint_targets")!r}')
+    smuggled = dict(sliced, hint_targets=decl["hint_targets"])
+    _require(any("self_role=sub" in r for r in cv.hint_target_reasons(smuggled)),
+             'a sub instance holding hint_targets must be refused')
+    _require(cv.hint_approval_for(smuggled, "cell-s", node="sub") is None,
+             'no approval may be read from a sub instance -- a sub can never be cleared to publish')
 
 
 def predicate_HINT_TAG_ACTIVATION_GATE_C5():
-    """C5: push is selective -- the refspec is the literal refs/tags/hint/* and --tags is
-    forbidden -- so no ref outside the hint namespace reaches a public origin.
+    """C5: push is selective -- exactly one refspec refs/tags/<tag>:refs/tags/<tag> for one validated
+    hint/ tag (no glob, no refs/heads, never --tags, --no-follow-tags so git config cannot widen it),
+    verified locally before it leaves and checked against the remote after -- so no local ref beyond
+    that tag (a last-good-* anchor, another hint tag, the hint branch) reaches a public origin.
 
-    2026-09-03 (plan_26090222 F-6c): the origin-side `last-good-*` ls-remote existence check that
-    cmd_verify used to run was DELETED and is no longer pinned here -- the rollback anchor is a
-    local COMMIT, never a tag, so that check asserted a condition nothing in this repo can create.
-    What is NOT deleted is the namespace guard inside cmd_push: it is a general refspec-leak guard,
-    not a last-good-specific one (`--tag '*'` would otherwise render `refs/tags/*` and push every
-    local tag to a public origin), so it is pinned below alongside the refspec literal."""
-    push_src = inspect.getsource(hint_tag.cmd_push)
-    _require('refspec = "refs/tags/hint/*"' in push_src, 'predicate requirement failed at original line 861')
-    _require('"--tags"' not in push_src and "'--tags'" not in push_src, 'predicate requirement failed at original line 862')
-    # the literal --tags flag must never appear as an actual `git(...)` call argument anywhere in
-    # this file (its only other appearances are prose/help-text explaining the prohibition, or the
-    # unrelated read-only `ls-remote --tags` existence check inside cmd_verify).
-    full_src = inspect.getsource(hint_tag)
-    for line in full_src.splitlines():
-        if "git(" in line and "push" in line:
-            _require('--tags' not in line, f'a push invocation line must never include --tags: {line!r}')
-    # the namespace guard itself -- without it `--tag '*'` renders refspec `refs/tags/*`.
-    _require('if not a.tag.startswith("hint/")' in push_src,
-             'cmd_push must refuse any --tag outside the hint/ namespace (refspec-leak guard)')
-    # and the deleted check must stay deleted -- a re-added origin-side scan would be an
-    # unenforceable assertion about a tag this repo never creates.
-    verify_src = inspect.getsource(hint_tag.cmd_verify)
-    _require('last-good' not in verify_src,
-             'cmd_verify must not re-introduce an origin-side last-good-* scan (F-6c)')
+    2026-09-03 (plan_26090222 F-6c): the origin-side `last-good-*` existence scan the old verify ran
+    stays deleted -- the rollback anchor is a local COMMIT, never a tag. What survives is the general
+    refspec-leak guard (2026-08-20: `--tag '*'` would have rendered `refs/tags/*`)."""
+    tag, branch, core = _hintlib("tag", "branch", "core")
+    code = branch.code_of
+    # Static scope = the push path only (AST literals of these three functions). The module's own
+    # selftest carries refused-refspec fixtures ("--tags") and `last-good` fixture names, so a
+    # module-wide text scan would indict the tests instead of the push path.
+    for fn in (tag.push_tag, tag.git_push_authenticated, tag._require_safe_refspec):  # noqa: SLF001
+        literals = _string_constants(inspect.getsource(fn))
+        for widening in ("--tags", "--all", "--mirror", "--follow-tags", "--force", "refs/tags/*", "refs/tags/hint/*"):
+            _require(widening not in literals, f'{fn.__name__} must never carry the widening argument {widening!r}')
+    _require("--no-follow-tags" in tag.PUSH_SCOPE_ARGS, 'every push must pin --no-follow-tags (2026-09-22: 1 tag pushed 3)')
+    _require('last-good' not in inspect.getsource(tag.verify_local),
+             'verify must not re-introduce an origin-side last-good-* scan (F-6c)')
+
+    with _hint_sandbox("hint-c5-") as tmp:
+        fx = _hint_payload_commit(tmp)
+        repo, anchor = fx["repo"], fx["anchor"]
+        tag.seal(repo, _HINT_FIXTURE_TAG, anchor, tag.annotation(branch.FX_BRIEF, _hint_footer(anchor)),
+                 generated_utc=_HINT_FIXTURE_UTC)
+        bare = tmp / "origin.git"
+        core.git(tmp, "init", "-q", "--bare", str(bare))
+        # ★ refused before any network step: a glob, a branch, the bare tag namespace, a non-hint name.
+        for bad, want in (("hint/*", "HINT_TAG_GLOB_FORBIDDEN"), ("hint/a?b", "HINT_TAG_GLOB_FORBIDDEN"),
+                          ("refs/heads/hint", "HINT_TAG_NAMESPACE"), ("refs/tags/hint/x", "HINT_TAG_NAMESPACE"),
+                          ("last-good-fixture", "HINT_TAG_NAMESPACE")):
+            _require(code(lambda b=bad: tag.push_tag(repo, str(bare), b)) == want, f'push --tag {bad!r} must be refused with {want}')
+        for spec in ("refs/tags/*:refs/tags/*", "--tags", "+refs/tags/x:refs/tags/x", "refs/tags/a:refs/tags/b"):
+            _require(code(lambda s=spec: tag.git_push_authenticated(repo, str(bare), s, dry_run=True))
+                     == "HINT_PUSH_REFSPEC_FORBIDDEN", f'refspec {spec!r} must be refused by the push API')
+        # Try to widen the push from the outside: push.followTags=true plus a local last-good-* anchor
+        # and another annotated hint tag, both reachable from the payload commit.
+        core.git(repo, "config", "push.followTags", "true")
+        core.git(repo, "tag", "-a", "-m", "local rollback anchor", "last-good-fixture", anchor)
+        core.git(repo, "tag", "-a", "-m", "unverified", _HINT_FIXTURE_TAG.replace("len262144", "len1024"), anchor)
+        calls: list = []
+        real_run = subprocess.run
+
+        def spy(args, *a, **kw):
+            if isinstance(args, (list, tuple)) and args and args[0] == "git":
+                calls.append([str(x) for x in args])
+            return real_run(args, *a, **kw)
+
+        subprocess.run = spy
+        try:
+            result = tag.push_tag(repo, str(bare), _HINT_FIXTURE_TAG)
+        finally:
+            subprocess.run = real_run
+        want = f"refs/tags/{_HINT_FIXTURE_TAG}:refs/tags/{_HINT_FIXTURE_TAG}"
+        pushes = [argv for argv in calls if "push" in argv]
+        _require(len(pushes) == 1 and pushes[0][-2:] == [str(bare), want],
+                 f'exactly one push with exactly one tag refspec: {pushes}')
+        _require("--tags" not in pushes[0] and "--no-follow-tags" in pushes[0]
+                 and not any("refs/heads/" in a for a in pushes[0]), f'the push argv must not widen: {pushes[0]}')
+        remote_refs = core.git_out(bare, "for-each-ref", "--format=%(refname)").split()
+        _require(remote_refs == [f"refs/tags/{_HINT_FIXTURE_TAG}"],
+                 f'only the one hint tag may reach the remote (no last-good-*, no other tag, no branch): {remote_refs}')
+        _require(result.get("status") == "pushed" and result.get("refspec") == want
+                 and result.get("remote_object") == result.get("local_object"),
+                 f'the remote object must be checked against the local tag object: {result}')
+        # ★ "verified locally for this tag only before it leaves": a hint-named annotated tag that was not sealed
+        #   by the publisher (operator tagger, no evidence footer) and a lightweight hint tag are refused before
+        #   any network step -- the verify scope IS the push scope.
+        unsealed = _HINT_FIXTURE_TAG.replace("len262144", "len1024")
+        _require(code(lambda: tag.push_tag(repo, str(bare), unsealed)) == "HINT_PUSH_UNVERIFIED",
+                 'an annotated hint tag that fails local verification must never be pushed')
+        lightweight = _HINT_FIXTURE_TAG.replace("len262144", "len2048")
+        core.git(repo, "tag", lightweight, anchor)
+        _require(code(lambda: tag.push_tag(repo, str(bare), lightweight)) == "HINT_TAG_NOT_ANNOTATED",
+                 'a lightweight hint tag (no footer, no tagger) must never be pushed')
+        _require(core.git_out(bare, "for-each-ref", "--format=%(refname)").split() == remote_refs,
+                 'refused pushes must leave the remote exactly as it was')
 
 
 def predicate_HINT_TAG_ACTIVATION_GATE_C6():
-    """C6: activation is proposal-only after all prior work is finished; unattended auto-tagging
-    is never allowed; a duplicate triple gets a reverify stamp only, never a fresh tag. Verified:
-    `match` (discovery) is the only subcommand absent from the promotion-authorization action map
-    (every mutating subcommand requires it), `reverify` never creates a git tag, and re-creating an
-    disposable real-Git fixture tag name is refused by `validate_name`."""
-    _require('match' not in hint_tag.HINT_ACTION_FOR_CMD, 'match must stay ungated/read-only (proposal step)')
-    for cmd in ("create", "finalize", "verify", "reindex", "push", "reverify"):
-        _require(cmd in hint_tag.HINT_ACTION_FOR_CMD, f'{cmd} must require promotion authorization')
+    """C6: activation is proposal-only and per cell -- after THAT CELL's serving, measurement and docs
+    are finished the agent proposes (Y/N); unattended auto-tagging is never allowed. The Y/N is a
+    recorded human approval (campaign hint_targets[].approval, or --approved-by/--approved-utc on
+    continue), consulted before any side effect; a published tag is immutable (duplicate names are
+    refused, a revision is a new tag)."""
+    cli = _hint_cli()
+    tag, branch, core, evidence = _hintlib("tag", "branch", "core", "evidence")
+    # Only the side-effecting commands are gated; discovery/authoring stay ungated (proposal step).
+    _require(getattr(cli, "HINT_ACTION_FOR_CMD", None) == {"continue": "hint_finalize", "verify": "hint_verify",
+                                                            "push": "hint_push"},
+             f'hint.py HINT_ACTION_FOR_CMD drifted: {getattr(cli, "HINT_ACTION_FOR_CMD", None)!r}')
+    subs = _argparse_subcommands(cli._build_parser())
+    _require({"publish", "continue", "lint", "name", "verify", "push", "catalog", "match"} <= set(subs),
+             f'hint.py subcommands drifted: {sorted(subs)}')
+    gate = _import(".claude/policies/runtime", "completion_gate")
+    _require(set(cli.HINT_ACTION_FOR_CMD.values()) <= set(gate.ALLOWED_ACTIONS),
+             'every gated hint action must be a completion_gate action (else authorize can never allow it)')
+    cont_opts = set(subs["continue"]._option_string_actions)  # noqa: SLF001
+    _require({"--approved-by", "--approved-utc"} <= cont_opts,
+             'continue must take the human Y/N transcription for a publication outside a campaign')
+    # continue consults the O6 approval before the payload commit / seal / push -- judged over hint.py's own
+    # call graph (the approval lives in a helper; see _approval_order_problems), then EXECUTED below.
+    src = (REPO_ROOT / _HINT_CLI_REL).read_text(encoding="utf-8")
+    _require("HINT_APPROVAL_ABSENT" in _string_constants(src), 'continue must refuse with HINT_APPROVAL_ABSENT')
+    order = _approval_order_problems(src)
+    _require(not order, f'hint.py must consult the recorded Y/N (evidence.approval_for) before any branch/tag/push '
+                        f'side effect: {order}')
+    # ★ executed through the real parser dispatch: `continue` with no recorded approval refuses with
+    #   HINT_APPROVAL_ABSENT and moves no ref (the draft state is the tool's own shape -- hint.py STATE_*).
+    saved_path = list(sys.path)
+    try:
+        with _hint_sandbox("hint-c6-noappr-") as tmp:
+            repo = branch.selftest_repo(tmp)
+            owner = repo / core.REL_CAMPAIGN_VALIDATOR
+            owner.parent.mkdir(parents=True)
+            shutil.copy2(REPO_ROOT / core.REL_CAMPAIGN_VALIDATOR, owner)
+            camp = repo / "campaigns" / "camp-fx"
+            camp.mkdir(parents=True)
+            (camp / "campaign.yaml").write_text(json.dumps({
+                "id": "camp-fx", "nodes": [{"node_id": "main", "role": "main", "topology": "single", "hw": "gb10"}],
+                "assignments": {"main": [{"cell": "cell-a"}, {"cell": "cell-b"}]},
+                "hint_targets": [{"node_id": "main", "cells": ["cell-a"],
+                                  "approval": {"approved_by": "사용자 발화 전사", "approved_utc": _HINT_FIXTURE_UTC,
+                                               "source": "declaration-popup"}}]}, ensure_ascii=False), encoding="utf-8")
+            draft = repo / core.REL_DRAFTS / "fx"
+            draft.mkdir(parents=True)
+            base_state = {"schema_version": cli.STATE_SCHEMA, "stage": "scaffolded", "tag": _HINT_FIXTURE_TAG,
+                          "topic": "fx-topic", "topology_label": "single TP=1",
+                          "manifest": "docs/_evidence/fx-topic.work-manifest.json", "steps": {}}
+            probes = (
+                ("campaign cell outside the approved list",
+                 dict(base_state, mode="campaign", selectors={"campaign": "camp-fx", "cell": "cell-b", "node": "main"}), []),
+                ("publication outside a campaign, no transcription",
+                 dict(base_state, mode="publication-replay", selectors={"publication": "fx-topic", "node": "main"}), []),
+                ("publication outside a campaign, transcription without its time",
+                 dict(base_state, mode="publication-replay", selectors={"publication": "fx-topic", "node": "main"}),
+                 ["--approved-by", "사용자 발화 전사"]),
+            )
+            for what, state, extra in probes:
+                (draft / cli.STATE_NAME).write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
+                before = (core.git_out(repo, "for-each-ref", "--format=%(refname) %(objectname)"),
+                          (draft / cli.STATE_NAME).read_bytes())
+                args = cli._build_parser().parse_args(["--repo", str(repo), "continue", "--draft", str(draft),
+                                                       "--generated-utc", _HINT_FIXTURE_UTC, *extra])
+                got = branch.code_of(lambda a=args: a.fn(a))
+                _require(got == "HINT_APPROVAL_ABSENT", f'continue must refuse without a recorded Y/N ({what}): {got}')
+                after = (core.git_out(repo, "for-each-ref", "--format=%(refname) %(objectname)"),
+                         (draft / cli.STATE_NAME).read_bytes())
+                _require(after == before and branch.hint_tip(repo) is None,
+                         f'a refused continue must move no ref and write no state ({what})')
+    finally:
+        sys.path[:] = saved_path
 
-    reverify_src = inspect.getsource(hint_tag.cmd_reverify)
-    _require('"tag", "-a"' not in reverify_src, 'reverify must never create a new git tag')
-    _require('entry["last_verified"] = date.today().isoformat()' in reverify_src, 'predicate requirement failed at original line 887')
+    # The per-cell trigger and the Y/N rule live in the owner skill doc (the retired whole-campaign
+    # trigger "전작업 완료 후 … 전파까지 끝난" must not survive beside it -- 2026-09-08: publication is
+    # decoupled from campaign completion).
+    skill = _read(_HINT_SKILL_REL)
+    for phrase in ("그 셀의 서빙·측정·문서 완료 후", "**제안(Y/N)**", "무인 자동 태깅 ✗", "hint_targets[].approval"):
+        _require(phrase in skill, f'{_HINT_SKILL_REL} must state the activation rule: {phrase!r}')
+    _require("서빙성공+커밋+문서+전파까지 끝난" not in _read(_UPSTREAM_SKILL_REL),
+             'the retired whole-campaign hint trigger must not survive as a competing rule')
 
-    # "after all prior work ... is finished" + "proposes (Y/N)" -- grounded in the actual committed
-    # skill doc that owns this activation trigger (never a hardcoded restatement).
-    skill_src = _read(".claude/skills/upstream-version-watch/SKILL.md")
-    _require('전작업 완료 후' in skill_src and '서빙성공+커밋+문서+전파까지 끝난' in skill_src, 'activation must be documented as occurring only after ALL prior work (serving+commit+docs+propagation) is finished')
-    _require('**제안(Y/N)** 한다' in skill_src, 'activation must be documented as a Y/N proposal, never automatic')
-    _require('무인 자동 태깅 ✗' in skill_src, 'unattended auto-tagging must be documented as never allowed')
+    # O6 executed: the recorded approval is read through the one owner of its shape (the campaign validator).
+    # (core.load_owner_module puts the fixture copy's directory on sys.path -- restored below so no later
+    # predicate can import a module from a deleted fixture root.)
+    saved_path = list(sys.path)
+    try:
+        with tempfile.TemporaryDirectory(prefix="hint-c6-") as td:
+            repo = Path(td)
+            owner = repo / core.REL_CAMPAIGN_VALIDATOR
+            owner.parent.mkdir(parents=True)
+            shutil.copy2(REPO_ROOT / core.REL_CAMPAIGN_VALIDATOR, owner)
+            camp = repo / "campaigns" / "camp-fx"
+            camp.mkdir(parents=True)
+            approval = {"approved_by": "사용자 발화 전사", "approved_utc": _HINT_FIXTURE_UTC, "source": "declaration-popup"}
+            decl = {"id": "camp-fx", "nodes": [{"node_id": "main", "role": "main", "topology": "single", "hw": "gb10"}],
+                    "assignments": {"main": [{"cell": "cell-a"}, {"cell": "cell-b"}]},
+                    "hint_targets": [{"node_id": "main", "cells": ["cell-a"], "approval": approval}]}
 
-    fixture_tag = "hint/0.23.0/deepseek-v4-flash/sm121"
-    with tempfile.TemporaryDirectory(prefix="hint-duplicate-predicate.") as tmp:
-        def fixture_git(*args: str) -> subprocess.CompletedProcess:
-            proc = subprocess.run(["git", "-C", tmp, *args], capture_output=True, text=True)
-            _require(proc.returncode == 0, proc.stderr)
-            return proc
+            def approval_of(doc: dict, cell: str):
+                (camp / "campaign.yaml").write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+                return evidence.approval_for(repo, "camp-fx", cell, "main")
 
-        fixture_git("init", "-q")
-        fixture_git("config", "user.name", "predicate")
-        fixture_git("config", "user.email", "predicate@local.invalid")
-        (Path(tmp) / "fixture.txt").write_text("duplicate-tag-fixture\n", encoding="utf-8")
-        fixture_git("add", "fixture.txt")
-        fixture_git("commit", "-q", "-m", "fixture")
-        fixture_git("tag", fixture_tag)
-        original_root = getattr(hint_tag, "ROOT")
-        try:
-            setattr(hint_tag, "ROOT", Path(tmp))
-            _require(hint_tag.existing_hint_tags() == [fixture_tag],
-                     "fixture hint tag must be discoverable")
-            try:
-                hint_tag.validate_name(fixture_tag)
-                raise AssertionError("re-creating an existing tag name must be refused")
-            except SystemExit:
-                pass
-        finally:
-            setattr(hint_tag, "ROOT", original_root)
+            got = approval_of(decl, "cell-a") or {}
+            _require(got.get("approved_by") == approval["approved_by"] and got.get("approved_utc") == _HINT_FIXTURE_UTC
+                     and got.get("source") == "campaign:hint_targets", f'an approved cell must yield its recorded Y/N: {got}')
+            _require(approval_of(decl, "cell-b") is None, 'a cell outside the approved list has no approval')
+            half = json.loads(json.dumps(decl))
+            del half["hint_targets"][0]["approval"]["approved_utc"]
+            _require(branch.code_of(lambda: approval_of(half, "cell-a")) == "HINT_APPROVAL_INVALID",
+                     'a half approval is not an approval')
+            blank = json.loads(json.dumps(decl))
+            blank["hint_targets"][0]["cells"] = []
+            _require(branch.code_of(lambda: approval_of(blank, "cell-a")) == "HINT_APPROVAL_INVALID",
+                     'an empty cell list is a blanket approval and must be refused')
+    finally:
+        sys.path[:] = saved_path
+
+    # A published tag is immutable: same name = collision (locally and on the remote), a revision is a new tag.
+    with _hint_sandbox("hint-c6-dup-") as tmp:
+        fx = _hint_payload_commit(tmp)
+        repo, anchor = fx["repo"], fx["anchor"]
+        tag.seal(repo, _HINT_FIXTURE_TAG, anchor, tag.annotation(branch.FX_BRIEF, _hint_footer(anchor)),
+                 generated_utc=_HINT_FIXTURE_UTC)
+        _require(tag.name_collision(repo, _HINT_FIXTURE_TAG) == "local", 'an existing local name must be a collision')
+        revised = _hint_payload_commit(tmp, name="revised", repo=repo, extra_files={"artifacts/triplet/extra.yaml": "k: v\n"})
+        _require(branch.code_of(lambda: tag.seal(repo, _HINT_FIXTURE_TAG, revised["anchor"],
+                                                 tag.annotation(branch.FX_BRIEF, _hint_footer(revised["anchor"])),
+                                                 generated_utc=_HINT_FIXTURE_UTC)) == "HINT_NAME_COLLISION",
+                 'a revised payload must never be re-stamped under a published name')
+        _require((tag.read_tag(repo, _HINT_FIXTURE_TAG) or {}).get("target") == anchor, 'the published tag must be untouched')
+        bare = tmp / "origin.git"
+        core.git(tmp, "init", "-q", "--bare", str(bare))
+        tag.push_tag(repo, str(bare), _HINT_FIXTURE_TAG)
+        other = _hintlib("branch").selftest_repo(tmp, "other-pc")
+        _require(tag.name_collision(other, _HINT_FIXTURE_TAG, remote=str(bare)) == "remote",
+                 'a name already published on the remote must be a collision for every other publisher')
 
 
 # =============================================================================
@@ -1456,18 +1990,33 @@ def predicate_LAST_GOOD_ROLLBACK_ANCHOR_C3():
     from the user's own environment value (manifest.origin_url) -- no hardcoded remote."""
     tmpl = _read("manifest.template.yaml")
     _require(re.search('^origin_url:\\s*""', tmpl, re.M), 'origin_url must default empty (user-supplied)')
-    for rel in (".claude/skills/hint-publisher/scripts/hint_tag.py", ".claude/skills/upstream-version-watch/scripts/sync_branches.sh"):
+    # The push/remote code paths never hardcode a project remote URL. (hintlib/evidence.py legitimately
+    # names the upstream vLLM repository -- a build input, not a push target -- so it is out of scope.)
+    for rel in (_HINT_CLI_REL, f"{_HINT_SCRIPTS_REL}/hintlib/tag.py", f"{_HINT_SCRIPTS_REL}/hintlib/catalog.py",
+                ".claude/skills/upstream-version-watch/scripts/sync_branches.sh"):
+        _require((REPO_ROOT / rel).is_file(), f'{rel} is absent -- the remote-handling path cannot be checked')
         src = _read(rel)
         _require('github.com/' not in src and 'git@github.com' not in src, f'{rel} must not hardcode a project remote URL')
-    push_src = inspect.getsource(hint_tag.cmd_push)
-    _require('"--remote", default="origin"' not in push_src, 'predicate requirement failed at original line 1029')  # not asserting the arg literally this way
+    # The library never picks a remote by itself: every push/query entry point takes it as a required argument.
+    tag = _hintlib("tag")
+    for fn in (tag.push_tag, tag.git_push_authenticated, tag.remote_tag_object):
+        _require(inspect.signature(fn).parameters["remote"].default is inspect.Parameter.empty,
+                 f'hintlib.tag.{fn.__name__} must not default the remote -- the operator names it')
     # 2026-09-07: 파서 조립이 `main` 에서 `_build_parser` 로 옮겨졌다(자체검사가 argparse 정의를
     #   **직접** 들여다볼 수 있게 하려고 — `--payload` 가 소비자만 있고 인자가 없던 결함의 처방).
     #   술어의 의도는 "원격 이름이 URL 이 아니라 generic git alias 를 기본값으로 쓴다" 이고, 그
     #   토큰의 소유자가 바뀌었을 뿐이다. 소유자를 따라간다 — 앵커가 옛 자리를 가리키면 술어는
     #   교정이 아니라 리팩터에 반응하게 된다.
-    parser_src = inspect.getsource(getattr(hint_tag, "_build_parser", hint_tag.main))
-    _require('default="origin"' in parser_src, 'the remote name defaults to the generic git alias, not a URL')
+    # 2026-09-21: 그 소유자가 다시 옮겨졌다(옛 hint_tag.py → 단일 CLI hint.py · plan_26092119 §4.9). 같은 규율로 따라간다.
+    cli = _hint_cli()
+    _require('default="origin"' in inspect.getsource(cli._build_parser),
+             'the remote name defaults to the generic git alias, not a URL (SPEC §4 literal)')
+    subs = _argparse_subcommands(cli._build_parser())
+    for name in ("continue", "push"):
+        _require(name in subs, f'hint.py has no {name!r} subcommand')
+        remote = subs[name]._option_string_actions.get("--remote")  # noqa: SLF001
+        _require(remote is not None and remote.default == "origin",
+                 f'hint.py {name} --remote must default to the alias "origin" (the operator\'s own remote), not a URL')
 
     # NEW: "recovery restores the working tree to that anchor commit" -- performed for REAL (not
     # merely SHA resolution, which C1 already covers): commit past the anchor with a broken
@@ -2777,8 +3326,9 @@ def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4():
 # =============================================================================
 
 def _arch_contract_repo(tmp: str) -> Path:
-    """A CLEAN-INDEX EXPORT of just the arch-contract inputs -- intentionally no `.git` (same
-    contract as `_hint_tag` above; do not `git init` here).  `resolve_evidence_path` is git-native
+    """A CLEAN-INDEX EXPORT of just the arch-contract inputs -- intentionally no `.git` (a clean-index
+    export -- the root is judged without a repository of its own; do not `git init` here).
+    `resolve_evidence_path` is git-native
     since G2-a, so every `_arch_codes` call runs inside `_arch_fixture_git`, which stubs git's
     index oracle for this root only.  The two digest ledgers this list used to copy
     (evidence_manifest.json / tracked_index.json) were deleted in G2-b -- Git is the authority."""
@@ -2791,6 +3341,14 @@ def _arch_contract_repo(tmp: str) -> Path:
                 #   교차확인한다(원장 선언 ↔ 슬레이브 전달). 정적 파일끼리는 단일 소유가 불가능하므로
                 #   교차검증이 차선이다(workflow.md §결정론 규율).
                 ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+                # 2026-09-21 (plan_26092119 §4.6): the slave forward set is no longer a hand list in the
+                #   smoke -- `slave_forward.candidates` derives it from the multi compose template, and
+                #   classifies slave env keys through `render_dockerfile.env_tier`. policy_registry now
+                #   EXECUTES that derivation to prove a selector is cluster-wide, so the fixture carries
+                #   the three files it runs on (a smoke without them = unprovable, not wired).
+                ".claude/skills/upstream-version-watch/scripts/slave_forward.py",
+                ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py",
+                ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml",
                 ".claude/rules/workflow.md", ".claude/skills/upstream-version-watch/SKILL.md"):
         dst = root / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -2836,8 +3394,8 @@ def _fixture_blob_sha1(path: Path) -> str:
 
 @contextlib.contextmanager
 def _arch_fixture_git(root: Path):
-    """`_arch_contract_repo` builds a CLEAN-INDEX EXPORT -- intentionally no `.git`, same contract
-    as `_hint_tag`'s `scoped_run` above.  Since G2-a `resolve_evidence_path` is git-native, so an
+    """`_arch_contract_repo` builds a CLEAN-INDEX EXPORT -- intentionally no `.git` (the gitless
+    export contract).  Since G2-a `resolve_evidence_path` is git-native, so an
     un-stubbed fixture would answer `git_unavailable` for every pointer and every arch predicate
     would drown in ARCH_VARIANT_ARTIFACT_UNBOUND instead of exercising the ladder.
 
@@ -3426,7 +3984,13 @@ def predicate_ROOT_SURFACE_REGISTRY_C3():
                     budgets={"smoke_budget_overhead_mib": 1, "ready_max_seconds": 1},
                     control_variables={"model": "m", "vllm_version": "0.18.0",
                                        "topology": "single", "target_gpu": "H100"},
-                    hint_targets=[{"arch": "gb10-main-sim-h100", "node_id": "main", "cells": []}])
+                    # 2026-09-21 (plan_26092119 O6 · SPEC X3): hint_target = {node_id, cells, approval}.
+                    #   `arch` is a retired key (D8: the tool derives the name) and an empty `cells` list
+                    #   is no longer "every cell" (that reading made it a blanket approval).
+                    hint_targets=[{"node_id": "main", "cells": ["cell-a"],
+                                   "approval": {"approved_by": "fixture transcription",
+                                                "approved_utc": "2026-09-06T00:00:00Z",
+                                                "source": "declaration-popup"}}])
         (camp / "campaign.yaml").write_text(json.dumps(good, ensure_ascii=False), encoding="utf-8")
         st = camp / "phases" / "main" / "serve.status.json"
         body = {"schema_version": 1, "node_id": "main", "phase": "serve", "cell_id": "cell-a",

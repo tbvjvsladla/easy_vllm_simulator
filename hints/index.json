@@ -1,813 +1,875 @@
 {
-  "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 `git ls-remote --tags <remote> 'refs/tags/hint/*'` 이고, brief 는 로컬 태그 오브젝트에서 파싱한다(합성 금지).",
-  "schema": 2,
-  "source": "remote-derived",
-  "remote": "github-ssh",
-  "generated_kst": "2026-09-15T05:20:29",
-  "count": 46,
+  "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗).",
+  "count": 47,
+  "generated_kst": "2026-09-23T00:18:06",
   "hints": [
     {
-      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len1048576-kvauto-pleoffload",
-      "vllm": "0.1.1.dev53+g30118ba27",
-      "model": "qwen3.8-flash-next-fp8",
-      "arch": "rtxpro6000x2-main-native",
-      "recipe": "qfp8-len1048576-kvauto-pleoffload",
-      "brief": "FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로",
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
+      "arch": "rtxpro6000x2-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "model": "qwen3.8-flash-next-fp8",
       "object": "20609a11c438a04ac8ba426be106a67d2dac5d37",
-      "missing": [
-        "HINT_MISSING_CERTIFICATE"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "qfp8-len1048576-kvauto-pleoffload",
+      "source": "remote-derived",
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len1048576-kvauto-pleoffload",
+      "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
-      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleoffload",
-      "vllm": "0.1.1.dev53+g30118ba27",
-      "model": "qwen3.8-flash-next-fp8",
-      "arch": "rtxpro6000x2-main-native",
-      "recipe": "qfp8-len262144-kvauto-pleoffload",
-      "brief": "FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로",
       "anchor": "2e40aff9726424bd78e9ead5d0ee834bbbb31436",
-      "object": "4c2fb6683e5abcbc9056c32b35dc7cb9f479d6b3",
-      "missing": [
-        "HINT_MISSING_CERTIFICATE"
-      ],
+      "arch": "rtxpro6000x2-main-native",
       "bench_mode": "미기재",
       "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleresident",
-      "vllm": "0.1.1.dev53+g30118ba27",
-      "model": "qwen3.8-flash-next-fp8",
-      "arch": "rtxpro6000x2-main-native",
-      "recipe": "qfp8-len262144-kvauto-pleresident",
       "brief": "FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로",
-      "anchor": "fd112b1b881f26ef04e19fa2742951e6818f3147",
-      "object": "3541b9999afb3df292f685004e04c5d8a54eb0f2",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_CERTIFICATE"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "model": "qwen3.8-flash-next-fp8",
+      "object": "4c2fb6683e5abcbc9056c32b35dc7cb9f479d6b3",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "qfp8-len262144-kvauto-pleoffload",
+      "source": "remote-derived",
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleoffload",
+      "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
-      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len524288-kvauto-pleoffload",
-      "vllm": "0.1.1.dev53+g30118ba27",
-      "model": "qwen3.8-flash-next-fp8",
+      "anchor": "fd112b1b881f26ef04e19fa2742951e6818f3147",
       "arch": "rtxpro6000x2-main-native",
-      "recipe": "qfp8-len524288-kvauto-pleoffload",
-      "brief": "Qwen3.8-Flash-Next-FP8 를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로 서빙한 경로. 정식 릴리스로는 이 계열이 아예 로드되지 않으며, KV 양자화 축은 이 아치에서 닫혀 있고, MTP 가 2.3배를 준다.",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "FP8 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "model": "qwen3.8-flash-next-fp8",
+      "object": "3541b9999afb3df292f685004e04c5d8a54eb0f2",
+      "published": true,
+      "recipe": "qfp8-len262144-kvauto-pleresident",
+      "source": "remote-derived",
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleresident",
+      "vllm": "0.1.1.dev53+g30118ba27"
+    },
+    {
       "anchor": "06d89c47e3fb2c4e7404a4ca59dcfad74c0c9906",
-      "object": "0c8dba95f80b8e425bd6d6e2c82b9b7c324ec86f",
+      "arch": "rtxpro6000x2-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next-FP8 를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로 서빙한 경로. 정식 릴리스로는 이 계열이 아예 로드되지 않으며, KV 양자화 축은 이 아치에서 닫혀 있고, MTP 가 2.3배를 준다.",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_BENCH_REPORT",
         "HINT_MISSING_CERTIFICATE",
         "HINT_MISSING_PII_TERMS"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "model": "qwen3.8-flash-next-fp8",
+      "object": "0c8dba95f80b8e425bd6d6e2c82b9b7c324ec86f",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "qfp8-len524288-kvauto-pleoffload",
+      "source": "remote-derived",
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len524288-kvauto-pleoffload",
+      "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
-      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleoffload",
-      "vllm": "0.1.1.dev53+g30118ba27",
-      "model": "qwen3.8-flash-next-nvfp4",
-      "arch": "rtxpro6000x2-main-native",
-      "recipe": "qnvfp4-len1048576-kvauto-pleoffload",
-      "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로",
       "anchor": "d04bb3cf47dcbfb4adad35bb0e58f2f4dc1f6206",
-      "object": "777b8145540df7fcb0c9134e1e7500dc374363c2",
-      "missing": [
-        "HINT_MISSING_CERTIFICATE"
-      ],
+      "arch": "rtxpro6000x2-main-native",
       "bench_mode": "미기재",
       "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleresident",
-      "vllm": "0.1.1.dev53+g30118ba27",
-      "model": "qwen3.8-flash-next-nvfp4",
-      "arch": "rtxpro6000x2-main-native",
-      "recipe": "qnvfp4-len1048576-kvauto-pleresident",
       "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "777b8145540df7fcb0c9134e1e7500dc374363c2",
+      "published": true,
+      "recipe": "qnvfp4-len1048576-kvauto-pleoffload",
+      "source": "remote-derived",
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleoffload",
+      "vllm": "0.1.1.dev53+g30118ba27"
+    },
+    {
       "anchor": "e4507c917311b9b6d237ac7baba36d39deae34b4",
+      "arch": "rtxpro6000x2-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 1,048,576 컨텍스트로",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
       "object": "10772ce063c73e1824ff871e8f78d5ed91239820",
-      "missing": [
-        "HINT_MISSING_CERTIFICATE"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "qnvfp4-len1048576-kvauto-pleresident",
+      "source": "remote-derived",
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleresident",
+      "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
-      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleoffload",
-      "vllm": "0.1.1.dev53+g30118ba27",
-      "model": "qwen3.8-flash-next-nvfp4",
-      "arch": "rtxpro6000x2-main-native",
-      "recipe": "qnvfp4-len262144-kvauto-pleoffload",
-      "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로",
       "anchor": "2c7c3c3a71d0a759ff6f60cd7c0b271cf46b5d6e",
-      "object": "dd41be7903291c414a3dabfb38550a3878302e79",
-      "missing": [
-        "HINT_MISSING_CERTIFICATE"
-      ],
+      "arch": "rtxpro6000x2-main-native",
       "bench_mode": "미기재",
       "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleresident",
-      "vllm": "0.1.1.dev53+g30118ba27",
-      "model": "qwen3.8-flash-next-nvfp4",
-      "arch": "rtxpro6000x2-main-native",
-      "recipe": "qnvfp4-len262144-kvauto-pleresident",
       "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "dd41be7903291c414a3dabfb38550a3878302e79",
+      "published": true,
+      "recipe": "qnvfp4-len262144-kvauto-pleoffload",
+      "source": "remote-derived",
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleoffload",
+      "vllm": "0.1.1.dev53+g30118ba27"
+    },
+    {
       "anchor": "9a1d2192f23d42d112889b37f0d1733037564c4a",
+      "arch": "rtxpro6000x2-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 262,144 컨텍스트로",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
       "object": "779f53fec599708c912fa6a709218ef22b1330c8",
-      "missing": [
-        "HINT_MISSING_CERTIFICATE"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "qnvfp4-len262144-kvauto-pleresident",
+      "source": "remote-derived",
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleresident",
+      "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
-      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleoffload",
-      "vllm": "0.1.1.dev53+g30118ba27",
-      "model": "qwen3.8-flash-next-nvfp4",
-      "arch": "rtxpro6000x2-main-native",
-      "recipe": "qnvfp4-len524288-kvauto-pleoffload",
-      "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로",
       "anchor": "da2c3a063ee7126bf8f1145c4f83c9758138d441",
-      "object": "f0be8bfb5b36405e3d7698a0b27690253064a27c",
-      "missing": [
-        "HINT_MISSING_CERTIFICATE"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleresident",
-      "vllm": "0.1.1.dev53+g30118ba27",
-      "model": "qwen3.8-flash-next-nvfp4",
       "arch": "rtxpro6000x2-main-native",
-      "recipe": "qnvfp4-len524288-kvauto-pleresident",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로",
-      "anchor": "26f5ec2bbc13423ca8007cbbdf500aa051c59c5b",
-      "object": "8b28b4ac6e97a4a6f54fd862fa24f977a2cfefeb",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_CERTIFICATE"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "f0be8bfb5b36405e3d7698a0b27690253064a27c",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "qnvfp4-len524288-kvauto-pleoffload",
+      "source": "remote-derived",
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleoffload",
+      "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
-      "tag": "hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8",
-      "vllm": "0.18.0",
-      "model": "gpt-oss-20b",
-      "arch": "gb10-main-native",
-      "recipe": "qmxfp4-len131072-kvfp8",
-      "brief": "GB10 네이티브 예산(외부 이식 타겟 없음) · KV 절대클램프를 실행 하드웨어 자신(121.69GiB×0.90)으로 산출 · 커널 축 부재 확증(attention 후보 ['TRITON_ATTN'] 단일 · MoE marlin)",
+      "anchor": "26f5ec2bbc13423ca8007cbbdf500aa051c59c5b",
+      "arch": "rtxpro6000x2-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "NVFP4 체크포인트를 RTX PRO 6000 Blackwell ×2(TP=2)에서 **Docker 없이** 524,288 컨텍스트로",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "8b28b4ac6e97a4a6f54fd862fa24f977a2cfefeb",
+      "published": true,
+      "recipe": "qnvfp4-len524288-kvauto-pleresident",
+      "source": "remote-derived",
+      "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleresident",
+      "vllm": "0.1.1.dev53+g30118ba27"
+    },
+    {
       "anchor": "a3fc9e82ded52ff0dfc7a31432a8d9f1ea7504fe",
+      "arch": "gb10-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "GB10 네이티브 예산(외부 이식 타겟 없음) · KV 절대클램프를 실행 하드웨어 자신(121.69GiB×0.90)으로 산출 · 커널 축 부재 확증(attention 후보 ['TRITON_ATTN'] 단일 · MoE marlin)",
+      "grammar": "legacy-5seg-node",
+      "missing": [],
+      "model": "gpt-oss-20b",
       "object": "0f08502c5076f85d29a0474b9183709c1b55db2e",
-      "missing": [],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "qmxfp4-len131072-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8",
+      "vllm": "0.18.0"
     },
     {
-      "tag": "hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8",
-      "vllm": "0.18.0",
-      "model": "gpt-oss-20b",
-      "arch": "gb10-sim-h100",
-      "recipe": "qmxfp4-len131072-kvfp8",
-      "brief": "gpt-oss-20b 를 vLLM 0.18.0 stock wheel 로 GB10 단일노드에 최대 컨텍스트(131,072)로 서빙한 재현 키트. 핵심 발견은 성능이 아니라 **커널 축이 전부 불활성**이라는 사실이다 — 어텐션·MoE 백엔드를 무엇으로 선언해도 엔진은 triton_attn/marlin 을 쓰고, 그 사실이 로그에 남지 않는다.",
       "anchor": "588fd88519fe3bcdc0aca2f6a2edee330fd3c5ad",
-      "object": "97fd66d0242f539a03074bc30a63d081f91ecd67",
-      "missing": [],
+      "arch": "gb10-sim-h100",
       "bench_mode": "미기재",
       "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "gpt-oss-20b 를 vLLM 0.18.0 stock wheel 로 GB10 단일노드에 최대 컨텍스트(131,072)로 서빙한 재현 키트. 핵심 발견은 성능이 아니라 **커널 축이 전부 불활성**이라는 사실이다 — 어텐션·MoE 백엔드를 무엇으로 선언해도 엔진은 triton_attn/marlin 을 쓰고, 그 사실이 로그에 남지 않는다.",
+      "grammar": "legacy-5seg",
+      "missing": null,
+      "model": "gpt-oss-20b",
+      "object": "97fd66d0242f539a03074bc30a63d081f91ecd67",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "qmxfp4-len131072-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8",
+      "vllm": "0.18.0"
     },
     {
-      "tag": "hint/0.18.0/gpt-oss-20b/gb10-sub-native/qmxfp4-len131072-kvfp8",
-      "vllm": "0.18.0",
-      "model": "gpt-oss-20b",
-      "arch": "gb10-sub-native",
-      "recipe": "qmxfp4-len131072-kvfp8",
-      "brief": "서브 노드 자율 캠페인 · GB10 네이티브 예산 · KV 61,442 MiB(메인 50,133 대비 +23%) · 완결 엔드포인트 측정(오류 0/18) · 2회 차단(예산 거절 · 워치독 트립) 뒤 수렴",
       "anchor": "cb098907f278b145ec8c66428e971fde50d3c8af",
-      "object": "07d9a909549b60bea1f789d123c5e946d851643b",
+      "arch": "gb10-sub-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "서브 노드 자율 캠페인 · GB10 네이티브 예산 · KV 61,442 MiB(메인 50,133 대비 +23%) · 완결 엔드포인트 측정(오류 0/18) · 2회 차단(예산 거절 · 워치독 트립) 뒤 수렴",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_SWEEP_LEVELS"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "model": "gpt-oss-20b",
+      "object": "07d9a909549b60bea1f789d123c5e946d851643b",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "qmxfp4-len131072-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.18.0/gpt-oss-20b/gb10-sub-native/qmxfp4-len131072-kvfp8",
+      "vllm": "0.18.0"
     },
     {
-      "tag": "hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8",
-      "vllm": "0.19.0",
-      "model": "gpt-oss-120b",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "qmxfp4-len131072-kvfp8",
-      "brief": "GB10 x2 클러스터 · 네이티브 예산(H100 이식 클램프 제거 · KV 2.27배) · overhead 는 KV 의 함수라는 실증 · SoC 열 hard ceiling 이 연속 포화부하 4분에서 실제 벽",
       "anchor": "41c133f2fc7d0341d09ee93ee1a740538bdc308d",
-      "object": "d368a70338e7cba1f5ad94add0d6b8a57db81698",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "GB10 x2 클러스터 · 네이티브 예산(H100 이식 클램프 제거 · KV 2.27배) · overhead 는 KV 의 함수라는 실증 · SoC 열 hard ceiling 이 연속 포화부하 4분에서 실제 벽",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8",
-      "vllm": "0.19.0",
       "model": "gpt-oss-120b",
-      "arch": "gb10x2-sim-h100",
+      "object": "d368a70338e7cba1f5ad94add0d6b8a57db81698",
+      "published": true,
       "recipe": "qmxfp4-len131072-kvfp8",
-      "brief": "gpt-oss-120b 를 vLLM 0.19.0 stock wheel 로 GB10 2노드 TP=2 분산 서빙한 재현 키트. 0.19.1 은 이 토폴로지로 뜨지 않으며 회귀 구간은 (0.19.0, 0.19.1] 이다. 커널 축(FlashInfer 어텐션·triton MoE·mxfp4 스위치)은 sm_121a 에서 열리지 않는다.",
+      "source": "remote-derived",
+      "tag": "hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8",
+      "vllm": "0.19.0"
+    },
+    {
       "anchor": "5f14d7db4e139bc9859dca1778080d92f7031757",
+      "arch": "gb10x2-sim-h100",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "gpt-oss-120b 를 vLLM 0.19.0 stock wheel 로 GB10 2노드 TP=2 분산 서빙한 재현 키트. 0.19.1 은 이 토폴로지로 뜨지 않으며 회귀 구간은 (0.19.0, 0.19.1] 이다. 커널 축(FlashInfer 어텐션·triton MoE·mxfp4 스위치)은 sm_121a 에서 열리지 않는다.",
+      "grammar": "legacy-5seg",
+      "missing": null,
+      "model": "gpt-oss-120b",
       "object": "34dfad0db6fee8a76456c938b9a84b9de7f973e9",
-      "missing": [],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "qmxfp4-len131072-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8",
+      "vllm": "0.19.0"
     },
     {
-      "tag": "hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvauto",
-      "vllm": "0.26.0",
-      "model": "qwen3-4b",
-      "arch": "gb10-main-sim-kv24g",
-      "recipe": "len32768-kvauto",
-      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 A 무양자화(BF16 KV).",
       "anchor": "5879b301ce74872f517b7b451799b7bcdc1c4f41",
-      "object": "6f2651c9bda4246ecc6d80e48dc8349496ccf166",
-      "missing": [
-        "HINT_MISSING_BENCH_REPORT",
-        "HINT_MISSING_CERTIFICATE",
-        "HINT_MISSING_LITE"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvfp8",
-      "vllm": "0.26.0",
-      "model": "qwen3-4b",
       "arch": "gb10-main-sim-kv24g",
-      "recipe": "len32768-kvfp8",
-      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 B FP8.",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 A 무양자화(BF16 KV).",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE"
+      ],
+      "model": "qwen3-4b",
+      "object": "6f2651c9bda4246ecc6d80e48dc8349496ccf166",
+      "published": true,
+      "recipe": "len32768-kvauto",
+      "source": "remote-derived",
+      "tag": "hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvauto",
+      "vllm": "0.26.0"
+    },
+    {
       "anchor": "c1338bc3cb45cc29315342cb1024aed9b7877bfa",
+      "arch": "gb10-main-sim-kv24g",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 B FP8.",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE"
+      ],
+      "model": "qwen3-4b",
       "object": "4cc6040c85567e3b9b4a46d9e523a94711eaaddd",
-      "missing": [
-        "HINT_MISSING_BENCH_REPORT",
-        "HINT_MISSING_CERTIFICATE",
-        "HINT_MISSING_LITE"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "len32768-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvfp8",
+      "vllm": "0.26.0"
     },
     {
-      "tag": "hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant3bitnc",
-      "vllm": "0.26.0",
-      "model": "qwen3-4b",
-      "arch": "gb10-sub-sim-kv24g",
-      "recipe": "len32768-kvturboquant3bitnc",
-      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 D TurboQuant 3bit.",
       "anchor": "9f310b4d50d8ec548d2d65ee3076a2f238251de2",
-      "object": "14f0246e29a9aefd6df0f1bc4bfc2dda7ea8c8c0",
-      "missing": [
-        "HINT_MISSING_BENCH_REPORT",
-        "HINT_MISSING_CERTIFICATE",
-        "HINT_MISSING_LITE"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant4bitnc",
-      "vllm": "0.26.0",
-      "model": "qwen3-4b",
       "arch": "gb10-sub-sim-kv24g",
-      "recipe": "len32768-kvturboquant4bitnc",
-      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 C TurboQuant 4bit.",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 D TurboQuant 3bit.",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE"
+      ],
+      "model": "qwen3-4b",
+      "object": "14f0246e29a9aefd6df0f1bc4bfc2dda7ea8c8c0",
+      "published": true,
+      "recipe": "len32768-kvturboquant3bitnc",
+      "source": "remote-derived",
+      "tag": "hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant3bitnc",
+      "vllm": "0.26.0"
+    },
+    {
       "anchor": "951b9869045b677b466a8ebd79bdea0ae24ea61a",
+      "arch": "gb10-sub-sim-kv24g",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 C TurboQuant 4bit.",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE"
+      ],
+      "model": "qwen3-4b",
       "object": "7f4ad5a0244560a02fa7957ffba37ef5c3219018",
-      "missing": [
-        "HINT_MISSING_BENCH_REPORT",
-        "HINT_MISSING_CERTIFICATE",
-        "HINT_MISSING_LITE"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "len32768-kvturboquant4bitnc",
+      "source": "remote-derived",
+      "tag": "hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant4bitnc",
+      "vllm": "0.26.0"
     },
     {
-      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/len262144-kvfp8",
-      "vllm": "0.28.0",
-      "model": "qwen3.8-27b",
-      "arch": "rtxpro6000-main-native",
-      "recipe": "len262144-kvfp8",
-      "brief": "RTX PRO 6000(1of2, 96GB) 네이티브 예산 · bf16가중치+fp8KV — 단일스트림 속도가 fp8가중치 자매셀 대비 약 40%↓(가중치 양자화가 지배) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "anchor": "d72741f45b17ae9f40eb1b48ebe949be2e2cd734",
+      "arch": "h10080gb-main-native",
+      "bench_mode": "미수령",
+      "bench_mode_source": "absent-local(로컬 태그 오브젝트 부재 — 조회한 원격에서 fetch 전 · 합성 ✗)",
+      "brief": "—",
+      "grammar": "legacy-5seg-node",
+      "missing": null,
+      "model": "qwen3-4b",
+      "object": "absent-local",
+      "published": true,
+      "recipe": "len32768-kvauto-pleresident",
+      "source": "remote-derived",
+      "tag": "hint/0.27.1/qwen3-4b/h10080gb-main-native/len32768-kvauto-pleresident",
+      "vllm": "0.27.1"
+    },
+    {
       "anchor": "1b116163dd0fa19ad426bc6970e40e1f8274ace3",
+      "arch": "rtxpro6000-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "RTX PRO 6000(1of2, 96GB) 네이티브 예산 · bf16가중치+fp8KV — 단일스트림 속도가 fp8가중치 자매셀 대비 약 40%↓(가중치 양자화가 지배) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_LITE"
+      ],
+      "model": "qwen3.8-27b",
       "object": "7aac42dbb89152ee5b57090c35cd872782e8e6d3",
-      "missing": [
-        "HINT_MISSING_LITE"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvauto",
-      "vllm": "0.28.0",
-      "model": "qwen3.8-27b",
-      "arch": "rtxpro6000-main-native",
-      "recipe": "qfp8-len262144-kvauto",
-      "brief": "RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+KV무양자화 — 동시접속 한계가 fp8KV 자매셀의 절반(batch=3) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
-      "anchor": "711b25120e0e34b6a0db49e302c7e2acbf7bfb3a",
-      "object": "534892525d78031925acb25204a99d3995587d53",
-      "missing": [
-        "HINT_MISSING_LITE"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvfp8",
-      "vllm": "0.28.0",
-      "model": "qwen3.8-27b",
-      "arch": "rtxpro6000-main-native",
-      "recipe": "qfp8-len262144-kvfp8",
-      "brief": "RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+fp8KV 조합이 최대 동시접속(batch=6, 집계 1181.6 tok/s) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
-      "anchor": "4254ec5cf0b13539a2089dbf71b613bf2708ae2e",
-      "object": "0d475d150d85efbcdb0695470e8b6c77aaef8595",
-      "missing": [
-        "HINT_MISSING_LITE"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len524288-kvfp8",
-      "vllm": "0.28.0",
-      "model": "qwen3.8-27b",
-      "arch": "rtxpro6000-main-native",
-      "recipe": "qfp8-len524288-kvfp8",
-      "brief": "RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+fp8KV+YaRN(524288, factor=2.0) — 단일스트림 속도는 non-YaRN 262144 자매셀과 동일(44.27 vs 44.22 t/s) · gen_recipe_set.py 에 hf_overrides SERVE_KNOB 를 신설해야 발행 가능했던 셀",
-      "anchor": "b39b131dc7680ed16e03487f18620b98d04fe2c2",
-      "object": "ff9359654aa1e2721011d4cf41436d62ec144327",
-      "missing": [
-        "HINT_MISSING_LITE"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/len262144-kvfp8",
-      "vllm": "0.28.0",
-      "model": "qwen3.8-27b",
-      "arch": "rtxpro6000x2-main-native",
       "recipe": "len262144-kvfp8",
-      "brief": "RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · bf16가중치+fp8KV — 단일스트림 속도가 fp8가중치 자매셀 대비 크게 낮음(정확도 우선 대안) · TP=1 자매셀 대비 속도 배율(~1.75배)이 fp8w 조합(~1.58배)보다 큼 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
-      "anchor": "fb1d719dd0ca8634886b8fa36b18ef4be6851364",
-      "object": "b873a34060d10ea12a56d4d7a736b3391dab40a4",
+      "source": "remote-derived",
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/len262144-kvfp8",
+      "vllm": "0.28.0"
+    },
+    {
+      "anchor": "711b25120e0e34b6a0db49e302c7e2acbf7bfb3a",
+      "arch": "rtxpro6000-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+KV무양자화 — 동시접속 한계가 fp8KV 자매셀의 절반(batch=3) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_LITE"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len1000000-kvfp8",
-      "vllm": "0.28.0",
       "model": "qwen3.8-27b",
-      "arch": "rtxpro6000x2-main-native",
-      "recipe": "qfp8-len1000000-kvfp8",
-      "brief": "RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+fp8KV+YaRN(factor=4.0, 1,000,000 컨텍스트, vLLM 공식 가이드 상한) — TP=1 캠페인이 \"물리적으로 불가\"로 추정만 했던 상한에 실측 도달 · 단일스트림 속도는 262144 자매셀과 사실상 동일 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
-      "anchor": "124adf57c67c7ad78e4074665cf310e3830d408a",
-      "object": "a645dcb360c099dcbfe763c9b2c55248d6c5afbe",
-      "missing": [
-        "HINT_MISSING_LITE"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "object": "534892525d78031925acb25204a99d3995587d53",
       "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len262144-kvauto",
-      "vllm": "0.28.0",
-      "model": "qwen3.8-27b",
-      "arch": "rtxpro6000x2-main-native",
       "recipe": "qfp8-len262144-kvauto",
-      "brief": "RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+KV무양자화 — TP=1 자매셀 대비 단일스트림 속도 ~1.59배·동시접속 상한 batch=8 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
-      "anchor": "cc80deec69e729ba35a4f1629e829ac5de774a2d",
-      "object": "99d9ca0df0c0b91bbadfacd1223797650a497c3a",
+      "source": "remote-derived",
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvauto",
+      "vllm": "0.28.0"
+    },
+    {
+      "anchor": "4254ec5cf0b13539a2089dbf71b613bf2708ae2e",
+      "arch": "rtxpro6000-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+fp8KV 조합이 최대 동시접속(batch=6, 집계 1181.6 tok/s) · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_LITE"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len262144-kvfp8",
-      "vllm": "0.28.0",
       "model": "qwen3.8-27b",
-      "arch": "rtxpro6000x2-main-native",
+      "object": "0d475d150d85efbcdb0695470e8b6c77aaef8595",
+      "published": true,
       "recipe": "qfp8-len262144-kvfp8",
-      "brief": "RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+fp8KV 조합이 이 캠페인의 최대집계처리량(batch=16, 2503.2 tok/s) · TP=1 자매셀 대비 세 배율(속도/batch/집계)이 모두 다르게 스케일 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
-      "anchor": "fd4c5247b8fcaf6de420a86124e10eef10e980ad",
-      "object": "c44ebda0e00a95c86ab4c2c83bfaec07cd727339",
+      "source": "remote-derived",
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvfp8",
+      "vllm": "0.28.0"
+    },
+    {
+      "anchor": "b39b131dc7680ed16e03487f18620b98d04fe2c2",
+      "arch": "rtxpro6000-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "RTX PRO 6000(1of2, 96GB) 네이티브 예산 · fp8가중치+fp8KV+YaRN(524288, factor=2.0) — 단일스트림 속도는 non-YaRN 262144 자매셀과 동일(44.27 vs 44.22 t/s) · gen_recipe_set.py 에 hf_overrides SERVE_KNOB 를 신설해야 발행 가능했던 셀",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_LITE"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "model": "qwen3.8-27b",
+      "object": "ff9359654aa1e2721011d4cf41436d62ec144327",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "qfp8-len524288-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len524288-kvfp8",
+      "vllm": "0.28.0"
     },
     {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvauto-plemmap",
-      "vllm": "0.29.0",
-      "model": "qwen3.8-flash-next-fp8",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "len1048576-kvauto-plemmap",
-      "brief": "Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=auto · ctx1048576(YaRN f4) · PLE=mmap — decode 35.39 t/s(동시성1) · 예산 floor가 nv4 mmp 셀들보다 타이트(15,280MiB)했으나 mmap이면 통과",
+      "anchor": "fb1d719dd0ca8634886b8fa36b18ef4be6851364",
+      "arch": "rtxpro6000x2-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · bf16가중치+fp8KV — 단일스트림 속도가 fp8가중치 자매셀 대비 크게 낮음(정확도 우선 대안) · TP=1 자매셀 대비 속도 배율(~1.75배)이 fp8w 조합(~1.58배)보다 큼 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_LITE"
+      ],
+      "model": "qwen3.8-27b",
+      "object": "b873a34060d10ea12a56d4d7a736b3391dab40a4",
+      "published": true,
+      "recipe": "len262144-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/len262144-kvfp8",
+      "vllm": "0.28.0"
+    },
+    {
+      "anchor": "124adf57c67c7ad78e4074665cf310e3830d408a",
+      "arch": "rtxpro6000x2-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+fp8KV+YaRN(factor=4.0, 1,000,000 컨텍스트, vLLM 공식 가이드 상한) — TP=1 캠페인이 \"물리적으로 불가\"로 추정만 했던 상한에 실측 도달 · 단일스트림 속도는 262144 자매셀과 사실상 동일 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_LITE"
+      ],
+      "model": "qwen3.8-27b",
+      "object": "a645dcb360c099dcbfe763c9b2c55248d6c5afbe",
+      "published": true,
+      "recipe": "qfp8-len1000000-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len1000000-kvfp8",
+      "vllm": "0.28.0"
+    },
+    {
+      "anchor": "cc80deec69e729ba35a4f1629e829ac5de774a2d",
+      "arch": "rtxpro6000x2-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+KV무양자화 — TP=1 자매셀 대비 단일스트림 속도 ~1.59배·동시접속 상한 batch=8 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_LITE"
+      ],
+      "model": "qwen3.8-27b",
+      "object": "99d9ca0df0c0b91bbadfacd1223797650a497c3a",
+      "published": true,
+      "recipe": "qfp8-len262144-kvauto",
+      "source": "remote-derived",
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len262144-kvauto",
+      "vllm": "0.28.0"
+    },
+    {
+      "anchor": "fd4c5247b8fcaf6de420a86124e10eef10e980ad",
+      "arch": "rtxpro6000x2-main-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "RTX PRO 6000 x2(전부 사용, TP=2, 192GB) 네이티브 예산 · fp8가중치+fp8KV 조합이 이 캠페인의 최대집계처리량(batch=16, 2503.2 tok/s) · TP=1 자매셀 대비 세 배율(속도/batch/집계)이 모두 다르게 스케일 · Docker-in-Docker 불가 호스트라 venv 직접설치+네이티브 프로세스 서빙으로 대체",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_LITE"
+      ],
+      "model": "qwen3.8-27b",
+      "object": "c44ebda0e00a95c86ab4c2c83bfaec07cd727339",
+      "published": true,
+      "recipe": "qfp8-len262144-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len262144-kvfp8",
+      "vllm": "0.28.0"
+    },
+    {
       "anchor": "fc72b0602bd2f2953285e9651ee720fa06995adc",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=auto · ctx1048576(YaRN f4) · PLE=mmap — decode 35.39 t/s(동시성1) · 예산 floor가 nv4 mmp 셀들보다 타이트(15,280MiB)했으나 mmap이면 통과",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "model": "qwen3.8-flash-next-fp8",
       "object": "0079e0c18d50f82d044c8dd463c8abd8852e1f7a",
-      "missing": [
-        "HINT_MISSING_SLAVE_ATTESTATION"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap",
-      "vllm": "0.29.0",
-      "model": "qwen3.8-flash-next-fp8",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "len1048576-kvfp8e4m3-plemmap",
-      "brief": "Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx1048576(YaRN f4) · PLE=mmap — decode 33.27 t/s(동시성1) · mmp 계열 22셀 재수행 캠페인 완결(11/11 성공)",
-      "anchor": "2d1d173961d84913ee1591781d86197454ccd5c5",
-      "object": "0752c3c3b0f525f2b49c0692162b0ed5af9eab94",
-      "missing": [
-        "HINT_MISSING_SLAVE_ATTESTATION"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvauto-plemmap",
-      "vllm": "0.29.0",
-      "model": "qwen3.8-flash-next-fp8",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "len262144-kvauto-plemmap",
-      "brief": "Qwen3.8-Flash-Next FP8(Unsloth) · GB10x2 클러스터 · kv=auto · ctx262144 · PLE=mmap — decode 35.37 t/s(동시성1) · 직전 캠페인 \"서빙성공·벤치사망\" 지점, R3(budget_renew) 교정 후 5레벨 전부 완주",
-      "anchor": "7b63c5ee5ff3447f09f2ad37632bf36e6a9e44e7",
-      "object": "017670a7aff19e0641b496718e0d2185a506ef46",
-      "missing": [
-        "HINT_MISSING_SLAVE_ATTESTATION"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap",
-      "vllm": "0.29.0",
-      "model": "qwen3.8-flash-next-fp8",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "len262144-kvfp8e4m3-plemmap",
-      "brief": "Qwen3.8-Flash-Next FP8(Unsloth) · GB10x2 클러스터 · kv=fp8_e4m3 · ctx262144 · PLE=mmap — decode 34.04 t/s(동시성1) · 직전 캠페인 KV캐시산출 직후 워치독 사살(오진) 지점, R1/R2 교정 후 5레벨 전부 완주",
-      "anchor": "23f097c508bce399cf1e2dae108e16b925b5d1d6",
-      "object": "40d27b21641da84c0fbc018eaeaef47de705e57a",
-      "missing": [
-        "HINT_MISSING_SLAVE_ATTESTATION"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvauto-plemmap",
-      "vllm": "0.29.0",
-      "model": "qwen3.8-flash-next-fp8",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "len524288-kvauto-plemmap",
-      "brief": "Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=auto · ctx524288(YaRN f2) · PLE=mmap — decode 37.61 t/s(동시성1) · 예산 floor가 res 계열보다도 타이트(15,280MiB)했으나 mmap 이면 통과",
-      "anchor": "b41b272ea182a696a1fda340d3853e22cf5dfe7f",
-      "object": "ec719c7d556005b0ddd9cf94c323af708ca1cd54",
-      "missing": [
-        "HINT_MISSING_SLAVE_ATTESTATION"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap",
-      "vllm": "0.29.0",
-      "model": "qwen3.8-flash-next-fp8",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "len524288-kvfp8e4m3-plemmap",
-      "brief": "Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx524288(YaRN f2) · PLE=mmap — decode 35.94 t/s(동시성1) · kv dtype 축이 예산 floor 를 바꾸지 않음을 재확인(kv=auto 태그와 완전 동일 floor)",
-      "anchor": "81a3946fb27719610354e7ffe43905cc5bebe355",
-      "object": "0d2debaeff8d9bdec6bd368b25f8cec9f9621238",
-      "missing": [
-        "HINT_MISSING_SLAVE_ATTESTATION"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvauto-plemmap",
-      "vllm": "0.29.0",
-      "model": "qwen3.8-flash-next-nvfp4",
-      "arch": "gb10x2-cluster-native",
       "recipe": "len1048576-kvauto-plemmap",
-      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=auto · ctx1048576(YaRN f4) · PLE=mmap — decode 35.92 t/s(동시성1) · R8 YaRN factor=4 첫 실서빙 검증, mmp 계열 캠페인 통산 11/11 성공",
-      "anchor": "3b480fe4da636a77dfdd7a490ff12de3a32ed0de",
-      "object": "4f444d96e7665677b8cab34fd884f3700dce3b1c",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvauto-plemmap",
+      "vllm": "0.29.0"
+    },
+    {
+      "anchor": "2d1d173961d84913ee1591781d86197454ccd5c5",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx1048576(YaRN f4) · PLE=mmap — decode 33.27 t/s(동시성1) · mmp 계열 22셀 재수행 캠페인 완결(11/11 성공)",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "model": "qwen3.8-flash-next-fp8",
+      "object": "0752c3c3b0f525f2b49c0692162b0ed5af9eab94",
       "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap",
-      "vllm": "0.29.0",
-      "model": "qwen3.8-flash-next-nvfp4",
-      "arch": "gb10x2-cluster-native",
       "recipe": "len1048576-kvfp8e4m3-plemmap",
-      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx1048576(YaRN f4) · PLE=mmap — decode 33.40 t/s(동시성1) · R8 YaRN factor=4 2번째 검증(kv dtype 축)",
-      "anchor": "97fc87f0b8c3ec9445967f09f602d6be723fdff7",
-      "object": "14cc574b267e024de128bd126dcfcf240a296009",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap",
+      "vllm": "0.29.0"
+    },
+    {
+      "anchor": "7b63c5ee5ff3447f09f2ad37632bf36e6a9e44e7",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next FP8(Unsloth) · GB10x2 클러스터 · kv=auto · ctx262144 · PLE=mmap — decode 35.37 t/s(동시성1) · 직전 캠페인 \"서빙성공·벤치사망\" 지점, R3(budget_renew) 교정 후 5레벨 전부 완주",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "model": "qwen3.8-flash-next-fp8",
+      "object": "017670a7aff19e0641b496718e0d2185a506ef46",
       "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-plemmap",
-      "vllm": "0.29.0",
-      "model": "qwen3.8-flash-next-nvfp4",
-      "arch": "gb10x2-cluster-native",
       "recipe": "len262144-kvauto-plemmap",
-      "brief": "Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드 TP=2 로 세울 때, **PLE 를 NVMe mmap 으로 서빙하는 트랙**은",
-      "anchor": "8564c4c8cb6b7e3406d4533d822c675347807a0f",
-      "object": "d61f6e55e96f0503da56fd7a39299f11d0fa728c",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvauto-plemmap",
+      "vllm": "0.29.0"
+    },
+    {
+      "anchor": "23f097c508bce399cf1e2dae108e16b925b5d1d6",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next FP8(Unsloth) · GB10x2 클러스터 · kv=fp8_e4m3 · ctx262144 · PLE=mmap — decode 34.04 t/s(동시성1) · 직전 캠페인 KV캐시산출 직후 워치독 사살(오진) 지점, R1/R2 교정 후 5레벨 전부 완주",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "model": "qwen3.8-flash-next-fp8",
+      "object": "40d27b21641da84c0fbc018eaeaef47de705e57a",
       "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-pleresident",
-      "vllm": "0.29.0",
-      "model": "qwen3.8-flash-next-nvfp4",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "len262144-kvauto-pleresident",
-      "brief": "Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드 TP=2 로 세울 때, **PLE(per-layer n-gram embedding)를",
-      "anchor": "04dc2d6bf2132d0419fea81a8db407f8764a6495",
-      "object": "dbf99dad01afe33a6ae1cc027950393fe34e8c4f",
-      "missing": [
-        "HINT_MISSING_SLAVE_ATTESTATION"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
-      "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap",
-      "vllm": "0.29.0",
-      "model": "qwen3.8-flash-next-nvfp4",
-      "arch": "gb10x2-cluster-native",
       "recipe": "len262144-kvfp8e4m3-plemmap",
-      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx262144 · PLE=mmap — decode 38.18 t/s(동시성1) · 직전 캠페인 하네스 오진(3건) 교정 후 첫 라이브 재현",
-      "anchor": "592cab46898577f7a23303b6deb1f3635db702c6",
-      "object": "c30117f9e6353f982cbbb1bcd8bb24f32ea50f81",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap",
+      "vllm": "0.29.0"
+    },
+    {
+      "anchor": "b41b272ea182a696a1fda340d3853e22cf5dfe7f",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=auto · ctx524288(YaRN f2) · PLE=mmap — decode 37.61 t/s(동시성1) · 예산 floor가 res 계열보다도 타이트(15,280MiB)했으나 mmap 이면 통과",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "model": "qwen3.8-flash-next-fp8",
+      "object": "ec719c7d556005b0ddd9cf94c323af708ca1cd54",
       "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvauto-plemmap",
-      "vllm": "0.29.0",
-      "model": "qwen3.8-flash-next-nvfp4",
-      "arch": "gb10x2-cluster-native",
       "recipe": "len524288-kvauto-plemmap",
-      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=auto · ctx524288(YaRN f2) · PLE=mmap — decode 33.72 t/s(동시성1) · R8 YaRN 번역기 첫 실서빙 검증 — mrope+partial_rotary_factor 위에서 YaRN 합성 정상 동작 확인",
-      "anchor": "d15a34ef6a351589b8c0f7eba2bf6651bbf46dc5",
-      "object": "0bb9730a163447e04edfc8868da5fe1312ac88b1",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvauto-plemmap",
+      "vllm": "0.29.0"
+    },
+    {
+      "anchor": "81a3946fb27719610354e7ffe43905cc5bebe355",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next FP8 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx524288(YaRN f2) · PLE=mmap — decode 35.94 t/s(동시성1) · kv dtype 축이 예산 floor 를 바꾸지 않음을 재확인(kv=auto 태그와 완전 동일 floor)",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "model": "qwen3.8-flash-next-fp8",
+      "object": "0d2debaeff8d9bdec6bd368b25f8cec9f9621238",
       "published": true,
-      "source": "remote-derived"
-    },
-    {
-      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap",
-      "vllm": "0.29.0",
-      "model": "qwen3.8-flash-next-nvfp4",
-      "arch": "gb10x2-cluster-native",
       "recipe": "len524288-kvfp8e4m3-plemmap",
-      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx524288(YaRN f2) · PLE=mmap — decode 34.86 t/s(동시성1) · R8 YaRN 번역기 2번째 실서빙 재현(kv=fp8 조합)",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap",
+      "vllm": "0.29.0"
+    },
+    {
+      "anchor": "3b480fe4da636a77dfdd7a490ff12de3a32ed0de",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=auto · ctx1048576(YaRN f4) · PLE=mmap — decode 35.92 t/s(동시성1) · R8 YaRN factor=4 첫 실서빙 검증, mmp 계열 캠페인 통산 11/11 성공",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "4f444d96e7665677b8cab34fd884f3700dce3b1c",
+      "published": true,
+      "recipe": "len1048576-kvauto-plemmap",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvauto-plemmap",
+      "vllm": "0.29.0"
+    },
+    {
+      "anchor": "97fc87f0b8c3ec9445967f09f602d6be723fdff7",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx1048576(YaRN f4) · PLE=mmap — decode 33.40 t/s(동시성1) · R8 YaRN factor=4 2번째 검증(kv dtype 축)",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "14cc574b267e024de128bd126dcfcf240a296009",
+      "published": true,
+      "recipe": "len1048576-kvfp8e4m3-plemmap",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap",
+      "vllm": "0.29.0"
+    },
+    {
+      "anchor": "8564c4c8cb6b7e3406d4533d822c675347807a0f",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드 TP=2 로 세울 때, **PLE 를 NVMe mmap 으로 서빙하는 트랙**은",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "d61f6e55e96f0503da56fd7a39299f11d0fa728c",
+      "published": true,
+      "recipe": "len262144-kvauto-plemmap",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-plemmap",
+      "vllm": "0.29.0"
+    },
+    {
+      "anchor": "04dc2d6bf2132d0419fea81a8db407f8764a6495",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드 TP=2 로 세울 때, **PLE(per-layer n-gram embedding)를",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "dbf99dad01afe33a6ae1cc027950393fe34e8c4f",
+      "published": true,
+      "recipe": "len262144-kvauto-pleresident",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-pleresident",
+      "vllm": "0.29.0"
+    },
+    {
+      "anchor": "592cab46898577f7a23303b6deb1f3635db702c6",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx262144 · PLE=mmap — decode 38.18 t/s(동시성1) · 직전 캠페인 하네스 오진(3건) 교정 후 첫 라이브 재현",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "c30117f9e6353f982cbbb1bcd8bb24f32ea50f81",
+      "published": true,
+      "recipe": "len262144-kvfp8e4m3-plemmap",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap",
+      "vllm": "0.29.0"
+    },
+    {
+      "anchor": "d15a34ef6a351589b8c0f7eba2bf6651bbf46dc5",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=auto · ctx524288(YaRN f2) · PLE=mmap — decode 33.72 t/s(동시성1) · R8 YaRN 번역기 첫 실서빙 검증 — mrope+partial_rotary_factor 위에서 YaRN 합성 정상 동작 확인",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "0bb9730a163447e04edfc8868da5fe1312ac88b1",
+      "published": true,
+      "recipe": "len524288-kvauto-plemmap",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvauto-plemmap",
+      "vllm": "0.29.0"
+    },
+    {
       "anchor": "d568980d58c78147aca77bc67f2b57353d2b93bb",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx524288(YaRN f2) · PLE=mmap — decode 34.86 t/s(동시성1) · R8 YaRN 번역기 2번째 실서빙 재현(kv=fp8 조합)",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
       "object": "41116d29b9b2ed3c842d1f309f1ae06109e79285",
-      "missing": [
-        "HINT_MISSING_SLAVE_ATTESTATION"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "len524288-kvfp8e4m3-plemmap",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap",
+      "vllm": "0.29.0"
     },
     {
-      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/len786432-kvfp8-spec7-graph",
-      "vllm": "0.29.0rc6",
-      "model": "deepseek-v4-flash-0731",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "len786432-kvfp8-spec7-graph",
-      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · KV는 fp8_ds_mla 단일 경로 · dspark spec7+cudagraph+humming 조합으로 768K 31.12 t/s(+82%) · verdict PASS(explore)",
       "anchor": "86144ae4dded01b87cee267a70c6d084b6df0fe9",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · KV는 fp8_ds_mla 단일 경로 · dspark spec7+cudagraph+humming 조합으로 768K 31.12 t/s(+82%) · verdict PASS(explore)",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "model": "deepseek-v4-flash-0731",
       "object": "ba151cc11eebcd2d930f0f099b23880a9c5ea48f",
-      "missing": [
-        "HINT_MISSING_BENCH_REPORT",
-        "HINT_MISSING_CERTIFICATE",
-        "HINT_MISSING_SLAVE_ATTESTATION"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "len786432-kvfp8-spec7-graph",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/len786432-kvfp8-spec7-graph",
+      "vllm": "0.29.0rc6"
     },
     {
-      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0",
-      "vllm": "0.29.0rc6",
-      "model": "deepseek-v4-flash-0731",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "spec0-graph0",
-      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8 · 변종 spec0-graph0 · 768K 17.11 t/s @1 · verdict PASS(explore)",
       "anchor": "9367a5615c8f9beb6565cc493820471920d90c37",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8 · 변종 spec0-graph0 · 768K 17.11 t/s @1 · verdict PASS(explore)",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE",
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "model": "deepseek-v4-flash-0731",
       "object": "5b474eed815a1abc68363f9278676a68aca41cc7",
-      "missing": [
-        "HINT_MISSING_BENCH_REPORT",
-        "HINT_MISSING_CERTIFICATE",
-        "HINT_MISSING_LITE",
-        "HINT_MISSING_SLAVE_ATTESTATION"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "spec0-graph0",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0",
+      "vllm": "0.29.0rc6"
     },
     {
-      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0-len1m",
-      "vllm": "0.29.0rc6",
-      "model": "deepseek-v4-flash-0731",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "spec0-graph0-len1m",
-      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 e-1m-kvfp8 · 변종 spec0-graph0-len1m · 1M 16.67 t/s @1 · verdict PASS(explore)",
       "anchor": "5d636e9112e0cbc72b01cbb69b4c3e2a7750c519",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 e-1m-kvfp8 · 변종 spec0-graph0-len1m · 1M 16.67 t/s @1 · verdict PASS(explore)",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE",
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "model": "deepseek-v4-flash-0731",
       "object": "794dc01f40cf1ed3ef0eb1af85d4496be09627cf",
-      "missing": [
-        "HINT_MISSING_BENCH_REPORT",
-        "HINT_MISSING_CERTIFICATE",
-        "HINT_MISSING_LITE",
-        "HINT_MISSING_SLAVE_ATTESTATION"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "spec0-graph0-len1m",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0-len1m",
+      "vllm": "0.29.0rc6"
     },
     {
-      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph1",
-      "vllm": "0.29.0rc6",
-      "model": "deepseek-v4-flash-0731",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "spec0-graph1",
-      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8-l2graph · 변종 spec0-graph1 · 768K 26.14 t/s @1 · verdict PASS(explore)",
       "anchor": "28ec7d2413a663388f9814291c3319acb9e1320e",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8-l2graph · 변종 spec0-graph1 · 768K 26.14 t/s @1 · verdict PASS(explore)",
+      "grammar": "legacy-5seg-node",
+      "missing": [
+        "HINT_MISSING_BENCH_REPORT",
+        "HINT_MISSING_CERTIFICATE",
+        "HINT_MISSING_LITE",
+        "HINT_MISSING_SLAVE_ATTESTATION"
+      ],
+      "model": "deepseek-v4-flash-0731",
       "object": "9c14aa83c151b798a36c7cfcb9b46f31b5d44ebb",
-      "missing": [
-        "HINT_MISSING_BENCH_REPORT",
-        "HINT_MISSING_CERTIFICATE",
-        "HINT_MISSING_LITE",
-        "HINT_MISSING_SLAVE_ATTESTATION"
-      ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "spec0-graph1",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph1",
+      "vllm": "0.29.0rc6"
     },
     {
-      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph0",
-      "vllm": "0.29.0rc6",
-      "model": "deepseek-v4-flash-0731",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "spec7-graph0",
-      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8-l1spec · 변종 spec7-graph0 · 768K 29.72 t/s @1 · verdict PASS(explore)",
       "anchor": "da3f4f9215e2c068b959c4524d13f58e040a437a",
-      "object": "523efb18531763bfb8c69d2c2fc280f4e464d448",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8-l1spec · 변종 spec7-graph0 · 768K 29.72 t/s @1 · verdict PASS(explore)",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_BENCH_REPORT",
         "HINT_MISSING_CERTIFICATE",
         "HINT_MISSING_LITE",
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "model": "deepseek-v4-flash-0731",
+      "object": "523efb18531763bfb8c69d2c2fc280f4e464d448",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "spec7-graph0",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph0",
+      "vllm": "0.29.0rc6"
     },
     {
-      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph1-len1m",
-      "vllm": "0.29.0rc6",
-      "model": "deepseek-v4-flash-0731",
-      "arch": "gb10x2-cluster-native",
-      "recipe": "spec7-graph1-len1m",
-      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 e-1m-kvfp8-e1combo · 변종 spec7-graph1-len1m · 1M 30.54 t/s @1 · verdict PASS(explore)",
       "anchor": "488559a012949ecf5650b4a2feb4b8ddaef6e6a2",
-      "object": "a37acdf713f47f23d53cab4da0c7a50c0d0b1172",
+      "arch": "gb10x2-cluster-native",
+      "bench_mode": "미기재",
+      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "brief": "stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 e-1m-kvfp8-e1combo · 변종 spec7-graph1-len1m · 1M 30.54 t/s @1 · verdict PASS(explore)",
+      "grammar": "legacy-5seg-node",
       "missing": [
         "HINT_MISSING_BENCH_REPORT",
         "HINT_MISSING_CERTIFICATE",
         "HINT_MISSING_LITE",
         "HINT_MISSING_SLAVE_ATTESTATION"
       ],
-      "bench_mode": "미기재",
-      "bench_mode_source": "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)",
+      "model": "deepseek-v4-flash-0731",
+      "object": "a37acdf713f47f23d53cab4da0c7a50c0d0b1172",
       "published": true,
-      "source": "remote-derived"
+      "recipe": "spec7-graph1-len1m",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph1-len1m",
+      "vllm": "0.29.0rc6"
     }
-  ]
+  ],
+  "remote": "github-ssh",
+  "schema": 3,
+  "source": "remote-derived"
 }

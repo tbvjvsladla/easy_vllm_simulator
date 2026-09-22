@@ -299,7 +299,7 @@ _PROMO_RUBRIC = {"rubric_authority": "explore", "floor_tps": 22.1,
 
 # bench_report 는 **PASS/REFUTE 무관하게 항상 발행되는** 문서라, 인증서가 구조적으로 없는 경로
 # (perf_waiver · explore · hint_map_only — map_only 는 경량 리포트 또는 강등 셀의 리포트 · 2026-09-14)에서 lite 정량지표의
-# 유일한 근거가 된다(hint_tag `_require_serving_evidence` B 브랜치). 그래서 공용 픽스처의 리포트도 **실제로 lite 절과 실측 열을 갖는다** -- 빈 리포트를 쓰면
+# 유일한 근거가 된다(옛 hint_tag `_require_serving_evidence` B 브랜치 → 2026-09-22 `hintlib.evidence` 결손 술어). 그래서 공용 픽스처의 리포트도 **실제로 lite 절과 실측 열을 갖는다** -- 빈 리포트를 쓰면
 # 그 브랜치가 늘 실패해 "통과했다"를 증명할 수 없다.
 _LITE_BENCH_REPORT = """# bench_report selftest
 
@@ -320,9 +320,11 @@ def _write_promotion_manifest(root: Path, verdict: str, benchmark_extra: dict | 
                               drop_evidence: tuple = ()) -> Path:
     """full_benchmark work-manifest + 그 증거 아티팩트를 `root` 안에 실제로 짓는다.
 
-    승격 게이트 회귀(`_test_promotion_rubric_carrier`)와 hint 발행 회귀
-    (`_test_hint_binding_source`)가 **같은 픽스처**를 쓴다 -- 두 평면이 같은 manifest 모양을
+    승격 게이트 회귀(`_test_promotion_rubric_carrier` · `_test_certificate_run_resolution` ·
+    `_test_hint_map_only_promotion`)가 **같은 픽스처**를 쓴다 -- 여러 평면이 같은 manifest 모양을
     각자 손으로 지으면 오늘 고치는 바로 그 "같은 가정이 여러 곳" 결함이 픽스처에서 다시 자란다.
+    ⚠ 게이트 평면 전용이다(2026-09-22): hint 발행 E2E 는 이 손 manifest 를 쓰지 않는다 — 발행기의 work-manifest 는
+    `hint.py publish` 가 evidence_publisher 를 실제로 구동해 만든다(AC5 손 JSON 0 · `_test_hint_cli_publication`).
     """
     evidence_dir = root / "docs" / "_evidence"
     evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -528,417 +530,735 @@ def _test_promotion_rubric_carrier() -> None:
 
 
 # =============================================================================================
-# hint 발행 게이트 -- 인증서-부재 바인딩의 **세 번째 case**(explore) 회귀 (plan_26082405 §개정 R2)
+# hint 발행 — 신 CLI(`hint.py`) 전 경로 격리 E2E (2026-09-22 재작성 · plan_26092119 S4 · AC5·AC6·AC9)
 # ---------------------------------------------------------------------------------------------
-# 위 승격 게이트와 **같은 계열의 결함**이 hint_tag.py 에도 박혀 있었다: "인증서가 없다 → perf_waiver
-# 여야 한다"는 이분법. explore 런은 인증서도(PASS 아님) waiver 도(사람 서명 없음) 없으므로
-# `_require_serving_evidence` 의 `elif not cert_rel` 로 떨어져 차단되고, 설령 통과해도
-# `_binding_artifact_path` 가 None 을 돌려 footer 바인딩이 HINT_CERTIFICATE_EVIDENCE_MISSING 으로
-# 죽었다. 즉 승격 게이트만 고치면 **다음 문에서 다시 막히는** 상태였다.
-# 처방은 세 번째 case 추가 + 판정의 단일 소유(`_no_cert_binding_source`)다.
+# (HIST · plan_26082405 §개정 R2) 옛 머리말 요지: 위 승격 게이트와 **같은 계열의 결함**이 hint_tag.py 에도 박혀
+# 있었다 — "인증서가 없다 → perf_waiver 여야 한다"는 이분법. explore 런은 인증서도(PASS 아님) waiver 도(사람 서명
+# 없음) 없으므로 `_require_serving_evidence` 에서 차단되고, 설령 통과해도 footer 바인딩이 죽었다. 승격 게이트만 고치면
+# **다음 문에서 다시 막히는** 상태였다. 처방은 세 번째 case 추가 + 판정의 단일 소유(`no_cert_binding_source`)였다.
+# 단위 자체검사는 "분기가 도달 가능한가"를 못 잡는다(2026-08-22 실증: 새로 넣은 분기가 선행 게이트와 상호배타여서
+# 도달 불가였고, 끝단 음성대조가 커밋 직전에 잡았다) — 그래서 끝단을 실제 CLI 로 돌린다.
 #
-# 아래는 실제 CLI subprocess 로 create→seal→index→verify 전 구간을 격리 레포에서 돌린다 --
-# 단위 자체검사는 "분기가 도달 가능한가"를 못 잡는다(2026-08-22 실증: 새로 넣은 분기가 선행 게이트와
-# 상호배타여서 도달 불가였고, 끝단 음성대조가 커밋 직전에 잡았다).
-# ★ 음성 대조(2026-08-24 확인): 수정 전 hint_tag 로 H2 를 돌리면 create 가
-#   HINT_SERVING_EVIDENCE_INSUFFICIENT("evidence.certificate 부재")로 죽는다. H5 는 수정 후에도
-#   그대로 차단된다 -- 가드를 끈 것이 아니라 통로를 이었다는 증거다.
+# ★ 2026-09-22 재작성(plan_26092119 §4.9 "격리 E2E 를 신 CLI 전 경로로 — 현행은 hint_branch·push 게이트 우회"):
+#   옛 시험은 hint_tag·hint_collect 사본을 격리 레포에서 돌렸지만 **두 단계를 대역**으로 채웠다 — ① work-manifest 는
+#   evidence_publisher 가 아니라 `_write_promotion_manifest` 가 손으로 지었고 ② 페이로드 커밋은 hint_branch publish 가
+#   아니라 git 배관이 지었다(push 도 발행기의 게이트를 거치지 않았다). 그래서 페이로드 트리 대조·PII 스캔·push 게이트는
+#   이 시험에서 한 번도 돌지 않았다. 새 시험은 **대역 0** 이다: 캠페인 셀 픽스처 → `hint.py publish`(evidence_publisher
+#   실구동 · 손 JSON 0) → Agent 저작(프로그램 저작기 `hint._fx_author` · 템플릿 지시를 읽어 만든다) → `hint.py continue`
+#   (승인 → 린트 → hintlib.branch 배관 커밋 → 봉인 → 이 태그 1개 로컬 검증 → push → 원격 SHA 대조 → 카탈로그 → 캠페인
+#   publish 위상)를 **CLI 서브프로세스로** 밟는다. 시험 대상은 픽스처 안에 배포 배치로 놓은 CLI 사본(이 체크아웃의 바이트)
+#   이다 — 스킬이 자기 저장소 밖 코드에 기대면 여기서 드러난다.
+#   docker 는 PATH 앞의 가짜 실행기(읽기 전용 inspect·history · 시작하지 않는 컨테이너 create/cp/rm — 옛 이미지라 원장 · 패치 사본 부재 ·
+#   2026-09-22 S2 round 3 이미지 탐침 기본)이고, 원격은 임시 디렉터리
+#   **안의** bare 저장소다 — 실 저장소에는 태그·ref 가 하나도 생기지 않는다(옛 불변식 유지).
 # =============================================================================================
 
-# ★ 2026-09-04(CP7 · plan_26090415 §7.5 M1): 태그가 5세그먼트가 됐다 —
-#   `hint/<vllm>/<model>/<arch>/<recipe>`. 마지막 칸은 **인증서에서 파생**하며
-#   `hint_tag.derive_recipe_segment` 가 아래 `_HINT_CERTIFICATE` 로부터 같은 값을 낸다
-#   (이름과 측정이 어긋나면 seal 이 HINT_RECIPE_SEGMENT_MISMATCH 로 거부한다).
-# arch 세그먼트는 2026-09-06 부터 노드 축을 요구한다(`<hw>-<main|sub|cluster>-<target>`).
-# 픽스처가 실물보다 **좁으면** 시험은 초록인데 실물이 죽는다 — 실제로 그렇게 잡혔다.
-_HINT_TAG = "hint/0.0.0.dev0/selftest-model/gb10-main-sim-h100/qfp8-len32768-kvfp8"
-_HINT_TOPOLOGY = "single 1노드 TP1"
-_HINT_HF_REPO = "selftest-org/selftest-model"
-_HINT_SCRIPT_REL = ".claude/skills/hint-publisher/scripts/hint_tag.py"
-_HINT_TEMPLATE_REL = ".claude/skills/hint-publisher/templates/hint_recipe.template.md"
-_HINT_CATALOG_REL = ".claude/skills/hint-publisher/scripts/hint_catalog.py"
-# lite hint 통로(2026-09-14 · plan_26091407 §4.5 · O5)가 격리 레포에서 실제로 부르는 사본들. hint_tag 는 lite 지표 술어를
-# render_bench_section 에서, lockset 출처 어휘를 campaign_template_validator 에서 늦게 적재하고, 페이로드는 hint_collect 가
-# 짓는다 — 셋 중 하나라도 빠지면 격리 프로브가 실물과 다른 경로를 밟는다(픽스처가 실물보다 좁아진다).
-_HINT_COLLECT_REL = ".claude/skills/hint-publisher/scripts/hint_collect.py"
-_HINT_BENCH_SECTION_REL = ".claude/skills/hint-publisher/scripts/render_bench_section.py"
-_CAMPAIGN_VALIDATOR_REL = ".claude/skills/terraforming_node/scripts/campaign_template_validator.py"
+_HINT_SCRIPTS_REL = ".claude/skills/hint-publisher/scripts"
+_HINT_CLI_REL = f"{_HINT_SCRIPTS_REL}/hint.py"
+# 배포 배치 사본에 **함께** 놓아야 하는 추적 파일(wave 1 요청): 어휘표는 이름 파생의 닫힌 목록이고, sweep_bench.sh 는
+#   naming 자체검사가 교차 대조하는 producer 리터럴 앵커다(인증서 model 키 규칙). 빠지면 사본이 실물보다 좁아진다.
+_HINT_VOCAB_REL = "hints/vocab.json"
+_SWEEP_BENCH_REL = ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh"
 _RENDER_REPORT_REL = ".claude/skills/adversarial-benchmark/scripts/render_report.py"
+# 픽스처 셀과 기대 이름 — 이름은 **도구가 파생**한다(D8 · 발행자 입력 ✗). 아래 값은 파생 결과를 대조하는 앵커이지 입력이 아니다.
+_HINT_FX_CAMPAIGN = "c1"
+_HINT_FX_CELL = "c1-a"
+_HINT_FX_LITE_CELL = "c1-l"
+_HINT_FX_TAG = ("hint/0.9.0/fixture-model-nvfp4/gb10-1g2n-cluster-native/"
+                "qnvfp4-len4096-kvauto-plemmap-spec2-eager")
+_HINT_FX_LITE_TAG = ("hint/0.9.0/fixture-model-nvfp4/gb10-1g2n-cluster-native/"
+                     "qnvfp4-len2048-kvauto-plemmap-specoff-eager")
+_HINT_FX_PUBLISH_UTC = "2026-01-02T06:00:00Z"
+_HINT_FX_CONTINUE_UTC = "2026-01-02T07:00:00Z"
+_HINT_FX_LITE_MEASURED_UTC = "2026-01-02T14:00:00Z"
+_HINT_FX_LITE_REPORT = "docs/benchmark/bench_report_26010214_fixture-model-nvfp4_GB10_0.9.0.md"
 
-# 인증서 carrier 케이스용 -- 실제 인증서는 lite 열을 갖는다(full ⊇ lite 불변식).
-# 레시피 축 3종을 **전부** 담는다 — 하나만 담으면 픽스처가 실물보다 좁아져 파생기의
-# 다축 결합을 시험하지 못한다(같은 계열 회귀를 하루에 네 번 겪었다).
-_HINT_CERTIFICATE = (_PROMO_CERTIFICATE.format(authority="weak")
-                     + "lite_included: true\nlite_gen_tps_warm: 26.0\n"
-                     + "max_model_len: 32768\nkv_cache_dtype: fp8\n")
+# 가짜 docker — 옛 in-process 대역(`hint._fx_docker`)과 같은 대답을 **실행 파일**로 낸다(CLI 서브프로세스가 PATH 로 찾는다).
+#   읽기 전용 두 명령(image inspect·history)에 답하고, 원장 cat(`docker run`)은 원장 없는 옛 이미지로 rc 1 이다.
+#   호출 argv 를 기록해 "docker 는 읽기와 시작하지 않는 컨테이너의 create · cp · rm 뿐" 을 단언한다.
+#   2026-09-22 · plan_26092119 S2 round 3(이미지 탐침 = publish 기본): `create` 는 시작하지 않는 컨테이너 id 를 결정론으로 낸다
+#   (`_hint_shim_cid(n)` — n = 이 호출까지의 create 순번 · 술어가 같은 식으로 "우리가 만든 컨테이너" 를 안다) · `cp` 는 옛 이미지라 파일
+#   부재(docker 의 부재 문구 — artifacts 가 `absent` 로 읽는다 = 원장 없음 · 패치 사본 없음, 옛 원장 cat rc 1 과 같은 판정) · `rm` 은 성공.
+_HINT_DOCKER_SHIM = r'''
+import json, sys
+from pathlib import Path
+state = json.loads(Path(@STATE@).read_text(encoding="utf-8"))
+argv = sys.argv[1:]
+with open(@LOG@, "a", encoding="utf-8") as fh:
+    fh.write(json.dumps(argv) + "\n")
+if argv[:1] == ["create"]:
+    if argv[-1] not in state["images"]:
+        sys.stderr.write("Error response from daemon: No such image\n")
+        sys.exit(1)
+    with open(@LOG@, encoding="utf-8") as fh:
+        n = sum(1 for ln in fh if ln.strip() and json.loads(ln)[:1] == ["create"])
+    print("c0ffee" + format(n, "058x"))
+    sys.exit(0)
+if argv[:1] == ["cp"]:
+    sys.stderr.write("Error response from daemon: Could not find the file in container\n")
+    sys.exit(1)
+if argv[:1] == ["rm"]:
+    print(argv[-1])
+    sys.exit(0)
+if argv[:2] == ["image", "inspect"]:
+    img = state["images"].get(argv[-1])
+    if img is None:
+        sys.stderr.write("Error: No such image\n")
+        sys.exit(1)
+    if "--format" in argv:
+        val = {"{{.Id}}": img.get("Id"), "{{.Created}}": img.get("Created")}.get(argv[argv.index("--format") + 1])
+        if not val:
+            sys.exit(1)
+        print(val)
+        sys.exit(0)
+    print(json.dumps([img]))
+    sys.exit(0)
+if argv[:1] == ["history"]:
+    h = state["history"].get(argv[-1])
+    if h is None:
+        sys.exit(1)
+    sys.stdout.write(h)
+    sys.exit(0)
+if argv[:1] == ["run"]:
+    sys.stderr.write("cat: /opt/easy-vllm/build_ledger.json: No such file or directory\n")
+    sys.exit(1)
+sys.stderr.write("runtime_selftest docker shim: unexpected call\n")
+sys.exit(1)
+'''
 
-# 린터 L1~L5 를 실제로 통과하는 최소 본문(합성 픽스처 -- 실제 서빙 사실이 아니다).
-_HINT_RECIPE_BODY = """selftest 합성 레시피 픽스처 — 실제 서빙 실적이 아니라 런타임 자체검사용이다.
 
-## 1. 벽 지도
-이 태그는 자체검사 픽스처이므로 실제로 부딪힌 아치-월이 없다. 수신자는 이 칸을 근거로 삼지 말고
-자기 하드웨어에서 벽을 다시 확인해야 한다. 전이등급 arch-invariant — 벽 지도 자체는 하드웨어를
-가리지 않는 서술이지만, 여기 적힌 값은 어느 것도 실측이 아니다.
-
-## 2. 결정론 해소값
-해소값은 결정론 스크립트가 채우는 자리이며 픽스처에서는 합성값이다. torch/NGC/CUDA 핀은 목표
-버전 선언에서 파생되고, 빌드트랙 판정은 소유 스킬이 내린다. 이 절의 값은 재현 대상이 아니라
-정보구조 린터의 밀도 요건을 만족시키기 위한 자리표시자다.
-
-## 3. 모델 서빙 노브
-서빙 노브는 모델·하드웨어 조합마다 다시 확정한다. 이전 모델의 노브를 그대로 옮기는 carry-forward
-는 금지이며, 픽스처의 노브는 어떤 실측에도 대응하지 않는다. 수신자는 자기 환경에서 재측정한 뒤
-자기 값을 쓴다.
-
-## 4. 빌드평면 노브
-빌드 평면의 노브(빌드 패치·포크 핀·변종 이미지 태그)는 serve 평면과 성립 시점이 다르다. 픽스처는
-어떤 변종도 요구하지 않는 stock 경로를 가정하며, 실제 발행물이라면 여기에 변종 좌표의 등재부를
-가리키는 포인터가 들어간다.
-
-## 5. 성능 baseline
-성능 기준선은 적대적 벤치마크가 판정하며 픽스처의 수치는 합성이다. 이 태그는 explore 루브릭 권한
-경로의 배선을 검사하기 위한 것이므로, 여기 적힌 어떤 처리량도 성능 주장을 구성하지 않는다.
-수신자는 자기 환경에서 재측정한다.
-
-## 6. 재검증
-재검증 절차는 기능 스모크와 성능 계측을 분리해 수행한다. 픽스처에서는 실제 서빙을 기동하지 않고
-게이트 배선만 검사하므로, 이 절은 재현 지시가 아니라 린터가 요구하는 구조를 채우는 서술이다.
-실제 발행물에서는 여기에 재측정 명령이 그대로 들어간다.
-
-## 7. 메타
-발행 맥락·근거 문서·후속 계획을 적는 칸이다. 이 픽스처는 runtime_selftest 가 임시 레포에서만
-만들고 즉시 버리므로 어떤 원격에도 도달하지 않으며, 색인·배포 권위 선언도 임시 디렉터리 안에서만
-유효하다.
-"""
+def _hint_shim_cid(n: int) -> str:
+    """가짜 docker 의 n 번째 create 가 내는 컨테이너 id(`_HINT_DOCKER_SHIM` 과 같은 식 · 갈리면 아래 술어가 cp · rm 을 거부해 붉어진다)."""
+    return "c0ffee" + format(n, "058x")
 
 
-def _import_hint_tag():
-    """hint_tag.py 를 in-process 로 적재한다(claim_predicates.py 와 같은 관용구).
+def _hint_docker_calls_non_starting(calls: list) -> list:
+    """발행기가 부를 수 있는 docker 호출(순서가 있는 기록 전체) — `image inspect` · `history` · **시작하지 않는** 컨테이너의 `create`
+    (`--pull never` · `--network none` · `--entrypoint /bin/true`) · 그 컨테이너에서의 `cp` · 그 컨테이너의 `rm`. 그 밖(`run` · `start` ·
+    `exec` · `build` · `image rm` …)은 전부 위반이고, 만들었는데 지우지 않은 컨테이너도 위반이다. 위반 호출 목록을 돌려준다(빈 목록 = 통과).
 
-    E2E 만으로는 `_no_cert_binding_source` 의 **계약 위반 4종** 같은 조합을 다 돌리기에 비싸고,
-    단위만으로는 분기 도달성을 못 잡는다. 그래서 아래 H0(단위 조합 표) + H1~H5(E2E) 를 함께 둔다.
-    """
-    path = CLAUDE_DIR.parent / _HINT_SCRIPT_REL
-    spec = importlib.util.spec_from_file_location("_runtime_selftest_hint_tag", path)
+    2026-09-22 · plan_26092119 S2 round 3: 이미지 탐침이 publish 기본이 되어 옛 3종 계약(inspect · history · 원장 cat)을 넓혔다 — 원장도
+    같은 create+cp 로 읽으므로 원장 cat(`docker run` = 컨테이너 **시작**)은 이제 위반이다(계약이 넓어진 쪽은 "시작하지 않는" 호출뿐).
+    옛 술어의 교훈 유지(2026-09-22 적대 리뷰): 접두 한 칸(`image`)만 보면 `image rm` 이, 플래그 하나만 보면 임의 명령이 '읽기' 로 통과한다."""
+    made: list[str] = []
+    removed: set[str] = set()
+    bad: list = []
+    for argv in calls:
+        a = [str(x) for x in argv]
+
+        def pair(flag: str, value: str) -> bool:
+            return any(a[i] == flag and a[i + 1] == value for i in range(len(a) - 1))
+
+        if a[:2] == ["image", "inspect"] or a[:1] == ["history"]:
+            continue
+        if a[:1] == ["create"]:
+            made.append(_hint_shim_cid(len(made) + 1))
+            if not (pair("--pull", "never") and pair("--network", "none") and pair("--entrypoint", "/bin/true")):
+                bad.append(a)
+            continue
+        if a[:1] == ["cp"]:
+            srcs = [x for x in a[1:] if not x.startswith("-")]
+            cid = srcs[0].split(":", 1)[0] if srcs and ":" in srcs[0] else ""
+            if cid not in made or cid in removed:
+                bad.append(a)
+            continue
+        if a[:1] == ["rm"]:
+            ids = [x for x in a[1:] if not x.startswith("-")]
+            if not ids or any(x not in made for x in ids):
+                bad.append(a)
+            removed.update(ids)
+            continue
+        bad.append(a)
+    bad += [["<left-behind>", cid] for cid in made if cid not in removed]
+    return bad
+
+
+def _import_hint_cli():
+    """hint.py 를 in-process 로 적재한다 — **픽스처 조립·프로그램 저작·단위 판정에만** 쓴다(시험 대상 경로는 CLI 서브프로세스).
+
+    hint.py 는 자기 scripts/ 를 sys.path 에 넣고 hintlib(import 부수효과 0)을 적재한다. dataclass 가 모듈을 되찾을 수 있게
+    sys.modules 에 먼저 등록한다(미등록이면 `from __future__ import annotations` 모듈의 dataclass 생성이 실패한다)."""
+    name = "_runtime_selftest_hint_cli"
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(name, CLAUDE_DIR.parent / _HINT_CLI_REL)
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        sys.modules.pop(name, None)
+        raise
     return module
 
 
-def _hint_git(root: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["git", "-c", "commit.gpgsign=false", "-c", "user.name=selftest",
-         "-c", "user.email=selftest@example.invalid", "-C", str(root), *args],
-        capture_output=True, text=True, timeout=120)
+@contextlib.contextmanager
+def _hint_isolated_env(td: Path):
+    """격리 git·자격증명 환경(픽스처 조립 + CLI 서브프로세스 공용). 실 사용자의 git 설정(서명·훅·자격 도우미)과 토큰,
+    모델 경로 오버라이드가 픽스처로 스며들지 않는다 — 스며들면 시험 결과가 실행한 사람의 환경을 따라 바뀐다."""
+    gcfg = td / "gitconfig"
+    mail = "@".join(("selftest", "example.invalid"))      # 메일 모양 리터럴을 추적 배포 파일에 새로 두지 않는다(배포 4종 자기스캔)
+    gcfg.write_text(f"[user]\n\tname = selftest\n\temail = {mail}\n[commit]\n\tgpgsign = false\n"
+                    "[tag]\n\tgpgsign = false\n[core]\n\thooksPath = /dev/null\n", encoding="utf-8")
+    keys = ("GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM", "GIT_TERMINAL_PROMPT", "GITHUB_TOKEN", "QUANT_MODEL_PATH",
+            "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES")
+    saved = {k: os.environ.get(k) for k in keys}
+    for k in keys:
+        os.environ.pop(k, None)
+    os.environ.update(GIT_CONFIG_GLOBAL=str(gcfg), GIT_CONFIG_NOSYSTEM="1", GIT_TERMINAL_PROMPT="0")
+    try:
+        yield
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
 
 
-def _hint_repo(root: Path) -> str:
-    """hint_tag.py 가 실제로 도는 최소 격리 레포를 짓고 앵커 커밋 SHA 를 돌려준다.
-
-    hint_tag 는 ROOT 를 **cwd 기준 `git rev-parse --show-toplevel`** 으로 잡고
-    completion_gate/스키마/템플릿을 ROOT 상대로 찾는다. 그래서 진짜 git 레포 + 그 배치가 필요하다.
-    """
-    for rel in (".claude/policies/runtime", ".claude/schemas",
-                ".claude/skills/hint-publisher/scripts",
-                ".claude/skills/hint-publisher/templates", ".claude/skills/terraforming_node/scripts", "hints"):
-        (root / rel).mkdir(parents=True, exist_ok=True)
-    shutil.copy2(RUNTIME_DIR / "completion_gate.py", root / ".claude/policies/runtime/completion_gate.py")
-    for name in ("work-manifest.schema.json", "completion-manifest.schema.json",
-                 "side-effect-authorization.schema.json"):
-        shutil.copy2(CLAUDE_DIR / "schemas" / name, root / ".claude/schemas" / name)
-    shutil.copy2(CLAUDE_DIR.parent / _HINT_SCRIPT_REL, root / _HINT_SCRIPT_REL)
-    shutil.copy2(CLAUDE_DIR.parent / _HINT_TEMPLATE_REL, root / _HINT_TEMPLATE_REL)
-    shutil.copy2(CLAUDE_DIR.parent / _HINT_CATALOG_REL, root / _HINT_CATALOG_REL)
-    for rel in (_HINT_COLLECT_REL, _HINT_BENCH_SECTION_REL, _CAMPAIGN_VALIDATOR_REL):
-        shutil.copy2(CLAUDE_DIR.parent / rel, root / rel)
-    # 카탈로그 관리 구역은 **마커 쌍**이다(2026-09-01 D1.1). 여는 마커가 없던 옛 형식은
-    # 구역의 시작이 모호해 마커 유실 시 전 행이 조용히 사라질 수 있었다(감사 ⑬).
-    (root / "HINTS.md").write_text(
-        "# hints\n\n<!-- hint-index:rows -->\n<!-- hint-index:rows -->\n", encoding="utf-8")
-    # 실 pii_terms.txt 는 운영자 리터럴이라 격리 레포로 복사하지 않는다(픽스처 전용 토큰만).
-    (root / ".claude/pii_terms.txt").write_text(
-        "# selftest fixture terms\nselftest-forbidden-token\n", encoding="utf-8")
-    (root / "hints/index.json").write_text('{"hints": []}\n', encoding="utf-8")
-    (root / "hints/.central_authority").write_text(
-        "이 체크아웃이 자기 원격의 hint 색인·배포 권위다(selftest 임시 레포).\n", encoding="utf-8")
-    _hint_git(root, "init", "-q", "-b", "selftest")
-    _hint_git(root, "commit", "--allow-empty", "-q", "-m", "selftest anchor")
-    return _hint_git(root, "rev-parse", "HEAD").stdout.strip()
+def _hint_git(repo: Path, *args: str) -> str:
+    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, timeout=120)
+    if proc.returncode != 0:
+        raise RuntimeSelftestFailure(f"hint fixture git {args[:3]} rc={proc.returncode}: {proc.stderr.strip()[-400:]}")
+    return proc.stdout.strip()
 
 
-def _hint_cli(root: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run([sys.executable, str(root / _HINT_SCRIPT_REL), *args],
-                          cwd=str(root), capture_output=True, text=True, timeout=180)
+def _hint_refs(repo: Path) -> str:
+    return _hint_git(repo, "for-each-ref", "--format=%(refname) %(objectname)")
 
 
-def _hint_payload_anchor(root: Path, tag: str, source_anchor: str, payload_doc: dict | None = None) -> str:
-    """`refs/heads/hint` 위에 **진짜 페이로드 커밋**을 짓고 그 SHA 를 돌려준다.
-
-    ★ 2026-09-07 신설(plan_26090715 §5 ①-a). 종전 픽스처는 빈 소스 커밋을 앵커로 썼고, 그래서
-      "태그는 hint 브랜치의 페이로드 커밋을 가리킨다"(계약 §6)는 계약이 **한 번도 시험되지 않았다**.
-      픽스처가 실물보다 좁으면 그 위의 단언은 실물에서 성립하는 성질을 시험하지 못한다 —
-      실제로 native 태그 3종이 소스 커밋에 봉인된 채 전 게이트를 통과해 나갔다(audit_26090708 §2).
-      plumbing 으로 짓는 이유: 워킹트리를 건드리지 않고 배포 트리만 만들면 되기 때문이다
-      (`hint_branch.py publish` 가 실물에서 하는 일과 같은 모양).
-    """
-    def _hash_object(text: str) -> str:
-        cp = subprocess.run(["git", "-C", str(root), "hash-object", "-w", "--stdin"],
-                            input=text, capture_output=True, text=True, timeout=60, check=True)
-        return cp.stdout.strip()
-
-    payload = json.dumps(payload_doc if payload_doc is not None else
-                         {"schema_version": 1, "kind": "hint_payload_facts",
-                          "provenance": "derived", "missing": []}, ensure_ascii=False) + "\n"
-    prov = json.dumps({"version": 1, "anchor": source_anchor, "tag": tag,
-                       "source_branch": "selftest"}, ensure_ascii=False) + "\n"
-    entries = [("PAYLOAD.json", _hash_object(payload)),
-               ("PROVENANCE.json", _hash_object(prov)),
-               ("README.md", _hash_object("# hint payload (selftest fixture)\n"))]
-    tree_input = "".join(f"100644 blob {sha}\t{name}\n" for name, sha in sorted(entries))
-    tree = subprocess.run(["git", "-C", str(root), "mktree"], input=tree_input,
-                          capture_output=True, text=True, timeout=60, check=True).stdout.strip()
-    commit = subprocess.run(
-        ["git", "-c", "commit.gpgsign=false", "-c", "user.name=selftest",
-         "-c", "user.email=selftest@example.invalid", "-C", str(root),
-         "commit-tree", tree, "-m", f"hint payload for {tag} (selftest)"],
-        capture_output=True, text=True, timeout=60, check=True).stdout.strip()
-    _hint_git(root, "update-ref", "refs/heads/hint", commit)
-    return commit
+def _hint_remote_ref(bare: Path, ref: str) -> str | None:
+    """원격(bare) 의 ref 가 가리키는 오브젝트(annotated 태그면 **태그 오브젝트** · 피일 전)."""
+    out = _hint_git(bare, "ls-remote", str(bare), ref)
+    rows = [ln.split("\t") for ln in out.splitlines() if ln.strip()]
+    hits = [sha for sha, name in rows if name == ref]
+    return hits[0] if len(hits) == 1 else None
 
 
-# 격리 hint 레포의 셀 트리플렛(합성) — hint_collect 는 이 셋이 없으면 페이로드를 짓지 않는다(면제 불가 슬롯).
-_HINT_CELL = "selftest-cell"
+def _hint_cli_fixture(td: Path, hint, *, legacy: bool) -> dict:
+    """발행 전 경로가 도는 격리 저장소(hint 자체검사와 **같은** 픽스처 조립기 `hint._fx_repo` 위에 짓는다 — 두 벌이면 갈라진다).
+
+    그 위에 ① 배포 배치의 CLI 사본(hint.py · hintlib/ — 이 체크아웃의 바이트) ② 추적 어휘표·producer 앵커 ③ 가짜 docker
+    실행기를 얹는다. `legacy=True` 면 원격에 과거·타 PC 태그(옛 5세그먼트 annotated · 로컬 오브젝트 없는 원격 전용 ·
+    lightweight)를 먼저 심는다(AC6 — 신규 발행이 그것들에 막히지 않아야 한다 · D10)."""
+    repo, fx = hint._fx_repo(td)
+    real = CLAUDE_DIR.parent
+    dst = repo / _HINT_SCRIPTS_REL
+    shutil.copy2(real / _HINT_CLI_REL, dst / "hint.py")
+    shutil.copytree(real / _HINT_SCRIPTS_REL / "hintlib", dst / "hintlib",
+                    ignore=shutil.ignore_patterns("__pycache__"))
+    for rel in (_HINT_VOCAB_REL, _SWEEP_BENCH_REL):
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(real / rel, repo / rel)
+    old = hint._fx_legacy_remote(td, repo, fx["bare"]) if legacy else {}
+    bindir = td / "bin"
+    bindir.mkdir()
+    state = td / "docker_state.json"
+    state.write_text(json.dumps({"images": fx["docker"]["images"], "history": fx["docker"]["history"]}),
+                     encoding="utf-8")
+    log = td / "docker_calls.jsonl"
+    shim = bindir / "docker"
+    shim.write_text(f"#!{sys.executable}\n" + _HINT_DOCKER_SHIM.replace("@STATE@", repr(str(state)))
+                    .replace("@LOG@", repr(str(log))), encoding="utf-8")
+    shim.chmod(0o755)
+    return {"repo": repo, "fx": fx, "bare": fx["bare"], "legacy": old, "bin": bindir, "docker_log": log}
 
 
-def _hint_collect_payload(root: Path, manifest: Path) -> tuple[subprocess.CompletedProcess, Path, dict | None]:
-    """격리 레포에서 **실제 hint_collect** 로 페이로드를 짓는다(PAYLOAD.json 을 손으로 쓰지 않는다)."""
-    for rel, text in ((f"output/single/configs/{_HINT_CELL}.yaml", "model: /models/selftest-org/selftest-model\n"),
-                      (f"output/single/configs/{_HINT_CELL}.sh", "#!/bin/sh\n"),
-                      (f"output/single/envs/.env.{_HINT_CELL}", "IMAGE_TAG=easy-vllm:0.0.0-selftest\n")):
-        (root / rel).parent.mkdir(parents=True, exist_ok=True)
-        (root / rel).write_text(text, encoding="utf-8")
-    out_dir = root / "payload_out"
-    shutil.rmtree(out_dir, ignore_errors=True)
-    proc = subprocess.run([sys.executable, "-B", str(root / _HINT_COLLECT_REL), "--repo", str(root), "collect",
-                           "--manifest", str(manifest), "--config-name", _HINT_CELL, "--out", str(out_dir),
-                           "--generated-kst", "2026-01-01T00:00:00"],
-                          cwd=str(root), capture_output=True, text=True, timeout=180)
-    doc = None
-    if proc.returncode == 0:
-        doc = json.loads((out_dir / "PAYLOAD.json").read_text(encoding="utf-8"))
-    return proc, out_dir, doc
+def _hint_cli(f: dict, *args: str) -> subprocess.CompletedProcess:
+    """픽스처 안의 CLI 사본을 서브프로세스로(전역 `--repo` 는 서브명령 앞 — 2026-09-12 인자 순서 사고)."""
+    env = dict(os.environ)
+    env["PATH"] = f"{f['bin']}{os.pathsep}{env.get('PATH', '')}"
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    repo = f["repo"]
+    return subprocess.run([sys.executable, "-B", str(repo / _HINT_CLI_REL), "--repo", str(repo), *args],
+                          cwd=str(repo), env=env, capture_output=True, text=True, timeout=300)
 
 
-def _hint_publish_probe(benchmark_extra: dict | None, certificate: str | None = None,
-                        bench_report_text: str = _LITE_BENCH_REPORT,
-                        recipe_body: str = _HINT_RECIPE_BODY,
-                        anchor_mode: str = "payload", task_class: str = "full_benchmark",
-                        drop_evidence: tuple = (), collect_payload: bool = False,
-                        lockset: dict | None = None) -> dict:
-    """격리 레포에서 create→seal→**catalog derive**→verify 를 실제로 돌린다.
+def _hint_cli_ok(f: dict, what: str, *args: str) -> subprocess.CompletedProcess:
+    proc = _hint_cli(f, *args)
+    _require(proc.returncode == 0,
+             f"hint.py {what} failed: rc={proc.returncode} stdout={proc.stdout[-900:]!r} stderr={proc.stderr[-1500:]!r}")
+    return proc
 
-    2026-09-01: `index`(손저작 색인)가 D1.1 로 폐쇄되어 카탈로그 단계를 원격 파생으로 옮겼다.
-    프로브가 임시 bare 원격을 만들고 태그를 push 한 뒤 파생한다 — 발행 사실을 실제로 만든다.
 
-    2026-09-14(plan_26091407 §4.5 · O5): `task_class` 인자. `hint_map_only` 로 부르면 lite 만 잰 셀의 통로를 밟는다 —
-    `collect_payload=True` 면 **실제 hint_collect** 가 manifest 의 증거에서 PAYLOAD.json(결손 목록 · 측정 구성)을 짓고
-    그 문서로 페이로드 커밋을 만든 뒤 `--payload` 로 넘긴다. 실물 순서(finalize → collect → hint 커밋 →
-    promotion_target)를 **따르되 두 단계는 대역**이다: ① work-manifest 는 `evidence_publisher finalize` 가 아니라
-    `_write_promotion_manifest` 가 짓는다(finalize 끝단은 evidence_publisher 자체검사가 map_only promotion-ready 까지 친다)
-    ② 페이로드 커밋은 `hint_branch publish` 가 아니라 git 배관(`_hint_payload_anchor`)으로 짓는다 — 그래서 hint_branch 의
-    트리 대조·4종 PII 스캔은 여기서 돌지 않는다(배포 평면 PII 는 hint_collect 자체검사가 강등 셀 실물 모양 출처로 친다).
-    `lockset` 을 주면 셀 lockset(+ 같은 셀 config.yaml `declared_axes`)을 쓰고 `seal --lockset` 으로 레시피 세그먼트를
-    선언과 대조한다. 원격은 격리 디렉터리 **안**에 둔다 — 실 저장소에는 태그·ref 가 하나도 생기지 않는다.
-    """
-    with tempfile.TemporaryDirectory(prefix="hint-binding-selftest.") as td:
-        root = (Path(td) / "repo").resolve()
-        root.mkdir()
-        source_anchor = _hint_repo(root)
-        verdict = "PASS" if certificate is not None else "REFUTE"
-        payload_doc, payload_dir, out = None, None, {}
-        if collect_payload:
-            # promotion_target 은 페이로드 커밋을 가리키므로 **먼저** 증거만 담긴 manifest 로 수집한다.
-            manifest = _write_promotion_manifest(root, verdict, benchmark_extra, certificate=certificate,
-                                                 bench_report_text=bench_report_text, task_class=task_class,
-                                                 drop_evidence=drop_evidence)
-            out["collect"], payload_dir, payload_doc = _hint_collect_payload(root, manifest)
-            if out["collect"].returncode != 0:
-                return out
-            out["payload_doc"] = payload_doc
-            out["benchmark_md"] = (payload_dir / "03-benchmark.md").read_text(encoding="utf-8")
-        # 계약 §6: 태그가 가리키는 것은 **페이로드 커밋**이다(소스 커밋이 아니다).
-        payload_anchor = _hint_payload_anchor(root, _HINT_TAG, source_anchor, payload_doc)
-        # anchor_mode="source" 는 **음성대조**다: 발행자가 hint_branch publish 를 건너뛰고 소스
-        # 트리 커밋에 봉인하려 한 그 형태(2026-09-07 native 3종). 게이트가 그것을 막아야 한다.
-        anchor = source_anchor if anchor_mode == "source" else payload_anchor
-        manifest = _write_promotion_manifest(
-            root, verdict, benchmark_extra,
-            certificate=certificate, bench_report_text=bench_report_text,
-            promotion_target={"kind": "hint", "tag": _HINT_TAG,
-                              "topology": _HINT_TOPOLOGY, "anchor": anchor},
-            task_class=task_class, drop_evidence=drop_evidence)
-        # `--allow-new-slug` 는 2026-09-01 제거됐다 — 슬러그 정본표(CANONICAL_SLUGS)가 사라지고
-        # 철자 충돌 대조가 **발행된 태그에서 파생**되도록 바뀌면서 '표에 없음'이라는 상태 자체가
-        # 없어졌기 때문이다(plan_26090107 §6). 신규 슬러그는 이제 플래그 없이 통과한다.
-        common = ("--tag", _HINT_TAG, "--topology", _HINT_TOPOLOGY, "--commit", anchor,
-                  "--hf-repo", _HINT_HF_REPO, "--manifest", str(manifest))
-        if payload_dir is not None:
-            common += ("--payload", str(payload_dir))
-        out.update({"anchor": anchor, "source_anchor": source_anchor,
-                    "payload_anchor": payload_anchor,
-                    "root": str(root), "manifest": str(manifest),
-                    "create": _hint_cli(root, "create", *common)})
-        if out["create"].returncode != 0:
-            return out
-        recipe = root / "hints" / ".drafts" / "selftest_recipe.md"
-        recipe.write_text(recipe_body, encoding="utf-8")
-        seal_extra: tuple = ()
-        if lockset is not None:
-            lk = root / "campaigns" / "selftest-camp" / "cells" / _HINT_CELL / "lockset.json"
-            lk.parent.mkdir(parents=True, exist_ok=True)
-            lk.write_text(json.dumps(lockset), encoding="utf-8")
-            # 실물 셀처럼 선언 계층을 곁에 둔다(ple 축의 출처 · 픽스처 모델은 PLE 가 없다 → none).
-            (lk.parent / "config.yaml").write_text("declared_axes:\n  ple_mode: none\n", encoding="utf-8")
-            seal_extra = ("--lockset", str(lk))
-        out["seal"] = _hint_cli(root, "seal", *common, "--recipe", str(recipe), *seal_extra,
-                                "--tagger-name", "selftest",
-                                "--tagger-email", "selftest@example.invalid")
-        if out["seal"].returncode != 0:
-            return out
-        out["tag_object"] = _hint_git(root, "cat-file", "tag", _HINT_TAG).stdout
-        # 카탈로그는 **원격 발행 태그에서 파생**한다(D1.1) — 손저작 `index` 경로는 폐쇄됐다.
-        # 그래서 프로브도 진짜로 원격을 만들고 거기에 push 한 뒤 파생한다. 원격을 만들지 않으면
-        # "발행됐다"의 증거가 없어 카탈로그가 비는 것이 **정상 동작**이므로, 그 경로를 시험하려면
-        # 발행 사실 자체를 만들어야 한다.
-        bare = Path(td) / "remote.git"
-        _hint_git(root, "init", "--bare", "-q", str(bare))
-        _hint_git(root, "push", "-q", str(bare),
-                  f"refs/tags/{_HINT_TAG}:refs/tags/{_HINT_TAG}")
-        out["catalog"] = subprocess.run(
-            [sys.executable, "-B", str(root / _HINT_CATALOG_REL), "--repo", str(root),
-             "derive", "--remote", str(bare), "--generated-kst", "2026-01-01T00:00:00"],
-            cwd=str(root), capture_output=True, text=True)
-        out["index"] = json.loads((root / "hints" / "index.json").read_text(encoding="utf-8"))
-        out["hints_md"] = (root / "HINTS.md").read_text(encoding="utf-8")
-        out["verify"] = _hint_cli(root, "verify", "--manifest", str(manifest))
-        return out
+def _hint_single_draft(repo: Path) -> Path:
+    drafts = sorted(p.parent for p in (repo / "hints/.drafts").glob("*/state.json"))
+    _require(len(drafts) == 1, f"expected exactly one published draft, found {[str(d) for d in drafts]}")
+    return drafts[0]
+
+
+def _hint_edit_json(path: Path, fn) -> bytes:
+    """JSON 파일을 고치고 **원래 바이트**를 돌려준다(음성대조 뒤 복원용)."""
+    before = path.read_bytes()
+    doc = json.loads(before)
+    fn(doc)
+    path.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return before
+
+
+# 프로그램 저작(Agent 대역) 구동기 — 픽스처의 CLI 사본 옆 `hint._fx_author` 를 부른다(저작기는 템플릿 지시를 읽어 hint-event 와
+#   **치환 후 원문** 발췌를 만든다 · 지시를 여기 다시 적지 않는다).
+_HINT_AUTHOR_DRIVER = (
+    "import json, sys\n"
+    "from pathlib import Path\n"
+    "sys.path.insert(0, sys.argv[1])\n"
+    "import hint\n"
+    "draft = Path(sys.argv[3])\n"
+    "hint._fx_author(Path(sys.argv[2]), draft, json.loads((draft / 'state.json').read_text(encoding='utf-8')))\n")
+
+
+def _hint_author(f: dict, draft: Path) -> None:
+    """저작 단계는 **자식 프로세스**로 돈다. 저작자는 발행 도구 밖의 행위자이고(사람·Agent), 저작기가 거치는 소유 모듈(서브 manifest
+    로더 등)은 site-packages 의 YAML 을 쓴다 — 이 자체검사가 `python -S` 로 불려도(harness_verify·verify_distribution 이 자기
+    플래그를 물려준다) 저작이 부모 인터프리터의 플래그에 묶이지 않게 한다(2026-09-22 첫 `-S` 실행에서 드러났다). CLI 단계와 같다."""
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+    proc = subprocess.run([sys.executable, "-B", "-c", _HINT_AUTHOR_DRIVER, str(f["repo"] / _HINT_SCRIPTS_REL),
+                           str(f["repo"]), str(draft)], env=env, capture_output=True, text=True, timeout=300)
+    _require(proc.returncode == 0, f"programmatic authoring failed: rc={proc.returncode} {proc.stderr[-1200:]!r}")
+
+
+def _hint_publish_and_author(f: dict, *extra: str) -> tuple[Path, dict]:
+    """publish(스캐폴드 · 정지) → 프로그램 저작 → lint 0 까지. 반환 = (draft, state.json)."""
+    _hint_cli_ok(f, "publish", "publish", "--campaign", _HINT_FX_CAMPAIGN, *extra,
+                 "--generated-utc", _HINT_FX_PUBLISH_UTC)
+    draft = _hint_single_draft(f["repo"])
+    st = json.loads((draft / "state.json").read_text(encoding="utf-8"))
+    _hint_author(f, draft)
+    proc = _hint_cli(f, "lint", "--draft", str(draft), "--json")
+    try:
+        issues = json.loads(proc.stdout)
+    except ValueError:
+        issues = None
+    _require(proc.returncode == 0 and issues == [],
+             f"programmatic authoring left lint issues: rc={proc.returncode} {str(issues)[:900]} {proc.stderr[-400:]!r}")
+    return draft, st
+
+
+def _hint_tag_body(repo: Path, tag: str) -> str:
+    return _hint_git(repo, "cat-file", "tag", f"refs/tags/{tag}")
 
 
 def _test_hint_binding_source() -> None:
-    hint_tag = _import_hint_tag()
+    """H0 단위 — 인증서 부재 바인딩 원천의 **단일 판정자**(`hintlib.evidence.no_cert_binding_source`·`binding_artifact_path`).
+
+    우선순위: certificate > (perf_waiver ∨ hint_map_only ∨ explore) → bench_report > 차단(None). 2026-08-01·08-24·09-14 에
+    두 결정점이 갈라져 봉인과 검증이 다른 산출물을 봤던 이력 때문에 판정자는 하나다(옛 hint_tag 에서 evidence 로 이관).
+    E2E 단계(아래 CLI 시험)는 explore·인증서·lite 통로가 실제로 끝단까지 도달하는지를 친다."""
+    ev = _import_hint_cli().evidence
     bench_report_rel = "../benchmark/bench_report_selftest.md"
     cert_rel = "../benchmark/benchmark_selftest.yaml"
 
-    def manifest_shape(benchmark: dict, with_cert: bool = False) -> dict:
+    def manifest_shape(benchmark: dict, with_cert: bool = False, task_class: str = "full_benchmark") -> dict:
         evidence = {"bench_report": {"path": bench_report_rel}}
         if with_cert:
             evidence["certificate"] = {"path": cert_rel}
-        return {"benchmark": benchmark, "evidence": evidence}
+        return {"task_class": task_class, "benchmark": benchmark, "evidence": evidence}
 
-    # ---- H0 단위: 판정자 하나가 네 모양을 모두 가른다(우선순위 certificate > waiver∨explore > 차단)
     explore_manifest = manifest_shape(dict(_PROMO_RUBRIC))
     waiver_manifest = manifest_shape({"perf_waiver": {"authorized_by": "selftest-operator"}})
     bare_manifest = manifest_shape({"verdict": "REFUTE"})
     cert_manifest = manifest_shape(dict(_PROMO_RUBRIC), with_cert=True)
-    _require(hint_tag._no_cert_binding_source(explore_manifest) == "explore",
+    map_only_manifest = manifest_shape({"mode": "lite", "verdict": None}, task_class="hint_map_only")
+    map_only_cert_manifest = manifest_shape({"mode": "lite", "verdict": None}, with_cert=True, task_class="hint_map_only")
+    _require(ev.no_cert_binding_source(explore_manifest) == "explore",
              "explore rubric authority did not open the no-certificate binding source")
-    _require(hint_tag._no_cert_binding_source(waiver_manifest) == "perf_waiver",
+    _require(ev.no_cert_binding_source(waiver_manifest) == "perf_waiver",
              "perf_waiver stopped opening the no-certificate binding source")
-    _require(hint_tag._no_cert_binding_source(bare_manifest) is None,
-             "a manifest with neither waiver nor explore opened a binding source")
+    _require(ev.no_cert_binding_source(map_only_manifest) == "hint_map_only",
+             "hint_map_only (lite-only cell) did not open the no-certificate binding source")
+    _require(ev.no_cert_binding_source(bare_manifest) is None,
+             "a manifest with neither waiver nor explore nor map_only opened a binding source")
     for field, value in (("floor_tps", 0), ("rubric_source", None), ("primary_source", "N/A")):
         broken = manifest_shape(dict(_PROMO_RUBRIC, **{field: value}))
-        _require(hint_tag._no_cert_binding_source(broken) is None,
+        _require(ev.no_cert_binding_source(broken) is None,
                  f"explore contract violation {field}={value!r} still opened the binding source")
-    _require(hint_tag._binding_artifact_path(cert_manifest) == cert_rel,
+    _require(ev.binding_artifact_path(cert_manifest) == cert_rel,
              "certificate lost priority over the manifest-declared explore fallback")
-    _require(hint_tag._binding_artifact_path(explore_manifest) == bench_report_rel,
-             "explore path did not bind the bench_report artifact")
-    _require(hint_tag._binding_artifact_path(waiver_manifest) == bench_report_rel,
-             "perf_waiver path stopped binding the bench_report artifact")
-    _require(hint_tag._binding_artifact_path(bare_manifest) is None,
-             "a manifest with no certificate/waiver/explore still produced a binding artifact")
+    _require(ev.binding_artifact_path(map_only_cert_manifest) == cert_rel,
+             "a bound certificate lost priority over the hint_map_only fallback")
+    for label, man in (("explore", explore_manifest), ("perf_waiver", waiver_manifest),
+                       ("hint_map_only", map_only_manifest)):
+        _require(ev.binding_artifact_path(man) == bench_report_rel,
+                 f"{label} path did not bind the bench_report artifact")
+    _require(ev.binding_artifact_path(bare_manifest) is None,
+             "a manifest with no certificate/waiver/explore/map_only still produced a binding artifact")
 
-    # ---- H1 E2E ★ explore(REFUTE·waiver 없음) 가 create→seal→index→verify 전 구간을 통과한다.
-    out = _hint_publish_probe(dict(_PROMO_RUBRIC))
-    for step in ("create", "seal", "catalog", "verify"):
-        proc = out.get(step)
-        _require(proc is not None and proc.returncode == 0,
-                 f"explore-authority hint publication died at `{step}`: "
-                 f"rc={getattr(proc, 'returncode', None)} "
-                 f"stdout={getattr(proc, 'stdout', '')[-700:]!r} "
-                 f"stderr={getattr(proc, 'stderr', '')[-700:]!r}")
-    _require("certificate_ref: ../benchmark/bench_report_selftest.md" in out["tag_object"],
-             f"explore footer did not bind the bench_report: {out['tag_object'][-500:]!r}")
 
-    # ---- H2 E2E 종전 경로 불변: 인증서(PASS) 는 여전히 인증서에 묶인다.
-    out = _hint_publish_probe(None, certificate=_HINT_CERTIFICATE)
-    for step in ("create", "seal", "catalog", "verify"):
-        proc = out.get(step)
-        _require(proc is not None and proc.returncode == 0,
-                 f"certificate hint publication regressed at `{step}`: "
-                 f"rc={getattr(proc, 'returncode', None)} "
-                 f"stderr={getattr(proc, 'stderr', '')[-700:]!r}")
-    _require("certificate_ref: ../benchmark/benchmark_selftest.yaml" in out["tag_object"],
-             "certificate path stopped being the binding artifact")
+def _test_hint_cli_publication() -> None:
+    """H2(인증서 PASS) 전 경로 + AC6 + 음성대조 — `hint.py publish → 저작 → continue → 원격 SHA → 카탈로그` 를 CLI 로.
 
-    # ---- H3 E2E 종전 경로 불변: perf_waiver(REFUTE 사람승인) 도 그대로 bench_report 에 묶인다.
-    #      waiver 는 경고 플래그가 본문에 실려야 하므로 마커를 담은 본문으로 seal 한다.
-    waiver_body = (_HINT_RECIPE_BODY + "\n## 8. comment\n"
-                   "PERF-WARNING: selftest fixture — 성능 기준 미달을 사람이 승인한 합성 픽스처다.\n")
-    out = _hint_publish_probe({"perf_waiver": {
-        "authorized_by": "selftest-operator", "authorized_at_utc": "2026-08-24T00:00:00Z",
-        "instruction": "loop-until-done 중단",
-        "warning_flag": "PERF-WARNING: selftest fixture"}}, recipe_body=waiver_body)
-    for step in ("create", "seal", "catalog", "verify"):
-        proc = out.get(step)
-        _require(proc is not None and proc.returncode == 0,
-                 f"perf_waiver hint publication regressed at `{step}`: "
-                 f"rc={getattr(proc, 'returncode', None)} "
-                 f"stderr={getattr(proc, 'stderr', '')[-700:]!r}")
-    _require("certificate_ref: ../benchmark/bench_report_selftest.md" in out["tag_object"],
-             "perf_waiver footer stopped binding the bench_report")
+    ★ 음성대조(전부 부수효과 0 을 함께 단언): 승인 부재(HINT_APPROVAL_ABSENT · C6 의 정적 순서 검사를 행동으로 보완) ·
+    미저작(HINT_LINT_FAILED · 커밋 전) · 소스 트리 앵커 태그(HINT_ANCHOR_NOT_ON_HINT_BRANCH · verify FAIL · push 거부 ·
+    2026-09-07 native 3종) · PERF-WARNING 없는 waiver 본문(HINT_PERF_WARNING_MISSING) · 관측 없는 셀(HINT_QUALIFICATION_UNOBSERVED ·
+    옛 H4 "근거 검사는 면제되지 않는다"의 후계) · 측정 뒤 바뀐 트리플렛(HINT_TRIPLET_DRIFT · 옛 레시피-lockset 대조의 후계)."""
+    hint = _import_hint_cli()
+    with tempfile.TemporaryDirectory(prefix="hint-cli-e2e.") as tds:
+        td = Path(tds).resolve()
+        with _hint_isolated_env(td):
+            f = _hint_cli_fixture(td, hint, legacy=True)
+            repo, bare = f["repo"], f["bare"]
+            refs0 = _hint_refs(repo)
 
-    # ---- H4 ★ explore 라도 **근거 검사는 면제되지 않는다**: lite 열 없는 리포트는 차단된다.
-    out = _hint_publish_probe(dict(_PROMO_RUBRIC), bench_report_text="# bench_report selftest\n")
-    _require(out["create"].returncode != 0
-             and "HINT_SERVING_EVIDENCE_INSUFFICIENT" in out["create"].stdout,
-             f"explore bypassed the lite-evidence requirement: rc={out['create'].returncode} "
-             f"stdout={out['create'].stdout[-700:]!r}")
+            # ── publish(스캐폴드 · 정지) ──
+            _hint_cli_ok(f, "publish", "publish", "--campaign", _HINT_FX_CAMPAIGN, "--cell", _HINT_FX_CELL,
+                         "--generated-utc", _HINT_FX_PUBLISH_UTC)
+            draft = _hint_single_draft(repo)
+            st = json.loads((draft / "state.json").read_text(encoding="utf-8"))
+            _require(st.get("tag") == _HINT_FX_TAG and st.get("stage") == "scaffolded",
+                     f"publish did not derive the expected v6 name / scaffold state: {st.get('tag')!r} {st.get('stage')!r}")
+            _require(_hint_refs(repo) == refs0, "publish moved a ref (publish makes no tag or branch)")
+            calls = [json.loads(ln) for ln in f["docker_log"].read_text(encoding="utf-8").splitlines() if ln.strip()]
+            ledger = hint.artifacts.LEDGER_IN_IMAGE
+            c1 = _hint_shim_cid(1)
+            probe_ok = [["create", "--pull", "never", "--network", "none", "--entrypoint", "/bin/true", "fixture"],
+                        ["cp", "-L", f"{c1}:{ledger}", "/tmp/x"], ["rm", c1]]
+            vacuous = [
+                [["image", "rm", "fixture:0.9.0-source"]],
+                [["run", "--rm", "--network", "none", "fixture", "sh"]],
+                [["run", "--rm", "--network", "none", "--pull", "never", "--entrypoint", "cat", "fixture", ledger]],
+                [["create", "--network", "none", "--entrypoint", "/bin/true", "fixture"], ["rm", c1]],
+                [["create", "--pull", "never", "--network", "none", "--entrypoint", "/bin/true", "fixture"], ["start", c1], ["rm", c1]],
+                [["cp", "-L", f"{_hint_shim_cid(9)}:{ledger}", "/tmp/x"]],
+                probe_ok[:2],
+                [*probe_ok, ["cp", "-L", f"{c1}:{ledger}", "/tmp/x"]]]
+            _require(_hint_docker_calls_non_starting(probe_ok) == []
+                     and all(_hint_docker_calls_non_starting(v) for v in vacuous),
+                     "the non-starting docker predicate admits a starting/mutating call, an unpulled-never create, a cp from a "
+                     "container it did not create, a container left behind, or rejects the plain probe sequence (vacuous check)")
+            bad_calls = _hint_docker_calls_non_starting(calls)
+            _require(calls and not bad_calls, f"publish made a docker call outside the non-starting probe contract: {bad_calls[:6]}")
+            # 이미지 탐침은 publish 기본이다(2026-09-22 S2 round 3) — 플래그 없는 CLI publish 가 실제로 탐침했는가(옵트인으로 되돌아가면 붉어진다)
+            _require(any(c[:1] == ["create"] for c in calls) and any(c[:1] == ["cp"] for c in calls),
+                     f"flagless publish did not probe the measured image (create+cp absent): {calls[:8]}")
 
-    # ---- H5 ★ 셋 다 부재(REFUTE · waiver ✗ · explore ✗) 는 여전히 차단된다.
-    out = _hint_publish_probe(None)
-    _require(out["create"].returncode != 0
-             and "PROMOTION_GATE_NOT_ELIGIBLE" in out["create"].stdout,
-             f"a REFUTE run with no waiver and no explore authority was allowed to publish: "
-             f"rc={out['create'].returncode} stdout={out['create'].stdout[-700:]!r}")
+            # ── ★승인 부재 = 어느 ref 도 움직이지 않는다(O6 · 제안 전용) ──
+            decl_p = repo / f"campaigns/{_HINT_FX_CAMPAIGN}/campaign.yaml"
+            decl0 = _hint_edit_json(decl_p, lambda d: d.update(hint_targets=[]))
+            proc = _hint_cli(f, "continue", "--draft", str(draft), "--generated-utc", _HINT_FX_CONTINUE_UTC)
+            _require(proc.returncode != 0 and "HINT_APPROVAL_ABSENT" in proc.stderr and _hint_refs(repo) == refs0,
+                     f"continue without a recorded approval was not refused before any ref moved: "
+                     f"rc={proc.returncode} {proc.stderr[-600:]!r}")
+            decl_p.write_bytes(decl0)
 
-    # ---- H6 ★ 계약 §6 — 태그는 **hint 브랜치 페이로드 커밋**을 가리킨다(2026-09-07 · plan_26090715).
-    #      소스 트리 커밋에 봉인하려 하면 `seal` 이 차단해야 한다. 이 검사가 없던 동안 native
-    #      태그 3종이 그대로 나갔고, single 태그가 multi-node 커밋에 앵커되기까지 했다.
-    out = _hint_publish_probe(dict(_PROMO_RUBRIC), anchor_mode="source")
-    _require(out["source_anchor"] != out["payload_anchor"],
-             "fixture built the same commit for source and payload — the H6 control is vacuous")
-    seal = out.get("seal")
-    _require(seal is not None and seal.returncode != 0
-             and "HINT_ANCHOR_NOT_ON_HINT_BRANCH" in (seal.stderr or "") + (seal.stdout or ""),
-             f"a source-tree anchor was sealed as a hint tag: "
-             f"rc={getattr(seal, 'returncode', None)} "
-             f"stderr={getattr(seal, 'stderr', '')[-700:]!r}")
+            # ── ★미저작 = 린트 차단(커밋 전 · hint 브랜치 없음) ──
+            proc = _hint_cli(f, "continue", "--draft", str(draft), "--generated-utc", _HINT_FX_CONTINUE_UTC)
+            _require(proc.returncode != 0 and "HINT_LINT_FAILED" in proc.stderr and _hint_refs(repo) == refs0,
+                     f"an unauthored draft was not refused before the payload commit: rc={proc.returncode} "
+                     f"{proc.stderr[-600:]!r}")
+
+            # ── 저작(프로그램) → lint 0 → continue ──
+            _hint_author(f, draft)
+            proc = _hint_cli(f, "lint", "--draft", str(draft), "--json")
+            _require(proc.returncode == 0 and proc.stdout.strip() == "[]",
+                     f"programmatic authoring left lint issues: {proc.stdout[-900:]!r}")
+
+            # ── ★승격 게이트 거부 = 페이로드 커밋 **전에** 멈춘다(부수효과 전 게이트 · plan_26092119 SPEC §4.2 ③) ──
+            #   승인·린트를 다 통과한 draft 라도 게이트가 거부하면 hint 브랜치 커밋·태그가 하나도 생기지 않아야 한다 — 봉인 앞의
+            #   재확인(두 번째 게이트)만 남으면 거부가 **커밋 뒤**에 와서 태그 없는 페이로드 커밋이 hint 브랜치(되감지 않는다)에
+            #   남는다. publish 의 사전 확인(아래 H5)과는 다른 자리다(2026-09-22 적대 리뷰: 이 자리를 걷어낸 변이가 두 자체검사를
+            #   모두 통과했다). 게이트 JSON 이 stdout 에 그대로(action = hint_finalize · 소비자는 json.loads 한다).
+            man_p = repo / st["manifest"]
+
+            def gate_denied(proc: subprocess.CompletedProcess, action: str) -> bool:
+                try:
+                    g = json.loads(proc.stdout)
+                except ValueError:
+                    return False
+                return (proc.returncode != 0 and isinstance(g, dict) and g.get("allowed") is False
+                        and g.get("action") == action and proc.returncode == g.get("exit_code")
+                        and "RUNTIME_FUNCTIONAL_SMOKE_NOT_PASSED" in (g.get("reason_codes") or []))
+
+            def ineligible(d: dict) -> None:
+                d["runtime"]["functional_smoke_passed"] = False
+
+            man0 = _hint_edit_json(man_p, ineligible)
+            proc = _hint_cli(f, "continue", "--draft", str(draft), "--generated-utc", _HINT_FX_CONTINUE_UTC,
+                             "--remote", "origin")
+            man_p.write_bytes(man0)
+            _require(gate_denied(proc, "hint_finalize") and _hint_refs(repo) == refs0,
+                     f"a gate denial at continue did not stop before the payload commit (or lost its gate JSON): "
+                     f"rc={proc.returncode} stdout={proc.stdout[-500:]!r} stderr={proc.stderr[-400:]!r}")
+
+            _hint_cli_ok(f, "continue", "continue", "--draft", str(draft), "--generated-utc", _HINT_FX_CONTINUE_UTC,
+                         "--remote", "origin")
+
+            tag_ref = f"refs/tags/{_HINT_FX_TAG}"
+            local_obj = _hint_git(repo, "rev-parse", tag_ref)
+            _require(_hint_remote_ref(bare, tag_ref) == local_obj,
+                     "remote tag object differs from the locally sealed tag object (AC9)")
+            _require(_hint_remote_ref(bare, "refs/heads/hint") is None,
+                     "publish pushed the hint branch -- the publication push is the exact tag refspec only (O2)")
+            tip = _hint_git(repo, "rev-parse", "refs/heads/hint")
+            body = _hint_tag_body(repo, _HINT_FX_TAG)
+            _require(f"anchor: {tip}" in body and "certificate_ref: ../benchmark/benchmark_" in body,
+                     f"tag footer does not bind the hint-branch payload commit + certificate: {body[-600:]!r}")
+            _require(_hint_git(repo, "log", "-1", "--format=%an <%ae>|%cn <%ce>", tip)
+                     == f"{hint.branch.synthetic_identity()}|{hint.branch.synthetic_identity()}",
+                     "payload commit is not authored by the synthetic identity (PII · branch.commit_payload)")
+            tree = _hint_git(repo, "ls-tree", "--name-only", tip).splitlines()
+            _require({"README.md", "00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md",
+                      "PAYLOAD.json", "LINEAGE.json", "PROVENANCE.json"} <= set(tree) and ".claude" not in tree,
+                     f"payload tree is not the v6 allowlist: {tree}")
+            idx = json.loads((repo / "hints/index.json").read_text(encoding="utf-8"))
+            rows = {h.get("tag"): h for h in idx.get("hints", []) if isinstance(h, dict)}
+            _require((rows.get(_HINT_FX_TAG) or {}).get("grammar") == "v6",
+                     f"catalog did not derive a v6 row for the new tag: {rows.get(_HINT_FX_TAG)!r}")
+            legacy = f["legacy"]
+            _require(all(legacy[k] in rows for k in ("old", "remote_only", "lightweight")),
+                     f"AC6: legacy/foreign tags did not coexist as catalog rows: {sorted(rows)}")
+            _require(rows[legacy["remote_only"]].get("object") == hint.catalog.OBJECT_ABSENT_LOCAL,
+                     f"AC6: a remote-only tag must be recorded as absent-local (no synthesis): {rows[legacy['remote_only']]!r}")
+            phase = json.loads((repo / f"campaigns/{_HINT_FX_CAMPAIGN}/phases/main/publish.status.json")
+                               .read_text(encoding="utf-8"))
+            _require(phase.get("state") == "done"
+                     and (phase.get("proof") or {}).get("source") == f"{tag_ref}@{local_obj}",
+                     f"campaign publish phase was not recorded with the remote SHA proof: {phase!r}")
+            proc = _hint_cli_ok(f, "verify", "verify", "--tag", _HINT_FX_TAG)
+            _require("PASS" in proc.stdout, f"verify did not report PASS: {proc.stdout[-400:]!r}")
+
+            # ── ★단독 verify·push 도 게이트를 먼저 묻는다(HINT_ACTION_FOR_CMD 의 나머지 두 액션 · 거부 = 게이트 JSON · push 0) ──
+            #   footer 의 manifest_ref 로 묻는다. 게이트가 거부하면 verify 는 판정하지 않고, push 는 dry-run 조차 하지 않는다.
+            remote_obj0 = _hint_remote_ref(bare, tag_ref)
+            man0 = _hint_edit_json(man_p, ineligible)
+            v_proc = _hint_cli(f, "verify", "--tag", _HINT_FX_TAG)
+            p_proc = _hint_cli(f, "push", "--tag", _HINT_FX_TAG, "--remote", "origin", "--apply")
+            man_p.write_bytes(man0)
+            _require(gate_denied(v_proc, "hint_verify"),
+                     f"standalone verify ran without asking the gate (hint_verify): rc={v_proc.returncode} "
+                     f"stdout={v_proc.stdout[-400:]!r}")
+            _require(gate_denied(p_proc, "hint_push") and _hint_remote_ref(bare, tag_ref) == remote_obj0
+                     and '"refspec"' not in p_proc.stdout,
+                     f"standalone push ran without asking the gate (hint_push): rc={p_proc.returncode} "
+                     f"stdout={p_proc.stdout[-400:]!r}")
+
+            # ── ★소스 트리 커밋에 봉인한 태그(2026-09-07 native 3종) — verify FAIL · push 거부 · 원격 불변 ──
+            forged = _HINT_FX_TAG.replace("-spec2-", "-spec3-")
+            head = _hint_git(repo, "rev-parse", "HEAD")
+            fields = {"version": hint.tag.FOOTER_VERSION, "tag": forged, "topology": st["topology_label"],
+                      "anchor": head, "manifest_ref": st["manifest"],
+                      "certificate_ref": hint.tag.parse_annotation(hint.tag.read_tag(repo, _HINT_FX_TAG)["body"])
+                      ["footer"]["certificate_ref"]}
+            message = hint.tag.annotation(hint.template.brief(draft / "payload"), fields)
+            # 봉인과 같은 합성 tagger·주입 시각·정상 footer 로 짓는다 — 태그 오브젝트 자체는 흠이 없고 결함은 **앵커**(와 그 귀결:
+            #   소스 커밋의 트리·신원)다. 판정은 앵커 사유코드 자체를 요구한다(다른 사유로 FAIL 해도 초록이 되지 않게 ·
+            #   2026-09-22 변이 검사: 앵커 검사를 걷어낸 사본은 다른 사유로만 FAIL 하고 이 대조가 그것을 잡는다).
+            tagger = {**os.environ, "GIT_COMMITTER_NAME": hint.core.SYNTHETIC_NAME,
+                      "GIT_COMMITTER_EMAIL": hint.core.SYNTHETIC_EMAIL,
+                      "GIT_COMMITTER_DATE": hint.core.git_date(_HINT_FX_CONTINUE_UTC)}
+            proc = subprocess.run(["git", "-C", str(repo), "tag", "-a", "-F", "-", "--cleanup=verbatim", forged, head],
+                                  input=message, capture_output=True, text=True, timeout=60, env=tagger)
+            _require(proc.returncode == 0, f"fixture could not create the source-anchored tag: {proc.stderr[-300:]!r}")
+            proc = _hint_cli(f, "verify", "--tag", forged)
+            _require(proc.returncode != 0 and "HINT_ANCHOR_NOT_ON_HINT_BRANCH" in proc.stdout,
+                     f"a tag sealed on a source-tree commit passed verify: rc={proc.returncode} {proc.stdout[-600:]!r}")
+            proc = _hint_cli(f, "push", "--tag", forged, "--remote", "origin", "--apply")
+            # 거부 사유도 본다: push 앞 로컬 검증(HINT_PUSH_UNVERIFIED)이 앵커 사유로 막았는가 — rc≠0 만 보면 무관한 실패(적재 오류 등)도
+            #   "밀지 않았다" 로 초록이 된다(2026-09-22 적대 리뷰).
+            _require(proc.returncode != 0 and _hint_remote_ref(bare, f"refs/tags/{forged}") is None
+                     and "HINT_PUSH_UNVERIFIED" in proc.stderr and "HINT_ANCHOR_NOT_ON_HINT_BRANCH" in proc.stderr,
+                     f"a source-anchored tag was pushed (or refused for an unrelated reason): rc={proc.returncode} "
+                     f"{proc.stderr[-600:]!r}")
+
+            # ── ★waiver 가 있는데 본문에 PERF-WARNING 이 없다 = 린트 차단(옛 hint_tag._require_perf_warning 의 이관) ──
+            #   린트는 draft 의 work-manifest(state.manifest)를 읽는다 — 그 manifest 에 사람 waiver 가 **있다고** 두고 CLI lint 를
+            #   다시 돈다(쌍: 원 manifest 로는 0건). 본문은 facts 에서 기계 렌더되므로 manifest 만 바뀐 상태는 경고 없는 waiver 다.
+            def lint_codes_now() -> set:
+                out = _hint_cli(f, "lint", "--draft", str(draft), "--json")
+                try:
+                    return {i["code"] for i in json.loads(out.stdout)}
+                except (ValueError, TypeError, KeyError):
+                    raise RuntimeSelftestFailure(f"hint.py lint --json produced no JSON: {out.stderr[-500:]!r}")
+
+            _require(lint_codes_now() == set(), "sealed draft no longer lints clean against its own manifest")
+            man0 = _hint_edit_json(man_p, lambda d: d.setdefault("benchmark", {}).update(perf_waiver={
+                "authorized_by": "selftest-operator", "authorized_at_utc": "2026-09-07T00:00:00Z",
+                "instruction": "loop-until-done 중단", "warning_flag": "PERF-WARNING: selftest fixture"}))
+            codes = lint_codes_now()
+            man_p.write_bytes(man0)
+            _require(hint.template.PERF_WARNING_MARKER == "PERF-WARNING" and "HINT_PERF_WARNING_MISSING" in codes,
+                     f"a perf_waiver without the PERF-WARNING body marker was accepted: {sorted(codes)}")
+
+            # ── ★관측 없는 셀 = publish 가 첫 쓰기 전에 막는다(발행 자격 = 관측 · X8) ──
+            ph = repo / f"output/multi/benchlog/sweep_{_HINT_FX_CELL}/level_01/post_health_{_HINT_FX_CELL}.json"
+            ph_bytes = ph.read_bytes()
+            ph.unlink()
+            tree0, refs1 = hint._fx_tree(repo), _hint_refs(repo)
+            proc = _hint_cli(f, "publish", "--campaign", _HINT_FX_CAMPAIGN, "--cell", _HINT_FX_CELL,
+                             "--generated-utc", "2026-01-02T10:00:00Z", "--out", str(td / "unobserved"))
+            _require(proc.returncode != 0 and "HINT_QUALIFICATION_UNOBSERVED" in proc.stderr
+                     and hint._fx_tree(repo) == tree0 and _hint_refs(repo) == refs1
+                     and not (td / "unobserved").exists(),
+                     f"a cell without observed health+inference was not refused before any write: "
+                     f"rc={proc.returncode} {proc.stderr[-500:]!r}")
+            ph.write_bytes(ph_bytes)
+
+            # ── ★측정 뒤 바뀐 트리플렛 = 이름을 짓지 않는다(이름은 측정한 것에서 짓는다 · 읽기 전용 `name`) ──
+            yaml_p = repo / f"output/multi/configs/{_HINT_FX_CELL}.yaml"
+            y0 = yaml_p.read_bytes()
+            yaml_p.write_text(y0.decode("utf-8").replace("max-model-len: 4096", "max-model-len: 8192"), encoding="utf-8")
+            proc = _hint_cli(f, "name", "--campaign", _HINT_FX_CAMPAIGN, "--cell", _HINT_FX_CELL)
+            _require(proc.returncode != 0 and "HINT_TRIPLET_DRIFT" in proc.stderr,
+                     f"a serving triplet changed after measurement still yielded a name: rc={proc.returncode} "
+                     f"{proc.stdout[-200:]!r} {proc.stderr[-400:]!r}")
+            yaml_p.write_bytes(y0)
+            proc = _hint_cli_ok(f, "name", "name", "--campaign", _HINT_FX_CAMPAIGN, "--cell", _HINT_FX_CELL)
+            _require(proc.stdout.splitlines()[:1] == [_HINT_FX_TAG],
+                     f"read-only `name` disagrees with the published name: {proc.stdout[:200]!r}")
+
+
+def _hint_fx_refute(repo: Path, authority: str) -> None:
+    """REFUTE 런 모양 — 인증서는 PASS 때만 발행되므로 셀 포인터에 없다 · 판정기 산출(verdict.json)은 REFUTE + 루브릭 권한."""
+    sweep = repo / f"output/multi/benchlog/sweep_{_HINT_FX_CELL}"
+    (sweep / "verdict.json").write_text(json.dumps({"verdict": "REFUTE", "rubric": {
+        "authority": authority, "floor": 8.5, "ratio_M_over_primary": 0.9,
+        "source": "expected_achievable(roofline×MBU)"}}), encoding="utf-8")
+    _hint_edit_json(repo / f"campaigns/{_HINT_FX_CAMPAIGN}/evidence_pointers.json",
+                    lambda d: d.update(pointers=[p for p in d["pointers"] if p.get("kind") != "certificate"]))
+
+
+def _test_hint_cli_refute_paths() -> None:
+    """H1 · H5 — 인증서가 구조적으로 없는 REFUTE 런이 신 CLI 에서 어디로 가는가.
+
+    H1 ★ explore(사람 HITL 탐색 · waiver 없음)는 publish→continue→push 까지 **완주**하고 footer 는 bench_report 에 묶인다
+       (2026-08-24 죽은 코드의 hint 평면 쌍둥이 — 승격 게이트만 열고 봉인에서 다시 죽던 형태가 돌아오지 않았는가).
+    H5 ★ weak 권한 REFUTE(waiver ✗ · explore ✗)는 publish 의 게이트 사전 확인에서 멈춘다 — 게이트 JSON 이 stdout 그대로,
+       태그·브랜치·draft 상태 부수효과 0(가드를 끈 것이 아니라 통로를 이었다는 증거는 H1 과 이 H5 의 짝이다).
+    `--node cluster` 를 명시한다: 인증서가 없는 런은 측정 노드(measured_node)를 실어 줄 문서가 없어 노드 축이 배정(main)으로
+    해소되고, 그러면 cluster 로 등록된 리포트 포인터가 걸러져 스윕이 조인되지 않는다(2026-09-22 이 시험의 첫 실행 실측 ·
+    evidence 소유자에게 보고 — 측정 노드는 사람이 명시한다)."""
+    hint = _import_hint_cli()
+    with tempfile.TemporaryDirectory(prefix="hint-cli-refute-weak.") as tds:
+        td = Path(tds).resolve()
+        with _hint_isolated_env(td):
+            f = _hint_cli_fixture(td, hint, legacy=False)
+            repo = f["repo"]
+            _hint_fx_refute(repo, "weak")
+            refs0 = _hint_refs(repo)
+            proc = _hint_cli(f, "publish", "--campaign", _HINT_FX_CAMPAIGN, "--cell", _HINT_FX_CELL,
+                             "--node", "cluster", "--generated-utc", _HINT_FX_PUBLISH_UTC)
+            try:
+                gate = json.loads(proc.stdout)
+            except ValueError:
+                gate = {}
+            _require(proc.returncode != 0 and gate.get("allowed") is False
+                     and "PROMOTION_GATE_NOT_ELIGIBLE" in (gate.get("reason_codes") or [])
+                     and gate.get("action") == "hint_finalize",
+                     f"a weak-authority REFUTE run without a waiver passed the publish gate pre-check: "
+                     f"rc={proc.returncode} stdout={proc.stdout[-600:]!r} stderr={proc.stderr[-400:]!r}")
+            _require(_hint_refs(repo) == refs0 and not list((repo / "hints/.drafts").glob("*/state.json")),
+                     "a gate denial at publish left a tag/branch or a scaffolded draft behind")
+
+    with tempfile.TemporaryDirectory(prefix="hint-cli-refute-explore.") as tds:
+        td = Path(tds).resolve()
+        with _hint_isolated_env(td):
+            f = _hint_cli_fixture(td, hint, legacy=False)
+            repo = f["repo"]
+            _hint_fx_refute(repo, "explore")
+            draft, st = _hint_publish_and_author(f, "--cell", _HINT_FX_CELL, "--node", "cluster")
+            man = json.loads((repo / st["manifest"]).read_text(encoding="utf-8"))
+            _require((man.get("benchmark") or {}).get("verdict") == "REFUTE"
+                     and (man.get("benchmark") or {}).get("rubric_authority") == "explore"
+                     and not ((man.get("evidence") or {}).get("certificate") or {}).get("path"),
+                     f"fixture did not produce an explore REFUTE manifest without a certificate: {man.get('benchmark')!r} "
+                     f"{(man.get('evidence') or {}).get('certificate')!r}")
+            _hint_cli_ok(f, "continue(explore)", "continue", "--draft", str(draft),
+                         "--generated-utc", _HINT_FX_CONTINUE_UTC, "--remote", "origin")
+            body = _hint_tag_body(repo, st["tag"])
+            _require("certificate_ref: ../benchmark/bench_report_" in body,
+                     f"explore footer did not bind the bench_report: {body[-500:]!r}")
+            _require(_hint_remote_ref(f["bare"], f"refs/tags/{st['tag']}")
+                     == _hint_git(repo, "rev-parse", f"refs/tags/{st['tag']}"),
+                     "explore-authority tag did not reach the remote with the sealed object")
+
+
+def _render_lite_report(raw_json: Path) -> str:
+    """**배포되는 렌더러**(`render_report.py --lite-only`)가 lite raw 로 낸 경량 리포트 본문.
+
+    픽스처 문자열을 쓰지 않는 이유(2026-09-14): lite 통로의 합격 기준은 "경량 리포트**만으로** 발행이 닫힌다" 이고, 그 리포트는
+    렌더러가 만든다 — 손으로 쓴 리포트로 초록이면 렌더러와 발행기 사이의 계약(측정 구성 표 · lite 지표 표 · `mode: lite` ·
+    `생성일` 조인 키 · 측정 환경 표)이 갈라져도 모른다(픽스처가 실물보다 좁다). 값은 합성이며 GPU·docker·서빙에 닿지 않는다."""
+    env = {k: v for k, v in os.environ.items() if k != "EASY_VLLM_VERSION"}
+    proc = subprocess.run([sys.executable, "-B", str(CLAUDE_DIR.parent / _RENDER_REPORT_REL), "--lite-only",
+                           "--lite-raw-json", str(raw_json), "--stdout"],
+                          capture_output=True, text=True, timeout=120, env=env)
+    _require(proc.returncode == 0 and proc.stdout.strip(),
+             f"render_report --lite-only failed on a synthetic lite raw: rc={proc.returncode} "
+             f"stderr={proc.stderr[-600:]!r}")
+    return proc.stdout
+
+
+def _hint_fx_lite_cell(repo: Path, fx: dict, *, with_report_pointer: bool) -> None:
+    """lite 만 잰 셀(c1-l · TP=2 → cluster 축) — 트리플렛 · lite raw/warm/cold(렌더러 입력이자 발행 자격의 조인 원천) ·
+    렌더러가 쓴 경량 리포트 · 배정·사전승인 · 셀 파일 · 포인터. 계보 문서는 c1-a 의 것을 공유한다(같은 캠페인의 서사)."""
+    cell = _HINT_FX_LITE_CELL
+    out = repo / "output/multi"
+    (out / f"configs/{cell}.yaml").write_text(
+        "# lite 셀\nmodel: /app/quant_models/Org/Fixture-Model-NVFP4\ntensor-parallel-size: 2\nmax-model-len: 2048\n"
+        "kv-cache-dtype: auto\nenforce-eager: true\n", encoding="utf-8")
+    (out / f"configs/{cell}.sh").write_text('#!/bin/bash\nvllm serve --config "/app/configs/${CONFIG_FILE}.yaml"\n',
+                                           encoding="utf-8")
+    # 소스빌드 좌표(VLLM_REPO·VLLM_REF)는 셀 env 에 둔다 — 스윕 meta(측정 digest)가 없는 lite 셀은 이미지 history 로 빌드 입력을
+    #   관측할 자리가 없고, 릴리스 모양 ref 가 업스트림 태그인지는 VLLM_REPO 가 판정한다(D-h · 없으면 이름을 짓지 않는다).
+    (out / f"envs/.env.{cell}").write_text(f"CONFIG_FILE={cell}\nIMAGE_TAG=fixture:0.9.0-source\n"
+                                           "BUILD_DOCKERFILE=Dockerfile.source-build\n"
+                                           "VLLM_REPO=https://github.com/vllm-project/vllm.git\nVLLM_REF=v0.9.0\n"
+                                           "VLLM_PLE_MMAP=1\n", encoding="utf-8")
+    bl = out / "benchlog"
+    warm, cold, elog = bl / f"lite_warm_{cell}.json", bl / f"lite_cold_{cell}.json", bl / f"lite_engine_{cell}.log"
+    warm.write_text(json.dumps({"completed": 3, "failed": 0, "median_tpot_ms": 81.3, "output_throughput": 12.3}),
+                    encoding="utf-8")
+    cold.write_text(json.dumps({"completed": 1, "failed": 0, "median_ttft_ms": 140.0}), encoding="utf-8")
+    # 엔진 자기보고 한 줄 — 렌더러의 vllm_version 은 env > IMAGE_TAG(`easy-vllm:X.Y.Z` 만) > **엔진 로그 자기보고** 순이다.
+    #   픽스처 이미지 태그는 `easy-vllm:` 모양이 아니므로 측정값(엔진 로그)이 이긴다 — 실물 lite 셀과 같은 출처다.
+    elog.write_text("INFO Starting vLLM API server v0.9.0\nINFO GPU KV cache size: 54,192 tokens\n"
+                    "INFO Available KV cache memory: 8.5 GiB\n", encoding="utf-8")
+    raw = bl / f"lite_raw_{cell}.json"
+    raw.write_text(json.dumps({
+        "topology": "multi", "burst_n": 3, "config_name": cell, "measured_utc": _HINT_FX_LITE_MEASURED_UTC,
+        "backend": "openai", "endpoint": "/v1/completions", "config_yaml": str(out / f"configs/{cell}.yaml"),
+        "env_file": str(out / f"envs/.env.{cell}"), "manifest": str(out / "manifest.yaml"),
+        "bench_warm_json": str(warm), "bench_cold_json": str(cold), "engine_log": str(elog),
+        "nodes": [{"role": "main", "gpu_smi_used_mib": None, "gpu_smi_total_mib": None,
+                   "ram_total_kib": 128000000, "ram_avail_kib": 64000000}]}), encoding="utf-8")
+    text = _render_lite_report(raw)
+    _require("mode: lite" in text and "| bench_mode | lite |" in text
+             and f"생성일 {_HINT_FX_LITE_MEASURED_UTC}" in text,
+             f"real lite report lost its mode header / measurement-config row / join key: {text[:700]!r}")
+    (repo / _HINT_FX_LITE_REPORT).write_text(text, encoding="utf-8")
+
+    def decl(d: dict) -> None:
+        d["assignments"]["main"].append({"cell": cell, "mode": "AUTO"})
+        d["hint_targets"][0]["cells"].append(cell)
+
+    camp = repo / f"campaigns/{_HINT_FX_CAMPAIGN}"
+    _hint_edit_json(camp / "campaign.yaml", decl)
+    (camp / f"cells/{cell}").mkdir(parents=True, exist_ok=True)
+    (camp / f"cells/{cell}/cell.status.json").write_text(json.dumps({"cell_id": cell, "cell_outcome": "measured"}),
+                                                          encoding="utf-8")
+    (camp / f"cells/{cell}/lockset.json").write_text(json.dumps({"id": cell, "provenance": "hand-authored"}),
+                                                      encoding="utf-8")
+    shutil.copy2(camp / f"cells/{_HINT_FX_CELL}/config.yaml", camp / f"cells/{cell}/config.yaml")
+    ptrs = [{"kind": "devlog", "path": fx["devlog"], "cell_id": cell, "node_id": "main"},
+            {"kind": "testlog", "path": fx["testlog"], "cell_id": cell, "node_id": "main"}]
+    if with_report_pointer:
+        ptrs.append({"kind": "bench_report", "path": _HINT_FX_LITE_REPORT, "cell_id": cell, "node_id": "cluster"})
+    _hint_edit_json(camp / "evidence_pointers.json", lambda d: d["pointers"].extend(ptrs))
 
 
 def _test_hint_map_only_promotion() -> None:
-    """`hint_map_only` — 계약 v5 §3 의 '결손 기재 후 발행' 이 **도달 가능한** 유일한 통로.
+    """`hint_map_only` — 계약 v5 §3 의 '결손 기재 후 발행' 이 **도달 가능한** 유일한 통로(게이트 평면).
 
     2026-09-07 신설(plan_26090715 §4.6). 종전에는 계약이 "§3·§4·§5 는 결손 기재 후 발행" 이라
-    적었는데 코드에서 도달 불가였다 — hint_tag 가 요구하는 promotion-ready manifest 가
+    적었는데 코드에서 도달 불가였다 — 발행기가 요구하는 promotion-ready manifest 가
     full_benchmark ∧ mode=full ∧ verdict=PASS ∧ 증거 5종일 때만 나왔기 때문이다. 그래서 사람이
     vault 사본을 만들어 우회했다(D3 위반의 형태). 이 시험은 **문이 실제로 열리는지**와
     **열린 문으로 성능 주장이 새어 나가지 않는지**를 함께 본다.
+    본문 마커(⑥ OBSERVATION-ONLY · PERF-WARNING)는 게이트가 아니라 발행기 린트(`hintlib.template` · 00-hint.md)의 소관이라
+    2026-09-22 부터 아래 CLI 시험(`_test_hint_map_only_publication` · `_test_hint_cli_publication`)이 친다(평면 분리).
     """
     def _verify(root: Path, manifest: Path) -> dict:
-        cp = subprocess.run([sys.executable, str(root / ".claude/policies/runtime/completion_gate.py"),
-                             "verify", "--manifest", str(manifest)],
+        cp = subprocess.run([sys.executable, str(RUNTIME_DIR / "completion_gate.py"),
+                             "verify", "--manifest", str(manifest), "--repo-root", str(root)],
                             cwd=str(root), capture_output=True, text=True, timeout=120)
         try:
             return json.loads(cp.stdout)
@@ -947,7 +1267,7 @@ def _test_hint_map_only_promotion() -> None:
 
     with tempfile.TemporaryDirectory(prefix="hint-map-only-selftest.") as td:
         root = Path(td).resolve()
-        _hint_repo(root)
+        (root / ".git").mkdir()
         # ① 인증서·bench_report·simlog **없이** 지도 발행 통로가 열린다.
         m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC),
                                       task_class="hint_map_only",
@@ -966,7 +1286,7 @@ def _test_hint_map_only_promotion() -> None:
                  and "HINT_MAP_FAIL_REQUIRES_WAIVER" in (out.get("reason_codes") or []),
                  f"a FAIL verdict reached promotion through hint_map_only without a waiver: {out}")
 
-        # ③ waiver 4필드가 있으면 열린다 — 대가는 본문 PERF-WARNING 이고 그것은 hint_tag 가 집행한다.
+        # ③ waiver 4필드가 있으면 열린다 — 대가는 본문 PERF-WARNING 이고 그것은 hintlib.template 린트가 집행한다.
         m = _write_promotion_manifest(
             root, "FAIL", dict(_PROMO_RUBRIC, perf_waiver={
                 "authorized_by": "selftest-operator", "authorized_at_utc": "2026-09-07T00:00:00Z",
@@ -994,162 +1314,108 @@ def _test_hint_map_only_promotion() -> None:
     # ⑦ ★음성대조 종결을 말하지 않는 simlog vault 는 차단된다(2026-09-07 · 유예 결함 ⑥).
     with tempfile.TemporaryDirectory(prefix="simlog-unterminated-selftest.") as td:
         root = Path(td).resolve()
-        _hint_repo(root)
+        (root / ".git").mkdir()
         m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC))
         vault = root / "docs" / "simlog" / "selftest_run"
         (vault / "run_summary.json").unlink()          # 종결 기록만 뺀다 — 로그 파일은 그대로
-        cp = subprocess.run([sys.executable, str(root / ".claude/policies/runtime/completion_gate.py"),
-                             "verify", "--manifest", str(m)],
-                            cwd=str(root), capture_output=True, text=True, timeout=120)
-        out = json.loads(cp.stdout) if cp.stdout.strip().startswith("{") else {}
+        out = _verify(root, m)
         _require("EVIDENCE_SIMLOG_RUN_UNTERMINATED" in (out.get("reason_codes") or []),
                  f"a simlog vault with no terminal record still passed the evidence gate: {out}")
         # bench vault 장르는 run_summary 없이도 통과해야 한다(장르를 섞으면 정상 산출물이 막힌다)
         (vault / "level_01_measured.json").write_text(
             json.dumps({"measurement_ok": True, "decode_tps": 1.0}) + "\n", encoding="utf-8")
-        cp = subprocess.run([sys.executable, str(root / ".claude/policies/runtime/completion_gate.py"),
-                             "verify", "--manifest", str(m)],
-                            cwd=str(root), capture_output=True, text=True, timeout=120)
-        out = json.loads(cp.stdout) if cp.stdout.strip().startswith("{") else {}
+        out = _verify(root, m)
         _require("EVIDENCE_SIMLOG_RUN_UNTERMINATED" not in (out.get("reason_codes") or []),
                  f"a bench-genre vault was blocked by a trial-genre rule: {out}")
 
-    # ⑥ 본문 마커 집행은 hint_tag 소관이다(평면 분리) — 그 함수가 실재하고 발화하는지 본다.
-    hint_tag = _import_hint_tag()
-    raised = None
-    try:
-        hint_tag._require_map_only_observation(
-            "selftest", {"task_class": "hint_map_only", "identity": {}}, "본문에 마커가 없다")
-    except SystemExit as exc:
-        raised = exc
-    _require(raised is not None,
-             "hint_map_only body without the OBSERVATION-ONLY marker was accepted")
-    hint_tag._require_map_only_observation(
-        "selftest", {"task_class": "hint_map_only", "identity": {}},
-        f"§5 {hint_tag.MAP_ONLY_MARKER} 관측 게재")
-    hint_tag._require_map_only_observation(
-        "selftest", {"task_class": "full_benchmark", "identity": {}}, "마커 없음(무관)")
-
-
-def _real_lite_report_text(workdir: Path) -> str:
-    """**배포되는 렌더러**(`render_report.py --lite-only`)가 합성 lite raw 로 낸 경량 리포트 본문.
-
-    픽스처 문자열(`_LITE_BENCH_REPORT`)을 쓰지 않는 이유: lite 통로의 합격 기준은 "경량 리포트**만으로**
-    HINT_MISSING_LITE 가 발화하지 않는다" 이고, 그 리포트는 렌더러가 만든다 — 손으로 쓴 리포트로 초록이면 렌더러와
-    발행기 사이의 계약(측정 구성 표 · lite 지표 표 · `mode: lite`)이 갈라져도 모른다(픽스처가 실물보다 좁다).
-    값은 합성이며 GPU·docker·서빙에 닿지 않는다(provenance: lite raw 의 파일은 이 함수가 쓴다)."""
-    workdir.mkdir(parents=True, exist_ok=True)
-    files = {
-        "warm.json": json.dumps({"completed": 3, "failed": 0, "median_tpot_ms": 38.46, "output_throughput": 25.9}),
-        "cold.json": json.dumps({"completed": 1, "failed": 0, "median_ttft_ms": 120.0}),
-        "engine.log": "INFO GPU KV cache size: 154,192 tokens\nINFO Available KV cache memory: 20.5 GiB\n",
-        "cfg.yaml": "model: /models/selftest-org/selftest-model\nmax-model-len: 32768\n",
-        "env": "IMAGE_TAG=easy-vllm:0.0.0-selftest\nSERVING_MODEL_NAME=selftest-model\n",
-        "manifest.yaml": 'gpu_model: "NVIDIA GB10"\n',
-    }
-    for name, text in files.items():
-        (workdir / name).write_text(text, encoding="utf-8")
-    raw = {"topology": "single", "burst_n": 3, "config_name": _HINT_CELL, "measured_utc": "2026-01-01T00:00:00Z",
-           "backend": "openai", "endpoint": "/v1/completions", "config_yaml": str(workdir / "cfg.yaml"),
-           "env_file": str(workdir / "env"), "manifest": str(workdir / "manifest.yaml"),
-           "bench_warm_json": str(workdir / "warm.json"), "bench_cold_json": str(workdir / "cold.json"),
-           "engine_log": str(workdir / "engine.log"),
-           "nodes": [{"role": "main", "gpu_smi_used_mib": None, "gpu_smi_total_mib": None,
-                      "ram_total_kib": 128000000, "ram_avail_kib": 64000000}]}
-    (workdir / "raw.json").write_text(json.dumps(raw), encoding="utf-8")
-    env = {k: v for k, v in os.environ.items() if k != "EASY_VLLM_VERSION"}
-    proc = subprocess.run([sys.executable, "-B", str(CLAUDE_DIR.parent / _RENDER_REPORT_REL), "--lite-only",
-                           "--lite-raw-json", str(workdir / "raw.json"), "--stdout"],
-                          capture_output=True, text=True, timeout=120, env=env)
-    _require(proc.returncode == 0 and proc.stdout.strip(),
-             f"render_report --lite-only failed on a synthetic lite raw: rc={proc.returncode} "
-             f"stderr={proc.stderr[-600:]!r}")
-    return proc.stdout
-
-
-# 지도 발행 본문 — 린터 L1~L5 를 통과하는 공용 본문에 §5 관측 마커를 싣는다(map_only 대가 · hint_tag 가 집행).
-_HINT_MAP_ONLY_RECIPE_BODY = _HINT_RECIPE_BODY.replace(
-    "## 6. 재검증",
-    "OBSERVATION-ONLY — 이 절의 수치는 lite 스냅샷 관측이며 baseline·권고가 아니다(합성 픽스처).\n\n## 6. 재검증")
-_HINT_MAP_ONLY_BENCHMARK = {"mode": "lite", "verdict": None}
-_HINT_MAP_ONLY_LOCKSET = {"id": _HINT_CELL, "provenance": "explorer-phase2", "quantization": "fp8",
-                          "max_model_len": 32768, "kv_cache_quant": "fp8"}
-
 
 def _test_hint_map_only_publication() -> None:
-    """O5 — lite 만 잰 셀의 hint 가 격리 원격에서 create→seal→catalog→verify 를 **완주**한다(plan_26091407 §4.5 · §7 O5).
+    """O5 — lite 만 잰 셀의 hint 가 신 CLI 전 경로를 **완주**한다(plan_26091407 §4.5 · §7 O5 → plan_26092119 S4 재작성).
 
-    2026-09-14 신설. 종전에는 `hint_map_only` 가 승격 게이트는 통과하는데 seal 이 HINT_CERTIFICATE_EVIDENCE_MISSING 으로
-    죽었다(audit_26091323 §1 · work-manifest 13건 전부 · 이 통로로 봉인된 태그 0). 이 시험은 **실물 순서**를 밟는다:
-    배포되는 render_report 가 경량 리포트를 쓰고 → 실제 hint_collect 가 PAYLOAD(결손 · 측정 구성)를 짓고 → 그 페이로드
-    커밋에 seal 한다(셀 lockset 과 레시피 대조) → 격리 bare 원격에 push → 카탈로그 파생 → verify.
-    음성대조: 경량 리포트가 바인딩되지 않은 map_only 는 seal 이 여전히 거부 · lockset 선언과 어긋난 이름은 거부.
-    """
-    with tempfile.TemporaryDirectory(prefix="lite-report-selftest.") as td:
-        lite_text = _real_lite_report_text(Path(td))
-    _require("mode: lite" in lite_text and "| bench_mode | lite |" in lite_text,
-             f"real lite report lost its mode header / measurement-config row: {lite_text[:600]!r}")
+    2026-09-14 신설 사유(HIST): 종전에는 `hint_map_only` 가 승격 게이트는 통과하는데 seal 이 HINT_CERTIFICATE_EVIDENCE_MISSING
+    으로 죽었다(audit_26091323 §1 · work-manifest 13건 전부 · 이 통로로 봉인된 태그 0). 2026-09-22 부터 **실물 순서 그대로**
+    CLI 로 밟는다: 배포되는 render_report 가 경량 리포트를 쓰고 → `hint.py publish --node cluster` 가 발행기를 구동해
+    hint_map_only + publish-lite-report 로 묶고(손 JSON 0) → 저작 → `hint.py continue` 가 봉인·push·카탈로그까지.
+    ★ 음성대조: 경량 리포트가 셀에 없으면 publish 가 첫 쓰기 전에 막힌다(자격 조인 키·묶을 계측 산출물 없음 · 부수효과 0) ·
+    00-hint.md 에서 OBSERVATION-ONLY 마커를 걷으면 린트가 HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING 으로 막는다(옛 ⑥ 의 이관)."""
+    hint = _import_hint_cli()
+    with tempfile.TemporaryDirectory(prefix="hint-cli-lite.") as tds:
+        td = Path(tds).resolve()
+        with _hint_isolated_env(td):
+            f = _hint_cli_fixture(td, hint, legacy=False)
+            repo = f["repo"]
+            # ★ 리포트 포인터 없는 lite 셀 — 묶을 계측 산출물이 없고, lite 자격의 조인 키(리포트 `생성일` = lite raw 의
+            #   measured_utc)도 없다 → 발행 자격이 관측되지 않아 첫 쓰기 전에 거부(부수효과 0 · 옛 "경량 리포트 미바인딩 map_only
+            #   봉인 거부" 의 후계 — 이제는 봉인까지 가지 않고 publish 입구에서 멈춘다)
+            _hint_fx_lite_cell(repo, f["fx"], with_report_pointer=False)
+            tree0, refs0 = hint._fx_tree(repo), _hint_refs(repo)
+            proc = _hint_cli(f, "publish", "--campaign", _HINT_FX_CAMPAIGN, "--cell", _HINT_FX_LITE_CELL,
+                             "--node", "cluster", "--generated-utc", _HINT_FX_PUBLISH_UTC)
+            _require(proc.returncode != 0 and "HINT_QUALIFICATION_UNOBSERVED" in proc.stderr
+                     and hint._fx_tree(repo) == tree0 and _hint_refs(repo) == refs0,
+                     f"a lite cell with no bound lite report was not refused before any write: rc={proc.returncode} "
+                     f"{proc.stderr[-600:]!r}")
+            _hint_edit_json(repo / f"campaigns/{_HINT_FX_CAMPAIGN}/evidence_pointers.json",
+                            lambda d: d["pointers"].append({"kind": "bench_report", "path": _HINT_FX_LITE_REPORT,
+                                                            "cell_id": _HINT_FX_LITE_CELL, "node_id": "cluster"}))
 
-    out = _hint_publish_probe(dict(_HINT_MAP_ONLY_BENCHMARK), bench_report_text=lite_text,
-                              recipe_body=_HINT_MAP_ONLY_RECIPE_BODY, task_class="hint_map_only",
-                              drop_evidence=("simlog",), collect_payload=True, lockset=dict(_HINT_MAP_ONLY_LOCKSET))
-    for step in ("collect", "create", "seal", "catalog", "verify"):
-        proc = out.get(step)
-        _require(proc is not None and proc.returncode == 0,
-                 f"hint_map_only (lite-only cell) publication died at `{step}`: "
-                 f"rc={getattr(proc, 'returncode', None)} stdout={getattr(proc, 'stdout', '')[-900:]!r} "
-                 f"stderr={getattr(proc, 'stderr', '')[-900:]!r}")
-    _require("certificate_ref: ../benchmark/bench_report_selftest.md" in out["tag_object"],
-             f"map_only footer did not bind the lite bench_report: {out['tag_object'][-500:]!r}")
-    seal_text = (out["seal"].stdout or "") + (out["seal"].stderr or "")
-    _require("HINT_MISSING_LITE" not in seal_text,
-             f"the lite bench_report alone must satisfy the lite-metrics requirement (HINT_MISSING_LITE fired): "
-             f"{seal_text[-900:]!r}")
-    _require("lockset(" in seal_text and "HINT_RECIPE_SEGMENT_MISMATCH" not in seal_text,
-             f"seal did not derive the recipe segment from the cell lockset: {seal_text[-900:]!r}")
-    payload = out["payload_doc"]
-    mc = payload.get("measurement_config") or {}
-    _require("BENCH_MODE_LITE" in payload.get("missing", []) and "HINT_MISSING_LITE" not in payload.get("missing", [])
-             and mc.get("bench_mode") == "lite" and mc.get("bench_mode_kind") == "declared-lite"
-             and mc.get("repeats") == 1 and mc.get("bench_tool") == "vllm-bench-serve"
-             and mc.get("downgrade_reason") is None,
-             f"PAYLOAD must carry BENCH_MODE_LITE and the parsed measurement config: {payload!r}")
-    md = out["benchmark_md"]
-    _require(all(row in md for row in ("| `bench_mode` | lite |", "| `도구` | vllm-bench-serve |",
-                                       "| `반복 N` | 1 |", "| `downgrade_reason` | 미기재 |")),
-             f"03-benchmark.md measurement-config table is missing bench_mode/tool/repeats/downgrade_reason rows: {md!r}")
-    entries = [e for e in out["index"].get("hints", []) if e.get("tag") == _HINT_TAG]
-    _require(len(entries) == 1 and entries[0].get("bench_mode") == "lite(선언)"
-             and "BENCH_MODE_LITE" in (entries[0].get("missing") or []),
-             f"catalog did not derive the bench_mode column from the remote tag payload: {out['index']!r}")
-    _require("| bench_mode |" in out["hints_md"] and "| lite(선언) |" in out["hints_md"],
-             f"HINTS.md row lacks the derived bench_mode column: {out['hints_md'][-600:]!r}")
+            _hint_cli_ok(f, "publish(lite)", "publish", "--campaign", _HINT_FX_CAMPAIGN, "--cell", _HINT_FX_LITE_CELL,
+                         "--node", "cluster", "--generated-utc", _HINT_FX_PUBLISH_UTC)
+            draft = _hint_single_draft(repo)
+            st = json.loads((draft / "state.json").read_text(encoding="utf-8"))
+            _require(st.get("tag") == _HINT_FX_LITE_TAG, f"lite cell did not derive the expected v6 name: {st.get('tag')!r}")
+            man = json.loads((repo / st["manifest"]).read_text(encoding="utf-8"))
+            _require(man.get("task_class") == "hint_map_only" and (man.get("benchmark") or {}).get("mode") == "lite"
+                     and str(((man.get("evidence") or {}).get("bench_report") or {}).get("path", ""))
+                     .endswith(Path(_HINT_FX_LITE_REPORT).name)
+                     and not ((man.get("evidence") or {}).get("certificate") or {}).get("path"),
+                     f"lite publication was not driven as hint_map_only + bound lite report: "
+                     f"{man.get('task_class')!r} {man.get('benchmark')!r} {man.get('evidence')!r}")
 
-    # ★음성대조 1 — 경량 리포트가 바인딩되지 않은 map_only: 결손을 선언해 create 는 지나가도 seal 은 거부한다.
-    neg = _hint_publish_probe(dict(_HINT_MAP_ONLY_BENCHMARK), bench_report_text=lite_text,
-                              recipe_body=_HINT_MAP_ONLY_RECIPE_BODY, task_class="hint_map_only",
-                              drop_evidence=("simlog", "bench_report"), collect_payload=True)
-    _require(neg.get("collect") is not None and neg["collect"].returncode == 0
-             and "HINT_MISSING_BENCH_REPORT" in (neg.get("payload_doc") or {}).get("missing", []),
-             f"negative-control fixture did not declare the missing report: {neg.get('collect')!r}")
-    _require(neg.get("create") is not None and neg["create"].returncode == 0,
-             f"negative-control create should pass on a declared absence: {getattr(neg.get('create'), 'stdout', '')!r}")
-    seal = neg.get("seal")
-    _require(seal is not None and seal.returncode != 0
-             and "HINT_CERTIFICATE_EVIDENCE_MISSING" in (seal.stdout or "")
-             and "publish-lite-report" in (seal.stdout or ""),
-             f"a map_only hint without a bound lite report was sealed: rc={getattr(seal, 'returncode', None)} "
-             f"stdout={getattr(seal, 'stdout', '')[-700:]!r}")
+            # ★ OBSERVATION-ONLY 는 기계 렌더되고, 걷어내면 린트가 막는다(옛 hint_tag._require_map_only_observation 의 이관)
+            hint00 = draft / "payload/00-hint.md"
+            text00 = hint00.read_text(encoding="utf-8")
+            marker = hint.template.MAP_ONLY_MARKER
 
-    # ★음성대조 2 — 셀 lockset 선언과 어긋난 레시피 이름은 인증서가 없어도 거부한다(이름은 파생값이다).
-    neg = _hint_publish_probe(dict(_HINT_MAP_ONLY_BENCHMARK), bench_report_text=lite_text,
-                              recipe_body=_HINT_MAP_ONLY_RECIPE_BODY, task_class="hint_map_only",
-                              drop_evidence=("simlog",), collect_payload=True,
-                              lockset=dict(_HINT_MAP_ONLY_LOCKSET, max_model_len=65536))
-    seal = neg.get("seal")
-    _require(seal is not None and seal.returncode != 0 and "HINT_RECIPE_SEGMENT_MISMATCH" in (seal.stdout or ""),
-             f"a recipe segment contradicting the cell lockset was sealed: rc={getattr(seal, 'returncode', None)} "
-             f"stdout={getattr(seal, 'stdout', '')[-700:]!r}")
+            def lint_codes() -> set:
+                return {i["code"] for i in json.loads(_hint_cli(f, "lint", "--draft", str(draft), "--json").stdout)}
+
+            _require(marker == "OBSERVATION-ONLY" and marker in text00
+                     and "HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING" not in lint_codes(),
+                     "a hint_map_only scaffold does not carry the machine-rendered OBSERVATION-ONLY marker")
+            hint00.write_text(text00.replace(marker, "OBSERVATION"), encoding="utf-8")
+            _require("HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING" in lint_codes(),
+                     "a hint_map_only body without the OBSERVATION-ONLY marker passed lint")
+            hint00.write_text(text00, encoding="utf-8")
+
+            _hint_author(f, draft)
+            proc = _hint_cli(f, "lint", "--draft", str(draft), "--json")
+            _require(proc.returncode == 0 and proc.stdout.strip() == "[]",
+                     f"programmatic authoring left lint issues on the lite draft: {proc.stdout[-900:]!r}")
+            _hint_cli_ok(f, "continue(lite)", "continue", "--draft", str(draft), "--generated-utc", _HINT_FX_CONTINUE_UTC,
+                         "--remote", "origin")
+            tag_ref = f"refs/tags/{_HINT_FX_LITE_TAG}"
+            _require(_hint_remote_ref(f["bare"], tag_ref) == _hint_git(repo, "rev-parse", tag_ref),
+                     "lite tag did not reach the remote with the sealed object")
+            body = _hint_tag_body(repo, _HINT_FX_LITE_TAG)
+            _require(f"certificate_ref: ../benchmark/{Path(_HINT_FX_LITE_REPORT).name}" in body,
+                     f"map_only footer did not bind the lite bench_report: {body[-500:]!r}")
+            payload = json.loads(_hint_git(repo, "show", "refs/heads/hint:PAYLOAD.json"))
+            mc = payload.get("measurement_config") or {}
+            _require("BENCH_MODE_LITE" in (payload.get("missing") or [])
+                     and "HINT_MISSING_LITE" not in (payload.get("missing") or [])
+                     and mc.get("bench_mode") == "lite" and mc.get("bench_mode_kind") == "declared-lite"
+                     and mc.get("repeats") == 1 and mc.get("bench_tool") == "vllm-bench-serve"
+                     and mc.get("downgrade_reason") is None,
+                     f"PAYLOAD must carry BENCH_MODE_LITE and the parsed measurement config: "
+                     f"{payload.get('missing')!r} {mc!r}")
+            idx = json.loads((repo / "hints/index.json").read_text(encoding="utf-8"))
+            entries = [e for e in idx.get("hints", []) if e.get("tag") == _HINT_FX_LITE_TAG]
+            _require(len(entries) == 1 and entries[0].get("bench_mode") == "lite(선언)"
+                     and "BENCH_MODE_LITE" in (entries[0].get("missing") or []),
+                     f"catalog did not derive the bench_mode column from the remote tag payload: {entries!r}")
+            hints_md = (repo / "HINTS.md").read_text(encoding="utf-8")
+            _require("| lite(선언) |" in hints_md, f"HINTS.md row lacks the derived bench_mode column: {hints_md[-600:]!r}")
 
 
 def _test_policy_and_evidence_lifecycle() -> None:
@@ -1251,7 +1517,8 @@ def _test_execution_approval_authorization() -> None:
                 ea["plan_sha256"] = hashlib.sha256(plan_path.read_bytes()).hexdigest()
             else:
                 plan_path.write_text(plan_body, encoding="utf-8")
-                if isinstance(ea, dict) and name not in ("bad_sha", "no_anchor"):
+                # 자기 plan 파일·digest 를 들고 오는 케이스는 다시 계산하지 않는다(wrong_action = 다른 액션의 일치 승인 · 2026-09-22).
+                if isinstance(ea, dict) and name not in ("bad_sha", "no_anchor", "wrong_action"):
                     ea["plan_sha256"] = hashlib.sha256(plan_path.read_bytes()).hexdigest()
             mp = repo / "docs/_evidence" / f"{name}.json"
             mp.write_text(json.dumps(man, ensure_ascii=False), encoding="utf-8")
@@ -1335,11 +1602,22 @@ def _test_execution_approval_authorization() -> None:
                  and "EXECUTION_APPROVAL_NOT_APPROVED" in not_approved.get("reason_codes", []),
                  f"approved=false must be rejected: {not_approved}")
 
-        wrong_action = _run(_manifest(allowed_actions=["hint_create"],
-                                      approval_atoms=atoms[:2] + ["allowed_action: hint_create"]),
+        # "다른 액션" 대조(2026-09-22 교정): 종전 픽스처는 manifest 원자만 `allowed_action: hint_create` 로 바꾸고 plan 은
+        #   `sync_to_sub` 원자를 그대로 두었다 — 그래서 **액션 검사에 닿기도 전에** EXECUTION_APPROVAL_PLAN_ATOMS_MISSING 으로
+        #   막혔고, "다른 액션이라 막혔다" 는 한 번도 증명되지 않았다(allowed=false 만 봤다 · 이 교정의 첫 실행이 드러냈다).
+        #   이제 plan·manifest 가 **서로 일치하는** 다른 액션 승인을 짓고, 거부 사유가 액션 불일치인지까지 본다. 값은 살아 있는
+        #   어휘여야 한다(X4: hint_create 는 어휘에서 빠졌다 — 죽은 값이면 스키마 거부로 막힌다).
+        wrong_atoms = base_atoms[:2] + ["allowed_action: hint_push"]
+        wrong_plan = repo / "docs/plan/w.md"
+        wrong_plan.write_text("# selftest plan\n\n## Execution approval\n" + "\n".join(wrong_atoms) + "\n",
+                              encoding="utf-8")
+        wrong_action = _run(_manifest(plan_path="../plan/w.md",
+                                      plan_sha256=hashlib.sha256(wrong_plan.read_bytes()).hexdigest(),
+                                      allowed_actions=["hint_push"], approval_atoms=wrong_atoms),
                             "wrong_action")
-        _require(wrong_action.get("allowed") is False,
-                 f"an approval for a different action must not open sync_to_sub: {wrong_action}")
+        _require(wrong_action.get("allowed") is False
+                 and wrong_action.get("reason_codes") == ["EXECUTION_APPROVAL_ACTION_NOT_ALLOWED"],
+                 f"an approval for a different (live) action must be refused *because the action differs*: {wrong_action}")
 
         no_anchor_plan = repo / "docs/plan/q.md"
         no_anchor_plan.write_text("# no anchor here\n", encoding="utf-8")
@@ -1543,16 +1821,16 @@ def _test_agent_provider_boundary() -> None:
 # 한다. 목록은 새 파일이 생기면 조용히 늦어지지만, 파생 술어는 "git 이 이미 아는 것을 또 적었다"는
 # 성질 자체를 본다. 세 단언은 병목(pre-commit)에 걸리므로 **1초 예산**을 지킨다.
 #
-# ⚠ 픽스처 격리: 이 파일의 단언은 저장소 상태를 읽는다. 그런데 `_hint_repo()` 는 `git init -b
-# selftest` 로 격리 레포를 만들고 completion_gate 를 그 안에서 돌린다 — 거기서 브랜치 부분집합
+# ⚠ 픽스처 격리: 이 파일의 단언은 저장소 상태를 읽는다. 그런데 hint CLI E2E(`_hint_cli_fixture()` · 2026-09-22 옛
+# `_hint_repo()` 의 후계)는 격리 git 레포를 만들고 completion_gate 를 그 안에서 돌린다 — 거기서 브랜치 부분집합
 # 단언이 발화하면 셀프테스트가 **자기 자신을 RED** 로 만든다. 그래서 모든 진입점이
 # `_is_canonical_repo()` 로 "정본(헌법 소유) 저장소인가"를 먼저 판별한다.
 # ─────────────────────────────────────────────────────────────────────────────
 
 REPO_ROOT = RUNTIME_DIR.parents[2]
 
-# 헌법을 소유한 저장소만 가지는 구조적 표지. 픽스처 레포(`_hint_repo`)는 completion_gate·schemas·
-# hint 스크립트만 복사하므로 이 셋을 동시에 갖지 못한다.
+# 헌법을 소유한 저장소만 가지는 구조적 표지. 픽스처 레포(`_hint_cli_fixture` · 게이트 전용 임시 루트)는 completion_gate·
+# 발행기·hint 스크립트만 두므로(심링크·사본) 이 셋을 동시에 갖지 못한다.
 _CANONICAL_MARKERS = ("CLAUDE.md", ".claude/rules/workflow.md", ".claude/policies/registry.yaml")
 
 _ALLOWED_BRANCHES = frozenset({"single-node", "multi-node", "hint"})
@@ -1653,7 +1931,7 @@ def _announce_non_canonical(root: Path, prefix: str) -> str | None:
     """정본이 아니면 **구분되는 SKIPPED 한 줄**을 stderr 로 내고 사유를 돌려준다(정본이면 None).
 
     ⚠ stdout 계약: 진단은 전부 stderr 다. `completion_gate authorize` 의 stdout JSON 을
-    `json.loads` 하는 소비자가 셋(`sync_branches.sh`·`sync_to_sub.sh`·`hint_tag.py`)이고,
+    `json.loads` 하는 소비자가 셋(`sync_branches.sh`·`sync_to_sub.sh`·`hint.py`(hintlib.evidence.authorize))이고,
     이 스크립트는 그 authorize 가 자식으로 띄운다.
     """
     reason = _canonical_repo_reason(root)
@@ -2073,7 +2351,7 @@ def _test_no_retired_hash_mechanism_prose(root: Path | None = None) -> None:
 
 
 def _import_forbidden_scanner():
-    """`scan_forbidden_strings.py` 를 in-process 로 적재한다(`_import_hint_tag` 와 같은 관용구).
+    """`scan_forbidden_strings.py` 를 in-process 로 적재한다(`_import_hint_cli` 와 같은 관용구).
 
     패턴·면제 규칙을 **복제하지 않는다** — 복제하면 두 자리가 갈라져 한쪽만 조용히 늦는다
     (`workflow.md` §결정론 규율 — 개념 중복). 커널은 그 파일의 `scan_lines` 하나다.
@@ -2108,7 +2386,9 @@ def _test_no_pii_in_deployed_artifacts(root: Path | None = None) -> None:
     hint 평면의 **4종 전부**가 아니다. 4종을 이 트리에 그대로 걸면 픽스처·플레이스홀더가
     대량으로 걸려(2026-09-04 실측 63건 중 진성 2건) 기준이 정의상 달성 불가가 된다 —
     `docs.md` 가 simlog/logs 에 대해 이미 편 논리와 같다. 4종 강도의 정본 집행자는
-    `hint_tag.finalize/verify`(배포 평면 fail-closed)이며, 트리 스캐너의 generic 축을
+    hint-publisher 의 배포 평면 fail-closed 스캔이다 — 패턴 정본 `hintlib.pii`(deploy 프로필) · 집행 자리
+    `hint.py continue`(배관 커밋 `hintlib.branch.commit_payload` + 봉인 `hintlib.tag.seal`)·`hint.py verify`
+    (2026-09-22 옛 `hint_tag.finalize/verify` 에서 이관)이며, 트리 스캐너의 generic 축을
     넓히려면 shell-default 판별자와 픽스처 면제를 함께 설계해야 한다(후속).
     """
     root = REPO_ROOT if root is None else root
@@ -2620,6 +2900,8 @@ def main(argv: list[str] | None = None) -> int:
     _test_promotion_rubric_carrier()
     _test_certificate_run_resolution()
     _test_hint_binding_source()
+    _test_hint_cli_publication()
+    _test_hint_cli_refute_paths()
     _test_hint_map_only_promotion()
     _test_hint_map_only_publication()
     _test_policy_and_evidence_lifecycle()

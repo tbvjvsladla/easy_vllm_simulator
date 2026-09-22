@@ -24,7 +24,8 @@ Deterministic-vs-authored boundary (see .claude/rules/docs.md for the published 
       --bench-report-src`/`--certificate-src`, `publish-lite-report --bench-report-src`) -- there is no code path that synthesizes
       narrative, measured numbers, a verdict, or a certificate from its own inference.
 
-Subcommands: init | append-raw | set-narrative | publish-benchmark | publish-lite-report | finalize | (--self-test)
+Subcommands: init | append-raw | set-narrative | publish-benchmark | publish-lite-report | set-promotion-target |
+             finalize | (--self-test)
 
 stdlib only, no third-party dependencies -- reuses the constitution completion gate and
 wiki-desk owner-local doc_naming.py rather than reimplementing their logic (path-safety resolvers, the
@@ -144,8 +145,23 @@ _RECORD_OBJECT_OR_NULL_FIELDS = ("capacity_rejection",)
 #   · 재분류는 `benchmark.mode` 를 `lite` 로 **함께** 바꾼다(강등 = full 정의 미충족 — 두 칸이 다른 말을 하지 않게).
 #     verdict·rubric·바인딩된 bench_report 는 보존한다(합성 ✗ · 강등 셀의 리포트가 곧 lite 통로의 바인딩 대상이다).
 #   · 출처는 record.reclassification 에 남긴다(누가 · 무엇에서 · 왜 — `reason_source`).
-OPTIONAL_RECORD_FIELDS = ("reclassification",)
+OPTIONAL_RECORD_FIELDS = ("reclassification", "promotion_target", "promotion_target_provenance")
 DOWNGRADE_FROM_CLASSES = ("full_benchmark",)
+
+# ── promotion_target 의 writer (2026-09-21 · plan_26092119 X6 · 코드맵 policy_callers H4) ─────────────────────────────
+# work-manifest 스키마는 `promotion_target`(hint 태그 한 건에 승격 권한을 묶는 칸)을 정의했지만 **쓰는 손이 0** 이었다 —
+# finalize 가 만드는 manifest 에 그 칸이 없어서 모든 기존 manifest 가 손으로(또는 래퍼 스크립트로) 덧붙였다. 손 JSON 이
+# 관행이 되면 manifest 에 writer 가 둘이 되고, 둘 중 하나가 늦으면 "누가 이 태그를 허가했나" 가 갈라진다.
+# 처방: `set-promotion-target` 이 **발행 기록**에 목표를 적고, `finalize` 가 그것을 manifest 로 **방출**한다(writer 1 ·
+# manifest 는 여전히 finalize 만 쓴다). hint 발행기는 manifest 를 직접 고치지 않는다.
+#   · 모양은 스키마 `definitions.promotionTarget` 한 벌로 검증한다(여기서 필드를 다시 적지 않는다). 스키마 엔진이 못 하는
+#     정확도(40자 16진 · `hint/` 이름공간 · 한 줄)는 이 파일이 추가로 본다.
+#   · 재바인딩은 허용하되 **표면화**한다(publish-benchmark 의 certificate_rebound_from 과 같은 규율 · 감사 A-2) — 앵커는
+#     페이로드 커밋이라 봉인 전 재커밋이 정상 경로로 있다. 조용히 덮어쓰지 않는다.
+#   · 시각은 주입만 받는다(`--generated-utc`) — 기록의 출처 칸(`promotion_target_provenance`)에 남는다.
+PROMOTION_TARGET_TAG_PREFIX = "hint/"
+_PROMOTION_TARGET_ANCHOR_RE = re.compile(r"[0-9a-f]{40}")
+_PROMOTION_TARGET_PROVENANCE_KEYS = {"writer", "generated_utc", "rebound_from"}
 DOWNGRADE_TO_CLASS = "hint_map_only"
 # 시각 칸은 두지 않는다 — init 이 받는 시각은 토픽의 `generated_utc`(불변)뿐이라 재분류 시각이 아니다. 그 값을 "재분류 시각"
 #   이름으로 적으면 기록이 거짓을 말한다(시각은 주입만 받는다 · 주입할 칸이 없으면 적지 않는다).
@@ -210,6 +226,24 @@ def _reclassification_shape_error(value, task_class) -> "str | None":
                 f"{DOWNGRADE_TO_CLASS!r} record (got {value.get('from')!r} -> {value.get('to')!r} on {task_class!r})")
     if any(not isinstance(value[k], str) or not value[k] for k in ("reason", "reason_source")):
         return "reclassification reason/reason_source must be non-empty strings"
+    return None
+
+
+def _promotion_target_error(value) -> "str | None":
+    """promotion_target 한 건의 모양 검사(X6). 스키마 `definitions.promotionTarget` 가 1차(필드·const·길이)이고, 스키마
+    엔진이 표현하지 못하는 정확도(40자 소문자 16진 앵커 · `hint/` 이름공간 · 한 줄 라벨)를 여기서 더한다."""
+    errors = gate.validate_against_schema(value, gate.WORK_SCHEMA["definitions"]["promotionTarget"], gate.WORK_SCHEMA,
+                                          "promotion_target")
+    if errors:
+        return f"{errors[0][0]}: {errors[0][1]}"
+    if not _PROMOTION_TARGET_ANCHOR_RE.fullmatch(value["anchor"]):
+        return (f"promotion_target.anchor must be the full 40-hex (lowercase) payload commit SHA, "
+                f"got {value['anchor']!r}")
+    if not value["tag"].startswith(PROMOTION_TARGET_TAG_PREFIX) or any(c in value["tag"] for c in " \t\r\n*?[\\"):
+        return (f"promotion_target.tag must be one exact tag name under {PROMOTION_TARGET_TAG_PREFIX!r} "
+                f"(no whitespace/glob), got {value['tag']!r}")
+    if any(c in value["topology"] for c in "\r\n") or value["topology"] != value["topology"].strip():
+        return f"promotion_target.topology must be a single trimmed line, got {value['topology']!r}"
     return None
 
 # P2-FINAL-02: cmd_finalize indexes record["task_class"]/record["identity"] UNCONDITIONALLY (no
@@ -303,6 +337,24 @@ def _validate_record_shape(record) -> tuple[str, str] | None:
         reclass_error = _reclassification_shape_error(record["reclassification"], record["task_class"])
         if reclass_error:
             return ("PUBLICATION_RECORD_RECLASSIFICATION_INVALID", reclass_error)
+    if ("promotion_target" in record) != ("promotion_target_provenance" in record):
+        # 목표와 그 출처는 한 커밋에 함께 실린다 — 한쪽만 있으면 손으로 덧붙였거나 쓰다 끊긴 기록이다.
+        return ("PUBLICATION_RECORD_PROMOTION_TARGET_INVALID",
+                "promotion_target and promotion_target_provenance must be present together "
+                "(written only by `set-promotion-target`)")
+    if "promotion_target" in record:
+        target_error = _promotion_target_error(record["promotion_target"])
+        if target_error:
+            return ("PUBLICATION_RECORD_PROMOTION_TARGET_INVALID", target_error)
+        prov = record["promotion_target_provenance"]
+        if (not isinstance(prov, dict) or set(prov) != _PROMOTION_TARGET_PROVENANCE_KEYS
+                or prov.get("writer") != "set-promotion-target"
+                or not isinstance(prov.get("generated_utc"), str)
+                or re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", prov["generated_utc"]) is None
+                or (prov.get("rebound_from") is not None and not isinstance(prov.get("rebound_from"), dict))):
+            return ("PUBLICATION_RECORD_PROMOTION_TARGET_INVALID",
+                    f"promotion_target_provenance must be exactly {sorted(_PROMOTION_TARGET_PROVENANCE_KEYS)} "
+                    f"with writer='set-promotion-target' and a UTC second timestamp")
     for field in _RECORD_OBJECT_OR_NULL_FIELDS:
         if field in record and record[field] is not None and not isinstance(record[field], dict):
             return (f"PUBLICATION_RECORD_FIELD_NOT_AN_OBJECT:{field}",
@@ -1577,6 +1629,48 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
 # code verbatim, so its output stays valid against completion-manifest.schema.json.
 # =============================================================================
 
+def cmd_set_promotion_target(args: argparse.Namespace) -> None:
+    """X6 — 이 발행의 승격 권한이 묶이는 hint 태그 한 건(`kind=hint · tag · topology · anchor`)을 **발행 기록**에 적는다.
+    manifest 는 건드리지 않는다: 다음 `finalize` 가 기록에서 방출한다(writer 1 — 위 상수 주석).
+
+    거부(exit 2): 기록 부재 · 모양 위반(스키마 + 앵커 40자 16진 + `hint/` 이름공간 + 한 줄 라벨) · 시각 미주입.
+    같은 목표의 재실행은 멱등(출처 시각만 갱신하지 않는다 — 최초 기록 시각을 보존한다). 다른 목표로의 재바인딩은 허용하되
+    `rebound_from` 으로 **표면화**한다(봉인 전 페이로드 재커밋이 정상 경로다)."""
+    repo_root = _resolve_repo_root(args.repo_root)
+    _validate_topic_or_die(args.topic)
+    _validate_required_utc_timestamp(args.generated_utc, "generated-utc")
+    record = _require_record(repo_root, args.topic)
+
+    target = {"kind": "hint", "tag": args.tag, "topology": args.topology, "anchor": args.anchor}
+    target_error = _promotion_target_error(target)
+    if target_error:
+        _emit(_bare_error("PROMOTION_TARGET_INVALID", target_error), 2)
+
+    prior = record.get("promotion_target") if isinstance(record.get("promotion_target"), dict) else None
+    prior_prov = record.get("promotion_target_provenance") if isinstance(
+        record.get("promotion_target_provenance"), dict) else None
+    if prior == target and prior_prov is not None:
+        _emit({
+            "schema_version": SCHEMA_VERSION, "ok": True, "reason_codes": [], "messages": {},
+            "publication_id": args.topic, "promotion_target": target,
+            "binding": {"state": "unchanged", "rebound_from": None,
+                        "recorded_utc": prior_prov.get("generated_utc")},
+        }, 0)
+    record["promotion_target"] = target
+    record["promotion_target_provenance"] = {
+        "writer": "set-promotion-target", "generated_utc": args.generated_utc,
+        "rebound_from": dict(prior) if prior is not None else None,
+    }
+    _save_record(repo_root, args.topic, record)
+    _emit({
+        "schema_version": SCHEMA_VERSION, "ok": True, "reason_codes": [], "messages": {},
+        "publication_id": args.topic, "promotion_target": target,
+        "binding": {"state": ("rebound" if prior is not None else "bound"),
+                    "rebound_from": dict(prior) if prior is not None else None,
+                    "recorded_utc": args.generated_utc},
+    }, 0)
+
+
 _ALL_EVIDENCE_KEYS = ("plan", "devlog", "testlog", "simlog", "bench_report", "certificate",
                       "verification", "commit", "report")
 
@@ -1648,6 +1742,10 @@ def cmd_finalize(args: argparse.Namespace) -> None:
         manifest["capacity_rejection"] = capacity_rejection
     elif runtime is not None:
         manifest["runtime"] = runtime
+    if isinstance(record.get("promotion_target"), dict):
+        # X6(2026-09-21): 기록에 적힌 목표를 **그대로** 방출한다 — manifest 의 writer 는 여전히 finalize 하나다.
+        #   목표가 없으면 칸도 없다(일반 승격 manifest 는 이 칸 없이 유효하다 · 스키마 선택 블록).
+        manifest["promotion_target"] = dict(record["promotion_target"])
 
     # Fail closed before persisting the producer artifact. completion_gate remains the sole
     # contract implementation: this calls its generic schema engine against the exact manifest
@@ -1893,6 +1991,12 @@ def cmd_init(args: argparse.Namespace) -> None:
     }
     if isinstance(reclassification, dict):
         record["reclassification"] = reclassification
+    # X6(2026-09-22 적대 검토): `set-promotion-target` 이 적은 목표도 re-init 이 말없이 떨어뜨리지 않는다 — 위 rubric 보존과
+    #   같은 결함 계열(통로 끊김)이다. 발행기 재구동(hint.py publish 재실행) 뒤 finalize 가 목표 없는 manifest 를 조용히
+    #   다시 쓰면 봉인 대상 대조가 "목표 없음" 으로 갈린다. 목표와 그 출처는 **한 쌍으로만** 옮긴다(_validate_record_shape 쌍 규칙).
+    if isinstance(prior.get("promotion_target"), dict) and isinstance(prior.get("promotion_target_provenance"), dict):
+        record["promotion_target"] = prior["promotion_target"]
+        record["promotion_target_provenance"] = prior["promotion_target_provenance"]
     record_path = _save_record(repo_root, args.topic, record)
 
     _emit({
@@ -2059,6 +2163,17 @@ def _build_parser() -> _PublisherArgumentParser:
     p_lite.add_argument("--generated-utc", required=True)
     p_lite.add_argument("--bench-report-src", required=True)
     p_lite.set_defaults(func=cmd_publish_lite_report)
+
+    p_pt = sub.add_parser("set-promotion-target",
+                          help="record the ONE hint tag this publication's promotion authorization binds to "
+                               "(emitted into the work-manifest by the next `finalize` · X6 · plan_26092119)")
+    p_pt.add_argument("--repo-root")
+    p_pt.add_argument("--topic", required=True)
+    p_pt.add_argument("--tag", required=True, help="정확한 태그 이름 1개(hint/…)")
+    p_pt.add_argument("--topology", required=True, help="파생 라벨(예: 'multi TP=2(Ray)') — hint 발행기가 파생한다")
+    p_pt.add_argument("--anchor", required=True, help="hint 페이로드 커밋 40자 SHA")
+    p_pt.add_argument("--generated-utc", required=True)
+    p_pt.set_defaults(func=cmd_set_promotion_target)
 
     p_fin = sub.add_parser("finalize", help="build a work-manifest from the publication record and delegate to completion_gate.py verify")
     p_fin.add_argument("--repo-root")
@@ -2423,6 +2538,124 @@ def _self_test() -> None:
         if not ((man["evidence"].get("bench_report") or {}).get("path", "").endswith(f"bench_report_{lstem}.md")
                 and man["benchmark"]["mode"] == "lite" and man["evidence"].get("certificate") is None):
             raise RuntimeError(f"work-manifest must carry the lite report as bench_report evidence (schema unchanged): {man!r}")
+        if "promotion_target" in man:
+            raise RuntimeError(f"★finalize without a recorded target must not invent promotion_target: {man!r}")
+
+        # ── set-promotion-target → finalize 방출 (2026-09-21 · plan_26092119 X6 · 음성대조 포함) ──────────────────────
+        #   manifest 의 writer 는 finalize 하나다 — 목표는 기록에 적히고 finalize 가 옮긴다(손 JSON 덧붙이기 ✗).
+        anchor_a, anchor_b = "a" * 40, "b" * 40
+        tag_x = "hint/0.0.0/self-test-model/gb10-1g1n-main-native/qbf16-len1024-kvauto-plenone-specoff-graph"
+
+        def set_target(topic, tag=tag_x, topology="single TP=1", anchor=anchor_a, utc="2026-01-01T05:00:00Z"):
+            return invoke(["set-promotion-target", "--repo-root", str(repo_root), "--topic", topic, "--tag", tag,
+                           "--topology", topology, "--anchor", anchor, "--generated-utc", utc])
+        rec_before = (mdir / "lite.json").read_bytes()
+        for bad_kw, why in (({"anchor": "abc123"}, "short anchor"),
+                            ({"anchor": "A" * 40}, "uppercase/non-hex anchor"),
+                            ({"tag": "release/0.0.0"}, "tag outside hint/"),
+                            ({"tag": "hint/*"}, "glob in tag"),
+                            ({"topology": "multi\nTP=2"}, "multi-line topology")):
+            code, out = set_target("lite", **bad_kw)
+            if not (code == 2 and "PROMOTION_TARGET_INVALID" in codes(out)):
+                raise RuntimeError(f"★set-promotion-target must reject {why}, got {out!r}")
+        if (mdir / "lite.json").read_bytes() != rec_before:
+            raise RuntimeError("★a rejected set-promotion-target must leave the record byte-identical")
+        code, out = set_target("nope")
+        if code != 2:
+            raise RuntimeError(f"★set-promotion-target on an unknown topic must reject, got {out!r}")
+        code, out = invoke(["set-promotion-target", "--repo-root", str(repo_root), "--topic", "lite", "--tag", tag_x,
+                            "--topology", "single TP=1", "--anchor", anchor_a, "--generated-utc", "2026-01-01 05:00"])
+        if code != 2:
+            raise RuntimeError(f"★set-promotion-target must require an injected UTC timestamp, got {out!r}")
+        code, out = set_target("lite")
+        if not (code == 0 and out and out["binding"]["state"] == "bound" and out["promotion_target"]["kind"] == "hint"):
+            raise RuntimeError(f"set-promotion-target must bind the target into the record, got {out!r}")
+        code, out = set_target("lite", utc="2026-01-01T05:10:00Z")
+        if not (code == 0 and out["binding"]["state"] == "unchanged"
+                and out["binding"]["recorded_utc"] == "2026-01-01T05:00:00Z"):
+            raise RuntimeError(f"re-setting the same target must be idempotent (first recording time kept), got {out!r}")
+        code, out = set_target("lite", anchor=anchor_b, utc="2026-01-01T05:20:00Z")
+        if not (code == 0 and out["binding"]["state"] == "rebound"
+                and (out["binding"]["rebound_from"] or {}).get("anchor") == anchor_a):
+            raise RuntimeError(f"★a different target must rebind LOUDLY (rebound_from), got {out!r}")
+        # ★ re-init(발행기 재구동)은 기록된 목표 쌍을 말없이 떨어뜨리지 않는다(2026-09-22 적대 검토 · rubric 보존과 같은 결)
+        code, out = down_init("lite", "hint_map_only")
+        rec_re = json.loads((mdir / "lite.json").read_text(encoding="utf-8"))
+        if not (code == 0 and (rec_re.get("promotion_target") or {}).get("anchor") == anchor_b
+                and (rec_re.get("promotion_target_provenance") or {}).get("writer") == "set-promotion-target"):
+            raise RuntimeError(f"★re-init must carry the recorded promotion_target pair (silent loss), got {code} {rec_re!r}")
+        if (mdir / "lite.work-manifest.json").is_file() and "promotion_target" in json.loads(
+                (mdir / "lite.work-manifest.json").read_text(encoding="utf-8")):
+            raise RuntimeError("★set-promotion-target must not write the work-manifest itself (finalize is its writer)")
+        code, out = invoke(["finalize", "--repo-root", str(repo_root), "--topic", "lite",
+                            "--pii-scan-json", str(repo_root / "pii_l.json"),
+                            "--runtime-json", str(repo_root / "runtime_l.json")])
+        man = json.loads((mdir / "lite.work-manifest.json").read_text(encoding="utf-8"))
+        if man.get("promotion_target") != {"kind": "hint", "tag": tag_x, "topology": "single TP=1", "anchor": anchor_b}:
+            raise RuntimeError(f"finalize must emit the recorded promotion_target verbatim: {man.get('promotion_target')!r}")
+        if not (isinstance(out, dict) and out.get("eligible_for_promotion") is True):
+            raise RuntimeError(f"emitting promotion_target must not change the gate's verdict: {out!r}")
+        # ★음성대조 — 목표만 손으로 덧붙인 기록(출처 칸 없음)은 판독 거부(writer 는 set-promotion-target 하나다)
+        rec_hand = json.loads((mdir / "lite.json").read_text(encoding="utf-8"))
+        rec_hand.pop("promotion_target_provenance")
+        (mdir / "lite.json").write_text(json.dumps(rec_hand), encoding="utf-8")
+        code, out = invoke(["finalize", "--repo-root", str(repo_root), "--topic", "lite"])
+        if not (code == 2 and "PUBLICATION_RECORD_PROMOTION_TARGET_INVALID" in codes(out)):
+            raise RuntimeError(f"★a hand-appended promotion_target (no provenance) must be rejected at load, got {out!r}")
+
+        # ── PII 면제 커버리지 (2026-09-21 · plan_26092119 X5 · completion_gate 가 판정) ─────────────────────────────────
+        #   simlog(기계생성 원시 평면)은 스캔한 척하지 않고 exempt_paths 에 사유와 함께 적는다. 게이트는 kind=simlog ∧ 정확한
+        #   사유일 때만 그 면제를 커버리지로 친다.
+        code, out = down_init("piix", "full_benchmark", "--benchmark-mode", "full", "--benchmark-verdict", "REFUTE")
+        if not (code == 0 and out and out.get("ok")):
+            raise RuntimeError(f"X5 fixture init failed: {out!r}")
+        for kind in ("plan", "devlog", "testlog"):
+            src = f"docs/_evidence/inputs/piix_{kind}.md"
+            (repo_root / src).write_text(f"# {kind}\n면제 커버리지 픽스처 서사.\n", encoding="utf-8")
+            code, out = invoke(["set-narrative", "--repo-root", str(repo_root), "--topic", "piix", "--kind", kind,
+                                "--narrative-file", src, "--author", "selftest", "--generated-utc", "2026-01-01T06:00:00Z"])
+            if code != 0:
+                raise RuntimeError(f"X5 fixture narrative {kind} failed: {out!r}")
+        (repo_root / "docs/_evidence/inputs/measured.json").write_text('{"measurement_ok": true}\n', encoding="utf-8")
+        code, out = invoke(["append-raw", "--repo-root", str(repo_root), "--topic", "piix", "--kind", "simlog",
+                            "--src", "docs/_evidence/inputs/measured.json", "--recorded-utc", "2026-01-01T06:01:00Z",
+                            "--dest-name", "level_01_measured.json"])
+        if code != 0:
+            raise RuntimeError(f"X5 fixture simlog append failed: {out!r}")
+        code, out = invoke(["publish-benchmark", "--repo-root", str(repo_root), "--topic", "piix", "--verdict", "REFUTE",
+                            "--generated-utc", "2026-01-01T06:02:00Z", "--bench-report-src", rep_rel])
+        if code != 0:
+            raise RuntimeError(f"X5 fixture publish-benchmark failed: {out!r}")
+        rec_x = json.loads((mdir / "piix.json").read_text(encoding="utf-8"))
+        scanned_x = sorted(os.path.relpath(str(repo_root / rec_x["scaffolded"][k]), str(mdir))
+                           for k in ("plan", "devlog", "testlog", "bench_report"))
+        simlog_x = os.path.relpath(str(repo_root / rec_x["scaffolded"]["simlog"]), str(mdir))
+
+        def pii_finalize(exempt, scanned=scanned_x):
+            (repo_root / "pii_x.json").write_text(json.dumps(
+                {"passed": True, "scanned_paths": scanned, "exempt_paths": exempt}), encoding="utf-8")
+            return invoke(["finalize", "--repo-root", str(repo_root), "--topic", "piix",
+                           "--pii-scan-json", str(repo_root / "pii_x.json"),
+                           "--runtime-json", str(repo_root / "runtime_l.json")])
+        raw_reason = gate.PII_MACHINE_RAW_EXEMPTION_REASON
+        code, out = pii_finalize([{"path": simlog_x, "reason": raw_reason}])
+        if not (isinstance(out, dict) and out.get("state") == "evidence-complete"
+                and not any(c.startswith("PII_SCAN_COVERAGE_INCOMPLETE") for c in codes(out))):
+            raise RuntimeError(f"a simlog recorded as machine-raw exempt must count as PII coverage: {out!r}")
+        code, out = pii_finalize([{"path": simlog_x, "reason": "귀찮아서"}])
+        if "PII_SCAN_COVERAGE_INCOMPLETE:simlog" not in codes(out):
+            raise RuntimeError(f"★an exemption with any other reason must not count as coverage: {out!r}")
+        code, out = pii_finalize([])
+        if "PII_SCAN_COVERAGE_INCOMPLETE:simlog" not in codes(out):
+            raise RuntimeError(f"★an unscanned, unexempted simlog must stay a coverage gap: {out!r}")
+        testlog_x = os.path.relpath(str(repo_root / rec_x["scaffolded"]["testlog"]), str(mdir))
+        code, out = pii_finalize([{"path": simlog_x, "reason": raw_reason}, {"path": testlog_x, "reason": raw_reason}],
+                                 scanned=[p for p in scanned_x if p != testlog_x])
+        if "PII_SCAN_COVERAGE_INCOMPLETE:testlog" not in codes(out):
+            raise RuntimeError(f"★human-authored prose (testlog) must never be exemptible: {out!r}")
+        code, out = pii_finalize([{"path": "/abs/" + simlog_x, "reason": raw_reason}])
+        if not (code == 2 and "ABSOLUTE_PII_EXEMPT_PATH:0" in codes(out)):
+            raise RuntimeError(f"★an absolute exempt path must be rejected like scanned_paths: {out!r}")
 
         # listdir 실패는 fail-closed (감사 A-3). ★ `-1` 은 CPython path_t 의 "fd 아님" 센티널이라
         #   cwd 를 열어 버린다 — 진짜 닫힌 fd 번호(EBADF)를 써야 음성대조가 성립한다.
@@ -2447,7 +2680,8 @@ def main(argv=None) -> None:
         _self_test()
         return
     if not args.cmd:
-        _emit(_bare_error("CLI_USAGE_ERROR", "no subcommand given (init|append-raw|set-narrative|publish-benchmark|publish-lite-report|finalize)"), 2)
+        _emit(_bare_error("CLI_USAGE_ERROR", "no subcommand given (init|append-raw|set-narrative|publish-benchmark|"
+                                             "publish-lite-report|set-promotion-target|finalize)"), 2)
     args.func(args)
 
 

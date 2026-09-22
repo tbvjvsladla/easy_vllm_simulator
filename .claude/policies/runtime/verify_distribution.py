@@ -13,6 +13,7 @@ import ast
 import json
 import os
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -53,7 +54,10 @@ LOCAL_REPLACEMENTS = {
     ".claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh",
     ".claude/policies/runtime/evidence_publisher.py",
     ".claude/policies/runtime/harness_verify.py",
-    ".claude/skills/hint-publisher/scripts/hint_tag.py",
+    # 2026-09-22(plan_26092119 §4.9 · O5 shim 없이 제거): 옛 루트 `scripts/hint_tag.py` 의 1:1 후계는 단일 CLI `hint.py` 다
+    #   (hint_tag·hint_collect·hint_branch·hint_catalog 는 hint.py + hintlib/ 로 재구성). sync_branches.sh 의
+    #   ROOT_RELOCATION_REPLACEMENTS 와 **같은 커밋에서** 바꾼다(아래 local_exact_relocation_replacements 가 정확 일치를 본다).
+    ".claude/skills/hint-publisher/scripts/hint.py",
     ".claude/skills/terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh",
     ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
     ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
@@ -62,7 +66,8 @@ LOCAL_REPLACEMENTS = {
     ".claude/skills/upstream-version-watch/scripts/smoke_clone.sh",
     ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
     ".claude/skills/terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service",
-    ".claude/skills/hint-publisher/templates/hint_recipe.template.md",
+    # 2026-09-22: 옛 annotation 본문 템플릿(`hint_recipe.template.md`)의 후계 = 페이로드 지도 챕터 템플릿(본문은 zip 안 · D4).
+    ".claude/skills/hint-publisher/templates/00-hint.prompt.md",
 }
 SUB_TOMBSTONES = {
     ".claude/rules/references.md", "scripts/install_host_safety.sh",
@@ -259,6 +264,70 @@ def _shipped_python_paths(root: Path = REPO) -> list[Path]:
     worktree_root = root / ".claude/worktrees"
     return sorted(path for path in (root / ".claude").rglob("*.py")
                   if worktree_root not in path.parents)
+
+
+def _gitless_hint_match_checks() -> list[dict]:
+    """수신자 평면 `hint.py match` 가 **git 없이** 도는가(2026-07-31 계약 · 2026-09-22 옛 `hint_tag.py match` → `hint.py match` ·
+    families.json 폐기 O3). 종전 검사는 이 체크아웃(= `.git` 있음) 안에서 PATH 만 비웠다 — 그러면 "git 바이너리 없음" 은
+    증명해도 "git 저장소 없음"(배포 아카이브·zip) 은 증명하지 못한다. 이제 `.git` 이 **없는** 임시 사본에 배포 배치
+    (스킬 트리 통째 + `hints/index.json` + `hints/vocab.json`)를 놓고 PATH 없이 돈다.
+    두 검사: ① `gitless_hint_match` — 사본 색인의 **실제 한 행**(첫 행의 vllm·model·arch)으로 질의해 사람용 출력 rc 0 과,
+    `--arch` 를 얹은 `--json` 결과에 그 행의 태그가 arch 정확 일치로 되돌아오는지 본다(arch 대조 경로도 git 없이 돈다 — 종전
+    검사의 `--arch gb10` 이 지키던 몫). 질의값은 색인에서 파생한다(손으로 적지 않는다) — 종전의 고정 질의
+    `deepseek-v4-flash` 는 families 폐기(O3) 뒤 어떤 행과도 동치가 아니어서 "0건 · rc 0" 으로 **공허하게** 초록이었다
+    (2026-09-22 적대 리뷰 실측). ② `gitless_hint_match_reads_index` — `--include-other --json` 행 수 = 사본 index 행 수(색인 전량을
+    실제로 읽었는가)."""
+    skill = ".claude/skills/hint-publisher"
+    with tempfile.TemporaryDirectory(prefix="easy-vllm-gitless-hint.") as td:
+        root = Path(td)
+        try:
+            shutil.copytree(REPO / skill, root / skill, ignore=shutil.ignore_patterns("__pycache__"))
+            for rel in ("hints/index.json", "hints/vocab.json"):
+                (root / rel).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(REPO / rel, root / rel)
+            rows = json.loads((root / "hints/index.json").read_text(encoding="utf-8")).get("hints")
+        except (OSError, UnicodeError, json.JSONDecodeError, AttributeError) as exc:
+            return [{"name": "gitless_hint_match", "ok": False, "error": f"{type(exc).__name__}: {exc}"}]
+        probe = next((r for r in rows if isinstance(r, dict) and all(isinstance(r.get(k), str) and r.get(k)
+                                                                      for k in ("tag", "vllm", "model", "arch"))),
+                     None) if isinstance(rows, list) else None
+        if probe is None:
+            return [{"name": "gitless_hint_match", "ok": False,
+                     "error": "hints/index.json 에 질의할 행(tag·vllm·model·arch)이 없다 — 파생 질의를 만들 수 없다"}]
+        gitless = {"PATH": "/nonexistent"}
+        cli = [sys.executable, f"{skill}/scripts/hint.py", "match", "--vllm", probe["vllm"], "--model", probe["model"]]
+        first = _run("gitless_hint_match", cli, {0}, cwd=root, env_overrides=gitless)
+
+        def run_json(extra: list[str]) -> tuple[subprocess.CompletedProcess | None, object, str | None]:
+            # JSON 은 전체 stdout 을 파싱해야 한다(`_run` 의 stdout_tail 은 1000자에서 잘린다) — 같은 환경으로 직접 부른다.
+            try:
+                proc = subprocess.run([*cli, *extra, "--json"], cwd=root, capture_output=True, text=True,
+                                      env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1", **gitless}, timeout=180)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                return None, None, f"{type(exc).__name__}: {exc}"
+            try:
+                return proc, json.loads(proc.stdout), None
+            except json.JSONDecodeError:
+                return proc, None, None
+
+        proc, got, err = run_json(["--arch", probe["arch"]])
+        hit = isinstance(got, list) and any(isinstance(g, dict) and g.get("tag") == probe["tag"]
+                                            and g.get("arch_match") == "exact" for g in got)
+        first.update(probe={"vllm": probe["vllm"], "model": probe["model"], "arch": probe["arch"], "tag": probe["tag"]},
+                     json_rc=proc.returncode if proc is not None else None, json_error=err, probe_row_returned=hit,
+                     ok=(first["ok"] and proc is not None and proc.returncode == 0 and hit
+                         and not (root / ".git").exists()))
+        second = {"name": "gitless_hint_match_reads_index", "ok": False, "expected_rc": [0]}
+        proc, got, err = run_json(["--include-other"])
+        if proc is None:
+            second["error"] = err
+            return [first, second]
+        second.update(rc=proc.returncode, stderr_tail=proc.stderr[-1000:],
+                      index_rows=len(rows) if isinstance(rows, list) else None,
+                      matched_rows=len(got) if isinstance(got, list) else None,
+                      ok=(proc.returncode == 0 and isinstance(got, list) and isinstance(rows, list)
+                          and len(got) == len(rows)))
+        return [first, second]
 
 
 def verify() -> dict:
@@ -648,15 +717,16 @@ def verify() -> dict:
         # 2026-09-04: hint-publisher 의 두 스크립트에는 자체검사가 **아예 없었고**, 그래서 push
         #   자격증명 배선이 통째로 빠진 것을 아무도 묻지 않았다(세션마다 `could not read Username`
         #   으로 재발). 위 terraforming 계열과 같은 결함(호출자 없는/존재하지 않는 자체검사)이다.
-        _run("hint_tag_selftest", [sys.executable,
-             ".claude/skills/hint-publisher/scripts/hint_tag.py", "--self-test"], {0}),
-        _run("hint_collect_selftest", [sys.executable,
-             ".claude/skills/hint-publisher/scripts/hint_collect.py", "--self-test"], {0}),
-        # 2026-09-14(plan_26091407 §4.5): 카탈로그 파생기와 리포트 파서의 자체검사에도 **호출자가 없었다**. 단계 ⑤ 가
-        #   `bench_mode` 파생 컬럼(과거 태그 = 미기재)과 측정 구성 표·경량 리포트 파싱을 여기에 올렸으므로 같은 날 배선한다
-        #   — 아무도 부르지 않는 자체검사는 침묵 누락이다(위 2026-09-04 주석과 같은 결함 계열).
-        _run("hint_catalog_selftest", [sys.executable,
-             ".claude/skills/hint-publisher/scripts/hint_catalog.py", "--self-test"], {0}),
+        # 2026-09-14(plan_26091407 §4.5): 카탈로그 파생기와 리포트 파서의 자체검사에도 **호출자가 없었다** — 아무도 부르지
+        #   않는 자체검사는 침묵 누락이다(위 2026-09-04 주석과 같은 결함 계열).
+        # 2026-09-22(plan_26092119 §4.9 · AC11 "자체검사 전종 초록"): 옛 CLI 넷(hint_tag·hint_collect·hint_branch·hint_catalog)이
+        #   단일 CLI `hint.py` + `hintlib/` 10모듈로 재구성됐다. `hint.py --self-test` 한 번이 **전 모듈 자체검사**(naming·pii·
+        #   branch·tag·catalog·lineage·artifacts·template·evidence·core — 각자 음성대조 포함) + CLI 파서 배선 + 격리 E2E(임시 git ·
+        #   bare 원격 · 가짜 docker · 라이브 태그/브랜치/캠페인 비의존)를 돈다. 옛 hint_branch·selftest_hint_gate 는 실행자가 0
+        #   이었는데(F14) 그 음성대조는 이제 해당 모듈 자체검사 안에 있어 여기서 함께 돈다(코드맵 skill_rest §5 "분해 후 DELETE").
+        #   bootstrap_families 는 이관이 아니라 families.json 과 함께 **폐기**다(O3 · 죽은 데이터 K10) — 옮길 음성대조가 없다.
+        _run("hint_selftest", [sys.executable,
+             ".claude/skills/hint-publisher/scripts/hint.py", "--self-test"], {0}),
         _run("hint_bench_section_selftest", [sys.executable,
              ".claude/skills/hint-publisher/scripts/render_bench_section.py", "--selftest"], {0}),
         _run("terraform_scan_selftest", [sys.executable,
@@ -692,14 +762,19 @@ def verify() -> dict:
              "--self-test"], {0}),
         _run("runtime_regression_selftest", [*_child_python(),
              ".claude/policies/runtime/runtime_selftest.py"], {0}),
-        _run("gitless_hint_match", [sys.executable,
-             ".claude/skills/hint-publisher/scripts/hint_tag.py", "match",
-             "--vllm", "0.24.0", "--model", "deepseek-v4-flash", "--arch", "gb10"],
-             {0}, env_overrides={"PATH": "/nonexistent"}),
+        *_gitless_hint_match_checks(),
+        # 2026-09-22(plan_26092119 S1·S3 · wave 1 요청): 서브 전달 목록 파생기(`slave_forward.py` · 공통층 신설)와 빌드 원장·
+        #   env 층 판정을 얹은 렌더러(`render_dockerfile.py` — 스모크 A7 이 부르지만 이 검증기는 `--help` 만 불렀다)의
+        #   자체검사를 배선한다. 호출자 없는 자체검사는 L1(산문)이다(위 선례). 둘 다 임시 디렉터리만 쓴다(docker·서브 불요).
+        #   slave_forward 는 "스모크가 서브에 넘기는 목록 = 발행 페이로드 sub_recipe 의 목록"(AC8 — 같은 함수) 의 tripwire 를 든다.
+        _run("upstream_slave_forward_selftest", [sys.executable,
+             ".claude/skills/upstream-version-watch/scripts/slave_forward.py", "--self-test"], {0}),
+        _run("upstream_render_dockerfile_selftest", [sys.executable,
+             ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py", "--self-test"], {0}),
     ]
     for filename in ("resolve_torch_pin.py", "resolve_ngc_tag.py", "resolve_build_track.py",
                      "resolve_wheel.py", "render_dockerfile.py", "regen_requirements.py",
-                     "classify_failure.py", "check_smoke_model.py"):
+                     "classify_failure.py", "check_smoke_model.py", "slave_forward.py"):
         checks.append(_run(f"upstream_help:{filename}", [sys.executable,
                            f".claude/skills/upstream-version-watch/scripts/{filename}", "--help"], {0}))
     # info-only(미테라포밍) 게이트 2건은 **조걜부**다: exit 4 는 Flag 미발급 환경에서만 발화하므로,
@@ -848,7 +923,8 @@ def verify() -> dict:
         #   음성대조: 기본(자동 핸드오프)은 미발행 · 발행 실패는 exit 5 이되 raw 는 남고 플래그 없는 경로는 exit 0 ·
         #   측정시각 부재 exit 2 · 모드 혼합 exit 2 · full 스윕 lite 레그는 발행하지 않는다(full 리포트 stem 보호) ·
         #   명명 키는 sweep_bench 조립 heredoc 실행과 교차검증 · full 리포트 측정 구성 표(full/강등/기록 부재).
-        #   seal 까지의 끝단(격리 원격 create→seal→catalog→verify)은 runtime_selftest 의 map_only 프로브가 지킨다.
+        #   발행 끝단(격리 원격 publish→저작→continue→원격 SHA→카탈로그)은 runtime_selftest `_test_hint_map_only_publication`
+        #   이 지킨다(2026-09-22 신 CLI 전 경로 · 그 경량 리포트도 배포되는 render_report 가 쓴다).
         _run("benchmark_lite_report_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/selftest_lite_report.py"], {0}),
         # Broad Search 이중 게이트의 **집행**: --confirm-risk 없이는 셀이 돌지 않는다(exit 5).

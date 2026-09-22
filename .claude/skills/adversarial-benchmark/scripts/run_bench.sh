@@ -4,8 +4,9 @@
 # 이 스킬은 *돌고 있는* serve 를 검증한다(기동은 recipe-explorer/serve compose 담당 — §10 경계).
 # 측정만: 컨테이너 내부 vllm bench serve(client-side 토크나이저 = 마운트된 모델 경로, airgap-safe) →
 #   --num-warmups 로 콜드 JIT 폐기 → --save-result JSON → 호스트로 회수 + docker logs 교차캡처.
-# 사용: run_bench.sh <config_name> [--topology single|multi] [--concurrency N] [--input-len N]
-#                    [--output-len N] [--num-prompts N] [--warmups N] [--out-dir DIR]
+# 사용: run_bench.sh <config_name> [--topology single|multi] [--serve-plane docker|native] [--host-endpoint URL]
+#                    [--concurrency N] [--input-len N] [--output-len N] [--num-prompts N] [--warmups N] [--out-dir DIR]
+# native는 이미 실행 중인 host endpoint/proof만 소비한다. 측정 client lifecycle만 이 스크립트가 소유하며 Docker inspect/log는 하지 않는다.
 set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
@@ -31,12 +32,15 @@ BACKEND=""
 TOOL="vllm"
 TOOL_VERSION=""      # 미선언이면 기록의 default_version(= 마지막 스테이징분)
 BENCH_BUDGET_MIB=""
-TOPO=""; CONC=1; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; OUTDIR=""
+TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; CONC=1; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; OUTDIR=""
 while [ $# -gt 0 ]; do case "$1" in
   --tool) TOOL="$2"; shift 2;;
   --tool-version) TOOL_VERSION="$2"; shift 2;;
   --bench-budget-mib) BENCH_BUDGET_MIB="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
+  --serve-plane) SERVE_PLANE="$2"; shift 2;;
+  --host-endpoint) HOST_ENDPOINT="$2"; shift 2;;
+  --client-vllm) CLIENT_VLLM="$2"; shift 2;;
   --concurrency) CONC="$2"; shift 2;;
   --input-len) ILEN="$2"; shift 2;;
   --output-len) OLEN="$2"; shift 2;;
@@ -49,6 +53,27 @@ esac; done
 
 # 도구 값역은 **어떤 일을 하기 전에** 친다. 게이트 뒤로 미루면 오타가 라이브 서빙 점검을 다 돌고
 # 나서야 드러나고, 인자 평면만 시험하려는 가드가 그 오타를 검출할 수 없다.
+case "$SERVE_PLANE" in
+  docker|native) ;;
+  *) echo "[run_bench] 알 수 없는 --serve-plane: $SERVE_PLANE (docker|native)" >&2; exit 2;;
+esac
+if [ "$SERVE_PLANE" = "native" ] && { [ -z "$HOST_ENDPOINT" ] || [ -z "$CLIENT_VLLM" ]; }; then
+  echo "[run_bench] ERROR --serve-plane native에는 --host-endpoint URL 과 --client-vllm <전용 venv/bin/vllm>이 필수다." >&2
+  exit 2
+fi
+if [ "$SERVE_PLANE" = "native" ] && [[ ! "$HOST_ENDPOINT" =~ ^https?://[^/[:space:]]+(:[0-9]+)?$ ]]; then
+  echo "[run_bench] ERROR --host-endpoint는 경로 없는 http(s) origin 이어야 한다: $HOST_ENDPOINT" >&2
+  exit 2
+fi
+if [ "$SERVE_PLANE" = "docker" ] && { [ -n "$HOST_ENDPOINT" ] || [ -n "$CLIENT_VLLM" ]; }; then
+  echo "[run_bench] ERROR --host-endpoint/--client-vllm은 --serve-plane native에서만 준다." >&2
+  exit 2
+fi
+if [ "$SERVE_PLANE" = "native" ] && { [ ! -x "$CLIENT_VLLM" ] || [ -L "$CLIENT_VLLM" ]; }; then
+  echo "[run_bench] ERROR --client-vllm이 실행 가능한 regular non-symlink 파일이 아니다: $CLIENT_VLLM" >&2
+  exit 2
+fi
+
 case "$TOOL" in
   vllm) ;;
   guidellm)
@@ -101,10 +126,15 @@ set -a; . "$EF"; set +a
 PORT="${SERVING_PORT:?SERVING_PORT 미정}"
 MODEL_NAME="${SERVING_MODEL_NAME:?SERVING_MODEL_NAME 미정}"
 CFGFILE="${CONFIG_FILE:-$CONFIG}"
-if [ "$TOPO" = "multi" ]; then
-  CTR="${MASTER_CONTAINER_NAME:?MASTER_CONTAINER_NAME 미정}"; INPORT="$PORT"
+if [ "$SERVE_PLANE" = "docker" ]; then
+  if [ "$TOPO" = "multi" ]; then
+    CTR="${MASTER_CONTAINER_NAME:?MASTER_CONTAINER_NAME 미정}"; INPORT="$PORT"
+  else
+    CTR="${CONTAINER_NAME:-vllm-serve-container}"; INPORT=8000
+  fi
 else
-  CTR="${CONTAINER_NAME:-vllm-serve-container}"; INPORT=8000
+  # Native endpoint is explicit: do not derive it from Docker names or inspect a server container.
+  CTR=""; INPORT=""
 fi
 CFGYAML="$REPO/output/$TOPO/configs/$CFGFILE.yaml"
 [ -f "$CFGYAML" ] || { echo "[run_bench] config yaml 없음: $CFGYAML" >&2; exit 2; }
@@ -116,11 +146,19 @@ mkdir -p "$OUTDIR"
 ELOG="$OUTDIR/engine_${CONFIG}.log"   # BJSON 은 도구 분기가 정한다(스키마가 다르므로 파일명도 다르다)
 
 # --- serve 가동 확인(이 스킬은 기동 안 함) ---
-echo "[run_bench] precheck http://localhost:$PORT/health"
-[ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://localhost:$PORT/health" 2>/dev/null)" = "200" ] \
-  || { echo "[run_bench] serve 미가동(:$PORT/health≠200). recipe/compose 로 먼저 기동하세요." >&2; exit 3; }
-docker ps --filter "name=$CTR" --filter status=running -q | grep -q . \
-  || { echo "[run_bench] 컨테이너 $CTR 미실행" >&2; exit 3; }
+if [ "$SERVE_PLANE" = "docker" ]; then
+  BASE_URL="http://localhost:$PORT"
+  echo "[run_bench] precheck $BASE_URL/health"
+  [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$BASE_URL/health" 2>/dev/null)" = "200" ] \
+    || { echo "[run_bench] serve 미가동(:$PORT/health≠200). recipe/compose 로 먼저 기동하세요." >&2; exit 3; }
+  docker ps --filter "name=$CTR" --filter status=running -q | grep -q . \
+    || { echo "[run_bench] 컨테이너 $CTR 미실행" >&2; exit 3; }
+else
+  BASE_URL="${HOST_ENDPOINT%/}"
+  echo "[run_bench] native precheck $BASE_URL/health"
+  [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$BASE_URL/health" 2>/dev/null)" = "200" ] \
+    || { echo "[run_bench] native serve 미가동($BASE_URL/health≠200). native producer로 먼저 기동하세요." >&2; exit 3; }
+fi
 
 case "$BACKEND" in
   openai-chat) ENDPOINT=/v1/chat/completions ;;
@@ -153,7 +191,7 @@ _RUNNER="$REPO/output/$TOPO/configs/$CFGFILE.sh"
 _HARMONY=0; _HARMONY_SRC=""
 if [ -f "$_RUNNER" ] && grep -qE -- '--reasoning-parser[= ]+openai_gptoss' "$_RUNNER"; then
   _HARMONY=1; _HARMONY_SRC="declared(runner --reasoning-parser openai_gptoss)"
-elif docker logs "$CTR" 2>&1 | tail -2000 \
+elif [ "$SERVE_PLANE" = "docker" ] && docker logs "$CTR" 2>&1 | tail -2000 \
      | grep -qEi 'reasoning[_-]parser.*(openai_gptoss|gpt.oss)|harmony'; then
   _HARMONY=1; _HARMONY_SRC="measured(engine log)"
 fi
@@ -172,16 +210,28 @@ fi
 #   게이트를 분기 안으로 복제하지 않는 것이 요점이다 — 정책 술어가 위 블록을 **원문 그대로 뽑아
 #   실행**하며 검증하므로, 복제본은 검증되지 않는 두 번째 게이트가 된다.
 bench_with_vllm(){
-  echo "[run_bench] bench(vllm): ctr=$CTR inport=$INPORT model=$MODEL_NAME conc=$CONC in=$ILEN out=$OLEN n=$NPROMPTS warmup=$WARMUPS backend=$BACKEND endpoint=$ENDPOINT"
   local RFN="ab_bench_${CONFIG}.json"
-  docker exec "$CTR" bash -lc "cd /tmp && vllm bench serve \
-  --backend $BACKEND --base-url http://localhost:$INPORT --endpoint $ENDPOINT \
-  --model '$MODEL_NAME' --tokenizer '$MODEL_PATH' --trust-remote-code \
-  --dataset-name random --random-input-len $ILEN --random-output-len $OLEN --random-range-ratio 0 \
-  --num-prompts $NPROMPTS --max-concurrency $CONC --request-rate inf --ignore-eos --num-warmups $WARMUPS --temperature 0 \
-  --save-result --result-dir /tmp --result-filename '$RFN'" \
-    || { echo "[run_bench] vllm bench serve 실패" >&2; docker exec "$CTR" bash -lc "tail -5 /tmp/$RFN 2>/dev/null" || true; return 4; }
-  docker exec "$CTR" cat "/tmp/$RFN" > "$BJSON"
+  if [ "$SERVE_PLANE" = "docker" ]; then
+    echo "[run_bench] bench(vllm/docker): ctr=$CTR inport=$INPORT model=$MODEL_NAME conc=$CONC in=$ILEN out=$OLEN n=$NPROMPTS warmup=$WARMUPS backend=$BACKEND endpoint=$ENDPOINT"
+    docker exec "$CTR" bash -lc "cd /tmp && vllm bench serve \
+    --backend $BACKEND --base-url $BASE_URL --endpoint $ENDPOINT \
+    --model '$MODEL_NAME' --tokenizer '$MODEL_PATH' --trust-remote-code \
+    --dataset-name random --random-input-len $ILEN --random-output-len $OLEN --random-range-ratio 0 \
+    --num-prompts $NPROMPTS --max-concurrency $CONC --request-rate inf --ignore-eos --num-warmups $WARMUPS --temperature 0 \
+    --save-result --result-dir /tmp --result-filename '$RFN'" \
+      || { echo "[run_bench] vllm bench serve 실패" >&2; docker exec "$CTR" bash -lc "tail -5 /tmp/$RFN 2>/dev/null" || true; return 4; }
+    docker exec "$CTR" cat "/tmp/$RFN" > "$BJSON"
+  else
+    # Native service: client process only. The executable must be available on the host;
+    # this script never starts, inspects, or tails a native server process.
+    echo "[run_bench] bench(vllm/native): endpoint=$BASE_URL model=$MODEL_NAME conc=$CONC in=$ILEN out=$OLEN n=$NPROMPTS warmup=$WARMUPS backend=$BACKEND"
+    "$CLIENT_VLLM" bench serve --backend "$BACKEND" --base-url "$BASE_URL" --endpoint "$ENDPOINT" \
+      --model "$MODEL_NAME" --tokenizer "$MODEL_PATH" --trust-remote-code \
+      --dataset-name random --random-input-len "$ILEN" --random-output-len "$OLEN" --random-range-ratio 0 \
+      --num-prompts "$NPROMPTS" --max-concurrency "$CONC" --request-rate inf --ignore-eos --num-warmups "$WARMUPS" --temperature 0 \
+      --save-result --result-dir "$OUTDIR" --result-filename "$RFN" \
+      || { echo "[run_bench] native vllm bench serve 실패" >&2; return 4; }
+  fi
 }
 
 # GuideLLM = **별도 컨테이너**. 이 스킬의 "기동하지 않는다" 불변식의 목적어는 **추론 서버**이며,
@@ -273,6 +323,11 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
   #   ★ 노드: GuideLLM 은 `--network host` 로 `localhost:$PORT` 에 붙으므로 **API 서버가 뜬
   #     노드에만** 존재한다(multi 에서는 메인). 그래서 이 노드의 선언만 본다 — 양 노드에
   #     같은 몫을 반영하면 서브 예산이 없는 비용을 계상한다.
+  # Native host serving is outside the Docker-backed serve-budget contract. Its producer
+  # owns server lifecycle and cleanup attestation; only the GuideLLM client container is ours.
+  if [ "$SERVE_PLANE" = "native" ]; then
+    echo "[run_bench] native: Docker serve-budget inspection skipped (host endpoint/proof plane)"
+  else
   local _BB_DIR="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox"
   local _SESSION_PY="$_BB_DIR/blackbox_session.py"
   local _PREFLIGHT="$REPO/.claude/skills/upstream-version-watch/scripts/budget_preflight.py"
@@ -304,6 +359,7 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
       fi
     fi
   fi
+  fi  # docker serve-budget inspection
 
   local GLNAME="guidellm-bench-${CONFIG}-c${CONC}"
   # teardown 계약: 정상·비정상·시그널 어느 경로로 나가도 컨테이너를 남기지 않는다.
@@ -323,7 +379,7 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
     -e HOME=/tmp -e XDG_CACHE_HOME=/tmp/.cache \
     -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
     --entrypoint guidellm "$IMAGE" run \
-    --backend "kind=openai_http,target=http://localhost:$PORT,model=$MODEL_NAME,request_format=$ENDPOINT,extras={\"ignore_eos\":true}" \
+    --backend "kind=openai_http,target=$BASE_URL,model=$MODEL_NAME,request_format=$ENDPOINT,extras={\"ignore_eos\":true}" \
     --profile "kind=concurrent,streams=$CONC,warmup=$WARM_FRAC" \
     --data "kind=synthetic_text,prompt_tokens=$ILEN,output_tokens=$OLEN" \
     --tokenizer "kind=huggingface_auto,model=/tok" \
@@ -341,7 +397,11 @@ case "$TOOL" in
 esac
 [ "$BENCH_TOOL_RC" = "0" ] || exit "$BENCH_TOOL_RC"
 
-docker logs "$CTR" 2>&1 | tail -800 > "$ELOG" || true
+if [ "$SERVE_PLANE" = "docker" ]; then
+  docker logs "$CTR" 2>&1 | tail -800 > "$ELOG" || true
+else
+  : > "$ELOG"  # native server logs are producer evidence; benchmark does not read host process logs.
+fi
 
 # ── 벤치 종료 시 서버 생존 관측 (2026-09-07 · plan_26090715 §5 ⑤-② · 유예 결함 ②) ──────────
 #   `RemoteProtocolError` 는 두 원인이 같은 모양으로 나온다: ⓐ 도구가 스트림을 먼저 끊었다
@@ -350,18 +410,26 @@ docker logs "$CTR" 2>&1 | tail -800 > "$ELOG" || true
 #   기록되지 않았다 — 그래서 엔진 사망 중 잘린 SSE 가 tool_boundary 로 면제되는 역방향
 #   fail-open 이 열려 있었다. 관측은 여기서만 할 수 있다(벤치 직후 · 아직 teardown 전).
 POST_HEALTH="$OUTDIR/post_health_${CONFIG}.json"
-_PH_CODE="$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://localhost:$PORT/health" 2>/dev/null || echo 000)"
-_PH_RUNNING="$(docker inspect -f '{{.State.Running}}' "$CTR" 2>/dev/null || echo unknown)"
-_PH_OOM="$(docker inspect -f '{{.State.OOMKilled}}' "$CTR" 2>/dev/null || echo unknown)"
-_PH_EXIT="$(docker inspect -f '{{.State.ExitCode}}' "$CTR" 2>/dev/null || echo unknown)"
-_PH_ALIVE=false
-[ "$_PH_CODE" = "200" ] && [ "$_PH_RUNNING" = "true" ] && _PH_ALIVE=true
+_PH_CODE="$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$BASE_URL/health" 2>/dev/null || echo 000)"
+if [ "$SERVE_PLANE" = "docker" ]; then
+  _PH_RUNNING="$(docker inspect -f '{{.State.Running}}' "$CTR" 2>/dev/null || echo unknown)"
+  _PH_OOM="$(docker inspect -f '{{.State.OOMKilled}}' "$CTR" 2>/dev/null || echo unknown)"
+  _PH_EXIT="$(docker inspect -f '{{.State.ExitCode}}' "$CTR" 2>/dev/null || echo unknown)"
+  _PH_ALIVE=false
+  [ "$_PH_CODE" = "200" ] && [ "$_PH_RUNNING" = "true" ] && _PH_ALIVE=true
+else
+  # Native proof is the lifecycle authority. We deliberately do not Docker inspect a host process.
+  _PH_RUNNING="not-applicable(native)"; _PH_OOM="not-applicable(native)"; _PH_EXIT="not-applicable(native)"
+  _PH_ALIVE=false; [ "$_PH_CODE" = "200" ] && _PH_ALIVE=true
+fi
 cat > "$POST_HEALTH" <<JSON
 {
   "schema_version": 1,
   "provenance": "measured",
   "config": "$CONFIG",
   "checked_after": "bench",
+  "serve_plane": "$SERVE_PLANE",
+  "host_endpoint": "$BASE_URL",
   "server_alive_at_bench_end": $_PH_ALIVE,
   "health_http_code": "$_PH_CODE",
   "container_running": "$_PH_RUNNING",
@@ -374,6 +442,8 @@ echo "[run_bench] post-bench health: alive=$_PH_ALIVE (http=$_PH_CODE running=$_
 
 echo "[run_bench] DONE"
 echo "BENCH_TOOL=$TOOL"
+echo "BENCH_SERVE_PLANE=$SERVE_PLANE"
+echo "BENCH_HOST_ENDPOINT=$BASE_URL"
 echo "BENCH_ENDPOINT=$ENDPOINT"
 echo "BENCH_BACKEND_SOURCE=$BACKEND_SOURCE"
 echo "BENCH_JSON=$BJSON"

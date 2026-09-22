@@ -10,8 +10,9 @@
    실제로 도착했을 때만 열린다. 열리지 않으면 새 캠페인이 **시작되지 않는다** — 증거를 흘린 채
    다음 캠페인을 도는 것보다 멈추는 편이 싸다.
 3. **개설** (`--init ... --apply`): purge → 뼈대 복사 → 활성 포인터 기록.
-4. **단일 writer** (`--phase-set`·`--cell-set`·`--evidence-add`·`--revise`)와 **읽는 눈**
-   (`--resume-brief`). 2026-09-07 신설 · plan_26090715 §4.1·§4.4.
+4. **단일 writer** (`--phase-set`·`--cell-set`·`--evidence-add`·`--revise`·`--hint-approve`)와 **읽는 눈**
+   (`--resume-brief`). 2026-09-07 신설 · plan_26090715 §4.1·§4.4. `--hint-approve` 는 2026-09-21
+   (plan_26092119 O6) — hint 발행 사전승인을 선언의 `hint_targets` 에 전사한다.
    왜: 거처(campaigns/)와 게이트(purge)는 계약대로 섰는데 **채우는 손이 대화 기억**이었다 —
    README 가 재개 에이전트에게 읽으라는 네 아티팩트의 저장소 내 producer 가 0 이었고,
    라이브에선 세션과 함께 소멸하는 스크래치패드 스크립트가 썼다(audit_26090708 §1.1).
@@ -1070,9 +1071,12 @@ def writer_add_evidence(base: Path, *, kind: str, path_rel: str, cell_id: str | 
     doc = _read_json(ep) if ep.is_file() else None
     doc = doc if isinstance(doc, dict) else {"schema_version": 1, "pointers": []}
     if doc.get("frozen_utc") and not unfreeze:
+        # ★ 2026-09-21(plan_26092119 D9): 동결은 사람이 명시로 건 **캠페인 전체** 스냅샷이다 — hint 발행기는
+        #   셀 단위로 발행하므로 동결하지 않고, 그 셀 몫 포인터를 봉인 페이로드에 복사해 '태그는 불변인데
+        #   근거가 움직인다'(2026-09-07 인터뷰 Q6)를 페이로드 쪽에서 막는다.
         raise WriterRefusal(
-            f"이 스냅샷은 {doc['frozen_utc']} 에 동결됐다 — publish 위상의 proof.ok 시점 이후에는 "
-            f"입력이 바뀌지 않는다(hint 발행의 입력 통로가 흐르면 태그는 불변인데 근거가 움직인다).\n"
+            f"이 스냅샷은 {doc['frozen_utc']} 에 동결됐다 — 동결 이후에는 입력이 바뀌지 않는다"
+            f"(사람이 명시로 건 캠페인 전체 스냅샷이다).\n"
             f"  → 정말 바꿔야 하면 사람이 --unfreeze 를 붙인다.")
     pointers = doc.get("pointers")
     pointers = pointers if isinstance(pointers, list) else []
@@ -1135,7 +1139,13 @@ def writer_prune_stubs(base: Path, *, unfreeze: bool) -> "tuple[Path, list[str]]
 
 
 def writer_freeze_evidence(base: Path, utc: str) -> Path:
-    """publish 위상의 proof.ok 시점에 스냅샷을 동결한다(인터뷰 Q6)."""
+    """증거 스냅샷을 **캠페인 전체** 단위로 동결한다(인터뷰 Q6 · 2026-09-07).
+
+    ★ 2026-09-21(plan_26092119 D9 · 코드맵 H9): hint 발행기는 이 연산을 부르지 않는다. 발행이 셀 단위가
+      되면서, 첫 셀의 발행이 전체를 얼리면 이후 셀의 증거 등록(publish_benchmark_record 의 인증서 포인터
+      포함)이 전부 거부된다 — 캠페인이 도는 중에 발행이 캠페인을 막는다. 태그 불변 요구는 발행기가 그
+      셀 몫 포인터를 봉인 페이로드(PAYLOAD.evidence_pointers)에 복사해서 진다. 이 연산은 사람이 명시로
+      쓰는 전체 동결로 남는다(호출자 0 · 종전 문구 'publish 위상의 proof.ok 시점' 은 배선된 적이 없다)."""
     ep = base / "evidence_pointers.json"
     doc = _read_json(ep) if ep.is_file() else None
     if not isinstance(doc, dict):
@@ -1175,6 +1185,90 @@ def writer_add_revision(base: Path, *, values: dict, reason: str, evidence: str,
     # control_variables 는 **t0 원본으로 남긴다** — 최신값은 revisions[-1] 이 든다.
     _write_json(path, doc)
     return path
+
+
+def writer_hint_approve(base: Path, *, node: str | None, cells: list, approved_by: str | None,
+                        utc: str | None, source: str | None = None) -> "tuple[Path, dict]":
+    """hint 발행 **사전승인**을 선언의 `hint_targets` 에 전사한다(2026-09-21 · plan_26092119 O6 · SPEC X3).
+
+    왜: O6 는 셀마다 팝업 대신 선언 확인 팝업에서 발행 대상 셀 목록을 승인하기로 했는데, 그 승인은 산문에만
+    있고 **기계 기록이 0** 이었다(코드맵 G3) — 기록 없는 승인은 세션과 함께 사라지고, 발행기는 사람에게
+    다시 묻거나 묻지 않고 발행하는 둘 중 하나가 된다. 무인 자동 태깅 ✗ 는 그대로다: 사람이 명시한 셀
+    목록과 그 발화의 전사를 적는 것이지 기계가 셀을 고르는 것이 아니다.
+
+    규율(`--revise` 와 같은 4필드): node · cells(명시 1개 이상) · approved_by(사람 발화 전사) · utc 넷 중 하나라도
+    없으면 승인이 아니라 드리프트다. 모양의 판정은 검증기(`hint_target_reasons`)가 소유하고, 이 writer 는 쓰기
+    **전에** 그 판정을 불러 검증기가 거부할 선언을 만들지 않는다.
+
+    항목 하나 = 승인 사건 하나(노드 · 전사 · 시각 · 출처가 같으면 같은 사건). 같은 사건을 다시 적으면 셀을
+    합치고(멱등), 다른 사건으로 이미 승인된 셀은 **옛 승인을 지킨다** — 귀속을 조용히 바꾸면 그 셀의 승인이
+    누구의 어느 발화였는지가 사라진다(writer_add_evidence 의 귀속 불변 선례 · 2026-09-08).
+
+    돌려주는 것: (경로, {"added", "kept", "already", "changed", "index"}).
+    """
+    v = validator()
+    source = source or v.HINT_APPROVAL_DEFAULT_SOURCE
+    for need, val in (("--node", node), ("--approved-by", approved_by), ("--utc", utc)):
+        if not isinstance(val, str) or not val.strip():
+            raise WriterRefusal(f"{need} 는 필수다 — node·cells·approved-by·utc 넷 중 하나라도 없으면 "
+                                f"승인이 아니라 드리프트다(--revise 와 같은 규율)")
+    wanted: list[str] = []
+    for c in (cells or []):
+        c = str(c).strip()
+        if c and c not in wanted:
+            wanted.append(c)
+    if not wanted:
+        raise WriterRefusal("--cells 는 필수다 — 승인할 셀을 명시 열거한다(빈 목록 = 전 셀 해석은 폐기 · "
+                            "백지 승인 ✗)")
+    _no_fill(node=node, approved_by=approved_by, utc=utc, source=source, cells=",".join(wanted))
+    approval = {"approved_by": approved_by, "approved_utc": utc, "source": source}
+    why = v.hint_approval_reason(approval)
+    if why is not None:
+        raise WriterRefusal(f"승인이 완결되지 않았다 — {why}")
+
+    path = base / "campaign.yaml"
+    doc = _read_json(path)
+    if not isinstance(doc, dict):
+        raise WriterRefusal("campaign.yaml 이 없거나 파손 — 승인을 적을 선언이 없다")
+    if doc.get("self_role") == "sub":
+        raise WriterRefusal("self_role=sub 인스턴스다 — 발행 승인은 메인 선언에만 적는다(발행은 메인 소관 · "
+                            "파생 선언은 hint_targets 를 비워 보낸다)")
+    if node not in [n.get("node_id") for n in (doc.get("nodes") or []) if isinstance(n, dict)]:
+        raise WriterRefusal(f"nodes[] 에 {node!r} 가 없다 — 선언되지 않은 노드의 셀은 승인할 수 없다")
+    assigned = v.assigned_cells(doc, node)
+    outside = [c for c in wanted if c not in assigned]
+    if outside:
+        raise WriterRefusal(f"--cells 의 {outside} 는 assignments[{node!r}] 에 없다(배정: {assigned}) — 배정 SSOT 는 "
+                            f"assignments 이고 hint_targets 는 파생이다(배정의 노드가 승인의 노드다)")
+    before = v.hint_target_reasons(doc)
+    if before:
+        raise WriterRefusal("선언의 hint_targets 에 이미 결함이 있다 — 결함 위에 승인을 얹지 않는다. 먼저 고친다:\n"
+                            + "\n".join(f"  - {b}" for b in before))
+
+    targets = doc.get("hint_targets")
+    targets = targets if isinstance(targets, list) else []
+    approved_at = {c: i for i, t in enumerate(targets) for c in (t.get("cells") or [])}
+    same = next((i for i, t in enumerate(targets)
+                 if t.get("node_id") == node and t.get("approval") == approval), None)
+    added = [c for c in wanted if c not in approved_at]
+    already = [c for c in wanted if c in approved_at and approved_at[c] == same]
+    kept = [{"cell": c, "index": approved_at[c], "approval": targets[approved_at[c]].get("approval")}
+            for c in wanted if c in approved_at and approved_at[c] != same]
+    index = same
+    if added:
+        if same is not None:
+            targets[same]["cells"] = list(targets[same]["cells"]) + added
+        else:
+            targets.append({"node_id": node, "cells": added, "approval": approval})
+            index = len(targets) - 1
+        doc["hint_targets"] = targets
+        after = v.hint_target_reasons(doc)
+        if after:
+            # 위 사전 검사가 막았어야 한다 — 여기 오면 writer 와 검증기가 갈라진 것이다. 쓰지 않는다.
+            raise WriterRefusal("승인 기록이 검증기를 통과하지 못한다(writer↔검증기 갈라짐 — 쓰지 않았다):\n"
+                                + "\n".join(f"  - {x}" for x in after))
+        _write_json(path, doc)
+    return path, {"added": added, "kept": kept, "already": already, "changed": bool(added), "index": index}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2608,6 +2702,115 @@ def _selftest() -> int:
         ck("★precheck producer 배선 앵커: broad_search.sh cell 이 --lockset-precheck 를 부른다",
            _bs.is_file() and "--lockset-precheck" in _bs.read_text(encoding="utf-8"))
 
+        # ── hint 발행 사전승인 writer (2026-09-21 · plan_26092119 O6 · SPEC X3) ─────────────────
+        #    양성(승인이 적히고 검증기가 읽는다)과 음성대조(4필드 결손·배정 밖·서브·결함 선언은 거부 · 선언
+        #    바이트 불변)를 둘 다 둔다. ACTIVE 는 다른 인스턴스(w1)를 가리키게 두어 명시 id 가 이기는지 본다.
+        _ha = CAMPAIGNS / "ha"
+        _ha.mkdir(parents=True, exist_ok=True)
+        _write_json(_ha / "campaign.yaml", {
+            "schema_version": 1, "id": "ha", "plan_ref": "docs/plan/p.md",
+            "nodes": [{"node_id": "main", "role": "main"}, {"node_id": "sub", "role": "sub"}],
+            "assignments": {"main": [{"cell": "h1"}, {"cell": "h2"}, {"cell": "h3"}],
+                            "sub": [{"cell": "h9"}]},
+            "hint_targets": []})
+        ACTIVE_POINTER.write_text("w1\n", encoding="utf-8")
+        _U1, _U2 = "2026-09-21T10:00:00Z", "2026-09-21T11:00:00Z"
+        _sayA = '사용자(발화 전사) — "h1·h2 발행 승인"'
+        _sayB = '사용자(발화 전사) — "h2·h3 도 발행"'
+
+        def _hbytes(name: str = "ha") -> bytes:
+            return (CAMPAIGNS / name / "campaign.yaml").read_bytes()
+
+        def _happ(*extra, cells="h1", say=_sayA, utc=_U1, camp_id="ha"):
+            args = ["--hint-approve", "--campaign-id", camp_id, "--node", "main", "--cells", cells,
+                    "--approved-by", say, "--utc", utc, *extra]
+            return _cli(*args)
+
+        _full = ["--hint-approve", "--campaign-id", "ha", "--node", "main", "--cells", "h1",
+                 "--approved-by", _sayA, "--utc", _U1]
+        _b0, _w1b = _hbytes(), _hbytes("w1")
+        for _flag in ("--node", "--cells", "--approved-by", "--utc"):
+            _i = _full.index(_flag)
+            _rc, _o, _e = _cli(*(_full[:_i] + _full[_i + 2:]))
+            ck(f"★4필드 강제: {_flag} 가 없으면 거부(rc≠0 · 선언 바이트 불변)",
+               _rc != 0 and _hbytes() == _b0 and "FAIL" in _e)
+        for _lbl, _extra, _kw in (
+                ("빈 --cells(백지 승인 ✗)", (), {"cells": " , "}),
+                ("주입 모양이 아닌 --utc", (), {"utc": "2026-09-21 10:00"}),
+                ("목록 밖 --source", ("--source", "chat"), {}),
+                ("--approved-by 의 <<FILL>>", (), {"say": FILL}),
+                ("배정 밖 셀(서브 배정 셀을 메인 승인으로)", (), {"cells": "h9"})):
+            _rc, _o, _e = _happ(*_extra, **_kw)
+            ck(f"★음성대조 {_lbl} 은 거부(선언 바이트 불변)", _rc != 0 and _hbytes() == _b0)
+        ck("★음성대조 선언되지 않은 노드는 거부",
+           _boom(lambda: writer_hint_approve(_ha, node="ghost", cells=["h1"], approved_by=_sayA, utc=_U1)))
+
+        _rc, _o, _e = _happ()
+        _hd = _read_json(_ha / "campaign.yaml")
+        ck("★승인이 선언에 전사된다(기본 출처 = 선언 확인 팝업 · 명시 --campaign-id 가 ACTIVE 를 이긴다)",
+           _rc == 0 and "wrote(ha)" in _o and _hd["hint_targets"] == [
+               {"node_id": "main", "cells": ["h1"],
+                "approval": {"approved_by": _sayA, "approved_utc": _U1, "source": "declaration-popup"}}]
+           and _hbytes("w1") == _w1b)
+        ck("★writer 가 쓴 승인은 검증기를 통과하고 읽는 눈이 그 전사를 돌려준다",
+           not validator().hint_target_reasons(_hd)
+           and (validator().hint_approval_for(_hd, "h1", "main") or {}).get("approval", {}).get("approved_by") == _sayA
+           and validator().hint_approval_for(_hd, "h2", "main") is None)
+        _rc, _o, _e = _happ(cells="h1,h2")
+        _hd = _read_json(_ha / "campaign.yaml")
+        ck("★같은 승인 사건이면 셀을 합친다(항목 하나 · h1 은 멱등 기재)",
+           _rc == 0 and len(_hd["hint_targets"]) == 1 and _hd["hint_targets"][0]["cells"] == ["h1", "h2"]
+           and "멱등" in _e)
+        _b1 = _hbytes()
+        _rc, _o, _e = _happ(cells="h1,h2")
+        ck("★멱등: 같은 명령을 다시 적으면 선언 바이트가 그대로다", _rc == 0 and _hbytes() == _b1)
+        _rc, _o, _e = _happ("--source", "publish-popup", cells="h2,h3", say=_sayB, utc=_U2)
+        _hd = _read_json(_ha / "campaign.yaml")
+        ck("★다른 승인 사건은 새 항목으로 쌓이고 이미 승인된 셀(h2)은 옛 승인을 지킨다(귀속 불변)",
+           _rc == 0 and len(_hd["hint_targets"]) == 2
+           and _hd["hint_targets"][0]["cells"] == ["h1", "h2"]
+           and _hd["hint_targets"][0]["approval"]["approved_by"] == _sayA
+           and _hd["hint_targets"][1] == {"node_id": "main", "cells": ["h3"], "approval": {
+               "approved_by": _sayB, "approved_utc": _U2, "source": "publish-popup"}}
+           and "옛 승인을 지킨다" in _e
+           and (validator().hint_approval_for(_hd, "h2") or {}).get("approval", {}).get("approved_by") == _sayA)
+        _b2 = _hbytes()
+        _rc, _o, _e = _happ(cells="h2", say='사용자(발화 전사) — "h2 재승인"', utc=_U2)
+        ck("★음성대조: 이미 승인된 셀만 다시 승인하면 아무것도 바꾸지 않는다(rc 0 · 바이트 불변)",
+           _rc == 0 and _hbytes() == _b2 and "옛 승인을 지킨다" in _e)
+
+        ACTIVE_POINTER.write_text(BOOTSTRAP + "\n", encoding="utf-8")
+        _rc, _o, _e = _cli("--hint-approve", "--node", "main", "--cells", "h1", "--approved-by", _sayA,
+                           "--utc", _U1)
+        ck("★_bootstrap(ACTIVE 부재·명시 없음)이면 no-op 이다(rc 0 · 이름으로 말한다 · 어떤 선언도 불변)",
+           _rc == 0 and "no-op" in _e and _hbytes() == _b2 and _hbytes("w1") == _w1b)
+        _rc, _o, _e = _happ(camp_id=BOOTSTRAP)
+        ck("★명시 --campaign-id _bootstrap 도 no-op 이다", _rc == 0 and "no-op" in _e and _hbytes() == _b2)
+        ACTIVE_POINTER.write_text("w1\n", encoding="utf-8")
+
+        _hs = CAMPAIGNS / "hs"
+        _hs.mkdir(parents=True, exist_ok=True)
+        _write_json(_hs / "campaign.yaml", {"schema_version": 1, "id": "hs", "self_role": "sub",
+                                            "nodes": [{"node_id": "main", "role": "main"}],
+                                            "assignments": {"main": [{"cell": "h1"}]}, "hint_targets": []})
+        _bs0 = _hbytes("hs")
+        ck("★음성대조 서브 인스턴스(self_role=sub)에는 승인을 적지 않는다(발행은 메인 소관)",
+           _happ(camp_id="hs")[0] != 0 and _hbytes("hs") == _bs0)
+        _hx = CAMPAIGNS / "hx"
+        _hx.mkdir(parents=True, exist_ok=True)
+        _write_json(_hx / "campaign.yaml", {
+            "schema_version": 1, "id": "hx", "nodes": [{"node_id": "main", "role": "main"}],
+            "assignments": {"main": [{"cell": "h1"}, {"cell": "h2"}]},
+            "hint_targets": [{"arch": "gb10-main-sim-h100", "node_id": "main", "cells": []}]})
+        _bx0 = _hbytes("hx")
+        _rc, _o, _e = _happ(camp_id="hx", cells="h2")
+        ck("★음성대조 옛 모양(arch · 빈 cells) 위에는 승인을 얹지 않는다(결함을 먼저 고친다 · 바이트 불변)",
+           _rc != 0 and "이미 결함" in _e and "arch" in _e and _hbytes("hx") == _bx0)
+
+        _slh = emit_slice(_ha, "sub", utc="2026-09-21T12:00:00Z")
+        ck("★메인 선언에 승인이 있어도 파생 선언의 hint_targets 는 비어 있다(공허한 빈 목록이 아니라 실제로 잘린다)",
+           len(_read_json(_ha / "campaign.yaml")["hint_targets"]) == 2 and _slh["hint_targets"] == [])
+
     CAMPAIGNS, ACTIVE_POINTER, REPO_ROOT = saved
     print("[campaign_init] " + ("PASS" if ok else "FAIL"))
     return 0 if ok else 1
@@ -2675,7 +2878,7 @@ def main(argv: list[str] | None = None) -> int:
     w = ap.add_argument_group("writer (campaigns/<id>/ 에 바이트를 쓰는 유일한 자리)")
     w.add_argument("--phase-set", metavar="PHASE",
                    help="phase 상태 기록 (build|serve|bench|publish) · --node 필수")
-    w.add_argument("--node", help="--phase-set 의 노드 id(= manifest role 슬러그)")
+    w.add_argument("--node", help="--phase-set 의 노드 id(= manifest role 슬러그) · --hint-approve 의 선언 노드")
     w.add_argument("--state", help="--phase-set 의 상태 (pending|running|done|failed)")
     w.add_argument("--proof-predicate", help="무엇을 물었는가")
     w.add_argument("--proof-ok", action="store_true", help="관측 결과 참")
@@ -2715,13 +2918,24 @@ def main(argv: list[str] | None = None) -> int:
                    help="뼈대에서 딸려온 <<FILL>> 스텁 포인터를 정식 경로로 제거한다 "
                         "(값이 든 포인터는 건드리지 않는다 · 손삭제 대체)")
     w.add_argument("--freeze-evidence", action="store_true",
-                   help="publish proof.ok 시점에 증거 스냅샷을 동결한다 · --utc 필수")
+                   help="캠페인 전체 증거 스냅샷을 동결한다(사람 명시 연산 · hint 발행기는 부르지 않는다 — "
+                        "셀 단위 발행 2026-09-21 D9) · --utc 필수")
     w.add_argument("--revise", action="store_true",
                    help="layer-1 control_variables append-only 개정(메인 단일 창구)")
     w.add_argument("--revise-set", action="append", default=[], metavar="K=V",
                    help="개정할 키=값(반복)")
     w.add_argument("--revise-reason"); w.add_argument("--revise-evidence")
     w.add_argument("--revise-approved-by")
+    # hint 발행 사전승인(2026-09-21 · plan_26092119 O6). --node --cells --approved-by --utc 넷 필수.
+    w.add_argument("--hint-approve", action="store_true",
+                   help="hint 발행 사전승인을 선언 hint_targets 에 전사한다 · --node --cells --approved-by --utc "
+                        "필수(넷 중 하나라도 없으면 승인이 아니다) · 메인 선언 전용")
+    w.add_argument("--cells", metavar="A,B",
+                   help="--hint-approve 의 승인 셀(쉼표 · 명시 열거 · 그 노드의 배정 셀이어야 한다)")
+    w.add_argument("--approved-by", metavar="TEXT",
+                   help="--hint-approve 의 사람 발화 전사(이름·연락처 대신 역할 — 봉인 시 페이로드로 복사된다)")
+    w.add_argument("--source", metavar="declaration-popup|publish-popup",
+                   help="--hint-approve 의 승인 자리(생략 = declaration-popup · 선언 확인 팝업이 O6 기본 경로)")
     w.add_argument("--utc", help="시각은 주입만 받는다(벽시계 금지)")
     w.add_argument("--resume-brief", action="store_true",
                    help="인스턴스만 읽고 재개 요약을 낸다(README 읽기 순서 0번)")
@@ -2810,7 +3024,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         writer_ops = (a.phase_set, a.cell_set, a.evidence_add, a.freeze_evidence, a.revise,
                       a.evidence_prune_stubs, a.import_sub, a.backfill_from_docs, a.ground,
-                      a.escalation_add)
+                      a.escalation_add, a.hint_approve)
         if any(writer_ops):
             tgt = _writer_target(a.campaign_id)
             if tgt is None:
@@ -2931,6 +3145,21 @@ def main(argv: list[str] | None = None) -> int:
                 wrote.append(_rel(writer_add_revision(
                     base, values=vals, reason=a.revise_reason, evidence=a.revise_evidence,
                     approved_by=a.revise_approved_by, utc=a.utc)))
+            if a.hint_approve:
+                _hp, _hr = writer_hint_approve(
+                    base, node=a.node, cells=(a.cells or "").split(","), approved_by=a.approved_by,
+                    utc=a.utc, source=a.source)
+                if _hr["changed"]:
+                    wrote.append(_rel(_hp))
+                    print(f"[campaign_init] hint 사전승인 hint_targets[{_hr['index']}] ← {_hr['added']}",
+                          file=sys.stderr)
+                if _hr["already"]:
+                    print(f"[campaign_init] 같은 승인으로 이미 적힌 셀(멱등): {_hr['already']}", file=sys.stderr)
+                for _k in _hr["kept"]:
+                    _ap = _k.get("approval") or {}
+                    print(f"[campaign_init] ⓘ {_k['cell']!r} 은 이미 hint_targets[{_k['index']}] 가 승인했다"
+                          f"({_ap.get('source')} · {_ap.get('approved_utc')}) — 옛 승인을 지킨다"
+                          f"(귀속을 조용히 바꾸지 않는다)", file=sys.stderr)
             print(f"[campaign_init] wrote({camp}): " + " ".join(wrote))
             return 0
         if a.residue_scan:

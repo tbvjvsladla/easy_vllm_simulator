@@ -20,8 +20,10 @@
   S3  분류표 빈칸이 docs/*/example.md 변경을 보여 주고, 동기화가 그것을 옮긴다.
   S4  빈칸 그대로의 분류표는 execute 가 **어떤 부작용보다 먼저** 거부한다 -- 빈칸 생성기의 자리표시자와 원장의 거부 규칙이
       같은 소유자에서 온다(빈칸 → validate → rejected).
-  S7  원격 전용 hint 태그(로컬 오브젝트 부재)로 카탈로그 재파생이 실패하면 원인과 그 원격의 fetch 명령을 말하고,
-      자동 fetch 없이 진행한다.
+  S7  원격 전용 hint 태그(로컬 오브젝트 부재)가 있을 때 종료 시퀀스가 원인과 그 원격의 fetch 명령을 말하고, 자동 fetch
+      없이 진행한다. 2026-09-22(plan_26092119 X15 · D-i): 파생기가 `hint.py catalog derive --record-missing` 이 되어 부재 태그는
+      카탈로그를 막지 않고 `object: absent-local` 행(brief '—' · 합성 ✗)으로 실린다 — 대상 브랜치 카탈로그에 그 행이 있는지까지
+      본다. 기본 모드(플래그 없음)의 옛 계약(rc 4 + 조회한 원격의 fetch 안내 · HintError.render)도 따로 친다.
 
 원격·서브·실 원장은 건드리지 않는다: 원격은 임시 bare 저장소, ssh 는 호출되면 흔적을 남기는 shim, 시각은 픽스처 상수다.
 `assert` 는 쓰지 않는다(`-O` 에서 사라진다 -- runtime_selftest 가 전수 금지).
@@ -29,6 +31,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -49,7 +52,12 @@ PARITY = f"{TN}/topology_parity.py"
 CAMPAIGN_INIT = f"{TN}/campaign_init.py"
 RENDER = f"{TN}/render_sub_env.py"
 GATE = ".claude/policies/runtime/completion_gate.py"
-CATALOG = ".claude/skills/hint-publisher/scripts/hint_catalog.py"
+# 카탈로그 파생기 = hint-publisher 단일 CLI(2026-09-22 · 옛 hint_catalog.py 퇴역). 사본은 **CLI + hintlib 패키지 전체 +
+#   추적 어휘표 + 리포트 파서**다 — hint.py 는 import 때 hintlib 10모듈을 적재하고, 파생기는 naming(어휘표)·render_bench_section
+#   을 늦게 부른다. 파일 하나만 옮기던 종전 사본은 패키지 배치에서 import 로 죽는다(픽스처가 실물보다 좁다 — 같은 계열).
+CATALOG = ".claude/skills/hint-publisher/scripts/hint.py"
+HINTLIB_DIR = ".claude/skills/hint-publisher/scripts/hintlib"
+CATALOG_COMPANIONS = (".claude/skills/hint-publisher/scripts/render_bench_section.py", "hints/vocab.json")
 SCHEMAS = ("work-manifest.schema.json", "completion-manifest.schema.json",
            "side-effect-authorization.schema.json")
 LEDGER_REL = ".claude/policies/branch_layer_ledger.json"
@@ -302,14 +310,17 @@ def _build_sequence_fixture(sb: Sandbox, *, target_only_change: bool = False, br
     reps = _relocation_replacements()
     if len(reps) < 10:
         raise RuntimeError(f"ROOT_RELOCATION_REPLACEMENTS 를 읽지 못했다: {reps}")
+    hintlib = sorted(f"{HINTLIB_DIR}/{p.name}" for p in (REAL / HINTLIB_DIR).glob("*.py"))
+    if not any(r.endswith("/catalog.py") for r in hintlib):
+        raise RuntimeError(f"hintlib 사본 목록에 catalog.py 가 없다: {hintlib}")
     for rel in {LAYER_LEDGER, SYNC_BRANCHES, CLOSING, PARITY, GATE, CATALOG, ".gitignore",
-                *(f".claude/schemas/{s}" for s in SCHEMAS), *reps}:
+                *(f".claude/schemas/{s}" for s in SCHEMAS), *reps, *hintlib, *CATALOG_COMPANIONS}:
         _copy_real(repo, rel)
     _write(repo, "CLAUDE.md", "# 픽스처 헌법 v1\n")
     _write(repo, ".claude/rules/common.md", "공통층 v1\n")
     _write(repo, "docs/plan/example.md", "# plan 스켈레톤 v1\n")
     _write(repo, TOPOLOGY_RULES, "# 특화헌법\n\n**topology: multi** · layer: topology\n")
-    # 실물 두 브랜치는 hints/ 추적 파일(계약서·families)을 든다 -- 없으면 ⑤ 의 중앙권위 마커 배치 자리가 없어
+    # 실물 두 브랜치는 hints/ 추적 파일(계약서·vocab — 2026-09-22 families 폐기)을 든다 -- 없으면 ⑤ 의 중앙권위 마커 배치 자리가 없어
     # 픽스처가 실물보다 좁아진다(첫 실행에서 `cp: cannot create` 로 드러났다).
     _write(repo, "hints/FIXTURE_CONTRACT.md", "# hint 계약서 픽스처\n")
     sb.git(repo, "add", "-A")
@@ -492,13 +503,39 @@ def test_closing_sequence() -> None:
            "원인: 원격 fx 에만 있는 hint 태그의 **로컬 태그 오브젝트 부재**" in out
            and "[closing]     해소(사람 · 자동 fetch 하지 않는다): git -C" in out
            and "fetch fx 'refs/tags/hint/*:refs/tags/hint/*'" in out
-           and "카탈로그는 이번 회차에 갱신되지 않았다" in out, out[-1500:])
+           and "카탈로그는 그 태그를 object: absent-local 행(brief '—')으로 싣고 갱신됐다" in out, out[-1500:])
+        try:
+            idx = json.loads(sb.git(repo, "show", "single-node:hints/index.json"))
+        except (RuntimeError, ValueError):
+            idx = {}
+        row = next((h for h in idx.get("hints") or [] if isinstance(h, dict)
+                    and h.get("tag") == "hint/9.9.9/fixture-model/gb10-main-x/qfp8"), None)
+        ck("★S7 대상 브랜치 카탈로그가 원격 전용 태그를 `absent-local` 행으로 싣는다(brief 합성 ✗ · X15 --record-missing)",
+           isinstance(row, dict) and row.get("object") == "absent-local" and row.get("brief") == "—", row)
         ck("★S7 파생기 안내도 곧 지워질 임시 워크트리가 아니라 주 워크트리를 가리킨다(두 안내가 같은 저장소)",
            ".wt-single-node fetch" not in out and f"git -C {repo} fetch fx" in out, out[-1500:])
         ck("★S7 자동 fetch 하지 않는다(원격 전용 태그는 여전히 로컬에 없다)",
            subprocess.run(["git", "-C", str(repo), "rev-parse", "--verify", "--quiet",
                            "refs/tags/hint/9.9.9/fixture-model/gb10-main-x/qfp8"],
                           capture_output=True, env=sb.env).returncode != 0)
+        # 기본 모드(`--record-missing` 없음) = 옛 계약: 로컬 오브젝트 부재는 **전용 종료코드**로 멈추고, HintError.render()
+        #   가 조회한 그 원격의 fetch 명령(주 워크트리 기준)을 말한다 · 쓰기 0 · 자동 fetch ✗. 종료코드는 파생기 상수를
+        #   파일에서 읽는다(손으로 4 를 다시 적지 않는다 — 종료 시퀀스와 같은 규율).
+        spec = importlib.util.spec_from_file_location("_selftest_branch_sync_catalog", REAL / HINTLIB_DIR / "catalog.py")
+        cat = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cat)
+        idx_p = repo / "hints/index.json"
+        idx_before = idx_p.read_bytes() if idx_p.is_file() else None
+        r = sb.run([sys.executable, "-B", str(repo / CATALOG), "--repo", str(repo), "catalog", "derive",
+                    "--remote", "fx", "--generated-kst", "2026-09-14T09:00:00"], repo)
+        ck("★S7 기본 모드: 로컬 오브젝트 부재 = 전용 종료코드 · render() 가 조회한 원격(fx)의 주 워크트리 fetch 명령을 말한다 · 쓰기 0",
+           r.returncode == cat.EXIT_LOCAL_TAG_OBJECT_MISSING
+           and f"git -C {repo} fetch fx 'refs/tags/hint/*:refs/tags/hint/*'" in r.stderr
+           and (idx_p.read_bytes() if idx_p.is_file() else None) == idx_before
+           and subprocess.run(["git", "-C", str(repo), "rev-parse", "--verify", "--quiet",
+                               "refs/tags/hint/9.9.9/fixture-model/gb10-main-x/qfp8"],
+                              capture_output=True, env=sb.env).returncode != 0,
+           (r.returncode, r.stderr[-800:]))
         ck("동기화가 공통층·docs 스켈레톤·판정기를 옮겼다 · 특화층은 옮기지 않았다",
            sb.git(repo, "show", "single-node:CLAUDE.md") == "# 픽스처 헌법 v3"
            and sb.git(repo, "show", "single-node:docs/plan/example.md") == "# plan 스켈레톤 v2"
@@ -694,8 +731,9 @@ def test_branch_sync_delete_respects_excludes() -> None:
 
 
 def main() -> int:
-    for rel in (SYNC_TO_SUB, SYNC_BRANCHES, LAYER_LEDGER, CLOSING, PARITY, RENDER, GATE, CATALOG):
-        if not (REAL / rel).is_file():
+    for rel in (SYNC_TO_SUB, SYNC_BRANCHES, LAYER_LEDGER, CLOSING, PARITY, RENDER, GATE, CATALOG, HINTLIB_DIR,
+                *CATALOG_COMPANIONS):
+        if not ((REAL / rel).is_file() or (rel == HINTLIB_DIR and (REAL / rel / "catalog.py").is_file())):
             print(f"[selftest_branch_sync] FAIL: 검사 대상이 없다: {rel}", file=sys.stderr)
             return 1
     for test in (test_sync_to_sub_guard, test_render_guard, test_closing_sequence,

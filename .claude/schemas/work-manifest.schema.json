@@ -173,7 +173,7 @@
         "perf_waiver": {
           "type": "object",
           "additionalProperties": false,
-          "description": "사람이 loop-until-done(성능 재탐색 루프)을 명시 지시로 중단시켰다는 선언. 이것이 있을 때만 verdict!=PASS 로도 승격이 열린다. 에이전트가 스스로 만들 수 없는 positive key 이며, 네 필드가 모두 비어있지 않아야 유효하다(fail-closed). waiver 가 있으면 배포 산출물(hint 태그 본문)에 warning_flag 텍스트와 PERF-WARNING 마커가 **강제**된다 — 없으면 hint_tag 가 차단한다.",
+          "description": "사람이 loop-until-done(성능 재탐색 루프)을 명시 지시로 중단시켰다는 선언. 이것이 있을 때만 verdict!=PASS 로도 승격이 열린다. 에이전트가 스스로 만들 수 없는 positive key 이며, 네 필드가 모두 비어있지 않아야 유효하다(fail-closed). waiver 가 있으면 배포 산출물(hint 태그 zip 의 00-hint.md 본문)에 warning_flag 텍스트와 PERF-WARNING 마커가 **강제**된다 — 없으면 hint-publisher `hintlib.template` 린트가 차단한다(HINT_PERF_WARNING_MISSING · 2026-09-22 옛 hint_tag 에서 이관).",
           "required": [
             "authorized_by",
             "authorized_at_utc",
@@ -271,6 +271,28 @@
           "items": {
             "type": "string"
           }
+        },
+        "exempt_paths": {
+          "description": "2026-09-21 (plan_26092119 X5): evidence paths deliberately NOT scanned because docs.md §PII 스캔 적용 범위 places them outside judgment (machine-generated raw plane). Each entry records the path (relative to the manifest, same literal form as evidence.<key>.path) and the reason. completion_gate.py counts an entry as coverage ONLY for required evidence of kind simlog whose reason is exactly 'machine-raw(docs.md §PII 판정 대상 밖)'; any other exemption is not coverage. Recording an exemption instead of listing an unscanned path under scanned_paths keeps passed=true truthful.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "path",
+              "reason"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         }
       }
     },
@@ -283,7 +305,7 @@
       "$ref": "#/definitions/propagationAuthorization"
     },
     "promotion_target": {
-      "description": "Phase 3 review-remediation OPTIONAL block: binds this manifest's promotion authorization to ONE specific hint-tag side effect (.claude/skills/hint-publisher/scripts/hint_tag.py). Generic completion-gate promotion (sync_to_sub, sync_branches, and `authorize --mode promotion` in general) remains valid without this block -- it is required ONLY by .claude/skills/hint-publisher/scripts/hint_tag.py's own gated subcommands, layered on top of (never inside) the shared completion_gate.py state machine. When present, hint_tag.py cross-checks tag/topology/anchor for an EXACT match against the requesting command's own --tag/--topology/resolved commit SHA, and cross-checks the manifest's own `identity` block against the tag's <vllm>/<model> segments and derived topology class -- enforced entirely in .claude/skills/hint-publisher/scripts/hint_tag.py, not by this schema (this generic Draft-07-subset validator has no pattern/format keyword support -- exact string equality and full-length checks are done in Python).",
+      "description": "Phase 3 review-remediation OPTIONAL block: binds this manifest's promotion authorization to ONE specific hint-tag side effect. Generic completion-gate promotion (sync_to_sub, sync_branches, and `authorize --mode promotion` in general) remains valid without this block -- it is required ONLY by the hint-publisher single CLI (.claude/skills/hint-publisher/scripts/hint.py `continue`), layered on top of (never inside) the shared completion_gate.py state machine. Single writer (2026-09-22 · plan_26092119 X6): `.claude/policies/runtime/evidence_publisher.py set-promotion-target` records the target in the publication record and `finalize` emits it here -- hint.py never edits this manifest. When present, hint.py continue (hintlib.evidence.promotion_binding_problems) cross-checks kind/tag/topology/anchor for an EXACT match against the tag it is sealing and the hint-branch payload commit it just made, and requires `topology` to equal the label derived from this manifest's own `identity` (X7). The tag's <vllm> segment is the BUILD INPUT (D5/X18) and is deliberately NOT compared with identity.vllm (the engine self-report) -- enforced entirely in hint-publisher Python, not by this schema (this generic Draft-07-subset validator has no pattern/format keyword support -- exact string equality and full-length checks are done in Python).",
       "$ref": "#/definitions/promotionTarget"
     }
   },
@@ -403,12 +425,9 @@
             "enum": [
               "sync_to_sub",
               "sync_branches",
-              "hint_create",
               "hint_finalize",
               "hint_verify",
-              "hint_reindex",
-              "hint_push",
-              "hint_reverify"
+              "hint_push"
             ]
           }
         }
@@ -432,7 +451,7 @@
       }
     },
     "promotionTarget": {
-      "description": "Phase 3 review-remediation: the exact hint-tag side effect this manifest's promotion authorization is scoped to. All four fields are required whenever this block is present at all -- there is no partially-filled target. `kind` is a fixed discriminant (only 'hint' side effects consume this block today). `tag` is the full hint/<vllm>/<model>/<arch> tag string. `topology` is the exact --topology string the hint command was invoked with (free text, e.g. 'multi 2노드 TP2' -- NOT the 6-key strong-identity topology enum, compared separately). `anchor` is the full 40-hex commit SHA the hint tag points at (.claude/skills/hint-publisher/scripts/hint_tag.py resolves it via `git rev-parse --verify`, never a short/abbreviated form, so this schema documents the expected length; exact-match comparison against the resolved commit happens in .claude/skills/hint-publisher/scripts/hint_tag.py, not this schema).",
+      "description": "Phase 3 review-remediation: the exact hint-tag side effect this manifest's promotion authorization is scoped to. All four fields are required whenever this block is present at all -- there is no partially-filled target. `kind` is a fixed discriminant (only 'hint' side effects consume this block today). `tag` is the full 5-segment hint/<vllm>/<model>/<arch>/<recipe> tag string, derived entirely by the tool (D8 · hintlib.naming). `topology` is the derived label (X7: \"<topology> TP=<tp>\" plus \"(Ray)\" for multi, e.g. 'multi TP=2(Ray)', 'single TP=1') -- NOT the 6-key strong-identity topology enum, compared separately. `anchor` is the full 40-hex hint-branch payload commit the tag points at (hintlib.branch.commit_payload; evidence_publisher set-promotion-target rejects anything but 40 lowercase hex, never a short/abbreviated form, so this schema documents the expected length; exact-match comparison against the payload commit happens in hint-publisher Python, not this schema). Written only by evidence_publisher set-promotion-target (X6).",
       "type": "object",
       "required": [
         "kind",

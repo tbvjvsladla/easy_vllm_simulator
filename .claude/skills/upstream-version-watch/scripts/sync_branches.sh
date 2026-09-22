@@ -158,7 +158,7 @@ ROOT_RELOCATION_REPLACEMENTS=(
     .claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh
     .claude/policies/runtime/evidence_publisher.py
     .claude/policies/runtime/harness_verify.py
-    .claude/skills/hint-publisher/scripts/hint_tag.py
+    .claude/skills/hint-publisher/scripts/hint.py
     .claude/skills/terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh
     .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh
     .claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh
@@ -167,11 +167,16 @@ ROOT_RELOCATION_REPLACEMENTS=(
     .claude/skills/upstream-version-watch/scripts/smoke_clone.sh
     .claude/skills/upstream-version-watch/scripts/sync_branches.sh
     .claude/skills/terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service
-    .claude/skills/hint-publisher/templates/hint_recipe.template.md
+    .claude/skills/hint-publisher/templates/00-hint.prompt.md
 )
-#   hint_tag.py·templates = hint 배포 레이어 엔진(빌딩블럭 · 브랜치 동일). hints/index.json·HINTS.md
-#   카탈로그 표(구 README 부록)는 생성-데이터(태그에서 재생성 가능)라 여기 미포함 — reindex 재생성/수동
-#   git 동기(README 와 동형 취급 · 태그는 브랜치 무관 전역이라 재생성 결과 동일). plan_26070222 §4.
+#   2026-09-22(plan_26092119 §4.9 · O5 shim 없이 제거): 두 hint 행의 후계를 바꿨다 — `scripts/hint_tag.py` → 단일 CLI
+#   `hint.py`(hint_tag·hint_collect·hint_branch·hint_catalog 가 hint.py + hintlib/ 로 재구성됐다) · 옛 annotation 본문 템플릿
+#   `hint_recipe.template.md` → 페이로드 지도 챕터 템플릿 `00-hint.prompt.md`(본문은 태그 zip 안 · D4). tombstone(옛 루트 경로)은
+#   그대로다. verify_distribution.py `LOCAL_REPLACEMENTS` 와 **같은 커밋**에서 바꾼다(정확 일치 검사) — 이 표가 바뀐 회차의
+#   동기화는 아래 self-overwrite 가드가 스크립트를 먼저 당기게 한다(2026-08-20 선례).
+#   hint.py·hintlib/·templates = hint 배포 레이어 엔진(빌딩블럭 · 브랜치 동일 · `.claude/skills` 디렉터리 단위로 옮겨진다).
+#   hints/index.json·HINTS.md 카탈로그는 원격 발행 태그에서 파생되는 데이터라 여기 미포함 — 각 브랜치가
+#   `hint.py catalog derive` 로 재파생한다(아래 §hint 카탈로그 제외 · 태그는 브랜치 무관 전역이라 재파생 결과 동일). plan_26070222 §4.
 #   build_patches/ 는 여기 없다 — output/<topology>/build_patches/ 통로에 격리(산출물 통로 불변식, single/multi 혼재 차단).
 #   토폴로지별 독립이라 cross-branch 동기 대상 아님(서브 전달은 sync_to_sub 가 output/<t>/ 로 함). §4.7 · 3+1+1.
 #   docs skeletons are each `example.md`; docs/report is shared as a complete subtree. Both source
@@ -265,8 +270,8 @@ fi
 SRC_BRANCH="$FROM_BRANCH"
 
 # ── hint 브랜치는 sync 대상이 아니다 (plan_26090107 R7 · 2026-09-01) ────────────────
-#   hint 는 **빌딩블럭이 아니라 산출물**이다. 그 브랜치의 트리는 `hint_branch.py` 가 allowlist 로
-#   매번 새로 짓는 페이로드이며, 코드·스킬이 들어가면 그 순간 합격기준 A1(archive 에 `.claude/`
+#   hint 는 **빌딩블럭이 아니라 산출물**이다. 그 브랜치의 트리는 `hint.py continue`(`hintlib/branch.py` · 2026-09-22 옛
+#   `hint_branch.py` 에서 이관)가 allowlist 로 매번 새로 짓는 페이로드이며, 코드·스킬이 들어가면 그 순간 합격기준 A1(archive 에 `.claude/`
 #   엔트리 0)이 깨진다. ALLOWLIST 는 `.claude/skills` 를 통째로 복사하므로 방향을 착각하면
 #   **산출물 브랜치를 빌딩블럭으로 덮어쓴다** — 되돌리려면 페이로드를 다시 지어야 한다.
 #
@@ -278,7 +283,7 @@ for _b in "$SRC_BRANCH" "$DST_BRANCH"; do
     case "$_b" in
         hint|refs/heads/hint)
             echo "[sync_branches] 거부: hint 브랜치는 sync 대상이 아니다(산출물 · plan R7)." >&2
-            echo "  hint 페이로드는 hint_branch.py publish 가 allowlist 로 새로 짓는다." >&2
+            echo "  hint 페이로드는 hint.py continue(hintlib/branch.py) 가 allowlist 로 새로 짓는다." >&2
             exit 2 ;;
     esac
 done
@@ -631,9 +636,9 @@ PATHS+=(':(exclude)*.topology.md')
 #   `hints/index.json` 과 `HINTS.md` 는 **원격 발행 태그에서 파생되는 데이터**다(진실원천 =
 #   `git ls-remote --tags`). 복사로 옮기면 한쪽 브랜치의 *로컬 상태 스냅샷* 이 정본 행세를 하게
 #   된다 — 손저작 카탈로그 평면이 폐쇄된 이유가 그것이다. 양 브랜치가 각자
-#   `hint_catalog.py derive --remote <원격>` 으로 재파생하면 같은 결과에 수렴한다(태그는 브랜치
-#   무관 전역이므로). `hints/` 의 나머지 추적 파일(families.json·계약서·pins)은 빌딩블럭이므로
-#   **계속 동기화한다** — 디렉터리째 빼면 그 셋이 다시 갈라진다(2026-08-20 선례 3건).
+#   `hint.py catalog derive --remote <원격>`(2026-09-22 옛 `hint_catalog.py derive` 의 후계)으로 재파생하면 같은
+#   결과에 수렴한다(태그는 브랜치 무관 전역이므로). `hints/` 의 나머지 추적 파일(vocab.json·계약서 — 2026-09-22
+#   families.json 폐기 · O3)은 빌딩블럭이므로 **계속 동기화한다** — 디렉터리째 빼면 그것들이 다시 갈라진다(2026-08-20 선례 3건).
 PATHS+=(':(exclude)hints/index.json' ':(exclude)HINTS.md')
 
 # ── 분류표 원장 제외 ───────────────────────────────────────────────────────────────

@@ -786,7 +786,7 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 | **install** | (사람 request) 클론 → 카나리 | terraforming: `--peer-ssh` 실측 → 서브 manifest 발행(`scan_node.py --emit-sub-manifest`) → Agent_Card v2 렌더·서명 → **설치 오버레이** 배달(`sync_to_sub --provision`) → model-less 카나리 | 설치 산출물(오버레이)만 |
 | **config · build · serve · bench** | 자율(도서관 인용은 `library_request[]` 로 요청) | 릴레이 감독(원장 append-only · 재개 결정은 에이전트 · §2.7.7) | **없음** — `output/**` 이동 ✗ · 이미지 전송 ✗ |
 | **(모든 phase 전이)** | `campaign_init --write-brief` 로 `docs/logs/<node_id>/campaign_brief.json` 갱신 | 미러에서 그 파일 하나만 읽는다(`sub.campaign.brief`) | 브리핑은 기계판독 데이터 평면이다(산문 규약 밖) |
-| **publish** | `docs/` 에 문서 발행: sweep map · benchmark 인증서/리포트 · devlog/testlog · **hint 입력 사이드카** `docs/benchmark/hint_inputs_<measured_utc>/`(렌더된 Dockerfile·compose·3+1+1·바깥영역 산출물의 사본) → task-report 에 경로 | `fetch_sub_docs.sh` 로 `docs/` 회수(simlog raw 제외) → devlog·benchmark 저작(서브 결과 신뢰 — raw 재요구 ✗) → hint 발행 입력 | 문서 평면만 |
+| **publish** | `docs/` 에 문서 발행: sweep map · benchmark 인증서/리포트 · devlog/testlog · **hint 입력 사이드카** `docs/benchmark/hint_inputs_<measured_utc>/`(렌더된 Dockerfile·compose·3+1+1·바깥영역 산출물의 사본) → task-report 에 경로 | `fetch_sub_docs.sh` 로 `docs/` 회수(simlog raw 제외) → devlog·benchmark 저작(서브 결과 신뢰 — raw 재요구 ✗) · hint 사이드카는 **참조용**이다(2026-09-22 `plan_26092119`: 메인 `hint.py publish` 는 읽지 않는다 — 발행 자격은 관측이라 서브 단독 셀은 `HINT_QUALIFICATION_UNOBSERVED` · 열린 설계) | 문서 평면만 |
 
 - **책임 = terraforming_node** (사용자 결정 · 발견≠소유). 인증서가 무엇을 담는가는 `adversarial-benchmark`,
   hint 가 무엇을 싣는가는 `hint-publisher` 가 소유한다 — 오케스트레이터는 경계·Phase 전이·형식 검사만 집행한다.
