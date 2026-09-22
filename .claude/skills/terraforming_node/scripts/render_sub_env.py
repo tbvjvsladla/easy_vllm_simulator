@@ -104,6 +104,7 @@ RUNTIME_BLOCK_EXCLUDES = {
         "scripts/smoke_clone.sh",          # 배포본 클론 검증(메인 소관 · 이미 retirement 대상)
         "scripts/multinode_comms_smoke.sh",  # 노드 간 통신 스모크(메인이 양노드를 향해 쓴다)
         "scripts/multinode_serve_smoke.sh",  # 동상
+        "scripts/native_multinode_serve.py", # 메인이 양 노드에 쓰는 native 분산 lifecycle owner(서브 자기실행 ✗)
         # 종료 시퀀스 기구(sync_to_sub·sync_branches·closing_sequence·layer_ledger·push_branches)의 격리 픽스처 검사.
         #   그 대상 절반이 위에서 제외되므로 서브에서는 돌 수 없고, 도는 자리(verify_distribution)도 메인 전용이다.
         "scripts/selftest_branch_sync.py",
