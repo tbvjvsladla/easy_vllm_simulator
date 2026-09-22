@@ -644,9 +644,12 @@ flowchart LR
 배포자는 모델 서빙을 진행하면서 1) 검증된 성공이력, 2) 가치있는 시행착오 이력에 대한 지식을 배포합니다.<br/>
 
 ```text
-hint/<vllm버전>/<모델>/<arch>
-     0.26.0  / deepseek-v4-flash-0731 / gb10x2
+hint/<vllm버전>/<모델>/<arch>/<recipe>
+     0.29.0rc6 / qwen3.8-flash-next-nvfp4 / gb10-1g2n-cluster-native / qnvfp4-len262144-kvauto-plemmap-spec3-eager
 ```
+
+이름은 발행 도구가 증거에서 **전량 파생**합니다(셀 1개 = 태그 1개 · 2026-09-22 v6 문법). 그 전에 발행된 태그는
+옛 문법(4·5세그먼트) 그대로 남아 있으며, 카탈로그(`HINTS.md`)의 `문법` 열이 세대를 구분합니다.
 
 > 🗺 **hint 는 정답이 아니라 지도입니다.** *"이 버전, 이 모델은 대략 이 방향으로, 이 벽
 > 순서로 뚫렸다"* 는 곁눈질입니다. 당신의 하드웨어가 다르면 **노브는 반드시 재도출**해야
@@ -656,21 +659,23 @@ hint/<vllm버전>/<모델>/<arch>
 #### A-0. hint 태그 사용방법
 
 ```bash
-# 2) 내 상황에 가까운 것 찾기 (축별 근-미스를 결정론으로 알려줍니다)
-python3 .claude/skills/hint-publisher/scripts/hint_tag.py match \
-  --vllm 0.27.0 --model qwen3-4b --arch gb10
+# 2) 내 상황에 가까운 것 찾기 (읽기 전용 · git 없이도 hints/index.json 만으로 동작합니다)
+#    모델 관계 = 정규화 슬러그 동치 + 카탈로그의 base_model · --arch 는 선택
+python3 .claude/skills/hint-publisher/scripts/hint.py match \
+  --vllm 0.29.0rc6 --model qwen3.8-flash-next-nvfp4
 ```
 
 ```bash
-# 3) 레시피 본문만 뽑아 seed/ 에 저장
-#    ※ git show <tag> 는 커밋 diff 까지 딸려옵니다 — 아래 --format 을 쓰세요
-mkdir -p seed/hints
-git tag -l --format='%(contents)' hint/0.26.0/deepseek-v4-flash-0731/gb10x2 \
-  > seed/hints/deepseek-v4-flash-0731.md
+# 3) 태그의 zip(archive) 을 seed/ 에 풀기 — 지도·서사·재현 키트가 전부 이 안에 있습니다
+#    ※ annotated 태그 본문은 요약 한 문단 + 포인터 + 증거 주소뿐입니다(본문을 뽑아도 지도가 아닙니다)
+TAG=hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-plemmap-spec3-eager  # 예: match 가 알려준 태그 하나
+git fetch origin "refs/tags/$TAG:refs/tags/$TAG"
+mkdir -p seed/hints/qwen3.8-flash-next-nvfp4
+git archive --format=tar "$TAG" | tar -x -C seed/hints/qwen3.8-flash-next-nvfp4
 ```
 
 **4) 코드에이전트에게 이렇게 말합니다:**
-> *"`seed/hints/deepseek-v4-flash-0731.md` 를 읽고, `vllm-recipe-explorer` 인터뷰의
+> *"`seed/hints/qwen3.8-flash-next-nvfp4/00-hint.md` 부터 읽고, `vllm-recipe-explorer` 인터뷰의
 > warm-start 근거로 넣어서, 평소대로 plan → 레시피 수렴 → 스모크 게이트를 밟아 전략을
 > **다시** 세워봐."*
 
