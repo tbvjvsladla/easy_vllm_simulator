@@ -621,6 +621,473 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-202609221518",
+      "utc": "2026-09-22T15:18:06Z",
+      "departure": "multi-node",
+      "departure_commit": "cf8e9cfd95e91527bb189aa016cd48a6e4db62b9",
+      "approved_by": "사용자 발화 전사 — G1 공통층 싱글노드 동기화, 멀티 서브 전파 및 브랜치 동기화 승인",
+      "approved_utc": "2026-09-22T15:18:06Z",
+      "_reach": "single-node vs HEAD 트리차이 · 동기 지점 a9b6cddf82d1(departure-landed)",
+      "classification": [
+        {
+          "file": ".claude/policies/arch_variant_ledger.json",
+          "verdict": "common_promote",
+          "reason": "hint 승격·PII·promotion_target·정책 술어/스키마는 양 토폴로지의 동일 fail-closed control-plane이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/claim_bindings.json",
+          "verdict": "common_promote",
+          "reason": "hint 승격·PII·promotion_target·정책 술어/스키마는 양 토폴로지의 동일 fail-closed control-plane이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/predicates/claim_predicates.py",
+          "verdict": "common_promote",
+          "reason": "hint 승격·PII·promotion_target·정책 술어/스키마는 양 토폴로지의 동일 fail-closed control-plane이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/predicates/companion_predicate.py",
+          "verdict": "common_promote",
+          "reason": "hint 승격·PII·promotion_target·정책 술어/스키마는 양 토폴로지의 동일 fail-closed control-plane이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/registry.yaml",
+          "verdict": "common_promote",
+          "reason": "hint 승격·PII·promotion_target·정책 술어/스키마는 양 토폴로지의 동일 fail-closed control-plane이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/root_registry.json",
+          "verdict": "common_promote",
+          "reason": "hint 승격·PII·promotion_target·정책 술어/스키마는 양 토폴로지의 동일 fail-closed control-plane이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/completion_gate.py",
+          "verdict": "common_promote",
+          "reason": "hint 승격·PII·promotion_target·정책 술어/스키마는 양 토폴로지의 동일 fail-closed control-plane이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/evidence_publisher.py",
+          "verdict": "common_promote",
+          "reason": "hint 승격·PII·promotion_target·정책 술어/스키마는 양 토폴로지의 동일 fail-closed control-plane이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/policy_registry.py",
+          "verdict": "common_promote",
+          "reason": "hint 승격·PII·promotion_target·정책 술어/스키마는 양 토폴로지의 동일 fail-closed control-plane이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/runtime_selftest.py",
+          "verdict": "common_promote",
+          "reason": "hint 승격·PII·promotion_target·정책 술어/스키마는 양 토폴로지의 동일 fail-closed control-plane이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/verify_distribution.py",
+          "verdict": "common_promote",
+          "reason": "hint 승격·PII·promotion_target·정책 술어/스키마는 양 토폴로지의 동일 fail-closed control-plane이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rules/docs.md",
+          "verdict": "common_promote",
+          "reason": "공통 규칙·온보딩·비추적 통로가 새 hint.py/native 흐름을 가리키므로 양 브랜치 동일해야 한다. *.topology.md는 reach에서 제외됐다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rules/workflow.md",
+          "verdict": "common_promote",
+          "reason": "공통 규칙·온보딩·비추적 통로가 새 hint.py/native 흐름을 가리키므로 양 브랜치 동일해야 한다. *.topology.md는 reach에서 제외됐다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/schemas/side-effect-authorization.schema.json",
+          "verdict": "common_promote",
+          "reason": "hint 승격·PII·promotion_target·정책 술어/스키마는 양 토폴로지의 동일 fail-closed control-plane이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/schemas/work-manifest.schema.json",
+          "verdict": "common_promote",
+          "reason": "hint 승격·PII·promotion_target·정책 술어/스키마는 양 토폴로지의 동일 fail-closed control-plane이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/references/lite-and-publication.md",
+          "verdict": "common_promote",
+          "reason": "Docker/native serve-plane을 명시 입력으로 가르는 측정 계약이며 브랜치명으로 토폴로지를 추론하지 않아 양 브랜치 공통이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
+          "verdict": "common_promote",
+          "reason": "Docker/native serve-plane을 명시 입력으로 가르는 측정 계약이며 브랜치명으로 토폴로지를 추론하지 않아 양 브랜치 공통이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+          "verdict": "common_promote",
+          "reason": "Docker/native serve-plane을 명시 입력으로 가르는 측정 계약이며 브랜치명으로 토폴로지를 추론하지 않아 양 브랜치 공통이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+          "verdict": "common_promote",
+          "reason": "Docker/native serve-plane을 명시 입력으로 가르는 측정 계약이며 브랜치명으로 토폴로지를 추론하지 않아 양 브랜치 공통이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/bootstrap_families.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hint.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hint_branch.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hint_catalog.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hint_collect.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hint_tag.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/__init__.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/artifacts.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/branch.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/catalog.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/core.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/evidence.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/lineage.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/naming.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/pii.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/tag.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/template.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/selftest_hint_gate.py",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/templates/00-hint.prompt.md",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/templates/01-artifacts.prompt.md",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/templates/02-narrative.prompt.md",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/templates/03-benchmark.prompt.md",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/templates/hint-branch-README.md",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/templates/hint_recipe.template.md",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/templates/payload-README.md",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "캠페인 evidence writer·validator·서브 overlay 렌더 계약은 양 토폴로지 공통이며 node_role_contract가 전달면을 가른다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "verdict": "common_promote",
+          "reason": "캠페인 evidence writer·validator·서브 overlay 렌더 계약은 양 토폴로지 공통이며 node_role_contract가 전달면을 가른다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+          "verdict": "common_promote",
+          "reason": "캠페인 evidence writer·validator·서브 overlay 렌더 계약은 양 토폴로지 공통이며 node_role_contract가 전달면을 가른다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/library_exchange.py",
+          "verdict": "common_promote",
+          "reason": "캠페인 evidence writer·validator·서브 overlay 렌더 계약은 양 토폴로지 공통이며 node_role_contract가 전달면을 가른다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "캠페인 evidence writer·validator·서브 overlay 렌더 계약은 양 토폴로지 공통이며 node_role_contract가 전달면을 가른다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/task-report.schema.json",
+          "verdict": "common_promote",
+          "reason": "캠페인 evidence writer·validator·서브 overlay 렌더 계약은 양 토폴로지 공통이며 node_role_contract가 전달면을 가른다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "빌드 원장·branch sync·push·renderer 계약은 manifest/topology 인자로 분기하는 공통 owner code다. output/<topology> 실물은 옮기지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/references/multinode-build.md",
+          "verdict": "common_promote",
+          "reason": "멀티 capability의 공통 생성엔진/절차다. 활성 여부는 manifest·특화헌법이 정하고 output/multi 산출물은 branch sync 범위 밖이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/references/source-build.md",
+          "verdict": "common_promote",
+          "reason": "빌드 원장·branch sync·push·renderer 계약은 manifest/topology 인자로 분기하는 공통 owner code다. output/<topology> 실물은 옮기지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/closing_sequence.sh",
+          "verdict": "common_promote",
+          "reason": "빌드 원장·branch sync·push·renderer 계약은 manifest/topology 인자로 분기하는 공통 owner code다. output/<topology> 실물은 옮기지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/fetch_sub_docs.sh",
+          "verdict": "common_promote",
+          "reason": "빌드 원장·branch sync·push·renderer 계약은 manifest/topology 인자로 분기하는 공통 owner code다. output/<topology> 실물은 옮기지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/judge_version_delta.py",
+          "verdict": "common_promote",
+          "reason": "빌드 원장·branch sync·push·renderer 계약은 manifest/topology 인자로 분기하는 공통 owner code다. output/<topology> 실물은 옮기지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+          "verdict": "common_promote",
+          "reason": "멀티 capability의 공통 생성엔진/절차다. 활성 여부는 manifest·특화헌법이 정하고 output/multi 산출물은 branch sync 범위 밖이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/native_multinode_serve.py",
+          "verdict": "common_promote",
+          "reason": "manifest multi일 때만 활성인 메인 오케스트레이션 capability지만 tracked owner code는 공통층이다. render_sub_env 제외표가 서브 미전파를 집행한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/push_branches.py",
+          "verdict": "common_promote",
+          "reason": "빌드 원장·branch sync·push·renderer 계약은 manifest/topology 인자로 분기하는 공통 owner code다. output/<topology> 실물은 옮기지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py",
+          "verdict": "common_promote",
+          "reason": "빌드 원장·branch sync·push·renderer 계약은 manifest/topology 인자로 분기하는 공통 owner code다. output/<topology> 실물은 옮기지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/selftest_branch_sync.py",
+          "verdict": "common_promote",
+          "reason": "빌드 원장·branch sync·push·renderer 계약은 manifest/topology 인자로 분기하는 공통 owner code다. output/<topology> 실물은 옮기지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/slave_forward.py",
+          "verdict": "common_promote",
+          "reason": "멀티 capability의 공통 생성엔진/절차다. 활성 여부는 manifest·특화헌법이 정하고 output/multi 산출물은 branch sync 범위 밖이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+          "verdict": "common_promote",
+          "reason": "빌드 원장·branch sync·push·renderer 계약은 manifest/topology 인자로 분기하는 공통 owner code다. output/<topology> 실물은 옮기지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/templates/Dockerfile.source-build.template",
+          "verdict": "common_promote",
+          "reason": "빌드 원장·branch sync·push·renderer 계약은 manifest/topology 인자로 분기하는 공통 owner code다. output/<topology> 실물은 옮기지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/templates/Dockerfile.template",
+          "verdict": "common_promote",
+          "reason": "빌드 원장·branch sync·push·renderer 계약은 manifest/topology 인자로 분기하는 공통 owner code다. output/<topology> 실물은 옮기지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml",
+          "verdict": "common_promote",
+          "reason": "멀티 capability의 공통 생성엔진/절차다. 활성 여부는 manifest·특화헌법이 정하고 output/multi 산출물은 branch sync 범위 밖이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/references/serving-closeout.md",
+          "verdict": "common_promote",
+          "reason": "양 토폴로지가 동일하게 읽는 공통 빌딩블럭이며 특화 사실/output 산출물이 아니다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".gitignore",
+          "verdict": "common_promote",
+          "reason": "공통 규칙·온보딩·비추적 통로가 새 hint.py/native 흐름을 가리키므로 양 브랜치 동일해야 한다. *.topology.md는 reach에서 제외됐다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "README.md",
+          "verdict": "common_promote",
+          "reason": "공통 규칙·온보딩·비추적 통로가 새 hint.py/native 흐름을 가리키므로 양 브랜치 동일해야 한다. *.topology.md는 reach에서 제외됐다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/README.md",
+          "verdict": "common_promote",
+          "reason": "캠페인 evidence writer·validator·서브 overlay 렌더 계약은 양 토폴로지 공통이며 node_role_contract가 전달면을 가른다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/_template/campaign.schema.json",
+          "verdict": "common_promote",
+          "reason": "캠페인 evidence writer·validator·서브 overlay 렌더 계약은 양 토폴로지 공통이며 node_role_contract가 전달면을 가른다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/_template/campaign.yaml",
+          "verdict": "common_promote",
+          "reason": "캠페인 evidence writer·validator·서브 overlay 렌더 계약은 양 토폴로지 공통이며 node_role_contract가 전달면을 가른다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "hints/HINT_ISSUANCE_CONTRACT.md",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "hints/families.json",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "hints/vocab.json",
+          "verdict": "common_promote",
+          "reason": "hint v6 계약·단일 CLI·템플릿·정규 어휘는 토폴로지와 무관한 배포 빌딩블럭이다. 옛 파일 삭제 tombstone도 양 브랜치가 함께 가져야 dead consumer가 남지 않는다.",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
