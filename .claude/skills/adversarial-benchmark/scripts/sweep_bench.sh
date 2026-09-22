@@ -9,7 +9,8 @@
 #   run_bench 가 Flag/A2A 게이트·health precheck·envfile 해소를 수행 → 전이적 게이트 보존.
 # 비용 규율(편지 B.5): 이 스윕은 재탐색 루프 내부가 아니라 **full 런 종결 시 1회**만 호출한다.
 #
-# 사용: sweep_bench.sh <config_name> [--topology single|multi] [--levels 1,2,4,8,16] [--backend openai-chat|openai]
+# 사용: sweep_bench.sh <config_name> [--topology single|multi] [--serve-plane docker|native] [--host-endpoint URL]
+#        [--levels 1,2,4,8,16] [--backend openai-chat|openai]
 #        [--input-len N] [--output-len N] [--num-prompts N] [--warmups N] [--vllm-version X] [--dry-run]
 #        [--repeats N [--repeats-source TEXT]] [--campaign-id ID] [--reassemble-only]
 #        [--cross-node-tolerance-s N --cross-node-tolerance-source TEXT]   (multi 원격 노드 사살 대조 · 선언으로만)
@@ -51,7 +52,7 @@
 set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
-TOPO=""; LEVELS="1,2,4,8,16"; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; VLLM_VER=""; DRYRUN=0; REASSEMBLE=0
+TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; LEVELS="1,2,4,8,16"; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; VLLM_VER=""; DRYRUN=0; REASSEMBLE=0
 # ★ 2026-09-01 신설 — run_bench.sh 의 --backend 를 레벨마다 그대로 전달한다.
 #   전달하지 않으면 스윕 전 레벨이 openai-chat 로 돌아, harmony 계열(gpt-oss)에서 `--ignore-eos` 가
 #   무력해져 **모든 레벨의 TPOT 이 동시에 왜곡**된다(run_bench.sh 의 BACKEND 주석 참조).
@@ -79,6 +80,9 @@ while [ $# -gt 0 ]; do case "$1" in
   --repeats-source) REPEATS_SOURCE_ARG="$2"; shift 2;;
   --campaign-id) CAMPAIGN_ID="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
+  --serve-plane) SERVE_PLANE="$2"; shift 2;;
+  --host-endpoint) HOST_ENDPOINT="$2"; shift 2;;
+  --client-vllm) CLIENT_VLLM="$2"; shift 2;;
   --tool) TOOL="$2"; shift 2;;
   --bench-budget-mib) BENCH_BUDGET_MIB="$2"; shift 2;;
   --max-error-rate) MAX_ERROR_RATE="$2"; shift 2;;
@@ -93,6 +97,23 @@ while [ $# -gt 0 ]; do case "$1" in
   --dry-run) DRYRUN=1; shift;;
   *) echo "[sweep_bench] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
+
+case "$SERVE_PLANE" in
+  docker|native) ;;
+  *) echo "[sweep_bench] 알 수 없는 --serve-plane: $SERVE_PLANE (docker|native)" >&2; exit 2;;
+esac
+if [ "$SERVE_PLANE" = "native" ] && { [ -z "$HOST_ENDPOINT" ] || [ -z "$CLIENT_VLLM" ]; }; then
+  echo "[sweep_bench] ERROR --serve-plane native에는 --host-endpoint URL 과 --client-vllm <전용 venv/bin/vllm>이 필수다." >&2; exit 2
+fi
+if [ "$SERVE_PLANE" = "native" ] && [[ ! "$HOST_ENDPOINT" =~ ^https?://[^/[:space:]]+(:[0-9]+)?$ ]]; then
+  echo "[sweep_bench] ERROR --host-endpoint는 경로 없는 http(s) origin 이어야 한다: $HOST_ENDPOINT" >&2; exit 2
+fi
+if [ "$SERVE_PLANE" = "docker" ] && { [ -n "$HOST_ENDPOINT" ] || [ -n "$CLIENT_VLLM" ]; }; then
+  echo "[sweep_bench] ERROR --host-endpoint/--client-vllm은 --serve-plane native에서만 준다." >&2; exit 2
+fi
+if [ "$SERVE_PLANE" = "native" ] && { [ ! -x "$CLIENT_VLLM" ] || [ -L "$CLIENT_VLLM" ]; }; then
+  echo "[sweep_bench] ERROR --client-vllm이 실행 가능한 regular non-symlink 파일이 아니다: $CLIENT_VLLM" >&2; exit 2
+fi
 
 # 재조립은 측정하지 않는다 — 반복 인자를 받으면 조용히 버리지 않고 거부한다(요청 반복은 측정 시점 index 에서 승계).
 if [ "$REASSEMBLE" = "1" ] && { [ -n "$REPEATS_ARG" ] || [ -n "$REPEATS_SOURCE_ARG" ] || [ -n "$CAMPAIGN_ID" ]; }; then
@@ -178,9 +199,9 @@ echo "[sweep_bench] config=$CONFIG topo=$TOPO levels=[${SORTED[*]}] in=$ILEN out
 echo "[sweep_bench] sweepdir=$SWEEPDIR (판정점=동시성1 재사용)"
 [ "$REASSEMBLE" = "1" ] || echo "[sweep_bench] 반복 $REPEATS × 레벨 · $REPEAT_KIND · 출처 $REPEATS_SOURCE (lite 선행 레그는 1회)"
 if [ "$DRYRUN" = "1" ]; then
-  echo "[sweep_bench] DRY-RUN — 레벨별 실행 계획:"
+  echo "[sweep_bench] DRY-RUN — 레벨별 실행 계획(serve-plane=$SERVE_PLANE${HOST_ENDPOINT:+ endpoint=$HOST_ENDPOINT}):"
   for L in "${SORTED[@]}"; do
-    echo "  level $L × run 1..$REPEATS → run_bench.sh $CONFIG --topology $TOPO --concurrency $L --tool $TOOL${BENCH_BUDGET_MIB:+ --bench-budget-mib $BENCH_BUDGET_MIB} --out-dir $SWEEPDIR/level_$(printf '%02d' "$L")[/run_KK]"
+    echo "  level $L × run 1..$REPEATS → run_bench.sh $CONFIG --topology $TOPO --serve-plane $SERVE_PLANE${HOST_ENDPOINT:+ --host-endpoint $HOST_ENDPOINT} --concurrency $L --tool $TOOL${BENCH_BUDGET_MIB:+ --bench-budget-mib $BENCH_BUDGET_MIB} --out-dir $SWEEPDIR/level_$(printf '%02d' "$L")[/run_KK]"
   done
   echo "[sweep_bench] DRY-RUN 종료(실제 벤치·assemble 생략)"
   exit 0
@@ -246,7 +267,10 @@ LITE_RAW="$SWEEPDIR/lite_raw_${CONFIG}.json"
 #   sweep→lite 호출부 하나가 전달을 빠뜨렸다. 그래서 full 런의 lite 열은 **언제나 openai-chat** 으로
 #   재졌고, gpt-oss 에서 gen_tps 11.83 vs 같은 런의 full decode 34.42 (2.9배)가 나왔다 —
 #   2026-09-01 에 인증서까지 갔던 그 왜곡과 **같은 뿌리**다. 노브를 만든 것과 그것이 도는 것은 다르다.
-if bash "$SDIR/lite_bench.sh" "$CONFIG" --topology "$TOPO" --backend "$BACKEND" --out-dir "$SWEEPDIR" >/dev/null 2>&1 \
+LITE_PLANE_ARGS=(--serve-plane "$SERVE_PLANE")
+[ -n "$HOST_ENDPOINT" ] && LITE_PLANE_ARGS+=(--host-endpoint "$HOST_ENDPOINT")
+[ -n "$CLIENT_VLLM" ] && LITE_PLANE_ARGS+=(--client-vllm "$CLIENT_VLLM")
+if bash "$SDIR/lite_bench.sh" "$CONFIG" --topology "$TOPO" "${LITE_PLANE_ARGS[@]}" --backend "$BACKEND" --out-dir "$SWEEPDIR" >/dev/null 2>&1 \
    && [ -s "$LITE_RAW" ]; then
   echo "[sweep_bench] lite ✓ → $LITE_RAW"
 else
@@ -320,9 +344,11 @@ for L in "${SORTED[@]}"; do
   for ((K = 1; K <= REPEATS; K++)); do
     if [ "$K" = 1 ]; then RDIR="$LDIR"; else RDIR="$LDIR/run_$(printf '%02d' "$K")"; mkdir -p "$RDIR"; fi
     RUN_STARTED="$(date -u +%FT%TZ)"
-    RB_ARGS=("$CONFIG" --topology "$TOPO" --concurrency "$L"
+    RB_ARGS=("$CONFIG" --topology "$TOPO" --serve-plane "$SERVE_PLANE" --concurrency "$L"
              --input-len "$ILEN" --output-len "$OLEN" --num-prompts "$NPROMPTS"
              --warmups "$WARMUPS" --backend "$BACKEND" --out-dir "$RDIR" --tool "$TOOL")
+    [ -n "$HOST_ENDPOINT" ] && RB_ARGS+=(--host-endpoint "$HOST_ENDPOINT")
+    [ -n "$CLIENT_VLLM" ] && RB_ARGS+=(--client-vllm "$CLIENT_VLLM")
     [ -n "$BENCH_BUDGET_MIB" ] && RB_ARGS+=(--bench-budget-mib "$BENCH_BUDGET_MIB")
     RB_RC=0; PARSE_RC=0; RUN_OK=0; _PERR=""
     bash "$SDIR/run_bench.sh" "${RB_ARGS[@]}" || RB_RC=$?

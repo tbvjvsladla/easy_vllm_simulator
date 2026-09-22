@@ -116,8 +116,6 @@ MISSING_CODES: dict[str, str] = {
     #   실제로 발행되는 APPLIED_PATCH_FILE·NATIVE_RECIPE 는 빠져 있었다).
     "HINT_MISSING_APPLIED_PATCH_FILE": ("원장(또는 재구성)이 **적용됐다**고 말한 빌드 패치 스크립트가 출력 평면에 없다 — 적용 사실은 "
                                         "있으나 그 바이트를 실을 수 없다(01 적용 판정표에 `file_absent` 로 기재 · artifacts 가 기재)."),
-    "HINT_MISSING_NATIVE_RECIPE": ("native 평면 셀인데 설치 명령·실제 lock(`pip freeze`)을 관측하지 못했다 — 재현 입력 A층이 비었다"
-                                   "(artifacts 가 기재)."),
     "HINT_MISSING_BUILD_LEDGER": ("빌드 원장(`/opt/easy-vllm/build_ledger.json`) 부재 — 원장 도입 전 이미지다. 패치 적용 결과는 "
                                   "`applied_set.status: unobservable` 과 라벨된 재구성으로만 말한다(X9)."),
     # 2026-09-22 S2 round 3 통합: 이 뜻 문구는 페이로드(00 · PAYLOAD.missing)로 수신자에게 간다 — 수신자가 풀 수 없는 내부 문서
@@ -164,8 +162,8 @@ class CellEvidence:
 
     소비자 계약: lineage(`_ev`)·artifacts(`_get`)는 이 객체를 속성 이름으로 읽는다. SPEC 목록 밖으로 두는 것 — `serve_proof`
     (자격 ①) · `phases`(셀 필터된 진행표 사본 · 사람용 출처) · `sources`(필드별 출처) · `repo`. artifacts 는 묶인 attestation 경로를
-    `lineage_seeds["attestation"]` 로 읽는다(없으면 `attestation_<셀>.json` 을 가정한다). artifacts 가 선택적으로 읽는 `plane` ·
-    `identity` · `native_install_path` · `pip_freeze_path` 는 관측 원천이 아직 없어 두지 않는다(native 평면은 fail-closed)."""
+    `lineage_seeds["attestation"]` 로 읽는다(없으면 `attestation_<셀>.json` 을 가정한다). native 평면 값은
+    serve proof producer가 관측·보존한 값만 넣는다. 신호 부재를 native로 추론하지 않는다."""
     mode: str
     campaign_id: str | None
     cell: str
@@ -191,6 +189,13 @@ class CellEvidence:
     missing: list = dataclasses.field(default_factory=list)
     # SPEC 목록 밖(소비자 요구 · interface 보고에 적었다)
     serve_proof: dict | None = None
+    # native producer가 serve proof에 관측·보존한 값만 전달한다. None은 "native 아님"이 아니라 신호 부재다.
+    plane: str | None = None
+    native_install_path: str | None = None
+    pip_freeze_path: str | None = None
+    pip_freeze_paths: dict = dataclasses.field(default_factory=dict)
+    cleanup_attestation_path: str | None = None
+    cleanup_attestation: dict | None = None
     phases: dict = dataclasses.field(default_factory=dict)       # artifacts.reproduce_steps 가 {phase: {started_utc, ended_utc}}
     sources: dict = dataclasses.field(default_factory=dict)
     repo: str | None = None
@@ -878,6 +883,87 @@ def _serve_proof(repo: Path, topology: str, cell: str) -> tuple[dict | None, str
     p = repo / "output" / topology / "benchlog" / f"serve_proof_{cell}.json"
     doc = _read_json_opt(p, "serve_proof")
     return (doc, _rel(repo, p)) if isinstance(doc, dict) else (None, None)
+
+
+def _preserved_native_file(repo: Path, raw, field: str) -> tuple[str, Path]:
+    """Native producer only provides preserved repo-relative regular files.
+
+    Do not normalize a missing/malformed producer signal into an absent native file: the
+    native consumer must fail closed, and payloads must never inherit host absolute paths.
+    """
+    if not isinstance(raw, str) or not raw.strip():
+        core.fail("HINT_NATIVE_EVIDENCE_MISSING", f"native serve proof의 {field} 가 없다.",
+                  "native producer가 run-root 삭제 전에 보존한 repo-relative evidence 경로를 기록해야 한다.")
+    rel = raw.strip()
+    if Path(rel).is_absolute():
+        core.fail("HINT_NATIVE_EVIDENCE_PATH_ABSOLUTE", f"native serve proof의 {field} 는 repo-relative 여야 한다: {rel!r}")
+    # Resolve first, so a symlink that escapes the repository is rejected by the same owner
+    # helper; reject every symlink afterward so payload inputs are regular preserved files.
+    path = repo / rel
+    clean = core.rel(repo, path)
+    lexical = repo / rel
+    if not lexical.is_file() or lexical.is_symlink():
+        core.fail("HINT_NATIVE_EVIDENCE_UNREADABLE", f"native serve proof의 {field} 가 regular file이 아니다: {clean}")
+    return clean, lexical
+
+
+def _native_cleanup_attestation(repo: Path, proof: dict) -> tuple[str, dict]:
+    rel, path = _preserved_native_file(repo, proof.get("cleanup_attestation_path"), "cleanup_attestation_path")
+    doc = _read_json_opt(path, "native cleanup attestation")
+    if not isinstance(doc, dict):
+        core.fail("HINT_NATIVE_CLEANUP_UNOBSERVED", f"native cleanup attestation이 JSON object가 아니다: {rel}")
+    if doc.get("kind") != "native_multinode_cleanup_attestation" or doc.get("plane") != "native":
+        core.fail("HINT_NATIVE_CLEANUP_INVALID", f"native cleanup attestation 정체가 맞지 않다: kind={doc.get('kind')!r}, plane={doc.get('plane')!r}")
+    if doc.get("status") != "PASS" or doc.get("errors") != [] or doc.get("evidence_preserved") is not True:
+        core.fail("HINT_NATIVE_CLEANUP_NONPASS", "native cleanup attestation이 PASS·errors=[]·evidence_preserved=true를 모두 만족하지 않는다.",
+                  "cleanup 실패·unknown은 native hint 발행을 차단한다.")
+    nodes = doc.get("nodes")
+    if not isinstance(nodes, dict) or set(nodes) != {"main", "sub"}:
+        core.fail("HINT_NATIVE_CLEANUP_INVALID", "native cleanup attestation의 nodes는 정확히 main·sub여야 한다.")
+    for name in ("main", "sub"):
+        node = nodes[name]
+        if not isinstance(node, dict) or node.get("root_absent") is not True \
+                or node.get("owned_processes") != [] or node.get("owned_gpu_processes") != [] \
+                or node.get("unknown") != []:
+            core.fail("HINT_NATIVE_CLEANUP_NONPASS", f"native cleanup attestation nodes.{name}가 완전한 cleanup PASS가 아니다.",
+                      "root_absent=true, owned_processes=[], owned_gpu_processes=[], unknown=[]이 모두 필요하다.")
+    if proof.get("run_id") != doc.get("run_id"):
+        core.fail("HINT_NATIVE_CLEANUP_RUN_MISMATCH", "serve proof와 cleanup attestation의 run_id가 다르다.")
+    return rel, doc
+
+
+def _native_producer_evidence(repo: Path, topology: str, cell: str, proof: dict | None, proof_rel: str | None) -> dict:
+    """Validate and extract the explicit native producer contract.
+
+    This is intentionally gated only after the producer declared plane=native; no signal is
+    never interpreted as native. Docker proof compatibility remains in the existing path.
+    """
+    if not isinstance(proof, dict) or proof.get("plane") != "native":
+        return {}
+    if topology != "multi" or proof.get("kind") != "native_multinode_serve_proof" or proof.get("status") != "PASS":
+        core.fail("HINT_NATIVE_PROOF_INVALID", "native serve proof의 topology/kind/status가 producer 계약과 맞지 않는다.")
+    if proof.get("cell", proof.get("config")) != cell:
+        core.fail("HINT_NATIVE_PROOF_CELL_MISMATCH", f"native serve proof cell/config가 {cell!r}와 다르다.")
+    health = proof.get("health") if isinstance(proof.get("health"), dict) else {}
+    endpoints = proof.get("endpoints") if isinstance(proof.get("endpoints"), dict) else {}
+    h_endpoint = endpoints.get("health") if isinstance(endpoints.get("health"), dict) else {}
+    inf_endpoint = endpoints.get("inference") if isinstance(endpoints.get("inference"), dict) else {}
+    inference = proof.get("inference") if isinstance(proof.get("inference"), dict) else {}
+    if health.get("ok") is not True or str(h_endpoint.get("http_status")) != "200" \
+            or inference.get("ok") is not True or str(inf_endpoint.get("http_status")) != "200" \
+            or (_as_int(inference.get("completion_text_len")) or 0) < 1:
+        core.fail("HINT_NATIVE_PROOF_UNOBSERVED", "native serve proof에 health 200 + inference 200 + completion_text_len>0 관측이 없다.")
+    install_rel, _ = _preserved_native_file(repo, proof.get("native_install_path"), "native_install_path")
+    freezes = proof.get("pip_freeze_paths")
+    if not isinstance(freezes, dict) or set(freezes) != {"main", "sub"}:
+        core.fail("HINT_NATIVE_EVIDENCE_MISSING", "native serve proof의 pip_freeze_paths는 정확히 main·sub 보존 경로여야 한다.")
+    freeze_rel, _ = _preserved_native_file(repo, freezes.get("main"), "pip_freeze_paths.main")
+    sub_freeze_rel, _ = _preserved_native_file(repo, freezes.get("sub"), "pip_freeze_paths.sub")
+    cleanup_rel, cleanup = _native_cleanup_attestation(repo, proof)
+    return {"plane": "native", "native_install_path": install_rel, "pip_freeze_path": freeze_rel,
+            "pip_freeze_paths": {"main": freeze_rel, "sub": sub_freeze_rel},
+            "cleanup_attestation_path": cleanup_rel, "cleanup_attestation": cleanup,
+            "source": proof_rel or "serve_proof"}
 
 
 def _measured_meta(ev_sweep: dict | None, cert: dict | None) -> dict:
@@ -2504,6 +2590,22 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
         missing += sm
     ev.serve_proof, sp_rel = _serve_proof(repo, ev.topology, ev.cell)
     ev.sources["serve_proof"] = sp_rel or f"output/{ev.topology}/benchlog/serve_proof_{ev.cell}.json 부재"
+    native = _native_producer_evidence(repo, ev.topology, ev.cell, ev.serve_proof, sp_rel)
+    if native:
+        ev.plane = native["plane"]
+        ev.native_install_path = native["native_install_path"]
+        ev.pip_freeze_path = native["pip_freeze_path"]
+        ev.pip_freeze_paths = native["pip_freeze_paths"]
+        ev.cleanup_attestation_path = native["cleanup_attestation_path"]
+        ev.cleanup_attestation = native["cleanup_attestation"]
+        ev.sources.update({
+            "plane": f"{native['source']}#plane(observed native)",
+            "native_install_path": f"{native['source']}#native_install_path(preserved repo-relative)",
+            "pip_freeze_path": f"{native['source']}#pip_freeze_paths.main(preserved repo-relative)",
+            "cleanup_attestation": f"{native['source']}#cleanup_attestation_path → {native['cleanup_attestation_path']}",
+        })
+        # Cleanup evidence is a producer fact and therefore belongs to the lineage candidates.
+        ev.lineage_seeds = {**ev.lineage_seeds, "native_cleanup_attestation": native["cleanup_attestation_path"]}
     ev.manifest, ev.sources["manifest"] = _manifest(repo, ev.topology)
     env = _env_first(repo, ev.triplet.get("env"))
     ev.build_identity, bm = _build_identity(repo, topology=ev.topology, env=env, env_rel=ev.triplet.get("env"),
@@ -2570,6 +2672,8 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
         seeds["attestation"] = ev.attestation["_path"]
     if sp_rel:
         cands.append({"path": sp_rel, "kind": "serve_proof"})
+    if ev.cleanup_attestation_path:
+        cands.append({"path": ev.cleanup_attestation_path, "kind": "native_cleanup_attestation"})
     names = [ev.cell]
     pm = re.fullmatch(r"vllm_(.+)_project", str(ev.build_identity.get("compose_project") or ""))
     if pm and pm.group(1) not in names:
@@ -2868,6 +2972,20 @@ _SERVE_PROOF_PASS_EVIDENCE = {"chat.content": "content_len", "v1.completions": "
 
 
 def _serve_proof_ok(sp: dict, cell: str, image_tag: str | None) -> tuple[bool, str]:
+    # Native proof has a different producer schema. Its complete validation belongs to
+    # _native_producer_evidence during assembly; this branch only preserves the shared
+    # qualification contract without Docker image-tag coupling.
+    if sp.get("plane") == "native":
+        health = sp.get("health") if isinstance(sp.get("health"), dict) else {}
+        endpoints = sp.get("endpoints") if isinstance(sp.get("endpoints"), dict) else {}
+        h_endpoint = endpoints.get("health") if isinstance(endpoints.get("health"), dict) else {}
+        inference = sp.get("inference") if isinstance(sp.get("inference"), dict) else {}
+        i_endpoint = endpoints.get("inference") if isinstance(endpoints.get("inference"), dict) else {}
+        ok = sp.get("kind") == "native_multinode_serve_proof" and sp.get("status") == "PASS" \
+            and health.get("ok") is True and str(h_endpoint.get("http_status")) == "200" \
+            and inference.get("ok") is True and str(i_endpoint.get("http_status")) == "200" \
+            and (_as_int(inference.get("completion_text_len")) or 0) >= 1
+        return ok, f"native kind={sp.get('kind')!r} status={sp.get('status')!r} health={health.get('ok')!r}/{h_endpoint.get('http_status')!r} inference={inference.get('ok')!r}/{i_endpoint.get('http_status')!r} completion_text_len={inference.get('completion_text_len')!r}"
     http = sp.get("health_http") if sp.get("health_http") is not None else sp.get("health_http_code")
     verdict = str(sp.get("inference_verdict") or "").strip()
     evidence_kind = str(sp.get("evidence") or "").strip()
@@ -2897,6 +3015,13 @@ def qualification(ev: CellEvidence) -> dict:
     if isinstance(sp, dict):
         ok, why = _serve_proof_ok(sp, ev.cell, (ev.build_identity or {}).get("image_tag"))
         if ok:
+            if sp.get("plane") == "native":
+                # Never let a caller bypass native cleanup validation by constructing a
+                # CellEvidence manually: qualification owns the final native safety gate.
+                _native_producer_evidence(repo, ev.topology, ev.cell, sp, ev.sources.get("serve_proof"))
+                return {"health_200": True, "inference_observed": True,
+                        "sources": [ev.sources.get("serve_proof"), ev.sources.get("cleanup_attestation")],
+                        "method": "native_serve_proof+cleanup_attestation"}
             return {"health_200": True, "inference_observed": True, "sources": [ev.sources.get("serve_proof")],
                     "method": "serve_proof"}
         tried.append(f"serve_proof 불성립({why})")
@@ -5188,6 +5313,36 @@ def selftest() -> list[str]:
             core.write_json(spp, {**sp_base, "evidence": "v1.completions", "content_len": 0, "completion_text_len": 5})
             ck("serve_proof — /v1/completions 로 확증한 pass 도 자격(chat content_len=0)",
                qualification(from_campaign(repo, "c1", "c1-a", docker=dk)).get("method") == "serve_proof")
+            # native producer contract: explicit plane plus preserved evidence; no Docker
+            # signal is present, and the qualification path must require cleanup PASS.
+            nroot = repo / "native-evidence"; nroot.mkdir()
+            install = nroot / "native-install.sh"; install.write_text("python -m pip install vllm\n", encoding="utf-8")
+            freeze_main = nroot / "pip-freeze-main.txt"; freeze_main.write_text("vllm==0.9.0\n", encoding="utf-8")
+            freeze_sub = nroot / "pip-freeze-sub.txt"; freeze_sub.write_text("vllm==0.9.0\n", encoding="utf-8")
+            cleanup = nroot / "cleanup.json"
+            clean_base = {"schema_version": 1, "kind": "native_multinode_cleanup_attestation", "plane": "native",
+                          "run_id": "native-fixture", "status": "PASS", "errors": [], "evidence_preserved": True,
+                          "nodes": {n: {"root_absent": True, "owned_processes": [], "owned_gpu_processes": [], "unknown": []}
+                                    for n in ("main", "sub")}}
+            core.write_json(cleanup, clean_base)
+            native_base = {"schema_version": 1, "kind": "native_multinode_serve_proof", "plane": "native", "status": "PASS",
+                           "cell": "c1-a", "topology": "multi", "run_id": "native-fixture",
+                           "health": {"ok": True}, "inference": {"ok": True, "completion_text_len": 3},
+                           "endpoints": {"health": {"http_status": 200}, "inference": {"http_status": 200}},
+                           "native_install_path": "native-evidence/native-install.sh",
+                           "pip_freeze_paths": {"main": "native-evidence/pip-freeze-main.txt", "sub": "native-evidence/pip-freeze-sub.txt"},
+                           "cleanup_attestation_path": "native-evidence/cleanup.json"}
+            core.write_json(spp, native_base)
+            native_ev = from_campaign(repo, "c1", "c1-a", docker=dk)
+            ck("native proof는 explicit plane을 CellEvidence로 전달", native_ev.plane == "native" and
+               native_ev.native_install_path == "native-evidence/native-install.sh" and native_ev.cleanup_attestation_path == "native-evidence/cleanup.json")
+            ck("native proof + cleanup PASS가 자격", qualification(native_ev).get("method") == "native_serve_proof+cleanup_attestation")
+            core.write_json(cleanup, {**clean_base, "status": "FAIL"})
+            ck("★native cleanup nonpass 차단", _code(from_campaign, repo, "c1", "c1-a", docker=dk) == "HINT_NATIVE_CLEANUP_NONPASS")
+            core.write_json(cleanup, clean_base)
+            core.write_json(spp, {k: v for k, v in native_base.items() if k != "cleanup_attestation_path"})
+            ck("★native cleanup signal 없음 차단", _code(from_campaign, repo, "c1", "c1-a", docker=dk) == "HINT_NATIVE_EVIDENCE_MISSING")
+            core.write_json(spp, sp_base)
             for patch, what in (({"inference_verdict": "fail", "evidence": None, "content_len": 0}, "빈 응답 fail"),
                                 ({"inference_verdict": "relaxed-reasoning-only", "evidence": "chat.reasoning(relaxed)",
                                   "content_len": 0, "reasoning_len": 40}, "완화 PASS(reasoning-only)"),
@@ -5356,7 +5511,7 @@ def selftest() -> list[str]:
                 emitted |= set(re.findall(r'missing\.append\("([A-Z_]+)"\)', t))
                 emitted |= set(re.findall(r'\["(HINT_MISSING_[A-Z_]+)"\]', t))
             ck(f"결손 코드 tripwire — 발행되는 코드 전부 등재(미등재 {sorted(emitted - set(MISSING_CODES))})",
-               {"HINT_MISSING_APPLIED_PATCH_FILE", "HINT_MISSING_NATIVE_RECIPE", "HINT_MISSING_ENV_SHAPE"} <= emitted
+               {"HINT_MISSING_APPLIED_PATCH_FILE", "HINT_MISSING_ENV_SHAPE"} <= emitted
                and emitted <= set(MISSING_CODES))
             # 2026-09-22 S2 round 3 통합: 뜻 문구는 페이로드로 수신자에게 간다 — 수신자가 풀 수 없는 내부 좌표가 있으면 붉다.
             leaked = {c: _internal_doc_refs(m) for c, m in MISSING_CODES.items() if _internal_doc_refs(m)}

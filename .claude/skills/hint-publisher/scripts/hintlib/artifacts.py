@@ -84,6 +84,7 @@ import 부수효과 0 — 정규식 컴파일만 한다. docker 는 읽기(`imag
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -2553,9 +2554,10 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str) -> list[dict]:
               if decl and measure_start else "미관측(예산 선언 또는 첫 측정 시각 없음)"),
              "derived(스모크 사용법)")
     else:
-        step("install", "artifacts/build_recipe/native-install.sh(있으면 · 실제 lock 은 pip-freeze.txt)",
-             "venv 에서 `python -c 'import vllm'` 성공", source="native build_recipe", command_source="shipped-file")
-        step("serve", f"bash output/{topo}/configs/{cell}.sh(native --plane native)", "health 200 + 추론 1회")
+        step("install", "artifacts/build_recipe/native-install.sh + pip-freeze-main.txt + pip-freeze-sub.txt",
+             "venv 에서 `python -c 'import vllm'` 성공", source="native producer preserved build_recipe", command_source="shipped-file")
+        step("serve", f"bash output/{topo}/configs/{cell}.sh(native --plane native)",
+             "health 200 + 추론 1회 + cleanup attestation PASS")
     bench_cmd, bench_src = _bench_commands(c)
     step("bench", bench_cmd, "리포트 발행(+PASS 면 인증서)",
          measure_start, sweep_end, "exact" if measure_start and sweep_end else "none",
@@ -2660,18 +2662,32 @@ def collect(repo: Path, ev: Any, payload_dir: Path, *, forward_module: Any | Non
     반환 {"plane","plane_source","track","build","slots","applied_set","build_ledger","missing","files","sub_recipe",
     "value_status_candidates","reproduce_steps","env_shapes","pii_exempt"}. 실패하면 이번 호출이 만든 artifacts/ 를 지운다."""
     c = _ctx(repo, ev, runner=runner, forward_module=forward_module, render_module=render_module)
-    payload = Path(payload_dir).resolve()
+    made_art = False
+    # 출력 경로는 입력 증거보다 먼저 신뢰 경계를 친다. resolve()부터 하면 payload/artifacts가 외부 빈
+    # 디렉터리를 가리키는 symlink여도 정상 디렉터리처럼 보이고, 이후 write가 draft 밖으로 샌다.
+    payload_raw = Path(payload_dir)
+    if payload_raw.is_symlink():
+        core.fail("HINT_ARTIFACTS_OUTPUT_SYMLINK", f"payload 출력 루트가 symlink다: {payload_raw}")
+    payload = payload_raw.resolve()
     art = payload / "artifacts"
-    if art.exists() and any(art.rglob("*")):
+    if os.path.lexists(art) and art.is_symlink():
+        core.fail("HINT_ARTIFACTS_OUTPUT_SYMLINK", f"artifacts 출력 루트가 symlink다: {art}")
+    if art.exists() and not art.is_dir():
+        core.fail("HINT_ARTIFACTS_OUTPUT_NOT_DIR", f"artifacts 출력 루트가 디렉터리가 아니다: {art}")
+    if art.exists() and any(art.iterdir()):
         # 이전 실행의 잔재(예: 이제는 skip 판정인 패치)가 남으면 files[] 밖의 파일이 트리에 섞인다 — 덮지 않고 멈춘다.
         core.fail("HINT_ARTIFACTS_DIR_NOT_EMPTY", f"artifacts/ 가 비어 있지 않다: {art}",
                   "새 draft 디렉터리에서 publish 한다(기존 저작물을 덮지 않는다).")
+    if not art.exists():
+        art.mkdir(parents=True)
+        made_art = True
     try:
         return _collect(c, payload, art)
     except BaseException:
-        # 시작 시 비어 있음을 확인했으므로 artifacts/ 의 모든 것은 이번 호출의 산출물이다 — 반쯤 쓴 트리를 남기면 다음
-        # publish 가 잔재 차단(HINT_ARTIFACTS_DIR_NOT_EMPTY)에 걸리거나, 더 나쁘게는 잔재가 페이로드에 섞인다.
-        shutil.rmtree(art, ignore_errors=True)
+        # 시작 시 비어 있고 symlink가 아님을 확인했으므로 artifacts/ 의 모든 것은 이번 호출의 산출물이다.
+        # cleanup 직전에도 symlink로 바뀌지 않았는지 확인한다(외부 target 재귀 삭제 금지).
+        if made_art and os.path.lexists(art) and not art.is_symlink():
+            shutil.rmtree(art, ignore_errors=True)
         raise
 
 
@@ -2942,18 +2958,33 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
     else:
         # native 평면: 설치 명령 + 실제 lock(`pip freeze`) — 러너는 트리플렛 `.sh` 로 이미 실린다(다른 이름으로 두 번 싣지
         # 않는다 · "설치 명령" 이라 부르면 서빙 러너가 설치 절차인 척한다). Dockerfile·compose 는 싣지 않는다(F2).
+        # Evidence validates these producer paths before artifacts is called. Revalidate
+        # relative regular-file shape here because this module also accepts loose Any
+        # evidence objects in its public API; a missing signal must not become a partial
+        # native payload.
         rf = []
-        for key, name in (("native_install_path", "native-install.sh"), ("pip_freeze_path", "pip-freeze.txt")):
-            raw = _get(c.ev, key)
-            if isinstance(raw, str) and raw:
-                fp = c.repo / core.rel(c.repo, raw)
-                if fp.is_file():
-                    rf.append(_copy(payload, fp, "build_recipe", name))
-        if not rf:
-            missing.append("HINT_MISSING_NATIVE_RECIPE")
+        freezes = _get(c.ev, "pip_freeze_paths")
+        if not isinstance(freezes, dict) or set(freezes) != {"main", "sub"}:
+            core.fail("HINT_NATIVE_EVIDENCE_MISSING",
+                      "native artifacts의 pip_freeze_paths는 정확히 main·sub 보존 경로여야 한다.")
+        native_paths = (("native_install_path", _get(c.ev, "native_install_path"), "native-install.sh"),
+                        ("pip_freeze_paths.main", freezes.get("main"), "pip-freeze-main.txt"),
+                        ("pip_freeze_paths.sub", freezes.get("sub"), "pip-freeze-sub.txt"))
+        checked = []
+        # 전부 검증한 뒤 복사한다. 중간 항목에서 막힐 때 artifacts/ 일부가 남으면 다음 재시도가
+        # 그 잔재를 실물로 오독한다(부분 적용 금지).
+        for key, raw, name in native_paths:
+            if not isinstance(raw, str) or not raw.strip() or Path(raw).is_absolute():
+                core.fail("HINT_NATIVE_EVIDENCE_MISSING", f"native artifacts에 필요한 {key} 보존 경로가 없다.")
+            fp = c.repo / core.rel(c.repo, raw)
+            if not fp.is_file() or fp.is_symlink():
+                core.fail("HINT_NATIVE_EVIDENCE_UNREADABLE", f"native artifacts의 {key} 가 regular file이 아니다: {raw}")
+            checked.append((fp, name))
+        for fp, name in checked:
+            rf.append(_copy(payload, fp, "build_recipe", name))
         files += rf
-        slots["build_recipe"] = _slot(rf, {"kind": "file", "ref": "evidence.native_install_path|pip_freeze_path",
-                                           "note": "native 재현 입력" if rf else "설치 명령·lock 미관측(결손)"})
+        slots["build_recipe"] = _slot(rf, {"kind": "file", "ref": "native producer preserved install + pip freeze(main/sub)",
+                                           "note": "native 재현 입력(serve proof가 보존한 repo-relative files)"})
         slots["compose"] = _slot([], {"kind": "none", "ref": None, "note": "native 평면 — compose 해당 없음"})
         for s in ("build_patch_pre", "build_patch_post"):
             slots[s] = _slot([], {"kind": "none", "ref": None, "note": "native 평면 — 이미지 빌드 패치 해당 없음"})
@@ -3880,15 +3911,29 @@ def selftest() -> list[str]:
                                                         "sh": f"output/multi/configs/{cell}.sh"})
         raises("★평면 파생 불가", "HINT_PLANE_UNDERIVABLE", lambda: plane_of(repo, ev_bare))
         ck("선언 native + 신호 없음 = native", plane_of(repo, dict(ev_bare, plane="native")) == "native")
-        (repo / "output/multi/native-freeze.txt").write_text("vllm==0.1.0\n", encoding="utf-8")
-        rn = collect(repo, dict(ev_bare, plane="native", pip_freeze_path="output/multi/native-freeze.txt"), repo / "p_nat",
-                     render_module=fake_rd, runner=docker_old)
+        # 출력 root symlink는 증거를 읽기 전에 차단한다. 외부 빈 디렉터리여도 draft 밖 write 0.
+        outside = repo / "outside-artifacts"; outside.mkdir()
+        sy_payload = repo / "p_symlink"; sy_payload.mkdir()
+        (sy_payload / "artifacts").symlink_to(outside, target_is_directory=True)
+        raises("★artifacts 출력 symlink = draft 밖 write 전 차단", "HINT_ARTIFACTS_OUTPUT_SYMLINK",
+               lambda: collect(repo, dict(ev_bare, plane="native"), sy_payload, render_module=fake_rd, runner=docker_old))
+        ck("★출력 symlink 차단 뒤 외부 잔재 0", not any(outside.iterdir()))
+        (repo / "output/multi/native-install.sh").write_text("python -m pip install vllm\n", encoding="utf-8")
+        (repo / "output/multi/native-freeze-main.txt").write_text("vllm==0.1.0\n", encoding="utf-8")
+        (repo / "output/multi/native-freeze-sub.txt").write_text("vllm==0.1.0\n", encoding="utf-8")
+        native_ev = dict(ev_bare, plane="native", native_install_path="output/multi/native-install.sh",
+                         pip_freeze_path="output/multi/native-freeze-main.txt",
+                         pip_freeze_paths={"main": "output/multi/native-freeze-main.txt", "sub": "output/multi/native-freeze-sub.txt"})
+        rn = collect(repo, native_ev, repo / "p_nat", render_module=fake_rd, runner=docker_old)
         nn = set(rn["files"])
-        ck("native 평면: lock 동봉 · ★Dockerfile·compose·패치 미포함 · 러너 중복 ✗",
-           "artifacts/build_recipe/pip-freeze.txt" in nn and not any(x.startswith(("artifacts/compose/",
-                                                                                  "artifacts/build_patch"))
-                                                                     or "Dockerfile" in x or "native-install" in x
-                                                                     for x in nn) and rn["applied_set"] is None)
+        ck("native 평면: producer install+양 node lock 동봉 · ★Dockerfile·compose·패치 0 · 러너 중복 ✗",
+           {"artifacts/build_recipe/native-install.sh", "artifacts/build_recipe/pip-freeze-main.txt",
+            "artifacts/build_recipe/pip-freeze-sub.txt"} <= nn and not any(x.startswith(("artifacts/compose/",
+                                                                                           "artifacts/build_patch"))
+                                                                      or "Dockerfile" in x for x in nn) and rn["applied_set"] is None)
+        raises("★native producer install 신호 부재 차단", "HINT_NATIVE_EVIDENCE_MISSING",
+               lambda: collect(repo, dict(native_ev, native_install_path=None), repo / "p_nat_missing",
+                               render_module=fake_rd, runner=docker_old))
         # ★결손 코드는 evidence.MISSING_CODES 사전에서만(SPEC §2.1): 등재돼 있으면 결손으로 기재되고, 아니면 **소리 내어**
         #   막힌다(HINT_MISSING_CODE_UNREGISTERED) — 어느 쪽이든 "미등록" 으로 조용히 배포되는 경로는 없다. 두 분기를 모두 단언한다
         #   (등재 여부는 evidence 소유자 몫 · 한쪽만 단언하면 등재되는 날 이 시험이 뒤집혀 죽는다).
@@ -3898,14 +3943,10 @@ def selftest() -> list[str]:
         emitted = set(re.findall(r'missing\.append\("([A-Z0-9_]+)"\)', Path(__file__).read_text(encoding="utf-8")))
         ck(f"artifacts 가 내는 결손 코드 전부 evidence.MISSING_CODES 등재: {sorted(emitted - set(_ev_mod.MISSING_CODES))}",
            bool(emitted) and emitted <= set(getattr(_ev_mod, "MISSING_CODES", {})))
-        if "HINT_MISSING_NATIVE_RECIPE" in getattr(_ev_mod, "MISSING_CODES", {}):
-            rn2 = collect(repo, dict(ev_bare, plane="native"), repo / "p_nat2", render_module=fake_rd, runner=docker_old)
-            ck("★native 설치 입력 부재 = 결손 기재", "HINT_MISSING_NATIVE_RECIPE" in rn2["missing"])
-        else:
-            raises("★미등재 결손 코드(native 설치 입력 부재) = tripwire", "HINT_MISSING_CODE_UNREGISTERED",
-                   lambda: collect(repo, dict(ev_bare, plane="native"), repo / "p_nat2", render_module=fake_rd,
-                                   runner=docker_old))
-            ck("★tripwire 로 막힌 수집은 artifacts/ 를 남기지 않는다", not (repo / "p_nat2" / "artifacts").exists())
+        raises("★native pip lock 신호 부재 차단", "HINT_NATIVE_EVIDENCE_MISSING",
+               lambda: collect(repo, dict(native_ev, pip_freeze_paths={}), repo / "p_nat2", render_module=fake_rd,
+                               runner=docker_old))
+        ck("★native evidence 차단 뒤 artifacts 잔재 없음", not (repo / "p_nat2" / "artifacts").exists())
         # ★형상 부재는 결손으로 **기재**한다(조용히 빼지 않는다) — 어느 파일인지는 env_shapes 행이 말한다
         (out / "envs/.env.cluster").rename(out / "envs/.env.cluster.off")
         (out / ".env").rename(out / ".env.off")
