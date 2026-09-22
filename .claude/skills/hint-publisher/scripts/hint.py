@@ -14,6 +14,7 @@
     hint.py [--repo R] push     --tag TAG [--remote NAME] [--apply] [--draft DIR]   # 정확한 태그 1개(glob ✗)
     hint.py [--repo R] catalog derive --remote NAME --generated-kst K [--dry-run] [--record-missing] [--allow-empty]
     hint.py [--repo R] match    --vllm V --model M [--arch A] [--include-other] [--json]   # 읽기 전용 · gitless
+    hint.py [--repo R] branch-transition --remote R --generated-utc U  # maintenance-only README 전환 · tag/catalog/code worktree ✗
     hint.py --self-test
 
 한 셀 = 한 태그(D9). `publish` 는 증거를 모아 이름·계보·산출물·사실 블록을 채운 **스캐폴드를 만들고 정지**한다(태그·브랜치
@@ -1278,6 +1279,14 @@ def cmd_match(a) -> int:
     return 0
 
 
+def cmd_branch_transition(a) -> int:
+    """유일한 maintenance-only branch transition 진입점. 태그·catalog·code worktree를 건드리지 않는다."""
+    repo = core.resolve_repo(a.repo)
+    print(json.dumps(branch.branch_transition(repo, remote=a.remote, generated_utc=a.generated_utc),
+                     ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
 # ── 파서 · main ───────────────────────────────────────────────────────────────────────────────
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="hint.py", description="hint-publisher 단일 CLI — 셀 1개 = 태그 1개(plan_26092119).")
@@ -1374,6 +1383,11 @@ def _build_parser() -> argparse.ArgumentParser:
     m.add_argument("--include-other", action="store_true")
     m.add_argument("--json", action="store_true")
     m.set_defaults(fn=cmd_match)
+
+    bt = sub.add_parser("branch-transition", help="maintenance-only: README 하나의 hint 브랜치 형식 전환(CAS·정확한 branch push)")
+    bt.add_argument("--remote", required=True, help="live hint tip을 대조하고 refs/heads/hint 하나만 밀 원격")
+    bt.add_argument("--generated-utc", required=True, help="주입 UTC YYYY-MM-DDTHH:MM:SSZ(벽시계 ✗)")
+    bt.set_defaults(fn=cmd_branch_transition)
     return p
 
 
@@ -1452,6 +1466,7 @@ def _selftest_parser(ck) -> None:
         "push": ["push", "--tag", "hint/a/b/c/d"],
         "catalog": ["catalog", "derive", "--remote", "r", "--generated-kst", "2026-01-02T15:00:00", "--record-missing"],
         "match": ["match", "--vllm", "0.9.0", "--model", "m"],
+        "branch-transition": ["branch-transition", "--remote", "r", "--generated-utc", _FX_CONTINUE_UTC],
     }
     for name, argv in cases.items():
         try:
@@ -1525,7 +1540,8 @@ def _selftest_parser(ck) -> None:
              "push": ("tag", "remote", "apply", "draft"), "verify": ("tag", "draft"), "lint": ("draft", "json"),
              "excerpt": ("draft", "source", "lines", "numbered"), "name": ("campaign", "cell", "publication", "node", "json"),
              "catalog": ("remote", "generated_kst", "dry_run", "record_missing", "allow_empty"),
-             "match": ("vllm", "model", "arch", "include_other", "json")}
+             "match": ("vllm", "model", "arch", "include_other", "json"),
+             "branch-transition": ("remote", "generated_utc")}
     for name, attrs in reads.items():
         a = p.parse_args(cases[name])
         miss = [x for x in attrs if not hasattr(a, x)]

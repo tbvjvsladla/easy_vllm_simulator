@@ -786,6 +786,15 @@ def remote_tag_object(repo: Path, remote: str, tag: str) -> str | None:
     return _ls_remote_refs(repo, remote, _tag_ref(tag)).get(_tag_ref(tag))
 
 
+def remote_ref_object(repo: Path, remote: str, ref: str) -> str | None:
+    """원격의 완전 ref 하나를 읽는다. maintenance-only branch transition의 live reconciliation 전용."""
+    if not isinstance(ref, str) or not ref.startswith("refs/") or ":" in ref or any(c.isspace() for c in ref):
+        core.fail("HINT_BRANCH_REF_INVALID", f"원격 branch ref 형식이 올바르지 않다: {ref!r}")
+    if core.git(repo, "check-ref-format", ref, check=False).returncode != 0:
+        core.fail("HINT_BRANCH_REF_INVALID", f"git check-ref-format 이 원격 branch ref를 거부했다: {ref!r}")
+    return _ls_remote_refs(repo, remote, ref).get(ref)
+
+
 def _require_safe_refspec(repo: Path, refspec) -> None:
     """공개 push API 의 refspec 규율: `refs/…:refs/…` 한 쌍 · 양쪽 같음 · 강제(`+`)·옵션(`-`)·glob ✗ · ref 형식 통과."""
     bad = None

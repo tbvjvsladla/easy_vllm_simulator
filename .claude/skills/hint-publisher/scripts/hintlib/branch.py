@@ -534,6 +534,190 @@ def _update_hint_ref(repo: Path, new: str, expected_old: str | None) -> None:
                   "다른 발행이 끼어들었다. 브랜치 상태를 확인하고 hint.py continue 를 다시 실행한다.")
 
 
+# ── maintenance-only branch transition ───────────────────────────────────────────────────────
+# This is intentionally separate from commit_payload: the v6 payload's 8-file contract remains untouched.
+_BRANCH_TRANSITION_MESSAGE = "hint: branch transition\n"
+_BRANCH_TEMPLATE_REL = f"{core.REL_SKILL}/templates/hint-branch-README.md"
+
+
+def _transition_template_bytes(repo: Path) -> bytes:
+    """Read the tracked HEAD template byte-for-byte and reject deploy-surface PII."""
+    data = core.git_bytes(repo, "show", f"HEAD:{_BRANCH_TEMPLATE_REL}", check=False)
+    if data is None:
+        core.fail("HINT_BRANCH_TEMPLATE_ABSENT", f"추적 전환 템플릿이 없다: {_BRANCH_TEMPLATE_REL}")
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        core.fail("HINT_BRANCH_TEMPLATE_UNREADABLE", f"전환 템플릿이 UTF-8이 아니다: {_BRANCH_TEMPLATE_REL}")
+    hits = pii.scan_text(text, pii.require_terms(repo), profile="deploy")
+    if hits:
+        core.fail("HINT_BRANCH_TEMPLATE_PII", "전환 README 배포 PII: " + pii.render_hits(hits))
+    return data
+
+
+def _transition_tree(repo: Path, readme: bytes, *, write: bool = True) -> str:
+    """README.md 한 개(mode 100644) tree SHA. `write=False`는 conflict 판정용이라 object DB 쓰기 0."""
+    env = dict(os.environ)
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    try:
+        blob_args = ["git", "hash-object", *( ["-w"] if write else []), "--no-filters", "--stdin"]
+        out = subprocess.run(blob_args, input=readme, capture_output=True, cwd=str(repo), env=env)
+    except OSError as e:
+        core.fail("HINT_GIT_UNAVAILABLE", f"git 실행 불가: {e}")
+    if out.returncode != 0:
+        core.fail("HINT_GIT_FAILED", "전환 README blob hash 실패: " + out.stderr.decode("utf-8", "replace").strip())
+    sha = out.stdout.decode("ascii", "replace").strip()
+    if write:
+        tree = _mktree(repo, [("100644", "blob", sha, "README.md")])
+        if tree_entries(repo, tree) != [{"mode": "100644", "type": "blob", "sha": sha, "path": "README.md"}]:
+            core.fail("HINT_BRANCH_TRANSITION_TREE_MISMATCH", "전환 트리가 README.md 하나(mode 100644)가 아니다.")
+        return tree
+    try:
+        tree_data = b"100644 README.md\0" + bytes.fromhex(sha)
+        tr = subprocess.run(["git", "hash-object", "-t", "tree", "--stdin"], input=tree_data,
+                            capture_output=True, cwd=str(repo), env=env)
+    except (OSError, ValueError) as e:
+        core.fail("HINT_GIT_UNAVAILABLE", f"전환 tree SHA 계산 실패: {e}")
+    if tr.returncode != 0:
+        core.fail("HINT_GIT_FAILED", "전환 tree SHA 계산 실패: " + tr.stderr.decode("utf-8", "replace").strip())
+    return tr.stdout.decode("ascii", "replace").strip()
+
+
+def _transition_commit(repo: Path, parent: str, tree: str, utc: str) -> str:
+    """Create the deterministic, synthetic-identity, single-parent transition commit without moving a ref."""
+    commit = core.git(repo, "-c", "i18n.commitEncoding=UTF-8", "commit-tree", tree, "--no-gpg-sign", "-p", parent,
+                      input_text=_BRANCH_TRANSITION_MESSAGE, env_extra=identity_env(utc)).stdout.strip()
+    raw = read_object_text(repo, "commit", commit) or ""
+    ids = parse_ident_headers(raw)
+    parents = [ln[7:] for ln in raw.split("\n\n", 1)[0].splitlines() if ln.startswith("parent ")]
+    epoch = int(core.parse_utc(utc).timestamp())
+    if (not raw.startswith(f"tree {tree}\n") or parents != [parent]
+            or raw.partition("\n\n")[2] != _BRANCH_TRANSITION_MESSAGE
+            or any(ids.get(role, {}).get("ident") != synthetic_identity()
+                   or ids.get(role, {}).get("epoch") != epoch for role in ("author", "committer"))):
+        core.fail("HINT_BRANCH_TRANSITION_RESULT_MISMATCH", "전환 커밋이 요청한 트리·단일 parent·합성 신원·주입 시각과 다르다.")
+    return commit
+
+
+def _remote_hint_tip(repo: Path, remote: str) -> str | None:
+    # Runtime import avoids the tag -> branch module cycle.
+    from . import tag  # noqa: PLC0415
+    return tag.remote_ref_object(repo, remote, HINT_BRANCH_REF)
+
+
+def _existing_transition(repo: Path, commit: str, parent: str, expected_tree: str) -> bool:
+    """이미 있는 commit이 이 README 전환인지 구조로 판정한다(재시도 UTC와 무관 · object write 0)."""
+    raw = read_object_text(repo, "commit", commit) or ""
+    if not raw.startswith(f"tree {expected_tree}\n") or raw.partition("\n\n")[2] != _BRANCH_TRANSITION_MESSAGE:
+        return False
+    parents = [ln[7:] for ln in raw.split("\n\n", 1)[0].splitlines() if ln.startswith("parent ")]
+    ids = parse_ident_headers(raw)
+    return parents == [parent] and all(ids.get(role, {}).get("ident") == synthetic_identity()
+                                       for role in ("author", "committer"))
+
+
+def branch_transition(repo: Path, *, remote: str, generated_utc: str) -> dict:
+    """Run the one-time README-only hint branch transition against live local and remote tips.
+
+    same old -> local CAS -> exact non-force branch push; local new/remote old -> resume push;
+    both new -> idempotent; any third SHA -> fail closed. Tags, catalog, code worktrees are untouched.
+    """
+    utc = core.require_utc(generated_utc)
+    if not isinstance(remote, str) or not remote.strip() or remote.lstrip().startswith("-"):
+        core.fail("HINT_BRANCH_REMOTE_INVALID", f"전환 remote 인자가 올바르지 않다: {remote!r}")
+    _require_hint_not_checked_out(repo)
+    local, remote_tip = hint_tip(repo), _remote_hint_tip(repo, remote)
+    if not local:
+        core.fail("HINT_BRANCH_TRANSITION_LOCAL_ABSENT", f"로컬 {HINT_BRANCH_REF} tip이 없다 — 자동 fetch·생성하지 않는다.")
+    if not remote_tip:
+        core.fail("HINT_BRANCH_TRANSITION_REMOTE_ABSENT", f"원격 {remote!r}에 {HINT_BRANCH_REF} tip이 없다.")
+    readme = _transition_template_bytes(repo)
+    # existing-ref 분류는 object DB를 쓰지 않는 예상 tree SHA로 한다. 실제 새 전환이 필요할 때만 -w/mktree.
+    expected_tree = _transition_tree(repo, readme, write=False)
+    refspec = f"{HINT_BRANCH_REF}:{HINT_BRANCH_REF}"
+    raw = read_object_text(repo, "commit", local) or ""
+    parents = [ln[7:] for ln in raw.split("\n\n", 1)[0].splitlines() if ln.startswith("parent ")]
+    if local == remote_tip and len(parents) == 1 and _existing_transition(repo, local, parents[0], expected_tree):
+        return {"status": "already-transitioned", "remote": remote, "old": parents[0], "new": local,
+                "refspec": refspec, "local_before": local, "local_after": local,
+                "remote_before": remote_tip, "remote_after": remote_tip}
+    if local == remote_tip:
+        tree = _transition_tree(repo, readme, write=True)
+        new = _transition_commit(repo, local, tree, utc)
+        _update_hint_ref(repo, new, local)
+        from . import tag  # noqa: PLC0415
+        tag.git_push_authenticated(repo, remote, refspec, dry_run=False)
+        after = _remote_hint_tip(repo, remote)
+        if after != new:
+            core.fail("HINT_BRANCH_TRANSITION_REMOTE_SHA_MISMATCH", f"push 뒤 원격 {HINT_BRANCH_REF}={str(after)[:12]} ≠ local new {new[:12]}")
+        return {"status": "transitioned", "remote": remote, "old": local, "new": new, "refspec": refspec,
+                "local_before": local, "local_after": new, "remote_before": remote_tip, "remote_after": after}
+    # Interrupted first push only: local must already prove that remote's live old SHA is its sole parent.
+    # Do not construct a candidate from a remote-only/new SHA: that would require an implicit fetch and could turn
+    # a third-state conflict into an object-creation side effect.
+    if len(parents) == 1 and parents[0] == remote_tip and _existing_transition(repo, local, remote_tip, expected_tree):
+        from . import tag  # noqa: PLC0415
+        tag.git_push_authenticated(repo, remote, refspec, dry_run=False)
+        after = _remote_hint_tip(repo, remote)
+        if after != local:
+            core.fail("HINT_BRANCH_TRANSITION_REMOTE_SHA_MISMATCH", f"재개 push 뒤 원격 {HINT_BRANCH_REF}={str(after)[:12]} ≠ local new {local[:12]}")
+        return {"status": "push-resumed", "remote": remote, "old": remote_tip, "new": local, "refspec": refspec,
+                "local_before": local, "local_after": local, "remote_before": remote_tip, "remote_after": after}
+    core.fail("HINT_BRANCH_TRANSITION_CONFLICT", f"local {local[:12]}와 remote {remote_tip[:12]}가 같은 old/new 전환 쌍이 아니다 — 세 번째 SHA를 덮지 않는다.")
+
+
+def _transition_selftest(tmp: Path, ck) -> None:
+    """Bare remote only: normal, interrupted-push resume, both-new idempotence, and third-SHA conflict."""
+    repo = selftest_repo(tmp, "transition-repo")
+    template = core.TEMPLATES_DIR / "hint-branch-README.md"
+    target = repo / _BRANCH_TEMPLATE_REL
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(template, target)
+    core.git(repo, "add", _BRANCH_TEMPLATE_REL)
+    core.git(repo, "commit", "-qm", "tracked transition template")
+    old_tree = _mktree(repo, [("100644", "blob", core.git(repo, "hash-object", "-w", "--stdin", input_text="old README\n").stdout.strip(), "README.md")])
+    old = core.git(repo, "commit-tree", old_tree, "--no-gpg-sign", input_text="old\n", env_extra=identity_env(_FX_UTC)).stdout.strip()
+    _update_hint_ref(repo, old, None)
+    bare = tmp / "transition-remote.git"
+    core.git(tmp, "init", "-q", "--bare", str(bare))
+    core.git(repo, "remote", "add", "transition", str(bare))
+    core.git(repo, "push", "-q", "transition", f"{HINT_BRANCH_REF}:{HINT_BRANCH_REF}")
+    result = branch_transition(repo, remote="transition", generated_utc=_FX_UTC)
+    new = hint_tip(repo)
+    entries = tree_entries(repo, new)
+    ck("branch-transition: README 하나 mode 100644", result["status"] == "transitioned"
+       and len(entries) == 1 and entries[0]["mode"] == "100644" and entries[0]["type"] == "blob" and entries[0]["path"] == "README.md")
+    ck("branch-transition: remote == local", _remote_hint_tip(repo, str(bare)) == new)
+    ck("branch-transition: both-new idempotent", branch_transition(repo, remote=str(bare), generated_utc=_FX_UTC)["status"] == "already-transitioned"
+       and hint_tip(repo) == new)
+    repo2 = selftest_repo(tmp, "transition-resume")
+    target2 = repo2 / _BRANCH_TEMPLATE_REL
+    target2.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(template, target2)
+    core.git(repo2, "add", _BRANCH_TEMPLATE_REL)
+    core.git(repo2, "commit", "-qm", "tracked transition template")
+    old_tree2 = _mktree(repo2, [("100644", "blob", core.git(repo2, "hash-object", "-w", "--stdin", input_text="old README\n").stdout.strip(), "README.md")])
+    old2 = core.git(repo2, "commit-tree", old_tree2, "--no-gpg-sign", input_text="old\n", env_extra=identity_env(_FX_UTC)).stdout.strip()
+    _update_hint_ref(repo2, old2, None)
+    bare2 = tmp / "transition-resume.git"
+    core.git(tmp, "init", "-q", "--bare", str(bare2))
+    core.git(repo2, "remote", "add", "transition", str(bare2))
+    core.git(repo2, "push", "-q", "transition", f"{HINT_BRANCH_REF}:{HINT_BRANCH_REF}")
+    staged = _transition_commit(repo2, old2, _transition_tree(repo2, _transition_template_bytes(repo2)), _FX_UTC)
+    _update_hint_ref(repo2, staged, old2)
+    resumed = branch_transition(repo2, remote="transition", generated_utc="2026-09-22T00:00:00Z")
+    ck("branch-transition: local=new remote=old push-resume(재시도 UTC 달라도 구조 판정)", resumed["status"] == "push-resumed"
+       and _remote_hint_tip(repo2, str(bare2)) == staged)
+    other_tree = _mktree(repo2, [("100644", "blob", core.git(repo2, "hash-object", "-w", "--stdin", input_text="other\n").stdout.strip(), "README.md")])
+    other = core.git(repo2, "commit-tree", other_tree, "--no-gpg-sign", "-p", old2, input_text="other\n",
+                     env_extra=identity_env(_FX_UTC)).stdout.strip()
+    core.git(repo2, "push", "-q", str(bare2), f"{other}:refs/heads/other")
+    core.git(bare2, "update-ref", HINT_BRANCH_REF, other, staged)
+    core.git(bare2, "update-ref", "-d", "refs/heads/other")
+    ck("branch-transition: third SHA conflict", expect_code(lambda: branch_transition(repo2, remote=str(bare2), generated_utc=_FX_UTC),
+       "HINT_BRANCH_TRANSITION_CONFLICT") and hint_tip(repo2) == staged and _remote_hint_tip(repo2, str(bare2)) == other)
+
+
 def commit_payload(repo: Path, payload_dir, *, message: str, generated_utc: str) -> str:
     """페이로드 → allowlist 트리 → 합성 신원·주입 시각 커밋 → `refs/heads/hint` CAS 전진. 반환 = 커밋 SHA.
 
@@ -952,6 +1136,7 @@ def selftest() -> list[str]:
         with selftest_env(tmp):
             try:
                 _selftest_git(tmp, ck, operator_env)
+                _transition_selftest(tmp, ck)
             except core.HintError as e:
                 bad.append(f"branch: 자체검사 중 예기치 않은 HintError {e.code}: {e.message[:300]}")
             except Exception as e:  # noqa: BLE001 — 자체검사는 죽지 않고 실패로 보고한다
