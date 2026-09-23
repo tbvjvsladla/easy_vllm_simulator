@@ -1,7 +1,7 @@
 <!-- 이 파일 **전체**가 생성물이다 — `hint.py catalog derive` 가 원격 발행 태그에서 통째로 다시 만든다(plan_26092119 §4.10). 손으로 고치지 마라: 다음 derive 에서 사라진다. 진실원천 = 원격의 refs/tags/hint/* 광고 · 색인 = hints/index.json(같은 derive 가 쓴다). -->
 # hint 태그 카탈로그 — 검증된 서빙 여정의 지도
 
-> 원격 `origin` 의 발행 태그 **49건**에서 파생 · 생성 `2026-09-23T12:18:21` KST · 문법 세대: `v6` 2 · `legacy-5seg-node` 45 · `legacy-5seg` 2 · 로컬 오브젝트 부재(미수령) 1건.
+> 원격 `origin` 의 발행 태그 **50건**에서 파생 · 생성 `2026-09-23T17:37:42` KST · 문법 세대: `v6` 3 · `legacy-5seg-node` 45 · `legacy-5seg` 2 · 로컬 오브젝트 부재(미수령) 1건.
 > 표를 사람이 쓰지 않는다 — "발행됐다"는 원격에 태그가 있다는 사실 하나로만 성립한다(카탈로그 바깥의 증거).
 
 ## hint 태그란 — 정답이 아니라 지도
@@ -18,7 +18,7 @@
 
 | 세대(`문법` 열) | arch 모양 | recipe 모양 | 이 카탈로그의 예 |
 |---|---|---|---|
-| `v6` | `<hw>-<G>g<N>n-<main\|sub\|cluster>-<target>` (G=노드당 GPU · N=노드 수 · target=`native`\|`sim-<hw>`) | `q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k\|off>-<graph\|eager>` (순서 고정 · 전 축 필수) | `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-plemmap-spec3-eager` |
+| `v6` | `<hw>-<G>g<N>n-<main\|sub\|cluster>-<target>[-<plane>]` (G=노드당 GPU · N=노드 수 · target=`native`\|`sim-<hw>` · plane=실행 평면 토큰 — Docker 는 없음, native(비-Docker)만 붙는다) | `q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k\|off>-<graph\|eager>` (순서 고정 · 전 축 필수) | `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native-bare/qnvfp4-len262144-kvauto-plemmap-spec3-eager` |
 | `legacy-5seg-node` | `<hw>-<main\|sub\|cluster>-<target>` | 축 가변(발행 당시 규약) | `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len1048576-kvauto-pleoffload` |
 | `legacy-5seg` | `<hw>-<target>` (노드축 없음) | 축 가변 | `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` |
 
@@ -79,6 +79,7 @@ python3 .claude/skills/hint-publisher/scripts/hint.py match --vllm <V> --model <
 | `gb10-1g2n-cluster-native` | `v6` | 2 |
 | `gb10-main-sim-kv24g` | `legacy-5seg-node` | 2 |
 | `gb10-sub-sim-kv24g` | `legacy-5seg-node` | 2 |
+| `gb10-1g2n-cluster-native-bare` | `v6` | 1 |
 | `gb10-main-native` | `legacy-5seg-node` | 1 |
 | `gb10-sim-h100` | `legacy-5seg` | 1 |
 | `gb10-sub-native` | `legacy-5seg-node` | 1 |
@@ -137,6 +138,7 @@ python3 .claude/skills/hint-publisher/scripts/hint.py match --vllm <V> --model <
 | `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph1` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8-l2graph · 변종 spec0-graph1 · 768K 26.14 t/s @1 · verdict PASS(explore) |
 | `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph0` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8-l1spec · 변종 spec7-graph0 · 768K 29.72 t/s @1 · verdict PASS(explore) |
 | `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph1-len1m` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 e-1m-kvfp8-e1combo · 변종 spec7-graph1-len1m · 1M 30.54 t/s @1 · verdict PASS(explore) |
+| `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native-bare/qnvfp4-len262144-kvauto-plemmap-spec3-eager` | v6 | 0.29.0rc6 | qwen3.8-flash-next-nvfp4 | gb10-1g2n-cluster-native-bare | full | HINT_MISSING_CERTIFICATE | `nvidia/Qwen3.8-Flash-Next-NVFP4` 를 GB10 1GPU × 2노드(Ray TP=2)에서 **Docker 없이** 호스트 venv 로 서빙했다 — 각 노드가 자기 로컬 이미지(vLLM `v0.29.0rc6` 소스빌드)에서 재컴파일 없이 재포장한 오프라인 wheelhouse 로 설치 · 노브는 Docker 셀과 동일(NVFP4 · 262144 · KV auto · PLE mmap · MTP k=3 · eager) · 판정점 동시성 1 decode 22.27 t/s(MTP on · GuideLLM full 반복 3). 가장 비싼 벽은 native 평면 자체였다 — 이미지 재포장 게이트의 RECORD 불일치(W8 → 사람 승인 + 이미지 동등성 게이트)와 정문 · 삭제기 · 측정 클라이언트의 라이브 결함들(W9~W13)이며, 모델 · 버전 벽(W1 · W6)의 해소는 이미지 바이트째 따라왔다. 성능은 탐색 합격선 대비 REFUTE(인증서 없음 · Docker 셀과 같은 대역)이고 합격선은 run 마다 측정 수용길이로 움직인다 — 이 수치를 기준선으로 쓰지 말 것(Q1 · Q2) · KV 20GiB 클램프(V6)는 필요량을 크게 넘는 승계 손레버다. |
 | `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-plemmap-spec3-eager` | v6 | 0.29.0rc6 | qwen3.8-flash-next-nvfp4 | gb10-1g2n-cluster-native | full | HINT_MISSING_CERTIFICATE | `nvidia/Qwen3.8-Flash-Next-NVFP4` 를 GB10 1GPU × 2노드(Ray TP=2)에서 vLLM `v0.29.0rc6` 소스빌드로 서빙했다 — NVFP4 · max-model-len 262144 · KV auto · PLE NVMe mmap · MTP k=3 · eager, 판정점 동시성 1 decode 20.98 t/s(MTP on · GuideLLM full 반복 3). 가장 비싼 벽은 stock 이 NVFP4 mixed 체크포인트를 싣지 못한 것(W1 → 빌드 패치 60)과 통합메모리에서 PLE 테이블을 거둘 경로가 없던 것(W6 → 62 mmap + 노드 로컬 NVMe 스테이징)이다. 성능은 탐색 합격선 대비 REFUTE 이고(기능은 PASS · 인증서 없음) 이전 인증 측정과의 큰 격차는 원인 미분석(Q1) — 이 수치를 기준선으로 쓰지 말 것 · KV 20GiB 클램프(V6)는 필요량을 크게 넘긴 음성대조값이다. |
 | `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8-plemmap-spec3-eager` | v6 | 0.29.0rc6 | qwen3.8-flash-next-nvfp4 | gb10-1g2n-cluster-native | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_CERTIFICATE · HINT_MISSING_SWEEP_LEVELS | `nvidia/Qwen3.8-Flash-Next-NVFP4` 를 GB10 1GPU × 2노드(Ray TP=2)에서 vLLM `v0.29.0rc6` 소스빌드로 서빙했다 — NVFP4 · max-model-len 262144 · KV fp8_e4m3 · PLE NVMe mmap · MTP k=3 · eager, lite 관측 warm decode 18.77 t/s(동시성 1 · MTP on · 반복 1 · OBSERVATION-ONLY · 판정 없음). 가장 비싼 벽은 stock 이 NVFP4 mixed 체크포인트를 싣지 못한 것(W1 → 빌드 패치 60), fp8 KV 를 QSA 가 거부한 것(W8 → 64), 통합메모리에서 PLE 테이블을 거둘 경로가 없던 것(W6 → 62 mmap + 노드 로컬 NVMe)이다. 오해 위험: KV 20GiB 클램프(V6)는 필요량을 크게 넘는 승계 손레버이고, 리포트의 cold TTFT 는 연속 두 번째 실행의 값이라 cold 가 아니다(Q2) — 이 lite 수치를 기준선이나 full · 인증 수치와 나란히 쓰지 말 것. |
 <!-- hint-index:rows -->

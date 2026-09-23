@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗).",
-  "count": 49,
-  "generated_kst": "2026-09-23T12:18:21",
+  "count": 50,
+  "generated_kst": "2026-09-23T17:37:42",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -866,6 +866,25 @@
       "recipe": "spec7-graph1-len1m",
       "source": "remote-derived",
       "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph1-len1m",
+      "vllm": "0.29.0rc6"
+    },
+    {
+      "anchor": "1002d5b6bfe859bc3f39519bc93157536b8eba00",
+      "arch": "gb10-1g2n-cluster-native-bare",
+      "base_model": "Qwen/Qwen3.8-Flash-Next",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26092317_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md))",
+      "brief": "`nvidia/Qwen3.8-Flash-Next-NVFP4` 를 GB10 1GPU × 2노드(Ray TP=2)에서 **Docker 없이** 호스트 venv 로 서빙했다 — 각 노드가 자기 로컬 이미지(vLLM `v0.29.0rc6` 소스빌드)에서 재컴파일 없이 재포장한 오프라인 wheelhouse 로 설치 · 노브는 Docker 셀과 동일(NVFP4 · 262144 · KV auto · PLE mmap · MTP k=3 · eager) · 판정점 동시성 1 decode 22.27 t/s(MTP on · GuideLLM full 반복 3). 가장 비싼 벽은 native 평면 자체였다 — 이미지 재포장 게이트의 RECORD 불일치(W8 → 사람 승인 + 이미지 동등성 게이트)와 정문 · 삭제기 · 측정 클라이언트의 라이브 결함들(W9~W13)이며, 모델 · 버전 벽(W1 · W6)의 해소는 이미지 바이트째 따라왔다. 성능은 탐색 합격선 대비 REFUTE(인증서 없음 · Docker 셀과 같은 대역)이고 합격선은 run 마다 측정 수용길이로 움직인다 — 이 수치를 기준선으로 쓰지 말 것(Q1 · Q2) · KV 20GiB 클램프(V6)는 필요량을 크게 넘는 승계 손레버다.",
+      "grammar": "v6",
+      "missing": [
+        "HINT_MISSING_CERTIFICATE"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "866a407436c199a1b6bf60d30882d97f4a097464",
+      "published": true,
+      "recipe": "qnvfp4-len262144-kvauto-plemmap-spec3-eager",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native-bare/qnvfp4-len262144-kvauto-plemmap-spec3-eager",
       "vllm": "0.29.0rc6"
     },
     {
