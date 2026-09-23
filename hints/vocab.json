@@ -38,6 +38,11 @@
     "graph": ["graph", "cudagraph"],
     "eager": ["eager"]
   },
+  "plane": {
+    "_note": "arch 의 선택 평면 토큰(2026-09-23 plan_26092311 O-N1 = A · 사람 편집 tripwire). 키 = 실행 평면(판정 단일 소유자 hintlib/artifacts._plane 의 닫힌 어휘 docker|native), 값 = arch 끝에 `-<값>` 으로 붙는 토큰([a-z0-9]* · 빈 문자열 = 토큰 없음). **docker 는 빈 문자열로 고정**한다(옛·신 Docker 태그 이름 불변 — validate_vocab 이 집행). native 는 비어 있으면 안 된다: 축이 같은 native 셀과 Docker 셀이 한 이름을 원한다(2026-09-23 N1 파생 이름 = D1 발행 태그 → HINT_NAME_COLLISION).",
+    "docker": "",
+    "native": "bare"
+  },
   "quant_suffixes": ["nvfp4", "fp8", "mxfp4", "int4", "awq", "gptq", "w4a16", "bf16"],
   "_observed": {
     "_note": "hw·kv 원문을 저장소에서 관측한 자리(2026-09-21 grep · 등재 근거). 새 원문을 등재할 때 여기에도 한 줄 남긴다.",

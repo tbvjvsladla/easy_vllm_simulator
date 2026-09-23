@@ -3,7 +3,8 @@
     hint/<vllm>/<model>/<arch>/<recipe>
       <vllm>   빌드 입력(X18)        릴리스 태그 → `0.29.0rc6` · 커밋 핀 → `<직전 릴리스>-g<sha12>`
       <model>  체크포인트 슬러그      HF repo 이름 또는 체크포인트 basename 소문자(= 인증서 model 키)
-      <arch>   `<hw>-<G>g<N>n-<main|sub|cluster>-<target>`   G=노드당 GPU · N=노드 수 · target=native|sim-<hw>
+      <arch>   `<hw>-<G>g<N>n-<main|sub|cluster>-<target>[-<plane>]`   G=노드당 GPU · N=노드 수 · target=native|sim-<hw> ·
+               plane = 실행 평면 토큰(vocab `plane` · docker = 토큰 없음 · native = `bare`)
       <recipe> `q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k|off>-<graph|eager>`   순서 고정 · 전 축 필수
 
 왜 이 모양인가 — 옛 hint_tag.py 에서 옮겨 온 날짜 박힌 불변식(삭제 ✗ · 코드맵 hint_tag_a §2.A·§8)
@@ -17,6 +18,11 @@
       수행 정체성**으로 본다. 축은 arch **안에서** 늘린다(세그먼트 수를 늘리면 이름을 해체하는 모든 자리가 깨진다).
       옛 문법은 **다른 사유코드**로 가른다 — "형태 위반"과 "옛 문법"을 한 메시지로 뭉개면 고치는 사람이 무엇을
       고칠지 모른다. 이 원칙은 세대가 하나 늘어도 그대로다(`HINT_ARCH_LEGACY_GRAMMAR` 신설).
+    - ★ 2026-09-23(plan_26092311 O-N1 = A · 사용자 승인): arch 끝에 **선택 평면 토큰** `-<plane>`. 이름 문법에 실행 평면
+      축이 없어서 native(비-Docker) 셀이 축이 같은 Docker 셀과 한 이름을 원했다(N1 파생 이름 = D1 발행 태그 →
+      HINT_NAME_COLLISION · F10). Docker 는 토큰이 없다(vocab 이 docker="" 를 강제) — 옛·신 Docker 태그 이름은 바이트 불변이고,
+      native 만 `-bare` 를 붙인다. 평면 판정은 `artifacts.plane_of` 단독 소유(evidence 가 facts 로 싣는다 · 여기서 다시 판정 ✗).
+      레시피 7번째 축(O-N1 B)을 택하지 않은 이유: 레시피는 "순서 고정 · 전 축 필수"라 옛 v6 태그 전부와 모양이 갈라진다.
     - ★ 2026-09-11(plan_26091108 R9): 레시피 4번째 축 `ple`. 3축은 camp-26090918 의 res·mmp 셀을 가르지 못해
       타임스탬프 접미로 유일화했고, 그 함수 주석이 이미 "반복되면 축을 늘려야 한다"고 적어 두었다.
     - ★ 2026-08-20(plan_26082008 R1 · 사용자 D2): 슬러그는 **발행자가 짓지 않는다**. 발행된 32 슬러그 중 27종이
@@ -72,6 +78,12 @@ GRAMMAR_UNKNOWN = "unknown"                    # 5세그먼트지만 어느 세�
 NODE_AXIS = ("main", "sub", "cluster")
 VOCAB_AXES = ("hw", "quant", "kv", "ple", "graph")
 ARCH_AXES = ("hw", "gpus_per_node", "nodes", "role", "target")
+# 평면 축(2026-09-23 O-N1): ARCH_AXES 밖에 따로 둔다 — O-N1 이전 PAYLOAD.naming.axes 에는 이 칸이 없고(전부 Docker),
+#   ARCH_AXES 를 순회하는 재조립이 옛 페이로드에서 KeyError 로 깨지면 안 된다. 닫힌 어휘는 판정 소유자
+#   `artifacts._plane`(docker|native)과 같고, vocab `plane` 의 키 집합이 정확히 이것이어야 한다(validate_vocab).
+PLANE_AXIS = "plane"
+PLANE_NAMES = ("docker", "native")
+_PLANE_NO_TOKEN = "docker"   # 문법 불변식: Docker 이름은 평면 토큰을 갖지 않는다(옛·신 태그 불변 · vocab 이 "" 로 강제)
 RECIPE_AXES = ("q", "len", "kv", "ple", "spec", "graph")
 _GRAPH_TOKENS = frozenset({"graph", "eager"})   # 문법이 고정한 두 토큰(vocab 가 바꾸지 못한다)
 
@@ -97,8 +109,10 @@ _MODEL_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 # v6 arch 인식은 느슨하게, 판정은 엄격하게 — `gb10-0g1n-main-native` 같은 잘못된 v6 가 옛 세대(노드 축 없음)로
 # 오분류되면 고치는 사람이 엉뚱한 것을 고친다(사유코드 분리 원칙).
 _ARCH_V6_LIKE_RE = re.compile(r"^[^-]+-\d+g\d+n(?:-|$)")
+# 끝의 선택 평면 토큰(`-<plane>` · O-N1)은 **형태만** 본다 — 토큰 어휘는 vocab `plane` 이 소유하므로(코드에 사본 ✗) 파생·재조립이
+#   어휘로 대조한다. sim 타겟은 `sim-[a-z0-9]+` 라 `-` 를 품지 않아 평면 토큰과 모호하지 않다.
 _ARCH_V6_RE = re.compile(r"^(?P<hw>[a-z0-9]+)-(?P<g>[1-9]\d*)g(?P<n>[1-9]\d*)n-"
-                         r"(?P<role>main|sub|cluster)-(?P<target>native|sim-[a-z0-9]+)$")
+                         r"(?P<role>main|sub|cluster)-(?P<target>native|sim-[a-z0-9]+)(?:-(?P<plane>[a-z0-9]+))?$")
 _ARCH_LEGACY_NODE_RE = re.compile(r"^(?P<hw>[a-z0-9]+)-(?P<role>main|sub|cluster)-(?P<target>[a-z0-9][a-z0-9-]*)$")
 _ARCH_LEGACY_RE = re.compile(r"^(?P<hw>[a-z0-9]+)-(?!main-|sub-|cluster-)(?P<target>[a-z0-9][a-z0-9-]*)$")
 _RECIPE_V6_RE = re.compile(r"^q(?P<q>[a-z0-9]+)-len(?P<len>[1-9]\d*)-kv(?P<kv>[a-z0-9]+)-ple(?P<ple>[a-z0-9]+)"
@@ -123,6 +137,7 @@ _AXIS_EVIDENCE = {
     "model": "서빙 yaml `model:`(체크포인트 경로) 또는 HF 카드 repo id",
     "arch": "output/<topology>/manifest.yaml gpu_model·gpus_per_node·nodes · 측정 노드(sweep meta measured_node) · "
             "셀 config target_gpu(시뮬레이션 타겟 선언 여부)",
+    "plane": "artifacts.plane_of(셀 env IMAGE_TAG·BUILD_DOCKERFILE = docker · native serve-proof plane=native)",
     "q": "체크포인트 config.json quantization_config / hf_quant_config.json(부재를 관측했으면 'none')",
     "len": "서빙 yaml max-model-len",
     "kv": "서빙 yaml kv-cache-dtype(부재를 관측했으면 엔진 기본값 'auto')",
@@ -160,16 +175,20 @@ class TagName:
 class Axis:
     value: str
     source: str
+    token: str | None = None   # 값과 이름 토큰이 다른 축만(평면: value=docker|native · token=""|vocab 값)
 
     def as_dict(self) -> dict:
-        return {"value": self.value, "source": self.source}
+        d = {"value": self.value, "source": self.source}
+        if self.token is not None:
+            d["token"] = self.token
+        return d
 
 
 @dataclass(frozen=True)
 class DerivedName:
     tag: str
     segments: dict   # {"vllm","model","arch","recipe"} → Axis
-    axes: dict       # ARCH_AXES + RECIPE_AXES → Axis (값은 토큰 · 접두 없음 — recompose 가 다시 조립한다)
+    axes: dict       # ARCH_AXES + (PLANE_AXIS) + RECIPE_AXES → Axis (값은 토큰 · 접두 없음 — recompose 가 다시 조립한다)
     vllm_build_input: dict   # {"kind": release|commit|wheel, "ref", "sha": <40>|None, "prev_release": …|None}
 
     def to_payload(self) -> dict:
@@ -228,16 +247,30 @@ def grammar_of(name: str) -> str:
     return GRAMMAR_UNKNOWN
 
 
-def parse_arch(arch: str) -> dict | None:
-    """arch → 축 사전(세대 무관 · 읽기 전용). v6 = {grammar, hw, gpus_per_node, nodes, role, target} ·
+def plane_of_token(token: str, vocab: dict | None = None) -> str | None:
+    """arch 평면 토큰 → 평면 이름(읽기 전용 · 예외 없음). 빈 토큰 = docker(문법 불변식 · vocab 없이도 참). 비어 있지 않은 토큰은
+    vocab `plane` 으로만 역조회한다 — vocab 이 없거나 어휘 밖이면 None(추측 ✗)."""
+    if not token:
+        return _PLANE_NO_TOKEN
+    table = (vocab or {}).get(PLANE_AXIS) if isinstance(vocab, dict) else None
+    if not isinstance(table, dict):
+        return None
+    hits = [p for p, t in table.items() if not str(p).startswith("_") and t == token]
+    return hits[0] if len(hits) == 1 else None
+
+
+def parse_arch(arch: str, vocab: dict | None = None) -> dict | None:
+    """arch → 축 사전(세대 무관 · 읽기 전용). v6 = {grammar, hw, gpus_per_node, nodes, role, target, plane_token, plane} ·
     옛 노드축 = {grammar, hw, role, target} · 옛 무노드 = {grammar, hw, target}. 해석 불가 = None.
-    카탈로그 match 가 문자열 정확일치 대신 **축별** 비교를 하는 데 쓴다(코드맵 §1.9)."""
+    카탈로그 match 가 문자열 정확일치 대신 **축별** 비교를 하는 데 쓴다(코드맵 §1.9). v6 의 `plane` 은 토큰이 없으면 docker,
+    있으면 vocab 역조회(vocab 미지정·어휘 밖 = None · O-N1)."""
     if not isinstance(arch, str):
         return None
     if arch_violation(arch) is None:
         m = _ARCH_V6_RE.match(arch)
+        tok = m["plane"] or ""
         return {"grammar": GRAMMAR_V6, "hw": m["hw"], "gpus_per_node": int(m["g"]), "nodes": int(m["n"]),
-                "role": m["role"], "target": m["target"]}
+                "role": m["role"], "target": m["target"], "plane_token": tok, "plane": plane_of_token(tok, vocab)}
     if _ARCH_V6_LIKE_RE.match(arch):
         return None
     if (m := _ARCH_LEGACY_NODE_RE.match(arch)):
@@ -290,7 +323,7 @@ def recipe_violation(recipe: str) -> str | None:
 
 _ARCH_MESSAGES = {
     "HINT_ARCH_ABSENT": "arch 세그먼트가 비었다.",
-    "HINT_ARCH_SHAPE_VIOLATION": "arch 형태 위반(소문자 <hw>-<G>g<N>n-<main|sub|cluster>-<native|sim-<hw>>).",
+    "HINT_ARCH_SHAPE_VIOLATION": "arch 형태 위반(소문자 <hw>-<G>g<N>n-<main|sub|cluster>-<native|sim-<hw>>[-<plane>]).",
     "HINT_ARCH_ROLE_NODES_MISMATCH": "노드 축과 노드 수가 모순된다 — cluster 는 N≥2, main·sub 는 N=1 이다.",
     "HINT_ARCH_LEGACY_GRAMMAR": (
         "옛 arch 문법(<hw>-<main|sub|cluster>-<target> · 2026-09-06 세대)이다 — 신규 이름은 GPU 수·노드 수를 분리한 "
@@ -335,15 +368,18 @@ def _pos_int(value, what: str) -> int:
     return int(text)
 
 
-def build_arch(hw: str, gpus_per_node: int, nodes: int, role: str, target: str) -> str:
-    """축 5개 → arch 세그먼트. 손으로 이어붙이는 자리를 없앤다(문법이 두 벌로 갈라지지 않게 · 2026-09-06)."""
+def build_arch(hw: str, gpus_per_node: int, nodes: int, role: str, target: str, plane_token: str = "") -> str:
+    """축 5개(+평면 토큰) → arch 세그먼트. 손으로 이어붙이는 자리를 없앤다(문법이 두 벌로 갈라지지 않게 · 2026-09-06).
+    plane_token 은 vocab `plane` 의 값(docker = "" → 토큰 없음 · O-N1). 토큰 자체는 `plane_token()` 이 어휘에서 낸다."""
     if not isinstance(hw, str) or not _TOKEN_RE.match(hw):
         fail("HINT_ARCH_SHAPE_VIOLATION", f"hw 토큰은 [a-z0-9]+ 이어야 한다(vocab 정규화 결과): {hw!r}")
     if role not in NODE_AXIS:
         fail("HINT_ARCH_SHAPE_VIOLATION", f"노드 축은 {NODE_AXIS} 중 하나여야 한다: {role!r}")
+    if not isinstance(plane_token, str) or (plane_token and not _TOKEN_RE.match(plane_token)):
+        fail("HINT_ARCH_SHAPE_VIOLATION", f"평면 토큰은 빈 문자열 또는 [a-z0-9]+ 이어야 한다(vocab plane 값): {plane_token!r}")
     g = _pos_int(gpus_per_node, "gpus_per_node(G)")
     n = _pos_int(nodes, "nodes(N)")
-    arch = f"{hw}-{g}g{n}n-{role}-{target}"
+    arch = f"{hw}-{g}g{n}n-{role}-{target}" + (f"-{plane_token}" if plane_token else "")
     why = arch_violation(arch)
     if why is not None:
         fail(why, f"조립한 arch 가 문법을 위반한다: {arch!r} — {_ARCH_MESSAGES.get(why, why)}")
@@ -375,7 +411,17 @@ def compose_from_payload(naming: dict) -> str:
         ax = {k: naming["axes"][k]["value"] for k in ARCH_AXES + RECIPE_AXES}
     except (KeyError, TypeError) as e:
         fail("HINT_NAMING_INCONSISTENT", f"PAYLOAD.naming 에 segments/axes 칸이 없다: {e!r}")
-    arch = build_arch(ax["hw"], ax["gpus_per_node"], ax["nodes"], ax["role"], ax["target"])
+    # 평면 축(O-N1 · 2026-09-23): 그 이전 페이로드에는 칸이 없다 — 그때는 native 를 발행할 수 없었으므로(HINT_PLANE_UNDERIVABLE)
+    #   전부 Docker = 토큰 없음이다. 칸이 없는데 arch 에 평면 토큰이 있으면 아래 segments 대조가 잡는다(통과시키지 않는다).
+    pl = naming["axes"].get(PLANE_AXIS)
+    ptok = ""
+    if pl is not None:
+        if not isinstance(pl, dict) or pl.get("value") not in PLANE_NAMES or not isinstance(pl.get("token"), str):
+            fail("HINT_NAMING_INCONSISTENT", f"PAYLOAD.naming.axes.plane 모양 위반(value∈{PLANE_NAMES} · token 문자열): {pl!r}")
+        ptok = pl["token"]
+        if (pl["value"] == _PLANE_NO_TOKEN) != (ptok == ""):
+            fail("HINT_NAMING_INCONSISTENT", f"평면 {pl['value']!r} 와 토큰 {ptok!r} 가 모순된다(docker ⇔ 토큰 없음 · 문법 불변식)")
+    arch = build_arch(ax["hw"], ax["gpus_per_node"], ax["nodes"], ax["role"], ax["target"], ptok)
     recipe = build_recipe(ax["q"], ax["len"], ax["kv"], ax["ple"], ax["spec"], ax["graph"])
     if arch != seg["arch"] or recipe != seg["recipe"]:
         fail("HINT_NAMING_INCONSISTENT",
@@ -477,7 +523,7 @@ def validate_vocab(vocab) -> list[str]:
         return ["최상위가 객체가 아니다"]
     if vocab.get("schema_version") != 1:
         bad.append(f"schema_version 이 1 이 아니다: {vocab.get('schema_version')!r}")
-    known = set(VOCAB_AXES) | {"schema_version", "quant_suffixes", "hw_ambiguous"}
+    known = set(VOCAB_AXES) | {"schema_version", "quant_suffixes", "hw_ambiguous", PLANE_AXIS}
     for k in vocab:
         if not str(k).startswith("_") and k not in known:
             bad.append(f"알 수 없는 키(오타?): {k!r}")
@@ -507,6 +553,7 @@ def validate_vocab(vocab) -> list[str]:
         bad.append(f"graph: 토큰은 문법이 고정한 {sorted(_GRAPH_TOKENS)} 여야 한다")
     if isinstance(vocab.get("ple"), dict) and "none" not in vocab["ple"]:
         bad.append("ple: PLE 없는 모델의 명시 토큰 'none'(plenone)이 없다")
+    bad += _plane_vocab_problems(vocab.get(PLANE_AXIS))
     sfx = vocab.get("quant_suffixes")
     if not isinstance(sfx, list) or not all(isinstance(s, str) and _TOKEN_RE.match(s) for s in sfx):
         bad.append("quant_suffixes: [a-z0-9]+ 문자열 목록이어야 한다")
@@ -519,6 +566,43 @@ def validate_vocab(vocab) -> list[str]:
             if _vnorm(a) in hw_keys:
                 bad.append(f"hw_ambiguous: {a!r} 가 hw 토큰에도 등재돼 있다(에디션 구분이 무너진다)")
     return bad
+
+
+def _plane_vocab_problems(table) -> list[str]:
+    """vocab `plane`(평면 이름 → arch 토큰 · O-N1) 구조 문제. 키 = PLANE_NAMES 정확히 · docker = "" · native = [a-z0-9]+ · 토큰 중복 ✗."""
+    if not isinstance(table, dict):
+        return [f"{PLANE_AXIS}: 평면→토큰 사전이 없다(O-N1 · docker=\"\" · native=<토큰>)"]
+    bad: list[str] = []
+    entries = {k: v for k, v in table.items() if not str(k).startswith("_")}
+    if set(entries) != set(PLANE_NAMES):
+        bad.append(f"{PLANE_AXIS}: 키는 판정 소유자(artifacts._plane)의 닫힌 어휘 {list(PLANE_NAMES)} 여야 한다: {sorted(entries)}")
+    for k, v in entries.items():
+        if not isinstance(v, str) or (v and not _TOKEN_RE.match(v)):
+            bad.append(f"{PLANE_AXIS}.{k}: 토큰은 빈 문자열 또는 [a-z0-9]+ 이어야 한다: {v!r}")
+    if entries.get(_PLANE_NO_TOKEN, "") != "":
+        bad.append(f"{PLANE_AXIS}.{_PLANE_NO_TOKEN}: 빈 문자열이어야 한다(Docker 이름 불변 — 옛·신 태그가 바이트 그대로 파생돼야 한다)")
+    toks = [v for k, v in entries.items() if k != _PLANE_NO_TOKEN]
+    if any(not t for t in toks):
+        bad.append(f"{PLANE_AXIS}: docker 밖 평면의 토큰이 비었다 — 축이 같은 Docker 셀과 이름이 충돌한다(2026-09-23 F10)")
+    if len(set(toks)) != len(toks):
+        bad.append(f"{PLANE_AXIS}: 두 평면이 같은 토큰을 쓴다")
+    return bad
+
+
+def plane_token(plane, vocab: dict) -> str:
+    """평면 이름 → arch 평면 토큰(vocab `plane`). 어휘표에 plane 축 없음 = HINT_VOCAB_ABSENT · 어휘 밖 평면 = HINT_VOCAB_UNKNOWN."""
+    table = (vocab or {}).get(PLANE_AXIS) if isinstance(vocab, dict) else None
+    if not isinstance(table, dict):
+        fail("HINT_VOCAB_ABSENT", f"어휘표에 {PLANE_AXIS} 축이 없다(O-N1 · 2026-09-23)",
+             f"`{core.REL_VOCAB}` 에 \"{PLANE_AXIS}\": {{\"docker\": \"\", \"native\": \"<토큰>\"}} 를 둔다(사람 편집).")
+    if not isinstance(plane, str) or plane.startswith("_") or plane not in table:
+        fail("HINT_VOCAB_UNKNOWN", f"평면 {plane!r} 가 어휘표 {PLANE_AXIS} 밖이다(tripwire 닫힌 목록)",
+             f"평면은 artifacts.plane_of 가 내는 {PLANE_NAMES} 중 하나다 — 새 평면이면 `{core.REL_VOCAB}` 의 \"{PLANE_AXIS}\" 에 "
+             "토큰을 추가한다(사람 편집).")
+    tok = table[plane]
+    if not isinstance(tok, str) or (tok and not _TOKEN_RE.match(tok)) or ((plane == _PLANE_NO_TOKEN) != (tok == "")):
+        fail("HINT_VOCAB_ABSENT", f"어휘표 {PLANE_AXIS}.{plane} 토큰이 깨졌다: {tok!r}", "load_vocab 으로 적재한 어휘표를 넘긴다.")
+    return tok
 
 
 def load_vocab(repo: Path) -> dict:
@@ -791,13 +875,17 @@ def derive_name(facts: dict, vocab: dict) -> DerivedName:
             target, tsrc = "native", f"{asrc} · target_gpu {tgt_raw!r} = 호스트 hw → native"
         else:
             target, tsrc = f"sim-{ttok}", f"{asrc} · vocab hw[{ttok}]←{tgt_raw!r} → sim-{ttok}"
-    arch = build_arch(hw, g, n, role, target)
+    pd, psrc = _facts_axis(facts, PLANE_AXIS)
+    plane = _raw(PLANE_AXIS, pd, psrc)
+    ptok = plane_token(plane, vocab)
+    arch = build_arch(hw, g, n, role, target, ptok)
     axes = {
         "hw": Axis(hw, f"{asrc} · vocab hw[{hw}]←{gpu_model!r}"),
         "gpus_per_node": Axis(str(g), asrc),
         "nodes": Axis(str(n), asrc),
         "role": Axis(role, asrc),
         "target": Axis(target, tsrc),
+        PLANE_AXIS: Axis(plane, f"{psrc} · vocab {PLANE_AXIS}[{plane}]→{ptok!r}", token=ptok),
     }
 
     axes["q"] = _vocab_axis("q", "quant", facts, vocab)
@@ -818,7 +906,7 @@ def derive_name(facts: dict, vocab: dict) -> DerivedName:
     tag = f"{core.HINT_TAG_PREFIX}{vllm_axis.value}/{slug}/{arch}/{recipe}"
     validate_new_name(tag)   # 파생기가 스스로 문법을 검사한다(조립과 판정이 두 벌로 갈라지지 않게)
     segments = {"vllm": vllm_axis, "model": model_axis,
-                "arch": Axis(arch, "derived(hw·gpus_per_node·nodes·role·target)"),
+                "arch": Axis(arch, "derived(hw·gpus_per_node·nodes·role·target·plane)"),
                 "recipe": Axis(recipe, "derived(q·len·kv·ple·spec·graph)")}
     return DerivedName(tag, segments, axes, build_input)
 
@@ -863,6 +951,7 @@ def _fixture_vocab() -> dict:
             "kv": {"auto": ["auto"], "fp8": ["fp8", "fp8_e4m3", "fp8e4m3"], "fp8e5m2": ["fp8_e5m2"]},
             "ple": {"mmap": ["mmap"], "resident": ["resident"], "offload": ["offload"], "none": ["none"]},
             "graph": {"graph": ["graph", "cudagraph"], "eager": ["eager"]},
+            "plane": {"docker": "", "native": "bare"},
             "quant_suffixes": ["nvfp4", "fp8", "mxfp4", "int4", "awq", "gptq", "w4a16", "bf16"]}
 
 
@@ -879,6 +968,7 @@ def _tag2_facts() -> dict:
                       "source": "서빙 yaml model"},
             "arch": {"gpu_model": "NVIDIA GB10", "gpus_per_node": 1, "nodes": 2, "role": "cluster",
                      "target_gpu": None, "source": "output/multi/manifest.yaml · sweep meta measured_node=cluster"},
+            "plane": {"raw": "docker", "source": "artifacts.plane_of → cell-env(IMAGE_TAG|BUILD_DOCKERFILE)"},
             "q": {"raw": "modelopt-dominant:NVFP4", "source": "hf_quant_config.json quantized_layers 우세 알고리즘"},
             "len": {"raw": 262144, "source": "서빙 yaml max-model-len"},
             "kv": {"raw": "auto", "source": "서빙 yaml kv-cache-dtype"},
@@ -903,7 +993,7 @@ def selftest() -> list[str]:
     dn = derive_name(_tag2_facts(), V)
     ck(f"태그2 facts → 정확히 기대 이름(실제 {dn.tag})", dn.tag == _TAG2_EXPECTED)
     ck("축별 {값, 출처} 가 전부 채워진다",
-       set(dn.axes) == set(ARCH_AXES + RECIPE_AXES) and all(a.value and a.source for a in dn.axes.values())
+       set(dn.axes) == set(ARCH_AXES + (PLANE_AXIS,) + RECIPE_AXES) and all(a.value and a.source for a in dn.axes.values())
        and set(dn.segments) == {"vllm", "model", "arch", "recipe"})
     ck("q 출처에 어휘 정규화 흔적(modelopt-dominant:NVFP4 → nvfp4)",
        dn.axes["q"].value == "nvfp4" and "modelopt-dominant:NVFP4" in dn.axes["q"].source)
@@ -919,6 +1009,53 @@ def selftest() -> list[str]:
     tam = json.loads(json.dumps(pay))
     tam["axes"]["len"]["value"] = "131072"
     ck("★음성대조 PAYLOAD 축 위조는 재조립 대조가 잡는다", _code(compose_from_payload, tam) == "HINT_NAMING_INCONSISTENT")
+
+    # ── 평면 토큰(O-N1 · 2026-09-23 plan_26092311) — Docker 불변 · native 만 `-<vocab plane.native>` ──
+    ntok = V["plane"]["native"]
+    ck("docker 평면 = 토큰 없음(태그2 이름 바이트 불변) · 축 기록",
+       dn.axes[PLANE_AXIS].value == "docker" and dn.axes[PLANE_AXIS].token == ""
+       and "/gb10-1g2n-cluster-native/" in dn.tag and pay["axes"][PLANE_AXIS]["token"] == "")
+    fn = _tag2_facts()
+    fn["plane"] = {"raw": "native", "source": "artifacts.plane_of → evidence.plane(declared) · serve_proof plane=native"}
+    dnn = derive_name(fn, V)
+    ck(f"native 평면 → arch 끝 -{ntok}({dnn.tag})",
+       dnn.tag == _TAG2_EXPECTED.replace("/gb10-1g2n-cluster-native/", f"/gb10-1g2n-cluster-native-{ntok}/"))
+    ck("native 는 축이 같은 Docker 이름과 충돌하지 않는다(F10)", dnn.tag != dn.tag)
+    ck("평면 출처가 PAYLOAD.naming 에 실린다(serve_proof · vocab 대응)",
+       "serve_proof plane=native" in dnn.axes[PLANE_AXIS].source and f"→{ntok!r}" in dnn.axes[PLANE_AXIS].source)
+    ck("native PAYLOAD.naming 재조립 = 태그", compose_from_payload(dnn.to_payload()) == dnn.tag)
+    ck("파서 왕복: -<plane> 있음 → v6 · plane=native", parse_tag(dnn.tag).grammar == GRAMMAR_V6
+       and parse_arch(parse_tag(dnn.tag).arch, V) == {"grammar": GRAMMAR_V6, "hw": "gb10", "gpus_per_node": 1, "nodes": 2,
+                                                       "role": "cluster", "target": "native", "plane_token": ntok,
+                                                       "plane": "native"})
+    ck("파서 왕복: 토큰 없음 → plane=docker(vocab 없이도)", parse_arch("gb10-1g2n-cluster-native")["plane"] == "docker"
+       and parse_arch("gb10-1g2n-cluster-native")["plane_token"] == "")
+    ck("sim 타겟 뒤 평면 토큰도 해체된다", (parse_arch(f"gb10-1g1n-sub-sim-h100-{ntok}", V) or {}).get("target") == "sim-h100"
+       and (parse_arch(f"gb10-1g1n-sub-sim-h100-{ntok}", V) or {}).get("plane") == "native")
+    ck("vocab 없이 비어 있지 않은 토큰은 추측하지 않는다(plane=None)", parse_arch(f"gb10-1g2n-cluster-native-{ntok}")["plane"] is None)
+    old_pay = json.loads(json.dumps(pay))
+    del old_pay["axes"][PLANE_AXIS]
+    ck("O-N1 이전 페이로드(평면 칸 없음 · Docker)도 재조립된다", compose_from_payload(old_pay) == dn.tag)
+    old_nat = json.loads(json.dumps(dnn.to_payload()))
+    del old_nat["axes"][PLANE_AXIS]
+    ck("★음성대조 평면 칸 없이 -<plane> 이름 = 재조립 불일치", _code(compose_from_payload, old_nat) == "HINT_NAMING_INCONSISTENT")
+    lie = json.loads(json.dumps(dnn.to_payload()))
+    lie["axes"][PLANE_AXIS]["value"] = "docker"
+    ck("★음성대조 평면 값·토큰 모순 = 재조립 거부", _code(compose_from_payload, lie) == "HINT_NAMING_INCONSISTENT")
+    Vn = {k: v for k, v in V.items() if k != PLANE_AXIS}
+    ck("★vocab 에 plane 축 없음 = HINT_VOCAB_ABSENT(fail-loud)", _code(derive_name, fn, Vn) == "HINT_VOCAB_ABSENT"
+       and any(PLANE_AXIS in b for b in validate_vocab(Vn)))
+    fx = _tag2_facts()
+    fx["plane"] = {"raw": "podman", "source": "fixture"}
+    ck("★어휘 밖 평면 = HINT_VOCAB_UNKNOWN", _code(derive_name, fx, V) == "HINT_VOCAB_UNKNOWN")
+    fx = _tag2_facts()
+    del fx["plane"]
+    ck("★평면 사실 부재 = HINT_AXIS_UNDERIVABLE(docker 로 추측 ✗)", _code(derive_name, fx, V) == "HINT_AXIS_UNDERIVABLE")
+    for bad_plane, why in (({"docker": "dk", "native": ntok}, "docker 토큰 금지(Docker 이름 불변)"),
+                           ({"docker": "", "native": ""}, "native 빈 토큰(충돌)"),
+                           ({"docker": ""}, "키 집합 ≠ 판정 소유자 어휘")):
+        ck(f"★vocab plane 구조 위반 거부 — {why}", bool(validate_vocab({**V, PLANE_AXIS: bad_plane})))
+    ck("★평면 토큰 형태 위반 조립 거부", _code(build_arch, "gb10", 1, 2, "cluster", "native", "Bare") == "HINT_ARCH_SHAPE_VIOLATION")
 
     # ── vLLM 세그먼트(X18) ──
     sha = "0123456789abcdef0123456789abcdef01234567"
@@ -1062,7 +1199,8 @@ def selftest() -> list[str]:
                           ("gb10-1g1n-main-sim-h100", "gb10-1g1n-sub-native", "gb10-1g2n-cluster-native",
                            "rtxpro6000maxq-2g1n-main-native")))
     ck("arch 해체가 축을 준다", parse_arch("gb10-1g2n-cluster-native") ==
-       {"grammar": GRAMMAR_V6, "hw": "gb10", "gpus_per_node": 1, "nodes": 2, "role": "cluster", "target": "native"})
+       {"grammar": GRAMMAR_V6, "hw": "gb10", "gpus_per_node": 1, "nodes": 2, "role": "cluster", "target": "native",
+        "plane_token": "", "plane": "docker"})
     ck("옛 arch 도 축 해체(읽기 전용)", parse_arch("gb10x2-cluster-sim-h100") ==
        {"grammar": GRAMMAR_LEGACY_ARCH_NODE, "hw": "gb10x2", "role": "cluster", "target": "sim-h100"})
     ck("★음성대조 미지 노드 축 조립 거부", _code(build_arch, "gb10", 1, 1, "worker", "native") == "HINT_ARCH_SHAPE_VIOLATION")
@@ -1217,6 +1355,10 @@ def selftest() -> list[str]:
            normalize("kv", "fp8", real) == "fp8" and normalize("kv", "fp8_e4m3", real) == "fp8")
         ck("★추적 어휘표: quant 'N/A' 는 어휘 밖", _code(normalize, "quant", "N/A", real) == "HINT_VOCAB_UNKNOWN")
         ck("추적 어휘표로도 태그2 기대 이름", derive_name(_tag2_facts(), real).tag == _TAG2_EXPECTED)
+        # AC-N6(plan_26092311): 추적 어휘표의 native 토큰 = O-N1 승인값 `bare` · N1 이름이 D1 과 갈라진다
+        fr = {**_tag2_facts(), PLANE_AXIS: {"raw": "native", "source": "fixture · serve_proof plane=native"}}
+        ck("AC-N6 추적 어휘표: native 셀 → …-cluster-native-bare",
+           derive_name(fr, real).tag == _TAG2_EXPECTED.replace("-cluster-native/", "-cluster-native-bare/"))
 
     # ── import 부수효과 0: PATH 를 끊고 새 프로세스에서 적재 · 감사 훅으로 프로세스 실행·비 .py 파일 열기 관측 ──
     try:

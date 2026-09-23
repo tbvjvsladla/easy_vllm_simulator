@@ -155,7 +155,8 @@ PAYLOAD.json · LINEAGE.json · PROVENANCE.json · artifacts/<slot>/…(적용�
 ## 5. 이름 — 입력하지 않는다
 
 `hint/<vllm>/<model>/<arch>/<recipe>` — 예 `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-plemmap-spec3-eager`.
-`<vllm>` = 빌드 입력(릴리스 태그 또는 `<직전 릴리스>-g<sha12>`) · `<arch>` = `<hw>-<G>g<N>n-<main|sub|cluster>-<target>` · `<recipe>` =
+`<vllm>` = 빌드 입력(릴리스 태그 또는 `<직전 릴리스>-g<sha12>`) · `<arch>` = `<hw>-<G>g<N>n-<main|sub|cluster>-<target>[-bare]`(`-bare` =
+native 평면만 · Docker 는 토큰 없음 — 축이 같은 두 평면의 이름 충돌 방지 · 2026-09-23 plan_26092311 O-N1) · `<recipe>` =
 고정 6축 전부. 어휘는 `hints/vocab.json`(사람 편집 tripwire). 어휘 밖 = `HINT_VOCAB_UNKNOWN`(추가할 키를 알려 준다) · 파생 불가 =
 `HINT_AXIS_UNDERIVABLE`(없는 증거를 알려 준다) · 충돌 = `HINT_NAME_COLLISION`(태그는 불변 — 개정판은 축이 모자란 것이다). 정의 전체는
 계약 §4.

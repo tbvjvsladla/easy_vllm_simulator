@@ -187,7 +187,7 @@ hint/<vllm>/<model>/<arch>/<recipe>
 |---|---|---|
 | `<vllm>` | **빌드 입력**(D5). 업스트림 릴리스 태그로 빌드 → 그 태그에서 `v` 를 뗀 값: `M.m.p` + 선택 4번째 마디(`M.m.p.q`) + 선택 단계(`rc6`·`a1` …) + 선택 `.postN`(D-g). 커밋·nightly 핀 → `<직전 릴리스>-g<sha12>` | 소스빌드 = 셀 env `VLLM_REF`(+ `VLLM_REPO`) · wheel = `VLLM_VERSION` · native = wheel URL 의 SHA · 직전 릴리스 = 빌드 원장 `vllm.describe` 또는 이미지 안 `git describe --tags --match 'v*' --abbrev=0` |
 | `<model>` | 체크포인트 슬러그 = HF repo 이름 또는 체크포인트 basename 소문자(`[a-z0-9][a-z0-9._-]*`) | 서빙 yaml `model:` · HF 카드 repo id(= 인증서 `model` 키 · 2026-08-15 IDENTITY_MISMATCH 선례) |
-| `<arch>` | `<hw>-<G>g<N>n-<main\|sub\|cluster>-<target>` — G = 노드당 GPU 수 · N = 노드 수 · target = `native` \| `sim-<hw>` | `output/<t>/manifest.yaml`(gpu_model · gpus_per_node · nodes) · 측정 노드(인증서·스윕 `measured_node`) · 셀 config `target_gpu`(시뮬레이션 타겟 선언 여부) |
+| `<arch>` | `<hw>-<G>g<N>n-<main\|sub\|cluster>-<target>[-<plane>]` — G = 노드당 GPU 수 · N = 노드 수 · target = `native` \| `sim-<hw>` · plane = 실행 평면 토큰(Docker = 없음 · native(비-Docker) = `-bare`) | `output/<t>/manifest.yaml`(gpu_model · gpus_per_node · nodes) · 측정 노드(인증서·스윕 `measured_node`) · 셀 config `target_gpu`(시뮬레이션 타겟 선언 여부) · 평면 = `artifacts.plane_of`(셀 env `IMAGE_TAG`·`BUILD_DOCKERFILE` ↔ native serve-proof `plane`) |
 | `<recipe>` | `q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k\|off>-<graph\|eager>` — **순서 고정 · 전 축 필수** · 값 없음은 명시 토큰(`plenone` · `specoff`) | 체크포인트 `quantization_config` · 서빙 yaml(`max-model-len` · `kv-cache-dtype` · `speculative-config` · `enforce-eager`) · 셀 `declared_axes.ple_mode` · 모델 config(PLE 부재 판정) |
 
 **정규 어휘표 = `hints/vocab.json`**(추적 · tripwire 닫힌 목록 · 사람 편집). 축 `hw`·`quant`·`kv`·`ple`·`graph` 의 원문을 대소문자·공백만
@@ -201,6 +201,10 @@ hint/<vllm>/<model>/<arch>/<recipe>
 - **D-h(포크)**: 업스트림이 아닌 `VLLM_REPO` 의 릴리스 모양 `VLLM_REF` 는 릴리스 이름을 쓰지 않는다 — 같은 이름을 쓰면 수신자는
   업스트림 릴리스로 읽는다. SHA 경로(`<직전 릴리스>-g<sha12>`)만 쓰고, SHA 가 없으면 차단한다. 업스트림 목록 =
   `naming.UPSTREAM_VLLM_REPOS`(tripwire · 사람 편집). naming facts 는 `vllm_repo` 를 싣는다.
+- **평면 토큰**(2026-09-23 `plan_26092311` O-N1 = A): 이름 문법에 실행 평면 축이 없어 native 셀이 축이 같은 Docker 셀과 한 이름을
+  원했다(N1 파생 이름 = D1 발행 태그 → `HINT_NAME_COLLISION`). 그래서 arch 끝에 선택 토큰을 둔다 — 토큰은 `hints/vocab.json` `plane`
+  (docker = `""` 고정 → **Docker 이름은 옛·신 모두 바이트 불변** · native = `bare`)에서만 온다. 평면 판정은 `artifacts.plane_of` 한 벌이고
+  출처는 `PAYLOAD.naming.axes.plane` 에 남는다. 평면 사실 부재 = `HINT_AXIS_UNDERIVABLE`(docker 로 추측 ✗) · 어휘 밖 = `HINT_VOCAB_UNKNOWN`.
 - 엔진 자기보고(예 `0.29.0`) · wheel 메타 원문은 이름이 아니라 `PAYLOAD.naming.vllm_observed` 와 00 사실 블록에만 산다(F13: 출처가 셋으로
   갈려 rc6 소스빌드와 릴리스가 한 이름을 썼다).
 - 축별 `{값, 출처}` 는 `PAYLOAD.naming` 에 기록한다. 미리보기 = `hint.py name`(읽기 전용).

@@ -988,7 +988,12 @@ def _plane(c: _Ctx) -> tuple[str, str]:
 
 def plane_of(repo: Path, ev: Any, *, forward_module: Any | None = None) -> str:
     """실행 평면 `docker|native`(SPEC §5.6). 셀 env 선택자 · evidence 관측 · 선언의 일치를 요구한다."""
-    return _plane(_ctx(repo, ev, forward_module=forward_module))[0]
+    return plane_and_source(repo, ev, forward_module=forward_module)[0]
+
+
+def plane_and_source(repo: Path, ev: Any, *, forward_module: Any | None = None) -> tuple[str, str]:
+    """plane_of 의 (평면, 판정 출처) — 이름 평면 토큰(O-N1 · 2026-09-23)의 출처 기록용. 판정은 `_plane` 한 벌이다."""
+    return _plane(_ctx(repo, ev, forward_module=forward_module))
 
 
 def _dockerfile_args(c: _Ctx, text: str) -> list[str]:

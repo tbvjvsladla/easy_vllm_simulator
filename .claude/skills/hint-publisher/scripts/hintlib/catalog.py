@@ -530,8 +530,8 @@ def render_hints_md(index: dict) -> str:
         "",
         "| 세대(`문법` 열) | arch 모양 | recipe 모양 | 이 카탈로그의 예 |",
         "|---|---|---|---|",
-        f"| `{g_v6}` | `<hw>-<G>g<N>n-<main\\|sub\\|cluster>-<target>` (G=노드당 GPU · N=노드 수 · "
-        f"target=`native`\\|`sim-<hw>`) | `q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k\\|off>-<graph\\|eager>` "
+        f"| `{g_v6}` | `<hw>-<G>g<N>n-<main\\|sub\\|cluster>-<target>[-<plane>]` (G=노드당 GPU · N=노드 수 · "
+        f"target=`native`\\|`sim-<hw>` · plane=실행 평면 토큰 — Docker 는 없음, native(비-Docker)만 붙는다) | `q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k\\|off>-<graph\\|eager>` "
         f"(순서 고정 · 전 축 필수) | {example(g_v6)} |",
         f"| `{g_node}` | `<hw>-<main\\|sub\\|cluster>-<target>` | 축 가변(발행 당시 규약) | {example(g_node)} |",
         f"| `{g_flat}` | `<hw>-<target>` (노드축 없음) | 축 가변 | {example(g_flat)} |",

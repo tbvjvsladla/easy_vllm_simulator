@@ -1185,7 +1185,7 @@ def cmd_name(a) -> int:
     for k in ("vllm", "model", "arch", "recipe"):
         s = dn.segments[k]
         print(f"  세그먼트 {k:<7} {s.value:<40} ← {s.source}")
-    for k in naming.ARCH_AXES + naming.RECIPE_AXES:
+    for k in naming.ARCH_AXES + (naming.PLANE_AXIS,) + naming.RECIPE_AXES:
         x = dn.axes[k]
         print(f"  축 {k:<13} {x.value:<40} ← {x.source}")
     print(f"  빌드 입력 {json.dumps(dn.vllm_build_input, ensure_ascii=False, sort_keys=True)}")

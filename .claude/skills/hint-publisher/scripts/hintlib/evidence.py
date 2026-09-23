@@ -3504,7 +3504,7 @@ def naming_facts(repo, ev: CellEvidence) -> dict:
 
     # vllm (X18 — 빌드 입력)
     from . import artifacts        # 평면 판정의 단일 소유자(artifacts.plane_of) — 여기서 다시 적지 않는다
-    plane = artifacts.plane_of(repo, ev)
+    plane, plane_src = artifacts.plane_and_source(repo, ev)
     track = "native" if plane == "native" else b.get("track")
     # D-h(2026-09-22): vllm_repo 는 **언제나 키로** 싣는다(값 None = 미관측) — 소스빌드의 릴리스 모양 ref 가 업스트림 태그인지는
     #   naming 이 저장소로 판정한다(포크 = SHA 경로 또는 차단). 키가 빠지면 naming 이 파생 불가로 막는다(읽지 못함 ≠ 업스트림).
@@ -3532,6 +3532,14 @@ def naming_facts(repo, ev: CellEvidence) -> dict:
     facts["spec"] = _spec_fact(repo, ev, y, yrel)
     facts["graph"] = _graph_fact(repo, ev, y, yrel)
     facts["ple"] = _ple_fact(ev, env, env_rel, ck)
+    # 평면(O-N1 · 2026-09-23 plan_26092311): arch 선택 토큰의 원문. 판정은 위 artifacts 한 벌(셀 env 선택자 · native serve-proof
+    #   선언의 교차 대조 포함)이고, 여기서는 그 결과와 출처만 싣는다(두 번째 판정기 ✗).
+    psrc = f"artifacts.plane_of → {plane_src}"
+    if plane == "native":
+        psrc += f" · env: IMAGE_TAG/BUILD_DOCKERFILE 없음({env_rel})"
+        if ev.sources.get("plane"):
+            psrc += f" · serve_proof {ev.sources['plane']}"
+    facts["plane"] = {"raw": plane, "source": psrc}
     return facts
 
 
@@ -4138,6 +4146,7 @@ def _fixture(td: Path) -> tuple[Path, dict]:
              "kv": {"auto": ["auto"], "fp8": ["fp8"]},
              "ple": {"mmap": ["mmap"], "resident": ["resident"], "offload": ["offload"], "none": ["none"]},
              "graph": {"graph": ["graph"], "eager": ["eager"]},
+             "plane": {"docker": "", "native": "bare"},
              "quant_suffixes": ["nvfp4", "fp8", "bf16"]}
     core.write_json(repo / core.REL_VOCAB, vocab)
     (repo / core.REL_PII_TERMS).write_text("# fixture\nfixturesecretterm\n", encoding="utf-8")
