@@ -1,0 +1,15 @@
+# 셀 nv4-bf-262k-mmp — camp-26091216-qwen38fn-res-min
+# 선언 축: variant=NVFP4 · kv=auto · ctx=262144 · PLE=mmap · KV클램프 20480MiB/노드
+# A1 기준선 — 직전 레거시 셀과 같은 축(KV 20GiB)으로 재수행해 하네스 교정 전후 음성대조
+model: /app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4
+host: 0.0.0.0
+port: 8080
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+gpu-memory-utilization: 0.85
+max-model-len: 262144
+kv-cache-dtype: auto
+kv-cache-memory-bytes: 21474836480   # 20480MiB/노드
+enforce-eager: true            # 승계 통제변인(캡처 스파이크 ~10GiB 회피)
+async-scheduling: false        # MTP+async 금지(0.29 자동비활성 안 탐 — 명시 필수)
+speculative-config: '{"method":"mtp","num_speculative_tokens":3}'

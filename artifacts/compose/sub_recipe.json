@@ -1,0 +1,176 @@
+{
+  "env_forward": [
+    {
+      "compose_ref": "x-gpu-common.image|build.dockerfile|build.args",
+      "from": "cell_env",
+      "group": "image_identity",
+      "key": "IMAGE_TAG",
+      "value": "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+      "why": "이미지 정체성의 이름 — slave 가 모르면 compose 기본 태그로 빌드·기동한다(plan_26062818 §S2.5 R10)."
+    },
+    {
+      "compose_ref": "x-gpu-common.image|build.dockerfile|build.args",
+      "from": "cell_env",
+      "group": "image_identity",
+      "key": "BUILD_DOCKERFILE",
+      "value": "Dockerfile.source-build",
+      "why": "2026-07-24 Solar-Open2: slave build 가 --env-file EFC 만 받아 compose 기본 Dockerfile 로 폴백 → 변종 트랙에서 slave 만 다른 Dockerfile 로 빌드됐다(기본값 콤보에서만 잠복)."
+    },
+    {
+      "compose_ref": "x-gpu-common.image|build.dockerfile|build.args",
+      "from": "cell_env",
+      "group": "image_identity",
+      "key": "VLLM_REF",
+      "value": "v0.29.0rc6",
+      "why": "포크/릴리스 ref — 빠지면 slave 가 compose 기본 ref 로 빌드된다(plan_26062818 §S2.5 R10)."
+    },
+    {
+      "compose_ref": "x-gpu-common.build.args",
+      "from": "cell_env",
+      "group": "build_tuning",
+      "key": "BUILD_JOBS",
+      "value": "8",
+      "why": "2026-08-15: 이미지 정체성은 아니지만 양 노드에 같아야 한다 — slave 만 기본 16 으로 컴파일하면 거기서 OOM(하드다운 #2 가 서브였다)."
+    },
+    {
+      "compose_ref": "volumes",
+      "from": "project_env",
+      "group": "mount",
+      "key": "NAS_MODEL_PATH",
+      "value": "<manifest.nas_model_path>",
+      "why": "결함#2b(plan_26070119): --env-file 을 쓰면 프로젝트 .env 자동 로드가 꺼져 compose 기본 마운트로 폴백 → 모델 부재(serve 즉사). 셸 env 로 명시 주입한다."
+    },
+    {
+      "compose_ref": "volumes",
+      "from": "project_env",
+      "group": "mount",
+      "key": "QUANT_MODEL_PATH",
+      "value": "<manifest.quant_model_path>",
+      "why": "결함#2b 와 같은 경로 — 양자화 모델 마운트원."
+    },
+    {
+      "compose_ref": "volumes",
+      "from": "project_env",
+      "group": "mount",
+      "key": "TIKTOKEN_HOST_PATH",
+      "value": "<manifest.tiktoken_host_path>",
+      "why": "결함#2b 와 같은 경로 — 오프라인 토크나이저 마운트원."
+    },
+    {
+      "compose_ref": "volumes",
+      "from": "project_env",
+      "group": "mount",
+      "key": "PLE_MMAP_HOST_PATH",
+      "value": "<manifest.ple_mmap_host_path>",
+      "why": "2026-09-09(camp-26090918): PLE mmap 로컬 NVMe 스테이징 마운트원 — slave 도 같은 경로에 실재해야 한다."
+    },
+    {
+      "compose_ref": "services.vllm-slave-serve.container_name|environment(Band2 키)",
+      "from": "cell_env",
+      "group": "cluster",
+      "key": "SLAVE_CONTAINER_NAME",
+      "value": "nv4-bf-262k-mmp-slave-container",
+      "why": "2026-08-14: 폴백 이름이면 slave 협역 워치독 필터가 매칭 0 — 서브에서만 계층 2층이 조용히 사라진다(devlog_26080212 ⑥ 부류 · 하드다운 #2 는 서브였다). 2026-08-02 에 이미 '엉뚱한 이름으로 떠 있었고 아무도 몰랐다' 로 한 번 드러났다(그때는 마스터측만 교정)."
+    },
+    {
+      "compose_ref": "services.vllm-slave-serve.environment",
+      "from": "cell_env",
+      "group": "serve_env",
+      "key": "VLLM_PLE_MMAP",
+      "value": "1",
+      "why": "2026-09-09(62-qwen4exp-ple-mmap): Ray 워커도 가중치를 올린다 — 마스터만 켜면 slave 는 상주 로드로 OOM/불일치."
+    },
+    {
+      "compose_ref": "services.vllm-slave-serve.environment",
+      "from": "cell_env",
+      "group": "serve_env",
+      "key": "VLLM_PLE_MMAP_DIR",
+      "value": "/app/ple_mmap/q38fn-nvfp4",
+      "why": "2026-09-09: 워커 로컬 mmap 스테이징 경로 — 마스터와 같은 값이어야 한다."
+    }
+  ],
+  "env_forward_source": ".claude/skills/upstream-version-watch/scripts/slave_forward.py derive() — 스모크와 같은 함수(AC8)",
+  "image_identity_args": [
+    "IMAGE_TAG",
+    "BUILD_DOCKERFILE",
+    "VLLM_REF"
+  ],
+  "launch_order": [
+    "build(양 노드 병렬)",
+    "master up(head)",
+    "slave up(join)",
+    "master: GPU 합류 확인 → vllm serve"
+  ],
+  "launch_order_source": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+  "parity_attestation": {
+    "axes": [
+      "vllm_sha",
+      "torch",
+      "driver",
+      "build_ledger"
+    ],
+    "blocking": false,
+    "observed": {
+      "build_ledger": {
+        "compared": "dockerfile · build_args(− exempt) · patches(phase,file,script_sha256,result) · vllm git sha",
+        "identity_exempt_build_args": [
+          "BUILD_JOBS"
+        ],
+        "main_identity_sha256": "fcc9de2eb54ffb0ba1e49089dc9584774f390126b2503ffc84d8014cd836e413",
+        "sub_identity_sha256": "fcc9de2eb54ffb0ba1e49089dc9584774f390126b2503ffc84d8014cd836e413",
+        "verdict": "equal"
+      },
+      "driver": {
+        "main": "580.178.04",
+        "sub": "580.178.04",
+        "verdict": "equal"
+      },
+      "torch": {
+        "main": "2.13.0a0+9186a08b2c.nv26.7.59513937",
+        "sub": "2.13.0a0+9186a08b2c.nv26.7.59513937",
+        "verdict": "equal"
+      },
+      "vllm_sha": {
+        "main": "74c96922ecb9017f413318c76d1af83aa2ab45a5",
+        "sub": "74c96922ecb9017f413318c76d1af83aa2ab45a5",
+        "verdict": "equal"
+      }
+    },
+    "source": "output/multi/benchlog/attestation_nv4-bf-262k-mmp.json"
+  },
+  "per_node_values": {
+    "MASTER_HOST_IP": "<manifest.nodes[main].host>",
+    "NAS_MODEL_PATH": "<manifest.nas_model_path>",
+    "PLE_MMAP_HOST_PATH": "<manifest.ple_mmap_host_path>",
+    "QUANT_MODEL_PATH": "<manifest.quant_model_path>",
+    "SLAVE_HOST_IP": "<manifest.nodes[sub].host>",
+    "SSH_USER": "<manifest.nodes[main].ssh_user>",
+    "TIKTOKEN_HOST_PATH": "<manifest.tiktoken_host_path>",
+    "interconnect": "artifacts/compose/.env.interconnect.template"
+  },
+  "preconditions": [
+    "가중치가 같은 마운트 경로에 실재(메인 .env 의 mount 값이 서브에 전달된다)",
+    "PLE mmap 이면 slave 로컬 스테이징도 실재",
+    "vLLM SHA · torch · driver 동일(동일 이미지가 아니라 동일 ABI)"
+  ],
+  "role_diff": {
+    "master": "ray head + vllm serve(트리플렛 source · 모델 러너 실행)",
+    "master_runtime_patch": "none(런타임 패치 파일 없음)",
+    "runner_gpu_join_literal": {
+      "lines": [
+        79
+      ],
+      "note": "master 는 ray status 의 GPU 합류가 이 리터럴과 같아질 때까지 기다린다 — 노드당 GPU·노드 수가 다른 클러스터에서는 이 줄을 고치지 않으면 대기에서 멈춘다(arch 의 <G>g<N>n 과 숨은 결합).",
+      "value": "2"
+    },
+    "slave": "ray worker(트리플렛 미수령 — 같은 이미지·같은 compose·같은 serve_runner.sh 가 NODE_ROLE 로 분기)",
+    "slave_config_file": "default",
+    "slave_runtime_patch": "not-armed — slave CONFIG_FILE='default'(slave_forward.NEVER_FORWARD) → arm_patch.sh 가 /app/configs/default_patch.py 를 찾고 없으면 no-op (K11)",
+    "source": {
+      "runner_gpu_join_literal": "render_dockerfile.SHARED_ASSET_DIR/serve_runner.sh(측정 당시 개정 — slots.compose.evidence.selected_revisions)",
+      "runtime_patch": "output/multi/configs/<CONFIG_FILE>_patch.py 실재 여부",
+      "slave_config_file": "compose-default:CONFIG_FILE × slave_forward.NEVER_FORWARD"
+    }
+  },
+  "schema_version": 1
+}
