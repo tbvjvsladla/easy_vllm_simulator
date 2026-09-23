@@ -182,7 +182,9 @@ if [ "$SERVE_PLANE" = "docker" ] && [ "$TOPO" = "multi" ] && [ "$SUB_PROBE" = 1 
     awk -v f="$1" '
       /^[[:space:]]*-[[:space:]]*role:[[:space:]]*sub([[:space:]]|$|#)/ {in_sub=1; next}
       /^[[:space:]]*-[[:space:]]*role:/ {in_sub=0}
-      in_sub && $1==f":" {print $2; exit}' "$m"; }
+      in_sub && $1==f":" {v=$2; sub(/#.*/,"",v); gsub(/["\047\r]/,"",v); print v; exit}' "$m"; }
+  # ↑ 2026-09-23: YAML 따옴표 값(`host: "<sub-ip>"`)을 벗기지 않아 `"cona"@"…"` 로 SSH 해 probe 가 늘 실패했다
+  #   (camp-26092301 D1·D2 sub probe_ok=false). multinode_serve_smoke.sh `_mf_node` 와 같은 정규화다.
   SLAVE_IP="${SLAVE_HOST_IP:-$(_mf_sub host)}"
   SSH_USER="${SSH_USER:-$(_mf_sub ssh_user)}"; SSH_USER="${SSH_USER:-$(id -un)}"
   SUB_HOST="${SUB_HOST:-${SSH_USER}@${SLAVE_IP}}"
