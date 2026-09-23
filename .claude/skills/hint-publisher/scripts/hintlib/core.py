@@ -279,6 +279,32 @@ def run_python(repo: Path, rel_script: str, *args: str, input_text: str | None =
     return out
 
 
+# ── 레벨 원시의 도구 귀속 ────────────────────────────────────────────────────────────────────
+# 측정 도구별 레벨 원시 이름(run_bench.sh:394 — vllm=bench_<cfg>.json · guidellm=guidellm_<cfg>.json).
+LEVEL_RAW_BY_TOOL = {"vllm": "bench_{cell}.json", "guidellm": "guidellm_{cell}.json"}
+
+
+def level_raw_is_measured_tool(path: Path, cell: str) -> bool:
+    """레벨 디렉터리의 도구 원시가 **그 디렉터리의 측정 도구**(형제 `bench_tool_<cell>.json` 의 `tool`)의 것인가.
+
+    왜(2026-09-23 D1): 도구를 바꿔 재스윕한 자리(vllm → GuideLLM)에 옛 `bench_<cell>.json` 이 남아, 발행기가 그 `date` 를
+    이번 측정의 첫 측정 시각으로 · 그 필드를 이번 레벨 명령으로 읽었다(재현 표 bench 245 시간). 도구 기록이 다른 도구를
+    말하면 그 원시는 이 측정의 것이 아니다. 도구 기록이 없거나 읽지 못하면 판정하지 않는다(True — 종전 동작 · 옛 배치).
+    """
+    path = Path(path)
+    for tool, pat in LEVEL_RAW_BY_TOOL.items():
+        if path.name == pat.format(cell=cell):
+            break
+    else:
+        return True
+    try:
+        rec = json.loads((path.parent / f"bench_tool_{cell}.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return True
+    said = rec.get("tool") if isinstance(rec, dict) else None
+    return not isinstance(said, str) or said == tool
+
+
 # ── 자체검사 ─────────────────────────────────────────────────────────────────────────────────
 def selftest() -> list[str]:
     """실패 메시지 목록(빈 목록 = 통과). 라이브 저장소 상태에 의존하지 않는다."""
@@ -301,4 +327,14 @@ def selftest() -> list[str]:
     ck("HintError 렌더", e.render().startswith("[hint] FAIL X_CODE: msg") and "→ do this" in e.render())
     ck("합성 신원은 예약 TLD", SYNTHETIC_EMAIL.endswith(".invalid"))
     ck("합성 신원 = 발행된 태그의 신원(바이트 불변)", SYNTHETIC_EMAIL == "hints" + "@" + "easy-vllm.invalid")
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        (d / "bench_c.json").write_text("{}", encoding="utf-8")
+        (d / "guidellm_c.json").write_text("{}", encoding="utf-8")
+        ck("도구 기록 없음 → 판정 안 함(옛 배치)", level_raw_is_measured_tool(d / "bench_c.json", "c"))
+        (d / "bench_tool_c.json").write_text('{"tool": "guidellm"}', encoding="utf-8")
+        ck("★음성대조 GuideLLM 레벨의 옛 vllm 원시 → 이 측정 아님", not level_raw_is_measured_tool(d / "bench_c.json", "c"))
+        ck("GuideLLM 레벨의 GuideLLM 원시 → 이 측정", level_raw_is_measured_tool(d / "guidellm_c.json", "c"))
+        ck("도구 원시가 아닌 파일 → 판정 안 함", level_raw_is_measured_tool(d / "measured.json", "c"))
     return bad

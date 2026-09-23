@@ -340,6 +340,9 @@ for L in "${SORTED[@]}"; do
   LDIR="$SWEEPDIR/level_$(printf '%02d' "$L")"; mkdir -p "$LDIR"
   # 이전 스윕의 반복 산출물을 걷어낸다 — 남아 있으면 이번 레벨의 runs[] 에 **다른 측정의 run** 이 섞인다.
   rm -rf "$LDIR"/run_[0-9][0-9]* "$LDIR/repeat_run.json"
+  # 도구별 원시(bench_=vllm · guidellm_=GuideLLM)도 걷어낸다 — 도구를 바꿔 재스윕하면 옛 도구 원시가 레벨 자리에 남아
+  #   소비자가 이번 측정으로 읽는다(2026-09-23 D1: 09-12 vllm bench JSON 이 GuideLLM 스윕의 첫 측정 시각으로 읽혔다).
+  rm -f "$LDIR/bench_${CONFIG}.json" "$LDIR/guidellm_${CONFIG}.json"
   echo "[sweep_bench] ── level 동시성=$L (반복 $REPEATS · $REPEAT_KIND) ──"
   for ((K = 1; K <= REPEATS; K++)); do
     if [ "$K" = 1 ]; then RDIR="$LDIR"; else RDIR="$LDIR/run_$(printf '%02d' "$K")"; mkdir -p "$RDIR"; fi

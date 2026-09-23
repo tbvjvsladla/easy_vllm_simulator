@@ -1775,7 +1775,7 @@ def bench_definition(repo, ev: CellEvidence) -> dict:
         if run_dirs:
             out["repeats_source"] = (f"판정 불가 — {_rel(repo, ldir)} 에 반복 축 {run_dirs} 가 있는데 집계(runs[]·repeats_completed)가 없다"
                                      "(파일 수는 실패 run 까지 센다)")
-        elif (ldir / f"bench_{ev.cell}.json").is_file():
+        elif (ldir / f"bench_{ev.cell}.json").is_file() and core.level_raw_is_measured_tool(ldir / f"bench_{ev.cell}.json", ev.cell):
             out["this_repeats"] = 1
             out["repeats_source"] = (f"observed({_rel(repo, ldir)}/bench_{ev.cell}.json 1개 · run_KK/ 없음 · runs[] 없음 — 반복 축 이전의 "
                                      "단일 run 배치)")
@@ -1845,6 +1845,9 @@ def bench_command(repo, ev: CellEvidence) -> dict:
     path = repo / sw["dir"] / f"level_{vp:02d}" / f"bench_{ev.cell}.json"
     doc = _read_json_opt(path, "레벨 벤치 JSON") if path.is_file() else None
     rel = _rel(repo, path)
+    if isinstance(doc, dict) and not core.level_raw_is_measured_tool(path, ev.cell):
+        return {**none, "source": (f"미재구성 — {rel} 는 이 레벨의 측정 도구(bench_tool_{ev.cell}.json)가 아닌 옛 도구 원시다"
+                                   f"({at} · 도구를 바꿔 재스윕한 자리의 잔재 — 2026-09-23 D1)")}
     if not isinstance(doc, dict):
         return {**none, "source": f"미재구성 — {rel} 부재({at})"}
     if not all(k in doc for k in ("num_prompts", "total_input_tokens", "completed")):
@@ -3038,7 +3041,7 @@ def qualification(ev: CellEvidence) -> dict:
                 tried.append(f"{_rel(repo, ph)} 불성립")
                 continue
             bench = ph.parent / f"bench_{ev.cell}.json"
-            bdoc = _read_json_opt(bench, "bench json")
+            bdoc = _read_json_opt(bench, "bench json") if core.level_raw_is_measured_tool(bench, ev.cell) else None
             if isinstance(bdoc, dict) and (_as_int(bdoc.get("completed")) or 0) >= 1:
                 return {"health_200": True, "inference_observed": True,
                         "sources": [_rel(repo, ph), _rel(repo, bench)], "method": "post_health+bench"}

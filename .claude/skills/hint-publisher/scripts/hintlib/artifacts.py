@@ -2334,7 +2334,10 @@ def _first_measure_utc(repo: Path, ev: Any) -> tuple[str | None, str | None]:
     if not isinstance(sdir, str) or not (repo / sdir).is_dir():
         return None, None
     best = None
+    cell = _get(ev, "cell")
     for f in sorted((repo / sdir).rglob("*.json")):
+        if isinstance(cell, str) and not core.level_raw_is_measured_tool(f, cell):
+            continue    # 도구를 바꿔 재스윕한 자리에 남은 옛 도구 원시 — 이 측정의 첫 측정이 아니다(2026-09-23 D1)
         doc = _json_file(f)
         m = _LOCAL_DATE.match(str((doc or {}).get("date") or ""))
         if m:
@@ -2448,6 +2451,8 @@ def _bench_commands(c: _Ctx) -> tuple[str, str]:
     rows = []
     if isinstance(sdir, str) and (c.repo / sdir).is_dir():
         for f in sorted((c.repo / sdir).rglob("*.json")):
+            if not core.level_raw_is_measured_tool(f, c.cell):
+                continue    # 옛 도구 원시(2026-09-23 D1) — 이 측정의 레벨 명령이 아니다
             d = _json_file(f)
             if not d or not all(k in d for k in _BENCH_JSON_KEYS):
                 continue
