@@ -660,6 +660,8 @@ def _build_identity(repo: Path, *, topology: str, env: dict, env_rel: str | None
     image_tag = env.get("IMAGE_TAG") or measured.get("image_tag")
     src["image_tag"] = f"{env_src} IMAGE_TAG" if env.get("IMAGE_TAG") else measured.get("image_tag_source", "미관측")
     digest = measured.get("image_digest")
+    if not isinstance(digest, str) or digest.strip() in ("", "NA", "N/A"):
+        digest = None    # 스윕 meta 의 결측 표지 "NA" 는 digest 가 아니다(2026-09-23 N1: 참으로 평가돼 태그 관측을 건너뛰었다)
     src["image_digest"] = measured.get("image_digest_source", "미측정")
     facts = None
     if digest:
@@ -748,6 +750,10 @@ def _build_identity(repo: Path, *, topology: str, env: dict, env_rel: str | None
         src[k] = f"docker image inspect Config.Env {what}" if out[k] else "이미지 관측 불가"
     src["cpu_arch"] = ("docker image inspect Architecture" if (facts or {}).get("architecture")
                        else "manifest cpu_arch" if out["cpu_arch"] else "미관측")
+    # native 셀(2026-09-23 · plan_26092311): 스윕 meta 의 이미지는 **실행 평면이 아니라** native wheelhouse 를 재포장한 원천 이미지다
+    #   (sweep_bench 가 serve proof 에서 옮긴 값). 빌드 정체(트랙·VLLM_REF·torch)는 그 원천 이미지의 것이 맞지만, 평면 판정자가
+    #   이것을 docker 신호로 읽지 않도록 표지한다.
+    out["native_wheelhouse_source"] = bool(not env.get("IMAGE_TAG") and "native serve proof" in str(src.get("image_tag") or ""))
     out["source"] = src
     return out, missing
 
@@ -3535,7 +3541,10 @@ def naming_facts(repo, ev: CellEvidence) -> dict:
     # vllm (X18 — 빌드 입력)
     from . import artifacts        # 평면 판정의 단일 소유자(artifacts.plane_of) — 여기서 다시 적지 않는다
     plane, plane_src = artifacts.plane_and_source(repo, ev)
-    track = "native" if plane == "native" else b.get("track")
+    # native 인데 설치본이 소스빌드 이미지의 재포장이면(wheel URL 이 아니다) 빌드 입력은 원천 이미지의 트랙·ref 다 — 같은 입력의
+    #   Docker 셀과 같은 vllm 세그먼트가 나온다(평면 구분은 arch `-bare` 가 한다 · O-N1).
+    track = (b.get("track") if (plane == "native" and b.get("native_wheelhouse_source") and b.get("track"))
+             else "native" if plane == "native" else b.get("track"))
     # D-h(2026-09-22): vllm_repo 는 **언제나 키로** 싣는다(값 None = 미관측) — 소스빌드의 릴리스 모양 ref 가 업스트림 태그인지는
     #   naming 이 저장소로 판정한다(포크 = SHA 경로 또는 차단). 키가 빠지면 naming 이 파생 불가로 막는다(읽지 못함 ≠ 업스트림).
     vllm = {"track": track, "vllm_ref": b.get("vllm_ref"), "vllm_version": b.get("vllm_version"),

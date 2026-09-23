@@ -968,7 +968,9 @@ def _plane(c: _Ctx) -> tuple[str, str]:
     observed = source = None
     if c.env.get("IMAGE_TAG") or c.env.get("BUILD_DOCKERFILE"):
         observed, source = "docker", "cell-env(IMAGE_TAG|BUILD_DOCKERFILE)"
-    elif isinstance(build, dict) and (build.get("image_tag") or build.get("dockerfile")):
+    elif isinstance(build, dict) and (build.get("image_tag") or build.get("dockerfile")) \
+            and not build.get("native_wheelhouse_source"):
+        # native wheelhouse 의 원천 이미지(evidence 표지)는 실행 평면 신호가 아니다(2026-09-23 N1)
         observed, source = "docker", "evidence.build_identity(image_tag|dockerfile)"
     if declared and declared not in ("docker", "native"):
         core.fail("HINT_PLANE_UNKNOWN", f"평면 어휘 밖: {declared!r}", "docker|native(container=docker) 중 하나.")
