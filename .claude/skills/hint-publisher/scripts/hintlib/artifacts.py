@@ -2493,7 +2493,11 @@ def _bench_commands(c: _Ctx) -> tuple[str, str]:
             flags.append(f"--burstiness {d['burstiness']}")
         lines.append(f"# {rel} (date {d.get('date')})" + ("" if uniform else " · total 토큰이 completed 로 나누어떨어지지 않는다(요청 길이 불균일) — 데이터셋 인자 복원 ✗"))
         lines.append(" ".join(flags))
-    return "\n".join(lines), "reconstructed(bench json)"
+    # native 셀(2026-09-23 N1)은 bench JSON 의 tokenizer_id 가 **호스트** 경로다(Docker 는 컨테이너 경로) — 재구성 명령은 파생
+    #   텍스트이므로 manifest 치환표로 운영자 경로를 자리표시한다(원문 JSON 은 불변 · Docker 명령에는 걸리는 값이 없다).
+    from . import evidence as _evidence, pii as _pii
+    _table = _pii.substitution_table(c.repo, _evidence.output_manifest(c.repo, c.topo))
+    return _pii.substitute("\n".join(lines), _table), "reconstructed(bench json)"
 
 
 def _reproduce(c: _Ctx, sel: dict | None, plane: str) -> list[dict]:
