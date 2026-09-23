@@ -2712,7 +2712,18 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
     missing: list[str] = []
     files: list[str] = []
     slots: dict[str, dict] = {}
-    trip_files = [_copy(payload, c.triplet[k], "triplet") for k in ("yaml", "sh", "env")]
+    if plane == "native":
+        # native 트리플렛(2026-09-23 · plan_26092311): yaml `model:`·PLE 디렉터리·env 가 **호스트 운영자 경로**를 든다(Docker 는
+        #   컨테이너 경로라 원문 그대로 실어도 됐다). 원문을 실으면 봉인 PII 게이트(abs-op-path)가 막고, 게이트를 비켜 가면 운영자
+        #   지문이 배포된다 — 싣는 사본만 manifest 파생 치환표로 자리표시한다(`<manifest.quant_model_path>/…` · 원본은 불변).
+        from . import evidence as _evidence, pii as _pii
+        _table = _pii.substitution_table(c.repo, _evidence.output_manifest(c.repo, c.topo))
+        trip_files = [_write(payload, "triplet", c.triplet[k].name,
+                             _pii.substitute(c.triplet[k].read_text(encoding="utf-8"), _table)) for k in ("yaml", "sh", "env")]
+        for rel_f, k in zip(trip_files, ("yaml", "sh", "env")):
+            (payload / rel_f).chmod(c.triplet[k].stat().st_mode & 0o777)
+    else:
+        trip_files = [_copy(payload, c.triplet[k], "triplet") for k in ("yaml", "sh", "env")]
     files += trip_files
     sweep = _get(c.ev, "sweep") or {}
     sidx = sweep.get("index") if isinstance(sweep, dict) else None
@@ -2728,6 +2739,8 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
     trip_ev["measured_utc"] = measured
     if trip_regen:
         trip_ev["note"] += f" · ⚠ 측정({measured}) 뒤 mtime: {trip_regen} — 실린 값이 측정 당시 값과 같다는 보장 없음"
+    if plane == "native":
+        trip_ev["substituted"] = "pii.substitution_table(manifest) — 운영자 경로 → 자리표시(싣는 사본만)"
     slots["triplet"] = _slot(trip_files, trip_ev)
 
     # runtime patch — arming 로그 미배선(plan Q1) → 파일 신호만

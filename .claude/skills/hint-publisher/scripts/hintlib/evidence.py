@@ -3200,6 +3200,36 @@ def _checkpoint(repo: Path, ev: CellEvidence) -> dict:
         return out
     out["model_path"] = model
     base = repo / "output" / ev.topology
+    if ev.plane == "native":
+        # native 평면(2026-09-23 · plan_26092311 N-D3): yaml `model:` 은 이미 **호스트** 경로다(컨테이너 마운트 없음 —
+        #   render_native_triplet 이 manifest 경로 필드로 사상). 그 사상을 역으로 읽어 manifest 필드 표지로만 적는다
+        #   (출처에 호스트 경로 ✗ · 위 docstring). 어느 manifest 경로 필드의 하위도 아니면 미해소로 남긴다(추측 ✗).
+        mf = _owner_yaml(repo, base / "manifest.yaml", "manifest") if (base / "manifest.yaml").is_file() else None
+        hits = sorted(((k, v.rstrip("/")) for k, v in (mf or {}).items()
+                       if isinstance(k, str) and k.endswith("_path") and isinstance(v, str) and v.startswith("/")
+                       and (model == v.rstrip("/") or model.startswith(v.rstrip("/") + "/"))),
+                      key=lambda kv: -len(kv[1]))
+        if not hits:
+            out["reason"] = f"native model: 이 manifest 경로 필드의 하위가 아니다({yrel})"
+            out["hf_repo_source"] = out["base_model_source"] = out["reason"]
+            return out
+        field, root = hits[0]
+        out["host_label"] = f"native model: → <manifest.{field}>{model[len(root):]}"
+        host = Path(model)
+        if not host.is_dir():
+            out["reason"] = f"체크포인트 호스트 경로 부재({out['host_label']})"
+            out["hf_repo_source"] = out["base_model_source"] = out["reason"]
+            return out
+        out["model_path"] = f"<manifest.{field}>{model[len(root):]}"
+        out["observed"] = True
+        cfg = _read_json_opt(host / "config.json", "체크포인트 config.json")
+        out["config"] = cfg if isinstance(cfg, dict) else None
+        hq = _read_json_opt(host / "hf_quant_config.json", "hf_quant_config.json")
+        out["hf_quant"] = hq if isinstance(hq, dict) else None
+        out["hf_repo"], out["hf_repo_source"] = _hf_repo(host, out["host_label"])
+        out["hf_revision"], out["hf_revision_source"] = _hf_revision(host, out["host_label"], _measured_key(repo, ev))
+        out["base_model"], out["base_model_source"] = _base_model(host, out["host_label"])
+        return out
     sm = _smoke_model(repo)
     root = "/".join(model.split("/")[:3])
     compose = base / "docker-compose.yaml"

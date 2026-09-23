@@ -152,6 +152,13 @@
       "role": "서브 docs 상향 회수 미러(fetch_sub_docs.sh 산출 · 캠페인과 수명이 다른 상시 자원)"
     },
     {
+      "name": ".native-e2e",
+      "kind": "dir",
+      "git": "ignored",
+      "owner": "upstream-version-watch",
+      "role": "native(비-Docker) 서빙 run-id 루트(native_multinode_serve.py · 마커 소유 트리 · run 종료 시 완전삭제 · plan_26092311 · G3 승인 거처 work_dir/.native-e2e/<run-id>)"
+    },
+    {
       "name": "__llm-wiki",
       "kind": "dir",
       "git": "ignored",

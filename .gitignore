@@ -332,6 +332,11 @@ docs/_evidence/
 sync_staging/
 
 # ===========================================
+# native 서빙 run-id 루트 (native_multinode_serve.py — 휘발 · run 종료 시 완전삭제 · plan_26092311)
+# ===========================================
+/.native-e2e/
+
+# ===========================================
 # hint 배포 레이어 (plan_2026070222_1)
 #   hints/index.json = 추적(HEAD 기계-인덱스, 본문 없음) / hints/.drafts/ = `hint.py publish` 스캐폴드(비추적 ·
 #   draft 마다 payload/·state.json·inputs/). 지도·서사·재현 키트는 태그가 가리키는 hint 브랜치 페이로드 커밋의
