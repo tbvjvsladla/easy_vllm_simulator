@@ -550,8 +550,9 @@ def build(src: Source, out: Path, sites: list, cuda_link: str, generated_utc: st
           keep_staging: bool = False, staging: Optional[Path] = None, accept_meta: Optional[dict] = None) -> dict:
     """sites = 이미지 파이썬의 sys.path 순서(앞이 우선). 뒤 디렉터리의 같은 이름 분포는 가려진 것(shadowed)이다."""
     t0 = time.monotonic()
-    if accept_meta and accept_meta.get("image_id") != src.meta.get("id"):
-        raise WheelhouseError(f"승인 파일의 이미지 {accept_meta.get('image_id')} ≠ 재포장 대상 {src.meta.get('id')} — 다른 이미지의 승인은 쓰지 않는다")
+    if accept_meta and src.meta.get("id") not in (accept_meta.get("image_ids") or [accept_meta.get("image_id")]):
+        raise WheelhouseError(f"승인 파일의 이미지 {accept_meta.get('image_ids') or accept_meta.get('image_id')} ∌ 재포장 대상 "
+                              f"{src.meta.get('id')} — 다른 이미지의 승인은 쓰지 않는다")
     accept_used: set = set()
     wh = out / "wheelhouse"
     rl = out / "runtime-lib"
@@ -1106,8 +1107,8 @@ def verify(whdir: Path, venv: Path, generated_utc: str, diagnostic: bool, accept
     ameta = None
     if accept_path is not None:
         _, ameta, adoc = load_accept_file(accept_path)
-        if ameta["image_id"] != (closure.get("image") or {}).get("id"):
-            raise WheelhouseError(f"승인 파일 이미지 {ameta['image_id']} ≠ closure 이미지 {(closure.get('image') or {}).get('id')}")
+        if (closure.get("image") or {}).get("id") not in (ameta.get("image_ids") or [ameta["image_id"]]):
+            raise WheelhouseError(f"승인 파일 이미지 {ameta.get('image_ids') or ameta['image_id']} ∌ closure 이미지 {(closure.get('image') or {}).get('id')}")
         declared = [str(e["pip_check_line"]).strip() for e in adoc["image_inherent_conflicts"]]
     parity = ameta is not None
     res: dict = {"schema_version": 1, "kind": "native_wheelhouse_verify", "tool": TOOL, "generated_utc": generated_utc,
@@ -1397,7 +1398,8 @@ def self_test() -> int:
            and any(w["kind"] == "stale-accept" for w in c1c["warnings"]))
         try:
             build(DirSource(r1, m1), tdp / "out_wrongimg", SITES_DEFAULT, CUDA_LINK_DEFAULT, "2026-01-01T00:00:00Z", acc, 4,
-                  staging=tdp / "st1d", accept_meta={**ameta, "image_id": "sha256:" + "1" * 64})
+                  staging=tdp / "st1d", accept_meta={**ameta, "image_id": "sha256:" + "1" * 64,
+                                                   "image_ids": ["sha256:" + "1" * 64, "sha256:" + "2" * 64]})
             ck("다른 이미지 digest 의 승인 파일 거부", False)
         except WheelhouseError:
             ck("다른 이미지 digest 의 승인 파일 거부", True)
@@ -1486,12 +1488,17 @@ def load_accept_file(path: Path) -> tuple[dict, dict, dict]:
         doc = json.loads(raw)
     except ValueError as e:
         raise WheelhouseError(f"승인 파일 JSON 오류: {path}: {e}")
-    need = ("schema_version", "approved_by", "approved_utc", "image", "accepted_mismatches", "image_inherent_conflicts")
+    # 2026-09-23 N6: 노드마다 자기 이미지를 로컬 빌드하므로 digest 가 노드마다 다르다(요구는 ABI 동일 · digest 동일 ✗ —
+    #   특화헌법). 승인은 `images[]`(노드별 이미지) 목록에 결속한다. 옛 단일 `image` 도 받는다.
+    need = ("schema_version", "approved_by", "approved_utc", "accepted_mismatches", "image_inherent_conflicts")
     miss = [k for k in need if k not in doc]
-    img = doc.get("image") or {}
-    if miss or not str(img.get("id", "")).startswith("sha256:") or not UTC_RE.match(str(doc.get("approved_utc", ""))) \
-            or not str(doc.get("approved_by", "")).strip():
-        raise WheelhouseError(f"승인 파일 형식 위반(누락 {miss} · image.id sha256 · approved_utc · approved_by): {path}")
+    imgs = doc.get("images") if isinstance(doc.get("images"), list) else ([doc["image"]] if isinstance(doc.get("image"), dict) else [])
+    if not imgs:
+        miss.append("images")
+    if miss or not all(isinstance(i, dict) and str(i.get("id", "")).startswith("sha256:") for i in imgs) \
+            or not UTC_RE.match(str(doc.get("approved_utc", ""))) or not str(doc.get("approved_by", "")).strip():
+        raise WheelhouseError(f"승인 파일 형식 위반(누락 {miss} · images[].id sha256 · approved_utc · approved_by): {path}")
+    img = imgs[0]
     who = str(doc["approved_by"]).strip()
     acc = {}
     for e in doc["accepted_mismatches"]:
@@ -1502,7 +1509,8 @@ def load_accept_file(path: Path) -> tuple[dict, dict, dict]:
         if not str(e.get("pip_check_line", "")).strip():
             raise WheelhouseError(f"image_inherent_conflicts 항목에 pip_check_line 필수: {e}")
     meta = {"source": "accept-file", "sha256": hashlib.sha256(raw).hexdigest(), "approved_by": who,
-            "approved_utc": doc["approved_utc"], "image_id": img["id"], "image_tag": img.get("tag")}
+            "approved_utc": doc["approved_utc"], "image_id": img["id"], "image_tag": img.get("tag"),
+            "image_ids": [i["id"] for i in imgs]}
     return acc, meta, doc
 
 

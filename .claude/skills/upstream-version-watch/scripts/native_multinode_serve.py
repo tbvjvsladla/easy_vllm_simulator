@@ -11,7 +11,7 @@ Docker 경로(multinode_serve_smoke.sh)와 같은 안전 순서를 Docker 없이
          GPU compute app · 포트 listen) → 깨끗한 노드만 run root 삭제(마커 소유 트리만) → 예산 선언 회수
          → cleanup attestation(발행기 계약 모양 · 잔재 0 일 때만 PASS).
 
-안전 원시(뼈대 cf8e9cf 에서 유지): 마커 소유 run root · safe_remove_owned_tree(깊이 우선 · symlink/마운트 거부) ·
+안전 원시(뼈대 cf8e9cf 에서 유지): 마커 소유 run root · safe_remove_owned_tree(깊이 우선 · 루트·디렉터리 symlink/마운트 거부 · 트리 안 링크는 링크만 unlink) ·
 PID+starttime 정지(이름 기반 사살 없음) · 서브는 **고정 원격 러너**(프로그램·인자 모두 base64 — 원격 셸 조각 ✗).
 
 실행 평면은 `--apply` 가 있을 때만 건드린다. `--apply` 없는 `up` 은 노드별 명령 계획을 찍고 exit 0(dry-run ·
@@ -123,9 +123,13 @@ def safe_remove_owned_tree(root: Path, expected_run_id: str, marker: str = MARKE
         with os.scandir(directory) as scan:
             entries = list(scan)
         for entry in entries:
-            child = beneath(canonical, directory / entry.name)
             info = entry.stat(follow_symlinks=False)
-            if stat.S_ISLNK(info.st_mode): raise ServeError(f"owned-tree symlink rejected: {child}")
+            if stat.S_ISLNK(info.st_mode):
+                # 트리 **안의** 링크는 링크 자체만 지운다(따라가지 않는다 — 대상은 불변). 2026-09-23 N6: wheelhouse 의 CUDA
+                #   라이브러리 번들(.so → .so.N 링크)을 "링크 거부" 로 막아 run root 가 남았다(FAIL_CLOSED). `beneath` 는
+                #   resolve 로 링크를 따라가므로 링크에는 쓰지 않는다 — 부모 `directory` 가 이미 검증된 트리 안이다.
+                os.unlink(os.path.join(directory, entry.name)); continue
+            child = beneath(canonical, directory / entry.name)
             if stat.S_ISDIR(info.st_mode): remove(child)
             elif stat.S_ISREG(info.st_mode): child.unlink()
             else: raise ServeError(f"owned-tree special file rejected: {child}")
@@ -225,8 +229,9 @@ def owned_root():
 def remove(d):
  if os.path.islink(d) or os.path.ismount(d):die('link/mount')
  for e in list(os.scandir(d)):
-  p=under_rel(os.path.relpath(e.path,root));m=e.stat(follow_symlinks=False).st_mode
-  if stat.S_ISLNK(m):die('symlink')
+  m=e.stat(follow_symlinks=False).st_mode
+  if stat.S_ISLNK(m):os.unlink(e.path);continue
+  p=under_rel(os.path.relpath(e.path,root))
   if stat.S_ISDIR(m):remove(p)
   elif stat.S_ISREG(m):os.unlink(p)
   else:die('special')
@@ -1343,9 +1348,18 @@ def self_test() -> int:
         # ── 뼈대 안전 원시 ──
         root = base / "run"; root.mkdir(); (root / MARKER).write_bytes(marker_bytes("run")); (root / "a").mkdir(); (root / "a/f").write_text("x")
         safe_remove_owned_tree(root, "run"); ck("owned tree depth-first deletion", not root.exists())
-        for case in ("symlink", "mount-marker", "bad-marker"):
-            r = base / case; r.mkdir(); (r / MARKER).write_bytes(marker_bytes(case))
-            if case == "symlink": (r / "link").symlink_to(base)
+        # 트리 안 링크(2026-09-23 N6 · CUDA 번들): 링크만 지우고 대상은 불변 — 밖을 가리키는 링크·디렉터리 링크 모두.
+        outside = base / "outside"; outside.mkdir(); (outside / "keep").write_text("k")
+        lr = base / "linkrun"; lr.mkdir(); (lr / MARKER).write_bytes(marker_bytes("linkrun")); (lr / "lib").mkdir()
+        (lr / "lib/libx.so").symlink_to(outside / "keep"); (lr / "lib/dirlink").symlink_to(outside); (lr / "lib/dangling").symlink_to(base / "nope")
+        safe_remove_owned_tree(lr, "linkrun")
+        ck("★트리 안 링크 = 링크만 unlink · 대상 불변(파일·디렉터리·끊긴 링크)", not lr.exists() and (outside / "keep").read_text() == "k")
+        for case in ("symlink-root", "mount-marker", "bad-marker"):
+            r = base / case
+            if case == "symlink-root":
+                real = base / "realroot"; real.mkdir(); (real / MARKER).write_bytes(marker_bytes(case)); r.symlink_to(real)
+            else:
+                r.mkdir(); (r / MARKER).write_bytes(marker_bytes(case))
             if case == "mount-marker":
                 original_ismount = os.path.ismount
                 os.path.ismount = lambda path: Path(path) == r
@@ -1386,13 +1400,10 @@ def self_test() -> int:
         try: Local(str(base), "main").stop(Identity("main", "reuse-probe", me, os.getpgid(me), "0", ""), 1)
         except UnknownState as exc: refused = "pid-reuse-before-term" in str(exc)
         ck("★local stop: starttime 불일치 = 신호 없이 거부(PID 재사용)", refused)
-        (base / "rparent/rid1/evil").symlink_to(base)
-        refused = False
-        try: rr.remove_owned_tree("rid1")
-        except UnknownState: refused = True
-        ck("remote remove 는 symlink 를 거부", refused and (base / "rparent/rid1").exists())
-        (base / "rparent/rid1/evil").unlink(); rr.remove_owned_tree("rid1")
-        ck("remote remove 깊이 우선 삭제", not rr.exists())
+        (base / "rparent/rid1/evil").symlink_to(base); (base / "rparent/rid1/d").mkdir(); (base / "rparent/rid1/d/l.so").symlink_to(outside / "keep")
+        rr.remove_owned_tree("rid1")
+        ck("★remote remove: 트리 안 링크는 링크만 unlink · 대상 불변 · 깊이 우선 삭제",
+           not rr.exists() and base.is_dir() and (outside / "keep").read_text() == "k")
 
         # ── 정상 경로: up → proof → down → attestation · 발행기 판정기가 받아들이는가 ──
         repo, ctx, ns, world, r, rs = _scenario(base, "ok", set())
