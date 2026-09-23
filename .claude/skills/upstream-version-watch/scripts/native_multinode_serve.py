@@ -209,7 +209,7 @@ exec(compile(PROC, "native_proc", "exec"), _PROC)  # noqa: S102 — 이 파일�
 #   넘겨 원격 셸이 다시 단어 분리했다). 요청의 경로는 전부 root 아래 상대경로로만 받는다.
 REMOTE = PROC + r'''
 import base64,stat,sys
-r=json.loads(base64.b64decode(sys.argv[2]));root=r['root'];rid=r['run_id'];marker=r['marker'];created=r['created_by'];op=r['op']
+r=json.loads(base64.b64decode(sys.stdin.read() if sys.argv[2]=='-' else sys.argv[2]));root=r['root'];rid=r['run_id'];marker=r['marker'];created=r['created_by'];op=r['op']
 def die(x):
  sys.stderr.write(str(x)+'\n');raise SystemExit(3)
 def emit(x):print(json.dumps(x,sort_keys=True),flush=True)
@@ -371,9 +371,11 @@ class SSH(Runner):
         if op not in allowed: raise ServeError(f"sub fixed runner operation outside allowlist: {op}")
         request.update(op=op, root=self.root, run_id=Path(self.root).name, marker=MARKER, created_by=CREATED_BY)
         payload = base64.b64encode(j(request).encode()).decode()
-        argv = ["python3", "-c", BOOT, REMOTE_B64, payload]
-        if self.transport: argv = [*self.transport, shlex.join(argv)]   # 원격 셸이 받는 것은 인용된 고정 부트스트랩 + base64 뿐
-        try: p = subprocess.run(argv, stdin=subprocess.DEVNULL, text=True, capture_output=True, timeout=bound_s + 13)
+        # 요청은 stdin 으로 넘긴다(2026-09-23 N6 첫 라이브: put 의 86 KB 도구가 base64 두 겹으로 ssh 인자 하나에 실려
+        #   MAX_ARG_STRLEN 128 KiB 를 넘었다 — `Argument list too long`). argv 에는 고정 부트스트랩과 `-` 만 남는다.
+        argv = ["python3", "-c", BOOT, REMOTE_B64, "-"]
+        if self.transport: argv = [*self.transport, shlex.join(argv)]   # 원격 셸이 받는 것은 인용된 고정 부트스트랩뿐
+        try: p = subprocess.run(argv, input=payload, text=True, capture_output=True, timeout=bound_s + 13)
         except subprocess.TimeoutExpired as exc: raise UnknownState(f"{self.node}: fixed runner bounded timeout ({op})") from exc
         if p.returncode: raise UnknownState(f"{self.node}: fixed runner rejected {op}: {p.stderr.strip()[-500:]}")
         try: return json.loads(p.stdout)
