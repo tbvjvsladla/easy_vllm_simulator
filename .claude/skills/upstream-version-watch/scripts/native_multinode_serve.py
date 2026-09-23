@@ -423,7 +423,7 @@ def _read_env(path: Path) -> dict[str, str]:
 @dataclasses.dataclass
 class NodeSpec:
     name: str; node_id: str; host_ip: str; work_dir: str; root: str; short: str
-    session_py: str; renew_sh: str; watchdog_sh: str; node_dir: str; wheel_tool: str
+    session_py: str; renew_sh: str; watchdog_sh: str; node_dir: str; wheel_tool: str; wheel_accept: str
     def row(self) -> dict[str, Any]: return dataclasses.asdict(self)
 
 
@@ -433,7 +433,7 @@ class Ctx:
     base: str; max_bytes: int; sub_host: str; ready_max_s: int; overhead_mib: int
     serve_port: int; ray_port: int; model_name: str; object_store: str; image: str
     cell_env: dict; cluster_env: dict; ic_env: dict; serve_env_keys: list
-    triplet: dict; nodes: dict; proof_rel: str; simlog_topic: str; wheel_tool_rel: str
+    triplet: dict; nodes: dict; proof_rel: str; simlog_topic: str; wheel_tool_rel: str; wheel_accept_rel: str
 
 
 def load_ctx(repo: Path, cell: str, run_id: str, *, source_cell: Optional[str] = None,
@@ -492,11 +492,13 @@ def load_ctx(repo: Path, cell: str, run_id: str, *, source_cell: Optional[str] =
         "main": NodeSpec("main", "main", main_ip, str(repo), root, short,
                          f"{repo}/{nb_main}/node_blackbox/blackbox_session.py", f"{repo}/{nb_main}/node_blackbox/budget_renew_loop.sh",
                          f"{repo}/{nb_main}/host_safety/mem_watchdog.sh", f"{repo}/docs/logs/main",
-                         f"{repo}/.claude/skills/upstream-version-watch/scripts/native_wheelhouse.py"),
+                         f"{repo}/.claude/skills/upstream-version-watch/scripts/native_wheelhouse.py",
+                         f"{repo}/{WHEEL_ACCEPT_REL}"),
         "sub": NodeSpec("sub", "sub", sub_ip, sub_wd, root, short,
                         f"{sub_wd}/.claude/runtime/node_blackbox/blackbox_session.py", f"{sub_wd}/.claude/runtime/node_blackbox/budget_renew_loop.sh",
                         f"{sub_wd}/.claude/runtime/host_safety/mem_watchdog.sh", f"{sub_wd}/docs/logs/sub",
-                        f"{root}/tools/native_wheelhouse.py"),   # 서브는 메인 바이트를 run root 로 put(배달 경로 무관 · sha 기록)
+                        f"{root}/tools/native_wheelhouse.py",   # 서브는 메인 바이트를 run root 로 put(배달 경로 무관 · sha 기록)
+                        f"{root}/tools/native_wheelhouse_accept.json"),  # 승인 선언도 같은 방식(메인 추적 바이트 · sha 기록)
     }
     y = yaml.safe_load((repo / triplet["yaml"]).read_text(encoding="utf-8")) or {}
     port = int(cell_env.get("SERVING_PORT") or 0)
@@ -507,7 +509,7 @@ def load_ctx(repo: Path, cell: str, run_id: str, *, source_cell: Optional[str] =
                model_name=str(cell_env.get("SERVING_MODEL_NAME") or ""), object_store=str(cluster_env.get("RAY_OBJECT_STORE_MEMORY") or "2000000000"),
                image=image, cell_env=cell_env, cluster_env=cluster_env, ic_env=ic_env, serve_env_keys=serve_env_keys,
                triplet=triplet, nodes=nodes, proof_rel=f"output/{TOPOLOGY}/benchlog/serve_proof_{cell}.json", simlog_topic=simlog_topic,
-               wheel_tool_rel=".claude/skills/upstream-version-watch/scripts/native_wheelhouse.py")
+               wheel_tool_rel=".claude/skills/upstream-version-watch/scripts/native_wheelhouse.py", wheel_accept_rel=WHEEL_ACCEPT_REL)
 
 
 # ── 명령 빌더(순수 함수 · dry-run 과 실행이 **같은** 함수를 쓴다) ─────────────────────────────────────────
@@ -515,15 +517,20 @@ def wh_dir(root: str) -> str: return f"{root}/wh"
 def venv_dir(root: str) -> str: return f"{root}/venv"
 
 
-def wheelhouse_build_argv(tool: str, image: str, root: str, generated_utc: str) -> list[str]:
-    """native_wheelhouse.py build — 각 노드가 **자기 로컬 이미지**에서 재포장(N-D1)."""
-    return ["python3", tool, "build", "--image", image, "--out", wh_dir(root), "--generated-utc", generated_utc]
+# 사람 승인 선언(RECORD 불일치 승인 · 이미지 고유 충돌) — plan_26092311 §N1 라이브 게이트 뒤 결정. 도구가 이미지 digest 를 대조한다.
+WHEEL_ACCEPT_REL = ".claude/skills/upstream-version-watch/references/native_wheelhouse_accept.json"
 
 
-def wheelhouse_verify_argv(tool: str, root: str, generated_utc: str) -> list[str]:
+def wheelhouse_build_argv(tool: str, image: str, root: str, generated_utc: str, accept: str) -> list[str]:
+    """native_wheelhouse.py build — 각 노드가 **자기 로컬 이미지**에서 재포장(N-D1) · 승인 선언 적용."""
+    return ["python3", tool, "build", "--image", image, "--out", wh_dir(root), "--generated-utc", generated_utc, "--accept-file", accept]
+
+
+def wheelhouse_verify_argv(tool: str, root: str, generated_utc: str, accept: str) -> list[str]:
     """native_wheelhouse.py verify — venv 생성(python3.12)·`pip install --no-index`·pip check·ldd·import+CUDA 를 **도구가** 소유한다
     (비어 있지 않은 venv 는 거부하므로 여기서 venv 를 먼저 만들지 않는다)."""
-    return ["python3", tool, "verify", "--wheelhouse-dir", wh_dir(root), "--venv", venv_dir(root), "--generated-utc", generated_utc]
+    return ["python3", tool, "verify", "--wheelhouse-dir", wh_dir(root), "--venv", venv_dir(root), "--generated-utc", generated_utc,
+            "--accept-file", accept]
 
 
 def parse_verify_verdict(text: str) -> tuple[bool, dict, str]:
@@ -610,27 +617,28 @@ def serve_argv(ctx: Ctx) -> list[str]:
     return ["bash", str(ctx.repo / ctx.triplet["sh"])]
 
 
-def native_install_script(ctx: Ctx, tool_sha: str, generated_utc: str) -> str:
+def native_install_script(ctx: Ctx, tool_sha: str, generated_utc: str, accept_sha: str = "") -> str:
     """재현 설치 명령 — 위 빌더를 `$RUN_ROOT`/`$IMAGE` 자리표시로 다시 부른 결과(실행된 argv 와 같은 함수 · 운영자 경로 ✗)."""
     def q(tok: str) -> str:
         return f'"{tok}"' if "${" in tok else shlex.quote(tok)
-    root, image, tool = "${RUN_ROOT}", "${IMAGE}", "${WH_TOOL}"
+    root, image, tool, accept = "${RUN_ROOT}", "${IMAGE}", "${WH_TOOL}", "${WH_ACCEPT}"
     lines = [
         "#!/bin/bash",
         f"# native-install.sh — {ctx.cell} native 설치 재현 명령(native_multinode_serve.py up 이 run {ctx.run_id} 에서 **각 노드마다** 실행한 순서).",
         "#   각 노드가 자기 로컬 이미지에서 wheelhouse 를 재포장하고(이미지 전송 ✗) 오프라인으로만 설치한다(--no-index · 다운로드 ✗).",
-        f"#   provenance: 원천 이미지 태그 {ctx.image} · wheelhouse 도구 sha256={tool_sha} · generated_utc={generated_utc}",
+        f"#   provenance: 원천 이미지 태그 {ctx.image} · wheelhouse 도구 sha256={tool_sha} · 승인 선언 sha256={accept_sha} · generated_utc={generated_utc}",
         "#   사용: bash native-install.sh <run-root> [image] — 저장소 루트에서 실행(도구는 저장소 상대경로).",
         "set -euo pipefail",
         'RUN_ROOT="${1:?사용: native-install.sh <run-root> [image]}"',
         f'IMAGE="${{2:-{ctx.image}}}"',
         f"WH_TOOL={shlex.quote(ctx.wheel_tool_rel)}",
+        f"WH_ACCEPT={shlex.quote(ctx.wheel_accept_rel)}",
     ]
     lines.append("# ① 재포장(docker create → 설치 트리 cp → RECORD 대조 재포장 · 시작하지 않는 컨테이너)")
-    lines.append(" ".join(q(t) for t in wheelhouse_build_argv(tool, image, root, generated_utc)))
-    lines.append("# ② 설치 게이트 — 도구가 python3.12 -m venv → pip install --no-index --find-links wh/wheelhouse -r wh/requirements-closure.txt")
-    lines.append("#    → pip check → ldd(vllm *.so) → import vllm,torch + cuda 를 실행하고 런타임 env 레시피(LD_LIBRARY_PATH …)를 고른다")
-    lines.append(" ".join(q(t) for t in wheelhouse_verify_argv(tool, root, generated_utc)))
+    lines.append(" ".join(q(t) for t in wheelhouse_build_argv(tool, image, root, generated_utc, accept)))
+    lines.append("# ② 설치 게이트(이미지 동등성) — 도구가 python3.12 -m venv → pip install --no-index --no-deps -r wh/requirements-closure.txt")
+    lines.append("#    → 설치 집합 == closure 핀 → pip check ⊆ 선언된 이미지 고유 충돌 → ldd(vllm *.so) → import vllm,torch + cuda → env 레시피")
+    lines.append(" ".join(q(t) for t in wheelhouse_verify_argv(tool, root, generated_utc, accept)))
     return "\n".join(lines) + "\n"
 
 
@@ -800,6 +808,8 @@ class NativeServe:
                     raise ServeError(f"{name}: {path} 에 pgid 표적 모드가 없다(커밋 65bdaec 미배달)")
         if not (self.c.repo / self.c.wheel_tool_rel).is_file():
             raise ServeError(f"wheelhouse 도구 부재: {self.c.wheel_tool_rel}")
+        if not (self.c.repo / self.c.wheel_accept_rel).is_file():
+            raise ServeError(f"wheelhouse 승인 선언 부재: {self.c.wheel_accept_rel}")
 
     def make_roots(self, generated_utc: str) -> None:
         c = self.c
@@ -837,15 +847,19 @@ class NativeServe:
         tool_sha = hashlib.sha256(tool_bytes).hexdigest()
         self.r["sub"].put("tools/native_wheelhouse.py", tool_bytes, 0o600)
         self.state["wheel_tool_sha256"] = tool_sha
+        accept_bytes = (c.repo / c.wheel_accept_rel).read_bytes()
+        accept_sha = hashlib.sha256(accept_bytes).hexdigest()
+        self.r["sub"].put("tools/native_wheelhouse_accept.json", accept_bytes, 0o600)
+        self.state["wheel_accept_sha256"] = accept_sha
         lds: dict[str, str] = {}
         for name in ("main", "sub"):
             spec, r = c.nodes[name], self.r[name]
             self.log(f"[native] {name}: wheelhouse 재포장(자기 이미지 {c.image})…")
-            b = r.run(wheelhouse_build_argv(spec.wheel_tool, c.image, spec.root, generated_utc), 7200, check=False)
+            b = r.run(wheelhouse_build_argv(spec.wheel_tool, c.image, spec.root, generated_utc, spec.wheel_accept), 7200, check=False)
             self._preserve(f"wheelhouse-build-{name}.json", (b.out or b.err).encode())
             if b.rc != 0: raise ServeError(f"{name}: wheelhouse 재포장 불통과(rc={b.rc}) — 다운로드 폴백 ✗(O-N2): {b.err[-400:]}")
             self._du_guard(name, "wheelhouse")
-            v = r.run(wheelhouse_verify_argv(spec.wheel_tool, spec.root, generated_utc), 3600, check=False)
+            v = r.run(wheelhouse_verify_argv(spec.wheel_tool, spec.root, generated_utc, spec.wheel_accept), 3600, check=False)
             self._preserve(f"wheelhouse-verify-{name}.json", (v.out or v.err).encode())
             self._du_guard(name, "venv")
             ok, venv_env, why = parse_verify_verdict(v.out)
@@ -853,7 +867,7 @@ class NativeServe:
             lds[name] = venv_env
             freeze = r.run(pip_freeze_argv(spec.root), 120).out
             self.state.setdefault("pip_freeze_rel", {})[name] = self._preserve(f"pip-freeze-{name}.txt", freeze.encode())
-        self.state["native_install_rel"] = self._preserve("native-install.sh", native_install_script(c, tool_sha, generated_utc).encode())
+        self.state["native_install_rel"] = self._preserve("native-install.sh", native_install_script(c, tool_sha, generated_utc, accept_sha).encode())
         self.state["runtime_env_recipe"] = lds; self._state_write()
         return lds
 
@@ -927,7 +941,7 @@ class NativeServe:
                "endpoints": obs.get("endpoints") or {},
                "native_install_path": st.get("native_install_rel"), "pip_freeze_paths": st.get("pip_freeze_rel"),
                "cleanup_attestation_path": st.get("attestation_rel"), "evidence_dir": st.get("preserve_rel"),
-               "wheelhouse": {"source_image_tag": self.c.image, "tool_sha256": st.get("wheel_tool_sha256"),
+               "wheelhouse": {"source_image_tag": self.c.image, "tool_sha256": st.get("wheel_tool_sha256"), "accept_sha256": st.get("wheel_accept_sha256"),
                               "note": "각 노드가 자기 로컬 이미지에서 재포장(이미지 전송 ✗)"},
                "provenance": "measured(native_multinode_serve.py up · health GET + 추론 POST 관측)"}
         if status != "PASS": doc.update(failed_stage=stage, reason=reason[-600:])
@@ -995,10 +1009,11 @@ class NativeServe:
             lines.append(f"[{n}] <init marker-owned root> {spec.root} · {spec.short}")
             add(n, mkdirs_argv(spec))
         lines.append(f"[sub] <put> {s.wheel_tool} ← {c.wheel_tool_rel} (sha256 기록)")
+        lines.append(f"[sub] <put> {s.wheel_accept} ← {c.wheel_accept_rel} (sha256 기록)")
         for n, spec in (("main", m), ("sub", s)):
-            add(n, wheelhouse_build_argv(spec.wheel_tool, c.image, spec.root, "<generated-utc>"), "자기 이미지에서 재포장")
+            add(n, wheelhouse_build_argv(spec.wheel_tool, c.image, spec.root, "<generated-utc>", spec.wheel_accept), "자기 이미지에서 재포장 · 승인 선언 적용")
             add(n, ["du", "-sxb", spec.root], "상한 검사")
-            add(n, wheelhouse_verify_argv(spec.wheel_tool, spec.root, "<generated-utc>"), "venv·pip --no-index·pip check·ldd·import+CUDA → env 레시피")
+            add(n, wheelhouse_verify_argv(spec.wheel_tool, spec.root, "<generated-utc>", spec.wheel_accept), "venv·pip --no-index --no-deps·이미지 동등성·ldd·import+CUDA → env 레시피")
             add(n, ["du", "-sxb", spec.root], "상한 검사")
             add(n, pip_freeze_argv(spec.root), f"→ docs/simlog/<YYMMDDHH>_{c.simlog_topic}/pip-freeze-{n}.txt")
         add("main", env_argv(runtime_env(c, m, fake_ld), ray_head_argv(c, m)), "start(새 세션) → identity")
@@ -1278,6 +1293,8 @@ def _fixture_repo(base: Path) -> tuple[Path, str]:
                                                            "RAY_OBJECT_STORE_MEMORY=2000000000\n", encoding="utf-8")
     (repo / ".claude/skills/upstream-version-watch/scripts").mkdir(parents=True)
     (repo / ".claude/skills/upstream-version-watch/scripts/native_wheelhouse.py").write_text("# fixture wheelhouse tool\n", encoding="utf-8")
+    (repo / WHEEL_ACCEPT_REL).parent.mkdir(parents=True, exist_ok=True)
+    (repo / WHEEL_ACCEPT_REL).write_text('{"fixture": "accept"}\n', encoding="utf-8")
     camp = {"id": "camp-fx", "budgets": {"ready_max_seconds": 60, "smoke_budget_overhead_mib": 24800},
             "topology_sections": {"multi": {"native_cells": ["src-native"], "native_run_root_base": str(base / "runs"),
                                             "native_run_root_max_gib_per_node": 80, "native_sub_host": "u@198.51.100.2"}}}
@@ -1468,7 +1485,7 @@ def self_test() -> int:
         calls = sum(len(f.calls) for f in (*r7.values(), *rs7.values()))
         ck("★dry-run: 파일 변화 0 · 러너 호출 0", before == after and calls == 0 and not world7)
         ck("dry-run: 노드별 명령(메인·서브 · wheelhouse·ray·serve·watchdog·renew)",
-           any(x.startswith("[sub] ") and "native_wheelhouse.py build" in x for x in lines) and any("ray start --head" in x for x in lines)
+           any(x.startswith("[sub] ") and "native_wheelhouse.py build" in x and "--accept-file" in x and "tools/native_wheelhouse_accept.json" in x for x in lines) and all("--accept-file" in x for x in lines if "native_wheelhouse.py build" in x or "native_wheelhouse.py verify" in x) and any("ray start --head" in x for x in lines)
            and any(x.startswith("[sub] bash") and "mem_watchdog.sh --pgid" in x for x in lines) and any("budget_renew_loop.sh" in x for x in lines))
 
         body = Path(__file__).read_text(encoding="utf-8")

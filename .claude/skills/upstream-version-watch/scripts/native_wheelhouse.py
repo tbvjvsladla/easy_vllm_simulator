@@ -547,9 +547,12 @@ def _dpkg_rows(src: Source, dsite: str, dist_info: str) -> tuple[Optional[str], 
 
 
 def build(src: Source, out: Path, sites: list, cuda_link: str, generated_utc: str, accept: dict, jobs: int,
-          keep_staging: bool = False, staging: Optional[Path] = None) -> dict:
+          keep_staging: bool = False, staging: Optional[Path] = None, accept_meta: Optional[dict] = None) -> dict:
     """sites = 이미지 파이썬의 sys.path 순서(앞이 우선). 뒤 디렉터리의 같은 이름 분포는 가려진 것(shadowed)이다."""
     t0 = time.monotonic()
+    if accept_meta and accept_meta.get("image_id") != src.meta.get("id"):
+        raise WheelhouseError(f"승인 파일의 이미지 {accept_meta.get('image_id')} ≠ 재포장 대상 {src.meta.get('id')} — 다른 이미지의 승인은 쓰지 않는다")
+    accept_used: set = set()
     wh = out / "wheelhouse"
     rl = out / "runtime-lib"
     wh.mkdir(parents=True)
@@ -721,7 +724,8 @@ def build(src: Source, out: Path, sites: list, cuda_link: str, generated_utc: st
                         rv["shared_path_omitted"].append({"path": rel, "owner": owner})
                         continue
                     if key in accept:
-                        rv["accepted"].append({"path": rel, "reason": accept[key], "provenance": "human:--accept-mismatch"})
+                        accept_used.add(key)
+                        rv["accepted"].append({"path": rel, "reason": accept[key]["reason"], "provenance": accept[key]["provenance"]})
                     else:
                         rv["mismatches"].append(rel)
                         failures.append({"dist": d["name"], "kind": "record-hash-mismatch", "path": rel})
@@ -1020,6 +1024,11 @@ def build(src: Source, out: Path, sites: list, cuda_link: str, generated_utc: st
                     pass
         return tot
 
+    stale = sorted(set(accept) - accept_used)
+    for k in stale:
+        # 승인했는데 일어나지 않은 불일치 — 이미지가 바뀌었거나 선언이 낡았다. 침묵하지 않는다(판정은 바꾸지 않고 소리낸다).
+        warnings.append({"kind": "stale-accept", "entry": k, "detail": "승인 목록에 있으나 이번 재포장에서 불일치가 관측되지 않았다"})
+        print(f"native_wheelhouse: WARNING stale-accept {k} — 승인 항목이 관측되지 않았다(선언 갱신 필요)", file=sys.stderr)
     status = "FAIL" if failures else "PASS"
     closure = {
         "schema_version": 1, "kind": "native_wheelhouse_closure", "tool": TOOL, "generated_utc": generated_utc,
@@ -1036,6 +1045,8 @@ def build(src: Source, out: Path, sites: list, cuda_link: str, generated_utc: st
                    "excluded": len(excluded),
                    "record_mismatches": sum(len(r["record_verify"]["mismatches"]) for r in records),
                    "shared_path_omitted": sum(len(r["record_verify"]["shared_path_omitted"]) for r in records)},
+        "accept": ({**accept_meta, "applied": sorted(accept_used), "stale": stale} if accept_meta
+                   else ({"source": "cli --accept-mismatch", "applied": sorted(accept_used), "stale": stale} if accept else None)),
         "distributions": records, "excluded": excluded,
         "unowned_site_files": {"count": len(unowned), "sample": sorted(unowned)[:40],
                                "note": "어느 RECORD 에도 없는 site-packages 파일 — 휠에 실리지 않는다(venv 에 없다)"},
@@ -1085,10 +1096,24 @@ def _tail(s: str, n: int = 3000) -> str:
     return s[-n:] if s else ""
 
 
-def verify(whdir: Path, venv: Path, generated_utc: str, diagnostic: bool) -> dict:
+GATE_RESOLVER = "resolver(pip install --no-index 리졸버 · pip check 0)"
+GATE_PARITY = "image-parity(accept-file: --no-deps 정확 핀 · 설치 집합 == closure 핀 · pip check ⊆ image_inherent_conflicts)"
+
+
+def verify(whdir: Path, venv: Path, generated_utc: str, diagnostic: bool, accept_path: Optional[Path] = None) -> dict:
     closure = json.loads((whdir / "closure.json").read_text())
+    declared: list[str] = []
+    ameta = None
+    if accept_path is not None:
+        _, ameta, adoc = load_accept_file(accept_path)
+        if ameta["image_id"] != (closure.get("image") or {}).get("id"):
+            raise WheelhouseError(f"승인 파일 이미지 {ameta['image_id']} ≠ closure 이미지 {(closure.get('image') or {}).get('id')}")
+        declared = [str(e["pip_check_line"]).strip() for e in adoc["image_inherent_conflicts"]]
+    parity = ameta is not None
     res: dict = {"schema_version": 1, "kind": "native_wheelhouse_verify", "tool": TOOL, "generated_utc": generated_utc,
                  "wheelhouse_dir": str(whdir), "venv": str(venv), "closure_status": closure.get("status"),
+                 "gate_definition": GATE_PARITY if parity else GATE_RESOLVER,
+                 "accept": ({k: ameta[k] for k in ("sha256", "approved_by", "approved_utc", "image_id")} if parity else None),
                  "diagnostic_only": bool(diagnostic), "gates": {}, "verdict": "FAIL"}
     if closure.get("status") != "PASS" and not diagnostic:
         res["gates"]["closure"] = {"result": "FAIL", "detail": "closure.json status≠PASS — --diagnostic 없이는 설치하지 않는다"}
@@ -1103,14 +1128,19 @@ def verify(whdir: Path, venv: Path, generated_utc: str, diagnostic: bool) -> dic
     if r.returncode != 0:
         return res
     py = venv / "bin" / "python"
+    rb = subprocess.run([str(py), "-m", "pip", "list", "--format", "json"], capture_output=True, text=True, env=env)
+    try:
+        baseline = sorted(canon(x["name"]) for x in json.loads(rb.stdout or "[]"))
+    except ValueError:
+        baseline = []
     t = time.monotonic()
-    cmd = [str(py), "-m", "pip", "install", "--no-index", "--find-links", str(whdir / "wheelhouse"),
-           "-r", str(whdir / "requirements-closure.txt")]
+    cmd = [str(py), "-m", "pip", "install", "--no-index"] + (["--no-deps"] if parity else []) + [
+        "--find-links", str(whdir / "wheelhouse"), "-r", str(whdir / "requirements-closure.txt")]
     r = subprocess.run(cmd, capture_output=True, text=True, env=env)
     res["gates"]["pip_install"] = {"result": "PASS" if r.returncode == 0 else "FAIL", "rc": r.returncode, "argv": cmd[1:],
                                    "seconds_monotonic": round(time.monotonic() - t, 1),
                                    "stdout_tail": _tail(r.stdout, 1500), "stderr_tail": _tail(r.stderr)}
-    if r.returncode != 0 and diagnostic:
+    if r.returncode != 0 and diagnostic and not parity:
         # 진단 전용: 리졸버가 이미지 자체의 선언 불일치로 막히면(이미지는 --no-deps/constraint 로 조립됐다) 정확 핀 집합을
         #   --no-deps 로 깔아 뒤 게이트를 관측한다. 이 경로는 판정을 PASS 로 만들지 못한다(pip_install 게이트는 FAIL 로 남는다).
         t = time.monotonic()
@@ -1140,6 +1170,20 @@ def verify(whdir: Path, venv: Path, generated_utc: str, diagnostic: bool) -> dic
                                      "missing_or_other_version": diff_missing[:50], "extra_in_venv": diff_extra,
                                      "note": "extra = venv 부트스트랩(pip 등)"}
     res["gates"]["pip_check"]["inherited_from_image"] = bool(pins) and not diff_missing
+    if parity:
+        # 동등성: 여분은 설치 **전** venv 에 이미 있던 부트스트랩(ensurepip 관측)만 허용
+        boot = set(baseline)
+        bad_extra = [k for k in diff_extra if k not in boot]
+        ig = res["gates"]["installed_set"]
+        ig["result"] = "PASS" if (pins and not diff_missing and not bad_extra) else "FAIL"
+        ig["unexpected_extra"] = bad_extra
+        ig["allowed_bootstrap_extra"] = sorted(boot)
+        pc = res["gates"]["pip_check"]
+        lines = [ln.strip() for ln in pc["output"].splitlines() if ln.strip() and ln.strip() != "No broken requirements found."]
+        new = [ln for ln in lines if ln not in declared]
+        pc.update(result="PASS" if not new else "FAIL", observed_conflicts=lines, new_conflicts=new,
+                  declared_not_observed=[d for d in declared if d not in lines],
+                  rule="관측 충돌 ⊆ image_inherent_conflicts(선언 밖 충돌 = FAIL)")
     r = subprocess.run([str(py), "-c", "import sysconfig;print(sysconfig.get_paths()['purelib'])"], capture_output=True, text=True, env=env)
     vsite = r.stdout.strip()
     rt = closure["runtime_lib"]
@@ -1193,7 +1237,9 @@ def verify(whdir: Path, venv: Path, generated_utc: str, diagnostic: bool) -> dic
     res["selected"] = sel["label"] if sel else None
     res["ld_library_path"] = sel["ld_library_path"] if sel else None
     res["env"] = sel["env"] if sel else None
-    base_ok = all(res["gates"][g]["result"] == "PASS" for g in ("venv_create", "pip_install", "pip_check"))
+    base_gates = ("venv_create", "pip_install", "installed_set", "pip_check") if parity else ("venv_create", "pip_install", "pip_check")
+    base_ok = all(res["gates"][g]["result"] == "PASS" for g in base_gates)
+    res["verdict_gates"] = list(base_gates) + ["ldd", "import_cuda"]
     res["verdict"] = "PASS" if (base_ok and sel and closure.get("status") == "PASS") else "FAIL"
 
     def du(p: Path) -> int:
@@ -1218,10 +1264,11 @@ def _rec_line(rel: str, data: Optional[bytes]) -> list[str]:
 
 
 def _fake_dist(site: Path, name: str, ver: str, files: dict, *, extra_rows: Optional[list] = None, ep: str = "",
-               direct: Optional[dict] = None, tamper: Optional[dict] = None, wheel_tag: Optional[str] = "py3-none-any") -> None:
+               direct: Optional[dict] = None, tamper: Optional[dict] = None, wheel_tag: Optional[str] = "py3-none-any",
+               requires: str = "") -> None:
     di = f"{name}-{ver}.dist-info"
     (site / di).mkdir(parents=True)
-    meta = f"Metadata-Version: 2.1\nName: {name}\nVersion: {ver}\n".encode()
+    meta = (f"Metadata-Version: 2.1\nName: {name}\nVersion: {ver}\n" + (f"Requires-Dist: {requires}\n" if requires else "")).encode()
     files = dict(files)
     files[f"{di}/METADATA"] = meta
     files[f"{di}/INSTALLER"] = b"pip\n"
@@ -1257,7 +1304,9 @@ def _make_fake_root(root: Path, with_bad: bool) -> dict:
     }, extra_rows=[["alpha/__pycache__/__init__.cpython-312.pyc", "", ""]],
         ep="[console_scripts]\nalpha = alpha:main\n")
     if with_bad:
-        _fake_dist(site, "beta", "2.0", {"beta/__init__.py": b"ORIG = 1\n"}, tamper={"beta/__init__.py": b"PATCHED = 1\n"})
+        # beta: RECORD 불일치 + 이미지 고유 의존성 충돌(선언은 zeta>=9 · 설치본 zeta 0.5)
+        _fake_dist(site, "beta", "2.0", {"beta/__init__.py": b"ORIG = 1\n"}, tamper={"beta/__init__.py": b"PATCHED = 1\n"},
+                   requires="zeta>=9")
     # 공유 경로: delta 와 epsilon 이 ns/__init__.py 를 둘 다 적고, 현재 바이트는 epsilon 것
     _fake_dist(site, "delta", "1.0", {"ns/__init__.py": b"", "ns/d.py": b"D = 1\n"},
                tamper={"ns/__init__.py": b"# epsilon\n"})
@@ -1322,10 +1371,47 @@ def self_test() -> int:
         # (1b) 사람 수용 → ACCEPTED 로 표시되고 PASS
         o1b = tdp / "out_acc"
         c1b = build(DirSource(r1, m1), o1b, SITES_DEFAULT, CUDA_LINK_DEFAULT, "2026-01-01T00:00:00Z",
-                    {"beta:beta/__init__.py": "selftest"}, 4, staging=tdp / "st1b")
+                    _parse_accept(["beta:beta/__init__.py=selftest"]), 4, staging=tdp / "st1b")
         bb = next(d for d in c1b["distributions"] if d["name"] == "beta")
         ck("수용된 불일치는 ACCEPTED+provenance", c1b["status"] == "PASS" and bb["record_verify"]["result"] == "ACCEPTED"
            and bb["record_verify"]["accepted"][0]["provenance"].startswith("human"))
+        # (1c) 추적 승인 파일: 적용·출처·stale 경고·digest 불일치 거부 → 이미지 동등성 verify
+        def accept_doc(conflicts: list, image_id: str) -> Path:
+            p = tdp / f"accept-{len(list(tdp.glob('accept-*')))}.json"
+            p.write_text(json.dumps({"schema_version": 1, "approved_by": "selftest-human", "approved_utc": "2026-01-01T00:00:00Z",
+                                     "image": {"tag": "fake:selftest", "id": image_id},
+                                     "accepted_mismatches": [{"dist": "beta", "path": "beta/__init__.py", "reason": "t"},
+                                                             {"dist": "beta", "path": "beta/never.py", "reason": "stale"}],
+                                     "image_inherent_conflicts": [{"pip_check_line": x} for x in conflicts]}))
+            return p
+        conflict = "beta 2.0 has requirement zeta>=9, but you have zeta 0.5."
+        af = accept_doc([conflict], m1["id"])
+        acc, ameta, _ = load_accept_file(af)
+        o1c = tdp / "out_accfile"
+        c1c = build(DirSource(r1, m1), o1c, SITES_DEFAULT, CUDA_LINK_DEFAULT, "2026-01-01T00:00:00Z", acc, 4,
+                    staging=tdp / "st1c", accept_meta=ameta)
+        bc = next(d for d in c1c["distributions"] if d["name"] == "beta")
+        ck("승인 파일 적용 → PASS · provenance accepted-mismatch(human: …)", c1c["status"] == "PASS"
+           and bc["record_verify"]["accepted"][0]["provenance"] == "accepted-mismatch(human: selftest-human)")
+        ck("일어나지 않은 승인 = stale-accept 경고", c1c["accept"]["stale"] == ["beta:beta/never.py"]
+           and any(w["kind"] == "stale-accept" for w in c1c["warnings"]))
+        try:
+            build(DirSource(r1, m1), tdp / "out_wrongimg", SITES_DEFAULT, CUDA_LINK_DEFAULT, "2026-01-01T00:00:00Z", acc, 4,
+                  staging=tdp / "st1d", accept_meta={**ameta, "image_id": "sha256:" + "1" * 64})
+            ck("다른 이미지 digest 의 승인 파일 거부", False)
+        except WheelhouseError:
+            ck("다른 이미지 digest 의 승인 파일 거부", True)
+        vp = verify(o1c, tdp / "venv_parity", "2026-01-01T00:00:00Z", False, af)
+        g = vp["gates"]
+        ck("parity: gate_definition 표기", vp["gate_definition"] == GATE_PARITY)
+        ck("parity: --no-deps 설치 PASS", g["pip_install"]["result"] == "PASS" and "--no-deps" in g["pip_install"]["argv"],
+           _tail(g["pip_install"].get("stderr_tail", ""), 400))
+        ck("parity: 설치 집합 == 핀", g["installed_set"]["result"] == "PASS", json.dumps(g["installed_set"], ensure_ascii=False))
+        ck("parity: 선언된 충돌은 PASS", g["pip_check"]["result"] == "PASS" and g["pip_check"]["observed_conflicts"] == [conflict],
+           json.dumps(g["pip_check"], ensure_ascii=False))
+        vn = verify(o1c, tdp / "venv_parity_neg", "2026-01-01T00:00:00Z", False, accept_doc([], m1["id"]))
+        ck("parity: 선언 밖 충돌 → FAIL", vn["gates"]["pip_check"]["result"] == "FAIL"
+           and vn["gates"]["pip_check"]["new_conflicts"] == [conflict] and vn["verdict"] == "FAIL")
         # (2) 정상 트리
         r2 = tdp / "root_ok"
         m2 = _make_fake_root(r2, with_bad=False)
@@ -1389,8 +1475,35 @@ def _parse_accept(items: Iterable[str]) -> dict:
         m = re.match(r"^([^:]+):([^=]+)=(.+)$", it)
         if not m:
             raise WheelhouseError(f"--accept-mismatch 형식은 DIST:PATH=REASON: {it!r}")
-        out[f"{canon(m.group(1))}:{m.group(2)}"] = m.group(3)
+        out[f"{canon(m.group(1))}:{m.group(2)}"] = {"reason": m.group(3), "provenance": "human:--accept-mismatch"}
     return out
+
+
+def load_accept_file(path: Path) -> tuple[dict, dict, dict]:
+    """추적 승인 파일 → (불일치 승인 dict, 메타, 원문). 형식 위반은 거부(fail-closed)."""
+    raw = path.read_bytes()
+    try:
+        doc = json.loads(raw)
+    except ValueError as e:
+        raise WheelhouseError(f"승인 파일 JSON 오류: {path}: {e}")
+    need = ("schema_version", "approved_by", "approved_utc", "image", "accepted_mismatches", "image_inherent_conflicts")
+    miss = [k for k in need if k not in doc]
+    img = doc.get("image") or {}
+    if miss or not str(img.get("id", "")).startswith("sha256:") or not UTC_RE.match(str(doc.get("approved_utc", ""))) \
+            or not str(doc.get("approved_by", "")).strip():
+        raise WheelhouseError(f"승인 파일 형식 위반(누락 {miss} · image.id sha256 · approved_utc · approved_by): {path}")
+    who = str(doc["approved_by"]).strip()
+    acc = {}
+    for e in doc["accepted_mismatches"]:
+        if not (e.get("dist") and e.get("path") and e.get("reason")):
+            raise WheelhouseError(f"accepted_mismatches 항목에 dist/path/reason 필수: {e}")
+        acc[f"{canon(e['dist'])}:{e['path']}"] = {"reason": e["reason"], "provenance": f"accepted-mismatch(human: {who})"}
+    for e in doc["image_inherent_conflicts"]:
+        if not str(e.get("pip_check_line", "")).strip():
+            raise WheelhouseError(f"image_inherent_conflicts 항목에 pip_check_line 필수: {e}")
+    meta = {"source": "accept-file", "sha256": hashlib.sha256(raw).hexdigest(), "approved_by": who,
+            "approved_utc": doc["approved_utc"], "image_id": img["id"], "image_tag": img.get("tag")}
+    return acc, meta, doc
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -1406,12 +1519,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     b.add_argument("--cuda-link", default=CUDA_LINK_DEFAULT)
     b.add_argument("--accept-mismatch", action="append", default=[],
                    help="DIST:PATH=REASON — 사람이 검토해 수용한 RECORD 불일치(closure.json 에 human 출처로 기재)")
+    b.add_argument("--accept-file", default=None, help="추적 승인 선언(JSON) — 불일치 승인·이미지 digest 대조")
     b.add_argument("--jobs", type=int, default=min(16, os.cpu_count() or 4))
     b.add_argument("--keep-staging", action="store_true")
     v = sub.add_parser("verify")
     v.add_argument("--wheelhouse-dir", required=True)
     v.add_argument("--venv", required=True)
     v.add_argument("--generated-utc", required=True)
+    v.add_argument("--accept-file", default=None, help="이미지 동등성 게이트(--no-deps 정확 핀 · pip check ⊆ 선언된 이미지 고유 충돌)")
     v.add_argument("--diagnostic", action="store_true", help="closure FAIL 이어도 게이트를 돌려 본다(판정은 FAIL 로 남는다)")
     v.add_argument("--out-json", default=None)
     a = ap.parse_args(argv)
@@ -1431,8 +1546,13 @@ def main(argv: Optional[list[str]] = None) -> int:
             src = DockerSource(a.image, staging)
             try:
                 src.start()
-                c = build(src, out, a.site_packages or SITES_DEFAULT, a.cuda_link, a.generated_utc, _parse_accept(a.accept_mismatch),
-                          a.jobs, staging=staging)
+                acc = _parse_accept(a.accept_mismatch)
+                ameta = None
+                if a.accept_file:
+                    fa, ameta, _ = load_accept_file(Path(a.accept_file))
+                    acc = {**fa, **acc}
+                c = build(src, out, a.site_packages or SITES_DEFAULT, a.cuda_link, a.generated_utc, acc,
+                          a.jobs, staging=staging, accept_meta=ameta)
             finally:
                 src.close()
                 if not a.keep_staging:
@@ -1447,7 +1567,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             if not wd.is_absolute() or not ve.is_absolute() or not UTC_RE.match(a.generated_utc):
                 print("경로는 절대경로, --generated-utc 는 YYYY-MM-DDTHH:MM:SSZ", file=sys.stderr)
                 return EXIT_USAGE
-            res = verify(wd, ve, a.generated_utc, a.diagnostic)
+            res = verify(wd, ve, a.generated_utc, a.diagnostic, Path(a.accept_file) if a.accept_file else None)
             txt = json.dumps(res, ensure_ascii=False, indent=1)
             Path(a.out_json or (wd / "verify.json")).write_text(txt + "\n")
             print(txt)
