@@ -4,68 +4,72 @@
 > `> [원문] <문서 stem> §<절>` 인용은 출처 문서(기계 치환 후)의 글자 그대로다 — 해설은 인용 밖에 있다.
 
 <!-- FACT:lineage -->
-계보 문서 36건 — 서사는 **이 목록 전체**를 읽고 쓴다(이 셀 1회분이 아니다). 순서 = 계층 → 깊이 → 관련도 → 날짜. 크기(바이트)는 읽기 예산용이다. 원시 증거 후보(엔진 · 빌드 로그)는 `LINEAGE.json` 의 `evidence_candidates` 다.
+계보 문서 41건 — 서사는 **이 목록 전체**를 읽고 쓴다(이 셀 1회분이 아니다). 순서 = 계층 → 깊이 → 관련도 → 날짜. 크기(바이트)는 읽기 예산용이다. 원시 증거 후보(엔진 · 빌드 로그)는 `LINEAGE.json` 의 `evidence_candidates` 다.
 
 | # | 문서 | 종류 | 날짜 | 깊이 | 크기 | 셀 축 토큰 | 대체됨 |
 |---|---|---|---|---|---|---|---|
-| 1 | `docs/testlog/testlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_판정.md` | testlog | 26091114 | 0 | 4306 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · f8 · mmp · nv4 · nv4-f8-262k-mmp | — |
-| 2 | `docs/testlog/testlog_26091009_qwen38fn_24셀_판정.md` | testlog | 26091009 | 0 | 5466 | 0.29.0rc6 · 262k · f8 · mmp · nv4 · nv4-f8-262k-mmp | docs/devlog/devlog_26091109_하네스교정_R0R10_서사.md · docs/plan/plan_26091108_캠페인재수행_선행_하네스교정.md · docs/testlog/testlog_26091109_하네스교정_R0R10_역채점_음성대조.md |
-| 3 | `docs/testlog/testlog_26091117_qwen38fn_22셀재수행_512k그룹완료체크포인트_판정.md` | testlog | 26091117 | 0 | 5417 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · f8 · mmp · nv4 | — |
-| 4 | `docs/testlog/testlog_26091121_qwen38fn_22셀재수행_캠페인완주_판정.md` | testlog | 26091121 | 0 | 5305 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · f8 · mmp · nv4 | — |
-| 5 | `docs/testlog/testlog_26091304_qwen38fn_res최소조건_262k재발행_판정.md` | testlog | 26091304 | 0 | 10341 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · f8 · mmp · nv4 | — |
-| 6 | `docs/plan/plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E.md` | plan | 26092119 | 0 | 56993 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · f8 · mmp · nv4 | — |
-| 7 | `docs/devlog/devlog_26091009_qwen38fn_24셀_캠페인종합_서사.md` | devlog | 26091009 | 0 | 3411 | 262k · f8 · mmp · nv4 · nv4-f8-262k-mmp | — |
-| 8 | `docs/plan/plan_26091108_qwen38fn_22셀_재수행_캠페인.md` | plan | 26091108 | 0 | 12790 | 0.29.0rc6 · 262k · f8 · mmp · nv4 | — |
-| 9 | `docs/devlog/devlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_서사.md` | devlog | 26091114 | 0 | 5439 | 262k · f8 · mmp · nv4 · nv4-f8-262k-mmp | — |
-| 10 | `docs/testlog/testlog_26092223_hint_publisher_재구성_S1S5_오프라인재생_판정.md` | testlog | 26092223 | 0 | 9656 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · mmp · nv4 | — |
-| 11 | `docs/plan/plan_26090918_qwen38_flashnext_multi_딥캠페인.md` | plan | 26090918 | 0 | 10709 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · f8 | — |
-| 12 | `docs/benchmark/bench_report_26091111_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md` | bench_report | 26091111 | 0 | 3940 | 0.29.0rc6 · easy-vllm:0.29.0rc6-cu133-aarch64-source | — |
-| 13 | `docs/benchmark/bench_report_26092310_56_16_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md` | bench_report | 26092310 | 0 | 2819 | — | — |
-| 14 | `docs/testlog/testlog_26091109_하네스교정_R0R10_역채점_음성대조.md` | testlog | 26091109 | 1 | 20402 | 0.29.0rc6 · 262k · f8 · mmp · nv4 · nv4-f8-262k-mmp | — |
-| 15 | `docs/plan/plan_26091216_qwen38fn_res최소조건_후속캠페인.md` | plan | 26091216 | 1 | 12770 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · f8 · mmp · nv4 | — |
-| 16 | `docs/report/perf_26091305_qwen38fn_res최소조건_후속캠페인.md` | report | 26091305 | 1 | 13615 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · f8 · mmp · nv4 | — |
-| 17 | `docs/testlog/testlog_26091412_하네스교정_항목1_acceptlen승계_소급재판정.md` | testlog | 26091412 | 1 | 31725 | 0.29.0rc6 · 262k · f8 · mmp · nv4 · nv4-f8-262k-mmp | — |
-| 18 | `docs/benchmark/sweep_map_26091008_nv4-f8-262k-mmp-levers.md` | sweep_map | 26091008 | 1 | 1268 | 262k · f8 · mmp · nv4 · nv4-f8-262k-mmp | — |
-| 19 | `docs/testlog/testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정.md` | testlog | 26090921 | 1 | 3946 | 0.29.0rc6 · easy-vllm:0.29.0rc6-cu133-aarch64-source · f8 · nv4 | — |
-| 20 | `docs/benchmark/sweep_map_26091008_nv4-262k-res_l0-base.md` | sweep_map | 26091008 | 1 | 2607 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · nv4 | — |
-| 21 | `docs/plan/plan_26091108_캠페인재수행_선행_하네스교정.md` | plan | 26091108 | 1 | 19306 | 262k · f8 · mmp · nv4 | — |
-| 22 | `docs/benchmark/sweep_map_26091008_nv4-262k-mmp-levers.md` | sweep_map | 26091008 | 1 | 1262 | 262k · mmp · nv4 | — |
-| 23 | `docs/testlog/testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정.md` | testlog | 26091001 | 1 | 4938 | 0.29.0rc6 · f8 | — |
-| 24 | `docs/benchmark/bench_report_26091011_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md` | bench_report | 26091011 | 1 | 3941 | 0.29.0rc6 · easy-vllm:0.29.0rc6-cu133-aarch64-source | — |
-| 25 | `docs/benchmark/bench_report_26091223_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md` | bench_report | 26091223 | 1 | 3729 | 0.29.0rc6 · easy-vllm:0.29.0rc6-cu133-aarch64-source | — |
-| 26 | `docs/report/audit_26091323_qwen38fn_네이티브_캠페인_감사.md` | report | 26091323 | 1 | 20692 | 262k · nv4 | — |
-| 27 | `docs/report/perf_26091314_qwen38fn_rtxpro6000x2_네이티브_14셀_종합.md` | report | 26091314 | 1 | 11959 | 262k | docs/report/perf_26091322_qwen38fn_rtxpro6000x2_네이티브_10셀_동시성곡선.md |
-| 28 | `docs/report/perf_26091009_qwen38fn_24cells_종합.md` | report | 26091009 | 2 | 6004 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · f8 · mmp · nv4 · nv4-f8-262k-mmp | — |
-| 29 | `docs/report/perf_26091122_qwen38fn_24전략_종합리포트.md` | report | 26091122 | 2 | 16183 | 0.29.0rc6 · 262k · f8 · mmp · nv4 · nv4-f8-262k-mmp | docs/report/perf_26091305_qwen38fn_res최소조건_후속캠페인.md |
-| 30 | `docs/devlog/devlog_26091001_qwen38fn_phase0_자체이식3종_서사.md` | devlog | 26091001 | 2 | 3037 | 0.29.0rc6 · 262k · mmp · nv4 | — |
-| 31 | `docs/benchmark/sweep_map_26091008_nv4-262k-res.md` | sweep_map | 26091008 | 2 | 2607 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · nv4 | — |
-| 32 | `docs/benchmark/bench_report_26091006_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md` | bench_report | 26091006 | 2 | 3930 | 0.29.0rc6 · easy-vllm:0.29.0rc6-cu133-aarch64-source | — |
-| 33 | `docs/report/perf_26091322_qwen38fn_rtxpro6000x2_네이티브_10셀_동시성곡선.md` | report | 26091322 | 2 | 15328 | 262k · nv4 | — |
-| 34 | `docs/report/perf_26091114_qwen38fn_22셀재수행_7셀체크포인트.md` | report | 26091114 | 3 | 5862 | 0.29.0rc6 · 262k · f8 · mmp · nv4 · nv4-f8-262k-mmp | — |
-| 35 | `docs/report/perf_26091117_qwen38fn_22셀재수행_512k그룹완료체크포인트.md` | report | 26091117 | 3 | 7260 | 0.29.0rc6 · 262k · f8 · mmp · nv4 · nv4-f8-262k-mmp | — |
-| 36 | `docs/report/perf_26091121_qwen38fn_22셀재수행_캠페인완주.md` | report | 26091121 | 3 | 7967 | 0.29.0rc6 · 262k · f8 · mmp · nv4 · nv4-f8-262k-mmp | — |
+| 1 | `docs/plan/plan_26092311_native_분산서빙_정문_구현_N1.md` | plan | 26092311 | 0 | 16270 | 0.29.0rc6 · 262k · bf · easy-vllm:0.29.0rc6-cu133-aarch64-source · mmp · native · nv4 · nv4-bf-262k-mmp-native | — |
+| 2 | `docs/testlog/testlog_26092317_native_N1_분산서빙_판정.md` | testlog | 26092317 | 0 | 4848 | 0.29.0rc6 · 262k · bf · easy-vllm:0.29.0rc6-cu133-aarch64-source · mmp · native · nv4 · nv4-bf-262k-mmp-native | — |
+| 3 | `docs/plan/plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E.md` | plan | 26092119 | 0 | 56993 | 0.29.0rc6 · 262k · bf · easy-vllm:0.29.0rc6-cu133-aarch64-source · mmp · native · nv4 | — |
+| 4 | `docs/testlog/testlog_26092223_hint_publisher_재구성_S1S5_오프라인재생_판정.md` | testlog | 26092223 | 0 | 9656 | 0.29.0rc6 · 262k · bf · easy-vllm:0.29.0rc6-cu133-aarch64-source · mmp · native · nv4 | — |
+| 5 | `docs/testlog/testlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_판정.md` | testlog | 26091114 | 0 | 4306 | 0.29.0rc6 · 262k · bf · easy-vllm:0.29.0rc6-cu133-aarch64-source · mmp · nv4 | — |
+| 6 | `docs/testlog/testlog_26091117_qwen38fn_22셀재수행_512k그룹완료체크포인트_판정.md` | testlog | 26091117 | 0 | 5417 | 0.29.0rc6 · 262k · bf · easy-vllm:0.29.0rc6-cu133-aarch64-source · mmp · nv4 | — |
+| 7 | `docs/testlog/testlog_26091121_qwen38fn_22셀재수행_캠페인완주_판정.md` | testlog | 26091121 | 0 | 5305 | 0.29.0rc6 · 262k · bf · easy-vllm:0.29.0rc6-cu133-aarch64-source · mmp · nv4 | — |
+| 8 | `docs/testlog/testlog_26091304_qwen38fn_res최소조건_262k재발행_판정.md` | testlog | 26091304 | 0 | 10341 | 0.29.0rc6 · 262k · bf · easy-vllm:0.29.0rc6-cu133-aarch64-source · mmp · nv4 | — |
+| 9 | `docs/benchmark/bench_report_26092317_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md` | bench_report | 26092317 | 0 | 6996 | 0.29.0rc6 · easy-vllm:0.29.0rc6-cu133-aarch64-source | — |
+| 10 | `docs/devlog/devlog_26092317_native_N1_구현_라이브_서사.md` | devlog | 26092317 | 0 | 4651 | native | — |
+| 11 | `docs/plan/plan_26091216_qwen38fn_res최소조건_후속캠페인.md` | plan | 26091216 | 1 | 12770 | 0.29.0rc6 · 262k · bf · easy-vllm:0.29.0rc6-cu133-aarch64-source · mmp · native · nv4 | — |
+| 12 | `docs/report/perf_26091305_qwen38fn_res최소조건_후속캠페인.md` | report | 26091305 | 1 | 13615 | 0.29.0rc6 · 262k · bf · easy-vllm:0.29.0rc6-cu133-aarch64-source · mmp · native · nv4 | — |
+| 13 | `docs/testlog/testlog_26091009_qwen38fn_24셀_판정.md` | testlog | 26091009 | 1 | 5466 | 0.29.0rc6 · 262k · bf · mmp · nv4 | docs/devlog/devlog_26091109_하네스교정_R0R10_서사.md · docs/plan/plan_26091108_캠페인재수행_선행_하네스교정.md · docs/testlog/testlog_26091109_하네스교정_R0R10_역채점_음성대조.md |
+| 14 | `docs/plan/plan_26091108_qwen38fn_22셀_재수행_캠페인.md` | plan | 26091108 | 1 | 12790 | 0.29.0rc6 · 262k · bf · mmp · nv4 | — |
+| 15 | `docs/plan/plan_26091108_캠페인재수행_선행_하네스교정.md` | plan | 26091108 | 1 | 19306 | 262k · bf · mmp · native · nv4 | — |
+| 16 | `docs/testlog/testlog_26091109_하네스교정_R0R10_역채점_음성대조.md` | testlog | 26091109 | 1 | 20402 | 0.29.0rc6 · 262k · bf · mmp · nv4 | — |
+| 17 | `docs/devlog/devlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_서사.md` | devlog | 26091114 | 1 | 5439 | 262k · bf · mmp · nv4 | — |
+| 18 | `docs/plan/plan_26090918_qwen38_flashnext_multi_딥캠페인.md` | plan | 26090918 | 1 | 10709 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source | — |
+| 19 | `docs/testlog/testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정.md` | testlog | 26090921 | 1 | 3946 | 0.29.0rc6 · easy-vllm:0.29.0rc6-cu133-aarch64-source · nv4 | — |
+| 20 | `docs/benchmark/sweep_map_26091008_nv4-262k-mmp-levers.md` | sweep_map | 26091008 | 1 | 1262 | 262k · mmp · nv4 | — |
+| 21 | `docs/report/audit_26091323_qwen38fn_네이티브_캠페인_감사.md` | report | 26091323 | 1 | 20692 | 262k · native · nv4 | — |
+| 22 | `docs/benchmark/bench_report_26091011_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md` | bench_report | 26091011 | 1 | 3941 | 0.29.0rc6 · easy-vllm:0.29.0rc6-cu133-aarch64-source | — |
+| 23 | `docs/benchmark/bench_report_26091223_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md` | bench_report | 26091223 | 1 | 3729 | 0.29.0rc6 · easy-vllm:0.29.0rc6-cu133-aarch64-source | — |
+| 24 | `docs/report/perf_26091314_qwen38fn_rtxpro6000x2_네이티브_14셀_종합.md` | report | 26091314 | 1 | 11959 | 262k · native | docs/report/perf_26091322_qwen38fn_rtxpro6000x2_네이티브_10셀_동시성곡선.md |
+| 25 | `docs/testlog/testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정.md` | testlog | 26091001 | 1 | 4938 | 0.29.0rc6 | — |
+| 26 | `docs/devlog/devlog_26091001_qwen38fn_phase0_자체이식3종_서사.md` | devlog | 26091001 | 2 | 3037 | 0.29.0rc6 · 262k · bf · mmp · native · nv4 | — |
+| 27 | `docs/report/perf_26091122_qwen38fn_24전략_종합리포트.md` | report | 26091122 | 2 | 16183 | 0.29.0rc6 · 262k · bf · mmp · native · nv4 | docs/report/perf_26091305_qwen38fn_res최소조건_후속캠페인.md |
+| 28 | `docs/testlog/testlog_26091412_하네스교정_항목1_acceptlen승계_소급재판정.md` | testlog | 26091412 | 2 | 31725 | 0.29.0rc6 · 262k · bf · mmp · native · nv4 | — |
+| 29 | `docs/testlog/testlog_26092311_hint_publisher_G3_D2_lite_판정.md` | testlog | 26092311 | 2 | 4512 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · mmp · nv4 | — |
+| 30 | `docs/devlog/devlog_26091009_qwen38fn_24셀_캠페인종합_서사.md` | devlog | 26091009 | 2 | 3411 | 262k · bf · mmp · nv4 | — |
+| 31 | `docs/report/perf_26091322_qwen38fn_rtxpro6000x2_네이티브_10셀_동시성곡선.md` | report | 26091322 | 2 | 15328 | 262k · native · nv4 | — |
+| 32 | `docs/report/perf_26091009_qwen38fn_24cells_종합.md` | report | 26091009 | 3 | 6004 | 0.29.0rc6 · 262k · bf · easy-vllm:0.29.0rc6-cu133-aarch64-source · mmp · nv4 | — |
+| 33 | `docs/report/perf_26091114_qwen38fn_22셀재수행_7셀체크포인트.md` | report | 26091114 | 3 | 5862 | 0.29.0rc6 · 262k · bf · mmp · nv4 | — |
+| 34 | `docs/report/perf_26091117_qwen38fn_22셀재수행_512k그룹완료체크포인트.md` | report | 26091117 | 3 | 7260 | 0.29.0rc6 · 262k · bf · mmp · nv4 | — |
+| 35 | `docs/report/perf_26091121_qwen38fn_22셀재수행_캠페인완주.md` | report | 26091121 | 3 | 7967 | 0.29.0rc6 · 262k · bf · mmp · nv4 | — |
+| 36 | `docs/benchmark/sweep_map_26091008_nv4-262k-res.md` | sweep_map | 26091008 | 3 | 2607 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · nv4 | — |
+| 37 | `docs/benchmark/sweep_map_26091008_nv4-262k-res_l0-base.md` | sweep_map | 26091008 | 3 | 2607 | 0.29.0rc6 · 262k · easy-vllm:0.29.0rc6-cu133-aarch64-source · nv4 | — |
+| 38 | `docs/benchmark/bench_report_26091006_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md` | bench_report | 26091006 | 3 | 3930 | 0.29.0rc6 · easy-vllm:0.29.0rc6-cu133-aarch64-source | — |
+| 39 | `docs/benchmark/bench_report_26092310_56_16_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md` | bench_report | 26092310 | 3 | 2819 | — | — |
+| 40 | `docs/benchmark/sweep_map_26091008_nv4-f8-262k-mmp-levers.md` | sweep_map | 26091008 | 4 | 1268 | 262k · mmp · nv4 | — |
+| 41 | `docs/benchmark/bench_report_26092310_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md` (모호 해소) | bench_report | 26092310 | 3 | 2781 | — | — |
 <!-- /FACT:lineage -->
 
 ## 2.1 출발점
 > 이 절이 답하는 질문: 이 계보는 무엇을 목표로, 어떤 조건에서 출발했는가 — 첫 plan 은 무엇을 가정했고, 사람은 무엇을 결정했는가?
 
-**목표.** 계보에서 날짜가 가장 이른 plan 은 `plan_26090918`(2026-09-09 HITL)이다. 그 plan 은 `Qwen3.8-Flash-Next` 의 FP8·NVFP4 두 변종을 GB10 두 대의 멀티노드 TP=2 에서 띄우고 KV dtype · context · PLE 적재 방식 축을 넓게 훑어(동시성은 축이 아니라 셀마다 KV 풀 ÷ context 로 결정론 산출 — plan_26090918 §3) 최대 TPS · 최대 context · 최대 동시성 레시피를 확정하려 했다. 이 셀(`nv4-f8-262k-mmp`)은 그 매트릭스의 한 칸이다(트리플렛 yaml 머리 "camp-26090918-qwen38fn-multi cell 4/24") — NVFP4 · KV **fp8_e4m3** · 262,144 · PLE NVMe mmap · MTP k=3 · eager. 이 발행의 측정은 캠페인 `camp-26092301-hint-v6-e2e` 의 D2 로, 선언부터 lite-only 셀이다.
+**목표.** 계보에서 날짜가 가장 이른 plan 은 `plan_26090918`(2026-09-09 HITL)이다 — `Qwen3.8-Flash-Next` 의 FP8·NVFP4 두 변종을 GB10 두 대의 멀티노드 TP=2 에서 띄우고 KV dtype · context · PLE 적재 방식 축을 넓게 훑어(동시성은 축이 아니라 셀마다 결정론 산출 — plan_26090918 §3) 레시피를 확정하려 했다. 그 계보의 셀 `nv4-bf-262k-mmp`(NVFP4 · KV auto · 262,144 · PLE NVMe mmap · MTP k=3 · eager)를 **Docker 없이** 같은 두 노드의 호스트 venv 에서 서빙한 것이 이 셀 `nv4-bf-262k-mmp-native` 다. 이 셀의 직접 plan 은 `plan_26092311` 이다.
 
-> [원문] plan_26090918_qwen38_flashnext_multi_딥캠페인 §1.
-> `Qwen3.8-Flash-Next`(아치 `Qwen4ExpForConditionalGeneration` · 125B/6B-active MoE + 51B PLE n-gram +
-> 4B MTP · 네이티브 262K · 멀티모달)를 **멀티노드 TP=2**(GB10 ×2, RoCE 196.88Gbps)에서 구동하고,
-> 전 축 광의탐색으로 최대 TPS·최대 context·최대 동시성 레시피를 확정한다.
+> [원문] plan_26092311_native_분산서빙_정문_구현_N1 §0. 요지
+> N1(`nv4-bf-262k-mmp-native`)은 D1 과 같은 레시피 축을 **Docker 없이** 양 노드 호스트 venv 에서 Ray TP=2 로 서빙하고 full ×3 으로 재는 셀이다. 정문 `native_multinode_serve.py`(커밋 `cf8e9cf`)는 **뼈대**다 — 기동 직후 `UnknownState` 로 끝나고 정리를 부르지 않으며, 셀 레시피를 쓰지 않고, 존재하지 않는 `/opt/wheelhouse` 를 추출하려 하며, 호스트 안전층이 없다.
 
-**HW 출발 조건.** NVIDIA GB10 · 노드당 GPU 1개 · 2노드 · 통합메모리(plan_26090918 §2.1 "노드 물리 121GB") · 노드 MemTotal 124,610 MiB(testlog_26091114 환경 스냅샷 · 이 실행의 예산 선언 행은 `mem_total_mib=124608` — 01 §1.4 이벤트 표 12행) · 인터커넥트는 plan 이 RoCE 196.88Gbps 로 적었지만 측정 실행의 NCCL 은 `NCCL_IB_DISABLE=1` · 네트워크 `Socket` 이었다(01 §1.4 측정 env 관측) · 분산은 Ray executor TP=2. 호스트 드라이버는 계보 초기 문서가 580.173.02 로 적었고(testlog_26090921 유효맥락), 이 발행의 serve attestation 은 양 노드 580.178.04 를 관측했다(01 §1.5) — 호스트 층 값이며 이미지 층(CUDA 13.3.1.008 · torch 2.13.0a0)과 다르다(00 §0.4).
+**HW 출발 조건.** NVIDIA GB10 · 노드당 GPU 1개 · 2노드 · 통합메모리(plan_26090918 §2.1 "노드 물리 121GB") · 노드 MemTotal 124,610 MiB(testlog_26091109 유효맥락 · 이 셀의 예산 선언은 `mem_total_mib=124608` — 01 §1.4 이벤트 표) · 분산은 Ray executor TP=2. 호스트는 aarch64 · driver 580.178.04 · 호스트 CUDA 13.0/13.2 · Python 3.12.3 양 노드다(plan_26092311 유효맥락 · 호스트 층). 이미지 층은 NGC pytorch 26.07 · torch 2.13.0a0 · CUDA 13.3.1 이다 — native 셀도 이 이미지 층의 라이브러리를 그대로 가져다 쓴다(아래).
 
-**모델 구조.** 체크포인트 `nvidia/Qwen3.8-Flash-Next-NVFP4`(revision 은 00 §0.2). 125B 총 / 6B 활성 MoE + 51B PLE n-gram + 4B MTP · 네이티브 262K · 멀티모달(plan_26090918 §1). `layer_types` 48개 중 full_attention 12개만 KV 를 만들고 linear_attention 36개는 토큰당 KV 기여가 없다(plan_26091216 §2.4). 크기는 safetensors 헤더 합으로 잰 123.5GiB 이며, 같은 NAS 에서 `du` 는 약 2배를 과대보고한다(plan_26090918 §2.1). 양자화는 섞여 있다 — experts 48층 NVFP4 gs16 · PLE ngram_embedding FP8 · MTP experts FP8_PB_WO gs128(`60-qwen4exp-nvfp4-mixed.sh` 헤더). PLE 테이블은 47.7GiB(F8_E4M3) = 48,828 MiB(plan_26091216 §2.1).
+**모델 구조.** 체크포인트 `nvidia/Qwen3.8-Flash-Next-NVFP4`(revision 은 00 §0.2) — 125B 총 / 6B 활성 MoE + 51B PLE n-gram + 4B MTP · 네이티브 262K(plan_26090918 §1). `layer_types` 48개 중 full_attention 12개만 KV 를 만든다(plan_26091216 §2.4). 크기는 safetensors 헤더 합 123.5GiB(같은 NAS 에서 `du` 는 약 2배 과대보고 — plan_26090918 §2.1). 양자화는 experts NVFP4 · PLE FP8 · MTP experts FP8_PB_WO 로 섞여 있고 PLE 테이블은 47.7GiB = 48,828 MiB 다(plan_26091216 §2.1).
 
-**stock 에서 예상된 장벽**(plan_26090918 §2.2, 이미지 `74c96922e`) — 이 셀은 셋 모두에 걸린다:
-- NVFP4 체크포인트의 PLE 가 거부된다 — `_get_ple_embedding_quant_method` 가 FP8 전용.
-- PLE 오프로드 · mmap 경로가 소스에 없다(UVA PR 미머지).
-- KV FP8(QSA) 은 `NotImplementedError("requires a BF16 main KV cache")` — 이 셀의 KV dtype 이 바로 fp8_e4m3 이다.
+**stock 에서 예상된 장벽**(plan_26090918 §2.2) — NVFP4 PLE 거부 · PLE offload/mmap 경로 부재. 이 둘은 Docker 계보에서 자체이식 빌드 패치로 넘었다(§2.2 W1~W7). native 셀은 이 패치들을 **다시 적용하지 않는다** — 패치가 이미 구워진 이미지의 설치본을 그대로 재포장하기 때문이다(plan_26092311 §3 N-D1). native 셀에 고유한 장벽은 "Docker 없이 무엇으로 설치하는가" 였다(F1~F11 — plan_26092311 §2).
 
-**외부 선례와 사람의 결정.** dolf3131(싱글 NVFP4 · CPU offload + 스왑 · 디코드 33.0 t/s MTP k=3)과 blazux(싱글 · NVMe mmap · 디코드 ~37 t/s 는 DRAFT_VOCAB 축소 시 · **fp8 KV 패치 보유** — 그들의 싱글노드 실측 KV 풀 ×1.9 · 디코드 −10% · 프리필 −30% · 멀티노드 미구현 명시)가 있었다(plan_26090918 §2.3). 2노드 TP=2 선례는 없었다. 사람은 2026-09-09 HITL 에서 "+1(런타임)+1(빌드) 자체이식을 최대한도로 수행 — 불가 확인 시에만 변종이미지 태그 트랙" · "시간비용 무제" 를 결정했다(plan_26090918 머리). 그래서 포크 핀 없이 stock `v0.29.0rc6` 에 자체이식 패치 3종(60 · 62 · 64)을 얹었다. 2026-09-12 에는 "MTP 는 켠 채로 둔다" 가 사람 결정으로 통제변인이 됐다(plan_26091216 §4 축 C).
+**외부 선례와 사람의 결정.** dolf3131(싱글 NVFP4 · CPU offload) · blazux(싱글 · NVMe mmap · 멀티노드 미구현 명시)가 있었고 2노드 TP=2 선례는 없었다(plan_26090918 §2.3). 사람의 결정(전사 그대로):
+- 2026-09-09 — "+1(런타임)+1(빌드) 자체이식을 최대한도로 수행 — 불가 확인 시에만 변종이미지 태그 트랙"(plan_26090918 머리).
+- 2026-09-23T03:18:21Z — `사용자(팝업 전사) — G-N0 "승인" · O-N1 "A: arch에 -bare (Recommended)"`(plan_26092311 G-N0 승인 기록) — native 평면을 태그 arch 의 `-bare` 로 가른다.
+- 2026-09-23T03:54:23Z — `사용자(팝업 전사) — wheelhouse "5개 승인 + 이미지 동등성 (Recommended)" · N5·N6 "둘 다 진행"`(plan_26092311 O-N2 해소).
+- 발행 — `사용자(발화 전사, G4) — D1 은 hint 퍼블리셔 E2E 이므로 성능하락 원인 분석 없이 REFUTE 로 처분·보존하고, 서빙은 성공했으므로 hint 태그를 발행한다. 이렇게 작업하고 나머지 캠페인(D2·N1)을 같은 방식으로 진행한다`(캠페인 선언 `hint_targets[0].approval` · 2026-09-23T01:19:47Z · 승인 셀에 이 셀 포함).
 
 ## 2.2 벽과 해소
 > 아래는 블랙박스 원장에서 기계가 묶은 이 셀의 기동 시도다 — 서사에 "몇 번 띄웠다" 를 적기 전에 대조한다(행 전문은 01 §1.4).
@@ -75,41 +79,43 @@
 
 | 시도 | 노드 | label | 선언(UTC) | 갱신(renew) | 사살 · 트립 · 거부 | 닫힘 | 그 밖 행 |
 |---|---|---|---|---|---|---|---|
-| 1 | main | `smoke-nv4-f8-262k-mmp` | 2026-09-11T01:42:55Z | 1회 · 첫 2026-09-11T02:13:32Z | 없음 | `budget_clear` 2026-09-11T02:45:54Z | 4 |
-| 2 | sub | `smoke-nv4-f8-262k-mmp` | 2026-09-11T01:42:57Z | 1회 · 첫 2026-09-11T02:13:33Z | 없음 | `budget_clear` 2026-09-11T02:45:54Z | 0 |
-| 3 | main | `smoke-nv4-f8-262k-mmp` | 2026-09-23T01:23:48Z | 1회 · 첫 2026-09-23T01:53:50Z | 없음 | `budget_clear` 2026-09-23T01:57:43Z | 3 |
+| 1 | main | `smoke-nv4-bf-262k-mmp-native` | 2026-09-23T04:05:15Z | 없음 | 없음 | `budget_clear` 2026-09-23T04:05:22Z | 2 |
+| 2 | main | `smoke-nv4-bf-262k-mmp-native` | 2026-09-23T04:06:36Z | 없음 | 없음 | `budget_clear` 2026-09-23T04:15:06Z | 2 |
+| 3 | main | `smoke-nv4-bf-262k-mmp-native` | 2026-09-23T04:18:16Z | 1회 · 첫 2026-09-23T05:04:42Z | 없음 | `budget_clear` 2026-09-23T05:40:12Z | 3 |
+| 4 | main | `smoke-nv4-bf-262k-mmp-native` | 2026-09-23T06:53:53Z | 1회 · 첫 2026-09-23T07:40:30Z | 없음 | `budget_clear` 2026-09-23T08:12:10Z | 3 |
 <!-- /FACT:event_attempts -->
 
 > 이 절이 답하는 질문: 이 셀의 형상에 도달하기까지 어떤 벽을, 어떤 순서로, 무엇으로 넘었는가? (계보 전체 — 이 셀 1회분이 아니다)
 
-**기동 시도 대조.** 위 표의 세 시도는 두 번의 기동이다. 시도 1(main)과 2(sub)는 같은 2026-09-11 기동의 양 노드 선언이며 `camp-26091110-qwen38fn-multi-r2` 의 이 셀 실행이다 — 그 창 안에 2026-09-11T02:41:13Z 측정 행(인증서 `benchmark_26091111` 의 측정)이 있다(01 §1.4 8행). 시도 3(2026-09-23T01:23:48Z → 01:57:43Z)이 이 발행의 기동이고 측정 시각 01:56:16Z 가 이 창 안에 있다(01 §1.4 12행). 2026-09-23 기동의 sub 쪽 선언은 원장 표에 행이 없지만 스모크 로그가 sub `budget_honored`(01:23:50Z)를 기록했다(`d2_serve.log`). 이 셀의 첫 캠페인 기동(2026-09-10)은 이 원장 표에 선언 행이 없다 — 같은 캠페인의 사살 3건도 선언 없이 난 상태였다(testlog_26091109 §2). 세 시도 모두 사살 · 트립 · 거부 행이 없고, 이 발행의 기동은 새 벽 없이 서빙 · lite 측정을 통과했다. 이 발행 실행에서 난 것은 측정 도구의 서브 probe 결함(W10) 하나다.
+**기동 시도 대조.** 위 표의 네 시도는 모두 이 셀(native)의 것이다. 시도 순서는 testlog 의 순서와 같다 — 시도 1(04:05:15Z · 7초에 닫힘) = testlog "시도 1"(ssh 인자 상한) · 시도 2(04:06:36Z · 8분 30초) = "시도 2"(서브 재포장 거부) · 시도 3(04:18:16Z → 05:40:12Z) = run 1 · 시도 4(06:53:53Z → 08:12:10Z) = run 2(이 발행의 측정 · measured_utc 08:10:39Z 가 창 안). 대응의 근거는 자동 down 이 남긴 attestation 경로의 KST 시각(`docs/simlog/26092313_05_12_native_N1/` · `…_06_34_…` · `…_18_14_…`)과 run 2 상태 파일의 `created_utc` 06:53:50Z 다(저작자 대조). 원장에는 사살 · 트립 · 거부 행이 없다 — 네 시도의 실패는 전부 도구(정문 · 삭제기 · 측정 클라이언트)의 결함이었고 호스트 보호 장치가 개입한 적은 없다. 원장은 메인 선언만 담는다(서브 선언은 up 로그의 `sub: budget_honored ✓`).
 
-### W1 stock 이 NVFP4 mixed-precision 체크포인트를 싣지 못한다
+벽은 두 무리다. **W1~W7** 은 같은 레시피(Docker)가 2026-09-09 ~ 10 에 넘은 모델 · 버전 벽이고, 그 해소(빌드 패치 60 · 62)가 이미지 안에 구워진 채로 native 설치본에 따라왔다. **W8~W17** 은 이 셀의 native 평면이 라이브에서 처음 만난 벽이다 — W8 은 재포장 게이트가 설계대로 멈춘 것(사람 승인으로 해소)이고 W9~W17 은 도구 결함이다. 결함은 커밋으로 고쳤고 run 2 가 사람 개입 없이 up → 측정 → down 을 통과했다.
 
-stock `v0.29.0rc6`(74c96922e)의 qwen4_exp 는 체크포인트의 세 형식 중 두 자리에서 죽는다 — PLE 는 native `Fp8Config` 만 받는 라우트라 FP8 shard 128개가 실릴 곳이 없고, MTP 는 mixed 디스패치에 FP8_PB_WO 라우트가 없으며 draft 레이어 인덱스 오프셋 때문에 `quantized_layers` lookup 이 빗나간다(패치 헤더 · 소스 직독). 해소는 빌드 패치 `60-qwen4exp-nvfp4-mixed.sh`(hunk A 자체 제작 + B1/B2 = 미머지 PR #55513 이식). P0-1 스모크 5차가 통과를 판정했다.
+### W1 stock 이 NVFP4 mixed-precision 체크포인트를 싣지 못한다(계보 · Docker)
+
+stock `v0.29.0rc6` 의 qwen4_exp 는 PLE(FP8)·MTP(FP8_PB_WO) 가중치를 mixed 체크포인트에서 싣지 못했다. 해소는 빌드 패치 60(hunk A 자체 제작 + 미머지 PR #55513 이식)이다. native 셀은 이 패치가 적용된 이미지의 vLLM 설치본(editable 소스 트리 + 빌드된 `_C`)을 재포장해 쓰므로 패치를 따로 적용하지 않는다(plan_26092311 N-D1).
 
 ```hint-event
 id: W1
 kind: wall
 증상: NVFP4 mixed 체크포인트의 PLE(FP8)·MTP(FP8_PB_WO) 가중치가 stock 경로에서 로드되지 않는다
-서명: "`_get_ple_embedding_quant_method` 가 native Fp8Config 만 받아 mixed"
+서명: "동 함수가 FP8 전용 — `modelopt_fp4` 시 None (커뮤니티 동일 장애)"
 원인: stock qwen4_exp 가 ModelOptMixedPrecisionConfig 아래 PLE FP8 라우트 · MTP FP8_PB_WO 라우트 · draft quantized_layers 리맵을 갖지 않는다
-해소: 빌드 패치 60-qwen4exp-nvfp4-mixed.sh(pre · hunk A + B1/B2)
+해소: 빌드 패치 60-qwen4exp-nvfp4-mixed.sh(이미지에 구워짐 → native 는 재포장으로 승계)
 검증: testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §판정 스모크 5차 PASS
 전이등급: arch-invariant
-출처: [60-qwen4exp-nvfp4-mixed.sh, testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §패치 중재 세부]
+출처: [plan_26090918_qwen38_flashnext_multi_딥캠페인 §2.2, testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §패치 중재 세부]
 ```
 
-### W2 P0-1 스모크 1차 — 예산 미선언 · KV 클램프 부재에서 게이트가 막았다
+### W2 P0-1 스모크 1차 — 예산 미선언 · KV 클램프 부재에서 게이트가 막았다(계보)
 
-정상 차단이다(우회 대상이 아니다). 해소는 `multinode_serve_smoke.sh` 경로의 양 노드 예산 선언(declare → honored → up)과 `kv-cache-memory-bytes` 고정이다. 이 발행의 기동도 같은 순서로 선언했다(01 §1.4 12·13행 · `d2_serve.log`).
+정상 차단이다. 해소는 양 노드 예산 선언 + `kv-cache-memory-bytes` 고정이다. native 정문도 같은 순서(RAM 게이트 → 예산 선언/honored → 기동)를 로드 **전**에 밟는다(plan_26092311 §4.2).
 
 > [원문] testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §판정
 > | 스모크 1차 | FAIL(정상 차단) | 예산 미선언 + KV 클램프 부재 — 게이트가 제 일을 함 |
 > | 스모크 2차 | FAIL(설정) | `moe-backend: triton` — NVFP4 MoE 미지원(엔진 fail-loud) |
 > | 스모크 3차 | FAIL(설정) | `moe-backend: cutlass` 명시가 B1 경로 `allow_vllm_cutlass=False` 가드에 충돌 |
 > | 스모크 4차 | **워치독 TRIP**(방어 성공) | 그래프 캡처 구간 MemAvailable 9,378MiB < 10,240MiB → docker kill |
-> | 스모크 5차(eager) | **PASS** | health 200 · 추론 content_len=117 fr=stop · SMOKE_RC=0 |
 
 ```hint-event
 id: W2
@@ -117,15 +123,15 @@ kind: wall
 증상: 스모크 1차가 로드 전에 게이트에서 멈췄다
 서명: "예산 미선언 + KV 클램프 부재 — 게이트가 제 일을 함"
 원인: 호스트 메모리 예산 선언과 KV 절대클램프 없이 기동하려 했다(정상 차단)
-해소: 스모크 스크립트 경로로 양 노드 예산 선언 + kv-cache-memory-bytes 고정
+해소: 양 노드 예산 선언 + kv-cache-memory-bytes 고정(native 정문도 로드 전 선언)
 검증: testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §판정 스모크 5차 PASS
 전이등급: arch-scaled
-출처: [testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §판정]
+출처: [testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §판정, plan_26092311_native_분산서빙_정문_구현_N1 §4.2 정문 (N-D4 · N-D6 · N-D7)]
 ```
 
-### W3 · W4 `moe-backend` 명시 — triton 은 NVFP4 MoE 미지원, cutlass 는 60 패치 가드와 충돌
+### W3 · W4 `moe-backend` 명시 — triton 은 NVFP4 MoE 미지원, cutlass 는 60 패치 가드와 충돌(계보)
 
-P0-1 스모크 2차(triton)와 3차(cutlass)가 각각 실패했다(위 발췌). 명시를 빼 auto 로 두자 통과했다. 이 발행의 엔진도 auto 로 주 experts `FLASHINFER_CUTLASS` NvFp4 · MTP experts `TRITON` Fp8 를 골랐다(`lite_engine` 로그 L420 · L579).
+명시를 빼 auto 로 두었다. native run 2 의 엔진도 auto 로 NvFp4 `FLASHINFER_CUTLASS` · Fp8 `TRITON` 을 골랐다(보존 로그 `docs/simlog/26092315_native_N1/logs/main-vllm-serve.log` — 계보 목록 밖).
 
 ```hint-event
 id: W3
@@ -148,32 +154,28 @@ kind: wall
 해소: moe-backend 를 명시하지 않는다(auto)
 검증: testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §판정 스모크 5차 PASS
 전이등급: arch-invariant
-출처: [testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §판정, 60-qwen4exp-nvfp4-mixed.sh]
+출처: [testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §판정, devlog_26091001_qwen38fn_phase0_자체이식3종_서사 §결정·시도·폐기]
 ```
 
-### W5 그래프 캡처 스파이크가 워치독을 트립시켰다 — fp8 KV 스모크에서도
+### W5 그래프 캡처 스파이크가 워치독을 트립시켰다(계보 · PLE resident 구성)
 
-P0-1 스모크 4차(PLE resident · KV bf16)에서 그래프 캡처 구간 MemAvailable 이 절대밴드 아래로 내려가 워치독이 컨테이너를 죽였다. fp8 KV 를 처음 띄운 P0-3 스모크 1차도 enforce-eager 누락으로 **양 노드 동시 트립**이 났다 — 이 셀과 같은 KV dtype 에서 관측된 트립이다. 두 경우 모두 `enforce-eager: true` 로 통과했다. 캡처 피크 크기(~10GiB+)는 추정이다(testlog_26090921 계측 표).
-
-> [원문] testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §§3. P0-3 (fp8 KV)
-> - 1차 시도는 enforce-eager 누락으로 그래프 캡처 구간 **양 노드 동시 워치독 트립**(avail 9,350/3,445MiB
->   → docker kill — 방어 성공, 호스트 무사). eager 추가 후 통과.
+P0-1 스모크 4차에서 그래프 캡처 구간 MemAvailable 이 절대밴드 아래로 내려가 워치독이 컨테이너를 죽였다. `enforce-eager: true` 로 통과했고 이후 전 셀이 승계했다(캡처 피크 ~10GiB+ 는 추정). 이 셀에서 eager 를 끄고 잰 기록은 없다.
 
 ```hint-event
 id: W5
 kind: wall
-증상: fp8 KV 스모크 1차가 그래프 캡처 구간에서 양 노드 동시 워치독 트립(docker kill)
-서명: "1차 시도는 enforce-eager 누락으로 그래프 캡처 구간 **양 노드 동시 워치독 트립**"
+증상: 스모크 4차 그래프 캡처 구간에서 호스트 워치독이 docker kill
+서명: "그래프 캡처 구간 MemAvailable 9,378MiB < 10,240MiB → docker kill"
 원인: CUDA 그래프 캡처의 추가 메모리 피크가 통합메모리 여유를 절대밴드 아래로 밀었다(피크 크기는 추정)
 해소: enforce-eager: true(캡처 비활성)
-검증: testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §판정 P0-3 PASS
+검증: testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §판정 스모크 5차(eager) PASS
 전이등급: arch-scaled
-출처: [testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §§3. P0-3 (fp8 KV), testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §판정]
+출처: [testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §판정]
 ```
 
-### W6 PLE 47.7GiB 를 거둘 경로가 stock 에 없다(통합메모리)
+### W6 PLE 47.7GiB 를 거둘 경로가 stock 에 없다(계보 · 통합메모리)
 
-stock 에 PLE offload · mmap 경로가 없었고, UVA CPU offload 는 통합메모리에서 무의미하다는 **구조 추론**으로 설계 단계에서 배제했다(시도하지 않음 · R3). 해소는 빌드 패치 `62-qwen4exp-ple-mmap.sh` — blazux 의 싱글노드 mmap 구현 이식에 TP=2 rank-aware masking + all-reduce 를 우리가 설계해 얹었다(참조 그대로면 all-reduce 가 2배 합산한다 — 62 헤더). 테이블은 각 노드 로컬 NVMe 스테이징에서 mmap 된다. 효과: 예산 산식의 상주 가중치 선언에서 PLE 를 뺀다(선언) · P0-2 는 기동 구간 used 60GB(mmap) 대 104GB(resident)를 관측했고 그 차이를 "PLE rank 몫 ~24GiB + 페이지캐시 압력 차이" 로 적었다(testlog_26091001 §2). mmap 페이지가 회수 가능한 page cache 라 워치독 여유가 된다는 설명은 페이지 종류를 잰 적이 없는 가설이다(02 §2.5). 이 발행의 양 rank 로그도 mmap 경로를 탔다(`lite_engine` 로그 L513 · L532 `tp_world 2`).
+stock 에 PLE offload · mmap 경로가 없었고, UVA CPU offload 는 통합메모리에서 무의미하다는 **구조 추론**으로 배제했다(시도하지 않음 · R3). 해소는 빌드 패치 62(blazux 이식 + TP=2 rank-aware masking 자체 설계) + `VLLM_PLE_MMAP=1` + 노드 로컬 NVMe 스테이징이다. 예산 산식에서 PLE 를 빼는 것은 선언이고, mmap 페이지가 회수 가능한 page cache 라 워치독 여유가 된다는 설명은 페이지 종류를 잰 적이 없는 가설이다(02 §2.5). native run 2 의 양 rank 로그도 `PLE mmap: layer 1, 128 shards … tp_world 2` 를 찍었다(보존 로그 · 계보 목록 밖).
 
 ```hint-event
 id: W6
@@ -181,15 +183,13 @@ kind: wall
 증상: PLE 47.7GiB 가 상주 가중치에 들어가 노드당 KV · overhead 몫을 잠식한다 — stock 에 거둘 경로가 없다
 서명: "소스 전체에 offload/mmap 경로 부재"
 원인: stock 0.29.0rc6 에 PLE offload/mmap 이 없다(UVA offload 는 통합메모리라 무의미하다는 구조 추론으로 배제)
-해소: 빌드 패치 62-qwen4exp-ple-mmap.sh(TP=2 rank-aware masking 자체 설계) + VLLM_PLE_MMAP=1 + 노드 로컬 NVMe 스테이징
-검증: testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §판정 P0-2 PASS · 양 rank PLE mmap 로그
+해소: 빌드 패치 62-qwen4exp-ple-mmap.sh(이미지에 구워짐 → native 재포장으로 승계) + VLLM_PLE_MMAP=1 + 노드 로컬 NVMe 스테이징
+검증: testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §판정 P0-2 PASS
 전이등급: arch-scaled
-출처: [plan_26090918_qwen38_flashnext_multi_딥캠페인 §2.2, 62-qwen4exp-ple-mmap.sh, testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §§2. P0-2 (mmap) — TP=2 는 커뮤니티 최초]
+출처: [plan_26090918_qwen38_flashnext_multi_딥캠페인 §2.2, testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §§2. P0-2 (mmap) — TP=2 는 커뮤니티 최초]
 ```
 
-### W7 62 패치 첫 스모크 — 이식 결함(`AttributeError`)
-
-rank 구간 계산 함수가 Sequence 를 반환하는데 `.start/.stop` 으로 읽었다. 인덱스 접근으로 고친 뒤 통과했다.
+### W7 62 패치 첫 스모크 — 이식 결함(`AttributeError`)(계보)
 
 ```hint-event
 id: W7
@@ -200,63 +200,187 @@ kind: wall
 해소: rng[0]/rng[1] 로 교정(62 패치 안)
 검증: testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §판정 P0-2 PASS
 전이등급: arch-invariant
-출처: [testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §§2. P0-2 (mmap) — TP=2 는 커뮤니티 최초, 62-qwen4exp-ple-mmap.sh]
+출처: [testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §§2. P0-2 (mmap) — TP=2 는 커뮤니티 최초]
 ```
 
-### W8 stock QSA 가 fp8 KV 를 거부한다 — 이 셀의 KV 축 자체
+### W8 wheelhouse 게이트 #1 — 이미지 설치본을 RECORD 로 재포장하자 5 파일이 어긋났다
 
-stock 의 qwen4_exp QSA(Triton) attention 은 bf16 외의 KV 를 5+2 개 가드로 거부한다. vLLM 코어는 양자화 KV 배선(할당 · 쓰기 · 스케일 등록)을 이미 갖고 있고 구멍은 **읽기**(커널이 bf16 을 상정)뿐이었다(64 헤더). 해소는 빌드 패치 `64-qwen4exp-qsa-fp8kv.sh` — blazux `patch_qsa_fp8_kv.py` 를 참조하되 디콴트는 vLLM 정준 `_cast_kv_tile` 을 재사용하고 가드 7곳을 넓혔다. 참조가 실측으로 찾은 함정 3개(인덱서 압축캐시 uint8 미재해석 · sm_121 공유메모리 99KiB 벽 → block_n 반감 · 가드가 5개가 아니라 7개)를 포함한다(헤더 — 우리 계보의 관측이 아니라 참조의 관측). P0-3 스모크는 기동 · 추론과 술어 B 경로 동등성(MTP off · exact 2/5 · 근접타이 3/5 전부 top-5 내)으로 통과했다.
+native 설치 입력은 각 노드가 자기 이미지에서 설치 트리를 꺼내 `*.dist-info/RECORD` 대로 휠로 다시 묶은 오프라인 wheelhouse 다(재컴파일 ✗). 메인 첫 재포장은 설계대로 FAIL 로 멈췄다 — RECORD 해시가 어긋난 파일 5개(하나는 우리 빌드 패치 40-humming 이 설치본을 제자리 수정한 것, 넷은 NGC 후처리)와 이미지 자체의 선언 충돌(grpcio-tools 가 protobuf ≥7.35.1 을 요구하나 이미지는 6.33.6)이었다. 진단 경로에서는 설치 · ldd · import · CUDA 가 전부 통과했다. 사람이 "5개 승인 + 이미지 동등성" 을 골랐고, 설치 게이트는 "pip check 0" 에서 "설치 집합 == 이미지 핀 ∧ pip check 충돌 ⊆ 선언된 이미지 고유 충돌" 로 바뀌었다(승인 선언 `native_wheelhouse_accept.json` · 커밋 `e424a05`).
 
-> [원문] plan_26090918_qwen38_flashnext_multi_딥캠페인 §2.2
-> | KV FP8 (QSA) | ❌ N/I | `qsa.py:114` `NotImplementedError("requires a BF16 main KV cache")` · 지원 목록 `["auto","bfloat16"]` |
+> [원문] testlog_26092317_native_N1_분산서빙_판정 §2.
+> | wheelhouse 게이트 #1(메인) | RECORD 불일치 5 파일 + 이미지 고유 protobuf 충돌 → 설계대로 FAIL 정지 · 진단 경로 설치·ldd·import·CUDA 통과 | 사람 결정(O-N2): 5 파일 승인 + 이미지 동등성 게이트 |
+> | wheelhouse 게이트 #2(메인) | build PASS(319 휠 · 승인 5 · stale 0) · 설치 집합 319/319 · pip check 선언 충돌만 · ldd 0 · import/CUDA PASS · 21.5 GiB | PASS |
 
 ```hint-event
 id: W8
 kind: wall
-증상: kv-cache-dtype fp8_e4m3 로는 stock QSA 경로가 기동을 거부한다
-서명: "requires a BF16 main KV cache"
-원인: QSA Triton 커널이 bf16 KV 로드를 상정하고 가드 7곳이 bf16 외를 막는다(코어의 양자화 KV 배선은 이미 있다)
-해소: 빌드 패치 64-qwen4exp-qsa-fp8kv.sh(가드 7곳 확장 + _cast_kv_tile 디콴트)
-검증: testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §판정 P0-3 PASS
+증상: 메인 wheelhouse 재포장이 RECORD 불일치 5 파일과 이미지 고유 의존성 충돌로 FAIL 정지
+서명: "RECORD 불일치 5 파일 + 이미지 고유 protobuf 충돌 → 설계대로 FAIL 정지"
+원인: 이미지 설치본 중 5 파일이 설치 뒤 제자리 수정됐다(빌드 패치 40-humming 1 · NGC 후처리 4) · 이미지 자체가 --no-deps 로 조립돼 grpcio-tools↔protobuf 선언 충돌을 품는다
+해소: 사람 결정(O-N2) — 5 파일 사유별 승인 + 이미지 동등성 게이트(설치 집합 == 이미지 핀 ∧ pip check ⊆ 선언된 이미지 고유 충돌)
+검증: testlog_26092317_native_N1_분산서빙_판정 §2. wheelhouse 게이트 #2 PASS
 전이등급: arch-locked
-출처: [plan_26090918_qwen38_flashnext_multi_딥캠페인 §2.2, 64-qwen4exp-qsa-fp8kv.sh, testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §§3. P0-3 (fp8 KV)]
+출처: [testlog_26092317_native_N1_분산서빙_판정 §2. 판정 원장 (시간순), plan_26092311_native_분산서빙_정문_구현_N1 §N1 라이브 게이트 뒤 결정 (O-N2 해소), devlog_26092317_native_N1_구현_라이브_서사 §3. wheelhouse — 게이트가 설계대로 멈췄다]
 ```
 
-### W9 첫 캠페인의 이 셀 — 부하 스윕이 세 번 모두 죽어 lite 만 남았다
+### W9 시도 1 — 서브에 도구를 보내는 ssh 인자가 커널 상한을 넘었다
 
-2026-09-10 첫 캠페인에서 이 셀은 서빙과 lite 측정(warm 26.73 t/s)에는 성공했지만 GuideLLM 부하 스윕 5레벨이 세 번(전체 5레벨 / 1,4 / 1,4,8) 모두 죽었고, lite 만으로 measured 처리됐다. 당시 판정은 사인을 "측정 도구(GuideLLM 이미지)가 컨테이너 + KV 풀 양자화와 동시에 121GB 통합메모리 한계 초과" 로 적었다 — 계보 문서에는 이 사인을 원장과 대조한 기록이 없다(같은 문서의 void 사인들은 뒤에 워치독 사살로 정정됐으나 이 셀은 그 역채점 목록에 없다 · M1). 발행 전 독립 사실 검증이 원장(`docs/logs/main/events/`)을 보니 2026-09-10 의 `docker_kill` 은 3건뿐이고 R4 역채점이 셋 모두 다른 셀(nv4-f8-262k-res · fp8-bf-262k-res · fp8-f8-262k-mmp)의 구간에 귀속했다 — 이 셀의 스윕 사망은 호스트 워치독 사살로 기록되지 않았다(무엇이 죽였는지는 여전히 모른다). 하네스 교정 R3 은 뒤에 GuideLLM 벤치 컨테이너 몫이 예산과 끊겨 있었음을 찾아 벤치 진입 게이트를 신설했다(testlog_26091109 §4). 두 번째 캠페인(r2)은 이 셀을 `vllm bench serve` 스윕으로 다시 재 5레벨을 완주했다(38.18 t/s · 인증서 `benchmark_26091111`). 원인이 R3 의 결함이었는지는 확인되지 않았다(추론).
+정문이 86 KB 도구를 base64 두 겹으로 ssh 인자 하나에 실어 서브로 보내다 `Argument list too long` 로 install 단계에서 죽었다. 자동 down 은 잔재 0 attestation PASS 로 끝났다(기동 실패 → 자동 정리가 라이브에서 처음 섰다). 해소는 요청을 stdin 으로 넘기는 것이다(커밋 `05f8bde` · argv 에는 고정 부트스트랩과 `-` 만).
+
+> [원문] testlog_26092317_native_N1_분산서빙_판정 §2.
+> | 시도 1 `n1-2609230410` | stage=install `Argument list too long: 'ssh'`(86 KB 도구를 base64 두 겹으로 ssh 인자 하나에) · 자동 down attestation PASS · rc=3 | 결함 → `05f8bde`(요청 stdin) |
+> | 시도 2 `n1-2609230425` | 서브 재포장 거부(승인 파일이 메인 이미지 digest 에만 결속) · 자동 down FAIL_CLOSED(CUDA 번들 `.so` 링크 거부 · 프로세스·GPU 0) · 고친 down 으로 잔재 PASS 정리 | 결함 → `d031c35`(트리 안 링크는 링크만 unlink · images[] 노드별 digest) |
 
 ```hint-event
 id: W9
 kind: wall
-증상: 첫 캠페인 이 셀의 부하 스윕이 3회 모두 죽어 lite 결과만 남았다
-서명: "sweep_bench 5 레벨 모두 시스템 OOM kill × 3회"
-원인: 미확정 — 당시 판정의 추정은 GuideLLM 컨테이너 + 통합메모리 한계 초과다 · 원장의 09-10 docker_kill 3건은 모두 다른 셀에 귀속돼 호스트 워치독 사살은 아니었다
-해소: r2 캠페인이 vllm bench serve 스윕으로 재측정해 5레벨 완주 · 이후 GuideLLM 벤치 몫을 예산 바닥과 잇는 진입 게이트(R3) 신설
-검증: testlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_판정 §판정 결과
-전이등급: arch-scaled
-출처: [testlog_26091009_qwen38fn_24셀_판정 §셀 4 의 측정 결손 — 명시, testlog_26091109_하네스교정_R0R10_역채점_음성대조 §4. R3 — GuideLLM 몫이 예산과 끊겨 있었다 (위상·노드 포함), testlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_판정 §판정 결과]
+증상: 시도 1 이 install 단계에서 ssh 호출 실패로 끝났다(rc=3)
+서명: "stage=install `Argument list too long: 'ssh'`(86 KB 도구를 base64 두 겹으로 ssh 인자 하나에)"
+원인: 원격 러너가 도구 · 요청을 argv 한 인자에 실어 인자 길이 상한을 넘었다
+해소: 요청을 stdin 으로 넘긴다(05f8bde)
+검증: testlog_26092317_native_N1_분산서빙_판정 §2. 시도 2 부터 install 단계 통과
+전이등급: arch-invariant
+출처: [testlog_26092317_native_N1_분산서빙_판정 §2. 판정 원장 (시간순), devlog_26092317_native_N1_구현_라이브_서사 §4. 라이브 — 매 시도가 결함 하나씩]
 ```
 
-### W10 이 발행 실행 — lite 측정 도구의 서브 probe 가 늘 실패했다
+### W10 시도 2 — 승인 선언이 메인 이미지 digest 하나에만 묶여 서브 재포장이 거부됐다
 
-이 발행의 첫 lite 실행(①)에서 `lite_bench.sh` 가 서브 SSH probe 에 실패해 서브 열이 비었다. 원인은 manifest 의 따옴표 값(`host: "…"`)을 벗기지 않고 SSH 대상으로 쓴 파서였다 — 같은 도구의 D1 lite 레그도 같았다(수정 커밋의 주석). 커밋 `fcb0754` 가 따옴표를 벗기게 고쳤고, 재실행(②)은 서브 RAM 을 수집했다. 서빙 · 측정 자체는 ① 에서도 성립했다(마스터 단독 수집).
-
-> [원문] lite_bench.sh@fcb0754fffe1 §L185-187
->       in_sub && $1==f":" {v=$2; sub(/#.*/,"",v); gsub(/["\047\r]/,"",v); print v; exit}' "$m"; }
->   # ↑ 2026-09-23: YAML 따옴표 값(`host: "<sub-ip>"`)을 벗기지 않아 `"cona"@"…"` 로 SSH 해 probe 가 늘 실패했다
->   #   (camp-26092301 D1·D2 sub probe_ok=false). multinode_serve_smoke.sh `_mf_node` 와 같은 정규화다.
+노드마다 로컬로 지은 이미지라 digest 가 다르다(메인 `a2c4ca49…` · 서브 `87b6a67d…` — 승인 선언 `images[]`). 선언이 메인 digest 에만 결속돼 서브 재포장이 거부됐다. 해소는 `images[]` 목록에 노드별 digest 를 두고 목록 밖 불일치는 여전히 실패시키는 것이다(`d031c35`). 요구는 동일 digest 가 아니라 동일 ABI 다.
 
 ```hint-event
 id: W10
 kind: wall
-증상: lite 실행 ① 에서 서브 SSH probe 가 실패해 서브 열이 비었다
-서명: "[lite_bench] ⚠ 서브 SSH probe 실패 — 마스터 단독 수집(음성정직 표기)"
-원인: lite_bench.sh 의 manifest 파서가 YAML 따옴표를 벗기지 않아 따옴표째 SSH 대상을 만들었다
-해소: lite_bench.sh 수정(fcb0754 — 따옴표 · 주석 제거) 후 lite 재실행 ②
-검증: docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite/lite_raw_nv4-f8-262k-mmp.json 의 sub probe_ok=true
+증상: 시도 2 에서 서브 wheelhouse 재포장이 승인 선언 불일치로 거부됐다
+서명: "서브 재포장 거부(승인 파일이 메인 이미지 digest 에만 결속)"
+원인: 승인 선언이 이미지 digest 하나에 결속됐는데 노드별 로컬 빌드라 서브 이미지 digest 가 달랐다
+해소: 승인 선언 images[] 에 노드별 digest 등재 · 목록 밖 불일치는 계속 실패(d031c35)
+검증: testlog_26092317_native_N1_분산서빙_판정 §2. run 1 · run 2 up PASS
+전이등급: arch-locked
+출처: [testlog_26092317_native_N1_분산서빙_판정 §2. 판정 원장 (시간순), devlog_26092317_native_N1_구현_라이브_서사 §4. 라이브 — 매 시도가 결함 하나씩]
+```
+
+### W11 시도 2 — 자동 down 이 CUDA 번들의 `.so` 링크를 거부해 run root 가 남았다
+
+소유 트리 삭제기가 wheelhouse 안 CUDA 번들의 `.so` 심볼릭 링크를 "링크 거부" 로 막아 FAIL_CLOSED 로 멈췄다(프로세스 · GPU 잔재는 0 — 안전하게 멈춤). 해소는 트리 안 링크는 따라가지 않고 링크 자체만 unlink 하는 것이다(루트 · 디렉터리 링크 · 마운트는 계속 거부 · `d031c35`). 남은 잔재는 고친 down 으로 PASS 정리됐다.
+
+```hint-event
+id: W11
+kind: wall
+증상: 시도 2 의 자동 down attestation 이 FAIL_CLOSED(run root 잔존 · 프로세스 · GPU 0)
+서명: "자동 down FAIL_CLOSED(CUDA 번들 `.so` 링크 거부 · 프로세스·GPU 0)"
+원인: 소유 트리 삭제기가 트리 안의 모든 심볼릭 링크를 거부했다
+해소: 트리 안 링크는 링크만 unlink(d031c35) · 고친 down 으로 잔재 정리
+검증: testlog_26092317_native_N1_분산서빙_판정 §2. 시도 2 잔재 PASS 정리
 전이등급: arch-invariant
-출처: [docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite.log, lite_bench.sh@fcb0754fffe1, docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite/lite_raw_nv4-f8-262k-mmp.json]
+출처: [testlog_26092317_native_N1_분산서빙_판정 §2. 판정 원장 (시간순), devlog_26092317_native_N1_구현_라이브_서사 §4. 라이브 — 매 시도가 결함 하나씩]
+```
+
+### W12 run 1 — 측정 클라이언트가 런타임 env 없이 돌아 spec 축이 조용히 강등됐다
+
+run 1 은 서빙(READY 1761 s)에 성공했지만 첫 스윕에서 측정 클라이언트로 venv 의 `vllm` 을 그대로 넘겨 `LD_LIBRARY_PATH` 없이 실행됐고 `import torch` 가 libmpi 부재로 죽었다. lite 레그가 빈 JSON 을 남겼는데 스윕은 그것을 "✓" 로 넘겼고, 수용길이 승계원이 무효가 돼 spec 축이 부재로 강등됐다. 스윕을 멈추고(GuideLLM 잔재 컨테이너는 ID 로 제거) 서버와 같은 `env -i` 환경의 래퍼 `bin/vllm-client` 로 다시 쟀다(`c3408cb`). "✓" 표시 결함은 후속으로 남았다(devlog_26092317 §6).
+
+> [원문] devlog_26092317_native_N1_구현_라이브_서사 §4.
+> 3. **클라이언트 런타임 env** — `--client-vllm` 에 venv 의 `vllm` 을 그대로 줘 libmpi 로 죽었고, lite 레그가 빈 JSON 을 "✓" 로 넘겨 spec 축이 조용히 강등됐다. 스윕을 멈추고 서버와 같은 `env -i` 의 래퍼를 만들었다. 커밋은 백업 tripwire 가 venv 안 서드파티 `package.json.orig` 를 잡아 한 번 막혔다 — 우회하지 않고 `.native-e2e` 를 `output` 처럼 범위 밖으로 뒀다.
+
+```hint-event
+id: W12
+kind: wall
+증상: run 1 첫 스윕의 lite 레그가 빈 JSON 을 남기고 spec 축이 부재로 강등됐다
+서명: "클라이언트 `vllm` 이 런타임 env 없이 실행 → libmpi 부재 → lite 빈 JSON"
+원인: 벤치 클라이언트로 venv 의 vllm 을 런타임 env(LD_LIBRARY_PATH 등) 없이 실행했다
+해소: up 이 서버와 같은 env -i 환경의 래퍼 bin/vllm-client 를 만들어 --client-vllm 으로 넘긴다(c3408cb)
+검증: testlog_26092317_native_N1_분산서빙_판정 §2. run 1 재스윕 · run 2 full 5레벨×3 완주
+전이등급: arch-invariant
+출처: [testlog_26092317_native_N1_분산서빙_판정 §2. 판정 원장 (시간순), devlog_26092317_native_N1_구현_라이브_서사 §4. 라이브 — 매 시도가 결함 하나씩]
+```
+
+### W13 run 1 — down 이 유닉스 소켓을 거부했고, 마커를 먼저 지워 재시도가 소유를 증명하지 못했다
+
+run 1 은 측정까지 성립했지만 down 이 Ray/ZMQ 가 짧은 루트 tmp 에 남긴 유닉스 소켓을 "특수 파일" 로 거부해 FAIL_CLOSED 로 멈췄고, 깊이 우선 삭제가 소유 마커를 먼저 지운 탓에 재시도가 소유를 증명하지 못했다. 서브 잔재는 run-id 로 정해진 정확한 두 경로만 손으로 지웠다. 해소는 소켓 · FIFO 는 unlink · 장치 파일만 거부 · 마커는 루트에서 마지막에 지우는 것이다(`a21e66e`). attestation 이 FAIL 인 채로 발행하는 대신 사용자가 **전체 재실행**(run 2)을 골랐다(testlog 기록 · 전사 원문은 계보에 없다) — run 1 은 실패 증거로만 남는다.
+
+```hint-event
+id: W13
+kind: wall
+증상: run 1 의 down attestation 이 FAIL_CLOSED 로 끝나 잔재 0 을 도구가 증명하지 못했다
+서명: "down FAIL_CLOSED(짧은 루트 유닉스 소켓 거부 + 마커 선삭제로 재시도가 소유 증명 불가)"
+원인: 삭제기가 소켓을 특수 파일로 거부했고 깊이 우선 삭제가 소유 마커를 먼저 지웠다
+해소: 소켓 · FIFO unlink · 마커는 마지막에 삭제(a21e66e) · run 1 잔재는 정확한 run-id 경로만 수동 복구 · 사용자 결정으로 전체 재실행
+검증: testlog_26092317_native_N1_분산서빙_판정 §2. run 2 자동 down attestation PASS
+전이등급: arch-invariant
+출처: [testlog_26092317_native_N1_분산서빙_판정 §2. 판정 원장 (시간순), devlog_26092317_native_N1_구현_라이브_서사 §4. 라이브 — 매 시도가 결함 하나씩]
+```
+
+### W14 발행 준비 — native 스윕의 강한 키 `vllm_version` 이 `NA` 였다
+
+컨테이너도 `IMAGE_TAG` 도 없어 스윕 조립자가 이미지 라인을 찾지 못했다. 해소는 serve proof 가 기록한 wheelhouse 원천 이미지를 이미지 라인으로 쓰는 것이다(`a21e66e` · 이 셀 스윕 meta `image_tag_source: measured(native serve proof · wheelhouse 원천 이미지)`).
+
+> [원문] devlog_26092317_native_N1_구현_라이브_서사 §5.
+> - native 스윕의 강한 키 `vllm_version` 이 `NA` 였다(컨테이너도 IMAGE_TAG 도 없음) — serve proof 의 wheelhouse 원천 이미지를 이미지 라인으로 쓰게 했다.
+
+```hint-event
+id: W14
+kind: wall
+증상: native 스윕 색인의 강한 일치 키 vllm_version 이 NA 로 조립됐다
+서명: "native 스윕의 강한 키 `vllm_version` 이 `NA` 였다(컨테이너도 IMAGE_TAG 도 없음)"
+원인: 스윕 조립자가 이미지 라인을 컨테이너 · 셀 env IMAGE_TAG 에서만 찾았다
+해소: serve proof 의 wheelhouse 원천 이미지 태그를 이미지 라인으로 쓴다(a21e66e)
+검증: bench_report_26092317_qwen3.8-flash-next-nvfp4_GB10_0.29.0 §측정 환경 스냅샷 vllm_version 0.29.0
+전이등급: arch-invariant
+출처: [devlog_26092317_native_N1_구현_라이브_서사 §5. 발행 준비에서 두 개 더, testlog_26092317_native_N1_분산서빙_판정 §4. 이번 셀이 드러낸 하네스 결함 (모두 라이브가 발견 · 교정 커밋)]
+```
+
+### W15 발행 준비 — 발행기가 결측 표지 `NA` 를 digest 로 취급했고, 원천 이미지를 평면 신호로 읽었다
+
+발행기가 스윕 meta 의 결측 표지를 digest 로 취급해 태그 관측을 건너뛰었다(부재로 다루게 고침). 같은 커밋(`200541c` · 계보 목록 밖 커밋 메시지)은 native 스윕 meta 의 이미지(wheelhouse 원천)를 평면 판정자가 docker 신호로 읽어 평면 불일치로 막던 것도 고쳤다 — 원천 이미지는 빌드 정체이지 실행 평면 신호가 아니며, 평면 구분은 arch `-bare` 가 한다. 이 셀의 00 §0.4 가 이미지 digest 를 `미관측` 으로 두는 것이 그 결과다.
+
+```hint-event
+id: W15
+kind: wall
+증상: 발행기가 native 셀의 이미지 digest 를 관측하지 않고 넘어갔다(평면 판정도 docker 로 오독)
+서명: "를 digest 로 취급해 태그 관측을 건너뛰었다"
+원인: 스윕 meta 의 결측 표지를 값으로 읽었고, wheelhouse 원천 이미지를 실행 평면 신호로 읽었다
+해소: 결측 표지는 부재로 · 원천 이미지는 build_identity 의 native_wheelhouse_source 표지로 평면 신호에서 뺀다(200541c)
+검증: 이 페이로드 00 §0.2 실행 평면 native · 명명 축 plane native
+전이등급: arch-invariant
+출처: [devlog_26092317_native_N1_구현_라이브_서사 §5. 발행 준비에서 두 개 더, testlog_26092317_native_N1_분산서빙_판정 §4. 이번 셀이 드러낸 하네스 결함 (모두 라이브가 발견 · 교정 커밋)]
+```
+
+### W16 발행 준비 — full 리포트가 호스트 운영자 경로를 실었다
+
+native 스윕 meta 의 `model_path` 는 컨테이너 경로가 아니라 호스트 경로라 리포트에 운영자 경로가 실렸고 발행기 PII 게이트가 막았다. 해소는 리포트 표시만 `<manifest.<키>>/…` 표지로 바꾸고 meta 값은 두는 것이다(judge 가 그 값으로 루프라인을 계산한다 · `81d4a55` · 계보 목록 밖 커밋 메시지 — 이 벽의 원인 · 해소는 그 커밋 메시지에만 기록돼 있고 계보 문서에는 없다). 수정 전 줄은 운영자 경로라 실을 수 없어, 서명 칸에는 수정 뒤 표시를 옮겼다:
+
+> [원문] bench_report_26092317_qwen3.8-flash-next-nvfp4_GB10_0.29.0 §측정 환경 스냅샷
+> | model_path | <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4 |
+
+```hint-event
+id: W16
+kind: wall
+증상: native 셀의 full 리포트에 호스트 운영자 경로가 실려 발행 PII 게이트가 막았다
+서명: "| model_path | <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4 |"
+원인: native 스윕 meta 의 model_path 가 호스트 경로인데 리포트가 그대로 표시했다
+해소: 리포트 표시만 manifest 필드 표지로 바꾼다(81d4a55) — 서명은 수정 뒤 표시다
+검증: bench_report_26092317_qwen3.8-flash-next-nvfp4_GB10_0.29.0 §측정 환경 스냅샷
+전이등급: arch-invariant
+출처: [bench_report_26092317_qwen3.8-flash-next-nvfp4_GB10_0.29.0 §측정 환경 스냅샷]
+```
+
+### W17 발행 준비 — pip 핀의 3자리 버전을 사설 IPv4 로 오검출했다
+
+실린 pip freeze 의 `setuptools-scm==10.2.3` 이 3옥텟 허용 private-ipv4 규칙에 걸렸다. 해소는 4옥텟 주소는 어디서나 잡고, `==` 바로 뒤의 3옥텟(버전 모양)만 빼는 것이다(`39c4826` · 계보 목록 밖 커밋 메시지).
+
+> [원문] pip-freeze-main.txt §L260-260
+> setuptools-scm==10.2.3
+
+```hint-event
+id: W17
+kind: wall
+증상: 실린 pip freeze 가 발행 PII 게이트(private-ipv4)에 걸렸다
+서명: "setuptools-scm==10.2.3"
+원인: 3옥텟을 허용하는 사설 IPv4 규칙이 '==' 뒤의 3마디 버전 문자열을 주소로 읽었다
+해소: == 바로 뒤의 3옥텟 버전 모양만 제외(39c4826) — 4옥텟 주소 · host= 뒤 주소 · 대역 표기는 그대로 잡는다
+검증: 이 페이로드에 pip-freeze-main.txt · pip-freeze-sub.txt 가 실렸다
+전이등급: arch-invariant
+출처: [pip-freeze-main.txt]
 ```
 
 ## 2.3 기각된 시도 · 반증된 축
@@ -265,182 +389,158 @@ kind: wall
 ```hint-event
 id: R1
 kind: rejected
-시도: moe-backend 를 triton → cutlass 로 명시(P0-1 스모크 2·3차)
+시도: moe-backend 를 triton → cutlass 로 명시(P0-1 스모크 2·3차 · Docker 계보)
 기각사유: triton 은 NVFP4 MoE 미지원으로 fail-loud, cutlass 명시는 60 패치 B1 가드와 충돌 — 두 번 모두 실패해 명시를 폐기하고 auto 로 두었다(W3 · W4)
-재개조건: 60 패치가 빠진 상위 vLLM(업스트림이 mixed MoE 라우트를 정식 지원)에서 백엔드 비교를 레버로 다시 잴 때
+재개조건: 60 패치가 필요 없는 상위 vLLM 에서 백엔드 비교를 레버로 다시 잴 때
 출처: [devlog_26091001_qwen38fn_phase0_자체이식3종_서사 §결정·시도·폐기, testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §판정]
 ```
 
 ```hint-event
 id: R2
 kind: rejected
-시도: 62 mmap · 64 fp8 KV 검증 술어로 "bf16 대비 토큰 정확 일치" 를 썼다(64 헤더의 원래 원칙)
-기각사유: 대조군(resident · MTP off · async off)조차 연속 2회 채취에서 4/5 불일치 — stock 경로 자체가 run-to-run 비결정이라 통과 불가능한 술어였다. 정확일치 접두 + 분기점 후보가 기준 top-5 안인지 보는 술어 B 로 교체했고, fp8 KV 는 술어 B 로 PASS(exact 2/5 · 근접타이 3/5)였다
-출처: [testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §§1. ★ 중재 술어 재설계 — "토큰 정확 일치"는 이 스택에서 도달 불가, 64-qwen4exp-qsa-fp8kv.sh]
+시도: PLE UVA CPU offload(VLLM_PLE_CPU_OFFLOAD 계열)
+기각사유: 시도하지 않았다 — GB10 통합메모리에서는 offload 가 같은 풀을 쓴다는 구조 추론으로 설계 단계에서 배제하고 NVMe mmap(W6)을 택했다
+재개조건: 호스트 RAM 과 GPU 메모리가 분리된 HW
+출처: [plan_26090918_qwen38_flashnext_multi_딥캠페인 §2.3]
 ```
 
 ```hint-event
 id: R3
 kind: rejected
-시도: PLE UVA CPU offload(VLLM_PLE_CPU_OFFLOAD 계열 · 커뮤니티 dolf 경로)
-기각사유: 시도하지 않았다 — GB10 통합메모리에서는 호스트와 GPU 가 같은 풀이라 offload 가 메모리를 거두지 못한다는 구조 추론으로 설계 단계에서 배제하고 NVMe mmap(W6)을 택했다
-재개조건: 호스트 RAM 과 GPU 메모리가 분리된 HW(이산 GPU)
-출처: [plan_26090918_qwen38_flashnext_multi_딥캠페인 §2.3, 62-qwen4exp-ple-mmap.sh]
+시도: native 설치 입력을 인터넷에서 받는 pip install(또는 누락분의 다운로드 폴백)
+기각사유: 캠페인 선언 download_policy 가 패키지 · 모델 다운로드를 금지했고, plan 은 재포장 closure 에 누락이 있으면 다운로드로 폴백하지 않고 멈추게 설계했다(N-D1) — 설치는 --no-index 로만
+재개조건: 다운로드가 허용된 환경(그때도 버전 · 빌드가 이미지와 같다는 보장은 따로 필요)
+출처: [plan_26092311_native_분산서빙_정문_구현_N1 §3. 결정 요약 (제안 — G-N0 에서 확정)]
 ```
 
 ```hint-event
 id: R4
 kind: rejected
-시도: MTP 와 async-scheduling 을 함께 켜 둔다(0.29 의 자동 해제에 맡긴다)
-기각사유: 외부 선례(dolf)가 MTP+async 에서 n-gram 문맥 손상을 보고했고, 0.29 는 mtp 를 EagleModelTypes 로 분류해 자동 해제 분기를 타지 않는다는 것을 확인했다 — 명시 off 가 유일한 회피다. 우리 계보에서 async on 으로 손상을 관측한 기록은 없다
-재개조건: 상류가 MTP+async 호환을 명시하거나 자동 해제가 mtp 에도 걸리는 vLLM
-출처: [testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §§1. ★ 중재 술어 재설계 — "토큰 정확 일치"는 이 스택에서 도달 불가, plan_26090918_qwen38_flashnext_multi_딥캠페인 §2.3]
+시도: 재포장이 실패하면 vLLM 만 pip wheel --no-deps --no-build-isolation 으로 재빌드(노드당 수십 분 컴파일)
+기각사유: plan 이 "허용하지 않고 멈춰 보고한다(범위 폭발 방지)" 를 제안했고, 게이트 #1 FAIL 뒤 사람은 재빌드 대신 "5개 승인 + 이미지 동등성" 을 골랐다 — native 설치본은 재컴파일 없이 이미지 바이트 그대로다
+재개조건: RECORD 불일치가 핵심 패키지 다수로 넓어질 때(plan 의 철회 조건 — 그때는 native 설치 입력 방식을 다시 plan 한다)
+출처: [plan_26092311_native_분산서빙_정문_구현_N1 §N1 라이브 게이트 뒤 결정 (O-N2 해소), testlog_26092317_native_N1_분산서빙_판정 §2. 판정 원장 (시간순)]
 ```
 
 ```hint-event
 id: R5
 kind: rejected
-시도: 호스트 예산 overhead 로 다른 모델(DS4F)에서 잰 상수 12,265MiB 를 승계
-기각사유: 그래프 캡처 스파이크(W5)와 함께 선언 overhead 를 넘었다 — P0-1(resident 구성)에서 used − weights − KV 로 계산한 약 24.2GiB/노드로 재산정했고 이후 셀은 overhead 24,800MiB 선언을 쓴다
-출처: [devlog_26091001_qwen38fn_phase0_자체이식3종_서사 §결정·시도·폐기, testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정 §계측 (provenance: measured)]
+시도: 태그 이름 문법으로 native 평면을 가르는 대안 — (B) recipe 7번째 축 plane<docker|bare> · (C) 이름 충돌을 허용하지 않고 N1 을 발행하지 않음
+기각사유: 사람이 G-N0 에서 (A) arch 에 -bare 를 골랐다 — (B) 는 옛 신문법 태그 전부와 recipe 모양이 갈라지고, (C) 는 증거만 남긴다
+출처: [plan_26092311_native_분산서빙_정문_구현_N1 §4.3 이름 (F10) — **사람 결정 필요(O-N1)**, plan_26092311_native_분산서빙_정문_구현_N1 §G-N0 승인 기록]
 ```
 
-**요약.** 이 셀의 형상을 좁힌 것은 (1) 백엔드는 명시하지 않는다(R1) (2) PLE 는 offload 가 아니라 노드 로컬 NVMe mmap(R3 → W6) (3) async 는 명시 off(R4) (4) 호스트 예산은 이 아치에서 잰 overhead 로(R5) 이며, fp8 KV 의 정확성 기준은 토큰 정확일치가 아니라 술어 B 로 바뀌었다(R2). 계획했지만 시도 0 인 레버는 기각이 아니라 §2.7 Q4 다.
+```hint-event
+id: R6
+kind: rejected
+시도: run 1(측정 성립 · down attestation FAIL_CLOSED + 수동 복구)을 이 셀의 발행 측정으로 쓴다
+기각사유: 잔재 0 을 도구가 증명하지 못한 run 이라 증거가 불완전했다 — 사용자가 전체 재실행을 골랐고 run 1 은 실패 증거로만 남는다(W13)
+출처: [testlog_26092317_native_N1_분산서빙_판정 §2. 판정 원장 (시간순), devlog_26092317_native_N1_구현_라이브_서사 §4. 라이브 — 매 시도가 결함 하나씩]
+```
+
+**요약.** 이 셀의 형상을 좁힌 것은 (1) 모델 · 버전 벽은 Docker 계보의 해소를 이미지 바이트째 가져온다(재컴파일 · 재패치 ✗ · R4) (2) 설치는 오프라인 `--no-index` 만(R3) (3) 이미지와 어긋나는 5 파일은 사람이 승인하고 게이트는 "이미지와 같은가" 로 바꿨다(W8) (4) 이름은 arch `-bare`(R5) (5) 증거가 불완전한 run 은 발행하지 않는다(R6) 이다. 계획만 되고 시도 0 인 레버는 기각이 아니라 §2.7 이다.
 
 ## 2.4 오진과 정정
 > 이 절이 답하는 질문: 계보 중 무엇을 잘못 진단했고, 어떻게 정정됐으며, 지금 그 주장의 지위는 무엇인가?
 
-### M1 첫 캠페인 void 셀의 사인 — "컨테이너 hang" 은 호스트 워치독 사살이었다
+### M1 정문 `native_multinode_serve.py` 는 "있었다" — 실은 뼈대였다
 
-첫 캠페인(camp-26090918) 24셀 판정은 실패 셀의 사인을 "컨테이너 hang · fused_moe FP8 config 부재 추정" 으로 적었고, 실행하지 않은 16셀에도 사인을 적었다. 하네스 교정 묶음이 원장 `docker_kill` 과 엔진 로그를 초 단위로 대조해 뒤집었다. 이 셀은 그때 lite 로 measured 처리된 셀이라 사인이 바뀌지 않았지만, 같은 문서의 이 셀 스윕 사인("시스템 OOM kill")은 계보에 원장 대조 기록이 없고, 검증자 대조로는 호스트 워치독 사살이 아니었다(W9).
+D2 뒤 N1 을 돌리려고 정문을 읽자 기동 직후 `UnknownState` 로 끝나고 정리를 부르지 않는 뼈대였다 — 셀 레시피를 전달하지 않고, 없는 `/opt/wheelhouse` 를 추출하려 했으며, 호스트 안전층이 없고, 이름이 D1 과 충돌했다(plan_26092311 §2 F1~F11). 커밋(`cf8e9cf`)으로 존재하는 것을 동작하는 것으로 본 전제가 틀렸고, plan_26092311 이 정문을 완성하는 범위로 다시 잡혔다.
 
-> [원문] testlog_26091009_qwen38fn_24셀_판정 §testlog — camp-26090918-qwen38fn-multi · 24셀 판정
-> > 뒤집힌 부분: **void 셀의 사인**. 여기 적힌 "컨테이너 hang"·"fused_moe FP8 config 부재 추정"은
-> > 2차 추정을 확정처럼 적은 것이고, 실제 사인은 **호스트 워치독 사살**이다
+> [원문] plan_26092311_native_분산서빙_정문_구현_N1 §2. 근거 사실 (2026-09-23 조사 · file:line)
+> | F1 | 정문 `main()` 은 `o.start()` 직후 `UnknownState("live proof surface intentionally requires production remote Runner implementation")` 로 끝난다 — cleanup 미호출, `--apply` 시 양 노드에 Ray/vLLM 잔존 | `native_multinode_serve.py:432` |
+> | F2 | 기동 argv 는 `vllm serve <model> --tp 2 --distributed-executor-backend ray` 뿐 — max-model-len·KV 클램프·PLE mmap env·MTP·eager·async off·NCCL/interconnect env 부재 | 동 `start()` |
 
 ```hint-event
 id: M1
 kind: misdiagnosis
-증상: 실패 셀 컨테이너가 사라졌고 로그가 부족했다 — 미실행 16셀에도 사인이 적혔다
-서명: "FP8 컨테이너 일관 hang (fused_moe FP8 config 부재 추정)"
-원인: 2차 추정을 확정처럼 적었고 원장(블랙박스 이벤트)과 대조하지 않았다 · 미실행과 실패를 구분하지 않았다
-해소: 사인은 호스트 워치독 사살(원장 docker_kill 과 엔진 로그 초 단위 일치) · 24셀 중 아티팩트 실재는 8셀뿐
-검증: testlog_26091109_하네스교정_R0R10_역채점_음성대조 §5. R4 — 분류기는 옳았는데 **serve 실패 분기가 사살을 무시**했다
+증상: native 분산 정문이 커밋돼 있어 N1 을 바로 돌릴 수 있다고 보였다
+서명: "기동 직후 `UnknownState` 로 끝나고 정리를 부르지 않는 뼈대였다"
+원인: 정문 코드의 존재를 동작 증명으로 대신했다(레시피 전달 · 설치 입력 · 안전층 · 정리 경로를 읽지 않았다)
+해소: plan_26092311 이 정문 up/down 2단 생명주기 · wheelhouse · native 트리플렛 렌더 · pgid 안전층을 완성 범위로 잡았다
+검증: testlog_26092317_native_N1_분산서빙_판정 §3. 판정 — run 2 가 도구 스스로 up → full×3 → down PASS
 전이등급: judgment
 현재지위: 반증
-출처: [testlog_26091009_qwen38fn_24셀_판정 §void 셀 (21) — 결함별 분류, testlog_26091109_하네스교정_R0R10_역채점_음성대조 §8. 정정 — 계획서의 두 숫자가 실측과 다르다]
+출처: [devlog_26092317_native_N1_구현_라이브_서사 §1. 출발 — 정문은 뼈대였다, plan_26092311_native_분산서빙_정문_구현_N1 §2. 근거 사실 (2026-09-23 조사 · file:line)]
 ```
 
-### M2 이 셀의 r2 합격선 — 루프라인이 PLE 를 활성 바이트로 셌다
+### M2 lite 레그 "✓" — 빈 JSON 이 성공으로 표시됐다
 
-2026-09-11 r2 측정(38.18 t/s)은 expected 3.02 · floor 2.57 로 PASS(ratio 12.642)였다. 루프라인이 PLE n-gram 47.684GiB 를 dense 활성 바이트로 합산해 R_fp 가 8.62 로 낮게 나왔기 때문이다 — 측정이 자기 물리 상한을 넘었는데 그때는 검출되지 않았다(검출은 자매 셀 res 의 46.7 t/s 가 5.4배를 넘었을 때). 교정 뒤 소급 재판정에서 이 셀은 R_fp 45.03 · 실측 수용길이 2.4643 · floor 33.01 · ratio 0.983 으로 판정은 PASS 그대로였다(testlog_26091412 §5.2 10행).
+run 1 첫 스윕에서 lite 레그가 클라이언트 실패로 빈 JSON 을 남겼는데 스윕은 "lite ✓" 로 표시했고, 그 직후 spec 축 승계원이 무효라는 경고로만 드러났다. 표시 결함 자체는 후속으로 남았다(devlog_26092317 §6) — 수신자가 스윕 로그의 "✓" 만 보고 lite 성립을 판정하면 같은 오독을 한다.
 
 ```hint-event
 id: M2
 kind: misdiagnosis
-증상: 이 셀의 r2 판정이 floor 2.57 로 PASS 였다(측정이 합격선의 12배)
-서명: "3.02 t/s (expected_achievable(roofline×MBU))"
-원인: roofline.py 가 PLE n-gram 텐서를 dense 활성 바이트로 합산했다(PLE 패턴 부재) · 수용길이도 자리표시 1.0 이었다
-해소: _PLE_RE 로 PLE 를 active 에서 제외(R_fp 8.62 → 45.03) · 실측 수용길이 승계 — 이 셀 소급 재판정 floor 33.01 · ratio 0.983 · PASS 불변
-검증: testlog_26091412_하네스교정_항목1_acceptlen승계_소급재판정 §5.2 판정 불변 · 합격선 재산정 (spec on ∧ 실측 있음 ∧ 원 accept_len 1.0 — 11건)
-전이등급: arch-invariant
+증상: 스윕 로그가 lite 레그를 성공(✓)으로 표시했다
+서명: "lite 레그가 빈 JSON 을"
+원인: sweep_bench 가 lite 산출물의 내용(빈 파일)을 확인하지 않고 표시했다
+해소: 원인(클라이언트 env)은 래퍼로 고쳤다(W12) — "✓" 표시 결함은 미교정 후속
+검증: devlog_26092317_native_N1_구현_라이브_서사 §6. 다음
+전이등급: judgment
 현재지위: 반증
-출처: [bench_report_26091111_qwen3.8-flash-next-nvfp4_GB10_0.29.0 §판정 (표시만 — verdict_rule.py 결과), testlog_26091304_qwen38fn_res최소조건_262k재발행_판정 §5, testlog_26091412_하네스교정_항목1_acceptlen승계_소급재판정 §5.2 판정 불변 · 합격선 재산정 (spec on ∧ 실측 있음 ∧ 원 accept_len 1.0 — 11건)]
+출처: [devlog_26092317_native_N1_구현_라이브_서사 §4. 라이브 — 매 시도가 결함 하나씩, devlog_26092317_native_N1_구현_라이브_서사 §6. 다음]
 ```
 
-### M3 리포트의 "서브 SSH probe 실패" — 서브가 아니라 파서였다
+### M3 과거 38.81 → 현재 ~21 t/s 하락이 Docker 평면 탓이라는 가능성
 
-r2 인증 측정의 리포트를 포함해 이 도구의 lite 표는 서브 열을 "— (SSH probe 실패)" 로 적어 왔다. 서브에 닿지 못한 것처럼 읽히지만, 이 발행 실행에서 원인은 manifest 의 따옴표 값을 벗기지 않은 파서로 드러났다(W10) — 서브 자체는 닿을 수 있었다. 옛 리포트의 서브 결손도 같은 원인이었을 가능성이 크다 — 검증자가 r2 기동 시점(2026-09-11T01:42Z 이전 마지막 커밋 `0df14da468f9`)의 lite_bench 를 보니 서브 값 파서가 따옴표를 벗기지 않는 같은 코드였다. 다만 그때 manifest 가 값을 따옴표로 적었는지는 기록이 없다(manifest 는 비추적).
+D1(Docker)의 하락 원인은 분석하지 않기로 결정됐다(D1 페이로드의 열린 물음). N1 은 같은 서빙 노브 · 같은 이미지 바이트로 평면만 바꿨고 판정점이 같은 대역(D1 20.98 · run 1 21.16 · run 2 22.27 t/s)에 들었다. testlog 는 이것을 "하락이 Docker 평면 탓이 아님을 가리키는 관측 하나" 로 적고 원인은 열린 물음으로 남겼다 — 원래 가능성(Docker 평면이 원인)은 이 관측과 맞지 않지만, 판정점 반복 밴드가 17.1% 로 넓어 이 대조 하나로 확정하지 않는다.
 
 ```hint-event
 id: M3
 kind: misdiagnosis
-증상: lite 표의 서브 RAM · VRAM 칸이 늘 비어 "SSH probe 실패" 로 기재됐다
-서명: "| 시스템 RAM 점유 | 81.4 GiB (67%) | — (SSH probe 실패) |"
-원인: 결손을 서브 도달 실패로 기재했고 도구의 대상 문자열(따옴표 포함)을 확인하지 않았다
-해소: lite_bench.sh 가 manifest 따옴표 값을 그대로 SSH 대상으로 썼다 — fcb0754 로 교정 후 서브 수집 성공(서브 RAM 75.9 GiB · 62%)
-검증: lite_bench.sh@fcb0754fffe1 §L185-187 · docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite_2.log
-전이등급: arch-invariant
-현재지위: 반증
-출처: [bench_report_26091111_qwen3.8-flash-next-nvfp4_GB10_0.29.0 §lite 지표 (full ⊇ lite — 열 집합 중첩 보장), lite_bench.sh@fcb0754fffe1, docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite_2.log]
-```
-
-### M4 fp8 KV 검증 원칙 — "정확 일치가 아니면 실패"
-
-64 패치 헤더는 참조의 경고를 이어받아 bf16-KV 대비 토큰 정확 일치를 요구하고, 일치하지 않으면 실패로 분류한다고 적었다. 대조군 실험이 stock 경로의 run-to-run 비결정을 보여 이 원칙은 통과 불가능한 술어로 판정됐고 술어 B 로 대체됐다(R2). 헤더 문장은 고쳐지지 않은 채 이미지에 실려 있으므로 수신자는 헤더가 아니라 술어 B 를 기준으로 읽어야 한다.
-
-```hint-event
-id: M4
-kind: misdiagnosis
-증상: fp8 KV 가 bf16 KV 와 토큰이 정확히 같지 않으면 실패로 분류한다는 검증 원칙
-서명: "확률 분포 근접도가 아니라 **실패**로 분류한다"
-원인: stock 경로 자체의 run-to-run 비결정을 대조하지 않은 채 참조의 원칙을 옮겼다
-해소: 정확일치 접두 + 분기점 top-5 포함(술어 B) — fp8 KV 는 exact 2/5 · 근접타이 3/5 로 PASS(MTP off 조건)
-검증: testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §§1. ★ 중재 술어 재설계 — "토큰 정확 일치"는 이 스택에서 도달 불가
+증상: 같은 셀 형상의 판정점이 이전 인증 측정(38.81)보다 크게 낮은 채 Docker 평면에서 관측됐다
+서명: "Docker 와 native 가 같은 대역에 있다는 것은 과거 38.81 t/s 대비 하락이 **Docker 평면 탓이 아님**을 가리키는 관측 하나다"
+원인: 원인 후보 중 실행 평면(Docker)은 대조 없이 남아 있었다
+해소: native 대조가 같은 대역을 냈다 — 평면 가설은 이 관측과 맞지 않는다 · 하락의 원인은 여전히 미분석(Q1)
+검증: testlog_26092317_native_N1_분산서빙_판정 §3. 판정
 전이등급: judgment
-현재지위: 반증
-출처: [64-qwen4exp-qsa-fp8kv.sh, testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §§1. ★ 중재 술어 재설계 — "토큰 정확 일치"는 이 스택에서 도달 불가]
+현재지위: 미결
+출처: [testlog_26092317_native_N1_분산서빙_판정 §3. 판정]
 ```
 
-**교정 묶음 대조.** `testlog_26091109`(하네스 교정 R0~R10 · 11항목)를 전부 훑었다. 이 셀의 판정 · 수치 · 이름을 바꾼 항목은 넷이다 — 나머지 일곱(R0 multi 진행표 노드 어휘 · R4 serve 실패 분류기 · R5 셀 좌표 이미지 축 · R6 역루프 통로 · R7 술어 ① 의 실행자 · R8 YaRN 번역기 · R10 셀 키 배선)은 이 셀의 값을 바꾸지 않았다.
-- testlog_26091109_하네스교정_R0R10_역채점_음성대조 R1 — 예산 선판정이 `--no-watchdog` 과 분리돼 항상 돈다 — 선언 없이 뜰 수 있던 경로 → 이 발행처럼 선판정 · 선언이 원장과 스모크 로그에 남는다.
-- testlog_26091109_하네스교정_R0R10_역채점_음성대조 R2 — 게이트의 상주 가중치 산식 — `ckpt ÷ tp`(63,266 · floor 16,064) → `(ckpt − ple) ÷ tp` = 38,852 · floor 40,478.
-- testlog_26091109_하네스교정_R0R10_역채점_음성대조 R3 — GuideLLM 벤치 몫이 예산 바닥과 연결 — 게이트 없음 → 벤치 진입 게이트(W9 의 첫 캠페인 스윕 사망과 같은 결함 부류 · 이 셀 사인과의 연결은 미확인).
-- testlog_26091109_하네스교정_R0R10_역채점_음성대조 R9 — PLE 축이 태그 이름에 들어감 — 옛 이름 → `len262144-kvfp8e4m3-plemmap`(옛 문법 태그 · 00 §0.8).
-- 별도 교정(testlog_26091412 · 하네스 교정 항목 1) — 이 셀 r2 판정의 합격선 — 수용길이 자리표시 1.0 · floor 2.57 → 실측 2.4643 · floor 33.01(판정 PASS 불변).
+**교정 묶음 대조.** 이 셀의 결함은 교정 묶음(하네스 교정 R0~R10)이 아니라 이 셀 라이브가 찾은 커밋 여덟 개로 고쳐졌다 — `05f8bde` · `d031c35` · `c3408cb` · `a21e66e`(testlog §4) · `200541c` · `81d4a55` · `39c4826`(계보 목록 밖 커밋 메시지) · 승인 게이트 `e424a05`. 각각의 전후는 §2.2 W8~W17 에 있다. 하네스 교정 R0~R10(testlog_26091109 · 11항목)은 Docker 계보의 셀 판정을 바꾼 묶음이며 이 native 셀의 판정 · 수치 · 이름을 바꾼 항목은 R2(예산 산식 `(ckpt − ple) ÷ tp` — native up 로그의 `weights=38852MiB(ple=mmap(−48828MiB))`)와 R9(PLE 축이 이름에 · `-plemmap`) 둘이다. 판정의 수용길이 자동 승계(testlog_26091412 항목 1)로 이 셀 판정도 실측 2.08 을 썼다.
 
 ## 2.5 값의 이력
 > 이 절이 답하는 질문: 이 셀의 핵심 값들은 어떻게 정해졌고, 그 값의 형상이 버티는 기전은 무엇이며, 어떤 값이 조정된 적 없이 승계됐는가?
 
-**호스트 메모리 예산 산식(V6 · V3 의 전제).** 스모크는 로드 전에 노드마다 `floor = MemTotal − weights − kv − overhead` 를 선언한다. mmp 에서는 PLE 가 상주 가중치에서 빠지고, KV dtype 은 weights 산식에 들어가지 않는다(testlog_26091114 비-measured 표 — fp8-bf/fp8-f8 res 가 같은 floor).
+**서빙 노브는 Docker 셀과 바이트 동일하다.** native 트리플렛은 `render_native_triplet.py` 가 Docker 트리플렛 `nv4-bf-262k-mmp` 에서 결정론 파생한 것이다 — 바꾼 것은 경로(`model:` 을 `<manifest.quant_model_path>/…` 로 · `VLLM_PLE_MMAP_DIR` 을 `<manifest.ple_mmap_host_path>/…` 로)와 Docker 평면 키 제거(`IMAGE_TAG` · `BUILD_DOCKERFILE` · 컨테이너 이름 · `BUILD_JOBS` · `VLLM_REF`)뿐이고 노브는 그대로다(트리플렛 머리 주석 · plan_26092311 N-D3). 그래서 각 노브 값의 이력은 Docker 계보의 이력이다.
+
+> [원문] plan_26092311_native_분산서빙_정문_구현_N1 §3. 결정 요약 (제안 — G-N0 에서 확정)
+> | N-D3 | **native 트리플렛**(`output/multi/configs/nv4-bf-262k-mmp-native.{yaml,sh}` · `envs/.env.nv4-bf-262k-mmp-native`)을 D1 트리플렛에서 **렌더**한다 — 경로만 호스트(`<manifest.quant_model_path>/…`)로, `IMAGE_TAG`/`BUILD_DOCKERFILE` 제거, 서빙 노브는 D1 과 동일. 손저작 ✗ | F2 · F7 |
+
+**호스트 메모리 예산 산식(V6 · V3 의 전제).** native 정문도 로드 전에 노드마다 `floor = MemTotal − weights − kv − overhead` 를 선언한다. 이 셀의 선언은 weights 38,852 · kv 20,480 · overhead 24,800 · MemTotal 124,608 → floor 40,476 이다(01 §1.4 이벤트 표 · **선언값**). 엔진 실측은 rank 당 `Model loading took 39.05 GiB`(run 2 보존 로그 · 계보 목록 밖) — 선언 weights 와 실측 적재량은 다른 층이라 나란히만 둔다. overhead 24,800 은 Docker 계보 P0-1(PLE resident 구성)의 계산값 약 24.2GiB/노드에서 왔고 native 에서 다시 잰 기록은 없다.
 
 > [원문] plan_26091216_qwen38fn_res최소조건_후속캠페인 §2.1
 > | 변종·모드 | ckpt(MiB) | weights = f(ckpt,PLE,TP) | floor(kv=20,480·oh=24,800) | 게이트 |
 > |---|---|---|---|---|
 > | NVFP4 mmp | 126,532 | (126,532−48,828)÷2 = 38,852 | 40,478 | 통과 |
 
-이 발행의 선언은 weights 38,852 · kv 20,480 · overhead 24,800 · MemTotal 124,608 → floor 40,476 이다(01 §1.4 12행 · **선언값**). 같은 실행의 엔진 로그 실측은 rank 당 `Model loading took 39.05 GiB`(`lite_engine` 로그 L585 · L591)다 — 선언 weights 와 실측 적재량은 다른 층의 값이라 나란히만 둔다. overhead 24,800 은 P0-1 스모크(PLE resident · KV bf16 구성)에서 계산한 약 24.2GiB/노드에서 왔다(R5) — fp8 KV · mmp 인 이 셀에서 overhead 를 다시 잰 기록은 없다.
+**KV 절대클램프(V6).** P0-1 스모크 최종 설정의 20GiB/노드가 r2 캠페인 전 셀에 쓰였고, res-min 캠페인은 이 셀의 Docker 원본을 A1 로 두며 "직전 레거시 셀과 같은 축(KV 20GiB)으로 재수행해 하네스 교정 전후 음성대조" 하려고 유지했다(트리플렛 yaml 머리 주석이 그 의도를 그대로 싣고 있다). 이 E2E 캠페인은 그 트리플렛을 조정 없이 재사용했고 셀 lockset 은 `kv_source=hand`(손레버)로 기록한다 — 이 실행이 음성대조를 새로 의도한 기록은 없다. 262k bf16 필요량은 출처 계산으로 3,072MiB/노드다(plan_26091216 §2.4 · "6.7배 과잉").
 
-**KV 절대클램프(V6).** 이 셀의 트리플렛은 첫 캠페인 cell 4 로 저작됐고(yaml 머리) 그때부터 `kv-cache-memory-bytes: 21474836480`(20GiB/노드)이었다. r2 와 이 발행이 그대로 재사용했으며, 셀 lockset 은 이 값을 `kv_source=hand`(손레버)로 기록한다 — 조정 · 스윕 기록은 없다. fp8 KV 의 262k 필요량은 출처가 계산했다:
+**gpu-memory-utilization(V3) · eager(V7) · MTP(V9) · async(V8).** gmu 0.85 는 P0-1 최종 설정의 승계값이다 — KV 를 절대값으로 준 이 구성에서 엔진은 KV 예약에 gmu 를 따르지 않는다고 적는다(Docker 셀 엔진 로그 관측). eager 는 W5 이후 승계 통제변인이고 PIECEWISE + `splitting_ops` 로 캡처를 되살리는 안은 62 헤더와 P0-2 후속이 셀 레버로 미뤘다(시도 0). MTP k=3 은 2026-09-12 사람 결정("MTP 는 켠 채로 둔다" — plan_26091216 §4 축 C)으로 고정됐고, plan_26090918 §3 이 레버로 적은 MTP k∈{1,2,3} 는 시도 0 이다. async 는 외부 선례의 금지 조합 회피용 명시다(R4 · Docker 계보).
 
-> [원문] plan_26091216_qwen38fn_res최소조건_후속캠페인 §2.4
-> | kv dtype | KV/token(클러스터) | 262k 에 필요한 최소 KV |
-> |---|---|---|
-> | auto(bf16) | 24,576 B = 24 KiB | **3,072 MiB/노드** |
-> | fp8_e4m3 | 12,288 B = 12 KiB | **1,536 MiB/노드** |
+**판정 입력 — 수용길이.** 합격선은 R_fp 45.03 × 수용길이 × 0.35 로 정해진다. 이 셀 run 2 는 판정 레벨의 실측 2.08 을 자동 승계했고(primary 32.79 · floor 27.87), run 1 은 1.837 이었으며(floor 24.62), D1(Docker)은 1.891 이었다(floor 25.33). **floor 가 run 마다 다른 것은 루브릭이 측정된 수용길이를 곱하기 때문이다**(testlog_26092317 §3) — 판정 기준이 셀 형상이 아니라 그 run 의 수용길이에 따라 움직인다.
 
-설정 20,480MiB/노드는 이 필요량 1,536MiB/노드를 크게 넘는다 — 음성대조로 일부러 둔 기록은 이 셀에 없고, 승계된 손레버다. 엔진은 그 예산으로 KV 2,280,398 토큰 · 요청당 262,144 기준 동시성 8.70배를 잡았다(`lite_engine` 로그 L629). 2026-09-11 r2 의 이 셀 lite 레그도 같은 2,280,398 토큰을 기록했다(`docs/simlog/26091114_qwen38fn_r2_nv4_f8_262k_mmp/sweep_index.json` lite.engine). 반면 같은 KV dtype 의 P0-3 스모크는 같은 20GiB 클램프에서 2,790,565 토큰(10.65배)을 적었다(testlog_26091001 §3) — 그 스모크의 PLE 방식 · 설정이 이 셀과 같은지는 그 문서가 적지 않아, 차이는 설명되지 않았다(Q6).
-
-**kv-cache-dtype(V5).** fp8_e4m3 는 캠페인 매트릭스의 셀 축으로 선언된 값이고(plan_26090918 §3), stock 은 이것을 거부하므로 64 패치가 전제다(W8). 참조(blazux · 싱글노드)는 fp8 KV 가 KV 풀을 ×1.9 늘리고 디코드를 −10% 낮춘다고 적었다(plan_26090918 §2.3 — 다른 HW 구성의 외부 수치).
-
-**gpu-memory-utilization(V3).** P0-1 최종 설정의 0.85 이고 이 셀에서 바꿔 잰 기록은 없다(승계). 이 실행의 엔진 로그는 `kv_cache_memory_bytes` 로 KV 를 예약하고 메모리 프로파일링을 건너뛰며 gmu 를 따르지 않는다고 적었다(`lite_engine` 로그 L627).
-
-**eager(V7).** W5 이후 승계 통제변인이다 — fp8 KV 에서 eager 없이 기동해 양 노드가 트립한 관측(P0-3 1차)이 이 셀과 같은 KV dtype 의 기록이다. 다만 그 스모크의 PLE 방식은 그 문서에 명시되지 않았고, 이 셀(mmp)에서 eager 를 끄고 잰 기록은 없다. PIECEWISE + `splitting_ops` 로 캡처를 되살리는 안은 62 헤더와 P0-2 후속이 "셀 레버로 후속" 으로 미뤘고 시도 0 이다.
-
-**MTP(V9) · async(V8).** MTP k=3 은 P0-1 부터 쓴 값이고 2026-09-12 사람 결정으로 통제변인이 됐다(plan_26091216 §4 축 C). MTP k∈{1,2,3} 는 plan_26090918 §3 이 레버로 적었으나 이 셀의 레버 스윕은 셀 계획 8 · 시도 0 으로 닫혔다(sweep_map_26091008_nv4-f8-262k-mmp-levers — 그 지도는 레버 이름을 싣지 않는다). async 는 R4 대로 명시 off 다.
-
-**판정 입력 — 수용길이.** 이 셀은 lite-only 라 판정이 없다. r2 판정은 원래 수용길이 자리표시 1.0 으로 floor 2.57 이었고, 소급 재판정에서 실측 2.4643 으로 floor 33.01 이 됐다(M2). 이 발행의 lite 실행이 기록한 수용길이는 03 §3.4 에 실행 · 레그별로 적는다.
-
-**이 형상이 버티는 기전 대 다른 형상**(같은 NVFP4 · 262k — 다른 양자화 · 다른 모델 비교는 근거로 쓰지 않는다).
-- `nv4-f8-262k-res`(KV fp8 · 20,480 · gmu 0.85 · PLE 상주) — r2 캠페인에서 로드 중 MemAvailable 10,190MiB 로 워치독 사살(testlog_26091114 비-measured 표) — 이 셀과의 차이는 PLE 방식(상주 대 mmap)이며, 상주 가중치 선언이 63,266 대 38,852MiB 로 다르다(선언). 사살은 관측으로 확정, 그 기전(상주 PLE 가 회수 불가능한 메모리라 로드 피크를 받치지 못한다)은 plan_26091216 §2.3 의 추론이다 — 가설.
-- **이 셀(KV fp8 · PLE mmap · KV 20,480 · gmu 0.85)** — 서빙 3회(2026-09-10 · 09-11 · 09-23) 모두 성립했다 — 예산 바닥이 넉넉한 것은 선언 산식상 확정이고, mmap 페이지가 회수 가능한 page cache 라 워치독 여유가 된다는 설명은 가설(페이지 종류를 잰 기록 없음) — plan_26091216 §2.3 · testlog_26091001 §2.
-- `nv4-bf-262k-mmp`(KV auto · 나머지 동일 · D1) — 같은 날 같은 이미지에서 서빙 성립 · 엔진 KV 토큰 1,343,310(D1 페이로드 01 §1.4) 대 이 셀 2,280,398 — fp8 KV 가 같은 바이트에 토큰을 더 담는 방향은 관측과 맞지만 두 값의 비는 출처의 토큰당 바이트 비(24 KiB 대 12 KiB)와 같지 않다 — 미결.
+**이 형상이 버티는 기전 대 다른 형상 · 평면.**
+- **이 셀(native · 호스트 venv · 이미지 바이트 재포장)** 대 D1(Docker · 같은 이미지 · 같은 노브) — 둘 다 서빙 성립 · 판정점 같은 대역(20.98 대 22.27 t/s — 03 §3.5) · 평면(컨테이너 대 호스트 프로세스)이 서빙 성립을 가르지 않았다는 것은 관측으로 확정 · 평면이 decode 에 주는 영향은 판정점 반복 밴드(native 17.1%)가 넓어 미결 — testlog_26092317 §3.
+- 같은 셀 run 1(native · 같은 설치 · 같은 노브) 대 run 2 — 판정점 21.16 대 22.27 · 수용길이 1.837 대 2.08 — 같은 조건의 두 run 이 합격선을 3 t/s 넘게 달리 잡았다(관측 · 확정) · 차이의 원인은 미결.
+- PLE 방식(mmap 대 resident)과 KV · gmu 설정이 다른 Docker 자매 형상의 기전은 D1 페이로드 02 §2.5 에 있고, 이 셀이 새로 잰 것은 없다 — mmap 페이지를 회수 가능한 page cache 로 설명하는 것은 가설이다(plan_26091216 §2.3).
 
 ## 2.6 되풀이하지 말 것
 > 이 절이 답하는 질문: 다음 사람이 같은 비용을 치르지 않으려면 무엇을 하지 말아야 하는가?
 
-- `moe-backend` 를 명시하지 마라 — W3 · W4 · R1 — auto 로 두고 엔진 로그의 백엔드 선택 줄(NvFp4 · Fp8 각각)로 확인한다.
-- 예산 선언 없이 기동하지 마라(compose 직접 기동 포함) — W2 · testlog_26091109 R1 — `multinode_serve_smoke.sh` 경로로 양 노드 declare → honored → up 을 밟고, 회수는 `--down` 으로만 한다.
-- fp8 KV 를 그래프 캡처 켠 채 첫 기동하지 마라 — W5(P0-3 1차 양 노드 동시 트립) — eager 로 먼저 서빙을 세우고, 캡처는 overhead 를 다시 잰 뒤 레버로 따로 연다.
-- PLE mmap 테이블을 네트워크 파일시스템 위에 두지 마라 — W6 · plan_26090918 §5(NAS mmap 지연 위험) — 양 노드 로컬 NVMe 의 같은 경로에 스테이징한다.
-- 체크포인트 크기를 `du` 로 재지 마라 — plan_26090918 §2.1(이 NAS 에서 약 2배 과대보고) — safetensors 헤더 합 또는 index weight_map 파생으로 잰다.
-- MTP 를 쓰면서 async-scheduling 을 기본값에 맡기지 마라 — R4 — `async-scheduling: false` 를 명시한다.
-- fp8 KV 의 정확성을 "토큰 정확 일치" 로 판정하지 마라 — R2 · M4(stock 도 run-to-run 비결정) — 술어 B(정확일치 접두 + 분기점 top-5 포함)로 본다.
-- 선언 overhead 를 다른 모델 · 다른 구성의 상수로 가져오지 마라 — R5 · W5 — 이 아치 · 이 구성에서 used − weights − KV 로 다시 잰다.
-- 원장 대조 없이 사인을 적지 마라 — M1 · W9 — 블랙박스 이벤트와 엔진 로그를 초 단위로 대조하고, 미실행은 `pending` 으로 남긴다.
-- lite 표의 "SSH probe 실패" 를 서브 장애로 읽지 마라 — M3 · W10 — 도구가 만든 SSH 대상 문자열부터 확인한다(fcb0754 이전 판본은 늘 실패했다).
-- 연달아 돈 lite 실행의 두 번째 cold TTFT 를 cold 로 쓰지 마라 — 03 §3.4(실행 ② 679ms 는 실행 ① 직후 같은 serve) — cold 값은 서빙 직후 첫 실행에서만 얻는다.
-- 이 lite 수치(18.77 t/s)를 기준선으로 옮기거나 full · 인증 수치와 나란히 놓지 마라 — 03 §3.5(OBSERVATION-ONLY · 반복 1 · 도구 · 부하가 다르다) — 네 환경에서 full 측정부터 한다.
+- 이미지 없이 native 를 재현하려 하지 마라 — W8 · R4 · plan_26092311 N-D1 — native 설치 입력은 **각 노드의 로컬 이미지**에서 재포장한 wheelhouse 다. 이미지는 먼저 Docker 로 지어야 하고(빌드 패치 60 · 62 가 그 안에 구워진다) 서빙만 Docker 없이 한다.
+- 다른 노드의 이미지 · wheelhouse 를 복사해 쓰지 마라 — W10 — 노드마다 자기 이미지에서 재포장하고, 승인 선언 `images[]` 에 노드별 digest 를 둔다(요구는 동일 ABI · 동일 digest 아님).
+- 재포장이 RECORD 불일치로 멈추면 다운로드나 재컴파일로 우회하지 마라 — W8 · R3 · R4 — 불일치 파일의 사유를 확인해 사람이 승인하고, 게이트는 "설치 집합 == 이미지 핀 ∧ pip check ⊆ 선언된 이미지 고유 충돌" 로 둔다.
+- 측정 클라이언트로 venv 의 `vllm` 을 그대로 넘기지 마라 — W12 — 서버와 같은 런타임 env(`LD_LIBRARY_PATH` · `CUDA_HOME` 등)의 래퍼(`bin/vllm-client`)를 쓴다.
+- 스윕 로그의 "lite ✓" 만 보고 lite 성립을 판정하지 마라 — M2 — lite raw · warm JSON 이 비어 있지 않은지와 spec 축 강등 경고를 본다.
+- native 서빙 정리를 프로세스 이름으로 하거나 run root 를 통째로 `rm -rf` 하지 마라 — W11 · W13 · plan_26092311 N-D4 — 정문 `down` 이 PID+starttime 으로만 멈추고 소유 마커 트리만 지우며 attestation 을 낸다. attestation 이 FAIL 이면 그 run 을 발행하지 않는다(R6).
+- 원격 러너에 큰 요청을 argv 로 싣지 마라 — W9 — stdin 으로 넘긴다.
+- `moe-backend` 를 명시하지 마라 — W3 · W4 · R1 — auto 로 두고 엔진 로그의 백엔드 선택 줄로 확인한다.
+- 예산 선언 없이 기동하지 마라 — W2 — native 정문도 RAM 게이트 → 예산 선언 → 기동 순서를 로드 전에 밟는다.
+- 그래프 캡처를 켠 채 첫 기동하지 마라 — W5 — eager 로 먼저 세우고 캡처는 overhead 를 다시 잰 뒤 레버로 연다.
+- 판정 floor 를 셀 고정값으로 옮기지 마라 — 02 §2.5 · testlog_26092317 §3 — floor 는 그 run 의 실측 수용길이에 비례해 움직인다(24.62 · 25.33 · 27.87).
+- 이 셀의 22.27 t/s 를 기준선으로 쓰거나 과거 38.81 이 이 빌드에서 재현된다고 가정하지 마라 — Q1 · Q2 — 적대 재검증부터 한다.
 
 ## 2.7 열린 물음
 > 이 절이 답하는 질문: 아직 설명되지 않았거나 시도되지 않은 것은 무엇인가?
@@ -448,64 +548,55 @@ kind: misdiagnosis
 ```hint-event
 id: Q1
 kind: open-question
-물음: 이 셀의 lite warm decode 는 이전 캠페인의 같은 셀 lite 보다 낮은가 — 그렇다면 왜인가
-현재상태: 이 발행 lite warm 18.77 t/s(실행 ②) · 18.80(실행 ①). 같은 셀의 이전 lite 레그는 2026-09-11 r2 28.06 t/s(bench_report_26091111) · 2026-09-10 첫 캠페인 26.73 t/s(testlog_26091009)다. 도구는 모두 lite_bench 의 vllm bench serve 이지만 r2 는 `--backend openai` 로 불려 lite 레그가 `/v1/completions` 였다(testlog_26091114 명령 · 그 시점 판본 sweep_bench 가 backend 를 lite_bench 에 넘긴다 — 03 §3.5) — 이 발행은 `/v1/chat/completions` 다. 첫 캠페인 lite 의 backend 는 기록이 없다. 또 이미지는 r2 이후 재빌드됐으며(D1 과 같은 이미지 · 이 발행 사실 블록의 digest 는 미관측) 호스트 드라이버는 attestation 이 580.178.04 를 관측했다. 같은 날 같은 이미지의 D1(KV auto) 셀은 GuideLLM full 판정점이 이전 인증 측정보다 크게 낮아 원인 미분석 열린 물음으로 남았다 — 이 셀에 같은 일이 있는지는 full 측정이 없어 모른다
-다음관측: 같은 serve 에서 09-11 조건(vllm bench serve · /v1/completions · 1024/256 · 5레벨)과 lite 를 함께 재 도구 · 엔드포인트 효과를 먼저 가르기
-출처: [bench_report_26092310_56_16_qwen3.8-flash-next-nvfp4_GB10_0.29.0 §lite 지표 (서빙 성공 직후 스냅샷 · inform-only), bench_report_26091111_qwen3.8-flash-next-nvfp4_GB10_0.29.0 §lite 지표 (full ⊇ lite — 열 집합 중첩 보장), testlog_26091009_qwen38fn_24셀_판정 §셀 4 의 측정 결손 — 명시, output/multi/benchlog/attestation_nv4-f8-262k-mmp.json]
+물음: 같은 레시피의 판정점이 2026-09-12 인증 측정 38.81 t/s 에서 2026-09-23 의 약 21 t/s 대(D1 Docker 20.98 · N1 run 1 21.16 · run 2 22.27)로 내려온 원인은 무엇인가
+현재상태: 원인은 분석되지 않았다(사람 결정 — D1 처분 전사 그대로: "성능하락 원인 분석 없이 REFUTE 로 처분·보존하고, 서빙은 성공했으므로 hint 태그를 발행한다"). N1 은 평면(Docker)을 뺀 대조이며 같은 대역을 냈다 — testlog 는 이것을 하락이 Docker 평면 탓이 아님을 가리키는 관측 하나로 적었다. 38.81 측정과의 기록된 차이는 측정 도구(vllm-bench-serve 대 GuideLLM 0.7.3) · 엔드포인트(/v1/completions 대 /v1/chat/completions) · 수용길이 · 재빌드 이미지 · 호스트 드라이버이며 어느 것도 원인으로 시험되지 않았다(D1 페이로드 02 Q1)
+다음관측: 같은 serve 에서 09-12 조건(vllm bench serve · /v1/completions · 1024/256 · 16요청)과 GuideLLM chat 조건을 번갈아 재 도구 · 엔드포인트 효과를 먼저 가른다
+출처: [testlog_26092317_native_N1_분산서빙_판정 §3. 판정, bench_report_26092317_qwen3.8-flash-next-nvfp4_GB10_0.29.0 §판정 (표시만 — verdict_rule.py 결과), testlog_26091304_qwen38fn_res최소조건_262k재발행_판정 §1. 측정 — 두 셀 동시성 벡터 (정본 = 1000/median TPOT)]
 ```
 
 ```hint-event
 id: Q2
 kind: open-question
-물음: 이 셀의 진짜 cold-start TTFT 는 얼마인가
-현재상태: 리포트의 679ms 는 실행 ② 의 값으로, 실행 ① 직후 같은 serve 에서 잰 것이라 cold 가 아니다. 서빙 직후 첫 실행 ① 의 cold 단일요청 TTFT 는 1746.76ms(Mean · `d2_lite.log`)로 cold 에 더 가깝다. 두 값 모두 반복 1회다
-다음관측: 새 기동 직후 lite 첫 실행의 cold 값을 반복해서 재기
-출처: [docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite.log, docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite_2.log]
+물음: 이 셀의 REFUTE 는 레시피 결함인가, 판정 입력(run 마다 달라지는 수용길이 · 외부 레퍼런스 부재)의 산물인가
+현재상태: run 2 verdict REFUTE(explore · primary = roofline×MBU 32.79 · floor 27.87 · ratio 0.679). 합격선은 R_fp 45.03 × 수용길이 2.08(실측 승계) × 0.35 에서 나왔고 외부 레퍼런스 E 검색은 수행되지 않았다(warning E-not-attempted). 기능 판정(health 200 · 추론 1회 · full 5레벨×3 완주 · 실패 0 · 자동 down PASS)은 통과했으므로 유효 측정이 합격선 아래라는 뜻이지 기능 실패가 아니다
+다음관측: E 검색을 포함한 adversarial-benchmark 재판정
+출처: [bench_report_26092317_qwen3.8-flash-next-nvfp4_GB10_0.29.0 §판정 (표시만 — verdict_rule.py 결과), testlog_26092317_native_N1_분산서빙_판정 §2. 판정 원장 (시간순)]
 ```
 
 ```hint-event
 id: Q3
 kind: open-question
-물음: fp8 KV 에 MTP 를 켠 조건에서 출력 정확성은 bf16 KV 와 동등한가
-현재상태: P0-3 의 술어 B 비교(exact 2/5 · 근접타이 3/5 전부 top-5 내)는 MTP off 조건이었다. 같은 문서의 후속은 "MTP on 의 동등성은 별도 검증" 으로 남겼고, 이 셀은 MTP k=3 으로 서빙됐다. 이 발행의 기능 판정은 chat 추론 1회(content_len 168 · finish_reason stop)뿐이다
-다음관측: MTP on 에서 kv auto 대 fp8 의 술어 B 비교
-출처: [testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §§3. P0-3 (fp8 KV), docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_serve_proof.json]
+물음: 판정점 반복 밴드가 왜 run 2 에서 17.1% 로 넓은가
+현재상태: run 2 동시성 1 의 세 반복은 22.27 / 26.32 / 22.28 t/s(밴드 17.14%)로 둘째 반복만 높다 · run 1 은 7.9% · D1(Docker)은 3.1%. testlog 는 기재만 했고 원인은 분석되지 않았다 · 판정점과 표는 대표 run(첫 완주 run)의 값이다
+다음관측: 같은 serve 에서 동시성 1 반복을 늘려 분포를 보거나, 반복마다 수용길이를 따로 기록하기
+출처: [bench_report_26092317_qwen3.8-flash-next-nvfp4_GB10_0.29.0 §반복 축 · 재현 밴드 (full 정의 = lite ∪ GuideLLM × 반복 ≥3), testlog_26092317_native_N1_분산서빙_판정 §3. 판정]
 ```
 
 ```hint-event
 id: Q4
 kind: open-question
-물음: 계획만 되고 시도 0 인 레버(eager 해제 PIECEWISE + splitting_ops · MTP k · prefix caching 쌍 · moe-backend 비교 · KV 클램프 축소)가 이 셀에서 무엇을 바꾸는가
-현재상태: 이 셀의 레버 스윕은 셀 계획 8 · 시도 0 · 남음 0 으로 닫혔다(지도는 레버 이름을 싣지 않는다). MTP k · prefix caching 쌍 · moe-backend · gmu · KV 클립은 plan_26090918 §3 레버 목록이고, PIECEWISE + splitting_ops 는 62 헤더와 P0-2 후속이 셀 레버로 미뤘다
-다음관측: eager 해제는 그래프 캡처 overhead 를 다시 잰 예산 선언 뒤 스모크 1회부터
-출처: [sweep_map_26091008_nv4-f8-262k-mmp-levers, plan_26090918_qwen38_flashnext_multi_딥캠페인 §3. 셀 매트릭스 (기본 24셀 + 레버 서브스윕), 62-qwen4exp-ple-mmap.sh]
+물음: native 셀의 측정 산출물에 엔진 로그 · 서브 수집이 비는 자리를 어떻게 채우는가
+현재상태: native 스윕의 레벨 1 · lite 엔진 로그 파일은 0 바이트이고(Docker 의 docker logs 캡처가 native 에 없다) 측정 env 관측 · KV 점유 · moe_backend 가 미기재다(01 §1.4 · 03 §3.1). 엔진 로그 원문은 정문 down 이 보존한 `docs/simlog/26092315_native_N1/logs/` 에만 있다(계보 목록 밖). lite 표의 서브 열은 "probe 실패" 다
+다음관측: 스윕이 native 정문의 보존 로그를 엔진 로그 자리로 연결하고, lite 서브 probe 가 native 평면에서 무엇을 조회하는지 확인
+출처: [bench_report_26092317_qwen3.8-flash-next-nvfp4_GB10_0.29.0 §lite 지표 (full ⊇ lite — 열 집합 중첩 보장), plan_26092311_native_분산서빙_정문_구현_N1 §3. 결정 요약 (제안 — G-N0 에서 확정)]
 ```
 
 ```hint-event
 id: Q5
 kind: open-question
-물음: 상위 vLLM 에서 자체이식 패치 60 · 62 · 64 가 여전히 필요한가
-현재상태: v0.29.0rc6 이후 버전에서 대조한 기록이 없다. 세 패치는 상류 머지를 감지하면 빌드를 멈추는 트립와이어를 갖는다(64 = QSA 에 "fp8_e4m3" 또는 _cast_kv_tile 존재 · 60 · 62 는 01 §1.2) — 조용히 skip 하지 않는다
-다음관측: 상위 태그 소스트리에서 세 트립와이어의 needle 을 grep 하고 PR #55513 · UVA/mmap · QSA fp8 KV 상류 지원을 확인
-출처: [60-qwen4exp-nvfp4-mixed.sh, 62-qwen4exp-ple-mmap.sh, 64-qwen4exp-qsa-fp8kv.sh]
+물음: 계획만 되고 시도 0 인 레버(eager 해제 PIECEWISE + splitting_ops · MTP k · prefix caching 쌍 · moe-backend 비교 · KV 클램프 축소)가 이 레시피에서 무엇을 바꾸는가
+현재상태: 이 레시피의 Docker 레버 스윕은 셀 계획 8 · 시도 0 으로 닫혔다(지도는 레버 이름을 싣지 않는다). MTP k · prefix caching · moe-backend · gmu · KV 클립은 plan_26090918 §3 의 레버 목록이고 PIECEWISE + splitting_ops 는 P0-2 후속이 셀 레버로 미뤘다. native 셀에서 레버를 잰 기록은 없다
+다음관측: eager 해제는 캡처 overhead 를 다시 잰 예산 선언 뒤 스모크 1회부터
+출처: [sweep_map_26091008_nv4-262k-mmp-levers, plan_26090918_qwen38_flashnext_multi_딥캠페인 §3. 셀 매트릭스 (기본 24셀 + 레버 서브스윕), testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §후속]
 ```
 
 ```hint-event
 id: Q6
 kind: open-question
-물음: 같은 20GiB 클램프 · 같은 fp8 KV 에서 엔진 KV 토큰 수가 왜 다르게 기록됐는가
-현재상태: 이 발행 2,280,398 토큰(8.70배) · 2026-09-11 r2 이 셀 lite 레그도 2,280,398 토큰 · P0-3 스모크 2,790,565 토큰(10.65배 · 그 문서는 토큰당 약 7.15KiB 로 적었다) · 출처 산식은 fp8 토큰당 12 KiB(클러스터). 엔진은 이 발행에서 attention block 을 3200 토큰으로 잡았다(`lite_engine` 로그 L586 · L593 · 같은 이미지 kv auto 의 D1 은 1600). 세 값의 관계를 설명한 기록은 없다
-다음관측: 같은 이미지에서 PLE 방식만 바꿔 기동해 엔진 KV 토큰 수와 attention block 크기 로그를 나란히 비교
-출처: [testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정 §§3. P0-3 (fp8 KV), plan_26091216_qwen38fn_res최소조건_후속캠페인 §2.4, docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite/lite_engine_nv4-f8-262k-mmp.log, docs/simlog/26091114_qwen38fn_r2_nv4_f8_262k_mmp/sweep_index.json]
+물음: 승인한 5 파일 불일치와 이미지 고유 의존성 충돌은 상위 이미지에서도 같은가
+현재상태: 이 이미지(NGC pytorch 26.07 · 빌드 패치 40-humming)에서 RECORD 불일치는 5 파일(humming 1 · NGC 후처리 4)이고 pip check 충돌은 grpcio-tools↔protobuf 하나였다. 승인 선언은 이 두 이미지 digest 에만 결속돼 다른 이미지에서는 도구가 거부한다
+다음관측: 다른 NGC 베이스 · 다른 빌드 패치 집합의 이미지에서 재포장 게이트 #1 결과를 보고 불일치 목록을 새로 승인
+출처: [plan_26092311_native_분산서빙_정문_구현_N1 §N1 라이브 게이트 뒤 결정 (O-N2 해소), testlog_26092317_native_N1_분산서빙_판정 §2. 판정 원장 (시간순)]
 ```
 
-```hint-event
-id: Q7
-kind: open-question
-물음: 멀티노드 ABI 동일성 관측은 이 측정 실행과 같은 실행의 것인가
-현재상태: serve 단계 attestation 은 vLLM SHA · torch · driver · 빌드 원장 identity 전축 equal 이고 파일 작성 시각(01:53:50Z)이 이 발행의 예산 창 안이지만, 발행기는 "같은 실행인지 미검증(파일은 다음 실행이 덮는다)" 으로 표시했다. simlog 사본 `d2_attestation.json` 이 보존돼 있다
-다음관측: attestation 과 측정 실행을 같은 실행 id 로 묶기
-출처: [output/multi/benchlog/attestation_nv4-f8-262k-mmp.json, docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_attestation.json]
-```
-
-이 셀은 선언부터 lite-only 다 — 현행 full 정의(03 §3.5)를 충족하지 않는 것은 열린 물음이 아니라 설계다. 열린 것은 lite 수치의 원인(Q1) · cold 값(Q2) · fp8 KV + MTP 정확성(Q3)이다.
+현행 full 정의(03 §3.5 사실 블록)로 보면 이 측정은 full 을 충족한다 — 측정 등급은 열린 물음이 아니다. 열린 것은 하락의 원인(Q1) · 판정 입력(Q2) · 넓은 반복 밴드(Q3) · native 측정 산출물의 빈 자리(Q4)다.

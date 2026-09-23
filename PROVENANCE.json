@@ -1,6 +1,6 @@
 {
   "assembly_branch": "multi-node",
-  "generated_utc": "2026-09-23T01:59:30Z",
+  "generated_utc": "2026-09-23T08:16:21Z",
   "payload_files": [
     "00-hint.md",
     "01-artifacts.md",
@@ -10,27 +10,15 @@
     "PAYLOAD.json",
     "PROVENANCE.json",
     "README.md",
-    "artifacts/build_patch_post/10-deepgemm.sh",
-    "artifacts/build_patch_post/20-triton-kernels.sh",
-    "artifacts/build_patch_post/30-mxfp4-triton-sm121.sh",
-    "artifacts/build_patch_post/40-humming-nvml-gb10.sh",
-    "artifacts/build_patch_pre/60-qwen4exp-nvfp4-mixed.sh",
-    "artifacts/build_patch_pre/62-qwen4exp-ple-mmap.sh",
-    "artifacts/build_patch_pre/64-qwen4exp-qsa-fp8kv.sh",
-    "artifacts/build_recipe/Dockerfile.source-build",
-    "artifacts/build_recipe/requirements.txt",
-    "artifacts/compose/.env.cluster.template",
-    "artifacts/compose/.env.interconnect.template",
-    "artifacts/compose/.env.template",
-    "artifacts/compose/docker-compose.yaml",
-    "artifacts/compose/serve_runner.sh",
-    "artifacts/compose/sub_recipe.json",
-    "artifacts/triplet/.env.nv4-f8-262k-mmp",
-    "artifacts/triplet/nv4-f8-262k-mmp.sh",
-    "artifacts/triplet/nv4-f8-262k-mmp.yaml"
+    "artifacts/build_recipe/native-install.sh",
+    "artifacts/build_recipe/pip-freeze-main.txt",
+    "artifacts/build_recipe/pip-freeze-sub.txt",
+    "artifacts/triplet/.env.nv4-bf-262k-mmp-native",
+    "artifacts/triplet/nv4-bf-262k-mmp-native.sh",
+    "artifacts/triplet/nv4-bf-262k-mmp-native.yaml"
   ],
   "schema_version": 2,
-  "source_anchor": "46e2abf5bed6257d008ff10db6b10d5099cd35e7",
+  "source_anchor": "1e78f24f7b6426990a5775e52a1cea0756abdb0d",
   "source_anchor_is_head": true,
-  "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8-plemmap-spec3-eager"
+  "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native-bare/qnvfp4-len262144-kvauto-plemmap-spec3-eager"
 }
