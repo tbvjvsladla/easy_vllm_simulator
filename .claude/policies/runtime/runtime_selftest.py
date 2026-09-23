@@ -1844,7 +1844,9 @@ _BACKUP_PATH_TOKENS = ("backup", "백업")
 # `output/` 은 2026-09-03 추가(P0-C-④): 빌드/캐시 산출물이라 "백업 습관" 평면이 아니고,
 # 컨테이너가 만든 하위 디렉터리에 읽기권한이 없어(`output/*/cache/vllm/modelinfos/…: Permission
 # denied`) 스캔 자체가 불가능하다. 범위 밖으로 명시해야 아래 `onerror` 가 위양성 없이 산다.
-_BACKUP_SCAN_PRUNE_TOP = frozenset({".git", "seed", "output"})
+# `.native-e2e` (2026-09-23 · plan_26092311): native 서빙의 마커 소유 휘발 run root — 이미지에서 재포장한 **서드파티
+#   설치본**(venv 의 jupyter `package.json.orig` 등)이 들어 있고 down 이 통째로 지운다. 백업 관행의 흔적이 아니다.
+_BACKUP_SCAN_PRUNE_TOP = frozenset({".git", "seed", "output", ".native-e2e"})
 # `.claude/worktrees/` is the harness isolation container, not a governed subtree.
 _WORKTREE_ISOLATION_REL = Path(".claude/worktrees")
 

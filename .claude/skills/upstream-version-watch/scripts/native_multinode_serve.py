@@ -601,6 +601,18 @@ def env_argv(env: dict[str, str], argv: list[str]) -> list[str]:
     return ["env", "-i", *[f"{k}={v}" for k, v in sorted(env.items())], *argv]
 
 
+CLIENT_REL = "bin/vllm-client"
+
+
+def client_wrapper_text(env: dict[str, str], spec: NodeSpec) -> str:
+    """벤치 클라이언트용 `vllm` 래퍼(2026-09-23 N6): 호스트 venv 의 `vllm` 을 **검증된 런타임 env** 로만 실행한다.
+    래퍼 없이 `venv/bin/vllm` 을 `--client-vllm` 으로 넘기면 LD_LIBRARY_PATH 가 없어 `import torch` 가 libmpi 로 죽고, lite 레그가
+    빈 JSON 을 남겨 spec 축(accept_len) 승계가 조용히 부재로 강등됐다. 서버와 같은 `env -i` 환경(runtime_env)을 쓴다."""
+    body = " ".join(shlex.quote(f"{k}={v}") for k, v in sorted(env.items()))
+    return ("#!/bin/sh\n# native 벤치 클라이언트 래퍼 — native_multinode_serve.py 가 설치 직후 생성(run root 와 함께 삭제)\n"
+            f"exec env -i {body} {shlex.quote(venv_dir(spec.root) + '/bin/vllm')} \"$@\"\n")
+
+
 def mkdirs_argv(spec: NodeSpec) -> list[str]:
     return ["mkdir", "-p", *[f"{spec.root}/{v}" for v in sorted(set(CACHE_DIRS.values()))], f"{spec.root}/logs", f"{spec.short}/tmp", f"{spec.short}/ray"]
 
@@ -875,7 +887,11 @@ class NativeServe:
             freeze = r.run(pip_freeze_argv(spec.root), 120).out
             self.state.setdefault("pip_freeze_rel", {})[name] = self._preserve(f"pip-freeze-{name}.txt", freeze.encode())
         self.state["native_install_rel"] = self._preserve("native-install.sh", native_install_script(c, tool_sha, generated_utc, accept_sha).encode())
-        self.state["runtime_env_recipe"] = lds; self._state_write()
+        self.state["runtime_env_recipe"] = lds
+        self.r["main"].put(CLIENT_REL, client_wrapper_text(runtime_env(c, c.nodes["main"], lds["main"]), c.nodes["main"]).encode(), 0o755)
+        self.state["client_vllm"] = f"{c.nodes['main'].root}/{CLIENT_REL}"
+        self.log(f"[native] 벤치 클라이언트 래퍼 → {self.state['client_vllm']} (--client-vllm 로 넘긴다)")
+        self._state_write()
         return lds
 
     def _arm_watchdog(self, name: str, target: Identity) -> None:
@@ -1513,22 +1529,34 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="native 2노드 Ray/vLLM 서빙 정문(up/down)")
     ap.add_argument("--self-test", action="store_true")
     sub = ap.add_subparsers(dest="op")
-    for name in ("up", "down"):
+    for name in ("up", "down", "client"):
         p = sub.add_parser(name)
         p.add_argument("--cell", required=True); p.add_argument("--run-id", required=True)
         p.add_argument("--apply", action="store_true"); p.add_argument("--repo", default=str(REPO_DEFAULT))
         if name == "up":
             p.add_argument("--source-cell"); p.add_argument("--ready-max-seconds", type=int)
             p.add_argument("--simlog-topic", default="native_N1")
+        elif name == "client":
+            p.add_argument("--source-cell")
         else:
             p.add_argument("--run-root-base", help="state.json 을 찾을 base(기본 = 활성 캠페인 native_run_root_base)")
     a = ap.parse_args()
     if a.self_test: return self_test()
-    if a.op not in ("up", "down"): ap.print_help(sys.stderr); return EXIT_USAGE
+    if a.op not in ("up", "down", "client"): ap.print_help(sys.stderr); return EXIT_USAGE
     repo = Path(a.repo).resolve()
     try:
         if a.op == "down":
             return down_cli(repo, a.cell, a.run_id, a.apply, a.run_root_base)
+        if a.op == "client":
+            # 떠 있는 run 의 클라이언트 래퍼를 state.json 의 검증된 레시피로 (재)생성한다(래퍼 도입 전에 up 한 run 용 · 멱등).
+            ctx = load_ctx(repo, a.cell, a.run_id, source_cell=a.source_cell)
+            m = ctx.nodes["main"]; st = json.loads((Path(m.root) / "state.json").read_text(encoding="utf-8"))
+            lds = (st.get("runtime_env_recipe") or {}).get("main")
+            if not isinstance(lds, dict) or not lds.get("LD_LIBRARY_PATH"): raise ServeError("state.json 에 main 런타임 레시피가 없다")
+            dst = Path(m.root) / CLIENT_REL
+            if not a.apply: print(dst); return EXIT_OK
+            dst.parent.mkdir(parents=True, exist_ok=True); dst.write_text(client_wrapper_text(runtime_env(ctx, m, lds), m), encoding="utf-8"); dst.chmod(0o755)
+            print(dst); return EXIT_OK
         ctx = load_ctx(repo, a.cell, a.run_id, source_cell=a.source_cell, ready_max_s=a.ready_max_seconds, simlog_topic=a.simlog_topic)
         clock = Clock(); utc = _utc(clock.now())
         r = {"main": Local(ctx.nodes["main"].root, "main"), "sub": SSH(ctx.sub_host, ctx.nodes["sub"].root, "sub")}
