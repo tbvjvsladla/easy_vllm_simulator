@@ -1,7 +1,7 @@
 <!-- 이 파일 **전체**가 생성물이다 — `hint.py catalog derive` 가 원격 발행 태그에서 통째로 다시 만든다(plan_26092119 §4.10). 손으로 고치지 마라: 다음 derive 에서 사라진다. 진실원천 = 원격의 refs/tags/hint/* 광고 · 색인 = hints/index.json(같은 derive 가 쓴다). -->
 # hint 태그 카탈로그 — 검증된 서빙 여정의 지도
 
-> 원격 `origin` 의 발행 태그 **48건**에서 파생 · 생성 `2026-09-23T10:58:14` KST · 문법 세대: `v6` 1 · `legacy-5seg-node` 45 · `legacy-5seg` 2 · 로컬 오브젝트 부재(미수령) 1건.
+> 원격 `origin` 의 발행 태그 **49건**에서 파생 · 생성 `2026-09-23T12:18:21` KST · 문법 세대: `v6` 2 · `legacy-5seg-node` 45 · `legacy-5seg` 2 · 로컬 오브젝트 부재(미수령) 1건.
 > 표를 사람이 쓰지 않는다 — "발행됐다"는 원격에 태그가 있다는 사실 하나로만 성립한다(카탈로그 바깥의 증거).
 
 ## hint 태그란 — 정답이 아니라 지도
@@ -76,9 +76,9 @@ python3 .claude/skills/hint-publisher/scripts/hint.py match --vllm <V> --model <
 | `gb10x2-cluster-native` | `legacy-5seg-node` | 20 |
 | `rtxpro6000x2-main-native` | `legacy-5seg-node` | 14 |
 | `rtxpro6000-main-native` | `legacy-5seg-node` | 4 |
+| `gb10-1g2n-cluster-native` | `v6` | 2 |
 | `gb10-main-sim-kv24g` | `legacy-5seg-node` | 2 |
 | `gb10-sub-sim-kv24g` | `legacy-5seg-node` | 2 |
-| `gb10-1g2n-cluster-native` | `v6` | 1 |
 | `gb10-main-native` | `legacy-5seg-node` | 1 |
 | `gb10-sim-h100` | `legacy-5seg` | 1 |
 | `gb10-sub-native` | `legacy-5seg-node` | 1 |
@@ -138,4 +138,5 @@ python3 .claude/skills/hint-publisher/scripts/hint.py match --vllm <V> --model <
 | `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph0` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8-l1spec · 변종 spec7-graph0 · 768K 29.72 t/s @1 · verdict PASS(explore) |
 | `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph1-len1m` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 e-1m-kvfp8-e1combo · 변종 spec7-graph1-len1m · 1M 30.54 t/s @1 · verdict PASS(explore) |
 | `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-plemmap-spec3-eager` | v6 | 0.29.0rc6 | qwen3.8-flash-next-nvfp4 | gb10-1g2n-cluster-native | full | HINT_MISSING_CERTIFICATE | `nvidia/Qwen3.8-Flash-Next-NVFP4` 를 GB10 1GPU × 2노드(Ray TP=2)에서 vLLM `v0.29.0rc6` 소스빌드로 서빙했다 — NVFP4 · max-model-len 262144 · KV auto · PLE NVMe mmap · MTP k=3 · eager, 판정점 동시성 1 decode 20.98 t/s(MTP on · GuideLLM full 반복 3). 가장 비싼 벽은 stock 이 NVFP4 mixed 체크포인트를 싣지 못한 것(W1 → 빌드 패치 60)과 통합메모리에서 PLE 테이블을 거둘 경로가 없던 것(W6 → 62 mmap + 노드 로컬 NVMe 스테이징)이다. 성능은 탐색 합격선 대비 REFUTE 이고(기능은 PASS · 인증서 없음) 이전 인증 측정과의 큰 격차는 원인 미분석(Q1) — 이 수치를 기준선으로 쓰지 말 것 · KV 20GiB 클램프(V6)는 필요량을 크게 넘긴 음성대조값이다. |
+| `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8-plemmap-spec3-eager` | v6 | 0.29.0rc6 | qwen3.8-flash-next-nvfp4 | gb10-1g2n-cluster-native | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_CERTIFICATE · HINT_MISSING_SWEEP_LEVELS | `nvidia/Qwen3.8-Flash-Next-NVFP4` 를 GB10 1GPU × 2노드(Ray TP=2)에서 vLLM `v0.29.0rc6` 소스빌드로 서빙했다 — NVFP4 · max-model-len 262144 · KV fp8_e4m3 · PLE NVMe mmap · MTP k=3 · eager, lite 관측 warm decode 18.77 t/s(동시성 1 · MTP on · 반복 1 · OBSERVATION-ONLY · 판정 없음). 가장 비싼 벽은 stock 이 NVFP4 mixed 체크포인트를 싣지 못한 것(W1 → 빌드 패치 60), fp8 KV 를 QSA 가 거부한 것(W8 → 64), 통합메모리에서 PLE 테이블을 거둘 경로가 없던 것(W6 → 62 mmap + 노드 로컬 NVMe)이다. 오해 위험: KV 20GiB 클램프(V6)는 필요량을 크게 넘는 승계 손레버이고, 리포트의 cold TTFT 는 연속 두 번째 실행의 값이라 cold 가 아니다(Q2) — 이 lite 수치를 기준선이나 full · 인증 수치와 나란히 쓰지 말 것. |
 <!-- hint-index:rows -->
