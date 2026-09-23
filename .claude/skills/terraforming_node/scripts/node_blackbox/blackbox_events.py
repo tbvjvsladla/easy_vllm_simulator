@@ -73,13 +73,22 @@ _P = [
                 r".*?docker kill\s+(\S+)"),
      lambda m: {"kind": "watchdog_trip", "mem_avail_mib": int(m.group(1)),
                 "threshold_mib": int(m.group(2)), "target": m.group(3),
-                "action": "docker_kill", "rule": "absolute"}),
+                "target_kind": "container", "action": "docker_kill", "rule": "absolute"}),
+    # 협역 워치독 pgid 표적 모드(2026-09-23 · plan_26092311 N3) — native 서빙은 컨테이너가 없다.
+    #   `target_kind` 로 표적 평면을 가른다: 같은 kind(watchdog_trip)지만 action 은 docker_kill 이 아니다.
+    (re.compile(r"\[mem-watchdog\]\s+TRIP\s+MemAvailable=(\d+)MiB\s+<\s+(\d+)MiB"
+                r"\s+→\s+target_kind=pgid\s+pgid=(\d+)\s+starttime=(\d+)"),
+     lambda m: {"kind": "watchdog_trip", "mem_avail_mib": int(m.group(1)),
+                "threshold_mib": int(m.group(2)), "target": "pgid:" + m.group(3),
+                "target_kind": "pgid", "pgid": int(m.group(3)), "starttime": int(m.group(4)),
+                "action": "pgid_term_kill", "rule": "absolute"}),
     # 신규 ETA 워치독 TRIP (rate/streak 포함 -- 판정 근거가 로그에 남는다)
     (re.compile(r"\[bb-watchdog\]\s+TRIP\s+mem=(\d+)MiB\s+rate=(-?\d+)MiB/s\s+streak=(\d+)"
                 r"\s+→\s+docker kill\s+(.+?)\s+\d{4}-"),
      lambda m: {"kind": "watchdog_trip", "mem_avail_mib": int(m.group(1)),
                 "rate_mib_s": int(m.group(2)), "streak": int(m.group(3)),
-                "target": m.group(4).strip(), "action": "docker_kill", "rule": "eta"}),
+                "target": m.group(4).strip(), "target_kind": "container",
+                "action": "docker_kill", "rule": "eta"}),
     (re.compile(r"\[(?:mem|bb)-watchdog\]\s+TRIP-nomatch\s+(?:MemAvailable=|mem=)(\d+)MiB"),
      lambda m: {"kind": "watchdog_trip_nomatch", "mem_avail_mib": int(m.group(1)),
                 "action": "none"}),
@@ -127,7 +136,8 @@ _P = [
      lambda m: {"kind": "kernel_oom_kill", "pid": int(m.group(1)),
                 "process": m.group(2), "action": "kernel_kill"}),
     (re.compile(r"\[(?:mem|bb)-watchdog\]\s+start\s+filter='([^']*)'"),
-     lambda m: {"kind": "watchdog_start", "filter": m.group(1)}),
+     lambda m: {"kind": "watchdog_start", "filter": m.group(1),
+                "target_kind": "pgid" if m.group(1).startswith("pgid:") else "container"}),
 ]
 
 # docker kill 이 표준출력으로 되돌린 컨테이너 ID = 킬 명령이 반환됐다는 증거
@@ -407,6 +417,17 @@ def _self_test():
                    == "watchdog_trip_nomatch"))
     checks.append(("kill-ack 파싱", kind_of("[mem-watchdog] 249d24630725") == "watchdog_kill_ack"))
     checks.append(("start 파싱", kind_of("[bb-watchdog] start filter='@vllm' interval=1s") == "watchdog_start"))
+    # pgid 표적 모드(N3) — 픽스처는 mem_watchdog.sh 가 **실제로 찍는 문자열**이다.
+    e = parse_message("[mem-watchdog] TRIP MemAvailable=9000MiB < 10240MiB → target_kind=pgid pgid=4242 "
+                      "starttime=123456 SIGTERM→2s→SIGKILL 2026-09-23T00:00:00Z")
+    checks.append(("pgid TRIP 파싱(target_kind=pgid · docker_kill 아님)",
+                   e and e["kind"] == "watchdog_trip" and e["target_kind"] == "pgid"
+                   and e["pgid"] == 4242 and e["starttime"] == 123456
+                   and e["action"] == "pgid_term_kill"))
+    e = parse_message("[mem-watchdog] TRIP MemAvailable=10186MiB < 10240MiB → docker kill 249d24630725 2026-07-22T08:48:59Z")
+    checks.append(("컨테이너 TRIP 은 target_kind=container", e and e.get("target_kind") == "container"))
+    e = parse_message("[mem-watchdog] start filter='pgid:4242' target_kind=pgid pgid=4242 starttime=1 threshold=10240MiB")
+    checks.append(("pgid start 파싱 target_kind=pgid", e and e["kind"] == "watchdog_start" and e["target_kind"] == "pgid"))
     # ⑦ 열·전력 포락선 워치독 (plan_26082319 §6.4)
     #    ★ 픽스처는 thermal_watchdog.sh 가 **실제로 찍는 문자열**이어야 한다. 손으로 지어낸
     #      문자열로 시험하면 로그 포맷이 바뀌어도 PASS 가 나고, 그 사이 이벤트는 조용히 사라진다.

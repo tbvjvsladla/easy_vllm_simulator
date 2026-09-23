@@ -2765,8 +2765,9 @@ _WATCHDOG_PREDICATE_FILES = (
 )
 _WATCHDOG_PREDICATE_BLOCKS = (
     ("BB_TARGET_PREDICATE_V1", _WATCHDOG_PREDICATE_FILES),
-    # 자체시험 블록은 self-test 를 가진 두 워치독에만 있다. 협역 워치독은 --self-test 진입점이
-    # 없어 대상에서 빠지며, 그 빈자리는 술어 본문 parity 가 덮는다(같은 글자면 같은 판정이다).
+    # 자체시험 블록은 ETA·열 워치독 둘에만 있다. 협역 워치독의 --self-test(2026-09-23 · N3 신설)는
+    # pgid 표적 모드와 컨테이너 모드 회귀를 보며 이 술어 블록을 복제하지 않는다 — 그 빈자리는 술어
+    # 본문 parity 가 덮는다(같은 글자면 같은 판정이다). 실행자는 verify_distribution 이다.
     ("BB_TARGET_PREDICATE_SELFTEST_V1",
      (".claude/skills/terraforming_node/scripts/node_blackbox/mem_watchdog_eta.sh",
       ".claude/skills/terraforming_node/scripts/node_blackbox/thermal_watchdog.sh")),

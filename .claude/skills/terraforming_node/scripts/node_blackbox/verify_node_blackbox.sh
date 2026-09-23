@@ -340,7 +340,21 @@ else bad "오늘 샘플 파일 없음: $TODAY" "sample_growth"; fi
 #     실카운트 0 인데 2 를 보고했고 그 2 는 방금 친 진단 명령이었다. `[m]em…` 브래킷 트릭은
 #     pgrep 자신의 argv 만 피할 뿐 제3자 명령줄은 못 피한다. → 실행 중 프로그램의 **스크립트
 #     인자 자체**가 그 파일인지로 판정한다(언급 ≠ 실행).
-_wd_live_targets() {   # $1=name_filter → 살아 있는 대상 컨테이너 수
+_wd_live_targets() {   # $1=name_filter | pgid:<N>:<starttime> → 살아 있는 대상 수
+  # pgid 표적 모드(2026-09-23 · plan_26092311 N3): 대상 = 리더 /proc/<N>/stat 의 starttime 이 일치하는 그룹.
+  #   argv 를 위치 $3 로만 읽으면 `--pgid` 가 이름 필터로 오독돼 **정상 무장이 고아로** 판정된다.
+  case "$1" in
+    pgid:*)
+      local _pg _st _s _r
+      _pg="${1#pgid:}"; _st="${_pg#*:}"; _pg="${_pg%%:*}"
+      case "$_pg$_st" in ''|*[!0-9]*) echo 0; return ;; esac
+      _s=""; read -r _s 2>/dev/null < "/proc/$_pg/stat" || [ -n "$_s" ] || { echo 0; return; }
+      _r="${_s##*) }"
+      # shellcheck disable=SC2086
+      set -- $_r
+      if [ "${3:-}" = "$_pg" ] && [ "${20:-}" = "$_st" ]; then echo 1; else echo 0; fi
+      return ;;
+  esac
   if [ -z "$1" ] || [ "$1" = "@vllm" ]; then
     docker ps --filter status=running --format '{{.ID}} {{.Image}} {{.Names}}' 2>/dev/null \
       | awk 'tolower($0) ~ /vllm/ {n++} END {print n+0}'
@@ -360,7 +374,11 @@ while IFS= read -r _flt; do
   if [ "$_n" -gt 0 ]; then WD_GUARDING=$((WD_GUARDING+1)); WD_DETAIL="$WD_DETAIL '$_flt'→${_n}개(가동중)"
   else WD_ORPHAN=$((WD_ORPHAN+1));  WD_DETAIL="$WD_DETAIL '$_flt'→0개(고아)"; fi
 done < <(ps -eo args= 2>/dev/null | awk '
-    $1 ~ /(^|\/)bash$/ && $2 ~ /(^|\/)mem_watchdog\.sh$/ { print ($3 == "" ? "@vllm" : $3) }')
+    $1 ~ /(^|\/)bash$/ && $2 ~ /(^|\/)mem_watchdog\.sh$/ {
+      pg = ""; st = ""
+      for (i = 3; i < NF; i++) { if ($i == "--pgid") pg = $(i+1); if ($i == "--starttime") st = $(i+1) }
+      if (pg != "" || st != "") { print "pgid:" pg ":" st; next }
+      print ($3 == "" ? "@vllm" : $3) }')
 if [ "$WD_ORPHAN" = "0" ]; then
   if [ "$WD_TOTAL" = "0" ]; then ok "레거시 협역 워치독 고아 0 (실행 중 0개)" "no_zombie"
   else ok "레거시 협역 워치독 고아 0 (${WD_GUARDING}개가 대상 보호 중 —$WD_DETAIL)" "no_zombie"; fi

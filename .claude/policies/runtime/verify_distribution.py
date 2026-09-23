@@ -760,6 +760,16 @@ def verify() -> dict:
         _run("terraform_node_identity_selftest", ["bash",
              ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
              "--self-test"], {0}),
+        # 2026-09-23(plan_26092311 N3): 협역 워치독·예산 갱신 루프에 pgid 표적 모드(native 서빙)를 얹으면서
+        #   자체검사를 배선한다. 둘 다 **호출자가 없었다**(갱신 루프 --self-test 는 있었지만 아무도 안 불렀고,
+        #   협역 워치독은 진입점 자체가 없었다) — 위 선례와 같은 결함 계열. 둘 다 이 시험이 띄운 sleep
+        #   프로세스그룹만 죽이고, docker 는 가짜 스텁이다(실서빙·실컨테이너 불요).
+        _run("terraform_host_safety_mem_watchdog_selftest", ["bash",
+             ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
+             "--self-test"], {0}),
+        _run("terraform_budget_renew_loop_selftest", ["bash",
+             ".claude/skills/terraforming_node/scripts/node_blackbox/budget_renew_loop.sh",
+             "--self-test"], {0}),
         _run("runtime_regression_selftest", [*_child_python(),
              ".claude/policies/runtime/runtime_selftest.py"], {0}),
         *_gitless_hint_match_checks(),
