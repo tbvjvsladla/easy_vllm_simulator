@@ -1,0 +1,15 @@
+# 셀 nv4-f8-262k-mmp — camp-26090918-qwen38fn-multi cell 4/24
+# 선언 축: variant=nvfp4 · kv_cache_dtype=fp8_e4m3 · context=262144 · PLE=mmap
+# 셀 1 대비 축: KV bf16 → fp8_e4m3 + PLE resident → mmap
+model: /app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4
+host: 0.0.0.0
+port: 8080
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+gpu-memory-utilization: 0.85
+max-model-len: 262144
+kv-cache-dtype: fp8_e4m3
+kv-cache-memory-bytes: 21474836480
+enforce-eager: true
+async-scheduling: false
+speculative-config: '{"method":"mtp","num_speculative_tokens":3}'

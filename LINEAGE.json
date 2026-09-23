@@ -8,7 +8,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_fp8-bf-1m-mmp-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -19,7 +19,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_fp8-bf-1m-res-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 1·이질 토큰 4 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 1·이질 토큰 4 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -30,7 +30,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_fp8-bf-262k-mmp-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 3·이질 토큰 2 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 3·이질 토큰 2 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -41,7 +41,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_fp8-bf-262k-res-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -52,7 +52,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_fp8-bf-512k-mmp-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -63,7 +63,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_fp8-bf-512k-res-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 1·이질 토큰 4 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 1·이질 토큰 4 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -74,7 +74,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_fp8-f8-1m-mmp-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 1·이질 토큰 4 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 3·이질 토큰 2 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -85,7 +85,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_fp8-f8-1m-res-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 0·이질 토큰 5 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -96,7 +96,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_fp8-f8-262k-mmp-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 4·이질 토큰 1 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -107,7 +107,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_fp8-f8-262k-res-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 1·이질 토큰 4 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 3·이질 토큰 2 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -118,7 +118,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_fp8-f8-512k-mmp-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 1·이질 토큰 4 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 3·이질 토큰 2 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -129,7 +129,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_fp8-f8-512k-res-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 0·이질 토큰 5 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -140,7 +140,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_nv4-bf-1m-mmp-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 3·이질 토큰 2 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -151,7 +151,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_nv4-bf-1m-res-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 1·이질 토큰 4 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -162,7 +162,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_nv4-bf-512k-mmp-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 3·이질 토큰 2 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -173,7 +173,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_nv4-bf-512k-res-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 1·이질 토큰 4 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -184,7 +184,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_nv4-f8-1m-mmp-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 3·이질 토큰 2 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -195,7 +195,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_nv4-f8-1m-res-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 1·이질 토큰 4 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -206,7 +206,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_nv4-f8-262k-res-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 3·이질 토큰 2 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -217,7 +217,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_nv4-f8-512k-mmp-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 3·이질 토큰 2 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -228,7 +228,7 @@
       ],
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_nv4-f8-512k-res-levers.md",
-      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 1·이질 토큰 4 < 최선 형제 3·1(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`sweep_map_26091008` · 형제 25건) — 셀 키 적중 2·이질 토큰 3 < 최선 형제 5·1(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "sweep_map_26091008"
     },
     {
@@ -237,27 +237,17 @@
       ],
       "kind": "devlog",
       "path": "docs/devlog/devlog_26090117_17_21_gptoss120b_gb10_0191_single_v2.md",
-      "reason": "모호 해소(`devlog_26090117` · 형제 3건) — 셀 키 적중 1·이질 토큰 5 < 최선 형제 1·4(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`devlog_26090117` · 형제 3건) — 셀 키 적중 0·이질 토큰 5 < 최선 형제 1·4(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "devlog_26090117"
-    },
-    {
-      "from": [
-        "docs/plan/plan_26091517_⑨E2E_셀3_NVFP4_single_광의탐색.md",
-        "docs/plan/plan_26091523_⑨E2E_교정_회차순서_single먼저_meta-claude.md"
-      ],
-      "kind": "report",
-      "path": "docs/report/perf_26082421_hy3_서빙전략_레시피별_성능.md",
-      "reason": "모호 해소(`perf_26082421` · 형제 2건) — 셀 키 적중 0·이질 토큰 4 < 최선 형제 1·4(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
-      "token": "perf_26082421"
     },
     {
       "from": [
         "docs/testlog/testlog_26090321_P4_메인서빙_서브자율_병렬.md"
       ],
-      "kind": "testlog",
-      "path": "docs/testlog/testlog_26090117_17_21_gptoss120b_gb10_0191_single_v2.md",
-      "reason": "모호 해소(`testlog_26090117` · 형제 3건) — 셀 키 적중 1·이질 토큰 5 < 최선 형제 1·4(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
-      "token": "testlog_26090117"
+      "kind": "devlog",
+      "path": "docs/devlog/devlog_26090117_gptoss120b_gb10_0191_single.md",
+      "reason": "모호 해소(`devlog_26090117` · 형제 3건) — 셀 키 적중 0·이질 토큰 4 < 최선 형제 1·4(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
+      "token": "devlog_26090117"
     },
     {
       "from": [
@@ -265,7 +255,7 @@
       ],
       "kind": "testlog",
       "path": "docs/testlog/testlog_26090317_08_56_terraforming_node_멀티경로_교정검증_테스트_감사원본.md",
-      "reason": "모호 해소(`testlog_26090317` · 형제 3건) — 셀 키 적중 1·이질 토큰 6 < 최선 형제 1·5(셀 키 ['1280', '262144', '262k', 'auto', 'baseline', 'bf', 'comparison', 'direct', 'docker', 'docker full · baseline direct comparison', 'full', 'mmap', 'mmp', 'nv4', 'nv4-bf-262k-mmp', 'stock'])",
+      "reason": "모호 해소(`testlog_26090317` · 형제 3건) — 셀 키 적중 2·이질 토큰 6 < 최선 형제 2·5(셀 키 ['1280', '262144', '262k', 'docker', 'docker lite-only · same image', 'f8', 'fp8', 'image', 'lite', 'mmap', 'mmp', 'nv4', 'nv4-f8-262k-mmp', 'only', 'same', 'stock'])",
       "token": "testlog_26090317"
     }
   ],
@@ -283,7 +273,8 @@
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "easy-vllm:0.29.0rc6-cu133-aarch64-source"
+          "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+          "f8"
         ]
       },
       "resolution": "exact",
@@ -352,25 +343,13 @@
         },
         {
           "edge": "seed",
-          "from": "prior_publication:qwen38fn_full_nv4_bf_262k_mmp",
+          "from": "prior_publication:qwen38fn_hint_nv4_f8_262k_mmp",
           "resolution": "exact",
           "token": "narrative_status.plan"
         },
         {
           "edge": "seed",
-          "from": "prior_publication:qwen38fn_full_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "scaffolded.plan"
-        },
-        {
-          "edge": "seed",
-          "from": "prior_publication:qwen38fn_hint_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "narrative_status.plan"
-        },
-        {
-          "edge": "seed",
-          "from": "prior_publication:qwen38fn_hint_nv4_bf_262k_mmp",
+          "from": "prior_publication:qwen38fn_hint_nv4_f8_262k_mmp",
           "resolution": "exact",
           "token": "scaffolded.plan"
         }
@@ -388,6 +367,7 @@
         "axis_tokens": [
           "0.29.0rc6",
           "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+          "f8",
           "nv4"
         ]
       },
@@ -437,7 +417,8 @@
       "path": "docs/testlog/testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정.md",
       "relevance": {
         "axis_tokens": [
-          "0.29.0rc6"
+          "0.29.0rc6",
+          "f8"
         ]
       },
       "resolution": "unique",
@@ -482,10 +463,8 @@
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
           "mmp",
-          "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4"
         ]
       },
       "resolution": "unique",
@@ -565,27 +544,9 @@
       "via": [
         {
           "edge": "mention",
-          "from": "docs/devlog/devlog_26091009_qwen38fn_24셀_캠페인종합_서사.md",
-          "resolution": "ambiguous",
-          "token": "sweep_map_26091008"
-        },
-        {
-          "edge": "mention",
-          "from": "docs/plan/plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E.md",
-          "resolution": "ambiguous",
-          "token": "sweep_map_26091008"
-        },
-        {
-          "edge": "mention",
           "from": "docs/plan/plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E.md",
           "resolution": "exact",
           "token": "sweep_map_26091008_nv4-262k-mmp-levers"
-        },
-        {
-          "edge": "mention",
-          "from": "docs/report/perf_26091009_qwen38fn_24cells_종합.md",
-          "resolution": "ambiguous",
-          "token": "sweep_map_26091008"
         },
         {
           "edge": "mention",
@@ -668,20 +629,40 @@
       "class": null,
       "commit": null,
       "date_key": "26091008",
-      "depth": 3,
+      "depth": 1,
       "kind": "sweep_map",
       "path": "docs/benchmark/sweep_map_26091008_nv4-f8-262k-mmp-levers.md",
       "relevance": {
         "axis_tokens": [
           "262k",
+          "f8",
           "mmp",
-          "nv4"
+          "nv4",
+          "nv4-f8-262k-mmp"
         ]
       },
       "resolution": "exact",
       "sha256": "cd2fff1223ef43e6a5b5af3110133a677182dac2d6b414b86274e1a1e1237cc5",
       "superseded_by": [],
       "via": [
+        {
+          "edge": "mention",
+          "from": "docs/devlog/devlog_26091009_qwen38fn_24셀_캠페인종합_서사.md",
+          "resolution": "ambiguous",
+          "token": "sweep_map_26091008"
+        },
+        {
+          "edge": "mention",
+          "from": "docs/plan/plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E.md",
+          "resolution": "ambiguous",
+          "token": "sweep_map_26091008"
+        },
+        {
+          "edge": "mention",
+          "from": "docs/report/perf_26091009_qwen38fn_24cells_종합.md",
+          "resolution": "ambiguous",
+          "token": "sweep_map_26091008"
+        },
         {
           "edge": "mention",
           "from": "docs/report/perf_26091009_qwen38fn_24cells_종합.md",
@@ -702,10 +683,10 @@
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
+          "f8",
           "mmp",
           "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4-f8-262k-mmp"
         ]
       },
       "resolution": "exact",
@@ -760,25 +741,13 @@
         },
         {
           "edge": "seed",
-          "from": "prior_publication:qwen38fn_full_nv4_bf_262k_mmp",
+          "from": "prior_publication:qwen38fn_hint_nv4_f8_262k_mmp",
           "resolution": "exact",
           "token": "narrative_status.testlog"
         },
         {
           "edge": "seed",
-          "from": "prior_publication:qwen38fn_full_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "scaffolded.testlog"
-        },
-        {
-          "edge": "seed",
-          "from": "prior_publication:qwen38fn_hint_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "narrative_status.testlog"
-        },
-        {
-          "edge": "seed",
-          "from": "prior_publication:qwen38fn_hint_nv4_bf_262k_mmp",
+          "from": "prior_publication:qwen38fn_hint_nv4_f8_262k_mmp",
           "resolution": "exact",
           "token": "scaffolded.testlog"
         }
@@ -795,10 +764,10 @@
       "relevance": {
         "axis_tokens": [
           "262k",
-          "bf",
+          "f8",
           "mmp",
           "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4-f8-262k-mmp"
         ]
       },
       "resolution": "exact",
@@ -819,25 +788,13 @@
         },
         {
           "edge": "seed",
-          "from": "prior_publication:qwen38fn_full_nv4_bf_262k_mmp",
+          "from": "prior_publication:qwen38fn_hint_nv4_f8_262k_mmp",
           "resolution": "exact",
           "token": "narrative_status.devlog"
         },
         {
           "edge": "seed",
-          "from": "prior_publication:qwen38fn_full_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "scaffolded.devlog"
-        },
-        {
-          "edge": "seed",
-          "from": "prior_publication:qwen38fn_hint_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "narrative_status.devlog"
-        },
-        {
-          "edge": "seed",
-          "from": "prior_publication:qwen38fn_hint_nv4_bf_262k_mmp",
+          "from": "prior_publication:qwen38fn_hint_nv4_f8_262k_mmp",
           "resolution": "exact",
           "token": "scaffolded.devlog"
         }
@@ -855,11 +812,11 @@
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
           "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+          "f8",
           "mmp",
           "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4-f8-262k-mmp"
         ]
       },
       "resolution": "exact",
@@ -879,7 +836,7 @@
       "class": null,
       "commit": null,
       "date_key": "26091011",
-      "depth": 0,
+      "depth": 1,
       "kind": "bench_report",
       "path": "docs/benchmark/bench_report_26091011_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
       "relevance": {
@@ -888,7 +845,7 @@
           "easy-vllm:0.29.0rc6-cu133-aarch64-source"
         ]
       },
-      "resolution": "exact",
+      "resolution": "unique",
       "sha256": "7d1451ab2b2a6b3a7b0875a3859eeb55a00ecd036b65bfed0040f81ccb04ecf3",
       "superseded_by": [],
       "via": [
@@ -897,12 +854,6 @@
           "from": "docs/plan/plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E.md",
           "resolution": "unique",
           "token": "bench_report_26091011"
-        },
-        {
-          "edge": "seed",
-          "from": "prior_publication:qwen38fn_full_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "scaffolded.bench_report"
         }
       ]
     },
@@ -911,17 +862,16 @@
       "class": null,
       "commit": null,
       "date_key": "26091108",
-      "depth": 1,
+      "depth": 0,
       "kind": "plan",
       "path": "docs/plan/plan_26091108_qwen38fn_22셀_재수행_캠페인.md",
       "relevance": {
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
+          "f8",
           "mmp",
-          "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4"
         ]
       },
       "resolution": "exact",
@@ -993,6 +943,18 @@
           "from": "docs/testlog/testlog_26091109_하네스교정_R0R10_역채점_음성대조.md",
           "resolution": "ambiguous",
           "token": "plan_26091108"
+        },
+        {
+          "edge": "seed",
+          "from": "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp",
+          "resolution": "exact",
+          "token": "narrative_status.plan"
+        },
+        {
+          "edge": "seed",
+          "from": "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp",
+          "resolution": "exact",
+          "token": "scaffolded.plan"
         }
       ]
     },
@@ -1007,10 +969,9 @@
       "relevance": {
         "axis_tokens": [
           "262k",
-          "bf",
+          "f8",
           "mmp",
-          "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4"
         ]
       },
       "resolution": "exact",
@@ -1091,10 +1052,10 @@
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
+          "f8",
           "mmp",
           "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4-f8-262k-mmp"
         ]
       },
       "resolution": "exact",
@@ -1158,6 +1119,32 @@
       ]
     },
     {
+      "bytes": 3940,
+      "class": null,
+      "commit": null,
+      "date_key": "26091111",
+      "depth": 0,
+      "kind": "bench_report",
+      "path": "docs/benchmark/bench_report_26091111_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
+      "relevance": {
+        "axis_tokens": [
+          "0.29.0rc6",
+          "easy-vllm:0.29.0rc6-cu133-aarch64-source"
+        ]
+      },
+      "resolution": "exact",
+      "sha256": "5b69b99f38cb2308e8fc693ab4895336ece6e059473de9c80230562482fe725c",
+      "superseded_by": [],
+      "via": [
+        {
+          "edge": "seed",
+          "from": "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp",
+          "resolution": "exact",
+          "token": "scaffolded.bench_report"
+        }
+      ]
+    },
+    {
       "bytes": 4306,
       "class": null,
       "commit": null,
@@ -1169,10 +1156,11 @@
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
           "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+          "f8",
           "mmp",
-          "nv4"
+          "nv4",
+          "nv4-f8-262k-mmp"
         ]
       },
       "resolution": "exact",
@@ -1190,6 +1178,18 @@
           "from": "lineage_seeds:grounding_refs",
           "resolution": "exact",
           "token": "testlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_판정"
+        },
+        {
+          "edge": "seed",
+          "from": "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp",
+          "resolution": "exact",
+          "token": "narrative_status.testlog"
+        },
+        {
+          "edge": "seed",
+          "from": "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp",
+          "resolution": "exact",
+          "token": "scaffolded.testlog"
         }
       ]
     },
@@ -1198,15 +1198,16 @@
       "class": null,
       "commit": null,
       "date_key": "26091114",
-      "depth": 1,
+      "depth": 0,
       "kind": "devlog",
       "path": "docs/devlog/devlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_서사.md",
       "relevance": {
         "axis_tokens": [
           "262k",
-          "bf",
+          "f8",
           "mmp",
-          "nv4"
+          "nv4",
+          "nv4-f8-262k-mmp"
         ]
       },
       "resolution": "exact",
@@ -1230,6 +1231,18 @@
           "from": "docs/testlog/testlog_26091109_하네스교정_R0R10_역채점_음성대조.md",
           "resolution": "exact",
           "token": "testlog_26091109_하네스교정_R0R10_역채점_음성대조"
+        },
+        {
+          "edge": "seed",
+          "from": "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp",
+          "resolution": "exact",
+          "token": "narrative_status.devlog"
+        },
+        {
+          "edge": "seed",
+          "from": "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp",
+          "resolution": "exact",
+          "token": "scaffolded.devlog"
         }
       ]
     },
@@ -1238,16 +1251,17 @@
       "class": "perf",
       "commit": "aa05d1fcc0a9c4c4ae46b6e2f1dcd9c42c819569",
       "date_key": "26091114",
-      "depth": 2,
+      "depth": 3,
       "kind": "report",
       "path": "docs/report/perf_26091114_qwen38fn_22셀재수행_7셀체크포인트.md",
       "relevance": {
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
+          "f8",
           "mmp",
-          "nv4"
+          "nv4",
+          "nv4-f8-262k-mmp"
         ]
       },
       "resolution": "exact",
@@ -1280,8 +1294,8 @@
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
           "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+          "f8",
           "mmp",
           "nv4"
         ]
@@ -1309,16 +1323,17 @@
       "class": "perf",
       "commit": "e6bb6ac616f14ae3d7ee88953862ab1012f94569",
       "date_key": "26091117",
-      "depth": 2,
+      "depth": 3,
       "kind": "report",
       "path": "docs/report/perf_26091117_qwen38fn_22셀재수행_512k그룹완료체크포인트.md",
       "relevance": {
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
+          "f8",
           "mmp",
-          "nv4"
+          "nv4",
+          "nv4-f8-262k-mmp"
         ]
       },
       "resolution": "exact",
@@ -1351,8 +1366,8 @@
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
           "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+          "f8",
           "mmp",
           "nv4"
         ]
@@ -1386,16 +1401,17 @@
       "class": "perf",
       "commit": "f77ce6f1a3aaf94983370cb0ba8301db9d51cf91",
       "date_key": "26091121",
-      "depth": 2,
+      "depth": 3,
       "kind": "report",
       "path": "docs/report/perf_26091121_qwen38fn_22셀재수행_캠페인완주.md",
       "relevance": {
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
+          "f8",
           "mmp",
-          "nv4"
+          "nv4",
+          "nv4-f8-262k-mmp"
         ]
       },
       "resolution": "exact",
@@ -1415,17 +1431,17 @@
       "class": "perf",
       "commit": "607c61b6ba94e44a023e2ffd280638667ac5e5c9",
       "date_key": "26091122",
-      "depth": 1,
+      "depth": 2,
       "kind": "report",
       "path": "docs/report/perf_26091122_qwen38fn_24전략_종합리포트.md",
       "relevance": {
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
+          "f8",
           "mmp",
           "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4-f8-262k-mmp"
         ]
       },
       "resolution": "exact",
@@ -1465,18 +1481,17 @@
       "class": null,
       "commit": null,
       "date_key": "26091216",
-      "depth": 0,
+      "depth": 1,
       "kind": "plan",
       "path": "docs/plan/plan_26091216_qwen38fn_res최소조건_후속캠페인.md",
       "relevance": {
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
           "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+          "f8",
           "mmp",
-          "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4"
         ]
       },
       "resolution": "exact",
@@ -1506,18 +1521,6 @@
           "from": "docs/testlog/testlog_26091304_qwen38fn_res최소조건_262k재발행_판정.md",
           "resolution": "exact",
           "token": "plan_26091216_qwen38fn_res최소조건_후속캠페인"
-        },
-        {
-          "edge": "seed",
-          "from": "prior_publication:camp26091216_bench_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "narrative_status.plan"
-        },
-        {
-          "edge": "seed",
-          "from": "prior_publication:camp26091216_bench_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "scaffolded.plan"
         }
       ]
     },
@@ -1559,11 +1562,10 @@
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
           "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+          "f8",
           "mmp",
-          "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4"
         ]
       },
       "resolution": "exact",
@@ -1605,90 +1607,6 @@
           "from": "lineage_seeds:grounding_refs",
           "resolution": "exact",
           "token": "testlog_26091304_qwen38fn_res최소조건_262k재발행_판정"
-        },
-        {
-          "edge": "seed",
-          "from": "prior_publication:camp26091216_bench_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "narrative_status.testlog"
-        },
-        {
-          "edge": "seed",
-          "from": "prior_publication:camp26091216_bench_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "scaffolded.testlog"
-        }
-      ]
-    },
-    {
-      "bytes": 5728,
-      "class": null,
-      "commit": null,
-      "date_key": "26091304",
-      "depth": 0,
-      "kind": "devlog",
-      "path": "docs/devlog/devlog_26091304_qwen38fn_res최소조건_후속캠페인.md",
-      "relevance": {
-        "axis_tokens": [
-          "262k",
-          "bf",
-          "mmp",
-          "nv4"
-        ]
-      },
-      "resolution": "exact",
-      "sha256": "32b6ccc2f5a4d2a16b8b003bf98bb5548eb3a02cebb013022b852591b8daf707",
-      "superseded_by": [],
-      "via": [
-        {
-          "edge": "mention",
-          "from": "docs/plan/plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E.md",
-          "resolution": "unique",
-          "token": "devlog_26091304"
-        },
-        {
-          "edge": "narrates",
-          "from": "docs/testlog/testlog_26091304_qwen38fn_res최소조건_262k재발행_판정.md",
-          "resolution": "exact",
-          "token": "testlog_26091304_qwen38fn_res최소조건_262k재발행_판정"
-        },
-        {
-          "edge": "seed",
-          "from": "prior_publication:camp26091216_bench_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "narrative_status.devlog"
-        },
-        {
-          "edge": "seed",
-          "from": "prior_publication:camp26091216_bench_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "scaffolded.devlog"
-        }
-      ]
-    },
-    {
-      "bytes": 3870,
-      "class": null,
-      "commit": null,
-      "date_key": "26091304",
-      "depth": 0,
-      "kind": "bench_report",
-      "path": "docs/benchmark/bench_report_26091304_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
-      "relevance": {
-        "axis_tokens": [
-          "0.29.0rc6",
-          "easy-vllm:0.29.0rc6-cu133-aarch64-source"
-        ]
-      },
-      "resolution": "exact",
-      "sha256": "26d2fee168fad91a3598c9400cc5bf8b9410cc11697a95ad4565ec2b30ee67b3",
-      "superseded_by": [],
-      "via": [
-        {
-          "edge": "seed",
-          "from": "prior_publication:camp26091216_bench_nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "scaffolded.bench_report"
         }
       ]
     },
@@ -1704,11 +1622,10 @@
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
           "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+          "f8",
           "mmp",
-          "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4"
         ]
       },
       "resolution": "exact",
@@ -1886,10 +1803,10 @@
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
+          "f8",
           "mmp",
           "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4-f8-262k-mmp"
         ]
       },
       "resolution": "exact",
@@ -1922,11 +1839,10 @@
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
           "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+          "f8",
           "mmp",
-          "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4"
         ]
       },
       "resolution": "exact",
@@ -1947,19 +1863,7 @@
         },
         {
           "edge": "header",
-          "from": "docs/devlog/devlog_26092300_hint_publisher_G1G3_실행서사.md",
-          "resolution": "exact",
-          "token": "plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E"
-        },
-        {
-          "edge": "header",
           "from": "docs/testlog/testlog_26092223_hint_publisher_재구성_S1S5_오프라인재생_판정.md",
-          "resolution": "exact",
-          "token": "plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E"
-        },
-        {
-          "edge": "header",
-          "from": "docs/testlog/testlog_26092300_hint_publisher_G1G3_통합판정.md",
           "resolution": "exact",
           "token": "plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E"
         },
@@ -1977,13 +1881,13 @@
         },
         {
           "edge": "seed",
-          "from": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp",
+          "from": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_f8_262k_mmp",
           "resolution": "exact",
           "token": "narrative_status.plan"
         },
         {
           "edge": "seed",
-          "from": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp",
+          "from": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_f8_262k_mmp",
           "resolution": "exact",
           "token": "scaffolded.plan"
         }
@@ -2001,11 +1905,9 @@
         "axis_tokens": [
           "0.29.0rc6",
           "262k",
-          "bf",
           "easy-vllm:0.29.0rc6-cu133-aarch64-source",
           "mmp",
-          "nv4",
-          "nv4-bf-262k-mmp"
+          "nv4"
         ]
       },
       "resolution": "exact",
@@ -2033,103 +1935,18 @@
       ]
     },
     {
-      "bytes": 3241,
+      "bytes": 2819,
       "class": null,
       "commit": null,
-      "date_key": "26092300",
-      "depth": 0,
-      "kind": "testlog",
-      "path": "docs/testlog/testlog_26092300_hint_publisher_G1G3_통합판정.md",
-      "relevance": {
-        "axis_tokens": []
-      },
-      "resolution": "exact",
-      "sha256": "59b4e7d94dbea958b7f052b73a0859e23c3095eb5207498322f5ede6af915b14",
-      "superseded_by": [],
-      "via": [
-        {
-          "edge": "seed",
-          "from": "campaign_evidence_pointer:testlog",
-          "resolution": "exact",
-          "token": "pointers[testlog]"
-        },
-        {
-          "edge": "header",
-          "from": "docs/devlog/devlog_26092300_hint_publisher_G1G3_실행서사.md",
-          "resolution": "exact",
-          "token": "testlog_26092300_hint_publisher_G1G3_통합판정"
-        },
-        {
-          "edge": "seed",
-          "from": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "narrative_status.testlog"
-        },
-        {
-          "edge": "seed",
-          "from": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "scaffolded.testlog"
-        }
-      ]
-    },
-    {
-      "bytes": 3841,
-      "class": null,
-      "commit": null,
-      "date_key": "26092300",
-      "depth": 0,
-      "kind": "devlog",
-      "path": "docs/devlog/devlog_26092300_hint_publisher_G1G3_실행서사.md",
-      "relevance": {
-        "axis_tokens": []
-      },
-      "resolution": "exact",
-      "sha256": "67900fce70342d40411c56bfa7dab838ca7ff4a7a89f5a30eb9595b5c15829a7",
-      "superseded_by": [],
-      "via": [
-        {
-          "edge": "seed",
-          "from": "campaign_evidence_pointer:devlog",
-          "resolution": "exact",
-          "token": "pointers[devlog]"
-        },
-        {
-          "edge": "narrates",
-          "from": "docs/testlog/testlog_26092300_hint_publisher_G1G3_통합판정.md",
-          "resolution": "exact",
-          "token": "testlog_26092300_hint_publisher_G1G3_통합판정"
-        },
-        {
-          "edge": "seed",
-          "from": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "narrative_status.devlog"
-        },
-        {
-          "edge": "seed",
-          "from": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp",
-          "resolution": "exact",
-          "token": "scaffolded.devlog"
-        }
-      ]
-    },
-    {
-      "bytes": 6990,
-      "class": null,
-      "commit": null,
-      "date_key": "26092309",
+      "date_key": "26092310",
       "depth": 0,
       "kind": "bench_report",
-      "path": "docs/benchmark/bench_report_26092309_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
+      "path": "docs/benchmark/bench_report_26092310_56_16_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
       "relevance": {
-        "axis_tokens": [
-          "0.29.0rc6",
-          "easy-vllm:0.29.0rc6-cu133-aarch64-source"
-        ]
+        "axis_tokens": []
       },
       "resolution": "exact",
-      "sha256": "60719d002612a95f43e26d64815d002b50b5deb0c00cfb3403b9d26c351cc385",
+      "sha256": "9615fb126d6314c92e7f5a35aa1cab4b9b42fe2869c2ff16ada32f3838a29d91",
       "superseded_by": [],
       "via": [
         {
@@ -2146,7 +1963,7 @@
         },
         {
           "edge": "seed",
-          "from": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp",
+          "from": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_f8_262k_mmp",
           "resolution": "exact",
           "token": "scaffolded.bench_report"
         }
@@ -2155,17 +1972,31 @@
   ],
   "evidence_candidates": [
     {
+      "kind": "raw_json",
+      "path": "docs/_evidence/qwen38fn_r2_nv4_f8_262k_mmp.devlog.raw.jsonl",
+      "sources": [
+        "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp"
+      ]
+    },
+    {
       "kind": "publication_record",
-      "path": "docs/_evidence/camp26091216_bench_nv4_bf_262k_mmp.json",
+      "path": "docs/_evidence/qwen38fn_r2_nv4_f8_262k_mmp.json",
       "sources": [
         "lineage_seeds:evidence_candidates"
       ]
     },
     {
-      "kind": "publication_record",
-      "path": "docs/_evidence/qwen38fn_full_nv4_bf_262k_mmp.json",
+      "kind": "raw_json",
+      "path": "docs/_evidence/qwen38fn_r2_nv4_f8_262k_mmp.plan.raw.jsonl",
       "sources": [
-        "lineage_seeds:evidence_candidates"
+        "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp"
+      ]
+    },
+    {
+      "kind": "raw_json",
+      "path": "docs/_evidence/qwen38fn_r2_nv4_f8_262k_mmp.testlog.raw.jsonl",
+      "sources": [
+        "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp"
       ]
     },
     {
@@ -2178,17 +2009,11 @@
     },
     {
       "kind": "certificate",
-      "path": "docs/benchmark/benchmark_26091011_qwen3.8-flash-next-nvfp4_GB10_0.29.0.yaml",
-      "sources": [
-        "prior_publication:qwen38fn_full_nv4_bf_262k_mmp"
-      ]
-    },
-    {
-      "kind": "certificate",
       "path": "docs/benchmark/benchmark_26091111_qwen3.8-flash-next-nvfp4_GB10_0.29.0.yaml",
       "sources": [
         "mention:docs/testlog/testlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_판정.md",
-        "mention:docs/testlog/testlog_26091412_하네스교정_항목1_acceptlen승계_소급재판정.md"
+        "mention:docs/testlog/testlog_26091412_하네스교정_항목1_acceptlen승계_소급재판정.md",
+        "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp"
       ]
     },
     {
@@ -2275,7 +2100,6 @@
       "kind": "certificate",
       "path": "docs/benchmark/benchmark_26091223_qwen3.8-flash-next-nvfp4_GB10_0.29.0.yaml",
       "sources": [
-        "mention:docs/devlog/devlog_26091304_qwen38fn_res최소조건_후속캠페인.md",
         "mention:docs/report/perf_26091305_qwen38fn_res최소조건_후속캠페인.md",
         "mention:docs/testlog/testlog_26091304_qwen38fn_res최소조건_262k재발행_판정.md",
         "mention:docs/testlog/testlog_26091412_하네스교정_항목1_acceptlen승계_소급재판정.md"
@@ -2286,8 +2110,7 @@
       "path": "docs/benchmark/benchmark_26091304_qwen3.8-flash-next-nvfp4_GB10_0.29.0.yaml",
       "sources": [
         "mention:docs/report/perf_26091305_qwen38fn_res최소조건_후속캠페인.md",
-        "mention:docs/testlog/testlog_26091304_qwen38fn_res최소조건_262k재발행_판정.md",
-        "prior_publication:camp26091216_bench_nv4_bf_262k_mmp"
+        "mention:docs/testlog/testlog_26091304_qwen38fn_res최소조건_262k재발행_판정.md"
       ]
     },
     {
@@ -2305,86 +2128,30 @@
       ]
     },
     {
-      "expanded": {
-        "listed": 6,
-        "total": 6,
-        "truncated": false,
-        "unlisted": 0
-      },
-      "kind": "simlog",
-      "path": "docs/simlog/26091018_54_00_qwen38fn_full_nv4_bf_262k_mmp",
+      "kind": "events_ledger",
+      "path": "docs/logs/sub/events/2026-09.jsonl",
       "sources": [
-        "prior_publication:qwen38fn_full_nv4_bf_262k_mmp"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26091018_54_00_qwen38fn_full_nv4_bf_262k_mmp/cell.status.json",
-      "sources": [
-        "expanded:docs/simlog/26091018_54_00_qwen38fn_full_nv4_bf_262k_mmp"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26091018_54_00_qwen38fn_full_nv4_bf_262k_mmp/lite_raw_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26091018_54_00_qwen38fn_full_nv4_bf_262k_mmp"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26091018_54_00_qwen38fn_full_nv4_bf_262k_mmp/measured.json",
-      "sources": [
-        "expanded:docs/simlog/26091018_54_00_qwen38fn_full_nv4_bf_262k_mmp"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26091018_54_00_qwen38fn_full_nv4_bf_262k_mmp/roofline.json",
-      "sources": [
-        "expanded:docs/simlog/26091018_54_00_qwen38fn_full_nv4_bf_262k_mmp"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26091018_54_00_qwen38fn_full_nv4_bf_262k_mmp/sweep_index.json",
-      "sources": [
-        "expanded:docs/simlog/26091018_54_00_qwen38fn_full_nv4_bf_262k_mmp",
         "lineage_seeds:evidence_candidates"
       ]
     },
     {
-      "kind": "raw_json",
-      "path": "docs/simlog/26091018_54_00_qwen38fn_full_nv4_bf_262k_mmp/verdict.json",
-      "sources": [
-        "expanded:docs/simlog/26091018_54_00_qwen38fn_full_nv4_bf_262k_mmp"
-      ]
-    },
-    {
       "expanded": {
-        "listed": 2,
-        "total": 2,
+        "listed": 1,
+        "total": 6,
         "truncated": false,
-        "unlisted": 0
+        "unlisted": 5
       },
       "kind": "simlog",
-      "path": "docs/simlog/26091304_48_40_camp26091216_bench_nv4_bf_262k_mmp",
+      "path": "docs/simlog/26091114_qwen38fn_r2_nv4_f8_262k_mmp",
       "sources": [
-        "prior_publication:camp26091216_bench_nv4_bf_262k_mmp"
+        "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp"
       ]
     },
     {
       "kind": "raw_json",
-      "path": "docs/simlog/26091304_48_40_camp26091216_bench_nv4_bf_262k_mmp/level_01_measured.json",
+      "path": "docs/simlog/26091114_qwen38fn_r2_nv4_f8_262k_mmp/sweep_index.json",
       "sources": [
-        "expanded:docs/simlog/26091304_48_40_camp26091216_bench_nv4_bf_262k_mmp"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26091304_48_40_camp26091216_bench_nv4_bf_262k_mmp/sweep_index.json",
-      "sources": [
-        "expanded:docs/simlog/26091304_48_40_camp26091216_bench_nv4_bf_262k_mmp",
+        "expanded:docs/simlog/26091114_qwen38fn_r2_nv4_f8_262k_mmp",
         "lineage_seeds:evidence_candidates"
       ]
     },
@@ -2417,56 +2184,56 @@
     },
     {
       "kind": "raw_json",
-      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/A/multi/nv4-bf-262k-mmp/roofline.json",
+      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/A/multi/nv4-f8-262k-mmp/roofline.json",
       "sources": [
         "expanded:docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정"
       ]
     },
     {
       "kind": "raw_json",
-      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/A/multi/nv4-bf-262k-mmp/verdict.json",
+      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/A/multi/nv4-f8-262k-mmp/verdict.json",
       "sources": [
         "expanded:docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정"
       ]
     },
     {
       "kind": "raw_json",
-      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/B/multi/nv4-bf-262k-mmp/roofline.json",
+      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/B/multi/nv4-f8-262k-mmp/roofline.json",
       "sources": [
         "expanded:docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정"
       ]
     },
     {
       "kind": "raw_json",
-      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/B/multi/nv4-bf-262k-mmp/verdict.json",
+      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/B/multi/nv4-f8-262k-mmp/verdict.json",
       "sources": [
         "expanded:docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정"
       ]
     },
     {
       "kind": "raw_json",
-      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/Bsrc/multi/nv4-bf-262k-mmp/level_01/measured.json",
+      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/Bsrc/multi/nv4-f8-262k-mmp/level_01/measured.json",
       "sources": [
         "expanded:docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정"
       ]
     },
     {
       "kind": "raw_json",
-      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/Bsrc/multi/nv4-bf-262k-mmp/sweep_index.json",
+      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/Bsrc/multi/nv4-f8-262k-mmp/sweep_index.json",
       "sources": [
         "expanded:docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정"
       ]
     },
     {
       "kind": "raw_json",
-      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/C/multi/nv4-bf-262k-mmp/roofline.json",
+      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/C/multi/nv4-f8-262k-mmp/roofline.json",
       "sources": [
         "expanded:docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정"
       ]
     },
     {
       "kind": "raw_json",
-      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/C/multi/nv4-bf-262k-mmp/verdict.json",
+      "path": "docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정/rejudge_out/C/multi/nv4-f8-262k-mmp/verdict.json",
       "sources": [
         "expanded:docs/simlog/26091412_하네스교정_항목1_acceptlen소급재판정"
       ]
@@ -2515,10 +2282,10 @@
     },
     {
       "expanded": {
-        "listed": 10,
+        "listed": 2,
         "total": 105,
         "truncated": false,
-        "unlisted": 95
+        "unlisted": 103
       },
       "kind": "simlog",
       "path": "docs/simlog/26092223_hint_publisher_S2_오프라인재생",
@@ -2535,62 +2302,6 @@
     },
     {
       "kind": "raw_file",
-      "path": "docs/simlog/26092223_hint_publisher_S2_오프라인재생/round1/draft/payload/artifacts/triplet/nv4-bf-262k-mmp.sh",
-      "sources": [
-        "expanded:docs/simlog/26092223_hint_publisher_S2_오프라인재생"
-      ]
-    },
-    {
-      "kind": "raw_file",
-      "path": "docs/simlog/26092223_hint_publisher_S2_오프라인재생/round1/draft/payload/artifacts/triplet/nv4-bf-262k-mmp.yaml",
-      "sources": [
-        "expanded:docs/simlog/26092223_hint_publisher_S2_오프라인재생"
-      ]
-    },
-    {
-      "kind": "raw_file",
-      "path": "docs/simlog/26092223_hint_publisher_S2_오프라인재생/round2/draft/payload/artifacts/triplet/nv4-bf-262k-mmp.sh",
-      "sources": [
-        "expanded:docs/simlog/26092223_hint_publisher_S2_오프라인재생"
-      ]
-    },
-    {
-      "kind": "raw_file",
-      "path": "docs/simlog/26092223_hint_publisher_S2_오프라인재생/round2/draft/payload/artifacts/triplet/nv4-bf-262k-mmp.yaml",
-      "sources": [
-        "expanded:docs/simlog/26092223_hint_publisher_S2_오프라인재생"
-      ]
-    },
-    {
-      "kind": "raw_file",
-      "path": "docs/simlog/26092223_hint_publisher_S2_오프라인재생/round3/draft/payload/artifacts/triplet/nv4-bf-262k-mmp.sh",
-      "sources": [
-        "expanded:docs/simlog/26092223_hint_publisher_S2_오프라인재생"
-      ]
-    },
-    {
-      "kind": "raw_file",
-      "path": "docs/simlog/26092223_hint_publisher_S2_오프라인재생/round3/draft/payload/artifacts/triplet/nv4-bf-262k-mmp.yaml",
-      "sources": [
-        "expanded:docs/simlog/26092223_hint_publisher_S2_오프라인재생"
-      ]
-    },
-    {
-      "kind": "raw_file",
-      "path": "docs/simlog/26092223_hint_publisher_S2_오프라인재생/round3/sealed/payload/artifacts/triplet/nv4-bf-262k-mmp.sh",
-      "sources": [
-        "expanded:docs/simlog/26092223_hint_publisher_S2_오프라인재생"
-      ]
-    },
-    {
-      "kind": "raw_file",
-      "path": "docs/simlog/26092223_hint_publisher_S2_오프라인재생/round3/sealed/payload/artifacts/triplet/nv4-bf-262k-mmp.yaml",
-      "sources": [
-        "expanded:docs/simlog/26092223_hint_publisher_S2_오프라인재생"
-      ]
-    },
-    {
-      "kind": "raw_file",
       "path": "docs/simlog/26092223_hint_publisher_S2_오프라인재생/wave1_outcome.md",
       "sources": [
         "expanded:docs/simlog/26092223_hint_publisher_S2_오프라인재생"
@@ -2598,1282 +2309,114 @@
     },
     {
       "expanded": {
-        "listed": 64,
-        "total": 171,
-        "truncated": true,
-        "unlisted": 107
-      },
-      "kind": "simlog",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E",
-      "sources": [
-        "campaign_evidence_pointer:simlog",
-        "mention:docs/devlog/devlog_26092300_hint_publisher_G1G3_실행서사.md",
-        "mention:docs/testlog/testlog_26092300_hint_publisher_G1G3_통합판정.md"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_01/bench_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_01/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_01/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_01/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_01/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_01/run_02/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_01/run_02/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_01/run_02/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_01/run_02/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_01/run_03/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_01/run_03/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_01/run_03/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_01/run_03/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_02/bench_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_02/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_02/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_02/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_02/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_02/run_02/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_02/run_02/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_02/run_02/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_02/run_02/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_02/run_03/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_02/run_03/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_02/run_03/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_02/run_03/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_04/bench_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_04/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_04/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_04/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_04/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_04/run_02/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_04/run_02/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_04/run_02/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_04/run_02/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_04/run_03/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_04/run_03/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_04/run_03/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_04/run_03/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_08/bench_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_08/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_08/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_08/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_08/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_08/run_02/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_08/run_02/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_08/run_02/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_08/run_02/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_08/run_03/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_08/run_03/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_08/run_03/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_08/run_03/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_16/bench_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_16/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_16/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_16/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_16/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_16/run_02/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_16/run_02/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/level_16/run_02/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/lite_cold_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/lite_engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/lite_raw_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "docs/simlog/26092300_hint_publisher_G1G3_E2E/d1_sweep/lite_warm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "expanded:docs/simlog/26092300_hint_publisher_G1G3_E2E"
-      ]
-    },
-    {
-      "expanded": {
-        "listed": 2,
-        "total": 2,
+        "listed": 10,
+        "total": 10,
         "truncated": false,
         "unlisted": 0
       },
       "kind": "simlog",
-      "path": "docs/simlog/26092310_camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp",
+      "path": "docs/simlog/26092310_hint_publisher_G3_D2_lite",
       "sources": [
-        "publication:camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp"
+        "campaign_evidence_pointer:simlog"
       ]
     },
     {
       "kind": "raw_json",
-      "path": "docs/simlog/26092310_camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp/level_01_measured.json",
+      "path": "docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_attestation.json",
       "sources": [
-        "expanded:docs/simlog/26092310_camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp"
+        "expanded:docs/simlog/26092310_hint_publisher_G3_D2_lite"
+      ]
+    },
+    {
+      "kind": "engine_log",
+      "path": "docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_down.log",
+      "sources": [
+        "expanded:docs/simlog/26092310_hint_publisher_G3_D2_lite"
+      ]
+    },
+    {
+      "kind": "engine_log",
+      "path": "docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite.log",
+      "sources": [
+        "expanded:docs/simlog/26092310_hint_publisher_G3_D2_lite"
       ]
     },
     {
       "kind": "raw_json",
-      "path": "docs/simlog/26092310_camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp/sweep_index.json",
+      "path": "docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite/lite_cold_nv4-f8-262k-mmp.json",
       "sources": [
-        "expanded:docs/simlog/26092310_camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp"
+        "expanded:docs/simlog/26092310_hint_publisher_G3_D2_lite"
+      ]
+    },
+    {
+      "kind": "engine_log",
+      "path": "docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite/lite_engine_nv4-f8-262k-mmp.log",
+      "sources": [
+        "expanded:docs/simlog/26092310_hint_publisher_G3_D2_lite"
+      ]
+    },
+    {
+      "kind": "raw_json",
+      "path": "docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite/lite_raw_nv4-f8-262k-mmp.json",
+      "sources": [
+        "expanded:docs/simlog/26092310_hint_publisher_G3_D2_lite"
+      ]
+    },
+    {
+      "kind": "raw_json",
+      "path": "docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite/lite_warm_nv4-f8-262k-mmp.json",
+      "sources": [
+        "expanded:docs/simlog/26092310_hint_publisher_G3_D2_lite"
+      ]
+    },
+    {
+      "kind": "engine_log",
+      "path": "docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_lite_2.log",
+      "sources": [
+        "expanded:docs/simlog/26092310_hint_publisher_G3_D2_lite"
+      ]
+    },
+    {
+      "kind": "engine_log",
+      "path": "docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_serve.log",
+      "sources": [
+        "expanded:docs/simlog/26092310_hint_publisher_G3_D2_lite"
+      ]
+    },
+    {
+      "kind": "raw_json",
+      "path": "docs/simlog/26092310_hint_publisher_G3_D2_lite/d2_serve_proof.json",
+      "sources": [
+        "expanded:docs/simlog/26092310_hint_publisher_G3_D2_lite"
       ]
     },
     {
       "kind": "tool-source@rev",
-      "origin": "git:692297be56a38ed79ff6521e31c6586bd153437c:.claude/skills/adversarial-benchmark/scripts/broad_search.sh",
-      "path": "inputs/sources/broad_search.sh@692297be56a3",
-      "sources": [
-        "lineage_seeds:evidence_candidates"
-      ]
-    },
-    {
-      "kind": "tool-source@rev",
-      "origin": "git:434fa6740831c1a3ef91131bd8f13abf95ebed2a:.claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
-      "path": "inputs/sources/lite_bench.sh@434fa6740831",
-      "sources": [
-        "lineage_seeds:evidence_candidates"
-      ]
-    },
-    {
-      "kind": "tool-source@rev",
-      "origin": "git:434fa6740831c1a3ef91131bd8f13abf95ebed2a:.claude/skills/adversarial-benchmark/scripts/run_bench.sh",
-      "path": "inputs/sources/run_bench.sh@434fa6740831",
-      "sources": [
-        "lineage_seeds:evidence_candidates"
-      ]
-    },
-    {
-      "kind": "tool-source@rev",
-      "origin": "git:434fa6740831c1a3ef91131bd8f13abf95ebed2a:.claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
-      "path": "inputs/sources/sweep_bench.sh@434fa6740831",
+      "origin": "git:fcb0754fffe107962034fec748ed8823756c93b6:.claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
+      "path": "inputs/sources/lite_bench.sh@fcb0754fffe1",
       "sources": [
         "lineage_seeds:evidence_candidates"
       ]
     },
     {
       "kind": "attestation",
-      "path": "output/multi/benchlog/attestation_nv4-bf-262k-mmp.json",
+      "path": "output/multi/benchlog/attestation_nv4-f8-262k-mmp.json",
+      "sources": [
+        "lineage_seeds:evidence_candidates"
+      ]
+    },
+    {
+      "kind": "engine_log",
+      "path": "output/multi/benchlog/lite_engine_nv4-f8-262k-mmp.log",
       "sources": [
         "lineage_seeds:evidence_candidates"
       ]
     },
     {
       "kind": "serve_proof",
-      "path": "output/multi/benchlog/serve_proof_nv4-bf-262k-mmp.json",
+      "path": "output/multi/benchlog/serve_proof_nv4-f8-262k-mmp.json",
       "sources": [
         "lineage_seeds:evidence_candidates"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/bench_mode.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/bench_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/run_02/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/run_02/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/run_02/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/run_02/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/run_02/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/run_02/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/run_03/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/run_03/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/run_03/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/run_03/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/run_03/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_01/run_03/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/bench_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/run_02/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/run_02/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/run_02/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/run_02/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/run_02/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/run_02/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/run_03/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/run_03/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/run_03/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/run_03/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/run_03/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_02/run_03/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/bench_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/run_02/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/run_02/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/run_02/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/run_02/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/run_02/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/run_02/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/run_03/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/run_03/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/run_03/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/run_03/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/run_03/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_04/run_03/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/bench_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/run_02/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/run_02/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/run_02/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/run_02/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/run_02/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/run_02/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/run_03/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/run_03/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/run_03/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/run_03/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/run_03/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_08/run_03/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/bench_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/run_02/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/run_02/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/run_02/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/run_02/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/run_02/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/run_02/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/run_03/bench_tool_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/run_03/engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/run_03/guidellm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/run_03/measured.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/run_03/post_health_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/level_16/run_03/repeat_run.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/lite_cold_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/lite_engine_nv4-bf-262k-mmp.log",
-      "sources": [
-        "lineage_seeds:evidence_candidates",
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/lite_raw_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/lite_warm_nv4-bf-262k-mmp.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/roofline.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "sweep_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/sweep_index.json",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "engine_log",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/truncation.log",
-      "sources": [
-        "sweep_dir"
-      ]
-    },
-    {
-      "kind": "raw_json",
-      "path": "output/multi/benchlog/sweep_nv4-bf-262k-mmp/verdict.json",
-      "sources": [
-        "sweep_dir"
       ]
     },
     {
@@ -3946,6 +2489,13 @@
       ]
     },
     {
+      "kind": "sweep_json",
+      "path": "output/multi/benchlog/sweep_nv4-f8-262k-mmp/sweep_index.json",
+      "sources": [
+        "lineage_seeds:evidence_candidates"
+      ]
+    },
+    {
       "kind": "resolve",
       "path": "output/multi/resolved.json",
       "sources": [
@@ -3959,18 +2509,18 @@
         "1280",
         "262144",
         "262k",
-        "auto",
-        "baseline",
-        "bf",
-        "comparison",
-        "direct",
         "docker",
-        "docker full · baseline direct comparison",
-        "full",
+        "docker lite-only · same image",
+        "f8",
+        "fp8",
+        "image",
+        "lite",
         "mmap",
         "mmp",
         "nv4",
-        "nv4-bf-262k-mmp",
+        "nv4-f8-262k-mmp",
+        "only",
+        "same",
         "stock"
       ],
       "rule": "모호 간선의 형제 무리마다 셀 키 토큰 적중(이름·헤더 12줄) 최대 → 이름의 이질 토큰 최소만 유지 · 무신호(적중 0)면 전부 유지 · 정확 인용은 무관 · 다른 자리에서 남겨진 형제는 제외 목록에 적지 않는다 · 여러 무리에서 걸러지면 사전순 최소 (토큰, 사유)"
@@ -4013,7 +2563,7 @@
       "docs/simlog"
     ],
     "seed_records": {
-      "cell_key": "nv4_bf_262k_mmp",
+      "cell_key": "nv4_f8_262k_mmp",
       "identity_fields": [
         "model",
         "gpu",
@@ -4021,25 +2571,23 @@
         "tp"
       ],
       "prior": [
-        "camp26091216_bench_nv4_bf_262k_mmp",
-        "qwen38fn_full_nv4_bf_262k_mmp",
-        "qwen38fn_hint_nv4_bf_262k_mmp"
+        "qwen38fn_hint_nv4_f8_262k_mmp",
+        "qwen38fn_r2_nv4_f8_262k_mmp"
       ],
       "prior_after_ceiling": [],
       "prior_cell_mismatch": [],
       "prior_match": {
-        "camp26091216_bench_nv4_bf_262k_mmp": "simlog:sweep_index.meta.config_name",
-        "qwen38fn_full_nv4_bf_262k_mmp": "simlog:sweep_index.meta.config_name",
-        "qwen38fn_hint_nv4_bf_262k_mmp": "publication-id-suffix(simlog 미관측)"
+        "qwen38fn_hint_nv4_f8_262k_mmp": "publication-id-suffix(simlog 미관측)",
+        "qwen38fn_r2_nv4_f8_262k_mmp": "simlog:sweep_index.meta.config_name"
       },
-      "this": "camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp"
+      "this": "camp_26092301_hint_v6_e2e__cluster__nv4_f8_262k_mmp"
     },
     "stats": {
-      "ambiguous_excluded": 25,
+      "ambiguous_excluded": 24,
       "rejected_ceiling": 0,
       "rejected_filter": 17,
       "roots_absent": [],
-      "transit": 16
+      "transit": 17
     },
     "supersede": "헤더 12줄 배너(SUPERSEDED·SUPERSEDED-IN-PART 어느 꼴이든) 양쪽 관행 · 방향 = 날짜 휴리스틱(뒤에 태어난 쪽이 뒤집은 쪽 · 같은 시각은 판정 안 함) · 모호 해소 간선은 쓰지 않는다",
     "tool_sources": {
@@ -4054,56 +2602,36 @@
   "schema_version": 1,
   "seeds": [
     {
-      "path": "docs/benchmark/bench_report_26091011_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
-      "source": "prior_publication:qwen38fn_full_nv4_bf_262k_mmp"
+      "path": "docs/benchmark/bench_report_26091111_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
+      "source": "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp"
     },
     {
-      "path": "docs/benchmark/bench_report_26091304_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
-      "source": "prior_publication:camp26091216_bench_nv4_bf_262k_mmp"
-    },
-    {
-      "path": "docs/benchmark/bench_report_26092309_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
+      "path": "docs/benchmark/bench_report_26092310_56_16_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
       "source": "campaign_evidence_pointer:bench_report"
     },
     {
-      "path": "docs/benchmark/bench_report_26092309_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
+      "path": "docs/benchmark/bench_report_26092310_56_16_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
       "source": "evidence:bench_report_path"
     },
     {
-      "path": "docs/benchmark/bench_report_26092309_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
-      "source": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp"
+      "path": "docs/benchmark/bench_report_26092310_56_16_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
+      "source": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_f8_262k_mmp"
     },
     {
       "path": "docs/devlog/devlog_26091009_qwen38fn_24셀_캠페인종합_서사.md",
-      "source": "prior_publication:qwen38fn_full_nv4_bf_262k_mmp"
+      "source": "prior_publication:qwen38fn_hint_nv4_f8_262k_mmp"
     },
     {
-      "path": "docs/devlog/devlog_26091009_qwen38fn_24셀_캠페인종합_서사.md",
-      "source": "prior_publication:qwen38fn_hint_nv4_bf_262k_mmp"
-    },
-    {
-      "path": "docs/devlog/devlog_26091304_qwen38fn_res최소조건_후속캠페인.md",
-      "source": "prior_publication:camp26091216_bench_nv4_bf_262k_mmp"
-    },
-    {
-      "path": "docs/devlog/devlog_26092300_hint_publisher_G1G3_실행서사.md",
-      "source": "campaign_evidence_pointer:devlog"
-    },
-    {
-      "path": "docs/devlog/devlog_26092300_hint_publisher_G1G3_실행서사.md",
-      "source": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp"
+      "path": "docs/devlog/devlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_서사.md",
+      "source": "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp"
     },
     {
       "path": "docs/plan/plan_26090918_qwen38_flashnext_multi_딥캠페인.md",
-      "source": "prior_publication:qwen38fn_full_nv4_bf_262k_mmp"
+      "source": "prior_publication:qwen38fn_hint_nv4_f8_262k_mmp"
     },
     {
-      "path": "docs/plan/plan_26090918_qwen38_flashnext_multi_딥캠페인.md",
-      "source": "prior_publication:qwen38fn_hint_nv4_bf_262k_mmp"
-    },
-    {
-      "path": "docs/plan/plan_26091216_qwen38fn_res최소조건_후속캠페인.md",
-      "source": "prior_publication:camp26091216_bench_nv4_bf_262k_mmp"
+      "path": "docs/plan/plan_26091108_qwen38fn_22셀_재수행_캠페인.md",
+      "source": "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp"
     },
     {
       "path": "docs/plan/plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E.md",
@@ -4119,19 +2647,19 @@
     },
     {
       "path": "docs/plan/plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E.md",
-      "source": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp"
+      "source": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_f8_262k_mmp"
     },
     {
       "path": "docs/testlog/testlog_26091009_qwen38fn_24셀_판정.md",
-      "source": "prior_publication:qwen38fn_full_nv4_bf_262k_mmp"
-    },
-    {
-      "path": "docs/testlog/testlog_26091009_qwen38fn_24셀_판정.md",
-      "source": "prior_publication:qwen38fn_hint_nv4_bf_262k_mmp"
+      "source": "prior_publication:qwen38fn_hint_nv4_f8_262k_mmp"
     },
     {
       "path": "docs/testlog/testlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_판정.md",
       "source": "lineage_seeds:grounding_refs"
+    },
+    {
+      "path": "docs/testlog/testlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_판정.md",
+      "source": "prior_publication:qwen38fn_r2_nv4_f8_262k_mmp"
     },
     {
       "path": "docs/testlog/testlog_26091117_qwen38fn_22셀재수행_512k그룹완료체크포인트_판정.md",
@@ -4146,23 +2674,32 @@
       "source": "lineage_seeds:grounding_refs"
     },
     {
-      "path": "docs/testlog/testlog_26091304_qwen38fn_res최소조건_262k재발행_판정.md",
-      "source": "prior_publication:camp26091216_bench_nv4_bf_262k_mmp"
-    },
-    {
       "path": "docs/testlog/testlog_26092223_hint_publisher_재구성_S1S5_오프라인재생_판정.md",
       "source": "lineage_seeds:grounding_refs"
+    }
+  ],
+  "seeds_missing": [
+    {
+      "path": "docs/devlog/devlog_26092311_hint_publisher_G3_D1발행_D2_서사.md",
+      "reason": "after-publish-ceiling",
+      "source": "campaign_evidence_pointer:devlog"
     },
     {
-      "path": "docs/testlog/testlog_26092300_hint_publisher_G1G3_통합판정.md",
+      "path": "docs/devlog/devlog_26092311_hint_publisher_G3_D1발행_D2_서사.md",
+      "reason": "after-publish-ceiling",
+      "source": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_f8_262k_mmp"
+    },
+    {
+      "path": "docs/testlog/testlog_26092311_hint_publisher_G3_D2_lite_판정.md",
+      "reason": "after-publish-ceiling",
       "source": "campaign_evidence_pointer:testlog"
     },
     {
-      "path": "docs/testlog/testlog_26092300_hint_publisher_G1G3_통합판정.md",
-      "source": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_bf_262k_mmp"
+      "path": "docs/testlog/testlog_26092311_hint_publisher_G3_D2_lite_판정.md",
+      "reason": "after-publish-ceiling",
+      "source": "publication:camp_26092301_hint_v6_e2e__cluster__nv4_f8_262k_mmp"
     }
   ],
-  "seeds_missing": [],
   "transit": [
     {
       "class": null,
@@ -4189,6 +2726,28 @@
           "from": "docs/testlog/testlog_26091109_하네스교정_R0R10_역채점_음성대조.md",
           "resolution": "exact",
           "token": "testlog_26091109_하네스교정_R0R10_역채점_음성대조"
+        }
+      ]
+    },
+    {
+      "class": null,
+      "date_key": "26091304",
+      "depth": 1,
+      "kind": "devlog",
+      "path": "docs/devlog/devlog_26091304_qwen38fn_res최소조건_후속캠페인.md",
+      "reason": "filter-miss(base 슬러그 부재) — 경유만 · 읽기 목록 밖",
+      "via": [
+        {
+          "edge": "mention",
+          "from": "docs/plan/plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E.md",
+          "resolution": "unique",
+          "token": "devlog_26091304"
+        },
+        {
+          "edge": "narrates",
+          "from": "docs/testlog/testlog_26091304_qwen38fn_res최소조건_262k재발행_판정.md",
+          "resolution": "exact",
+          "token": "testlog_26091304_qwen38fn_res최소조건_262k재발행_판정"
         }
       ]
     },

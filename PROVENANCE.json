@@ -1,6 +1,6 @@
 {
   "assembly_branch": "multi-node",
-  "generated_utc": "2026-09-23T01:20:10Z",
+  "generated_utc": "2026-09-23T01:59:30Z",
   "payload_files": [
     "00-hint.md",
     "01-artifacts.md",
@@ -25,12 +25,12 @@
     "artifacts/compose/docker-compose.yaml",
     "artifacts/compose/serve_runner.sh",
     "artifacts/compose/sub_recipe.json",
-    "artifacts/triplet/.env.nv4-bf-262k-mmp",
-    "artifacts/triplet/nv4-bf-262k-mmp.sh",
-    "artifacts/triplet/nv4-bf-262k-mmp.yaml"
+    "artifacts/triplet/.env.nv4-f8-262k-mmp",
+    "artifacts/triplet/nv4-f8-262k-mmp.sh",
+    "artifacts/triplet/nv4-f8-262k-mmp.yaml"
   ],
   "schema_version": 2,
-  "source_anchor": "546393d901ee69c0414181cf47d04f2c44d90c3e",
-  "source_anchor_is_head": false,
-  "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-plemmap-spec3-eager"
+  "source_anchor": "46e2abf5bed6257d008ff10db6b10d5099cd35e7",
+  "source_anchor_is_head": true,
+  "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8-plemmap-spec3-eager"
 }

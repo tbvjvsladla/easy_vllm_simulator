@@ -69,7 +69,7 @@
       "from": "cell_env",
       "group": "cluster",
       "key": "SLAVE_CONTAINER_NAME",
-      "value": "nv4-bf-262k-mmp-slave-container",
+      "value": "nv4-f8-262k-mmp-slave-container",
       "why": "2026-08-14: 폴백 이름이면 slave 협역 워치독 필터가 매칭 0 — 서브에서만 계층 2층이 조용히 사라진다(devlog_26080212 ⑥ 부류 · 하드다운 #2 는 서브였다). 2026-08-02 에 이미 '엉뚱한 이름으로 떠 있었고 아무도 몰랐다' 로 한 번 드러났다(그때는 마스터측만 교정)."
     },
     {
@@ -136,7 +136,7 @@
         "verdict": "equal"
       }
     },
-    "source": "output/multi/benchlog/attestation_nv4-bf-262k-mmp.json"
+    "source": "output/multi/benchlog/attestation_nv4-f8-262k-mmp.json"
   },
   "per_node_values": {
     "MASTER_HOST_IP": "<manifest.nodes[main].host>",

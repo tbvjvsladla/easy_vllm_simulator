@@ -1,7 +1,7 @@
-# hint 페이로드 — `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-plemmap-spec3-eager`
+# hint 페이로드 — `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8-plemmap-spec3-eager`
 
 > 이 커밋은 hint 태그 **하나의 페이로드**다 — 프로젝트 본체가 아니다(본체는 `single-node` · `multi-node` 브랜치).
-> 태그의 zip(archive) 하나가 곧 이 셀의 지도 · 서사 · 재현 키트다. 형식 `hint-payload/v6` · 태그 이름 문법 `v6` · 생성 `2026-09-23T01:20:10Z`.
+> 태그의 zip(archive) 하나가 곧 이 셀의 지도 · 서사 · 재현 키트다. 형식 `hint-payload/v6` · 태그 이름 문법 `v6` · 생성 `2026-09-23T01:59:30Z`.
 
 > ⚠ 이 자료는 **지도이지 정답이 아니다.**
 > 네 환경에서 반드시 **스모크 통과까지 재검증**. 최종 판정 = 네 스모크(린트·이슈글 ≠ 서빙됨).
