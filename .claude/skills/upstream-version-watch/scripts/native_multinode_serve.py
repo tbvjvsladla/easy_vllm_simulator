@@ -123,6 +123,8 @@ def safe_remove_owned_tree(root: Path, expected_run_id: str, marker: str = MARKE
         with os.scandir(directory) as scan:
             entries = list(scan)
         for entry in entries:
+            if directory == canonical and entry.name == marker:
+                continue    # 소유 마커는 **마지막에** 지운다(2026-09-23 N6: 중간 실패 뒤 마커가 먼저 사라져 재시도가 소유를 증명하지 못했다)
             info = entry.stat(follow_symlinks=False)
             if stat.S_ISLNK(info.st_mode):
                 # 트리 **안의** 링크는 링크 자체만 지운다(따라가지 않는다 — 대상은 불변). 2026-09-23 N6: wheelhouse 의 CUDA
@@ -131,8 +133,12 @@ def safe_remove_owned_tree(root: Path, expected_run_id: str, marker: str = MARKE
                 os.unlink(os.path.join(directory, entry.name)); continue
             child = beneath(canonical, directory / entry.name)
             if stat.S_ISDIR(info.st_mode): remove(child)
-            elif stat.S_ISREG(info.st_mode): child.unlink()
+            # 소켓·FIFO(2026-09-23 N6 down: Ray/ZMQ 가 짧은 루트 tmp 에 남긴 유닉스 소켓)는 unlink 가 아무것도 따라가지 않으므로
+            #   지운다 — 장치 파일(블록·문자)만 계속 거부한다.
+            elif stat.S_ISREG(info.st_mode) or stat.S_ISSOCK(info.st_mode) or stat.S_ISFIFO(info.st_mode): child.unlink()
             else: raise ServeError(f"owned-tree special file rejected: {child}")
+        if directory == canonical:
+            (canonical / marker).unlink()
         directory.rmdir()
     remove(canonical)
     if root.exists() or root.is_symlink(): raise UnknownState("owned tree remains after depth-first removal")
@@ -229,12 +235,14 @@ def owned_root():
 def remove(d):
  if os.path.islink(d) or os.path.ismount(d):die('link/mount')
  for e in list(os.scandir(d)):
+  if os.path.realpath(d)==os.path.realpath(root) and e.name==marker:continue
   m=e.stat(follow_symlinks=False).st_mode
   if stat.S_ISLNK(m):os.unlink(e.path);continue
   p=under_rel(os.path.relpath(e.path,root))
   if stat.S_ISDIR(m):remove(p)
-  elif stat.S_ISREG(m):os.unlink(p)
+  elif stat.S_ISREG(m) or stat.S_ISSOCK(m) or stat.S_ISFIFO(m):os.unlink(p)
   else:die('special')
+ if os.path.realpath(d)==os.path.realpath(root):os.unlink(os.path.join(root,marker))
  os.rmdir(d)
 try:
  if op=='init':
@@ -1368,7 +1376,21 @@ def self_test() -> int:
         outside = base / "outside"; outside.mkdir(); (outside / "keep").write_text("k")
         lr = base / "linkrun"; lr.mkdir(); (lr / MARKER).write_bytes(marker_bytes("linkrun")); (lr / "lib").mkdir()
         (lr / "lib/libx.so").symlink_to(outside / "keep"); (lr / "lib/dirlink").symlink_to(outside); (lr / "lib/dangling").symlink_to(base / "nope")
+        import socket as _socket
+        _sk = _socket.socket(_socket.AF_UNIX); _sk.bind(str(lr / "lib/ray.sock")); _sk.close(); os.mkfifo(lr / "lib/p.fifo")
         safe_remove_owned_tree(lr, "linkrun")
+        ck("★트리 안 유닉스 소켓·FIFO 는 unlink(Ray/ZMQ ipc 잔재)", not lr.exists())
+        ir = base / "intr"; ir.mkdir(); (ir / MARKER).write_bytes(marker_bytes("intr")); (ir / "a").mkdir(); (ir / "a/f").write_text("x")
+        _orig_unlink = Path.unlink
+        def _boom(self, *a, **k):
+            if self.name == "f": raise OSError("주입 실패")
+            return _orig_unlink(self, *a, **k)
+        Path.unlink = _boom
+        try: safe_remove_owned_tree(ir, "intr")
+        except OSError: pass
+        finally: Path.unlink = _orig_unlink
+        ck("★중간 실패 뒤에도 소유 마커가 남는다(재시도가 소유를 증명) → 재시도 성공",
+           (ir / MARKER).is_file() and (safe_remove_owned_tree(ir, "intr") or not ir.exists()))
         ck("★트리 안 링크 = 링크만 unlink · 대상 불변(파일·디렉터리·끊긴 링크)", not lr.exists() and (outside / "keep").read_text() == "k")
         for case in ("symlink-root", "mount-marker", "bad-marker"):
             r = base / case
