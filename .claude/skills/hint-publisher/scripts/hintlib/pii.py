@@ -57,7 +57,10 @@ from . import core
 # 감사 N-4(2026-09-01): 트리를 보는 스캐너가 정본과 다른 패턴 집합을 들고 있어 배포 클론에서 4종 중 1종만 살았다.
 # 그래서 이 dict 가 **유일한 소유자**다 — 복제하지 말고 이 모듈을 import 한다.
 GENERIC_PII: dict[str, re.Pattern] = {
-    "private-ipv4": re.compile(r"\b(?:192\.168\.|10\.\d{1,3}\.|172\.(?:1[6-9]|2\d|3[01])\.)\d{1,3}(?:\.\d{1,3})?"),
+    # 2026-09-23 N1: pip 핀(setuptools-scm 의 10 으로 시작하는 3자리 버전)이 3옥텟 허용 규칙에 걸렸다 — 4옥텟은 어디서나 잡고,
+    #   3옥텟(버전 모양)만 `==` 바로 뒤를 뺀다(`==` 뒤의 4옥텟 주소 · `host=` 뒤 주소는 그대로 잡는다 · 자체검사 음성대조).
+    "private-ipv4": re.compile(r"\b(?:192\.168\.|10\.\d{1,3}\.|172\.(?:1[6-9]|2\d|3[01])\.)\d{1,3}\.\d{1,3}"
+                               r"|(?<!==)\b(?:192\.168\.|10\.\d{1,3}\.|172\.(?:1[6-9]|2\d|3[01])\.)\d{1,3}"),
     "email": re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
     "abs-op-path": re.compile(r"/(?:mnt|home)/[A-Za-z0-9._/-]+"),
     "spark-host": re.compile(r"spark-[0-9a-f]{3,}"),
@@ -714,6 +717,12 @@ def selftest() -> list[str]:
     def ck(name: str, cond: bool) -> None:
         if not cond:
             bad.append(f"pii: {name}")
+    # 2026-09-23 N1: pip 핀 버전(3옥텟) 오탐 · 실제 주소는 그대로 잡는다
+    _v4 = lambda t: [h.pattern for h in scan_text(t, [], profile="deploy") if h.pattern == "private-ipv4"]
+    _ten, _c168 = "1" + "0.", "19" + "2.168."    # 픽스처는 조각으로 조립한다(이 파일의 자기스캔 · 위 docstring)
+    ck("pip 핀 버전(==10.x.y) 은 private-ipv4 가 아니다", _v4("setuptools-scm==" + _ten + "2.3") == [])
+    ck("★음성대조 ==뒤 4옥텟 · host= 뒤 주소 · 3옥텟 대역 표기는 잡는다",
+       all(_v4(t) for t in ("a==" + _c168 + "1.1", "host=" + _ten + "0.0.1", "net " + _c168 + "100")))
 
     def code_of(fn) -> str | None:
         try:
