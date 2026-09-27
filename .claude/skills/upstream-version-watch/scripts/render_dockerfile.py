@@ -91,19 +91,21 @@ NCCL_PRESETS = {
 NCCL_INVARIANTS = {                     # ③ universal — 인터커넥트 무관 디버그/안전
     "NCCL_DEBUG": "INFO",
     "NCCL_DEBUG_SUBSYS": "INIT,NET,GRAPH,ENV",
-    # GB10 TP=2 functional baseline after all fine-grained GDR controls still failed
-    # ibv_reg_mr_iova2. Socket transport isolates Ray/vLLM functionality from the IB path.
-    "NCCL_IB_DISABLE": "1",
 }
 # ① 전송 선택 = manifest.interconnect.nccl_transport (2026-09-28 · plan_26092808 · 사용자 승인).
 #   09-17(782fd70)은 `NCCL_NET=Socket` 을 ③불변으로 박았다 — NCCL_IB_DISABLE 이 외부 IBext 플러그인을 막지 못해서다.
 #   그 결과 RoCE 로 되돌릴 **정식 통로가 0** 이 됐다: sync_to_sub 는 렌더러로 다시 생성해 배달하므로 생성물 손수정은
 #   서브에 닿지 않고, 서브 직접 수정은 노드 제어 ① 위반이다(D3 — 막힌 경로는 우회가 아니라 경로를 고친다).
-#   · 키 부재 = "socket"(종전 기능 기준선 유지 · golden 불변) · "rdma" = NCCL_NET 미방출 → 플러그인 선택(09-09 PASS 경로:
-#     HPC-X IBext RDMA) · 그 밖의 값 = fail-loud. IB_DISABLE=1 은 두 모드 공통(09-09 조건 그대로).
+#   · 키 부재 = "socket"(종전 기능 기준선 · golden 불변: GB10 TP=2 에서 세밀한 GDR 제어로도 ibv_reg_mr_iova2 가 실패해
+#     Socket 으로 Ray/vLLM 기능을 IB 경로에서 분리했다 — IB_DISABLE 만으로는 외부 IBext 플러그인이 막히지 않아 NET 도 명시)
+#   · "rdma" = NCCL 내장 verbs(IB_DISABLE=0 · NET=IB). 포럼 383023 의 실패 지점 `misc/ibvwrap.cc (wrap_ibv_reg_mr_iova2)` 가
+#     이 내장 경로다. ★ 첫 교정(2e91a1e)은 rdma 를 "NET 미방출 + IB_DISABLE=1"(09-09 조건 모방)로 정의했는데, 현 이미지
+#     (NCCL_NET_PLUGIN=spcx · 09-24 재빌드)에서는 플러그인이 장치를 거부해 **조용히 Socket** 으로 떨어졌다(엔진 로그
+#     `Using network Socket` 실측 · 2026-09-28). 이름이 rdma 인데 Socket 을 재면 거짓 판정이다 → 전송을 명시한다.
+#   · 그 밖의 값 = fail-loud.
 NCCL_TRANSPORTS = {
-    "socket": {"NCCL_NET": "Socket"},
-    "rdma": {},
+    "socket": {"NCCL_IB_DISABLE": "1", "NCCL_NET": "Socket"},
+    "rdma": {"NCCL_IB_DISABLE": "0", "NCCL_NET": "IB"},
 }
 # socket_iface 한 값을 참조하는 ① env 키들(NCCL bootstrap·gloo·torch·UCX·OpenMPI).
 _IFACE_ENV_KEYS = ("NCCL_SOCKET_IFNAME", "GLOO_SOCKET_IFNAME", "TP_SOCKET_IFNAME",
@@ -1310,10 +1312,10 @@ def _self_test() -> None:
         raise AssertionError("interconnect 필드 결손인데 통과(fail-loud 위반)")
     except ValueError:
         pass
-    # 전송 선택: rdma = NCCL_NET 미방출·IB_DISABLE 유지 · socket 명시 = 부재와 같다 · 미지값 fail-loud
+    # 전송 선택: rdma = 내장 verbs 명시(IB_DISABLE=0·NET=IB — 조용한 Socket 강등 ✗) · socket 명시 = 부재와 같다 · 미지값 fail-loud
     _rd = build_nccl_env({"interconnect": {**man_ic["interconnect"], "nccl_transport": "rdma"}})
-    _require("NCCL_NET" not in _rd and _rd.get("NCCL_IB_DISABLE") == "1" and len(_rd) == len(golden) - 1,
-             f"nccl_transport=rdma 렌더 이상: NCCL_NET={_rd.get('NCCL_NET')!r} keys={len(_rd)}")
+    _require(_rd.get("NCCL_NET") == "IB" and _rd.get("NCCL_IB_DISABLE") == "0" and len(_rd) == len(golden),
+             f"nccl_transport=rdma 렌더 이상: NCCL_NET={_rd.get('NCCL_NET')!r} IB_DISABLE={_rd.get('NCCL_IB_DISABLE')!r} keys={len(_rd)}")
     _require(build_nccl_env({"interconnect": {**man_ic["interconnect"], "nccl_transport": "socket"}})
              == build_nccl_env(man_ic), "nccl_transport=socket 명시가 부재(기본)와 갈라졌다")
     try:
@@ -1396,14 +1398,15 @@ def _env_tier_self_test(nccl_golden: dict, cluster_golden: dict) -> None:
     _require(env_tier("NCCL_SOCKET_IFNAME") == ("env", "interconnect.socket_iface"), env_tier("NCCL_SOCKET_IFNAME"))
     _require(env_tier("NCCL_IB_HCA") == ("env", "interconnect.hca_devices"), env_tier("NCCL_IB_HCA"))
     _require(env_tier("RAY_PORT") == ("invariant", None), env_tier("RAY_PORT"))
-    _require(env_tier("NCCL_IB_DISABLE") == ("invariant", None), env_tier("NCCL_IB_DISABLE"))
+    _require(env_tier("NCCL_IB_DISABLE") == ("env", "interconnect.nccl_transport"), env_tier("NCCL_IB_DISABLE"))
     _require(env_tier("NCCL_NET") == ("env", "interconnect.nccl_transport"), env_tier("NCCL_NET"))
     _require(env_tier("NCCL_NET_GDR_LEVEL") == ("preset", "dgx-spark-gb10"), env_tier("NCCL_NET_GDR_LEVEL"))
     _require(env_tier("MAX_JOBS") == ("preset", "dgx-spark-gb10"), env_tier("MAX_JOBS"))
     # ① 키 집합은 손목록이 아니라 탐침 파생 — golden 에서 env 층으로 판정된 키와 정확히 같아야 한다.
     derived_env = {k for k in set(nccl_golden) | set(cluster_golden) if env_tier(k)[0] == "env"}
     _require(derived_env == set(_IFACE_ENV_KEYS) | {"NCCL_IB_HCA", "NCCL_IB_GID_INDEX", "MASTER_HOST_IP",
-                                                    "SLAVE_HOST_IP", "SSH_USER", "NCCL_NET"},
+                                                    "SLAVE_HOST_IP", "SSH_USER", "NCCL_NET",
+                                                    "NCCL_IB_DISABLE"},
              f"① 환경값 키 집합이 렌더 함수와 갈라졌다: {sorted(derived_env)}")
     # ★ 음성대조: 규약 밖 키는 unknown 이다(조용히 preset/env 로 흡수 ✗ — 호출부가 fail-closed 한다).
     _require(env_tier("NOT_A_RENDERED_KEY") == ("unknown", None), env_tier("NOT_A_RENDERED_KEY"))
