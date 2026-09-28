@@ -1,7 +1,7 @@
 <!-- 이 파일 **전체**가 생성물이다 — `hint.py catalog derive` 가 원격 발행 태그에서 통째로 다시 만든다(plan_26092119 §4.10). 손으로 고치지 마라: 다음 derive 에서 사라진다. 진실원천 = 원격의 refs/tags/hint/* 광고 · 색인 = hints/index.json(같은 derive 가 쓴다). -->
 # hint 태그 카탈로그 — 검증된 서빙 여정의 지도
 
-> 원격 `origin` 의 발행 태그 **50건**에서 파생 · 생성 `2026-09-23T17:37:42` KST · 문법 세대: `v6` 3 · `legacy-5seg-node` 45 · `legacy-5seg` 2 · 로컬 오브젝트 부재(미수령) 1건.
+> 원격 `origin` 의 발행 태그 **51건**에서 파생 · 생성 `2026-09-28T09:39:52` KST · 문법 세대: `v6` 4 · `legacy-5seg-node` 45 · `legacy-5seg` 2 · 로컬 오브젝트 부재(미수령) 1건.
 > 표를 사람이 쓰지 않는다 — "발행됐다"는 원격에 태그가 있다는 사실 하나로만 성립한다(카탈로그 바깥의 증거).
 
 ## hint 태그란 — 정답이 아니라 지도
@@ -18,7 +18,7 @@
 
 | 세대(`문법` 열) | arch 모양 | recipe 모양 | 이 카탈로그의 예 |
 |---|---|---|---|
-| `v6` | `<hw>-<G>g<N>n-<main\|sub\|cluster>-<target>[-<plane>]` (G=노드당 GPU · N=노드 수 · target=`native`\|`sim-<hw>` · plane=실행 평면 토큰 — Docker 는 없음, native(비-Docker)만 붙는다) | `q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k\|off>-<graph\|eager>` (순서 고정 · 전 축 필수) | `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native-bare/qnvfp4-len262144-kvauto-plemmap-spec3-eager` |
+| `v6` | `<hw>-<G>g<N>n-<main\|sub\|cluster>-<target>[-<plane>]` (G=노드당 GPU · N=노드 수 · target=`native`\|`sim-<hw>` · plane=실행 평면 토큰 — Docker 는 없음, native(비-Docker)만 붙는다) | `q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k\|off>-<graph\|eager>` (순서 고정 · 전 축 필수) | `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-plenone-spec7-graph` |
 | `legacy-5seg-node` | `<hw>-<main\|sub\|cluster>-<target>` | 축 가변(발행 당시 규약) | `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len1048576-kvauto-pleoffload` |
 | `legacy-5seg` | `<hw>-<target>` (노드축 없음) | 축 가변 | `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` |
 
@@ -76,7 +76,7 @@ python3 .claude/skills/hint-publisher/scripts/hint.py match --vllm <V> --model <
 | `gb10x2-cluster-native` | `legacy-5seg-node` | 20 |
 | `rtxpro6000x2-main-native` | `legacy-5seg-node` | 14 |
 | `rtxpro6000-main-native` | `legacy-5seg-node` | 4 |
-| `gb10-1g2n-cluster-native` | `v6` | 2 |
+| `gb10-1g2n-cluster-native` | `v6` | 3 |
 | `gb10-main-sim-kv24g` | `legacy-5seg-node` | 2 |
 | `gb10-sub-sim-kv24g` | `legacy-5seg-node` | 2 |
 | `gb10-1g2n-cluster-native-bare` | `v6` | 1 |
@@ -132,6 +132,7 @@ python3 .claude/skills/hint-publisher/scripts/hint.py match --vllm <V> --model <
 | `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx262144 · PLE=mmap — decode 38.18 t/s(동시성1) · 직전 캠페인 하네스 오진(3건) 교정 후 첫 라이브 재현 |
 | `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvauto-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=auto · ctx524288(YaRN f2) · PLE=mmap — decode 33.72 t/s(동시성1) · R8 YaRN 번역기 첫 실서빙 검증 — mrope+partial_rotary_factor 위에서 YaRN 합성 정상 동작 확인 |
 | `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap` | legacy-5seg-node | 0.29.0 | qwen3.8-flash-next-nvfp4 | gb10x2-cluster-native | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | Qwen3.8-Flash-Next NVFP4 · GB10x2 클러스터 · kv=fp8_e4m3 · ctx524288(YaRN f2) · PLE=mmap — decode 34.86 t/s(동시성1) · R8 YaRN 번역기 2번째 실서빙 재현(kv=fp8 조합) |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-plenone-spec7-graph` | v6 | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10-1g2n-cluster-native | full | — | DeepSeek-V4-Flash-0731(dense FP8 블록 · expert fp4)을 GB10 GPU 1개 × 노드 2개 · Ray TP=2 · vLLM v0.29.0rc6 소스빌드로 1048576 컨텍스트 · fp8_ds_mla KV · PLE 없음 · dspark spec k=7 · cudagraph 형상으로 서빙해 동시성 1 decode 32.2 t/s(GuideLLM full · explore PASS)를 쟀다. 가장 비싼 벽은 커널 업그레이드 뒤 RoCE 실패로 Socket 에 묶였던 NCCL 전송을 manifest 선택(rdma = `NCCL_IB_DISABLE=0` · `NCCL_NET=IB`)으로 되살린 것(W11 · W12)과, 호스트 기동 밸리가 KV 클램프를 10 GiB 로 누른 것(W7)이다. 가장 오해하기 쉬운 값은 `kv-cache-memory-bytes` — KV 필요량이 아니라 기동 밸리가 정한 값(V7)이고, `max-num-seqs` 1 은 손레버 승계(V8)이며, tool call 용처는 `enable-auto-tool-choice` 가 없어 거부된다(Q3). |
 | `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/len786432-kvfp8-spec7-graph` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · KV는 fp8_ds_mla 단일 경로 · dspark spec7+cudagraph+humming 조합으로 768K 31.12 t/s(+82%) · verdict PASS(explore) |
 | `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 b-768k-kvfp8 · 변종 spec0-graph0 · 768K 17.11 t/s @1 · verdict PASS(explore) |
 | `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0-len1m` | legacy-5seg-node | 0.29.0rc6 | deepseek-v4-flash-0731 | gb10x2-cluster-native | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION | stock vLLM 0.29.0rc6 = DS4F-0731 GB10 서빙(포크 불요) · 셀 e-1m-kvfp8 · 변종 spec0-graph0-len1m · 1M 16.67 t/s @1 · verdict PASS(explore) |

@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗).",
-  "count": 50,
-  "generated_kst": "2026-09-23T17:37:42",
+  "count": 51,
+  "generated_kst": "2026-09-28T09:39:52",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -742,6 +742,23 @@
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap",
       "vllm": "0.29.0"
+    },
+    {
+      "anchor": "54082716c8af5287f46f527c97209bd96f39c987",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26092809_deepseek-v4-flash-0731_GB10_0.29.0.md))",
+      "brief": "DeepSeek-V4-Flash-0731(dense FP8 블록 · expert fp4)을 GB10 GPU 1개 × 노드 2개 · Ray TP=2 · vLLM v0.29.0rc6 소스빌드로 1048576 컨텍스트 · fp8_ds_mla KV · PLE 없음 · dspark spec k=7 · cudagraph 형상으로 서빙해 동시성 1 decode 32.2 t/s(GuideLLM full · explore PASS)를 쟀다. 가장 비싼 벽은 커널 업그레이드 뒤 RoCE 실패로 Socket 에 묶였던 NCCL 전송을 manifest 선택(rdma = `NCCL_IB_DISABLE=0` · `NCCL_NET=IB`)으로 되살린 것(W11 · W12)과, 호스트 기동 밸리가 KV 클램프를 10 GiB 로 누른 것(W7)이다. 가장 오해하기 쉬운 값은 `kv-cache-memory-bytes` — KV 필요량이 아니라 기동 밸리가 정한 값(V7)이고, `max-num-seqs` 1 은 손레버 승계(V8)이며, tool call 용처는 `enable-auto-tool-choice` 가 없어 거부된다(Q3).",
+      "grammar": "v6",
+      "missing": [],
+      "model": "deepseek-v4-flash-0731",
+      "object": "d769ee7ad7f9c2338276f69de4d941e899e72efe",
+      "published": true,
+      "recipe": "qfp8-len1048576-kvfp8-plenone-spec7-graph",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-plenone-spec7-graph",
+      "vllm": "0.29.0rc6"
     },
     {
       "anchor": "86144ae4dded01b87cee267a70c6d084b6df0fe9",
