@@ -99,8 +99,9 @@ NCCL_INVARIANTS = {                     # ③ universal — 인터커넥트 무�
 #   · 키 부재 = "socket"(종전 기능 기준선 · golden 불변: GB10 TP=2 에서 세밀한 GDR 제어로도 ibv_reg_mr_iova2 가 실패해
 #     Socket 으로 Ray/vLLM 기능을 IB 경로에서 분리했다 — IB_DISABLE 만으로는 외부 IBext 플러그인이 막히지 않아 NET 도 명시)
 #   · "rdma" = NCCL 내장 verbs(IB_DISABLE=0 · NET=IB). 포럼 383023 의 실패 지점 `misc/ibvwrap.cc (wrap_ibv_reg_mr_iova2)` 가
-#     이 내장 경로다. ★ 첫 교정(2e91a1e)은 rdma 를 "NET 미방출 + IB_DISABLE=1"(09-09 조건 모방)로 정의했는데, 현 이미지
-#     (NCCL_NET_PLUGIN=spcx · 09-24 재빌드)에서는 플러그인이 장치를 거부해 **조용히 Socket** 으로 떨어졌다(엔진 로그
+#     이 내장 경로이고, 09-09 DS4 1M PASS 도 이 전송이었다(그 엔진 로그: IB_DISABLE=0 · `Using network IB`). ★ 첫 교정(2e91a1e)은
+#     rdma 를 "NET 미방출 + IB_DISABLE=1"(09-09 조건이라 **잘못** 추론 — IB_DISABLE=1 은 09-17 d8c7b78)로 정의했는데, 현 이미지
+#     (NCCL_NET_PLUGIN=spcx)에서는 플러그인이 장치를 거부해 **조용히 Socket** 으로 떨어졌다(엔진 로그
 #     `Using network Socket` 실측 · 2026-09-28). 이름이 rdma 인데 Socket 을 재면 거짓 판정이다 → 전송을 명시한다.
 #   · 그 밖의 값 = fail-loud.
 NCCL_TRANSPORTS = {
