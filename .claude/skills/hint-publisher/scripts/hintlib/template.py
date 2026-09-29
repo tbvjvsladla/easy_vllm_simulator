@@ -96,7 +96,8 @@ render_scaffold 가 소비하는 facts 키 (evidence·artifacts·lineage 가 조
     event_timeline              list  evidence.event_timeline — [{utc,node,kind,label,detail,source,campaign_scope?}](블랙박스 원장의 이 셀 행 · 시각순)
     event_campaign_boundary     dict  evidence.event_campaign_boundary — {utc,observed,campaign_id,source}(캠페인 경계 · 이전 행 = 같은 셀
                                       이름 · 앞선 캠페인 — 기동 시도로 세지 않는다 · 재생 = 경계 미관측)
-    event_ledger_spans          list  evidence.event_ledger_spans — [{node,first_utc,last_utc,files,covers_measurement,measurement_end_utc}]
+    event_ledger_spans          list  evidence.event_ledger_spans — [{node,first_utc,last_utc,files,covers_measurement,measurement_end_utc,
+                                      smoke_echo?{log,rows[{ts,kind,label,source}],basis}}](smoke_echo = 미러 밖 노드의 스모크 로그 echo · F10)
                                       (노드 원장의 관측 범위 · 범위 끝 뒤 = 관측 범위 밖 · FACT_FIX2 G8)
                                       → 01 §1.4 표 + 기동 시도 묶음 · 02 §2.2 기동 시도 요약
     bench_definition            dict  evidence.bench_definition — {current_full_definition(docs.md 원문),source,source_line,
@@ -1756,10 +1757,22 @@ def _ledger_span_lines(f: dict) -> list[str]:
         if x.get("covers_measurement") is False:
             outs.append(f"{x.get('node')}(마지막 행 {x.get('last_utc')} < 측정 끝 {x.get('measurement_end_utc')})")
     line = "> **원장 관측 범위**(노드별 첫 행 → 마지막 행 · evidence.event_ledger_spans): " + " · ".join(parts)
+    echoed = [x for x in spans if x.get("covers_measurement") is not True and isinstance(x.get("smoke_echo"), dict)
+              and (x["smoke_echo"].get("rows") or [])]
     if outs:
         line += (f" — ⚠ {' · '.join(_cell(o) for o in outs)}: 그 뒤 그 노드의 선언 · 사건은 **관측 범위 밖**이다(없음이 아니다 · "
-                 "원장 미회수)")
-    return ["", line]
+                 "원장 미회수)" + ("" if not echoed else " — 단 아래 보조 관측의 행은 예외"))
+    out = ["", line]
+    for x in echoed:   # F10(2026-09-29): 같은 기동 스모크 로그에 echo 된 원장 JSON 줄 — evidence 가 준 행 그대로(판정 ✗)
+        e = x["smoke_echo"]
+        rows = [r for r in e["rows"] if isinstance(r, dict)]
+        kinds = sorted({str(r.get("kind")) for r in rows})
+        items = " · ".join(f"`{_cell(r.get('kind'))}` {_cell(r.get('ts'))}"
+                           + (f"(`{_cell(r.get('label'))}`)" if r.get("label") else "") + f" — `{_cell(r.get('source'))}`" for r in rows)
+        out += [">", f"> **보조 관측 · {_cell(x.get('node'))}**({_cell(x.get('node'))} 원장 미러 밖 — 스모크 로그 echo · {_cell(e.get('basis'))}): "
+                   f"{items} — 이 기동에서 {_cell(x.get('node'))} 에 대해 관측된 것은 {' · '.join(f'`{k}`' for k in kinds)} 뿐이다 · 그 밖의 "
+                   f"{_cell(x.get('node'))} 사건(사살 · 트립 · 갱신 · clear)은 여전히 **관측 범위 밖**이다(없음이 아니다)"]
+    return out
 
 
 def _f_event_timeline(c: _Ctx) -> str:
@@ -4320,6 +4333,17 @@ def selftest() -> list[str]:
         ck("G8 이벤트 표에 원장 관측 범위 · 범위 끝 < 측정 끝인 노드 = '관측 범위 밖'(없음 ✗) · 기동 시도 요약에도",
            "원장 관측 범위" in et8 and "sub = 2026-09-03T00:00:00Z → 2026-09-11T11:10:38Z" in et8 and "관측 범위 밖" in et8
            and "관측 범위 밖" in _f_event_attempts(_Ctx(repo, dict(facts_json, event_ledger_spans=spans_), tpls)))
+        echo_ = {"log": "docs/simlog/r/serve.log", "basis": "같은 기동 판별", "rows": [
+            {"ts": "2026-09-23T00:10:03Z", "kind": "budget_honored", "label": "smoke-x", "source": "docs/simlog/r/serve.log:26"}]}
+        spans_e = [spans_[0], dict(spans_[1], smoke_echo=echo_)]
+        et8e = _f_event_timeline(_Ctx(repo, dict(facts_json, event_ledger_spans=spans_e), tpls))
+        ck("F10 미러 밖 노드의 스모크 로그 echo = 보조 관측 줄(출처 L 번호 · '원장 미러 밖 — 스모크 로그 echo') · 그 밖 사건은 여전히 관측 범위 밖",
+           "보조 관측 · sub" in et8e and "docs/simlog/r/serve.log:26" in et8e and "원장 미러 밖 — 스모크 로그 echo" in et8e
+           and "관측된 것은 `budget_honored` 뿐" in et8e and "사살 · 트립 · 갱신 · clear)은 여전히 **관측 범위 밖**" in et8e
+           and "보조 관측 · sub" in _f_event_attempts(_Ctx(repo, dict(facts_json, event_ledger_spans=spans_e), tpls)))
+        ck("★F10 음성대조: echo 없음 · 측정 끝을 덮는 노드의 echo = 보조 관측 줄 없음",
+           "보조 관측" not in et8 and "보조 관측" not in _f_event_timeline(_Ctx(repo, dict(facts_json, event_ledger_spans=[
+               dict(spans_[0], smoke_echo=echo_)]), tpls)))
         ck("★G8 음성대조: 모든 노드가 측정 끝을 덮으면 경고 없음 · 범위 입력이 없으면 줄 없음",
            "관측 범위 밖" not in _f_event_timeline(_Ctx(repo, dict(facts_json, event_ledger_spans=spans_[:1]), tpls))
            and "원장 관측 범위" not in _f_event_timeline(_Ctx(repo, dict(facts_json, event_ledger_spans=None), tpls)))

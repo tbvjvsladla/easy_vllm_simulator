@@ -1991,7 +1991,9 @@ def event_ledger_spans(repo, ev: CellEvidence) -> list[dict]:
     """이 셀 노드 축 원장의 **관측 범위**(2026-09-29 · FACT_FIX2 G8) — [{node, first_utc, last_utc, files[], covers_measurement}].
     D2: 메인의 서브 원장 미러(`docs/logs/sub/events/2026-09.jsonl`)가 09-11 에서 끝나 09-23 기동의 서브 선언이 표에 없었는데, FACT 가 범위를
     밝히지 않아 "서브는 선언하지 않았다" 로 읽혔다. 범위 끝 뒤의 시각은 "없음" 이 아니라 **관측 범위 밖**이다. covers_measurement =
-    마지막 행 ≥ 측정 끝(측정 끝 미관측이면 None). 선언 노드인데 원장 디렉터리가 없으면 files [] · first/last None."""
+    마지막 행 ≥ 측정 끝(측정 끝 미관측이면 None). 선언 노드인데 원장 디렉터리가 없으면 files [] · first/last None.
+    2026-09-29(F10): 측정 끝을 덮지 못한 노드는 같은 기동의 스모크 로그에 echo 된 그 노드 원장 JSON 줄(선언 · honored)을 `smoke_echo`
+    {log, rows[{ts, kind, label, source}], basis} 로 싣는다(보조 관측 · 그 밖의 사건은 여전히 관측 범위 밖 · 규칙 = _smoke_ledger_echo)."""
     repo = _repo(repo)
     try:
         end = _measure_window(repo, ev)[1]
@@ -2011,9 +2013,65 @@ def event_ledger_spans(repo, ev: CellEvidence) -> list[dict]:
             files.append(_rel(repo, f))
             first = rows[0][0] if first is None else min(first, rows[0][0])
             last = rows[-1][0] if last is None else max(last, rows[-1][0])
-        out.append({"node": node, "first_utc": first, "last_utc": last, "files": files,
-                    "covers_measurement": (last >= end) if (last and end) else None, "measurement_end_utc": end})
+        span = {"node": node, "first_utc": first, "last_utc": last, "files": files,
+                "covers_measurement": (last >= end) if (last and end) else None, "measurement_end_utc": end}
+        if span["covers_measurement"] is not True:
+            echo = _smoke_ledger_echo(repo, ev, node)
+            if echo is not None:
+                span["smoke_echo"] = echo
+        out.append(span)
     return out
+
+
+# ── 원장 미러가 측정 창을 덮지 못한 노드의 **보조 관측**(2026-09-29 · factcheck F10) ─────────────────────────────────────────
+# D: 메인의 서브 원장 미러가 09-11 에서 끝나 "서브 선언 · 사건은 관측 범위 밖" 이라 적었는데, 같은 기동의 스모크 로그(multinode_serve_smoke
+#   가 서브 원장의 budget_honored JSON 줄을 그대로 echo)에 서브의 원장 행이 원문으로 남아 있었다. 규칙:
+#   ① 스모크 로그 = attestation_same_boot 의 **강한 판별**이 지목한 로그만(같은 기동의 스모크 — 새 판별을 만들지 않는다 · 약한 판별 · 판별 ✗
+#      이면 보조 관측 없음)
+#   ② 줄 = `<node>: budget_declare|budget_honored … {JSON}` 이고 JSON 이 파싱되며 kind 가 그 줄의 kind 와 같고 ts 가 UTC 이고 label 이 이 셀
+#      스모크 라벨(있으면)과 같을 때만 — 그 밖의 문장 줄(예: '선언 발행: …env')은 원장 행이 아니다(싣지 않는다)
+#   ③ 그 밖의 사건(사살 · 트립 · clear · 갱신)은 스모크 로그가 echo 하지 않는다 — 여전히 관측 범위 밖(template 이 한정을 적는다).
+SMOKE_ECHO_KINDS = ("budget_declare", "budget_honored")
+SMOKE_ECHO_NOTE = "원장 미러 밖 — 스모크 로그 echo"
+
+
+def _smoke_ledger_echo(repo: Path, ev: CellEvidence, node: str) -> dict | None:
+    """{log, rows[{ts, kind, label, source}], basis} | None — 위 규칙(①②). 같은 기동 판별이 없거나 echo 행이 0 이면 None."""
+    att = ev.attestation if isinstance(ev.attestation, dict) else {}
+    if not att.get("_path") or att.get("config") != ev.cell:
+        return None
+    written = _attestation_written(repo, att)[0]
+    timing, _note, win = _attestation_timing(repo, ev, written)
+    if timing != "before-measurement":
+        return None
+    sb = attestation_same_boot(repo, ev, written, win)
+    if not sb or sb.get("strength") != "strong":
+        return None
+    rel = sb["files"][0]
+    lg = repo / rel
+    if not lg.is_file():
+        return None
+    label = f"smoke-{ev.cell}"
+    pat = re.compile(r"^\s*(?:\[[^\]]*\]\s*)?" + re.escape(node) + r":\s+(" + "|".join(SMOKE_ECHO_KINDS) + r")\b[^{]*(\{.*\})\s*$")
+    rows = []
+    for i, line in enumerate(_log_lines(lg), 1):
+        m = pat.match(_ANSI.sub("", line))
+        if not m:
+            continue
+        try:
+            d = json.loads(m.group(2))
+        except ValueError:
+            continue
+        ts = d.get("ts") if isinstance(d, dict) else None
+        if not (isinstance(ts, str) and _UTC.fullmatch(ts)) or d.get("kind") != m.group(1):
+            continue
+        if d.get("label") not in (None, label):
+            continue
+        rows.append({"ts": ts, "kind": d["kind"], "label": d.get("label"), "source": f"{rel}:{i}"})
+    if not rows:
+        return None
+    return {"log": rel, "rows": rows,
+            "basis": f"같은 기동 판별(attestation_same_boot 강한 판별)이 지목한 스모크 로그 {rel} 의 `{node}:` 원장 JSON echo 줄"}
 
 
 def event_files(repo, ev: CellEvidence) -> list[str]:
@@ -6830,6 +6888,25 @@ def _selftest_fix2(ck, td: Path, ev: CellEvidence) -> None:
     sb1 = attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win)
     ck("G10 스모크 로그 honored ts = 원장의 같은 선언 budget_honored(1초 뒤)면 강한 판별",
        sb1 and sb1["strength"] == "strong" and "02:50:01Z = 그 선언의 원장 budget_honored" in sb1["basis"])
+    # ── F10: 미러 밖 노드(sub · 원장 2025-12-01 끝)의 스모크 로그 echo = 보조 관측 ──
+    sub_echo = ["[mn]   sub: 선언 발행: /x/docs/logs/sub/serve_budget.env",
+                "[mn]   sub: budget_honored ✓ {\"ts\":\"2026-01-02T02:50:04Z\",\"kind\":\"budget_honored\",\"label\":\"smoke-cl\"}",
+                "[mn]   sub: budget_honored ✓ {\"ts\":\"2026-01-02T02:50:05Z\",\"kind\":\"budget_honored\",\"label\":\"smoke-other\"}",
+                "[mn]   sub: budget_honored ✓ {\"ts\":\"2026-01-02T02:50:06Z\",\"kind\":\"budget_clear\"}",
+                "[mn]   sub: mem_kill {\"ts\":\"2026-01-02T02:50:07Z\",\"kind\":\"mem_kill\"}"]
+    (sl / "fx_serve.log").write_text("\n".join([off[0]] + sub_echo + off[1:]) + "\n", encoding="utf-8")
+    sp10 = {x["node"]: x for x in event_ledger_spans(r, ev10)}
+    se = sp10["sub"].get("smoke_echo") or {}
+    ck("F10 미러 밖 노드: 같은 기동 스모크 로그의 그 노드 원장 JSON echo(선언 · honored · 이 셀 라벨)만 보조 관측 · 출처 L 번호",
+       sp10["sub"]["covers_measurement"] is False and se.get("log") == "docs/simlog/fx_run/fx_serve.log"
+       and [(x["ts"], x["kind"], x["source"]) for x in se.get("rows") or []]
+       == [("2026-01-02T02:50:04Z", "budget_honored", "docs/simlog/fx_run/fx_serve.log:3")])
+    ck("★F10 음성대조: 측정 끝을 덮는 노드(main)는 보조 관측 ✗ · 문장 줄 · 다른 라벨 · kind 불일치 · 목록 밖 kind 는 싣지 않는다",
+       "smoke_echo" not in sp10["main"] and len(se.get("rows") or []) == 1)
+    (sl / "fx_serve.log").write_text("\n".join([off[0]] + sub_echo + [off[1], off[3], off[2]]) + "\n", encoding="utf-8")
+    ck("★F10 음성대조: 같은 기동 판별 불성립(순서 어긋남)이면 스모크 로그 echo 를 싣지 않는다",
+       "smoke_echo" not in {x["node"]: x for x in event_ledger_spans(r, ev10)}["sub"])
+    (sl / "fx_serve.log").write_text("\n".join(off) + "\n", encoding="utf-8")
     # ── 약한 판별: 스모크 로그 미보존 · 원장 순서만 ──
     (sl / "fx_serve.log").unlink()
     (bl / "lite_engine_cl.log").write_text("(APIServer pid=5) INFO 01-02 02:52:00 [entry.py:1] Starting vLLM server on http://x\n",
