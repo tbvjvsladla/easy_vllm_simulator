@@ -38,6 +38,11 @@ run_trial(candidate)            # docker run -d → /health 200 폴링 → funct
   → 반복 (cap 소진 시 HITL)
 ```
 
+- **cap 의 lite ② 차감(2026-09-29 · `plan_26092923_58_27`)**: `--candidate` 가 캠페인 셀 lockset 이면 같은 셀 `cell.status.json` 의
+  `reconciliation.charges[]`(lite ② `server_failed` 1건 = 1 · writer `campaign_init --cell-set --lite-raw`) 수만큼 cap 을 줄인다 —
+  서빙은 됐지만 실사용 불가였던 재발동은 새 3회가 아니라 **남은 횟수**로 돈다. 잔여 ≤ 0 이면 트라이얼 없이 Model-C(exit 3).
+  재발동 결정 기록(`--reentry-decide`)이 없으면 경고만 한다(승인 게이트는 대화 평면 · 차단 ✗). 셀 상태 판독 실패는 exit 5(차감 0 으로 접지 않는다).
+
 - **준비 판정 = `:PORT/health` HTTP 200**. 로그의 "startup complete" grep 금지(거짓양성 — workflow S3 와 동일).
 - **참조-그라운디드 해결 (`functional`·`unknown` 복구 — 자기추론 금지)**: `functional` 폴백 소진 또는 `unknown` 에 도달하면
   re-strategize/halt **전에** 권위 참조를 먼저 조회한다(여기서 토큰을 더 쓰는 것은 *권장*된다):
@@ -70,7 +75,7 @@ Phase 2 수렴(`none`) + 최종 serve-up 성공 후, **최종 서빙유지 판�
   사용자가 "커뮤니티에서 이 정도 나온다는데 검증해줘" 류 HITL 을 주면 그때 **full 벤치**로 승격.
   (2026-09-29 · `plan_26092923`) lite 는 이제 **성립 판정**을 낸다 — exit 6(① 측정 경로 불성립 · 하네스) / 7(② 서버 응답 실패 ·
   실사용 불가). 이 핸드오프(α)에서는 판정을 **기록·보고만** 한다: 서빙 성공 판정을 뒤집거나 재빌드·서빙전략 재수행을 자동으로
-  시작하지 않는다(헌법 트리거 절). ② 는 사람에게 "실사용 불가 신호" 로 올리고, ① 은 하네스 결함으로 올린다.
+  시작하지 않는다(헌법 트리거 절). ② 는 사람에게 "실사용 불가 · 재발동 제안" 으로 올리고(stdout 제안 문구 · 캠페인 셀이면 cap 차감·제안은 셀 상태 writer 몫), ① 은 하네스 결함으로 올린다.
 - **② opt-out 노드 서빙 경고 재확인**: 경고의 **발화 시점 정본은 terraforming §2.6 ③**(각 serve *기동 직전*). 이 마무리
   단계에서는 리스크를 **재고지**한다 — manifest `host_safety.installed` 를 읽어 **통합메모리 노드 ∧ `installed:false`** 면
   **에이전트 채팅 1줄**. **discrete 노드·installed:true 는 무경고 · serve 스크립트/로그 배너 코드변경 ✗**.

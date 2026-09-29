@@ -28,8 +28,9 @@
 #   β lite-only 캠페인 셀은 `--publish-report` 로 리포트를, 판정이 pass 일 때만 lite 등급 인증서를 낸다. γ 강등 셀은 sweep 경로다.
 #
 # 사용: lite_bench.sh <config_name> [--topology single|multi] [--serve-plane docker|native] [--host-endpoint URL]
-#        [--engine-log PATH(native 전용 · 서버 로그)] [--burst-n N] [--out-dir DIR] [--no-sub-probe] [--publish-report]
-# 종료: 0=lite 통과(요청 시 리포트·lite 인증서 발행 포함) · 2=인자/파일 부재 · 3=serve 미가동 · 4=정체성/Flag 게이트
+#        [--engine-log PATH(native 필수 · 서버 로그)] [--burst-n N] [--out-dir DIR] [--no-sub-probe] [--publish-report]
+#   --out-dir 미지정 시 raw 자리: α·sweep 레그 = output/<t>/benchlog · β(--publish-report) = output/<t>/benchlog/lite_publish/<config>_<UTC>/
+# 종료: 0=lite 통과(요청 시 리포트·lite 인증서 발행 포함) · 2=인자/파일 부재(native --engine-log 부재 포함) · 3=serve 미가동 · 4=정체성/Flag 게이트
 #       5=리포트·인증서 발행 실패(측정·판정은 남음) · 6=lite 불통과 ① 측정 경로 불성립(하네스) · 7=lite 불통과 ② 서버 응답 실패
 set -euo pipefail
 
@@ -62,6 +63,11 @@ if [ "$SERVE_PLANE" = "native" ] && { [ -z "$HOST_ENDPOINT" ] || [ -z "$CLIENT_V
 fi
 if [ "$SERVE_PLANE" = "native" ] && [[ ! "$HOST_ENDPOINT" =~ ^https?://[^/[:space:]]+(:[0-9]+)?$ ]]; then
   echo "[lite_bench] ERROR --host-endpoint는 경로 없는 http(s) origin 이어야 한다: $HOST_ENDPOINT" >&2; exit 2
+fi
+# ★ 2026-09-29(plan_26092923_58_27): native 는 서버 로그를 **선언으로만** 받는다(경로 추측 ✗). 종전에는 선언이 없으면 빈 로그로
+#   진행해 KV·VRAM 이 N/A → lite ① 이 조용히 났다 — "정직한 부재" 였지만 호출부가 그 사실을 몰랐다. 이제 인자 단계에서 멈춘다.
+if [ "$SERVE_PLANE" = "native" ] && [ -z "$NATIVE_ELOG" ]; then
+  echo "[lite_bench] ERROR --serve-plane native에는 --engine-log <native producer 의 서버 로그>가 필수다 — 없으면 KV·VRAM 이 N/A 라 lite 가 ① 이 된다." >&2; exit 2
 fi
 if [ "$SERVE_PLANE" = "docker" ] && { [ -n "$HOST_ENDPOINT" ] || [ -n "$CLIENT_VLLM" ] || [ -n "$NATIVE_ELOG" ]; }; then
   echo "[lite_bench] ERROR --host-endpoint/--client-vllm/--engine-log은 --serve-plane native에서만 준다." >&2; exit 2
@@ -124,6 +130,11 @@ CFGYAML="$REPO/output/$TOPO/configs/$CFGFILE.yaml"
 MODEL_PATH="$(awk -F': *' '/^model:/{print $2; exit}' "$CFGYAML" | tr -d '[:space:]')"
 [ -n "$MODEL_PATH" ] || { echo "[lite_bench] config yaml 의 model: 경로 파싱 실패" >&2; exit 2; }
 
+# β(--publish-report)의 raw 는 **매 측정 따로** 둔다(2026-09-29 · plan_26092923_58_27). 기본 자리가 α(서빙 직후 자동 핸드오프)와
+#   같아 α 가 같은 셀을 다시 재면 β 가 발행한 리포트·인증서의 입력 raw 가 덮였다(testlog_26092923 §4). α·sweep 레그 기본 자리는 그대로다.
+if [ -z "$OUTDIR" ] && [ "$PUBLISH_REPORT" = "1" ]; then
+  OUTDIR="$REPO/output/$TOPO/benchlog/lite_publish/${CONFIG}_$(date -u +%Y%m%dT%H%M%SZ)"
+fi
 OUTDIR="${OUTDIR:-$REPO/output/$TOPO/benchlog}"; mkdir -p "$OUTDIR"
 WARM="$OUTDIR/lite_warm_${CONFIG}.json"; COLD="$OUTDIR/lite_cold_${CONFIG}.json"
 ELOG="$OUTDIR/lite_engine_${CONFIG}.log"; RAW="$OUTDIR/lite_raw_${CONFIG}.json"
@@ -178,10 +189,8 @@ WARM_RC=0; _bench "$WARM" "$BURST_N" 1 >>"$BLOG" 2>&1 || WARM_RC=$?
 [ "$WARM_RC" = 0 ] || { echo "[lite_bench] warm bench 실패(rc $WARM_RC) — 출력 끝:" >&2; tail -5 "$BLOG" >&2; rm -f "$WARM"; }
 if [ "$SERVE_PLANE" = "docker" ]; then
   docker logs "$CTR" 2>&1 | tail -800 > "$ELOG" || true
-elif [ -n "$NATIVE_ELOG" ]; then
-  tail -800 "$NATIVE_ELOG" > "$ELOG" || true   # native producer 의 서버 로그(선언으로 받는다 · 경로 추측 ✗)
 else
-  : > "$ELOG"  # native producer owns server-log proof; 선언이 없으면 KV·VRAM 이 N/A 라 판정은 ① 이 된다(정직한 부재).
+  tail -800 "$NATIVE_ELOG" > "$ELOG" || true   # native producer 의 서버 로그(선언으로 받는다 · 경로 추측 ✗ · 부재는 인자 단계에서 exit 2)
 fi
 
 # ── 판정 입력: 측정 뒤 두 평면의 health ────────────────────────────────────────────
@@ -284,6 +293,12 @@ if [ "$PUBLISH_REPORT" = "1" ]; then
   fi
 else
   echo "[lite_bench] 리포트·인증서 미발행(기본 · 자동 핸드오프 경로 = 기록·보고만) — lite-only 셀은 --publish-report"
+fi
+if [ "$LITE_RC" = 7 ]; then
+  # ② 는 **제안까지**다 — 재발동(explorer 서빙전략 · upstream 재빌드)은 사람 승인 게이트를 거친다(헌법 트리거 절).
+  #   캠페인 셀의 cap 차감·제안 기록은 셀 상태 writer 가 이 raw 를 읽어 한다(broad_search cell 이 자동 · 그 밖은 아래 명령).
+  echo "[lite_bench] ② 실사용 불가(server_failed) — 재발동 제안: vllm-recipe-explorer(서빙전략) / upstream-version-watch(재빌드) · 사람 승인 필요"
+  echo "[lite_bench]   캠페인 셀이면: campaign_init.py --cell-set <cell> --outcome measurement_void --lite-raw $RAW --utc <T> (cap 차감 1 · 재발동 제안 기록)"
 fi
 echo "[lite_bench] DONE  RAW=$RAW  lite_verdict=$LITE_VERDICT (exit $LITE_RC)"
 exit "$LITE_RC"

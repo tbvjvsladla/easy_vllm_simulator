@@ -523,11 +523,49 @@ def _miss_source(correlation, events_scanned):
     return "%s(%s)" % (prefix, events_scanned)
 
 
-def classify(serve_rc, measure_rc, kill_hits, events_scanned, correlation=None):
+# ── lite 판정 운반(2026-09-29 · plan_26092923_58_27) ──────────────────────────────────────────────────
+#   sweep_bench 는 lite 게이트 불통과를 exit 6/7 로만 알렸고, 여기서는 그것이 다른 측정 실패와 같은 `unknown` 으로 접혔다 —
+#   "② 서버 응답 실패(실사용 불가)" 와 "① 하네스 결함" 이 셀 기록에서 구분되지 않았다. 판정은 다시 하지 않는다: 이번 셀 구간의
+#   lite raw 를 소유자 규칙(`lite_metrics.read_lite_verdict`)으로 읽어 사유 칸에 옮긴다. 사살이 집행됐으면 사살이 사인이다(관측 > 단언).
+LITE_VOID_REASONS = {"measurement_path_failed": "lite_measurement_path_failed", "server_failed": "lite_server_failed"}
+
+
+def read_cell_lite(raw_path, started):
+    """이번 셀의 lite raw → {lite_verdict, lite_verdict_source, lite_raw_status}. 판정하지 않고 읽기만 한다.
+
+    status: fresh(구간 안 측정) · stale(measured_utc 가 셀 시작 전 — 이전 스윕 잔재 · 읽지 않는다) · unreadable · absent."""
+    if not raw_path:
+        return {"lite_verdict": None, "lite_verdict_source": None, "lite_raw_status": "absent"}
+    try:
+        with open(raw_path, encoding="utf-8") as f:
+            raw = json.load(f)
+    except FileNotFoundError:
+        return {"lite_verdict": None, "lite_verdict_source": None, "lite_raw_status": "absent"}
+    except (OSError, ValueError):
+        return {"lite_verdict": None, "lite_verdict_source": "lite_raw(%s) 판독 실패" % raw_path, "lite_raw_status": "unreadable"}
+    import importlib.util as _iu
+    _spec = _iu.spec_from_file_location("lite_metrics", os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                                      "lite_metrics.py"))
+    _lm = _iu.module_from_spec(_spec)
+    _spec.loader.exec_module(_lm)
+    try:
+        measured = _utc(raw.get("measured_utc"), "lite raw measured_utc") if isinstance(raw, dict) else None
+    except ClassifyError:
+        measured = None
+    if measured is None or (started is not None and measured < started):
+        return {"lite_verdict": None, "lite_raw_status": "stale",
+                "lite_verdict_source": "lite_raw(%s) measured_utc=%r 가 셀 시작 전이거나 없다 — 이번 셀의 판정이 아니다"
+                                       % (raw_path, raw.get("measured_utc") if isinstance(raw, dict) else None)}
+    return {"lite_verdict": _lm.read_lite_verdict(raw), "lite_raw_status": "fresh",
+            "lite_verdict_source": "lite_raw(%s) · lite_metrics.read_lite_verdict" % raw_path}
+
+
+def classify(serve_rc, measure_rc, kill_hits, events_scanned, correlation=None, lite=None):
     """rc 두 개 + 이벤트 대조 → 종결 분류. 순수 함수.
 
     `measure_rc is None` = **측정 단계에 들어가지 않았다**(부재). 성공(0)과 구분한다.
     `correlation`(선택) = `correlate_nodes` 의 집계 — 주면 사살 부재의 출처가 miss/not-scanned/unavailable 로 갈린다.
+    `lite`(선택) = `read_cell_lite` 결과 — 측정 실패의 사유를 lite 판정(①·②)으로 옮긴다(사살 다음 순위).
     """
     executed = [h for h in kill_hits if h["kind"] in KILL_EVENT_KINDS]
     unseen = correlation in (CORRELATION_NOT_SCANNED, CORRELATION_UNAVAILABLE)
@@ -577,6 +615,17 @@ def classify(serve_rc, measure_rc, kill_hits, events_scanned, correlation=None):
                 "kill_events": kill_hits,
                 "note": "서빙은 성립했으나 %s 가 %s 에 집행되어 측정이 파괴됐다."
                         % (first["kind"], first["ts"]),
+            }
+        lv = (lite or {}).get("lite_verdict")
+        if lv in LITE_VOID_REASONS:
+            return {
+                "cell_outcome": OUTCOME_MEASUREMENT_VOID,
+                "void_reason": LITE_VOID_REASONS[lv],
+                "void_reason_source": lite["lite_verdict_source"],
+                "kill_events": kill_hits,
+                "note": ("서빙은 성립했으나 lite 게이트가 불통과였다(rc=%s · lite_verdict=%s) — %s. 구간 안에 집행된 사살은 없다."
+                         % (measure_rc, lv, "서버가 응답했지만 실패했다(실사용 불가 · 재발동 제안 대상)"
+                            if lv == "server_failed" else "요청이 서버에 닿지 못했다(하네스 결함 · cap 차감 ✗)")),
             }
         return {
             "cell_outcome": OUTCOME_MEASUREMENT_VOID,
@@ -776,6 +825,37 @@ def _self_test():
 
     out = classify(0, 0, [], "none")
     check("C4 정상 → measured", out["cell_outcome"] == OUTCOME_MEASURED)
+
+    # ── lite 판정 운반(2026-09-29 · plan_26092923_58_27) ──────────────────────────────────────────
+    with tempfile.TemporaryDirectory() as _ld:
+        def _raw(name, verdict, measured):
+            _p = os.path.join(_ld, name)
+            with open(_p, "w", encoding="utf-8") as _f:
+                json.dump({"lite_verdict": verdict, "measured_utc": measured}, _f)
+            return _p
+        _sf = read_cell_lite(_raw("sf.json", "server_failed", "2026-09-04T10:05:00Z"), started)
+        out = classify(0, 7, [], "none", lite=_sf)
+        check("L1 ② server_failed raw(구간 안) → void_reason lite_server_failed · 출처 lite_raw",
+              out["cell_outcome"] == OUTCOME_MEASUREMENT_VOID and out["void_reason"] == "lite_server_failed"
+              and out["void_reason_source"].startswith("lite_raw(") and _sf["lite_raw_status"] == "fresh", out)
+        _mp = read_cell_lite(_raw("mp.json", "measurement_path_failed", "2026-09-04T10:05:00Z"), started)
+        out = classify(0, 6, [], "none", lite=_mp)
+        check("L2 ① measurement_path_failed → void_reason lite_measurement_path_failed",
+              out["void_reason"] == "lite_measurement_path_failed", out)
+        out = classify(0, 7, hits, "x", lite=_sf)
+        check("L3 집행된 사살이 있으면 사살이 사인이다(lite 는 다음 순위)", out["void_reason"] == "watchdog_kill_ack", out)
+        _old = read_cell_lite(_raw("old.json", "server_failed", "2026-09-03T10:05:00Z"), started)
+        out = classify(0, 7, [], "none", lite=_old)
+        check("L4 셀 시작 전 raw(이전 스윕 잔재)는 읽지 않는다 → unknown · status stale",
+              _old["lite_raw_status"] == "stale" and _old["lite_verdict"] is None and out["void_reason"] == "unknown", out)
+        _voc = read_cell_lite(_raw("voc.json", "ok", "2026-09-04T10:05:00Z"), started)
+        out = classify(0, 7, [], "none", lite=_voc)
+        check("L5 어휘 밖 판정은 옮기지 않는다(소유자 규칙 None) → unknown", out["void_reason"] == "unknown", out)
+        _abs = read_cell_lite(os.path.join(_ld, "nope.json"), started)
+        check("L6 raw 부재 = absent(판정 없음)", _abs == {"lite_verdict": None, "lite_verdict_source": None,
+                                                           "lite_raw_status": "absent"}, _abs)
+        out = classify(0, 0, [], "none", lite=_sf)
+        check("L7 측정 성공(rc 0)이면 lite 가 분류를 바꾸지 않는다", out["cell_outcome"] == OUTCOME_MEASURED, out)
 
     out = classify(0, 0, hits, "x")
     check("C5 측정 성공인데 사살이 있었다 → 분류 유지·기록 노출",
@@ -1213,7 +1293,7 @@ def _self_test():
     if failures:
         sys.stderr.write("[classify_cell --self-test] FAIL %d 건: %s\n" % (len(failures), failures))
         return 1
-    print("[classify_cell --self-test] OK — K1~K3 · C1~C9 · D1~D19(bench_mode 확정 · 실패주입 · 음성대조) · E1~E6 · "
+    print("[classify_cell --self-test] OK — K1~K3 · C1~C9 · L1~L7(lite 판정 운반) · D1~D19(bench_mode 확정 · 실패주입 · 음성대조) · E1~E6 · "
           "K-mirror · N1~N6 · F00 · F1~F11 · G1~G10(대조 대상 노드 · 이 노드 해소 · 계획 불성립 시 이 노드 기록) 전부 통과")
     return 0
 
@@ -1267,6 +1347,9 @@ def main(argv=None):
     ap.add_argument("--write-bench-mode", action="store_true",
                     help="bench_mode 판정 기록을 sweep_index 옆 `%s` 에 원자적으로 쓴다(자리 이름의 소유는 이 파일 · "
                          "--sweep-index 필요)" % BENCH_MODE_RECORD_NAME)
+    ap.add_argument("--lite-raw",
+                    help="셀 종결 모드: 이번 셀 스윕의 lite raw(lite_raw_<config>.json) — 측정 실패 사유를 lite 판정으로 옮긴다"
+                         "(구간 밖 raw 는 읽지 않는다)")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args(argv)
@@ -1393,7 +1476,9 @@ def main(argv=None):
                 "nodes": per_node, "cross_node_tolerance_s": cross[0], "cross_node_tolerance_source": cross[1]}
     if plan is not None:
         scanned_txt = "%s · %s" % (scanned_txt, events_scan_summary(scan_doc))
-    out = classify(args.serve_rc, args.measure_rc, hits, scanned_txt, correlation=correlation)
+    lite = read_cell_lite(args.lite_raw, started)
+    out = classify(args.serve_rc, args.measure_rc, hits, scanned_txt, correlation=correlation, lite=lite)
+    out.update(lite)
     out["events_scanned"] = scanned
     out["tolerance_s"] = args.tolerance_s
     out["downgrade_correlation"] = correlation

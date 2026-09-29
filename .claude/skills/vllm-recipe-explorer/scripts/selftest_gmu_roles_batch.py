@@ -21,6 +21,7 @@ lockset 에 `provenance`·`*_source` 를 **기계가** 적는 것이다. 이 파
      E4 위상 2 하향 · E5 host 흐름 · E6 손레버 보존 · E7 직전 explorer 산출 비승계 · E8 target_gmu 미선언 exit 5
      E9 입력 출처 어휘 밖 → 기재만 · E10 배선 층 역할 분리 · E11 tp 모양 결함은 기재 · E12 host 선언 예산 충돌 exit 5
      E13 캠페인 셀 lockset 은 --lockset-out 없이도 제자리 각인 · E14 캠페인 밖은 입력을 덮어쓰지 않는다(음성대조)
+     E15~E17 셀 상태 lite ② 차감 → cap 감소 · 소진 시 트라이얼 없이 Model-C · 차감 0 음성대조
   F  가짜 엔진 층(subprocess · 사본 recipe.py 의 `cmd_simulate` 를 부르되 `run_trial` 만 **클램프에 비례하는 토큰을
      돌려주는 결정론 엔진**으로 바꾼다 — 블록 16 반올림 · 트라이얼별 OOM 주입 · 클램프 토큰 미관측 · per-token 불일치):
      F1 첫 트라이얼 OOM → 잠정 클램프 → 요구 16 을 배포 천장 KV-fit 으로 유지(음성대조: 잠정 클램프 원토큰은 4)
@@ -602,6 +603,30 @@ def cli_layer(tmp: Path, root: Path) -> None:
        o["rc"] == 0 and o["lockset"] == o["input_lock"]
        and ((o["summary"] or {}).get("lockset") or {}).get("provenance") == "explorer-phase2"
        and "캠페인 셀 lockset 이 아니다" in o["stderr"], "rc=%s %s" % (o["rc"], o["stderr"][-300:]))
+
+    # E15/E16 — lite ② cap 차감(2026-09-29 · plan_26092923_58_27): 셀 상태의 차감 수만큼 cap 이 줄고, 소진이면 트라이얼 없이 멈춘다.
+    def _cell_status(cell, n, status):
+        d = root / "campaigns" / "camp-fx" / "cells" / cell
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "cell.status.json").write_text(json.dumps({
+            "reconciliation": {"charges": [{"key": "2026-01-01T0%d:00:00Z" % i} for i in range(n)], "spent": n},
+            "reentry": {"status": status}}), encoding="utf-8")
+        return d / "lockset.json"
+    o = _run_case(root, tmp, "e15", cfg_extra=decl(16, L_TYP), lockset={}, lock_path=_cell_status("e15", 1, "approved"),
+                  lockset_out=False)
+    ck("E15 셀 상태 lite ② 차감 1 → cap 3 − 1 = 2 (출처 cell.status) · 결정 기록(approved)이면 경고 없음 · 수렴은 그대로",
+       o["rc"] == 0 and "cap 3 − 1 = 2" in o["stderr"] and "reconciliation.charges" in o["stderr"]
+       and "재발동 결정 기록이 없다" not in o["stderr"], "rc=%s %s" % (o["rc"], o["stderr"][-400:]))
+    o = _run_case(root, tmp, "e16", cfg_extra=decl(16, L_TYP), lockset={}, lock_path=_cell_status("e16", 3, "proposed"),
+                  lockset_out=False)
+    ck("E16 차감 3(= cap) → 트라이얼 없이 Model-C(rc 3) · 결정 기록 없음 경고 · lockset 각인 0 · run 요약 0",
+       o["rc"] == 3 and "reconciliation_cap 소진" in o["stderr"] and "재발동 결정 기록이 없다" in o["stderr"]
+       and "trial 1/" not in o["stderr"] and "provenance" not in o["lockset"] and o["summary"] is None,
+       "rc=%s %s" % (o["rc"], o["stderr"][-400:]))
+    o = _run_case(root, tmp, "e17", cfg_extra=decl(16, L_TYP), lockset={}, lock_path=_cell_status("e17", 0, None),
+                  lockset_out=False)
+    ck("E17 음성대조: 차감 0 이면 cap 안내 줄 없음(캠페인 셀이어도 종전 그대로)",
+       o["rc"] == 0 and "lite ② 차감" not in o["stderr"], "rc=%s %s" % (o["rc"], o["stderr"][-300:]))
 
 
 # ───────────────────────────── F — 가짜 엔진 층 ─────────────────────────────

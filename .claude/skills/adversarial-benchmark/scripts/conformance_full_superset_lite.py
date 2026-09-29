@@ -83,6 +83,34 @@ def main():
     check("E 인증서 발행기가 lite 판정 pass 에서만 lite 등급 인증서를 낸다(β read_lite_verdict · γ index.lite)",
           'read_lite_verdict(raw)' in cert and 'lite.get("lite_verdict") != "pass"' in cert
           and "benchmark_mode: lite" in cert and "verdict: not_applicable" in cert)
+    # E② 배선(2026-09-29 · plan_26092923_58_27) — ② 신호가 셀 상태·explorer cap 까지 닿는 사슬의 각 홉이 실재한다.
+    #   판정 읽기는 모든 홉이 소유자 규칙(read_lite_verdict) 하나를 쓴다(값을 다시 판정하지 않는다).
+    bsearch = read("broad_search.sh") or ""
+    ccell = read("classify_cell.py") or ""
+    skills = os.path.dirname(os.path.dirname(SDIR))
+
+    def _sk(rel):
+        try:
+            with open(os.path.join(skills, rel), encoding="utf-8") as f:
+                return f.read()
+        except OSError:
+            return ""
+    cinit = _sk("terraforming_node/scripts/campaign_init.py")
+    recipe = _sk("vllm-recipe-explorer/recipe.py")
+    check("E② sweep_bench 가 native 서버 로그를 lite 레그에 넘긴다(없으면 native lite 는 늘 ①)",
+          'LITE_PLANE_ARGS+=(--engine-log "$NATIVE_ELOG")' in sweep)
+    check("E② classify_cell 이 이번 셀 lite raw 를 소유자 규칙으로 읽어 사유(lite_server_failed·lite_measurement_path_failed)로 옮긴다",
+          "read_lite_verdict" in ccell and '"lite_server_failed"' in ccell and "--lite-raw" in ccell)
+    check("E② broad_search 가 lite raw 를 분류기·셀 기록·writer 에 넘긴다",
+          '_CLS_ARGS+=(--lite-raw "$LITE_RAW_CELL")' in bsearch and '_WARGS+=(--lite-raw "$LITE_RAW_CELL")' in bsearch
+          and '"lite_verdict": cls.get("lite_verdict")' in bsearch)
+    check("E② campaign_init writer 가 ② 에서 cap 차감(charges)·재발동 제안을 적고 결정 기록 문을 갖는다(cap 값은 적지 않는다)",
+          "read_lite_verdict" in cinit and '"charges": charges' in cinit and '"status": "proposed"' in cinit
+          and "--reentry-decide" in cinit)
+    check("E② explorer 가 셀 상태 차감만큼 cap 을 줄이고 소진이면 트라이얼 없이 Model-C",
+          "reconciliation" in recipe and "cap = cap_declared - _lite_spent" in recipe and "reconciliation_cap 소진" in recipe)
+    check("E② lite_bench 는 native 에 --engine-log 를 요구하고 β raw 를 lite_publish/ 에 따로 둔다",
+          'lite_publish/${CONFIG}_' in lite_sh and "native에는 --engine-log" in lite_sh)
     sys.path.insert(0, SDIR)
     try:
         import json as _json

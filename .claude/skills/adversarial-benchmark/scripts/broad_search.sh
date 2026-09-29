@@ -516,6 +516,12 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
   fi
   ENDED="$(date -u +%FT%TZ)"
   fi
+  # lite 판정 운반(2026-09-29 · plan_26092923_58_27): 이번 셀이 측정에 들어갔으면 그 스윕의 lite raw 를 판정 소유자(classify_cell ·
+  #   writer)에게 **경로로** 넘긴다 — 값을 여기서 읽어 나르지 않는다. 구간 밖 raw(이전 스윕 잔재)는 받는 쪽이 measured_utc 로 거른다.
+  LITE_RAW_CELL=""
+  if [ "$SERVE_RC" = "0" ] && [ "$REASSEMBLE" != "1" ] && [ "$MEASURE_RC" != "absent" ]; then
+    LITE_RAW_CELL="$SWEEPDIR/lite_raw_${CONFIG}.json"
+  fi
 
   # 블랙박스 events 의 자리와 **대조 대상 노드**는 분류기가 소유한다(`--events-from-repo` · `--topology` · manifest) —
   #   sweep_bench 종료부의 bench_mode 판정과 같은 발견 규칙을 쓰려고 호출부마다 glob 을 다시 적지 않는다.
@@ -524,6 +530,7 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
   _CLS_ARGS=(--serve-rc "$SERVE_RC" --measure-rc "$MEASURE_RC" --started-utc "$STARTED" --ended-utc "$ENDED"
              --events-from-repo "$REPO" --topology "$TOPO" --manifest "$REPO/output/$TOPO/manifest.yaml")
   [ -n "$XNODE_TOL$XNODE_TOL_SRC" ] && _CLS_ARGS+=(--cross-node-tolerance-s "$XNODE_TOL" --cross-node-tolerance-source "$XNODE_TOL_SRC")
+  [ -n "$LITE_RAW_CELL" ] && _CLS_ARGS+=(--lite-raw "$LITE_RAW_CELL")
   CLS="$(python3 "$SDIR/classify_cell.py" "${_CLS_ARGS[@]}")"
 
   CELL_KEY="$CELL_KEY" CONFIG="$CONFIG" CITATION="$CITATION" SWEEPDIR="$SWEEPDIR" \
@@ -581,6 +588,11 @@ cell = {
     "void_reason_source": cls.get("void_reason_source"),
     "note": cls.get("note"),
     "kill_events": cls.get("kill_events"),
+    # lite 게이트 판정(2026-09-29 · plan_26092923_58_27) — 분류기가 이번 셀 raw 에서 읽은 값을 그대로 옮긴다(판정 ✗).
+    #   ② server_failed 는 실사용 불가 신호이고 캠페인 셀이면 writer 가 cap 차감·재발동 제안을 적는다.
+    "lite_verdict": cls.get("lite_verdict"),
+    "lite_verdict_source": cls.get("lite_verdict_source"),
+    "lite_raw_status": cls.get("lite_raw_status"),
     # ★ sweep meta 의 키 이름을 그대로 쓴다. 종전에 `tp`·`vllm` 을 읽어 **지도의 두 칸이 항상
     #   null** 이었다(2026-09-04 첫 지도에서 발견). 좌표가 비면 그 셀은 재현 불가이고, 조용히
     #   비어 있으므로 로그로는 보이지 않는다 — 같은 계열 결함이 judge_bench 에도 있었다.
@@ -690,11 +702,14 @@ PY
       #   void 3건이 그렇게 "fused_moe FP8 config 부재 추정 hang" 으로 남았다 — 실제 사인은
       #   워치독 사살이었고 그 사실은 같은 순간 원장에 이미 있었다. 산문은 지우지 않고
       #   `serve_failed_reason`(주장)으로 남으며, 사유 칸(판정)은 이벤트가 가져간다.
+      # 사유 칸은 관측 출처만 받는다 — 이벤트 대조(events(…)) 또는 lite raw 판정(lite_raw(…) · 2026-09-29).
       _EV_REASON="$(printf '%s' "$CLS" | python3 -c "
 import json,sys
 d=json.load(sys.stdin); src=d.get('void_reason_source') or ''
-print(d.get('void_reason') or '' if src.startswith('events(') else '')
+print(d.get('void_reason') or '' if src.startswith(('events(', 'lite_raw(')) else '')
 " 2>/dev/null || true)"
+      _LITE_FRESH="$(printf '%s' "$CLS" | python3 -c "import json,sys;print(json.load(sys.stdin).get('lite_raw_status') or '')" 2>/dev/null || true)"
+      [ "$_LITE_FRESH" = "fresh" ] && _WARGS+=(--lite-raw "$LITE_RAW_CELL")
       if [ -n "$_EV_REASON" ]; then
         _EV_SRC="$(printf '%s' "$CLS" | python3 -c "import json,sys;print(json.load(sys.stdin).get('void_reason_source') or '')" 2>/dev/null || true)"
         _WARGS+=(--void-reason "$_EV_REASON" --void-reason-source "$_EV_SRC")
