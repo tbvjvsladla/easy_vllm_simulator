@@ -73,8 +73,8 @@ def main() -> int:
            and any("클라이언트가 도는 평면" in x for x in r.get("lite_verdict_reasons") or []),
            (cp.returncode, r.get("lite_verdict"), r.get("lite_verdict_reasons"), cp.stderr[-400:]))
         ck("K1 판정 입력이 raw 에 실린다(요청 rc · 두 평면 health · bench 출력 끝)",
-           r.get("bench_cold_rc") == 1 and r.get("host_health_after") == "200"
-           and r.get("client_plane_health") == "unreachable" and "Initial test run failed" in (r.get("bench_stderr_tail") or ""), r)
+           r.get("bench_cold_rc") == 0 and r.get("host_health_after") == "200"      # 실물: 연결 거부에도 rc 0(D1 의 모양)
+           and r.get("client_plane_health") == "unreachable" and "Cannot connect" in (r.get("bench_stderr_tail") or ""), r)
         ck("K2★ α 불통과(플래그 없음) → 리포트·인증서 0(기록·보고만)", sb.reports() == [] and sb.certs() == [],
            (sb.reports(), sb.certs()))
         cp = sb.lite("--publish-report")
@@ -83,6 +83,13 @@ def main() -> int:
            and "| lite_verdict | measurement_path_failed |" in (sb.root / "docs/benchmark" / sb.reports()[0]).read_text(encoding="utf-8"),
            (cp.returncode, sb.reports(), sb.certs(), cp.stderr[-400:]))
         clean_docs()
+
+        # ── K1b 클라이언트 평면이 닿아도 실패가 연결 오류면 ① (결과 파일의 failed 를 서버 실패로 접지 않는다) ─────
+        sb.env.update(SHIM_BENCH_MODE="refused", SHIM_CLIENT_HEALTH="200")
+        cp = sb.lite()
+        r = raw() or {}
+        ck("K1b★ 연결 오류 실패 + 클라이언트 평면 200 → 여전히 ① · exit 6(② 로 접지 않는다)",
+           cp.returncode == 6 and r.get("lite_verdict") == "measurement_path_failed", (cp.returncode, r.get("lite_verdict_reasons")))
 
         # ── K3 ② 서버 응답 실패 ────────────────────────────────────────────────────────────
         sb.env.update(SHIM_BENCH_MODE="http500", SHIM_CLIENT_HEALTH="200")
