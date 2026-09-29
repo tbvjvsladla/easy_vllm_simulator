@@ -796,7 +796,7 @@ _OS_KEYS = ("os", "os_release", "os_name", "os_version", "kernel", "kernel_relea
 _DECLARED_COPY = "(manifest 선언 옮김)"
 
 
-def _attested_host(att: dict | None, key: str) -> tuple[str | None, str | None, dict]:
+def _attested_host(att: dict | None, key: str, timing_note: str | None = None) -> tuple[str | None, str | None, dict]:
     """노드 정합 attestation 이 **노드별로 관측한** 호스트 사실(v2 `parity.<key>{main,sub,verdict}` > `nodes.<n>.<key>`).
     반환 (값 | None, 출처 | None, {노드: 값}). 노드끼리 다르면 값은 main 의 것이고 출처가 그 사실(노드별 상이)을 말한다 —
     한 값으로 접지 않는다(by_node 에 둘 다 남는다). attestation 이 없거나 칸이 없으면 (None, None, {})."""
@@ -822,6 +822,8 @@ def _attested_host(att: dict | None, key: str) -> tuple[str | None, str | None, 
         where += " — " + "=".join(sorted(by_node)) + " 일치"
     # 범위 표지(attestation_scope 와 같은 결): 파일은 같은 config 의 다음 실행이 덮는다 — 이 측정 실행의 것인지는 미검증이다.
     where += " · 이 측정 실행과 같은 실행인지 미검증(같은 호스트의 관측)"
+    if timing_note:
+        where += f" · {timing_note}"          # F7(2026-09-29): 작성 시각 대 측정 창
     return val, where, by_node
 
 
@@ -847,11 +849,14 @@ def _host_facts(ev: CellEvidence) -> None:
     def measured_src(doc: dict) -> bool:
         return str(doc.get("driver_version_source") or "").strip().startswith("measured")
 
-    obs_v, obs_src, by_node = _attested_host(ev.attestation, "driver")
-    if obs_v and ev.plane == "native":
-        obs_src += " · native 셀 — 묶인 attestation 은 원천 이미지(Docker) 실행 때의 관측이다(드라이버는 평면과 무관한 호스트 사실)"
+    obs_v, obs_src, by_node = _attested_host(ev.attestation, "driver", _attestation_timing_note(ev))
+    # 2026-09-29 plan_26092908 §4.5 F10: 관측 > 선언은 **같은 run 의 관측**에만 적용한다. 묶인 attestation 이 다른 run 의 것이면
+    #   (native 셀 = 원천 Docker 셀의 attestation · 빌드 config 이름으로 묶인 셀 — attestation_scope 의 OTHER_RUN 과 같은 판정) 그 값을
+    #   "관측" 층으로 올리지 않는다 — 값은 선언 층이 갖고, 다른 run 의 관측은 **범위를 붙여** 출처에 싣는다.
+    att_cfg = (ev.attestation or {}).get("config")
+    other_run = bool(obs_v) and (ev.plane == "native" or (att_cfg not in (None, "") and att_cfg != ev.cell))
     layers: list[tuple[str | None, str, bool]] = []          # (값, 출처, 관측인가)
-    if obs_v:
+    if obs_v and not other_run:
         layers.append((obs_v, obs_src, True))
     for doc, where in ((meta, f"sweep_index.meta.driver_version({(ev.sweep or {}).get('dir')} · 측정 시 조립"),
                        (cert, f"인증서 driver_version({Path(ev.certificate_path or '').name} · 스윕 meta 의 옮김")):
@@ -866,8 +871,21 @@ def _host_facts(ev: CellEvidence) -> None:
     b["driver"], src["driver"] = None, "미관측(attestation·인증서·스윕 meta·manifest 에 driver 없음)"
     if layers:
         b["driver"], src["driver"] = layers[0][0], layers[0][1]
-    if by_node:
+    b.pop("driver_by_node", None)
+    if by_node and not other_run:
         b["driver_by_node"] = by_node
+        src["driver_by_node"] = obs_src
+    if other_run:
+        who = ("원천 셀" if ev.plane == "native" else "다른 run") + f"({(ev.attestation or {}).get('config')})"
+        nodes = " · ".join(f"{n}={v}" for n, v in sorted(by_node.items()))
+        note = (f"{who} attestation 관측 {obs_v}({nodes} · 이 run 아님 · 같은 호스트 — 관측 > 선언 규칙은 같은 run 의 관측에만 적용 · "
+                f"{obs_src})")
+        if b["driver"] is None:
+            b["driver"], src["driver"] = obs_v, f"{note} — 이 run 의 관측·선언 모두 없어 그 값을 옮긴다(범위 = 다른 run)"
+        else:
+            src["driver"] += f" · {note}"
+            if b["driver"] != obs_v:
+                src["driver"] += f" · ⚠ 선언 {b['driver']} 과 다르다(이 run 에서 관측되지 않았다 — 판정 ✗)"
     observed = next((l for l in layers if l[2]), None)
     declared = next((l for l in layers if not l[2]), None)
     b.pop("driver_conflict", None)
@@ -887,6 +905,57 @@ def _host_facts(ev: CellEvidence) -> None:
         if hit:
             b["os"], src["os"] = str(hit[1]).strip(), f"{where} {hit[0]}"
             break
+
+
+def _local_image_digest(repo: Path, ev: CellEvidence, runner: Callable | None) -> None:
+    """측정 digest 가 기록되지 않은 셀(lite · native 원천 이미지)의 **현 로컬 이미지** digest 관측(2026-09-29 · plan_26092908 §4.5 F2).
+    읽기 전용 `docker image inspect <IMAGE_TAG>`(Id · Created) — 태그는 가변 포인터라 이 값은 측정 digest 가 아니다. 판정 규칙:
+    Created < 측정 시각(evidence `_measured_key` — 인증서 · 스윕 · lite 리포트 생성일) 이면 "측정 전 빌드 — 같은 빌드로 판정 가능(그 사이
+    재태깅은 관측 밖)" · 아니면 "측정 뒤 빌드 — 측정 이미지 아님" 으로 표시한다. 결과는 `build_identity.image_digest_local` 에만 싣는다 —
+    `image_digest`(측정 digest · 내용 권위)는 건드리지 않는다(artifacts 가 그 값을 '측정 digest' 로 읽는다). PAYLOAD 행 채움은 hint._build_doc."""
+    b = ev.build_identity if isinstance(ev.build_identity, dict) else None
+    if b is None:
+        return
+    b.pop("image_digest_local", None)
+    tag = b.get("image_tag")
+    if b.get("image_digest") or not isinstance(tag, str) or not tag.strip():
+        return
+    facts = _image_facts(tag, runner)
+    if facts is None or not facts.get("id"):
+        b["image_digest_local"] = {"id": None, "source": f"docker image inspect {tag} 관측 불가(이미지 부재 · docker 미가용)"}
+        return
+    created = _utc_z_soft(facts.get("created"))
+    measured = _measured_key(repo, ev)
+    iid = str(facts["id"])
+    ids = sorted({str(n.get("image_id")) for n in ((ev.attestation or {}).get("nodes") or {}).values()
+                  if isinstance(n, dict) and n.get("image_id")}) if isinstance((ev.attestation or {}).get("nodes"), dict) else []
+    att_note = (f" · 묶인 attestation 노드 image_id 와 {'같다' if iid in ids else '다르다'}({(ev.attestation or {}).get('_path')})"
+                if ids else "")
+    who = "원천(native wheelhouse 재포장 원천) " if ev.plane == "native" else ""
+    base = f"docker image inspect {tag} .Id · .Created {created or '미관측'}(현 로컬 {who}이미지 관측 · 태그는 가변 포인터){att_note}"
+    if created and measured and created < measured:
+        b["image_digest_local"] = {"id": iid, "created": created, "same_build": True,
+                                   "source": f"{base} · Created < 측정 {measured} → 측정 전 빌드 — 같은 빌드로 판정 가능(그 사이 재태깅은 관측 밖)"}
+    else:
+        why = (f"Created {created} ≥ 측정 {measured} → 측정 뒤 빌드 — 측정 이미지 아님" if created and measured
+               else "Created 또는 측정 시각 미관측 — 측정 전후 판정 불가")
+        b["image_digest_local"] = {"id": iid, "created": created, "same_build": False, "source": f"{base} · {why}"}
+
+
+def _utc_z_soft(v) -> str | None:
+    """docker `.Created`(RFC3339 · 나노초 · 오프셋) → `YYYY-MM-DDTHH:MM:SSZ`. 못 읽으면 None."""
+    if not isinstance(v, str) or not v.strip():
+        return None
+    m = re.match(r"^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})(?:\.\d+)?(Z|[+-]\d{2}:\d{2})$", v.strip())
+    if not m:
+        return None
+    if m.group(3) == "Z":
+        return f"{m.group(1)}T{m.group(2)}Z"
+    try:
+        dt = _dt.datetime.fromisoformat(f"{m.group(1)}T{m.group(2)}{m.group(3)}")
+    except ValueError:
+        return None
+    return dt.astimezone(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _bind_resolve(repo: Path, topology: str, build: dict) -> tuple[dict | None, str]:
@@ -2495,8 +2564,15 @@ def _measured_engine_logs(repo: Path, ev: CellEvidence) -> tuple[list[Path], str
     sw = ev.sweep or {}
     if sw.get("binding") == "output":
         base = repo / sw["dir"]
-        return (_sweep_engine_logs(base, sw.get("index") or {}, sw.get("levels") or [], ev.cell),
-                f"{sw['dir']}(스윕 generated_utc = measured_utc · 색인이 기록한 레그만)")
+        logs = _sweep_engine_logs(base, sw.get("index") or {}, sw.get("levels") or [], ev.cell)
+        why = f"{sw['dir']}(스윕 generated_utc = measured_utc · 색인이 기록한 레그만)"
+        nat = _native_preserved_engine_logs(repo, ev)
+        if nat:
+            # F9(2026-09-29 · plan_26092908 §4.5): native 스윕의 엔진 로그 자리는 비어 있다(0 바이트 — 측정 도구가 docker logs 로 잡는
+            #   자리) — 이 run 의 엔진 출력은 native 정문이 보존한 serve 로그(serve proof evidence_dir)에 있다.
+            logs = [q for q in logs if _nonempty(q)] + nat
+            why += f" + native serve proof evidence_dir 보존 엔진 로그({', '.join(_rel(repo, q) for q in nat)} · 이 run 의 vllm serve 전체 출력)"
+        return logs, why
     if not sw and ev.report_kind == "lite":
         d = repo / "output" / ev.topology / "benchlog"
         raw = _read_json_opt(d / f"lite_raw_{ev.cell}.json", "lite_raw")
@@ -2507,6 +2583,29 @@ def _measured_engine_logs(repo: Path, ev: CellEvidence) -> tuple[list[Path], str
         return [], "lite 셀 — lite_raw 조인 불성립 또는 엔진 로그 부재"
     return [], (f"스윕이 출력 평면에 묶이지 않았다(binding={sw.get('binding')!r}) — 그 로그는 이 측정의 것이 아니다" if sw
                 else "측정 스윕 없음")
+
+
+def _nonempty(p: Path) -> bool:
+    try:
+        return p.stat().st_size > 0
+    except OSError:
+        return False
+
+
+def _native_preserved_engine_logs(repo: Path, ev: CellEvidence) -> list[Path]:
+    """native 셀 serve proof `evidence_dir`(native 정문이 삭제 전에 보존한 저장소 상대 디렉터리)의 `logs/*vllm-serve*.log`(비어 있지 않은 것).
+    native 가 아니거나 경로가 저장소 상대가 아니면 [] — 호스트 절대경로 · 저장소 밖은 읽지 않는다."""
+    if ev.plane != "native" or not isinstance(ev.serve_proof, dict):
+        return []
+    raw = ev.serve_proof.get("evidence_dir")
+    if not isinstance(raw, str) or not raw.strip() or raw.startswith("/") or ".." in PurePath(raw).parts:
+        return []
+    d = repo / raw.strip() / "logs"
+    try:
+        d.resolve().relative_to(repo.resolve())
+    except ValueError:
+        return []
+    return sorted(q for q in d.glob("*vllm-serve*.log") if q.is_file() and _nonempty(q)) if d.is_dir() else []
 
 
 def _log_lines(path: Path) -> list[str]:
@@ -2572,7 +2671,10 @@ def measurement_env_observed(repo, ev: CellEvidence) -> list[dict]:
     table = pii.substitution_table(repo, ev.manifest if isinstance(ev.manifest, dict) else None)
     caps = _log_tail_caps(repo, ev)
     windows: dict[str, str] = {}
+    full = set(_native_preserved_engine_logs(repo, ev))       # F9: native 보존 로그는 꼬리 캡처가 아니다(전체 출력)
     for lp in logs:
+        if lp in full:
+            continue
         cap = caps.get("lite" if lp.name.startswith("lite_engine_") else "bench")
         try:
             n_lines = lp.read_bytes().count(b"\n")
@@ -2882,7 +2984,7 @@ def _wheel_meta(repo: Path, ev: CellEvidence) -> tuple[str | None, str]:
     ② native serve proof 가 보존한 pip freeze 의 `vllm==` 줄(노드별). 옛 판본은 attestation 에 그 칸이 있는데도 "측정 경로에 관측자가
     없다" 고 적었다. 노드끼리 다르면 값을 고르지 않는다(None · 출처가 두 값을 말한다).
     native 셀은 ② 가 먼저다 — 실행 평면이 venv 이고, 묶인 attestation 은 원천 이미지(Docker) 실행의 것이다(다른 평면의 관측)."""
-    v, where, by_node = _attested_host(ev.attestation, "vllm_dist_version")
+    v, where, by_node = _attested_host(ev.attestation, "vllm_dist_version", _attestation_timing_note(ev))
     if v is not None and ev.plane != "native":
         if len(set(by_node.values())) > 1:
             return None, f"노드별 상이 — 값을 고르지 않는다: {where}"
@@ -2923,22 +3025,76 @@ def attestation_scope(repo, ev: CellEvidence) -> dict | None:
     if not isinstance(att, dict) or not att.get("_path"):
         return None
     cfg = att.get("config")
-    key = next((k for k in _ATTEST_TIME_KEYS if isinstance(att.get(k), str) and _UTC.fullmatch(att[k])), None)
-    if key:
-        written, wsrc = att[key], f"attestation {key}"
-    else:
-        try:
-            written = _utc_of_epoch(int((repo / att["_path"]).stat().st_mtime))
-            wsrc = f"{att['_path']} 파일 mtime(파일시스템 관측 — 문서에 시각 칸이 없다 · 기록 필드 아님)"
-        except OSError:
-            written, wsrc = None, "미관측(시각 칸 없음 · 파일 stat 불가)"
+    written, wsrc = _attestation_written(repo, att)
     phase = att.get("phase") or ("build(v1 · --build 대조 행)" if att.get("checks") else "미기재")
+    timing, tnote, win = _attestation_timing(repo, ev, written)
     if cfg != ev.cell:
         scope = ATTESTATION_SCOPE_OTHER_RUN
+    elif timing == "after-measurement":
+        scope = f"same config({cfg}) · {phase} — 측정 뒤 재기동의 관측이다(이 측정 실행의 관측이 아니다 · 파일은 다음 실행이 덮는다)"
+    elif timing == "before-measurement":
+        scope = (f"same config({cfg}) · {phase} — 측정 전(빌드·스모크)의 관측 · 측정을 서빙한 기동과 같은 실행인지는 미검증"
+                 "(파일은 다음 실행이 덮는다)")
+    elif timing == "during-measurement":
+        scope = f"same config({cfg}) · {phase} — 측정 중의 관측(측정을 서빙한 실행 · 파일은 다음 실행이 덮는다)"
     else:
         scope = f"same config({cfg}) · {phase} — 이 측정 실행과 같은 실행인지는 미검증(파일은 다음 실행이 덮는다)"
-    return {"config": cfg, "written_utc": written, "written_utc_source": wsrc, "bound_by": att.get("_bound_by"),
-            "phase": phase, "path": att["_path"], "scope": scope}
+    out = {"config": cfg, "written_utc": written, "written_utc_source": wsrc, "bound_by": att.get("_bound_by"),
+           "phase": phase, "path": att["_path"], "scope": scope}
+    if tnote:
+        out.update(timing=timing, timing_note=tnote, measure_window=win)
+    return out
+
+
+def _attestation_written(repo: Path, att: dict) -> tuple[str | None, str]:
+    """attestation 작성 시각 = 문서의 시각 칸(있으면) · 없으면 파일 mtime(파일시스템 관측 — 기록 필드 아님 · 출처에 그렇게 적는다)."""
+    key = next((k for k in _ATTEST_TIME_KEYS if isinstance(att.get(k), str) and _UTC.fullmatch(att[k])), None)
+    if key:
+        return att[key], f"attestation {key}"
+    try:
+        return (_utc_of_epoch(int((repo / att["_path"]).stat().st_mtime)),
+                f"{att['_path']} 파일 mtime(파일시스템 관측 — 문서에 시각 칸이 없다 · 기록 필드 아님)")
+    except (OSError, KeyError, TypeError):
+        return None, "미관측(시각 칸 없음 · 파일 stat 불가)"
+
+
+def _attestation_timing_note(ev: CellEvidence) -> str | None:
+    """호스트 사실 출처(_attested_host)에 붙일 작성 시각 대 측정 창 문장(F7). 저장소 · attestation 이 없으면 None."""
+    att = ev.attestation
+    if not isinstance(att, dict) or not att.get("_path") or not ev.repo:
+        return None
+    repo = _repo(ev.repo)
+    return _attestation_timing(repo, ev, _attestation_written(repo, att)[0])[1]
+
+
+def _measure_window(repo: Path, ev: CellEvidence) -> tuple[str | None, str | None, str]:
+    """이 측정의 창 (시작 | None, 끝 | None, 출처). 끝 = `_measured_key`(인증서 measured_utc · 스윕 generated_utc · lite 리포트 생성일) ·
+    시작 = artifacts 의 첫 측정 JSON date(컨테이너 시계 = UTC 가정 · 끝보다 뒤면 가정 불성립으로 버린다 — 재현 표와 같은 규칙)."""
+    from . import artifacts
+    end = _measured_key(repo, ev)
+    start, ssrc = artifacts._first_measure_utc(repo, ev)
+    if start and end and start > end:
+        start, ssrc = None, f"{ssrc}(date 를 UTC 로 읽으면 측정 끝 뒤 — 시계 가정 불성립 · 버림)"
+    return start, end, f"시작 {ssrc or '미관측'} · 끝 = 측정 키(인증서 measured_utc · 스윕 generated_utc · lite 리포트 생성일)"
+
+
+def _attestation_timing(repo: Path, ev: CellEvidence, written: str | None) -> tuple[str | None, str | None, dict | None]:
+    """attestation 작성 시각 대 측정 창(2026-09-29 · plan_26092908 §4.5 F7 — DS4F: 측정 00:35:13Z 끝 뒤 재기동 01:31:48Z 의 attestation 을
+    '같은 실행인지 미검증' 으로만 적었다). (분류, 문장, 창) — 분류 ∈ before-measurement · during-measurement · after-measurement ·
+    before-end(시작 미관측 · 끝 이전) · None(작성 또는 끝 미관측)."""
+    if not written:
+        return None, None, None
+    start, end, src = _measure_window(repo, ev)
+    if not end:
+        return None, None, None
+    win = {"start_utc": start, "end_utc": end, "source": src}
+    if written > end:
+        return "after-measurement", f"작성 {written} > 측정 끝 {end} — 측정 뒤 재기동의 관측", win
+    if start and written < start:
+        return "before-measurement", f"작성 {written} < 측정 시작 {start} — 측정 전(빌드·스모크)의 관측", win
+    if start:
+        return "during-measurement", f"측정 창 {start} → {end} 안의 작성 {written} — 측정 중의 관측", win
+    return "before-end", f"작성 {written} ≤ 측정 끝 {end}(측정 시작 미관측 — 측정 전·중 미판별)", win
 
 
 # ── 증거 조립(두 해소기의 공통 꼬리) ────────────────────────────────────────────────────────────────────────────
@@ -3025,6 +3181,7 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
     # 호스트 사실은 attestation 바인딩 **뒤에** 채운다 — 노드별 관측(parity)이 선언 옮김(스윕 meta·인증서)을 이긴다
     #   (plan_26092908 §4.5 · V3). 옛 판본은 attestation 을 묶기 전에 불러 관측 원천이 구조적으로 없었다.
     _host_facts(ev)
+    _local_image_digest(repo, ev, runner)
     if fork and not _SHA40.match(ref):
         led_sha = str(_ledger_vllm(ev.attestation).get("git_sha") or "").strip().lower()
         ev.build_identity["vllm_sha"] = led_sha if _SHA40.match(led_sha) else None
@@ -4354,6 +4511,46 @@ def _target_gpu(ev: CellEvidence, repo=None) -> tuple[str | None, str | None]:
     return None, None
 
 
+def _sealed_payload(repo, ev: CellEvidence) -> tuple[dict | None, str | None]:
+    """재생(캠페인 purge) 전용: 발행 기록의 `promotion_target.anchor`(봉인된 페이로드 커밋)의 PAYLOAD.json. (문서, 앵커) | (None, None)."""
+    pub = ev.publication if isinstance(ev.publication, dict) else {}
+    pt = next((d.get("promotion_target") for d in (pub.get("record"), pub.get("manifest"), pub)
+               if isinstance(d, dict) and isinstance(d.get("promotion_target"), dict)), None) or {}
+    anchor = pt.get("anchor")
+    if repo is None or not isinstance(anchor, str) or not re.fullmatch(r"[0-9a-f]{40}", anchor):
+        return None, None
+    r = core.git(Path(repo), "show", f"{anchor}:PAYLOAD.json", check=False)
+    if r.returncode != 0:
+        return None, anchor
+    try:
+        doc = json.loads(r.stdout)
+    except ValueError:
+        return None, anchor
+    return (doc if isinstance(doc, dict) else None), anchor
+
+
+def sealed_publication(repo, ev: CellEvidence) -> dict | None:
+    """재생 전용 대체(2026-09-29 · plan_26092908 §4.5 F4): 캠페인 인스턴스가 purge 돼 캠페인 id · 승인이 관측되지 않는 재생에서, 발행 기록의
+    봉인 페이로드(promotion_target.anchor · 원 발행이 봉인한 커밋)가 기록한 `campaign`(id · cell · node) · `approval` 을 **출처를 붙여** 돌려준다
+    (`_target_gpu` 의 재생 2순위와 같은 결). 셀 · 노드가 이 재생과 다르면 쓰지 않는다(다른 셀의 기록). 캠페인 모드 · 앵커 없음 = None.
+    반환 {campaign: {id, cell, node} | None, approval: {...} | None, anchor, source}."""
+    if ev.mode == "campaign":
+        return None
+    doc, anchor = _sealed_payload(repo, ev)
+    if doc is None:
+        return None
+    camp = doc.get("campaign") if isinstance(doc.get("campaign"), dict) else {}
+    if camp.get("cell") not in (None, ev.cell) or camp.get("node") not in (None, ev.node):
+        return None
+    src = (f"봉인된 발행 페이로드 {anchor[:12]}:PAYLOAD.json(발행 기록 promotion_target.anchor · 원 발행 당시 기록) · "
+           "캠페인 purge 로 원본 미관측(재생 전용 대체)")
+    ap = doc.get("approval") if isinstance(doc.get("approval"), dict) and doc.get("approval") else None
+    cid = camp.get("id") if isinstance(camp.get("id"), str) and camp.get("id") else None
+    return {"campaign": {"id": cid, "cell": camp.get("cell"), "node": camp.get("node")} if cid else None,
+            "approval": {k: ap.get(k) for k in ("approved_by", "approved_utc", "source") if k in ap} if ap else None,
+            "anchor": anchor, "source": src}
+
+
 def _spec_fact(repo: Path, ev: CellEvidence, y: dict, yrel: str) -> dict:
     k, v = _yaml_get(y, "speculative-config", "speculative_config")
     sh_rel = ev.triplet.get("sh")
@@ -5444,6 +5641,50 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
        and "미검증" in sc["scope"] and sc["written_utc"] == "2026-01-01T00:00:00Z" and "mtime" in sc["written_utc_source"])
     ck("attestation 범위 — 문서 시각 칸이 있으면 그것", attestation_scope(repo, dataclasses.replace(
         ev_c, attestation={**ev_c.attestation, "captured_utc": "2026-01-02T00:00:00Z"}))["written_utc_source"] == "attestation captured_utc")
+    # F7(plan_26092908 §4.5): 작성 시각 대 측정 창 — 측정 끝(_M_UTC) 뒤 작성 = 측정 뒤 재기동 · 앞 = 측정 전/끝 이전
+    mk_ = _measured_key(repo, ev_c)
+    sc7 = attestation_scope(repo, dataclasses.replace(ev_c, attestation={**ev_c.attestation, "captured_utc": "2099-01-01T00:00:00Z"}))
+    ck("★F7 작성 > 측정 끝 = '측정 뒤 재기동의 관측'(scope · timing_note · 창)", mk_ and sc7.get("timing") == "after-measurement"
+       and "측정 뒤 재기동" in sc7["scope"] and "측정 뒤 재기동" in sc7["timing_note"] and sc7["measure_window"]["end_utc"] == mk_)
+    ck("F7 음성대조: 작성 ≤ 측정 끝 = 측정 뒤 ✗(측정 전 또는 끝 이전)", sc.get("timing") in ("before-measurement", "before-end")
+       and "측정 뒤" not in sc["scope"])
+    ck("F7 호스트 사실 출처에도 같은 문장(드라이버 · wheel 메타 출처가 창을 말한다)",
+       (_attestation_timing_note(dataclasses.replace(ev_c, attestation={**ev_c.attestation, "captured_utc": "2099-01-01T00:00:00Z"}))
+        or "").endswith("측정 뒤 재기동의 관측"))
+    # F2(plan_26092908 §4.5): 측정 digest 없음 → 현 로컬 태그 inspect(Id · Created) — 측정 전 빌드면 same_build · 뒤면 표시만
+    def _dk2(created):
+        return _fake_docker({"images": {"fx:tag": {"Id": "sha256:" + "e" * 64, "Created": created, "Config": {}}}, "history": {}})
+    e2d = dataclasses.replace(ev_c, build_identity={**ev_c.build_identity, "image_digest": None, "image_tag": "fx:tag",
+                                                    "source": dict(ev_c.build_identity.get("source") or {})})
+    _local_image_digest(repo, e2d, _dk2("2025-12-31T00:00:00.123456789+09:00"))
+    loc = e2d.build_identity.get("image_digest_local") or {}
+    ck("F2 로컬 이미지 Created < 측정 → same_build · Id · 출처(태그는 가변 포인터 · 측정 전 빌드)",
+       loc.get("same_build") is True and loc.get("id") == "sha256:" + "e" * 64 and "측정 전 빌드" in loc.get("source", "")
+       and "태그는 가변 포인터" in loc["source"] and e2d.build_identity.get("image_digest") is None)
+    _local_image_digest(repo, e2d, _dk2("2099-01-01T00:00:00Z"))
+    loc2 = e2d.build_identity.get("image_digest_local") or {}
+    ck("★F2 음성대조: Created ≥ 측정 → same_build ✗(측정 이미지 아님) · 측정 digest 가 있으면 관측하지 않는다",
+       loc2.get("same_build") is False and "측정 뒤 빌드" in loc2.get("source", "")
+       and (_local_image_digest(repo, ev_c, _dk2("2025-12-31T00:00:00Z")) or "image_digest_local" not in ev_c.build_identity))
+    # F9(plan_26092908 §4.5): native 셀 — 스윕 엔진 로그 자리 대신 serve proof evidence_dir 의 보존 엔진 로그(전체 출력 · 꼬리 캡처 ✗)
+    nd = repo / "docs/simlog/fx_native/logs"
+    nd.mkdir(parents=True, exist_ok=True)
+    (nd / "main-vllm-serve.log").write_text("INFO boot\nfxhost:1:1 [0] NCCL INFO NCCL_IB_DISABLE set by environment to 1.\n",
+                                            encoding="utf-8")
+    ev9 = dataclasses.replace(ev_c, plane="native", serve_proof={**(ev_c.serve_proof or {}), "evidence_dir": "docs/simlog/fx_native"})
+    lg9 = _measured_engine_logs(repo, ev9)
+    rows9 = measurement_env_observed(repo, ev9)
+    ck("F9 native — 보존 엔진 로그가 측정 로그 · env 관측 원천(창 표지 없음)",
+       nd / "main-vllm-serve.log" in lg9[0] and "evidence_dir" in lg9[1]
+       and any(r["key"] == "NCCL_IB_DISABLE" and r["source"].startswith("docs/simlog/fx_native/logs/main-vllm-serve.log")
+               and "log_window" not in r for r in rows9))
+    ck("★F9 음성대조: docker 평면 · 절대경로 · 저장소 밖 evidence_dir 은 읽지 않는다",
+       _native_preserved_engine_logs(repo, dataclasses.replace(ev9, plane="docker")) == []
+       and _native_preserved_engine_logs(repo, dataclasses.replace(ev9, serve_proof={"evidence_dir": str(nd.parent)})) == []
+       and _native_preserved_engine_logs(repo, dataclasses.replace(ev9, serve_proof={"evidence_dir": "docs/../../x"})) == []
+       and nd / "main-vllm-serve.log" not in _measured_engine_logs(repo, ev_c)[0])
+    import shutil as _sh
+    _sh.rmtree(repo / "docs/simlog/fx_native")
     att_text = att.read_text(encoding="utf-8")
     att.unlink()
     core.write_json(repo / "output/multi/benchlog/attestation_c1-build.json", {
@@ -5816,6 +6057,23 @@ def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> No
     hd = host({"_path": "a.json", "parity": {"driver": {"main": "1.0", "sub": "2.0", "verdict": "differ"}}}, {})
     ck("★노드별 상이는 한 값으로 접지 않는다(main 값 + 출처가 상이를 말한다 · by_node 둘 다)",
        hd["driver"] == "1.0" and "노드별 상이" in hd["source"]["driver"] and hd.get("driver_by_node") == {"main": "1.0", "sub": "2.0"})
+    # ── F3 · F10(plan_26092908 §4.5): 노드별 관측 행의 출처 · 관측 > 선언은 같은 run 의 관측에만 ──
+    ck("F3 드라이버(노드별 관측) 행 출처 = attestation 출처(출처 미기재 ✗)",
+       str(hb["source"].get("driver_by_node") or "").startswith("attestation parity.driver"))
+    hn = host({**att, "config": ev.cell}, {"driver_version": "580.173.02"})
+    ck("F10 음성대조: 같은 config(같은 run 후보)의 attestation 은 관측 층 — 선언을 이긴다", hn["driver"] == "580.178.04"
+       and "driver_conflict" in hn)
+    e_nat = dataclasses.replace(ev, plane="native", attestation={**att, "config": "src-cell"}, sweep={
+        **sw, "index": {**(sw.get("index") or {}), "meta": {**meta, "driver_version": "580.173.02"}}},
+        build_identity={**ev.build_identity, "source": dict(ev.build_identity["source"])})
+    _host_facts(e_nat)
+    hn2 = e_nat.build_identity
+    ck("★F10 native(원천 셀 attestation = 다른 run) — 값 = 선언 · 원천 관측은 범위를 붙여 출처에 · conflict · 노드별 관측 행 없음",
+       hn2["driver"] == "580.173.02" and "원천 셀(src-cell) attestation 관측 580.178.04" in hn2["source"]["driver"]
+       and "이 run 아님" in hn2["source"]["driver"] and "driver_conflict" not in hn2 and "driver_by_node" not in hn2)
+    ho = host({**att, "config": "other-cfg"}, {})
+    ck("★F10 다른 config attestation · 선언 없음 — 값은 옮기되 출처가 '다른 run' 범위를 말한다",
+       ho["driver"] == "580.178.04" and "다른 run(other-cfg)" in ho["source"]["driver"] and "driver_by_node" not in ho)
     # ── U9 quant_composition ──
     ident = identity(ev)
     qc = ident.get("quant_composition") or []
@@ -6331,6 +6589,25 @@ def selftest() -> list[str]:
                 ck("★재생 — 봉인된 페이로드 target=sim-* 는 원문 hw 를 되살리지 않는다(대체 ✗)",
                    _target_gpu(_ev(sha_of["sim-h100"]), g) == (None, None))
                 ck("★재생 — repo 없이는 대체 ✗", _target_gpu(_ev(sha_of["native"])) == (None, None))
+                # F4(plan_26092908 §4.5): 재생 캠페인 · 승인 = 봉인 페이로드의 campaign · approval(재생 전용 대체 · 출처)
+                core.write_json(g / "PAYLOAD.json", {"campaign": {"id": "camp-fx", "cell": "c1-a", "node": "cluster", "mode": "campaign"},
+                                                     "approval": {"approved_by": "사용자(fx)", "approved_utc": "2026-01-01T00:00:00Z",
+                                                                  "source": "campaign:hint_targets"}})
+                core.git(g, "add", "PAYLOAD.json")
+                core.git(g, *ident, "commit", "-q", "-m", "camp")
+                a4 = core.git(g, "rev-parse", "HEAD").stdout.strip()
+
+                def _ev4(anchor, cell="c1-a", mode="publication-replay"):
+                    return SimpleNamespace(mode=mode, cell=cell, node="cluster",
+                                           publication={"record": {"promotion_target": {"anchor": anchor}}})
+                sp4 = sealed_publication(g, _ev4(a4))
+                ck("F4 재생 — 봉인 페이로드의 campaign.id · approval 을 출처와 함께(재생 전용 대체)",
+                   sp4 and sp4["campaign"]["id"] == "camp-fx" and sp4["approval"]["approved_utc"] == "2026-01-01T00:00:00Z"
+                   and "재생 전용 대체" in sp4["source"] and a4[:12] in sp4["source"])
+                ck("★F4 음성대조: 다른 셀의 봉인 기록 · 캠페인 모드 · 캠페인 없는 봉인 페이로드는 대체 ✗",
+                   sealed_publication(g, _ev4(a4, cell="other")) is None
+                   and sealed_publication(g, _ev4(a4, mode="campaign")) is None
+                   and (sealed_publication(g, _ev4(sha_of["native"])) or {}).get("campaign") is None)
             idx["generated_utc"] = _M_UTC
             core.write_json(fx["sweep"] / "sweep_index.json", idx)
             arp = _arch_facts(repo, from_publication(repo, topic, docker=dk))

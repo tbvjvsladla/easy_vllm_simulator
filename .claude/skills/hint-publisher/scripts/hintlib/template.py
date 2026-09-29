@@ -104,8 +104,9 @@ render_scaffold 가 소비하는 facts 키 (evidence·artifacts·lineage 가 조
     bench_section_md            str|None  render_bench_section 이 렌더한 절(바인딩된 리포트 또는 스윕 색인에서)
     task_class                  str   full_benchmark|hint_map_only (없으면 publication.task_class)
     perf_waiver                 dict|None  manifest.benchmark.perf_waiver — warning_flag 원문을 배포 본문에 싣는다
-    campaign                    dict  id · cell · node · mode
+    campaign                    dict  id · cell · node · mode · (id_source — 재생 전용 대체의 출처 · 2026-09-29 F4)
     approval                    dict  approved_by · approved_utc · source
+    prior_approval              dict  재생 전용: 원 발행의 승인(봉인 페이로드 기록) + replay_source — approval 이 없을 때만 메타에 표지와 함께
     publication                 dict  topic · manifest_ref · task_class
 
 호출 순서 (hint.py)
@@ -443,9 +444,16 @@ def _f_header(c: _Ctx) -> str:
         ("태그", f"`{f.get('tag')}`"),
         ("형식", f"`{FORMAT}` · 이름 문법 `{_cell(naming.get('grammar'))}`"),
         ("생성(UTC · 주입)", _cell(f.get("generated_utc"))),
-        ("캠페인 · 셀 · 노드 · 모드", " · ".join(_cell(camp.get(k)) for k in ("id", "cell", "node", "mode"))),
+        ("캠페인 · 셀 · 노드 · 모드", " · ".join(_camp_id(camp) if k == "id" else _cell(camp.get(k))
+                                             for k in ("id", "cell", "node", "mode"))),
     ]
     return "\n".join(_table(("항목", "값"), rows))
+
+
+def _camp_id(camp: dict) -> str:
+    """캠페인 id 칸 — 재생 전용 대체면 출처를 괄호로 붙인다(2026-09-29 plan_26092908 §4.5 F4 · evidence.sealed_publication)."""
+    v = _cell(camp.get("id"))
+    return f"{v}({_cell(camp['id_source'])})" if camp.get("id") and camp.get("id_source") else v
 
 
 def _f_grade(c: _Ctx) -> str:
@@ -609,6 +617,23 @@ _BUILD_LABELS = {"track": "빌드 트랙", "dockerfile": "Dockerfile(선택자)"
                  "driver_conflict": "⚠ 드라이버 관측 ≠ 선언", "os": "호스트 OS"}
 
 
+def _build_row(key: str, v, bsrc: dict, src) -> tuple[str, str, str]:
+    """00 §0.4 빌드 행 하나. 2026-09-29 plan_26092908 §4.5 F3: `driver_by_node` · `driver_conflict` 는 dict 라 옛 판은 값 칸에 원시 JSON 을,
+    출처 칸에 '출처 미기재' 를 실었다 — 값은 읽는 모양으로 · 출처는 생산자가 준 출처(evidence `source.<키>` · 충돌은 두 층의 출처)로 싣는다."""
+    if key == "driver_by_node" and isinstance(v, dict) and v:
+        return (_BUILD_LABELS[key], " · ".join(f"{_cell(n)}={_cell(x)}" for n, x in sorted(v.items())),
+                src(v, bsrc.get(key), bsrc.get("driver")))
+    if key == "driver_conflict" and isinstance(v, dict) and v:
+        ss = v.get("sources") if isinstance(v.get("sources"), dict) else {}
+        val = f"관측 {_cell(v.get('observed'))} ≠ 선언 {_cell(v.get('declared'))}"
+        where = " · ".join(f"{lab}: {_cell(ss.get(k))}" for k, lab in (("observed", "관측"), ("declared", "선언")) if ss.get(k))
+        return _BUILD_LABELS[key], val, src(v, where or None, bsrc.get(key))
+    if key == "image_digest" and v in (None, "") and bsrc.get("image_digest_local_note"):
+        # F2: 측정 digest 없음 + 현 로컬 이미지가 측정 뒤 빌드 — 값은 비우고 그 관측을 출처 칸이 말한다(부재 ≠ 미관측 · 부류 7)
+        return _BUILD_LABELS[key], _MISSING_TEXT, _cell(bsrc["image_digest_local_note"])
+    return _BUILD_LABELS[key], _cell(v), src(v, bsrc.get(key))
+
+
 def _f_resolved(c: _Ctx) -> str:
     f = c.facts
     build, naming = _dict(f, "build"), _dict(f, "naming")
@@ -635,7 +660,7 @@ def _f_resolved(c: _Ctx) -> str:
          src(ident.get("hf_revision"), _dict(ident, "source").get("hf_revision"))),
     ]
     for key in _BUILD_KNOWN:
-        rows.append((_BUILD_LABELS[key], _cell(build.get(key)), src(build.get(key), bsrc.get(key))))
+        rows.append(_build_row(key, build.get(key), bsrc, src))
     skip = set(_BUILD_KNOWN) | {"source", "vllm_ref", "vllm_sha"}
     for key in sorted(k for k in build if k not in skip):
         rows.append((f"`{key}`", _cell(build.get(key)), src(build.get(key), bsrc.get(key))))
@@ -735,18 +760,27 @@ def _f_meta(c: _Ctx) -> str:
         ("태그", f"`{f.get('tag')}`"),
         ("형식", f"`{FORMAT}`"),
         ("앵커", "`PROVENANCE.json` — 봉인 때 hint 브랜치 페이로드 커밋에 묶인다"),
-        ("캠페인 · 셀 · 노드", " · ".join(_cell(camp.get(k)) for k in ("id", "cell", "node"))),
+        ("캠페인 · 셀 · 노드", " · ".join(_camp_id(camp) if k == "id" else _cell(camp.get(k)) for k in ("id", "cell", "node"))),
         ("발행 모드", _cell(camp.get("mode"))),
         ("발행 토픽", _cell(pub.get("topic"))),
         ("work-manifest", _cell(pub.get("manifest_ref"))),
         ("증거 등급(task_class)", _cell(_task_class(f))),
-        ("승인 출처", _cell(appr.get("source"))),
-        ("승인 시각(UTC)", _cell(appr.get("approved_utc"))),
-        ("승인 발화(전사)", _cell(appr.get("approved_by"))),
+        *_approval_rows(appr, _dict(f, "prior_approval")),
         ("현행 full 정의 충족(측정 등급)", _bench_definition_verdict(_dict(f, "bench_definition"))),
         ("독립 사실 검증(발행 전)", _factcheck_line(f.get("factcheck"))),
     ]
     return "\n".join(_table(("항목", "값"), rows))
+
+
+def _approval_rows(appr: dict, prior: dict) -> list[tuple[str, str]]:
+    """00 메타 승인 세 칸. 이 판의 승인(continue 가 적는다)이 먼저 · 없으면 재생 전용 대체 — 원 발행의 승인(봉인 페이로드 기록)을
+    **이 판의 승인이 아니라고** 표지해 싣는다(2026-09-29 plan_26092908 §4.5 F4). 둘 다 없으면 미관측."""
+    if appr or not prior:
+        return [("승인 출처", _cell(appr.get("source"))), ("승인 시각(UTC)", _cell(appr.get("approved_utc"))),
+                ("승인 발화(전사)", _cell(appr.get("approved_by")))]
+    tag = f"(재생 전용 대체 — 원 발행의 승인 · 이 판의 승인은 continue 가 적는다 · {_cell(prior.get('replay_source'))})"
+    return [("승인 출처", f"{_cell(prior.get('source'))}{tag}"), ("승인 시각(UTC)", f"{_cell(prior.get('approved_utc'))}(원 발행)"),
+            ("승인 발화(전사)", f"{_cell(prior.get('approved_by'))}(원 발행)")]
 
 
 def _yes_no(v) -> str:
@@ -851,6 +885,9 @@ def _attestation_scope_line(f: dict) -> str | None:
         parts.append(f"묶은 근거 {_cell(sc.get('bound_by'))}")
     if sc.get("path"):
         parts.append(f"파일 `{_cell(sc.get('path'))}`")
+    if sc.get("timing_note"):
+        # 2026-09-29 plan_26092908 §4.5 F7: 작성 시각 대 측정 창(생산자 판정 그대로)
+        parts.append(f"측정 창 대비 {_cell(sc.get('timing_note'))}")
     return f"> **attestation 범위** — {' · '.join(parts)}: **{_cell(sc.get('scope'))}**"
 
 
@@ -933,6 +970,16 @@ def _shipped_names(f: dict) -> set[str]:
     return names
 
 
+def _slot_reason(s: dict) -> str:
+    """slots 표 '사유' 칸 — 저작자 선언(`rationale` · continue 가 01 §1.2 에서 옮긴다)이 먼저, 없으면 artifacts 의 기계 파생 사유
+    (`machine_reason` · 2026-09-29 plan_26092908 §4.5 F5 — 표지를 붙인다), 둘 다 없으면 미관측."""
+    if s.get("rationale"):
+        return _cell(s.get("rationale"))
+    if s.get("machine_reason"):
+        return f"{_cell(s.get('machine_reason'))}(기계 파생)"
+    return _MISSING_TEXT
+
+
 def _f_slots(c: _Ctx) -> str:
     slots = _dict(c.facts, "slots")
     if not slots:
@@ -944,7 +991,7 @@ def _f_slots(c: _Ctx) -> str:
         files = [f"`{Path(str(p)).as_posix()}`" for p in (s.get("files") or [])]
         rows.append((f"`{name}`", "실림" if s.get("files") else "안 실림", _cell(files, "—"),
                      _cell(s.get("confidence")), _cell(f"{ev.get('kind')}:{ev.get('ref')}" if ev else None),
-                     _cell(s.get("rationale"))))
+                     _slot_reason(s)))
     out = _table(("슬롯", "실림", "파일", "신호", "적용 증거", "사유"), rows)
     # 2026-09-22 통합(artifacts 요청): 빌드 레시피 슬롯의 **이미지 대 레시피** 경고와 싣지 못한 COPY 원천을 배포 본문에 싣는다 —
     #   수신자가 "실린 Dockerfile 이 그 이미지를 지은 바이트인가" 를 모르면 재현이 조용히 다른 빌드가 된다(태그2 실측: 실린
@@ -1180,7 +1227,10 @@ def _patch_evidence_table(patches: list[dict]) -> list[str]:
         ev = p.get("evidence") if isinstance(p.get("evidence"), dict) else {}
         static = ev.get("static")
         sha = p.get("image_script_sha256")
-        rows.append((f"`{_cell(p.get('file'))}`", _cell(p.get("script_identity"), "—"), _code(sha) if sha else "—",
+        # 2026-09-29 plan_26092908 §4.5 F1: 원장 경로는 이미지 사본이 아니라 원장이 기록한 실행 바이트 sha 다 — 출처를 붙여 옮긴다
+        led = p.get("ledger_script_sha256")
+        sha_txt = _code(sha) if sha else (f"{_code(led)}(빌드 원장 script_sha256 — 이미지 사본 아님)" if led else "—")
+        rows.append((f"`{_cell(p.get('file'))}`", _cell(p.get("script_identity"), "—"), sha_txt,
                      _cell(_markers_text(ev.get("markers")), "—"), _cell(static, "—"), _cell(p.get("ledger_result_source"), "—")))
         if ev.get("loop"):
             loops.setdefault(str(p.get("phase")), [])
@@ -1299,6 +1349,20 @@ def _context_map_lines(f: dict) -> list[str]:
     return out
 
 
+def _derived_rule_text(d: dict) -> str | None:
+    """파생 키의 실효값 규칙 한 칸(2026-09-29 · plan_26092908 §4.5 F6). artifacts 는 `rule_text` 를 형상 헤더에만 쓰고 `derived_out` 에서는
+    뺀다(같은 문장 두 벌 ✗) — 표는 **같은 렌더러 표**(`effective_values` 선택지 → 키 값 · `value_rule` 키 → `{필드}` 규칙)에서 같은 모양으로
+    다시 쓴다(옛 판은 `effective_values` 를 읽지 않아 선택지형 필드가 '규칙 미관측' 이었고 값 전사형은 원시 JSON 이었다)."""
+    ev_ = d.get("effective_values")
+    if isinstance(ev_, dict) and ev_:
+        return " | ".join(f"{opt} → " + " · ".join(f"{k}={v}" for k, v in sorted(kv.items()))
+                             for opt, kv in sorted(ev_.items()) if isinstance(kv, dict))
+    vr = d.get("value_rule")
+    if isinstance(vr, dict) and vr:
+        return " · ".join(f"{k}={v}" for k, v in sorted(vr.items()))
+    return None
+
+
 def _derived_env_lines(f: dict) -> list[str]:
     """env 형상의 파생 키 · 실효값(2026-09-29 · plan_26092908 §4.6 — artifacts `env_shapes[].derived`). 한 manifest 필드에서 여러 키가
     파생되면 키마다 `<derived:<필드>→<KEY>>` 자리표시를 두고, 선택지별 실효값은 렌더러 표에서 옮긴다(블라인드 X1: NCCL_IB_DISABLE 에
@@ -1310,7 +1374,7 @@ def _derived_env_lines(f: dict) -> list[str]:
         for d in e.get("derived") or []:
             if isinstance(d, dict):
                 ph = d.get("placeholders") if isinstance(d.get("placeholders"), dict) else {}
-                rule = d.get("rule_text") or d.get("value_rule")
+                rule = d.get("rule_text") or _derived_rule_text(d)
                 rows.append((f"`{_cell(e.get('template') or e.get('file'))}`", f"`{_cell(d.get('field'))}`",
                              _cell([f"`{k}`" for k in (d.get("keys") or [])]), _cell([f"`{ph[k]}`" for k in sorted(ph)], "—"),
                              _cell(rule, "규칙 미관측(렌더러에서 읽지 못함 — 지어내지 않는다)"), _cell(d.get("source"), "—")))
@@ -1342,6 +1406,13 @@ def _f_sub_recipe(c: _Ctx) -> str:
         return _missing_sentence(f, "HINT_MISSING_SUB_RECIPE",
                                  "_서브 레시피 없음 — sub_recipe 를 싣지 않았고 결손 코드도 없다(생산자 artifacts 가 말하지 않은 부재)._")
     out = ["원본: `artifacts/compose/sub_recipe.json`(기계 파생 — 스모크와 같은 함수 `slave_forward.derive` 의 출력).", ""]
+    if f.get("plane") == "native" or sr.get("_verification"):
+        # F12(2026-09-29 · plan_26092908 §4.5): native 셀의 sub_recipe 는 원천 Docker 셀 트리플렛으로 렌더한 compose 형 참고다 — 아래 표를
+        #   이 셀의 기동 사실처럼 읽지 않게 머리에 범위를 단다(이 셀은 native 정문으로 기동했다 · 01 §1.4 serve 단계 · native 기동 기록).
+        ns = _dict(f, "native_source")
+        out = [f"> **Docker 형 참고**(원천 셀 `{_cell(ns.get('cell'))}` · **이 셀 run 아님** · `generated-unverified`) — 아래 master/slave 표 · "
+               "서브 전달 env · 기동 순서는 compose 경로의 형상이다. 이 셀(native)은 compose 로 기동되지 않았다 — 실제 기동은 01 §1.4 "
+               "serve 단계(native 정문 `up`)와 native 기동 기록(`artifacts/triplet/native-launch.md`)이 말한다.", ""] + out
     if "HINT_MISSING_SUB_RECIPE" in _missing_codes(f.get("missing")):
         # native 셀(plan §4.2): 실린 sub_recipe 는 Docker 형 렌더러 산출물이고 서브가 실제로 받은 env · 기동은 관측되지 않았다
         out = [_missing_sentence(f, "HINT_MISSING_SUB_RECIPE", ""), ""] + out
@@ -4668,6 +4739,72 @@ def selftest() -> list[str]:
            "| `artifacts/build_patch_pre/60-fixture-patch.sh` | `build_patches_src/60-fixture-patch.sh` |" in rp_
            and "| `artifacts/build_recipe/pip-freeze-main.txt` | — |" in rp_ and "<derived:interconnect.nccl_transport→NCCL_NET>" in rp_
            and "rdma → NCCL_IB_DISABLE=0" in rp_)
+        # ── F3 · F6 · F5 · F2 · F1(2026-09-29 · plan_26092908 §4.5 FACT 생산자 교정) ──
+        xf6 = json.loads(core.dumps(xf))
+        d6 = xf6["env_shapes"][0]["derived"][0]
+        d6.pop("rule_text")
+        d6["effective_values"] = {"rdma": {"NCCL_IB_DISABLE": "0", "NCCL_NET": "IB"}, "socket": {"NCCL_IB_DISABLE": "1", "NCCL_NET": "Socket"}}
+        xf6["env_shapes"][0]["derived"].append({"field": "interconnect.socket_iface", "keys": ["NCCL_SOCKET_IFNAME"],
+                                                "placeholders": {}, "value_rule": {"NCCL_SOCKET_IFNAME": "{interconnect.socket_iface}"},
+                                                "source": "탐침"})
+        rp6 = _f_reproduce(_Ctx(repo, xf6, tpls))
+        ck("F6 rule_text 없는 파생 키 = 렌더러 표(effective_values · value_rule)에서 규칙 · '규칙 미관측' ✗ · 원시 JSON ✗",
+           "rdma → NCCL_IB_DISABLE=0 · NCCL_NET=IB \\| socket → NCCL_IB_DISABLE=1 · NCCL_NET=Socket" in rp6
+           and "NCCL_SOCKET_IFNAME={interconnect.socket_iface}" in rp6 and "규칙 미관측" not in rp6 and '{"NCCL_SOCKET' not in rp6)
+        d6.pop("effective_values")
+        ck("★F6 음성대조: 렌더러 표도 없으면 '규칙 미관측'(지어내지 않는다)", "규칙 미관측" in _f_reproduce(_Ctx(repo, xf6, tpls)))
+        qf3 = json.loads(core.dumps(qf))
+        qf3["build"]["driver_by_node"] = {"main": "580.178.04", "sub": "580.178.04"}
+        qf3["build"]["driver_conflict"] = {"observed": "580.178.04", "declared": "580.173.02",
+                                           "sources": {"observed": "attestation parity.driver(fx)", "declared": "manifest(fx)"}}
+        qf3["build"].setdefault("source", {})["driver_by_node"] = "attestation parity.driver(fx)"
+        rs3 = _f_resolved(_Ctx(repo, qf3, tpls))
+        ck("F3 드라이버 두 행: 값 = 읽는 모양 · 출처 = 생산자 출처(원시 JSON ✗ · 출처 미기재 ✗)",
+           "| 드라이버(노드별 관측) | main=580.178.04 · sub=580.178.04 | attestation parity.driver(fx) |" in rs3
+           and "| ⚠ 드라이버 관측 ≠ 선언 | 관측 580.178.04 ≠ 선언 580.173.02 | 관측: attestation parity.driver(fx) · 선언: manifest(fx) |"
+           in rs3 and '{"' not in rs3.split("⚠ 드라이버")[1].split("\n")[0])
+        qf2 = json.loads(core.dumps(qf))
+        qf2["build"]["image_digest"] = None
+        qf2["build"].setdefault("source", {})["image_digest_local_note"] = "docker image inspect fx .Id · 측정 뒤 빌드 — 측정 이미지 아님"
+        ck("F2 측정 digest 없음 + 로컬 이미지 측정 뒤 빌드 → 값 미관측 · 출처 칸이 관측을 말한다",
+           "| 이미지 digest | 미관측 | docker image inspect fx .Id · 측정 뒤 빌드 — 측정 이미지 아님 |" in _f_resolved(_Ctx(repo, qf2, tpls)))
+        sf5 = json.loads(core.dumps(base_facts))
+        sl5 = next(iter(sf5["slots"]))
+        sf5["slots"][sl5].pop("rationale", None)
+        sf5["slots"][sl5]["machine_reason"] = "셀 env 에 VARIANT 줄 없음 = stock"
+        ck("F5 slots 사유 칸: rationale 없으면 기계 파생 사유 + 표지", "셀 env 에 VARIANT 줄 없음 = stock(기계 파생)"
+           in _f_slots(_Ctx(repo, sf5, tpls)))
+        sf5["slots"][sl5]["rationale"] = "저작자 선언"
+        ck("★F5 음성대조: 저작자 rationale 이 있으면 그것이 먼저(기계 사유가 덮지 않는다)",
+           "저작자 선언" in _f_slots(_Ctx(repo, sf5, tpls)) and "(기계 파생)" not in _f_slots(_Ctx(repo, sf5, tpls)).split(sl5)[1]
+           .split("\n")[0])
+        mf4 = json.loads(core.dumps(base_facts))
+        mf4["campaign"] = {"id": "camp-fx", "cell": "c", "node": "cluster", "mode": "publication-replay",
+                           "id_source": "봉인 페이로드 abcdef012345:PAYLOAD.json campaign.id(재생 전용 대체)"}
+        mf4["approval"] = None
+        mf4["prior_approval"] = {"approved_by": "사용자(fx)", "approved_utc": "2026-01-01T00:00:00Z", "source": "campaign:hint_targets",
+                                 "replay_source": "봉인된 발행 페이로드 abcdef012345"}
+        m4 = _f_meta(_Ctx(repo, mf4, tpls))
+        ck("F4 재생: 캠페인 id = 봉인 기록(출처 괄호) · 승인 = 원 발행 승인(재생 전용 대체 표지)",
+           "camp-fx(봉인 페이로드 abcdef012345:PAYLOAD.json campaign.id(재생 전용 대체))" in _f_header(_Ctx(repo, mf4, tpls))
+           and "| 승인 출처 | campaign:hint_targets(재생 전용 대체 — 원 발행의 승인" in m4 and "2026-01-01T00:00:00Z(원 발행)" in m4)
+        mf4["approval"] = {"approved_by": "사람(이 판)", "approved_utc": "2026-02-02T00:00:00Z", "source": "cli:--approved-by"}
+        ck("★F4 음성대조: 이 판의 승인이 있으면 그것만(원 발행 승인과 섞지 않는다)",
+           "| 승인 출처 | cli:--approved-by |" in _f_meta(_Ctx(repo, mf4, tpls)) and "원 발행" not in _f_meta(_Ctx(repo, mf4, tpls)))
+        sr12 = json.loads(core.dumps(base_facts))
+        if isinstance(sr12.get("sub_recipe"), dict) and sr12["sub_recipe"]:
+            sr12["plane"] = "native"
+            sr12["native_source"] = {"cell": "src-cell"}
+            ck("F12 native sub_recipe = 'Docker 형 참고(원천 셀 · 이 셀 run 아님 · generated-unverified)' 머리",
+               "**Docker 형 참고**(원천 셀 `src-cell` · **이 셀 run 아님** · `generated-unverified`)" in _f_sub_recipe(_Ctx(repo, sr12, tpls)))
+            sr12["plane"] = "docker"
+            ck("★F12 음성대조: Docker 셀 sub_recipe 에는 참고 표지 없음", "Docker 형 참고" not in _f_sub_recipe(_Ctx(repo, sr12, tpls)))
+        else:
+            ck("F12 픽스처: base_facts 에 sub_recipe 가 있어야 한다(검사가 조용히 빠지지 않게)", False)
+        pe1 = _patch_evidence_table([{"file": "60-a.sh", "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트)",
+                                      "ledger_script_sha256": "a" * 64}])
+        ck("F1 판정 근거 표: 원장 sha 를 출처 표지와 함께 옮긴다(이미지 사본과 구분)",
+           f"`{'a' * 64}`(빌드 원장 script_sha256 — 이미지 사본 아님)" in "\n".join(pe1) and "build-ledger(원장" in "\n".join(pe1))
         cm = _context_map_summary(xf)
         ck("README 매핑 요약: zip 폴더 → 컨텍스트 폴더 · 입력 아닌 파일 수", "| `artifacts/build_patch_pre/` | `build_patches_src/` | 1 |" in cm
            and "입력이 아닌 파일 1개" in cm)

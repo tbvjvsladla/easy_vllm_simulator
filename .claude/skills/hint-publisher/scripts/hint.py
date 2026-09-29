@@ -472,6 +472,14 @@ def _build_doc(ev, art: dict) -> dict:
     build = {k: b.get(k) for k in _BUILD_KEYS}
     src = {k: bsrc[k] for k in _BUILD_KEYS if k in bsrc}
     sel = art.get("build") or {}
+    # 2026-09-29 plan_26092908 §4.5 F2: 측정 digest 가 없으면 현 로컬 이미지 관측(evidence.image_digest_local)을 **출처를 붙여** 옮긴다 —
+    #   측정 전 빌드(Created < 측정)일 때만 값으로 싣고, 아니면 값은 비우고 출처가 "측정 뒤 빌드" 를 말한다.
+    loc = b.get("image_digest_local") if isinstance(b.get("image_digest_local"), dict) else None
+    if not build.get("image_digest") and loc:
+        if loc.get("same_build") and loc.get("id"):
+            build["image_digest"], src["image_digest"] = loc["id"], loc.get("source")
+        else:
+            src["image_digest_local_note"] = loc.get("source")
     if art.get("plane") == "native":
         build["track"], src["track"] = "native", art.get("plane_source") or "artifacts.plane_of"
         # 2026-09-29 plan_26092908 §4.2(U1 · V6): native 셀도 원천 이미지의 빌드 레시피를 싣는다(artifacts 가 원천 셀 문맥으로 고른 선택자) —
@@ -806,6 +814,17 @@ def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_r
     bench_definition = evidence.bench_definition(repo, ev)
     bench_md = template.render_bench_source(repo, col["bench_src"]) if col["bench_src"] else None
     camp = {"id": ev.campaign_id, "cell": ev.cell, "node": ev.node, "mode": ev.mode}
+    # 2026-09-29 plan_26092908 §4.5 F4: 재생(캠페인 purge)은 캠페인 id · 승인을 관측하지 못한다 — 발행 기록이 봉인한 페이로드
+    #   (promotion_target.anchor)의 기록을 **출처를 붙여** 옮긴다(재생 전용 대체). 이 판의 승인(approval)은 여전히 continue 가 적는다 —
+    #   원 발행의 승인은 `prior_approval` 로 따로 싣는다(두 승인을 한 칸에 섞지 않는다).
+    sealed = evidence.sealed_publication(repo, ev)
+    prior_approval = None
+    if sealed:
+        if camp["id"] is None and sealed.get("campaign"):
+            camp["id"] = sealed["campaign"]["id"]
+            camp["id_source"] = f"봉인 페이로드 {str(sealed['anchor'])[:12]}:PAYLOAD.json campaign.id(재생 전용 대체)"
+        if sealed.get("approval"):
+            prior_approval = {**sealed["approval"], "replay_source": sealed["source"]}
     pub = {"topic": topic, "manifest_ref": manifest_rel, "task_class": task_class}
     lin = col["lineage"]
     # plan_26092908 §4.2·§4.6 — artifacts 의 새 키(파일 단위 표시는 slots[*].file_records 에 이미 있다)
@@ -820,7 +839,7 @@ def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_r
         "reproduce_steps": _with_bench_command(art.get("reproduce_steps"), evidence.bench_command(repo, ev)),
         "sub_recipe": art.get("sub_recipe"), "bench_section_md": bench_md,
         "task_class": task_class, "perf_waiver": bench.get("perf_waiver") or None, "campaign": camp, "approval": None,
-        "publication": pub, "event_timeline": event_timeline, "bench_definition": bench_definition, "factcheck": None,
+        "prior_approval": prior_approval, "publication": pub, "event_timeline": event_timeline, "bench_definition": bench_definition, "factcheck": None,
         "measurement_env_observed": col["env_observed"], "tool_snapshots": col["tool_snaps"], "attestation_scope": col["att_scope"],
         "tail_candidates": col["tail_candidates"], "env_shapes": art.get("env_shapes") or [], **art_more,
     }
@@ -830,7 +849,7 @@ def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_r
         "applied_set": art.get("applied_set"), "slots": art.get("slots"),
         "qualification": {k: qual.get(k) for k in ("health_200", "inference_observed", "sources", "method")},
         "measurement": measurement, "measurement_config": measurement_config, "missing": col["missing"],
-        "missing_reasons": col["missing_reasons"], "approval": None,
+        "missing_reasons": col["missing_reasons"], "approval": None, "prior_approval": prior_approval,
         "evidence_pointers": [{k: p.get(k) for k in ("kind", "path", "cell_id", "node_id")} for p in ev.pointers],
         "publication": pub, "bench_definition": bench_definition, "factcheck": None,
         # 2026-09-22 S2 round 3: Agent 표면에도 같은 사실(측정 env 관측 · 도구 스냅샷 좌표 · attestation 범위) — FACT 블록과 같은 값
@@ -3105,6 +3124,23 @@ def self_test() -> int:
     return 0 if not bad else 1
 
 
+def _selftest_build_doc_local_digest(ck) -> None:
+    """F2: PAYLOAD.build 의 이미지 digest — 측정 digest 가 없을 때 evidence.image_digest_local 을 출처와 함께(측정 전 빌드만 값으로)."""
+    from types import SimpleNamespace as NS
+    loc_ok = {"id": "sha256:" + "a" * 64, "same_build": True, "source": "docker image inspect fx .Id · 측정 전 빌드"}
+    b1 = _build_doc(NS(build_identity={"image_digest": None, "image_digest_local": loc_ok, "source": {}}), {})
+    ck("F2 측정 digest 없음 + 로컬 이미지 측정 전 빌드 → 값 = 로컬 Id · 출처 = inspect 관측",
+       b1["image_digest"] == loc_ok["id"] and b1["source"]["image_digest"] == loc_ok["source"])
+    b2 = _build_doc(NS(build_identity={"image_digest": None, "image_digest_local": dict(loc_ok, same_build=False,
+                                                                                         source="측정 뒤 빌드"), "source": {}}), {})
+    ck("★F2 음성대조: 측정 뒤 빌드면 값 ✗ · 관측은 image_digest_local_note 로만", b2["image_digest"] is None
+       and b2["source"].get("image_digest_local_note") == "측정 뒤 빌드")
+    b3 = _build_doc(NS(build_identity={"image_digest": "sha256:" + "b" * 64, "image_digest_local": loc_ok,
+                                       "source": {"image_digest": "sweep meta(measured)"}}), {})
+    ck("★F2 음성대조: 측정 digest 가 있으면 로컬 관측이 덮지 않는다", b3["image_digest"] == "sha256:" + "b" * 64
+       and b3["source"]["image_digest"] == "sweep meta(measured)")
+
+
 _GIT_ENV_LEAKS = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
                   "GIT_COMMON_DIR", "GIT_NAMESPACE", "GIT_PREFIX")
 
@@ -3116,6 +3152,8 @@ def _self_test_body(ck, bad: list[str], ran: list[int]) -> None:
     _selftest_parser(ck)
     print(f"{_OUT} self-test — 정적 문서 교차검증")
     _selftest_static_docs(ck)
+    print(f"{_OUT} self-test — FACT 생산자 교정(plan_26092908 §4.5 F2)")
+    _selftest_build_doc_local_digest(ck)
     print(f"{_OUT} self-test — 격리 E2E(임시 저장소 · bare 원격 · 가짜 docker · 라이브 비의존)")
     try:
         _selftest_e2e(ck)
@@ -3129,7 +3167,8 @@ def _self_test_body(ck, bad: list[str], ran: list[int]) -> None:
     # 2026-09-22 S2 round 3 적대 리뷰: 탐침 규칙 단일 소유 · 저작 안내 · 스냅샷 origin(실재 커밋 · 변조) 묶음(137 실측) → 하한 134.
     # 2026-09-29 plan_26092908(v7): 이름 꼬리 · timestamp · 안내 커밋 · footer v2 · LINEAGE 분리 · refacts · 카탈로그 커밋 · 시각 채택 묶음
     #   (175 실측) → 하한 170.
-    ck(f"검사 전수 실행({ran[0]}) — 중도 반환으로 시험이 조용히 줄지 않게", ran[0] >= 170)
+    # 2026-09-29 plan_26092908 §4.5(FACT 생산자 교정 F1~F15): build_doc 로컬 digest 묶음(177 실측) → 하한 174.
+    ck(f"검사 전수 실행({ran[0]}) — 중도 반환으로 시험이 조용히 줄지 않게", ran[0] >= 174)
 
 
 if __name__ == "__main__":

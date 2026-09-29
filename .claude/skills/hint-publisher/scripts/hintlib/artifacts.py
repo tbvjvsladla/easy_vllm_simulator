@@ -155,6 +155,9 @@ PROBE_ATTR = "image_probe"
 #   `async-scheduling: false  # … 명시 필수` 를 declared-requirement 로 제안했으나 그 요구를 뒷받침한 관측 실패는 계보에 없었다).
 #   주석 단어만 있으면 inherited 로 제안하고 이 문구를 단다 — 관측된 실패가 있으면 저작자가 declared-requirement 로 올린다.
 COMMENT_ONLY_REQUIREMENT_NOTE = "yaml 주석만 있음 — 관측된 실패가 있으면 declared-requirement"
+# 2026-09-29(plan_26092908 §4.5 F15): 주석 단어 '측정'·'수렴' 도 **저작자의 말**이다 — 스윕 기록(lockset measured-clamp · kv-fit-measured)이
+#   없으면 tuned 를 제안하지 않고 inherited + 이 문구로 낮춘다(DS4F 재생: "측정" 주석 한 단어로 tuned 후보가 나왔다 · 스윕 0).
+COMMENT_ONLY_TUNED_NOTE = "yaml 주석만 있음(스윕 기록 없음) — 이 셀 계보에서 값을 바꿔 잰 기록이 있으면 tuned"
 # compose 슬롯의 측정 뒤 재생성 env 형상 제외 사유(공유 계약 문자열 — 소비자가 글자 그대로 대조한다).
 POST_MEASUREMENT_REGENERATED = "post-measurement-regenerated"
 # 측정 당시 env 값의 **수신자 좌표**(2026-09-22 · plan_26092119 S2 round 3 통합): 옛 문구는 발행기 내부 키 `facts.measurement_env_observed`
@@ -836,7 +839,23 @@ def _measured_utc(c: _Ctx) -> tuple[str | None, str]:
     got = _utc_z(sweep.get("generated_utc")) if isinstance(sweep, dict) else None
     if got:
         return got, "sweep_index.generated_utc"
-    return None, "unobserved(인증서 measured_utc · 스윕 generated_utc 없음)"
+    lite = _lite_measured_utc(c.repo, c.ev)
+    if lite[0]:
+        return lite
+    return None, "unobserved(인증서 measured_utc · 스윕 generated_utc · lite 리포트 생성일 없음)"
+
+
+def _lite_measured_utc(repo: Path, ev: Any) -> tuple[str | None, str]:
+    """lite-only 셀의 측정 시각(2026-09-29 · plan_26092908 §4.5 F8) = 바인딩된 lite bench_report 머리 `생성일`(lite_bench 가 측정 끝에 찍는다 ·
+    evidence._report_born_utc 가 lite_raw 조인 키로 이미 쓰는 값). 옛 판은 인증서 · 스윕만 보아 D2 가 "측정 시각 미관측" 이었다."""
+    if _get(ev, "report_kind") != "lite":
+        return None, "lite 셀 아님"
+    rel = _get(ev, "bench_report_path")
+    from . import evidence as _evidence
+    born = _utc_z(_evidence._report_born_utc(repo, rel)) if rel else None
+    if not born:
+        return None, "lite bench_report 생성일 미관측"
+    return born, f"lite bench_report 생성일({PurePath(str(rel)).name} 머리 · lite 측정 끝)"
 
 
 def _mtime_utc(path: Path) -> str | None:
@@ -1765,6 +1784,24 @@ def _ledger_rows(ledger: dict) -> list[dict]:
     return rows
 
 
+def _ledger_script_identity(c: "_Ctx", row: dict) -> dict:
+    """원장 경로의 스크립트 바이트 정체(2026-09-29 · plan_26092908 §4.5 F1). 원장 `patches[].script_sha256` 은 빌드가 **실행한** 스크립트
+    바이트의 sha 다 — 작업트리 파일(= 실을 바이트)과 대조한 결과를 판정 근거 표의 '스크립트 바이트 정체' 칸에 옮긴다(옛 판은 탐침 경로만
+    이 칸을 채워 원장 경로가 7/7 일치하는데도 전부 `—` 였다). 판정 ✗ — 대조 사실만. inline 패치는 파일이 없어 건너뛴다."""
+    want = row.get("script_sha256")
+    ph = row.get("phase")
+    if not isinstance(want, str) or not want or ph not in PATCH_DIRS:
+        return row
+    p = c.out / PATCH_DIRS[ph] / str(row.get("file"))
+    if not p.is_file():
+        ident = "build-ledger(원장 script_sha256 기록 · 작업트리에 파일 없음 — 실린 바이트 대조 불가)"
+    elif core.sha256_file(p) == want:
+        ident = "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)"
+    else:
+        ident = "build-ledger(원장 script_sha256 ≠ 작업트리 바이트 — 빌드 뒤 바뀐 파일)"
+    return {**row, "script_identity": ident, "ledger_script_sha256": want}
+
+
 def _post_label(row: dict) -> dict:
     """X10: post 패치 = 공유 이미지 입력(이미지 하나가 모든 모델 — 헌법 이미지 네이밍 불변식)."""
     if row.get("phase") != "post":
@@ -1809,7 +1846,7 @@ def _applied(c: _Ctx, *, probe: bool = True) -> tuple[dict, dict, dict | None, d
                 excluded.append({"phase": ph, "file": p.name,
                                  "why": f"excluded_by_recipe({sel['dockerfile']} 이 {d}/ 를 COPY 하지 않는다 — 실행된 적 없음)"})
     if ledger is not None:
-        rows = [_post_label(r) for r in _ledger_rows(ledger)]
+        rows = [_ledger_script_identity(c, _post_label(r)) for r in _ledger_rows(ledger)]
         in_ledger = {(r["phase"], r["file"]) for r in rows}
         for ph in sorted(in_recipe):
             for p in listing[ph]:
@@ -2387,10 +2424,12 @@ def value_status_candidates(repo: Path, ev: Any, *, forward_module: Any | None =
             for word, st in _COMMENT_STATUS:
                 if word in comment:
                     status, source, reason = st, "serving-yaml 줄 주석", f"주석 단어 '{word}': {comment}"
-                    if st == "declared-requirement":
+                    if st in ("declared-requirement", "tuned"):
                         # 2026-09-22 S2 round 3: 주석 단어만으로는 요구가 **관측**되지 않았다 — inherited 로 제안하고 문구를 단다
                         #   (lockset 출처 declared-requirement·target_gmu 는 기록된 출처라 위 분기에서 그대로 declared-requirement).
-                        status, note = "inherited", COMMENT_ONLY_REQUIREMENT_NOTE
+                        #   2026-09-29 F15: tuned 도 같다 — 스윕 기록(lockset 출처)은 위 분기가 잡고, 주석 단어만이면 inherited.
+                        status = "inherited"
+                        note = COMMENT_ONLY_REQUIREMENT_NOTE if st == "declared-requirement" else COMMENT_ONLY_TUNED_NOTE
                         reason = f"{reason} · {note}"
                     break
         if status is None and value.lower() == "auto":
@@ -2615,6 +2654,10 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
         measure_start, measure_src = None, f"{measure_src}(date 를 UTC 로 읽으면 generated_utc 뒤 — 시계 가정 불성립 · 버림)"
     if measure_src and measure_start:
         measure_src = f"{measure_src} · date=컨테이너 시계(UTC 가정)"
+    bench_bound = "exact"
+    lite_end, lite_src = (None, None) if sweep_end else _lite_measured_utc(repo, c.ev)
+    if lite_end:
+        sweep_end = lite_end            # F8: lite-only 셀 — 측정 끝 = lite 리포트 생성일(출처는 아래 단계가 말한다)
     if plane == "docker":
         if topo == "multi":
             # 2026-09-22 S2 round 3 적대 리뷰: 렌더러가 측정 뒤 바뀌었으면(git 관측) 명령 앞에 그 사실 · 측정 전 개정을 주석으로 단다.
@@ -2651,13 +2694,16 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
             step("build", build_cmd, "빌드 OK · 이미지 실재", None, created, "none",
                  f"docker image inspect {_image_ref(c)[0]} .Created(종료만 관측)" if created else "미관측", build_src, extra)
         events = [e for e in _events_for(repo, f"smoke-{cell}") if e.get("kind") == "budget_declare"]
-        if measure_start:
-            events = [e for e in events if e["ts"] <= measure_start]
-        decl = events[-1] if events and measure_start else None     # 첫 측정 시각이 없으면 어느 선언인지 가를 수 없다
-        step("serve", serve_cmd, "health 200 + 추론 1회(스모크 판정)", decl["ts"] if decl else None, measure_start,
-             "upper" if decl and measure_start else "none",
-             (f"{decl['_file']} budget_declare(label smoke-{cell}) → 첫 측정 date({measure_src})"
-              if decl and measure_start else "미관측(예산 선언 또는 첫 측정 시각 없음)"),
+        # F8: lite-only 셀은 첫 측정 시각이 없다 — 측정 끝(lite 리포트 생성일)을 서빙 창의 상한 끝으로 쓴다(serve + lite 측정의 상한)
+        s_end, s_end_src = (measure_start, f"첫 측정 date({measure_src})") if measure_start else \
+            ((lite_end, f"{lite_src}(측정 끝 — serve + lite 측정을 합친 상한)") if lite_end else (None, None))
+        if s_end:
+            events = [e for e in events if e["ts"] <= s_end]
+        decl = events[-1] if events and s_end else None     # 첫 측정 시각이 없으면 어느 선언인지 가를 수 없다
+        step("serve", serve_cmd, "health 200 + 추론 1회(스모크 판정)", decl["ts"] if decl else None, s_end,
+             "upper" if decl and s_end else "none",
+             (f"{decl['_file']} budget_declare(label smoke-{cell}) → {s_end_src}"
+              if decl and s_end else "미관측(예산 선언 또는 첫 측정 시각 없음)"),
              "derived(스모크 사용법)")
     else:
         if src_ctx is not None and sel:
@@ -2666,15 +2712,89 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
             step("build", b_cmd, "원천 이미지 빌드 OK(각 노드 로컬 · 이미지 전송 ✗)", None, _image_created(src_ctx), "none",
                  f"docker image inspect {_image_ref(src_ctx)[0]} .Created(종료만 관측)" if _image_created(src_ctx) else "미관측",
                  f"{b_src} · 원천 셀 {src_ctx.cell}")
+        nt = _native_run_timing(c)
         step("install", "artifacts/build_recipe/native-install.sh + pip-freeze-main.txt + pip-freeze-sub.txt",
-             "venv 에서 `python -c 'import vllm'` 성공", source="native producer preserved build_recipe", command_source="shipped-file")
-        step("serve", f"bash output/{topo}/configs/{cell}.sh(native --plane native)",
-             "health 200 + 추론 1회 + cleanup attestation PASS")
+             "venv 에서 `python -c 'import vllm'` 성공", nt.get("created"), nt.get("serve_start"),
+             "upper" if nt.get("created") and nt.get("serve_start") else "none", nt.get("install_src") or "native producer preserved build_recipe",
+             "shipped-file", {"wheelhouse_build_seconds": nt["wheelhouse"]} if nt.get("wheelhouse") else None)
+        serve_cmd, serve_src = _native_serve_command(c)
+        step("serve", serve_cmd, "health 200 + 추론 1회 + cleanup attestation PASS", nt.get("serve_start"), nt.get("up_completed"),
+             "exact" if nt.get("serve_start") and nt.get("up_completed") else "none", nt.get("serve_src") or "미관측", serve_src)
+        if not measure_start and nt.get("up_completed") and sweep_end and nt["up_completed"] <= sweep_end:
+            # F11: native bench JSON date 는 호스트 로컬 시계라 UTC 가정이 깨진다(위에서 버렸다) — bench 는 up 완료 뒤에만 돈다
+            measure_start = nt["up_completed"]
+            measure_src = f"run state up_completed_utc({nt.get('state_rel')} · bench 는 up 완료 뒤 — 상한 시작)"
+            bench_bound = "upper"
     bench_cmd, bench_src = _bench_commands(c)
     step("bench", bench_cmd, "리포트 발행(+PASS 면 인증서)",
-         measure_start, sweep_end, "exact" if measure_start and sweep_end else "none",
-         f"{measure_src} date → sweep_index.generated_utc" if measure_start and sweep_end else "미관측", bench_src)
+         measure_start, sweep_end, bench_bound if measure_start and sweep_end else "none",
+         (f"{measure_src} → sweep_index.generated_utc(측정 JSON date 는 호스트 로컬 시계 — UTC 가정 불성립으로 쓰지 않는다)"
+          if bench_bound == "upper" else f"{measure_src} date → sweep_index.generated_utc") if measure_start and sweep_end else
+         (f"끝만 관측 — {lite_src}" if lite_end else "미관측"), bench_src)
     return steps
+
+
+REL_NATIVE_SERVE = ".claude/skills/upstream-version-watch/scripts/native_multinode_serve.py"
+
+
+def _native_evidence_dir(c: _Ctx) -> Path | None:
+    sp = _get(c.ev, "serve_proof") or {}
+    raw = sp.get("evidence_dir") if isinstance(sp, dict) else None
+    if not isinstance(raw, str) or not raw.strip() or raw.startswith("/") or ".." in PurePath(raw).parts:
+        return None
+    d = c.repo / raw.strip()
+    return d if d.is_dir() else None
+
+
+def _native_run_timing(c: _Ctx) -> dict:
+    """native run 의 관측 시각(2026-09-29 · plan_26092908 §4.5 F11) — serve proof `evidence_dir` 에 native 정문이 보존한 run state
+    (`logs/state.json` created_utc · up_completed_utc) · serve proof `health.ready_after_s` · wheelhouse 재포장 기록(`wheelhouse-build-<노드>.json`
+    elapsed_s_monotonic). serve 시작 = up_completed − ready_after_s(파생 — health 폴링 창) · install 창 = created → serve 시작(상한 — 예산·RAM
+    게이트 · 재포장 · 설치 · Ray 기동 포함). 없는 것은 비운다(합성 ✗)."""
+    d = _native_evidence_dir(c)
+    if d is None:
+        return {}
+    import datetime as _dt
+    out: dict = {}
+    st = _json_file(d / "logs" / "state.json") or {}
+    sp = _get(c.ev, "serve_proof") or {}
+    created, upc = _utc_z(st.get("created_utc")), _utc_z(st.get("up_completed_utc"))
+    ready = ((sp.get("health") or {}).get("ready_after_s") if isinstance(sp.get("health"), dict) else None)
+    state_rel = core.rel(c.repo, d / "logs" / "state.json")
+    out.update(created=created, up_completed=upc, state_rel=state_rel)
+    wh = {}
+    for n in ("main", "sub"):
+        w = _json_file(d / f"wheelhouse-build-{n}.json") or {}
+        if isinstance(w.get("elapsed_s_monotonic"), (int, float)):
+            wh[n] = w["elapsed_s_monotonic"]
+    if wh:
+        out["wheelhouse"] = wh
+    if upc and isinstance(ready, (int, float)) and not isinstance(ready, bool) and ready >= 0:
+        t = _dt.datetime.strptime(upc, "%Y-%m-%dT%H:%M:%SZ") - _dt.timedelta(seconds=int(ready))
+        out["serve_start"] = t.strftime("%Y-%m-%dT%H:%M:%SZ")
+        out["serve_src"] = (f"serve proof health.ready_after_s={int(ready)}(health 200 까지 · 관측) · 끝 = {state_rel} up_completed_utc"
+                            "(추론 1회 · proof 포함) · 시작 = 끝 − ready_after_s(파생)")
+    if created and out.get("serve_start"):
+        out["install_src"] = (f"{state_rel} created_utc → serve 시작(파생) — 예산·RAM 게이트 · wheelhouse 재포장 · venv 설치 · Ray 기동을 합친 "
+                              "상한" + (" · wheelhouse 재포장 " + " · ".join(f"{n} {v}s" for n, v in sorted(wh.items()))
+                                        + "(wheelhouse-build-<노드>.json elapsed_s_monotonic)" if wh else ""))
+    return out
+
+
+def _native_serve_command(c: _Ctx) -> tuple[str, str]:
+    """native 셀의 serve 명령 — 실제로 부른 정문(`native_multinode_serve.py up`)의 모양(F11 · 옛 판은 `bash <셀>.sh(native --plane native)`
+    라는 실행된 적 없는 모양이었다). 인자 = serve proof(cell · run_id · source_cell). 원문 로그 줄이 아니라 재구성이다."""
+    sp = _get(c.ev, "serve_proof") or {}
+    sp = sp if isinstance(sp, dict) else {}
+    cell, run_id, src_cell = sp.get("cell") or sp.get("config") or c.cell, sp.get("run_id"), sp.get("source_cell")
+    if not run_id:
+        return (f"python3 {REL_NATIVE_SERVE} up --cell {cell} --run-id <run-id> --apply  # run_id 미관측",
+                "derived(native_multinode_serve.py CLI · serve proof run_id 없음)")
+    up = f"python3 {REL_NATIVE_SERVE} up --cell {cell} --run-id {run_id}" + (f" --source-cell {src_cell}" if src_cell else "") + " --apply"
+    lines = ["# native 정문 up: 양 노드 RAM 게이트 → 예산 → 각 노드가 자기 이미지에서 wheelhouse 재포장 → 오프라인 venv 설치 → Ray head/worker → "
+             "vllm serve(native 트리플렛) → health · 추론 1회 → serve proof(서빙을 띄운 채 exit 0)", up,
+             "# 측정 뒤 정리(cleanup attestation): " + f"python3 {REL_NATIVE_SERVE} down --cell {cell} --run-id {run_id} --apply"]
+    return "\n".join(lines), "reconstructed(serve proof cell · run_id · source_cell + native_multinode_serve.py up/down CLI)"
 
 
 def reproduce_steps(repo: Path, ev: Any, *, runner: DockerRunner | None = None,
@@ -2760,6 +2880,53 @@ def slot_confidence(row: dict) -> str:
     return f"{max(n, 1)}-signal"
 
 
+def _slot_machine_reasons(c: "_Ctx", slots: dict, applied: dict | None, sel: dict | None, plane: str, vctx: "_Ctx") -> None:
+    """슬롯별 **기계 파생 사유**(2026-09-29 · plan_26092908 §4.5 F5) — `machine_reason`. 01 §1.1 slots 표의 '사유' 열은 저작자 선언
+    (`rationale` · 3신호의 셋째 — continue 가 01 §1.2 에서 옮긴다)만 읽어 수집 시점엔 전부 미관측이었다. 증거에서 파생 가능한 사유
+    (fork_pin 부재 = VARIANT 줄 없음 · runtime_patch 부재 = `_patch.py` 없음 · 슬롯별 선택 근거)는 기계가 채운다 — 단 `rationale` 에는
+    넣지 않는다(선언 신호를 기계가 부풀리지 않는다 · confidence 불변). 판정 ✗ — 이미 모은 사실의 요약."""
+    rows = [r for r in ((applied or {}).get("patches") or []) if isinstance(r, dict)]
+    for name, row in slots.items():
+        if not isinstance(row, dict):
+            continue
+        ev = row.get("evidence") or {}
+        why = None
+        if name == "fork_pin":
+            repo_ = (vctx.env or {}).get("VLLM_REPO") if isinstance(getattr(vctx, "env", None), dict) else None
+            why = ("셀 env 에 VARIANT 줄 없음 = stock(workflow.md §변종 좌표의 거처)" + (f" · VLLM_REPO={repo_}" if repo_ else "")
+                   if not row.get("files") else f"셀 env VARIANT → {ev.get('ref')} 변종 좌표")
+        elif name == "runtime_patch":
+            why = (f"{ev.get('ref')} 없음 — arm_patch.sh 는 no-op(런타임 패치 불해당)" if not row.get("files")
+                   else f"{ev.get('ref')} 실재 — 셀 이름의 런타임 패치")
+        elif name in ("build_patch_pre", "build_patch_post"):
+            ph = "pre" if name.endswith("pre") else "post"
+            mine = [r for r in rows if r.get("phase") == ph]
+            if mine:
+                cnt: dict[str, int] = {}
+                for r in mine:
+                    cnt[str(r.get("result"))] = cnt.get(str(r.get("result")), 0) + 1
+                why = (f"{PATCH_DIRS[ph]}/ — 적용 판정 {ev.get('kind')}: " + " · ".join(f"{k} {v}" for k, v in sorted(cnt.items()))
+                       + (" · 실린 것 = skip 아닌 패치" if row.get("files") else ""))
+            elif not row.get("files"):
+                why = f"적용 판정 없음 — {ev.get('note') or ev.get('ref') or '원천 미관측'}"
+        elif name == "build_recipe":
+            if sel and sel.get("dockerfile"):
+                why = f"쓰인 Dockerfile 선택자 {sel['dockerfile']}({sel.get('dockerfile_source')}) + 그것이 COPY 하는 파일"
+                if plane == "native":
+                    why = f"원천 이미지 {why} · native 설치 입력(serve proof 보존 파일)"
+        elif name == "compose":
+            if plane == "native":
+                why = (f"Docker 형 참고(원천 셀 {ev.get('native_source_cell') or '미관측'} · 이 셀 run 아님 · generated-unverified) — "
+                       "이 셀은 native 정문으로 기동했다")
+            elif row.get("files"):
+                why = f"{c.topo} 서빙 경로(compose · 러너 · env 형상) — 측정 당시 개정(selected_revisions)"
+        elif name == "triplet":
+            if row.get("files"):
+                why = f"셀 id {c.cell} = 트리플렛 이름(configs/{c.cell}.yaml · .sh · envs/.env.{c.cell})"
+        if why:
+            row["machine_reason"] = why
+
+
 def _slot(files: list[str], evidence: dict, excluded: list[dict] | None = None) -> dict:
     row = {"files": sorted(files), "applicable": bool(files), "rationale": None, "evidence": evidence}
     if excluded:
@@ -2778,6 +2945,7 @@ UNVERIFIED_HEADER_KEY = "_verification"        # JSON 은 주석이 없다 — �
 NATIVE_UNVERIFIED_REASON = "native 셀(Docker 미사용)이라 이 파일은 실행 검증되지 않았다"
 NATIVE_LAUNCH_NAME = "native-launch.md"          # native 기동 기록(serve proof 가 보존하면 이 이름으로 · 없으면 Agent 요청 자리)
 _ARCH_CLASS = re.compile(r"\b([A-Z][A-Za-z0-9]*For[A-Z][A-Za-z0-9]*)\b")
+_VLLM_PY_PATH = re.compile(r"(?<![\w.-])(vllm/[A-Za-z0-9_./-]+\.py)\b")
 _MODEL_MODULE = re.compile(r"vllm/(?:model_executor/)?models/([a-z0-9_]+)(?=[/.])")
 # 모델 디렉터리 이름이 아닌 models/ 하위 공용 모듈(닫힌 목록 · tripwire — 새 공용 모듈이 보이면 여기에 더한다).
 _MODEL_MODULE_GENERIC = frozenset({"registry", "utils", "interfaces", "interfaces_base", "adapters", "module_mapping",
@@ -2966,8 +3134,11 @@ def _patch_declared(text: str, trigger: str | None) -> dict:
     """패치가 선언한 대상 — `model-trigger` 헤더(원장 `declared_model_trigger` 우선)의 아키텍처 클래스 · 패치가 고치는 vLLM 모델
     디렉터리(`vllm/models/<model_type>/`). `범용` 선언은 비대상 판정의 근거가 되지 못한다(공유 이미지 입력)."""
     trig = str(trigger or "")
-    return {"archs": sorted(set(_ARCH_CLASS.findall(trig))),
-            "modules": sorted({m for m in _MODEL_MODULE.findall(text) if m not in _MODEL_MODULE_GENERIC}),
+    mods = sorted({m for m in _MODEL_MODULE.findall(text) if m not in _MODEL_MODULE_GENERIC})
+    # F14(2026-09-29): 패치가 편집하는 vLLM 파일 중 **모델 디렉터리 밖**(공유 레이어 · 양자화 · 커널)은 다른 모델에도 닿는다 — 근거에 싣는다
+    shared = sorted({p for p in _VLLM_PY_PATH.findall(text)
+                     if not ((mm := _MODEL_MODULE.match(p)) and mm.group(1) not in _MODEL_MODULE_GENERIC)})
+    return {"archs": sorted(set(_ARCH_CLASS.findall(trig))), "modules": mods, "shared_files": shared,
             "general": "범용" in trig, "trigger": trig or None}
 
 
@@ -3050,7 +3221,10 @@ def _file_records(c: _Ctx, payload: Path, slots: dict, marks: dict, applied: dic
                 sigs = _log_signatures(texts[rel_f])
                 fired = bool(set(sigs) & hits) if sigs and logs else None
                 rec["relevance"], rec["relevance_basis"] = _relevance(decl, model, sigs, fired, len(logs))
-                rec["relevance_evidence"] = {"declared": {k: decl[k] for k in ("archs", "modules", "general")},
+                if decl.get("shared_files"):
+                    # F14(plan_26092908 §4.5): 모델 디렉터리 밖 공유 파일을 편집하면 근거에 그 목록을 싣는다(결론 불변 · 근거 완전성)
+                    rec["relevance_basis"] += f" · 편집하는 공유(모델 디렉터리 밖) 파일 {decl['shared_files']}"
+                rec["relevance_evidence"] = {"declared": {k: decl[k] for k in ("archs", "modules", "general", "shared_files")},
                                              "signatures": sigs[:3], "fired": fired, "engine_logs": len(logs)}
                 want = prow.get("script_sha256") or prow.get("image_script_sha256")
                 if want:
@@ -3058,11 +3232,14 @@ def _file_records(c: _Ctx, payload: Path, slots: dict, marks: dict, applied: dic
                     rec["script_sha256_ledger"] = want
                     rec["bytes_observed"] = rec["sha256"] == want
                 rec["applied_result"] = prow.get("result")
-            else:
+            elif m.get("verification", "verified") == "verified":
                 rec["relevance"] = "required"
-                rec["relevance_basis"] = ("재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)"
-                                          if m.get("verification", "verified") == "verified" else
-                                          "Docker 형 재현 경로 입력(패치 아님 · 이 셀은 이 경로로 실행되지 않았다)")
+                rec["relevance_basis"] = "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)"
+            else:
+                # F13(plan_26092908 §4.5): 실행되지 않은 생성물(generated-unverified)은 이 셀의 필요를 말할 신호가 없다 — required ✗
+                rec["relevance"] = "unknown"
+                rec["relevance_basis"] = (f"이 셀은 이 경로로 실행되지 않았다(generated-unverified · 생성 {rec['generated_by']}) — "
+                                          "실행 기록이 없어 필요 여부를 판정하지 않는다(참고 형상)")
             for key, vocab in (("verification", VERIFICATION_VALUES), ("generated_by", GENERATED_BY_VALUES),
                                ("relevance", RELEVANCE_VALUES)):
                 if rec[key] not in vocab:
@@ -3651,6 +3828,7 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
                       "해당 파일의 출처(트리플렛·compose·패치)를 고치거나 형상 규칙을 고친다(덧칠 ✗).")
 
     # 파일 단위 표시(2026-09-29 · plan_26092908 §4.2·§4.3): 검증·생성 주체·근거 · 관련성. 적용 집합 미관측(판정 못 한 패치)도 결손.
+    _slot_machine_reasons(c, slots, applied, sel, plane, vctx)
     rel_ctx = _relevance_context(c, slots, applied)
     _file_records(c, payload, slots, marks, applied, rel_ctx)
     if isinstance(applied, dict) and any(r.get("result") not in ("applied", "skipped") for r in applied.get("patches") or []
@@ -4106,6 +4284,19 @@ def selftest() -> list[str]:
            not ({"model", "host", "port", "served_model_name", "served-model-name"} & set(vs))
            and {"max-model-len", "kv-cache-memory-bytes", "enforce-eager", "speculative-config"} <= set(vs))
         ck("D-b 제외 목록은 닫힌 4종(tripwire)", VALUE_STATUS_EXCLUDED_KNOBS == {"model", "host", "port", "served-model-name"})
+        # F15(plan_26092908 §4.5): 주석 단어 '측정'·'수렴' 만으로 tuned ✗ → inherited + 문구 · lockset 측정 출처는 tuned 유지(음성대조)
+        ypath = out / "configs" / f"{cell}.yaml"
+        y0 = ypath.read_text(encoding="utf-8")
+        ypath.write_text(y0 + "max-num-batched-tokens: 8192   # 측정으로 고른 값\n", encoding="utf-8")
+        try:
+            vs15 = {r["knob"]: r for r in value_status_candidates(repo, ev)}
+        finally:
+            ypath.write_text(y0, encoding="utf-8")
+        ck("★F15 주석 단어 '측정' 만 = tuned ✗ → inherited + 스윕 기록 없음 문구",
+           vs15["max-num-batched-tokens"]["candidate_status"] == "inherited"
+           and vs15["max-num-batched-tokens"].get("note") == COMMENT_ONLY_TUNED_NOTE)
+        ck("F15 음성대조: lockset kv_source=measured-clamp(스윕 기록)은 tuned 유지",
+           vs15["kv-cache-memory-bytes"]["candidate_status"] == "tuned")
         steps = {s["step"]: s for s in res["reproduce_steps"]}
         ck("재현 절차 순서", [s["step"] for s in res["reproduce_steps"]] == ["render", "build", "serve", "bench"])
         ck("빌드 종료 = 이미지 Created(UTC) · ★층 CreatedAt 미관측(history JSON 판독 불가)이면 시작을 지어내지 않는다",
@@ -5122,6 +5313,69 @@ def selftest() -> list[str]:
                and recs["artifacts/build_recipe/requirements.txt"].get("bytes_observed") is True
                and any("빌드 원장 sha256 일치" in str(s_.get("method")) for s_ in
                        rn2["slots"]["build_recipe"]["evidence"]["selected_revisions"]))
+            # ── F1 · F5 · F13 · F14(2026-09-29 · plan_26092908 §4.5 FACT 생산자 교정) ──
+            ap_d = {r["file"]: r for r in rd2["applied_set"]["patches"]}
+            ck("F1 원장 경로 판정 근거: 스크립트 바이트 정체 = 원장 script_sha256 대조 · 원장 sha 를 옮긴다",
+               all("원장 script_sha256 = 작업트리 바이트" in str(ap_d[n_].get("script_identity"))
+                   and ap_d[n_].get("ledger_script_sha256") == core.sha256_file(out / "build_patches_src" / n_) for n_ in patches_fx))
+            from types import SimpleNamespace as _NS
+            ck("★F1 음성대조: 원장 sha ≠ 작업트리 → '≠' 로 적는다(일치로 접지 않는다) · 파일 없음 → 대조 불가",
+               "≠ 작업트리" in _ledger_script_identity(_NS(out=out), {"phase": "pre", "file": "70-fx-fire.sh",
+                                                                    "script_sha256": "0" * 64})["script_identity"]
+               and "파일 없음" in _ledger_script_identity(_NS(out=out), {"phase": "pre", "file": "99-none.sh",
+                                                                       "script_sha256": "0" * 64})["script_identity"]
+               and "script_identity" not in _ledger_script_identity(_NS(out=out), {"phase": "inline", "file": "x",
+                                                                                   "script_sha256": "0" * 64}))
+            ck("F5 기계 파생 사유: fork_pin 부재 = VARIANT 줄 없음 · 빌드 패치 = 적용 판정 요약 · native compose = Docker 형 참고",
+               "VARIANT 줄 없음" in str(rd2["slots"]["fork_pin"].get("machine_reason"))
+               and "applied" in str(rd2["slots"]["build_patch_pre"].get("machine_reason"))
+               and "Docker 형 참고" in str(rn2["slots"]["compose"].get("machine_reason"))
+               and "이 셀 run 아님" in str(rn2["slots"]["compose"].get("machine_reason")))
+            ck("★F5 음성대조: 기계 사유는 rationale(선언 신호)에 넣지 않는다 — confidence 불변",
+               all(v.get("rationale") is None and v["confidence"] == slot_confidence(v) for v in rd2["slots"].values()))
+            ck("★F13 generated-unverified(실행 안 된 생성물) 관련성 = unknown · 근거 '이 셀은 이 경로로 실행되지 않았다'",
+               all(r["relevance"] == "unknown" and "이 셀은 이 경로로 실행되지 않았다" in r["relevance_basis"] for r in comp))
+            ck("F13 음성대조: Docker 셀 compose(실행됨 · verified) = required",
+               all(r["relevance"] == "required" for r in rd2["slots"]["compose"]["file_records"]))
+            d14 = _patch_declared("mo=/workspace/vllm-src/vllm/model_executor/layers/quantization/modelopt.py\n"
+                                  "m=$DST/vllm/models/fx_model/mtp.py\nr=vllm/model_executor/models/registry.py\n", None)
+            ck("F14 공유 파일 = 모델 디렉터리 밖 vLLM 파일(generic 모듈 포함) · 모델 디렉터리 파일 제외",
+               d14["shared_files"] == ["vllm/model_executor/layers/quantization/modelopt.py",
+                                       "vllm/model_executor/models/registry.py"] and d14["modules"] == ["fx_model"])
+            ck("★F14 음성대조: 모델 디렉터리만 편집하면 공유 파일 없음 · 관련성 근거에 공유 목록 없음",
+               _patch_declared(patches_fx["70-fx-fire.sh"], None)["shared_files"] == []
+               and "공유" not in rel_["70-fx-fire.sh"]["relevance_basis"])
+            # ── F8 · F11(2026-09-29 · plan_26092908 §4.5): lite 측정 시각 · native run 시각 · native serve 명령 ──
+            (repo / "docs/benchmark").mkdir(parents=True, exist_ok=True)
+            lrep = repo / "docs/benchmark/bench_report_fx_lite.md"
+            lrep.write_text("# 경량 성능 보고서(lite)\n\nmode: lite\n\n> 생성일 2026-01-01T02:00:00Z.\n", encoding="utf-8")
+            nfix.append(lrep)
+            ck("F8 lite-only 셀 측정 시각 = lite 리포트 생성일(출처 표지)",
+               _lite_measured_utc(repo, {"report_kind": "lite", "bench_report_path": "docs/benchmark/bench_report_fx_lite.md"})
+               == ("2026-01-01T02:00:00Z", "lite bench_report 생성일(bench_report_fx_lite.md 머리 · lite 측정 끝)"))
+            ck("★F8 음성대조: lite 가 아니면(full 리포트) 이 원천을 쓰지 않는다",
+               _lite_measured_utc(repo, {"report_kind": None, "bench_report_path": "docs/benchmark/bench_report_fx_lite.md"})[0] is None)
+            ndir = repo / "docs/simlog/fx_n1"
+            (ndir / "logs").mkdir(parents=True, exist_ok=True)
+            core.write_json(ndir / "logs/state.json", {"created_utc": "2026-01-01T00:00:00Z", "up_completed_utc": "2026-01-01T00:30:00Z"})
+            core.write_json(ndir / "wheelhouse-build-main.json", {"elapsed_s_monotonic": 400.5})
+            spx = {"evidence_dir": "docs/simlog/fx_n1", "health": {"ready_after_s": 600}, "run_id": "r1", "cell": ncell,
+                   "source_cell": cell}
+            cx = _NS(repo=repo, ev={"serve_proof": spx}, cell=ncell)
+            ntx = _native_run_timing(cx)
+            ck("F11 native run 시각: install = created → serve 시작(상한) · serve = up_completed − ready_after_s → up_completed",
+               ntx.get("created") == "2026-01-01T00:00:00Z" and ntx.get("serve_start") == "2026-01-01T00:20:00Z"
+               and ntx.get("up_completed") == "2026-01-01T00:30:00Z" and ntx.get("wheelhouse") == {"main": 400.5}
+               and "ready_after_s=600" in ntx.get("serve_src", ""))
+            scx, ssx = _native_serve_command(cx)
+            ck("F11 native serve 명령 = native 정문 up(serve proof cell · run_id · source_cell) · down 정리 · 재구성 표지",
+               f"native_multinode_serve.py up --cell {ncell} --run-id r1 --source-cell {cell} --apply" in scx
+               and "down --cell" in scx and ssx.startswith("reconstructed(serve proof") and "--plane native" not in scx)
+            ck("★F11 음성대조: evidence_dir 절대경로 · 부재 → 시각 없음(합성 ✗) · run_id 없음 → 자리표시 + derived",
+               _native_run_timing(_NS(repo=repo, ev={"serve_proof": dict(spx, evidence_dir=str(ndir))}, cell=ncell)) == {}
+               and _native_run_timing(_NS(repo=repo, ev={"serve_proof": {}}, cell=ncell)) == {}
+               and _native_serve_command(_NS(repo=repo, ev={"serve_proof": {}}, cell=ncell))[1].startswith("derived("))
+            shutil.rmtree(ndir)
             # 관련성 음성대조: 모델 config 미관측이면 선언·발화가 있어도 unknown(추론을 확정처럼 쓰지 않는다)
             rn_u = collect(repo, {k: v for k, v in ev_n.items() if k not in ("model_architectures", "model_type")},
                            repo / "p_nat_u2", render_module=fake_rd, runner=docker_old)
