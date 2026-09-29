@@ -1,0 +1,276 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26090819",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/plan/plan_26090819_ds4f0731_멀티TP2_KV3군_1M768K_광의탐색_Hermes.md",
+      "role": "plan",
+      "stem": "plan_26090819_ds4f0731_멀티TP2_KV3군_1M768K_광의탐색_Hermes"
+    },
+    {
+      "date": "26090820",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26090820_ds4f0731_vllm029rc6_multi_bump.md",
+      "role": "plan",
+      "stem": "plan_26090820_ds4f0731_vllm029rc6_multi_bump"
+    },
+    {
+      "date": "26090820",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26090820_ds4f0731_vllm029rc6_multi_bump.md",
+      "role": "testlog",
+      "stem": "testlog_26090820_ds4f0731_vllm029rc6_multi_bump"
+    },
+    {
+      "date": "26090820",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26090820_ds4f0731_vllm029rc6_multi_bump.md",
+      "role": "devlog",
+      "stem": "devlog_26090820_ds4f0731_vllm029rc6_multi_bump"
+    },
+    {
+      "date": "26090904",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26090904_ds4f0731_029rc6_attempt_build_스모크_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26090904_ds4f0731_029rc6_attempt_build_스모크_판정"
+    },
+    {
+      "date": "26090912",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26090912_ds4f0731_029rc6_광의탐색_종합판정.md",
+      "role": "testlog",
+      "stem": "testlog_26090912_ds4f0731_029rc6_광의탐색_종합판정"
+    },
+    {
+      "date": "26090912",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/devlog/devlog_26090912_ds4f0731_광의탐색_셀루프_서사.md",
+      "role": "devlog",
+      "stem": "devlog_26090912_ds4f0731_광의탐색_셀루프_서사"
+    },
+    {
+      "date": "26090912",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/sweep_map_26090912_b768k_levers.md",
+      "role": "sweep_map",
+      "stem": "sweep_map_26090912_b768k_levers"
+    },
+    {
+      "date": "26090912",
+      "depth": 1,
+      "excerpts": 1,
+      "path": "docs/benchmark/sweep_map_26090912_e1m_levers.md",
+      "role": "sweep_map",
+      "stem": "sweep_map_26090912_e1m_levers"
+    },
+    {
+      "date": "26091412",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26091412_하네스교정_항목1_acceptlen승계_소급재판정.md",
+      "role": "testlog",
+      "stem": "testlog_26091412_하네스교정_항목1_acceptlen승계_소급재판정"
+    },
+    {
+      "date": "26092807",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26092807_커널7_0_NCCL_RoCE_회귀_1차검증.md",
+      "role": "testlog",
+      "stem": "testlog_26092807_커널7_0_NCCL_RoCE_회귀_1차검증"
+    },
+    {
+      "date": "26092808",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26092808_커널7_0_DS4F0731_멀티캠페인_RoCE재현_1M서빙_풀벤치_hint.md",
+      "role": "plan",
+      "stem": "plan_26092808_커널7_0_DS4F0731_멀티캠페인_RoCE재현_1M서빙_풀벤치_hint"
+    },
+    {
+      "date": "26092808",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/testlog/testlog_26092808_커널7_0_DS4F0731_RoCE_1M서빙_회귀판정.md",
+      "role": "testlog",
+      "stem": "testlog_26092808_커널7_0_DS4F0731_RoCE_1M서빙_회귀판정"
+    },
+    {
+      "date": "26092809",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26092809_커널7_0_DS4F0731_RoCE_멀티캠페인_서사.md",
+      "role": "devlog",
+      "stem": "devlog_26092809_커널7_0_DS4F0731_RoCE_멀티캠페인_서사"
+    },
+    {
+      "date": "26092809",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26092809_deepseek-v4-flash-0731_GB10_0.29.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26092809_deepseek-v4-flash-0731_GB10_0.29.0"
+    },
+    {
+      "date": "26092809",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/sweep_map_26092809_ds4f0731_k70_roce_1m.md",
+      "role": "sweep_map",
+      "stem": "sweep_map_26092809_ds4f0731_k70_roce_1m"
+    },
+    {
+      "date": "26092908",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26092908_hint_publisher_v7_발행규칙_native구조통일_적대검증후속.md",
+      "role": "plan",
+      "stem": "plan_26092908_hint_publisher_v7_발행규칙_native구조통일_적대검증후속"
+    },
+    {
+      "date": "26092914",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26092914_hint_v7_구현_재생_라이브_서사.md",
+      "role": "devlog",
+      "stem": "devlog_26092914_hint_v7_구현_재생_라이브_서사"
+    },
+    {
+      "date": "26092914",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26092914_deepseek-v4-flash-0731_GB10_0.29.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26092914_deepseek-v4-flash-0731_GB10_0.29.0"
+    },
+    {
+      "date": "26092914",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/sweep_map_26092914_ds4f0731_hint_v7_e2e.md",
+      "role": "sweep_map",
+      "stem": "sweep_map_26092914_ds4f0731_hint_v7_e2e"
+    },
+    {
+      "date": "26092914",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26092914_54_41_hint_v7_라이브E2E_DS4F0731_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26092914_54_41_hint_v7_라이브E2E_DS4F0731_판정"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [
+      {
+        "excerpts": 1,
+        "path": "docs/simlog/26092914_54_41_hint_v7_live_ds4f/serve.log"
+      },
+      {
+        "excerpts": 1,
+        "path": "docs/simlog/26092914_54_41_hint_v7_live_ds4f/toolcall.txt"
+      }
+    ],
+    "count": 133
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26092914",
+  "schema_version": 2,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26092809_deepseek-v4-flash-0731_GB10_0.29.0.md",
+      "sha256": "9937ccd0a0fbde62a88ef029bc1a53f0793eb5e0487aade84b6a06aee01e2600"
+    },
+    {
+      "path": "docs/benchmark/bench_report_26092914_deepseek-v4-flash-0731_GB10_0.29.0.md",
+      "sha256": "20774868b03e9bf48aa27995d3a6f1aa60cc7796657430509b31fde3b8c6f09a"
+    },
+    {
+      "path": "docs/benchmark/benchmark_26092809_deepseek-v4-flash-0731_GB10_0.29.0.yaml",
+      "sha256": "f3229e93e741111a96dd0380c76acde1228e4bab5761cb88a72235ae81ebe26f"
+    },
+    {
+      "path": "docs/benchmark/sweep_map_26090912_b768k_levers.md",
+      "sha256": "99628a5b5899866c6639cb1cd1202856dc0c4b175eaaeb91c0747466a21d235c"
+    },
+    {
+      "path": "docs/benchmark/sweep_map_26090912_e1m_levers.md",
+      "sha256": "c034034946e4249618cf96855cd7b897d825df4cf52d83bccaea3680ebe0b8d2"
+    },
+    {
+      "path": "docs/benchmark/sweep_map_26092809_ds4f0731_k70_roce_1m.md",
+      "sha256": "95aed9b0cb5169c81340f8d04564d1db36a3a2f0633998da0b3e68461cbcef45"
+    },
+    {
+      "path": "docs/devlog/devlog_26090912_ds4f0731_광의탐색_셀루프_서사.md",
+      "sha256": "6d217e6ee144404730d4e09a53bfe87eaa76fa8b9edb68a5e33f834641d446da"
+    },
+    {
+      "path": "docs/devlog/devlog_26092809_커널7_0_DS4F0731_RoCE_멀티캠페인_서사.md",
+      "sha256": "e901ff6e5094d49c9f0c8ea79c28e504f528f2c7149f1f3ba2b8a8728ee393c4"
+    },
+    {
+      "path": "docs/plan/plan_26090819_ds4f0731_멀티TP2_KV3군_1M768K_광의탐색_Hermes.md",
+      "sha256": "96b30744ddbec3dee3c3973c6ed4db50cbbe8151c19ad3142b21e1649456403c"
+    },
+    {
+      "path": "docs/plan/plan_26092808_커널7_0_DS4F0731_멀티캠페인_RoCE재현_1M서빙_풀벤치_hint.md",
+      "sha256": "8ebe5b24ac40b43676a20842766d07c4afec8a6450f92ee68998a274a9d7cc62"
+    },
+    {
+      "path": "docs/simlog/26092914_54_41_hint_v7_live_ds4f/serve.log",
+      "sha256": "4c26d3e2195ac7d641065180ff19beece6881dc3aa9ff3dae5c4b9e223d8ec93"
+    },
+    {
+      "path": "docs/simlog/26092914_54_41_hint_v7_live_ds4f/toolcall.txt",
+      "sha256": "31a4bc71eebd5a5fdb31a1e0c4262b70fe4c2498b6060f1752fbdf0ed3644ed7"
+    },
+    {
+      "path": "docs/testlog/testlog_26090904_ds4f0731_029rc6_attempt_build_스모크_판정.md",
+      "sha256": "851fd0f27dbff17993656f51adb10f02b2f83f96083df381281b312234fbaa7a"
+    },
+    {
+      "path": "docs/testlog/testlog_26090912_ds4f0731_029rc6_광의탐색_종합판정.md",
+      "sha256": "21e1face2a5ca92a88f21790a9a463da3dfa2617d9f97455e8e00408e1e4be11"
+    },
+    {
+      "path": "docs/testlog/testlog_26091412_하네스교정_항목1_acceptlen승계_소급재판정.md",
+      "sha256": "fdccb5fb6ebedfc8ea435222ed38c9c2ffe9decf24b3aee672e9c348d6d3115e"
+    },
+    {
+      "path": "docs/testlog/testlog_26092807_커널7_0_NCCL_RoCE_회귀_1차검증.md",
+      "sha256": "7780a1297a177f1c6ee5bee0b14774bc5549564530e371329396bd29a84aa9c8"
+    },
+    {
+      "path": "docs/testlog/testlog_26092808_커널7_0_DS4F0731_RoCE_1M서빙_회귀판정.md",
+      "sha256": "9b33e4263dac501468a5a13d8a0e756c17c7bf3efd882852e0618d75a9bbde71"
+    },
+    {
+      "path": "docs/testlog/testlog_26092914_54_41_hint_v7_라이브E2E_DS4F0731_판정.md",
+      "sha256": "5c4b0bed1f20f98e327075a30b76745a81dbb4ada8f3aa66dbb4f8dc8b98a878"
+    },
+    {
+      "path": "output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json",
+      "sha256": "84e406313d8375a1e29219c1fddfae57c91bc776a229df1bfe9aa1c0bdb2ad12"
+    },
+    {
+      "path": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log",
+      "sha256": "ff9c3b693d42fe4456882b25cdd83718b738ed8d0adbed216e0de920f1bccfb0"
+    },
+    {
+      "path": "output/multi/benchlog/sweep_e-1m-kvfp8-e1combo/lite_engine_e-1m-kvfp8-e1combo.log",
+      "sha256": "f26c4d9e05859889d6c107a276de8fb9917beb255d9bc2087c510b826c9efe8c"
+    }
+  ]
+}

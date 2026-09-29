@@ -1,0 +1,1705 @@
+{
+  "agent_requests": [],
+  "applied_set": {
+    "excluded": [
+      {
+        "file": ".gitkeep",
+        "phase": "post",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      },
+      {
+        "file": ".gitkeep",
+        "phase": "pre",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      },
+      {
+        "file": "PROVENANCE.json",
+        "phase": "pre",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      },
+      {
+        "file": "files/",
+        "phase": "pre",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      }
+    ],
+    "patches": [
+      {
+        "declared_model_trigger": "DeepseekV4ForCausalLM(0731 정식판) + `--speculative-config method=dspark`.",
+        "file": "50-dsv4-sm12x-port.sh",
+        "ledger_result_source": "log-token",
+        "ledger_script_sha256": "784cd57f20a070b7dee8a3aa4c1cc516b513d46ea161d735b9d43eca81bc77bb",
+        "phase": "pre",
+        "reason": "[50-dsv4-sm12x-port] skip — SM12X_PORT=0 (stock 빌드 경로 불변)",
+        "result": "skipped",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "784cd57f20a070b7dee8a3aa4c1cc516b513d46ea161d735b9d43eca81bc77bb"
+      },
+      {
+        "file": "55-src-deps-authority.sh",
+        "ledger_result_source": "log-token",
+        "ledger_script_sha256": "1f2aed56d94233b341157370ce4cebefd34e15979d0e90e5d5fed4d3ef4467a6",
+        "phase": "pre",
+        "reason": "[55-src-deps] skip — SRC_DEPS_AUTHORITY=0 (constraint 그대로 · stock 빌드 경로 불변)",
+        "result": "skipped",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "1f2aed56d94233b341157370ce4cebefd34e15979d0e90e5d5fed4d3ef4467a6"
+      },
+      {
+        "file": "60-qwen4exp-nvfp4-mixed.sh",
+        "ledger_result_source": "exit-code",
+        "ledger_script_sha256": "a28f42b0b7a4a462c005c6ec74be9896a11131f628038061b96c3ad967070957",
+        "phase": "pre",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "a28f42b0b7a4a462c005c6ec74be9896a11131f628038061b96c3ad967070957"
+      },
+      {
+        "file": "62-qwen4exp-ple-mmap.sh",
+        "ledger_result_source": "exit-code",
+        "ledger_script_sha256": "5e779aec4ac7987d00ca128faa9eb6b6fcb6d78f50b16ea0c3cfee63809825d2",
+        "phase": "pre",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "5e779aec4ac7987d00ca128faa9eb6b6fcb6d78f50b16ea0c3cfee63809825d2"
+      },
+      {
+        "file": "64-qwen4exp-qsa-fp8kv.sh",
+        "ledger_result_source": "exit-code",
+        "ledger_script_sha256": "c5ed51bba3901475d4482a99e7123de46a2f7a2c7fffbf74a0a5cb83736896e3",
+        "phase": "pre",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "c5ed51bba3901475d4482a99e7123de46a2f7a2c7fffbf74a0a5cb83736896e3"
+      },
+      {
+        "declared_model_trigger": "DeepseekV4ForCausalLM FP8 block-scale dense/MoE (SM12x). 범용 arch-enablement(모델-키잉 ✗ — 이미지 네이밍 불변식).",
+        "file": "10-deepgemm.sh",
+        "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger: DeepseekV4ForCausalLM FP8 block-scale dense/MoE (SM12x). 범용 arch-enablement(모델-키잉 ✗ — 이미지 네이밍 불변식).)",
+        "ledger_result_source": "exit-code",
+        "ledger_script_sha256": "bdfd5412c3b7a58133006436bc2c9960a2433a67d92277a2b12b63d1364c7589",
+        "phase": "post",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "bdfd5412c3b7a58133006436bc2c9960a2433a67d92277a2b12b63d1364c7589",
+        "shared_image_input": true
+      },
+      {
+        "declared_model_trigger": "DeepseekV4ForCausalLM (MXFP4 MoE 74GiB/node — MARLIN repack 미적합). 범용(MXFP4 MoE 의 TRITON 경로 필요 모델 공통).",
+        "file": "20-triton-kernels.sh",
+        "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger: DeepseekV4ForCausalLM (MXFP4 MoE 74GiB/node — MARLIN repack 미적합). 범용(MXFP4 MoE 의 TRITON 경로 필요 모델 공통).)",
+        "ledger_result_source": "exit-code",
+        "ledger_script_sha256": "e263f424720d666e7915aa2d07d0c4878257ad04b45ade39fabdf67aa3ff2824",
+        "phase": "post",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "e263f424720d666e7915aa2d07d0c4878257ad04b45ade39fabdf67aa3ff2824",
+        "shared_image_input": true
+      },
+      {
+        "file": "30-mxfp4-triton-sm121.sh",
+        "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger 헤더 없음)",
+        "ledger_result_source": "exit-code",
+        "ledger_script_sha256": "161dce749a830f55c6c1b43a643929794006b8e5bfa3d55dd6e99654e5958a39",
+        "phase": "post",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "161dce749a830f55c6c1b43a643929794006b8e5bfa3d55dd6e99654e5958a39",
+        "shared_image_input": true
+      },
+      {
+        "file": "40-humming-nvml-gb10.sh",
+        "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger 헤더 없음)",
+        "ledger_result_source": "exit-code",
+        "ledger_script_sha256": "a9f1a94390997c669c3e469debdaa28f0e581910f1f0ed3432dfd8798c4f5c2e",
+        "phase": "post",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "a9f1a94390997c669c3e469debdaa28f0e581910f1f0ed3432dfd8798c4f5c2e",
+        "shared_image_input": true
+      },
+      {
+        "file": "strip-hoist",
+        "ledger_result_source": "status-file",
+        "phase": "inline",
+        "reason": "register_opaque_type accepts hoist / opaque_object 부재",
+        "result": "skipped",
+        "result_source": "build-ledger"
+      }
+    ],
+    "per_node_patchsets": {
+      "main": [
+        "inline/strip-hoist=skipped",
+        "post/10-deepgemm.sh=applied",
+        "post/20-triton-kernels.sh=applied",
+        "post/30-mxfp4-triton-sm121.sh=applied",
+        "post/40-humming-nvml-gb10.sh=applied",
+        "pre/50-dsv4-sm12x-port.sh=skipped",
+        "pre/55-src-deps-authority.sh=skipped",
+        "pre/60-qwen4exp-nvfp4-mixed.sh=applied",
+        "pre/62-qwen4exp-ple-mmap.sh=applied",
+        "pre/64-qwen4exp-qsa-fp8kv.sh=applied"
+      ],
+      "sub": [
+        "inline/strip-hoist=skipped",
+        "post/10-deepgemm.sh=applied",
+        "post/20-triton-kernels.sh=applied",
+        "post/30-mxfp4-triton-sm121.sh=applied",
+        "post/40-humming-nvml-gb10.sh=applied",
+        "pre/50-dsv4-sm12x-port.sh=skipped",
+        "pre/55-src-deps-authority.sh=skipped",
+        "pre/60-qwen4exp-nvfp4-mixed.sh=applied",
+        "pre/62-qwen4exp-ple-mmap.sh=applied",
+        "pre/64-qwen4exp-qsa-fp8kv.sh=applied"
+      ]
+    },
+    "probes": [
+      {
+        "ref": "output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json",
+        "result": "observed",
+        "tier": "attestation"
+      }
+    ],
+    "source": "attestation:output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json#main",
+    "status": "observed"
+  },
+  "approval": {
+    "approved_by": "사용자(발화 전사, plan_26092908 G4) — \"모든 안을 승인하고 E2E테스트도 필요하다면 진행해\" — G4 셀 발행 사전승인 포함",
+    "approved_utc": "2026-09-29T04:52:40Z",
+    "source": "campaign:hint_targets"
+  },
+  "attestation_scope": {
+    "bound_by": "cell-name",
+    "config": "ds4f0731-1m-spec7-roce",
+    "measure_window": {
+      "end_utc": "2026-09-29T05:52:10Z",
+      "source": "시작 output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/lite_cold_ds4f0731-1m-spec7-roce.json · 끝 = 측정 키(인증서 measured_utc · 스윕 generated_utc · lite 리포트 생성일)",
+      "start_utc": "2026-09-29T05:13:42Z"
+    },
+    "path": "output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json",
+    "phase": "serve",
+    "scope": "same config(ds4f0731-1m-spec7-roce) · serve — 측정을 서빙한 같은 기동의 스모크 직후 관측(판별: 스모크 로그 docs/simlog/26092914_54_41_hint_v7_live_ds4f/serve.log L33 SMOKE PASS → L34 attestation 작성 → L37 --keep-up · 원장 docs/logs/main/events/2026-09.jsonl:1073 budget_declare(smoke-ds4f0731-1m-spec7-roce · 2026-09-29T04:54:44Z) 가 측정 끝 2026-09-29T05:52:10Z 까지 재선언 · 창 닫힘 없이 이어짐(main 원장 기록 범위 안) · 스모크 로그 budget_honored ts 2026-09-29T04:54:45Z = 그 선언의 원장 budget_honored · 측정 엔진 로그 APIServer pid 790 하나 · 측정 시작 2026-09-29T05:13:42Z)",
+    "timing": "before-measurement",
+    "timing_note": "작성 2026-09-29T05:12:32Z < 측정 시작 2026-09-29T05:13:42Z — 측정 전(빌드·스모크)의 관측",
+    "written_utc": "2026-09-29T05:12:32Z",
+    "written_utc_source": "output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json 파일 mtime(파일시스템 관측 — 문서에 시각 칸이 없다 · 기록 필드 아님)"
+  },
+  "bench_definition": {
+    "bench_tool": "guidellm",
+    "bench_tool_source": "bench_report(bench_report_26092914_deepseek-v4-flash-0731_GB10_0.29.0.md)",
+    "current_full_definition": "full 계측(`lite ∪ GuideLLM × 반복 ≥3`)",
+    "meets_current_full": true,
+    "reasons": [
+      "판정점 반복 3 ≥ 3 · 도구 guidellm"
+    ],
+    "repeats_requested": 3,
+    "repeats_source": "측정 구성 표 repeats_completed(완주 · bench_report(bench_report_26092914_deepseek-v4-flash-0731_GB10_0.29.0.md))",
+    "required_legs": [
+      "lite",
+      "GuideLLM"
+    ],
+    "required_repeats": 3,
+    "source": ".claude/rules/docs.md",
+    "source_line": 63,
+    "this_repeats": 3,
+    "verdict_level": 1
+  },
+  "build": {
+    "cpu_arch": "arm64",
+    "cuda": "13.3.1.008",
+    "dockerfile": "Dockerfile.source-build",
+    "driver": "580.178.04",
+    "driver_by_node": {
+      "main": "580.178.04",
+      "sub": "580.178.04"
+    },
+    "driver_conflict": {
+      "declared": "580.173.02",
+      "observed": "580.178.04",
+      "sources": {
+        "declared": "sweep_index.meta.driver_version(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce · 측정 시 조립 — sweep_bench.sh 가 manifest 에서 읽는다) (manifest 선언 옮김)",
+        "observed": "attestation parity.driver(output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json · 노드별 관측 · verdict=equal) — main=sub 일치 · 작성 2026-09-29T05:12:32Z < 측정 시작 2026-09-29T05:13:42Z — 측정 전(빌드·스모크)의 관측 · 측정을 서빙한 같은 기동의 스모크 직후 관측(판별 근거 = attestation 범위 줄 · 스모크 로그 docs/simlog/26092914_54_41_hint_v7_live_ds4f/serve.log)"
+      }
+    },
+    "image_digest": "sha256:a2c4ca499fb2473191bcdfc7e192445750b4a7b6803cfe14e50b43f401000544",
+    "image_tag": "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+    "ngc": "nvcr.io/nvidia/pytorch:26.07-py3",
+    "os": null,
+    "source": {
+      "cpu_arch": "docker image inspect Architecture",
+      "cuda": "docker image inspect Config.Env CUDA_VERSION",
+      "dockerfile": "build-ledger.dockerfile",
+      "driver": "attestation parity.driver(output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json · 노드별 관측 · verdict=equal) — main=sub 일치 · 작성 2026-09-29T05:12:32Z < 측정 시작 2026-09-29T05:13:42Z — 측정 전(빌드·스모크)의 관측 · 측정을 서빙한 같은 기동의 스모크 직후 관측(판별 근거 = attestation 범위 줄 · 스모크 로그 docs/simlog/26092914_54_41_hint_v7_live_ds4f/serve.log) · ⚠ 선언 580.173.02 과 다르다(driver_conflict)",
+      "driver_by_node": "attestation parity.driver(output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json · 노드별 관측 · verdict=equal) — main=sub 일치 · 작성 2026-09-29T05:12:32Z < 측정 시작 2026-09-29T05:13:42Z — 측정 전(빌드·스모크)의 관측 · 측정을 서빙한 같은 기동의 스모크 직후 관측(판별 근거 = attestation 범위 줄 · 스모크 로그 docs/simlog/26092914_54_41_hint_v7_live_ds4f/serve.log)",
+      "image_digest": "sweep_index.meta.image_digest(measured(docker inspect .Image))",
+      "image_tag": "셀 env(output/multi/envs/.env.ds4f0731-1m-spec7-roce) IMAGE_TAG",
+      "ngc": "docker image inspect Config.Env NVIDIA_PYTORCH_VERSION = resolved.json ngc_base.image 접두 일치",
+      "os": "미관측(attestation·인증서·스윕 meta·manifest 에 ['os', 'os_release', 'os_name', 'os_version', 'kernel', 'kernel_release'] 키 없음 — 지어내지 않는다)",
+      "torch": "docker image inspect Config.Env PYTORCH_VERSION",
+      "track": "artifacts 선택자(build-ledger.dockerfile)",
+      "vllm_ref": "docker history build-arg VLLM_REF",
+      "vllm_repo": "docker history build-arg VLLM_REPO",
+      "vllm_sha": "output/multi/resolved.json upstream_delta.to_sha"
+    },
+    "torch": "2.13.0a0+9186a08",
+    "track": "source-build",
+    "vllm_ref": "v0.29.0rc6",
+    "vllm_repo": "https://github.com/vllm-project/vllm.git",
+    "vllm_sha": "74c96922ecb9017f413318c76d1af83aa2ab45a5"
+  },
+  "build_context_map": [
+    {
+      "basis": "compose env_file envs/.env.${CONFIG_FILE}(셀 env)",
+      "context_path": "envs/.env.ds4f0731-1m-spec7-roce",
+      "slot_path": "artifacts/triplet/.env.ds4f0731-1m-spec7-roce"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/ds4f0731-1m-spec7-roce.sh",
+      "slot_path": "artifacts/triplet/ds4f0731-1m-spec7-roce.sh"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/ds4f0731-1m-spec7-roce.yaml",
+      "slot_path": "artifacts/triplet/ds4f0731-1m-spec7-roce.yaml"
+    },
+    {
+      "basis": "Dockerfile.source-build COPY build_patches_src/",
+      "context_path": "build_patches_src/60-qwen4exp-nvfp4-mixed.sh",
+      "slot_path": "artifacts/build_patch_pre/60-qwen4exp-nvfp4-mixed.sh"
+    },
+    {
+      "basis": "Dockerfile.source-build COPY build_patches_src/",
+      "context_path": "build_patches_src/62-qwen4exp-ple-mmap.sh",
+      "slot_path": "artifacts/build_patch_pre/62-qwen4exp-ple-mmap.sh"
+    },
+    {
+      "basis": "Dockerfile.source-build COPY build_patches_src/",
+      "context_path": "build_patches_src/64-qwen4exp-qsa-fp8kv.sh",
+      "slot_path": "artifacts/build_patch_pre/64-qwen4exp-qsa-fp8kv.sh"
+    },
+    {
+      "basis": "Dockerfile.source-build COPY build_patches/",
+      "context_path": "build_patches/10-deepgemm.sh",
+      "slot_path": "artifacts/build_patch_post/10-deepgemm.sh"
+    },
+    {
+      "basis": "Dockerfile.source-build COPY build_patches/",
+      "context_path": "build_patches/20-triton-kernels.sh",
+      "slot_path": "artifacts/build_patch_post/20-triton-kernels.sh"
+    },
+    {
+      "basis": "Dockerfile.source-build COPY build_patches/",
+      "context_path": "build_patches/30-mxfp4-triton-sm121.sh",
+      "slot_path": "artifacts/build_patch_post/30-mxfp4-triton-sm121.sh"
+    },
+    {
+      "basis": "Dockerfile.source-build COPY build_patches/",
+      "context_path": "build_patches/40-humming-nvml-gb10.sh",
+      "slot_path": "artifacts/build_patch_post/40-humming-nvml-gb10.sh"
+    },
+    {
+      "basis": "compose build.dockerfile ${BUILD_DOCKERFILE} · build.context .",
+      "context_path": "Dockerfile.source-build",
+      "slot_path": "artifacts/build_recipe/Dockerfile.source-build"
+    },
+    {
+      "basis": "Dockerfile.source-build COPY requirements.txt",
+      "context_path": "requirements.txt",
+      "slot_path": "artifacts/build_recipe/requirements.txt"
+    },
+    {
+      "basis": "compose env_file envs/.env.cluster",
+      "context_path": "envs/.env.cluster",
+      "slot_path": "artifacts/compose/.env.cluster.template"
+    },
+    {
+      "basis": "compose env_file envs/.env.interconnect",
+      "context_path": "envs/.env.interconnect",
+      "slot_path": "artifacts/compose/.env.interconnect.template"
+    },
+    {
+      "basis": "compose 변수치환 프로젝트 .env(${…} 참조)",
+      "context_path": ".env",
+      "slot_path": "artifacts/compose/.env.template"
+    },
+    {
+      "basis": "compose 파일(빌드 컨텍스트 루트)",
+      "context_path": "docker-compose.yaml",
+      "slot_path": "artifacts/compose/docker-compose.yaml"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/serve_runner.sh",
+      "slot_path": "artifacts/compose/serve_runner.sh"
+    },
+    {
+      "basis": "빌드 컨텍스트 입력 아님(Dockerfile COPY · compose 참조 밖)",
+      "context_path": null,
+      "slot_path": "artifacts/compose/sub_recipe.json"
+    }
+  ],
+  "campaign": {
+    "cell": "ds4f0731-1m-spec7-roce",
+    "id": "camp-26092913-hint-v7-e2e",
+    "mode": "campaign",
+    "node": "cluster"
+  },
+  "evidence_pointers": [
+    {
+      "cell_id": "ds4f0731-1m-spec7-roce",
+      "kind": "bench_report",
+      "node_id": "cluster",
+      "path": "docs/benchmark/bench_report_26092914_deepseek-v4-flash-0731_GB10_0.29.0.md"
+    },
+    {
+      "cell_id": "ds4f0731-1m-spec7-roce",
+      "kind": "devlog",
+      "node_id": "main",
+      "path": "docs/devlog/devlog_26092914_hint_v7_구현_재생_라이브_서사.md"
+    },
+    {
+      "cell_id": "ds4f0731-1m-spec7-roce",
+      "kind": "simlog",
+      "node_id": "main",
+      "path": "docs/simlog/26092914_54_41_hint_v7_live_ds4f"
+    },
+    {
+      "cell_id": "ds4f0731-1m-spec7-roce",
+      "kind": "sweep_map",
+      "node_id": "cluster",
+      "path": "docs/benchmark/sweep_map_26092914_ds4f0731_hint_v7_e2e.md"
+    },
+    {
+      "cell_id": "ds4f0731-1m-spec7-roce",
+      "kind": "testlog",
+      "node_id": "main",
+      "path": "docs/testlog/testlog_26092914_54_41_hint_v7_라이브E2E_DS4F0731_판정.md"
+    }
+  ],
+  "factcheck": {
+    "author": "hint 발행 저작 Agent",
+    "checked_utc": "2026-09-29T06:38:58Z",
+    "checker": "독립 사실 검증 Agent(비저작)",
+    "claims_checked": 245,
+    "fixed": 11,
+    "items": 11,
+    "open": [],
+    "reason_code": null,
+    "source": "inputs/factcheck.json",
+    "status": "passed"
+  },
+  "format": "hint-payload/v7",
+  "generated_utc": "2026-09-29T05:55:19Z",
+  "identity": {
+    "base_model": null,
+    "base_slug": "deepseek-v4-flash-0731",
+    "gpu": "NVIDIA GB10",
+    "hf_repo": "deepseek-ai/DeepSeek-V4-Flash-0731",
+    "hf_revision": "7872f01b1d1fe23eabc4c98b48bffcef5a386062",
+    "model": "deepseek-v4-flash-0731",
+    "quant": "fp8",
+    "quant_composition": [
+      {
+        "dtype": "fp8 (fmt=e4m3 · weight_block_size=[128, 128])",
+        "scope": "quantization_config 선언 대상(양자화 층 · 제외 목록 밖)",
+        "source": "/app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731 → <manifest.nas_model_path>/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731/config.json quantization_config quant_method"
+      },
+      {
+        "dtype": "fp4",
+        "scope": "routed experts",
+        "source": "/app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731 → <manifest.nas_model_path>/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731/config.json expert_dtype"
+      },
+      {
+        "dtype": "bfloat16",
+        "scope": "기본 dtype(비양자화 가중치·계산)",
+        "source": "/app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731 → <manifest.nas_model_path>/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731/config.json torch_dtype"
+      }
+    ],
+    "source": {
+      "base_model": "README 머리 YAML 에 base_model 없음(/app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731 → <manifest.nas_model_path>/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731)",
+      "base_slug": "model(deepseek-v4-flash-0731) − vocab quant_suffixes(naming.base_slug)",
+      "gpu": "sweep_index.meta(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce)",
+      "hf_repo": "체크포인트 .git/config remote url(huggingface.co · /app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731 → <manifest.nas_model_path>/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731)",
+      "hf_revision": "체크포인트 .git HEAD → refs/heads/main → loose ref(/app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731 → <manifest.nas_model_path>/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731) · refs/remotes/origin/main 와 일치(받아 온 원격 커밋) — checkout 커밋(작업트리 일치는 미검증) · reflog: 측정 시점 checkout = 지금 HEAD(measured_utc 2026-09-29T05:52:10Z 이전 마지막 이동 2026-08-31T07:23:00Z)",
+      "model": "sweep_index.meta(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce)",
+      "quant": "sweep_index.meta(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce)",
+      "quant_composition": "/app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731 → <manifest.nas_model_path>/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731/config.json(+hf_quant_config.json) 관측 칸(evidence._quant_composition 닫힌 목록)",
+      "topology": "sweep_index.meta(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce)",
+      "tp": "sweep_index.meta(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce)",
+      "vllm": "sweep_index.meta(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce)"
+    },
+    "topology": "multi",
+    "tp": 2,
+    "vllm": "0.29.0"
+  },
+  "measurement": {
+    "accept_len": "2.015789473684211",
+    "benchmark_mode": "full",
+    "decode_tps_conc1": "30.95",
+    "floor_tps": "26.61",
+    "generated_utc": "2026-09-29T05:52:10Z",
+    "levels": [
+      {
+        "accept_len": 2.015789473684211,
+        "completed": 16,
+        "decode_tps": 30.95,
+        "decode_tps_mean": 31.09,
+        "failed": 0,
+        "itl_ms_median": 29.751085767558976,
+        "level": 1,
+        "max_concurrency": 1,
+        "measurement_ok": true,
+        "output_throughput": 31.243207885842807,
+        "status": "ok",
+        "tpot_ms_median": 32.30905719101429,
+        "ttft_ms_median": 676.0509014129639
+      },
+      {
+        "accept_len": 2.015789473684211,
+        "completed": 17,
+        "decode_tps": 16.39,
+        "decode_tps_mean": 16.58,
+        "failed": 0,
+        "itl_ms_median": 30.34367841832778,
+        "level": 2,
+        "max_concurrency": 2,
+        "measurement_ok": true,
+        "output_throughput": 33.211972182417334,
+        "status": "ok",
+        "tpot_ms_median": 61.008185148239136,
+        "ttft_ms_median": 8191.826105117798
+      },
+      {
+        "accept_len": 2.015789473684211,
+        "completed": 18,
+        "decode_tps": 8.26,
+        "decode_tps_mean": 8.89,
+        "failed": 0,
+        "itl_ms_median": 30.50840508704092,
+        "level": 4,
+        "max_concurrency": 4,
+        "measurement_ok": true,
+        "output_throughput": 32.474816698111816,
+        "status": "ok",
+        "tpot_ms_median": 121.095004491508,
+        "ttft_ms_median": 23352.819442749023
+      },
+      {
+        "accept_len": 2.015789473684211,
+        "completed": 18,
+        "decode_tps": 4.11,
+        "decode_tps_mean": 5.11,
+        "failed": 0,
+        "itl_ms_median": 29.883731580248067,
+        "level": 8,
+        "max_concurrency": 8,
+        "measurement_ok": true,
+        "output_throughput": 32.94057371458004,
+        "status": "ok",
+        "tpot_ms_median": 243.17647516727448,
+        "ttft_ms_median": 54261.29627227783
+      },
+      {
+        "accept_len": 2.015789473684211,
+        "completed": 18,
+        "decode_tps": 3.62,
+        "decode_tps_mean": 3.46,
+        "failed": 0,
+        "itl_ms_median": 30.45504326913871,
+        "level": 16,
+        "max_concurrency": 16,
+        "measurement_ok": true,
+        "output_throughput": 32.03934361559939,
+        "status": "ok",
+        "tpot_ms_median": 276.32371708750725,
+        "ttft_ms_median": 63842.04173088074
+      }
+    ],
+    "lite": {
+      "cold_ttft_ms": 7262.8,
+      "engine_kv_gib": 10.0,
+      "engine_kv_tokens": 1941478,
+      "engine_reserved_total_gib": 89.04,
+      "engine_weights_gib": 79.04,
+      "gen_src": "median_tpot",
+      "gen_tps": 28.13,
+      "kv_gib": 10.0
+    },
+    "measured_utc": "2026-09-29T05:52:10Z",
+    "primary_source": "expected_achievable(roofline×MBU)",
+    "primary_tps": "31.31",
+    "ratio_M_over_primary": "0.989",
+    "rubric_authority": "explore",
+    "source": "판정 원천(verdict.json) + sweep_index(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce · output)",
+    "sources": {
+      "accept_len": "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/verdict.json(output · verdict_rule 출력) measured_accept_len",
+      "benchmark_mode": "measurement_config.bench_mode(bench_report(bench_report_26092914_deepseek-v4-flash-0731_GB10_0.29.0.md))",
+      "decode_tps_conc1": "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/verdict.json(output · verdict_rule 출력) measured_decode_tps",
+      "floor_tps": "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/verdict.json(output · verdict_rule 출력) rubric.floor",
+      "levels": "sweep_index(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce · output)",
+      "lite": "sweep_index.lite(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce)",
+      "measured_utc": "sweep_index.generated_utc(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce)",
+      "primary_source": "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/verdict.json(output · verdict_rule 출력) rubric.source",
+      "primary_tps": "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/verdict.json(output · verdict_rule 출력) rubric.primary",
+      "ratio_M_over_primary": "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/verdict.json(output · verdict_rule 출력) rubric.ratio_M_over_primary",
+      "rubric_authority": "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/verdict.json(output · verdict_rule 출력) rubric.authority",
+      "spec_on": "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/verdict.json(output · verdict_rule 출력) measured_spec_on",
+      "tolerance": "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/verdict.json(output · verdict_rule 출력) rubric.tolerance",
+      "verdict": "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/verdict.json(output · verdict_rule 출력) verdict",
+      "verdict_point_level": "sweep_index(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce · output)"
+    },
+    "spec_on": "true",
+    "tolerance": "0.15",
+    "verdict": "PASS",
+    "verdict_point_level": 1
+  },
+  "measurement_config": {
+    "bench_mode": "full",
+    "bench_mode_kind": "full",
+    "bench_tool": "guidellm",
+    "bench_tool_version": "0.7.3",
+    "downgrade_reason": null,
+    "repeats": 3,
+    "repeats_completed": 3,
+    "source": "bench_report(bench_report_26092914_deepseek-v4-flash-0731_GB10_0.29.0.md)"
+  },
+  "measurement_env_observed": [
+    {
+      "key": "NCCL_SOCKET_IFNAME",
+      "kind": "env-echo",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L92",
+      "value": "<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_SOCKET_IFNAME",
+      "kind": "param-echo",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L93",
+      "value": "<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "nccl:version",
+      "kind": "runtime",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L96",
+      "value": "2.30.7+cuda13.3"
+    },
+    {
+      "key": "NCCL_NET_PLUGIN",
+      "kind": "env-echo",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L98",
+      "value": "spcx"
+    },
+    {
+      "key": "NCCL_IB_DISABLE",
+      "kind": "env-echo",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L103",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_IB_HCA",
+      "kind": "param-echo",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L105",
+      "value": "=<nic:cluster>,<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_IB_MERGE_NICS",
+      "kind": "env-echo",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L108",
+      "value": "1"
+    },
+    {
+      "key": "nccl:net_ib_devices",
+      "kind": "runtime",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L111",
+      "value": "[0]<nic:cluster>:1/RoCE [1]<nic:cluster>:1/RoCE [RO]; OOB <nic:cluster>:<node:main><0>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_IB_QPS_PER_CONNECTION",
+      "kind": "env-echo",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L124",
+      "value": "4"
+    },
+    {
+      "key": "nccl:network",
+      "kind": "runtime",
+      "node": "sub",
+      "seen_in_logs": 8,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L147",
+      "value": "IB"
+    },
+    {
+      "key": "NCCL_DMABUF_ENABLE",
+      "kind": "env-echo",
+      "node": "sub",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L149",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_CROSS_NIC",
+      "kind": "env-echo",
+      "node": "sub",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L152",
+      "value": "1"
+    },
+    {
+      "key": "NCCL_IB_SPLIT_DATA_ON_QPS",
+      "kind": "env-echo",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L608",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_IB_GID_INDEX",
+      "kind": "env-echo",
+      "node": "main",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L617",
+      "value": "3"
+    },
+    {
+      "key": "NCCL_SOCKET_IFNAME",
+      "kind": "env-echo",
+      "node": "sub",
+      "ray_repeated": 3,
+      "seen_in_logs": 7,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L899",
+      "value": "<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_SOCKET_IFNAME",
+      "kind": "param-echo",
+      "node": "sub",
+      "ray_repeated": 2,
+      "seen_in_logs": 7,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L900",
+      "value": "<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "nccl:version",
+      "kind": "runtime",
+      "node": "sub",
+      "seen_in_logs": 7,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L903",
+      "value": "2.30.7+cuda13.3"
+    },
+    {
+      "key": "NCCL_NET_PLUGIN",
+      "kind": "env-echo",
+      "node": "sub",
+      "seen_in_logs": 7,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L905",
+      "value": "spcx"
+    },
+    {
+      "key": "NCCL_IB_DISABLE",
+      "kind": "env-echo",
+      "node": "sub",
+      "ray_repeated": 2,
+      "seen_in_logs": 7,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L910",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_IB_HCA",
+      "kind": "param-echo",
+      "node": "sub",
+      "ray_repeated": 2,
+      "seen_in_logs": 7,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L911",
+      "value": "=<nic:cluster>,<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_IB_MERGE_NICS",
+      "kind": "env-echo",
+      "node": "sub",
+      "seen_in_logs": 7,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L913",
+      "value": "1"
+    },
+    {
+      "key": "nccl:net_ib_devices",
+      "kind": "runtime",
+      "node": "main",
+      "ray_repeated": 3,
+      "seen_in_logs": 7,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L915",
+      "value": "[RO]; OOB <nic:cluster>:<node:main><0>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_IB_QPS_PER_CONNECTION",
+      "kind": "env-echo",
+      "node": "sub",
+      "ray_repeated": 3,
+      "seen_in_logs": 7,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L925",
+      "value": "4"
+    },
+    {
+      "key": "NCCL_DMABUF_ENABLE",
+      "kind": "env-echo",
+      "node": "main",
+      "seen_in_logs": 8,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L940",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_CROSS_NIC",
+      "kind": "env-echo",
+      "node": "main",
+      "seen_in_logs": 8,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L943",
+      "value": "1"
+    },
+    {
+      "key": "NCCL_IB_SPLIT_DATA_ON_QPS",
+      "kind": "env-echo",
+      "node": "sub",
+      "seen_in_logs": 8,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L984",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_IB_GID_INDEX",
+      "kind": "env-echo",
+      "node": "sub",
+      "seen_in_logs": 9,
+      "source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:L989",
+      "value": "3"
+    }
+  ],
+  "missing": [],
+  "missing_reasons": {},
+  "naming": {
+    "axes": {
+      "gpus_per_node": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_ds4f0731-1m-spec7-roce.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "1"
+      },
+      "hw": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_ds4f0731-1m-spec7-roce.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · vocab hw[gb10]←'NVIDIA GB10'",
+        "value": "gb10"
+      },
+      "kv": {
+        "source": "서빙 yaml kv-cache-dtype(output/multi/configs/ds4f0731-1m-spec7-roce.yaml) · vocab kv[fp8]←'fp8'",
+        "value": "fp8"
+      },
+      "len": {
+        "source": "서빙 yaml max-model-len(output/multi/configs/ds4f0731-1m-spec7-roce.yaml)",
+        "value": "1048576"
+      },
+      "nodes": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_ds4f0731-1m-spec7-roce.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "2"
+      },
+      "plane": {
+        "source": "artifacts.plane_of → cell-env(IMAGE_TAG|BUILD_DOCKERFILE) · vocab plane[docker]→''",
+        "token": "",
+        "value": "docker"
+      },
+      "q": {
+        "source": "/app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731 → <manifest.nas_model_path>/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731/config.json quantization_config quant_method=fp8 · vocab quant[fp8]←'fp8'",
+        "value": "fp8"
+      },
+      "role": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_ds4f0731-1m-spec7-roce.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "cluster"
+      },
+      "target": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_ds4f0731-1m-spec7-roce.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · target_gpu 'NVIDIA GB10' = 호스트 hw → native",
+        "value": "native"
+      }
+    },
+    "grammar": "v7",
+    "segments": {
+      "arch": {
+        "source": "derived(hw·gpus_per_node·nodes·role·target·plane)",
+        "value": "gb10-1g2n-cluster-native"
+      },
+      "model": {
+        "source": "서빙 yaml model(output/multi/configs/ds4f0731-1m-spec7-roce.yaml) · hf_repo=체크포인트 .git/config remote url(huggingface.co · /app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731 → <manifest.nas_model_path>/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731) · hf_repo(deepseek-ai/DeepSeek-V4-Flash-0731) 마지막 성분 소문자",
+        "value": "deepseek-v4-flash-0731"
+      },
+      "recipe": {
+        "source": "derived(q·len·kv) + tail(agent · naming.tail[] 근거)",
+        "value": "qfp8-len1048576-kvfp8-spec7-graph-autotool"
+      },
+      "vllm": {
+        "source": "track=선택자 Dockerfile.source-build · ref=docker history build-arg VLLM_REF · version=VLLM_VERSION 미관측 · repo=docker history build-arg VLLM_REPO · sha=output/multi/resolved.json upstream_delta.to_sha · VLLM_REF=v0.29.0rc6(업스트림 릴리스 태그 · v 제거)",
+        "value": "0.29.0rc6"
+      }
+    },
+    "tail": [
+      {
+        "evidence": {
+          "file": "output/multi/configs/ds4f0731-1m-spec7-roce.yaml",
+          "key": "speculative-config.num_speculative_tokens",
+          "value": "7"
+        },
+        "meaning": "dspark speculative decoding k=7 켜짐 — 같은 q·len·kv 의 spec off(eager) 셀과 가른다",
+        "token": "spec7"
+      },
+      {
+        "evidence": {
+          "file": "output/multi/configs/ds4f0731-1m-spec7-roce.yaml",
+          "key": "enforce-eager",
+          "value": "false"
+        },
+        "meaning": "cudagraph 실행(enforce-eager false) — 같은 q·len·kv 의 eager 셀과 가른다",
+        "token": "graph"
+      },
+      {
+        "evidence": {
+          "file": "output/multi/configs/ds4f0731-1m-spec7-roce.yaml",
+          "key": "enable-auto-tool-choice",
+          "value": "true"
+        },
+        "meaning": "enable-auto-tool-choice 켜짐(tool calling 구성으로 측정) — spec·graph 가 같고 이 플래그 없이 잰 같은 q·len·kv 셀(09-09 대조군 · 09-28 앞선 판)과 가른다",
+        "token": "autotool"
+      }
+    ],
+    "timestamp": null,
+    "vllm_build_input": {
+      "kind": "release",
+      "prev_release": null,
+      "ref": "v0.29.0rc6",
+      "sha": "74c96922ecb9017f413318c76d1af83aa2ab45a5"
+    },
+    "vllm_observed": {
+      "certificate_vllm_version": null,
+      "certificate_vllm_version_producer": "absent",
+      "certificate_vllm_version_source": "인증서 vllm_version 없음",
+      "engine_self_report": "0.29.0rc7.dev0+g74c96922e.d20260922",
+      "engine_self_report_basis": "this-measurement",
+      "engine_self_report_source": "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log:58(이 측정의 엔진 로그 기동 배너 · 같은 실행의 전체 사본 — 판별: EngineCore pid ['1272'] 일치 · 가중치 로드 줄 `09-29 05:02:04 … 355.11 seconds` 공유 · 사본 첫 시각 09-29 04:55:20 ≤ 꼬리 첫 시각 09-29 04:56:02 ≤ 측정 시작 09-29 05:13:42(꼬리 캡처 output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/lite_engine_ds4f0731-1m-spec7-roce.log · 규칙 EngineCore pid 집합 일치 ∧ 가중치 로드 줄(시각·초) 공유 ∧ 사본 첫 시각 ≤ 꼬리 첫 시각(∧ ≤ 측정 시작)))",
+      "source": "칸별 출처는 *_source — engine_self_report=this-measurement · certificate_vllm_version=absent · wheel_meta=관측",
+      "wheel_meta": "0.29.0rc7.dev0+g74c96922e.d20260922.cu133",
+      "wheel_meta_source": "attestation nodes.<n>.vllm_dist_version(output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json · 노드별 관측) — main=sub 일치 · 작성 2026-09-29T05:12:32Z < 측정 시작 2026-09-29T05:13:42Z — 측정 전(빌드·스모크)의 관측 · 측정을 서빙한 같은 기동의 스모크 직후 관측(판별 근거 = attestation 범위 줄 · 스모크 로그 docs/simlog/26092914_54_41_hint_v7_live_ds4f/serve.log)"
+    }
+  },
+  "native_source": null,
+  "plane": "docker",
+  "prior_approval": null,
+  "publication": {
+    "manifest_ref": "docs/_evidence/camp_26092913_hint_v7_e2e__cluster__ds4f0731_1m_spec7_roce.work-manifest.json",
+    "task_class": "full_benchmark",
+    "topic": "camp_26092913_hint_v7_e2e__cluster__ds4f0731_1m_spec7_roce"
+  },
+  "qualification": {
+    "health_200": true,
+    "inference_observed": true,
+    "method": "serve_proof",
+    "sources": [
+      "output/multi/benchlog/serve_proof_ds4f0731-1m-spec7-roce.json"
+    ]
+  },
+  "schema_version": 3,
+  "slots": {
+    "build_patch_post": {
+      "applicable": true,
+      "confidence": "2-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "원장 관측",
+        "ref": "attestation:output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json#main"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "post",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        }
+      ],
+      "file_records": [
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_post/10-deepgemm.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 선언 ['DeepseekV4ForCausalLM'] ∋ 셀 모델(architectures ['DeepseekV4ForCausalLM'] · model_type deepseek_v4) · 범용 선언 · ② 패치가 심는 logger 발화 서명 없음(발화 미관측)",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [
+                "DeepseekV4ForCausalLM"
+              ],
+              "general": true,
+              "modules": [],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/lite_engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_03/engine_ds4f0731-1m-spec7-roce.log"
+            ],
+            "engine_logs": 17,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "bdfd5412c3b7a58133006436bc2c9960a2433a67d92277a2b12b63d1364c7589",
+          "sha256": "bdfd5412c3b7a58133006436bc2c9960a2433a67d92277a2b12b63d1364c7589",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_post/20-triton-kernels.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 선언 ['DeepseekV4ForCausalLM'] ∋ 셀 모델(architectures ['DeepseekV4ForCausalLM'] · model_type deepseek_v4) · 범용 선언 · ② 패치가 심는 logger 발화 서명 없음(발화 미관측)",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [
+                "DeepseekV4ForCausalLM"
+              ],
+              "general": true,
+              "modules": [],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/lite_engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_03/engine_ds4f0731-1m-spec7-roce.log"
+            ],
+            "engine_logs": 17,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "e263f424720d666e7915aa2d07d0c4878257ad04b45ade39fabdf67aa3ff2824",
+          "sha256": "e263f424720d666e7915aa2d07d0c4878257ad04b45ade39fabdf67aa3ff2824",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_post/30-mxfp4-triton-sm121.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음 · 편집하는 공유(모델 디렉터리 밖) 파일 ['vllm/model_executor/layers/fused_moe/experts/gpt_oss_triton_kernels_moe.py']",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": [
+                "vllm/model_executor/layers/fused_moe/experts/gpt_oss_triton_kernels_moe.py"
+              ]
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/lite_engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_03/engine_ds4f0731-1m-spec7-roce.log"
+            ],
+            "engine_logs": 17,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "161dce749a830f55c6c1b43a643929794006b8e5bfa3d55dd6e99654e5958a39",
+          "sha256": "161dce749a830f55c6c1b43a643929794006b8e5bfa3d55dd6e99654e5958a39",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_post/40-humming-nvml-gb10.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/lite_engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_03/engine_ds4f0731-1m-spec7-roce.log"
+            ],
+            "engine_logs": 17,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "a9f1a94390997c669c3e469debdaa28f0e581910f1f0ed3432dfd8798c4f5c2e",
+          "sha256": "a9f1a94390997c669c3e469debdaa28f0e581910f1f0ed3432dfd8798c4f5c2e",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json#main) · 원장 관측"
+        }
+      ],
+      "files": [
+        "artifacts/build_patch_post/10-deepgemm.sh",
+        "artifacts/build_patch_post/20-triton-kernels.sh",
+        "artifacts/build_patch_post/30-mxfp4-triton-sm121.sh",
+        "artifacts/build_patch_post/40-humming-nvml-gb10.sh"
+      ],
+      "machine_reason": "build_patches/ — 적용 판정 build-ledger: applied 4 · 실린 것 = skip 아닌 패치",
+      "rationale": null
+    },
+    "build_patch_pre": {
+      "applicable": true,
+      "confidence": "2-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "원장 관측",
+        "ref": "attestation:output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json#main"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "pre",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        },
+        {
+          "file": "PROVENANCE.json",
+          "phase": "pre",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        },
+        {
+          "file": "files/",
+          "phase": "pre",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        },
+        {
+          "file": "50-dsv4-sm12x-port.sh",
+          "phase": "pre",
+          "why": "skipped([50-dsv4-sm12x-port] skip — SM12X_PORT=0 (stock 빌드 경로 불변))"
+        },
+        {
+          "file": "55-src-deps-authority.sh",
+          "phase": "pre",
+          "why": "skipped([55-src-deps] skip — SRC_DEPS_AUTHORITY=0 (constraint 그대로 · stock 빌드 경로 불변))"
+        }
+      ],
+      "file_records": [
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_pre/60-qwen4exp-nvfp4-mixed.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 선언 ['models/qwen4_exp'] ∌ 셀 모델(architectures ['DeepseekV4ForCausalLM'] · model_type deepseek_v4) · ② 패치가 심는 logger 발화 서명 없음(발화 미관측) · 편집하는 공유(모델 디렉터리 밖) 파일 ['vllm/model_executor/layers/quantization/modelopt.py']",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [
+                "qwen4_exp"
+              ],
+              "shared_files": [
+                "vllm/model_executor/layers/quantization/modelopt.py"
+              ]
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/lite_engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_03/engine_ds4f0731-1m-spec7-roce.log"
+            ],
+            "engine_logs": 17,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "a28f42b0b7a4a462c005c6ec74be9896a11131f628038061b96c3ad967070957",
+          "sha256": "a28f42b0b7a4a462c005c6ec74be9896a11131f628038061b96c3ad967070957",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_pre/62-qwen4exp-ple-mmap.sh",
+          "relevance": "inactive-inferred",
+          "relevance_basis": "① 선언 ['models/qwen4_exp'] ∌ 셀 모델(architectures ['DeepseekV4ForCausalLM'] · model_type deepseek_v4) · ② 엔진 로그 17개에서 서명 무발화(서명 6개 전부 0회) — 적용됐으나 이 모델에서 돌지 않은 것으로 **추론**(확정 ✗)",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [
+                "qwen4_exp"
+              ],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/lite_engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_03/engine_ds4f0731-1m-spec7-roce.log"
+            ],
+            "engine_logs": 17,
+            "fired": false,
+            "fired_signatures": {},
+            "signatures": [
+              "PLE mmap: madvise(",
+              "PLE mmap stats (last",
+              "PLE mmap: cannot read model path from vllm config:"
+            ]
+          },
+          "script_sha256_ledger": "5e779aec4ac7987d00ca128faa9eb6b6fcb6d78f50b16ea0c3cfee63809825d2",
+          "sha256": "5e779aec4ac7987d00ca128faa9eb6b6fcb6d78f50b16ea0c3cfee63809825d2",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_pre/64-qwen4exp-qsa-fp8kv.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 선언 ['models/qwen4_exp'] ∌ 셀 모델(architectures ['DeepseekV4ForCausalLM'] · model_type deepseek_v4) · ② 패치가 심는 logger 발화 서명 없음(발화 미관측)",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [
+                "qwen4_exp"
+              ],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/engine_v7_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/lite_engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_01/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_02/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_04/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_08/run_03/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_02/engine_ds4f0731-1m-spec7-roce.log",
+              "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/level_16/run_03/engine_ds4f0731-1m-spec7-roce.log"
+            ],
+            "engine_logs": 17,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "c5ed51bba3901475d4482a99e7123de46a2f7a2c7fffbf74a0a5cb83736896e3",
+          "sha256": "c5ed51bba3901475d4482a99e7123de46a2f7a2c7fffbf74a0a5cb83736896e3",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds4f0731-1m-spec7-roce.json#main) · 원장 관측"
+        }
+      ],
+      "files": [
+        "artifacts/build_patch_pre/60-qwen4exp-nvfp4-mixed.sh",
+        "artifacts/build_patch_pre/62-qwen4exp-ple-mmap.sh",
+        "artifacts/build_patch_pre/64-qwen4exp-qsa-fp8kv.sh"
+      ],
+      "machine_reason": "build_patches_src/ — 적용 판정 build-ledger: applied 3 · skipped 2 · 실린 것 = skip 아닌 패치",
+      "rationale": null
+    },
+    "build_recipe": {
+      "applicable": true,
+      "confidence": "3-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "requirements.txt: Dockerfile.source-build 이 COPY → /etc/pip/constraint.txt(제약 천장 · wheel 설치 입력 아님)",
+        "recipe_vs_image": [
+          {
+            "history_match": {
+              "matched": 17,
+              "total": 17
+            },
+            "image_created_utc": "2026-09-22T23:38:10Z",
+            "last_commit_utc": "2026-09-22T14:03:39Z",
+            "path": "output/multi/Dockerfile.source-build",
+            "selection_method": "worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치)",
+            "shipped": "worktree",
+            "tracked": true,
+            "worktree_equals_head": true
+          },
+          {
+            "image_created_utc": "2026-09-22T23:38:10Z",
+            "last_commit_utc": "2026-09-08T19:58:36Z",
+            "path": "output/multi/requirements.txt",
+            "selection_method": "worktree(빌드 원장 sha256 일치 — 쓰인 바이트 관측 확인 = 예)",
+            "shipped": "worktree",
+            "tracked": true,
+            "worktree_equals_head": true
+          }
+        ],
+        "ref": "build-ledger.dockerfile",
+        "selected_revision": {
+          "candidates": [
+            {
+              "matched": 17,
+              "revision": "worktree",
+              "total": 17
+            }
+          ],
+          "commit": null,
+          "history_match": {
+            "matched": 17,
+            "total": 17
+          },
+          "method": "worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치)",
+          "path": "output/multi/Dockerfile.source-build"
+        },
+        "selected_revisions": [
+          {
+            "commit": null,
+            "history_match": {
+              "matched": 17,
+              "total": 17
+            },
+            "method": "worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치)",
+            "path": "output/multi/Dockerfile.source-build",
+            "shipped": "worktree",
+            "verified": true
+          },
+          {
+            "commit": null,
+            "history_match": null,
+            "method": "worktree(빌드 원장 sha256 일치 — 쓰인 바이트 관측 확인 = 예)",
+            "path": "output/multi/requirements.txt",
+            "shipped": "worktree",
+            "verified": true
+          }
+        ]
+      },
+      "file_records": [
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_recipe/Dockerfile.source-build",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "6e2c976f208fbac9a4b8092fbceb5d12dbeb6ee093037b09ef428ed1eccfeb71",
+          "verification": "verified",
+          "verification_basis": "쓰인 레시피(build-ledger.dockerfile) — 개정 선택 slots.build_recipe.evidence.selected_revisions"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_recipe/requirements.txt",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "e56b2a5e6247b121646b30669403270de0d9ce7923ffd4c93689029dd95c2031",
+          "verification": "verified",
+          "verification_basis": "쓰인 레시피(build-ledger.dockerfile) — 개정 선택 slots.build_recipe.evidence.selected_revisions"
+        }
+      ],
+      "files": [
+        "artifacts/build_recipe/Dockerfile.source-build",
+        "artifacts/build_recipe/requirements.txt"
+      ],
+      "machine_reason": "쓰인 Dockerfile 선택자 Dockerfile.source-build(build-ledger.dockerfile) + 그것이 COPY 하는 파일",
+      "rationale": "`Dockerfile.source-build`(NGC `26.07-py3` 베이스 · `VLLM_REF=v0.29.0rc6` · `TORCH_CUDA_ARCH=12.1a` · `RAY_VERSION=2.48.0` · `SM12X_PORT=0` · `SRC_DEPS_AUTHORITY=0`)와 그것이 COPY 하는 `requirements.txt`(flashinfer 0.6.18 양보 · W4). 소스빌드인 이유는 00 §0.4 (1). 1.1 은 Dockerfile 을 docker history 17/17 일치로, requirements.txt 를 빌드 원장 sha256 일치로 **쓰인 바이트**임을 확인했다. §L39 는 이 빌드 키(26.07 × 0.29.0rc6)를 미검증 attempt-build 로…"
+    },
+    "compose": {
+      "applicable": true,
+      "confidence": "2-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-09-29T05:52:10Z",
+        "note": "서빙 러너 ['serve_runner.sh'] · env 형상 실림 3/3",
+        "post_measurement_regenerated": [],
+        "ref": "output/multi/docker-compose.yaml",
+        "selected_revision": {
+          "basis": "mtime≤measured",
+          "commit": "26b17f6e560a9060c0f89a3a3d0691d5a1aa5f5a",
+          "commits_after_measurement": [],
+          "cross_check": [
+            "측정 뒤 커밋 0",
+            "작업트리 = HEAD"
+          ],
+          "history_match": null,
+          "measured_utc": "2026-09-29T05:52:10Z",
+          "method": "worktree(mtime 2026-09-21T20:48:25Z ≤ 측정 2026-09-29T05:52:10Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 26b17f6e560a)",
+          "mtime_utc": "2026-09-21T20:48:25Z",
+          "path": "output/multi/docker-compose.yaml",
+          "shipped": "worktree",
+          "verified": true
+        },
+        "selected_revisions": [
+          {
+            "basis": "mtime≤measured",
+            "commit": "50a5ce48673875468007fac5dab6fef9f15b9601",
+            "commits_after_measurement": [],
+            "cross_check": [
+              "측정 뒤 커밋 0",
+              "작업트리 = HEAD",
+              "마운트본 output/multi/configs/serve_runner.sh(mtime 2026-09-08T11:25:22Z ≤ 측정 — 서빙한 러너) 바이트 일치"
+            ],
+            "history_match": null,
+            "measured_utc": "2026-09-29T05:52:10Z",
+            "method": "worktree(mtime 2026-09-06T21:57:53Z ≤ 측정 2026-09-29T05:52:10Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 50a5ce486738)",
+            "mtime_utc": "2026-09-06T21:57:53Z",
+            "path": ".claude/skills/upstream-version-watch/assets/configs/serve_runner.sh",
+            "shipped": "worktree",
+            "verified": true
+          },
+          {
+            "basis": "mtime≤measured",
+            "commit": "26b17f6e560a9060c0f89a3a3d0691d5a1aa5f5a",
+            "commits_after_measurement": [],
+            "cross_check": [
+              "측정 뒤 커밋 0",
+              "작업트리 = HEAD"
+            ],
+            "history_match": null,
+            "measured_utc": "2026-09-29T05:52:10Z",
+            "method": "worktree(mtime 2026-09-21T20:48:25Z ≤ 측정 2026-09-29T05:52:10Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 26b17f6e560a)",
+            "mtime_utc": "2026-09-21T20:48:25Z",
+            "path": "output/multi/docker-compose.yaml",
+            "shipped": "worktree",
+            "verified": true
+          }
+        ]
+      },
+      "excluded": [
+        {
+          "file": "arm_patch.sh",
+          "why": "not-armed(output/multi/configs/ds4f0731-1m-spec7-roce_patch.py 없음 · slave CONFIG_FILE='default' 의 _patch.py 없음 — arm_patch.sh 는 no-op)"
+        }
+      ],
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/.env.cluster.template",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "6ce9f059d8043dce6ac1d0f4d334b1c1cc0be81e788ac401ffb66b38c6a8c00b",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/.env.interconnect.template",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "fe8c8c77230def40288a7f383699230fd837912be3044dd27a5d2bf192d000ac",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/.env.template",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "0315b92147c6dc6ea6e026762f36186dcbe8044918acd847b709117688d0fec4",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/docker-compose.yaml",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "c4c2dd8b51a8da7b9ba350c0e5aad5beb68fd473ddcc526fc507f9a8f4a287e9",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/serve_runner.sh",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "714a9e5ba52bfafa283138f4fbdeae6785d97e02dd4bed03ec61b162c9c8b174",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/sub_recipe.json",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "41df7dcc35c79f5d059231da041eda0c1f605b19ebd7acbe29aaa5f76a53d7f8",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        }
+      ],
+      "files": [
+        "artifacts/compose/.env.cluster.template",
+        "artifacts/compose/.env.interconnect.template",
+        "artifacts/compose/.env.template",
+        "artifacts/compose/docker-compose.yaml",
+        "artifacts/compose/serve_runner.sh",
+        "artifacts/compose/sub_recipe.json"
+      ],
+      "machine_reason": "multi 서빙 경로(compose · 러너 · env 형상) — 측정 당시 개정(selected_revisions)",
+      "rationale": "`docker-compose.yaml`(측정 전 마지막 커밋 26b17f6e560a) · `serve_runner.sh`(50a5ce486738) · env 형상 3종 · `sub_recipe.json`. `serve_runner.sh` 는 멀티에서 `distributed-executor-backend` 가 없으면 fail-loud 로 멈추는 게이트를 갖고(W3 · §L51-65), GPU 합류 리터럴 `2`(§L79)가 노드 수와 숨은 결합이다(1.5). `arm_patch.sh` 는 런타임 패치 파일이 없어 no-op 이라 싣지 않았다."
+    },
+    "fork_pin": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "VARIANT 줄 부재 = stock",
+        "ref": ".claude/policies/arch_variant_ledger.json"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "셀 env 에 VARIANT 줄 없음 = stock(workflow.md §변종 좌표의 거처)",
+      "rationale": null
+    },
+    "runtime_patch": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "arming 실증 로그 미배선(plan Q1)",
+        "ref": "output/multi/configs/ds4f0731-1m-spec7-roce_patch.py"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "output/multi/configs/ds4f0731-1m-spec7-roce_patch.py 없음 — arm_patch.sh 는 no-op(런타임 패치 불해당)",
+      "rationale": null
+    },
+    "triplet": {
+      "applicable": true,
+      "confidence": "3-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-09-29T05:52:10Z",
+        "note": "측정이 이 셀 config 로 돌았다(스윕 색인)",
+        "observed": "output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/sweep_index.json#config",
+        "post_measurement_regenerated": [],
+        "ref": "output/multi/configs/ds4f0731-1m-spec7-roce.yaml"
+      },
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/.env.ds4f0731-1m-spec7-roce",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "0ab85c2efe828c7826e8b9a132113515aac2adcdf05c8667386218c1941d259f",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/ds4f0731-1m-spec7-roce.sh",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "2443e290bc3f56c9732f1803f7706f6eb6982ed9c4b4ec7d5e7aabb63fa6df5c",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/ds4f0731-1m-spec7-roce.yaml",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "4e74adb59eac01eca789055c0b9ba65921dfbac39be0a7672da6d0ecd4ccdb4a",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        }
+      ],
+      "files": [
+        "artifacts/triplet/.env.ds4f0731-1m-spec7-roce",
+        "artifacts/triplet/ds4f0731-1m-spec7-roce.sh",
+        "artifacts/triplet/ds4f0731-1m-spec7-roce.yaml"
+      ],
+      "machine_reason": "셀 id ds4f0731-1m-spec7-roce = 트리플렛 이름(configs/ds4f0731-1m-spec7-roce.yaml · .sh · envs/.env.ds4f0731-1m-spec7-roce)",
+      "rationale": "`ds4f0731-1m-spec7-roce.{yaml,sh}` · `.env.ds4f0731-1m-spec7-roce` — 09-09 1M 승자 셀 트리플렛의 재명명본(plan_26092808 §2 \"값 변경 0\")에 `enable-auto-tool-choice: true` 한 줄(yaml §L21)이 더해진 것이다. **이 판에서 그 줄은 측정 구성의 일부다** — 측정한 실행의 엔진이 non-default args 에 `enable_auto_tool_choice: True` 를 찍었고(engine_v7 L62), yaml 파일 mtime(2026-09-28T01:12:41Z · 파일시스템 관측)도 이 run 의 측정(2026-09-29T05:13:42Z~)보다 앞선다. ⚠ 그 줄의 **주석**(\"202…"
+    }
+  },
+  "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-spec7-graph-autotool",
+  "tool_snapshots": [
+    {
+      "driver_note": "그 판본의 .claude/skills/adversarial-benchmark/scripts/ 안에서 sweep_bench.sh 를 부르는 드라이버: broad_search.sh 후보(미검증)",
+      "git_rev": "a21e66eb26e551a8803750cdad06ffc03bbd352d",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-09-23T06:53:32Z",
+      "head_at_measurement": "41f20c893cbfb7bd1cb7c852048987941567282c",
+      "name": "sweep_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "41f20c893cbf..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+      "rev_method": "reflog HEAD@{1790658630}(2026-09-29T05:10:30Z) = 측정 시각 2026-09-29T05:52:10Z 직전 체크아웃",
+      "role": "sweep",
+      "snapshot_rel": "inputs/sources/sweep_bench.sh@a21e66eb26e5",
+      "why": "스윕 색인 조립자(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/sweep_index.json · generated_utc = measured_utc 조인)",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "434fa6740831c1a3ef91131bd8f13abf95ebed2a",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-09-22T16:32:50Z",
+      "head_at_measurement": "41f20c893cbfb7bd1cb7c852048987941567282c",
+      "name": "run_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "41f20c893cbf..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+      "rev_method": "reflog HEAD@{1790658630}(2026-09-29T05:10:30Z) = 측정 시각 2026-09-29T05:52:10Z 직전 체크아웃",
+      "role": "bench",
+      "snapshot_rel": "inputs/sources/run_bench.sh@434fa6740831",
+      "why": "그 판본 sweep_bench.sh 가 레벨마다 부른다(`\"$SDIR/run_bench.sh\"`) · 색인에 레벨 기록",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "fcb0754fffe107962034fec748ed8823756c93b6",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-09-23T01:56:11Z",
+      "head_at_measurement": "41f20c893cbfb7bd1cb7c852048987941567282c",
+      "name": "lite_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "41f20c893cbf..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
+      "rev_method": "reflog HEAD@{1790658630}(2026-09-29T05:10:30Z) = 측정 시각 2026-09-29T05:52:10Z 직전 체크아웃",
+      "role": "lite",
+      "snapshot_rel": "inputs/sources/lite_bench.sh@fcb0754fffe1",
+      "why": "그 판본 sweep_bench.sh 가 lite 레그로 부른다(`\"$SDIR/lite_bench.sh\"`) · 색인에 lite 기록",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "692297be56a38ed79ff6521e31c6586bd153437c",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-09-14T13:23:51Z",
+      "head_at_measurement": "41f20c893cbfb7bd1cb7c852048987941567282c",
+      "name": "broad_search.sh",
+      "next_rev": null,
+      "next_rev_basis": "41f20c893cbf..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+      "rev_method": "reflog HEAD@{1790658630}(2026-09-29T05:10:30Z) = 측정 시각 2026-09-29T05:52:10Z 직전 체크아웃",
+      "role": "driver-candidate",
+      "snapshot_rel": "inputs/sources/broad_search.sh@692297be56a3",
+      "why": "그 판본에서 sweep_bench.sh 를 부르는 스크립트 · 넘기는 --tool 상수 ['guidellm'] 가 이 측정과 어긋나지 않는다 — 호출 기록은 없다(드라이버였는지 미검증)",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    }
+  ]
+}
