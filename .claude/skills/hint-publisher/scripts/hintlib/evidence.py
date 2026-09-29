@@ -4303,14 +4303,14 @@ def _arch_facts(repo: Path, ev: CellEvidence) -> dict:
     arch = {"gpu_model": gpu, "gpus_per_node": gpn, "nodes": count, "role": role,
             "source": f"{msrc} gpu_model·gpus_per_node·nodes[] · 발행 노드 축({ev.sources.get('node')})"
                       + (f" · {msrc2} 일치" if measured else "")}
-    tgt, tsrc = _target_gpu(ev)
+    tgt, tsrc = _target_gpu(ev, repo)
     if tsrc is not None:
         arch["target_gpu"] = tgt
         arch["source"] += f" · target: {tsrc}"
     return arch
 
 
-def _target_gpu(ev: CellEvidence) -> tuple[str | None, str | None]:
+def _target_gpu(ev: CellEvidence, repo=None) -> tuple[str | None, str | None]:
     """시뮬레이션 타겟 선언. 셀 config target_gpu.gpu_model > 캠페인 control_variables.target_gpu > 루브릭이 계산된 HW
     (roofline.json gpu_model). 어느 것도 관측하지 못하면 (None, None) — naming 이 파생 불가로 막는다(읽지 못함 ≠ 없음)."""
     cfg = ev.cell_config or {}
@@ -4335,6 +4335,22 @@ def _target_gpu(ev: CellEvidence) -> tuple[str | None, str | None]:
     if isinstance(roof, dict) and isinstance(roof.get("gpu_model"), str) and roof["gpu_model"].strip():
         return roof["gpu_model"].strip(), (f"{(ev.sweep or {}).get('dir')}/roofline.json gpu_model — 루브릭 계산 HW(측정 호스트 "
                                            "manifest) · 캠페인 purge 로 타겟 선언 미관측(재생 전용 대체 · 선언 아님)")
+    # 재생 전용 2순위(2026-09-29 · plan_26092908 S6): lite-only 셀은 스윕 roofline 이 없다(D2 재생이 arch 파생 불가로 막혔다).
+    #   발행 기록이 이미 봉인한 페이로드 커밋(promotion_target.anchor)의 PAYLOAD.naming 은 **발행 당시 셀 config 선언을 관측한 값**이다
+    #   — 그 target 이 native 면 "타겟 선언 없음(호스트 HW)" 으로 읽는다. sim-<x> 는 원문 hw 를 되살릴 수 없어 대체하지 않는다.
+    pub = ev.publication if isinstance(ev.publication, dict) else {}
+    pt = next((d.get("promotion_target") for d in (pub.get("record"), pub.get("manifest"), pub)
+               if isinstance(d, dict) and isinstance(d.get("promotion_target"), dict)), None) or {}
+    anchor = pt.get("anchor")
+    if repo is not None and isinstance(anchor, str) and re.fullmatch(r"[0-9a-f]{40}", anchor):
+        r = core.git(Path(repo), "show", f"{anchor}:PAYLOAD.json", check=False)
+        try:
+            ax = ((json.loads(r.stdout).get("naming") or {}).get("axes") or {}).get("target") if r.returncode == 0 else None
+        except ValueError:
+            ax = None
+        if isinstance(ax, dict) and ax.get("value") == "native":
+            return None, (f"봉인된 발행 페이로드 {anchor[:12]}:PAYLOAD.json naming.axes.target=native(발행 당시 셀 config 선언 관측) · "
+                          "캠페인 purge 로 선언 원본 미관측(재생 전용 대체)")
     return None, None
 
 
@@ -6295,6 +6311,26 @@ def selftest() -> list[str]:
                and "HINT_MISSING_SWEEP_RAW" in evp.missing and "HINT_MISSING_CAMPAIGN_INSTANCE" in evp.missing)
             ck("재생 — 계보 시드 this_topic", evp.lineage_seeds.get("this_topic") == topic)
             ck("★재생 — simlog 사본만 묶이면 roofline 도 없다 → 타겟 미관측(파생 불가)", "target_gpu" not in _arch_facts(repo, evp))
+            # 재생 2순위(2026-09-29 · plan_26092908 S6 — lite-only D2 재생이 arch 파생 불가로 막혔다): 봉인된 페이로드의 target=native
+            with tempfile.TemporaryDirectory(prefix="hint-ev-tgt-") as gd:
+                g = Path(gd)
+                ident = ["-c", "user.name=fx", "-c", "user.email=" + "fx" + "\x40" + "fixture.invalid"]
+                core.git(g, "init", "-q")
+                sha_of = {}
+                for tv in ("native", "sim-h100"):
+                    core.write_json(g / "PAYLOAD.json", {"naming": {"axes": {"target": {"value": tv, "source": "fx"}}}})
+                    core.git(g, "add", "PAYLOAD.json")
+                    core.git(g, *ident, "commit", "-q", "-m", tv)
+                    sha_of[tv] = core.git(g, "rev-parse", "HEAD").stdout.strip()
+                def _ev(anchor):
+                    return SimpleNamespace(cell_config=None, declaration=None, mode="publication-replay", sweep=None,
+                                           publication={"record": {"promotion_target": {"anchor": anchor}}})
+                t0, s0 = _target_gpu(_ev(sha_of["native"]), g)
+                ck("재생 — 봉인된 페이로드 target=native → 선언 없음(출처가 봉인 페이로드를 말한다)",
+                   t0 is None and s0 is not None and "봉인된 발행 페이로드" in s0)
+                ck("★재생 — 봉인된 페이로드 target=sim-* 는 원문 hw 를 되살리지 않는다(대체 ✗)",
+                   _target_gpu(_ev(sha_of["sim-h100"]), g) == (None, None))
+                ck("★재생 — repo 없이는 대체 ✗", _target_gpu(_ev(sha_of["native"])) == (None, None))
             idx["generated_utc"] = _M_UTC
             core.write_json(fx["sweep"] / "sweep_index.json", idx)
             arp = _arch_facts(repo, from_publication(repo, topic, docker=dk))

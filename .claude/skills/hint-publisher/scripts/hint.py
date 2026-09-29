@@ -963,7 +963,9 @@ def _print_publish(repo: Path, res: dict) -> None:
     if res.get("base_name_exists"):
         print(f"  ⓘ 기본 이름이 이미 있다({res['base_name_exists']}) — 꼬리가 가르지 않으면 이 발행은 timestamp 새 판이 된다")
     if res.get("generated_utc"):
-        print(f"  시각     {res['generated_utc']}(발행 기록에 묶인 값 · 명시와 다르면 위 로그가 채택을 알렸다)")
+        # 재생은 발행 기록을 쓰지 않으므로 묶인 시각이 없다 — 옛 문구가 재생에서도 "묶인 값" 이라 말했다(2026-09-29 S6 재생 관측).
+        print(f"  시각     {res['generated_utc']}" + ("(재생 draft 의 주입 시각 · 발행 기록의 원래 시각과 무관)" if res.get("mode") != "campaign"
+                                                      else "(발행 기록에 묶인 값 · 명시와 다르면 위 로그가 채택을 알렸다)"))
     print(f"  draft    {d}")
     print(f"  모드     {res['mode']} · 토픽 {res['topic']} · work-manifest {res['manifest']}")
     print(f"  원격 충돌 확인 {res['remote_check']} · 게이트 {res['gate']}")
