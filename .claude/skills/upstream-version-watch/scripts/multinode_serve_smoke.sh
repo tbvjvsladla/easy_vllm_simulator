@@ -53,9 +53,47 @@ fi
 #   2026-09-05(G-B6): 기본값 180 **삭제**. 로드 시간은 모델·HW 의 함수이지 스크립트 상수가
 #   아니다 — 180 은 이 캠페인의 작은 모델에서 나온 수이고, hy3 는 600 이 필요했다(실측).
 #   기본값이 남아 있으면 큰 모델이 "타임아웃"으로 오판되고 그 오판이 서빙 실패로 기록된다.
-#   선언 경로: `READY_MAX=<초>`(env). 모르면 직전 런의 engine 로그에서 READY 까지 걸린 초를
+#   선언 경로: `READY_MAX=<폴링 횟수>`(env · ×5s) 또는 활성 캠페인 `budgets.ready_max_seconds`(초). 모르면 직전 런의 engine 로그에서 READY 까지 걸린 초를
 #   재고 여유를 얹어라 — 단일노드 정본(single_serve_up.sh)은 실측 근거로 600 을 쓴다.
+# ── 캠페인 예산 선언 읽기 (2026-09-29 · plan_26092919 P3) ─────────────────────────────────────
+#   우선순위는 공통층 규칙 그대로 **환경 주입 > 선언 > (리터럴 없음 → fail-loud)**. 종전에는 활성 캠페인이
+#   `budgets.ready_max_seconds`·`smoke_budget_overhead_mib` 를 선언해도 이 스크립트가 읽지 않아, 선언과 같은
+#   값을 env 로 손으로 다시 넘겨야 했다(2026-09-29 camp-26092919: rc 2·rc 4 로 두 번 막힘 — 같은 개념이
+#   두 자리). 활성 캠페인이 없거나(_bootstrap) 값이 0(뼈대 미기입)이면 아무것도 내지 않는다 — 그러면
+#   아래의 '선언되지 않았다' fail-loud 가 그대로 선다(기본값을 만들지 않는다).
+_campaign_budget() {   # $1 = budgets 키 → 활성 캠페인 선언의 양의 정수만 stdout
+  python3 - "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)" "$1" <<'PY'
+import json, os, sys
+repo, key = sys.argv[1], sys.argv[2]
+try:
+    with open(os.path.join(repo, "campaigns", "ACTIVE"), encoding="utf-8") as fh:
+        camp = fh.read().strip()
+except OSError:
+    sys.exit(0)
+if not camp or camp == "_bootstrap":
+    sys.exit(0)
+path = os.path.join(repo, "campaigns", camp, "campaign.yaml")
+try:
+    with open(path, encoding="utf-8") as fh:
+        val = (json.load(fh).get("budgets") or {}).get(key)
+except (OSError, ValueError) as exc:
+    print(f"[mn] ⚠ 활성 캠페인 선언을 읽지 못했다({path}: {exc}) — 선언값 없이 진행(아래 게이트가 판정)",
+          file=sys.stderr)
+    sys.exit(0)
+if isinstance(val, int) and not isinstance(val, bool) and val > 0:
+    print(val)
+PY
+}
+
 READY_MAX="${READY_MAX:-}"
+READY_MAX_SOURCE="env READY_MAX"
+if [ -z "$READY_MAX" ] && [ "$DOWN" != "1" ]; then
+  _rms="$(_campaign_budget ready_max_seconds)"
+  if [ -n "$_rms" ]; then
+    READY_MAX=$(( (_rms + 4) / 5 ))      # READY_MAX 는 폴링 횟수(×5s) — 선언은 초다
+    READY_MAX_SOURCE="캠페인 budgets.ready_max_seconds=${_rms}s → ${READY_MAX}회×5s"
+  fi
+fi
 # 내리기 경로(--down)는 로드를 기다리지 않으므로 선언을 요구하지 않는다 — 게이트는 그것이 지키는
 # 일이 실제로 일어나는 경로에만 선다(무관한 경로를 막으면 사람이 게이트를 우회하는 법을 배운다).
 if [ "$DOWN" = "1" ] && [ -z "$READY_MAX" ]; then READY_MAX=0; fi
@@ -63,10 +101,11 @@ case "$READY_MAX" in
   ''|*[!0-9]*)
     echo "[mn] FAIL: READY_MAX 가 선언되지 않았다(기본값 없음 · 2026-09-05 G-B6)." >&2
     echo "     왜: 로드 시간은 모델·HW 의 함수다. 옛 기본 180 은 큰 모델을 타임아웃으로 오판했다." >&2
-    echo "     어떻게: READY_MAX=<초> 로 넘겨라(직전 런의 READY 도달 시간 + 여유)." >&2
+    echo "     어떻게: READY_MAX=<폴링 횟수(×5s)> env 또는 활성 캠페인 budgets.ready_max_seconds(초)를 선언하라(직전 런의 READY 도달 시간 + 여유)." >&2
     exit 2;;
 esac
 READY_WINDOW_S=$(( READY_MAX * 5 ))
+[ "$DOWN" = "1" ] || echo "[mn] READY_MAX 출처: $READY_MAX_SOURCE"
 
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$SDIR/../../../.." && pwd)"
@@ -808,6 +847,12 @@ if [ "$BUDGET" = "1" ]; then
   # 2026-09-05(G-B1): 기본값 12288 삭제 → **선언 필수**. 그 값은 "안전측"이 아니었다 —
   #   낮게 잡으면 선언 바닥이 높아져 워치독 arm 상한이 정상 서빙 위로 올라간다(실측 17,971).
   OVERHEAD_MIB="${SMOKE_BUDGET_OVERHEAD_MIB:-}"
+  OVERHEAD_SOURCE="env SMOKE_BUDGET_OVERHEAD_MIB"
+  if [ -z "$OVERHEAD_MIB" ]; then
+    OVERHEAD_MIB="$(_campaign_budget smoke_budget_overhead_mib)"
+    OVERHEAD_SOURCE="캠페인 budgets.smoke_budget_overhead_mib"
+  fi
+  [ -n "$OVERHEAD_MIB" ] && echo "[mn] overhead 출처: $OVERHEAD_SOURCE = ${OVERHEAD_MIB}MiB"
   if [ -z "$OVERHEAD_MIB" ]; then
     echo "[mn] FAIL: SMOKE_BUDGET_OVERHEAD_MIB 가 선언되지 않았다 — 예산 overhead 에 기본값을 쓰지 않는다." >&2
     echo "     왜: overhead 를 낮게 잡으면 선언 바닥이 높아져 정상 서빙이 무장 밴드에 들어간다(사살 실적)." >&2
