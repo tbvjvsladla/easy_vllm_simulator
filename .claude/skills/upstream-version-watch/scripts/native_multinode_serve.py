@@ -669,6 +669,100 @@ def native_install_script(ctx: Ctx, tool_sha: str, generated_utc: str, accept_sh
     return "\n".join(lines) + "\n"
 
 
+# ── native 기동 기록(plan_26092908 §4.2 · 2026-09-29) ─────────────────────────────────────────────────
+# `up` 이 **실제로 실행한** argv·env 를 실행 직전에 그대로 적는다(로그에서 재구성 ✗ · 빌더 재호출 ✗). 발행기 artifacts 는 serve proof
+#   `native_launch_path`(저장소 상대 · regular file · .md → `native-launch.md`)를 triplet 슬롯에 verified 로 싣는다 — 그 파일은 배포되므로
+#   운영자 경로·IP·호스트를 **발행기와 같은 치환 함수**(hintlib.pii.substitution_table + substitute)로 자리표시로 바꾼 뒤 deploy 프로필
+#   스캔을 통과한 바이트만 쓴다. 치환표 밖의 유일한 운영자 경로인 캠페인 run root base 는 `<campaign.native_run_root_base>` 로 더한다.
+NATIVE_LAUNCH_FILE = "native-launch.md"
+PH_RUN_ROOT_BASE = "<campaign.native_run_root_base>"
+HINT_SCRIPTS = REPO_DEFAULT / ".claude/skills/hint-publisher/scripts"
+
+
+def _hint_pii():
+    """발행기의 치환·스캔 단일본(hintlib.pii) — 사본을 만들지 않는다."""
+    p = str(HINT_SCRIPTS)
+    if p not in sys.path: sys.path.insert(0, p)
+    from hintlib import pii  # noqa: PLC0415 — 기동 기록을 쓸 때만 필요하다
+    return pii
+
+
+def launch_substitution_table(ctx: "Ctx") -> list[tuple[str, str]]:
+    """manifest 사실 기반 치환표(발행기와 같은 함수) + 캠페인 run root base 한 행. 같은 리터럴이면 run root 행이 이긴다."""
+    import yaml
+    pii = _hint_pii()
+    man = yaml.safe_load((ctx.repo / "output" / TOPOLOGY / "manifest.yaml").read_text(encoding="utf-8")) or {}
+    # run root = base/run-id(load_ctx) — 노드 루트 행도 같은 자리표시로 둔다(자체검사가 루트를 옮겨도 같은 모양) · 짧은 루트는 코드 상수
+    #   SHORT_BASE 아래라 운영자 지문이 아니다 — 그 정규형으로 적는다(실운영에선 항등이라 행을 만들지 않는다).
+    extra = {ctx.base.rstrip("/"): PH_RUN_ROOT_BASE}
+    for spec in ctx.nodes.values():
+        extra.setdefault(spec.root.rstrip("/"), f"{PH_RUN_ROOT_BASE}/{ctx.run_id}")
+        if spec.short.rstrip("/") != f"{SHORT_BASE}/{ctx.run_id}": extra.setdefault(spec.short.rstrip("/"), f"{SHORT_BASE}/{ctx.run_id}")
+    return [(lit, ph) for lit, ph in pii.substitution_table(ctx.repo, man) if lit not in extra] + sorted(extra.items())
+
+
+def _sha(b: bytes) -> str: return hashlib.sha256(b).hexdigest()
+
+
+def native_launch_markdown(ctx: "Ctx", launch: dict, obs: dict, status: str, *, stage: str = "", reason: str = "",
+                           recorded_utc: str = "") -> str:
+    """기동 기록(치환 **전** 원문). 입력은 `NativeServe.launch` — start 직전에 적은 실제 argv·env·시각이다."""
+    c = ctx
+    envs: dict[str, dict] = launch.get("envs") or {}
+    steps: list[dict] = launch.get("steps") or []
+    fence = lambda body, lang="": f"```{lang}\n{body.rstrip()}\n```"  # noqa: E731
+    L = [f"# native 기동 기록 — {c.cell}", "",
+         f"- run-id: `{c.run_id}` · 캠페인: `{c.campaign_id}` · 원본 Docker 셀: `{c.source_cell}` · 원천 이미지: `{c.image}`",
+         f"- 상태: **{status}**" + (f" (failed_stage={stage} · {reason[-300:]})" if status != "PASS" else ""),
+         f"- generated_utc(up 시작): {launch.get('generated_utc')} · recorded_utc(이 기록): {recorded_utc}",
+         "- provenance: measured — `native_multinode_serve.py up` 이 각 프로세스를 띄우기 **직전에** 넘긴 argv·env 를 그대로 적었다"
+         "(로그 재구성 ✗). 설치 절차는 serve proof `native_install_path`(native-install.sh)가 따로 든다.",
+         "- 치환: 운영자 절대경로·노드 IP·호스트·NIC·사람 식별자는 발행기 치환표(`hintlib.pii.substitution_table` · manifest 사실)로 "
+         f"`<manifest.<field>>`·`<node:main|sub>`·`<repo>`·`<nic:…>` 자리표시가 됐다. 캠페인 run root base 는 `{PH_RUN_ROOT_BASE}`. "
+         "표가 놓친 4종 패턴 잔여는 `<abs-path>`·`<priv-ip>` 등으로 가려졌다.",
+         f"- 재현 규칙: 각 단계의 실제 argv = `[\"env\", \"-i\", *sorted(\"K=V\" for ENV[<블록>]), *cmd]` (env 블록이 `-` 인 단계는 up 프로세스 "
+         "환경 상속). 단계의 `argv_sha256` 은 **치환 전** 실제 argv(JSON 직렬화)의 해시다.", "",
+         "## 포트", "", "| 용도 | 노드 | 주소 |", "|---|---|---|",
+         f"| vLLM OpenAI 서버 | main | port `{c.serve_port}` (셀 env SERVING_PORT = yaml port · 바인드 host 는 아래 yaml · 판정은 `http://127.0.0.1:{c.serve_port}`) |",
+         f"| Ray GCS | main | `{c.nodes['main'].host_ip}:{c.ray_port}` |", "",
+         "## 실행 순서", "", "| # | 노드 | 단계 | env | 시작(up+s) | 소요(s) | 로그 |", "|---|---|---|---|---|---|---|"]
+    for i, s in enumerate(steps, 1):
+        L.append(f"| {i} | {s['node']} | {s['step']} | {s.get('env') or '-'} | {s.get('t_rel_s', '-')} | {s.get('elapsed_s', '-')} | "
+                 f"{s.get('log_rel') or '-'} |")
+    L += ["", "## 단계별 argv", ""]
+    for i, s in enumerate(steps, 1):
+        L.append(f"### {i}. [{s['node']}] {s['step']}")
+        if s.get("note"): L.append(f"- {s['note']}")
+        L.append(f"- env: `{'ENV[' + s['env'] + ']' if s.get('env') else '상속(env -i 아님)'}` · argv_sha256: `{s.get('argv_sha256')}`")
+        for k in ("polls", "matched"):
+            if s.get(k) is not None: L.append(f"- {k}: `{s[k]}`")
+        L += [fence(shlex.join(s["cmd"]), "bash"), ""]
+    L += ["## 노드별 env 형상 (`env -i` 로 넘긴 환경 전부 · 키 정렬)", ""]
+    for name in sorted(envs):
+        env = envs[name]
+        L += [f"### ENV[{name}] — {len(env)} 키", "", fence("\n".join(f"{k}={env[k]}" for k in sorted(env))), ""]
+    ex = launch.get("serve_exec") or {}
+    L += ["## vllm serve 실효 인자", ""]
+    if ex.get("observed"):
+        L += [f"- 관측: {ex.get('source')}", fence(shlex.join(ex["argv"]), "bash")]
+    else:
+        L.append(f"- 관측 안 됨: {ex.get('why') or '기동 전 종료/미도달'}")
+    for key in ("yaml", "sh"):
+        rel = c.triplet[key]
+        try: b = (c.repo / rel).read_bytes()
+        except OSError: L.append(f"- `{rel}` 읽기 실패"); continue
+        L += [f"- `{rel}` sha256=`{_sha(b)}`", fence(b.decode("utf-8", errors="replace"), "yaml" if key == "yaml" else "bash")]
+    h, inf = obs.get("health") or {}, obs.get("inference") or {}
+    ep = (obs.get("endpoints") or {}).get("inference") or {}
+    L += ["", "## 성공 판정", "", "| 판정 | 결과 | 근거 |", "|---|---|---|",
+          f"| health | {'PASS' if h.get('ok') else 'FAIL'} | GET /health http={h.get('http_status')} · ready_after_s={h.get('ready_after_s')} "
+          f"(vllm serve 기동 뒤 · 창 {h.get('window_s')}s · 폴링 {HEALTH_INTERVAL_S}s) |",
+          f"| 추론 1회 | {'PASS' if inf.get('ok') else 'FAIL'} | {ep.get('path')} http={ep.get('http_status')} · evidence={inf.get('evidence')} · "
+          f"completion_text_len={inf.get('completion_text_len')} · finish_reason={inf.get('finish_reason')} · elapsed_s={launch.get('inference_elapsed_s')} |",
+          "", f"- 총 소요(up 시작 → 판정): {launch.get('total_elapsed_s')}s", ""]
+    return "\n".join(L)
+
+
 def _utc(t: float) -> str: return _dt.datetime.fromtimestamp(t, _dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
@@ -700,6 +794,7 @@ class NativeServe:
         self.c, self.r, self.rs, self.http, self.clock, self.log = ctx, runners, short_runners, http, clock, log
         self.state: dict[str, Any] = {}
         self.budget_declared = {"main": False, "sub": False}
+        self.launch: dict[str, Any] = {"steps": [], "envs": {}}   # 기동 기록(실행 직전 argv·env · native_launch_markdown 의 입력)
 
     # ---- 공용 ----
     def _state_write(self) -> None:
@@ -729,6 +824,39 @@ class NativeServe:
         p = self.c.repo / rel; p.parent.mkdir(parents=True, exist_ok=True)
         tmp = p.with_name(p.name + ".tmp")
         tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"); tmp.replace(p)
+
+    def _launch_step(self, node: str, step: str, env_name: Optional[str], env: Optional[dict], cmd: list[str],
+                     full_argv: list[str], t_start: float, **extra: Any) -> dict:
+        """start/run 에 **실제로 넘긴** full_argv 를 받아 적는다(빌더 재호출 ✗). env 는 이름 붙은 블록으로 한 번만 적는다."""
+        if env_name is not None and env is not None:
+            if env_name in self.launch["envs"] and self.launch["envs"][env_name] != env:
+                raise ServeError(f"기동 기록: 같은 env 블록 이름 {env_name} 에 다른 환경")
+            self.launch["envs"][env_name] = dict(env)
+            if full_argv != env_argv(env, cmd): raise ServeError(f"기동 기록: {step} 의 argv 가 env 블록+cmd 와 다르다")
+        elif full_argv != cmd: raise ServeError(f"기동 기록: {step} 의 argv 가 cmd 와 다르다")
+        row = {"node": node, "step": step, "env": env_name, "cmd": list(cmd), "argv_sha256": _sha(j(full_argv).encode()),
+               "t_rel_s": round(t_start - self.launch.get("t0", t_start), 1), **extra}
+        self.launch["steps"].append(row)
+        return row
+
+    def _write_launch(self, status: str, obs: dict, stage: str = "", reason: str = "") -> None:
+        """기동 기록을 치환·스캔한 뒤 보존 디렉터리에 쓴다. 실패는 서빙을 막지 않되 **침묵하지 않는다**(state·proof 의
+        native_launch_error → 발행기가 HINT_MISSING_NATIVE_LAUNCH 로 결손 기재)."""
+        if not self.state.get("preserve_rel") or not self.launch["steps"]: return
+        self.launch["total_elapsed_s"] = round(self.clock.mono() - self.launch.get("t0", self.clock.mono()), 1)
+        try:
+            raw = native_launch_markdown(self.c, self.launch, obs, status, stage=stage, reason=reason, recorded_utc=_utc(self.clock.now()))
+            pii = _hint_pii()
+            text = pii.substitute(raw, launch_substitution_table(self.c))
+            hits = pii.scan_text(text, pii.load_pii_terms(self.c.repo), profile="deploy")
+            if hits: raise ServeError(f"치환 뒤에도 deploy 스캔 검출 {len(hits)}건 — 기록을 쓰지 않는다")
+            self.state["native_launch_rel"] = self._preserve(NATIVE_LAUNCH_FILE, text.encode(), overwrite=True)
+            self.state.pop("native_launch_error", None)
+        except Exception as exc:  # noqa: BLE001 — 기록 실패는 결손으로 표면화(서빙 판정과 별개)
+            self.state.pop("native_launch_rel", None)
+            self.state["native_launch_error"] = f"{type(exc).__name__}: {exc}"[-400:]
+            self.log(f"[native] ⚠ 기동 기록 미작성: {self.state['native_launch_error']}")
+        self._state_write()
 
     # ---- 예산 ----
     def _wait_event(self, name: str, kind: str, t0: float) -> Optional[str]:
@@ -904,27 +1032,58 @@ class NativeServe:
 
     def _arm_watchdog(self, name: str, target: Identity) -> None:
         spec = self.c.nodes[name]
-        wd = self.r[name].start(watchdog_argv(spec, target), f"logs/watchdog-{target.role}.log", f"watchdog-{target.role}")
+        argv, t = watchdog_argv(spec, target), self.clock.mono()
+        wd = self.r[name].start(argv, f"logs/watchdog-{target.role}.log", f"watchdog-{target.role}")
         self._add_ident(wd, "watchdog", target.role)
+        self._launch_step(name, f"watchdog({target.role})", None, None, argv, argv, t, log_rel=wd.log_rel,
+                          note="안전 부속 — host_safety mem_watchdog pgid 모드(pid·pgid·starttime 은 이 run 의 값)")
 
     def start_cluster(self, lds: dict[str, dict]) -> Identity:
         c = self.c
         m, s = c.nodes["main"], c.nodes["sub"]
-        head = self.r["main"].start(env_argv(runtime_env(c, m, lds["main"]), ray_head_argv(c, m)), "logs/ray-head.log", "ray-head")
-        self._add_ident(head, "serve"); self._arm_watchdog("main", head)
-        worker = self.r["sub"].start(env_argv(runtime_env(c, s, lds["sub"]), ray_worker_argv(c, s)), "logs/ray-worker.log", "ray-worker")
-        self._add_ident(worker, "serve"); self._arm_watchdog("sub", worker)
-        end = self.clock.mono() + RAY_JOIN_MAX_S
+        env_m, env_s = runtime_env(c, m, lds["main"]), runtime_env(c, s, lds["sub"])
+        cmd, t = ray_head_argv(c, m), self.clock.mono(); argv = env_argv(env_m, cmd)
+        head = self.r["main"].start(argv, "logs/ray-head.log", "ray-head")
+        self._add_ident(head, "serve")          # 정체 먼저(기록이 실패해도 down 이 회수한다)
+        self._launch_step("main", "ray-head", "main", env_m, cmd, argv, t, log_rel=head.log_rel)
+        self._arm_watchdog("main", head)
+        cmd, t = ray_worker_argv(c, s), self.clock.mono(); argv = env_argv(env_s, cmd)
+        worker = self.r["sub"].start(argv, "logs/ray-worker.log", "ray-worker")
+        self._add_ident(worker, "serve")
+        self._launch_step("sub", "ray-worker(join)", "sub", env_s, cmd, argv, t, log_rel=worker.log_rel)
+        self._arm_watchdog("sub", worker)
+        cmd, t = ray_status_argv(c, m), self.clock.mono(); argv = env_argv(env_m, cmd)
+        end, polls = t + RAY_JOIN_MAX_S, 0
         while True:
-            st = self.r["main"].run(env_argv(runtime_env(c, m, lds["main"]), ray_status_argv(c, m)), 60, check=False)
-            if re.search(r"/2\.0 GPU", st.out): break
-            if self.clock.mono() >= end: raise ServeError(f"Ray worker 가 {RAY_JOIN_MAX_S}s 안에 합류하지 않았다(GPU 2 미관측)")
+            st = self.r["main"].run(argv, 60, check=False); polls += 1
+            hit = re.search(r"^.*/2\.0 GPU.*$", st.out, re.M)
+            if hit: break
+            if self.clock.mono() >= end:
+                self._launch_step("main", "gpu-join(ray status)", "main", env_m, cmd, argv, t, polls=polls, matched=None,
+                                  elapsed_s=round(self.clock.mono() - t, 1), note=f"GPU 2 미관측 · 창 {RAY_JOIN_MAX_S}s 소진")
+                raise ServeError(f"Ray worker 가 {RAY_JOIN_MAX_S}s 안에 합류하지 않았다(GPU 2 미관측)")
             self.clock.sleep(HEALTH_INTERVAL_S)
+        self._launch_step("main", "gpu-join(ray status)", "main", env_m, cmd, argv, t, polls=polls, matched=hit.group(0).strip(),
+                          elapsed_s=round(self.clock.mono() - t, 1),
+                          note=f"`/2.0 GPU` 관측까지 {HEALTH_INTERVAL_S}s 간격 폴링(상한 {RAY_JOIN_MAX_S}s)")
         self.log("[native] Ray 클러스터 GPU 2 관측 — vllm serve 기동")
-        env = runtime_env(c, m, lds["main"]); env["RAY_ADDRESS"] = f"{m.host_ip}:{c.ray_port}"
-        serve = self.r["main"].start(env_argv(env, serve_argv(c)), "logs/vllm-serve.log", "vllm-serve")
-        self._add_ident(serve, "serve"); self._arm_watchdog("main", serve)
+        env = dict(env_m); env["RAY_ADDRESS"] = f"{m.host_ip}:{c.ray_port}"
+        cmd, t = serve_argv(c), self.clock.mono(); argv = env_argv(env, cmd)
+        serve = self.r["main"].start(argv, "logs/vllm-serve.log", "vllm-serve")
+        self._add_ident(serve, "serve")
+        self._launch_step("main", "vllm-serve", "main-serve", env, cmd, argv, t, log_rel=serve.log_rel,
+                          note="러너 .sh 가 `exec <venv>/bin/vllm serve --config … --served-model-name …` 한다(아래 §vllm serve 실효 인자)")
+        self._arm_watchdog("main", serve)
         return serve
+
+    def observe_serve_exec(self, serve: Identity) -> dict:
+        """vllm serve 리더의 실효 argv(/proc/<pid>/cmdline) — starttime 이 같을 때만 관측으로 친다."""
+        if not starttime_of(self.r["main"], serve):
+            return {"observed": False, "why": "리더 starttime 불일치/부재"}
+        r = self.r["main"].run(["cat", f"/proc/{serve.pid}/cmdline"], 15, check=False)
+        argv = [x for x in r.out.split("\0") if x]
+        if r.rc or not argv: return {"observed": False, "why": f"cmdline 읽기 실패 rc={r.rc}"}
+        return {"observed": True, "argv": argv, "source": "/proc/<pid:vllm-serve>/cmdline(starttime 일치 확인 뒤 · health 200 이후)"}
 
     def health_and_smoke(self, serve: Identity) -> dict:
         c = self.c
@@ -941,6 +1100,7 @@ class NativeServe:
         if not ready:
             return {"health": health, "inference": {"ok": False, "verdict": "not-attempted"}, "endpoints": {"health": {"path": "/health", "http_status": last}}}
         body = {"model": c.model_name, "messages": [{"role": "user", "content": SMOKE_PROMPT}], "max_tokens": 256}
+        t_inf = self.clock.mono()
         code, text = self.http("POST", f"{base}/v1/chat/completions", body, 120)
         content, reasoning, fr = "", "", None
         with contextlib.suppress(Exception):
@@ -960,6 +1120,7 @@ class NativeServe:
             inf.update(ok=(c2 == 200 and n > 0), evidence="v1.completions", completion_text_len=n)
         else:
             inf.update(ok=False, evidence=None, completion_text_len=0)
+        self.launch["inference_elapsed_s"] = round(self.clock.mono() - t_inf, 1)
         return {"health": health, "inference": inf,
                 "endpoints": {"health": {"path": "/health", "http_status": last}, "inference": ep_inf}}
 
@@ -972,9 +1133,11 @@ class NativeServe:
                "endpoints": obs.get("endpoints") or {},
                "native_install_path": st.get("native_install_rel"), "pip_freeze_paths": st.get("pip_freeze_rel"),
                "cleanup_attestation_path": st.get("attestation_rel"), "evidence_dir": st.get("preserve_rel"),
+               "native_launch_path": st.get("native_launch_rel"),
                "wheelhouse": {"source_image_tag": self.c.image, "tool_sha256": st.get("wheel_tool_sha256"), "accept_sha256": st.get("wheel_accept_sha256"),
                               "note": "각 노드가 자기 로컬 이미지에서 재포장(이미지 전송 ✗)"},
                "provenance": "measured(native_multinode_serve.py up · health GET + 추론 POST 관측)"}
+        if st.get("native_launch_error"): doc["native_launch_error"] = st["native_launch_error"]
         if status != "PASS": doc.update(failed_stage=stage, reason=reason[-600:])
         self._write_repo_json(self.c.proof_rel, doc)
 
@@ -988,6 +1151,7 @@ class NativeServe:
     def up(self, generated_utc: str) -> int:
         c = self.c
         self.log(f"[native] up cell={c.cell} run={c.run_id} source={c.source_cell} image={c.image}")
+        self.launch.update(t0=self.clock.mono(), generated_utc=generated_utc)
         stage = "preflight"
         try:
             self.preflight_tools()
@@ -999,6 +1163,8 @@ class NativeServe:
             stage = "health"; obs = self.health_and_smoke(serve)
             if not obs["health"]["ok"]: raise ServeError(f"health 200 미도달({c.ready_max_s}s 창 · 마지막 http={obs['health']['http_status']})")
             if not obs["inference"].get("ok"): raise ServeError(f"추론 1회 관측 실패: {obs['inference']}")
+            self.launch["serve_exec"] = self.observe_serve_exec(serve)
+            self._write_launch("PASS", obs)
             self.write_proof("PASS", obs)
             stage = "renew"; self.arm_renew(serve, params["ttl_s"])
             self.state["up_completed_utc"] = _utc(self.clock.now()); self._state_write()
@@ -1007,6 +1173,8 @@ class NativeServe:
         except (Exception, KeyboardInterrupt) as exc:  # noqa: BLE001 — 어떤 실패든(버그·중단 포함) run root 가 있으면 자동 down
             self.log(f"[native] FAIL stage={stage}: {type(exc).__name__}: {exc}")
             obs = locals().get("obs") or {}
+            with contextlib.suppress(Exception):
+                self._write_launch("FAIL", obs, stage, str(exc))     # 실패까지 실행된 단계(부분 기록 · 상태 FAIL 로 명시)
             with contextlib.suppress(Exception):
                 self.write_proof("FAIL", obs, stage, str(exc))   # 최신 관측이 옛 PASS 를 덮는다
             if self.state.get("roots_created"):
@@ -1056,6 +1224,7 @@ class NativeServe:
         add("main", env_argv(env, serve_argv(c)), "start → identity")
         add("main", watchdog_argv(m, ph("vllm-serve")), "start")
         lines.append(f"[main] GET http://127.0.0.1:{c.serve_port}/health 매 {HEALTH_INTERVAL_S}s ≤ {c.ready_max_s}s → POST /v1/chat/completions 1회")
+        lines.append(f"[main] → docs/simlog/<YYMMDDHH>_{c.simlog_topic}/{NATIVE_LAUNCH_FILE} (기동 기록 · 실행 argv·env 치환본 → proof native_launch_path)")
         lines.append(f"[main] → {c.proof_rel} (native_multinode_serve_proof)")
         add("main", renew_argv(m, ph("vllm-serve"), 0), "start · ttl=<ttl>")
         add("sub", renew_argv(s, ph("ray-worker"), 0), "start · ttl=<ttl>")
@@ -1131,7 +1300,7 @@ def down_from_state(state: dict, repo: Path, runners: dict[str, Runner], short_r
             except (ServeError, OSError) as exc:
                 preserved = False; errors.append(f"로그 보존 실패 {ident.node}/{ident.role}: {exc}"); continue
             with (pdir / sub / f"{ident.node}-{ident.role}.log").open("x", encoding="utf-8") as fh: fh.write(text)
-        for rel in [state.get("native_install_rel"), *(state.get("pip_freeze_rel") or {}).values()]:
+        for rel in [state.get("native_install_rel"), state.get("native_launch_rel"), *(state.get("pip_freeze_rel") or {}).values()]:
             if rel and not (repo / rel).is_file(): preserved = False; errors.append(f"보존 증거 부재: {rel}")
     except OSError as exc:
         preserved = False; errors.append(f"보존 디렉터리 실패: {exc}")
@@ -1258,6 +1427,9 @@ class Fake(Runner):
             out = "[NAS-check] BUDGET_PARAMS ckpt_mib=60000 tp=2 kv_mib=20480 ple_mib=40000\n[NAS-check] GATE_PARAMS required_mib=40000\n"
         elif a[:2] == ["cat", "/proc/meminfo"] and "meminfo" in self.fault: raise ServeError(f"{self.node}: unreachable")
         elif a[:2] == ["cat", "/proc/meminfo"]: out = "MemTotal:       125000000 kB\nMemAvailable:   110000000 kB\n"
+        elif a[0] == "cat" and a[1].startswith("/proc/") and a[1].endswith("/cmdline"):
+            out = "\0".join([f"{self.root}/venv/bin/python3", f"{self.root}/venv/bin/vllm", "serve", "--config",
+                             f"{self.w.get('cfg_dir', '/x')}/src-native.yaml", "--served-model-name", "fx-model"]) + "\0"
         elif "budget-defaults" in a: out = "7200\n"
         elif "budget_preflight.py" in s: out = '{"floor_mib": 50000, "arm_ceiling_mib": 41808}'
         elif "declare-budget" in a or "clear-budget" in a: self.w.setdefault("budget", []).append((self.node, a[a.index("--node-dir") + 2]))
@@ -1313,14 +1485,14 @@ class Fake(Runner):
     def remove_owned_tree(self, run_id: str) -> None: safe_remove_owned_tree(Path(self.root), run_id)
 
 
-def _fixture_repo(base: Path) -> tuple[Path, str]:
+def _fixture_repo(base: Path, main_ip: str = "198.51.100.1", sub_ip: str = "198.51.100.2") -> tuple[Path, str]:
     rn = _load_module("_nm_render_native", HERE / "render_native_triplet.py")
     repo = rn._fixture(base / "repo", manifest_extra=(
-        "nodes:\n  - role: main\n    host: \"198.51.100.1\"\n    ssh_user: \"u\"\n    work_dir: \"/fx/repo\"\n"
-        "  - role: sub\n    host: \"198.51.100.2\"\n    ssh_user: \"u\"\n    work_dir: \"/fx/sub\"\n"))
+        f"nodes:\n  - role: main\n    host: \"{main_ip}\"\n    ssh_user: \"u\"\n    work_dir: \"/fx/repo\"\n"
+        f"  - role: sub\n    host: \"{sub_ip}\"\n    ssh_user: \"u\"\n    work_dir: \"/fx/sub\"\n"))
     rn.apply(repo, rn.render(repo, "multi", "src", "src-native"))
     (repo / "output/multi/envs/.env.interconnect").write_text("NCCL_SOCKET_IFNAME=eth9\nNCCL_IB_HCA==dev0\n", encoding="utf-8")
-    (repo / "output/multi/envs/.env.cluster").write_text("MASTER_HOST_IP=198.51.100.1\nSLAVE_HOST_IP=198.51.100.2\nRAY_PORT=6379\n"
+    (repo / "output/multi/envs/.env.cluster").write_text(f"MASTER_HOST_IP={main_ip}\nSLAVE_HOST_IP={sub_ip}\nRAY_PORT=6379\n"
                                                            "RAY_OBJECT_STORE_MEMORY=2000000000\n", encoding="utf-8")
     (repo / ".claude/skills/upstream-version-watch/scripts").mkdir(parents=True)
     (repo / ".claude/skills/upstream-version-watch/scripts/native_wheelhouse.py").write_text("# fixture wheelhouse tool\n", encoding="utf-8")
@@ -1328,20 +1500,20 @@ def _fixture_repo(base: Path) -> tuple[Path, str]:
     (repo / WHEEL_ACCEPT_REL).write_text('{"fixture": "accept"}\n', encoding="utf-8")
     camp = {"id": "camp-fx", "budgets": {"ready_max_seconds": 60, "smoke_budget_overhead_mib": 24800},
             "topology_sections": {"multi": {"native_cells": ["src-native"], "native_run_root_base": str(base / "runs"),
-                                            "native_run_root_max_gib_per_node": 80, "native_sub_host": "u@198.51.100.2"}}}
+                                            "native_run_root_max_gib_per_node": 80, "native_sub_host": f"u@{sub_ip}"}}}
     (repo / "campaigns/camp-fx").mkdir(parents=True)
     (repo / "campaigns/camp-fx/campaign.yaml").write_text(json.dumps(camp), encoding="utf-8")
     (repo / "campaigns/ACTIVE").write_text("camp-fx\n", encoding="utf-8")
     return repo, "src-native"
 
 
-def _scenario(base: Path, tag: str, fault: set, *, http_ok: bool = True):
-    repo, cell = _fixture_repo(base / tag)
+def _scenario(base: Path, tag: str, fault: set, *, http_ok: bool = True, ips: tuple[str, str] = ("198.51.100.1", "198.51.100.2")):
+    repo, cell = _fixture_repo(base / tag, *ips)
     ctx = load_ctx(repo, cell, f"r-{tag}")
     # 짧은 루트는 /tmp 를 건드리지 않게 자체검사 트리 아래로 옮긴다(동일 규약: basename == run-id)
     for n, spec in ctx.nodes.items():
         spec.root = str(base / tag / f"{n}-run" / ctx.run_id); spec.short = str(base / tag / f"{n}-short" / ctx.run_id)
-    clock, world = FakeClock(), {}
+    clock, world = FakeClock(), {"cfg_dir": str(repo / "output/multi/configs")}
     r = {n: Fake(n, ctx.nodes[n].root, clock, world, fault) for n in ("main", "sub")}
     rs = {n: Fake(n, ctx.nodes[n].short, clock, world, fault) for n in ("main", "sub")}
     polls = {"n": 0}
@@ -1352,6 +1524,11 @@ def _scenario(base: Path, tag: str, fault: set, *, http_ok: bool = True):
         return 200, json.dumps({"choices": [{"message": {"content": "4"}, "finish_reason": "stop"}]})
     ns = NativeServe(ctx, r, rs, http=http, clock=clock, log=lambda s: None)
     return repo, ctx, ns, world, r, rs
+
+
+def fence_in(md: str, body: str) -> bool:
+    """md 안에 정확히 그 한 줄을 본문으로 가진 코드 펜스가 있는가."""
+    return f"```bash\n{body}\n```" in md
 
 
 def self_test() -> int:
@@ -1484,6 +1661,75 @@ def self_test() -> int:
         ok, why = publisher(repo, cell)
         ck(f"★발행기 _serve_proof_ok + _native_producer_evidence 가 proof+attestation 을 받아들인다({why})", ok)
 
+        # ── native 기동 기록(plan_26092908 §4.2): 실행 argv·env 그대로 · 치환 · run root 삭제 뒤 생존 · 발행기 수용 ──
+        lrel = proof.get("native_launch_path")
+        lp = repo / lrel if isinstance(lrel, str) else None
+        md = lp.read_text(encoding="utf-8") if lp and lp.is_file() else ""
+        ck("★기동 기록: proof native_launch_path = 보존 디렉터리의 native-launch.md(저장소 상대 · regular · run root 삭제 뒤 생존)",
+           bool(md) and not Path(lrel).is_absolute() and lrel == f"{st['preserve_rel']}/{NATIVE_LAUNCH_FILE}"
+           and not lp.is_symlink() and not os.path.lexists(ctx.nodes["main"].root) and "native_launch_error" not in proof)
+        order = [ln.split("|")[3].strip() for ln in md.split("## 실행 순서", 1)[-1].split("## 단계별 argv", 1)[0].splitlines()
+                 if ln.startswith("| ") and ln.split("|")[1].strip().isdigit()]
+        ck(f"★실행 순서 = ray-head → worker join → GPU 합류 확인 → vllm serve(+워치독) · {order}",
+           [x for x in order if not x.startswith("watchdog")] == ["ray-head", "ray-worker(join)", "gpu-join(ray status)", "vllm-serve"]
+           and order.count("watchdog(ray-head)") == 1 and order.count("watchdog(vllm-serve)") == 1)
+        tbl = launch_substitution_table(ctx)
+        pii_mod = _hint_pii()
+        def shaped(argv: list[str]) -> str: return pii_mod.substitute(shlex.join(argv), tbl)
+        head_real = world["argv"]["ray-head"]; n_env = head_real.index(ray_head_argv(ctx, ctx.nodes["main"])[0])
+        cmd_head = head_real[n_env:]
+        ck("★ray start --head argv 전부가 실행 그대로(치환본) 실린다", fence_in(md, shaped(cmd_head)))
+        wk_real = world["argv"]["ray-worker"]; cmd_wk = wk_real[wk_real.index(ray_worker_argv(ctx, ctx.nodes["sub"])[0]):]
+        ck("★ray start --address(worker) argv 전부가 실린다", fence_in(md, shaped(cmd_wk)) and "<node:main>:6379" in md)
+        sv_real = world["argv"]["vllm-serve"]
+        ck("★vllm serve 러너 argv + /proc cmdline 실효 인자 + --config yaml 전문", fence_in(md, shaped(sv_real[-2:]))
+           and "vllm serve --config <repo>/output/multi/configs/src-native.yaml --served-model-name fx-model" in md
+           and "## vllm serve 실효 인자" in md and "sha256=" in md)
+        envs_ok = True
+        for blk, real in (("main", head_real), ("sub", wk_real), ("main-serve", sv_real)):
+            kv = real[2:real.index("bash")] if blk == "main-serve" else real[2:n_env] if blk == "main" else real[2:wk_real.index(cmd_wk[0])]
+            body = md.split(f"### ENV[{blk}]", 1)[-1].split("```", 2)[1] if f"### ENV[{blk}]" in md else ""
+            keys = [ln.split("=", 1)[0] for ln in body.strip().splitlines()]
+            envs_ok &= keys == sorted(t.split("=", 1)[0] for t in kv) and len(keys) > 10
+        ck("★노드별 env 형상 = env -i 로 넘긴 키 **전부**(main·sub·main-serve · 키 정렬)", envs_ok and "RAY_ADDRESS=<node:main>:6379" in md)
+        ck("★서브 env 에 셀 트리플렛(CONFIG_FILE) 없음 · 포트·성공 판정·소요 필드",
+           "CONFIG_FILE=" not in md.split("### ENV[sub]", 1)[-1].split("```", 2)[1] and "| vLLM OpenAI 서버 | main |" in md
+           and "ready_after_s=" in md and "completion_text_len=1" in md and "총 소요(up 시작 → 판정)" in md
+           and "generated_utc(up 시작): 2026-09-23T03:30:00Z" in md and f"run-id: `{ctx.run_id}`" in md)
+        leak = [x for x in (str(repo), str(base), "/fx/sub", "/fx/repo", "198.51.100.1", "198.51.100.2") if x in md]
+        ck(f"★운영자 경로·IP 원값 0(자리표시 <repo>·<node:*>·<campaign.native_run_root_base>) · 잔존={leak}",
+           not leak and "<repo>/" in md and "<node:sub>" in md and PH_RUN_ROOT_BASE + "/" + ctx.run_id in md)
+        try:
+            from hintlib import artifacts as hart
+            got = hart._native_launch_path(type("C", (), {"ev": {"serve_proof": proof}, "repo": repo})())
+            ck(f"★발행기 artifacts._native_launch_path 가 이 경로를 받는다({got and got[1]})", bool(got) and got[1] == "native-launch.md"
+               and got[0] == lp)
+        except Exception as exc:  # noqa: BLE001 — 발행기 쪽 인터페이스 변동은 실패로 드러낸다
+            ck(f"★발행기 artifacts._native_launch_path 호출({type(exc).__name__}: {exc})", False)
+
+        # ── 음성: 사설 IP 노드 · 치환이 빠지면 deploy 스캔이 잡는다 / 치환본은 흔적 0 ──
+        ipm, ips_ = ".".join(("10", "77", "0", "1")), ".".join(("10", "77", "0", "2"))
+        repoP, ctxP, nsP, _, _, _ = _scenario(base, "pii", set(), ips=(ipm, ips_))
+        nsP.up("2026-09-23T09:30:00Z")
+        proofP = json.loads((repoP / ctxP.proof_rel).read_text(encoding="utf-8"))
+        mdP = (repoP / proofP["native_launch_path"]).read_text(encoding="utf-8")
+        rawP = native_launch_markdown(ctxP, nsP.launch, {}, "PASS")
+        raw_hits = pii_mod.scan_text(rawP, None, profile="deploy")
+        ck(f"★음성 대조: 치환 전 원문은 deploy 스캔에 걸린다(사설 IP {len(raw_hits)}건 · 게이트가 무의미하지 않다)",
+           any(h.pattern == "private-ipv4" for h in raw_hits) and ipm in rawP)
+        ck("★치환본: deploy 스캔 0 · 노드 IP·repo·run root 원값 0", pii_mod.scan_text(mdP, None, profile="deploy") == []
+           and ipm not in mdP and ips_ not in mdP and str(repoP) not in mdP and str(base) not in mdP)
+        # 치환 함수가 망가지면(표가 비고 잔여 가림도 꺼짐) 기록을 쓰지 않고 결손으로 남긴다 — 원문이 배포 평면에 가지 않는다
+        repoQ, ctxQ, nsQ, _, _, _ = _scenario(base, "pii-broken", set(), ips=(ipm, ips_))
+        orig_sub = pii_mod.substitute
+        pii_mod.substitute = lambda text, table, residual=True: text
+        try: nsQ.up("2026-09-23T10:30:00Z")
+        finally: pii_mod.substitute = orig_sub
+        proofQ = json.loads((repoQ / ctxQ.proof_rel).read_text(encoding="utf-8"))
+        ck("★치환 누락 주입 → 기록 미작성 · proof native_launch_path=null + native_launch_error(침묵 ✗) · 서빙 판정 PASS 유지",
+           proofQ["status"] == "PASS" and proofQ.get("native_launch_path") is None and "deploy 스캔" in proofQ.get("native_launch_error", "")
+           and not (repoQ / proofQ["evidence_dir"] / NATIVE_LAUNCH_FILE).exists())
+
         # ── 실패 주입: vllm serve 기동 실패 → 자동 down → 잔재 0 ──
         repo2, ctx2, ns2, world2, r2, rs2 = _scenario(base, "startfail", {"start:vllm-serve"})
         rc2 = ns2.up("2026-09-23T04:30:00Z")
@@ -1494,6 +1740,10 @@ def self_test() -> int:
            and not os.path.lexists(ctx2.nodes["main"].root) and not os.path.lexists(ctx2.nodes["sub"].root))
         ck("★기동 실패 → 예산 선언 회수(clear-budget 양 노드)", sum(1 for n, _ in world2["budget"] if n == "sub") >= 3)
         ck("★기동 실패 proof 는 발행 자격 없음", not publisher(repo2, "src-native")[0])
+        md2 = (repo2 / proof2["native_launch_path"]).read_text(encoding="utf-8") if proof2.get("native_launch_path") else ""
+        ck("★기동 실패 → 기동 기록은 실패까지 실행된 단계만 · 상태 FAIL(stage=start) 명시", "상태: **FAIL** (failed_stage=start" in md2
+           and "gpu-join(ray status)" in md2 and "### 6." not in md2.split("## 노드별 env", 1)[0].split("## 단계별 argv", 1)[-1]
+           and "| vllm-serve |" not in md2)
 
         # ── 실패 주입: health 창 소진 → 자동 down ──
         repo3, ctx3, ns3, world3, _, _ = _scenario(base, "nohealth", set(), http_ok=False)
@@ -1505,6 +1755,8 @@ def self_test() -> int:
         r4["sub"].fault.add("meminfo")
         rc4 = ns4.up("2026-09-23T06:30:00Z")
         ck("★RAM 게이트 실패 → 루트 미생성 · 기동 0", rc4 == EXIT_FAIL and not os.path.lexists(ctx4.nodes["main"].root) and not world4.get("alive"))
+        ck("RAM 게이트 실패 → 기동 기록 없음(실행된 기동 단계 0 · native_launch_path=null)",
+           json.loads((repo4 / ctx4.proof_rel).read_text(encoding="utf-8")).get("native_launch_path") is None)
 
         # ── PID 재사용 at down → FAIL_CLOSED · 루트 보존 · 발행기 거부 ──
         repo5, ctx5, ns5, world5, r5, rs5 = _scenario(base, "reuse", set())
@@ -1534,7 +1786,7 @@ def self_test() -> int:
         lines = ns7.plan()
         after = sorted(str(p.relative_to(base)) for p in base.rglob("*"))
         calls = sum(len(f.calls) for f in (*r7.values(), *rs7.values()))
-        ck("★dry-run: 파일 변화 0 · 러너 호출 0", before == after and calls == 0 and not world7)
+        ck("★dry-run: 파일 변화 0 · 러너 호출 0", before == after and calls == 0 and set(world7) <= {"cfg_dir"})
         ck("dry-run: 노드별 명령(메인·서브 · wheelhouse·ray·serve·watchdog·renew)",
            any(x.startswith("[sub] ") and "native_wheelhouse.py build" in x and "--accept-file" in x and "tools/native_wheelhouse_accept.json" in x for x in lines) and all("--accept-file" in x for x in lines if "native_wheelhouse.py build" in x or "native_wheelhouse.py verify" in x) and any("ray start --head" in x for x in lines)
            and any(x.startswith("[sub] bash") and "mem_watchdog.sh --pgid" in x for x in lines) and any("budget_renew_loop.sh" in x for x in lines))
