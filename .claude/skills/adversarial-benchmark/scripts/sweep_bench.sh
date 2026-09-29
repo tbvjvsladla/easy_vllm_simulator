@@ -9,7 +9,7 @@
 #   run_bench 가 Flag/A2A 게이트·health precheck·envfile 해소를 수행 → 전이적 게이트 보존.
 # 비용 규율(편지 B.5): 이 스윕은 재탐색 루프 내부가 아니라 **full 런 종결 시 1회**만 호출한다.
 #
-# 사용: sweep_bench.sh <config_name> [--topology single|multi] [--serve-plane docker|native] [--host-endpoint URL]
+# 사용: sweep_bench.sh <config_name> [--topology single|multi] [--serve-plane docker|native] [--host-endpoint URL] [--engine-log PATH(native 필수)]
 #        [--levels 1,2,4,8,16] [--backend openai-chat|openai]
 #        [--input-len N] [--output-len N] [--num-prompts N] [--warmups N] [--vllm-version X] [--dry-run]
 #        [--repeats N [--repeats-source TEXT]] [--campaign-id ID] [--reassemble-only]
@@ -53,7 +53,7 @@
 set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
-TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; LEVELS="1,2,4,8,16"; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; VLLM_VER=""; DRYRUN=0; REASSEMBLE=0
+TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; NATIVE_ELOG=""; LEVELS="1,2,4,8,16"; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; VLLM_VER=""; DRYRUN=0; REASSEMBLE=0
 # ★ 2026-09-01 신설 — run_bench.sh 의 --backend 를 레벨마다 그대로 전달한다.
 #   전달하지 않으면 스윕 전 레벨이 openai-chat 로 돌아, harmony 계열(gpt-oss)에서 `--ignore-eos` 가
 #   무력해져 **모든 레벨의 TPOT 이 동시에 왜곡**된다(run_bench.sh 의 BACKEND 주석 참조).
@@ -84,6 +84,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --serve-plane) SERVE_PLANE="$2"; shift 2;;
   --host-endpoint) HOST_ENDPOINT="$2"; shift 2;;
   --client-vllm) CLIENT_VLLM="$2"; shift 2;;
+  --engine-log) NATIVE_ELOG="$2"; shift 2;;
   --tool) TOOL="$2"; shift 2;;
   --bench-budget-mib) BENCH_BUDGET_MIB="$2"; shift 2;;
   --max-error-rate) MAX_ERROR_RATE="$2"; shift 2;;
@@ -109,8 +110,16 @@ fi
 if [ "$SERVE_PLANE" = "native" ] && [[ ! "$HOST_ENDPOINT" =~ ^https?://[^/[:space:]]+(:[0-9]+)?$ ]]; then
   echo "[sweep_bench] ERROR --host-endpoint는 경로 없는 http(s) origin 이어야 한다: $HOST_ENDPOINT" >&2; exit 2
 fi
-if [ "$SERVE_PLANE" = "docker" ] && { [ -n "$HOST_ENDPOINT" ] || [ -n "$CLIENT_VLLM" ]; }; then
-  echo "[sweep_bench] ERROR --host-endpoint/--client-vllm은 --serve-plane native에서만 준다." >&2; exit 2
+# ★ 2026-09-29(plan_26092923_58_27): native 는 lite 레그에 서버 로그를 넘겨야 한다. 이 인자가 없던 동안 native lite 는 KV 가
+#   N/A 라 늘 ① 이었고, lite 게이트(221627c) 이후 native full 스윕은 GuideLLM 에 한 번도 들어가지 못했다. 선언으로만 받는다.
+if [ "$SERVE_PLANE" = "native" ] && [ "$REASSEMBLE" != "1" ] && [ -z "$NATIVE_ELOG" ]; then
+  echo "[sweep_bench] ERROR --serve-plane native에는 --engine-log <native producer 의 서버 로그>가 필수다(lite 레그 판정 입력)." >&2; exit 2
+fi
+if [ -n "$NATIVE_ELOG" ] && [ ! -f "$NATIVE_ELOG" ]; then
+  echo "[sweep_bench] ERROR --engine-log 파일이 없다: $NATIVE_ELOG" >&2; exit 2
+fi
+if [ "$SERVE_PLANE" = "docker" ] && { [ -n "$HOST_ENDPOINT" ] || [ -n "$CLIENT_VLLM" ] || [ -n "$NATIVE_ELOG" ]; }; then
+  echo "[sweep_bench] ERROR --host-endpoint/--client-vllm/--engine-log은 --serve-plane native에서만 준다." >&2; exit 2
 fi
 if [ "$SERVE_PLANE" = "native" ] && { [ ! -x "$CLIENT_VLLM" ] || [ -L "$CLIENT_VLLM" ]; }; then
   echo "[sweep_bench] ERROR --client-vllm이 실행 가능한 regular non-symlink 파일이 아니다: $CLIENT_VLLM" >&2; exit 2
@@ -271,6 +280,7 @@ LITE_RAW="$SWEEPDIR/lite_raw_${CONFIG}.json"
 LITE_PLANE_ARGS=(--serve-plane "$SERVE_PLANE")
 [ -n "$HOST_ENDPOINT" ] && LITE_PLANE_ARGS+=(--host-endpoint "$HOST_ENDPOINT")
 [ -n "$CLIENT_VLLM" ] && LITE_PLANE_ARGS+=(--client-vllm "$CLIENT_VLLM")
+[ -n "$NATIVE_ELOG" ] && LITE_PLANE_ARGS+=(--engine-log "$NATIVE_ELOG")
 # ★ 2026-09-29(plan_26092923 · 인터뷰 interview_20260929_132122): lite 는 full 의 **진입 게이트**다(lite ⊂ full).
 #   종전은 fail-soft 였다 — lite 가 실패해도 `lite truncated` 로 적고 GuideLLM 으로 넘어가, "full 은 됐는데 lite 는
 #   성립하지 않음" 이라는 교집합 상태가 존재할 수 있었다(D1 · single lite 측정 0건 rc 0 · 2026-09-29 실측).

@@ -63,7 +63,7 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋
 | stock-구조적-불가 | upstream arch variant owner | 아래 사다리·증거·승인 후 S3 |
 | 토폴로지 전용 실패(분산 런타임 등) | 특화헌법 §실패 라우팅이 owner 를 정한다 | 증거 보존→Model-C |
 | **lite ① 측정 경로 불성립**(`lite_verdict=measurement_path_failed` · lite/sweep exit 6 — 요청이 서버에 닿지 못함 · 측정기가 값을 못 냄) | 하네스 수리(`adversarial-benchmark` lite 실행기) | 하네스 결함 — 재빌드 ✗ · loop cap 차감 ✗ · GuideLLM·인증서 ✗. 판정 단일 권위 = lite raw `lite_verdict`(2026-09-29 · `plan_26092923`) |
-| **lite ② 서버 응답 실패**(`lite_verdict=server_failed` · lite/sweep exit 7 — 5xx·빈 출력·타임아웃·측정 중 서버 사망) | upstream(재빌드)·explorer(서빙전략) 재발동 | 실사용 불가 — loop cap −1 · 재발동은 기존 사람 승인 게이트를 거친다. **현재는 신호까지**(exit 7 · raw 판정) — 재발동·cap 배선은 후속. α 서빙 직후 자동 핸드오프는 기록·보고만(헌법 트리거 절) |
+| **lite ② 서버 응답 실패**(`lite_verdict=server_failed` · lite/sweep exit 7 — 5xx·빈 출력·타임아웃·측정 중 서버 사망) | upstream(재빌드)·explorer(서빙전략) 재발동 — **제안까지 기계, 실행은 사람** | 실사용 불가 — 셀 기록 사유 `lite_server_failed`(classify_cell ← 이번 셀 lite raw) · 캠페인 셀이면 writer(`campaign_init --cell-set --lite-raw`)가 `reconciliation.charges[]` 1건(멱등 · 키 = raw measured_utc)과 `reentry: proposed` 를 적고 `--resume-brief` 가 "재발동 대기" 로 올린다 · explorer 는 같은 셀에서 cap = `--cap` − 차감 수(소진 = 트라이얼 없이 Model-C) · 사람 결정은 `--reentry-decide` 로 기록(진행 차단 ✗). cap 값의 소유는 explorer 뿐이다(셀 상태는 몇 번 썼나만 든다). α 서빙 직후 자동 핸드오프는 기록·보고만(헌법 트리거 절) · 2026-09-29 `plan_26092923_58_27` |
 | **러너 평면 실패**(백엔드 한도·인증·미도달·바이너리 부재) | `relay.py` 사다리 회전 → 소진 시 사람 | 판정은 `terminal_reason` 구조 신호 · 회전은 예산 사건 ✗ · **한 바퀴 소진 = 차단성 HITL**. 정본 `terraforming_node` SKILL.md **§2.7.11** |
 | unknown | 사람 | `{proposed_class,evidence}`만 제시; 승인 전 무행동 |
 | recipe 중 구조적 불가 발견 | recipe §5.5→upstream §3.6 | 공식 bump / 포크 SHA pin / 음성정직; cap 뒤 Model-C |
@@ -265,7 +265,8 @@ producer 는 0 이었다. 이제 바이트를 쓰는 문은 하나이고, 그 �
 | 슬롯 | 성립 시점 | 포맷 owner(단일) | 호출부(실행자) |
 |---|---|---|---|
 | `phases/<node>/<phase>.status.json` | 각 phase 종료 | `terraforming_node` `campaign_init.py --phase-set` | serve: `single_serve_up.sh` health 200 지점 · bench/build/publish: 각 owner 스크립트 종료부 |
-| `cells/<cell>/cell.status.json` + `journey.jsonl` | 셀 트랜잭션 종료 | 동 `--cell-set` | `adversarial-benchmark` `broad_search.sh cell`(sweep 레코드를 쓴 **같은 트랜잭션**) |
+| `cells/<cell>/cell.status.json` + `journey.jsonl` | 셀 트랜잭션 종료 | 동 `--cell-set` | `adversarial-benchmark` `broad_search.sh cell`(sweep 레코드를 쓴 **같은 트랜잭션** · 이번 셀 lite raw 를 `--lite-raw` 로) |
+| `cells/<cell>/cell.status.json#reentry.decision` + 여정 | lite ② 재발동 제안에 사람이 답한 직후 | 동 `--reentry-decide` | 사람 승인 인자 필수(`--approved-by` 발화 전사) · 제안 없는 셀은 거부 |
 | `evidence_pointers.json` | 증거 발행 직후 | 동 `--evidence-add` | `publish_benchmark_record.py`(인증서 발행 지점) · 리포트·testlog·devlog 발행자 |
 | `campaign.yaml.revisions[]` | layer-1 개정 | 동 `--revise` | 사람 승인 인자 필수 · **메인 단일 창구**(서브는 릴레이로 요청만) |
 | `grounding/<utc>.json` | 캠페인 착수·셀 축 변경 | 동 `--ground` | 서빙·트라이얼 진입 백스톱이 이 파일을 요구한다(`policy:LIBRARY_GROUNDING_FAIL_CLOSED`) |

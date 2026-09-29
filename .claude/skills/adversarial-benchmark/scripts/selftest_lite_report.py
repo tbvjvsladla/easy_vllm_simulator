@@ -152,7 +152,11 @@ class Sandbox:
         return sorted(p.name for p in d.glob("benchmark_*.yaml")) if d.is_dir() else []
 
     def raw_path(self) -> Path:
-        return self.root / "output/single/benchlog" / f"lite_raw_{CFG}.json"
+        """**마지막 실행**의 raw. α·sweep 레그는 benchlog 에, β(--publish-report)는 benchlog/lite_publish/<config>_<UTC>/ 에
+        쓴다(2026-09-29 · α 가 β raw 를 덮지 않게). 둘 중 가장 최근에 쓴 것을 돌려준다(판정기가 제자리 기록하므로 mtime = 그 실행)."""
+        base = self.root / "output/single/benchlog"
+        cands = [p for p in [base / f"lite_raw_{CFG}.json", *base.glob(f"lite_publish/*/lite_raw_{CFG}.json")] if p.is_file()]
+        return max(cands, key=lambda p: p.stat().st_mtime_ns) if cands else base / f"lite_raw_{CFG}.json"
 
 
 def main() -> int:

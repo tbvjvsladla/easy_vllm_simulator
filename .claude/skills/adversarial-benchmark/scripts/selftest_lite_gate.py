@@ -14,6 +14,8 @@
       (benchmark_mode: lite · verdict: not_applicable · lite_verdict: pass · 강한 6키 · 게이트 파서 ok · 리포트와 같은 stem)
   K5★ 인증서 발행기는 판정 부재·어휘 밖·불통과 raw 로 lite 인증서를 내지 않는다(exit 3 · 부재를 통과로 접지 않는다)
   K6  종료코드 = raw 판정에서 파생(LITE_EXIT) — 같은 raw 를 두 번 읽어도 갈라지지 않는다
+  K7★ native 평면은 --engine-log 선언 필수(lite_bench·sweep_bench exit 2 — 조용한 ① ✗ · plan_26092923_58_27)
+  K8★ β(--publish-report) raw 는 lite_publish/<config>_<UTC>/ 에 따로 두어 α 가 덮지 않는다
 
 종료: 0=PASS · 1=FAIL
 """
@@ -130,6 +132,32 @@ def main() -> int:
         ck("K4 lite 인증서의 run key 가 풀린다(중복 판정·바인딩이 같은 키로 찾는다)",
            ok and gate.certificate_run_key(fields) is not None, fields)
 
+        # ── K8 β raw 는 α 에 덮이지 않는다(2026-09-29 · plan_26092923_58_27) ─────────────────────────────
+        pub = sorted((sb.root / "output/single/benchlog/lite_publish").glob("*/lite_raw_*.json"))
+        beta_raw = pub[-1] if pub else None
+        beta_bytes = beta_raw.read_bytes() if beta_raw else b""
+        ck("K8 β(--publish-report) raw 는 lite_publish/<config>_<UTC>/ 에 있다(α 기본 자리와 다르다)",
+           beta_raw is not None and beta_raw.parent.parent.name == "lite_publish"
+           and json.loads(beta_bytes or b"{}").get("measured_utc") == fields.get("measured_utc"), (pub, fields))
+        cp = sb.lite()
+        ck("K8★ 이어서 α(플래그 없음)를 돌려도 β raw 바이트가 그대로다(리포트·인증서의 입력 raw 보존)",
+           cp.returncode == 0 and beta_raw is not None and beta_raw.read_bytes() == beta_bytes
+           and sb.raw_path().parent.name == "benchlog", (cp.returncode, beta_raw, sb.raw_path()))
+
+        # ── K7 native 는 서버 로그 선언이 필수(2026-09-29) ────────────────────────────────────────────
+        _vllm = sb.root / "fake_vllm"
+        _vllm.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8"); _vllm.chmod(0o755)
+        cp = sb.run(["bash", str(sb.root / slr.AB / "lite_bench.sh"), slr.CFG, "--topology", "single", "--backend", "openai",
+                     "--serve-plane", "native", "--host-endpoint", "http://127.0.0.1:9", "--client-vllm", str(_vllm)])
+        ck("K7★ native · --engine-log 부재 → exit 2(인자 단계 · 조용한 ① ✗) · 사유를 말한다",
+           cp.returncode == 2 and "--engine-log" in cp.stderr, (cp.returncode, cp.stderr[-300:]))
+        shutil.copy2(SDIR / "sweep_bench.sh", sb.root / slr.AB / "sweep_bench.sh")   # 배포 바이트 사본(인자 검사만 친다)
+        cp = sb.run(["bash", str(sb.root / slr.AB / "sweep_bench.sh"), slr.CFG, "--topology", "single",
+                     "--serve-plane", "native", "--host-endpoint", "http://127.0.0.1:9", "--client-vllm", str(_vllm),
+                     "--backend", "openai", "--bench-budget-mib", "1024"])
+        ck("K7★ sweep_bench native · --engine-log 부재 → exit 2(lite 레그 판정 입력 선언)",
+           cp.returncode == 2 and "--engine-log" in cp.stderr, (cp.returncode, cp.stderr[-300:]))
+
         # ── K5 발행기 음성대조 ────────────────────────────────────────────────────────────
         pbr = str(sb.root / slr.AB / "publish_benchmark_record.py")
         good = raw() or {}
@@ -150,7 +178,7 @@ def main() -> int:
     if failures:
         print("[selftest_lite_gate] FAIL %d 건: %s" % (len(failures), failures), file=sys.stderr)
         return 1
-    print("[selftest_lite_gate] PASS — K1~K6(D1 연결거부 · ② · α 관측 · β lite 인증서 · 발행기 음성대조 · 종료코드 파생)")
+    print("[selftest_lite_gate] PASS — K1~K8(D1 연결거부 · ② · α 관측 · β lite 인증서 · 발행기 음성대조 · 종료코드 파생 · native 엔진 로그 · β/α raw 분리)")
     return 0
 
 

@@ -556,6 +556,30 @@ def _is_campaign_cell_lockset(path):
             and parts[2] == "cells" and parts[4] == "lockset.json")
 
 
+def _campaign_cell_lite_charges(candidate):
+    """캠페인 셀이면 같은 셀 `cell.status.json` 의 lite ② 차감 → (spent, reentry_status, 출처). 셀이 아니면 (0, None, None).
+
+    2026-09-29(plan_26092923_58_27): workflow.md §실패 라우팅 lite ② 행 "실사용 불가 — loop cap −1". cap 의 소유자는 여기
+    (`--cap` · reconciliation_cap)이고, 셀 상태 writer(campaign_init --cell-set --lite-raw)는 **몇 번 썼나**만 적는다 —
+    잔여 = cap − spent 는 소비자인 이 함수가 파생한다(같은 개념을 두 자리에 적지 않는다). 판독 실패는 차감 0 으로 접지 않는다."""
+    if not _is_campaign_cell_lockset(candidate):
+        return 0, None, None
+    st_path = os.path.join(os.path.dirname(os.path.realpath(candidate)), "cell.status.json")
+    rel = os.path.relpath(st_path, os.path.realpath(REPO_ROOT))
+    if not os.path.isfile(st_path):
+        return 0, None, "%s 부재(셀 상태 미기록 — 차감 0)" % rel
+    try:
+        with open(st_path, encoding="utf-8") as f:
+            st = json.load(f)
+    except (OSError, ValueError) as exc:
+        _die("셀 상태 %s 를 읽을 수 없다(%s) — lite ② 차감을 모르면 cap 을 정할 수 없다(차감 0 으로 접지 않는다)" % (rel, exc),
+             code=5)
+    rec = st.get("reconciliation") if isinstance(st, dict) and isinstance(st.get("reconciliation"), dict) else {}
+    spent = len([c for c in (rec.get("charges") or []) if isinstance(c, dict)])
+    reentry = st.get("reentry") if isinstance(st, dict) and isinstance(st.get("reentry"), dict) else {}
+    return spent, reentry.get("status"), "%s reconciliation.charges" % rel
+
+
 def _stamp(key, value):
     """explorer 가 **각인하는** 출처 값 하나를 소유자 어휘로 교차검증해 돌려준다. None 은 '아직 정하지 않았다'.
 
@@ -1472,7 +1496,23 @@ def cmd_simulate(args):
     }
     opts = {k: v for k, v in opts.items() if v is not None}
 
-    cap = int(args.cap)
+    cap_declared = int(args.cap)
+    _lite_spent, _reentry_status, _spent_src = _campaign_cell_lite_charges(args.candidate)
+    cap = cap_declared - _lite_spent
+    if _lite_spent:
+        print("[recipe] ⓘ lite ② 차감 %d건(%s) → cap %d − %d = %d" % (_lite_spent, _spent_src, cap_declared, _lite_spent, cap),
+              file=sys.stderr)
+        if _reentry_status != "approved":
+            # 기재만 한다 — 재발동 승인은 대화 평면의 사람 게이트이고, 기록은 campaign_init --reentry-decide 다(차단 ✗).
+            print("[recipe] ⚠ 재발동 결정 기록이 없다(reentry.status=%r) — 사람 승인을 받았으면 "
+                  "`campaign_init.py --reentry-decide <cell> --decision approve --route explorer --approved-by … --utc …` 로 남겨라"
+                  % (_reentry_status,), file=sys.stderr)
+    if cap <= 0:
+        print("[recipe] ── Model-C (HITL) — reconciliation_cap 소진(선언 %d · lite ② 차감 %d) · 트라이얼 없이 멈춘다 ──"
+              % (cap_declared, _lite_spent), file=sys.stderr)
+        print("[recipe]   이 셀은 서빙은 됐으나 lite ② 실사용 불가가 cap 만큼 반복됐다 — 서빙전략 재탐색이 아니라 사람 판단"
+              "(upstream 재빌드 · 음성정직 · 셀 폐기)이 다음이다. 출처: %s" % _spent_src, file=sys.stderr)
+        sys.exit(3)
     correction_history = []
     converged = False
     final_trial = None

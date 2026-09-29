@@ -18,8 +18,8 @@
   메인 5지표 N/A 없음(임계값 없음). 불통과 ① `measurement_path_failed`(측정 뒤 호스트 평면 health 200 인데 **클라이언트가 도는 평면**
   에서 미도달 = D1 · 요청 성공인데 지표 N/A · 결과 파일 없이 클라이언트 실패) → exit 6 · 하네스 수리. ② `server_failed`(호스트 평면도
   미응답 = 측정 중 서버 사망 · 결과 파일이 실패 요청·빈 출력 · `Initial test run failed` 가 연결 오류 없이 난 경우) → exit 7 · upstream·
-  explorer 재발동 신호(배선은 후속). 종료코드는 raw 판정에서 **파생**한다(단일 권위). native 평면은 서버 로그를 `--engine-log` 로 선언한다
-  (없으면 KV·VRAM N/A → ① · 정직한 부재). 행동은 진입 경로가 정한다 — **α 자동 핸드오프 = 기록·보고만**(리포트·인증서 ✗ · 재빌드 ✗) ·
+  explorer 재발동 **제안**(2026-09-29 `plan_26092923_58_27` 배선: 셀 기록 사유 `lite_server_failed` · 캠페인 셀 cap 차감 1 · `reentry: proposed` · explorer cap = `--cap` − 차감 · 실행은 사람 승인). 종료코드는 raw 판정에서 **파생**한다(단일 권위). native 평면은 서버 로그를 `--engine-log` 로 선언한다
+  (**필수** — 없으면 `lite_bench`·`sweep_bench` 모두 exit 2 · 2026-09-29 전에는 조용히 ① 이었고 native full 스윕이 GuideLLM 에 못 들어갔다). β(`--publish-report`)의 raw 는 `--out-dir` 미지정 시 `benchlog/lite_publish/<config>_<UTC>/` 에 따로 둔다(α 가 덮지 않는다). 행동은 진입 경로가 정한다 — **α 자동 핸드오프 = 기록·보고만**(리포트·인증서 ✗ · 재빌드 ✗) ·
   **β lite-only 셀** `--publish-report` = 리포트(판정과 무관) + pass 일 때만 **lite 등급 인증서**(`publish_benchmark_record.py --lite-raw-json`) ·
   **γ 강등 셀** = sweep 경로가 index.lite 의 판정 pass 에서 lite 등급 인증서. lite 등급 인증서는 hint 발행 자격의 근거이고(completion_gate
   `HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE`) 성능 완료의 근거가 아니다(`CERTIFICATE_GRADE_NOT_FULL`).

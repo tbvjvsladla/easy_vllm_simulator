@@ -798,7 +798,8 @@ def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
                     void_reason: str | None, void_reason_source: str | None,
                     axis_citation: str | None, next_intent: str | None,
                     utc: str | None, sweep_state: str | None = None,
-                    image_digest: str | None = None, image_tag: str | None = None
+                    image_digest: str | None = None, image_tag: str | None = None,
+                    lite_raw: str | None = None
                     ) -> "tuple[Path, Path | None]":
     if outcome not in CELL_OUTCOMES:
         raise WriterRefusal(f"cell_outcome 은 {CELL_OUTCOMES} 중 하나여야 한다: {outcome!r}")
@@ -900,6 +901,9 @@ def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
                                             "reason": "그라운딩 기록이 없다(C1 미수행)"}})
     doc["void_reason"] = void_reason
     doc["void_reason_source"] = void_reason_source
+    lite_verdict = None
+    if lite_raw:
+        lite_verdict = _apply_lite_gate(doc, lite_raw, utc)
     if axis_citation is not None:
         doc["axis_citation"] = axis_citation
     if next_intent is not None:
@@ -910,10 +914,92 @@ def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
     if next_intent:
         # 여정 한 줄은 **같은 트랜잭션**에 실린다 — 새 절차를 만들지 않고 이미 도는 자동쓰기에
         # 인자 하나를 얹는 방식이다(인터뷰 Q4).
-        journey = writer_append_journey(base, {
-            "utc": utc, "node_id": node, "cell_id": cell, "outcome": outcome,
-            "axis_citation": axis_citation, "next_intent": next_intent,
-            "source": "campaign_init --cell-set"})
+        entry = {"utc": utc, "node_id": node, "cell_id": cell, "outcome": outcome,
+                 "axis_citation": axis_citation, "next_intent": next_intent,
+                 "source": "campaign_init --cell-set"}
+        if lite_raw:
+            entry["lite_verdict"] = lite_verdict
+        journey = writer_append_journey(base, entry)
+    return path, journey
+
+
+# ── lite ② → cap 차감 · 재발동 제안(2026-09-29 · plan_26092923_58_27) ─────────────────────────────────
+#   workflow.md §실패 라우팅의 lite ② 행("실사용 불가 — loop cap −1 · 재발동은 사람 승인 게이트")을 **셀 상태에** 싣는다.
+#   · 판정은 다시 하지 않는다 — raw 의 `lite_verdict` 를 소유자 규칙(`lite_metrics.read_lite_verdict`)으로 읽는다.
+#   · 차감은 **몇 번 썼나**만 적는다(`reconciliation.charges[]` · 키 = raw measured_utc → 같은 측정은 한 번). cap 값은
+#     소유자(explorer `recipe.py --cap`)만 알고, 잔여는 소비자가 `cap − spent` 로 파생한다(같은 개념을 두 자리에 적지 않는다).
+#   · ① measurement_path_failed 는 하네스 결함이라 차감하지 않는다(재빌드 ✗ · 하네스 수리).
+#   · 재발동은 **제안**까지다. 실행은 사람 승인(대화 평면)을 거치고, 그 결정은 `--reentry-decide` 로 기록한다 — 진행을 막는
+#     자리(선언 팝업·purge·발행 게이트)를 늘리지 않는다.
+REENTRY_ROUTES = {"explorer": "vllm-recipe-explorer(서빙전략 재수립)",
+                  "upstream": "upstream-version-watch(재빌드)"}
+
+
+def _read_lite_raw(raw_path: str) -> "tuple[str | None, str | None, str]":
+    """lite raw → (판정|None, measured_utc|None, 출처). 판정 읽기 규칙은 소유자에게 묻는다(복제 ✗)."""
+    import importlib.util
+    mod_path = (Path(__file__).resolve().parents[2] / "adversarial-benchmark" / "scripts" / "lite_metrics.py")
+    raw = _read_json(Path(raw_path))
+    if not isinstance(raw, dict):
+        raise WriterRefusal(f"--lite-raw 를 JSON 객체로 읽을 수 없다: {raw_path}")
+    if not mod_path.is_file():
+        # 물을 데가 없으면 판정 없음이다 — 추측으로 차감하지도, 통과로 접지도 않는다.
+        return None, raw.get("measured_utc"), f"not_evaluated(판정 읽기 소유자 부재: {mod_path})"
+    spec = importlib.util.spec_from_file_location("_lite_metrics", mod_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return (mod.read_lite_verdict(raw), raw.get("measured_utc"),
+            f"lite_raw({_rel(Path(raw_path).resolve())}) · lite_metrics.read_lite_verdict")
+
+
+def _apply_lite_gate(doc: dict, lite_raw: str, utc: str | None) -> "str | None":
+    verdict, measured, source = _read_lite_raw(lite_raw)
+    doc["lite_gate"] = {"verdict": verdict, "measured_utc": measured, "source": source}
+    if verdict != "server_failed":
+        return verdict
+    rec = doc.get("reconciliation") if isinstance(doc.get("reconciliation"), dict) else {}
+    charges = [c for c in (rec.get("charges") or []) if isinstance(c, dict)]
+    key = measured or source
+    fresh = not any(c.get("key") == key for c in charges)
+    if fresh:
+        charges.append({"key": key, "utc": utc, "reason": "lite_verdict=server_failed(실사용 불가)", "source": source})
+    doc["reconciliation"] = {
+        "charges": charges, "spent": len(charges),
+        "cap_owner": "vllm-recipe-explorer recipe.py --cap — 잔여 = cap − spent(cap 값은 여기에 적지 않는다)"}
+    prior = doc.get("reentry") if isinstance(doc.get("reentry"), dict) else None
+    if fresh or prior is None:
+        doc["reentry"] = {
+            "status": "proposed", "reason": "lite_verdict=server_failed", "charge_key": key,
+            "proposed_utc": utc, "routes": list(REENTRY_ROUTES.values()), "decision": None,
+            "gate": "사람 승인(대화 평면) → campaign_init --reentry-decide 로 기록 · 자동 실행 ✗"}
+    return verdict
+
+
+def writer_decide_reentry(base: Path, *, cell: str, decision: str, route: str | None,
+                          approved_by: str | None, utc: str | None) -> "tuple[Path, Path]":
+    """재발동 제안에 대한 사람의 결정을 **기록**한다. 제안이 없으면 받지 않는다(없는 제안의 승인은 단언이다)."""
+    if decision not in ("approve", "decline"):
+        raise WriterRefusal(f"--decision 은 approve|decline 이다: {decision!r}")
+    if decision == "approve" and route not in REENTRY_ROUTES:
+        raise WriterRefusal(f"승인에는 --route {'|'.join(REENTRY_ROUTES)} 가 필요하다(누가 재발동하는가를 먼저 적는다)")
+    if not (approved_by or "").strip() or not utc:
+        raise WriterRefusal("--reentry-decide 는 --approved-by(사람 발화 전사)와 --utc 가 필요하다")
+    path = base / "cells" / cell / "cell.status.json"
+    doc = _read_json(path) if path.is_file() else None
+    reentry = doc.get("reentry") if isinstance(doc, dict) else None
+    if not isinstance(reentry, dict) or reentry.get("status") != "proposed":
+        raise WriterRefusal(f"셀 {cell} 에 대기 중인 재발동 제안이 없다(status="
+                            f"{(reentry or {}).get('status') if isinstance(reentry, dict) else None!r}) — "
+                            "제안은 lite ② 가 셀 상태에 실릴 때 생긴다(--cell-set --lite-raw)")
+    reentry["status"] = "approved" if decision == "approve" else "declined"
+    reentry["decision"] = {"decision": decision, "route": REENTRY_ROUTES.get(route) if route else None,
+                           "approved_by": approved_by.strip(), "utc": utc}
+    doc["reentry"] = reentry
+    _write_json(path, doc)
+    journey = writer_append_journey(base, {
+        "utc": utc, "node_id": doc.get("node_id"), "cell_id": cell, "outcome": doc.get("cell_outcome"),
+        "reentry": reentry["status"], "route": reentry["decision"]["route"],
+        "source": "campaign_init --reentry-decide"})
     return path, journey
 
 
@@ -1402,7 +1488,7 @@ def resume_brief(camp_id: str | None = None) -> str:
     listed = plan + [(None, c, None) for c in found if c not in known]
     A("")
     A("## 2. 셀 진행표 (노드별 배정 순 — **다른 노드의 리스트는 동시에 돈다**)")
-    pending, refuted = [], []
+    pending, refuted, reentry_pending = [], [], []
     for node_of, cell, mode in listed:
         st = _read_json(cells_dir / cell / "cell.status.json")
         st = st if isinstance(st, dict) else {}
@@ -1416,6 +1502,13 @@ def resume_brief(camp_id: str | None = None) -> str:
             extra.append(f"decode {tps} t/s")
         if st.get("void_reason"):
             extra.append(f"void: {_short(st['void_reason'], 110)}")
+        # lite ② 재발동(2026-09-29 · plan_26092923_58_27) — 차감 수와 제안 상태를 셀 줄에 싣는다(잔여 cap 은 explorer 가 파생).
+        _rc = st.get("reconciliation") if isinstance(st.get("reconciliation"), dict) else {}
+        _re = st.get("reentry") if isinstance(st.get("reentry"), dict) else {}
+        if _rc.get("spent"):
+            extra.append(f"lite ② · cap 차감 {_rc['spent']} · 재발동 {_re.get('status') or '기록 없음'}")
+        if _re.get("status") == "proposed":
+            reentry_pending.append((cell, _rc.get("spent"), _re.get("proposed_utc")))
         tag = f"[{node_of} · {mode}]" if node_of else "[미배정]"
         A(f"- `{cell}` {tag} — {outcome}" + (f"  ({' · '.join(extra)})" if extra else ""))
         # 상태 파일이 아예 없는 셀도 **남은 작업**이다 — "돌지 않았다"와 "종결했다"를 같은 값으로
@@ -1426,6 +1519,12 @@ def resume_brief(camp_id: str | None = None) -> str:
             refuted.append((cell, cite, st.get("void_reason")))
     if not listed:
         A("- (배정된 셀 없음)")
+    if reentry_pending:
+        A("")
+        A("### 재발동 대기(사람 승인) — lite ② 실사용 불가")
+        for cell, spent, when in reentry_pending:
+            A(f"- `{cell}` — cap 차감 누계 {spent} · 제안 {when or '시각 미상'} · 경로: "
+              + " / ".join(REENTRY_ROUTES.values()) + " · 결정은 `--reentry-decide` 로 기록(자동 실행 ✗)")
 
     A("")
     A("## 3. 노드별 phase 진행표")
@@ -2107,6 +2206,60 @@ def _selftest() -> int:
            and _c["measurement"]["source"] and _c["axis_citation"] == "kv dtype 축")
         ck("여정 한 줄이 같은 트랜잭션에서 쌓인다",
            len(read_journey(camp)) == 1 and read_journey(camp)[0]["next_intent"].startswith("c2"))
+        # ── lite ② → cap 차감 · 재발동 제안(2026-09-29 · plan_26092923_58_27) — 별도 인스턴스(여정 수 검사와 섞지 않는다)
+        _lc = Path(tmp) / "lite_camp"; (_lc / "cells").mkdir(parents=True)
+
+        def _lraw(name, verdict, measured):
+            _p = Path(tmp) / name
+            _p.write_text(json.dumps({"lite_verdict": verdict, "measured_utc": measured}), encoding="utf-8")
+            return str(_p)
+
+        def _lset(cell, raw, utc, intent=None):
+            return writer_set_cell(_lc, cell=cell, outcome="measurement_void", node="main", version=None, model=None,
+                                   decode_tps=None, measurement_source=None, void_reason="lite_server_failed",
+                                   void_reason_source="lite_raw(x)", axis_citation=None, next_intent=intent,
+                                   utc=utc, lite_raw=raw)
+        _sf1 = _lraw("sf1.json", "server_failed", "2026-01-01T02:00:00Z")
+        _lset("lc", _sf1, "2026-01-01T02:01:00Z", intent="재발동 판단 대기")
+        _l = _read_json(_lc / "cells" / "lc" / "cell.status.json")
+        ck("★LR1 lite ② → lite_gate · cap 차감 1 · 재발동 제안(proposed) · cap 값은 적지 않는다",
+           _l["lite_gate"]["verdict"] == "server_failed" and _l["reconciliation"]["spent"] == 1
+           and _l["reentry"]["status"] == "proposed" and "cap" not in _l["reconciliation"]
+           and read_journey(_lc)[-1].get("lite_verdict") == "server_failed")
+        _lset("lc", _sf1, "2026-01-01T02:05:00Z")
+        ck("★LR2 같은 측정(raw measured_utc)을 다시 적어도 차감은 1(멱등)",
+           _read_json(_lc / "cells" / "lc" / "cell.status.json")["reconciliation"]["spent"] == 1)
+        _lset("lc", _lraw("sf2.json", "server_failed", "2026-01-01T03:00:00Z"), "2026-01-01T03:01:00Z")
+        ck("LR3 새 측정의 ② 는 차감 2", _read_json(_lc / "cells" / "lc" / "cell.status.json")["reconciliation"]["spent"] == 2)
+        _lset("lm", _lraw("mp.json", "measurement_path_failed", "2026-01-01T02:00:00Z"), "2026-01-01T02:01:00Z")
+        _m = _read_json(_lc / "cells" / "lm" / "cell.status.json")
+        ck("★LR4 ① measurement_path_failed 는 차감 0 · 제안 0(하네스 수리)",
+           _m["lite_gate"]["verdict"] == "measurement_path_failed" and "reconciliation" not in _m and "reentry" not in _m)
+        _lset("lv", _lraw("voc.json", "ok", "2026-01-01T02:00:00Z"), "2026-01-01T02:01:00Z")
+        _v = _read_json(_lc / "cells" / "lv" / "cell.status.json")
+        ck("LR5 어휘 밖 판정 → verdict None · 차감 0(소유자 규칙)", _v["lite_gate"]["verdict"] is None and "reentry" not in _v)
+        ck("★LR6 음성대조 제안 없는 셀의 재발동 결정은 거부",
+           _boom(lambda: writer_decide_reentry(_lc, cell="lm", decision="approve", route="explorer",
+                                               approved_by="사용자", utc="2026-01-01T04:00:00Z")))
+        ck("★LR7 음성대조 승인에 경로가 없으면 거부",
+           _boom(lambda: writer_decide_reentry(_lc, cell="lc", decision="approve", route=None,
+                                               approved_by="사용자", utc="2026-01-01T04:00:00Z")))
+        ck("LR8 음성대조 발화 전사 없는 결정은 거부",
+           _boom(lambda: writer_decide_reentry(_lc, cell="lc", decision="decline", route=None,
+                                               approved_by=" ", utc="2026-01-01T04:00:00Z")))
+        writer_decide_reentry(_lc, cell="lc", decision="approve", route="explorer",
+                              approved_by="사용자(발화 전사) — 서빙전략 다시", utc="2026-01-01T04:00:00Z")
+        _l = _read_json(_lc / "cells" / "lc" / "cell.status.json")
+        ck("LR9 결정 기록 → approved · 경로 · 여정 한 줄",
+           _l["reentry"]["status"] == "approved" and "explorer" in _l["reentry"]["decision"]["route"]
+           and read_journey(_lc)[-1]["source"] == "campaign_init --reentry-decide")
+        ck("LR10 결정된 제안은 다시 결정할 수 없다(대기 제안 없음)",
+           _boom(lambda: writer_decide_reentry(_lc, cell="lc", decision="decline", route=None,
+                                               approved_by="사용자", utc="2026-01-01T05:00:00Z")))
+        _lset("lc", _lraw("sf3.json", "server_failed", "2026-01-01T06:00:00Z"), "2026-01-01T06:01:00Z")
+        _l = _read_json(_lc / "cells" / "lc" / "cell.status.json")
+        ck("LR11 결정 뒤 새 ② 는 새 제안을 연다(차감 3)",
+           _l["reentry"]["status"] == "proposed" and _l["reconciliation"]["spent"] == 3)
         ck("★음성대조 알 수 없는 outcome 거부",
            _boom(lambda: writer_set_cell(camp, cell="c2", outcome="nope", node="main",
                                          version=None, model=None, decode_tps=None,
@@ -2234,6 +2387,15 @@ def _selftest() -> int:
         ck("resume-brief 가 선언 노드의 진행표 부재를 표시한다", "sub:" in brief and "phases/ 디렉터리 없음" in brief)
         ck("★resume-brief 가 셀마다 배정 노드와 모드를 보여준다(동시에 도는 리스트가 보인다)",
            "[main · AUTO]" in brief and "[main · STAY]" in brief)
+        # lite ② 재발동 대기가 brief 에 보인다(2026-09-29) — 검사 뒤 셀을 지워 이후 검사와 섞지 않는다.
+        writer_set_cell(camp, cell="lz", outcome="measurement_void", node="main", version=None, model=None,
+                        decode_tps=None, measurement_source=None, void_reason="lite_server_failed",
+                        void_reason_source="lite_raw(x)", axis_citation=None, next_intent=None,
+                        utc="2026-01-01T02:01:00Z", lite_raw=_sf1)
+        _bz = resume_brief("w1")
+        ck("★LR12 resume-brief 가 lite ② 셀의 차감 수와 재발동 대기(사람 승인)를 보여준다",
+           "lite ② · cap 차감 1 · 재발동 proposed" in _bz and "재발동 대기(사람 승인)" in _bz and "`lz`" in _bz)
+        shutil.rmtree(camp / "cells" / "lz")
 
         # ── 측정값을 writer 가 직접 읽는다 (2026-09-08 · plan_26090813 D19) ────────────────
         (camp / "sweeps").mkdir(parents=True, exist_ok=True)
@@ -3014,6 +3176,12 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--authored-by", metavar="NODE",
                    help="--phase-set: 이 진행표를 적은 주체(서브 자기저작 vs 메인 사후 재저작 판별)")
     w.add_argument("--void-reason"); w.add_argument("--void-reason-source")
+    w.add_argument("--lite-raw", metavar="PATH",
+                   help="--cell-set: 이번 셀의 lite raw — lite 판정을 셀 상태에 싣고 ② 면 cap 차감 1(멱등)·재발동 제안을 적는다")
+    w.add_argument("--reentry-decide", metavar="CELL",
+                   help="재발동 제안에 대한 사람 결정 기록 · --decision --approved-by --utc 필수(approve 는 --route 도)")
+    w.add_argument("--decision", choices=("approve", "decline"))
+    w.add_argument("--route", choices=tuple(REENTRY_ROUTES))
     w.add_argument("--axis-citation", help="이 셀이 움직인 축의 근거(layer-2 자율)")
     w.add_argument("--next-intent", help="여정 한 줄 — 다음에 무엇을 할 참인가")
     w.add_argument("--evidence-add", action="store_true", help="증거 포인터 추가 · --kind --path 필수")
@@ -3047,7 +3215,7 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--cells", metavar="A,B",
                    help="--hint-approve 의 승인 셀(쉼표 · 명시 열거 · 그 노드의 배정 셀이어야 한다)")
     w.add_argument("--approved-by", metavar="TEXT",
-                   help="--hint-approve 의 사람 발화 전사(이름·연락처 대신 역할 — 봉인 시 페이로드로 복사된다)")
+                   help="--hint-approve · --reentry-decide 의 사람 발화 전사(이름·연락처 대신 역할 — hint 는 봉인 시 페이로드로 복사된다)")
     w.add_argument("--source", metavar="declaration-popup|publish-popup",
                    help="--hint-approve 의 승인 자리(생략 = declaration-popup · 선언 확인 팝업이 O6 기본 경로)")
     w.add_argument("--utc", help="시각은 주입만 받는다(벽시계 금지)")
@@ -3138,7 +3306,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         writer_ops = (a.phase_set, a.cell_set, a.evidence_add, a.freeze_evidence, a.revise,
                       a.evidence_prune_stubs, a.import_sub, a.backfill_from_docs, a.ground,
-                      a.escalation_add, a.hint_approve, a.evidence_untag, a.evidence_relocate)
+                      a.escalation_add, a.hint_approve, a.evidence_untag, a.evidence_relocate,
+                      a.reentry_decide)
         if any(writer_ops):
             tgt = _writer_target(a.campaign_id)
             if tgt is None:
@@ -3170,10 +3339,16 @@ def main(argv: list[str] | None = None) -> int:
                     void_reason=a.void_reason, void_reason_source=a.void_reason_source,
                     axis_citation=a.axis_citation, next_intent=a.next_intent, utc=a.utc,
                     sweep_state=a.sweep_state,
-                    image_digest=a.image_digest, image_tag=a.image_tag)
+                    image_digest=a.image_digest, image_tag=a.image_tag,
+                    lite_raw=a.lite_raw)
                 wrote.append(_rel(cpath))
                 if jpath is not None:
                     wrote.append(_rel(jpath))
+            if a.reentry_decide:
+                rpath, rjpath = writer_decide_reentry(
+                    base, cell=a.reentry_decide, decision=a.decision, route=a.route,
+                    approved_by=a.approved_by, utc=a.utc)
+                wrote += [_rel(rpath), _rel(rjpath)]
             if a.escalation_add:
                 if not a.cell or not a.utc:
                     raise WriterRefusal("--escalation-add 는 --cell 과 --utc 가 필요하다")

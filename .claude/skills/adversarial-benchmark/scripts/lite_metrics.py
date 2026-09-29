@@ -251,7 +251,7 @@ def build(raw):
 #   measurement_path_failed = 요청이 서버에 닿지 못했거나(클라이언트 평면 미도달) 측정기가 값을 못 냈다 — 하네스 결함
 #                             (재빌드 ✗ · cap 차감 ✗ · 하네스 수리로)
 #   server_failed           = 서버가 응답했지만 실패(5xx·빈 출력·타임아웃)했거나 측정 중 죽었다 — 실사용 불가
-#                             (upstream·explorer 재발동 · cap −1 — 이번 범위는 신호까지)
+#                             (upstream·explorer 재발동 제안 · 캠페인 셀 cap −1 — 셀 상태 writer·explorer 가 이 raw 를 읽어 적용 · plan_26092923_58_27)
 # **단일 권위는 raw 의 `lite_verdict`** 이고 종료코드는 여기서 파생한다(LITE_EXIT). 판정 함수는 이것 하나이며
 #   lite_bench.sh 가 유일한 호출부다(세 진입 경로 α·β·γ 공통 — 행동만 맥락별로 갈린다).
 LITE_VERDICTS = ("pass", "measurement_path_failed", "server_failed")
