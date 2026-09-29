@@ -63,7 +63,7 @@ case "$1" in
     if [ "$1" = "cat" ]; then
       n="$(cat "$SHIM_DIR/last_n" 2>/dev/null || echo 1)"
       case "${SHIM_BENCH_MODE:-ok}" in
-        http500) printf '{"completed": 0, "failed": %s, "total_output_tokens": 0, "median_tpot_ms": null}' "$n" ;;
+        http500|refused) printf '{"completed": 0, "failed": %s, "total_output_tokens": 0, "median_tpot_ms": null}' "$n" ;;
         *) printf '{"completed": %s, "failed": 0, "total_output_tokens": %s, "median_tpot_ms": 25.0, "median_ttft_ms": 118.0, "output_throughput": 39.0}' "$n" "$((n*128))" ;;
       esac
       exit 0
@@ -71,8 +71,10 @@ case "$1" in
     if [ "$1" = "python3" ]; then echo "${SHIM_CLIENT_HEALTH:-200}"; exit 0; fi
     n="$(printf '%s' "$*" | sed -n 's/.*--num-prompts \([0-9]*\).*/\1/p')"; echo "${n:-1}" > "$SHIM_DIR/last_n"
     if [ "${SHIM_BENCH_MODE:-ok}" = "refused" ]; then
-      echo "ValueError: Initial test run failed - Please make sure benchmark arguments are correctly specified. Error: Cannot connect to host localhost:18080 ssl:default [Connect call failed ('127.0.0.1', 18080)]" >&2
-      exit 1
+      # 실물 모양(2026-09-29 라이브 음성 · vllm 0.18.0): 연결 거부에도 rc 0 + 결과 파일(completed 0 · failed N)
+      echo "UserWarning: All requests failed. This is likely due to a misconfiguration on the benchmark arguments." >&2
+      echo "aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost:8000 ssl:default [Connect call failed ('127.0.0.1', 8000)]" >&2
+      exit 0
     fi
     exit 0 ;;
   logs) cat "$SHIM_DIR/engine.log" ;;

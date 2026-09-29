@@ -1,0 +1,13 @@
+{
+ "completed": 0,
+ "failed": 3,
+ "num_prompts": 3,
+ "total_input_tokens": 0,
+ "total_output_tokens": 0,
+ "median_tpot_ms": 0.0,
+ "median_ttft_ms": 0.0,
+ "output_throughput": 0.0,
+ "backend": "openai",
+ "endpoint_type": "openai",
+ "_provenance": "measured(2026-09-29 plan_26092923 라이브 음성 · vllm bench serve 0.18.0 결과 파일에서 발췌 · 연결 거부)"
+}

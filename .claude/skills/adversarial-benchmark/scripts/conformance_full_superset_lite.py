@@ -97,6 +97,11 @@ def main():
         fx = os.path.join(os.path.dirname(SDIR), "fixtures", "lite_raw_d1_connection_refused.json")
         with open(fx, encoding="utf-8") as f:
             d1 = _json.load(f)
+        # 결과 파일 경로는 픽스처 디렉터리 상대(실측 발췌 — 연결 거부에도 rc 0 · completed 0 · failed N)
+        for _k in ("bench_cold_json", "bench_warm_json"):
+            d1[_k] = os.path.join(os.path.dirname(fx), d1[_k])
+        check("E D1 픽스처는 실물 모양이다(rc 0 인데 결과 파일이 전부 실패를 말한다 — rc 로는 못 가른다)",
+              d1.get("bench_cold_rc") == 0 and (_lm._load_json(d1["bench_cold_json"]) or {}).get("completed") == 0)
         v = _lm.judge_lite(d1, _lm.build(d1))
         check("E D1 연결거부 픽스처 → measurement_path_failed · exit 6(하네스 결함 · 서버 실패로 접지 않는다)",
               v["lite_verdict"] == "measurement_path_failed" and v["lite_exit"] == 6, v)

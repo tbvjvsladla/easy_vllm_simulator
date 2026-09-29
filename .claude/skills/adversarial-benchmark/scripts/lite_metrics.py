@@ -319,10 +319,15 @@ def judge_lite(raw, built):
     # 서버에 닿는다. 결과 파일이 있는데 실패 요청·빈 출력이면 서버가 실패로 응답한 것이다.
     tail = str(raw.get("bench_stderr_tail") or "")
     have_result = isinstance(cold, dict) or isinstance(warm, dict)
+    # ★ 2026-09-29 라이브 음성 실측: vllm bench serve 는 연결 거부에도 rc 0 과 결과 파일(completed 0 · failed N)을 남긴다
+    #   (D1 이 rc 0 이었던 이유). 결과 파일의 실패가 **연결 오류**면 요청이 서버에 닿지 않은 것이다 — 서버 실패로 접지 않는다.
+    if _CONNECT_ERROR_RE.search(tail):
+        reasons.append("실패 요청이 연결 오류다(요청이 서버에 닿지 않았다) — 측정 경로 불성립(하네스)")
+        return _verdict("measurement_path_failed", reasons)
     if have_result:
         reasons.append("서버에 닿았고 결과 파일이 실패 요청·빈 출력을 말한다 — 서버 응답 실패")
         return _verdict("server_failed", reasons)
-    if _INITIAL_TEST_FAILED in tail and not _CONNECT_ERROR_RE.search(tail):
+    if _INITIAL_TEST_FAILED in tail:
         reasons.append("결과 파일 없음 · 초기 시험 요청이 서버 응답으로 실패(%r) — 서버 응답 실패" % _INITIAL_TEST_FAILED)
         return _verdict("server_failed", reasons)
     reasons.append("결과 파일 없음 · 서버 응답 실패의 증거도 없다 — 클라이언트(측정기) 실패로 읽는다")
