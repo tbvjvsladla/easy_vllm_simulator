@@ -48,11 +48,13 @@
 - **메인이 답하면 다음 턴 Task 머리에 `## 이어받기` 블록이 온다** — 직전 턴의 산출물·남긴 다음 단계·
   네 질문에 대한 답이 거기 있다. 그 블록은 메인이 **원장에서 그대로 옮긴 것**이지 새로 쓴 서사가
   아니다. 같은 일을 처음부터 다시 하지 말고 그 지점부터 이어라.
+<!-- MODE:a2a-agent -->
 - **외부지식은 네가 직접 검색한다**(singleton `a2a-agent` 모드 · 2026-09-04). 웹 도구(`WebSearch`·
   `WebFetch`)가 열려 있다. 검색했으면 **반드시** 리포트의 `external_search[]` 에 `query`·`sources`·
   `finding`·`used_for`·`accepted` 를 남겨라 — 인용 없는 결정은 거짓이 아니라 **누락**이고(불변식 B),
   그 기록이 메인의 자산이 된다. 웹은 *바깥* 지식이고 도서관은 *이 프로젝트가 쌓은* 지식이다 —
   둘을 섞지 마라. `curl`/`wget` 은 여전히 금지다(다른 평면).
+<!-- /MODE:a2a-agent -->
 
 ## 도서관 교환 — 3메시지 왕복 (헌법 불변식 B · 정본 계약 `.claude/schemas/library-exchange.schema.json`)
 
@@ -100,9 +102,16 @@
 | phase | completed 조건 |
 |---|---|
 | inspect | 정체성·로드된 스킬·권한·통신계약을 로드해 **schema-valid 리포트** 반환(모델 불요 — 카나리). |
+<!-- MODE:a2a-agent -->
 | config | 지정 모델 3종(.yaml+.sh+.env)을 **vllm-recipe-explorer 결정론 엔진으로 자율 생성** + config-parse OK(+ 가능 시 로컬 스모크 응답). |
-| build | `docker compose --profile <slave\|debug> build` 성공(메인 빌드 독립 재현·byte-equiv). **multi**=slave / **single**=debug. |
-| serve | **multi**: `--profile slave up` 으로 master Ray head 합류(+ 지시 시 로컬 health). **single(독립서빙, T3 검증 — 0.23.0 E2E)**: `--profile serve up -d`(env export: NAS_MODEL_PATH·TIKTOKEN_HOST_PATH·CONFIG_FILE·SERVING_PORT) → `:PORT/health` http200 폴링(**python urllib — curl deny**) → 로컬 functional smoke(완성/reasoning, finish=stop). "startup complete" 로그는 거짓양성. |
+| build | `docker compose --profile debug build` 성공(메인 빌드 독립 재현). |
+| serve | **독립서빙(T3 검증 — 0.23.0 E2E)**: `--profile serve up -d`(env export: NAS_MODEL_PATH·TIKTOKEN_HOST_PATH·CONFIG_FILE·SERVING_PORT) → `:PORT/health` http200 폴링(**python urllib — curl deny**) → 로컬 functional smoke(완성/reasoning, finish=stop). "startup complete" 로그는 거짓양성. |
+<!-- /MODE:a2a-agent -->
+<!-- MODE:ray-worker -->
+| config | 저작하지 않는다 — 받은 빌드킷과 주입된 env 로 합류만 한다(트리플렛은 서브로 전파되지 않는다). |
+| build | `docker compose --profile slave build` 성공(메인 빌드 독립 재현). |
+| serve | `--profile slave up` 으로 master Ray head 합류(+ 지시 시 로컬 health). |
+<!-- /MODE:ray-worker -->
 
 ## Message 타입
 - **instruction**(메인→서브): 수행할 Task(phase + per-task 값: 모델명·VRAM 예산·NAS 모델 서브디렉토리). **single 서빙 태스크**면 추가 슬롯: max_model_len·served_model_name·SERVING_PORT·reasoning_parser. 운영 절차(env export·detached up·health200 python·reasoning max_tokens)는 §phase serve 술어(single 분기)에 있으니 매번 재기술 불요. **신규 vLLM build-job**은 승인된 패킷과 manifest/Flag/topology 준비성이 모두 확인된 경우에만 전파한다.
@@ -110,5 +119,10 @@
 - **report**(서브→메인): task-report.schema.json JSON 1개.
 
 ## 경계 (B3 Surgical)
+<!-- MODE:a2a-agent -->
 - 너는 **모델별 `configs/`·`envs/` 만** 자작한다. 컨테이너 정본(Dockerfile/requirements/compose/serve_runner)·빌딩블럭(.claude/, CLAUDE.md, Agent_Card.json)은 **건드리지 않는다**.
+<!-- /MODE:a2a-agent -->
+<!-- MODE:ray-worker -->
+- 너는 서빙 설정을 자작하지 않는다 — `configs/`·`envs/` 도 메인이 배달한다. 컨테이너 정본(Dockerfile/requirements/compose/serve_runner)·빌딩블럭(.claude/, CLAUDE.md, Agent_Card.json)은 **건드리지 않는다**.
+<!-- /MODE:ray-worker -->
 - HW 사실·경로·획득 모드와 노드 role은 **이 노드의 `output/<topology>/manifest.yaml`** 에서 읽는다 — 메인 terraforming 이 `--peer-ssh` 로 너를 실측해 발급·배달한 **서브 manifest**(`self_role: sub` · `terraforming.issued_by: main`)다. 너는 이 파일을 손으로 고치지 않는다(권위는 메인 스캔 · 재발급은 메인 `scan_node.py --emit-sub-manifest`). per-task 값(모델명·VRAM 예산·NAS 서브디렉토리)은 Task Message 에서 읽는다. SSH는 endpoint 인증만 담당하며, Flag와 topology 계약이 실행 준비성을 결정한다.
