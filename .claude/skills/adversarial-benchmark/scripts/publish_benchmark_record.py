@@ -155,16 +155,165 @@ def build_yaml(index, verdict):
     return "\n".join(L) + "\n"
 
 
+# ── lite 등급 인증서 (2026-09-29 · plan_26092923 · 인터뷰 interview_20260929_132122) ────────────────────────────
+# lite 는 full 의 첫 단계이자 진입 게이트다(lite ⊂ full). lite 통과는 그 자체로 **lite 등급 인증서**를 연다 — hint 발행
+# 자격의 근거다. 성능 완료 선언은 여전히 full 만 한다(completion_gate 가 `benchmark_mode` 로 가른다).
+#   · 등급 키는 기존 인증서의 `benchmark_mode` 다(full 인증서가 이미 `benchmark_mode: full` 을 싣는다 · 없으면 full).
+#   · `verdict` 칸은 full 루브릭 전용이므로 lite 인증서는 `not_applicable` 을 적는다(PASS 를 빌려 쓰지 않는다).
+#   · `lite_verdict: pass` 는 lite raw 의 단일 권위(`lite_metrics.read_lite_verdict`)를 옮긴 것이다(재판정 ✗).
+# 발행 경로 둘(판정은 같고 행동만 맥락별): β lite-only 캠페인 셀 = `lite_bench.sh --publish-report` → `--lite-raw-json` ·
+# γ 강등 셀 = sweep 경로(judge_bench → 이 스크립트)에서 판정 기록이 강등 lite 이고 index.lite 의 판정이 pass 일 때.
+# α 서빙 직후 자동 핸드오프는 이 문을 부르지 않는다(관측 예외 · 헌법 트리거 절).
+LITE_CERT_SOFT_KEYS = ("image_tag", "image_digest", "max_model_len", "max_num_seqs", "kv_cache_memory_bytes",
+                       "kv_cache_dtype", "gpu_memory_utilization", "moe_backend", "attention_backend", "ple_mode")
+ENTRY_BETA, ENTRY_GAMMA = "beta_lite_only_cell", "gamma_demoted_lite"
+
+
+def _load_lite_metrics():
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import lite_metrics
+    return lite_metrics
+
+
+def build_lite_yaml(meta, lite, measured_utc, entry_path, verdict_source):
+    """lite 등급 인증서 본문. meta = 강한 6키·출처·소프트 지문 · lite = lite_metrics.build 결과(또는 sweep index 의 lite 블록)."""
+    L = []
+    A = L.append
+    A("# ⚠ CARRY-FORWARD 재검증 필수 — 이건 '그때-그 환경' 한정 측정이다(지도≠정답). 소비 전 재확인하라.")
+    A("#   강한 일치 키(model/gpu/vllm/quant/topology/tp): 정확일치 실패 시 이 인증서 무효.")
+    A("#   ★ lite 등급 인증서 — 서빙이 실사용 최소 시나리오(cold 1 + warm burst · 동시성 1)에서 **성립**했다는 기록이다.")
+    A("#     성능 판정(verdict)이 아니다 · 성능 완료 선언의 근거가 될 수 없다(benchmark_mode=full 만). hint 발행 자격의 근거다.")
+    A("#   발행 = lite_verdict==pass 시만(결정론 publish_benchmark_record.py · inform-record).")
+    A("schema_version: 1")
+    A("record_type: benchmark_certificate")
+    A("verdict: not_applicable")
+    A("")
+    A("# --- 강한 일치 키 (정확일치 필요) ---")
+    for k in ("model", "gpu_model", "vllm_version", "quantization", "topology", "tensor_parallel_size"):
+        A("%s: %s" % (k, scalar(meta.get(k))))
+    A("")
+    A("# --- 운영 조합명(모델 축 아님 · 정본 필드) ---")
+    A("serving_config: %s" % scalar(meta.get("serving_config")))
+    A("model_source: %s" % scalar(meta.get("model_source")))
+    A("quantization_source: %s" % scalar(meta.get("quantization_source")))
+    A("")
+    A("# --- 소프트 지문 (불일치 시 stale 경고 · 결측 N/A) ---")
+    for k in LITE_CERT_SOFT_KEYS:
+        A("%s: %s" % (k, scalar(meta.get(k))))
+    A("bench_tool: vllm-bench-serve")
+    A("")
+    A("# --- 등급(인증서 본문) ---")
+    A("benchmark_mode: lite")
+    A("lite_verdict: pass")
+    A("lite_verdict_source: %s" % scalar(verdict_source))
+    A("entry_path: %s" % entry_path)
+    _cap = (lite.get("capacity") or {}).get("main") or {}
+    A("lite_included: true")
+    A("lite_gen_tps_warm: %s" % scalar(lite.get("gen_tps")))
+    A("lite_gen_src: %s" % scalar(lite.get("gen_src")))
+    A("lite_cold_ttft_ms: %s" % scalar(lite.get("cold_ttft_ms")))
+    A("lite_kv_gib: %s" % scalar(lite.get("kv_gib")))
+    A("lite_gpu_occupancy: %s" % scalar(_cap.get("gpu")))
+    A("lite_ram_occupancy: %s" % scalar(_cap.get("ram")))
+    A("measured_utc: %s" % scalar(measured_utc))
+    A("measured_node: %s" % scalar(meta.get("measured_node")))
+    A("measured_node_source: %s" % scalar(meta.get("measured_node_source")))
+    return "\n".join(L) + "\n"
+
+
+def _write_certificate(y, meta, measured_utc, out_dir, anchor_path, stdout):
+    """명명 SSOT 로 이름을 짓고 쓴다(full·lite 공통 · 같은 측정 = 덮어쓰기 · 다른 측정 = _MM_SS)."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from doc_naming import bench_filename, scan_bench_dir
+    outdir = out_dir or os.path.join(repo_root(anchor_path), "docs", "benchmark")
+    fname = bench_filename("benchmark", meta, measured_utc, (None if stdout else scan_bench_dir(outdir)), "yaml")
+    if stdout:
+        sys.stdout.write(y)
+        return None
+    os.makedirs(outdir, exist_ok=True)
+    outp = os.path.join(outdir, fname)
+    with open(outp, "w", encoding="utf-8") as f:
+        f.write(y)
+    return outp
+
+
+def main_lite_raw(a):
+    """β — lite raw 1건 → lite 등급 인증서. 판정이 pass 가 아니면 발행하지 않는다(exit 3 · 부재·미지값 = 불통과)."""
+    lm = _load_lite_metrics()
+    raw = load(a.lite_raw_json, "lite-raw-json")
+    v = lm.read_lite_verdict(raw)
+    if v != "pass":
+        sys.stderr.write("[publish_record] lite_verdict=%r ≠ pass → lite 인증서 미발행(lite 불통과·판정 부재는 인증서를 "
+                         "열지 않는다)\n" % (raw.get("lite_verdict") if isinstance(raw, dict) else None))
+        sys.exit(3)
+    import render_report
+    try:
+        meta = render_report.lite_identity(raw)
+    except render_report.LiteIdentityError as e:
+        sys.stderr.write("[publish_record] ERROR lite 인증서 강한 키를 세우지 못했다: %s\n" % e)
+        sys.exit(2)
+    if not raw.get("measured_utc"):
+        sys.stderr.write("[publish_record] ERROR lite raw 에 measured_utc 가 없다 — 측정시각을 날조하지 않는다\n")
+        sys.exit(2)
+    lite = lm.build(raw)
+    y = build_lite_yaml(meta, lite, raw["measured_utc"], ENTRY_BETA, raw.get("lite_verdict_source"))
+    outp = _write_certificate(y, meta, raw["measured_utc"], a.out_dir, a.lite_raw_json, a.stdout)
+    if outp:
+        sys.stderr.write("[publish_record] lite 등급 인증서 발행(β): %s\n" % outp)
+        _register_campaign_evidence(a.lite_raw_json, outp, dict(meta, config_name=raw.get("config_name")))
+        print(outp)
+
+
+def _gamma_lite_certificate(index, sweep_index_path, a):
+    """γ — 강등 판정 기록 + index.lite 의 lite 판정 pass → lite 등급 인증서. 발행했으면 경로, 아니면 None(사유는 stderr)."""
+    rep = index.get("repetition")
+    requested = rep.get("requested") if isinstance(rep, dict) else None
+    if not (isinstance(requested, int) and not isinstance(requested, bool)):
+        return None
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import classify_cell
+    record, _status = classify_cell.read_bench_mode_record(sweep_index_path, index)
+    if record is None or classify_cell.bench_mode_kind(record) != "downgraded-lite":
+        return None
+    lite = index.get("lite") if isinstance(index.get("lite"), dict) else {}
+    if lite.get("lite_verdict") != "pass":
+        sys.stderr.write("[publish_record] 강등 셀이지만 lite 판정=%r ≠ pass → lite 인증서 미발행\n" % (lite.get("lite_verdict"),))
+        return None
+    meta = index.get("meta", {})
+    y = build_lite_yaml(meta, lite, index.get("generated_utc"), ENTRY_GAMMA,
+                        "sweep_index.lite.lite_verdict ← %s" % lite.get("raw_json"))
+    outp = _write_certificate(y, meta, index.get("generated_utc"), a.out_dir, sweep_index_path, a.stdout)
+    if outp:
+        sys.stderr.write("[publish_record] lite 등급 인증서 발행(γ 강등 · downgrade_reason=%s): %s\n"
+                         % (record.get("downgrade_reason"), outp))
+        _register_campaign_evidence(sweep_index_path, outp, meta)
+        print(outp)
+    return outp or "-"
+
+
 def main():
-    ap = argparse.ArgumentParser(description="full-런 인증서(flat 계약) 발행 — PASS시만")
-    ap.add_argument("--sweep-index", required=True)
-    ap.add_argument("--verdict-json", required=True)
+    ap = argparse.ArgumentParser(description="인증서(flat 계약) 발행 — full=PASS 시만 · lite 등급=lite_verdict pass 시만")
+    ap.add_argument("--sweep-index")
+    ap.add_argument("--verdict-json")
+    ap.add_argument("--lite-raw-json", help="β lite-only 셀: lite_bench raw → lite 등급 인증서(--sweep-index 와 배타)")
     ap.add_argument("--out-dir", help="출력 디렉토리(기본 <repo>/docs/benchmark)")
     ap.add_argument("--stdout", action="store_true", help="파일 기록 대신 표준출력(테스트)")
     a = ap.parse_args()
+    if a.lite_raw_json:
+        if a.sweep_index or a.verdict_json:
+            ap.error("--lite-raw-json 은 --sweep-index/--verdict-json 과 함께 줄 수 없다")
+        return main_lite_raw(a)
+    if not (a.sweep_index and a.verdict_json):
+        ap.error("full 경로는 --sweep-index 와 --verdict-json 이 필수다(lite-only 셀은 --lite-raw-json)")
 
     index = load(a.sweep_index, "sweep-index")
     verdict = load(a.verdict_json, "verdict-json")
+
+    # γ 강등 셀 — 판정 기록이 downgraded-lite 면 full 인증서 대신 lite 등급 인증서의 자리다(verdict 와 무관 —
+    #   verdict 칸은 full 루브릭 전용이고 강등 셀은 그 루브릭을 주장하지 않는다). lite 게이트를 지나 GuideLLM 에
+    #   들어갔다는 것은 lite 가 통과했다는 뜻이지만, 판정은 index.lite 의 lite_verdict 에서 다시 읽는다(추측 ✗).
+    if _gamma_lite_certificate(index, a.sweep_index, a):
+        return
 
     if verdict.get("verdict") != "PASS":
         sys.stderr.write("[publish_record] verdict=%s ≠ PASS → 인증서 미발행(report 는 render_report 가 항상 발행)\n"

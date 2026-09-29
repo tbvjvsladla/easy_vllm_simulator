@@ -1470,6 +1470,12 @@ def _num_equal(a: str, b: str) -> bool:
     return abs(fa - fb) <= tol
 
 
+def cert_is_lite(cert: dict | None) -> bool:
+    """lite 등급 인증서인가(2026-09-29 · plan_26092923 · lite ⊂ full). 등급 키는 인증서 `benchmark_mode` 이고 부재는 full 이다.
+    lite 등급 인증서의 `verdict: not_applicable` 은 성능 판정이 아니다 — 측정 기록의 verdict 칸으로 옮기지 않는다."""
+    return isinstance(cert, dict) and str(cert.get("benchmark_mode") or "").strip() == "lite"
+
+
 def measurement(ev: CellEvidence) -> dict:
     """PAYLOAD.measurement — 측정 기록(인증서 성능 칸의 **원문 문자열** + 묶인 스윕의 레벨 표 수치 · lite 수치). 파싱만 한다
     (합성 ✗ · 재계산 ✗). 인증서 칸은 선택 목록(_CERT_MEASUREMENT_KEYS)이라 판정·루브릭 표지(verdict·primary_source 등)도
@@ -1488,8 +1494,9 @@ def measurement(ev: CellEvidence) -> dict:
     per: dict[str, str] = {}
     cert = ev.certificate or {}
     cname = f"certificate({Path(ev.certificate_path or '').name})"
+    lite_cert = cert_is_lite(cert)
     for k in _CERT_MEASUREMENT_KEYS:
-        if k in cert:
+        if k in cert and not (lite_cert and k == "verdict"):     # lite 등급의 not_applicable 은 성능 판정이 아니다
             out[k] = cert[k]
             per[k] = f"{cname} {k}"
     if cert:
@@ -1497,7 +1504,8 @@ def measurement(ev: CellEvidence) -> dict:
     jv, js, reasons = _judged(repo, ev)
     if cert:
         bad = [f"{k}: 인증서={cert.get(k)!r} {js[k]}={jv[k]!r}" for k in _CROSSCHECK_KEYS
-               if k in jv and not _unobserved(cert.get(k)) and not _num_equal(str(cert.get(k)), jv[k])]
+               if k in jv and not (lite_cert and k == "verdict")
+               and not _unobserved(cert.get(k)) and not _num_equal(str(cert.get(k)), jv[k])]
         if bad:
             core.fail("HINT_MEASUREMENT_VERDICT_MISMATCH", f"인증서와 같은 측정의 판정 원천이 다른 값을 말한다: {bad}",
                       "인증서가 이 측정(스윕 generated_utc = measured_utc)의 판정에서 나왔는지 확인한다 — 발행기가 둘 중 하나를 고르지 않는다.")
@@ -3633,7 +3641,7 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
     ev.sources["report_kind"] = ("bench_report 머리 `mode: lite` 줄(render_bench_section.is_lite_report)" if ev.report_kind
                                  else "바인딩할 bench_report 없음")
     ev.sources["missing"] = "evidence.MISSING_CODES 어휘(부재는 기재 · 차단은 양성 검출 — 2026-09-06 Q7/Q8)"
-    if ev.report_kind == "lite" and not ev.certificate:
+    if ev.report_kind == "lite" and (not ev.certificate or cert_is_lite(ev.certificate)):
         # 경량 리포트 셀은 스윕을 돌지 않는다 — 같은 이름의 옛 스윕 디렉터리를 이 셀의 증거로 묶지 않고, 부재를
         #   결손으로 적지도 않는다(측정 형태가 다를 뿐이다 · 그 사실은 BENCH_MODE_LITE 가 말한다).
         ev.sweep, ev.sources["sweep"] = None, "lite 셀(경량 리포트) — 스윕 조인 대상 아님"
@@ -5387,7 +5395,7 @@ def drive_publisher(repo, ev: CellEvidence, *, topic, generated_utc, draft_dir) 
         task, mode, verdict = "hint_map_only", "lite", None
     else:
         v = ((ev.sweep or {}).get("verdict") or {}).get("verdict") if (ev.sweep or {}).get("binding") == "output" else None
-        verdict = v or (ev.certificate or {}).get("verdict")
+        verdict = v or (None if cert_is_lite(ev.certificate) else (ev.certificate or {}).get("verdict"))
         if verdict not in ("PASS", "FAIL", "REFUTE"):
             core.fail("HINT_VERDICT_UNOBSERVED", f"셀 {ev.cell!r} 의 벤치 판정을 관측하지 못했다(verdict.json·인증서): {verdict!r}")
         task, mode = "full_benchmark", "full"
@@ -5422,7 +5430,8 @@ def drive_publisher(repo, ev: CellEvidence, *, topic, generated_utc, draft_dir) 
     terms = pii.require_terms(repo)          # 리터럴 없이 스캔하고 통과를 선언하면 그 선언이 거짓이다(docs.md §PII)
     pre = dict(narr)
     pre["bench_report"] = ev.bench_report_path
-    if ev.certificate_path and verdict == "PASS":
+    lite_cert = cert_is_lite(ev.certificate) and bool(ev.certificate_path)
+    if ev.certificate_path and (verdict == "PASS" or lite_cert):
         pre["certificate"] = ev.certificate_path
     hits = _pii_scan(repo, pre, terms)
     if hits:
@@ -5446,7 +5455,7 @@ def drive_publisher(repo, ev: CellEvidence, *, topic, generated_utc, draft_dir) 
             _append_simlog(repo, topic, _record(repo, topic), s, d, generated_utc)
         argv = ["--topic", topic, "--verdict", verdict, "--generated-utc", generated_utc,
                 "--bench-report-src", ev.bench_report_path]
-        if ev.certificate_path and verdict == "PASS":
+        if ev.certificate_path and verdict == "PASS" and not lite_cert:   # full 토픽에는 full 등급 인증서만
             argv += ["--certificate-src", ev.certificate_path]
         if vj_ok:
             argv += ["--verdict-json-src", f"{sweep_dir}/verdict.json"]
@@ -5459,9 +5468,15 @@ def drive_publisher(repo, ev: CellEvidence, *, topic, generated_utc, draft_dir) 
             _publisher(repo, "init", "--topic", topic, "--task-class", "hint_map_only", "--generated-utc", generated_utc,
                        "--identity-json", str(inputs / "identity.json"), "--benchmark-mode", "lite",
                        "--benchmark-verdict", verdict, "--downgrade-from", "full_benchmark", "--downgrade-reason", str(reason))
+            # γ 강등 셀의 hint 자격 = lite 등급 인증서(2026-09-29 plan_26092923) — 재분류 뒤 같은 리포트와 함께 묶는다.
+            if lite_cert:
+                _publisher(repo, "publish-lite-report", "--topic", topic, "--generated-utc", generated_utc,
+                           "--bench-report-src", ev.bench_report_path, "--certificate-src", ev.certificate_path)
     else:
+        # β lite-only 셀 — lite 등급 인증서가 있으면 함께 묶는다(없으면 게이트가 HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE 로 닫는다).
         _publisher(repo, "publish-lite-report", "--topic", topic, "--generated-utc", generated_utc,
-                   "--bench-report-src", ev.bench_report_path)
+                   "--bench-report-src", ev.bench_report_path,
+                   *(("--certificate-src", ev.certificate_path) if lite_cert else ()))
     record = _record(repo, topic)
     _write_pii_and_runtime(repo, record, inputs, terms, qual, rt_ident, rt_src)
     return _finalize(repo, topic, inputs)
@@ -7588,7 +7603,28 @@ def selftest() -> list[str]:
             mdl = json.loads(manl.read_text(encoding="utf-8"))
             ck("lite 발행 = hint_map_only + 경량 리포트 바인딩", mdl.get("task_class") == "hint_map_only"
                and mdl["benchmark"].get("mode") == "lite" and (mdl["evidence"].get("bench_report") or {}).get("path"))
-            ck("lite 발행 게이트 허가", authorize(repo, manl, "hint_finalize").get("allowed") is True)
+            # 2026-09-29(plan_26092923 · lite ⊂ full): hint 자격 = lite 통과 — lite 등급 인증서가 없으면 게이트가 닫는다.
+            ck("★lite 등급 인증서 없는 lite 셀 → 게이트 거부(HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE)",
+               _code(authorize, repo, manl, "hint_finalize") == "HINT_GATE_DENIED")
+            lite_cert_rel = "docs/benchmark/benchmark_26010214_fixture-model-nvfp4_GB10_0.9.0.yaml"
+            (repo / lite_cert_rel).write_text(
+                "schema_version: 1\nrecord_type: benchmark_certificate\nverdict: not_applicable\n"
+                "model: fixture-model-nvfp4\ngpu_model: NVIDIA GB10\nvllm_version: 0.9.0\nquantization: N/A\n"
+                "topology: multi\ntensor_parallel_size: 2\nbenchmark_mode: lite\nlite_verdict: pass\n"
+                "entry_path: beta_lite_only_cell\nlite_included: true\nlite_gen_tps_warm: 9.0\n"
+                'measured_utc: "2026-01-02T14:00:00Z"\nmeasured_node: sub\n', encoding="utf-8")
+            ptrs["pointers"].append({"kind": "certificate", "path": lite_cert_rel, "cell_id": "c1-b", "node_id": "sub"})
+            core.write_json(repo / "campaigns/c1/evidence_pointers.json", ptrs)
+            evl = from_campaign(repo, "c1", "c1-b", "sub", docker=dk)
+            ml2 = measurement(evl)
+            ck("lite 등급 인증서 셀 measurement — verdict OBSERVATION-ONLY(not_applicable 을 판정 칸에 옮기지 않는다) · mode lite",
+               ml2.get("verdict") == "OBSERVATION-ONLY" and ml2.get("benchmark_mode") == "lite" and evl.sweep is None)
+            manl = drive_publisher(repo, evl, topic=topic_for(evl), generated_utc="2026-01-02T15:00:00Z",
+                                   draft_dir=repo / "hints/.drafts/d3")
+            mdl = json.loads(manl.read_text(encoding="utf-8"))
+            ck("lite 발행(β) = 경량 리포트 + lite 등급 인증서 바인딩",
+               (mdl["evidence"].get("certificate") or {}).get("path", "").endswith(Path(lite_cert_rel).name))
+            ck("lite 발행 게이트 허가(lite 통과)", authorize(repo, manl, "hint_finalize").get("allowed") is True)
             # ── 강등 셀(full 로 쟀으나 반복 불성립 → downgraded-lite · plan_26091407 §4.5) — init full → publish-benchmark
             #    (인증서 억제) → init --downgrade-from 경로. 종전에는 이 분기를 한 번도 돌리지 않았다(2026-09-22 적대 검토).
             decl_d = json.loads(json.dumps(fx["decl"]))
@@ -7628,6 +7664,15 @@ def selftest() -> list[str]:
                 (repo / rel_doc).write_text(f"# {kind}\n강등 셀 서사.\n", encoding="utf-8")
                 ptrs["pointers"].append({"kind": kind, "path": rel_doc, "cell_id": "c1-d", "node_id": "main"})
             ptrs["pointers"].append({"kind": "bench_report", "path": rep_d, "cell_id": "c1-d", "node_id": "main"})
+            # γ 강등 셀의 lite 등급 인증서(2026-09-29 plan_26092923) — 스윕의 lite 게이트를 지났다 = lite 통과 · 같은 측정 = 같은 stem
+            cert_d = "docs/benchmark/benchmark_26010310_fixture-model-nvfp4_GB10_0.9.0.yaml"
+            (repo / cert_d).write_text(
+                "schema_version: 1\nrecord_type: benchmark_certificate\nverdict: not_applicable\n"
+                "model: fixture-model-nvfp4\ngpu_model: NVIDIA GB10\nvllm_version: 0.9.0\nquantization: N/A\n"
+                "topology: multi\ntensor_parallel_size: 2\nbenchmark_mode: lite\nlite_verdict: pass\n"
+                "entry_path: gamma_demoted_lite\nlite_included: true\nlite_gen_tps_warm: 10.0\n"
+                f'measured_utc: "{d_utc}"\nmeasured_node: cluster\n', encoding="utf-8")
+            ptrs["pointers"].append({"kind": "certificate", "path": cert_d, "cell_id": "c1-d", "node_id": "cluster"})
             core.write_json(repo / "campaigns/c1/evidence_pointers.json", ptrs)
             evd = from_campaign(repo, "c1", "c1-d", "cluster", docker=dk)
             mcd = measurement_config(repo, evd)
@@ -7644,7 +7689,8 @@ def selftest() -> list[str]:
             ck("강등 셀 발행 = hint_map_only 재분류(사유 run_failed · 판정 보존 · 리포트 바인딩)",
                mdd.get("task_class") == "hint_map_only" and mdd["benchmark"].get("mode") == "lite"
                and (recd.get("reclassification") or {}).get("reason") == "run_failed"
-               and (mdd["evidence"].get("bench_report") or {}).get("path", "").endswith(Path(rep_d).name))
+               and (mdd["evidence"].get("bench_report") or {}).get("path", "").endswith(Path(rep_d).name)
+               and (mdd["evidence"].get("certificate") or {}).get("path", "").endswith(Path(cert_d).name))
             ck("강등 셀 발행 게이트 허가", authorize(repo, mand, "hint_finalize").get("allowed") is True)
             ck("강등 셀 재실행은 멱등(같은 manifest · 재분류 재시도 ✗)",
                drive_publisher(repo, evd, topic=topic_for(evd), generated_utc="2026-01-03T02:00:00Z",

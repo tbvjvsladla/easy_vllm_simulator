@@ -399,6 +399,19 @@
           "description": "위 세 수치 계약 + authority 값역을 모두 만족했는가. explore 승격 경로(U1)의 전제 조건.",
           "type": "boolean"
         },
+        "grade": {
+          "description": "인증서 등급(2026-09-29 plan_26092923 · lite ⊂ full). benchmark_mode 에서 파생 — 부재·full = full, lite = lite 등급 인증서(hint 지도 발행의 근거 · 성능 완료 ✗). 어휘 밖이면 null.",
+          "type": ["string", "null"],
+          "enum": ["full", "lite", null]
+        },
+        "lite_verdict": {
+          "description": "lite 등급 인증서의 lite 판정(pass 여야 한다 · lite raw 단일 권위의 사본). full 등급에는 없다.",
+          "type": ["string", "null"]
+        },
+        "lite_contract_ok": {
+          "description": "lite 등급 인증서 계약(verdict=not_applicable · lite_verdict=pass · task_class=hint_map_only)을 모두 만족했는가.",
+          "type": "boolean"
+        },
         "run_key": {
           "description": "이 인증서가 식별하는 측정 = 강한 6키 + measured_utc(completion_gate.certificate_run_key). 결측이면 null 이고 CERTIFICATE_RUN_KEY_UNRESOLVABLE 로 차단된다(식별 불가 = 매치 없음이 아니다).",
           "type": [

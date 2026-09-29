@@ -14,6 +14,10 @@ lite 만 cold TTFT·시스템 RAM·per-node nvidia-smi 를 재고, full 만 스�
   B. render_report 가 lite 표를 렌더하는 경로를 갖는다
   C. publish_benchmark_record 가 lite 5종을 인증서에 emit 한다
   D. sweep_bench 가 lite_bench 를 실제로 호출한다(포함관계의 담지체)
+  E. **게이트 포함**(2026-09-29 · plan_26092923 · 인터뷰 interview_20260929_132122) — 열 포함만으로는 부족했다.
+     lite 레그가 실패해도 `lite truncated` 로 적고 GuideLLM 으로 넘어가 "full 은 됐는데 lite 는 불성립" 인 교집합이
+     존재할 수 있었다(D1). 이제 lite 판정(raw `lite_verdict` 단일 권위)이 pass 가 아니면 GuideLLM 에 들어가지 않는다.
+     E 는 그 선행관계를 정적 순서·판정 어휘·D1 연결거부 픽스처로 고정한다.
 
 종료: 0=PASS · 1=FAIL
 """
@@ -62,9 +66,50 @@ def main():
     check("sweep_bench 가 lite_bench.sh 를 호출한다",
           "lite_bench.sh" in sweep,
           "호출이 없으면 full 은 lite 를 포함할 수 없다(병렬 목록 유지로 퇴행)")
-    check("sweep_bench 가 lite 실패를 침묵시키지 않는다",
-          "lite truncated" in sweep,
-          "fail-soft 는 허용하되 절삭 로그에 남아야 한다")
+    # E. 게이트 포함 — lite 불통과면 GuideLLM 레벨 호출 전에 끝난다
+    gate_at = sweep.find('exit "$GATE_RC"')
+    level_at = sweep.find('run_bench.sh" "${RB_ARGS[@]}"')
+    if level_at < 0:
+        level_at = sweep.find("RB_ARGS=(")
+    check("E sweep_bench 의 lite 게이트 종료가 GuideLLM 레벨 호출보다 **앞**에 있다",
+          0 <= gate_at < level_at, "gate@%d level@%d — 게이트가 레벨 뒤면 교집합 상태가 다시 생긴다" % (gate_at, level_at))
+    check("E sweep_bench 가 lite 실패를 fail-soft 로 접지 않는다(옛 'lite truncated:' 경로 부재)",
+          'echo "lite truncated:' not in sweep)
+    check("E sweep_bench 가 판정을 raw 단일 권위(read_lite_verdict)에서 읽고 게이트 불통과를 절삭 로그에 남긴다",
+          "read_lite_verdict" in sweep and "lite gate failed" in sweep)
+    lite_sh = read("lite_bench.sh") or ""
+    check("E lite_bench 가 판정기(--judge)를 부르고 종료코드를 raw 판정에서 파생한다",
+          "--judge" in lite_sh and 'exit "$LITE_RC"' in lite_sh and "server_failed) LITE_RC=7" in lite_sh)
+    check("E 인증서 발행기가 lite 판정 pass 에서만 lite 등급 인증서를 낸다(β read_lite_verdict · γ index.lite)",
+          'read_lite_verdict(raw)' in cert and 'lite.get("lite_verdict") != "pass"' in cert
+          and "benchmark_mode: lite" in cert and "verdict: not_applicable" in cert)
+    sys.path.insert(0, SDIR)
+    try:
+        import json as _json
+        import lite_metrics as _lm
+        check("E 판정 어휘·종료코드 = pass 0 · measurement_path_failed 6 · server_failed 7",
+              tuple(_lm.LITE_VERDICTS) == ("pass", "measurement_path_failed", "server_failed")
+              and _lm.LITE_EXIT == {"pass": 0, "measurement_path_failed": 6, "server_failed": 7})
+        check("E 판정 읽기 규칙: 부재·어휘 밖 = None(호출부는 불통과로 읽는다)",
+              _lm.read_lite_verdict(None) is None and _lm.read_lite_verdict({}) is None
+              and _lm.read_lite_verdict({"lite_verdict": "ok"}) is None
+              and _lm.read_lite_verdict({"lite_verdict": "pass"}) == "pass")
+        fx = os.path.join(os.path.dirname(SDIR), "fixtures", "lite_raw_d1_connection_refused.json")
+        with open(fx, encoding="utf-8") as f:
+            d1 = _json.load(f)
+        v = _lm.judge_lite(d1, _lm.build(d1))
+        check("E D1 연결거부 픽스처 → measurement_path_failed · exit 6(하네스 결함 · 서버 실패로 접지 않는다)",
+              v["lite_verdict"] == "measurement_path_failed" and v["lite_exit"] == 6, v)
+        d1b = dict(d1, client_plane_health="200")
+        v2 = _lm.judge_lite(d1b, _lm.build(d1b))
+        check("E 음성대조: 같은 출력이라도 클라이언트 평면이 닿으면 연결 오류 문구가 ② 로 접히지 않는다(① 유지)",
+              v2["lite_verdict"] == "measurement_path_failed", v2)
+        d1c = dict(d1, host_health_after="000")
+        v3 = _lm.judge_lite(d1c, _lm.build(d1c))
+        check("E 호스트 평면도 죽었으면(측정 중 서버 사망) → server_failed · exit 7", v3["lite_verdict"] == "server_failed"
+              and v3["lite_exit"] == 7, v3)
+    except Exception as e:   # noqa: BLE001 — 판정 불가는 FAIL 이다(통과로 접지 않는다)
+        check("E 판정기 적재·픽스처 판정", False, repr(e))
 
     # A. lite 지표 키가 sweep_index 의 lite 블록에 실리는가
     for k in LITE_METRIC_KEYS:

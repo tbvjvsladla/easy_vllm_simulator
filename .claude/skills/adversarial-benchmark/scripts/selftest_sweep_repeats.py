@@ -32,9 +32,10 @@
   R1★ 재조립은 기존 index levels[] 만 복원 — 판정점에서 끊긴 재스윕 뒤 디스크에 남은 옛 level_02 가 부활하지 않는다
   F1★ 판정점 run 2 measurement_ok=false → 즉시 신호 · 상위 레벨 미측정 · 판정 기록 lite · run_failed · 대조 not_scanned
   F2★ 같은 끊긴 창에 집행 사살 → blackbox_kill · 트립 단독 → run_failed · 창 밖 사살 → run_failed
-  F3★ 강등 셀에는 full 인증서를 내지 않는다 · 리포트에 멈춘 자리·실패 run·강등 사유가 이름으로 남는다
+  F3★ 강등 셀에는 full 인증서를 내지 않는다(lite 등급 인증서 γ) · 리포트에 멈춘 자리·실패 run·강등 사유가 이름으로 남는다
   F4★ 비대칭 교정 — 경계 레벨 2 의 run 2 실패(판정점 3) → full · 인증서 발행(경계 첫 run 실패 F7 과 같은 판정)
-  F5★ 클램프 레벨(2) 첫 run 에서 shim 이 사살 이벤트를 남기고 죽는다 → lite · blackbox_kill · 인증서 미발행
+  F5★ 클램프 레벨(2) 첫 run 에서 shim 이 사살 이벤트를 남기고 죽는다 → lite · blackbox_kill · full 인증서 미발행(lite 등급만)
+  G★  lite 게이트(2026-09-29 · plan_26092923): lite 불통과(①·②·raw 부재·모르는 rc) → GuideLLM 레벨 0 · exit 6/7 · index·인증서 0
   F6★ 같은 자리 트립 단독 → full 유지(사인 불충분)
   F7  경계 레벨 2 첫 run 실패(rc) · 사살 없음 → full(적응 상한 클램프 · 대조 miss 기재)
   F8★ 집계 실패(run 2 경계 사실 기록 불가) → runs[] 없는 레벨 · 판정 기록 null(not_evaluated) · full 인증서 미발행
@@ -150,9 +151,17 @@ echo "$CONFIG lite" >> "$ROOT/SHIM_CALLS"
 cat > "$OUT/lite_warm_$CONFIG.json" <<JSON
 {"completed": 3, "failed": 0, "median_tpot_ms": 25.0, "spec_decode_acceptance_length": 2.0, "_shim": "selftest"}
 JSON
+# SHIM_PLAN.lite = {"verdict": <lite_verdict 또는 "absent">, "rc": <종료코드>} — lite 게이트 시험용(기본 pass · rc 0).
+LV="$(python3 -c 'import json,os; print((json.loads(os.environ.get("SHIM_PLAN") or "{}").get("lite") or {}).get("verdict","pass"))')"
+LRC="$(python3 -c 'import json,os; print((json.loads(os.environ.get("SHIM_PLAN") or "{}").get("lite") or {}).get("rc",0))')"
+if [ "$LV" = "absent" ]; then
+  rm -f "$OUT/lite_raw_$CONFIG.json"
+else
 cat > "$OUT/lite_raw_$CONFIG.json" <<JSON
-{"topology": "single", "burst_n": 3, "bench_warm_json": "$OUT/lite_warm_$CONFIG.json", "nodes": [{"role": "main"}]}
+{"topology": "single", "burst_n": 3, "lite_verdict": "$LV", "bench_warm_json": "$OUT/lite_warm_$CONFIG.json", "nodes": [{"role": "main"}]}
 JSON
+fi
+exit "$LRC"
 '''
 
 
@@ -435,6 +444,25 @@ def main() -> int:
            (cp1.returncode, cp2.returncode, lv_mid, stale_on_disk, cp3.returncode,
             [lv.get("level") for lv in idx_rr.get("levels", [])], cp3.stderr[-300:]))
 
+        # ── G lite 게이트: lite 불통과면 GuideLLM 에 들어가지 않는다(lite ⊂ full) ─────────────────────
+        for tag, lite, want in (("mpf", {"verdict": "measurement_path_failed", "rc": 6}, 6),
+                                ("srv", {"verdict": "server_failed", "rc": 7}, 7),
+                                ("abs", {"verdict": "absent", "rc": 0}, 6),        # raw 부재 → 불통과(rc 0 이어도)
+                                ("unk", {"verdict": "pass", "rc": 9}, 6),          # 모르는 rc → 불통과(판정이 pass 여도)
+                                ("voc", {"verdict": "ok", "rc": 0}, 6)):            # 어휘 밖 판정 → 불통과
+            sb.reset_calls()
+            cfg = "cfg-gate-" + tag
+            cp = sb.sweep(cfg, plan={"lite": lite})
+            gd = sb.sweep_dir(cfg)
+            trunc_g = (gd / "truncation.log").read_text(encoding="utf-8") if (gd / "truncation.log").is_file() else ""
+            ck("G★ lite 게이트 %s(%s) → exit %d · GuideLLM 레벨 호출 0 · level_* 0 · index 0 · 절삭 로그 기재" % (tag, lite, want),
+               cp.returncode == want and [c for c in sb.calls() if "level=" in c] == []
+               and not list(gd.glob("level_*")) and not (gd / "sweep_index.json").exists()
+               and "lite gate failed" in trunc_g, (cp.returncode, sb.calls(), cp.stderr[-400:]))
+        _conf = subprocess.run([sys.executable, str(REPO / AB / "scripts/conformance_full_superset_lite.py")],
+                               capture_output=True, text=True, timeout=120)
+        ck("G conformance(게이트 포함 단언 포함) 초록", _conf.returncode == 0, _conf.stdout[-600:])
+
         # ── F1 실패주입: 판정점 run 2 measurement_ok=false ──────────────────────────────────
         sb.clear_events()
         sb.reset_calls()
@@ -469,8 +497,11 @@ def main() -> int:
         ck("F2★ 음성대조: 사살 시각 불일치(창 밖) → run_failed", cls.get("downgrade_reason") == "run_failed", cls)
 
         cp = publish("cfg-f")
-        ck("F3★ 강등 셀(판정 기록 lite)에는 PASS 여도 full 인증서를 내지 않는다(rc 0 · stdout 비어 있음)",
-           cp.returncode == 0 and cp.stdout.strip() == "" and "downgraded-lite" in cp.stderr, (cp.stdout[-300:], cp.stderr))
+        # 2026-09-29(plan_26092923): 강등 셀은 full 인증서 대신 **lite 등급 인증서**(γ)를 받는다 — lite 게이트를 통과했다.
+        ck("F3★ 강등 셀(판정 기록 lite)에는 PASS 여도 full 인증서를 내지 않고 lite 등급 인증서(γ)를 낸다",
+           cp.returncode == 0 and "benchmark_mode: full" not in cp.stdout and "benchmark_mode: lite" in cp.stdout
+           and "verdict: not_applicable" in cp.stdout and "lite_verdict: pass" in cp.stdout
+           and "entry_path: gamma_demoted_lite" in cp.stdout, (cp.stdout[-300:], cp.stderr))
         cp = report("cfg-f")
         ck("F3★ 리포트에 멈춘 자리·실패 run·강등 사유가 이름으로 남는다",
            "**스윕이 멈춘 자리 — 반복 중단**: level 1 run 2" in cp.stdout and "✗(run 2)" in cp.stdout
@@ -505,7 +536,8 @@ def main() -> int:
            cp.returncode == 0 and [lv.get("level") for lv in idx_k.get("levels", [])] == [1]
            and (rep_k.get("stop") or {}).get("kind") == "clamp" and rep_k.get("runs_attempted") == 4
            and s_k.get("bench_mode") == "lite" and s_k.get("downgrade_reason") == "blackbox_kill"
-           and cp_pub.stdout.strip() == "", (rep_k, s_k, cp.stderr[-400:], cp_pub.stderr[-300:]))
+           and "benchmark_mode: full" not in cp_pub.stdout and "benchmark_mode: lite" in cp_pub.stdout,
+           (rep_k, s_k, cp.stderr[-400:], cp_pub.stderr[-300:]))
         sb.clear_events()
         cp = sb.sweep("cfg-t", plan={"fail": {"2:1": "trip"}})
         s_t = side("cfg-t")
@@ -775,7 +807,7 @@ def main() -> int:
     if failures:
         print("[selftest_sweep_repeats] FAIL %d건: %s" % (len(failures), failures), file=sys.stderr)
         return 1
-    print("[selftest_sweep_repeats] PASS — N1~N8 · R1 · F1~F8 · V1 · A1~A4 · B1~B7 · M1~M2 · R★(실패주입·음성대조 포함)")
+    print("[selftest_sweep_repeats] PASS — N1~N8 · R1 · G(lite 게이트 5) · F1~F8 · V1 · A1~A4 · B1~B7 · M1~M2 · R★(실패주입·음성대조 포함)")
     return 0
 
 

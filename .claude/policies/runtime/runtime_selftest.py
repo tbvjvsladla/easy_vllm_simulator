@@ -291,6 +291,25 @@ ratio_M_over_primary: 0.719
 measured_utc: "2026-01-01T00:00:00Z"
 """
 
+# lite 등급 인증서(2026-09-29 plan_26092923 · lite ⊂ full) -- hint_map_only 의 발행 자격 근거. 강한 6키는 위와 같다.
+_PROMO_LITE_CERTIFICATE = """schema_version: 1
+record_type: benchmark_certificate
+verdict: not_applicable
+model: selftest-model
+gpu_model: GB10
+vllm_version: 0.0.0.dev0
+quantization: fp8
+topology: single
+tensor_parallel_size: 1
+benchmark_mode: lite
+lite_verdict: pass
+entry_path: beta_lite_only_cell
+lite_included: true
+lite_gen_tps_warm: 40.0
+measured_utc: "2026-01-01T00:00:00Z"
+measured_node: main
+"""
+
 # manifest carrier(REFUTE 런) -- 인증서와 **동일한 계약**을 만족하는 최소 선언.
 _PROMO_RUBRIC = {"rubric_authority": "explore", "floor_tps": 22.1,
                  "ratio_M_over_primary": 0.719, "primary_source": "E(external_reference)",
@@ -701,6 +720,7 @@ _HINT_FX_PUBLISH_UTC = "2026-01-02T06:00:00Z"
 _HINT_FX_CONTINUE_UTC = "2026-01-02T07:00:00Z"
 _HINT_FX_LITE_MEASURED_UTC = "2026-01-02T14:00:00Z"
 _HINT_FX_LITE_REPORT = "docs/benchmark/bench_report_26010214_fixture-model-nvfp4_GB10_0.9.0.md"
+_HINT_FX_LITE_CERT = "docs/benchmark/benchmark_26010214_fixture-model-nvfp4_GB10_0.9.0.yaml"   # 같은 측정 = 같은 stem
 
 # 가짜 docker — 옛 in-process 대역(`hint._fx_docker`)과 같은 대답을 **실행 파일**로 낸다(CLI 서브프로세스가 PATH 로 찾는다).
 #   읽기 전용 두 명령(image inspect·history)에 답하고, 원장 cat(`docker run`)은 원장 없는 옛 이미지로 rc 1 이다.
@@ -1374,6 +1394,8 @@ def _hint_fx_lite_cell(repo: Path, fx: dict, *, with_report_pointer: bool) -> No
         "backend": "openai", "endpoint": "/v1/completions", "config_yaml": str(out / f"configs/{cell}.yaml"),
         "env_file": str(out / f"envs/.env.{cell}"), "manifest": str(out / "manifest.yaml"),
         "bench_warm_json": str(warm), "bench_cold_json": str(cold), "engine_log": str(elog),
+        # lite 판정(2026-09-29 plan_26092923) — 이 셀은 lite 를 통과했다(판정 입력 수집은 lite_bench 소관 · 여기선 결과만)
+        "lite_verdict": "pass", "lite_exit": 0, "lite_verdict_source": "selftest fixture(lite_bench 판정 결과 모양)",
         "nodes": [{"role": "main", "gpu_smi_used_mib": None, "gpu_smi_total_mib": None,
                    "ram_total_kib": 128000000, "ram_avail_kib": 64000000}]}), encoding="utf-8")
     text = _render_lite_report(raw)
@@ -1381,6 +1403,16 @@ def _hint_fx_lite_cell(repo: Path, fx: dict, *, with_report_pointer: bool) -> No
              and f"생성일 {_HINT_FX_LITE_MEASURED_UTC}" in text,
              f"real lite report lost its mode header / measurement-config row / join key: {text[:700]!r}")
     (repo / _HINT_FX_LITE_REPORT).write_text(text, encoding="utf-8")
+    # lite 등급 인증서 — **배포되는 발행기**(publish_benchmark_record.py --lite-raw-json)가 같은 raw 로 쓴다(손 인증서 ✗).
+    #   hint 자격 = lite 통과(2026-09-29 plan_26092923 · 게이트 HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE).
+    env = {k: v for k, v in os.environ.items() if k != "EASY_VLLM_VERSION"}
+    proc = subprocess.run([sys.executable, "-B", str(CLAUDE_DIR.parent / _RENDER_REPORT_REL).replace(
+                               "render_report.py", "publish_benchmark_record.py"),
+                           "--lite-raw-json", str(raw), "--stdout"], capture_output=True, text=True, timeout=120, env=env)
+    _require(proc.returncode == 0 and "benchmark_mode: lite" in proc.stdout,
+             f"publish_benchmark_record --lite-raw-json failed on the lite fixture: rc={proc.returncode} "
+             f"stderr={proc.stderr[-600:]!r}")
+    (repo / _HINT_FX_LITE_CERT).write_text(proc.stdout, encoding="utf-8")
 
     def decl(d: dict) -> None:
         d["assignments"]["main"].append({"cell": cell, "mode": "AUTO"})
@@ -1398,6 +1430,7 @@ def _hint_fx_lite_cell(repo: Path, fx: dict, *, with_report_pointer: bool) -> No
             {"kind": "testlog", "path": fx["testlog"], "cell_id": cell, "node_id": "main"}]
     if with_report_pointer:
         ptrs.append({"kind": "bench_report", "path": _HINT_FX_LITE_REPORT, "cell_id": cell, "node_id": "cluster"})
+        ptrs.append({"kind": "certificate", "path": _HINT_FX_LITE_CERT, "cell_id": cell, "node_id": "cluster"})
     _hint_edit_json(camp / "evidence_pointers.json", lambda d: d["pointers"].extend(ptrs))
 
 
@@ -1424,17 +1457,50 @@ def _test_hint_map_only_promotion() -> None:
     with tempfile.TemporaryDirectory(prefix="hint-map-only-selftest.") as td:
         root = Path(td).resolve()
         (root / ".git").mkdir()
-        # ① 인증서·bench_report·simlog **없이** 지도 발행 통로가 열린다.
-        m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC),
+        # ① bench_report·simlog 없이 **lite 등급 인증서 하나로** 지도 발행 통로가 열린다(2026-09-29 plan_26092923:
+        #    hint 자격 = lite 통과 · 종전 "인증서 없이" 는 lite 불통과 셀도 hint 를 낼 수 있던 교집합이었다).
+        m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC), certificate=_PROMO_LITE_CERTIFICATE,
                                       task_class="hint_map_only",
                                       drop_evidence=("simlog", "bench_report"))
         out = _verify(root, m)
         _require(out.get("state") == "promotion-ready" and out.get("eligible_for_promotion") is True
-                 and "HINT_MAP_ONLY_PROMOTION" in (out.get("reason_codes") or []),
-                 f"hint_map_only did not reach promotion-ready without certificate/bench_report/simlog: {out}")
+                 and "HINT_MAP_ONLY_PROMOTION" in (out.get("reason_codes") or [])
+                 and (out.get("certificate") or {}).get("grade") == "lite",
+                 f"hint_map_only did not reach promotion-ready with a lite-grade certificate: {out}")
+
+        # ①-b ★음성대조 lite 등급 인증서가 없으면 자격이 닫힌다(lite 불통과·판정 부재 = 인증서 없음).
+        m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC),
+                                      task_class="hint_map_only",
+                                      drop_evidence=("simlog", "bench_report"))
+        out = _verify(root, m)
+        _require(out.get("eligible_for_promotion") is not True
+                 and "HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE" in (out.get("reason_codes") or []),
+                 f"hint_map_only reached promotion without a lite-pass certificate: {out}")
+        # ①-c ★음성대조 lite_verdict 가 pass 가 아닌 lite 인증서 · full 인증서는 지도 발행 근거가 아니다.
+        for bad, code in ((_PROMO_LITE_CERTIFICATE.replace("lite_verdict: pass", "lite_verdict: server_failed"),
+                           "CERTIFICATE_LITE_VERDICT_NOT_PASS"),
+                          (_PROMO_CERTIFICATE.format(authority="explore"), "CERTIFICATE_GRADE_MISMATCH")):
+            m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC), certificate=bad,
+                                          task_class="hint_map_only", drop_evidence=("simlog", "bench_report"))
+            out = _verify(root, m)
+            _require(out.get("eligible_for_promotion") is not True and code in (out.get("reason_codes") or []),
+                     f"hint_map_only accepted a non-lite-pass certificate (want {code}): {out}")
+        # ①-d ★AC6 성능 완료(full_benchmark 승격)는 lite 등급 인증서로 열리지 않는다 · 등급 키 없는 옛 full 인증서는 full.
+        m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC), certificate=_PROMO_LITE_CERTIFICATE)
+        out = _verify(root, m)
+        _require(out.get("eligible_for_promotion") is not True
+                 and "CERTIFICATE_GRADE_NOT_FULL" in (out.get("reason_codes") or []),
+                 f"full_benchmark promotion opened on a lite-grade certificate: {out}")
+        m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC),
+                                      certificate=_PROMO_CERTIFICATE.format(authority="explicit")
+                                      .replace("benchmark_mode: full\n", ""))
+        out = _verify(root, m)
+        _require("CERTIFICATE_BENCHMARK_MODE_MISMATCH" not in (out.get("reason_codes") or [])
+                 and (out.get("certificate") or {}).get("grade") == "full",
+                 f"a legacy certificate without benchmark_mode was not read as full: {out}")
 
         # ② ★음성대조 verdict=FAIL 은 사람 positive key 없이는 못 연다(§3.2 perf_waiver).
-        m = _write_promotion_manifest(root, "FAIL", dict(_PROMO_RUBRIC),
+        m = _write_promotion_manifest(root, "FAIL", dict(_PROMO_RUBRIC), certificate=_PROMO_LITE_CERTIFICATE,
                                       task_class="hint_map_only",
                                       drop_evidence=("simlog", "bench_report"))
         out = _verify(root, m)
@@ -1447,6 +1513,7 @@ def _test_hint_map_only_promotion() -> None:
             root, "FAIL", dict(_PROMO_RUBRIC, perf_waiver={
                 "authorized_by": "selftest-operator", "authorized_at_utc": "2026-09-07T00:00:00Z",
                 "instruction": "loop-until-done 중단", "warning_flag": "PERF-WARNING: selftest"}),
+            certificate=_PROMO_LITE_CERTIFICATE,
             task_class="hint_map_only", drop_evidence=("simlog", "bench_report"))
         out = _verify(root, m)
         _require(out.get("eligible_for_promotion") is True,
@@ -1512,8 +1579,12 @@ def _test_hint_map_only_publication() -> None:
                      f"a lite cell with no bound lite report was not refused before any write: rc={proc.returncode} "
                      f"{proc.stderr[-600:]!r}")
             _hint_edit_json(repo / f"campaigns/{_HINT_FX_CAMPAIGN}/evidence_pointers.json",
-                            lambda d: d["pointers"].append({"kind": "bench_report", "path": _HINT_FX_LITE_REPORT,
-                                                            "cell_id": _HINT_FX_LITE_CELL, "node_id": "cluster"}))
+                            lambda d: d["pointers"].extend([
+                                {"kind": "bench_report", "path": _HINT_FX_LITE_REPORT,
+                                 "cell_id": _HINT_FX_LITE_CELL, "node_id": "cluster"},
+                                # lite 등급 인증서(β) — hint 자격의 근거(2026-09-29 plan_26092923)
+                                {"kind": "certificate", "path": _HINT_FX_LITE_CERT,
+                                 "cell_id": _HINT_FX_LITE_CELL, "node_id": "cluster"}]))
 
             _hint_cli_ok(f, "publish(lite)", "publish", "--campaign", _HINT_FX_CAMPAIGN, "--cell", _HINT_FX_LITE_CELL,
                          "--generated-utc", _HINT_FX_PUBLISH_UTC)       # --node 없음 = TP 2 > 노드당 GPU 1 → cluster 파생(AC7)
@@ -1524,8 +1595,10 @@ def _test_hint_map_only_publication() -> None:
             _require(man.get("task_class") == "hint_map_only" and (man.get("benchmark") or {}).get("mode") == "lite"
                      and str(((man.get("evidence") or {}).get("bench_report") or {}).get("path", ""))
                      .endswith(Path(_HINT_FX_LITE_REPORT).name)
-                     and not ((man.get("evidence") or {}).get("certificate") or {}).get("path"),
-                     f"lite publication was not driven as hint_map_only + bound lite report: "
+                     # 2026-09-29(plan_26092923): hint 자격 = lite 통과 → lite 등급 인증서가 함께 묶인다(종전: 인증서 없음)
+                     and str(((man.get("evidence") or {}).get("certificate") or {}).get("path", ""))
+                     .endswith(Path(_HINT_FX_LITE_CERT).name),
+                     f"lite publication was not driven as hint_map_only + bound lite report + lite certificate: "
                      f"{man.get('task_class')!r} {man.get('benchmark')!r} {man.get('evidence')!r}")
 
             # ★ OBSERVATION-ONLY 는 기계 렌더되고, 걷어내면 린트가 막는다(옛 hint_tag._require_map_only_observation 의 이관)
@@ -1554,8 +1627,9 @@ def _test_hint_map_only_publication() -> None:
             _require(_hint_remote_ref(f["bare"], tag_ref) == _hint_git(repo, "rev-parse", tag_ref),
                      "lite tag did not reach the remote with the sealed object")
             body = _hint_tag_body(repo, _HINT_FX_LITE_TAG)
-            _require(f"bench_ref: ../benchmark/{Path(_HINT_FX_LITE_REPORT).name}" in body and "bench_kind: bench_report" in body,
-                     f"map_only footer v2 did not bind the lite bench_report: {body[-500:]!r}")
+            # 바인딩 우선순위는 발행기 소유(인증서 > 리포트) — lite 셀도 이제 lite 등급 인증서를 묶는다(등급은 인증서 본문이 말한다)
+            _require(f"bench_ref: ../benchmark/{Path(_HINT_FX_LITE_CERT).name}" in body and "bench_kind: certificate" in body,
+                     f"map_only footer v2 did not bind the lite-grade certificate: {body[-500:]!r}")
             # 페이로드는 태그의 앵커 커밋에서 읽는다(v7: 페이로드 커밋은 hint 브랜치에 얹히지 않는다 · 태그만 가리킨다)
             payload = json.loads(_hint_git(repo, "show", f"{tag_ref}^{{commit}}:PAYLOAD.json"))
             _require((payload.get("measurement") or {}).get("verdict") == "OBSERVATION-ONLY",

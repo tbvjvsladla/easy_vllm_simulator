@@ -906,6 +906,23 @@ STRONG_IDENTITY_FIELDS = ("model", "gpu", "vllm", "quant", "topology", "tp")
 CERTIFICATE_RUN_KEY_FIELDS = tuple(CERTIFICATE_FIELD_MAP[f] for f in STRONG_IDENTITY_FIELDS) + ("measured_utc",)
 
 
+# ---- 인증서 등급 (2026-09-29 · plan_26092923 · lite ⊂ full) ----
+# 등급 키는 기존 인증서의 `benchmark_mode` 다. full 인증서는 `benchmark_mode: full` 을 싣고, **키가 없는 옛 인증서도
+# full** 로 읽는다(소급 재분류 ✗). lite 등급 인증서는 `benchmark_mode: lite` · `verdict: not_applicable` ·
+# `lite_verdict: pass` 이며 hint 지도 발행(hint_map_only)의 근거이지 성능 완료의 근거가 아니다.
+LITE_CERT_VERDICT = "not_applicable"
+
+
+def certificate_grade(cert_fields: dict):
+    """'full' | 'lite' | None(어휘 밖 — 호출부는 fail-closed). 등급 키 부재 = full."""
+    mode = (cert_fields.get("benchmark_mode") or "").strip()
+    if mode in ("", "full"):
+        return "full"
+    if mode == "lite":
+        return "lite"
+    return None
+
+
 def certificate_run_key(cert_fields: dict):
     """(6 strong cert fields + measured_utc) as a tuple, or None when any is absent/blank -- callers
     must treat None as *unidentifiable* (fail-closed), never as "matches nothing"."""
@@ -1951,7 +1968,10 @@ def cmd_verify(args: argparse.Namespace) -> None:
     # anything other than the literal string "PASS" -- including null/absent -- is
     # self-contradictory, not merely "incomplete evidence". PASS_ONLY_CERTIFICATE_GAP fix:
     # covers null/absent verdict too, not just an explicit non-PASS string. ----
-    if evidence.get("certificate") and verdict != "PASS":
+    # ★ 2026-09-29(plan_26092923 · lite ⊂ full): hint_map_only 는 **lite 등급 인증서**(benchmark_mode: lite ·
+    #   verdict: not_applicable · lite_verdict: pass)를 싣는다 — 그 인증서는 full 루브릭 verdict 를 주장하지 않으므로
+    #   manifest verdict 가 PASS 가 아닌 것이 모순이 아니다. 등급 검사(lite 만 허용)는 아래 인증서 블록이 한다.
+    if evidence.get("certificate") and verdict != "PASS" and task_class != "hint_map_only":
         add_reason("CERTIFICATE_PRESENT_WITHOUT_PASS_VERDICT",
                    f"benchmark.verdict={verdict!r} but evidence.certificate is present "
                    f"(certificates are published PASS-only)")
@@ -2169,67 +2189,107 @@ def cmd_verify(args: argparse.Namespace) -> None:
                                           "DIFFERENT bytes for the same measurement: publication-chain defect"))
                     cert_verdict = cert_fields.get("verdict")
                     cert_mode = cert_fields.get("benchmark_mode")
-                    if cert_verdict != "PASS":
-                        identity_ok = False
-                        add_reason("CERTIFICATE_VERDICT_MISMATCH",
-                                   f"certificate verdict={cert_verdict!r} (must be 'PASS')")
-                    if cert_mode != "full":
-                        identity_ok = False
-                        add_reason("CERTIFICATE_BENCHMARK_MODE_MISMATCH",
-                                   f"certificate benchmark_mode={cert_mode!r} (must be 'full')")
-                    # ---- rubric contract (plan_26082219 D5) -- fail-closed on the ARTIFACT ----
-                    floor_tps = _certificate_number(cert_fields.get("floor_tps"))
-                    ratio_value = _certificate_number(cert_fields.get("ratio_M_over_primary"))
-                    primary_source = (cert_fields.get("primary_source") or "").strip()
-                    raw_authority = (cert_fields.get("rubric_authority") or "").strip()
-                    cert_rubric_ok = True
-                    if floor_tps is None or floor_tps <= 0:
-                        cert_rubric_ok = False
-                        identity_ok = False
-                        add_reason("CERTIFICATE_RUBRIC_FLOOR_INVALID",
-                                   f"certificate floor_tps={cert_fields.get('floor_tps')!r} is not a finite "
-                                   f"positive number -- floor<=0 means the rubric imposed NO threshold "
-                                   f"(공허 PASS): every measurement passes. Not promotable in ANY authority.")
-                    if ratio_value is None:
-                        cert_rubric_ok = False
-                        identity_ok = False
-                        add_reason("CERTIFICATE_RUBRIC_RATIO_MISSING",
-                                   f"certificate ratio_M_over_primary={cert_fields.get('ratio_M_over_primary')!r} "
-                                   f"is not a finite number -- the measurement-vs-rubric indicator is absent, "
-                                   f"so the PASS cannot be audited")
-                    if not primary_source or primary_source.upper() == "N/A":
-                        cert_rubric_ok = False
-                        identity_ok = False
-                        add_reason("CERTIFICATE_RUBRIC_SOURCE_MISSING",
-                                   f"certificate primary_source={cert_fields.get('primary_source')!r} is absent "
-                                   f"-- which rubric slot won cannot be established (surfaced, never matched "
-                                   f"as a string: the numeric floor/ratio contract above is the gate)")
-                    # authority: legacy tolerance. Certificates published before this field existed
-                    # (2026-08-22) simply do not carry it -- requiring it would turn every existing
-                    # hint tag red because the schema grew, not because the perf fact changed. Only
-                    # the VALUE RANGE is gated.
-                    if raw_authority and raw_authority.upper() != "N/A":
-                        if raw_authority in RUBRIC_AUTHORITIES:
-                            cert_rubric_authority = raw_authority
-                        else:
+                    cert_grade = certificate_grade(cert_fields)
+                    if cert_grade == "lite":
+                        # ---- lite 등급 인증서 (2026-09-29 · plan_26092923) — 서빙 성립(lite 통과)의 기록이다 ----
+                        #   성능 판정이 아니므로 루브릭 계약(floor·ratio·source)을 묻지 않고, 대신 lite 3필드를 묻는다.
+                        #   받을 수 있는 자리는 hint_map_only(지도 발행) 하나다 — 성능 완료(full_benchmark 승격)의
+                        #   근거가 될 수 없다(헌법: 적대적 벤치 게이트 없이 성능 완료를 선언하지 않는다).
+                        lite_problems = []
+                        if cert_verdict != LITE_CERT_VERDICT:
+                            lite_problems.append(("CERTIFICATE_VERDICT_MISMATCH",
+                                                  f"lite certificate verdict={cert_verdict!r} (must be {LITE_CERT_VERDICT!r} "
+                                                  f"— verdict 칸은 full 루브릭 전용)"))
+                        if cert_fields.get("lite_verdict") != "pass":
+                            lite_problems.append(("CERTIFICATE_LITE_VERDICT_NOT_PASS",
+                                                  f"lite certificate lite_verdict={cert_fields.get('lite_verdict')!r} "
+                                                  f"(must be 'pass' — lite 불통과는 인증서를 열지 않는다)"))
+                        if task_class != "hint_map_only":
+                            lite_problems.append(("CERTIFICATE_GRADE_NOT_FULL",
+                                                  f"task_class={task_class!r} 에 lite 등급 인증서 — 성능 완료·full 승격은 "
+                                                  f"benchmark_mode=full 인증서만 연다(lite 는 hint 지도 발행의 근거)"))
+                        for code, msg in lite_problems:
+                            identity_ok = False
+                            add_reason(code, msg)
+                        certificate_output = {
+                            "path": item["path"], "parsed": True, "identity": mapped,
+                            "verdict": cert_verdict, "benchmark_mode": cert_mode, "grade": "lite",
+                            "lite_verdict": cert_fields.get("lite_verdict"), "lite_contract_ok": not lite_problems,
+                            "identity_match": identity_match,
+                            "rubric_authority": None, "floor_tps": None, "ratio_M_over_primary": None,
+                            "primary_source": None, "rubric_contract_ok": False,
+                            "run_key": (list(run_key) if run_key else None),
+                            "duplicates": [d["path"] for d in duplicates],
+                        }
+                    else:
+                        if task_class == "hint_map_only":
+                            identity_ok = False
+                            add_reason("CERTIFICATE_GRADE_MISMATCH",
+                                       f"hint_map_only 에 full 등급 인증서(benchmark_mode={cert_mode!r}) — 지도 발행 통로는 "
+                                       f"lite 등급 인증서를 받는다(강등 셀은 full 인증서를 받지 않는다)")
+                        if cert_verdict != "PASS":
+                            identity_ok = False
+                            add_reason("CERTIFICATE_VERDICT_MISMATCH",
+                                       f"certificate verdict={cert_verdict!r} (must be 'PASS')")
+                        # 등급 키가 없는 옛 인증서 = full(소급 재분류 ✗ · plan_26092923 D5)
+                        if cert_grade != "full":
+                            identity_ok = False
+                            add_reason("CERTIFICATE_BENCHMARK_MODE_MISMATCH",
+                                       f"certificate benchmark_mode={cert_mode!r} (must be 'full' or absent)")
+                        # ---- rubric contract (plan_26082219 D5) -- fail-closed on the ARTIFACT ----
+                        floor_tps = _certificate_number(cert_fields.get("floor_tps"))
+                        ratio_value = _certificate_number(cert_fields.get("ratio_M_over_primary"))
+                        primary_source = (cert_fields.get("primary_source") or "").strip()
+                        raw_authority = (cert_fields.get("rubric_authority") or "").strip()
+                        cert_rubric_ok = True
+                        if floor_tps is None or floor_tps <= 0:
                             cert_rubric_ok = False
                             identity_ok = False
-                            add_reason("CERTIFICATE_RUBRIC_AUTHORITY_UNKNOWN",
-                                       f"certificate rubric_authority={raw_authority!r} is not one of "
-                                       f"{list(RUBRIC_AUTHORITIES)} -- an unknown rubric authority cannot be "
-                                       f"reasoned about, fail closed")
-                    certificate_output = {
-                        "path": item["path"], "parsed": True, "identity": mapped,
-                        "verdict": cert_verdict, "benchmark_mode": cert_mode, "identity_match": identity_match,
-                        # 출처 표시(헌법 §결정론 규율): 판정기가 *무엇을 근거로* 승격을 열었는지 산출물이 밝힌다.
-                        "rubric_authority": cert_rubric_authority,
-                        "floor_tps": floor_tps, "ratio_M_over_primary": ratio_value,
-                        "primary_source": primary_source or None,
-                        "rubric_contract_ok": cert_rubric_ok,
-                        # 출처 표시: 이 인증서가 식별하는 측정과, 같은 측정을 주장하는 다른 추적 파일들
-                        "run_key": (list(run_key) if run_key else None),
-                        "duplicates": [d["path"] for d in duplicates],
-                    }
+                            add_reason("CERTIFICATE_RUBRIC_FLOOR_INVALID",
+                                       f"certificate floor_tps={cert_fields.get('floor_tps')!r} is not a finite "
+                                       f"positive number -- floor<=0 means the rubric imposed NO threshold "
+                                       f"(공허 PASS): every measurement passes. Not promotable in ANY authority.")
+                        if ratio_value is None:
+                            cert_rubric_ok = False
+                            identity_ok = False
+                            add_reason("CERTIFICATE_RUBRIC_RATIO_MISSING",
+                                       f"certificate ratio_M_over_primary={cert_fields.get('ratio_M_over_primary')!r} "
+                                       f"is not a finite number -- the measurement-vs-rubric indicator is absent, "
+                                       f"so the PASS cannot be audited")
+                        if not primary_source or primary_source.upper() == "N/A":
+                            cert_rubric_ok = False
+                            identity_ok = False
+                            add_reason("CERTIFICATE_RUBRIC_SOURCE_MISSING",
+                                       f"certificate primary_source={cert_fields.get('primary_source')!r} is absent "
+                                       f"-- which rubric slot won cannot be established (surfaced, never matched "
+                                       f"as a string: the numeric floor/ratio contract above is the gate)")
+                        # authority: legacy tolerance. Certificates published before this field existed
+                        # (2026-08-22) simply do not carry it -- requiring it would turn every existing
+                        # hint tag red because the schema grew, not because the perf fact changed. Only
+                        # the VALUE RANGE is gated.
+                        if raw_authority and raw_authority.upper() != "N/A":
+                            if raw_authority in RUBRIC_AUTHORITIES:
+                                cert_rubric_authority = raw_authority
+                            else:
+                                cert_rubric_ok = False
+                                identity_ok = False
+                                add_reason("CERTIFICATE_RUBRIC_AUTHORITY_UNKNOWN",
+                                           f"certificate rubric_authority={raw_authority!r} is not one of "
+                                           f"{list(RUBRIC_AUTHORITIES)} -- an unknown rubric authority cannot be "
+                                           f"reasoned about, fail closed")
+                        certificate_output = {
+                            "path": item["path"], "parsed": True, "identity": mapped,
+                            "verdict": cert_verdict, "benchmark_mode": cert_mode, "grade": cert_grade,
+                            "identity_match": identity_match,
+                            # 출처 표시(헌법 §결정론 규율): 판정기가 *무엇을 근거로* 승격을 열었는지 산출물이 밝힌다.
+                            "rubric_authority": cert_rubric_authority,
+                            "floor_tps": floor_tps, "ratio_M_over_primary": ratio_value,
+                            "primary_source": primary_source or None,
+                            "rubric_contract_ok": cert_rubric_ok,
+                            # 출처 표시: 이 인증서가 식별하는 측정과, 같은 측정을 주장하는 다른 추적 파일들
+                            "run_key": (list(run_key) if run_key else None),
+                            "duplicates": [d["path"] for d in duplicates],
+                        }
 
             if key in MARKDOWN_LIKE_EVIDENCE_KEYS and required and exists:
                 # links are relative to the EVIDENCE FILE's own directory (Markdown convention),
@@ -2435,7 +2495,20 @@ def cmd_verify(args: argparse.Namespace) -> None:
                 waiver_ok = (isinstance(waiver, dict)
                              and all(isinstance(waiver.get(k), str) and waiver.get(k).strip()
                                      for k in _wf))
-                if verdict == "FAIL" and not waiver_ok:
+                # ★ 2026-09-29(plan_26092923 · lite ⊂ full): hint 발행 자격은 **lite 통과**가 연다. 그 근거는 lite 등급
+                #   인증서(benchmark_mode: lite · lite_verdict: pass) 하나다 — lite 불통과(측정 경로 불성립·서버 응답
+                #   실패)나 판정 부재는 인증서가 없으므로 여기서 닫힌다. required_evidence 는 늘리지 않는다: 기존
+                #   발행 기록의 모양 검사(required_evidence 재계산)를 깨지 않고(소급 ✗), 자격만 이 자리에서 가른다.
+                lite_cert_ok = bool(certificate_present and certificate_output
+                                    and certificate_output.get("grade") == "lite"
+                                    and certificate_output.get("lite_contract_ok"))
+                if not lite_cert_ok:
+                    add_reason("HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE",
+                               "hint_map_only 발행 자격은 lite 등급 인증서(benchmark_mode: lite · verdict: not_applicable · "
+                               "lite_verdict: pass)가 연다 — evidence.certificate 가 없거나 lite 등급이 아니다. "
+                               "lite_bench.sh --publish-report(β) 또는 강등 셀 판정(γ)이 발행하고 "
+                               "evidence_publisher.py publish-lite-report --certificate-src 로 바인딩한다.")
+                elif verdict == "FAIL" and not waiver_ok:
                     add_reason("HINT_MAP_FAIL_REQUIRES_WAIVER",
                                f"benchmark.verdict={verdict!r} 자료를 §5 에 실으려면 §3.2 perf_waiver "
                                "4필드(사람 positive key)와 본문 PERF-WARNING 마커가 필요하다.")

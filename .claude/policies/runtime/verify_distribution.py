@@ -937,6 +937,15 @@ def verify() -> dict:
         #   이 지킨다(2026-09-22 신 CLI 전 경로 · 그 경량 리포트도 배포되는 render_report 가 쓴다).
         _run("benchmark_lite_report_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/selftest_lite_report.py"], {0}),
+        # lite ⊂ full — lite 판정이 full 의 **진입 게이트**다(plan_26092923 · 2026-09-29). 촉발은 D1(측정 0건인데 rc 0).
+        #   계약 검사: 게이트 종료가 GuideLLM 레벨 호출보다 앞 · 판정 어휘/종료코드 · D1 연결거부 픽스처 → ① (정적+판정기).
+        #   격리 시험: D1 연결거부 → exit 6 · 서버 실패 응답 → exit 7 · α(플래그 없음)는 리포트·인증서 0 · β 통과 → lite 등급
+        #   인증서(benchmark_mode lite · not_applicable · lite_verdict pass · 리포트와 같은 stem) · 발행기는 판정 부재·불통과 raw 거부.
+        #   sweep 게이트의 실행 층(lite 불통과 → GuideLLM 레벨 0)은 위 selftest_sweep_repeats G★ 가 친다.
+        _run("benchmark_lite_gate_conformance", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/conformance_full_superset_lite.py"], {0}),
+        _run("benchmark_lite_gate_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/selftest_lite_gate.py"], {0}),
         # Broad Search 이중 게이트의 **집행**: --confirm-risk 없이는 셀이 돌지 않는다(exit 5).
         # single 컨테이너 관리 진입점의 **인자 평면** fail-closed (plan_26090419 P1 · 2026-09-04).
         #   기동 경로는 예산선언·워치독 무장을 품고 있어 잘못 불리면 무보호 로드가 된다. 여기서는

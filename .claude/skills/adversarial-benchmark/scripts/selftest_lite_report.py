@@ -45,18 +45,35 @@ from pathlib import Path
 SDIR = Path(__file__).resolve().parent
 REPO = Path(__file__).resolve().parents[4]
 AB = ".claude/skills/adversarial-benchmark/scripts"
-COPIES = ("lite_bench.sh", "lite_metrics.py", "render_report.py", "classify_cell.py", "doc_naming.py", "repeat_axis.py")
+COPIES = ("lite_bench.sh", "lite_metrics.py", "render_report.py", "classify_cell.py", "doc_naming.py", "repeat_axis.py",
+          "publish_benchmark_record.py")
 SHIM_SENTINEL = "selftest-lite-report-shim"
 CFG = "fx-lite"
 MEASURED_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 DOCKER_SHIM = r'''#!/usr/bin/env bash
 # @SENTINEL@ — docker 가 아니다(vllm bench serve 를 돌리지 않는다).
+#   bench 호출의 --num-prompts 를 기억했다가 결과 파일을 그 요청 수로 돌려준다(cold 1 · warm N).
+#   SHIM_BENCH_MODE: ok(기본) · refused(D1 — 연결 거부 · 결과 파일 없음) · http500(서버가 실패로 응답)
+#   SHIM_CLIENT_HEALTH: 클라이언트 평면(컨테이너 안) health 응답(기본 200 · refused 는 unreachable)
 case "$1" in
   ps) echo "cafe0001" ;;
   exec)
     shift; shift
-    if [ "$1" = "cat" ]; then cat "$SHIM_DIR/bench.json"; exit 0; fi
+    if [ "$1" = "cat" ]; then
+      n="$(cat "$SHIM_DIR/last_n" 2>/dev/null || echo 1)"
+      case "${SHIM_BENCH_MODE:-ok}" in
+        http500) printf '{"completed": 0, "failed": %s, "total_output_tokens": 0, "median_tpot_ms": null}' "$n" ;;
+        *) printf '{"completed": %s, "failed": 0, "total_output_tokens": %s, "median_tpot_ms": 25.0, "median_ttft_ms": 118.0, "output_throughput": 39.0}' "$n" "$((n*128))" ;;
+      esac
+      exit 0
+    fi
+    if [ "$1" = "python3" ]; then echo "${SHIM_CLIENT_HEALTH:-200}"; exit 0; fi
+    n="$(printf '%s' "$*" | sed -n 's/.*--num-prompts \([0-9]*\).*/\1/p')"; echo "${n:-1}" > "$SHIM_DIR/last_n"
+    if [ "${SHIM_BENCH_MODE:-ok}" = "refused" ]; then
+      echo "ValueError: Initial test run failed - Please make sure benchmark arguments are correctly specified. Error: Cannot connect to host localhost:18080 ssl:default [Connect call failed ('127.0.0.1', 18080)]" >&2
+      exit 1
+    fi
     exit 0 ;;
   logs) cat "$SHIM_DIR/engine.log" ;;
   *) exit 0 ;;
@@ -96,10 +113,10 @@ class Sandbox:
         _write(self.bindir / "docker", DOCKER_SHIM.replace("@SENTINEL@", SHIM_SENTINEL), 0o755)
         _write(self.bindir / "curl", "#!/bin/sh\nprintf 200\n", 0o755)
         _write(self.bindir / "nvidia-smi", "#!/bin/sh\necho '[N/A], [N/A]'\n", 0o755)
-        _write(self.shimdir / "bench.json", json.dumps({"completed": 3, "failed": 0, "median_tpot_ms": 25.0,
-                                                        "median_ttft_ms": 118.0, "output_throughput": 39.0}))
+        # 메인 RAM 읽기(/proc/meminfo)는 실물이다 — 테스트 호스트의 값으로 5지표가 채워진다.
         _write(self.shimdir / "engine.log", "INFO GPU KV cache size: 154,192 tokens\n"
-                                            "INFO Available KV cache memory: 20.5 GiB\n")
+                                            "INFO Available KV cache memory: 20.5 GiB\n"
+                                            "INFO Model weights take 12.5 GiB\n")
         subprocess.run(["git", "init", "-q", str(self.root)], check=True, timeout=60)
         self.manifest(True)
         _write(self.root / f"output/single/configs/{CFG}.yaml", "model: /models/fx-org/FX-Lite-7B\nmax-model-len: 8192\n")
@@ -127,6 +144,10 @@ class Sandbox:
     def reports(self) -> list:
         d = self.root / "docs" / "benchmark"
         return sorted(p.name for p in d.glob("bench_report_*.md")) if d.is_dir() else []
+
+    def certs(self) -> list:
+        d = self.root / "docs" / "benchmark"
+        return sorted(p.name for p in d.glob("benchmark_*.yaml")) if d.is_dir() else []
 
     def raw_path(self) -> Path:
         return self.root / "output/single/benchlog" / f"lite_raw_{CFG}.json"
@@ -159,7 +180,7 @@ def main() -> int:
             print(cp.stdout[-1500:], cp.stderr[-1500:])
         raw = json.loads(sb.raw_path().read_text(encoding="utf-8")) if sb.raw_path().is_file() else {}
         ck("L1 기본(플래그 없음) → exit 0 · 리포트 미발행 · 미발행을 이름으로 알린다",
-           cp.returncode == 0 and sb.reports() == [] and "리포트 미발행" in cp.stdout, (cp.returncode, cp.stderr))
+           cp.returncode == 0 and sb.reports() == [] and sb.certs() == [] and "미발행" in cp.stdout, (cp.returncode, cp.stderr))
         ck("L1 raw 에 측정시각(UTC 초)·명명 입력(config_name·config_yaml·env_file·manifest)이 실린다",
            bool(MEASURED_RE.match(str(raw.get("measured_utc", "")))) and raw.get("config_name") == CFG
            and all(Path(str(raw.get(k, ""))).is_file() for k in ("config_yaml", "env_file", "manifest")), raw)
@@ -231,7 +252,7 @@ def main() -> int:
 
     # ── L7 full 스윕의 lite 레그는 발행하지 않는다 ────────────────────────────────────────────────────────
     sweep_text = (SDIR / "sweep_bench.sh").read_text(encoding="utf-8")
-    lite_calls = [ln for ln in sweep_text.splitlines() if "lite_bench.sh" in ln and ln.lstrip().startswith("if bash")]
+    lite_calls = [ln for ln in sweep_text.splitlines() if "lite_bench.sh" in ln and ln.lstrip().startswith("bash ")]
     ck("★L7 sweep_bench 의 lite 레그 호출은 1줄이고 --publish-report 를 넘기지 않는다(full 리포트 stem 보호)",
        len(lite_calls) == 1 and "--publish-report" not in lite_calls[0], lite_calls)
     lite_text = (SDIR / "lite_bench.sh").read_text(encoding="utf-8")

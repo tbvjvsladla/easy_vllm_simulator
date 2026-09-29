@@ -441,11 +441,54 @@ def lite_identity(raw, environ=None):
     if not vllm:
         mc = re.search(r"vLLM[\s]*([0-9]+\.[0-9]+\.[0-9]+)", cfgtext)
         vllm, vllm_source = (mc.group(1), "declared(config yaml comment)") if mc else ("NA", "absent(env·envfile·엔진 로그·config 모두)")
+    # ★ 2026-09-29(plan_26092923 §3): lite 등급 인증서의 강한 6키 중 quantization·tensor_parallel_size 도 같은 규칙으로 세운다
+    #   (sweep_bench 조립부: quantization = 엔진 config 자기보고 라인 > config yaml > NA · tp = config > manifest 파생 > 1 ·
+    #   single 이면 노드 배수 1). 두 자리는 `selftest_lite_report.py` L8 이 같은 입력으로 교차검증한다.
+    ecfg = re.search(r"Initializing a V1 LLM engine[^\n]*?with config:([^\n]*)", elog)
+    qm = re.search(r"(?:^|[\s,({\[])quantization=([^,\s)\]}]+)", ecfg.group(1)) if ecfg else None
+    q_meas = qm.group(1).strip().strip("'\"") if qm else None
+    q_decl = _grep_yaml(cfgtext, "quantization")
+    if q_meas is not None:
+        quant, quant_source = ("none" if q_meas == "None" else q_meas.lower()), "measured(engine log)"
+    elif q_decl:
+        quant, quant_source = q_decl, "declared(config yaml)"
+    else:
+        quant, quant_source = "NA", "absent(both)"
+    tp = _grep_yaml(cfgtext, "tensor-parallel-size")
+    if tp is None:
+        gpn = _grep_yaml(mftext, "gpus_per_node")
+        mtopo = _grep_yaml(mftext, "topology") or raw.get("topology")
+        try:
+            if str(mtopo).strip().strip('"').startswith("single"):
+                tp = str(max(1, int(gpn))) if gpn else "1"
+            else:
+                n_nodes = len(re.findall(r"(?m)^\s*-\s*role:\s*", mftext))
+                tp = str(max(1, n_nodes) * int(gpn)) if (n_nodes and gpn) else "1"
+        except (TypeError, ValueError):
+            tp = "1"
+    # 측정 노드(sweep_bench 조립부와 같은 규칙 · hint 노드축 어휘 main|sub|cluster)
+    self_role = _grep_yaml(mftext, "self_role")
+    if raw.get("topology") == "multi":
+        node, node_source = "cluster", "derived(topology=multi — 쌍이 하나의 측정 정체성)"
+    elif self_role == "sub":
+        node, node_source = "sub", "derived(manifest.self_role=sub)"
+    elif self_role:
+        node, node_source = "main", "derived(manifest.self_role=%s)" % self_role
+    else:
+        node, node_source = "main", "defaulted(self_role absent)"
     return {"model": model, "model_source": model_source,
             "serving_config": _grep_env(envtext, "SERVING_MODEL_NAME") or cfg or "NA",
             "gpu_model": gpu_model, "gpu_key": _gpu_key(gpu_model),
             "vllm_version": vllm, "vllm_version_source": vllm_source,
-            "vllm_build": vllm_build or "NA", "topology": raw.get("topology")}
+            "vllm_build": vllm_build or "NA", "topology": raw.get("topology"),
+            "quantization": quant, "quantization_source": quant_source, "tensor_parallel_size": tp,
+            "measured_node": node, "measured_node_source": node_source,
+            # 소프트 지문(인증서 carry-forward 대조용 · 있는 것만 · 결측은 인증서에서 N/A)
+            "image_tag": _grep_env(envtext, "IMAGE_TAG") or "NA",
+            "max_model_len": _grep_yaml(cfgtext, "max-model-len") or "NA",
+            "max_num_seqs": _grep_yaml(cfgtext, "max-num-seqs") or "NA",
+            "kv_cache_memory_bytes": _grep_yaml(cfgtext, "kv-cache-memory-bytes") or "NA",
+            "gpu_memory_utilization": _grep_yaml(cfgtext, "gpu-memory-utilization") or "NA"}
 
 
 def lite_measurement_config():
@@ -470,8 +513,18 @@ def build_lite_md(raw, lite, identity):
     A("mode: lite")
     A("")
     A("> ⚠ **CARRY-FORWARD 재검증**: 이 보고서는 아래 '측정 환경' 한정의 **lite 스냅샷**이다(그때-그 HW/config). "
-      "판정·루프라인·동시성 곡선·반복·인증서가 **없다** — lite 는 inform-only 이며 verdict_rule 에 투입하지 않는다. "
+      "성능 판정·루프라인·동시성 곡선·반복이 **없다** — lite 는 verdict_rule 에 투입하지 않는다. "
       "성능 baseline 으로 승격하지 말고 소비 전 재측정할 것. 생성일 %s." % raw.get("measured_utc"))
+    A("")
+    # lite 판정(성립 여부 · 2026-09-29 plan_26092923) — raw 의 단일 권위를 옮긴다(재판정 ✗). 성능 판정이 아니다.
+    #   pass 면 같은 측정의 lite 등급 인증서가 함께 나간다(lite_bench --publish-report) · 불통과면 인증서가 없다.
+    A("## lite 판정 (성립 · 성능 판정 아님)")
+    A("")
+    A("| 키 | 값 |")
+    A("|---|---|")
+    A("| lite_verdict | %s |" % na(raw.get("lite_verdict")))
+    for r in raw.get("lite_verdict_reasons") or []:
+        A("| 사유 | %s |" % str(r).replace("|", "/"))
     A("")
     L.extend(measurement_config_section(lite_measurement_config()))
     A("## lite 지표 (서빙 성공 직후 스냅샷 · inform-only)")
