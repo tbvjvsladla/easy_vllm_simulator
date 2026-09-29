@@ -133,8 +133,12 @@ fi
 
 _bench() {  # $1=out.json $2=num-prompts $3=warmups
   if [ "$SERVE_PLANE" = "docker" ]; then
+    # 클라이언트는 **서빙 컨테이너 안**에서 돈다 — 주소는 컨테이너 안의 포트(INPORT)다. 호스트 포트($PORT)는
+    #   single 의 bridge 포트매핑에서 컨테이너 안에 없다(2026-09-29 plan_26092919 P2 실측: 연결 거부로 측정 0건 ·
+    #   232f988 native 평면 도입 때 `localhost:$INPORT` 가 호스트 BASE_URL 로 바뀐 회귀). multi 는 host 네트워크라
+    #   INPORT=PORT 로 같은 값이다.
     docker exec "$CTR" bash -lc "cd /tmp && vllm bench serve \
-      --backend $BACKEND --base-url $BASE_URL --endpoint $LITE_ENDPOINT \
+      --backend $BACKEND --base-url http://localhost:$INPORT --endpoint $LITE_ENDPOINT \
       --model '$MODEL_NAME' --tokenizer '$MODEL_PATH' --trust-remote-code \
       --dataset-name random --random-input-len 512 --random-output-len 128 --random-range-ratio 0 \
       --num-prompts $2 --max-concurrency 1 --request-rate inf --ignore-eos --num-warmups $3 \
