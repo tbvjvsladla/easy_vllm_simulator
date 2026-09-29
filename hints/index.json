@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗).",
-  "count": 51,
-  "generated_kst": "2026-09-28T09:39:52",
+  "count": 52,
+  "generated_kst": "2026-09-29T15:53:43",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -19,6 +19,8 @@
       "recipe": "qfp8-len1048576-kvauto-pleoffload",
       "source": "remote-derived",
       "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len1048576-kvauto-pleoffload",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
@@ -37,6 +39,8 @@
       "recipe": "qfp8-len262144-kvauto-pleoffload",
       "source": "remote-derived",
       "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleoffload",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
@@ -55,6 +59,8 @@
       "recipe": "qfp8-len262144-kvauto-pleresident",
       "source": "remote-derived",
       "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleresident",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
@@ -75,6 +81,8 @@
       "recipe": "qfp8-len524288-kvauto-pleoffload",
       "source": "remote-derived",
       "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len524288-kvauto-pleoffload",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
@@ -93,6 +101,8 @@
       "recipe": "qnvfp4-len1048576-kvauto-pleoffload",
       "source": "remote-derived",
       "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleoffload",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
@@ -111,6 +121,8 @@
       "recipe": "qnvfp4-len1048576-kvauto-pleresident",
       "source": "remote-derived",
       "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleresident",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
@@ -129,6 +141,8 @@
       "recipe": "qnvfp4-len262144-kvauto-pleoffload",
       "source": "remote-derived",
       "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleoffload",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
@@ -147,6 +161,8 @@
       "recipe": "qnvfp4-len262144-kvauto-pleresident",
       "source": "remote-derived",
       "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleresident",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
@@ -165,6 +181,8 @@
       "recipe": "qnvfp4-len524288-kvauto-pleoffload",
       "source": "remote-derived",
       "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleoffload",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
@@ -183,6 +201,8 @@
       "recipe": "qnvfp4-len524288-kvauto-pleresident",
       "source": "remote-derived",
       "tag": "hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleresident",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
@@ -199,6 +219,8 @@
       "recipe": "qmxfp4-len131072-kvfp8",
       "source": "remote-derived",
       "tag": "hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.18.0"
     },
     {
@@ -215,6 +237,8 @@
       "recipe": "qmxfp4-len131072-kvfp8",
       "source": "remote-derived",
       "tag": "hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.18.0"
     },
     {
@@ -233,6 +257,8 @@
       "recipe": "qmxfp4-len131072-kvfp8",
       "source": "remote-derived",
       "tag": "hint/0.18.0/gpt-oss-20b/gb10-sub-native/qmxfp4-len131072-kvfp8",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.18.0"
     },
     {
@@ -251,6 +277,8 @@
       "recipe": "qmxfp4-len131072-kvfp8",
       "source": "remote-derived",
       "tag": "hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.19.0"
     },
     {
@@ -267,6 +295,8 @@
       "recipe": "qmxfp4-len131072-kvfp8",
       "source": "remote-derived",
       "tag": "hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.19.0"
     },
     {
@@ -287,6 +317,8 @@
       "recipe": "len32768-kvauto",
       "source": "remote-derived",
       "tag": "hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvauto",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.26.0"
     },
     {
@@ -307,6 +339,8 @@
       "recipe": "len32768-kvfp8",
       "source": "remote-derived",
       "tag": "hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvfp8",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.26.0"
     },
     {
@@ -327,6 +361,8 @@
       "recipe": "len32768-kvturboquant3bitnc",
       "source": "remote-derived",
       "tag": "hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant3bitnc",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.26.0"
     },
     {
@@ -347,6 +383,8 @@
       "recipe": "len32768-kvturboquant4bitnc",
       "source": "remote-derived",
       "tag": "hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant4bitnc",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.26.0"
     },
     {
@@ -363,6 +401,8 @@
       "recipe": "len32768-kvauto-pleresident",
       "source": "remote-derived",
       "tag": "hint/0.27.1/qwen3-4b/h10080gb-main-native/len32768-kvauto-pleresident",
+      "verdict": "미수령",
+      "verdict_source": "absent-local(로컬 태그 오브젝트 부재 · 합성 ✗)",
       "vllm": "0.27.1"
     },
     {
@@ -381,6 +421,8 @@
       "recipe": "len262144-kvfp8",
       "source": "remote-derived",
       "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/len262144-kvfp8",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.28.0"
     },
     {
@@ -399,6 +441,8 @@
       "recipe": "qfp8-len262144-kvauto",
       "source": "remote-derived",
       "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvauto",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.28.0"
     },
     {
@@ -417,6 +461,8 @@
       "recipe": "qfp8-len262144-kvfp8",
       "source": "remote-derived",
       "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvfp8",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.28.0"
     },
     {
@@ -435,6 +481,8 @@
       "recipe": "qfp8-len524288-kvfp8",
       "source": "remote-derived",
       "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len524288-kvfp8",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.28.0"
     },
     {
@@ -453,6 +501,8 @@
       "recipe": "len262144-kvfp8",
       "source": "remote-derived",
       "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/len262144-kvfp8",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.28.0"
     },
     {
@@ -471,6 +521,8 @@
       "recipe": "qfp8-len1000000-kvfp8",
       "source": "remote-derived",
       "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len1000000-kvfp8",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.28.0"
     },
     {
@@ -489,6 +541,8 @@
       "recipe": "qfp8-len262144-kvauto",
       "source": "remote-derived",
       "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len262144-kvauto",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.28.0"
     },
     {
@@ -507,6 +561,8 @@
       "recipe": "qfp8-len262144-kvfp8",
       "source": "remote-derived",
       "tag": "hint/0.28.0/qwen3.8-27b/rtxpro6000x2-main-native/qfp8-len262144-kvfp8",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.28.0"
     },
     {
@@ -525,6 +581,8 @@
       "recipe": "len1048576-kvauto-plemmap",
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvauto-plemmap",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0"
     },
     {
@@ -543,6 +601,8 @@
       "recipe": "len1048576-kvfp8e4m3-plemmap",
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0"
     },
     {
@@ -561,6 +621,8 @@
       "recipe": "len262144-kvauto-plemmap",
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvauto-plemmap",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0"
     },
     {
@@ -579,6 +641,8 @@
       "recipe": "len262144-kvfp8e4m3-plemmap",
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0"
     },
     {
@@ -597,6 +661,8 @@
       "recipe": "len524288-kvauto-plemmap",
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvauto-plemmap",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0"
     },
     {
@@ -615,6 +681,8 @@
       "recipe": "len524288-kvfp8e4m3-plemmap",
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0"
     },
     {
@@ -633,6 +701,8 @@
       "recipe": "len1048576-kvauto-plemmap",
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvauto-plemmap",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0"
     },
     {
@@ -651,6 +721,8 @@
       "recipe": "len1048576-kvfp8e4m3-plemmap",
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0"
     },
     {
@@ -669,6 +741,8 @@
       "recipe": "len262144-kvauto-plemmap",
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-plemmap",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0"
     },
     {
@@ -687,6 +761,8 @@
       "recipe": "len262144-kvauto-pleresident",
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-pleresident",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0"
     },
     {
@@ -705,6 +781,8 @@
       "recipe": "len262144-kvfp8e4m3-plemmap",
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0"
     },
     {
@@ -723,6 +801,8 @@
       "recipe": "len524288-kvauto-plemmap",
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvauto-plemmap",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0"
     },
     {
@@ -741,6 +821,8 @@
       "recipe": "len524288-kvfp8e4m3-plemmap",
       "source": "remote-derived",
       "tag": "hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0"
     },
     {
@@ -758,6 +840,27 @@
       "recipe": "qfp8-len1048576-kvfp8-plenone-spec7-graph",
       "source": "remote-derived",
       "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-plenone-spec7-graph",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · certificate(benchmark_26092809_deepseek-v4-flash-0731_GB10_0.29.0.yaml) + sweep_index(output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce · output))",
+      "vllm": "0.29.0rc6"
+    },
+    {
+      "anchor": "e8cc0b4fedb138268803eb2447965648d86c05d0",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26092914_deepseek-v4-flash-0731_GB10_0.29.0.md))",
+      "brief": "DeepSeek-V4-Flash-0731(dense fp8 블록 · expert fp4)을 GB10 GPU 1개 × 노드 2개 · Ray TP=2 · vLLM v0.29.0rc6 소스빌드 · 컨텍스트 1048576 · fp8 KV · PLE 없음 · dspark spec k=7 · cudagraph · NCCL 내장 IB(RoCE) · tool calling 플래그를 켠 구성 그대로 서빙해 동시성 1 decode 30.95 t/s(GuideLLM full · 반복 3 · explore PASS)를 쟀다. 가장 비싼 벽은 커널 교체 뒤 Socket 에 묶였던 NCCL 전송을 manifest 선택(`NCCL_IB_DISABLE=0` · `NCCL_NET=IB`)으로 RoCE 에 되살린 것(W16 · W17)과 호스트 기동 밸리가 KV 클램프를 10 GiB 로 누른 것(W9 · W10)이다. 가장 오해하기 쉬운 값은 `kv-cache-memory-bytes`(V7 — KV 필요량이 아니라 기동 밸리가 정한 값)이고, 판정 입력 accept_len 은 GuideLLM 레벨이 아니라 lite warm 레그 실측의 기계 승계값이다(V11).",
+      "grammar": "v7",
+      "missing": [],
+      "model": "deepseek-v4-flash-0731",
+      "object": "080bbc1449b89f459494b327b1bed7bbaa5257b6",
+      "published": true,
+      "recipe": "qfp8-len1048576-kvfp8-spec7-graph-autotool",
+      "source": "remote-derived",
+      "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-spec7-graph-autotool",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_ds4f0731-1m-spec7-roce/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.29.0rc6"
     },
     {
@@ -778,6 +881,8 @@
       "recipe": "len786432-kvfp8-spec7-graph",
       "source": "remote-derived",
       "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/len786432-kvfp8-spec7-graph",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0rc6"
     },
     {
@@ -799,6 +904,8 @@
       "recipe": "spec0-graph0",
       "source": "remote-derived",
       "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0rc6"
     },
     {
@@ -820,6 +927,8 @@
       "recipe": "spec0-graph0-len1m",
       "source": "remote-derived",
       "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0-len1m",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0rc6"
     },
     {
@@ -841,6 +950,8 @@
       "recipe": "spec0-graph1",
       "source": "remote-derived",
       "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph1",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0rc6"
     },
     {
@@ -862,6 +973,8 @@
       "recipe": "spec7-graph0",
       "source": "remote-derived",
       "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph0",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0rc6"
     },
     {
@@ -883,6 +996,8 @@
       "recipe": "spec7-graph1-len1m",
       "source": "remote-derived",
       "tag": "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph1-len1m",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0rc6"
     },
     {
@@ -902,6 +1017,8 @@
       "recipe": "qnvfp4-len262144-kvauto-plemmap-spec3-eager",
       "source": "remote-derived",
       "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native-bare/qnvfp4-len262144-kvauto-plemmap-spec3-eager",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0rc6"
     },
     {
@@ -921,6 +1038,8 @@
       "recipe": "qnvfp4-len262144-kvauto-plemmap-spec3-eager",
       "source": "remote-derived",
       "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-plemmap-spec3-eager",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0rc6"
     },
     {
@@ -942,10 +1061,12 @@
       "recipe": "qnvfp4-len262144-kvfp8-plemmap-spec3-eager",
       "source": "remote-derived",
       "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8-plemmap-spec3-eager",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0rc6"
     }
   ],
   "remote": "origin",
-  "schema": 3,
+  "schema": 4,
   "source": "remote-derived"
 }
