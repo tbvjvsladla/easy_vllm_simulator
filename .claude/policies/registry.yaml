@@ -496,7 +496,7 @@
     {
       "policy_id": "HINT_TAG_ACTIVATION_GATE",
       "owner": "hint-publisher",
-      "statement": "Validated serving knowledge is published one cell at a time as hint tags that point at a hint-branch payload commit (the tag's zip is the reproduction kit), authored main-only with fail-closed PII scanning (including the synthetic commit/tagger identity) and a fixed map-not-answer revalidation banner, pushed as exactly one tag refspec so local rollback anchors never leak, and activated only by a recorded per-cell human Y/N.",
+      "statement": "Validated serving knowledge is published one cell at a time as hint tags that point at a payload commit whose parent is the hint-branch guide commit (the tag's zip is the reproduction kit), authored main-only with fail-closed PII scanning (including the synthetic commit/tagger identity) and a fixed map-not-answer revalidation banner, pushed as exactly one tag refspec so local rollback anchors never leak, and activated only by a recorded per-cell human Y/N.",
       "scope": [
         "multi-node",
         "single-node"
@@ -505,7 +505,7 @@
       "clauses": [
         {
           "clause_id": "HINT_TAG_ACTIVATION_GATE.C1",
-          "statement": "A hint tag is an annotated tag on a hint-branch payload commit, never on a source-tree commit: the payload tree is built by plumbing from a closed allowlist (README.md, 00-hint.md..03-benchmark.md, PAYLOAD.json, LINEAGE.json, PROVENANCE.json, artifacts/<slot>/**) without touching the main working tree or index, so the tag's archive (zip) is exactly the reproduction kit. The annotation is only a brief (the first paragraph of 00-hint.md §0.1, machine-extracted) + a zip pointer + the 6-field evidence footer (an address, not digests), streamed through stdin with --cleanup=verbatim; the full map lives in 00-hint.md inside the zip."
+          "statement": "A hint tag is an annotated tag on a payload commit whose single parent is the hint-branch guide commit (a README-only commit carrying the branch format marker), never on a source-tree commit: the payload tree is built by plumbing from a closed allowlist (README.md, 00-hint.md..03-benchmark.md, PAYLOAD.json, LINEAGE.json, PROVENANCE.json, artifacts/<slot>/**) without touching the main working tree, the index or any ref -- the payload commit is not stacked on the hint branch, only the tag reaches it -- so the tag's archive (zip) is exactly the reproduction kit. The annotation is only a brief (the first paragraph of 00-hint.md §0.1, machine-extracted) + a zip pointer + the 7-field evidence footer v2 (an address with bench_ref + bench_kind, not digests), streamed through stdin with --cleanup=verbatim; the full map lives in 00-hint.md inside the zip. The hint branch itself moves only by a human-approved format transition (hint.py branch-transition); a publication never pushes it."
         },
         {
           "clause_id": "HINT_TAG_ACTIVATION_GATE.C2",

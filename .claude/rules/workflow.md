@@ -51,7 +51,7 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋
 
 - S2 runtime patch는 `validate_runtime_patch.py`→materialize/arm→S3 순서이며 `policy:RUNTIME_PATCH_NO_CARRY_FORWARD`; 모델 triplet은 `policy:MODEL_TRIPLET_NO_SUB_PROPAGATION`; variant image/serve 입력은 `policy:VARIANT_IMAGE_BUILD_VS_SERVE_PLANE`을 따른다.
 - S3 모델 부재는 `policy:MODEL_ACQUISITION_TERNARY_GATE`; 모든 load/build/cleanup은 `policy:HOST_SAFETY_LAYERED_DEFENSE`; KV 산출은 `policy:KV_ABSOLUTE_CLAMP_PORTABILITY`. 실제 명령·health 판정·cleanup은 각 skill script가 소유한다.
-- S4 뒤 공유 빌딩블럭 동기화는 사람 질의로만 `.claude/skills/upstream-version-watch/scripts/sync_branches.sh`; hint 발행은 셀 단위(그 셀의 서빙·측정·문서 완료 후 · 제안 Y/N)이며 `policy:HINT_TAG_ACTIVATION_GATE`와 `.claude/skills/hint-publisher/scripts/hint.py`의 publish(스캐폴드 후 정지)→서사 저작→continue(승인→린트→커밋→봉인→이 태그 검증→태그 1개 push→카탈로그) 순서만 허용한다(match 는 읽기 전용).
+- S4 뒤 공유 빌딩블럭 동기화는 사람 질의로만 `.claude/skills/upstream-version-watch/scripts/sync_branches.sh`; hint 발행은 셀 단위(그 셀의 서빙·측정·문서 완료 후 · 제안 Y/N)이며 `policy:HINT_TAG_ACTIVATION_GATE`와 `.claude/skills/hint-publisher/scripts/hint.py`의 publish(기본 이름으로 스캐폴드 후 정지)→서사·이름 꼬리 저작→독립 사실 검증→continue(승인→이름 확정→린트→사실 검증 게이트→커밋(부모 = hint 브랜치 안내 커밋 · 브랜치 불이동)→봉인→이 태그 검증→태그 1개 push→카탈로그 파생·커밋) 순서만 허용한다(match 는 읽기 전용 · hint 브랜치 push 는 발행이 아니라 사람 승인 형식 전환 `branch-transition` 뿐).
 
 ## 실패 라우팅
 

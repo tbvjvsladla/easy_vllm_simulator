@@ -2,11 +2,19 @@
 (plan_26092119 §4.8 · SPEC §5.8 · 옛 `hint_tag.py` 의 footer·seal·verify·push·자격증명 부분 이관).
 
 무엇을 하나
-    annotation(brief 1문단 + zip 포인터 + 증거 footer v1)을 짓고, hint 브랜치의 **페이로드 커밋**에 annotated 태그로
+    annotation(brief 1문단 + zip 포인터 + 증거 footer v2)을 짓고, 안내 커밋 위의 **페이로드 커밋**에 annotated 태그로
     봉인하고, push **전에** 그 태그 하나만 로컬에서 검증하고, `refs/tags/<tag>:refs/tags/<tag>` 하나만 원격에 민다.
     페이로드 트리(= 배포물)의 계약은 `branch.py` 가 소유하고 여기서는 그 판정(`commit_violations`)을 부른다.
 
 불변식 (날짜 = 사고·결정 · 삭제하지 말고 옮겨 적는다)
+    footer v2 (2026-09-29 · plan_26092908 §4.4 · V2)
+        - `certificate_ref` → `bench_ref`(주소) + `bench_kind`(certificate|bench_report · 이름에서 파생 가능하면 파생값과 같아야
+          한다). v1 은 REFUTE·lite 셀의 bench_report 를 "인증서" 라 불렀다. 여는 줄에 "주소는 발행 저장소 로컬 경로(수신자 해소
+          대상 아님)" 고정 문구. 신규 봉인 = v2 만(`HINT_EVIDENCE_BINDING_VERSION`) · v1 은 읽기 호환(`bench_binding`).
+    봉인 뒤 재현성 (2026-09-29 · §4.9 · V5)
+        - verify 의 출처 의존 린트 코드는 페이로드 봉인 스냅샷(LINEAGE.json `sealed_sources`)과 현재 출처가 다르면 INFO 로 강등
+          (`verify_local(infos=…)`). 구조 검사는 강등 없음.
+    앵커 (2026-09-29 · §4.7): 태그 → 페이로드 커밋 → 부모 = 형식 마커 안내 커밋(`branch.require_payload_anchor`).
     footer v1 (2026-07-25 리뷰 교정 blocker 3건)
         - 증거 바인딩은 **태그 오브젝트 본문**에 산다(소스 파일 ✗). `<!-- hint-evidence-binding:v1 … -->` 안의 평평한
           `key: value` 6필드 · 전부 필수 · 중복·미지 키 ✗ · **블록 부재(MISSING)와 형식 결함(MALFORMED)은 다른 code**.
@@ -77,19 +85,34 @@ from urllib.parse import urlsplit
 
 from . import branch, core, naming, pii
 
-# ── footer v1 (옛 hint_tag `_FOOTER_*` 이관 · wire format 불변) ─────────────────────────────────
-FOOTER_MARKER_OPEN = "<!-- hint-evidence-binding:v1"
+# ── footer (v1 = 옛 hint_tag `_FOOTER_*` 이관 · v2 = plan_26092908 §4.4) ─────────────────────────────────
+# ★ v2(2026-09-29 · plan_26092908 §4.4 · V2): v1 의 `certificate_ref` 는 REFUTE·lite 셀에서 **bench_report** 를 가리켰다 —
+#   이름이 거짓을 말했다. v2 는 `bench_ref`(주소) + `bench_kind`(certificate|bench_report · 무엇을 묶었나)로 나눈다. 두 주소
+#   (`manifest_ref`·`bench_ref`)는 **발행 저장소의 로컬 경로**이고 수신자가 해소할 대상이 아니다 — 그 사실을 여는 줄에 고정 문구로
+#   적는다(여는 줄 전체가 판별자라 문구가 바뀌면 다른 판이다). 신규 봉인은 v2 만이다(`seal`). v1 은 **읽기만** 한다(P1: 원격의
+#   v6 태그는 판정·교정 대상이 아니지만 verify·카탈로그가 읽을 수는 있어야 한다).
+FOOTER_MARKER_PREFIX = "<!-- hint-evidence-binding:"
+FOOTER_MARKER_OPEN_V1 = "<!-- hint-evidence-binding:v1"
+FOOTER_MARKER_OPEN = "<!-- hint-evidence-binding:v2 · 주소는 발행 저장소 로컬 경로(수신자 해소 대상 아님)"
 FOOTER_MARKER_CLOSE = "-->"
-FOOTER_VERSION = "1"
-# 순서가 곧 wire format 이다(claim C3 가 이 튜플을 고정한다).
-FOOTER_FIELDS = ("version", "tag", "topology", "anchor", "manifest_ref", "certificate_ref")
+FOOTER_VERSION = "2"
+# 순서가 곧 wire format 이다(claim C3 가 이 튜플을 고정한다 · v1 튜플은 읽기 호환용으로 남긴다).
+FOOTER_FIELDS_V1 = ("version", "tag", "topology", "anchor", "manifest_ref", "certificate_ref")
+FOOTER_FIELDS = ("version", "tag", "topology", "anchor", "manifest_ref", "bench_ref", "bench_kind")
+# bench_kind 어휘(닫힌 목록 · tripwire). certificate = PASS 인증서(benchmark_*.yaml) · bench_report = 리포트(bench_report_*.md).
+BENCH_KINDS = ("certificate", "bench_report")
+# 판별 정보: 판 → (여는 줄, 필드, 상대경로여야 하는 주소 필드)
+_FOOTER_SPECS = {
+    "1": (FOOTER_MARKER_OPEN_V1, FOOTER_FIELDS_V1, ("manifest_ref", "certificate_ref")),
+    "2": (FOOTER_MARKER_OPEN, FOOTER_FIELDS, ("manifest_ref", "bench_ref")),
+}
 # 2026-09-03 에 스키마에서 제거된 digest 키. 닫힌 목록(tripwire) — 이름을 붙여 두는 이유는 "무엇을 차단하는가" 를
 # 자체검사가 단언하기 위해서다. 읽기 호환은 `parse_footer(retired_ok=…)` 명시 인자뿐이고 값은 **읽고 버린다**.
 RETIRED_FOOTER_KEYS = frozenset({"manifest_sha256", "identity_sha256", "certificate_sha256"})
-_FOOTER_BLOCK_RE = re.compile(re.escape(FOOTER_MARKER_OPEN) + r"\s*\n(?P<body>.*?)\n" + re.escape(FOOTER_MARKER_CLOSE),
-                              re.S)
 _FOOTER_LINE_RE = re.compile(r"^([a-z0-9_]+): (.*)$")
 _SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
+# 파일 이름 → bench_kind (docs.md §명명 SSOT: 인증서 `benchmark_<…>.yaml` · 리포트 `bench_report_<…>.md`).
+_BENCH_NAME_KIND = ((re.compile(r"^benchmark_[^/]+\.yaml$"), "certificate"), (re.compile(r"^bench_report_[^/]+\.md$"), "bench_report"))
 
 # ── annotation (SPEC §2.2 · D4) ────────────────────────────────────────────────────────────────
 ANNOTATION_POINTER = "전체 지도·서사·재현 키트는 이 태그의 zip(archive) 안에 있다 — `00-hint.md` 부터 읽는다."
@@ -147,16 +170,34 @@ def _malformed(msg: str):
     raise HintEvidenceBindingError("HINT_EVIDENCE_BINDING_MALFORMED", msg)
 
 
+def bench_kind_of(ref) -> str | None:
+    """bench_ref 파일 이름에서 **파생**되는 bench_kind(docs.md 명명 SSOT). 판정할 수 없는 이름 = None.
+    footer v2 는 kind 를 따로 적지만(기계 표면 · §4.4) 이름에서 파생 가능한 경우 둘은 같아야 한다 — 손으로 적은 값이
+    파생값과 갈라지면 결함이다(workflow.md 하드코딩 판정표 · 교차검증이 차선). hint.py 는 이 함수로 채운다."""
+    if not isinstance(ref, str) or not ref.strip():
+        return None
+    name = ref.strip().replace("\\", "/").rsplit("/", 1)[-1]
+    for rx, kind in _BENCH_NAME_KIND:
+        if rx.match(name):
+            return kind
+    return None
+
+
 def _checked_fields(fields) -> dict[str, str]:
-    """6필드 정합(빌드·파싱 공용 — 두 경로의 규칙이 같아야 왕복이 성립한다)."""
+    """필드 정합(빌드·파싱 공용 — 두 경로의 규칙이 같아야 왕복이 성립한다). 판은 `version` 값이 고른다(v1·v2)."""
     if not isinstance(fields, dict):
         _malformed(f"footer 필드는 사전이어야 한다: {type(fields).__name__}")
-    missing = [k for k in FOOTER_FIELDS if k not in fields]
-    extra = sorted(set(fields) - set(FOOTER_FIELDS))
+    ver = fields.get("version")
+    ver = ver.strip() if isinstance(ver, str) else ver
+    if ver not in _FOOTER_SPECS:
+        _malformed(f"지원하지 않는 footer version: {ver!r}")
+    _open, names, rel_fields = _FOOTER_SPECS[ver]
+    missing = [k for k in names if k not in fields]
+    extra = sorted(set(fields) - set(names))
     if missing or extra:
-        _malformed(f"footer 필드 불일치 — 누락 {missing} · 초과 {extra}")
+        _malformed(f"footer v{ver} 필드 불일치 — 누락 {missing} · 초과 {extra}")
     out: dict[str, str] = {}
-    for k in FOOTER_FIELDS:
+    for k in names:
         v = fields[k]
         if not isinstance(v, str):
             _malformed(f"footer 필드 {k!r} 는 문자열이어야 한다: {type(v).__name__}")
@@ -165,45 +206,67 @@ def _checked_fields(fields) -> dict[str, str]:
         if any(bad in v for bad in ("\n", "\r", "-->", "<!--")):
             _malformed(f"footer 필드 {k!r} 에 줄바꿈·주석 경계 문자열이 있다")
         out[k] = v
-    if out["version"] != FOOTER_VERSION:
-        _malformed(f"지원하지 않는 footer version: {out['version']!r}")
     if not _SHA40_RE.fullmatch(out["anchor"]):
         _malformed(f"anchor 는 40자 커밋 SHA 여야 한다: {out['anchor']!r}")
-    for k in ("tag", "topology", "manifest_ref", "certificate_ref"):
-        if not out[k]:
+    for k in names:
+        if k not in ("version", "anchor") and not out[k]:
             _malformed(f"footer 필드 {k!r} 가 비었다")
-    for k in ("manifest_ref", "certificate_ref"):
+    for k in rel_fields:
         # 주소는 저장소(또는 manifest 디렉터리) 상대다 — 절대경로는 운영자 환경 지문이고 수신 클론에서 뜻이 없다.
         if out[k].startswith("/"):
             _malformed(f"footer 필드 {k!r} 는 상대경로여야 한다")
+    if ver == "2":
+        if out["bench_kind"] not in BENCH_KINDS:
+            _malformed(f"bench_kind 는 {list(BENCH_KINDS)} 중 하나다: {out['bench_kind']!r}")
+        derived = bench_kind_of(out["bench_ref"])
+        if derived is not None and derived != out["bench_kind"]:
+            _malformed(f"bench_kind={out['bench_kind']!r} 가 bench_ref 이름에서 파생되는 {derived!r} 와 다르다 — "
+                       "REFUTE·lite 셀의 리포트를 인증서라 부르던 v1 의 거짓을 되살리지 않는다(plan_26092908 §4.4 · V2).")
     return out
 
 
 def build_footer(**fields: str) -> str:
-    """footer v1 블록(끝 개행 포함). 6필드 순서 고정 · 폐기 키를 쓰는 경로는 없다(자체검사가 단언)."""
+    """footer 블록(끝 개행 포함). 판은 fields["version"](신규 봉인 = v2 · v1 렌더는 옛 태그 모양 대조용) · 필드 순서 고정 ·
+    폐기 키를 쓰는 경로는 없다(자체검사가 단언)."""
     clean = _checked_fields(fields)
-    return "\n".join([FOOTER_MARKER_OPEN, *(f"{k}: {clean[k]}" for k in FOOTER_FIELDS), FOOTER_MARKER_CLOSE]) + "\n"
+    opener, names, _rel = _FOOTER_SPECS[clean["version"]]
+    return "\n".join([opener, *(f"{k}: {clean[k]}" for k in names), FOOTER_MARKER_CLOSE]) + "\n"
 
 
 def parse_footer(text: str, *, retired_ok: frozenset[str] = frozenset()) -> dict[str, str]:
-    """footer 를 **정확히 하나** 엄격 파싱. MISSING = 여는 표지 부재 · 그 밖의 모든 결함 = MALFORMED.
+    """footer 를 **정확히 하나** 엄격 파싱(v1·v2). MISSING = 여는 표지 부재 · 그 밖의 모든 결함 = MALFORMED.
 
     옛 파서는 첫 블록을 채택했다(`search`). 새 봉인은 footer 가 1개이므로 둘 이상이면 위조로 읽는다 — brief 가
     footer 를 흉내 내면 "첫 블록 우선" 규칙이 가짜 주소를 채택하게 된다. 여는 표지는 있는데 닫는 줄이 없으면 부재가
-    아니라 결함이다(MISSING ≠ MALFORMED 의 경계를 여기서 긋는다).
+    아니라 결함이다(MISSING ≠ MALFORMED 의 경계를 여기서 긋는다). 여는 **줄 전체**가 판을 고른다 — 알려진 여는 줄이
+    아니면(v3 · 문구 변조) MALFORMED 다. 본문의 `version:` 은 여는 줄의 판과 같아야 한다.
+    반환 = 그 판의 필드 사전(v1 은 `certificate_ref` · v2 는 `bench_ref`+`bench_kind` — 판 무관한 읽기는 `bench_binding`).
     """
     if not isinstance(text, str):
         _malformed(f"footer 입력은 문자열이어야 한다: {type(text).__name__}")
-    opens = text.count(FOOTER_MARKER_OPEN)
+    opens = text.count(FOOTER_MARKER_PREFIX)
     if opens == 0:
         raise HintEvidenceBindingError("HINT_EVIDENCE_BINDING_MISSING", "hint-evidence-binding footer 가 없다")
-    blocks = list(_FOOTER_BLOCK_RE.finditer(text))
-    if not blocks:
-        _malformed("footer 여는 표지는 있으나 닫는 `-->` 줄이 없다")
-    if opens != 1 or len(blocks) != 1:
+    if opens != 1:
         _malformed(f"footer 가 둘 이상이다(여는 표지 {opens}개)")
+    i = text.index(FOOTER_MARKER_PREFIX)
+    if i > 0 and text[i - 1] != "\n":
+        _malformed("footer 여는 표지가 줄 머리에 있지 않다")
+    nl = text.find("\n", i)
+    if nl < 0:
+        _malformed("footer 여는 표지는 있으나 닫는 `-->` 줄이 없다")
+    opener = text[i:nl].rstrip("\r")
+    ver = next((v for v, (o, _n, _r) in _FOOTER_SPECS.items() if opener == o), None)
+    if ver is None:
+        _malformed(f"알 수 없는 footer 여는 줄(판·문구): {opener[:100]!r}")
+    lines = text[nl + 1:].split("\n")
+    try:
+        close = next(k for k, ln in enumerate(lines) if ln.rstrip("\r") == FOOTER_MARKER_CLOSE)
+    except StopIteration:
+        _malformed("footer 여는 표지는 있으나 닫는 `-->` 줄이 없다")
+    names = _FOOTER_SPECS[ver][1]
     fields: dict[str, str] = {}
-    for raw in blocks[0].group("body").split("\n"):
+    for raw in lines[:close]:
         line = raw.rstrip("\r")
         if not line.strip():
             continue
@@ -211,17 +274,32 @@ def parse_footer(text: str, *, retired_ok: frozenset[str] = frozenset()) -> dict
         if not m:
             _malformed(f"해석할 수 없는 footer 줄: {line[:80]!r}")
         key, value = m.group(1), m.group(2).strip()
-        if key not in FOOTER_FIELDS:
+        if key not in names:
             if key in RETIRED_FOOTER_KEYS and key in retired_ok:
                 continue  # 폐기 키 — 명시 인자에 한해 읽고 버린다(값은 판정에 쓰지 않는다)
-            _malformed(f"알 수 없는 footer 키: {key!r}")
+            _malformed(f"알 수 없는 footer 키(v{ver}): {key!r}")
         if key in fields:
             _malformed(f"중복 footer 키: {key!r}")
         fields[key] = value
-    missing = [k for k in FOOTER_FIELDS if k not in fields]
+    missing = [k for k in names if k not in fields]
     if missing:
         _malformed(f"footer 필수 필드 누락: {missing}")
+    if fields["version"] != ver:
+        _malformed(f"footer 여는 줄은 v{ver} 인데 본문 version={fields['version']!r} 이다")
     return _checked_fields(fields)
+
+
+def bench_binding(footer: dict) -> dict:
+    """판 무관 읽기 → {"ref", "kind", "kind_source"}. v2 = 선언(`declared`) · v1 = `certificate_ref` 이름에서 파생
+    (`derived-from-name` · 판정할 수 없는 이름이면 kind None · `underivable`). 카탈로그·verify 가 v6(footer v1) 태그의
+    계측 산출물 종류를 **추측 없이** 말하게 하는 한 자리다."""
+    if not isinstance(footer, dict):
+        _malformed(f"footer 사전이 아니다: {type(footer).__name__}")
+    if footer.get("version") == "2":
+        return {"ref": footer.get("bench_ref"), "kind": footer.get("bench_kind"), "kind_source": "declared"}
+    ref = footer.get("certificate_ref")
+    kind = bench_kind_of(ref)
+    return {"ref": ref, "kind": kind, "kind_source": "derived-from-name" if kind else "underivable"}
 
 
 # ── annotation ────────────────────────────────────────────────────────────────────────────────
@@ -420,12 +498,23 @@ def _facts_problems(repo: Path, anchor: str, tag: str) -> list[str]:
     facts = nm.get("facts") if isinstance(nm, dict) else None
     if not isinstance(facts, dict):
         return []
+    # v7(plan_26092908 §4.1): 결정론 파생은 **기본 이름**(q·len·kv)까지다 — 꼬리(Agent 자율 · 근거는 validate_tail)와 timestamp
+    #   (원격 중복 시)는 파생 밖이므로 봉인된 최종 이름의 기본 이름과 대조한다. v6 이름도 기본 이름(3축)으로 대조된다.
+    #   옛 세대(v6 이전) 이름은 기본 이름을 뗄 수 없다(HINT_NAME_GRAMMAR_OLD) — 재파생 대조 대상이 아니다(P1 · 문법 거부는
+    #   validate_new_name 이 따로 보고한다).
+    try:
+        base = naming.base_name(tag)
+    except core.HintError as e:
+        if e.code == "HINT_NAME_GRAMMAR_OLD":
+            return []
+        return [_problem(e.code, e.message)]
     try:
         derived = naming.derive_name(facts, naming.load_vocab(repo))
     except core.HintError as e:
         return [_problem(e.code, f"PAYLOAD.naming.facts 재파생 실패 — {e.message}")]
-    if derived.tag != tag:
-        return [_problem("HINT_DERIVED_NAME_MISMATCH", f"naming facts 재파생 {derived.tag!r} ≠ 태그 {tag!r}")]
+    if derived.tag != base:
+        return [_problem("HINT_DERIVED_NAME_MISMATCH", f"naming facts 재파생 {derived.tag!r} ≠ 태그의 기본 이름 {base!r}"
+                                                       f"(태그 {tag!r})")]
     return []
 
 
@@ -440,7 +529,77 @@ def _anchor_problems(repo: Path, tag: str, anchor: str, brief: str | None, body:
     if branch.identity_pii_hits(terms):
         probs.append(_problem("HINT_TAGGER_IDENTITY_PII", "합성 tagger 신원이 PII 목록에 걸린다(tripwire)"))
     probs += _facts_problems(repo, anchor, tag)
+    _snap, snap_probs = sealed_sources(repo, anchor)
+    probs += snap_probs
     return probs
+
+
+# ── 봉인 출처 스냅샷 (plan_26092908 §4.9 · V5) ─────────────────────────────────────────────────────
+# ★ 2026-09-29 V5: DS4F 태그의 verify 가 봉인 13초 뒤 FAIL 로 바뀌었다(`HINT_SIGNATURE_MISMATCH M3`) — 서사 린터가 **가변
+#   비추적 docs**(devlog 등)를 읽어 발췌·서명을 대조하므로, 봉인 뒤 출처가 정정되면 봉인된(= 불변) 태그가 시간에 따라 FAIL 이
+#   된다. 처방: 페이로드가 봉인 시점 출처의 sha256 을 싣고(LINEAGE.json `sealed_sources` · 저작 = lineage/hint.py), verify 는
+#   **출처 의존 린트 코드**만 스냅샷과 대조해 출처가 바뀌었으면 FAIL 이 아니라 INFO 로 강등한다. 구조 검사(footer · 트리
+#   allowlist · PII · 앵커 · 신원)는 강등하지 않는다. 비추적 docs 는 git 이 바이트를 들지 않으므로 이 digest 는
+#   `policy:GIT_SINGLE_AUTHORITY` 2문항상 **맹점층**이다(기록 정당 · 중복층 아님).
+SEALED_SOURCES_KEY = "sealed_sources"
+SEALED_SOURCES_FILE = "LINEAGE.json"
+# 출처(페이로드 밖 파일)의 현재 바이트에 의존하는 린트 코드 — 닫힌 목록(tripwire). 봉인 전 린트가 0 이었으므로 봉인 뒤 이 코드가
+# 새로 나는 것은 출처가 바뀐 결과다. 페이로드 자체(git 이 든 바이트)만으로 판정되는 코드는 여기 넣지 않는다.
+SOURCE_DEPENDENT_LINT_CODES = frozenset({
+    "HINT_EXCERPT_MISMATCH", "HINT_EXCERPT_SOURCE_UNREADABLE", "HINT_EXCERPT_LINES_OUT_OF_RANGE",
+    "HINT_EXCERPT_OUTSIDE_LINES", "HINT_EXCERPT_SNAPSHOT_DRIFT", "HINT_EXCERPT_SNAPSHOT_UNVERIFIABLE",
+    "HINT_SIGNATURE_MISMATCH", "HINT_SIGNATURE_UNVERIFIABLE",
+    "HINT_BENCH_SECTION_DRIFT", "HINT_BENCH_SECTION_UNVERIFIABLE", "HINT_LINEAGE_DOC_UNREADABLE",
+})
+INFO_SOURCE_CHANGED = "INFO: 출처 변경됨(봉인 뒤)"
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def sealed_sources(repo: Path, anchor: str) -> tuple[list[dict] | None, list[str]]:
+    """페이로드 `LINEAGE.json` 의 `sealed_sources: [{path, sha256}]` → (목록 | None(키 없음 · v6 이하), 모양 결함 문제 목록).
+    path = 저장소 상대 posix(절대·`..`·역슬래시 ✗) · sha256 = 64 hex · 중복 path ✗. 모양 결함은 구조 결함이다(봉인 거부 · verify FAIL)."""
+    doc, err = branch.read_json_blob(repo, anchor, SEALED_SOURCES_FILE)
+    if doc is None or SEALED_SOURCES_KEY not in doc:
+        return None, []       # LINEAGE 부재·깨짐은 tree/문서 검사가 보고한다 · 키 부재 = 스냅샷 없음(강등 불가)
+    raw = doc[SEALED_SOURCES_KEY]
+    bad: list[str] = []
+    out: list[dict] = []
+    if not isinstance(raw, list):
+        return None, [_problem("HINT_SEALED_SOURCES_SHAPE", f"{SEALED_SOURCES_FILE}.{SEALED_SOURCES_KEY} 가 목록이 아니다")]
+    seen: set[str] = set()
+    for i, e in enumerate(raw):
+        path = e.get("path") if isinstance(e, dict) else None
+        sha = e.get("sha256") if isinstance(e, dict) else None
+        if (not isinstance(path, str) or not path or path.startswith("/") or "\\" in path
+                or any(seg in ("", ".", "..") for seg in path.split("/"))):
+            bad.append(f"[{i}] path={path!r}")
+        elif not isinstance(sha, str) or not _SHA256_RE.fullmatch(sha):
+            bad.append(f"[{i}] sha256 모양({path})")
+        elif path in seen:
+            bad.append(f"[{i}] 중복 path {path}")
+        else:
+            seen.add(path)
+            out.append({"path": path, "sha256": sha})
+    if bad:
+        return None, [_problem("HINT_SEALED_SOURCES_SHAPE", f"{SEALED_SOURCES_FILE}.{SEALED_SOURCES_KEY} 항목 결함 "
+                                                           f"{len(bad)}건: {bad[:5]}")]
+    return out, []
+
+
+def changed_sealed_sources(repo: Path, snapshot: list[dict]) -> list[str]:
+    """스냅샷 중 **지금** 바이트가 다른 출처(삭제·읽기 불가 포함)의 path 목록. 읽기만 한다(워킹트리 파일 · git 무관 —
+    출처는 비추적 docs 일 수 있다)."""
+    import hashlib  # noqa: PLC0415 — 이 판정에서만
+    out: list[str] = []
+    for e in snapshot:
+        f = Path(repo) / e["path"]
+        try:
+            cur = hashlib.sha256(f.read_bytes()).hexdigest() if f.is_file() else None
+        except OSError:
+            cur = None
+        if cur != e["sha256"]:
+            out.append(e["path"])
+    return out
 
 
 def _rollback_created_tag(repo: Path, tag: str, sha: str) -> None:
@@ -448,14 +607,19 @@ def _rollback_created_tag(repo: Path, tag: str, sha: str) -> None:
     core.git(repo, "update-ref", "-d", _tag_ref(tag), sha, check=False)
 
 
-def seal(repo: Path, tag: str, anchor: str, message: str, *, generated_utc: str) -> str:
+def seal(repo: Path, tag: str, anchor: str, message: str, *, generated_utc: str, remote: str | None = None) -> str:
     """annotated 태그 봉인 → 태그 오브젝트 SHA. 모든 거부는 태그 생성 전(부작용 0)에 난다.
 
-    순서: ① ref·문법(v6)·시각·앵커 모양 ② annotation 정본 모양 + footer.tag/anchor == 봉인 대상
+    순서: ① ref·문법·시각·앵커 모양 ② annotation 정본 모양 + footer v2(신규 봉인 판) + footer.tag/anchor == 봉인 대상
           ③ 기존 태그: 같은 대상·같은 annotation 바이트·합성 tagger = 재개(멱등 · 기존 오브젝트 반환) ·
              그 밖(lightweight 포함) = HINT_NAME_COLLISION(X13)
-          ④ 앵커 게이트(v5 코드) · 페이로드 커밋 계약 · brief 원천 · PII(annotation · 신원) — 하나라도 있으면 HINT_SEAL_REFUSED
+          ④ 앵커 게이트(부모 = 형식 마커 안내 커밋 · plan_26092908 §4.7) · 페이로드 커밋 계약 · brief 원천 · PII(annotation · 신원) ·
+             봉인 출처 스냅샷 모양 — 하나라도 있으면 HINT_SEAL_REFUSED
           ⑤ `git tag -a --no-sign --cleanup=verbatim -F -`(합성 tagger · 주입 시각) ⑥ 사후조건: SHA·바이트 = 기대값
+    remote(선택 · plan_26092908 §4.1 U7): 봉인 직전 원격 재조회 — 같은 이름(또는 D/F 접두)이 원격에 있으면 HINT_NAME_COLLISION 으로
+    **막기만** 한다. 여기서 개명(timestamp 부착)하지 않는다 — 이름은 페이로드 파일(PAYLOAD.tag·PROVENANCE·00 사실 블록) 안에
+    있으므로 봉인 시점 개명은 봉인 대상과 페이로드를 갈라 놓는다. timestamp 는 continue 의 이름 확정 단계(커밋 전) 소관이다.
+    조회 실패 = HINT_REMOTE_QUERY_FAILED(없음으로 접지 않는다).
     """
     check_ref_format(repo, tag)
     naming.validate_new_name(tag)
@@ -466,6 +630,12 @@ def seal(repo: Path, tag: str, anchor: str, message: str, *, generated_utc: str)
         core.fail("HINT_ANNOTATION_SHAPE", "태그 메시지는 문자열이어야 한다(tag.annotation 산출물).")
     parsed = parse_annotation(message)
     footer = parsed["footer"]
+    if footer["version"] != FOOTER_VERSION:
+        # 신규 봉인은 v2 만(plan_26092908 §4.4). v1 은 옛 태그 읽기 전용 — `certificate_ref` 가 리포트를 가리키는 거짓 이름을
+        # 새 태그에 다시 새기지 않는다.
+        core.fail("HINT_EVIDENCE_BINDING_VERSION",
+                  f"신규 봉인의 footer 는 v{FOOTER_VERSION} 이어야 한다(받은 것 v{footer['version']}).",
+                  "fields 를 tag.FOOTER_FIELDS(bench_ref · bench_kind = tag.bench_kind_of(bench_ref))로 짓는다.")
     if footer["tag"] != tag:
         core.fail("HINT_EVIDENCE_BINDING_TAG_MISMATCH", f"footer.tag={footer['tag']!r} ≠ 봉인 대상 {tag!r}")
     if footer["anchor"] != anchor:
@@ -490,6 +660,13 @@ def seal(repo: Path, tag: str, anchor: str, message: str, *, generated_utc: str)
             if differs) or "오브젝트"
         core.fail("HINT_NAME_COLLISION", f"로컬에 같은 이름의 다른 태그가 있다({tag} · 다른 것: {why}) — 태그는 불변이다.",
                   "이 draft 가 봉인한 것이 아니다. 같은 셀의 개정판은 새 이름으로 발행한다(P1 리콜 금지 · 덮어쓰기 ✗).")
+    if remote is not None:
+        where = name_collision(repo, tag, remote=remote)
+        if where is not None:
+            core.fail("HINT_NAME_COLLISION", f"봉인 직전 원격 재조회: {tag} 가 원격 {_redact_url(remote)} 에 이미 있다({where}) — "
+                                             "봉인하지 않았다.",
+                      "봉인은 개명하지 않는다(이름은 페이로드 안에 있다). hint.py continue 가 이름 확정 단계에서 "
+                      "`-t<YYMMDDHHMM>` 를 붙여 새 페이로드로 다시 짓는다(원격 중복 시만 · §4.1 U7).")
     branch.require_payload_anchor(repo, tag, anchor)
     terms = pii.require_terms(repo)
     probs = sorted(set(_anchor_problems(repo, tag, anchor, parsed["brief"], message, terms)))
@@ -548,14 +725,20 @@ def _lint_findings(fn, repo: Path, anchor: str, tag: str) -> list[str]:
     return out
 
 
-def verify_local(repo: Path, tag: str, *, lint_fn=None) -> list[str]:
+def verify_local(repo: Path, tag: str, *, lint_fn=None, infos: list | None = None) -> list[str]:
     """push 전 로컬 봉인 검증 — **이 태그 하나만**(D10). 반환 = `CODE: 설명` 정렬 목록(빈 = 통과). 읽기만 한다.
 
-    묻는 것: ref 형식·v6 문법 · annotated · 태그 헤더 이름 · 대상이 커밋 · tagger = 합성 신원(+PII tripwire) ·
-    annotation 정본 모양 · footer 파싱(MISSING/MALFORMED) · footer.tag/anchor == 이 태그/대상 · 앵커 게이트(hint 브랜치
-    페이로드 커밋) · 트리 allowlist · 커밋 신원 · PAYLOAD/PROVENANCE.tag == tag · 이름 재조립 · PROMPT 잔재 0 · PII(배포:
+    묻는 것: ref 형식·신규 문법 · annotated · 태그 헤더 이름 · 대상이 커밋 · tagger = 합성 신원(+PII tripwire) ·
+    annotation 정본 모양 · footer 파싱(v1·v2 · MISSING/MALFORMED) · footer.tag/anchor == 이 태그/대상 · 앵커 게이트(부모 =
+    형식 마커를 가진 안내 커밋 · plan_26092908 §4.7) · 트리 allowlist · 커밋 신원 · PAYLOAD/PROVENANCE.tag == tag · 이름 재조립 · PROMPT 잔재 0 · PII(배포:
     annotation + 트리 + 경로 + 커밋 메시지) · brief 원천 · (있으면) naming facts 재파생 · lint_fn 발견.
     lint_fn(repo=…, anchor=…, tag=…) → 발견 목록(dict{code,message} · `.code` 객체 · `CODE: 설명` 문자열) — 서사 린터 주입구.
+
+    ★ 봉인 뒤 재현성(plan_26092908 §4.9 · V5): lint 발견 중 **출처 의존 코드**(`SOURCE_DEPENDENT_LINT_CODES`)는 페이로드의
+      봉인 출처 스냅샷(`LINEAGE.json` `sealed_sources`)과 현재 출처 sha 가 하나라도 다르면 FAIL 이 아니라 INFO 로 강등해
+      `infos` 에 append 한다(`INFO: 출처 변경됨(봉인 뒤) — <code> · 바뀐 출처 […] · <원 메시지>`). infos=None 이면 stderr 로만
+      남긴다(조용히 삼키지 않는다). 스냅샷이 없거나(v6 이하) 출처가 그대로면 강등하지 않는다 — 그 발견은 시간이 만든 것이 아니다.
+      구조 검사(footer · 트리 allowlist · PII · 앵커 · 신원 · 스냅샷 모양)는 강등 대상이 아니다. 반환 계약(문제 목록)은 그대로다.
     """
     try:
         check_ref_format(repo, tag)
@@ -628,8 +811,36 @@ def verify_local(repo: Path, tag: str, *, lint_fn=None) -> list[str]:
         except core.HintError as e:   # 트리·blob 을 읽지 못함(부분 클론·손상 오브젝트) — 통과로 접지 않는다
             probs.append(_problem(e.code, e.message))
         if lint_fn is not None:
-            probs += _lint_findings(lint_fn, repo, obj["target"], tag)
+            probs += _downgrade_source_drift(repo, obj["target"], _lint_findings(lint_fn, repo, obj["target"], tag), infos)
     return sorted(set(probs))
+
+
+def _downgrade_source_drift(repo: Path, anchor: str, findings: list[str], infos: list | None) -> list[str]:
+    """lint 발견 → (FAIL 로 남길 것). 출처 의존 코드 ∧ 봉인 스냅샷 존재 ∧ 바뀐 출처 ≥1 인 발견만 INFO 로 옮긴다."""
+    cand = [f for f in findings if f.split(":", 1)[0] in SOURCE_DEPENDENT_LINT_CODES]
+    if not cand:
+        return findings
+    try:
+        snap, snap_probs = sealed_sources(repo, anchor)
+    except core.HintError:
+        return findings                      # 스냅샷을 읽지 못하면 강등하지 않는다(판정 불가 ≠ 출처 변경)
+    if snap is None or snap_probs:
+        return findings                      # 스냅샷 없음(v6 이하)·모양 결함(구조 결함으로 따로 보고) = 강등 근거 없음
+    changed = changed_sealed_sources(repo, snap)
+    if not changed:
+        return findings
+    keep: list[str] = []
+    for f in findings:
+        if f in cand:
+            code, _, msg = f.partition(":")
+            line = f"{INFO_SOURCE_CHANGED} — {code} · 바뀐 출처 {changed[:5]}{' …' if len(changed) > 5 else ''} ·{msg}"
+            if infos is not None:
+                infos.append(line)
+            else:
+                _log(line)
+        else:
+            keep.append(f)
+    return keep
 
 
 # ── 원격 · 자격증명 ───────────────────────────────────────────────────────────────────────────
@@ -795,6 +1006,34 @@ def remote_ref_object(repo: Path, remote: str, ref: str) -> str | None:
     return _ls_remote_refs(repo, remote, ref).get(ref)
 
 
+def fetch_ref_objects(repo: Path, remote: str, ref: str) -> str | None:
+    """원격의 완전 ref **하나**의 오브젝트를 받아 온다(plan_26092908 §4.7 · 안내 커밋 조회 전용). 반환 = 갱신한 원격 추적 ref
+    (`refs/remotes/<원격 이름>/<브랜치>`) 또는 None(원격이 이름이 아닌 URL·경로라 추적 ref 가 없다).
+
+    로컬 브랜치·태그는 움직이지 않는다: refspec 목적지는 원격 추적 ref 뿐이고(`+` = 그 추적 ref 의 강제 갱신 · 허용 범위) ·
+    `--no-tags`(태그 딸려오기 ✗) · `--no-write-fetch-head` · 자격증명은 push 와 같은 스킴 인식 helper(토큰은 env 로만)."""
+    if not isinstance(ref, str) or not ref.startswith("refs/heads/") or ":" in ref or any(c.isspace() for c in ref):
+        core.fail("HINT_BRANCH_REF_INVALID", f"fetch 할 branch ref 형식이 올바르지 않다: {ref!r}")
+    if core.git(repo, "check-ref-format", ref, check=False).returncode != 0:
+        core.fail("HINT_BRANCH_REF_INVALID", f"git check-ref-format 이 fetch ref 를 거부했다: {ref!r}")
+    env, pre, token = _remote_env(repo, remote, push=False)
+    tracking = None
+    if _is_remote_nick(remote) and core.git(repo, "config", "--get", f"remote.{remote}.url", check=False).stdout.strip():
+        tracking = f"refs/remotes/{remote}/{ref.removeprefix('refs/heads/')}"
+    spec = f"+{ref}:{tracking}" if tracking else ref
+    try:
+        r = subprocess.run(["git", *pre, "fetch", "--no-tags", "--no-recurse-submodules", "--no-write-fetch-head",
+                            remote, spec], cwd=str(repo), env=env, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+    except OSError as e:
+        core.fail("HINT_GIT_UNAVAILABLE", f"git 실행 불가: {e}")
+    if r.returncode != 0:
+        core.fail("HINT_REMOTE_QUERY_FAILED", f"fetch {_redact_url(remote)} {ref} 실패(rc={r.returncode}): "
+                                              f"{_scrub(r.stderr, token).strip()[-600:]}",
+                  "원격 이름·경로와 네트워크를 확인한다(https 비공개 원격이면 envs/.env 의 GITHUB_TOKEN).")
+    return tracking
+
+
 def _require_safe_refspec(repo: Path, refspec) -> None:
     """공개 push API 의 refspec 규율: `refs/…:refs/…` 한 쌍 · 양쪽 같음 · 강제(`+`)·옵션(`-`)·glob ✗ · ref 형식 통과."""
     bad = None
@@ -860,20 +1099,22 @@ def git_push_authenticated(repo: Path, remote: str, refspec: str, *, dry_run: bo
     return r
 
 
-def push_tag(repo: Path, remote: str, tag: str, *, dry_run: bool = False, lint_fn=None) -> dict:
+def push_tag(repo: Path, remote: str, tag: str, *, dry_run: bool = False, lint_fn=None,
+             infos: list | None = None) -> dict:
     """태그 **하나**를 정확한 refspec `refs/tags/<tag>:refs/tags/<tag>` 로 민다(O2: 브랜치 ✗ · `--tags` ✗ · glob ✗).
 
     ① ref 형식(`hint/` · glob ✗ · refs/heads ✗) ② annotated ③ verify_local(이 태그 · lint_fn 전달) 0 이어야 한다
     (검증 범위 = 전송 범위) ④ 원격 사전 조회: 같은 오브젝트면 이미 반영(멱등 · push 생략) · 다른 오브젝트면
     HINT_REMOTE_TAG_CONFLICT(강제 ✗) ⑤ 실제 refspec 로그 → push ⑥ (dry-run 아니면) 원격 SHA == 로컬 SHA.
-    반환 {remote, tag, refspec, dry_run, status(pushed|dry-run|already-on-remote), local_object, remote_object}."""
+    반환 {remote, tag, refspec, dry_run, status(pushed|dry-run|already-on-remote), local_object, remote_object}.
+    infos = verify_local 의 INFO(봉인 뒤 출처 변경 강등) 수집 목록(선택 · §4.9)."""
     check_ref_format(repo, tag)
     kind = tag_ref_kind(repo, tag)
     if kind is None:
         core.fail("HINT_TAG_ABSENT", f"로컬에 태그가 없다: {tag}")
     if kind != "tag":
         core.fail("HINT_TAG_NOT_ANNOTATED", f"annotated 태그가 아니다({kind}) — lightweight 태그는 밀지 않는다.")
-    probs = verify_local(repo, tag, lint_fn=lint_fn)
+    probs = verify_local(repo, tag, lint_fn=lint_fn, infos=infos)
     if probs:
         _fail_problems("HINT_PUSH_UNVERIFIED", "push 전 로컬 검증(이 태그)", probs,
                        "hint.py verify --tag <태그> 로 확인하고 고친다 — 검증되지 않은 것은 밀지 않는다.")
@@ -916,9 +1157,16 @@ _FX_HOST = "fixture.invalid"
 
 
 def _fx_fields(tag: str, anchor: str) -> dict:
+    return {"version": "2", "tag": tag, "topology": "multi TP=2(Ray)", "anchor": anchor,
+            "manifest_ref": "docs/_evidence/fixture.work-manifest.json",
+            "bench_ref": "../benchmark/benchmark_fixture.yaml", "bench_kind": "certificate"}
+
+
+def _fx_fields_v1(tag: str, anchor: str) -> dict:
+    """옛 태그(footer v1) 모양 — 읽기 호환 대조용."""
     return {"version": "1", "tag": tag, "topology": "multi TP=2(Ray)", "anchor": anchor,
             "manifest_ref": "docs/_evidence/fixture.work-manifest.json",
-            "certificate_ref": "../benchmark/benchmark_fixture.yaml"}
+            "certificate_ref": "../benchmark/bench_report_fixture.md"}
 
 
 @contextlib.contextmanager
@@ -968,31 +1216,39 @@ def _selftest_pure(ck) -> None:
     fields = _fx_fields("hint/x/y/z/w", "a" * 40)
     wire = build_footer(**fields)
     ck("footer 왕복", parse_footer(wire) == fields)
-    ck("FOOTER_FIELDS 순서 고정(claim C3)",
-       FOOTER_FIELDS == ("version", "tag", "topology", "anchor", "manifest_ref", "certificate_ref"))
+    ck("FOOTER_FIELDS 순서 고정(claim C3 · v2)",
+       FOOTER_FIELDS == ("version", "tag", "topology", "anchor", "manifest_ref", "bench_ref", "bench_kind")
+       and FOOTER_FIELDS_V1 == ("version", "tag", "topology", "anchor", "manifest_ref", "certificate_ref"))
+    ck("v2 여는 줄에 '로컬 경로 · 수신자 해소 대상 아님' 고정 문구", wire.startswith(FOOTER_MARKER_OPEN + "\n")
+       and "수신자 해소 대상 아님" in FOOTER_MARKER_OPEN)
     ck("★footer 부재 = MISSING", code(lambda: parse_footer("요약만 있다\n")) == "HINT_EVIDENCE_BINDING_MISSING")
     malformed = {
         "닫는 줄 없음": wire.replace("\n-->", ""),
         "중복 키": wire.replace("tag: ", "tag: a\ntag: ", 1),
-        "미지 키": wire.replace("version: 1\n", "version: 1\nextra_key: x\n"),
+        "미지 키": wire.replace("version: 2\n", "version: 2\nextra_key: x\n"),
         "짧은 anchor": wire.replace("anchor: " + "a" * 40, "anchor: " + "a" * 12),
         "빈 필드": wire.replace("topology: multi TP=2(Ray)", "topology: "),
-        "version 2": wire.replace("version: 1", "version: 2"),
-        "필드 누락": wire.replace("certificate_ref: ../benchmark/benchmark_fixture.yaml\n", ""),
+        "본문 version ≠ 여는 줄 판": wire.replace("version: 2", "version: 1"),
+        "모르는 판 v3": wire.replace("version: 2", "version: 3").replace(FOOTER_MARKER_OPEN, "<!-- hint-evidence-binding:v3"),
+        "여는 줄 문구 변조": wire.replace(FOOTER_MARKER_OPEN, FOOTER_MARKER_OPEN + " 덧붙임"),
+        "필드 누락": wire.replace("bench_kind: certificate\n", ""),
+        "v2 에 v1 키(certificate_ref)": wire.replace("bench_ref:", "certificate_ref:"),
+        "bench_kind 어휘 밖": wire.replace("bench_kind: certificate", "bench_kind: cert"),
+        "bench_kind ≠ 이름 파생(리포트를 인증서라 부름)": wire.replace("benchmark_fixture.yaml", "bench_report_fixture.md"),
         "footer 둘": wire + wire,
-        "해석 불가 줄": wire.replace("version: 1\n", "version: 1\nnot a field line\n"),
+        "해석 불가 줄": wire.replace("version: 2\n", "version: 2\nnot a field line\n"),
         "절대경로 주소": wire.replace("manifest_ref: docs/", "manifest_ref: /docs/"),
     }
     for label, text in malformed.items():
         ck(f"★footer {label} = MALFORMED(≠ MISSING)", code(lambda t=text: parse_footer(t)) == "HINT_EVIDENCE_BINDING_MALFORMED")
     ck("footer 결함은 HintError 로도 잡힌다(CLI 단일 처리)", isinstance(HintEvidenceBindingError("X", "y"), core.HintError))
     # ── 폐기 키(옛 hint_tag 음성대조 이관 · 2026-09-04 CP7.5)
-    legacy = wire.replace("certificate_ref:", "manifest_sha256: " + "0" * 64 + "\ncertificate_ref:")
+    legacy = wire.replace("bench_ref:", "manifest_sha256: " + "0" * 64 + "\nbench_ref:")
     ck("★명시 인자가 있으면 폐기 키를 읽고 버린다",
        "manifest_sha256" not in parse_footer(legacy, retired_ok=RETIRED_FOOTER_KEYS))
     ck("★음성대조 명시 인자 없으면 폐기 키는 여전히 차단", code(lambda: parse_footer(legacy)) == "HINT_EVIDENCE_BINDING_MALFORMED")
     ck("★음성대조 폐기 키가 아닌 미지 키는 명시 인자가 있어도 차단",
-       code(lambda: parse_footer(wire.replace("version: 1\n", "version: 1\ntotally_unknown: x\n"),
+       code(lambda: parse_footer(wire.replace("version: 2\n", "version: 2\ntotally_unknown: x\n"),
                                  retired_ok=RETIRED_FOOTER_KEYS)) == "HINT_EVIDENCE_BINDING_MALFORMED")
     ck("★봉인이 폐기 키를 발행하는 경로는 없다",
        not (set(FOOTER_FIELDS) & RETIRED_FOOTER_KEYS)
@@ -1000,6 +1256,24 @@ def _selftest_pure(ck) -> None:
     # 이름을 **파일 텍스트**에서 찾으면 이 주석이 매칭돼 가드가 스스로 무력화된다 — 모듈 네임스페이스를 본다.
     ck("★CP7.5: 폐기 키 면제 상수가 존재하지 않는다",
        "LEGACY_FOOTER_TAG_PINS" not in globals() and "LEGACY_CERTIFICATE_REF_ALIASES" not in globals())
+    # ── footer v1 읽기 호환(P1 · 옛 태그) · bench_binding(판 무관 읽기) · bench_kind 파생
+    f1 = _fx_fields_v1("hint/x/y/z/w", "a" * 40)
+    w1 = build_footer(**f1)
+    ck("footer v1 렌더 = 옛 wire 모양(여는 줄 v1)", w1.startswith(FOOTER_MARKER_OPEN_V1 + "\n") and "certificate_ref: " in w1)
+    ck("footer v1 파싱 왕복(읽기 호환)", parse_footer(w1) == f1)
+    ck("★v1 여는 줄에 v2 필드 = MALFORMED", code(lambda: parse_footer(w1.replace("certificate_ref:", "bench_ref:")))
+       == "HINT_EVIDENCE_BINDING_MALFORMED")
+    ck("bench_binding(v2) = 선언", bench_binding(fields) == {"ref": "../benchmark/benchmark_fixture.yaml",
+                                                           "kind": "certificate", "kind_source": "declared"})
+    ck("bench_binding(v1 · 리포트 이름) = 이름 파생 bench_report(v1 의 거짓 이름을 바로잡아 읽는다)",
+       bench_binding(f1) == {"ref": "../benchmark/bench_report_fixture.md", "kind": "bench_report",
+                             "kind_source": "derived-from-name"})
+    ck("bench_binding(v1 · 판정 불가 이름) = kind None · underivable",
+       bench_binding({**f1, "certificate_ref": "x/other.txt"})["kind_source"] == "underivable")
+    ck("bench_kind_of: 인증서·리포트·기타", bench_kind_of("../benchmark/benchmark_a_b.yaml") == "certificate"
+       and bench_kind_of("docs/benchmark/bench_report_a.md") == "bench_report" and bench_kind_of("x.md") is None)
+    ck("판정 불가 이름이면 선언 kind 를 받는다", parse_footer(build_footer(**{**fields, "bench_ref": "x/other.md",
+                                                                   "bench_kind": "bench_report"}))["bench_kind"] == "bench_report")
     for label, bad_fields in (("여러 줄 값", {**fields, "topology": "a\nb"}), ("주석 경계 값", {**fields, "tag": "x-->"}),
                               ("필드 누락", {k: v for k, v in fields.items() if k != "tag"}),
                               ("필드 초과", {**fields, "extra": "x"})):
@@ -1083,7 +1357,10 @@ def _selftest_git(tmp: Path, ck) -> None:
 
     def commit_new(r: Path, t: str, pdir: Path, *, brief: str = branch.FX_BRIEF, extra=None, sa=source) -> str:
         branch.write_fixture_payload(pdir, t, source_anchor=sa, brief=brief, extra_files=extra)
-        return branch.commit_payload(r, pdir, message=branch.commit_message(pdir, generated_utc=U), generated_utc=U)
+        return branch.commit_payload(r, pdir, message=branch.commit_message(pdir, generated_utc=U), generated_utc=U,
+                                     guide=branch.selftest_guide(r))
+
+    guide = branch.selftest_guide(repo)
 
     # ── 커밋 → (거부들) → 봉인. 운영자 신원 env 를 **일부러** 심은 채로 한다.
     with branch.selftest_env(tmp, op_env):
@@ -1095,9 +1372,12 @@ def _selftest_git(tmp: Path, ck) -> None:
         ck("★footer.anchor ≠ 봉인 앵커 = ANCHOR_MISMATCH",
            code(lambda: seal(repo, tag, anchor, annotation(branch.FX_BRIEF, _fx_fields(tag, source)),
                              generated_utc=U)) == "HINT_EVIDENCE_BINDING_ANCHOR_MISMATCH")
-        ck("★소스 커밋에 봉인 = HINT_ANCHOR_NOT_ON_HINT_BRANCH(2026-09-07 native 3종)",
+        ck("★소스 커밋에 봉인 = HINT_ANCHOR_PARENT_NOT_GUIDE(2026-09-07 native 3종 · §4.7)",
            code(lambda: seal(repo, tag, source, annotation(branch.FX_BRIEF, _fx_fields(tag, source)),
-                             generated_utc=U)) == "HINT_ANCHOR_NOT_ON_HINT_BRANCH")
+                             generated_utc=U)) == "HINT_ANCHOR_PARENT_NOT_GUIDE")
+        ck("★신규 봉인에 footer v1 = HINT_EVIDENCE_BINDING_VERSION(v1 은 읽기 전용)",
+           code(lambda: seal(repo, tag, anchor, annotation(branch.FX_BRIEF, _fx_fields_v1(tag, anchor)),
+                             generated_utc=U)) == "HINT_EVIDENCE_BINDING_VERSION")
         refused = None
         try:
             seal(repo, tag, anchor, annotation("손으로 쓴 다른 요약", _fx_fields(tag, anchor)), generated_utc=U)
@@ -1168,7 +1448,8 @@ def _selftest_git(tmp: Path, ck) -> None:
     ck("★다른 앵커(같은 태그의 다른 페이로드 커밋) = HINT_NAME_COLLISION",
        code(lambda: seal(repo, tag, anchor_b, annotation(branch.FX_BRIEF, _fx_fields(tag, anchor_b)), generated_utc=U))
        == "HINT_NAME_COLLISION")
-    ck("브랜치가 더 전진해도 봉인된 앵커는 조상 — verify_local = 0", verify_local(repo, tag) == [])
+    ck("★로컬 hint 브랜치 상태와 무관 — 부재여도 verify_local = 0(§4.7)",
+       branch.hint_tip(repo) is None and verify_local(repo, tag) == [])
 
     # ── lint_fn 주입구
     seen: dict = {}
@@ -1235,6 +1516,18 @@ def _selftest_git(tmp: Path, ck) -> None:
     (repo4 / core.REL_PII_TERMS).parent.mkdir(parents=True)
     (repo4 / core.REL_PII_TERMS).write_text(f"{branch.FIXTURE_TERM}\n", encoding="utf-8")
     a4 = commit_new(repo4, tag, tmp / "p4", brief="다른 PC 가 같은 셀을 다르게 요약했다.")
+    m4 = annotation("다른 PC 가 같은 셀을 다르게 요약했다.", _fx_fields(tag, a4))
+    ck("★봉인 직전 원격 재조회: 원격에 같은 이름 = HINT_NAME_COLLISION(막기만 · 개명 ✗ · 로컬 태그 0)",
+       code(lambda: seal(repo4, tag, a4, m4, generated_utc=U, remote=str(bare))) == "HINT_NAME_COLLISION"
+       and tag_ref_kind(repo4, tag) is None)
+    ck("★봉인 직전 원격 조회 실패 = HINT_REMOTE_QUERY_FAILED(없음으로 접지 않는다)",
+       code(lambda: seal(repo4, tag, a4, m4, generated_utc=U, remote=str(tmp / "absent.git"))) == "HINT_REMOTE_QUERY_FAILED")
+    t_r = variant(1038)
+    a_r = commit_new(repo4, t_r, tmp / "p4r")
+    o_r = seal(repo4, t_r, a_r, annotation(branch.FX_BRIEF, _fx_fields(t_r, a_r)), generated_utc=U, remote=str(bare))
+    ck("원격에 없으면 봉인 진행 · 재봉인(로컬 재개)은 원격 조회 전에 끝난다",
+       tag_ref_kind(repo4, t_r) == "tag" and seal(repo4, t_r, a_r, annotation(branch.FX_BRIEF, _fx_fields(t_r, a_r)),
+                                                   generated_utc=U, remote=str(tmp / "absent.git")) == o_r)
     seal(repo4, tag, a4, annotation("다른 PC 가 같은 셀을 다르게 요약했다.", _fx_fields(tag, a4)), generated_utc=U)
     ck("★원격 동명 다른 오브젝트 = HINT_REMOTE_TAG_CONFLICT(강제 ✗)",
        code(lambda: push_tag(repo4, str(bare), tag)) == "HINT_REMOTE_TAG_CONFLICT"
@@ -1324,7 +1617,9 @@ def _selftest_git(tmp: Path, ck) -> None:
        code(lambda: push_tag(repo, "dead-https", tag_c, dry_run=True)) == "HINT_PUSH_CREDENTIAL_ABSENT")
 
     # ── ★운영자 설정 push.followTags=true 가 딸린 태그를 얹지 못한다(2026-09-22 실측: 태그 1개 push 가 3개를 올렸다)
-    core.git(repo, "tag", "-a", "-m", "local rollback anchor", "last-good-fixture", anchor)   # 격리 저장소 픽스처
+    # 격리 저장소 픽스처: 딸려갈 annotated 태그를 **밀리는 커밋의 조상**(안내 커밋)에 둔다 — 페이로드 커밋끼리 체인이 없으므로
+    #   (§4.7) 옛 페이로드 태그는 더 이상 조상이 아니다. 안내 위의 롤백 앵커 태그가 그 자리를 대신해 픽스처를 살린다.
+    core.git(repo, "tag", "-a", "-m", "local rollback anchor", "last-good-fixture", guide)
     core.git(repo, "config", "push.followTags", "true")
     try:
         ctrl_bare, ft_bare = tmp / "ctrl-follow.git", tmp / "follow.git"
@@ -1333,13 +1628,14 @@ def _selftest_git(tmp: Path, ck) -> None:
         core.git(repo, "push", "-q", str(ctrl_bare), f"refs/tags/{tag_c}:refs/tags/{tag_c}")
         ctrl_refs = core.git_out(ctrl_bare, "for-each-ref", "--format=%(refname)").splitlines()
         ck("대조: 옵션 없는 git push 는 followTags 로 다른 태그까지 올린다(픽스처가 살아 있다)",
-           "refs/tags/last-good-fixture" in ctrl_refs and f"refs/tags/{tag}" in ctrl_refs)
+           "refs/tags/last-good-fixture" in ctrl_refs)
         ft = push_tag(repo, str(ft_bare), tag_c)
         ft_refs = core.git_out(ft_bare, "for-each-ref", "--format=%(refname)").splitlines()
         ck("★followTags 설정에서도 push_tag 는 정확히 그 태그 1개만 올린다(last-good·옛 hint 태그 ✗)",
            ft.get("status") == "pushed" and ft_refs == [f"refs/tags/{tag_c}"])
         br_bare = tmp / "follow-branch.git"
         core.git(tmp, "init", "-q", "--bare", str(br_bare))
+        branch._update_hint_ref(repo, guide, None)            # 격리 저장소: 브랜치 push 대상 ref(안내)를 둔다
         git_push_authenticated(repo, str(br_bare), f"{core.HINT_BRANCH_REF}:{core.HINT_BRANCH_REF}", dry_run=False)
         ck("★브랜치 push(공개 API · push_branches 경로)도 태그를 딸려 보내지 않는다",
            core.git_out(br_bare, "for-each-ref", "--format=%(refname)").splitlines() == [core.HINT_BRANCH_REF])
@@ -1360,7 +1656,7 @@ def _selftest_git(tmp: Path, ck) -> None:
         "footer.tag": (annotation(branch.FX_BRIEF, {**f_ok, "tag": variant(1024)}), None, "HINT_EVIDENCE_BINDING_TAG_MISMATCH"),
         "footer 삭제": (f"{branch.FX_BRIEF}\n\n{ANNOTATION_POINTER}\n", None, "HINT_EVIDENCE_BINDING_MISSING"),
         "중복 키": (msg.replace("topology: ", "topology: x\ntopology: ", 1), None, "HINT_EVIDENCE_BINDING_MALFORMED"),
-        "폐기 키": (msg.replace("certificate_ref:", "manifest_sha256: " + "0" * 64 + "\ncertificate_ref:"), None,
+        "폐기 키": (msg.replace("bench_ref:", "manifest_sha256: " + "0" * 64 + "\nbench_ref:"), None,
                   "HINT_EVIDENCE_BINDING_MALFORMED"),
         "뒤꼬리": (msg + "덧붙임\n", None, "HINT_ANNOTATION_SHAPE"),
         "brief 변조": (annotation("변조된 요약", f_ok), None, "HINT_ANNOTATION_BRIEF_MISMATCH"),
@@ -1396,21 +1692,21 @@ def _selftest_git(tmp: Path, ck) -> None:
         tp.rmdir()
         (tmp / "terms.moved").rename(tp)
 
-    # ── ★정상 모양의 페이로드 커밋이라도 hint 브랜치 **밖**이면 봉인·검증 모두 거부(2026-09-07 계약 §6 · 이 태그만)
+    # ── ★정상 모양의 페이로드 커밋이라도 부모가 안내가 아니면 봉인·검증 모두 거부(2026-09-07 계약 §6 · §4.7 · 이 태그만)
     t_off = variant(1029)
     p_off = tmp / "p-off"
     branch.write_fixture_payload(p_off, t_off, source_anchor=source)
     off_tree = branch.build_tree(repo, p_off, branch.payload_files(p_off))
     c_off = core.git(repo, "commit-tree", off_tree, "--no-gpg-sign", input_text=branch.commit_message(p_off, generated_utc=U),
-                     env_extra=branch.identity_env(U)).stdout.strip()   # ref 를 옮기지 않은 고아 커밋
+                     env_extra=branch.identity_env(U)).stdout.strip()   # 부모 없는 페이로드 커밋(안내 위가 아니다)
     m_off = annotation(branch.FX_BRIEF, _fx_fields(t_off, c_off))
-    ck("★브랜치 밖 페이로드 커밋 봉인 = HINT_ANCHOR_NOT_ON_HINT_BRANCH",
-       code(lambda: seal(repo, t_off, c_off, m_off, generated_utc=U)) == "HINT_ANCHOR_NOT_ON_HINT_BRANCH"
+    ck("★안내 밖 페이로드 커밋 봉인 = HINT_ANCHOR_PARENT_NOT_GUIDE",
+       code(lambda: seal(repo, t_off, c_off, m_off, generated_utc=U)) == "HINT_ANCHOR_PARENT_NOT_GUIDE"
        and tag_ref_kind(repo, t_off) is None)
     off_sha = mktag(m_off, target=c_off, name=t_off)
     core.git(repo, "update-ref", _tag_ref(t_off), off_sha, "0" * 40)
-    ck("★브랜치 밖 페이로드 커밋 태그 verify = HINT_ANCHOR_NOT_ON_HINT_BRANCH",
-       problem_codes(verify_local(repo, t_off)) == ["HINT_ANCHOR_NOT_ON_HINT_BRANCH"])
+    ck("★안내 밖 페이로드 커밋 태그 verify = HINT_ANCHOR_PARENT_NOT_GUIDE",
+       problem_codes(verify_local(repo, t_off)) == ["HINT_ANCHOR_PARENT_NOT_GUIDE"])
 
     # ── ★blob 이 없는 커밋(부분 클론·손상)도 verify 는 목록으로 답한다 — 읽지 못함을 통과로도, 예외로도 접지 않는다
     t_miss = variant(1028)
@@ -1435,12 +1731,9 @@ def _selftest_git(tmp: Path, ck) -> None:
             blob = core.git(repo, "hash-object", "-w", "--stdin", input_text="메모\n").stdout.strip()
             lines = core.git(repo, "ls-tree", tree).stdout
             tree = core.git(repo, "mktree", input_text=lines + f"100644 blob {blob}\tnotes.txt\n").stdout.strip()
-        tip = branch.hint_tip(repo)
-        c = core.git(repo, "commit-tree", tree, "-p", tip, "--no-gpg-sign",
-                     input_text=branch.commit_message(pdir, generated_utc=U),
-                     env_extra=env or branch.identity_env(U)).stdout.strip()
-        branch._update_hint_ref(repo, c, tip)
-        return c
+        return core.git(repo, "commit-tree", tree, "-p", guide, "--no-gpg-sign",
+                        input_text=branch.commit_message(pdir, generated_utc=U),
+                        env_extra=env or branch.identity_env(U)).stdout.strip()
 
     op_commit_env = {**op_env, "GIT_AUTHOR_DATE": core.git_date(U), "GIT_COMMITTER_DATE": core.git_date(U)}
     for n, label, kw, want in ((1030, "allowlist 밖 파일", {"outside": True}, "HINT_PAYLOAD_TREE_OUTSIDE_ALLOWLIST"),
@@ -1463,3 +1756,79 @@ def _selftest_git(tmp: Path, ck) -> None:
         t_sha = mktag(mb, target=cb, name=tb)
         core.git(repo, "update-ref", _tag_ref(tb), t_sha, "0" * 40)
         ck(f"★verify 검출({label}) → {want}", want in problem_codes(verify_local(repo, tb)))
+
+    # ── footer v1 읽기 호환: 옛 판 footer 를 가진 태그도 verify 가 footer 결함 없이 읽는다(P1 · 신규 봉인만 v2)
+    t_v1 = variant(1034)
+    a_v1 = commit_new(repo, t_v1, tmp / "pv1")
+    core.git(repo, "update-ref", _tag_ref(t_v1), mktag(annotation(branch.FX_BRIEF, _fx_fields_v1(t_v1, a_v1)),
+                                                      target=a_v1, name=t_v1), "0" * 40)
+    ck("★footer v1 태그 verify = 0(읽기 호환 · 판정은 구조만)", verify_local(repo, t_v1) == [])
+
+    # ── ★봉인 뒤 재현성(plan_26092908 §4.9 · V5): 출처 의존 린트는 봉인 스냅샷과 현재 출처가 다를 때만 INFO 로 강등
+    import hashlib  # noqa: PLC0415
+    src_rel = "docs/devlog/devlog_fixture_source.md"
+    src = repo / src_rel
+    src.parent.mkdir(parents=True, exist_ok=True)
+    src.write_text("봉인 시점 출처 본문\n", encoding="utf-8")
+    snap = [{"path": src_rel, "sha256": hashlib.sha256(src.read_bytes()).hexdigest()}]
+    lineage = core.dumps({"schema_version": 1, "documents": [], SEALED_SOURCES_KEY: snap})
+    t_s = variant(1035)
+    a_s = commit_new(repo, t_s, tmp / "ps", extra={"LINEAGE.json": lineage})
+    m_s = annotation(branch.FX_BRIEF, _fx_fields(t_s, a_s))
+    seal(repo, t_s, a_s, m_s, generated_utc=U)
+    ck("sealed_sources 판독", sealed_sources(repo, a_s) == (snap, []))
+
+    def lint_src(**_kw):
+        return [{"code": "HINT_EXCERPT_MISMATCH", "message": "발췌가 출처와 다르다"},
+                {"code": "HINT_SIGNATURE_MISMATCH", "message": "서명 M3 불일치"}]
+
+    def lint_struct(**_kw):
+        return [{"code": "HINT_PROMPT_TAMPERED", "message": "PROMPT 변조"}]
+
+    inf: list = []
+    ck("대조: 출처 그대로 · 출처 의존 발견 = FAIL(시간이 만든 것이 아니다)",
+       {"HINT_EXCERPT_MISMATCH", "HINT_SIGNATURE_MISMATCH"} <= set(problem_codes(
+           verify_local(repo, t_s, lint_fn=lint_src, infos=inf))) and inf == [])
+    src.write_text("봉인 13초 뒤 정정된 출처 본문\n", encoding="utf-8")   # V5 재현: 봉인 뒤 devlog 정정
+    inf = []
+    ck("★봉인 뒤 출처 변경 = verify PASS · INFO 2건(FAIL ✗)",
+       verify_local(repo, t_s, lint_fn=lint_src, infos=inf) == [] and len(inf) == 2
+       and all(x.startswith(INFO_SOURCE_CHANGED) and src_rel in x for x in inf))
+    ck("INFO 에 원 code 보존", any("HINT_SIGNATURE_MISMATCH" in x for x in inf))
+    ck("★infos=None 이어도 FAIL 로 되돌아가지 않는다(stderr 기록)", verify_local(repo, t_s, lint_fn=lint_src) == [])
+    ck("★출처가 바뀌어도 출처 비의존 린트는 FAIL",
+       problem_codes(verify_local(repo, t_s, lint_fn=lint_struct, infos=[])) == ["HINT_PROMPT_TAMPERED"])
+    src_bare = tmp / "src-remote.git"
+    core.git(tmp, "init", "-q", "--bare", str(src_bare))
+    inf = []
+    ck("★push_tag 도 같은 강등(infos 전달 · verify 통과 → dry-run)",
+       push_tag(repo, str(src_bare), t_s, dry_run=True, lint_fn=lint_src, infos=inf).get("status") == "dry-run"
+       and len(inf) == 2)
+    src.unlink()
+    inf = []
+    ck("★출처 삭제도 '바뀐 출처'(부재 ≠ 일치)", verify_local(repo, t_s, lint_fn=lint_src, infos=inf) == [] and len(inf) == 2)
+    obj_s = _ref_sha(repo, _tag_ref(t_s))
+    t_sha = mktag(annotation(branch.FX_BRIEF, {**_fx_fields(t_s, a_s), "anchor": source}), target=a_s, name=t_s)
+    core.git(repo, "update-ref", _tag_ref(t_s), t_sha, obj_s)
+    try:
+        ck("★출처가 바뀌었어도 구조 결함(footer.anchor 변조)은 FAIL",
+           "HINT_EVIDENCE_BINDING_ANCHOR_MISMATCH" in problem_codes(verify_local(repo, t_s, lint_fn=lint_src, infos=[])))
+    finally:
+        core.git(repo, "update-ref", _tag_ref(t_s), obj_s, t_sha)
+    inf = []
+    ck("★스냅샷 없는 태그(v6 이하)는 강등하지 않는다(판정 불가 ≠ 출처 변경)",
+       {"HINT_EXCERPT_MISMATCH"} <= set(problem_codes(verify_local(repo, tag, lint_fn=lint_src, infos=inf))) and inf == [])
+    t_b = variant(1036)
+    bad_lineage = core.dumps({"schema_version": 1, "documents": [],
+                              SEALED_SOURCES_KEY: [{"path": "/" + "etc/x", "sha256": "0" * 64}]})
+    a_b = commit_new(repo, t_b, tmp / "pbad", extra={"LINEAGE.json": bad_lineage})
+    err = None
+    try:
+        seal(repo, t_b, a_b, annotation(branch.FX_BRIEF, _fx_fields(t_b, a_b)), generated_utc=U)
+    except core.HintError as e:
+        err = e
+    ck("★봉인 출처 스냅샷 모양 결함(절대경로) = 봉인 거부 HINT_SEALED_SOURCES_SHAPE",
+       isinstance(err, HintProblemsError) and "HINT_SEALED_SOURCES_SHAPE" in problem_codes(err.problems))
+    ck("SOURCE_DEPENDENT_LINT_CODES 에 구조 코드가 섞이지 않는다(tripwire)",
+       not SOURCE_DEPENDENT_LINT_CODES & {"HINT_PROMPT_TAMPERED", "HINT_PROMPT_RESIDUE", "HINT_TAG_PII", "HINT_PAYLOAD_PII",
+                                          "HINT_ANCHOR_PARENT_NOT_GUIDE", "HINT_EVIDENCE_BINDING_MALFORMED"})

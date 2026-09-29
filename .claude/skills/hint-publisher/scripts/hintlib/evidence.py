@@ -60,7 +60,9 @@ REL_CHECK_SMOKE_MODEL = ".claude/skills/upstream-version-watch/scripts/check_smo
 #   먼저 걸린 **아무 사본**이나 이겼다(코드맵 hint_tag_a §2.G 숨은 결합). 이제 둘 다 명시 경로다.
 _COLOCATED_GATE = core.SCRIPTS_DIR / "completion_gate.py"
 _GATE_REQUIRED_API = ("parse_flat_certificate", "certificate_run_key", "CERTIFICATE_FIELD_MAP", "STRONG_IDENTITY_FIELDS",
-                      "lexical_components", "manifest_rubric_contract", "PII_MACHINE_RAW_EXEMPTION_REASON")
+                      "lexical_components", "manifest_rubric_contract", "PII_MACHINE_RAW_EXEMPTION_REASON",
+                      # 2026-09-29(plan_26092908 §4.8): 인증서 요구 = 발행 조건과 같은 술어(게이트 한 벌 · 비발행 권한 판정)
+                      "certificate_requirement_authority", "certificate_waived", "CERTIFICATE_NON_ISSUING_AUTHORITIES")
 
 NODE_AXIS = ("main", "sub", "cluster")
 TOPOLOGIES = ("single", "multi")
@@ -83,8 +85,12 @@ _WHEEL_URL_KEYS = ("VLLM_WHEEL_URL", "WHEEL_URL")
 # 옛 hint_collect.MISSING_CODES 를 그대로 옮기고(문구 보존) 신설분을 더한다. 발행 계약 v4 절단선(2026-09-06 ·
 # plan_26090616 Q7/Q8): 차단은 양성 검출이고 **부재는 기재**다 — 적힌 부재는 "모른 채 소비한다" 는 표지다.
 MISSING_CODES: dict[str, str] = {
-    "HINT_MISSING_CERTIFICATE": "인증서 부재 — full PASS 가 아니었거나 벤치마커가 발행하지 않았다. "
-                                "인증서 발행은 adversarial-benchmark 의 책임이지 발행기의 책임이 아니다.",
+    # 2026-09-29(plan_26092908 §4.4 · V2): 옛 문구("full PASS 가 아니었거나 …")는 REFUTE 와 "인증서 없는 PASS" 를 같은 코드로 적었다.
+    #   이제 **인증서가 발행되는 판정**(explicit ∧ PASS · 또는 판정·권한 미관측)에서만 싣는다 — 비발행 판정(REFUTE 전부 · weak/explore
+    #   PASS · lite-only)은 결손이 아니라 정상이고 그 사실은 PAYLOAD.measurement.verdict(+ sources)가 말한다(_certificate_not_due).
+    "HINT_MISSING_CERTIFICATE": ("인증서 부재 — 인증서가 발행되는 판정(루브릭 권한 explicit ∧ PASS, 또는 판정·권한을 관측하지 못한 측정)인데 "
+                                 "인증서가 없다. 비발행 판정(REFUTE · weak/explore PASS · lite-only)은 이 결손이 아니다 — 그때 판정 근거는 "
+                                 "bench_report 이고 판정은 measurement.verdict 가 말한다. 인증서 발행은 adversarial-benchmark 의 책임이다."),
     "HINT_MISSING_BENCH_REPORT": "벤치 리포트 부재 — 동시성별 곡선을 실을 수 없다.",
     "HINT_MISSING_SWEEP_LEVELS": ("부하 레벨이 1개 이하 — 부하 거동을 알 수 없다(경량 리포트는 동시성 곡선을 "
                                   "재지 않는다)."),
@@ -136,6 +142,13 @@ MISSING_CODES: dict[str, str] = {
                                     "빌드 입력은 셀 env 선언과 인증서 지문으로만 말한다."),
     "HINT_MISSING_RESOLVE": ("`output/<t>/resolved.json` 을 이 빌드에 묶지 못했다(부재 또는 다른 vLLM 버전의 해소값) — "
                              "torch·NGC·CUDA 는 이미지 관측값만 싣는다."),
+    # ── 2026-09-29 신설(plan_26092908 §4.2 · V7 "산문은 결손이라 적는데 결손 표에 없다") — 발행자 = artifacts.collect ──
+    "HINT_MISSING_SUB_RECIPE": ("서브 레시피 미관측 — 서브 노드가 무엇으로 기동됐는지(`sub_recipe.json` · 서브 env 전달 파생)를 이 셀의 "
+                                "증거에서 읽지 못했다. 서브 기동 절차는 메인 쪽 기록만으로 말한다(artifacts 가 기재)."),
+    "HINT_MISSING_APPLIED_SET": ("빌드 패치 적용 집합 미관측 — 어느 빌드 패치가 이 이미지에 실제로 적용됐는지(빌드 원장 · 재구성) 읽지 "
+                                 "못했다. 실린 패치 파일은 '적용됨' 이 아니라 '후보' 다(artifacts 가 기재)."),
+    "HINT_MISSING_NATIVE_LAUNCH": ("native 기동 기록 부재 — native 셀의 기동 절차(Ray head/worker · vllm serve 인자)를 기록한 실물이 증거에 "
+                                   "없다. 기동 명령은 재구성이지 관측이 아니다(artifacts 가 기재)."),
 }
 
 # 측정 구성 중 **배포 평면에 싣는 키**(옛 hint_collect.DISTRIBUTED_MEASUREMENT_KEYS 그대로).
@@ -196,6 +209,10 @@ class CellEvidence:
     pip_freeze_paths: dict = dataclasses.field(default_factory=dict)
     cleanup_attestation_path: str | None = None
     cleanup_attestation: dict | None = None
+    # native 기동 기록(2026-09-29 · plan_26092908 §4.2 · D 통합): native_multinode_serve.py 가 serve proof 에 적는 보존 경로(저장소 상대 ·
+    #   이미 치환된 배포 바이트) · 쓰지 못했으면 그 사유(`native_launch_error`). 옛 N1 proof 에는 둘 다 없다(None = 신호 부재 → 결손 정상).
+    native_launch_path: str | None = None
+    native_launch_error: str | None = None
     phases: dict = dataclasses.field(default_factory=dict)       # artifacts.reproduce_steps 가 {phase: {started_utc, ended_utc}}
     sources: dict = dataclasses.field(default_factory=dict)
     repo: str | None = None
@@ -420,7 +437,12 @@ def no_cert_binding_source(manifest, repo=None) -> str | None:
       · `explore`       — 루브릭 권한 explore. 성능 판정이 게이트가 아니라 **서술**이므로 REFUTE 여도 승격이 열린다.
                           explore 는 waiver 를 요구하지 **않는다** — 요구하면 completion_gate U1 자동개방이 여기서 다시
                           죽는다(2026-08-24 실측한 그 죽은 코드의 hint 평면 쌍둥이).
-    순서가 판정이다: waiver 가 map_only 보다 먼저. 셋 다 아니면 None(=차단).
+      · `weak`          — 2026-09-29(plan_26092908 §4.8 · V11④ · completion_gate `certificate_waived`): weak 도 explore 처럼
+                          **비발행 권한**이다(judge_bench 는 explicit ∧ PASS 만 인증서를 낸다). 판정 원천에서 파생된 권한
+                          (`certificate_requirement_authority` — rubric_source=verdict_json)이 weak 이고 rubric 계약을 통과하며
+                          판정이 PASS·REFUTE 이면 bench_report 가 판정 근거다. 옛 판본은 explore 만 알아서 weak PASS 가 인증서를
+                          요구받았다(게이트는 이제 면제하는데 봉인 쪽 결정자가 막는 이음매).
+    순서가 판정이다: waiver 가 map_only 보다 먼저. 넷 다 아니면 None(=차단 — explicit REFUTE·권한 미상은 waiver 가 필요하다).
     ★ 단일 결정자(2026-08-01: finalize 는 리포트로 묶었는데 verify 는 인증서와 대조해 FAIL · 2026-08-24 · 2026-09-14).
     explore 계약은 completion_gate `manifest_rubric_contract` 를 그대로 재사용한다(포인터 원칙 — 손으로 다시 적지 않는다).
     repo=None 이면 이 hintlib 가 든 체크아웃의 게이트를 쓴다.
@@ -435,8 +457,14 @@ def no_cert_binding_source(manifest, repo=None) -> str | None:
         return "hint_map_only"
     gate = cgate(repo if repo is not None else core.HINTLIB_DIR.parents[4])
     rubric = gate.manifest_rubric_contract(benchmark)
-    if rubric.get("declared") and rubric.get("ok") and rubric.get("authority") == "explore":
+    if not (rubric.get("declared") and rubric.get("ok")):
+        return None
+    # 권한은 **판정 원천에서 파생됐다고 표시된** 것만(게이트 한 벌 · 원시 manifest 값으로 면제를 열지 않는다).
+    authority = gate.certificate_requirement_authority(benchmark)
+    if authority == "explore":
         return "explore"
+    if authority in gate.CERTIFICATE_NON_ISSUING_AUTHORITIES and benchmark.get("verdict") in ("PASS", "REFUTE"):
+        return authority
     return None
 
 
@@ -765,26 +793,95 @@ def _build_identity(repo: Path, *, topology: str, env: dict, env_rel: str | None
 _OS_KEYS = ("os", "os_release", "os_name", "os_version", "kernel", "kernel_release")
 
 
+_DECLARED_COPY = "(manifest 선언 옮김)"
+
+
+def _attested_host(att: dict | None, key: str) -> tuple[str | None, str | None, dict]:
+    """노드 정합 attestation 이 **노드별로 관측한** 호스트 사실(v2 `parity.<key>{main,sub,verdict}` > `nodes.<n>.<key>`).
+    반환 (값 | None, 출처 | None, {노드: 값}). 노드끼리 다르면 값은 main 의 것이고 출처가 그 사실(노드별 상이)을 말한다 —
+    한 값으로 접지 않는다(by_node 에 둘 다 남는다). attestation 이 없거나 칸이 없으면 (None, None, {})."""
+    if not isinstance(att, dict):
+        return None, None, {}
+    path = att.get("_path") or "attestation"
+    row = (att.get("parity") or {}).get(key) if isinstance(att.get("parity"), dict) else None
+    by_node: dict[str, str] = {}
+    if isinstance(row, dict):
+        by_node = {n: str(row[n]).strip() for n in ("main", "sub") if not _unobserved(row.get(n))}
+        where = f"attestation parity.{key}({path} · 노드별 관측 · verdict={row.get('verdict')})"
+    if not by_node and isinstance(att.get("nodes"), dict):
+        by_node = {n: str(d[key]).strip() for n, d in sorted(att["nodes"].items())
+                   if isinstance(d, dict) and not _unobserved(d.get(key)) and isinstance(d.get(key), (str, int, float))}
+        where = f"attestation nodes.<n>.{key}({path} · 노드별 관측)"
+    if not by_node:
+        return None, None, {}
+    vals = sorted(set(by_node.values()))
+    val = by_node.get("main") or vals[0]
+    if len(vals) > 1:
+        where += " — ⚠ 노드별 상이(" + " · ".join(f"{n}={v}" for n, v in sorted(by_node.items())) + " · 값 = main)"
+    else:
+        where += " — " + "=".join(sorted(by_node)) + " 일치"
+    # 범위 표지(attestation_scope 와 같은 결): 파일은 같은 config 의 다음 실행이 덮는다 — 이 측정 실행의 것인지는 미검증이다.
+    where += " · 이 측정 실행과 같은 실행인지 미검증(같은 호스트의 관측)"
+    return val, where, by_node
+
+
 def _host_facts(ev: CellEvidence) -> None:
     """build_identity 에 측정 호스트 사실 `driver`·`os` 를 **출처와 함께** 싣는다(2026-09-22 · plan_26092119 S2 round 2 · F4).
     1차 재생의 FACT 는 인증서·스윕 meta 가 `driver_version` 을 들고 있었는데도 드라이버를 "미관측" 이라 적었다.
-    우선순위: 인증서 driver_version(측정 기록의 옮김) > 스윕 meta(측정 시 조립) > manifest(스캔 시점 선언 — 측정 시각의 값이 아닐 수 있다)."""
+
+    ★ 2026-09-29(plan_26092908 §4.5 · V3 — **관측 > 선언**): 옛 우선순위(인증서 > 스윕 meta > manifest)는 앞 둘이 manifest 선언을
+      옮긴 값이라는 사실을 몰랐다 — sweep_bench.sh 는 `driver_version` 을 `grep_yaml(manifest)` 로 채우고(측정 ✗), 인증서는 그
+      meta 를 옮긴다(publish_benchmark_record.py 소프트 지문). 그래서 DS4F·D1·N1 이 manifest 의 580.173.02 를 "측정 기록" 으로
+      봉인했고, 같은 zip 의 attestation parity 는 실측 580.178.04 를 들고 있었다. 새 우선순위:
+        ① attestation parity(노드별 관측 · cluster 축에서만 묶인다) > ② 스윕 meta > ③ 인증서 > ④ manifest.
+      ②③ 은 `driver_version_source` 가 `measured…` 로 스스로 관측을 말하지 않으면 출처에 `(manifest 선언 옮김)` 을 단다.
+      관측(①, 또는 measured 로 표지된 ②③)과 선언이 다르면 `driver_conflict = {observed, declared, sources}` 로 **둘 다** 싣는다.
+    OS·커널도 같은 순서로 attestation 노드 칸이 있으면 먼저 읽는다(2026-09-29 현재 attestation 에 그 칸은 없다 — 생기면 읽힌다)."""
     b = ev.build_identity
     src = b.setdefault("source", {})
     cert = ev.certificate or {}
     meta = ((ev.sweep or {}).get("index") or {}).get("meta") or {}
     man = ev.manifest or {}
-    layers = ((cert, f"인증서 driver_version({Path(ev.certificate_path or '').name} · 측정 기록)"),
-              (meta, f"sweep_index.meta.driver_version({(ev.sweep or {}).get('dir')} · 측정 시 조립)"),
-              (man, f"{ev.sources.get('manifest') or 'manifest'} driver_version(스캔 시점 선언 — 측정 시각 값 미보장)"))
-    b["driver"], src["driver"] = None, "미관측(인증서·스윕 meta·manifest 에 driver_version 없음)"
-    for doc, where in layers:
+    man_where = ev.sources.get("manifest") or "manifest"
+
+    def measured_src(doc: dict) -> bool:
+        return str(doc.get("driver_version_source") or "").strip().startswith("measured")
+
+    obs_v, obs_src, by_node = _attested_host(ev.attestation, "driver")
+    if obs_v and ev.plane == "native":
+        obs_src += " · native 셀 — 묶인 attestation 은 원천 이미지(Docker) 실행 때의 관측이다(드라이버는 평면과 무관한 호스트 사실)"
+    layers: list[tuple[str | None, str, bool]] = []          # (값, 출처, 관측인가)
+    if obs_v:
+        layers.append((obs_v, obs_src, True))
+    for doc, where in ((meta, f"sweep_index.meta.driver_version({(ev.sweep or {}).get('dir')} · 측정 시 조립"),
+                       (cert, f"인증서 driver_version({Path(ev.certificate_path or '').name} · 스윕 meta 의 옮김")):
         v = _norm_value(doc.get("driver_version")) if isinstance(doc, dict) else None
         if v:
-            b["driver"], src["driver"] = str(v), where
-            break
-    b["os"], src["os"] = None, f"미관측(인증서·스윕 meta·manifest 에 {list(_OS_KEYS)} 키 없음 — 지어내지 않는다)"
-    for doc, where in ((cert, "인증서"), (meta, "sweep_index.meta"), (man, ev.sources.get("manifest") or "manifest")):
+            obs = measured_src(doc)
+            layers.append((str(v), where + (f" · {doc.get('driver_version_source')})" if obs else
+                                            f" — sweep_bench.sh 가 manifest 에서 읽는다) {_DECLARED_COPY}"), obs))
+    mv = _norm_value(man.get("driver_version")) if isinstance(man, dict) else None
+    if mv:
+        layers.append((str(mv), f"{man_where} driver_version(스캔 시점 선언 — 측정 시각 값 미보장)", False))
+    b["driver"], src["driver"] = None, "미관측(attestation·인증서·스윕 meta·manifest 에 driver 없음)"
+    if layers:
+        b["driver"], src["driver"] = layers[0][0], layers[0][1]
+    if by_node:
+        b["driver_by_node"] = by_node
+    observed = next((l for l in layers if l[2]), None)
+    declared = next((l for l in layers if not l[2]), None)
+    b.pop("driver_conflict", None)
+    if observed and declared and observed[0] != declared[0]:
+        b["driver_conflict"] = {"observed": observed[0], "declared": declared[0],
+                                "sources": {"observed": observed[1], "declared": declared[1]}}
+        src["driver"] += f" · ⚠ 선언 {declared[0]} 과 다르다(driver_conflict)"
+    b["os"], src["os"] = None, f"미관측(attestation·인증서·스윕 meta·manifest 에 {list(_OS_KEYS)} 키 없음 — 지어내지 않는다)"
+    for k in _OS_KEYS:
+        v, where, _bn = _attested_host(ev.attestation, k)
+        if v:
+            b["os"], src["os"] = v, f"{where} {k}"
+            return
+    for doc, where in ((meta, "sweep_index.meta"), (cert, "인증서"), (man, man_where)):
         hit = next(((k, doc[k]) for k in _OS_KEYS if isinstance(doc, dict) and not _unobserved(doc.get(k))
                     and isinstance(doc.get(k), (str, int, float))), None)
         if hit:
@@ -966,9 +1063,16 @@ def _native_producer_evidence(repo: Path, topology: str, cell: str, proof: dict 
     freeze_rel, _ = _preserved_native_file(repo, freezes.get("main"), "pip_freeze_paths.main")
     sub_freeze_rel, _ = _preserved_native_file(repo, freezes.get("sub"), "pip_freeze_paths.sub")
     cleanup_rel, cleanup = _native_cleanup_attestation(repo, proof)
+    # 기동 기록은 **선택** 신호다(2026-09-29 · plan_26092908 §4.2): 있으면 보존 파일 계약(저장소 상대 regular)을 그대로 강제하고, 없으면
+    #   결손(HINT_MISSING_NATIVE_LAUNCH · artifacts 가 기재)이다 — producer 가 쓰지 못한 사유(`native_launch_error`)는 결손 사유로 옮긴다.
+    launch_raw = proof.get("native_launch_path")
+    launch_rel = _preserved_native_file(repo, launch_raw, "native_launch_path")[0] if launch_raw not in (None, "") else None
+    err = proof.get("native_launch_error")
+    launch_err = str(err).strip()[-400:] if isinstance(err, str) and err.strip() and launch_rel is None else None
     return {"plane": "native", "native_install_path": install_rel, "pip_freeze_path": freeze_rel,
             "pip_freeze_paths": {"main": freeze_rel, "sub": sub_freeze_rel},
             "cleanup_attestation_path": cleanup_rel, "cleanup_attestation": cleanup,
+            "native_launch_path": launch_rel, "native_launch_error": launch_err,
             "source": proof_rel or "serve_proof"}
 
 
@@ -1116,18 +1220,228 @@ def measurement_config(repo, ev: CellEvidence) -> dict:
     return out
 
 
+# 판정의 기계 표면(2026-09-29 · plan_26092908 §4.4 · V1). 판정 값의 어휘 — verdict_rule 의 둘 + lite-only 셀의 표지.
+MEASUREMENT_VERDICTS = ("PASS", "REFUTE", "OBSERVATION-ONLY")
+# 판정 원천 → PAYLOAD.measurement 키. verdict.json(verdict_rule 출력)의 경로(점 표기) · 리포트 `## 판정` 표의 항목 이름 ·
+#   발행 기록 `benchmark` 의 키. 인증서 키 이름(_CERT_MEASUREMENT_KEYS)에 맞춘다 — 인증서가 있는 셀과 없는 셀이 같은 키를 말한다.
+_JUDGED_KEYS = (
+    # (측정 키,               verdict.json 경로,              리포트 판정 표 항목,           발행 기록 benchmark 키)
+    ("verdict",               "verdict",                      "verdict",                   "verdict"),
+    ("decode_tps_conc1",      "measured_decode_tps",          "측정 decode t/s (동시성1)",   None),
+    ("rubric_authority",      "rubric.authority",             "루브릭 권한",                 "rubric_authority"),
+    ("primary_tps",           "rubric.primary",               "루브릭 primary",              None),
+    ("primary_source",        "rubric.source",                None,                        "primary_source"),
+    ("floor_tps",             "rubric.floor",                 "floor (primary×(1−tol))",   "floor_tps"),
+    ("tolerance",             "rubric.tolerance",             "tolerance",                 None),
+    ("ratio_M_over_primary",  "rubric.ratio_M_over_primary",  "ratio (M/primary)",         "ratio_M_over_primary"),
+    ("spec_on",               "measured_spec_on",             None,                        None),
+    ("accept_len",            "measured_accept_len",          None,                        None),
+)
+# 인증서와 판정 원천이 **같은 측정**을 말하는지 대조하는 키(2026-09-29 · 계약 B-1 "인증서가 있으면 기존대로(값 일치 확인)").
+_CROSSCHECK_KEYS = ("verdict", "decode_tps_conc1", "rubric_authority", "floor_tps", "ratio_M_over_primary")
+_ABS_PATH_RE = re.compile(r"(?:^|[\s(=:'\"])/(?:home|mnt|root|Users|srv|data)\b")
+
+
+def _surface(v) -> str | None:
+    """판정 원천 값 → 인증서와 같은 **원문 문자열** 표면(인증서 칸은 문자열이다 · 합성 ✗ · 반올림 ✗)."""
+    if v is None or (isinstance(v, str) and _unobserved(v)):
+        return None
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (int, float)):
+        return repr(v) if isinstance(v, float) else str(v)
+    return str(v).strip() or None
+
+
+def _dig(doc, dotted: str):
+    cur = doc
+    for part in dotted.split("."):
+        if not isinstance(cur, dict):
+            return None
+        cur = cur.get(part)
+    return cur
+
+
+def _report_verdict_table(repo: Path, rel_path: str | None) -> dict:
+    """full 리포트 `## 판정` 2열 표 → {항목: 값}(render_report 가 verdict_rule 결과를 **표시만** 한 표 · 굵게·단위 표지는 벗긴다).
+    `루브릭 primary` 칸은 `29.8 t/s (expected_achievable(roofline×MBU))` 모양 — 수치만 값으로, 괄호는 primary_source 로 쪼갠다."""
+    if not rel_path or not (repo / rel_path).is_file():
+        return {}
+    out: dict = {}
+    on = False
+    for ln in (repo / rel_path).read_text(encoding="utf-8", errors="replace").splitlines():
+        s = ln.strip()
+        if s.startswith("## "):
+            on = s.startswith("## 판정")
+            continue
+        if on and s.startswith("|"):
+            cells = [c.strip() for c in s.strip("|").split("|")]
+            if len(cells) == 2 and cells[0] not in ("항목", "") and not set(cells[0]) <= {"-"}:
+                v = cells[1].replace("**", "").strip()
+                if cells[0] == "루브릭 primary":
+                    m = re.match(r"^([0-9.]+)\s*t/s\s*\((.+)\)\s*$", v)
+                    if m:
+                        out["루브릭 primary"], out["_primary_source"] = m.group(1), m.group(2)
+                        continue
+                out[cells[0]] = re.sub(r"\s*t/s$", "", v)
+    return out
+
+
+def _lite_report_numbers(repo: Path, rel_path: str | None) -> dict:
+    """경량 리포트 `## lite 지표` 표의 master 열 수치 → {gen_tps, cold_ttft_ms}(수치 칸만 · 단위 벗김 · N/A = 결측).
+    lite-only 셀은 스윕 색인이 없어 `measurement.lite` 가 비었다(2026-09-29 D2 실측 — brief 수치 원천이 없었다)."""
+    if not rel_path or not (repo / rel_path).is_file():
+        return {}
+    rows = {"gen tokens/sec (warm) [master]": ("gen_tps", "t/s"), "cold-start TTFT [master]": ("cold_ttft_ms", "ms")}
+    out: dict = {}
+    on = False
+    for ln in (repo / rel_path).read_text(encoding="utf-8", errors="replace").splitlines():
+        s = ln.strip()
+        if s.startswith("## "):
+            on = s.startswith("## lite 지표")
+            continue
+        if on and s.startswith("|"):
+            cells = [c.strip() for c in s.strip("|").split("|")]
+            if len(cells) >= 2 and cells[0] in rows:
+                key, unit = rows[cells[0]]
+                m = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)\s*" + re.escape(unit), cells[1])
+                if m:
+                    out[key] = float(m.group(1))
+    return out
+
+
+def _judged(repo: Path, ev: CellEvidence) -> tuple[dict, dict, list[str]]:
+    """인증서 없이도 읽히는 **판정 원천**(우선순위 = 스윕 verdict.json > 리포트 `## 판정` 표 > 발행 기록 benchmark).
+    반환 ({키: 원문 문자열}, {키: 출처}, verdict_reasons). 스윕은 **이 측정에 묶였을 때만**(ev.sweep = generated_utc 조인) 읽는다 —
+    같은 셀 id 의 옛 스윕 verdict 를 이 측정의 판정으로 싣지 않는다(G6 · lite 셀은 스윕을 묶지 않는다)."""
+    vals: dict = {}
+    srcs: dict = {}
+    reasons: list[str] = []
+    sw = ev.sweep or {}
+    vj = sw.get("verdict") if isinstance(sw.get("verdict"), dict) else None
+    if vj is not None:
+        where = f"{sw.get('dir')}/verdict.json({sw.get('binding')} · verdict_rule 출력)"
+        for key, path, _t, _r in _JUDGED_KEYS:
+            v = _surface(_dig(vj, path))
+            if v is not None and key not in vals:
+                vals[key], srcs[key] = v, f"{where} {path}"
+        reasons = [str(r) for r in vj.get("reasons") or [] if isinstance(r, str) and not _ABS_PATH_RE.search(r)]
+    table = _report_verdict_table(repo, ev.bench_report_path)
+    if table:
+        where = f"bench_report({Path(ev.bench_report_path or '').name}) `## 판정` 표"
+        for key, _p, item, _r in _JUDGED_KEYS:
+            v = _surface(table.get(item)) if item else None
+            if v is not None and key not in vals:
+                vals[key], srcs[key] = v, f"{where} {item}"
+        if "primary_source" not in vals and table.get("_primary_source"):
+            vals["primary_source"], srcs["primary_source"] = table["_primary_source"], f"{where} 루브릭 primary(괄호)"
+    bm = (((ev.publication or {}).get("record") or {}).get("benchmark") or {})
+    if isinstance(bm, dict) and bm:
+        where = f"발행 기록 benchmark({(ev.publication or {}).get('record_path')} · rubric_source={bm.get('rubric_source')})"
+        for key, _p, _t, rk in _JUDGED_KEYS:
+            v = _surface(bm.get(rk)) if rk else None
+            if v is not None and key not in vals:
+                vals[key], srcs[key] = v, f"{where} {rk}"
+    if "verdict" in vals:
+        vals["verdict"] = vals["verdict"].upper()
+    return vals, srcs, reasons
+
+
+def _certificate_not_due(repo: Path, ev: CellEvidence) -> str | None:
+    """인증서가 **구조적으로 나오지 않는** 판정인가 → 사유(결손 아님) | None(발행되는 판정이거나 모름 — 결손으로 적는다).
+    술어는 게이트 한 벌(completion_gate `CERTIFICATE_NON_ISSUING_AUTHORITIES` · 2026-09-29 plan_26092908 §4.8): lite-only ·
+    REFUTE(어느 권한이든 인증서는 PASS 전용) · PASS ∧ 비발행 권한. 권한은 **판정 원천에서 파생된** 것만 믿는다 — verdict.json ·
+    리포트 `## 판정` 표(verdict_rule 결과의 표시) · 발행 기록 benchmark(rubric_source=verdict_json 일 때만)."""
+    if ev.report_kind == "lite":
+        return "lite-only 셀 — 인증서는 full 측정에서만 나온다(판정 OBSERVATION-ONLY · 결손 아님)"
+    jv, js, _r = _judged(repo, ev)
+    verdict, authority = jv.get("verdict"), jv.get("rubric_authority")
+    asrc = js.get("rubric_authority") or ""
+    rec_bm = (((ev.publication or {}).get("record") or {}).get("benchmark") or {})
+    if asrc.startswith("발행 기록") and rec_bm.get("rubric_source") != "verdict_json":
+        authority = None                  # 출처 표시 없는 권한으로 면제를 열지 않는다(게이트 certificate_requirement_authority 와 같은 결)
+    if verdict == "REFUTE":
+        return f"REFUTE — 인증서는 PASS 전용이다(판정 {js.get('verdict')} · 결손 아님 · 판정 근거 = bench_report)"
+    if verdict == "PASS" and authority in cgate(repo).CERTIFICATE_NON_ISSUING_AUTHORITIES:
+        return (f"PASS ∧ 비발행 권한 {authority}({asrc}) — judge_bench 는 explicit ∧ PASS 만 인증서를 낸다(결손 아님 · "
+                "판정 근거 = bench_report)")
+    return None
+
+
+def _num_equal(a: str, b: str) -> bool:
+    """두 원문 문자열이 같은 측정값인가 — 수치는 **짧은 쪽 표기의 자릿수** 안에서 같으면 같다(인증서 `0.926` ↔ verdict `0.926` ·
+    리포트 `20.98` ↔ verdict `20.98`). 수치가 아니면 글자(대소문자 무시)."""
+    try:
+        fa, fb = float(a), float(b)
+    except (TypeError, ValueError):
+        return str(a).strip().lower() == str(b).strip().lower()
+
+    def decimals(s: str) -> int:
+        s = str(s).strip()
+        return len(s.split(".", 1)[1]) if "." in s and "e" not in s.lower() else 0
+    tol = 0.5 * 10 ** -min(decimals(a), decimals(b)) + 1e-9
+    return abs(fa - fb) <= tol
+
+
 def measurement(ev: CellEvidence) -> dict:
     """PAYLOAD.measurement — 측정 기록(인증서 성능 칸의 **원문 문자열** + 묶인 스윕의 레벨 표 수치 · lite 수치). 파싱만 한다
     (합성 ✗ · 재계산 ✗). 인증서 칸은 선택 목록(_CERT_MEASUREMENT_KEYS)이라 판정·루브릭 표지(verdict·primary_source 등)도
-    원문 그대로 실린다. 절대경로를 담는 스윕 칸(`raw_json`·`bench_json`)은 옮기지 않는다(배포 평면)."""
+    원문 그대로 실린다. 절대경로를 담는 스윕 칸(`raw_json`·`bench_json`)은 옮기지 않는다(배포 평면).
+
+    ★ 2026-09-29(plan_26092908 §4.4 · V1): 옛 판본은 판정 칸을 **인증서에서만** 옮겼다 — 인증서는 explicit PASS 에만 나오므로 REFUTE
+      (D1·N1)의 measurement 는 5키(판정·수치 없음)였다. 이제 인증서 유무와 무관하게 판정 원천(`_judged`: 스윕 verdict.json > 리포트
+      `## 판정` 표 > 발행 기록 benchmark)에서 `verdict ∈ MEASUREMENT_VERDICTS` · `decode_tps_conc1` · `floor_tps` · `ratio_M_over_primary`
+      · `rubric_authority` · `benchmark_mode` · `accept_len` 을 채우고, 키별 출처를 `sources{키: 출처}` 에 둔다. 판정이 한 번도 내려지지
+      않은 lite-only 셀은 `OBSERVATION-ONLY`(판정 원천이 있으면 — 반복 불성립으로 강등된 full — 그 판정을 그대로 싣는다).
+      인증서가 있으면 인증서 칸이 이기고, 같은 측정의 판정 원천과 _CROSSCHECK_KEYS 가 다르면 **죽는다**(HINT_MEASUREMENT_VERDICT_MISMATCH ·
+      두 기록이 다른 측정을 말한다 — 고르지 않는다)."""
+    repo = _repo(ev.repo or ".")
     out: dict = {}
     srcs: list[str] = []
+    per: dict[str, str] = {}
     cert = ev.certificate or {}
+    cname = f"certificate({Path(ev.certificate_path or '').name})"
     for k in _CERT_MEASUREMENT_KEYS:
         if k in cert:
             out[k] = cert[k]
+            per[k] = f"{cname} {k}"
     if cert:
-        srcs.append(f"certificate({Path(ev.certificate_path or '').name})")
+        srcs.append(cname)
+    jv, js, reasons = _judged(repo, ev)
+    if cert:
+        bad = [f"{k}: 인증서={cert.get(k)!r} {js[k]}={jv[k]!r}" for k in _CROSSCHECK_KEYS
+               if k in jv and not _unobserved(cert.get(k)) and not _num_equal(str(cert.get(k)), jv[k])]
+        if bad:
+            core.fail("HINT_MEASUREMENT_VERDICT_MISMATCH", f"인증서와 같은 측정의 판정 원천이 다른 값을 말한다: {bad}",
+                      "인증서가 이 측정(스윕 generated_utc = measured_utc)의 판정에서 나왔는지 확인한다 — 발행기가 둘 중 하나를 고르지 않는다.")
+    for k, v in jv.items():
+        if k not in out or _unobserved(out.get(k)):
+            out[k], per[k] = v, js[k]
+    if jv and not cert:
+        kinds = sorted({"verdict.json" if "verdict.json" in v else "bench_report 판정 표" if "`## 판정` 표" in v
+                        else "발행 기록 benchmark" for v in js.values()})
+        srcs.append(f"판정 원천({' · '.join(kinds)})")
+    if reasons and out.get("verdict") == "REFUTE":
+        out["verdict_reasons"], per["verdict_reasons"] = reasons, js.get("verdict", "verdict.json reasons")
+    mc = measurement_config(repo, ev)
+    if _unobserved(out.get("benchmark_mode")) and mc.get("bench_mode"):
+        out["benchmark_mode"], per["benchmark_mode"] = mc["bench_mode"], f"measurement_config.bench_mode({mc.get('source')})"
+    if _unobserved(out.get("verdict")):
+        if out.get("benchmark_mode") == "lite" or ev.report_kind == "lite":
+            out["verdict"] = "OBSERVATION-ONLY"
+            per["verdict"] = ("lite-only 셀 — verdict_rule 에 투입되지 않았다(경량 리포트 `inform-only` · 판정 원천 없음 · "
+                              f"benchmark_mode={out.get('benchmark_mode')} · report_kind={ev.report_kind})")
+        else:
+            out["verdict"] = None
+            per["verdict"] = "미관측(인증서·스윕 verdict.json·리포트 `## 판정` 표·발행 기록 benchmark 모두 없다 — 지어내지 않는다)"
+    elif out["verdict"] not in MEASUREMENT_VERDICTS:
+        core.fail("HINT_MEASUREMENT_VERDICT_UNKNOWN", f"판정 원천의 verdict {out['verdict']!r} 가 {MEASUREMENT_VERDICTS} 밖이다({per.get('verdict')}).",
+                  "verdict_rule 어휘가 바뀌었으면 evidence.MEASUREMENT_VERDICTS 를 개정한다(tripwire — 모르는 판정을 통과로 접지 않는다).")
+    for k in ("decode_tps_conc1", "floor_tps", "ratio_M_over_primary", "rubric_authority", "accept_len"):
+        if k not in out:
+            out[k] = None
+            per[k] = ("lite-only 셀 — 동시성 1 스윕·루브릭이 없다(lite 수치는 `lite`)" if out["verdict"] == "OBSERVATION-ONLY"
+                      else "미관측(판정 원천에 이 칸이 없다)")
     sw = ev.sweep or {}
     levels = []
     for lv in sw.get("levels") or []:
@@ -1141,16 +1455,32 @@ def measurement(ev: CellEvidence) -> dict:
     if levels:
         out["levels"] = levels
         out["verdict_point_level"] = (sw.get("index") or {}).get("verdict_point_level")
+        per["levels"] = per["verdict_point_level"] = f"sweep_index({sw.get('dir')} · {sw.get('binding')})"
     lite = sw.get("lite") or {}
     lite_nums = {k: lite.get(k) for k in ("gen_tps", "gen_src", "cold_ttft_ms", "kv_gib") if k in lite}
     if isinstance(lite.get("engine"), dict):
         lite_nums.update({f"engine_{k}": v for k, v in lite["engine"].items() if isinstance(v, (int, float))})
     if lite_nums:
-        out["lite"] = lite_nums
+        out["lite"], per["lite"] = lite_nums, f"sweep_index.lite({sw.get('dir')})"
+    elif ev.report_kind == "lite":
+        ln = _lite_report_numbers(repo, ev.bench_report_path)
+        if ln:
+            out["lite"] = ln
+            per["lite"] = f"bench_report({Path(ev.bench_report_path or '').name}) `## lite 지표` 표 master 열(단위 벗김 · 파싱만)"
+            srcs.append(f"bench_report({Path(ev.bench_report_path or '').name} · lite)")
     if sw:
         out["generated_utc"] = sw.get("generated_utc")
         srcs.append(f"sweep_index({sw.get('dir')} · {sw.get('binding')})")
+    # 측정 시각(2026-09-29 · §4.5 "미관측 오판"): 인증서가 없는 셀도 측정 시각은 관측돼 있다 — 스윕 generated_utc(= render_report 생성일)
+    #   또는 경량 리포트 생성일(= lite_raw measured_utc). 옛 판본은 인증서의 measured_utc 만 옮겨 REFUTE·lite 셀에서 비었다.
+    if _unobserved(out.get("measured_utc")):
+        mu = sw.get("generated_utc") or _report_born_utc(repo, ev.bench_report_path)
+        if mu:
+            out["measured_utc"] = mu
+            per["measured_utc"] = (f"sweep_index.generated_utc({sw.get('dir')})" if sw.get("generated_utc")
+                                   else f"bench_report({Path(ev.bench_report_path or '').name}) 머리 `생성일`")
     out["source"] = " + ".join(srcs) if srcs else "absent(인증서·스윕 모두 없다)"
+    out["sources"] = per
     return out
 
 
@@ -2531,16 +2861,51 @@ def vllm_observed(ev: CellEvidence, repo=None) -> dict:
     label, psrc = _cert_vllm_producer(rp, ev)
     cert_v = _norm_value((ev.certificate or {}).get("vllm_version"))
     meta = ((ev.sweep or {}).get("index") or {}).get("meta") or {}
-    wheel_src = ("미관측 — 측정 경로에 wheel 배포 메타 관측자가 없다(sweep_index.meta.vllm_build="
-                 f"{meta.get('vllm_build')!r} 는 sweep_bench 가 엔진 로그에서 `v<x.y.z…>` 정규식으로 잡는 값이다 → engine_self_report 의 원천)")
+    wheel, wheel_src = _wheel_meta(rp, ev)
+    if wheel is None:
+        wheel_src += ("(sweep_index.meta.vllm_build="
+                      f"{meta.get('vllm_build')!r} 는 sweep_bench 가 엔진 로그에서 `v<x.y.z…>` 정규식으로 잡는 값이다 → engine_self_report 의 원천)")
     return {"engine_self_report": banner["value"], "engine_self_report_source": banner["source"],
             "engine_self_report_basis": banner["basis"],
             "certificate_vllm_version": cert_v, "certificate_vllm_version_producer": label,
             "certificate_vllm_version_source": psrc,
-            "wheel_meta": None, "wheel_meta_source": wheel_src,
+            "wheel_meta": wheel, "wheel_meta_source": wheel_src,
             # 옛 소비자(칸 하나의 source)용 요약 — 칸별 서술을 다시 적지 않는다(같은 바이트 두 벌 ✗ · 정본은 `*_source`).
             "source": (f"칸별 출처는 *_source — engine_self_report={banner['basis']} · certificate_vllm_version={label}"
-                       + ("(빌드 입력 태그 파생 · 엔진 자기보고 아님)" if label == "image-tag-line" else "") + " · wheel_meta=미관측")}
+                       + ("(빌드 입력 태그 파생 · 엔진 자기보고 아님)" if label == "image-tag-line" else "")
+                       + f" · wheel_meta={'관측' if wheel else '미관측'}")}
+
+
+def _wheel_meta(repo: Path, ev: CellEvidence) -> tuple[str | None, str]:
+    """설치된 vLLM 배포 메타 버전(`importlib.metadata.version('vllm')` = wheel METADATA) — 관측 원천 둘(2026-09-29 · plan_26092908 §4.5
+    "미관측 오판"): ① 노드 정합 attestation `nodes.<n>.vllm_dist_version`(multinode_serve_smoke 가 실행 중 컨테이너에서 캡처)
+    ② native serve proof 가 보존한 pip freeze 의 `vllm==` 줄(노드별). 옛 판본은 attestation 에 그 칸이 있는데도 "측정 경로에 관측자가
+    없다" 고 적었다. 노드끼리 다르면 값을 고르지 않는다(None · 출처가 두 값을 말한다).
+    native 셀은 ② 가 먼저다 — 실행 평면이 venv 이고, 묶인 attestation 은 원천 이미지(Docker) 실행의 것이다(다른 평면의 관측)."""
+    v, where, by_node = _attested_host(ev.attestation, "vllm_dist_version")
+    if v is not None and ev.plane != "native":
+        if len(set(by_node.values())) > 1:
+            return None, f"노드별 상이 — 값을 고르지 않는다: {where}"
+        return v, where
+    freezes = ev.pip_freeze_paths or ({"main": ev.pip_freeze_path} if ev.pip_freeze_path else {})
+    got: dict[str, str] = {}
+    for n, rel in sorted(freezes.items()):
+        p = repo / str(rel)
+        if not p.is_file():
+            continue
+        for ln in p.read_text(encoding="utf-8", errors="replace").splitlines():
+            m = re.match(r"^vllm==(\S+)\s*$", ln.strip())
+            if m:
+                got[n] = m.group(1)
+                break
+    if got:
+        where = " · ".join(f"{n}={freezes[n]}" for n in sorted(got))
+        if len(set(got.values())) > 1:
+            return None, f"native pip freeze `vllm==` 노드별 상이({where}) — 값을 고르지 않는다"
+        return next(iter(got.values())), f"native pip freeze `vllm==` 줄({where} · 노드별 관측 · 일치)"
+    if v is not None and len(set(by_node.values())) == 1:
+        return v, where + " · ⚠ native 셀인데 pip freeze 에 vllm 줄이 없어 원천 이미지 실행의 관측을 쓴다"
+    return None, "미관측 — attestation vllm_dist_version · native pip freeze 모두 없다"
 
 
 _ATTEST_TIME_KEYS = ("written_utc", "captured_utc", "generated_utc", "utc")
@@ -2597,6 +2962,11 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
     else:
         ev.sweep, sm, ev.sources["sweep"] = _bind_sweep(repo, ev.topology, ev.cell, measured_key, simlog_dirs)
         missing += sm
+    if not ev.certificate and "HINT_MISSING_CERTIFICATE" in missing:
+        not_due = _certificate_not_due(repo, ev)
+        if not_due:
+            missing = [c for c in missing if c != "HINT_MISSING_CERTIFICATE"]
+        ev.sources["certificate_due"] = not_due or "인증서가 발행되는 판정(explicit ∧ PASS) 또는 판정·권한 미관측 — 부재 = 결손"
     ev.serve_proof, sp_rel = _serve_proof(repo, ev.topology, ev.cell)
     ev.sources["serve_proof"] = sp_rel or f"output/{ev.topology}/benchlog/serve_proof_{ev.cell}.json 부재"
     native = _native_producer_evidence(repo, ev.topology, ev.cell, ev.serve_proof, sp_rel)
@@ -2607,6 +2977,12 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
         ev.pip_freeze_paths = native["pip_freeze_paths"]
         ev.cleanup_attestation_path = native["cleanup_attestation_path"]
         ev.cleanup_attestation = native["cleanup_attestation"]
+        ev.native_launch_path, ev.native_launch_error = native["native_launch_path"], native["native_launch_error"]
+        ev.sources["native_launch_path"] = (f"{native['source']}#native_launch_path(preserved repo-relative)"
+                                            if native["native_launch_path"] else
+                                            f"{native['source']}#native_launch_path 부재" + (
+                                                f" · producer 사유 native_launch_error: {native['native_launch_error']}"
+                                                if native["native_launch_error"] else " · 옛 proof(필드 없음)"))
         ev.sources.update({
             "plane": f"{native['source']}#plane(observed native)",
             "native_install_path": f"{native['source']}#native_install_path(preserved repo-relative)",
@@ -2622,7 +2998,6 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
                                             runner=runner)
     missing += bm
     ev.sources["build_identity"] = "build_identity.source(필드별)"
-    _host_facts(ev)
     ev.resolve, ev.sources["resolve"] = _bind_resolve(repo, ev.topology, ev.build_identity)
     ref = str(ev.build_identity.get("vllm_ref") or "").strip().lower()
     if _SHA40.match(ref):
@@ -2647,6 +3022,9 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
     ev.attestation, am, ev.sources["attestation"] = _bind_attestation(repo, ev.topology, ev.node, ev.cell,
                                                                        ev.build_identity)
     missing += am
+    # 호스트 사실은 attestation 바인딩 **뒤에** 채운다 — 노드별 관측(parity)이 선언 옮김(스윕 meta·인증서)을 이긴다
+    #   (plan_26092908 §4.5 · V3). 옛 판본은 attestation 을 묶기 전에 불러 관측 원천이 구조적으로 없었다.
+    _host_facts(ev)
     if fork and not _SHA40.match(ref):
         led_sha = str(_ledger_vllm(ev.attestation).get("git_sha") or "").strip().lower()
         ev.build_identity["vllm_sha"] = led_sha if _SHA40.match(led_sha) else None
@@ -2719,18 +3097,82 @@ def _release_of(ref) -> str | None:
     return naming.release_of(ref)
 
 
+def _tp_signal(repo: Path, topology: str, cell: str, *, cert: dict | None, measured_key: str | None, report_rel: str | None,
+               simlog_dirs=()) -> tuple[int | None, str]:
+    """노드 축 자동 파생의 입력 — 이 셀의 측정 TP 와 출처. 측정 > 선언: 인증서 tensor_parallel_size > 조인된 스윕 meta(generated_utc =
+    측정 키) > 리포트 측정 환경 표 > 서빙 yaml(선언 · 측정 기록이 TP 를 들지 않을 때만 · 출처에 그렇게 적는다)."""
+    tp = _as_int(_norm_value((cert or {}).get("tensor_parallel_size")))
+    if tp is not None:
+        return tp, "인증서 tensor_parallel_size"
+    if measured_key:
+        sw, _m, _s = _bind_sweep(repo, topology, cell, measured_key, simlog_dirs)
+        meta = ((sw or {}).get("index") or {}).get("meta") or {}
+        tp = _as_int(_norm_value(meta.get("tensor_parallel_size")))
+        if tp is not None:
+            return tp, f"sweep_index.meta.tensor_parallel_size({(sw or {}).get('dir')} · generated_utc = 측정 키)"
+    tp = _as_int(_norm_value(_lite_snapshot(repo, report_rel).get("tensor_parallel_size")))
+    if tp is not None:
+        return tp, f"bench_report({Path(report_rel or '').name}) 측정 환경 표 tensor_parallel_size"
+    yrel = f"output/{topology}/configs/{cell}.yaml"
+    if (repo / yrel).is_file():
+        y = _owner_yaml(repo, repo / yrel, "서빙 yaml")
+        tp = _as_int((y or {}).get("tensor-parallel-size")) if isinstance(y, dict) else None
+        if tp is not None:
+            return tp, f"서빙 yaml tensor-parallel-size({yrel} · 선언 — 측정 기록이 TP 를 들지 않는다)"
+    return None, "측정 TP 미관측(인증서·조인 스윕 meta·리포트 표·서빙 yaml 모두 없음)"
+
+
+def _auto_node(repo: Path, topology: str, cell: str, *, cert: dict | None, measured_key: str | None, report_rel: str | None,
+               simlog_dirs=()) -> tuple[str | None, str]:
+    """`--node` 미지정일 때 **cluster** 축 자동 파생(2026-09-29 · plan_26092908 §4.8 · V11 ③ — 멀티 셀 3/3 이 `--node cluster` 를 손으로
+    줬다: 인증서 없는 REFUTE·lite 셀은 measured_node 가 없어 배정(main)으로 떨어지고 TP=2 측정이 HINT_ARCH_TP_CONFLICT 로 막혔다).
+    신호: ① 측정 TP > manifest gpus_per_node(한 노드가 가진 GPU 보다 큰 TP 는 단일 노드 형상일 수 없다) ② 멀티 serve proof
+    (`kind ∈ {multinode_serve_proof, native_multinode_serve_proof}` · config = 셀) ③ 셀 이름 노드 정합 attestation.
+    판정: ① 참 → cluster · TP 관측 ∧ TP ≤ gpus_per_node(단일 노드 형상) ∧ ②③ 중 하나 → **모호 = 죽는다**(HINT_NODE_AXIS_UNDERIVABLE —
+    기존 오류와 같은 코드) · TP 미관측 ∧ ②③ → cluster · 그 밖 → (None, 사유)(호출부가 기존 규칙 — 배정 · 오류 — 로 간다)."""
+    if topology != "multi":
+        return None, f"topology={topology} — cluster 자동 파생 대상 아님"
+    tp, tp_src = _tp_signal(repo, topology, cell, cert=cert, measured_key=measured_key, report_rel=report_rel,
+                            simlog_dirs=simlog_dirs)
+    man, man_src = _manifest(repo, topology)
+    gpn = _as_int((man or {}).get("gpus_per_node"))
+    sp, sp_rel = _serve_proof(repo, topology, cell)
+    multi_proof = isinstance(sp, dict) and sp.get("kind") in ("multinode_serve_proof", "native_multinode_serve_proof") \
+        and sp.get("cell", sp.get("config")) == cell
+    att_rel = f"output/{topology}/benchlog/attestation_{cell}.json"
+    att = (repo / att_rel).is_file()
+    multi = ([f"멀티 serve proof {sp_rel}(kind={sp.get('kind')})"] if multi_proof else []) + \
+        ([f"노드 정합 attestation {att_rel}"] if att else [])
+    if tp is not None and gpn:
+        if tp > gpn:
+            return "cluster", (f"자동 파생 — 측정 TP={tp}({tp_src}) > gpus_per_node={gpn}({man_src}) · 단일 노드 형상일 수 없다"
+                               + (f" · 일치 신호: {' · '.join(multi)}" if multi else ""))
+        if multi:
+            core.fail("HINT_NODE_AXIS_UNDERIVABLE",
+                      f"노드 축이 모호하다 — 측정 TP={tp}({tp_src}) ≤ gpus_per_node={gpn}(단일 노드 형상)인데 멀티 신호가 있다: {multi}.",
+                      "측정한 노드 축을 `--node main|sub|cluster` 로 명시한다(한 태그 = 한 노드 형상의 실행 기록).")
+        return None, f"측정 TP={tp} ≤ gpus_per_node={gpn} — 단일 노드 형상(자동 cluster ✗)"
+    if multi:
+        return "cluster", f"자동 파생 — TP·gpus_per_node 대조 불가({tp_src} · gpus_per_node={gpn}) · 멀티 신호: {' · '.join(multi)}"
+    return None, f"cluster 신호 없음({tp_src} · gpus_per_node={gpn} · 멀티 serve proof·attestation 부재)"
+
+
 def _resolve_node(ev_node, *, measured, topology: str, assigned: str | None, declared: list[str],
-                  cert_node_source: str) -> tuple[str, str]:
+                  cert_node_source: str, auto: tuple[str | None, str] | None = None) -> tuple[str, str]:
     """발행 노드 축. **한 태그 = 한 노드 형상의 실행 기록**(계약 §1 · 옛 hint_tag._require_node_axis_match ·
-    2026-09-07 plan_26090715 R4). 인증서 measured_node 와 다르면 죽는다 — 결손(부재)은 막지 않는다(부재 ≠ 불일치)."""
+    2026-09-07 plan_26090715 R4). 인증서 measured_node 와 다르면 죽는다 — 결손(부재)은 막지 않는다(부재 ≠ 불일치).
+    `--node` 미지정 순서: 인증서 measured_node > 자동 cluster 파생(`_auto_node` · 2026-09-29 plan_26092908 §4.8) > 배정 > 오류."""
     measured = None if _unobserved(measured) else str(measured).strip()
     if ev_node is None:
         if measured in NODE_AXIS:
             node, src = measured, f"{cert_node_source} measured_node"
+        elif auto is not None and auto[0] == "cluster":
+            node, src = "cluster", auto[1]
         elif assigned:
             node, src = assigned, "캠페인 assignments(배정 SSOT)"
         else:
-            core.fail("HINT_NODE_AXIS_UNDERIVABLE", "발행 노드 축을 파생하지 못했다(measured_node·배정 모두 없음).",
+            core.fail("HINT_NODE_AXIS_UNDERIVABLE", "발행 노드 축을 파생하지 못했다(measured_node·자동 cluster·배정 모두 없음"
+                      + (f" · 자동: {auto[1]}" if auto else "") + ").",
                       "`--node main|sub|cluster` 로 준다.")
     else:
         node, src = _check_node(ev_node), "발행 인자 --node"
@@ -2827,8 +3269,16 @@ def from_campaign(repo, campaign_id, cell, node=None, *, docker=None) -> CellEvi
     raw = ptr_doc.get("pointers") if isinstance(ptr_doc, dict) and isinstance(ptr_doc.get("pointers"), list) else []
     cell_ptrs = [dict(p) for p in raw if isinstance(p, dict) and p.get("cell_id") == cell]
     cert_rel, cert, absent = _certificate_from_pointers(repo, [p for p in cell_ptrs if p.get("kind") == "certificate"])
+    auto = None
+    if node is None and _unobserved((cert or {}).get("measured_node")):
+        # 자동 cluster 파생(plan_26092908 §4.8)의 측정 키 — 노드 필터 **전** 의 셀 리포트 포인터(하나일 때만) 또는 인증서 이름 쌍.
+        pre = sorted({p["path"] for p in cell_ptrs if p.get("kind") == "bench_report" and isinstance(p.get("path"), str)
+                      and (repo / p["path"]).is_file()})
+        pre_rel = pre[0] if len(pre) == 1 else _report_twin(cert_rel)
+        auto = _auto_node(repo, topology, cell, cert=cert, report_rel=pre_rel,
+                          measured_key=_norm_value((cert or {}).get("measured_utc")) or _report_born_utc(repo, pre_rel))
     node, sources["node"] = _resolve_node(node, measured=(cert or {}).get("measured_node"), topology=topology,
-                                          assigned=assigned, declared=declared, cert_node_source="인증서")
+                                          assigned=assigned, declared=declared, cert_node_source="인증서", auto=auto)
     pointers = sorted((p for p in cell_ptrs if _pointer_ok(p, node, declared, val)),
                       key=lambda p: (str(p.get("kind")), str(p.get("path"))))
     if cert_rel and not any(p.get("path") == cert_rel for p in pointers):
@@ -2926,8 +3376,12 @@ def from_publication(repo, topic, node=None, *, docker=None) -> CellEvidence:
     simlog = (record.get("raw_log_paths") or {}).get("simlog") or scaff.get("simlog")
     simlog_dirs = [simlog] if isinstance(simlog, str) and simlog else []
     cell, cell_src = _cell_of_publication(repo, topology, measured_key, simlog_dirs)
+    auto = None
+    if node is None and _unobserved((cert or {}).get("measured_node")):
+        auto = _auto_node(repo, topology, cell, cert=cert, measured_key=measured_key, report_rel=report_rel,
+                          simlog_dirs=simlog_dirs)
     node, node_src = _resolve_node(node, measured=(cert or {}).get("measured_node"), topology=topology, assigned=None,
-                                   declared=[], cert_node_source="인증서")
+                                   declared=[], cert_node_source="인증서", auto=auto)
     pointers = [{"kind": k, "path": v, "cell_id": cell, "node_id": node} for k, v in sorted(scaff.items())
                 if isinstance(v, str) and v]
     sources = {"publication": f"{core.REL_EVIDENCE_DIR}/{topic}.json", "topology": "발행 기록 identity.topology",
@@ -2966,6 +3420,20 @@ def _cell_of_publication(repo: Path, topology: str, measured_key: str | None, si
             return hits[0], f"output/{topology}/benchlog/sweep_{hits[0]}(generated_utc = measured_utc {measured_key})"
         if len(hits) > 1:
             core.fail("HINT_CELL_AMBIGUOUS", f"measured_utc={measured_key} 인 스윕이 {len(hits)}개다: {hits}")
+        # lite-only 셀(2026-09-29 · plan_26092908 §4.8 재생 — D2 `nv4-f8-262k-mmp` 가 purge 뒤 재생 불가였다): 스윕이 없고 발행 기록에
+        #   simlog 도 없다. 조인 키 = lite raw 의 `measured_utc`(= 경량 리포트 `생성일`) + `config_name` = 파일 이름의 셀(이름만으로 ✗ · G6).
+        lite_hits = []
+        for raw_path in sorted((repo / "output" / topology / "benchlog").glob("lite_raw_*.json")):
+            raw = _read_json_opt(raw_path, "lite_raw")
+            name = raw.get("config_name") if isinstance(raw, dict) else None
+            if isinstance(name, str) and _CELL_RE.match(name) and raw_path.name == f"lite_raw_{name}.json" \
+                    and raw.get("measured_utc") == measured_key:
+                lite_hits.append(name)
+        if len(lite_hits) == 1:
+            return lite_hits[0], (f"output/{topology}/benchlog/lite_raw_{lite_hits[0]}.json(measured_utc = 리포트 생성일 {measured_key} · "
+                                  "config_name = 파일 이름)")
+        if len(lite_hits) > 1:
+            core.fail("HINT_CELL_AMBIGUOUS", f"measured_utc={measured_key} 인 lite raw 가 {len(lite_hits)}개다: {lite_hits}")
     core.fail("HINT_CELL_UNDERIVABLE", "발행 기록에서 셀 이름을 파생하지 못했다(simlog 사본·조인되는 스윕 모두 없음).",
               "셀 이름은 토픽 문자열에서 추측하지 않는다 — 발행 기록의 simlog 에 sweep_index.json 이 있어야 한다.")
 
@@ -3154,6 +3622,8 @@ def identity(ev: CellEvidence) -> dict:
                      "hf_revision": ck.get("hf_revision_source") or ck.get("reason") or "체크포인트 미관측",
                      "base_model": ck.get("base_model_source"),
                      "base_slug": f"model({six['model']}) − vocab quant_suffixes(naming.base_slug)"}
+    # 혼합 구성(2026-09-29 · plan_26092908 §4.1 U9): q 축은 선언 방식 하나 — 체크포인트가 실제로 든 dtype 구성은 여기 기계 필드로.
+    out["quant_composition"], out["source"]["quant_composition"] = _quant_composition(ck)
     if out.get("quant") in (None, ""):
         # 2026-09-22(plan_26092119 S2 round 2 · F4): 인증서·스윕 meta 의 quantization 이 N/A 인데 이름의 q 축은 체크포인트 config 에서
         #   nvfp4 를 파생했다 — 같은 00 사실 블록이 "양자화 미관측" 과 "q=nvfp4" 를 함께 말했다(채점 AC3-b nit). 측정 identity(강식별
@@ -3405,7 +3875,12 @@ def _base_model(host: Path, label: str) -> tuple[str | None, str]:
 
 
 def _quant_raw(ck: dict) -> dict:
-    """체크포인트 → q 축 raw. modelopt MIXED_PRECISION 은 quantized_layers 의 **우세 알고리즘**(동률 = 파생 불가)."""
+    """체크포인트 → q 축 raw. **규칙 = 체크포인트가 선언한 주 방식**(2026-09-29 · plan_26092908 §4.1 U9 · V10 명문화):
+      ① `quantization_config.quant_method`(또는 hf_quant_config 의 modelopt) 가 선언한 방식을 그대로 쓴다 — 바이트 비중·층 dtype 을
+         세어 다시 판정하지 않는다(DS4F: 선언 fp8 · routed expert 는 `expert_dtype: fp4` 로 바이트 대부분이지만 q = fp8).
+      ② **보조 규칙** — modelopt `MIXED_PRECISION` 은 선언이 "혼합" 이라 한 방식을 말하지 않는다: 그때만 quantized_layers 의
+         **우세 알고리즘**(층 개수 · 동률 = 파생 불가)을 쓴다(Qwen3.8 NVFP4 48/50).
+      혼합 구성의 실제 모양(dtype 별 대상)은 이름에 넣지 않고 `identity.quant_composition`(_quant_composition)에 싣는다."""
     label = ck.get("host_label") or "체크포인트"
     if not ck.get("observed") or not isinstance(ck.get("config"), dict):
         return {"source": ""}      # raw 키 없음 = 파생 불가(읽지 못함 ≠ 없음)
@@ -3437,6 +3912,71 @@ def _quant_raw(ck: dict) -> dict:
     if method:
         return {"raw": method, "source": f"{label}/{where} quant_method={method}"}
     return {"source": f"{label}/{where} 에 quant_method 가 없다"}
+
+
+def _quant_composition(ck: dict) -> tuple[list[dict] | None, str]:
+    """체크포인트 config 에서 **관측되는** dtype 구성 → `[{scope, dtype, source[, count]}]`(2026-09-29 · plan_26092908 §4.1 U9 · V10).
+    이름의 q 축(선언 방식 하나)이 말하지 못하는 혼합을 기계 필드로 싣는다 — 읽는 칸(닫힌 목록):
+      · `quantization_config`(또는 hf_quant_config `quantization`) — quant_method/quant_algo(+ fmt · weight_block_size)
+      · modelopt MIXED `quantized_layers` — 알고리즘별 층 개수(예시 모듈 1개) · `ignore`/`exclude_modules` — 비양자화 모듈 수
+      · 최상위(또는 text_config) `expert_dtype` — routed expert dtype(DeepSeek 계열)
+      · `torch_dtype`/`dtype` — 비양자화 가중치·계산 기본 dtype
+    구성을 **해석하지 않는다**(바이트 비중 추정 ✗). 체크포인트 미관측 = (None, 사유). 출처에 호스트 경로를 적지 않는다(host_label)."""
+    label = ck.get("host_label") or "체크포인트"
+    cfg = ck.get("config") if ck.get("observed") else None
+    if not isinstance(cfg, dict):
+        return None, f"체크포인트 config 미관측({ck.get('reason') or label}) — 구성 미기재"
+    out: list[dict] = []
+    qc = cfg.get("quantization_config")
+    hq = (ck.get("hf_quant") or {}).get("quantization") if isinstance(ck.get("hf_quant"), dict) else None
+    where, q = ("config.json quantization_config", qc) if isinstance(qc, dict) else \
+        ("hf_quant_config.json quantization", hq) if isinstance(hq, dict) else (None, None)
+    if q is not None:
+        method = str(q.get("quant_method") or ("modelopt" if where.startswith("hf_quant") else "")).lower()
+        algo = q.get("quant_algo")
+        layers = q.get("quantized_layers")
+        if not isinstance(layers, dict) and isinstance(hq, dict):
+            layers = hq.get("quantized_layers")
+        if str(algo or "").upper() == "MIXED_PRECISION" and isinstance(layers, dict):
+            by: dict[str, list[str]] = {}
+            for name, v in layers.items():
+                a = v.get("quant_algo") if isinstance(v, dict) else v if isinstance(v, str) else None
+                if a:
+                    by.setdefault(str(a), []).append(str(name))
+            for a, names in sorted(by.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+                out.append({"scope": f"quantized_layers {len(names)}개(예 {names[0]})", "dtype": a, "count": len(names),
+                            "source": f"{label}/{where} quantized_layers(modelopt MIXED_PRECISION)"})
+        else:
+            detail = " · ".join(f"{k}={q[k]}" for k in ("fmt", "weight_block_size", "group_size") if q.get(k) is not None)
+            dtype = f"{method}:{algo}" if method == "modelopt" and algo else (method or str(algo or "")) or None
+            if dtype:
+                out.append({"scope": "quantization_config 선언 대상(양자화 층 · 제외 목록 밖)",
+                            "dtype": dtype + (f" ({detail})" if detail else ""),
+                            "source": f"{label}/{where} quant_method" + ("·quant_algo" if algo else "")})
+        ign = q.get("ignore") if isinstance(q.get("ignore"), list) else q.get("exclude_modules") \
+            if isinstance(q.get("exclude_modules"), list) else None
+        if ign is None and isinstance(hq, dict) and isinstance(hq.get("exclude_modules"), list):
+            ign = hq["exclude_modules"]
+        if ign:
+            out.append({"scope": f"양자화 제외 모듈 {len(ign)}개", "dtype": "unquantized(아래 기본 dtype)", "count": len(ign),
+                        "source": f"{label}/{where} ignore·exclude_modules"})
+    for d, dwhere in ((cfg, "config.json"), (cfg.get("text_config") if isinstance(cfg.get("text_config"), dict) else {},
+                                                "config.json text_config")):
+        if isinstance(d.get("expert_dtype"), str) and d["expert_dtype"].strip():
+            out.append({"scope": "routed experts", "dtype": d["expert_dtype"].strip(), "source": f"{label}/{dwhere} expert_dtype"})
+            break
+    for k in ("torch_dtype", "dtype"):
+        for d, dwhere in ((cfg, "config.json"), (cfg.get("text_config") if isinstance(cfg.get("text_config"), dict) else {},
+                                                    "config.json text_config")):
+            if isinstance(d.get(k), str) and d[k].strip():
+                out.append({"scope": "기본 dtype(비양자화 가중치·계산)", "dtype": d[k].strip(), "source": f"{label}/{dwhere} {k}"})
+                break
+        else:
+            continue
+        break
+    if not out:
+        return [], f"{label}/config.json 에 양자화·dtype 칸이 없다(관측 · 빈 구성)"
+    return out, f"{label}/config.json(+hf_quant_config.json) 관측 칸(evidence._quant_composition 닫힌 목록)"
 
 
 def _ple_present(ck: dict) -> bool | None:
@@ -3582,6 +4122,123 @@ def naming_facts(repo, ev: CellEvidence) -> dict:
     return facts
 
 
+# ── 이름 꼬리 근거 대조 입력(2026-09-29 · plan_26092908 §4.1 U6) ─────────────────────────────────────────────────────────
+_SH_FLAG_RE = re.compile(r"^--([A-Za-z0-9][A-Za-z0-9_-]*)(?:=(.*))?$")
+_SH_ASSIGN_RE = re.compile(r"^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
+
+
+def _flat_str(v) -> str:
+    """평탄화 값 → 문자열(대조는 naming.validate_tail 이 정규화한다 — 여기서는 표면만 고정: bool 소문자 · None 빈 문자열)."""
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if v is None:
+        return ""
+    if isinstance(v, (dict, list)):
+        return json.dumps(v, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return str(v)
+
+
+def _flatten(prefix: str, v, out: dict) -> None:
+    """중첩 yaml → `a.b` 평탄 키. 목록은 `a.0` · 문자열에 든 JSON 객체(`speculative-config: '{"…"}'`)도 한 단계 펼친다 — 원 키는
+    원문 문자열로 남긴다(근거 대조가 원문과 펼친 칸 둘 다 받게)."""
+    if isinstance(v, dict):
+        for k, x in v.items():
+            _flatten(f"{prefix}.{k}" if prefix else str(k), x, out)
+        return
+    if isinstance(v, list):
+        out[prefix] = _flat_str(v)
+        for i, x in enumerate(v):
+            _flatten(f"{prefix}.{i}", x, out)
+        return
+    out[prefix] = _flat_str(v)
+    if isinstance(v, str) and v.strip().startswith("{"):
+        try:
+            doc = json.loads(v)
+        except ValueError:
+            return
+        if isinstance(doc, dict):
+            for k, x in doc.items():
+                _flatten(f"{prefix}.{k}", x, out)
+
+
+def _flat_env(text: str) -> dict:
+    out: dict = {}
+    for ln in text.splitlines():
+        s = ln.strip()
+        if not s or s.startswith("#"):
+            continue
+        m = _SH_ASSIGN_RE.match(s)
+        if m:
+            val = m.group(2).strip()
+            if len(val) >= 2 and val[0] == val[-1] and val[0] in "'\"":
+                val = val[1:-1]
+            out[m.group(1)] = val
+    return out
+
+
+def _flat_sh(text: str) -> dict:
+    """러너 .sh → {`--flag`: 값}(CLI 인자 `--k v`·`--k=v` · 값 없는 플래그 = "true") + 변수 대입 `K=V`. 셸을 실행하지 않는다 —
+    `$VAR` 확장은 원문 그대로 둔다(근거 대조는 원문과 대조한다 · 확장값을 지어내지 않는다)."""
+    out: dict = {}
+    for ln in text.splitlines():
+        s = ln.strip()
+        if not s or s.startswith("#"):
+            continue
+        m = _SH_ASSIGN_RE.match(s)
+        if m and " " not in m.group(2).strip():
+            out[m.group(1)] = m.group(2).strip().strip("'\"")
+        try:
+            toks = shlex.split(s, comments=True)
+        except ValueError:
+            continue
+        for i, t in enumerate(toks):
+            fm = _SH_FLAG_RE.match(t)
+            if not fm:
+                continue
+            if fm.group(2) is not None:
+                out[f"--{fm.group(1)}"] = fm.group(2)
+            elif i + 1 < len(toks) and not toks[i + 1].startswith("--") and toks[i + 1] not in ("\\", "|", "&&", ";"):
+                out[f"--{fm.group(1)}"] = toks[i + 1]
+            else:
+                out[f"--{fm.group(1)}"] = "true"
+    return out
+
+
+def tail_sources(repo, ev: CellEvidence) -> dict[str, dict]:
+    """이 셀의 **서빙 설정 파일** → {저장소 상대경로: {평탄 key: 값(str)}}(2026-09-29 · plan_26092908 §4.1 U6 · 계약 B-5).
+    naming.validate_tail(tail, sources) 의 근거 대조 입력이다 — 꼬리 토큰의 `evidence.file` 은 이 사전의 키 중 하나여야 하고 `key` 가
+    그 파일에 실재하며 값이 일치해야 한다(거짓 꼬리만 막는다 · 규칙 목록을 늘리지 않는다).
+      · 서빙 yaml(`output/<t>/configs/<셀>.yaml` · 중첩 `a.b` · 문자열 JSON 한 단계 펼침) · 셀 env(`output/<t>/envs/.env.<셀>` · K=V)
+      · 러너 .sh(`--flag` → 값) · 캠페인 셀 config(`campaigns/<id>/cells/<셀>/config.yaml` · 캠페인 모드이고 인스턴스가 있을 때만)
+    native 셀도 같은 트리플렛 경로다(render_native_triplet 이 같은 자리에 쓴다 · ev.triplet 한 벌). YAML 은 소유 로더로만 읽는다.
+    읽지 못한 파일은 싣지 않는다(빈 사전으로 접지 않는다 — 없는 파일을 근거로 쓰면 대조가 파일 부재로 막힌다)."""
+    repo = _repo(repo)
+    out: dict[str, dict] = {}
+    for kind, rel in sorted((ev.triplet or {}).items()):
+        p = repo / rel
+        if not p.is_file():
+            continue
+        if kind == "yaml":
+            doc = _owner_yaml(repo, p, "서빙 yaml")
+            if isinstance(doc, dict):
+                flat: dict = {}
+                _flatten("", doc, flat)
+                out[rel] = flat
+        elif kind == "env":
+            out[rel] = _flat_env(p.read_text(encoding="utf-8", errors="replace"))
+        elif kind == "sh":
+            out[rel] = _flat_sh(p.read_text(encoding="utf-8", errors="replace"))
+    if ev.mode == "campaign" and ev.campaign_id:
+        rel = f"campaigns/{ev.campaign_id}/cells/{ev.cell}/config.yaml"
+        if (repo / rel).is_file():
+            doc = _owner_yaml(repo, repo / rel, "셀 config")
+            if isinstance(doc, dict):
+                flat = {}
+                _flatten("", doc, flat)
+                out[rel] = flat
+    return out
+
+
 def _ledger_vllm(att) -> dict:
     """attestation 이 든 **메인** 빌드 원장의 `vllm` 사전(v1 최상위 `build_ledger` 또는 v2 `nodes.main.build_ledger`) · 없으면 {}."""
     att = att or {}
@@ -3703,7 +4360,9 @@ def _spec_fact(repo: Path, ev: CellEvidence, y: dict, yrel: str) -> dict:
     n = cfg.get("num_speculative_tokens") if isinstance(cfg, dict) else None
     if _as_int(n) is None or _as_int(n) < 1:
         return {"source": f"서빙 yaml {k} 에 num_speculative_tokens(≥1)가 없다({yrel})"}
-    return {"raw": _as_int(n), "source": f"서빙 yaml {k}.num_speculative_tokens({yrel} · method={cfg.get('method')})"}
+    # 구조화 근거(2026-09-29 · plan_26092908 §4.1): naming.tail_candidates 가 꼬리 후보의 evidence 로 싣는다 — tail_sources 와 같은 평탄 키.
+    return {"raw": _as_int(n), "source": f"서빙 yaml {k}.num_speculative_tokens({yrel} · method={cfg.get('method')})",
+            "evidence": {"file": yrel, "key": f"{k}.num_speculative_tokens", "value": _flat_str(n)}}
 
 
 def _graph_fact(repo: Path, ev: CellEvidence, y: dict, yrel: str) -> dict:
@@ -3716,9 +4375,12 @@ def _graph_fact(repo: Path, ev: CellEvidence, y: dict, yrel: str) -> dict:
         b = v if isinstance(v, bool) else _boolish(str(v))
         if b is None:
             return {"source": f"서빙 yaml {k}={v!r} 를 참/거짓으로 읽지 못했다({yrel})"}
-        return {"raw": "eager" if b else "graph", "source": f"서빙 yaml {k}: {str(b).lower()}({yrel})"}
-    if re.search(r"--enforce[-_]eager\b", sh_text or ""):
-        return {"raw": "eager", "source": f"러너 --enforce-eager({sh_rel})"}
+        return {"raw": "eager" if b else "graph", "source": f"서빙 yaml {k}: {str(b).lower()}({yrel})",
+                "evidence": {"file": yrel, "key": k, "value": _flat_str(v)}}
+    m_eager = re.search(r"--enforce[-_]eager\b", sh_text or "")
+    if m_eager:
+        return {"raw": "eager", "source": f"러너 --enforce-eager({sh_rel})",
+                "evidence": {"file": sh_rel, "key": m_eager.group(0), "value": _flat_sh(sh_text).get(m_eager.group(0), "true")}}
     k2, cc = _yaml_get(y, "compilation-config", "compilation_config")
     if k2 is not None:
         doc = cc
@@ -3729,7 +4391,8 @@ def _graph_fact(repo: Path, ev: CellEvidence, y: dict, yrel: str) -> dict:
                 return {"source": f"서빙 yaml {k2} 가 JSON 이 아니다({yrel})"}
         mode = str((doc or {}).get("cudagraph_mode") or "").upper() if isinstance(doc, dict) else ""
         if mode == "NONE":
-            return {"raw": "eager", "source": f"서빙 yaml {k2}.cudagraph_mode=NONE({yrel})"}
+            return {"raw": "eager", "source": f"서빙 yaml {k2}.cudagraph_mode=NONE({yrel})",
+                    "evidence": {"file": yrel, "key": f"{k2}.cudagraph_mode", "value": str(doc.get("cudagraph_mode"))}}
     return {"raw": "graph", "source": f"서빙 yaml enforce-eager 부재 관측({yrel}) → 엔진 기본값 cudagraph"}
 
 
@@ -3752,9 +4415,12 @@ def _ple_fact(ev: CellEvidence, env: dict, env_rel: str, ck: dict) -> dict:
     elif ev.triplet.get("env"):
         mm = env.get("VLLM_PLE_MMAP")
         if mm == "1":
-            out = {"raw": "mmap", "source": f"셀 env VLLM_PLE_MMAP=1({env_rel})"}
+            out = {"raw": "mmap", "source": f"셀 env VLLM_PLE_MMAP=1({env_rel})",
+                   "evidence": {"file": env_rel, "key": "VLLM_PLE_MMAP", "value": "1"}}
         elif present is True:
             out = {"raw": "resident", "source": f"셀 env VLLM_PLE_MMAP={mm!r}(부재/0 = stock resident · {env_rel}) · 모델 PLE 실재({label})"}
+            if mm is not None:
+                out["evidence"] = {"file": env_rel, "key": "VLLM_PLE_MMAP", "value": str(mm)}
         elif isinstance(decl, str) and decl.strip() and "<<FILL>>" not in decl:
             out = {"raw": decl.strip(), "source": "셀 config declared_axes.ple_mode(선언 · 모델 config 미관측)"}
         else:
@@ -3765,6 +4431,9 @@ def _ple_fact(ev: CellEvidence, env: dict, env_rel: str, ck: dict) -> dict:
         out = {"raw": meta["ple_mode"], "source": f"sweep meta ple_mode({meta.get('ple_mode_source')})"}
     else:
         out = {"source": ""}
+    if str(out.get("source", "")).startswith("셀 config declared_axes.ple_mode") and ev.mode == "campaign" and ev.campaign_id:
+        out["evidence"] = {"file": f"campaigns/{ev.campaign_id}/cells/{ev.cell}/config.yaml", "key": "declared_axes.ple_mode",
+                           "value": str(decl).strip()}
     if "raw" in out and not _unobserved(meta.get("ple_mode")) and str(meta.get("ple_mode_source", "")).startswith("declared") \
             and (meta["ple_mode"] == "mmap") != (out["raw"] == "mmap"):
         core.fail("HINT_PLE_CONFLICT", f"PLE 축이 어긋난다: 파생={out['raw']!r}({out['source']}) · 스윕 meta={meta['ple_mode']!r}",
@@ -3981,6 +4650,19 @@ def drive_publisher(repo, ev: CellEvidence, *, topic, generated_utc, draft_dir) 
             if not (repo / s).is_file():
                 core.fail("HINT_SIMLOG_SOURCE_ABSENT", f"simlog 원천 부재: {s}")
             sim_srcs.append((s, d))
+    vj_ok = bool(sweep_dir and (ev.sweep or {}).get("binding") == "output" and (repo / sweep_dir / "verdict.json").is_file())
+    if task == "full_benchmark" and not downgraded and not vj_ok:
+        # 2026-09-29(plan_26092908 §4.8 · V11④): verdict.json 이 루브릭 권한의 **유일한** 운반자다(발행기 rubric_source=verdict_json).
+        #   빠지면 manifest 권한이 None 이 되고 게이트(certificate_requirement_authority)는 "권한 모름" 으로 인증서를 다시 요구한다 —
+        #   explore/weak PASS 가 조용히 인증서 결손으로 막히고, 사람은 인증서를 손으로 만든다(DS4F 수동 발행의 재발). 첫 쓰기 **전에**
+        #   명시 실패로 둔다(발행 기록을 묶은 뒤 죽으면 거부된 publish 가 시각을 묶는다 — V11①).
+        why = ("조인된 스윕이 없다" if not sweep_dir else
+               f"스윕이 {(ev.sweep or {}).get('binding')} 로만 묶였다(출력 평면 원시가 이 측정의 것이 아니다)"
+               if (ev.sweep or {}).get("binding") != "output" else f"{sweep_dir}/verdict.json 부재")
+        core.fail("HINT_VERDICT_JSON_ABSENT",
+                  f"full_benchmark 발행에 판정 산출물(verdict.json)이 필요한데 넘길 수 없다 — {why}.",
+                  "verdict_rule 산출물이 있는 측정(스윕 generated_utc = 측정 키)으로 발행한다. 없으면 루브릭 권한이 게이트에 닿지 "
+                  "않아 인증서 요구가 되살아난다(인증서를 손으로 만들지 않는다).")
     from . import pii
     terms = pii.require_terms(repo)          # 리터럴 없이 스캔하고 통과를 선언하면 그 선언이 거짓이다(docs.md §PII)
     pre = dict(narr)
@@ -4011,7 +4693,7 @@ def drive_publisher(repo, ev: CellEvidence, *, topic, generated_utc, draft_dir) 
                 "--bench-report-src", ev.bench_report_path]
         if ev.certificate_path and verdict == "PASS":
             argv += ["--certificate-src", ev.certificate_path]
-        if sweep_dir and (ev.sweep or {}).get("binding") == "output" and (repo / sweep_dir / "verdict.json").is_file():
+        if vj_ok:
             argv += ["--verdict-json-src", f"{sweep_dir}/verdict.json"]
         if not (downgraded and _record(repo, topic).get("task_class") == "hint_map_only"):
             _publisher(repo, "publish-benchmark", *argv)
@@ -4450,7 +5132,10 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
     ck("★인증서 N/A 는 건너뛰고 스윕 meta driver · OS 는 실제 키가 있을 때만", h1["driver"] == "580.1"
        and "sweep_index.meta" in h1["source"]["driver"] and h1["os"] == "6.8.0-fx" and "kernel_release" in h1["source"]["os"])
     h2 = host({"driver_version": "999.9"}, {"driver_version": "580.1"})
-    ck("드라이버 우선순위 — 인증서 > 스윕 meta", h2["driver"] == "999.9" and h2["source"]["driver"].startswith("인증서"))
+    # 2026-09-29(plan_26092908 §4.5): 우선순위 개정 — attestation 관측 > 스윕 meta > 인증서(스윕 meta 의 옮김) > manifest.
+    ck("드라이버 우선순위 — 스윕 meta > 인증서(옮김) · 출처에 (manifest 선언 옮김)", h2["driver"] == "580.1"
+       and h2["source"]["driver"].startswith("sweep_index.meta") and _DECLARED_COPY in h2["source"]["driver"]
+       and "driver_conflict" not in h2)
     # ── F6 원장 타임라인 · 기동 표지 ──
     tl = event_timeline(repo, ev)
     dump = json.dumps(tl, ensure_ascii=False)
@@ -5033,6 +5718,183 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
        and "표지" in _cert_vllm_producer(g, ev_new)[1])
 
 
+def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> None:
+    """2026-09-29(plan_26092908 · 계약 B) 신설 규칙 — 판정의 기계 표면(V1) · 관측 > 선언 호스트 사실(V3) · quant_composition(U9) ·
+    노드 축 자동 cluster(V11③) · tail_sources(U6) · "미관측" 오판(§4.5) · 비발행 권한 바인딩(V11④). ★ = 음성대조."""
+    from . import naming
+    sw = dict(ev.sweep or {})
+    vj0 = dict(sw.get("verdict") or {})
+    # ── V1 판정의 기계 표면 ──
+    m = measurement(ev)
+    ck("measurement — 인증서 셀: 판정·출처 키별(sources) · 측정 시각", m.get("verdict") == "PASS"
+       and m["sources"]["verdict"].startswith("certificate(") and m.get("measured_utc") == _M_UTC
+       and m.get("rubric_authority") == "weak" and m.get("floor_tps") == "8.5")
+    bad_sw = {**sw, "verdict": {**vj0, "measured_decode_tps": 99.0}}
+    ck("★인증서와 같은 측정의 verdict.json 이 다른 값 = 죽는다(고르지 않는다)",
+       _code(measurement, dataclasses.replace(ev, sweep=bad_sw)) == "HINT_MEASUREMENT_VERDICT_MISMATCH")
+    ok_sw = {**sw, "verdict": {**vj0, "measured_decode_tps": 12.3}}
+    ck("음성대조: 같은 값(12.3)이면 대조 통과", _code(measurement, dataclasses.replace(ev, sweep=ok_sw)) is None)
+    refute = {"verdict": "REFUTE", "measured_decode_tps": 5.5, "measured_accept_len": 1.5, "measured_spec_on": True,
+              "rubric": {"authority": "explore", "floor": 8.5, "ratio_M_over_primary": 0.647, "primary": 10.0, "tolerance": 0.15,
+                         "source": "expected_achievable(roofline×MBU)"},
+              "reasons": ["M(5.5) < 10.0×(1−0.15)=8.5 → 기대 이하", "see " + "/" + "home" + "/op-fixture/x.json"]}
+    e_ref = dataclasses.replace(ev, certificate=None, certificate_path=None, sweep={**sw, "verdict": refute})
+    mr = measurement(e_ref)
+    ck("★REFUTE 셀(인증서 없음) — 판정·수치가 verdict.json 에서 채워진다(옛 5키 결함 · V1)",
+       mr.get("verdict") == "REFUTE" and mr.get("decode_tps_conc1") == "5.5" and mr.get("floor_tps") == "8.5"
+       and mr.get("ratio_M_over_primary") == "0.647" and mr.get("rubric_authority") == "explore"
+       and mr.get("accept_len") == "1.5" and mr.get("spec_on") == "true" and mr.get("benchmark_mode") == "full"
+       and "verdict.json" in mr["sources"]["verdict"] and mr.get("measured_utc") == _M_UTC
+       and "sweep_index.generated_utc" in mr["sources"]["measured_utc"])
+    ck("★REFUTE 사유는 싣되 운영자 절대경로 줄은 싣지 않는다(배포 평면)", mr.get("verdict_reasons") == [refute["reasons"][0]])
+    ck("REFUTE = 인증서 비발행 판정(결손 아님)", (_certificate_not_due(repo, e_ref) or "").startswith("REFUTE"))
+    pass_rub = lambda a: {"verdict": "PASS", "measured_decode_tps": 12.3, "rubric": {"authority": a, "floor": 8.5,
+                                                                                       "ratio_M_over_primary": 1.23}}
+    e_ex = dataclasses.replace(e_ref, sweep={**sw, "verdict": pass_rub("explicit")})
+    ck("★explicit PASS 인데 인증서 없음 = 결손(발행되는 판정)", _certificate_not_due(repo, e_ex) is None)
+    ck("weak PASS = 비발행 권한(결손 아님)",
+       "weak" in (_certificate_not_due(repo, dataclasses.replace(e_ref, sweep={**sw, "verdict": pass_rub("weak")})) or ""))
+    e_unk = dataclasses.replace(e_ref, sweep={**sw, "verdict": {"verdict": "PASS"}})
+    ck("★권한 미관측 PASS = 결손(모름을 면제로 접지 않는다)", _certificate_not_due(repo, e_unk) is None)
+    ck("★판정 어휘 밖 = 죽는다(tripwire)", _code(measurement, dataclasses.replace(
+        e_ref, sweep={**sw, "verdict": {"verdict": "MAYBE"}})) == "HINT_MEASUREMENT_VERDICT_UNKNOWN")
+    # 리포트 `## 판정` 표 대체(스윕 미바인딩 · 재생의 simlog 사본 등)
+    rep2 = "docs/benchmark/bench_report_26010215_fixture-model-nvfp4_GB10_0.9.0.md"
+    (repo / rep2).write_text("\n".join([
+        "# 성능 보고서", "", "> 생성일 2026-01-02T15:00:00Z.", "", "## 판정 (표시만 — verdict_rule.py 결과)", "", "| 항목 | 값 |",
+        "|---|---|", "| verdict | **REFUTE** |", "| 측정 decode t/s (동시성1) | 20.98 t/s |", "| 루브릭 권한 | explore |",
+        "| 루브릭 primary | 29.8 t/s (expected_achievable(roofline×MBU)) |", "| floor (primary×(1−tol)) | 25.33 t/s |",
+        "| ratio (M/primary) | 0.704 |", "| tolerance | 0.15 |", "", "## 다음", ""]), encoding="utf-8")
+    mt = measurement(dataclasses.replace(ev, certificate=None, certificate_path=None, sweep=None, bench_report_path=rep2))
+    ck("리포트 `## 판정` 표 — 굵게·단위 벗김 · primary 괄호 = primary_source · 측정 시각 = 생성일",
+       mt.get("verdict") == "REFUTE" and mt.get("decode_tps_conc1") == "20.98" and mt.get("floor_tps") == "25.33"
+       and mt.get("primary_tps") == "29.8" and mt.get("primary_source") == "expected_achievable(roofline×MBU)"
+       and "`## 판정` 표" in mt["sources"]["verdict"] and mt.get("measured_utc") == "2026-01-02T15:00:00Z")
+    (repo / rep2).unlink()
+    mn = measurement(dataclasses.replace(ev, certificate=None, certificate_path=None, sweep=None, bench_report_path=None,
+                                         report_kind=None))
+    ck("★판정 원천이 하나도 없으면 verdict None + 미관측(지어내지 않는다)", mn.get("verdict") is None
+       and "미관측" in mn["sources"]["verdict"] and mn.get("decode_tps_conc1") is None)
+    # ── V3 관측 > 선언(드라이버) ──
+    meta = dict((sw.get("index") or {}).get("meta") or {})
+
+    def host(att, meta_extra: dict, man_extra: dict | None = None) -> dict:
+        s2 = {**sw, "index": {**(sw.get("index") or {}), "meta": {**meta, **meta_extra}}}
+        e2 = dataclasses.replace(ev, attestation=att, sweep=s2, manifest={**(ev.manifest or {}), **(man_extra or {})},
+                                 build_identity={**ev.build_identity, "source": dict(ev.build_identity["source"])})
+        _host_facts(e2)
+        return e2.build_identity
+    att = {"_path": "output/multi/benchlog/attestation_c1-a.json",
+           "parity": {"driver": {"main": "580.178.04", "sub": "580.178.04", "verdict": "equal"}}}
+    hb = host(att, {"driver_version": "580.173.02"})
+    cf = hb.get("driver_conflict") or {}
+    ck("★attestation 노드별 관측이 선언 옮김(스윕 meta)을 이긴다 + driver_conflict 에 둘 다(V3)",
+       hb["driver"] == "580.178.04" and hb["source"]["driver"].startswith("attestation parity.driver")
+       and cf.get("observed") == "580.178.04" and cf.get("declared") == "580.173.02"
+       and _DECLARED_COPY in cf["sources"]["declared"] and hb.get("driver_by_node") == {"main": "580.178.04", "sub": "580.178.04"})
+    ck("음성대조: 관측 = 선언이면 conflict 없음", "driver_conflict" not in host(att, {"driver_version": "580.178.04"}))
+    hm = host(None, {"driver_version": "580.2", "driver_version_source": "measured(nvidia-smi)"}, {"driver_version": "580.1"})
+    ck("스윕 meta 가 스스로 measured 를 말하면 관측 — 옮김 표지 없음 · manifest 선언과 다르면 conflict",
+       hm["driver"] == "580.2" and _DECLARED_COPY not in hm["source"]["driver"]
+       and (hm.get("driver_conflict") or {}).get("declared") == "580.1")
+    hd = host({"_path": "a.json", "parity": {"driver": {"main": "1.0", "sub": "2.0", "verdict": "differ"}}}, {})
+    ck("★노드별 상이는 한 값으로 접지 않는다(main 값 + 출처가 상이를 말한다 · by_node 둘 다)",
+       hd["driver"] == "1.0" and "노드별 상이" in hd["source"]["driver"] and hd.get("driver_by_node") == {"main": "1.0", "sub": "2.0"})
+    # ── U9 quant_composition ──
+    ident = identity(ev)
+    qc = ident.get("quant_composition") or []
+    ck("quant_composition — MIXED 층 알고리즘별 개수(해석 ✗) · 출처", [(r["dtype"], r.get("count")) for r in qc] ==
+       [("NVFP4", 2), ("FP8", 1)] and all(r.get("source") for r in qc) and str(td) not in json.dumps(qc, ensure_ascii=False))
+    ds4 = {"observed": True, "host_label": "L", "config": {"quantization_config": {"quant_method": "fp8", "fmt": "e4m3",
+                                                                                    "weight_block_size": [128, 128]},
+                                                          "expert_dtype": "fp4", "torch_dtype": "bfloat16"}}
+    comp, _src = _quant_composition(ds4)
+    ck("quant_composition — DS4F 형(선언 fp8 + routed expert fp4 + 기본 bf16) · q 축은 선언 방식 그대로(fp8)",
+       [r["dtype"].split(" ")[0] for r in comp] == ["fp8", "fp4", "bfloat16"] and comp[1]["scope"] == "routed experts"
+       and _quant_raw(ds4).get("raw") == "fp8")
+    ck("★체크포인트 미관측 = 구성 None(빈 구성으로 접지 않는다)", _quant_composition({"observed": False, "reason": "r"})[0] is None)
+    # ── V11③ 노드 축 자동 cluster ──
+    bl = repo / "output/multi/benchlog"
+    ck("자동 cluster — 측정 TP(2) > gpus_per_node(1)", _auto_node(repo, "multi", "c1-z", cert={"tensor_parallel_size": "2"},
+                                                             measured_key=None, report_rel=None)[0] == "cluster")
+    ck("음성대조: TP ≤ gpus_per_node · 멀티 신호 없음 = 파생하지 않는다(배정으로 간다)",
+       _auto_node(repo, "multi", "c1-z", cert={"tensor_parallel_size": "1"}, measured_key=None, report_rel=None)[0] is None)
+    core.write_json(bl / "serve_proof_c1-z.json", {"kind": "multinode_serve_proof", "config": "c1-z"})
+    try:
+        ck("★모호(TP=1 단일 노드 형상인데 멀티 serve proof) = 기존 오류로 죽는다",
+           _code(_auto_node, repo, "multi", "c1-z", cert={"tensor_parallel_size": "1"}, measured_key=None, report_rel=None)
+           == "HINT_NODE_AXIS_UNDERIVABLE")
+        ck("TP 미관측 + 멀티 serve proof = cluster", _auto_node(repo, "multi", "c1-z", cert=None, measured_key=None,
+                                                               report_rel=None)[0] == "cluster")
+    finally:
+        (bl / "serve_proof_c1-z.json").unlink()
+    ck("single 토폴로지는 자동 cluster 대상 아님", _auto_node(repo, "single", "c1-a", cert={"tensor_parallel_size": "2"},
+                                                        measured_key=None, report_rel=None)[0] is None)
+    ck("자동 cluster 가 배정(main)을 이긴다 · 인증서 measured_node 는 자동을 이긴다",
+       _resolve_node(None, measured=None, topology="multi", assigned="main", declared=["main", "sub"], cert_node_source="x",
+                     auto=("cluster", "why"))[0] == "cluster"
+       and _code(_resolve_node, None, measured="main", topology="multi", assigned="main", declared=["main", "sub"],
+                 cert_node_source="x", auto=("cluster", "why")) is None)
+    # ── U6 tail_sources ──
+    ts = tail_sources(repo, ev)
+    y_rel, e_rel, c_rel = "output/multi/configs/c1-a.yaml", "output/multi/envs/.env.c1-a", "campaigns/c1/cells/c1-a/config.yaml"
+    ck("tail_sources — 서빙 yaml(중첩 `a.b` · 문자열 JSON 펼침) · 셀 env · 러너 · 셀 config",
+       ts.get(y_rel, {}).get("speculative-config.num_speculative_tokens") == "2" and ts[y_rel].get("enforce-eager") == "true"
+       and ts.get(e_rel, {}).get("VLLM_PLE_MMAP") == "1" and ts.get(c_rel, {}).get("declared_axes.ple_mode") == "mmap"
+       and ts.get(c_rel, {}).get("target_gpu.gpu_model") == "NVIDIA GB10"
+       and ts.get("output/multi/configs/c1-a.sh", {}).get("--config") == "/app/configs/${CONFIG_FILE}.yaml")
+    ck("재생(캠페인 밖)은 셀 config 를 싣지 않는다", c_rel not in tail_sources(repo, dataclasses.replace(ev, mode="publication-replay")))
+    nf = naming_facts(repo, ev)
+    tail = [{"token": t, "meaning": "뜻", "evidence": nf[ax]["evidence"]} for t, ax in (("mmap", "ple"), ("s2", "spec"), ("eager", "graph"))]
+    ck("naming facts 구조화 근거(ple·spec·graph)가 tail_sources 와 정확히 맞는다(validate_tail 0건)",
+       all(nf[ax].get("evidence") for ax in ("ple", "spec", "graph")) and naming.validate_tail(tail, ts) == [])
+    liar = [{"token": "spec9", "meaning": "뜻", "evidence": {"file": y_rel, "key": "speculative-config.num_speculative_tokens",
+                                                           "value": "9"}}]
+    ck("★거짓 꼬리(값 불일치) = HINT_TAIL_UNGROUNDED", any(c == "HINT_TAIL_UNGROUNDED" for c, _ in naming.validate_tail(liar, ts)))
+    # ── §4.5 "미관측" 오판 ──
+    wm, wsrc = _wheel_meta(repo, dataclasses.replace(ev, attestation={"_path": "a.json", "nodes": {
+        "main": {"vllm_dist_version": "0.9.0+gabc"}, "sub": {"vllm_dist_version": "0.9.0+gabc"}}}))
+    ck("★wheel 메타 — attestation vllm_dist_version 이 있으면 관측(옛 '관측자 없음' 오판)", wm == "0.9.0+gabc" and "일치" in wsrc)
+    ck("음성대조: 원천이 없으면 None + 미관측", _wheel_meta(repo, dataclasses.replace(ev, attestation=None))[0] is None)
+    ck("★노드별 상이 wheel 은 고르지 않는다", _wheel_meta(repo, dataclasses.replace(ev, attestation={"_path": "a", "nodes": {
+        "main": {"vllm_dist_version": "1"}, "sub": {"vllm_dist_version": "2"}}}))[0] is None)
+    fz = repo / "docs/simlog/fx_native"
+    fz.mkdir(parents=True, exist_ok=True)
+    (fz / "pip-freeze-main.txt").write_text("torch==2.9\nvllm==0.9.0+native\n", encoding="utf-8")
+    (fz / "pip-freeze-sub.txt").write_text("vllm==0.9.0+native\n", encoding="utf-8")
+    wn, wnsrc = _wheel_meta(repo, dataclasses.replace(ev, plane="native", attestation={"_path": "a", "nodes": {
+        "main": {"vllm_dist_version": "other"}}}, pip_freeze_paths={"main": "docs/simlog/fx_native/pip-freeze-main.txt",
+                                                                     "sub": "docs/simlog/fx_native/pip-freeze-sub.txt"}))
+    ck("native 셀 wheel 메타 = pip freeze `vllm==`(실행 평면 관측이 원천 이미지 attestation 을 이긴다)",
+       wn == "0.9.0+native" and "pip freeze" in wnsrc)
+    # ── V11④ 비발행 권한 바인딩 · verdict.json 필수 ──
+    base = {"rubric_source": "verdict_json", "floor_tps": 1.0, "ratio_M_over_primary": 0.9, "primary_source": "x"}
+    ck("weak PASS·REFUTE 는 bench_report 로 묶인다(비발행 권한 · 게이트 술어 한 벌)",
+       no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**base, "rubric_authority": "weak",
+                                                                            "verdict": "PASS"}}, repo) == "weak"
+       and no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**base, "rubric_authority": "weak",
+                                                                                "verdict": "REFUTE"}}, repo) == "weak")
+    ck("★explicit PASS 는 인증서가 필요하다(bench_report 로 열지 않는다)",
+       no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**base, "rubric_authority": "explicit",
+                                                                            "verdict": "PASS"}}, repo) is None)
+    ck("★출처 표시 없는 weak 는 열지 않는다(rubric_source 부재)",
+       no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**{k: v for k, v in base.items() if k != "rubric_source"},
+                                                                            "rubric_authority": "weak", "verdict": "PASS"}}, repo) is None)
+    vjp = Path(repo / str(sw.get("dir")) / "verdict.json")
+    held = vjp.read_bytes()
+    vjp.unlink()
+    try:
+        ck("★full_benchmark 발행에 verdict.json 이 없으면 첫 쓰기 전에 명시 실패(권한 None → 인증서 요구 부활 방지)",
+           _code(drive_publisher, repo, ev, topic="c1__vj_absent", generated_utc="2026-01-03T05:00:00Z",
+                 draft_dir=repo / "hints/.drafts/vj") == "HINT_VERDICT_JSON_ABSENT"
+           and not (repo / core.REL_EVIDENCE_DIR / "c1__vj_absent.json").exists() and not (repo / "hints/.drafts/vj").exists())
+    finally:
+        vjp.write_bytes(held)
+    # 코드표 — 이번에 등재한 결손 코드(발행자 = artifacts · 계약 C-4)
+    ck("결손 코드 등재 — SUB_RECIPE · APPLIED_SET · NATIVE_LAUNCH",
+       {"HINT_MISSING_SUB_RECIPE", "HINT_MISSING_APPLIED_SET", "HINT_MISSING_NATIVE_LAUNCH"} <= set(MISSING_CODES))
+
+
 def selftest() -> list[str]:
     """실패 메시지 목록(빈 목록 = 통과). 격리 저장소 · 라이브 태그/브랜치/캠페인 비의존 · ★ = 음성대조."""
     from . import naming
@@ -5094,8 +5956,9 @@ def selftest() -> list[str]:
             ck("자격 = post_health + bench(관측)", q.get("method") == "post_health+bench" and len(q["sources"]) == 2)
             facts = naming_facts(repo, ev)
             dn = naming.derive_name(facts, naming.load_vocab(repo))
+            # 2026-09-29(plan_26092908 §4.1): v7 결정론부 = q·len·kv 만(ple·spec·graph 는 Agent 꼬리 — naming.derive_name).
             ck(f"이름 전량 파생 ({dn.tag})", dn.tag == "hint/0.9.0/fixture-model-nvfp4/gb10-1g2n-cluster-native/"
-                                                    "qnvfp4-len4096-kvauto-plemmap-spec2-eager")
+                                                    "qnvfp4-len4096-kvauto")
             ck("출처에 호스트 경로 없음(PII)", str(td) not in json.dumps(facts, ensure_ascii=False))
             ck("D-h naming facts 가 vllm_repo 를 키로 싣는다(업스트림 판정 입력)", "vllm_repo" in facts["vllm"]
                and naming.vllm_repo_kind(facts["vllm"]["vllm_repo"]) == "upstream")
@@ -5228,6 +6091,7 @@ def selftest() -> list[str]:
             ck("★라벨 파생 불가", _code(topology_label, {"topology": "multi", "tp": "2"}) == "HINT_TOPOLOGY_UNDERIVABLE")
             _selftest_round2(ck, repo, td, ev, ident)
             _selftest_round3(ck, repo, td, ev, fx)
+            _selftest_v7(ck, repo, td, ev, fx, dk)
             m = measurement(ev)
             ck("measurement 수치만(절대경로 칸 제외)", m.get("decode_tps_conc1") == "12.3" and "raw_json" not in json.dumps(m))
             mc = measurement_config(repo, ev)
@@ -5388,6 +6252,24 @@ def selftest() -> list[str]:
             ck("native proof는 explicit plane을 CellEvidence로 전달", native_ev.plane == "native" and
                native_ev.native_install_path == "native-evidence/native-install.sh" and native_ev.cleanup_attestation_path == "native-evidence/cleanup.json")
             ck("native proof + cleanup PASS가 자격", qualification(native_ev).get("method") == "native_serve_proof+cleanup_attestation")
+            # 기동 기록(2026-09-29 · plan_26092908 §4.2 · D 통합): 옛 proof = 필드 없음(결손 정상) · 있으면 보존 파일 계약 · 사유는 옮긴다
+            ck("native 기동 기록: 옛 proof(필드 없음) = None · 사유 없음", native_ev.native_launch_path is None
+               and native_ev.native_launch_error is None and "옛 proof" in native_ev.sources.get("native_launch_path", ""))
+            launch = nroot / "native-launch.md"; launch.write_text("# native 기동 기록\n", encoding="utf-8")
+            core.write_json(spp, {**native_base, "native_launch_path": "native-evidence/native-launch.md"})
+            nl_ev = from_campaign(repo, "c1", "c1-a", docker=dk)
+            ck("native 기동 기록: proof native_launch_path → CellEvidence(저장소 상대) · artifacts 가 serve_proof 로도 읽는다",
+               nl_ev.native_launch_path == "native-evidence/native-launch.md" and nl_ev.native_launch_error is None
+               and (nl_ev.serve_proof or {}).get("native_launch_path") == "native-evidence/native-launch.md")
+            core.write_json(spp, {**native_base, "native_launch_error": "OSError: disk full"})
+            ne_ev = from_campaign(repo, "c1", "c1-a", docker=dk)
+            ck("native 기동 기록 부재 + producer 사유 = native_launch_error 로 옮긴다(결손 사유)",
+               ne_ev.native_launch_path is None and ne_ev.native_launch_error == "OSError: disk full"
+               and "disk full" in ne_ev.sources.get("native_launch_path", ""))
+            core.write_json(spp, {**native_base, "native_launch_path": "/abs/native-launch.md"})
+            ck("★native 기동 기록 절대경로 = HINT_NATIVE_EVIDENCE_PATH_ABSOLUTE(보존 파일 계약)",
+               _code(from_campaign, repo, "c1", "c1-a", docker=dk) == "HINT_NATIVE_EVIDENCE_PATH_ABSOLUTE")
+            core.write_json(spp, native_base)
             core.write_json(cleanup, {**clean_base, "status": "FAIL"})
             ck("★native cleanup nonpass 차단", _code(from_campaign, repo, "c1", "c1-a", docker=dk) == "HINT_NATIVE_CLEANUP_NONPASS")
             core.write_json(cleanup, clean_base)
@@ -5456,13 +6338,25 @@ def selftest() -> list[str]:
             stale = repo / "output/multi/benchlog/sweep_c1-b"
             stale.mkdir()
             core.write_json(stale / "sweep_index.json", {"generated_utc": "2025-01-01T00:00:00Z", "meta": {}})
-            evl = from_campaign(repo, "c1", "c1-b", docker=dk)
+            # 2026-09-29(plan_26092908 §4.8 · V11③): `--node` 미지정이면 TP=2 > gpus_per_node=1 → 배정(sub)이 아니라 cluster 로 파생된다.
+            #   옛 판본은 배정 sub 로 떨어져 이름 파생에서야 HINT_ARCH_TP_CONFLICT 로 막혔다(멀티 셀 3/3 손 `--node cluster`).
+            eva = from_campaign(repo, "c1", "c1-b", docker=dk)
+            ck("★lite 셀 — `--node` 미지정 + 측정 TP 2 > 노드당 GPU 1 → 자동 cluster(배정 sub 를 이긴다)",
+               eva.node == "cluster" and "자동 파생" in eva.sources["node"] and "선언" in eva.sources["node"])
+            evl = from_campaign(repo, "c1", "c1-b", "sub", docker=dk)
             ck("★lite 셀은 옛 스윕을 묶지 않고 스윕 결손도 적지 않는다", evl.sweep is None and "HINT_MISSING_SWEEP" not in evl.missing)
             ck("★멀티 체크아웃의 단일 노드(sub) 실행은 노드 정합 대상 아님",
                "HINT_MISSING_SLAVE_ATTESTATION" not in evl.missing and evl.attestation is None)
-            ck("lite 셀 — 노드 축 = 배정(sub) · report_kind lite", evl.node == "sub" and evl.report_kind == "lite")
-            ck("lite 셀 — BENCH_MODE_LITE·인증서 결손 기재", {"BENCH_MODE_LITE", "HINT_MISSING_CERTIFICATE"} <= set(evl.missing)
-               and "HINT_MISSING_LITE" not in evl.missing)
+            ck("lite 셀 — 노드 축 = 명시(sub) · report_kind lite", evl.node == "sub" and evl.report_kind == "lite")
+            # 2026-09-29(plan_26092908 §4.4 · V2): lite-only 는 인증서가 구조적으로 없다 — 결손이 아니라 OBSERVATION-ONLY 판정이다.
+            ck("lite 셀 — BENCH_MODE_LITE 기재 · ★인증서 결손 아님(비발행 판정)", "BENCH_MODE_LITE" in evl.missing
+               and "HINT_MISSING_CERTIFICATE" not in evl.missing and "HINT_MISSING_LITE" not in evl.missing
+               and "lite-only" in evl.sources.get("certificate_due", ""))
+            ml = measurement(evl)
+            ck("lite 셀 measurement — verdict OBSERVATION-ONLY · lite 수치(리포트 표) · 측정 시각 = 리포트 생성일",
+               ml.get("verdict") == "OBSERVATION-ONLY" and ml.get("benchmark_mode") == "lite"
+               and (ml.get("lite") or {}).get("gen_tps") == 9.0 and ml.get("measured_utc") == "2026-01-02T14:00:00Z"
+               and ml.get("decode_tps_conc1") is None and "lite-only" in ml["sources"]["verdict"])
             ck("★lite_warm 없으면 자격 차단", _code(qualification, evl) == "HINT_QUALIFICATION_UNOBSERVED")
             warm = repo / "output/multi/benchlog/lite_warm_c1-b.json"
             core.write_json(warm, {"completed": 3, "failed": 0})
@@ -5486,7 +6380,7 @@ def selftest() -> list[str]:
                 (repo / rel_doc).write_text(f"# {kind}\nlite 셀 서사.\n", encoding="utf-8")
                 ptrs["pointers"].append({"kind": kind, "path": rel_doc, "cell_id": "c1-b", "node_id": "sub"})
             core.write_json(repo / "campaigns/c1/evidence_pointers.json", ptrs)
-            evl = from_campaign(repo, "c1", "c1-b", docker=dk)
+            evl = from_campaign(repo, "c1", "c1-b", "sub", docker=dk)
             manl = drive_publisher(repo, evl, topic=topic_for(evl), generated_utc="2026-01-02T15:00:00Z",
                                    draft_dir=repo / "hints/.drafts/d3")
             mdl = json.loads(manl.read_text(encoding="utf-8"))

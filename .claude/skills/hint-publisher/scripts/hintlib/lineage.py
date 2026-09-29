@@ -1560,6 +1560,79 @@ def require_documents(lineage: dict) -> None:
                   "발행 기록의 plan·devlog·testlog 바인딩을 확인하거나 `--lineage-add PATH=REASON` 으로 보충한다.")
 
 
+# ── 수신자 요약 · 봉인 출처 스냅샷 (2026-09-29 · plan_26092908 §4.6·§4.9 · V13·V5) ─────────────────────────
+# 왜 둘로 가르는가: v6 페이로드의 LINEAGE.json(= derive 전체)은 zip 최대 파일(82~160KB)인데 블라인드 수신자 3/3 이 무용이라 판정했다
+#   (V13) — 해시 · via 간선 · 모호 해소 기록 · 후보 원문 경로는 **발행자**가 린트 · 발췌 대조에 쓰는 것이지 수신자가 읽을 것이 아니다.
+#   그래서 전체는 draft `inputs/LINEAGE.full.json`(발행자 평면 · 배포 ✗)에 두고, 페이로드 LINEAGE.json 은 수신자 요약(문서 stem · 역할 ·
+#   날짜 · 발췌 수 · ≤ SUMMARY_MAX_BYTES)과 봉인 출처 스냅샷만 싣는다. 린트 · excerpt 는 전체를 읽는다(hint.py).
+# 봉인 출처 스냅샷(`sealed_sources: [{path, sha256}]` · tag.SEALED_SOURCES_KEY 와 같은 키): 발췌 · 서명 · 벤치 절이 대조한 출처 파일의
+#   봉인 시점 sha256. 비추적 docs 는 git 이 바이트를 들지 않으므로 GIT_SINGLE_AUTHORITY 2문항상 **맹점층**(기록 정당) — verify 는
+#   이 스냅샷과 현재 출처가 다르면 출처 의존 린트 코드를 FAIL 대신 INFO 로 강등한다(V5 · DS4F 봉인 13초 뒤 devlog 정정).
+LINEAGE_FULL_NAME = "LINEAGE.full.json"      # draft `inputs/` 안(발행자 평면)
+SUMMARY_SCHEMA_VERSION = 2
+SUMMARY_KIND = "receiver-summary"
+# 수신자 요약 상한(국소 상수 · plan §7 AC9 "zip 안 LINEAGE 요약 ≤ 20KB"). 넘으면 요약이 아니라 전사다 — 발행을 막는다.
+SUMMARY_MAX_BYTES = 20 * 1024
+SEALED_SOURCES_KEY = "sealed_sources"
+
+
+def receiver_summary(full: dict, *, excerpt_counts: dict | None = None, sealed_sources: list | None = None) -> dict:
+    """전체 LINEAGE(derive 산출) → 페이로드용 수신자 요약(순수 · 부작용 0).
+
+    documents[] = {stem, path, role(= kind), date(= date_key · KST YYMMDDHH), depth, excerpts(이 페이로드가 그 문서에서 인용한 발췌 수)}
+    evidence_candidates = {count, cited[{path, excerpts}]} — 후보 원문 경로 전체는 싣지 않는다(인용된 것만).
+    sealed_sources 가 주어지면(봉인 시점 · continue) 그대로 싣는다 — 없으면 키 자체가 없다(publish 스캐폴드 · 스냅샷 전).
+    결과가 SUMMARY_MAX_BYTES 를 넘으면 HINT_LINEAGE_SUMMARY_TOO_LARGE(요약이 전사로 자라지 않게 · fail-closed)."""
+    if not isinstance(full, dict):
+        core.fail("HINT_LINEAGE_UNREADABLE", f"LINEAGE 전체가 사전이 아니다: {type(full).__name__}")
+    counts = {str(k): int(v) for k, v in (excerpt_counts or {}).items() if isinstance(v, int) and v > 0}
+    docs = []
+    for d in full.get("documents") or ():
+        if not isinstance(d, dict) or not d.get("path"):
+            continue
+        p = str(d["path"])
+        docs.append({"stem": PurePosixPath(p).stem, "path": p, "role": d.get("kind"), "date": d.get("date_key"),
+                     "depth": d.get("depth"), "excerpts": counts.get(p, 0)})
+    doc_paths = {x["path"] for x in docs}
+    cands = [c for c in (full.get("evidence_candidates") or ()) if isinstance(c, dict) and c.get("path")]
+    cited = sorted((p, n) for p, n in counts.items() if p not in doc_paths)
+    method = full.get("method") if isinstance(full.get("method"), dict) else {}
+    out = {"schema_version": SUMMARY_SCHEMA_VERSION, "kind": SUMMARY_KIND,
+           "note": ("수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 "
+                    "기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6)."),
+           "publish_kst": method.get("publish_kst"), "depth": method.get("depth"),
+           "documents": docs,
+           "evidence_candidates": {"count": len(cands), "cited": [{"path": p, "excerpts": n} for p, n in cited]}}
+    if sealed_sources is not None:
+        out[SEALED_SOURCES_KEY] = [{"path": str(x["path"]), "sha256": str(x["sha256"])} for x in sealed_sources]
+    size = len(core.dumps(out).encode("utf-8"))
+    if size > SUMMARY_MAX_BYTES:
+        core.fail("HINT_LINEAGE_SUMMARY_TOO_LARGE",
+                  f"LINEAGE 수신자 요약이 {size:,} B > 상한 {SUMMARY_MAX_BYTES:,} B 다 — 요약이 아니라 전사다.",
+                  "계보 문서 수(깊이 · --lineage-add)를 확인한다 — 요약 칸을 늘리지 않는다(plan_26092908 §7 AC9).")
+    return out
+
+
+def sealed_sources(repo: Path, paths) -> list[dict]:
+    """봉인 시점 출처 스냅샷 `[{path, sha256}]`(저장소 상대 · 정렬 · 중복 제거). 읽기만 한다. 경로 모양 결함(절대 · `..`) · 읽기 불가 =
+    HINT_SEALED_SOURCE_UNREADABLE(스냅샷 없이 봉인하면 verify 가 시간에 따라 FAIL 로 바뀐다 — 조용히 빼지 않는다)."""
+    repo = Path(repo)
+    out: list[dict] = []
+    for p in sorted({str(x) for x in (paths or ()) if x}):
+        if p.startswith("/") or "\\" in p or any(seg in ("", ".", "..") for seg in p.split("/")):
+            core.fail("HINT_SEALED_SOURCE_UNREADABLE", f"봉인 출처 경로가 저장소 상대 posix 가 아니다: {p!r}")
+        f = repo / p
+        try:
+            data = f.read_bytes() if f.is_file() else None
+        except OSError:
+            data = None
+        if data is None:
+            core.fail("HINT_SEALED_SOURCE_UNREADABLE", f"봉인 출처를 읽을 수 없다: {p}",
+                      "린트가 통과한 출처가 봉인 직전에 사라졌다 — 출처를 복원하고 continue 를 다시 실행한다.")
+        out.append({"path": p, "sha256": hashlib.sha256(data).hexdigest()})
+    return out
+
+
 # ── 자체검사 (격리 임시 저장소 · 라이브 문서·태그·캠페인 비의존) ────────────────────────────────────────
 def _selftest_tool_sources(ck, repo: Path, ev: dict, kw: dict) -> None:
     """2026-09-22(S2 round 3) — `tool-source@rev` 후보: draft 상대 경로 · origin git 바이트 검증 · 발췌 해소. ★ = 음성대조."""
@@ -2010,4 +2083,34 @@ def selftest() -> list[str]:
            and "_unreadable" in recs[0])
         sp = seeds_from_publications(repo, recs, this_topic="nope", identity=None, cell_key="c1-a")
         ck("★이 발행 기록 부재 = 결손 기재(차단 ✗)", sp["missing"][0]["reason"] == "record-absent" and sp["seeds"] == [])
+
+        # ── 수신자 요약 · 봉인 출처 스냅샷(2026-09-29 · plan_26092908 §4.6·§4.9) ──
+        d0 = lin["documents"][0]["path"]
+        summ = receiver_summary(lin, excerpt_counts={d0: 2, "docs/simlog/26010600_run/sweep_index.json": 1})
+        ck("요약: 문서 수 = 전체 · stem · 역할 · 날짜 · 발췌 수만(해시 · via ✗)", len(summ["documents"]) == len(lin["documents"])
+           and summ["documents"][0]["excerpts"] == 2 and summ["documents"][0]["stem"] == PurePosixPath(d0).stem
+           and not any(k in summ["documents"][0] for k in ("sha256", "via", "commit"))
+           and SEALED_SOURCES_KEY not in summ and summ["kind"] == SUMMARY_KIND)
+        ck("요약: 후보는 수 + 인용된 것만", summ["evidence_candidates"]["count"] == len(lin["evidence_candidates"])
+           and summ["evidence_candidates"]["cited"] == [{"path": "docs/simlog/26010600_run/sweep_index.json", "excerpts": 1}])
+        ck("요약 ≤ 상한 · 전체보다 작다", len(core.dumps(summ).encode()) <= SUMMARY_MAX_BYTES
+           and len(core.dumps(summ)) < len(core.dumps(lin)))
+        big = {**lin, "documents": [{**lin["documents"][0], "path": f"docs/plan/plan_26010100_{'x' * 200}_{i}.md"}
+                                    for i in range(200)]}
+        try:
+            receiver_summary(big)
+            ck("★요약 상한 초과 = HINT_LINEAGE_SUMMARY_TOO_LARGE", False)
+        except core.HintError as e:
+            ck("★요약 상한 초과 = HINT_LINEAGE_SUMMARY_TOO_LARGE(code)", e.code == "HINT_LINEAGE_SUMMARY_TOO_LARGE")
+        ss = sealed_sources(repo, [d0, d0])
+        ck("봉인 스냅샷: 중복 제거 · sha256 = 현재 바이트", ss == [{"path": d0, "sha256": hashlib.sha256(
+            (repo / d0).read_bytes()).hexdigest()}])
+        ck("요약에 스냅샷 싣기", receiver_summary(lin, sealed_sources=ss)[SEALED_SOURCES_KEY] == ss)
+        for label, bad_paths in (("★읽을 수 없는 출처", ["docs/plan/nope.md"]), ("★저장소 밖 경로", ["../x.md"]),
+                                 ("★절대 경로", ["/etc/hosts"])):
+            try:
+                sealed_sources(repo, bad_paths)
+                ck(f"{label} = HINT_SEALED_SOURCE_UNREADABLE", False)
+            except core.HintError as e:
+                ck(f"{label} = HINT_SEALED_SOURCE_UNREADABLE(code)", e.code == "HINT_SEALED_SOURCE_UNREADABLE")
     return bad

@@ -160,12 +160,13 @@ TEMPLATE_FILES = ("00-hint", "01-artifacts", "02-narrative", "03-benchmark")
 PAYLOAD_DOCS = tuple(f"{n}.md" for n in TEMPLATE_FILES)
 README_TEMPLATE = "payload-README.md"
 README_NAME = "README.md"
-FORMAT = "hint-payload/v6"
+FORMAT = "hint-payload/v7"   # 2026-09-29 v7(plan_26092908 · branch.PAYLOAD_FORMAT 와 같은 값 — hint.py 자체검사가 교차검증)
 FACTS_SNAPSHOT = "template_facts.json"
 
 # 챕터 목록 = plan §4.2 그대로(트립와이어 — 바꾸려면 plan 을 먼저 고치고 이 목록을 리뷰한다).
 CHAPTERS = {
-    "00-hint": tuple(f"0.{i}" for i in range(1, 9)),
+    # 2026-09-29 plan_26092908 §4.1(U5): 0.9 이름 꼬리 — 결정론 3축 뒤의 꼬리를 Agent 가 근거와 함께 저작하는 자리(D 통합 결정)
+    "00-hint": tuple(f"0.{i}" for i in range(1, 10)),
     "01-artifacts": tuple(f"1.{i}" for i in range(1, 6)),
     "02-narrative": tuple(f"2.{i}" for i in range(1, 8)),
     "03-benchmark": tuple(f"3.{i}" for i in range(1, 6)),
@@ -185,6 +186,13 @@ BANNER_LINES = REVALIDATION_BANNERS + BANNER_EXTRA
 
 MAP_ONLY_MARKER = "OBSERVATION-ONLY"
 PERF_WARNING_MARKER = "PERF-WARNING"
+# 판정 표면(2026-09-29 · plan_26092908 §4.4 · V1·V2): REFUTE 는 기계가 읽는 자리(PAYLOAD.measurement.verdict · FACT:grade 판정 행)와
+#   00 머리 배너(OBSERVATION-ONLY 배너와 같은 자리 · _marker_lines) 둘 다에 있어야 한다 — v6 의 D1·N1 은 REFUTE 가 산문에만 있었다.
+REFUTE_MARKER = "REFUTE"
+MEASUREMENT_VERDICTS = ("PASS", "REFUTE", "OBSERVATION-ONLY")   # evidence.MEASUREMENT_VERDICTS 와 같은 닫힌 목록(자체검사가 교차검증)
+# 파일 단위 검증 표시(2026-09-29 · plan_26092908 §4.2 U1+): artifacts.unverified_header 문구의 식별 조각 — 표시 3자리(PAYLOAD 파일 기록 ·
+#   파일 첫 줄 · 01 표) 일치 판정에 쓴다(`HINT_VERIFICATION_MARK_MISMATCH`). 문장 전체의 소유자는 artifacts 다.
+UNVERIFIED_MARK = "⚠ generated-unverified"
 AGENT_MARK = "<<AGENT:"
 SEALED_PREFIX = "> 이 절이 답하는 질문: "
 MAX_EXCERPT_LINES_PER_SOURCE = 40      # X16
@@ -450,14 +458,33 @@ def _f_grade(c: _Ctx) -> str:
         ("자격 근거", _cell([f"`{s}`" for s in sources])),
         ("증거 등급(task_class)", _cell(tc)),
         ("측정 등급(bench_mode)", _cell(mc.get("bench_mode"), _UNRECORDED)),
+        # 2026-09-29 plan_26092908 §4.4(V2): 판정 행은 필수다 — 인증서 유무와 무관하게 판정 원천(evidence.measurement)이 채운다
+        ("성능 판정(measurement.verdict)", _verdict_text(f)),
     ]
     out = _table(("항목", "값"), rows)
     out += _marker_lines(f)
     return "\n".join(out)
 
 
+def _verdict_text(f: dict) -> str:
+    """판정 한 칸 — `PASS|REFUTE|OBSERVATION-ONLY` + 출처(evidence `measurement.sources.verdict` 그대로 · 여기서 재판정 ✗)."""
+    m = _dict(f, "measurement")
+    v, src = m.get("verdict"), _dict(m, "sources").get("verdict")
+    if v in (None, ""):
+        return f"{_MISSING_TEXT} — {_cell(src, '판정 원천 없음')}"
+    return f"`{_cell(v)}` — 출처 {_cell(src, '출처 미기재')}"
+
+
 def _marker_lines(f: dict) -> list[str]:
     out: list[str] = []
+    m = _dict(f, "measurement")
+    if m.get("verdict") == REFUTE_MARKER:
+        # 2026-09-29 plan_26092908 §4.4(V1): D1·N1 은 REFUTE 가 산문에만 있었다 — 기계가 머리에 싣는다(OBSERVATION-ONLY 배너와 같은 자리)
+        reasons = [x for x in (m.get("verdict_reasons") or []) if isinstance(x, (str, int, float))]
+        out += ["", f"> **{REFUTE_MARKER}** — 이 셀의 성능 판정은 **기각**이다(측정은 됐으나 판정 기준 미달). 수치는 관측이지 baseline · 권고가 "
+                    f"아니다 — 판정 출처 {_cell(_dict(m, 'sources').get('verdict'), '출처 미기재')}."]
+        if reasons:
+            out += [f"> 기각 사유: {_cell(reasons)}"]
     if _task_class(f) == "hint_map_only":
         out += ["", f"> **{MAP_ONLY_MARKER}** — 이 태그의 성능 수치는 **관측 게재**다(인증서 없음). baseline·권고로 읽지 마라 — "
                     "baseline 을 주장하려면 full_benchmark 인증서가 필요하다."]
@@ -470,7 +497,9 @@ def _marker_lines(f: dict) -> list[str]:
     return out
 
 
-_AXIS_ORDER = ("hw", "gpus_per_node", "nodes", "role", "target", "q", "len", "kv", "ple", "spec", "graph")
+# 2026-09-29 plan_26092908 §4.1(U5): 결정론 축은 arch 5축 + 평면 + q·len·kv 뿐이다(ple·spec·graph 는 꼬리 후보로 강등 — 0.9).
+#   옛 v6 facts(뒤 3축이 axes 에 있는)도 버리지 않는다 — 목록 밖 키는 아래에서 정렬해 덧붙인다.
+_AXIS_ORDER = ("hw", "gpus_per_node", "nodes", "role", "target", "plane", "q", "len", "kv")
 _SEGMENT_ORDER = ("vllm", "model", "arch", "recipe")
 
 
@@ -516,15 +545,68 @@ def _f_context(c: _Ctx) -> str:
         if name in axes:
             v, s = _axis(axes[name])
             arows.append((f"축 `{name}`", _cell(v), _cell(s)))
-    out += ["", "**명명 축** — 태그 이름은 도구가 이 축들에서 전량 파생했다(발행자 입력 ✗).", ""]
+    tail = naming.get("tail")
+    if isinstance(tail, list):
+        for r in tail:
+            if isinstance(r, dict):
+                arows.append((f"꼬리 `{_cell(r.get('token'))}`", _cell(r.get("meaning")), _tail_evidence_text(r.get("evidence"))))
+        if naming.get("timestamp"):
+            arows.append(("timestamp", f"`{_cell(naming.get('timestamp'))}`",
+                          "같은 이름이 이미 있어 붙였다(이 발행의 generated_utc 를 KST 로 · 결정론)"))
+    out += ["", "**명명 축** — 태그 이름 = 결정론부(vllm · model · arch · q · len · kv — 도구가 증거에서 파생 · 발행자 입력 ✗) + 꼬리(발행 "
+                "Agent 가 고르고 서빙 설정 file · key · value 로 근거 대조 · 0.9) + 중복 시 timestamp.", ""]
     out += _table(("축", "값", "출처"), arows) if arows else ["_명명 축 미관측._"]
+    if not isinstance(tail, list):
+        out += ["", "_꼬리 미확정 — `continue` 가 draft `inputs/tail.json` 을 근거 대조해 확정한다(0.9 후보 표)._"]
     return "\n".join(out)
 
 
-_BUILD_KNOWN = ("track", "dockerfile", "vllm_repo", "image_tag", "image_digest", "torch", "cuda", "ngc", "cpu_arch", "driver")
+def _tail_evidence_text(ev) -> str:
+    if not isinstance(ev, dict) or not ev:
+        return "근거 미특정"
+    return f"`{_cell(ev.get('file'))}` · 키 `{_cell(ev.get('key'))}` = `{_cell(ev.get('value'), '(빈 값)')}`"
+
+
+def _f_name_tail(c: _Ctx) -> str:
+    """00 §0.9 — 꼬리. publish(확정 전) = naming.tail_candidates 후보 표 · continue 확정 뒤 = naming.tail(PAYLOAD.naming 과 같은 값)."""
+    f = c.facts
+    nm = _dict(f, "naming")
+    tail = nm.get("tail")
+    if isinstance(tail, list):
+        out = [f"**확정 이름** `{_cell(f.get('tag'))}` — 꼬리 {len(tail)}토큰" + (f" · timestamp `{_cell(nm.get('timestamp'))}`"
+                                                                              if nm.get("timestamp") else "") + ".", ""]
+        if tail:
+            out += _table(("토큰", "뜻", "근거(서빙 설정)"),
+                          [(f"`{_cell(r.get('token'))}`", _cell(r.get("meaning")), _tail_evidence_text(r.get("evidence")))
+                           for r in tail if isinstance(r, dict)])
+        else:
+            out.append("_빈 꼬리 — 발행 Agent 가 가르는 노브가 없다고 명시했다(`inputs/tail.json` = `[]`)._")
+        if nm.get("timestamp"):
+            out += ["", f"- `{_cell(nm.get('timestamp'))}` = 같은 이름(결정론부 + 꼬리)이 원격 · 로컬에 이미 있어 붙인 발행 시각(generated_utc 의 KST "
+                        "`YYMMDDHHMM`) — 같은 셀의 새 판이다(옛 태그는 교정하지 않는다)."]
+        return "\n".join(out)
+    base = f.get("base_tag") or f.get("tag")
+    cands = [x for x in (f.get("tail_candidates") or []) if isinstance(x, dict)]
+    out = [f"**기본 이름**(꼬리 전) `{_cell(base)}` — 꼬리 미확정. 아래는 옛 v6 뒤 3축(ple · spec · graph)의 결정론 파생을 돌린 **후보**다"
+           "(강제 ✗ · 이 셀을 가르는 노브만 고른다 · 셋을 v6 순서 그대로 쓰면 거부된다).", ""]
+    if cands:
+        out += _table(("축", "후보 토큰", "뜻", "근거", "출처 · 오류"),
+                      [(_cell(x.get("axis")), f"`{_cell(x.get('token'))}`" if x.get("token") else "—", _cell(x.get("meaning"), "—"),
+                        _tail_evidence_text(x.get("evidence")) if x.get("evidence") else "근거 미특정 — 저작자가 file · key · value 를 적는다",
+                        _cell(x.get("source") or (f"{x.get('error')}: {x.get('message')}" if x.get("error") else None), "—"))
+                       for x in cands])
+    else:
+        out.append("_후보 없음 — naming.tail_candidates 가 후보를 내지 못했다(꼬리는 저작자가 서빙 설정에서 직접 고른다)._")
+    return "\n".join(out)
+
+
+# 2026-09-29 plan_26092908 §4.5(V3): driver_by_node(attestation 노드별 관측) · driver_conflict(관측 ≠ 선언이면 둘 다) · os 를 알려진 행으로
+_BUILD_KNOWN = ("track", "dockerfile", "vllm_repo", "image_tag", "image_digest", "torch", "cuda", "ngc", "cpu_arch", "driver",
+                "driver_by_node", "driver_conflict", "os")
 _BUILD_LABELS = {"track": "빌드 트랙", "dockerfile": "Dockerfile(선택자)", "vllm_repo": "vLLM 저장소", "image_tag": "이미지 태그",
                  "image_digest": "이미지 digest", "torch": "torch", "cuda": "CUDA", "ngc": "NGC 베이스",
-                 "cpu_arch": "CPU arch", "driver": "드라이버"}
+                 "cpu_arch": "CPU arch", "driver": "드라이버", "driver_by_node": "드라이버(노드별 관측)",
+                 "driver_conflict": "⚠ 드라이버 관측 ≠ 선언", "os": "호스트 OS"}
 
 
 def _f_resolved(c: _Ctx) -> str:
@@ -560,7 +642,45 @@ def _f_resolved(c: _Ctx) -> str:
     out = _table(("항목", "값", "출처"), rows)
     out += ["", "> 재현 좌표는 빌드 입력(릴리스 태그 또는 40자 SHA)이다 — 엔진 자기보고 · 인증서 · wheel 의 버전 문자열은 빌드 입력이 아니다"
                 "(각 값을 만든 생산자는 출처 칸)."]
+    # 2026-09-29 plan_26092908 §4.1(U9 · V10): 이름의 q 축은 체크포인트가 **선언한** 방식 하나다 — 혼합 구성(예 dense fp8 + routed
+    #   expert fp4)은 evidence.identity.quant_composition(관측 칸만)에서 싣는다(바이트 비중 해석 ✗).
+    qc = ident.get("quant_composition")
+    qsrc = _dict(ident, "source").get("quant_composition")
+    out += ["", "**양자화 구성**(체크포인트 config 관측 · 이름의 `q` 축은 선언 방식 하나 — ModelOpt MIXED 는 층 개수 우세가 보조 규칙)", ""]
+    if isinstance(qc, list) and qc:
+        out += _table(("범위", "dtype", "출처"), [(_cell(x.get("scope")), f"`{_cell(x.get('dtype'))}`", _cell(x.get("source")))
+                                                 for x in qc if isinstance(x, dict)])
+    else:
+        out.append(f"_{'빈 구성' if isinstance(qc, list) else _MISSING_TEXT} — {_cell(qsrc, '출처 미기재')}._")
+    out += ["", _required_patches_line(f)]
     return "\n".join(out)
+
+
+def _patch_records(f: dict) -> list[dict]:
+    """빌드 패치 슬롯의 파일 기록(artifacts `slots.<slot>.file_records` · 판정 ✗ — 옮기기만)."""
+    slots = _dict(f, "slots")
+    out = []
+    for name in ("build_patch_pre", "build_patch_post"):
+        for r in (_dict(slots, name).get("file_records") or []):
+            if isinstance(r, dict):
+                out.append(r)
+    return out
+
+
+def _required_patches_line(f: dict) -> str:
+    """00 §0.4 "이 모델에 필요한 패치"(2026-09-29 plan_26092908 §4.3 · V8) — 01 §1.1 관련성의 기계 요약. 추론만 있는 것은 unknown ·
+    inactive-inferred 로 남긴다(확정 표기 ✗)."""
+    recs = _patch_records(f)
+    if not recs:
+        return "**이 모델에 필요한 패치**: 실린 빌드 패치 없음(또는 파일 기록 미관측 — 01 §1.1)."
+    by: dict[str, list[str]] = {}
+    for r in recs:
+        by.setdefault(str(r.get("relevance") or "unknown"), []).append(Path(str(r.get("path"))).name)
+    req = by.get("required", [])
+    return ("**이 모델에 필요한 패치**(01 §1.1 관련성 · ① 패치 선언 대상 × 모델 config ② 엔진 로그 발화 — 둘 다 관측일 때만 확정): "
+            + ("required " + " · ".join(f"`{x}`" for x in req) if req else "required 0개")
+            + f" · inactive-inferred {len(by.get('inactive-inferred', []))}개 · unknown {len(by.get('unknown', []))}개"
+            + "(unknown = 판정 신호 부족 — 필요 여부를 이 표로 단정하지 않는다).")
 
 
 # vllm_observed 키 → 라벨(닫힌 tripwire · 모르는 키는 키 이름 그대로 싣는다 — 버리지 않는다). 2026-09-22 S2 round 3: 옛 표는 두 행을
@@ -678,8 +798,9 @@ def _missing_meanings() -> dict:
     return codes
 
 
-def _missing_block(missing, meanings: dict | None = None) -> str:
-    """결손 표. 0건도 명시한다(침묵은 '없음' 과 구분되지 않는다 — 옛 render_missing_block)."""
+def _missing_block(missing, meanings: dict | None = None, reasons: dict | None = None) -> str:
+    """결손 표. 0건도 명시한다(침묵은 '없음' 과 구분되지 않는다 — 옛 render_missing_block). reasons = {코드: 이 셀의 사유}(2026-09-29 ·
+    plan_26092908 §4.2 — 예: native 기동 기록을 producer 가 쓰지 못한 사유 `native_launch_error`) — 있으면 `이 셀의 사유` 열을 단다."""
     if isinstance(missing, dict):
         items = sorted((str(k), v) for k, v in missing.items())
     elif isinstance(missing, (list, tuple)):
@@ -696,7 +817,12 @@ def _missing_block(missing, meanings: dict | None = None) -> str:
             meaning = meanings.get(code)
         rows.append((f"`{code}`", _cell(meaning or "미등록 사유코드 — `evidence.MISSING_CODES` 에 뜻을 등재하라")))
     out = ["**결손** — 발행을 막지 않고 기재한다(부재와 실패는 다른 사실이다 · 차단은 양성 검출만).", ""]
-    out += _table(("코드", "뜻"), rows)
+    rs = {str(k): v for k, v in (reasons or {}).items() if v}
+    if rs:
+        out += _table(("코드", "뜻", "이 셀의 사유"), [(a, b, _cell(rs.get(code.strip("`")), "—")) for (a, b), (code, _m)
+                                                   in zip(rows, items)])
+    else:
+        out += _table(("코드", "뜻"), rows)
     return "\n".join(out)
 
 
@@ -729,7 +855,7 @@ def _attestation_scope_line(f: dict) -> str | None:
 
 
 def _f_missing(c: _Ctx) -> str:
-    out = _missing_block(c.facts.get("missing"))
+    out = _missing_block(c.facts.get("missing"), reasons=_dict(c.facts, "missing_reasons"))
     note = _attestation_scope_line(c.facts)
     if note and any("ATTESTATION" in code for code in _missing_codes(c.facts.get("missing"))):
         out += "\n\n" + note
@@ -743,9 +869,19 @@ def _f_bench_missing(c: _Ctx) -> str:
     codes = _missing_codes(missing)
     sel = [code for code in BENCH_MISSING_CODES if code in codes]
     out: list[str] = []
+    m = _dict(c.facts, "measurement")
     if "HINT_MISSING_CERTIFICATE" in codes:
-        out += ["> **인증서가 없다.** 인증서는 full 모드 verdict==PASS 일 때만 나오며 그 발행은 `adversarial-benchmark` 의 책임이다.",
-                "> 부재는 '성능이 나빴다' 가 아니라 '**그 형태로 판정되지 않았다**' 는 뜻이다 — 위 수치는 관측이지 판정이 아니다.", ""]
+        # 2026-09-29 plan_26092908 §4.4: evidence 는 인증서가 **발행되는 판정**(explicit ∧ PASS · 또는 판정 미관측)에서만 이 결손을 싣는다
+        #   (_certificate_not_due) — 배너도 그 뜻만 말한다.
+        out += ["> **인증서가 없다** — 인증서가 발행되는 판정(루브릭 권한 explicit ∧ PASS, 또는 판정 · 권한 미관측)인데 인증서가 묶이지 않았다"
+                "(발행은 `adversarial-benchmark` 의 책임).",
+                "> 부재는 '성능이 나빴다' 가 아니라 인증서 형태로 '**그 형태로 판정되지 않았다**' 는 뜻이다 — 판정 "
+                f"{_verdict_text(c.facts)} · 위 수치는 관측이다.", ""]
+    elif m.get("verdict") in (REFUTE_MARKER, MAP_ONLY_MARKER) or (
+            m.get("verdict") == "PASS" and not str(_dict(m, "sources").get("verdict") or "").startswith("certificate")):
+        # 비발행 판정(REFUTE · OBSERVATION-ONLY · PASS ∧ 비발행 권한)은 결손이 아니다 — 판정 원천이 그 사실을 말한다(무인증서 배너 ✗)
+        out += [f"> 인증서 비발행 판정(결손 아님) — {_verdict_text(c.facts)} · 인증서는 explicit ∧ PASS 판정에서만 나온다"
+                f"(루브릭 권한 `{_cell(m.get('rubric_authority'))}`).", ""]
     if not sel:
         out.append("**측정 결손**: _없음 — 측정 결손 코드("
                    + " · ".join(f"`{x}`" for x in BENCH_MISSING_CODES)
@@ -854,7 +990,50 @@ def _f_slots(c: _Ctx) -> str:
     ex = _excluded_lines(slots)
     if ex:
         out += ["", "**싣지 않은 파일**(슬롯별 사유 — 빌드 때 skip 된 패치는 아래 적용 집합 표에 있다)", ""] + ex
+    out += _file_marks_table(slots)
+    out += _agent_requests_table(c.facts)
     return "\n".join(out)
+
+
+def _file_records(slots: dict) -> list[tuple[str, dict]]:
+    out = []
+    for name in sorted(slots):
+        row = slots[name] if isinstance(slots[name], dict) else {}
+        for r in row.get("file_records") or []:
+            if isinstance(r, dict) and r.get("path"):
+                out.append((name, r))
+    return out
+
+
+def _verification_cell(r: dict) -> str:
+    """01 표의 `검증` 칸 — 표시 3자리의 셋째(plan_26092908 §4.2 U1+). 형식 `<verification> · <generated_by>` 는 린터가 대조한다."""
+    return f"`{_cell(r.get('verification'))}` · {_cell(r.get('generated_by'))}"
+
+
+def _file_marks_table(slots: dict) -> list[str]:
+    """파일별 검증 표시 · 관련성(2026-09-29 · plan_26092908 §4.2·§4.3) — artifacts `slots.<slot>.file_records` 를 옮긴다(판정 ✗)."""
+    recs = _file_records(slots)
+    if not recs:
+        return []
+    out = ["", "**파일별 검증 · 관련성**(`generated-unverified` = 실행 검증되지 않은 생성물 — 파일 첫 줄 경고 · PAYLOAD 파일 기록과 같은 표시 · "
+               "관련성 = ① 패치 선언 대상 × 모델 config ② 엔진 로그 발화 서명 — 둘 다 관측일 때만 required/inactive-inferred)", ""]
+    out += _table(("슬롯", "파일", "검증", "검증 근거", "관련성", "관련성 근거"),
+                  [(f"`{name}`", f"`{_cell(r.get('path'))}`", _verification_cell(r), _cell(r.get("verification_basis")),
+                    f"`{_cell(r.get('relevance'))}`", _cell(r.get("relevance_basis"), "—")) for name, r in recs])
+    return out
+
+
+def _agent_requests_table(f: dict) -> list[str]:
+    """렌더러로 만들 수 없는 자리(artifacts `agent_requests` · plan §4.2 "렌더러 우선 · Agent 폴백") — publish 가 빈 파일 + 자리표시를
+    두고, 저작 Agent 가 첫 줄 경고를 지킨 채 본문을 쓴다(린터: 경고 줄 · 자리표시 잔존 · 빈 본문)."""
+    reqs = [r for r in (f.get("agent_requests") or []) if isinstance(r, dict) and r.get("path")]
+    if not reqs:
+        return []
+    out = ["", f"**Agent 저작 요청 {len(reqs)}건**(렌더러 입력이 없어 기계가 만들지 못한 자리 — 저작 Agent 가 증거에서 쓴다 · 첫 줄 "
+               f"`{UNVERIFIED_MARK} … 생성: agent` 유지 · verification 은 저작 뒤에도 generated-unverified)", ""]
+    out += _table(("파일", "사유", "입력"), [(f"`{_cell(r.get('path'))}`", _cell(r.get("why")), _cell(r.get("inputs"), "—"))
+                                            for r in reqs])
+    return out
 
 
 def _revision_line(slot: str, r: dict) -> str:
@@ -918,10 +1097,28 @@ def _excluded_lines(slots: dict) -> list[str]:
     return out
 
 
+def _missing_sentence(f: dict, code: str, absent_text: str) -> str:
+    """결손 문구를 결손 표에서 **파생**한다(2026-09-29 · plan_26092908 §4.2 V7 — 01 은 "결손" 이라 적는데 결손 표에는 코드가 없던 침묵).
+    코드가 facts.missing 에 있으면 그 코드와 뜻(evidence.MISSING_CODES) · 이 셀의 사유(missing_reasons) · 없으면 absent_text."""
+    missing = f.get("missing")
+    if code not in _missing_codes(missing):
+        return absent_text
+    meaning = missing.get(code) if isinstance(missing, dict) else None
+    if not meaning:
+        try:
+            meaning = _missing_meanings().get(code)
+        except core.HintError:
+            meaning = None
+    reason = _dict(f, "missing_reasons").get(code)
+    return (f"_결손 `{code}` — {_cell(meaning, '뜻 미등록')}" + (f" · 이 셀의 사유: {_cell(reason)}" if reason else "")
+            + "(00 §0.7 결손 표)._")
+
+
 def _f_applied_set(c: _Ctx) -> str:
     a = _dict(c.facts, "applied_set")
     if not a:
-        return "_적용 집합 미관측 — 빌드 원장·재구성 모두 없다(결손)._"
+        return _missing_sentence(c.facts, "HINT_MISSING_APPLIED_SET",
+                                 "_적용 집합 없음 — 빌드 패치 슬롯 입력이 없고 결손 코드도 없다(판정할 대상이 없다)._")
     shipped = _shipped_names(c.facts)
     out = [f"**적용 집합** — 상태 `{_cell(a.get('status'))}` · 출처 `{_cell(a.get('source'))}`"
            + (" · 원장 없음: 아래 결과는 **라벨된 재구성**이다(관측 아님)" if a.get("status") == "unobservable" else ""), ""]
@@ -1081,8 +1278,47 @@ def _f_reproduce(c: _Ctx) -> str:
             out.pop()
     else:
         out = ["_재현 단계 미관측 — 셀 실행 기록이 없다(결손)._"]
+    out += _context_map_lines(c.facts)
+    out += _derived_env_lines(c.facts)
     out += ["", _qualification_line(c.facts)]
     return "\n".join(out)
+
+
+def _context_map_lines(f: dict) -> list[str]:
+    """슬롯 → 빌드 컨텍스트 매핑(2026-09-29 · plan_26092908 §4.6 V14 — artifacts `build_context_map` 를 옮긴다). zip 슬롯 이름
+    (`build_patch_pre/`·`triplet/`)과 Dockerfile · compose 가 기대하는 자리(`build_patches_src/`·`envs/`·`configs/`)가 달라 수신자가
+    어디에 둘지 추측했다(블라인드 X1)."""
+    rows = [r for r in (f.get("build_context_map") or []) if isinstance(r, dict) and r.get("slot_path")]
+    if not rows:
+        return []
+    out = ["", "**슬롯 → 빌드 컨텍스트 매핑**(빌드 컨텍스트 = `output/<토폴로지>/` · 원천 = 실린 Dockerfile 의 COPY · compose 의 env_file · "
+               "volumes · command — `—` 는 빌드 컨텍스트 입력이 아니다)", ""]
+    out += _table(("zip 경로", "빌드 컨텍스트 자리", "근거"),
+                  [(f"`{_cell(r.get('slot_path'))}`", f"`{_cell(r.get('context_path'))}`" if r.get("context_path") else "—",
+                    _cell(r.get("basis"))) for r in rows])
+    return out
+
+
+def _derived_env_lines(f: dict) -> list[str]:
+    """env 형상의 파생 키 · 실효값(2026-09-29 · plan_26092908 §4.6 — artifacts `env_shapes[].derived`). 한 manifest 필드에서 여러 키가
+    파생되면 키마다 `<derived:<필드>→<KEY>>` 자리표시를 두고, 선택지별 실효값은 렌더러 표에서 옮긴다(블라인드 X1: NCCL_IB_DISABLE 에
+    필드 값 'rdma' 를 넣을 뻔했다)."""
+    rows = []
+    for e in f.get("env_shapes") or []:
+        if not isinstance(e, dict):
+            continue
+        for d in e.get("derived") or []:
+            if isinstance(d, dict):
+                ph = d.get("placeholders") if isinstance(d.get("placeholders"), dict) else {}
+                rule = d.get("rule_text") or d.get("value_rule")
+                rows.append((f"`{_cell(e.get('template') or e.get('file'))}`", f"`{_cell(d.get('field'))}`",
+                             _cell([f"`{k}`" for k in (d.get("keys") or [])]), _cell([f"`{ph[k]}`" for k in sorted(ph)], "—"),
+                             _cell(rule, "규칙 미관측(렌더러에서 읽지 못함 — 지어내지 않는다)"), _cell(d.get("source"), "—")))
+    if not rows:
+        return []
+    out = ["", "**env 형상의 파생 키 · 실효값**(한 manifest 필드 → 여러 키 · 키마다 자기 자리표시 — 값은 필드 값이 아니라 아래 규칙의 결과다)", ""]
+    out += _table(("형상", "manifest 필드", "키", "자리표시", "실효값 규칙", "출처"), rows)
+    return out
 
 
 def _regenerated_env(f: dict) -> list[str]:
@@ -1103,8 +1339,12 @@ def _f_sub_recipe(c: _Ctx) -> str:
         return "해당 없음 — single 토폴로지(서브 노드 · Ray worker 없음)."
     sr = f.get("sub_recipe")
     if not isinstance(sr, dict) or not sr:
-        return "_서브 레시피 미관측 — 결손(0.7 결손 표)._"
+        return _missing_sentence(f, "HINT_MISSING_SUB_RECIPE",
+                                 "_서브 레시피 없음 — sub_recipe 를 싣지 않았고 결손 코드도 없다(생산자 artifacts 가 말하지 않은 부재)._")
     out = ["원본: `artifacts/compose/sub_recipe.json`(기계 파생 — 스모크와 같은 함수 `slave_forward.derive` 의 출력).", ""]
+    if "HINT_MISSING_SUB_RECIPE" in _missing_codes(f.get("missing")):
+        # native 셀(plan §4.2): 실린 sub_recipe 는 Docker 형 렌더러 산출물이고 서브가 실제로 받은 env · 기동은 관측되지 않았다
+        out = [_missing_sentence(f, "HINT_MISSING_SUB_RECIPE", ""), ""] + out
     roles = _dict(sr, "role_diff")
     out += _table(("역할", "하는 일"), [(f"`{k}`", _cell(roles[k])) for k in sorted(roles)]) if roles else ["_역할 차이 미관측._"]
     order = sr.get("launch_order") if isinstance(sr.get("launch_order"), list) else []
@@ -1444,7 +1684,8 @@ def _f_lineage(c: _Ctx) -> str:
         rows.append((str(i), doc, _cell(x.get("kind")), _cell(x.get("date_key")), _cell(x.get("depth")),
                      _cell(x.get("bytes")), _cell(x.get("axis_tokens"), "—"), _cell(x.get("superseded_by"), "—")))
     out = [f"계보 문서 {len(items)}건 — 서사는 **이 목록 전체**를 읽고 쓴다(이 셀 1회분이 아니다). 순서 = 계층 → 깊이 → 관련도 → 날짜. "
-           "크기(바이트)는 읽기 예산용이다. 원시 증거 후보(엔진 · 빌드 로그)는 `LINEAGE.json` 의 `evidence_candidates` 다.", ""]
+           "크기(바이트)는 읽기 예산용이다. 원시 증거 후보(엔진 · 빌드 로그)는 발행자 평면 draft `inputs/LINEAGE.full.json` 의 "
+           "`evidence_candidates` 다(페이로드 `LINEAGE.json` 은 수신자 요약 — plan_26092908 §4.6).", ""]
     out += _table(("#", "문서", "종류", "날짜", "깊이", "크기", "셀 축 토큰", "대체됨"), rows)
     return "\n".join(out)
 
@@ -1459,21 +1700,25 @@ def _f_measurement(c: _Ctx) -> str:
     if not m:
         out = ["_측정값 없음(미기재 — 0 이 아니다)._"]
     else:
-        keys = (["measured_utc"] if "measured_utc" in m else []) + sorted(k for k in m if k not in ("measured_utc", "source"))
+        # 2026-09-29 plan_26092908 §4.4: 키별 출처(evidence `measurement.sources`)는 `sources.<키>` 행으로 펼치지 않고 그 키 행의 출처 칸에
+        #   싣는다(값과 출처가 한 행 — 수신자가 판정 · 수치가 인증서인지 판정 원천인지 같은 자리에서 본다).
+        per = _dict(m, "sources")
+        keys = (["measured_utc"] if "measured_utc" in m else []) + sorted(k for k in m if k not in ("measured_utc", "source",
+                                                                                                    "sources"))
         keys += ["source"] if "source" in m else []
         rows, subtables = [], []
         for k in keys:
             v = m[k]
             if isinstance(v, dict) and v and all(not isinstance(x, (dict, list)) for x in v.values()):
-                rows += [(f"`{k}.{sk}`", _cell(v[sk], _UNRECORDED)) for sk in sorted(v)]
+                rows += [(f"`{k}.{sk}`", _cell(v[sk], _UNRECORDED), _cell(per.get(k), "—")) for sk in sorted(v)]
             elif isinstance(v, list) and v and all(isinstance(x, dict) for x in v):
                 cols = [x for x in _LEVEL_KEY_ORDER if any(x in r for r in v)]
                 cols += sorted({x for r in v for x in r} - set(cols))
-                subtables += ["", f"**`{k}`**({len(v)}행)", ""]
+                subtables += ["", f"**`{k}`**({len(v)}행 · 출처 {_cell(per.get(k), '—')})", ""]
                 subtables += _table(tuple(f"`{x}`" for x in cols), [tuple(_cell(r.get(x), _UNRECORDED) for x in cols) for r in v])
             else:
-                rows.append((f"`{k}`", _cell(v, _UNRECORDED)))
-        out = _table(("키", "값"), rows) + subtables
+                rows.append((f"`{k}`", _cell(v, _UNRECORDED), _cell(per.get(k), "—")))
+        out = _table(("키", "값", "출처"), rows) + subtables
     out += _marker_lines(c.facts)
     return "\n".join(out)
 
@@ -1508,6 +1753,8 @@ FACT_RENDERERS: dict[str, Callable[[_Ctx], str]] = {
     "bench_definition": _f_bench_definition,
     # 2026-09-22 · plan_26092119 S2 round 3(공유 사실 계약): 측정 env 관측 · 노드별 접기 · 측정 도구 원문 스냅샷
     "measurement_env": _f_measurement_env, "measurement_env_nodes": _f_measurement_env_nodes, "tool_snapshots": _f_tool_snapshots,
+    # 2026-09-29 · plan_26092908 §4.1: 0.9 이름 꼬리(publish = 후보 · continue 확정 뒤 = 확정 꼬리)
+    "name_tail": _f_name_tail,
 }
 
 
@@ -2123,6 +2370,11 @@ def _render_readme(ctx: _Ctx) -> str:
         "SUB_RECIPE_ROW": " · (멀티) 서브 레시피 해설" if _topology(f) == "multi" else "",
         "EVENT_KINDS": _event_kinds_md(ctx.templates),
         "LEGEND": _legend_md(),
+        # 2026-09-29 plan_26092908 §4.4·§4.6: 판정 한 줄 · 이 태그 이름 읽는 법(PAYLOAD.naming 에서 생성) · 슬롯 → 빌드 컨텍스트 요약
+        "VERDICT": f"> **판정** {_verdict_text(f)}" + (f" · **{REFUTE_MARKER}** = 기각된 성능 판정(수치는 관측)"
+                                                       if _dict(f, "measurement").get("verdict") == REFUTE_MARKER else ""),
+        "NAME_GUIDE": name_guide_md(f),
+        "CONTEXT_MAP": _context_map_summary(f),
     }
 
     def repl(m):
@@ -2131,6 +2383,88 @@ def _render_readme(ctx: _Ctx) -> str:
         return tokens[m.group(1)]
 
     return _README_TOKEN.sub(repl, p.read_text(encoding="utf-8"))
+
+
+# 이름 세대 표(수신자 안내 · 2026-09-29 plan_26092908 §4.6 U3 · V9). 안내 README(templates/hint-branch-README.md)의 세대 표와 같은 뜻 —
+#   정적 파일과 생성 문구는 한쪽이 다른 쪽을 만들 수 없으므로 hint.py 자체검사가 세대 라벨 교차검증을 한다.
+NAME_GENERATIONS = (
+    ("v7", "`q·len·kv` 결정론 + 근거 붙은 꼬리 + 중복 시 `-t<YYMMDDHHMM>` · 페이로드 커밋의 부모 = 안내 커밋", "2026-09-29 ~"),
+    ("v6", "레시피 여섯 축 고정 `q…-len…-kv…-ple…-spec<n|off>-<graph|eager>`(v7 파서는 3축 + 꼬리 셋으로 읽는다)", "2026-09-22 ~ 09-28"),
+    ("옛 5세그먼트(노드 축)", "arch `<hw>-<main|sub|cluster>-<target>`", "2026-09-06 ~ 09-21"),
+    ("옛 5세그먼트", "arch `<hw>-<target>` · 노드 축 없음", "2026-09-04 ~ 09-06"),
+    ("옛 4세그먼트", "`hint/<vllm>/<model>/<arch>` · 레시피 축 없음", "2026-09-04 이전"),
+)
+_SEGMENT_MEANINGS = {
+    "vllm": "빌드 입력 — 릴리스 태그면 그 릴리스, 커밋 핀이면 `<직전 릴리스>-g<커밋 12자>`(엔진 자기보고는 00 §0.4 의 다른 행)",
+    "model": "체크포인트 이름(Hugging Face 등록명 소문자 · 양자화 접미사 그대로)",
+    "q": "양자화 — 체크포인트가 **선언한** 방식(혼합 구성은 00 §0.4 양자화 구성 표)",
+    "len": "최대 컨텍스트 길이(max-model-len)",
+    "kv": "KV 캐시 dtype(서빙 설정 선언)",
+}
+
+
+def name_guide_md(f: dict) -> str:
+    """페이로드 README "이 태그 이름 읽는 법"(PAYLOAD.naming 에서 결정론 생성 · 판정 ✗). 세그먼트 · 축마다 값 · 뜻 · 출처, 꼬리 토큰의 뜻 ·
+    근거, timestamp 의 뜻, `native` · `-bare` 의 뜻, 세대 표. 꼬리 확정 전(publish 스캐폴드)이면 그렇다고 적는다(continue 가 다시 렌더)."""
+    nm = _dict(f, "naming")
+    seg, axes = _dict(nm, "segments"), _dict(nm, "axes")
+    rows = []
+    for k in ("vllm", "model"):
+        v, src = _axis(seg.get(k))
+        rows.append((f"`<{k}>`", f"`{_cell(v)}`", _SEGMENT_MEANINGS[k], _cell(src)))
+    av, asrc = _axis(seg.get("arch"))
+    parts = {k: _axis(axes.get(k))[0] for k in ("hw", "gpus_per_node", "nodes", "role", "target", "plane")}
+    rows.append(("`<arch>`", f"`{_cell(av)}`",
+                 f"`<hw>-<G>g<N>n-<role>-<target>[-bare]` — hw `{_cell(parts['hw'])}` · 노드당 GPU {_cell(parts['gpus_per_node'])} · "
+                 f"노드 {_cell(parts['nodes'])} · 역할 `{_cell(parts['role'])}` · 타겟 `{_cell(parts['target'])}` · 평면 "
+                 f"`{_cell(parts['plane'], 'docker(토큰 없음)')}`", _cell(asrc)))
+    for k in ("q", "len", "kv"):
+        v, src = _axis(axes.get(k))
+        rows.append((f"`{k}`", f"`{_cell(v)}`", _SEGMENT_MEANINGS[k], _cell(src)))
+    tail = nm.get("tail")
+    if isinstance(tail, list):
+        for r in tail:
+            if isinstance(r, dict):
+                rows.append((f"꼬리 `{_cell(r.get('token'))}`", f"`{_cell(r.get('token'))}`", _cell(r.get("meaning")),
+                             "발행 Agent · 근거 " + _tail_evidence_text(r.get("evidence"))))
+        if nm.get("timestamp"):
+            rows.append(("timestamp", f"`{_cell(nm.get('timestamp'))}`",
+                         "같은 이름이 이미 있어 붙인 발행 시각(KST `YYMMDDHHMM`) — 같은 셀의 새 판", "도구(generated_utc · 결정론)"))
+    out = [f"`{_cell(f.get('tag'))}`", ""]
+    out += _table(("자리", "값", "뜻", "출처"), rows)
+    if not isinstance(tail, list):
+        out += ["", "_꼬리 미확정 — 이 README 는 publish 스캐폴드다(continue 가 꼬리를 확정하며 다시 렌더한다)._"]
+    target, plane = str(parts.get("target") or ""), parts.get("plane")
+    out += ["",
+            f"- `native` = **실제 하드웨어에서 잰 것**(`sim-<타겟>` = 다른 GPU 의 메모리 예산 흉내의 반대) — Docker 여부와 **무관**하다. 이 태그: "
+            f"타겟 `{_cell(target)}`.",
+            "- `-bare` = **Docker 없이**(호스트 venv) 서빙한 셀 · 토큰이 없으면 Docker 셀이다. 이 태그: 평면 "
+            f"`{_cell(plane, 'docker')}`.",
+            "- 꼬리는 규칙 목록이 아니라 근거가 붙은 자유 기재다 — 비슷한 hint 는 결정론부(`<vllm>/<model>/<arch>/q·len·kv`)로 먼저 맞춘다.",
+            "", "**이름 세대**(옛 태그는 교정 · 리콜하지 않는다)", ""]
+    out += _table(("세대", "모양", "시기"), [(f"`{g}`" if g.startswith("v") else g, _cell(shape), when)
+                                         for g, shape, when in NAME_GENERATIONS])
+    return "\n".join(out)
+
+
+def _context_map_summary(f: dict) -> str:
+    """README 의 슬롯 → 빌드 컨텍스트 요약 — build_context_map 을 (zip 폴더 → 컨텍스트 폴더) 로 묶어 센다(파일별 표는 01 §1.4)."""
+    rows = [r for r in (f.get("build_context_map") or []) if isinstance(r, dict) and r.get("slot_path")]
+    if not rows:
+        return "_매핑 없음 — 빌드 컨텍스트 매핑을 파생하지 못했다(01 §1.4)._"
+    groups: dict[tuple[str, str], int] = {}
+    outside = 0
+    for r in rows:
+        if not r.get("context_path"):
+            outside += 1
+            continue
+        cdir = Path(str(r["context_path"])).parent.as_posix()
+        key = (Path(str(r["slot_path"])).parent.as_posix() + "/", "(컨텍스트 루트)" if cdir == "." else cdir + "/")
+        groups[key] = groups.get(key, 0) + 1
+    out = _table(("zip 폴더", "빌드 컨텍스트 자리", "파일 수"), [(f"`{a}`", f"`{b}`", str(n)) for (a, b), n in sorted(groups.items())])
+    if outside:
+        out += ["", f"_빌드 컨텍스트 입력이 아닌 파일 {outside}개(기록 · pip freeze 등) — 01 §1.4 표의 `—` 행._"]
+    return "\n".join(out)
 
 
 def default_snapshot_path(payload_dir: Path) -> Path:
@@ -2169,6 +2503,7 @@ def render_scaffold(repo: Path, facts: dict, payload_dir: Path, *, snapshot_path
     for name, text in rendered.items():
         (payload_dir / f"{name}.md").write_text(text, encoding="utf-8")
     (payload_dir / README_NAME).write_text(readme, encoding="utf-8")
+    write_agent_requests(payload_dir, facts.get("agent_requests"))     # 2026-09-29 plan_26092908 §4.2 — 렌더러 없는 자리 = 빈 파일 + 자리표시
     core.write_json(Path(snapshot_path) if snapshot_path else default_snapshot_path(payload_dir), facts)
     refresh(payload_dir)
     return prompts(payload_dir)
@@ -2990,8 +3325,152 @@ def lint(repo: Path, payload_dir: Path, *, lineage: dict, subst_table=None, mani
             for hit in _pii.scan_text(p.read_text(encoding="utf-8"), terms or [], profile="deploy"):
                 add("HINT_PII", name, hit.line, f"배포 PII 검출(pattern={hit.pattern}) — 발췌는 치환 후 원문을 옮긴다")
 
+    # ⑯ 태그 이름은 사실 블록이 소유한다(2026-09-29 · plan_26092908 §4.1 · D 통합 결정 3): 꼬리는 continue 가 확정하므로 저작 산문 ·
+    #     hint-event 에 적은 이름은 확정 전 이름으로 남는다(기본 이름이 최종 이름의 접두라 어느 쪽을 적어도 여기서 잡힌다).
+    base = facts.get("base_tag") if facts is not None else None
+    if isinstance(base, str) and base.startswith(core.HINT_TAG_PREFIX):
+        for name, doc in docs.items():
+            for i, line in enumerate(doc.lines):
+                if not doc.masked[i] and base in line:
+                    add("HINT_TAG_LITERAL_IN_PROSE", doc.name, i + 1,
+                        "저작 영역에 태그 이름 리터럴이 있다 — 이름은 사실 블록(00 §0.1 머리 · §0.9)이 소유한다(꼬리 확정 전 이름이 남는다)")
+
+    # ⑰ 파일 단위 검증 표시 3자리 일치(2026-09-29 · plan_26092908 §4.2 U1+ · R3 "미검증 파일을 검증된 것으로 오인"): ① PAYLOAD 슬롯 파일 기록
+    #     (facts.slots[*].file_records — 01 표도 같은 facts 에서 렌더되므로 ③ 01 `검증` 열은 FACT 재생성 diff 가 함께 묶는다) ② 파일 첫 줄.
+    if facts is not None:
+        for _slot, rec in _file_records(_dict(facts, "slots")):
+            for msg in _mark_problems(payload_dir, rec):
+                add("HINT_VERIFICATION_MARK_MISMATCH", rec["path"], 1, msg)
+        # ⑱ Agent 저작 요청(렌더러로 못 만든 자리): 첫 줄 경고 유지 · 자리표시 잔존 ✗ · 빈 본문 ✗
+        for req in facts.get("agent_requests") or []:
+            if isinstance(req, dict) and req.get("path"):
+                for code, msg in agent_request_problems(payload_dir, req):
+                    add(code, str(req["path"]), 1, msg)
+
     uniq = sorted(set(issues), key=lambda x: (x[1], x[2], x[0], x[3]))
     return [{"code": c, "file": f, "line": ln, "message": m} for c, f, ln, m in uniq]
+
+
+def _mark_problems(payload_dir: Path, rec: dict) -> list[str]:
+    """파일 기록 1건의 검증 표시 대조(순수 읽기). generated-unverified = 기록된 헤더(줄 · JSON 키)가 파일에 그대로 있고 문구가
+    `⚠ generated-unverified … · 생성: <generated_by>` · verified = 파일 머리 3줄에 경고 표시가 없다."""
+    path = Path(payload_dir) / str(rec.get("path"))
+    if not path.is_file():
+        return [f"파일 기록이 있는데 페이로드에 파일이 없다: {rec.get('path')}"]
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        return [f"파일을 읽을 수 없다({type(e).__name__}) — 검증 표시를 대조할 수 없다"]
+    lines = text.split("\n")
+    ver, gen, hdr = rec.get("verification"), rec.get("generated_by"), rec.get("header")
+    if ver == "generated-unverified":
+        if not isinstance(hdr, dict) or not isinstance(hdr.get("text"), str):
+            return ["generated-unverified 인데 파일 기록에 header 가 없다(표시 3자리 중 파일 첫 줄 부재)"]
+        want = hdr["text"]
+        if UNVERIFIED_MARK not in want or f"· 생성: {gen}" not in want:
+            return [f"header 문구가 기록(verification={ver} · generated_by={gen})과 다르다: {want[:80]!r}"]
+        if hdr.get("style") == "json-key":
+            try:
+                got = json.loads(text).get(str(hdr.get("key")))
+            except (ValueError, AttributeError):
+                got = None
+            return [] if got == want else [f"JSON 키 `{hdr.get('key')}` 의 경고가 기록과 다르다: {str(got)[:60]!r}"]
+        ln = hdr.get("line")
+        if not isinstance(ln, int) or not (1 <= ln <= len(lines)) or lines[ln - 1].strip() != want.strip():
+            return [f"파일 {ln}행이 기록된 경고 줄과 다르다 — 경고를 지우거나 옮기지 않는다"]
+        return []
+    if any(UNVERIFIED_MARK in ln for ln in lines[:3]):
+        return [f"verification={ver} 인데 파일 머리에 `{UNVERIFIED_MARK}` 경고가 있다(기록과 파일이 갈렸다)"]
+    return []
+
+
+def _comment_line(name: str, text: str) -> str:
+    """파일 형식에 맞는 한 줄 주석(Agent 저작 요청 자리 · artifacts._insert_header 와 같은 관용 — md 는 HTML 주석)."""
+    return f"<!-- {text} -->" if name.endswith((".md", ".markdown", ".html")) else f"# {text}"
+
+
+def agent_request_header_line(req: dict) -> str:
+    return _comment_line(str(req.get("name") or req.get("path")), str(req.get("header") or ""))
+
+
+def agent_request_scaffold(req: dict) -> str:
+    """Agent 저작 요청 파일의 스캐폴드(2026-09-29 · plan_26092908 §4.2 "렌더러 우선 · Agent 폴백"): 첫 줄 = artifacts 가 준 경고
+    (`⚠ generated-unverified — … · 생성: agent`) · 둘째 줄 = 자리표시(`<<AGENT:` — 봉인 전 린터가 잔존을 막는다)."""
+    inputs = " · ".join(str(x) for x in (req.get("inputs") or [])) or "PAYLOAD · artifacts"
+    return (agent_request_header_line(req) + "\n" + f"{AGENT_MARK} {req.get('why')} — 입력: {inputs}. 이 줄을 파일 본문으로 바꿔라"
+            "(증거에서 옮긴 것만 · 실행해 보지 않은 절차를 검증된 것처럼 쓰지 않는다 · 첫 줄 경고는 지우지 않는다)>>\n")
+
+
+def write_agent_requests(payload_dir: Path, reqs) -> list[str]:
+    """스캐폴드 쓰기(publish 전용 · 기존 파일은 덮지 않는다 — refacts 가 저작본을 보존한다). 반환 = 새로 쓴 페이로드 상대 경로."""
+    out = []
+    for req in reqs or []:
+        if not isinstance(req, dict) or not req.get("path") or not req.get("header"):
+            continue
+        rel = str(req["path"])
+        if rel.startswith("/") or ".." in rel.split("/") or not rel.startswith("artifacts/"):
+            core.fail("HINT_AGENT_REQUEST_PATH", f"Agent 저작 요청 경로가 artifacts/ 상대가 아니다: {rel!r}")
+        if rel.endswith(".json"):
+            core.fail("HINT_AGENT_REQUEST_PATH", f"JSON 파일은 주석 경고를 달 수 없다 — Agent 저작 요청으로 받지 않는다: {rel}")
+        dst = Path(payload_dir) / rel
+        if dst.exists():
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_text(agent_request_scaffold(req), encoding="utf-8")
+        out.append(rel)
+    return out
+
+
+def agent_request_problems(payload_dir: Path, req: dict) -> list[tuple[str, str]]:
+    """Agent 저작 파일 1건 판정 → [(code, 메시지)]. 부재 = HINT_AGENT_ARTIFACT_ABSENT · 경고 줄(첫 줄 · shebang 이면 둘째 줄) 불일치 =
+    HINT_VERIFICATION_MARK_MISMATCH · 자리표시 잔존 = HINT_AGENT_PLACEHOLDER_RESIDUE · 경고 밖 본문 없음 = HINT_AGENT_ARTIFACT_UNAUTHORED."""
+    p = Path(payload_dir) / str(req.get("path"))
+    if not p.is_file():
+        return [("HINT_AGENT_ARTIFACT_ABSENT", "Agent 저작 요청 파일이 페이로드에 없다(publish 가 스캐폴드를 둔다 — 지우지 않는다)")]
+    try:
+        lines = p.read_text(encoding="utf-8").split("\n")
+    except (OSError, UnicodeDecodeError) as e:
+        return [("HINT_AGENT_ARTIFACT_ABSENT", f"읽을 수 없다({type(e).__name__})")]
+    out: list[tuple[str, str]] = []
+    hi = 1 if lines and lines[0].startswith("#!") else 0
+    want = agent_request_header_line(req)
+    if len(lines) <= hi or lines[hi].strip() != want.strip():
+        out.append(("HINT_VERIFICATION_MARK_MISMATCH", f"{hi + 1}행이 경고 줄 `{want[:60]}…` 이 아니다 — 첫 줄 경고는 지우지 않는다"))
+    if any(AGENT_MARK in ln for ln in lines):
+        out.append(("HINT_AGENT_PLACEHOLDER_RESIDUE", f"미저작 자리표시 `{AGENT_MARK}` 잔존"))
+    body = [ln for i, ln in enumerate(lines) if ln.strip() and i != hi and not (i == 0 and hi == 1) and AGENT_MARK not in ln]
+    if not body:
+        out.append(("HINT_AGENT_ARTIFACT_UNAUTHORED", "경고 줄 밖 본문이 없다 — 증거에서 파일 본문을 쓴다"))
+    return out
+
+
+def cited_sources(repo: Path, payload_dir: Path, *, lineage: dict, draft_dir: Path | None = None) -> dict:
+    """페이로드가 인용한 **계보 출처**(읽기 전용 · 2026-09-29 plan_26092908 §4.6·§4.9) — `{"excerpt_counts": {경로: 발췌 수}, "paths": [경로…]}`.
+    발췌 머리 · hint-event `출처` 가 LINEAGE(문서 · 후보)로 해소되는 것만 센다(artifacts 는 봉인 트리 안 · 도구 스냅샷은 git 이 바이트를 든다).
+    소비자 = hint.py continue(봉인 출처 스냅샷 · LINEAGE 수신자 요약의 발췌 수). 해소기는 린터와 같다(`_Sources.locate`)."""
+    from . import lineage as _lin
+    src = _Sources(Path(repo), Path(payload_dir), lineage or {}, _lin.resolve_stem, lambda rel: None, lambda t: t,
+                   draft_dir=draft_dir)
+    counts: dict[str, int] = {}
+    paths: set[str] = set()
+    for name in PAYLOAD_DOCS:
+        p = Path(payload_dir) / name
+        if not p.is_file():
+            continue
+        events, exs, _ = _scan(_Doc.parse(name, p.read_text(encoding="utf-8")))
+        for e in exs:
+            loc = src.locate(e.stem)
+            if loc and loc[0] == "lineage":
+                counts[loc[1]] = counts.get(loc[1], 0) + 1
+                paths.add(loc[1])
+        for r in events:
+            if r.errors:
+                continue
+            for entry in _sources_of(r.event):
+                loc = src.locate(_source_token(entry))
+                if loc and loc[0] == "lineage":
+                    paths.add(loc[1])
+    return {"excerpt_counts": counts, "paths": sorted(paths)}
 
 
 def _num_key(tok: str) -> str:
@@ -3159,7 +3638,7 @@ def selftest() -> list[str]:
         ck("템플릿 00 에 배너 5줄(PROMPT 밖)", all(b in vis for b in BANNER_LINES))
         ck("템플릿 02 §2.2 wall>=1", _directives({p.chapter: p for p in tpls["02-narrative"].prompts}["2.2"].fields)["blocks"] == {"wall": 1})
         ck("템플릿 01 §1.5 조건", _directives({p.chapter: p for p in tpls["01-artifacts"].prompts}["1.5"].fields)["condition"] == ("topology", "multi"))
-        ck("템플릿 PROMPT 수", [len(tpls[n].prompts) for n in TEMPLATE_FILES] == [6, 4, 7, 2])
+        ck("템플릿 PROMPT 수(00 = 0.9 이름 꼬리 포함 · plan_26092908 §4.1)", [len(tpls[n].prompts) for n in TEMPLATE_FILES] == [7, 4, 7, 2])
         # 2026-09-22 S2 round 2(F11): 저작 자기점검은 템플릿 4종 최상단(preamble)에 하나씩 · 7부류 문구를 글자 그대로(단일 상수와 교차검증)
         for n in TEMPLATE_FILES:
             sc = tpls[n].selfchecks
@@ -3316,6 +3795,7 @@ def selftest() -> list[str]:
                 ("00-hint", "0.4"): "source-build 를 골랐다 — 근거 testlog_26090921 §2. 재현 좌표는 v0.29.0rc6 이다.",
                 ("00-hint", "0.5"): "① KV 는 재도출한다. ② moe-backend 는 명시하지 않는다(W1). ③ max-model-len 은 승계값이다.",
                 ("00-hint", "0.6"): "1. 상위 버전에서 패치 필요 여부 → 트립와이어 로그 확인 → 그대로/폐기.\n빌드 문제 → upstream-version-watch.",
+                ("00-hint", "0.9"): "빈 꼬리다 — 같은 q·len·kv 의 다른 셀이 없어 가르는 노브가 없다(inputs/tail.json = []).",
                 ("01-artifacts", "1.2"): "### 60-fixture-patch.sh\n재구성 결과라 적용 미관측이다. 헤더 원문:\n\n"
                                          "> [원문] 60-fixture-patch.sh §L2-2\n> # fixture patch: PLE 게이트 완화",
                 ("01-artifacts", "1.3"): vs + "\n\n승계값과 음성대조값을 복사하지 마라.",
@@ -3374,7 +3854,8 @@ def selftest() -> list[str]:
         # ── 기본 경로 ──
         payload = scaffold("main", base_facts)
         ps = prompts(payload)
-        ck("PROMPT 목록(조건 성립 · 선택 포함)", len(ps) == 19 and all(p["question"] for p in ps))
+        ck("PROMPT 목록(조건 성립 · 선택 포함 · 0.9 이름 꼬리)", len(ps) == 20 and all(p["question"] for p in ps)
+           and any(p["section"] == "0.9" and not p["optional"] for p in ps))
         ck("스냅샷 기록", default_snapshot_path(payload).is_file())
         ck("사실 블록 채움(0.4 관측 NGC)", "26.07" in fact_blocks((payload / "00-hint.md").read_text(encoding="utf-8"))["resolved"])
         ck("벤치 절 = 렌더 원문", fact_blocks((payload / "03-benchmark.md").read_text(encoding="utf-8"))["bench_section"] == bench_md.strip("\n"))
@@ -4040,7 +4521,7 @@ def selftest() -> list[str]:
         ck("봉인 줄 뒤 빈 줄(인용문 게으른 계속 방지)", (SEALED_PREFIX + "이 셀은 무엇을 서빙했고") in st["00-hint.md"] and all(
             not ln.strip() or not nxt.strip() or not ln.startswith(SEALED_PREFIX) for ln, nxt in
             zip(st["00-hint.md"].split("\n"), st["00-hint.md"].split("\n")[1:])) and (sealed_dir / "00-hint.md").read_text(
-            encoding="utf-8").count(SEALED_PREFIX) == 6)
+            encoding="utf-8").count(SEALED_PREFIX) == 7)          # 00 PROMPT 7개(0.9 이름 꼬리 포함 · 0.8 선택도 질문 줄은 남는다)
         sealed_issues = lint(repo, sealed_dir, sealed=True, **kw)
         ck(f"봉인 뒤 lint 통과: {sealed_issues[:3]}", sealed_issues == [])
         ck("★봉인 뒤 PROMPT 재삽입", "HINT_PROMPT_RESIDUE" in codes(lint(repo, variant("rs", lambda p: None), sealed=True, **kw)))
@@ -4114,8 +4595,145 @@ def selftest() -> list[str]:
         ck("★facts.tag 모양", raises(lambda: render_scaffold(repo, bad_t, root / "bt" / "payload"), "HINT_FACTS_SHAPE"))
         no_utc = dict(base_facts, generated_utc="2026-09-21 10:21")
         ck("★주입 시각 아님", raises(lambda: render_scaffold(repo, no_utc, root / "nu" / "payload"), "HINT_TIME_NOT_INJECTED"))
+
+        # ── v7(2026-09-29 · plan_26092908 §4.1~§4.6): 판정 표면 · 이름 꼬리 · 검증 표시 3자리 · Agent 저작 요청 · 매핑 · 결손 파생 ──
+        rf = json.loads(core.dumps(base_facts))
+        rf["measurement"].update(verdict=REFUTE_MARKER, verdict_reasons=["decode 20.98 < floor 25.33"],
+                                 sources={"verdict": "sweep verdict.json(fixture)", "decode_tps_conc1": "sweep verdict.json(fixture)"})
+        rctx = _Ctx(repo, rf, tpls)
+        g = _f_grade(rctx)
+        ck("판정 행: FACT:grade 에 `REFUTE` + 출처 · 00 머리 REFUTE 배너(사유 포함)", "| 성능 판정(measurement.verdict) | `REFUTE` — 출처 "
+           "sweep verdict.json(fixture) |" in g and f"> **{REFUTE_MARKER}** —" in g and "floor 25.33" in g)
+        ck("판정 행: 판정 원천 없으면 '미관측 — <사유>'(침묵 ✗)", "성능 판정(measurement.verdict) | 미관측 —" in _f_grade(_Ctx(repo, facts_json, tpls)))
+        bmr = _f_bench_missing(rctx)
+        ck("★비발행 판정(REFUTE) = 무인증서 결손 배너 ✗ · 비발행 설명 줄", "인증서 비발행 판정(결손 아님)" in bmr and "인증서가 없다" not in bmr)
+        mt = _f_measurement(rctx)
+        ck("측정 표: 키별 출처는 출처 열(sources.<키> 행 ✗)", "| `verdict` | REFUTE | sweep verdict.json(fixture) |" in mt
+           and "`sources." not in mt)
+        ck("README 판정 줄", "> **판정** `REFUTE`" in _render_readme(rctx))
+        # 이름 꼬리: publish(후보) · continue 확정(토큰 · 뜻 · 근거 · timestamp)
+        nf = json.loads(core.dumps(base_facts))
+        nf["base_tag"] = nf["tag"]
+        nf["tail_candidates"] = [{"axis": "graph", "token": "eager", "meaning": "실행 모드 eager", "evidence": None, "source": "yaml"}]
+        ck("0.9 후보 표(확정 전) · 기본 이름 · 근거 미특정 표기", "**기본 이름**(꼬리 전)" in _f_name_tail(_Ctx(repo, nf, tpls))
+           and "`eager`" in _f_name_tail(_Ctx(repo, nf, tpls)) and "근거 미특정" in _f_name_tail(_Ctx(repo, nf, tpls)))
+        cf = json.loads(core.dumps(nf))
+        cf["naming"]["tail"] = [{"token": "eager", "meaning": "eager 실행", "evidence": {"file": "c.yaml", "key": "enforce-eager",
+                                                                                     "value": "true"}}]
+        cf["naming"]["timestamp"] = "t2609291230"
+        cf["tag"] = nf["tag"] + "-eager-t2609291230"
+        nt = _f_name_tail(_Ctx(repo, cf, tpls))
+        ctx_b = _f_context(_Ctx(repo, cf, tpls))
+        ck("0.9 확정 꼬리(토큰 · 뜻 · 근거 · timestamp) · 0.2 명명 축에 꼬리 · timestamp 행 · ple·spec·graph 결정론 행 ✗",
+           "**확정 이름**" in nt and "`enforce-eager` = `true`" in nt and "t2609291230" in nt and "꼬리 `eager`" in ctx_b
+           and "| timestamp |" in ctx_b and "결정론부(vllm · model · arch · q · len · kv" in ctx_b and "전량 파생했다" not in ctx_b)
+        ng = name_guide_md(cf)
+        ck("README 이름 읽는 법: 세그먼트 · 꼬리 뜻 · timestamp · native · -bare · 세대 표(v7 · v6 · 옛 5·4)",
+           all(x in ng for x in ("`<vllm>`", "꼬리 `eager`", "t2609291230", "`native` = **실제 하드웨어", "`-bare` = **Docker 없이**",
+                                 "| `v7` |", "| `v6` |", "옛 5세그먼트", "옛 4세그먼트")))
+        # 결손에서 파생하는 01 문구 · 이 셀의 사유 열
+        mf = json.loads(core.dumps(base_facts))
+        mf.update(applied_set=None, sub_recipe=None, missing=["HINT_MISSING_APPLIED_SET", "HINT_MISSING_SUB_RECIPE",
+                                                               "HINT_MISSING_NATIVE_LAUNCH"],
+                  missing_reasons={"HINT_MISSING_NATIVE_LAUNCH": "producer native_launch_error: OSError: disk full"})
+        mctx = _Ctx(repo, mf, tpls)
+        ck("01 결손 문구 = 결손 표에서 파생(적용 집합 · 서브 레시피 — 코드 · 뜻) · 결손 표 '이 셀의 사유' 열",
+           "`HINT_MISSING_APPLIED_SET`" in _f_applied_set(mctx) and "`HINT_MISSING_SUB_RECIPE`" in _f_sub_recipe(mctx)
+           and "| 코드 | 뜻 | 이 셀의 사유 |" in _f_missing(mctx) and "disk full" in _f_missing(mctx))
+        ck("★결손 코드가 없으면 01 이 '결손' 이라 말하지 않는다(침묵 ≠ 없음 — 부재 사실만)",
+           "결손 `" not in _f_applied_set(_Ctx(repo, dict(mf, missing=[]), tpls)))
+        # 0.4 양자화 구성 · 이 모델에 필요한 패치 · 드라이버 관측/선언
+        qf = json.loads(core.dumps(base_facts))
+        qf["identity"]["quant_composition"] = [{"scope": "quantization_config 선언 대상", "dtype": "fp8", "source": "config.json"},
+                                              {"scope": "routed experts", "dtype": "fp4", "source": "config.json expert_dtype"}]
+        qf["build"]["driver_conflict"] = {"observed": "580.178.04", "declared": "580.173.02", "sources": {}}
+        qf["slots"]["build_patch_pre"]["file_records"] = [
+            {"path": "artifacts/build_patch_pre/60-fixture-patch.sh", "sha256": "0" * 64, "verification": "verified",
+             "generated_by": "cell-run", "verification_basis": "빌드 원장", "relevance": "required", "relevance_basis": "① ∋ ② 발화"}]
+        rs_ = _f_resolved(_Ctx(repo, qf, tpls))
+        ck("0.4 양자화 구성 표(선언 fp8 + routed expert fp4) · 필요한 패치 요약(required 목록) · 드라이버 관측 ≠ 선언 행",
+           "| routed experts | `fp4` |" in rs_ and "required `60-fixture-patch.sh`" in rs_ and "⚠ 드라이버 관측 ≠ 선언" in rs_)
+        # 재현: 슬롯 → 빌드 컨텍스트 매핑 · env 형상 파생 키 · README 요약
+        xf = json.loads(core.dumps(base_facts))
+        xf["build_context_map"] = [{"slot_path": "artifacts/build_patch_pre/60-fixture-patch.sh",
+                                    "context_path": "build_patches_src/60-fixture-patch.sh", "basis": "Dockerfile COPY build_patches_src/"},
+                                   {"slot_path": "artifacts/build_recipe/pip-freeze-main.txt", "context_path": None, "basis": "입력 아님"}]
+        xf["env_shapes"] = [{"file": "envs/.env.interconnect", "template": "artifacts/compose/.env.interconnect.template", "derived": [
+            {"field": "interconnect.nccl_transport", "keys": ["NCCL_IB_DISABLE", "NCCL_NET"],
+             "placeholders": {"NCCL_IB_DISABLE": "<derived:interconnect.nccl_transport→NCCL_IB_DISABLE>",
+                              "NCCL_NET": "<derived:interconnect.nccl_transport→NCCL_NET>"},
+             "rule_text": "rdma → NCCL_IB_DISABLE=0 · NCCL_NET=IB", "source": "render_dockerfile.NCCL_TRANSPORTS"}]}]
+        rp_ = _f_reproduce(_Ctx(repo, xf, tpls))
+        ck("01 §1.4: 슬롯 → 빌드 컨텍스트 매핑 표(입력 아님 = —) · env 파생 키 자리표시 · 실효값 규칙",
+           "| `artifacts/build_patch_pre/60-fixture-patch.sh` | `build_patches_src/60-fixture-patch.sh` |" in rp_
+           and "| `artifacts/build_recipe/pip-freeze-main.txt` | — |" in rp_ and "<derived:interconnect.nccl_transport→NCCL_NET>" in rp_
+           and "rdma → NCCL_IB_DISABLE=0" in rp_)
+        cm = _context_map_summary(xf)
+        ck("README 매핑 요약: zip 폴더 → 컨텍스트 폴더 · 입력 아닌 파일 수", "| `artifacts/build_patch_pre/` | `build_patches_src/` | 1 |" in cm
+           and "입력이 아닌 파일 1개" in cm)
+        # 검증 표시 3자리(PAYLOAD 파일 기록 · 파일 첫 줄 · 01 표) · Agent 저작 요청 · 태그 이름 리터럴
+        vf = json.loads(core.dumps(base_facts))
+        vf["base_tag"] = vf["tag"]
+        hdr = "# " + UNVERIFIED_MARK + " — native 셀(Docker 미사용)이라 이 파일은 실행 검증되지 않았다 · 생성: renderer"
+        vf["slots"]["build_patch_pre"]["file_records"] = qf["slots"]["build_patch_pre"]["file_records"]
+        vf["slots"]["compose"] = {"files": ["artifacts/compose/serve_runner.sh"], "applicable": True, "confidence": "1-signal",
+                                  "evidence": {"kind": "file", "ref": "renderer"},
+                                  "file_records": [{"path": "artifacts/compose/serve_runner.sh", "sha256": "1" * 64,
+                                                    "verification": "generated-unverified", "generated_by": "renderer",
+                                                    "verification_basis": "렌더러 산출물", "relevance": "required",
+                                                    "relevance_basis": "재현 경로 입력",
+                                                    "header": {"style": "comment", "line": 2, "text": hdr}}]}
+        areq = {"slot": "triplet", "name": "native-launch.md", "path": "artifacts/triplet/native-launch.md",
+                "why": "native 기동 기록 부재", "inputs": ["artifacts/triplet/"], "verification": "generated-unverified",
+                "generated_by": "agent", "header_required": True,
+                "header": UNVERIFIED_MARK + " — Agent 가 증거에서 저작했다(실행 검증 ✗) · 생성: agent"}
+        vf["agent_requests"] = [areq]
+        pv = root / "v7marks" / "payload"
+        (pv / "artifacts/build_patch_pre").mkdir(parents=True)
+        (pv / "artifacts/build_patch_pre/60-fixture-patch.sh").write_text("#!/bin/sh\n# fixture patch: PLE 게이트 완화\nexit 0\n",
+                                                                          encoding="utf-8")
+        (pv / "artifacts/compose").mkdir(parents=True)
+        (pv / "artifacts/compose/serve_runner.sh").write_text(f"#!/bin/bash\n{hdr}\necho serve\n", encoding="utf-8")
+        render_scaffold(repo, vf, pv)
+        ag = pv / areq["path"]
+        ck("Agent 저작 요청: 스캐폴드 = 첫 줄 경고(md = HTML 주석) + 자리표시 · 01 요청 표 · 파일별 검증 · 관련성 표",
+           ag.read_text(encoding="utf-8").split("\n")[0] == "<!-- " + areq["header"] + " -->" and AGENT_MARK in ag.read_text(encoding="utf-8")
+           and "**Agent 저작 요청 1건**" in (pv / "01-artifacts.md").read_text(encoding="utf-8")
+           and "`generated-unverified` · renderer" in (pv / "01-artifacts.md").read_text(encoding="utf-8"))
+        fill(pv, vf)
+        refresh(pv)
+        vkw = dict(kw, facts=json.loads(core.dumps(vf)))
+        ck("★Agent 요청 파일 미저작 = HINT_AGENT_PLACEHOLDER_RESIDUE · HINT_AGENT_ARTIFACT_UNAUTHORED",
+           {"HINT_AGENT_PLACEHOLDER_RESIDUE", "HINT_AGENT_ARTIFACT_UNAUTHORED"} <= codes(lint(repo, pv, **vkw)))
+        ag.write_text("<!-- " + areq["header"] + " -->\n# native 기동 절차\n1. ray head 기동\n", encoding="utf-8")
+
+        def vvar(tag: str, mutate) -> Path:
+            dst = root / "v7v" / tag / "payload"
+            shutil.copytree(pv, dst)
+            mutate(dst)
+            return dst
+
+        ck(f"검증 표시 3자리 일치 · Agent 저작 완료 = lint 0: {lint(repo, pv, **vkw)[:3]}", lint(repo, pv, **vkw) == [])
+        ck("★Agent 저작 파일 첫 줄 경고를 지웠다 = HINT_VERIFICATION_MARK_MISMATCH", "HINT_VERIFICATION_MARK_MISMATCH" in codes(lint(repo, vvar(
+            "agh", lambda q: (q / areq["path"]).write_text("# native 기동 절차\n1. ray head 기동\n", encoding="utf-8")), **vkw)))
+        ck("★generated-unverified 파일의 헤더를 지웠다 = HINT_VERIFICATION_MARK_MISMATCH", "HINT_VERIFICATION_MARK_MISMATCH" in codes(lint(
+            repo, vvar("vmh", lambda q: (q / "artifacts/compose/serve_runner.sh").write_text("#!/bin/bash\necho serve\n",
+                                                                                                  encoding="utf-8")), **vkw)))
+        ck("★verified 파일에 미검증 경고가 붙었다 = HINT_VERIFICATION_MARK_MISMATCH", "HINT_VERIFICATION_MARK_MISMATCH" in codes(lint(
+            repo, vvar("vmv", lambda q: (q / "artifacts/build_patch_pre/60-fixture-patch.sh").write_text(
+                f"#!/bin/sh\n{hdr}\nexit 0\n", encoding="utf-8")), **vkw)))
+        ck("★01 `검증` 열을 손으로 verified 로 바꿨다 = HINT_FACT_DRIFT(셋째 자리)", "HINT_FACT_DRIFT" in codes(lint(repo, vvar(
+            "vmt", edit("01-artifacts.md", "`generated-unverified` · renderer", "`verified` · renderer")), **vkw)))
+        ck("★저작 산문에 태그 이름 리터럴 = HINT_TAG_LITERAL_IN_PROSE(이름은 사실 블록 소유)", "HINT_TAG_LITERAL_IN_PROSE" in codes(lint(
+            repo, vvar("tl", edit("02-narrative.md", "- moe-backend 를 명시하지 마라", f"- {vf['tag']} 의 moe-backend 를 명시하지 마라")),
+            **vkw)))
+        cs = cited_sources(repo, payload, lineage=lineage)
+        ck("cited_sources: 발췌 수(계보 문서) · 출처 경로(서명 · hint-event) — 봉인 스냅샷 · LINEAGE 요약 입력",
+           cs["excerpt_counts"].get(plan_p, 0) >= 1 and tl_p in cs["paths"] and log_p in cs["paths"]
+           and all(not x.startswith("artifacts/") for x in cs["paths"]))
     # 2026-09-22 S2 round 2: 하한을 새 음성대조까지 올린다(158 실측) — 새 검사 묶음이 조용히 빠지면 붉어진다.
     # 2026-09-22 S2 round 3: 공유 사실 계약 렌더 · 스냅샷 해소 · 수신자 zip 술어 묶음을 더해 197 실측 → 하한 190.
     # 2026-09-22 S2 round 3 적대 리뷰: 스냅샷 origin 대조 · Ray 접힘 · 값 집합 · 0.2 생산자 · 다음 변경 관측 없음 묶음(213 실측) → 하한 206.
-    ck(f"검사 전수 실행({ran[0]}) — 중도 반환으로 시험이 조용히 줄지 않게", ran[0] >= 206)
+    # 2026-09-29 plan_26092908(v7): 판정 표면 · 이름 꼬리 · 검증 표시 · Agent 요청 · 매핑 · 결손 파생 묶음 → 하한 225.
+    ck(f"검사 전수 실행({ran[0]}) — 중도 반환으로 시험이 조용히 줄지 않게", ran[0] >= 225)
     return bad

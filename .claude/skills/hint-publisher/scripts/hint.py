@@ -6,21 +6,27 @@
                                 [--remote NAME] [--no-remote-check] [--docker-read-only]   # 이미지 탐침 = 기본(--docker-probe = 옛 이름)
     hint.py [--repo R] continue (--campaign ID --cell CELL | --draft DIR) [--node N] --generated-utc U
                                 [--approved-by TEXT --approved-utc U] [--factcheck-waiver TEXT] [--remote NAME] [--no-push]
+                                [--guide-commit SHA]                   # --no-push 전용(오프라인 재생 · 원격 조회 없는 안내 커밋)
     hint.py [--repo R] lint     --draft DIR [--json]                  # 부수효과 0 · 저작 중 반복 확인
     hint.py [--repo R] refresh  --draft DIR                           # draft 안 파생 블록(00 §0.3 · §0.5)만 다시 쓴다(미리 보기)
+    hint.py [--repo R] refacts  --draft DIR [--docker-read-only]      # 같은 generated_utc 로 사실 재파생(산문·꼬리·사실 검증 보존 · diff)
     hint.py [--repo R] excerpt  --draft DIR --source <stem|경로|artifacts 파일명|<도구>@<rev12>> [--lines a-b] [--numbered]
     hint.py [--repo R] name     (--campaign ID --cell CELL | --publication TOPIC) [--node N] [--json]   # 읽기 전용
     hint.py [--repo R] verify   --tag TAG [--draft DIR]               # 이 태그 1개 · push 전 로컬 봉인 검증(D10)
     hint.py [--repo R] push     --tag TAG [--remote NAME] [--apply] [--draft DIR]   # 정확한 태그 1개(glob ✗)
     hint.py [--repo R] catalog derive --remote NAME --generated-kst K [--dry-run] [--record-missing] [--allow-empty]
     hint.py [--repo R] match    --vllm V --model M [--arch A] [--include-other] [--json]   # 읽기 전용 · gitless
-    hint.py [--repo R] branch-transition --remote R --generated-utc U  # maintenance-only README 전환 · tag/catalog/code worktree ✗
+    hint.py [--repo R] branch-transition --remote R --generated-utc U --approved-by TEXT --approved-utc U
+                                                                      # 형식 전환(안내 커밋) · 사람 승인 · tag/catalog/code worktree ✗
     hint.py --self-test
 
-한 셀 = 한 태그(D9). `publish` 는 증거를 모아 이름·계보·산출물·사실 블록을 채운 **스캐폴드를 만들고 정지**한다(태그·브랜치
-부수효과 0). Agent 가 PROMPT 절을 산문·hint-event·원문 발췌로 저작하고(lint 0) **저작자가 아닌 Agent** 가 사실 검증 보고
-(`inputs/factcheck.json`)를 남기면 `continue` 가 승인 확인 → 린트 → 사실 검증 게이트 → hint 브랜치 배관 커밋 → 봉인 → 이 태그 1개
-로컬 검증 → push(정확한 refspec 1개) → 원격 SHA 대조 → 카탈로그 파생 → 캠페인 publish 위상을 잇는다.
+한 셀 = 한 태그(D9). `publish` 는 증거를 모아 **기본 이름**(결정론 vllm·model·arch·q·len·kv)·계보·산출물·사실 블록을 채운
+**스캐폴드를 만들고 정지**한다(태그·브랜치 부수효과 0). Agent 가 PROMPT 절을 산문·hint-event·원문 발췌로 저작하고 이름 꼬리
+(`inputs/tail.json` · 근거 = 서빙 설정 file·key·value · 빈 꼬리 `[]` 명시)를 적고(lint 0) **저작자가 아닌 Agent** 가 사실 검증 보고
+(`inputs/factcheck.json` · 산문과 FACT 모두 대상)를 남기면 `continue` 가 승인 확인 → 이름 확정(꼬리 근거 대조 · 원격·로컬 중복이면
+`-t<YYMMDDHHMM>`) → 안내 커밋 조회 → 린트 → 사실 검증 게이트 → 봉인 출처 스냅샷 → 페이로드 커밋(부모 = 안내 커밋 · 브랜치에 얹지 않음)
+→ 봉인(footer v2) → 이 태그 1개 로컬 검증 → push(정확한 refspec 1개) → 원격 SHA 대조 → 카탈로그 파생 · 두 경로 커밋 → 캠페인 publish
+위상을 잇는다(v7 · plan_26092908).
 
 불변식 (날짜 = 사고·결정 · 옛 hint_tag.py·hint_branch.py 에서 옮김 · 삭제 ✗)
     - **부수효과 전 게이트**(2026-07 Phase 3 · plan_26072506 2A): 게이트가 걸린 명령(`HINT_ACTION_FOR_CMD`)은 첫 부수효과 전에
@@ -35,8 +41,13 @@
       부재 태그를 행으로 정직하게 싣는다(`record_missing=True` · X15 · 통합 결정 D-i).
     - **push = 태그 1개**(O2 · 2026-08-20 · 2026-09-04 C-3): `refs/tags/<그 태그>:refs/tags/<그 태그>` 정확히 1개 · 브랜치는 발행이
       밀지 않는다(hint 브랜치 push 는 S7 1회 예외 · 사람 소관). push 뒤 원격 태그 오브젝트 SHA == 로컬(불일치 = 차단).
-    - **이름은 도구가 전량 파생**(D8 · 2026-08-20 R1): 발행자는 이름을 입력하지 않는다. 충돌 = 차단(X13 · 2026-09-04 사용자 결정
-      "충돌은 축이 모자란 것") — 개정판은 새 이름으로만(P1 리콜 금지). 로컬 태그가 **이 draft 가 봉인한 것**이면 재개다(tag.seal).
+    - **이름 = 결정론부 + 근거 붙은 꼬리 + 중복 시 timestamp**(2026-09-29 · plan_26092908 §4.1 U4~U7 · 옛 D8 "전량 파생" 의 개정):
+      vllm·model·arch·q·len·kv 는 도구가 파생한다(발행자 입력 ✗). 꼬리는 저작 Agent 가 고르고 서빙 설정 file·key·value 대조로 거짓만
+      막는다(규칙 목록을 늘리지 않는다 — 사용자 "결정론 규칙이 한도 없이 늘어난다"). 최종 이름이 원격·로컬에 이미 있으면 차단 대신
+      `-t<YYMMDDHHMM>`(publish generated_utc 의 KST · 결정론)을 붙인 새 판이다 — 그래도 중복이면 차단. 옛 태그는 교정하지 않는다(P1).
+      로컬 태그가 **이 draft 가 봉인한 것**이면 재개다(tag.seal).
+    - **페이로드 커밋의 부모 = 안내 커밋**(2026-09-29 · plan_26092908 §4.7 U8 · V12): 원격 `refs/heads/hint` tip 을 ls-remote 로 읽는다(쓰기 ✗ ·
+      형식 ≠ v7 = 차단). 페이로드 커밋끼리 체인을 만들지 않고 로컬 hint 브랜치를 움직이지 않는다 — 태그만 자기 커밋을 가리킨다.
     - **손 JSON 0**(AC5 · F11): identity·runtime·pii 입력과 promotion_target 은 도구가 쓴다(evidence · evidence_publisher). hint.py 는
       work-manifest 를 직접 고치지 않는다(X6 — writer 1).
     - **시각은 주입만**(docs.md `--now` 선례): `--generated-utc`. 커밋·봉인 시각은 첫 커밋 때 state.json 에 적은 값을 재실행에서도
@@ -58,7 +69,8 @@
         "쓰인 것만" 이다(artifacts 가 쓰인 Dockerfile 의 COPY 줄에서 파생).
     D-b value-status 커버리지는 전송·신원 노브 `model`·`host`·`port`·`served-model-name` 을 뺀다(artifacts `VALUE_STATUS_EXCLUDED_KNOBS`).
     D-c 서명 조각 ≥ 12자(공백 제외) · 마크다운 출처 발췌의 `§<절>` = 그 문서 제목 줄의 정규화 접두(template lint).
-    D-d native 평면 신호의 producer 가 아직 없다 → `HINT_PLANE_UNDERIVABLE` fail-closed 유지(알려진 한계 · S1–S5 범위 밖).
+    D-d (2026-09-23 해소 · 2026-09-29 v7) native 평면은 serve proof producer 가 명시한다 — native 셀도 Docker 와 같은 슬롯을 싣고 실행되지
+        않은 파일은 generated-unverified 로 표시한다(plan_26092908 §4.2). 신호 부재를 native 로 추론하지 않는 규칙만 남는다.
     D-e 서브에서만 잰 셀은 메인이 관측 원시를 볼 수 없어 `HINT_QUALIFICATION_UNOBSERVED` 로 막힌다 — 열린 설계 항목(문서기반 회수로
         서브 serve_proof 를 받는 설계가 필요하다). E2E 는 cluster 셀을 쓴다.
     D-f `PAYLOAD.measurement` = 측정 수치(인증서 성능 칸 + 스윕 레벨) · `PAYLOAD.measurement_config` = DISTRIBUTED_MEASUREMENT_KEYS +
@@ -114,13 +126,17 @@ from hintlib import (artifacts, branch, catalog, core, evidence, lineage, naming
 HINT_ACTION_FOR_CMD = {"continue": "hint_finalize", "verify": "hint_verify", "push": "hint_push"}
 STATE_NAME = "state.json"
 STATE_SCHEMA = 1
-PAYLOAD_SCHEMA_VERSION = 2
+# PAYLOAD 스키마 3(2026-09-29 · plan_26092908 §4.10 "PAYLOAD 스키마 버전 명시"): 형식 hint-payload/v7 · naming.tail[]/timestamp · 판정 표면 ·
+#   agent_requests · build_context_map · missing_reasons · native_source · 파일 단위 검증 표시(slots[*].file_records)를 싣는다.
+PAYLOAD_SCHEMA_VERSION = 3
 PROVENANCE_SCHEMA_VERSION = 2
 APPROVAL_KEYS = ("approved_by", "approved_utc", "source")
 # `driver` = 인증서·스윕 meta 의 driver_version(evidence 가 출처와 함께 싣는다 · 2026-09-22 S2 round 2 — 1차 FACT:resolved 는 인증서에
 #   580.173.02 가 있는데도 드라이버를 미관측으로 적었다).
+# 2026-09-29 plan_26092908 §4.5(V3): `driver_by_node`(attestation 노드별 관측) · `driver_conflict`(관측 ≠ 선언이면 둘 다) · `os` 를 옮긴다 —
+#   옛 목록은 evidence 가 낸 이 칸들을 버렸다(관측 가능한데 FACT 에 없으면 저작자가 "미관측" 으로 적는다 · 부류 7).
 _BUILD_KEYS = ("track", "dockerfile", "image_tag", "image_digest", "vllm_repo", "vllm_ref", "vllm_sha", "torch", "cuda",
-               "ngc", "cpu_arch", "driver")
+               "ngc", "cpu_arch", "driver", "driver_by_node", "driver_conflict", "os")
 _RATIONALE_MAX = 400
 # ── 발행 전 독립 사실 검증 보고(`<draft>/inputs/factcheck.json` · 2026-09-22 S2 round 2 F11) ──
 #   형식 = {schema_version: 1, tag, author, checker, checked_utc, claims_checked, classes_checked: [1..7],
@@ -132,6 +148,13 @@ FACTCHECK_NAME = "factcheck.json"
 FACTCHECK_SCHEMA = 1
 FACTCHECK_VERDICTS = ("wrong", "misleading", "unsupported")
 FACTCHECK_STATUSES = ("open", "fixed", "disputed")
+# 지적 대상(2026-09-29 · plan_26092908 §4.5 V4 — "기계 전사는 오기 0" 전제가 D1·N1 에서 깨졌다): 산문(저작자가 고친다) 대 FACT 블록(편집 ✗ ·
+#   지적만 · 처방 = 생산자 교정 후 `hint.py refacts`). 항목마다 필수다 — 누가 고쳐야 하는지를 보고서가 말하지 않으면 FACT 오류가 산문으로 덮인다.
+FACTCHECK_TARGETS = ("prose", "fact")
+# ── 이름 확정 입력(draft `inputs/` · 도구가 쓴다 — tail.json 만 저작 Agent 가 쓴다 · plan_26092908 §4.1·§4.8) ──
+TAIL_NAME = "tail.json"                 # 저작 Agent: [{token, meaning, evidence:{file,key,value}}] · 빈 꼬리 = [] 명시
+NAMING_BASE_NAME = "naming_base.json"   # publish: 꼬리 전 PAYLOAD.naming(v7 · vllm_observed 포함) — continue 가 매번 여기서 apply_tail(멱등)
+TAIL_SOURCES_NAME = "tail_sources.json"  # publish: evidence.tail_sources 스냅샷(꼬리 근거 대조 입력 · refacts 가 다시 쓴다)
 _OUT = "[hint]"
 _UTC_EXAMPLE = "<UTC YYYY-MM-DDTHH:MM:SSZ>"
 
@@ -351,23 +374,18 @@ def _check_selectors(*, campaign, cell, publication, replay, require_replay: boo
         core.fail("HINT_SELECTOR_ABSENT", "발행 대상이 없다 — `--campaign ID --cell CELL` 또는 `--publication TOPIC --replay`.")
 
 
-def _collision(repo: Path, tagname: str, *, remote: str, remote_check: bool, replay: bool) -> str:
-    """X13 이름 충돌(로컬·원격 ls-remote 읽기). 원격 조회 실패는 재생·--no-remote-check 에서만 견딘다(그 밖에서는 차단 —
-    '조회 불가' 를 '충돌 없음' 으로 읽지 않는다)."""
+def _name_hit(repo: Path, tagname: str, *, remote: str, remote_check: bool, tolerate: bool) -> tuple[str | None, str]:
+    """이름 충돌 **조회**(차단 ✗ · 2026-09-29 plan_26092908 §4.1 U7) → (hit | None, 조회 기록). hit = tag.name_collision 의 자리
+    (`local`·`local-prefix`·`remote`·`remote-prefix`). 원격 조회 실패는 tolerate(재생 · --no-push · --no-remote-check)에서만 로컬
+    조회로 견딘다 — 그 밖에서는 차단('조회 불가' 를 '충돌 없음' 으로 읽지 않는다)."""
     if not remote_check:
-        hit, note = tag.name_collision(repo, tagname, None), "skipped(--no-remote-check · 로컬만 확인)"
-    else:
-        try:
-            hit, note = tag.name_collision(repo, tagname, remote), f"{remote}: 조회함"
-        except core.HintError as e:
-            if not (replay and e.code == "HINT_REMOTE_QUERY_FAILED"):
-                raise
-            hit, note = tag.name_collision(repo, tagname, None), f"unreachable({remote} · 재생 모드라 로컬만 확인)"
-    if hit:
-        core.fail("HINT_NAME_COLLISION", f"파생 이름이 이미 있다({hit}): {tagname}",
-                  "태그는 불변이다(P1 리콜 금지) — 같은 셀의 개정판이 필요하면 축이 모자란 것이다(2026-09-04 사용자 결정). "
-                  "이 draft 가 봉인한 로컬 태그의 재개는 `hint.py continue` 가 한다.")
-    return note
+        return tag.name_collision(repo, tagname, None), "skipped(--no-remote-check · 로컬만 확인)"
+    try:
+        return tag.name_collision(repo, tagname, remote), f"{remote}: 조회함"
+    except core.HintError as e:
+        if not (tolerate and e.code == "HINT_REMOTE_QUERY_FAILED"):
+            raise
+        return tag.name_collision(repo, tagname, None), f"unreachable({remote} · 로컬만 확인)"
 
 
 def _require_name_pii_clean(repo: Path, tagname: str) -> None:
@@ -384,24 +402,37 @@ def _require_name_pii_clean(repo: Path, tagname: str) -> None:
                   "(P3 · plan_26092119). pii_terms 리터럴이면 그 값이 이름(모델 슬러그 등)에 들어온 경로를 확인한다.")
 
 
-def _require_unbound_publication_time(repo: Path, topic: str, utc: str) -> None:
-    """끊긴 publish 의 재실행(부수효과 0): 셀 발행 기록이 이미 있고 다른 generated_utc 로 묶였으면 evidence_publisher `init` 이
-    INIT_IMMUTABLE_REBIND 로 거부한다(발행 기록의 시각은 불변). 그 거부는 발행기 구동 **도중**(첫 draft 밖 쓰기 뒤)에 나고
-    메시지가 무엇을 해야 하는지 말하지 않는다 — 여기서 먼저 막고 처방(같은 시각)을 적는다(2026-09-22 리뷰 실측: draft 를 지우고
-    새 시각으로 다시 publish 하면 막다른 길이었다). 기록을 읽지 못하면 판정하지 않고 발행기의 판정에 맡긴다(그쪽이 fail-loud)."""
+def _require_unbound_publication_time(repo: Path, topic: str, utc: str) -> str:
+    """끊긴 · 거부된 publish 의 재실행(부수효과 0) → 이 publish 가 쓸 generated_utc. 셀 발행 기록이 이미 다른 시각으로 묶였으면
+    evidence_publisher `init` 이 INIT_IMMUTABLE_REBIND 로 거부한다(발행 기록의 시각은 불변).
+
+    2026-09-29 plan_26092908 §4.8(V11①): 옛 판은 여기서 막고 "같은 시각으로 다시" 를 처방했다 — 사람이 거부된 publish 의 시각을 기억해
+    넣는 손작업이 셀마다 3회 나왔다. 이제 그 기록의 draft 가 **스캐폴드되지 않았으면**(state.json 을 가진 draft 가 그 토픽에 없음 =
+    앞선 publish 가 스캐폴드 전에 멈췄다) 묶인 시각을 **채택**해 진행하고 로그로 알린다(명시한 시각과 다르면 그 사실도). 이미 스캐폴드된
+    draft 가 있으면 새 시각 발행은 같은 기록의 재바인딩이므로 옛 판대로 막는다(HINT_PUBLICATION_TIME_BOUND · 개정판은 새 발행 기록).
+    기록을 읽지 못하면 판정하지 않고 발행기의 판정에 맡긴다(그쪽이 fail-loud)."""
     rec = repo / core.REL_EVIDENCE_DIR / f"{topic}.json"
     if not rec.is_file():
-        return
+        return utc
     try:
         doc = json.loads(rec.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return
+        return utc
     bound = doc.get("generated_utc") if isinstance(doc, dict) else None
-    if isinstance(bound, str) and bound and bound != utc:
+    if not (isinstance(bound, str) and bound and bound != utc):
+        return utc
+    scaffolded = [d for d, st in _drafts(repo) if st.get("topic") == topic]
+    if scaffolded:
         core.fail("HINT_PUBLICATION_TIME_BOUND",
-                  f"셀 발행 기록 `{core.REL_EVIDENCE_DIR}/{topic}.json` 이 이미 generated_utc={bound} 로 묶여 있다 — 다른 시각"
-                  f"({utc})으로는 발행기 init 이 INIT_IMMUTABLE_REBIND 로 거부한다(발행 기록의 시각은 불변). 아무것도 쓰지 않았다.",
-                  f"끊긴 publish 를 잇는 것이면 같은 시각으로 다시 실행한다: `--generated-utc {bound}`.")
+                  f"셀 발행 기록 `{core.REL_EVIDENCE_DIR}/{topic}.json` 이 이미 generated_utc={bound} 로 묶여 있고 그 발행의 draft 가 "
+                  f"있다({[_show(repo, d) for d in scaffolded][:3]}) — 다른 시각({utc})의 발행은 같은 기록을 다시 묶는다(불변). 아무것도 "
+                  "쓰지 않았다.",
+                  "그 draft 를 이어서 저작한다(`hint.py continue --draft …` · 사실 재파생은 `hint.py refacts`). 같은 셀의 새 판은 그 발행을 "
+                  "끝낸 뒤 새 발행 기록으로 낸다.")
+    core.require_utc(bound, f"{core.REL_EVIDENCE_DIR}/{topic}.json generated_utc")
+    _log(f"발행 기록 `{topic}` 이 이미 generated_utc={bound} 로 묶였고 스캐폴드된 draft 가 없다(앞선 publish 가 스캐폴드 전에 멈췄다) — "
+         f"묶인 시각 {bound} 를 채택한다(명시한 --generated-utc {utc} 는 쓰지 않는다 · 발행 기록의 시각은 불변).")
+    return bound
 
 
 def _bench_source(repo: Path, ev) -> str | None:
@@ -443,7 +474,18 @@ def _build_doc(ev, art: dict) -> dict:
     sel = art.get("build") or {}
     if art.get("plane") == "native":
         build["track"], src["track"] = "native", art.get("plane_source") or "artifacts.plane_of"
-        build["dockerfile"] = None
+        # 2026-09-29 plan_26092908 §4.2(U1 · V6): native 셀도 원천 이미지의 빌드 레시피를 싣는다(artifacts 가 원천 셀 문맥으로 고른 선택자) —
+        #   옛 판은 dockerfile=None 으로 덮어 "이미지 레시피는 D1 페이로드를 보라" 가 됐다. 값은 원천 이미지 Dockerfile 이라고 출처가 말한다.
+        ns = art.get("native_source") if isinstance(art.get("native_source"), dict) else {}
+        if sel.get("dockerfile"):
+            build["dockerfile"] = sel["dockerfile"]
+            src["dockerfile"] = (f"원천 이미지 Dockerfile(native 셀은 Docker 로 실행되지 않았다 · 원천 셀 {ns.get('cell')} · 원천 이미지 "
+                                 f"{ns.get('image_tag')} · artifacts 선택자 {sel.get('dockerfile_source')})")
+            build["source_image_track"], src["source_image_track"] = sel.get("track"), \
+                f"artifacts 선택자(원천 셀 {ns.get('cell')} · {sel.get('dockerfile_source')})"
+        else:
+            build["dockerfile"] = None
+            src["dockerfile"] = f"원천 이미지 미관측({ns.get('why') or '원천 신호 없음'}) — Dockerfile 을 싣지 못했다(결손)"
     elif sel.get("dockerfile"):
         build["dockerfile"], src["dockerfile"] = sel["dockerfile"], sel.get("dockerfile_source") or src.get("dockerfile")
         build["track"], src["track"] = sel.get("track"), f"artifacts 선택자({sel.get('dockerfile_source')})"
@@ -494,8 +536,10 @@ def _factcheck_problems(doc, st: dict) -> list[str]:
     bad: list[str] = []
     if doc.get("schema_version") != FACTCHECK_SCHEMA:
         bad.append(f"schema_version 이 {FACTCHECK_SCHEMA} 가 아니다: {doc.get('schema_version')!r}")
-    if doc.get("tag") != st.get("tag"):
-        bad.append(f"tag {doc.get('tag')!r} ≠ 이 draft 의 태그 {st.get('tag')!r}(다른 draft 의 보고를 옮기지 않는다)")
+    # 태그: 이 draft 의 기본 이름(publish · 꼬리 전) 또는 확정 이름(continue 이름 확정 뒤) — 검증은 대개 꼬리 확정 전에 끝난다(§4.1)
+    mine = {x for x in (st.get("tag"), st.get("base_tag")) if x}
+    if doc.get("tag") not in mine:
+        bad.append(f"tag {doc.get('tag')!r} ∉ 이 draft 의 이름 {sorted(mine)!r}(다른 draft 의 보고를 옮기지 않는다)")
     who = {k: doc.get(k) for k in ("author", "checker")}
     for k, v in who.items():
         if not isinstance(v, str) or not v.strip():
@@ -537,6 +581,9 @@ def _factcheck_problems(doc, st: dict) -> list[str]:
         for k in ("where", "claim"):
             if not isinstance(it.get(k), str) or not it[k].strip():
                 bad.append(f"items[{i}].{k} 가 비었다")
+        if it.get("target") not in FACTCHECK_TARGETS:
+            bad.append(f"items[{i}].target ∈ {FACTCHECK_TARGETS}(산문 = 저작자가 고친다 · fact = 지적만 · 생산자 교정 후 refacts): "
+                       f"{it.get('target')!r}")
         if it.get("status") not in FACTCHECK_STATUSES:
             bad.append(f"items[{i}].status ∈ {FACTCHECK_STATUSES}: {it.get('status')!r}")
         elif it.get("status") == "fixed" and (not isinstance(it.get("resolution"), str) or not it["resolution"].strip()):
@@ -654,15 +701,22 @@ def _manifest_doc(repo: Path, st: dict) -> dict:
     return core.read_json(repo / st["manifest"], code="HINT_MANIFEST_UNREADABLE")
 
 
-def _require_binding_artifact(man: dict, repo: Path, *, before_commit: bool) -> str:
-    """footer `certificate_ref`(evidence.binding_artifact_path — 단일 결정자). 없으면 봉인할 수 없다."""
+def _require_binding_artifact(man: dict, repo: Path, *, before_commit: bool) -> tuple[str, str]:
+    """footer v2 `bench_ref` · `bench_kind`(evidence.binding_artifact_path — 단일 결정자 · kind = tag.bench_kind_of 이름 파생).
+    없거나 종류를 이름에서 가를 수 없으면 봉인할 수 없다(2026-09-29 plan_26092908 §4.4 V2 — 옛 footer `certificate_ref` 는 REFUTE ·
+    lite 셀에서 bench_report 를 가리키는 거짓 이름이었다). 사유코드는 옛 이름 그대로(정책 · 자체검사 호환)."""
     ref = evidence.binding_artifact_path(man, repo)
     if not ref:
         core.fail("HINT_CERTIFICATE_BINDING_ABSENT",
-                  "footer certificate_ref 로 묶을 인증서·리포트가 없다(binding_artifact_path = None)"
+                  "footer bench_ref 로 묶을 계측 산출물(인증서 · bench_report)이 없다(binding_artifact_path = None)"
                   + (" — 커밋하지 않았다." if before_commit else "."),
-                  "full PASS 면 인증서를, waiver·explore·map_only 면 bench_report 를 발행 기록에 바인딩한다(evidence_publisher).")
-    return ref
+                  "인증서가 발행되는 판정(explicit ∧ PASS)이면 인증서를, 그 밖(REFUTE · explore PASS · waiver · map_only)이면 bench_report 를 "
+                  "발행 기록에 바인딩한다(evidence_publisher).")
+    kind = tag.bench_kind_of(ref)
+    if kind is None:
+        core.fail("HINT_CERTIFICATE_BINDING_ABSENT", f"footer bench_ref 의 종류를 이름에서 가를 수 없다(benchmark_*.yaml | bench_report_*.md): {ref}",
+                  "발행 기록의 바인딩이 docs.md 명명 SSOT 의 계측 산출물을 가리키는지 확인한다.")
+    return ref, kind
 
 
 # ── 린트 ───────────────────────────────────────────────────────────────────────────────────────
@@ -671,8 +725,9 @@ def _subst_table(repo: Path, st: dict) -> list:
 
 
 def _lint(repo: Path, payload: Path, draft: Path, st: dict, *, sealed: bool) -> list[dict]:
-    """template.lint — publish 때와 같은 입력(스냅샷 facts · LINEAGE · 치환표 · work-manifest · 벤치 원천)."""
-    lin = core.read_json(payload / "LINEAGE.json", code="HINT_LINEAGE_UNREADABLE")
+    """template.lint — publish 때와 같은 입력(스냅샷 facts · **전체** LINEAGE(draft inputs · plan_26092908 §4.6) · 치환표 · work-manifest ·
+    벤치 원천). payload 는 draft 의 payload 가 아닐 수 있다(lint 임시 사본 · verify 의 봉인 트리) — 전체 계보는 늘 draft 에서 읽는다."""
+    lin = _lineage_full(draft, draft / "payload")
     facts = template.load_snapshot(draft / "inputs" / template.FACTS_SNAPSHOT)
     man = _manifest_doc(repo, st) if (repo / st["manifest"]).is_file() else None
     # draft_dir = 측정 도구 스냅샷(`inputs/sources/`)의 자리 — payload 는 임시 사본(lint) · 봉인 트리를 푼 자리(verify)일 수 있다(2026-09-22 round 3)
@@ -703,9 +758,110 @@ def _fail_lint(issues: list[dict], sealed: bool) -> None:
 
 
 # ── publish ────────────────────────────────────────────────────────────────────────────────────
+def _collect(repo: Path, ev, dn, *, utc: str, topic: str, draft: Path, payload: Path, lineage_add, rt: Runtime) -> dict:
+    """증거 → 발행기 구동 **전의** 수집(쓰기 = draft 안뿐 · publish · refacts 공용 · 2026-09-29 plan_26092908 §4.8).
+    측정 도구 스냅샷 · 계보 · 산출물(payload/artifacts) · 벤치 원천 · 사실 조각. 발행 기록 바인딩(drive_publisher)은 이 뒤다 —
+    산출물 수집이 막히면 발행 기록이 아직 묶이지 않았다(거부된 publish 가 시각을 묶는 손작업 V11① 의 절반)."""
+    ident = evidence.identity(ev)
+    # 2026-09-22 · plan_26092119 S2 round 3(공유 사실 계약): 측정 도구 원문 스냅샷(draft `inputs/sources/<이름>@<rev12>` · git show 바이트)과
+    #   측정 env 관측은 계보보다 **먼저** 만든다 — 생산자(evidence)가 그 경로 · 로그를 ev.lineage_seeds 의 evidence_candidates 에 올려야
+    #   LINEAGE 가 그것을 발췌 출처로 싣는다(뒤에 부르면 발췌가 HINT_EXCERPT_SOURCE_OUTSIDE_LINEAGE). 쓰기는 draft 안뿐이다(재생도 같다).
+    tool_snaps = evidence.tool_snapshots(repo, ev, draft)
+    env_observed = evidence.measurement_env_observed(repo, ev)
+    att_scope = evidence.attestation_scope(repo, ev)
+    lin = lineage.derive(repo, ev, base_slug=ident["base_slug"], publish_kst=core.kst_token(utc),
+                         declared=list(lineage_add or ()), records=evidence.publication_records(repo), this_topic=topic)
+    art = artifacts.collect(repo, ev, payload, runner=rt.docker)
+    bench_src = _bench_source(repo, ev)
+    missing = sorted(set(ev.missing) | set(art.get("missing") or ()))
+    # 결손의 **이 셀 사유**(2026-09-29 plan_26092908 §4.2 · D 통합): native producer 가 기동 기록을 쓰지 못했으면 그 사유를 결손 표에 옮긴다
+    #   (옛 N1 proof 는 필드가 없다 — 결손만 · 사유 없음). 배포 본문에 실리므로 치환표를 거친다(운영자 경로가 예외 문자열에 섞일 수 있다).
+    reasons: dict[str, str] = {}
+    err = getattr(ev, "native_launch_error", None)
+    if err and "HINT_MISSING_NATIVE_LAUNCH" in missing:
+        reasons["HINT_MISSING_NATIVE_LAUNCH"] = "producer native_launch_error: " + pii.substitute(
+            str(err), pii.substitution_table(repo, evidence.output_manifest(repo, ev.topology)))
+    naming_base = {**dn.to_payload(), "vllm_observed": evidence.vllm_observed(ev, repo)}
+    vocab = naming.load_vocab(repo)
+    return {
+        "ident": ident, "tool_snaps": tool_snaps, "env_observed": env_observed, "att_scope": att_scope, "lineage": lin, "art": art,
+        "bench_src": bench_src, "missing": missing, "missing_reasons": reasons, "naming_base": naming_base,
+        "tail_sources": evidence.tail_sources(repo, ev),
+        "tail_candidates": naming.tail_candidates(evidence.naming_facts(repo, ev), vocab),
+    }
+
+
+def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_rel: str, man: dict) -> tuple[dict, dict]:
+    """수집 조각 + 발행 기록(work-manifest) → (facts, PAYLOAD.json 문서). 쓰기 0(publish · refacts 공용)."""
+    art, ident = col["art"], col["ident"]
+    task_class = man.get("task_class")
+    bench = man.get("benchmark") if isinstance(man.get("benchmark"), dict) else {}
+    qual = evidence.qualification(ev)
+    build = _build_doc(ev, art)
+    measurement = evidence.measurement(ev)                 # D-f 측정 수치 · v7 판정 표면(verdict · 키별 sources)
+    measurement_config = evidence.measurement_config(repo, ev)   # D-f DISTRIBUTED_MEASUREMENT_KEYS + source
+    # 2026-09-22 S2 round 2(공유 사실 계약): 블랙박스 이벤트 원장의 이 셀 행 · 현행 full 정의(docs.md 원문) — 1차 저작자가 "두 번 띄웠는지
+    #   미기록"(원장에 선언 2건) · "현행 full 정의 미기록"(docs.md 에 있다)으로 적은 두 빈칸을 기계가 채운다(생산자 = evidence).
+    event_timeline = evidence.event_timeline(repo, ev)
+    bench_definition = evidence.bench_definition(repo, ev)
+    bench_md = template.render_bench_source(repo, col["bench_src"]) if col["bench_src"] else None
+    camp = {"id": ev.campaign_id, "cell": ev.cell, "node": ev.node, "mode": ev.mode}
+    pub = {"topic": topic, "manifest_ref": manifest_rel, "task_class": task_class}
+    lin = col["lineage"]
+    # plan_26092908 §4.2·§4.6 — artifacts 의 새 키(파일 단위 표시는 slots[*].file_records 에 이미 있다)
+    art_more = {"agent_requests": art.get("agent_requests") or [], "build_context_map": art.get("build_context_map") or [],
+                "native_source": art.get("native_source")}
+    facts = {
+        "tag": dn.tag, "base_tag": dn.tag, "generated_utc": utc, "naming": col["naming_base"], "identity": ident, "build": build,
+        "plane": art.get("plane"), "applied_set": art.get("applied_set"), "slots": art.get("slots"),
+        "qualification": qual, "measurement": measurement, "measurement_config": measurement_config, "missing": col["missing"],
+        "missing_reasons": col["missing_reasons"],
+        "lineage_reading_list": lineage.reading_list(lin), "value_status_candidates": art.get("value_status_candidates"),
+        "reproduce_steps": _with_bench_command(art.get("reproduce_steps"), evidence.bench_command(repo, ev)),
+        "sub_recipe": art.get("sub_recipe"), "bench_section_md": bench_md,
+        "task_class": task_class, "perf_waiver": bench.get("perf_waiver") or None, "campaign": camp, "approval": None,
+        "publication": pub, "event_timeline": event_timeline, "bench_definition": bench_definition, "factcheck": None,
+        "measurement_env_observed": col["env_observed"], "tool_snapshots": col["tool_snaps"], "attestation_scope": col["att_scope"],
+        "tail_candidates": col["tail_candidates"], "env_shapes": art.get("env_shapes") or [], **art_more,
+    }
+    doc = {
+        "schema_version": PAYLOAD_SCHEMA_VERSION, "format": branch.PAYLOAD_FORMAT, "tag": dn.tag, "generated_utc": utc,
+        "campaign": camp, "identity": ident, "naming": col["naming_base"], "plane": art.get("plane"), "build": build,
+        "applied_set": art.get("applied_set"), "slots": art.get("slots"),
+        "qualification": {k: qual.get(k) for k in ("health_200", "inference_observed", "sources", "method")},
+        "measurement": measurement, "measurement_config": measurement_config, "missing": col["missing"],
+        "missing_reasons": col["missing_reasons"], "approval": None,
+        "evidence_pointers": [{k: p.get(k) for k in ("kind", "path", "cell_id", "node_id")} for p in ev.pointers],
+        "publication": pub, "bench_definition": bench_definition, "factcheck": None,
+        # 2026-09-22 S2 round 3: Agent 표면에도 같은 사실(측정 env 관측 · 도구 스냅샷 좌표 · attestation 범위) — FACT 블록과 같은 값
+        "measurement_env_observed": col["env_observed"], "tool_snapshots": col["tool_snaps"], "attestation_scope": col["att_scope"],
+        **art_more,
+    }
+    return facts, doc
+
+
+def _write_payload_meta(repo: Path, draft: Path, payload: Path, *, tag_name: str, utc: str, doc: dict, col: dict) -> None:
+    """PAYLOAD.json · LINEAGE(전체 = draft inputs · 페이로드 = 수신자 요약) · PROVENANCE · 이름 확정 입력(naming_base · tail_sources)."""
+    inputs = draft / "inputs"
+    inputs.mkdir(parents=True, exist_ok=True)
+    # 2026-09-29 plan_26092908 §4.6(V13): 전체 계보(해시 · 간선 · 후보 · 모호 해소)는 발행자 평면 · 페이로드는 수신자 요약(≤ 20KB).
+    core.write_json(inputs / lineage.LINEAGE_FULL_NAME, col["lineage"])
+    core.write_json(payload / "LINEAGE.json", lineage.receiver_summary(col["lineage"]))
+    core.write_json(inputs / NAMING_BASE_NAME, col["naming_base"])
+    core.write_json(inputs / TAIL_SOURCES_NAME, col["tail_sources"])
+    core.write_json(payload / branch.PAYLOAD_JSON, doc)
+    prov = {"schema_version": PROVENANCE_SCHEMA_VERSION, "tag": tag_name, "source_anchor": None,
+            "source_anchor_is_head": None, "assembly_branch": None, "payload_files": [], "generated_utc": utc}
+    core.write_json(payload / branch.PROVENANCE_JSON, prov)
+    prov["payload_files"] = branch.payload_files(payload)
+    core.write_json(payload / branch.PROVENANCE_JSON, prov)
+
+
 def publish(repo: Path, *, campaign=None, cell=None, publication=None, replay=False, node=None, generated_utc,
             lineage_add=(), out=None, remote="origin", remote_check=True, rt: Runtime | None = None) -> dict:
-    """셀 1개 → 스캐폴드 → 정지(SPEC §4.1). 반환 = 요약(태그 · draft · PROMPT · 읽기 목록 · 다음 명령)."""
+    """셀 1개 → 스캐폴드 → 정지(SPEC §4.1). 반환 = 요약(기본 이름 · draft · PROMPT · 읽기 목록 · 꼬리 후보 · 다음 명령).
+    이름은 **기본 이름**(결정론 q·len·kv · 꼬리 전)으로 스캐폴드한다 — 꼬리는 저작 Agent 가 `inputs/tail.json` 으로 적고 continue 가
+    근거 대조 뒤 확정한다(plan_26092908 §4.1 · §4.8 순서)."""
     rt = rt or Runtime()
     repo = Path(repo).resolve()
     utc = core.require_utc(generated_utc)
@@ -713,23 +869,26 @@ def publish(repo: Path, *, campaign=None, cell=None, publication=None, replay=Fa
     out_dir = Path(out).resolve() if out else None
     if out_dir is not None:
         _require_fresh_draft(out_dir)
-    # ① 증거(명시 id 만 · ACTIVE ✗) ② 발행 자격 = 관측(X8 · 불성립 = 차단)
+    # ① 증거(명시 id 만 · ACTIVE ✗ · --node 미지정 = evidence 자동 파생) ② 발행 자격 = 관측(X8 · 불성립 = 차단)
     ev = _evidence(repo, campaign=campaign, cell=cell, publication=publication, node=node, rt=rt)
-    qual = evidence.qualification(ev)
-    ident = evidence.identity(ev)
-    label = evidence.topology_label(ident)
-    # ③ 이름(도구 전량 파생 · 충돌 = 차단) — 발행기 구동(첫 draft 밖 쓰기) **전에** 끝낸다: 이름이 막히면 부수효과 0.
+    evidence.qualification(ev)
+    label = evidence.topology_label(evidence.identity(ev))
+    # ③ 기본 이름(도구 파생 · 충돌 = 차단) — 발행기 구동(첫 draft 밖 쓰기) **전에** 끝낸다: 이름이 막히면 부수효과 0.
+    #   기본 이름이 이미 있어도 최종 이름(꼬리 · timestamp)이 가를 수 있지만, 같은 셀의 판이 이미 있다는 사실은 여기서 알린다(막지 않는다 —
+    #   continue 가 최종 이름을 확정하며 원격 중복이면 `-t<YYMMDDHHMM>` 을 붙인다 · §4.1 U7).
     dn = naming.derive_name(evidence.naming_facts(repo, ev), naming.load_vocab(repo))
     tag.check_ref_format(repo, dn.tag)
     _require_name_pii_clean(repo, dn.tag)
-    remote_note = _collision(repo, dn.tag, remote=remote, remote_check=remote_check, replay=replay)
+    base_hit, remote_note = _name_hit(repo, dn.tag, remote=remote, remote_check=remote_check, tolerate=replay or not remote_check)
     topic = evidence.topic_for(ev)
     draft = out_dir or (repo / core.REL_DRAFTS / (topic if ev.mode == "campaign" else f"replay__{topic}"))
     _require_fresh_draft(draft)
     payload = draft / "payload"
-    # ④ 발행기 구동(campaign) + 게이트 사전 확인 · 재생 = 기존 기록 읽기만
     if ev.mode == "campaign":
-        _require_unbound_publication_time(repo, topic, utc)
+        utc = _require_unbound_publication_time(repo, topic, utc)      # 거부된 publish 의 묶인 시각 = 채택(§4.8)
+    # ④ 수집(draft 안 쓰기뿐) → ⑤ 발행기 구동(campaign) + 게이트 사전 확인 · 재생 = 기존 기록 읽기만
+    col = _collect(repo, ev, dn, utc=utc, topic=topic, draft=draft, payload=payload, lineage_add=lineage_add, rt=rt)
+    if ev.mode == "campaign":
         manifest_path = evidence.drive_publisher(repo, ev, topic=topic, generated_utc=utc, draft_dir=draft)
         _gate(repo, manifest_path, "continue")
         gate = "allowed(hint_finalize 사전 확인 · 부수효과 전)"
@@ -744,77 +903,31 @@ def publish(repo: Path, *, campaign=None, cell=None, publication=None, replay=Fa
         gate = "allowed(hint_finalize 사전 확인 · 읽기 전용 · 재생)"
     manifest_rel = core.rel(repo, manifest_path)
     man = core.read_json(manifest_path, code="HINT_MANIFEST_UNREADABLE")
-    task_class = man.get("task_class")
-    bench = man.get("benchmark") if isinstance(man.get("benchmark"), dict) else {}
-    # ⑤ 계보(X1 · X17) ⑥ 산출물(적용된 것만 · §4.5)
-    # 2026-09-22 · plan_26092119 S2 round 3(공유 사실 계약): 측정 도구 원문 스냅샷(draft `inputs/sources/<이름>@<rev12>` · git show 바이트)과
-    #   측정 env 관측은 계보보다 **먼저** 만든다 — 생산자(evidence)가 그 경로 · 로그를 ev.lineage_seeds 의 evidence_candidates 에 올려야
-    #   LINEAGE 가 그것을 발췌 출처로 싣는다(뒤에 부르면 발췌가 HINT_EXCERPT_SOURCE_OUTSIDE_LINEAGE). 쓰기는 draft 안뿐이다(재생도 같다).
-    tool_snaps = evidence.tool_snapshots(repo, ev, draft)
-    env_observed = evidence.measurement_env_observed(repo, ev)
-    att_scope = evidence.attestation_scope(repo, ev)
-    lin = lineage.derive(repo, ev, base_slug=ident["base_slug"], publish_kst=core.kst_token(utc),
-                         declared=list(lineage_add or ()), records=evidence.publication_records(repo), this_topic=topic)
-    art = artifacts.collect(repo, ev, payload, runner=rt.docker)
-    bench_src = _bench_source(repo, ev)
-    bench_md = template.render_bench_source(repo, bench_src) if bench_src else None
-    # ⑦ 사실 조립 → 스캐폴드
-    build = _build_doc(ev, art)
-    measurement = evidence.measurement(ev)                 # D-f 측정 수치
-    measurement_config = evidence.measurement_config(repo, ev)   # D-f DISTRIBUTED_MEASUREMENT_KEYS + source
-    # 2026-09-22 S2 round 2(공유 사실 계약): 블랙박스 이벤트 원장의 이 셀 행 · 현행 full 정의(docs.md 원문) — 1차 저작자가 "두 번 띄웠는지
-    #   미기록"(원장에 선언 2건) · "현행 full 정의 미기록"(docs.md 에 있다)으로 적은 두 빈칸을 기계가 채운다(생산자 = evidence).
-    event_timeline = evidence.event_timeline(repo, ev)
-    bench_definition = evidence.bench_definition(repo, ev)
-    missing = sorted(set(ev.missing) | set(art.get("missing") or ()))
-    naming_doc = {**dn.to_payload(), "vllm_observed": evidence.vllm_observed(ev, repo)}
-    camp = {"id": ev.campaign_id, "cell": ev.cell, "node": ev.node, "mode": ev.mode}
-    pub = {"topic": topic, "manifest_ref": manifest_rel, "task_class": task_class}
-    facts = {
-        "tag": dn.tag, "generated_utc": utc, "naming": naming_doc, "identity": ident, "build": build,
-        "plane": art.get("plane"), "applied_set": art.get("applied_set"), "slots": art.get("slots"),
-        "qualification": qual, "measurement": measurement, "measurement_config": measurement_config, "missing": missing,
-        "lineage_reading_list": lineage.reading_list(lin), "value_status_candidates": art.get("value_status_candidates"),
-        "reproduce_steps": _with_bench_command(art.get("reproduce_steps"), evidence.bench_command(repo, ev)),
-        "sub_recipe": art.get("sub_recipe"), "bench_section_md": bench_md,
-        "task_class": task_class, "perf_waiver": bench.get("perf_waiver") or None, "campaign": camp, "approval": None,
-        "publication": pub, "event_timeline": event_timeline, "bench_definition": bench_definition, "factcheck": None,
-        "measurement_env_observed": env_observed, "tool_snapshots": tool_snaps, "attestation_scope": att_scope,
-    }
+    # ⑥ 사실 조립 → 스캐폴드
+    facts, doc = _assemble(repo, ev, dn, col, utc=utc, topic=topic, manifest_rel=manifest_rel, man=man)
     prompts = template.render_scaffold(repo, facts, payload)
-    core.write_json(payload / "LINEAGE.json", lin)
-    core.write_json(payload / branch.PAYLOAD_JSON, {
-        "schema_version": PAYLOAD_SCHEMA_VERSION, "format": branch.PAYLOAD_FORMAT, "tag": dn.tag, "generated_utc": utc,
-        "campaign": camp, "identity": ident, "naming": naming_doc, "plane": art.get("plane"), "build": build,
-        "applied_set": art.get("applied_set"), "slots": art.get("slots"),
-        "qualification": {k: qual.get(k) for k in ("health_200", "inference_observed", "sources", "method")},
-        "measurement": measurement, "measurement_config": measurement_config, "missing": missing, "approval": None,
-        "evidence_pointers": [{k: p.get(k) for k in ("kind", "path", "cell_id", "node_id")} for p in ev.pointers],
-        "publication": pub, "bench_definition": bench_definition, "factcheck": None,
-        # 2026-09-22 S2 round 3: Agent 표면에도 같은 사실(측정 env 관측 · 도구 스냅샷 좌표 · attestation 범위) — FACT 블록과 같은 값
-        "measurement_env_observed": env_observed, "tool_snapshots": tool_snaps, "attestation_scope": att_scope,
-    })
-    prov = {"schema_version": PROVENANCE_SCHEMA_VERSION, "tag": dn.tag, "source_anchor": None,
-            "source_anchor_is_head": None, "assembly_branch": None, "payload_files": [], "generated_utc": utc}
-    core.write_json(payload / branch.PROVENANCE_JSON, prov)
-    prov["payload_files"] = branch.payload_files(payload)
-    core.write_json(payload / branch.PROVENANCE_JSON, prov)
+    _write_payload_meta(repo, draft, payload, tag_name=dn.tag, utc=utc, doc=doc, col=col)
     head = core.git(repo, "rev-parse", "--verify", "--quiet", "HEAD", check=False).stdout.strip() or None
     approval_note = _approval_probe(repo, ev)
+    lin = col["lineage"]
     st = {"schema_version": STATE_SCHEMA, "stage": "scaffolded", "mode": ev.mode,
+          # node_arg = 발행자가 준 --node(None = evidence 자동 파생) — refacts 가 같은 인자로 재파생한다(해소값을 넘기면 출처 문구가 갈린다)
+          "node_arg": node,
           "selectors": {"campaign": ev.campaign_id, "cell": ev.cell, "node": ev.node,
                         "publication": topic if ev.mode != "campaign" else None},
-          "tag": dn.tag, "topic": topic, "manifest": manifest_rel, "topology": ev.topology, "topology_label": label,
-          "generated_utc": utc, "bench_source": bench_src, "source_anchor": head, "remote_check": remote_note,
-          "gate_precheck": gate, "approval_at_publish": approval_note, "prompts": len(prompts),
-          "lineage_documents": len(lin.get("documents") or ()),
-          "steps": {"publish": {"utc": utc, "missing": missing}}}
+          "tag": dn.tag, "base_tag": dn.tag, "topic": topic, "manifest": manifest_rel, "topology": ev.topology,
+          "topology_label": label, "generated_utc": utc, "bench_source": col["bench_src"], "source_anchor": head,
+          "remote_check": remote_note, "base_name_exists": base_hit, "gate_precheck": gate, "approval_at_publish": approval_note,
+          "prompts": len(prompts), "lineage_documents": len(lin.get("documents") or ()), "lineage_add": list(lineage_add or ()),
+          "steps": {"publish": {"utc": utc, "missing": col["missing"]}}}
     _save_state(draft, st)
     return {"tag": dn.tag, "draft": draft, "payload": payload, "topic": topic, "mode": ev.mode, "manifest": manifest_rel,
-            "prompts": prompts, "reading_list": lineage.reading_list(lin), "missing": missing, "remote_check": remote_note,
+            "prompts": prompts, "reading_list": lineage.reading_list(lin), "missing": col["missing"], "remote_check": remote_note,
             "gate": gate, "approval": approval_note, "files": branch.payload_files(payload), "state": st,
-            "applied": _applied_summary(art.get("applied_set")),
-            "tool_snapshots": [Path(str(x.get("snapshot_rel"))).name for x in tool_snaps
+            "applied": _applied_summary(col["art"].get("applied_set")), "generated_utc": utc,
+            "tail_candidates": col["tail_candidates"], "base_name_exists": base_hit,
+            "agent_requests": [r.get("path") for r in col["art"].get("agent_requests") or [] if isinstance(r, dict)],
+            "tool_snapshots": [Path(str(x.get("snapshot_rel"))).name for x in col["tool_snaps"]
                                if isinstance(x, dict) and x.get("snapshot_rel")]}
 
 
@@ -846,7 +959,11 @@ def _approval_probe(repo: Path, ev) -> str:
 def _print_publish(repo: Path, res: dict) -> None:
     d = _show(repo, res["draft"])
     print(f"{_OUT} publish — 스캐폴드 완료 · 정지(태그·브랜치 부수효과 0)")
-    print(f"  태그     {res['tag']}")
+    print(f"  기본 이름 {res['tag']}  (꼬리 전 — continue 가 inputs/tail.json 으로 확정 · 중복이면 -t<YYMMDDHHMM>)")
+    if res.get("base_name_exists"):
+        print(f"  ⓘ 기본 이름이 이미 있다({res['base_name_exists']}) — 꼬리가 가르지 않으면 이 발행은 timestamp 새 판이 된다")
+    if res.get("generated_utc"):
+        print(f"  시각     {res['generated_utc']}(발행 기록에 묶인 값 · 명시와 다르면 위 로그가 채택을 알렸다)")
     print(f"  draft    {d}")
     print(f"  모드     {res['mode']} · 토픽 {res['topic']} · work-manifest {res['manifest']}")
     print(f"  원격 충돌 확인 {res['remote_check']} · 게이트 {res['gate']}")
@@ -860,6 +977,12 @@ def _print_publish(repo: Path, res: dict) -> None:
                   "로 껐다면 빼고 다시 publish 한다(새 --out 또는 draft 를 지운 뒤) · 측정 이미지가 이 호스트에 없으면 탐침할 수 없다"
                   "(미관측 그대로 기재 · 이미지를 받거나 다시 지을지는 사람 결정).")
     print(f"  페이로드 파일 {len(res['files'])}개")
+    cands = [c for c in res.get("tail_candidates") or [] if isinstance(c, dict)]
+    if cands:
+        print("  꼬리 후보(강제 ✗ · 00 §0.9 · 이 셀을 가르는 노브만): " + " · ".join(
+            f"{c.get('token') or c.get('error')}({c.get('axis')})" for c in cands))
+    for rel in res.get("agent_requests") or []:
+        print(f"  Agent 저작 요청 {rel} — 첫 줄 경고를 지키고 본문을 쓴다(렌더러로 만들 수 없는 자리)")
     todo = [p for p in res["prompts"] if not p.get("optional")]
     print(f"\n채워야 할 PROMPT {len(todo)}개(선택 {len(res['prompts']) - len(todo)}개) — `<<AGENT:` 줄을 지시대로 바꾼다:")
     for p in res["prompts"]:
@@ -916,38 +1039,188 @@ def cmd_publish(a) -> int:
     return 0
 
 
+# ── 이름 확정 · 안내 커밋 · 봉인 출처 (continue 의 커밋 전 · 부수효과 = draft 안뿐 · plan_26092908 §4.1·§4.7·§4.9) ─────────────
+def _read_tail(draft: Path) -> list:
+    """저작 Agent 의 꼬리(`inputs/tail.json`). 부재 = HINT_TAIL_ABSENT(빈 꼬리도 `[]` 로 **명시**한다 — 침묵은 '없음' 과 구분되지 않는다) ·
+    JSON 아님 · 목록 아님 = HINT_TAIL_FORMAT."""
+    p = draft / "inputs" / TAIL_NAME
+    if not p.is_file():
+        core.fail("HINT_TAIL_ABSENT", f"이름 꼬리가 없다(draft inputs/{TAIL_NAME}) — 빈 꼬리도 `[]` 로 명시한다.",
+                  "00-hint.md §0.9 PROMPT 대로 `inputs/tail.json` 을 쓴다(후보 표 참고 · 근거 = 이 셀의 서빙 설정 file · key · value).")
+    try:
+        doc = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError) as e:
+        core.fail("HINT_TAIL_FORMAT", f"inputs/{TAIL_NAME} 를 JSON 으로 읽을 수 없다: {type(e).__name__}: {e}")
+    if not isinstance(doc, list):
+        core.fail("HINT_TAIL_FORMAT", f"inputs/{TAIL_NAME} 최상위는 행 목록이다(빈 꼬리 = []): {type(doc).__name__}")
+    return doc
+
+
+def _tail_issues(draft: Path) -> list[dict]:
+    """lint 용 꼬리 판정(부수효과 0) — continue 의 이름 확정이 막을 것을 저작 중에 미리 보인다(린트 결과 모양 · file = inputs/tail.json)."""
+    rel = f"inputs/{TAIL_NAME}"
+    try:
+        tail = _read_tail(draft)
+    except core.HintError as e:
+        return [{"code": e.code, "file": rel, "line": 1, "message": e.message}]
+    src = core.read_json(draft / "inputs" / TAIL_SOURCES_NAME, code="HINT_TAIL_SOURCES_UNREADABLE") \
+        if (draft / "inputs" / TAIL_SOURCES_NAME).is_file() else {}
+    return [{"code": c, "file": rel, "line": 1, "message": m} for c, m in naming.validate_tail(tail, src)]
+
+
+def _confirm_name(repo: Path, draft: Path, st: dict, payload: Path, *, remote: str, tolerate_remote: bool) -> dict:
+    """꼬리 확정 → 최종 이름 → (중복이면) timestamp → 페이로드 파일 전체의 이름 갱신 → st["tag"]. 재실행 멱등(같은 입력 = 같은 이름 ·
+    바뀐 것이 없으면 쓰기 0). 커밋 **전** 구간이다 — 이름이 페이로드 파일(PAYLOAD · PROVENANCE · README · FACT 블록) 안에 있으므로 봉인 뒤
+    개명은 없다(plan_26092908 §4.1). 반환 = 확정 기록(st["name"])."""
+    tail = _read_tail(draft)
+    src_p = draft / "inputs" / TAIL_SOURCES_NAME
+    sources = core.read_json(src_p, code="HINT_TAIL_SOURCES_UNREADABLE") if src_p.is_file() else {}
+    probs = naming.validate_tail(tail, sources)
+    if probs:
+        core.fail(probs[0][0], f"이름 꼬리 결함 {len(probs)}건(inputs/{TAIL_NAME}) — 커밋하지 않았다:\n  "
+                  + "\n  ".join(f"{c}  {m}" for c, m in probs[:12]),
+                  "근거는 이 셀의 서빙 설정(inputs/tail_sources.json 에 있는 파일 · 키)에서 값 그대로 옮긴다 · `hint.py lint` 로 미리 본다.")
+    base = st.get("base_tag") or st["tag"]
+    name = naming.compose_name(base, tail)
+    hit, note = _name_hit(repo, name, remote=remote, remote_check=True, tolerate=tolerate_remote)
+    ts = None
+    if hit is not None:
+        # 원격 · 로컬에 이미 있다 = 같은 셀의 새 판 → 이 발행의 generated_utc(publish 시각 · 결정론)를 KST 로 붙인다(§4.1 U7)
+        ts = naming.timestamp_token(st["generated_utc"])
+        name = naming.with_timestamp(name, st["generated_utc"])
+        hit2, note = _name_hit(repo, name, remote=remote, remote_check=True, tolerate=tolerate_remote)
+        if hit2 is not None:
+            core.fail("HINT_NAME_COLLISION", f"timestamp 를 붙인 이름도 이미 있다({hit2}): {name} — 같은 분에 같은 셀 2건.",
+                      "publish 를 새 --generated-utc 로 다시 실행한다(새 판 · 옛 태그는 교정하지 않는다 · P1).")
+    tag.check_ref_format(repo, name)
+    _require_name_pii_clean(repo, name)
+    base_doc = core.read_json(draft / "inputs" / NAMING_BASE_NAME, code="HINT_NAMING_BASE_UNREADABLE")
+    naming_doc = naming.apply_tail(base_doc, tail, ts)
+    changed = template.update_facts(repo, payload, {"tag": name, "naming": naming_doc})
+    doc = core.read_json(payload / branch.PAYLOAD_JSON, code="HINT_PAYLOAD_JSON_UNREADABLE")
+    if doc.get("tag") != name or doc.get("naming") != naming_doc:
+        doc.update(tag=name, naming=naming_doc)
+        core.write_json(payload / branch.PAYLOAD_JSON, doc)
+    prov = core.read_json(payload / branch.PROVENANCE_JSON, code="HINT_PROVENANCE_UNREADABLE")
+    if prov.get("tag") != name:
+        prov["tag"] = name
+        core.write_json(payload / branch.PROVENANCE_JSON, prov)
+    rec = {"base": base, "final": name, "tail": [r.get("token") for r in tail if isinstance(r, dict)], "timestamp": ts,
+           "collision": hit, "remote_check": note, "facts_changed": changed}
+    if st.get("tag") != name:
+        _log(f"이름 확정: {name}" + (f" (기본 이름 · 꼬리 합친 이름이 이미 있어({hit}) timestamp {ts} 를 붙였다)" if ts else ""))
+    st["tag"] = name
+    _mark(draft, st, "name", **rec)
+    return rec
+
+
+def _resolve_guide(repo: Path, st: dict, draft: Path, *, remote: str, pinned: str | None, no_push: bool) -> dict:
+    """페이로드 커밋의 부모 = 안내 커밋(plan_26092908 §4.7 U8 · V12). 기본 = 원격 `refs/heads/hint` tip 을 ls-remote 로 **읽는다**(쓰기 ✗ ·
+    형식 ≠ v7 = HINT_BRANCH_FORMAT_MISMATCH · 조회 실패 = fail-closed). pinned(`--guide-commit`)는 오프라인 재생 전용이라 --no-push 와만
+    쓴다 — 원격 조회를 하지 않았다는 사실을 기록한다. 결과는 커밋 **전에** state 에 적는다(재개 = 같은 부모 · 같은 커밋)."""
+    if pinned is not None and not no_push:
+        core.fail("HINT_GUIDE_PIN_REQUIRES_NO_PUSH", "--guide-commit(원격 조회 없는 안내 커밋 지정)은 --no-push(오프라인 재생)와만 쓴다.",
+                  "push 까지 가는 발행은 원격 hint 브랜치의 안내 커밋을 읽어 부모로 삼는다(지정 ✗).")
+    sha, fmt = branch.guide_commit(repo, remote, pinned=pinned)
+    g = {"sha": sha, "format": fmt, "source": (f"pinned(--guide-commit · 원격 조회 ✗ · 오프라인 재생)" if pinned is not None
+                                               else f"{remote}: ls-remote {core.HINT_BRANCH_REF}(읽기)")}
+    if st.get("guide") != g:
+        st["guide"] = g
+        _save_state(draft, st)
+    return g
+
+
+def _seal_lineage(repo: Path, draft: Path, st: dict, payload: Path) -> dict:
+    """봉인 직전(커밋 전) 페이로드 LINEAGE.json = 수신자 요약(발췌 수) + 봉인 출처 스냅샷(`sealed_sources` · plan_26092908 §4.9 V5).
+    스냅샷 = 발췌 · hint-event 출처가 해소된 계보 파일 + 03 부하 곡선 원천 — verify 는 이것과 현재 출처가 다르면 출처 의존 린트를 INFO 로
+    강등한다(봉인된 태그의 verify 가 시간에 따라 FAIL 로 바뀌지 않게)."""
+    full = _lineage_full(draft, payload)
+    cited = template.cited_sources(repo, payload, lineage=full, draft_dir=draft)
+    paths = list(cited["paths"]) + ([st["bench_source"]] if st.get("bench_source") else [])
+    snap = lineage.sealed_sources(repo, paths)
+    summ = lineage.receiver_summary(full, excerpt_counts=cited["excerpt_counts"], sealed_sources=snap)
+    p = payload / "LINEAGE.json"
+    if not p.is_file() or json.loads(p.read_text(encoding="utf-8")) != json.loads(core.dumps(summ)):
+        core.write_json(p, summ)
+    return {"sealed_sources": len(snap), "excerpt_sources": len(cited["excerpt_counts"])}
+
+
+def _lineage_full(draft: Path, payload: Path) -> dict:
+    """린트 · 발췌 · 봉인 스냅샷이 읽는 **전체** 계보(draft `inputs/LINEAGE.full.json`). v6 draft(분리 전)는 페이로드 LINEAGE.json 이 전체다
+    — 그 모양(evidence_candidates 키)일 때만 읽는다(요약을 전체로 오독하지 않는다)."""
+    full = draft / "inputs" / lineage.LINEAGE_FULL_NAME
+    if full.is_file():
+        return core.read_json(full, code="HINT_LINEAGE_UNREADABLE")
+    doc = core.read_json(payload / "LINEAGE.json", code="HINT_LINEAGE_UNREADABLE")
+    if isinstance(doc, dict) and doc.get("kind") != lineage.SUMMARY_KIND:
+        return doc
+    core.fail("HINT_LINEAGE_UNREADABLE", f"전체 계보가 없다(draft inputs/{lineage.LINEAGE_FULL_NAME}) — 페이로드 LINEAGE.json 은 수신자 요약이다.",
+              "`hint.py refacts --draft <draft>` 로 계보를 다시 파생한다.")
+
+
+# 카탈로그 파생물 두 경로(2026-09-29 plan_26092908 §4.8 V11⑤ · 카탈로그 손 커밋 제거). 이 두 경로만 커밋한다.
+_CATALOG_PATHS = (core.REL_HINTS_MD, core.REL_INDEX)
+
+
+def _commit_catalog(repo: Path, tagname: str) -> dict:
+    """continue 끝 카탈로그 커밋 → {status: committed|unchanged|skipped-dirty, commit?, others?}. 커밋 대상 = HINTS.md · hints/index.json
+    두 경로뿐이고, 추적 파일에 **다른** staged/unstaged 변경이 있으면 커밋하지 않고 경고한다(남의 변경을 도구 커밋에 섞지 않는다 · 미커밋 0
+    규율은 사람 몫). 메시지 = `chore(hint): 카탈로그 파생 — <태그> 발행 반영` · 도구 커밋이라 Co-Authored-By 줄 없음 · 훅 우회 ✗."""
+    st = core.git(repo, "status", "--porcelain=v1", "-z", "--untracked-files=no", check=False)
+    if st.returncode != 0:
+        core.fail("HINT_CATALOG_COMMIT_FAILED", f"git status 실패(rc={st.returncode}): {st.stderr.strip()[-300:]}")
+    changed = [e[3:] for e in st.stdout.split("\0") if len(e) > 3]
+    others = sorted(x for x in changed if x not in _CATALOG_PATHS)
+    untracked = [x for x in _CATALOG_PATHS if (repo / x).is_file() and core.git(
+        repo, "ls-files", "--error-unmatch", "--", x, check=False).returncode != 0]
+    mine = sorted({x for x in changed if x in _CATALOG_PATHS} | set(untracked))
+    if not mine:
+        return {"status": "unchanged"}
+    if others:
+        _log(f"⚠ 카탈로그를 커밋하지 않았다 — 추적 파일에 다른 변경 {len(others)}건이 있다({others[:5]}). 카탈로그({', '.join(mine)})는 "
+             "워킹트리에 남았다: 다른 변경을 정리한 뒤 두 경로만 커밋한다.")
+        return {"status": "skipped-dirty", "others": others}
+    core.git(repo, "add", "--", *mine)
+    r = core.git(repo, "commit", "-q", "-m", f"chore(hint): 카탈로그 파생 — {tagname} 발행 반영", "--", *mine, check=False)
+    if r.returncode != 0:
+        core.fail("HINT_CATALOG_COMMIT_FAILED", f"카탈로그 커밋 실패(rc={r.returncode} — 훅 · 신원 설정을 확인한다 · 우회 ✗): "
+                  f"{(r.stderr or r.stdout).strip()[-400:]}", "원인을 고친 뒤 continue 를 다시 실행한다(카탈로그 파생 · 커밋은 멱등).")
+    sha = core.git(repo, "rev-parse", "HEAD").stdout.strip()
+    return {"status": "committed", "commit": sha, "paths": mine}
+
+
 # ── continue ───────────────────────────────────────────────────────────────────────────────────
 def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, approved_utc=None, remote="origin",
-              no_push=False, factcheck_waiver=None, rt: Runtime | None = None) -> dict:
-    """승인 → 사실 갱신 → 린트 → 봉인 PROMPT → 게이트 → 커밋 → 승격 목표 → 봉인 → 로컬 검증 → (push → 원격 SHA → 카탈로그 →
-    publish 위상). 각 단계는 state.json 에 남고 재실행은 끝난 단계를 확인만 한다(SPEC §4.2)."""
+              no_push=False, factcheck_waiver=None, guide_commit=None, rt: Runtime | None = None) -> dict:
+    """승인 → 이름 확정(꼬리 · timestamp) → 안내 커밋 → 사실 갱신 → 린트 → 사실 검증 → 봉인 PROMPT → 봉인 출처 스냅샷 → 게이트 → 커밋
+    (부모 = 안내) → 승격 목표 → 봉인 → 로컬 검증 → (push → 원격 SHA → 카탈로그 파생 · 커밋 → publish 위상). 각 단계는 state.json 에
+    남고 재실행은 끝난 단계를 확인만 한다(SPEC §4.2 · plan_26092908 §4.8)."""
     rt = rt or Runtime()
     repo, draft = Path(repo).resolve(), Path(draft).resolve()
     utc_arg = core.require_utc(generated_utc)
     st = _load_state(draft)
     payload = draft / "payload"
-    tagname, topic, label = st["tag"], st["topic"], st["topology_label"]
+    topic, label = st["topic"], st["topology_label"]
     # ① 승인 — 부수효과 0(O6 · 어느 ref 도 움직이기 전) · 사실 검증 면제 전사의 모양도 여기서(쓰기 전) 본다
     approval = _approval(repo, st, approved_by, approved_utc)
     waiver = (_one_line_utterance(factcheck_waiver, "HINT_FACTCHECK_WAIVER_INVALID", "--factcheck-waiver")
               if factcheck_waiver is not None else None)
-    # ①' push 권위(D8) — push 까지 갈 실행이면 커밋·봉인 **전에** 본다(권위 없는 체크아웃이 hint 브랜치에 커밋·봉인까지 한 뒤에야
-    #   push 에서 멈추면 되감지 않는 브랜치에 남는다). `--no-push` 는 봉인까지라 권위가 필요 없다(봉인은 분산 · D8).
+    if guide_commit is not None and not no_push:
+        core.fail("HINT_GUIDE_PIN_REQUIRES_NO_PUSH", "--guide-commit(원격 조회 없는 안내 커밋 지정)은 --no-push(오프라인 재생)와만 쓴다.")
+    # ①' push 권위(D8) — push 까지 갈 실행이면 커밋·봉인 **전에** 본다(권위 없는 체크아웃이 커밋·봉인까지 한 뒤에야 push 에서 멈추지
+    #   않게). `--no-push` 는 봉인까지라 권위가 필요 없다(봉인은 분산 · D8).
     if not no_push:
         _require_central(repo, "continue(push 포함)")
     commit_step = _step(st, "commit")
-    if commit_step is None:
-        # 이름 충돌 재확인(X13 · 부수효과 0): publish 뒤 그 이름이 로컬·원격에 생겼을 수 있다(다른 draft · 타 PC · P2). 이 draft 는
-        #   아직 커밋 전이라 봉인한 태그가 없다 — 있으면 남의 것이다. 커밋 **전에** 막는다(hint 브랜치는 되감지 않는다).
-        #   원격 조회 실패는 --no-push 에서만 견딘다(push 할 원격을 못 보는데 봉인까지 가면 그 뒤에야 안다).
-        _collision(repo, tagname, remote=remote, remote_check=True, replay=bool(no_push))
-    else:
+    if commit_step is not None:
         # 재실행: 커밋 뒤 draft 가 그대로인가를 **먼저** 본다(부수효과 0) — 바뀐 draft 에서 brief·게이트로 가면 엉뚱한 사유로 멈춘다.
         _require_draft_equals_anchor(repo, payload, commit_step["anchor"])
     utc = st.get("commit_utc") or utc_arg
     if st.get("commit_utc") and st["commit_utc"] != utc_arg:
         _log(f"커밋 시각은 첫 커밋 때 적은 {st['commit_utc']} 를 다시 쓴다(재개 · 같은 메시지·시각이어야 중복 커밋이 없다).")
-    # ② 기계 사실 갱신(승인 · 슬롯 적용 사유) → ③ refresh → 린트 → 봉인 → 린트(봉인 뒤)
+    # ② 기계 사실 갱신(승인 · 슬롯 적용 사유) → refresh → 린트 → 사실 검증 → **이름 확정 · 안내 커밋** → 봉인 → 린트(봉인 뒤) →
+    #   LINEAGE 요약 · 봉인 출처 스냅샷. 이름 확정은 린트 · 사실 검증 **뒤**다 — 미저작 draft 에는 린트 결함이 먼저 보여야 하고(꼬리는
+    #   `hint.py lint` 가 미리 보인다), 봉인 뒤 린트가 확정 이름으로 모든 사실 블록 · README 를 다시 대조한다.
     if commit_step is None:
         facts = template.load_snapshot(draft / "inputs" / template.FACTS_SNAPSHOT)
         slots = _slot_rationales(payload, facts.get("slots") or {})
@@ -966,18 +1239,26 @@ def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, appro
         _mark(draft, st, "factcheck", ok=fc_err is None, **{k: v for k, v in fc_summary.items() if k != "source"})
         if fc_err is not None:
             raise fc_err
+        # 이름 확정(부수효과 = draft 안뿐 · 커밋 전): 꼬리 근거 대조 → 최종 이름 → 로컬 · 원격 중복이면 timestamp(publish 시각 · 결정론)
+        #   → 그래도 중복이면 차단. 원격 조회 실패는 --no-push 에서만 견딘다(push 할 원격을 못 보는데 봉인까지 가면 그 뒤에야 안다).
+        #   이 단계가 옛 "커밋 전 이름 충돌 재확인(X13)" 을 대신한다 — 충돌은 이제 차단이 아니라 새 판(timestamp)이다(§4.1 U7).
+        _confirm_name(repo, draft, st, payload, remote=remote, tolerate_remote=bool(no_push))
+        # 안내 커밋(부모) — 커밋 전에 state 에 적는다(재개 = 같은 부모)
+        _resolve_guide(repo, st, draft, remote=remote, pinned=guide_commit, no_push=bool(no_push))
         template.seal_prompts(payload)
         issues = _lint(repo, payload, draft, st, sealed=True)
         if issues:
             _mark(draft, st, "lint", ok=False, sealed=True, codes=sorted({i["code"] for i in issues}))
             _fail_lint(issues, sealed=True)
         _mark(draft, st, "lint", ok=True, sealed=True)
+        _mark(draft, st, "lineage", **_seal_lineage(repo, draft, st, payload))
+    tagname = st["tag"]
     brief = template.brief(payload)
     manifest = repo / st["manifest"]
-    # ④ 게이트 → (footer 에 묶을 계측 산출물이 있는가) → 커밋(합성 신원 · 주입 시각 · CAS)
+    # ⑤ 게이트 → (footer 에 묶을 계측 산출물이 있는가) → 커밋(합성 신원 · 주입 시각 · 부모 = 안내 커밋 · CAS)
     _gate(repo, manifest, "continue")
-    # footer certificate_ref 는 커밋 **전에** 이미 정해져 있다(바인딩은 publish 의 발행기 구동이 한다 · set-promotion-target 은
-    #   바꾸지 않는다). 커밋 뒤에야 알면 hint 브랜치(되감지 않는다)에 태그 없는 페이로드 커밋이 남는다(2026-09-22 리뷰).
+    # footer bench_ref 는 커밋 **전에** 이미 정해져 있다(바인딩은 publish 의 발행기 구동이 한다 · set-promotion-target 은 바꾸지 않는다).
+    #   커밋 뒤에야 알면 태그 없는 페이로드 커밋이 남는다(2026-09-22 리뷰).
     _require_binding_artifact(_manifest_doc(repo, st), repo, before_commit=True)
     if commit_step is not None:
         anchor = commit_step["anchor"]
@@ -986,9 +1267,10 @@ def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, appro
         st["commit_utc"] = utc
         _save_state(draft, st)                     # 시각을 **커밋 전에** 적는다 — 커밋 직후 끊겨도 재실행이 같은 커밋으로 재개한다
         message = branch.commit_message(payload, generated_utc=utc)
-        anchor = branch.commit_payload(repo, payload, message=message, generated_utc=utc)
-        _mark(draft, st, "commit", anchor=anchor, utc=utc)
-    # ⑤ 승격 목표(X6 · 발행 기록 → finalize 방출) → 게이트 재확인
+        # 부모 = 안내 커밋(plan_26092908 §4.7) · 로컬 `refs/heads/hint` 는 움직이지 않는다(페이로드 커밋은 태그만 가리킨다)
+        anchor = branch.commit_payload(repo, payload, message=message, generated_utc=utc, guide=st["guide"]["sha"])
+        _mark(draft, st, "commit", anchor=anchor, utc=utc, guide=st["guide"]["sha"])
+    # ⑥ 승격 목표(X6 · 발행 기록 → finalize 방출) → 게이트 재확인
     if _step(st, "target") is None:
         if st.get("mode") != "campaign" and not (draft / "inputs" / "pii.json").is_file():
             sel = st.get("selectors") or {}
@@ -1004,26 +1286,29 @@ def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, appro
                   + "; ".join(f"{c}: {m}" for c, m in probs),
                   "evidence_publisher set-promotion-target 이 쓴 목표를 확인한다(hint.py 는 manifest 를 직접 고치지 않는다).")
     _gate(repo, manifest, "continue")
-    cert_ref = _require_binding_artifact(man, repo, before_commit=False)
-    # ⑥ 봉인 → 이 태그 1개 로컬 검증(서사 린트 포함 — 봉인된 오브젝트에서)
+    bench_ref, bench_kind = _require_binding_artifact(man, repo, before_commit=False)
+    # ⑦ 봉인(footer v2 · push 경로는 봉인 직전 원격 재조회) → 이 태그 1개 로컬 검증(서사 린트 포함 — 봉인된 오브젝트에서)
     fields = {"version": tag.FOOTER_VERSION, "tag": tagname, "topology": label, "anchor": anchor,
-              "manifest_ref": st["manifest"], "certificate_ref": cert_ref}
+              "manifest_ref": st["manifest"], "bench_ref": bench_ref, "bench_kind": bench_kind}
     message = tag.annotation(brief, fields)
     try:
-        obj = tag.seal(repo, tagname, anchor, message, generated_utc=utc)
+        obj = tag.seal(repo, tagname, anchor, message, generated_utc=utc, remote=None if no_push else remote)
     except tag.HintProblemsError as e:
         _mark(draft, st, "seal", ok=False, codes=tag.problem_codes(e.problems))
         raise
     lint_fn = _lint_fn(draft, st)
-    vprobs = tag.verify_local(repo, tagname, lint_fn=lint_fn)
+    infos: list = []
+    vprobs = tag.verify_local(repo, tagname, lint_fn=lint_fn, infos=infos)
+    for line in infos:
+        _log(line)
     if vprobs:
         codes = tag.problem_codes(vprobs)
-        _mark(draft, st, "verify", ok=False, codes=codes)
+        _mark(draft, st, "verify", ok=False, codes=codes, infos=infos)
         core.fail("HINT_LOCAL_VERIFY_FAILED", f"봉인한 태그의 로컬 검증 {len(vprobs)}건({', '.join(codes)}):\n  "
                   + "\n  ".join(vprobs[:30]), "각 code 의 자리를 고친다 — 검증되지 않은 태그는 밀지 않는다(D10).")
-    _mark(draft, st, "verify", ok=True, tag_object=obj)
+    _mark(draft, st, "verify", ok=True, tag_object=obj, infos=infos)
     result = {"tag": tagname, "anchor": anchor, "tag_object": obj, "manifest": st["manifest"], "pushed": False,
-              "draft": draft}
+              "draft": draft, "guide": (st.get("guide") or {}).get("sha"), "infos": infos}
     if no_push:
         # 이어가기는 continue 재실행이다 — 단독 `push` 는 태그만 밀고 카탈로그 파생·캠페인 publish 위상을 하지 않는다(침묵 누락 ✗).
         again = f"hint.py continue --draft {_show(repo, draft)} --generated-utc <UTC>"
@@ -1032,10 +1317,11 @@ def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, appro
         _log(f"--no-push — 봉인·로컬 검증까지. 이어서 `{again}` 를 다시 실행하면 push → 원격 SHA 대조 → 카탈로그 → "
              "(캠페인 셀) publish 위상까지 잇는다.")
         return result
-    # ⑦ push(정확한 refspec 1개) → 원격 SHA == 로컬
+    # ⑧ push(정확한 refspec 1개) → 원격 SHA == 로컬
     _gate(repo, manifest, "push")
+    pinfos: list = []
     try:
-        pres = tag.push_tag(repo, remote, tagname, lint_fn=lint_fn)
+        pres = tag.push_tag(repo, remote, tagname, lint_fn=lint_fn, infos=pinfos)
     except tag.HintProblemsError as e:
         _mark(draft, st, "push", ok=False, remote=remote, codes=tag.problem_codes(e.problems))
         raise
@@ -1050,17 +1336,19 @@ def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, appro
     push_utc = (prev_push["utc"] if pres.get("status") == "already-on-remote" and prev_push.get("ok") and prev_push.get("utc")
                 else utc_arg)
     _mark(draft, st, "push", ok=True, remote=remote, status=pres.get("status"), refspec=pres.get("refspec"),
-          remote_object=remote_obj, utc=push_utc)
-    # ⑧ 카탈로그(원격 발행 태그에서 파생 · 부재는 행으로 · D-i) ⑨ 캠페인 publish 위상
+          remote_object=remote_obj, utc=push_utc, infos=pinfos)
+    # ⑨ 카탈로그(원격 발행 태그에서 파생 · 부재는 행으로 · D-i) → 카탈로그 파생물 두 경로만 커밋(§4.8) ⑩ 캠페인 publish 위상
     catalog.derive(repo, remote, core.kst_iso(utc_arg), record_missing=True)
-    _mark(draft, st, "catalog", ok=True, remote=remote, generated_kst=core.kst_iso(utc_arg))
+    cc = _commit_catalog(repo, tagname)
+    _mark(draft, st, "catalog", ok=True, remote=remote, generated_kst=core.kst_iso(utc_arg), commit=cc)
     if st.get("mode") == "campaign":
         sel = st.get("selectors") or {}
         evidence.phase_set_publish(repo, sel.get("campaign"), sel.get("cell"), sel.get("node"), tagname, remote_obj,
                                    push_utc)
         _mark(draft, st, "phase", ok=True, proof_source=f"refs/tags/{tagname}@{remote_obj}")
     _mark(draft, st, "done", ok=True, remote_object=remote_obj)
-    result.update(pushed=True, remote=remote, remote_object=remote_obj, push_status=pres.get("status"))
+    result.update(pushed=True, remote=remote, remote_object=remote_obj, push_status=pres.get("status"), catalog_commit=cc,
+                  infos=infos + pinfos)
     return result
 
 
@@ -1068,14 +1356,119 @@ def cmd_continue(a) -> int:
     repo = core.resolve_repo(a.repo)
     draft = _find_draft(repo, draft=a.draft, campaign=a.campaign, cell=a.cell, node=a.node)
     res = continue_(repo, draft=draft, generated_utc=a.generated_utc, approved_by=a.approved_by,
-                    approved_utc=a.approved_utc, remote=a.remote, no_push=a.no_push, factcheck_waiver=a.factcheck_waiver)
+                    approved_utc=a.approved_utc, remote=a.remote, no_push=a.no_push, factcheck_waiver=a.factcheck_waiver,
+                    guide_commit=a.guide_commit)
     print(f"{_OUT} continue — {res['tag']}")
-    print(f"  페이로드 커밋 {res['anchor']} · 태그 오브젝트 {res['tag_object']}")
+    print(f"  페이로드 커밋 {res['anchor']}(부모 = 안내 커밋 {str(res.get('guide'))[:12]}) · 태그 오브젝트 {res['tag_object']}")
+    for line in res.get("infos") or []:
+        print(f"  {line}")
     if res["pushed"]:
         print(f"  push {res['remote']} ({res['push_status']}) · 원격 오브젝트 = 로컬 {res['remote_object']}")
-        print("  카탈로그 파생 완료(record-missing) · 캠페인 publish 위상 기록(캠페인 셀이면)")
+        cc = res.get("catalog_commit") or {}
+        print(f"  카탈로그 파생 완료(record-missing) · 카탈로그 커밋 {cc.get('status')}"
+              + (f" {str(cc.get('commit'))[:12]}" if cc.get("commit") else "") + " · 캠페인 publish 위상 기록(캠페인 셀이면)")
     else:
         print("  push 생략(--no-push) — 봉인·로컬 검증까지 끝났다")
+    return 0
+
+
+# ── refacts ────────────────────────────────────────────────────────────────────────────────────
+_REFACTS_RESET_STEPS = ("name", "approval", "lint", "factcheck", "lineage")
+
+
+def refacts(repo: Path, *, draft: Path, rt: Runtime | None = None) -> dict:
+    """사실 재파생(2026-09-29 · plan_26092908 §4.8 V11② — 셀마다 `--out` 재생성 + 손 이식 + refresh + `git stash` 였던 손작업).
+    같은 generated_utc · 같은 셀 선택자로 증거를 다시 모아 FACT 블록 · README · PAYLOAD · LINEAGE(전체 · 요약) · PROVENANCE · template_facts ·
+    산출물(artifacts/)을 다시 쓴다. 보존: 저작 산문 · hint-event · PROMPT · 파생 블록 · `inputs/tail.json` · `inputs/factcheck.json` · Agent 가
+    저작한 요청 파일. 부수효과 = draft 안뿐(발행 기록 재바인딩 ✗ · 태그 · 브랜치 ✗). 커밋 뒤에는 거부한다(커밋한 바이트와 갈라진다).
+    이름은 기본 이름으로 되돌린다 — 꼬리 · timestamp 는 continue 가 다시 확정한다(재파생으로 결정론부가 바뀔 수 있다).
+    반환 = {changed: [(문서, FACT id)…], diff: unified diff 텍스트, tag, artifacts: {added, removed, kept_authored}}."""
+    import difflib
+    rt = rt or Runtime()
+    repo, draft = Path(repo).resolve(), Path(draft).resolve()
+    st = _load_state(draft)
+    if _step(st, "commit") is not None:
+        core.fail("HINT_DRAFT_ALREADY_COMMITTED", f"이미 페이로드 커밋이 있는 draft 다({_step(st, 'commit').get('anchor', '')[:12]}) — "
+                                                  "사실을 다시 쓰면 커밋한 바이트와 갈라진다.",
+                  "커밋 뒤 개정은 새 publish(새 판)다.")
+    payload = draft / "payload"
+    if not payload.is_dir():
+        core.fail("HINT_DRAFT_PAYLOAD_ABSENT", f"draft 에 payload/ 가 없다: {draft}")
+    sel = st.get("selectors") or {}
+    node = st["node_arg"] if "node_arg" in st else sel.get("node")      # 발행자가 준 인자 그대로(옛 draft = 해소값)
+    if st.get("mode") == "campaign":
+        ev = evidence.from_campaign(repo, sel.get("campaign"), sel.get("cell"), node, docker=rt.docker)
+    else:
+        ev = evidence.from_publication(repo, sel.get("publication") or st["topic"], node, docker=rt.docker)
+    if evidence.topic_for(ev) != st["topic"]:
+        core.fail("HINT_REFACTS_TOPIC_MISMATCH", f"재파생한 발행 토픽 {evidence.topic_for(ev)!r} ≠ draft 의 {st['topic']!r}")
+    utc = st["generated_utc"]
+    dn = naming.derive_name(evidence.naming_facts(repo, ev), naming.load_vocab(repo))
+    tag.check_ref_format(repo, dn.tag)
+    _require_name_pii_clean(repo, dn.tag)
+    before = {n: template.fact_blocks((payload / n).read_text(encoding="utf-8")) for n in template.PAYLOAD_DOCS
+              if (payload / n).is_file()}
+    man = _manifest_doc(repo, st)
+    with tempfile.TemporaryDirectory(prefix=".refacts-", dir=str(draft)) as td:
+        tmp = Path(td) / "payload"
+        col = _collect(repo, ev, dn, utc=utc, topic=st["topic"], draft=draft, payload=tmp, lineage_add=st.get("lineage_add") or (),
+                       rt=rt)
+        facts, doc = _assemble(repo, ev, dn, col, utc=utc, topic=st["topic"], manifest_rel=st["manifest"], man=man)
+        # 산출물 교체 — Agent 가 저작한 요청 파일(스캐폴드 자리표시가 없는 것)은 보존한다
+        old_art = payload / "artifacts"
+        keep: dict[str, bytes] = {}
+        for req in facts.get("agent_requests") or []:
+            rel = str((req or {}).get("path") or "")
+            f = payload / rel
+            if rel and f.is_file() and template.AGENT_MARK not in f.read_text(encoding="utf-8", errors="replace"):
+                keep[rel] = f.read_bytes()
+        old_files = {q.relative_to(payload).as_posix() for q in old_art.rglob("*") if q.is_file()} if old_art.is_dir() else set()
+        new_files = {q.relative_to(tmp).as_posix() for q in (tmp / "artifacts").rglob("*") if q.is_file()} \
+            if (tmp / "artifacts").is_dir() else set()
+        if old_art.exists():
+            shutil.rmtree(old_art)
+        if (tmp / "artifacts").is_dir():
+            shutil.copytree(tmp / "artifacts", old_art)
+    for rel, data in keep.items():
+        (payload / rel).parent.mkdir(parents=True, exist_ok=True)
+        (payload / rel).write_bytes(data)
+    template.write_agent_requests(payload, facts.get("agent_requests"))
+    template.update_facts(repo, payload, facts)
+    _write_payload_meta(repo, draft, payload, tag_name=dn.tag, utc=utc, doc=doc, col=col)
+    after = {n: template.fact_blocks((payload / n).read_text(encoding="utf-8")) for n in template.PAYLOAD_DOCS
+             if (payload / n).is_file()}
+    changed, diff = [], []
+    for n in sorted(after):
+        for fid in sorted(set(before.get(n, {})) | set(after[n])):
+            a, b = before.get(n, {}).get(fid, ""), after[n].get(fid, "")
+            if a != b:
+                changed.append((n, fid))
+                diff += list(difflib.unified_diff(a.split("\n"), b.split("\n"), f"{n} FACT:{fid} (이전)",
+                                                  f"{n} FACT:{fid} (재파생)", lineterm="", n=1))
+    for k in _REFACTS_RESET_STEPS:
+        (st.get("steps") or {}).pop(k, None)
+    st.pop("guide", None)
+    st.update(tag=dn.tag, base_tag=dn.tag, bench_source=col["bench_src"])
+    _mark(draft, st, "refacts", utc=utc, changed=[f"{n}#{fid}" for n, fid in changed],
+          artifacts_added=sorted(new_files - old_files), artifacts_removed=sorted(old_files - new_files - set(keep)))
+    return {"changed": changed, "diff": "\n".join(diff), "tag": dn.tag,
+            "artifacts": {"added": sorted(new_files - old_files), "removed": sorted(old_files - new_files - set(keep)),
+                          "kept_authored": sorted(keep)}}
+
+
+def cmd_refacts(a) -> int:
+    repo = core.resolve_repo(a.repo)
+    draft = _find_draft(repo, draft=a.draft, campaign=None, cell=None, node=None)
+    res = refacts(repo, draft=draft, rt=Runtime(docker=_publish_runner(a)))
+    print(f"{_OUT} refacts — {_show(repo, draft)} · 기본 이름 {res['tag']} · 바뀐 FACT {len(res['changed'])}개"
+          + (": " + ", ".join(f"{n}#{fid}" for n, fid in res["changed"]) if res["changed"] else ""))
+    ar = res["artifacts"]
+    print(f"  산출물: 추가 {len(ar['added'])} · 제거 {len(ar['removed'])} · 저작본 보존 {len(ar['kept_authored'])}"
+          + (f" — 제거 {ar['removed'][:6]}" if ar["removed"] else ""))
+    if res["diff"]:
+        print(res["diff"])
+    print(f"{_OUT} 보존: 저작 산문 · hint-event · inputs/tail.json · inputs/factcheck.json — 사실이 바뀌었으면 산문 · 사실 검증을 다시 본다"
+          "(continue 가 이름을 다시 확정한다).")
     return 0
 
 
@@ -1090,7 +1483,12 @@ def lint_draft(repo: Path, draft: Path) -> list[dict]:
         copy = Path(td) / "payload"
         shutil.copytree(draft / "payload", copy)
         template.refresh(copy)
-        return _lint(repo, copy, draft, st, sealed=False)
+        issues = _lint(repo, copy, draft, st, sealed=False)
+    # 이름 꼬리(draft inputs/tail.json · plan_26092908 §4.1): 커밋 전이면 continue 의 이름 확정이 막을 것을 미리 보인다 — 커밋 뒤에는 이름이
+    #   이미 페이로드에 봉인됐으므로 보지 않는다(재실행 멱등).
+    if _step(st, "commit") is None:
+        issues += _tail_issues(draft)
+    return issues
 
 
 def cmd_lint(a) -> int:
@@ -1144,7 +1542,7 @@ def excerpt_text(repo: Path, draft: Path, source: str, lines: str | None = None,
     했고, 파이썬 유니버설 개행으로 읽으면 `\r` 가 줄이 되어 번호가 어긋났다 — 번호의 원천을 린터와 한 자리로 둔다."""
     st = _load_state(draft)
     payload = draft / "payload"
-    lin = core.read_json(payload / "LINEAGE.json", code="HINT_LINEAGE_UNREADABLE")
+    lin = _lineage_full(draft, payload)      # 전체 계보(draft inputs · plan_26092908 §4.6) — 린터와 같은 입력
     text = template.substituted_source(repo, payload, source, lineage=lin, subst_table=_subst_table(repo, st), draft_dir=draft)
     rows = text.split("\n")
     first = 1
@@ -1176,19 +1574,29 @@ def cmd_name(a) -> int:
     repo = core.resolve_repo(a.repo)
     _check_selectors(campaign=a.campaign, cell=a.cell, publication=a.publication, replay=False, require_replay=False)
     ev = _evidence(repo, campaign=a.campaign, cell=a.cell, publication=a.publication, node=a.node, rt=Runtime())
-    dn = naming.derive_name(evidence.naming_facts(repo, ev), naming.load_vocab(repo))
-    doc = {"tag": dn.tag, **dn.to_payload()}
+    nf = evidence.naming_facts(repo, ev)
+    vocab = naming.load_vocab(repo)
+    dn = naming.derive_name(nf, vocab)
+    # 2026-09-29 plan_26092908 §4.1: 결정론부 = 기본 이름 · 꼬리는 저작 Agent 가 근거와 함께 고른다 — 후보(강제 ✗)를 함께 보인다
+    cands = naming.tail_candidates(nf, vocab)
+    doc = {"tag": dn.tag, "base_tag": dn.tag, **dn.to_payload(), "tail_candidates": cands}
     if a.json:
         print(json.dumps(doc, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
-    print(dn.tag)
+    print(f"{dn.tag}   (기본 이름 — 꼬리 전 · continue 가 inputs/tail.json 으로 꼬리를 확정하고 중복이면 -t<YYMMDDHHMM>)")
     for k in ("vllm", "model", "arch", "recipe"):
         s = dn.segments[k]
         print(f"  세그먼트 {k:<7} {s.value:<40} ← {s.source}")
     for k in naming.ARCH_AXES + (naming.PLANE_AXIS,) + naming.RECIPE_AXES:
-        x = dn.axes[k]
-        print(f"  축 {k:<13} {x.value:<40} ← {x.source}")
+        x = dn.axes.get(k)
+        if x is not None:
+            print(f"  축 {k:<13} {x.value:<40} ← {x.source}")
     print(f"  빌드 입력 {json.dumps(dn.vllm_build_input, ensure_ascii=False, sort_keys=True)}")
+    print("  꼬리 후보(강제 ✗ · 이 셀을 가르는 노브만 · 셋을 v6 순서 그대로 쓰면 거부):")
+    for c in cands:
+        ev_ = c.get("evidence")
+        where = f"{ev_['file']} · {ev_['key']}={ev_['value']}" if isinstance(ev_, dict) else "근거 미특정(저작자가 적는다)"
+        print(f"    {c.get('axis'):<6} {str(c.get('token') or '—'):<14} {c.get('meaning') or c.get('error') or ''} ← {where}")
     return 0
 
 
@@ -1216,20 +1624,24 @@ def _draft_state_for(repo: Path, tagname: str, draft_arg: str | None) -> tuple[P
     return d, st
 
 
-def verify_tag(repo: Path, tagname: str, *, draft: str | None = None) -> list[str]:
-    """이 태그 1개(D10). footer 의 manifest 로 hint_verify 게이트를 묻고(읽기 전용) verify_local(서사 린트 주입)."""
+def verify_tag(repo: Path, tagname: str, *, draft: str | None = None, infos: list | None = None) -> list[str]:
+    """이 태그 1개(D10). footer 의 manifest 로 hint_verify 게이트를 묻고(읽기 전용) verify_local(서사 린트 주입). infos = 봉인 뒤 출처
+    변경으로 FAIL 대신 INFO 로 강등된 발견(plan_26092908 §4.9 · tag.verify_local 이 append)."""
     tag.check_ref_format(repo, tagname)
     footer = _footer_of(repo, tagname)
     if footer is None:
-        return tag.verify_local(repo, tagname)        # 태그·footer 부재 — 게이트를 물을 manifest 가 없다(결함 목록만)
+        return tag.verify_local(repo, tagname, infos=infos)   # 태그·footer 부재 — 게이트를 물을 manifest 가 없다(결함 목록만)
     _gate(repo, footer["manifest_ref"], "verify")
     d, st = _draft_state_for(repo, tagname, draft)
-    return tag.verify_local(repo, tagname, lint_fn=_lint_fn(d, st))
+    return tag.verify_local(repo, tagname, lint_fn=_lint_fn(d, st), infos=infos)
 
 
 def cmd_verify(a) -> int:
     repo = core.resolve_repo(a.repo)
-    probs = verify_tag(repo, a.tag, draft=a.draft)
+    infos: list = []
+    probs = verify_tag(repo, a.tag, draft=a.draft, infos=infos)
+    for line in infos:
+        print(f"{_OUT} {line}")
     if probs:
         print(f"{_OUT} verify FAIL {a.tag} — {len(probs)}건 · codes {', '.join(tag.problem_codes(probs))}")
         for p in probs:
@@ -1249,8 +1661,9 @@ def cmd_push(a) -> int:
         core.fail("HINT_PUSH_UNVERIFIED", f"footer 를 읽을 수 없는 태그는 밀지 않는다: {probs[:5]}")
     _gate(repo, footer["manifest_ref"], "push")
     d, st = _draft_state_for(repo, a.tag, a.draft)
-    res = tag.push_tag(repo, a.remote, a.tag, dry_run=not a.apply, lint_fn=_lint_fn(d, st))
-    print(json.dumps(res, ensure_ascii=False, indent=2, sort_keys=True))
+    infos: list = []
+    res = tag.push_tag(repo, a.remote, a.tag, dry_run=not a.apply, lint_fn=_lint_fn(d, st), infos=infos)
+    print(json.dumps({**res, "infos": infos}, ensure_ascii=False, indent=2, sort_keys=True))
     if a.apply:
         _log(f"단독 push — 카탈로그는 `hint.py catalog derive --remote {a.remote} --generated-kst <KST> --record-missing` 로 "
              "파생한다(continue 는 스스로 한다).")
@@ -1280,16 +1693,19 @@ def cmd_match(a) -> int:
 
 
 def cmd_branch_transition(a) -> int:
-    """유일한 maintenance-only branch transition 진입점. 태그·catalog·code worktree를 건드리지 않는다."""
+    """유일한 maintenance-only branch transition 진입점(형식 전환 = 새 안내 커밋 · exact refspec non-force push · plan_26092908 §4.7 U8).
+    사람 승인 전사가 필수다(`--approved-by` · `--approved-utc` — 모양 결함은 branch 가 쓰기 전에 거부). 태그·catalog·code worktree 를 건드리지
+    않는다."""
     repo = core.resolve_repo(a.repo)
-    print(json.dumps(branch.branch_transition(repo, remote=a.remote, generated_utc=a.generated_utc),
+    print(json.dumps(branch.branch_transition(repo, remote=a.remote, generated_utc=a.generated_utc, approved_by=a.approved_by,
+                                              approved_utc=a.approved_utc),
                      ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
 
 # ── 파서 · main ───────────────────────────────────────────────────────────────────────────────
 def _build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="hint.py", description="hint-publisher 단일 CLI — 셀 1개 = 태그 1개(plan_26092119).")
+    p = argparse.ArgumentParser(prog="hint.py", description="hint-publisher 단일 CLI — 셀 1개 = 태그 1개(plan_26092119 · v7 plan_26092908).")
     p.add_argument("--repo", help="저장소 루트(기본: 현재 디렉터리의 git 최상위) — 서브명령 앞에 둔다")
     p.add_argument("--self-test", action="store_true", help="전 모듈 자체검사 + 파서 검사 + 격리 E2E(라이브 비의존)")
     sub = p.add_subparsers(dest="cmd", metavar="<command>")
@@ -1299,7 +1715,9 @@ def _build_parser() -> argparse.ArgumentParser:
     s.add_argument("--cell", help="셀 id")
     s.add_argument("--publication", help="발행 기록 토픽(docs/_evidence/<topic>.json) — --replay 와 함께")
     s.add_argument("--replay", action="store_true", help="발행 기록 재생(읽기 전용 · draft 밖 쓰기 0)")
-    s.add_argument("--node", choices=evidence.NODE_AXIS, help="측정 노드 축(기본: 인증서 measured_node 에서 해소)")
+    s.add_argument("--node", choices=evidence.NODE_AXIS,
+                   help="측정 노드 축(생략 = evidence 자동 파생: 셀 측정 TP > 노드당 GPU 이거나 멀티 serve proof · attestation 이면 cluster · "
+                        "그 밖은 인증서 measured_node — 모호하면 차단 · plan_26092908 §4.8)")
     s.add_argument("--generated-utc", required=True, help="주입 UTC YYYY-MM-DDTHH:MM:SSZ(벽시계 ✗)")
     s.add_argument("--lineage-add", action="append", default=[], metavar="PATH=REASON",
                    help="간선이 끊긴 계보 문서를 사람이 보충한다(source: declared · 사유 필수)")
@@ -1315,7 +1733,8 @@ def _build_parser() -> argparse.ArgumentParser:
                          "create(--pull never)·cp·rm 만 — 이미지 파일 탐침 ✓ · 이미지 원장도 같은 create+cp 로 읽는다 · run/start ✗")
     s.set_defaults(fn=cmd_publish)
 
-    c = sub.add_parser("continue", help="승인 → 린트 → 커밋 → 봉인 → 검증 → push → 카탈로그")
+    c = sub.add_parser("continue", help="승인 → 린트 · 사실 검증 → 이름 확정(꼬리 · 중복 시 timestamp) → 커밋(부모 = 안내 커밋) → 봉인 → "
+                                        "검증 → push → 카탈로그(파생 · 두 경로 커밋)")
     c.add_argument("--campaign")
     c.add_argument("--cell")
     c.add_argument("--draft", help="publish 가 만든 draft 디렉터리")
@@ -1326,6 +1745,8 @@ def _build_parser() -> argparse.ArgumentParser:
     c.add_argument("--remote", default="origin", help="push·원격 SHA 대조·카탈로그 파생 원격")
     c.add_argument("--no-push", action="store_true", help="봉인·로컬 검증까지만")
     c.add_argument("--factcheck-waiver", help="발행 전 독립 사실 검증을 사람이 면제했다: 그 발화 전사(한 줄 · state·00 메타에 남는다)")
+    c.add_argument("--guide-commit", metavar="SHA",
+                   help="오프라인 재생 전용(--no-push 와만): 원격 조회 없이 이 로컬 안내 커밋(v7 형식 마커)을 페이로드 커밋의 부모로 쓴다")
     c.set_defaults(fn=cmd_continue)
 
     li = sub.add_parser("lint", help="draft 린트(부수효과 0)")
@@ -1336,6 +1757,12 @@ def _build_parser() -> argparse.ArgumentParser:
     rf = sub.add_parser("refresh", help="draft 안 파생 블록(00 §0.3 · §0.5)을 다시 쓴다(미리 보기 · 태그·브랜치 부수효과 0)")
     rf.add_argument("--draft", required=True)
     rf.set_defaults(fn=cmd_refresh)
+
+    rx = sub.add_parser("refacts", help="같은 generated_utc 로 사실(FACT · PAYLOAD · LINEAGE · PROVENANCE · 산출물)을 재파생 — 산문 · 꼬리 · "
+                                        "사실 검증 보존 · 바뀐 FACT diff 출력 · 부수효과 = draft 안뿐")
+    rx.add_argument("--draft", required=True)
+    rx.add_argument("--docker-read-only", action="store_true", help="이미지 탐침을 끈다(publish 와 같은 뜻)")
+    rx.set_defaults(fn=cmd_refacts, docker_probe=False)
 
     ex = sub.add_parser("excerpt", help="발췌 저작 도우미 — 치환 후 원문 출력(부수효과 0)")
     ex.add_argument("--draft", required=True)
@@ -1384,9 +1811,11 @@ def _build_parser() -> argparse.ArgumentParser:
     m.add_argument("--json", action="store_true")
     m.set_defaults(fn=cmd_match)
 
-    bt = sub.add_parser("branch-transition", help="maintenance-only: README 하나의 hint 브랜치 형식 전환(CAS·정확한 branch push)")
+    bt = sub.add_parser("branch-transition", help="maintenance-only: README 하나의 hint 브랜치 형식 전환(CAS·정확한 branch push · 사람 승인)")
     bt.add_argument("--remote", required=True, help="live hint tip을 대조하고 refs/heads/hint 하나만 밀 원격")
     bt.add_argument("--generated-utc", required=True, help="주입 UTC YYYY-MM-DDTHH:MM:SSZ(벽시계 ✗)")
+    bt.add_argument("--approved-by", required=True, help="형식 전환 승인: 사람 발화 전사(한 줄 · 반환값에만 실린다 — 배포 오브젝트 ✗)")
+    bt.add_argument("--approved-utc", required=True, help="승인 시각 UTC")
     bt.set_defaults(fn=cmd_branch_transition)
     return p
 
@@ -1466,7 +1895,9 @@ def _selftest_parser(ck) -> None:
         "push": ["push", "--tag", "hint/a/b/c/d"],
         "catalog": ["catalog", "derive", "--remote", "r", "--generated-kst", "2026-01-02T15:00:00", "--record-missing"],
         "match": ["match", "--vllm", "0.9.0", "--model", "m"],
-        "branch-transition": ["branch-transition", "--remote", "r", "--generated-utc", _FX_CONTINUE_UTC],
+        "branch-transition": ["branch-transition", "--remote", "r", "--generated-utc", _FX_CONTINUE_UTC,
+                              "--approved-by", "사용자 발화 전사 — 픽스처", "--approved-utc", _FX_CONTINUE_UTC],
+        "refacts": ["refacts", "--draft", "d"],
     }
     for name, argv in cases.items():
         try:
@@ -1531,17 +1962,27 @@ def _selftest_parser(ck) -> None:
         ck("★catalog 는 하위 명령 필수", False)
     except SystemExit:
         ck("★catalog 는 하위 명령 필수", True)
+    # 2026-09-29 plan_26092908 §4.7(U8): 형식 전환은 사람 승인 인자 없이는 파서에서 멈춘다(branch 가 모양 결함도 거부한다)
+    try:
+        with contextlib.redirect_stderr(io.StringIO()):
+            p.parse_args(["branch-transition", "--remote", "r", "--generated-utc", _FX_CONTINUE_UTC])
+        ck("★branch-transition 은 --approved-by · --approved-utc 필수", False)
+    except SystemExit:
+        ck("★branch-transition 은 --approved-by · --approved-utc 필수", True)
+    ck("--node 도움말 = 생략 시 evidence 자동 파생(cluster · 모호 = 차단)", "자동 파생" in next(
+        (x.help for x in next(y for y in p._actions if isinstance(y, argparse._SubParsersAction)).choices["publish"]._actions
+         if "--node" in x.option_strings), ""))
     # 핸들러가 읽는 속성 = 파서가 만든 속성(옵션 문자열을 두 번 적지 않는다 · 2026-09-07 `--payload` 배선 누락 선례)
     reads = {"publish": ("campaign", "cell", "publication", "replay", "node", "generated_utc", "lineage_add", "out", "remote",
                          "no_remote_check", "docker_read_only", "docker_probe"),
              "continue": ("draft", "campaign", "cell", "node", "generated_utc", "approved_by", "approved_utc", "remote",
-                          "no_push", "factcheck_waiver"),
-             "refresh": ("draft",),
+                          "no_push", "factcheck_waiver", "guide_commit"),
+             "refresh": ("draft",), "refacts": ("draft", "docker_read_only", "docker_probe"),
              "push": ("tag", "remote", "apply", "draft"), "verify": ("tag", "draft"), "lint": ("draft", "json"),
              "excerpt": ("draft", "source", "lines", "numbered"), "name": ("campaign", "cell", "publication", "node", "json"),
              "catalog": ("remote", "generated_kst", "dry_run", "record_missing", "allow_empty"),
              "match": ("vllm", "model", "arch", "include_other", "json"),
-             "branch-transition": ("remote", "generated_utc")}
+             "branch-transition": ("remote", "generated_utc", "approved_by", "approved_utc")}
     for name, attrs in reads.items():
         a = p.parse_args(cases[name])
         miss = [x for x in attrs if not hasattr(a, x)]
@@ -1682,10 +2123,17 @@ def _fx_repo(td: Path) -> tuple[Path, dict]:
     bare = td / "remote.git"
     _fx_git(td, "init", "-q", "--bare", str(bare))
     _fx_git(repo, "remote", "add", "origin", str(bare))
+    # 카탈로그 자동 커밋(plan_26092908 §4.8)은 운영자 git 신원으로 커밋한다 — 픽스처 저장소에 신원 · 서명 끔을 둔다(훅 우회 ✗ · 서명은 훅이 아니다)
+    for k, v in (("user.name", "fixture"), ("user.email", "@".join(["fixture", "example.invalid"])), ("commit.gpgSign", "false")):
+        _fx_git(repo, "config", k, v)
+    # 안내 커밋(plan_26092908 §4.7): bare 원격의 refs/heads/hint = v7 형식 마커 README 하나 — 페이로드 커밋의 부모. 로컬 hint 브랜치는 만들지
+    #   않는다(발행이 로컬 브랜치를 움직이지 않는다는 단언이 성립하게).
+    guide = branch.selftest_guide(repo)
+    _fx_git(repo, "push", "-q", "origin", f"{guide}:{core.HINT_BRANCH_REF}")
     # https 로 선언된 원격(토큰 없음 음성대조) — insteadOf 로 로컬 bare 에 돌린다(네트워크 0)
     _fx_git(repo, "remote", "add", "gh", "https://fixture.invalid/hint.git")
     _fx_git(repo, "config", f"url.{bare}.insteadOf", "https://fixture.invalid/hint.git")
-    fx.update(bare=bare, models=models)
+    fx.update(bare=bare, models=models, guide=guide)
     return repo, fx
 
 
@@ -1810,6 +2258,16 @@ def _fx_author(repo: Path, draft: Path, st: dict, *, factcheck: bool = True) -> 
                 parts.append(f"> [원문] {stem} §3\n> {diag_line}")
             out += "\n\n".join(parts).split("\n")
         path.write_text("\n".join(out), encoding="utf-8")
+    # 2026-09-29 plan_26092908 §4.1·§4.2: 저작 대역은 이름 꼬리(빈 꼬리 `[]` — 이미 있으면 두고)와 Agent 저작 요청 파일(첫 줄 경고 유지)도 쓴다
+    tp = draft / "inputs" / TAIL_NAME
+    if not tp.is_file():
+        core.write_json(tp, [])
+    for req in facts.get("agent_requests") or []:
+        if isinstance(req, dict) and req.get("path"):
+            name = str(req.get("name") or Path(str(req["path"])).name)
+            (payload / str(req["path"])).write_text(template.agent_request_header_line(req) + "\n"
+                                                    + template._comment_line(name, f"픽스처 저작 본문 — {req.get('why')}") + "\n",
+                                                    encoding="utf-8")
     if factcheck:
         _fx_factcheck(draft, st)
 
@@ -1820,7 +2278,7 @@ def _fx_factcheck(draft: Path, st: dict, **over) -> dict:
            "checked_utc": _FX_CONTINUE_UTC, "claims_checked": 12, "classes_checked": sorted(template.FACTCHECK_CLASSES),
            "items": [{"id": "F1", "where": "02-narrative.md §2.2", "claim": "벽 W1 의 원인", "verdict": "misleading", "class": 5,
                       "truth": "원인 문장에 출처가 없었다", "source": Path(_FX_TESTLOG).stem, "status": "fixed",
-                      "resolution": "원인을 출처 문장으로 바꿨다"}]}
+                      "resolution": "원인을 출처 문장으로 바꿨다", "target": "prose"}]}
     doc.update(over)
     core.write_json(draft / "inputs" / FACTCHECK_NAME, doc)
     return doc
@@ -1835,8 +2293,10 @@ def _raises(fn, code: str) -> tuple[bool, str]:
     return False, "예외 없음"
 
 
-def _refs(repo: Path) -> str:
-    return _fx_git(repo, "for-each-ref", "--format=%(refname) %(objectname)").stdout
+def _refs(repo: Path, *, own: bool = False) -> str:
+    """ref 스냅샷. own=True = 로컬 브랜치 · 태그만(원격 추적 ref 는 픽스처의 원격 조작이 움직인다 — 발행기의 쓰기 판정 대상이 아니다)."""
+    args = ["refs/heads", "refs/tags"] if own else []
+    return _fx_git(repo, "for-each-ref", "--format=%(refname) %(objectname)", *args).stdout
 
 
 def _selftest_e2e(ck) -> None:
@@ -1862,9 +2322,16 @@ def _selftest_e2e(ck) -> None:
                 ck(f"publish(campaign) 성공 — {e.code}: {e.message[:600]} → {e.remedy}", False)
                 return
             tagname, draft = res["tag"], res["draft"]
+            base_tag = tagname
             payload = draft / "payload"
-            ck(f"publish 이름 = 도구 파생 v6({tagname})", tagname == "hint/0.9.0/fixture-model-nvfp4/gb10-1g2n-cluster-native/"
-                                                         "qnvfp4-len4096-kvauto-plemmap-spec2-eager")
+            # 2026-09-29 plan_26092908 §4.1(U5): publish 는 **기본 이름**(결정론 q·len·kv · 꼬리 전)으로 스캐폴드한다 — 뒤 3축은 꼬리 후보
+            ck(f"publish 이름 = 도구 파생 v7 기본 이름(꼬리 전)({tagname})",
+               tagname == "hint/0.9.0/fixture-model-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len4096-kvauto"
+               and naming.parse_tag(tagname).grammar == naming.GRAMMAR_V7)
+            cands = {c.get("axis"): c for c in res.get("tail_candidates") or []}
+            ck("publish: 꼬리 후보 = 옛 뒤 3축(ple · spec · graph · 강제 ✗) · 00 §0.9 후보 표",
+               set(cands) == set(naming.V6_TAIL_AXES) and (cands.get("graph") or {}).get("token") == "eager"
+               and "`eager`" in template.fact_blocks((payload / "00-hint.md").read_text(encoding="utf-8"))["name_tail"])
             ck("publish 는 태그·hint 브랜치를 만들지 않는다", tag.tag_ref_kind(repo, tagname) is None
                and branch.hint_tip(repo) is None)
             # 2026-09-22 S2 round 2 적대 리뷰: 탐침이 꺼진 채 미관측이 남으면 publish 출력이 처방을 말한다(조용한 강등 ✗) · round 3: 탐침이
@@ -1904,8 +2371,28 @@ def _selftest_e2e(ck) -> None:
                {"artifacts/compose/sub_recipe.json", "artifacts/compose/serve_runner.sh",
                 "artifacts/compose/.env.cluster.template", "artifacts/compose/.env.interconnect.template"} <= files)
             pdoc = json.loads((payload / "PAYLOAD.json").read_text(encoding="utf-8"))
-            ck("PAYLOAD schema 2 · format v6 · naming 재조립 = 태그", pdoc.get("schema_version") == 2
-               and pdoc.get("format") == branch.PAYLOAD_FORMAT and naming.compose_from_payload(pdoc["naming"]) == tagname)
+            ck("PAYLOAD schema 3 · format v7(= template.FORMAT) · naming v7 재조립 = 기본 이름",
+               pdoc.get("schema_version") == PAYLOAD_SCHEMA_VERSION == 3 and pdoc.get("format") == branch.PAYLOAD_FORMAT
+               == template.FORMAT == "hint-payload/v7" and pdoc["naming"].get("grammar") == naming.GRAMMAR_V7
+               and naming.compose_from_payload(pdoc["naming"]) == tagname)
+            # 2026-09-29 plan_26092908 §4.4: 판정 표면 — 인증서 유무와 무관하게 measurement.verdict + 키별 출처 · FACT:grade 판정 행
+            ck("판정 표면: PAYLOAD.measurement.verdict ∈ 3어휘 · sources.verdict · 00 FACT:grade 판정 행",
+               pdoc["measurement"].get("verdict") in template.MEASUREMENT_VERDICTS and "verdict" in (pdoc["measurement"].get("sources") or {})
+               and "성능 판정(measurement.verdict)" in template.fact_blocks((payload / "00-hint.md").read_text(encoding="utf-8"))["grade"]
+               and set(template.MEASUREMENT_VERDICTS) == set(evidence.MEASUREMENT_VERDICTS))
+            # 2026-09-29 plan_26092908 §4.6: LINEAGE 분리 — 전체 = draft inputs(발행자 평면) · 페이로드 = 수신자 요약(≤ 20KB · 해시 ✗)
+            lsum = json.loads((payload / "LINEAGE.json").read_text(encoding="utf-8"))
+            lfull = json.loads((draft / "inputs" / lineage.LINEAGE_FULL_NAME).read_text(encoding="utf-8"))
+            ck("LINEAGE: 페이로드 = 수신자 요약(stem · 역할 · 날짜 · 발췌 수) · 전체 = draft inputs · 요약 ≤ 20KB",
+               lsum.get("kind") == lineage.SUMMARY_KIND and len(lsum["documents"]) == len(lfull["documents"]) >= 1
+               and "via" not in json.dumps(lsum) and len((payload / "LINEAGE.json").read_bytes()) <= lineage.SUMMARY_MAX_BYTES
+               and "evidence_candidates" in lfull and (draft / "inputs" / NAMING_BASE_NAME).is_file()
+               and (draft / "inputs" / TAIL_SOURCES_NAME).is_file())
+            readme0 = (payload / "README.md").read_text(encoding="utf-8")
+            ck("README: 이 태그 이름 읽는 법(세그먼트 · native · -bare · 세대 표) · 판정 줄 · 슬롯 → 빌드 컨텍스트 요약",
+               "## 이 태그 이름 읽는 법" in readme0 and "`-bare` = **Docker 없이**" in readme0 and "| `v7` |" in readme0
+               and "| `v6` |" in readme0 and "**판정**" in readme0 and "## 슬롯 → 빌드 컨텍스트" in readme0
+               and "`artifacts/build_patch_pre/`" in readme0 and "`build_patches_src/`" in readme0)
             # 2026-09-22 S2 round 3: 공유 사실 계약의 새 키가 facts 스냅샷 · PAYLOAD 에 같은 값으로 실리고 사실 블록 표지가 문서에 있다
             snap = template.load_snapshot(draft / "inputs" / template.FACTS_SNAPSHOT)
             new_keys = ("measurement_env_observed", "tool_snapshots", "attestation_scope")
@@ -1993,6 +2480,58 @@ def _selftest_e2e(ck) -> None:
             _fx_author(repo, draft, _load_state(draft))
             issues = quiet(lint_draft, repo, draft)
             ck(f"저작 뒤 lint 0건: {[(i['code'], i['file'], i['message'][:80]) for i in issues[:4]]}", issues == [])
+
+            # ── 이름 꼬리 저작(2026-09-29 · plan_26092908 §4.1 U5·U6): 형식 · 근거 대조 음성대조 → 유효 꼬리(근거 = 이 셀 서빙 yaml) ──
+            yaml_rel = "output/multi/configs/c1-a.yaml"
+            tail_tok = "eager"
+            good_tail = [{"token": tail_tok, "meaning": "CUDA graph 대신 eager 실행(enforce-eager) — 같은 q·len·kv 의 graph 셀과 가른다",
+                          "evidence": {"file": yaml_rel, "key": "enforce-eager", "value": "true"}}]
+            tp = draft / "inputs" / TAIL_NAME
+
+            def tail_codes(doc) -> set[str]:
+                core.write_json(tp, doc)
+                return {i["code"] for i in quiet(lint_draft, repo, draft)}
+
+            ck("★꼬리 근거 값 불일치(true → false) = lint HINT_TAIL_UNGROUNDED", "HINT_TAIL_UNGROUNDED" in tail_codes(
+                [{**good_tail[0], "evidence": {**good_tail[0]["evidence"], "value": "false"}}]))
+            ck("★꼬리 근거 파일이 이 셀 서빙 설정 밖 = HINT_TAIL_UNGROUNDED", "HINT_TAIL_UNGROUNDED" in tail_codes(
+                [{**good_tail[0], "evidence": {**good_tail[0]["evidence"], "file": "README.fixture"}}]))
+            ck("★꼬리 뜻 없음 = HINT_TAIL_MEANING_ABSENT", "HINT_TAIL_MEANING_ABSENT" in tail_codes([{**good_tail[0], "meaning": " "}]))
+            ck("★꼬리가 v6 뒤 3축 모양 그대로(ple…-spec…-eager) = HINT_TAIL_FORMAT", "HINT_TAIL_FORMAT" in tail_codes(
+                [{**good_tail[0], "token": t} for t in ("plemmap", "spec2", "eager")]))
+            ck("★timestamp 모양 토큰(t + 숫자 10자리) = HINT_TAIL_FORMAT", "HINT_TAIL_FORMAT" in tail_codes(
+                [{**good_tail[0], "token": "t2601021530"}]))
+            tp.unlink()
+            ck("★꼬리 파일 없음 = lint HINT_TAIL_ABSENT(빈 꼬리도 [] 로 명시)", "HINT_TAIL_ABSENT" in {
+                i["code"] for i in quiet(lint_draft, repo, draft)})
+            refs_t = _refs(repo)
+            ok, why = _raises(lambda: continue_(repo, draft=draft, generated_utc=_FX_CONTINUE_UTC, rt=rt), "HINT_TAIL_ABSENT")
+            ck(f"★꼬리 없음 = continue HINT_TAIL_ABSENT · ref 쓰기 0 · 이름 불변({why[:50]})", ok and _refs(repo) == refs_t
+               and _load_state(draft)["tag"] == base_tag)
+            core.write_json(tp, good_tail)
+            ck("유효 꼬리(근거 = 서빙 yaml enforce-eager) = lint 0", quiet(lint_draft, repo, draft) == [])
+
+            # ── refacts(2026-09-29 · plan_26092908 §4.8 V11②): 같은 시각 재파생 · 산문 · 꼬리 · 사실 검증 보존 · 바뀐 FACT diff ──
+            keep = {n: (payload / n).read_bytes() for n in ("02-narrative.md", "01-artifacts.md")}
+            keep_in = {n: (draft / "inputs" / n).read_bytes() for n in (TAIL_NAME, FACTCHECK_NAME)}
+            tl_p = repo / _FX_TESTLOG
+            tl_p.write_text(tl_p.read_text(encoding="utf-8") + "\n## 5. 추가\nrefacts 재파생 시험 줄.\n", encoding="utf-8")
+            rx = quiet(refacts, repo, draft=draft, rt=rt)
+            rx_lint = [i["code"] for i in quiet(lint_draft, repo, draft)]
+            ck(f"refacts: 바뀐 FACT(계보 크기) = diff 출력 · 같은 generated_utc({rx['changed']})",
+               ("02-narrative.md", "lineage") in rx["changed"] and "(재파생)" in rx["diff"]
+               and _load_state(draft)["generated_utc"] == _FX_PUBLISH_UTC)
+            def authored(n: str, text: str) -> list[str]:
+                d = template._Doc.parse(n, text)
+                return [ln for i, ln in enumerate(d.lines) if not d.masked[i]]
+
+            ck("refacts: 저작 산문 · 발췌 · hint-event 보존(주석 · 사실 블록 밖 줄 불변)", all(
+                authored(n, (payload / n).read_text(encoding="utf-8")) == authored(n, b.decode("utf-8")) for n, b in keep.items()))
+            ck("refacts: inputs/tail.json · factcheck.json 보존", all((draft / "inputs" / n).read_bytes() == b for n, b in keep_in.items()))
+            ck(f"refacts 뒤 lint 0({rx_lint[:4]})", rx_lint == [])
+            rx2 = quiet(refacts, repo, draft=draft, rt=rt)
+            ck("refacts 멱등(두 번째 = 바뀐 FACT 없음 · 산출물 추가 · 제거 0)", rx2["changed"] == [] and not rx2["artifacts"]["added"]
+               and not rx2["artifacts"]["removed"])
             ex = excerpt_text(repo, draft, Path(_FX_TESTLOG).stem, "7-8")
             ck("excerpt 도우미 --lines(치환 후 원문 · 1-기반)", _FX_WALL_SIG in ex and ex.count("\n") == 1)
             ok, why = _raises(lambda: excerpt_text(repo, draft, Path(_FX_TESTLOG).stem, "9999-9999"), "HINT_EXCERPT_LINES_OUT_OF_RANGE")
@@ -2064,7 +2603,7 @@ def _selftest_e2e(ck) -> None:
                 (vd / "inputs" / "sources").mkdir(parents=True, exist_ok=True)
                 (vd / "inputs" / "sources" / snap_name).write_text(body, encoding="utf-8")
                 if listed:
-                    lp = vd / "payload" / "LINEAGE.json"
+                    lp = vd / "inputs" / lineage.LINEAGE_FULL_NAME     # 전체 계보 = 발행자 평면(plan_26092908 §4.6)
                     lin_doc = json.loads(lp.read_text(encoding="utf-8"))
                     lin_doc.setdefault("evidence_candidates", []).append(
                         {"path": f"inputs/sources/{snap_name}", "kind": "tool-source@rev", "origin": f"git:{snap_commit}:run_bench.sh"})
@@ -2124,13 +2663,16 @@ def _selftest_e2e(ck) -> None:
                 "7부류 중 하나 빠짐": ({"classes_checked": [1, 2, 3, 4, 5, 6]}, "HINT_FACTCHECK_INVALID"),
                 "다른 draft 의 태그": ({"tag": "hint/x/y/z/w"}, "HINT_FACTCHECK_INVALID"),
                 "fixed 인데 resolution 없음": ({"items": [{"id": "F1", "where": "w", "claim": "c", "verdict": "wrong", "class": 1,
-                                                        "status": "fixed"}]}, "HINT_FACTCHECK_INVALID"),
+                                                        "status": "fixed", "target": "prose"}]}, "HINT_FACTCHECK_INVALID"),
                 "열린 오답": ({"items": [{"id": "F1", "where": "w", "claim": "c", "verdict": "wrong", "class": 7,
-                                        "status": "open"}]}, "HINT_FACTCHECK_OPEN"),
+                                        "status": "open", "target": "prose"}]}, "HINT_FACTCHECK_OPEN"),
                 "이견(disputed)도 열림": ({"items": [{"id": "F1", "where": "w", "claim": "c", "verdict": "misleading", "class": 6,
-                                                  "status": "disputed"}]}, "HINT_FACTCHECK_OPEN"),
+                                                  "status": "disputed", "target": "fact"}]}, "HINT_FACTCHECK_OPEN"),
                 "근거 없음(unsupported)도 막는다": ({"items": [{"id": "F1", "where": "w", "claim": "c", "verdict": "unsupported",
-                                                        "class": 5, "status": "open"}]}, "HINT_FACTCHECK_OPEN"),
+                                                        "class": 5, "status": "open", "target": "prose"}]}, "HINT_FACTCHECK_OPEN"),
+                # 2026-09-29 plan_26092908 §4.5: 지적 대상(prose | fact)은 항목마다 필수 — FACT 오류가 산문 고침으로 덮이지 않게
+                "지적 대상(target) 없음": ({"items": [{"id": "F1", "where": "w", "claim": "c", "verdict": "wrong", "class": 7,
+                                                  "status": "fixed", "resolution": "r"}]}, "HINT_FACTCHECK_INVALID"),
             }
             for label, (over, code) in bad_cases.items():
                 _fx_factcheck(draft, st0, **over)
@@ -2158,9 +2700,10 @@ def _selftest_e2e(ck) -> None:
             #   끊김은 branch.commit_payload **반환 직후**에 넣는다 — 커밋 시각을 커밋 전에 적지 않으면 재실행이 새 시각으로 두 번째
             #   커밋을 만든다(2026-09-22 리뷰 변이: 시각 기록을 커밋 뒤로 옮기면 이 검사가 붉어져야 한다).
             real_commit = branch.commit_payload
+            crashed_sha: list[str] = []
 
             def crash_after_commit(*a, **kw):
-                real_commit(*a, **kw)
+                crashed_sha.append(real_commit(*a, **kw))
                 raise RuntimeError("fixture: 커밋 직후 끊김")
 
             branch.commit_payload = crash_after_commit
@@ -2171,9 +2714,18 @@ def _selftest_e2e(ck) -> None:
                 crashed = True
             finally:
                 branch.commit_payload = real_commit
-            crash_tip = branch.hint_tip(repo)
-            ck("커밋 직후 끊김 픽스처: 커밋은 됐고 상태엔 앵커가 없다(커밋 시각만 먼저 적혔다)", crashed and bool(crash_tip)
-               and _step(_load_state(draft), "commit") is None and _load_state(draft).get("commit_utc") == "2026-01-02T06:55:00Z")
+            crash_tip = crashed_sha[0] if crashed_sha else None
+            ck("커밋 직후 끊김 픽스처: 커밋은 됐고 상태엔 앵커가 없다(커밋 시각 · 안내 커밋만 먼저 적혔다)", crashed and bool(crash_tip)
+               and _step(_load_state(draft), "commit") is None and _load_state(draft).get("commit_utc") == "2026-01-02T06:55:00Z"
+               and (_load_state(draft).get("guide") or {}).get("sha") == fx["guide"])
+            # 이름 확정(plan_26092908 §4.1): 끊긴 실행이 이미 꼬리를 확정했다 — 이후 단언은 최종 이름으로 본다
+            tagname = _load_state(draft)["tag"]
+            ck(f"이름 확정: 기본 이름 + 저작 꼬리(`{tail_tok}` · 근거 대조 통과 · 중복 없음 → timestamp 없음)({tagname})",
+               tagname == f"{base_tag}-{tail_tok}" and (_step(_load_state(draft), "name") or {}).get("timestamp") is None
+               and json.loads((payload / "PAYLOAD.json").read_text(encoding="utf-8"))["tag"] == tagname
+               and json.loads((payload / "PROVENANCE.json").read_text(encoding="utf-8"))["tag"] == tagname
+               and f"`{tagname}`" in (payload / "README.md").read_text(encoding="utf-8")
+               and tagname in template.fact_blocks((payload / "00-hint.md").read_text(encoding="utf-8"))["header"])
 
             # ── ★push 권위(D8) 없음 = 커밋·봉인 전에 차단 · ref·원격 불변(2026-09-22 통합 · 옛 hint_tag push 게이트 복원) ──
             central_p = repo / core.REL_CENTRAL_FLAG
@@ -2207,13 +2759,15 @@ def _selftest_e2e(ck) -> None:
             ck(f"★https 원격 토큰 없음 = HINT_PUSH_CREDENTIAL_ABSENT({why[:160]})", ok)
             st = _load_state(draft)
             anchor = (_step(st, "commit") or {}).get("anchor")
-            ck("커밋·봉인·로컬 검증은 이미 끝났다(원격엔 없다)", bool(anchor) and branch.hint_tip(repo) == anchor
+            parents = _fx_git(repo, "rev-list", "--parents", "-n", "1", str(anchor)).stdout.split()[1:] if anchor else []
+            ck("커밋·봉인·로컬 검증은 이미 끝났다(원격엔 없다) · 페이로드 커밋 부모 = 안내 커밋 · 로컬 hint 브랜치 불변(없음)",
+               bool(anchor) and parents == [fx["guide"]] and branch.hint_tip(repo) is None
                and (_step(st, "verify") or {}).get("ok") is True
                and tag.remote_tag_object(repo, "origin", tagname) is None)
             ck("페이로드 커밋 = 합성 신원", branch.commit_identity(repo, anchor).get("author", {}).get("ident")
                == branch.synthetic_identity())
-            ck("★끊김 뒤 재실행 = 같은 커밋(첫 커밋 시각 재사용 · hint 브랜치 커밋 1개)", anchor == crash_tip
-               and _fx_git(repo, "rev-list", "--count", "refs/heads/hint").stdout.strip() == "1")
+            ck("★끊김 뒤 재실행 = 같은 커밋(첫 커밋 시각 재사용 · 같은 부모 = 안내 커밋 · 중복 커밋 ✗)", anchor == crash_tip
+               and parents == [fx["guide"]])
 
             # ── ★커밋 뒤 draft 가 바뀌면 재실행이 막힌다(같은 이름으로 다른 내용 ✗) ──
             nar = payload / "02-narrative.md"
@@ -2231,17 +2785,55 @@ def _selftest_e2e(ck) -> None:
             except core.HintError as e:
                 ck(f"continue(origin) 성공 — {e.code}: {e.message[:600]}", False)
                 return
-            ck("재실행: 같은 페이로드 커밋(중복 커밋 없음 · 첫 커밋 시각 재사용)", cres["anchor"] == anchor
-               and branch.hint_tip(repo) == anchor)
+            ck("재실행: 같은 페이로드 커밋(중복 커밋 없음 · 첫 커밋 시각 재사용) · 로컬 hint 브랜치는 여전히 없다", cres["anchor"] == anchor
+               and branch.hint_tip(repo) is None)
             local_obj = tag.read_tag(repo, tagname)["object_sha"]
             ck("원격 태그 오브젝트 = 로컬(AC9)", tag.remote_tag_object(repo, "origin", tagname) == local_obj == cres["remote_object"])
             remote_heads = _fx_git(repo, "ls-remote", "--heads", str(bare)).stdout
-            ck("발행 push 는 브랜치를 밀지 않는다(O2)", "refs/heads/hint" not in remote_heads)
+            ck("발행 push 는 브랜치를 밀지 않는다(O2 · U8) — 원격 hint = 안내 커밋 그대로",
+               f"{fx['guide']}\t{core.HINT_BRANCH_REF}" in remote_heads)
+            body_f = tag.parse_annotation(tag.read_tag(repo, tagname)["body"])["footer"]
+            bb = tag.bench_binding(body_f)
+            ck("footer v2: bench_ref · bench_kind(이름 파생과 같다) · certificate_ref ✗",
+               body_f.get("version") == "2" and "certificate_ref" not in body_f and bb["kind"] == tag.bench_kind_of(bb["ref"])
+               and bb["kind"] in tag.BENCH_KINDS)
+            clog = _fx_git(repo, "log", "-1", "--format=%s").stdout.strip()
+            cfiles = sorted(_fx_git(repo, "show", "--name-only", "--format=", "HEAD").stdout.split())
+            ck(f"카탈로그 자동 커밋: 두 경로만 · 메시지 · Co-Authored-By 없음({clog})",
+               clog == f"chore(hint): 카탈로그 파생 — {tagname} 발행 반영" and cfiles == sorted(_CATALOG_PATHS)
+               and "Co-Authored-By" not in _fx_git(repo, "log", "-1", "--format=%B").stdout
+               and (_step(_load_state(draft), "catalog") or {}).get("commit", {}).get("status") == "committed")
+            head_c = _fx_git(repo, "rev-parse", "HEAD").stdout.strip()
+            (repo / "README.fixture").write_text("fixture — 발행과 무관한 수정\n", encoding="utf-8")
+            hm = repo / core.REL_HINTS_MD
+            hm.write_text(hm.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+            try:
+                dres = quiet(_commit_catalog, repo, tagname)
+            finally:
+                _fx_git(repo, "checkout", "-q", "--", "README.fixture", core.REL_HINTS_MD)
+            ck("★추적 파일에 다른 변경이 있으면 카탈로그를 커밋하지 않는다(경고 · HEAD 불변)", dres.get("status") == "skipped-dirty"
+               and "README.fixture" in dres.get("others", []) and _fx_git(repo, "rev-parse", "HEAD").stdout.strip() == head_c)
+            ck("카탈로그 변경 없음 = 커밋 없음(unchanged)", quiet(_commit_catalog, repo, tagname) == {"status": "unchanged"})
             ck("로컬 봉인 검증 PASS(verify · 서사 린트 포함)", quiet(verify_tag, repo, tagname) == [])
+            # 2026-09-29 plan_26092908 §4.9(V5): 봉인 뒤 출처 문서를 고쳐도 verify 는 PASS(출처 의존 린트 = INFO) — 봉인 출처 스냅샷 대조
+            ptree_l = json.loads(branch.read_blob(repo, anchor, "LINEAGE.json"))
+            tl_now = tl_p.read_text(encoding="utf-8")
+            tl_p.write_text(tl_now.replace(_FX_WALL_SIG, "ValueError: 봉인 뒤 정정된 문장이다(출처 변경)."), encoding="utf-8")
+            v_infos: list = []
+            try:
+                v_probs = quiet(verify_tag, repo, tagname, infos=v_infos)
+            finally:
+                tl_p.write_text(tl_now, encoding="utf-8")
+            ck(f"★봉인 뒤 출처 변경 = verify PASS + INFO(출처 변경됨 · FAIL ✗)({v_probs[:2]})", v_probs == []
+               and any(tag.INFO_SOURCE_CHANGED in x for x in v_infos)
+               and _FX_TESTLOG in {x["path"] for x in ptree_l.get(lineage.SEALED_SOURCES_KEY) or []}
+               and ptree_l.get("kind") == lineage.SUMMARY_KIND
+               and any(d.get("excerpts", 0) >= 1 for d in ptree_l.get("documents") or []))
             idx = json.loads((repo / core.REL_INDEX).read_text(encoding="utf-8"))
             row = next((h for h in idx.get("hints", []) if h.get("tag") == tagname), None)
-            ck("카탈로그 행 · grammar v6 · base_model", row is not None and row.get("grammar") == naming.GRAMMAR_V6
-               and row.get("base_model") == "Org/Fixture-Model")
+            ck("카탈로그 행 · grammar v7 · base_model · 판정 열(PAYLOAD.measurement.verdict)", row is not None
+               and row.get("grammar") == naming.GRAMMAR_V7 and row.get("base_model") == "Org/Fixture-Model"
+               and row.get("verdict") == pdoc["measurement"].get("verdict"))
             rows = {h.get("tag"): h for h in idx.get("hints", [])}
             ck("★AC6 옛 태그·원격 전용·lightweight 가 공존해도 신규 발행 PASS · 셋 다 행으로 실림",
                all(legacy[k] in rows for k in ("old", "remote_only", "lightweight")))
@@ -2265,32 +2857,24 @@ def _selftest_e2e(ck) -> None:
             ck("슬롯 사유(01 §1.2 소제목) 반영 · 신호 재계산", any(
                 (r or {}).get("rationale") for r in (ptree.get("slots") or {}).values()))
             prov = json.loads(branch.read_blob(repo, anchor, "PROVENANCE.json"))
-            ck("PROVENANCE 소스 앵커 = publish 때 HEAD", prov.get("source_anchor") == _fx_git(repo, "rev-parse", "HEAD").stdout.strip()
-               and "README.md" in tree)
+            # 카탈로그 자동 커밋(§4.8)이 HEAD 를 한 칸 옮겼다 — 앵커는 publish 때 HEAD(= 그 커밋의 부모)다
+            ck("PROVENANCE 소스 앵커 = publish 때 HEAD(카탈로그 커밋의 부모)", prov.get("source_anchor")
+               == _load_state(draft).get("source_anchor") == _fx_git(repo, "rev-parse", "HEAD~1").stdout.strip() and "README.md" in tree)
             body = tag.read_tag(repo, tagname)["body"]
             ck("annotation = brief + 포인터 + footer(zip 단일화 · D4)", tag.ANNOTATION_POINTER in body
                and tag.parse_annotation(body)["footer"]["anchor"] == anchor)
             ck("continue 재실행 = 멱등(이미 원격 · 같은 오브젝트)", quiet(continue_, repo, draft=draft, generated_utc=_FX_CONTINUE_UTC,
                                                                rt=rt)["remote_object"] == local_obj)
 
-            # ── ★이름 충돌(로컬 → 원격) — 발행기 구동 전에 막힌다(부수효과 0) ──
+            # ── ★같은 셀 재발행(같은 캠페인 발행 기록) = 스캐폴드된 draft 가 있으면 시각 재바인딩 차단(부수효과 0) · 원격 이름 조회 ──
             rec = repo / core.REL_EVIDENCE_DIR / f"{res['topic']}.json"
             rec_bytes = rec.read_bytes()
             ok, why = _raises(lambda: publish(repo, campaign="c1", cell="c1-a", generated_utc="2026-01-02T10:00:00Z",
-                                              out=td / "again", rt=rt), "HINT_NAME_COLLISION")
-            ck(f"★같은 셀 재발행 = 로컬 이름 충돌({why[:100]})", ok and rec.read_bytes() == rec_bytes)
+                                              out=td / "again", rt=rt), "HINT_PUBLICATION_TIME_BOUND")
+            ck(f"★같은 셀 재발행(draft 있음) = HINT_PUBLICATION_TIME_BOUND · 발행 기록 불변({why[:80]})", ok and rec.read_bytes() == rec_bytes)
             _fx_git(repo, "tag", "-d", tagname)
-            ok, why = _raises(lambda: publish(repo, campaign="c1", cell="c1-a", generated_utc="2026-01-02T10:00:00Z",
-                                              out=td / "again2", rt=rt), "HINT_NAME_COLLISION")
-            ck(f"★로컬에 없고 원격에만 있어도 충돌(ls-remote)({why[:100]})", ok and "remote" in why)
-
-            # ── ★continue 도 커밋 전에 이름 충돌을 다시 본다(재생 draft 는 같은 셀 = 같은 이름) ──
-            if rok:
-                tip0 = branch.hint_tip(repo)
-                ok, why = _raises(lambda: continue_(repo, draft=rout, generated_utc="2026-01-02T11:00:00Z",
-                                                    approved_by="사용자 발화 전사 — 픽스처", approved_utc="2026-01-02T11:00:00Z",
-                                                    rt=rt), "HINT_NAME_COLLISION")
-                ck(f"★continue 커밋 전 이름 충돌 재확인 = ref 쓰기 0({why[:90]})", ok and branch.hint_tip(repo) == tip0)
+            ck("이름 조회: 로컬에 없고 원격에만 있어도 hit = remote(timestamp 판정의 입력 · ls-remote)",
+               _name_hit(repo, tagname, remote="origin", remote_check=True, tolerate=False)[0] == "remote")
 
             # ── CLI 표면: 종료코드 · 게이트 JSON · catalog rc 4 ──
             def run_main(argv):
@@ -2356,6 +2940,34 @@ def _selftest_e2e(ck) -> None:
                 got = None
             ck(f"gitless match(PATH 없음 · .git 없음) rc 0 · 새 태그 발견{'' if got else ' · ' + r.stderr[-300:]}",
                isinstance(got, list) and any(x.get("tag") == tagname for x in got))
+
+            # ── ★timestamp(2026-09-29 · plan_26092908 §4.1 U7): 같은 셀 · 같은 꼬리의 새 판(재생 draft) = 이름 중복 → `-t<YYMMDDHHMM>` ──
+            #   재생 continue 는 같은 발행 기록의 승격 목표를 새 태그로 다시 적으므로(set-promotion-target) 앞 단언을 흔들지 않게 맨 끝에 둔다.
+            if rok:
+                _fx_author(repo, rout, _load_state(rout))
+                core.write_json(rout / "inputs" / TAIL_NAME, good_tail)
+                ts_tok = naming.timestamp_token(_FX_REPLAY_UTC)
+                ts_name = f"{tagname}-{ts_tok}"
+                appr = dict(approved_by="사용자 발화 전사 — 픽스처", approved_utc="2026-01-02T11:00:00Z")
+                _fx_git(repo, "tag", ts_name, "HEAD")                  # 같은 분 · 같은 이름 충돌 픽스처(lightweight)
+                refs_ts = _refs(repo)
+                ok, why = _raises(lambda: continue_(repo, draft=rout, generated_utc="2026-01-02T11:00:00Z", no_push=True, rt=rt,
+                                                    **appr), "HINT_NAME_COLLISION")
+                ck(f"★timestamp 를 붙인 이름도 이미 있다(같은 분) = HINT_NAME_COLLISION · ref 쓰기 0({why[:60]})",
+                   ok and _refs(repo) == refs_ts)
+                _fx_git(repo, "tag", "-d", ts_name)
+                try:
+                    tres = quiet(continue_, repo, draft=rout, generated_utc="2026-01-02T11:00:00Z", no_push=True, rt=rt, **appr)
+                except core.HintError as e:
+                    tres = None
+                    ck(f"timestamp 재생 continue 성공 — {e.code}: {e.message[:400]}", False)
+                if tres is not None:
+                    rpd = json.loads(branch.read_blob(repo, tres["anchor"], "PAYLOAD.json"))
+                    ck(f"timestamp: 중복 = 이름 + `-{ts_tok}`(재생 publish 시각 KST · 결정론) · PAYLOAD.naming 재조립 · 부모 = 안내({tres['tag']})",
+                       tres["tag"] == ts_name and naming.parse_tag(ts_name).timestamp == ts_tok
+                       and rpd["naming"].get("timestamp") == ts_tok and naming.compose_from_payload(rpd["naming"]) == ts_name
+                       and _fx_git(repo, "rev-list", "--parents", "-n", "1", tres["anchor"]).stdout.split()[1:] == [fx["guide"]]
+                       and (_step(_load_state(rout), "name") or {}).get("collision") in ("local", "remote"))
     finally:
         for k, v in saved.items():
             if v is not None:
@@ -2374,8 +2986,19 @@ def _selftest_replay_continue(ck) -> None:
             td = Path(tds)
             repo, fx = _fx_repo(td)
             rt = Runtime(docker=_fx_docker(fx["docker"]))
+            # ★거부 · 중단된 publish 의 시각 묶임(2026-09-29 · plan_26092908 §4.8 V11①): 발행 기록은 묶였는데 스캐폴드된 draft 가 없으면
+            #   다음 publish 가 **묶인 시각을 채택**해 진행한다(사람이 옛 시각을 기억해 넣는 손작업 ✗). 첫 publish 의 draft 를 지워 재현한다.
+            bound_utc = "2026-01-02T05:50:00Z"
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                publish(repo, campaign="c1", cell="c1-a", generated_utc=bound_utc, out=td / "first", rt=rt)
+            shutil.rmtree(td / "first")
+            err = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
                 cres = publish(repo, campaign="c1", cell="c1-a", generated_utc=_FX_PUBLISH_UTC, rt=rt)
+            ck("★스캐폴드 전에 멈춘 publish 뒤 새 시각 재실행 = 묶인 시각 채택 · PASS(로그로 알림)",
+               cres.get("generated_utc") == bound_utc and _load_state(cres["draft"])["generated_utc"] == bound_utc
+               and "채택" in err.getvalue())
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 out = td / "replay"
                 rres = publish(repo, publication=cres["topic"], replay=True, generated_utc=_FX_REPLAY_UTC, out=out, rt=rt)
             ok, why = _raises(lambda: continue_(repo, draft=out, generated_utc=_FX_CONTINUE_UTC, rt=rt), "HINT_APPROVAL_ABSENT")
@@ -2384,6 +3007,23 @@ def _selftest_replay_continue(ck) -> None:
                                                 approved_utc=_FX_CONTINUE_UTC, rt=rt), "HINT_APPROVAL_INVALID")
             ck("★자리표시 승인 = HINT_APPROVAL_INVALID", ok)
             _fx_author(repo, out, _load_state(out), factcheck=False)      # 사실 검증 보고 없이 — 사람 면제 경로를 밟는다
+            # ★안내 커밋(2026-09-29 · plan_26092908 §4.7): 원격 hint tip 이 v7 형식 마커가 없는 옛 안내(v6 전환 커밋 모양)면 커밋 전에 차단 ·
+            #   --guide-commit(원격 조회 없는 지정)은 --no-push 와만
+            wv = dict(approved_by="사용자 발화 전사 — 재생 픽스처", approved_utc="2026-01-02T06:45:00Z",
+                      factcheck_waiver="사용자 발화 전사 — 재생 픽스처는 사실 검증을 면제한다")
+            ok, why = _raises(lambda: continue_(repo, draft=out, generated_utc=_FX_CONTINUE_UTC, guide_commit=fx["guide"], rt=rt, **wv),
+                              "HINT_GUIDE_PIN_REQUIRES_NO_PUSH")
+            ck(f"★--guide-commit 은 --no-push 와만({why[:50]})", ok)
+            old_guide = branch.selftest_guide(repo, fmt=None)
+            _fx_git(repo, "push", "-q", "-f", "origin", f"{old_guide}:{core.HINT_BRANCH_REF}")
+            refs_g = _refs(repo, own=True)
+            try:
+                ok, why = _raises(lambda: continue_(repo, draft=out, generated_utc=_FX_CONTINUE_UTC, no_push=True, rt=rt, **wv),
+                                  "HINT_BRANCH_FORMAT_MISMATCH")
+            finally:
+                _fx_git(repo, "push", "-q", "-f", "origin", f"{fx['guide']}:{core.HINT_BRANCH_REF}")
+            ck(f"★원격 안내 커밋 형식 ≠ v7 = HINT_BRANCH_FORMAT_MISMATCH · 커밋 · ref 쓰기 0({why[:60]})", ok and _refs(repo, own=True) == refs_g
+               and _step(_load_state(out), "commit") is None)
             try:
                 with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                     res = continue_(repo, draft=out, generated_utc=_FX_CONTINUE_UTC, approved_by="사용자 발화 전사 — 재생 픽스처",
@@ -2413,11 +3053,16 @@ def _selftest_replay_continue(ck) -> None:
 
 
 def _branch_readme_drift(text: str) -> list[str]:
-    """정적 hint 브랜치 README(`templates/hint-branch-README.md` · S7 형식 전환 커밋의 원천)가 배너 상수·형식 문자열과 갈라졌는가.
+    """정적 hint 브랜치 README(`templates/hint-branch-README.md` · 형식 전환 안내 커밋의 원천)가 배너 상수·형식 문자열과 갈라졌는가.
     정적 파일 둘은 한쪽이 다른 쪽을 생성할 수 없다 — 단일 소유가 불가능하면 교차검증이 차선이다(workflow.md §결정론 규율 ·
-    2026-09-22 통합: 문서 담당이 "README 가 상수를 복제한다" 고 알렸다). 반환 = 빠진 조각 목록."""
-    need = [*template.BANNER_LINES, branch.PAYLOAD_FORMAT]
-    return [x for x in need if x not in text]
+    2026-09-22 통합: 문서 담당이 "README 가 상수를 복제한다" 고 알렸다). 반환 = 빠진 조각 목록.
+    2026-09-29 plan_26092908 §4.7·§4.6: 첫 줄 = 이 발행기의 형식 마커(branch.guide_marker — 도구가 덧붙이지 않는다) · 페이로드 README 이름
+    안내의 세대 라벨(template.NAME_GENERATIONS)이 안내 README 세대 표에도 있어야 한다(두 자리가 다른 세대를 말하지 않게)."""
+    need = [*template.BANNER_LINES, branch.PAYLOAD_FORMAT, *(g for g, _s, _w in template.NAME_GENERATIONS)]
+    miss = [x for x in need if x not in text]
+    if text.split("\n", 1)[0] != branch.guide_marker():
+        miss.insert(0, branch.guide_marker())
+    return miss
 
 
 def _selftest_static_docs(ck) -> None:
@@ -2428,6 +3073,11 @@ def _selftest_static_docs(ck) -> None:
        bool(text) and not miss)
     ck("★README 에서 배너 한 줄을 지우면 교차검증이 잡는다",
        bool(text) and _branch_readme_drift(text.replace(template.BANNER_LINES[0], "")) == [template.BANNER_LINES[0]])
+    # 2026-09-29 plan_26092908 §4.7: 안내 커밋 판정 = README 첫 줄 형식 마커(branch.readme_format) — 템플릿이 곧 안내 커밋 바이트다
+    ck(f"안내 README 첫 줄 = 형식 마커 `{branch.guide_marker()}`(branch.readme_format = {branch.BRANCH_FORMAT})",
+       branch.readme_format(text) == branch.BRANCH_FORMAT)
+    ck("★마커 줄을 지우면 교차검증이 잡는다", bool(text) and _branch_readme_drift(text.split("\n", 1)[1])[:1] == [branch.guide_marker()])
+    ck("★세대 라벨(v7)을 지우면 교차검증이 잡는다", "v7" in _branch_readme_drift(text.replace("v7", "vX")))
 
 
 def self_test() -> int:
@@ -2475,7 +3125,9 @@ def _self_test_body(ck, bad: list[str], ran: list[int]) -> None:
     # 2026-09-22 S2 round 2: 하한 = 새 E2E 음성대조 포함(114 실측) — 사실 검증·refresh·§L 묶음이 조용히 빠지면 붉어진다.
     # 2026-09-22 S2 round 3: 탐침 기본 · excerpt --numbered · 새 사실 키 묶음(130 실측) → 하한 126.
     # 2026-09-22 S2 round 3 적대 리뷰: 탐침 규칙 단일 소유 · 저작 안내 · 스냅샷 origin(실재 커밋 · 변조) 묶음(137 실측) → 하한 134.
-    ck(f"검사 전수 실행({ran[0]}) — 중도 반환으로 시험이 조용히 줄지 않게", ran[0] >= 134)
+    # 2026-09-29 plan_26092908(v7): 이름 꼬리 · timestamp · 안내 커밋 · footer v2 · LINEAGE 분리 · refacts · 카탈로그 커밋 · 시각 채택 묶음
+    #   (175 실측) → 하한 170.
+    ck(f"검사 전수 실행({ran[0]}) — 중도 반환으로 시험이 조용히 줄지 않게", ran[0] >= 170)
 
 
 if __name__ == "__main__":
