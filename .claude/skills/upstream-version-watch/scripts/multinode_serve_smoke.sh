@@ -1068,7 +1068,22 @@ _SERVE_T0="$(date -u +%FT%TZ)"   # serve 진행표 착수 시각(P4 가 읽는 f
 echo "[mn] master 기동(Ray head + serve)..."
 env $MOUNTVARS docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master up -d >/dev/null 2>&1
 echo "[mn] slave 기동(Ray worker, SSH)..."
-$SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $MOUNTVARS $PLEVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave up -d'" >/dev/null 2>&1
+# ★ 2026-09-30(plan_26093000 · 멀티 라이브 발견): 이 줄은 서브 `compose up` 의 출력과 종료코드를 `/dev/null` 로 버렸다 —
+#   서브 컨테이너가 **생성조차 되지 않아도**(No such container) master 가 5분을 "Waiting for slave" 로 채운 뒤 `did not join`
+#   으로 끝났고, 사인은 어디에도 남지 않았다(침묵 누락). 출력은 teardown 을 견디는 자리에 남기고, rc≠0 이거나 rc 0 인데 서브에
+#   컨테이너가 없으면 **대기 없이** 그 출력과 함께 멈춘다(아래 폴링을 건너뛰어 기존 미준비 경로로 간다).
+SLAVE_UP_LOG="$REPO/output/multi/benchlog/slave_up_${CONFIG}.log"; mkdir -p "$(dirname "$SLAVE_UP_LOG")"
+$SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $MOUNTVARS $PLEVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave up -d'" > "$SLAVE_UP_LOG" 2>&1
+SLAVE_UP_RC=$?
+SLAVE_UP_FAILED=0
+if [ "$SLAVE_UP_RC" != "0" ]; then
+  SLAVE_UP_FAILED=1
+  echo "[mn] FAILURE(slave-up): 서브 compose up rc=$SLAVE_UP_RC — 출력($SLAVE_UP_LOG) 꼬리:"
+elif ! $SSH "$SUB_HOST" "docker ps -a --filter name='^${SLVC:-vllm-slave-serve-container}\$' -q" 2>/dev/null | grep -q .; then
+  SLAVE_UP_FAILED=1
+  echo "[mn] FAILURE(slave-up): 서브 compose up 은 rc 0 인데 서브에 컨테이너 '${SLVC:-vllm-slave-serve-container}' 가 없다 — 출력($SLAVE_UP_LOG) 꼬리:"
+fi
+[ "$SLAVE_UP_FAILED" = "1" ] && { tail -30 "$SLAVE_UP_LOG" | sed 's/^/[mn]   /'; echo "[mn]   → 5분 대기 없이 멈춘다(서브 배달·compose 입력을 먼저 확인하라 — sync_to_sub.sh dry-run)"; }
 
 # ── 준비 폴링: 엔드포인트 health(거짓양성 회피) ──
 # READY_MAX(폴링 횟수×5s) = health 창. 환경변수로 조정한다. **기본 180(15분)은 작은 모델 기준이며,
@@ -1116,7 +1131,8 @@ _save_serve_logs() {   # $1=사유 태그
 }
 
 READY=0; LAST_HTTP=""
-for i in $(seq 1 "$READY_MAX"); do
+_POLL_MAX="$READY_MAX"; [ "$SLAVE_UP_FAILED" = "1" ] && _POLL_MAX=0   # 서브가 서지 않았으면 기다리지 않는다
+for i in $(seq 1 "$_POLL_MAX"); do
   LAST_HTTP="$(curl -s -m 5 -o /dev/null -w '%{http_code}' http://localhost:$PORT/health 2>/dev/null)"
   [ "$LAST_HTTP" = "200" ] && { echo "[mn] READY ~$((i*5))s"; READY=1; break; }
   docker ps --filter name="$MC" --filter status=running -q | grep -q . || { echo "[mn] master EXITED"; _save_serve_logs "exited"; docker logs "$MC" 2>&1 | tail -12; break; }
