@@ -68,6 +68,9 @@ BACKEND_DEFAULT_MODEL = {"anthropic": "sonnet", "kimi": "k3[1m]", "minimax": "Mi
 RUNNER_ALIASES = {
     "opus":           ("anthropic", "opus"),
     "sonnet":         ("anthropic", "sonnet"),
+    # 2026-09-29 (plan_26092917_59_03 S0): 별칭 `sonnet` 은 CLI 가 해소하므로 장기 평가 도중 다른
+    #   모델로 조용히 바뀔 수 있다. 모델 ID 를 박은 러너 — 값은 양 노드 원장 `model_used` 실측.
+    "sonnet-5.5":     ("anthropic", "claude-sonnet-5-5"),
     "haiku":          ("anthropic", "haiku"),
     "kimi-claude":    ("kimi", BACKEND_DEFAULT_MODEL["kimi"]),
     "minimax-claude": ("minimax", BACKEND_DEFAULT_MODEL["minimax"]),

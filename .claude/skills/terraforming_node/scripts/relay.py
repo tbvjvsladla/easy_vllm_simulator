@@ -647,6 +647,17 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
         "external_search": report.get("external_search") or [],
         # SILENT_FALLBACK 금지: 메인이 대신 한 것은 여기에 적히지 않는다. 서브 산출만 집계한다.
         "sub_reported": bool(report),
+        # 2026-09-29(plan_26092917_59_03 S4 선행): 감독이 **전진**을 원장만으로 읽을 수 있게 리포트의
+        #   진행 사실을 옮겨 둔다. 종전 전진 신호는 phase 변화와 회수 브리핑 둘뿐이었는데, 멀티 Ray
+        #   워커는 캠페인 인스턴스가 없어 브리핑을 쓸 수 없고 비서빙 과업은 phase 가 움직이지 않는다
+        #   — 그래서 멀티 서브의 중단은 **구조적으로** 전부 '정체' 팝업이었다.
+        #   `None` = 서브가 말하지 않았다(모름) · `[]` = 없다는 선언. 옛 원장은 필드가 없어 종전대로 읽힌다.
+        "next_steps": report.get("next_steps") if report else None,
+        "artifact_paths": ([a.get("path") for a in report.get("artifacts") or []
+                            if isinstance(a, dict) and a.get("path")] if report else None),
+        "hitl_needed": bool((report.get("hitl") or {}).get("needed")) if report else None,
+        "library_blocking": (any(bool(r.get("blocking")) for r in report.get("library_request") or []
+                                 if isinstance(r, dict)) if report else None),
     }
     att["end_reason"] = end_reason(att)
     doc["context_id"] = context_id
@@ -978,6 +989,42 @@ def _last_reached(doc: dict) -> dict | None:
     return next((x for x in reversed(doc.get("attempts") or []) if _reached_sub(x)), None)
 
 
+def budget_yield(att: dict) -> bool:
+    """`input-required` 가 **질문**이 아니라 **예산 양보**인가 — 원장에 옮긴 리포트 사실에서 파생.
+
+    서브 계약은 "예산이 모자라 보이면 소진하지 말고 input-required 로 끊고 남은 일을 next_steps 에
+    적어라" 이다. 그런데 감독은 input-required 를 전부 '답이 필요하다' 팝업으로 읽어, 계약대로
+    양보한 서브가 매번 사람을 불렀다(2026-09-29 발견 · 멀티 AC5 구조적 불가). 질문은 표지가 있다 —
+    `hitl.needed` 나 차단성 도서관 요청. 둘 다 없고 남은 일이 적혀 있으면 양보다.
+    필드가 없는 옛 원장(None)은 양보로 읽지 않는다 — 모르면 묻는다.
+    """
+    return (att.get("hitl_needed") is False and att.get("library_blocking") is False
+            and bool(att.get("next_steps")))
+
+
+def ledger_progress(last: dict, prev: dict | None) -> str | None:
+    """원장만으로 본 전진. 사유 문자열 또는 None. 값을 만들지 않고 두 attempt 의 기록만 비교한다.
+
+    · 직전이 있으면: 새 산출물 경로가 생겼거나 남은 일(next_steps)이 바뀌었다.
+    · 첫 중단이면: 이 attempt 가 턴을 쓰고 산출물 또는 남은 일을 남겼다(일한 흔적).
+    같은 남은 일·같은 산출물이 반복되면 전진이 아니다 — 무한 재발급은 이 음성대조와
+    `--cost-cap-attempts` 가 막는다.
+    """
+    arts, steps = last.get("artifact_paths"), last.get("next_steps")
+    if arts is None and steps is None:
+        return None
+    if prev is None:
+        if (last.get("max_turns_used") or 0) > 0 and (arts or steps):
+            return "첫 중단 · 산출물/남은 일 기록"
+        return None
+    new_arts = set(arts or []) - set(prev.get("artifact_paths") or [])
+    if new_arts:
+        return f"새 산출물 {len(new_arts)}건"
+    if steps is not None and prev.get("next_steps") is not None and steps != prev.get("next_steps"):
+        return "남은 일 변화"
+    return None
+
+
 def supervise_decide(doc: dict, *, brief: dict | None = None,
                      cost_cap_attempts: int | None = None, ladder: list | None = None) -> dict:
     """원장 하나의 **다음 한 걸음**을 판정한다. 값을 만들지 않고 기록된 사실만 읽는다.
@@ -1031,7 +1078,7 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
                   "invalid_request", "malformed_output"):
         return {"action": "popup",
                 "reason": f"모델·통신 평면이 깨졌다(end_reason={reason}) — 재개로 낫는 종류가 아니다"}
-    if reason == "sub_input_required":
+    if reason == "sub_input_required" and not budget_yield(last):
         return {"action": "popup",
                 "reason": "서브가 input-required 로 끊었다 — 답이 필요하다(차단성이면 답이 승인이다)"}
     # ★ 2026-09-08 라이브: 계획은 자동 재개를 `external_interruption|budget_exhausted` 로만 적었다.
@@ -1040,14 +1087,20 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
     #   결정 D9("재개는 항상 자동, 예외는 비용 상한과 통신 단절")이 리포트 형식 미준수 하나로
     #   무력해진다. `unclassified` 는 비용 상한도 통신 단절도 아니다 — **전진이 관측되면** 잇고,
     #   전진이 없으면 그때 묻는다. 판정 불가는 추측의 근거가 아니라 관측을 볼 이유다.
-    if reason in ("external_interruption", "budget_exhausted", "unclassified"):
+    if reason in ("external_interruption", "budget_exhausted", "unclassified", "sub_input_required"):
+        # 여기 도달한 sub_input_required 는 위에서 걸러진 **예산 양보**뿐이다(질문이 아니다).
         prev = [a for a in (doc.get("attempts") or []) if _reached_sub(a)][:-1]
         moved_phase = bool(prev) and prev[-1].get("phase") != last.get("phase")
         seen = doc.get("supervisor_last_seen_utc")
         moved_brief = bool(brief and brief.get("last_utc")
                            and (not seen or str(brief["last_utc"]) > str(seen)))
-        if moved_phase or moved_brief:
-            why = "phase 전진" if moved_phase else f"브리핑 last_utc 전진({brief.get('last_utc')})"
+        moved_ledger = ledger_progress(last, prev[-1] if prev else None)
+        if moved_phase or moved_brief or moved_ledger:
+            why = ("phase 전진" if moved_phase
+                   else f"브리핑 last_utc 전진({brief.get('last_utc')})" if moved_brief
+                   else f"원장 전진({moved_ledger})")
+            if reason == "sub_input_required":
+                reason = "sub_input_required(예산 양보)"
             note = (" · 종료 사유는 판정 불가지만 일한 흔적이 있다"
                     if reason == "unclassified" else "")
             return {"action": "resume",
@@ -1562,6 +1615,24 @@ def _self_test() -> int:
         "★감독: 권한 거부는 **권한 거부라고** 말한다(사유가 과장되면 사람이 엉뚱한 곳을 본다)")
     chk(supervise_decide({"attempts": [_mk(end_reason="sub_input_required")]}
                          )["action"] == "popup", "감독: input-required 는 답이 승인이다")
+    # 2026-09-29: 예산 양보(질문 표지 없음 + 남은 일) 는 원장 전진으로 잇는다 · 질문은 여전히 묻는다
+    _y = dict(end_reason="sub_input_required", hitl_needed=False, library_blocking=False,
+              max_turns_used=8, next_steps=["T1 나머지"], artifact_paths=["docs/testlog/a.md"])
+    chk(supervise_decide({"attempts": [_mk(**_y)]})["action"] == "resume",
+        "★감독: 예산 양보 input-required + 일한 흔적 → 자동 재발급(브리핑 없는 멀티 워커)")
+    chk(supervise_decide({"attempts": [_mk(**dict(_y, hitl_needed=True))]})["action"] == "popup",
+        "★감독 음성대조: hitl.needed 가 있으면 질문이다 → 팝업")
+    chk(supervise_decide({"attempts": [_mk(**dict(_y, library_blocking=True))]})["action"] == "popup",
+        "★감독 음성대조: 차단성 도서관 요청은 질문이다 → 팝업")
+    chk(supervise_decide({"attempts": [_mk(end_reason="sub_input_required", next_steps=["x"])]}
+                         )["action"] == "popup",
+        "★감독 음성대조: 표지 필드가 없는 옛 원장은 양보로 읽지 않는다(모르면 묻는다)")
+    _stall = {"attempts": [_mk(**_y), _mk(**dict(_y, attempt=2))]}
+    chk(supervise_decide(_stall)["action"] == "popup",
+        "★감독 음성대조: 같은 남은 일·같은 산출물 반복 = 정체 → 팝업(무한 재발급 ✗)")
+    _mv = {"attempts": [_mk(**_y), _mk(**dict(_y, attempt=2, next_steps=["T2"],
+                                              artifact_paths=["docs/testlog/a.md"]))]}
+    chk(supervise_decide(_mv)["action"] == "resume", "★감독: 남은 일이 바뀌면 전진이다")
     _un = {"attempts": [_mk(end_reason="unclassified", phase="serve"),
                         _mk(attempt=2, end_reason="unclassified", phase="serve")]}
     chk(supervise_decide(_un, brief={"last_utc": "2026-09-08T07:44:28Z"})["action"] == "resume",

@@ -10,7 +10,7 @@ gitignored 스테이징 트리 `output/<topology>/sub_provision/` 로 렌더한�
   Agent_Card.json                        ← Agent_Card.template.json   (렌더)
   .claude/settings.local.json            ← settings.local.template.json (렌더, 스코프드)
   .claude/rules/comms.md                 ← comms.md                   (복제·정적계약)
-  .claude/rules/docs.md                  ← .claude/rules/docs.md      (복제·문서규약 테라포밍, D12)
+  (.claude/rules/docs.md 는 2026-09-29 부터 서브에 가지 않는다 — 명명 규약은 CLAUDE.md §자기개선 회수가 든다)
   .claude/schemas/task-report.schema.json← task-report.schema.json    (복제·정적계약)
   .claude/schemas/library-exchange.schema.json ← library-exchange.schema.json (복제·정적계약, §2.7.8 그라운딩 교환)
   .claude/skills/{vllm-recipe-explorer,adversarial-benchmark}/ ← 런타임블럭(git-tracked만 복제 — config.yaml/feedback/lockset 제외)
@@ -118,7 +118,6 @@ RUNTIME_BLOCK_EXCLUDES = {
         "scripts/push_branches.py",
     ),
 }
-DOCS_RULES = os.path.join(REPO, ".claude", "rules", "docs.md")     # 문서규약(정적계약 — 서브 테라포밍, D12)
 # 특화헌법(2026-09-12 · plan_26091210 A7 · policy BRANCH_CONSTITUTION_LAYERING). **명시 등록이 필요하다** —
 #   서브로 가는 `.claude/rules/*` 는 이 파일이 이름 하나하나로 정하는 닫힌 목록이고(`comms.md`·`docs.md`
 #   둘뿐이었다), 규약에 맞는 파일이 자동으로 따라가지 않는다. 등록하지 않으면 서브는 자기 토폴로지의
@@ -477,8 +476,14 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
         shutil.copyfile(sub_manifest_path, dest)
         produced.append(dest_rel + " (서브 manifest · terraforming 실측 · Flag issued_by=main)")
 
-    # 2) 복제 정적계약 (comms·schema·docs규약)
-    shutil.copyfile(os.path.join(SUBNODE_DIR, "comms.md"), os.path.join(claude, "rules", "comms.md"))
+    # 2) 복제 정적계약 (comms·schema)
+    # comms.md 도 MODE 블록을 가른다(2026-09-29 · plan_26092917_59_03 S3) — 종전에는 통째 복사라
+    #   싱글 A2A 에이전트 전용 문장(자율 트리플렛 생성·웹 검색·독립 서빙 절차)이 멀티 Ray 워커에게도
+    #   갔고, 같은 서브의 CLAUDE.md "트리플렛 자작 ✗" 와 정면으로 모순됐다(서브 S1 T1 #1 실측).
+    with open(os.path.join(SUBNODE_DIR, "comms.md"), encoding="utf-8") as f:
+        _comms = apply_mode_blocks(f.read(), ph.get("SUB_MODE", ""))
+    with open(os.path.join(claude, "rules", "comms.md"), "w", encoding="utf-8") as f:
+        f.write(_comms)
     produced.append(".claude/rules/comms.md")
     # 서브로 복제되는 정적 스키마 계약. `library-exchange` 가 빠져 있던 동안 서브는 교환 메시지의
     # 계약 없이 형태를 추측해야 했다(testlog_26082215 S-9) — SKILL.md §4 목록이 정본으로 적었는데
@@ -490,10 +495,11 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
         with open(schema_dst, encoding="utf-8") as f:
             json.load(f)
         produced.append(f".claude/schemas/{schema_name}")
-    # D12: 문서규약 테라포밍 — 서브가 동일 발행규약(docs.md)으로 insight 문서 발행 → 상향 문서기반 회수
-    if os.path.isfile(DOCS_RULES):
-        shutil.copyfile(DOCS_RULES, os.path.join(claude, "rules", "docs.md"))
-        produced.append(".claude/rules/docs.md")
+    # D12 의 문서규약 복제(`docs.md` 통째)는 2026-09-29 에 걷어냈다(plan_26092917_59_03 S3 · ablation).
+    #   24KB 중 서브 몫은 명명 한 줄·문서 5종·상향 회수 계약뿐이었고 셋 다 서브 CLAUDE.md §자기개선
+    #   회수가 이미 든다. 나머지(report·request·campaigns 쓰기 문·publisher·PII 적용표)는 메인 몫이며,
+    #   서브 S1 T1 #2·#5 는 그 메인 몫 문장이 서브에서 **모순과 부재 경로**로 읽힌다는 실측이었다.
+    #   되돌림 규칙: 서브가 같은 자리에서 2회 이상 막힐 때만 **한 줄씩** CLAUDE 템플릿에 되살린다.
 
     # 특화헌법 — 서브는 메인과 **같은 브랜치**이므로 이 체크아웃의 특화층이 곧 서브의 것이다
     # (policy BRANCH_CONSTITUTION_LAYERING · 메인 single ⇒ 서브 single, 메인 multi ⇒ 서브 multi).
@@ -842,7 +848,7 @@ def _self_test() -> int:
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json",
                        ".claude/schemas/library-exchange.schema.json",
                        "campaigns/README.md",
-                       ".claude/rules/docs.md", ".gitignore",   # ← references.md 는 tool_plane 종속(아래 c4b)
+                       ".gitignore",   # ← references.md 는 tool_plane 종속(아래 c4b) · docs.md 는 2026-09-29 제외
                        # 특화헌법: 서브가 자기 토폴로지의 헌법을 받는지 fail-loud 로 확인한다
                        #   (등록을 잊으면 조용히 안 가고, 서브는 그 사실을 스스로 알 수 없다)
                        ".claude/rules/strategy.topology.md",

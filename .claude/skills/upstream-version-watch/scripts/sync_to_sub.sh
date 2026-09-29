@@ -1502,6 +1502,16 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
     canon="$(cd "$st" && find . -type f -not -path '*/__pycache__/*' -not -name '*.pyc' \
              -printf '%P\n' | LC_ALL=C sort)"
     [ -n "$canon" ] || return 0
+    # 정본 = 오버레이 스테이징 **∪ Band2 빌드킷**(2026-09-29 · plan_26092917_59_03 S2 · F6). 빌드킷은
+    #   스테이징이 아니라 `deliver_build` 의 rsync(BAND2_TOP allowlist)로 가므로 종전 정본에서 빠져
+    #   있었다 — 그 결과 의도 배달분(`.gitkeep`·`Dockerfile.source-build-upstage`)이 "정본 밖" 오탐으로
+    #   나오고, 나머지 4종은 아래 dormant 예외에 **우연히** 걸려 빠지고 있었다. 원천은 배달과 같은
+    #   목록·같은 소스 트리다(두 자리에 적지 않는다). SKIP_BUILDKIT 이어도 정본은 정본이다.
+    local _b2
+    for _b2 in "${BAND2_TOP[@]}"; do
+        [ -f "${SRC%/}/output/$1/$_b2" ] && canon="${canon}"$'\n'"output/$1/$_b2"
+    done
+    canon="$(printf '%s\n' "$canon" | grep -v '^$' | LC_ALL=C sort -u)"
     # 비교 범위 = 정본이 **파일을 두는 그 디렉터리**뿐이며 재귀하지 않는다(-maxdepth 1).
     #   2026-09-05 첫 실행 교정: 최상위(`docs` 등)로 잡았더니 서브가 만든 블랙박스 로그
     #   (`docs/logs/sub/**` 8건)가 "정본에 없음" 으로 잡혔다 — 그건 잔재가 아니라 **그 노드의
@@ -1585,7 +1595,18 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
 #   더한다. 둘 다 **메인 전용 추적 빌딩블럭**이고 어느 토폴로지에도 배달되지 않는데, 옛 배달의
 #   사본이 서브에 남아 있었다(실측 multi: hooks 1 · pii_terms 1). 소유 루트에 없으면 잔재 리포트가
 #   구조적으로 못 본다 — 못 보는 것은 은퇴시킬 수도 없다.
-RUNTIME_BLOCK_OWNED_ROOTS=(.claude/skills .claude/policies .claude/hooks .claude/pii_terms.txt)
+# ★ 2026-09-29 확장(plan_26092917_59_03 S2 · F5): `.claude/rules`·`.claude/schemas` 를 더한다. 둘 다
+#   **메인 렌더만 저작**한다(렌더러의 닫힌 목록 — 서브는 `.claude/**` 쓰기 권한이 없다). 그런데 소유
+#   루트가 아니어서 09-10 autosave(`1c9c270`)가 쓸어 담은 옛 `rules/workflow.md`(34KB · 서브가 매
+#   세션 자동 로드)와 메인 전용 스키마 6종이 이 리포트에 **"잔재 0건"** 으로 보였다 — 틀린 게 아니라
+#   **보지 않는 자리**였다(수렴 리포트는 같은 파일을 봤다 · 두 관측이 어긋난 원인).
+RUNTIME_BLOCK_OWNED_ROOTS=(.claude/skills .claude/policies .claude/hooks .claude/pii_terms.txt .claude/rules .claude/schemas)
+# 메인 `.gitignore` 가 비추적으로 선언하지만 **서브가 저작한 적이 없는** 경로(닫힌 목록 · tripwire).
+#   `drop_node_local_paths` 의 전제("메인에도 그 노드의 사본이 있다 = 노드-로컬")가 여기서는 거짓이다 —
+#   이 파일은 메인의 사적 PII 리터럴 목록이고 서브의 사본은 옛 배달·autosave 가 남긴 것뿐이다.
+#   2026-09-29 실측: 서브에 추적물로 잔존하는데 노드-로컬 필터가 걸러 잔재 리포트·은퇴 모두 못 봤다.
+#   늘리려면: 그 경로를 서브의 어떤 스크립트도 쓰지 않는다는 것을 먼저 확인하라.
+NEVER_NODE_LOCAL_PATHS=(.claude/pii_terms.txt)
 # 잔재 판정에서 **노드-로컬 상태**를 걷어낸다(2026-09-10 신설 · 첫 실행이 위양성을 냈다).
 #
 # 판정은 파생이다 — 손목록을 두지 않는다:
@@ -1612,6 +1633,11 @@ drop_node_local_paths() {   # stdin=경로 목록 → stdout=노드-로컬을 �
         echo "  ⚠ 노드-로컬 판정 불가(git check-ignore rc=$rc · REPO_ROOT=$REPO_ROOT) — 필터 없이 전량 보고한다" >&2
         printf '%s\n' "$all"; return 0
     fi
+    # 서브가 저작하지 않는 메인 사적 경로는 노드-로컬로 걷어내지 않는다(위 NEVER_NODE_LOCAL_PATHS).
+    local _nl
+    for _nl in "${NEVER_NODE_LOCAL_PATHS[@]}"; do
+        local_only="$(printf '%s\n' "$local_only" | grep -vxF -- "$_nl" || true)"
+    done
     [ -n "$local_only" ] || { printf '%s\n' "$all"; return 0; }
     LC_ALL=C comm -23 <(printf '%s\n' "$all" | LC_ALL=C sort) <(printf '%s\n' "$local_only") || true
 }
