@@ -1140,6 +1140,43 @@ def writer_untag_evidence(base: Path, *, kind: str, path_rel: str, cell_id: str,
     return ep
 
 
+def writer_relocate_evidence(base: Path, *, kind: str, path_from: str, path_to: str, reason: str,
+                             utc: str, unfreeze: bool) -> Path:
+    """포인터의 경로를 옮긴다 — 문서가 개명됐을 때(명명 SSOT 로 다시 지은 이름) 포인터를 따라 옮기는 정식 연산.
+
+    왜(2026-09-29 · camp-26092913 · plan_26092908 S10): 발행 직전 판정 testlog·devlog·simlog 를 명명 SSOT 와 다른 시각(KST 시)으로
+    지었다가 바로잡았는데, writer 에는 추가·귀속 해제·스텁 제거만 있고 **경로를 옮기는 연산이 없었다** — 옛 경로 포인터는 purge
+    게이트(전수 실재)를 막고, 남은 길은 상태 파일 손편집뿐이었다(연산이 없으면 손이 들어온다 · untag 와 같은 형태).
+    옮김은 증거를 지우지 않는다: 옛 경로에 파일이 **없고** 새 경로에 파일이 **있을** 때만(개명의 관측) · 같은 종류의 새 경로
+    포인터가 이미 있으면 거부(중복) · 셀 귀속은 그대로 · 사유·시각 없는 옮김은 거부 · 이력은 `relocated[]`.
+    """
+    if not reason or not str(reason).strip() or not utc:
+        raise WriterRefusal("--evidence-relocate 는 --relocate-reason 과 --utc 가 필요하다")
+    ep = base / "evidence_pointers.json"
+    doc = _read_json(ep) if ep.is_file() else None
+    if not isinstance(doc, dict):
+        raise WriterRefusal(f"증거 포인터 파일이 없다: {_rel(ep)}")
+    if doc.get("frozen_utc") and not unfreeze:
+        raise WriterRefusal(f"이 스냅샷은 {doc['frozen_utc']} 에 동결됐다 — 사람이 --unfreeze 를 붙여야 한다")
+    if Path(path_to).is_absolute() or ".." in Path(path_to).parts:
+        raise WriterRefusal(f"새 경로는 저장소 상대여야 한다: {path_to!r}")
+    if (REPO_ROOT / path_from).exists():
+        raise WriterRefusal(f"옛 경로가 아직 실재한다({path_from}) — 개명이 아니다(증거를 옮기지 않는다)")
+    if not (REPO_ROOT / path_to).exists():
+        raise WriterRefusal(f"새 경로가 실재하지 않는다: {path_to}")
+    ptrs = [x for x in (doc.get("pointers") or []) if isinstance(x, dict)]
+    hits = [x for x in ptrs if x.get("path") == path_from and x.get("kind") == kind]
+    if len(hits) != 1:
+        raise WriterRefusal(f"(kind={kind!r}, path={path_from!r}) 포인터가 정확히 1건이 아니다: {len(hits)}건")
+    if any(x.get("path") == path_to and x.get("kind") == kind for x in ptrs):
+        raise WriterRefusal(f"(kind={kind!r}, path={path_to!r}) 포인터가 이미 있다 — 중복 ✗")
+    ptr = hits[0]
+    ptr.setdefault("relocated", []).append({"from": path_from, "reason": str(reason).strip(), "utc": utc})
+    ptr["path"] = path_to
+    _write_json(ep, doc)
+    return ep
+
+
 def writer_prune_stubs(base: Path, *, unfreeze: bool) -> "tuple[Path, list[str]]":
     """뼈대에서 딸려온 `<<FILL>>` 스텁 포인터를 정식 경로로 지운다(2026-09-08 · plan_26090813).
 
@@ -2144,6 +2181,30 @@ def _selftest() -> int:
         ck("★셀 태그 해제: 포인터는 남고 cell_id=None · 이력에 옛 귀속·사유·시각",
            len(_ut) == 1 and _ut[0]["cell_id"] is None
            and _ut[0]["untagged"] == [{"cell_id": "c1", "reason": "셀 선행 근거", "utc": "2026-01-01T01:30:00Z"}])
+        # 경로 이전(2026-09-29 · 문서 개명) — 옛 경로 부재 ∧ 새 경로 실재일 때만
+        _rl_old, _rl_new = "docs/_selftest_relocate_old.md", ".claude/rules/docs.md"
+        _ptrs = _read_json(camp / "evidence_pointers.json")
+        _ptrs["pointers"].append({"kind": "testlog", "path": _rl_old, "cell_id": "c1", "node_id": "main"})
+        _write_json(camp / "evidence_pointers.json", _ptrs)
+        ck("★음성대조 사유 없는 경로 이전 거부",
+           _boom(lambda: writer_relocate_evidence(camp, kind="testlog", path_from=_rl_old, path_to=_rl_new, reason=" ",
+                                                  utc="2026-01-01T01:40:00Z", unfreeze=False)))
+        ck("★음성대조 새 경로 부재면 거부",
+           _boom(lambda: writer_relocate_evidence(camp, kind="testlog", path_from=_rl_old, path_to="docs/_nope_.md",
+                                                  reason="r", utc="2026-01-01T01:40:00Z", unfreeze=False)))
+        ck("★음성대조 옛 경로가 실재하면 개명이 아니다(거부)",
+           _boom(lambda: writer_relocate_evidence(camp, kind="relay_summary", path_from="CLAUDE.md", path_to="CLAUDE.md",
+                                                  reason="r", utc="2026-01-01T01:40:00Z", unfreeze=False)))
+        writer_relocate_evidence(camp, kind="testlog", path_from=_rl_old, path_to=_rl_new, reason="명명 SSOT 로 개명",
+                                 utc="2026-01-01T01:40:00Z", unfreeze=False)
+        _rl = [x for x in _read_json(camp / "evidence_pointers.json")["pointers"] if x.get("kind") == "testlog"
+               and x.get("path") == _rl_new]
+        ck("★경로 이전: 새 경로 · 셀 귀속 유지 · 이력(from·사유·시각)",
+           len(_rl) == 1 and _rl[0]["cell_id"] == "c1"
+           and _rl[0]["relocated"] == [{"from": _rl_old, "reason": "명명 SSOT 로 개명", "utc": "2026-01-01T01:40:00Z"}])
+        ck("★음성대조 같은 종류 새 경로 포인터 중복이면 거부",
+           _boom(lambda: writer_relocate_evidence(camp, kind="testlog", path_from=_rl_new, path_to=_rl_new, reason="r",
+                                                  utc="2026-01-01T01:41:00Z", unfreeze=False)))
         writer_freeze_evidence(camp, "2026-01-01T02:00:00Z")
         ck("★음성대조 동결 뒤 추가는 거부(입력 통로가 흐르면 태그는 불변인데 근거가 움직인다)",
            _boom(lambda: writer_add_evidence(camp, kind="devlog", path_rel=_PORTABLE_EVIDENCE,
@@ -2962,6 +3023,11 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--evidence-untag", action="store_true",
                    help="포인터의 셀 귀속 해제(포인터는 남김 · untagged[] 이력) · --kind --path --cell --untag-reason --utc 필수")
     w.add_argument("--untag-reason", help="--evidence-untag 의 사유(필수)")
+    w.add_argument("--evidence-relocate", action="store_true",
+                   help="포인터 경로 이전(문서 개명 · 옛 경로 부재 ∧ 새 경로 실재일 때만 · relocated[] 이력) · "
+                        "--kind --path(옛) --to(새) --relocate-reason --utc 필수")
+    w.add_argument("--to", dest="relocate_to", help="--evidence-relocate 의 새 저장소 상대경로")
+    w.add_argument("--relocate-reason", help="--evidence-relocate 의 사유(필수)")
     w.add_argument("--evidence-prune-stubs", action="store_true",
                    help="뼈대에서 딸려온 <<FILL>> 스텁 포인터를 정식 경로로 제거한다 "
                         "(값이 든 포인터는 건드리지 않는다 · 손삭제 대체)")
@@ -3072,7 +3138,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         writer_ops = (a.phase_set, a.cell_set, a.evidence_add, a.freeze_evidence, a.revise,
                       a.evidence_prune_stubs, a.import_sub, a.backfill_from_docs, a.ground,
-                      a.escalation_add, a.hint_approve, a.evidence_untag)
+                      a.escalation_add, a.hint_approve, a.evidence_untag, a.evidence_relocate)
         if any(writer_ops):
             tgt = _writer_target(a.campaign_id)
             if tgt is None:
@@ -3176,6 +3242,11 @@ def main(argv: list[str] | None = None) -> int:
                     raise WriterRefusal("--evidence-untag 는 --kind --path --cell 이 필요하다")
                 wrote.append(_rel(writer_untag_evidence(base, kind=a.kind, path_rel=a.path, cell_id=a.cell,
                                                         reason=a.untag_reason, utc=a.utc, unfreeze=a.unfreeze)))
+            if a.evidence_relocate:
+                if not (a.kind and a.path and a.relocate_to):
+                    raise WriterRefusal("--evidence-relocate 는 --kind --path --to 가 필요하다")
+                wrote.append(_rel(writer_relocate_evidence(base, kind=a.kind, path_from=a.path, path_to=a.relocate_to,
+                                                           reason=a.relocate_reason, utc=a.utc, unfreeze=a.unfreeze)))
             if a.evidence_prune_stubs:
                 epath, dropped = writer_prune_stubs(base, unfreeze=a.unfreeze)
                 wrote.append(_rel(epath))
