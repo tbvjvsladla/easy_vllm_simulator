@@ -244,6 +244,34 @@ else
   fi
 fi
 
+# ── 서브 통로 선행검사(2026-09-30 · plan_26093003_56_16 G1) ─────────────────────
+#   메인 통로 결손(configs/*·.env.cluster 부재)은 맨 앞에서 exit 3 인데 서브 쪽은 같은 검사가 없어,
+#   서브가 반대 토폴로지 체크아웃이면(`output/multi/` 부재) 슬레이브 기동 줄에서야 알았다 — 그 사이
+#   양 노드 예산 선언·워치독 무장·master 기동이 한 번 섰다 걷혔다(testlog_26093003 F3 · 41초).
+#   판정 입력은 슬레이브 build·up·down 줄이 **실제로 여는 파일과 같은 변수**($COMPOSE_MULTI · $EFC ·
+#   $SUB_CD)다 — 경로를 두 자리에 손으로 적으면 검사와 기동이 다른 파일을 본다. 서브 브랜치는 읽지
+#   않는다(요구 사실은 "파일이 있는가"이고 브랜치는 대리 지표다). 알리기만 한다 — 배달은 사람 승인 행동이다.
+#   --down 은 검사하지 않는다(회수 경로를 막지 않는다 — RAM 게이트와 같은 이유).
+if [ "$DOWN" != "1" ]; then
+  _SUB_PROBE=$($SSH "$SUB_HOST" "bash -lc '$SUB_CD { for f in $COMPOSE_MULTI $EFC; do [ -f \"\$f\" ] || echo \"missing:\$f\"; done; echo __probe_ok__; } || echo __cd_failed__'" 2>&1); _SUB_PRC=$?
+  if printf '%s\n' "$_SUB_PROBE" | grep -qx '__probe_ok__'; then
+    _SUB_MISS=$(printf '%s\n' "$_SUB_PROBE" | sed -n 's/^missing://p' | tr '\n' ' ')
+    if [ -n "$_SUB_MISS" ]; then
+      echo "[mn] FAIL: 서브 통로 미완결 — $SUB_HOST:$SUB_WORK_DIR 에 ${_SUB_MISS% } 부재(슬레이브 기동이 여는 파일)."
+      echo "     서브가 다른 토폴로지 체크아웃일 수 있다 → multi-node 체크아웃에서 'sync_to_sub.sh --branch multi'(dry-run → --apply)로 배달하라."
+      exit 3
+    fi
+    echo "[mn] 서브 통로 PASS: $COMPOSE_MULTI · $EFC 실재($SUB_HOST:$SUB_WORK_DIR)"
+  elif printf '%s\n' "$_SUB_PROBE" | grep -qx '__cd_failed__'; then
+    echo "[mn] FAIL: 서브 작업 디렉터리 진입 실패 — $SUB_HOST:$SUB_WORK_DIR (manifest nodes[sub].work_dir 또는 SUB_WORK_DIR 확인)."
+    exit 3
+  else
+    echo "[mn] FAIL: 서브 통로 판정 불가 — ssh rc=$_SUB_PRC(파일 부재가 아니라 **조회 실패**다 · 서브 도달성·ssh 키 확인): $(printf '%s' "$_SUB_PROBE" | tail -2 | tr '\n' ' ')"
+    exit 3
+  fi
+  unset _SUB_PROBE _SUB_PRC _SUB_MISS
+fi
+
 # ── 빌드 병렬도 전달(2026-08-15 신설) ────────────────────────────────────────
 #   BUILD_JOBS 는 **이미지 정체성이 아니다**(같은 산출물, 다른 병렬도) — 그래서 SLAVE_IMGVARS 가
 #   아니라 별도 그룹(slave_forward `build_tuning` · NON_IDENTITY_BUILD_ARGS)으로 넘긴다. 다만 **양 노드에
@@ -488,8 +516,8 @@ else
 fi
 echo "[mn] 빌드 트랙 정합: IMAGE_TAG=$_it ↔ BUILD_DOCKERFILE=$_bd"
   echo "[mn] 양 노드 빌드(병렬)... build_jobs=${BJOBS:-<Dockerfile 기본 16>}"
-  docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master build >/tmp/mn_build_master.log 2>&1 & BPID=$!
-  $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $SLAVE_BUILDVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave build'" >/tmp/mn_build_slave.log 2>&1 & SPID=$!
+  docker compose -f "$COMPOSE_MULTI" --env-file "$EFC" --env-file "$EF" --profile master build >/tmp/mn_build_master.log 2>&1 & BPID=$!
+  $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $SLAVE_BUILDVARS docker compose -f $COMPOSE_MULTI --env-file $EFC --profile slave build'" >/tmp/mn_build_slave.log 2>&1 & SPID=$!
   wait $BPID; MR=$?; wait $SPID; SR=$?
   if [ $MR -eq 0 ] && [ $SR -eq 0 ]; then echo "[mn] 빌드 OK(양 노드)";
 # ── 빌드 후 ABI 불변식 검증 (2026-09-04 신설) ─────────────────────────────────────
@@ -726,8 +754,8 @@ NOW_ISO(){ date -u +%FT%TZ; }
 teardown_serve(){
   local mode="${1:?teardown_serve <smoke|standalone>}"
   echo "[mn] 정리(양 노드 down)..."
-  docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master down >/dev/null 2>&1
-  $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave down'" >/dev/null 2>&1
+  docker compose -f "$COMPOSE_MULTI" --env-file "$EFC" --env-file "$EF" --profile master down >/dev/null 2>&1
+  $SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS docker compose -f $COMPOSE_MULTI --env-file $EFC --profile slave down'" >/dev/null 2>&1
   # 워치독 정지 = PID 기반만(pkill -f 금지) → 잔여 페이지캐시 드랍(§4.1 ② — 헬퍼 설치 시 best-effort).
   if [ "$mode" = "standalone" ]; then
     # PID 를 모르므로 argv **위치** 대조로 회수한다(부분문자열 매칭 금지 — 위 회수 계약 주석 참조).
@@ -757,7 +785,7 @@ teardown_serve(){
 # ── `--down` 진입점: 여기까지가 변수 파생이고, 아래부터가 기동이다. 내리기만 할 때는 여기서 끝낸다. ──
 if [ "$DOWN" = "1" ]; then
   echo "[mn] --down: 상주 서빙 회수(컨테이너 · 워치독 · 페이지캐시 · 예산선언) — 기동·스모크 없음"
-  echo "[mn]   대상: $MC / ${SLVC:-slave} · compose=output/multi/docker-compose.yaml · config=$CONFIG"
+  echo "[mn]   대상: $MC / ${SLVC:-slave} · compose=$COMPOSE_MULTI · config=$CONFIG"
   teardown_serve standalone
   echo "[mn] --down 완료. 재기동은 인자에서 --down 을 빼고 실행하라."
   echo "[mn] 종료코드 0"
@@ -1068,14 +1096,14 @@ fi
 # ── Ray 클러스터 기동 (master 먼저=head, slave 합류) ──
 _SERVE_T0="$(date -u +%FT%TZ)"   # serve 진행표 착수 시각(P4 가 읽는 first_started_utc 의 원천)
 echo "[mn] master 기동(Ray head + serve)..."
-env $MOUNTVARS docker compose -f output/multi/docker-compose.yaml --env-file "$EFC" --env-file "$EF" --profile master up -d >/dev/null 2>&1
+env $MOUNTVARS docker compose -f "$COMPOSE_MULTI" --env-file "$EFC" --env-file "$EF" --profile master up -d >/dev/null 2>&1
 echo "[mn] slave 기동(Ray worker, SSH)..."
 # ★ 2026-09-30(plan_26093000 · 멀티 라이브 발견): 이 줄은 서브 `compose up` 의 출력과 종료코드를 `/dev/null` 로 버렸다 —
 #   서브 컨테이너가 **생성조차 되지 않아도**(No such container) master 가 5분을 "Waiting for slave" 로 채운 뒤 `did not join`
 #   으로 끝났고, 사인은 어디에도 남지 않았다(침묵 누락). 출력은 teardown 을 견디는 자리에 남기고, rc≠0 이거나 rc 0 인데 서브에
 #   컨테이너가 없으면 **대기 없이** 그 출력과 함께 멈춘다(아래 폴링을 건너뛰어 기존 미준비 경로로 간다).
 SLAVE_UP_LOG="$REPO/output/multi/benchlog/slave_up_${CONFIG}.log"; mkdir -p "$(dirname "$SLAVE_UP_LOG")"
-$SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $MOUNTVARS $PLEVARS docker compose -f output/multi/docker-compose.yaml --env-file $EFC --profile slave up -d'" > "$SLAVE_UP_LOG" 2>&1
+$SSH "$SUB_HOST" "bash -lc '$SUB_CD $SLAVE_IMGVARS $MOUNTVARS $PLEVARS docker compose -f $COMPOSE_MULTI --env-file $EFC --profile slave up -d'" > "$SLAVE_UP_LOG" 2>&1
 SLAVE_UP_RC=$?
 SLAVE_UP_FAILED=0
 if [ "$SLAVE_UP_RC" != "0" ]; then
@@ -1109,7 +1137,6 @@ fi
 #   → 컨테이너 재생성마다 226.7s 를 다시 낸다. 즉 이 확대는 1회성이 아니라 상시 필요하다.
 #   READY_MAX 확대는 `READY_BUDGET_S=$READY_WINDOW_S` 지점에서 예산 TTL(=READY_MAX×5×3)도 함께 늘려
 #   로드 도중 선언 만료를 구조적으로 배제한다(라인번호 대신 심볼로 가리킨다 — 번호는 편집마다 낡는다).
-echo "[mn] 엔드포인트 :$PORT health 폴링(2노드 분산 로드; READY_MAX=${READY_MAX}회×5s ≈ $(( READY_WINDOW_S / 60 ))분)..."
 # ── 실패 시 엔진 로그 보존 (2026-09-06 신설) ─────────────────────────────────────
 #   왜: 위 실패 판정은 `out of memory|NCCL error|did not join|RuntimeError` 라는 **닫힌 목록**으로
 #   grep 하고 `tail -3` 만 보여준다. 그런데 vLLM 이 마지막에 찍는 줄은
@@ -1134,6 +1161,12 @@ _save_serve_logs() {   # $1=사유 태그
 
 READY=0; LAST_HTTP=""
 _POLL_MAX="$READY_MAX"; [ "$SLAVE_UP_FAILED" = "1" ] && _POLL_MAX=0   # 서브가 서지 않았으면 기다리지 않는다
+# 폴링 안내는 실제로 폴링할 때만 찍는다(2026-09-30 · plan_26093003_56_16 G2 — 건너뛰는데 "≈15분" 이 찍혔다).
+if [ "$_POLL_MAX" -gt 0 ]; then
+  echo "[mn] 엔드포인트 :$PORT health 폴링(2노드 분산 로드; READY_MAX=${READY_MAX}회×5s ≈ $(( READY_WINDOW_S / 60 ))분)..."
+else
+  echo "[mn] health 폴링 생략(slave-up 실패 — 기다릴 서브 컨테이너가 없다)"
+fi
 for i in $(seq 1 "$_POLL_MAX"); do
   LAST_HTTP="$(curl -s -m 5 -o /dev/null -w '%{http_code}' http://localhost:$PORT/health 2>/dev/null)"
   [ "$LAST_HTTP" = "200" ] && { echo "[mn] READY ~$((i*5))s"; READY=1; break; }
