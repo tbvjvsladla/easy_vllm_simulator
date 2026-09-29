@@ -304,7 +304,8 @@ def _validate_record_shape(record) -> tuple[str, str] | None:
         return ("PUBLICATION_RECORD_CAPACITY_FLAG_INVALID",
                 "capacity_rejection_required must be boolean")
     expected_required = required_evidence_for(
-        record["task_class"], record["conditions"], record["benchmark"].get("verdict"))
+        record["task_class"], record["conditions"], record["benchmark"].get("verdict"),
+        gate.certificate_requirement_authority(record["benchmark"]))
     expected_or_group = (list(CAPACITY_REJECTION_OR_GROUP)
                          if record["task_class"] == "capacity_rejection" else [])
     expected_capacity_required = record["task_class"] == "capacity_rejection"
@@ -1583,7 +1584,11 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
         binding_events["certificate_unbound_from"] = prior_cert_rel
 
     certificate_rel = scaffolded.get("certificate") if args.verdict == "PASS" else None
-    pending_certificate = args.verdict == "PASS"
+    # 인증서를 **기다리는가**는 요구 증거와 같은 술어다(plan_26092908 §4.8) — 비발행 권한(weak·explore)의 PASS 는
+    # 벤치 스킬이 인증서를 내지 않으므로 기다릴 것이 없다(bench_report 판정 표가 면제 근거 · 게이트가 교차검증).
+    pending_certificate = "certificate" in required_evidence_for(
+        record["task_class"], record["conditions"], args.verdict,
+        gate.certificate_requirement_authority(rubric_record))
     if cert_src_rel:
         if prior_cert_rel not in (None, cert_src_rel):
             # 감사 A-2: 같은 토픽에 다른 인증서를 다시 묶는 일은 허용하되 **표면화**한다(종전엔 무로그 덮어쓰기)
@@ -1603,7 +1608,8 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
     # required matrix semantically while leaving required_evidence stale, making the next load
     # reject the publisher's own record.
     record["required_evidence"] = required_evidence_for(
-        record["task_class"], record["conditions"], args.verdict)
+        record["task_class"], record["conditions"], args.verdict,
+        gate.certificate_requirement_authority(record["benchmark"]))
     record["or_group_scaffolded"] = (
         list(CAPACITY_REJECTION_OR_GROUP)
         if record["task_class"] == "capacity_rejection" else [])
@@ -1887,7 +1893,8 @@ def cmd_init(args: argparse.Namespace) -> None:
     prior_benchmark_for_required = prior_benchmark_value if isinstance(prior_benchmark_value, dict) else {}
     verdict = (args.benchmark_verdict if args.benchmark_verdict is not None
                else prior_benchmark_for_required.get("verdict"))
-    required = required_evidence_for(args.task_class, conditions, verdict)
+    required = required_evidence_for(args.task_class, conditions, verdict,
+                                     gate.certificate_requirement_authority(prior_benchmark_for_required))
 
     or_group_scaffolded = list(CAPACITY_REJECTION_OR_GROUP) if args.task_class == "capacity_rejection" else []
     capacity_rejection_required = args.task_class == "capacity_rejection"
@@ -2065,7 +2072,8 @@ def cmd_publish_lite_report(args: argparse.Namespace) -> None:
     benchmark.setdefault("verdict", None)
     record["benchmark"] = benchmark
     record["required_evidence"] = required_evidence_for(record["task_class"], record["conditions"],
-                                                        benchmark.get("verdict"))
+                                                        benchmark.get("verdict"),
+                                                        gate.certificate_requirement_authority(benchmark))
     _save_record(repo_root, args.topic, record)
     _emit({
         "schema_version": SCHEMA_VERSION, "ok": True, "reason_codes": [], "messages": {},
@@ -2328,6 +2336,36 @@ def _self_test() -> None:
             raise RuntimeError(f"unbind must be surfaced, got {out['binding']!r}")
         if not (repo_root / cert_rel).is_file():
             raise RuntimeError("PASS→REFUTE must UNBIND, never unlink the skill-issued certificate")
+        # ── 인증서가 발행되는 판정만 인증서를 기다린다(plan_26092908 §4.8 · V11④) ─────────────────
+        #   explore/weak PASS 는 벤치 스킬이 인증서를 내지 않는다(judge_bench 자동 발행 = explicit ∧ PASS) — 기록의
+        #   required_evidence·pending_certificate 가 그 술어를 따라야 발행 게이트가 bench_report 로 충족된다.
+        def publish_with_verdict_json(authority, verdict="PASS", utc="2026-01-01T02:20:00Z"):
+            vj = repo_root / f"docs/_evidence/inputs/verdict_{authority}_{verdict}.json"
+            vj.write_text(json.dumps({"verdict": verdict, "rubric": {
+                "authority": authority, "floor": 8.5, "ratio_M_over_primary": 1.23,
+                "source": "expected_achievable(roofline×MBU)"}}), encoding="utf-8")
+            return invoke(["publish-benchmark", "--repo-root", str(repo_root), "--topic", "bench",
+                           "--verdict", verdict, "--generated-utc", utc, "--bench-report-src", rep_rel,
+                           "--verdict-json-src", str(vj.relative_to(repo_root))])
+        for authority, expect_pending in (("explore", False), ("weak", False), ("explicit", True)):
+            code, out = publish_with_verdict_json(authority)
+            if not (code == 0 and out and out.get("ok")):
+                raise RuntimeError(f"PASS+{authority} publish (verdict json, no certificate) failed: {out!r}")
+            rec = json.loads((repo_root / "docs/_evidence/bench.json").read_text(encoding="utf-8"))
+            if out.get("pending_certificate") is not expect_pending or \
+                    ("certificate" in rec["required_evidence"]) is not expect_pending:
+                raise RuntimeError(f"PASS+{authority}: pending_certificate={out.get('pending_certificate')!r} "
+                                   f"required={rec['required_evidence']!r} (certificate expected only for explicit)")
+            if _validate_record_shape(rec) is not None:
+                raise RuntimeError(f"PASS+{authority} record fails its own load validation: {_validate_record_shape(rec)!r}")
+        # ★음성대조: 권한을 모르는 PASS(verdict json 없음 → 출처 표시 없음)는 종전대로 인증서를 요구한다.
+        code, out = publish("PASS", cert=None, utc="2026-01-01T02:25:00Z")
+        rec = json.loads((repo_root / "docs/_evidence/bench.json").read_text(encoding="utf-8"))
+        if not (code == 0 and out.get("pending_certificate") is True and "certificate" in rec["required_evidence"]):
+            raise RuntimeError(f"PASS without a derived authority must keep requiring the certificate: {out!r}")
+        code, out = publish("REFUTE", cert=None, utc="2026-01-01T02:30:00Z")
+        if not (code == 0 and out and out.get("ok")):
+            raise RuntimeError(f"REFUTE re-publish after the waiver probes failed: {out!r}")
         # ── set-narrative 바인딩(plan_26090410 P5) — 규약 문서는 복사하지 않고 묶는다 ──────────────
         plan_src = "docs/plan/plan_26010109_selftest_source.md"
         (repo_root / plan_src).write_text("# plan\n실제 저작 본문.\n", encoding="utf-8")

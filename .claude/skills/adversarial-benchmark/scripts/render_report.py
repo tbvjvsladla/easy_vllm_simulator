@@ -241,13 +241,15 @@ def build_md(index, verdict, roofline, bench_mode_record=None, bench_mode_status
     # --- 판정 표시(inform-only) ---
     v = verdict.get("verdict", "N/A")
     rub = verdict.get("rubric") or {}
+    # ⚠ 파싱 계약: 이 절 머리 · 아래 `verdict` · `루브릭 권한` 행 문구는 completion_gate.bench_report_verdict_table 이
+    #   읽는다(인증서가 발행되지 않는 판정의 교차검증 · plan_26092908 §4.8) — 함께 바꿀 것.
     A("## 판정 (표시만 — verdict_rule.py 결과)")
     A("")
     A("| 항목 | 값 |")
     A("|---|---|")
-    A("| verdict | **%s** |" % v)
+    A("| verdict | **%s** |" % v)  # 파싱 계약(completion_gate.bench_report_verdict_table) — 함께 바꿀 것
     A("| 측정 decode t/s (동시성1) | %s |" % na(verdict.get("measured_decode_tps"), " t/s"))
-    A("| 루브릭 권한 | %s |" % na(rub.get("authority")))  # weak|explicit|explore (표시만 — plan_26082219 A7)
+    A("| 루브릭 권한 | %s |" % na(rub.get("authority")))  # weak|explicit|explore (표시만 — plan_26082219 A7) · 파싱 계약(completion_gate.bench_report_verdict_table) — 함께 바꿀 것
     A("| 루브릭 primary | %s (%s) |" % (na(rub.get("primary"), " t/s"), na(rub.get("source"))))
     A("| floor (primary×(1−tol)) | %s |" % na(rub.get("floor"), " t/s"))
     A("| ratio (M/primary) | %s |" % na(rub.get("ratio_M_over_primary")))

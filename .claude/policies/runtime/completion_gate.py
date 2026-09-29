@@ -1222,14 +1222,98 @@ def _simlog_terminated(repo_root: Path, manifest_dir: Path, rel_path: str) -> "t
                    "이 vault 는 자기가 끝났는지를 말하지 않는다")
 
 
-def required_evidence_for(task_class: str, conditions: dict, verdict) -> list[str]:
+# ---- 인증서가 발행되는 판정 (2026-09-29 · plan_26092908 §4.8 "explore PASS 인증서 이음매" · V11④) ----------
+# 인증서 발행 조건의 정본은 벤치 스킬이다: `judge_bench.sh` 는 **explicit ∧ PASS 만** 자동 발행하고
+# (weak·explore 는 "검증된 한계" 를 주장할 근거가 없어 리포트·sweep map 으로만 남긴다 · SKILL.md §2),
+# `publish_benchmark_record.py` 는 PASS 전용이다. 그런데 이 게이트는 `full_benchmark ∧ PASS` 전부에 인증서를
+# 요구했다 — 그래서 explore PASS 셀(DS4F `ds4f0731-1m-spec7-roce`)이 `EVIDENCE_MISSING:certificate` 로 막혔고,
+# 에이전트가 발행기를 손으로 불러 인증서를 만들었다(스킬이 내지 않는 판정을 게이트가 요구 = 두 옳은 규칙의
+# 이음매). 같은 explore 인데 REFUTE(D1 `nv4-bf-262k-mmp`)는 인증서 요구가 없어 bench_report + manifest
+# rubric carrier(아래 explore 승격 경로)로 통과했다 — 판정 결과(PASS/REFUTE)에 따라 같은 권한이 다른 증거를
+# 요구받았다.
+# 처방: 요구를 **발행 조건과 같은 술어**로 맞춘다. 인증서는 PASS ∧ 권한이 비발행 권한(weak·explore)이 **아닐** 때만
+# 필수다. 권한을 모르면(구 manifest · 출처 표시 없는 rubric) 종전대로 필수 — 면제는 **판정 원천에서 파생된**
+# 권한이 있을 때만 열린다(fail-closed). 면제된 PASS 는 인증서 대신 ① bench_report 의 판정 표가 같은 verdict·권한을
+# 말하고(`bench_report_verdict_table` 교차검증) ② manifest rubric 계약(floor>0·ratio·primary_source·출처)을
+# 통과해야 승격이 열린다 — 인증서가 걸던 공허 PASS 배제를 그대로 옮긴다. 인증서를 **합성하지 않는다**(docs.md).
+CERTIFICATE_ISSUING_AUTHORITIES = ("explicit",)
+CERTIFICATE_NON_ISSUING_AUTHORITIES = tuple(a for a in RUBRIC_AUTHORITIES
+                                            if a not in CERTIFICATE_ISSUING_AUTHORITIES)
+
+
+def certificate_requirement_authority(benchmark) -> "str | None":
+    """요구 증거 판정에 쓸 루브릭 권한 — **판정 원천에서 파생됐다고 표시된** 것만 돌려준다.
+
+    manifest/발행 기록의 `benchmark.rubric_authority` 는 `rubric_source ∈ MANIFEST_RUBRIC_SOURCES`
+    (= publisher 가 verdict_rule 산출물 `verdict.json` 에서 옮겼다는 표시)일 때만 채택한다. 표시가 없거나 값역 밖이면
+    None — 호출부(`required_evidence_for`)는 None 을 "권한 모름" 으로 읽어 인증서를 종전대로 요구한다."""
+    if not isinstance(benchmark, dict):
+        return None
+    authority = benchmark.get("rubric_authority")
+    source = benchmark.get("rubric_source")
+    if not (isinstance(authority, str) and isinstance(source, str)):
+        return None
+    authority, source = authority.strip(), source.strip()
+    if source not in MANIFEST_RUBRIC_SOURCES or authority not in RUBRIC_AUTHORITIES:
+        return None
+    return authority
+
+
+def certificate_waived(task_class: str, verdict, rubric_authority) -> bool:
+    """full_benchmark ∧ PASS 인데 권한이 비발행 권한이라 인증서가 **구조적으로 나오지 않는** 판정인가."""
+    return (task_class == "full_benchmark" and verdict == "PASS"
+            and rubric_authority in CERTIFICATE_NON_ISSUING_AUTHORITIES)
+
+
+# bench_report 판정 표(writer = adversarial-benchmark `render_report.py` "## 판정 (표시만 — verdict_rule.py 결과)")에서
+# 면제 교차검증에 필요한 두 행만 읽는다. 표 밖 산문 매치 ✗ · 절 머리로 시작해 다음 `## ` 에서 끝난다.
+BENCH_REPORT_VERDICT_SECTION_PREFIX = "## 판정 (표시만"
+_BENCH_REPORT_VERDICT_ROWS = {"verdict": "verdict", "루브릭 권한": "rubric_authority"}
+
+
+def bench_report_verdict_table(text) -> "tuple[dict | None, str]":
+    """bench_report 본문 → ({verdict, rubric_authority} | None, 상태). 상태: `parsed` · `absent(…)` · `unparseable(…)`.
+
+    값의 `**PASS**` 강조는 벗긴다. 두 행 중 하나라도 없거나 같은 행이 두 번 나오면 unparseable — 빈 값으로 접지 않는다."""
+    if not isinstance(text, str):
+        return None, "unparseable(본문이 UTF-8 문자열이 아니다)"
+    lines = text.splitlines()
+    try:
+        start = next(i for i, ln in enumerate(lines) if ln.strip().startswith(BENCH_REPORT_VERDICT_SECTION_PREFIX))
+    except StopIteration:
+        return None, "absent(판정 절 없음)"
+    out: dict = {}
+    for ln in lines[start + 1:]:
+        stripped = ln.strip()
+        if stripped.startswith("## "):
+            break
+        if not stripped.startswith("|"):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        if len(cells) < 2 or cells[0] not in _BENCH_REPORT_VERDICT_ROWS:
+            continue
+        field = _BENCH_REPORT_VERDICT_ROWS[cells[0]]
+        if field in out:
+            return None, f"unparseable(판정 표에 {cells[0]!r} 행이 두 번 있다)"
+        value = cells[1].strip().strip("*").strip()
+        out[field] = None if value.upper() in ("", "N/A") else value
+    missing = [k for k, f in _BENCH_REPORT_VERDICT_ROWS.items() if f not in out]
+    if missing:
+        return None, f"unparseable(판정 표에 {missing} 행이 없다)"
+    return out, "parsed"
+
+
+def required_evidence_for(task_class: str, conditions: dict, verdict, rubric_authority=None) -> list[str]:
+    """task_class·조건·판정 → 필수 증거 목록. `rubric_authority` 는 `certificate_requirement_authority()` 의 반환을
+    넘긴다(호출부가 원시 manifest 값을 넘기지 않는다 — 출처 표시 없는 권한으로 면제가 열리면 안 된다)."""
     required = list(BASE_REQUIRED_EVIDENCE.get(task_class, ()))
     conditions = conditions or {}
     if task_class == "harness_change" and conditions.get("actual_trial") is True:
         required.append("simlog")
     if task_class == "read_only_audit" and conditions.get("report_requested") is True:
         required.append("report")
-    if task_class == "full_benchmark" and verdict == "PASS":
+    if (task_class == "full_benchmark" and verdict == "PASS"
+            and not certificate_waived(task_class, verdict, rubric_authority)):
         required.append("certificate")
     return required
 
@@ -1888,7 +1972,11 @@ def cmd_verify(args: argparse.Namespace) -> None:
 
         # required_keys computed once, up front -- reused for the resolution pass (which paths to
         # capture full content for), the evidence-completeness loop, and PII coverage.
-        required_keys = required_evidence_for(task_class, conditions, verdict)
+        # 권한은 **출처 표시된** manifest rubric 에서만 읽는다(plan_26092908 §4.8) — 면제된 PASS 는 아래 evidence tier 에서
+        # bench_report 판정 표와 교차검증하고, 승격 tier 에서 manifest rubric 계약을 요구한다.
+        requirement_authority = certificate_requirement_authority(benchmark)
+        certificate_is_waived = certificate_waived(task_class, verdict, requirement_authority)
+        required_keys = required_evidence_for(task_class, conditions, verdict, requirement_authority)
 
         # ---- upfront hardened resolution pass over EVERY path-bearing field (evidence.* and
         # capacity_rejection.gate_evidence) BEFORE any state-machine tier decision. This is what
@@ -2190,6 +2278,40 @@ def cmd_verify(args: argparse.Namespace) -> None:
                                f"파일이 있다는 것과 run 이 끝났다는 것은 다른 사실이다"
                                f"(2026-09-07 · 유예 결함 ⑥).")
 
+        # ---- 인증서 면제의 교차검증 (plan_26092908 §4.8) ----
+        # 면제는 manifest 가 말한 권한 하나로 열리지 않는다 — 같은 측정의 bench_report(벤치 스킬의 결정론 렌더)가
+        # **같은 verdict·같은 권한**을 적어야 한다. 정적 파일끼리는 한쪽이 다른 쪽을 생성할 수 없으므로 교차검증이
+        # 차선이다(workflow.md §결정론 규율). 표가 없거나 갈라지면 증거 불완전(fail-closed) — 인증서를 요구하는 쪽으로
+        # 되돌리는 것이 아니라, 면제 근거가 서지 않았다는 사실을 그대로 표면화한다.
+        # 인증서가 (선택 증거로) 실려 있으면 교차검증하지 않는다 — 그 인증서가 위에서 verdict·권한·수치 계약을
+        # 이미 통과했고(아티팩트 > 선언), 면제는 쓰이지 않았다.
+        certificate_carried = bool(resolved.get("certificate") and resolved["certificate"]["status"] == "ok")
+        if certificate_is_waived and not certificate_carried:
+            report_r = resolved.get("bench_report")
+            table, table_state = (None, "absent(bench_report 미해소)")
+            if report_r and report_r["status"] == "ok":
+                try:
+                    report_text = (report_r.get("content_bytes") or b"").decode("utf-8")
+                except UnicodeDecodeError:
+                    report_text = None
+                table, table_state = bench_report_verdict_table(report_text)
+            corroborated = (isinstance(table, dict) and table.get("verdict") == verdict
+                            and table.get("rubric_authority") == requirement_authority)
+            if not corroborated:
+                all_present = False
+                add_reason("CERTIFICATE_WAIVER_UNCORROBORATED",
+                           f"benchmark verdict={verdict!r} ∧ rubric_authority={requirement_authority!r}(비발행 권한)라 "
+                           f"인증서를 요구하지 않지만, bench_report 판정 표가 그것을 말하지 않는다 "
+                           f"(state={table_state}, table={table!r}) — 면제 근거가 서지 않는다")
+            else:
+                # 출처 표시: 인증서가 요구되지 않은 PASS 는 그 근거(권한·교차검증)를 스스로 밝힌다. 출력 스키마
+                # (completion-manifest.schema.json · additionalProperties false)를 넓히지 않고 기존 reason 채널로 나른다
+                # (BENCHMARK_EXPLORE_AUTHORITY_PROMOTION 과 같은 정보성 코드).
+                add_reason("CERTIFICATE_WAIVED_NON_ISSUING_AUTHORITY",
+                           f"benchmark verdict='PASS' ∧ rubric_authority={requirement_authority!r} — 벤치 스킬은 이 판정에 "
+                           f"인증서를 발행하지 않는다(자동 발행 = explicit ∧ PASS). 요구 증거는 bench_report 이며 그 판정 표가 "
+                           f"같은 verdict·권한을 말한다(교차검증 일치 · state={table_state})")
+
         or_group_key = None
         if task_class == "capacity_rejection":
             devlog_exists = bool(resolved.get("devlog") and resolved["devlog"]["status"] == "ok")
@@ -2387,6 +2509,13 @@ def cmd_verify(args: argparse.Namespace) -> None:
                         "warning_flag 중 비어있는 항목이 있다 — fail-closed 로 차단한다.")
                 else:
                     add_reason("BENCHMARK_VERDICT_NOT_PASS", f"benchmark.verdict={verdict!r} (must be 'PASS' for promotion)")
+            elif certificate_is_waived and not certificate_present and not rubric_ok:
+                # 인증서가 면제된 PASS(비발행 권한 · plan_26092908 §4.8)는 인증서가 걸던 수치 계약(floor>0 ∧ ratio ∧
+                # primary_source)을 manifest rubric carrier 에서 그대로 요구한다 — 면제가 공허 PASS 의 옆문이 되지 않게.
+                add_reason("CERTIFICATE_WAIVED_RUBRIC_CONTRACT_UNMET",
+                           f"benchmark.verdict='PASS' ∧ rubric_authority={requirement_authority!r} → 인증서 면제. 그러나 "
+                           f"manifest rubric 계약이 서지 않는다(carrier={rubric_authority_source!r}, "
+                           f"floor_tps={rubric_floor!r}, ratio={rubric_ratio!r}) — 승격을 열지 않는다")
             else:
                 eligible = True
                 if rubric_authority == "explore":
