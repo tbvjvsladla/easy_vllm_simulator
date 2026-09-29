@@ -858,6 +858,7 @@ if [ "$BUDGET" = "1" ]; then
     echo "     왜: overhead 를 낮게 잡으면 선언 바닥이 높아져 정상 서빙이 무장 밴드에 들어간다(사살 실적)." >&2
     echo "     어떻게: SMOKE_BUDGET_OVERHEAD_MIB=<n> 로 넘겨라. 모르면 로드 완료 후" >&2
     echo "     (MemTotal − MemAvailable) − weights − kv 를 재서 그 값을 쓴다." >&2
+    disarm_armed_watchdogs   # 2026-09-30(testlog_26093001 D3): 이 STOP 도 워치독 무장 뒤다 — 해제 없이 끝나면 양 노드에 남는다
     exit 4
   fi
   # TTL 파생: 스모크 자신의 로드 타임아웃(READY_MAX×5s)의 3배 — 로드 도중 만료를 구조적으로 배제한다.
@@ -865,7 +866,7 @@ if [ "$BUDGET" = "1" ]; then
   READY_BUDGET_S=$READY_WINDOW_S
   # TTL 하한은 **단일 소유자**(blackbox_session)에게 묻는다 — 여기에 숫자를 다시 적지 않는다(G-B2).
   _TTL_FLOOR="$(python3 "$MAIN_SESSION_PY" --node-dir . budget-defaults --field ttl_s 2>/dev/null || echo)"
-  case "$_TTL_FLOOR" in ''|*[!0-9]*) echo "[mn] FAIL: 예산 TTL 기본값을 blackbox_session 에서 읽지 못했다" >&2; exit 4;; esac
+  case "$_TTL_FLOOR" in ''|*[!0-9]*) echo "[mn] FAIL: 예산 TTL 기본값을 blackbox_session 에서 읽지 못했다" >&2; disarm_armed_watchdogs; exit 4;; esac
   BUDGET_TTL_S=$(( READY_BUDGET_S * 3 )); [ "$BUDGET_TTL_S" -lt "$_TTL_FLOOR" ] && BUDGET_TTL_S="$_TTL_FLOOR"
   [ "$BUDGET_TTL_S" -gt 86400 ] && BUDGET_TTL_S=86400
 
@@ -931,6 +932,7 @@ if [ "$BUDGET" = "1" ]; then
   _PF_RC=$?
   if [ "$_PF_RC" != "0" ] && [ "$_PF_RC" != "4" ]; then
     echo "[mn] FAIL: 예산 선판정을 수행하지 못했다(rc=$_PF_RC) — $_PF" >&2
+    disarm_armed_watchdogs
     exit 4
   fi
   _pf(){ printf '%s' "$_PF" | python3 -c "import json,sys;print(json.load(sys.stdin).get(sys.argv[1]))" "$1" 2>/dev/null; }
@@ -938,7 +940,7 @@ if [ "$BUDGET" = "1" ]; then
   _OH_MAX="$(_pf overhead_max_mib)"; _WD_MIN_CEIL="$(_pf decl_min_ceiling_mib)"
   _MEMTOT_MAIN=$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)
   case "${_PRED_FLOOR}${_PRED_CEIL}" in ''|*None*)
-    echo "[mn] FAIL: 선판정 산출을 읽지 못했다 — $_PF" >&2; exit 4;;
+    echo "[mn] FAIL: 선판정 산출을 읽지 못했다 — $_PF" >&2; disarm_armed_watchdogs; exit 4;;
   esac
   echo "[mn] 예산 선판정: 예상 바닥=${_PRED_FLOOR}MiB → arm 상한=${_PRED_CEIL}MiB (가드 최소 ${_WD_MIN_CEIL}MiB)"
   echo "[mn] declared-gmu 기재(게이트 ✗): $(printf '%s' "$_PF" | python3 -c "
