@@ -554,6 +554,13 @@ def _load(name):
 
 index = _load("sweep_index.json") or {}
 verdict = _load("verdict.json") or {}
+# ★ 2026-09-29(plan_26092923_58_27 라이브 L3 발견): 측정이 성립하지 않은 셀은 이 스윕이 index·판정점·verdict 를 **쓰지 않았다** —
+#   스윕 디렉터리에 남은 것은 이전 스윕의 산출물이다. 종전에는 반복 축만 그 규칙을 지켰고 동시성 벡터·좌표·오류 분할·verdict 서술은
+#   그대로 옮겨, lite ② 로 GuideLLM 에 들어가지도 않은 셀이 09-03 스윕의 46.56 t/s 를 들고 cell.status 에 measurement_ok 로 올라갔다
+#   (실측인 척). 측정 불성립 셀에는 이 셋을 싣지 않는다 — 값이 비는 것이 이전 값을 들고 있는 것보다 정직하다.
+index_carried = cls.get("cell_outcome") == "measured"
+if not index_carried:
+    index, verdict = {}, {}
 
 
 def _bench_mode_fields():
@@ -573,7 +580,7 @@ def _bench_mode_fields():
 #   파서에 버려졌다는 사실이 사라진다. 실측(a0): 24건 중 3건이 harmony 토큰 경계에서 errored.
 #   parse_guidellm 이 "가르되 삼키지 않는다"로 고쳐졌는데 **마지막 홉에서 다시 삼켜졌다** —
 #   바로 위 moe_backend_mismatch 주석이 적은 것과 같은 계열의 결함이다(계산은 해 놓고 버린다).
-judged = _load(os.path.join("level_01", "measured.json")) or {}
+judged = (_load(os.path.join("level_01", "measured.json")) or {}) if index_carried else {}
 meta = index.get("meta") or {}
 # 동시성 축은 **벡터 전부**를 싣는다(한 점으로 접으면 승자가 뒤집힌다는 실측이 있다).
 vector = {str(l.get("level")): ((l.get("measured") or {}).get("decode_tps"))
@@ -588,6 +595,9 @@ cell = {
     "void_reason_source": cls.get("void_reason_source"),
     "note": cls.get("note"),
     "kill_events": cls.get("kill_events"),
+    "sweep_artifacts_carried": (True if index_carried else
+                                "false(cell_outcome=%s — 이 셀은 index·판정점·verdict 를 쓰지 않았다 · 디렉터리의 것은 이전 스윕)"
+                                % cls.get("cell_outcome")),
     # lite 게이트 판정(2026-09-29 · plan_26092923_58_27) — 분류기가 이번 셀 raw 에서 읽은 값을 그대로 옮긴다(판정 ✗).
     #   ② server_failed 는 실사용 불가 신호이고 캠페인 셀이면 writer 가 cap 차감·재발동 제안을 적는다.
     "lite_verdict": cls.get("lite_verdict"),

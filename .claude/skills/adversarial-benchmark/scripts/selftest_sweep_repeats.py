@@ -49,6 +49,7 @@
   B4★ declared_budget.repeats 없는 상태 파일 → 셀 진입 exit 2(새 run 소비 경로 · 기본값 발명 ✗)
   B5★ 같은 상태 파일의 status·map(읽기 경로)은 막히지 않는다 — 반복 수는 absent 로 기재
   B6★ broad_search 에 노드 간 허용오차 짝이 맞지 않거나 정수가 아니다 → 셀 진입 전 exit 2(측정·--serve-failed 둘 다 · 셀 기록 0)
+  B8★ lite ② 셀 → 사유 lite_server_failed · lite_verdict · 이전 스윕 index 값 비적재(2026-09-29)
   B7★ broad_search --serve-failed 셀 종결(single · self_role 없는 manifest) → 대조 노드는 소유자 규칙으로 선 이 노드(main) ·
       구간 안 사살 → 사인 = 이벤트(노드 계획 불성립으로 not-scanned 에 접히지 않는다)
   M1★ multi 배선 끝-끝(sweep_bench --topology multi · meta.measured_node=cluster · --manifest · node_role_contract):
@@ -158,7 +159,7 @@ if [ "$LV" = "absent" ]; then
   rm -f "$OUT/lite_raw_$CONFIG.json"
 else
 cat > "$OUT/lite_raw_$CONFIG.json" <<JSON
-{"topology": "single", "burst_n": 3, "lite_verdict": "$LV", "bench_warm_json": "$OUT/lite_warm_$CONFIG.json", "nodes": [{"role": "main"}]}
+{"topology": "single", "burst_n": 3, "lite_verdict": "$LV", "measured_utc": "$(date -u +%FT%TZ)", "bench_warm_json": "$OUT/lite_warm_$CONFIG.json", "nodes": [{"role": "main"}]}
 JSON
 fi
 exit "$LRC"
@@ -676,6 +677,32 @@ def main() -> int:
            (rec.get("cell_outcome"), rec.get("bench_mode"), rec.get("downgrade_reason"),
             rec.get("downgrade_reason_source"), cp.stderr[-600:]))
 
+        # B8★ lite ② 셀(2026-09-29 · plan_26092923_58_27 라이브 L3 발견) — 같은 config 의 이전 스윕(B1 cfg-ba)이 index·판정점을
+        #   남긴 디렉터리에서 lite 가 ② 로 멈추면: 사유 = lite_server_failed · lite_verdict 기록 · 이전 스윕의 벡터·오류 분할·verdict 0.
+        b8 = sb.camp / "sweeps" / "b8.json"
+        _d8 = sb.load(state)
+        _d8.update(cells=[], cells_remaining=["cell-a"])     # 같은 선언 · 셀 기록만 비운 전용 상태(정지 조건과 섞지 않는다)
+        b8.write_text(json.dumps(_d8), encoding="utf-8")
+        sb.clear_events()   # B3 의 사살 이벤트가 창에 남으면 사살이 사인이 된다(설계대로) — 여기서는 lite 사유만 본다
+        sb.reset_calls()
+        sb.config("cfg-ba")
+        cp = sb.run(["bash", bs, "cell", "--state", str(b8), "--cell-key", "cell-a", "--config", "cfg-ba",
+                     "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
+                     "--backend", "openai", "--levels", "1", "--num-prompts", "4", "--now-utc", now,
+                     "--topology", "single", "--confirm-risk"], plan={"lite": {"verdict": "server_failed", "rc": 7}})
+        rec = record("cell-a", b8)
+        ck("B8★ lite ② 셀 → measurement_void · 사유 lite_server_failed(lite_raw 출처) · lite_verdict 기록 · GuideLLM 레벨 0",
+           cp.returncode == 0 and rec.get("cell_outcome") == "measurement_void" and rec.get("void_reason") == "lite_server_failed"
+           and str(rec.get("void_reason_source")).startswith("lite_raw(") and rec.get("lite_verdict") == "server_failed"
+           and rec.get("lite_raw_status") == "fresh" and not [c for c in sb.calls() if "level=" in c],
+           (cp.returncode, {k: rec.get(k) for k in ("cell_outcome", "void_reason", "lite_verdict", "lite_raw_status")},
+            sb.calls(), cp.stderr[-500:]))
+        ck("B8★ 측정 불성립 셀은 디렉터리에 남은 이전 스윕의 벡터·오류 분할·verdict 를 싣지 않는다(실측인 척 ✗)",
+           rec.get("concurrency_vector") is None and (rec.get("measurement") or {}).get("completed_requests") is None
+           and rec.get("verdict_narrative") is None and str(rec.get("sweep_artifacts_carried")).startswith("false(")
+           and (sb.sweep_dir("cfg-ba") / "sweep_index.json").is_file(),
+           {k: rec.get(k) for k in ("concurrency_vector", "verdict_narrative", "sweep_artifacts_carried")})
+
         legacy = sb.camp / "sweeps" / "legacy.json"
         doc = sb.load(state)
         doc["declared_budget"].pop("repeats")
@@ -807,7 +834,7 @@ def main() -> int:
     if failures:
         print("[selftest_sweep_repeats] FAIL %d건: %s" % (len(failures), failures), file=sys.stderr)
         return 1
-    print("[selftest_sweep_repeats] PASS — N1~N8 · R1 · G(lite 게이트 5) · F1~F8 · V1 · A1~A4 · B1~B7 · M1~M2 · R★(실패주입·음성대조 포함)")
+    print("[selftest_sweep_repeats] PASS — N1~N8 · R1 · G(lite 게이트 5) · F1~F8 · V1 · A1~A4 · B1~B8 · M1~M2 · R★(실패주입·음성대조 포함)")
     return 0
 
 
