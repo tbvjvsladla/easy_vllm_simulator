@@ -825,7 +825,7 @@ def _attested_host(att: dict | None, key: str, timing_note: str | None = None) -
         where += " — " + "=".join(sorted(by_node)) + " 일치"
     # 범위 표지(attestation_scope 와 같은 결): 파일은 같은 config 의 다음 실행이 덮는다 — 이 측정 실행의 것인지는 미검증이다.
     #   G10: 같은 기동으로 판별됐으면(timing_note 에 판별 표지) 미검증 문장을 달지 않는다.
-    if not (timing_note and SAME_BOOT_MARK in timing_note):
+    if not (timing_note and (SAME_BOOT_MARK in timing_note or WEAK_SAME_BOOT_MARK in timing_note)):
         where += " · 이 측정 실행과 같은 실행인지 미검증(같은 호스트의 관측)"
     if timing_note:
         where += f" · {timing_note}"          # F7(2026-09-29): 작성 시각 대 측정 창
@@ -1979,7 +1979,9 @@ def event_timeline(repo, ev: CellEvidence) -> list[dict]:
     `kind: measurement` 행으로 싣는다 — 예산 선언이 하나도 없던 측정은 원장 행이 0 이라 종전 표에서 사라졌다(1차 저작자가 09-10 측정의
     '선언 없음' 을 손으로 캐야 했다). 라벨: `measurement (no budget event recorded)` · `(budget window recorded)` ·
     `(other label's budget window)` · `(budget window closure unobserved)`(스트림이 창을 연 채 끝났다) · `(ledger unobserved)`(그 시각을
-    관측한 원장 없음). 판정 증인 = 그 시각을 기록 범위(첫 행~마지막 행) 안에 둔 노드 원장뿐(적대 검토 2026-09-22)."""
+    관측한 원장 없음). 판정 증인 = 그 시각을 기록 범위(첫 행~마지막 행) 안에 둔 노드 원장뿐(적대 검토 2026-09-22).
+    2026-09-29: 캠페인 경계(`event_campaign_boundary`)가 관측되면 시각 있는 행마다 `campaign_scope` ∈ this-campaign · prior-campaign
+    (경계 이전 = 같은 셀 이름 · 앞선 캠페인 — 행은 싣고 detail 에 적는다 · 기동 시도로 세지 않는다)."""
     repo = _repo(repo)
     rows, _files = _timeline_parts(repo, ev)
     return rows
@@ -2020,12 +2022,69 @@ def event_files(repo, ev: CellEvidence) -> list[str]:
     return [p for p, _k in _timeline_parts(_repo(repo), ev)[1]]
 
 
+# ── 캠페인 경계(2026-09-29 · FACT 교정 — 라벨만으로 묶던 기동 시도) ─────────────────────────────────────────────────
+# 원장 행은 **라벨(셀 이름)** 로 이 셀에 묶인다. 같은 셀 이름이 앞선 캠페인에서도 쓰이면(camp-26092808 → camp-26092913 의
+#   `ds4f0731-1m-spec7-roce`) 앞선 캠페인의 기동 시도 1~3 과 그 측정까지 "이 셀의 기동 시도" 로 세였다(4회 — 이번 캠페인은 1회).
+#   경계 = min(현 캠페인 선언 `declared_utc`, 이 발행이 묶인 측정의 선언 창 시작) — 둘 중 앞선 것. 둘을 함께 보는 이유: 선언 시각은
+#   손으로 적힌 값이라 실제 첫 선언보다 늦을 수 있다(실측: declared_utc 04:55:00Z · 이 측정을 서빙한 budget_declare 04:54:44Z).
+#   경계 이전 행 = `campaign_scope: prior-campaign`(삭제 ✗ · 행은 그대로 · detail 에 "같은 셀 이름 · 앞선 캠페인") · 이후 = `this-campaign`.
+#   재생(캠페인 purge · 선언 없음)은 경계를 관측하지 못한다 — 행에 scope 를 달지 않고(현 규칙: 라벨 전부) 경계 미관측을 표지한다.
+CAMPAIGN_SCOPE_THIS = "this-campaign"
+CAMPAIGN_SCOPE_PRIOR = "prior-campaign"
+PRIOR_CAMPAIGN_NOTE = "같은 셀 이름 · 앞선 캠페인"
+
+
+def _campaign_boundary(ev: CellEvidence, win: dict | None) -> dict:
+    """{utc | None, source, observed} — 위 주석의 규칙(판정은 여기 한 벌 · template 은 옮기기만)."""
+    decl = (ev.declaration or {}).get("declared_utc") if ev.mode == "campaign" else None
+    decl = decl if isinstance(decl, str) and _UTC.fullmatch(decl) else None
+    ws = (win or {}).get("start_ts") if ev.mode == "campaign" else None
+    if decl is None and ws is None:
+        why = ("재생 모드(캠페인 purge) — 캠페인 선언을 관측하지 못한다" if ev.mode != "campaign"
+               else "캠페인 선언 declared_utc · 측정을 서빙한 선언 창 모두 미관측")
+        return {"utc": None, "observed": False, "campaign_id": ev.campaign_id,
+                "source": f"{why} · 경계 미관측 — 라벨(셀 이름)로 묶은 행 전부를 이 셀의 행으로 센다(같은 셀 이름의 앞선 캠페인 행이 섞였을 수 있다)"}
+    parts = []
+    if decl:
+        parts.append(f"campaigns/{ev.campaign_id}/campaign.yaml declared_utc {decl}")
+    if ws:
+        parts.append(f"이 발행이 묶인 측정을 서빙한 budget_declare 창 시작 {ws}")
+    b = min(x for x in (decl, ws) if x)
+    return {"utc": b, "observed": True, "campaign_id": ev.campaign_id,
+            "source": " · ".join(parts) + f" → 경계 = 앞선 값 {b}(이전 행 = {PRIOR_CAMPAIGN_NOTE})"}
+
+
+def event_campaign_boundary(repo, ev: CellEvidence) -> dict:
+    """이 셀 타임라인의 캠페인 경계(공유 계약 `facts['event_campaign_boundary']`) — {utc, observed, campaign_id, source}."""
+    repo = _repo(repo)
+    return _campaign_boundary(ev, _ledger_timeline(repo, ev)[2])
+
+
+def _scope_rows(rows: list[dict], bnd: dict) -> list[dict]:
+    b = bnd.get("utc")
+    if not b:
+        return rows
+    out = []
+    for r in rows:
+        u = r.get("utc")
+        if not isinstance(u, str):
+            out.append(r)
+            continue
+        if u < b:
+            out.append({**r, "campaign_scope": CAMPAIGN_SCOPE_PRIOR,
+                        "detail": f"{r.get('detail') or ''} · {PRIOR_CAMPAIGN_NOTE}(캠페인 경계 {b} 이전 — 이 셀의 시도로 세지 않는다)"})
+        else:
+            out.append({**r, "campaign_scope": CAMPAIGN_SCOPE_THIS})
+    return out
+
+
 def _timeline_parts(repo: Path, ev: CellEvidence) -> tuple[list[dict], list[tuple[str, str]]]:
-    """(시각순 행, [(인용 파일, 후보 kind)]). 원장 행 + 과거 측정 행 + 측정 창 안 엔진 기동 표지."""
+    """(시각순 행, [(인용 파일, 후보 kind)]). 원장 행 + 과거 측정 행 + 측정 창 안 엔진 기동 표지. 행마다 캠페인 경계 대비
+    `campaign_scope`(경계 관측 시)."""
     ctx: dict = {}
     rows, files, win = _ledger_timeline(repo, ev, ctx)
     mrows, mfiles = _measurement_rows(repo, ev, ctx)
-    out = sorted(rows + mrows + _startup_markers(repo, ev, win), key=_timeline_key)
+    out = _scope_rows(sorted(rows + mrows + _startup_markers(repo, ev, win), key=_timeline_key), _campaign_boundary(ev, win))
     cited = {f: "events_ledger" for f in files}
     for f, k in mfiles:
         cited.setdefault(f, k)
@@ -3197,7 +3256,8 @@ def attestation_scope(repo, ev: CellEvidence) -> dict | None:
     elif timing == "after-measurement":
         scope = f"same config({cfg}) · {phase} — 측정 뒤 재기동의 관측이다(이 측정 실행의 관측이 아니다 · 파일은 다음 실행이 덮는다)"
     elif timing == "before-measurement" and (sb := attestation_same_boot(repo, ev, written, win)):
-        scope = f"same config({cfg}) · {phase} — {SAME_BOOT_MARK}(판별: {sb['basis']})"
+        mark = SAME_BOOT_MARK if sb.get("strength") == "strong" else WEAK_SAME_BOOT_MARK
+        scope = f"same config({cfg}) · {phase} — {mark}(판별: {sb['basis']})"
     elif timing == "before-measurement":
         scope = (f"same config({cfg}) · {phase} — 측정 전(빌드·스모크)의 관측 · 측정을 서빙한 기동과 같은 실행인지는 미검증"
                  "(파일은 다음 실행이 덮는다)")
@@ -3234,8 +3294,10 @@ def _attestation_timing_note(ev: CellEvidence) -> str | None:
     timing, tnote, win = _attestation_timing(repo, ev, written)
     if timing == "before-measurement" and att.get("config") == ev.cell:
         sb = attestation_same_boot(repo, ev, written, win)
-        if sb:
+        if sb and sb.get("strength") == "strong":
             tnote = f"{tnote} · {SAME_BOOT_MARK}(판별 근거 = attestation 범위 줄 · 스모크 로그 {sb['files'][0]})"
+        elif sb:
+            tnote = f"{tnote} · {WEAK_SAME_BOOT_MARK}(판별 근거 = attestation 범위 줄 · 원장 {sb['files'][0]})"
     return tnote
 
 
@@ -3248,7 +3310,15 @@ def _attestation_timing_note(ev: CellEvidence) -> str | None:
 #   ② 스모크 로그(docs/simlog/**/*serve*.log): `SMOKE PASS` → 이 attestation 경로 줄 → `--keep-up` 이 이 순서로 있고, 그 로그의 main
 #      `budget_honored` ts = D 다(같은 선언의 기동)
 #   ③ 측정 엔진 로그의 APIServer pid 가 둘 이상이면 불성립(서빙 프로세스 교체) · 하나면 근거에 싣는다 · 없으면 미관측으로 적는다.
+#   2026-09-29 교정: ②의 대조는 원장 `budget_declare` ts 와 스모크 로그 `budget_honored` ts 의 **문자 일치**였다 — 실 워치독은 선언 1초 뒤에
+#   honored 를 쓴다(원장 declare 04:54:44Z · watchdog.jsonl honored 04:54:45Z) → 스모크 로그가 있어도 늘 불성립이었다. 이제 스모크 로그
+#   honored ts 가 {D ts} ∪ {원장의 같은 라벨 `budget_honored` 중 D 이후 · attestation 작성 이전} 에 들면 같은 선언이다.
+#   약한 판별(스모크 로그 미보존 · ② 불성립 · ①③ 성립): attestation · serve_proof(같은 config · 있으면) 작성 시각이 모두 [D, 측정 시작) 안이고,
+#   측정 엔진 로그의 API 서버 기동 시각(`Starting vLLM server on` · 컨테이너 시계 = UTC 가정)이 관측되면 D ≤ 기동 ≤ attestation 작성
+#   (스모크 PASS 는 서버가 떠 있어야 난다) — 모순이면 판별 ✗. 표지 = WEAK_SAME_BOOT_MARK(강한 판별과 다른 문구 · 근거 문장 필수).
 SAME_BOOT_MARK = "측정을 서빙한 같은 기동의 스모크 직후 관측"
+WEAK_SAME_BOOT_MARK = "원장 순서로 판별한 같은 기동의 관측(스모크 로그 미보존 · 약한 판별)"
+_SERVER_STARTING = re.compile(r"Starting vLLM server on ")
 _APISERVER_PID = re.compile(r"\(APIServer pid=(\d+)\)")
 _HONORED_TS = re.compile(r'budget_honored\b.*?"ts"\s*:\s*"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)"')
 
@@ -3261,8 +3331,28 @@ def _smoke_serve_logs(repo: Path) -> list[Path]:
     return [p for p in out if p.is_file() and not p.is_symlink() and "watchdog" not in p.name]
 
 
+def _api_server_start(repo: Path, ev: CellEvidence, year_hint: str) -> tuple[str | None, str | None]:
+    """측정 엔진 로그의 첫 `Starting vLLM server on` 줄 시각(UTC · 컨테이너 시계 = UTC 가정 · 연도 = year_hint 의 연도) · 출처 `파일:줄`."""
+    dt0 = _utc_dt(year_hint)
+    for lp in _measured_engine_logs(repo, ev)[0]:
+        for i, line in enumerate(_log_lines(lp), 1):
+            clean = _ANSI.sub("", line)
+            if not _SERVER_STARTING.search(clean):
+                continue
+            tm = _ENGINE_TS.search(clean)
+            if not tm or dt0 is None:
+                continue
+            mo, d, h, mi, sec = (int(x) for x in tm.groups())
+            try:
+                u = _dt.datetime(dt0.year, mo, d, h, mi, sec).strftime("%Y-%m-%dT%H:%M:%SZ")
+            except ValueError:
+                continue
+            return u, f"{_rel(repo, lp)}:{i}"
+    return None, None
+
+
 def attestation_same_boot(repo, ev: CellEvidence, written: str | None, win: dict | None) -> dict | None:
-    """G10 판별 — {basis, files[]} | None(판별 불가). 규칙은 위 주석(①②③)."""
+    """G10 판별 — {basis, files[], strength: strong|weak} | None(판별 불가). 규칙은 위 주석(①②③ · 약한 판별)."""
     repo = _repo(repo)
     att = ev.attestation if isinstance(ev.attestation, dict) else {}
     end = (win or {}).get("end_utc")
@@ -3286,35 +3376,63 @@ def attestation_same_boot(repo, ev: CellEvidence, written: str | None, win: dict
                                                         (r[2].get("kind") == "budget_clear" and r[2].get("existed") is True))]
         if brk:
             return None                 # 측정 끝 전에 재선언 · 창 닫힘 — 같은 기동이 아닐 수 있다
+        honored = {r[0] for r in rows if r[2].get("kind") == "budget_honored" and r[2].get("label") == label
+                   and d[0] <= r[0] <= written}
         if decl is None or node == "main":
-            decl = (node, d)
+            decl = (node, d, honored)
     if decl is None:
         return None
-    node, d = decl
-    hit = None
-    ap = str(att["_path"])
-    for lg in _smoke_serve_logs(repo):
-        lines = _log_lines(lg)
-        i_pass = next((i for i, x in enumerate(lines) if "SMOKE PASS" in x), None)
-        i_att = next((i for i, x in enumerate(lines) if i_pass is not None and i > i_pass and ap in x), None)
-        i_keep = next((i for i, x in enumerate(lines) if i_att is not None and i > i_att and "--keep-up" in x), None)
-        honored = {m.group(1) for x in lines for m in [_HONORED_TS.search(x)] if m}
-        if i_keep is not None and d[0] in honored:
-            hit = (lg, i_pass + 1, i_att + 1, i_keep + 1)
-            break
-    if hit is None:
-        return None
+    node, d, ledger_honored = decl
     pids: set[str] = set()
     for lp in _measured_engine_logs(repo, ev)[0]:
         pids.update(_APISERVER_PID.findall(_ANSI.sub("", lp.read_bytes().decode("utf-8", "replace"))))
     if len(pids) > 1:
         return None                     # 측정 로그에 서빙 프로세스가 둘 — 교체
-    lg, a, b, c = hit
-    basis = (f"스모크 로그 {_rel(repo, lg)} L{a} SMOKE PASS → L{b} attestation 작성 → L{c} --keep-up · 원장 {d[3]}:{d[1]} budget_declare"
-             f"({label} · {d[0]}) 가 측정 끝 {end} 까지 재선언 · 창 닫힘 없이 이어짐({node} 원장 기록 범위 안) · 스모크 로그 budget_honored "
-             f"ts = 그 선언 · 측정 엔진 로그 APIServer pid " + (f"{sorted(pids)[0]} 하나" if pids else "미관측")
-             + (f" · 측정 시작 {start}" if start else ""))
-    return {"basis": basis, "files": [_rel(repo, lg), d[3]]}
+    pid_txt = "측정 엔진 로그 APIServer pid " + (f"{sorted(pids)[0]} 하나" if pids else "미관측")
+    same_decl = {d[0]} | ledger_honored
+    hit = None
+    seen: list[str] = []                # 이 attestation 경로를 적은 스모크 로그(있는데 ②가 불성립이면 약한 판별로 내려가지 않는다)
+    ap = str(att["_path"])
+    for lg in _smoke_serve_logs(repo):
+        lines = _log_lines(lg)
+        if any(ap in x for x in lines):
+            seen.append(_rel(repo, lg))
+        i_pass = next((i for i, x in enumerate(lines) if "SMOKE PASS" in x), None)
+        i_att = next((i for i, x in enumerate(lines) if i_pass is not None and i > i_pass and ap in x), None)
+        i_keep = next((i for i, x in enumerate(lines) if i_att is not None and i > i_att and "--keep-up" in x), None)
+        honored = {m.group(1) for x in lines for m in [_HONORED_TS.search(x)] if m}
+        if i_keep is not None and honored & same_decl:
+            hit = (lg, i_pass + 1, i_att + 1, i_keep + 1, sorted(honored & same_decl)[0])
+            break
+    if hit is not None:
+        lg, a, b, c, hts = hit
+        basis = (f"스모크 로그 {_rel(repo, lg)} L{a} SMOKE PASS → L{b} attestation 작성 → L{c} --keep-up · 원장 {d[3]}:{d[1]} budget_declare"
+                 f"({label} · {d[0]}) 가 측정 끝 {end} 까지 재선언 · 창 닫힘 없이 이어짐({node} 원장 기록 범위 안) · 스모크 로그 budget_honored "
+                 f"ts {hts} = 그 선언" + ("" if hts == d[0] else "의 원장 budget_honored") + f" · {pid_txt}"
+                 + (f" · 측정 시작 {start}" if start else ""))
+        return {"basis": basis, "files": [_rel(repo, lg), d[3]], "strength": "strong"}
+    # ── 약한 판별: 원장 순서만 — 스모크 로그가 **없을 때만**(있는데 순서 · 선언 대조가 불성립이면 모순이다 · 판별 ✗) ──
+    if seen or not start or not (d[0] <= written < start):
+        return None
+    times = [f"attestation 작성 {written}"]
+    sp = ev.serve_proof if isinstance(ev.serve_proof, dict) else None
+    sp_rel = (ev.sources or {}).get("serve_proof")
+    if sp is not None and sp.get("config") == ev.cell and isinstance(sp_rel, str) and (repo / sp_rel).is_file():
+        spw = _attestation_written(repo, {**sp, "_path": sp_rel})[0]
+        if not spw or not (d[0] <= spw < start):
+            return None                 # serve_proof 작성 시각이 [선언, 측정 시작) 밖 — 다른 기동의 스모크일 수 있다
+        times.append(f"serve_proof 작성 {spw}")
+    else:
+        times.append("serve_proof 미관측")
+    srv, srv_src = _api_server_start(repo, ev, d[0])
+    if srv and not (d[0] <= srv <= written):
+        return None                     # API 서버 기동이 선언 전이거나 attestation 뒤 — 원장 순서와 모순
+    srv_txt = (f"API 서버 기동 {srv}({srv_src} · 컨테이너 시계 = UTC 가정) ∈ [선언, attestation 작성]" if srv
+               else "API 서버 기동 시각 미관측(모순 검사 불가)")
+    basis = (f"원장 순서로 판별(스모크 로그 미보존 — docs/simlog/**/*serve*.log 에 이 attestation 을 적은 스모크 로그 없음): "
+             f"원장 {d[3]}:{d[1]} budget_declare({label} · {d[0]}) ≤ {' · '.join(times)} < 측정 시작 {start} · 그 선언이 측정 끝 {end} 까지 "
+             f"재선언 · 창 닫힘 없이 이어짐({node} 원장 기록 범위 안) · {srv_txt} · {pid_txt}")
+    return {"basis": basis, "files": [d[3]] + ([srv_src.rsplit(":", 1)[0]] if srv_src else []), "strength": "weak"}
 
 
 _BENCH_JSON_DATE = re.compile(r"^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$")
@@ -5753,6 +5871,27 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
        and "닫힘 budget_clear 2026-01-02T03:10:00Z" in decl[1]["detail"])
     ck("파손 줄은 판독 불가로 기재(부재 ≠ 실패)", any(r["kind"] == "ledger_unparsable_lines" and "1줄" in r["detail"] for r in tl))
     ck("타임라인 utc 순", [r["utc"] for r in tl if r["utc"]] == sorted(r["utc"] for r in tl if r["utc"]))
+    # ── 캠페인 경계(2026-09-29 FACT 교정): 같은 셀 이름의 앞선 캠페인 행은 이 셀의 시도로 세지 않는다 ──
+    d0u, d1u = decl[0]["utc"], decl[1]["utc"]
+    late_decl = {**(ev.declaration or {}), "declared_utc": "2026-01-02T23:00:00Z"}     # 손으로 적힌 선언 시각이 실제 선언보다 늦다
+    evb = dataclasses.replace(ev, mode="campaign", declaration=late_decl)
+    bnd = event_campaign_boundary(repo, evb)
+    tlb = event_timeline(repo, evb)
+    db = [r for r in tlb if r["kind"] == "budget_declare"]
+    ck("캠페인 경계 = min(declared_utc, 측정 선언 창 시작) · 이전 선언 창 = 같은 셀 이름 · 앞선 캠페인(행은 남는다)",
+       bnd["utc"] == d1u and bnd["observed"] and "declared_utc 2026-01-02T23:00:00Z" in bnd["source"]
+       and len(db) == 2 and db[0]["campaign_scope"] == CAMPAIGN_SCOPE_PRIOR and PRIOR_CAMPAIGN_NOTE in db[0]["detail"]
+       and db[1]["campaign_scope"] == CAMPAIGN_SCOPE_THIS and PRIOR_CAMPAIGN_NOTE not in db[1]["detail"]
+       and len(tlb) == len(tl))
+    early = dataclasses.replace(evb, declaration={**late_decl, "declared_utc": "2025-12-31T00:00:00Z"})
+    ck("★음성대조: 선언 시각이 모든 행보다 앞이면 앞선 캠페인 행 0(경계가 과하게 자르지 않는다)",
+       event_campaign_boundary(repo, early)["utc"] == "2025-12-31T00:00:00Z"
+       and not any(r.get("campaign_scope") == CAMPAIGN_SCOPE_PRIOR for r in event_timeline(repo, early)))
+    rp = dataclasses.replace(evb, mode="publication-replay", campaign_id=None)
+    bnr = event_campaign_boundary(repo, rp)
+    ck("★재생 모드(캠페인 purge) = 경계 미관측 표지 · 행에 scope 없음(현 규칙: 라벨 전부) · 행 수 같음",
+       bnr["utc"] is None and bnr["observed"] is False and "경계 미관측" in bnr["source"]
+       and not any("campaign_scope" in r for r in event_timeline(repo, rp)) and d0u < d1u)
     srv = next((r for r in tl if r["kind"] == "server_starting"), {})
     ck("기동 표지 — API 서버 기동 = 측정 창 선언 후 28m00s · 출처 줄 = `\\n` 기준(★`\\r` 진행줄이 줄을 밀지 않는다)",
        "후 28m00s" in srv.get("detail", "") and srv.get("source", "").endswith("lite_engine_c1-a.log:5"))
@@ -6679,6 +6818,45 @@ def _selftest_fix2(ck, td: Path, ev: CellEvidence) -> None:
     ck("★G10 음성대조: 측정 로그에 APIServer pid 둘(서빙 프로세스 교체) = 판별 ✗",
        attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win) is None)
     (bl / "lite_engine_cl.log").write_text("(APIServer pid=5) a\n", encoding="utf-8")
+    # ── G10 교정(2026-09-29): 워치독 honored 는 선언 1초 뒤다 — 원장의 같은 라벨 budget_honored 로 대조한다 ──
+    led = r / REL_EVENTS_ROOT / "main/events/2026-01.jsonl"
+    led_bytes = led.read_bytes()
+    off = [good[0].replace("02:50:00Z", "02:50:01Z")] + good[1:]
+    (sl / "fx_serve.log").write_text("\n".join(off) + "\n", encoding="utf-8")
+    ck("★G10 음성대조: 스모크 로그 honored ts 가 선언 · 원장 honored 어디에도 없으면 판별 ✗",
+       attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win) is None)
+    with open(led, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"ts": "2026-01-02T02:50:01Z", "kind": "budget_honored", "label": "smoke-cl"}) + "\n")
+    sb1 = attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win)
+    ck("G10 스모크 로그 honored ts = 원장의 같은 선언 budget_honored(1초 뒤)면 강한 판별",
+       sb1 and sb1["strength"] == "strong" and "02:50:01Z = 그 선언의 원장 budget_honored" in sb1["basis"])
+    # ── 약한 판별: 스모크 로그 미보존 · 원장 순서만 ──
+    (sl / "fx_serve.log").unlink()
+    (bl / "lite_engine_cl.log").write_text("(APIServer pid=5) INFO 01-02 02:52:00 [entry.py:1] Starting vLLM server on http://x\n",
+                                           encoding="utf-8")
+    sbw = attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win)
+    scw = attestation_scope(r, ev10)
+    ck("G10 약한 판별: 스모크 로그 없음 · 선언 ≤ serve_proof · attestation 작성 < 측정 시작 · API 서버 기동 ∈ [선언, 작성] = 원장 순서 판별",
+       sbw and sbw["strength"] == "weak" and "원장 순서로 판별(스모크 로그 미보존" in sbw["basis"]
+       and "serve_proof 작성 2026-01-02T02:58:20Z" in sbw["basis"] and "API 서버 기동 2026-01-02T02:52:00Z" in sbw["basis"]
+       and WEAK_SAME_BOOT_MARK in scw["scope"] and SAME_BOOT_MARK not in scw["scope"] and "미검증" not in scw["scope"]
+       and WEAK_SAME_BOOT_MARK in (_attestation_timing_note(dataclasses.replace(ev10, repo=str(r))) or ""))
+    (bl / "lite_engine_cl.log").write_text("(APIServer pid=5) INFO 01-02 02:57:00 [entry.py:1] Starting vLLM server on http://x\n",
+                                           encoding="utf-8")
+    ck("★G10 약한 판별 음성대조: API 서버 기동이 attestation 작성 뒤(모순) = 판별 ✗ · scope '미검증'",
+       attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win) is None and "미검증" in attestation_scope(r, ev10)["scope"])
+    (bl / "lite_engine_cl.log").write_text("(APIServer pid=5) a\n", encoding="utf-8")
+    os.utime(sp, (1767322860, 1767322860))           # serve_proof 03:01:00Z ≥ 측정 시작
+    ck("★G10 약한 판별 음성대조: serve_proof 작성이 측정 시작 이후 = 판별 ✗",
+       attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win) is None)
+    os.utime(sp, (1767322700, 1767322700))
+    ck("G10 약한 판별: API 서버 기동 미관측은 모순이 아니다(근거에 미관측을 적는다)",
+       "API 서버 기동 시각 미관측" in (attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win) or {}).get("basis", ""))
+    (sl / "fx_serve.log").write_text("\n".join([good[0], good[1], good[3], good[2]]) + "\n", encoding="utf-8")
+    ck("★G10 음성대조: 스모크 로그가 있는데 순서가 어긋나면 약한 판별로 내려가지 않는다(모순)",
+       attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win) is None)
+    (sl / "fx_serve.log").write_text("\n".join(good) + "\n", encoding="utf-8")
+    led.write_bytes(led_bytes)
     with open(r / REL_EVENTS_ROOT / "main/events/2026-01.jsonl", "a", encoding="utf-8") as fh:
         fh.write(json.dumps({"ts": "2026-01-02T03:00:30Z", "kind": "budget_declare", "label": "smoke-other"}) + "\n")
     ck("★G10 음성대조: 측정 끝 전 재선언(다른 기동) = 판별 ✗", attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win) is None)

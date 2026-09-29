@@ -93,7 +93,9 @@ render_scaffold 가 소비하는 facts 키 (evidence·artifacts·lineage 가 조
                                       observed{start_utc,end_utc,seconds,bound,layer_span{oldest_utc,newest_utc,layers,source,note}},
                                       success(단계별 성공 판정),duration,source} · layer_span = build 단계의 이미지 층 CreatedAt 창(표 아래 줄) ·
                                       FACT 에 절 자리표시(`§3.x`)가 남으면 `HINT_FACT_PLACEHOLDER`
-    event_timeline              list  evidence.event_timeline — [{utc,node,kind,label,detail,source}](블랙박스 원장의 이 셀 행 · 시각순)
+    event_timeline              list  evidence.event_timeline — [{utc,node,kind,label,detail,source,campaign_scope?}](블랙박스 원장의 이 셀 행 · 시각순)
+    event_campaign_boundary     dict  evidence.event_campaign_boundary — {utc,observed,campaign_id,source}(캠페인 경계 · 이전 행 = 같은 셀
+                                      이름 · 앞선 캠페인 — 기동 시도로 세지 않는다 · 재생 = 경계 미관측)
     event_ledger_spans          list  evidence.event_ledger_spans — [{node,first_utc,last_utc,files,covers_measurement,measurement_end_utc}]
                                       (노드 원장의 관측 범위 · 범위 끝 뒤 = 관측 범위 밖 · FACT_FIX2 G8)
                                       → 01 §1.4 표 + 기동 시도 묶음 · 02 §2.2 기동 시도 요약
@@ -1681,8 +1683,9 @@ def _attempts(rows: list[dict]) -> list[dict]:
         opens = kind in _ATTEMPT_OPEN
         a = None if opens else (cur.get(key) or last)
         if a is None:
+            # campaign_scope = 시도를 연 행의 것(evidence 가 캠페인 경계로 단 값 · 판정 ✗ — 옮기기만)
             a = {"node": r.get("node"), "label": r.get("label"), "declare": r.get("utc") if opens else None,
-                 "renew": [], "alerts": {}, "end": None, "end_utc": None, "other": 0}
+                 "renew": [], "alerts": {}, "end": None, "end_utc": None, "other": 0, "scope": r.get("campaign_scope")}
             out.append(a)
             cur[key] = last = a
             if opens:
@@ -1698,16 +1701,41 @@ def _attempts(rows: list[dict]) -> list[dict]:
     return out
 
 
-def _attempts_table(rows: list[dict]) -> list[str]:
+def _attempts_rows(att: list[dict], prefix: str = "") -> list[str]:
+    return _table(("시도", "노드", "label", "선언(UTC)", "갱신(renew)", "사살 · 트립 · 거부", "닫힘", "그 밖 행"),
+                  [(f"{prefix}{i}", _cell(a["node"]), f"`{_cell(a['label'])}`" if a["label"] else "—", _cell(a["declare"], "—(선언 행 없음)"),
+                    (f"{len(a['renew'])}회 · 첫 {_cell(a['renew'][0])}" if a["renew"] else "없음"),
+                    (" · ".join(f"`{k}` {n}" for k, n in sorted(a["alerts"].items())) if a["alerts"] else "없음"),
+                    (f"`{a['end']}` {_cell(a['end_utc'])}" if a["end"] else "—(닫힘 행 없음)"), str(a["other"]))
+                   for i, a in enumerate(att, 1)])
+
+
+def _boundary_line(bnd: dict | None) -> list[str]:
+    """캠페인 경계 줄(evidence.event_campaign_boundary 그대로 — 판정 ✗). 경계 미관측(재생)이면 그 사실을 적는다(침묵 ✗)."""
+    if not isinstance(bnd, dict):
+        return []
+    if not bnd.get("utc"):
+        return ["", f"> **캠페인 경계 미관측** — {_cell(bnd.get('source'))}"]
+    return ["", f"> **캠페인 경계** {_cell(bnd.get('utc'))}(`{_cell(bnd.get('campaign_id'))}` · evidence.event_campaign_boundary): "
+                f"{_cell(bnd.get('source'))}"]
+
+
+def _attempts_table(rows: list[dict], bnd: dict | None = None) -> list[str]:
+    """기동 시도 표. 캠페인 경계가 관측되면(bnd.utc) 경계 이후 시도만 이 셀의 시도로 세고, 이전 시도는 '같은 셀 이름 · 앞선 캠페인'
+    표로 따로 싣는다(삭제 ✗ · 출처 = 원장 행 · 01 §1.4). 경계 미관측이면 라벨로 묶은 시도 전부(현 규칙)."""
     att = _attempts(rows)
     if not att:
         return ["_기동 시도 미관측 — 이 셀 label 의 원장 행이 없다._"]
-    out = _table(("시도", "노드", "label", "선언(UTC)", "갱신(renew)", "사살 · 트립 · 거부", "닫힘", "그 밖 행"),
-                 [(str(i), _cell(a["node"]), f"`{_cell(a['label'])}`" if a["label"] else "—", _cell(a["declare"], "—(선언 행 없음)"),
-                   (f"{len(a['renew'])}회 · 첫 {_cell(a['renew'][0])}" if a["renew"] else "없음"),
-                   (" · ".join(f"`{k}` {n}" for k, n in sorted(a["alerts"].items())) if a["alerts"] else "없음"),
-                   (f"`{a['end']}` {_cell(a['end_utc'])}" if a["end"] else "—(닫힘 행 없음)"), str(a["other"]))
-                  for i, a in enumerate(att, 1)])
+    if not (isinstance(bnd, dict) and bnd.get("utc")):
+        return _attempts_rows(att)
+    prior = [a for a in att if a.get("scope") == "prior-campaign"]
+    this = [a for a in att if a.get("scope") != "prior-campaign"]
+    out = (_attempts_rows(this) if this else
+           [f"_이번 캠페인(경계 {_cell(bnd.get('utc'))} 이후)의 기동 시도 미관측 — 아래는 같은 셀 이름의 앞선 캠페인 행뿐이다._"])
+    if prior:
+        out += ["", f"**같은 셀 이름 · 앞선 캠페인의 기동 {len(prior)}회**(캠페인 경계 {_cell(bnd.get('utc'))} 이전 — 라벨이 같아 원장에서 "
+                    "함께 묶였을 뿐 이 셀의 시도로 세지 않는다 · 행 전문 = 01 §1.4)", ""]
+        out += _attempts_rows(prior, "앞선-")
     return out
 
 
@@ -1743,7 +1771,12 @@ def _f_event_timeline(c: _Ctx) -> str:
         #   은 둘 다 `[]` 를 돌려준다(가르지 않는다). 사실 블록이 생산자가 하지 않는 구분을 했다고 말하면 그것이 오도 바이트다.
         return "\n".join(["_블랙박스 이벤트 미관측 — 이 셀 label·config 에 맞는 원장 행이 없다(원장 파일이 없는 것과 파일은 있으나 이 셀 행이 0 인 것을 "
                           "이 표는 구분하지 않는다 — evidence.event_timeline 이 둘 다 빈 목록으로 준다)._"] + _ledger_span_lines(c.facts))
-    out = [f"**블랙박스 이벤트 {len(rows)}행**(원장에서 이 셀 label·config 에 맞는 행만 · 시각순 · 기계 발췌)"] + _ledger_span_lines(c.facts) + [""]
+    bnd = c.facts.get("event_campaign_boundary")
+    n_prior = sum(1 for r in rows if r.get("campaign_scope") == "prior-campaign")
+    split = (f" · 이번 캠페인 {len(rows) - n_prior}행 · 같은 셀 이름 · 앞선 캠페인 {n_prior}행(내용 칸에 표기)"
+             if isinstance(bnd, dict) and bnd.get("utc") and n_prior else "")
+    out = ([f"**블랙박스 이벤트 {len(rows)}행**(원장에서 이 셀 label·config 에 맞는 행만 · 시각순 · 기계 발췌{split})"]
+           + _boundary_line(bnd) + _ledger_span_lines(c.facts) + [""])
     out += _table(("#", "UTC", "노드", "kind", "label", "내용", "출처"),
                   [(str(i), _cell(r.get("utc")), _cell(r.get("node")), f"`{_cell(r.get('kind'))}`",
                     f"`{_cell(r.get('label'))}`" if r.get("label") else "—", _cell(r.get("detail"), "—"), _cell(r.get("source")))
@@ -1751,7 +1784,7 @@ def _f_event_timeline(c: _Ctx) -> str:
     out += ["", "**기동 시도**(예산 선언 `budget_declare` 마다 한 시도 · 같은 노드의 이어지는 행과 선언 없는 노드(엔진 로그)의 그 시각 행을 "
                 "묶었다 · 사살 · 트립 · 거부는 닫힘과 따로 센다 · `measurement` 행은 측정 기록이라 시도로 세지 않는다(위 표에만) — "
                 "해석은 저작자 몫)", ""]
-    out += _attempts_table(rows)
+    out += _attempts_table(rows, c.facts.get("event_campaign_boundary"))
     return "\n".join(out)
 
 
@@ -1760,8 +1793,9 @@ def _f_event_attempts(c: _Ctx) -> str:
     rows = _timeline_rows(c.facts)
     if not rows:
         return "_기동 시도 미관측 — 블랙박스 원장에 이 셀 label 의 행이 없다(01 §1.4)._"
-    return "\n".join(["**이 셀의 기동 시도**(블랙박스 원장 · 01 §1.4 행 전문)"] + _ledger_span_lines(c.facts) + [""]
-                     + _attempts_table(rows))
+    bnd = c.facts.get("event_campaign_boundary")
+    return "\n".join(["**이 셀의 기동 시도**(블랙박스 원장 · 01 §1.4 행 전문)"] + _boundary_line(bnd) + _ledger_span_lines(c.facts) + [""]
+                     + _attempts_table(rows, bnd))
 
 
 def _f_bench_definition(c: _Ctx) -> str:
@@ -4352,6 +4386,19 @@ def selftest() -> list[str]:
            and "measurement (" not in "\n".join(_attempts_table(meas)))
         ck("★측정 기록 행만 있으면 시도 표 = 미관측(가짜 시도 ✗)",
            "기동 시도 미관측" in "\n".join(_attempts_table(meas[:1])))
+        # 2026-09-29 FACT 교정: 캠페인 경계(evidence.event_campaign_boundary)가 관측되면 앞선 캠페인 시도는 따로(삭제 ✗ · 세지 않는다)
+        bnd_ = {"utc": "2026-01-01T00:30:00Z", "observed": True, "campaign_id": "camp-x", "source": "declared_utc …"}
+        scoped = [{**r, "campaign_scope": "prior-campaign" if r["utc"] < bnd_["utc"] else "this-campaign"} for r in cross]
+        tb = "\n".join(_attempts_table(scoped, bnd_))
+        ck("캠페인 경계: 이번 캠페인 시도만 번호 · 앞선 캠페인 시도는 '같은 셀 이름 · 앞선 캠페인' 표로 따로",
+           "| 1 | main |" in tb and "| 2 | main |" not in tb and "같은 셀 이름 · 앞선 캠페인의 기동 1회" in tb and "| 앞선-1 | main |" in tb)
+        ck("★음성대조: 경계 미관측(재생)이면 현 규칙(라벨 전부) · 분리 표 ✗ · 경계 미관측 줄은 FACT 에",
+           "앞선" not in "\n".join(_attempts_table(scoped, {"utc": None, "source": "재생"}))
+           and "| 2 | main |" in "\n".join(_attempts_table(scoped, None))
+           and "캠페인 경계 미관측" in _f_event_attempts(_Ctx(repo, dict(facts_json, event_campaign_boundary={"utc": None,
+                                                                                                    "source": "재생 모드"}), tpls)))
+        ck("★이번 캠페인 시도가 0 이면 그렇게 적는다(앞선 캠페인 시도를 이 셀 시도로 올리지 않는다)",
+           "이번 캠페인(경계 2026-01-01T00:30:00Z 이후)의 기동 시도 미관측" in "\n".join(_attempts_table(scoped[:3], bnd_)))
         ck("1.1 결과 출처 범례(쓰인 값만)", "**결과 출처 범례**" in t01x and "`reconstructed(docker-history+gate)` —" in t01x
            and "`image-probe(script-sha+marker)`" not in t01x)
         ck("0.5 파생 요약: 지위별 개수", "`inherited` 2 · `negative-control` 1" in fact_blocks(t00)["knob_status"])

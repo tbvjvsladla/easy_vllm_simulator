@@ -812,6 +812,8 @@ def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_r
     #   미기록"(원장에 선언 2건) · "현행 full 정의 미기록"(docs.md 에 있다)으로 적은 두 빈칸을 기계가 채운다(생산자 = evidence).
     event_timeline = evidence.event_timeline(repo, ev)
     event_ledger_spans = evidence.event_ledger_spans(repo, ev)     # FACT_FIX2 G8: 원장 관측 범위(범위 끝 뒤 = 관측 범위 밖 · 없음 ✗)
+    # 2026-09-29 FACT 교정: 같은 셀 이름의 앞선 캠페인 행을 이 셀의 기동 시도로 세지 않는다(경계 · 재생은 경계 미관측 표지)
+    event_campaign_boundary = evidence.event_campaign_boundary(repo, ev)
     bench_definition = evidence.bench_definition(repo, ev)
     bench_md = template.render_bench_source(repo, col["bench_src"]) if col["bench_src"] else None
     camp = {"id": ev.campaign_id, "cell": ev.cell, "node": ev.node, "mode": ev.mode}
@@ -840,7 +842,8 @@ def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_r
         "reproduce_steps": _with_bench_command(art.get("reproduce_steps"), evidence.bench_command(repo, ev)),
         "sub_recipe": art.get("sub_recipe"), "bench_section_md": bench_md,
         "task_class": task_class, "perf_waiver": bench.get("perf_waiver") or None, "campaign": camp, "approval": None,
-        "prior_approval": prior_approval, "publication": pub, "event_timeline": event_timeline, "event_ledger_spans": event_ledger_spans, "bench_definition": bench_definition, "factcheck": None,
+        "prior_approval": prior_approval, "publication": pub, "event_timeline": event_timeline, "event_ledger_spans": event_ledger_spans,
+        "event_campaign_boundary": event_campaign_boundary, "bench_definition": bench_definition, "factcheck": None,
         "measurement_env_observed": col["env_observed"], "tool_snapshots": col["tool_snaps"], "attestation_scope": col["att_scope"],
         "tail_candidates": col["tail_candidates"], "env_shapes": art.get("env_shapes") or [], **art_more,
     }
