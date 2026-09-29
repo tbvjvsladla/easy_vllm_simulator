@@ -845,9 +845,29 @@ def _measured_utc(c: _Ctx) -> tuple[str | None, str]:
     return None, "unobserved(인증서 measured_utc · 스윕 generated_utc · lite 리포트 생성일 없음)"
 
 
+def _lite_window(c: "_Ctx") -> dict | None:
+    """evidence.lite_window(lite-only 셀의 측정 창 · 레그) — 자체검사 dict 증거 · 모듈 부재는 None(재구성 ✗)."""
+    from . import evidence as _evidence
+    if not isinstance(c.ev, _evidence.CellEvidence):
+        return None
+    return _evidence.lite_window(c.repo, c.ev)
+
+
+def _lite_tool_args(c: "_Ctx") -> dict | None:
+    from . import evidence as _evidence
+    if not isinstance(c.ev, _evidence.CellEvidence):
+        return None
+    key = ("lite_tool_args",)
+    if key not in c.memo:
+        c.memo[key] = _evidence.lite_tool_args(c.repo, c.ev)
+    return c.memo[key]
+
+
 def _lite_measured_utc(repo: Path, ev: Any) -> tuple[str | None, str]:
-    """lite-only 셀의 측정 시각(2026-09-29 · plan_26092908 §4.5 F8) = 바인딩된 lite bench_report 머리 `생성일`(lite_bench 가 측정 끝에 찍는다 ·
-    evidence._report_born_utc 가 lite_raw 조인 키로 이미 쓰는 값). 옛 판은 인증서 · 스윕만 보아 D2 가 "측정 시각 미관측" 이었다."""
+    """lite-only 셀의 측정 시각(2026-09-29 · plan_26092908 §4.5 F8) = 바인딩된 lite bench_report 머리 `생성일`(evidence._report_born_utc 가
+    lite_raw 조인 키로 이미 쓰는 값). 옛 판은 인증서 · 스윕만 보아 D2 가 "측정 시각 미관측" 이었다.
+    ★ FACT_FIX2 G7: 이 값은 측정 **시작**이다 — lite_bench.sh 가 cold 레그 직전(부하 직전)에 `MEASURED_UTC` 를 찍는다. 옛 문구 "측정 끝" 은
+      틀렸다(끝은 evidence.lite_window 의 레그 JSON date)."""
     if _get(ev, "report_kind") != "lite":
         return None, "lite 셀 아님"
     rel = _get(ev, "bench_report_path")
@@ -855,7 +875,7 @@ def _lite_measured_utc(repo: Path, ev: Any) -> tuple[str | None, str]:
     born = _utc_z(_evidence._report_born_utc(repo, rel)) if rel else None
     if not born:
         return None, "lite bench_report 생성일 미관측"
-    return born, f"lite bench_report 생성일({PurePath(str(rel)).name} 머리 · lite 측정 끝)"
+    return born, f"lite bench_report 생성일({PurePath(str(rel)).name} 머리 · lite 측정 시작 — 부하 직전 lite_bench.sh MEASURED_UTC)"
 
 
 def _mtime_utc(path: Path) -> str | None:
@@ -881,7 +901,7 @@ def _regenerated(c: _Ctx, path: Path) -> dict | None:
 #   (09-12) 뒤 09-22 에 주석이 고쳐져 "NCCL env 19키(①7+②8+③4)" 라 말했는데, 측정 당시 렌더러는 17키였다(기계 채점 X 항목).
 #   docker history 같은 이미지 측 증거가 compose 에는 없으므로 기준은 **측정 시각**이다: 작업트리 mtime(관측 속성) ≤ 측정이면 그 바이트가
 #   측정 당시 바이트이고, 뒤면 측정 전 마지막 커밋을 싣는다. 교차대조(측정 뒤 커밋 · HEAD 대비 수정본)는 method·cross_check 에 적는다.
-_TRACKED_KEYS = ("path", "shipped", "commit", "method", "basis", "verified", "measured_utc", "mtime_utc",
+_TRACKED_KEYS = ("path", "shipped", "commit", "method", "basis", "verified", "executed", "measured_utc", "mtime_utc",
                  "commits_after_measurement", "cross_check", "history_match", "warning")
 
 
@@ -2571,6 +2591,11 @@ def _build_command(c: _Ctx, sel: dict) -> tuple[str, str]:
     return "\n".join(head + [" \\\n".join(parts)] + tail), src
 
 
+# lite 도구 원문에서 재구성 명령으로 옮기는 **부하 · 데이터셋** 인자(닫힌 목록 · 저장 · 출력 경로 인자는 재현 부하가 아니다).
+_LITE_TOOL_LOAD_FLAGS = ("--dataset-name", "--random-input-len", "--random-output-len", "--random-range-ratio", "--ignore-eos",
+                         "--trust-remote-code", "--max-concurrency", "--request-rate")
+
+
 def _bench_commands(c: _Ctx) -> tuple[str, str]:
     """(명령, 명령 출처) — 셀 스윕의 bench JSON(`vllm bench serve --save-result` 산출) 각각을 그 **필드만으로** 복원한 명령
     (F5 · 옛 판은 "03-benchmark.md §3.x" 자리표시였다). JSON 에 없는 인자는 지어내지 않고 이름만 적는다. 균일 요청 길이면
@@ -2594,9 +2619,21 @@ def _bench_commands(c: _Ctx) -> tuple[str, str]:
                 continue
             m = _LOCAL_DATE.match(str(d.get("date") or ""))
             rows.append(("".join(m.groups()) if m else "~", f.relative_to(c.repo).as_posix(), d))
+    lw = None
+    if not rows and not sdir:
+        # FACT_FIX2 G9: lite-only 셀(스윕 없음) — lite_raw 조인(evidence.lite_window)이 가리키는 레그 JSON 이 이 측정의 bench JSON 이다
+        #   (옛 판은 스윕 디렉터리만 찾아 '명령 미관측' 이었다).
+        lw = _lite_window(c)
+        for leg in ("cold", "warm"):
+            x = (lw or {}).get("legs", {}).get(leg)
+            if x and all(k in x["doc"] for k in _BENCH_JSON_KEYS):
+                m = _LOCAL_DATE.match(str(x["doc"].get("date") or ""))
+                rows.append(("".join(m.groups()) if m else "~", x["path"], x["doc"]))
     if not rows:
-        return "", "unobserved(스윕 디렉터리에 vllm bench serve JSON 없음)"
+        return "", ("unobserved(스윕 디렉터리에 vllm bench serve JSON 없음)" if sdir or not _get(c.ev, "report_kind") == "lite"
+                    else "unobserved(lite-only 셀 — lite_raw 조인 불성립 또는 레그 JSON 부재)")
     rows.sort()
+    tool = _lite_tool_args(c) if any(PurePath(r).name.startswith(("lite_cold_", "lite_warm_")) for _, r, _ in rows) else None
     lines = ["# bench JSON 필드로 복원: backend · model_id→--model · tokenizer_id→--tokenizer · num_prompts · max_concurrency · "
              "request_rate · burstiness · 요청당 입출력 길이 = total_*_tokens ÷ completed(나누어떨어질 때만 — 평균이다 · 요청별 길이는 "
              "JSON 에 없다) · 나누어떨어지면 `--dataset-name random` 으로 추정했다(측정 도구가 그 꼴로 부른다 — 아래 도구 원문).",
@@ -2605,6 +2642,26 @@ def _bench_commands(c: _Ctx) -> tuple[str, str]:
              "# JSON 에 없는 인자(--endpoint · --base-url · --ignore-eos · --num-warmups · --temperature · --seed · --random-range-ratio · "
              "--trust-remote-code)는 측정 도구가 정했다 — level_* = run_bench.sh · lite_cold/lite_warm = lite_bench.sh"
              "(.claude/skills/adversarial-benchmark/scripts/) · 셀 스윕 순서는 sweep_bench.sh."]
+    tflags = [(f_, v_) for f_, v_ in (tool or {}).get("flags") or [] if f_ in _LITE_TOOL_LOAD_FLAGS]
+    if tool and tflags:
+        # FACT_FIX2 G3: lite 레그의 데이터셋 · 부하 인자는 측정 시점 도구 원문(리터럴)이다 — JSON 평균(total ÷ completed)은 chat 템플릿이
+        #   붙은 실측 토큰이라 인자가 아니다(566 ≠ 512). 평균은 주석으로 따로 적는다.
+        lines.append(f"# lite_cold/lite_warm 의 데이터셋 · 부하 인자 = 측정 시점 도구 원문 {tool['source']}(리터럴 인자만 · `$변수` 인자는 "
+                     "도구가 값을 정하지 않아 JSON 필드로 채운다) — `total_*_tokens ÷ completed` 는 실측 토큰(chat 템플릿 포함)이지 인자가 아니다.")
+    lw = lw or (_lite_window(c) if rows and not sdir else None)
+    if lw:
+        raw = lw.get("raw_doc") or {}
+        inv = [f"bash .claude/skills/adversarial-benchmark/scripts/lite_bench.sh {shlex.quote(str(raw.get('config_name') or c.cell))}"]
+        if raw.get("topology"):
+            inv.append(f"--topology {shlex.quote(str(raw['topology']))}")
+        if raw.get("backend"):
+            inv.append(f"--backend {shlex.quote(str(raw['backend']))}")
+        if _get(c.ev, "bench_report_path"):
+            inv.append("--publish-report")
+        lines.append("# 호출(재구성 — lite_raw config_name · topology · backend + 바인딩된 경량 리포트 = --publish-report · 원문 호출 줄 아님): "
+                     + " ".join(inv))
+        lines.append(f"# 측정 창: 시작 {lw['start_utc']}({lw['start_source']}) → 끝 {lw.get('end_utc') or '미관측'}"
+                     f"({lw.get('end_source') or '레그 JSON date · lite_raw mtime 모두 없음'})")
     for _, rel, d in rows:
         flags = ["vllm bench serve", f"--backend {shlex.quote(str(d['backend']))}"]
         for key, flag in (("model_id", "--model"), ("tokenizer_id", "--tokenizer")):
@@ -2613,20 +2670,36 @@ def _bench_commands(c: _Ctx) -> tuple[str, str]:
         n, ti, to = d.get("completed"), d.get("total_input_tokens"), d.get("total_output_tokens")
         uniform = all(isinstance(x, int) and not isinstance(x, bool) for x in (n, ti, to)) and n > 0 \
             and ti % n == 0 and to % n == 0
-        if uniform:
+        is_lite = PurePath(rel).name.startswith(("lite_cold_", "lite_warm_"))
+        mean_note = ""
+        if is_lite and tflags:
+            flags += [f_ if v_ is None else f"{f_} {v_}" for f_, v_ in tflags if f_ not in ("--max-concurrency", "--request-rate")]
+            if all(isinstance(x, int) and not isinstance(x, bool) for x in (n, ti, to)) and n > 0:
+                mean_note = (f" · 실측 토큰(chat 템플릿 포함 · total ÷ completed · 인자 아님): 입력 {ti}/{n} = {ti / n:g} · "
+                             f"출력 {to}/{n} = {to / n:g}")
+        elif uniform:
             flags += ["--dataset-name random", f"--random-input-len {ti // n}", f"--random-output-len {to // n}"]
+            if is_lite:
+                # FACT_FIX2 G3 폴백: 도구 원문을 못 읽었으면 평균 파생임을 인자 옆에 밝힌다(인자로 읽히지 않게)
+                mean_note = (" · ⚠ --random-input-len/--random-output-len = total ÷ completed 평균(chat 템플릿 포함 실측 토큰 · 측정 도구 "
+                             "원문 인자 미관측 — lite_bench.sh 원문 인자와 다를 수 있다)")
         flags += [f"--num-prompts {d['num_prompts']}", f"--max-concurrency {d['max_concurrency']}"]
         if d.get("request_rate") is not None:
             flags.append(f"--request-rate {shlex.quote(str(d['request_rate']))}")
         if d.get("burstiness") not in (None, 1, 1.0):
             flags.append(f"--burstiness {d['burstiness']}")
-        lines.append(f"# {rel} (date {d.get('date')})" + ("" if uniform else " · total 토큰이 completed 로 나누어떨어지지 않는다(요청 길이 불균일) — 데이터셋 인자 복원 ✗"))
+        acc = d.get("spec_decode_acceptance_length")
+        if is_lite and isinstance(acc, (int, float)) and not isinstance(acc, bool):
+            mean_note += f" · spec_decode_acceptance_length {acc:g}(이 레그 JSON)"
+        lines.append(f"# {rel} (date {d.get('date')})" + mean_note
+                     + ("" if uniform or (is_lite and tflags) else " · total 토큰이 completed 로 나누어떨어지지 않는다(요청 길이 불균일) — 데이터셋 인자 복원 ✗"))
         lines.append(" ".join(flags))
     # native 셀(2026-09-23 N1)은 bench JSON 의 tokenizer_id 가 **호스트** 경로다(Docker 는 컨테이너 경로) — 재구성 명령은 파생
     #   텍스트이므로 manifest 치환표로 운영자 경로를 자리표시한다(원문 JSON 은 불변 · Docker 명령에는 걸리는 값이 없다).
     from . import evidence as _evidence, pii as _pii
     _table = _pii.substitution_table(c.repo, _evidence.output_manifest(c.repo, c.topo))
-    return _pii.substitute("\n".join(lines), _table), "reconstructed(bench json)"
+    return _pii.substitute("\n".join(lines), _table), ("reconstructed(bench json + 측정 도구 원문 lite 인자)" if tool and tflags
+                                                         else "reconstructed(bench json)")
 
 
 def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = None) -> list[dict]:
@@ -2655,9 +2728,18 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
     if measure_src and measure_start:
         measure_src = f"{measure_src} · date=컨테이너 시계(UTC 가정)"
     bench_bound = "exact"
-    lite_end, lite_src = (None, None) if sweep_end else _lite_measured_utc(repo, c.ev)
-    if lite_end:
-        sweep_end = lite_end            # F8: lite-only 셀 — 측정 끝 = lite 리포트 생성일(출처는 아래 단계가 말한다)
+    lite_end, lite_src, lite_start = None, None, False
+    if not sweep_end:
+        # FACT_FIX2 G7: lite-only 셀 — 리포트 생성일(= lite_raw measured_utc)은 측정 **시작**이다 · 끝 = 레그 JSON date(evidence.lite_window)
+        lw = _lite_window(c)
+        if lw:
+            measure_start, measure_src, lite_start = lw["start_utc"], lw["start_source"], True
+            if lw.get("end_utc"):
+                sweep_end, lite_end, lite_src = lw["end_utc"], lw["end_utc"], lw["end_source"]
+        else:
+            ls_, lsrc_ = _lite_measured_utc(repo, c.ev)
+            if ls_:
+                measure_start, measure_src, lite_start = ls_, lsrc_, True
     if plane == "docker":
         if topo == "multi":
             # 2026-09-22 S2 round 3 적대 리뷰: 렌더러가 측정 뒤 바뀌었으면(git 관측) 명령 앞에 그 사실 · 측정 전 개정을 주석으로 단다.
@@ -2694,9 +2776,9 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
             step("build", build_cmd, "빌드 OK · 이미지 실재", None, created, "none",
                  f"docker image inspect {_image_ref(c)[0]} .Created(종료만 관측)" if created else "미관측", build_src, extra)
         events = [e for e in _events_for(repo, f"smoke-{cell}") if e.get("kind") == "budget_declare"]
-        # F8: lite-only 셀은 첫 측정 시각이 없다 — 측정 끝(lite 리포트 생성일)을 서빙 창의 상한 끝으로 쓴다(serve + lite 측정의 상한)
-        s_end, s_end_src = (measure_start, f"첫 측정 date({measure_src})") if measure_start else \
-            ((lite_end, f"{lite_src}(측정 끝 — serve + lite 측정을 합친 상한)") if lite_end else (None, None))
+        # FACT_FIX2 G7: lite-only 셀의 첫 측정 시각 = lite 측정 시작(lite_raw measured_utc) — 위에서 measure_start 로 채웠다
+        s_end, s_end_src = (measure_start, (f"첫 측정 시각({measure_src})" if lite_start else f"첫 측정 date({measure_src})")) \
+            if measure_start else (None, None)
         if s_end:
             events = [e for e in events if e["ts"] <= s_end]
         decl = events[-1] if events and s_end else None     # 첫 측정 시각이 없으면 어느 선언인지 가를 수 없다
@@ -2726,11 +2808,15 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
             measure_src = f"run state up_completed_utc({nt.get('state_rel')} · bench 는 up 완료 뒤 — 상한 시작)"
             bench_bound = "upper"
     bench_cmd, bench_src = _bench_commands(c)
+    if lite_end:
+        bsrc = f"시작 = {measure_src} → 끝 = {lite_src}"
+    elif measure_start and sweep_end:
+        bsrc = (f"{measure_src} → sweep_index.generated_utc(측정 JSON date 는 호스트 로컬 시계 — UTC 가정 불성립으로 쓰지 않는다)"
+                if bench_bound == "upper" else f"{measure_src} date → sweep_index.generated_utc")
+    else:
+        bsrc = f"시작만 관측 — {measure_src}" if measure_start else "미관측"
     step("bench", bench_cmd, "리포트 발행(+PASS 면 인증서)",
-         measure_start, sweep_end, bench_bound if measure_start and sweep_end else "none",
-         (f"{measure_src} → sweep_index.generated_utc(측정 JSON date 는 호스트 로컬 시계 — UTC 가정 불성립으로 쓰지 않는다)"
-          if bench_bound == "upper" else f"{measure_src} date → sweep_index.generated_utc") if measure_start and sweep_end else
-         (f"끝만 관측 — {lite_src}" if lite_end else "미관측"), bench_src)
+         measure_start, sweep_end, bench_bound if measure_start and sweep_end else "none", bsrc, bench_src)
     return steps
 
 
@@ -3112,7 +3198,9 @@ def _engine_log_paths(c: _Ctx) -> list[Path]:
             rels += [core.rel(c.repo, q) for q in sorted(d.glob("*vllm-serve.log")) if "watchdog" not in q.name]
     out: list[Path] = []
     for r in dict.fromkeys(rels):
-        if Path(r).is_absolute():
+        # FACT_FIX2 G4: 워치독 로그는 **어느 경로로 들어오든**(계보 씨앗 · 주입 · evidence_dir) 엔진 출력이 아니다 — 옛 판은 evidence_dir
+        #   glob 만 걸러 N1 의 lineage_seeds 로 들어온 main-watchdog-vllm-serve.log 를 '엔진 로그 2개' 로 셌다.
+        if Path(r).is_absolute() or "watchdog" in PurePath(r).name:
             continue
         q = c.repo / core.rel(c.repo, r)
         if q.is_file() and not q.is_symlink() and q.stat().st_size > 0:
@@ -3158,7 +3246,19 @@ def _relevance_context(c: _Ctx, slots: dict, applied: dict | None) -> dict:
             "_logs": logs, "_per": per}
 
 
-def _relevance(declared: dict, model: dict, sigs: list[str], fired: bool | None, n_logs: int) -> tuple[str, str]:
+def _fired_text(sigs: list[str], counts: dict | None, fired: bool | None) -> str:
+    """② 발화 근거 — **실제로 매치된 서명과 횟수**(FACT_FIX2 G4 · 옛 판은 서명 목록 첫째를 찍어 0회인 서명을 발화 예시로 보였다)."""
+    counts = {k: v for k, v in (counts or {}).items() if k in sigs and v}
+    if fired and counts:
+        top = sorted(counts.items(), key=lambda kv: (-kv[1], sigs.index(kv[0])))
+        shown = " · ".join(f"{k[:48]!r} {v}회" for k, v in top[:3])
+        return (f"발화({shown}" + (f" 외 {len(top) - 3}개" if len(top) > 3 else "")
+                + f" · 서명 {len(sigs)}개 중 {len(top)}개 · 횟수 = 읽은 로그 전체 합)")
+    return f"무발화(서명 {len(sigs)}개 전부 0회)" if fired is False else "발화 미판정"
+
+
+def _relevance(declared: dict, model: dict, sigs: list[str], fired: bool | None, n_logs: int,
+               counts: dict | None = None) -> tuple[str, str]:
     """(relevance, 근거). ① 선언 대 모델 config · ② 엔진 로그 발화 — 둘 다 관측일 때만 required/inactive-inferred(plan §4.3).
     ①이 '일치' 이고 ②가 '발화' = required · ①이 '불일치' 이고 ②가 '무발화' = inactive-inferred · 그 밖(한쪽 미관측 · 두 신호
     모순 · 범용 선언) = unknown. 추론을 확정처럼 쓰지 않는다 — inactive 도 '추론' 이라고 이름에 적는다."""
@@ -3175,7 +3275,10 @@ def _relevance(declared: dict, model: dict, sigs: list[str], fired: bool | None,
         return "unknown", d1 + " · ② 패치가 심는 logger 발화 서명 없음(발화 미관측)"
     if not n_logs:
         return "unknown", d1 + f" · ② 엔진 로그 미관측(서명 {len(sigs)}개를 대조할 로그 없음)"
-    d2 = f"② 엔진 로그 {n_logs}개에서 서명 {'발화' if fired else '무발화'}({sigs[0][:48]!r}{' 외' if len(sigs) > 1 else ''})"
+    if counts is None:          # 호출부가 횟수를 주지 않으면(옛 호출) 발화 여부만 — 서명 이름을 지어내지 않는다
+        d2 = f"② 엔진 로그 {n_logs}개에서 서명 {'발화' if fired else '무발화'}(서명 {len(sigs)}개 · 매치 서명 미기록)"
+    else:
+        d2 = f"② 엔진 로그 {n_logs}개에서 서명 {_fired_text(sigs, counts, fired)}"
     if match and fired:
         return "required", f"{d1} · {d2}"
     if not match and not fired and not declared["general"]:
@@ -3195,11 +3298,14 @@ def _file_records(c: _Ctx, payload: Path, slots: dict, marks: dict, applied: dic
         texts[rel_f] = (payload / rel_f).read_text(encoding="utf-8", errors="replace")
         all_sigs |= set(_log_signatures(texts[rel_f]))
     hits: set[str] = set()
+    counts: dict[str, int] = {}             # FACT_FIX2 G4: 서명별 발화 횟수(로그 전체 합)
     for q in logs:
-        if not all_sigs - hits:
-            break
         body = q.read_bytes().decode("utf-8", "replace")
-        hits |= {s for s in all_sigs - hits if s in body}
+        for s_ in all_sigs:
+            n_ = body.count(s_)
+            if n_:
+                counts[s_] = counts.get(s_, 0) + n_
+                hits.add(s_)
     for slot, row in slots.items():
         ev = row.get("evidence") or {}
         sel_by = {PurePath(str(s.get("path"))).name: s for s in (ev.get("selected_revisions") or []) if isinstance(s, dict)}
@@ -3220,12 +3326,15 @@ def _file_records(c: _Ctx, payload: Path, slots: dict, marks: dict, applied: dic
                 decl = _patch_declared(texts[rel_f], trig)
                 sigs = _log_signatures(texts[rel_f])
                 fired = bool(set(sigs) & hits) if sigs and logs else None
-                rec["relevance"], rec["relevance_basis"] = _relevance(decl, model, sigs, fired, len(logs))
+                mine = {s_: counts[s_] for s_ in sigs if counts.get(s_)}
+                rec["relevance"], rec["relevance_basis"] = _relevance(decl, model, sigs, fired, len(logs), mine)
                 if decl.get("shared_files"):
                     # F14(plan_26092908 §4.5): 모델 디렉터리 밖 공유 파일을 편집하면 근거에 그 목록을 싣는다(결론 불변 · 근거 완전성)
                     rec["relevance_basis"] += f" · 편집하는 공유(모델 디렉터리 밖) 파일 {decl['shared_files']}"
                 rec["relevance_evidence"] = {"declared": {k: decl[k] for k in ("archs", "modules", "general", "shared_files")},
-                                             "signatures": sigs[:3], "fired": fired, "engine_logs": len(logs)}
+                                             "signatures": sigs[:3], "fired": fired, "engine_logs": len(logs),
+                                             "fired_signatures": mine,
+                                             "engine_log_paths": [core.rel(c.repo, q) for q in logs]}
                 want = prow.get("script_sha256") or prow.get("image_script_sha256")
                 if want:
                     # 판정 근거 표 script sha 칸(plan §4.5 "미관측 오판"): 원장·탐침 sha 와 실린 바이트가 같으면 쓰인 바이트 관측 = 예.
@@ -3736,6 +3845,12 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
             slots["compose"]["evidence"]["note"] = (f"⚠ generated-unverified(renderer) — native 셀 · 원천 셀 {ns['cell']} 트리플렛으로 렌더러 "
                                                     "산출물을 실었다 · " + str(slots["compose"]["evidence"].get("note") or ""))
             slots["compose"]["evidence"]["native_source_cell"] = ns["cell"]
+            # FACT_FIX2 G5: 이 셀은 compose 경로로 실행되지 않았다 — 추적 파일 개정 행의 `verified`(mtime ≤ 측정 = 추론)를 "쓰인 바이트 관측" 으로
+            #   렌더하지 않는다(executed False · verified None). 개정 선택 근거(basis · method)는 그대로 둔다(참고 형상의 개정).
+            cev = slots["compose"]["evidence"]
+            for r in ([cev.get("selected_revision")] + list(cev.get("selected_revisions") or [])):
+                if isinstance(r, dict):
+                    r["executed"], r["verified"] = False, None
         else:
             # 원천 이미지를 묶지 못했다 — 빌드 입력·적용 집합을 싣지 못한다(침묵 ✗ · 결손 코드). 렌더러로 만들 입력(원천 셀 트리플렛)이
             #   없으므로 compose 자리도 생성하지 않고 Agent 요청으로 남긴다.
@@ -5337,6 +5452,16 @@ def selftest() -> list[str]:
                all(r["relevance"] == "unknown" and "이 셀은 이 경로로 실행되지 않았다" in r["relevance_basis"] for r in comp))
             ck("F13 음성대조: Docker 셀 compose(실행됨 · verified) = required",
                all(r["relevance"] == "required" for r in rd2["slots"]["compose"]["file_records"]))
+            nrev = rn2["slots"]["compose"]["evidence"].get("selected_revisions") or []
+            ck("G5 native(실행 안 된 compose 경로) 개정 행 = executed False · verified None(쓰인 바이트 관측 ✗)",
+               nrev and all(x.get("executed") is False and x.get("verified") is None for x in nrev))
+            ck("★G5 음성대조: Docker 셀(실행됨)은 executed 표지 없음 · verified 불리언 유지",
+               all("executed" not in x and isinstance(x.get("verified"), bool)
+                   for x in rd2["slots"]["compose"]["evidence"].get("selected_revisions") or []))
+            fr_ = rel_["70-fx-fire.sh"]
+            fsig = (fr_.get("relevance_evidence") or {}).get("fired_signatures") or {}
+            ck("G4 관련성 근거 = 실제 발화 서명 · 횟수(relevance_evidence.fired_signatures 와 같은 서명)",
+               fsig and all(f"{k[:48]!r} {v}회" in fr_["relevance_basis"] for k, v in fsig.items()))
             d14 = _patch_declared("mo=/workspace/vllm-src/vllm/model_executor/layers/quantization/modelopt.py\n"
                                   "m=$DST/vllm/models/fx_model/mtp.py\nr=vllm/model_executor/models/registry.py\n", None)
             ck("F14 공유 파일 = 모델 디렉터리 밖 vLLM 파일(generic 모듈 포함) · 모델 디렉터리 파일 제외",
@@ -5352,7 +5477,60 @@ def selftest() -> list[str]:
             nfix.append(lrep)
             ck("F8 lite-only 셀 측정 시각 = lite 리포트 생성일(출처 표지)",
                _lite_measured_utc(repo, {"report_kind": "lite", "bench_report_path": "docs/benchmark/bench_report_fx_lite.md"})
-               == ("2026-01-01T02:00:00Z", "lite bench_report 생성일(bench_report_fx_lite.md 머리 · lite 측정 끝)"))
+               == ("2026-01-01T02:00:00Z", "lite bench_report 생성일(bench_report_fx_lite.md 머리 · lite 측정 시작 — 부하 직전 "
+                                           "lite_bench.sh MEASURED_UTC)"))
+            ck("★G7 음성대조: lite 리포트 생성일을 '측정 끝' 이라 부르지 않는다(lite_bench.sh 는 부하 직전에 찍는다)",
+               "측정 끝" not in _lite_measured_utc(repo, {"report_kind": "lite",
+                                                        "bench_report_path": "docs/benchmark/bench_report_fx_lite.md"})[1])
+            # ── FACT_FIX2 G3 · G9: lite-only 셀 bench 명령(레그 JSON · 도구 원문 인자 · 호출 재구성 · 수용 길이) ──
+            from . import evidence as _ev_mod
+            import dataclasses as _dc
+            _flds = {f_.name: (f_.default if f_.default is not _dc.MISSING else
+                               (f_.default_factory() if f_.default_factory is not _dc.MISSING else None))
+                     for f_ in _dc.fields(_ev_mod.CellEvidence)}
+            blz = repo / "output/multi/benchlog"
+            blz.mkdir(parents=True, exist_ok=True)
+            core.write_json(blz / "lite_raw_cz.json", {"config_name": "cz", "measured_utc": "2026-01-01T02:00:00Z", "topology": "multi",
+                                                       "backend": "openai-chat"})
+            legz = {"backend": "openai-chat", "model_id": "fx", "num_prompts": 3, "completed": 3, "total_input_tokens": 1695,
+                    "total_output_tokens": 384, "max_concurrency": 1, "request_rate": "inf", "date": "20260101-020100",
+                    "spec_decode_acceptance_length": 1.81}
+            core.write_json(blz / "lite_warm_cz.json", legz)
+            evz = _ev_mod.CellEvidence(**{**_flds, "repo": str(repo), "cell": "cz", "topology": "multi", "report_kind": "lite",
+                                          "bench_report_path": "docs/benchmark/bench_report_fx_lite.md", "sources": {}})
+            cz = _ctx(repo, evz)
+            cz.memo[("lite_tool_args",)] = {"flags": [("--dataset-name", "random"), ("--random-input-len", "512"),
+                                                      ("--random-range-ratio", "0"), ("--ignore-eos", None), ("--save-result", None),
+                                                      ("--result-dir", "/tmp")], "source": "lite_bench.sh@fixture L1-L4"}
+            cmdz, srcz = _bench_commands(cz)
+            ck("G3 · G9 lite-only: 레그 JSON 명령 · 도구 원문 --random-input-len 512(평균 565 ✗) · 실측 토큰 주석 · 호출 재구성 · 수용 길이",
+               "--random-input-len 512" in cmdz and "--random-input-len 565" not in cmdz and "입력 1695/3 = 565" in cmdz
+               and "--random-range-ratio 0" in cmdz and "--ignore-eos" in cmdz and "lite_bench.sh cz --topology multi --backend openai-chat "
+               "--publish-report" in cmdz and "spec_decode_acceptance_length 1.81" in cmdz and "lite_warm_cz.json" in cmdz
+               and srcz.endswith("lite 인자)"))
+            ck("★G3 음성대조: 저장 · 출력 경로 인자(--save-result · --result-dir)는 재현 부하가 아니다 — 싣지 않는다",
+               "--save-result" not in cmdz and "--result-dir" not in cmdz)
+            cz.memo[("lite_tool_args",)] = None
+            cmdz2, srcz2 = _bench_commands(cz)
+            ck("★G3 음성대조: 도구 원문을 못 읽으면 평균을 인자로 쓰되 인자 옆에 '평균 · 원문 미관측' 을 밝힌다",
+               "--random-input-len 565" in cmdz2 and "total ÷ completed 평균" in cmdz2 and srcz2 == "reconstructed(bench json)")
+            (blz / "lite_warm_cz.json").unlink()
+            ck("★G9 음성대조: 레그 JSON 이 없으면 lite-only 사유로 미관측(스윕 사유 ✗)",
+               _bench_commands(_ctx(repo, evz))[1].startswith("unobserved(lite-only 셀"))
+            (blz / "lite_raw_cz.json").unlink()
+            # ── FACT_FIX2 G4: 발화 서명은 실제 매치된 것과 횟수 · 워치독 로그는 엔진 로그가 아니다 ──
+            ft = _fired_text(["PLE mmap: madvise(", "PLE mmap stats (last"], {"PLE mmap stats (last": 66}, True)
+            ck("G4 발화 근거 = 매치된 서명 · 횟수(목록 첫째 ✗)", "'PLE mmap stats (last' 66회" in ft and "madvise" not in ft)
+            ck("★G4 음성대조: 무발화면 서명 이름을 발화 예시로 찍지 않는다",
+               _fired_text(["PLE mmap: madvise("], {}, False) == "무발화(서명 1개 전부 0회)")
+            (repo / "docs/simlog/fx_wd/logs").mkdir(parents=True, exist_ok=True)
+            for nm_ in ("main-watchdog-vllm-serve.log", "main-vllm-serve.log"):
+                (repo / "docs/simlog/fx_wd/logs" / nm_).write_text("x\n", encoding="utf-8")
+            cw = _ctx(repo, {"topology": "multi", "cell": "cw", "lineage_seeds": {"evidence_candidates": [
+                {"kind": "engine_log", "path": "docs/simlog/fx_wd/logs/main-watchdog-vllm-serve.log"},
+                {"kind": "engine_log", "path": "docs/simlog/fx_wd/logs/main-vllm-serve.log"}]}})
+            ck("★G4 음성대조: 계보 씨앗으로 들어온 워치독 로그도 엔진 로그로 세지 않는다",
+               [q.name for q in _engine_log_paths(cw)] == ["main-vllm-serve.log"])
             ck("★F8 음성대조: lite 가 아니면(full 리포트) 이 원천을 쓰지 않는다",
                _lite_measured_utc(repo, {"report_kind": None, "bench_report_path": "docs/benchmark/bench_report_fx_lite.md"})[0] is None)
             ndir = repo / "docs/simlog/fx_n1"

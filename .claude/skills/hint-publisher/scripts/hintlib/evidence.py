@@ -821,7 +821,9 @@ def _attested_host(att: dict | None, key: str, timing_note: str | None = None) -
     else:
         where += " — " + "=".join(sorted(by_node)) + " 일치"
     # 범위 표지(attestation_scope 와 같은 결): 파일은 같은 config 의 다음 실행이 덮는다 — 이 측정 실행의 것인지는 미검증이다.
-    where += " · 이 측정 실행과 같은 실행인지 미검증(같은 호스트의 관측)"
+    #   G10: 같은 기동으로 판별됐으면(timing_note 에 판별 표지) 미검증 문장을 달지 않는다.
+    if not (timing_note and SAME_BOOT_MARK in timing_note):
+        where += " · 이 측정 실행과 같은 실행인지 미검증(같은 호스트의 관측)"
     if timing_note:
         where += f" · {timing_note}"          # F7(2026-09-29): 작성 시각 대 측정 창
     return val, where, by_node
@@ -927,10 +929,7 @@ def _local_image_digest(repo: Path, ev: CellEvidence, runner: Callable | None) -
     created = _utc_z_soft(facts.get("created"))
     measured = _measured_key(repo, ev)
     iid = str(facts["id"])
-    ids = sorted({str(n.get("image_id")) for n in ((ev.attestation or {}).get("nodes") or {}).values()
-                  if isinstance(n, dict) and n.get("image_id")}) if isinstance((ev.attestation or {}).get("nodes"), dict) else []
-    att_note = (f" · 묶인 attestation 노드 image_id 와 {'같다' if iid in ids else '다르다'}({(ev.attestation or {}).get('_path')})"
-                if ids else "")
+    att_note = _node_image_id_note(ev.attestation, iid)
     who = "원천(native wheelhouse 재포장 원천) " if ev.plane == "native" else ""
     base = f"docker image inspect {tag} .Id · .Created {created or '미관측'}(현 로컬 {who}이미지 관측 · 태그는 가변 포인터){att_note}"
     if created and measured and created < measured:
@@ -940,6 +939,22 @@ def _local_image_digest(repo: Path, ev: CellEvidence, runner: Callable | None) -
         why = (f"Created {created} ≥ 측정 {measured} → 측정 뒤 빌드 — 측정 이미지 아님" if created and measured
                else "Created 또는 측정 시각 미관측 — 측정 전후 판정 불가")
         b["image_digest_local"] = {"id": iid, "created": created, "same_build": False, "source": f"{base} · {why}"}
+
+
+def _node_image_id_note(att, iid: str) -> str:
+    """현 로컬(메인) 이미지 Id 대 묶인 attestation 의 **노드별** image_id(2026-09-29 · FACT_FIX2 G6). 옛 판은 노드 image_id 집합에 들어 있으면
+    "같다" 한 마디였다 — cluster 셀은 노드마다 로컬 빌드라 서브 image_id 가 다르고(특화헌법: 동일 ABI 이지 동일 digest 가 아니다), 한 마디는
+    단일 이미지로 읽혔다. 노드마다 같다/다르다(다르면 그 id)를 적는다. attestation 에 노드 image_id 가 없으면 ""."""
+    nodes = (att or {}).get("nodes") if isinstance(att, dict) else None
+    by = {str(n): str(d.get("image_id")) for n, d in sorted(nodes.items())
+          if isinstance(d, dict) and d.get("image_id")} if isinstance(nodes, dict) else {}
+    if not by:
+        return ""
+    parts = [f"{n} {'같다' if v == iid else f'다르다({v[:19]}…)'}" for n, v in by.items()]
+    note = f" · 묶인 attestation 노드별 image_id({att.get('_path')}): {' · '.join(parts)}"
+    if len(set(by.values())) > 1:
+        note += " — 노드별 로컬 빌드라 digest 가 노드마다 다른 것은 정상(요건은 동일 ABI 이지 동일 digest 가 아니다 · 이 행의 Id 는 메인 로컬 관측)"
+    return note
 
 
 def _utc_z_soft(v) -> str | None:
@@ -1506,6 +1521,19 @@ def measurement(ev: CellEvidence) -> dict:
     elif out["verdict"] not in MEASUREMENT_VERDICTS:
         core.fail("HINT_MEASUREMENT_VERDICT_UNKNOWN", f"판정 원천의 verdict {out['verdict']!r} 가 {MEASUREMENT_VERDICTS} 밖이다({per.get('verdict')}).",
                   "verdict_rule 어휘가 바뀌었으면 evidence.MEASUREMENT_VERDICTS 를 개정한다(tripwire — 모르는 판정을 통과로 접지 않는다).")
+    if "accept_len" not in out and out["verdict"] == "OBSERVATION-ONLY":
+        # FACT_FIX2 G9: lite-only 셀도 수용 길이의 **측정 기록**은 있다 — lite 레그 JSON 의 spec_decode_acceptance_length(warm 우선 · 원문 값).
+        #   판정 입력(verdict_rule 의 accept_len)이 아니라는 사실을 출처에 적는다.
+        lw = lite_window(repo, ev)
+        legs = (lw or {}).get("legs") or {}
+        got = {leg: legs[leg]["doc"].get("spec_decode_acceptance_length") for leg in ("warm", "cold") if leg in legs}
+        got = {k: v for k, v in got.items() if isinstance(v, (int, float)) and not isinstance(v, bool)}
+        if got:
+            leg = "warm" if "warm" in got else "cold"
+            out["accept_len"] = str(got[leg])
+            per["accept_len"] = (f"{legs[leg]['path']} spec_decode_acceptance_length({leg} 레그 · 원문)"
+                                 + (f" · cold {got['cold']}" if leg == "warm" and "cold" in got else "")
+                                 + " — lite 관측(판정 입력 아님 · lite-only 셀은 verdict_rule 에 투입되지 않았다)")
     for k in ("decode_tps_conc1", "floor_tps", "ratio_M_over_primary", "rubric_authority", "accept_len"):
         if k not in out:
             out[k] = None
@@ -1952,6 +1980,35 @@ def event_timeline(repo, ev: CellEvidence) -> list[dict]:
     repo = _repo(repo)
     rows, _files = _timeline_parts(repo, ev)
     return rows
+
+
+def event_ledger_spans(repo, ev: CellEvidence) -> list[dict]:
+    """이 셀 노드 축 원장의 **관측 범위**(2026-09-29 · FACT_FIX2 G8) — [{node, first_utc, last_utc, files[], covers_measurement}].
+    D2: 메인의 서브 원장 미러(`docs/logs/sub/events/2026-09.jsonl`)가 09-11 에서 끝나 09-23 기동의 서브 선언이 표에 없었는데, FACT 가 범위를
+    밝히지 않아 "서브는 선언하지 않았다" 로 읽혔다. 범위 끝 뒤의 시각은 "없음" 이 아니라 **관측 범위 밖**이다. covers_measurement =
+    마지막 행 ≥ 측정 끝(측정 끝 미관측이면 None). 선언 노드인데 원장 디렉터리가 없으면 files [] · first/last None."""
+    repo = _repo(repo)
+    try:
+        end = _measure_window(repo, ev)[1]
+    except core.HintError:
+        end = None
+    decl = [str(n["node_id"]) for n in ((ev.declaration or {}).get("nodes") or []) if isinstance(n, dict) and n.get("node_id")]
+    have = _event_node_dirs(repo, ev)
+    want = list(dict.fromkeys((decl if ev.node == "cluster" else []) + have))
+    out = []
+    for node in want:
+        files, first, last = [], None, None
+        d = repo / REL_EVENTS_ROOT / node / "events"
+        for f in sorted(d.glob("*.jsonl")) if d.is_dir() else []:
+            rows, _bad = _event_rows(f)
+            if not rows:
+                continue
+            files.append(_rel(repo, f))
+            first = rows[0][0] if first is None else min(first, rows[0][0])
+            last = rows[-1][0] if last is None else max(last, rows[-1][0])
+        out.append({"node": node, "first_utc": first, "last_utc": last, "files": files,
+                    "covers_measurement": (last >= end) if (last and end) else None, "measurement_end_utc": end})
+    return out
 
 
 def event_files(repo, ev: CellEvidence) -> list[str]:
@@ -2559,8 +2616,110 @@ def _sweep_engine_logs(base: Path, idx: dict, levels: list, cell: str) -> list[P
 
 
 def _measured_engine_logs(repo: Path, ev: CellEvidence) -> tuple[list[Path], str]:
-    """이 측정의 엔진 로그(파일 목록, 근거). 스윕이 출력 평면에 묶였을 때(generated_utc = measured_utc)만 그 디렉터리의 로그가 이 측정의
-    것이다 · lite 셀은 lite_raw 조인(measured_utc = 리포트 생성일)이 설 때 벤치로그 루트의 lite 엔진 로그."""
+    """이 측정의 엔진 로그(파일 목록, 근거) — `_measured_engine_logs_ex` 의 앞 두 칸."""
+    logs, why, _copies = _measured_engine_logs_ex(repo, ev)
+    return logs, why
+
+
+# ── 같은 실행의 전체 사본(2026-09-29 · FACT_FIX2 G1) ──────────────────────────────────────────────────────────────
+# 측정 도구는 엔진 로그를 `tail -800` 으로 잡는다 — 기동 배너 · 노드별 NCCL env 되읊음은 그 창 앞이라 사라진다(DS4F: 엔진 자기보고 ·
+#   main/sub env 가 "미관측"). 같은 측정 실행의 **전체 사본**(예 output/multi/benchlog/engine_roce_<셀>.log — 운영자가 따로 보존한 docker logs)
+#   이 있으면 원천으로 쓴다. 이름만으로 묶지 않는다 — 같은 셀 id 의 다른 기동 로그일 수 있다. 판별 규칙(셋 모두 · 관측만):
+#   ① EngineCore pid 집합이 꼬리 캡처와 같다(비어 있지 않음) ② 가중치 로드 줄(`<MM-DD HH:MM:SS> … Loading weights took <초> seconds`)이
+#      시각·초까지 하나 이상 같다(같은 기동의 같은 사건 — pid 만으로는 컨테이너 재기동이 같은 pid 를 줄 수 있다) ③ 사본의 첫 엔진 시각 ≤
+#      꼬리의 첫 시각(더 긴 머리를 가진 사본) 이고, 측정 창 시작(관측되면) 이전에 시작했다.
+_ENGINE_CORE_PID = re.compile(r"\(EngineCore pid=(\d+)\)")
+_LOAD_WEIGHTS = re.compile(r"(\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+\[[^\]]*\]\s+Loading weights took ([0-9.]+) seconds")
+SAME_RUN_RULE = ("EngineCore pid 집합 일치 ∧ 가중치 로드 줄(시각·초) 공유 ∧ 사본 첫 시각 ≤ 꼬리 첫 시각(∧ ≤ 측정 시작)")
+
+
+def _run_marks(path: Path) -> dict:
+    """엔진 로그의 실행 표지 — {pids, loads{(시각, 초)}, first_ts `MM-DD HH:MM:SS`|None}. ANSI 는 벗긴다(사본은 색 코드가 없을 수 있다)."""
+    pids: set[str] = set()
+    loads: set[tuple[str, str]] = set()
+    first = None
+    for line in _log_lines(path):
+        clean = _ANSI.sub("", line)
+        pids.update(_ENGINE_CORE_PID.findall(clean))
+        m = _LOAD_WEIGHTS.search(clean)
+        if m:
+            loads.add((m.group(1), m.group(2)))
+        if first is None:
+            tm = _ENGINE_TS.search(clean)
+            if tm:
+                first = f"{tm.group(1)}-{tm.group(2)} {tm.group(3)}:{tm.group(4)}:{tm.group(5)}"
+    return {"pids": pids, "loads": loads, "first_ts": first}
+
+
+def _same_run_candidates(repo: Path, ev: CellEvidence, have: set) -> list[Path]:
+    """전체 사본 후보 — 출력 평면 벤치로그 루트의 `*_<셀>.log`(lite 꼬리 · 워치독 제외) + 계보 씨앗 engine_log 중 저장소 안 파일."""
+    base = repo / "output" / ev.topology / "benchlog"
+    out = [p for p in sorted(base.glob(f"*_{ev.cell}.log")) if p.is_file()] if base.is_dir() else []
+    for c in (ev.lineage_seeds or {}).get("evidence_candidates") or []:
+        rel = c.get("path") if isinstance(c, dict) and c.get("kind") == "engine_log" else None
+        if isinstance(rel, str) and rel and not rel.startswith("/") and ".." not in PurePath(rel).parts:
+            out.append(repo / rel)
+    seen, res = set(), []
+    for p in out:
+        if p in seen or p in have or not p.is_file() or p.is_symlink() or not _nonempty(p):
+            continue
+        seen.add(p)
+        if p.name.startswith("lite_engine_") or "watchdog" in p.name or p.parent.name.startswith("level_") \
+                or p.parent.name.startswith("run_"):
+            continue            # 꼬리 캡처 자리 · 워치독 로그(엔진 출력 아님)
+        res.append(p)
+    return res
+
+
+def _mmdd(utc: str | None) -> str | None:
+    m = re.fullmatch(r"\d{4}-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z", utc or "")
+    return f"{m.group(1)}-{m.group(2)} {m.group(3)}:{m.group(4)}:{m.group(5)}" if m else None
+
+
+def _same_run_copies(repo: Path, ev: CellEvidence, tails: list[Path]) -> dict[Path, str]:
+    """꼬리 캡처 로그(tails)와 **같은 실행**으로 판별된 전체 사본 → 판별 근거 문장(SAME_RUN_RULE). 판별 불가는 싣지 않는다."""
+    tmarks = [(t, _run_marks(t)) for t in tails if _nonempty(t)]
+    tmarks = [(t, m) for t, m in tmarks if m["pids"]]
+    if not tmarks:
+        return {}
+    start = None
+    try:
+        start = _mmdd(_measure_window(repo, ev)[0])
+    except core.HintError:
+        start = None
+    out: dict[Path, str] = {}
+    for cand in _same_run_candidates(repo, ev, set(tails)):
+        cm = _run_marks(cand)
+        if not cm["pids"] or not cm["first_ts"]:
+            continue
+        for t, tm in tmarks:
+            shared = sorted(cm["loads"] & tm["loads"])
+            if cm["pids"] != tm["pids"] or not shared or not tm["first_ts"] or cm["first_ts"] > tm["first_ts"]:
+                continue
+            if start and cm["first_ts"] > start:
+                continue
+            out[cand] = (f"같은 실행의 전체 사본 — 판별: EngineCore pid {sorted(cm['pids'])} 일치 · 가중치 로드 줄 "
+                         f"`{shared[0][0]} … {shared[0][1]} seconds` 공유 · 사본 첫 시각 {cm['first_ts']} ≤ 꼬리 첫 시각 {tm['first_ts']}"
+                         + (f" ≤ 측정 시작 {start}" if start else "") + f"(꼬리 캡처 {_rel(repo, t)} · 규칙 {SAME_RUN_RULE})")
+            break
+    return out
+
+
+def _measured_engine_logs_ex(repo: Path, ev: CellEvidence) -> tuple[list[Path], str, dict[Path, str]]:
+    """이 측정의 엔진 로그(파일 목록, 근거, {같은 실행 전체 사본: 판별 근거}). 스윕이 출력 평면에 묶였을 때(generated_utc = measured_utc)만
+    그 디렉터리의 로그가 이 측정의 것이다 · lite 셀은 lite_raw 조인(measured_utc = 리포트 생성일)이 설 때 벤치로그 루트의 lite 엔진 로그.
+    G1: 꼬리 캡처 로그와 같은 실행으로 판별된 전체 사본을 **앞에** 둔다(env 되읊음 · 배너의 첫 관측이 창 밖이 아니게)."""
+    logs, why = _measured_engine_logs_base(repo, ev)
+    if not logs:
+        return logs, why, {}
+    copies = _same_run_copies(repo, ev, [q for q in logs if q not in set(_native_preserved_engine_logs(repo, ev))])
+    if copies:
+        why += " + " + " · ".join(f"{_rel(repo, p)}({b})" for p, b in copies.items())
+        logs = list(copies) + logs
+    return logs, why, copies
+
+
+def _measured_engine_logs_base(repo: Path, ev: CellEvidence) -> tuple[list[Path], str]:
     sw = ev.sweep or {}
     if sw.get("binding") == "output":
         base = repo / sw["dir"]
@@ -2665,13 +2824,14 @@ def measurement_env_observed(repo, ev: CellEvidence) -> list[dict]:
     `tail -800`)이라 한 노드만 보인 키(예: NCCL_NET_PLUGIN = sub 만)는 "다른 노드가 되읊지 않았다" 가 아니라 창 밖일 수 있다."""
     from . import pii
     repo = _repo(repo)
-    logs, _why = _measured_engine_logs(repo, ev)
+    logs, _why, copies = _measured_engine_logs_ex(repo, ev)
     if not logs:
         return []
     table = pii.substitution_table(repo, ev.manifest if isinstance(ev.manifest, dict) else None)
     caps = _log_tail_caps(repo, ev)
     windows: dict[str, str] = {}
-    full = set(_native_preserved_engine_logs(repo, ev))       # F9: native 보존 로그는 꼬리 캡처가 아니다(전체 출력)
+    # F9: native 보존 로그 · G1: 같은 실행의 전체 사본은 꼬리 캡처가 아니다(전체 출력 — 줄 수가 상한 이상이어도 창 표지 ✗)
+    full = set(_native_preserved_engine_logs(repo, ev)) | set(copies)
     for lp in logs:
         if lp in full:
             continue
@@ -2799,12 +2959,13 @@ def _engine_banner(repo: Path, ev: CellEvidence) -> dict:
         return {"value": str(meta["vllm_build"]), "basis": "this-measurement", "files": [(rel, "sweep_json")],
                 "source": (f"{rel}:{ln or '?'} meta.vllm_build(sweep_bench 가 이 측정의 레벨 엔진 로그에서 `v<x.y.z…>` 정규식으로 잡은 값 — "
                            "배너 전용 규칙은 아니다)")}
-    for lp in _measured_engine_logs(repo, ev)[0]:
+    logs_, _w, copies = _measured_engine_logs_ex(repo, ev)
+    for lp in logs_:
         b = _banner_of(lp)
         if b:
             rel = _rel(repo, lp)
             return {"value": b[1], "basis": "this-measurement", "files": [(rel, "engine_log")],
-                    "source": f"{rel}:{b[0]}(이 측정의 엔진 로그 기동 배너)"}
+                    "source": f"{rel}:{b[0]}(이 측정의 엔진 로그 기동 배너" + (f" · {copies[lp]}" if lp in copies else "") + ")"}
     # tag 를 넘겨야 `tag_ok` 가 뜻을 갖는다(2026-09-22 · S2 round 3 적대 검토): 옛 판본은 None 을 넘겨 모든 스윕이 tag_ok=True 였고,
     #   ③ 괄호의 "앞뒤 스윕이 **같은 태그**→digest 를 측정" 조건이 죽은 코드였다 — 다른 태그로 같은 digest 를 잰 스윕도 괄호가 됐다.
     #   ② 는 digest 만 본다(tag_ok 로 거르지 않는다 — 같은 digest 를 기록한 로그는 태그와 무관하게 같은 이미지다).
@@ -3032,6 +3193,8 @@ def attestation_scope(repo, ev: CellEvidence) -> dict | None:
         scope = ATTESTATION_SCOPE_OTHER_RUN
     elif timing == "after-measurement":
         scope = f"same config({cfg}) · {phase} — 측정 뒤 재기동의 관측이다(이 측정 실행의 관측이 아니다 · 파일은 다음 실행이 덮는다)"
+    elif timing == "before-measurement" and (sb := attestation_same_boot(repo, ev, written, win)):
+        scope = f"same config({cfg}) · {phase} — {SAME_BOOT_MARK}(판별: {sb['basis']})"
     elif timing == "before-measurement":
         scope = (f"same config({cfg}) · {phase} — 측정 전(빌드·스모크)의 관측 · 측정을 서빙한 기동과 같은 실행인지는 미검증"
                  "(파일은 다음 실행이 덮는다)")
@@ -3064,13 +3227,193 @@ def _attestation_timing_note(ev: CellEvidence) -> str | None:
     if not isinstance(att, dict) or not att.get("_path") or not ev.repo:
         return None
     repo = _repo(ev.repo)
-    return _attestation_timing(repo, ev, _attestation_written(repo, att)[0])[1]
+    written = _attestation_written(repo, att)[0]
+    timing, tnote, win = _attestation_timing(repo, ev, written)
+    if timing == "before-measurement" and att.get("config") == ev.cell:
+        sb = attestation_same_boot(repo, ev, written, win)
+        if sb:
+            tnote = f"{tnote} · {SAME_BOOT_MARK}(판별 근거 = attestation 범위 줄 · 스모크 로그 {sb['files'][0]})"
+    return tnote
+
+
+# ── attestation 이 측정을 서빙한 **같은 기동**의 것인가(2026-09-29 · FACT_FIX2 G10) ────────────────────────────────────
+# D1 은 스모크 로그가 'SMOKE PASS → attestation v2(serve) → --keep-up' 을 순서대로 적었고, 원장의 예산 창은 선언 하나(재선언 0)가 측정 끝까지
+#   이어졌으며, 측정 엔진 로그의 APIServer pid 가 하나였는데 FACT 는 "같은 실행인지 미검증" 이라 적었다. 판별 규칙(모두 관측 · 하나라도
+#   불성립이면 판별하지 않는다 — 지금처럼 '미검증'):
+#   ① 원장: attestation 작성 시각 이전 마지막 `budget_declare`(이 셀 라벨) D 가 있고, 그 노드 원장이 측정 끝까지 기록 범위 안이며
+#      (D, 측정 끝] 에 다른 `budget_declare` · 창을 닫는 `budget_clear(existed)` 가 없다(재기동 없음 · 예산 재선언 없음)
+#   ② 스모크 로그(docs/simlog/**/*serve*.log): `SMOKE PASS` → 이 attestation 경로 줄 → `--keep-up` 이 이 순서로 있고, 그 로그의 main
+#      `budget_honored` ts = D 다(같은 선언의 기동)
+#   ③ 측정 엔진 로그의 APIServer pid 가 둘 이상이면 불성립(서빙 프로세스 교체) · 하나면 근거에 싣는다 · 없으면 미관측으로 적는다.
+SAME_BOOT_MARK = "측정을 서빙한 같은 기동의 스모크 직후 관측"
+_APISERVER_PID = re.compile(r"\(APIServer pid=(\d+)\)")
+_HONORED_TS = re.compile(r'budget_honored\b.*?"ts"\s*:\s*"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)"')
+
+
+def _smoke_serve_logs(repo: Path) -> list[Path]:
+    base = repo / "docs" / "simlog"
+    if not base.is_dir():
+        return []
+    out = sorted(set(base.glob("*/*serve*.log")) | set(base.glob("*/*/*serve*.log")))
+    return [p for p in out if p.is_file() and not p.is_symlink() and "watchdog" not in p.name]
+
+
+def attestation_same_boot(repo, ev: CellEvidence, written: str | None, win: dict | None) -> dict | None:
+    """G10 판별 — {basis, files[]} | None(판별 불가). 규칙은 위 주석(①②③)."""
+    repo = _repo(repo)
+    att = ev.attestation if isinstance(ev.attestation, dict) else {}
+    end = (win or {}).get("end_utc")
+    start = (win or {}).get("start_utc")
+    if not written or not end or not att.get("_path") or att.get("config") != ev.cell:
+        return None
+    label = f"smoke-{ev.cell}"
+    decl = None
+    for node in _event_node_dirs(repo, ev):
+        rows = []
+        for f in sorted((repo / REL_EVENTS_ROOT / node / "events").glob("*.jsonl")):
+            rows += [(ts, ln, d, _rel(repo, f)) for ts, ln, d in _event_rows(f)[0]]
+        rows.sort(key=lambda r: (r[0], r[1]))
+        if not rows or rows[-1][0] < end:
+            continue                    # 이 노드 원장은 측정 끝까지 기록 범위가 아니다 — 증인 ✗
+        ds = [r for r in rows if r[2].get("kind") == "budget_declare" and r[2].get("label") == label and r[0] <= written]
+        if not ds:
+            continue
+        d = ds[-1]
+        brk = [r for r in rows if d[0] < r[0] <= end and (r[2].get("kind") == "budget_declare" or
+                                                        (r[2].get("kind") == "budget_clear" and r[2].get("existed") is True))]
+        if brk:
+            return None                 # 측정 끝 전에 재선언 · 창 닫힘 — 같은 기동이 아닐 수 있다
+        if decl is None or node == "main":
+            decl = (node, d)
+    if decl is None:
+        return None
+    node, d = decl
+    hit = None
+    ap = str(att["_path"])
+    for lg in _smoke_serve_logs(repo):
+        lines = _log_lines(lg)
+        i_pass = next((i for i, x in enumerate(lines) if "SMOKE PASS" in x), None)
+        i_att = next((i for i, x in enumerate(lines) if i_pass is not None and i > i_pass and ap in x), None)
+        i_keep = next((i for i, x in enumerate(lines) if i_att is not None and i > i_att and "--keep-up" in x), None)
+        honored = {m.group(1) for x in lines for m in [_HONORED_TS.search(x)] if m}
+        if i_keep is not None and d[0] in honored:
+            hit = (lg, i_pass + 1, i_att + 1, i_keep + 1)
+            break
+    if hit is None:
+        return None
+    pids: set[str] = set()
+    for lp in _measured_engine_logs(repo, ev)[0]:
+        pids.update(_APISERVER_PID.findall(_ANSI.sub("", lp.read_bytes().decode("utf-8", "replace"))))
+    if len(pids) > 1:
+        return None                     # 측정 로그에 서빙 프로세스가 둘 — 교체
+    lg, a, b, c = hit
+    basis = (f"스모크 로그 {_rel(repo, lg)} L{a} SMOKE PASS → L{b} attestation 작성 → L{c} --keep-up · 원장 {d[3]}:{d[1]} budget_declare"
+             f"({label} · {d[0]}) 가 측정 끝 {end} 까지 재선언 · 창 닫힘 없이 이어짐({node} 원장 기록 범위 안) · 스모크 로그 budget_honored "
+             f"ts = 그 선언 · 측정 엔진 로그 APIServer pid " + (f"{sorted(pids)[0]} 하나" if pids else "미관측")
+             + (f" · 측정 시작 {start}" if start else ""))
+    return {"basis": basis, "files": [_rel(repo, lg), d[3]]}
+
+
+_BENCH_JSON_DATE = re.compile(r"^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$")
+LITE_START_NOTE = "lite_bench.sh 가 cold 레그 직전(부하 직전)에 찍는 측정 **시작** 시각"
+
+
+def lite_window(repo, ev: CellEvidence) -> dict | None:
+    """lite-only 셀(스윕 없음 · 경량 리포트)의 측정 창과 레그(2026-09-29 · FACT_FIX2 G7 · G9). 조인 = 벤치로그 루트 `lite_raw_<셀>.json` 의
+    config_name · measured_utc = 리포트 머리 생성일(qualification · _measured_engine_logs 와 같은 키). ★ measured_utc 는 측정 **시작**이다
+    (lite_bench.sh `MEASURED_UTC=$(date -u …)` 가 cold 레그 직전) — 옛 판은 '측정 끝' 으로 적었다. 끝 = 레그 결과 JSON `date` 중 가장 늦은 것
+    (컨테이너 시계 = UTC 가정 · 시작보다 앞이면 가정 불성립으로 버린다) → 없으면 lite_raw 파일 mtime(파일시스템 관측).
+    반환 {start_utc, start_source, end_utc, end_source, raw, legs{cold|warm: {path, doc}}} | None(조인 불성립 · lite-only 아님)."""
+    repo = _repo(repo)
+    if ev.sweep or ev.report_kind != "lite":
+        return None
+    d = repo / "output" / ev.topology / "benchlog"
+    raw_p = d / f"lite_raw_{ev.cell}.json"
+    raw, _bad = _read_json_soft(raw_p)
+    born = _report_born_utc(repo, ev.bench_report_path)
+    if not (isinstance(raw, dict) and born and raw.get("config_name") == ev.cell and raw.get("measured_utc") == born):
+        return None
+    legs: dict = {}
+    for leg in ("cold", "warm"):
+        p = d / f"lite_{leg}_{ev.cell}.json"
+        named = Path(str(raw.get(f"bench_{leg}_json") or "")).name
+        if named and named != p.name:
+            continue
+        doc, _b = _read_json_soft(p)
+        if isinstance(doc, dict):
+            legs[leg] = {"path": _rel(repo, p), "doc": doc}
+    end = esrc = None
+    dates = []
+    for leg, x in legs.items():
+        m = _BENCH_JSON_DATE.match(str(x["doc"].get("date") or ""))
+        if m:
+            u = "{}-{}-{}T{}:{}:{}Z".format(*m.groups())
+            if u >= born:
+                dates.append((u, x["path"]))
+    if dates:
+        end, p = max(dates)
+        esrc = f"{p} date(마지막 레그 결과 저장 · 컨테이너 시계 = UTC 가정)"
+    else:
+        try:
+            mt = _utc_of_epoch(int(raw_p.stat().st_mtime))
+        except OSError:
+            mt = None
+        if mt and mt >= born:
+            end, esrc = mt, f"{_rel(repo, raw_p)} 파일 mtime(파일시스템 관측 · 레그 뒤에 쓰인다)"
+    return {"start_utc": born, "start_source": f"{_rel(repo, raw_p)} measured_utc(= bench_report 머리 생성일 · {LITE_START_NOTE})",
+            "end_utc": end, "end_source": esrc, "raw": _rel(repo, raw_p), "raw_doc": raw, "legs": legs}
+
+
+# 측정 도구(lite_bench.sh)의 `vllm bench serve` 호출에서 **리터럴** 인자만 읽는다(`$VAR` · 따옴표 인자는 호출마다 달라 도구 원문이 값을 정하지
+#   않는다 · 닫힌 규칙 · 추측 ✗).
+_TOOL_FLAG_RE = re.compile(r"(--[a-z][a-z0-9-]*)(?:[ =]([^\s\\'\"$-][^\s\\'\"$]*))?")
+
+
+def lite_tool_args(repo, ev: CellEvidence) -> dict | None:
+    """측정 시점 판본 lite_bench.sh 의 첫 `vllm bench serve` 호출 인자(2026-09-29 · FACT_FIX2 G3). 반환 {flags: [(플래그, 값|None)], source:
+    '<도구>@<rev12> L<a>-L<b>', measured_line: 'L<n>'|None} | None(판본 미선택 · 호출 없음). 재구성 명령의 `--random-input-len` 은 bench JSON
+    평균(chat 템플릿 포함 실측 토큰)이 아니라 이 값이다."""
+    repo = _repo(repo)
+    sel = _tool_selection(repo, ev)
+    t = next((x for x in sel["tools"] if x["role"] == "lite"), None)
+    if t is None or not sel.get("at"):
+        return None
+    raw = _git_text(repo, sel["at"], t["repo_path"])
+    if not raw:
+        return None
+    rv = _tool_revision(repo, sel["at"], t["repo_path"]) or {}
+    lines = raw.decode("utf-8", errors="replace").split("\n")
+    tag = f"{t['name']}@{str(rv.get('git_rev') or sel['at'])[:12]}"
+    mline = next((f"L{i}" for i, ln in enumerate(lines, 1) if re.match(r"\s*MEASURED_UTC=", ln)), None)
+    for i, ln in enumerate(lines):
+        if ln.lstrip().startswith("#") or "bench serve" not in ln:
+            continue
+        j = i
+        body = [ln[ln.index("bench serve") + len("bench serve"):]]
+        while lines[j].rstrip().endswith("\\") and j + 1 < len(lines):
+            j += 1
+            body.append(lines[j])
+        flags: list[tuple[str, str | None]] = []
+        for part in body:
+            for m in _TOOL_FLAG_RE.finditer(part.split("#", 1)[0]):
+                flag, val = m.group(1), m.group(2)
+                after = part[m.end():m.end() + 2].lstrip()
+                if val is None and after[:1] not in ("", "-", "\\"):
+                    continue        # 값이 변수 · 따옴표 — 도구 원문이 값을 정하지 않는다
+                if flag not in {f for f, _ in flags}:
+                    flags.append((flag, val))
+        return {"flags": flags, "source": f"{tag} L{i + 1}-L{j + 1}", "measured_line": mline, "tool": tag}
+    return None
 
 
 def _measure_window(repo: Path, ev: CellEvidence) -> tuple[str | None, str | None, str]:
-    """이 측정의 창 (시작 | None, 끝 | None, 출처). 끝 = `_measured_key`(인증서 measured_utc · 스윕 generated_utc · lite 리포트 생성일) ·
-    시작 = artifacts 의 첫 측정 JSON date(컨테이너 시계 = UTC 가정 · 끝보다 뒤면 가정 불성립으로 버린다 — 재현 표와 같은 규칙)."""
+    """이 측정의 창 (시작 | None, 끝 | None, 출처). 끝 = `_measured_key`(인증서 measured_utc · 스윕 generated_utc) ·
+    시작 = artifacts 의 첫 측정 JSON date(컨테이너 시계 = UTC 가정 · 끝보다 뒤면 가정 불성립으로 버린다 — 재현 표와 같은 규칙).
+    G7: lite-only 셀은 `lite_window`(시작 = lite_raw measured_utc · 끝 = 레그 JSON date) — 리포트 생성일은 시작이지 끝이 아니다."""
     from . import artifacts
+    lw = lite_window(repo, ev)
+    if lw:
+        return lw["start_utc"], lw["end_utc"], f"시작 = {lw['start_source']} · 끝 = {lw['end_source'] or '미관측'}"
     end = _measured_key(repo, ev)
     start, ssrc = artifacts._first_measure_utc(repo, ev)
     if start and end and start > end:
@@ -3639,6 +3982,22 @@ def _serve_proof_ok(sp: dict, cell: str, image_tag: str | None) -> tuple[bool, s
     return True, why
 
 
+def serve_proof_scope(repo, ev: CellEvidence) -> dict | None:
+    """발행 자격 serve_proof 의 **시점 범위**(2026-09-29 · FACT_FIX2 G2). serve_proof 파일은 같은 config 의 다음 스모크가 덮는다 — DS4F 는
+    측정(00:35:13Z 끝) 뒤 재기동(01:31:48Z)의 산출물이 자격 근거로 범위 없이 실렸다. 작성 시각(문서 시각 칸 → 파일 mtime) 대 측정 창을
+    attestation 과 **같은 함수**(`_attestation_timing`)로 분류한다. 반환 {written_utc, written_utc_source, timing, timing_note} | None."""
+    repo = _repo(repo)
+    rel = ev.sources.get("serve_proof")
+    if not isinstance(ev.serve_proof, dict) or not isinstance(rel, str) or not (repo / rel).is_file():
+        return None
+    written, wsrc = _attestation_written(repo, {**ev.serve_proof, "_path": rel})
+    timing, tnote, _win = _attestation_timing(repo, ev, written)
+    if not tnote:
+        return None
+    return {"written_utc": written, "written_utc_source": wsrc, "timing": timing,
+            "timing_note": tnote.replace("측정 뒤 재기동의 관측", "측정 뒤 재기동의 스모크 산출물 — 측정을 서빙한 기동의 자격 관측이 아니다")}
+
+
 def qualification(ev: CellEvidence) -> dict:
     """발행 자격 = **관측**(X8). ① serve_proof ② 스윕(조인된 출력 평면)의 post_health(health 200 ∧ running ∧ ¬OOM) ∧
     같은 레벨 벤치 completed ≥ 1 ③ lite 셀의 lite_warm completed ≥ 1(lite_bench 의 health 200 선검사가 전제).
@@ -3656,8 +4015,12 @@ def qualification(ev: CellEvidence) -> dict:
                 return {"health_200": True, "inference_observed": True,
                         "sources": [ev.sources.get("serve_proof"), ev.sources.get("cleanup_attestation")],
                         "method": "native_serve_proof+cleanup_attestation"}
-            return {"health_200": True, "inference_observed": True, "sources": [ev.sources.get("serve_proof")],
-                    "method": "serve_proof"}
+            out = {"health_200": True, "inference_observed": True, "sources": [ev.sources.get("serve_proof")],
+                   "method": "serve_proof"}
+            sc = serve_proof_scope(repo, ev)
+            if sc:
+                out["scope"] = sc
+            return out
         tried.append(f"serve_proof 불성립({why})")
     sw = ev.sweep or {}
     if sw.get("binding") == "output":
@@ -6169,6 +6532,180 @@ def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> No
        {"HINT_MISSING_SUB_RECIPE", "HINT_MISSING_APPLIED_SET", "HINT_MISSING_NATIVE_LAUNCH"} <= set(MISSING_CODES))
 
 
+def _selftest_fix2(ck, td: Path, ev: CellEvidence) -> None:
+    """2026-09-29 FACT_FIX2(독립 사실 검증 target: fact 4건) — G1 같은 실행 전체 사본 · G2 serve_proof 시점 범위 · G3 lite 도구 원문 인자 ·
+    G6 노드별 image_id · G7 lite 측정 창(시작 ≠ 끝) · G8 원장 관측 범위 · G9 lite accept_len · G10 같은 기동 판별. ★ = 음성대조.
+    격리 저장소(td/fix2) · 라이브 저장소 비의존."""
+    r = td / "fix2"
+    bl = r / "output/multi/benchlog"
+    bl.mkdir(parents=True, exist_ok=True)
+    code_root = core.HINTLIB_DIR.parents[4]
+    for rel in _OWNER_LINKS:                        # 소유 모듈(코드만) 심링크 — _fixture 와 같은 규칙
+        (r / rel).parent.mkdir(parents=True, exist_ok=True)
+        if not (r / rel).exists():
+            os.symlink(code_root / rel, r / rel)
+    # ── G1: 같은 실행의 전체 사본 ──
+    sw_dir = bl / "sweep_cx"
+    sw_dir.mkdir(exist_ok=True)
+    tail = sw_dir / "lite_engine_cx.log"
+    t_lines = ["(EngineCore pid=71) \x1b[36m(RayWorkerProc pid=9)\x1b[0m INFO 01-02 02:10:00 [x.py:1] tail start",
+               "(EngineCore pid=71) (Worker_TP0 pid=9) INFO 01-02 02:20:00 [default_loader.py:430] Loading weights took 353.23 seconds"]
+    tail.write_text("\n".join(t_lines) + "\n", encoding="utf-8")
+    full_lines = ["INFO 01-02 02:00:00 [api_server.py:1] █ version 9.9.9rc1.dev0",
+                  "(EngineCore pid=71) fixm:9:9 [0] NCCL INFO NCCL_NET_PLUGIN set by environment to spcx",
+                  "(EngineCore pid=71) INFO 01-02 02:05:00 [x.py:1] boot",
+                  "(EngineCore pid=71) (Worker_TP0 pid=9) INFO 01-02 02:20:00 [default_loader.py:430] Loading weights took 353.23 seconds"]
+    full = bl / "engine_roce_cx.log"
+    full.write_text("\n".join(full_lines) + "\n", encoding="utf-8")
+    ev1 = dataclasses.replace(ev, repo=str(r), cell="cx", topology="multi", plane="docker", serve_proof=None, lineage_seeds={},
+                              certificate={"measured_utc": "2026-01-02T03:00:00Z"}, report_kind=None, bench_report_path=None,
+                              sweep={"dir": "output/multi/benchlog/sweep_cx", "binding": "output", "generated_utc": "2026-01-02T03:00:00Z",
+                                     "index": {"lite": {"gen_tps": 1.0}}, "levels": []})
+    logs1, why1, cp1 = _measured_engine_logs_ex(r, ev1)
+    env1 = measurement_env_observed(r, ev1)
+    ban1 = _engine_banner(r, ev1)
+    ck("G1 같은 실행 전체 사본(pid · 로드 줄 · 첫 시각) = 원천(앞에 둔다) · 판별 규칙이 근거에 남는다",
+       logs1[:1] == [full] and full in cp1 and "EngineCore pid ['71'] 일치" in cp1[full] and SAME_RUN_RULE in cp1[full]
+       and "engine_roce_cx.log" in why1)
+    ck("G1 env 관측 · 엔진 자기보고가 사본에서 나온다(창 표지 ✗ · 배너 출처에 판별)",
+       any(x["key"] == "NCCL_NET_PLUGIN" and x["source"].startswith("output/multi/benchlog/engine_roce_cx.log") and "log_window" not in x
+           for x in env1) and ban1.get("value") == "9.9.9rc1.dev0" and "같은 실행의 전체 사본" in ban1.get("source", ""))
+    full.write_text("\n".join(full_lines[:-1] + [full_lines[-1].replace("353.23", "300.00")]) + "\n", encoding="utf-8")
+    ck("★G1 음성대조: 로드 줄(시각·초)이 다르면 같은 실행이 아니다(pid 만으로 묶지 않는다)", _measured_engine_logs_ex(r, ev1)[2] == {})
+    full.write_text("\n".join(x.replace("pid=71", "pid=72") for x in full_lines) + "\n", encoding="utf-8")
+    ck("★G1 음성대조: EngineCore pid 가 다르면 사본 ✗", _measured_engine_logs_ex(r, ev1)[2] == {})
+    full.write_text("\n".join([full_lines[0].replace("02:00:00", "02:15:00"), full_lines[1],
+                               full_lines[2].replace("02:05:00", "02:15:00"), full_lines[3]]) + "\n", encoding="utf-8")
+    ck("★G1 음성대조: 사본이 꼬리보다 늦게 시작하면(더 긴 머리가 아니다) 사본 ✗", _measured_engine_logs_ex(r, ev1)[2] == {})
+    (bl / "watchdog_cx.log").write_text("\n".join(full_lines) + "\n", encoding="utf-8")
+    ck("★G1 음성대조: 워치독 로그는 후보가 아니다", _measured_engine_logs_ex(r, ev1)[2] == {})
+    full.unlink()
+    (bl / "watchdog_cx.log").unlink()
+    # ── G6: 노드별 image_id ──
+    att2 = {"_path": "a.json", "nodes": {"main": {"image_id": "sha256:" + "a" * 64}, "sub": {"image_id": "sha256:" + "b" * 64}}}
+    n6 = _node_image_id_note(att2, "sha256:" + "a" * 64)
+    ck("G6 노드별: main 같다 · sub 다르다(id) · 노드별 로컬 빌드 정상(동일 ABI ≠ 동일 digest)",
+       "main 같다" in n6 and "sub 다르다(sha256:bbbbbbbbbbbb" in n6 and "동일 ABI" in n6)
+    n6b = _node_image_id_note({"_path": "a.json", "nodes": {"main": {"image_id": "x"}, "sub": {"image_id": "x"}}}, "x")
+    ck("★G6 음성대조: 노드 id 가 같으면 '다르다' · 정상 주석 없음 · image_id 없으면 빈 문자열",
+       "다르다" not in n6b and "동일 ABI" not in n6b and "main 같다 · sub 같다" in n6b and _node_image_id_note({}, "x") == "")
+    # ── G7 · G9: lite-only 셀 측정 창 · accept_len ──
+    t0, t1 = "2026-01-02T03:00:00Z", "2026-01-02T03:01:05Z"
+    (r / "docs/benchmark").mkdir(parents=True, exist_ok=True)
+    (r / "docs/benchmark/bench_report_fx.md").write_text(f"# lite\n생성일 {t0}\nmode: lite\n", encoding="utf-8")
+    core.write_json(bl / "lite_raw_cl.json", {"config_name": "cl", "measured_utc": t0, "topology": "multi", "backend": "openai-chat",
+                                              "bench_warm_json": "/x/lite_warm_cl.json", "bench_cold_json": "/x/lite_cold_cl.json"})
+    leg = {"backend": "openai-chat", "num_prompts": 3, "completed": 3, "total_input_tokens": 1695, "total_output_tokens": 384,
+           "max_concurrency": 1, "request_rate": "inf"}
+    core.write_json(bl / "lite_cold_cl.json", {**leg, "date": "20260102-030030", "spec_decode_acceptance_length": 2.0})
+    core.write_json(bl / "lite_warm_cl.json", {**leg, "date": "20260102-030105", "spec_decode_acceptance_length": 1.81})
+    ev7 = dataclasses.replace(ev1, cell="cl", sweep=None, certificate=None, certificate_path=None, report_kind="lite",
+                              bench_report_path="docs/benchmark/bench_report_fx.md")
+    lw = lite_window(r, ev7)
+    ck("G7 lite 측정 창: 시작 = lite_raw measured_utc(부하 직전 · '시작') · 끝 = 마지막 레그 JSON date",
+       lw and lw["start_utc"] == t0 and lw["end_utc"] == t1 and "시작" in lw["start_source"] and "lite_warm_cl.json" in lw["end_source"]
+       and _measure_window(r, ev7)[:2] == (t0, t1))
+    ck("★G7 음성대조: 조인 불성립(생성일 ≠ measured_utc) · 스윕 셀 = lite_window 없음",
+       lite_window(r, dataclasses.replace(ev7, bench_report_path=None)) is None
+       and lite_window(r, dataclasses.replace(ev7, sweep=ev1.sweep)) is None)
+    m7 = measurement(dataclasses.replace(ev7, repo=str(r)))
+    ck("G9 lite-only accept_len = warm 레그 JSON 원문(판정 입력 아님 · cold 병기)",
+       m7.get("accept_len") == "1.81" and "lite_warm_cl.json" in m7["sources"]["accept_len"] and "판정 입력 아님" in m7["sources"]["accept_len"]
+       and "cold 2.0" in m7["sources"]["accept_len"])
+    core.write_json(bl / "lite_warm_cl.json", {**leg, "date": "20260102-030105"})
+    core.write_json(bl / "lite_cold_cl.json", {**leg, "date": "20260102-030030"})
+    ck("★G9 음성대조: 레그 JSON 에 수용 길이가 없으면 미기재(지어내지 않는다)",
+       measurement(dataclasses.replace(ev7, repo=str(r))).get("accept_len") is None)
+    # ── G2: serve_proof 시점 범위(attestation 과 같은 분류) ──
+    sp = bl / "serve_proof_cl.json"
+    core.write_json(sp, {"config": "cl", "health_http": 200})
+    ev2 = dataclasses.replace(ev7, serve_proof={"config": "cl"}, sources={**ev7.sources, "serve_proof": "output/multi/benchlog/serve_proof_cl.json"})
+    os.utime(sp, (1767326400, 1767326400))           # 2026-01-02T04:00:00Z > 측정 끝
+    sc2 = serve_proof_scope(r, ev2)
+    ck("G2 serve_proof 작성 > 측정 끝 = 측정 뒤 재기동의 스모크 산출물(자격 관측이 아니다)",
+       sc2 and sc2["timing"] == "after-measurement" and "측정 뒤 재기동의 스모크 산출물" in sc2["timing_note"])
+    os.utime(sp, (1767322800, 1767322800))           # 2026-01-02T03:00:00Z … 시작과 같은 초 → 창 안
+    os.utime(sp, (1767322700, 1767322700))           # 2026-01-02T02:58:20Z < 시작
+    sc2b = serve_proof_scope(r, ev2)
+    ck("★G2 음성대조: 측정 전 작성 = 측정 뒤 ✗ · serve_proof 없으면 None",
+       sc2b and sc2b["timing"] == "before-measurement" and "측정 뒤" not in sc2b["timing_note"]
+       and serve_proof_scope(r, dataclasses.replace(ev2, serve_proof=None)) is None)
+    # ── G8: 원장 관측 범위 ──
+    for node, rows in (("main", [("2026-01-01T00:00:00Z", "budget_declare", "smoke-cl"), ("2026-01-02T02:50:00Z", "budget_declare", "smoke-cl"),
+                                 ("2026-01-02T03:30:00Z", "budget_clear", None)]),
+                       ("sub", [("2025-12-01T00:00:00Z", "budget_declare", "smoke-old")])):
+        d = r / REL_EVENTS_ROOT / node / "events"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "2026-01.jsonl").write_text("".join(json.dumps({"ts": ts, "kind": k, **({"label": lb} if lb else {}),
+                                                             **({"existed": True} if k == "budget_clear" else {})}) + "\n"
+                                                 for ts, k, lb in rows), encoding="utf-8")
+    ev8 = dataclasses.replace(ev2, node="cluster", declaration={"nodes": [{"node_id": "main", "role": "main"},
+                                                                          {"node_id": "sub", "role": "sub"}]})
+    sp8 = {x["node"]: x for x in event_ledger_spans(r, ev8)}
+    ck("G8 원장 관측 범위: 노드별 첫·마지막 행 · 측정 끝보다 앞에서 끝난 노드 = covers_measurement False",
+       sp8["main"]["last_utc"] == "2026-01-02T03:30:00Z" and sp8["main"]["covers_measurement"] is True
+       and sp8["sub"]["last_utc"] == "2025-12-01T00:00:00Z" and sp8["sub"]["covers_measurement"] is False)
+    ev8b = dataclasses.replace(ev8, declaration={"nodes": [{"node_id": "main"}, {"node_id": "ghost"}]})
+    ck("★G8 음성대조: 선언 노드인데 원장 없음 = 범위 None(없음으로 단언 ✗)",
+       {x["node"]: x for x in event_ledger_spans(r, ev8b)}["ghost"]["last_utc"] is None)
+    # ── G10: 같은 기동 판별 ──
+    att_rel = "output/multi/benchlog/attestation_cl.json"
+    core.write_json(r / att_rel, {"config": "cl", "phase": "serve"})
+    ev10 = dataclasses.replace(ev8, attestation={"_path": att_rel, "config": "cl", "phase": "serve"})
+    (bl / "lite_engine_cl.log").write_text("(APIServer pid=5) INFO 01-02 03:00:10 [x.py:1] POST\n", encoding="utf-8")
+    sl = r / "docs/simlog/fx_run"
+    sl.mkdir(parents=True, exist_ok=True)
+    good = ["[mn] main: budget_honored ✓ {\"ts\":\"2026-01-02T02:50:00Z\",\"kind\":\"budget_honored\"}", "[mn] SMOKE PASS — ok",
+            f"[mn] 노드 정합 attestation v2(serve) → {att_rel}", "[mn] --keep-up: 워치독 유지"]
+    (sl / "fx_serve.log").write_text("\n".join(good) + "\n", encoding="utf-8")
+    win = {"start_utc": t0, "end_utc": t1}
+    sb = attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win)
+    ck("G10 스모크 로그 순서 · 원장 단일 선언(재선언 ✗) · APIServer pid 하나 = 같은 기동의 스모크 직후 관측(근거 파일 · 줄)",
+       sb and "L2 SMOKE PASS → L3 attestation 작성 → L4 --keep-up" in sb["basis"] and "APIServer pid 5 하나" in sb["basis"]
+       and sb["files"][0] == "docs/simlog/fx_run/fx_serve.log")
+    os.utime(r / att_rel, (1767322500, 1767322500))   # 02:55:00Z < 측정 시작 → before-measurement
+    sc10 = attestation_scope(r, ev10)
+    ck("G10 attestation 범위 scope 가 판별을 말한다('미검증' ✗) · 호스트 사실 출처에도 표지",
+       sc10 and SAME_BOOT_MARK in sc10["scope"] and "미검증" not in sc10["scope"]
+       and SAME_BOOT_MARK in (_attestation_timing_note(dataclasses.replace(ev10, repo=str(r))) or ""))
+    (sl / "fx_serve.log").write_text("\n".join([good[0], good[1], good[3], good[2]]) + "\n", encoding="utf-8")
+    ck("★G10 음성대조: 순서가 어긋나면(keep-up 이 attestation 앞) 판별 ✗ → scope '미검증' 유지",
+       attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win) is None and "미검증" in attestation_scope(r, ev10)["scope"])
+    (sl / "fx_serve.log").write_text("\n".join(good) + "\n", encoding="utf-8")
+    (bl / "lite_engine_cl.log").write_text("(APIServer pid=5) a\n(APIServer pid=6) b\n", encoding="utf-8")
+    ck("★G10 음성대조: 측정 로그에 APIServer pid 둘(서빙 프로세스 교체) = 판별 ✗",
+       attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win) is None)
+    (bl / "lite_engine_cl.log").write_text("(APIServer pid=5) a\n", encoding="utf-8")
+    with open(r / REL_EVENTS_ROOT / "main/events/2026-01.jsonl", "a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"ts": "2026-01-02T03:00:30Z", "kind": "budget_declare", "label": "smoke-other"}) + "\n")
+    ck("★G10 음성대조: 측정 끝 전 재선언(다른 기동) = 판별 ✗", attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win) is None)
+    # ── G3: 측정 시점 lite_bench.sh 의 리터럴 인자 ──
+    g = td / "fix2g"
+    tdir = g / REL_BENCH_TOOLS_DIR
+    tdir.mkdir(parents=True, exist_ok=True)
+    (tdir / "lite_bench.sh").write_text("\n".join((
+        "#!/bin/bash", "_bench() {", '  docker exec "$CTR" bash -lc "cd /tmp && vllm bench serve \\',
+        "      --backend $BACKEND --base-url $BASE_URL --model '$MODEL_NAME' --trust-remote-code \\",
+        "      --dataset-name random --random-input-len 512 --random-output-len 128 --random-range-ratio 0 \\",
+        "      --num-prompts $2 --max-concurrency 1 --request-rate inf --ignore-eos --num-warmups $3 \\",
+        "      --save-result --result-dir /tmp\"", "}", 'MEASURED_UTC="$(date -u +%FT%TZ)"', "")), encoding="utf-8")
+    genv = {"GIT_AUTHOR_NAME": core.SYNTHETIC_NAME, "GIT_AUTHOR_EMAIL": core.SYNTHETIC_EMAIL,
+            "GIT_COMMITTER_NAME": core.SYNTHETIC_NAME, "GIT_COMMITTER_EMAIL": core.SYNTHETIC_EMAIL,
+            "GIT_AUTHOR_DATE": core.git_date("2026-01-01T00:00:00Z"), "GIT_COMMITTER_DATE": core.git_date("2026-01-01T00:00:00Z")}
+    core.git(g, "init", "-q", env_extra=genv)
+    core.git(g, "add", "-A", env_extra=genv)
+    core.git(g, "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "c", env_extra=genv)
+    (g / "docs/benchmark").mkdir(parents=True, exist_ok=True)
+    (g / "docs/benchmark/bench_report_fx.md").write_text(f"# lite\n생성일 {t0}\n", encoding="utf-8")
+    ta = lite_tool_args(g, dataclasses.replace(ev7, repo=str(g)))
+    fl = dict((ta or {}).get("flags") or [])
+    ck("G3 lite 도구 원문 인자(리터럴만): --random-input-len 512 · --random-range-ratio 0 · --ignore-eos · 출처 도구@rev 줄 · MEASURED_UTC 줄",
+       ta and fl.get("--random-input-len") == "512" and fl.get("--random-range-ratio") == "0" and "--ignore-eos" in fl
+       and fl.get("--max-concurrency") == "1" and ta["source"].startswith("lite_bench.sh@") and ta["measured_line"] == "L9")
+    ck("★G3 음성대조: `$변수` · 따옴표 인자(--backend · --model · --num-prompts · --num-warmups)는 싣지 않는다 · git 아니면 None",
+       not ({"--backend", "--model", "--num-prompts", "--num-warmups"} & set(fl)) and lite_tool_args(r, ev7) is None)
+
+
 def selftest() -> list[str]:
     """실패 메시지 목록(빈 목록 = 통과). 격리 저장소 · 라이브 태그/브랜치/캠페인 비의존 · ★ = 음성대조."""
     from . import naming
@@ -6366,6 +6903,7 @@ def selftest() -> list[str]:
             _selftest_round2(ck, repo, td, ev, ident)
             _selftest_round3(ck, repo, td, ev, fx)
             _selftest_v7(ck, repo, td, ev, fx, dk)
+            _selftest_fix2(ck, td, ev)
             m = measurement(ev)
             ck("measurement 수치만(절대경로 칸 제외)", m.get("decode_tps_conc1") == "12.3" and "raw_json" not in json.dumps(m))
             mc = measurement_config(repo, ev)

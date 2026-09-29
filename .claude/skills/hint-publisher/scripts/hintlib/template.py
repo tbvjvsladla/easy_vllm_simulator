@@ -94,6 +94,8 @@ render_scaffold 가 소비하는 facts 키 (evidence·artifacts·lineage 가 조
                                       success(단계별 성공 판정),duration,source} · layer_span = build 단계의 이미지 층 CreatedAt 창(표 아래 줄) ·
                                       FACT 에 절 자리표시(`§3.x`)가 남으면 `HINT_FACT_PLACEHOLDER`
     event_timeline              list  evidence.event_timeline — [{utc,node,kind,label,detail,source}](블랙박스 원장의 이 셀 행 · 시각순)
+    event_ledger_spans          list  evidence.event_ledger_spans — [{node,first_utc,last_utc,files,covers_measurement,measurement_end_utc}]
+                                      (노드 원장의 관측 범위 · 범위 끝 뒤 = 관측 범위 밖 · FACT_FIX2 G8)
                                       → 01 §1.4 표 + 기동 시도 묶음 · 02 §2.2 기동 시도 요약
     bench_definition            dict  evidence.bench_definition — {current_full_definition(docs.md 원문),source,source_line,
                                       this_repeats,repeats_source,required_repeats,bench_tool,meets_current_full,reasons[]} → 03 §3.5 · 00 메타
@@ -463,7 +465,7 @@ def _f_grade(c: _Ctx) -> str:
     sources = q.get("sources") if isinstance(q.get("sources"), list) else []
     rows = [
         ("발행 자격(관측)", f"health 200 = {_cell(q.get('health_200'))} · 추론 1회 = {_cell(q.get('inference_observed'))}"),
-        ("자격 근거", _cell([f"`{s}`" for s in sources])),
+        ("자격 근거", _cell([f"`{s}`" for s in sources]) + _qual_scope_text(q)),
         ("증거 등급(task_class)", _cell(tc)),
         ("측정 등급(bench_mode)", _cell(mc.get("bench_mode"), _UNRECORDED)),
         # 2026-09-29 plan_26092908 §4.4(V2): 판정 행은 필수다 — 인증서 유무와 무관하게 판정 원천(evidence.measurement)이 채운다
@@ -1096,7 +1098,10 @@ def _revision_line(slot: str, r: dict) -> str:
     if r.get("basis"):
         # compose 슬롯 추적 파일(artifacts `_select_tracked`)의 판정 근거 — mtime ≤ 측정 · 측정 전 마지막 커밋 · 미관측
         extra += f" · 근거 `{_cell(r.get('basis'))}`"
-    if isinstance(r.get("verified"), bool):
+    if r.get("executed") is False:
+        # FACT_FIX2 G5: 이 셀이 실행하지 않은 경로(generated-unverified)의 파일 — 쓰인 바이트가 없다(mtime 판정은 추론이지 관측 ✗)
+        extra += " · 쓰인 바이트임을 관측으로 확인 해당 없음(실행 안 됨)"
+    elif isinstance(r.get("verified"), bool):
         extra += f" · 쓰인 바이트임을 관측으로 확인 {_yes_no(r.get('verified'))}"
     after = r.get("commits_after_measurement")
     if isinstance(after, list) and after:
@@ -1270,11 +1275,20 @@ def _f_value_status(c: _Ctx) -> str:
     return "\n".join(out)
 
 
+def _qual_scope_text(q: dict) -> str:
+    """발행 자격 근거(serve_proof)의 시점 범위(FACT_FIX2 G2 · evidence.serve_proof_scope 그대로 — attestation 범위와 같은 분류)."""
+    sc = q.get("scope") if isinstance(q.get("scope"), dict) else None
+    if not sc or not sc.get("timing_note"):
+        return ""
+    return (f" — 시점 범위: 작성 {_cell(sc.get('written_utc'))}({_cell(sc.get('written_utc_source'))}) · 측정 창 대비 "
+            f"{_cell(sc.get('timing_note'))}")
+
+
 def _qualification_line(f: dict) -> str:
     q = _dict(f, "qualification")
     srcs = q.get("sources") if isinstance(q.get("sources"), list) else []
     return (f"**기동 성공 판정(관측 · 발행 자격)**: health 200 = {_cell(q.get('health_200'))} · 추론 1회 = "
-            f"{_cell(q.get('inference_observed'))} · 근거 {_cell([f'`{s}`' for s in srcs])}")
+            f"{_cell(q.get('inference_observed'))} · 근거 {_cell([f'`{s}`' for s in srcs])}{_qual_scope_text(q)}")
 
 
 def _f_reproduce(c: _Ctx) -> str:
@@ -1695,6 +1709,29 @@ def _attempts_table(rows: list[dict]) -> list[str]:
     return out
 
 
+def _ledger_span_lines(f: dict) -> list[str]:
+    """원장 관측 범위 줄(FACT_FIX2 G8 · evidence.event_ledger_spans 그대로 — 판정 ✗). 범위 끝이 측정 끝보다 앞인 노드는 그 뒤의 선언이
+    '없음' 이 아니라 **관측 범위 밖**이라고 적는다(D2: 서브 원장 미러가 09-11 에서 끝나 09-23 서브 선언이 표에 없었다)."""
+    spans = [x for x in (f.get("event_ledger_spans") or []) if isinstance(x, dict)]
+    if not spans:
+        return []
+    parts, outs = [], []
+    for x in spans:
+        files = " · ".join(f"`{_cell(p)}`" for p in (x.get("files") or []))
+        if not x.get("last_utc"):
+            parts.append(f"{_cell(x.get('node'))} = 원장 없음(이 노드의 사건은 관측 대상 밖)")
+            outs.append(str(x.get("node")))
+            continue
+        parts.append(f"{_cell(x.get('node'))} = {_cell(x.get('first_utc'))} → {_cell(x.get('last_utc'))}({files})")
+        if x.get("covers_measurement") is False:
+            outs.append(f"{x.get('node')}(마지막 행 {x.get('last_utc')} < 측정 끝 {x.get('measurement_end_utc')})")
+    line = "> **원장 관측 범위**(노드별 첫 행 → 마지막 행 · evidence.event_ledger_spans): " + " · ".join(parts)
+    if outs:
+        line += (f" — ⚠ {' · '.join(_cell(o) for o in outs)}: 그 뒤 그 노드의 선언 · 사건은 **관측 범위 밖**이다(없음이 아니다 · "
+                 "원장 미회수)")
+    return ["", line]
+
+
 def _f_event_timeline(c: _Ctx) -> str:
     """01 §1.4 — 블랙박스 이벤트 원장(`docs/logs/<node>/events/*.jsonl`)에서 이 셀의 행(evidence.event_timeline) + 기동 시도 묶음.
     2026-09-22 S2 round 2(F9): 1차 저작자가 "두 번 띄웠는지 미기록" 이라 적었는데 같은 원장에 예산 선언 2건이 있었다(fact-check #1)."""
@@ -1702,9 +1739,9 @@ def _f_event_timeline(c: _Ctx) -> str:
     if not rows:
         # 2026-09-22 · plan_26092119 S2 round 2 통합 정정: 옛 문구는 "(원장 부재와 행 0 을 evidence 가 가른다)" 였다 — evidence.event_timeline
         #   은 둘 다 `[]` 를 돌려준다(가르지 않는다). 사실 블록이 생산자가 하지 않는 구분을 했다고 말하면 그것이 오도 바이트다.
-        return ("_블랙박스 이벤트 미관측 — 이 셀 label·config 에 맞는 원장 행이 없다(원장 파일이 없는 것과 파일은 있으나 이 셀 행이 0 인 것을 "
-                "이 표는 구분하지 않는다 — evidence.event_timeline 이 둘 다 빈 목록으로 준다)._")
-    out = [f"**블랙박스 이벤트 {len(rows)}행**(원장에서 이 셀 label·config 에 맞는 행만 · 시각순 · 기계 발췌)", ""]
+        return "\n".join(["_블랙박스 이벤트 미관측 — 이 셀 label·config 에 맞는 원장 행이 없다(원장 파일이 없는 것과 파일은 있으나 이 셀 행이 0 인 것을 "
+                          "이 표는 구분하지 않는다 — evidence.event_timeline 이 둘 다 빈 목록으로 준다)._"] + _ledger_span_lines(c.facts))
+    out = [f"**블랙박스 이벤트 {len(rows)}행**(원장에서 이 셀 label·config 에 맞는 행만 · 시각순 · 기계 발췌)"] + _ledger_span_lines(c.facts) + [""]
     out += _table(("#", "UTC", "노드", "kind", "label", "내용", "출처"),
                   [(str(i), _cell(r.get("utc")), _cell(r.get("node")), f"`{_cell(r.get('kind'))}`",
                     f"`{_cell(r.get('label'))}`" if r.get("label") else "—", _cell(r.get("detail"), "—"), _cell(r.get("source")))
@@ -1721,7 +1758,8 @@ def _f_event_attempts(c: _Ctx) -> str:
     rows = _timeline_rows(c.facts)
     if not rows:
         return "_기동 시도 미관측 — 블랙박스 원장에 이 셀 label 의 행이 없다(01 §1.4)._"
-    return "\n".join(["**이 셀의 기동 시도**(블랙박스 원장 · 01 §1.4 행 전문)", ""] + _attempts_table(rows))
+    return "\n".join(["**이 셀의 기동 시도**(블랙박스 원장 · 01 §1.4 행 전문)"] + _ledger_span_lines(c.facts) + [""]
+                     + _attempts_table(rows))
 
 
 def _f_bench_definition(c: _Ctx) -> str:
@@ -4218,6 +4256,31 @@ def selftest() -> list[str]:
            and "블랙박스 이벤트 5행" not in fact_blocks(t02x)["event_attempts"])
         ck("이벤트 없으면 '미관측' 명시(침묵 ✗)", "미관측" in _f_event_timeline(_Ctx(repo, dict(facts_json, event_timeline=[]), tpls))
            and "미관측" in _f_event_attempts(_Ctx(repo, dict(facts_json, event_timeline=None), tpls)))
+        # ── FACT_FIX2 G8 · G2 · G5(2026-09-29): 원장 관측 범위 · 발행 자격 시점 범위 · 실행 안 된 경로의 쓰인 바이트 ──
+        spans_ = [{"node": "main", "first_utc": "2026-09-01T00:00:00Z", "last_utc": "2026-09-30T00:00:00Z", "files": ["m.jsonl"],
+                   "covers_measurement": True, "measurement_end_utc": "2026-09-23T01:57:09Z"},
+                  {"node": "sub", "first_utc": "2026-09-03T00:00:00Z", "last_utc": "2026-09-11T11:10:38Z", "files": ["s.jsonl"],
+                   "covers_measurement": False, "measurement_end_utc": "2026-09-23T01:57:09Z"}]
+        et8 = _f_event_timeline(_Ctx(repo, dict(facts_json, event_ledger_spans=spans_), tpls))
+        ck("G8 이벤트 표에 원장 관측 범위 · 범위 끝 < 측정 끝인 노드 = '관측 범위 밖'(없음 ✗) · 기동 시도 요약에도",
+           "원장 관측 범위" in et8 and "sub = 2026-09-03T00:00:00Z → 2026-09-11T11:10:38Z" in et8 and "관측 범위 밖" in et8
+           and "관측 범위 밖" in _f_event_attempts(_Ctx(repo, dict(facts_json, event_ledger_spans=spans_), tpls)))
+        ck("★G8 음성대조: 모든 노드가 측정 끝을 덮으면 경고 없음 · 범위 입력이 없으면 줄 없음",
+           "관측 범위 밖" not in _f_event_timeline(_Ctx(repo, dict(facts_json, event_ledger_spans=spans_[:1]), tpls))
+           and "원장 관측 범위" not in _f_event_timeline(_Ctx(repo, dict(facts_json, event_ledger_spans=None), tpls)))
+        q2 = {"health_200": True, "inference_observed": True, "sources": ["output/multi/benchlog/serve_proof_x.json"],
+              "scope": {"written_utc": "2026-09-28T01:31:48Z", "written_utc_source": "파일 mtime", "timing": "after-measurement",
+                        "timing_note": "작성 2026-09-28T01:31:48Z > 측정 끝 2026-09-28T00:35:13Z — 측정 뒤 재기동의 스모크 산출물"}}
+        ck("G2 발행 자격 근거(FACT:grade · 재현 끝 줄)에 serve_proof 시점 범위",
+           "측정 뒤 재기동의 스모크 산출물" in _qualification_line({"qualification": q2})
+           and "측정 뒤 재기동의 스모크 산출물" in _qual_scope_text(q2))
+        ck("★G2 음성대조: 범위가 없으면 근거 칸에 덧붙이지 않는다", _qual_scope_text({**q2, "scope": None}) == "")
+        rl5 = _revision_line("compose", {"path": "x.sh", "commit": "a" * 40, "method": "worktree", "basis": "mtime≤measured",
+                                         "verified": None, "executed": False})
+        ck("G5 실행 안 된 경로 = '쓰인 바이트임을 관측으로 확인 해당 없음(실행 안 됨)'", "확인 해당 없음(실행 안 됨)" in rl5
+           and "확인 예" not in rl5)
+        ck("★G5 음성대조: 실행된 경로(verified 불리언)는 예/아니오 그대로",
+           "확인 예" in _revision_line("compose", {"path": "x.sh", "method": "worktree", "verified": True}))
         # 2026-09-22 · plan_26092119 S2 round 2 통합: 빈 타임라인 문구는 생산자가 하지 않는 구분(원장 부재 대 행 0)을 했다고 말하지 않는다 —
         #   evidence.event_timeline 은 두 경우 모두 [] 다(음성대조: 옛 문구 "evidence 가 가른다" 가 돌아오면 RED).
         empty_ev = _f_event_timeline(_Ctx(repo, dict(facts_json, event_timeline=[]), tpls))

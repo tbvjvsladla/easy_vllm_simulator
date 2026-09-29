@@ -811,6 +811,7 @@ def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_r
     # 2026-09-22 S2 round 2(공유 사실 계약): 블랙박스 이벤트 원장의 이 셀 행 · 현행 full 정의(docs.md 원문) — 1차 저작자가 "두 번 띄웠는지
     #   미기록"(원장에 선언 2건) · "현행 full 정의 미기록"(docs.md 에 있다)으로 적은 두 빈칸을 기계가 채운다(생산자 = evidence).
     event_timeline = evidence.event_timeline(repo, ev)
+    event_ledger_spans = evidence.event_ledger_spans(repo, ev)     # FACT_FIX2 G8: 원장 관측 범위(범위 끝 뒤 = 관측 범위 밖 · 없음 ✗)
     bench_definition = evidence.bench_definition(repo, ev)
     bench_md = template.render_bench_source(repo, col["bench_src"]) if col["bench_src"] else None
     camp = {"id": ev.campaign_id, "cell": ev.cell, "node": ev.node, "mode": ev.mode}
@@ -839,7 +840,7 @@ def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_r
         "reproduce_steps": _with_bench_command(art.get("reproduce_steps"), evidence.bench_command(repo, ev)),
         "sub_recipe": art.get("sub_recipe"), "bench_section_md": bench_md,
         "task_class": task_class, "perf_waiver": bench.get("perf_waiver") or None, "campaign": camp, "approval": None,
-        "prior_approval": prior_approval, "publication": pub, "event_timeline": event_timeline, "bench_definition": bench_definition, "factcheck": None,
+        "prior_approval": prior_approval, "publication": pub, "event_timeline": event_timeline, "event_ledger_spans": event_ledger_spans, "bench_definition": bench_definition, "factcheck": None,
         "measurement_env_observed": col["env_observed"], "tool_snapshots": col["tool_snaps"], "attestation_scope": col["att_scope"],
         "tail_candidates": col["tail_candidates"], "env_shapes": art.get("env_shapes") or [], **art_more,
     }
