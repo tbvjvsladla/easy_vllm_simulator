@@ -38,6 +38,9 @@
     - **같은 셀의 과거 발행 기록 = 관측으로 가른다**(2026-09-22 감사): 발행 기록에는 셀 필드가 없다. id 접미 규칙만 쓰면
       셀 id 가 다른 셀 id 의 접미일 때(`bf-262k-mmp` ⊂ `nv4_bf_262k_mmp`) 남의 계보를 삼킨다 — 기록의 simlog 사본
       `sweep_index.json` meta.config_name 이 있으면 그것만 믿고, 없을 때만 id 접미로 대조하며 근거를 method 에 적는다.
+    - **같은 모델의 앞선 셀 = 시드 S3**(2026-09-29 plan_26092908 R-a): S2 는 같은 셀 키만 따라서, 셀 키가 다른 새 셀은 같은 모델의
+      bring-up 계보를 휘발 캠페인 grounding 참조로만 얻었다(재생에서 DS4F LINEAGE 12 → 6). 추적 평면의 발행 기록에서 identity.model
+      (base 슬러그) · 관측 별칭(`model_aliases`) · gpu 로 결정론 대조하고 서사 문서 포인터만 싣는다(`seeds_from_model_priors`).
     - **저장소 밖 포인터 원문은 싣지 않는다**: LINEAGE.json 은 배포 페이로드다 — `/home/…` 같은 원문은 `<outside-repo>` 로.
     - **"부재와 실패는 다른 사실"**: 시드 결손은 `seeds_missing[]` 로 기재하고 차단하지 않는다. 단 문서 0건은 서사 원재료 0
       이므로 린터가 `HINT_LINEAGE_EMPTY` 로 막는다(`require_documents`).
@@ -92,6 +95,8 @@ _DIR_CANDIDATE_KINDS = ("simlog", "raw_dir", "engine_failure_logs")
 #   `inputs/sources/<이름>@<rev12>` 에 쓰고, 이 모듈은 그 경로를 **draft 상대** 후보로 싣는다(저장소 경로가 아니다 — 발췌기가 draft 에서
 #   읽는다). 원천이 `.claude/` 아래여도 싣는 이유: 헌법 비색인(X17)은 **mention 그래프 입력**의 규칙이고, 이것은 "측정 때 돈 코드" 의
 #   바이트 증거다 — 그래프에 넣지 않고(간선 ✗ · 본문 인용 ✗) 발췌 출처로만 연다. 모양의 단일 소유자 = 이 모듈(`tool_snapshot_rel`).
+MODEL_PRIOR_SOURCE = "model_prior_publication:"   # 시드 S3 출처 접두(같은 모델 · 다른 셀의 앞선 발행 기록)
+MODEL_PRIOR_KINDS = ("plan", "devlog", "testlog", "report")   # S3 가 시드로 싣는 서사 종류(측정 표면 bench_report·sweep_map ✗)
 TOOL_SOURCE_KIND = "tool-source@rev"
 TOOL_SNAPSHOT_DIR = "inputs/sources"
 _TOOL_SNAPSHOT_RE = re.compile(r"^" + re.escape(TOOL_SNAPSHOT_DIR) + r"/([A-Za-z0-9][A-Za-z0-9._-]*)@([0-9a-f]{12})\Z")
@@ -898,6 +903,115 @@ def seeds_from_publications(repo: Path, records, *, this_topic: str | None, iden
             "prior_after_ceiling": late, "cell_key": ck, "prior_match": how, "prior_cell_mismatch": cell_mismatch}
 
 
+_CAMPAIGN_ID_TOKEN_RE = re.compile(r"^camp\d*\Z")    # 캠페인 id 접두(`camp-YYMMDDHH-…` · `camp26090721_…`) — 모델 별칭이 아니다
+
+
+def _id_tokens(rid: str) -> list[str]:
+    return [t for t in re.split(r"[^0-9a-z]+", str(rid).lower()) if t]
+
+
+def _alias_token_ok(tok: str) -> bool:
+    return (len(tok) >= 4 and any(c.isalpha() for c in tok) and any(c.isdigit() for c in tok)
+            and not _CAMPAIGN_ID_TOKEN_RE.match(tok))
+
+
+def model_aliases(records, pat: re.Pattern) -> dict:
+    """같은 모델의 **관측된 별칭**(`ds4f0731` · `qwen38fn`)을 발행 기록에서 파생한다 — 손으로 적은 약어표가 아니다.
+
+    규칙(결정론 · 입력 = 발행 기록 id·identity.model 뿐): identity.model 이 base 슬러그에 걸리는 기록(= 같은 모델)의 **id 첫 토큰**
+    중 ① 영문·숫자를 함께 든 4자 이상 ② 캠페인 id 접두(`camp…`)가 아님 ③ 같은 모델 기록 **2건 이상**의 첫 토큰 ④ 다른 모델 기록 id
+    의 어느 토큰으로도 나오지 않음 — 을 모두 만족하는 토큰. 별칭은 약어라 문서 본문 필터에는 쓰지 않는다(`slug_pattern` docstring ·
+    재현율 근거) — 기록 대조(identity.model 이 빈 기록)와 method 기재에만 쓴다.
+    반환 {"aliases": [...], "evidence": {alias: [기록 id…]}}"""
+    same: dict[str, list[str]] = {}
+    other_tokens: set[str] = set()
+    for r in records or ():
+        if not isinstance(r, dict) or "_unreadable" in r:
+            continue
+        rid = r.get("_id") or r.get("publication_id")
+        if not isinstance(rid, str) or not rid:
+            continue
+        ident = r.get("identity") if isinstance(r.get("identity"), dict) else {}
+        model = ident.get("model")
+        toks = _id_tokens(rid)
+        if isinstance(model, str) and model.strip() and pat.search(model):
+            if toks and _alias_token_ok(toks[0]):
+                same.setdefault(toks[0], []).append(rid)
+        elif isinstance(model, str) and model.strip():
+            other_tokens.update(toks)
+    aliases = {t: sorted(ids) for t, ids in same.items() if len(ids) >= 2 and t not in other_tokens}
+    return {"aliases": sorted(aliases), "evidence": {t: aliases[t] for t in sorted(aliases)}}
+
+
+def seeds_from_model_priors(repo: Path, records, *, this_topic: str | None, identity: dict | None, pat: re.Pattern,
+                            publish_kst: str | None, exclude=()) -> dict:
+    """시드 S3 — **같은 모델의 앞선 셀** 발행 기록의 문서 포인터(2026-09-29 plan_26092908 §4.6 R-a).
+
+    왜: S2(`seeds_from_publications`)는 같은 identity · **같은 셀 키**의 기록만 따른다. 새 셀(DS4F `ds4f0731-1m-spec7-roce`)은 같은
+    모델의 앞선 bring-up(`ds4f0731_vllm029rc6_multi_bump` · `ds4f0731_029rc6_hint_l4combo`)과 셀 키가 달라 한 건도 못 잡고, 이번 캠페인
+    문서는 앞선 계보를 본문에 인용하지 않았다 — v6 발행 때 그 계보를 날라 준 것은 **휘발 캠페인 인스턴스의 grounding 참조**였고, 재생
+    (purge 뒤)·캠페인 밖 발행에서는 그 통로가 없다(LINEAGE 12 → 6). 계보의 입력이 휘발 파일에 달려 있으면 같은 셀이 발행 시점에 따라
+    다른 계보를 낸다 — 추적 평면(발행 기록)에서 결정론으로 파생한다.
+
+    대조(같은 모델) = 기록 identity.model 이 base 슬러그 패턴에 걸림(체크포인트 슬러그 `…-nvfp4`·대소문자 변형 포함) · 또는 identity.model
+    이 빈 기록의 id 첫 토큰이 관측 별칭(`model_aliases`). gpu 가 양쪽에 있으면 같아야 한다(HW 가 다른 계보는 이 태그의 계보가 아니다).
+    발행 시각 상한 뒤 기록 ✗(D-W8) · S2 가 이미 잡은 같은 셀 기록 ✗(exclude). **문서 포인터만** 싣는다 — 다른 셀의 simlog·원시 jsonl 은
+    이 셀의 측정 증거가 아니다(데이터 후보에 섞이면 발췌 출처가 남의 측정을 가리킨다) — 실제 거름은 derive 의 MODEL_PRIOR_KINDS. 기록의 identity 가 모델을 선언했으므로 슬러그
+    본문 필터는 면제다(별칭만 적은 bring-up 문서 `plan_26090820_ds4f0731_…` 가 필터에 걸려 사라지지 않게).
+    반환 {"seeds": [{path, source, pointer}], "missing": [...], "records": [ids], "match": {id: 근거}, "after_ceiling": [ids],
+          "gpu_mismatch": [ids], "aliases": model_aliases(...)}"""
+    repo = Path(repo)
+    al = model_aliases(records, pat)
+    alias_set = set(al["aliases"])
+    ident = identity if isinstance(identity, dict) else {}
+    gpu = ident.get("gpu")
+    excl = set(exclude or ())
+    seeds: list[dict] = []
+    missing: list[dict] = []
+    took: list[str] = []
+    how: dict[str, str] = {}
+    late: list[str] = []
+    gpu_mis: list[str] = []
+    by_id: dict[str, dict] = {}
+    for r in records or ():
+        if isinstance(r, dict):
+            rid = r.get("_id") or r.get("publication_id")
+            if isinstance(rid, str) and rid:
+                by_id.setdefault(rid, r)
+    for rid in sorted(by_id):
+        rec = by_id[rid]
+        if rid == this_topic or rid in excl or "_unreadable" in rec:
+            continue
+        ri = rec.get("identity") if isinstance(rec.get("identity"), dict) else {}
+        model = ri.get("model")
+        if isinstance(model, str) and model.strip():
+            if not pat.search(model):
+                continue
+            via = "identity.model~base_slug"
+        else:
+            toks = _id_tokens(rid)
+            if not toks or toks[0] not in alias_set:
+                continue
+            via = f"id-alias:{toks[0]}(identity.model 부재)"
+        if gpu not in (None, "") and ri.get("gpu") not in (None, "") and _norm_val(ri["gpu"]) != _norm_val(gpu):
+            gpu_mis.append(rid)
+            continue
+        k = _record_kst(rec)
+        if publish_kst and k is not None and k > publish_kst:
+            late.append(rid)
+            continue
+        took.append(rid)
+        how[rid] = via
+        for pointer, raw, base in _record_pointers(rec):
+            path, why = _norm_pointer(repo, raw, base)
+            if path is None:
+                missing.append({"path": raw, "source": f"{MODEL_PRIOR_SOURCE}{rid}", "reason": why})
+            else:
+                seeds.append({"path": path, "source": f"{MODEL_PRIOR_SOURCE}{rid}", "pointer": pointer})
+    return {"seeds": seeds, "missing": missing, "records": took, "match": how, "after_ceiling": late,
+            "gpu_mismatch": gpu_mis, "aliases": al}
+
+
 def record_cell_match(repo: Path, rid: str, rec: dict, cell_key: str) -> tuple[str | None, bool]:
     """발행 기록이 이 셀의 측정인가 → (대조 근거 | None, id 는 이 셀처럼 보이나 관측된 측정 셀이 다른가). 관측(simlog 사본
     `sweep_index.meta.config_name`) 먼저, 없을 때만 발행 id 접미. 계보 시드(seeds_from_publications)와 evidence 의 과거 측정 창
@@ -1123,9 +1237,18 @@ def derive(repo: Path, ev, *, base_slug: str, publish_kst: str, depth: int = DEF
     sp = seeds_from_publications(repo, recs, this_topic=topic, identity=ident, cell_key=ck,
                                  publish_kst=publish_kst)
 
+    # 시드 S3 — 같은 모델의 앞선 셀(셀 키가 달라 S2 가 못 잡는 bring-up 계보 · R-a). identity 는 S2 와 같은 규칙으로 고른다.
+    this_rec = next((r for r in (recs or ()) if isinstance(r, dict) and (r.get("_id") or r.get("publication_id")) == topic
+                     and "_unreadable" not in r), None)
+    mp_ident = ident if isinstance(ident, dict) and ident else ((this_rec or {}).get("identity") or {})
+    mp = seeds_from_model_priors(repo, recs, this_topic=topic, identity=mp_ident, pat=pat, publish_kst=publish_kst,
+                                 exclude=set(sp["prior"]))
+
     # 시드 후보 모으기: (경로, 출처, 포인터 이름, 필터 면제?)
     raw_seeds: list[tuple[str, str, str, bool]] = [(s["path"], s["source"], s["pointer"], True) for s in sp["seeds"]]
-    seeds_missing: list[dict] = list(sp["missing"])
+    raw_seeds += [(s["path"], s["source"], s["pointer"], True) for s in mp["seeds"]]
+    seeds_missing: list[dict] = list(sp["missing"]) + list(mp["missing"])
+    model_prior_skipped: set[str] = set()
     for k in ("bench_report_path", "certificate_path"):
         v = _ev(ev, k)
         if isinstance(v, str) and v:
@@ -1214,6 +1337,11 @@ def derive(repo: Path, ev, *, base_slug: str, publish_kst: str, depth: int = DEF
             seeds_missing.append({"path": path, "source": source, "reason": "file-absent"})
             continue
         node = corpus.ensure(path)
+        if source.startswith(MODEL_PRIOR_SOURCE) and (node is None or node.kind not in MODEL_PRIOR_KINDS):
+            # 다른 셀의 측정 표면(bench_report·인증서·simlog·원시 jsonl)은 이 셀의 증거가 아니다 — 서사 문서만 시드로 싣는다.
+            #   그 셀의 측정 문서가 계보에 필요하면 서사 문서의 본문 인용(BFS)이 데려온다(DS4F sweep_map_26090912_* 가 그 길).
+            model_prior_skipped.add(path)
+            continue
         if node is not None and not _within_ceiling(node.yymmddhh, publish_kst):
             seeds_missing.append({"path": path, "source": source, "reason": "after-publish-ceiling"})
             continue
@@ -1449,6 +1577,13 @@ def derive(repo: Path, ev, *, base_slug: str, publish_kst: str, depth: int = DEF
             "seed_records": {"this": sp["this"], "prior": sp["prior"], "prior_after_ceiling": sp["prior_after_ceiling"],
                              "prior_match": sp["prior_match"], "prior_cell_mismatch": sp["prior_cell_mismatch"],
                              "cell_key": sp["cell_key"], "identity_fields": list(IDENTITY_MATCH_FIELDS)},
+            "model_prior_records": {"rule": ("같은 모델의 앞선 셀 발행 기록(S3) — identity.model 이 base 슬러그에 걸림 또는 identity.model 이 "
+                                             "빈 기록의 id 첫 토큰이 관측 별칭 · gpu 같음(양쪽에 있을 때) · 발행 시각 상한 이내 · S2 기록 제외 · "
+                                             "서사 문서 포인터만(plan·devlog·testlog·report · 필터 면제) · 다른 셀의 측정 표면·데이터 포인터는 싣지 않는다"),
+                                    "records": mp["records"], "match": mp["match"], "after_ceiling": mp["after_ceiling"],
+                                    "gpu_mismatch": mp["gpu_mismatch"], "aliases": mp["aliases"]["aliases"],
+                                    "alias_evidence": mp["aliases"]["evidence"],
+                                    "skipped_non_narrative": sorted(model_prior_skipped)},
             "supersede": ("헤더 12줄 배너(SUPERSEDED·SUPERSEDED-IN-PART 어느 꼴이든) 양쪽 관행 · 방향 = 날짜 휴리스틱(뒤에 태어난 "
                           "쪽이 뒤집은 쪽 · 같은 시각은 판정 안 함) · 모호 해소 간선은 쓰지 않는다"),
             "stats": {"rejected_filter": len(rejected["filter"]), "rejected_ceiling": len(rejected["ceiling"]),
@@ -1800,7 +1935,10 @@ def selftest() -> list[str]:
                                     "devlog": "/" + "home/op-fixture/elsewhere/devlog_26010099_x.md"}}
         rec_other_model = {"identity": {"model": "omega-1b", "gpu": "NVIDIA GB10", "topology": "multi", "tp": 2},
                            "scaffolded": {"plan": "docs/plan/plan_26010115_alpha.md"}}
-        rec_other_cell = {"identity": rec_this["identity"], "scaffolded": {"plan": "docs/plan/plan_26010115_beta.md"}}
+        # 다른 셀 기록의 plan 은 형제 모호 대조(plan_26010115_*)와 겹치지 않는 문서를 가리킨다 — S3 가 그 기록을 시드로 삼으면
+        #   정확 시드가 되어 모호 해소 대조가 공허해진다.
+        w("docs/plan/plan_26010016_c2b.md", f"# {S} 다른 셀(c2-b) 계획\n")
+        rec_other_cell = {"identity": rec_this["identity"], "scaffolded": {"plan": "docs/plan/plan_26010016_c2b.md"}}
         rec_late = {"generated_utc": "2026-01-09T03:00:00Z", "identity": rec_this["identity"],
                     "scaffolded": {"plan": "docs/report/perf_26010900_zeta_later.md"}}
         # ★셀 키 접미 충돌(2026-09-22 감사): id 는 `_c1_a` 로 끝나지만 측정 셀은 `b-c1-a` — simlog 관측이 이긴다.
@@ -1815,10 +1953,36 @@ def selftest() -> list[str]:
         rec_sim_match = {"generated_utc": "2026-01-01T02:30:00Z", "identity": rec_this["identity"],
                          "raw_log_paths": {"simlog": "docs/simlog/26010102_zz_run"},
                          "scaffolded": {"plan": "docs/plan/plan_26010102_zz_sim.md"}}
+        # 시드 S3(같은 모델 · 앞선 다른 셀 · 2026-09-29 R-a): identity.model 대조 · 관측 별칭 · gpu · 서사 종류만.
+        w("docs/plan/plan_26010020_zbr_bringup.md", "# 브링업 계획 — 별칭 zbr7 만 적었다(base 슬러그 0회)\n")
+        w("docs/testlog/testlog_26010021_zbr_two.md", f"# {S} 브링업 판정\n")
+        w("docs/devlog/devlog_26010022_zbr_three.md", f"# {S} 브링업 서사(identity.model 없는 기록 · 별칭 대조)\n")
+        w("docs/plan/plan_26010023_qq9x_three.md", f"# {S} 별칭 아님(다른 모델 id 에도 나오는 토큰) — 시드 ✗\n")
+        w("docs/plan/plan_26010024_zeta_h100.md", f"# {S} 다른 HW — 시드 ✗\n")
+        w("docs/benchmark/bench_report_26010020_zeta2.5-flash_GB10_0.0.8.md", f"# {S} 다른 셀의 측정 표면 — 시드 ✗\n")
+        zid = {"model": "zeta2.5-flash", "gpu": "NVIDIA GB10", "topology": "single", "tp": 1}
+        s3_recs = (
+            ("zbr7_one", {"generated_utc": "2026-01-01T00:00:00Z", "identity": zid,
+                          "scaffolded": {"plan": "docs/plan/plan_26010020_zbr_bringup.md",
+                                         "bench_report": "docs/benchmark/bench_report_26010020_zeta2.5-flash_GB10_0.0.8.md",
+                                         "simlog": "docs/simlog/26010020_zbr_run"}}),
+            ("zbr7_two", {"generated_utc": "2026-01-01T00:00:00Z", "identity": zid,
+                          "scaffolded": {"testlog": "docs/testlog/testlog_26010021_zbr_two.md"}}),
+            ("zbr7_three", {"generated_utc": "2026-01-01T00:00:00Z", "identity": {"gpu": "NVIDIA GB10"},
+                            "scaffolded": {"devlog": "docs/devlog/devlog_26010022_zbr_three.md"}}),
+            ("qq9x_one", {"generated_utc": "2026-01-01T00:00:00Z", "identity": zid, "scaffolded": {}}),
+            ("qq9x_two", {"generated_utc": "2026-01-01T00:00:00Z", "identity": zid, "scaffolded": {}}),
+            ("omega_qq9x", {"generated_utc": "2026-01-01T00:00:00Z", "identity": {"model": "omega-1b"}, "scaffolded": {}}),
+            ("qq9x_three", {"generated_utc": "2026-01-01T00:00:00Z", "identity": {},
+                            "scaffolded": {"plan": "docs/plan/plan_26010023_qq9x_three.md"}}),
+            ("zeta_h100_run", {"generated_utc": "2026-01-01T00:00:00Z", "identity": {**zid, "gpu": "NVIDIA H100"},
+                               "scaffolded": {"plan": "docs/plan/plan_26010024_zeta_h100.md"}}),
+        )
+        w("docs/simlog/26010020_zbr_run/sweep_index.json", json.dumps({"meta": {"config_name": "zbr-cell"}}))
         for rid, rec in (("campx_bench_c1_a", rec_this), ("old_full_c1_a", rec_prior),
                          ("other_full_c1_a", rec_other_model), ("campx_bench_c2_b", rec_other_cell),
                          ("redo_full_c1_a", rec_late), ("old_full_b_c1_a", rec_suffix_clash),
-                         ("zz_unrelated_name", rec_sim_match)):
+                         ("zz_unrelated_name", rec_sim_match)) + s3_recs:
             w(f"docs/_evidence/{rid}.json", json.dumps(rec, ensure_ascii=False))
         w("docs/_evidence/campx_bench_c1_a.work-manifest.json", "{}")
         w("docs/_evidence/broken.json", "{not json")
@@ -1886,11 +2050,35 @@ def selftest() -> list[str]:
            sr_["prior"] == ["old_full_c1_a", "zz_unrelated_name"]
            and sr_["prior_match"] == {"old_full_c1_a": "publication-id-suffix(simlog 미관측)",
                                       "zz_unrelated_name": "simlog:sweep_index.meta.config_name"})
-        ck("★셀 키 접미 충돌(측정 셀이 다른 기록)은 시드 아님", sr_["prior_cell_mismatch"] == ["old_full_b_c1_a"]
-           and "docs/plan/plan_26010103_bc1a.md" not in docs
+        src_of = lambda p: {x["source"] for x in lin["seeds"] if x["path"] == p}   # noqa: E731
+        ck("★셀 키 접미 충돌(측정 셀이 다른 기록)은 같은 셀 시드(S2) 아님 · 같은 모델 앞선 셀(S3)로만",
+           sr_["prior_cell_mismatch"] == ["old_full_b_c1_a"]
+           and src_of("docs/plan/plan_26010103_bc1a.md") == {MODEL_PRIOR_SOURCE + "old_full_b_c1_a"}
            and docs.get("docs/plan/plan_26010102_zz_sim.md", {}).get("depth") == 0)
-        ck("★다른 모델·다른 셀 기록은 시드 아님", not any(s["source"].endswith(("other_full_c1_a", "campx_bench_c2_b"))
-                                              for s in lin["seeds"]))
+        ck("★다른 모델 기록은 어떤 시드도 아님 · 다른 셀 기록은 S2 시드 아님",
+           not any(s["source"].endswith("other_full_c1_a") for s in lin["seeds"])
+           and not any(s["source"] == "prior_publication:campx_bench_c2_b" for s in lin["seeds"]))
+        mpr = lin["method"]["model_prior_records"]
+        ck("S3: 같은 모델 앞선 다른 셀 기록 = 시드(identity.model · 대소문자·양자화 접미 무관)",
+           {"campx_bench_c2_b", "zbr7_one", "zbr7_two"} <= set(mpr["records"])
+           and mpr["match"].get("zbr7_one") == "identity.model~base_slug"
+           and src_of("docs/plan/plan_26010016_c2b.md") == {MODEL_PRIOR_SOURCE + "campx_bench_c2_b"})
+        ck("S3: 별칭만 적은 브링업 문서도 채택(identity 가 모델을 선언 · 필터 면제)",
+           docs.get("docs/plan/plan_26010020_zbr_bringup.md", {}).get("depth") == 0)
+        ck("S3: 관측 별칭 파생(같은 모델 id 첫 토큰 2건+ · 다른 모델 id 에 없음)",
+           mpr["aliases"] == ["zbr7"] and mpr["alias_evidence"] == {"zbr7": ["zbr7_one", "zbr7_two"]})
+        ck("S3: identity.model 없는 기록은 별칭으로 대조", str(mpr["match"].get("zbr7_three", "")).startswith("id-alias:zbr7")
+           and docs.get("docs/devlog/devlog_26010022_zbr_three.md", {}).get("depth") == 0)
+        ck("★S3: 다른 모델 id 에도 나오는 토큰은 별칭 아님 → 모델 없는 기록 불채택",
+           "qq9x_three" not in mpr["records"] and "docs/plan/plan_26010023_qq9x_three.md" not in docs)
+        ck("★S3: 다른 모델·다른 HW·발행 뒤 기록 제외", "other_full_c1_a" not in mpr["records"]
+           and mpr["gpu_mismatch"] == ["zeta_h100_run"] and "docs/plan/plan_26010024_zeta_h100.md" not in docs
+           and "redo_full_c1_a" in mpr["after_ceiling"] and "redo_full_c1_a" not in mpr["records"])
+        ck("★S3: S2 가 잡은 같은 셀 기록은 S3 에 중복하지 않는다", not set(sr_["prior"]) & set(mpr["records"]))
+        ck("★S3: 다른 셀의 측정 표면·데이터 포인터는 싣지 않는다",
+           "docs/benchmark/bench_report_26010020_zeta2.5-flash_GB10_0.0.8.md" not in docs
+           and not any(c["path"].startswith("docs/simlog/26010020_zbr_run") for c in lin["evidence_candidates"])
+           and "docs/benchmark/bench_report_26010020_zeta2.5-flash_GB10_0.0.8.md" in mpr["skipped_non_narrative"])
         ck("★발행 뒤 과거 기록은 제외", lin["method"]["seed_records"]["prior_after_ceiling"] == ["redo_full_c1_a"])
         ck("조상 체인(시드 plan_first → plan_zero depth 1 → plan_origin depth 2)",
            docs.get("docs/plan/plan_26010001_zeta_zero.md", {}).get("depth") == 1
@@ -2079,7 +2267,7 @@ def selftest() -> list[str]:
         recs = load_publication_records(repo)
         ck("발행 기록 적재: work-manifest 제외 · 깨진 기록 표시", [r["_id"] for r in recs] == sorted(
             ["broken", "campx_bench_c1_a", "campx_bench_c2_b", "old_full_b_c1_a", "old_full_c1_a", "other_full_c1_a",
-             "redo_full_c1_a", "zz_unrelated_name"])
+             "redo_full_c1_a", "zz_unrelated_name"] + [rid for rid, _ in s3_recs])
            and "_unreadable" in recs[0])
         sp = seeds_from_publications(repo, recs, this_topic="nope", identity=None, cell_key="c1-a")
         ck("★이 발행 기록 부재 = 결손 기재(차단 ✗)", sp["missing"][0]["reason"] == "record-absent" and sp["seeds"] == [])

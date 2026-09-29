@@ -896,6 +896,96 @@ def _regenerated(c: _Ctx, path: Path) -> dict | None:
     return None
 
 
+# ── 측정 뒤 재생성된 render 3층 env 의 측정 당시 판본 재렌더 (2026-09-29 · plan_26092908 R-b) ─────────────────────────────
+# 왜: F2(2026-09-22)는 측정 뒤 재생성된 `.env.interconnect` 를 **빼기만** 했다 — 수신자는 그 변수 집합 자체를 모르게 됐다(v7 블라인드
+#   S3: v6 D1 은 측정 당시 렌더(38cc0e6)와 일치하는 19키 형상을 실어 만점이었고, v7 은 형상이 통째로 빠졌다). 렌더러는 추적 파일이라
+#   측정 시각 이전 마지막 커밋의 바이트를 git 이 든다 — 그 판본으로 **같은 manifest 입력**을 다시 렌더하면 측정 당시 형상의 결정론 근사가
+#   된다. 단 실행이 읽은 바이트가 아니므로(manifest 는 비추적 · 측정 뒤 바뀌었을 수 있다) `generated-unverified` · `renderer@<rev12>` 로
+#   표시하고 파일 첫 줄에 경고를 단다. 재렌더하지 못하면 결손 코드 `HINT_MISSING_ENV_SHAPE_RERENDER` + 제외 행(침묵 ✗).
+RERENDER_FUNCS = {"interconnect": "render_nccl_envfile", "cluster": "render_cluster_envfile"}
+RERENDER_GENERATED_BY_RE = re.compile(r"^renderer@[0-9a-f]{12}\Z")
+RERENDER_STATUS = "rerendered-at-measurement-revision"
+
+
+def _rerender_at_measurement(c: "_Ctx", kind: str) -> dict:
+    """측정 당시 렌더러 판본으로 env 를 다시 렌더한다 → {ok, rev, rev12, generated_by, text, module, manifest, manifest_mtime_utc,
+    manifest_basis, method} | {ok: False, why}. 옛 판본은 `git show <rev>:<렌더러>` 바이트를 임시 디렉터리에 꺼내 적재한다
+    (`_render_module` 관례 = core.load_owner_module · 임시 경로라 작업트리 모듈 캐시와 섞이지 않는다). 읽기 전용 배관만 쓴다."""
+    import importlib.util
+    import tempfile
+    key = ("rerender", kind)
+    if key in c.memo:
+        return c.memo[key]
+    measured, msrc = _measured_utc(c)
+    rel = core.REL_RENDER_DOCKERFILE
+    fn_name = RERENDER_FUNCS.get(kind)
+
+    def no(why: str) -> dict:
+        c.memo[key] = {"ok": False, "why": why}
+        return c.memo[key]
+    if fn_name is None:
+        return no(f"render 3층 env 가 아니다(kind={kind}) — 재렌더 대상 아님")
+    if not measured:
+        return no("측정 시각 미관측 — 측정 당시 렌더러 판본을 고를 수 없다")
+    if not (c.repo / ".git").exists():
+        return no("git 저장소 아님 — 측정 당시 렌더러 판본을 꺼낼 수 없다")
+    rev = _git_rev_before(c, rel, measured)
+    if rev is None:
+        return no(f"git log -1 --before={measured} -- {rel} 없음(측정 전 렌더러 커밋 없음)")
+    data = core.git_bytes(c.repo, "show", f"{rev}:{rel}", check=False)
+    if data is None:
+        return no(f"git show {rev[:12]}:{rel} 실패")
+    man = c.repo / "output" / c.topo / "manifest.yaml"
+    if not man.is_file():
+        return no(f"output/{c.topo}/manifest.yaml 부재 — 렌더 입력 없음")
+    with tempfile.TemporaryDirectory(prefix="hint-renderer-rev-") as td:
+        f = Path(td) / PurePath(rel).name
+        f.write_bytes(data)
+        name = f"hint_renderer_at_{rev[:12]}_{kind}"
+        try:
+            spec = importlib.util.spec_from_file_location(name, f)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+        except (Exception, SystemExit) as e:          # noqa: BLE001 — 옛 판본 적재 실패는 결손 사유로 옮긴다(삼키지 않는다)
+            return no(f"렌더러 {rev[:12]} 적재 실패: {type(e).__name__}: {e}")
+        fn, loader = getattr(mod, fn_name, None), getattr(mod, "load_manifest", None)
+        if not callable(fn) or not callable(loader):
+            return no(f"렌더러 {rev[:12]} 에 {fn_name}/load_manifest 가 없다")
+        try:
+            text = fn(loader(str(man)))
+        except (Exception, SystemExit) as e:          # noqa: BLE001 — fail-loud 렌더러의 거부 사유를 그대로 옮긴다
+            return no(f"렌더러 {rev[:12]}.{fn_name} 거부: {type(e).__name__}: {e}")
+    if not isinstance(text, str) or not text.strip():
+        return no(f"렌더러 {rev[:12]}.{fn_name} 가 빈 결과를 냈다")
+    mmt = _mtime_utc(man)
+    mbasis = ("manifest mtime ≤ 측정(측정 당시 입력으로 관측)" if mmt and mmt <= measured else
+              f"manifest mtime {mmt} > 측정 — 측정 뒤 바뀐 입력일 수 있다(비추적 · 측정 당시 manifest 미관측)")
+    c.memo[key] = {"ok": True, "rev": rev, "rev12": rev[:12], "generated_by": f"renderer@{rev[:12]}", "text": text,
+                   "module": mod, "function": fn_name, "manifest": f"output/{c.topo}/manifest.yaml", "manifest_mtime_utc": mmt,
+                   "manifest_basis": mbasis, "measured_utc": measured, "measured_source": msrc,
+                   "method": f"git log -1 --before={measured} -- {rel} → {rev[:12]} · git show · {fn_name}(load_manifest(output/{c.topo}/manifest.yaml))"}
+    return c.memo[key]
+
+
+def _rerender_reason(rr: dict) -> str:
+    """파일 첫 줄 경고(unverified_header)의 사유 — 01 표·PAYLOAD 와 같은 문장."""
+    return f"측정 뒤 재생성된 실행 파일 대신 측정 당시 판본 렌더러 {rr['rev12']} 로 같은 manifest 를 다시 렌더한 형상(실행 바이트 아님)"
+
+
+def _shape_regenerated(c: "_Ctx", p: Path, name: str, kind: str, regen: dict, derived_out: list | None = None) -> dict:
+    """측정 뒤 재생성된 env 파일 → 재렌더 형상 {ok, text, rule, rr} 또는 {ok: False, why}. render 3층 파일만 재렌더한다."""
+    import tempfile
+    rr = _rerender_at_measurement(c, kind)
+    if not rr["ok"]:
+        return {"ok": False, "why": rr["why"]}
+    with tempfile.TemporaryDirectory(prefix="hint-rerender-") as td:
+        tp = Path(td) / name
+        tp.write_text(rr["text"], encoding="utf-8")
+        text, rule = _env_shape(c.repo, tp, kind, render_module=rr["module"], sf=c.sf, measured=regen["measured_utc"],
+                                derived_out=derived_out, rerender={**rr, **{k: regen[k] for k in ("mtime_utc",)}, "file": name})
+    return {"ok": True, "text": text, "rule": rule, "rr": rr}
+
+
 # ── compose 슬롯 추적 파일의 측정 당시 개정 (2026-09-22 · plan_26092119 S2 round 3) ─────────────────────────────────────
 # 왜: round 2 는 빌드 레시피(Dockerfile)만 개정을 골랐고 compose 는 작업트리를 그대로 실었다 — 태그2 의 docker-compose.yaml 은 측정
 #   (09-12) 뒤 09-22 에 주석이 고쳐져 "NCCL env 19키(①7+②8+③4)" 라 말했는데, 측정 당시 렌더러는 17키였다(기계 채점 X 항목).
@@ -2026,7 +2116,7 @@ def _tier_fn(rd) -> tuple[Callable[[str], tuple[str, str | None]], str]:
 
 def _env_shape(c_repo: Path, path: Path, kind: str, *, render_module: Any | None = None,
                sf: Any | None = None, regen: dict | None = None, measured: str | None = None,
-               derived_out: list | None = None) -> tuple[str, str]:
+               derived_out: list | None = None, rerender: dict | None = None) -> tuple[str, str]:
     """env 형상 텍스트와 규칙 이름. `regen`(F2 · 2026-09-22 S2 round 2) = 이 파일이 측정 **뒤** 다시 쓰였다({mtime_utc,
     measured_utc, measured_source}) — 그러면 리터럴 값은 측정 당시 값이 아닐 수 있으므로 싣지 않고 `REGENERATED_VALUE` 로
     바꾼다(키는 남긴다 · `<manifest.…>` 표지는 값이 아니라 파생 규칙이라 남긴다). round 1: `.env.interconnect` 가 09-17 에
@@ -2043,7 +2133,16 @@ def _env_shape(c_repo: Path, path: Path, kind: str, *, render_module: Any | None
                   f"{regen['mtime_utc']}(mtime 관측)에 다시 쓰였다.",
                   f"#   측정 당시 값은 관측되지 않았다 — 리터럴 값은 싣지 않고 `{REGENERATED_VALUE}` 로 둔다.",
                   "#   키 목록도 재생성 시점의 형상이다(측정 당시 키 집합과 같다는 보장 없음) · `<manifest.…>` 표지는 파생 규칙이라 남긴다."]
-    if regen:
+    if rerender:
+        # R-b(2026-09-29): 측정 당시 판본 렌더러의 산출 — 값은 그 판본의 프리셋·불변이다(실행 바이트 아님).
+        lines += [f"# ⚠ 측정 당시 판본 재렌더 — generated_by: {rerender['generated_by']} · verification: generated-unverified(실행 바이트 아님)",
+                  f"#   작업트리 envs/{rerender['file']} 는 측정({rerender['measured_utc']} · {rerender['measured_source']}) 뒤 "
+                  f"{rerender.get('mtime_utc')}(mtime 관측)에 다시 쓰였다 — 그 바이트는 싣지 않는다.",
+                  f"#   이 형상 = {rerender['method']}.",
+                  f"#   입력: {rerender['manifest_basis']}.",
+                  f"#   측정 실행이 실제로 읽은 바이트와 같다는 관측은 없다 — 측정 당시 env 관측값 = {ENV_OBSERVED_POINTER}."]
+        keep = f"값 유지 — 측정 당시 판본 렌더러 {rerender['rev12']} 산출(실행 바이트 아님)"
+    elif regen:
         keep = "리터럴 값 미실림 — 측정 후 재생성"
     elif measured:
         keep = f"값 유지 — 재현 사실(mtime ≤ 측정 {measured} 확인)"
@@ -2052,7 +2151,8 @@ def _env_shape(c_repo: Path, path: Path, kind: str, *, render_module: Any | None
     if kind in ("cluster", "interconnect"):
         rd = _render_module(c_repo, render_module)
         tier, rule = _tier_fn(rd)
-        lines += [f"# 값의 정본 = 자기 manifest → `render_dockerfile.py {renderer}` 로 다시 파생한다.",
+        lines += [f"# 값의 정본 = 자기 manifest → `render_dockerfile.py {renderer}` 로 다시 파생한다"
+                  + (f"(측정 당시 판본 = git show {rerender['rev12']}:{core.REL_RENDER_DOCKERFILE})." if rerender else "."),
                   f"# 층 규칙: {rule} (①env=치환 · ②preset·③invariant={keep})"]
         tiers: dict[str, tuple] = {}
         for key in env:
@@ -2365,8 +2465,14 @@ def sub_recipe(repo: Path, ev: Any, *, forward_module: Any | None = None, render
         p = c.out / "envs" / name
         if not p.is_file():
             continue
-        if _regenerated(c, p):
-            skipped.append({"file": f"envs/{name}"})      # 측정 뒤 재생성 — collect 와 같은 규칙(싣지 않는다)
+        regen = _regenerated(c, p)
+        if regen:
+            # 측정 뒤 재생성 — collect 와 같은 규칙(측정 당시 판본 재렌더 · 못 하면 싣지 않는다)
+            sh = _shape_regenerated(c, p, name, _TIER_ENV_KINDS[name], regen)
+            if sh["ok"]:
+                shapes[name] = sh["text"]
+            else:
+                skipped.append({"file": f"envs/{name}"})
             continue
         shapes[name] = _env_shape(c.repo, p, _TIER_ENV_KINDS[name], render_module=c.render(), sf=c.sf,
                                   measured=_measured_utc(c)[0])[0]
@@ -3025,6 +3131,11 @@ def _slot(files: list[str], evidence: dict, excluded: list[dict] | None = None) 
 # 어휘(닫힌 목록 — template 린트가 같은 값을 읽는다): verification · generated_by · relevance.
 VERIFICATION_VALUES = ("verified", "generated-unverified")
 GENERATED_BY_VALUES = ("cell-run", "renderer", "agent")
+
+
+def generated_by_ok(value: Any) -> bool:
+    """generated_by 어휘 = 닫힌 목록 + 측정 당시 판본 렌더러 `renderer@<rev12>`(R-b · 2026-09-29 · 판본을 이름에 박는다)."""
+    return value in GENERATED_BY_VALUES or bool(isinstance(value, str) and RERENDER_GENERATED_BY_RE.match(value))
 RELEVANCE_VALUES = ("required", "inactive-inferred", "unknown")
 # 경고 문구(파일 첫 줄 · 사용자 결정 U1 "native 환경이기에 코드검증은 하지 않았다" · plan §4.2 표시 자리 2).
 UNVERIFIED_HEADER_KEY = "_verification"        # JSON 은 주석이 없다 — 최상위 키로 싣는다(core.dumps 정렬상 첫 키)
@@ -3351,6 +3462,8 @@ def _file_records(c: _Ctx, payload: Path, slots: dict, marks: dict, applied: dic
                                           "실행 기록이 없어 필요 여부를 판정하지 않는다(참고 형상)")
             for key, vocab in (("verification", VERIFICATION_VALUES), ("generated_by", GENERATED_BY_VALUES),
                                ("relevance", RELEVANCE_VALUES)):
+                if key == "generated_by" and generated_by_ok(rec[key]):
+                    continue
                 if rec[key] not in vocab:
                     core.fail("HINT_ARTIFACT_MARK_INVALID", f"{rel_f}: {key}={rec[key]!r} 가 어휘 {vocab} 밖이다.")
             if rec["verification"] == "generated-unverified" and "header" not in rec:
@@ -3608,11 +3721,14 @@ def _docker_slots(c: _Ctx, payload: Path, measured: str | None, missing: list[st
     # 제외 행: 사유 코드(글자 그대로 · 소비자 대조) + 짧은 이유. 시각은 별도 키(mtime_utc · measured_utc · measured_source)가
     #   든다 — why 에 다시 적으면 01 표가 같은 시각을 두 번 싣는다(template 이 스칼라 키를 함께 싣는다 · 바이트 B 절약).
     def excluded_regen(rel_file: str, regen: dict) -> None:
-        compose_excluded.append({"file": rel_file, "reason": POST_MEASUREMENT_REGENERATED,
-                                 "why": (f"{POST_MEASUREMENT_REGENERATED}(재생성 시점 렌더러의 키·값 — 측정 당시 형상 아님 · "
-                                         f"측정 당시 env = {ENV_OBSERVED_POINTER})"),
-                                 "mtime_utc": regen["mtime_utc"], "measured_utc": regen["measured_utc"],
-                                 "measured_source": regen["measured_source"]})
+        row_x = {"file": rel_file, "reason": POST_MEASUREMENT_REGENERATED,
+                 "why": (f"{POST_MEASUREMENT_REGENERATED}(재생성 시점 렌더러의 키·값 — 측정 당시 형상 아님 · "
+                         f"측정 당시 env = {ENV_OBSERVED_POINTER})"),
+                 "mtime_utc": regen["mtime_utc"], "measured_utc": regen["measured_utc"],
+                 "measured_source": regen["measured_source"]}
+        if regen.get("rerender_error"):
+            row_x["rerender_error"] = regen["rerender_error"]      # 측정 당시 판본 재렌더도 못 했다(R-b · 결손 코드와 짝)
+        compose_excluded.append(row_x)
     for name in sorted(set(_ENV_FILE_REF.findall(compose_text))):
         if "$" in name or name == f".env.{c.cell}":
             continue                       # 셀 env 는 트리플렛으로 실린다
@@ -3627,6 +3743,25 @@ def _docker_slots(c: _Ctx, payload: Path, measured: str | None, missing: list[st
         regen = _regenerated(c, p)
         if regen:
             regenerated.append(core.rel(c.repo, p))
+            if kind in RERENDER_FUNCS:
+                # R-b(2026-09-29): render 3층 파일은 측정 당시 판본 렌더러로 다시 렌더해 싣는다(generated-unverified · renderer@rev12).
+                derived_r: list[dict] = []
+                sh = _shape_regenerated(c, p, name, kind, regen, derived_out=derived_r)
+                if sh["ok"]:
+                    rr = sh["rr"]
+                    shapes[name] = sh["text"]
+                    cf.append(_write(payload, "compose", f"{name}.template", sh["text"]))
+                    env_shapes.append({"file": f"envs/{name}", "kind": kind, "rule": sh["rule"],
+                                       "template": f"artifacts/compose/{name}.template", "post_measurement_regenerated": True,
+                                       "status": RERENDER_STATUS, "verification": "generated-unverified",
+                                       "generated_by": rr["generated_by"], "renderer_rev": rr["rev"],
+                                       "renderer_function": rr["function"], "method": rr["method"],
+                                       "manifest": rr["manifest"], "manifest_mtime_utc": rr["manifest_mtime_utc"],
+                                       "manifest_basis": rr["manifest_basis"], "header_reason": _rerender_reason(rr),
+                                       **regen, "derived": derived_r})
+                    continue
+                missing.append("HINT_MISSING_ENV_SHAPE_RERENDER")
+                regen = {**regen, "rerender_error": sh["why"]}
             excluded_regen(f"envs/{name}", regen)
             regen_skipped.append({"file": f"envs/{name}"})
             env_shapes.append({"file": f"envs/{name}", "kind": kind, "status": "excluded",
@@ -3830,7 +3965,10 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
                 files.append(_copy(payload, ns["triplet_paths"][k], "compose"))
                 slots["compose"]["files"] = sorted(slots["compose"]["files"] + [files[-1]])
             gen_reason = NATIVE_UNVERIFIED_REASON
+            rerendered = {e["template"] for e in env_shapes if e.get("status") == RERENDER_STATUS and e.get("template")}
             for rel_f in slots["compose"]["files"]:
+                if rel_f in rerendered:
+                    continue            # 측정 당시 판본 재렌더 형상 — 아래 공통 자리에서 renderer@<rev12> 로 표시한다(R-b)
                 hdr = _insert_header(payload, rel_f, gen_reason, "renderer")
                 name = PurePath(rel_f).name
                 basis = ("upstream-version-watch 렌더러 산출물(docker-compose · 러너 정본 · env 형상 · slave_forward.derive)을 원천 셀 "
@@ -3929,6 +4067,15 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
     files += ff
     slots["fork_pin"] = _slot(ff, {"kind": "file" if ff else "none", "ref": REL_ARCH_VARIANT_LEDGER,
                                    "note": "VARIANT 줄 부재 = stock" if not ff else "변종 좌표 = Band2 원장"})
+
+    # 측정 당시 판본 재렌더 형상(R-b · 2026-09-29) — 표시 3자리(파일 첫 줄 · PAYLOAD 파일 기록 · 01 표)를 renderer@<rev12> 로 단다.
+    for e in env_shapes or []:
+        if e.get("status") == RERENDER_STATUS and e.get("template"):
+            hdr = _insert_header(payload, e["template"], e["header_reason"], e["generated_by"])
+            marks[e["template"]] = {"verification": "generated-unverified", "generated_by": e["generated_by"], "header": hdr,
+                                    "verification_basis": (f"측정 당시 판본 렌더러 {e['generated_by']}({e['method']}) · "
+                                                           f"{e['manifest_basis']} — 실행 바이트 아님(작업트리 파일은 측정 뒤 "
+                                                           f"{e['mtime_utc']} 재생성)")}
 
     # 배포 전 백스톱 — branch 커밋의 최종 스캔 전에 artifacts 만 먼저 본다(원인 슬롯을 가리키려고)
     from . import pii
@@ -4952,6 +5099,66 @@ def selftest() -> list[str]:
            and str((rg2["sub_recipe"] or {}).get("per_node_values", {}).get("MASTER_HOST_IP", "")).startswith("<manifest"))
         ck("F2 공개 sub_recipe() 도 같은 규칙(재생성 interconnect 미참조)",
            "interconnect" not in sub_recipe(repo, ev, render_module=fake_rd)["per_node_values"])
+        # ── R-b(2026-09-29 · plan_26092908): 재생성된 render 3층 env = 측정 당시 판본 렌더러로 재렌더해 싣는다 ──
+        ic_row2 = next(e for e in rg2["env_shapes"] if e["file"] == "envs/.env.interconnect")
+        ck("★R-b 재렌더 불가(manifest 부재) = 결손 코드 + 제외 행에 사유(침묵 ✗)",
+           "HINT_MISSING_ENV_SHAPE_RERENDER" in rg2["missing"] and "manifest.yaml 부재" in ic_row2.get("rerender_error", "")
+           and "manifest.yaml 부재" in exr["envs/.env.interconnect"].get("rerender_error", ""))
+        rev_m = _git_rev_before(_ctx(repo, ev), core.REL_RENDER_DOCKERFILE, "2026-01-01T19:30:00Z")
+        ck("R-b 픽스처: 측정 전 렌더러 커밋이 있다", rev_m is not None)
+        man_p = out / "manifest.yaml"
+        # manifest 가 생기면 발췌 치환표(evidence.output_manifest)가 소유 YAML 로더를 부른다 — 실물을 격리 저장소에 복사한다.
+        from . import evidence as _ev_mc
+        mc_dst = repo / _ev_mc.REL_MANIFEST_CONTRACT
+        mc_dst.parent.mkdir(parents=True, exist_ok=True)
+        mc_dst.write_bytes((own / _ev_mc.REL_MANIFEST_CONTRACT).read_bytes())
+        man_p.write_text("topology: multi\ninterconnect:\n  hca_devices: rocep1s0f1\n  gid_index: 3\n"
+                         "  socket_iface: enpfixture0\n  platform_preset: dgx-spark-gb10\n  nccl_transport: rdma\n",
+                         encoding="utf-8")
+        _set_mtime(man_p, "2026-01-01T00:00:00Z")
+        try:
+            rgr = collect(repo, ev, repo / "p_rerender", render_module=fake_rd, runner=docker_old)
+            icr_path = repo / "p_rerender/artifacts/compose/.env.interconnect.template"
+            icr = icr_path.read_text(encoding="utf-8") if icr_path.is_file() else ""
+            row_r = next((e for e in rgr["env_shapes"] if e["file"] == "envs/.env.interconnect"), {})
+            rec_r = {r["path"]: r for v in rgr["slots"].values() for r in v.get("file_records", [])}.get(
+                "artifacts/compose/.env.interconnect.template", {})
+            gb = f"renderer@{(rev_m or '')[:12]}"
+            ck("★R-b 재렌더 성공 = 형상 실림 · 첫 줄 경고(renderer@rev12) · 헤더에 판본·실행 바이트 아님",
+               "artifacts/compose/.env.interconnect.template" in rgr["files"]
+               and icr.splitlines()[0].startswith("# ⚠ generated-unverified — ") and icr.splitlines()[0].endswith(f"생성: {gb}")
+               and "측정 당시 판본 재렌더" in icr and "실행 바이트 아님" in icr and f"git show {gb[9:]}" in icr)
+            ck("R-b PAYLOAD 파일 기록 = generated-unverified · renderer@rev12 · 기록 header = 파일 첫 줄",
+               rec_r.get("verification") == "generated-unverified" and rec_r.get("generated_by") == gb
+               and (rec_r.get("header") or {}).get("text") == icr.splitlines()[0] and rec_r.get("relevance") == "unknown")
+            ck("R-b env_shapes 행 = 재렌더 상태 · 판본 · 입력 근거 · 재생성 사실 유지 · excluded 아님 · 결손 코드 없음",
+               row_r.get("status") == RERENDER_STATUS and row_r.get("renderer_rev") == rev_m
+               and row_r.get("post_measurement_regenerated") is True and "mtime ≤ 측정" in row_r.get("manifest_basis", "")
+               and not any(x["file"] == "envs/.env.interconnect" for x in rgr["slots"]["compose"].get("excluded", []))
+               and "HINT_MISSING_ENV_SHAPE_RERENDER" not in rgr["missing"])
+            ck("R-b 측정 당시 판본의 값(프리셋·불변 리터럴) · 환경값은 자리표시(운영자 값 ✗)",
+               "NCCL_IB_GID_INDEX=<manifest.interconnect.gid_index>" in icr and "enpfixture0" not in icr
+               and "rocep1s0f1" not in icr and re.search(r"(?m)^NCCL_IB_QPS_PER_CONNECTION=4\b", icr) is not None)
+            ck("R-b sub_recipe 가 재렌더 형상을 가리킨다(collect · 공개 sub_recipe() 같은 규칙)",
+               (rgr["sub_recipe"] or {}).get("per_node_values", {}).get("interconnect")
+               == "artifacts/compose/.env.interconnect.template"
+               and "interconnect" in sub_recipe(repo, ev, render_module=fake_rd)["per_node_values"])
+            ck("★R-b 프로젝트 .env(render 3층 아님) = 재렌더 대상 아님 · 여전히 제외",
+               any(x["file"] == ".env" for x in rgr["slots"]["compose"].get("excluded", [])))
+            man_p.write_text("topology: multi\ninterconnect:\n  hca_devices: rocep1s0f1\n  gid_index: 3\n"
+                             "  socket_iface: enpfixture0\n  platform_preset: no-such-preset\n", encoding="utf-8")
+            _set_mtime(man_p, "2026-01-01T00:00:00Z")
+            rgx = collect(repo, ev, repo / "p_rerender_x", render_module=fake_rd, runner=docker_old)
+            row_x = next(e for e in rgx["env_shapes"] if e["file"] == "envs/.env.interconnect")
+            ck("★R-b 렌더러 거부(미지 프리셋) = 결손 코드 + 거부 사유 · 형상 미실림",
+               "HINT_MISSING_ENV_SHAPE_RERENDER" in rgx["missing"] and row_x.get("status") == "excluded"
+               and "거부" in row_x.get("rerender_error", "") and "no-such-preset" in row_x.get("rerender_error", "")
+               and "artifacts/compose/.env.interconnect.template" not in rgx["files"])
+        finally:
+            man_p.unlink()
+        ck("★R-b generated_by 어휘: renderer@<12hex> 만 확장 · 모양 밖은 거부",
+           generated_by_ok("renderer@0123456789ab") and not generated_by_ok("renderer@xyz")
+           and not generated_by_ok("renderer@0123456789abc") and not generated_by_ok("someone"))
         rg3 = collect(repo, dict(ev, certificate={"measured_utc": "2026-01-03T00:00:00Z"}), repo / "p_regen_cert",
                       render_module=fake_rd, runner=docker_old)
         ck("★F2 측정 시각 = 인증서 measured_utc 우선(그보다 이른 mtime 은 재생성 아님 → 실린다)",
@@ -5386,7 +5593,7 @@ def selftest() -> list[str]:
             recs = {r["path"]: r for v in rn2["slots"].values() for r in v["file_records"]}
             ck("★모든 실린 파일에 file_records(verification·generated_by·근거·relevance·근거) — files 와 1:1",
                set(recs) == set(rn2["files"]) and all(
-                   r["verification"] in VERIFICATION_VALUES and r["generated_by"] in GENERATED_BY_VALUES
+                   r["verification"] in VERIFICATION_VALUES and generated_by_ok(r["generated_by"])
                    and r["relevance"] in RELEVANCE_VALUES and r["verification_basis"] and r["relevance_basis"]
                    and len(r["sha256"]) == 64 for r in recs.values()))
             comp = [r for p_, r in recs.items() if p_.startswith("artifacts/compose/")]

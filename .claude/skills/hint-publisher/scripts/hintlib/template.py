@@ -170,7 +170,9 @@ FACTS_SNAPSHOT = "template_facts.json"
 CHAPTERS = {
     # 2026-09-29 plan_26092908 §4.1(U5): 0.9 이름 꼬리 — 결정론 3축 뒤의 꼬리를 Agent 가 근거와 함께 저작하는 자리(D 통합 결정)
     "00-hint": tuple(f"0.{i}" for i in range(1, 10)),
-    "01-artifacts": tuple(f"1.{i}" for i in range(1, 6)),
+    # 2026-09-29 plan_26092908 R-e: 1.6 재현 절차 — 기동 전 준비(가중치 획득 · 스테이징 생성 · 네트워크 단계 · 명령 수준 + 출처).
+    #   필수 절(조건 · 선택 ✗)이라 비면 HINT_SECTION_UNAUTHORED 가 막는다 — 새 규칙이 아니라 기존 필수 절 규칙의 재사용이다.
+    "01-artifacts": tuple(f"1.{i}" for i in range(1, 7)),
     "02-narrative": tuple(f"2.{i}" for i in range(1, 8)),
     "03-benchmark": tuple(f"3.{i}" for i in range(1, 6)),
 }
@@ -3747,7 +3749,8 @@ def selftest() -> list[str]:
         ck("템플릿 00 에 배너 5줄(PROMPT 밖)", all(b in vis for b in BANNER_LINES))
         ck("템플릿 02 §2.2 wall>=1", _directives({p.chapter: p for p in tpls["02-narrative"].prompts}["2.2"].fields)["blocks"] == {"wall": 1})
         ck("템플릿 01 §1.5 조건", _directives({p.chapter: p for p in tpls["01-artifacts"].prompts}["1.5"].fields)["condition"] == ("topology", "multi"))
-        ck("템플릿 PROMPT 수(00 = 0.9 이름 꼬리 포함 · plan_26092908 §4.1)", [len(tpls[n].prompts) for n in TEMPLATE_FILES] == [7, 4, 7, 2])
+        ck("템플릿 PROMPT 수(00 = 0.9 이름 꼬리 포함 · plan_26092908 §4.1 · 01 = 1.6 기동 전 준비 포함 R-e)",
+           [len(tpls[n].prompts) for n in TEMPLATE_FILES] == [7, 5, 7, 2])
         # 2026-09-22 S2 round 2(F11): 저작 자기점검은 템플릿 4종 최상단(preamble)에 하나씩 · 7부류 문구를 글자 그대로(단일 상수와 교차검증)
         for n in TEMPLATE_FILES:
             sc = tpls[n].selfchecks
@@ -3910,6 +3913,9 @@ def selftest() -> list[str]:
                 ("01-artifacts", "1.3"): vs + "\n\n승계값과 음성대조값을 복사하지 마라.",
                 ("01-artifacts", "1.4"): "빌드 뒤 health 200 과 추론 1회로 판정한다. 기동 소요는 미관측이다.",
                 ("01-artifacts", "1.5"): "slave 는 트리플렛을 받지 않는 Ray worker 다." if multi else None,
+                ("01-artifacts", "1.6"): "### 가중치 획득\n관리 NAS 모드다 — 다운로드 없음(근거 plan_26090918 §1).\n\n"
+                                         "### 스테이징\n해당 없음 — PLE 없는 체크포인트(근거 plan_26090918 §2).\n\n"
+                                         "### 네트워크 단계\n베이스 이미지 pull · pip wheel — 오프라인이면 미리 받아 둔다(추론 — 실행 검증 ✗).",
                 ("02-narrative", "2.1"): "첫 plan 의 목표:\n\n> [원문] plan_26090918 §1\n> GB10 두 노드에서 fixture-model 을 262k 컨텍스트로 서빙한다.",
                 ("02-narrative", "2.2"): "### W1 CUTLASS 가드 충돌\n백엔드를 명시하자 가드와 충돌했다.\n\n```hint-event\nid: W1\nkind: wall\n"
                                          "증상: 기동 중 MoE 백엔드 선택에서 실패\n"
@@ -3963,7 +3969,7 @@ def selftest() -> list[str]:
         # ── 기본 경로 ──
         payload = scaffold("main", base_facts)
         ps = prompts(payload)
-        ck("PROMPT 목록(조건 성립 · 선택 포함 · 0.9 이름 꼬리)", len(ps) == 20 and all(p["question"] for p in ps)
+        ck("PROMPT 목록(조건 성립 · 선택 포함 · 0.9 이름 꼬리 · 1.6 기동 전 준비)", len(ps) == 21 and all(p["question"] for p in ps)
            and any(p["section"] == "0.9" and not p["optional"] for p in ps))
         ck("스냅샷 기록", default_snapshot_path(payload).is_file())
         ck("사실 블록 채움(0.4 관측 NGC)", "26.07" in fact_blocks((payload / "00-hint.md").read_text(encoding="utf-8"))["resolved"])
@@ -4027,6 +4033,21 @@ def selftest() -> list[str]:
 
         ck("★PROMPT 잔존(봉인 검사)", "HINT_PROMPT_RESIDUE" in lint_v(payload, sealed=True))
         ck("★필수 필드 부재", "HINT_EVENT_FIELD_MISSING" in lint_v(variant("f", edit("02-narrative.md", "원인: 명시한 백엔드가 가드와 충돌\n", ""))))
+        # R-e(2026-09-29 · plan_26092908): 1.6 기동 전 준비는 필수 절 — 비우면 기존 필수 절 규칙(HINT_SECTION_UNAUTHORED)이 §1.6 을 짚는다.
+        prep_body = ("### 가중치 획득\n관리 NAS 모드다 — 다운로드 없음(근거 plan_26090918 §1).\n\n"
+                     "### 스테이징\n해당 없음 — PLE 없는 체크포인트(근거 plan_26090918 §2).\n\n"
+                     "### 네트워크 단계\n베이스 이미지 pull · pip wheel — 오프라인이면 미리 받아 둔다(추론 — 실행 검증 ✗).")
+        empty_prep = [i for i in lint(repo, variant("prep", edit("01-artifacts.md", prep_body, "")), **dict(kw, facts=facts_json))
+                      if i["code"] == "HINT_SECTION_UNAUTHORED"]
+        ck("★R-e 1.6 기동 전 준비 절이 비면 차단(HINT_SECTION_UNAUTHORED · §1.6) · 채우면 그 코드 없음",
+           any("§1.6" in i["message"] for i in empty_prep)
+           and not any("§1.6" in i["message"] for i in lint(repo, payload, **dict(kw, facts=facts_json))
+                       if i["code"] == "HINT_SECTION_UNAUTHORED"))
+        p16 = {p.chapter: p for p in tpls["01-artifacts"].prompts}.get("1.6")
+        ck("R-e 1.6 PROMPT 필수 필드 = 가중치 획득 경로 · 스테이징 생성 절차 · 네트워크 단계(명령 수준 · 출처) · 조건·선택 ✗",
+           p16 is not None and all(w in p16.fields.get("필수 필드", "") for w in ("가중치 획득 경로", "스테이징 생성 절차",
+                                                                                  "네트워크가 필요한 단계", "명령 수준", "출처"))
+           and not _directives(p16.fields)["optional"] and _directives(p16.fields)["condition"] is None)
         ck("★발췌 1자 변조", "HINT_EXCERPT_MISMATCH" in lint_v(variant("x", edit("02-narrative.md", "> GB10 두 노드에서", "> GB11 두 노드에서"))))
         lin_wo_plan = {**lineage, "documents": [d for d in lineage["documents"] if d["path"] != plan_p]}
         ck("★LINEAGE 밖 발췌", "HINT_EXCERPT_SOURCE_OUTSIDE_LINEAGE" in lint_v(payload, lineage=lin_wo_plan))

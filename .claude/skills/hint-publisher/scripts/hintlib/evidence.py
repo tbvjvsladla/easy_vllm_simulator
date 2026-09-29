@@ -99,6 +99,9 @@ MISSING_CODES: dict[str, str] = {
                                       "돌렸다는 증거가 성공 경로에 보존되지 않았다.",
     # 옛 hint_collect 에서는 등재만 된 죽은 어휘였다(코드맵 hint_collect §11). 2026-09-21 부터 artifacts.collect 가 **발행**한다 —
     #   compose 가 `env_file:` 로 가리키는 층별 env(`.env.cluster`·`.env.interconnect` 등)가 출력 평면에 없을 때.
+    "HINT_MISSING_ENV_SHAPE_RERENDER": ("측정 뒤 재생성된 토폴로지 env(`.env.interconnect`·`.env.cluster`)를 측정 당시 판본 렌더러로 다시 "
+                                        "렌더하지 못했다(측정 전 렌더러 커밋 · manifest · 렌더러 거부 중 하나 — 사유는 compose 제외 행의 "
+                                        "rerender_error). 형상 템플릿이 빠졌다 — 측정 당시 env 는 엔진 로그 관측 표가 대신한다."),
     "HINT_MISSING_ENV_SHAPE": ("토폴로지 env 형상 부재 — compose 가 참조하는 env 파일(`.env.cluster`·`.env.interconnect` 등)이 "
                                "출력 평면에 없어 형상 템플릿을 싣지 못했다. 수신자가 어떤 변수가 필요한지 모른다(artifacts 가 기재)."),
     # ⚠ 예약 어휘(2026-09-22 현재 발행자 0) — 서브에서 잰 셀은 메인이 그 원시를 볼 수 없어 발행 자격에서 먼저 막힌다
