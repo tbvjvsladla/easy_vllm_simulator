@@ -14,7 +14,7 @@
 | S2.5 sync | `upstream-version-watch` | manifest·렌더 산출물 | 검증된 메인→서브 배달 | dry-run→apply·checksum | `sync_to_sub.sh`(어느 평면이 열리는지는 특화헌법) |
 | S3 smoke | upstream + recipe | 렌더 산출물·모델·HW | 기능 스모크·분류·risk memo | 아래 HITL ③ | `classify_failure.py`·owner reference |
 | S4 commit | 사람 + upstream | S3 PASS 증거 | 로컬 last-good·문서·선택적 전파 | 최종 HITL ④ | `policy:LAST_GOOD_ROLLBACK_ANCHOR` |
-| benchmark | `adversarial-benchmark` | 성공 recipe·manifest | lite 관측 또는 full report/certificate | full 수동 게이트 | 해당 skill references/scripts |
+| benchmark | `adversarial-benchmark` | 성공 recipe·manifest | lite 판정(pass→lite 등급 인증서 가능) 또는 full report/certificate | lite = full 의 진입 게이트 · full 수동 게이트 | lite exit 6/7 → §실패 라우팅 · 해당 skill references/scripts |
 | docs | `wiki-desk` + publisher | plan/raw/narrative | 규약 문서·evidence record | `.claude/rules/docs.md` | publisher stable rejection |
 
 스킬 의존순서는 `terraforming_node` → `upstream-version-watch` → `vllm-recipe-explorer` → `adversarial-benchmark`; `wiki-desk`는 discovery/failure/publication sidecar이며 상태를 전이하지 않는다.
@@ -62,6 +62,8 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋
 | NGC base mismatch | `resolve_ngc_tag.py` + source-build owner | 후보 헤더/로그 증거→HITL→해소값 override→S3 |
 | stock-구조적-불가 | upstream arch variant owner | 아래 사다리·증거·승인 후 S3 |
 | 토폴로지 전용 실패(분산 런타임 등) | 특화헌법 §실패 라우팅이 owner 를 정한다 | 증거 보존→Model-C |
+| **lite ① 측정 경로 불성립**(`lite_verdict=measurement_path_failed` · lite/sweep exit 6 — 요청이 서버에 닿지 못함 · 측정기가 값을 못 냄) | 하네스 수리(`adversarial-benchmark` lite 실행기) | 하네스 결함 — 재빌드 ✗ · loop cap 차감 ✗ · GuideLLM·인증서 ✗. 판정 단일 권위 = lite raw `lite_verdict`(2026-09-29 · `plan_26092923`) |
+| **lite ② 서버 응답 실패**(`lite_verdict=server_failed` · lite/sweep exit 7 — 5xx·빈 출력·타임아웃·측정 중 서버 사망) | upstream(재빌드)·explorer(서빙전략) 재발동 | 실사용 불가 — loop cap −1 · 재발동은 기존 사람 승인 게이트를 거친다. **현재는 신호까지**(exit 7 · raw 판정) — 재발동·cap 배선은 후속. α 서빙 직후 자동 핸드오프는 기록·보고만(헌법 트리거 절) |
 | **러너 평면 실패**(백엔드 한도·인증·미도달·바이너리 부재) | `relay.py` 사다리 회전 → 소진 시 사람 | 판정은 `terminal_reason` 구조 신호 · 회전은 예산 사건 ✗ · **한 바퀴 소진 = 차단성 HITL**. 정본 `terraforming_node` SKILL.md **§2.7.11** |
 | unknown | 사람 | `{proposed_class,evidence}`만 제시; 승인 전 무행동 |
 | recipe 중 구조적 불가 발견 | recipe §5.5→upstream §3.6 | 공식 bump / 포크 SHA pin / 음성정직; cap 뒤 Model-C |

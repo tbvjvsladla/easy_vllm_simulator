@@ -13,11 +13,13 @@ lite 모드(inform-only·기본 ON)의 **결정론 계층**: lite_bench.sh 가 �
 그것도 없으면 값 없이 "N/A(source)" 로 표기(대체값 날조 ✗). engine log KV 라인은 vLLM 버전 따라
 변할 수 있어 fail-soft(부재 시 null).
 
-lite 는 **inform-only** — 이 스크립트는 PASS/FAIL 을 판정하지 않는다(verdict_rule.py 미투입 · NG-6).
+lite 는 성능 PASS/FAIL 을 판정하지 않는다(verdict_rule.py 미투입 · NG-6) — 대신 **성립 판정**(lite_verdict)을
+소유한다: lite 는 full 의 첫 단계이자 진입 게이트다(judge_lite · 2026-09-29).
 
 single = 5행 표(메트릭|값). multi = 병합 표(용량 3종 열=Main|Sub per-node · 속도·cold TTFT=마스터 1행).
 """
 import argparse
+import os
 import json
 import re
 import sys
@@ -243,16 +245,129 @@ def build(raw):
     return result
 
 
+# ── lite 판정(2026-09-29 · plan_26092923 · 인터뷰 interview_20260929_132122) ──────────────────────
+# lite 는 full 의 **첫 단계이자 진입 게이트**다(lite ⊂ full). 판정은 성립만 묻는다 — 임계값이 없다.
+#   pass                    = cold 1건 + warm N건 전부 성공(failed 0) · 토큰 실제 생성 · 메인 5지표에 N/A 없음
+#   measurement_path_failed = 요청이 서버에 닿지 못했거나(클라이언트 평면 미도달) 측정기가 값을 못 냈다 — 하네스 결함
+#                             (재빌드 ✗ · cap 차감 ✗ · 하네스 수리로)
+#   server_failed           = 서버가 응답했지만 실패(5xx·빈 출력·타임아웃)했거나 측정 중 죽었다 — 실사용 불가
+#                             (upstream·explorer 재발동 · cap −1 — 이번 범위는 신호까지)
+# **단일 권위는 raw 의 `lite_verdict`** 이고 종료코드는 여기서 파생한다(LITE_EXIT). 판정 함수는 이것 하나이며
+#   lite_bench.sh 가 유일한 호출부다(세 진입 경로 α·β·γ 공통 — 행동만 맥락별로 갈린다).
+LITE_VERDICTS = ("pass", "measurement_path_failed", "server_failed")
+LITE_EXIT = {"pass": 0, "measurement_path_failed": 6, "server_failed": 7}
+# vllm bench serve 가 결과 파일 없이 끝났을 때 stderr 에서 가르는 두 모양(실물 문구 — 픽스처가 같은 문구를 쓴다).
+#   초기 시험 요청이 **서버 응답으로** 실패하면 "Initial test run failed" 이고, 연결 자체가 안 되면 그 뒤에
+#   aiohttp 연결 오류가 붙는다. 연결 오류는 클라이언트 평면 도달 실패이므로 서버 실패로 접지 않는다.
+_INITIAL_TEST_FAILED = "Initial test run failed"
+_CONNECT_ERROR_RE = re.compile(r"Cannot connect to host|Connect call failed|Connection refused|ClientConnectorError",
+                               re.I)
+
+
+def _requests_ok(bench, expected):
+    """bench JSON 한 건이 '전부 성공 · 토큰 생성' 인가. → (ok, 사유 또는 None)."""
+    if not isinstance(bench, dict):
+        return False, "결과 파일 없음"
+    completed, failed = bench.get("completed"), bench.get("failed")
+    out_tok = bench.get("total_output_tokens")
+    if not isinstance(completed, int) or completed != expected:
+        return False, "completed=%r ≠ 요청 %d" % (completed, expected)
+    if failed not in (0, None):
+        return False, "failed=%r" % (failed,)
+    if not (isinstance(out_tok, (int, float)) and out_tok > 0):
+        return False, "total_output_tokens=%r(생성 없음)" % (out_tok,)
+    return True, None
+
+
+def judge_lite(raw, built):
+    """raw(lite_bench.sh 수집) + build() 결과 → {lite_verdict, lite_exit, lite_verdict_reasons[], lite_verdict_source}.
+
+    raw 가 드는 판정 입력(lite_bench.sh 가 적는다):
+      burst_n · bench_cold_json · bench_warm_json · bench_cold_rc · bench_warm_rc · bench_stderr_tail
+      host_health_after(측정 뒤 호스트 평면 /health HTTP 코드) · client_plane_health(클라이언트가 도는 평면에서 본 코드)
+    입력이 빠지면 판정하지 못한 것이다 — 통과로 접지 않고 measurement_path_failed(측정기가 판정 입력을 못 냈다)다."""
+    reasons = []
+    burst_n = raw.get("burst_n")
+    if not isinstance(burst_n, int) or burst_n < 1:
+        reasons.append("판정 입력 burst_n 부재·무효(%r)" % (burst_n,))
+        return _verdict("measurement_path_failed", reasons)
+    cold = _load_json(raw.get("bench_cold_json"))
+    warm = _load_json(raw.get("bench_warm_json"))
+    ok_c, why_c = _requests_ok(cold, 1)
+    ok_w, why_w = _requests_ok(warm, burst_n)
+    if ok_c and ok_w:
+        cap = ((built.get("capacity") or {}).get("main") or {})
+        na = [k for k, v in (("gen_tps", built.get("gen_tps")), ("cold_ttft_ms", built.get("cold_ttft_ms")),
+                             ("kv_gib", built.get("kv_gib"))) if v is None]
+        na += [k for k in ("gpu", "ram") if str(cap.get(k) or "N/A").startswith(("N/A", "—"))]
+        if na:
+            reasons.append("요청은 전부 성공했지만 메인 지표 N/A: %s — 측정기가 값을 못 냈다" % ",".join(na))
+            return _verdict("measurement_path_failed", reasons)
+        return _verdict("pass", ["cold 1/1 · warm %d/%d 성공 · 토큰 생성 · 메인 5지표 실측" % (burst_n, burst_n)])
+    for label, why in (("cold", why_c), ("warm", why_w)):
+        if why:
+            reasons.append("%s: %s" % (label, why))
+    host = str(raw.get("host_health_after") or "")
+    client = str(raw.get("client_plane_health") or "")
+    reasons.append("측정 뒤 health — 호스트 평면 %s · 클라이언트 평면 %s" % (host or "미관측", client or "미관측"))
+    if host != "200":
+        reasons.append("서버가 측정 뒤 health 에 응답하지 않는다 — 측정 중 서버 실패")
+        return _verdict("server_failed", reasons)
+    if client != "200":
+        reasons.append("서버는 살아 있는데 클라이언트가 도는 평면에서 닿지 않는다 — 측정 경로 불성립(하네스)")
+        return _verdict("measurement_path_failed", reasons)
+    # 서버에 닿는다. 결과 파일이 있는데 실패 요청·빈 출력이면 서버가 실패로 응답한 것이다.
+    tail = str(raw.get("bench_stderr_tail") or "")
+    have_result = isinstance(cold, dict) or isinstance(warm, dict)
+    if have_result:
+        reasons.append("서버에 닿았고 결과 파일이 실패 요청·빈 출력을 말한다 — 서버 응답 실패")
+        return _verdict("server_failed", reasons)
+    if _INITIAL_TEST_FAILED in tail and not _CONNECT_ERROR_RE.search(tail):
+        reasons.append("결과 파일 없음 · 초기 시험 요청이 서버 응답으로 실패(%r) — 서버 응답 실패" % _INITIAL_TEST_FAILED)
+        return _verdict("server_failed", reasons)
+    reasons.append("결과 파일 없음 · 서버 응답 실패의 증거도 없다 — 클라이언트(측정기) 실패로 읽는다")
+    return _verdict("measurement_path_failed", reasons)
+
+
+def _verdict(v, reasons):
+    return {"lite_verdict": v, "lite_exit": LITE_EXIT[v], "lite_verdict_reasons": reasons,
+            "lite_verdict_source": "lite_metrics.judge_lite(raw)"}
+
+
+def read_lite_verdict(raw):
+    """호출부(sweep_bench·인증서 발행기·게이트)가 판정을 읽는 **유일한** 규칙. raw 가 dict 가 아니거나 lite_verdict 가
+    어휘 밖이면 None — 호출부는 None 을 불통과로 읽는다(부재를 통과로 접지 않는다)."""
+    if not isinstance(raw, dict):
+        return None
+    v = raw.get("lite_verdict")
+    return v if v in LITE_VERDICTS else None
+
+
 def main():
-    ap = argparse.ArgumentParser(description="lite 5종 메트릭 결정론 파서/렌더러 (inform-only)")
+    ap = argparse.ArgumentParser(description="lite 5종 메트릭 결정론 파서/렌더러 + lite 판정")
     ap.add_argument("--raw-json", required=True, help="lite_bench.sh 산출 raw readings JSON")
     ap.add_argument("--json", action="store_true", help="구조화 JSON 출력(표 대신)")
+    ap.add_argument("--judge", action="store_true",
+                    help="판정해 raw 에 lite_verdict·lite_exit·사유를 **제자리 기록**하고 판정 줄을 출력한다(호출부 lite_bench.sh)")
     args = ap.parse_args()
     raw = _load_json(args.raw_json)
     if raw is None:
         print(f"[lite_metrics] raw JSON 로드 실패: {args.raw_json}", file=sys.stderr)
         return 2
     res = build(raw)
+    if args.judge:
+        v = judge_lite(raw, res)
+        raw.update(v)
+        tmp = args.raw_json + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(raw, f, ensure_ascii=False, indent=1)
+        os.replace(tmp, args.raw_json)
+        print(res["table"])
+        print("")
+        print("lite_verdict: %s (exit %d)" % (v["lite_verdict"], v["lite_exit"]))
+        for r in v["lite_verdict_reasons"]:
+            print("  - %s" % r)
+        return 0
     if args.json:
         print(json.dumps(res, ensure_ascii=False, indent=2))
     else:

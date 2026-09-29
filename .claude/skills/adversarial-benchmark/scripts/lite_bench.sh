@@ -20,13 +20,21 @@
 #     ③ 발행 실패(명명 키 불성립·충돌)가 lite 측정 자체를 실패로 만들지 않게, 요청한 호출에서만 exit 5 로 알린다
 #        (측정 산출물 raw/warm/cold/엔진 로그는 그대로 남는다).
 #
+# ★ lite 판정 = full 의 진입 게이트(2026-09-29 · plan_26092923 · 인터뷰 interview_20260929_132122) — lite ⊂ full.
+#   측정 뒤 `lite_metrics.py --judge` 가 raw 에 `lite_verdict`(pass | measurement_path_failed | server_failed)를 적고,
+#   이 스크립트의 종료코드는 **그 값에서 파생**한다(0 / 6 / 7). 단일 권위는 raw 이고 호출부(sweep_bench·인증서 발행기)는
+#   raw 부재·어휘 밖 값·모르는 종료코드를 불통과로 읽는다. 종전에는 측정 0건도 rc 0 이었다(D1 · 2026-09-29 실측).
+#   행동은 진입 경로가 정한다 — α 서빙 직후 자동 핸드오프는 판정을 **기록·보고만** 한다(인증서 ✗ · 재빌드 ✗ · 헌법 트리거 절).
+#   β lite-only 캠페인 셀은 `--publish-report` 로 리포트를, 판정이 pass 일 때만 lite 등급 인증서를 낸다. γ 강등 셀은 sweep 경로다.
+#
 # 사용: lite_bench.sh <config_name> [--topology single|multi] [--serve-plane docker|native] [--host-endpoint URL]
-#        [--burst-n N] [--out-dir DIR] [--no-sub-probe] [--publish-report]
-# 종료: 0=측정 완료(요청 시 리포트 발행 포함) · 2=인자/파일 부재 · 3=serve 미가동 · 4=정체성/Flag 게이트 · 5=리포트 발행 실패(측정은 남음)
+#        [--engine-log PATH(native 전용 · 서버 로그)] [--burst-n N] [--out-dir DIR] [--no-sub-probe] [--publish-report]
+# 종료: 0=lite 통과(요청 시 리포트·lite 인증서 발행 포함) · 2=인자/파일 부재 · 3=serve 미가동 · 4=정체성/Flag 게이트
+#       5=리포트·인증서 발행 실패(측정·판정은 남음) · 6=lite 불통과 ① 측정 경로 불성립(하네스) · 7=lite 불통과 ② 서버 응답 실패
 set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
-TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; BURST_N=3; OUTDIR=""; SUB_PROBE=1; BACKEND="openai-chat"; PUBLISH_REPORT=0
+TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; NATIVE_ELOG=""; BURST_N=3; OUTDIR=""; SUB_PROBE=1; BACKEND="openai-chat"; PUBLISH_REPORT=0
 # ★ 2026-09-01 신설 — run_bench.sh·sweep_bench.sh 와 같은 backend 노브(기본값 동일, 후방호환).
 #   왜: harmony 계열(gpt-oss)은 chat 엔드포인트에서 `--ignore-eos` 가 무력해 생성이 조기 종료되고
 #   median_tpot 이 크게 부풀려진다. 실측: 같은 서빙에서 lite(chat) 16.43 t/s vs full(completions)
@@ -37,6 +45,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --serve-plane) SERVE_PLANE="$2"; shift 2;;
   --host-endpoint) HOST_ENDPOINT="$2"; shift 2;;
   --client-vllm) CLIENT_VLLM="$2"; shift 2;;
+  --engine-log) NATIVE_ELOG="$2"; shift 2;;
   --backend) BACKEND="$2"; shift 2;;
   --burst-n) BURST_N="$2"; shift 2;;
   --out-dir) OUTDIR="$2"; shift 2;;
@@ -54,8 +63,11 @@ fi
 if [ "$SERVE_PLANE" = "native" ] && [[ ! "$HOST_ENDPOINT" =~ ^https?://[^/[:space:]]+(:[0-9]+)?$ ]]; then
   echo "[lite_bench] ERROR --host-endpoint는 경로 없는 http(s) origin 이어야 한다: $HOST_ENDPOINT" >&2; exit 2
 fi
-if [ "$SERVE_PLANE" = "docker" ] && { [ -n "$HOST_ENDPOINT" ] || [ -n "$CLIENT_VLLM" ]; }; then
-  echo "[lite_bench] ERROR --host-endpoint/--client-vllm은 --serve-plane native에서만 준다." >&2; exit 2
+if [ "$SERVE_PLANE" = "docker" ] && { [ -n "$HOST_ENDPOINT" ] || [ -n "$CLIENT_VLLM" ] || [ -n "$NATIVE_ELOG" ]; }; then
+  echo "[lite_bench] ERROR --host-endpoint/--client-vllm/--engine-log은 --serve-plane native에서만 준다." >&2; exit 2
+fi
+if [ -n "$NATIVE_ELOG" ] && [ ! -f "$NATIVE_ELOG" ]; then
+  echo "[lite_bench] ERROR --engine-log 파일이 없다: $NATIVE_ELOG" >&2; exit 2
 fi
 if [ "$SERVE_PLANE" = "native" ] && { [ ! -x "$CLIENT_VLLM" ] || [ -L "$CLIENT_VLLM" ]; }; then
   echo "[lite_bench] ERROR --client-vllm이 실행 가능한 regular non-symlink 파일이 아니다: $CLIENT_VLLM" >&2; exit 2
@@ -115,6 +127,9 @@ MODEL_PATH="$(awk -F': *' '/^model:/{print $2; exit}' "$CFGYAML" | tr -d '[:spac
 OUTDIR="${OUTDIR:-$REPO/output/$TOPO/benchlog}"; mkdir -p "$OUTDIR"
 WARM="$OUTDIR/lite_warm_${CONFIG}.json"; COLD="$OUTDIR/lite_cold_${CONFIG}.json"
 ELOG="$OUTDIR/lite_engine_${CONFIG}.log"; RAW="$OUTDIR/lite_raw_${CONFIG}.json"
+BLOG="$OUTDIR/lite_client_${CONFIG}.log"   # vllm bench serve 출력(판정 입력: 결과 파일 없이 끝났을 때의 사유)
+# 이전 측정의 판정 입력이 이번 판정에 섞이지 않게 비운다(부재 = 이번 측정이 쓰지 않았다).
+rm -f "$RAW" "$COLD" "$WARM"; : > "$BLOG"
 
 # serve 가동 확인(이 스킬은 기동 안 함).
 if [ "$SERVE_PLANE" = "docker" ]; then
@@ -157,13 +172,32 @@ _bench() {  # $1=out.json $2=num-prompts $3=warmups
 #   **측정 사실**로 raw 에 남긴다(sweep_bench 의 run 경계 시각과 같은 자격 · 리포트 렌더러는 이 값을 날조하지 않고 요구한다).
 MEASURED_UTC="$(date -u +%FT%TZ)"
 echo "[lite_bench] cold(단일·warmup0) + warm burst(N=$BURST_N·conc1·warmup1) ..."
-_bench "$COLD" 1 0 || { echo "[lite_bench] cold bench 실패" >&2; : > "$COLD"; }
-_bench "$WARM" "$BURST_N" 1 || { echo "[lite_bench] warm bench 실패" >&2; : > "$WARM"; }
+COLD_RC=0; _bench "$COLD" 1 0 >>"$BLOG" 2>&1 || COLD_RC=$?
+[ "$COLD_RC" = 0 ] || { echo "[lite_bench] cold bench 실패(rc $COLD_RC) — 출력 끝:" >&2; tail -5 "$BLOG" >&2; rm -f "$COLD"; }
+WARM_RC=0; _bench "$WARM" "$BURST_N" 1 >>"$BLOG" 2>&1 || WARM_RC=$?
+[ "$WARM_RC" = 0 ] || { echo "[lite_bench] warm bench 실패(rc $WARM_RC) — 출력 끝:" >&2; tail -5 "$BLOG" >&2; rm -f "$WARM"; }
 if [ "$SERVE_PLANE" = "docker" ]; then
   docker logs "$CTR" 2>&1 | tail -800 > "$ELOG" || true
+elif [ -n "$NATIVE_ELOG" ]; then
+  tail -800 "$NATIVE_ELOG" > "$ELOG" || true   # native producer 의 서버 로그(선언으로 받는다 · 경로 추측 ✗)
 else
-  : > "$ELOG"  # native producer owns server-log proof; lite owns client measurements only.
+  : > "$ELOG"  # native producer owns server-log proof; 선언이 없으면 KV·VRAM 이 N/A 라 판정은 ① 이 된다(정직한 부재).
 fi
+
+# ── 판정 입력: 측정 뒤 두 평면의 health ────────────────────────────────────────────
+#   호스트 평면 = precheck 와 같은 주소 · 클라이언트 평면 = 측정 클라이언트가 **도는 자리에서** 본 주소.
+#   둘이 갈리면(호스트 200 · 클라이언트 미도달) 요청이 서버에 닿지 못한 것이다 — D1(2026-09-29)이 정확히 그 모양이었다.
+HOST_HEALTH_AFTER="$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$BASE_URL/health" 2>/dev/null || true)"
+if [ "$SERVE_PLANE" = "docker" ]; then
+  CLIENT_PLANE_HEALTH="$(docker exec "$CTR" python3 -c "import sys,urllib.request
+try:
+    print(urllib.request.urlopen('http://localhost:$INPORT/health', timeout=5).status)
+except Exception as e:
+    print('unreachable')" 2>/dev/null || echo unreachable)"
+else
+  CLIENT_PLANE_HEALTH="$HOST_HEALTH_AFTER"   # native 클라이언트는 호스트에서 돈다 — 같은 평면
+fi
+CLIENT_PLANE_HEALTH="$(printf '%s' "$CLIENT_PLANE_HEALTH" | tail -1 | tr -cd '[:alnum:]_')"
 
 # ── per-node readings 수집(읽기전용) ──────────────────────────────────────────
 _smi() {  # nvidia-smi 메모리(통합메모리는 N/A 반환 — 값 그대로 캡처, lite_metrics 가 폴백)
@@ -207,26 +241,49 @@ fi
 
 # 명명 입력(config_name·config_yaml·env_file·manifest)은 경량 리포트가 모델·GPU·버전 축을 **파생**하는 자리다
 #   (sweep_bench 조립부와 같은 규칙 · render_report.lite_identity). 값을 여기서 미리 해석하지 않고 경로만 남긴다.
+BERR_TAIL="$(tail -c 4000 "$BLOG" 2>/dev/null | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
 cat > "$RAW" <<JSON
 {"topology":"$TOPO","serve_plane":"$SERVE_PLANE","host_endpoint":"$BASE_URL","burst_n":$BURST_N,
  "config_name":"$CONFIG","measured_utc":"$MEASURED_UTC","backend":"$BACKEND","endpoint":"$LITE_ENDPOINT",
  "config_yaml":"$CFGYAML","env_file":"$EF","manifest":"$REPO/output/$TOPO/manifest.yaml",
  "bench_warm_json":"$WARM","bench_cold_json":"$COLD","engine_log":"$ELOG",
+ "bench_cold_rc":$COLD_RC,"bench_warm_rc":$WARM_RC,"bench_client_log":"$BLOG","bench_stderr_tail":$BERR_TAIL,
+ "host_health_after":"$HOST_HEALTH_AFTER","client_plane_health":"$CLIENT_PLANE_HEALTH",
  "nodes":[$NODES_JSON]}
 JSON
 
-echo "[lite_bench] 표 렌더(inform-only):"
-python3 "$REPO/.claude/skills/adversarial-benchmark/scripts/lite_metrics.py" --raw-json "$RAW"
+echo "[lite_bench] 표 렌더 + lite 판정:"
+LM="$REPO/.claude/skills/adversarial-benchmark/scripts/lite_metrics.py"
+python3 "$LM" --raw-json "$RAW" --judge || { echo "[lite_bench] 판정기 실패 — raw 에 판정이 없다(호출부는 불통과로 읽는다)" >&2; exit 6; }
 echo ""
+# 종료코드는 raw 의 판정에서 **파생**한다(두 자리가 갈라질 수 없다 — 같은 값을 읽는다).
+LITE_VERDICT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("lite_verdict",""))' "$RAW" 2>/dev/null || true)"
+case "$LITE_VERDICT" in
+  pass) LITE_RC=0 ;;
+  server_failed) LITE_RC=7 ;;
+  *) LITE_RC=6 ;;   # measurement_path_failed · 판독 불가 — 부재를 통과로 접지 않는다
+esac
 if [ "$PUBLISH_REPORT" = "1" ]; then
+  # 리포트는 판정과 무관하게 발행한다("왜 실패했나"도 사람이 본다 — full report 와 같은 규율). 인증서는 pass 만.
   if REPORT_PATH="$(python3 "$REPO/.claude/skills/adversarial-benchmark/scripts/render_report.py" --lite-only --lite-raw-json "$RAW")"; then
-    echo "[lite_bench] 경량 리포트 발행 → $REPORT_PATH (mode: lite · hint_map_only 바인딩 대상)"
+    echo "[lite_bench] 경량 리포트 발행 → $REPORT_PATH (mode: lite · lite_verdict=$LITE_VERDICT)"
   else
     echo "[lite_bench] ⚠ 경량 리포트 발행 실패(위 사유) — 측정 산출물은 남았다: RAW=$RAW" >&2
     echo "[lite_bench]   원인을 고친 뒤 재측정 없이 다시 렌더할 수 있다: render_report.py --lite-only --lite-raw-json $RAW" >&2
     exit 5
   fi
+  if [ "$LITE_RC" = 0 ]; then
+    if CERT_PATH="$(python3 "$REPO/.claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.py" --lite-raw-json "$RAW")"; then
+      echo "[lite_bench] lite 등급 인증서 발행 → $CERT_PATH (bench_mode: lite · verdict: not_applicable · hint 발행 자격)"
+    else
+      echo "[lite_bench] ⚠ lite 인증서 발행 실패(위 사유) — 재측정 없이: publish_benchmark_record.py --lite-raw-json $RAW" >&2
+      exit 5
+    fi
+  else
+    echo "[lite_bench] lite 불통과 → 인증서 미발행(lite ⊂ full · 인증서는 lite 통과에서만)"
+  fi
 else
-  echo "[lite_bench] 리포트 미발행(기본 · 자동 핸드오프 경로) — lite-only 셀의 hint 통로는 --publish-report 로 경량 리포트를 낸다"
+  echo "[lite_bench] 리포트·인증서 미발행(기본 · 자동 핸드오프 경로 = 기록·보고만) — lite-only 셀은 --publish-report"
 fi
-echo "[lite_bench] DONE  RAW=$RAW  (inform-only — PASS/FAIL 없음)"
+echo "[lite_bench] DONE  RAW=$RAW  lite_verdict=$LITE_VERDICT (exit $LITE_RC)"
+exit "$LITE_RC"

@@ -13,7 +13,17 @@
 - **기본 ON**: serve 성공 직후 **자동 수행**. 가벼운 스킵 시그널("스킵해"·묵시적 넘어감)에도 **수행한다** — 경량 벤치는
   시스템 안정성과 직결되어 *개발자 의지*로 기본 실행이다. **억제 = 강력 거부 구문**("무조건 어떠한 경우에서라도 구동하지 마" 급)만,
   그리고 **세션 한정**(config/manifest 영구 기록 ✗; 매 세션 기본 ON 복귀). 영구 opt-out 불허(안정성=프로젝트 신뢰성 직결).
-- **inform-only**: **PASS/FAIL 판정 없음 · 자동 loop-back 없음**. `verdict_rule.py` 에 투입하지 않는다(done-게이트는 오직
+- **lite 판정 = full 의 진입 게이트(2026-09-29 · `plan_26092923` · 인터뷰 `interview_20260929_132122`)**: 성능 PASS/FAIL 은 없지만
+  **성립 판정**은 있다 — `lite_metrics.judge_lite` 가 raw 에 `lite_verdict` 를 적는다. pass = cold 1 + warm N 전부 성공 · 토큰 생성 ·
+  메인 5지표 N/A 없음(임계값 없음). 불통과 ① `measurement_path_failed`(측정 뒤 호스트 평면 health 200 인데 **클라이언트가 도는 평면**
+  에서 미도달 = D1 · 요청 성공인데 지표 N/A · 결과 파일 없이 클라이언트 실패) → exit 6 · 하네스 수리. ② `server_failed`(호스트 평면도
+  미응답 = 측정 중 서버 사망 · 결과 파일이 실패 요청·빈 출력 · `Initial test run failed` 가 연결 오류 없이 난 경우) → exit 7 · upstream·
+  explorer 재발동 신호(배선은 후속). 종료코드는 raw 판정에서 **파생**한다(단일 권위). native 평면은 서버 로그를 `--engine-log` 로 선언한다
+  (없으면 KV·VRAM N/A → ① · 정직한 부재). 행동은 진입 경로가 정한다 — **α 자동 핸드오프 = 기록·보고만**(리포트·인증서 ✗ · 재빌드 ✗) ·
+  **β lite-only 셀** `--publish-report` = 리포트(판정과 무관) + pass 일 때만 **lite 등급 인증서**(`publish_benchmark_record.py --lite-raw-json`) ·
+  **γ 강등 셀** = sweep 경로가 index.lite 의 판정 pass 에서 lite 등급 인증서. lite 등급 인증서는 hint 발행 자격의 근거이고(completion_gate
+  `HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE`) 성능 완료의 근거가 아니다(`CERTIFICATE_GRADE_NOT_FULL`).
+- **inform-only**(성능): **성능 PASS/FAIL 판정 없음 · 자동 loop-back 없음**. `verdict_rule.py` 에 투입하지 않는다(done-게이트는 오직
   full 경로 소유 — 기능≠성능 따름정리 불변). lite 출력이 커뮤니티/레퍼런스 대비 **심각한 괴리**로 보이면 →
   **이상징후 안내 + full 승격 권유**까지만(자동 재탐색 ✗).
 - **괴리 판단 = 에이전트 재량**: `references.md` §4 HW-스코프 baseline·포럼 수치 대비 *정성 판단*.

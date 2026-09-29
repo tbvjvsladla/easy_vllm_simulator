@@ -1534,9 +1534,10 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
             _emit(_bare_error(f"{cert_error_prefix}_VERDICT_MISMATCH",
                               f"certificate verdict={fields.get('verdict')!r} (must be 'PASS') -- "
                               f"refusing to publish a contradictory certificate"), 2)
-        if fields.get("benchmark_mode") != "full":
+        # 등급 키 부재 = full(옛 인증서 · 소급 ✗) · lite 등급 인증서는 full_benchmark 에 묶이지 않는다(plan_26092923 · 성능 완료는 full 만)
+        if gate.certificate_grade(fields) != "full":
             _emit(_bare_error(f"{cert_error_prefix}_MODE_MISMATCH",
-                              f"certificate benchmark_mode={fields.get('benchmark_mode')!r} (must be 'full') -- "
+                              f"certificate benchmark_mode={fields.get('benchmark_mode')!r} (must be 'full' or absent) -- "
                               f"refusing to publish a contradictory certificate"), 2)
         _mapped, mismatched = gate._certificate_strong_identity_matches(fields, identity)
         if mismatched:
@@ -1857,9 +1858,12 @@ def cmd_init(args: argparse.Namespace) -> None:
                               + (f" (already reclassified from {reclassification.get('from')!r} with reason "
                                  f"{reclassification.get('reason')!r})" if isinstance(reclassification, dict) else "")
                               + f" -- --downgrade-from {downgrade_from!r} does not apply"), 2)
-        if (prior.get("scaffolded") or {}).get("certificate"):
+        if (prior.get("scaffolded") or {}).get("certificate") and \
+                _bound_certificate_grade(repo_root, prior["scaffolded"]["certificate"]) != "lite":
             # 강등 셀은 full 인증서를 받지 못한다(publish_benchmark_record 억제). 인증서가 묶여 있으면 "강등됐다" 는 주장과
             #   record 가 서로 다른 말을 한다 — 어느 쪽이 참인지 여기서 고르지 않는다.
+            #   (2026-09-29 plan_26092923) 강등 셀의 **lite 등급** 인증서는 재분류 뒤 publish-lite-report --certificate-src 로
+            #   묶인다 — 그것은 강등과 같은 말을 하므로(lite) 멱등 재실행을 막지 않는다. full·판독 불가 인증서만 거부한다.
             _emit(_bare_error("INIT_DOWNGRADE_CERTIFICATE_BOUND",
                               f"topic {args.topic!r} has a bound certificate "
                               f"{prior['scaffolded']['certificate']!r} -- a downgraded cell never receives a full "
@@ -2040,6 +2044,16 @@ def cmd_init(args: argparse.Namespace) -> None:
 LITE_BENCH_MODE = "lite"   # classify_cell.BENCH_MODE_LITE 와 같은 철자(selftest_lite_report L10 대조)
 
 
+def _bound_certificate_grade(repo_root: Path, rel: str):
+    """바인딩된 인증서 파일의 등급('full'|'lite'|None=판독 불가) — 판정은 게이트 함수 그대로(사본 ✗)."""
+    try:
+        text = (repo_root / rel).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    fields, ok = gate.parse_flat_certificate(text)
+    return gate.certificate_grade(fields) if ok else None
+
+
 def cmd_publish_lite_report(args: argparse.Namespace) -> None:
     repo_root = _resolve_repo_root(args.repo_root)
     _validate_topic_or_die(args.topic)
@@ -2062,6 +2076,48 @@ def cmd_publish_lite_report(args: argparse.Namespace) -> None:
                           f"{report_src_rel!r} measurement-config table does not say bench_mode=lite (state={mc_state}, "
                           f"bench_mode={(mc or {}).get('bench_mode')!r}) -- refusing to bind a non-lite (or pre-contract) "
                           f"report as the lite evidence of a map-only topic"), 2)
+    # ── lite 등급 인증서 바인딩(선택 · 2026-09-29 plan_26092923 · lite ⊂ full) ──────────────────────────────
+    #   hint 발행 자격은 lite 통과가 연다(completion_gate HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE). 그 근거인 lite 등급
+    #   인증서를 **리포트와 같은 측정**으로 묶는다 — publish-benchmark 와 같은 검사(파싱·강한 6키·측정 키 유일성·stem)에
+    #   등급 검사만 다르다(benchmark_mode: lite · verdict: not_applicable · lite_verdict: pass). 판정·비교는 게이트의
+    #   함수를 그대로 쓴다(두 번째 사본 ✗).
+    cert_src_rel = None
+    cert_measured_utc = None
+    if getattr(args, "certificate_src", None):
+        cprefix = "PUBLISH_LITE_REPORT_CERTIFICATE"
+        cert_src_rel = _require_canonical_bench_src(repo_root, args.certificate_src, "benchmark", cprefix)
+        cert_bytes, _csha = _resolve_src(repo_root, cert_src_rel, cprefix)
+        try:
+            cert_text = cert_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            cert_text = None
+        fields, parse_ok = gate.parse_flat_certificate(cert_text) if cert_text is not None else ({}, False)
+        if not parse_ok:
+            _emit(_bare_error(f"{cprefix}_UNPARSEABLE",
+                              f"--certificate-src {args.certificate_src!r} is not a recognized flat-scalar certificate"), 2)
+        if gate.certificate_grade(fields) != "lite" or fields.get("verdict") != gate.LITE_CERT_VERDICT \
+                or fields.get("lite_verdict") != "pass":
+            _emit(_bare_error(f"{cprefix}_GRADE_MISMATCH",
+                              f"certificate benchmark_mode={fields.get('benchmark_mode')!r} verdict={fields.get('verdict')!r} "
+                              f"lite_verdict={fields.get('lite_verdict')!r} -- a map-only topic binds only a lite-grade "
+                              f"certificate (lite · not_applicable · pass)"), 2)
+        _mapped, mismatched = gate._certificate_strong_identity_matches(fields, record.get("identity") or {})
+        if mismatched:
+            _emit(_bare_error(f"{cprefix}_IDENTITY_MISMATCH",
+                              f"certificate identity field(s) {mismatched} do not match this publication's identity"), 2)
+        cert_key = gate.certificate_run_key(fields)
+        cert_measured_utc = (fields.get("measured_utc") or "").strip() or None
+        if cert_key is None:
+            _emit(_bare_error(f"{cprefix}_KEY_UNRESOLVABLE",
+                              f"certificate {cert_src_rel!r} lacks a strong identity field or measured_utc"), 2)
+        matches = _certificates_matching_key(repo_root, cert_key, cprefix)
+        if matches != [cert_src_rel]:
+            _emit(_bare_error(f"{cprefix}_AMBIGUOUS",
+                              f"measurement {cert_key[0]}@{cert_key[-1]} is certified by {len(matches)} files: {matches}"), 2)
+        if _bench_stem(cert_src_rel) != _bench_stem(report_src_rel):
+            _emit(_bare_error(f"{cprefix}_STEM_MISMATCH",
+                              f"bench_report {report_src_rel!r} and certificate {cert_src_rel!r} do not share a stem -- "
+                              f"they were not issued for the same measurement"), 2)
     scaffolded = record.setdefault("scaffolded", {})
     binding_events: dict = {}
     if scaffolded.get("bench_report") not in (None, report_src_rel):
@@ -2070,6 +2126,12 @@ def cmd_publish_lite_report(args: argparse.Namespace) -> None:
     benchmark = dict(record.get("benchmark") or {})
     benchmark["mode"] = "lite"
     benchmark.setdefault("verdict", None)
+    if cert_src_rel:
+        if scaffolded.get("certificate") not in (None, cert_src_rel):
+            binding_events["certificate_rebound_from"] = scaffolded.get("certificate")
+        scaffolded["certificate"] = cert_src_rel
+        benchmark["measured_utc"] = cert_measured_utc     # 인증서에서 파생한 측정 식별자(게이트가 파일과 대조)
+        binding_events["certificate"] = "bound"
     record["benchmark"] = benchmark
     record["required_evidence"] = required_evidence_for(record["task_class"], record["conditions"],
                                                         benchmark.get("verdict"),
@@ -2078,6 +2140,7 @@ def cmd_publish_lite_report(args: argparse.Namespace) -> None:
     _emit({
         "schema_version": SCHEMA_VERSION, "ok": True, "reason_codes": [], "messages": {},
         "publication_id": args.topic, "bench_report_path": report_src_rel, "benchmark_mode": "lite",
+        "certificate_path": cert_src_rel,
         "binding": {"bench_report": "bound", **binding_events},
     }, 0)
 
@@ -2170,6 +2233,9 @@ def _build_parser() -> _PublisherArgumentParser:
     p_lite.add_argument("--topic", required=True)
     p_lite.add_argument("--generated-utc", required=True)
     p_lite.add_argument("--bench-report-src", required=True)
+    p_lite.add_argument("--certificate-src",
+                        help="같은 측정의 lite 등급 인증서(benchmark_mode: lite · verdict: not_applicable · lite_verdict: pass) — "
+                             "hint 발행 자격의 근거(2026-09-29 plan_26092923)")
     p_lite.set_defaults(func=cmd_publish_lite_report)
 
     p_pt = sub.add_parser("set-promotion-target",
@@ -2550,6 +2616,37 @@ def _self_test() -> None:
             raise RuntimeError(f"publish-lite-report must bind the canonical lite report, got {out!r}")
         if sorted(os.listdir(repo_root / "docs" / "benchmark")) != before:
             raise RuntimeError("publish-lite-report must not create files under docs/benchmark/ (no copies)")
+        # ── lite 등급 인증서 바인딩(2026-09-29 plan_26092923 · hint 자격 = lite 통과) ─────────────────────────────
+        lcert = f"docs/benchmark/benchmark_{lstem}.yaml"
+        lcert_text = ("schema_version: 1\nrecord_type: benchmark_certificate\nverdict: not_applicable\n"
+                      "model: self-test-model\ngpu_model: GB10\nvllm_version: 0.0.0\nquantization: N/A\n"
+                      "topology: single\ntensor_parallel_size: 1\nbenchmark_mode: lite\nlite_verdict: pass\n"
+                      "entry_path: beta_lite_only_cell\nlite_included: true\nlite_gen_tps_warm: 40.0\n"
+                      'measured_utc: "2026-01-01T04:00:00Z"\nmeasured_node: main\n')
+
+        def lite_cert_bind(src, text):
+            (repo_root / src).write_text(text, encoding="utf-8")
+            return invoke(["publish-lite-report", "--repo-root", str(repo_root), "--topic", "lite",
+                           "--generated-utc", "2026-01-01T04:05:00Z", "--bench-report-src", lrep, "--certificate-src", src])
+        for bad_text, want in ((lcert_text.replace("lite_verdict: pass", "lite_verdict: server_failed"),
+                                "PUBLISH_LITE_REPORT_CERTIFICATE_GRADE_MISMATCH"),
+                               (lcert_text.replace("benchmark_mode: lite", "benchmark_mode: full"),
+                                "PUBLISH_LITE_REPORT_CERTIFICATE_GRADE_MISMATCH"),
+                               (lcert_text.replace("model: self-test-model", "model: other-model"),
+                                "PUBLISH_LITE_REPORT_CERTIFICATE_IDENTITY_MISMATCH")):
+            code, out = lite_cert_bind(lcert, bad_text)
+            if not (code == 2 and want in codes(out)):
+                raise RuntimeError(f"★a non-lite-pass / mismatched certificate must not bind to a map-only topic ({want}), got {out!r}")
+        other = "docs/benchmark/benchmark_26010115_self-test-model_GB10_0.0.0.yaml"
+        code, out = lite_cert_bind(other, lcert_text.replace("04:00:00Z", "05:00:00Z"))
+        (repo_root / other).unlink()
+        if not (code == 2 and "PUBLISH_LITE_REPORT_CERTIFICATE_STEM_MISMATCH" in codes(out)):
+            raise RuntimeError(f"★a lite certificate of a different measurement must not bind, got {out!r}")
+        code, out = lite_cert_bind(lcert, lcert_text)
+        if not (code == 0 and out and out.get("certificate_path") == lcert
+                and (out.get("binding") or {}).get("certificate") == "bound"):
+            raise RuntimeError(f"publish-lite-report --certificate-src must bind the lite-grade certificate, got {out!r}")
+        before = sorted(os.listdir(repo_root / "docs" / "benchmark"))
         # 발행자 경로 끝단: 서사 3종 + 경량 리포트 → finalize 가 promotion-ready(지도 발행 통로)에 도달한다
         for kind in ("plan", "devlog", "testlog"):
             src = f"docs/_evidence/inputs/lite_{kind}.md"
@@ -2562,7 +2659,7 @@ def _self_test() -> None:
         mdir = repo_root / "docs" / "_evidence"
         (repo_root / "pii_l.json").write_text(json.dumps({"passed": True, "scanned_paths": sorted(
             os.path.relpath(str(repo_root / rec_l["scaffolded"][k]), str(mdir))
-            for k in ("plan", "devlog", "testlog", "bench_report"))}), encoding="utf-8")
+            for k in ("plan", "devlog", "testlog", "bench_report", "certificate"))}), encoding="utf-8")
         (repo_root / "runtime_l.json").write_text(json.dumps({
             "health_ok": True, "functional_smoke_passed": True, "identity": identity,
             "containers": [{"name": "svc", "restart_count": 0, "oom_killed": False}]}), encoding="utf-8")
@@ -2571,11 +2668,14 @@ def _self_test() -> None:
                             "--runtime-json", str(repo_root / "runtime_l.json")])
         if not (isinstance(out, dict) and out.get("eligible_for_promotion") is True
                 and "HINT_MAP_ONLY_PROMOTION" in codes(out)):
-            raise RuntimeError(f"a map_only topic with a bound lite report must reach the map publication path: {out!r}")
+            raise RuntimeError(f"a map_only topic with a bound lite report + lite certificate must reach the map "
+                               f"publication path: {out!r}")
         man = json.loads((mdir / "lite.work-manifest.json").read_text(encoding="utf-8"))
         if not ((man["evidence"].get("bench_report") or {}).get("path", "").endswith(f"bench_report_{lstem}.md")
-                and man["benchmark"]["mode"] == "lite" and man["evidence"].get("certificate") is None):
-            raise RuntimeError(f"work-manifest must carry the lite report as bench_report evidence (schema unchanged): {man!r}")
+                and man["benchmark"]["mode"] == "lite"
+                and (man["evidence"].get("certificate") or {}).get("path", "").endswith(f"benchmark_{lstem}.yaml")
+                and man["benchmark"].get("measured_utc") == "2026-01-01T04:00:00Z"):
+            raise RuntimeError(f"work-manifest must carry the lite report + lite certificate (measured_utc from it): {man!r}")
         if "promotion_target" in man:
             raise RuntimeError(f"★finalize without a recorded target must not invent promotion_target: {man!r}")
 

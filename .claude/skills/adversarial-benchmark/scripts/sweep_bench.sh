@@ -48,7 +48,8 @@
 #          measured.json(대표 run + runs[]·repro_band),repeat_run.json, run_KK/{…,measured.json,repeat_run.json}},
 #        truncation.log, sweep_index.json, bench_mode.json(writer: classify_cell.py)}
 #        ← render_report.py·publish_benchmark_record.py·judge_bench.sh·broad_search.sh 가 소비.
-# 종료: 0=성공(레벨 ≥1 완료) · 2=인자/전제 오류 · 3=판정점(레벨1) 측정 불가(serve 미가동/게이트 등).
+# 종료: 0=성공(레벨 ≥1 완료) · 2=인자/전제 오류 · 3=판정점(레벨1) 측정 불가(serve 미가동/게이트 등)
+#       6/7=lite 게이트 불통과(6 측정 경로 불성립 · 7 서버 응답 실패 · GuideLLM 미진입 · 2026-09-29 plan_26092923).
 set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
@@ -270,14 +271,32 @@ LITE_RAW="$SWEEPDIR/lite_raw_${CONFIG}.json"
 LITE_PLANE_ARGS=(--serve-plane "$SERVE_PLANE")
 [ -n "$HOST_ENDPOINT" ] && LITE_PLANE_ARGS+=(--host-endpoint "$HOST_ENDPOINT")
 [ -n "$CLIENT_VLLM" ] && LITE_PLANE_ARGS+=(--client-vllm "$CLIENT_VLLM")
-if bash "$SDIR/lite_bench.sh" "$CONFIG" --topology "$TOPO" "${LITE_PLANE_ARGS[@]}" --backend "$BACKEND" --out-dir "$SWEEPDIR" >/dev/null 2>&1 \
-   && [ -s "$LITE_RAW" ]; then
-  echo "[sweep_bench] lite ✓ → $LITE_RAW"
+# ★ 2026-09-29(plan_26092923 · 인터뷰 interview_20260929_132122): lite 는 full 의 **진입 게이트**다(lite ⊂ full).
+#   종전은 fail-soft 였다 — lite 가 실패해도 `lite truncated` 로 적고 GuideLLM 으로 넘어가, "full 은 됐는데 lite 는
+#   성립하지 않음" 이라는 교집합 상태가 존재할 수 있었다(D1 · single lite 측정 0건 rc 0 · 2026-09-29 실측).
+#   이제 lite 판정(raw 의 `lite_verdict` 단일 권위 · lite_metrics.read_lite_verdict)이 pass 가 아니면 **GuideLLM 에
+#   들어가지 않고** lite 종료코드(6 = 측정 경로 불성립 · 7 = 서버 응답 실패)로 끝난다. raw 부재·어휘 밖 값·모르는
+#   종료코드는 6 으로 읽는다(부재를 통과로 접지 않는다). index·리포트·인증서는 만들지 않는다 — 판정점 측정이 없다.
+LITE_LOG="$SWEEPDIR/lite_leg.log"
+LITE_RC=0
+bash "$SDIR/lite_bench.sh" "$CONFIG" --topology "$TOPO" "${LITE_PLANE_ARGS[@]}" --backend "$BACKEND" --out-dir "$SWEEPDIR" >"$LITE_LOG" 2>&1 \
+  || LITE_RC=$?
+LITE_VERDICT="$(python3 -c 'import importlib.util as u,json,sys
+s=u.spec_from_file_location("lite_metrics", sys.argv[1]); m=u.module_from_spec(s); s.loader.exec_module(m)
+try:
+    raw=json.load(open(sys.argv[2]))
+except Exception:
+    raw=None
+print(m.read_lite_verdict(raw) or "")' "$SDIR/lite_metrics.py" "$LITE_RAW" 2>/dev/null || true)"
+if [ "$LITE_RC" = 0 ] && [ "$LITE_VERDICT" = "pass" ]; then
+  echo "[sweep_bench] lite 게이트 통과(lite_verdict=pass) → $LITE_RAW"
 else
-  # fail-soft: lite 실패가 full 전체를 죽이지는 않되 **침묵하지 않는다**(절삭 로그와 동일 규율).
-  echo "[sweep_bench] ⚠ lite 수집 실패 — full 이 lite 를 포함하지 못했다(지표 열 결손)" | tee -a "$TRUNCLOG"
-  echo "lite truncated: lite_bench.sh 실패 또는 raw 부재" >> "$TRUNCLOG"
-  LITE_RAW=""
+  case "$LITE_RC" in 6|7) GATE_RC="$LITE_RC" ;; *) GATE_RC=6 ;; esac
+  [ "$LITE_VERDICT" = "server_failed" ] && GATE_RC=7
+  echo "[sweep_bench] ✗ lite 게이트 불통과(lite_verdict=${LITE_VERDICT:-부재} · lite_bench rc $LITE_RC) — GuideLLM 에 진입하지 않는다(lite ⊂ full)" | tee -a "$TRUNCLOG" >&2
+  echo "lite gate failed: lite_verdict=${LITE_VERDICT:-absent} lite_rc=$LITE_RC → exit $GATE_RC (GuideLLM 미진입 · 인증서 ✗)" >> "$TRUNCLOG"
+  tail -12 "$LITE_LOG" >&2 || true
+  exit "$GATE_RC"
 fi
 
 # >>> spec-axis-args (selftest_sweep_meta.py 가 이 구간을 **바이트 그대로** 뽑아 실행한다 — 복제 ✗)
@@ -990,6 +1009,8 @@ if _lraw and os.path.isfile(_lraw):
         _built = _lm.build(_raw)
         lite_block = {
             "raw_json": _lraw,
+            # lite 판정 — raw 의 단일 권위를 옮긴다(재판정 ✗). γ 강등 셀의 lite 인증서가 이 값을 읽는다.
+            "lite_verdict": _lm.read_lite_verdict(_raw),
             "gen_tps": _built.get("gen_tps"),
             "gen_src": _built.get("gen_src"),
             "cold_ttft_ms": _built.get("cold_ttft_ms"),
