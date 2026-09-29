@@ -89,6 +89,15 @@ CAMPAIGN_TOOLS = (
     "campaign_init.py",                # 단일 writer + 읽는 눈 + 파생 개설(--from-slice)
     "campaign_template_validator.py",  # 선언·인스턴스 술어(P1~P3). 스키마 엔진은 메인 소관
 )
+# 서브가 받는 런타임 스킬이 **부르는** 계약 리더. 오케스트레이션이 아니라 자기 manifest 를 읽는
+# 판정기다. 2026-09-29(plan_26092919 P2) 실측: 싱글 서브의 `lite_bench.sh`·`run_bench.sh` 가
+# `terraforming_node/scripts/manifest_contract.py` 를 부르는데 그 파일이 배달되지 않아 Flag 게이트가
+# 항상 fail-closed(exit 4) — 서빙은 됐는데 벤치가 구조적으로 불가였다. 스킬을 주고 그 스킬의 의존을
+# 안 주면 그 스킬은 없는 것이다(위 캠페인 도구와 같은 결함 모양). 계약 사본(recipe.py 자체 리더)을
+# 하나 더 만드는 대신 정본 리더를 보낸다.
+SUB_CONTRACT_READERS = (
+    "manifest_contract.py",            # Flag·topology 준비성 판정(lite_bench·run_bench 가 부른다)
+)
 
 RUNTIME_BLOCK_EXCLUDES = {
     "upstream-version-watch": (
@@ -577,7 +586,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     _ci_src = os.path.join(REPO, ".claude", "skills", "terraforming_node", "scripts")
     _ci_dst = os.path.join(claude, "skills", "terraforming_node", "scripts")
     os.makedirs(_ci_dst, exist_ok=True)
-    for _tool in CAMPAIGN_TOOLS:
+    for _tool in CAMPAIGN_TOOLS + SUB_CONTRACT_READERS:
         _abs = os.path.join(_ci_src, _tool)
         if not os.path.isfile(_abs):
             raise SystemExit(
@@ -1002,13 +1011,14 @@ def _self_test() -> int:
         _ref = os.path.exists(os.path.join(_out, ".claude/skills/wiki-desk/reference/references.md"))
         # references.md 는 recipe 스킬의 의존이므로 recipe 가 갈 때만 간다.
         _ref_ok = _ref == ("vllm-recipe-explorer" in _want)
-        # ★ 2026-09-08: `terraforming_node` 는 **스킬 전체가 아니라 캠페인 도구 2개**만 간다.
+        # ★ 2026-09-08: `terraforming_node` 는 **스킬 전체가 아니라 캠페인 도구 2개**만 간다
+        #   (2026-09-29: + 계약 리더 1 — SUB_CONTRACT_READERS).
         #   싱글(A2A) 서브만 받으며(불변식 A — 멀티의 sub 는 Ray 워커라 캠페인 저작 주체가 아니다),
         #   메인 전용 오케스트레이션(relay·sync·fetch·scan)은 여기 오지 않는다. 아래는 **양방향**:
         #   ① 있어야 할 2개가 있다 ② 그 밖의 terraforming 스크립트가 새지 않았다.
         _tn = os.path.join(_out, ".claude", "skills", "terraforming_node", "scripts")
         _tn_files = sorted(os.listdir(_tn)) if os.path.isdir(_tn) else []
-        _tn_want = sorted(CAMPAIGN_TOOLS)
+        _tn_want = sorted(CAMPAIGN_TOOLS + SUB_CONTRACT_READERS)
         _tn_ok = _tn_files == _tn_want
         # 해소 자산은 싱글 서브에 가지 않는다 — 가면 서브가 스스로 해소할 이유가 없어진다(F4).
         _res = os.path.exists(os.path.join(

@@ -659,6 +659,12 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
         "hitl_needed": bool((report.get("hitl") or {}).get("needed")) if report else None,
         "library_blocking": (any(bool(r.get("blocking")) for r in report.get("library_request") or []
                                  if isinstance(r, dict)) if report else None),
+        # 2026-09-29(plan_26092919 P2): 서브의 예산 **제안**. 배정은 메인이 하지만(comms 계약), 제안을
+        #   원장에 옮기지 않으면 감독 재발급이 그것을 볼 자리가 없다 — 라이브에서 서브가 "600s 이상
+        #   필요" 를 남겼는데 감독은 서빙 phase 실측 228s 로 같은 벽을 다시 열었다.
+        "budget_recommendation": (report.get("budget_recommendation")
+                                  if report and isinstance(report.get("budget_recommendation"), dict)
+                                  else None),
     }
     att["end_reason"] = end_reason(att)
     doc["context_id"] = context_id
@@ -968,6 +974,8 @@ def assemble_continuation(repo_root: str, doc: dict, pending: list) -> str:
         out += ["", "## 아직 답이 없는 비차단 질문(진행을 막지 않는다 — 없이 갈 수 있으면 가라)"]
         for e in open_nonblocking:
             out.append(f"- {e.get('prompt') or (e.get('library_request') or [{}])[0].get('question')}")
+    out += ["", "- 이번 attempt 의 시간·턴이 남은 일에 모자라 보이면, 필요한 값을 산문이 아니라 리포트 "
+            "`budget_recommendation{max_turns,timeout_seconds,why}` 에 **수치로** 적어라 — 감독 재발급은 그 필드만 읽는다."]
     out += ["", "## 원래 지시(변경 없음)", "", doc.get("task") or "(원장에 원 지시가 없다)"]
     return "\n".join(out) + "\n"
 
@@ -1237,7 +1245,10 @@ def supervise_step(a) -> int:
         return 0
     utc = a.utc or _utcnow()
     rc = 0
+    explicit_runner = bool(a.runners or a.backend or a.model)
     for path, doc in ledgers:
+        if not explicit_runner and ledger_runner_spec(doc):
+            a.ladder = resolve_ladder(a.repo_root, ledger_runner_spec(doc))
         node = doc.get("campaign_node")
         brief = read_brief(a.repo_root, node)
         decision = supervise_decide(doc, brief=brief, cost_cap_attempts=a.cost_cap_attempts,
@@ -1272,6 +1283,28 @@ def supervise_step(a) -> int:
     return rc
 
 
+def ledger_runner_spec(doc: dict) -> str | None:
+    """원장이 **실제로 쓴** 러너 사다리(첫 등장 순서 · 이름). 재발급이 러너를 조용히 바꾸지 않게.
+
+    2026-09-29(plan_26092919 P2) 라이브: 첫 위임은 `--runners sonnet-5.5`(모델 ID 고정)로 나갔는데
+    `--supervise-step` 은 `--runners` 를 받지 않아 기본 사다리(`sonnet` 별칭)로 재발급했다 — 러너가
+    선언 없이 바뀌었고, 별칭 해소가 달라지면 평가가 오염된다(조용한 대체). 명시가 없으면 원장을 잇는다.
+    """
+    if doc.get("runner_ladder"):
+        return doc["runner_ladder"]
+    # 옛 원장(선언 사다리 미기록): 그 context 를 **연** attempt 의 러너 한 칸만 잇는다. 이후 칸을
+    #   합치면 이미 잘못 바뀐 러너가 '마지막 사용' 으로 사다리 커서를 끌고 간다(next_runner_index).
+    first = next((a for a in doc.get("attempts") or [] if (a.get("runner") or {}).get("name")), None)
+    return (first or {}).get("runner", {}).get("name") if first else None
+
+
+def recommended_timeout(doc: dict) -> int | None:
+    """마지막으로 닿은 attempt 의 서브 제안 timeout(초). 없거나 수가 아니면 None — 값을 만들지 않는다."""
+    last = _last_reached(doc) or {}
+    v = (last.get("budget_recommendation") or {}).get("timeout_seconds")
+    return int(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0 else None
+
+
 def resume_blockers(pending: list) -> list:
     """자동 재발급을 막는 대기 항목 — 답도 반출도 없는 차단성 요청, 그리고 사서가 **거절**한 것.
 
@@ -1300,6 +1333,10 @@ def _supervise_resume(a, lp: str, doc: dict, secs, why: str) -> int:
         REPO, "output", a.topology or "single", "manifest.yaml")
     a.context_id = doc.get("context_id")
     lks = last_known_session(doc)
+    rec = recommended_timeout(doc)
+    if rec and (secs is None or rec > secs):
+        secs = min(rec, turn_budget.schema_cap("timeout_seconds"))
+        why = f"{why} · 서브 제안 budget_recommendation.timeout_seconds={rec} 반영(배정은 메인 · 상한 캡)"
     cap = turn_budget.schema_cap("max_turns")
     turns = a.max_turns or max(budget_floor(doc), 1) or cap
     bud = turn_budget.declare(min(turns, cap), secs or turn_budget.schema_cap("timeout_seconds"),
@@ -1713,6 +1750,16 @@ def _self_test() -> int:
     chk(supervise_decide({"attempts": [_mk(**dict(_y, library_blocking=True))]},
                          cost_cap_attempts=1)["action"] == "popup",
         "★감독 음성대조: 도서관 재개도 비용 상한을 넘지 않는다")
+    chk(ledger_runner_spec({"runner_ladder": "kimi-claude,sonnet-5.5",
+                            "attempts": [{"runner": {"name": "sonnet"}}]}) == "kimi-claude,sonnet-5.5"
+        and ledger_runner_spec({"attempts": [{"runner": {"name": "sonnet-5.5"}},
+                                             {"runner": {"name": "sonnet"}}]}) == "sonnet-5.5"
+        and ledger_runner_spec({"attempts": [{}]}) is None,
+        "★재발급 러너: 명시가 없으면 원장이 쓴 사다리를 잇는다(조용한 별칭 대체 ✗)")
+    chk(recommended_timeout({"attempts": [_mk(budget_recommendation={"timeout_seconds": 900})]}) == 900
+        and recommended_timeout({"attempts": [_mk(budget_recommendation={"timeout_seconds": "많이"})]}) is None
+        and recommended_timeout({"attempts": [_mk()]}) is None,
+        "★재발급 timeout: 서브 제안 수치만 읽는다(산문·비수치는 None — 값을 만들지 않는다)")
     _lq = {"library_request": [{"question": "q", "blocking": True}]}
     chk(resume_blockers([dict(_lq, library_export={"resolution": {"status": "unresolved"}})]) == []
         and len(resume_blockers([dict(_lq, library_export={"resolution": {"status": "refused"}})])) == 1
@@ -2207,6 +2254,9 @@ def main() -> int:
     lp = ledger_path(a.repo_root, a.context_id)
     doc = load_ledger(lp)
     bind_campaign_context(doc, node=a.node, kind=a.context_kind, cell=a.cell)
+    if a.runners:
+        # 선언된 사다리를 원장에 적는다 — 감독 재발급이 명시 없이도 같은 사다리를 잇는다(ledger_runner_spec).
+        doc["runner_ladder"] = ",".join(r["name"] for r in a.ladder)
     a.campaign_id, a.control_variables = resolve_campaign_axis(a)
     if a.campaign_id:
         doc["campaign_id"] = a.campaign_id
@@ -2218,6 +2268,8 @@ def main() -> int:
         if not (doc.get("attempts") or []):
             raise SystemExit(f"[relay] STOP: 이어갈 원장이 없다 — {lp}. 첫 위임은 `--task` 로 연다.")
         a.topology = a.topology or doc.get("topology")
+        if not (a.runners or a.backend or a.model) and ledger_runner_spec(doc):
+            a.ladder = resolve_ladder(a.repo_root, ledger_runner_spec(doc))   # 러너를 조용히 바꾸지 않는다
         if not a.topology:
             raise SystemExit("[relay] STOP: 원장에 topology 가 없다(구버전 원장) — 명시하라.")
         a.manifest_path = a.manifest or doc.get("manifest") or os.path.join(
