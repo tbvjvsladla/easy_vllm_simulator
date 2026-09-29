@@ -391,9 +391,9 @@ def repetition_established(summary, judgment_level) -> "tuple[bool | None, str]"
                 stop.get("level"), stop.get("run"))
         elif stop and stop.get("kind") == STOP_KIND_CLAMP:
             tail = " · level %s 첫 run 에서 적응 상한 클램프" % stop.get("level")
-        return True, "runs[](판정점 level %d 완주 %d ≥ full 정의 %d)%s" % (judgment_level, jc, FULL_REPEATS_MIN, tail)
+        return True, "runs[] 집계(판정점 level %d 완주 %d ≥ full 정의 %d)%s" % (judgment_level, jc, FULL_REPEATS_MIN, tail)
     if stop and stop.get("kind") == STOP_KIND_REPEAT_BREAK and stop.get("level") == judgment_level:
-        return False, ("runs[](판정점 level %d 완주 %d < full 정의 %d · run %s 에서 반복 중단)"
+        return False, ("runs[] 집계(판정점 level %d 완주 %d < full 정의 %d · run %s 에서 반복 중단)"
                        % (judgment_level, jc, FULL_REPEATS_MIN, stop.get("run")))
     return None, ("unclassifiable(판정점 완주 %d < full 정의 %d 인데 판정점에서 끊긴 run 이 없다 — 요청 자체가 정의 미만인 "
                   "산출물 · 강등 사유를 발명하지 않는다)" % (jc, FULL_REPEATS_MIN))
@@ -572,6 +572,9 @@ def _self_test() -> int:
 
     est, why = repetition_established(summarize([lv(1, runs_(3)), lv(2, runs_(3))]), 1)
     check("H3 판정점 3 · 경계 없음 → 반복 조건 성립", est is True and "완주 3" in why, why)
+    # 2026-09-23: 옛 문구 `runs[](…)` 가 bench_report 표에 그대로 실려 completion_gate 링크 스캐너가
+    # 'malformed inline destination' 으로 fail-closed 했다(D1 발행 거부) — 출처 문구는 마크다운 링크 모양 ✗.
+    check("H3b 출처 문구가 마크다운 인라인 링크 모양(`](`)이 아니다", "](" not in why, why)
     est, why = repetition_established(summarize([lv(1, runs_(3)), lv(2, runs_(1, 1, 10))]), 1)
     check("H4 ★비대칭 교정: 경계 레벨 2 의 run 2 실패(판정점 3) → 성립(적응 상한 클램프 · 첫 run 실패와 같은 판정)",
           est is True and "적응 상한 클램프" in why, why)

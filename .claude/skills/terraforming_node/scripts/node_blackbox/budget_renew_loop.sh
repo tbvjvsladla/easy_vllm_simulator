@@ -23,8 +23,15 @@
 # 사용:
 #   bash budget_renew_loop.sh --node-dir <docs/logs/<node_id>> --container <name> \
 #        [--ttl-s <초>] [--interval-s <ttl/4>] [--once] [--self-test]
+#   bash budget_renew_loop.sh --node-dir <docs/logs/<node_id>> --pgid <N> --starttime <S> [동일 옵션]
 #
-# 종료코드: 0=컨테이너 소멸로 정상 종료(또는 --once 성공) · 2=사용오류 · 5=갱신 실패(fail-loud)
+# ★ pgid 표적 모드 (2026-09-23 · plan_26092311 N-D5 / N3). native(비-Docker) 서빙은 컨테이너가 없다.
+#   표적을 **프로세스 그룹 정체**(pgid + 그룹 리더 /proc/<pgid>/stat 의 starttime)로 받는다 —
+#   리더가 사라지거나 starttime 이 바뀌면(PID 재사용) 서빙이 끝난 것이므로 루프가 스스로 끝난다.
+#   이름 기반 판정(pgrep -f)은 쓰지 않는다(C6 · F11: 워커가 argv 를 바꾼다). --container 와 결합 불가(exit 2),
+#   --pgid 에 --starttime 이 없으면 exit 2(fail-closed).
+#
+# 종료코드: 0=표적(컨테이너·프로세스그룹) 소멸로 정상 종료(또는 --once 성공) · 2=사용오류 · 5=갱신 실패(fail-loud)
 set -uo pipefail
 
 RL_TAG="[budget-renew]"
@@ -35,6 +42,33 @@ rl_now(){ date -u +%FT%TZ; }
 
 # 컨테이너 생존 프로브. **self-test 가 주입할 수 있게** 한 겹 감싼다 — 감싸지 않으면 이 루프는
 # docker 없이는 한 줄도 검증할 수 없고, 검증되지 않은 사이드카는 없는 것과 같다.
+# pgid 모드 생존 프로브: /proc/<pgid>/stat 만 읽는다(이름 ✗). comm 에 공백·괄호가 올 수 있어 마지막 ')' 뒤부터 센다
+#   ($1=state $3=pgrp $20=starttime). 0=살아있음 · 1=종료(부재·정체 불일치·좀비 리더+산 멤버 0). 사유는 RL_END_REASON.
+RL_END_REASON=""
+rl_pgid_running(){   # $1=pgid $2=starttime
+    local _s="" _rest _f _state
+    read -r _s 2>/dev/null < "/proc/$1/stat" || [ -n "$_s" ] || { RL_END_REASON="리더 pid=$1 부재"; return 1; }
+    _rest="${_s##*) }"
+    # shellcheck disable=SC2086
+    set -- "$1" "$2" $_rest
+    [ $# -ge 22 ] || { RL_END_REASON="/proc/$1/stat 판독 불완전"; return 1; }
+    if [ "${22}" != "$2" ]; then RL_END_REASON="리더 starttime 변경(want=$2 got=${22} — PID 재사용)"; return 1; fi
+    if [ "$5" != "$1" ]; then RL_END_REASON="pid=$1 이 그룹 리더가 아니다(pgrp=$5)"; return 1; fi
+    if [ "$3" = "Z" ]; then
+        # 좀비 리더: 그룹에 살아 있는 멤버가 있으면 서빙은 아직 산 것이다.
+        _state="dead"
+        for _f in /proc/[0-9]*/stat; do
+            _s=""; read -r _s 2>/dev/null < "$_f" || [ -n "$_s" ] || continue
+            _rest="${_s##*) }"
+            # shellcheck disable=SC2086
+            set -- "$1" "$2" $_rest
+            [ "${5:-}" = "$1" ] && [ "${3:-}" != "Z" ] && { _state="alive"; break; }
+        done
+        [ "$_state" = "alive" ] || { RL_END_REASON="리더 좀비 · 살아 있는 그룹 멤버 0"; return 1; }
+    fi
+    return 0
+}
+
 rl_container_running(){   # $1=container name → 0=살아있음
     if [ -n "${BUDGET_RENEW_PROBE:-}" ]; then
         BUDGET_RENEW_TARGET="$1" bash -c "$BUDGET_RENEW_PROBE"
@@ -60,6 +94,8 @@ rl_usage(){
 
   --node-dir    docs/logs/<node_id> (예산 선언·events 가 사는 곳)
   --container   감시할 컨테이너 이름(정확 일치). 사라지면 루프가 스스로 끝난다
+  --pgid        (컨테이너 대신) 감시할 프로세스 그룹 id — native 서빙. --starttime 필수
+  --starttime   그룹 리더의 /proc/<pgid>/stat starttime(22번 필드). 바뀌면 PID 재사용으로 보고 끝난다
   --ttl-s       매 갱신이 미는 만료(미지정 시 blackbox_session 의 기본값 · 상한도 그쪽이 강제)
   --interval-s  갱신 주기(기본 ttl/4 · 최소 60). 만료보다 훨씬 짧아야 한다 —
                 만료된 선언은 갱신되지 않는다(fail-closed)
@@ -69,10 +105,18 @@ EOF
 }
 
 RL_NODE_DIR=""; RL_CONTAINER=""; RL_TTL_S=""; RL_INTERVAL_S=""; RL_ONCE=0; RL_SELFTEST=0
+RL_PGID=""; RL_STARTTIME=""; RL_PGID_SET=0; RL_STARTTIME_SET=0
 while [ $# -gt 0 ]; do
+    # 값 플래그가 마지막 인자면 `shift 2` 가 실패해 같은 인자를 영원히 도는 루프가 된다 → 사용오류로 닫는다.
+    case "$1" in
+        --node-dir|--container|--pgid|--starttime|--ttl-s|--interval-s)
+            [ $# -ge 2 ] || { echo "$RL_TAG FAIL: $1 값 누락" >&2; exit 2; } ;;
+    esac
     case "$1" in
         --node-dir)   RL_NODE_DIR="${2:-}"; shift 2 ;;
         --container)  RL_CONTAINER="${2:-}"; shift 2 ;;
+        --pgid)       RL_PGID="${2:-}"; RL_PGID_SET=1; shift 2 ;;
+        --starttime)  RL_STARTTIME="${2:-}"; RL_STARTTIME_SET=1; shift 2 ;;
         --ttl-s)      RL_TTL_S="${2:-}"; shift 2 ;;
         --interval-s) RL_INTERVAL_S="${2:-}"; shift 2 ;;
         --once)       RL_ONCE=1; shift ;;
@@ -171,6 +215,61 @@ if [ "$RL_SELFTEST" = "1" ]; then
     case "$rl_out" in *"interval=1800s"*) rl_r=0 ;; *) rl_r=1 ;; esac
     rl_chk "기본 interval = TTL/4" "$rl_r" "0"
 
+    # ── pgid 표적 모드 (N3) — 인자 음성대조 ──
+    rl_out="$(bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container c --pgid 12345 --starttime 5 2>&1)"; rl_r=$?
+    rl_chk "--container + --pgid 결합 → 사용오류 2" "$rl_r" "2"
+    rl_out="$(timeout 10 bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --pgid 2>&1)"; rl_r=$?
+    rl_chk "--pgid 값 누락(마지막 인자) → 2(무한루프 ✗)" "$rl_r" "2"
+    rl_out="$(bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --pgid 12345 2>&1)"; rl_r=$?
+    rl_chk "--pgid 에 --starttime 누락 → 2(fail-closed)" "$rl_r" "2"
+    rl_out="$(bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --starttime 5 2>&1)"; rl_r=$?
+    rl_chk "--starttime 단독 → 2" "$rl_r" "2"
+    rl_out="$(bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --pgid 'x;id' --starttime 5 2>&1)"; rl_r=$?
+    rl_chk "--pgid 비정수 → 2" "$rl_r" "2"
+    rl_out="$(bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --pgid 1 --starttime 5 2>&1)"; rl_r=$?
+    rl_chk "--pgid 1 → 2" "$rl_r" "2"
+    rl_out="$(bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --pgid 12345 --starttime 05 2>&1)"; rl_r=$?
+    rl_chk "--starttime 선행 0 → 2" "$rl_r" "2"
+
+    # ── pgid 모드 실주행: 이 시험이 띄운 sleep 그룹만 쓴다(이중 fork + setsid · 좀비 ✗) ──
+    rl_pf="$rl_tmp/g.pid"
+    ( setsid bash -c 'echo $$ > "$1"; sleep 300 & wait' _ "$rl_pf" </dev/null >/dev/null 2>&1 & )
+    rl_i=0; while [ ! -s "$rl_pf" ] && [ "$rl_i" -lt 40 ]; do sleep 0.05; rl_i=$((rl_i+1)); done
+    rl_gp="$(cat "$rl_pf" 2>/dev/null)"; sleep 0.2
+    rl_gs=""; rl_gst=""
+    if [ -n "$rl_gp" ] && read -r rl_gst 2>/dev/null < "/proc/$rl_gp/stat"; then
+        rl_gst="${rl_gst##*) }"; set -- $rl_gst; rl_gs="${20}"
+    fi
+    if [ -z "$rl_gs" ]; then
+        rl_chk "pgid 시험 그룹 기동" "fail" "ok"
+    else
+        rl_pgid_running "$rl_gp" "$rl_gs"; rl_chk "pgid 프로브: 살아있음 → 0" "$?" "0"
+        rl_pgid_running "$rl_gp" "$((rl_gs+1))"; rl_chk "pgid 프로브: starttime 불일치 → 1" "$?" "1"
+        # 정체 불일치 → 갱신 없이 exit 0 (선언이 남의 프로세스로 살아남지 않는다)
+        rl_out="$(BUDGET_RENEW_SESSION_PY="$rl_tmp/should_not_run.py" bash "${BASH_SOURCE[0]}" \
+                  --node-dir "$rl_tmp" --pgid "$rl_gp" --starttime "$((rl_gs+1))" \
+                  --ttl-s "$RL_FIXTURE_TTL_S" --interval-s 60 2>&1)"; rl_r=$?
+        rl_chk "pgid starttime 변경 → 갱신 없이 exit 0" "$rl_r" "0"
+        case "$rl_out" in *"PID 재사용"*) rl_r=0 ;; *) rl_r=1 ;; esac
+        rl_chk "  종료 사유: PID 재사용" "$rl_r" "0"
+        # 살아 있는 그룹 → 갱신 1회 뒤 상주(종료하지 않는다)
+        rl_out="$(BUDGET_RENEW_SESSION_PY="$rl_tmp/ok.py" timeout -s KILL 3 bash "${BASH_SOURCE[0]}" \
+                  --node-dir "$rl_tmp" --pgid "$rl_gp" --starttime "$rl_gs" \
+                  --ttl-s "$RL_FIXTURE_TTL_S" --interval-s 60 2>&1)"; rl_r=$?
+        rl_chk "pgid 살아있음 → 상주(timeout 으로만 끝남)" "$rl_r" "137"
+        case "$rl_out" in *"target=pgid:$rl_gp"*"ok"*) rl_r=0 ;; *) rl_r=1 ;; esac
+        rl_chk "  시작 줄 target=pgid 표기 + 갱신 1회" "$rl_r" "0"
+        # 리더 소멸 → 갱신 없이 exit 0. 이 시험이 띄운 그룹만, 정체 재확인 뒤에 죽인다.
+        rl_pgid_running "$rl_gp" "$rl_gs" && kill -KILL -- "-$rl_gp" 2>/dev/null
+        rl_i=0; while [ -e "/proc/$rl_gp" ] && [ "$rl_i" -lt 40 ]; do sleep 0.05; rl_i=$((rl_i+1)); done
+        rl_out="$(BUDGET_RENEW_SESSION_PY="$rl_tmp/should_not_run.py" bash "${BASH_SOURCE[0]}" \
+                  --node-dir "$rl_tmp" --pgid "$rl_gp" --starttime "$rl_gs" \
+                  --ttl-s "$RL_FIXTURE_TTL_S" --interval-s 60 2>&1)"; rl_r=$?
+        rl_chk "pgid 리더 소멸 → 갱신 없이 exit 0" "$rl_r" "0"
+        case "$rl_out" in *"표적 프로세스그룹 종료"*) rl_r=0 ;; *) rl_r=1 ;; esac
+        rl_chk "  종료 사유를 남긴다(침묵 종료 ✗)" "$rl_r" "0"
+    fi
+
     rm -rf "$rl_tmp"
     echo "self-test: $([ $rl_fail = 0 ] && echo PASS || echo FAIL)"
     exit $rl_fail
@@ -178,7 +277,21 @@ fi
 
 # ── 인자 검증 (fail-closed — 빈 값으로 도는 사이드카는 아무것도 지키지 않는다) ──
 [ -n "$RL_NODE_DIR" ]  || { echo "$RL_TAG FAIL: --node-dir 필수" >&2; rl_usage >&2; exit 2; }
-[ -n "$RL_CONTAINER" ] || { echo "$RL_TAG FAIL: --container 필수(감시 대상이 없으면 종료 조건도 없다)" >&2; exit 2; }
+# 표적은 정확히 하나: 컨테이너 **또는** 프로세스 그룹(pgid+starttime). 둘 다·둘 다 없음 = 사용오류.
+if [ "$RL_PGID_SET" = "1" ] || [ "$RL_STARTTIME_SET" = "1" ]; then
+    [ -z "$RL_CONTAINER" ] || { echo "$RL_TAG FAIL: --container 와 --pgid/--starttime 은 결합할 수 없다(표적은 하나)" >&2; exit 2; }
+    [ "$RL_PGID_SET" = "1" ] || { echo "$RL_TAG FAIL: --starttime 은 --pgid 와 함께만 쓴다" >&2; exit 2; }
+    [ -n "$RL_STARTTIME" ] || { echo "$RL_TAG FAIL: --pgid 에는 --starttime 이 필수(PID 재사용 가드 · fail-closed)" >&2; exit 2; }
+    # 값은 argv 로만 들어와 /proc 경로·문자열 비교에만 쓰인다 — 정수 형식을 강제해 경로 주입을 막는다.
+    case "$RL_PGID" in ''|0*|*[!0-9]*) echo "$RL_TAG FAIL: --pgid 는 선행 0 없는 양의 정수(got=[$RL_PGID])" >&2; exit 2 ;; esac
+    [ "${#RL_PGID}" -le 9 ] && [ "$RL_PGID" -gt 1 ] || { echo "$RL_TAG FAIL: --pgid 범위 밖(got=[$RL_PGID])" >&2; exit 2; }
+    case "$RL_STARTTIME" in *[!0-9]*|0?*) echo "$RL_TAG FAIL: --starttime 은 선행 0 없는 정수(got=[$RL_STARTTIME])" >&2; exit 2 ;; esac
+    [ "${#RL_STARTTIME}" -le 20 ] || { echo "$RL_TAG FAIL: --starttime 이 너무 길다" >&2; exit 2; }
+    RL_TARGET_KIND="pgid"
+else
+    [ -n "$RL_CONTAINER" ] || { echo "$RL_TAG FAIL: --container 필수(감시 대상이 없으면 종료 조건도 없다)" >&2; exit 2; }
+    RL_TARGET_KIND="container"
+fi
 # --ttl-s 미지정이면 **단일 소유자**의 기본값을 읽는다(여기에 7200 을 적지 않는다 · G-B2).
 if [ -z "$RL_TTL_S" ]; then
     RL_TTL_S="$(python3 "$RL_SESSION_PY" --node-dir "${RL_NODE_DIR:-.}" budget-defaults --field ttl_s 2>/dev/null || echo)"
@@ -195,7 +308,11 @@ if [ "$RL_INTERVAL_S" -gt $(( RL_TTL_S / 2 )) ]; then
     echo "$RL_TAG interval 을 TTL 의 절반($RL_INTERVAL_S s)으로 낮춘다 — 만료 후 갱신은 거부되므로 여유가 필요하다."
 fi
 
+if [ "$RL_TARGET_KIND" = "pgid" ]; then
+    echo "$RL_TAG 시작 — node_dir=$RL_NODE_DIR target=pgid:$RL_PGID starttime=$RL_STARTTIME ttl=${RL_TTL_S}s interval=${RL_INTERVAL_S}s"
+else
 echo "$RL_TAG 시작 — node_dir=$RL_NODE_DIR container=$RL_CONTAINER ttl=${RL_TTL_S}s interval=${RL_INTERVAL_S}s"
+fi
 
 if [ "$RL_ONCE" = "1" ]; then
     rl_renew_once || exit 5
@@ -204,6 +321,17 @@ if [ "$RL_ONCE" = "1" ]; then
 fi
 
 while :; do
+    if [ "$RL_TARGET_KIND" = "pgid" ]; then
+        # /proc 판독은 판정 불가가 없다 — 있음(0) 또는 끝남(1). 끝났으면 갱신하지 않는다.
+        if ! rl_pgid_running "$RL_PGID" "$RL_STARTTIME"; then
+            echo "$RL_TAG 종료 — 표적 프로세스그룹 종료(target=pgid:$RL_PGID · $RL_END_REASON). 서빙이 없으면 선언도 유지하지 않는다."
+            echo "$RL_TAG ⚠ 선언 자체의 회수(clear-budget)는 teardown 진입점이 한다 — 이 루프는 갱신만 멈춘다."
+            exit 0
+        fi
+        rl_renew_once || exit 5
+        sleep "$RL_INTERVAL_S"
+        continue
+    fi
     rl_container_running "$RL_CONTAINER"; rl_cr=$?
     if [ "$rl_cr" -eq 1 ]; then
         echo "$RL_TAG 종료 — 컨테이너 부재($RL_CONTAINER). 서빙이 없으면 선언도 유지하지 않는다."

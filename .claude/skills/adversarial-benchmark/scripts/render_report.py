@@ -195,7 +195,31 @@ def full_measurement_config(index, bench_mode_record, bench_mode_status):
     }
 
 
-def build_md(index, verdict, roofline, bench_mode_record=None, bench_mode_status="absent(판정 기록을 넘기지 않았다)"):
+def manifest_path_labels(manifest_path):
+    """manifest 최상위 `*_path:` 값 → (호스트 접두, `<manifest.<키>>`) — 긴 접두 우선. 읽지 못하면 빈 목록(표시만 바뀐다)."""
+    out = []
+    try:
+        text = open(manifest_path, encoding="utf-8").read()
+    except OSError:
+        return out
+    for m in re.finditer(r'(?m)^([a-z_]+_path):\s*"?(/[^"#\s]+)', text):
+        out.append((m.group(2).rstrip("/"), "<manifest.%s>" % m.group(1)))
+    return sorted(out, key=lambda kv: -len(kv[0]))
+
+
+def _label_path(value, labels):
+    """호스트 운영자 경로를 manifest 필드 표지로 **표시**한다(2026-09-23 N1: native 셀의 model_path 는 컨테이너 경로가 아니라 호스트
+    경로라 리포트 본문에 운영자 경로가 실렸다). 값 자체(meta)는 바꾸지 않는다 — judge 가 그 값으로 루프라인을 계산한다."""
+    if not isinstance(value, str):
+        return value
+    for prefix, label in labels or []:
+        if value == prefix or value.startswith(prefix + "/"):
+            return label + value[len(prefix):]
+    return value
+
+
+def build_md(index, verdict, roofline, bench_mode_record=None, bench_mode_status="absent(판정 기록을 넘기지 않았다)",
+             path_labels=None):
     meta = index.get("meta", {})
     model = meta.get("model", "NA")
     gpu = meta.get("gpu_model", "NA")
@@ -217,13 +241,15 @@ def build_md(index, verdict, roofline, bench_mode_record=None, bench_mode_status
     # --- 판정 표시(inform-only) ---
     v = verdict.get("verdict", "N/A")
     rub = verdict.get("rubric") or {}
+    # ⚠ 파싱 계약: 이 절 머리 · 아래 `verdict` · `루브릭 권한` 행 문구는 completion_gate.bench_report_verdict_table 이
+    #   읽는다(인증서가 발행되지 않는 판정의 교차검증 · plan_26092908 §4.8) — 함께 바꿀 것.
     A("## 판정 (표시만 — verdict_rule.py 결과)")
     A("")
     A("| 항목 | 값 |")
     A("|---|---|")
-    A("| verdict | **%s** |" % v)
+    A("| verdict | **%s** |" % v)  # 파싱 계약(completion_gate.bench_report_verdict_table) — 함께 바꿀 것
     A("| 측정 decode t/s (동시성1) | %s |" % na(verdict.get("measured_decode_tps"), " t/s"))
-    A("| 루브릭 권한 | %s |" % na(rub.get("authority")))  # weak|explicit|explore (표시만 — plan_26082219 A7)
+    A("| 루브릭 권한 | %s |" % na(rub.get("authority")))  # weak|explicit|explore (표시만 — plan_26082219 A7) · 파싱 계약(completion_gate.bench_report_verdict_table) — 함께 바꿀 것
     A("| 루브릭 primary | %s (%s) |" % (na(rub.get("primary"), " t/s"), na(rub.get("source"))))
     A("| floor (primary×(1−tol)) | %s |" % na(rub.get("floor"), " t/s"))
     A("| ratio (M/primary) | %s |" % na(rub.get("ratio_M_over_primary")))
@@ -337,7 +363,7 @@ def build_md(index, verdict, roofline, bench_mode_record=None, bench_mode_status
         ("gpu_memory_utilization", "gpu_memory_utilization"), ("moe_backend", "moe_backend"),
         ("enforce_eager", "enforce_eager"), ("model_path", "model_path"),
     ]:
-        A("| %s | %s |" % (label, na(meta.get(key))))
+        A("| %s | %s |" % (label, na(_label_path(meta.get(key), path_labels) if key == "model_path" else meta.get(key))))
     A("| 입력 길이(sweep) | %s |" % na(index.get("input_len")))
     A("")
     A("---")
@@ -552,7 +578,8 @@ def main():
         sys.stderr.write("[render_report] ERROR --bench-mode-json 을 쓸 수 없다: %s\n" % bm_status)
         sys.exit(2)
 
-    md = build_md(index, verdict, roofline, bm_record, bm_status)
+    _mf = os.path.join(repo_root(a.sweep_index), "output", str((index.get("meta") or {}).get("topology") or ""), "manifest.yaml")
+    md = build_md(index, verdict, roofline, bm_record, bm_status, path_labels=manifest_path_labels(_mf))
     meta = index.get("meta", {})
     import sys as _s, os as _o; _s.path.insert(0, _o.path.dirname(_o.path.abspath(__file__)))
     from doc_naming import bench_filename, scan_bench_dir

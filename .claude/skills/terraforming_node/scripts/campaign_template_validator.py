@@ -486,8 +486,14 @@ _SWEEP_TO_CELL = {
 
 
 def _sweep_cell_records(camp_dir: Path) -> dict:
-    """sweeps/*.json 이 든 셀별 결과. 키 = cell_key, 값 = (outcome, 출처 파일)."""
+    """sweeps/*.json 이 든 셀별 결과. 키 = cell_key, 값 = (outcome, 출처 파일).
+
+    ★ 2026-09-28 교정: 같은 셀이 여러 스윕에 있으면 **`ended_utc` 가 늦은 레코드**가 이긴다(시각이 없거나 같으면 종전대로
+      파일 이름순 마지막). 종전에는 이름순 마지막이 이겼는데 `<id>-r2.json` < `<id>.json` 이라(`-` < `.`) 재측정 스윕의
+      measured 를 옛 스윕의 measurement_void 가 덮었다(camp-26092808 실측) — 같은 셀을 다시 재는 모든 캠페인에 걸린다.
+    """
     out: dict = {}
+    when: dict = {}
     for sweep in sorted(camp_dir.glob("sweeps/*.json")):
         try:
             doc = json.loads(sweep.read_text(encoding="utf-8"))
@@ -499,7 +505,11 @@ def _sweep_cell_records(camp_dir: Path) -> dict:
             key = cell.get("cell_key") or cell.get("cell_id") or cell.get("config")
             outcome = cell.get("cell_outcome") or cell.get("outcome") or cell.get("status")
             if isinstance(key, str) and isinstance(outcome, str):
+                ended = cell.get("ended_utc") if isinstance(cell.get("ended_utc"), str) else ""
+                if key in out and ended < when.get(key, ""):
+                    continue
                 out[key] = (outcome, _rel(sweep))
+                when[key] = ended
     return out
 
 
@@ -688,6 +698,13 @@ def predicate_p3(camp_dir: Path) -> list[str]:
 
     `campaign.yaml.nodes[]` 에 적었는데 진행표가 없으면 그 노드는 "안 돌았다"와 "돌았는데 아무도
     안 적었다"가 구분되지 않는다. 부재와 실패는 다른 사실이다.
+
+    ★ 2026-09-28 교정: 멀티의 **배정 0 인 sub** 는 묻지 않는다. 멀티 셀은 클러스터 단위라 `assignments`
+      에는 메인만 등장하고 서브는 Ray 워커로 그 셀의 일부가 된다(`orchestration.topology.md` §캠페인 배정).
+      그 서브의 빌드·기동 결과는 메인 진행표의 proof 출처에 실리며(`multinode_serve_smoke.sh`), 메인이
+      phases/sub 를 대신 쓰는 것은 P5 결함이다 — 즉 이 자리를 채울 **실행자가 계약상 0** 이었고, 그래서
+      멀티 캠페인은 매번 여기서 종결이 막혔다(camp-26092301). 배정이 0 이라는 사실이 곧 "돌 셀이 없었다"
+      의 선언이므로 부재와 미기재가 구분된다. 싱글·배정 있는 서브는 종전대로 묻는다.
     """
     problems: list[str] = []
     doc = camp_dir / "campaign.yaml"
@@ -702,6 +719,9 @@ def predicate_p3(camp_dir: Path) -> list[str]:
             continue
         nid = node.get("node_id")
         if not isinstance(nid, str) or not nid or FILL in nid:
+            continue
+        if (node.get("topology") == "multi" and node.get("role") == "sub"
+                and not assignment_items(decl, nid)):
             continue
         if not (camp_dir / "phases" / nid).is_dir():
             problems.append(f"P3 {nid}: campaign.yaml 이 선언한 노드인데 phases/{nid}/ 가 없다 "
@@ -1302,6 +1322,17 @@ def _selftest() -> int:
             json.dumps({"schema_version": 1, "cell_id": "cell-z", "cell_outcome": "serve_failed"}),
             encoding="utf-8")
         ck("일치하면 P1 통과", not predicate_p1(camp))
+        (camp / "sweeps" / "s1.json").write_text(json.dumps({"cells": [
+            {"cell_key": "cell-a", "cell_outcome": "measurement_void", "ended_utc": "2026-01-01T00:00:00Z"}]}),
+            encoding="utf-8")
+        (camp / "sweeps" / "s1-r2.json").write_text(json.dumps({"cells": [
+            {"cell_key": "cell-a", "cell_outcome": "measured", "ended_utc": "2026-01-01T01:00:00Z"}]}),
+            encoding="utf-8")
+        ck("★P1 같은 셀의 재측정은 이름순이 아니라 ended_utc 최신이 이긴다(s1-r2 < s1 이름순 역전)",
+           not any("cell-a" in x for x in predicate_p1(camp)))
+        (camp / "sweeps" / "s1-r2.json").unlink()
+        ck("★음성대조 최신 레코드가 사라지면 옛 void 가 다시 불일치로 잡힌다",
+           any("cell-a" in x and "불일치" in x for x in predicate_p1(camp)))
         (camp / "sweeps" / "s1.json").unlink()
         ck("sweep 이 없으면 P1 은 아무 말도 하지 않는다(부재 ≠ 불일치)", not predicate_p1(camp))
 
@@ -1328,6 +1359,13 @@ def _selftest() -> int:
            any("ghost" in x for x in p3) and not any("P3 main" in x for x in p3))
         (camp / "phases" / "ghost").mkdir(parents=True, exist_ok=True)
         ck("phases/ 가 생기면 P3 통과", not predicate_p3(camp))
+        write(dict(good, nodes=[{"node_id": "main", "role": "main", "topology": "multi", "hw": "gb10"},
+                                {"node_id": "rayw", "role": "sub", "topology": "multi", "hw": "gb10"}]))
+        ck("★P3 멀티 배정 0 sub(Ray 워커)는 phases/ 를 묻지 않는다", not any("rayw" in x for x in predicate_p3(camp)))
+        write(dict(good, nodes=[{"node_id": "main", "role": "main", "topology": "multi", "hw": "gb10"},
+                                {"node_id": "rayw", "role": "sub", "topology": "multi", "hw": "gb10"}],
+                   assignments=dict(good.get("assignments") or {}, rayw=[{"cell": "cz"}])))
+        ck("★P3 멀티라도 배정이 있는 sub 는 phases/ 부재를 검출", any("rayw" in x for x in predicate_p3(camp)))
 
         # ── 증거 빈칸: 검증기와 purge 게이트가 같은 것을 보는가 (2026-09-08 §A F1) ─────────
         write(good)

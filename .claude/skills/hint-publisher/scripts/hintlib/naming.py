@@ -3,8 +3,18 @@
     hint/<vllm>/<model>/<arch>/<recipe>
       <vllm>   빌드 입력(X18)        릴리스 태그 → `0.29.0rc6` · 커밋 핀 → `<직전 릴리스>-g<sha12>`
       <model>  체크포인트 슬러그      HF repo 이름 또는 체크포인트 basename 소문자(= 인증서 model 키)
-      <arch>   `<hw>-<G>g<N>n-<main|sub|cluster>-<target>`   G=노드당 GPU · N=노드 수 · target=native|sim-<hw>
-      <recipe> `q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k|off>-<graph|eager>`   순서 고정 · 전 축 필수
+      <arch>   `<hw>-<G>g<N>n-<main|sub|cluster>-<target>[-<plane>]`   G=노드당 GPU · N=노드 수 · target=native|sim-<hw> ·
+               plane = 실행 평면 토큰(vocab `plane` · docker = 토큰 없음 · native = `bare`)
+      <recipe> v7 `q<quant>-len<n>-kv<dtype>[-<tail>][-t<YYMMDDHHMM>]`   결정론 3축 + Agent 자율 꼬리 + 원격 중복 시만 timestamp
+               (v6 `q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k|off>-<graph|eager>` 는 읽기 전용 — v7 파서가 "3축 + 꼬리" 로 해석)
+
+★ 2026-09-29(plan_26092908 §4.1 · U4~U7 · 사용자 결정): **v7 = 결정론 3축(q·len·kv) + Agent 자율 꼬리 + 중복 시 timestamp.**
+    v6 는 레시피 6축을 전부 결정론으로 파생했고, 새 노브(PLE·spec·graph 다음의 무엇)가 나올 때마다 어휘·축·파생 규칙이 한도 없이
+    늘어날 자리였다("결정론적 로직으로 작성하면 규칙이 한도없이 늘어날거같아" — 사용자). 그래서 뒤 3축(ple·spec·graph)을 결정론
+    파생에서 빼고(`tail_candidates` 가 **참고 후보**로만 낸다 · vocab 의 ple·graph 는 "꼬리 권장 토큰"으로 강등 · 삭제 ✗),
+    꼬리는 서사 저작 Agent 가 "같은 3축의 다른 셀과 가르는 노브"를 골라 적는다. 규칙 목록을 늘리지 않고 **거짓 꼬리만** 막는다
+    (`validate_tail` — 형식 · 토큰별 뜻 · 서빙 설정 대조). 이름이 원격·로컬에 이미 있을 때만 `-t<YYMMDDHHMM>`(generated_utc 의
+    KST · 문서 명명 SSOT 와 같은 시계)을 붙인다. v6 태그는 판정·개명하지 않는다(P1) — 파서는 v6 모양을 **먼저** v6 로 인식한다.
 
 왜 이 모양인가 — 옛 hint_tag.py 에서 옮겨 온 날짜 박힌 불변식(삭제 ✗ · 코드맵 hint_tag_a §2.A·§8)
     - ★ 2026-09-04(CP7 · plan_26090415 §7.5 M1): **5세그먼트**. 레시피 축이 없어서 한 스윕의 여러 셀이 같은 이름을
@@ -17,6 +27,11 @@
       수행 정체성**으로 본다. 축은 arch **안에서** 늘린다(세그먼트 수를 늘리면 이름을 해체하는 모든 자리가 깨진다).
       옛 문법은 **다른 사유코드**로 가른다 — "형태 위반"과 "옛 문법"을 한 메시지로 뭉개면 고치는 사람이 무엇을
       고칠지 모른다. 이 원칙은 세대가 하나 늘어도 그대로다(`HINT_ARCH_LEGACY_GRAMMAR` 신설).
+    - ★ 2026-09-23(plan_26092311 O-N1 = A · 사용자 승인): arch 끝에 **선택 평면 토큰** `-<plane>`. 이름 문법에 실행 평면
+      축이 없어서 native(비-Docker) 셀이 축이 같은 Docker 셀과 한 이름을 원했다(N1 파생 이름 = D1 발행 태그 →
+      HINT_NAME_COLLISION · F10). Docker 는 토큰이 없다(vocab 이 docker="" 를 강제) — 옛·신 Docker 태그 이름은 바이트 불변이고,
+      native 만 `-bare` 를 붙인다. 평면 판정은 `artifacts.plane_of` 단독 소유(evidence 가 facts 로 싣는다 · 여기서 다시 판정 ✗).
+      레시피 7번째 축(O-N1 B)을 택하지 않은 이유: 레시피는 "순서 고정 · 전 축 필수"라 옛 v6 태그 전부와 모양이 갈라진다.
     - ★ 2026-09-11(plan_26091108 R9): 레시피 4번째 축 `ple`. 3축은 camp-26090918 의 res·mmp 셀을 가르지 못해
       타임스탬프 접미로 유일화했고, 그 함수 주석이 이미 "반복되면 축을 늘려야 한다"고 적어 두었다.
     - ★ 2026-08-20(plan_26082008 R1 · 사용자 D2): 슬러그는 **발행자가 짓지 않는다**. 발행된 32 슬러그 중 27종이
@@ -63,7 +78,8 @@ from . import core
 from .core import HintError, fail
 
 # ── 문법 세대 ────────────────────────────────────────────────────────────────────────────────
-GRAMMAR_V6 = "v6"                              # <hw>-<G>g<N>n-<role>-<target> + 고정 6축 레시피
+GRAMMAR_V7 = "v7"                              # v6 arch + 결정론 3축 레시피 + 자율 꼬리 + 선택 timestamp(plan_26092908 §4.1)
+GRAMMAR_V6 = "v6"                              # <hw>-<G>g<N>n-<role>-<target> + 고정 6축 레시피(읽기 전용 · P1)
 GRAMMAR_LEGACY_ARCH_NODE = "legacy-5seg-node"  # 2026-09-06 ~ 09-21: <hw>-<role>-<target> (예 gb10x2-cluster-native)
 GRAMMAR_LEGACY_ARCH = "legacy-5seg"            # 2026-09-04 ~ 09-06: <hw>-<target>, 노드 축 없음 (예 gb10-sim-h100)
 GRAMMAR_LEGACY_4SEG = "legacy-4seg"            # 2026-09-04 이전 hint/<vllm>/<model>/<arch> — grammar_of() 만 말한다
@@ -72,8 +88,23 @@ GRAMMAR_UNKNOWN = "unknown"                    # 5세그먼트지만 어느 세�
 NODE_AXIS = ("main", "sub", "cluster")
 VOCAB_AXES = ("hw", "quant", "kv", "ple", "graph")
 ARCH_AXES = ("hw", "gpus_per_node", "nodes", "role", "target")
-RECIPE_AXES = ("q", "len", "kv", "ple", "spec", "graph")
+# 평면 축(2026-09-23 O-N1): ARCH_AXES 밖에 따로 둔다 — O-N1 이전 PAYLOAD.naming.axes 에는 이 칸이 없고(전부 Docker),
+#   ARCH_AXES 를 순회하는 재조립이 옛 페이로드에서 KeyError 로 깨지면 안 된다. 닫힌 어휘는 판정 소유자
+#   `artifacts._plane`(docker|native)과 같고, vocab `plane` 의 키 집합이 정확히 이것이어야 한다(validate_vocab).
+PLANE_AXIS = "plane"
+PLANE_NAMES = ("docker", "native")
+_PLANE_NO_TOKEN = "docker"   # 문법 불변식: Docker 이름은 평면 토큰을 갖지 않는다(옛·신 태그 불변 · vocab 이 "" 로 강제)
+# v7(plan_26092908 §4.1): 결정론 레시피 축은 3개뿐이다. v6 의 뒤 3축은 꼬리 **후보**(tail_candidates)로만 남는다 — 호출부가
+#   `ARCH_AXES + (PLANE_AXIS,) + RECIPE_AXES` 로 derive_name 결과(`DerivedName.axes`)를 순회하므로 이 튜플 = 파생 축 집합이다.
+RECIPE_AXES = ("q", "len", "kv")
+RECIPE_AXES_V6 = ("q", "len", "kv", "ple", "spec", "graph")   # v6 레시피 해체·재조립 전용(읽기 전용 호환)
+V6_TAIL_AXES = ("ple", "spec", "graph")                       # v6 에서 결정론이었던 뒤 3축 = v7 꼬리 권장 후보
 _GRAPH_TOKENS = frozenset({"graph", "eager"})   # 문법이 고정한 두 토큰(vocab 가 바꾸지 못한다)
+# 꼬리 형식(§4.1 · 린터 fail-closed). 토큰 ≤ 24자 · 꼬리 전체(`-` 연결) ≤ 64자 — 이름이 git ref·zip 폴더명·표 칸에 들어가고,
+#   꼬리는 "구분 노브" 몇 개를 적는 자리지 설정 덤프가 아니다. timestamp 모양 토큰은 예약(뒤에 붙는 `-t<YYMMDDHHMM>` 과 모호).
+TAIL_TOKEN_MAX = 24
+TAIL_MAX = 64
+_TS_TOKEN_RE = re.compile(r"^t\d{10}$")
 
 # ── 형태 ─────────────────────────────────────────────────────────────────────────────────────
 _TOKEN_RE = re.compile(r"^[a-z0-9]+$")
@@ -97,8 +128,10 @@ _MODEL_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 # v6 arch 인식은 느슨하게, 판정은 엄격하게 — `gb10-0g1n-main-native` 같은 잘못된 v6 가 옛 세대(노드 축 없음)로
 # 오분류되면 고치는 사람이 엉뚱한 것을 고친다(사유코드 분리 원칙).
 _ARCH_V6_LIKE_RE = re.compile(r"^[^-]+-\d+g\d+n(?:-|$)")
+# 끝의 선택 평면 토큰(`-<plane>` · O-N1)은 **형태만** 본다 — 토큰 어휘는 vocab `plane` 이 소유하므로(코드에 사본 ✗) 파생·재조립이
+#   어휘로 대조한다. sim 타겟은 `sim-[a-z0-9]+` 라 `-` 를 품지 않아 평면 토큰과 모호하지 않다.
 _ARCH_V6_RE = re.compile(r"^(?P<hw>[a-z0-9]+)-(?P<g>[1-9]\d*)g(?P<n>[1-9]\d*)n-"
-                         r"(?P<role>main|sub|cluster)-(?P<target>native|sim-[a-z0-9]+)$")
+                         r"(?P<role>main|sub|cluster)-(?P<target>native|sim-[a-z0-9]+)(?:-(?P<plane>[a-z0-9]+))?$")
 _ARCH_LEGACY_NODE_RE = re.compile(r"^(?P<hw>[a-z0-9]+)-(?P<role>main|sub|cluster)-(?P<target>[a-z0-9][a-z0-9-]*)$")
 _ARCH_LEGACY_RE = re.compile(r"^(?P<hw>[a-z0-9]+)-(?!main-|sub-|cluster-)(?P<target>[a-z0-9][a-z0-9-]*)$")
 _RECIPE_V6_RE = re.compile(r"^q(?P<q>[a-z0-9]+)-len(?P<len>[1-9]\d*)-kv(?P<kv>[a-z0-9]+)-ple(?P<ple>[a-z0-9]+)"
@@ -123,9 +156,11 @@ _AXIS_EVIDENCE = {
     "model": "서빙 yaml `model:`(체크포인트 경로) 또는 HF 카드 repo id",
     "arch": "output/<topology>/manifest.yaml gpu_model·gpus_per_node·nodes · 측정 노드(sweep meta measured_node) · "
             "셀 config target_gpu(시뮬레이션 타겟 선언 여부)",
+    "plane": "artifacts.plane_of(셀 env IMAGE_TAG·BUILD_DOCKERFILE = docker · native serve-proof plane=native)",
     "q": "체크포인트 config.json quantization_config / hf_quant_config.json(부재를 관측했으면 'none')",
     "len": "서빙 yaml max-model-len",
     "kv": "서빙 yaml kv-cache-dtype(부재를 관측했으면 엔진 기본값 'auto')",
+    # 아래 셋은 v7 에서 이름 축이 아니다 — tail_candidates 의 후보 파생 실패 remedy 용(plan_26092908 §4.1)
     "ple": "셀 config.yaml declared_axes.ple_mode · 모델 config(PLE 부재 판정이면 'none')",
     "spec": "서빙 yaml·러너 speculative-config(부재를 관측했으면 raw=None → specoff)",
     "graph": "서빙 yaml enforce-eager(eager|graph 로 변환해 넘긴다)",
@@ -150,31 +185,48 @@ class TagName:
     arch: str
     recipe: str
     grammar: str
+    # v7 해체(plan_26092908 §4.1) — 키워드 기본값이라 옛 위치 인자 생성은 그대로 동작한다. v6 이름도 같은 칸으로 읽힌다
+    #   (base_recipe = q·len·kv · tail = (ple…, spec…, graph|eager)). 옛 세대·해석 불가면 None/()/None.
+    base_recipe: str | None = None
+    tail: tuple = ()
+    timestamp: str | None = None
 
     @property
     def tag(self) -> str:
         return f"{core.HINT_TAG_PREFIX}{self.vllm}/{self.model}/{self.arch}/{self.recipe}"
+
+    @property
+    def base_tag(self) -> str | None:
+        """꼬리·timestamp 를 뗀 **기본 이름**(= v7 derive_name 이 내는 결정론부). v6·v7 이 아니면 None."""
+        if self.base_recipe is None:
+            return None
+        return f"{core.HINT_TAG_PREFIX}{self.vllm}/{self.model}/{self.arch}/{self.base_recipe}"
 
 
 @dataclass(frozen=True)
 class Axis:
     value: str
     source: str
+    token: str | None = None   # 값과 이름 토큰이 다른 축만(평면: value=docker|native · token=""|vocab 값)
 
     def as_dict(self) -> dict:
-        return {"value": self.value, "source": self.source}
+        d = {"value": self.value, "source": self.source}
+        if self.token is not None:
+            d["token"] = self.token
+        return d
 
 
 @dataclass(frozen=True)
 class DerivedName:
-    tag: str
-    segments: dict   # {"vllm","model","arch","recipe"} → Axis
-    axes: dict       # ARCH_AXES + RECIPE_AXES → Axis (값은 토큰 · 접두 없음 — recompose 가 다시 조립한다)
+    tag: str         # v7 **기본 이름**(꼬리·timestamp 없음 · plan_26092908 §4.1) — 최종 이름은 compose_name/with_timestamp 가 만든다
+    segments: dict   # {"vllm","model","arch","recipe"} → Axis (recipe = 기본 레시피 q·len·kv)
+    axes: dict       # ARCH_AXES + (PLANE_AXIS) + RECIPE_AXES(q·len·kv) → Axis (값은 토큰 · 접두 없음 — recompose 가 다시 조립한다)
     vllm_build_input: dict   # {"kind": release|commit|wheel, "ref", "sha": <40>|None, "prev_release": …|None}
 
     def to_payload(self) -> dict:
-        """PAYLOAD.json `naming` 의 도구 파생분(`vllm_observed` 는 evidence 가 덧붙인다)."""
-        return {"grammar": GRAMMAR_V6,
+        """PAYLOAD.json `naming` 의 도구 파생분(`vllm_observed` 는 evidence 가 덧붙인다). 꼬리·timestamp 는 여기 없다 —
+        `apply_tail` 이 `tail[]`·`timestamp` 를 얹고 segments.recipe 를 최종 레시피로 바꾼다(저작 뒤 · §4.8)."""
+        return {"grammar": GRAMMAR_V7,
                 "segments": {k: v.as_dict() for k, v in self.segments.items()},
                 "axes": {k: v.as_dict() for k, v in self.axes.items()},
                 "vllm_build_input": dict(self.vllm_build_input)}
@@ -191,7 +243,10 @@ def _split5(name) -> list[str] | None:
 def _grammar(vllm: str, model: str, arch: str, recipe: str) -> str:
     if (_VLLM_SEGMENT_RE.match(vllm) and _MODEL_SLUG_RE.match(model)
             and arch_violation(arch) is None and recipe_violation(recipe) is None):
-        return GRAMMAR_V6
+        # v6 모양(고정 6축 · timestamp 없음)이 **먼저**다(plan_26092908 §4.1 "v6 는 기존대로 v6 로 인식") — v6 레시피는 v7 문법으로도
+        #   성립하므로(3축 + 꼬리 3토큰) 순서를 바꾸면 원격 v6 태그 전부가 v7 로 재라벨된다. 그 모호함을 신규 쪽에서 닫는 것은
+        #   validate_tail(꼬리가 v6 뒤 3축 모양이면 거부)이다.
+        return GRAMMAR_V6 if _RECIPE_V6_RE.match(recipe) else GRAMMAR_V7
     if _ARCH_V6_LIKE_RE.match(arch):
         return GRAMMAR_UNKNOWN          # v6 처럼 생겼는데 어긋남 — 옛 세대로 오판하지 않는다
     if _ARCH_LEGACY_NODE_RE.match(arch):
@@ -213,7 +268,22 @@ def parse_tag(name: str) -> TagName:
         fail("HINT_NAME_SHAPE", f"이름 형태 위반(hint/<vllm>/<model>/<arch>/<recipe> 5세그먼트): {name!r}",
              "이름은 손으로 짓지 않는다 — `hint.py name --campaign <id> --cell <cell>` 이 파생 이름을 보여 준다.")
     _, vllm, model, arch, recipe = parts
-    return TagName(vllm, model, arch, recipe, _grammar(vllm, model, arch, recipe))
+    grammar = _grammar(vllm, model, arch, recipe)
+    sp = split_recipe(recipe) if grammar in (GRAMMAR_V6, GRAMMAR_V7) else None
+    if sp is None:
+        return TagName(vllm, model, arch, recipe, grammar)
+    return TagName(vllm, model, arch, recipe, grammar, base_recipe=sp["base"], tail=tuple(sp["tail"]),
+                   timestamp=sp["timestamp"])
+
+
+def base_name(name: str) -> str:
+    """이름 → 꼬리·timestamp 를 뗀 **기본 이름**(v6·v7 · 예외는 HintError). tag.py 가 naming facts 재파생(= 기본 이름)과
+    봉인된 최종 이름을 대조할 때 쓴다 — `derived.tag == base_name(tag)` (plan_26092908 §4.1). 옛 세대 = HINT_NAME_GRAMMAR_OLD."""
+    t = parse_tag(name)
+    if t.base_tag is None:
+        fail("HINT_NAME_GRAMMAR_OLD", f"v6/v7 이름이 아니다(문법 {t.grammar}) — 기본 이름을 뗄 수 없다: {name!r}",
+             "옛 세대 태그는 읽기 전용이다(P1) — 재파생 대조 대상이 아니다.")
+    return t.base_tag
 
 
 def grammar_of(name: str) -> str:
@@ -228,16 +298,30 @@ def grammar_of(name: str) -> str:
     return GRAMMAR_UNKNOWN
 
 
-def parse_arch(arch: str) -> dict | None:
-    """arch → 축 사전(세대 무관 · 읽기 전용). v6 = {grammar, hw, gpus_per_node, nodes, role, target} ·
+def plane_of_token(token: str, vocab: dict | None = None) -> str | None:
+    """arch 평면 토큰 → 평면 이름(읽기 전용 · 예외 없음). 빈 토큰 = docker(문법 불변식 · vocab 없이도 참). 비어 있지 않은 토큰은
+    vocab `plane` 으로만 역조회한다 — vocab 이 없거나 어휘 밖이면 None(추측 ✗)."""
+    if not token:
+        return _PLANE_NO_TOKEN
+    table = (vocab or {}).get(PLANE_AXIS) if isinstance(vocab, dict) else None
+    if not isinstance(table, dict):
+        return None
+    hits = [p for p, t in table.items() if not str(p).startswith("_") and t == token]
+    return hits[0] if len(hits) == 1 else None
+
+
+def parse_arch(arch: str, vocab: dict | None = None) -> dict | None:
+    """arch → 축 사전(세대 무관 · 읽기 전용). v6 = {grammar, hw, gpus_per_node, nodes, role, target, plane_token, plane} ·
     옛 노드축 = {grammar, hw, role, target} · 옛 무노드 = {grammar, hw, target}. 해석 불가 = None.
-    카탈로그 match 가 문자열 정확일치 대신 **축별** 비교를 하는 데 쓴다(코드맵 §1.9)."""
+    카탈로그 match 가 문자열 정확일치 대신 **축별** 비교를 하는 데 쓴다(코드맵 §1.9). v6 의 `plane` 은 토큰이 없으면 docker,
+    있으면 vocab 역조회(vocab 미지정·어휘 밖 = None · O-N1)."""
     if not isinstance(arch, str):
         return None
     if arch_violation(arch) is None:
         m = _ARCH_V6_RE.match(arch)
+        tok = m["plane"] or ""
         return {"grammar": GRAMMAR_V6, "hw": m["hw"], "gpus_per_node": int(m["g"]), "nodes": int(m["n"]),
-                "role": m["role"], "target": m["target"]}
+                "role": m["role"], "target": m["target"], "plane_token": tok, "plane": plane_of_token(tok, vocab)}
     if _ARCH_V6_LIKE_RE.match(arch):
         return None
     if (m := _ARCH_LEGACY_NODE_RE.match(arch)):
@@ -248,9 +332,33 @@ def parse_arch(arch: str) -> dict | None:
 
 
 def parse_recipe(recipe: str) -> dict | None:
-    """v6 레시피 → {q, len, kv, ple, spec, graph}(토큰 · spec 은 숫자 문자열 또는 'off'). v6 가 아니면 None."""
+    """v6 레시피 → {q, len, kv, ple, spec, graph}(토큰 · spec 은 숫자 문자열 또는 'off'). v6 가 아니면 None(v7 은 split_recipe)."""
     m = _RECIPE_V6_RE.match(recipe) if isinstance(recipe, str) else None
-    return None if m is None else {k: m[k] for k in RECIPE_AXES}
+    return None if m is None else {k: m[k] for k in RECIPE_AXES_V6}
+
+
+def _split_recipe_raw(recipe) -> tuple[dict | None, str | None]:
+    """레시피 → ({q, len, kv, base, tail, timestamp}, None) 또는 (None, 사유코드). 형태 판정의 단일 소유자(v7 · v6 공용)."""
+    if not recipe or not isinstance(recipe, str):
+        return None, "HINT_RECIPE_ABSENT"
+    toks = recipe.split("-")
+    if (len(toks) < 3 or not re.fullmatch(r"q[a-z0-9]+", toks[0]) or not re.fullmatch(r"len[1-9]\d*", toks[1])
+            or not re.fullmatch(r"kv[a-z0-9]+", toks[2])):
+        return None, "HINT_RECIPE_SHAPE_VIOLATION"
+    rest = toks[3:]
+    ts = rest.pop() if rest and _TS_TOKEN_RE.match(rest[-1]) else None
+    if any(not _TOKEN_RE.match(t) for t in rest):
+        return None, "HINT_RECIPE_SHAPE_VIOLATION"
+    if _tail_token_problems(rest):
+        return None, "HINT_TAIL_FORMAT"
+    return {"q": toks[0][1:], "len": toks[1][3:], "kv": toks[2][2:], "base": "-".join(toks[:3]),
+            "tail": rest, "timestamp": ts}, None
+
+
+def split_recipe(recipe: str) -> dict | None:
+    """v7 레시피(v6 포함) → {q, len, kv, base, tail: [토큰…], timestamp: 't<YYMMDDHHMM>'|None}. 형태 위반이면 None.
+    v6 레시피는 tail = [ple…, spec…, graph|eager] 로 읽힌다(§4.1 "v6 이름은 3축 + 꼬리로 그대로 해석")."""
+    return _split_recipe_raw(recipe)[0]
 
 
 # ── 판정 (순수) ─────────────────────────────────────────────────────────────────────────────────
@@ -280,17 +388,19 @@ def arch_violation(arch: str) -> str | None:
 
 
 def recipe_violation(recipe: str) -> str | None:
-    """v6 레시피 위반 사유코드(정상이면 None). 형태만 본다(어휘 소속은 derive_name 이 보장하고, tag.py verify 가
-    PAYLOAD.naming 재조립으로 대조한다). 옛 레시피(`qmxfp4-len131072-kvfp8` · `len262144-kvauto-plemmap`)는
-    축이 빠졌거나 순서가 달라 여기서 걸린다 — 옛 태그는 판정하지 않고 신규 이름에만 쓴다."""
-    if not recipe or not isinstance(recipe, str):
-        return "HINT_RECIPE_ABSENT"
-    return None if _RECIPE_V6_RE.match(recipe) else "HINT_RECIPE_SHAPE_VIOLATION"
+    """v7 레시피(v6 포함) 위반 사유코드(정상이면 None). 형태만 본다(어휘 소속은 derive_name 이 보장하고, 꼬리의 뜻·근거는
+    validate_tail 이, 축 재조립은 tag.py verify 가 PAYLOAD.naming 으로 대조한다).
+
+    HINT_RECIPE_ABSENT · HINT_RECIPE_SHAPE_VIOLATION(3축 순서·접두 · 비영숫자 토큰 · 빈 토큰) · HINT_TAIL_FORMAT(꼬리 토큰 > 24자 ·
+    꼬리 > 64자 · 중복 토큰 · 끝이 아닌 자리의 timestamp 모양 토큰). 옛 레시피 `len262144-kvauto-plemmap`(q 축 생략)·
+    `…_260904T0730Z`(옛 접미)·대문자는 여기서 걸린다. `qmxfp4-len131072-kvfp8` 은 v7 **기본** 레시피 모양이지만 그 옛 태그들은
+    arch 가 옛 세대라 문법 판정에서 먼저 갈린다 — 옛 태그는 판정하지 않고 신규 이름에만 쓴다(P1)."""
+    return _split_recipe_raw(recipe)[1]
 
 
 _ARCH_MESSAGES = {
     "HINT_ARCH_ABSENT": "arch 세그먼트가 비었다.",
-    "HINT_ARCH_SHAPE_VIOLATION": "arch 형태 위반(소문자 <hw>-<G>g<N>n-<main|sub|cluster>-<native|sim-<hw>>).",
+    "HINT_ARCH_SHAPE_VIOLATION": "arch 형태 위반(소문자 <hw>-<G>g<N>n-<main|sub|cluster>-<native|sim-<hw>>[-<plane>]).",
     "HINT_ARCH_ROLE_NODES_MISMATCH": "노드 축과 노드 수가 모순된다 — cluster 는 N≥2, main·sub 는 N=1 이다.",
     "HINT_ARCH_LEGACY_GRAMMAR": (
         "옛 arch 문법(<hw>-<main|sub|cluster>-<target> · 2026-09-06 세대)이다 — 신규 이름은 GPU 수·노드 수를 분리한 "
@@ -303,8 +413,11 @@ _ARCH_MESSAGES = {
 
 
 def validate_new_name(tag: str) -> None:
-    """신규 발행 이름이 v6 문법인가(순수). 위반은 세그먼트별 사유코드로 HintError.
+    """이름이 v7 문법(= v6 arch + 3축 + 꼬리 + 선택 timestamp)인가(순수). 위반은 세그먼트별 사유코드로 HintError.
 
+    v6 모양 이름도 형태로는 통과한다(v6 레시피는 v7 레시피의 한 경우) — 봉인·push 가 이미 발행된 v6 태그를 다룰 수 있어야
+    한다(P1). 신규 꼬리가 v6 모양으로 **보이는 것**은 여기가 아니라 저작 단계의 validate_tail 이 막는다(이름만으로는 신규/기발행을
+    가를 수 없다). 꼬리의 뜻·근거도 validate_tail 소관이다.
     `git check-ref-format`·존재·원격 충돌은 git 이 필요하므로 tag.py 가 한다(이 모듈은 import 부수효과 0).
     옛 세대 이름은 parse_tag 로 **읽을 수는 있지만** 여기서는 세대별 사유코드로 거부된다.
     """
@@ -321,8 +434,9 @@ def validate_new_name(tag: str) -> None:
         fail(why, f"{_ARCH_MESSAGES.get(why, why)} arch={t.arch!r}", remedy)
     why = recipe_violation(t.recipe)
     if why is not None:
-        fail(why, f"레시피 세그먼트 형태 위반({t.recipe!r}) — q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k|off>-<graph|eager> "
-                  "순서 고정 · 전 축 필수(D6).", remedy)
+        fail(why, f"레시피 세그먼트 형태 위반({t.recipe!r}) — q<quant>-len<n>-kv<dtype>[-<꼬리 토큰>…][-t<YYMMDDHHMM>] "
+                  f"(3축 순서 고정 · 꼬리 토큰 [a-z0-9]+ ≤{TAIL_TOKEN_MAX}자 · 꼬리 ≤{TAIL_MAX}자 · 중복 ✗ · timestamp 는 맨 끝만 · "
+                  "plan_26092908 §4.1).", remedy)
 
 
 # ── 조립 ─────────────────────────────────────────────────────────────────────────────────────
@@ -335,15 +449,18 @@ def _pos_int(value, what: str) -> int:
     return int(text)
 
 
-def build_arch(hw: str, gpus_per_node: int, nodes: int, role: str, target: str) -> str:
-    """축 5개 → arch 세그먼트. 손으로 이어붙이는 자리를 없앤다(문법이 두 벌로 갈라지지 않게 · 2026-09-06)."""
+def build_arch(hw: str, gpus_per_node: int, nodes: int, role: str, target: str, plane_token: str = "") -> str:
+    """축 5개(+평면 토큰) → arch 세그먼트. 손으로 이어붙이는 자리를 없앤다(문법이 두 벌로 갈라지지 않게 · 2026-09-06).
+    plane_token 은 vocab `plane` 의 값(docker = "" → 토큰 없음 · O-N1). 토큰 자체는 `plane_token()` 이 어휘에서 낸다."""
     if not isinstance(hw, str) or not _TOKEN_RE.match(hw):
         fail("HINT_ARCH_SHAPE_VIOLATION", f"hw 토큰은 [a-z0-9]+ 이어야 한다(vocab 정규화 결과): {hw!r}")
     if role not in NODE_AXIS:
         fail("HINT_ARCH_SHAPE_VIOLATION", f"노드 축은 {NODE_AXIS} 중 하나여야 한다: {role!r}")
+    if not isinstance(plane_token, str) or (plane_token and not _TOKEN_RE.match(plane_token)):
+        fail("HINT_ARCH_SHAPE_VIOLATION", f"평면 토큰은 빈 문자열 또는 [a-z0-9]+ 이어야 한다(vocab plane 값): {plane_token!r}")
     g = _pos_int(gpus_per_node, "gpus_per_node(G)")
     n = _pos_int(nodes, "nodes(N)")
-    arch = f"{hw}-{g}g{n}n-{role}-{target}"
+    arch = f"{hw}-{g}g{n}n-{role}-{target}" + (f"-{plane_token}" if plane_token else "")
     why = arch_violation(arch)
     if why is not None:
         fail(why, f"조립한 arch 가 문법을 위반한다: {arch!r} — {_ARCH_MESSAGES.get(why, why)}")
@@ -351,7 +468,8 @@ def build_arch(hw: str, gpus_per_node: int, nodes: int, role: str, target: str) 
 
 
 def build_recipe(q: str, length, kv: str, ple: str, spec, graph: str) -> str:
-    """축 6개(토큰) → 레시피 세그먼트. spec 은 양의 정수 k(→ spec<k>) 또는 None/'off'(→ specoff)."""
+    """**v6** 축 6개(토큰) → v6 레시피 세그먼트(읽기 전용 호환 · v6 페이로드 재조립). spec 은 양의 정수 k(→ spec<k>) 또는
+    None/'off'(→ specoff). 신규(v7) 레시피는 build_recipe_base + compose_name 이다(plan_26092908 §4.1)."""
     for what, tok in (("q", q), ("kv", kv), ("ple", ple)):
         if not isinstance(tok, str) or not _TOKEN_RE.match(tok):
             fail("HINT_RECIPE_SHAPE_VIOLATION", f"{what} 토큰은 [a-z0-9]+ 이어야 한다(vocab 정규화 결과): {tok!r}")
@@ -360,29 +478,277 @@ def build_recipe(q: str, length, kv: str, ple: str, spec, graph: str) -> str:
     n = _pos_int(length, "max-model-len(len)")
     k = "off" if spec is None or spec == "off" else str(_pos_int(spec, "speculative k(spec)"))
     recipe = f"q{q}-len{n}-kv{kv}-ple{ple}-spec{k}-{graph}"
-    why = recipe_violation(recipe)
-    if why is not None:
-        fail(why, f"조립한 레시피가 문법을 위반한다: {recipe!r}")
+    if not _RECIPE_V6_RE.match(recipe):
+        fail("HINT_RECIPE_SHAPE_VIOLATION", f"조립한 v6 레시피가 문법을 위반한다: {recipe!r}")
     return recipe
 
 
+def build_recipe_base(q: str, length, kv: str) -> str:
+    """v7 결정론 3축(토큰) → **기본** 레시피 `q<quant>-len<n>-kv<dtype>`(plan_26092908 §4.1)."""
+    for what, tok in (("q", q), ("kv", kv)):
+        if not isinstance(tok, str) or not _TOKEN_RE.match(tok):
+            fail("HINT_RECIPE_SHAPE_VIOLATION", f"{what} 토큰은 [a-z0-9]+ 이어야 한다(vocab 정규화 결과): {tok!r}")
+    recipe = f"q{q}-len{_pos_int(length, 'max-model-len(len)')}-kv{kv}"
+    why = recipe_violation(recipe)
+    if why is not None:
+        fail(why, f"조립한 기본 레시피가 문법을 위반한다: {recipe!r}")
+    return recipe
+
+
+def _payload_tail_tokens(naming: dict) -> list[str]:
+    """PAYLOAD.naming.tail[] → 토큰 목록(모양 위반 = HINT_NAMING_INCONSISTENT). 부재 = 빈 꼬리."""
+    tail = naming.get("tail", [])
+    if not isinstance(tail, list):
+        fail("HINT_NAMING_INCONSISTENT", f"PAYLOAD.naming.tail 은 목록이어야 한다: {tail!r}")
+    toks = []
+    for row in tail:
+        tok = row.get("token") if isinstance(row, dict) else None
+        if not isinstance(tok, str):
+            fail("HINT_NAMING_INCONSISTENT", f"PAYLOAD.naming.tail 행에 token 문자열이 없다: {row!r}")
+        toks.append(tok)
+    return toks
+
+
 def compose_from_payload(naming: dict) -> str:
-    """PAYLOAD.naming(to_payload 형태) → 태그 이름 재조립. axes 로 arch·recipe 를 다시 만들어 segments 와 대조한다 —
+    """PAYLOAD.naming(to_payload/apply_tail 형태) → 태그 이름 재조립. axes 로 arch·recipe 를 다시 만들어 segments 와 대조한다 —
     불일치 = HINT_NAMING_INCONSISTENT. tag.py verify 가 "이름 재파생 일치"를 볼 때 쓴다(봉인 시 재파생 대조 불변식 ·
-    코드맵 §8.4)."""
+    코드맵 §8.4).
+
+    세대(plan_26092908 §4.1):
+      - `grammar: v7` — 기본 레시피 = 3축(q·len·kv) · 꼬리 = `tail[].token` · timestamp = `timestamp`(선택). 최종 = 셋의 연결.
+      - `grammar: v6`(또는 칸 없음 · 기발행) — v6 뒤 3축(ple·spec·graph)이 axes 에 **전부** 있으면 옛 6축 재조립(엄격 · 기발행 v6
+        페이로드는 모두 이 경로). **전부** 없으면 v7 해석: 3축만 재조립하고 레시피 세그먼트의 나머지를 꼬리로 읽는다(세그먼트가
+        v6 레시피 모양일 때만 · timestamp ✗). 일부만 있으면 모순이다.
+    """
     try:
         seg = {k: naming["segments"][k]["value"] for k in ("vllm", "model", "arch", "recipe")}
         ax = {k: naming["axes"][k]["value"] for k in ARCH_AXES + RECIPE_AXES}
     except (KeyError, TypeError) as e:
         fail("HINT_NAMING_INCONSISTENT", f"PAYLOAD.naming 에 segments/axes 칸이 없다: {e!r}")
-    arch = build_arch(ax["hw"], ax["gpus_per_node"], ax["nodes"], ax["role"], ax["target"])
-    recipe = build_recipe(ax["q"], ax["len"], ax["kv"], ax["ple"], ax["spec"], ax["graph"])
+    # 평면 축(O-N1 · 2026-09-23): 그 이전 페이로드에는 칸이 없다 — 그때는 native 를 발행할 수 없었으므로(HINT_PLANE_UNDERIVABLE)
+    #   전부 Docker = 토큰 없음이다. 칸이 없는데 arch 에 평면 토큰이 있으면 아래 segments 대조가 잡는다(통과시키지 않는다).
+    pl = naming["axes"].get(PLANE_AXIS)
+    ptok = ""
+    if pl is not None:
+        if not isinstance(pl, dict) or pl.get("value") not in PLANE_NAMES or not isinstance(pl.get("token"), str):
+            fail("HINT_NAMING_INCONSISTENT", f"PAYLOAD.naming.axes.plane 모양 위반(value∈{PLANE_NAMES} · token 문자열): {pl!r}")
+        ptok = pl["token"]
+        if (pl["value"] == _PLANE_NO_TOKEN) != (ptok == ""):
+            fail("HINT_NAMING_INCONSISTENT", f"평면 {pl['value']!r} 와 토큰 {ptok!r} 가 모순된다(docker ⇔ 토큰 없음 · 문법 불변식)")
+    arch = build_arch(ax["hw"], ax["gpus_per_node"], ax["nodes"], ax["role"], ax["target"], ptok)
+    base = build_recipe_base(ax["q"], ax["len"], ax["kv"])
+    grammar = naming.get("grammar")
+    if grammar == GRAMMAR_V7:
+        toks = _payload_tail_tokens(naming)
+        probs = _tail_token_problems(toks)
+        if probs:
+            fail("HINT_TAIL_FORMAT", "PAYLOAD.naming.tail 형식 위반: " + " · ".join(probs))
+        ts = naming.get("timestamp")
+        if ts is not None and (not isinstance(ts, str) or not _TS_TOKEN_RE.match(ts)):
+            fail("HINT_NAMING_INCONSISTENT", f"PAYLOAD.naming.timestamp 는 't<YYMMDDHHMM>' 토큰이어야 한다: {ts!r}")
+        recipe = "-".join([base, *toks, *([ts] if ts else [])])
+    elif grammar in (GRAMMAR_V6, None):
+        have = [k for k in V6_TAIL_AXES if k in naming["axes"]]
+        if len(have) == len(V6_TAIL_AXES):
+            try:
+                v6 = {k: naming["axes"][k]["value"] for k in V6_TAIL_AXES}
+            except (KeyError, TypeError) as e:
+                fail("HINT_NAMING_INCONSISTENT", f"PAYLOAD.naming.axes 의 v6 뒤 3축 모양 위반: {e!r}")
+            recipe = build_recipe(ax["q"], ax["len"], ax["kv"], v6["ple"], v6["spec"], v6["graph"])
+        elif not have:
+            sp = split_recipe(seg["recipe"])
+            if sp is None or sp["timestamp"] is not None or not _RECIPE_V6_RE.match(str(seg["recipe"])):
+                fail("HINT_NAMING_INCONSISTENT", f"v6 페이로드의 레시피 세그먼트가 v6 레시피 모양이 아니다: {seg['recipe']!r}")
+            recipe = "-".join([base, *sp["tail"]])
+        else:
+            fail("HINT_NAMING_INCONSISTENT", f"v6 뒤 3축이 일부만 있다({have}) — 전부 있거나(6축 재조립) 전부 없어야 한다(3축 + 꼬리)")
+    else:
+        fail("HINT_NAMING_INCONSISTENT", f"PAYLOAD.naming.grammar 가 v6·v7 이 아니다: {grammar!r}")
     if arch != seg["arch"] or recipe != seg["recipe"]:
         fail("HINT_NAMING_INCONSISTENT",
              f"PAYLOAD.naming 의 축과 세그먼트가 어긋난다: arch {seg['arch']!r}≠{arch!r} 또는 recipe {seg['recipe']!r}≠{recipe!r}")
     tag = f"{core.HINT_TAG_PREFIX}{seg['vllm']}/{seg['model']}/{arch}/{recipe}"
     validate_new_name(tag)
     return tag
+
+
+# ── 꼬리 · timestamp (v7 · plan_26092908 §4.1 · U5~U7) ──────────────────────────────────────────
+def _tail_token_problems(tokens) -> list[str]:
+    """꼬리 토큰 목록의 **형식** 문제(빈 목록 = 정상). recipe_violation(이름)과 validate_tail(저작) 공용 — 두 벌로 갈라지지 않게."""
+    bad: list[str] = []
+    for t in tokens:
+        if not isinstance(t, str) or not _TOKEN_RE.match(t):
+            bad.append(f"토큰 {t!r} 가 [a-z0-9]+ 가 아니다")
+            continue
+        if len(t) > TAIL_TOKEN_MAX:
+            bad.append(f"토큰 {t!r} 가 {TAIL_TOKEN_MAX}자를 넘는다({len(t)}자)")
+        if _TS_TOKEN_RE.match(t):
+            bad.append(f"토큰 {t!r} 는 timestamp 예약 모양(t<10자리>)이다")
+    strs = [t for t in tokens if isinstance(t, str)]
+    dup = sorted({t for t in strs if strs.count(t) > 1})
+    if dup:
+        bad.append(f"중복 토큰 {dup}")
+    total = len("-".join(strs))
+    if total > TAIL_MAX:
+        bad.append(f"꼬리 전체가 {TAIL_MAX}자를 넘는다({total}자)")
+    return bad
+
+
+def _norm_value(v) -> str:
+    """근거 값 대조 정규화 — 공백 압축 · 바깥 따옴표 한 겹 · 대소문자(§4.1 · 계약 A: "공백·따옴표·대소문자 정규화")."""
+    s = " ".join(str(v).split())
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in "'\"":
+        s = " ".join(s[1:-1].split())
+    return s.casefold()
+
+
+def validate_tail(tail, sources) -> list[tuple[str, str]]:
+    """저작된 꼬리(`PAYLOAD.naming.tail[]` 모양) 검사 → [(code, 메시지)] (빈 목록 = 정상 · 빈 꼬리 `[]` = 정상).
+
+    tail    = [{token, meaning, evidence: {file, key, value}}, …] — 토큰 하나당 1행.
+    sources = {저장소 상대경로: {평탄 key: value(str)}} — 이 셀의 서빙 설정(서빙 yaml · 셀 env · 셀 config · native 트리플렛).
+              evidence.tail_sources 가 만든다(yaml 중첩 = `a.b`).
+
+    규칙을 늘리지 않고 **거짓 꼬리만** 막는다(U6 · "결정론 규칙이 한도 없이 늘어난다"는 사용자 우려의 반대편):
+      HINT_TAIL_FORMAT          토큰 `[a-z0-9]+` · ≤24자 · 꼬리 ≤64자 · `t\\d{10}` 금지 · 중복 금지 · 행 모양 ·
+                                ★꼬리가 v6 뒤 3축 모양(`ple<x>-spec<k|off>-<graph|eager>`) 그대로면 거부 — 파서가 v6 로 읽어
+                                카탈로그 문법 열이 기발행 v6 와 섞인다(v6 인식 우선 · §4.1 호환)
+      HINT_TAIL_MEANING_ABSENT  meaning 이 비었다(토큰 뜻은 수신자 안내·match 보조 표시의 원천)
+      HINT_TAIL_UNGROUNDED      evidence 누락 · file ∉ sources · key 부재 · 값 불일치(정규화 후)
+    """
+    out: list[tuple[str, str]] = []
+    if not isinstance(tail, list):
+        return [("HINT_TAIL_FORMAT", f"꼬리는 행 목록이어야 한다: {type(tail).__name__}")]
+    srcs = sources if isinstance(sources, dict) else {}
+    toks = []
+    for i, row in enumerate(tail):
+        if not isinstance(row, dict):
+            out.append(("HINT_TAIL_FORMAT", f"꼬리 {i}번 행이 객체가 아니다: {row!r}"))
+            continue
+        tok = row.get("token")
+        toks.append(tok)
+        where = f"꼬리 토큰 {tok!r}"
+        meaning = row.get("meaning")
+        if not isinstance(meaning, str) or not meaning.strip():
+            out.append(("HINT_TAIL_MEANING_ABSENT", f"{where} 의 meaning 이 비었다 — 이 토큰이 무엇을 가르는지 한 줄로 적는다"))
+        ev = row.get("evidence")
+        if not isinstance(ev, dict) or not all(isinstance(ev.get(k), str) and ev.get(k).strip() for k in ("file", "key")) \
+                or "value" not in ev or ev.get("value") is None:
+            out.append(("HINT_TAIL_UNGROUNDED", f"{where} 의 evidence 에 file·key·value 가 다 있지 않다: {ev!r}"))
+            continue
+        f, k = ev["file"].strip(), ev["key"].strip()
+        table = srcs.get(f)
+        if not isinstance(table, dict):
+            out.append(("HINT_TAIL_UNGROUNDED", f"{where} 의 근거 파일 {f!r} 이 이 셀의 서빙 설정 목록에 없다({sorted(srcs)})"))
+            continue
+        if k not in table:
+            out.append(("HINT_TAIL_UNGROUNDED", f"{where} 의 근거 키 {k!r} 가 {f} 에 없다"))
+            continue
+        if _norm_value(table[k]) != _norm_value(ev["value"]):
+            out.append(("HINT_TAIL_UNGROUNDED", f"{where} 의 근거 값 {ev['value']!r} ≠ {f}:{k} 의 실제 값 {table[k]!r}"))
+    for p in _tail_token_problems(toks):
+        out.append(("HINT_TAIL_FORMAT", p))
+    if len(toks) >= 3 and all(isinstance(t, str) for t in toks) \
+            and _RECIPE_V6_RE.match("qx-len1-kvx-" + "-".join(toks)):
+        out.append(("HINT_TAIL_FORMAT", f"꼬리 {'-'.join(toks)!r} 가 v6 뒤 3축 모양 그대로다 — 이름이 v6 로 읽힌다. 토큰을 줄이거나 "
+                                        "순서·철자를 바꿔 이 셀을 가르는 노브만 적는다(예: `mmap-spec3-eager`)"))
+    return out
+
+
+def compose_name(base_tag: str, tail) -> str:
+    """기본 이름(derive_name().tag · 꼬리·timestamp 없음) + 꼬리 → 이름. tail = 행 목록(`token` 키) 또는 토큰 문자열 목록.
+    형식만 본다(근거는 validate_tail). 빈 꼬리 = 기본 이름 그대로."""
+    t = parse_tag(base_tag)
+    if t.base_tag != base_tag or t.tail or t.timestamp:
+        fail("HINT_TAIL_FORMAT", f"기본 이름이 아니다(꼬리·timestamp 가 이미 있다): {base_tag!r}",
+             "derive_name(...).tag 를 넘긴다.")
+    if not isinstance(tail, (list, tuple)):
+        fail("HINT_TAIL_FORMAT", f"꼬리는 목록이어야 한다: {tail!r}")
+    toks = [row.get("token") if isinstance(row, dict) else row for row in tail]
+    probs = _tail_token_problems(toks)
+    if probs:
+        fail("HINT_TAIL_FORMAT", "꼬리 형식 위반: " + " · ".join(probs))
+    name = "-".join([base_tag, *toks])
+    validate_new_name(name)
+    return name
+
+
+def timestamp_token(generated_utc: str) -> str:
+    """generated_utc(주입 UTC) → `t<YYMMDDHHMM>`(KST · 문서 명명 SSOT 와 같은 시계 · 결정론 · §4.1 U7)."""
+    import datetime as _dt
+    return "t" + core.parse_utc(generated_utc).astimezone(_dt.timezone(_dt.timedelta(hours=9))).strftime("%y%m%d%H%M")
+
+
+def with_timestamp(name: str, generated_utc: str) -> str:
+    """이름 끝에 `-t<YYMMDDHHMM>` 을 붙인다(원격·로컬 중복일 때만 호출한다 — 판정은 git 이 필요하므로 tag.py 소관).
+    이미 timestamp 가 있으면 HINT_TAIL_FORMAT(두 번 붙이지 않는다 · 같은 분 충돌은 호출부가 차단)."""
+    t = parse_tag(name)
+    if t.base_tag is None:
+        fail("HINT_NAME_GRAMMAR_OLD", f"v6/v7 이름이 아니다(문법 {t.grammar}): {name!r}")
+    if t.timestamp:
+        fail("HINT_TAIL_FORMAT", f"이미 timestamp({t.timestamp})가 있다 — 같은 분에 같은 이름 2건은 차단이다: {name!r}",
+             "publish 를 다시 실행해 새 generated_utc 로 이름을 만든다.")
+    out = f"{name}-{timestamp_token(generated_utc)}"
+    validate_new_name(out)
+    return out
+
+
+def apply_tail(naming: dict, tail, timestamp: str | None = None) -> dict:
+    """to_payload() 결과(v7) + 저작된 꼬리(+ timestamp 토큰) → 최종 PAYLOAD.naming 사본. segments.recipe 를 최종 레시피로 바꾸고
+    `tail`·`timestamp` 를 싣는다 — compose_from_payload 가 그대로 재조립한다. 근거 대조는 호출부가 validate_tail 로 먼저 한다
+    (여기는 형식만 · 순수)."""
+    if not isinstance(naming, dict) or naming.get("grammar") != GRAMMAR_V7:
+        fail("HINT_NAMING_INCONSISTENT", f"v7 PAYLOAD.naming 이 아니다(grammar={(naming or {}).get('grammar')!r})")
+    doc = json.loads(json.dumps(naming))
+    rows = [dict(r) if isinstance(r, dict) else {"token": r} for r in (tail or [])]
+    toks = [r.get("token") for r in rows]
+    probs = _tail_token_problems(toks)
+    if probs:
+        fail("HINT_TAIL_FORMAT", "꼬리 형식 위반: " + " · ".join(probs))
+    if timestamp is not None and (not isinstance(timestamp, str) or not _TS_TOKEN_RE.match(timestamp)):
+        fail("HINT_TAIL_FORMAT", f"timestamp 는 timestamp_token() 의 't<YYMMDDHHMM>' 이어야 한다: {timestamp!r}")
+    ax = doc["axes"]
+    base = build_recipe_base(ax["q"]["value"], ax["len"]["value"], ax["kv"]["value"])
+    recipe = "-".join([base, *toks, *([timestamp] if timestamp else [])])
+    doc["tail"] = rows
+    doc["timestamp"] = timestamp
+    doc["segments"]["recipe"] = {"value": recipe, "source": "derived(q·len·kv)"
+                                 + (" + tail(agent · naming.tail[] 근거)" if toks else "")
+                                 + (" + timestamp(이름 중복 · generated_utc KST)" if timestamp else "")}
+    compose_from_payload(doc)
+    return doc
+
+
+def tail_candidates(facts: dict, vocab: dict) -> list[dict]:
+    """naming facts → 꼬리 **후보** 행(강제 ✗ · 00-hint PROMPT 에 참고로 보여준다 · §4.1 U5). v6 뒤 3축(ple·spec·graph)의 옛
+    결정론 파생을 그대로 돌려 `{token, meaning, evidence, source, axis}` 로 낸다. 파생 불가 축은 조용히 건너뛰지 않고 `error` 행.
+
+    evidence: facts 의 축 사전이 구조화된 `evidence: {file, key, value}` 를 가지면 그것을, 없으면 None — 출처 문자열에서 파일·키를
+    **추측하지 않는다**(저작 Agent 가 validate_tail 을 통과하는 근거를 직접 적는다). 셋을 전부 v6 순서로 쓰면 validate_tail 이
+    거부한다(v6 모양 · 이 셀을 가르는 노브만 고른다)."""
+    out: list[dict] = []
+    meanings = {"ple": "PLE(per-layer embedding) 적재 모드 {v}", "spec": "speculative decoding {v}",
+                "graph": "실행 모드 {v}(cudagraph|eager)"}
+    for axis in V6_TAIL_AXES:
+        d = facts.get(axis) if isinstance(facts, dict) else None
+        try:
+            if axis == "spec":
+                sd, ssrc = _facts_axis(facts, "spec")
+                raw = _raw("spec", sd, ssrc, none_ok=True)
+                k = "off" if raw is None or (isinstance(raw, str) and raw.strip().lower() == "off") \
+                    else str(_pos_int(raw, "speculative k(spec)"))
+                tok, val, src = f"spec{k}", ("끔" if k == "off" else f"k={k}"), ssrc
+            else:
+                ax = _vocab_axis(axis, axis, facts, vocab)
+                tok, val, src = (f"ple{ax.value}" if axis == "ple" else ax.value), ax.value, ax.source
+        except HintError as e:
+            out.append({"axis": axis, "token": None, "error": e.code, "message": e.message})
+            continue
+        ev = d.get("evidence") if isinstance(d, dict) else None
+        ev = ({k: str(ev[k]) for k in ("file", "key", "value")}
+              if isinstance(ev, dict) and all(ev.get(k) is not None for k in ("file", "key", "value")) else None)
+        out.append({"axis": axis, "token": tok, "meaning": meanings[axis].format(v=val), "evidence": ev, "source": src})
+    return out
 
 
 # ── 슬러그 ───────────────────────────────────────────────────────────────────────────────────
@@ -477,7 +843,7 @@ def validate_vocab(vocab) -> list[str]:
         return ["최상위가 객체가 아니다"]
     if vocab.get("schema_version") != 1:
         bad.append(f"schema_version 이 1 이 아니다: {vocab.get('schema_version')!r}")
-    known = set(VOCAB_AXES) | {"schema_version", "quant_suffixes", "hw_ambiguous"}
+    known = set(VOCAB_AXES) | {"schema_version", "quant_suffixes", "hw_ambiguous", PLANE_AXIS}
     for k in vocab:
         if not str(k).startswith("_") and k not in known:
             bad.append(f"알 수 없는 키(오타?): {k!r}")
@@ -507,6 +873,7 @@ def validate_vocab(vocab) -> list[str]:
         bad.append(f"graph: 토큰은 문법이 고정한 {sorted(_GRAPH_TOKENS)} 여야 한다")
     if isinstance(vocab.get("ple"), dict) and "none" not in vocab["ple"]:
         bad.append("ple: PLE 없는 모델의 명시 토큰 'none'(plenone)이 없다")
+    bad += _plane_vocab_problems(vocab.get(PLANE_AXIS))
     sfx = vocab.get("quant_suffixes")
     if not isinstance(sfx, list) or not all(isinstance(s, str) and _TOKEN_RE.match(s) for s in sfx):
         bad.append("quant_suffixes: [a-z0-9]+ 문자열 목록이어야 한다")
@@ -519,6 +886,43 @@ def validate_vocab(vocab) -> list[str]:
             if _vnorm(a) in hw_keys:
                 bad.append(f"hw_ambiguous: {a!r} 가 hw 토큰에도 등재돼 있다(에디션 구분이 무너진다)")
     return bad
+
+
+def _plane_vocab_problems(table) -> list[str]:
+    """vocab `plane`(평면 이름 → arch 토큰 · O-N1) 구조 문제. 키 = PLANE_NAMES 정확히 · docker = "" · native = [a-z0-9]+ · 토큰 중복 ✗."""
+    if not isinstance(table, dict):
+        return [f"{PLANE_AXIS}: 평면→토큰 사전이 없다(O-N1 · docker=\"\" · native=<토큰>)"]
+    bad: list[str] = []
+    entries = {k: v for k, v in table.items() if not str(k).startswith("_")}
+    if set(entries) != set(PLANE_NAMES):
+        bad.append(f"{PLANE_AXIS}: 키는 판정 소유자(artifacts._plane)의 닫힌 어휘 {list(PLANE_NAMES)} 여야 한다: {sorted(entries)}")
+    for k, v in entries.items():
+        if not isinstance(v, str) or (v and not _TOKEN_RE.match(v)):
+            bad.append(f"{PLANE_AXIS}.{k}: 토큰은 빈 문자열 또는 [a-z0-9]+ 이어야 한다: {v!r}")
+    if entries.get(_PLANE_NO_TOKEN, "") != "":
+        bad.append(f"{PLANE_AXIS}.{_PLANE_NO_TOKEN}: 빈 문자열이어야 한다(Docker 이름 불변 — 옛·신 태그가 바이트 그대로 파생돼야 한다)")
+    toks = [v for k, v in entries.items() if k != _PLANE_NO_TOKEN]
+    if any(not t for t in toks):
+        bad.append(f"{PLANE_AXIS}: docker 밖 평면의 토큰이 비었다 — 축이 같은 Docker 셀과 이름이 충돌한다(2026-09-23 F10)")
+    if len(set(toks)) != len(toks):
+        bad.append(f"{PLANE_AXIS}: 두 평면이 같은 토큰을 쓴다")
+    return bad
+
+
+def plane_token(plane, vocab: dict) -> str:
+    """평면 이름 → arch 평면 토큰(vocab `plane`). 어휘표에 plane 축 없음 = HINT_VOCAB_ABSENT · 어휘 밖 평면 = HINT_VOCAB_UNKNOWN."""
+    table = (vocab or {}).get(PLANE_AXIS) if isinstance(vocab, dict) else None
+    if not isinstance(table, dict):
+        fail("HINT_VOCAB_ABSENT", f"어휘표에 {PLANE_AXIS} 축이 없다(O-N1 · 2026-09-23)",
+             f"`{core.REL_VOCAB}` 에 \"{PLANE_AXIS}\": {{\"docker\": \"\", \"native\": \"<토큰>\"}} 를 둔다(사람 편집).")
+    if not isinstance(plane, str) or plane.startswith("_") or plane not in table:
+        fail("HINT_VOCAB_UNKNOWN", f"평면 {plane!r} 가 어휘표 {PLANE_AXIS} 밖이다(tripwire 닫힌 목록)",
+             f"평면은 artifacts.plane_of 가 내는 {PLANE_NAMES} 중 하나다 — 새 평면이면 `{core.REL_VOCAB}` 의 \"{PLANE_AXIS}\" 에 "
+             "토큰을 추가한다(사람 편집).")
+    tok = table[plane]
+    if not isinstance(tok, str) or (tok and not _TOKEN_RE.match(tok)) or ((plane == _PLANE_NO_TOKEN) != (tok == "")):
+        fail("HINT_VOCAB_ABSENT", f"어휘표 {PLANE_AXIS}.{plane} 토큰이 깨졌다: {tok!r}", "load_vocab 으로 적재한 어휘표를 넘긴다.")
+    return tok
 
 
 def load_vocab(repo: Path) -> dict:
@@ -743,7 +1147,9 @@ def vllm_segment(build_input: dict) -> Axis:
 
 
 def derive_name(facts: dict, vocab: dict) -> DerivedName:
-    """naming facts(SPEC §3.3 · evidence 가 조립) → 태그 이름 + 축별 {값, 출처}. **발행자 입력 ✗(D8).**"""
+    """naming facts(SPEC §3.3 · evidence 가 조립) → **기본 이름**(v7 결정론부 · 꼬리·timestamp 없음) + 축별 {값, 출처}.
+    **발행자 입력 ✗(D8).** 파생 축 = vllm·model·arch(+평면)·q·len·kv. 최종 이름 = compose_name(.tag, 꼬리) → (중복 시)
+    with_timestamp (plan_26092908 §4.1)."""
     if not isinstance(facts, dict):
         _underivable("facts", "naming facts 가 사전이 아니다")
     vd, vsrc = _facts_axis(facts, "vllm")
@@ -791,35 +1197,32 @@ def derive_name(facts: dict, vocab: dict) -> DerivedName:
             target, tsrc = "native", f"{asrc} · target_gpu {tgt_raw!r} = 호스트 hw → native"
         else:
             target, tsrc = f"sim-{ttok}", f"{asrc} · vocab hw[{ttok}]←{tgt_raw!r} → sim-{ttok}"
-    arch = build_arch(hw, g, n, role, target)
+    pd, psrc = _facts_axis(facts, PLANE_AXIS)
+    plane = _raw(PLANE_AXIS, pd, psrc)
+    ptok = plane_token(plane, vocab)
+    arch = build_arch(hw, g, n, role, target, ptok)
     axes = {
         "hw": Axis(hw, f"{asrc} · vocab hw[{hw}]←{gpu_model!r}"),
         "gpus_per_node": Axis(str(g), asrc),
         "nodes": Axis(str(n), asrc),
         "role": Axis(role, asrc),
         "target": Axis(target, tsrc),
+        PLANE_AXIS: Axis(plane, f"{psrc} · vocab {PLANE_AXIS}[{plane}]→{ptok!r}", token=ptok),
     }
 
     axes["q"] = _vocab_axis("q", "quant", facts, vocab)
     ld, lsrc = _facts_axis(facts, "len")
     axes["len"] = Axis(str(_pos_int(_raw("len", ld, lsrc), "max-model-len(len)")), lsrc)
     axes["kv"] = _vocab_axis("kv", "kv", facts, vocab)
-    axes["ple"] = _vocab_axis("ple", "ple", facts, vocab)
-    sd, ssrc = _facts_axis(facts, "spec")
-    spec_raw = _raw("spec", sd, ssrc, none_ok=True)
-    if spec_raw is None or (isinstance(spec_raw, str) and spec_raw.strip().lower() == "off"):
-        axes["spec"] = Axis("off", f"{ssrc} · speculative-config 부재 관측 → specoff")
-    else:
-        axes["spec"] = Axis(str(_pos_int(spec_raw, "speculative k(spec)")), ssrc)
-    axes["graph"] = _vocab_axis("graph", "graph", facts, vocab)
-    recipe = build_recipe(axes["q"].value, axes["len"].value, axes["kv"].value, axes["ple"].value,
-                          axes["spec"].value, axes["graph"].value)
+    # v7(plan_26092908 §4.1 · U5): ple·spec·graph 는 결정론 파생에서 뺐다 — facts 에 있어도 이름에 넣지 않고(없어도 막지 않는다),
+    #   tail_candidates 가 꼬리 **후보**로만 낸다. 꼬리는 서사 저작 Agent 가 validate_tail 을 통과하는 근거와 함께 고른다.
+    recipe = build_recipe_base(axes["q"].value, axes["len"].value, axes["kv"].value)
 
     tag = f"{core.HINT_TAG_PREFIX}{vllm_axis.value}/{slug}/{arch}/{recipe}"
     validate_new_name(tag)   # 파생기가 스스로 문법을 검사한다(조립과 판정이 두 벌로 갈라지지 않게)
     segments = {"vllm": vllm_axis, "model": model_axis,
-                "arch": Axis(arch, "derived(hw·gpus_per_node·nodes·role·target)"),
-                "recipe": Axis(recipe, "derived(q·len·kv·ple·spec·graph)")}
+                "arch": Axis(arch, "derived(hw·gpus_per_node·nodes·role·target·plane)"),
+                "recipe": Axis(recipe, "derived(q·len·kv)")}
     return DerivedName(tag, segments, axes, build_input)
 
 
@@ -863,12 +1266,22 @@ def _fixture_vocab() -> dict:
             "kv": {"auto": ["auto"], "fp8": ["fp8", "fp8_e4m3", "fp8e4m3"], "fp8e5m2": ["fp8_e5m2"]},
             "ple": {"mmap": ["mmap"], "resident": ["resident"], "offload": ["offload"], "none": ["none"]},
             "graph": {"graph": ["graph", "cudagraph"], "eager": ["eager"]},
+            "plane": {"docker": "", "native": "bare"},
             "quant_suffixes": ["nvfp4", "fp8", "mxfp4", "int4", "awq", "gptq", "w4a16", "bf16"]}
 
 
 _TAG2_SHA = "74c96922ecb9017f413318c76d1af83aa2ab45a5"   # 태그2 셀 nv4-bf-262k-mmp 의 빌드 SHA(코드맵 campaign_plane §8)
-_TAG2_EXPECTED = ("hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/"
-                  "qnvfp4-len262144-kvauto-plemmap-spec3-eager")   # AC4 · plan §4.7
+# 태그2 셀의 **v6 발행 이름**(원격 실재 · D1) — v7 은 같은 facts 에서 꼬리 없는 기본 이름을 낸다(plan_26092908 §4.1).
+_TAG2_V6 = ("hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/"
+            "qnvfp4-len262144-kvauto-plemmap-spec3-eager")   # AC4 · plan_26092119 §4.7
+_TAG2_EXPECTED = _TAG2_V6.rsplit("-plemmap", 1)[0]   # v7 기본 이름 = 결정론 3축까지
+# 원격에 실재하는 v6 신 문법 태그 4건(2026-09-29 · plan_26092908 §2.1) — P1: 판정·개명 ✗, 파서는 v6 로 읽고 3축 + 꼬리로 해석한다.
+_V6_LIVE = (
+    "hint/0.29.0rc6/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-plenone-spec7-graph",
+    "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native-bare/qnvfp4-len262144-kvauto-plemmap-spec3-eager",
+    _TAG2_V6,
+    "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8-plemmap-spec3-eager",
+)
 
 
 def _tag2_facts() -> dict:
@@ -879,6 +1292,7 @@ def _tag2_facts() -> dict:
                       "source": "서빙 yaml model"},
             "arch": {"gpu_model": "NVIDIA GB10", "gpus_per_node": 1, "nodes": 2, "role": "cluster",
                      "target_gpu": None, "source": "output/multi/manifest.yaml · sweep meta measured_node=cluster"},
+            "plane": {"raw": "docker", "source": "artifacts.plane_of → cell-env(IMAGE_TAG|BUILD_DOCKERFILE)"},
             "q": {"raw": "modelopt-dominant:NVFP4", "source": "hf_quant_config.json quantized_layers 우세 알고리즘"},
             "len": {"raw": 262144, "source": "서빙 yaml max-model-len"},
             "kv": {"raw": "auto", "source": "서빙 yaml kv-cache-dtype"},
@@ -902,9 +1316,10 @@ def selftest() -> list[str]:
     # ── 태그2 셀 기대값(AC4) ──
     dn = derive_name(_tag2_facts(), V)
     ck(f"태그2 facts → 정확히 기대 이름(실제 {dn.tag})", dn.tag == _TAG2_EXPECTED)
-    ck("축별 {값, 출처} 가 전부 채워진다",
-       set(dn.axes) == set(ARCH_AXES + RECIPE_AXES) and all(a.value and a.source for a in dn.axes.values())
-       and set(dn.segments) == {"vllm", "model", "arch", "recipe"})
+    ck("축별 {값, 출처} 가 전부 채워진다(v7 = q·len·kv 까지 · ple·spec·graph 는 이름 축 ✗)",
+       set(dn.axes) == set(ARCH_AXES + (PLANE_AXIS,) + RECIPE_AXES) and all(a.value and a.source for a in dn.axes.values())
+       and set(dn.segments) == {"vllm", "model", "arch", "recipe"} and RECIPE_AXES == ("q", "len", "kv")
+       and not set(V6_TAIL_AXES) & set(dn.axes))
     ck("q 출처에 어휘 정규화 흔적(modelopt-dominant:NVFP4 → nvfp4)",
        dn.axes["q"].value == "nvfp4" and "modelopt-dominant:NVFP4" in dn.axes["q"].source)
     ck("target None → native · 출처에 no-simulation-target-declared",
@@ -913,12 +1328,62 @@ def selftest() -> list[str]:
        dn.vllm_build_input == {"kind": "release", "ref": "v0.29.0rc6", "sha": _TAG2_SHA, "prev_release": None})
     ck("★출처에 체크포인트 절대경로를 싣지 않는다(basename 만)",
        "/app/quant_models" not in json.dumps(dn.to_payload(), ensure_ascii=False))
-    ck("파생 이름은 v6 문법으로 해체된다", parse_tag(dn.tag).grammar == GRAMMAR_V6)
+    ck("파생 기본 이름은 v7 문법으로 해체된다(꼬리 0 · timestamp 없음)", parse_tag(dn.tag).grammar == GRAMMAR_V7
+       and parse_tag(dn.tag).tail == () and parse_tag(dn.tag).timestamp is None and parse_tag(dn.tag).base_tag == dn.tag)
     pay = dn.to_payload()
+    ck("to_payload grammar = v7 · 레시피 출처 = derived(q·len·kv)", pay["grammar"] == GRAMMAR_V7
+       and pay["segments"]["recipe"]["source"] == "derived(q·len·kv)")
     ck("PAYLOAD.naming 재조립 = 태그", compose_from_payload(pay) == dn.tag)
     tam = json.loads(json.dumps(pay))
     tam["axes"]["len"]["value"] = "131072"
     ck("★음성대조 PAYLOAD 축 위조는 재조립 대조가 잡는다", _code(compose_from_payload, tam) == "HINT_NAMING_INCONSISTENT")
+
+    # ── 평면 토큰(O-N1 · 2026-09-23 plan_26092311) — Docker 불변 · native 만 `-<vocab plane.native>` ──
+    ntok = V["plane"]["native"]
+    ck("docker 평면 = 토큰 없음(태그2 이름 바이트 불변) · 축 기록",
+       dn.axes[PLANE_AXIS].value == "docker" and dn.axes[PLANE_AXIS].token == ""
+       and "/gb10-1g2n-cluster-native/" in dn.tag and pay["axes"][PLANE_AXIS]["token"] == "")
+    fn = _tag2_facts()
+    fn["plane"] = {"raw": "native", "source": "artifacts.plane_of → evidence.plane(declared) · serve_proof plane=native"}
+    dnn = derive_name(fn, V)
+    ck(f"native 평면 → arch 끝 -{ntok}({dnn.tag})",
+       dnn.tag == _TAG2_EXPECTED.replace("/gb10-1g2n-cluster-native/", f"/gb10-1g2n-cluster-native-{ntok}/"))
+    ck("native 는 축이 같은 Docker 이름과 충돌하지 않는다(F10)", dnn.tag != dn.tag)
+    ck("평면 출처가 PAYLOAD.naming 에 실린다(serve_proof · vocab 대응)",
+       "serve_proof plane=native" in dnn.axes[PLANE_AXIS].source and f"→{ntok!r}" in dnn.axes[PLANE_AXIS].source)
+    ck("native PAYLOAD.naming 재조립 = 태그", compose_from_payload(dnn.to_payload()) == dnn.tag)
+    ck("파서 왕복: -<plane> 있음 → v7 · plane=native", parse_tag(dnn.tag).grammar == GRAMMAR_V7
+       and parse_arch(parse_tag(dnn.tag).arch, V) == {"grammar": GRAMMAR_V6, "hw": "gb10", "gpus_per_node": 1, "nodes": 2,
+                                                       "role": "cluster", "target": "native", "plane_token": ntok,
+                                                       "plane": "native"})
+    ck("파서 왕복: 토큰 없음 → plane=docker(vocab 없이도)", parse_arch("gb10-1g2n-cluster-native")["plane"] == "docker"
+       and parse_arch("gb10-1g2n-cluster-native")["plane_token"] == "")
+    ck("sim 타겟 뒤 평면 토큰도 해체된다", (parse_arch(f"gb10-1g1n-sub-sim-h100-{ntok}", V) or {}).get("target") == "sim-h100"
+       and (parse_arch(f"gb10-1g1n-sub-sim-h100-{ntok}", V) or {}).get("plane") == "native")
+    ck("vocab 없이 비어 있지 않은 토큰은 추측하지 않는다(plane=None)", parse_arch(f"gb10-1g2n-cluster-native-{ntok}")["plane"] is None)
+    old_pay = json.loads(json.dumps(pay))
+    del old_pay["axes"][PLANE_AXIS]
+    ck("O-N1 이전 페이로드(평면 칸 없음 · Docker)도 재조립된다", compose_from_payload(old_pay) == dn.tag)
+    old_nat = json.loads(json.dumps(dnn.to_payload()))
+    del old_nat["axes"][PLANE_AXIS]
+    ck("★음성대조 평면 칸 없이 -<plane> 이름 = 재조립 불일치", _code(compose_from_payload, old_nat) == "HINT_NAMING_INCONSISTENT")
+    lie = json.loads(json.dumps(dnn.to_payload()))
+    lie["axes"][PLANE_AXIS]["value"] = "docker"
+    ck("★음성대조 평면 값·토큰 모순 = 재조립 거부", _code(compose_from_payload, lie) == "HINT_NAMING_INCONSISTENT")
+    Vn = {k: v for k, v in V.items() if k != PLANE_AXIS}
+    ck("★vocab 에 plane 축 없음 = HINT_VOCAB_ABSENT(fail-loud)", _code(derive_name, fn, Vn) == "HINT_VOCAB_ABSENT"
+       and any(PLANE_AXIS in b for b in validate_vocab(Vn)))
+    fx = _tag2_facts()
+    fx["plane"] = {"raw": "podman", "source": "fixture"}
+    ck("★어휘 밖 평면 = HINT_VOCAB_UNKNOWN", _code(derive_name, fx, V) == "HINT_VOCAB_UNKNOWN")
+    fx = _tag2_facts()
+    del fx["plane"]
+    ck("★평면 사실 부재 = HINT_AXIS_UNDERIVABLE(docker 로 추측 ✗)", _code(derive_name, fx, V) == "HINT_AXIS_UNDERIVABLE")
+    for bad_plane, why in (({"docker": "dk", "native": ntok}, "docker 토큰 금지(Docker 이름 불변)"),
+                           ({"docker": "", "native": ""}, "native 빈 토큰(충돌)"),
+                           ({"docker": ""}, "키 집합 ≠ 판정 소유자 어휘")):
+        ck(f"★vocab plane 구조 위반 거부 — {why}", bool(validate_vocab({**V, PLANE_AXIS: bad_plane})))
+    ck("★평면 토큰 형태 위반 조립 거부", _code(build_arch, "gb10", 1, 2, "cluster", "native", "Bare") == "HINT_ARCH_SHAPE_VIOLATION")
 
     # ── vLLM 세그먼트(X18) ──
     sha = "0123456789abcdef0123456789abcdef01234567"
@@ -964,8 +1429,11 @@ def selftest() -> list[str]:
     f["graph"] = {"raw": "cudagraph", "source": "서빙 yaml enforce-eager 부재"}
     f["kv"] = {"raw": "fp8_e4m3", "source": "서빙 yaml kv-cache-dtype"}
     ds = derive_name(f, V)
-    ck(f"specoff·plenone·graph·kvfp8(fp8_e4m3 정규화) 명시 토큰({ds.tag})",
-       ds.tag.endswith("/qnvfp4-len262144-kvfp8-plenone-specoff-graph"))
+    ck(f"kvfp8(fp8_e4m3 정규화) · 뒤 3축은 이름에 들어가지 않는다({ds.tag})", ds.tag.endswith("/qnvfp4-len262144-kvfp8"))
+    cands = {c["axis"]: c for c in tail_candidates(f, V)}
+    ck("tail_candidates: specoff·plenone·graph 는 후보 토큰으로만 나온다(강제 ✗)",
+       [cands[a]["token"] for a in V6_TAIL_AXES] == ["plenone", "specoff", "graph"]
+       and all(cands[a]["meaning"] and cands[a]["source"] for a in V6_TAIL_AXES))
 
     # ── ★음성대조: 어휘 밖 · 파생 불가 ──
     f = _tag2_facts()
@@ -986,8 +1454,14 @@ def selftest() -> list[str]:
     ck("★부분 일치 ✗(에디션이 다른 원문의 접두사)", _code(normalize, "hw", "NVIDIA GB10 Superchip", V) == "HINT_VOCAB_UNKNOWN")
     f = _tag2_facts()
     del f["spec"]["raw"]
-    ck("★raw 키 부재(읽지 못함) = HINT_AXIS_UNDERIVABLE — specoff 로 떨어지지 않는다",
-       _code(derive_name, f, V) == "HINT_AXIS_UNDERIVABLE")
+    ck("v7: spec raw 부재여도 이름은 파생된다(뒤 3축은 이름 축이 아니다)", derive_name(f, V).tag == _TAG2_EXPECTED)
+    sc = {c["axis"]: c for c in tail_candidates(f, V)}["spec"]
+    ck("★raw 키 부재(읽지 못함) → 후보도 specoff 로 떨어지지 않고 error 행(HINT_AXIS_UNDERIVABLE)",
+       sc.get("token") is None and sc.get("error") == "HINT_AXIS_UNDERIVABLE")
+    f = _tag2_facts()
+    for a in V6_TAIL_AXES:
+        del f[a]
+    ck("v7: ple·spec·graph 사실이 통째 없어도 기본 이름 파생(결정론 파생에서 뺐다)", derive_name(f, V).tag == _TAG2_EXPECTED)
     f = _tag2_facts()
     f["kv"] = {"raw": "auto", "source": ""}
     ck("★출처 빈 축 = HINT_AXIS_UNDERIVABLE", _code(derive_name, f, V) == "HINT_AXIS_UNDERIVABLE")
@@ -1062,21 +1536,25 @@ def selftest() -> list[str]:
                           ("gb10-1g1n-main-sim-h100", "gb10-1g1n-sub-native", "gb10-1g2n-cluster-native",
                            "rtxpro6000maxq-2g1n-main-native")))
     ck("arch 해체가 축을 준다", parse_arch("gb10-1g2n-cluster-native") ==
-       {"grammar": GRAMMAR_V6, "hw": "gb10", "gpus_per_node": 1, "nodes": 2, "role": "cluster", "target": "native"})
+       {"grammar": GRAMMAR_V6, "hw": "gb10", "gpus_per_node": 1, "nodes": 2, "role": "cluster", "target": "native",
+        "plane_token": "", "plane": "docker"})
     ck("옛 arch 도 축 해체(읽기 전용)", parse_arch("gb10x2-cluster-sim-h100") ==
        {"grammar": GRAMMAR_LEGACY_ARCH_NODE, "hw": "gb10x2", "role": "cluster", "target": "sim-h100"})
     ck("★음성대조 미지 노드 축 조립 거부", _code(build_arch, "gb10", 1, 1, "worker", "native") == "HINT_ARCH_SHAPE_VIOLATION")
     ck("★음성대조 G=0 조립 거부", _code(build_arch, "gb10", 0, 1, "main", "native") == "HINT_AXIS_VALUE_INVALID")
     ck("★음성대조 bool 은 수가 아니다", _code(build_arch, "gb10", True, 1, "main", "native") == "HINT_AXIS_VALUE_INVALID")
     # 레시피(옛 RECIPE_SHAPE 음성대조의 후계)
-    ck("v6 레시피 통과", recipe_violation("qnvfp4-len262144-kvauto-plemmap-spec3-eager") is None)
-    ck("★옛 3축 레시피는 v6 위반", recipe_violation("qmxfp4-len131072-kvfp8") == "HINT_RECIPE_SHAPE_VIOLATION")
+    ck("v6 레시피 통과(v7 문법의 한 경우)", recipe_violation("qnvfp4-len262144-kvauto-plemmap-spec3-eager") is None)
+    ck("v7 기본 레시피(3축) 통과", recipe_violation("qmxfp4-len131072-kvfp8") is None)
     ck("★축 순서가 다르면 위반", recipe_violation("len262144-qnvfp4-kvauto-plemmap-spec3-eager") == "HINT_RECIPE_SHAPE_VIOLATION")
-    ck("★결측 축 생략(옛 동작)은 위반", recipe_violation("qnvfp4-len262144-kvauto-spec3-eager") == "HINT_RECIPE_SHAPE_VIOLATION")
-    ck("★손저작 형태(대문자·spec0·접미)는 위반",
+    ck("★q 축 생략(옛 동작)은 위반", recipe_violation("len262144-kvauto-plemmap") == "HINT_RECIPE_SHAPE_VIOLATION")
+    ck("v7: v6 뒤 축 일부만 있는 꼬리는 형태상 통과(꼬리는 자율 · 뜻·근거는 validate_tail)",
+       recipe_violation("qnvfp4-len262144-kvauto-spec3-eager") is None
+       and recipe_violation("qnvfp4-len1-kvauto-plemmap-spec0-eager") is None)
+    ck("★손저작 형태(대문자·옛 접미·빈 토큰·len0)는 위반",
        all(recipe_violation(r) == "HINT_RECIPE_SHAPE_VIOLATION" for r in
-           ("QNVFP4-len1-kvauto-plemmap-spec3-eager", "qnvfp4-len1-kvauto-plemmap-spec0-eager",
-            "qnvfp4-len1-kvauto-plemmap-spec3-eager_260904T0730Z")))
+           ("QNVFP4-len1-kvauto-plemmap-spec3-eager", "qnvfp4-len1-kvauto-plemmap-spec3-eager_260904T0730Z",
+            "qnvfp4-len1-kvauto--mmap", "qnvfp4-len0-kvauto", "qnvfp4-len1-kv", "q-len1-kvauto")))
     ck("레시피 비었음", recipe_violation("") == "HINT_RECIPE_ABSENT")
     ck("★vLLM 세그먼트에 v 접두 ✗",
        _code(validate_new_name, _TAG2_EXPECTED.replace("/0.29.0rc6/", "/v0.29.0rc6/")) == "HINT_VLLM_SEGMENT_SHAPE")
@@ -1133,8 +1611,8 @@ def selftest() -> list[str]:
     for ref, seg in (("v0.9.2.1", "0.9.2.1"), ("v0.9.2.post1", "0.9.2.post1"), ("0.9.2.1rc2", "0.9.2.1rc2")):
         f["vllm"] = dict(_tag2_facts()["vllm"], vllm_ref=ref)
         got = derive_name(f, V)
-        ck(f"D-g 릴리스 {ref} → 세그먼트 {seg} · v6 문법 통과", got.tag.split("/")[1] == seg
-           and parse_tag(got.tag).grammar == GRAMMAR_V6 and got.vllm_build_input["kind"] == "release")
+        ck(f"D-g 릴리스 {ref} → 세그먼트 {seg} · v7 문법 통과", got.tag.split("/")[1] == seg
+           and parse_tag(got.tag).grammar == GRAMMAR_V7 and got.vllm_build_input["kind"] == "release")
     ck("D-g wheel 4마디 릴리스", vllm_segment({"track": "wheel", "vllm_version": "0.9.2.1",
                                             "source": "셀 env VLLM_VERSION"}).value == "0.9.2.1")
     ck("D-g describe 4마디 · 커밋 핀", vllm_segment({"track": "source-build", "vllm_ref": sha,
@@ -1169,6 +1647,167 @@ def selftest() -> list[str]:
     ck("D-h 40자 커밋 핀은 저장소와 무관(SHA 가 곧 좌표)", vllm_segment({"track": "source-build", "vllm_ref": sha,
                                                                   "vllm_repo": fork, "prev_release": "v0.29.0rc5",
                                                                   "source": "셀 env"}).value == "0.29.0rc5-g0123456789ab")
+
+    # ── v7 이름 문법(plan_26092908 §4.1 · U4~U7) ──
+    # ① 원격 v6 4태그 — 판정·개명 ✗(P1) · 파서는 v6 로 읽고 "3축 + 꼬리"로 재해석한다
+    for live in _V6_LIVE:
+        t = parse_tag(live)
+        base = live.rsplit("/", 1)[0] + "/" + "-".join(live.rsplit("/", 1)[1].split("-")[:3])
+        ck(f"v6 실태그 재해석({live.split('/')[2]}·{live.split('/')[3]}) → v6 · 기본 이름 + 꼬리 3토큰 · timestamp 없음",
+           t.grammar == GRAMMAR_V6 and t.base_tag == base and base_name(live) == base and len(t.tail) == 3
+           and t.tail[0].startswith("ple") and t.tail[1].startswith("spec") and t.tail[2] in _GRAPH_TOKENS
+           and t.timestamp is None and _code(validate_new_name, live) is None)
+    ck("v6 실태그: 레시피 6축 해체도 그대로(parse_recipe)", parse_recipe(_TAG2_V6.split("/")[4]) ==
+       {"q": "nvfp4", "len": "262144", "kv": "auto", "ple": "mmap", "spec": "3", "graph": "eager"})
+    ck("v6 실태그 기본 이름 = 같은 facts 의 v7 derive_name(tag.py 재파생 대조 입력)", base_name(_TAG2_V6) == dn.tag)
+    v6p = json.loads(json.dumps(pay))
+    v6p.update(grammar=GRAMMAR_V6)
+    v6p["segments"]["recipe"]["value"] = _TAG2_V6.split("/")[4]
+    for a, v in (("ple", "mmap"), ("spec", "3"), ("graph", "eager")):
+        v6p["axes"][a] = {"value": v, "source": "fixture"}
+    ck("기발행 v6 페이로드(6축)는 옛 6축 재조립 그대로", compose_from_payload(v6p) == _TAG2_V6)
+    v6t = json.loads(json.dumps(v6p))
+    v6t["axes"]["spec"]["value"] = "2"
+    ck("★음성대조 v6 페이로드 뒤 축 위조 = 재조립 불일치(엄격 경로 유지)",
+       _code(compose_from_payload, v6t) == "HINT_NAMING_INCONSISTENT")
+    v6n = json.loads(json.dumps(v6p))
+    for a in V6_TAIL_AXES:
+        del v6n["axes"][a]
+    ck("v6 페이로드에 뒤 3축 칸이 전부 없으면 3축 + 꼬리로 해석해 재조립", compose_from_payload(v6n) == _TAG2_V6)
+    v6h = json.loads(json.dumps(v6p))
+    del v6h["axes"]["graph"]
+    ck("★음성대조 v6 뒤 3축 일부만 = 모순", _code(compose_from_payload, v6h) == "HINT_NAMING_INCONSISTENT")
+    v6n["axes"]["len"]["value"] = "131072"
+    ck("★음성대조 3축 + 꼬리 해석 경로도 결정론 축 위조를 잡는다", _code(compose_from_payload, v6n) == "HINT_NAMING_INCONSISTENT")
+    bad_g = json.loads(json.dumps(pay))
+    bad_g["grammar"] = "v9"
+    ck("★음성대조 알 수 없는 grammar = 재조립 거부", _code(compose_from_payload, bad_g) == "HINT_NAMING_INCONSISTENT")
+
+    # ② v7 기본 이름 + 꼬리 + timestamp
+    ck("빈 꼬리 = 기본 이름 그대로", compose_name(dn.tag, []) == dn.tag)
+    y_rel, e_rel = "output/multi/configs/nv4-bf-262k-mmp.yaml", "output/multi/envs/.env.nv4-bf-262k-mmp"
+    srcs = {y_rel: {"max-model-len": "262144", "speculative-config.num_speculative_tokens": "3",
+                    "enforce-eager": "True", "served-model-name": "'Qwen3.8'"},
+            e_rel: {"VLLM_PLE_MMAP": "1"}}
+    tail = [{"token": "mmap", "meaning": "PLE 를 mmap 으로 적재(res·mmp 셀을 가른다)",
+             "evidence": {"file": e_rel, "key": "VLLM_PLE_MMAP", "value": "1"}},
+            {"token": "spec3", "meaning": "speculative k=3",
+             "evidence": {"file": y_rel, "key": "speculative-config.num_speculative_tokens", "value": 3}},
+            {"token": "eager", "meaning": "cudagraph 끔",
+             "evidence": {"file": y_rel, "key": "enforce-eager", "value": " true "}}]
+    ck("validate_tail 양성: 형식·뜻·근거 전부 맞으면 문제 0(값 정규화 = 공백·대소문자 · 수는 문자열로)", validate_tail(tail, srcs) == [])
+    ck("validate_tail: 빈 꼬리 = 문제 0", validate_tail([], srcs) == [] and validate_tail([], {}) == [])
+    ck("validate_tail: 바깥 따옴표 정규화", validate_tail([{"token": "q38", "meaning": "서빙 이름", "evidence":
+                                                          {"file": y_rel, "key": "served-model-name", "value": "qwen3.8"}}],
+                                                        srcs) == [])
+    full = compose_name(dn.tag, tail)
+    ft = parse_tag(full)
+    ck(f"compose_name → v7 이름({full.split('/')[4]}) · 꼬리 해체 · 기본 이름 복원",
+       full == dn.tag + "-mmap-spec3-eager" and ft.grammar == GRAMMAR_V7 and ft.tail == ("mmap", "spec3", "eager")
+       and ft.base_tag == dn.tag and base_name(full) == dn.tag and ft.timestamp is None)
+    ck("compose_name 은 토큰 문자열 목록도 받는다", compose_name(dn.tag, ["mmap", "spec3", "eager"]) == full)
+    ck("★음성대조 compose_name 에 기본 이름 아닌 입력 = HINT_TAIL_FORMAT", _code(compose_name, full, ["x"]) == "HINT_TAIL_FORMAT")
+    ck("★음성대조 compose_name 형식 위반 꼬리 = HINT_TAIL_FORMAT", _code(compose_name, dn.tag, ["Mmap"]) == "HINT_TAIL_FORMAT"
+       and _code(compose_name, dn.tag, ["a", "a"]) == "HINT_TAIL_FORMAT")
+
+    def codes(t, s=srcs) -> list[str]:
+        return [c for c, _ in validate_tail(t, s)]
+
+    def row(tok, **kw):
+        r = {"token": tok, "meaning": "뜻", "evidence": {"file": e_rel, "key": "VLLM_PLE_MMAP", "value": "1"}}
+        r.update(kw)
+        return r
+
+    for what, t, want in (
+            ("대문자 토큰", [row("Mmap")], "HINT_TAIL_FORMAT"),
+            ("비영숫자 토큰", [row("mm_ap")], "HINT_TAIL_FORMAT"),
+            ("25자 토큰", [row("a" * 25)], "HINT_TAIL_FORMAT"),
+            ("꼬리 65자", [row("a" * 20), row("b" * 20), row("c" * 20), row("d" * 2)], "HINT_TAIL_FORMAT"),
+            ("timestamp 예약 모양", [row("t2609290823")], "HINT_TAIL_FORMAT"),
+            ("중복 토큰", [row("mmap"), row("mmap")], "HINT_TAIL_FORMAT"),
+            ("행이 객체 아님", ["mmap"], "HINT_TAIL_FORMAT"),
+            ("v6 뒤 3축 모양 그대로(파서가 v6 로 읽는다)", [row("plemmap"), row("spec3"), row("eager")], "HINT_TAIL_FORMAT"),
+            ("meaning 빈칸", [row("mmap", meaning="  ")], "HINT_TAIL_MEANING_ABSENT"),
+            ("meaning 부재", [{"token": "mmap", "evidence": row("x")["evidence"]}], "HINT_TAIL_MEANING_ABSENT"),
+            ("evidence 부재", [row("mmap", evidence=None)], "HINT_TAIL_UNGROUNDED"),
+            ("evidence value 부재", [row("mmap", evidence={"file": e_rel, "key": "VLLM_PLE_MMAP"})], "HINT_TAIL_UNGROUNDED"),
+            ("서빙 설정 밖 파일", [row("mmap", evidence={"file": "README.md", "key": "x", "value": "1"})],
+             "HINT_TAIL_UNGROUNDED"),
+            ("파일에 없는 키", [row("mmap", evidence={"file": e_rel, "key": "VLLM_PLE_MAP", "value": "1"})],
+             "HINT_TAIL_UNGROUNDED"),
+            ("값 불일치(거짓 꼬리)", [row("mmap", evidence={"file": e_rel, "key": "VLLM_PLE_MMAP", "value": "0"})],
+             "HINT_TAIL_UNGROUNDED")):
+        ck(f"★validate_tail 음성대조 {what} → {want}", want in codes(t))
+    ck("★validate_tail 음성대조 목록 아님 = HINT_TAIL_FORMAT", codes("mmap") == ["HINT_TAIL_FORMAT"])
+    ck("v6 뒤 3축 중 일부·재배열은 형식상 허용(자율 꼬리)", codes([row("mmap"), row("spec3"), row("eager")]) == []
+       and codes([row("plemmap"), row("eager")]) == [])
+
+    utc = "2026-09-28T23:23:13Z"   # KST 2026-09-29 08:23
+    ck("timestamp_token = t + KST YYMMDDHHMM(자정 넘김 포함)", timestamp_token(utc) == "t2609290823"
+       and timestamp_token("2026-12-31T15:00:00Z") == "t2701010000")
+    ck("★timestamp_token 주입 시각 형식 위반 = HINT_TIME_NOT_INJECTED",
+       _code(timestamp_token, "2026-09-29 08:23") == "HINT_TIME_NOT_INJECTED")
+    tsn = with_timestamp(full, utc)
+    tt = parse_tag(tsn)
+    ck(f"with_timestamp → 맨 끝 -t<YYMMDDHHMM>({tsn.split('/')[4]}) · v7 · 꼬리 보존",
+       tsn == full + "-t2609290823" and tt.grammar == GRAMMAR_V7 and tt.timestamp == "t2609290823"
+       and tt.tail == ("mmap", "spec3", "eager") and tt.base_tag == dn.tag)
+    ck("빈 꼬리 + timestamp", parse_tag(with_timestamp(dn.tag, utc)).tail == ()
+       and parse_tag(with_timestamp(dn.tag, utc)).timestamp == "t2609290823")
+    ck("★음성대조 timestamp 두 번 = HINT_TAIL_FORMAT(같은 분 충돌은 차단)", _code(with_timestamp, tsn, utc) == "HINT_TAIL_FORMAT")
+    ck("★음성대조 옛 세대 이름에는 timestamp·기본 이름 ✗",
+       _code(with_timestamp, "hint/0.18.0/m/gb10-sim-h100/qmxfp4-len131072-kvfp8", utc) == "HINT_NAME_GRAMMAR_OLD"
+       and _code(base_name, "hint/0.18.0/m/gb10-sim-h100/qmxfp4-len131072-kvfp8") == "HINT_NAME_GRAMMAR_OLD")
+
+    # ③ 파서의 v7/v6 구분
+    v6r = _TAG2_V6.split("/")[4]
+    ck("파서: v6 모양 = v6(우선) · v6 모양 + timestamp = v7 · 기본 = v7 · 자율 꼬리 = v7",
+       grammar_of(_TAG2_V6) == GRAMMAR_V6 and grammar_of(_TAG2_V6 + "-t2609290823") == GRAMMAR_V7
+       and grammar_of(dn.tag) == GRAMMAR_V7 and grammar_of(full) == GRAMMAR_V7)
+    ck("★파서: timestamp 가 맨 끝이 아니면 꼬리 형식 위반(HINT_TAIL_FORMAT) · 세대 unknown",
+       recipe_violation(v6r.replace("-spec3", "-t2609290823-spec3")) == "HINT_TAIL_FORMAT"
+       and grammar_of(_TAG2_V6.replace("-spec3", "-t2609290823-spec3")) == GRAMMAR_UNKNOWN
+       and _code(validate_new_name, _TAG2_V6.replace("-spec3", "-t2609290823-spec3")) == "HINT_TAIL_FORMAT")
+    ck("★파서: 꼬리 토큰 25자 · 중복 = HINT_TAIL_FORMAT",
+       recipe_violation("qnvfp4-len1-kvauto-" + "a" * 25) == "HINT_TAIL_FORMAT"
+       and recipe_violation("qnvfp4-len1-kvauto-x-x") == "HINT_TAIL_FORMAT")
+    ck("split_recipe: 해체 모양", split_recipe(v6r + "-t2609290823") ==
+       {"q": "nvfp4", "len": "262144", "kv": "auto", "base": "qnvfp4-len262144-kvauto",
+        "tail": ["plemmap", "spec3", "eager"], "timestamp": "t2609290823"} and split_recipe("x") is None)
+
+    # ④ 페이로드: apply_tail → compose_from_payload 가 최종 이름을 재조립한다
+    fin = apply_tail(pay, tail)
+    ck("apply_tail → compose_from_payload = compose_name(꼬리)", compose_from_payload(fin) == full
+       and fin["tail"][0]["meaning"] and fin["timestamp"] is None and "tail(agent" in fin["segments"]["recipe"]["source"])
+    fin_ts = apply_tail(pay, tail, timestamp_token(utc))
+    ck("apply_tail + timestamp → compose_from_payload = with_timestamp", compose_from_payload(fin_ts) == tsn)
+    ck("apply_tail 은 입력을 바꾸지 않는다(사본)", pay["segments"]["recipe"]["value"] == dn.segments["recipe"].value
+       and "tail" not in pay)
+    tam = json.loads(json.dumps(fin))
+    tam["tail"][1]["token"] = "spec4"
+    ck("★음성대조 PAYLOAD.naming.tail 위조 = 재조립 불일치", _code(compose_from_payload, tam) == "HINT_NAMING_INCONSISTENT")
+    tam = json.loads(json.dumps(fin))
+    tam["tail"].append({"token": "t2609290823"})
+    ck("★음성대조 PAYLOAD.naming.tail 에 timestamp 모양 = HINT_TAIL_FORMAT", _code(compose_from_payload, tam) == "HINT_TAIL_FORMAT")
+    ck("★음성대조 apply_tail 은 v6 페이로드를 받지 않는다", _code(apply_tail, v6p, tail) == "HINT_NAMING_INCONSISTENT")
+    ck("★음성대조 apply_tail timestamp 모양 위반", _code(apply_tail, pay, tail, "2609290823") == "HINT_TAIL_FORMAT")
+
+    # ⑤ 꼬리 후보(강제 ✗) — 구조화 근거가 facts 에 있으면 싣고, 없으면 None(출처 문자열에서 추측 ✗)
+    fc = _tag2_facts()
+    fc["ple"]["evidence"] = {"file": e_rel, "key": "VLLM_PLE_MMAP", "value": "1"}
+    cc = {c["axis"]: c for c in tail_candidates(fc, V)}
+    ck("tail_candidates: v6 뒤 3축 파생 토큰 · 구조화 근거는 그대로 · 없으면 None",
+       [cc[a]["token"] for a in V6_TAIL_AXES] == ["plemmap", "spec3", "eager"]
+       and cc["ple"]["evidence"] == {"file": e_rel, "key": "VLLM_PLE_MMAP", "value": "1"}
+       and cc["spec"]["evidence"] is None and cc["graph"]["evidence"] is None)
+    ck("★후보 셋을 그대로 쓰면 v6 모양이라 validate_tail 이 거부한다(후보 ≠ 정답)",
+       "HINT_TAIL_FORMAT" in codes([{"token": cc[a]["token"], "meaning": cc[a]["meaning"],
+                                      "evidence": {"file": e_rel, "key": "VLLM_PLE_MMAP", "value": "1"}}
+                                     for a in V6_TAIL_AXES]))
+    fbad = _tag2_facts()
+    fbad["ple"] = {"raw": "swap", "source": "fixture"}
+    ck("★어휘 밖 PLE 후보 = error 행(조용히 건너뛰지 않는다)",
+       {c["axis"]: c for c in tail_candidates(fbad, V)}["ple"].get("error") == "HINT_VOCAB_UNKNOWN")
 
     # ── 어휘표 적재 ──
     with tempfile.TemporaryDirectory() as td:
@@ -1217,6 +1856,10 @@ def selftest() -> list[str]:
            normalize("kv", "fp8", real) == "fp8" and normalize("kv", "fp8_e4m3", real) == "fp8")
         ck("★추적 어휘표: quant 'N/A' 는 어휘 밖", _code(normalize, "quant", "N/A", real) == "HINT_VOCAB_UNKNOWN")
         ck("추적 어휘표로도 태그2 기대 이름", derive_name(_tag2_facts(), real).tag == _TAG2_EXPECTED)
+        # AC-N6(plan_26092311): 추적 어휘표의 native 토큰 = O-N1 승인값 `bare` · N1 이름이 D1 과 갈라진다
+        fr = {**_tag2_facts(), PLANE_AXIS: {"raw": "native", "source": "fixture · serve_proof plane=native"}}
+        ck("AC-N6 추적 어휘표: native 셀 → …-cluster-native-bare",
+           derive_name(fr, real).tag == _TAG2_EXPECTED.replace("-cluster-native/", "-cluster-native-bare/"))
 
     # ── import 부수효과 0: PATH 를 끊고 새 프로세스에서 적재 · 감사 훅으로 프로세스 실행·비 .py 파일 열기 관측 ──
     try:

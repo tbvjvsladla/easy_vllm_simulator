@@ -1,0 +1,32 @@
+{
+ "schema_version": 1,
+ "kind": "native_wheelhouse_accept",
+ "why": "plan_26092311 §N1 라이브 게이트 뒤 결정(O-N2 해소): 이미지 설치본의 RECORD 불일치 5 파일을 사유별로 승인하고, 설치 게이트의 'pip check 0' 을 이미지 동등성(설치 집합 == 이미지 핀 ∧ pip check 충돌 ⊆ 아래 선언)으로 대체한다. 이 파일은 사람 결정의 전사이며 적용 대상 이미지 digest 가 images[] 에 없으면 도구가 거부한다(노드별 로컬 빌드 → 노드별 digest).",
+ "plan": "docs/plan/plan_26092311_native_분산서빙_정문_구현_N1.md",
+ "approved_by": "사용자(팝업 전사) — wheelhouse \"5개 승인 + 이미지 동등성 (Recommended)\" · N5·N6 \"둘 다 진행\"",
+ "approved_utc": "2026-09-23T03:54:23Z",
+ "images": [
+  {"node": "main", "tag": "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+   "id": "sha256:a2c4ca499fb2473191bcdfc7e192445750b4a7b6803cfe14e50b43f401000544"},
+  {"node": "sub", "tag": "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+   "id": "sha256:87b6a67d424cab8ba1fadde761c5e9b13566e95027b84d7e6bf68fd9f1eeae0c",
+   "note": "노드별 로컬 빌드라 digest 가 다르다(정상 · 요구는 ABI 동일). 같은 5 파일 승인이 적용되며, 이 이미지에서 목록 밖 불일치가 나오면 재포장은 여전히 실패한다"}
+ ],
+ "accepted_mismatches": [
+  {"dist": "humming-kernels", "path": "humming/utils/device.py",
+   "reason": "우리 빌드 패치 output/multi/build_patches/40-humming-nvml-gb10.sh 가 설치 후 제자리 수정(GB10 NVML 클록 가드) — 이미지가 실제로 돌린 바이트"},
+  {"dist": "torch", "path": "torch/lib/libtorch_global_deps.so",
+   "reason": "NGC 베이스(pytorch 26.07) 설치 후처리 — 저장소 빌드 패치와 무관, 이미지가 실제로 돌린 바이트"},
+  {"dist": "tensorboard", "path": "tensorboard/plugins/core/core_plugin.py",
+   "reason": "NGC 베이스(pytorch 26.07) 설치 후처리 — 저장소 빌드 패치와 무관, 이미지가 실제로 돌린 바이트"},
+  {"dist": "pynvvideocodec", "path": "PyNvVideoCodec/PyNvVideoCodec_121.cpython-312-aarch64-linux-gnu.so",
+   "reason": "NGC 베이스(pytorch 26.07) 설치 후처리 — 저장소 빌드 패치와 무관, 이미지가 실제로 돌린 바이트"},
+  {"dist": "pynvvideocodec", "path": "PyNvVideoCodec/PyNvVideoCodec_130.cpython-312-aarch64-linux-gnu.so",
+   "reason": "NGC 베이스(pytorch 26.07) 설치 후처리 — 저장소 빌드 패치와 무관, 이미지가 실제로 돌린 바이트"}
+ ],
+ "image_inherent_conflicts": [
+  {"pip_check_line": "grpcio-tools 1.83.0 has requirement protobuf<8.0.0,>=7.35.1, but you have protobuf 6.33.6.",
+   "dist": "grpcio-tools", "requirement": "protobuf<8.0.0,>=7.35.1", "installed": "protobuf 6.33.6",
+   "reason": "이미지 자체의 선언 불일치(이미지는 --no-deps/constraint 로 조립됐다) — 정확 핀 closure 를 --no-deps 로 깔면 그대로 물려받는다"}
+ ]
+}

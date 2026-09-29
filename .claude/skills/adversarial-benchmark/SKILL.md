@@ -28,10 +28,10 @@ description: >-
 - **Goal** — 돌고 있는 serve 의 디코드 성능을 3중 루브릭(루프라인 R · 외부 E · 사용자 c)으로 적대 검증해 PASS/REFUTE 를 결정론으로 판정하고, 기각 시 재탐색 힌트를 낸다.
 - **When to invoke** — "성능 검증/벤치마크" 지시 · recipe 서빙 성공 직후 lite 자동 핸드오프 · 멀티노드 VRAM 밸런스 의심 · (별도 오퍼레이션) Max envelope 특성화 승인 시.
 - **Inputs** — `config.yaml`(대상 config_name·`reference_tps`/`target_tps`/`tolerance`/`realistic_fraction`) · **루브릭 authority 상태 3종**(§2 — 기본 `weak`, 사용자 HITL 트리거 시 `explicit` 또는 `explore`) · 라이브 serve(`:PORT/health` 200) · manifest(gpu_model·interconnect·topology) · 모델 config/safetensors index.
-- **Outputs** — `verdict.json`(PASS/REFUTE/NEEDS_RUBRIC/INVALID + failure_axis) · lite 채팅 표(inform-only · lite-only 셀은 `--publish-report` 로 경량 리포트 `mode: lite`) · full 종결 시 `docs/benchmark/` report(항상) + 인증서(PASS시만). 두 리포트 모두 **측정 구성 표**(bench_mode · 도구 · 반복 N · downgrade_reason)를 싣는다(hint lite 통로의 파싱 계약 · 2026-09-14 · plan_26091407 §4.5).
+- **Outputs** — `verdict.json`(PASS/REFUTE/NEEDS_RUBRIC/INVALID + failure_axis) · lite 채팅 표(inform-only · lite-only 셀은 `--publish-report` 로 경량 리포트 `mode: lite`) · full 종결 시 `docs/benchmark/` report(항상) + 인증서(**explicit ∧ PASS** 시만 — `judge_bench.sh` 자동 발행 조건). 두 리포트 모두 **측정 구성 표**(bench_mode · 도구 · 반복 N · downgrade_reason)를 싣는다(hint lite 통로의 파싱 계약 · 2026-09-14 · plan_26091407 §4.5).
 - **full bench 의 정의** — **`full = lite ∪ GuideLLM × 반복 ≥3`**(2026-09-14 · `plan_26091407` §4.4 · 사용자 결정 Q3). 동시성 스윕의 각 레벨을 같은 serve 에 **반복 ≥3** 으로 잰다 — 반복은 분산·신뢰성의 최소조건이고, 1회 측정에는 산포 추정치 자체가 없다. 판정 게이트는 불변이며 재현 밴드는 **기재**다. 반복이 성립하지 않으면(**기계 이벤트만** — **판정점**(동시성 1)의 run 실패 · 스윕이 멈춘 자리의 노드 블랙박스 kill) 그 셀은 `bench_mode=lite` + `downgrade_reason ∈ {run_failed, blackbox_kill}` 로 **강등**되고(확정 `classify_cell.py`), 분산(밴드 폭)은 강등 사유가 아니다. 포화 경계에서 스윕이 멈춘 것(적응 상한 클램프 — 경계 레벨의 첫 run 실패든 후속 run 실패든)은 강등이 아니다. 반복 수 < 3 은 선언할 수 없다(lite 만 재려면 lite 통로).
 - **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 7단계(순서 고정).
-- **State transitions** — full PASS + 인증서로 `promotion-ready` 의 성능 조건을 채운다(lite 는 어떤 상태도 진행시키지 않는다). 최종 상태 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
+- **State transitions** — **explicit PASS** 는 인증서로 `promotion-ready` 의 성능 조건을 채운다. 인증서가 발행되지 않는 판정(weak·explore 의 PASS · REFUTE)은 bench_report **판정 표**(`## 판정 (표시만 …)` 의 `verdict`·`루브릭 권한` 행)가 요구 증거이고, `completion_gate` 가 그 표를 manifest rubric 계약(floor>0 · ratio · primary_source · 출처 표시)과 교차검증한다(2026-09-29 · plan_26092908 §4.8 — 인증서를 손으로 만들지 않는다). lite 는 어떤 상태도 진행시키지 않는다. 최종 상태 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
 - **HITL/safety boundaries** — **serve 를 기동하지 않는다**(미가동 시 중단·보고) · 모델 자동 다운로드 ✗ · 무승인 escalate/rebuild ✗ · 무한 기각 ✗(cap → Model-C) · 게이트는 규칙(LLM 다수결 ✗).
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
 - **Deterministic commands** — `scripts/roofline.py` · `run_bench.sh` · `parse_bench.py` · `verdict_rule.py` · `lite_bench.sh` · `lite_metrics.py` · `sweep_bench.sh` · `repeat_axis.py` · `classify_cell.py` · `render_report.py` · `publish_benchmark_record.py` · `max_envelope.sh` · `render_max_report.py`.
@@ -48,7 +48,7 @@ description: >-
 4. **측정 M** — `run_bench.sh` → `parse_bench.py`(warmup 폐기 + engine-log 교차).
 5. **외부 레퍼런스 (b) E** — Devil's Advocate 가 `references.md` warm-start → 검색 → 결과를 `--e-search {hit,empty,no}` 로 **기록**. 미시도 상태로 6단계 직행 ✗.
 6. **판정(결정론 게이트)** — `judge_bench.sh <config> --authority {weak,explicit,explore}` (roofline→verdict 체인 · 권한 인자 필수 · 기본값 없음). 판정 규칙 자체는 `verdict_rule.py --authority {weak,explicit,explore}`(§2 — 기본 `weak`; 사용자가 목표를 HITL 명시했을 때만 `explicit`; 사용자가 *광범위 탐색/목표 미설정*을 HITL 지시했을 때만 `explore`). PASS → done-게이트 클리어 / REFUTE → 기각 리포트 + **escalation 후보 적재** → 종결 HITL(cap 한정, **`explore` 에서는 해제** — 다음 항목으로 진행) / NEEDS_RUBRIC → (c) 사용자 백스톱.
-7. **종결 발행** — cap 소진 or PASS 로 종결되면 사람용 report(항상) + 인증서(PASS시만) 발행(`references/lite-and-publication.md` §2).
+7. **종결 발행** — cap 소진 or PASS 로 종결되면 사람용 report(항상) + 인증서(explicit ∧ PASS 시만) 발행(`references/lite-and-publication.md` §2).
 
 ## Failure → reference routing
 
@@ -105,10 +105,15 @@ description: >-
     (그 관문을 통과하지 못하면 어떤 authority 로도 evidence-complete 에 못 간다).
   - **공허 PASS 배제 규칙은 어느 authority 에서도 불변이다** — `floor = 0` 은 **어떤 모드에서도** 승격
     불가다. explore 가 무는 것은 *문턱의 높이*이지 *측정의 유효성*이 아니다.
-  - 잔여 경계(2026-08-22 현재): 인증서는 헌법(`CLAUDE.md` §불변식 · `.claude/rules/docs.md` §benchmark)상
-    **PASS 때만 발행**되므로, explore 에서 `REFUTE` 로 끝난 항목은 여전히 인증서를 갖지 못한다 →
-    그 경우의 승격은 종전대로 `perf_waiver`(사람 서명) 경로다. explore-REFUTE 를 인증서 없이 승격시키려면
-    **인증서 PASS-only 규칙 자체를 개정**해야 하며 그것은 헌법 개정 사안이다(이 스킬이 단독으로 못 연다).
+  - 인증서 이음매(2026-09-29 해소 · plan_26092908 §4.8 · 옛 "잔여 경계" 2026-08-22 의 후계): 인증서는
+    **explicit ∧ PASS 때만 발행**된다(PASS-only 규칙은 그대로다 · `judge_bench.sh`). explore 로 끝난 항목은
+    PASS 든 REFUTE 든 인증서를 갖지 못하고, 그 승격은 `perf_waiver` 가 아니라 **manifest rubric carrier**
+    (발행기가 `verdict.json` 에서 옮긴 `rubric_authority`·`floor_tps`·`ratio`·`primary_source` · 출처 표시
+    `rubric_source`) 경로로 열린다 — `completion_gate` 가 bench_report 판정 표의 `verdict`·`루브릭 권한` 행을
+    그 carrier 와 교차검증하고(`CERTIFICATE_WAIVED_NON_ISSUING_AUTHORITY` · 불일치 = `CERTIFICATE_WAIVER_UNCORROBORATED`),
+    공허 PASS 배제(floor>0 ∧ ratio)도 carrier 에서 그대로 요구한다(`CERTIFICATE_WAIVED_RUBRIC_CONTRACT_UNMET`).
+    권한의 출처 표시가 없으면(옛 manifest) 종전대로 인증서를 요구한다(fail-closed). 그 전에는 explore PASS 셀이
+    게이트의 인증서 요구에 막혀 인증서를 손으로 만들었다(DS4F · 2026-09-28).
 - ★ **밸런스 축(`--node-vram-gib`)도 explore 에서는 서술이다**(2026-08-22 · U1 후속). 노드간 VRAM
   편차는 decode-tps 축과 **직교**하지만 성질은 같은 *성능 문턱*이므로, explore 에서 그것만 게이트로
   남기면 U1 계약이 옆문으로 뚫린다. 값은 종전대로 전부 기록하되(`balance.pass` · `balance_dev` ·

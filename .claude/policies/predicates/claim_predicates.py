@@ -133,9 +133,10 @@ _HINT_CLI_REL = f"{_HINT_SCRIPTS_REL}/hint.py"
 _HINT_SKILL_REL = ".claude/skills/hint-publisher/SKILL.md"
 _HINT_TEMPLATE_00_REL = ".claude/skills/hint-publisher/templates/00-hint.prompt.md"
 _UPSTREAM_SKILL_REL = ".claude/skills/upstream-version-watch/SKILL.md"
-# A v6 name derived for the plan's tag-2 cell (AC4) -- a fixture only; nothing here reads a live tag.
+# A v7 name for the plan's tag-2 cell (plan_26092908 §4.1: deterministic q·len·kv + an agent-authored tail that is
+# NOT the retired v6 back-3-axis shape) -- a fixture only; nothing here reads a live tag.
 _HINT_FIXTURE_TAG = ("hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/"
-                     "qnvfp4-len262144-kvauto-plemmap-spec3-eager")
+                     "qnvfp4-len262144-kvauto-mmp-eager")
 _HINT_FIXTURE_UTC = "2026-09-21T10:21:01Z"
 # Operator identity planted on purpose (repo config AND env) to prove it never ships. The e-mail is
 # assembled from fragments: this file is a tracked deployment artifact under the 4-pattern PII
@@ -219,25 +220,30 @@ def _hint_sandbox(prefix: str):
 
 
 def _hint_footer(anchor: str, tag: str = _HINT_FIXTURE_TAG) -> dict:
-    return {"version": "1", "tag": tag, "topology": "multi TP=2(Ray)", "anchor": anchor,
+    # footer v2 (plan_26092908 §4.4): `certificate_ref` -> `bench_ref` + `bench_kind` (a REFUTE/lite cell binds its
+    # bench_report and says so -- the v1 name called that report a certificate).
+    return {"version": "2", "tag": tag, "topology": "multi TP=2(Ray)", "anchor": anchor,
             "manifest_ref": "docs/_evidence/fixture.work-manifest.json",
-            "certificate_ref": "../benchmark/benchmark_fixture.yaml"}
+            "bench_ref": "../benchmark/benchmark_fixture.yaml", "bench_kind": "certificate"}
 
 
 def _hint_payload_commit(tmp: Path, *, name: str = "payload", extra_files: dict | None = None,
                          repo: Path | None = None) -> dict:
-    """Walk the real publication path once in an isolated repo: v6 payload tree -> `branch.commit_payload`
-    (plumbing onto refs/heads/hint). The repo carries the operator identity in its git config and a
-    fixture pii_terms file (never the real one)."""
+    """Walk the real publication path once in an isolated repo: v7 payload tree -> `branch.commit_payload`
+    (plumbing; parent = a v7 GUIDE commit, no ref moves -- plan_26092908 §4.7). The guide is the deterministic
+    fixture guide object (`branch.selftest_guide` -- same repo = same SHA), standing in for the remote hint tip a
+    real publication reads with `branch.guide_commit`. The repo carries the operator identity in its git config and
+    a fixture pii_terms file (never the real one)."""
     branch, core = _hintlib("branch", "core")
     if repo is None:
         repo = branch.selftest_repo(tmp)
     source = core.git_out(repo, "rev-parse", "HEAD")
+    guide = branch.selftest_guide(repo)
     pdir = tmp / name
     branch.write_fixture_payload(pdir, _HINT_FIXTURE_TAG, source_anchor=source, extra_files=extra_files)
     anchor = branch.commit_payload(repo, pdir, message=branch.commit_message(pdir, generated_utc=_HINT_FIXTURE_UTC),
-                                   generated_utc=_HINT_FIXTURE_UTC)
-    return {"repo": repo, "source": source, "payload": pdir, "anchor": anchor}
+                                   generated_utc=_HINT_FIXTURE_UTC, guide=guide)
+    return {"repo": repo, "source": source, "payload": pdir, "anchor": anchor, "guide": guide}
 
 
 # O6 ordering over hint.py's intra-module call graph (C6). A same-function line comparison is not enough:
@@ -1318,10 +1324,13 @@ def predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C3():
 # =============================================================================
 
 def predicate_HINT_TAG_ACTIVATION_GATE_C1():
-    """C1: a hint tag is an annotated tag on a hint-branch PAYLOAD commit (never a source-tree commit);
-    the payload tree is built by plumbing from a closed allowlist without touching the main working
-    tree, so the tag's archive (zip) is exactly the reproduction kit; the annotation is only brief +
-    zip pointer + 6-field evidence footer, streamed through stdin with --cleanup=verbatim."""
+    """C1: a hint tag is an annotated tag on a PAYLOAD commit whose single parent is the hint-branch GUIDE
+    commit (format marker; never a source-tree commit, and the payload commit is never stacked on the
+    branch -- the tag alone reaches it); the payload tree is built by plumbing from a closed allowlist
+    without touching the main working tree or any ref, so the tag's archive (zip) is exactly the
+    reproduction kit; the annotation is only brief + zip pointer + 7-field evidence footer v2 (bench_ref +
+    bench_kind), streamed through stdin with --cleanup=verbatim. The branch itself is pushed only by an
+    approved format transition (`hint.py branch-transition`), never by a publication."""
     branch, tag, core = _hintlib("branch", "tag", "core")
     code = branch.code_of
 
@@ -1338,17 +1347,23 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C1():
         _require(branch.allowlist_violation(rel) is not None, f'{rel!r} must be outside the payload allowlist')
     _require(branch.allowlist_violation("artifacts/compose/sub_recipe.json") is None, 'a slot file must be admitted')
 
-    # footer v1 = the evidence ADDRESS, 6 fields (plan_26090222 F-6a: the three content digests were
-    # removed -- integrity is git's job; the anchor is the commit git hashes).
+    # footer v2 = the evidence ADDRESS, 7 fields (plan_26090222 F-6a: the three content digests were removed --
+    # integrity is git's job; plan_26092908 §4.4: `certificate_ref` -> `bench_ref` + `bench_kind`).
     fields = _hint_footer("a" * 40)
-    _require(tuple(tag.FOOTER_FIELDS) == tuple(fields), 'footer contract must be exactly the 6 address fields, in order')
+    _require(tuple(tag.FOOTER_FIELDS) == ("version", "tag", "topology", "anchor", "manifest_ref", "bench_ref", "bench_kind")
+             == tuple(fields), 'footer v2 contract must be exactly the 7 address fields, in order')
+    _require(tuple(tag.BENCH_KINDS) == ("certificate", "bench_report"), f'bench_kind vocabulary drifted: {tag.BENCH_KINDS}')
     footer = tag.build_footer(**fields)
     _require(tag.parse_footer(footer) == fields, 'round-tripped footer must equal the original fields exactly')
     _require(code(lambda: tag.parse_footer(footer.replace("anchor: " + "a" * 40 + "\n", "")))
              == "HINT_EVIDENCE_BINDING_MALFORMED", 'a footer missing a required field must be rejected, not accepted')
-    _require(code(lambda: tag.parse_footer(footer.replace("certificate_ref:", "certificate_sha256: " + "b" * 64
-                                                          + "\ncertificate_ref:")))
+    _require(code(lambda: tag.parse_footer(footer.replace("bench_ref:", "certificate_sha256: " + "b" * 64
+                                                          + "\nbench_ref:")))
              == "HINT_EVIDENCE_BINDING_MALFORMED", 'a retired digest key must stay rejected (F-6a)')
+    # ★ bench_kind is cross-checked against the name it is derived from: a bench_report called a certificate (the v1
+    #   lie on REFUTE/lite cells) is refused.
+    _require(code(lambda: tag.build_footer(**dict(fields, bench_ref="../benchmark/bench_report_fixture.md")))
+             == "HINT_EVIDENCE_BINDING_MALFORMED", 'a bench_report bound as bench_kind=certificate must be refused')
     # annotation = brief + zip pointer + footer, and NOTHING else (D4: the map moved into the zip).
     brief = "픽스처 셀의 요약 문단이다."
     msg = tag.annotation(brief, fields)
@@ -1379,20 +1394,38 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C1():
     with _hint_sandbox("hint-c1-") as tmp:
         fx = _hint_payload_commit(tmp)
         repo, source, anchor = fx["repo"], fx["source"], fx["anchor"]
+        guide = fx["guide"]
         # plumbing only: HEAD, the index and tracked files of the main tree are untouched.
         _require(core.git_out(repo, "rev-parse", "HEAD") == source, 'the payload commit must not move HEAD')
         _require(core.git(repo, "diff", "--quiet", check=False).returncode == 0
                  and core.git(repo, "diff", "--cached", "--quiet", check=False).returncode == 0,
                  'the payload commit must not touch the main working tree or index')
         _require(core.git_out(repo, "ls-files").split() == ["src.txt"], 'no payload file may become a tracked source file')
-        _require(core.git_out(repo, "rev-parse", "--verify", branch.HINT_BRANCH_REF) == anchor,
-                 'the payload commit must be the tip of refs/heads/hint')
+        # the payload commit's single parent is the v7 guide commit, and NO ref moved (plan_26092908 §4.7 / V12: the
+        # payload is not stacked on refs/heads/hint -- per-PC chains cannot diverge; only the tag reaches it).
+        _require(core.git_out(repo, "rev-parse", f"{anchor}^@").split() == [guide],
+                 'the payload commit must have exactly one parent: the guide commit')
+        _require(branch.guide_info(repo, guide)[0] == branch.BRANCH_FORMAT,
+                 'the parent must be a guide commit carrying the current format marker')
+        _require(branch.hint_tip(repo) is None, 'a publication must never move (or create) refs/heads/hint')
         # ★ a source-tree commit is refused (2026-09-07: three native tags were sealed on source commits,
         #   so their zips shipped repository source instead of the reproduction kit).
         _require(code(lambda: tag.seal(repo, _HINT_FIXTURE_TAG, source,
                                        tag.annotation(branch.FX_BRIEF, _hint_footer(source)),
-                                       generated_utc=_HINT_FIXTURE_UTC)) == "HINT_ANCHOR_NOT_ON_HINT_BRANCH",
+                                       generated_utc=_HINT_FIXTURE_UTC)) == "HINT_ANCHOR_PARENT_NOT_GUIDE",
                  'sealing a hint tag on a source-tree commit must be refused')
+        # ★ a guide without the format marker (the pre-v7 guide shape) is no guide: the payload commit is refused.
+        _require(code(lambda: branch.commit_payload(repo, fx["payload"], generated_utc=_HINT_FIXTURE_UTC,
+                                                    message=branch.commit_message(fx["payload"], generated_utc=_HINT_FIXTURE_UTC),
+                                                    guide=branch.selftest_guide(repo, fmt=None)))
+                 == "HINT_BRANCH_FORMAT_MISMATCH",
+                 'a guide commit without the format marker must be refused as a payload parent')
+        # ★ a v1 footer (certificate_ref) is read-only: a NEW seal must carry footer v2.
+        v1 = {k: v for k, v in _hint_footer(anchor).items() if k not in ("bench_ref", "bench_kind")}
+        v1.update(version="1", certificate_ref="../benchmark/benchmark_fixture.yaml")
+        _require(code(lambda: tag.seal(repo, _HINT_FIXTURE_TAG, anchor, tag.annotation(branch.FX_BRIEF, v1),
+                                       generated_utc=_HINT_FIXTURE_UTC)) == "HINT_EVIDENCE_BINDING_VERSION",
+                 'a new seal with a v1 footer must be refused (v1 stays readable for old tags only)')
         # ★ a file outside the allowlist never enters the tree (the branch does not move).
         _require(code(lambda: _hint_payload_commit(tmp, name="outside", repo=repo,
                                                    extra_files={"notes.txt": "x\n"}))
@@ -1408,7 +1441,7 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C1():
         _require(refused is not None and refused.code == "HINT_SEAL_REFUSED"
                  and "HINT_ANNOTATION_BRIEF_MISMATCH" in tag.problem_codes(getattr(refused, "problems", ())),
                  f'an annotation brief that is not the 00-hint.md §0.1 extraction must be refused: {refused!r}')
-        _require(branch.hint_tip(repo) == anchor and tag.tag_ref_kind(repo, _HINT_FIXTURE_TAG) is None,
+        _require(branch.hint_tip(repo) is None and tag.tag_ref_kind(repo, _HINT_FIXTURE_TAG) is None,
                  'refusals must leave the hint branch and the tag namespace untouched')
 
         message = tag.annotation(branch.FX_BRIEF, _hint_footer(anchor))
@@ -1484,7 +1517,8 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C2():
         leak = {"artifacts/triplet/leak.yaml": f"note: {branch.FIXTURE_TERM}\n"}
         _require(branch.code_of(lambda: _hint_payload_commit(tmp, name="leak", repo=repo, extra_files=leak))
                  == "HINT_PAYLOAD_PII", 'a PII literal in the payload tree must block the payload commit')
-        _require(branch.hint_tip(repo) == anchor, 'a PII hit must stop BEFORE the hint branch moves')
+        _require(branch.hint_tip(repo) is None,
+                 'a PII hit must stop BEFORE any ref exists (and a publication never moves refs/heads/hint)')
         # ★ file NAMES ship too (the tree object carries them). A publisher-built payload also lists every name in
         #   PROVENANCE.json, so its content scan would catch the name first -- this control therefore judges a
         #   commit built by hand (another PC, old tooling) whose tree gains a clean-bodied file with a PII NAME
@@ -1495,14 +1529,14 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C2():
         core.git(repo, "update-index", "--add", "--cacheinfo",
                  f"100644,{blob},artifacts/triplet/{branch.FIXTURE_TERM}.yaml", env_extra=idx)
         named_tree = core.git(repo, "write-tree", env_extra=idx).stdout.strip()
-        named = core.git(repo, "commit-tree", named_tree, "-p", anchor, "--no-gpg-sign",
+        named = core.git(repo, "commit-tree", named_tree, "-p", fx["guide"], "--no-gpg-sign",
                          input_text=f"{_HINT_FIXTURE_TAG}\n", env_extra=branch.identity_env(_HINT_FIXTURE_UTC)).stdout.strip()
         _require("HINT_PAYLOAD_PATH_PII"
                  in tag.problem_codes(branch.commit_violations(repo, named, _HINT_FIXTURE_TAG, pii.require_terms(repo))),
                  'a PII literal in a payload file NAME must be refused even when every file body is clean')
         # ★ identity is judged by EQUALITY: an operator-authored commit over the same clean tree is refused.
         tree = core.git_out(repo, "rev-parse", f"{anchor}^{{tree}}")
-        op_commit = core.git(repo, "commit-tree", tree, "-p", anchor, "--no-gpg-sign", input_text=f"{_HINT_FIXTURE_TAG}\n",
+        op_commit = core.git(repo, "commit-tree", tree, "-p", fx["guide"], "--no-gpg-sign", input_text=f"{_HINT_FIXTURE_TAG}\n",
                              env_extra=_HINT_OPERATOR_ENV).stdout.strip()
         _require("HINT_COMMIT_IDENTITY_NOT_SYNTHETIC"
                  in tag.problem_codes(branch.commit_violations(repo, op_commit, _HINT_FIXTURE_TAG, pii.require_terms(repo))),

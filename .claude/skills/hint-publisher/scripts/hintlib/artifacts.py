@@ -9,8 +9,13 @@
 절단선 (날짜 박힌 불변식 — 옛 자리에서 옮겨 왔다)
     - **평면 먼저**: `docker|native`. 다른 평면 파일 ✗ · 쓰이지 않은 Dockerfile ✗(F2). 평면을 파생할 신호가 없으면 차단
       (`HINT_PLANE_UNDERIVABLE`) — "신호 없음 = native" 는 결정 경로의 침묵 폴백이다.
-      ⚠ 알려진 한계(2026-09-22 통합 결정 D-d): native 평면 신호를 내는 producer 가 아직 없다(serve phase 의 평면 관측 배선 부재) —
-      native 셀은 fail-closed 로 막힌다. 해소는 신호 배선이지 추측이 아니다(S1–S5 범위 밖).
+      (2026-09-22 D-d 의 "native producer 부재" 한계는 2026-09-23 plan_26092311 이 해소했다 — native serve proof 가 `plane` 을 관측해
+      evidence 가 넘긴다. 신호가 없으면 여전히 차단이다.)
+    - **native 도 Docker 와 같은 슬롯 집합**(2026-09-29 · plan_26092908 §4.2 U1): N1 형(원천 Docker 이미지에서 재포장한 wheelhouse)은
+      원천 이미지의 Dockerfile·requirements·빌드 패치를 **원천 이미지 기준(원천 셀 attestation)** 으로 verified 로 싣고, 실행되지 않은
+      compose·serve_runner·env 형상·sub_recipe·원천 셀 트리플렛(= 이 셀의 Docker 형)은 같은 렌더러 경로로 싣되 generated-unverified
+      (renderer) · 파일 첫 줄 경고. 렌더러로 못 만드는 자리(native 기동 기록 등)는 생성하지 않고 `agent_requests` 로 남긴다.
+      모든 실린 파일은 `slots.<slot>.file_records[]` 에 verification · generated_by · 근거 · relevance(§4.3) · 근거를 든다.
     - **값의 지위 커버리지 = 튜닝 노브**(D-b · 2026-09-22): 전송·신원 노브 `model`·`host`·`port`·`served-model-name` 은 닫힌
       목록(`VALUE_STATUS_EXCLUDED_KNOBS`)으로 후보에서 뺀다 — 그 밖의 서빙 yaml 노브는 전부 value-status 블록을 요구한다.
     - **선택자가 태그보다 먼저**(2026-09-04 실측: `0.18.0-…-wheel` 태그가 0.27.1 소스빌드 내용을 가리켰다 — 태그는 가변
@@ -100,6 +105,9 @@ SLOTS = (
 )
 
 LEDGER_IN_IMAGE = "/opt/easy-vllm/build_ledger.json"      # owner upstream-version-watch (build_plane.md §2)
+# 원장 `requirements_sha256` 이 해시한 이미지 안 경로(render_dockerfile 원장 스탠자 `_sha256("/tmp/requirements.txt")` ·
+#   Dockerfile COPY requirements.txt → 이 경로). 목적지가 이 경로일 때만 원장 sha 로 쓰인 바이트를 대조한다(plan_26092908 §4.5).
+LEDGER_REQUIREMENTS_IN_IMAGE = "/tmp/requirements.txt"
 REL_ARCH_VARIANT_LEDGER = ".claude/policies/arch_variant_ledger.json"
 REL_SMOKE_MULTI = ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh"
 REL_SMOKE_SINGLE = ".claude/skills/upstream-version-watch/scripts/single_serve_up.sh"
@@ -147,6 +155,9 @@ PROBE_ATTR = "image_probe"
 #   `async-scheduling: false  # … 명시 필수` 를 declared-requirement 로 제안했으나 그 요구를 뒷받침한 관측 실패는 계보에 없었다).
 #   주석 단어만 있으면 inherited 로 제안하고 이 문구를 단다 — 관측된 실패가 있으면 저작자가 declared-requirement 로 올린다.
 COMMENT_ONLY_REQUIREMENT_NOTE = "yaml 주석만 있음 — 관측된 실패가 있으면 declared-requirement"
+# 2026-09-29(plan_26092908 §4.5 F15): 주석 단어 '측정'·'수렴' 도 **저작자의 말**이다 — 스윕 기록(lockset measured-clamp · kv-fit-measured)이
+#   없으면 tuned 를 제안하지 않고 inherited + 이 문구로 낮춘다(DS4F 재생: "측정" 주석 한 단어로 tuned 후보가 나왔다 · 스윕 0).
+COMMENT_ONLY_TUNED_NOTE = "yaml 주석만 있음(스윕 기록 없음) — 이 셀 계보에서 값을 바꿔 잰 기록이 있으면 tuned"
 # compose 슬롯의 측정 뒤 재생성 env 형상 제외 사유(공유 계약 문자열 — 소비자가 글자 그대로 대조한다).
 POST_MEASUREMENT_REGENERATED = "post-measurement-regenerated"
 # 측정 당시 env 값의 **수신자 좌표**(2026-09-22 · plan_26092119 S2 round 3 통합): 옛 문구는 발행기 내부 키 `facts.measurement_env_observed`
@@ -769,13 +780,35 @@ def _dest_path(src: str, dst: str, src_is_dir: bool) -> str:
     return (dst.rstrip("/") + "/" + PurePath(src).name) if dst.endswith("/") else dst
 
 
-def _select_copied(c: _Ctx, src_rel: str, path: Path, baked: bytes | None, probe_note: str) -> dict:
+def _select_copied(c: _Ctx, src_rel: str, path: Path, baked: bytes | None, probe_note: str, *,
+                   ledger_sha256: str | None = None) -> dict:
     """Dockerfile 이 COPY 하는 추적 파일(requirements 등)의 개정 선택 — 명령 원문이 아니라 **바이트**가 증거다: 이미지 안 COPY
-    대상 바이트(이미지 탐침)와 작업트리가 같으면 작업트리, 다르면 이미지 Created 이전 개정이 같을 때만 그 개정을 싣는다."""
+    대상 바이트(이미지 탐침)와 작업트리가 같으면 작업트리, 다르면 이미지 Created 이전 개정이 같을 때만 그 개정을 싣는다.
+
+    `ledger_sha256`(2026-09-29 · plan_26092908 §4.5 "미관측 오판 제거"): 빌드 원장이 빌드 시점에 이 COPY 대상의 sha256 을 적었으면
+    (`requirements_sha256` = 이미지 안 /tmp/requirements.txt · render_dockerfile 원장 스탠자) 탐침이 없어도 **쓰인 바이트는 관측됐다**.
+    옛 판은 이 값을 읽지 않고 "COPY 대상 바이트 미관측" 이라 적었다(D1 · 원장 sha = 실린 바이트 sha 였다)."""
     wt = path.read_bytes()
     rel = core.rel(c.repo, path)
     out = {"path": rel, "bytes": wt, "mode": path.stat().st_mode & 0o777, "shipped": "worktree", "commit": None,
            "history_match": None, "verified": False}
+    if baked is None and ledger_sha256:
+        out["ledger_sha256"] = ledger_sha256
+        if core.sha256_bytes(wt) == ledger_sha256:
+            out.update(method="worktree(빌드 원장 sha256 일치 — 쓰인 바이트 관측 확인 = 예)", verified=True, ledger_sha256_match=True)
+            return out
+        created = _image_created(c)
+        rev = _git_rev_before(c, rel, created)
+        rev_bytes = core.git_bytes(c.repo, "show", f"{rev}:{rel}", check=False) if rev else None
+        if rev_bytes is not None and core.sha256_bytes(rev_bytes) == ledger_sha256:
+            out.update(bytes=rev_bytes, shipped=f"git:{rev}", commit=rev, verified=True, ledger_sha256_match=True,
+                       method=f"git log -1 --before={created} -- {rel} · 빌드 원장 sha256 일치(작업트리는 다르다)")
+            return out
+        out.update(ledger_sha256_match=False,
+                   method=(f"worktree(빌드 원장 sha256 {ledger_sha256[:16]} 과 작업트리·이미지 Created 이전 개정이 모두 다르다 — "
+                           "쓰인 바이트가 아니다 · recipe_vs_image 경고)"))
+        out["image_bytes_differ"] = True
+        return out
     if baked is None:
         out["method"] = f"worktree(이미지 안 COPY 대상 바이트 미관측 — {probe_note})"
         return out
@@ -806,7 +839,43 @@ def _measured_utc(c: _Ctx) -> tuple[str | None, str]:
     got = _utc_z(sweep.get("generated_utc")) if isinstance(sweep, dict) else None
     if got:
         return got, "sweep_index.generated_utc"
-    return None, "unobserved(인증서 measured_utc · 스윕 generated_utc 없음)"
+    lite = _lite_measured_utc(c.repo, c.ev)
+    if lite[0]:
+        return lite
+    return None, "unobserved(인증서 measured_utc · 스윕 generated_utc · lite 리포트 생성일 없음)"
+
+
+def _lite_window(c: "_Ctx") -> dict | None:
+    """evidence.lite_window(lite-only 셀의 측정 창 · 레그) — 자체검사 dict 증거 · 모듈 부재는 None(재구성 ✗)."""
+    from . import evidence as _evidence
+    if not isinstance(c.ev, _evidence.CellEvidence):
+        return None
+    return _evidence.lite_window(c.repo, c.ev)
+
+
+def _lite_tool_args(c: "_Ctx") -> dict | None:
+    from . import evidence as _evidence
+    if not isinstance(c.ev, _evidence.CellEvidence):
+        return None
+    key = ("lite_tool_args",)
+    if key not in c.memo:
+        c.memo[key] = _evidence.lite_tool_args(c.repo, c.ev)
+    return c.memo[key]
+
+
+def _lite_measured_utc(repo: Path, ev: Any) -> tuple[str | None, str]:
+    """lite-only 셀의 측정 시각(2026-09-29 · plan_26092908 §4.5 F8) = 바인딩된 lite bench_report 머리 `생성일`(evidence._report_born_utc 가
+    lite_raw 조인 키로 이미 쓰는 값). 옛 판은 인증서 · 스윕만 보아 D2 가 "측정 시각 미관측" 이었다.
+    ★ FACT_FIX2 G7: 이 값은 측정 **시작**이다 — lite_bench.sh 가 cold 레그 직전(부하 직전)에 `MEASURED_UTC` 를 찍는다. 옛 문구 "측정 끝" 은
+      틀렸다(끝은 evidence.lite_window 의 레그 JSON date)."""
+    if _get(ev, "report_kind") != "lite":
+        return None, "lite 셀 아님"
+    rel = _get(ev, "bench_report_path")
+    from . import evidence as _evidence
+    born = _utc_z(_evidence._report_born_utc(repo, rel)) if rel else None
+    if not born:
+        return None, "lite bench_report 생성일 미관측"
+    return born, f"lite bench_report 생성일({PurePath(str(rel)).name} 머리 · lite 측정 시작 — 부하 직전 lite_bench.sh MEASURED_UTC)"
 
 
 def _mtime_utc(path: Path) -> str | None:
@@ -827,12 +896,102 @@ def _regenerated(c: _Ctx, path: Path) -> dict | None:
     return None
 
 
+# ── 측정 뒤 재생성된 render 3층 env 의 측정 당시 판본 재렌더 (2026-09-29 · plan_26092908 R-b) ─────────────────────────────
+# 왜: F2(2026-09-22)는 측정 뒤 재생성된 `.env.interconnect` 를 **빼기만** 했다 — 수신자는 그 변수 집합 자체를 모르게 됐다(v7 블라인드
+#   S3: v6 D1 은 측정 당시 렌더(38cc0e6)와 일치하는 19키 형상을 실어 만점이었고, v7 은 형상이 통째로 빠졌다). 렌더러는 추적 파일이라
+#   측정 시각 이전 마지막 커밋의 바이트를 git 이 든다 — 그 판본으로 **같은 manifest 입력**을 다시 렌더하면 측정 당시 형상의 결정론 근사가
+#   된다. 단 실행이 읽은 바이트가 아니므로(manifest 는 비추적 · 측정 뒤 바뀌었을 수 있다) `generated-unverified` · `renderer@<rev12>` 로
+#   표시하고 파일 첫 줄에 경고를 단다. 재렌더하지 못하면 결손 코드 `HINT_MISSING_ENV_SHAPE_RERENDER` + 제외 행(침묵 ✗).
+RERENDER_FUNCS = {"interconnect": "render_nccl_envfile", "cluster": "render_cluster_envfile"}
+RERENDER_GENERATED_BY_RE = re.compile(r"^renderer@[0-9a-f]{12}\Z")
+RERENDER_STATUS = "rerendered-at-measurement-revision"
+
+
+def _rerender_at_measurement(c: "_Ctx", kind: str) -> dict:
+    """측정 당시 렌더러 판본으로 env 를 다시 렌더한다 → {ok, rev, rev12, generated_by, text, module, manifest, manifest_mtime_utc,
+    manifest_basis, method} | {ok: False, why}. 옛 판본은 `git show <rev>:<렌더러>` 바이트를 임시 디렉터리에 꺼내 적재한다
+    (`_render_module` 관례 = core.load_owner_module · 임시 경로라 작업트리 모듈 캐시와 섞이지 않는다). 읽기 전용 배관만 쓴다."""
+    import importlib.util
+    import tempfile
+    key = ("rerender", kind)
+    if key in c.memo:
+        return c.memo[key]
+    measured, msrc = _measured_utc(c)
+    rel = core.REL_RENDER_DOCKERFILE
+    fn_name = RERENDER_FUNCS.get(kind)
+
+    def no(why: str) -> dict:
+        c.memo[key] = {"ok": False, "why": why}
+        return c.memo[key]
+    if fn_name is None:
+        return no(f"render 3층 env 가 아니다(kind={kind}) — 재렌더 대상 아님")
+    if not measured:
+        return no("측정 시각 미관측 — 측정 당시 렌더러 판본을 고를 수 없다")
+    if not (c.repo / ".git").exists():
+        return no("git 저장소 아님 — 측정 당시 렌더러 판본을 꺼낼 수 없다")
+    rev = _git_rev_before(c, rel, measured)
+    if rev is None:
+        return no(f"git log -1 --before={measured} -- {rel} 없음(측정 전 렌더러 커밋 없음)")
+    data = core.git_bytes(c.repo, "show", f"{rev}:{rel}", check=False)
+    if data is None:
+        return no(f"git show {rev[:12]}:{rel} 실패")
+    man = c.repo / "output" / c.topo / "manifest.yaml"
+    if not man.is_file():
+        return no(f"output/{c.topo}/manifest.yaml 부재 — 렌더 입력 없음")
+    with tempfile.TemporaryDirectory(prefix="hint-renderer-rev-") as td:
+        f = Path(td) / PurePath(rel).name
+        f.write_bytes(data)
+        name = f"hint_renderer_at_{rev[:12]}_{kind}"
+        try:
+            spec = importlib.util.spec_from_file_location(name, f)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+        except (Exception, SystemExit) as e:          # noqa: BLE001 — 옛 판본 적재 실패는 결손 사유로 옮긴다(삼키지 않는다)
+            return no(f"렌더러 {rev[:12]} 적재 실패: {type(e).__name__}: {e}")
+        fn, loader = getattr(mod, fn_name, None), getattr(mod, "load_manifest", None)
+        if not callable(fn) or not callable(loader):
+            return no(f"렌더러 {rev[:12]} 에 {fn_name}/load_manifest 가 없다")
+        try:
+            text = fn(loader(str(man)))
+        except (Exception, SystemExit) as e:          # noqa: BLE001 — fail-loud 렌더러의 거부 사유를 그대로 옮긴다
+            return no(f"렌더러 {rev[:12]}.{fn_name} 거부: {type(e).__name__}: {e}")
+    if not isinstance(text, str) or not text.strip():
+        return no(f"렌더러 {rev[:12]}.{fn_name} 가 빈 결과를 냈다")
+    mmt = _mtime_utc(man)
+    mbasis = ("manifest mtime ≤ 측정(측정 당시 입력으로 관측)" if mmt and mmt <= measured else
+              f"manifest mtime {mmt} > 측정 — 측정 뒤 바뀐 입력일 수 있다(비추적 · 측정 당시 manifest 미관측)")
+    c.memo[key] = {"ok": True, "rev": rev, "rev12": rev[:12], "generated_by": f"renderer@{rev[:12]}", "text": text,
+                   "module": mod, "function": fn_name, "manifest": f"output/{c.topo}/manifest.yaml", "manifest_mtime_utc": mmt,
+                   "manifest_basis": mbasis, "measured_utc": measured, "measured_source": msrc,
+                   "method": f"git log -1 --before={measured} -- {rel} → {rev[:12]} · git show · {fn_name}(load_manifest(output/{c.topo}/manifest.yaml))"}
+    return c.memo[key]
+
+
+def _rerender_reason(rr: dict) -> str:
+    """파일 첫 줄 경고(unverified_header)의 사유 — 01 표·PAYLOAD 와 같은 문장."""
+    return f"측정 뒤 재생성된 실행 파일 대신 측정 당시 판본 렌더러 {rr['rev12']} 로 같은 manifest 를 다시 렌더한 형상(실행 바이트 아님)"
+
+
+def _shape_regenerated(c: "_Ctx", p: Path, name: str, kind: str, regen: dict, derived_out: list | None = None) -> dict:
+    """측정 뒤 재생성된 env 파일 → 재렌더 형상 {ok, text, rule, rr} 또는 {ok: False, why}. render 3층 파일만 재렌더한다."""
+    import tempfile
+    rr = _rerender_at_measurement(c, kind)
+    if not rr["ok"]:
+        return {"ok": False, "why": rr["why"]}
+    with tempfile.TemporaryDirectory(prefix="hint-rerender-") as td:
+        tp = Path(td) / name
+        tp.write_text(rr["text"], encoding="utf-8")
+        text, rule = _env_shape(c.repo, tp, kind, render_module=rr["module"], sf=c.sf, measured=regen["measured_utc"],
+                                derived_out=derived_out, rerender={**rr, **{k: regen[k] for k in ("mtime_utc",)}, "file": name})
+    return {"ok": True, "text": text, "rule": rule, "rr": rr}
+
+
 # ── compose 슬롯 추적 파일의 측정 당시 개정 (2026-09-22 · plan_26092119 S2 round 3) ─────────────────────────────────────
 # 왜: round 2 는 빌드 레시피(Dockerfile)만 개정을 골랐고 compose 는 작업트리를 그대로 실었다 — 태그2 의 docker-compose.yaml 은 측정
 #   (09-12) 뒤 09-22 에 주석이 고쳐져 "NCCL env 19키(①7+②8+③4)" 라 말했는데, 측정 당시 렌더러는 17키였다(기계 채점 X 항목).
 #   docker history 같은 이미지 측 증거가 compose 에는 없으므로 기준은 **측정 시각**이다: 작업트리 mtime(관측 속성) ≤ 측정이면 그 바이트가
 #   측정 당시 바이트이고, 뒤면 측정 전 마지막 커밋을 싣는다. 교차대조(측정 뒤 커밋 · HEAD 대비 수정본)는 method·cross_check 에 적는다.
-_TRACKED_KEYS = ("path", "shipped", "commit", "method", "basis", "verified", "measured_utc", "mtime_utc",
+_TRACKED_KEYS = ("path", "shipped", "commit", "method", "basis", "verified", "executed", "measured_utc", "mtime_utc",
                  "commits_after_measurement", "cross_check", "history_match", "warning")
 
 
@@ -968,7 +1127,9 @@ def _plane(c: _Ctx) -> tuple[str, str]:
     observed = source = None
     if c.env.get("IMAGE_TAG") or c.env.get("BUILD_DOCKERFILE"):
         observed, source = "docker", "cell-env(IMAGE_TAG|BUILD_DOCKERFILE)"
-    elif isinstance(build, dict) and (build.get("image_tag") or build.get("dockerfile")):
+    elif isinstance(build, dict) and (build.get("image_tag") or build.get("dockerfile")) \
+            and not build.get("native_wheelhouse_source"):
+        # native wheelhouse 의 원천 이미지(evidence 표지)는 실행 평면 신호가 아니다(2026-09-23 N1)
         observed, source = "docker", "evidence.build_identity(image_tag|dockerfile)"
     if declared and declared not in ("docker", "native"):
         core.fail("HINT_PLANE_UNKNOWN", f"평면 어휘 밖: {declared!r}", "docker|native(container=docker) 중 하나.")
@@ -981,14 +1142,19 @@ def _plane(c: _Ctx) -> tuple[str, str]:
         return declared, "evidence.plane(declared)"
     core.fail("HINT_PLANE_UNDERIVABLE",
               "실행 평면을 파생할 신호가 없다(셀 env 에 IMAGE_TAG·BUILD_DOCKERFILE 없음 · evidence.plane 없음).",
-              "docker 셀이면 셀 env 에 이미지 선택자(IMAGE_TAG·BUILD_DOCKERFILE)를 둔다. native 셀은 **현재 발행할 수 없다** — "
-              "native 평면 신호를 내는 producer 가 아직 없다(알려진 한계 · 2026-09-22 통합 결정 D-d: serve phase 가 평면을 관측해 "
-              "기록하는 배선이 서면 evidence 가 `plane` 으로 넘긴다). '신호 없음 = native' 로 추측하지 않는다.")
+              "docker 셀이면 셀 env 에 이미지 선택자(IMAGE_TAG·BUILD_DOCKERFILE)를 둔다. native 셀이면 native serve proof(plane=native · "
+              "native_multinode_serve.py 산출)가 있어야 evidence 가 `plane` 을 넘긴다(2026-09-23 plan_26092311 배선). "
+              "'신호 없음 = native' 로 추측하지 않는다.")
 
 
 def plane_of(repo: Path, ev: Any, *, forward_module: Any | None = None) -> str:
     """실행 평면 `docker|native`(SPEC §5.6). 셀 env 선택자 · evidence 관측 · 선언의 일치를 요구한다."""
-    return _plane(_ctx(repo, ev, forward_module=forward_module))[0]
+    return plane_and_source(repo, ev, forward_module=forward_module)[0]
+
+
+def plane_and_source(repo: Path, ev: Any, *, forward_module: Any | None = None) -> tuple[str, str]:
+    """plane_of 의 (평면, 판정 출처) — 이름 평면 토큰(O-N1 · 2026-09-23)의 출처 기록용. 판정은 `_plane` 한 벌이다."""
+    return _plane(_ctx(repo, ev, forward_module=forward_module))
 
 
 def _dockerfile_args(c: _Ctx, text: str) -> list[str]:
@@ -1728,6 +1894,24 @@ def _ledger_rows(ledger: dict) -> list[dict]:
     return rows
 
 
+def _ledger_script_identity(c: "_Ctx", row: dict) -> dict:
+    """원장 경로의 스크립트 바이트 정체(2026-09-29 · plan_26092908 §4.5 F1). 원장 `patches[].script_sha256` 은 빌드가 **실행한** 스크립트
+    바이트의 sha 다 — 작업트리 파일(= 실을 바이트)과 대조한 결과를 판정 근거 표의 '스크립트 바이트 정체' 칸에 옮긴다(옛 판은 탐침 경로만
+    이 칸을 채워 원장 경로가 7/7 일치하는데도 전부 `—` 였다). 판정 ✗ — 대조 사실만. inline 패치는 파일이 없어 건너뛴다."""
+    want = row.get("script_sha256")
+    ph = row.get("phase")
+    if not isinstance(want, str) or not want or ph not in PATCH_DIRS:
+        return row
+    p = c.out / PATCH_DIRS[ph] / str(row.get("file"))
+    if not p.is_file():
+        ident = "build-ledger(원장 script_sha256 기록 · 작업트리에 파일 없음 — 실린 바이트 대조 불가)"
+    elif core.sha256_file(p) == want:
+        ident = "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)"
+    else:
+        ident = "build-ledger(원장 script_sha256 ≠ 작업트리 바이트 — 빌드 뒤 바뀐 파일)"
+    return {**row, "script_identity": ident, "ledger_script_sha256": want}
+
+
 def _post_label(row: dict) -> dict:
     """X10: post 패치 = 공유 이미지 입력(이미지 하나가 모든 모델 — 헌법 이미지 네이밍 불변식)."""
     if row.get("phase") != "post":
@@ -1772,7 +1956,7 @@ def _applied(c: _Ctx, *, probe: bool = True) -> tuple[dict, dict, dict | None, d
                 excluded.append({"phase": ph, "file": p.name,
                                  "why": f"excluded_by_recipe({sel['dockerfile']} 이 {d}/ 를 COPY 하지 않는다 — 실행된 적 없음)"})
     if ledger is not None:
-        rows = [_post_label(r) for r in _ledger_rows(ledger)]
+        rows = [_ledger_script_identity(c, _post_label(r)) for r in _ledger_rows(ledger)]
         in_ledger = {(r["phase"], r["file"]) for r in rows}
         for ph in sorted(in_recipe):
             for p in listing[ph]:
@@ -1868,6 +2052,45 @@ def _manifest_ph(field_name: str) -> str:
     return pii.manifest_placeholder(field_name)
 
 
+def _field_of(detail: Any) -> str:
+    """env_tier 세부(`interconnect.nccl_transport` · `manifest.fixture.x`) → manifest 필드 이름(`manifest.` 접두 제거)."""
+    d = str(detail)
+    return d[len("manifest."):] if d.startswith("manifest.") else d
+
+
+def _derived_values(rd: Any, field_name: str, keys: list[str]) -> dict:
+    """한 manifest 필드에서 파생되는 여러 env 키의 **실효값 표**(plan_26092908 §4.6). 렌더러가 가진 것만 읽는다(손목록 ✗):
+    ① 선택형 필드 — 렌더러 모듈의 `<필드 끝 이름 대문자>S` 표(예 `nccl_transport` → `NCCL_TRANSPORTS` = {선택지: {키: 값}})가
+       이 키들을 전부 들면 선택지별 값 표. ② 값 전사형 필드 — env_tier 탐침 manifest(`_env_tier_probe_env`)가 실은 값에서 탐침
+       문자열을 `{field}` 로 바꾼 규칙(예 `=__probe_hca__` → `={field}`). 둘 다 못 읽으면 규칙 미관측(지어내지 않는다)."""
+    out: dict = {"field": field_name, "keys": list(keys),
+                 "placeholders": {k: f"<derived:{field_name}→{k}>" for k in keys},
+                 "effective_values": None, "value_rule": None, "source": None}
+    table = getattr(rd, field_name.rsplit(".", 1)[-1].upper() + "S", None)
+    if isinstance(table, dict) and table and all(isinstance(v, dict) and set(keys) <= set(v) for v in table.values()):
+        out["effective_values"] = {str(opt): {k: str(v[k]) for k in keys} for opt, v in sorted(table.items())}
+        out["source"] = f"render_dockerfile.{field_name.rsplit('.', 1)[-1].upper()}S(선택지 → 키 값)"
+        out["rule_text"] = " | ".join(f"{opt} → " + " · ".join(f"{k}={v}" for k, v in kv.items())
+                                      for opt, kv in out["effective_values"].items())
+        return out
+    probe_fn = getattr(rd, "_env_tier_probe_env", None)
+    sentinels = getattr(rd, "_ENV_TIER_PROBES", None)
+    if callable(probe_fn) and isinstance(sentinels, dict):
+        try:
+            penv = probe_fn()
+        except (KeyError, ValueError):
+            penv = None
+        sent = next((sv for sv, f in sentinels.items() if f == field_name), None)
+        if isinstance(penv, dict) and sent and all(sent in str(penv.get(k, "")) for k in keys):
+            out["value_rule"] = {k: str(penv[k]).replace(sent, "{" + field_name + "}") for k in keys}
+            out["source"] = "render_dockerfile.env_tier 탐침 manifest(탐침 값 → {field} 규칙)"
+            out["rule_text"] = " · ".join(f"{k}={v}" for k, v in out["value_rule"].items())
+            return out
+    out["source"] = "미관측(렌더러에 선택지 표·탐침 규칙이 없다 — 지어내지 않는다)"
+    out["rule_text"] = "미관측"
+    return out
+
+
 def _tier_fn(rd) -> tuple[Callable[[str], tuple[str, str | None]], str]:
     """(층 판정 함수, 규칙 이름). 정본 = render_dockerfile.env_tier(key). 부재면 **같은 모듈의 프리셋/불변 상수**에서 층을
     파생한다 — 손목록이 아니라 같은 SSOT 이고, 그 사실을 형상 헤더와 결과에 적는다(소리 나는 폴백). 둘 다 없으면 차단."""
@@ -1892,7 +2115,8 @@ def _tier_fn(rd) -> tuple[Callable[[str], tuple[str, str | None]], str]:
 
 
 def _env_shape(c_repo: Path, path: Path, kind: str, *, render_module: Any | None = None,
-               sf: Any | None = None, regen: dict | None = None, measured: str | None = None) -> tuple[str, str]:
+               sf: Any | None = None, regen: dict | None = None, measured: str | None = None,
+               derived_out: list | None = None, rerender: dict | None = None) -> tuple[str, str]:
     """env 형상 텍스트와 규칙 이름. `regen`(F2 · 2026-09-22 S2 round 2) = 이 파일이 측정 **뒤** 다시 쓰였다({mtime_utc,
     measured_utc, measured_source}) — 그러면 리터럴 값은 측정 당시 값이 아닐 수 있으므로 싣지 않고 `REGENERATED_VALUE` 로
     바꾼다(키는 남긴다 · `<manifest.…>` 표지는 값이 아니라 파생 규칙이라 남긴다). round 1: `.env.interconnect` 가 09-17 에
@@ -1909,7 +2133,16 @@ def _env_shape(c_repo: Path, path: Path, kind: str, *, render_module: Any | None
                   f"{regen['mtime_utc']}(mtime 관측)에 다시 쓰였다.",
                   f"#   측정 당시 값은 관측되지 않았다 — 리터럴 값은 싣지 않고 `{REGENERATED_VALUE}` 로 둔다.",
                   "#   키 목록도 재생성 시점의 형상이다(측정 당시 키 집합과 같다는 보장 없음) · `<manifest.…>` 표지는 파생 규칙이라 남긴다."]
-    if regen:
+    if rerender:
+        # R-b(2026-09-29): 측정 당시 판본 렌더러의 산출 — 값은 그 판본의 프리셋·불변이다(실행 바이트 아님).
+        lines += [f"# ⚠ 측정 당시 판본 재렌더 — generated_by: {rerender['generated_by']} · verification: generated-unverified(실행 바이트 아님)",
+                  f"#   작업트리 envs/{rerender['file']} 는 측정({rerender['measured_utc']} · {rerender['measured_source']}) 뒤 "
+                  f"{rerender.get('mtime_utc')}(mtime 관측)에 다시 쓰였다 — 그 바이트는 싣지 않는다.",
+                  f"#   이 형상 = {rerender['method']}.",
+                  f"#   입력: {rerender['manifest_basis']}.",
+                  f"#   측정 실행이 실제로 읽은 바이트와 같다는 관측은 없다 — 측정 당시 env 관측값 = {ENV_OBSERVED_POINTER}."]
+        keep = f"값 유지 — 측정 당시 판본 렌더러 {rerender['rev12']} 산출(실행 바이트 아님)"
+    elif regen:
         keep = "리터럴 값 미실림 — 측정 후 재생성"
     elif measured:
         keep = f"값 유지 — 재현 사실(mtime ≤ 측정 {measured} 확인)"
@@ -1918,9 +2151,11 @@ def _env_shape(c_repo: Path, path: Path, kind: str, *, render_module: Any | None
     if kind in ("cluster", "interconnect"):
         rd = _render_module(c_repo, render_module)
         tier, rule = _tier_fn(rd)
-        lines += [f"# 값의 정본 = 자기 manifest → `render_dockerfile.py {renderer}` 로 다시 파생한다.",
+        lines += [f"# 값의 정본 = 자기 manifest → `render_dockerfile.py {renderer}` 로 다시 파생한다"
+                  + (f"(측정 당시 판본 = git show {rerender['rev12']}:{core.REL_RENDER_DOCKERFILE})." if rerender else "."),
                   f"# 층 규칙: {rule} (①env=치환 · ②preset·③invariant={keep})"]
-        for key, value in env.items():
+        tiers: dict[str, tuple] = {}
+        for key in env:
             try:
                 got = tier(key)
             except (KeyError, ValueError) as e:
@@ -1929,8 +2164,27 @@ def _env_shape(c_repo: Path, path: Path, kind: str, *, render_module: Any | None
             if not (isinstance(got, tuple) and len(got) == 2 and got[0] in ENV_TIERS):
                 core.fail("HINT_ENV_TIER_UNKNOWN", f"{path.name}:{key} 의 env tier 가 규약 밖이다: {got!r}",
                           f"env_tier 는 {ENV_TIERS} 중 하나와 세부(또는 None)를 돌려준다.")
-            t, detail = got
-            if t == "env":
+            tiers[key] = got
+        # 키마다 자기 자리표시(2026-09-29 · plan_26092908 §4.6 V14): 한 manifest 필드에서 여러 키가 파생되면(nccl_transport →
+        #   NCCL_IB_DISABLE·NCCL_NET · socket_iface → *_IFNAME 5키) 같은 `<manifest.…>` 하나를 여러 키가 나눠 들면 수신자는 두 키에
+        #   같은 값을 넣는다(블라인드 X1 — NCCL_IB_DISABLE 에 'rdma' 를 넣을 뻔했다). 그 키들은 `<derived:<field>→<KEY>>` 로 적고 필드
+        #   값 → 키 값 실효값 표(렌더러 자신의 표 · 규칙)를 헤더와 `derived_out` 에 싣는다.
+        by_field: dict[str, list[str]] = {}
+        for key, (t, detail) in tiers.items():
+            if t == "env" and detail:
+                by_field.setdefault(_field_of(detail), []).append(key)
+        multi = {f: ks for f, ks in by_field.items() if len(ks) > 1}
+        for field_name, keys in sorted(multi.items()):
+            drow = _derived_values(rd, field_name, keys)
+            lines += [f"# 파생 키 {field_name} → {' · '.join(keys)} — 키마다 자기 자리표시 `<derived:{field_name}→<KEY>>` "
+                      f"· 실효값 규칙: {drow['rule_text']}"]
+            if derived_out is not None:
+                derived_out.append({k: v for k, v in drow.items() if k != "rule_text"})
+        for key, value in env.items():
+            t, detail = tiers[key]
+            if t == "env" and detail and _field_of(detail) in multi:
+                shaped = f"<derived:{_field_of(detail)}→{key}>"
+            elif t == "env":
                 # 표지 모양은 slave_forward._value_shape 와 같다(`<manifest.<detail>>`) — 한 레시피 안에서 두 모양 ✗.
                 shaped = f"<{detail}>" if detail and str(detail).startswith("manifest") else \
                     _manifest_ph(str(detail) if detail else f"{kind}.{key.lower()}")
@@ -2211,8 +2465,14 @@ def sub_recipe(repo: Path, ev: Any, *, forward_module: Any | None = None, render
         p = c.out / "envs" / name
         if not p.is_file():
             continue
-        if _regenerated(c, p):
-            skipped.append({"file": f"envs/{name}"})      # 측정 뒤 재생성 — collect 와 같은 규칙(싣지 않는다)
+        regen = _regenerated(c, p)
+        if regen:
+            # 측정 뒤 재생성 — collect 와 같은 규칙(측정 당시 판본 재렌더 · 못 하면 싣지 않는다)
+            sh = _shape_regenerated(c, p, name, _TIER_ENV_KINDS[name], regen)
+            if sh["ok"]:
+                shapes[name] = sh["text"]
+            else:
+                skipped.append({"file": f"envs/{name}"})
             continue
         shapes[name] = _env_shape(c.repo, p, _TIER_ENV_KINDS[name], render_module=c.render(), sf=c.sf,
                                   measured=_measured_utc(c)[0])[0]
@@ -2290,10 +2550,12 @@ def value_status_candidates(repo: Path, ev: Any, *, forward_module: Any | None =
             for word, st in _COMMENT_STATUS:
                 if word in comment:
                     status, source, reason = st, "serving-yaml 줄 주석", f"주석 단어 '{word}': {comment}"
-                    if st == "declared-requirement":
+                    if st in ("declared-requirement", "tuned"):
                         # 2026-09-22 S2 round 3: 주석 단어만으로는 요구가 **관측**되지 않았다 — inherited 로 제안하고 문구를 단다
                         #   (lockset 출처 declared-requirement·target_gmu 는 기록된 출처라 위 분기에서 그대로 declared-requirement).
-                        status, note = "inherited", COMMENT_ONLY_REQUIREMENT_NOTE
+                        #   2026-09-29 F15: tuned 도 같다 — 스윕 기록(lockset 출처)은 위 분기가 잡고, 주석 단어만이면 inherited.
+                        status = "inherited"
+                        note = COMMENT_ONLY_REQUIREMENT_NOTE if st == "declared-requirement" else COMMENT_ONLY_TUNED_NOTE
                         reason = f"{reason} · {note}"
                     break
         if status is None and value.lower() == "auto":
@@ -2334,7 +2596,10 @@ def _first_measure_utc(repo: Path, ev: Any) -> tuple[str | None, str | None]:
     if not isinstance(sdir, str) or not (repo / sdir).is_dir():
         return None, None
     best = None
+    cell = _get(ev, "cell")
     for f in sorted((repo / sdir).rglob("*.json")):
+        if isinstance(cell, str) and not core.level_raw_is_measured_tool(f, cell):
+            continue    # 도구를 바꿔 재스윕한 자리에 남은 옛 도구 원시 — 이 측정의 첫 측정이 아니다(2026-09-23 D1)
         doc = _json_file(f)
         m = _LOCAL_DATE.match(str((doc or {}).get("date") or ""))
         if m:
@@ -2432,6 +2697,11 @@ def _build_command(c: _Ctx, sel: dict) -> tuple[str, str]:
     return "\n".join(head + [" \\\n".join(parts)] + tail), src
 
 
+# lite 도구 원문에서 재구성 명령으로 옮기는 **부하 · 데이터셋** 인자(닫힌 목록 · 저장 · 출력 경로 인자는 재현 부하가 아니다).
+_LITE_TOOL_LOAD_FLAGS = ("--dataset-name", "--random-input-len", "--random-output-len", "--random-range-ratio", "--ignore-eos",
+                         "--trust-remote-code", "--max-concurrency", "--request-rate")
+
+
 def _bench_commands(c: _Ctx) -> tuple[str, str]:
     """(명령, 명령 출처) — 셀 스윕의 bench JSON(`vllm bench serve --save-result` 산출) 각각을 그 **필드만으로** 복원한 명령
     (F5 · 옛 판은 "03-benchmark.md §3.x" 자리표시였다). JSON 에 없는 인자는 지어내지 않고 이름만 적는다. 균일 요청 길이면
@@ -2448,14 +2718,28 @@ def _bench_commands(c: _Ctx) -> tuple[str, str]:
     rows = []
     if isinstance(sdir, str) and (c.repo / sdir).is_dir():
         for f in sorted((c.repo / sdir).rglob("*.json")):
+            if not core.level_raw_is_measured_tool(f, c.cell):
+                continue    # 옛 도구 원시(2026-09-23 D1) — 이 측정의 레벨 명령이 아니다
             d = _json_file(f)
             if not d or not all(k in d for k in _BENCH_JSON_KEYS):
                 continue
             m = _LOCAL_DATE.match(str(d.get("date") or ""))
             rows.append(("".join(m.groups()) if m else "~", f.relative_to(c.repo).as_posix(), d))
+    lw = None
+    if not rows and not sdir:
+        # FACT_FIX2 G9: lite-only 셀(스윕 없음) — lite_raw 조인(evidence.lite_window)이 가리키는 레그 JSON 이 이 측정의 bench JSON 이다
+        #   (옛 판은 스윕 디렉터리만 찾아 '명령 미관측' 이었다).
+        lw = _lite_window(c)
+        for leg in ("cold", "warm"):
+            x = (lw or {}).get("legs", {}).get(leg)
+            if x and all(k in x["doc"] for k in _BENCH_JSON_KEYS):
+                m = _LOCAL_DATE.match(str(x["doc"].get("date") or ""))
+                rows.append(("".join(m.groups()) if m else "~", x["path"], x["doc"]))
     if not rows:
-        return "", "unobserved(스윕 디렉터리에 vllm bench serve JSON 없음)"
+        return "", ("unobserved(스윕 디렉터리에 vllm bench serve JSON 없음)" if sdir or not _get(c.ev, "report_kind") == "lite"
+                    else "unobserved(lite-only 셀 — lite_raw 조인 불성립 또는 레그 JSON 부재)")
     rows.sort()
+    tool = _lite_tool_args(c) if any(PurePath(r).name.startswith(("lite_cold_", "lite_warm_")) for _, r, _ in rows) else None
     lines = ["# bench JSON 필드로 복원: backend · model_id→--model · tokenizer_id→--tokenizer · num_prompts · max_concurrency · "
              "request_rate · burstiness · 요청당 입출력 길이 = total_*_tokens ÷ completed(나누어떨어질 때만 — 평균이다 · 요청별 길이는 "
              "JSON 에 없다) · 나누어떨어지면 `--dataset-name random` 으로 추정했다(측정 도구가 그 꼴로 부른다 — 아래 도구 원문).",
@@ -2464,6 +2748,26 @@ def _bench_commands(c: _Ctx) -> tuple[str, str]:
              "# JSON 에 없는 인자(--endpoint · --base-url · --ignore-eos · --num-warmups · --temperature · --seed · --random-range-ratio · "
              "--trust-remote-code)는 측정 도구가 정했다 — level_* = run_bench.sh · lite_cold/lite_warm = lite_bench.sh"
              "(.claude/skills/adversarial-benchmark/scripts/) · 셀 스윕 순서는 sweep_bench.sh."]
+    tflags = [(f_, v_) for f_, v_ in (tool or {}).get("flags") or [] if f_ in _LITE_TOOL_LOAD_FLAGS]
+    if tool and tflags:
+        # FACT_FIX2 G3: lite 레그의 데이터셋 · 부하 인자는 측정 시점 도구 원문(리터럴)이다 — JSON 평균(total ÷ completed)은 chat 템플릿이
+        #   붙은 실측 토큰이라 인자가 아니다(566 ≠ 512). 평균은 주석으로 따로 적는다.
+        lines.append(f"# lite_cold/lite_warm 의 데이터셋 · 부하 인자 = 측정 시점 도구 원문 {tool['source']}(리터럴 인자만 · `$변수` 인자는 "
+                     "도구가 값을 정하지 않아 JSON 필드로 채운다) — `total_*_tokens ÷ completed` 는 실측 토큰(chat 템플릿 포함)이지 인자가 아니다.")
+    lw = lw or (_lite_window(c) if rows and not sdir else None)
+    if lw:
+        raw = lw.get("raw_doc") or {}
+        inv = [f"bash .claude/skills/adversarial-benchmark/scripts/lite_bench.sh {shlex.quote(str(raw.get('config_name') or c.cell))}"]
+        if raw.get("topology"):
+            inv.append(f"--topology {shlex.quote(str(raw['topology']))}")
+        if raw.get("backend"):
+            inv.append(f"--backend {shlex.quote(str(raw['backend']))}")
+        if _get(c.ev, "bench_report_path"):
+            inv.append("--publish-report")
+        lines.append("# 호출(재구성 — lite_raw config_name · topology · backend + 바인딩된 경량 리포트 = --publish-report · 원문 호출 줄 아님): "
+                     + " ".join(inv))
+        lines.append(f"# 측정 창: 시작 {lw['start_utc']}({lw['start_source']}) → 끝 {lw.get('end_utc') or '미관측'}"
+                     f"({lw.get('end_source') or '레그 JSON date · lite_raw mtime 모두 없음'})")
     for _, rel, d in rows:
         flags = ["vllm bench serve", f"--backend {shlex.quote(str(d['backend']))}"]
         for key, flag in (("model_id", "--model"), ("tokenizer_id", "--tokenizer")):
@@ -2472,19 +2776,39 @@ def _bench_commands(c: _Ctx) -> tuple[str, str]:
         n, ti, to = d.get("completed"), d.get("total_input_tokens"), d.get("total_output_tokens")
         uniform = all(isinstance(x, int) and not isinstance(x, bool) for x in (n, ti, to)) and n > 0 \
             and ti % n == 0 and to % n == 0
-        if uniform:
+        is_lite = PurePath(rel).name.startswith(("lite_cold_", "lite_warm_"))
+        mean_note = ""
+        if is_lite and tflags:
+            flags += [f_ if v_ is None else f"{f_} {v_}" for f_, v_ in tflags if f_ not in ("--max-concurrency", "--request-rate")]
+            if all(isinstance(x, int) and not isinstance(x, bool) for x in (n, ti, to)) and n > 0:
+                mean_note = (f" · 실측 토큰(chat 템플릿 포함 · total ÷ completed · 인자 아님): 입력 {ti}/{n} = {ti / n:g} · "
+                             f"출력 {to}/{n} = {to / n:g}")
+        elif uniform:
             flags += ["--dataset-name random", f"--random-input-len {ti // n}", f"--random-output-len {to // n}"]
+            if is_lite:
+                # FACT_FIX2 G3 폴백: 도구 원문을 못 읽었으면 평균 파생임을 인자 옆에 밝힌다(인자로 읽히지 않게)
+                mean_note = (" · ⚠ --random-input-len/--random-output-len = total ÷ completed 평균(chat 템플릿 포함 실측 토큰 · 측정 도구 "
+                             "원문 인자 미관측 — lite_bench.sh 원문 인자와 다를 수 있다)")
         flags += [f"--num-prompts {d['num_prompts']}", f"--max-concurrency {d['max_concurrency']}"]
         if d.get("request_rate") is not None:
             flags.append(f"--request-rate {shlex.quote(str(d['request_rate']))}")
         if d.get("burstiness") not in (None, 1, 1.0):
             flags.append(f"--burstiness {d['burstiness']}")
-        lines.append(f"# {rel} (date {d.get('date')})" + ("" if uniform else " · total 토큰이 completed 로 나누어떨어지지 않는다(요청 길이 불균일) — 데이터셋 인자 복원 ✗"))
+        acc = d.get("spec_decode_acceptance_length")
+        if is_lite and isinstance(acc, (int, float)) and not isinstance(acc, bool):
+            mean_note += f" · spec_decode_acceptance_length {acc:g}(이 레그 JSON)"
+        lines.append(f"# {rel} (date {d.get('date')})" + mean_note
+                     + ("" if uniform or (is_lite and tflags) else " · total 토큰이 completed 로 나누어떨어지지 않는다(요청 길이 불균일) — 데이터셋 인자 복원 ✗"))
         lines.append(" ".join(flags))
-    return "\n".join(lines), "reconstructed(bench json)"
+    # native 셀(2026-09-23 N1)은 bench JSON 의 tokenizer_id 가 **호스트** 경로다(Docker 는 컨테이너 경로) — 재구성 명령은 파생
+    #   텍스트이므로 manifest 치환표로 운영자 경로를 자리표시한다(원문 JSON 은 불변 · Docker 명령에는 걸리는 값이 없다).
+    from . import evidence as _evidence, pii as _pii
+    _table = _pii.substitution_table(c.repo, _evidence.output_manifest(c.repo, c.topo))
+    return _pii.substitute("\n".join(lines), _table), ("reconstructed(bench json + 측정 도구 원문 lite 인자)" if tool and tflags
+                                                         else "reconstructed(bench json)")
 
 
-def _reproduce(c: _Ctx, sel: dict | None, plane: str) -> list[dict]:
+def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = None) -> list[dict]:
     repo, cell, topo = c.repo, c.cell, c.topo
     steps: list[dict] = []
 
@@ -2509,6 +2833,19 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str) -> list[dict]:
         measure_start, measure_src = None, f"{measure_src}(date 를 UTC 로 읽으면 generated_utc 뒤 — 시계 가정 불성립 · 버림)"
     if measure_src and measure_start:
         measure_src = f"{measure_src} · date=컨테이너 시계(UTC 가정)"
+    bench_bound = "exact"
+    lite_end, lite_src, lite_start = None, None, False
+    if not sweep_end:
+        # FACT_FIX2 G7: lite-only 셀 — 리포트 생성일(= lite_raw measured_utc)은 측정 **시작**이다 · 끝 = 레그 JSON date(evidence.lite_window)
+        lw = _lite_window(c)
+        if lw:
+            measure_start, measure_src, lite_start = lw["start_utc"], lw["start_source"], True
+            if lw.get("end_utc"):
+                sweep_end, lite_end, lite_src = lw["end_utc"], lw["end_utc"], lw["end_source"]
+        else:
+            ls_, lsrc_ = _lite_measured_utc(repo, c.ev)
+            if ls_:
+                measure_start, measure_src, lite_start = ls_, lsrc_, True
     if plane == "docker":
         if topo == "multi":
             # 2026-09-22 S2 round 3 적대 리뷰: 렌더러가 측정 뒤 바뀌었으면(git 관측) 명령 앞에 그 사실 · 측정 전 개정을 주석으로 단다.
@@ -2545,24 +2882,111 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str) -> list[dict]:
             step("build", build_cmd, "빌드 OK · 이미지 실재", None, created, "none",
                  f"docker image inspect {_image_ref(c)[0]} .Created(종료만 관측)" if created else "미관측", build_src, extra)
         events = [e for e in _events_for(repo, f"smoke-{cell}") if e.get("kind") == "budget_declare"]
-        if measure_start:
-            events = [e for e in events if e["ts"] <= measure_start]
-        decl = events[-1] if events and measure_start else None     # 첫 측정 시각이 없으면 어느 선언인지 가를 수 없다
-        step("serve", serve_cmd, "health 200 + 추론 1회(스모크 판정)", decl["ts"] if decl else None, measure_start,
-             "upper" if decl and measure_start else "none",
-             (f"{decl['_file']} budget_declare(label smoke-{cell}) → 첫 측정 date({measure_src})"
-              if decl and measure_start else "미관측(예산 선언 또는 첫 측정 시각 없음)"),
+        # FACT_FIX2 G7: lite-only 셀의 첫 측정 시각 = lite 측정 시작(lite_raw measured_utc) — 위에서 measure_start 로 채웠다
+        s_end, s_end_src = (measure_start, (f"첫 측정 시각({measure_src})" if lite_start else f"첫 측정 date({measure_src})")) \
+            if measure_start else (None, None)
+        if s_end:
+            events = [e for e in events if e["ts"] <= s_end]
+        decl = events[-1] if events and s_end else None     # 첫 측정 시각이 없으면 어느 선언인지 가를 수 없다
+        step("serve", serve_cmd, "health 200 + 추론 1회(스모크 판정)", decl["ts"] if decl else None, s_end,
+             "upper" if decl and s_end else "none",
+             (f"{decl['_file']} budget_declare(label smoke-{cell}) → {s_end_src}"
+              if decl and s_end else "미관측(예산 선언 또는 첫 측정 시각 없음)"),
              "derived(스모크 사용법)")
     else:
+        if src_ctx is not None and sel:
+            # 2026-09-29 plan_26092908 §4.2: 원천 이미지 빌드(native 설치의 입력 · 이 셀의 wheelhouse 가 그 이미지에서 재포장됐다).
+            b_cmd, b_src = _build_command(src_ctx, sel)
+            step("build", b_cmd, "원천 이미지 빌드 OK(각 노드 로컬 · 이미지 전송 ✗)", None, _image_created(src_ctx), "none",
+                 f"docker image inspect {_image_ref(src_ctx)[0]} .Created(종료만 관측)" if _image_created(src_ctx) else "미관측",
+                 f"{b_src} · 원천 셀 {src_ctx.cell}")
+        nt = _native_run_timing(c)
         step("install", "artifacts/build_recipe/native-install.sh + pip-freeze-main.txt + pip-freeze-sub.txt",
-             "venv 에서 `python -c 'import vllm'` 성공", source="native producer preserved build_recipe", command_source="shipped-file")
-        step("serve", f"bash output/{topo}/configs/{cell}.sh(native --plane native)",
-             "health 200 + 추론 1회 + cleanup attestation PASS")
+             "venv 에서 `python -c 'import vllm'` 성공", nt.get("created"), nt.get("serve_start"),
+             "upper" if nt.get("created") and nt.get("serve_start") else "none", nt.get("install_src") or "native producer preserved build_recipe",
+             "shipped-file", {"wheelhouse_build_seconds": nt["wheelhouse"]} if nt.get("wheelhouse") else None)
+        serve_cmd, serve_src = _native_serve_command(c)
+        step("serve", serve_cmd, "health 200 + 추론 1회 + cleanup attestation PASS", nt.get("serve_start"), nt.get("up_completed"),
+             "exact" if nt.get("serve_start") and nt.get("up_completed") else "none", nt.get("serve_src") or "미관측", serve_src)
+        if not measure_start and nt.get("up_completed") and sweep_end and nt["up_completed"] <= sweep_end:
+            # F11: native bench JSON date 는 호스트 로컬 시계라 UTC 가정이 깨진다(위에서 버렸다) — bench 는 up 완료 뒤에만 돈다
+            measure_start = nt["up_completed"]
+            measure_src = f"run state up_completed_utc({nt.get('state_rel')} · bench 는 up 완료 뒤 — 상한 시작)"
+            bench_bound = "upper"
     bench_cmd, bench_src = _bench_commands(c)
+    if lite_end:
+        bsrc = f"시작 = {measure_src} → 끝 = {lite_src}"
+    elif measure_start and sweep_end:
+        bsrc = (f"{measure_src} → sweep_index.generated_utc(측정 JSON date 는 호스트 로컬 시계 — UTC 가정 불성립으로 쓰지 않는다)"
+                if bench_bound == "upper" else f"{measure_src} date → sweep_index.generated_utc")
+    else:
+        bsrc = f"시작만 관측 — {measure_src}" if measure_start else "미관측"
     step("bench", bench_cmd, "리포트 발행(+PASS 면 인증서)",
-         measure_start, sweep_end, "exact" if measure_start and sweep_end else "none",
-         f"{measure_src} date → sweep_index.generated_utc" if measure_start and sweep_end else "미관측", bench_src)
+         measure_start, sweep_end, bench_bound if measure_start and sweep_end else "none", bsrc, bench_src)
     return steps
+
+
+REL_NATIVE_SERVE = ".claude/skills/upstream-version-watch/scripts/native_multinode_serve.py"
+
+
+def _native_evidence_dir(c: _Ctx) -> Path | None:
+    sp = _get(c.ev, "serve_proof") or {}
+    raw = sp.get("evidence_dir") if isinstance(sp, dict) else None
+    if not isinstance(raw, str) or not raw.strip() or raw.startswith("/") or ".." in PurePath(raw).parts:
+        return None
+    d = c.repo / raw.strip()
+    return d if d.is_dir() else None
+
+
+def _native_run_timing(c: _Ctx) -> dict:
+    """native run 의 관측 시각(2026-09-29 · plan_26092908 §4.5 F11) — serve proof `evidence_dir` 에 native 정문이 보존한 run state
+    (`logs/state.json` created_utc · up_completed_utc) · serve proof `health.ready_after_s` · wheelhouse 재포장 기록(`wheelhouse-build-<노드>.json`
+    elapsed_s_monotonic). serve 시작 = up_completed − ready_after_s(파생 — health 폴링 창) · install 창 = created → serve 시작(상한 — 예산·RAM
+    게이트 · 재포장 · 설치 · Ray 기동 포함). 없는 것은 비운다(합성 ✗)."""
+    d = _native_evidence_dir(c)
+    if d is None:
+        return {}
+    import datetime as _dt
+    out: dict = {}
+    st = _json_file(d / "logs" / "state.json") or {}
+    sp = _get(c.ev, "serve_proof") or {}
+    created, upc = _utc_z(st.get("created_utc")), _utc_z(st.get("up_completed_utc"))
+    ready = ((sp.get("health") or {}).get("ready_after_s") if isinstance(sp.get("health"), dict) else None)
+    state_rel = core.rel(c.repo, d / "logs" / "state.json")
+    out.update(created=created, up_completed=upc, state_rel=state_rel)
+    wh = {}
+    for n in ("main", "sub"):
+        w = _json_file(d / f"wheelhouse-build-{n}.json") or {}
+        if isinstance(w.get("elapsed_s_monotonic"), (int, float)):
+            wh[n] = w["elapsed_s_monotonic"]
+    if wh:
+        out["wheelhouse"] = wh
+    if upc and isinstance(ready, (int, float)) and not isinstance(ready, bool) and ready >= 0:
+        t = _dt.datetime.strptime(upc, "%Y-%m-%dT%H:%M:%SZ") - _dt.timedelta(seconds=int(ready))
+        out["serve_start"] = t.strftime("%Y-%m-%dT%H:%M:%SZ")
+        out["serve_src"] = (f"serve proof health.ready_after_s={int(ready)}(health 200 까지 · 관측) · 끝 = {state_rel} up_completed_utc"
+                            "(추론 1회 · proof 포함) · 시작 = 끝 − ready_after_s(파생)")
+    if created and out.get("serve_start"):
+        out["install_src"] = (f"{state_rel} created_utc → serve 시작(파생) — 예산·RAM 게이트 · wheelhouse 재포장 · venv 설치 · Ray 기동을 합친 "
+                              "상한" + (" · wheelhouse 재포장 " + " · ".join(f"{n} {v}s" for n, v in sorted(wh.items()))
+                                        + "(wheelhouse-build-<노드>.json elapsed_s_monotonic)" if wh else ""))
+    return out
+
+
+def _native_serve_command(c: _Ctx) -> tuple[str, str]:
+    """native 셀의 serve 명령 — 실제로 부른 정문(`native_multinode_serve.py up`)의 모양(F11 · 옛 판은 `bash <셀>.sh(native --plane native)`
+    라는 실행된 적 없는 모양이었다). 인자 = serve proof(cell · run_id · source_cell). 원문 로그 줄이 아니라 재구성이다."""
+    sp = _get(c.ev, "serve_proof") or {}
+    sp = sp if isinstance(sp, dict) else {}
+    cell, run_id, src_cell = sp.get("cell") or sp.get("config") or c.cell, sp.get("run_id"), sp.get("source_cell")
+    if not run_id:
+        return (f"python3 {REL_NATIVE_SERVE} up --cell {cell} --run-id <run-id> --apply  # run_id 미관측",
+                "derived(native_multinode_serve.py CLI · serve proof run_id 없음)")
+    up = f"python3 {REL_NATIVE_SERVE} up --cell {cell} --run-id {run_id}" + (f" --source-cell {src_cell}" if src_cell else "") + " --apply"
+    lines = ["# native 정문 up: 양 노드 RAM 게이트 → 예산 → 각 노드가 자기 이미지에서 wheelhouse 재포장 → 오프라인 venv 설치 → Ray head/worker → "
+             "vllm serve(native 트리플렛) → health · 추론 1회 → serve proof(서빙을 띄운 채 exit 0)", up,
+             "# 측정 뒤 정리(cleanup attestation): " + f"python3 {REL_NATIVE_SERVE} down --cell {cell} --run-id {run_id} --apply"]
+    return "\n".join(lines), "reconstructed(serve proof cell · run_id · source_cell + native_multinode_serve.py up/down CLI)"
 
 
 def reproduce_steps(repo: Path, ev: Any, *, runner: DockerRunner | None = None,
@@ -2648,6 +3072,53 @@ def slot_confidence(row: dict) -> str:
     return f"{max(n, 1)}-signal"
 
 
+def _slot_machine_reasons(c: "_Ctx", slots: dict, applied: dict | None, sel: dict | None, plane: str, vctx: "_Ctx") -> None:
+    """슬롯별 **기계 파생 사유**(2026-09-29 · plan_26092908 §4.5 F5) — `machine_reason`. 01 §1.1 slots 표의 '사유' 열은 저작자 선언
+    (`rationale` · 3신호의 셋째 — continue 가 01 §1.2 에서 옮긴다)만 읽어 수집 시점엔 전부 미관측이었다. 증거에서 파생 가능한 사유
+    (fork_pin 부재 = VARIANT 줄 없음 · runtime_patch 부재 = `_patch.py` 없음 · 슬롯별 선택 근거)는 기계가 채운다 — 단 `rationale` 에는
+    넣지 않는다(선언 신호를 기계가 부풀리지 않는다 · confidence 불변). 판정 ✗ — 이미 모은 사실의 요약."""
+    rows = [r for r in ((applied or {}).get("patches") or []) if isinstance(r, dict)]
+    for name, row in slots.items():
+        if not isinstance(row, dict):
+            continue
+        ev = row.get("evidence") or {}
+        why = None
+        if name == "fork_pin":
+            repo_ = (vctx.env or {}).get("VLLM_REPO") if isinstance(getattr(vctx, "env", None), dict) else None
+            why = ("셀 env 에 VARIANT 줄 없음 = stock(workflow.md §변종 좌표의 거처)" + (f" · VLLM_REPO={repo_}" if repo_ else "")
+                   if not row.get("files") else f"셀 env VARIANT → {ev.get('ref')} 변종 좌표")
+        elif name == "runtime_patch":
+            why = (f"{ev.get('ref')} 없음 — arm_patch.sh 는 no-op(런타임 패치 불해당)" if not row.get("files")
+                   else f"{ev.get('ref')} 실재 — 셀 이름의 런타임 패치")
+        elif name in ("build_patch_pre", "build_patch_post"):
+            ph = "pre" if name.endswith("pre") else "post"
+            mine = [r for r in rows if r.get("phase") == ph]
+            if mine:
+                cnt: dict[str, int] = {}
+                for r in mine:
+                    cnt[str(r.get("result"))] = cnt.get(str(r.get("result")), 0) + 1
+                why = (f"{PATCH_DIRS[ph]}/ — 적용 판정 {ev.get('kind')}: " + " · ".join(f"{k} {v}" for k, v in sorted(cnt.items()))
+                       + (" · 실린 것 = skip 아닌 패치" if row.get("files") else ""))
+            elif not row.get("files"):
+                why = f"적용 판정 없음 — {ev.get('note') or ev.get('ref') or '원천 미관측'}"
+        elif name == "build_recipe":
+            if sel and sel.get("dockerfile"):
+                why = f"쓰인 Dockerfile 선택자 {sel['dockerfile']}({sel.get('dockerfile_source')}) + 그것이 COPY 하는 파일"
+                if plane == "native":
+                    why = f"원천 이미지 {why} · native 설치 입력(serve proof 보존 파일)"
+        elif name == "compose":
+            if plane == "native":
+                why = (f"Docker 형 참고(원천 셀 {ev.get('native_source_cell') or '미관측'} · 이 셀 run 아님 · generated-unverified) — "
+                       "이 셀은 native 정문으로 기동했다")
+            elif row.get("files"):
+                why = f"{c.topo} 서빙 경로(compose · 러너 · env 형상) — 측정 당시 개정(selected_revisions)"
+        elif name == "triplet":
+            if row.get("files"):
+                why = f"셀 id {c.cell} = 트리플렛 이름(configs/{c.cell}.yaml · .sh · envs/.env.{c.cell})"
+        if why:
+            row["machine_reason"] = why
+
+
 def _slot(files: list[str], evidence: dict, excluded: list[dict] | None = None) -> dict:
     row = {"files": sorted(files), "applicable": bool(files), "rationale": None, "evidence": evidence}
     if excluded:
@@ -2656,11 +3127,704 @@ def _slot(files: list[str], evidence: dict, excluded: list[dict] | None = None) 
     return row
 
 
+# ── 파일 단위 검증 · 관련성 표시 · native 원천 이미지 (2026-09-29 · plan_26092908 §4.2·§4.3·§4.6) ─────────────────────────
+# 어휘(닫힌 목록 — template 린트가 같은 값을 읽는다): verification · generated_by · relevance.
+VERIFICATION_VALUES = ("verified", "generated-unverified")
+GENERATED_BY_VALUES = ("cell-run", "renderer", "agent")
+
+
+def generated_by_ok(value: Any) -> bool:
+    """generated_by 어휘 = 닫힌 목록 + 측정 당시 판본 렌더러 `renderer@<rev12>`(R-b · 2026-09-29 · 판본을 이름에 박는다)."""
+    return value in GENERATED_BY_VALUES or bool(isinstance(value, str) and RERENDER_GENERATED_BY_RE.match(value))
+RELEVANCE_VALUES = ("required", "inactive-inferred", "unknown")
+# 경고 문구(파일 첫 줄 · 사용자 결정 U1 "native 환경이기에 코드검증은 하지 않았다" · plan §4.2 표시 자리 2).
+UNVERIFIED_HEADER_KEY = "_verification"        # JSON 은 주석이 없다 — 최상위 키로 싣는다(core.dumps 정렬상 첫 키)
+NATIVE_UNVERIFIED_REASON = "native 셀(Docker 미사용)이라 이 파일은 실행 검증되지 않았다"
+NATIVE_LAUNCH_NAME = "native-launch.md"          # native 기동 기록(serve proof 가 보존하면 이 이름으로 · 없으면 Agent 요청 자리)
+_ARCH_CLASS = re.compile(r"\b([A-Z][A-Za-z0-9]*For[A-Z][A-Za-z0-9]*)\b")
+_VLLM_PY_PATH = re.compile(r"(?<![\w.-])(vllm/[A-Za-z0-9_./-]+\.py)\b")
+_MODEL_MODULE = re.compile(r"vllm/(?:model_executor/)?models/([a-z0-9_]+)(?=[/.])")
+# 모델 디렉터리 이름이 아닌 models/ 하위 공용 모듈(닫힌 목록 · tripwire — 새 공용 모듈이 보이면 여기에 더한다).
+_MODEL_MODULE_GENERIC = frozenset({"registry", "utils", "interfaces", "interfaces_base", "adapters", "module_mapping",
+                                   "__init__", "config", "vision"})
+_LOG_CALL = re.compile(r"\blogger\.(?:info|warning|error|debug|info_once|warning_once)\(\s*f?(['\"])((?:(?!\1).)*)\1", re.S)
+_SIG_MIN = 12                                   # 발화 서명 최소 길이 — 짧은 리터럴("done" 등)은 다른 코드와 우연히 겹친다
+
+
+def unverified_header(reason: str, generated_by: str) -> str:
+    """파일 첫 줄 경고 문구(주석 기호 제외) — 01 표·PAYLOAD 와 같은 문장을 쓴다(린터가 3자리 일치를 대조한다)."""
+    return f"⚠ generated-unverified — {reason} · 생성: {generated_by}"
+
+
+def _insert_header(payload: Path, rel: str, reason: str, generated_by: str) -> dict:
+    """실린 사본의 첫 줄에 경고를 넣는다(원본 불변). 셸(`#!`)은 shebang 뒤(2행) — shebang 앞에 두면 실행 계약이 깨진다.
+    JSON 은 최상위 `_verification` 키. 반환 = 표시 자리 기록 {style, line|key, text}."""
+    path = payload / rel
+    mode = path.stat().st_mode & 0o777
+    text = path.read_text(encoding="utf-8")
+    line = unverified_header(reason, generated_by)
+    if rel.endswith(".json"):
+        doc = json.loads(text)
+        if not isinstance(doc, dict):
+            core.fail("HINT_ARTIFACT_HEADER_UNSUPPORTED", f"JSON 최상위가 사전이 아니라 경고 키를 넣을 수 없다: {rel}")
+        doc[UNVERIFIED_HEADER_KEY] = line
+        path.write_text(core.dumps(doc), encoding="utf-8")
+        out = {"style": "json-key", "key": UNVERIFIED_HEADER_KEY, "text": line}
+    elif text.startswith("#!"):
+        first, _, rest = text.partition("\n")
+        path.write_text(f"{first}\n# {line}\n{rest}", encoding="utf-8")
+        out = {"style": "comment", "line": 2, "text": f"# {line}", "why_line_2": "shebang 보존"}
+    else:
+        path.write_text(f"# {line}\n{text}", encoding="utf-8")
+        out = {"style": "comment", "line": 1, "text": f"# {line}"}
+    path.chmod(mode)
+    return out
+
+
+def _agent_request(slot: str, name: str, why: str, inputs: list[str]) -> dict:
+    """렌더러로 못 만드는 자리 — 생성하지 않고 요청으로 남긴다(plan §4.2 "렌더러 우선 · Agent 폴백"). 파일은 template 이 빈 자리 +
+    PROMPT 로 만들고, 저작자는 첫 줄에 `header` 를 둔다(verification 은 저작 뒤에도 generated-unverified 다)."""
+    return {"slot": slot, "name": name, "path": f"artifacts/{slot}/{name}", "why": why, "inputs": inputs,
+            "verification": "generated-unverified", "generated_by": "agent", "header_required": True,
+            "header": unverified_header("Agent 가 증거에서 저작했다(실행 검증 ✗)", "agent")}
+
+
+def _native_launch_path(c: _Ctx) -> tuple[Path, str, str] | None:
+    """native 기동 기록 — serve proof(또는 evidence)의 `native_launch_path`(저장소 상대 regular file) 만 받는다. 2026-09-29 현재
+    producer(native_multinode_serve.py)는 이 필드를 쓰지 않는다 → None(결손 기재). 추측으로 로그에서 재구성하지 않는다."""
+    sp = _get(c.ev, "serve_proof")
+    raw = _get(c.ev, "native_launch_path") or (sp.get("native_launch_path") if isinstance(sp, dict) else None)
+    if not isinstance(raw, str) or not raw.strip() or Path(raw).is_absolute():
+        return None
+    fp = c.repo / core.rel(c.repo, raw)
+    if not fp.is_file() or fp.is_symlink():
+        return None
+    return fp, NATIVE_LAUNCH_NAME if fp.suffix == ".md" else f"native-launch{fp.suffix or '.txt'}", "native_launch_path"
+
+
+def _native_source(c: _Ctx) -> dict:
+    """native 셀의 원천 Docker 셀·이미지(N1 형). 신호 = serve proof `source_cell` × `wheelhouse.source_image_tag`(evidence 표지
+    `native_wheelhouse_source` 와 같은 원천). 원천 셀 트리플렛이 실재하고 그 env IMAGE_TAG 가 원천 이미지 태그와 같을 때만 묶는다 —
+    어긋나면 묶지 않고 사유를 남긴다(다른 이미지의 레시피를 이 셀의 빌드 입력으로 싣지 않는다)."""
+    sp = _get(c.ev, "serve_proof")
+    sp = sp if isinstance(sp, dict) else {}
+    wh = sp.get("wheelhouse") if isinstance(sp.get("wheelhouse"), dict) else {}
+    src, img = sp.get("source_cell"), wh.get("source_image_tag")
+    out: dict = {"ok": False, "cell": src if isinstance(src, str) else None, "image_tag": img if isinstance(img, str) else None,
+                 "source": "serve_proof.source_cell × serve_proof.wheelhouse.source_image_tag"}
+    if not isinstance(src, str) or not src or "/" in src or src.startswith(".") or not isinstance(img, str) or not img:
+        out["why"] = "serve proof 에 source_cell·wheelhouse.source_image_tag 가 없다(원천 이미지 미관측)"
+        return out
+    trip = {"yaml": c.out / "configs" / f"{src}.yaml", "sh": c.out / "configs" / f"{src}.sh",
+            "env": c.out / "envs" / f".env.{src}"}
+    absent = [k for k, v in trip.items() if not v.is_file()]
+    if absent:
+        out["why"] = f"원천 셀 {src} 트리플렛 부재 {absent}"
+        return out
+    tag = _read_env(c.sf, trip["env"]).get("IMAGE_TAG")
+    if tag != img:
+        out["why"] = f"원천 셀 env IMAGE_TAG={tag!r} ≠ wheelhouse 원천 이미지 {img!r}"
+        return out
+    # evidence 표지(build_identity.native_wheelhouse_source — 스윕 meta 의 이미지가 wheelhouse 원천 이미지라는 판정)와의 교차 기재.
+    bi = _get(c.ev, "build_identity") or {}
+    out["evidence_marker"] = bool(bi.get("native_wheelhouse_source")) if isinstance(bi, dict) else False
+    if isinstance(bi, dict) and bi.get("image_tag") and bi.get("image_tag") != img:
+        out["why"] = f"evidence build_identity.image_tag={bi.get('image_tag')!r} ≠ wheelhouse 원천 이미지 {img!r}"
+        return out
+    # render_native_triplet 헤더의 원천 sha(앞 16자) 대조 — 원천 env 가 native 렌더 뒤 바뀌었으면 기재한다(차단 ✗ · 사실).
+    m = re.search(r"envs/\.env\." + re.escape(src) + r" \(sha256=([0-9a-f]{8,64})\)", _read(c.triplet["env"]))
+    out["render_header_sha_match"] = (core.sha256_file(trip["env"]).startswith(m.group(1)) if m else None)
+    out.update(ok=True, why=None, triplet={k: core.rel(c.repo, v) for k, v in trip.items()}, triplet_paths=trip)
+    return out
+
+
+class _EvOverlay:
+    """증거 객체의 일부 필드만 덮어 읽는 보기(원본 불변). native 셀의 원천 Docker 셀 문맥을 같은 수집 함수에 넘길 때 쓴다."""
+    def __init__(self, base: Any, over: dict):
+        self.__dict__["_base"], self.__dict__["_over"] = base, dict(over)
+
+    def __getattr__(self, name: str) -> Any:
+        over = self.__dict__["_over"]
+        if name in over:
+            return over[name]
+        return getattr(self.__dict__["_base"], name)
+
+
+def _source_ctx(c: _Ctx, ns: dict) -> _Ctx:
+    """원천 Docker 셀 문맥 — 셀·트리플렛·평면·빌드 정체만 원천으로 바꾸고 측정(스윕·인증서)·attestation·계보는 이 셀 것을 그대로
+    읽는다(측정 당시 개정 선택의 기준 시각 = 이 셀의 측정). 실행기·소유 모듈은 공유한다(탐침 기록이 둘로 갈리지 않게)."""
+    bi = _get(c.ev, "build_identity") or {}
+    over = {"cell": ns["cell"], "triplet": dict(ns["triplet"]), "plane": "docker",
+            "build_identity": {k: v for k, v in (bi.items() if isinstance(bi, dict) else ()) if k != "native_wheelhouse_source"}}
+    ev2 = dict(c.ev, **over) if isinstance(c.ev, dict) else _EvOverlay(c.ev, over)
+    sc = _ctx(c.repo, ev2, runner=c.runner, forward_module=c.sf, render_module=c.rd_loader)
+    sc.default_runner, sc.rd = c.default_runner, c.rd
+    return sc
+
+
+def _model_facts(c: _Ctx) -> dict:
+    """셀 모델의 `architectures`·`model_type`(체크포인트 config.json) — 관련성 판정 ① 의 대조 입력. evidence 가 넘긴 값
+    (`model_architectures`·`model_type`) → evidence 체크포인트 관측(`_checkpoint` · 호스트 경로를 출처에 적지 않는 소유자) 순.
+    못 보면 미관측(관련성 unknown)."""
+    if "model_facts" in c.memo:
+        return c.memo["model_facts"]
+    archs, mtype = _get(c.ev, "model_architectures"), _get(c.ev, "model_type")
+    out: dict = {"observed": False, "architectures": None, "model_type": None, "source": "미관측"}
+    if isinstance(archs, list) and archs:
+        out.update(observed=True, architectures=[str(a) for a in archs], model_type=str(mtype) if mtype else None,
+                   source="evidence.model_architectures")
+    elif not isinstance(c.ev, dict):
+        try:
+            from . import evidence as _evd
+            ck = _evd._checkpoint(c.repo, c.ev)
+        except (core.HintError, AttributeError, TypeError, OSError, ValueError) as e:
+            ck = {"observed": False, "reason": f"체크포인트 관측 실패({type(e).__name__})"}
+        cfg = ck.get("config") if ck.get("observed") else None
+        if isinstance(cfg, dict) and isinstance(cfg.get("architectures"), list):
+            out.update(observed=True, architectures=[str(a) for a in cfg["architectures"]],
+                       model_type=str(cfg.get("model_type")) if cfg.get("model_type") else None,
+                       source=f"체크포인트 config.json({ck.get('model_path') or ck.get('host_label') or '관측'})")
+        else:
+            out["source"] = f"미관측({ck.get('reason') or 'config.json architectures 없음'})"
+    c.memo["model_facts"] = out
+    return out
+
+
+def _engine_log_paths(c: _Ctx) -> list[Path]:
+    """이 셀 엔진 로그(비어 있지 않은 저장소 안 regular file) — 계보 후보(`evidence_candidates` kind=engine_log) · native serve proof
+    `evidence_dir/logs/*vllm-serve*.log` · evidence 주입(`engine_logs`). 관련성 판정 ② 의 입력."""
+    rels: list[str] = []
+    seeds = _get(c.ev, "lineage_seeds") or {}
+    for x in (seeds.get("evidence_candidates") or []) if isinstance(seeds, dict) else []:
+        if isinstance(x, dict) and x.get("kind") == "engine_log" and isinstance(x.get("path"), str):
+            rels.append(x["path"])
+    extra = _get(c.ev, "engine_logs")
+    rels += [x for x in extra if isinstance(x, str)] if isinstance(extra, list) else []
+    sp = _get(c.ev, "serve_proof")
+    ed = sp.get("evidence_dir") if isinstance(sp, dict) else None
+    if isinstance(ed, str) and ed and not Path(ed).is_absolute():
+        d = c.repo / core.rel(c.repo, ed) / "logs"
+        if d.is_dir():
+            # 엔진 로그만(워치독 로그는 같은 이름 조각을 들지만 엔진 출력이 아니다 — 2026-09-29 N1 실측: main-watchdog-vllm-serve.log)
+            rels += [core.rel(c.repo, q) for q in sorted(d.glob("*vllm-serve.log")) if "watchdog" not in q.name]
+    out: list[Path] = []
+    for r in dict.fromkeys(rels):
+        # FACT_FIX2 G4: 워치독 로그는 **어느 경로로 들어오든**(계보 씨앗 · 주입 · evidence_dir) 엔진 출력이 아니다 — 옛 판은 evidence_dir
+        #   glob 만 걸러 N1 의 lineage_seeds 로 들어온 main-watchdog-vllm-serve.log 를 '엔진 로그 2개' 로 셌다.
+        if Path(r).is_absolute() or "watchdog" in PurePath(r).name:
+            continue
+        q = c.repo / core.rel(c.repo, r)
+        if q.is_file() and not q.is_symlink() and q.stat().st_size > 0:
+            out.append(q)
+    return out
+
+
+def _log_signatures(text: str) -> list[str]:
+    """패치가 **심는** 코드의 logger 호출 리터럴(서식 자리 `%`·`{` 앞까지 · ≥ _SIG_MIN 자) — 그 코드 경로가 돌면 엔진 로그에 남는 문장."""
+    sigs: list[str] = []
+    for m in _LOG_CALL.finditer(text):
+        lit = re.split(r"[%{]", m.group(2), maxsplit=1)[0].strip()
+        if len(lit) >= _SIG_MIN and lit not in sigs:
+            sigs.append(lit)
+    return sigs
+
+
+def _patch_declared(text: str, trigger: str | None) -> dict:
+    """패치가 선언한 대상 — `model-trigger` 헤더(원장 `declared_model_trigger` 우선)의 아키텍처 클래스 · 패치가 고치는 vLLM 모델
+    디렉터리(`vllm/models/<model_type>/`). `범용` 선언은 비대상 판정의 근거가 되지 못한다(공유 이미지 입력)."""
+    trig = str(trigger or "")
+    mods = sorted({m for m in _MODEL_MODULE.findall(text) if m not in _MODEL_MODULE_GENERIC})
+    # F14(2026-09-29): 패치가 편집하는 vLLM 파일 중 **모델 디렉터리 밖**(공유 레이어 · 양자화 · 커널)은 다른 모델에도 닿는다 — 근거에 싣는다
+    shared = sorted({p for p in _VLLM_PY_PATH.findall(text)
+                     if not ((mm := _MODEL_MODULE.match(p)) and mm.group(1) not in _MODEL_MODULE_GENERIC)})
+    return {"archs": sorted(set(_ARCH_CLASS.findall(trig))), "modules": mods, "shared_files": shared,
+            "general": "범용" in trig, "trigger": trig or None}
+
+
+def _relevance_context(c: _Ctx, slots: dict, applied: dict | None) -> dict:
+    """관련성 판정 입력을 한 번에 모은다 — 모델 사실 · 패치별 선언/서명 · 엔진 로그 서명 발화(로그는 한 번씩만 읽는다)."""
+    model = _model_facts(c)
+    rows = {(r.get("phase"), r.get("file")): r for r in ((applied or {}).get("patches") or []) if isinstance(r, dict)}
+    per: dict[str, dict] = {}
+    for slot, ph in (("build_patch_pre", "pre"), ("build_patch_post", "post")):
+        for rel_f in (slots.get(slot) or {}).get("files") or []:
+            name = PurePath(rel_f).name
+            row = rows.get((ph, name)) or {}
+            per[rel_f] = {"row": row, "phase": ph}
+    logs = _engine_log_paths(c) if per else []
+    return {"model": {k: model[k] for k in ("observed", "architectures", "model_type", "source")},
+            "engine_logs": {"read": [core.rel(c.repo, q) for q in logs], "count": len(logs)},
+            "_logs": logs, "_per": per}
+
+
+def _fired_text(sigs: list[str], counts: dict | None, fired: bool | None) -> str:
+    """② 발화 근거 — **실제로 매치된 서명과 횟수**(FACT_FIX2 G4 · 옛 판은 서명 목록 첫째를 찍어 0회인 서명을 발화 예시로 보였다)."""
+    counts = {k: v for k, v in (counts or {}).items() if k in sigs and v}
+    if fired and counts:
+        top = sorted(counts.items(), key=lambda kv: (-kv[1], sigs.index(kv[0])))
+        shown = " · ".join(f"{k[:48]!r} {v}회" for k, v in top[:3])
+        return (f"발화({shown}" + (f" 외 {len(top) - 3}개" if len(top) > 3 else "")
+                + f" · 서명 {len(sigs)}개 중 {len(top)}개 · 횟수 = 읽은 로그 전체 합)")
+    return f"무발화(서명 {len(sigs)}개 전부 0회)" if fired is False else "발화 미판정"
+
+
+def _relevance(declared: dict, model: dict, sigs: list[str], fired: bool | None, n_logs: int,
+               counts: dict | None = None) -> tuple[str, str]:
+    """(relevance, 근거). ① 선언 대 모델 config · ② 엔진 로그 발화 — 둘 다 관측일 때만 required/inactive-inferred(plan §4.3).
+    ①이 '일치' 이고 ②가 '발화' = required · ①이 '불일치' 이고 ②가 '무발화' = inactive-inferred · 그 밖(한쪽 미관측 · 두 신호
+    모순 · 범용 선언) = unknown. 추론을 확정처럼 쓰지 않는다 — inactive 도 '추론' 이라고 이름에 적는다."""
+    tgt = declared["archs"] + [f"models/{m}" for m in declared["modules"]]
+    if not model.get("observed"):
+        return "unknown", f"① 모델 config 미관측({model.get('source')}) · 선언 {tgt or '없음'}"
+    if not tgt:
+        return "unknown", "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음"
+    archs, mtype = set(model.get("architectures") or []), model.get("model_type")
+    match = bool(set(declared["archs"]) & archs) or bool(mtype and mtype in declared["modules"])
+    d1 = (f"① 선언 {tgt} {'∋' if match else '∌'} 셀 모델(architectures {sorted(archs)} · model_type {mtype})"
+          + (" · 범용 선언" if declared["general"] else ""))
+    if not sigs:
+        return "unknown", d1 + " · ② 패치가 심는 logger 발화 서명 없음(발화 미관측)"
+    if not n_logs:
+        return "unknown", d1 + f" · ② 엔진 로그 미관측(서명 {len(sigs)}개를 대조할 로그 없음)"
+    if counts is None:          # 호출부가 횟수를 주지 않으면(옛 호출) 발화 여부만 — 서명 이름을 지어내지 않는다
+        d2 = f"② 엔진 로그 {n_logs}개에서 서명 {'발화' if fired else '무발화'}(서명 {len(sigs)}개 · 매치 서명 미기록)"
+    else:
+        d2 = f"② 엔진 로그 {n_logs}개에서 서명 {_fired_text(sigs, counts, fired)}"
+    if match and fired:
+        return "required", f"{d1} · {d2}"
+    if not match and not fired and not declared["general"]:
+        return "inactive-inferred", f"{d1} · {d2} — 적용됐으나 이 모델에서 돌지 않은 것으로 **추론**(확정 ✗)"
+    return "unknown", f"{d1} · {d2} — 두 신호가 한 방향을 가리키지 않는다"
+
+
+def _file_records(c: _Ctx, payload: Path, slots: dict, marks: dict, applied: dict | None, rctx: dict) -> None:
+    """`slots[<slot>]["file_records"]` = 실린 파일마다 {path, sha256, verification, generated_by, verification_basis, relevance,
+    relevance_basis, (header) · (bytes_observed) · (패치: script_sha256_ledger · relevance_evidence)} — plan §4.2 표시 자리 1.
+    `files` 는 문자열 목록으로 그대로 둔다(소비자 호환) — 기계 필드는 이 병렬 목록이다."""
+    per, logs = rctx["_per"], rctx["_logs"]
+    model = rctx["model"]
+    texts = {}
+    all_sigs: set[str] = set()
+    for rel_f in per:
+        texts[rel_f] = (payload / rel_f).read_text(encoding="utf-8", errors="replace")
+        all_sigs |= set(_log_signatures(texts[rel_f]))
+    hits: set[str] = set()
+    counts: dict[str, int] = {}             # FACT_FIX2 G4: 서명별 발화 횟수(로그 전체 합)
+    for q in logs:
+        body = q.read_bytes().decode("utf-8", "replace")
+        for s_ in all_sigs:
+            n_ = body.count(s_)
+            if n_:
+                counts[s_] = counts.get(s_, 0) + n_
+                hits.add(s_)
+    for slot, row in slots.items():
+        ev = row.get("evidence") or {}
+        sel_by = {PurePath(str(s.get("path"))).name: s for s in (ev.get("selected_revisions") or []) if isinstance(s, dict)}
+        recs = []
+        for rel_f in row.get("files") or []:
+            m = marks.get(rel_f) or {}
+            name = PurePath(rel_f).name
+            rec: dict = {"path": rel_f, "sha256": core.sha256_file(payload / rel_f),
+                         "verification": m.get("verification", "verified"), "generated_by": m.get("generated_by", "cell-run"),
+                         "verification_basis": m.get("verification_basis") or _default_basis(slot, row, name)}
+            if m.get("header"):
+                rec["header"] = m["header"]
+            if name in sel_by:
+                rec["bytes_observed"] = bool(sel_by[name].get("verified"))
+            if rel_f in per:
+                prow = per[rel_f]["row"]
+                trig = prow.get("declared_model_trigger") or _patch_trigger(texts[rel_f])
+                decl = _patch_declared(texts[rel_f], trig)
+                sigs = _log_signatures(texts[rel_f])
+                fired = bool(set(sigs) & hits) if sigs and logs else None
+                mine = {s_: counts[s_] for s_ in sigs if counts.get(s_)}
+                rec["relevance"], rec["relevance_basis"] = _relevance(decl, model, sigs, fired, len(logs), mine)
+                if decl.get("shared_files"):
+                    # F14(plan_26092908 §4.5): 모델 디렉터리 밖 공유 파일을 편집하면 근거에 그 목록을 싣는다(결론 불변 · 근거 완전성)
+                    rec["relevance_basis"] += f" · 편집하는 공유(모델 디렉터리 밖) 파일 {decl['shared_files']}"
+                rec["relevance_evidence"] = {"declared": {k: decl[k] for k in ("archs", "modules", "general", "shared_files")},
+                                             "signatures": sigs[:3], "fired": fired, "engine_logs": len(logs),
+                                             "fired_signatures": mine,
+                                             "engine_log_paths": [core.rel(c.repo, q) for q in logs]}
+                want = prow.get("script_sha256") or prow.get("image_script_sha256")
+                if want:
+                    # 판정 근거 표 script sha 칸(plan §4.5 "미관측 오판"): 원장·탐침 sha 와 실린 바이트가 같으면 쓰인 바이트 관측 = 예.
+                    rec["script_sha256_ledger"] = want
+                    rec["bytes_observed"] = rec["sha256"] == want
+                rec["applied_result"] = prow.get("result")
+            elif m.get("verification", "verified") == "verified":
+                rec["relevance"] = "required"
+                rec["relevance_basis"] = "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)"
+            else:
+                # F13(plan_26092908 §4.5): 실행되지 않은 생성물(generated-unverified)은 이 셀의 필요를 말할 신호가 없다 — required ✗
+                rec["relevance"] = "unknown"
+                rec["relevance_basis"] = (f"이 셀은 이 경로로 실행되지 않았다(generated-unverified · 생성 {rec['generated_by']}) — "
+                                          "실행 기록이 없어 필요 여부를 판정하지 않는다(참고 형상)")
+            for key, vocab in (("verification", VERIFICATION_VALUES), ("generated_by", GENERATED_BY_VALUES),
+                               ("relevance", RELEVANCE_VALUES)):
+                if key == "generated_by" and generated_by_ok(rec[key]):
+                    continue
+                if rec[key] not in vocab:
+                    core.fail("HINT_ARTIFACT_MARK_INVALID", f"{rel_f}: {key}={rec[key]!r} 가 어휘 {vocab} 밖이다.")
+            if rec["verification"] == "generated-unverified" and "header" not in rec:
+                core.fail("HINT_ARTIFACT_MARK_INVALID", f"{rel_f}: generated-unverified 인데 파일 헤더 경고가 없다(표시 3자리 불일치).")
+            recs.append(rec)
+        row["file_records"] = recs
+
+
+def _default_basis(slot: str, row: dict, name: str) -> str:
+    ev = row.get("evidence") or {}
+    if slot == "triplet":
+        return f"셀 트리플렛 — {ev.get('note') or '서빙 입력'}"
+    if slot == "runtime_patch":
+        return "셀 configs 의 런타임 패치(arming 실증 로그 미배선 — 적용 관측 ✗)"
+    if slot in ("build_patch_pre", "build_patch_post"):
+        return f"적용 판정 {ev.get('kind')}({ev.get('ref')}) · {ev.get('note') or ''}".rstrip(" ·")
+    if slot == "build_recipe":
+        return f"쓰인 레시피({ev.get('ref')}) — 개정 선택 slots.build_recipe.evidence.selected_revisions"
+    if slot == "compose":
+        return "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+    return f"{slot} — {ev.get('note') or ev.get('ref')}"
+
+
+def _compose_volumes(text: str) -> dict[str, str]:
+    """compose `volumes:` 의 상대 호스트 디렉터리 → 컨테이너 경로(`./configs:/app/configs:ro` → {"configs": "/app/configs"})."""
+    out: dict[str, str] = {}
+    for m in re.finditer(r"(?m)^\s*-\s*['\"]?\./([A-Za-z0-9_.-]+)/?:(/[A-Za-z0-9_./-]+)", text):
+        out.setdefault(m.group(1), m.group(2).rstrip("/"))
+    return out
+
+
+def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: dict | None = None) -> list[dict]:
+    """zip 슬롯 경로 → Dockerfile·compose 가 기대하는 빌드 컨텍스트(`output/<t>/`) 상대 경로(plan §4.6 V14 · 수신자가
+    `build_patch_pre/` 를 어디에 두어야 하는지 묻지 않게). 파생 원천은 **실린 Dockerfile 의 COPY** · compose 의 env_file·volumes·
+    command 뿐 — 거기서 가리키지 않는 파일은 context_path None(빌드 컨텍스트 입력 아님)으로 적는다(지어내지 않는다)."""
+    df_name = (sel or {}).get("dockerfile")
+    df_text = _select_dockerfile(c, df_name)["text"] if df_name and (c.out / df_name).is_file() else ""
+    copies = _dockerfile_copies(df_text) if df_text else []
+    ctext = _compose_text(c)
+    vols = _compose_volumes(ctext)
+    env_refs = set(_ENV_FILE_REF.findall(ctext))
+    # 셀 env 참조는 `path: envs/.env.${CONFIG_FILE:-default}` 꼴이라 _ENV_FILE_REF(리터럴 이름)가 잡지 않는다 — 따로 본다.
+    cell_env_ref = bool(re.search(r"envs/\.env\.\$\{?CONFIG_FILE", ctext))
+    cfg_dir = next((h for h, cdir in vols.items() if cdir == "/app/configs"), None)
+    trip_names = {PurePath(str(v)).name for v in (_get(c.ev, "triplet") or {}).values()} if isinstance(
+        _get(c.ev, "triplet"), dict) else set()
+    # native 트리플렛(`native_triplet` = 이 셀 트리플렛 경로)은 컨테이너 경로가 아니다 — render_native_triplet 이 쓴 원래 자리
+    #   (output/<t>/configs·envs)를 그대로 적는다(native 정문이 그 자리에서 읽는다).
+    native_at = {PurePath(str(v)).name: core.rel(c.repo, v)[len(f"output/{c.topo}/"):]
+                 for v in (native_triplet or {}).values()
+                 if core.rel(c.repo, v).startswith(f"output/{c.topo}/")}
+    rows: list[dict] = []
+    for slot in SLOTS:
+        for rel_f in (slots.get(slot) or {}).get("files") or []:
+            name = PurePath(rel_f).name
+            ctx_path, basis = None, "빌드 컨텍스트 입력 아님(Dockerfile COPY · compose 참조 밖)"
+            if slot == "triplet" and name in native_at:
+                ctx_path, basis = native_at[name], "native 트리플렛 원래 자리(render_native_triplet 산출 · native 정문이 읽는 곳)"
+            elif slot in ("build_patch_pre", "build_patch_post"):
+                d = PATCH_DIRS["pre" if slot == "build_patch_pre" else "post"]
+                if d in copies:
+                    ctx_path, basis = f"{d}/{name}", f"{df_name} COPY {d}/"
+            elif slot == "build_recipe" and df_text:
+                if name == df_name:
+                    ctx_path, basis = name, "compose build.dockerfile ${BUILD_DOCKERFILE} · build.context ."
+                else:
+                    src = next((s for s in copies if PurePath(s).name == name and s not in PATCH_DIRS.values()), None)
+                    if src:
+                        ctx_path, basis = src, f"{df_name} COPY {src}"
+            elif slot in ("compose", "triplet", "runtime_patch"):
+                if name in ("docker-compose.yaml", "docker-compose.yml"):
+                    ctx_path, basis = name, "compose 파일(빌드 컨텍스트 루트)"
+                elif name.endswith(".template") and name[:-len(".template")] in env_refs:
+                    ctx_path, basis = f"envs/{name[:-len('.template')]}", f"compose env_file envs/{name[:-len('.template')]}"
+                elif name == ".env.template" and "${" in ctext:
+                    ctx_path, basis = ".env", "compose 변수치환 프로젝트 .env(${…} 참조)"
+                elif name.startswith(".env.") and not name.endswith(".template") and cell_env_ref:
+                    ctx_path, basis = f"envs/{name}", "compose env_file envs/.env.${CONFIG_FILE}(셀 env)"
+                elif cfg_dir and (name.endswith((".sh", ".yaml", ".py")) and
+                                  (f"/app/configs/{name}" in ctext or name in trip_names or name.endswith("_patch.py")
+                                   or slot == "compose")):
+                    ctx_path, basis = f"{cfg_dir}/{name}", f"compose volumes ./{cfg_dir}:/app/configs"
+            rows.append({"slot_path": rel_f, "context_path": ctx_path, "basis": basis})
+    return rows
+
+
+def _docker_slots(c: _Ctx, payload: Path, measured: str | None, missing: list[str], files: list[str],
+                  slots: dict[str, dict], *, generated: bool = False) -> tuple[dict, dict, dict | None, list[dict], dict | None]:
+    """docker 평면 슬롯(build_patch_pre/post · build_recipe · compose)을 싣는다 — (applied, sel, ledger, env_shapes, sub_recipe).
+
+    2026-09-29 plan_26092908 §4.2: native 셀도 **같은 함수**로 같은 슬롯을 싣는다(원천 이미지 셀의 문맥 `c` 를 넘긴다 ·
+    `generated=True`). 그때 compose 슬롯은 렌더러 산출물을 이 셀의 트리플렛 원천으로 실은 것이지 실행된 것이 아니다 —
+    서빙한 마운트본 대조(HINT_RUNNER_RENDER_DRIFT)는 그 셀이 마운트본으로 서빙하지 않았으므로 건너뛰고 사실만 적는다."""
+    applied, sel, ledger, _ = _applied(c)
+    if applied["status"] == "unobservable":
+        missing.append("HINT_MISSING_BUILD_LEDGER")
+    ship = c.memo.get("ship_patch") or {}
+    for slot, ph in (("build_patch_pre", "pre"), ("build_patch_post", "post")):
+        pf = []
+        for row in applied["patches"]:
+            if row["phase"] != ph or row["result"] == "skipped":
+                continue
+            src = c.out / PATCH_DIRS[ph] / row["file"]
+            baked = ship.get((ph, row["file"]))
+            if baked is not None:
+                # 이미지에 구워진 바이트가 작업트리와 다르거나(또는 작업트리에 없다) — 이 빌드가 실행한 것은 이미지 바이트다(F12).
+                pf.append(_write_bytes(payload, slot, row["file"], baked[0], baked[1]))
+                continue
+            if not src.is_file():
+                missing.append("HINT_MISSING_APPLIED_PATCH_FILE")
+                row["file_absent"] = True
+                continue
+            want = row.get("script_sha256")
+            if want and core.sha256_file(src) != want:
+                # 원장이 적용했다고 말한 바이트와 실을 바이트가 다르다 = 3신호 모순(양성 검출 → 차단)
+                core.fail("HINT_APPLIED_PATCH_DRIFT", f"{PATCH_DIRS[ph]}/{row['file']} 가 원장 script_sha256 과 다르다.",
+                          "이미지를 지은 그 스크립트로 되돌리거나 이미지를 다시 짓는다(다른 스크립트를 재현지침으로 배포 ✗).")
+            pf.append(_copy(payload, src, slot))
+        files += pf
+        obs = applied["status"] == "observed"
+        shipped_rows = [r for r in applied["patches"] if r["phase"] == ph and r["result"] != "skipped"]
+        decided = [r for r in shipped_rows if r["result"] == "applied"]
+        undecided = sorted(r["file"] for r in shipped_rows if r["result"] != "applied")
+        if obs:
+            kind, note = "build-ledger", "원장 관측"
+        else:
+            # 라벨된 재구성(F12) — 실린 파일 전부가 applied 로 갈렸을 때만 적용 증거로 센다(하나라도 미관측이면 증거 ✗).
+            kind = "reconstruction" if shipped_rows and not undecided else "none"
+            by_src: dict[str, int] = {}
+            for r in decided:
+                by_src[r["result_source"]] = by_src.get(r["result_source"], 0) + 1
+            note = ("원장 부재 — 라벨된 재구성: applied " + str(len(decided))
+                    + (f"({' · '.join(f'{k} {v}' for k, v in sorted(by_src.items()))})" if by_src else "")
+                    + (f" · 적용 미관측 {undecided}" if undecided else "") + " · skip 판정 = docker-history+gate")
+        slots[slot] = _slot(pf, {"kind": kind, "ref": applied["source"], "note": note},
+                            [x for x in applied["excluded"] if x["phase"] == ph]
+                            + [{"phase": ph, "file": r["file"], "why": f"skipped({r.get('reason')})"}
+                               for r in applied["patches"] if r["phase"] == ph and r["result"] == "skipped"])
+    # build recipe = **이미지를 지은** Dockerfile 개정 + 그것이 COPY 하는 파일(패치 디렉터리는 위 슬롯이 싣는다) — F1
+    df = c.out / sel["dockerfile"]
+    if not df.is_file():
+        core.fail("HINT_DOCKERFILE_ABSENT", f"쓰인 Dockerfile 이 없다: output/{c.topo}/{sel['dockerfile']}")
+    dsel = _select_dockerfile(c, sel["dockerfile"])
+    rf = [_write_bytes(payload, "build_recipe", df.name, dsel["bytes"], dsel["mode"])]
+    rf_src = [core.rel(c.repo, df)]
+    chosen = {dsel["path"]: dsel}
+    pr = c.memo.get("probe")
+    probe_note = ((pr or {}).get("record") or {}).get("result") or "이미지 탐침 안 함"
+    dests = _copy_dests(dsel["text"])
+    notes: list[str] = []
+    not_shipped: list[dict] = []
+    for src in _dockerfile_copies(dsel["text"]):
+        if src in PATCH_DIRS.values():
+            continue
+        # 컨텍스트 밖(절대·`..`)·글롭 원천은 한 파일로 대응시킬 수 없다 — 싣지 않되 **소리내어** 남긴다(조용한 불완전 레시피 ✗).
+        if src.startswith("/") or ".." in PurePath(src).parts or any(ch in src for ch in "*?["):
+            not_shipped.append({"source": src, "why": "컨텍스트 밖 또는 글롭 원천 — 파일 하나로 대응 불가"})
+            continue
+        p = c.out / src
+        if p.is_file():
+            cpath = _dest_path(src, dests[src], False) if src in dests else None
+            ran = bool(pr and pr.get("ran"))
+            baked = pr["files"].get(cpath) if cpath and ran else None
+            why = ("COPY 목적지를 이미지 경로로 해소하지 못했다(상대 목적지 · 원천 여럿)" if not cpath else
+                   probe_note if not ran else f"이미지에 {cpath} 없음(뒤 층이 지웠거나 옮겼다)")
+            # 원장이 이 COPY 목적지의 sha 를 적었으면(requirements_sha256 ↔ /tmp/requirements.txt) 탐침 없이도 쓰인 바이트를 대조한다.
+            led_sha = (ledger.get("requirements_sha256") if isinstance(ledger, dict) and cpath == LEDGER_REQUIREMENTS_IN_IMAGE
+                       else None)
+            fsel = _select_copied(c, src, p, baked, why, ledger_sha256=led_sha if isinstance(led_sha, str) else None)
+            chosen[fsel["path"]] = fsel
+            rf.append(_write_bytes(payload, "build_recipe", p.name, fsel["bytes"], fsel["mode"]))
+            rf_src.append(core.rel(c.repo, p))
+            notes.append(f"{src}: {sel['dockerfile']} 이 COPY" +
+                         (" → /etc/pip/constraint.txt(제약 천장 · wheel 설치 입력 아님)"
+                          if src == "requirements.txt" and sel["track"] == "source-build" else ""))
+        else:
+            not_shipped.append({"source": src, "why": "COPY 원천이지만 파일이 아니거나(디렉터리) 부재 — 싣지 않음"})
+    files += rf
+    led_df = isinstance(ledger, dict) and ledger.get("dockerfile") == sel["dockerfile"]
+    rvi = _recipe_vs_image(c, rf_src, _image_created(c), chosen)
+    br_ev = {"kind": "build-ledger" if led_df else "file", "ref": sel["dockerfile_source"],
+             "note": " · ".join(notes) or None, "recipe_vs_image": rvi,
+             # 공유 계약(2026-09-22 S2 round 2): {commit|null, method, history_match:{matched,total}} — 쓰인 Dockerfile 의 개정
+             "selected_revision": {"path": dsel["path"], "commit": dsel["commit"], "method": dsel["method"],
+                                   "history_match": dsel["history_match"], "candidates": dsel["candidates"]},
+             "selected_revisions": [{k: v for k, v in s.items() if k in ("path", "commit", "method", "history_match",
+                                                                          "shipped", "verified")}
+                                    for _, s in sorted(chosen.items())]}
+    if not_shipped:
+        br_ev["context_not_shipped"] = not_shipped      # 수신자 빌드가 이 COPY 에서 멈출 수 있다 — 01 표가 말해야 한다
+    slots["build_recipe"] = _slot(rf, br_ev)
+    # compose — compose 파일 + 서빙 경로가 부르는 러너(asset 정본 · 마운트본과 바이트 대조) + env 형상.
+    #   2026-09-22 S2 round 3: 추적 파일(compose · 러너 정본)은 **측정 당시 개정**을 싣고(`_select_tracked`), 서빙 경로 파생(러너 ·
+    #   env_file 참조 · 서브 전달 목록 · slave CONFIG_FILE)도 그 개정 텍스트로 한다. 측정 뒤 재생성된 env 형상은 싣지 않는다.
+    cf: list[str] = []
+    shapes: dict[str, str] = {}
+    env_shapes: list[dict] = []
+    regenerated: list[str] = []
+    regen_skipped: list[dict] = []
+    compose_excluded: list[dict] = []
+    if c.compose_path is None:
+        core.fail("HINT_COMPOSE_ABSENT", f"output/{c.topo}/docker-compose.yaml 부재 — docker 평면의 기동 입력(A층).")
+    csel = _select_tracked(c, c.compose_path)
+    cf.append(_write_bytes(payload, "compose", c.compose_path.name, csel["bytes"], csel["mode"]))
+    # 경로를 받는 소유자 함수(slave_forward)는 실린 사본(= 측정 당시 개정 바이트)을 읽는다.
+    c.compose_eff = payload / cf[-1]
+    tracked_sel = [csel]
+    rd = c.render()
+    names, _ = _runner_names(c)
+    allowed = tuple(getattr(rd, "RUNNER_SCRIPTS", ()))
+    armed, armed_why = _runtime_patch_armed(c)
+    shipped_runners: list[str] = []
+    for name in names:
+        if name == RUNTIME_PATCH_ARMER and not armed:
+            # F3(2026-09-22 S2 round 2): 무장할 런타임 패치가 없으면 arm_patch.sh 는 no-op 이다 — "적용된 것만" 싣는다.
+            compose_excluded.append({"file": name, "why": f"not-armed({armed_why})"})
+            continue
+        shipped_runners.append(name)
+        if name not in allowed:
+            core.fail("HINT_RUNNER_UNKNOWN", f"서빙 경로가 부르는 러너가 render_dockerfile.RUNNER_SCRIPTS 밖이다: {name}",
+                      "러너 정본은 upstream assets/configs 다 — 등재하거나 compose 를 확인한다.")
+        canonical, mounted = Path(rd.SHARED_ASSET_DIR) / name, c.out / "configs" / name
+        if not canonical.is_file():
+            core.fail("HINT_RUNNER_OWNER_MISSING", f"러너 정본 부재: {name}")
+        rsel = _select_tracked(c, canonical)
+        # 정본은 asset 이다(루트 configs/ 는 낡은 추적 파생본 — build_plane.md §4.1). 컨테이너가 실제로 마운트하는 것은
+        # output/<t>/configs/ 사본이므로 둘이 갈리면 배포한 러너가 서빙한 러너가 아니다 → 차단.
+        # 2026-09-22 S2 round 3: 마운트본 mtime ≤ 측정(또는 측정 시각 미관측)이면 그것이 **서빙한** 러너다 — 실을 바이트(측정 당시
+        #   개정)와 대조한다. 마운트본이 측정 뒤 다시 쓰였으면 서빙 증거가 아니다: 작업트리 정본을 싣는 경우에만 옛 대조(렌더 드리프트)를
+        #   유지하고, 측정 전 개정을 싣는 경우는 대조하지 않되 그 사실을 적는다(재생 발행이 측정 뒤 정본 수정 때문에 거짓 차단되지 않게).
+        if generated:
+            # native 셀(plan_26092908 §4.2): 이 러너로 서빙한 적이 없다 — 마운트본은 서빙 증거가 아니므로 대조하지 않는다(차단 ✗ · 기재).
+            rsel["cross_check"] = list(rsel["cross_check"]) + [
+                "native 셀 — 마운트본 대조 생략(이 셀은 컨테이너 러너로 서빙하지 않았다 · generated-unverified)"]
+        elif mounted.is_file():
+            mb = mounted.read_bytes()
+            mmt = _mtime_utc(mounted)
+            served = measured is None or (mmt is not None and mmt <= measured)
+            if served or rsel["shipped"] == "worktree":
+                if mb != rsel["bytes"]:
+                    core.fail("HINT_RUNNER_RENDER_DRIFT",
+                              f"{'서빙한 마운트본(mtime ≤ 측정)' if served else 'asset 정본'}과 실을 러너 바이트가 갈렸다: {name}"
+                              f"(실을 바이트 = {rsel['shipped']})",
+                              f"`render_dockerfile.py --materialize-configs --topology {c.topo}` 로 다시 materialize 한다"
+                              "(측정 당시 마운트본과 다르면 이 셀의 러너가 아니다 — 발행 대상을 확인한다).")
+                rsel["cross_check"] = list(rsel["cross_check"]) + [
+                    f"마운트본 output/{c.topo}/configs/{name}"
+                    + (f"(mtime {mmt} ≤ 측정 — 서빙한 러너)" if served and measured else "") + " 바이트 일치"]
+            else:
+                rsel["cross_check"] = list(rsel["cross_check"]) + [
+                    f"마운트본 output/{c.topo}/configs/{name} 은 측정 뒤(mtime {mmt}) 다시 쓰였다 — 서빙 증거 아님 · 대조 생략"]
+        cf.append(_write_bytes(payload, "compose", name, rsel["bytes"], rsel["mode"]))
+        tracked_sel.append(rsel)
+    compose_text = _compose_text(c)
+    # 제외 행: 사유 코드(글자 그대로 · 소비자 대조) + 짧은 이유. 시각은 별도 키(mtime_utc · measured_utc · measured_source)가
+    #   든다 — why 에 다시 적으면 01 표가 같은 시각을 두 번 싣는다(template 이 스칼라 키를 함께 싣는다 · 바이트 B 절약).
+    def excluded_regen(rel_file: str, regen: dict) -> None:
+        row_x = {"file": rel_file, "reason": POST_MEASUREMENT_REGENERATED,
+                 "why": (f"{POST_MEASUREMENT_REGENERATED}(재생성 시점 렌더러의 키·값 — 측정 당시 형상 아님 · "
+                         f"측정 당시 env = {ENV_OBSERVED_POINTER})"),
+                 "mtime_utc": regen["mtime_utc"], "measured_utc": regen["measured_utc"],
+                 "measured_source": regen["measured_source"]}
+        if regen.get("rerender_error"):
+            row_x["rerender_error"] = regen["rerender_error"]      # 측정 당시 판본 재렌더도 못 했다(R-b · 결손 코드와 짝)
+        compose_excluded.append(row_x)
+    for name in sorted(set(_ENV_FILE_REF.findall(compose_text))):
+        if "$" in name or name == f".env.{c.cell}":
+            continue                       # 셀 env 는 트리플렛으로 실린다
+        p = c.out / "envs" / name
+        if not p.is_file():
+            # 코드는 등재된 일반 코드 하나(evidence.MISSING_CODES — 2026-09-22 evidence 소유자가 전용 코드 2종을 걷고 이것으로
+            # 일원화했다) · **어느 파일**이 없는지는 env_shapes 행이 말한다(00 결손 표 + 01 형상 표).
+            missing.append("HINT_MISSING_ENV_SHAPE")
+            env_shapes.append({"file": f"envs/{name}", "status": "absent"})
+            continue
+        kind = _TIER_ENV_KINDS.get(name, "generic")
+        regen = _regenerated(c, p)
+        if regen:
+            regenerated.append(core.rel(c.repo, p))
+            if kind in RERENDER_FUNCS:
+                # R-b(2026-09-29): render 3층 파일은 측정 당시 판본 렌더러로 다시 렌더해 싣는다(generated-unverified · renderer@rev12).
+                derived_r: list[dict] = []
+                sh = _shape_regenerated(c, p, name, kind, regen, derived_out=derived_r)
+                if sh["ok"]:
+                    rr = sh["rr"]
+                    shapes[name] = sh["text"]
+                    cf.append(_write(payload, "compose", f"{name}.template", sh["text"]))
+                    env_shapes.append({"file": f"envs/{name}", "kind": kind, "rule": sh["rule"],
+                                       "template": f"artifacts/compose/{name}.template", "post_measurement_regenerated": True,
+                                       "status": RERENDER_STATUS, "verification": "generated-unverified",
+                                       "generated_by": rr["generated_by"], "renderer_rev": rr["rev"],
+                                       "renderer_function": rr["function"], "method": rr["method"],
+                                       "manifest": rr["manifest"], "manifest_mtime_utc": rr["manifest_mtime_utc"],
+                                       "manifest_basis": rr["manifest_basis"], "header_reason": _rerender_reason(rr),
+                                       **regen, "derived": derived_r})
+                    continue
+                missing.append("HINT_MISSING_ENV_SHAPE_RERENDER")
+                regen = {**regen, "rerender_error": sh["why"]}
+            excluded_regen(f"envs/{name}", regen)
+            regen_skipped.append({"file": f"envs/{name}"})
+            env_shapes.append({"file": f"envs/{name}", "kind": kind, "status": "excluded",
+                               "reason": POST_MEASUREMENT_REGENERATED, "post_measurement_regenerated": True, **regen})
+            continue
+        derived: list[dict] = []
+        text, rule = _env_shape(c.repo, p, kind, render_module=rd, sf=c.sf, measured=measured, derived_out=derived)
+        shapes[name] = text
+        cf.append(_write(payload, "compose", f"{name}.template", text))
+        env_shapes.append({"file": f"envs/{name}", "kind": kind, "rule": rule,
+                           "template": f"artifacts/compose/{name}.template", "post_measurement_regenerated": False,
+                           # plan_26092908 §4.6: 한 필드 → 여러 키 파생의 자리표시·실효값 표(없으면 빈 목록)
+                           "derived": derived})
+    if (c.out / ".env").is_file():         # compose 변수치환용 프로젝트 env(마운트 경로 4종) — 키-축 규칙
+        regen = _regenerated(c, c.out / ".env")
+        if regen:
+            regenerated.append(core.rel(c.repo, c.out / ".env"))
+            excluded_regen(".env", regen)
+            env_shapes.append({"file": ".env", "kind": "project", "status": "excluded",
+                               "reason": POST_MEASUREMENT_REGENERATED, "post_measurement_regenerated": True, **regen})
+        else:
+            text, rule = _env_shape(c.repo, c.out / ".env", "project", render_module=rd, sf=c.sf, measured=measured)
+            cf.append(_write(payload, "compose", ".env.template", text))
+            env_shapes.append({"file": ".env", "kind": "project", "rule": rule,
+                               "template": "artifacts/compose/.env.template", "post_measurement_regenerated": False})
+    else:
+        # 부재를 조용히 넘기면 수신자는 마운트 변수(NAS_MODEL_PATH 등)의 존재를 모른다 — `materialize-env` 산출물이다.
+        missing.append("HINT_MISSING_ENV_SHAPE")
+        env_shapes.append({"file": ".env", "kind": "project", "status": "absent"})
+    recipe = None
+    if c.topo == "multi":
+        recipe = _sub_recipe(c, shapes, regen_skipped)
+        cf.append(_write(payload, "compose", "sub_recipe.json", core.dumps(recipe)))
+    files += cf
+    n_shipped = sum(1 for e in env_shapes if e.get("template"))
+    compose_ev = {"kind": "file", "ref": core.rel(c.repo, c.compose_path),
+                  "note": (f"서빙 러너 {shipped_runners} · env 형상 실림 {n_shipped}/{len(env_shapes)}"
+                           + (f" · compose = 측정 당시 개정 {csel['shipped']}" if csel["shipped"] != "worktree" else "")
+                           + (f" · ⚠ 측정({measured}) 뒤 재생성 {sorted(regenerated)} — 형상 미실림"
+                              f"({POST_MEASUREMENT_REGENERATED} · 측정 당시 env 는 {ENV_OBSERVED_POINTER})"
+                              if regenerated else "")),
+                  # 공유 계약(2026-09-22 S2 round 2): 측정 시각 뒤 mtime 의 env 파일(저장소 상대 경로). round 3 부터 이 파일들은
+                  #   **싣지 않는다**(excluded · reason post-measurement-regenerated) — 목록은 "무엇이 빠졌나" 의 사실로 남긴다.
+                  "post_measurement_regenerated": sorted(regenerated), "measured_utc": measured,
+                  # 공유 계약(2026-09-22 S2 round 3): build_recipe 와 같은 자리 — compose 파일의 측정 당시 개정 · 추적 파일 전부
+                  "selected_revision": _tracked_row(csel),
+                  "selected_revisions": [_tracked_row(s) for s in sorted(tracked_sel, key=lambda s: s["path"])]}
+    warns = [f"{s['path']}: {s['warning']}" for s in tracked_sel if s.get("warning")]
+    if warns:
+        compose_ev["revision_warnings"] = warns
+    slots["compose"] = _slot(cf, compose_ev, compose_excluded or None)
+    return applied, sel, ledger, env_shapes, recipe
+
+
 def collect(repo: Path, ev: Any, payload_dir: Path, *, forward_module: Any | None = None,
             render_module: Any | None = None, runner: DockerRunner | None = None) -> dict:
     """`payload_dir/artifacts/` 를 만들고 PAYLOAD.slots · applied_set 사실을 돌려준다(SPEC §5.6).
     반환 {"plane","plane_source","track","build","slots","applied_set","build_ledger","missing","files","sub_recipe",
-    "value_status_candidates","reproduce_steps","env_shapes","pii_exempt"}. 실패하면 이번 호출이 만든 artifacts/ 를 지운다."""
+    "value_status_candidates","reproduce_steps","env_shapes","pii_exempt",
+    "native_source","agent_requests","build_context_map","relevance_inputs"}(뒤 4키 = 2026-09-29 plan_26092908 §4.2·§4.6).
+    `slots.<slot>.file_records[]` = 파일 단위 {path, sha256, verification, generated_by, verification_basis, relevance,
+    relevance_basis, header?, bytes_observed?, script_sha256_ledger?, applied_result?, relevance_evidence?}.
+    실패하면 이번 호출이 만든 artifacts/ 를 지운다."""
     c = _ctx(repo, ev, runner=runner, forward_module=forward_module, render_module=render_module)
     made_art = False
     # 출력 경로는 입력 증거보다 먼저 신뢰 경계를 친다. resolve()부터 하면 payload/artifacts가 외부 빈
@@ -2702,7 +3866,18 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
     missing: list[str] = []
     files: list[str] = []
     slots: dict[str, dict] = {}
-    trip_files = [_copy(payload, c.triplet[k], "triplet") for k in ("yaml", "sh", "env")]
+    if plane == "native":
+        # native 트리플렛(2026-09-23 · plan_26092311): yaml `model:`·PLE 디렉터리·env 가 **호스트 운영자 경로**를 든다(Docker 는
+        #   컨테이너 경로라 원문 그대로 실어도 됐다). 원문을 실으면 봉인 PII 게이트(abs-op-path)가 막고, 게이트를 비켜 가면 운영자
+        #   지문이 배포된다 — 싣는 사본만 manifest 파생 치환표로 자리표시한다(`<manifest.quant_model_path>/…` · 원본은 불변).
+        from . import evidence as _evidence, pii as _pii
+        _table = _pii.substitution_table(c.repo, _evidence.output_manifest(c.repo, c.topo))
+        trip_files = [_write(payload, "triplet", c.triplet[k].name,
+                             _pii.substitute(c.triplet[k].read_text(encoding="utf-8"), _table)) for k in ("yaml", "sh", "env")]
+        for rel_f, k in zip(trip_files, ("yaml", "sh", "env")):
+            (payload / rel_f).chmod(c.triplet[k].stat().st_mode & 0o777)
+    else:
+        trip_files = [_copy(payload, c.triplet[k], "triplet") for k in ("yaml", "sh", "env")]
     files += trip_files
     sweep = _get(c.ev, "sweep") or {}
     sidx = sweep.get("index") if isinstance(sweep, dict) else None
@@ -2718,6 +3893,8 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
     trip_ev["measured_utc"] = measured
     if trip_regen:
         trip_ev["note"] += f" · ⚠ 측정({measured}) 뒤 mtime: {trip_regen} — 실린 값이 측정 당시 값과 같다는 보장 없음"
+    if plane == "native":
+        trip_ev["substituted"] = "pii.substitution_table(manifest) — 운영자 경로 → 자리표시(싣는 사본만)"
     slots["triplet"] = _slot(trip_files, trip_ev)
 
     # runtime patch — arming 로그 미배선(plan Q1) → 파일 신호만
@@ -2730,239 +3907,24 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
                                                if c.topo == "multi" and rp_files else "")})
 
     applied = sel = ledger = None
+    marks: dict[str, dict] = {}              # 페이로드 상대 경로 → 파일 단위 표시(기본 = verified · cell-run)
+    agent_requests: list[dict] = []
+    native_meta: dict | None = None
+    vctx = c                                 # fork_pin(VARIANT) 을 읽는 문맥 — native 는 원천 Docker 셀의 env 가 든다
+    ctx_src = c                              # build_context_map 의 Dockerfile·compose 텍스트를 읽는 문맥
     if plane == "docker":
-        applied, sel, ledger, _ = _applied(c)
-        if applied["status"] == "unobservable":
-            missing.append("HINT_MISSING_BUILD_LEDGER")
-        ship = c.memo.get("ship_patch") or {}
-        for slot, ph in (("build_patch_pre", "pre"), ("build_patch_post", "post")):
-            pf = []
-            for row in applied["patches"]:
-                if row["phase"] != ph or row["result"] == "skipped":
-                    continue
-                src = c.out / PATCH_DIRS[ph] / row["file"]
-                baked = ship.get((ph, row["file"]))
-                if baked is not None:
-                    # 이미지에 구워진 바이트가 작업트리와 다르거나(또는 작업트리에 없다) — 이 빌드가 실행한 것은 이미지 바이트다(F12).
-                    pf.append(_write_bytes(payload, slot, row["file"], baked[0], baked[1]))
-                    continue
-                if not src.is_file():
-                    missing.append("HINT_MISSING_APPLIED_PATCH_FILE")
-                    row["file_absent"] = True
-                    continue
-                want = row.get("script_sha256")
-                if want and core.sha256_file(src) != want:
-                    # 원장이 적용했다고 말한 바이트와 실을 바이트가 다르다 = 3신호 모순(양성 검출 → 차단)
-                    core.fail("HINT_APPLIED_PATCH_DRIFT", f"{PATCH_DIRS[ph]}/{row['file']} 가 원장 script_sha256 과 다르다.",
-                              "이미지를 지은 그 스크립트로 되돌리거나 이미지를 다시 짓는다(다른 스크립트를 재현지침으로 배포 ✗).")
-                pf.append(_copy(payload, src, slot))
-            files += pf
-            obs = applied["status"] == "observed"
-            shipped_rows = [r for r in applied["patches"] if r["phase"] == ph and r["result"] != "skipped"]
-            decided = [r for r in shipped_rows if r["result"] == "applied"]
-            undecided = sorted(r["file"] for r in shipped_rows if r["result"] != "applied")
-            if obs:
-                kind, note = "build-ledger", "원장 관측"
-            else:
-                # 라벨된 재구성(F12) — 실린 파일 전부가 applied 로 갈렸을 때만 적용 증거로 센다(하나라도 미관측이면 증거 ✗).
-                kind = "reconstruction" if shipped_rows and not undecided else "none"
-                by_src: dict[str, int] = {}
-                for r in decided:
-                    by_src[r["result_source"]] = by_src.get(r["result_source"], 0) + 1
-                note = ("원장 부재 — 라벨된 재구성: applied " + str(len(decided))
-                        + (f"({' · '.join(f'{k} {v}' for k, v in sorted(by_src.items()))})" if by_src else "")
-                        + (f" · 적용 미관측 {undecided}" if undecided else "") + " · skip 판정 = docker-history+gate")
-            slots[slot] = _slot(pf, {"kind": kind, "ref": applied["source"], "note": note},
-                                [x for x in applied["excluded"] if x["phase"] == ph]
-                                + [{"phase": ph, "file": r["file"], "why": f"skipped({r.get('reason')})"}
-                                   for r in applied["patches"] if r["phase"] == ph and r["result"] == "skipped"])
-        # build recipe = **이미지를 지은** Dockerfile 개정 + 그것이 COPY 하는 파일(패치 디렉터리는 위 슬롯이 싣는다) — F1
-        df = c.out / sel["dockerfile"]
-        if not df.is_file():
-            core.fail("HINT_DOCKERFILE_ABSENT", f"쓰인 Dockerfile 이 없다: output/{c.topo}/{sel['dockerfile']}")
-        dsel = _select_dockerfile(c, sel["dockerfile"])
-        rf = [_write_bytes(payload, "build_recipe", df.name, dsel["bytes"], dsel["mode"])]
-        rf_src = [core.rel(c.repo, df)]
-        chosen = {dsel["path"]: dsel}
-        pr = c.memo.get("probe")
-        probe_note = ((pr or {}).get("record") or {}).get("result") or "이미지 탐침 안 함"
-        dests = _copy_dests(dsel["text"])
-        notes: list[str] = []
-        not_shipped: list[dict] = []
-        for src in _dockerfile_copies(dsel["text"]):
-            if src in PATCH_DIRS.values():
-                continue
-            # 컨텍스트 밖(절대·`..`)·글롭 원천은 한 파일로 대응시킬 수 없다 — 싣지 않되 **소리내어** 남긴다(조용한 불완전 레시피 ✗).
-            if src.startswith("/") or ".." in PurePath(src).parts or any(ch in src for ch in "*?["):
-                not_shipped.append({"source": src, "why": "컨텍스트 밖 또는 글롭 원천 — 파일 하나로 대응 불가"})
-                continue
-            p = c.out / src
-            if p.is_file():
-                cpath = _dest_path(src, dests[src], False) if src in dests else None
-                ran = bool(pr and pr.get("ran"))
-                baked = pr["files"].get(cpath) if cpath and ran else None
-                why = ("COPY 목적지를 이미지 경로로 해소하지 못했다(상대 목적지 · 원천 여럿)" if not cpath else
-                       probe_note if not ran else f"이미지에 {cpath} 없음(뒤 층이 지웠거나 옮겼다)")
-                fsel = _select_copied(c, src, p, baked, why)
-                chosen[fsel["path"]] = fsel
-                rf.append(_write_bytes(payload, "build_recipe", p.name, fsel["bytes"], fsel["mode"]))
-                rf_src.append(core.rel(c.repo, p))
-                notes.append(f"{src}: {sel['dockerfile']} 이 COPY" +
-                             (" → /etc/pip/constraint.txt(제약 천장 · wheel 설치 입력 아님)"
-                              if src == "requirements.txt" and sel["track"] == "source-build" else ""))
-            else:
-                not_shipped.append({"source": src, "why": "COPY 원천이지만 파일이 아니거나(디렉터리) 부재 — 싣지 않음"})
-        files += rf
-        led_df = isinstance(ledger, dict) and ledger.get("dockerfile") == sel["dockerfile"]
-        rvi = _recipe_vs_image(c, rf_src, _image_created(c), chosen)
-        br_ev = {"kind": "build-ledger" if led_df else "file", "ref": sel["dockerfile_source"],
-                 "note": " · ".join(notes) or None, "recipe_vs_image": rvi,
-                 # 공유 계약(2026-09-22 S2 round 2): {commit|null, method, history_match:{matched,total}} — 쓰인 Dockerfile 의 개정
-                 "selected_revision": {"path": dsel["path"], "commit": dsel["commit"], "method": dsel["method"],
-                                       "history_match": dsel["history_match"], "candidates": dsel["candidates"]},
-                 "selected_revisions": [{k: v for k, v in s.items() if k in ("path", "commit", "method", "history_match",
-                                                                              "shipped", "verified")}
-                                        for _, s in sorted(chosen.items())]}
-        if not_shipped:
-            br_ev["context_not_shipped"] = not_shipped      # 수신자 빌드가 이 COPY 에서 멈출 수 있다 — 01 표가 말해야 한다
-        slots["build_recipe"] = _slot(rf, br_ev)
-        # compose — compose 파일 + 서빙 경로가 부르는 러너(asset 정본 · 마운트본과 바이트 대조) + env 형상.
-        #   2026-09-22 S2 round 3: 추적 파일(compose · 러너 정본)은 **측정 당시 개정**을 싣고(`_select_tracked`), 서빙 경로 파생(러너 ·
-        #   env_file 참조 · 서브 전달 목록 · slave CONFIG_FILE)도 그 개정 텍스트로 한다. 측정 뒤 재생성된 env 형상은 싣지 않는다.
-        cf: list[str] = []
-        shapes: dict[str, str] = {}
-        env_shapes: list[dict] = []
-        regenerated: list[str] = []
-        regen_skipped: list[dict] = []
-        compose_excluded: list[dict] = []
-        if c.compose_path is None:
-            core.fail("HINT_COMPOSE_ABSENT", f"output/{c.topo}/docker-compose.yaml 부재 — docker 평면의 기동 입력(A층).")
-        csel = _select_tracked(c, c.compose_path)
-        cf.append(_write_bytes(payload, "compose", c.compose_path.name, csel["bytes"], csel["mode"]))
-        # 경로를 받는 소유자 함수(slave_forward)는 실린 사본(= 측정 당시 개정 바이트)을 읽는다.
-        c.compose_eff = payload / cf[-1]
-        tracked_sel = [csel]
-        rd = c.render()
-        names, _ = _runner_names(c)
-        allowed = tuple(getattr(rd, "RUNNER_SCRIPTS", ()))
-        armed, armed_why = _runtime_patch_armed(c)
-        shipped_runners: list[str] = []
-        for name in names:
-            if name == RUNTIME_PATCH_ARMER and not armed:
-                # F3(2026-09-22 S2 round 2): 무장할 런타임 패치가 없으면 arm_patch.sh 는 no-op 이다 — "적용된 것만" 싣는다.
-                compose_excluded.append({"file": name, "why": f"not-armed({armed_why})"})
-                continue
-            shipped_runners.append(name)
-            if name not in allowed:
-                core.fail("HINT_RUNNER_UNKNOWN", f"서빙 경로가 부르는 러너가 render_dockerfile.RUNNER_SCRIPTS 밖이다: {name}",
-                          "러너 정본은 upstream assets/configs 다 — 등재하거나 compose 를 확인한다.")
-            canonical, mounted = Path(rd.SHARED_ASSET_DIR) / name, c.out / "configs" / name
-            if not canonical.is_file():
-                core.fail("HINT_RUNNER_OWNER_MISSING", f"러너 정본 부재: {name}")
-            rsel = _select_tracked(c, canonical)
-            # 정본은 asset 이다(루트 configs/ 는 낡은 추적 파생본 — build_plane.md §4.1). 컨테이너가 실제로 마운트하는 것은
-            # output/<t>/configs/ 사본이므로 둘이 갈리면 배포한 러너가 서빙한 러너가 아니다 → 차단.
-            # 2026-09-22 S2 round 3: 마운트본 mtime ≤ 측정(또는 측정 시각 미관측)이면 그것이 **서빙한** 러너다 — 실을 바이트(측정 당시
-            #   개정)와 대조한다. 마운트본이 측정 뒤 다시 쓰였으면 서빙 증거가 아니다: 작업트리 정본을 싣는 경우에만 옛 대조(렌더 드리프트)를
-            #   유지하고, 측정 전 개정을 싣는 경우는 대조하지 않되 그 사실을 적는다(재생 발행이 측정 뒤 정본 수정 때문에 거짓 차단되지 않게).
-            if mounted.is_file():
-                mb = mounted.read_bytes()
-                mmt = _mtime_utc(mounted)
-                served = measured is None or (mmt is not None and mmt <= measured)
-                if served or rsel["shipped"] == "worktree":
-                    if mb != rsel["bytes"]:
-                        core.fail("HINT_RUNNER_RENDER_DRIFT",
-                                  f"{'서빙한 마운트본(mtime ≤ 측정)' if served else 'asset 정본'}과 실을 러너 바이트가 갈렸다: {name}"
-                                  f"(실을 바이트 = {rsel['shipped']})",
-                                  f"`render_dockerfile.py --materialize-configs --topology {c.topo}` 로 다시 materialize 한다"
-                                  "(측정 당시 마운트본과 다르면 이 셀의 러너가 아니다 — 발행 대상을 확인한다).")
-                    rsel["cross_check"] = list(rsel["cross_check"]) + [
-                        f"마운트본 output/{c.topo}/configs/{name}"
-                        + (f"(mtime {mmt} ≤ 측정 — 서빙한 러너)" if served and measured else "") + " 바이트 일치"]
-                else:
-                    rsel["cross_check"] = list(rsel["cross_check"]) + [
-                        f"마운트본 output/{c.topo}/configs/{name} 은 측정 뒤(mtime {mmt}) 다시 쓰였다 — 서빙 증거 아님 · 대조 생략"]
-            cf.append(_write_bytes(payload, "compose", name, rsel["bytes"], rsel["mode"]))
-            tracked_sel.append(rsel)
-        compose_text = _compose_text(c)
-        # 제외 행: 사유 코드(글자 그대로 · 소비자 대조) + 짧은 이유. 시각은 별도 키(mtime_utc · measured_utc · measured_source)가
-        #   든다 — why 에 다시 적으면 01 표가 같은 시각을 두 번 싣는다(template 이 스칼라 키를 함께 싣는다 · 바이트 B 절약).
-        def excluded_regen(rel_file: str, regen: dict) -> None:
-            compose_excluded.append({"file": rel_file, "reason": POST_MEASUREMENT_REGENERATED,
-                                     "why": (f"{POST_MEASUREMENT_REGENERATED}(재생성 시점 렌더러의 키·값 — 측정 당시 형상 아님 · "
-                                             f"측정 당시 env = {ENV_OBSERVED_POINTER})"),
-                                     "mtime_utc": regen["mtime_utc"], "measured_utc": regen["measured_utc"],
-                                     "measured_source": regen["measured_source"]})
-        for name in sorted(set(_ENV_FILE_REF.findall(compose_text))):
-            if "$" in name or name == f".env.{c.cell}":
-                continue                       # 셀 env 는 트리플렛으로 실린다
-            p = c.out / "envs" / name
-            if not p.is_file():
-                # 코드는 등재된 일반 코드 하나(evidence.MISSING_CODES — 2026-09-22 evidence 소유자가 전용 코드 2종을 걷고 이것으로
-                # 일원화했다) · **어느 파일**이 없는지는 env_shapes 행이 말한다(00 결손 표 + 01 형상 표).
-                missing.append("HINT_MISSING_ENV_SHAPE")
-                env_shapes.append({"file": f"envs/{name}", "status": "absent"})
-                continue
-            kind = _TIER_ENV_KINDS.get(name, "generic")
-            regen = _regenerated(c, p)
-            if regen:
-                regenerated.append(core.rel(c.repo, p))
-                excluded_regen(f"envs/{name}", regen)
-                regen_skipped.append({"file": f"envs/{name}"})
-                env_shapes.append({"file": f"envs/{name}", "kind": kind, "status": "excluded",
-                                   "reason": POST_MEASUREMENT_REGENERATED, "post_measurement_regenerated": True, **regen})
-                continue
-            text, rule = _env_shape(c.repo, p, kind, render_module=rd, sf=c.sf, measured=measured)
-            shapes[name] = text
-            cf.append(_write(payload, "compose", f"{name}.template", text))
-            env_shapes.append({"file": f"envs/{name}", "kind": kind, "rule": rule,
-                               "template": f"artifacts/compose/{name}.template", "post_measurement_regenerated": False})
-        if (c.out / ".env").is_file():         # compose 변수치환용 프로젝트 env(마운트 경로 4종) — 키-축 규칙
-            regen = _regenerated(c, c.out / ".env")
-            if regen:
-                regenerated.append(core.rel(c.repo, c.out / ".env"))
-                excluded_regen(".env", regen)
-                env_shapes.append({"file": ".env", "kind": "project", "status": "excluded",
-                                   "reason": POST_MEASUREMENT_REGENERATED, "post_measurement_regenerated": True, **regen})
-            else:
-                text, rule = _env_shape(c.repo, c.out / ".env", "project", render_module=rd, sf=c.sf, measured=measured)
-                cf.append(_write(payload, "compose", ".env.template", text))
-                env_shapes.append({"file": ".env", "kind": "project", "rule": rule,
-                                   "template": "artifacts/compose/.env.template", "post_measurement_regenerated": False})
-        else:
-            # 부재를 조용히 넘기면 수신자는 마운트 변수(NAS_MODEL_PATH 등)의 존재를 모른다 — `materialize-env` 산출물이다.
-            missing.append("HINT_MISSING_ENV_SHAPE")
-            env_shapes.append({"file": ".env", "kind": "project", "status": "absent"})
-        recipe = None
-        if c.topo == "multi":
-            recipe = _sub_recipe(c, shapes, regen_skipped)
-            cf.append(_write(payload, "compose", "sub_recipe.json", core.dumps(recipe)))
-        files += cf
-        n_shipped = sum(1 for e in env_shapes if e.get("template"))
-        compose_ev = {"kind": "file", "ref": core.rel(c.repo, c.compose_path),
-                      "note": (f"서빙 러너 {shipped_runners} · env 형상 실림 {n_shipped}/{len(env_shapes)}"
-                               + (f" · compose = 측정 당시 개정 {csel['shipped']}" if csel["shipped"] != "worktree" else "")
-                               + (f" · ⚠ 측정({measured}) 뒤 재생성 {sorted(regenerated)} — 형상 미실림"
-                                  f"({POST_MEASUREMENT_REGENERATED} · 측정 당시 env 는 {ENV_OBSERVED_POINTER})"
-                                  if regenerated else "")),
-                      # 공유 계약(2026-09-22 S2 round 2): 측정 시각 뒤 mtime 의 env 파일(저장소 상대 경로). round 3 부터 이 파일들은
-                      #   **싣지 않는다**(excluded · reason post-measurement-regenerated) — 목록은 "무엇이 빠졌나" 의 사실로 남긴다.
-                      "post_measurement_regenerated": sorted(regenerated), "measured_utc": measured,
-                      # 공유 계약(2026-09-22 S2 round 3): build_recipe 와 같은 자리 — compose 파일의 측정 당시 개정 · 추적 파일 전부
-                      "selected_revision": _tracked_row(csel),
-                      "selected_revisions": [_tracked_row(s) for s in sorted(tracked_sel, key=lambda s: s["path"])]}
-        warns = [f"{s['path']}: {s['warning']}" for s in tracked_sel if s.get("warning")]
-        if warns:
-            compose_ev["revision_warnings"] = warns
-        slots["compose"] = _slot(cf, compose_ev, compose_excluded or None)
+        applied, sel, ledger, env_shapes, recipe = _docker_slots(c, payload, measured, missing, files, slots)
     else:
-        # native 평면: 설치 명령 + 실제 lock(`pip freeze`) — 러너는 트리플렛 `.sh` 로 이미 실린다(다른 이름으로 두 번 싣지
-        # 않는다 · "설치 명령" 이라 부르면 서빙 러너가 설치 절차인 척한다). Dockerfile·compose 는 싣지 않는다(F2).
-        # Evidence validates these producer paths before artifacts is called. Revalidate
-        # relative regular-file shape here because this module also accepts loose Any
-        # evidence objects in its public API; a missing signal must not become a partial
-        # native payload.
-        rf = []
+        # native 평면(2026-09-29 · plan_26092908 §4.2 U1 · V6): **Docker 셀과 같은 슬롯 집합**을 싣는다. 옛 판(2026-09-23)은
+        #   "Dockerfile·compose·패치 0" 을 단언했다 — 그 결과 N1 태그는 zip 만으로 재현되지 않았다("이미지 레시피는 D1 페이로드를
+        #   보라"). N1 형(각 노드가 자기 Docker 이미지에서 재포장한 wheelhouse 를 설치)은 원천 이미지가 실제로 빌드·관측됐으므로
+        #   그 이미지의 Dockerfile·requirements·빌드 패치는 **verified**(원천 이미지 빌드 원장 기준)이고, 이 셀이 실행하지 않은
+        #   compose·serve_runner·env 형상·sub_recipe 는 Docker 셀과 **같은 렌더러 경로**로 원천 셀 트리플렛을 넣어 싣되
+        #   **generated-unverified(renderer)** 로 파일 첫 줄에 경고를 단다. 렌더러로 못 만드는 자리는 생성하지 않고
+        #   `agent_requests` 로 남긴다(PROMPT 화는 template 소유). native 고유분(설치 명령 · pip freeze)은 build_recipe(설치 = 서빙 전
+        #   성립 · 3+1+1 "언제 성립" 기준)에, native 기동 기록은 triplet(서빙 시점)에 싣는다 — 슬롯 어휘(SLOTS·branch 허용목록)는 그대로.
+        # Evidence validates these producer paths before artifacts is called. Revalidate relative regular-file shape here because
+        # this module also accepts loose Any evidence objects in its public API; a missing signal must not become a partial payload.
         freezes = _get(c.ev, "pip_freeze_paths")
         if not isinstance(freezes, dict) or set(freezes) != {"main", "sub"}:
             core.fail("HINT_NATIVE_EVIDENCE_MISSING",
@@ -2979,19 +3941,107 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
             fp = c.repo / core.rel(c.repo, raw)
             if not fp.is_file() or fp.is_symlink():
                 core.fail("HINT_NATIVE_EVIDENCE_UNREADABLE", f"native artifacts의 {key} 가 regular file이 아니다: {raw}")
-            checked.append((fp, name))
-        for fp, name in checked:
+            checked.append((fp, name, key))
+        launch = _native_launch_path(c)
+        ns = _native_source(c)
+        native_meta = {k: v for k, v in ns.items() if k != "triplet_paths"}
+        if ns["ok"]:
+            sc = _source_ctx(c, ns)
+            vctx = ctx_src = sc
+            applied, sel, ledger, env_shapes, recipe = _docker_slots(sc, payload, measured, missing, files, slots,
+                                                                     generated=True)
+            # 적용 집합·원장은 원천 셀에 묶인 attestation(evidence 가 compose 라벨로 원천 셀 attestation 에 묶는다) 또는 원천 이미지 원장이다 —
+            #   이 셀의 관측이 아니라 **원천 이미지 기준**이라는 사실을 근거 문장에 적는다(coordinator 지시 2026-09-29).
+            led_kind = ("원천 셀 attestation" if str(applied.get("source") or "").startswith("attestation:") else
+                        "원천 이미지 원장" if applied.get("status") == "observed" else "원천 이미지 재구성(원장 미관측)")
+            src_basis = (f"원천 이미지 기준({led_kind} {applied.get('source')}) — 원천 이미지 {ns['image_tag']} · 원천 셀 {ns['cell']} · "
+                         "이 셀의 wheelhouse 가 그 이미지에서 재포장됐다(serve proof wheelhouse.source_image_tag)")
+            for slot in ("build_recipe", "build_patch_pre", "build_patch_post"):
+                for rel_f in slots[slot]["files"]:
+                    marks[rel_f] = {"verification": "verified", "generated_by": "cell-run", "verification_basis": src_basis}
+            # 원천 셀 트리플렛 = 이 셀 트리플렛의 Docker 형(render_native_triplet 의 입력 · 서빙 노브 바이트 동일). 역렌더러가 없으므로
+            #   그 원천을 compose 슬롯에 싣는다(compose 가 env_file envs/.env.${CONFIG_FILE} · /app/configs 로 읽는 자리).
+            for k in ("yaml", "sh", "env"):
+                files.append(_copy(payload, ns["triplet_paths"][k], "compose"))
+                slots["compose"]["files"] = sorted(slots["compose"]["files"] + [files[-1]])
+            gen_reason = NATIVE_UNVERIFIED_REASON
+            rerendered = {e["template"] for e in env_shapes if e.get("status") == RERENDER_STATUS and e.get("template")}
+            for rel_f in slots["compose"]["files"]:
+                if rel_f in rerendered:
+                    continue            # 측정 당시 판본 재렌더 형상 — 아래 공통 자리에서 renderer@<rev12> 로 표시한다(R-b)
+                hdr = _insert_header(payload, rel_f, gen_reason, "renderer")
+                name = PurePath(rel_f).name
+                basis = ("upstream-version-watch 렌더러 산출물(docker-compose · 러너 정본 · env 형상 · slave_forward.derive)을 원천 셀 "
+                         f"{ns['cell']} 트리플렛으로 실었다 — 이 셀은 Docker 로 실행되지 않았다(native)")
+                if name in {PurePath(ns["triplet_paths"][k]).name for k in ("yaml", "sh", "env")}:
+                    basis = (f"원천 셀 {ns['cell']} 트리플렛(render_native_triplet 의 입력 = 이 셀 트리플렛의 Docker 형) — 원천 셀에서는 "
+                             "실행됐지만 이 셀은 이 파일로 실행되지 않았다(native)")
+                marks[rel_f] = {"verification": "generated-unverified", "generated_by": "renderer",
+                                "verification_basis": basis, "header": hdr}
+            if isinstance(recipe, dict):
+                recipe[UNVERIFIED_HEADER_KEY] = unverified_header(gen_reason, "renderer")
+            slots["compose"]["evidence"]["note"] = (f"⚠ generated-unverified(renderer) — native 셀 · 원천 셀 {ns['cell']} 트리플렛으로 렌더러 "
+                                                    "산출물을 실었다 · " + str(slots["compose"]["evidence"].get("note") or ""))
+            slots["compose"]["evidence"]["native_source_cell"] = ns["cell"]
+            # FACT_FIX2 G5: 이 셀은 compose 경로로 실행되지 않았다 — 추적 파일 개정 행의 `verified`(mtime ≤ 측정 = 추론)를 "쓰인 바이트 관측" 으로
+            #   렌더하지 않는다(executed False · verified None). 개정 선택 근거(basis · method)는 그대로 둔다(참고 형상의 개정).
+            cev = slots["compose"]["evidence"]
+            for r in ([cev.get("selected_revision")] + list(cev.get("selected_revisions") or [])):
+                if isinstance(r, dict):
+                    r["executed"], r["verified"] = False, None
+        else:
+            # 원천 이미지를 묶지 못했다 — 빌드 입력·적용 집합을 싣지 못한다(침묵 ✗ · 결손 코드). 렌더러로 만들 입력(원천 셀 트리플렛)이
+            #   없으므로 compose 자리도 생성하지 않고 Agent 요청으로 남긴다.
+            missing.append("HINT_MISSING_APPLIED_SET")
+            for s_name in ("build_patch_pre", "build_patch_post"):
+                slots[s_name] = _slot([], {"kind": "none", "ref": None,
+                                           "note": f"native — 원천 이미지 미관측({ns['why']}) · 적용 집합 미관측"})
+            slots["build_recipe"] = _slot([], {"kind": "none", "ref": None, "note": f"native — 원천 이미지 미관측({ns['why']})"})
+            slots["compose"] = _slot([], {"kind": "none", "ref": None,
+                                          "note": f"native — 렌더러 입력(원천 셀 트리플렛) 없음({ns['why']}) · agent_requests"})
+            for slot_name, name, why in (("build_recipe", "Dockerfile", "원천 이미지 Dockerfile(원천 이미지 미관측)"),
+                                         ("compose", "docker-compose.yaml", "Docker 형 기동(렌더러 입력 없음)"),
+                                         ("compose", "serve_runner.sh", "Docker 형 러너(렌더러 입력 없음)")):
+                agent_requests.append(_agent_request(slot_name, name, f"{why} — {ns['why']}",
+                                                     ["artifacts/triplet/", "artifacts/build_recipe/pip-freeze-main.txt",
+                                                      "PAYLOAD.build"]))
+            env_shapes, recipe = [], None
+        # native 고유분 — 이 셀의 실행이 보존한 파일(verified · cell-run)
+        rf = []
+        for fp, name, key in checked:
             rf.append(_copy(payload, fp, "build_recipe", name))
+            marks[rf[-1]] = {"verification": "verified", "generated_by": "cell-run",
+                             "verification_basis": f"native serve proof {key} — native_multinode_serve 가 이 셀 실행에서 보존한 파일"}
         files += rf
-        slots["build_recipe"] = _slot(rf, {"kind": "file", "ref": "native producer preserved install + pip freeze(main/sub)",
-                                           "note": "native 재현 입력(serve proof가 보존한 repo-relative files)"})
-        slots["compose"] = _slot([], {"kind": "none", "ref": None, "note": "native 평면 — compose 해당 없음"})
-        for s in ("build_patch_pre", "build_patch_post"):
-            slots[s] = _slot([], {"kind": "none", "ref": None, "note": "native 평면 — 이미지 빌드 패치 해당 없음"})
-        env_shapes, recipe = [], None
+        br = slots["build_recipe"]
+        br["files"] = sorted(br["files"] + rf)
+        br["applicable"] = bool(br["files"])
+        br["evidence"]["native_files"] = sorted(rf)
+        br["evidence"]["note"] = ((str(br["evidence"].get("note")) + " · ") if br["evidence"].get("note") else "") + \
+            "native 설치 입력(native-install.sh · pip freeze main/sub = serve proof 보존 파일)"
+        br["confidence"] = slot_confidence(br)
+        # native 기동 기록(서빙 시점 · triplet 슬롯). producer 가 보존 경로를 주면 싣고, 없으면 결손 + Agent 요청(생성 ✗).
+        if launch:
+            lr = _copy(payload, launch[0], "triplet", launch[1])
+            files.append(lr)
+            slots["triplet"]["files"] = sorted(slots["triplet"]["files"] + [lr])
+            marks[lr] = {"verification": "verified", "generated_by": "cell-run",
+                         "verification_basis": f"native serve proof {launch[2]} — 이 셀 기동이 보존한 기동 절차 기록"}
+        else:
+            missing.append("HINT_MISSING_NATIVE_LAUNCH")
+            agent_requests.append(_agent_request(
+                "triplet", NATIVE_LAUNCH_NAME,
+                "native 기동 절차 기록 부재 — serve proof 에 native_launch_path 가 없다(ray head/worker · vllm serve 순서 · 노드별 env)",
+                ["artifacts/triplet/", "artifacts/build_recipe/native-install.sh", "docs/simlog 의 native 실행 로그(발췌만)"]))
+        if c.topo == "multi" and not launch:
+            # 싣는 sub_recipe.json 은 Docker 형 렌더러 산출물이다 — native 서브가 실제로 받은 env·기동은 관측되지 않았다.
+            missing.append("HINT_MISSING_SUB_RECIPE")
+        for s_name in ("triplet", "compose", "build_recipe"):
+            slots[s_name]["applicable"] = bool(slots[s_name]["files"])
+            slots[s_name]["confidence"] = slot_confidence(slots[s_name])
 
     # fork_pin — `VARIANT=` 한 줄(부재 = stock · workflow.md §변종 좌표의 거처 2026-08-13)
-    variants = sorted({ln.split("=", 1)[1].strip() for ln in _read(c.triplet["env"]).splitlines()
+    variants = sorted({ln.split("=", 1)[1].strip() for ln in _read(vctx.triplet["env"]).splitlines()
                        if ln.strip().startswith("VARIANT=")})
     ff: list[str] = []
     if len(variants) > 1:
@@ -3010,13 +4060,22 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
         if rec is None:
             core.fail("HINT_FORK_PIN_UNBOUND", f"VARIANT={vid} 가 {REL_ARCH_VARIANT_LEDGER} 에 없다(키·유일 variant_id 모두 불일치).",
                       "변종 좌표는 Band2 원장에 등재한다(workflow.md §변종 좌표의 거처) — 등재 없이 발행하지 않는다.")
-        ref = c.env.get("VLLM_REF")
+        ref = vctx.env.get("VLLM_REF")
         if rec.get("vllm_ref") and ref and rec["vllm_ref"] != ref:
             core.fail("HINT_FORK_PIN_MISMATCH", f"변종 {vid} 의 vllm_ref={rec['vllm_ref']!r} ≠ 셀 env VLLM_REF={ref!r}")
         ff.append(_write(payload, "fork_pin", "variant.json", core.dumps({"variant_id": vid, **rec})))
     files += ff
     slots["fork_pin"] = _slot(ff, {"kind": "file" if ff else "none", "ref": REL_ARCH_VARIANT_LEDGER,
                                    "note": "VARIANT 줄 부재 = stock" if not ff else "변종 좌표 = Band2 원장"})
+
+    # 측정 당시 판본 재렌더 형상(R-b · 2026-09-29) — 표시 3자리(파일 첫 줄 · PAYLOAD 파일 기록 · 01 표)를 renderer@<rev12> 로 단다.
+    for e in env_shapes or []:
+        if e.get("status") == RERENDER_STATUS and e.get("template"):
+            hdr = _insert_header(payload, e["template"], e["header_reason"], e["generated_by"])
+            marks[e["template"]] = {"verification": "generated-unverified", "generated_by": e["generated_by"], "header": hdr,
+                                    "verification_basis": (f"측정 당시 판본 렌더러 {e['generated_by']}({e['method']}) · "
+                                                           f"{e['manifest_basis']} — 실행 바이트 아님(작업트리 파일은 측정 뒤 "
+                                                           f"{e['mtime_utc']} 재생성)")}
 
     # 배포 전 백스톱 — branch 커밋의 최종 스캔 전에 artifacts 만 먼저 본다(원인 슬롯을 가리키려고)
     from . import pii
@@ -3030,15 +4089,28 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
             core.fail("HINT_ARTIFACT_PII", "artifacts/ 에 배포 금지 패턴:\n  " + pii.render_hits(hits, 10),
                       "해당 파일의 출처(트리플렛·compose·패치)를 고치거나 형상 규칙을 고친다(덧칠 ✗).")
 
+    # 파일 단위 표시(2026-09-29 · plan_26092908 §4.2·§4.3): 검증·생성 주체·근거 · 관련성. 적용 집합 미관측(판정 못 한 패치)도 결손.
+    _slot_machine_reasons(c, slots, applied, sel, plane, vctx)
+    rel_ctx = _relevance_context(c, slots, applied)
+    _file_records(c, payload, slots, marks, applied, rel_ctx)
+    if isinstance(applied, dict) and any(r.get("result") not in ("applied", "skipped") for r in applied.get("patches") or []
+                                         if r.get("phase") in PATCH_DIRS):
+        missing.append("HINT_MISSING_APPLIED_SET")
+
     _require_registered(c.repo, missing)
     return {
-        "plane": plane, "plane_source": plane_source, "track": sel["track"] if sel else "native",
+        "plane": plane, "plane_source": plane_source, "track": sel["track"] if sel and plane == "docker" else "native",
         "build": sel, "slots": slots, "applied_set": applied,
         "build_ledger": {"source": applied["source"], "doc": ledger} if isinstance(ledger, dict) and applied else None,
         "missing": sorted(set(missing)), "files": sorted(set(files)), "sub_recipe": recipe,
         "value_status_candidates": value_status_candidates(c.repo, c.ev, forward_module=c.sf),
-        "reproduce_steps": _reproduce(c, sel, plane), "env_shapes": env_shapes,
+        "reproduce_steps": _reproduce(c, sel, plane, src_ctx=ctx_src if ctx_src is not c else None), "env_shapes": env_shapes,
         "pii_exempt": [_exempt_record(x) for x in exempt],
+        # plan_26092908 §4.2·§4.6 — 새 키(소비자: template FACT·린트 · README 매핑 표)
+        "native_source": native_meta,
+        "agent_requests": agent_requests,
+        "build_context_map": _build_context_map(ctx_src, slots, sel, c.triplet if plane == "native" else None),
+        "relevance_inputs": {k: v for k, v in rel_ctx.items() if k in ("model", "engine_logs")},
     }
 
 
@@ -3474,6 +4546,19 @@ def selftest() -> list[str]:
            not ({"model", "host", "port", "served_model_name", "served-model-name"} & set(vs))
            and {"max-model-len", "kv-cache-memory-bytes", "enforce-eager", "speculative-config"} <= set(vs))
         ck("D-b 제외 목록은 닫힌 4종(tripwire)", VALUE_STATUS_EXCLUDED_KNOBS == {"model", "host", "port", "served-model-name"})
+        # F15(plan_26092908 §4.5): 주석 단어 '측정'·'수렴' 만으로 tuned ✗ → inherited + 문구 · lockset 측정 출처는 tuned 유지(음성대조)
+        ypath = out / "configs" / f"{cell}.yaml"
+        y0 = ypath.read_text(encoding="utf-8")
+        ypath.write_text(y0 + "max-num-batched-tokens: 8192   # 측정으로 고른 값\n", encoding="utf-8")
+        try:
+            vs15 = {r["knob"]: r for r in value_status_candidates(repo, ev)}
+        finally:
+            ypath.write_text(y0, encoding="utf-8")
+        ck("★F15 주석 단어 '측정' 만 = tuned ✗ → inherited + 스윕 기록 없음 문구",
+           vs15["max-num-batched-tokens"]["candidate_status"] == "inherited"
+           and vs15["max-num-batched-tokens"].get("note") == COMMENT_ONLY_TUNED_NOTE)
+        ck("F15 음성대조: lockset kv_source=measured-clamp(스윕 기록)은 tuned 유지",
+           vs15["kv-cache-memory-bytes"]["candidate_status"] == "tuned")
         steps = {s["step"]: s for s in res["reproduce_steps"]}
         ck("재현 절차 순서", [s["step"] for s in res["reproduce_steps"]] == ["render", "build", "serve", "bench"])
         ck("빌드 종료 = 이미지 Created(UTC) · ★층 CreatedAt 미관측(history JSON 판독 불가)이면 시작을 지어내지 않는다",
@@ -3926,11 +5011,23 @@ def selftest() -> list[str]:
                          pip_freeze_paths={"main": "output/multi/native-freeze-main.txt", "sub": "output/multi/native-freeze-sub.txt"})
         rn = collect(repo, native_ev, repo / "p_nat", render_module=fake_rd, runner=docker_old)
         nn = set(rn["files"])
-        ck("native 평면: producer install+양 node lock 동봉 · ★Dockerfile·compose·패치 0 · 러너 중복 ✗",
+        # 2026-09-29 plan_26092908 §4.2: 옛 단언("native = Dockerfile·compose·패치 0")은 설계가 결손을 강제한 자리였다(V6). 이제 원천
+        #   이미지 신호(serve proof source_cell × wheelhouse.source_image_tag)가 **없는** native 는 빌드 입력을 싣지 못한다는 사실을
+        #   결손 코드와 Agent 요청으로 말한다(침묵 ✗ · 생성 ✗). 원천이 있는 native 는 아래 §native 구조 통일 블록이 본다.
+        areq = {(r["slot"], r["name"]) for r in rn["agent_requests"]}
+        ck("native 원천 이미지 미관측: producer install+양 node lock 동봉 · 빌드 입력 추측 ✗ · 결손 코드(APPLIED_SET·NATIVE_LAUNCH·"
+           "SUB_RECIPE) · Agent 요청(Dockerfile·compose·serve_runner·기동 기록) · 러너 중복 ✗",
            {"artifacts/build_recipe/native-install.sh", "artifacts/build_recipe/pip-freeze-main.txt",
             "artifacts/build_recipe/pip-freeze-sub.txt"} <= nn and not any(x.startswith(("artifacts/compose/",
                                                                                            "artifacts/build_patch"))
-                                                                      or "Dockerfile" in x for x in nn) and rn["applied_set"] is None)
+                                                                      or "Dockerfile" in x for x in nn) and rn["applied_set"] is None
+           and {"HINT_MISSING_APPLIED_SET", "HINT_MISSING_NATIVE_LAUNCH", "HINT_MISSING_SUB_RECIPE"} <= set(rn["missing"])
+           and {("build_recipe", "Dockerfile"), ("compose", "docker-compose.yaml"), ("compose", "serve_runner.sh"),
+                ("triplet", NATIVE_LAUNCH_NAME)} <= areq
+           and all(r["generated_by"] == "agent" and r["verification"] == "generated-unverified" and r["header_required"]
+                   for r in rn["agent_requests"])
+           and not any((repo / "p_nat" / r["path"]).exists() for r in rn["agent_requests"])
+           and (rn["native_source"] or {}).get("ok") is False)
         raises("★native producer install 신호 부재 차단", "HINT_NATIVE_EVIDENCE_MISSING",
                lambda: collect(repo, dict(native_ev, native_install_path=None), repo / "p_nat_missing",
                                render_module=fake_rd, runner=docker_old))
@@ -4002,6 +5099,66 @@ def selftest() -> list[str]:
            and str((rg2["sub_recipe"] or {}).get("per_node_values", {}).get("MASTER_HOST_IP", "")).startswith("<manifest"))
         ck("F2 공개 sub_recipe() 도 같은 규칙(재생성 interconnect 미참조)",
            "interconnect" not in sub_recipe(repo, ev, render_module=fake_rd)["per_node_values"])
+        # ── R-b(2026-09-29 · plan_26092908): 재생성된 render 3층 env = 측정 당시 판본 렌더러로 재렌더해 싣는다 ──
+        ic_row2 = next(e for e in rg2["env_shapes"] if e["file"] == "envs/.env.interconnect")
+        ck("★R-b 재렌더 불가(manifest 부재) = 결손 코드 + 제외 행에 사유(침묵 ✗)",
+           "HINT_MISSING_ENV_SHAPE_RERENDER" in rg2["missing"] and "manifest.yaml 부재" in ic_row2.get("rerender_error", "")
+           and "manifest.yaml 부재" in exr["envs/.env.interconnect"].get("rerender_error", ""))
+        rev_m = _git_rev_before(_ctx(repo, ev), core.REL_RENDER_DOCKERFILE, "2026-01-01T19:30:00Z")
+        ck("R-b 픽스처: 측정 전 렌더러 커밋이 있다", rev_m is not None)
+        man_p = out / "manifest.yaml"
+        # manifest 가 생기면 발췌 치환표(evidence.output_manifest)가 소유 YAML 로더를 부른다 — 실물을 격리 저장소에 복사한다.
+        from . import evidence as _ev_mc
+        mc_dst = repo / _ev_mc.REL_MANIFEST_CONTRACT
+        mc_dst.parent.mkdir(parents=True, exist_ok=True)
+        mc_dst.write_bytes((own / _ev_mc.REL_MANIFEST_CONTRACT).read_bytes())
+        man_p.write_text("topology: multi\ninterconnect:\n  hca_devices: rocep1s0f1\n  gid_index: 3\n"
+                         "  socket_iface: enpfixture0\n  platform_preset: dgx-spark-gb10\n  nccl_transport: rdma\n",
+                         encoding="utf-8")
+        _set_mtime(man_p, "2026-01-01T00:00:00Z")
+        try:
+            rgr = collect(repo, ev, repo / "p_rerender", render_module=fake_rd, runner=docker_old)
+            icr_path = repo / "p_rerender/artifacts/compose/.env.interconnect.template"
+            icr = icr_path.read_text(encoding="utf-8") if icr_path.is_file() else ""
+            row_r = next((e for e in rgr["env_shapes"] if e["file"] == "envs/.env.interconnect"), {})
+            rec_r = {r["path"]: r for v in rgr["slots"].values() for r in v.get("file_records", [])}.get(
+                "artifacts/compose/.env.interconnect.template", {})
+            gb = f"renderer@{(rev_m or '')[:12]}"
+            ck("★R-b 재렌더 성공 = 형상 실림 · 첫 줄 경고(renderer@rev12) · 헤더에 판본·실행 바이트 아님",
+               "artifacts/compose/.env.interconnect.template" in rgr["files"]
+               and icr.splitlines()[0].startswith("# ⚠ generated-unverified — ") and icr.splitlines()[0].endswith(f"생성: {gb}")
+               and "측정 당시 판본 재렌더" in icr and "실행 바이트 아님" in icr and f"git show {gb[9:]}" in icr)
+            ck("R-b PAYLOAD 파일 기록 = generated-unverified · renderer@rev12 · 기록 header = 파일 첫 줄",
+               rec_r.get("verification") == "generated-unverified" and rec_r.get("generated_by") == gb
+               and (rec_r.get("header") or {}).get("text") == icr.splitlines()[0] and rec_r.get("relevance") == "unknown")
+            ck("R-b env_shapes 행 = 재렌더 상태 · 판본 · 입력 근거 · 재생성 사실 유지 · excluded 아님 · 결손 코드 없음",
+               row_r.get("status") == RERENDER_STATUS and row_r.get("renderer_rev") == rev_m
+               and row_r.get("post_measurement_regenerated") is True and "mtime ≤ 측정" in row_r.get("manifest_basis", "")
+               and not any(x["file"] == "envs/.env.interconnect" for x in rgr["slots"]["compose"].get("excluded", []))
+               and "HINT_MISSING_ENV_SHAPE_RERENDER" not in rgr["missing"])
+            ck("R-b 측정 당시 판본의 값(프리셋·불변 리터럴) · 환경값은 자리표시(운영자 값 ✗)",
+               "NCCL_IB_GID_INDEX=<manifest.interconnect.gid_index>" in icr and "enpfixture0" not in icr
+               and "rocep1s0f1" not in icr and re.search(r"(?m)^NCCL_IB_QPS_PER_CONNECTION=4\b", icr) is not None)
+            ck("R-b sub_recipe 가 재렌더 형상을 가리킨다(collect · 공개 sub_recipe() 같은 규칙)",
+               (rgr["sub_recipe"] or {}).get("per_node_values", {}).get("interconnect")
+               == "artifacts/compose/.env.interconnect.template"
+               and "interconnect" in sub_recipe(repo, ev, render_module=fake_rd)["per_node_values"])
+            ck("★R-b 프로젝트 .env(render 3층 아님) = 재렌더 대상 아님 · 여전히 제외",
+               any(x["file"] == ".env" for x in rgr["slots"]["compose"].get("excluded", [])))
+            man_p.write_text("topology: multi\ninterconnect:\n  hca_devices: rocep1s0f1\n  gid_index: 3\n"
+                             "  socket_iface: enpfixture0\n  platform_preset: no-such-preset\n", encoding="utf-8")
+            _set_mtime(man_p, "2026-01-01T00:00:00Z")
+            rgx = collect(repo, ev, repo / "p_rerender_x", render_module=fake_rd, runner=docker_old)
+            row_x = next(e for e in rgx["env_shapes"] if e["file"] == "envs/.env.interconnect")
+            ck("★R-b 렌더러 거부(미지 프리셋) = 결손 코드 + 거부 사유 · 형상 미실림",
+               "HINT_MISSING_ENV_SHAPE_RERENDER" in rgx["missing"] and row_x.get("status") == "excluded"
+               and "거부" in row_x.get("rerender_error", "") and "no-such-preset" in row_x.get("rerender_error", "")
+               and "artifacts/compose/.env.interconnect.template" not in rgx["files"])
+        finally:
+            man_p.unlink()
+        ck("★R-b generated_by 어휘: renderer@<12hex> 만 확장 · 모양 밖은 거부",
+           generated_by_ok("renderer@0123456789ab") and not generated_by_ok("renderer@xyz")
+           and not generated_by_ok("renderer@0123456789abc") and not generated_by_ok("someone"))
         rg3 = collect(repo, dict(ev, certificate={"measured_utc": "2026-01-03T00:00:00Z"}), repo / "p_regen_cert",
                       render_module=fake_rd, runner=docker_old)
         ck("★F2 측정 시각 = 인증서 measured_utc 우선(그보다 이른 mtime 은 재생성 아님 → 실린다)",
@@ -4362,6 +5519,354 @@ def selftest() -> list[str]:
         ck("★F1 COPY 대상 바이트 불일치 = verified ✗ (추적 파일이면 경고 행)", sq["output/single/requirements.txt"]["verified"]
            is False and "이미지 안 바이트와 다르고" in sq["output/single/requirements.txt"]["method"]
            and ("output/single/requirements.txt" not in rvq or "warning" in rvq["output/single/requirements.txt"]))
+        # ── native 구조 통일 · 파일 단위 표시 · 관련성 · 빌드 컨텍스트 매핑 (2026-09-29 · plan_26092908 §4.2·§4.3·§4.5·§4.6) ──
+        #   N1 형 픽스처: native 셀 c1-mmp-native 는 원천 Docker 셀 c1-mmp 의 이미지(easy-vllm:fx-source)에서 재포장한 wheelhouse 로
+        #   설치됐다(serve proof source_cell × wheelhouse.source_image_tag). 원천 이미지 원장(attestation)은 패치 70·71·72(pre) · 10(post)를
+        #   적용했다고 말하고, 엔진 로그에는 70 이 심은 logger 문장만 있다.
+        ncell = f"{cell}-native"
+        nfix: list[Path] = []
+        try:
+            patches_fx = {
+                "70-fx-fire.sh": ("#!/bin/bash\n# 70 fixture — fx_model 경로\nset -euo pipefail\n"
+                                  "cat >> /workspace/vllm-src/vllm/models/fx_model/layer.py <<'PY'\n"
+                                  "logger.info(\"fixture patch 70 fired for %s\", name)\nPY\n"),
+                "71-fx-other.sh": ("#!/bin/bash\n# 71 fixture — 다른 모델 경로\nset -euo pipefail\n"
+                                   "cat >> /workspace/vllm-src/vllm/models/other_model/layer.py <<'PY'\n"
+                                   "logger.info(\n    \"fixture patch 71 other model path %s\", name)\nPY\n"),
+                "72-fx-silent.sh": ("#!/bin/bash\n# 72 fixture — 발화 서명 없음\nset -euo pipefail\n"
+                                    "sed -i 's/a/b/' /workspace/vllm-src/vllm/models/fx_model/other.py\n"),
+            }
+            for n_, t_ in patches_fx.items():
+                (out / "build_patches_src" / n_).write_text(t_, encoding="utf-8")
+                nfix.append(out / "build_patches_src" / n_)
+            led_n = {"schema_version": 1, "dockerfile": "Dockerfile.source-build", "track": "source-build",
+                     "requirements_sha256": core.sha256_file(out / "requirements.txt"),
+                     "patches": [{"phase": "pre", "file": n_, "result": "applied", "result_source": "exit-code",
+                                  "script_sha256": core.sha256_file(out / "build_patches_src" / n_)} for n_ in patches_fx]
+                     + [{"phase": "post", "file": "10-shared.sh", "result": "applied", "result_source": "status-file",
+                         "declared_model_trigger": "DeepseekV4 범용",
+                         "script_sha256": core.sha256_file(out / "build_patches/10-shared.sh")}]}
+            att_n = {"schema_version": 2, "_path": "output/multi/benchlog/attestation_c1-mmp.json",
+                     "nodes": {"main": {"build_ledger": led_n}, "sub": {"build_ledger": led_n}}}
+            (out / "configs" / f"{ncell}.yaml").write_text("# native 렌더\nmodel: X\nmax-model-len: 262144\n", encoding="utf-8")
+            (out / "configs" / f"{ncell}.sh").write_text("#!/bin/bash\nexec \"${NATIVE_VENV}/bin/vllm\" serve\n", encoding="utf-8")
+            src_sha = core.sha256_file(out / "envs" / f".env.{cell}")[:16]
+            (out / "envs" / f".env.{ncell}").write_text(
+                f"# ⚙ 렌더 산출물 — render_native_triplet.py 가 Docker 셀 env output/multi/envs/.env.{cell} (sha256={src_sha}) 에서 파생.\n"
+                f"CONFIG_FILE={ncell}\n", encoding="utf-8")
+            (repo / "output/multi/benchlog").mkdir(parents=True, exist_ok=True)
+            (repo / "output/multi/benchlog/fx_engine.log").write_text(
+                "INFO boot\nINFO fixture patch 70 fired for layer.0\n", encoding="utf-8")
+            for p_ in (out / "configs" / f"{ncell}.yaml", out / "configs" / f"{ncell}.sh", out / "envs" / f".env.{ncell}",
+                       repo / "output/multi/benchlog/fx_engine.log"):
+                nfix.append(p_)
+                _set_mtime(p_, "2026-01-01T00:00:00Z")
+            nat_trip = {"yaml": f"output/multi/configs/{ncell}.yaml", "sh": f"output/multi/configs/{ncell}.sh",
+                        "env": f"output/multi/envs/.env.{ncell}"}
+            sp_n = {"plane": "native", "source_cell": cell, "wheelhouse": {"source_image_tag": "easy-vllm:fx-source"}}
+            ev_n = dict(native_ev, cell=ncell, triplet=nat_trip, serve_proof=sp_n, attestation=att_n,
+                        build_identity={"image_tag": "easy-vllm:fx-source", "native_wheelhouse_source": True},
+                        model_architectures=["FxModelForCausalLM"], model_type="fx_model",
+                        engine_logs=["output/multi/benchlog/fx_engine.log"])
+            ev_d = dict(ev, attestation=att_n, model_architectures=["FxModelForCausalLM"], model_type="fx_model",
+                        engine_logs=["output/multi/benchlog/fx_engine.log"])
+            rn2 = collect(repo, ev_n, repo / "p_nat_u", render_module=fake_rd, runner=docker_old)
+            rd2 = collect(repo, ev_d, repo / "p_doc_u", render_module=fake_rd, runner=docker_old)
+            has = lambda r_: {k for k, v in r_["slots"].items() if v["files"]}           # noqa: E731
+            names = lambda r_, s_: {PurePath(f).name for f in r_["slots"][s_]["files"]}  # noqa: E731
+            ck("★native 슬롯 집합 = Docker 셀(런타임 패치 제외) · 슬롯 키 동일 · 빌드 패치 파일 동일",
+               set(rn2["slots"]) == set(rd2["slots"]) == set(SLOTS)
+               and has(rn2) - {"runtime_patch"} == has(rd2) - {"runtime_patch"}
+               == {"triplet", "build_patch_pre", "build_patch_post", "build_recipe", "compose"}
+               and names(rn2, "build_patch_pre") == names(rd2, "build_patch_pre") == set(patches_fx)
+               and names(rn2, "build_patch_post") == names(rd2, "build_patch_post") == {"10-shared.sh"})
+            ck("★native 빌드 입력 근거 = '원천 이미지 기준(원천 셀 attestation …)' 명시 · evidence 표지 교차 기재",
+               all("원천 이미지 기준(원천 셀 attestation attestation:" in r["verification_basis"]
+                   for s_ in ("build_patch_pre", "build_patch_post") for r in rn2["slots"][s_]["file_records"])
+               and (rn2["native_source"] or {}).get("evidence_marker") is True)
+            ck("native build_recipe = 원천 이미지 Dockerfile·requirements + native 고유(install · freeze main/sub)",
+               names(rn2, "build_recipe") == {"Dockerfile.source-build", "requirements.txt", "native-install.sh",
+                                               "pip-freeze-main.txt", "pip-freeze-sub.txt"}
+               and rn2["plane"] == "native" and rn2["track"] == "native" and (rn2["native_source"] or {}).get("ok") is True
+               and rn2["native_source"].get("cell") == cell and rn2["native_source"].get("render_header_sha_match") is True
+               and "triplet_paths" not in rn2["native_source"])
+            recs = {r["path"]: r for v in rn2["slots"].values() for r in v["file_records"]}
+            ck("★모든 실린 파일에 file_records(verification·generated_by·근거·relevance·근거) — files 와 1:1",
+               set(recs) == set(rn2["files"]) and all(
+                   r["verification"] in VERIFICATION_VALUES and generated_by_ok(r["generated_by"])
+                   and r["relevance"] in RELEVANCE_VALUES and r["verification_basis"] and r["relevance_basis"]
+                   and len(r["sha256"]) == 64 for r in recs.values()))
+            comp = [r for p_, r in recs.items() if p_.startswith("artifacts/compose/")]
+            ck("N1 형: compose·serve_runner·env 형상·sub_recipe·원천 트리플렛 = generated-unverified(renderer) · 그 밖 = verified(cell-run)",
+               comp and all(r["verification"] == "generated-unverified" and r["generated_by"] == "renderer" for r in comp)
+               and {"artifacts/compose/docker-compose.yaml", "artifacts/compose/serve_runner.sh",
+                    "artifacts/compose/sub_recipe.json", f"artifacts/compose/.env.{cell}", f"artifacts/compose/{cell}.yaml",
+                    f"artifacts/compose/{cell}.sh"} <= {r["path"] for r in comp}
+               and all(r["verification"] == "verified" and r["generated_by"] == "cell-run"
+                       for p_, r in recs.items() if not p_.startswith("artifacts/compose/")))
+            hdr_ok = True
+            for r in comp:
+                body = (repo / "p_nat_u" / r["path"]).read_text(encoding="utf-8")
+                h = r.get("header") or {}
+                if h.get("style") == "json-key":
+                    hdr_ok &= json.loads(body).get(UNVERIFIED_HEADER_KEY) == h["text"] and body.splitlines()[1].strip().startswith(
+                        f'"{UNVERIFIED_HEADER_KEY}"')
+                else:
+                    hdr_ok &= body.splitlines()[h.get("line", 0) - 1] == h.get("text") and "⚠ generated-unverified" in h["text"]
+                    hdr_ok &= (h["line"] == 2) == body.startswith("#!")
+            ck("★generated-unverified 파일 전부 첫 줄(셸은 shebang 뒤 2행 · JSON 은 _verification 키) 경고 = 기록된 헤더 · 생성 주체 문구",
+               hdr_ok and all("생성: renderer" in (r.get("header") or {}).get("text", "") for r in comp)
+               and (rn2["sub_recipe"] or {}).get(UNVERIFIED_HEADER_KEY, "").startswith("⚠ generated-unverified"))
+            ck("Docker 셀: 전부 verified(cell-run) · 헤더 없음 · sub_recipe 에 경고 키 없음",
+               all(r["verification"] == "verified" and r["generated_by"] == "cell-run" and "header" not in r
+                   for v in rd2["slots"].values() for r in v["file_records"])
+               and UNVERIFIED_HEADER_KEY not in (rd2["sub_recipe"] or {})
+               and not (repo / "p_doc_u/artifacts/compose/docker-compose.yaml").read_text(encoding="utf-8").startswith("# ⚠"))
+            rel_ = {PurePath(p_).name: r for p_, r in recs.items() if "/build_patch_" in p_}
+            ck("★관련성: 선언 일치 × 발화 = required · 선언 불일치 × 무발화 = inactive-inferred · 발화 서명 없음·범용 = unknown",
+               rel_["70-fx-fire.sh"]["relevance"] == "required"
+               and rel_["71-fx-other.sh"]["relevance"] == "inactive-inferred" and "추론" in rel_["71-fx-other.sh"]["relevance_basis"]
+               and rel_["72-fx-silent.sh"]["relevance"] == "unknown" and "서명 없음" in rel_["72-fx-silent.sh"]["relevance_basis"]
+               and rel_["10-shared.sh"]["relevance"] == "unknown"
+               and rel_["70-fx-fire.sh"]["relevance_evidence"]["fired"] is True
+               and rel_["71-fx-other.sh"]["relevance_evidence"]["declared"]["modules"] == ["other_model"])
+            ck("★script sha 칸: 원장 script_sha256 = 실린 바이트 → bytes_observed True · 원장 requirements_sha256 일치 → 쓰인 바이트 관측 = 예",
+               all(r.get("bytes_observed") is True and r.get("script_sha256_ledger") == r["sha256"] for r in rel_.values())
+               and recs["artifacts/build_recipe/requirements.txt"].get("bytes_observed") is True
+               and any("빌드 원장 sha256 일치" in str(s_.get("method")) for s_ in
+                       rn2["slots"]["build_recipe"]["evidence"]["selected_revisions"]))
+            # ── F1 · F5 · F13 · F14(2026-09-29 · plan_26092908 §4.5 FACT 생산자 교정) ──
+            ap_d = {r["file"]: r for r in rd2["applied_set"]["patches"]}
+            ck("F1 원장 경로 판정 근거: 스크립트 바이트 정체 = 원장 script_sha256 대조 · 원장 sha 를 옮긴다",
+               all("원장 script_sha256 = 작업트리 바이트" in str(ap_d[n_].get("script_identity"))
+                   and ap_d[n_].get("ledger_script_sha256") == core.sha256_file(out / "build_patches_src" / n_) for n_ in patches_fx))
+            from types import SimpleNamespace as _NS
+            ck("★F1 음성대조: 원장 sha ≠ 작업트리 → '≠' 로 적는다(일치로 접지 않는다) · 파일 없음 → 대조 불가",
+               "≠ 작업트리" in _ledger_script_identity(_NS(out=out), {"phase": "pre", "file": "70-fx-fire.sh",
+                                                                    "script_sha256": "0" * 64})["script_identity"]
+               and "파일 없음" in _ledger_script_identity(_NS(out=out), {"phase": "pre", "file": "99-none.sh",
+                                                                       "script_sha256": "0" * 64})["script_identity"]
+               and "script_identity" not in _ledger_script_identity(_NS(out=out), {"phase": "inline", "file": "x",
+                                                                                   "script_sha256": "0" * 64}))
+            ck("F5 기계 파생 사유: fork_pin 부재 = VARIANT 줄 없음 · 빌드 패치 = 적용 판정 요약 · native compose = Docker 형 참고",
+               "VARIANT 줄 없음" in str(rd2["slots"]["fork_pin"].get("machine_reason"))
+               and "applied" in str(rd2["slots"]["build_patch_pre"].get("machine_reason"))
+               and "Docker 형 참고" in str(rn2["slots"]["compose"].get("machine_reason"))
+               and "이 셀 run 아님" in str(rn2["slots"]["compose"].get("machine_reason")))
+            ck("★F5 음성대조: 기계 사유는 rationale(선언 신호)에 넣지 않는다 — confidence 불변",
+               all(v.get("rationale") is None and v["confidence"] == slot_confidence(v) for v in rd2["slots"].values()))
+            ck("★F13 generated-unverified(실행 안 된 생성물) 관련성 = unknown · 근거 '이 셀은 이 경로로 실행되지 않았다'",
+               all(r["relevance"] == "unknown" and "이 셀은 이 경로로 실행되지 않았다" in r["relevance_basis"] for r in comp))
+            ck("F13 음성대조: Docker 셀 compose(실행됨 · verified) = required",
+               all(r["relevance"] == "required" for r in rd2["slots"]["compose"]["file_records"]))
+            nrev = rn2["slots"]["compose"]["evidence"].get("selected_revisions") or []
+            ck("G5 native(실행 안 된 compose 경로) 개정 행 = executed False · verified None(쓰인 바이트 관측 ✗)",
+               nrev and all(x.get("executed") is False and x.get("verified") is None for x in nrev))
+            ck("★G5 음성대조: Docker 셀(실행됨)은 executed 표지 없음 · verified 불리언 유지",
+               all("executed" not in x and isinstance(x.get("verified"), bool)
+                   for x in rd2["slots"]["compose"]["evidence"].get("selected_revisions") or []))
+            fr_ = rel_["70-fx-fire.sh"]
+            fsig = (fr_.get("relevance_evidence") or {}).get("fired_signatures") or {}
+            ck("G4 관련성 근거 = 실제 발화 서명 · 횟수(relevance_evidence.fired_signatures 와 같은 서명)",
+               fsig and all(f"{k[:48]!r} {v}회" in fr_["relevance_basis"] for k, v in fsig.items()))
+            d14 = _patch_declared("mo=/workspace/vllm-src/vllm/model_executor/layers/quantization/modelopt.py\n"
+                                  "m=$DST/vllm/models/fx_model/mtp.py\nr=vllm/model_executor/models/registry.py\n", None)
+            ck("F14 공유 파일 = 모델 디렉터리 밖 vLLM 파일(generic 모듈 포함) · 모델 디렉터리 파일 제외",
+               d14["shared_files"] == ["vllm/model_executor/layers/quantization/modelopt.py",
+                                       "vllm/model_executor/models/registry.py"] and d14["modules"] == ["fx_model"])
+            ck("★F14 음성대조: 모델 디렉터리만 편집하면 공유 파일 없음 · 관련성 근거에 공유 목록 없음",
+               _patch_declared(patches_fx["70-fx-fire.sh"], None)["shared_files"] == []
+               and "공유" not in rel_["70-fx-fire.sh"]["relevance_basis"])
+            # ── F8 · F11(2026-09-29 · plan_26092908 §4.5): lite 측정 시각 · native run 시각 · native serve 명령 ──
+            (repo / "docs/benchmark").mkdir(parents=True, exist_ok=True)
+            lrep = repo / "docs/benchmark/bench_report_fx_lite.md"
+            lrep.write_text("# 경량 성능 보고서(lite)\n\nmode: lite\n\n> 생성일 2026-01-01T02:00:00Z.\n", encoding="utf-8")
+            nfix.append(lrep)
+            ck("F8 lite-only 셀 측정 시각 = lite 리포트 생성일(출처 표지)",
+               _lite_measured_utc(repo, {"report_kind": "lite", "bench_report_path": "docs/benchmark/bench_report_fx_lite.md"})
+               == ("2026-01-01T02:00:00Z", "lite bench_report 생성일(bench_report_fx_lite.md 머리 · lite 측정 시작 — 부하 직전 "
+                                           "lite_bench.sh MEASURED_UTC)"))
+            ck("★G7 음성대조: lite 리포트 생성일을 '측정 끝' 이라 부르지 않는다(lite_bench.sh 는 부하 직전에 찍는다)",
+               "측정 끝" not in _lite_measured_utc(repo, {"report_kind": "lite",
+                                                        "bench_report_path": "docs/benchmark/bench_report_fx_lite.md"})[1])
+            # ── FACT_FIX2 G3 · G9: lite-only 셀 bench 명령(레그 JSON · 도구 원문 인자 · 호출 재구성 · 수용 길이) ──
+            from . import evidence as _ev_mod
+            import dataclasses as _dc
+            _flds = {f_.name: (f_.default if f_.default is not _dc.MISSING else
+                               (f_.default_factory() if f_.default_factory is not _dc.MISSING else None))
+                     for f_ in _dc.fields(_ev_mod.CellEvidence)}
+            blz = repo / "output/multi/benchlog"
+            blz.mkdir(parents=True, exist_ok=True)
+            core.write_json(blz / "lite_raw_cz.json", {"config_name": "cz", "measured_utc": "2026-01-01T02:00:00Z", "topology": "multi",
+                                                       "backend": "openai-chat"})
+            legz = {"backend": "openai-chat", "model_id": "fx", "num_prompts": 3, "completed": 3, "total_input_tokens": 1695,
+                    "total_output_tokens": 384, "max_concurrency": 1, "request_rate": "inf", "date": "20260101-020100",
+                    "spec_decode_acceptance_length": 1.81}
+            core.write_json(blz / "lite_warm_cz.json", legz)
+            evz = _ev_mod.CellEvidence(**{**_flds, "repo": str(repo), "cell": "cz", "topology": "multi", "report_kind": "lite",
+                                          "bench_report_path": "docs/benchmark/bench_report_fx_lite.md", "sources": {}})
+            cz = _ctx(repo, evz)
+            cz.memo[("lite_tool_args",)] = {"flags": [("--dataset-name", "random"), ("--random-input-len", "512"),
+                                                      ("--random-range-ratio", "0"), ("--ignore-eos", None), ("--save-result", None),
+                                                      ("--result-dir", "/tmp")], "source": "lite_bench.sh@fixture L1-L4"}
+            cmdz, srcz = _bench_commands(cz)
+            ck("G3 · G9 lite-only: 레그 JSON 명령 · 도구 원문 --random-input-len 512(평균 565 ✗) · 실측 토큰 주석 · 호출 재구성 · 수용 길이",
+               "--random-input-len 512" in cmdz and "--random-input-len 565" not in cmdz and "입력 1695/3 = 565" in cmdz
+               and "--random-range-ratio 0" in cmdz and "--ignore-eos" in cmdz and "lite_bench.sh cz --topology multi --backend openai-chat "
+               "--publish-report" in cmdz and "spec_decode_acceptance_length 1.81" in cmdz and "lite_warm_cz.json" in cmdz
+               and srcz.endswith("lite 인자)"))
+            ck("★G3 음성대조: 저장 · 출력 경로 인자(--save-result · --result-dir)는 재현 부하가 아니다 — 싣지 않는다",
+               "--save-result" not in cmdz and "--result-dir" not in cmdz)
+            cz.memo[("lite_tool_args",)] = None
+            cmdz2, srcz2 = _bench_commands(cz)
+            ck("★G3 음성대조: 도구 원문을 못 읽으면 평균을 인자로 쓰되 인자 옆에 '평균 · 원문 미관측' 을 밝힌다",
+               "--random-input-len 565" in cmdz2 and "total ÷ completed 평균" in cmdz2 and srcz2 == "reconstructed(bench json)")
+            (blz / "lite_warm_cz.json").unlink()
+            ck("★G9 음성대조: 레그 JSON 이 없으면 lite-only 사유로 미관측(스윕 사유 ✗)",
+               _bench_commands(_ctx(repo, evz))[1].startswith("unobserved(lite-only 셀"))
+            (blz / "lite_raw_cz.json").unlink()
+            # ── FACT_FIX2 G4: 발화 서명은 실제 매치된 것과 횟수 · 워치독 로그는 엔진 로그가 아니다 ──
+            ft = _fired_text(["PLE mmap: madvise(", "PLE mmap stats (last"], {"PLE mmap stats (last": 66}, True)
+            ck("G4 발화 근거 = 매치된 서명 · 횟수(목록 첫째 ✗)", "'PLE mmap stats (last' 66회" in ft and "madvise" not in ft)
+            ck("★G4 음성대조: 무발화면 서명 이름을 발화 예시로 찍지 않는다",
+               _fired_text(["PLE mmap: madvise("], {}, False) == "무발화(서명 1개 전부 0회)")
+            (repo / "docs/simlog/fx_wd/logs").mkdir(parents=True, exist_ok=True)
+            for nm_ in ("main-watchdog-vllm-serve.log", "main-vllm-serve.log"):
+                (repo / "docs/simlog/fx_wd/logs" / nm_).write_text("x\n", encoding="utf-8")
+            cw = _ctx(repo, {"topology": "multi", "cell": "cw", "lineage_seeds": {"evidence_candidates": [
+                {"kind": "engine_log", "path": "docs/simlog/fx_wd/logs/main-watchdog-vllm-serve.log"},
+                {"kind": "engine_log", "path": "docs/simlog/fx_wd/logs/main-vllm-serve.log"}]}})
+            ck("★G4 음성대조: 계보 씨앗으로 들어온 워치독 로그도 엔진 로그로 세지 않는다",
+               [q.name for q in _engine_log_paths(cw)] == ["main-vllm-serve.log"])
+            ck("★F8 음성대조: lite 가 아니면(full 리포트) 이 원천을 쓰지 않는다",
+               _lite_measured_utc(repo, {"report_kind": None, "bench_report_path": "docs/benchmark/bench_report_fx_lite.md"})[0] is None)
+            ndir = repo / "docs/simlog/fx_n1"
+            (ndir / "logs").mkdir(parents=True, exist_ok=True)
+            core.write_json(ndir / "logs/state.json", {"created_utc": "2026-01-01T00:00:00Z", "up_completed_utc": "2026-01-01T00:30:00Z"})
+            core.write_json(ndir / "wheelhouse-build-main.json", {"elapsed_s_monotonic": 400.5})
+            spx = {"evidence_dir": "docs/simlog/fx_n1", "health": {"ready_after_s": 600}, "run_id": "r1", "cell": ncell,
+                   "source_cell": cell}
+            cx = _NS(repo=repo, ev={"serve_proof": spx}, cell=ncell)
+            ntx = _native_run_timing(cx)
+            ck("F11 native run 시각: install = created → serve 시작(상한) · serve = up_completed − ready_after_s → up_completed",
+               ntx.get("created") == "2026-01-01T00:00:00Z" and ntx.get("serve_start") == "2026-01-01T00:20:00Z"
+               and ntx.get("up_completed") == "2026-01-01T00:30:00Z" and ntx.get("wheelhouse") == {"main": 400.5}
+               and "ready_after_s=600" in ntx.get("serve_src", ""))
+            scx, ssx = _native_serve_command(cx)
+            ck("F11 native serve 명령 = native 정문 up(serve proof cell · run_id · source_cell) · down 정리 · 재구성 표지",
+               f"native_multinode_serve.py up --cell {ncell} --run-id r1 --source-cell {cell} --apply" in scx
+               and "down --cell" in scx and ssx.startswith("reconstructed(serve proof") and "--plane native" not in scx)
+            ck("★F11 음성대조: evidence_dir 절대경로 · 부재 → 시각 없음(합성 ✗) · run_id 없음 → 자리표시 + derived",
+               _native_run_timing(_NS(repo=repo, ev={"serve_proof": dict(spx, evidence_dir=str(ndir))}, cell=ncell)) == {}
+               and _native_run_timing(_NS(repo=repo, ev={"serve_proof": {}}, cell=ncell)) == {}
+               and _native_serve_command(_NS(repo=repo, ev={"serve_proof": {}}, cell=ncell))[1].startswith("derived("))
+            shutil.rmtree(ndir)
+            # 관련성 음성대조: 모델 config 미관측이면 선언·발화가 있어도 unknown(추론을 확정처럼 쓰지 않는다)
+            rn_u = collect(repo, {k: v for k, v in ev_n.items() if k not in ("model_architectures", "model_type")},
+                           repo / "p_nat_u2", render_module=fake_rd, runner=docker_old)
+            ck("★모델 config 미관측 → 모든 패치 관련성 unknown",
+               all(r["relevance"] == "unknown" for s_ in ("build_patch_pre", "build_patch_post")
+                   for r in rn_u["slots"][s_]["file_records"]))
+            rn_nolog = collect(repo, dict(ev_n, engine_logs=[]), repo / "p_nat_u3", render_module=fake_rd, runner=docker_old)
+            ck("★엔진 로그 미관측 → 선언 일치여도 required ✗(unknown)",
+               {PurePath(r["path"]).name: r["relevance"] for r in rn_nolog["slots"]["build_patch_pre"]["file_records"]}
+               .get("70-fx-fire.sh") == "unknown")
+            ck("결손: native 기동 기록 부재 → HINT_MISSING_NATIVE_LAUNCH · HINT_MISSING_SUB_RECIPE · Agent 요청(생성 ✗) · 적용 집합 관측",
+               {"HINT_MISSING_NATIVE_LAUNCH", "HINT_MISSING_SUB_RECIPE"} <= set(rn2["missing"])
+               and "HINT_MISSING_APPLIED_SET" not in rn2["missing"]
+               and [(r["slot"], r["name"]) for r in rn2["agent_requests"]] == [("triplet", NATIVE_LAUNCH_NAME)]
+               and not (repo / "p_nat_u" / "artifacts/triplet" / NATIVE_LAUNCH_NAME).exists()
+               and "HINT_MISSING_NATIVE_LAUNCH" not in rd2["missing"] and rd2["agent_requests"] == [])
+            (out / "native-launch.md").write_text("# 기동 기록 fixture\nray start --head\n", encoding="utf-8")
+            nfix.append(out / "native-launch.md")
+            rn_l = collect(repo, dict(ev_n, serve_proof=dict(sp_n, native_launch_path="output/multi/native-launch.md")),
+                           repo / "p_nat_l", render_module=fake_rd, runner=docker_old)
+            lrec = {r["path"]: r for r in rn_l["slots"]["triplet"]["file_records"]}.get(f"artifacts/triplet/{NATIVE_LAUNCH_NAME}")
+            ck("native 기동 기록이 보존되면 triplet 에 verified 로 싣고 NATIVE_LAUNCH·SUB_RECIPE 결손 ✗",
+               lrec is not None and lrec["verification"] == "verified"
+               and not {"HINT_MISSING_NATIVE_LAUNCH", "HINT_MISSING_SUB_RECIPE"} & set(rn_l["missing"])
+               and rn_l["agent_requests"] == [])
+            rn_mm = collect(repo, dict(ev_n, serve_proof=dict(sp_n, wheelhouse={"source_image_tag": "easy-vllm:other"})),
+                            repo / "p_nat_mm", render_module=fake_rd, runner=docker_old)
+            ck("★원천 셀 env IMAGE_TAG ≠ wheelhouse 원천 이미지 → 묶지 않는다(빌드 입력 ✗ · APPLIED_SET 결손 · 사유 기재)",
+               (rn_mm["native_source"] or {}).get("ok") is False and "IMAGE_TAG" in rn_mm["native_source"].get("why", "")
+               and "HINT_MISSING_APPLIED_SET" in rn_mm["missing"] and not rn_mm["slots"]["build_patch_pre"]["files"]
+               and not any("Dockerfile" in f for f in rn_mm["files"]))
+            bmap = {r["slot_path"]: r for r in rn2["build_context_map"]}
+            ck("★build_context_map: 패치 → build_patches_src/·build_patches/ · env 형상 → envs/ · 러너 → configs/(volume) · 셀 env → "
+               "envs/.env.<cell> · native 트리플렛 → 원래 자리 · sub_recipe = 컨텍스트 밖",
+               bmap["artifacts/build_patch_pre/70-fx-fire.sh"]["context_path"] == "build_patches_src/70-fx-fire.sh"
+               and bmap["artifacts/build_patch_post/10-shared.sh"]["context_path"] == "build_patches/10-shared.sh"
+               and bmap["artifacts/build_recipe/requirements.txt"]["context_path"] == "requirements.txt"
+               and bmap["artifacts/build_recipe/Dockerfile.source-build"]["context_path"] == "Dockerfile.source-build"
+               and bmap["artifacts/compose/serve_runner.sh"]["context_path"] == "configs/serve_runner.sh"
+               and bmap["artifacts/compose/.env.cluster.template"]["context_path"] == "envs/.env.cluster"
+               and bmap[f"artifacts/compose/.env.{cell}"]["context_path"] == f"envs/.env.{cell}"
+               and bmap[f"artifacts/triplet/{ncell}.yaml"]["context_path"] == f"configs/{ncell}.yaml"
+               and bmap["artifacts/compose/sub_recipe.json"]["context_path"] is None
+               and bmap["artifacts/build_recipe/native-install.sh"]["context_path"] is None
+               and set(bmap) == set(rn2["files"]))
+            ck("native 재현 절차: 원천 이미지 build 단계가 install 앞", [s_["step"] for s_ in rn2["reproduce_steps"]][:2]
+               == ["build", "install"])
+            # ★원장 requirements_sha256 불일치 = 쓰인 바이트 아님(verified ✗ · 경고) — 옛 "미관측" 도 거짓 "관측" 도 아니다
+            att_bad = {**att_n, "nodes": {"main": {"build_ledger": dict(led_n, requirements_sha256="0" * 64)}}}
+            rq_bad = collect(repo, dict(ev_d, attestation=att_bad), repo / "p_doc_rq", render_module=fake_rd, runner=docker_old)
+            sq_bad = {PurePath(str(x["path"])).name: x for x in rq_bad["slots"]["build_recipe"]["evidence"]["selected_revisions"]}
+            ck("★원장 requirements_sha256 ≠ 실린 바이트 → verified ✗ · bytes_observed False",
+               sq_bad["requirements.txt"]["verified"] is False and {r["path"]: r for r in rq_bad["slots"]["build_recipe"]
+                                                                    ["file_records"]}["artifacts/build_recipe/requirements.txt"]
+               ["bytes_observed"] is False)
+            # ★표시 어휘·3자리 tripwire: generated-unverified 인데 헤더가 없으면 차단
+            slots_x = {"compose": {"files": ["artifacts/compose/docker-compose.yaml"], "evidence": {}}}
+            raises("★generated-unverified 인데 헤더 없음 = 표시 불일치 차단", "HINT_ARTIFACT_MARK_INVALID",
+                   lambda: _file_records(_ctx(repo, ev_d), repo / "p_doc_u", slots_x,
+                                         {"artifacts/compose/docker-compose.yaml": {"verification": "generated-unverified",
+                                                                                    "generated_by": "renderer"}},
+                                         None, {"_per": {}, "_logs": [], "model": {}}))
+        finally:
+            for p_ in nfix:
+                if p_.exists():
+                    p_.unlink()
+        # ★헤더 삽입 단위: 셸 shebang 보존(2행) · yaml 1행 · JSON 최상위 키 · JSON 최상위 목록 = 차단
+        hd = repo / "p_hdr"
+        (hd / "artifacts/compose").mkdir(parents=True)
+        (hd / "artifacts/compose/a.sh").write_text("#!/bin/bash\necho x\n", encoding="utf-8")
+        (hd / "artifacts/compose/a.sh").chmod(0o755)
+        (hd / "artifacts/compose/b.yaml").write_text("k: v\n", encoding="utf-8")
+        (hd / "artifacts/compose/c.json").write_text('{"z": 1}\n', encoding="utf-8")
+        (hd / "artifacts/compose/d.json").write_text('[1]\n', encoding="utf-8")
+        h1 = _insert_header(hd, "artifacts/compose/a.sh", "사유", "renderer")
+        h2 = _insert_header(hd, "artifacts/compose/b.yaml", "사유", "agent")
+        h3 = _insert_header(hd, "artifacts/compose/c.json", "사유", "renderer")
+        ck("헤더 삽입: shebang 뒤 2행 · 실행 비트 보존 · yaml 1행 · JSON _verification 키 · 문구 = unverified_header",
+           (hd / "artifacts/compose/a.sh").read_text(encoding="utf-8").splitlines()[:2]
+           == ["#!/bin/bash", "# " + unverified_header("사유", "renderer")] and h1["line"] == 2
+           and (hd / "artifacts/compose/a.sh").stat().st_mode & 0o111
+           and (hd / "artifacts/compose/b.yaml").read_text(encoding="utf-8").startswith("# ⚠ generated-unverified — 사유 · 생성: agent\n")
+           and h2["line"] == 1 and json.loads((hd / "artifacts/compose/c.json").read_text(encoding="utf-8"))
+           == {"z": 1, UNVERIFIED_HEADER_KEY: unverified_header("사유", "renderer")} and h3["style"] == "json-key")
+        raises("★JSON 최상위 목록 = 경고 키 삽입 불가 차단", "HINT_ARTIFACT_HEADER_UNSUPPORTED",
+               lambda: _insert_header(hd, "artifacts/compose/d.json", "사유", "renderer"))
+        # ★env 형상 키마다 자기 자리표시(실물 렌더러): 한 필드(nccl_transport · socket_iface) → 여러 키면 <derived:field→KEY> + 실효값 표
+        icp = repo / "p_ic" / ".env.interconnect"
+        icp.parent.mkdir(parents=True)
+        icp.write_text("NCCL_IB_DISABLE=0\nNCCL_NET=IB\nNCCL_SOCKET_IFNAME=enpfixture0\nGLOO_SOCKET_IFNAME=enpfixture0\n"
+                       "NCCL_IB_GID_INDEX=3\nNCCL_DEBUG=INFO\n", encoding="utf-8")
+        dv: list = []
+        ic_txt, _ = _env_shape(repo, icp, "interconnect", derived_out=dv)
+        kv = dict(ln.split("    #")[0].split("=", 1) for ln in ic_txt.splitlines() if "=" in ln and not ln.startswith("#"))
+        dvf = {d["field"]: d for d in dv}
+        ck("★키마다 자기 자리표시: nccl_transport 2키·socket_iface 2키가 서로 다른 표지 · 단일 파생 키는 <manifest.…> 유지 · 실효값 표",
+           kv.get("NCCL_IB_DISABLE") == "<derived:interconnect.nccl_transport→NCCL_IB_DISABLE>"
+           and kv.get("NCCL_NET") == "<derived:interconnect.nccl_transport→NCCL_NET>"
+           and kv.get("NCCL_SOCKET_IFNAME") == "<derived:interconnect.socket_iface→NCCL_SOCKET_IFNAME>"
+           and kv.get("NCCL_IB_GID_INDEX") == "<manifest.interconnect.gid_index>" and kv.get("NCCL_DEBUG") == "INFO"
+           and len(set(kv.values())) == len(kv)
+           and dvf["interconnect.nccl_transport"]["effective_values"] == {"rdma": {"NCCL_IB_DISABLE": "0", "NCCL_NET": "IB"},
+                                                                         "socket": {"NCCL_IB_DISABLE": "1", "NCCL_NET": "Socket"}}
+           and dvf["interconnect.socket_iface"]["value_rule"] == {
+               "NCCL_SOCKET_IFNAME": "{interconnect.socket_iface}", "GLOO_SOCKET_IFNAME": "{interconnect.socket_iface}"}
+           and "rdma → NCCL_IB_DISABLE=0 · NCCL_NET=IB" in ic_txt)
         # ★slave_forward 거부(SystemExit)는 HintError 로 번역된다
         (out / "envs" / f".env.{cell}").write_text(
             (out / "envs" / f".env.{cell}").read_text(encoding="utf-8") + "VLLM_REPO=bad value\n", encoding="utf-8")

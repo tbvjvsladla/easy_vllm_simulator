@@ -340,6 +340,9 @@ for L in "${SORTED[@]}"; do
   LDIR="$SWEEPDIR/level_$(printf '%02d' "$L")"; mkdir -p "$LDIR"
   # 이전 스윕의 반복 산출물을 걷어낸다 — 남아 있으면 이번 레벨의 runs[] 에 **다른 측정의 run** 이 섞인다.
   rm -rf "$LDIR"/run_[0-9][0-9]* "$LDIR/repeat_run.json"
+  # 도구별 원시(bench_=vllm · guidellm_=GuideLLM)도 걷어낸다 — 도구를 바꿔 재스윕하면 옛 도구 원시가 레벨 자리에 남아
+  #   소비자가 이번 측정으로 읽는다(2026-09-23 D1: 09-12 vllm bench JSON 이 GuideLLM 스윕의 첫 측정 시각으로 읽혔다).
+  rm -f "$LDIR/bench_${CONFIG}.json" "$LDIR/guidellm_${CONFIG}.json"
   echo "[sweep_bench] ── level 동시성=$L (반복 $REPEATS · $REPEAT_KIND) ──"
   for ((K = 1; K <= REPEATS; K++)); do
     if [ "$K" = 1 ]; then RDIR="$LDIR"; else RDIR="$LDIR/run_$(printf '%02d' "$K")"; mkdir -p "$RDIR"; fi
@@ -462,7 +465,7 @@ CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$CFGYAML" EF="$EF" MANIFEST="$MANIFEST" \
 SWEEPDIR="$SWEEPDIR" VLLM_VER="$VLLM_VER" COMPLETED="${COMPLETED[*]:-}" ILEN="$ILEN" \
  REPEATS="$REPEATS" REPEATS_SOURCE="$REPEATS_SOURCE" REPEAT_KIND="$REPEAT_KIND" CLAMP_LEVEL="${CLAMP_LEVEL:-}" \
  IMAGE_TAG_ACTUAL="$IMAGE_TAG_ACTUAL" IMAGE_DIGEST_ACTUAL="$IMAGE_DIGEST_ACTUAL" REASSEMBLE="$REASSEMBLE" \
- LITE_RAW="$LITE_RAW" SDIR="$SDIR" python3 - <<'PY'
+ LITE_RAW="$LITE_RAW" SDIR="$SDIR" SERVE_PLANE="$SERVE_PLANE" python3 - <<'PY'
 import json, os, re, glob, sys, datetime
 sys.path.insert(0, os.environ["SDIR"])   # 벤치 명명 SSOT(같은 스킬 디렉터리 · 서브에도 배달됨)
 from doc_naming import gpu_key as _gpu_key
@@ -527,6 +530,18 @@ if reassemble:
     # digest 도 같은 규율로 승계한다 — 재조립은 측정하지 않으므로 docker 에 다시 묻지 않는다.
     _img_digest = ((_pm.get("image_digest") or "NA")
                    if str(_pm.get("image_digest_source", "")).startswith("measured") else "NA")
+# native 평면(2026-09-23 · plan_26092311 N6): 컨테이너도 IMAGE_TAG 도 없어 강한 키 vllm_version 이 NA 로 떨어졌다. native 정문의
+#   serve proof 가 **측정한 run 이 설치한 원천 이미지**(각 노드가 자기 이미지에서 재포장)를 기록하므로 그것을 이미지 라인으로 쓴다.
+_native_img = None
+if os.environ.get("SERVE_PLANE") == "native" and _img_actual == "NA":
+    try:
+        _sp = json.load(open(os.path.join(os.path.dirname(sweepdir), "serve_proof_%s.json" % cfg), encoding="utf-8"))
+    except (OSError, ValueError):
+        _sp = None
+    if isinstance(_sp, dict) and _sp.get("plane") == "native" and _sp.get("status") == "PASS":
+        _native_img = ((_sp.get("wheelhouse") or {}).get("source_image_tag") or "").strip() or None
+    if _native_img:
+        _img = _native_img
 _elog = ""
 for _lvl in sorted(completed):
     _p = os.path.join(sweepdir, "level_%02d" % _lvl, "engine_%s.log" % cfg)
@@ -828,8 +843,9 @@ meta = {
     "cuda_version": grep_yaml(mftext, "cuda_version") or "NA",
     # 실측 우선(측정 > 선언). 선언값은 버리지 않고 `image_tag_declared` 로 나란히 남긴다 —
     # vllm_version/vllm_build 가 쓰는 규율과 동형이다(2026-08-13 신설, 위 캡처 스탠자 참조).
-    "image_tag": _img_actual if _img_actual != "NA" else (grep_env(envtext, "IMAGE_TAG") or "NA"),
-    "image_tag_source": "measured(docker inspect)" if _img_actual != "NA" else "declared(envfile)",
+    "image_tag": _img_actual if _img_actual != "NA" else (_native_img or grep_env(envtext, "IMAGE_TAG") or "NA"),
+    "image_tag_source": ("measured(docker inspect)" if _img_actual != "NA" else
+                         "measured(native serve proof · wheelhouse 원천 이미지)" if _native_img else "declared(envfile)"),
     "image_tag_declared": grep_env(envtext, "IMAGE_TAG") or "NA",
     # 태그가 가리키는 **내용**의 신원. 재조립 모드에서는 기존 index 에서 승계된다.
     "image_digest": _img_digest,

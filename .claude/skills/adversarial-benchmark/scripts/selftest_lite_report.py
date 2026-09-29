@@ -286,7 +286,7 @@ def main() -> int:
                                 capture_output=True, text=True, timeout=60)
             return cp, (rbs.parse_measurement_config(cp.stdout) if cp.returncode == 0 else None)
 
-        cp, mc_down = full_render({"bench_mode": "lite", "bench_mode_source": "runs[](판정점 끊김)",
+        cp, mc_down = full_render({"bench_mode": "lite", "bench_mode_source": "runs[] 집계(판정점 끊김)",
                                    "downgrade_reason": "run_failed", "downgrade_reason_source": "runs[] run 3",
                                    "downgrade_correlation": "not_scanned"})
         ck("L9 강등 기록 → 표 bench_mode=lite · kind=downgraded-lite · 사유 run_failed · 요청 반복 3 · 판정점 완주 2 · 도구",
@@ -298,7 +298,7 @@ def main() -> int:
            (ep.report_measurement_config(cp.stdout)[0] or {}).get("bench_mode") == ep.LITE_BENCH_MODE
            and cc.bench_mode_kind(ep.report_measurement_config(cp.stdout)[0]) == "downgraded-lite"
            and len(rbs.parse_report(cp.stdout)["levels"]) == 1 and not rbs.is_lite_report(cp.stdout))
-        cp, mc_full = full_render({"bench_mode": "full", "bench_mode_source": "runs[](판정점 완주 3)",
+        cp, mc_full = full_render({"bench_mode": "full", "bench_mode_source": "runs[] 집계(판정점 완주 3)",
                                    "downgrade_reason": None, "downgrade_reason_source": None,
                                    "downgrade_correlation": "not_applicable"})
         ck("★L9 음성대조 full 기록 → bench_mode=full · 발행기 표 판독도 lite 가 아니다(full 리포트를 lite 로 바인딩할 수 없다)",

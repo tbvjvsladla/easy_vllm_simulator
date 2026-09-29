@@ -1,9 +1,17 @@
 """hintlib.branch — hint 브랜치 배관 커밋 (plan_26092119 §4.9 · SPEC §5.8 · 옛 `hint_branch.py` 이관).
 
 무엇을 하나
-    발행 draft 의 `payload/` 디렉터리 → allowlist 트리 → `refs/heads/hint` 한 칸 전진. 태그는 만들지 않는다
-    (봉인은 `tag.py` 소관). hint 태그가 가리키는 커밋의 **트리가 곧 배포물**(archive = zip)이므로, 이 모듈은
-    "무엇이 배포되는가"의 단일 소유자다.
+    발행 draft 의 `payload/` 디렉터리 → allowlist 트리 → **안내 커밋을 부모로 한** 페이로드 커밋(오브젝트만 · ref 이동 ✗).
+    태그는 만들지 않는다(봉인은 `tag.py` 소관). hint 태그가 가리키는 커밋의 **트리가 곧 배포물**(archive = zip)이므로, 이
+    모듈은 "무엇이 배포되는가"의 단일 소유자다.
+
+★ 브랜치 모델 v7 (2026-09-29 · plan_26092908 §4.7 · U8 · V12)
+    옛 모델(페이로드 커밋 부모 = 로컬 hint tip · 브랜치 한 칸 전진)은 PC 마다 체인이 갈라졌고, 다른 PC 태그를 이 PC verify 가
+    막았으며, 브랜치를 push 하면 원격 첫 화면이 마지막 셀 README 가 됐다. 이제:
+      - 부모 = **안내 커밋**(원격 `refs/heads/hint` tip · ls-remote 읽기 · 트리 = README.md 하나 · 첫 줄 형식 마커
+        `<!-- hint-branch-format: v7 -->`). 형식 불일치(마커 없는 옛 안내 포함) = HINT_BRANCH_FORMAT_MISMATCH → 형식 전환 명령.
+      - 페이로드 커밋끼리 체인 ✗ · 로컬 `refs/heads/hint` 는 발행이 움직이지 않는다(재개 = draft state 의 anchor + 결정론 SHA).
+      - 브랜치 push 는 `branch_transition`(사람 승인 · exact refspec non-force)뿐이다.
 
 ★ 워킹트리 0 설계 (plan D1.2 개정 · 2026-09-01 · 옛 hint_branch 에서 그대로)
     `git worktree` + 빈 인덱스 대신 **순수 배관**(hash-object → mktree → commit-tree → update-ref)만 쓴다.
@@ -80,15 +88,16 @@ PAYLOAD_SLOT_DIRS = ("triplet", "runtime_patch", "build_patch_pre", "build_patch
 #   갈린다(격리 저장소 실측: 파일 1개가 zip 에서 사라졌다 · `export-subst` 는 내용을 바꾼다). AC3 "zip 만으로" 의 전제다.
 FORBIDDEN_SEGMENTS = frozenset({".git", ".claude", "__pycache__", ".gitattributes", ".gitmodules"})
 # 신 형식 표지(SPEC §2 · PAYLOAD.json `format`). 옛 형식 페이로드를 이 브랜치에 새로 얹지 않는다(P1: 옛 것은 읽기 전용).
-PAYLOAD_FORMAT = "hint-payload/v6"
+# 2026-09-29 v6 → v7(plan_26092908 §4.2~§4.6 · D 통합 결정: template.FORMAT · 안내 README 형식 줄과 같은 값 — 교차검증은 hint.py 자체검사).
+PAYLOAD_FORMAT = "hint-payload/v7"
 # 사람·Agent 가 읽는 서사 4종. 봉인 전 `template.seal_prompts` 가 기재 지시(PROMPT)를 질문 한 줄로 바꾼다 —
-# 지시가 남은 채 배포되면 수신자는 **저작되지 않은 빈칸**을 지도로 받는다. 커밋 전에 막는다: hint 브랜치는
-# 전진만 하므로(되감기 ✗) 나중에 verify 가 잡아도 잔재 커밋은 브랜치에 영구히 남는다.
+# 지시가 남은 채 배포되면 수신자는 **저작되지 않은 빈칸**을 지도로 받는다. 커밋 전에 막는다: 페이로드 커밋은 결정론
+# 오브젝트라 같은 입력이면 다시 지어도 같은 SHA 이고, 태그가 가리키는 순간 불변이다 — 잔재는 오브젝트 전에 막는다.
 PAYLOAD_DOCS = ("00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md")
 PROMPT_RESIDUE_RE = re.compile(r"<!--\s*PROMPT\b")
 # 미저작 자리표시(`<<AGENT: …>>`)도 같은 "저작되지 않은 빈칸" 이다. 표지 문자열의 소유자는 template(AGENT_MARK)이고
 # 여기서는 지연 import 로 읽는다(두 자리에 적지 않는다 · workflow.md 개념 중복). seal_prompts 가 이미 막지만, 커밋은
-# seal_prompts 를 거쳤는지 묻지 않으므로 전진 전용 브랜치 앞에서 한 번 더 막는다.
+# seal_prompts 를 거쳤는지 묻지 않으므로 커밋 앞에서 한 번 더 막는다.
 
 _FULL_SHA_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 _IDENT_LINE_RE = re.compile(r"^(author|committer|tagger) (.*) (\d+) ([+-]\d{4})$")
@@ -504,6 +513,7 @@ def _validate_payload_docs(root: Path, rels: list[str], message: str) -> str:
 
 # ── ref ───────────────────────────────────────────────────────────────────────────────────────
 def hint_tip(repo: Path) -> str | None:
+    """로컬 `refs/heads/hint`(형식 전환·자체검사 전용 — 발행 경로는 읽지 않는다 · §4.7)."""
     tip = core.git(repo, "rev-parse", "--verify", "--quiet", HINT_BRANCH_REF, check=False).stdout.strip()
     return tip or None
 
@@ -527,21 +537,133 @@ def _update_hint_ref(repo: Path, new: str, expected_old: str | None) -> None:
     """compare-and-swap. 브랜치가 없을 때도 old 를 생략하지 않고 **zero-oid 로 "생성 전용"** CAS 를 건다 —
     옛 publish 는 old 를 주지 않아 그 사이 누가 만든 브랜치를 덮을 수 있었다(코드맵 §1.2 11)."""
     old = expected_old if expected_old else "0" * len(new)
-    r = core.git(repo, "update-ref", "-m", f"hint: payload {new[:12]}", HINT_BRANCH_REF, new, old, check=False)
+    r = core.git(repo, "update-ref", "-m", f"hint: branch {new[:12]}", HINT_BRANCH_REF, new, old, check=False)
     if r.returncode != 0:
         core.fail("HINT_BRANCH_CAS_CONFLICT",
                   f"{HINT_BRANCH_REF} 가 그 사이 바뀌었다(기대 {old[:12]}) — 덮지 않는다: {r.stderr.strip()}",
                   "다른 발행이 끼어들었다. 브랜치 상태를 확인하고 hint.py continue 를 다시 실행한다.")
 
 
-# ── maintenance-only branch transition ───────────────────────────────────────────────────────
-# This is intentionally separate from commit_payload: the v6 payload's 8-file contract remains untouched.
-_BRANCH_TRANSITION_MESSAGE = "hint: branch transition\n"
+# ── 안내 커밋 (plan_26092908 §4.7 · U8 · V12) ─────────────────────────────────────────────────────
+# ★ 2026-09-29 V12: 옛 모델은 페이로드 커밋의 부모 = **로컬** hint tip 이었다 → PC 마다 체인이 갈라지고(다른 PC 태그는 이 PC
+#   verify 에서 HINT_ANCHOR_NOT_ON_HINT_BRANCH) · 브랜치를 push 하면 원격 첫 화면이 마지막 셀 README 로 바뀌었다. 새 모델:
+#   - 페이로드 커밋의 부모 = **안내 커밋**(원격 `refs/heads/hint` tip · ls-remote 로 **읽기만**). 페이로드 커밋끼리 체인을 만들지
+#     않는다 → PC 간 분기가 원천적으로 없다. 페이로드 커밋은 브랜치에 얹지 않고 **태그만** 가리킨다(로컬 hint 불이동 · 재개
+#     멱등성은 draft state 의 anchor 와 결정론 SHA 로 판단한다).
+#   - 안내 커밋 = 트리가 README.md 하나(100644) ∧ README **첫 줄**이 형식 마커 `<!-- hint-branch-format: vN -->`. 마커는 발행기가
+#     "이 브랜치가 어느 형식의 안내인가" 를 읽는 유일한 기계 표면이다(산문 문구로 판정하지 않는다).
+#   - 형식 ≠ 발행기 형식(`BRANCH_FORMAT`) = HINT_BRANCH_FORMAT_MISMATCH. **마커가 없는 옛 안내**(v6 전환 커밋 `6294a91` 처럼
+#     README 하나이지만 마커 도입 전)도 같은 코드로 막는다 — 형식을 선언하지 않은 안내는 v7 과 같다고 추정하지 않는다. 처방은
+#     `hint.py branch-transition`(사람 승인 · G2)이 그 위에 v7 안내 커밋을 얹고 exact refspec 로 non-force push 하는 것뿐이다.
+#   - 브랜치 push 는 형식 전환 때만(발행은 브랜치를 밀지 않는다 · 자동 push 권한 ✗).
+BRANCH_FORMAT = "v7"
+GUIDE_README = "README.md"
+_GUIDE_MARKER_RE = re.compile(r"^<!-- hint-branch-format: (v[1-9][0-9]*) -->$")
+
+
+def guide_marker(fmt: str = BRANCH_FORMAT) -> str:
+    """안내 README 첫 줄(개행 없음). 템플릿 `templates/hint-branch-README.md`(D 소유) 첫 줄이 이 바이트여야 한다."""
+    if not isinstance(fmt, str) or not re.fullmatch(r"v[1-9][0-9]*", fmt):
+        core.fail("HINT_BRANCH_FORMAT_SHAPE", f"형식 버전 모양이 아니다: {fmt!r}")
+    return f"<!-- hint-branch-format: {fmt} -->"
+
+
+def readme_format(data) -> str | None:
+    """README 바이트/문자열 → 첫 줄 형식 마커의 버전(`v7` …) · 마커 없음 = None(마커 도입 전 안내 · 일반 README)."""
+    if data is None:
+        return None
+    text = data.decode("utf-8", "replace") if isinstance(data, bytes) else str(data)
+    m = _GUIDE_MARKER_RE.match(text.split("\n", 1)[0].rstrip("\r"))
+    return m.group(1) if m else None
+
+
+def _format_num(fmt: str | None) -> int:
+    return int(fmt[1:]) if fmt else 0
+
+
+def _commit_parents(raw: str) -> list[str]:
+    return [ln[7:] for ln in raw.split("\n\n", 1)[0].splitlines() if ln.startswith("parent ")]
+
+
+def guide_info(repo: Path, sha: str) -> tuple[str | None, str | None]:
+    """로컬 커밋 하나가 안내 커밋인가 → (형식 | None, 안내가 아닌 사유 | None). 읽기만 한다.
+    (fmt, None) = 형식 마커를 가진 안내 · (None, 사유) = 커밋 아님 · 트리 모양 위반 · 마커 없음."""
+    raw = read_object_text(repo, "commit", sha) if sha else None
+    if raw is None:
+        return None, f"커밋 오브젝트가 로컬에 없다({str(sha)[:12]})"
+    ents = tree_entries(repo, sha)
+    if len(ents) != 1 or ents[0]["path"] != GUIDE_README or ents[0]["type"] != "blob" or ents[0]["mode"] != "100644":
+        return None, f"트리가 {GUIDE_README} 하나(100644)가 아니다 — 안내 커밋이 아니다(항목 {len(ents)}개)"
+    fmt = readme_format(read_blob(repo, sha, GUIDE_README))
+    if fmt is None:
+        return None, "README 첫 줄에 형식 마커(`<!-- hint-branch-format: vN -->`)가 없다 — 마커 도입 전(v6 이하) 안내다"
+    return fmt, None
+
+
+def _format_mismatch(where: str, sha: str, fmt: str | None, why: str | None):
+    core.fail("HINT_BRANCH_FORMAT_MISMATCH",
+              f"{where} {str(sha)[:12]} 는 발행기 형식 {BRANCH_FORMAT} 의 안내 커밋이 아니다 — "
+              + (why if why else f"안내 형식 {fmt} ≠ 발행기 형식 {BRANCH_FORMAT}"),
+              "형식 전환이 필요하다: 사람 승인(G2) 뒤 `hint.py branch-transition --remote <원격> --generated-utc <UTC> "
+              "--approved-by \"<사람 발화 전사>\" --approved-utc <UTC>` 가 그 위에 v7 안내 커밋을 얹고 exact refspec 로 "
+              "non-force push 한다(발행은 브랜치를 밀지 않는다).")
+
+
+def require_guide(repo: Path, sha: str, *, where: str = "안내 커밋") -> str:
+    """sha 가 **발행기 형식**(BRANCH_FORMAT)의 안내 커밋인가(로컬 오브젝트 · 네트워크 ✗). 아니면 HINT_BRANCH_FORMAT_MISMATCH."""
+    if not isinstance(sha, str) or not _FULL_SHA_RE.match(sha):
+        core.fail("HINT_BRANCH_GUIDE_SHAPE", f"안내 커밋은 전체 SHA 여야 한다: {sha!r}")
+    fmt, why = guide_info(repo, sha)
+    if fmt != BRANCH_FORMAT:
+        _format_mismatch(where, sha, fmt, why)
+    return sha
+
+
+def _ensure_local_commit(repo: Path, remote: str, sha: str) -> None:
+    """원격 tip 오브젝트가 로컬에 없으면 그 **한 ref** 만 fetch 한다(원격 추적 ref 갱신 허용 · 로컬 브랜치 이동 ✗)."""
+    if core.git(repo, "cat-file", "-e", f"{sha}^{{commit}}", check=False).returncode == 0:
+        return
+    from . import tag  # noqa: PLC0415 — tag → branch import 순환 회피
+    tag.fetch_ref_objects(repo, remote, HINT_BRANCH_REF)
+    if core.git(repo, "cat-file", "-e", f"{sha}^{{commit}}", check=False).returncode != 0:
+        core.fail("HINT_BRANCH_GUIDE_UNREADABLE",
+                  f"원격 {HINT_BRANCH_REF} tip {sha[:12]} 을 fetch 뒤에도 로컬에서 읽을 수 없다 — 그 사이 원격 tip 이 바뀌었을 수 있다.",
+                  "다시 실행한다(조회와 fetch 사이 경합).")
+
+
+def guide_commit(repo: Path, remote: str, *, pinned: str | None = None) -> tuple[str, str]:
+    """페이로드 커밋의 부모가 될 안내 커밋 → (sha, 형식). 형식 ≠ BRANCH_FORMAT 이면 HINT_BRANCH_FORMAT_MISMATCH.
+
+    기본: 원격 `refs/heads/hint` tip 을 `ls-remote` 로 **읽는다**(쓰기 ✗). 오브젝트가 로컬에 없으면 그 한 ref 만 fetch 한다.
+    원격 조회 실패 = HINT_REMOTE_QUERY_FAILED(fail-closed · '없음' 으로 접지 않는다) · 원격에 hint 브랜치 없음 =
+    HINT_BRANCH_GUIDE_ABSENT. 로컬 `refs/heads/hint` 는 읽지도 움직이지도 않는다.
+    pinned: 네트워크 없이 **로컬 오브젝트**를 안내로 쓴다(자체검사·오프라인 재생 전용 — 원격 조회를 하지 않았다는 사실은
+    호출자가 기록한다). 같은 판정(require_guide)을 받는다."""
+    if pinned is not None:
+        return require_guide(repo, pinned, where="지정 안내 커밋(pinned)"), BRANCH_FORMAT
+    if not isinstance(remote, str) or not remote.strip() or remote.lstrip().startswith("-"):
+        core.fail("HINT_BRANCH_REMOTE_INVALID", f"안내 커밋을 읽을 원격 인자가 올바르지 않다: {remote!r}")
+    from . import tag  # noqa: PLC0415
+    tip = tag.remote_ref_object(repo, remote, HINT_BRANCH_REF)
+    if not tip:
+        core.fail("HINT_BRANCH_GUIDE_ABSENT", f"원격 {remote!r} 에 {HINT_BRANCH_REF} 가 없다 — 페이로드 커밋의 부모(안내 커밋)가 없다.",
+                  "형식 전환 명령(`hint.py branch-transition` · 사람 승인)으로 안내 커밋을 만든다.")
+    _ensure_local_commit(repo, remote, tip)
+    fmt, why = guide_info(repo, tip)
+    if fmt != BRANCH_FORMAT:
+        _format_mismatch(f"원격 {HINT_BRANCH_REF} tip", tip, fmt, why)
+    return tip, fmt
+
+
+# ── 형식 전환 (branch-transition · 사람 승인 · 브랜치 push 의 유일한 경로) ───────────────────────────
+# 안내 커밋 = README.md 한 개. README 바이트는 추적 템플릿(HEAD)의 바이트 그대로이고 그 첫 줄이 형식 마커여야 한다 — 마커를
+# 여기서 덧붙이지 않는다(템플릿 = 배포 바이트 · 한 자리). 템플릿 문안은 D(template) 소유.
+_BRANCH_TRANSITION_MESSAGE = f"hint: branch transition → {BRANCH_FORMAT}\n"
 _BRANCH_TEMPLATE_REL = f"{core.REL_SKILL}/templates/hint-branch-README.md"
 
 
 def _transition_template_bytes(repo: Path) -> bytes:
-    """Read the tracked HEAD template byte-for-byte and reject deploy-surface PII."""
+    """추적 HEAD 템플릿을 바이트 그대로 읽는다 · 첫 줄 = 이 발행기의 형식 마커 · 배포면 PII 거부."""
     data = core.git_bytes(repo, "show", f"HEAD:{_BRANCH_TEMPLATE_REL}", check=False)
     if data is None:
         core.fail("HINT_BRANCH_TEMPLATE_ABSENT", f"추적 전환 템플릿이 없다: {_BRANCH_TEMPLATE_REL}")
@@ -549,6 +671,10 @@ def _transition_template_bytes(repo: Path) -> bytes:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
         core.fail("HINT_BRANCH_TEMPLATE_UNREADABLE", f"전환 템플릿이 UTF-8이 아니다: {_BRANCH_TEMPLATE_REL}")
+    if readme_format(text) != BRANCH_FORMAT:
+        core.fail("HINT_BRANCH_TEMPLATE_FORMAT",
+                  f"전환 템플릿 첫 줄이 형식 마커 `{guide_marker()}` 가 아니다(읽힌 형식 {readme_format(text)!r}).",
+                  f"`{_BRANCH_TEMPLATE_REL}` 첫 줄에 `{guide_marker()}` 를 두고 커밋한다(마커를 도구가 덧붙이지 않는다).")
     hits = pii.scan_text(text, pii.require_terms(repo), profile="deploy")
     if hits:
         core.fail("HINT_BRANCH_TEMPLATE_PII", "전환 README 배포 PII: " + pii.render_hits(hits))
@@ -556,7 +682,7 @@ def _transition_template_bytes(repo: Path) -> bytes:
 
 
 def _transition_tree(repo: Path, readme: bytes, *, write: bool = True) -> str:
-    """README.md 한 개(mode 100644) tree SHA. `write=False`는 conflict 판정용이라 object DB 쓰기 0."""
+    """README.md 한 개(mode 100644) tree SHA. `write=False`는 판정용이라 object DB 쓰기 0."""
     env = dict(os.environ)
     env["GIT_TERMINAL_PROMPT"] = "0"
     try:
@@ -568,8 +694,8 @@ def _transition_tree(repo: Path, readme: bytes, *, write: bool = True) -> str:
         core.fail("HINT_GIT_FAILED", "전환 README blob hash 실패: " + out.stderr.decode("utf-8", "replace").strip())
     sha = out.stdout.decode("ascii", "replace").strip()
     if write:
-        tree = _mktree(repo, [("100644", "blob", sha, "README.md")])
-        if tree_entries(repo, tree) != [{"mode": "100644", "type": "blob", "sha": sha, "path": "README.md"}]:
+        tree = _mktree(repo, [("100644", "blob", sha, GUIDE_README)])
+        if tree_entries(repo, tree) != [{"mode": "100644", "type": "blob", "sha": sha, "path": GUIDE_README}]:
             core.fail("HINT_BRANCH_TRANSITION_TREE_MISMATCH", "전환 트리가 README.md 하나(mode 100644)가 아니다.")
         return tree
     try:
@@ -584,14 +710,13 @@ def _transition_tree(repo: Path, readme: bytes, *, write: bool = True) -> str:
 
 
 def _transition_commit(repo: Path, parent: str, tree: str, utc: str) -> str:
-    """Create the deterministic, synthetic-identity, single-parent transition commit without moving a ref."""
+    """결정론·합성 신원·단일 부모 전환 커밋을 **오브젝트로만** 만든다(ref 이동 ✗). 같은 부모·트리·시각 = 같은 SHA."""
     commit = core.git(repo, "-c", "i18n.commitEncoding=UTF-8", "commit-tree", tree, "--no-gpg-sign", "-p", parent,
                       input_text=_BRANCH_TRANSITION_MESSAGE, env_extra=identity_env(utc)).stdout.strip()
     raw = read_object_text(repo, "commit", commit) or ""
     ids = parse_ident_headers(raw)
-    parents = [ln[7:] for ln in raw.split("\n\n", 1)[0].splitlines() if ln.startswith("parent ")]
     epoch = int(core.parse_utc(utc).timestamp())
-    if (not raw.startswith(f"tree {tree}\n") or parents != [parent]
+    if (not raw.startswith(f"tree {tree}\n") or _commit_parents(raw) != [parent]
             or raw.partition("\n\n")[2] != _BRANCH_TRANSITION_MESSAGE
             or any(ids.get(role, {}).get("ident") != synthetic_identity()
                    or ids.get(role, {}).get("epoch") != epoch for role in ("author", "committer"))):
@@ -605,130 +730,129 @@ def _remote_hint_tip(repo: Path, remote: str) -> str | None:
     return tag.remote_ref_object(repo, remote, HINT_BRANCH_REF)
 
 
-def _existing_transition(repo: Path, commit: str, parent: str, expected_tree: str) -> bool:
-    """이미 있는 commit이 이 README 전환인지 구조로 판정한다(재시도 UTC와 무관 · object write 0)."""
+def _existing_transition(repo: Path, commit: str, parent: str | None, expected_tree: str) -> bool:
+    """이미 있는 commit 이 이 README 전환인지 구조로 판정한다(재시도 UTC 와 무관 · object write 0). parent=None 이면 부모는 묻지
+    않는다(단일 부모이기만 하면 된다)."""
     raw = read_object_text(repo, "commit", commit) or ""
     if not raw.startswith(f"tree {expected_tree}\n") or raw.partition("\n\n")[2] != _BRANCH_TRANSITION_MESSAGE:
         return False
-    parents = [ln[7:] for ln in raw.split("\n\n", 1)[0].splitlines() if ln.startswith("parent ")]
+    parents = _commit_parents(raw)
     ids = parse_ident_headers(raw)
-    return parents == [parent] and all(ids.get(role, {}).get("ident") == synthetic_identity()
-                                       for role in ("author", "committer"))
+    return (len(parents) == 1 and (parent is None or parents == [parent])
+            and all(ids.get(role, {}).get("ident") == synthetic_identity() for role in ("author", "committer")))
 
 
-def branch_transition(repo: Path, *, remote: str, generated_utc: str) -> dict:
-    """Run the one-time README-only hint branch transition against live local and remote tips.
+def _orphan_payloads(repo: Path, local: str, keep: str) -> list[str]:
+    """로컬 hint 를 옮기면 **태그도 원격 tip 도 붙잡지 않게 되는** 페이로드 커밋(PAYLOAD.json 을 가진 커밋) 목록.
+    옛 체인형 로컬 hint(`5408271` 등 · 페이로드 4커밋)는 태그가 자기 커밋과 조상을 붙잡으므로 보통 비어 있다(plan §8 R6)."""
+    r = core.git(repo, "rev-list", local, "--not", keep, "--glob=refs/tags/hint/*", check=False)
+    if r.returncode != 0:
+        core.fail("HINT_GIT_FAILED", f"rev-list 실패(rc={r.returncode}): {r.stderr.strip()}")
+    return [c for c in r.stdout.split() if read_blob(repo, c, PAYLOAD_JSON) is not None]
 
-    same old -> local CAS -> exact non-force branch push; local new/remote old -> resume push;
-    both new -> idempotent; any third SHA -> fail closed. Tags, catalog, code worktrees are untouched.
-    """
+
+def _require_approval(approved_by, approved_utc) -> str:
+    if not isinstance(approved_by, str) or not approved_by.strip() or approved_utc is None:
+        core.fail("HINT_APPROVAL_ABSENT",
+                  "형식 전환은 원격 브랜치를 바꾼다 — 사람 승인 전사가 필요하다(--approved-by · --approved-utc · plan_26092908 §6 G2). "
+                  "어느 ref 도 쓰지 않았다.",
+                  "사람의 승인 발화를 전사해 --approved-by \"…\" --approved-utc <UTC> 로 다시 실행한다.")
+    return core.require_utc(approved_utc)
+
+
+def branch_transition(repo: Path, *, remote: str, generated_utc: str, approved_by: str | None = None,
+                      approved_utc: str | None = None) -> dict:
+    """형식 전환(브랜치 push 의 **유일한** 경로 · 사람 승인 필수): 원격 hint tip 위에 이 발행기 형식의 안내 커밋을 얹고
+    `refs/heads/hint:refs/heads/hint` 하나를 non-force 로 민다.
+
+    상태 판정(구조로 · 재시도 UTC 무관):
+      - 원격 tip 이 이미 이 템플릿의 BRANCH_FORMAT 안내 → `already-transitioned`(로컬 hint 가 다르면 원격 tip 으로 맞춘다 =
+        `local-synced` · 옛 체인형 로컬 hint 정리 · plan §4.7 로컬 정리)
+      - 원격 tip 이 더 **새** 형식의 안내 → HINT_BRANCH_TRANSITION_DOWNGRADE(되돌리지 않는다)
+      - 로컬 hint 가 원격 tip 을 유일한 부모로 가진 이 전환 커밋(= 첫 push 가 끊김) → 재 push = `push-resumed`
+      - 그 밖 → 새 전환 커밋(부모 = 원격 tip · 원격 tip 오브젝트가 없으면 그 한 ref fetch) → 로컬 hint CAS → push = `transitioned`
+    로컬 hint 를 옮기기 전: 옮기면 태그도 원격도 붙잡지 않게 되는 페이로드 커밋이 있으면 HINT_BRANCH_TRANSITION_ORPHAN_PAYLOAD
+    (아무것도 쓰지 않는다). 태그·카탈로그·코드 워크트리는 건드리지 않는다. 승인 전사는 반환값에만 싣는다(배포 오브젝트 ✗ · PII)."""
     utc = core.require_utc(generated_utc)
     if not isinstance(remote, str) or not remote.strip() or remote.lstrip().startswith("-"):
         core.fail("HINT_BRANCH_REMOTE_INVALID", f"전환 remote 인자가 올바르지 않다: {remote!r}")
+    appr_utc = _require_approval(approved_by, approved_utc)
     _require_hint_not_checked_out(repo)
-    local, remote_tip = hint_tip(repo), _remote_hint_tip(repo, remote)
-    if not local:
-        core.fail("HINT_BRANCH_TRANSITION_LOCAL_ABSENT", f"로컬 {HINT_BRANCH_REF} tip이 없다 — 자동 fetch·생성하지 않는다.")
-    if not remote_tip:
-        core.fail("HINT_BRANCH_TRANSITION_REMOTE_ABSENT", f"원격 {remote!r}에 {HINT_BRANCH_REF} tip이 없다.")
     readme = _transition_template_bytes(repo)
-    # existing-ref 분류는 object DB를 쓰지 않는 예상 tree SHA로 한다. 실제 새 전환이 필요할 때만 -w/mktree.
     expected_tree = _transition_tree(repo, readme, write=False)
     refspec = f"{HINT_BRANCH_REF}:{HINT_BRANCH_REF}"
-    raw = read_object_text(repo, "commit", local) or ""
-    parents = [ln[7:] for ln in raw.split("\n\n", 1)[0].splitlines() if ln.startswith("parent ")]
-    if local == remote_tip and len(parents) == 1 and _existing_transition(repo, local, parents[0], expected_tree):
-        return {"status": "already-transitioned", "remote": remote, "old": parents[0], "new": local,
-                "refspec": refspec, "local_before": local, "local_after": local,
-                "remote_before": remote_tip, "remote_after": remote_tip}
-    if local == remote_tip:
-        tree = _transition_tree(repo, readme, write=True)
-        new = _transition_commit(repo, local, tree, utc)
-        _update_hint_ref(repo, new, local)
-        from . import tag  # noqa: PLC0415
-        tag.git_push_authenticated(repo, remote, refspec, dry_run=False)
-        after = _remote_hint_tip(repo, remote)
-        if after != new:
-            core.fail("HINT_BRANCH_TRANSITION_REMOTE_SHA_MISMATCH", f"push 뒤 원격 {HINT_BRANCH_REF}={str(after)[:12]} ≠ local new {new[:12]}")
-        return {"status": "transitioned", "remote": remote, "old": local, "new": new, "refspec": refspec,
-                "local_before": local, "local_after": new, "remote_before": remote_tip, "remote_after": after}
-    # Interrupted first push only: local must already prove that remote's live old SHA is its sole parent.
-    # Do not construct a candidate from a remote-only/new SHA: that would require an implicit fetch and could turn
-    # a third-state conflict into an object-creation side effect.
-    if len(parents) == 1 and parents[0] == remote_tip and _existing_transition(repo, local, remote_tip, expected_tree):
-        from . import tag  # noqa: PLC0415
+    remote_tip = _remote_hint_tip(repo, remote)
+    if not remote_tip:
+        core.fail("HINT_BRANCH_TRANSITION_REMOTE_ABSENT", f"원격 {remote!r}에 {HINT_BRANCH_REF} tip이 없다 — 첫 브랜치 생성은 "
+                                                          "이 명령의 범위 밖이다(사람이 원격을 준비한다).")
+    _ensure_local_commit(repo, remote, remote_tip)
+    local = hint_tip(repo)
+    base = {"remote": remote, "refspec": refspec, "format": BRANCH_FORMAT, "approved_by": approved_by.strip(),
+            "approved_utc": appr_utc, "local_before": local, "remote_before": remote_tip}
+    remote_fmt, _why = guide_info(repo, remote_tip)
+    if _format_num(remote_fmt) > _format_num(BRANCH_FORMAT):
+        core.fail("HINT_BRANCH_TRANSITION_DOWNGRADE",
+                  f"원격 안내 {remote_tip[:12]} 의 형식 {remote_fmt} 가 이 발행기 {BRANCH_FORMAT} 보다 새것이다 — 되돌리지 않는다.",
+                  "발행기(저장소)를 갱신한다.")
+    if remote_fmt == BRANCH_FORMAT and _existing_transition(repo, remote_tip, None, expected_tree):
+        if local == remote_tip:
+            return {**base, "status": "already-transitioned", "new": remote_tip, "local_after": local,
+                    "remote_after": remote_tip}
+        orphans = _orphan_payloads(repo, local, remote_tip) if local else []
+        if orphans:
+            core.fail("HINT_BRANCH_TRANSITION_ORPHAN_PAYLOAD",
+                      f"로컬 {HINT_BRANCH_REF} 를 원격 안내로 맞추면 태그가 붙잡지 않는 페이로드 커밋 {len(orphans)}개가 고아가 된다: "
+                      f"{[c[:12] for c in orphans[:10]]} — 아무것도 쓰지 않았다.",
+                      "그 커밋을 가리키는 태그가 있어야 하는지 확인한다(태그 없는 페이로드 커밋 = 발행되지 않은 것).")
+        _update_hint_ref(repo, remote_tip, local)
+        return {**base, "status": "local-synced", "new": remote_tip, "local_after": remote_tip, "remote_after": remote_tip}
+    from . import tag  # noqa: PLC0415
+    if local and _existing_transition(repo, local, remote_tip, expected_tree):
         tag.git_push_authenticated(repo, remote, refspec, dry_run=False)
         after = _remote_hint_tip(repo, remote)
         if after != local:
-            core.fail("HINT_BRANCH_TRANSITION_REMOTE_SHA_MISMATCH", f"재개 push 뒤 원격 {HINT_BRANCH_REF}={str(after)[:12]} ≠ local new {local[:12]}")
-        return {"status": "push-resumed", "remote": remote, "old": remote_tip, "new": local, "refspec": refspec,
-                "local_before": local, "local_after": local, "remote_before": remote_tip, "remote_after": after}
-    core.fail("HINT_BRANCH_TRANSITION_CONFLICT", f"local {local[:12]}와 remote {remote_tip[:12]}가 같은 old/new 전환 쌍이 아니다 — 세 번째 SHA를 덮지 않는다.")
+            core.fail("HINT_BRANCH_TRANSITION_REMOTE_SHA_MISMATCH",
+                      f"재개 push 뒤 원격 {HINT_BRANCH_REF}={str(after)[:12]} ≠ local new {local[:12]}")
+        return {**base, "status": "push-resumed", "old": remote_tip, "new": local, "local_after": local,
+                "remote_after": after}
+    if local:
+        # 이전 시도의 전환 후보(README 한 장 · PAYLOAD 없음)는 고아가 되어도 잃는 것이 없다 — 페이로드 커밋만 센다.
+        orphans = _orphan_payloads(repo, local, remote_tip)
+        if orphans:
+            core.fail("HINT_BRANCH_TRANSITION_ORPHAN_PAYLOAD",
+                      f"로컬 {HINT_BRANCH_REF} 를 옮기면 태그가 붙잡지 않는 페이로드 커밋 {len(orphans)}개가 고아가 된다: "
+                      f"{[c[:12] for c in orphans[:10]]} — 아무것도 쓰지 않았다.",
+                      "그 커밋을 가리키는 태그가 있어야 하는지 확인한다(태그 없는 페이로드 커밋 = 발행되지 않은 것).")
+    tree = _transition_tree(repo, readme, write=True)
+    new = _transition_commit(repo, remote_tip, tree, utc)
+    _update_hint_ref(repo, new, local)
+    tag.git_push_authenticated(repo, remote, refspec, dry_run=False)
+    after = _remote_hint_tip(repo, remote)
+    if after != new:
+        core.fail("HINT_BRANCH_TRANSITION_REMOTE_SHA_MISMATCH", f"push 뒤 원격 {HINT_BRANCH_REF}={str(after)[:12]} ≠ local new {new[:12]}")
+    return {**base, "status": "transitioned", "old": remote_tip, "new": new, "local_after": new, "remote_after": after}
 
 
-def _transition_selftest(tmp: Path, ck) -> None:
-    """Bare remote only: normal, interrupted-push resume, both-new idempotence, and third-SHA conflict."""
-    repo = selftest_repo(tmp, "transition-repo")
-    template = core.TEMPLATES_DIR / "hint-branch-README.md"
-    target = repo / _BRANCH_TEMPLATE_REL
-    target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(template, target)
-    core.git(repo, "add", _BRANCH_TEMPLATE_REL)
-    core.git(repo, "commit", "-qm", "tracked transition template")
-    old_tree = _mktree(repo, [("100644", "blob", core.git(repo, "hash-object", "-w", "--stdin", input_text="old README\n").stdout.strip(), "README.md")])
-    old = core.git(repo, "commit-tree", old_tree, "--no-gpg-sign", input_text="old\n", env_extra=identity_env(_FX_UTC)).stdout.strip()
-    _update_hint_ref(repo, old, None)
-    bare = tmp / "transition-remote.git"
-    core.git(tmp, "init", "-q", "--bare", str(bare))
-    core.git(repo, "remote", "add", "transition", str(bare))
-    core.git(repo, "push", "-q", "transition", f"{HINT_BRANCH_REF}:{HINT_BRANCH_REF}")
-    result = branch_transition(repo, remote="transition", generated_utc=_FX_UTC)
-    new = hint_tip(repo)
-    entries = tree_entries(repo, new)
-    ck("branch-transition: README 하나 mode 100644", result["status"] == "transitioned"
-       and len(entries) == 1 and entries[0]["mode"] == "100644" and entries[0]["type"] == "blob" and entries[0]["path"] == "README.md")
-    ck("branch-transition: remote == local", _remote_hint_tip(repo, str(bare)) == new)
-    ck("branch-transition: both-new idempotent", branch_transition(repo, remote=str(bare), generated_utc=_FX_UTC)["status"] == "already-transitioned"
-       and hint_tip(repo) == new)
-    repo2 = selftest_repo(tmp, "transition-resume")
-    target2 = repo2 / _BRANCH_TEMPLATE_REL
-    target2.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(template, target2)
-    core.git(repo2, "add", _BRANCH_TEMPLATE_REL)
-    core.git(repo2, "commit", "-qm", "tracked transition template")
-    old_tree2 = _mktree(repo2, [("100644", "blob", core.git(repo2, "hash-object", "-w", "--stdin", input_text="old README\n").stdout.strip(), "README.md")])
-    old2 = core.git(repo2, "commit-tree", old_tree2, "--no-gpg-sign", input_text="old\n", env_extra=identity_env(_FX_UTC)).stdout.strip()
-    _update_hint_ref(repo2, old2, None)
-    bare2 = tmp / "transition-resume.git"
-    core.git(tmp, "init", "-q", "--bare", str(bare2))
-    core.git(repo2, "remote", "add", "transition", str(bare2))
-    core.git(repo2, "push", "-q", "transition", f"{HINT_BRANCH_REF}:{HINT_BRANCH_REF}")
-    staged = _transition_commit(repo2, old2, _transition_tree(repo2, _transition_template_bytes(repo2)), _FX_UTC)
-    _update_hint_ref(repo2, staged, old2)
-    resumed = branch_transition(repo2, remote="transition", generated_utc="2026-09-22T00:00:00Z")
-    ck("branch-transition: local=new remote=old push-resume(재시도 UTC 달라도 구조 판정)", resumed["status"] == "push-resumed"
-       and _remote_hint_tip(repo2, str(bare2)) == staged)
-    other_tree = _mktree(repo2, [("100644", "blob", core.git(repo2, "hash-object", "-w", "--stdin", input_text="other\n").stdout.strip(), "README.md")])
-    other = core.git(repo2, "commit-tree", other_tree, "--no-gpg-sign", "-p", old2, input_text="other\n",
-                     env_extra=identity_env(_FX_UTC)).stdout.strip()
-    core.git(repo2, "push", "-q", str(bare2), f"{other}:refs/heads/other")
-    core.git(bare2, "update-ref", HINT_BRANCH_REF, other, staged)
-    core.git(bare2, "update-ref", "-d", "refs/heads/other")
-    ck("branch-transition: third SHA conflict", expect_code(lambda: branch_transition(repo2, remote=str(bare2), generated_utc=_FX_UTC),
-       "HINT_BRANCH_TRANSITION_CONFLICT") and hint_tip(repo2) == staged and _remote_hint_tip(repo2, str(bare2)) == other)
+def commit_payload(repo: Path, payload_dir, *, message: str, generated_utc: str, guide: str | None = None,
+                   remote: str | None = None) -> str:
+    """페이로드 → allowlist 트리 → 합성 신원·주입 시각 커밋(부모 = **안내 커밋**) → 반환 = 커밋 SHA. **ref 는 쓰지 않는다**.
 
-
-def commit_payload(repo: Path, payload_dir, *, message: str, generated_utc: str) -> str:
-    """페이로드 → allowlist 트리 → 합성 신원·주입 시각 커밋 → `refs/heads/hint` CAS 전진. 반환 = 커밋 SHA.
+    부모(plan_26092908 §4.7): `guide`(전체 SHA · 호출자가 `guide_commit` 으로 한 번 해소해 draft state 에 적은 값) 또는
+    `remote`(여기서 `guide_commit(repo, remote)` 로 해소) 중 하나가 필수다 — 둘 다 없으면 HINT_BRANCH_GUIDE_REQUIRED(옛 "로컬
+    tip 위에 얹기" 로 조용히 돌아가지 않는다). 둘 다 주면 같은 SHA 여야 한다. 안내는 BRANCH_FORMAT 형식이어야 한다.
 
     순서가 곧 계약이다 — 모든 거부는 object DB 밖 부작용 0 에서 난다:
       ① 파일 전수(allowlist · 심링크 · 필수)  ② PAYLOAD/PROVENANCE/메시지/이름 재조립/PROMPT 잔재 정합(ⓐ↔ⓒ)
-      ③ PII: 페이로드 트리(배포 4종+리터럴) · 경로 이름 · 커밋 메시지 · 커밋 신원  ④ 트리 짓기 + 결과 대조(C4)
-      ⑤ 멱등: tip 이 이미 이 페이로드 커밋이면 그대로 돌려준다(재실행 = 확인만)
-      ⑥ commit-tree(서명 ✗ · 신원·날짜 env) → 결과 대조 → update-ref CAS
-    메인 워킹트리·인덱스·HEAD 는 읽지도 쓰지도 않는다.
+      ③ PII: 페이로드 트리(배포 4종+리터럴) · 경로 이름 · 커밋 메시지 · 커밋 신원  ④ 안내 커밋 판정
+      ⑤ 트리 짓기 + 결과 대조(C4)  ⑥ commit-tree(서명 ✗ · 신원·날짜 env · 부모 = 안내) → 결과 대조
+    결정론: 같은 페이로드·메시지·시각·안내 = 같은 SHA(재실행 = 같은 오브젝트 · 재개 멱등). 페이로드 커밋은 브랜치에 얹지 않고
+    태그만 가리킨다 — 로컬 `refs/heads/hint` · 메인 워킹트리·인덱스·HEAD 는 읽지도 쓰지도 않는다.
     """
     utc = core.require_utc(generated_utc)
+    if guide is None and remote is None:
+        core.fail("HINT_BRANCH_GUIDE_REQUIRED",
+                  "페이로드 커밋의 부모(안내 커밋)가 주어지지 않았다 — guide=<SHA> 또는 remote=<원격> 이 필요하다.",
+                  "branch.guide_commit(repo, remote) 로 원격 hint tip(안내 커밋)을 읽어 넘긴다(plan_26092908 §4.7).")
     root = Path(payload_dir).resolve()
     rels = payload_files(root)
     tag = _validate_payload_docs(root, rels, message)
@@ -749,36 +873,31 @@ def commit_payload(repo: Path, payload_dir, *, message: str, generated_utc: str)
     if ih:
         core.fail("HINT_COMMIT_IDENTITY_PII", "합성 신원이 PII 에 걸린다: " + "; ".join(ih))
 
-    _require_hint_not_checked_out(repo)
+    if guide is not None:
+        parent = require_guide(repo, guide, where="지정 안내 커밋")
+        if remote is not None:
+            live, _fmt = guide_commit(repo, remote)
+            if live != parent:
+                core.fail("HINT_BRANCH_GUIDE_MOVED",
+                          f"지정 안내 {parent[:12]} ≠ 원격 {remote!r} 의 현재 안내 {live[:12]} — 그 사이 형식 전환이 있었다.",
+                          "새 안내로 다시 발행한다(draft state 의 안내를 갱신).")
+    else:
+        parent, _fmt = guide_commit(repo, remote)
     tree = build_tree(repo, root, rels)
-    tip = hint_tip(repo)
     want_epoch = int(core.parse_utc(utc).timestamp())
-    if tip:
-        tip_raw = read_object_text(repo, "commit", tip) or ""
-        tip_tree = tip_raw.split("\n", 1)[0].removeprefix("tree ")
-        ids = parse_ident_headers(tip_raw)
-        if (tip_tree == tree and tip_raw.partition("\n\n")[2] == message
-                and all(ids.get(k, {}).get("ident") == synthetic_identity()
-                        and ids.get(k, {}).get("epoch") == want_epoch for k in ("author", "committer"))):
-            _log(f"{HINT_BRANCH_REF} tip {tip[:12]} 이 이미 이 페이로드 커밋이다 — 재개(새 커밋 없음).")
-            return tip
     # `--no-gpg-sign`: commit-tree 도 commit.gpgSign 설정을 따른다 — 운영자 서명이 배포 오브젝트에 실리면 SHA 가 운영자
     # 키의 함수가 된다. `i18n.commitEncoding=UTF-8`: 운영자가 다른 인코딩을 설정해 두면 `encoding` 헤더가 붙어 같은
     # 입력의 SHA 가 설정 따라 달라진다(결정론 = 같은 입력 → 같은 SHA · K2).
-    args = ["-c", "i18n.commitEncoding=UTF-8", "commit-tree", tree, "--no-gpg-sign"]
-    if tip:
-        args += ["-p", tip]
-    commit = core.git(repo, *args, input_text=message, env_extra=identity_env(utc)).stdout.strip()
+    commit = core.git(repo, "-c", "i18n.commitEncoding=UTF-8", "commit-tree", tree, "--no-gpg-sign", "-p", parent,
+                      input_text=message, env_extra=identity_env(utc)).stdout.strip()
     raw = read_object_text(repo, "commit", commit) or ""
     ids = parse_ident_headers(raw)
-    parents = [ln[7:] for ln in raw.split("\n\n", 1)[0].splitlines() if ln.startswith("parent ")]
-    if (not raw.startswith(f"tree {tree}\n") or parents != ([tip] if tip else [])
+    if (not raw.startswith(f"tree {tree}\n") or _commit_parents(raw) != [parent]
+            or raw.partition("\n\n")[2] != message
             or any(ids.get(k, {}).get("ident") != synthetic_identity()
                    or ids.get(k, {}).get("epoch") != want_epoch for k in ("author", "committer"))):
-        core.fail("HINT_COMMIT_RESULT_MISMATCH", f"지은 커밋 {commit[:12]} 이 요청(트리·부모·합성 신원·주입 시각)과 다르다.")
-    _update_hint_ref(repo, commit, tip)
-    _log(f"{HINT_BRANCH_REF} → {commit[:12]} ({tag} · {len(rels)} 파일"
-         + (f" · parent {tip[:12]})" if tip else " · 첫 커밋)"))
+        core.fail("HINT_COMMIT_RESULT_MISMATCH", f"지은 커밋 {commit[:12]} 이 요청(트리·부모=안내·메시지·합성 신원·주입 시각)과 다르다.")
+    _log(f"페이로드 커밋 {commit[:12]} ({tag} · {len(rels)} 파일 · 부모 = 안내 {parent[:12]} · 브랜치 불이동 — 태그만 가리킨다)")
     return commit
 
 
@@ -803,37 +922,37 @@ def read_json_blob(repo: Path, rev: str, path: str) -> tuple[dict | None, str | 
 
 
 def require_payload_anchor(repo: Path, tag: str, anchor: str) -> None:
-    """계약 §6 집행 — **태그는 hint 브랜치의 페이로드 커밋을 가리킨다**(v5 §3.-1 코드 3종 유지).
+    """계약 §6 집행 — **태그는 페이로드 커밋을 가리키고, 그 커밋의 부모는 안내 커밋이다**(plan_26092908 §4.7).
 
     ★ 2026-09-07 신설(plan_26090715 §5 ①-a · audit_26090708 §2). 이 검사가 없어서 발행자가 조립·브랜치 커밋을
       통째로 건너뛰고 **소스 트리 커밋**에 봉인해도 finalize/seal/verify 가 전부 통과했다(fail-open). native 3종이
       그렇게 나갔고, single 태그가 multi-node 커밋에 · multi 태그가 single-node 커밋에 앵커되는 형태까지 갔다 —
       배포 zip 에 산출물 대신 저장소 소스가 담겼다.
+    ★ 2026-09-29 V12: 옛 A("앵커가 로컬 hint tip 의 조상인가")는 PC 마다 갈라진 체인에서 다른 PC 태그를 막았고, 로컬 브랜치
+      상태에 판정이 묶였다. 이제 A 는 **앵커 커밋 자신**만 본다 — 로컬 ref·네트워크 무관(태그를 fetch 하면 부모도 딸려 온다).
     세 가지를 저장소 안 git 객체만으로 묻는다(네트워크 ✗ · 해시 재기재 ✗):
-      A. 앵커가 로컬 `refs/heads/hint` 의 조상인가 → HINT_ANCHOR_NOT_ON_HINT_BRANCH
+      A. 앵커의 부모가 정확히 하나이고 그것이 형식 마커를 가진 안내 커밋인가 → HINT_ANCHOR_PARENT_NOT_GUIDE
+         (형식은 묻지 않는다 — 뒤 형식 전환 뒤에도 앞 형식 안내 위의 태그는 유효하다 · 마커 도입 전 체인형 태그는 판정 대상이
+         아니다 · D10 · P1)
       B. 앵커 트리에 PAYLOAD.json 이 있는가       → HINT_ANCHOR_PAYLOAD_ABSENT
       C. 앵커 트리 PROVENANCE.tag == 이 태그인가   → HINT_ANCHOR_PROVENANCE_TAG_MISMATCH(남의 페이로드 재사용 차단)
-    D10 이후 이 검사는 **이 태그 하나**에만 걸린다 — 도구가 방금 전진시킨 브랜치 기준이라 타 PC lineage(P2)의
-    과거 태그가 여기 걸려 신규 발행을 막는 일은 없다.
     """
     commit = ""
     if anchor:
         commit = core.git(repo, "rev-parse", "--verify", "--quiet", f"{anchor}^{{commit}}", check=False).stdout.strip()
     if not commit:
         core.fail("HINT_ANCHOR_UNRESOLVED", f"앵커를 커밋으로 해소하지 못했다: {anchor!r}")
-    tip = hint_tip(repo)
-    if not tip:
-        core.fail("HINT_HINT_BRANCH_ABSENT", f"{HINT_BRANCH_REF} 브랜치가 없다 — 페이로드를 담을 자리가 아직 없다.",
-                  "hint.py continue 가 페이로드 커밋을 먼저 만든다.")
-    r = core.git(repo, "merge-base", "--is-ancestor", commit, tip, check=False)
-    if r.returncode == 1:
-        core.fail("HINT_ANCHOR_NOT_ON_HINT_BRANCH",
-                  f"앵커 {commit[:12]} 가 {HINT_BRANCH_REF}(tip {tip[:12]}) 의 조상이 아니다 — 계약 §6: 태그는 hint 브랜치의 "
-                  "페이로드 커밋을 가리킨다. 소스 트리 커밋에 봉인하면 zip 에 산출물 대신 저장소 소스가 담긴다"
-                  "(2026-09-07 실증: native 3종).",
-                  "hint.py continue 로 페이로드 커밋부터 만든다(봉인은 그 커밋에만 한다).")
-    if r.returncode != 0:
-        core.fail("HINT_GIT_FAILED", f"merge-base --is-ancestor 실패(rc={r.returncode}): {r.stderr.strip()}")
+    parents = _commit_parents(read_object_text(repo, "commit", commit) or "")
+    why = None
+    if len(parents) != 1:
+        why = f"부모가 {len(parents)}개다(페이로드 커밋의 부모는 안내 커밋 하나)"
+    else:
+        _fmt, why = guide_info(repo, parents[0])
+    if why:
+        core.fail("HINT_ANCHOR_PARENT_NOT_GUIDE",
+                  f"앵커 {commit[:12]} 의 부모가 안내 커밋이 아니다 — {why}. 계약 §6: 태그는 안내 커밋 위의 페이로드 커밋을 "
+                  "가리킨다. 소스 트리 커밋에 봉인하면 zip 에 산출물 대신 저장소 소스가 담긴다(2026-09-07 실증: native 3종).",
+                  "hint.py continue 로 페이로드 커밋부터 만든다(부모 = 원격 hint tip 의 안내 커밋 · 봉인은 그 커밋에만 한다).")
     if read_blob(repo, commit, PAYLOAD_JSON) is None:
         core.fail("HINT_ANCHOR_PAYLOAD_ABSENT", f"앵커 {commit[:12]} 트리에 PAYLOAD.json 이 없다 — 페이로드 커밋이 아니다.")
     prov, err = read_json_blob(repo, commit, PROVENANCE_JSON)
@@ -969,8 +1088,9 @@ FIXTURE_TERM = "fixture-pii-term-zeta"
 _FX_OPERATOR_NAME = "Operator Realname"
 _FX_OPERATOR_EMAIL = "@".join(["operator.realname", "corp.example"])
 _FX_UTC = "2026-09-21T10:21:01Z"
+# v7 이름(결정론 3축 + 자율 꼬리 · plan_26092908 §4.1). 꼬리는 v6 뒤 3축 모양이 아니다(그 모양은 기발행 v6 로 읽힌다).
 _FX_TAG = ("hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/"
-           "qnvfp4-len262144-kvauto-plemmap-spec3-eager")
+           "qnvfp4-len262144-kvauto-mmp-eager")
 _SCRUB_ENV = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR",
               "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_PREFIX", "GIT_NAMESPACE", "GIT_CONFIG",
               "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS", "GITHUB_TOKEN", "HINT_PUSH_TOKEN",
@@ -1020,26 +1140,47 @@ def selftest_repo(tmp: Path, name: str = "repo") -> Path:
     return repo
 
 
+FX_GUIDE_BODY = "# hint 브랜치 안내(픽스처)\n\n이 브랜치는 hint 태그 페이로드 전용이다.\n"
+
+
+def selftest_guide(repo: Path, *, fmt: str | None = BRANCH_FORMAT, parent: str | None = None,
+                   body: str = FX_GUIDE_BODY, utc: str | None = None) -> str:
+    """자체검사용 안내 커밋 **오브젝트**(ref 이동 ✗). fmt=None = 마커 없는 옛 안내(v6 전환 커밋 `6294a91` 모양).
+    결정론(같은 인자 = 같은 SHA) — 다른 저장소에서 같은 페이로드 커밋 SHA 를 재현하는 자체검사가 쓴다(tag·hint 공유)."""
+    readme = (guide_marker(fmt) + "\n" if fmt else "") + body
+    blob = core.git(repo, "hash-object", "-w", "--no-filters", "--stdin", input_text=readme).stdout.strip()
+    tree = _mktree(repo, [("100644", "blob", blob, GUIDE_README)])
+    args = ["-c", "i18n.commitEncoding=UTF-8", "commit-tree", tree, "--no-gpg-sign"] + (["-p", parent] if parent else [])
+    return core.git(repo, *args, input_text="hint: guide (fixture)\n",
+                    env_extra=identity_env(utc or _FX_UTC)).stdout.strip()
+
+
 FX_BRIEF = "픽스처 셀의 요약 문단이다 — 지도이지 정답이 아니다."
 
 
 def fixture_payload_doc(tag: str) -> dict:
-    """자체검사용 PAYLOAD.json — naming 재조립 검사(`naming.compose_from_payload`)를 통과하는 v6 모양(tag.selftest 공유).
-    축 값은 태그 자신을 naming 파서로 해체해 채운다 — 픽스처가 문법을 손으로 다시 적지 않게(두 자리 → 갈라짐)."""
+    """자체검사용 PAYLOAD.json — naming 재조립 검사(`naming.compose_from_payload`)를 통과하는 **v7** 모양(tag.selftest 공유 ·
+    plan_26092908 §4.1). 축 값은 태그 자신을 naming 파서로 해체해 채운다 — 픽스처가 문법을 손으로 다시 적지 않게(두 자리 →
+    갈라짐). 기본 레시피(q·len·kv)의 v7 naming 에 이름의 꼬리·timestamp 를 `naming.apply_tail` 로 얹는다(v6 모양 이름도 꼬리 3토큰으로
+    같은 이름이 재조립된다)."""
     t = naming.parse_tag(tag)
     arch = naming.parse_arch(t.arch) or {}
-    recipe = naming.parse_recipe(t.recipe) or {}
+    sp = naming.split_recipe(t.recipe) or {}
     axes = {k: {"value": str(arch.get(k, "")), "source": "fixture:manifest"} for k in naming.ARCH_AXES}
-    axes.update({k: {"value": str(recipe.get(k, "")), "source": "fixture:lockset"} for k in naming.RECIPE_AXES})
-    return {"schema_version": 2, "format": PAYLOAD_FORMAT, "tag": tag, "generated_utc": _FX_UTC,
-            "naming": {"grammar": "v6",
-                       "segments": {"vllm": {"value": t.vllm, "source": "fixture:vllm_build_input"},
-                                    "model": {"value": t.model, "source": "fixture:hf_repo"},
-                                    "arch": {"value": t.arch, "source": "derived"},
-                                    "recipe": {"value": t.recipe, "source": "derived"}},
-                       "axes": axes,
-                       "vllm_build_input": {"kind": "release", "ref": "v" + t.vllm, "sha": None,
-                                            "prev_release": None}}}
+    axes.update({k: {"value": str(sp.get(k, "")), "source": "fixture:lockset"} for k in naming.RECIPE_AXES})
+    doc = {"grammar": naming.GRAMMAR_V7,
+           "segments": {"vllm": {"value": t.vllm, "source": "fixture:vllm_build_input"},
+                        "model": {"value": t.model, "source": "fixture:hf_repo"},
+                        "arch": {"value": t.arch, "source": "derived"},
+                        "recipe": {"value": sp.get("base", t.recipe), "source": "derived(q·len·kv)"}},
+           "axes": axes,
+           "vllm_build_input": {"kind": "release", "ref": "v" + t.vllm, "sha": None, "prev_release": None}}
+    if t.base_tag is None:
+        # 옛 세대 이름(음성대조 픽스처): 재조립할 축이 없다 — 이름 문법 거부(validate_new_name)가 먼저 보고되게 모양만 둔다.
+        return {"schema_version": 2, "format": PAYLOAD_FORMAT, "tag": tag, "generated_utc": _FX_UTC, "naming": doc}
+    tail = [{"token": tok, "meaning": f"픽스처 꼬리 {tok}", "evidence": None} for tok in sp.get("tail") or []]
+    nm = naming.apply_tail(doc, tail, sp.get("timestamp"))
+    return {"schema_version": 2, "format": PAYLOAD_FORMAT, "tag": tag, "generated_utc": _FX_UTC, "naming": nm}
 
 
 def fixture_hint_doc(brief: str = FX_BRIEF) -> str:
@@ -1184,9 +1325,31 @@ def _selftest_git(tmp: Path, ck, operator_env: dict) -> None:
     ck("★build_tree allowlist 밖 = HINT_PAYLOAD_TREE_OUTSIDE_ALLOWLIST",
        expect_code(lambda: build_tree(repo, pay, rels + ["../src.txt"]), "HINT_PAYLOAD_TREE_OUTSIDE_ALLOWLIST"))
 
-    # ── 앵커 게이트: 브랜치 부재
-    ck("★hint 브랜치 부재 = HINT_HINT_BRANCH_ABSENT",
-       expect_code(lambda: require_payload_anchor(repo, _FX_TAG, source), "HINT_HINT_BRANCH_ABSENT"))
+    # ── 안내 커밋(plan_26092908 §4.7): 부모 필수 · 형식 판정
+    guide = selftest_guide(repo)
+    old_guide = selftest_guide(repo, fmt=None)                  # 마커 없는 옛 안내(6294a91 모양)
+    v6_guide = selftest_guide(repo, fmt="v6")                   # 마커는 있으나 다른 형식
+    ck("readme_format: 마커 첫 줄 = v7 · 마커 없음 = None · 둘째 줄 마커는 무효",
+       readme_format(guide_marker() + "\n# x\n") == "v7" and readme_format("# x\n") is None
+       and readme_format("# x\n" + guide_marker() + "\n") is None)
+    ck("guide_info(v7 안내) = (v7, None)", guide_info(repo, guide) == ("v7", None))
+    ck("★마커 없는 옛 안내 = 안내 아님(사유에 '마커')", guide_info(repo, old_guide)[0] is None
+       and "마커" in (guide_info(repo, old_guide)[1] or ""))
+    ck("★소스 커밋(트리가 README 하나가 아님) = 안내 아님", guide_info(repo, source)[0] is None)
+    ck("★require_guide: 마커 없는 옛 안내 = HINT_BRANCH_FORMAT_MISMATCH",
+       expect_code(lambda: require_guide(repo, old_guide), "HINT_BRANCH_FORMAT_MISMATCH"))
+    ck("★require_guide: 다른 형식(v6 마커) = HINT_BRANCH_FORMAT_MISMATCH",
+       expect_code(lambda: require_guide(repo, v6_guide), "HINT_BRANCH_FORMAT_MISMATCH"))
+    ck("guide_commit(pinned) = (sha, v7) · 네트워크 0", guide_commit(repo, "unused", pinned=guide) == (guide, "v7"))
+    ck("★부모 미지정 = HINT_BRANCH_GUIDE_REQUIRED",
+       expect_code(lambda: commit_payload(repo, pay, message=msg, generated_utc=_FX_UTC), "HINT_BRANCH_GUIDE_REQUIRED"))
+    ck("★마커 없는 옛 안내 위에는 얹지 않는다 = HINT_BRANCH_FORMAT_MISMATCH",
+       expect_code(lambda: commit_payload(repo, pay, message=msg, generated_utc=_FX_UTC, guide=old_guide),
+                   "HINT_BRANCH_FORMAT_MISMATCH"))
+    ck("★소스 커밋을 안내로 = HINT_BRANCH_FORMAT_MISMATCH",
+       expect_code(lambda: commit_payload(repo, pay, message=msg, generated_utc=_FX_UTC, guide=source),
+                   "HINT_BRANCH_FORMAT_MISMATCH"))
+    ck("거부들 뒤 로컬 hint 부재 그대로", hint_tip(repo) is None)
 
     # ── 커밋: 메인 워킹트리·인덱스·HEAD 불변 + 합성 신원 + 주입 시각(운영자 env 를 일부러 심는다)
     def snap():
@@ -1195,9 +1358,10 @@ def _selftest_git(tmp: Path, ck, operator_env: dict) -> None:
                 hashlib.sha256(idx.read_bytes()).hexdigest(), core.git_out(repo, "symbolic-ref", "HEAD"))
     before = snap()
     with selftest_env(tmp, operator_env):
-        c1 = commit_payload(repo, pay, message=msg, generated_utc=_FX_UTC)
+        c1 = commit_payload(repo, pay, message=msg, generated_utc=_FX_UTC, guide=guide)
     ck("메인 status·HEAD·인덱스·체크아웃 불변", snap() == before)
-    ck("hint ref = 커밋", hint_tip(repo) == c1)
+    ck("★로컬 hint 는 움직이지 않는다(부재 그대로 · 페이로드 커밋은 태그만 가리킨다)", hint_tip(repo) is None)
+    ck("★부모 = 안내 커밋(하나)", _commit_parents(read_object_text(repo, "commit", c1) or "") == [guide])
     ids = commit_identity(repo, c1)
     ck("★author/committer = 합성 신원(운영자 config·env 무시)",
        ids.get("author", {}).get("ident") == synthetic_identity()
@@ -1228,12 +1392,19 @@ def _selftest_git(tmp: Path, ck, operator_env: dict) -> None:
     core.git(repo2, "init", "-q", "-b", "main")
     (repo2 / core.REL_PII_TERMS).parent.mkdir(parents=True)
     (repo2 / core.REL_PII_TERMS).write_text(f"{FIXTURE_TERM}\n", encoding="utf-8")
-    ck("★결정론: 같은 입력·주입 시각 = 같은 커밋 SHA",
-       commit_payload(repo2, pay, message=msg, generated_utc=_FX_UTC) == c1)
+    guide2 = selftest_guide(repo2)
+    ck("결정론: 안내 픽스처도 저장소와 무관하게 같은 SHA", guide2 == guide)
+    ck("★결정론: 같은 입력·주입 시각·안내 = 같은 커밋 SHA",
+       commit_payload(repo2, pay, message=msg, generated_utc=_FX_UTC, guide=guide2) == c1)
 
-    # ── 멱등 재개: 다시 불러도 새 커밋이 없다
-    ck("멱등 재개(같은 페이로드 = tip 그대로)",
-       commit_payload(repo, pay, message=msg, generated_utc=_FX_UTC) == c1 and hint_tip(repo) == c1)
+    # ── 멱등 재개: 다시 불러도 같은 오브젝트 · ref 쓰기 0(재개 판단은 draft state 의 anchor 가 한다)
+    refs_before = core.git_out(repo, "for-each-ref", "--format=%(refname) %(objectname)")
+    ck("★결정론 SHA 재개(같은 페이로드·메시지·시각·안내 = 같은 SHA · ref 불변)",
+       commit_payload(repo, pay, message=msg, generated_utc=_FX_UTC, guide=guide) == c1
+       and core.git_out(repo, "for-each-ref", "--format=%(refname) %(objectname)") == refs_before)
+    ck("★다른 안내 = 다른 SHA(부모가 SHA 에 들어간다)",
+       commit_payload(repo, pay, message=msg, generated_utc=_FX_UTC,
+                      guide=selftest_guide(repo, body=FX_GUIDE_BODY + "개정\n")) != c1)
 
     # ── 앵커 게이트
     try:
@@ -1241,37 +1412,49 @@ def _selftest_git(tmp: Path, ck, operator_env: dict) -> None:
         ck("앵커 게이트 통과", True)
     except core.HintError as e:
         ck(f"앵커 게이트 통과({e.code})", False)
-    ck("★소스 커밋 봉인 = HINT_ANCHOR_NOT_ON_HINT_BRANCH",
-       expect_code(lambda: require_payload_anchor(repo, _FX_TAG, source), "HINT_ANCHOR_NOT_ON_HINT_BRANCH"))
+    ck("★소스 커밋 봉인 = HINT_ANCHOR_PARENT_NOT_GUIDE",
+       expect_code(lambda: require_payload_anchor(repo, _FX_TAG, source), "HINT_ANCHOR_PARENT_NOT_GUIDE"))
+    old_chain = core.git(repo, "commit-tree", (read_object_text(repo, "commit", c1) or "").split("\n", 1)[0][5:],
+                         "--no-gpg-sign", "-p", old_guide, input_text=msg, env_extra=identity_env(_FX_UTC)).stdout.strip()
+    ck("★마커 없는 옛 안내 위의 페이로드 커밋(v6 체인형) = HINT_ANCHOR_PARENT_NOT_GUIDE",
+       expect_code(lambda: require_payload_anchor(repo, _FX_TAG, old_chain), "HINT_ANCHOR_PARENT_NOT_GUIDE"))
+    merge = core.git(repo, "commit-tree", (read_object_text(repo, "commit", c1) or "").split("\n", 1)[0][5:],
+                     "--no-gpg-sign", "-p", guide, "-p", source, input_text=msg,
+                     env_extra=identity_env(_FX_UTC)).stdout.strip()
+    ck("★부모 둘 = HINT_ANCHOR_PARENT_NOT_GUIDE", expect_code(lambda: require_payload_anchor(repo, _FX_TAG, merge),
+                                                            "HINT_ANCHOR_PARENT_NOT_GUIDE"))
+    ck("다른 형식(v6 마커) 안내 위 태그도 안내 위이면 유효(형식 전환 뒤 앞 형식 태그 보존)",
+       code_of(lambda: require_payload_anchor(repo, _FX_TAG, core.git(
+           repo, "commit-tree", (read_object_text(repo, "commit", c1) or "").split("\n", 1)[0][5:], "--no-gpg-sign",
+           "-p", v6_guide, input_text=msg, env_extra=identity_env(_FX_UTC)).stdout.strip())) is None)
     ck("★남의 페이로드 = HINT_ANCHOR_PROVENANCE_TAG_MISMATCH",
        expect_code(lambda: require_payload_anchor(repo, _FX_TAG + "x", c1), "HINT_ANCHOR_PROVENANCE_TAG_MISMATCH"))
     ck("★빈 앵커 = HINT_ANCHOR_UNRESOLVED",
        expect_code(lambda: require_payload_anchor(repo, _FX_TAG, ""), "HINT_ANCHOR_UNRESOLVED"))
 
-    # ── 두 번째 발행: parent = 직전 tip
+    # ── 두 번째 발행: 부모 = 같은 안내(체인 ✗ · PC 간 분기 원천 차단)
     tag2 = _FX_TAG.replace("len262144", "len131072")
     pay2 = tmp / "payload2"
     write_fixture_payload(pay2, tag2, source_anchor=None)
-    c2 = commit_payload(repo, pay2, message=commit_message(pay2, generated_utc=_FX_UTC), generated_utc=_FX_UTC)
-    raw2 = read_object_text(repo, "commit", c2) or ""
-    ck("parent = 직전 hint tip", f"\nparent {c1}\n" in raw2 and hint_tip(repo) == c2)
-    ck("이전 페이로드 커밋은 여전히 조상(앵커 게이트 통과)",
-       core.git(repo, "merge-base", "--is-ancestor", c1, c2, check=False).returncode == 0)
+    c2 = commit_payload(repo, pay2, message=commit_message(pay2, generated_utc=_FX_UTC), generated_utc=_FX_UTC,
+                        guide=guide)
+    ck("★두 번째 페이로드도 부모 = 안내(직전 페이로드 ✗)",
+       _commit_parents(read_object_text(repo, "commit", c2) or "") == [guide] and hint_tip(repo) is None)
 
-    # ── ★CAS: 낡은 기대값으로는 전진하지 않는다 · 생성 전용 CAS
+    # ── ★CAS(형식 전환 전용 _update_hint_ref): 낡은 기대값으로는 옮기지 않는다 · 생성 전용 CAS
+    _update_hint_ref(repo, guide, None)                           # 격리 저장소: 로컬 hint 를 안내에 둔다
     ck("★CAS 충돌 = HINT_BRANCH_CAS_CONFLICT",
-       expect_code(lambda: _update_hint_ref(repo, c1, c1), "HINT_BRANCH_CAS_CONFLICT") and hint_tip(repo) == c2)
+       expect_code(lambda: _update_hint_ref(repo, c1, c1), "HINT_BRANCH_CAS_CONFLICT") and hint_tip(repo) == guide)
     ck("★생성 전용 CAS: 이미 있으면 거부",
-       expect_code(lambda: _update_hint_ref(repo, c1, None), "HINT_BRANCH_CAS_CONFLICT") and hint_tip(repo) == c2)
+       expect_code(lambda: _update_hint_ref(repo, c1, None), "HINT_BRANCH_CAS_CONFLICT") and hint_tip(repo) == guide)
 
     # ── ★PAYLOAD.json 없는 커밋을 브랜치에 올린 경우(배관으로 직접)
     pay3 = tmp / "payload3"
     write_fixture_payload(pay3, tag2, source_anchor=None)
     (pay3 / PAYLOAD_JSON).unlink()
     t3 = build_tree(repo, pay3, sorted(p.relative_to(pay3).as_posix() for p in pay3.rglob("*") if p.is_file()))
-    c3 = core.git(repo, "commit-tree", t3, "-p", c2, "--no-gpg-sign", input_text="raw\n",
+    c3 = core.git(repo, "commit-tree", t3, "-p", guide, "--no-gpg-sign", input_text="raw\n",
                   env_extra=identity_env(_FX_UTC)).stdout.strip()
-    _update_hint_ref(repo, c3, c2)
     ck("★PAYLOAD 없는 페이로드 커밋 = HINT_ANCHOR_PAYLOAD_ABSENT",
        expect_code(lambda: require_payload_anchor(repo, tag2, c3), "HINT_ANCHOR_PAYLOAD_ABSENT"))
 
@@ -1286,47 +1469,48 @@ def _selftest_git(tmp: Path, ck, operator_env: dict) -> None:
         write_fixture_payload(pay4, tag4, source_anchor=None, extra_files={rel: text})
         ck(f"★페이로드 PII({label}) = HINT_PAYLOAD_PII",
            expect_code(lambda: commit_payload(repo, pay4, message=commit_message(pay4, generated_utc=_FX_UTC),
-                                              generated_utc=_FX_UTC), "HINT_PAYLOAD_PII"))
+                                              generated_utc=_FX_UTC, guide=guide), "HINT_PAYLOAD_PII"))
     ck("★PII 차단 뒤 ref 불변", hint_tip(repo) == tip_before)
     pay4 = tmp / "payload4"
     write_fixture_payload(pay4, tag4, source_anchor=None)
     ck("★커밋 메시지 PII = HINT_COMMIT_MESSAGE_PII",
        expect_code(lambda: commit_payload(repo, pay4, message=f"hint: {tag4}\n{FIXTURE_TERM}\n",
-                                          generated_utc=_FX_UTC), "HINT_COMMIT_MESSAGE_PII"))
+                                          generated_utc=_FX_UTC, guide=guide), "HINT_COMMIT_MESSAGE_PII"))
     ck("★합성 신원이 PII 목록에 걸리면 tripwire 가 울린다",
        identity_pii_hits([core.SYNTHETIC_NAME]) != [] and identity_pii_hits([FIXTURE_TERM]) == [])
     terms_path = repo / core.REL_PII_TERMS
     terms_path.rename(tmp / "terms.bak")
     ck("★pii_terms 부재 = HINT_PII_TERMS_ABSENT(fail-closed)",
        expect_code(lambda: commit_payload(repo, pay4, message=commit_message(pay4, generated_utc=_FX_UTC),
-                                          generated_utc=_FX_UTC), "HINT_PII_TERMS_ABSENT"))
+                                          generated_utc=_FX_UTC, guide=guide), "HINT_PII_TERMS_ABSENT"))
     (tmp / "terms.bak").rename(terms_path)
 
     # ── ★문서 정합: ⓐ↔ⓒ · 태그 불일치 · 선언 ≠ 실물
     write_fixture_payload(pay4, tag4, source_anchor=source)
     ck("★메시지에 source_anchor 없음 = HINT_ANCHOR_TRIPLE_MISMATCH",
-       expect_code(lambda: commit_payload(repo, pay4, message=f"hint: {tag4}\n", generated_utc=_FX_UTC),
+       expect_code(lambda: commit_payload(repo, pay4, message=f"hint: {tag4}\n", generated_utc=_FX_UTC, guide=guide),
                    "HINT_ANCHOR_TRIPLE_MISMATCH"))
     prov = json.loads((pay4 / PROVENANCE_JSON).read_text(encoding="utf-8"))
     core.write_json(pay4 / PROVENANCE_JSON, {**prov, "tag": _FX_TAG})
     ck("★PROVENANCE.tag ≠ PAYLOAD.tag = HINT_PAYLOAD_TAG_MISMATCH",
        expect_code(lambda: commit_payload(repo, pay4, message=commit_message(pay4, generated_utc=_FX_UTC),
-                                          generated_utc=_FX_UTC), "HINT_PAYLOAD_TAG_MISMATCH"))
+                                          generated_utc=_FX_UTC, guide=guide), "HINT_PAYLOAD_TAG_MISMATCH"))
     core.write_json(pay4 / PROVENANCE_JSON, {**prov, "payload_files": prov["payload_files"][1:]})
     ck("★PROVENANCE.payload_files ≠ 실물 = HINT_PROVENANCE_FILES_MISMATCH",
        expect_code(lambda: commit_payload(repo, pay4, message=commit_message(pay4, generated_utc=_FX_UTC),
-                                          generated_utc=_FX_UTC), "HINT_PROVENANCE_FILES_MISMATCH"))
+                                          generated_utc=_FX_UTC, guide=guide), "HINT_PROVENANCE_FILES_MISMATCH"))
     core.write_json(pay4 / PROVENANCE_JSON, {**prov, "source_anchor": source[:12]})
     ck("★PROVENANCE.source_anchor 비-전체 SHA = HINT_PROVENANCE_SHAPE",
        expect_code(lambda: commit_payload(repo, pay4, message=f"hint: {tag4}\nsource_anchor: {source[:12]}\n",
-                                          generated_utc=_FX_UTC), "HINT_PROVENANCE_SHAPE"))
+                                          generated_utc=_FX_UTC, guide=guide), "HINT_PROVENANCE_SHAPE"))
     ck("★비-UTC 시각 = HINT_TIME_NOT_INJECTED",
-       expect_code(lambda: commit_payload(repo, pay, message=msg, generated_utc="2026-09-21 10:21"),
+       expect_code(lambda: commit_payload(repo, pay, message=msg, generated_utc="2026-09-21 10:21", guide=guide),
                    "HINT_TIME_NOT_INJECTED"))
 
     # ── ★페이로드 문서 정합(신 형식 · 이름 재조립 · PROMPT 잔재 · 경로 이름 PII · 옛 문법 이름)
     def _commit(p: Path):
-        return lambda: commit_payload(repo, p, message=commit_message(p, generated_utc=_FX_UTC), generated_utc=_FX_UTC)
+        return lambda: commit_payload(repo, p, message=commit_message(p, generated_utc=_FX_UTC), generated_utc=_FX_UTC,
+                                      guide=guide)
 
     write_fixture_payload(pay4, tag4, source_anchor=None,
                           extra_files={"02-narrative.md": "## 2.1 출발점\n<!-- PROMPT\n질문: 무엇이 벽이었나\n-->\n"})
@@ -1358,30 +1542,13 @@ def _selftest_git(tmp: Path, ck, operator_env: dict) -> None:
        expect_code(_commit(pay4), "HINT_ARCH_NODE_AXIS_ABSENT"))
     ck("거부들 뒤 ref 불변", hint_tip(repo) == tip_before)
 
-    # ── ★hint 브랜치가 다른 워크트리에 체크아웃돼 있으면 전진하지 않는다(격리 저장소 안의 워크트리)
+    # ── ★로컬 hint 가 무엇을 가리키든 commit_payload 는 읽지도 옮기지도 않는다(옛 "tip 위에 얹기" · 체크아웃 가드 불요)
     write_fixture_payload(pay4, tag4, source_anchor=None)
-    wt = tmp / "wt-hint"
-    core.git(repo, "worktree", "add", "-q", str(wt), "hint")
-    try:
-        ck("★체크아웃된 hint = HINT_HINT_BRANCH_CHECKED_OUT",
-           expect_code(_commit(pay4), "HINT_HINT_BRANCH_CHECKED_OUT") and hint_tip(repo) == tip_before)
-    finally:
-        core.git(repo, "worktree", "remove", "--force", str(wt))
-
-    # ── ★CAS 를 commit_payload 경로 그대로: tip 을 읽은 뒤 다른 발행이 끼어든 경우(읽은 tip 이 낡았다)
-    write_fixture_payload(pay4, tag4, source_anchor=None)
-    real_tip = globals()["hint_tip"]
-    stale = c1                                   # 실제 tip(c3)보다 두 칸 뒤 — 그 사이 다른 발행이 전진시킨 상황
-
-    def _stale_tip(_repo):
-        return stale
-    globals()["hint_tip"] = _stale_tip
-    try:
-        ck("★commit_payload 도중 브랜치가 바뀌면 = HINT_BRANCH_CAS_CONFLICT(덮지 않는다)",
-           expect_code(_commit(pay4), "HINT_BRANCH_CAS_CONFLICT"))
-    finally:
-        globals()["hint_tip"] = real_tip
-    ck("★CAS 거부 뒤 ref 불변", hint_tip(repo) == tip_before)
+    _update_hint_ref(repo, c2, tip_before)                       # 로컬 hint 를 엉뚱한 페이로드 커밋에 둔다(옛 체인형 로컬)
+    c4 = _commit(pay4)()
+    ck("★부모 = 지정 안내(로컬 hint tip 무관) · 로컬 hint 불이동",
+       _commit_parents(read_object_text(repo, "commit", c4) or "") == [guide] and hint_tip(repo) == c2)
+    _update_hint_ref(repo, tip_before, c2)
 
     # ── commit_violations: git 이 든 바이트로 같은 계약을 다시 묻는다(봉인 전·후 검사의 공용 판정)
     terms = [FIXTURE_TERM]
@@ -1408,3 +1575,161 @@ def _selftest_git(tmp: Path, ck, operator_env: dict) -> None:
        {"HINT_PAYLOAD_JSON_UNREADABLE", "HINT_PROMPT_RESIDUE"} <= v5)
     ck("★commit_violations 는 리터럴 PII 도 본다",
        any(p.startswith("HINT_PAYLOAD_PII:") for p in commit_violations(repo, c1, _FX_TAG, ["지도이지 정답"])))
+
+
+def _transition_selftest(tmp: Path, ck) -> None:
+    """bare 원격만(네트워크 0): 원격 안내 읽기(guide_commit · 한 ref fetch) · 형식 불일치 차단 · 형식 전환(승인 필수 ·
+    고아 페이로드 거부 · 정상 · 멱등 · 로컬 정리 · push 재개 · 형식 되돌림 거부)."""
+    template = core.TEMPLATES_DIR / "hint-branch-README.md"
+    tpl_body = template.read_text(encoding="utf-8")
+    if readme_format(tpl_body) is not None:                       # 템플릿이 이미 마커를 가졌으면 본문만 쓴다
+        tpl_body = tpl_body.split("\n", 1)[1]
+
+    def mk_repo(name: str, *, marker: bool = True) -> Path:
+        r = selftest_repo(tmp, name)
+        target = r / _BRANCH_TEMPLATE_REL
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text((guide_marker() + "\n" if marker else "") + tpl_body, encoding="utf-8")
+        core.git(r, "add", _BRANCH_TEMPLATE_REL)
+        core.git(r, "commit", "-qm", "tracked transition template")
+        return r
+
+    def mk_bare(name: str) -> Path:
+        b = tmp / f"{name}.git"
+        core.git(tmp, "init", "-q", "--bare", str(b))
+        return b
+
+    approve = {"approved_by": "픽스처 사람 발화 전사", "approved_utc": _FX_UTC}
+    # ── 원격 = 마커 없는 옛 안내(6294a91 모양) · 로컬 hint = 옛 체인형(페이로드 커밋 · 태그가 붙잡음)
+    repo = mk_repo("transition-repo")
+    bare = mk_bare("transition-remote")
+    core.git(repo, "remote", "add", "origin", str(bare))
+    old = selftest_guide(repo, fmt=None)
+    _update_hint_ref(repo, old, None)
+    core.git(repo, "push", "-q", "origin", f"{HINT_BRANCH_REF}:{HINT_BRANCH_REF}")
+    pay = tmp / "transition-payload"
+    write_fixture_payload(pay, _FX_TAG, source_anchor=None)
+    chain_tree = build_tree(repo, pay, payload_files(pay))
+    chain = core.git(repo, "commit-tree", chain_tree, "--no-gpg-sign", "-p", old,
+                     input_text=commit_message(pay, generated_utc=_FX_UTC), env_extra=identity_env(_FX_UTC)).stdout.strip()
+    _update_hint_ref(repo, chain, old)                            # 로컬 hint 가 원격보다 페이로드 1커밋 앞선 옛 체인 상태
+    ck("★v7 발행기: 원격 tip 이 마커 없는 옛 안내 = HINT_BRANCH_FORMAT_MISMATCH(처방 = branch-transition)",
+       expect_code(lambda: guide_commit(repo, "origin"), "HINT_BRANCH_FORMAT_MISMATCH"))
+    try:
+        guide_commit(repo, "origin")
+    except core.HintError as e:
+        ck("형식 불일치 처방 문구에 branch-transition · 사람 승인", "branch-transition" in (e.remedy or "")
+           and "승인" in (e.remedy or ""))
+    ck("★원격 조회 실패 = HINT_REMOTE_QUERY_FAILED(fail-closed)",
+       expect_code(lambda: guide_commit(repo, str(tmp / "absent.git")), "HINT_REMOTE_QUERY_FAILED"))
+    empty = mk_bare("transition-empty")
+    ck("★원격에 hint 브랜치 없음 = HINT_BRANCH_GUIDE_ABSENT",
+       expect_code(lambda: guide_commit(repo, str(empty)), "HINT_BRANCH_GUIDE_ABSENT"))
+    ck("★commit_payload(remote=) 도 같은 거부 · 로컬 hint 불변",
+       expect_code(lambda: commit_payload(repo, pay, message=commit_message(pay, generated_utc=_FX_UTC),
+                                          generated_utc=_FX_UTC, remote="origin"), "HINT_BRANCH_FORMAT_MISMATCH")
+       and hint_tip(repo) == chain)
+
+    # ── 승인 · 템플릿 마커 · 고아 페이로드 — 전부 ref 쓰기 0
+    refs0 = core.git_out(repo, "for-each-ref", "--format=%(refname) %(objectname)")
+    ck("★승인 전사 없음 = HINT_APPROVAL_ABSENT",
+       expect_code(lambda: branch_transition(repo, remote="origin", generated_utc=_FX_UTC), "HINT_APPROVAL_ABSENT"))
+    ck("★태그가 붙잡지 않는 로컬 페이로드 = HINT_BRANCH_TRANSITION_ORPHAN_PAYLOAD",
+       expect_code(lambda: branch_transition(repo, remote="origin", generated_utc=_FX_UTC, **approve),
+                   "HINT_BRANCH_TRANSITION_ORPHAN_PAYLOAD"))
+    ck("거부들 뒤 ref·원격 불변", core.git_out(repo, "for-each-ref", "--format=%(refname) %(objectname)") == refs0
+       and _remote_hint_tip(repo, "origin") == old)
+    nomark = mk_repo("transition-nomarker", marker=False)
+    core.git(nomark, "remote", "add", "origin", str(bare))
+    ck("★템플릿 첫 줄에 마커 없음 = HINT_BRANCH_TEMPLATE_FORMAT(도구가 덧붙이지 않는다)",
+       expect_code(lambda: branch_transition(nomark, remote="origin", generated_utc=_FX_UTC, **approve),
+                   "HINT_BRANCH_TEMPLATE_FORMAT"))
+
+    # ── 정상 전환: 태그가 옛 체인을 붙잡으면 로컬 정리 + 전환 + push
+    core.git(repo, "tag", "-a", "-m", "fixture", _FX_TAG, chain)  # 격리 저장소 픽스처(옛 체인 태그)
+    result = branch_transition(repo, remote="origin", generated_utc=_FX_UTC, **approve)
+    new = hint_tip(repo)
+    entries = tree_entries(repo, new)
+    ck("branch-transition: README 하나 mode 100644 · 첫 줄 v7 마커",
+       result["status"] == "transitioned" and len(entries) == 1 and entries[0]["mode"] == "100644"
+       and entries[0]["path"] == GUIDE_README and readme_format(read_blob(repo, new, GUIDE_README)) == BRANCH_FORMAT)
+    ck("branch-transition: 부모 = 원격의 옛 안내(로컬 체인 ✗) · remote == local",
+       _commit_parents(read_object_text(repo, "commit", new) or "") == [old] and _remote_hint_tip(repo, "origin") == new)
+    ck("★원격 추적 ref 도 새 안내(push 가 갱신 · 낡은 origin/hint 해소)",
+       core.git(repo, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/hint", check=False).stdout.strip() == new)
+    ck("★옛 체인 태그는 여전히 자기 커밋을 든다(R6)", core.git_out(repo, "rev-parse", f"{_FX_TAG}^{{commit}}") == chain)
+    ck("★승인 전사는 반환값에만(배포 오브젝트 ✗)", result.get("approved_by") == approve["approved_by"]
+       and approve["approved_by"].encode() not in (core.git_bytes(repo, "cat-file", "commit", new) or b""))
+    ck("branch-transition: 재실행 = already-transitioned(멱등 · 재시도 UTC 무관)",
+       branch_transition(repo, remote="origin", generated_utc="2026-09-22T00:00:00Z", **approve)["status"]
+       == "already-transitioned" and hint_tip(repo) == new)
+    ck("전환 뒤 guide_commit(origin) = (새 안내, v7)", guide_commit(repo, "origin") == (new, BRANCH_FORMAT))
+
+    # ── 다른 클론: 안내 오브젝트가 로컬에 없으면 그 한 ref 만 fetch · 로컬 브랜치·태그 불이동
+    clone = selftest_repo(tmp, "transition-clone")
+    core.git(clone, "remote", "add", "origin", str(bare))
+    ck("대조: 클론에는 안내 오브젝트가 없다",
+       core.git(clone, "cat-file", "-e", f"{new}^{{commit}}", check=False).returncode != 0)
+    refs_c = core.git_out(clone, "for-each-ref", "--format=%(refname) %(objectname)", "refs/heads", "refs/tags")
+    ck("★guide_commit: 한 ref fetch 뒤 (새 안내, v7)", guide_commit(clone, "origin") == (new, BRANCH_FORMAT))
+    ck("★fetch 는 로컬 브랜치·태그를 만들지 않는다(추적 ref 만)",
+       core.git_out(clone, "for-each-ref", "--format=%(refname) %(objectname)", "refs/heads", "refs/tags") == refs_c
+       and hint_tip(clone) is None
+       and core.git(clone, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/hint", check=False).stdout.strip() == new)
+    clone2 = selftest_repo(tmp, "transition-clone-url")
+    ck("URL·경로 원격(추적 ref 없음)도 오브젝트만 받는다", guide_commit(clone2, str(bare)) == (new, BRANCH_FORMAT)
+       and core.git_out(clone2, "for-each-ref", "--format=%(refname)", "refs/remotes") == "")
+    pay_c = tmp / "transition-clone-payload"
+    write_fixture_payload(pay_c, _FX_TAG, source_anchor=None)
+    cc = commit_payload(clone, pay_c, message=commit_message(pay_c, generated_utc=_FX_UTC), generated_utc=_FX_UTC,
+                        remote="origin")
+    ck("★commit_payload(remote=): 부모 = 원격 안내 · 로컬 hint 불이동",
+       _commit_parents(read_object_text(clone, "commit", cc) or "") == [new] and hint_tip(clone) is None)
+    ck("★guide= 와 remote= 가 다르면 = HINT_BRANCH_GUIDE_MOVED",
+       expect_code(lambda: commit_payload(clone, pay_c, message=commit_message(pay_c, generated_utc=_FX_UTC),
+                                          generated_utc=_FX_UTC, guide=selftest_guide(clone), remote="origin"),
+                   "HINT_BRANCH_GUIDE_MOVED"))
+
+    # ── 로컬 정리: 원격은 이미 v7 · 로컬 hint 만 옛 값 → local-synced
+    stale = mk_repo("transition-stale")
+    core.git(stale, "remote", "add", "origin", str(bare))
+    _update_hint_ref(stale, selftest_guide(stale, fmt=None), None)
+    synced = branch_transition(stale, remote="origin", generated_utc=_FX_UTC, **approve)
+    ck("★원격 v7 · 로컬 옛 값 = local-synced(로컬만 원격 tip 으로 · push 0)",
+       synced["status"] == "local-synced" and hint_tip(stale) == new and _remote_hint_tip(stale, "origin") == new)
+
+    # ── push 재개: 로컬 = 전환 후보(부모 = 원격 tip) · 원격 = 옛 값
+    repo2 = mk_repo("transition-resume")
+    bare2 = mk_bare("transition-resume")
+    core.git(repo2, "remote", "add", "origin", str(bare2))
+    old2 = selftest_guide(repo2, fmt=None)
+    _update_hint_ref(repo2, old2, None)
+    core.git(repo2, "push", "-q", "origin", f"{HINT_BRANCH_REF}:{HINT_BRANCH_REF}")
+    staged = _transition_commit(repo2, old2, _transition_tree(repo2, _transition_template_bytes(repo2)), _FX_UTC)
+    _update_hint_ref(repo2, staged, old2)
+    resumed = branch_transition(repo2, remote="origin", generated_utc="2026-09-22T00:00:00Z", **approve)
+    ck("branch-transition: local=후보 remote=old → push-resumed(재시도 UTC 달라도 구조 판정)",
+       resumed["status"] == "push-resumed" and _remote_hint_tip(repo2, "origin") == staged)
+
+    # ── 형식 되돌림 거부: 원격이 더 새 형식(v8)
+    repo3 = mk_repo("transition-downgrade")
+    bare3 = mk_bare("transition-downgrade")
+    core.git(repo3, "remote", "add", "origin", str(bare3))
+    v8 = selftest_guide(repo3, fmt="v8")
+    _update_hint_ref(repo3, v8, None)
+    core.git(repo3, "push", "-q", "origin", f"{HINT_BRANCH_REF}:{HINT_BRANCH_REF}")
+    ck("★원격 v8 안내 = HINT_BRANCH_TRANSITION_DOWNGRADE · 원격 불변",
+       expect_code(lambda: branch_transition(repo3, remote="origin", generated_utc=_FX_UTC, **approve),
+                   "HINT_BRANCH_TRANSITION_DOWNGRADE") and _remote_hint_tip(repo3, "origin") == v8)
+    ck("★v7 발행기에게 v8 안내도 형식 불일치", expect_code(lambda: guide_commit(repo3, "origin"), "HINT_BRANCH_FORMAT_MISMATCH"))
+    # ── 원격 tip 이 페이로드 커밋(옛 체인을 누가 밀었다) → 안내가 아니다
+    repo4 = mk_repo("transition-payloadtip")
+    bare4 = mk_bare("transition-payloadtip")
+    pay4 = tmp / "transition-payload4"
+    write_fixture_payload(pay4, _FX_TAG, source_anchor=None)
+    ptip = core.git(repo4, "commit-tree", build_tree(repo4, pay4, payload_files(pay4)), "--no-gpg-sign",
+                    input_text="x\n", env_extra=identity_env(_FX_UTC)).stdout.strip()
+    _update_hint_ref(repo4, ptip, None)
+    core.git(repo4, "push", "-q", str(bare4), f"{HINT_BRANCH_REF}:{HINT_BRANCH_REF}")
+    ck("★원격 tip = 페이로드 커밋 = HINT_BRANCH_FORMAT_MISMATCH(트리가 README 하나가 아님)",
+       expect_code(lambda: guide_commit(repo4, str(bare4)), "HINT_BRANCH_FORMAT_MISMATCH"))
