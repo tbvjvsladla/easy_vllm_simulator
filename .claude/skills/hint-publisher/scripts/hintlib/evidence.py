@@ -5530,6 +5530,59 @@ def set_promotion_target(repo, *, topic, tag, topology, anchor, generated_utc, d
     return man
 
 
+def rebind_campaign_narratives(repo, ev: CellEvidence, *, topic, generated_utc, draft_dir) -> dict:
+    """캠페인 서사 재바인딩(2026-09-29 · refacts 전용 · campaign 모드 · 커밋 전 draft). publish 뒤 서사 문서를 명명 SSOT 로 **개명**하고
+    캠페인 포인터를 `campaign_init --evidence-relocate` 로 옮기면, 발행 기록의 바인딩과 draft `inputs/pii.json` · work-manifest 는 옛 경로를
+    든 채 남아 게이트가 `EVIDENCE_MISSING` 으로 막는다 — 그런데 drive_publisher 는 init 이 불변이라 다시 돌 수 없고 publisher_inputs 는
+    재생 전용이었다(정식 경로 부재 → 손편집 유혹 · D3).
+    판정(부수효과 0 · 첫 쓰기 전): kind ∈ plan/devlog/testlog 마다 발행 기록 `scaffolded[kind]` 와 현재 `_narratives(ev)`(캠페인 포인터)를 대조 —
+      같으면 그대로 · 다르고 옛 경로가 **부재**면 개명으로 보고 재바인딩 · 다르고 옛 경로가 **실재**하면 `HINT_NARRATIVE_REBIND_CONFLICT`
+      (두 문서 중 어느 것이 이 셀의 서사인지 도구가 고르지 않는다 — 조용한 교체 ✗). 새 서사 경로는 drive_publisher 와 같은 nondeploy_prose 로 스캔.
+    쓰기: 재바인딩(`evidence_publisher set-narrative`) → `<draft>/inputs/{pii,runtime,runtime.provenance}.json` 재생성 → finalize.
+    멱등 — 바인딩이 이미 같으면 set-narrative 없이 입력 · manifest 만 다시 쓴다(같은 관측이면 같은 바이트).
+    반환 = {"rebound": [{kind, from, to}], "manifest": work-manifest 경로}."""
+    repo = _repo(repo)
+    if ev.mode != "campaign":
+        core.fail("HINT_REPLAY_READ_ONLY", "발행 기록 재생 모드는 읽기만 한다 — 서사 재바인딩은 campaign 모드 draft 전용이다.",
+                  "재생 draft 의 발행기 입력은 publisher_inputs 가 쓴다.")
+    core.require_utc(generated_utc)
+    inputs = Path(draft_dir) / "inputs"
+    # ── 판정(부수효과 0) ──
+    record = _record(repo, topic)
+    narr = _narratives(ev)
+    qual = qualification(ev)
+    rt_ident, rt_src = _runtime_identity(repo, ev)
+    bound = record.get("scaffolded") or {}
+    rebound: list[dict] = []
+    for kind in ("plan", "devlog", "testlog"):
+        old, new = bound.get(kind), narr[kind]
+        if old == new:
+            continue
+        if not isinstance(old, str) or not old:
+            core.fail("HINT_NARRATIVE_BINDING_ABSENT", f"발행 기록 {topic} 에 {kind} 바인딩이 없다 — 재바인딩할 자리가 없다.",
+                      "publish(drive_publisher)가 묶은 발행 기록에서만 재바인딩한다.")
+        if (repo / old).exists():
+            core.fail("HINT_NARRATIVE_REBIND_CONFLICT",
+                      f"{kind}: 발행 기록은 {old!r} 에 묶였고 캠페인 포인터는 {new!r} 인데 옛 문서가 여전히 실재한다 — 개명이 아니다.",
+                      "어느 문서가 이 셀의 서사인지 사람이 정한다: 개명이면 옛 파일을 없애고(`campaign_init --evidence-relocate`), "
+                      "아니면 캠페인 포인터를 옛 문서로 되돌린다. 도구는 조용히 교체하지 않는다.")
+        rebound.append({"kind": kind, "from": old, "to": new})
+    from . import pii
+    terms = pii.require_terms(repo)
+    hits = _pii_scan(repo, dict(narr), terms)
+    if hits:
+        core.fail("HINT_PII_SCAN_FAILED", f"비배포 증거에 PII 매치(nondeploy_prose): {hits[:10]}",
+                  "원문 문서를 고친다(서사 평면은 사람이 저작한다) — 발행기가 가리지 않는다.")
+    # ── 쓰기 ──
+    for r in rebound:
+        _publisher(repo, "set-narrative", "--topic", topic, "--kind", r["kind"], "--narrative-file", r["to"],
+                   "--author", "hint.py(evidence.rebind_campaign_narratives)", "--generated-utc", generated_utc)
+    record = _record(repo, topic)
+    inputs.mkdir(parents=True, exist_ok=True)
+    _write_pii_and_runtime(repo, record, inputs, terms, qual, rt_ident, rt_src)
+    return {"rebound": rebound, "manifest": _finalize(repo, topic, inputs)}
+
+
 def output_manifest(repo, topology: str) -> dict | None:
     """`output/<topology>/manifest.yaml`(소유 로더) — 부재 = None. 발췌 치환표(`pii.substitution_table`)의 입력이다
     (hint.py lint·continue·excerpt 가 publish 때와 **같은** 치환표를 다시 만든다 · 2026-09-22 통합)."""
@@ -7265,6 +7318,46 @@ def selftest() -> list[str]:
             man_re = drive_publisher(repo, ev, topic=topic, generated_utc="2026-01-02T05:00:00Z", draft_dir=draft)
             ck("★발행기 재구동(full)은 멱등이고 기록된 승격 목표를 말없이 떨어뜨리지 않는다",
                man_re == man and (json.loads(man_re.read_text(encoding="utf-8")).get("promotion_target") or {}).get("anchor") == _SHA_A)
+            # ── rebind_campaign_narratives(2026-09-29 · 서사 개명 뒤 발행 기록 · pii.json · manifest 따라가기) ──
+            recp = repo / core.REL_EVIDENCE_DIR / f"{topic}.json"
+            piip = draft / "inputs/pii.json"
+            rec0, pii0, man0 = recp.read_bytes(), piip.read_bytes(), man.read_bytes()
+            rb0 = rebind_campaign_narratives(repo, ev, topic=topic, generated_utc="2026-01-02T05:00:00Z", draft_dir=draft)
+            ck("rebind 멱등 — 바인딩 = 캠페인 포인터면 set-narrative 없음 · 기록 · pii.json · manifest 바이트 불변",
+               rb0["rebound"] == [] and rb0["manifest"] == man and recp.read_bytes() == rec0 and piip.read_bytes() == pii0
+               and man.read_bytes() == man0)
+            ptrp_rb = repo / "campaigns/c1/evidence_pointers.json"
+            ptr_rb0 = ptrp_rb.read_text(encoding="utf-8")
+            tl_old, tl_new = fx["testlog"], "docs/testlog/testlog_26010213_05_00_fixture.md"
+            (repo / tl_old).rename(repo / tl_new)
+            ptrp_rb.write_text(ptr_rb0.replace(tl_old, tl_new), encoding="utf-8")
+            rb1 = rebind_campaign_narratives(repo, from_campaign(repo, "c1", "c1-a", docker=dk), topic=topic,
+                                             generated_utc="2026-01-02T05:00:00Z", draft_dir=draft)
+            rec1 = json.loads(recp.read_text(encoding="utf-8"))
+            pii1 = json.loads(piip.read_text(encoding="utf-8"))
+            ck("rebind 양성 — 옛 경로 부재(개명) → 새 경로로 재바인딩(작성자 표지)",
+               rb1["rebound"] == [{"kind": "testlog", "from": tl_old, "to": tl_new}] and rec1["scaffolded"]["testlog"] == tl_new
+               and rec1["narrative_status"]["testlog"]["author"] == "hint.py(evidence.rebind_campaign_narratives)")
+            ck("rebind 양성 — inputs/pii.json scanned_paths 가 새 경로를 들고 옛 경로를 버린다",
+               any(p.endswith(Path(tl_new).name) for p in pii1["scanned_paths"])
+               and not any(p.endswith(Path(tl_old).name) for p in pii1["scanned_paths"]))
+            ck("rebind 양성 — 재생성 manifest 가 게이트 허가(promotion-ready)", authorize(repo, rb1["manifest"], "hint_finalize").get("allowed") is True)
+            (repo / tl_old).write_text("# testlog\n다른 문서.\n", encoding="utf-8")      # 옛 이름에 문서가 다시 실재 · 포인터는 되돌림
+            ptrp_rb.write_text(ptr_rb0, encoding="utf-8")
+            rec_c = recp.read_bytes()
+            ck("★rebind 음성 — 바인딩된 문서가 실재하는데 포인터가 다르면 차단(조용한 교체 ✗ · 기록 불변)",
+               _code(rebind_campaign_narratives, repo, from_campaign(repo, "c1", "c1-a", docker=dk), topic=topic,
+                     generated_utc="2026-01-02T05:00:00Z", draft_dir=draft) == "HINT_NARRATIVE_REBIND_CONFLICT"
+               and recp.read_bytes() == rec_c)
+            (repo / tl_old).unlink()
+            (repo / tl_new).rename(repo / tl_old)
+            rb2 = rebind_campaign_narratives(repo, ev, topic=topic, generated_utc="2026-01-02T05:00:00Z", draft_dir=draft)
+            ck("rebind 역개명 복원 — 기록 · pii.json 이 원 경로로 돌아온다",
+               rb2["rebound"] == [{"kind": "testlog", "from": tl_new, "to": tl_old}] and piip.read_bytes() == pii0
+               and json.loads(recp.read_text(encoding="utf-8"))["scaffolded"]["testlog"] == tl_old)
+            ck("★rebind 재생 모드 = 쓰기 거부", _code(rebind_campaign_narratives, repo, SimpleNamespace(mode="publication-replay"),
+                                               topic=topic, generated_utc="2026-01-02T05:00:00Z", draft_dir=draft)
+               == "HINT_REPLAY_READ_ONLY")
             # ★ runtime identity 는 관측이다 — meta 가 다르면 복사하지 않고 그대로 적는다(게이트가 거부)
             idx = json.loads((fx["sweep"] / "sweep_index.json").read_text(encoding="utf-8"))
             idx["meta"]["vllm_version"] = "0.9.0-observed"

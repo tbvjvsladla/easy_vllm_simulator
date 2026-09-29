@@ -1405,7 +1405,9 @@ def refacts(repo: Path, *, draft: Path, rt: Runtime | None = None) -> dict:
     """사실 재파생(2026-09-29 · plan_26092908 §4.8 V11② — 셀마다 `--out` 재생성 + 손 이식 + refresh + `git stash` 였던 손작업).
     같은 generated_utc · 같은 셀 선택자로 증거를 다시 모아 FACT 블록 · README · PAYLOAD · LINEAGE(전체 · 요약) · PROVENANCE · template_facts ·
     산출물(artifacts/)을 다시 쓴다. 보존: 저작 산문 · hint-event · PROMPT · 파생 블록 · `inputs/tail.json` · `inputs/factcheck.json` · Agent 가
-    저작한 요청 파일. 부수효과 = draft 안뿐(발행 기록 재바인딩 ✗ · 태그 · 브랜치 ✗). 커밋 뒤에는 거부한다(커밋한 바이트와 갈라진다).
+    저작한 요청 파일. 부수효과 = draft 안 + (campaign 모드) 발행 기록 서사 재바인딩 · work-manifest 재생성(태그 · 브랜치 ✗).
+    campaign 모드는 `evidence.rebind_campaign_narratives` 로 서사 개명(캠페인 포인터 이전)을 발행 기록 · inputs/pii.json · manifest 에
+    따라가게 한다(옛 문서가 실재하면 차단 · 같으면 입력만 재생성). 재생 모드는 부르지 않는다(기록은 읽기만). 커밋 뒤에는 거부한다(커밋한 바이트와 갈라진다).
     이름은 기본 이름으로 되돌린다 — 꼬리 · timestamp 는 continue 가 다시 확정한다(재파생으로 결정론부가 바뀔 수 있다).
     반환 = {changed: [(문서, FACT id)…], diff: unified diff 텍스트, tag, artifacts: {added, removed, kept_authored}}."""
     import difflib
@@ -1433,6 +1435,11 @@ def refacts(repo: Path, *, draft: Path, rt: Runtime | None = None) -> dict:
     _require_name_pii_clean(repo, dn.tag)
     before = {n: template.fact_blocks((payload / n).read_text(encoding="utf-8")) for n in template.PAYLOAD_DOCS
               if (payload / n).is_file()}
+    rebind = None
+    if st.get("mode") == "campaign":
+        rebind = evidence.rebind_campaign_narratives(repo, ev, topic=st["topic"], generated_utc=utc, draft_dir=draft)
+        if core.rel(repo, rebind["manifest"]) != st["manifest"]:
+            core.fail("HINT_REFACTS_MANIFEST_MISMATCH", f"재생성한 work-manifest {core.rel(repo, rebind['manifest'])} ≠ draft 의 {st['manifest']}")
     man = _manifest_doc(repo, st)
     with tempfile.TemporaryDirectory(prefix=".refacts-", dir=str(draft)) as td:
         tmp = Path(td) / "payload"
@@ -1475,8 +1482,10 @@ def refacts(repo: Path, *, draft: Path, rt: Runtime | None = None) -> dict:
     st.pop("guide", None)
     st.update(tag=dn.tag, base_tag=dn.tag, bench_source=col["bench_src"])
     _mark(draft, st, "refacts", utc=utc, changed=[f"{n}#{fid}" for n, fid in changed],
-          artifacts_added=sorted(new_files - old_files), artifacts_removed=sorted(old_files - new_files - set(keep)))
+          artifacts_added=sorted(new_files - old_files), artifacts_removed=sorted(old_files - new_files - set(keep)),
+          narratives_rebound=(rebind["rebound"] if rebind else None))
     return {"changed": changed, "diff": "\n".join(diff), "tag": dn.tag,
+            "rebind": ({"rebound": rebind["rebound"], "manifest": st["manifest"]} if rebind else None),
             "artifacts": {"added": sorted(new_files - old_files), "removed": sorted(old_files - new_files - set(keep)),
                           "kept_authored": sorted(keep)}}
 
@@ -1487,6 +1496,11 @@ def cmd_refacts(a) -> int:
     res = refacts(repo, draft=draft, rt=Runtime(docker=_publish_runner(a)))
     print(f"{_OUT} refacts — {_show(repo, draft)} · 기본 이름 {res['tag']} · 바뀐 FACT {len(res['changed'])}개"
           + (": " + ", ".join(f"{n}#{fid}" for n, fid in res["changed"]) if res["changed"] else ""))
+    rb = res.get("rebind")
+    if rb is not None:
+        print(f"  서사 재바인딩: {len(rb['rebound'])}건"
+              + (" — " + ", ".join(f"{r['kind']} {Path(r['from']).name} → {Path(r['to']).name}" for r in rb["rebound"]) if rb["rebound"]
+                 else "(바인딩 = 캠페인 포인터 · no-op)") + f" · 발행기 입력 · {rb['manifest']} 재생성")
     ar = res["artifacts"]
     print(f"  산출물: 추가 {len(ar['added'])} · 제거 {len(ar['removed'])} · 저작본 보존 {len(ar['kept_authored'])}"
           + (f" — 제거 {ar['removed'][:6]}" if ar["removed"] else ""))
@@ -2543,6 +2557,9 @@ def _selftest_e2e(ck) -> None:
             tl_p.write_text(tl_p.read_text(encoding="utf-8") + "\n## 5. 추가\nrefacts 재파생 시험 줄.\n", encoding="utf-8")
             rx = quiet(refacts, repo, draft=draft, rt=rt)
             rx_lint = [i["code"] for i in quiet(lint_draft, repo, draft)]
+            ck("refacts(campaign) = 서사 재바인딩 경로를 탄다 — 바인딩 = 캠페인 포인터면 no-op · 같은 manifest 재생성",
+               rx.get("rebind") == {"rebound": [], "manifest": _load_state(draft)["manifest"]}
+               and (_load_state(draft).get("steps") or {}).get("refacts", {}).get("narratives_rebound") == [])
             ck(f"refacts: 바뀐 FACT(계보 크기) = diff 출력 · 같은 generated_utc({rx['changed']})",
                ("02-narrative.md", "lineage") in rx["changed"] and "(재파생)" in rx["diff"]
                and _load_state(draft)["generated_utc"] == _FX_PUBLISH_UTC)
@@ -3026,6 +3043,12 @@ def _selftest_replay_continue(ck) -> None:
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 out = td / "replay"
                 rres = publish(repo, publication=cres["topic"], replay=True, generated_utc=_FX_REPLAY_UTC, out=out, rt=rt)
+            recp = repo / core.REL_EVIDENCE_DIR / f"{cres['topic']}.json"
+            rec_b = recp.read_bytes()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                rrx = refacts(repo, draft=out, rt=rt)
+            ck("★재생 refacts = 서사 재바인딩을 부르지 않는다(발행 기록 바이트 불변 · rebind None)",
+               rrx.get("rebind") is None and recp.read_bytes() == rec_b)
             ok, why = _raises(lambda: continue_(repo, draft=out, generated_utc=_FX_CONTINUE_UTC, rt=rt), "HINT_APPROVAL_ABSENT")
             ck(f"★재생 continue 승인 전사 없음 = HINT_APPROVAL_ABSENT({why[:80]})", ok and branch.hint_tip(repo) is None)
             ok, why = _raises(lambda: continue_(repo, draft=out, generated_utc=_FX_CONTINUE_UTC, approved_by="<<FILL>>",
