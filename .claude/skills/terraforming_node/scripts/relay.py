@@ -28,6 +28,7 @@ import argparse
 import datetime
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -1025,8 +1026,71 @@ def ledger_progress(last: dict, prev: dict | None) -> str | None:
     return None
 
 
+def library_question(att: dict) -> bool:
+    """`input-required` 가 **사서에게 묻는 질문**인가 — 사람이 아니라 메인 사서가 답한다.
+
+    2026-09-29(plan_26092919 P1 · R3-ⓐ): 차단성 도서관 요청을 감독이 사람 팝업으로 접었다. 답하는
+    주체는 사서(불변식 B)이고 `_supervise_resume` 가 이미 사서 자동 응대를 부른다 — 사람을 부를
+    이유가 없었다. `hitl.needed` 가 섞이면 사람 질문이 함께 있으므로 종전대로 묻는다.
+    """
+    return att.get("hitl_needed") is False and att.get("library_blocking") is True
+
+
+# 노드 간 시계 오차 여유(초) — 이 파일에서만 쓰는 국소 상수. 서브 mtime 은 서브 시계이고
+# attempt 창은 메인 시계다.
+DOC_PLANE_SKEW_S = 120
+
+
+def _utc_epoch(v) -> float | None:
+    try:
+        return datetime.datetime.strptime(str(v), "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=datetime.timezone.utc).timestamp()
+    except (TypeError, ValueError):
+        return None
+
+
+def doc_plane_progress(repo_root: str, doc: dict) -> str | None:
+    """회수 미러의 **문서**로 본 전진 — 리포트 없이 잘린 attempt 를 위해.
+
+    2026-09-29(plan_26092919 P1 · R3-ⓑ): CLI 턴 상한에서 잘린 attempt 는 리포트가 없어 원장 전진이
+    0 이었다. 그런데 서브 문서 평면에는 완성 문서가 있었다. 두 조건이 **모두** 참인 문서만 센다 —
+    ① 본문 앞부분에 이 context_id 가 있다(다른 context 문서 ✗) ② mtime 이 마지막 attempt 창 안이다
+    (지난 attempt 의 문서 ✗). 미러(`fetch_sub_docs.sh` · rsync -a 로 mtime 보존)만 읽는다 — 서브를
+    직접 읽으면 무단 스캔이다. 미러가 없거나 창을 모르면 None(모르면 묻는다).
+    """
+    last, ctx = _last_reached(doc), doc.get("context_id")
+    if not last or not ctx:
+        return None
+    t0, t1 = _utc_epoch(last.get("started_utc")), _utc_epoch(last.get("ended_utc"))
+    if t0 is None or t1 is None:
+        return None
+    root = os.path.join(repo_root, "sync_staging", "sub_docs")
+    pat = re.compile(r"(?<![\w-])" + re.escape(str(ctx)) + r"(?![\w-])")
+    hits = []
+    for dp, dns, fns in os.walk(root):
+        if os.path.relpath(dp, root).split(os.sep)[0] == "logs":   # 기계판독 평면은 문서가 아니다
+            dns[:] = []
+            continue
+        for fn in fns:
+            if not fn.endswith(".md"):
+                continue
+            fp = os.path.join(dp, fn)
+            try:
+                mt = os.path.getmtime(fp)
+                if not (t0 - DOC_PLANE_SKEW_S <= mt <= t1 + DOC_PLANE_SKEW_S):
+                    continue
+                with open(fp, encoding="utf-8", errors="replace") as fh:
+                    head = fh.read(8192)
+            except OSError:
+                continue
+            if pat.search(head):
+                hits.append(os.path.relpath(fp, root))
+    return f"문서 평면 {len(hits)}건({sorted(hits)[0]} 등)" if hits else None
+
+
 def supervise_decide(doc: dict, *, brief: dict | None = None,
-                     cost_cap_attempts: int | None = None, ladder: list | None = None) -> dict:
+                     cost_cap_attempts: int | None = None, ladder: list | None = None,
+                     doc_progress: str | None = None) -> dict:
     """원장 하나의 **다음 한 걸음**을 판정한다. 값을 만들지 않고 기록된 사실만 읽는다.
 
     전진의 정의는 둘이다 — phase 가 바뀌었거나(원장), 회수된 브리핑의 `last_utc` 가 직전 감독
@@ -1078,6 +1142,10 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
                   "invalid_request", "malformed_output"):
         return {"action": "popup",
                 "reason": f"모델·통신 평면이 깨졌다(end_reason={reason}) — 재개로 낫는 종류가 아니다"}
+    if reason == "sub_input_required" and library_question(last):
+        return {"action": "resume",
+                "reason": "서브가 차단성 도서관 요청으로 끊었다 — 답하는 주체는 메인 사서다"
+                          "(불변식 B). 사서 자동 응대 → 반출 동봉 → 같은 세션 재개. 거절이면 멈춘다"}
     if reason == "sub_input_required" and not budget_yield(last):
         return {"action": "popup",
                 "reason": "서브가 input-required 로 끊었다 — 답이 필요하다(차단성이면 답이 승인이다)"}
@@ -1095,10 +1163,11 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
         moved_brief = bool(brief and brief.get("last_utc")
                            and (not seen or str(brief["last_utc"]) > str(seen)))
         moved_ledger = ledger_progress(last, prev[-1] if prev else None)
-        if moved_phase or moved_brief or moved_ledger:
+        if moved_phase or moved_brief or moved_ledger or doc_progress:
             why = ("phase 전진" if moved_phase
                    else f"브리핑 last_utc 전진({brief.get('last_utc')})" if moved_brief
-                   else f"원장 전진({moved_ledger})")
+                   else f"원장 전진({moved_ledger})" if moved_ledger
+                   else doc_progress)
             if reason == "sub_input_required":
                 reason = "sub_input_required(예산 양보)"
             note = (" · 종료 사유는 판정 불가지만 일한 흔적이 있다"
@@ -1172,7 +1241,8 @@ def supervise_step(a) -> int:
         node = doc.get("campaign_node")
         brief = read_brief(a.repo_root, node)
         decision = supervise_decide(doc, brief=brief, cost_cap_attempts=a.cost_cap_attempts,
-                                    ladder=getattr(a, "ladder", None))
+                                    ladder=getattr(a, "ladder", None),
+                                    doc_progress=doc_plane_progress(a.repo_root, doc))
         record_supervisor_step(doc, decision, utc=utc, brief=brief)
         save_ledger(path, doc)
         head = (f"[relay] 감독 · {doc.get('context_id')} (node={node} "
@@ -1202,14 +1272,26 @@ def supervise_step(a) -> int:
     return rc
 
 
+def resume_blockers(pending: list) -> list:
+    """자동 재발급을 막는 대기 항목 — 답도 반출도 없는 차단성 요청, 그리고 사서가 **거절**한 것.
+
+    못 찾음(unresolved)은 통과, 거절만 차단이다(D5 · policy:LIBRARY_GROUNDING_FAIL_CLOSED).
+    2026-09-29(P1): 종전에는 반출 필드가 있다는 것만으로 풀어 거절도 통과했다 — 도서관 재개가
+    자동이 되면서 그 구멍이 실제 경로가 됐다.
+    """
+    def refused(e):
+        return ((e.get("library_export") or {}).get("resolution") or {}).get("status") == "refused"
+    return [e for e in pending if entry_blocking(e) and not e.get("answer")
+            and (not e.get("library_export") or refused(e))]
+
+
 def _supervise_resume(a, lp: str, doc: dict, secs, why: str) -> int:
     """전진이 보이는 중단을 **같은 세션으로** 자동 재발급한다(D9). 감독자가 선언 주체다."""
     pend = pending_for(a.repo_root, doc.get("context_id"))
     serve_library_requests(a.repo_root, doc.get("context_id"), pend,
                            topology=doc.get("topology") or "single")
     pend = pending_for(a.repo_root, doc.get("context_id"))
-    blocked = [e for e in pend if entry_blocking(e) and not e.get("answer")
-               and not e.get("library_export")]
+    blocked = resume_blockers(pend)
     if blocked:
         print("  → STOP: 답이 필요한 차단성 요청이 남아 있다 — 자동 재발급하지 않는다.")
         return 3
@@ -1622,8 +1704,47 @@ def _self_test() -> int:
         "★감독: 예산 양보 input-required + 일한 흔적 → 자동 재발급(브리핑 없는 멀티 워커)")
     chk(supervise_decide({"attempts": [_mk(**dict(_y, hitl_needed=True))]})["action"] == "popup",
         "★감독 음성대조: hitl.needed 가 있으면 질문이다 → 팝업")
-    chk(supervise_decide({"attempts": [_mk(**dict(_y, library_blocking=True))]})["action"] == "popup",
-        "★감독 음성대조: 차단성 도서관 요청은 질문이다 → 팝업")
+    # 2026-09-29(P1 · R3-ⓐ): 차단성 도서관 요청은 **사서**가 답한다 — 사람 팝업 ✗
+    chk(supervise_decide({"attempts": [_mk(**dict(_y, library_blocking=True))]})["action"] == "resume",
+        "★감독: 차단성 도서관 요청 → 사서 응대 후 같은 세션 재개(사람 팝업 ✗)")
+    chk(supervise_decide({"attempts": [_mk(**dict(_y, library_blocking=True, hitl_needed=True))]}
+                         )["action"] == "popup",
+        "★감독 음성대조: 도서관 요청에 사람 질문(hitl.needed)이 섞이면 묻는다")
+    chk(supervise_decide({"attempts": [_mk(**dict(_y, library_blocking=True))]},
+                         cost_cap_attempts=1)["action"] == "popup",
+        "★감독 음성대조: 도서관 재개도 비용 상한을 넘지 않는다")
+    _lq = {"library_request": [{"question": "q", "blocking": True}]}
+    chk(resume_blockers([dict(_lq, library_export={"resolution": {"status": "unresolved"}})]) == []
+        and len(resume_blockers([dict(_lq, library_export={"resolution": {"status": "refused"}})])) == 1
+        and len(resume_blockers([_lq])) == 1,
+        "★재발급 차단: 사서 못 찾음은 통과 · 거절과 무응답은 멈춘다(D5)")
+    # 2026-09-29(P1 · R3-ⓑ): 리포트 없이 잘린 attempt — 문서 평면 전진
+    _cut = {"context_id": "c-t1", "attempts": [_mk(end_reason="budget_exhausted", sub_reported=False,
+                                                  started_utc="2026-09-29T10:06:05Z",
+                                                  ended_utc="2026-09-29T10:07:05Z")]}
+    with tempfile.TemporaryDirectory() as _d:
+        _tl = os.path.join(_d, "sync_staging", "sub_docs", "testlog")
+        os.makedirs(_tl)
+        _t = _utc_epoch("2026-09-29T10:06:50Z")
+
+        def _doc(name, body, when=_t):
+            fp = os.path.join(_tl, name)
+            with open(fp, "w", encoding="utf-8") as fh:
+                fh.write(body)
+            os.utime(fp, (when, when))
+        chk(doc_plane_progress(_d, _cut) is None, "★문서 평면 음성대조: 미러가 비면 전진 없음")
+        _doc("b.md", "context_id c-t10 · 다른 과업\n")
+        chk(doc_plane_progress(_d, _cut) is None,
+            "★문서 평면 음성대조: 다른 context(c-t10)의 문서는 세지 않는다(접두 일치 ✗)")
+        _doc("c.md", "context_id c-t1 · 지난 attempt\n", when=_t - 3600)
+        chk(doc_plane_progress(_d, _cut) is None,
+            "★문서 평면 음성대조: attempt 창 밖 mtime 은 세지 않는다")
+        _doc("a.md", "# T1\ncontext_id c-t1 · campaign x\n")
+        _dp = doc_plane_progress(_d, _cut)
+        chk(_dp is not None and "a.md" in _dp, f"★문서 평면: 창 안 · 같은 context 문서 → 전진 ({_dp})")
+        chk(supervise_decide(_cut)["action"] == "popup"
+            and supervise_decide(_cut, doc_progress=_dp)["action"] == "resume",
+            "★감독: 강제 절단 + 문서 평면 전진 → 자동 재발급(R3-ⓑ) · 신호 없으면 종전대로 팝업")
     chk(supervise_decide({"attempts": [_mk(end_reason="sub_input_required", next_steps=["x"])]}
                          )["action"] == "popup",
         "★감독 음성대조: 표지 필드가 없는 옛 원장은 양보로 읽지 않는다(모르면 묻는다)")
