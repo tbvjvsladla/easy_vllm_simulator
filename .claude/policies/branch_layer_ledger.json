@@ -1088,6 +1088,366 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-202609301402",
+      "utc": "2026-09-30T14:02:20Z",
+      "departure": "multi-node",
+      "departure_commit": "724d82cb73dab482dfdaf4a3cb9553f089d4c4d1",
+      "approved_by": "coag-ash (종료 시퀀스 ③ 팝업: \"승인 (추천)\" — 58행 전부 common_promote · 집행 \"동기화만 (추천)\" · 2026-09-30 KST)",
+      "approved_utc": "2026-09-30T14:02:20Z",
+      "_reach": "single-node vs HEAD 트리차이 · 동기 지점 d51043a423a0(departure-landed)",
+      "_note": "58행 전부 common_promote(plan_26093022 Step 1~4). 특화층 references/orchestration.topology.md 는 경로 규약으로 열거에서 제외됐다 — single 판의 옮겨진 인용(workflow.md §배정 계층)은 동기화 뒤 single-node 에서 따로 교정한다(branch_only 편집).",
+      "classification": [
+        {
+          "file": ".claude/policies/base_skill_edges.json",
+          "verdict": "common_promote",
+          "reason": "기초층 검사·원장(plan_26093022 Step 1·2·4d) — tripwire⑨⑩·public_surface·C4 술어·경로 원장은 브랜치 무관 하네스다. registry↔claim_bindings 등식·relocation 원장 1:1 검사가 양 브랜치에서 같아야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/claim_bindings.json",
+          "verdict": "common_promote",
+          "reason": "기초층 검사·원장(plan_26093022 Step 1·2·4d) — tripwire⑨⑩·public_surface·C4 술어·경로 원장은 브랜치 무관 하네스다. registry↔claim_bindings 등식·relocation 원장 1:1 검사가 양 브랜치에서 같아야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/predicates/claim_predicates.py",
+          "verdict": "common_promote",
+          "reason": "기초층 검사·원장(plan_26093022 Step 1·2·4d) — tripwire⑨⑩·public_surface·C4 술어·경로 원장은 브랜치 무관 하네스다. registry↔claim_bindings 등식·relocation 원장 1:1 검사가 양 브랜치에서 같아야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/registry.yaml",
+          "verdict": "common_promote",
+          "reason": "헌법층 경계 재정리(plan_26093022 §5·§6·§7 승인) — 불변식만 남기고 절차를 스킬 references 로 내렸다. 헌법 공통층은 양 브랜치 바이트 동일이 계약이다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/agent_control.py",
+          "verdict": "common_promote",
+          "reason": "기초층 검사·원장(plan_26093022 Step 1·2·4d) — tripwire⑨⑩·public_surface·C4 술어·경로 원장은 브랜치 무관 하네스다. registry↔claim_bindings 등식·relocation 원장 1:1 검사가 양 브랜치에서 같아야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/antipattern_scan.py",
+          "verdict": "common_promote",
+          "reason": "기초층 검사·원장(plan_26093022 Step 1·2·4d) — tripwire⑨⑩·public_surface·C4 술어·경로 원장은 브랜치 무관 하네스다. registry↔claim_bindings 등식·relocation 원장 1:1 검사가 양 브랜치에서 같아야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/constitution_lint.py",
+          "verdict": "common_promote",
+          "reason": "기초층 검사·원장(plan_26093022 Step 1·2·4d) — tripwire⑨⑩·public_surface·C4 술어·경로 원장은 브랜치 무관 하네스다. registry↔claim_bindings 등식·relocation 원장 1:1 검사가 양 브랜치에서 같아야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/evidence_publisher.py",
+          "verdict": "common_promote",
+          "reason": "기초층 검사·원장(plan_26093022 Step 1·2·4d) — tripwire⑨⑩·public_surface·C4 술어·경로 원장은 브랜치 무관 하네스다. registry↔claim_bindings 등식·relocation 원장 1:1 검사가 양 브랜치에서 같아야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/runtime_selftest.py",
+          "verdict": "common_promote",
+          "reason": "기초층 검사·원장(plan_26093022 Step 1·2·4d) — tripwire⑨⑩·public_surface·C4 술어·경로 원장은 브랜치 무관 하네스다. registry↔claim_bindings 등식·relocation 원장 1:1 검사가 양 브랜치에서 같아야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/topology_parity.py",
+          "verdict": "common_promote",
+          "reason": "기초층 검사·원장(plan_26093022 Step 1·2·4d) — tripwire⑨⑩·public_surface·C4 술어·경로 원장은 브랜치 무관 하네스다. registry↔claim_bindings 등식·relocation 원장 1:1 검사가 양 브랜치에서 같아야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/verify_distribution.py",
+          "verdict": "common_promote",
+          "reason": "기초층 검사·원장(plan_26093022 Step 1·2·4d) — tripwire⑨⑩·public_surface·C4 술어·경로 원장은 브랜치 무관 하네스다. registry↔claim_bindings 등식·relocation 원장 1:1 검사가 양 브랜치에서 같아야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rules/docs.md",
+          "verdict": "common_promote",
+          "reason": "헌법층 경계 재정리(plan_26093022 §5·§6·§7 승인) — 불변식만 남기고 절차를 스킬 references 로 내렸다. 헌법 공통층은 양 브랜치 바이트 동일이 계약이다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rules/workflow.md",
+          "verdict": "common_promote",
+          "reason": "헌법층 경계 재정리(plan_26093022 §5·§6·§7 승인) — 불변식만 남기고 절차를 스킬 references 로 내렸다. 헌법 공통층은 양 브랜치 바이트 동일이 계약이다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/schemas/agent-control-request.schema.json",
+          "verdict": "common_promote",
+          "reason": "references/orchestration/agent-control-adapter.md·agent_control 새 경로 인용 갱신 — 공통 문서·스키마",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/schemas/agent-control-result.schema.json",
+          "verdict": "common_promote",
+          "reason": "references/orchestration/agent-control-adapter.md·agent_control 새 경로 인용 갱신 — 공통 문서·스키마",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+          "verdict": "common_promote",
+          "reason": "주석·경로 교정(서명 카드 부패 · resolve_topology 의 topology_parity 새 경로) — 벤치 스크립트는 공통 빌딩블럭",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh",
+          "verdict": "common_promote",
+          "reason": "주석·경로 교정(서명 카드 부패 · resolve_topology 의 topology_parity 새 경로) — 벤치 스크립트는 공통 빌딩블럭",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
+          "verdict": "common_promote",
+          "reason": "주석·경로 교정(서명 카드 부패 · resolve_topology 의 topology_parity 새 경로) — 벤치 스크립트는 공통 빌딩블럭",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/max_envelope.sh",
+          "verdict": "common_promote",
+          "reason": "주석·경로 교정(서명 카드 부패 · resolve_topology 의 topology_parity 새 경로) — 벤치 스크립트는 공통 빌딩블럭",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/resolve_topology.py",
+          "verdict": "common_promote",
+          "reason": "주석·경로 교정(서명 카드 부패 · resolve_topology 의 topology_parity 새 경로) — 벤치 스크립트는 공통 빌딩블럭",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+          "verdict": "common_promote",
+          "reason": "주석·경로 교정(서명 카드 부패 · resolve_topology 의 topology_parity 새 경로) — 벤치 스크립트는 공통 빌딩블럭",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+          "verdict": "common_promote",
+          "reason": "주석·경로 교정(서명 카드 부패 · resolve_topology 의 topology_parity 새 경로) — 벤치 스크립트는 공통 빌딩블럭",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/blackbox/host_safety.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/blackbox/logs_plane.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/blackbox/policy_rationale.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/campaign/assignment_supervision.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/campaign/layout.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/campaign/phases.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/campaign/purge.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/campaign/writers.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/onboarding.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/sub_agent_env.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/a2a_relay.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/agent-control-adapter.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/control_planes.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/grounding_exchange.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/topology_identity.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터·references 4폴더(plan_26093022 Step 4a) — 설치·블랙박스·오케스트레이션·캠페인 절차는 양 토폴로지 공통 스킬 구조다. 토폴로지 비교(§2.7.0)는 양쪽이 읽어야 하므로 공통이고, 특화 내용은 *.topology.md 로만 간다(이 목록에 없음)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/agent_control.py",
+          "verdict": "common_promote",
+          "reason": "코드 거처 재배치(plan_26093022 Step 1) — agent_control↓스킬 · topology_parity↑기초층(옛 경로 shim). 소비자·relocation 원장과 같은 동기화로 옮겨야 한쪽 브랜치의 pre-commit·sync 가 깨지지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/bootstrap_canary.py",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 스크립트·템플릿의 경로·주석 교정(plan_26093022 Step 1~3) — 토폴로지 무관",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 스크립트·템플릿의 경로·주석 교정(plan_26093022 Step 1~3) — 토폴로지 무관",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/library_exchange.py",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 스크립트·템플릿의 경로·주석 교정(plan_26093022 Step 1~3) — 토폴로지 무관",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/providers/claude_code.py",
+          "verdict": "common_promote",
+          "reason": "코드 거처 재배치(plan_26093022 Step 1) — agent_control↓스킬 · topology_parity↑기초층(옛 경로 shim). 소비자·relocation 원장과 같은 동기화로 옮겨야 한쪽 브랜치의 pre-commit·sync 가 깨지지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/relay.py",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 스크립트·템플릿의 경로·주석 교정(plan_26093022 Step 1~3) — 토폴로지 무관",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 스크립트·템플릿의 경로·주석 교정(plan_26093022 Step 1~3) — 토폴로지 무관",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+          "verdict": "common_promote",
+          "reason": "코드 거처 재배치(plan_26093022 Step 1) — agent_control↓스킬 · topology_parity↑기초층(옛 경로 shim). 소비자·relocation 원장과 같은 동기화로 옮겨야 한쪽 브랜치의 pre-commit·sync 가 깨지지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/gitignore.template",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 스크립트·템플릿의 경로·주석 교정(plan_26093022 Step 1~3) — 토폴로지 무관",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "references/orchestration/agent-control-adapter.md·agent_control 새 경로 인용 갱신 — 공통 문서·스키마",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/references/multinode-build.md",
+          "verdict": "common_promote",
+          "reason": "references/orchestration/agent-control-adapter.md·agent_control 새 경로 인용 갱신 — 공통 문서·스키마",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/closing_sequence.sh",
+          "verdict": "common_promote",
+          "reason": "경로 소비자 갱신(topology_parity·agent_control 새 경로 · sync_branches ROOT_RELOCATION_REPLACEMENTS ↔ verify_distribution 1:1) — 브랜치 동기화 도구 자신이라 양쪽 동일해야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/selftest_branch_sync.py",
+          "verdict": "common_promote",
+          "reason": "경로 소비자 갱신(topology_parity·agent_control 새 경로 · sync_branches ROOT_RELOCATION_REPLACEMENTS ↔ verify_distribution 1:1) — 브랜치 동기화 도구 자신이라 양쪽 동일해야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+          "verdict": "common_promote",
+          "reason": "경로 소비자 갱신(topology_parity·agent_control 새 경로 · sync_branches ROOT_RELOCATION_REPLACEMENTS ↔ verify_distribution 1:1) — 브랜치 동기화 도구 자신이라 양쪽 동일해야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "verdict": "common_promote",
+          "reason": "경로 소비자 갱신(topology_parity·agent_control 새 경로 · sync_branches ROOT_RELOCATION_REPLACEMENTS ↔ verify_distribution 1:1) — 브랜치 동기화 도구 자신이라 양쪽 동일해야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/wiki-desk/scripts/init_wiki_desk.py",
+          "verdict": "common_promote",
+          "reason": "서가 입고 기본값 소유(--warm-start · E3) — 사서는 메인 공통 도구",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".gitignore",
+          "verdict": "common_promote",
+          "reason": "base_skill_edges.json 명시 허용 한 줄 — 원장이 추적되지 않으면 tripwire⑨ 가 양 브랜치에서 서지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "CLAUDE.md",
+          "verdict": "common_promote",
+          "reason": "헌법층 경계 재정리(plan_26093022 §5·§6·§7 승인) — 불변식만 남기고 절차를 스킬 references 로 내렸다. 헌법 공통층은 양 브랜치 바이트 동일이 계약이다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/README.md",
+          "verdict": "common_promote",
+          "reason": "캠페인 뼈대 포인터 갱신(절차 정본 = references/campaign · 서브에선 README 자기완결) — 뼈대는 공통 추적물",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/_template/campaign.yaml",
+          "verdict": "common_promote",
+          "reason": "캠페인 뼈대 포인터 갱신(절차 정본 = references/campaign · 서브에선 README 자기완결) — 뼈대는 공통 추적물",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
