@@ -55,7 +55,7 @@
 - **reasoning 모델(gpt-oss 등)**: 스모크 `max_tokens` 충분히(content는 `finish_reason=stop` 도달 후).
   content 또는 reasoning 비어있지 않으면 통과.
 - **서브 빌드는 직접 SSH 백그라운드**(긴 빌드를 코드에이전트에 위임하면 harness 타임아웃 위험 — 위임 문법은
-  `../../terraforming_node/references/agent-control-adapter.md`). 서브 셸 호출은 login shell PATH 로.
+  `../../terraforming_node/references/orchestration/agent-control-adapter.md`). 서브 셸 호출은 login shell PATH 로.
 - master 만 API 노출 → **프로브는 master 엔드포인트만**. slave 는 worker(API 없음).
 - 멀티노드 실패(OOM/NCCL-RDMA/Ray join timeout)는 requirements/source-build 클래스가 아님 → **Model-C(HITL)**.
 - **빌드 교차검증**: 서브 독립 빌드가 메인과 동일 동작(서브만 실패면 환경 불일치 신호 → Model-C). 2026-09-21 부터는

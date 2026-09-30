@@ -59,7 +59,7 @@ description: >-
 | 미인식 `(NGC×vLLM)` 키로 렌더가 막힘 · 상속 거부 스탠자(`NOT eligible`) | `.claude/skills/upstream-version-watch/references/source-build.md` §3.1(가드 3출구) |
 | 델타 판정 `UNDETERMINED`/`UNKNOWN_PLANE` — 렌더 진입 불가 | `.claude/skills/upstream-version-watch/references/resolve-and-render.md` §1.5 |
 | 스모크 모델이 NAS 에 부재 | `.claude/skills/upstream-version-watch/scripts/check_smoke_model.py` |
-| 서브 위임의 provider 실행문법이 필요 | `.claude/skills/terraforming_node/references/agent-control-adapter.md` |
+| 서브 위임의 provider 실행문법이 필요 | `.claude/skills/terraforming_node/references/orchestration/agent-control-adapter.md` |
 
 ## escalation 수신 — recipe 핸드오프 → 버전핀 소유·3출구 (발견≠소유의 버전-bump 축)
 

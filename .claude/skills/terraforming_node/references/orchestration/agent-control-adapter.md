@@ -3,6 +3,9 @@
 > **이 파일과 `scripts/providers/`만 provider-specific 평면이다.** 5개 public SKILL 본문과 다른 reference는
 > 위임 의도만 선언한다. 실행은 provider-neutral `.claude/skills/terraforming_node/scripts/agent_control.py`가 request schema를 검증한 뒤
 > adapter로 라우팅한다. 정본 계약: `agent-control-request.schema.json`, `agent-control-result.schema.json`.
+> **소유 = terraforming_node**(plan_26093022 — 07-25 "agent_control = Constitution-owned" 결정은 폐기됐다: 호출자가 이 스킬의
+> relay·canary·library_exchange 뿐이라 기초층 런타임이 아니다). **Claude CLI 구문 격리 경계는 그대로다** — `claude` argv 의
+> 유일한 발행처는 `scripts/providers/claude_code.py` 이고, `scripts/agent_control.py --self-test` 가 그 경계를 검사한다.
 
 ## 1. provider-neutral request
 
