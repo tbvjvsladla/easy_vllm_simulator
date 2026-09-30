@@ -22,33 +22,12 @@
 
 ## 캠페인 워크스페이스 — `campaigns/` (9번째, 두 번째 비-문서)
 
-> 근거 `plan_26090616` · 소유 `terraforming_node` · 정책 `policy:ROOT_SURFACE_REGISTRY`.
+> 소유 `terraforming_node`(`references/campaign/` — 경로·수명 표는 `layout.md`) · 정책 `policy:ROOT_SURFACE_REGISTRY`.
 > **`docs/logs/` 와 같은 성격의 예외다** — 산문이 아니라 **단계 사이에서 정보를 나르는 기계판독
 > 아티팩트**이므로 §명명 SSOT·§공통 발행 계약·evidence chain 규약을 적용하지 않는다.
 
-| 경로 | 내용 | git | 수명 |
-|---|---|---|---|
-| `campaigns/README.md` | Agent 읽기 순서·채우기 규칙 | 추적 | 영구 |
-| `campaigns/_template/**` | 뼈대(스키마·선언·셀·phase·릴레이·스윕 틀) | 추적 | 영구 |
-| `campaigns/<camp-id>/campaign.yaml` | 캠페인 선언(matrix·순서·예산·통제변인·hint 대상) | 비추적 | 캠페인 1회 |
-| `campaigns/<camp-id>/cells/<cell>/` | 셀 입력(`config.yaml`·`lockset.json`)과 상태 | 비추적 | 동상 |
-| `campaigns/<camp-id>/phases/<node>/` | phase 상태+proof | 비추적 | 동상 |
-| `campaigns/<camp-id>/relay/` | A2A 릴레이 원장(옛 `tasks/`) | 비추적 | 동상 |
-| `campaigns/<camp-id>/sweeps/` | 스윕 상태·정지판정 | 비추적 | 동상 |
-| `campaigns/<camp-id>/evidence_pointers.json` | docs 평면 증거 포인터(purge 선행조건 · publish 위상에서 `frozen_utc` 로 동결) | 비추적 | 동상 |
-| `campaigns/<camp-id>/journey.jsonl` | **여정** — 이탈·반증·축 이동 사유와 다음 의도(append-only) | 비추적 | 동상 |
-| `campaigns/ACTIVE` | 살아 있는 인스턴스 **하나**의 이름(한 줄). 부재·무효 = `_bootstrap`(루트 ✗) | 비추적 | 캠페인 1회 |
-| `campaigns/_bootstrap/` | 캠페인 밖 릴레이 **대기실**(온보딩·카나리). purge 게이트 대상 ✗ · 새 init 때 함께 비운다 | 비추적 | 상시(내용은 휘발) |
-
-- **바이트를 쓰는 문은 하나다** — `terraforming_node` `campaign_init.py` 의 `--phase-set`·`--cell-set`·
-  `--evidence-add`·`--revise` 가 유일한 writer 이고, 호출부는 각 phase 의 실제 실행 스크립트다
-  (포맷 소유 1 · 호출부 N · workflow.md §캠페인 상태를 쓰는 손). 읽는 눈은 `--resume-brief` 이며
-  `campaigns/README.md` 읽기 순서 **0번**이다.
-- **증거는 여기서 태어나지 않는다** — 인증서·리포트·sweep map·testlog·devlog 는 `docs/` 평면에서
-  발행되고, 이 워크스페이스는 **포인터와 진행 상태만** 든다. 그래서 인스턴스를 통째로 지워도 증거가
-  살아남으며, 그 사실을 purge 게이트가 검사한다(workflow.md §purge 게이트).
-- **사람 가독성을 요구하지 않는다**(`docs/logs/` 선례). 열람이 필요하면 그때 testlog/devlog 로
-  서사를 저작한다 — 원장 원문이 아니라 요약이 문서 평면의 시민이다.
+- 증거는 `docs/` 평면에서 태어나고 이 워크스페이스는 포인터와 진행 상태만 든다(workflow.md §purge 게이트).
+- **사람 가독성을 요구하지 않는다** — 열람이 필요하면 testlog/devlog 로 요약을 저작한다(원장 원문이 아니라 요약이 문서 평면의 시민이다).
 - **PII 스캔**: 인스턴스는 비추적·비배포이므로 아래 표의 *기계생성 원시 평면* 과 같은 처방을 받는다
   (판정 대상 밖 · 소멸은 정정이 아니라 purge). 뼈대는 추적 배포물이므로 **4종 전부**가 걸린다.
 
@@ -85,27 +64,14 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 
 ## 기계판독 데이터 평면 — `docs/logs/` (8번째, 유일한 비-문서)
 
-> 근거 `plan_26073109`(노드블랙박스 승격) · 소유 `terraforming_node/scripts/node_blackbox/`.
+> 소유 `terraforming_node`(`scripts/node_blackbox/` · 경로·포맷·수명 표는 `references/blackbox/logs_plane.md`).
 > **사람 가독성을 고려하지 않는다**(사용자 결정) — 열람이 필요하면 그때 비패턴 업무로 md/html 변환한다.
 > 산문 7종과 성격이 다르므로 §명명 SSOT·§공통 발행 계약·evidence chain 규약을 적용하지 않는다.
 
-| 경로 | 내용 | 포맷 근거 | 수명 |
-|---|---|---|---|
-| `docs/logs/<node_id>/samples/<YYYY-MM-DD>.csv` | 1초 원시 시계열 | 키 반복이 없어 JSONL 대비 약 1/3 용량 | 7일 → 압축 30일 → 삭제 |
-| `docs/logs/<node_id>/events/<YYYY-MM>.jsonl` | 희소·이질 이벤트(트립·킬·부정클린부팅) | 자기서술 필요, 양이 적음 | **영구** |
-| `docs/logs/<node_id>/rollup/<YYYY-MM-DD>.json` | 일별 포락선 통계 | 학습의 실제 입력 | **영구** |
-| `docs/logs/<node_id>/envelope.json` | 현재 포락선 + ETA 상수 | **에이전트가 폴링마다 읽는 유일한 파일**(수백 토큰) | 갱신 |
-| `docs/logs/<node_id>/campaign_brief.json` | 캠페인 진행 요약(셀·phase·여정·`last_utc`) | **메인이 서브 진행을 읽는 유일한 자리**(2026-09-08 · `plan_26090813` §4.2). 이 자리가 없어서 메인이 서브를 ssh 로 32회 직접 관측했다 — 채널이 없으면 사람은 우회를 만든다 | 갱신(phase 전이·publish 마다) |
-| `docs/logs/<node_id>/capture_verified.json` | proof-of-capture 판정 | 상태 권위(`installed` 아님) | 갱신 |
-| `docs/logs/<node_id>/seed/` | 레거시 저널 수확분 | 15초 해상도 재구성(canonical 아님) | 보존 |
-
-- **수명 집행 순서가 곧 안전장치다**: rollup(통계 확정) → 압축 → 나이삭제 → 용량삭제. 원시를 버려도
-  학습 입력은 남는다. 노드당 총량 상한(기본 512 MiB) 초과 시 **오래된 samples 부터** 삭제한다.
+- 에이전트가 폴링마다 읽는 것은 `envelope.json` 하나다.
+- 메인이 서브 진행을 읽는 유일한 자리는 `docs/logs/<node_id>/campaign_brief.json` 이다(ssh 직접 관측 ✗).
 - **침묵 삭제 금지**: 모든 삭제·압축은 `events` 에 `log_evicted`/`log_compressed` 로 남긴다 —
   조용한 삭제는 "기록이 원래 없었던 것"과 구분되지 않는다.
-- **부재와 결측의 구분**: GB10 통합메모리는 GPU 메모리 지표가 존재하지 않으므로(`nvidia-smi
-  memory.used` = `[N/A]`) `gpu_mem` 열은 상시 빈 칸이며 이는 정상이다.
-- 시각은 `--now` 주입만 사용한다(벽시계 금지 — `staleness_gate.py --max-age-days` 선례 정합).
 
 ## PII 스캔 적용 범위 (2026-07-31 확정)
 
@@ -166,9 +132,8 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 | `.claude/`·`CLAUDE.md` | tracked building blocks | `sync_branches.sh` — **공통층만**. `*.topology.md`(특화층)는 같은 경로에 브랜치별 내용을 들고 전파되지 않는다 | 이 문서 산출물 규약 밖 · policy:BRANCH_CONSTITUTION_LAYERING |
 | `seed/` | private/untracked | 배포본에 없을 수 있음 | 근거 pointer만 허용 |
 | `campaigns/README.md`·`campaigns/_template/**` | **tracked**(뼈대) | main→sub 오버레이 설치 · branch sync 대상 | `terraforming_node`; `campaign_template_validator.py` |
-| `campaigns/<camp-id>/**` | ignored(휘발) | 전파 ✗ — 서브는 자기 인스턴스를 자율 저작하고 결과는 문서로 회수 | 새 캠페인 init 의 purge 게이트(workflow.md) |
-| **파생 선언**(`campaign_init --emit-slice <node>` 산출) | ignored(휘발) | **메인→서브 단방향**(독립 campaign executor만 relay 지시서 JSON→stdin으로 전달 · 2026-09-18) | 배정 SSOT 는 메인 `assignments`; sub는 `--init --from-slice -`로 stdin 선언을 소비한다. `--from-slice <PATH>`는 호환 입력이며, 독립 instance를 열지 않는 sub mode에는 보내지 않는다. |
-| ~~`tasks/`~~ | **폐지 2026-09-06** | — | 후속 = `campaigns/<camp-id>/relay/` (활성 캠페인 없으면 `_bootstrap`) |
+| `campaigns/<camp-id>/**` | ignored(휘발) | 전파 ✗ — 서브는 자기 인스턴스를 자율 저작하고 결과는 문서로 회수 | 새 캠페인 init 의 purge 게이트(workflow.md §purge 게이트) |
+| **파생 선언**(`campaign_init --emit-slice <node>`) | ignored(휘발) | 메인→서브 단방향(relay 지시서 stdin) | 배정 SSOT = 메인 `assignments` · 상세 `terraforming_node` `references/campaign/layout.md` |
 
 simlog·benchmark에 폴더별 ignore 예외를 더하지 않는다. report는 tracked allowlist 행 하나로 평탄화하며, `docs/report/` 전체가 배포된다.
 

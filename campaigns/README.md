@@ -1,8 +1,9 @@
 # campaigns/ — 캠페인 아티팩트 체인
 
 > **한 줄**: 캠페인의 단계 사이에서 정보를 나르는 것은 대화 기억이 아니라 이 폴더의 파일이다.
-> 정책 `policy:ROOT_SURFACE_REGISTRY` · 절차 정본 `.claude/rules/workflow.md` §캠페인 아티팩트 체인 ·
-> 문서 규약 `.claude/rules/docs.md` §캠페인 워크스페이스 · 실행 소유 `terraforming_node`.
+> 정책 `policy:ROOT_SURFACE_REGISTRY` · 불변식 `.claude/rules/workflow.md` §캠페인 아티팩트 체인 ·
+> 절차 정본(메인 전용) `.claude/skills/terraforming_node/references/campaign/` · 실행 소유 `terraforming_node`.
+> 서브에는 위 두 문서가 배달되지 않는다 — 서브에서는 **이 README 가 자기완결 읽기·채우기 규약**이다.
 
 ## 왜 있는가
 
