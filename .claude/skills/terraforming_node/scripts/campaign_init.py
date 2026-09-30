@@ -1899,8 +1899,6 @@ def backfill_from_docs(base: Path, *, utc: str | None = None) -> "tuple[list[str
 #   찾았다"는 차단이 아니라 **기재**다 — 차단하면 도서관에 없는 새 주제를 영영 못 돈다.
 
 GROUNDING_DIR = "grounding"
-LIBRARY_ANSWERS = ".claude/skills/wiki-desk/fixtures/project_init_answers.yaml"
-WIKI_ROOT_NAME = "__llm-wiki"
 
 
 def warm_start_library(repo_root: Path | None = None) -> str:
@@ -1912,20 +1910,21 @@ def warm_start_library(repo_root: Path | None = None) -> str:
     """
     root = REPO_ROOT if repo_root is None else Path(repo_root)
     script = root / ".claude/skills/wiki-desk/scripts/init_wiki_desk.py"
-    answers = root / LIBRARY_ANSWERS
-    if not (script.is_file() and answers.is_file()):
+    if not script.is_file():
         return f"입고 건너뜀 — 사서 도구 부재({_rel(script)})"
     import subprocess
-    cp = subprocess.run([sys.executable, str(script), "--project-root", str(root),
-                         "--wiki-root", str(root / WIKI_ROOT_NAME), "--answers", str(answers),
-                         "--incremental"], capture_output=True, text=True, cwd=str(root),
-                        check=False)
+    # 서가 위치·답안·증분 여부는 사서(`--warm-start`)가 파생한다 — 여기서 다시 적지 않는다(plan_26093022 E3).
+    cp = subprocess.run([sys.executable, str(script), "--project-root", str(root), "--warm-start"],
+                        capture_output=True, text=True, cwd=str(root), check=False)
     if cp.returncode != 0:
         return f"입고 실패(rc={cp.returncode}): {(cp.stderr or '').strip()[-200:]}"
     try:
-        delta = (json.loads(cp.stdout) or {}).get("delta") or {}
+        out = json.loads(cp.stdout) or {}
     except ValueError:
         return "입고 완료(출력 판독 불가)"
+    if out.get("mode") == "skipped":
+        return f"입고 건너뜀 — {out.get('reason')}"
+    delta = out.get("delta") or {}
     return (f"입고 완료 — added={delta.get('added')} changed={delta.get('changed')} "
             f"archived={delta.get('archived')}")
 

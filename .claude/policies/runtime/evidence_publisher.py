@@ -1772,14 +1772,28 @@ def cmd_finalize(args: argparse.Namespace) -> None:
     # 발행이 끝난 그 자리에서 문서를 서가에 넣는다. 발행과 입고가 갈라지면 서가는 늘 한 캠페인
     # 만큼 늦고, **늦은 서가의 "없음" 은 거짓**이다 — 2026-09-08 실측: 09-03 에 멈춘 서가에
     # 147건이 미입고였고 자료는 실재했다. 실패는 발행을 죽이지 않는다(발행이 본업이다).
-    _ci = repo_root / ".claude/skills/terraforming_node/scripts/campaign_init.py"
-    if _ci.is_file():
-        _wp = subprocess.run([sys.executable, str(_ci), "--warm-start-library"],
+    # 실행자 = 사서(wiki-desk) 직접 호출(plan_26093022 · 닫힌 목록 등재 운영 경로 간선). 종전에는
+    #   terraforming_node campaign_init 이 이 호출을 중계만 했다. 루트는 **인자 repo_root** 다 —
+    #   `__file__` 기준으로 바꾸면 격리 저장소(hint 자체검사)의 발행이 실제 서가를 건드린다.
+    _wd = repo_root / ".claude/skills/wiki-desk/scripts/init_wiki_desk.py"
+    if _wd.is_file():
+        _wp = subprocess.run([sys.executable, str(_wd), "--project-root", str(repo_root), "--warm-start"],
                              capture_output=True, text=True, cwd=str(repo_root), check=False)
-        sys.stderr.write("[evidence_publisher] 서가 입고(C4): %s\n"
-                         % ((_wp.stdout or _wp.stderr or "").strip() or "출력 없음"))
+        try:
+            _out = json.loads(_wp.stdout) if _wp.returncode == 0 else None
+        except ValueError:
+            _out = None
+        if _out is None:
+            _msg = "입고 실패(rc=%s): %s" % (_wp.returncode, (_wp.stderr or _wp.stdout or "").strip()[-200:])
+        elif _out.get("mode") == "skipped":
+            _msg = "입고 건너뜀 — %s" % _out.get("reason")
+        else:
+            _d = _out.get("delta") or {}
+            _msg = "입고 완료 — added=%s changed=%s archived=%s" % (_d.get("added"), _d.get("changed"),
+                                                                 _d.get("archived"))
+        sys.stderr.write("[evidence_publisher] 서가 입고(C4): %s\n" % _msg)
     else:
-        sys.stderr.write("[evidence_publisher] 서가 입고 건너뜀 — %s 부재(침묵 누락 ✗)\n" % _ci)
+        sys.stderr.write("[evidence_publisher] 서가 입고 건너뜀 — %s 부재(침묵 누락 ✗)\n" % _wd)
 
     proc = subprocess.run(
         [sys.executable, str(_SCRIPTS_DIR / "completion_gate.py"), "verify",

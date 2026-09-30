@@ -1940,6 +1940,7 @@ _REPO_STATE_ASSERTIONS = (
     "tripwire⑥no-revived-antipatterns",
     "tripwire⑦root-surface-registry",
     "tripwire⑧branch-constitution-layering(4자일치·공통층 어휘)",
+    "tripwire⑨base-to-skill-edges(닫힌 목록)",
     "executor-wiring(core.hooksPath·hook tracked)",
 )
 
@@ -2802,6 +2803,113 @@ def _test_no_revived_antipatterns(root: Path) -> None:
         raise RuntimeSelftestFailure(
             "제거한 안티패턴이 되돌아왔다(rc=%s):\n%s" % (proc.returncode, proc.stderr.strip()[-1200:]))
 
+# ─────────────────────────────────────────────────────────────────────────────
+# tripwire ⑨ — 기초층 → 스킬 간선의 닫힌 목록 (plan_26093022 §4 · 차단 검사 ②)
+#
+# 기초층(`.claude/policies/**`)이 스킬 경로에 닿는 자리는 모두 원장 `base_skill_edges.json` 에 이유와 함께
+# 등재돼 있어야 한다. 키는 **줄 번호가 아니라 (호출자 파일, 스킬 대상 경로)** 다 — 줄이 움직일 때마다 원장이
+# 깨지면 tripwire 가 소음이 된다. 목록은 현 상태 박제가 아니라 **새 간선을 막는 문**이다(4종 안티패턴 표
+# "하드코딩" 정당 칸 = tripwire): 새 간선 → RED, 사라진 간선(원장에만 남음) → RED(원장이 화석이 되지 않게).
+# `branch_layer_ledger.json` 은 append-only 이력이라 옛 경로를 그대로 들고 있어야 하므로 판정 대상 밖이다.
+# ─────────────────────────────────────────────────────────────────────────────
+_BASE_SKILL_EDGES_REL = ".claude/policies/base_skill_edges.json"
+_BASE_SKILL_EDGES_EXEMPT = frozenset({_BASE_SKILL_EDGES_REL, ".claude/policies/branch_layer_ledger.json"})
+_BASE_SKILL_EDGES_SUFFIXES = (".py", ".json", ".yaml", ".yml", ".md")
+_BASE_SKILL_EDGE_PHASES = frozenset({"runtime_operational", "verification_plane"})
+_SKILL_SLASH_RE = re.compile(r"(?:(?<=\.claude/)|(?<![\w./]))skills/([\w*\-{}]+)((?:/[\w.*\-{}]+)*)")
+_SKILL_JOIN_RE = re.compile(r"""["']skills["']\s*([,/])\s*["']([\w\-]+)["']((?:\s*[,/]\s*["'][\w.\-]+["'])*)""")
+
+
+def _skill_edge_targets(line: str) -> set[str]:
+    out = set()
+    for m in _SKILL_SLASH_RE.finditer(line):
+        out.add((m.group(1) + m.group(2)).rstrip("./"))
+    for m in _SKILL_JOIN_RE.finditer(line):
+        rest = re.findall(r"""["']([\w.\-]+)["']""", m.group(3))
+        out.add("/".join([m.group(2), *rest]))
+    return out
+
+
+def scan_base_skill_edges(root: Path) -> set[tuple[str, str]]:
+    """(caller, skill-target) 쌍 전수 — 추적된 기초층 파일만 읽는다."""
+    listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--", ".claude/policies"],
+                            capture_output=True, check=False).stdout.decode("utf-8", "surrogateescape")
+    found: set[tuple[str, str]] = set()
+    for rel in sorted(x for x in listed.split("\0") if x):
+        if rel in _BASE_SKILL_EDGES_EXEMPT or not rel.endswith(_BASE_SKILL_EDGES_SUFFIXES):
+            continue
+        path = root / rel
+        if not path.is_file():
+            continue
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            if "skills" in line:
+                for target in _skill_edge_targets(line):
+                    found.add((rel, target))
+    return found
+
+
+def _base_skill_edge_violations(root: Path) -> list[str]:
+    ledger_path = root / _BASE_SKILL_EDGES_REL
+    if not ledger_path.is_file():
+        return [f"{_BASE_SKILL_EDGES_REL} 부재 — 기초층→스킬 간선의 닫힌 목록이 없다"]
+    data = json.loads(ledger_path.read_text(encoding="utf-8"))
+    listed: set[tuple[str, str]] = set()
+    problems = []
+    for row in data.get("edges", []):
+        key = (row.get("caller"), row.get("callee"))
+        if row.get("phase") not in _BASE_SKILL_EDGE_PHASES or not str(row.get("reason") or "").strip():
+            problems.append(f"원장 행에 phase/reason 이 없다: {key}")
+        listed.add(key)
+    found = scan_base_skill_edges(root)
+    for caller, callee in sorted(found - listed)[:12]:
+        problems.append(f"미등재 간선 {caller} → skill:{callee} (이유를 달아 {_BASE_SKILL_EDGES_REL} 에 등재하거나 간선을 없앤다)")
+    for caller, callee in sorted(listed - found)[:12]:
+        problems.append(f"사라진 간선이 원장에 남았다 {caller} → skill:{callee} (원장 행을 지운다)")
+    return problems
+
+
+def _test_base_skill_edges(root: Path | None = None) -> None:
+    root = REPO_ROOT if root is None else root
+    if not _is_canonical_repo(root):
+        return
+    problems = _base_skill_edge_violations(root)
+    _require(not problems, "tripwire⑨ base→skill edges: " + " | ".join(problems))
+
+
+def _test_base_skill_edges_predicate() -> None:
+    """⑨ 의 판정 자체를 음성대조한다 — 미등재 간선·원장 화석·phase 결손을 각각 잡는지.
+
+    픽스처 문자열은 조립해서 만든다 — 리터럴로 적으면 이 검사 자신이 기초층→스킬 간선이 된다."""
+    sk = "skill" + "s"
+    _require(_skill_edge_targets(f'x = ".claude/{sk}/wiki-desk/scripts/doc_naming.py"') == {"wiki-desk/scripts/doc_naming.py"},
+             "slash literal target")
+    _require(_skill_edge_targets(f'os.path.join(REPO, ".claude", "{sk}", "tn", "scripts", "a.py")') == {"tn/scripts/a.py"},
+             "join-style target")
+    _require(not _skill_edge_targets("mentions my-skills/ and reskills/x"), "word-embedded 'skills/' must not match")
+    with tempfile.TemporaryDirectory() as d:
+        r = Path(d)
+        subprocess.run(["git", "init", "-q", str(r)], check=True)
+        (r / ".claude/policies/runtime").mkdir(parents=True)
+        (r / ".claude/policies/runtime/a.py").write_text(f'P = ".claude/{sk}/s1/scripts/x.py"\n', encoding="utf-8")
+        ledger = {"edges": [{"caller": ".claude/policies/runtime/a.py", "callee": "s1/scripts/x.py",
+                             "phase": "verification_plane", "reason": "fixture"}]}
+        (r / _BASE_SKILL_EDGES_REL).write_text(json.dumps(ledger), encoding="utf-8")
+        subprocess.run(["git", "-C", str(r), "add", "-A"], check=True)
+        _require(_base_skill_edge_violations(r) == [], "listed edge must pass")
+        (r / ".claude/policies/runtime/a.py").write_text(
+            f'P = ".claude/{sk}/s1/scripts/x.py"\nQ = ".claude/{sk}/s2/scripts/y.py"\n', encoding="utf-8")
+        v = _base_skill_edge_violations(r)
+        _require(len(v) == 1 and "미등재" in v[0] and "s2/scripts/y.py" in v[0], f"new edge must be RED: {v}")
+        (r / ".claude/policies/runtime/a.py").write_text("P = 1\n", encoding="utf-8")
+        v = _base_skill_edge_violations(r)
+        _require(len(v) == 1 and "사라진" in v[0], f"stale ledger row must be RED: {v}")
+        ledger["edges"][0]["reason"] = ""
+        (r / _BASE_SKILL_EDGES_REL).write_text(json.dumps(ledger), encoding="utf-8")
+        (r / ".claude/policies/runtime/a.py").write_text(f'P = ".claude/{sk}/s1/scripts/x.py"\n', encoding="utf-8")
+        v = _base_skill_edge_violations(r)
+        _require(any("phase/reason" in x for x in v), f"reasonless row must be RED: {v}")
+
+
 def run_tripwires(root: Path | None = None) -> int:
     """병목(pre-commit·authorize)에서 도는 축약 진입점. 1초 예산.
 
@@ -2822,6 +2930,7 @@ def run_tripwires(root: Path | None = None) -> int:
         _test_no_revived_antipatterns(root)        # ⑥ 3-13 — ③ 이 제거한 형태의 부활 차단
         _test_root_surface_registry(root)          # ⑦ plan_26090616 — 루트 표면에 관할을 만든다
         _test_topology_layer_parity(root)          # ⑧ plan_26091210 — 브랜치 헌법 2계층·4자일치
+        _test_base_skill_edges(root)               # ⑨ plan_26093022 — 기초층→스킬 간선 닫힌 목록
     except RuntimeSelftestFailure as exc:
         print(f"[tripwire] FAIL {exc}", file=sys.stderr)
         return 1
@@ -2837,7 +2946,8 @@ def main(argv: list[str] | None = None) -> int:
         "--tripwires-only", action="store_true",
         help="run only the pre-commit tripwires (backup artifacts / tracked digest rewrite / "
              "retired-mechanism prose / duplicate certificates / deployed-artifact PII / "
-             "revived antipatterns / root-surface registry / branch-constitution layering); "
+             "revived antipatterns / root-surface registry / branch-constitution layering / "
+             "base-to-skill edge closed list); "
              "1s budget, diagnostics on stderr")
     args = parser.parse_args(argv)  # argv=None -> argparse reads sys.argv[1:]
 
@@ -2863,6 +2973,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_root_registry_predicate()
     _test_topology_layer_parity_predicate()
     _test_watchdog_target_predicate_parity()
+    _test_base_skill_edges_predicate()
     # tripwire 6종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
     # 늦는다(선례 3건). 전체 실행에서도 반드시 검사한다.
     # 비-정본 저장소에서 그 단언들이 no-op 이 되는 것은 `run_tripwires` 와 **같은 정상 경로**이며,
@@ -2878,6 +2989,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_no_revived_antipatterns(REPO_ROOT)
     _test_root_surface_registry()
     _test_topology_layer_parity()
+    _test_base_skill_edges()
     for warning in _test_tripwire_executor_wiring():
         print(f"[runtime_selftest] WARN {warning}", file=sys.stderr)
     print("[runtime_selftest] PASS")

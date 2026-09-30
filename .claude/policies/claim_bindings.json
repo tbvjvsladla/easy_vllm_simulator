@@ -1256,6 +1256,12 @@
         "assertion_ids": [
           "cmd_finalize"
         ]
+      },
+      {
+        "path": ".claude/skills/wiki-desk/scripts/init_wiki_desk.py",
+        "assertion_ids": [
+          "main"
+        ]
       }
     ],
     "LIBRARY_GROUNDING_FAIL_CLOSED.C5": [

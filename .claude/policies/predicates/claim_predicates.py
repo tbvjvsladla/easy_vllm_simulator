@@ -4134,13 +4134,19 @@ def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C4():
     ci = _campaign_script("campaign_init")
     _require(callable(getattr(ci, "warm_start_library", None)), "입고 실행자가 없다")
     pub = (REPO_ROOT / ".claude/policies/runtime/evidence_publisher.py").read_text(encoding="utf-8")
-    _require("--warm-start-library" in pub,
+    fin = _extract_python_function(pub, "cmd_finalize")
+    # plan_26093022: 발행기는 사서를 **직접** 부른다(중계자 campaign_init 제거 · 닫힌 목록 등재 간선).
+    _require("init_wiki_desk.py" in fin and "--warm-start" in fin,
              "발행기 종료부가 입고를 부르지 않는다 — 발행과 입고가 갈라지면 서가는 늘 한 캠페인 늦다")
     src = (REPO_ROOT / ".claude/skills/terraforming_node/scripts/campaign_init.py").read_text(
         encoding="utf-8")
     _require("서가 입고(C4)" in src, "publish 위상 종료부의 입고 호출이 사라졌다")
     body = _extract_python_function(src, "warm_start_library")
-    _require("--incremental" in body, "입고가 전체 재색인으로 바뀌었다(warm-start 계약 이탈)")
+    _require("--warm-start" in body, "publish 위상의 입고가 사서의 warm-start 계약을 부르지 않는다")
+    wd = (REPO_ROOT / ".claude/skills/wiki-desk/scripts/init_wiki_desk.py").read_text(encoding="utf-8")
+    wd_main = _extract_python_function(wd, "main")
+    _require("args.warm_start" in wd_main and "args.incremental = True" in wd_main,
+             "입고가 전체 재색인으로 바뀌었다(warm-start 는 증분이어야 한다)")
 
 
 def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C5():

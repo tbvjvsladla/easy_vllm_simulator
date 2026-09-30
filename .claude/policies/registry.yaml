@@ -2000,6 +2000,15 @@
           ]
         },
         {
+          "path": ".claude/skills/wiki-desk/scripts/init_wiki_desk.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C4"
+          ],
+          "assertion_ids": [
+            "main"
+          ]
+        },
+        {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C5"
