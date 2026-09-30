@@ -1448,6 +1448,30 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-202609301409",
+      "utc": "2026-09-30T14:09:05Z",
+      "departure": "multi-node",
+      "departure_commit": "ac58e29885f21dc06e624a04ed2855c3b8441f31",
+      "approved_by": "coag-ash (두 번째 종료 시퀀스 ③ 팝업: \"승인 (추천)\" — 2행 common_promote · 동기화만 · 2026-09-30 KST)",
+      "approved_utc": "2026-09-30T14:09:05Z",
+      "_reach": "single-node vs HEAD 트리차이 · 2단 이관 2단",
+      "_note": "plan_26093022 Step 8 — shim 제거만 옮긴다.",
+      "classification": [
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "공개 표면 표의 shim 행 삭제 — 라우터는 양 토폴로지 공통 스킬 구조다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+          "verdict": "common_promote",
+          "reason": "옛 경로 shim 삭제(2단 이관 2단) — 정본 .claude/policies/runtime/topology_parity.py 가 1차 동기화로 양 브랜치에 착지했고 옛 경로 호출자는 0이다",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
