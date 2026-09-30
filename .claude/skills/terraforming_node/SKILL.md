@@ -172,7 +172,6 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/node_blackbox/`(런타임: `blackbox_session.py` · `budget_renew_loop.sh` · `blackbox_eta.py` · `regen_envelope.py` · `blackbox_thermal.py` · `mem_watchdog_eta.sh` · `thermal_watchdog.sh` · `agent_guard.py`) | §2.6 | ✓ | `references/blackbox/host_safety.md` |
 | `scripts/node_blackbox/`(설치: `install_node_blackbox.sh` · `verify_node_blackbox.sh` · `purge_host_safety.sh` · `publish_install_request.py`) | §2.6 · §2.6.1 | ✓ | HITL sudo |
 | `.claude/skills/terraforming_node/scripts/host_safety/` | §2.6 | ✓ | 협역 워치독 정본 `mem_watchdog.sh` · 레거시 설치자(`install_host_safety.sh` — 정책 술어가 본문을 읽으므로 유지) |
-| `scripts/topology_parity.py` | — | — | **shim** — 정본은 `.claude/policies/runtime/topology_parity.py`(기초층). 다음 브랜치 싱크에서 제거 |
 
 ## 5. 금지
 
