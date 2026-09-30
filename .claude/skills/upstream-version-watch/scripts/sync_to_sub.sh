@@ -1937,7 +1937,7 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
         fail=1
     else
         if sub_run "[ -f '.claude/a2a_delegation.json' ]" 2>/dev/null; then
-            echo "  ⚠ 서브에 폐기된 위임 키 잔재 발견 — 회수한다(자격증명은 이제 서명된 카드다)."
+            echo "  ⚠ 서브에 폐기된 위임 키 잔재 발견 — 회수한다(정체성은 이제 SSH 키 · unsigned 카드 · 메인 발급 서브 manifest 가 증명한다)."
             sub_run "rm -f -- '.claude/a2a_delegation.json'" \
                 || { echo "[sync] FAIL(S4): 위임 키 회수 실패 — 자격이 남은 채로 배달하지 않는다" >&2; return 9; }
             if sub_run "[ -f '.claude/a2a_delegation.json' ]" 2>/dev/null; then

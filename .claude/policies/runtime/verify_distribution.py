@@ -459,7 +459,7 @@ def verify() -> dict:
              and sub_text.find("prepare_transactional_source\n")
              < sub_text.find("# ═══════════════════════ DRY-RUN")},
             # 2026-09-05(②-b): 파일시스템 예외가 manifest.yaml **하나**였을 때는 그 리터럴이 앵커였다.
-            #   카드 서명키·서브 manifest 도 render 입력이 되면서 예외가 셋이 됐고, 앵커를 **닫힌 목록**
+            #   카드·서브 manifest 가 render 입력이 되면서 예외가 셋이 됐고, 앵커를 **닫힌 목록**
             #   자체로 옮긴다 — 목록이 늘면 이 검사가 빨간불이 되어 리뷰를 강제한다(tripwire 형 하드코딩).
             #   음성 앵커(디렉터리 통째 복사 금지)는 그대로 둔다: 예외는 파일 단위여야 한다.
             {"name": "sub_transactional_source_uses_git_index",
@@ -999,7 +999,7 @@ def verify() -> dict:
              ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.py"], {0}),
         # 벤치 6종 토폴로지 해소의 **집행** (2026-09-14 · plan_26091407 §9 ⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고
         #   브랜치로 추론하지 않는다"). 호출자 없는 자체검사는 L1(산문)이다(위 선례). 무엇을 지키나: `--topology` 미지정 시 6종이
-        #   브랜치 이름으로 고르고 unknown 을 조용히 single 로 접던 관용구가 돌아오지 않는지(S0 · abbrev-ref 0)와, 해소가 서명 카드
+        #   브랜치 이름으로 고르고 unknown 을 조용히 single 로 접던 관용구가 돌아오지 않는지(S0 · abbrev-ref 0)와, 해소가 카드(unsigned)
         #   노드 = 카드↔자기 manifest · 메인 = 4자일치 술어로만 서는지. 배포되는 6종의 바이트 사본을 임시 git 저장소에서 돌려
         #   음성대조(운영 브랜치가 아닌 이름 → 해소 불가 · 통로 manifest 부재 → 미테라포밍 · 명시 > 파생 · confirm-risk 게이트가
         #   해소보다 앞선다)를 함께 친다. 카드 검증기는 테스트 평면 스텁이다(서명 자체는 A2A 술어가 지킨다) — docker·GPU 불요.

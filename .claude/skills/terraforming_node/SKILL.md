@@ -73,7 +73,7 @@ description: >-
 ## 0. 전제 / 입력
 - **토폴로지-중립 진입**: single·multi **공통** 발동. (과거 "multi 전용·single 비활성(α)"는 plan_26063009_44_23 에서 폐기 — single 진입점 부재 = chicken-and-egg 갭이었음: "single이냐 multi이냐"를 묻는 주체가 multi일 때만 발동했음.) **첫 동작 = 토폴로지 인터뷰(§0.5)**. 이하 §1(진입 루틴)·§2(서브 환경구축)는 **topology=multi 분기**, single 은 §0.5→§1S 로 짧게 완결.
 - **SSH = Case A**(multi 한정): 메인↔서브 패스워드리스 SSH는 **사전조건**(검증만, 키 교환·물리망 설정은 안 함).
-- 계약 스켈레톤 = `manifest.template.yaml`(루트, 추적). **실값 = `output/<topology>/manifest.yaml`**(브랜치 파생 통로 — single=`output/single/`·multi=`output/multi/`; 비추적, plan_26062315). **(multi) 서브엔 manifest 를 전달하지 않는다**(메인 단일계약 — render-on-main, D10).
+- 계약 스켈레톤 = `manifest.template.yaml`(루트, 추적). **실값 = `output/<topology>/manifest.yaml`**(브랜치 파생 통로 — single=`output/single/`·multi=`output/multi/`; 비추적, plan_26062315). **(multi) 서브엔 메인 manifest 를 전달하지 않는다**(메인 단일계약 — render-on-main, D10 · single 서브가 받는 **서브 manifest** 는 §2.7.10).
 - 검증 정본 = `devlog_250422`(git f3583f0, in-history) 실측 + seed PDF(repo-외부).
 
 ## 0.5 토폴로지 진입 인터뷰 게이트 (판단 — **첫 동작**, fail-closed)
@@ -180,9 +180,9 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
   - 정본 = `render_sub_env.RUNTIME_BLOCK_EXCLUDES` (닫힌 목록 · 자체검사가 새 스크립트의 미분류를 fail-loud).
 - **ray-worker 서브는 런타임 스킬 0종**이다 — 정본(Dockerfile·compose·serve_runner)을 재현하는 워커이지
   전략을 세우는 주체가 아니다. 판정 정본 = `node_role_contract.tool_plane`.
-- **런타임블럭**(서브 복제 ✓): `vllm-recipe-explorer`. 서브가 **동일 결정론 엔진**을 자기 모델에 자율 실행 → 자율=실행 주체, 방법=결정론(헌법 "확률론 추론 금지" 보존).
+- **런타임블럭**(서브 복제 ✓): a2a-agent 서브 = `vllm-recipe-explorer`·`adversarial-benchmark`·`upstream-version-watch` 3종 · ray-worker 서브 = 0종(정본 `node_role_contract.TOOL_PLANE_BY_SUB_MODE`). 서브가 **동일 결정론 엔진**을 자기 모델에 자율 실행 → 자율=실행 주체, 방법=결정론(헌법 "확률론 추론 금지" 보존).
 
-### 2.2 구축 5+아티팩트 (서브 워크스페이스 레이아웃)
+### 2.2 구축 아티팩트 (서브 워크스페이스 레이아웃 · 행 수는 아래 표가 정본)
 | 경로(서브 루트) | 내용 | 전달타입 |
 |---|---|---|
 | `CLAUDE.md` | 페르소나(Karpathy B1–B4, **노드정체성 bake**, 자율 triplet 저작 + 자기교정) | 렌더(gitignored) |
@@ -217,7 +217,7 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
   ```
   — `--branch` 는 **이 체크아웃의 특화헌법·4자일치가 말하는 토폴로지와 같아야** 한다. 어긋나거나 `both` 면 인가 전에
   exit 12 로 멈춘다(특화층 오배달 · 옛 빌드킷 다운그레이드 차단 · 2026-09-14). 렌더 성공 화면은 렌더한 통로를 그대로 찍는다.
-  — 메인 rsync(코드) **이후** 스테이징을 서브 루트로 **오버레이(--delete 없음)**. 빌딩블럭 스킬·manifest 는 전달 안 됨(런타임블럭만).
+  — 메인 rsync(코드) **이후** 스테이징을 서브 루트로 **오버레이(--delete 없음)**. 빌딩블럭 스킬·메인 manifest 는 전달 안 됨(런타임블럭 · 서브 manifest 는 §2.7.10 설치 오버레이만).
   - `--mode promotion` 은 verify 가 `promotion-ready` 에 도달한 경우에만 열린다(hint·last-good 평면). 서브 배달은 통상 `experimental`.
 - **단일 전달차**: 코드+에이전트환경 모두 sync_to_sub.sh 한 경로. dry-run 기본 → 사람 검토 후 --apply.
 
@@ -225,7 +225,7 @@ provider 별 실행문법은 `references/agent-control-adapter.md` 에서만 해
 - 메인=client(Task 발급·리포트 검증·피드백) · 서브=remote(자율 수행·자기검증 리포트 1개). A2A 어휘 차용, HTTP 서버 ✗(전송=SSH 단발 `delegate(task)` — provider 문법은 `references/agent-control-adapter.md`).
 - **검증 = push-attestation**: 서브가 self-verification(config-parse·schema·runner 문법·checksum·**로컬 스모크**)을 리포트에 담아 회신 → **메인은 리포트만 검증, 서브 워크스페이스 재스캔 ✗**.
 - **성공술어**: phase 별(comms.md). 예: config = triplet 생성 + 로컬 스모크 응답("린트 통과 ≠ 서빙됨").
-- **상태=파일**: `campaigns/<camp-id>/relay/<context_id>.json`("파일=세션" · 2026-09-06 루트 `tasks/` 에서 이관 · 활성 캠페인 부재 시 `_bootstrap`). 턴 예산은 **메인이 매 attempt 선언한다**(`--max-turns`·`--timeout-seconds`·`--budget-source`) — 옛 `max-turns=3`(2026-09-03 폐기)에 이어 그 대체물이던 **grade 표도 2026-09-05 폐기**됐다(표가 실측 없이 정본 행세를 했고 교정 소비자가 0 이었다 · `audit_26090515` G-A2). `scripts/turn_budget.py` 는 이제 선언을 **검증**만 한다(상한은 요청 스키마에서 읽는다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.py --continue` 가 **본문을 조립**한다 (사람은 답·승인만 — §2.7.7a).
+- **상태=파일**: `campaigns/<camp-id>/relay/<context_id>.json`("파일=세션" · 2026-09-06 루트 `tasks/` 에서 이관 · 활성 캠페인 부재 시 `_bootstrap`). 턴 예산은 **메인이 매 attempt 선언한다**(`--max-turns`·`--timeout-seconds`·`--budget-source`) — 옛 `max-turns=3`(2026-09-03 폐기)에 이어 그 대체물이던 **grade 표도 2026-09-05 폐기**됐다(표가 실측 없이 정본 행세를 했고 교정 소비자가 0 이었다 · `audit_26090515` G-A2). `scripts/turn_budget.py` 는 이제 선언을 **검증**만 한다(상한은 요청 스키마에서 읽는다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.py --continue` 가 **본문을 조립**한다(재개의 기본은 `--supervise-step --apply` 자동 재발급이고, 사람은 팝업된 예외에서만 답·승인한다 — §2.7.7a).
 - per-task 휘발값(모델명·예산·NAS 서브디렉토리)은 **Task Message** 로(manifest 복제 아님).
 - single의 독립 `a2a-agent` sub campaign은 main-derived declaration을 relay task body의 JSON으로 받고, `campaign_init.py --init <id> --plan-ref <ref> --from-slice - --apply`로 stdin에서 소비한다. 별도 slice 파일은 만들지 않는다. `--from-slice <PATH>`는 호환 입력이다. multi의 `ray-worker`는 main-owned distributed cell에 참여하므로 독립 campaign slice/자율 init 대상이 아니다.
 
@@ -270,7 +270,7 @@ turn 예산은 **선언**이다 — 등급표가 사라졌으므로 부르는 �
   → **에이전트 무인 sudo 실행 ✗**(실행 주체는 사람). dry-run 선행으로 무엇을·왜·트레이드오프를 고지한다.
   **L3 를 포함하면 채팅이 아니라 `docs/request/` 수행지시서로 위임한다(§2.6.1).**
   - **레벨**(재부팅 필요 여부가 자연 경계 · 배치와 활성화는 분리 — 파일·유닛은 레벨 무관하게 항상 도착):
-    - `L1` **무재부팅** — 수집기(1초 샘플) · **ETA 워치독** · 이벤트 통합 · 로그 수명 집행 · sudoers 단일 헬퍼(`vllm-drop-caches` 경로 1개만 NOPASSWD) · **earlyoom**(프로세스-레벨 최후선 — 빌드 평면까지 커버)
+    - `L1` **무재부팅** — 수집기(1초 샘플) · **ETA 워치독**(RAM 축) · **열·전력 워치독**(`thermal_watchdog.sh` + 상수 emit `blackbox_thermal.py` → 유닛 `easy-vllm-blackbox-thermal` · 누설 버킷 지속성 판정 · hard-lockup 예방) · 이벤트 통합 · 로그 수명 집행 · sudoers 단일 헬퍼(`vllm-drop-caches` 경로 1개만 NOPASSWD) · **earlyoom**(프로세스-레벨 최후선 — 빌드 평면까지 커버)
     - `L2` **무재부팅·peer 필요** — netconsole 교차 스트리밍(**multi 전용** · single 은 `N/A` 로 정직 기록)
     - `L3` **재부팅 1회** — 사후 포착 = **efi_pstore** 확보. **crashkernel(2.25 GiB 예약)·ramoops 를 설정하는 게 아니라 제거한다.**
   - **검증(결정론)**: `bash .claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh --check`.
@@ -294,7 +294,7 @@ turn 예산은 **선언**이다 — 등급표가 사라졌으므로 부르는 �
   > 레거시 설치물이 남아 있는 노드는 `purge_host_safety.sh --require-seed` 를 **먼저** 돌린다(저널 수확
   > 선행 게이트 — mem_watchdog 저널은 포락선의 유일한 초기 데이터이고 유닛 제거 후 vacuum 되면 복구 불가).
 - **③ N 분기(미설치·opt-out)**: 서빙은 정상 진행. manifest `host_safety.installed: false` 로 기록한다. 재권유는 **세션당 1회 이하**.
-  - **통합메모리 노드 한정 후속 경고**: opt-out + 통합메모리(GPU OOM=호스트 하드다운 위험) 노드는, 이후 서빙 기동 직전 **에이전트 채팅창 1줄** 안내만 한다("워치독 미설치 상태 — 통합메모리라 OOM 시 호스트 다운 위험, `install_host_safety.sh` 로 언제든 보강 가능"). **serve 스크립트/로그 배너 코드변경 ✗**(시끄러운 경험 방지 — D31·NG-5). **discrete GPU 노드는 무경고.**
+  - **통합메모리 노드 한정 후속 경고**: opt-out + 통합메모리(GPU OOM=호스트 하드다운 위험) 노드는, 이후 서빙 기동 직전 **에이전트 채팅창 1줄** 안내만 한다("워치독 미설치 상태 — 통합메모리라 OOM 시 호스트 다운 위험, `install_node_blackbox.sh` 로 언제든 보강 가능"). **serve 스크립트/로그 배너 코드변경 ✗**(시끄러운 경험 방지 — D31·NG-5). **discrete GPU 노드는 무경고.**
 - **④ 파급 정밀화(opt-out 이어도 보호 일부 유지)**: 하네스 **협역 워치독**(`run_trial`·`multinode_serve_smoke.sh` 자동 기동)은 레포 내장 스크립트라 **설치와 무관하게 계속 작동**(opt-out 사용자도 trial 중 보호 유지). 로드-전 RAM 게이트(⑤.5)의 `vllm-drop-caches` 자동 드랍만 헬퍼 부재로 skip 되며, 게이트는 이를 **음성정직으로 보고**(드랍 없이 재측정 → 부족 시 기동 거부 exit 7 유지 — `preload_ram_gate.try_drop_caches` 기구현 graceful).
 - **⑤ 멀티노드 변형**: 양노드(메인+서브) 각각 동일 Y/N. **서브 설치는 렌더 배달분**(`.claude/runtime/node_blackbox/install_node_blackbox.sh` — `render_sub_env.py` §4.6 이 `node_identity.sh` 를 포함해 배달한다)으로 **서브에서 사용자가 실행**(A2A 경계 — 메인 sudo 대행 ✗). manifest `nodes[].host_safety.installed` 로 **노드별 독립** 기록. **L2(netconsole)는 멀티에서만 성립**하므로 양노드 peer 지정이 필요하다.
 
@@ -361,7 +361,7 @@ turn 예산은 **선언**이다 — 등급표가 사라졌으므로 부르는 �
 
 | | **multi 의 sub** = Ray 워커 | **single 의 sub** = A2A 원격 에이전트 |
 |---|---|---|
-| 정체성 권위 | **manifest `nodes[]` 인덱스(rank) + role** | **`Agent_Card.json`**(A2A 1.0.1 계약: 능력·엔드포인트·**서명**) + **서브 manifest**(`self_role: sub` · HW·경로·획득 모드 — terraforming 실측·발급 · §2.7.10) |
+| 정체성 권위 | **manifest `nodes[]` 인덱스(rank) + role** | **`Agent_Card.json`**(A2A 1.0.1 계약: 능력·엔드포인트 — unsigned capability metadata) + **서브 manifest**(`self_role: sub` · HW·경로·획득 모드 — terraforming 실측·발급 · §2.7.10) |
 | 외부 정본 | NCCL rank + uniqueId · Ray head/worker | A2A Client·AgentCard·Task |
 | sub↔sub 통신 | 대칭 collective(집단 연산) | **없음** — 각자 메인하고만 대화 |
 | 제어 평면 | head 종속(SSH 제어) | client→server 호출(A2A Task 위임) |
@@ -555,7 +555,7 @@ rank ::= manifest nodes[] 배열 인덱스 (0..n-1)
 Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 축 해소값은 표준이 정한 확장 자리
 `capabilities.extensions[]` 의 **`urn:easy-vllm:ext:node-role:v1`** 하나에 **값과 출처를 함께** 싣는다 —
 `rank`/`sub_mode` 는 파생값이라 출처 없이는 하류가 측정·선언·파생을 구분하지 못한다(헌법 §결정론 규율 "출처 표시").
-검증기·서명기 = `scripts/agent_card_contract.py`(§2.7.10):
+검증기 = `scripts/agent_card_contract.py`(§2.7.10 · 서명하지 않는다):
 
 ```jsonc
 "capabilities": { "extensions": [ {
@@ -630,10 +630,10 @@ Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 �
 |---|---|---|---|
 | `relay.py --task ... --max-turns N --timeout-seconds N --budget-source "..." --resume new` | 첫 위임 | **선언한 예산·재개**로 delegate · 원장 개설(`campaigns/<camp-id>/relay/<ctx>.json`) | B |
 | `relay.py --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기 + 예산·세션 **사실** 표시(기본 dry-run) | B |
-| `relay.py --continue --apply --max-turns N --timeout-seconds N --budget-source "..." --resume <id\|new>` | 사람이 본문을 승인 | 조립 본문 + 새로 선언한 예산 + **선언한 세션**으로 delegate | B |
+| `relay.py --continue --apply --max-turns N --timeout-seconds N --budget-source "..." --resume <id\|new>` | **예외 경로** — 감독 스텝이 팝업한 뒤 사람이 본문을 승인 | 조립 본문 + 새로 선언한 예산 + **선언한 세션**으로 delegate | B |
 | `relay.py --supervise-step <camp> [--apply]` | attempt 사이 | 원장 + 회수 브리핑을 읽어 **한 번 판정**하고 원장에 적는다. `--apply` 면 전진이 보이는 중단을 자동 재발급 | B |
 
-- **재개 승인은 2026-09-08 부터 자동이다**(사용자 결정 D9 — 종전 "사람이 본문을 승인"). 5시간 한도
+- **재개의 기본은 감독 스텝 자동 재발급이다**(`--supervise-step <camp> --apply` · 사용자 결정 D9). 수동 경로 `--continue --apply` 는 **예외 팝업 뒤 사람이 고른 경우에만** 쓴다. 5시간 한도
   프로바이더만 쓰는 환경에서 매 재개마다 사람을 기다리면 그 대기가 캠페인의 벽시계를 지배한다
   (2026-09-07 실측: HITL 응답 대기 70분이 순차 실행의 직접 원인 중 하나였다). 자동의 **예외**는
   둘뿐이다 — 선언된 비용 상한에 닿았거나, 모델·통신 평면이 깨졌을 때. 그 둘은 팝업으로 간다.
@@ -772,8 +772,8 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
   (M-2 가 노출한 `execution_approval` 재인가 결함과 **같은 형태**이며, 그쪽은 W-8 로 남아 있다).
 - **유보에는 의무가 없다**: `input-required`·`failed` 는 채택이 아니므로 인용을 요구하지 않는다.
   요구하면 *"막혔다"고 정직하게 보고하는 경로가 오히려 벌을 받는다.*
-- 전송은 여전히 헌법 소유다 — `receive` 는 `agent_control.py invoke`(provider-neutral)를 부르고
-  **자기 전송을 만들지 않는다**(헌법=왜 / 스킬=어떻게 경계 유지).
+- 전송은 형제 `scripts/agent_control.py`(provider-neutral orchestrator)가 소유한다 — `receive` 는 `agent_control.py invoke` 를 부르고
+  **자기 전송을 만들지 않는다**. (07-25 "agent_control = 헌법 소유" 결정은 plan_26093022 에서 폐기 — 호출자가 이 스킬뿐이라 기초층 런타임이 아니다. Claude CLI 구문의 유일 발행처는 여전히 `providers/claude_code.py` 다.)
 - 양 토폴로지 공통이다(§2.7.0 분기표) — 도서관 비대칭은 sub 가 Ray 워커든 A2A 에이전트든 같다.
 
 ### 2.7.9 노드 오케스트레이터 — Phase 감독 (신설 2026-09-05 · `plan_26090516` §7.4 · H1)
@@ -788,7 +788,7 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 
 | Phase | 서브 | 메인(오케스트레이터) | 노드 간 이동 |
 |---|---|---|---|
-| **install** | (사람 request) 클론 → 카나리 | terraforming: `--peer-ssh` 실측 → 서브 manifest 발행(`scan_node.py --emit-sub-manifest`) → Agent_Card v2 렌더·서명 → **설치 오버레이** 배달(`sync_to_sub --provision`) → model-less 카나리 | 설치 산출물(오버레이)만 |
+| **install** | (사람 request) 클론 → 카나리 | terraforming: `--peer-ssh` 실측 → 서브 manifest 발행(`scan_node.py --emit-sub-manifest`) → Agent_Card v2 렌더·구조검증 → **설치 오버레이** 배달(`sync_to_sub --provision`) → model-less 카나리 | 설치 산출물(오버레이)만 |
 | **config · build · serve · bench** | 자율(도서관 인용은 `library_request[]` 로 요청) | 릴레이 감독(원장 append-only · 재개 결정은 에이전트 · §2.7.7) | **없음** — `output/**` 이동 ✗ · 이미지 전송 ✗ |
 | **(모든 phase 전이)** | `campaign_init --write-brief` 로 `docs/logs/<node_id>/campaign_brief.json` 갱신 | 미러에서 그 파일 하나만 읽는다(`sub.campaign.brief`) | 브리핑은 기계판독 데이터 평면이다(산문 규약 밖) |
 | **publish** | `docs/` 에 문서 발행: sweep map · benchmark 인증서/리포트 · devlog/testlog · **hint 입력 사이드카** `docs/benchmark/hint_inputs_<measured_utc>/`(렌더된 Dockerfile·compose·3+1+1·바깥영역 산출물의 사본) → task-report 에 경로 | `fetch_sub_docs.sh` 로 `docs/` 회수(simlog raw 제외) → devlog·benchmark 저작(서브 결과 신뢰 — raw 재요구 ✗) · hint 사이드카는 **참조용**이다(2026-09-22 `plan_26092119`: 메인 `hint.py publish` 는 읽지 않는다 — 발행 자격은 관측이라 서브 단독 셀은 `HINT_QUALIFICATION_UNOBSERVED` · 열린 설계) | 문서 평면만 |
@@ -797,11 +797,11 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
   hint 가 무엇을 싣는가는 `hint-publisher` 가 소유한다 — 오케스트레이터는 경계·Phase 전이·형식 검사만 집행한다.
 - Phase 전이의 근거는 서브 task-report 의 `phase`·`status`(schema-valid)다. 메인은 서브 디스크가 아니라 **리포트와 문서**를 검증한다.
 
-### 2.7.10 Agent_Card v2 (A2A 1.0.1) · 서브 manifest · 서명 (신설 2026-09-05 · `plan_26090516` §7.2–7.3 · H1)
+### 2.7.10 Agent_Card v2 (A2A 1.0.1) · 서브 manifest (신설 2026-09-05 · `plan_26090516` §7.2–7.3 · H1)
 
 | 항목 | 정본 | 내용 |
 |---|---|---|
-| **표준** | `a2aproject/A2A` v1.0.1 `specification/a2a.proto`(JSON camelCase) | 필수: `name`·`description`·`supportedInterfaces[]`·`version`·`capabilities`·`defaultInputModes[]`·`defaultOutputModes[]`·`skills[]`. 선택: `provider`·`documentationUrl`·`securitySchemes`·`securityRequirements`·`signatures[]`·`iconUrl`. **표준 밖 최상위 키 금지** |
+| **표준** | `a2aproject/A2A` v1.0.1 `specification/a2a.proto`(JSON camelCase) | 필수: `name`·`description`·`supportedInterfaces[]`·`version`·`capabilities`·`defaultInputModes[]`·`defaultOutputModes[]`·`skills[]`. 선택: `provider`·`documentationUrl`·`securitySchemes`·`securityRequirements`·`signatures[]`·`iconUrl`(표준엔 있으나 이 계약은 `signatures` 를 거부한다 — 아래 보안 경계). **표준 밖 최상위 키 금지** |
 | **전송** | `supportedInterfaces[0]` | `url: ssh://<user>@<host>` · `protocolBinding: urn:easy-vllm:a2a-binding:ssh-claude-p:v1`(커스텀 바인딩은 **URI** — 표준 §5.8·§12.7) · `protocolVersion: "1.0"`. 전송 인증 = SSH 공개키(표준 SecurityScheme 5종 밖 → `securitySchemes` 비움 · 차이는 comms.md 가 문서화) |
 | **노드 역할** | `capabilities.extensions[urn:easy-vllm:ext:node-role:v1]` | §2.7.6(c). 값은 `node_role_contract.py` 해소 · 렌더러는 적기만 |
 | **skills 6** | `inspect`·`config`·`build`·`serve`·`bench`·`publish` | `publish` = §2.7.9 발행 Phase. 6종 미만이면 계약 위반 |
@@ -889,14 +889,13 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 ## 3. 결정론 vs 판단 분리
 | 결정론 (스크립트) | 판단 (이 페르소나) |
 |---|---|
-| **`staleness_gate.py`(조건부 preflight 트리거 — manifest/Flag/HW드리프트/attestation 나이 3축, `--now` 주입·벽시계 ✗)** · `scan_node.py`(스캔·게이트·3자-일치·manifest 블록·**emit_gate=토폴로지 미선언 emit fail-closed**) · `render_sub_env.py`(manifest→10아티팩트 렌더/복제·미치환/필수 검증) · **`node_role_contract.py`**(토폴로지 축 계약 — sub_mode 파생/선언일치·rank·정체성 권위·배달 평면, 출처 필드 동반) · **`library_exchange.py`**(그라운딩 3질문+Freshness — **누락** 판정만; "이 근거가 정말 뒷받침하나"는 판단 칸) · sync_to_sub 체크섬 · `install_host_safety.sh`(설치·검증 — 실행 트리거는 HITL) | **토폴로지 진입 인터뷰(§0.5)** · fresh-clone 온보딩 능동제안 · 5-전제조건 인터뷰 · 사용자 승인 · 브랜치≠토폴로지 시 브랜치전환 안내 · ib_write_bw 오케스트레이션 · **호스트 안전체계 세션 최종 Y/N 설명·승인(§2.6 — 선택조항)** · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 · **인용의 진위 리뷰(§2.7.8 — 거짓은 사람이 본다)** · 모호 시 중단·질의 |
+| **`staleness_gate.py`(조건부 preflight 트리거 — manifest/Flag/HW드리프트/attestation 나이 3축, `--now` 주입·벽시계 ✗)** · `scan_node.py`(스캔·게이트·3자-일치·manifest 블록·**emit_gate=토폴로지 미선언 emit fail-closed**) · `render_sub_env.py`(manifest→§2.2 아티팩트 렌더/복제·미치환/필수 검증) · **`node_role_contract.py`**(토폴로지 축 계약 — sub_mode 파생/선언일치·rank·정체성 권위·배달 평면, 출처 필드 동반) · **`library_exchange.py`**(그라운딩 3질문+Freshness — **누락** 판정만; "이 근거가 정말 뒷받침하나"는 판단 칸) · sync_to_sub 체크섬 · `install_node_blackbox.sh`·`verify_node_blackbox.sh`(설치·검증 — 실행 트리거는 HITL) | **토폴로지 진입 인터뷰(§0.5)** · fresh-clone 온보딩 능동제안 · 5-전제조건 인터뷰 · 사용자 승인 · 브랜치≠토폴로지 시 브랜치전환 안내 · ib_write_bw 오케스트레이션 · **호스트 안전체계 세션 최종 Y/N 설명·승인(§2.6 — 선택조항)** · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 · **인용의 진위 리뷰(§2.7.8 — 거짓은 사람이 본다)** · 모호 시 중단·질의 |
 
 회귀 고정(전부 하드웨어·네트워크 불요) — **케이스 수는 여기 적지 않는다**(파생 가능한 값을 손으로 적으면 반드시 낡는다.
 2026-09-03 이전 목록은 34/21/6/17 이라 적혀 있었고 실측은 43/26/8/36 이었다). 실행자는
-`.claude/policies/runtime/verify_distribution.py` 이며 **7종 전부**가 그 하네스에서 돈다(2026-09-03 S3 배선 —
-그전에는 scan·render 2종만 돌았고, 불변식 B 의 유일한 기계 집행점인 `library_exchange` 를 포함해 4종에 호출자가 0이었다):
-`scan_node.py` · `render_sub_env.py` · `node_role_contract.py` · `library_exchange.py` · `staleness_gate.py` ·
-`manifest_contract.py` · `node_blackbox/node_identity.sh` (+ `bootstrap_canary.py`).
+`.claude/policies/runtime/verify_distribution.py` 이며, 이 스킬 스크립트의 self-test 목록도 **그 파일이 정본**이다
+(여기 손으로 적은 목록은 7종이라 적혀 있었으나 실측 17종이었다 — 파생 가능한 값). `agent_control.py --self-test` 는
+`runtime_selftest.py` 가 부른다.
 
 ## 4. 보조 파일
 - `scripts/staleness_gate.py` — **조건부 preflight 결정론 트리거**(`--topology`·`--repo`·`--observed`·`--now`·`--max-age-days`·`--self-test`). 3축(manifest/Flag · HW 드리프트 · attestation 나이) → 안정 reason code. 미평가 축은 `skipped:*` 로 음성정직 표기(조용한 통과 ✗). **HW 축의 interconnect 6필드는 topology=single 에서 비교하지 않는다**(2026-08-21 · approved_by AhnSangHun) — single 은 분산서빙을 안 해 interconnect 를 쓰지 않으므로 manifest 의 "미사용" 선언 ↔ 실측 RoCE 발산은 의도된 것이다. `scan_node.evaluate_gate` 의 single 의미론(RoCE 존재 = warning, gate note "interconnect 스캔 skip(실패 아님)")과 정합. **multi 는 유지**(텐서패브릭이므로 완화 ✗). 제외 적용 시 `notes` 에 표기한다(침묵 ✗).
@@ -916,7 +915,11 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
   |---|---|---|
   | `node_blackbox/install_node_blackbox.sh` · `verify_node_blackbox.sh` | **현행 설치자·검증기**(L1/L2/L3) | §2.6 Y 분기 · HITL sudo |
   | `node_blackbox/publish_install_request.py` | **현행** — L3 지시서 발행 | §2.6.1 |
-  | `node_blackbox/mem_watchdog_eta.sh` · `blackbox_*.py` · `logs_lifecycle.py` · `regen_envelope.py` · `node_identity.sh` | **현행** — systemd 상시층·데이터 평면 | 설치자가 배치 |
+  | `node_blackbox/mem_watchdog_eta.sh`(RAM) · `thermal_watchdog.sh`(열·전력) · `blackbox_*.py` · `logs_lifecycle.py` · `regen_envelope.py` · `node_identity.sh` | **현행** — systemd 상시층·데이터 평면 | 설치자가 배치 |
+  | `node_blackbox/agent_guard.py` | **현행** — 3단 응답의 1단(에이전트 예방 트리거 · 데몬 SIGKILL 보다 앞서 개입) | 서빙 중 에이전트 |
+  | `node_blackbox/budget_renew_loop.sh` | **현행** — 상주 서빙의 예산 선언 갱신 사이드카 | `single_serve_up.sh` · `multinode_serve_smoke.sh` |
+  | `node_blackbox/adversarial_stress.py` | **시험용 가압기** — 방어층 발동 시험(벤치마커 ✗) | 사람 지시 시험 |
+  | `node_blackbox/seed_from_journal.py` | **Phase 0 수확기** — 레거시 저널 → `docs/logs/<node>/seed/` | 안전체계 제거 전 1회 |
   | `host_safety/mem_watchdog.sh` | ★ **정본으로 유지** — **협역(harness-scoped) 워치독**. `policy:HOST_SAFETY_LAYERED_DEFENSE.C1` 이 요구하는 계층이며, `multinode_serve_smoke.sh:274-276` 이 이를 *canonical* 로 부르고 **부재 시 exit 2** 로 죽는다 | `run_trial` · `multinode_serve_smoke.sh` 가 자동 기동 |
   | `host_safety/install_host_safety.sh` · `install_netconsole.sh` · `systemd/` · `host/` | **승계됨**(`plan_26073109`) | 잔재는 `node_blackbox/purge_host_safety.sh --require-seed` 로 제거 |
 
@@ -928,11 +931,11 @@ python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
 - 사용자 승인 없는 자동스캔 / 서브노드 무단 프로빙.
 - **HITL 없는 서브 work_dir 자동 신설**(R2 — §1.7). 성능(ib_write_bw) 미검증 멀티-ready 기입(fail-closed).
 - 무증거 manifest 오버라이드 / topology를 브랜치와 어긋나게 기입(3자-일치 위반).
-- **빌딩블럭 스킬(terraforming_node·upstream-version-watch)·manifest 를 서브에 전달 금지**(런타임블럭·렌더 산출물만 — 2.1/2.3).
+- **빌딩블럭 스킬(terraforming_node·upstream-version-watch)·메인 manifest 를 서브에 전달 금지**(런타임블럭·렌더 산출물만 — 2.1/2.3). 서브가 받는 것은 메인이 실측·발급한 **서브 manifest**(§2.7.10 · 설치 오버레이)뿐이다.
 - **무증거 빈 정체성 렌더 금지**(render_sub_env.py 필수 필드 누락 시 fail-loud) · 템플릿에 IP·호스트 baking 금지(PII-free).
 - **카나리(§2.5) 미통과 시 done 선언 금지** · 서브 워크스페이스 재스캔으로 "검증" 대체 금지(push-attestation 위반).
 - SSH 키 교환·물리망 구성 대행(Case A — 검증·가이드까지만).
-- **에이전트의 무인 sudo 실행 금지** — 호스트 안전체계 설치(`install_host_safety.sh --apply`)의 실행 주체는 항상 사람(HITL — 설명·승인·검증까지가 스킬 역할).
+- **에이전트의 무인 sudo 실행 금지** — 호스트 안전체계 설치(`install_node_blackbox.sh --apply`)의 실행 주체는 항상 사람(HITL — 설명·승인·검증까지가 스킬 역할).
 
 ## 6. 참조
 - 진입 루틴: `docs/plan/plan_26062311` · `testlog_26062314` · `devlog_26062314`.
