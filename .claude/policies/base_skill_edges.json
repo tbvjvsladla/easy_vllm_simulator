@@ -868,6 +868,12 @@
     },
     {
       "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "terraforming_node",
+      "phase": "verification_plane",
+      "reason": "공개 표면 tripwire(차단 검사 ③) — terraforming_node 의 SKILL.md §4 표를 읽고 외부 호출을 대조한다"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
       "callee": "terraforming_node/scripts",
       "phase": "verification_plane",
       "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
@@ -931,6 +937,30 @@
       "callee": "*/SKILL.md",
       "phase": "verification_plane",
       "reason": "린트 — SKILL.md 의 유령 policy: 인용 스캔(INFO)"
+    },
+    {
+      "caller": ".claude/policies/runtime/constitution_lint.py",
+      "callee": "*/references/**/*.md",
+      "phase": "verification_plane",
+      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
+    },
+    {
+      "caller": ".claude/policies/runtime/constitution_lint.py",
+      "callee": "terraforming_node/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
+    },
+    {
+      "caller": ".claude/policies/runtime/constitution_lint.py",
+      "callee": "terraforming_node/references/**/*.md",
+      "phase": "verification_plane",
+      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
+    },
+    {
+      "caller": ".claude/policies/runtime/constitution_lint.py",
+      "callee": "terraforming_node/references/*.md",
+      "phase": "verification_plane",
+      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
     },
     {
       "caller": ".claude/policies/runtime/evidence_publisher.py",
@@ -1009,6 +1039,18 @@
       "callee": "hint-publisher/scripts",
       "phase": "verification_plane",
       "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "terraforming_node",
+      "phase": "verification_plane",
+      "reason": "tripwire⑩ — terraforming_node 라우터의 §앵커·references 경로·결속 리터럴을 검사한다"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "terraforming_node/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "tripwire⑩ — 라우터 SKILL.md 텍스트를 읽는다(§번호 토큰·결속 리터럴 실재)"
     },
     {
       "caller": ".claude/policies/runtime/runtime_selftest.py",

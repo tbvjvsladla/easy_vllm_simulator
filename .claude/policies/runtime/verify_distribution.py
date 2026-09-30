@@ -747,6 +747,11 @@ def verify() -> dict:
              ".claude/skills/terraforming_node/scripts/manifest_contract.py", "--self-test"], {0}),
         _run("antipattern_scan_selftest", [sys.executable,
              ".claude/policies/runtime/antipattern_scan.py", "--self-test"], {0}),
+        # plan_26093022: 린트 self-test 에 실행자가 0 이라 소유자 이동 뒤의 픽스처 결손이 커밋을 지나갔다.
+        _run("constitution_lint_selftest", [sys.executable,
+             ".claude/policies/runtime/constitution_lint.py", "--self-test"], {0}),
+        _run("agent_control_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/agent_control.py", "--self-test"], {0}),
         _run("terraform_turn_budget_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/turn_budget.py", "--self-test"], {0}),
         _run("terraform_library_relay_selftest", [sys.executable,

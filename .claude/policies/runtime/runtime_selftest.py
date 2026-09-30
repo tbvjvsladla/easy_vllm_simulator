@@ -1940,7 +1940,8 @@ _REPO_STATE_ASSERTIONS = (
     "tripwire⑥no-revived-antipatterns",
     "tripwire⑦root-surface-registry",
     "tripwire⑧branch-constitution-layering(4자일치·공통층 어휘)",
-    "tripwire⑨base-to-skill-edges(닫힌 목록)",
+    "tripwire⑨base_to_skill_edges(닫힌 목록 · 차단 검사 ②)",
+    "tripwire⑩ghost_section_anchors·skill_literal_binding(차단 검사 ①④)",
     "executor-wiring(core.hooksPath·hook tracked)",
 )
 
@@ -2873,7 +2874,7 @@ def _test_base_skill_edges(root: Path | None = None) -> None:
     if not _is_canonical_repo(root):
         return
     problems = _base_skill_edge_violations(root)
-    _require(not problems, "tripwire⑨ base→skill edges: " + " | ".join(problems))
+    _require(not problems, "tripwire⑨ base_to_skill_edges: " + " | ".join(problems))
 
 
 def _test_base_skill_edges_predicate() -> None:
@@ -2910,6 +2911,139 @@ def _test_base_skill_edges_predicate() -> None:
         _require(any("phase/reason" in x for x in v), f"reasonless row must be RED: {v}")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# tripwire ⑩ — terraforming_node 라우터 결속 (plan_26093022 · 차단 검사 ①·④)
+#
+# ① §앵커·references 경로 0-dangling: 추적물이 `terraforming_node … SKILL.md §x` 로 인용하는 번호는 라우터
+#    SKILL.md 에 토큰으로 남아 있어야 하고(§번호 = 안정 식별자), `terraforming_node/references/…md` 와 스킬 안의
+#    `references/…md` 인용은 실재해야 한다. 본문이 references 로 내려가도 인용이 썩지 않게 하는 문이다.
+# ④ SKILL.md 리터럴 결속: 기초층 코드가 terraforming SKILL.md 를 읽어 `"…" in 변수` 로 요구하는 리터럴을
+#    **AST 에서 파생**해(손목록 ✗) 라우터에 실재하는지 본다(`not in` 은 부재). 술어는 harness 에서만 돌지만
+#    이 검사는 pre-commit 에서 돈다 — 라우터를 줄이다 결속 문장을 지우면 커밋 전에 막힌다.
+# ─────────────────────────────────────────────────────────────────────────────
+_TN_SKILL_REL = ".claude/skills/terraforming_node/SKILL.md"
+_TN_DIR_REL = ".claude/skills/terraforming_node/"
+_ANCHOR_SCAN_EXCLUDE_PREFIX = ("docs/", "seed/")
+_ANCHOR_SCAN_EXCLUDE_FILES = frozenset({".claude/policies/branch_layer_ledger.json"})
+_TN_ANCHOR_RE = re.compile(r"terraforming_node(?:/SKILL\.md)?`?\s*(?:SKILL\.md)?`?\s*\**\s*§\s*([0-9]+S?(?:\.[0-9]+)*[a-z]?)")
+_TN_REF_ABS_RE = re.compile(r"terraforming_node/references/([\w./\-]+?\.md)")
+_TN_REF_REL_RE = re.compile(r"(?<![\w/.])references/([\w./\-]+?\.md)")
+
+
+def _anchor_token_present(anchor: str, text: str) -> bool:
+    return re.search(r"(?<![\d.])" + re.escape(anchor) + r"(?!\.?\d)", text) is not None
+
+
+def _router_binding_violations(root: Path) -> list[str]:
+    skill_path = root / _TN_SKILL_REL
+    if not skill_path.is_file():
+        return [f"{_TN_SKILL_REL} 부재"]
+    skill = skill_path.read_text(encoding="utf-8")
+    # 후보는 git grep 으로 먼저 추린다(추적물 전수 읽기는 1초 예산을 넘는다 · 2.3s 실측).
+    grep = subprocess.run(["git", "-C", str(root), "grep", "-lz", "-I", "-e", "terraforming_node", "--",
+                           ".", ":!docs", ":!seed"], capture_output=True, check=False)
+    listed = grep.stdout.decode("utf-8", "surrogateescape")
+    skill_files = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--", _TN_DIR_REL],
+                                 capture_output=True, check=False).stdout.decode("utf-8", "surrogateescape")
+    problems: list[str] = []
+    for rel in sorted({x for x in listed.split("\0") + skill_files.split("\0") if x}):
+        if rel.startswith(_ANCHOR_SCAN_EXCLUDE_PREFIX) or rel in _ANCHOR_SCAN_EXCLUDE_FILES:
+            continue
+        path = root / rel
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        in_skill = rel.startswith(_TN_DIR_REL)
+        if "terraforming_node" not in text and not (in_skill and "references/" in text):
+            continue
+        for line in text.splitlines():
+            for m in _TN_ANCHOR_RE.finditer(line):
+                a = m.group(1)
+                if not _anchor_token_present(a, skill):
+                    problems.append(f"① dangling §앵커 {rel}: SKILL.md §{a}")
+            refs = [m.group(1) for m in _TN_REF_ABS_RE.finditer(line)]
+            if in_skill and rel.endswith(".md"):
+                refs += [m.group(1) for m in _TN_REF_REL_RE.finditer(line)]
+            for r in refs:
+                if not (root / _TN_DIR_REL / "references" / r).is_file():
+                    problems.append(f"① dangling references 경로 {rel}: references/{r}")
+    problems += _skill_literal_binding_violations(root, skill)
+    return sorted(set(problems))
+
+
+def _skill_literal_binding_violations(root: Path, skill: str) -> list[str]:
+    listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--", ".claude/policies"],
+                            capture_output=True, check=False).stdout.decode("utf-8", "surrogateescape")
+    out: list[str] = []
+    for rel in sorted(x for x in listed.split("\0") if x.endswith(".py")):
+        src = (root / rel).read_text(encoding="utf-8")
+        if "terraforming_node/SKILL.md" not in src:
+            continue
+        tree = ast.parse(src)
+        lines = src.splitlines()
+
+        def _text(node) -> str:
+            return "\n".join(lines[node.lineno - 1:node.end_lineno])
+
+        for fn in (n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))):
+            if "terraforming_node/SKILL.md" not in _text(fn):
+                continue
+            names: set[str] = set()
+            for node in ast.walk(fn):
+                if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+                    seg = _text(node.value)
+                    if "terraforming_node/SKILL.md" in seg or any(
+                            re.search(rf"\b{re.escape(v)}\.read_text\b", seg) for v in names):
+                        names.add(node.targets[0].id)
+            if not names:
+                continue
+            for node in ast.walk(fn):
+                if (isinstance(node, ast.Compare) and len(node.ops) == 1
+                        and isinstance(node.left, ast.Constant) and isinstance(node.left.value, str)
+                        and isinstance(node.comparators[0], ast.Name) and node.comparators[0].id in names):
+                    lit = node.left.value
+                    if isinstance(node.ops[0], ast.In) and lit not in skill:
+                        out.append(f"④ 결속 리터럴 부재 {rel}:{node.lineno}: {lit!r}")
+                    if isinstance(node.ops[0], ast.NotIn) and lit in skill:
+                        out.append(f"④ 금지 리터럴 존재 {rel}:{node.lineno}: {lit!r}")
+    return out
+
+
+def _test_router_bindings(root: Path | None = None) -> None:
+    root = REPO_ROOT if root is None else root
+    if not _is_canonical_repo(root):
+        return
+    problems = _router_binding_violations(root)
+    _require(not problems, "tripwire⑩ ghost_section_anchors/skill_literal_binding: " + " | ".join(problems[:12]))
+
+
+def _test_router_bindings_predicate() -> None:
+    """⑩ 음성대조 — 사라진 §번호·없는 references 경로·지워진 결속 리터럴을 각각 잡는지."""
+    _require(_anchor_token_present("2.7", "## 2.7 노드") and not _anchor_token_present("2.7", "### 2.7.0 x")
+             and _anchor_token_present("2.7.7a", "→ 2.7.7a 턴제"), "anchor token boundaries")
+    tn = "terraforming" + "_node"
+    with tempfile.TemporaryDirectory() as d:
+        r = Path(d)
+        subprocess.run(["git", "init", "-q", str(r)], check=True)
+        (r / _TN_DIR_REL / "references").mkdir(parents=True)
+        (r / _TN_DIR_REL / "references" / "a.md").write_text("x\n", encoding="utf-8")
+        (r / _TN_SKILL_REL).write_text("## 2.6 호스트\n### 2.7.1 평면\n→ `references/a.md`\n", encoding="utf-8")
+        (r / "cite.md").write_text(f"`{tn}` SKILL.md §2.7.1 · {tn}/references/a.md\n", encoding="utf-8")
+        (r / ".claude/policies/runtime").mkdir(parents=True)
+        (r / ".claude/policies/runtime/p.py").write_text(
+            f"def f():\n    s = _read('.claude/{'skill' + 's'}/{tn}/SKILL.md')\n    _require('## 2.6 호스트' in s)\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(r), "add", "-A"], check=True)
+        _require(_router_binding_violations(r) == [], f"clean fixture must pass: {_router_binding_violations(r)}")
+        (r / "cite.md").write_text(f"`{tn}` SKILL.md §2.7.9 · {tn}/references/zz.md\n", encoding="utf-8")
+        v = _router_binding_violations(r)
+        _require(any("§2.7.9" in x for x in v) and any("zz.md" in x for x in v), f"dangling cites must be RED: {v}")
+        (r / "cite.md").write_text("ok\n", encoding="utf-8")
+        (r / _TN_SKILL_REL).write_text("### 2.7.1 평면\n", encoding="utf-8")
+        v = _router_binding_violations(r)
+        _require(any("④" in x and "2.6" in x for x in v), f"removed bound literal must be RED: {v}")
+
+
 def run_tripwires(root: Path | None = None) -> int:
     """병목(pre-commit·authorize)에서 도는 축약 진입점. 1초 예산.
 
@@ -2930,7 +3064,8 @@ def run_tripwires(root: Path | None = None) -> int:
         _test_no_revived_antipatterns(root)        # ⑥ 3-13 — ③ 이 제거한 형태의 부활 차단
         _test_root_surface_registry(root)          # ⑦ plan_26090616 — 루트 표면에 관할을 만든다
         _test_topology_layer_parity(root)          # ⑧ plan_26091210 — 브랜치 헌법 2계층·4자일치
-        _test_base_skill_edges(root)               # ⑨ plan_26093022 — 기초층→스킬 간선 닫힌 목록
+        _test_base_skill_edges(root)               # ⑨ plan_26093022 — base_to_skill_edges(②) 닫힌 목록
+        _test_router_bindings(root)                # ⑩ plan_26093022 — ghost_section_anchors(①) · skill_literal_binding(④)
     except RuntimeSelftestFailure as exc:
         print(f"[tripwire] FAIL {exc}", file=sys.stderr)
         return 1
@@ -2974,6 +3109,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_topology_layer_parity_predicate()
     _test_watchdog_target_predicate_parity()
     _test_base_skill_edges_predicate()
+    _test_router_bindings_predicate()
     # tripwire 6종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
     # 늦는다(선례 3건). 전체 실행에서도 반드시 검사한다.
     # 비-정본 저장소에서 그 단언들이 no-op 이 되는 것은 `run_tripwires` 와 **같은 정상 경로**이며,
@@ -2990,6 +3126,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_root_surface_registry()
     _test_topology_layer_parity()
     _test_base_skill_edges()
+    _test_router_bindings()
     for warning in _test_tripwire_executor_wiring():
         print(f"[runtime_selftest] WARN {warning}", file=sys.stderr)
     print("[runtime_selftest] PASS")
