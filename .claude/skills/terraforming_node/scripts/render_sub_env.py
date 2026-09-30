@@ -346,6 +346,18 @@ def build_placeholders(data: dict, sub_manifest: dict | None = None) -> tuple[di
     return ph, missing
 
 
+RECIPE_REFERENCE_REL = ".claude/skills/wiki-desk/reference/references.md"
+
+
+def support_delivery(tool_plane) -> list:
+    """런타임블럭 밖에 싣는 **지원 배달분**(스킬로 실행하지 않되 잔재도 아니다) — render_tree 와 같은 규칙:
+    캠페인 도구 + 계약 리더는 모든 서브에, 사서 참조 발췌는 recipe 스킬이 가는 서브에만."""
+    out = [f".claude/skills/terraforming_node/scripts/{t}" for t in CAMPAIGN_TOOLS + SUB_CONTRACT_READERS]
+    if "vllm-recipe-explorer" in tool_plane:
+        out.append(RECIPE_REFERENCE_REL)
+    return out
+
+
 def _contract_placeholders(data: dict) -> dict:
     """토폴로지 축 계약 산출 → {{SUB_MODE}}·{{SUB_MODE_SOURCE}}·{{SUB_RANK}}·{{SUB_RANK_SOURCE}}.
 
@@ -380,6 +392,10 @@ def _contract_placeholders(data: dict) -> dict:
         # 문자열 "null" 로 싣으면 하류가 rank 를 문자열로 읽어 TP/NCCL 입력으로 오해할 수 있다.
         "SUB_RANK": "null" if rank_value is None else str(int(rank_value)),
         "SUB_RANK_SOURCE": rank.get("source") or "",
+        # 2026-09-30(plan_26093022 후속): 런타임블럭 **밖**에 의도적으로 싣는 지원 배달분의 목록. 서브 지침이
+        #   "런타임블럭 목록 밖 = 옛 배달의 잔재" 라고만 말해 카나리에서 서브가 설계상 배달분을 잔재로 오판했다.
+        #   목록은 아래 render_tree 의 실제 배달 규칙과 **같은 함수**에서 파생한다(손으로 다시 적지 않는다).
+        "SUPPORT_DELIVERY_JSON": json.dumps(support_delivery(tp.get("value") or []), ensure_ascii=False),
         # 위반 코드(렌더 실패 시 사람이 읽을 진단 — 템플릿 치환엔 미사용).
         "SUB_CONTRACT_VIOLATIONS": ",".join(v.get("code", "?") for v in res.get("violations", [])),
     }
@@ -526,7 +542,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     if "vllm-recipe-explorer" in (ph.get("TOOL_PLANE") or ""):
         if not os.path.isfile(RECIPE_REFERENCE):
             raise SystemExit(f"[render] FAIL: recipe reference dependency missing: {RECIPE_REFERENCE}")
-        recipe_ref_rel = ".claude/skills/wiki-desk/reference/references.md"
+        recipe_ref_rel = RECIPE_REFERENCE_REL
         recipe_ref_dst = os.path.join(out_dir, recipe_ref_rel)
         os.makedirs(os.path.dirname(recipe_ref_dst), exist_ok=True)
         shutil.copyfile(RECIPE_REFERENCE, recipe_ref_dst)
@@ -1025,10 +1041,17 @@ def _self_test() -> int:
         # 해소 자산은 싱글 서브에 가지 않는다 — 가면 서브가 스스로 해소할 이유가 없어진다(F4).
         _res = os.path.exists(os.path.join(
             _out, ".claude/skills/upstream-version-watch/assets/current-production-resolution.json"))
+        # 지원 배달분 목록(서브 CLAUDE.md 에 실리는 것)이 실제 배달과 같은가 — 지침과 배달이 갈라지면
+        #   서브가 설계상 배달분을 잔재로 읽는다(2026-09-30 카나리 관측).
+        _sup = set(support_delivery(sorted(_want)))
+        _real = {os.path.relpath(os.path.join(dp, f), _out) for dp, _, fs in os.walk(_out) for f in fs
+                 if os.path.relpath(os.path.join(dp, f), _out).startswith((".claude/skills/terraforming_node/",
+                                                                          ".claude/skills/wiki-desk/"))}
+        _sup_ok = _sup == _real
         _c = ((_got - {"wiki-desk", "terraforming_node"}) == _want and _ref_ok and _tn_ok
-              and not _res)
+              and not _res and _sup_ok)
         print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} "
-              f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res}")
+              f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res} 지원배달목록일치={_sup_ok}")
         ok &= _c
 
     # (4b-2) upstream 스킬의 **경로 단위 분할** — 서브는 해소·렌더 능력만 받고 노드 간
