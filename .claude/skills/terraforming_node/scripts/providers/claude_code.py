@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Constitution-owned Claude Code provider adapter (Phase 6, plan_26072506).
+"""terraforming_node-owned Claude Code provider adapter (Phase 6, plan_26072506 · moved plan_26093022).
 
 The ONLY file in this repo allowed to emit Claude-specific CLI syntax (`claude -p`,
 `--model sonnet`, `--output-format json`) outside `.claude/skills/terraforming_node/references/
-agent-control-adapter.md`; `.claude/policies/runtime/runtime_selftest.py` enforces this boundary.
+orchestration/agent-control-adapter.md`; the sibling `agent_control.py --self-test` enforces this boundary
+(and `.claude/policies/runtime/runtime_selftest.py` runs that self-test).
 The sibling agent_control.py stays provider-neutral and only calls the two pure functions below.
 
 Real `claude -p ... --output-format json` emits a top-level "modelUsage" object keyed by full

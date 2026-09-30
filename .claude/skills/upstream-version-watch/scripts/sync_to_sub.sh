@@ -114,7 +114,7 @@ GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.py"
 # 막힘 3분류: **정상 차단**이다. 우회 인자·환경변수는 없다. 해소는 맞는 체크아웃에서 맞는 --branch 로 다시 도는 것뿐이다
 #   (종료 시퀀스 ⑥ 은 `topology_parity --format value` 로 이 값을 정하므로 늘 통과한다).
 TOPOLOGY_GUARD_EXIT=12
-PARITY_SCRIPT="$REPO_ROOT/.claude/skills/terraforming_node/scripts/topology_parity.py"
+PARITY_SCRIPT="$REPO_ROOT/.claude/policies/runtime/topology_parity.py"
 GUARD_SRC="${SRC:-$REPO_ROOT/}"
 GUARD_SRC="${GUARD_SRC%/}"
 # 안내는 **원인별**이다(2026-09-14 ⑧-pre D2 리뷰): 4자일치 RED 를 한 문장으로 뭉개면, --branch 는 맞는데 manifest·캠페인
@@ -1937,7 +1937,7 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
         fail=1
     else
         if sub_run "[ -f '.claude/a2a_delegation.json' ]" 2>/dev/null; then
-            echo "  ⚠ 서브에 폐기된 위임 키 잔재 발견 — 회수한다(자격증명은 이제 서명된 카드다)."
+            echo "  ⚠ 서브에 폐기된 위임 키 잔재 발견 — 회수한다(정체성은 이제 SSH 키 · unsigned 카드 · 메인 발급 서브 manifest 가 증명한다)."
             sub_run "rm -f -- '.claude/a2a_delegation.json'" \
                 || { echo "[sync] FAIL(S4): 위임 키 회수 실패 — 자격이 남은 채로 배달하지 않는다" >&2; return 9; }
             if sub_run "[ -f '.claude/a2a_delegation.json' ]" 2>/dev/null; then

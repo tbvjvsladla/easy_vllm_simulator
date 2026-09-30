@@ -66,6 +66,8 @@ CLAUDE.local.md
 # 루트 표면 등록부(policy:ROOT_SURFACE_REGISTRY 의 단일 권위). `.claude/policies/*` 에 걸려
 #   `git add` 가 조용히 no-op 이 되는 자리다 — 재포함이 없으면 등록부 자체가 배포되지 않는다.
 !.claude/policies/root_registry.json
+# 기초층→스킬 간선의 닫힌 목록(plan_26093022 · runtime_selftest tripwire⑨ 의 데이터). 같은 이유로 명시 허용한다.
+!.claude/policies/base_skill_edges.json
 !.claude/policies/arch_variant_evidence/
 !.claude/policies/arch_variant_evidence/*.json
 # 재제외 (재포함 이후에 와야 적용됨 / 주석은 반드시 별도 줄 — 패턴 뒤 인라인 # 은 리터럴로 취급됨)

@@ -144,6 +144,8 @@ sys.path.insert(0, HERE)
 import node_role_contract as _contract  # noqa: E402  (형제 스크립트 — 위 sys.path 선행 필요)
 import agent_card_contract as _acc      # noqa: E402  Agent Card metadata contract
 import manifest_contract as _mc         # noqa: E402  서브 manifest Flag 계약 리더(§7.3)
+# topology_parity 는 기초층 런타임이다(plan_26093022 · 게이트·selftest 가 부르는 코드) — 스킬→기초층 방향 import.
+sys.path.insert(0, os.path.join(HERE, "..", "..", "..", "policies", "runtime"))
 import topology_parity as _parity       # noqa: E402  특화헌법 자기선언 파서의 단일 소유자(policy BRANCH_CONSTITUTION_LAYERING C2)
 
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Z_]+)\s*\}\}")
@@ -1111,7 +1113,7 @@ def _self_test() -> int:
         ok &= c5c
 
     # (6) 2026-09-05(G-E1): 위임 키 발급 검사 → **키가 더는 만들어지지 않는지** + 정체성 증명 자산이
-    #     제자리에 있는지로 바뀐다. 허가(키)가 아니라 정체성(서명 카드 + 신뢰저장소)이 계약이다.
+    #     제자리에 있는지로 바뀐다. 허가(키)가 아니라 정체성(SSH 키 · unsigned 카드 · 서브 manifest)이 계약이다(서명·신뢰저장소는 526f76e 에서 은퇴).
     data6 = parse_manifest(mpath)
     _node(data6, "sub")["hw_verified"] = "true"
     ph6, _ = build_placeholders(data6)
@@ -1165,7 +1167,7 @@ def _self_test() -> int:
           f"single={single_ok}, 판정기일치={owner_ok}) → multi rank={card_m.get('rank')!r} / single rank={card_s.get('rank')!r}")
     ok &= c7
 
-    # (7b) Agent_Card v2 = A2A 1.0.1 표준 필드만 최상위 + 서명 왕복 + 서브 manifest 배달 (plan_26090516 §7.2/§7.3)
+    # (7b) Agent_Card v2 = A2A 1.0.1 표준 필드만 최상위 + 구조검증 + 서브 manifest 배달 (plan_26090516 §7.2/§7.3)
     with open(os.path.join(out7s, "Agent_Card.json"), encoding="utf-8") as f:
         card_full = json.load(f)
     v7b = _acc.validate_card(card_full) + _acc.require_skills(card_full)

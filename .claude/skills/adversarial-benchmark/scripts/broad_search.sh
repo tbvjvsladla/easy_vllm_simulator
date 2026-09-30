@@ -162,7 +162,7 @@ esac
 # 토폴로지 해소 — **쓰는 서브커맨드(init·cell)에서만** 부른다. status·map 은 토폴로지를 읽지 않고, cell 의 위험 게이트
 #   (--confirm-risk · exit 5)는 해소 가능 여부와 무관하게 먼저 울려야 한다(인자 평면 가드 보존).
 # ★ 2026-09-14(⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고 브랜치로 추론하지 않는다"): 종전 관용구는 여기서
-#   브랜치 이름으로 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 — 서명 카드 노드는
+#   브랜치 이름으로 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 — 카드 노드(unsigned capability Card)는
 #   카드↔자기 manifest, 메인은 4자일치 술어(topology_parity), 둘 다 아니면 fail-loud.
 _resolve_topo(){
   [ -n "$TOPO" ] && return 0

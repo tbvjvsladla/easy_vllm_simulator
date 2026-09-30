@@ -466,7 +466,7 @@ EXCHANGE_FILENAMES = {"request": "request.json", "export": "export.json",
                       "attestation": "attestation.json"}
 
 AGENT_CONTROL_SCRIPT = os.path.join(
-    REPO_ROOT, ".claude", "policies", "runtime", "agent_control.py")
+    REPO_ROOT, ".claude", "skills", "terraforming_node", "scripts", "agent_control.py")
 
 
 def _extract_report(text, label):
@@ -519,7 +519,7 @@ def cmd_receive(args):
         if args.invoke_request:
             # 위임과 수신을 **한 명령으로 묶는다** — 두 단계로 두면 두 번째를 건너뛸 수 있고,
             # 건너뛸 수 있는 게이트는 게이트가 아니다(2026-08-22 E2E 가 실증한 형태).
-            # 전송은 헌법 소유(provider-neutral orchestrator)에 남기고 여기서 만들지 않는다.
+            # 전송은 형제 provider-neutral orchestrator(agent_control)가 소유하고 여기서 만들지 않는다.
             import subprocess
             if not os.path.isfile(AGENT_CONTROL_SCRIPT):
                 print("[library-exchange] FAIL: agent_control.py 부재: %s" % AGENT_CONTROL_SCRIPT,

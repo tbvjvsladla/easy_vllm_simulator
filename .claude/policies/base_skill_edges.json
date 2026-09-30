@@ -1,0 +1,1590 @@
+{
+  "schema_version": 1,
+  "description": "기초층(.claude/policies/**) → 스킬(.claude/skills/**) 간선의 닫힌 목록(plan_26093022 §4 · 차단 검사 ② · runtime_selftest tripwire⑨). 키 = (caller, callee: skills/ 아래 대상 경로). 새 간선은 이유와 함께 행을 추가하는 커밋으로만 열린다. runtime_operational = 운영 경로가 스킬 코드를 실행하거나 정책 판정이 스킬 로직에 기댐 · verification_plane = 검증 러너·술어·경로 문자열·원장·docstring. branch_layer_ledger.json(append-only 이력)은 판정 대상 밖.",
+  "edges": [
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "adversarial-benchmark/scripts/run_bench.sh",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "hint-publisher/scripts/hint.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "hint-publisher/scripts/hintlib/branch.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "hint-publisher/scripts/hintlib/evidence.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "hint-publisher/scripts/hintlib/pii.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "hint-publisher/scripts/hintlib/tag.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "hint-publisher/scripts/hintlib/template.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/agent_control.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/campaign_init.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/campaign_template_validator.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/host_safety/install_host_safety.sh",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/host_safety/mem_watchdog.sh",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/library_relay.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/manifest_contract.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/node_blackbox/install_node_blackbox.sh",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/node_blackbox/purge_host_safety.sh",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/node_role_contract.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/relay.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/render_sub_env.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/scripts/scan_node.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/assets/configs/arm_patch.sh",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/scripts/check_smoke_model.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/scripts/classify_failure.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/scripts/render_dockerfile.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/scripts/resolve_ngc_tag.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/scripts/single_serve_up.sh",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/scripts/slave_forward.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/scripts/sync_branches.sh",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/scripts/validate_runtime_patch.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/templates/docker-compose.multi.template.yaml",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "vllm-recipe-explorer/recipe.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "vllm-recipe-explorer/scripts/cleanup_docker.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "vllm-recipe-explorer/scripts/crosscheck_model_card.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "vllm-recipe-explorer/scripts/preload_ram_gate.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "vllm-recipe-explorer/scripts/run_trial.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "wiki-desk/scripts/init_wiki_desk.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "wiki-desk/scripts/smoke_query.py",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "adversarial-benchmark/scripts",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "adversarial-benchmark/scripts/run_bench.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "adversarial-benchmark/scripts/sweep_bench.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "hint-publisher/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "hint-publisher/scripts",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "hint-publisher/templates/00-hint.prompt.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "hint-publisher/templates/{name}.prompt.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/scripts",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/scripts/agent_control.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/scripts/campaign_init.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/scripts/host_safety/install_host_safety.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/scripts/host_safety/mem_watchdog.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/scripts/manifest_contract.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/scripts/node_blackbox/install_node_blackbox.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/scripts/node_blackbox/purge_host_safety.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/scripts/relay.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/scripts/render_sub_env.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/scripts/scan_node.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/sub_node/CLAUDE.template.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/assets/configs/{name}",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/assets/current-production-resolution.json",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/failure_patterns.yaml",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/scripts",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/scripts/check_smoke_model.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/scripts/fetch_sub_docs.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/scripts/render_dockerfile.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/scripts/single_serve_up.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/scripts/slave_forward.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/scripts/sync_branches.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/scripts/validate_runtime_patch.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/templates/Dockerfile.source-build.template",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "upstream-version-watch/templates/docker-compose.multi.template.yaml",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "vllm-recipe-explorer",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "vllm-recipe-explorer/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "vllm-recipe-explorer/scripts",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "vllm-recipe-explorer/scripts/cleanup_docker.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "vllm-recipe-explorer/scripts/crosscheck_model_card.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "vllm-recipe-explorer/scripts/run_trial.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "wiki-desk/scripts",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "wiki-desk/scripts/init_wiki_desk.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "x",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/policies/predicates/companion_predicate.py",
+      "callee": "*/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
+    },
+    {
+      "caller": ".claude/policies/predicates/companion_predicate.py",
+      "callee": "hint-publisher/scripts",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
+    },
+    {
+      "caller": ".claude/policies/predicates/companion_predicate.py",
+      "callee": "hint-publisher/scripts/hintlib/core.py",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
+    },
+    {
+      "caller": ".claude/policies/predicates/companion_predicate.py",
+      "callee": "hint-publisher/scripts/hintlib/tag.py",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
+    },
+    {
+      "caller": ".claude/policies/predicates/companion_predicate.py",
+      "callee": "terraforming_node/scripts/manifest_contract.py",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
+    },
+    {
+      "caller": ".claude/policies/predicates/companion_predicate.py",
+      "callee": "terraforming_node/scripts/scan_node.py",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
+    },
+    {
+      "caller": ".claude/policies/predicates/companion_predicate.py",
+      "callee": "upstream-version-watch/scripts/check_smoke_model.py",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
+    },
+    {
+      "caller": ".claude/policies/predicates/companion_predicate.py",
+      "callee": "upstream-version-watch/scripts/sync_branches.sh",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
+    },
+    {
+      "caller": ".claude/policies/predicates/companion_predicate.py",
+      "callee": "wiki-desk/scripts",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
+    },
+    {
+      "caller": ".claude/policies/predicates/runtime_patch_predicate.py",
+      "callee": "upstream-version-watch/assets/current-production-resolution.json",
+      "phase": "verification_plane",
+      "reason": "런타임 패치 술어 — 검증기·배달 스크립트 경로 문자열"
+    },
+    {
+      "caller": ".claude/policies/predicates/runtime_patch_predicate.py",
+      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
+      "phase": "verification_plane",
+      "reason": "런타임 패치 술어 — 검증기·배달 스크립트 경로 문자열"
+    },
+    {
+      "caller": ".claude/policies/predicates/runtime_patch_predicate.py",
+      "callee": "upstream-version-watch/scripts/validate_runtime_patch.py",
+      "phase": "verification_plane",
+      "reason": "런타임 패치 술어 — 검증기·배달 스크립트 경로 문자열"
+    },
+    {
+      "caller": ".claude/policies/predicates/runtime_patch_predicate.py",
+      "callee": "wiki-desk/scripts/smoke_query.py",
+      "phase": "verification_plane",
+      "reason": "런타임 패치 술어 — 검증기·배달 스크립트 경로 문자열"
+    },
+    {
+      "caller": ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md",
+      "callee": "upstream-version-watch/scripts/sync_branches.sh",
+      "phase": "verification_plane",
+      "reason": "산문 근거(provenance plan)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "adversarial-benchmark/scripts/run_bench.sh",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "hint-publisher/scripts/hint.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "hint-publisher/scripts/hintlib/branch.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "hint-publisher/scripts/hintlib/evidence.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "hint-publisher/scripts/hintlib/pii.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "hint-publisher/scripts/hintlib/tag.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "hint-publisher/scripts/hintlib/template.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/agent_control.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/campaign_init.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/campaign_template_validator.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/host_safety/install_host_safety.sh",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/host_safety/mem_watchdog.sh",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/library_relay.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/manifest_contract.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/node_blackbox/install_node_blackbox.sh",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/node_blackbox/purge_host_safety.sh",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/node_role_contract.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/relay.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/render_sub_env.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/scripts/scan_node.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/assets/configs/arm_patch.sh",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/scripts/check_smoke_model.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/scripts/classify_failure.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/scripts/render_dockerfile.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/scripts/resolve_ngc_tag.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/scripts/single_serve_up.sh",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/scripts/slave_forward.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/scripts/sync_branches.sh",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/scripts/validate_runtime_patch.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/templates/docker-compose.multi.template.yaml",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "vllm-recipe-explorer/recipe.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "vllm-recipe-explorer/scripts/cleanup_docker.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "vllm-recipe-explorer/scripts/crosscheck_model_card.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "vllm-recipe-explorer/scripts/preload_ram_gate.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "vllm-recipe-explorer/scripts/run_trial.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "wiki-desk/scripts/init_wiki_desk.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "wiki-desk/scripts/smoke_query.py",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "adversarial-benchmark/scripts/resolve_bench_tool",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "terraforming_node",
+      "phase": "verification_plane",
+      "reason": "공개 표면 tripwire(차단 검사 ③) — terraforming_node 의 SKILL.md §4 표를 읽고 외부 호출을 대조한다"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "terraforming_node/scripts",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "terraforming_node/scripts/node_blackbox/budget_renew_loop",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "terraforming_node/scripts/providers/claude_code.py",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "terraforming_node/scripts/turn_budget.py",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "upstream-version-watch/scripts",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "upstream-version-watch/scripts/multinode_serve_smoke",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "vllm-recipe-explorer/scripts/run_trial",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "wiki-desk/scripts/doc_naming.py",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/policies/runtime/completion_gate.py",
+      "callee": "hint-publisher/scripts/hint.py",
+      "phase": "verification_plane",
+      "reason": "주석 — hint CLI 액션 표 출처 표기"
+    },
+    {
+      "caller": ".claude/policies/runtime/constitution_lint.py",
+      "callee": "*/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "린트 — SKILL.md 의 유령 policy: 인용 스캔(INFO)"
+    },
+    {
+      "caller": ".claude/policies/runtime/constitution_lint.py",
+      "callee": "*/references/**/*.md",
+      "phase": "verification_plane",
+      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
+    },
+    {
+      "caller": ".claude/policies/runtime/constitution_lint.py",
+      "callee": "terraforming_node/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
+    },
+    {
+      "caller": ".claude/policies/runtime/constitution_lint.py",
+      "callee": "terraforming_node/references/**/*.md",
+      "phase": "verification_plane",
+      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
+    },
+    {
+      "caller": ".claude/policies/runtime/constitution_lint.py",
+      "callee": "terraforming_node/references/*.md",
+      "phase": "verification_plane",
+      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
+    },
+    {
+      "caller": ".claude/policies/runtime/evidence_publisher.py",
+      "callee": "adversarial-benchmark/scripts/classify_cell.py",
+      "phase": "runtime_operational",
+      "reason": "강등 어휘(DOWNGRADE_REASONS·bench_mode)의 단일 소유자에서 늦게 적재 — 적재 실패는 fail-closed"
+    },
+    {
+      "caller": ".claude/policies/runtime/evidence_publisher.py",
+      "callee": "hint-publisher/scripts/render_bench_section.py",
+      "phase": "runtime_operational",
+      "reason": "측정 구성 표 파서의 단일 소유자(publish-lite-report·init --downgrade 대조) — fail-closed"
+    },
+    {
+      "caller": ".claude/policies/runtime/evidence_publisher.py",
+      "callee": "wiki-desk/scripts",
+      "phase": "runtime_operational",
+      "reason": "문서 명명 SSOT(doc_naming)의 단일 소유자가 wiki-desk 다 — 복제하면 docs.md 명명 규약이 두 자리로 갈라진다"
+    },
+    {
+      "caller": ".claude/policies/runtime/evidence_publisher.py",
+      "callee": "wiki-desk/scripts/init_wiki_desk.py",
+      "phase": "runtime_operational",
+      "reason": "C4 서가 입고의 실행자(사서 직접 호출 · 중계자 campaign_init 제거 · plan_26093022 E3) — 실패는 발행을 죽이지 않고 기재한다"
+    },
+    {
+      "caller": ".claude/policies/runtime/policy_registry.py",
+      "callee": "upstream-version-watch/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "정책 원장 검증 — 스킬 문서·템플릿 텍스트 대조와 self-test 픽스처"
+    },
+    {
+      "caller": ".claude/policies/runtime/policy_registry.py",
+      "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "phase": "verification_plane",
+      "reason": "정책 원장 검증 — 스킬 문서·템플릿 텍스트 대조와 self-test 픽스처"
+    },
+    {
+      "caller": ".claude/policies/runtime/policy_registry.py",
+      "callee": "upstream-version-watch/scripts/render_dockerfile.py",
+      "phase": "verification_plane",
+      "reason": "정책 원장 검증 — 스킬 문서·템플릿 텍스트 대조와 self-test 픽스처"
+    },
+    {
+      "caller": ".claude/policies/runtime/policy_registry.py",
+      "callee": "upstream-version-watch/scripts/slave_forward.py",
+      "phase": "runtime_operational",
+      "reason": "ARCH 변종 원장 검증이 slave 전달 집합을 소유자 파생에서 읽는다(손목록이 다섯 번 갈라진 전력) — 판정 불가는 사유로 반환"
+    },
+    {
+      "caller": ".claude/policies/runtime/policy_registry.py",
+      "callee": "upstream-version-watch/templates/Dockerfile.source-build.template",
+      "phase": "verification_plane",
+      "reason": "정책 원장 검증 — 스킬 문서·템플릿 텍스트 대조와 self-test 픽스처"
+    },
+    {
+      "caller": ".claude/policies/runtime/policy_registry.py",
+      "callee": "upstream-version-watch/templates/docker-compose.multi.template.yaml",
+      "phase": "runtime_operational",
+      "reason": "동상 — slave 전달 집합 파생의 입력 템플릿"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "adversarial-benchmark/scripts/render_report.py",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "adversarial-benchmark/scripts/sweep_bench.sh",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "hint-publisher/scripts",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "terraforming_node",
+      "phase": "verification_plane",
+      "reason": "tripwire⑩ — terraforming_node 라우터의 §앵커·references 경로·결속 리터럴을 검사한다"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "terraforming_node/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "tripwire⑩ — 라우터 SKILL.md 텍스트를 읽는다(§번호 토큰·결속 리터럴 실재)"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "terraforming_node/scripts/agent_control.py",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "terraforming_node/scripts/host_safety/mem_watchdog.sh",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "terraforming_node/scripts/node_blackbox/mem_watchdog_eta.sh",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "terraforming_node/scripts/node_blackbox/thermal_watchdog.sh",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "upstream-version-watch/scripts/sync_branches.sh",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "wiki-desk/scripts/scan_forbidden_strings.py",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/policies/runtime/topology_parity.py",
+      "callee": "terraforming_node/scripts/campaign_init.py",
+      "phase": "runtime_operational",
+      "reason": "ACTIVE 포인터 규약의 단일 권위가 campaign_init 이다 — 적재 실패는 캠페인 다리 결측으로 fail-closed(plan_26093022 E4)"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/fixtures/measured_pass.json",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/fixtures/roofline_sample.json",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/broad_search.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/classify_cell.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/conformance_full_superset_lite.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/judge_bench.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/parse_guidellm.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/render_sweep_map.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/repeat_axis.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/resolve_topology.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/run_bench.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/selftest_broad_search_precheck.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/selftest_lite_gate.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/selftest_lite_report.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/selftest_sweep_meta.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/selftest_sweep_repeats.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/sweep_stop.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/verdict_rule.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "hint-publisher",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "hint-publisher/scripts/hint.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "hint-publisher/scripts/render_bench_section.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "hint-publisher/templates/00-hint.prompt.md",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/agent_control.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/bootstrap_canary.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/campaign_init.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/campaign_template_validator.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/host_safety",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/host_safety/install_host_safety.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/host_safety/mem_watchdog.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/library_exchange.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/library_relay.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/manifest_contract.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/node_blackbox/agent_guard.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/node_blackbox/blackbox_session.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/node_blackbox/budget_renew_loop.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/node_blackbox/node_identity.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/node_role_contract.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/providers/claude_code.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/relay.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/render_sub_env.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/scan_node.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/staleness_gate.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/turn_budget.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/sub_node/CLAUDE.template.md",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/templates/document_skeletons",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/assets/build_plane",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/assets/current-production-resolution.json",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/scripts/budget_preflight.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/scripts/container_inventory.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/scripts/layer_ledger.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/scripts/push_branches.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/scripts/render_dockerfile.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/scripts/selftest_branch_sync.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/scripts/single_serve_up.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/scripts/slave_forward.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/scripts/smoke_clone.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/scripts/sync_branches.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/scripts/{filename}",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "upstream-version-watch/{stale}",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "vllm-recipe-explorer/recipe.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "vllm-recipe-explorer/scripts/cleanup_docker.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "vllm-recipe-explorer/scripts/escalation_predicate.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "vllm-recipe-explorer/scripts/estimate_vram.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "vllm-recipe-explorer/scripts/gen_recipe_set.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "vllm-recipe-explorer/scripts/parse_model_config.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "vllm-recipe-explorer/scripts/preload_ram_gate.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "vllm-recipe-explorer/scripts/rope_scaling_translate.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "vllm-recipe-explorer/scripts/run_trial.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "vllm-recipe-explorer/scripts/selftest_gmu_roles_batch.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "wiki-desk/fixtures/project_init_answers.yaml",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "wiki-desk/scripts/doc_naming.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "wiki-desk/scripts/init_wiki_desk.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "wiki-desk/scripts/lint_wiki.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "wiki-desk/scripts/smoke_query.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    }
+  ]
+}

@@ -470,15 +470,37 @@ def load_existing(wiki_root: Path) -> dict[str, dict[str, Any]]:
     return {e["source_path"]: e for e in data.get("entries", [])}
 
 
+# 서가 입고(warm-start)의 기본값은 사서가 소유한다(plan_26093022 E3) — 호출부(evidence_publisher ·
+# campaign_init)는 `--project-root` 만 넘기고 서가 위치·입고 답안을 손으로 다시 적지 않는다.
+WARM_START_WIKI_ROOT_NAME = "__llm-wiki"
+WARM_START_ANSWERS_REL = ".claude/skills/wiki-desk/fixtures/project_init_answers.yaml"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--project-root", required=True)
-    ap.add_argument("--wiki-root", required=True)
-    ap.add_argument("--answers", required=True)
+    ap.add_argument("--wiki-root")
+    ap.add_argument("--answers")
     ap.add_argument("--incremental", action="store_true",
                     help="warm-start: re-extract only changed/new sources, carry unchanged, archive removed")
+    ap.add_argument("--warm-start", action="store_true",
+                    help="서가 입고: wiki-root·answers 를 project-root 에서 파생하고 --incremental 로 돈다. "
+                         "답안 파일이 없으면 입고하지 않고 skipped 를 보고한다(rc 0)")
     args = ap.parse_args()
     project_root = Path(args.project_root).resolve()
+    if args.warm_start:
+        if args.wiki_root or args.answers:
+            ap.error("--warm-start 는 --wiki-root·--answers 를 파생한다 — 함께 주지 마라")
+        answers_path = project_root / WARM_START_ANSWERS_REL
+        if not answers_path.is_file():
+            print(json.dumps({"mode": "skipped", "reason": f"입고 답안 부재({WARM_START_ANSWERS_REL})"},
+                             ensure_ascii=False, indent=2))
+            return 0
+        args.wiki_root = str(project_root / WARM_START_WIKI_ROOT_NAME)
+        args.answers = str(answers_path)
+        args.incremental = True
+    elif not (args.wiki_root and args.answers):
+        ap.error("--wiki-root 와 --answers 가 필요하다(또는 --warm-start)")
     wiki_root = Path(args.wiki_root).resolve()
     answers = read_answers(Path(args.answers))
     roots = list(answers.get("document_roots", []))

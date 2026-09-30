@@ -21,7 +21,7 @@
 
 ## 공통 진입 게이트
 
-- S1–S4·escalation·B0–B3 전 tracked terraform validator를 실행한다. 서브 진입은 `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED`도 검증한다(2026-09-05 개명 · 허가 → 정체성). topology는 인터뷰/manifest에서만 읽고 브랜치로 추론하지 않는다 — 이 문장의 집행자는 4자일치 술어 `topology_parity.py` 이고, 어긋남은 fail-closed 다(policy:BRANCH_CONSTITUTION_LAYERING).
+- S1–S4·escalation·B0–B3 전 tracked terraform validator를 실행한다. 서브 진입은 `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED`도 검증한다. topology는 인터뷰/manifest에서만 읽고 브랜치로 추론하지 않는다 — 이 문장의 집행자는 4자일치 술어 `topology_parity.py` 이고, 어긋남은 fail-closed 다(policy:BRANCH_CONSTITUTION_LAYERING).
 - Flag가 없으면 작업을 멈추고 다음 문구로 onboarding을 제안한다: *"HW스캔이 덜 되어(Flag 미발행) HW 스펙(GPU·OS)을 알기 어려워 모델 `<HF URL>` 의 정확한 서빙전략을 세우기 어렵습니다. `terraforming_node` 로 ① HW스캔 + ② 모델 다운로드 전략(관리 NAS 경로? 컨테이너 임시 다운로드(컨테이너 down 시 삭제)? 특정 경로 저장·마운트?)을 먼저 정합시다."*
 - fresh clone 감지는 제안만 한다. 인터뷰→승인 뒤에만 스캔한다. 정본은 `policy:TERRAFORM_FLAG_GATE`와 terraforming 스킬 §0.5다.
 
@@ -64,7 +64,7 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋
 | 토폴로지 전용 실패(분산 런타임 등) | 특화헌법 §실패 라우팅이 owner 를 정한다 | 증거 보존→Model-C |
 | **lite ① 측정 경로 불성립**(`lite_verdict=measurement_path_failed` · lite/sweep exit 6 — 요청이 서버에 닿지 못함 · 측정기가 값을 못 냄) | 하네스 수리(`adversarial-benchmark` lite 실행기) | 하네스 결함 — 재빌드 ✗ · loop cap 차감 ✗ · GuideLLM·인증서 ✗. 판정 단일 권위 = lite raw `lite_verdict`(2026-09-29 · `plan_26092923`) |
 | **lite ② 서버 응답 실패**(`lite_verdict=server_failed` · lite/sweep exit 7 — 5xx·빈 출력·타임아웃·측정 중 서버 사망) | upstream(재빌드)·explorer(서빙전략) 재발동 — **제안까지 기계, 실행은 사람** | 실사용 불가 — 셀 기록 사유 `lite_server_failed`(classify_cell ← 이번 셀 lite raw) · 캠페인 셀이면 writer(`campaign_init --cell-set --lite-raw`)가 `reconciliation.charges[]` 1건(멱등 · 키 = raw measured_utc)과 `reentry: proposed` 를 적고 `--resume-brief` 가 "재발동 대기" 로 올린다 · explorer 는 같은 셀에서 cap = `--cap` − 차감 수(소진 = 트라이얼 없이 Model-C) · 사람 결정은 `--reentry-decide` 로 기록(진행 차단 ✗). cap 값의 소유는 explorer 뿐이다(셀 상태는 몇 번 썼나만 든다). α 서빙 직후 자동 핸드오프는 기록·보고만(헌법 트리거 절) · 2026-09-29 `plan_26092923_58_27` |
-| **러너 평면 실패**(백엔드 한도·인증·미도달·바이너리 부재) | `relay.py` 사다리 회전 → 소진 시 사람 | 판정은 `terminal_reason` 구조 신호 · 회전은 예산 사건 ✗ · **한 바퀴 소진 = 차단성 HITL**. 정본 `terraforming_node` SKILL.md **§2.7.11** |
+| **러너 평면 실패**(백엔드 한도·인증·미도달·바이너리 부재) | `terraforming_node` SKILL.md §2.7.11 | 회전 ≠ 예산 사건 · 판정은 `terminal_reason` 구조 신호 · 한 바퀴 소진 = 차단성 HITL |
 | unknown | 사람 | `{proposed_class,evidence}`만 제시; 승인 전 무행동 |
 | recipe 중 구조적 불가 발견 | recipe §5.5→upstream §3.6 | 공식 bump / 포크 SHA pin / 음성정직; cap 뒤 Model-C |
 
@@ -116,21 +116,8 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
 
 ## 메인↔서브 노드 제어 — 정본은 `terraforming_node` SKILL.md §2.7
 
-> **2026-08-15 이관**(`plan_26081514` Step 1·3). 아래 5주제는 **노드 도메인 절차**이므로 스킬이 소유한다.
-> workflow.md 는 전이 spine 만 갖고, 절차 본문은 중복하지 않는다(중복은 갈라져 침묵 누락을 만든다).
-
-| 주제 | 정본 | 이관 전 원문 |
-|---|---|---|
-| 메인↔서브 B0–B3 상태 표 | `terraforming_node` SKILL.md **§2.7.3** | `workflow.md@0d8f542eafa3` §메인↔서브 B0–B3 |
-| 권한 평면 A/B(승인 vs 소실방지) | 동 **§2.7.1** | 동 §권한 평면 A/B |
-| 저작·스캔·정비 3범주 | 동 **§2.7.2** | 동 §3범주 |
-| 권위 평면 계약(커밋/인덱스/파일시스템) | 동 **§2.7.4** | 동 §권위 평면 계약 |
-| sync 절차의 평면 분리 · node-identity · A2A 제어명령 | 동 **§2.7.5–§2.7.7** | (신설) |
-
-- 전이 표(§상태·owner 계약)의 **S2.5 sync** 행과 §공통 진입 게이트의 A2A 검증은 그대로 이 문서가 갖는다 —
-  *언제* 하는지는 spine 이고, *어떻게·어떤 권한으로* 하는지가 스킬이다.
-- 헌법(`CLAUDE.md`)에는 이 주제의 **"왜"** 5불변식만 남는다(무단스캔 금지 · 관측장치+완전조작권한+A2A해제 ·
-  처방주체 선기재 · D3 경로수리 · 발견≠소유).
+메인↔서브 노드 제어의 *어떻게*(B0–B3 · 평면 A/B · 3범주 · 권위 평면 · sync 평면 분리 · node-identity · A2A 제어명령)는
+`terraforming_node` SKILL.md §2.7(본문 `references/orchestration/`)이 소유하고, 이 문서는 S2.5 와 §공통 진입 게이트의 *언제*만 갖는다.
 
 ### 결정론 규율 — 출처 표시와 4종 안티패턴 (2026-08-13 신설 · `plan_26081314`)
 
@@ -200,155 +187,30 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
 - **범위 밖**: 호스트 `/boot` 의 grub 백업(부팅 복구 수단이며 git 평면이 아니다) · `seed/`
   (사용자 보관소이자 비추적 평면 — 이 규약의 대상이 아니다).
 
-## 캠페인 아티팩트 체인 — `campaigns/` (2026-09-06 신설 · `policy:ROOT_SURFACE_REGISTRY`)
+## 캠페인 아티팩트 체인 — `campaigns/` (`policy:ROOT_SURFACE_REGISTRY`)
 
-> 왜: 여러 버전×모델을 순차로 도는 캠페인에서 단계 간 정보를 **대화 기억이 날랐다**. 세션이 끊기거나
-> 문맥이 압축되면 그 정보가 사라졌고, 각 스킬은 자기 기본값(루트 `config.yaml`·루트 `tasks/`)으로
-> 되돌아가 산출물을 관리범위 밖에 흘렸다(2026-09-06 실측: 루트 추적 누출 21개 · hint 태그 2/3 발행).
-> 처방은 규율이 아니라 **거처**다 — 나를 것을 파일로 만들고, 그 파일의 자리를 선언에서 파생시킨다.
+단계 간 정보는 대화 기억이 아니라 아티팩트가 나른다 — 절차 정본은 `terraforming_node` `references/campaign/`
+(배치 `layout.md` · phase `phases.md` · 쓰는 손 `writers.md` · 배정·감독 `assignment_supervision.md` · purge `purge.md`).
 
 ### 배치와 수명
 
-| 자리 | git | 수명 | 소유 |
-|---|---|---|---|
-| `campaigns/README.md` · `campaigns/_template/**` | **추적** | 영구(뼈대) | 사용자가 관리하는 유일한 부분 |
-| `campaigns/<camp-id>/**` | **비추적** | 캠페인 1회(휘발) | 에이전트가 저작 |
-| `campaigns/_bootstrap/**` | 비추적 | 활성 캠페인이 없을 때의 예약 인스턴스 | 온보딩·카나리 릴레이 |
+뼈대(`campaigns/README.md`·`_template/**`)만 추적하고 인스턴스(`campaigns/<id>/**`)는 비추적·휘발이다. 어느 쪽에도 무결성 해시를
+두지 않는다(`policy:GIT_SINGLE_AUTHORITY` Q1).
 
-- **뼈대만 추적**하는 이유: 인스턴스는 운영자 절대경로·세션 id·측정 원시값을 담아 배포 평면에 실릴 수
-  없고, 매 캠페인 재생성되므로 이력으로 남길 가치가 git 이 드는 비용을 넘지 않는다. 사용자는 빈칸의
-  **모양**만 관리하고 값은 관리하지 않는다.
-- **무결성 해시를 두지 않는다** — 뼈대는 추적물이라 git 이 이미 바이트를 든다(`policy:GIT_SINGLE_AUTHORITY`
-  2문항 Q1 = 예 → 중복층). 인스턴스는 휘발이라 대조할 두 번째 자리가 애초에 성립하지 않는다.
-
-### phase 전이 — proof 술어가 다음 배선을 연다
-
-한 셀(= 버전×모델 1조합)은 노드별로 `build → serve → bench → publish` 를 지난다. 각 phase 는
-`campaigns/<id>/phases/<node>/<phase>.status.json` 에 **자기 결과와 proof** 를 적는다.
-
-> **2026-09-07 정정**(`plan_26090715` §4.4 · 사용자 결정): 이 표는 **진행표**이지 진입 게이트가
-> 아니다. 종전 문장("다음 phase 는 앞 phase 의 `proof.ok` 가 참일 때만 진입한다")은 그것을 집행하는
-> **실행자가 0** 이었다 — 교착이 아니라 침묵 누락이었고, 헌법 노드제어 ③("처방을 누가 실행하는가를
-> 먼저 적는다")이 이 자리에서 비어 있었다. 실차단은 `completion_gate`·purge 게이트·노드축 게이트에만
-> 둔다. 대신 진행표는 **검증기 P1~P3** 이 읽고, 그 판정이 purge 선행조건이 된다.
-
-| phase | 입력(앞 아티팩트) | 출력 | proof 술어 |
-|---|---|---|---|
-| `build` | `campaign.yaml` 의 matrix 행 · `cells/<cell>/config.yaml` | 이미지 태그·digest | 이미지가 실재하고 `--gpus=all` 기능 프로브 통과 |
-| `serve` | build status · `cells/<cell>/lockset.json` | health·엔진 로그 경로 | health 200 + 추론 1회 성공 |
-| `bench` | serve status | `docs/benchmark/` 리포트(+PASS 면 인증서) | 리포트 실재 + `measurement_ok` |
-| `publish` | bench status | 메인: 셀 hint 태그 1개(`hint.py continue` · 셀의 승인 기록 필요) · 서브: `hint_inputs` 문서 평면 참조 사이드카(발행기는 읽지 않는다 — 서브 단독 셀 발행은 열린 설계) · 증거 포인터 | 메인: push 뒤 원격 태그 오브젝트 SHA = 로컬(`refs/tags/<tag>@<sha>`) · 서브: 포인터 전수 실재 |
-
-- **proof 는 선언이 아니라 관측이다** — `ok: true` 옆에 `source`(그 판정을 낸 명령·파일)를 함께
-  적는다. 출처 없는 `ok` 는 단언이 검증을 대체한 것이고, 그러면 깨진 순간을 아무도 모른다.
-- phase 가 실패해도 status 파일은 **쓴다**. 부재와 실패는 다른 사실이며, 부재만 남기면 "돌지 않았다"와
-  "돌다 죽었다"가 구분되지 않는다.
-
-### producer 경로 파생 — 기본값을 루트로 두지 않는다
-
-캠페인 중 산출물을 만드는 실행자는 자기 출력 경로를 **활성 캠페인 선언에서 파생**한다. 루트 기본값은
-남기지 않는다 — 남기면 선언을 잊은 실행이 조용히 루트에 쓴다(누출 21개의 직접 원인).
-
-| 실행자 | 옛 기본값 | 파생 경로 |
-|---|---|---|
-| `vllm-recipe-explorer` `recipe.py --config` | `/config.yaml` | `campaigns/<id>/cells/<cell>/config.yaml` |
-| recipe lock-set | `/lockset.json` | `campaigns/<id>/cells/<cell>/lockset.json` |
-| `adversarial-benchmark` `broad_search.sh --state` | 호출자 임의 | `campaigns/<id>/sweeps/<sweep>.json` |
-| `terraforming_node` `relay.py` 원장 | `/tasks/` | `campaigns/<id>/relay/` (활성 캠페인 없으면 `_bootstrap`) |
-
-### 캠페인 상태를 쓰는 손 — 포맷 소유 1 · 호출부 N (2026-09-07 신설 · `plan_26090715` §4.1)
-
-거처와 게이트가 계약대로 서 있어도 **채우는 손이 없으면** 그 자리를 대화 기억이 메운다. 2026-09-06
-캠페인이 그렇게 돌았다 — 상태를 쓴 것은 세션과 함께 소멸하는 스크래치패드 스크립트였고, 저장소 안의
-producer 는 0 이었다. 이제 바이트를 쓰는 문은 하나이고, 그 문을 **각 phase 의 실제 실행 스크립트**가 부른다.
-
-| 슬롯 | 성립 시점 | 포맷 owner(단일) | 호출부(실행자) |
-|---|---|---|---|
-| `phases/<node>/<phase>.status.json` | 각 phase 종료 | `terraforming_node` `campaign_init.py --phase-set` | serve: `single_serve_up.sh` health 200 지점 · bench/build/publish: 각 owner 스크립트 종료부 |
-| `cells/<cell>/cell.status.json` + `journey.jsonl` | 셀 트랜잭션 종료 | 동 `--cell-set` | `adversarial-benchmark` `broad_search.sh cell`(sweep 레코드를 쓴 **같은 트랜잭션** · 이번 셀 lite raw 를 `--lite-raw` 로) |
-| `cells/<cell>/cell.status.json#reentry.decision` + 여정 | lite ② 재발동 제안에 사람이 답한 직후 | 동 `--reentry-decide` | 사람 승인 인자 필수(`--approved-by` 발화 전사) · 제안 없는 셀은 거부 |
-| `evidence_pointers.json` | 증거 발행 직후 | 동 `--evidence-add` | `publish_benchmark_record.py`(인증서 발행 지점) · 리포트·testlog·devlog 발행자 |
-| `campaign.yaml.revisions[]` | layer-1 개정 | 동 `--revise` | 사람 승인 인자 필수 · **메인 단일 창구**(서브는 릴레이로 요청만) |
-| `grounding/<utc>.json` | 캠페인 착수·셀 축 변경 | 동 `--ground` | 서빙·트라이얼 진입 백스톱이 이 파일을 요구한다(`policy:LIBRARY_GROUNDING_FAIL_CLOSED`) |
-| `docs/logs/<node>/campaign_brief.json` | phase 전이·publish 마다 | 동 `--write-brief` | 서브 실행 스크립트 종료부 · **메인이 서브 진행을 읽는 유일한 자리** |
-| 회수 편입(서브 phase·셀·증거) | 문서 회수 직후 | 동 `--import-sub` | `fetch_sub_docs.sh` 종료부(사후 손저작 대체) |
-
-- **`ACTIVE` 가 `_bootstrap` 이면 writer 는 no-op 이다** — 캠페인 밖 평시 서빙이 빈 인스턴스에 상태를
-  쓰기 시작하면 `_bootstrap` 이 캠페인 흉내를 내게 된다.
-- **읽는 눈은 `--resume-brief`** 다(README 읽기 순서 0번). 합격 기준은 그 출력만으로 **다음 셀에
-  착수**하고 **반증된 축을 재시도하지 않는 것**이다.
-- **여정 한 줄(`--next-intent`)은 새 절차가 아니라 이미 도는 자동쓰기에 얹은 인자 하나다.** 감수하지
-  말아야 할 유실은 여정 하나이며, 벤치 결과·3+1+1 산출물은 결손 기재로 복원된다.
-
-### 배정 계층 · 전이 모드 · 감독 스텝 (2026-09-08 신설 · `plan_26090813` §4.1·§4.3)
-
-> 왜: 선언의 실행 목록이 **평면 `order`** 였다. 평면 목록은 "메인이 A·B, 서브가 C·D" 를 표현하지
-> 못했고, **표현할 수 없는 것은 배선될 수 없다** — 그래서 병렬로 돌 수 있었던 캠페인이 순차로 돌았다
-> (2026-09-07 실측: 메인 2셀 완료 → 팝업 → 응답 대기 70분 → 서브 위임).
-
-- **배정의 단일 권위는 `assignments`** 다: `{"<node_id>": [{"cell": "<id>", "mode": "AUTO|HITL|STAY"}, …]}`.
-  리스트 순서가 그 노드의 실행 순서이고, **서로 다른 노드의 리스트는 동시에 돈다**. `hint_targets[].cells`
-  는 여기서 파생된다(검증기가 부분집합을 검사한다). 옛 `order` 는 대체됐다. 캠페인 셀의 **발행 게이트**는 선언 확인
-  팝업에서 받아 `campaign_init.py --hint-approve` 로 적은 `hint_targets[].approval`(셀별 사전 Y/N · 2026-09-21 O6)이다 — 셀마다
-  멈추지 않되 무인 자동 태깅은 없다.
-- **전이 모드**는 셀이 끝난 뒤의 행동이다 — `AUTO`(기본·생략 가능) = 정리 후 다음 셀 · `HITL` = 정리 후
-  사람에게 묻고 대기(무인이라도 기다린다) · `STAY` = 벤치 뒤에도 서빙 유지. **STAY 는 각 노드 리스트의
-  마지막에만** 올 수 있다(뒤에 셀이 남으면 그 셀은 영원히 돌지 않는다 · python 수준 검사).
-  STAY 상주 컨테이너는 다음 캠페인 init 이 감지해 **예산 재확인 팝업**을 띄운다(자동 조정 ✗).
-- **셀 하나 = 릴레이 context 하나**: `<camp>-<node>-<cell>` 이 서빙→벤치를 담고 빌드는
-  `<camp>-<node>-build` 별도 문맥이다. 원장은 `campaign_node`·`campaign_context_kind`·`campaign_cell` 을
-  **선언으로** 든다(이름 추론 ✗ — 이름을 바꾸면 술어가 조용히 눈이 먼다). 2026-09-07 에는 셀 둘을 한
-  context 에 묶어 attempt 2회가 모두 시간 캡에서 잘렸다.
-- **착수 순서와 셀의 단위는 토폴로지가 정한다** — 노드별 리스트를 동시에 돌릴 수 있는지, 서브 지시서가
-  메인 첫 셀보다 먼저여야 하는지는 특화헌법
-  (`.claude/skills/terraforming_node/references/orchestration.topology.md`)이 소유한다. 술어 P4 가 그
-  시각 순서를 본다.
-- **감독은 상주가 아니라 한 걸음**이다(`relay.py --supervise-step <camp>`): 원장과 회수된 브리핑을 읽고
-  판정해 원장에 `supervisor_step` 을 적고 끝난다. 깨우는 손은 하네스의 예약 wakeup 또는 다음 세션의
-  재개다(세션 리볼빙의 응용). 판정 4분기 — `completed`→다음 셀 · 중단∧전진→**자동 재발급** ·
-  중단∧정체→팝업 · 통신·모델 붕괴 또는 선언된 비용 상한→팝업. 전진은 phase 변화 · 브리핑
-  `last_utc` · 원장(리포트 산출물·남은 일) · 회수 문서 중 하나다(phase 만 보면 긴 벤치 한 판이 정체로
-  보인다 · 신호 넷의 정의는 `terraforming_node` SKILL.md §2.7.7).
-- **진행을 막는 자리는 셋뿐이다** — 선언 확인 팝업(캠페인 시작 직전) · purge 게이트 · 발행 게이트.
-  나머지 결손은 **기재하고 진행한다**. 결정론이 과하면 캠페인이 그 자리에서 무한히 선다(사용자 경계).
-  셀 **하나**의 측정 진입을 막는 셀 출처 precheck 는 이 셋과 층이 다르다(2026-09-14 · `plan_26091407`
-  §4.0): `broad_search.sh cell` 은 캠페인 셀의 `lockset.json` 이 없거나 출처 표시(`provenance` ∈
-  `explorer-phase2` · `hand-authored`)가 없거나 목록 밖일 때 exit 2 로 멈춘다(스윕 셀 키가 캠페인 셀 id
-  와 갈라지면 그 이름의 lockset 을 못 찾아 같은 거부가 난다). 해소는 그 셀 lockset 에 출처를 표시하는
-  것이다 — 파일이 없으면 explorer materialize 또는 `hand-authored` lockset 저작, 셀 키는 캠페인 셀 id 와
-  같은 이름(손작성도 표시하면 통과한다). 판정자가 판정하지 못한 경우(검증기 부재·예외)는 같은 exit 2
-  라도 **판정 불가**로 따로 알린다 — 라벨 수정이 처방이 아니다.
-  선언과 서빙 실물의 불일치는 막지 않고 `cell.status.provenance_mismatch[]` 에 기재하며, **메인이 관측
-  가능한** 배정 셀의 표시 전수는 합격 술어 P6 가 관측한다(purge 선행조건 ✗ · 메인 인스턴스의 서브 배정
-  셀은 서브 진입 precheck 가 집행하고 P6 는 `ⓘ 관측 대상 밖` 줄로 이름만 남긴다).
+- phase 의 `proof.ok` 는 그 판정을 낸 `source` 와 함께만 적고, phase 가 실패해도 status 파일은 쓴다(부재 ≠ 실패).
+- 캠페인 산출물의 경로는 `campaigns/ACTIVE` 선언에서 파생한다 — 루트 기본값 ✗(부재 = `_bootstrap`).
+- 캠페인 상태의 바이트를 쓰는 문은 `campaign_init.py` 하나다(포맷 owner 1 · 호출부 N) — `ACTIVE=_bootstrap` 이면 writer 는 no-op.
+- 재개의 읽는 눈은 `--resume-brief` 이고, 합격 기준은 그 출력만으로 다음 셀에 착수하며 반증된 축을 재시도하지 않는 것이다.
+- 배정의 단일 권위는 `assignments` 이며(노드별 리스트는 동시에 돈다) 무인 자동 태깅은 없다 — 발행은 선언 확인 때 받은 셀별 사전 승인으로만 연다.
+- 착수 순서와 셀의 단위는 특화층 `terraforming_node` `references/orchestration.topology.md` 가 정한다.
+- 진행을 막는 자리는 셋뿐이다 — 선언 확인 팝업 · purge 게이트 · 발행 게이트. 나머지 결손은 기재하고 진행한다. 셀 하나의 측정 진입은 lockset 출처 표시가 막는다(다른 층).
 
 ### purge 게이트 — 지우기 전에 증거가 docs 평면에 도착했는가
 
-새 캠페인 init 은 **직전 인스턴스를 통째로 지운 뒤** 시작한다. 그 삭제는 아래 선행조건이 모두 참일
-때만 열린다(fail-closed).
-
-1. `campaigns/<직전>/evidence_pointers.json` 의 포인터가 **전수 실재**한다(인증서·리포트·sweep map·
-   testlog·devlog). 증거는 docs 평면에서 **태어나므로** 인스턴스를 지워도 살아남는다 — 이 검사는
-   "정말 거기서 태어났는가"를 묻는 것이다.
-2. 릴레이 요약이 testlog 로 발행돼 있다(원장 원문은 휘발이지만 서사는 남는다).
-3. **P1~P3 이 초록이다**(2026-09-07 신설 · `campaign_template_validator.instance_predicates`).
-   P1 = sweep 레코드와 `cell.status` 가 같은 말을 한다 · P2 = 벤치 증거가 도착한 노드의 bench
-   phase 가 그 사실을 반영한다 · P3 = 선언된 노드 전수에 `phases/` 가 있다. 셋 다 인스턴스 안의
-   데이터만으로 계산되는데 종전에는 하나도 없었고, 그래서 **완주 후 전부-`pending` 이 PASS** 였다.
-4. 삭제 실행자는 메인이고, 게이트는 새 캠페인 plan 의 HITL 이다.
-5. `_bootstrap/relay/` 의 옛 원장도 새 캠페인 init 때 **함께 비운다**(사용자 결정 2026-09-07).
-   `_bootstrap` 은 캠페인 밖 대기실이라 증거 포인터를 갖지 않으므로 purge 게이트의 대상이 아니지만,
-   방치하면 다음 캠페인의 정지판정과 섞인다.
-
-- 선행조건이 깨지면 purge 는 열리지 않고 **새 캠페인이 시작되지 않는다**. 증거를 흘린 채 다음 캠페인을
-  도는 것보다 멈추는 편이 싸다.
-- **종결은 purge 없이 ACTIVE 만 내린다**(`campaign_init --close <id> --utc <T> --apply` · 2026-09-15). 선행조건은
-  위 purge 게이트와 같고, 인스턴스는 남아 다음 init 의 `--purge-previous` 가 지운다. 이것이 **캠페인 사이 창**을
-  여는 유일한 정식 경로다 — 없으면 종결된 캠페인이 ACTIVE 로 남아 반대 토폴로지 체크아웃의 4자일치가 막히고,
-  남는 길은 ACTIVE 손편집(우회)뿐이다.
-- `sync_staging/` 은 purge 대상이 **아니다** — 서브 docs 회수 미러는 캠페인과 수명이 다른 루트 상시
-  자원이다(등록부 참조).
-- 완료 조건은 잔재 스캔 0 이다: 루트에 등록부 밖 항목 0 · 직전 `campaigns/<id>/` 부재.
+새 캠페인 init 의 직전 인스턴스 삭제는 fail-closed 다 — 증거 포인터 전수 실재 · 릴레이 요약 testlog 발행 · 인스턴스 술어
+P1~P3 초록이 모두 참일 때만 열리며, 실행자는 메인 · 게이트는 새 캠페인 plan HITL 이다. 깨지면 새 캠페인은 시작되지 않는다.
+종결은 purge 없이 ACTIVE 만 내리며(같은 선행조건) 이것이 캠페인 사이 창을 여는 유일한 정식 경로다 — ACTIVE 손편집 ✗.
+완료 조건은 잔재 스캔 0 이다: 루트에 등록부 밖 항목 0 · 직전 `campaigns/<id>/` 부재.
 
 ## 완료 조건
 

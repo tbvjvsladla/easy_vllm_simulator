@@ -28,7 +28,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
-AGENT_CONTROL = os.path.join(REPO, ".claude", "policies", "runtime", "agent_control.py")
+AGENT_CONTROL = os.path.join(HERE, "agent_control.py")
 ROLE_CONTRACT = os.path.join(HERE, "node_role_contract.py")
 sys.path.insert(0, HERE)
 import turn_budget  # noqa: E402
@@ -122,7 +122,7 @@ def resolve_sub_mode(topology: str, manifest: str) -> tuple[str, str]:
 def _backend_default_model(backend: str | None) -> str:
     """백엔드의 기본 모델 선언을 **어댑터에서 읽는다**(사본 ✗ · 단일 권위)."""
     import importlib.util, os as _os
-    _p = _os.path.join(REPO, ".claude", "policies", "runtime", "providers", "claude_code.py")
+    _p = _os.path.join(HERE, "providers", "claude_code.py")
     _spec = importlib.util.spec_from_file_location("_canary_provider", _p)
     _m = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(_m)
@@ -218,17 +218,13 @@ def _self_test() -> int:
             and sub["work_dir"] == "/srv/ws", "manifest nodes[sub] 5필드 해소")
         req = build_request("multi", mp, max_turns=10, timeout_seconds=600,
                             budget_source="선언: 카나리 1왕복(인스펙트 전용 · 파일 수정 없음)")
-        schema_path = os.path.join(REPO, ".claude", "schemas", "agent-control-request.schema.json")
-        with open(schema_path, encoding="utf-8") as f:
-            schema = json.load(f)
         # ★ 픽스처를 실물 폭으로: required 포함 여부만 보던 종전 검사는 **미지 필드**를 못 봤다.
         #   실제 전송 게이트(agent_control 의 구조 검증기)를 그대로 불러 대조한다.
-        sys.path.insert(0, os.path.join(REPO, ".claude", "policies", "runtime"))
         import importlib.util as _ilu
         _spec = _ilu.spec_from_file_location("_ac_validator", AGENT_CONTROL)
         _ac = _ilu.module_from_spec(_spec)
         _spec.loader.exec_module(_ac)
-        viol = _ac._schema_violations(req, schema)
+        viol = _ac.request_schema_violations(req)
         chk(viol == [], f"request 가 전송 스키마를 그대로 통과한다(위반 {viol})")
         chk(req["intent"] == "bootstrap_canary" and req["target"]["role"] == "sub"
             and req["target"]["transport"] == "ssh", "intent/target 계약")

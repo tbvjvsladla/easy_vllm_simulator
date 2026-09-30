@@ -40,7 +40,8 @@ RC_REVIVED = 3
 #   `path_re` 는 그 결함이 살던 자리이며, 다른 파일의 우연한 문자열을 잡지 않기 위한 좁힘이다.
 REMOVED_SHAPES = (
     {"id": "G-A1-sonnet-gate",
-     "path_re": r"^\.claude/policies/runtime/(providers/)?[a-z_]+\.py$",
+     # plan_26093022: agent_control·providers 는 terraforming_node 스킬로 이동했다(결함이 살던 자리를 따라간다).
+     "path_re": r"^\.claude/skills/terraforming_node/scripts/(agent_control|providers/[a-z_]+)\.py$",
      "pattern": r'request\[["\']model["\']\]\s*!=\s*["\']sonnet["\']|REQUESTED_MODEL_NOT_SONNET',
      "why": "모델 게이트 — 모델은 요청의 선언이고 실행 모델은 기록한다(G-A1)"},
     {"id": "G-A2-grade-table",
@@ -268,6 +269,78 @@ def tripwire(root=".", files=None):
     return violations
 
 
+# ── public_surface tripwire (plan_26093022 · 차단 검사 ③) ─────────────────────────────
+#   terraforming_node 의 스크립트를 스킬 **밖**(다른 스킬·기초층·훅·템플릿·헌법)이 부르는 자리는 모두
+#   SKILL.md §4 공개 표면 표에 등재된 진입점이어야 한다. 호출자 목록은 표에 적지 않는다(파생값) — 이 검사가
+#   매번 파생한다. 판단의 문은 SKILL.md 하나, 실행의 문은 N 개(레드라인 Q1)의 기계 집행점이다.
+SURFACE_SKILL = ".claude/skills/terraforming_node/"
+SURFACE_HEADING = "## 4. 공개 표면"
+SURFACE_EXCLUDE_PREFIX = (SURFACE_SKILL, "docs/", "seed/")
+SURFACE_EXCLUDE_FILES = frozenset({".claude/policies/branch_layer_ledger.json"})  # append-only 이력
+_SURF_REF = re.compile(r"terraforming_node/scripts/([\w./\-]+)")
+_SURF_JOIN = re.compile(r"""["']terraforming_node["']\s*[,/]\s*["']scripts["']((?:\s*[,/]\s*["'][\w.\-]+["'])+)""")
+_SURF_TOKEN = re.compile(r"`([^`]+)`")
+
+
+def surface_entries(skill_text):
+    """SKILL.md §4 표에서 등재 진입점(scripts/ 기준 상대경로)을 읽는다. 디렉터리 항목은 '/' 로 끝난다."""
+    if SURFACE_HEADING not in skill_text:
+        return None
+    sect = skill_text.split(SURFACE_HEADING, 1)[1].split("\n## ", 1)[0]
+    out = set()
+    for row in sect.splitlines():
+        if not row.startswith("| "):
+            continue
+        for tok in _SURF_TOKEN.findall(row.split("|")[1]):
+            tok = tok.split(SURFACE_SKILL + "scripts/", 1)[-1]
+            if tok.startswith("scripts/"):
+                tok = tok[len("scripts/"):]
+            if tok and ("/" in tok or tok.endswith((".py", ".sh"))) and " " not in tok:
+                out.add(tok)
+    return out
+
+
+def _surface_covered(ref, entries):
+    for e in entries:
+        if e.endswith("/"):
+            if ref == e.rstrip("/") or ref.startswith(e):
+                return True
+        elif ref == e or e.startswith(ref):  # 정규식 리터럴(`library_relay\.py`)은 확장자 앞에서 끊긴다
+            return True
+    return False
+
+
+def public_surface_violations(root="."):
+    skill = os.path.join(root, SURFACE_SKILL, "SKILL.md")
+    try:
+        entries = surface_entries(open(skill, encoding="utf-8").read())
+    except OSError:
+        return ["%sSKILL.md 부재 — 공개 표면 표를 읽을 수 없다" % SURFACE_SKILL]
+    if not entries:
+        return ["SKILL.md 에 '%s' 표가 없다(또는 비었다) — 외부 호출의 등재처가 사라졌다" % SURFACE_HEADING]
+    out = subprocess.run(["git", "-C", root, "ls-files", "-z"], capture_output=True)
+    bad = {}
+    for rel in out.stdout.decode("utf-8", "surrogateescape").split("\0"):
+        if not rel or rel.startswith(SURFACE_EXCLUDE_PREFIX) or rel in SURFACE_EXCLUDE_FILES:
+            continue
+        try:
+            text = open(os.path.join(root, rel), encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if "terraforming_node" not in text:
+            continue
+        for line in text.splitlines():
+            if "terraforming_node" not in line:
+                continue
+            refs = [m.group(1).rstrip(".,/:)`'\"") for m in _SURF_REF.finditer(line)]
+            refs += ["/".join(re.findall(r"""["']([\w.\-]+)["']""", m.group(1))) for m in _SURF_JOIN.finditer(line)]
+            for ref in refs:
+                if ref and not _surface_covered(ref, entries):
+                    bad.setdefault(ref, rel)
+    return ["공개 표면 밖 외부 호출: scripts/%s (첫 호출자 %s) — SKILL.md §4 표에 등재하거나 호출을 없앤다" % (r, f)
+            for r, f in sorted(bad.items())]
+
+
 def _self_test():
     import tempfile
     failures = []
@@ -288,7 +361,7 @@ def _self_test():
         check("T2 주석의 서술은 잡지 않는다(제거 사실을 적을 수 있어야 한다)",
               tripwire(d, [rel]) == [])
 
-        rel2 = ".claude/policies/runtime/providers/claude_code.py"
+        rel2 = ".claude/skills/terraforming_node/scripts/providers/claude_code.py"
         os.makedirs(os.path.join(d, os.path.dirname(rel2)))
         open(os.path.join(d, rel2), "w").write('if request["model"] != "sonnet":\n    pass\n')
         check("T3 모델 게이트 부활을 잡는다",
@@ -323,7 +396,17 @@ def _self_test():
     check("T8 저장소 현재 상태가 제거 tripwire 를 통과한다",
           live == [], "(위반 %s)" % [v["shape"] for v in live][:5])
 
-    print("[antipattern_scan --self-test] %s" % ("OK — T1~T8 전부 통과" if not failures
+    _tbl = ("x\n## 4. 공개 표면 — 전수\n\n| 진입점 | 소유 |\n|---|---|\n"
+            "| `scripts/a.py` | §1 |\n| `scripts/sub/` | §2 |\n\n## 5. 금지\n")
+    _ents = surface_entries(_tbl)
+    check("T9 공개 표면 표를 읽는다(파일·디렉터리 항목)", _ents == {"a.py", "sub/"}, _ents)
+    check("T10 표 안 호출은 통과 · 디렉터리 항목은 하위를 덮는다 · 정규식 리터럴 접두도 덮는다",
+          _surface_covered("a.py", _ents) and _surface_covered("sub/x.sh", _ents) and _surface_covered("a", _ents))
+    check("T11 표 밖 호출은 잡는다", not _surface_covered("b.py", _ents))
+    _live_surf = public_surface_violations(repo)
+    check("T12 저장소 현재 상태가 공개 표면 tripwire 를 통과한다", _live_surf == [], _live_surf[:3])
+
+    print("[antipattern_scan --self-test] %s" % ("OK — T1~T12 전부 통과" if not failures
                                                  else "FAIL %s" % failures))
     return 0 if not failures else 1
 
@@ -339,6 +422,11 @@ def main(argv=None):
     if a.self_test:
         return _self_test()
     if a.tripwire:
+        surf = public_surface_violations(a.root)
+        for msg in surf:
+            print("[antipattern_scan] SURFACE %s" % msg, file=sys.stderr)
+        if surf:
+            return RC_REVIVED
         v = tripwire(a.root, a.files)
         for x in v:
             print("[antipattern_scan] REVIVED %s — %s:%s\n    %s\n    사유: %s"

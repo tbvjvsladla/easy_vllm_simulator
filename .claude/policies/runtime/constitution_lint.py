@@ -28,6 +28,7 @@ import argparse
 import importlib.util
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -50,19 +51,18 @@ _CONTRACT_LINES = (re.compile(r"^\*\*topology:"),)
 
 
 def _layer_pathspec(root: Path) -> str:
-    """특화 파일 경로 규약을 **소유자에게서** 읽는다(여기서 리터럴을 두 번째로 적지 않는다)."""
-    path = root / ".claude/skills/terraforming_node/scripts/topology_parity.py"
-    if not path.is_file():
-        return "*.topology.md"
+    """특화 파일 경로 규약을 **소유자에게서** 읽는다(여기서 리터럴을 두 번째로 적지 않는다).
+
+    plan_26093022: 소유자가 형제 모듈(`policies/runtime/topology_parity.py`)이 됐다. 종전의 침묵 폴백
+    (부재·적재 실패 시 ``"*.topology.md"`` 로 조용히 되돌아감)은 게이트 경로의 원인 삼키기였으므로
+    제거한다 — 소유자를 못 읽으면 린트가 죽는다(fail-loud)."""
+    path = root / ".claude/policies/runtime/topology_parity.py"
     spec = importlib.util.spec_from_file_location("_constitution_lint_topology_parity", path)
-    if spec is None or spec.loader is None:
-        return "*.topology.md"
+    if not path.is_file() or spec is None or spec.loader is None:
+        raise RuntimeError(f"topology_parity owner missing: {path} -- LAYER_PATHSPEC 의 단일 소유자를 읽지 못했다")
     module = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(module)
-    except Exception:  # noqa: BLE001
-        return "*.topology.md"
-    return getattr(module, "LAYER_PATHSPEC", "*.topology.md")
+    spec.loader.exec_module(module)
+    return module.LAYER_PATHSPEC
 
 
 def _git_ls(root: Path, *pathspecs: str) -> list[str]:
@@ -85,8 +85,11 @@ def prose_files(root: Path) -> list[str]:
     """`policy:` 인용이 살 수 있는 산문 전수 -- 스킬 문서까지 본다.
 
     유령 ID 세 자리 중 하나가 스킬 문서에 있었다. 헌법만 훑으면 그 자리를 영원히 못 본다.
+    plan_26093022: 스킬 본문이 `references/` 로 내려가면서 그 자리도 본다 — 옮긴 `policy:` 인용이
+    유령 검사 밖으로 새지 않게 한다.
     """
-    return sorted(set(constitution_files(root) + _git_ls(root, ".claude/skills/*/SKILL.md")))
+    return sorted(set(constitution_files(root) + _git_ls(root, ".claude/skills/*/SKILL.md",
+                                                          ".claude/skills/*/references/**/*.md")))
 
 
 def _normalize(line: str) -> str:
@@ -146,6 +149,30 @@ def ghost_policy_ids(root: Path) -> list[dict]:
             for k, v in sorted(ghosts.items())]
 
 
+_DATED_NARRATIVE = re.compile(r"\(20\d\d-\d\d-\d\d[^)]*(신설|개정|정정|명문화|이관|강등)")
+
+
+def skill_router_observation(root: Path) -> dict:
+    """terraforming_node 라우터의 관측값(plan_26093022 · 합격선이 아니다 — 정량 상한은 두지 않는다)."""
+    skill = root / ".claude/skills/terraforming_node/SKILL.md"
+    try:
+        lines = skill.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return {"error": f"부재: {skill}"}
+    refs = _git_ls(root, ".claude/skills/terraforming_node/references/**/*.md",
+                   ".claude/skills/terraforming_node/references/*.md")
+    ref_lines = 0
+    for rel in refs:
+        try:
+            ref_lines += len((root / rel).read_text(encoding="utf-8").splitlines())
+        except (OSError, UnicodeDecodeError):
+            continue
+    return {"skill_md_lines": len(lines),
+            "dated_narrative_lines": sum(1 for l in lines if _DATED_NARRATIVE.search(l)),
+            "references_files": len(set(refs)), "references_lines": ref_lines,
+            "note": "관측만 -- 줄 수·서사 비율은 합격 조건이 아니다(plan_26091210 §3.8)"}
+
+
 def lint(root: Path) -> dict:
     return {
         "schema_version": 1,
@@ -153,6 +180,7 @@ def lint(root: Path) -> dict:
         "duplicate_sentences": duplicate_lines(root),
         "always_loaded": always_loaded_bytes(root),
         "ghost_policy_ids": ghost_policy_ids(root),
+        "skill_router": skill_router_observation(root),
     }
 
 
@@ -170,6 +198,10 @@ def _render(res: dict) -> str:
         out.append(f"      {d['sentence']}")
     if len(dups) > 20:
         out.append(f"    ... 외 {len(dups) - 20}건(전수는 --format json)")
+    sr = res.get("skill_router") or {}
+    if "error" not in sr:
+        out.append(f"  terraforming_node 라우터(관측) SKILL.md {sr['skill_md_lines']}줄 · 날짜 개정 서사 "
+                   f"{sr['dated_narrative_lines']}줄 · references {sr['references_files']}파일/{sr['references_lines']}줄")
     ghosts = res["ghost_policy_ids"]
     out.append(f"  유령 정책 ID {len(ghosts)}건")
     for g in ghosts:
@@ -189,7 +221,10 @@ def _self_test() -> int:
         root = Path(td)
         subprocess.run(["git", "init", "-q", "-b", "single-node", str(root)], check=True)
         (root / ".claude/rules").mkdir(parents=True)
-        (root / ".claude/policies").mkdir(parents=True)
+        (root / ".claude/policies/runtime").mkdir(parents=True)
+        # 특화층 경로 규약의 소유자(기초층 형제 모듈)를 픽스처에도 둔다 — 부재면 린트는 fail-loud 다.
+        shutil.copy2(Path(__file__).resolve().parent / "topology_parity.py",
+                     root / ".claude/policies/runtime/topology_parity.py")
         (root / ".claude/policies/registry.yaml").write_text(
             json.dumps({"schema_version": 2, "policies": [{"policy_id": "REAL_ONE"}]}),
             encoding="utf-8")

@@ -13,7 +13,7 @@
       "clauses": [
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C1",
-          "statement": "Layered defense = a systemd-resident mem_watchdog (broad @vllm mode) plus a harness-scoped watchdog instance auto-started by run_trial/multinode_serve_smoke.sh, container oom_score_adj=800, earlyoom as a process-level backstop, and a pre-load RAM gate that compares checkpoint total_size/TP plus a floor against MemAvailable. Broad mode selects kill targets by matching vllm against the container name and the image *repository* name only -- the registry and organisation path segments are outside the matching plane, so a measurement tool published under a vllm-named organisation is not killed alongside the server it is measuring, while servers whose container name carries no vllm are still caught through the image."
+          "statement": "Layered defense = a systemd-resident mem_watchdog (broad @vllm mode) plus a harness-scoped watchdog instance auto-started by run_trial/multinode_serve_smoke.sh, container oom_score_adj=800, earlyoom as a process-level backstop, and a pre-load RAM gate that compares checkpoint total_size/TP plus a floor against MemAvailable. Broad mode selects kill targets by matching vllm against the container name and the image repository name only; registry and organisation path segments are outside the matching plane (rationale: terraforming_node references/blackbox/policy_rationale.md §C1)."
         },
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C2",
@@ -37,7 +37,7 @@
         },
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C7",
-          "statement": "Post-mortem capture on unified-memory nodes is efi_pstore (NVRAM), not kdump: node-blackbox level L3 removes crashkernel and ramoops and disarms kdump-tools, because with kdump armed panic() jumps to __crash_kexec before kmsg_dump (crash_kexec_post_notifiers=N) so pstore can never be written, while the reservation costs 2.25 GiB of the very resource whose exhaustion causes the hard-down; on this platform ramoops additionally cannot survive a reset (an identical reserve_mem address across boots still yields 'error in header' after a clean reboot) and makedumpfile does not support kernel 6.17 so vmcore is structurally unavailable. L3 requires one reboot and stays an explicit HITL step, the legacy installer's --with-kdump is refused with that reason rather than silently removed, multi-node additionally cross-streams kmsg to the peer via netconsole, and capture is claimed only after verify_node_blackbox.sh --crash-test/--post-crash writes capture_verified."
+          "statement": "Post-mortem capture on unified-memory nodes is efi_pstore, not kdump: node-blackbox level L3 removes crashkernel and ramoops and disarms kdump-tools (one reboot, explicit HITL), the legacy installer's --with-kdump is refused with that reason rather than silently removed, multi-node additionally cross-streams kmsg to the peer via netconsole, and capture is claimed only after verify_node_blackbox.sh --crash-test/--post-crash writes capture_verified (rationale: terraforming_node references/blackbox/policy_rationale.md §C7)."
         },
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C8",
@@ -45,7 +45,7 @@
         },
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C9",
-          "statement": "Removal of the legacy host-safety installation is a separate, non-installing script (node_blackbox/purge_host_safety.sh) so no node is ever left in a partially applied purge-plus-reinstall state: it defaults to dry-run and destroys only when a human re-invokes it with --apply as root; it refuses to run before the Phase 0 journal harvest unless the operator explicitly waives the gate with --no-require-seed or names a stored seed with --seed-dir, because the mem_watchdog journal is the envelope's only initial data and is unrecoverable once the unit is removed and its journal vacuumed; every destructive step propagates its rc into a single FAIL verdict so a failed removal can never print a clean purge verdict that a reinstall would then build on; stray narrow-scope watchdog processes are terminated by PID resolved through argv field anchors only, never by a blanket pgrep -f/pkill -f match; and the GRUB config is copied to a verified backup before regeneration, with residue judged only from a readable grub.cfg -- an unreadable file is reported as undecidable, never as clean."
+          "statement": "Removal of the legacy host-safety installation is only the separate non-installing script node_blackbox/purge_host_safety.sh: dry-run by default and destructive only on a human root --apply; refused before the Phase 0 journal harvest unless waived with --no-require-seed or given --seed-dir; every destructive step's rc folds into a single FAIL verdict; stray narrow-scope watchdogs are terminated by PID resolved through argv field anchors only, never pgrep -f/pkill -f; GRUB is regenerated only after a verified backup, and an unreadable grub.cfg is reported as undecidable, never as clean (rationale: terraforming_node references/blackbox/policy_rationale.md §C9)."
         },
         {
           "clause_id": "HOST_SAFETY_LAYERED_DEFENSE.C10",
@@ -1337,7 +1337,7 @@
         },
         {
           "clause_id": "TERRAFORM_FLAG_GATE.C2",
-          "statement": "Flag absence keeps the three runtime skills (upstream, recipe, adversarial) info-only: informational/advisory answers and HF lookups are fine, but no environment-specific deliverable may be generated -- fabricating a plausible answer without real HW facts is exactly what this blocks."
+          "statement": "Flag absence keeps the three runtime skills (upstream, recipe, adversarial) info-only: informational/advisory answers and HF lookups are allowed, but no environment-specific deliverable may be generated."
         },
         {
           "clause_id": "TERRAFORM_FLAG_GATE.C3",
@@ -1503,7 +1503,7 @@
           "assertion_ids": ["cmd_authorize"]
         },
         {
-          "path": ".claude/policies/runtime/agent_control.py",
+          "path": ".claude/skills/terraforming_node/scripts/agent_control.py",
           "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"],
           "assertion_ids": ["_request_contract_violations", "cmd_invoke"]
         },
@@ -1750,7 +1750,7 @@
         },
         {
           "clause_id": "ROOT_SURFACE_REGISTRY.C3",
-          "statement": "Information moves between campaign stages through artifacts, never through conversation memory: each stage reads the declaration and status files the previous stage wrote and fills its own blanks, a phase records both its result and a proof carrying the command or file that produced the judgement, a failed phase still writes its status file so absence and failure stay distinguishable, and every producer derives its output path from the active campaign declaration with no root default left in place."
+          "statement": "Campaign stages exchange information through artifacts, not conversation memory: a phase records its result with a proof carrying the producing command or file, a failed phase still writes its status file, and every producer derives its output path from the active campaign declaration with no root default (procedure: terraforming_node references/campaign/phases.md)."
         }
       ],
       "evidence": [
@@ -1889,11 +1889,11 @@
         },
         {
           "clause_id": "LIBRARY_GROUNDING_FAIL_CLOSED.C4",
-          "statement": "Publication feeds the shelf: evidence_publisher finalize and the publish phase writer both trigger an incremental warm-start intake, and a grounding query warms the shelf before asking. A stale shelf's 'nothing found' is a false negative, not an absence -- on 2026-09-08 the shelf was five days and 147 documents behind while the relevant material existed on disk."
+          "statement": "Publication feeds the shelf: evidence_publisher finalize and the publish phase writer both trigger an incremental warm-start intake, and a grounding query warms the shelf before asking; a stale shelf's 'nothing found' is a false negative, not an absence."
         },
         {
           "clause_id": "LIBRARY_GROUNDING_FAIL_CLOSED.C5",
-          "statement": "A sub's library_request is answered automatically: the relay carries pending requests to the librarian through library_relay and loads the export into the next turn's task body, including -- when the librarian found nothing -- the explicit instruction to record a grounding_gap and proceed. The librarian stays main-only; the sub says what it is looking for and never searches the library itself."
+          "statement": "A sub's library_request is answered by the relay: pending requests reach the librarian through library_relay and the export (or, when nothing was found, the instruction to record a grounding_gap and proceed) is loaded into the next turn's task body; the librarian stays main-only and the sub never searches the library itself."
         }
       ],
       "evidence": [
@@ -2000,6 +2000,15 @@
           ]
         },
         {
+          "path": ".claude/skills/wiki-desk/scripts/init_wiki_desk.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C4"
+          ],
+          "assertion_ids": [
+            "main"
+          ]
+        },
+        {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C5"
@@ -2082,7 +2091,7 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+          "path": ".claude/policies/runtime/topology_parity.py",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C1"
           ],
@@ -2112,7 +2121,7 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+          "path": ".claude/policies/runtime/topology_parity.py",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C2"
           ],
@@ -2174,7 +2183,7 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+          "path": ".claude/policies/runtime/topology_parity.py",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C5"
           ],

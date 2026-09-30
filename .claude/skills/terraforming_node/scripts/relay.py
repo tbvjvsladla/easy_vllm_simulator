@@ -35,7 +35,7 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
-AGENT_CONTROL = os.path.join(REPO, ".claude", "policies", "runtime", "agent_control.py")
+AGENT_CONTROL = os.path.join(HERE, "agent_control.py")
 sys.path.insert(0, HERE)
 import turn_budget  # noqa: E402
 import bootstrap_canary as _canary  # noqa: E402  (manifest → target 해소를 재사용)

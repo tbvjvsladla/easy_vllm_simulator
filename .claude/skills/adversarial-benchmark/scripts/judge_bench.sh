@@ -101,7 +101,7 @@ REPO="$(git -C "$SDIR" rev-parse --show-toplevel 2>/dev/null || pwd)"
 if [ -z "$TOPO" ]; then
   # ★ 2026-09-14(⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고 브랜치로 추론하지 않는다"): 종전 관용구는
   #   브랜치 이름에서 토폴로지를 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 —
-  #   서명 카드 노드는 카드↔자기 manifest, 메인은 4자일치 술어(topology_parity), 둘 다 아니면 fail-loud.
+  #   카드 노드(unsigned capability Card)는 카드↔자기 manifest, 메인은 4자일치 술어(topology_parity), 둘 다 아니면 fail-loud.
   _TOPO_RC=0; TOPO="$(python3 "$SDIR/resolve_topology.py" --repo "$REPO")" || _TOPO_RC=$?
   if [ "$_TOPO_RC" != 0 ]; then
     echo "[judge_bench] ERROR 토폴로지를 정하지 못했다(위 사유) — --topology single|multi 로 명시하라(브랜치 이름으로 고르지 않는다)" >&2
