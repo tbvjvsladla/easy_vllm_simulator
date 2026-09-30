@@ -48,7 +48,7 @@ SYNC_TO_SUB = f"{UVW}/sync_to_sub.sh"
 SYNC_BRANCHES = f"{UVW}/sync_branches.sh"
 LAYER_LEDGER = f"{UVW}/layer_ledger.py"
 CLOSING = f"{UVW}/closing_sequence.sh"
-PARITY = f"{TN}/topology_parity.py"
+PARITY = ".claude/policies/runtime/topology_parity.py"
 CAMPAIGN_INIT = f"{TN}/campaign_init.py"
 RENDER = f"{TN}/render_sub_env.py"
 GATE = ".claude/policies/runtime/completion_gate.py"
@@ -264,6 +264,9 @@ def test_render_guard() -> None:
         (repo / TN).mkdir(parents=True)
         for py in sorted((REAL / TN).glob("*.py")):
             shutil.copy2(py, repo / TN / py.name)
+        # 4자일치 술어의 정본은 기초층 런타임이다(plan_26093022) — 렌더러가 스킬→기초층 방향으로 import 한다.
+        (repo / PARITY).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REAL / PARITY, repo / PARITY)
         _write(repo, TOPOLOGY_RULES, "# 특화헌법 픽스처\n\n**topology: multi** · layer: topology\n")
         absent_manifest = str(sb.root / "no-such-manifest.yaml")
         before = _tree_snapshot(repo)

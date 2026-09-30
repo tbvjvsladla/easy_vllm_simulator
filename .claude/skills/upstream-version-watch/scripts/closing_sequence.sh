@@ -59,7 +59,7 @@ while [ $# -gt 0 ]; do
 done
 
 REPO="$(cd -- "${REPO:-$SELF_DIR/../../../..}" >/dev/null 2>&1 && pwd -P)"
-PARITY="$REPO/.claude/skills/terraforming_node/scripts/topology_parity.py"
+PARITY="$REPO/.claude/policies/runtime/topology_parity.py"
 LEDGER="$REPO/.claude/skills/upstream-version-watch/scripts/layer_ledger.py"
 SYNC="$REPO/.claude/skills/upstream-version-watch/scripts/sync_branches.sh"
 SUBSYNC="$REPO/.claude/skills/upstream-version-watch/scripts/sync_to_sub.sh"

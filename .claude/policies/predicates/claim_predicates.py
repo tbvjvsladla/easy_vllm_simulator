@@ -3337,7 +3337,7 @@ def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2():
 
 def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3():
     """Authenticated transport and execution authorization remain separate gates."""
-    control = _read(".claude/policies/runtime/agent_control.py")
+    control = _read(".claude/skills/terraforming_node/scripts/agent_control.py")
     gate = _read(".claude/policies/runtime/completion_gate.py")
     _require("role/transport mismatch" in control and "allowed_actions" in gate,
              "SSH transport must not imply arbitrary action authorization")
@@ -4167,7 +4167,7 @@ def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C5():
 
 def _topology_parity():
     """4자일치 술어를 소유자에게서 적재한다(규약 문자열을 여기서 두 번째로 적지 않는다)."""
-    return _import(".claude/skills/terraforming_node/scripts", "topology_parity")
+    return _import(".claude/policies/runtime", "topology_parity")
 
 
 def _layer_fixture(tmp: str, header_topology: str, *, branch: str = "single-node") -> "Path":
@@ -4203,7 +4203,7 @@ def predicate_BRANCH_CONSTITUTION_LAYERING_C1():
              "동기화가 특화층을 제외하지 않는다 -- 두 자리가 갈라지면 다음 sync 가 특화 파일을 "
              "반대 브랜치로 실어 두 브랜치를 다시 같게 만든다")
 
-    src = _read(".claude/skills/terraforming_node/scripts/topology_parity.py")
+    src = _read(".claude/policies/runtime/topology_parity.py")
     body = src[src.index("def layer_files("):src.index("def _load_manifest(")]
     _require("ls-files" in body and ".glob(" not in body,
              "특화층 열거는 git 이 해야 한다 -- pathlib 의 `**` 의미가 git 과 달라 두 집합이 갈린다")
@@ -4230,7 +4230,7 @@ def predicate_BRANCH_CONSTITUTION_LAYERING_C2():
     """
     tp = _topology_parity()
     _require(tp.HEADER_WINDOW >= 1, "헤더 창이 비었다")
-    src = _read(".claude/skills/terraforming_node/scripts/topology_parity.py")
+    src = _read(".claude/policies/runtime/topology_parity.py")
     _require("frontmatter" in src and "문서화된 동작이 아니" in src,
              "본문 선언을 택한 사유가 파일에서 사라지면 다음 사람이 frontmatter 로 되돌린다")
 

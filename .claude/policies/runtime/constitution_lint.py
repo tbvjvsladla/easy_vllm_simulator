@@ -50,19 +50,18 @@ _CONTRACT_LINES = (re.compile(r"^\*\*topology:"),)
 
 
 def _layer_pathspec(root: Path) -> str:
-    """특화 파일 경로 규약을 **소유자에게서** 읽는다(여기서 리터럴을 두 번째로 적지 않는다)."""
-    path = root / ".claude/skills/terraforming_node/scripts/topology_parity.py"
-    if not path.is_file():
-        return "*.topology.md"
+    """특화 파일 경로 규약을 **소유자에게서** 읽는다(여기서 리터럴을 두 번째로 적지 않는다).
+
+    plan_26093022: 소유자가 형제 모듈(`policies/runtime/topology_parity.py`)이 됐다. 종전의 침묵 폴백
+    (부재·적재 실패 시 ``"*.topology.md"`` 로 조용히 되돌아감)은 게이트 경로의 원인 삼키기였으므로
+    제거한다 — 소유자를 못 읽으면 린트가 죽는다(fail-loud)."""
+    path = root / ".claude/policies/runtime/topology_parity.py"
     spec = importlib.util.spec_from_file_location("_constitution_lint_topology_parity", path)
-    if spec is None or spec.loader is None:
-        return "*.topology.md"
+    if not path.is_file() or spec is None or spec.loader is None:
+        raise RuntimeError(f"topology_parity owner missing: {path} -- LAYER_PATHSPEC 의 단일 소유자를 읽지 못했다")
     module = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(module)
-    except Exception:  # noqa: BLE001
-        return "*.topology.md"
-    return getattr(module, "LAYER_PATHSPEC", "*.topology.md")
+    spec.loader.exec_module(module)
+    return module.LAYER_PATHSPEC
 
 
 def _git_ls(root: Path, *pathspecs: str) -> list[str]:

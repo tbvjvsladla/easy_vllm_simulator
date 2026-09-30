@@ -151,7 +151,7 @@ ROOT_RELOCATION_TOMBSTONES=(
 # canonical Git object -> destination index -> materialized bytes/mode for every entry before the
 # first tombstone deletion.  This is deliberately explicit: widening/globbing would weaken review.
 ROOT_RELOCATION_REPLACEMENTS=(
-    .claude/policies/runtime/agent_control.py
+    .claude/skills/terraforming_node/scripts/agent_control.py
     .claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py
     .claude/policies/runtime/completion_gate.py
     .claude/skills/wiki-desk/scripts/doc_naming.py
@@ -163,7 +163,7 @@ ROOT_RELOCATION_REPLACEMENTS=(
     .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh
     .claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh
     .claude/policies/runtime/policy_registry.py
-    .claude/policies/runtime/providers/claude_code.py
+    .claude/skills/terraforming_node/scripts/providers/claude_code.py
     .claude/skills/upstream-version-watch/scripts/smoke_clone.sh
     .claude/skills/upstream-version-watch/scripts/sync_branches.sh
     .claude/skills/terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service
@@ -627,7 +627,7 @@ fi
 #
 # ★ 선행 `**/` 를 쓰지 않는 이유: git pathspec 의 선행 `**/` 는 디렉터리 0개를 매치하지 않아
 #   루트 파일이 빠져나간다(실측). 이 문자열의 단일 권위는
-#   `.claude/skills/terraforming_node/scripts/topology_parity.py` 의 `LAYER_EXCLUDE_PATHSPEC` 이고,
+#   `.claude/policies/runtime/topology_parity.py` 의 `LAYER_EXCLUDE_PATHSPEC` 이고,
 #   여기 리터럴과의 일치는 runtime_selftest 의 tripwire 가 교차검증한다(정적 파일끼리는 한쪽이
 #   다른 쪽을 생성할 수 없으므로 교차검증이 차선이다).
 PATHS+=(':(exclude)*.topology.md')

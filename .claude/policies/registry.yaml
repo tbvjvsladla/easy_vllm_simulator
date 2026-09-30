@@ -1503,7 +1503,7 @@
           "assertion_ids": ["cmd_authorize"]
         },
         {
-          "path": ".claude/policies/runtime/agent_control.py",
+          "path": ".claude/skills/terraforming_node/scripts/agent_control.py",
           "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"],
           "assertion_ids": ["_request_contract_violations", "cmd_invoke"]
         },
@@ -2082,7 +2082,7 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+          "path": ".claude/policies/runtime/topology_parity.py",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C1"
           ],
@@ -2112,7 +2112,7 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+          "path": ".claude/policies/runtime/topology_parity.py",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C2"
           ],
@@ -2174,7 +2174,7 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+          "path": ".claude/policies/runtime/topology_parity.py",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C5"
           ],

@@ -29,7 +29,7 @@ EXIT_USAGE = 2
 EXIT_UNTERRAFORMED = 3
 EXIT_UNRESOLVED = 5
 
-PARITY_REL = os.path.join(".claude", "skills", "terraforming_node", "scripts", "topology_parity.py")
+PARITY_REL = os.path.join(".claude", "policies", "runtime", "topology_parity.py")
 TAG = "[resolve_topology]"
 
 

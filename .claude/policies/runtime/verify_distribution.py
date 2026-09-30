@@ -47,7 +47,7 @@ LOCAL_TOMBSTONES = {
     "scripts/templates/hint_recipe.template.md",
 }
 LOCAL_REPLACEMENTS = {
-    ".claude/policies/runtime/agent_control.py",
+    ".claude/skills/terraforming_node/scripts/agent_control.py",
     ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py",
     ".claude/policies/runtime/completion_gate.py",
     ".claude/skills/wiki-desk/scripts/doc_naming.py",
@@ -62,7 +62,7 @@ LOCAL_REPLACEMENTS = {
     ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
     ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
     ".claude/policies/runtime/policy_registry.py",
-    ".claude/policies/runtime/providers/claude_code.py",
+    ".claude/skills/terraforming_node/scripts/providers/claude_code.py",
     ".claude/skills/upstream-version-watch/scripts/smoke_clone.sh",
     ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
     ".claude/skills/terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service",

@@ -114,7 +114,7 @@ GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.py"
 # 막힘 3분류: **정상 차단**이다. 우회 인자·환경변수는 없다. 해소는 맞는 체크아웃에서 맞는 --branch 로 다시 도는 것뿐이다
 #   (종료 시퀀스 ⑥ 은 `topology_parity --format value` 로 이 값을 정하므로 늘 통과한다).
 TOPOLOGY_GUARD_EXIT=12
-PARITY_SCRIPT="$REPO_ROOT/.claude/skills/terraforming_node/scripts/topology_parity.py"
+PARITY_SCRIPT="$REPO_ROOT/.claude/policies/runtime/topology_parity.py"
 GUARD_SRC="${SRC:-$REPO_ROOT/}"
 GUARD_SRC="${GUARD_SRC%/}"
 # 안내는 **원인별**이다(2026-09-14 ⑧-pre D2 리뷰): 4자일치 RED 를 한 문장으로 뭉개면, --branch 는 맞는데 manifest·캠페인

@@ -144,6 +144,8 @@ sys.path.insert(0, HERE)
 import node_role_contract as _contract  # noqa: E402  (형제 스크립트 — 위 sys.path 선행 필요)
 import agent_card_contract as _acc      # noqa: E402  Agent Card metadata contract
 import manifest_contract as _mc         # noqa: E402  서브 manifest Flag 계약 리더(§7.3)
+# topology_parity 는 기초층 런타임이다(plan_26093022 · 게이트·selftest 가 부르는 코드) — 스킬→기초층 방향 import.
+sys.path.insert(0, os.path.join(HERE, "..", "..", "..", "policies", "runtime"))
 import topology_parity as _parity       # noqa: E402  특화헌법 자기선언 파서의 단일 소유자(policy BRANCH_CONSTITUTION_LAYERING C2)
 
 PLACEHOLDER_RE = re.compile(r"\{\{\s*([A-Z_]+)\s*\}\}")

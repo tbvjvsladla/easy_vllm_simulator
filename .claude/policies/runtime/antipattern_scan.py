@@ -40,7 +40,8 @@ RC_REVIVED = 3
 #   `path_re` 는 그 결함이 살던 자리이며, 다른 파일의 우연한 문자열을 잡지 않기 위한 좁힘이다.
 REMOVED_SHAPES = (
     {"id": "G-A1-sonnet-gate",
-     "path_re": r"^\.claude/policies/runtime/(providers/)?[a-z_]+\.py$",
+     # plan_26093022: agent_control·providers 는 terraforming_node 스킬로 이동했다(결함이 살던 자리를 따라간다).
+     "path_re": r"^\.claude/skills/terraforming_node/scripts/(agent_control|providers/[a-z_]+)\.py$",
      "pattern": r'request\[["\']model["\']\]\s*!=\s*["\']sonnet["\']|REQUESTED_MODEL_NOT_SONNET',
      "why": "모델 게이트 — 모델은 요청의 선언이고 실행 모델은 기록한다(G-A1)"},
     {"id": "G-A2-grade-table",
@@ -288,7 +289,7 @@ def _self_test():
         check("T2 주석의 서술은 잡지 않는다(제거 사실을 적을 수 있어야 한다)",
               tripwire(d, [rel]) == [])
 
-        rel2 = ".claude/policies/runtime/providers/claude_code.py"
+        rel2 = ".claude/skills/terraforming_node/scripts/providers/claude_code.py"
         os.makedirs(os.path.join(d, os.path.dirname(rel2)))
         open(os.path.join(d, rel2), "w").write('if request["model"] != "sonnet":\n    pass\n')
         check("T3 모델 게이트 부활을 잡는다",

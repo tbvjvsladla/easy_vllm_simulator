@@ -27,7 +27,7 @@
         "assertion_ids": ["cmd_authorize"]
       },
       {
-        "path": ".claude/policies/runtime/agent_control.py",
+        "path": ".claude/skills/terraforming_node/scripts/agent_control.py",
         "assertion_ids": ["_request_contract_violations", "cmd_invoke"]
       },
       {
@@ -1287,7 +1287,7 @@
         ]
       },
       {
-        "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+        "path": ".claude/policies/runtime/topology_parity.py",
         "assertion_ids": [
           "LAYER_SUFFIX",
           "LAYER_PATHSPEC",
@@ -1310,7 +1310,7 @@
         ]
       },
       {
-        "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+        "path": ".claude/policies/runtime/topology_parity.py",
         "assertion_ids": [
           "_HEADER_DECL",
           "HEADER_WINDOW",
@@ -1360,7 +1360,7 @@
         ]
       },
       {
-        "path": ".claude/skills/terraforming_node/scripts/topology_parity.py",
+        "path": ".claude/policies/runtime/topology_parity.py",
         "assertion_ids": [
           "evaluate",
           "BRANCH_TO_TOPOLOGY"
