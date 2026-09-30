@@ -1472,6 +1472,36 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-202609302024",
+      "utc": "2026-09-30T20:24:41Z",
+      "departure": "multi-node",
+      "departure_commit": "5e39983d78b6efc316f755efc24d29b90860b7cb",
+      "approved_by": "coag-ash (종료 시퀀스 ③ 팝업: \"승인 (추천)\" — 3행 common_promote · 동기화만 · 2026-10-01 KST)",
+      "approved_utc": "2026-09-30T20:24:41Z",
+      "_reach": "single-node vs HEAD 트리차이",
+      "_note": "plan_26100105 후속 — 서브 지침 지원 배달분 · 카나리 지시문.",
+      "classification": [
+        {
+          "file": ".claude/skills/terraforming_node/scripts/bootstrap_canary.py",
+          "verdict": "common_promote",
+          "reason": "카나리 지시문 교정 — 양 토폴로지 공통 카나리 도구(모드별 문구 분기는 안에 있다)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "지원 배달분 placeholder·self-test — 양 모드 렌더러(공통 도구)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/CLAUDE.template.md",
+          "verdict": "common_promote",
+          "reason": "서브 지침 템플릿 — MODE 블록으로 양 토폴로지를 한 파일이 든다(공통)",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
