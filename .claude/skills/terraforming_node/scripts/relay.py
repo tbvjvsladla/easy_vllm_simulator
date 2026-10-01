@@ -114,8 +114,8 @@ def last_known_session(doc: dict) -> dict:
             "control_status": None, "budget_outcome": None}
 
 
-END_REASONS = ("completed", "sub_input_required", "sub_failed", "budget_exhausted",
-               "external_interruption", "permission_denied", "malformed_output",
+END_REASONS = ("completed", "completed_with_denials", "sub_input_required", "sub_failed",
+               "budget_exhausted", "external_interruption", "permission_denied", "malformed_output",
                "invalid_request", "model_blocked", "transport_or_launch_failure",
                "runner_unavailable", "unclassified")
 
@@ -131,7 +131,11 @@ def end_reason(att: dict) -> str:
     codes = att.get("reason_codes") or []
     control, sub = att.get("control_status"), att.get("status")
     if "PERMISSION_DENIED" in codes:
-        return "permission_denied"
+        # ★ 2026-10-01(plan_26100113 D2 · F7): 거부는 **사건**이고 완수 여부는 **리포트**가 말한다. 종전에는 거부 1건이
+        #   과업 전체를 실패로 접었다 — 라이브에서 서브가 `/tmp` 쓰기 1건을 거부당한 뒤 서빙·lite·testlog·teardown 을
+        #   모두 마치고 completed 리포트를 냈는데 원장은 permission_denied(팝업)였다. 리포트가 파싱되고 completed 일 때만
+        #   가른다 — 리포트 부재·다른 status 는 종전대로 permission_denied 다. 거부 목록은 원장에 남는다(숨기지 않는다).
+        return "completed_with_denials" if sub == "completed" else "permission_denied"
     # 2026-09-08: 러너(백엔드×모델) 평면이 실패했다. **예산도 전송도 아니다** — 처방은 회전이고,
     #   그래서 라벨을 따로 둔다(같은 이름이면 감독이 같은 처방을 낸다).
     if RUNNER_UNAVAILABLE in codes:
@@ -581,6 +585,16 @@ def parse_runner_evidence(result: dict) -> dict | None:
     return ev if isinstance(ev, dict) else {"signal": "unparsed", "rotate": False}
 
 
+def _denial_block(result: dict):
+    """provider 가 거부 시 output 머리에 싣는 `[permission_denials] …` 블록을 그대로 돌려준다(없으면 None)."""
+    if "PERMISSION_DENIED" not in (result.get("reason_codes") or []):
+        return None
+    out = result.get("output")
+    if not isinstance(out, str) or not out.startswith("[permission_denials]"):
+        return None
+    return out.split("\n\n[서브가 남긴 말]", 1)[0]
+
+
 def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, report=None,
                    resume_declared=None, request_path=None, runner=None,
                    started_utc=None, ended_utc=None) -> dict:
@@ -631,6 +645,9 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
         "runner_evidence": parse_runner_evidence(result),
         "control_status": result.get("status"),
         "reason_codes": result.get("reason_codes") or [],
+        # 2026-10-01(plan_26100113 D2): 거부 상세(provider 가 output 머리에 실은 블록). 완수 리포트가 파싱되면
+        #   reports 파일의 raw_output 은 비므로, 거부 사실을 남기는 자리는 여기뿐이다 — 숨기지 않는다.
+        "permission_denials": _denial_block(result),
         "status": report.get("status"),
         "phase": report.get("phase"),
         # 2026-09-04(감사 D6): 서브가 회신한 정체성을 **그대로** 남기고 대조는 소비자가 한다.
@@ -884,24 +901,28 @@ def pending_for(repo_root: str, context_id: str) -> list:
 
 
 def parse_report(output: str):
-    """서브 리포트는 JSON 1개다. 산문에 섞여 와도 마지막 JSON 객체를 집는다 — 못 찾으면 None."""
+    """서브 리포트는 JSON 1개다. 산문에 섞여 와도 마지막 JSON 객체를 집는다 — 못 찾으면 None.
+
+    ★ 2026-10-01(plan_26100113 F7): 종전 판본은 괄호 깊이를 셌다. 그러면 앞에 **잘린 JSON** 이 하나 있을 때
+      (권한 거부 상세는 도구 입력을 240자에서 자른다) 깊이가 0 으로 돌아오지 않아, 뒤따르는 **완전한 리포트**까지
+      못 찾는다 — 라이브에서 completed 리포트가 "JSON 객체 없음" 으로 집계됐다. 이제 `{` 마다 디코딩을 시도하고,
+      성공하면 그 객체 끝으로 건너뛴다(안쪽의 중첩 객체를 따로 집지 않는다). 추측 파싱은 여전히 없다 — 온전한 JSON
+      객체만 집는다.
+    """
     if not isinstance(output, str):
         return None
-    depth, start = 0, None
-    best = None
-    for i, ch in enumerate(output):
-        if ch == "{":
-            if depth == 0:
-                start = i
-            depth += 1
-        elif ch == "}" and depth:
-            depth -= 1
-            if depth == 0 and start is not None:
-                try:
-                    best = json.loads(output[start:i + 1])
-                except ValueError:
-                    pass
-    return best if isinstance(best, dict) else None
+    dec = json.JSONDecoder()
+    best, i = None, output.find("{")
+    while i >= 0:
+        try:
+            obj, end = dec.raw_decode(output, i)
+        except ValueError:
+            i = output.find("{", i + 1)
+            continue
+        if isinstance(obj, dict):
+            best = obj
+        i = output.find("{", end)
+    return best
 
 
 def load_report(repo_root: str, att: dict):
@@ -1137,6 +1158,11 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
     reason = last.get("end_reason")
     if reason == "completed":
         return {"action": "next_cell", "reason": "직전 attempt 가 completed 다 — 이 셀은 끝났다",
+                "cell": doc.get("campaign_cell")}
+    if reason == "completed_with_denials":
+        # 거부는 원장(`permission_denials`)에 남아 있다 — 완수를 막지 않되 다음 사람이 볼 수 있게 사유에 적는다.
+        return {"action": "next_cell",
+                "reason": "직전 attempt 가 completed 다(권한 거부 사건 동반 — 원장 permission_denials 참조) — 이 셀은 끝났다",
                 "cell": doc.get("campaign_cell")}
     if reason == "permission_denied":
         # ★ 2026-09-08 라이브 교정: 종전 문구는 "모델·통신 평면이 깨졌다" 였는데, 실제로 일어난 것은
@@ -1409,6 +1435,17 @@ def _self_test() -> int:
         chk(parse_report("어쩌고 {\"status\": \"completed\"} 끝")["status"] == "completed",
             "산문 속 JSON 리포트 추출")
         chk(parse_report("리포트 없음") is None, "JSON 이 없으면 None(추측 파싱 ✗)")
+        # ★ 2026-10-01(plan_26100113 F7 · 라이브 attempt-01 형상): 잘린 거부 상세 JSON 이 앞에 있어도 뒤따르는
+        #   완전한 리포트를 집는다 — 종전 괄호-깊이 판본은 여기서 None 이었다(완수가 실패로 집계).
+        _trunc = ('[permission_denials] 1건 — 거부된 도구 호출:\n  - Bash {"command": "cat > /tmp/slice.json '
+                  '<<\'EOF\'\\n{\\"schema_version\\":1,\\"id\\":\\"camp\n\n[서브가 남긴 말]\n```json\n'
+                  '{"task_id": "t", "status": "completed", "image": {"tag": "x"}, "artifacts": [{"path": "a"}]}\n```\n끝')
+        _pr = parse_report(_trunc)
+        chk(isinstance(_pr, dict) and _pr.get("status") == "completed" and _pr.get("task_id") == "t",
+            f"★잘린 JSON 뒤의 완전한 리포트를 집는다(중첩 객체를 따로 집지 않는다) → {_pr!r}")
+        chk(parse_report('{"a": 1} 산문 {"status": "completed", "n": {"x": 1}}')["status"] == "completed",
+            "마지막 최상위 객체를 집는다(안쪽 중첩 객체 ✗)")
+        chk(parse_report('{"status": "completed"') is None, "★음성대조: 닫히지 않은 JSON 은 리포트가 아니다(추측 ✗)")
 
         # ⑦ 위임 전 서브 브랜치 == 토폴로지 (양방향 + 판독불가는 fail-closed)
         _req = {"target": {"host": "h", "ssh_user": "u", "work_dir": "/w"}}
@@ -1553,6 +1590,26 @@ def _self_test() -> int:
             and end_reason({"reason_codes": ["TIMEOUT"], "control_status": "timeout"})
                 == "external_interruption",
             "외생 중단(timeout/SIGTERM)은 예산 소진과 **다른 사유**로 적힌다")
+        # ★ 2026-10-01(plan_26100113 D2): 거부 1건 ≠ 과업 실패 — 리포트가 completed 일 때만 가른다.
+        chk(end_reason({"reason_codes": ["PERMISSION_DENIED"], "control_status": "execution_failed",
+                        "status": "completed"}) == "completed_with_denials",
+            "★거부 사건 + completed 리포트 → completed_with_denials")
+        chk(end_reason({"reason_codes": ["PERMISSION_DENIED"], "control_status": "execution_failed",
+                        "status": None}) == "permission_denied"
+            and end_reason({"reason_codes": ["PERMISSION_DENIED"], "control_status": "execution_failed",
+                            "status": "failed"}) == "permission_denied",
+            "★음성대조: 리포트 부재·completed 아님은 종전대로 permission_denied")
+        _dG = {}
+        _aG = record_attempt(_dG, context_id="ctx-g", bud=turn_budget.declare(40, 3600, source="선언: G"),
+                             result={"session_id": "sG", "status": "execution_failed", "num_turns": 31,
+                                     "reason_codes": ["PERMISSION_DENIED"],
+                                     "output": "[permission_denials] 1건 — 거부된 도구 호출:\n  - Bash {}"
+                                               "\n\n[서브가 남긴 말]\n{\"status\": \"completed\"}"},
+                             report={"status": "completed"}, resume_declared="new")
+        chk(_aG["end_reason"] == "completed_with_denials"
+            and (_aG.get("permission_denials") or "").startswith("[permission_denials] 1건")
+            and "[서브가 남긴 말]" not in _aG["permission_denials"],
+            f"★원장이 거부 블록을 따로 남긴다(숨기지 않는다) → {_aG.get('permission_denials')!r}")
         chk(end_reason({"control_status": "execution_failed", "session_id": None})
             == "transport_or_launch_failure"
             and end_reason({}) == "unclassified",
@@ -1710,6 +1767,10 @@ def _self_test() -> int:
         "감독: 아무것도 안 나갔으면 지시서를 열라고 말한다")
     chk(supervise_decide({"attempts": [_mk(end_reason="completed", status="completed")]}
                          )["action"] == "next_cell", "감독: completed → 다음 셀")
+    _cwd = supervise_decide({"attempts": [_mk(end_reason="completed_with_denials", status="completed",
+                                              control_status="execution_failed")]})
+    chk(_cwd["action"] == "next_cell" and "권한 거부" in _cwd["reason"],
+        "★감독: completed_with_denials → 다음 셀(차단 ✗) · 사유에 거부 사건을 적는다")
     _prog = {"attempts": [_mk(end_reason="budget_exhausted", phase="build"),
                           _mk(attempt=2, end_reason="budget_exhausted", phase="serve")]}
     chk(supervise_decide(_prog)["action"] == "resume",
@@ -2046,7 +2107,8 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
     doc["manifest"] = a.manifest_path
     save_ledger(lp, doc)
     _crash = None
-    if report is None or att["control_status"] != "completed":
+    if report is None or (att["control_status"] != "completed"
+                          and att["end_reason"] != "completed_with_denials"):
         # 3-3: 파싱 실패·프로세스 크래시는 **fail-loud + 마지막 알려진 세션 제시**다. 재개 여부는
         #   사람·에이전트가 정하므로, 그 판단에 필요한 세션 id 를 대기 목록에 남긴다.
         _crash = {"attempt": att["attempt"], "end_reason": att["end_reason"],
@@ -2065,6 +2127,11 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
           f"end_reason={att['end_reason']}")
     print(f"[relay] 시간: {started} → {ended} · provider wall={att.get('duration_ms')}ms "
           f"api={att.get('duration_api_ms')}ms 정지={_stall if _stall is not None else '(모름)'}ms")
+    if att.get("permission_denials"):
+        # 완수와 별개로 거부 사건을 화면에 남긴다(원장에도 같은 블록이 있다).
+        print("[relay] ⚠ 권한 거부 사건 — 과업 판정은 리포트가 한다(end_reason=%s):" % att["end_reason"])
+        for _ln in att["permission_denials"].splitlines():
+            print("[relay]   " + _ln)
     if att["resume_honored"] is False:
         print(f"[relay] ⚠ 재개 불발: 요청한 세션 {resume} 과 다른 세션 {att['session_id']} 이 열렸다 — "
               "서브가 컨텍스트를 처음부터 재구축했을 수 있다(소진의 주된 원인). 다음 턴의 예산을 그렇게 읽어라.")

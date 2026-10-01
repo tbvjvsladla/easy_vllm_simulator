@@ -82,6 +82,12 @@
 - **원장은 append-only 다**: attempt 마다 `request_path`(보낸 요청 원문)·`report_path`·`end_reason`·
   `started_utc`/`ended_utc`(메인 실측)·`duration_ms`/`duration_api_ms`(provider 보고)를 적는다.
   **정지 시간 = wall − api** 이며 두 값의 출처가 다르므로 섞지 않는다.
+- **권한 거부는 사건이지 판정이 아니다**(2026-10-01 · plan_26100113 D2): provider 는 거부가 1건이라도 있으면
+  `execution_failed · PERMISSION_DENIED` 를 낸다(exit-code 표 불변). 릴레이는 서브 리포트가 **파싱되고**
+  `status: completed` 일 때 `end_reason = completed_with_denials` 로 가르고, 감독은 다음 셀로 간다(차단 ✗).
+  거부 블록은 원장 `permission_denials` 에 그대로 남는다. 리포트 부재·다른 status 는 종전대로 `permission_denied`
+  (팝업)다. `parse_report` 는 잘린 JSON(거부 상세는 도구 입력을 240자에서 자른다)이 뒤의 리포트를 가리지 않게
+  `{` 마다 디코딩을 시도한다 — 라이브에서 completed 리포트가 "JSON 없음" 으로 집계된 원인이었다.
 
 - **조립기는 합성하지 않는다** — 직전 attempt 의 제어 상태(원장) · 서브가 보낸 `artifacts[]`·
   `next_steps`·`notes` · 사람이 `campaigns/<camp-id>/relay/pending_hitl.json` 에 적은 `answer` · 원 지시. 그 넷뿐이다.

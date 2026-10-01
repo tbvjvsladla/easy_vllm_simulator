@@ -1180,6 +1180,12 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/selftest_broad_search_cell_args.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
       "callee": "adversarial-benchmark/scripts/selftest_lite_gate.py",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"

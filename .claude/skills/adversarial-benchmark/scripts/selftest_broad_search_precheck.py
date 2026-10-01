@@ -53,6 +53,9 @@ COPIES = (
     # 반복 축 소유자(2026-09-14 · plan_26091407 §4.4) — init 이 declared_budget.repeats 를 여기서 파생하고
     # 정지 평가기·분류기가 full 정의 하한을 여기서 읽는다. 사본에 없으면 init 이 스윕을 열지 않는다(fail-closed).
     ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py",
+    # 루브릭 권한 값역의 단일 소유자(2026-10-01 · plan_26100113 D1) — cell 은 상태 파일 권한을 이 목록으로 검사한다.
+    ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py",
+    ".claude/skills/adversarial-benchmark/scripts/roofline.py",   # verdict_rule 의 import 의존
 )
 # 부하를 거는 스크립트는 사본에 **두지 않는다** — 경로가 잘못 열려도 실행할 대상이 없다.
 NEVER_COPY = (
@@ -124,7 +127,7 @@ def _init_state(root: Path, env: dict, camp: str, name: str) -> Path:
 def _cell(root: Path, env: dict, state: Path, *extra: str) -> subprocess.CompletedProcess:
     return _bs(root, env, "cell", "--state", str(state), "--cell-key", CELL, "--config", CONFIG,
                "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1",
-               "--now-utc", NOW, "--topology", "single", *extra)
+               "--now-utc", NOW, "--topology", "single", "--backend", "openai", *extra)
 
 
 def _record(state: Path) -> dict:
