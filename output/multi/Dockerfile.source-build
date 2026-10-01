@@ -36,7 +36,7 @@
 FROM nvcr.io/nvidia/pytorch:26.07-py3
 
 # ── torch핀 가드 (render-time: 검증된 핀=주석 / 미인식=빌드 실패. 카탈로그 codify는 P6) ──
-RUN echo "WARN: source-build key (26.07-py3 x vLLM 0.29.0rc6) is UNVALIDATED — attempt-build under HITL override (--allow-unvalidated)." && \
+RUN echo "WARN: source-build key (26.07-py3 x vLLM 0.30.0) is UNVALIDATED — attempt-build under HITL override (--allow-unvalidated)." && \
     echo "  -> arbiter = smoke (workflow S3). REQUIRED: record this attempt in docs/testlog/." && \
     echo "  -> on smoke PASS: codify the key into VALIDATED_SOURCE_BUILD_KEYS (.claude/skills/upstream-version-watch/references/source-build.md §3)."
 
@@ -44,7 +44,7 @@ RUN echo "WARN: source-build key (26.07-py3 x vLLM 0.29.0rc6) is UNVALIDATED —
 #   같은 Dockerfile 로 포크 변종을 빌드한다(arch-wall 사다리의 `소스-repo 오버라이드` 칸).
 #   좌표의 거처는 `.claude/policies/arch_variant_ledger.json`(Band2) — workflow.md §변종 좌표의 거처.
 ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
-ARG VLLM_REF=v0.29.0rc6
+ARG VLLM_REF=v0.30.0
 ARG TORCH_CUDA_ARCH=12.1a
 ARG BUILD_JOBS=16
 
@@ -55,7 +55,9 @@ ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH} \
     PATH=/usr/lib/ccache:/usr/local/bin:/usr/bin:/bin
 
 # ccache 설치(NGC 베이스엔 ccache 없음 — ninja/git 는 존재). 증분 재컴파일 가속.
-RUN apt-get update && apt-get install -y --no-install-recommends ccache && rm -rf /var/lib/apt/lists/*
+# libdw-dev: vLLM 0.30.0 의 deepgemm(deep_jit, #56876)이 elfutils/libdwfl.h 를 요구 — 상류 CUDA Dockerfile 의
+#   elfutils-devel 에 대응하는 Ubuntu 패키지(2026-10-01 양노드 빌드 실패 실측 · plan_26100107).
+RUN apt-get update && apt-get install -y --no-install-recommends ccache libdw-dev && rm -rf /var/lib/apt/lists/*
 
 # NGC pip constraint 비우기(핀 충돌 회피) 후 regen_requirements.py KNOWN_INCOMPAT 천장으로 대체.
 #   ⚠ source-build 는 `pip install -e .`가 vLLM 자신의 pyproject.toml 만 읽어 requirements.txt 를

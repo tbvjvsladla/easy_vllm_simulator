@@ -53,7 +53,9 @@ ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH} \
     PATH=/usr/lib/ccache:/usr/local/bin:/usr/bin:/bin
 
 # ccache 설치(NGC 베이스엔 ccache 없음 — ninja/git 는 존재). 증분 재컴파일 가속.
-RUN apt-get update && apt-get install -y --no-install-recommends ccache && rm -rf /var/lib/apt/lists/*
+# libdw-dev: vLLM 0.30.0 의 deepgemm(deep_jit, #56876)이 elfutils/libdwfl.h 를 요구 — 상류 CUDA Dockerfile 의
+#   elfutils-devel 에 대응하는 Ubuntu 패키지(2026-10-01 양노드 빌드 실패 실측 · plan_26100107).
+RUN apt-get update && apt-get install -y --no-install-recommends ccache libdw-dev && rm -rf /var/lib/apt/lists/*
 
 # NGC pip constraint 비우기(핀 충돌 회피) 후 regen_requirements.py KNOWN_INCOMPAT 천장으로 대체.
 #   ⚠ source-build 는 `pip install -e .`가 vLLM 자신의 pyproject.toml 만 읽어 requirements.txt 를

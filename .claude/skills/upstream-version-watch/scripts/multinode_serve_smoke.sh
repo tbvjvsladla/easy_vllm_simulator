@@ -598,7 +598,7 @@ _attest_write build
 _BUILD_PHASE_OPEN=0
 _campaign_phase build done 1 "양 노드 compose build rc=0 + 빌드 후 대조(wheel: torch ABI·vllm 버전)" \
   "multinode_serve_smoke.sh: compose build master rc=$MR · slave rc=$SR (image=$IMG) · ${ATTEST_JSON#$REPO/}" "$_BUILD_T0"
-  else echo "[mn] FAIL: 빌드(master=$MR slave=$SR). tail:"; tail -6 /tmp/mn_build_master.log /tmp/mn_build_slave.log; exit 2; fi
+  else echo "[mn] FAIL: 빌드(master=$MR slave=$SR). tail:"; tail -n 6 /tmp/mn_build_master.log /tmp/mn_build_slave.log; exit 2; fi
 fi
 
 if [ "$BUILD_ONLY" = "1" ]; then
