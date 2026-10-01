@@ -41,12 +41,17 @@
 #                            --declared-by TEXT --basis TEXT --authority explore --now-utc T [--repeats N]
 #       broad_search.sh cell --state PATH --cell-key K --config NAME --axis-citation TEXT
 #                            --next-intent TEXT [--ack-uncalibrated-thermal]
+#                            --backend openai|openai-chat   (부하 경로 필수 · 값역은 sweep_bench 소유)
+#                            [--reference-tps E] [--e-search hit|empty|no] [--target-tps X]  (판정기 노브 · 주어질 때만 전달)
+#                            ※ 루브릭 권한은 init 의 --authority 가 상태 파일(rubric_authority)에 적은 것이 유일한 원천이다 —
+#                              cell 은 --authority 를 받지 않는다(plan_26100113 D1).
 #                            [--serve-failed REASON --serve-started-utc T] [--symptom KIND]...
 #                            --bench-budget-mib N --now-utc T --confirm-risk [--topology t]
 #                            [--cross-node-tolerance-s N --cross-node-tolerance-source TEXT]  (multi 원격 노드 사살 대조 · 선언으로만)
 #       broad_search.sh status --state PATH --now-utc T
 #       broad_search.sh map    --state PATH --now-utc T --out-md PATH [--out-json PATH]
-# 종료: 0=성공 · 2=인자/선언 오류(셀 출처 lockset provenance 부재·무효 포함 — 캠페인 셀 한정)
+# 종료: 0=성공 · 2=인자/선언 오류(셀 출처 lockset provenance 부재·무효 포함 — 캠페인 셀 한정 ·
+#         측정기 sweep_bench 의 인자/전제 거부 rc 2 도 셀 기록 없이 그대로 2 — 측정 진입 0 · 셀 예산 불변)
 #       3=serve 미가동(materialize 는 explorer 소관) · 5=--confirm-risk 미명시
 #       6=SoC 열 임계 미교정 미승인(--ack-uncalibrated-thermal)
 set -euo pipefail
@@ -74,6 +79,8 @@ ACK_UNCAL=0
 #   길이 자체는 지켰다는 점이 2026-09-01 관측과 다른 부분인데, 길이를 지키는 대가가 파서 파손이라
 #   결론은 같다: **완결 엔드포인트로 잰다.**
 BACKEND=""
+# 판정기(verdict_rule)가 소유한 노브 — **주어졌을 때만** judge_bench 에 넘긴다(기본값 복제 ✗ · judge_bench 와 같은 규칙).
+JUDGE_KNOBS=()
 OUT_MD=""; OUT_JSON=""; REASSEMBLE=0; SERVE_FAILED_REASON=""; MAX_ERROR_RATE=""
 SERVE_STARTED_UTC=""; SYMPTOMS=()
 # 부하 레벨 목록. 빈 값이면 sweep_bench 의 기본(1,2,4,8,16)을 그대로 쓴다 — 여기서 기본을
@@ -123,6 +130,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --repeats) REPEATS="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
   --backend) BACKEND="$2"; shift 2;;
+  --reference-tps|--e-search|--target-tps) JUDGE_KNOBS+=("$1" "$2"); shift 2;;
   --confirm-risk) CONFIRM=1; shift;;
   # 측정하지 않고 **기존 산출물에서 셀 기록만 다시 조립**한다. 라벨·파생키 계약이 바뀌었을 때
   #   (예: 2026-09-04 moe_backend 실측 승격) 재측정 없이 지도를 정합화하는 유일한 정식 경로다 —
@@ -348,6 +356,40 @@ PY
     [ -n "${pair#*:}" ] || { echo "[broad_search] ERROR ${pair%%:*} 는 필수다" >&2; exit 2; }
   done
   [ -f "$STATE" ] || { echo "[broad_search] ERROR 상태 파일 부재: $STATE (먼저 init)" >&2; exit 2; }
+  # ── 루브릭 권한 = 상태 파일 하나(2026-10-01 · plan_26100113 D1 · F4) ─────────────────────────────
+  #   종전 판정 호출은 `${AUTHORITY:-explore}` 였다. cell 사용법에는 --authority 가 없어 그 값은 늘 비었고,
+  #   init 이 상태 파일에 적은 선언 권한(weak)을 읽지 않은 채 **explore 로 판정**했다(2026-10-01 실측 ·
+  #   testlog_26100109 F4 — explore PASS floor 26.31 이 weak REFUTE 를 가렸다). 판정 경로의 침묵 폴백이다.
+  #   권한은 사용자 트리거이고 init 때 한 번 받는다 — 셀마다 다시 받으면 같은 스윕 안에서 권한이 갈린다.
+  if [ -n "$AUTHORITY" ]; then
+    echo "[broad_search] ERROR cell 은 --authority 를 받지 않는다 — 루브릭 권한은 init 선언(상태 파일 rubric_authority)이 유일한 원천이다." >&2
+    echo "[broad_search]   다른 권한으로 재고 싶으면 새 스윕을 init 하라(같은 지도 안에서 권한이 갈리지 않게)." >&2
+    exit 2
+  fi
+  CELL_AUTHORITY=""
+  if [ "$NO_LOAD" != 1 ]; then
+    # 값역의 단일 소유자는 verdict_rule.AUTHORITIES 다 — 여기서 목록을 다시 적지 않고 불러 쓴다.
+    CELL_AUTHORITY="$(python3 -c '
+import json, sys
+sys.path.insert(0, sys.argv[2])
+from verdict_rule import AUTHORITIES
+a = (json.load(open(sys.argv[1], encoding="utf-8")) or {}).get("rubric_authority")
+if a not in AUTHORITIES:
+    sys.stderr.write("[broad_search] ERROR 상태 파일의 rubric_authority=%r 가 없거나 값역 %s 밖이다 — "
+                     "권한 없이 판정하지 않는다(기본값을 넣지 않는다)\n" % (a, "|".join(AUTHORITIES)))
+    raise SystemExit(2)
+print(a)
+' "$STATE" "$SDIR")" || exit 2
+    # ── 측정기 인자 선검사(F3) — 부하 경로가 반드시 넘겨야 하는 것을 측정 진입 **전**에 친다. 종전에는 누락이
+    #   sweep_bench 의 rc 2 로 돌아와 셀 결과(void)로 기록되고 셀 예산(max-cells)을 먹었다(2026-10-01 실측).
+    #   여기서는 **유무**만 본다 — 값역(openai|openai-chat)은 sweep_bench 가 소유하고, 값역 밖이면 아래 rc 2 전달이 받는다.
+    if [ "$REASSEMBLE" != 1 ] && [ -z "$BACKEND" ]; then
+      echo "[broad_search] ERROR 부하 경로에는 --backend 가 필수다(기본값 없음 — sweep_bench.sh 의 BACKEND 주석 참조)." >&2
+      echo "[broad_search]   harmony 계열(gpt-oss)은 --backend openai(완결 엔드포인트) · 그 밖은 모델 특성에 맞춰 명시하라." >&2
+      exit 2
+    fi
+    echo "[broad_search] 루브릭 권한 = $CELL_AUTHORITY (← 상태 파일 rubric_authority · init 선언)"
+  fi
   _resolve_topo
 
   # 진입 전 정지 조건. 이미 멈춰야 하는 스윕에 셀을 하나 더 밀어 넣지 않는다.
@@ -507,9 +549,15 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
     SB_ARGS+=(--repeats "$_DECL_REP" --repeats-source "sweep state declared_budget.repeats ← $_DECL_REP_SRC")
     bash "$SDIR/sweep_bench.sh" "${SB_ARGS[@]}"
     MEASURE_RC=$?
+    if [ "$MEASURE_RC" = "2" ]; then
+      # sweep_bench 의 rc 2 = 인자/전제 오류 — **측정 진입 전** 거부다(그 스크립트 종료 표). 측정 결과가 아니므로
+      #   셀로 기록하지 않고 셀 예산도 쓰지 않는다. 고친 인자로 같은 셀을 다시 부르면 된다(F3 · plan_26100113).
+      echo "[broad_search] ERROR 측정기가 인자/전제 오류로 거부했다(sweep_bench rc 2 · 위 사유) — 측정 진입 0 · 셀 기록 ✗ · 예산 불변" >&2
+      exit 2
+    fi
     if [ "$MEASURE_RC" = "0" ]; then
-      bash "$SDIR/judge_bench.sh" "$CONFIG" --topology "$TOPO" --authority "${AUTHORITY:-explore}" \
-           --sweep-dir "$SWEEPDIR"
+      bash "$SDIR/judge_bench.sh" "$CONFIG" --topology "$TOPO" --authority "$CELL_AUTHORITY" \
+           --sweep-dir "$SWEEPDIR" "${JUDGE_KNOBS[@]}"
       MEASURE_RC=$?
     fi
     set -e

@@ -21,6 +21,7 @@
 #
 # 7단계:
 #   1) 통로·전제        — compose · envfile · 루트 .env · config yaml
+#      (그라운딩 백스톱 — 캠페인 안에서만 · 어떤 상태도 만들기 전 · 2026-10-01 이동)
 #   2) 모델 + RAM 게이트 — check_smoke_model(로드-전 게이트) · BUDGET_PARAMS 파생
 #   3) 예산 선언        — declare-budget (**로드 개시 전**)
 #   4) 블랙박스 세션    — serve_start 이벤트
@@ -149,6 +150,49 @@ rollback(){
   bash "$SDIR/single_serve_down.sh" "$CONFIG" ${EXPLICIT_NODE_ID:+--node-id "$EXPLICIT_NODE_ID"} >&2 || true
 }
 
+# ── 그라운딩 진입 백스톱 (2026-09-08 · policy:LIBRARY_GROUNDING_FAIL_CLOSED C2) ──────────────
+# 왜 있나: 도서관은 구축돼 있었고 **활용이 0** 이었다 — 절차가 권고문뿐이라 실행자도 게이트도
+# 없었고, 사용자는 그것을 사고로 판정했다. 벤치 스킬의 "외부검색을 실제로 수행했는가" 불변식과
+# 같은 계통으로, 서빙 진입에 백스톱을 둔다. 캠페인 밖(ACTIVE=_bootstrap)이면 writer 가 스스로
+# no-op 이므로 평시 서빙은 영향이 없다. 사서가 **못 찾은 것**은 통과다(정직한 공백은 기재 후
+# 진행) — 거절만 차단이다.
+# ★ 2026-10-01(plan_26100113 F6 · 서브 testlog_26100111 §7-4): 이 검사는 종전 3/7 예산 선언·4/7 세션
+#   시작 **뒤**에 있었고 STOP 이 rollback 없이 exit 4 를 냈다 — 선언과 열린 세션이 남아 다음 시도가 세션 2개를
+#   만들고, 롤백 down 이 5/5 에서 실패했다(서브 실측). 이 스크립트의 계약("부분 상태를 남기지 않는다")을
+#   지키는 가장 단순한 자리는 **아무 상태도 만들기 전**이다. 그래서 2/7 앞으로 옮긴다(이 자리에선 되돌릴 것이 없다).
+_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+if [ "$DRY" = 1 ]; then
+  echo "$TAG (dry-run) 그라운딩 백스톱은 실기동에만 건다 — 예행은 막지 않는다"
+elif [ -f "$_CI" ]; then
+  if ! python3 "$_CI" --grounding-check; then
+    echo "$TAG STOP: 그라운딩 기록 없이 서빙에 진입하지 않는다(policy:LIBRARY_GROUNDING_FAIL_CLOSED)." >&2
+    echo "$TAG   → python3 $_CI --ground --utc <UTC> 로 사서에게 먼저 물어라." >&2
+    echo "$TAG   → 사서가 못 찾으면 그 사실이 기록에 남고 그대로 통과한다(공백은 차단이 아니다)." >&2
+    echo "$TAG   (이 검사는 예산 선언·세션 시작 전에 선다 — 남긴 상태 0)" >&2
+    exit 4
+  fi
+else
+  echo "$TAG ⚠ campaigns writer 부재($_CI) — 그라운딩 백스톱이 돌지 않았다(침묵 누락 ✗)." >&2
+fi
+
+# ── 실패 시 엔진 로그 보존 (2026-10-01 · plan_26100113 F8) ──────────────────────────────────
+#   종전 실패 경로는 `docker logs | tail -20` 을 화면에 찍고 곧바로 rollback(= down · 컨테이너 삭제)했다.
+#   vLLM 의 마지막 줄은 대개 `Engine core initialization failed. See root cause above.` 이고 **근본원인은 그
+#   "above" 에 있다** — 20줄 밖으로 밀린 원인은 down 과 함께 사라져, 재기동으로 재현해야 했다(2026-10-01 Granite
+#   KV 거부 실측). 멀티는 같은 결함을 2026-09-06 에 `_save_serve_logs` 로 이미 고쳤다 — 같은 자리(benchlog/
+#   serve_fail_<cfg>)·같은 규칙(전량 보존 + 화면엔 넓은 꼬리)으로 맞춘다. rollback **전에** 부른다.
+_save_serve_logs() {   # $1=사유 태그
+  local dir="$REPO/output/single/benchlog/serve_fail_${CONFIG}"
+  local f="$dir/engine_$1_$(date -u +%Y%m%dT%H%M%SZ).log"
+  if mkdir -p "$dir" 2>/dev/null && docker logs "$CNAME" > "$f" 2>&1; then
+    echo "$TAG     엔진 로그 전량 보존 → $f ($(wc -l < "$f") 줄 · teardown 을 견딘다)" >&2
+  else
+    echo "$TAG     ⚠ 엔진 로그 보존 실패($f) — 아래 꼬리만 남는다" >&2
+  fi
+  echo "$TAG     ── 엔진 로그 꼬리 40줄(사인 후보 · 진행 막대 제외) ──" >&2
+  docker logs "$CNAME" 2>&1 | grep -vE "Capturing CUDA graphs|it/s\]$" | tail -40 | sed "s/^/$TAG     /" >&2 || true
+}
+
 # ── 2/7 모델 + 로드-전 RAM 게이트 + 예산 입력 파생 ──────────────────────────────────
 GATE_OUT="$(python3 "$SDIR/check_smoke_model.py" "$CONFIG" --topology single --emit-gate-params 2>&1)"
 GATE_RC=$?
@@ -269,26 +313,6 @@ else
   rollback; exit 2
 fi
 
-# ── 그라운딩 진입 백스톱 (2026-09-08 · policy:LIBRARY_GROUNDING_FAIL_CLOSED C2) ──────────────
-# 왜 여기인가: 도서관은 구축돼 있었고 **활용이 0** 이었다 — 절차가 권고문뿐이라 실행자도 게이트도
-# 없었고, 사용자는 그것을 사고로 판정했다. 벤치 스킬의 "외부검색을 실제로 수행했는가" 불변식과
-# 같은 계통으로, 서빙 진입에 백스톱을 둔다. 캠페인 밖(ACTIVE=_bootstrap)이면 writer 가 스스로
-# no-op 이므로 평시 서빙은 영향이 없다. 사서가 **못 찾은 것**은 통과다(정직한 공백은 기재 후
-# 진행) — 거절만 차단이다.
-_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
-if [ "$DRY" = 1 ]; then
-  echo "$TAG (dry-run) 그라운딩 백스톱은 실기동에만 건다 — 예행은 막지 않는다"
-elif [ -f "$_CI" ]; then
-  if ! python3 "$_CI" --grounding-check; then
-    echo "$TAG STOP: 그라운딩 기록 없이 서빙에 진입하지 않는다(policy:LIBRARY_GROUNDING_FAIL_CLOSED)." >&2
-    echo "$TAG   → python3 $_CI --ground --utc <UTC> 로 사서에게 먼저 물어라." >&2
-    echo "$TAG   → 사서가 못 찾으면 그 사실이 기록에 남고 그대로 통과한다(공백은 차단이 아니다)." >&2
-    exit 4
-  fi
-else
-  echo "$TAG ⚠ campaigns writer 부재($_CI) — 그라운딩 백스톱이 돌지 않았다(침묵 누락 ✗)." >&2
-fi
-
 # 서브 진행표가 "언제 시작했나"를 갖게 하는 자리(2026-09-08 · plan_26090813 §4.7 P4).
 # 착수 시각이 없으면 동시 착수는 검증 대상이 아니라 주장이 된다.
 _SERVE_T0="$(NOW_ISO)"
@@ -351,11 +375,12 @@ while [ "$_waited" -lt "$READY_MAX" ]; do
   fi
   # 컨테이너가 죽었으면 더 기다리는 것은 거짓 인내다 — 즉시 실패로 간다.
   if ! docker ps --filter "name=^${CNAME}$" --filter status=running -q | grep -q .; then
-    echo "$TAG 7/7 health 대기     : FAIL — 컨테이너가 종료됐다(로그 마지막 20줄):" >&2
-    docker logs "$CNAME" 2>&1 | tail -20 | sed "s/^/$TAG     /" >&2 || true
+    echo "$TAG 7/7 health 대기     : FAIL — 컨테이너가 종료됐다" >&2
+    _save_serve_logs exited
     rollback; exit 2
   fi
   sleep 5; _waited=$(( _waited + 5 ))
 done
 echo "$TAG 7/7 health 대기     : FAIL — ${READY_MAX}s 내 READY 아님(타임아웃). 더 큰 모델이면 --ready-max 로 **명시** 연장하라." >&2
+_save_serve_logs timeout
 rollback; exit 5

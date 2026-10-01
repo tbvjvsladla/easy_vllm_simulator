@@ -1002,6 +1002,11 @@ def verify() -> dict:
         #   앞에서 멈추므로 lockset 없이도 계약이 유지된다).
         _run("benchmark_broad_search_provenance_precheck", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.py"], {0}),
+        # cell 인자 선검사·루브릭 권한 승계의 **집행** (2026-10-01 · plan_26100113 H6 · F3·F4). 측정기의 측정 전 거부(rc 2)가
+        #   셀 기록(void)으로 굳어 예산을 먹던 경로와, 판정 호출이 상태 파일 권한 대신 explore 로 접히던 침묵 폴백이 돌아오지
+        #   않는지 친다. 부하 스크립트는 argv 만 기록하는 stub 이다 — 서빙·docker·GPU 불요.
+        _run("benchmark_broad_search_cell_args", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_cell_args.py"], {0}),
         # 벤치 6종 토폴로지 해소의 **집행** (2026-09-14 · plan_26091407 §9 ⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고
         #   브랜치로 추론하지 않는다"). 호출자 없는 자체검사는 L1(산문)이다(위 선례). 무엇을 지키나: `--topology` 미지정 시 6종이
         #   브랜치 이름으로 고르고 unknown 을 조용히 single 로 접던 관용구가 돌아오지 않는지(S0 · abbrev-ref 0)와, 해소가 카드(unsigned)
@@ -1049,6 +1054,26 @@ def verify() -> dict:
     else:
         checks.append({"name": "policy_registry_verify", "ok": False,
                        "error": "missing .claude/policies/runtime/policy_registry.py"})
+
+    # single 기동 진입점의 **부분 상태 금지** 순서 불변식(2026-10-01 · plan_26100113 F6). 그라운딩 STOP 이 예산 선언·
+    #   세션 시작 **뒤**에 있어 rollback 없는 exit 4 가 선언·세션을 남겼다(서브 실측). 검사는 상태를 만드는 첫 자리
+    #   (2/7 RAM 게이트 → 3/7 선언) 앞에 서야 한다. 앵커는 코드 토큰이다(주석만 남기고 코드를 옮기면 잡힌다).
+    #   실패 시 엔진 로그 보존(F8)도 rollback 앞에 서는지 같은 방식으로 친다.
+    ssu = REPO / ".claude/skills/upstream-version-watch/scripts/single_serve_up.sh"
+    try:
+        ssu_text = ssu.read_text(encoding="utf-8")
+        checks += [
+            _order_check("single_up_grounding_before_any_state", ssu_text,
+                         'echo "$TAG 1/7 통로·전제      : DONE', 'echo "$TAG 3/7 예산 선언       : DONE"',
+                         ('python3 "$_CI" --grounding-check', 'check_smoke_model.py" "$CONFIG"',
+                          'python3 "$SESSION_PY" "${DECL_ARGS[@]}"')),
+            _order_check("single_up_engine_log_saved_before_rollback", ssu_text,
+                         'echo "$TAG 7/7 health 대기     : FAIL — 컨테이너가 종료됐다"', "rollback; exit 5",
+                         ("_save_serve_logs exited", "rollback; exit 2", "_save_serve_logs timeout")),
+        ]
+    except (OSError, UnicodeError) as exc:
+        checks.append({"name": "single_up_grounding_before_any_state", "ok": False,
+                       "error": f"{type(exc).__name__}: {exc}"})
 
     predicate_dir = REPO / ".claude/policies/predicates"
     if predicate_dir.is_dir():
