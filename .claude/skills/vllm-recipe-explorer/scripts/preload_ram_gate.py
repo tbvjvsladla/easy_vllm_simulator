@@ -148,6 +148,31 @@ def _self_test():
         ck("G7 알 수 없는 기구는 보정하지 않는다(None)",
            offloadable_bytes_for(td, mechanism="nonexistent") is None)
 
+    # ── engram_file 기구(2026-10-03 · plan_26100208) ─────────────────────────────────────
+    with tempfile.TemporaryDirectory() as td:
+        hdr = {
+            # 양성: Engram 조회 테이블 weight(F8)와 scale(E8M0) — 합쳐서 상주에서 빠진다
+            "layers.1.engram.embed.weight": {"dtype": "F8_E4M3", "shape": [8, 2], "data_offsets": [0, 16]},
+            "layers.1.engram.embed.scale": {"dtype": "U8", "shape": [8, 1], "data_offsets": [16, 24]},
+            # 음성 대조: 같은 모듈의 다른 텐서(상주한다) · 일반 MoE 전문가 텐서 · 이름만 비슷한 접두
+            "layers.1.engram.wkv.weight": {"dtype": "F8_E4M3", "shape": [2, 2], "data_offsets": [24, 28]},
+            "layers.1.engram.q_weight": {"dtype": "BF16", "shape": [2], "data_offsets": [28, 32]},
+            "layers.3.ffn.experts.0.w1.trellis": {"dtype": "I16", "shape": [4], "data_offsets": [32, 40]},
+            "layers.3.embed_tokens.weight": {"dtype": "BF16", "shape": [2], "data_offsets": [40, 44]},
+        }
+        raw = _json.dumps(hdr).encode()
+        with open(os.path.join(td, "s.safetensors"), "wb") as f:
+            f.write(_struct.pack("<Q", len(raw))); f.write(raw); f.write(b"\0" * 44)
+        with open(os.path.join(td, "model.safetensors.index.json"), "w", encoding="utf-8") as f:
+            _json.dump({"weight_map": {k: "s.safetensors" for k in hdr}}, f)
+        ck("G9 engram_file: embed.weight+embed.scale 만 센다(24B) — wkv·q_weight·전문가·embed_tokens 는 상주",
+           offloadable_bytes_for(td, mechanism="engram_file") == 24)
+        ck("★G10 기구가 서로 섞이지 않는다: ple_mmap 은 Engram 텐서를 0 으로 센다",
+           offloadable_bytes_for(td, mechanism="ple_mmap") == 0)
+    ck("★G11 engram_file 패턴은 PLE 패턴과 다른 말을 한다(교차 오매칭 ✗)",
+       not re.search(MMAP_OFFLOADABLE_PATTERNS["engram_file"],
+                     "model.language_model.layers.1.ple.ple_embedding.ngram_embedding.shard_0.weight"))
+
     # 교차검증 — 패치의 패턴 리터럴이 이 사본과 같은 말을 하는가.
     repo = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                          "..", "..", "..", ".."))

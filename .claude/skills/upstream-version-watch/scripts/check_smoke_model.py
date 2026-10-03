@@ -54,6 +54,21 @@ def read_config_kv_mib(config_yaml):
     return None
 
 
+def read_config_declares_engram_file(config_yaml):
+    """트리플렛 yaml 이 파일 기반 Engram 을 **선언**했는가 — `hf-overrides` 에 `engram_table_dir`.
+
+    ★ 선언 여부만 본다(주석 줄 제외). 선언 없이 Engram 을 상주에서 빼면 게이트가 없는 여유를 있다고 말한다 —
+      선언이 없으면 stock 경로가 테이블을 핀드 메모리에 올린다. 판정 근거는 모델 사실이 아니라 serve 선언이다
+      (PLE 의 `VLLM_PLE_MMAP` 과 같은 위치 — 모드의 권위는 serve 평면)."""
+    with open(config_yaml, encoding="utf-8") as f:
+        for line in f:
+            if line.lstrip().startswith("#"):
+                continue
+            if re.match(r"\s*hf[-_]overrides\s*:", line) and "engram_table_dir" in line:
+                return True
+    return False
+
+
 def read_config_max_model_len(config_yaml):
     """트리플렛 yaml 의 `max-model-len`. 없으면 None."""
     with open(config_yaml, encoding="utf-8") as f:
@@ -297,7 +312,23 @@ def main():
                     ckpt = preload_ram_gate.checkpoint_bytes_for(host_path, warns)
                     for w in warns:
                         print(f"[NAS-check] ⚠ {w}", file=sys.stderr)
-                    res = preload_ram_gate.gate(ckpt, tp=tp)
+                    # ★ 파일 기반 Engram 보정(2026-10-03 · plan_26100208): 트리플렛이 `engram_table_dir` 를
+                    #   **선언**했을 때만, 상주하지 않는 Engram 테이블 바이트를 게이트의 ckpt 에서 뺀다.
+                    #   선언이 없거나 산출에 실패(None)하면 **보정 0** — 부재를 추측으로 메우지 않는다.
+                    #   종전엔 샤드 파일 크기 합(Engram 포함)을 `÷tp` 해 A 팩(357GB)을 로드 전에 거부했다.
+                    _eng = None
+                    if read_config_declares_engram_file(cfg):
+                        _n1 = len(warns)
+                        _eng = preload_ram_gate.offloadable_bytes_for(
+                            host_path, mechanism="engram_file", warnings=warns)
+                        for w in warns[_n1:]:
+                            print(f"[NAS-check] ⚠ {w}", file=sys.stderr)
+                    ckpt_gate = ckpt
+                    if ckpt and _eng and _eng > 0:
+                        ckpt_gate = max(0, ckpt - _eng)
+                        print("[NAS-check] engram=file-backed 선언 → 게이트 ckpt 에서 −%dMiB(상주 ✗)"
+                              % int(_eng / (1024 * 1024)), file=sys.stderr)
+                    res = preload_ram_gate.gate(ckpt_gate, tp=tp)
                     # ★ 예산 선언(plan_26081415 C3-2)의 파생 입력. 게이트 통과 여부와 **독립**으로
                     #   emit 한다 — 게이트가 거부하면 스모크는 어차피 멈추지만, 여기서 조건을 겹치면
                     #   "게이트는 통과했는데 선언 입력이 안 나온다"는 침묵 결손이 생긴다.
@@ -316,10 +347,11 @@ def main():
                         _ple = preload_ram_gate.offloadable_bytes_for(host_path, warnings=warns)
                         for w in warns[_n0:]:
                             print(f"[NAS-check] ⚠ {w}", file=sys.stderr)
-                        print("[NAS-check] BUDGET_PARAMS ckpt_mib=%d tp=%d kv_mib=%s ple_mib=%s"
+                        print("[NAS-check] BUDGET_PARAMS ckpt_mib=%d tp=%d kv_mib=%s ple_mib=%s engram_mib=%s"
                               % (int(ckpt / (1024 * 1024)), tp,
                                  kvm if kvm is not None else "none",
-                                 int(_ple / (1024 * 1024)) if _ple is not None else "unknown"))
+                                 int(_ple / (1024 * 1024)) if _ple is not None else "unknown",
+                                 int(_eng / (1024 * 1024)) if _eng else "none"))
                     if res["ok"] and not res.get("skipped"):
                         print("[NAS-check] RAM-gate PASS: MemAvailable=%sMiB ≥ required=%sMiB(ckpt÷tp=%d+floor)"
                               % (res["avail_after_mib"], res["required_mib"], tp))

@@ -310,6 +310,12 @@ MMAP_OFFLOADABLE_PATTERNS = {
     # 일 때 이 텐서들을 NVMe mmap 으로 서빙한다(상주 ✗). 패턴 정본은 그 패치의 `_find_shards`
     # 이고 여기는 **예산 평면의 사본**이다 — 교차검증 앵커는 preload_ram_gate 자체검사에 있다.
     "ple_mmap": r"\.ple\.ple_embedding\.ngram_embedding\.shard_\d+\.weight$",
+    # DeepSeek-V4.1 Engram 조회 테이블 — build_patches_src/83-engram-file-backend.sh(+87-engram-embed-skip.sh)가
+    # hf-overrides `engram_table_dir` 가 선언된 서빙에서 이 테이블을 **파일 백엔드(디스크 pread)** 로 서빙한다(상주 ✗).
+    # 가중치 로더는 이 텐서를 읽지 않는다(87 의 should_skip_weight 가드). 선언이 없으면 stock 경로가 이 테이블을
+    # 핀드 메모리에 올리므로 **보정하면 안 된다** — 호출부(check_smoke_model)가 선언 여부로만 이 기구를 고른다.
+    # A 팩(sfxnz 2.0bpw) 실측: layers.{1,14}.engram.embed.{weight,scale} = 188.8 GiB(샤드 47·48).
+    "engram_file": r"\.engram\.embed\.(weight|scale)$",
 }
 
 

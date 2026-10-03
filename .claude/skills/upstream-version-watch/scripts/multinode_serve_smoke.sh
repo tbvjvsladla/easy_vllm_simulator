@@ -931,6 +931,14 @@ if [ "$BUDGET" = "1" ]; then
       echo "[mn] ⚠ VLLM_PLE_MMAP=1 인데 ple_mib 를 파생하지 못했다(값='$PLE_MIB') — 보정 없이 진행한다." >&2
     fi
   fi
+  # ── 파일 기반 Engram 보정(2026-10-03 · plan_26100208) ──────────────────────────────────
+  #   check_smoke_model 이 트리플렛의 `hf-overrides engram_table_dir` **선언**을 확인했을 때만 `engram_mib` 를
+  #   숫자로 싣는다(없으면 `none`). 선언 없이 빼면 게이트가 없는 여유를 있다고 말한다 — 숫자가 아니면 **보정 0**.
+  ENGRAM_MIB=$(printf '%s\n' "$NAS_OUT" | grep -oE 'engram_mib=[0-9]+' | head -1 | cut -d= -f2)
+  if [ -n "$ENGRAM_MIB" ] && [ "$ENGRAM_MIB" -gt 0 ] 2>/dev/null && [ "$ENGRAM_MIB" -lt "$RESIDENT_CKPT_MIB" ]; then
+    RESIDENT_CKPT_MIB=$(( RESIDENT_CKPT_MIB - ENGRAM_MIB ))
+    PLE_NOTE="${PLE_NOTE} · engram=file-backed(−${ENGRAM_MIB}MiB · 선언+index 파생)"
+  fi
   WEIGHTS_MIB=$(( RESIDENT_CKPT_MIB / BTP ))
   echo "[mn] 예산 파생: weights=${WEIGHTS_MIB}MiB(상주 ckpt ${RESIDENT_CKPT_MIB}÷tp ${BTP} · ${PLE_NOTE}) kv=${KV_MIB}MiB overhead=${OVERHEAD_MIB}MiB ttl=${BUDGET_TTL_S}s"
 
