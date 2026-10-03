@@ -69,6 +69,25 @@ def read_config_declares_engram_file(config_yaml):
     return False
 
 
+def read_env_declares_engram_disk(env_file):
+    """셀 env 가 디스크 Engram 을 **선언**했는가 — `DSV41_ENGRAM_DISK=1`(V4.1 day-0 계열 패치 런타임 ·
+    sfxnz 레시피의 Engram-on-disk 스위치 · 2026-10-03 plan_26100319 R-1).
+
+    ★ `engram_table_dir` 와 같은 자격의 serve 선언이다 — 런타임이 다를 뿐 Engram 테이블을 디스크 pread 로
+      서빙하고 상주시키지 않는다. 파일이 없거나 값이 1 이 아니면 False(보정 0 · 부재를 추측으로 메우지 않는다)."""
+    if not env_file or not os.path.exists(env_file):
+        return False
+    with open(env_file, encoding="utf-8") as f:
+        for line in f:
+            s = line.strip()
+            if s.startswith("#") or "=" not in s:
+                continue
+            k, v = s.split("=", 1)
+            if k.strip() == "DSV41_ENGRAM_DISK" and v.strip().strip('"\'') == "1":
+                return True
+    return False
+
+
 def read_config_max_model_len(config_yaml):
     """트리플렛 yaml 의 `max-model-len`. 없으면 None."""
     with open(config_yaml, encoding="utf-8") as f:
@@ -317,7 +336,8 @@ def main():
                     #   선언이 없거나 산출에 실패(None)하면 **보정 0** — 부재를 추측으로 메우지 않는다.
                     #   종전엔 샤드 파일 크기 합(Engram 포함)을 `÷tp` 해 A 팩(357GB)을 로드 전에 거부했다.
                     _eng = None
-                    if read_config_declares_engram_file(cfg):
+                    _env_cell = os.path.join(base, "envs", f".env.{a.config_name}")
+                    if read_config_declares_engram_file(cfg) or read_env_declares_engram_disk(_env_cell):
                         _n1 = len(warns)
                         _eng = preload_ram_gate.offloadable_bytes_for(
                             host_path, mechanism="engram_file", warnings=warns)
