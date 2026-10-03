@@ -1261,11 +1261,15 @@
         },
         {
           "clause_id": "SUB_GIT_LOCAL_ONLY.C2",
-          "statement": "push/pull/fetch/remote/clone are denied at the persona layer, backed by the structural fact that no remote exists."
+          "statement": "push/pull/fetch/remote on the sub workspace repo are denied at the persona layer, backed by the structural fact that no remote exists."
         },
         {
           "clause_id": "SUB_GIT_LOCAL_ONLY.C3",
           "statement": "git on a sub node exists only to switch between the single/multi branches for model-load-strategy selection and to keep local history/rollback -- it is never a recovery or publication vehicle back to main."
+        },
+        {
+          "clause_id": "SUB_GIT_LOCAL_ONLY.C4",
+          "statement": "Cloning an external repository for reference (code, recipes, patches) is permitted on main and sub, outside the workspace repo's git (no remote is added to it); weight repositories (huggingface.co, hf.co) and git-lfs are excluded so model acquisition stays under MODEL_ACQUISITION_TERNARY_GATE; anything built or served from a clone is pinned to a commit SHA."
         }
       ],
       "evidence": [
@@ -1297,6 +1301,15 @@
           ],
           "assertion_ids": [
             "predicate_SUB_GIT_LOCAL_ONLY_C2"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "SUB_GIT_LOCAL_ONLY.C4"
+          ],
+          "assertion_ids": [
+            "predicate_SUB_GIT_LOCAL_ONLY_C4"
           ]
         },
         {

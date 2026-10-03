@@ -922,13 +922,18 @@ def _self_test() -> int:
                   ".claude/schemas/library-exchange.schema.json"):
             with open(os.path.join(out, p), encoding="utf-8") as f:
                 json.load(f)
-        # settings: 로컬 git allow + 원격 deny 정합(D12-02)
+        # settings: 로컬 git allow + 작업공간 원격 deny 정합(D12-02) + 외부 clone 허용·가중치 저장소/lfs deny
+        #   (2026-10-03 · plan_26100320 · policy:SUB_GIT_LOCAL_ONLY C4 — clone 은 원격 조작이 아니라 바깥 읽기다)
         with open(os.path.join(out, ".claude/settings.local.json"), encoding="utf-8") as f:
             st = json.load(f)
         allow, deny = st["permissions"]["allow"], st["permissions"]["deny"]
         git_ok = ("Bash(git commit:*)" in allow and "Bash(git checkout:*)" in allow
                   and "Bash(git commit:*)" not in deny
-                  and all(f"Bash(git {r}:*)" in deny for r in ("push", "pull", "fetch", "remote", "clone")))
+                  and all(f"Bash(git {r}:*)" in deny for r in ("push", "pull", "fetch", "remote"))
+                  and "Bash(git clone:*)" in allow and "Bash(git clone:*)" not in deny
+                  and all(d in deny for d in ("Bash(git clone https://huggingface.co:*)",
+                                              "Bash(git clone https://hf.co:*)", "Bash(git clone *huggingface.co*)",
+                                              "Bash(git clone *hf.co*)", "Bash(git lfs:*)")))
         c4 = have and not leftover and git_ok and docs_contract_ok
         print(f"  [{'PASS' if c4 else 'FAIL'}] 전체 렌더(미치환={leftover}, 누락아티팩트={missing_art}, git권한정합={git_ok}, docs계약5종={sorted(rendered_doc_types)})")
         ok &= c4

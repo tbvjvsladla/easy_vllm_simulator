@@ -2797,7 +2797,7 @@ def predicate_SUB_GIT_LOCAL_ONLY_C1():
 
 
 def predicate_SUB_GIT_LOCAL_ONLY_C2():
-    """C2: push/pull/fetch/remote/clone are denied at the persona layer -- the real
+    """C2: push/pull/fetch/remote on the sub workspace repo are denied at the persona layer -- the real
     `CLAUDE.template.md` that `render_sub_env.render_tree` maps 1:1 onto the sub's actual, delivered
     `CLAUDE.md` (never a decorative, unread document) -- and that denial is backed by mutation-
     sensitive inspection of the real dispatch channel: every literal command string sync_to_sub.sh
@@ -2806,9 +2806,9 @@ def predicate_SUB_GIT_LOCAL_ONLY_C2():
     dispatch found is the bare, read-only zero-remote confirmation, never a remote-mutating subform
     such as `git remote add`."""
     tmpl = _read(".claude/skills/terraforming_node/sub_node/CLAUDE.template.md")
-    denylist = "단 **`git push`·`git pull`·`git fetch`·`git remote`·`git clone` 금지**(origin 영구 없음)."
+    denylist = "단 **`git push`·`git pull`·`git fetch`·`git remote` 금지**(origin 영구 없음)."
     allowlist = "`git add/commit/checkout/switch/branch/status/diff/log/stash` **허용**"
-    _require(denylist in tmpl, 'the exact push/pull/fetch/remote/clone denial must be verbatim in the sub persona')
+    _require(denylist in tmpl, 'the exact push/pull/fetch/remote denial must be verbatim in the sub persona')
     _require(allowlist in tmpl, 'the exact local-only allowlist must be verbatim in the sub persona')
 
     # Not decorative: this exact template is render_sub_env's own production input for the sub's
@@ -2827,6 +2827,40 @@ def predicate_SUB_GIT_LOCAL_ONLY_C2():
     _require(not offenders, f'sub_run dispatched a banned git subcommand: {offenders}')
     remote_dispatches = [c for c in dispatched if re.search(r"git\s+remote\b", c)]
     _require(remote_dispatches == ['git remote'], f'the only git-remote dispatch must be the bare read-only zero-remote confirmation, got: {remote_dispatches}')
+
+
+def predicate_SUB_GIT_LOCAL_ONLY_C4():
+    """C4 (2026-10-03 · plan_26100320): cloning an external repository for reference is permitted on
+    main and sub, outside the workspace repo's git; weight repositories (huggingface.co/hf.co) and
+    git-lfs stay excluded so model acquisition never bypasses MODEL_ACQUISITION_TERNARY_GATE.
+
+    Checked at the two layers the sub actually obeys: the persona sentence (verbatim, both the grant
+    and the exclusion) and the rendered permission template (allow carries `git clone`, the blanket
+    clone deny is gone, and the weight-repo/lfs denies are present). The workspace-remote denial
+    itself stays C2's job."""
+    tmpl = _read(".claude/skills/terraforming_node/sub_node/CLAUDE.template.md")
+    grant = "**외부 저장소 `git clone` 허용**(코드·레시피·패치 참조 · 작업공간 git 에 원격을 붙이지 않는다 · 빌드·서빙 입력으로 쓰면 커밋 SHA 로 고정해 보고)"
+    exclusion = "**가중치 저장소 clone(`huggingface.co`·`hf.co`)·`git lfs` 금지**"
+    _require(grant in tmpl, "the external-clone grant must be verbatim in the sub persona")
+    _require(exclusion in tmpl, "the weight-repo/git-lfs exclusion must be verbatim in the sub persona")
+    perms = json.loads(_read(".claude/skills/terraforming_node/sub_node/settings.local.template.json"))["permissions"]
+    allow, deny = perms["allow"], perms["deny"]
+    _require("Bash(git clone:*)" in allow, "the permission template must allow `git clone`")
+    _require("Bash(git clone:*)" not in deny, "the blanket `git clone` deny must be gone (deny beats allow)")
+    weight_denies = ("Bash(git clone https://huggingface.co:*)", "Bash(git clone https://hf.co:*)",
+                     # 위치무관 와일드카드 — `git clone -q https://huggingface.co/…` 처럼 옵션이 URL 앞에 오면
+                     # 접두 규칙을 빠져나간다(2026-10-03 서브 회신 지적).
+                     "Bash(git clone *huggingface.co*)", "Bash(git clone *hf.co*)", "Bash(git lfs:*)")
+    for d in weight_denies:
+        _require(d in deny, f"the permission template must deny {d}")
+    # 최우선 층(서브 root 관리 설정)의 추적 정본도 같은 말을 해야 한다 — 관리 설정이 clone 을 막으면
+    # 하위 allow 는 무력하고, HF deny 가 빠지면 최우선 층에서 게이트가 사라진다.
+    managed = json.loads(_read(".claude/skills/terraforming_node/sub_node/managed-settings.template.json"))["permissions"]["deny"]
+    _require("Bash(git clone:*)" not in managed, "the managed-settings template must not blanket-deny `git clone`")
+    for d in weight_denies + ("Bash(git push:*)", "Bash(git pull:*)", "Bash(git fetch:*)", "Bash(git remote:*)"):
+        _require(d in managed, f"the managed-settings template must deny {d}")
+    for d in ("Bash(git push:*)", "Bash(git pull:*)", "Bash(git fetch:*)", "Bash(git remote:*)"):
+        _require(d in deny, f"workspace-remote deny {d} must survive the clone grant")
 
 
 def predicate_SUB_GIT_LOCAL_ONLY_C3():
@@ -4420,6 +4454,7 @@ PREDICATES = {
     "SUB_GIT_LOCAL_ONLY.C1": predicate_SUB_GIT_LOCAL_ONLY_C1,
     "SUB_GIT_LOCAL_ONLY.C2": predicate_SUB_GIT_LOCAL_ONLY_C2,
     "SUB_GIT_LOCAL_ONLY.C3": predicate_SUB_GIT_LOCAL_ONLY_C3,
+    "SUB_GIT_LOCAL_ONLY.C4": predicate_SUB_GIT_LOCAL_ONLY_C4,
     "TERRAFORM_FLAG_GATE.C1": predicate_TERRAFORM_FLAG_GATE_C1,
     "TERRAFORM_FLAG_GATE.C2": predicate_TERRAFORM_FLAG_GATE_C2,
     "TERRAFORM_FLAG_GATE.C3": predicate_TERRAFORM_FLAG_GATE_C3,
@@ -4515,7 +4550,8 @@ def run_all_predicates() -> int:
     # 68 -> 73 (2026-09-12 · plan_26091210 BRANCH_CONSTITUTION_LAYERING C1~C5 신설). 이 숫자는
     # 집합 동치가 이미 보장하는 것을 한 번 더 적는 **tripwire 하드코딩**이다 — 절이 늘거나 줄면
     # 여기서 사람 리뷰를 강제한다(workflow.md §4종 안티패턴 판정표 "정당" 칸).
-    if len(PREDICATES) != 73 or set(PREDICATES) != registry_ids:
+    # 73 -> 74 (2026-10-03 · plan_26100320 SUB_GIT_LOCAL_ONLY.C4 신설 — 외부 저장소 clone 허용 · HF/lfs 제외).
+    if len(PREDICATES) != 74 or set(PREDICATES) != registry_ids:
         failures.append({"clause_id": "__mapping__", "error":
                          f"predicate/registry mismatch predicates={len(PREDICATES)} registry={len(registry_ids)}"})
     funcs = list(PREDICATES.values())

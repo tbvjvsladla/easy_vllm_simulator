@@ -1,0 +1,44 @@
+{
+  "_template_note": "서브 root 관리 설정의 추적 정본(2026-10-03 · plan_26100320 Q2 승격). 설치·갱신은 사람(sudo)이 /etc/claude-code/managed-settings.json 으로 한다 — 에이전트가 쓰는 자리가 아니다(최우선 설정 · 하위 allow 로 못 연다). render 대상 아님: {{ WORKSPACE_PATH }} 를 서브 작업공간 절대경로로 치환해 설치한다(규칙의 '//' = 절대경로 표기). 원문은 2026-09-15 16:50 서브 설치본(request_26100320_46_02 회수물 ①) · 개정 = policy:SUB_GIT_LOCAL_ONLY C4(git clone deny 해제 · HF/hf.co·git lfs deny). hooks 의 guard-settings.sh 본문은 아직 회수 전이다(후속). 붙여넣기 회수본의 hooks 위치가 permissions 안으로 보였으나 json.load 성공이 확인된 실물이므로 스키마 위치(최상위 hooks)로 적는다 — S3 에서 실물 키 구조와 대조한다.",
+  "permissions": {
+    "defaultMode": "default",
+    "disableBypassPermissionsMode": "disable",
+    "deny": [
+      "Edit(/{{ WORKSPACE_PATH }}/.claude/**)",
+      "Edit(/{{ WORKSPACE_PATH }}/CLAUDE.md)",
+      "Edit(/{{ WORKSPACE_PATH }}/Agent_Card.json)",
+      "Edit(/{{ WORKSPACE_PATH }}/output/**/serve_runner.sh)",
+      "Edit(/{{ WORKSPACE_PATH }}/output/**/debug-init.sh)",
+      "Edit(/{{ WORKSPACE_PATH }}/docs/report/**)",
+      "Edit(/{{ WORKSPACE_PATH }}/docs/request/**)",
+      "Edit(/{{ WORKSPACE_PATH }}/docs/checklist/**)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git remote:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(huggingface-cli:*)",
+      "Bash(hf:*)",
+      "Bash(rm:*)",
+      "Bash(git clone https://huggingface.co:*)",
+      "Bash(git clone https://hf.co:*)",
+      "Bash(git clone *huggingface.co*)",
+      "Bash(git clone *hf.co*)",
+      "Bash(git lfs:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/etc/claude-code/hooks/guard-settings.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

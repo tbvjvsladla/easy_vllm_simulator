@@ -382,6 +382,18 @@
     },
     {
       "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/sub_node/managed-settings.template.json",
+      "phase": "verification_plane",
+      "reason": "claim 술어 SUB_GIT_LOCAL_ONLY.C4 — 서브 root 관리 설정 추적 정본의 clone/HF/lfs/원격 deny 를 텍스트로 읽어 단언(plan_26100320 Q2)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/sub_node/settings.local.template.json",
+      "phase": "verification_plane",
+      "reason": "claim 술어 SUB_GIT_LOCAL_ONLY.C4 — 서브 권한 템플릿의 clone allow·HF/lfs deny 를 텍스트로 읽어 단언(plan_26100320)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
       "callee": "upstream-version-watch/SKILL.md",
       "phase": "verification_plane",
       "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
