@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗).",
-  "count": 52,
-  "generated_kst": "2026-09-29T15:53:43",
+  "count": 53,
+  "generated_kst": "2026-10-06T10:00:31",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1064,6 +1064,29 @@
       "verdict": "—",
       "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.29.0rc6"
+    },
+    {
+      "anchor": "3e12e0af6930343974a8a7ed53b5fcdb5d409b42",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "bench_mode": "lite(선언)",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26100516_deepseek-v4.1-flash-exl3-2.0bpw-sfxnz_GB10_0.30.0.md))",
+      "brief": "DeepSeek-V4.1-Flash EXL3 2.0bpw(sfxnz 팩 A)를 GB10 GPU 1개 × 노드 2개 · Ray TP=2 · vLLM v0.30.0 소스빌드(SM12X_PORT=1 이식 이미지) · max-model-len 1048576 · fp8 KV · PLE 없음 · DSpark spec k=3 · cudagraph 로 서빙해 lite warm 동시성 1 gen 44.74 t/s(lite 스냅샷 · 반복 1 · OBSERVATION-ONLY)를 쟀다. 가장 비싼 벽은 CUDA graph 전부 logits NaN(W4 — 원인은 KV null 블록 오염 · PRE 89 로 해소)과 참조 런타임의 두 배가 넘던 스텝 비용(W6~W9 — 저자 커널 레버를 핀 커밋 그대로 빌드 슬롯 POST 73 · 74 · PRE 90 · 91 · 92 로 이식)이다. 가장 오해하기 쉬운 값은 `kv-cache-memory-bytes`(V9 — 필요량 역산이 아닌 손레버 승계값이고 이 값이 있으면 gmu 는 KV 를 정하지 않는다)이며, Engram prestage(88)는 graph NaN 의 처방이 아니다(M1 반증).",
+      "grammar": "v7",
+      "missing": [
+        "BENCH_MODE_LITE",
+        "HINT_MISSING_CELL_CONFIG",
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "deepseek-v4.1-flash-exl3-2.0bpw-sfxnz",
+      "object": "c5f0300229ad87a4b330e9ffceb34841ac653000",
+      "published": true,
+      "recipe": "qexl3-len1048576-kvfp8-spec3-densegemv-moeprep",
+      "source": "remote-derived",
+      "tag": "hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8-spec3-densegemv-moeprep",
+      "verdict": "OBSERVATION-ONLY",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · lite-only 셀 — verdict_rule 에 투입되지 않았다(경량 리포트 `inform-only` · 판정 원천 없음 · benchmark_mode=lite · report_kind=lite))",
+      "vllm": "0.30.0"
     }
   ],
   "remote": "origin",
