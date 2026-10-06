@@ -3291,9 +3291,15 @@ def _model_facts(c: _Ctx) -> dict:
 
 
 def _engine_log_paths(c: _Ctx) -> list[Path]:
-    """이 셀 엔진 로그(비어 있지 않은 저장소 안 regular file) — 계보 후보(`evidence_candidates` kind=engine_log) · native serve proof
-    `evidence_dir/logs/*vllm-serve*.log` · evidence 주입(`engine_logs`). 관련성 판정 ② 의 입력."""
+    """이 셀 엔진 로그(비어 있지 않은 저장소 안 regular file) — **바인딩 측정의 엔진 로그**(evidence._measured_engine_logs_ex · 같은 조인 ·
+    같은 실행 전체 사본 포함) · 계보 후보(`evidence_candidates` kind=engine_log) · native serve proof `evidence_dir/logs/*vllm-serve*.log` ·
+    evidence 주입(`engine_logs`). 관련성 판정 ② 의 입력.
+    2026-10-06(factcheck F3): 옛 판은 증거 기록의 씨앗만 읽어, 씨앗에 엔진 로그를 올리지 않은 lite 셀(i5-a-kern)이 측정 로그를 보존하고도
+    "엔진 로그 미관측" 이었다 — 측정 조인(lite_raw measured_utc = 리포트 생성일 · 스윕 generated_utc)이 가리키는 로그를 먼저 싣는다."""
     rels: list[str] = []
+    from . import evidence as _evidence
+    if isinstance(c.ev, _evidence.CellEvidence):
+        rels += [core.rel(c.repo, q) for q in _evidence._measured_engine_logs_ex(c.repo, c.ev)[0]]
     seeds = _get(c.ev, "lineage_seeds") or {}
     for x in (seeds.get("evidence_candidates") or []) if isinstance(seeds, dict) else []:
         if isinstance(x, dict) and x.get("kind") == "engine_log" and isinstance(x.get("path"), str):
@@ -5724,6 +5730,12 @@ def selftest() -> list[str]:
             (blz / "lite_warm_cz.json").unlink()
             ck("★G9 음성대조: 레그 JSON 이 없으면 lite-only 사유로 미관측(스윕 사유 ✗)",
                _bench_commands(_ctx(repo, evz))[1].startswith("unobserved(lite-only 셀"))
+            # ── factcheck F3(2026-10-06): 관련성 ② 의 엔진 로그 = 바인딩 측정 조인의 로그(씨앗에 없어도) ──
+            ck("★F3 음성대조: 측정 조인 로그가 없으면(씨앗도 없으면) 엔진 로그 0개", _engine_log_paths(_ctx(repo, evz)) == [])
+            (blz / "lite_engine_cz.log").write_text("(EngineCore pid=1) INFO 01-01 01:59:00 x\n", encoding="utf-8")
+            ck("F3 관련성 ② 엔진 로그 = lite_raw 조인(measured_utc = 리포트 생성일)의 lite_engine — 증거 기록 씨앗에 없어도",
+               [q.name for q in _engine_log_paths(_ctx(repo, evz))] == ["lite_engine_cz.log"])
+            (blz / "lite_engine_cz.log").unlink()
             (blz / "lite_raw_cz.json").unlink()
             # ── FACT_FIX2 G4: 발화 서명은 실제 매치된 것과 횟수 · 워치독 로그는 엔진 로그가 아니다 ──
             ft = _fired_text(["PLE mmap: madvise(", "PLE mmap stats (last"], {"PLE mmap stats (last": 66}, True)

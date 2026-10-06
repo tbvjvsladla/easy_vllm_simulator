@@ -64,7 +64,7 @@ case "$1" in
       n="$(cat "$SHIM_DIR/last_n" 2>/dev/null || echo 1)"
       case "${SHIM_BENCH_MODE:-ok}" in
         http500|refused) printf '{"completed": 0, "failed": %s, "total_output_tokens": 0, "median_tpot_ms": null}' "$n" ;;
-        *) printf '{"completed": %s, "failed": 0, "total_output_tokens": %s, "median_tpot_ms": 25.0, "median_ttft_ms": 118.0, "output_throughput": 39.0}' "$n" "$((n*128))" ;;
+        *) printf '{"completed": %s, "failed": 0, "total_output_tokens": %s, "median_tpot_ms": 25.0, "median_ttft_ms": 118.0, "output_throughput": 39.0, "spec_decode_acceptance_length": 1.75}' "$n" "$((n*128))" ;;
       esac
       exit 0
     fi
@@ -221,6 +221,18 @@ def main() -> int:
         ck("L2 본문 측정시각 = raw 측정시각(같은 측정 판정 근거 · doc_naming.measurement_ts)",
            dn.measurement_ts(text) == raw.get("measured_utc"), dn.measurement_ts(text))
         ck("L2 스윕 표가 없다(동시성 곡선을 재지 않았다 — 만들어 넣지 않는다)", rbs.REPORT_HEADER not in text)
+        # factcheck F5(2026-10-06): lite 레그 수락 길이(원문)가 리포트 측정 환경 표와 lite 등급 인증서에 같은 이름으로 실린다.
+        certs = sb.certs()
+        ctext = (sb.root / "docs/benchmark" / certs[0]).read_text(encoding="utf-8") if len(certs) == 1 else ""
+        ck("L2 F5 lite_accept_len = warm 레그 spec_decode_acceptance_length 원문 — 리포트 표 · lite 인증서(출처 칸 병기)",
+           "| lite_accept_len | 1.75 |" in text and "| lite_accept_len_src | warm.spec_decode_acceptance_length |" in text
+           and "\nlite_accept_len: 1.75\n" in ctext and "lite_accept_len_src: warm.spec_decode_acceptance_length" in ctext,
+           (certs, ctext[-700:]))
+        # factcheck F1(2026-10-06): 엔진 로그 머리 캡처(배너 · env 되읊음) — 꼬리와 같은 자리 · raw 가 경로와 줄 수를 적는다.
+        headp = Path(str(raw.get("engine_log_head", "")))
+        ck("L2 F1 엔진 로그 머리 캡처 lite_engine_head_<config>.log 가 raw engine_log 옆에 남고 raw 가 가리킨다",
+           headp.name == f"lite_engine_head_{CFG}.log" and headp.is_file() and headp.parent == Path(str(raw.get("engine_log"))).parent
+           and raw.get("engine_log_head_lines") == 600, raw)
 
         # ── L3 멱등 재렌더 ──────────────────────────────────────────────────────────────────────────
         cp3 = sb.render("--lite-only", "--lite-raw-json", str(sb.raw_path()))

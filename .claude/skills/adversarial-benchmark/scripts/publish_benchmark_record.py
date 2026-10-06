@@ -135,6 +135,9 @@ def build_yaml(index, verdict):
     A("lite_kv_gib: %s" % scalar(_lite.get("kv_gib")))
     A("lite_gpu_occupancy: %s" % scalar(_cap.get("gpu")))
     A("lite_ram_occupancy: %s" % scalar(_cap.get("ram")))
+    # lite 레그의 수락 길이(원문 · 2026-10-06 factcheck F5) — 위 `accept_len`(판정점 레벨 · verdict 입력)과 다른 레그의 같은 양이다.
+    A("lite_accept_len: %s" % scalar(_lite.get("accept_len")))
+    A("lite_accept_len_src: %s" % scalar(_lite.get("accept_len_src")))
     if verdict.get("balance"):
         b = verdict["balance"]
         A("node_vram_balance_dev: %s" % scalar(b.get("balance_dev")))
@@ -215,6 +218,10 @@ def build_lite_yaml(meta, lite, measured_utc, entry_path, verdict_source):
     A("lite_kv_gib: %s" % scalar(lite.get("kv_gib")))
     A("lite_gpu_occupancy: %s" % scalar(_cap.get("gpu")))
     A("lite_ram_occupancy: %s" % scalar(_cap.get("ram")))
+    # spec decode 수락 길이(lite 레그 원문 · 2026-10-06 factcheck F5) — full 인증서 `accept_len`(verdict 입력)과 이름을 가른다:
+    #   lite 는 verdict_rule 에 투입되지 않으므로 판정 입력처럼 읽히는 키를 쓰지 않는다. spec 꺼짐 = N/A.
+    A("lite_accept_len: %s" % scalar(lite.get("accept_len")))
+    A("lite_accept_len_src: %s" % scalar(lite.get("accept_len_src")))
     A("measured_utc: %s" % scalar(measured_utc))
     A("measured_node: %s" % scalar(meta.get("measured_node")))
     A("measured_node_source: %s" % scalar(meta.get("measured_node_source")))

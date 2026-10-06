@@ -539,12 +539,17 @@ def build_lite_md(raw, lite, identity):
     A("")
     A("| 키 | 값 |")
     A("|---|---|")
+    # quantization·tensor_parallel_size 는 lite 등급 인증서의 강한 키와 **같은 값**이다(2026-10-06 — 표에 없으면 hint 발행기가
+    #   이 표에서 runtime identity 를 관측하므로 quant=None 이 되어 인증서 quant 와 RUNTIME_IDENTITY_MISMATCH 로 갈라진다).
     for key in ("model", "model_source", "serving_config", "gpu_model", "vllm_version", "vllm_version_source",
-                "vllm_build", "topology"):
+                "vllm_build", "topology", "quantization", "quantization_source", "tensor_parallel_size"):
         A("| %s | %s |" % (key, _cell(identity.get(key))))
     for key in ("burst_n", "backend", "endpoint", "gen_src"):
         src = lite if key == "gen_src" else raw
         A("| %s | %s |" % (key, _cell(src.get(key))))
+    # spec decode 수락 길이(lite 레그 원문 · 2026-10-06 factcheck F5) — 인증서 `lite_accept_len` 과 같은 이름·같은 값. spec 꺼짐 = N/A.
+    A("| lite_accept_len | %s |" % _cell(lite.get("accept_len")))
+    A("| lite_accept_len_src | %s |" % _cell(lite.get("accept_len_src")))
     A("")
     A("---")
     A("_결정론 렌더 = `render_report.py --lite-only`(LLM 표저작 ✗) · 참조 체인: lite raw → 이 report → testlog(판정) → devlog(서사)._")

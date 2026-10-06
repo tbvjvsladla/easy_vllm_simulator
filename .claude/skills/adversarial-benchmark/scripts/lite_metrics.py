@@ -51,6 +51,16 @@ def gen_tps_from_bench(bench):
     return None, None
 
 
+def accept_len_from_bench(bench, leg):
+    """spec decode 수락 길이 — `vllm bench serve` 결과의 `spec_decode_acceptance_length` **원문**(재산정 ✗ · 반올림 ✗).
+    spec 꺼짐·키 부재·수 아님 = (None, None). 반환 (값, 출처 `<leg>.spec_decode_acceptance_length`). full 의 accept_len
+    (verdict measured_accept_len) 과 같은 양이며 lite 레그에서 잰 것이다(2026-10-06 · factcheck F5)."""
+    v = (bench or {}).get("spec_decode_acceptance_length")
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return v, "%s.spec_decode_acceptance_length" % leg
+    return None, None
+
+
 def cold_ttft_ms(bench_cold):
     """cold(무-warmup 단일요청) TTFT. median_ttft_ms 우선, ttfts[0] 폴백."""
     if not bench_cold:
@@ -223,8 +233,12 @@ def build(raw):
         t = _num(node.get("gpu_smi_total_mib"))
         return (t / 1024.0) if t else None
 
+    # 수락 길이는 warm 레그(burst · gen_tps 와 같은 레그)를 쓰고, warm 이 없을 때만 cold 레그(출처에 레그를 적는다).
+    acc, acc_src = accept_len_from_bench(warm, "warm")
+    if acc is None:
+        acc, acc_src = accept_len_from_bench(cold, "cold")
     result = {"topology": topo, "gen_tps": gen, "gen_src": gen_src, "cold_ttft_ms": ttft,
-              "kv_gib": engine.get("kv_gib"), "engine": engine}
+              "kv_gib": engine.get("kv_gib"), "engine": engine, "accept_len": acc, "accept_len_src": acc_src}
     if topo == "multi":
         caps = {}
         for role in ("main", "sub"):

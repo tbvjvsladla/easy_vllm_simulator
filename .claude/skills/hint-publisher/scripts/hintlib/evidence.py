@@ -167,7 +167,7 @@ DISTRIBUTED_MEASUREMENT_KEYS = ("bench_mode", "bench_mode_kind", "downgrade_reas
 _CERT_MEASUREMENT_KEYS = ("benchmark_mode", "verdict", "decode_tps_conc1", "rubric_authority", "primary_source",
                           "primary_tps", "floor_tps", "tolerance", "ratio_M_over_primary", "spec_on", "accept_len",
                           "sweep_levels", "sweep_truncated", "lite_included", "lite_gen_tps_warm", "lite_gen_src",
-                          "lite_cold_ttft_ms", "lite_kv_gib", "measured_utc", "bench_tool", "bench_tool_version")
+                          "lite_cold_ttft_ms", "lite_kv_gib", "lite_accept_len", "measured_utc", "bench_tool", "bench_tool_version")
 
 
 # ── 자료형 ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1545,6 +1545,12 @@ def measurement(ev: CellEvidence) -> dict:
             per["accept_len"] = (f"{legs[leg]['path']} spec_decode_acceptance_length({leg} 레그 · 원문)"
                                  + (f" · cold {got['cold']}" if leg == "warm" and "cold" in got else "")
                                  + " — lite 관측(판정 입력 아님 · lite-only 셀은 verdict_rule 에 투입되지 않았다)")
+        elif not _unobserved(cert.get("lite_accept_len")):
+            # 2026-10-06(factcheck F5): 레그 JSON 조인이 서지 않으면 lite 등급 인증서의 `lite_accept_len`(lite_metrics.build 가 같은 레그
+            #   JSON 에서 옮긴 원문 · 발행 시점 기록)을 쓴다 — 출처에 인증서 칸임을 적는다.
+            out["accept_len"] = str(cert["lite_accept_len"])
+            per["accept_len"] = (f"{cname} lite_accept_len(" + str(cert.get("lite_accept_len_src") or "출처 칸 없음")
+                                 + ") — lite 관측(판정 입력 아님 · lite-only 셀은 verdict_rule 에 투입되지 않았다)")
     for k in ("decode_tps_conc1", "floor_tps", "ratio_M_over_primary", "rubric_authority", "accept_len"):
         if k not in out:
             out[k] = None
@@ -1637,7 +1643,11 @@ _ENGINE_MARKERS = (
 )
 # full 정의 문장(docs.md compact document matrix `benchmark/` 행)의 모양 — tripwire. 문구가 바뀌면 정의를 **읽지 못함**(None)으로
 #   떨어지고 meets_current_full 도 None 이다(모름을 충족/미충족으로 접지 않는다).
-_FULL_DEF_RE = re.compile(r"full 계측\(`[^`]*`\)")
+#   두 판을 모두 읽는다: 옛 판(2026-09-14) `full 계측(\`lite ∪ GuideLLM × 반복 ≥3\`)` · 현행 판(2026-09-29 · plan_26092923 · lite ⊂ full)
+#   `full 계측(lite 게이트 → \`GuideLLM × 반복 ≥3\` · lite ⊂ full)` — 괄호 안 백틱 앞의 머리(`<레그> 게이트 →`)와 뒤의 꼬리를 허용한다
+#   (괄호·백틱은 머리·꼬리에 들 수 없다 · 2026-10-06 factcheck F4: 옛 정규식은 괄호 바로 뒤 백틱만 받아 현행 판을 못 읽었다).
+_FULL_DEF_RE = re.compile(r"full 계측\((?P<head>[^()`]*)`(?P<inner>[^`]*)`(?P<tail>[^()`]*)\)")
+_FULL_GATE_LEG_RE = re.compile(r"([A-Za-z][A-Za-z0-9_-]*)\s*게이트")
 _FULL_REPEATS_RE = re.compile(r"반복\s*≥\s*(\d+)")
 
 
@@ -2326,11 +2336,13 @@ def bench_definition(repo, ev: CellEvidence) -> dict:
                 break
     sent = out["current_full_definition"]
     if sent:
-        rm = _FULL_REPEATS_RE.search(sent)
+        dm = _FULL_DEF_RE.search(sent)
+        rm = _FULL_REPEATS_RE.search(dm.group("inner"))
         out["required_repeats"] = int(rm.group(1)) if rm else None
-        inner = re.search(r"`([^`]*)`", sent)
-        legs = inner.group(1).split("×")[0] if inner else ""
-        out["required_legs"] = [x.strip() for x in legs.split("∪") if x.strip()]
+        legs = dm.group("inner").split("×")[0]
+        # 현행 판의 머리 `lite 게이트 →` 는 레그다(lite ⊂ full · lite 가 full 의 첫 단계) — 옛 판의 `lite ∪` 와 같은 레그 목록이 나온다.
+        gate = [g for g in _FULL_GATE_LEG_RE.findall(dm.group("head"))]
+        out["required_legs"] = list(dict.fromkeys(gate + [x.strip() for x in legs.split("∪") if x.strip()]))
     else:
         out["reasons"].append(f"{REL_DOCS_RULES} 에서 full 정의 문장(`full 계측(…)`)을 읽지 못했다 — 대조하지 않는다")
     mc = measurement_config(repo, ev)
@@ -2736,6 +2748,9 @@ def _sweep_engine_logs(base: Path, idx: dict, levels: list, cell: str) -> list[P
     다른 측정의 잔재일 수 있다(다음 스윕이 레벨을 덜 돌면 옛 파일이 남는다)."""
     logs: list[Path] = []
     if isinstance(idx.get("lite"), dict) and (base / f"lite_engine_{cell}.log").is_file():
+        head = base / f"lite_engine_head_{cell}.log"      # lite_bench 머리 캡처(2026-10-06 이후 · 배너 · env 되읊음)
+        if head.is_file() and _nonempty(head):
+            logs.append(head)
         logs.append(base / f"lite_engine_{cell}.log")
     lv = sorted({n for n in (_as_int(x.get("level")) for x in levels if isinstance(x, dict)) if n})
     for n in lv:
@@ -2847,6 +2862,48 @@ def _measured_engine_logs_ex(repo: Path, ev: CellEvidence) -> tuple[list[Path], 
     return logs, why, copies
 
 
+# lite_bench.sh `--publish-report`(β) 의 측정별 보존 자리(2026-09-29 · plan_26092923_58_27) — `lite_publish/<셀>_<UTC 초 압축>/`.
+#   디렉터리 이름의 시각은 OUTDIR 을 만든 시각이라 raw measured_utc(부하 직전)와 다를 수 있다 — 이름으로 고르지 않고 raw 를 읽어 조인한다.
+LITE_PUBLISH_DIR = "lite_publish"
+_LITE_PUBLISH_SUB_RE = r"_\d{8}T\d{6}Z"
+
+
+def _lite_join_key(repo: Path, ev: CellEvidence) -> tuple[str | None, str]:
+    """lite 조인 키 = 바인딩된 경량 리포트 `생성일`(= raw measured_utc) · 리포트가 없으면 lite 등급 인증서 measured_utc."""
+    born = _report_born_utc(repo, ev.bench_report_path)
+    if born:
+        return born, "measured_utc = 리포트 생성일"
+    mu = _norm_value((ev.certificate or {}).get("measured_utc")) if cert_is_lite(ev.certificate or {}) else None
+    return (str(mu), "measured_utc = lite 인증서 measured_utc") if mu else (None, "조인 키 없음(리포트 생성일 · lite 인증서 measured_utc 모두 없음)")
+
+
+def lite_join(repo, ev: CellEvidence) -> tuple[Path | None, dict | None, str]:
+    """lite-only 셀의 **바인딩 측정** raw 가 있는 디렉터리(2026-10-06 · factcheck F1/F3). 후보 = 벤치로그 루트(α · 옛 β)
+    + `lite_publish/<셀>_<UTC>/`(β 측정별 보존). 조건 = raw config_name == 셀 ∧ raw measured_utc == 조인 키(리포트 생성일 · 없으면 lite 인증서) —
+    "최신" 으로 고르지 않는다. 일치가 둘 이상의 디렉터리면 고르지 않고 None(모호). 반환 (디렉터리|None, raw|None, 근거)."""
+    repo = _repo(repo)
+    key, kwhy = _lite_join_key(repo, ev)
+    if not key:
+        return None, None, kwhy
+    base = repo / "output" / ev.topology / "benchlog"
+    cands = [base]
+    pub = base / LITE_PUBLISH_DIR
+    if pub.is_dir():
+        rx = re.compile(re.escape(ev.cell) + _LITE_PUBLISH_SUB_RE)
+        cands += sorted(q for q in pub.iterdir() if q.is_dir() and not q.is_symlink() and rx.fullmatch(q.name))
+    hits = []
+    for d in cands:
+        raw, _bad = _read_json_soft(d / f"lite_raw_{ev.cell}.json")
+        if isinstance(raw, dict) and raw.get("config_name") == ev.cell and raw.get("measured_utc") == key:
+            hits.append((d, raw))
+    if len(hits) == 1:
+        d, raw = hits[0]
+        return d, raw, f"{_rel(repo, d / f'lite_raw_{ev.cell}.json')} · {kwhy} {key}"
+    if hits:
+        return None, None, f"모호 — {key} 와 조인되는 lite raw 가 {len(hits)}곳({', '.join(_rel(repo, d) for d, _ in hits)}) · 고르지 않는다"
+    return None, None, f"{kwhy} {key} 와 조인되는 lite_raw_{ev.cell}.json 없음(벤치로그 루트 · {LITE_PUBLISH_DIR}/{ev.cell}_<UTC>/)"
+
+
 def _measured_engine_logs_base(repo: Path, ev: CellEvidence) -> tuple[list[Path], str]:
     sw = ev.sweep or {}
     if sw.get("binding") == "output":
@@ -2861,13 +2918,13 @@ def _measured_engine_logs_base(repo: Path, ev: CellEvidence) -> tuple[list[Path]
             why += f" + native serve proof evidence_dir 보존 엔진 로그({', '.join(_rel(repo, q) for q in nat)} · 이 run 의 vllm serve 전체 출력)"
         return logs, why
     if not sw and ev.report_kind == "lite":
-        d = repo / "output" / ev.topology / "benchlog"
-        raw = _read_json_opt(d / f"lite_raw_{ev.cell}.json", "lite_raw")
-        born = _report_born_utc(repo, ev.bench_report_path)
-        if isinstance(raw, dict) and born and raw.get("config_name") == ev.cell and raw.get("measured_utc") == born \
-                and (d / f"lite_engine_{ev.cell}.log").is_file():
-            return [d / f"lite_engine_{ev.cell}.log"], "lite_raw 조인(measured_utc = 리포트 생성일)"
-        return [], "lite 셀 — lite_raw 조인 불성립 또는 엔진 로그 부재"
+        d, _raw, jwhy = lite_join(repo, ev)
+        if d is not None and (d / f"lite_engine_{ev.cell}.log").is_file():
+            head = d / f"lite_engine_head_{ev.cell}.log"
+            # 머리 캡처(있으면 · 2026-10-06 이후 lite_bench) 를 **앞에** 둔다 — 기동 배너 · env 되읊음이 꼬리 창 앞에 있다.
+            logs = ([head] if head.is_file() and _nonempty(head) else []) + [d / f"lite_engine_{ev.cell}.log"]
+            return logs, f"lite_raw 조인({jwhy})" + (" · 엔진 로그 머리 캡처 포함" if len(logs) > 1 else " · 꼬리 캡처만(머리 캡처 없음)")
+        return [], f"lite 셀 — lite_raw 조인 불성립 또는 엔진 로그 부재({jwhy})"
     return [], (f"스윕이 출력 평면에 묶이지 않았다(binding={sw.get('binding')!r}) — 그 로그는 이 측정의 것이 아니다" if sw
                 else "측정 스윕 없음")
 
@@ -2940,6 +2997,27 @@ def _log_tail_caps(repo: Path, ev: CellEvidence) -> dict[str, tuple[int, str]]:
     return out
 
 
+def _tail_windows(repo: Path, ev: CellEvidence, logs: list[Path], copies) -> dict[str, str]:
+    """{로그 상대경로: `tail-<N>(<도구>@<rev12> L<줄>)`} — 측정 도구의 `tail -N` 상한에 닿은(줄 수 ≥ N) 꼬리 캡처만. 그 창 **앞**의 줄은
+    관측 대상 밖이다. 전체 사본(native 보존 · 같은 실행 사본) · 머리 캡처는 꼬리 창이 아니다. env 표(measurement_env_observed)와
+    배너 미관측 행(_engine_banner)이 같은 판정을 쓴다(2026-10-06 · factcheck F1 2차)."""
+    caps = _log_tail_caps(repo, ev)
+    windows: dict[str, str] = {}
+    # F9: native 보존 로그 · G1: 같은 실행의 전체 사본은 꼬리 캡처가 아니다(전체 출력 — 줄 수가 상한 이상이어도 창 표지 ✗)
+    full = set(_native_preserved_engine_logs(repo, ev)) | set(copies or ())
+    for lp in logs:
+        if lp in full or lp.name.startswith("lite_engine_head_"):     # 머리 캡처는 꼬리 창이 아니다(창 앞을 보는 자리)
+            continue
+        cap = caps.get("lite" if lp.name.startswith("lite_engine_") else "bench")
+        try:
+            n_lines = lp.read_bytes().count(b"\n")
+        except OSError:
+            n_lines = -1
+        if cap and n_lines >= cap[0]:
+            windows[_rel(repo, lp)] = f"tail-{cap[0]}({cap[1]})"
+    return windows
+
+
 def measurement_env_observed(repo, ev: CellEvidence) -> list[dict]:
     """이 측정의 엔진 로그가 되읊은 env · NCCL 런타임 관측(공유 계약 `facts['measurement_env_observed']`).
     반환 [{key, value, node(main|sub|None), source('<로그>:L<줄>' — 공유 계약 표기), kind(env-echo|param-echo|runtime), seen_in_logs(그 값이 나온 캡처
@@ -2956,20 +3034,7 @@ def measurement_env_observed(repo, ev: CellEvidence) -> list[dict]:
     if not logs:
         return []
     table = pii.substitution_table(repo, ev.manifest if isinstance(ev.manifest, dict) else None)
-    caps = _log_tail_caps(repo, ev)
-    windows: dict[str, str] = {}
-    # F9: native 보존 로그 · G1: 같은 실행의 전체 사본은 꼬리 캡처가 아니다(전체 출력 — 줄 수가 상한 이상이어도 창 표지 ✗)
-    full = set(_native_preserved_engine_logs(repo, ev)) | set(copies)
-    for lp in logs:
-        if lp in full:
-            continue
-        cap = caps.get("lite" if lp.name.startswith("lite_engine_") else "bench")
-        try:
-            n_lines = lp.read_bytes().count(b"\n")
-        except OSError:
-            n_lines = -1
-        if cap and n_lines >= cap[0]:
-            windows[_rel(repo, lp)] = f"tail-{cap[0]}({cap[1]})"
+    windows = _tail_windows(repo, ev, logs, copies)
     rows: dict[tuple, dict] = {}
     seen: dict[tuple, set] = {}
     order: list[tuple] = []
@@ -3148,6 +3213,12 @@ def _engine_banner(repo: Path, ev: CellEvidence) -> dict:
         return _pick_banner(inf, measured, "same-digest-inferred", "digest 를 기록하지 않은 기동 실패 로그의 배너")
     why = ("측정 digest 미관측" if not digest else
            "이 측정 로그는 꼬리 캡처라 배너가 없고(sweep meta.vllm_build 도 NA) 같은 digest 를 기록·추론할 수 있는 다른 로그에도 배너가 없다")
+    # factcheck F1 2차(2026-10-06): 이 측정에서 읽은 로그가 전부 꼬리 창(머리 캡처 · 전체 사본 없음)이면 그 범위를 밝힌다 — env 표의
+    #   log_window 와 같은 판정(_tail_windows). "미관측" 이 "배너가 없었다" 로 읽히지 않게(배너 자리는 창 앞이다).
+    win = _tail_windows(repo, ev, logs_, copies) if logs_ else {}
+    if win and len(win) == len(logs_):
+        why += (" · 관측 범위: " + " · ".join(f"{r} = 보존 꼬리 창 {w}" for r, w in win.items())
+                + " — 기동 배너 자리(로그 머리)는 창 밖이다 · 머리 캡처(lite_engine_head_*) 없는 측정이라 배너 부재를 관측하지 못했다")
     return {"value": None, "basis": "unobserved", "files": [], "source": f"미관측 — {why}"}
 
 
@@ -3514,12 +3585,11 @@ def lite_window(repo, ev: CellEvidence) -> dict | None:
     repo = _repo(repo)
     if ev.sweep or ev.report_kind != "lite":
         return None
-    d = repo / "output" / ev.topology / "benchlog"
-    raw_p = d / f"lite_raw_{ev.cell}.json"
-    raw, _bad = _read_json_soft(raw_p)
-    born = _report_born_utc(repo, ev.bench_report_path)
-    if not (isinstance(raw, dict) and born and raw.get("config_name") == ev.cell and raw.get("measured_utc") == born):
+    d, raw, _jwhy = lite_join(repo, ev)        # 벤치로그 루트 · lite_publish/<셀>_<UTC>/ 중 바인딩 측정(2026-10-06 · factcheck F1)
+    if d is None:
         return None
+    raw_p = d / f"lite_raw_{ev.cell}.json"
+    born = raw["measured_utc"]
     legs: dict = {}
     for leg in ("cold", "warm"):
         p = d / f"lite_{leg}_{ev.cell}.json"
@@ -4110,14 +4180,17 @@ def _cell_of_publication(repo: Path, topology: str, measured_key: str | None, si
         # lite-only 셀(2026-09-29 · plan_26092908 §4.8 재생 — D2 `nv4-f8-262k-mmp` 가 purge 뒤 재생 불가였다): 스윕이 없고 발행 기록에
         #   simlog 도 없다. 조인 키 = lite raw 의 `measured_utc`(= 경량 리포트 `생성일`) + `config_name` = 파일 이름의 셀(이름만으로 ✗ · G6).
         lite_hits = []
-        for raw_path in sorted((repo / "output" / topology / "benchlog").glob("lite_raw_*.json")):
+        blr = repo / "output" / topology / "benchlog"
+        # 2026-10-06(factcheck F1): β 측정별 보존 자리 `lite_publish/<셀>_<UTC>/` 의 raw 도 후보다(디렉터리 이름의 셀 = config_name 일 때만).
+        for raw_path in sorted(blr.glob("lite_raw_*.json")) + sorted(blr.glob(f"{LITE_PUBLISH_DIR}/*/lite_raw_*.json")):
             raw = _read_json_opt(raw_path, "lite_raw")
             name = raw.get("config_name") if isinstance(raw, dict) else None
             if isinstance(name, str) and _CELL_RE.match(name) and raw_path.name == f"lite_raw_{name}.json" \
-                    and raw.get("measured_utc") == measured_key:
+                    and (raw_path.parent == blr or re.fullmatch(re.escape(name) + _LITE_PUBLISH_SUB_RE, raw_path.parent.name)) \
+                    and raw.get("measured_utc") == measured_key and name not in lite_hits:
                 lite_hits.append(name)
         if len(lite_hits) == 1:
-            return lite_hits[0], (f"output/{topology}/benchlog/lite_raw_{lite_hits[0]}.json(measured_utc = 리포트 생성일 {measured_key} · "
+            return lite_hits[0], (f"output/{topology}/benchlog/[{LITE_PUBLISH_DIR}/<셀>_<UTC>/]lite_raw_{lite_hits[0]}.json(measured_utc = 리포트 생성일 {measured_key} · "
                                   "config_name = 파일 이름)")
         if len(lite_hits) > 1:
             core.fail("HINT_CELL_AMBIGUOUS", f"measured_utc={measured_key} 인 lite raw 가 {len(lite_hits)}개다: {lite_hits}")
@@ -4234,7 +4307,9 @@ def qualification(ev: CellEvidence) -> dict:
         #   ★ 이름만으로 묶지 않는다 — 벤치로그 루트의 lite_* 는 같은 셀 id 의 다음 실행이 덮는다(셀 id 재사용 · G6 과 같은 결 ·
         #   2026-09-22 적대 검토: 옛 판본은 조인 없이 lite_warm 을 받아 다른 실행의 관측으로 자격을 열 수 있었다).
         born = _report_born_utc(repo, ev.bench_report_path)
-        dirs = [repo / "output" / ev.topology / "benchlog"]
+        # 2026-10-06(factcheck F1): β 측정별 보존 자리(lite_publish/<셀>_<UTC>/)도 같은 조인으로 찾는다 — 찾으면 그 디렉터리, 아니면 루트.
+        jd = lite_join(repo, ev)[0] if born else None
+        dirs = [jd or repo / "output" / ev.topology / "benchlog"]
         if sw.get("binding") == "output":
             dirs.append(repo / sw["dir"])
         for d in dirs:
@@ -6053,6 +6128,15 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
     ck("현행 full 정의 원문·줄 · 반복 하한 · 레그", bd1["current_full_definition"] == "full 계측(`lite ∪ GuideLLM × 반복 ≥3`)"
        and bd1["source"] == REL_DOCS_RULES and bd1["source_line"] == 3 and bd1["required_repeats"] == 3
        and bd1["required_legs"] == ["lite", "GuideLLM"])
+    # factcheck F4(2026-10-06): 2026-09-29 개정 문구(괄호 안에 `lite 게이트 →` 머리 · `· lite ⊂ full` 꼬리)도 같은 정의로 읽는다.
+    new_def = "full 계측(lite 게이트 → `GuideLLM × 반복 ≥3` · lite ⊂ full)"
+    rules.write_text(f"# docs\n\n| `benchmark/` | {new_def} · lite-only 셀의 경량 report | x |\n", encoding="utf-8")
+    bd1n = bench_definition(repo, ev)
+    ck("F4 현행(2026-09-29) 문구 — 원문·반복 하한 3·레그 [lite, GuideLLM](머리 `lite 게이트` = 레그)",
+       bd1n["current_full_definition"] == new_def and bd1n["required_repeats"] == 3
+       and bd1n["required_legs"] == ["lite", "GuideLLM"] and bd1n["meets_current_full"] is False)
+    rules.write_text("# docs\n\n| `benchmark/` | full 계측(`lite ∪ GuideLLM × 반복 ≥3`) · lite-only 셀의 경량 report | x |\n",
+                     encoding="utf-8")
     # 2026-09-22(round 2 리뷰): 측정 구성 표의 `repeats 3` 은 **요청**이다 — 완주 관측(단일 run 배치 1개)이 this_repeats 다.
     ck("★요청 반복(repeats · 선언)은 this_repeats 가 아니다 — 완주 관측(단일 run 배치) 1 · 요청은 repeats_requested",
        bd1["this_repeats"] == 1 and bd1["repeats_requested"] == 3 and bd1["repeats_source"].startswith("observed(")
@@ -6535,6 +6619,22 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
     ck("★상한에 닿지 않은 로그(줄 수 < N)는 log_window 없음(전체 출력일 수 있다)",
        "log_window" not in {r["key"]: r for r in measurement_env_observed(g, evg)}.get("NCCL_IB_GID_INDEX", {"log_window": 1}))
     ck("★git 판본을 못 고르면(git 아님) log_window 없음 — 상한을 지어내지 않는다", not any("log_window" in r for r in env))
+    # factcheck F1 2차(2026-10-06): 배너 미관측 행도 env 표와 같은 창 판정으로 관측 범위를 밝힌다 — 읽은 로그가 전부 꼬리 창일 때만.
+    (sdir / "lite_engine_c1-a.log").write_text("x\ny\n" + nccl, encoding="utf-8")               # 3줄 = 상한 도달(꼬리 창)
+    (sdir / "level_01/engine_c1-a.log").unlink()
+    bw = _engine_banner(g, evg)
+    ck("F1 배너 미관측 + 읽은 로그 전부 꼬리 창 → 출처에 '보존 꼬리 창 tail-3(도구@rev L줄)' · 머리 캡처 없는 측정 명시",
+       bw["basis"] == "unobserved" and f"보존 꼬리 창 tail-3(lite_bench.sh@{revs['c4'][:12]} L2)" in bw["source"]
+       and "머리 캡처" in bw["source"])
+    (sdir / "lite_engine_c1-a.log").write_text("x\n" + nccl, encoding="utf-8")                     # 2줄 < 상한
+    ck("★F1 음성대조: 상한에 닿지 않은 로그(전체 출력일 수 있다)면 창 범위를 붙이지 않는다",
+       "보존 꼬리 창" not in _engine_banner(g, evg)["source"])
+    (sdir / "lite_engine_c1-a.log").write_text("x\ny\n" + nccl, encoding="utf-8")
+    (sdir / "lite_engine_head_c1-a.log").write_text("INFO 01-02 00:10:00 Initializing a V1 LLM engine (v0.9.0rc2.dev9+ghead)\n",
+                                                    encoding="utf-8")
+    bh = _engine_banner(g, evg)
+    ck("★F1 머리 캡처가 있으면 배너를 그대로 관측한다(창 표기 ✗)", bh["value"] == "0.9.0rc2.dev9+ghead"
+       and bh["basis"] == "this-measurement" and "lite_engine_head_c1-a.log:1" in bh["source"])
     for f in sorted((g / "output").rglob("*"), key=lambda x: -len(x.parts)):
         f.unlink() if f.is_file() else f.rmdir()
     (g / "output").rmdir()
@@ -6884,6 +6984,49 @@ def _selftest_fix2(ck, td: Path, ev: CellEvidence) -> None:
     core.write_json(bl / "lite_cold_cl.json", {**leg, "date": "20260102-030030"})
     ck("★G9 음성대조: 레그 JSON 에 수용 길이가 없으면 미기재(지어내지 않는다)",
        measurement(dataclasses.replace(ev7, repo=str(r))).get("accept_len") is None)
+    # ── factcheck F1/F3/F5(2026-10-06): β 측정별 보존 자리 lite_publish/<셀>_<UTC>/ 조인 · 머리 캡처 · 인증서 lite_accept_len ──
+    root_raw = (bl / "lite_raw_cl.json").read_bytes()
+    (bl / "lite_raw_cl.json").unlink()
+    ck("★F1 음성대조: 루트 raw 가 없고 보존 자리도 없으면 조인 불성립", lite_join(r, ev7)[0] is None and lite_window(r, ev7) is None)
+    pubd = bl / LITE_PUBLISH_DIR
+    good, late, alien = pubd / "cl_20260102T025959Z", pubd / "cl_20260102T050000Z", pubd / "cl-x_20260102T025959Z"
+    for dd, mu in ((good, t0), (late, "2026-01-02T05:00:10Z"), (alien, t0)):
+        dd.mkdir(parents=True)
+        core.write_json(dd / f"lite_raw_{dd.name.split('_')[0]}.json", {"config_name": dd.name.split("_")[0], "measured_utc": mu,
+                        "topology": "multi", "bench_warm_json": f"/x/lite_warm_{dd.name.split('_')[0]}.json"})
+    core.write_json(good / "lite_warm_cl.json", {**leg, "date": "20260102-030105", "spec_decode_acceptance_length": 2.0535})
+    core.write_json(late / "lite_warm_cl.json", {**leg, "date": "20260102-050100", "spec_decode_acceptance_length": 9.9})
+    (good / "lite_engine_cl.log").write_text("(EngineCore pid=7) INFO 01-02 02:59:00 tail\n", encoding="utf-8")
+    jd = lite_join(r, ev7)
+    lw_p = lite_window(r, ev7)
+    ck("F1 lite 조인 = measured_utc 가 맞는 보존 디렉터리(★더 늦은 보존본 · 접두 충돌 셀 cl-x 는 고르지 않는다)",
+       jd[0] == good and "lite_publish/cl_20260102T025959Z" in jd[2] and lw_p and lw_p["start_utc"] == t0
+       and lw_p["legs"]["warm"]["path"].endswith("cl_20260102T025959Z/lite_warm_cl.json"))
+    m_p = measurement(dataclasses.replace(ev7, repo=str(r)))
+    ck("F5 lite accept_len = 바인딩 보존본 warm 원문 2.0535(★늦은 보존본 9.9 ✗)", m_p.get("accept_len") == "2.0535"
+       and "cl_20260102T025959Z/lite_warm_cl.json" in m_p["sources"]["accept_len"])
+    lg_t = _measured_engine_logs_base(r, ev7)
+    ck("F1 엔진 로그 = 보존본 꼬리(머리 캡처 없으면 그 사실을 근거에 적는다)", lg_t[0] == [good / "lite_engine_cl.log"] and "꼬리 캡처만" in lg_t[1])
+    (good / "lite_engine_head_cl.log").write_text("INFO 01-02 02:50:00 Initializing a V1 LLM engine (v0.0.1)\n", encoding="utf-8")
+    lg_h = _measured_engine_logs_base(r, ev7)
+    ck("F1 머리 캡처가 있으면 꼬리 **앞**에 둔다(배너 · env 되읊음) · 배너가 머리에서 읽힌다",
+       lg_h[0] == [good / "lite_engine_head_cl.log", good / "lite_engine_cl.log"] and "머리 캡처 포함" in lg_h[1]
+       and _engine_banner(r, ev7)["value"] == "0.0.1")
+    core.write_json(late / "lite_raw_cl.json", {"config_name": "cl", "measured_utc": t0, "topology": "multi"})
+    ck("★F1 음성대조: 같은 measured_utc 의 보존본이 둘이면 고르지 않는다(모호 → None)",
+       lite_join(r, ev7)[0] is None and "모호" in lite_join(r, ev7)[2])
+    import shutil as _shf
+    _shf.rmtree(late)
+    (good / "lite_warm_cl.json").unlink()
+    m_c = measurement(dataclasses.replace(ev7, repo=str(r), certificate={"benchmark_mode": "lite", "verdict": "not_applicable",
+                                                                            "lite_accept_len": "2.0535",
+                                                                            "lite_accept_len_src": "warm.spec_decode_acceptance_length"},
+                                          certificate_path="docs/benchmark/benchmark_fx.yaml"))
+    ck("F5 레그 JSON 이 없으면 lite 인증서 lite_accept_len(출처 칸 병기)", m_c.get("accept_len") == "2.0535"
+       and "lite_accept_len(warm.spec_decode_acceptance_length)" in m_c["sources"]["accept_len"]
+       and m_c.get("lite_accept_len") == "2.0535")
+    _shf.rmtree(pubd)
+    (bl / "lite_raw_cl.json").write_bytes(root_raw)
     # ── G2: serve_proof 시점 범위(attestation 과 같은 분류) ──
     sp = bl / "serve_proof_cl.json"
     core.write_json(sp, {"config": "cl", "health_http": 200})

@@ -23,6 +23,12 @@
   **β lite-only 셀** `--publish-report` = 리포트(판정과 무관) + pass 일 때만 **lite 등급 인증서**(`publish_benchmark_record.py --lite-raw-json`) ·
   **γ 강등 셀** = sweep 경로가 index.lite 의 판정 pass 에서 lite 등급 인증서. lite 등급 인증서는 hint 발행 자격의 근거이고(completion_gate
   `HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE`) 성능 완료의 근거가 아니다(`CERTIFICATE_GRADE_NOT_FULL`).
+- **엔진 로그 머리·꼬리 캡처 · 수락 길이(2026-10-06 · hint factcheck F1/F2/F5)**: `lite_engine_<config>.log` 는 꼬리(`tail -800`)라
+  기동 배너·NCCL env 되읊음이 창 밖일 수 있다 → 같은 자리에 머리 600줄 `lite_engine_head_<config>.log` 를 함께 남기고 raw 에
+  `engine_log_head`·`engine_log_head_lines` 로 적는다(그 전 측정분에는 없다 — 소비자는 부재를 "배너 미관측" 으로 정직 표기). warm 레그의
+  `spec_decode_acceptance_length` 원문은 `lite_metrics.build` 의 `accept_len`(+`accept_len_src`)으로 올라가 lite 등급 인증서·full 인증서의
+  `lite_accept_len`(+`_src`)과 경량 리포트 측정 환경 표의 같은 이름 행에 실린다(spec 꺼짐 = N/A · 판정 입력 `accept_len` 과 이름을 가른다).
+  hint 발행기는 β 보존 자리(`lite_publish/<config>_<UTC>/`)를 raw `measured_utc` = 리포트 생성일 조인으로 찾는다(최신 고르기 ✗).
 - **inform-only**(성능): **성능 PASS/FAIL 판정 없음 · 자동 loop-back 없음**. `verdict_rule.py` 에 투입하지 않는다(done-게이트는 오직
   full 경로 소유 — 기능≠성능 따름정리 불변). lite 출력이 커뮤니티/레퍼런스 대비 **심각한 괴리**로 보이면 →
   **이상징후 안내 + full 승격 권유**까지만(자동 재탐색 ✗).
