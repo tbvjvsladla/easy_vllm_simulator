@@ -100,6 +100,38 @@
         ]
       },
       "status": "CANDIDATE — 2026-08-21 좌표 재베이스·이식 재파생·정적검증 완료(3-way 충돌 8파일/16헝크 · verify 108/108 OK · pyflakes 증분 +9 전부 양성 · 계약 위반 0 · 진짜 미해소 심볼 0). **양노드 빌드 완료 · 서빙 스모크 PASS · full 벤치 PASS**(2026-08-21 decode 37.36 t/s @동시성1 · authority=explicit · primary c=30.0 · floor 25.50 · ratio 1.245 · 음성대조 `--authority weak`(E=41.0)로도 PASS · 인증서 docs/benchmark/benchmark_26082113_deepseek-v4-flash-0731_GB10_0.27.1.yaml 발행 · 판정 docs/testlog/testlog_26082113_ds4f0731_x2_sm12x_0271_fullbench_판정.md). 선행 칸(0.27.0 R2 · 36.87 t/s) 대비 **성능 동등(noise-level)** — 판정점 +1.33% 이나 부호가 레벨마다 뒤집히므로(@2 −4.05% · @4 +3.17%) 신호가 아니다. 이 캠페인이 확인해야 했던 것은 0.27.1 bump 의 **회귀 부재**이며 그것이 확인됐다. `policy:RUNTIME_PATCH_NO_CARRY_FORWARD` 에 따라 이 칸의 성공은 선행 칸에서 상속한 것이 아니라 별도 스모크로 확정한 것이다. ⚠ **VALIDATED 미승격 — 사유는 성능이 아니라 `regression_evidence` 부재다**: 승격은 `arch_variant_regression`(기존모델 회귀 재스모크 · `existing_models`) 바운드 아티팩트를 요구하는데(policy_registry ARCH_VARIANT_REGRESSION_EVIDENCE_MISSING) 그 재스모크가 아직 실행되지 않았다 — 0.27.0 항목과 동일한 사유다. ⚠ 후속: 스모크 PASS 로 (26.07-py3, 0.27.1) 키의 `VALIDATED_SOURCE_BUILD_KEYS` codify 조건이 충족됐으나 (source-build.md §3) 아직 미승급이다 — 재렌더 시 `--allow-unvalidated` 가 계속 필요하다."
+    },
+    "deepseek-v41-flash-sm12x-port-0.30.0": {
+      "variant_id": "source-sm12x-port-vllm-0.30.0",
+      "architecture": "sm12x",
+      "track": "source-sm12x-port",
+      "_track_note": "**자체 이식**(arch-wall 사다리 3번째 칸)이다 — 포크를 핀하지 않는다. vllm_repo/vllm_ref 는 stock 그대로이고 변종성은 build_patch_selectors 가 만든다. 내용은 서드파티 EXL3(2.0·2.9bpw) 아종 V4.1-Flash 를 2노드 TP=2 로 올리는 데 필요한 소스·네이티브 이식(EXL3 양자화 방식 · 디스크 상주 Engram · SM12x 블록 shim · exllamav3 네이티브)이다. 선행 변종과 달리 가중치 아키텍처 enablement 가 아니라 양자화 경로 enablement 이며, 이식본은 저자 오버레이를 **고정 커밋에서 빌드 시점에 받아 sha256 검증**한다(vendoring ✗ · AGPL 코드를 이 트리에 두지 않는다).",
+      "vllm_repo": "https://github.com/vllm-project/vllm.git",
+      "vllm_ref": "v0.30.0",
+      "build_patch_selectors": {
+        "SM12X_PORT": "1"
+      },
+      "_selector_note": "선행 변종(0.27.x)과 동일 배선 — `ARG SM12X_PORT=0` 범용 소스이식 게이트를 재사용한다. 이 게이트가 켜지면 build_patches_src/8x · build_patches/7x 가 적용되고, 꺼지면 전부 no-op 이다(2026-10-02 격리 시험: no-op 트리 해시 불변). 0.27.1 전용 이식(50-dsv4-sm12x-port)은 ref 불일치로 fail-loud 하므로 build_patches_src_parked/0.27.1 로 옮겼다.",
+      "image_tag": "easy-vllm:0.30.0-cu133-aarch64-source-sm12x",
+      "_image_tag_note": "stock 은 `easy-vllm:0.30.0-cu133-aarch64-source`(2026-10-01 검증 · 롤백 앵커)이므로 태그를 재사용하지 않는다 — 접미사 `-sm12x` 로 분리한다.",
+      "port_manifest": {
+        "path": "output/multi/build_patches_src/PROVENANCE.json",
+        "upstream_base_sha": "ced6857afa0ea7b2e3f0846a62e1394e90f15607",
+        "files": 15
+      },
+      "_port_manifest_note": "files 는 이식 번들이 아니라 **빌드 시점에 받아 sha256 검증하는 저자 파일 수**(Mia 오버레이 15종)다. 저자 커밋·exllamav3 커밋은 PROVENANCE.json 이 단일 거처다.",
+      "evidence": {
+        "plan": "docs/plan/plan_26100208_V4_1_Flash_멀티노드_1M_캠페인.md",
+        "stock_infeasible_testlogs": [
+          "docs/testlog/testlog_26100216_V4_1_Flash_stock_0_30_0_구조적불가_R0판정.md"
+        ],
+        "formal_smoke_testlogs": [
+          "docs/testlog/testlog_26100414_V4_1_Flash_정식화_커널레버_K1_K3_판정.md",
+          "docs/testlog/testlog_26100420_V4_1_Flash_정식화_F2_K6_moe_prep_판정.md",
+          "docs/testlog/testlog_26100510_V4_1_Flash_i5_a_kern_정식레시피_판정.md"
+        ]
+      },
+      "status": "CANDIDATE — 2026-10-06 정식 Dockerfile.source-build(SM12X_PORT=1 · PRE 55·80~92 · POST 70~74·79) 양 노드 재빌드 3회(F1·F2·F3) 모두 SMOKE PASS · attestation serve 4축 equal(build_ledger·driver·torch·vllm_sha) · i5-a-kern(A 2.0bpw · TP=2 · 1M) lite 44.74 · Full c=1 39.8~40.8 t/s · hint 발행(hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/…-spec3-densegemv-moeprep). 저자 패치(sfxnz@3de91468 · MIT)는 핀 트리 digest + 파일 sha256 검증 후 빌드 시 적용(PROVENANCE sfxnz_p2b·woa·b12x·gemv·moeprep). VALIDATED 미승격 사유: 기존모델 회귀 재스모크(regression_evidence) 부재 — 선행 변종과 같은 사유."
     }
   }
 }

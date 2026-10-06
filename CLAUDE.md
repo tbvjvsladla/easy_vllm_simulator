@@ -98,6 +98,9 @@
 - 무인 자동 다운로드는 금지가 기본이다: 모델 획득은 policy:MODEL_ACQUISITION_TERNARY_GATE.
 - 호스트 하드다운 방어: policy:HOST_SAFETY_LAYERED_DEFENSE.
 - 외부 스킬·플러그인·MCP는 사용자 검수 없이 설치하지 않는다(제안, 검토, 설치의 순서를 지킨다).
+- 외부 저장소 `git clone`(코드·레시피·패치 참조)은 메인·서브 모두 허용한다 — 작업공간 git 에 원격을 붙이지 않고,
+  빌드·서빙 입력으로 쓰면 커밋 SHA 로 고정하며, 가중치 저장소 clone·`git lfs` 는 모델 획득 게이트를 따른다.
+  policy:SUB_GIT_LOCAL_ONLY.
 - 빌딩블럭(CLAUDE.md와 .claude 디렉터리)은 추적·배포 대상이다. 사적/생성물(로컬 설정·manifest·env 실값·
   seed)은 비추적이다.
 - 버전 문자열 해소는 확률론적 추론이 아니라 결정론적 스크립트로 한다.

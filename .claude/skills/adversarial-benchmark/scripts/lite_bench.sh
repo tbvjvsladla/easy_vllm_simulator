@@ -138,9 +138,15 @@ fi
 OUTDIR="${OUTDIR:-$REPO/output/$TOPO/benchlog}"; mkdir -p "$OUTDIR"
 WARM="$OUTDIR/lite_warm_${CONFIG}.json"; COLD="$OUTDIR/lite_cold_${CONFIG}.json"
 ELOG="$OUTDIR/lite_engine_${CONFIG}.log"; RAW="$OUTDIR/lite_raw_${CONFIG}.json"
+# 엔진 로그 **머리** 캡처(2026-10-06 · factcheck F1/F2) — 꼬리(tail -800)는 기동 배너(`Initializing a V1 LLM engine (v…)`)·
+#   NCCL env 되읊음(`… set by environment to …`)을 담지 못한다(i5-a-kern 실측: 둘 다 전체 로그 L85~L180 · 꼬리 창 밖).
+#   머리 N 줄을 따로 남겨 hint 발행기(evidence._measured_engine_logs_ex)가 이 측정의 배너·env 를 읽게 한다. 머리와 꼬리는 로그가
+#   짧으면 겹친다(같은 줄 두 번 — 관측값 dedup 은 소비자 몫) · 머리는 꼬리 창 표지 대상이 아니다. 파일명은 `lite_engine_head_<셀>.log`.
+ELOG_HEAD_N=600
+ELOG_HEAD="$OUTDIR/lite_engine_head_${CONFIG}.log"
 BLOG="$OUTDIR/lite_client_${CONFIG}.log"   # vllm bench serve 출력(판정 입력: 결과 파일 없이 끝났을 때의 사유)
 # 이전 측정의 판정 입력이 이번 판정에 섞이지 않게 비운다(부재 = 이번 측정이 쓰지 않았다).
-rm -f "$RAW" "$COLD" "$WARM"; : > "$BLOG"
+rm -f "$RAW" "$COLD" "$WARM" "$ELOG_HEAD"; : > "$BLOG"
 
 # serve 가동 확인(이 스킬은 기동 안 함).
 if [ "$SERVE_PLANE" = "docker" ]; then
@@ -189,8 +195,10 @@ WARM_RC=0; _bench "$WARM" "$BURST_N" 1 >>"$BLOG" 2>&1 || WARM_RC=$?
 [ "$WARM_RC" = 0 ] || { echo "[lite_bench] warm bench 실패(rc $WARM_RC) — 출력 끝:" >&2; tail -5 "$BLOG" >&2; rm -f "$WARM"; }
 if [ "$SERVE_PLANE" = "docker" ]; then
   docker logs "$CTR" 2>&1 | tail -800 > "$ELOG" || true
+  docker logs "$CTR" 2>&1 | head -n "$ELOG_HEAD_N" > "$ELOG_HEAD" || true   # head 가 일찍 닫아 SIGPIPE — 실패로 읽지 않는다
 else
   tail -800 "$NATIVE_ELOG" > "$ELOG" || true   # native producer 의 서버 로그(선언으로 받는다 · 경로 추측 ✗ · 부재는 인자 단계에서 exit 2)
+  head -n "$ELOG_HEAD_N" "$NATIVE_ELOG" > "$ELOG_HEAD" || true
 fi
 
 # ── 판정 입력: 측정 뒤 두 평면의 health ────────────────────────────────────────────
@@ -255,7 +263,7 @@ cat > "$RAW" <<JSON
 {"topology":"$TOPO","serve_plane":"$SERVE_PLANE","host_endpoint":"$BASE_URL","burst_n":$BURST_N,
  "config_name":"$CONFIG","measured_utc":"$MEASURED_UTC","backend":"$BACKEND","endpoint":"$LITE_ENDPOINT",
  "config_yaml":"$CFGYAML","env_file":"$EF","manifest":"$REPO/output/$TOPO/manifest.yaml",
- "bench_warm_json":"$WARM","bench_cold_json":"$COLD","engine_log":"$ELOG",
+ "bench_warm_json":"$WARM","bench_cold_json":"$COLD","engine_log":"$ELOG","engine_log_head":"$ELOG_HEAD","engine_log_head_lines":$ELOG_HEAD_N,
  "bench_cold_rc":$COLD_RC,"bench_warm_rc":$WARM_RC,"bench_client_log":"$BLOG","bench_stderr_tail":$BERR_TAIL,
  "host_health_after":"$HOST_HEALTH_AFTER","client_plane_health":"$CLIENT_PLANE_HEALTH",
  "nodes":[$NODES_JSON]}

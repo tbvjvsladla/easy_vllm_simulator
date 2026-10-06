@@ -29,10 +29,10 @@ SDIR = os.path.dirname(os.path.abspath(__file__))
 
 # lite 가 사람에게 보여주는 5종(references/lite-and-publication.md §1 "5종 메트릭").
 # 이 목록이 늘면 아래 검사가 자동으로 full 쪽 결손을 잡는다.
-LITE_METRIC_KEYS = ["gen_tps", "cold_ttft_ms", "kv_gib", "capacity"]
+LITE_METRIC_KEYS = ["gen_tps", "cold_ttft_ms", "kv_gib", "capacity", "accept_len"]
 CERT_LITE_FIELDS = [
     "lite_included", "lite_gen_tps_warm", "lite_cold_ttft_ms",
-    "lite_kv_gib", "lite_gpu_occupancy", "lite_ram_occupancy",
+    "lite_kv_gib", "lite_gpu_occupancy", "lite_ram_occupancy", "lite_accept_len",
 ]
 
 

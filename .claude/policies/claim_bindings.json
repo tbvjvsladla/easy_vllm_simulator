@@ -855,6 +855,14 @@
         ]
       }
     ],
+    "SUB_GIT_LOCAL_ONLY.C4": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_SUB_GIT_LOCAL_ONLY_C4"
+        ]
+      }
+    ],
     "SUB_GIT_LOCAL_ONLY.C3": [
       {
         "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",

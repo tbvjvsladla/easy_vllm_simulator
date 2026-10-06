@@ -1026,6 +1026,9 @@ if _lraw and os.path.isfile(_lraw):
             "cold_ttft_ms": _built.get("cold_ttft_ms"),
             "kv_gib": _built.get("kv_gib"),
             "capacity": _built.get("capacity"),
+            # lite 레그 수락 길이(원문 · 2026-10-06 factcheck F5) — full 인증서 lite_accept_len 의 원천.
+            "accept_len": _built.get("accept_len"),
+            "accept_len_src": _built.get("accept_len_src"),
             "table": _built.get("table"),
             "engine": _built.get("engine"),
         }
