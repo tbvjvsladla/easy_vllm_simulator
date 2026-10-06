@@ -124,9 +124,14 @@
         "plan": "docs/plan/plan_26100208_V4_1_Flash_멀티노드_1M_캠페인.md",
         "stock_infeasible_testlogs": [
           "docs/testlog/testlog_26100216_V4_1_Flash_stock_0_30_0_구조적불가_R0판정.md"
+        ],
+        "formal_smoke_testlogs": [
+          "docs/testlog/testlog_26100414_V4_1_Flash_정식화_커널레버_K1_K3_판정.md",
+          "docs/testlog/testlog_26100420_V4_1_Flash_정식화_F2_K6_moe_prep_판정.md",
+          "docs/testlog/testlog_26100510_V4_1_Flash_i5_a_kern_정식레시피_판정.md"
         ]
       },
-      "status": "CANDIDATE — 2026-10-02 패치 저작·GPU 없는 격리 시험 통과(no-op 불변 · 적용 · 멱등 · 고정값 변조 시 fail-loud · 기능 11/11). **빌드·서빙 스모크 미실행** — GPU 부팅 전 미검증: Engram 디스크 백엔드와 CUDA 그래프 상호작용 · 블록 크기 shim 필요 여부 · EXL3 가중치 로드(TP=2 샤드 맵) · 1M 컨텍스트 KV 적합(B 2.9bpw 는 저자도 60만 배포). VALIDATED 미승격(기존모델 회귀 재스모크 `regression_evidence` 부재 — 선행 변종과 같은 사유)."
+      "status": "CANDIDATE — 2026-10-06 정식 Dockerfile.source-build(SM12X_PORT=1 · PRE 55·80~92 · POST 70~74·79) 양 노드 재빌드 3회(F1·F2·F3) 모두 SMOKE PASS · attestation serve 4축 equal(build_ledger·driver·torch·vllm_sha) · i5-a-kern(A 2.0bpw · TP=2 · 1M) lite 44.74 · Full c=1 39.8~40.8 t/s · hint 발행(hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/…-spec3-densegemv-moeprep). 저자 패치(sfxnz@3de91468 · MIT)는 핀 트리 digest + 파일 sha256 검증 후 빌드 시 적용(PROVENANCE sfxnz_p2b·woa·b12x·gemv·moeprep). VALIDATED 미승격 사유: 기존모델 회귀 재스모크(regression_evidence) 부재 — 선행 변종과 같은 사유."
     }
   }
 }
