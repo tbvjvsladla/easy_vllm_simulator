@@ -1,0 +1,16 @@
+# IBM/Granite-4.2/granite-4.2-30b 서빙 설정 — camp-26100107-v030-single-dual 메인 셀 (plan_26100107 S4)
+# 모델 사실(2026-10-01 판독): GraniteForCausalLM · 64층 full GQA(kv_heads 8 · head_dim 128) · bf16 54.53GiB · max_position 131072
+# ── VRAM 분해(선언 · 스모크가 중재) ──
+#   weights: 54.53 GiB (index total_size)
+#   kv_cache: 33.0 GiB 절대 클램프 — 131072 1시퀀스 + 블록 올림 여유(try1 16GiB 거부 · try2 32GiB 는 블록 정렬로 131056 토큰 = 16 토큰 미달 거부 · 2026-10-01 실측)
+#   gmu 0.80 천장(통합메모리 · 호스트 안전 여유)
+# 파서: 모델 카드 권장 = 폴더 동봉 플러그인 granite_thinking_parser(DeepSeekR1 파생) · 툴 qwen3_coder
+model: /app/models/IBM/Granite-4.2/granite-4.2-30b
+host: 0.0.0.0
+port: 8000
+dtype: bfloat16
+gpu-memory-utilization: 0.80
+max-model-len: 131072
+kv-cache-memory-bytes: 35433480192
+kv-cache-dtype: auto
+max-num-seqs: 8

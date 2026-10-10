@@ -1,0 +1,128 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26100107",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/plan/plan_26100107_vllm030_bump_서브지침배달_멀티싱글_E2E캠페인.md",
+      "role": "plan",
+      "stem": "plan_26100107_vllm030_bump_서브지침배달_멀티싱글_E2E캠페인"
+    },
+    {
+      "date": "26101011",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101011_벤치_knob_프리셋_자산화.md",
+      "role": "plan",
+      "stem": "plan_26101011_벤치_knob_프리셋_자산화"
+    },
+    {
+      "date": "26101016",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101016_벤치_knob_프리셋_E2E_6셀_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101016_벤치_knob_프리셋_E2E_6셀_판정"
+    },
+    {
+      "date": "26101016",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101016_granite-4.2-30b_GB10_0.30.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101016_granite-4.2-30b_GB10_0.30.0"
+    },
+    {
+      "date": "26101017",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101017_knob_E2E_hint발행.md",
+      "role": "plan",
+      "stem": "plan_26101017_knob_E2E_hint발행"
+    },
+    {
+      "date": "26101017",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26101017_08_29_knob프리셋_E2E_셀A_granite42_30b_v030_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101017_08_29_knob프리셋_E2E_셀A_granite42_30b_v030_판정"
+    },
+    {
+      "date": "26101017",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101017_08_29_knob프리셋_E2E_셀A_granite42_30b_v030.md",
+      "role": "devlog",
+      "stem": "devlog_26101017_08_29_knob프리셋_E2E_셀A_granite42_30b_v030"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [
+      {
+        "excerpts": 2,
+        "path": "docs/simlog/26101012_벤치_knob_프리셋_E2E/a_serve2.log"
+      },
+      {
+        "excerpts": 1,
+        "path": "docs/simlog/26101012_벤치_knob_프리셋_E2E/a_sweep_try1_budget_block.log"
+      },
+      {
+        "excerpts": 1,
+        "path": "output/single/benchlog/sweep_granite42-30b-v030/lite_engine_granite42-30b-v030.log"
+      }
+    ],
+    "count": 121
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26101017",
+  "schema_version": 2,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26101016_granite-4.2-30b_GB10_0.30.0.md",
+      "sha256": "a3a55be37597aff7058d7fc44b3e42e5d61ef204e58887ad5ade05301fb3a054"
+    },
+    {
+      "path": "docs/logs/main/events/2026-10.jsonl",
+      "sha256": "ddbaf60a77017a1de0def9beb5d47b5e985519dcf61342fe1178da134b289c33"
+    },
+    {
+      "path": "docs/plan/plan_26100107_vllm030_bump_서브지침배달_멀티싱글_E2E캠페인.md",
+      "sha256": "e0013f784daaf0513826dd8381a30f64c62d9b37f828e5807c8f1f6c1329f104"
+    },
+    {
+      "path": "docs/plan/plan_26101017_knob_E2E_hint발행.md",
+      "sha256": "2a59edf6220d42522e085004edec28fe80fee51a39ff2a233e4eb43d45464d3e"
+    },
+    {
+      "path": "docs/simlog/26101012_벤치_knob_프리셋_E2E/a_serve.log",
+      "sha256": "5d86647a2f26386a7542046a58b0d1b5db7770af4fddfce83b96399f760c5f9c"
+    },
+    {
+      "path": "docs/simlog/26101012_벤치_knob_프리셋_E2E/a_serve2.log",
+      "sha256": "2757fe9c3b8b19c9126bffc28b61f4c3d22a8d2eb5ee4a8fdce629de679274b4"
+    },
+    {
+      "path": "docs/simlog/26101012_벤치_knob_프리셋_E2E/a_sweep_try1_budget_block.log",
+      "sha256": "e2e089607b8e040dbe542df176b0ca1468581bd880f2b5632dccb9d3bd6c0056"
+    },
+    {
+      "path": "docs/testlog/testlog_26101016_벤치_knob_프리셋_E2E_6셀_판정.md",
+      "sha256": "580a86864f3435e4dcb3382aa21ed10016cd412a81355f21a28811b930323754"
+    },
+    {
+      "path": "docs/testlog/testlog_26101017_08_29_knob프리셋_E2E_셀A_granite42_30b_v030_판정.md",
+      "sha256": "de45c819cacc6d11426e14656bb2ed8cd482caf9c5c2bf5193a7fff9730eba91"
+    },
+    {
+      "path": "output/single/benchlog/sweep_granite42-30b-v030/lite_engine_granite42-30b-v030.log",
+      "sha256": "9d91523cbe61679578c7d3a1928a65d1a065326618427d2e1cc5768fe9360245"
+    },
+    {
+      "path": "output/single/benchlog/sweep_granite42-30b-v030/roofline.json",
+      "sha256": "425c6fed754b8c9ac7d93095762c6c2380d1f21535b5ab02b44967bd6cebbefd"
+    }
+  ]
+}
