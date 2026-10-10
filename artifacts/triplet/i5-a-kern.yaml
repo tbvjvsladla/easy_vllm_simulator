@@ -1,0 +1,25 @@
+# i5-a-kern — 계획 I-5(woa fp8 + round-35 커널 번들) 정식: easy-vllm:0.30.0-cu133-aarch64-source-sm12x(SM12X_PORT=1 · PRE 55·80~92 · POST 70~74·79) · p2b coop · woa fp8 · b12x · dense_gemv · moe_prep_fused · NCCL tail(I-6) · graph [1,3,4,6,8] · DSpark k=3
+#   근거: track_i/diagnosis.md(H1 = Engram 파일 I/O 가 캡처 안 · 사이드 스트림) · R-1 testlog_26100400(저자 그래프 설정)
+model: /app/quant_models/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz
+host: 0.0.0.0
+port: 8080
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+quantization: exl3
+tokenizer-mode: deepseek_v41
+hf-overrides: '{"engram_table_dir":"/app/ple_mmap/v41-engram-a"}'
+block-size: 64
+kernel-config: '{"sparse_indexer_topk_backend":"per_row"}'
+kv-cache-dtype: fp8
+kv-cache-memory-bytes: 8589934592
+gpu-memory-utilization: 0.80
+max-model-len: 1048576
+max-num-seqs: 2
+max-num-batched-tokens: 1536
+enforce-eager: false
+compilation-config: '{"cudagraph_mode":"FULL_AND_PIECEWISE","cudagraph_capture_sizes":[1,3,4,6,8],"custom_ops":["all"]}'
+no-enable-flashinfer-autotune: true
+reasoning-parser: deepseek_v41
+tool-call-parser: deepseek_v41
+enable-auto-tool-choice: true
+speculative-config: '{"method":"dspark","num_speculative_tokens":3,"draft_sample_method":"greedy"}'
