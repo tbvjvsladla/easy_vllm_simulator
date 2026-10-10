@@ -117,7 +117,12 @@ def build_meta(*, yaml_quant=None, yaml_kvdt=None, engine=None, with_decoys=True
             (sweepdir / "sweep_index.json").write_text(json.dumps(
                 {"generated_utc": "2026-01-01T00:00:00Z", "meta": prior_meta}), encoding="utf-8")
 
+        # 측정 형상 해소 기록(plan_26101011) — 조립부는 이 파일이 없으면 index 를 내지 않는다(실측 경로 계약).
+        #   이 검사는 meta 를 묻는 것이므로 해소기를 돌리지 않고 기록 모양만 둔다(테스트 평면 격리).
+        knob_rec = root / "bench_knobs.fixture.json"
+        knob_rec.write_text(json.dumps({"bench": "full-bench", "preset": "fixture", "knobs": {}}), encoding="utf-8")
         env = {
+            "KNOB_RECORD": str(knob_rec),
             "CONFIG": "x", "TOPO": "single", "CFGYAML": str(root / "cfg.yaml"),
             "EF": str(root / ".env.x"), "MANIFEST": str(root / "manifest.yaml"),
             "AGENT_CARD": str(root / "nope.json"), "SWEEPDIR": str(sweepdir),

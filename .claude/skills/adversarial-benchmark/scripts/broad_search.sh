@@ -48,6 +48,9 @@
 #                            [--serve-failed REASON --serve-started-utc T] [--symptom KIND]...
 #                            --bench-budget-mib N --now-utc T --confirm-risk [--topology t]
 #                            [--cross-node-tolerance-s N --cross-node-tolerance-source TEXT]  (multi 원격 노드 사살 대조 · 선언으로만)
+#                            [--preset NAME|PATH] --knob-reason backend=<code> --knob-reason bench_budget_mib=<code>
+#                            [--knob-reason KNOB=CODE]... [--approved-by TEXT] [--pin KNOB=VALUE... --pinned-by TEXT]
+#                              (측정 형상 knob 계약 · plan_26101011 — 해석은 sweep_bench → bench_preset 소유 · 그대로 전달)
 #       broad_search.sh status --state PATH --now-utc T
 #       broad_search.sh map    --state PATH --now-utc T --out-md PATH [--out-json PATH]
 # 종료: 0=성공 · 2=인자/선언 오류(셀 출처 lockset provenance 부재·무효 포함 — 캠페인 셀 한정 ·
@@ -83,7 +86,7 @@ BACKEND=""
 JUDGE_KNOBS=()
 OUT_MD=""; OUT_JSON=""; REASSEMBLE=0; SERVE_FAILED_REASON=""; MAX_ERROR_RATE=""
 SERVE_STARTED_UTC=""; SYMPTOMS=()
-# 부하 레벨 목록. 빈 값이면 sweep_bench 의 기본(1,2,4,8,16)을 그대로 쓴다 — 여기서 기본을
+# 부하 레벨 목록. 빈 값이면 프리셋 기본(sweep_bench → bench_preset · plan_26101011)을 그대로 쓴다 — 여기서 기본을
 #   다시 적으면 같은 개념이 두 파일에 손으로 적히고 갈라진다(4종 안티패턴 · 매직넘버).
 #   2026-09-07 신설: sweep_bench 에는 --levels 가 있었으나 이 호출자가 전달하지 않아
 #   **열 예산 안에서 스윕을 짧게 도는 정식 경로가 없었다**(배선 부재 · GB10 120b multi 는
@@ -93,8 +96,12 @@ LEVELS=""
 XNODE_TOL=""; XNODE_TOL_SRC=""
 # 2026-09-07 신설(같은 결함 계열 — --levels 와 동일): 프롬프트 형상(in/out/n)도 sweep_bench 에
 #   있고 여기만 없었다. KV 압력 실험(DeepTailor 류 방법론)은 긴 프롬프트가 필요한데 기본
-#   1024/256 은 풀 압력을 만들지 못한다. 빈 값이면 sweep_bench 기본을 그대로 쓴다(개념 이중기재 금지).
+#   1024/256 은 풀 압력을 만들지 못한다. 빈 값이면 프리셋 기본을 그대로 쓴다(개념 이중기재 금지).
 ILEN=""; OLEN=""; NPROMPTS=""
+# 측정 형상 프리셋 계약 인자(2026-10-10 · plan_26101011) — 해석은 sweep_bench → bench_preset 이 소유하고 여기서는
+#   **그대로 전달만** 한다(2026-09-07 --levels 전달 누락과 같은 결함 계열을 막는다: 만든 노브가 도는 것과는 다르다).
+#   셀의 --levels/--input-len 은 Agent 선택이라 근거 코드(--knob-reason)가 없으면 sweep_bench 가 측정 전에 거부한다(rc 2).
+PRESET=""; PINNED_BY=""; APPROVED_BY=""; PIN_ARGS=(); KNOB_REASON_ARGS=()
 # full bench 반복 수(2026-09-14 · plan_26091407 §4.4). init 에서만 받는다 — 빈 값이면 캠페인 선언
 #   (`campaign.yaml budgets.repeats` · 미선언이면 full 정의값)에서 파생한다. 파생·값역·하한의 소유는
 #   `repeat_axis.py resolve` 이고 여기서는 부르기만 한다(기본값을 이 파일에 다시 적지 않는다).
@@ -128,6 +135,11 @@ while [ $# -gt 0 ]; do case "$1" in
   --output-len) OLEN="$2"; shift 2;;
   --num-prompts) NPROMPTS="$2"; shift 2;;
   --repeats) REPEATS="$2"; shift 2;;
+  --preset) PRESET="$2"; shift 2;;
+  --pin) PIN_ARGS+=(--pin "$2"); shift 2;;
+  --pinned-by) PINNED_BY="$2"; shift 2;;
+  --knob-reason) KNOB_REASON_ARGS+=(--knob-reason "$2"); shift 2;;
+  --approved-by) APPROVED_BY="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
   --backend) BACKEND="$2"; shift 2;;
   --reference-tps|--e-search|--target-tps) JUDGE_KNOBS+=("$1" "$2"); shift 2;;
@@ -240,6 +252,11 @@ init)
   #    넘긴다(스윕 도중 선언이 바뀌어도 셀끼리 반복 수가 갈라지지 않는다). 해소 실패는 스윕을 열지 않는다.
   _RA=(resolve)
   if [ -n "$REPEATS" ]; then _RA+=(--repeats "$REPEATS"); fi
+  # 최하단 기본값은 프리셋이 넘긴다(2026-10-10 · plan_26101011 — repeat_axis 는 코드 안 숫자로 메우지 않는다).
+  _PD="$(python3 "$SDIR/bench_preset.py" default --knob repeats ${PRESET:+--preset "$PRESET"})" || {
+    echo "[broad_search] ERROR 프리셋에서 반복 수 기본값을 읽지 못했다(위 사유) — 스윕을 열지 않는다" >&2; exit 2; }
+  IFS=$'\x1f' read -r _PD_VAL _PD_NAME <<< "$_PD"
+  _RA+=(--preset-default "$_PD_VAL" --preset-source "$_PD_NAME")
   _ST_CAMP="$(_state_campaign "$STATE")"
   if [ -n "$_ST_CAMP" ]; then _RA+=(--campaign-id "$_ST_CAMP"); fi
   _RR="$(python3 "$SDIR/repeat_axis.py" "${_RA[@]}")" || {
@@ -543,6 +560,11 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
     [ -n "$ILEN" ] && SB_ARGS+=(--input-len "$ILEN")
     [ -n "$OLEN" ] && SB_ARGS+=(--output-len "$OLEN")
     [ -n "$NPROMPTS" ] && SB_ARGS+=(--num-prompts "$NPROMPTS")
+    [ -n "$PRESET" ] && SB_ARGS+=(--preset "$PRESET")
+    [ -n "$PINNED_BY" ] && SB_ARGS+=(--pinned-by "$PINNED_BY")
+    [ -n "$APPROVED_BY" ] && SB_ARGS+=(--approved-by "$APPROVED_BY")
+    [ "${#PIN_ARGS[@]}" -gt 0 ] && SB_ARGS+=("${PIN_ARGS[@]}")
+    [ "${#KNOB_REASON_ARGS[@]}" -gt 0 ] && SB_ARGS+=("${KNOB_REASON_ARGS[@]}")
     # 반복 수는 **스윕 선언**(init 이 캠페인 선언에서 파생해 적은 declared_budget.repeats)을 그대로 넘긴다 —
     #   셀마다 다시 해소하면 스윕 도중 선언이 바뀔 때 같은 지도 안에서 반복 수가 갈라진다(2026-09-14).
     #   선언이 없으면 위 진입 게이트가 이미 exit 2 로 멈췄다(기본값을 발명하지 않는다).

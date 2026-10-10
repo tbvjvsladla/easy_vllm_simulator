@@ -931,6 +931,14 @@ def verify() -> dict:
              ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py", "--self-test"], {0}),
         _run("benchmark_sweep_repeats_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.py"], {0}),
+        # full-bench knob 프리셋 계약의 **리뷰 시점 집행자**(plan_26101011 · 2026-10-10). 호출자 없는 자체검사는 L1(산문)이다.
+        #   무엇을 지키나: "값만 조정, 키 추가·삭제는 계약 변경" · "등급 = 누가 선택지를 여나(auto/confirm/escalate)" ·
+        #   기본값의 자리는 프리셋 하나. 스키마 고정(닫힌 키 표 스냅샷) · 로더 거부(미지/누락 키 · 꺼 둔 다른 도구 블록 ·
+        #   열거 밖 기본값 · 미정의 근거 코드 · user knob 비기본 ≠ escalate · repeats < full 하한) · 해소 거부(근거 코드 부재 ·
+        #   승인 없는 confirm · Agent 의 escalate · 핀 충돌 · 서빙 상한 위반 · 필수값 부재). 실행 시점 집행자는 sweep_bench 가
+        #   부하 전에 부르는 bench_preset.py resolve 이고 그 배선은 위 selftest_sweep_repeats P1~P3 가 친다.
+        _run("benchmark_bench_preset_selftest", [sys.executable,
+             ".claude/skills/adversarial-benchmark/scripts/selftest_bench_preset.py"], {0}),
         # lite hint 통로의 **리포트 평면** (plan_26091407 §4.5 · §7 O5 · 2026-09-14 배선). 호출자 없는 자체검사는 L1(산문)이다.
         #   무엇을 지키나: lite 만 잰 셀도 hint 를 내려면 바인딩할 문서가 있어야 하는데 lite_bench 는 문서를 내지 않았다
         #   (audit_26091323 §1.2 A2). 배포되는 lite_bench.sh 사본을 격리 저장소에서 shim(docker·curl·nvidia-smi)으로 돌려

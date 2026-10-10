@@ -78,14 +78,17 @@
 > lite 와 다른 **full 경로의 종결 산출물**. full 적대 게이트가 **종결**(cap 소진 or PASS)되면, 판정과 **별개로**
 > 사람용 report + (PASS시)기계용 인증서를 `docs/benchmark/`(문서형 · docs.md §benchmark)에 발행한다.
 
-- **부하 스윕(client-load · reload 0)** — `sweep_bench.sh <config> [--topology] [--levels 1,2,4,8,16]`: 단일 running serve 에
+- **측정 형상은 프리셋이 정한다**(2026-10-10 · `plan_26101011` · SKILL.md §4) — 레벨·input/output 길이·요청 수·워밍업·반복·
+  backend·벤치 예산의 기본값/선택지/등급은 `config/guide-llm/<preset>.yaml` 하나에 있고 `sweep_bench.sh` 에 리터럴 기본값이
+  없다. 스윕 플래그는 Agent 선택이라 `--knob-reason K=<근거 코드>` 가 붙고, 해소 기록은 `sweep_index.bench_knobs` 다.
+- **부하 스윕(client-load · reload 0)** — `sweep_bench.sh <config> [--topology] [--levels CSV --knob-reason levels=<code>]`: 단일 running serve 에
   **동시성만** 변화(reload 0 — 벤치마커 "기동 안 함" 불변식 보존). **판정점(동시성=1) 강제 포함** → verdict 재사용(재측정 0).
   **적응 상한 클램프 + 절삭 로그**(레벨 실패 시 상위 중단·"레벨 N 절삭" 기록 — silent truncation ✗). 각 레벨 = `run_bench.sh`
   메커니즘 재사용(Flag/A2A 게이트 전이). config-space(batch×maxlen) reload 는 이 스윕 **밖**(Max/explorer 소관).
 - **full 의 정의 = `lite ∪ GuideLLM × 반복 ≥3`**(2026-09-14 · `plan_26091407` §4.4 · 사용자 결정 Q3) — 레벨마다 같은
   serve 에 **반복 ≥3**(`repeat_kind=warm-rerun` · `cold-restart` 는 선언 슬롯만). 반복은 분산·신뢰성의 최소조건이다:
   1회 측정에는 산포 추정치가 없고, 다른 도구·조건의 밴드를 빌리면 추론이 틀린다(`audit_26091323` §2.4b).
-  - **반복 수**: `sweep_bench.sh --repeats N` > 활성 캠페인 `campaign.yaml budgets.repeats` > full 정의값 3
+  - **반복 수**: `sweep_bench.sh --repeats N`(귀속 `--repeats-source` · 없으면 Agent 선택이라 비기본은 escalate 거부) > 활성 캠페인 `campaign.yaml budgets.repeats` > 프리셋 기본값
     (해소·하한의 소유 `repeat_axis.py` · 출처는 `sweep_index.repetition.requested_source`). **N<3 은 exit 2** —
     반복을 낮춰 full 을 선언하지 않는다(lite 만 재려면 §1 lite 통로). Broad Search 에서는 `init` 이 이 값을
     `declared_budget.repeats` 로 예산에 싣고 `cell` 이 넘긴다(셀 비용 = 레벨 × 반복 — 벽시계 예산의 근거).

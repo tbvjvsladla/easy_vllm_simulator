@@ -32,7 +32,10 @@ BACKEND=""
 TOOL="vllm"
 TOOL_VERSION=""      # 미선언이면 기록의 default_version(= 마지막 스테이징분)
 BENCH_BUDGET_MIB=""
-TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; CONC=1; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; OUTDIR=""
+TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; CONC=1; OUTDIR=""
+# 측정 형상은 빈 값으로 출발한다(2026-10-10 · plan_26101011). full-bench(--tool guidellm)의 형상은 프리셋이 정하고
+#   sweep_bench 가 해소값을 넘긴다 — 여기서 기본값으로 떨어지면 프리셋을 우회한 측정이 된다(아래 guidellm 가지가 거부).
+ILEN=""; OLEN=""; NPROMPTS=""; WARMUPS=""
 while [ $# -gt 0 ]; do case "$1" in
   --tool) TOOL="$2"; shift 2;;
   --tool-version) TOOL_VERSION="$2"; shift 2;;
@@ -75,7 +78,10 @@ if [ "$SERVE_PLANE" = "native" ] && { [ ! -x "$CLIENT_VLLM" ] || [ -L "$CLIENT_V
 fi
 
 case "$TOOL" in
-  vllm) ;;
+  vllm)
+    # 단발 `vllm bench serve` 경로의 형상 기본값 — full-bench 프리셋 범위 밖(plan_26101011 §2 · lite/단발 후방호환).
+    : "${ILEN:=1024}" "${OLEN:=256}" "${NPROMPTS:=16}" "${WARMUPS:=2}"
+    ;;
   guidellm)
     # 예산은 **선언에서만** 온다(§3.4·§4.8). 기본값을 두면 부하 생성기가 무제한으로 자라 serve 와
     # 같은 통합메모리를 두고 경쟁하는데 아무도 그것을 승인한 적이 없는 상태가 된다.
@@ -90,6 +96,17 @@ case "$TOOL" in
         exit 2;;
     esac
     [ "$BENCH_BUDGET_MIB" -gt 0 ] || { echo "[run_bench] ERROR --bench-budget-mib 는 양수여야 한다" >&2; exit 2; }
+    # 측정 형상 명시 강제(plan_26101011) — 예산 검사 **뒤**에 둔다(예산 술어 C10 의 판별이 이 검사에 가리지 않게).
+    _MISSING=""
+    [ -n "$ILEN" ] || _MISSING="$_MISSING --input-len"
+    [ -n "$OLEN" ] || _MISSING="$_MISSING --output-len"
+    [ -n "$NPROMPTS" ] || _MISSING="$_MISSING --num-prompts"
+    [ -n "$WARMUPS" ] || _MISSING="$_MISSING --warmups"
+    if [ -n "$_MISSING" ]; then
+      echo "[run_bench] ERROR --tool guidellm 은 측정 형상을 명시로만 받는다(누락:$_MISSING)." >&2
+      echo "  full-bench 형상의 기본값 자리는 프리셋 하나다(config/<바인딩 폴더>/<preset>.yaml) — sweep_bench.sh 로 돌려라." >&2
+      exit 2
+    fi
     ;;
   *) echo "[run_bench] 알 수 없는 --tool: $TOOL (vllm|guidellm)" >&2; exit 2;;
 esac

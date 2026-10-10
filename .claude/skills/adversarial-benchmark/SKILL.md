@@ -27,14 +27,15 @@ description: >-
 
 - **Goal** — 돌고 있는 serve 의 디코드 성능을 3중 루브릭(루프라인 R · 외부 E · 사용자 c)으로 적대 검증해 PASS/REFUTE 를 결정론으로 판정하고, 기각 시 재탐색 힌트를 낸다.
 - **When to invoke** — "성능 검증/벤치마크" 지시 · recipe 서빙 성공 직후 lite 자동 핸드오프 · 멀티노드 VRAM 밸런스 의심 · (별도 오퍼레이션) Max envelope 특성화 승인 시.
-- **Inputs** — `config.yaml`(대상 config_name·`reference_tps`/`target_tps`/`tolerance`/`realistic_fraction`) · **루브릭 authority 상태 3종**(§2 — 기본 `weak`, 사용자 HITL 트리거 시 `explicit` 또는 `explore`) · 라이브 serve(`:PORT/health` 200) · manifest(gpu_model·interconnect·topology) · 모델 config/safetensors index.
+- **Inputs** — full-bench 측정 형상 프리셋(`config/guide-llm/<preset>.yaml` · 기본 `default_preset` · §4) · `config.yaml`(대상 config_name·`reference_tps`/`target_tps`/`tolerance`/`realistic_fraction` — 사람 참고용 예시이며 스크립트는 읽지 않는다) · **루브릭 authority 상태 3종**(§2 — 기본 `weak`, 사용자 HITL 트리거 시 `explicit` 또는 `explore`) · 라이브 serve(`:PORT/health` 200) · manifest(gpu_model·interconnect·topology) · 모델 config/safetensors index.
 - **Outputs** — `verdict.json`(PASS/REFUTE/NEEDS_RUBRIC/INVALID + failure_axis) · lite 채팅 표(inform-only · lite-only 셀은 `--publish-report` 로 경량 리포트 `mode: lite`) · full 종결 시 `docs/benchmark/` report(항상) + 인증서(**explicit ∧ PASS** 시만 — `judge_bench.sh` 자동 발행 조건). 두 리포트 모두 **측정 구성 표**(bench_mode · 도구 · 반복 N · downgrade_reason)를 싣는다(hint lite 통로의 파싱 계약 · 2026-09-14 · plan_26091407 §4.5).
+- **full-bench(추상 이름) = 현재 구현체 GuideLLM** — 바인딩은 `config/bench_bindings.yaml` 한 줄(`full-bench: guide-llm`)이고, 측정 형상의 기본값·선택지·등급은 `config/guide-llm/default_preset.yaml` 하나가 소유한다(§4 · 2026-10-10 · `plan_26101011`). 구현체가 바뀌면 바인딩 한 줄과 새 도구 폴더의 프리셋만 바뀐다. 스크립트 인자 `--tool guidellm`·산출물 필드명은 그대로다.
 - **full bench 의 정의** — **`full = lite ∪ GuideLLM × 반복 ≥3`**(2026-09-14 · `plan_26091407` §4.4 · 사용자 결정 Q3). 동시성 스윕의 각 레벨을 같은 serve 에 **반복 ≥3** 으로 잰다 — 반복은 분산·신뢰성의 최소조건이고, 1회 측정에는 산포 추정치 자체가 없다. 판정 게이트는 불변이며 재현 밴드는 **기재**다. 반복이 성립하지 않으면(**기계 이벤트만** — **판정점**(동시성 1)의 run 실패 · 스윕이 멈춘 자리의 노드 블랙박스 kill) 그 셀은 `bench_mode=lite` + `downgrade_reason ∈ {run_failed, blackbox_kill}` 로 **강등**되고(확정 `classify_cell.py`), 분산(밴드 폭)은 강등 사유가 아니다. 포화 경계에서 스윕이 멈춘 것(적응 상한 클램프 — 경계 레벨의 첫 run 실패든 후속 run 실패든)은 강등이 아니다. 반복 수 < 3 은 선언할 수 없다(lite 만 재려면 lite 통로).
 - **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 7단계(순서 고정).
 - **State transitions** — **explicit PASS** 는 인증서로 `promotion-ready` 의 성능 조건을 채운다. 인증서가 발행되지 않는 판정(weak·explore 의 PASS · REFUTE)은 bench_report **판정 표**(`## 판정 (표시만 …)` 의 `verdict`·`루브릭 권한` 행)가 요구 증거이고, `completion_gate` 가 그 표를 manifest rubric 계약(floor>0 · ratio · primary_source · 출처 표시)과 교차검증한다(2026-09-29 · plan_26092908 §4.8 — 인증서를 손으로 만들지 않는다). lite 는 어떤 상태도 진행시키지 않는다. 최종 상태 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
 - **HITL/safety boundaries** — **serve 를 기동하지 않는다**(미가동 시 중단·보고) · 모델 자동 다운로드 ✗ · 무승인 escalate/rebuild ✗ · 무한 기각 ✗(cap → Model-C) · 게이트는 규칙(LLM 다수결 ✗).
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
-- **Deterministic commands** — `scripts/roofline.py` · `run_bench.sh` · `parse_bench.py` · `verdict_rule.py` · `lite_bench.sh` · `lite_metrics.py` · `sweep_bench.sh` · `repeat_axis.py` · `classify_cell.py` · `render_report.py` · `publish_benchmark_record.py` · `max_envelope.sh` · `render_max_report.py`.
+- **Deterministic commands** — `scripts/roofline.py` · `run_bench.sh` · `parse_bench.py` · `verdict_rule.py` · `lite_bench.sh` · `lite_metrics.py` · `sweep_bench.sh` · `bench_preset.py` · `repeat_axis.py` · `classify_cell.py` · `render_report.py` · `publish_benchmark_record.py` · `max_envelope.sh` · `render_max_report.py`.
 - **Handoff contract** — 반증된 셀 → `campaigns/<id>/escalation_candidates.jsonl` 에 후보 한 줄(`campaign_init --escalation-add`) · 종결 시 `--escalation-summary` 를 사람이 읽고 발동 여부를 정한다 · 구조적 → `upstream-version-watch` escalation · 증거 조회/입고 → `wiki-desk`(sidecar).
 - **Owns (state)** — `bench-verdict` · `bench-report` · `bench-certificate` · `max-envelope`
 
@@ -147,6 +148,30 @@ description: >-
 - 매 iteration = serve(재)기동(recipe/compose) → 벤치 측정 → 적대 판정. teardown 규율 = recipe Phase-2 동일(통합메모리 OOM 보호).
 - **누가 누구를 부르나**: 이 스킬은 *측정+판정+후보 적재*만 소유. **재탐색은 recipe-explorer 가** 한다. ★ 2026-09-11(plan_26091108 R6): 종전 문장은 `next_strategy_hint` 를 에이전트가 나른다고 적었는데 **그 이름을 생성하거나 소비하는 코드가 저장소 전체에 0 건**이었다 — 산문에만 있는 루프는 돌지 않는다(camp-26090918 은 셀이 12번 죽는 동안 전략 재수립을 한 번도 제안하지 않았다). 이름을 은퇴시키고 실제 기구로 바꾼다: `broad_search.sh cell` 이 반증 셀마다 `campaign_init --escalation-add` 로 후보를 쌓고(각 줄은 술어 ① 판정을 함께 든다), 캠페인 **종결 시** `--escalation-summary` 가 그것을 사람에게 올린다. 중간 발동하지 않는 이유: 빌드 평면 재전략은 통제변인을 바꾸므로 그 뒤 셀이 앞 셀과 비교 불가가 된다. recipe 측정/serve 재구현 금지.
 
+## 4. full-bench 측정 형상 프리셋 — Agent knob · 사용자 knob (2026-10-10 · `plan_26101011`)
+
+> **왜**: 사용자가 벤치를 통째로 맡겨도 Agent 가 측정 형상을 잘못 고르지 못하게 하려고 knob 을 도구 폴더에
+> 자산화했다. 이력 61건 중 input_len 1024 가 59건이었다 — 기본값이 코드 안에 있어 "누가 왜 그 값을 골랐나" 가
+> 남지 않았다. 산문 규칙 대신 **선택지 목록 + 등급**으로 적는다(JEV System One 의 판독성만 차용 · 보정 확률 ✗).
+
+- **자리**: `config/bench_bindings.yaml`(full-bench → 도구 폴더) · `config/<폴더>/<preset>.yaml`(기본 `default_preset`).
+  사용자가 같은 폴더에 커스텀 프리셋을 만들고 `sweep_bench.sh --preset <이름|경로>` 로 고른다(같은 스키마 검증).
+- **knob 마다 세 가지**: `owner`(agent = explorer 서빙전략에서 파생 · user = 사용자만) · `options`(닫힌 선택지 — 밖은
+  누가 넣어도 거부) · 선택지별 `grade` = **누가 그 값을 여나** — `auto` Agent 자유 · `confirm` 셀별 사전 승인(plan HITL ·
+  캠페인 선언 확인 팝업의 사람 발화 전사 `--approved-by`)이 있을 때만 · `escalate` 사람 핀으로만. 기동 중 새 차단점 ✗.
+- **해소 순서**: 사람 핀(`--pin K=V --pinned-by <전사>`) > 사람 핀(`campaign.yaml budgets.bench_pins` · 반복 수는
+  `budgets.repeats`) > Agent 선택(스윕 플래그 + `--knob-reason K=<근거 코드>`) > 프리셋 default. 근거 코드의 정의
+  자리는 프리셋의 `reason_codes` 하나다. Agent 선택이 사람 핀과 다르면 거부(조용히 덮지 않는다).
+- **서빙 상한 필터**: explorer 서빙 yaml 의 `max-num-seqs`(레벨) · `max-model-len`(input+output)으로 선택지를 거르기만
+  한다 — 제외분·사유는 기록되고, 남는 것이 없거나 context 를 넘으면 거부. 적응 클램프는 별개다(프리셋 = 무엇을 재려
+  했나 · truncation = 어디서 멈췄나).
+- **기본값 없음 유지**: `backend` · `bench_budget_mib` 는 default 가 `null` 이다(값이 없으면 기동 거부 — 2026-09-07 · §4.8).
+- **기록**: `sweep_index.json` 최상위 `bench_knobs` — 프리셋 이름·경로 · 바인딩 · knob 별 값/출처(preset|campaign|
+  cli_pin|agent)/등급/근거 코드/필터 제외분 · 승인·핀 전사. 재조립은 측정 시점 기록을 승계한다.
+- **집행자 둘**: 리뷰 시점 `scripts/selftest_bench_preset.py`(verify_distribution) · 실행 시점 `bench_preset.py resolve`
+  (sweep_bench 가 부하 전에 부른다 · 위반 = exit 2). 판정 knob(error rate · 노드 간 허용치 · 루브릭)은 판정 평면이라
+  프리셋 밖이고, lite(`vllm bench serve`)는 이번 범위 밖이다(`config/<도구>/` 로 나중에 붙인다).
+
 ## 7. 스킬 경계 / 인터페이스
 
 - **↔ recipe-explorer**: recipe 의 측정·serve 인프라를 **소비**, 위에 적대 루브릭/게이트만 얹는다. 기각 시 escalation 후보로 적재하고 종결 HITL 이 재탐색을 **승인**한다(feasibility 탐색은 recipe, performance 목표는 이 스킬이 주입). 술어 ① 의 판정 소유는 `vllm-recipe-explorer/scripts/escalation_predicate.py` 다.
@@ -171,6 +196,7 @@ description: >-
 ## 9. 보조 파일
 
 **결정론 스크립트**
+- `config/bench_bindings.yaml` · `config/guide-llm/default_preset.yaml` · `scripts/bench_preset.py` · `scripts/selftest_bench_preset.py` — full-bench 바인딩 · 측정 형상 프리셋(유일한 기본값 층) · 로더/해소기(단일 소유자 · `validate`/`resolve`) · 리뷰 시점 거부 묶음(§4 · 2026-10-10 · `plan_26101011`).
 - `scripts/roofline.py` — (a) spec-aware R_fp/R_token/expected(manifest+config/index). **accept_len 은 R_token 과 expected_achievable(= realistic_fraction × accept_len × R_fp) 양쪽에 곱해진다** — E·c 가 없으면 expected 가 primary 이므로 accept_len 은 상한만이 아니라 합격선을 움직인다(2026-09-14 · plan_26091407 F6). 그래서 값 옆에 `accept_len_source` 를 싣고 그 닫힌 어휘를 이 파일이 소유한다: `measured`(판정 레벨 measured.json 실측 승계) · `declared`(사람 `--accept-len` 명시) · `declared-absent`(spec 미선언 — 1.0 이 정상) · `absent`(실측도 명시도 없음 — 1.0 은 자리표시자, 뜻은 판정기가 정한다). 무효 값(비유한·<1)은 조용히 1.0 으로 눕히지 않고 exit 2 다(모델을 읽기 전에 판정한다). ⚠ `parse_guidellm` 의 `spec_axis_source=declared-absent`(lite 승계원 부재 명시)는 **다른 층의 같은 토큰**이며 이 어휘로 옮기지 않는다 — roofline 기준으로는 선언 지문에 따라 `absent` 또는 `declared-absent` 다.
 - `scripts/run_bench.sh` · `scripts/parse_bench.py` — 측정 M(+engine-log 교차). `--tool vllm|guidellm`(기본 `vllm`)이 도구를 고른다 — **lite 는 언제나 `vllm bench serve`**, full 만 GuideLLM 으로 간다(도구 구성 `full = lite ∪ GuideLLM` · 반복 축을 포함한 정의는 위 **full bench 의 정의**). 두 경로를 이질적으로 유지하는 것이 설계다: 통합하면 같은 버그가 양쪽에 균일하게 먹어 **일치해 보이면서 둘 다 틀리는** 상태가 되고, 실제로 그 이질성이 실결함 2건을 잡았다(2026-09-01·09-03).
 - `scripts/parse_guidellm.py` — GuideLLM `benchmarks.json` → **`parse_bench` 와 동일 계약**의 측정 M(소비자가 도구를 몰라도 되게). 정본 지표도 그대로 `1000/median(TPOT)`. **spec 축은 추측하지 않고 요구한다** — GuideLLM 은 수용길이를 보고하지 않는데 `verdict_rule` 은 `spec_on` 으로 물리 상한을 R_token/R_fp 중에서 고르므로, 조용한 False 는 거짓 판정이 된다. `--accept-len-src`(같은 스윕 lite 레그에서 승계) 또는 `--spec-axis-absent`(부재 명시) 중 **정확히 하나**가 필수다. 승계원은 **`vllm bench serve` 결과**여야 한다 — lite raw 포인터 문서(`bench_warm_json` …)를 넘기면 exit 2(2026-09-14: 종전에는 포인터 문서를 받아 None 을 조용히 승계해 spec 선언 GuideLLM 스윕이 전부 결손으로 기록됐고, `sweep_bench.sh` 는 이제 포인터가 가리키는 warm JSON 을 넘긴다). **`--self-test`**(G1~G25 · 실측 산출물 픽스처 포함).

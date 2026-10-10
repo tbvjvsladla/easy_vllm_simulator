@@ -188,8 +188,10 @@ def _self_test():
             root = os.path.join(td, "repo")
             ab = os.path.join(root, ".claude", "skills", "adversarial-benchmark", "scripts")
             os.makedirs(ab)
-            for name in scripts + ("resolve_topology.py", "repeat_axis.py"):
+            for name in scripts + ("resolve_topology.py", "repeat_axis.py", "bench_preset.py"):
                 shutil.copy2(os.path.join(here, name), os.path.join(ab, name))
+            # 측정 형상 프리셋(plan_26101011) — sweep_bench 는 토폴로지 해소 **뒤** 프리셋을 해소한다(바이트 사본).
+            shutil.copytree(os.path.join(os.path.dirname(here), "config"), os.path.join(os.path.dirname(ab), "config"))
             git(root, "init", "-q")
             git(root, "symbolic-ref", "HEAD", "refs/heads/multi-node")
             write(os.path.join(root, PARITY_REL), open(real_parity, encoding="utf-8").read())
@@ -224,7 +226,7 @@ def _self_test():
             rc, out = run("judge_bench.sh", "_probe", "--authority", "weak")
             ck("S1 judge_bench(--topology 없음) → manifest 통로 multi 로 해소(output/multi 경로에서 멈춘다)",
                rc == 2 and "output/multi/benchlog" in out and TAG in out, (rc, out))
-            rc, out = run("sweep_bench.sh", "_probe", "--backend", "openai", "--dry-run")
+            rc, out = run("sweep_bench.sh", "_probe", "--backend", "openai", "--knob-reason", "backend=harmony_completion", "--dry-run")
             ck("S2 sweep_bench --dry-run(--topology 없음) → topo=multi", rc == 0 and "topo=multi" in out, (rc, out))
             rc, out = run("lite_bench.sh", "_probe")
             ck("S3 lite_bench(--topology 없음) → 해소된 multi 가 Flag 게이트까지 흘러간다(exit 4)",
@@ -249,7 +251,7 @@ def _self_test():
             git(root, "symbolic-ref", "HEAD", "refs/heads/feature-x")
             os.remove(state)
             for name, args, want in (("judge_bench.sh", ("_probe", "--authority", "weak"), 2),
-                                     ("sweep_bench.sh", ("_probe", "--backend", "openai", "--dry-run"), 2),
+                                     ("sweep_bench.sh", ("_probe", "--backend", "openai", "--knob-reason", "backend=harmony_completion", "--dry-run"), 2),
                                      ("lite_bench.sh", ("_probe",), 4),
                                      ("run_bench.sh", ("_probe",), 4),
                                      ("broad_search.sh", init_args, 2),
