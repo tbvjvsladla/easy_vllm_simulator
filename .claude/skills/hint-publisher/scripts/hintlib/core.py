@@ -53,6 +53,8 @@ REL_RENDER_DOCKERFILE = ".claude/skills/upstream-version-watch/scripts/render_do
 REL_RENDER_BENCH_SECTION = f"{REL_SCRIPTS}/render_bench_section.py"
 REL_DOC_NAMING_WIKI = ".claude/skills/wiki-desk/scripts/doc_naming.py"
 REL_DOC_NAMING_BENCH = ".claude/skills/adversarial-benchmark/scripts/doc_naming.py"
+# GuideLLM benchmarks.json 판독 정본(완료 수 = request_totals.successful · 발행 자격 ② 가 같은 규칙으로 읽는다 — 2026-10-10 · M2 결함 A)
+REL_PARSE_GUIDELLM = ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.py"
 
 HINT_BRANCH_REF = "refs/heads/hint"
 HINT_TAG_PREFIX = "hint/"

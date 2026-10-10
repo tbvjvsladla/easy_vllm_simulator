@@ -1223,14 +1223,23 @@ def _build_selection(c: _Ctx, ledger: dict | None) -> dict:
         core.fail("HINT_BUILD_SELECTOR_MISMATCH",
                   f"이미지 원장 dockerfile={sel_ledger!r} 와 셀 env BUILD_DOCKERFILE={sel_env!r} 가 다르다.",
                   "셀 env 가 가리키는 레시피로 이미지를 다시 짓거나 셀 env 를 원장에 맞춘다(태그는 가변 포인터).")
+    # 결함 B(2026-10-10 · plan_26101017 · M2): 원장 · 셀 env 다음 = 이미지 history build-arg 관측(evidence._build_identity 가 판정 ·
+    #   출처 표지 HISTORY_TRACK_MARK). compose 기본값은 현재 compose 의 선언이라 관측보다 아래다(모순이면 evidence 가 관측을 택했다).
+    #   compose 리터럴 `dockerfile:` 은 그 compose 로 지은 이미지라는 증거가 없어 읽지 않는다. 태그 문자열 휴리스틱 ✗(계약).
+    from . import evidence as _evidence
+    bi = _get(c.ev, "build_identity") or {}
+    bi_src = str(((bi.get("source") or {}) if isinstance(bi, dict) else {}).get("dockerfile") or "")
+    sel_hist = str(bi.get("dockerfile") or "") if _evidence.HISTORY_TRACK_MARK in bi_src else ""
     for val, src in ((sel_ledger, "build-ledger.dockerfile"), (sel_env, "cell-env:BUILD_DOCKERFILE"),
-                     (compose_df or "", "compose-default:BUILD_DOCKERFILE")):
+                     (sel_hist, f"image-history:{bi_src}"), (compose_df or "", "compose-default:BUILD_DOCKERFILE")):
         if val:
             dockerfile, df_source = val, src
             break
     else:
-        core.fail("HINT_BUILD_SELECTOR_UNDERIVABLE", "쓰인 Dockerfile 을 파생하지 못했다(원장·셀 env·compose 기본값 모두 없음).",
-                  "셀 env 에 BUILD_DOCKERFILE 을 적거나 compose 의 `dockerfile: ${BUILD_DOCKERFILE:-…}` 기본값을 확인한다.")
+        core.fail("HINT_BUILD_SELECTOR_UNDERIVABLE", "쓰인 Dockerfile 을 파생하지 못했다(원장·셀 env·이미지 history build-arg 관측·compose "
+                  f"기본값 모두 없음 · 관측 기록: {bi_src or '미관측'}).",
+                  "셀 env 에 BUILD_DOCKERFILE 을 적거나 compose 의 `dockerfile: ${BUILD_DOCKERFILE:-…}` 기본값을 확인한다 · 이미지 탐침"
+                  "(docker history)이 가능한 곳에서 다시 실행한다.")
     if "/" in dockerfile or dockerfile.startswith("."):
         core.fail("HINT_BUILD_SELECTOR_INVALID", f"Dockerfile 선택자는 빌드 컨텍스트 안 파일 이름이어야 한다: {dockerfile!r}")
     image, image_source = _image_tag(c)
@@ -2701,13 +2710,28 @@ def _build_command(c: _Ctx, sel: dict) -> tuple[str, str]:
     if sel.get("image_tag"):
         parts.append(f"  -t {shlex.quote(str(sel['image_tag']))}")
     parts.append(f"  {shlex.quote(context)}")
-    shipped = (c.memo.get(("dockerfile", sel["dockerfile"])) or {}).get("shipped") or "worktree"
-    head = [f"# 실린 artifacts/build_recipe/{sel['dockerfile']}(이미지를 지은 개정: {shipped})를 {df} 자리에 두고 컨텍스트에서 짓는다."]
+    dmem = c.memo.get(("dockerfile", sel["dockerfile"])) or {}
+    shipped = dmem.get("shipped") or "worktree"
+    # 셀 B F3(2026-10-10 · plan_26101017): '이미지를 지은 개정' 은 history 대조로 확인됐을 때만 — 아니면 '실린 개정' 과 대조 결과를 적는다
+    hm_ = dmem.get("history_match") if isinstance(dmem.get("history_match"), dict) else None
+    rev_txt = (f"이미지를 지은 개정: {shipped}" if dmem.get("verified") else
+               f"실린 개정: {shipped} — 이미지를 지은 바이트임을 관측으로 확인 못함(docker history RUN·COPY {hm_['matched']}/{hm_['total']})"
+               if hm_ else f"실린 개정: {shipped} — 이미지를 지은 바이트임은 미검증(history 대조 없음)")
+    head = [f"# 실린 artifacts/build_recipe/{sel['dockerfile']}({rev_txt})를 {df} 자리에 두고 컨텍스트에서 짓는다."]
     if c.topo == "multi":
         head.append("# 양 노드에서 각각 짓는다(이미지 save/load 전송 ✗ — 노드마다 자기 이미지 · 요건은 동일 digest 가 아니라 동일 ABI).")
-    tail = ([f"# 동등 경로(스모크 사용법): bash {REL_SMOKE_MULTI} {c.cell} --build-only"] if c.topo == "multi" else
-            [f"# 동등 경로(compose): docker compose -f output/{c.topo}/docker-compose.yaml --env-file "
-             f"output/{c.topo}/envs/.env.{c.cell} build"])
+    # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 B F2: compose build.dockerfile 이 리터럴이고 이 이미지의 Dockerfile 과
+    #   다르면 compose build 는 동등 경로가 아니다(늘 그 리터럴을 짓는다) — 동등이라 적지 않고 그 사실을 적는다.
+    from . import evidence as _evidence
+    lit_kind, lit = _evidence.compose_build_dockerfile(c.compose_path) if c.compose_path is not None else (None, None)
+    if c.topo == "multi":
+        tail = [f"# 동등 경로(스모크 사용법): bash {REL_SMOKE_MULTI} {c.cell} --build-only"]
+    elif lit_kind == "literal" and lit != sel["dockerfile"]:
+        tail = [f"# compose build 는 동등 경로가 아니다 — output/{c.topo}/docker-compose.yaml build.dockerfile 리터럴이 {lit} 를 짓는다"
+                f"(이 이미지의 Dockerfile {sel['dockerfile']} 아님) · 위 docker build 명령만 쓴다."]
+    else:
+        tail = [f"# 동등 경로(compose): docker compose -f output/{c.topo}/docker-compose.yaml --env-file "
+                f"output/{c.topo}/envs/.env.{c.cell} build"]
     src = (f"reconstructed({asrc} + compose build)" if asrc and args else "reconstructed(compose build · build-arg 미관측)")
     if ctx is None:
         src += f"(compose build.context 미해석 — {context} 로 둔다)"
@@ -2904,7 +2928,11 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
         else:
             step("build", build_cmd, "빌드 OK · 이미지 실재", None, created, "none",
                  f"docker image inspect {_image_ref(c)[0]} .Created(종료만 관측)" if created else "미관측", build_src, extra)
-        events = [e for e in _events_for(repo, f"smoke-{cell}") if e.get("kind") == "budget_declare"]
+        # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F15: 라벨은 러너가 붙인 `<접두>-<셀>` 닫힌 목록(evidence 의 한 벌 ·
+        #   multinode_serve_smoke `smoke-` · single_serve_up `serve-`) — 옛 판은 smoke- 만 찾아 single 셀의 선언을 '없음' 으로 적었다.
+        from . import evidence as _evidence
+        events = sorted((e for pfx in _evidence._EVENT_LABEL_PREFIXES for e in _events_for(repo, f"{pfx}-{cell}")
+                         if e.get("kind") == "budget_declare"), key=lambda e: e["ts"])
         # FACT_FIX2 G7: lite-only 셀의 첫 측정 시각 = lite 측정 시작(lite_raw measured_utc) — 위에서 measure_start 로 채웠다
         s_end, s_end_src = (measure_start, (f"첫 측정 시각({measure_src})" if lite_start else f"첫 측정 date({measure_src})")) \
             if measure_start else (None, None)
@@ -2913,7 +2941,7 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
         decl = events[-1] if events and s_end else None     # 첫 측정 시각이 없으면 어느 선언인지 가를 수 없다
         step("serve", serve_cmd, "health 200 + 추론 1회(스모크 판정)", decl["ts"] if decl else None, s_end,
              "upper" if decl and s_end else "none",
-             (f"{decl['_file']} budget_declare(label smoke-{cell}) → {s_end_src}"
+             (f"{decl['_file']} budget_declare(label {decl.get('label')}) → {s_end_src}"
               if decl and s_end else "미관측(예산 선언 또는 첫 측정 시각 없음)"),
              "derived(스모크 사용법)")
     else:
@@ -3176,6 +3204,9 @@ _LOG_CALL = re.compile(r"\blogger\.(?:info|warning|error|debug|info_once|warning
 _SIG_MIN = 12                                   # 발화 서명 최소 길이 — 짧은 리터럴("done" 등)은 다른 코드와 우연히 겹친다
 
 
+_DOCKERFILE_DIRECTIVE = re.compile(r"#\s*(?:syntax|escape|check)\s*=[^\n]*\n", re.I)
+
+
 def unverified_header(reason: str, generated_by: str) -> str:
     """파일 첫 줄 경고 문구(주석 기호 제외) — 01 표·PAYLOAD 와 같은 문장을 쓴다(린터가 3자리 일치를 대조한다)."""
     return f"⚠ generated-unverified — {reason} · 생성: {generated_by}"
@@ -3199,6 +3230,12 @@ def _insert_header(payload: Path, rel: str, reason: str, generated_by: str) -> d
         first, _, rest = text.partition("\n")
         path.write_text(f"{first}\n# {line}\n{rest}", encoding="utf-8")
         out = {"style": "comment", "line": 2, "text": f"# {line}", "why_line_2": "shebang 보존"}
+    elif _DOCKERFILE_DIRECTIVE.match(text):
+        # 2026-10-10 · plan_26101017 · 셀 B F3: Dockerfile 파서 지시자(`# syntax=` 등)는 첫 주석 앞에만 유효하다 — 그 뒤에 둔다.
+        lines_ = text.split("\n")
+        k = next(i for i, x in enumerate(lines_) if not _DOCKERFILE_DIRECTIVE.match(x + "\n"))
+        path.write_text("\n".join(lines_[:k] + [f"# {line}"] + lines_[k:]), encoding="utf-8")
+        out = {"style": "comment", "line": k + 1, "text": f"# {line}", "why_line_2": "Dockerfile 파서 지시자 보존"}
     else:
         path.write_text(f"# {line}\n{text}", encoding="utf-8")
         out = {"style": "comment", "line": 1, "text": f"# {line}"}
@@ -3559,7 +3596,15 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
                     ctx_path, basis = f"{d}/{name}", f"{df_name} COPY {d}/"
             elif slot == "build_recipe" and df_text:
                 if name == df_name:
-                    ctx_path, basis = name, "compose build.dockerfile ${BUILD_DOCKERFILE} · build.context ."
+                    # 셀 B F2(2026-10-10 · plan_26101017): compose 의 실제 dockerfile 키를 읽는다 — 리터럴이 이 파일과 다르면 compose 가
+                    #   이 파일을 가리키지 않는다(docker build -f 의 입력일 뿐)
+                    from . import evidence as _evidence
+                    lk, lv = _evidence.compose_build_dockerfile(c.compose_path) if c.compose_path is not None else (None, None)
+                    basis = ("compose build.dockerfile ${BUILD_DOCKERFILE} · build.context ." if lk != "literal" else
+                             f"compose build.dockerfile {lv}(리터럴) · build.context ." if lv == name else
+                             f"docker build -f {name} 의 입력 · build.context .(compose build.dockerfile 은 리터럴 {lv} — compose build 는 "
+                             "이 파일을 짓지 않는다)")
+                    ctx_path = name
                 else:
                     src = next((s for s in copies if PurePath(s).name == name and s not in PATCH_DIRS.values()), None)
                     if src:
@@ -3945,6 +3990,20 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
     ctx_src = c                              # build_context_map 의 Dockerfile·compose 텍스트를 읽는 문맥
     if plane == "docker":
         applied, sel, ledger, env_shapes, recipe = _docker_slots(c, payload, measured, missing, files, slots)
+        # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 B F3: 실린 Dockerfile 이 측정 이미지 docker history RUN·COPY 와
+        #   전수 일치하지 않으면(대조는 했으나 불일치 — _select_dockerfile.verified False) 이 이미지를 지은 바이트로 확인되지 않았다 —
+        #   verified · cell-run 이 아니라 generated-unverified(renderer · 렌더 산출물)로 내리고 표시 3자리(파일 머리 경고 · file_records ·
+        #   01 검증 열)를 맞춘다. history 미관측(대조 불가)은 종전 표시 그대로(범위 밖 · 근거 문장이 대조 불가를 말한다).
+        dsel_ = c.memo.get(("dockerfile", sel["dockerfile"])) if isinstance(sel, dict) and sel.get("dockerfile") else None
+        hm3 = (dsel_ or {}).get("history_match") if isinstance((dsel_ or {}).get("history_match"), dict) else None
+        if dsel_ and not dsel_.get("verified") and hm3 and hm3.get("total"):
+            for rel_f in slots["build_recipe"]["files"]:
+                if PurePath(rel_f).name == sel["dockerfile"] and rel_f not in marks:
+                    why3 = (f"실린 {sel['dockerfile']}({dsel_.get('shipped')})이 측정 이미지 docker history RUN·COPY 와 "
+                            f"{hm3['matched']}/{hm3['total']} 만 일치 — 이 이미지를 지은 바이트임을 관측으로 확인하지 못했다")
+                    marks[rel_f] = {"verification": "generated-unverified", "generated_by": "renderer",
+                                    "header": _insert_header(payload, rel_f, why3, "renderer"),
+                                    "verification_basis": f"{why3}(_select_dockerfile · {dsel_.get('method')})"}
     else:
         # native 평면(2026-09-29 · plan_26092908 §4.2 U1 · V6): **Docker 셀과 같은 슬롯 집합**을 싣는다. 옛 판(2026-09-23)은
         #   "Dockerfile·compose·패치 0" 을 단언했다 — 그 결과 N1 태그는 zip 만으로 재현되지 않았다("이미지 레시피는 D1 페이로드를
@@ -4445,6 +4504,19 @@ def selftest() -> list[str]:
         apw = applied_set(repo, ev_w, runner=docker_old)
         ck("★wheel 트랙 패치 미실행(excluded_by_recipe)", apw["patches"] == []
            and sum(x["why"].startswith("excluded_by_recipe") for x in apw["excluded"]) == 5)
+        # ★결함 B(2026-10-10 · plan_26101017 · M2): 원장 · 셀 env 선택자 없음 → evidence 의 이미지 history build-arg 관측이 compose 기본값보다
+        #   먼저(compose 기본값 = 현재 compose 선언 · 그 이미지를 지은 증거 아님)
+        from . import evidence as _ev_mod
+        (out / "envs/.env.nosel").write_text("IMAGE_TAG=easy-vllm:fx-wheel\n", encoding="utf-8")
+        ev_ns = dict(ev, triplet=dict(ev_w["triplet"], env="output/multi/envs/.env.nosel"))
+        hsrc = f"{_ev_mod.HISTORY_TRACK_MARK}(VLLM_VERSION=0.8.0 · VLLM_REF 없음 → wheel Dockerfile)"
+        sel_h = _build_selection(_ctx(repo, dict(ev_ns, build_identity=dict(ev["build_identity"], dockerfile="Dockerfile",
+                                                                            source={"dockerfile": hsrc})), runner=docker_old), None)
+        sel_c = _build_selection(_ctx(repo, ev_ns, runner=docker_old), None)
+        ck("★결함 B 선택자 순위: 원장 · 셀 env 없음 → 이미지 history 관측(wheel)이 compose 기본값(source-build)을 이긴다 · 출처 표시",
+           sel_h["dockerfile"] == "Dockerfile" and sel_h["track"] == "wheel" and sel_h["dockerfile_source"] == f"image-history:{hsrc}")
+        ck("결함 B 음성대조: history 관측 표지가 없으면 종전대로 compose 기본값",
+           sel_c["dockerfile"] == "Dockerfile.source-build" and sel_c["dockerfile_source"] == "compose-default:BUILD_DOCKERFILE")
         # ★쓰인 Dockerfile 부재 = 차단(빈 텍스트로 계속하면 모든 패치가 거짓 excluded_by_recipe 사유로 빠진다)
         (out / "envs/.env.nodf").write_text("IMAGE_TAG=easy-vllm:fx-x\nBUILD_DOCKERFILE=Dockerfile.absent\n", encoding="utf-8")
         raises("★쓰인 Dockerfile 부재", "HINT_DOCKERFILE_ABSENT", lambda: applied_set(
@@ -4633,6 +4705,19 @@ def selftest() -> list[str]:
            rs14["bench"]["observed"]["start_utc"] == "2026-01-01T18:59:41Z" and rs14["bench"]["observed"]["seconds"] == 1819
            and rs14["bench"]["observed"]["bound"] == "exact" and f"lite_raw_{cell}.json measured_utc" in rs14["bench"]["source"]
            and HOST_START_MARK in rs14["bench"]["source"] and "컨테이너 시계" not in rs14["bench"]["source"])
+        # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F15: single_serve_up 의 `serve-<셀>` 라벨 선언도 serve 상한의 시작이다
+        evp = repo / "docs/logs/main/events/2026-01.jsonl"
+        ev_bytes = evp.read_bytes()
+        evp.write_text(json.dumps({"kind": "budget_declare", "label": f"serve-{cell}", "ts": "2026-01-01T18:40:00Z"}) + "\n"
+                       + json.dumps({"kind": "budget_declare", "label": f"serve-{cell}x", "ts": "2026-01-01T18:50:00Z"}) + "\n",
+                       encoding="utf-8")
+        try:
+            rs15 = {x["step"]: x for x in reproduce_steps(repo, ev, runner=docker_old)}
+        finally:
+            evp.write_bytes(ev_bytes)
+        ck("★F15 serve-<셀> 라벨 선언(single_serve_up) → serve 상한 시작 · 출처에 그 라벨 · 접두만 같은 다른 셀 라벨 ✗",
+           rs15["serve"]["observed"]["start_utc"] == "2026-01-01T18:40:00Z" and rs15["serve"]["observed"]["bound"] == "upper"
+           and f"label serve-{cell})" in rs15["serve"]["source"])
         ck("★P14 serve 상한의 끝 = lite_raw measured_utc(첫 측정 시각)",
            rs14["serve"]["observed"]["end_utc"] == "2026-01-01T18:59:41Z" and "첫 측정 시각(" in rs14["serve"]["source"])
         ck("P14 음성대조: 다른 셀의 lite_raw 는 쓰지 않는다(시작 = JSON date · clock-mixed)",
@@ -4781,9 +4866,27 @@ def selftest() -> list[str]:
                 created="2026-01-02T03:04:05+09:00", probe=False))
             sbad = rbad["slots"]["build_recipe"]["evidence"]["selected_revision"]
             rvb = {r["path"]: r for r in rbad["slots"]["build_recipe"]["evidence"]["recipe_vs_image"]}
+            # 2026-10-10 · plan_26101017 · 셀 B F3: 대조했으나 불일치면 실린 사본 머리에 generated-unverified 경고(원본 바이트는 그 뒤 그대로)
+            fr3 = {r["path"]: r for r in rbad["slots"]["build_recipe"]["file_records"]}.get("artifacts/build_recipe/Dockerfile.rev") or {}
+            body3 = (repo / "p_rev_bad/artifacts/build_recipe/Dockerfile.rev").read_text(encoding="utf-8")
             ck("★F1 어느 개정도 더 맞지 않으면 작업트리 + 경고(대조 결과 기재)",
                sbad["commit"] is None and "어느 개정도" in sbad["method"] and "warning" in rvb["output/multi/Dockerfile.rev"]
-               and (repo / "p_rev_bad/artifacts/build_recipe/Dockerfile.rev").read_text(encoding="utf-8") == df_wt)
+               and body3.split("\n", 1)[1] == df_wt)
+            hm3x = sbad["history_match"]
+            ck("★F3 history 대조 불일치 Dockerfile = generated-unverified(renderer) · 표시 3자리(머리 경고 = file_records header · 대조 수)",
+               fr3.get("verification") == "generated-unverified" and fr3.get("generated_by") == "renderer"
+               and body3.split("\n")[fr3["header"]["line"] - 1] == fr3["header"]["text"]
+               and f"{hm3x['matched']}/{hm3x['total']} 만 일치" in fr3["header"]["text"] and fr3.get("bytes_observed") is not True)
+            bb3 = {s["step"]: s for s in rbad["reproduce_steps"]}["build"]["command"]
+            ck("★F3 빌드 머리 = '실린 개정 … 확인 못함'('이미지를 지은 개정' ✗) · 전수 일치 개정은 종전 문구",
+               "실린 개정: worktree — 이미지를 지은 바이트임을 관측으로 확인 못함" in bb3 and "이미지를 지은 개정:" not in bb3
+               and "이미지를 지은 개정: git:" in brv["command"])
+            dfx = repo / "p_dirx.Dockerfile"
+            dfx.write_text("# syntax=docker/dockerfile:1\nFROM x\n", encoding="utf-8")
+            hx = _insert_header(repo, "p_dirx.Dockerfile", "r", "renderer")
+            ck("★F3 Dockerfile 파서 지시자(# syntax=) 뒤에 경고(지시자 보존)", hx["line"] == 2
+               and dfx.read_text(encoding="utf-8").split("\n")[:2] == ["# syntax=docker/dockerfile:1", hx["text"]])
+            dfx.unlink()
             rnc = collect(repo, ev_rev, repo / "p_rev_nocreated", render_module=fake_rd, runner=_fake_image_docker(
                 layers=layers_rev, created="not-a-time", probe=False))
             snc = rnc["slots"]["build_recipe"]["evidence"]["selected_revision"]
@@ -5426,6 +5529,26 @@ def selftest() -> list[str]:
         ck("F5 single 빌드 명령(history 인자 · compose 컨텍스트)",
            "docker build -f output/single/Dockerfile.probe" in bps and "--build-arg FX_OPEN=1" in bps
            and "-t easy-vllm:fx-probe" in bps and "docker compose -f output/single/docker-compose.yaml" in bps)
+        # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 B F2: compose build.dockerfile 리터럴이 이 이미지의 Dockerfile 과
+        #   다르면 compose build 를 '동등 경로' 로 내지 않고 매핑 근거도 리터럴을 말한다 · 같으면 동등 경로 유지
+        cmp_ = so / "docker-compose.yaml"
+        cmp_b = cmp_.read_bytes()
+        try:
+            cmp_.write_bytes(cmp_b.replace(b"${BUILD_DOCKERFILE:-Dockerfile.probe}", b"Dockerfile.source-build   # lit"))
+            rl2 = collect(repo, ev_p, repo / "p_probe_lit", render_module=fake_rd, runner=dk_p)
+            cmp_.write_bytes(cmp_b.replace(b"${BUILD_DOCKERFILE:-Dockerfile.probe}", b"Dockerfile.probe"))
+            rl3 = collect(repo, ev_p, repo / "p_probe_lit3", render_module=fake_rd, runner=dk_p)
+        finally:
+            cmp_.write_bytes(cmp_b)
+        bl2 = {s["step"]: s for s in rl2["reproduce_steps"]}["build"]["command"]
+        bl3 = {s["step"]: s for s in rl3["reproduce_steps"]}["build"]["command"]
+        mp2 = {r["slot_path"]: r for r in rl2["build_context_map"]}.get("artifacts/build_recipe/Dockerfile.probe") or {}
+        mp3 = {r["slot_path"]: r for r in rl3["build_context_map"]}.get("artifacts/build_recipe/Dockerfile.probe") or {}
+        ck("★F2 compose 리터럴(Dockerfile.source-build) ≠ 이 이미지 Dockerfile → '동등 경로(compose)' ✗ · '동등 경로가 아니다' · 매핑 근거 = 리터럴",
+           "동등 경로(compose)" not in bl2 and "compose build 는 동등 경로가 아니다" in bl2 and "Dockerfile.source-build 를 짓는다" in bl2
+           and "${BUILD_DOCKERFILE}" not in str(mp2.get("basis")) and "리터럴 Dockerfile.source-build" in str(mp2.get("basis")))
+        ck("F2 음성대조: 리터럴 = 이 이미지 Dockerfile 이면 동등 경로 유지 · 근거 '(리터럴)'",
+           "동등 경로(compose)" in bl3 and "compose build.dockerfile Dockerfile.probe(리터럴)" in str(mp3.get("basis")))
         ck("F12 슬롯 증거: 전부 applied 인 슬롯만 reconstruction", rp_["slots"]["build_patch_pre"]["evidence"]["kind"] == "none"
            and "적용 미관측" in rp_["slots"]["build_patch_pre"]["evidence"]["note"])
         # ★읽기 전용 실행기(image_probe 미선언) = create/cp/rm 0 · 탐침이 가르던 30·40 은 미관측 · 61 은 작업트리 바이트로 판정
