@@ -925,7 +925,7 @@ def read_push_token(repo: Path, environ: dict | None = None) -> str | None:
     direct = str(environ.get(TOKEN_KEY) or "").strip()
     if direct:
         return direct
-    f = Path(repo) / TOKEN_ENV_FILE_REL
+    f = core.aux_root(repo) / TOKEN_ENV_FILE_REL     # 별도 hint 클론 모드면 워크스페이스(core.set_aux_root)
     if not f.is_file():
         return None
     try:
