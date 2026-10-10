@@ -1,0 +1,67 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26100111",
+      "depth": 1,
+      "excerpts": 7,
+      "path": "docs/testlog/testlog_26100111_ornith15-35b-v030_싱글서브_서빙_lite.md",
+      "role": "testlog",
+      "stem": "testlog_26100111_ornith15-35b-v030_싱글서브_서빙_lite"
+    },
+    {
+      "date": "26101014",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26101014_knob프리셋_E2E_셀C_ornith.md",
+      "role": "testlog",
+      "stem": "testlog_26101014_knob프리셋_E2E_셀C_ornith"
+    },
+    {
+      "date": "26101014",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101014_ornith-1.5-35b-a3b_GB10_0.30.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101014_ornith-1.5-35b-a3b_GB10_0.30.0"
+    },
+    {
+      "date": "26101104",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101104_hint발행체제_개편_서브자체발행.md",
+      "role": "plan",
+      "stem": "plan_26101104_hint발행체제_개편_서브자체발행"
+    },
+    {
+      "date": "26101107",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101107_ornith15-35b-v030_셀C_서빙_측정_knob해소.md",
+      "role": "devlog",
+      "stem": "devlog_26101107_ornith15-35b-v030_셀C_서빙_측정_knob해소"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [],
+    "count": 76
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26101107",
+  "schema_version": 2,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26101014_ornith-1.5-35b-a3b_GB10_0.30.0.md",
+      "sha256": "89403c596166546813590dd8c8be639bb70bfee97b0e6f1b6063ad9b9ffa0f10"
+    },
+    {
+      "path": "docs/testlog/testlog_26100111_ornith15-35b-v030_싱글서브_서빙_lite.md",
+      "sha256": "1533192f57eafd77daf387b627506355992e6d4054d41a3277dff24e7188efb6"
+    },
+    {
+      "path": "docs/testlog/testlog_26101014_knob프리셋_E2E_셀C_ornith.md",
+      "sha256": "3226853c925617dee9d80bd0642067bd8eb8af62be9f7d1d73514df01201c618"
+    }
+  ]
+}

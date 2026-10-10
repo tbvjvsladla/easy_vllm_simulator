@@ -1,0 +1,20 @@
+# ornith-ai/Ornith-1.5-35B-A3B 서빙 설정 (서브 자율 저작 · camp-26100110-v030-single-dual · vLLM 0.30.0 · TP=1 GB10)
+# 모델 사실: Qwen3_5MoeForConditionalGeneration · 하이브리드(GDN 3 : full attn 1) · bf16 ~67 GiB · ctx 262144
+# VRAM 분해(통합메모리 121.69 GiB 예산): weights ~67 GiB + KV 클램프 8 GiB + 활성/그래프 여유 → gmu 0.80 상한(= 97.4 GiB)
+model: /app/models/ornith-ai/Ornith-1.5-35B-A3B
+host: 0.0.0.0
+port: 8000
+# gmu = startup free-memory 게이트 + 총 cap(≤0.80); 실제 KV 는 kv-cache-memory-bytes 절대 클램프가 제어
+gpu-memory-utilization: 0.80
+max-model-len: 262144
+max-num-seqs: 4
+max-num-batched-tokens: 4096
+# 텍스트 전용 서빙 — 멀티모달 인코더 프로파일(16384 tok 이미지) 피크 제거(attempt1·2 가 memwatch 10 GiB 바닥에 걸려 사살됨)
+limit-mm-per-prompt: '{"image": 0, "video": 0}'
+kv-cache-memory-bytes: 8589934592
+tensor-parallel-size: 1
+enable-auto-tool-choice: true
+tool-call-parser: qwen3_xml
+reasoning-parser: qwen3
+# MoE 백엔드: auto 가 고른 FlashInfer CUTLASS 의 컴파일 직후 프로파일/오토튜닝 구간에서 MemAvailable 이 30초 만에 46→12 GiB 로 급락(memwatch 10 GiB 사살 ×3)
+moe-backend: triton
