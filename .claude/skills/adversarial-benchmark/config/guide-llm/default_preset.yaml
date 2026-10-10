@@ -133,12 +133,15 @@ knobs:
     reasons: [human_pin, harmony_completion, chat_template, prior_cell_shape]
 
   # ── 벤치 컨테이너 메모리 몫(MiB) ── 기본값 없음(§4.8 · 호스트 안전 예산). --tool guidellm 일 때만 쓴다.
+  #   run_bench 의 벤치 예산 게이트가 노드 서빙 바닥에서 상한을 말한다 — 그 상한 이하 선택지를 고른다.
+  #   2048 은 2026-10-10 E2E 셀 B(gpt-oss-120b single · 상한 2990MiB)에서 교집합이 비어 추가했다(사용자 승인).
   bench_budget_mib:
     owner: agent
     kind: scalar
     default: null
     serving_cap: none
     options:
+      - {value: 2048, grade: auto}
       - {value: 4096, grade: auto}
       - {value: 8192, grade: auto}
       - {value: 16384, grade: confirm}
