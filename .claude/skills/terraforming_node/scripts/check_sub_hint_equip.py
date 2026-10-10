@@ -392,7 +392,11 @@ def _self_test() -> int:
             ck("비-ignore 워크스페이스 마커 쓰기 거부", (not (ws2 / PUSH_FLAG_REL).exists()))
         ck("판정 결정론(같은 입력 → 같은 JSON)",
            json.dumps(evaluate(ws, environ={}), sort_keys=True) == json.dumps(evaluate(ws, environ={}), sort_keys=True))
-    ck("사람 요청 템플릿이 실재한다", (DEFAULT_WORKSPACE / REQUEST_TEMPLATE_REL).is_file(), REQUEST_TEMPLATE_REL)
+    # 요청 템플릿은 **메인 전용**이다(수행지시서 발행 = 메인 몫 · docs.md 서브 docs 계약). 서브 렌더 트리에는 terraforming_node 의
+    #   scripts/ 만 가므로 거기서 부재는 정상이다(2026-10-11 실서브 적용에서 자체검사 21/22 의 원인). 메인 판별 = 스킬 문서 실재.
+    _main_tree = (DEFAULT_WORKSPACE / ".claude/skills/terraforming_node/SKILL.md").is_file()
+    ck("사람 요청 템플릿이 실재한다(메인 트리 · 서브 렌더 트리는 메인 전용이라 부재 정상)",
+       (DEFAULT_WORKSPACE / REQUEST_TEMPLATE_REL).is_file() or not _main_tree, REQUEST_TEMPLATE_REL)
     print(f"--- {ran[0] - len(fails)}/{ran[0]} PASS")
     return 0 if not fails else 1
 
