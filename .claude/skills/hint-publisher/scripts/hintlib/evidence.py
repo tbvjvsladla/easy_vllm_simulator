@@ -5374,9 +5374,12 @@ def _arch_facts(repo: Path, ev: CellEvidence) -> dict:
             core.fail("HINT_AXIS_UNDERIVABLE", f"cluster 축인데 manifest nodes[] 가 {count}개다.")
     else:
         count = 1
-        if role == "sub":
+        if role == "sub" and man.get("self_role") != "sub":
+            # 메인 manifest 에서 서브 축을 짓는다 — 서브의 하드웨어 사실은 nodes[role=sub] 항목이다.
             entry = next((n for n in nodes if n.get("role") == "sub"), {})
             gpu = entry.get("gpu_model") or None
+        # 서브 **자기** manifest(self_role: sub · scan_node --emit-sub-manifest)면 최상위 gpu_model 이 그 노드 자신의 사실이다 —
+        #   single 서브 자체 발행(plan_26101104) 첫 실서브 publish 가 nodes[role=sub] 만 보다 HINT_AXIS_UNDERIVABLE 로 멈췄다(2026-10-11).
     measured = None
     if ev.certificate:
         measured, msrc2 = _norm_value(ev.certificate.get("gpu_model")), "인증서 gpu_model"
@@ -7780,6 +7783,15 @@ def selftest() -> list[str]:
                 "topology": "multi", "target_gpu": "<<FILL>>"}})
             ck("★캠페인 모드에서 타겟 선언을 읽지 못하면 roofline 으로 대체하지 않는다(target_gpu 키 부재 = 파생 불가)",
                "target_gpu" not in _arch_facts(repo, ev_nt))
+            # ★서브 자기 manifest(self_role: sub) — 최상위 gpu_model 이 그 노드의 사실(plan_26101104 · 첫 실서브 publish 회귀)
+            _mb = dict(ev.manifest or {})
+            _ms = dict(_mb, self_role="sub", nodes=[], gpus_per_node=8)
+            _as = _arch_facts(repo, dataclasses.replace(ev, node="sub", manifest=_ms))
+            ck("★서브 자기 manifest 의 sub 축 = 최상위 gpu_model(nodes[role=sub] 부재여도 파생)",
+               _as.get("gpu_model") == _mb.get("gpu_model") and _mb.get("gpu_model") is not None)
+            _mm = dict(_mb, nodes=[{"role": "main"}, {"role": "sub"}], gpus_per_node=8)
+            _am = _arch_facts(repo, dataclasses.replace(ev, node="sub", manifest=_mm))
+            ck("메인 manifest 의 sub 축은 여전히 nodes[role=sub] 항목에서만(최상위 = 메인 사실로 대체 ✗)", _am.get("gpu_model") is None)
             ptrp = repo / "campaigns/c1/evidence_pointers.json"
             ptr_text = ptrp.read_text(encoding="utf-8")
             ptr_doc = json.loads(ptr_text)
