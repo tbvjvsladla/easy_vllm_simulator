@@ -1969,14 +1969,16 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                 if _label_is_cell(d.get("label"), cell) or (
                         d.get("kind") in ("serve_start", "serve_stop") and _session_is_cell(d.get("session_id"), cell)):
                     taken[(rel, idx)] = None
-        # 창을 열지 않는 스트림(thermal 등)의 라벨 없는 행 — 같은 노드의 선언 창 **시간 구간**에 귀속한다.
+        foreign_wins = _foreign_label_windows(streams, taken, cell)
+        # 창을 열지 않는 스트림(thermal 등)의 라벨 없는 행 — 같은 노드의 선언 창 **시간 구간**에 귀속한다(라벨 다른 창 포함 · F5).
         for rel, rows, _srcs, _bad in streams:
             if any(d.get("kind") in _EVENT_OPEN_KINDS for _, _, d in rows):
                 continue
             for idx, (ts, _ln, d) in enumerate(rows):
                 if d.get("label") or d.get("kind") not in _EVENT_WINDOWED_KINDS:
                     continue
-                w = next((w for _, w in declare_wins if w["start_ts"] <= ts and (w["end_ts"] is None or ts <= w["end_ts"])), None)
+                w = next((w for _, w in declare_wins + foreign_wins
+                          if w["start_ts"] <= ts and (w["end_ts"] is None or ts <= w["end_ts"])), None)
                 if w is not None:
                     taken[(rel, idx)] = w
         declare_wins.sort(key=lambda x: (x[1]["start_ts"], x[0]))
@@ -2000,6 +2002,28 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                 # `label` 은 **그 행의 라벨**이다(2026-09-22 · S2 round 2 리뷰). 라벨 없는 clear·사살·보류를 창의 라벨로 채우면 추론(창 귀속)이
                 #   원장 데이터처럼 보인다 — 1차 사실확인이 센 오기 부류다. 귀속은 detail 이 "라벨 없음 → … 귀속" 으로 말한다.
                 label = d.get("label") or None
+                foreign = w is not None and bool(w.get("foreign"))
+                if foreign:
+                    note = foreign_label_note(w["label"], cell)
+                    if k == "budget_declare":
+                        renews = sum(1 for j in w["rows"] if rows[j][2].get("kind") == "budget_renew")
+                        closed = (f"닫힘 {w['end_kind']} {w['end_ts']}(선언 후 {_dur(w['start_ts'], w['end_ts'])})" if w["end_ts"]
+                                  else "닫힘 미관측(창이 열린 채 원장이 끝난다)")
+                        if measured is None:
+                            rel_m = "측정 시각 미관측"
+                        elif _win_holds(w, measured):
+                            rel_m = f"measured_utc {measured} 가 이 창 시간 안 — 라벨이 달라 이 측정의 기동으로 귀속하지 않는다"
+                        else:
+                            rel_m = f"measured_utc {measured} 는 이 창 밖(" + ("측정 뒤)" if w["start_ts"] > measured else "측정 전)")
+                        detail = (f"예산 선언(선언값 — 측정 아님) · {fields} · {note} · budget_renew {renews}회 · {closed} · {rel_m}")
+                    elif d.get("label") in (None, ""):
+                        detail = (f"{k} · {fields} · 라벨 없음 → {w['label']} 선언 창 귀속(노드당 선언 슬롯 1개 · "
+                                  f"창 시작 {w['start_ts']} 후 {_dur(w['start_ts'], ts)}) · {note}")
+                    else:
+                        detail = f"{k} · {fields} · 창 시작 {w['start_ts']} 후 {_dur(w['start_ts'], ts)} · {note}"
+                    out.append({"utc": ts, "node": node, "kind": k, "label": label, "detail": detail, "source": f"{rel}:{ln}",
+                                "label_scope": LABEL_SCOPE_OTHER, "window_label": w["label"]})
+                    continue
                 if k == "budget_declare" and w is not None and id(w) in order:
                     renews = sum(1 for j in w["rows"] if rows[j][2].get("kind") == "budget_renew")
                     if measured is None:
@@ -2033,6 +2057,56 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                                 "source": brel})
         out[node_start:] = _merge_stream_copies(out[node_start:])
     return out, sorted(used), measured_win
+
+
+# 라벨이 다른 같은 노드 선언 창(2026-10-11 · plan_26101104 셀 C 사실검증 F5). 원장 행은 라벨 = 셀 id 로만 이 셀에 묶였다 — 그런데
+#   같은 서빙 계보의 앞선 기동이 다른 라벨(실측: 셀 `ornith15-35b-v030` 의 10-01 기동 선언 라벨 `ornith15-v030` · `-r3` · `-r4`)로
+#   선언되면 그 선언 5건 · 트립 3건이 통째로 떨어지고, 남은 이 셀 행(세션 기동 등)만으로 연 시도가 "선언 행 없음 · 사살 없음" 이라
+#   적혔다(원장에 있는 사건을 없다고 말하는 바이트). 처방: **이 셀 행이 창 밖에 남은 시각**(세션 [기동, 정지] 구간 · 그 밖 행은 그 시각)과
+#   시간이 겹치는 같은 노드의 다른 라벨 창은 행째로 싣되, 모든 행에 `label_scope: other-label-same-node` · 창 라벨 · 문장 표지를 단다
+#   (이 셀의 선언으로 세지 않는다 — 기동 창 k/n 번호 · 측정 창 선택 밖). 겹치지 않는 다른 라벨 창(다른 모델 · 접두만 같은 다른 셀)은
+#   종전대로 싣지 않는다 — 넓히면 노드의 모든 서빙이 이 셀의 여정으로 섞인다.
+LABEL_SCOPE_OTHER = "other-label-same-node"
+
+
+def foreign_label_note(label, cell: str) -> str:
+    """라벨이 다른 같은 노드 창의 행 표지(문장 한 벌 — template 시도 표도 이 문구의 머리를 쓴다)."""
+    return (f"라벨 다름: `{label}` — 같은 노드 · 이 셀 라벨(`{cell}`) 아님 · 창 밖에 남은 이 셀 행과 시간이 겹치는 선언 창이라 싣는다"
+            "(이 셀의 선언으로 세지 않는다)")
+
+
+def _foreign_label_windows(streams: list, taken: dict, cell: str) -> list[dict]:
+    """위 주석의 규칙 — 겹치는 다른 라벨 창의 행을 `taken` 에 창과 함께 넣고(창에 foreign=True) 그 중 선언 창 목록을 돌려준다."""
+    by_key = {skey: rows for skey, rows, _srcs, _bad in streams}
+    sess: dict[str, list[str]] = {}
+    ivs: list[tuple[str, str]] = []
+    for (skey, idx), w in taken.items():
+        if w is not None:
+            continue
+        ts, _ln, d = by_key[skey][idx]
+        sid = d.get("session_id") if d.get("kind") in ("serve_start", "serve_stop") else None
+        if isinstance(sid, str) and sid:
+            sess.setdefault(sid, []).append(ts)
+        else:
+            ivs.append((ts, ts))
+    ivs += [(min(v), max(v)) for v in sess.values()]
+    if not ivs:
+        return []
+    out: list[dict] = []
+    for skey, rows, _srcs, _bad in streams:
+        for w in _event_windows(rows):
+            if not w.get("label") or _label_is_cell(w["label"], cell):
+                continue
+            w["stream_last"] = rows[-1][0]
+            end = w["end_ts"] or w["stream_last"]
+            if not any(w["start_ts"] <= b and end >= a for a, b in ivs):
+                continue
+            w["foreign"] = True
+            for idx in w["rows"]:
+                taken.setdefault((skey, idx), w)
+            if w["open_kind"] == "budget_declare":
+                out.append(w)
+    return out
 
 
 def _win_holds(w: dict, t: str) -> bool:
@@ -5374,9 +5448,12 @@ def _arch_facts(repo: Path, ev: CellEvidence) -> dict:
             core.fail("HINT_AXIS_UNDERIVABLE", f"cluster 축인데 manifest nodes[] 가 {count}개다.")
     else:
         count = 1
-        if role == "sub":
+        if role == "sub" and man.get("self_role") != "sub":
+            # 메인 manifest 에서 서브 축을 짓는다 — 서브의 하드웨어 사실은 nodes[role=sub] 항목이다.
             entry = next((n for n in nodes if n.get("role") == "sub"), {})
             gpu = entry.get("gpu_model") or None
+        # 서브 **자기** manifest(self_role: sub · scan_node --emit-sub-manifest)면 최상위 gpu_model 이 그 노드 자신의 사실이다 —
+        #   single 서브 자체 발행(plan_26101104) 첫 실서브 publish 가 nodes[role=sub] 만 보다 HINT_AXIS_UNDERIVABLE 로 멈췄다(2026-10-11).
     measured = None
     if ev.certificate:
         measured, msrc2 = _norm_value(ev.certificate.get("gpu_model")), "인증서 gpu_model"
@@ -6457,6 +6534,51 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
                       "2026-01-02T00:00:00Z")
        and _win_holds({"start_ts": "2026-01-01T00:00:00Z", "end_ts": None, "stream_last": "2026-01-01T01:00:00Z"},
                       "2026-01-01T00:30:00Z"))
+    # 2026-10-11 · plan_26101104 셀 C 사실검증 F5 — 같은 서빙 계보의 앞선 기동이 다른 라벨(x-v030 · x-v030-r3)로 선언됐을 때 그 선언 · 트립이
+    #   떨어져 "선언 행 없음 · 사살 없음" 시도가 나오던 모양. 이 셀(x-35b-v030) 세션과 겹치는 다른 라벨 창은 표지와 함께 싣는다.
+    evd5 = repo / "docs/logs/main/events"
+    keep5 = {f.name: f.read_bytes() for f in evd5.iterdir() if f.is_file()}
+    try:
+        for f in list(evd5.iterdir()):
+            f.unlink()
+        sid1, sid2 = "serve-x-35b-v030-20260101T000100Z", "serve-x-35b-v030-20260101T002100Z"
+        (evd5 / "2026-01.jsonl").write_text("".join(json.dumps(x) + "\n" for x in (
+            {"kind": "budget_declare", "label": "serve-x-v030", "kv_mib": 16384, "ts": "2026-01-01T00:00:00Z"},
+            {"kind": "serve_start", "session_id": sid1, "model": "x", "ts": "2026-01-01T00:01:00Z"},
+            {"kind": "watchdog_trip", "rule": "absolute", "mem_avail_mib": 900, "ts": "2026-01-01T00:10:00Z"},
+            {"kind": "budget_clear", "existed": True, "ts": "2026-01-01T00:11:00Z"},
+            {"kind": "serve_stop", "session_id": sid1, "model": "x", "ts": "2026-01-01T00:12:00Z"},
+            {"kind": "budget_declare", "label": "serve-x-v030-r3", "kv_mib": 8192, "ts": "2026-01-01T00:20:00Z"},
+            {"kind": "serve_start", "session_id": sid2, "model": "x", "ts": "2026-01-01T00:21:00Z"},
+            {"kind": "watchdog_trip", "rule": "absolute", "mem_avail_mib": 800, "ts": "2026-01-01T00:30:00Z"},
+            {"kind": "budget_clear", "existed": True, "ts": "2026-01-01T00:31:00Z"},
+            {"kind": "serve_stop", "session_id": sid2, "model": "x", "ts": "2026-01-01T00:32:00Z"},
+            {"kind": "budget_declare", "label": "smoke-unrelated-model", "ts": "2026-01-01T01:00:00Z"},
+            {"kind": "watchdog_trip", "rule": "absolute", "mem_avail_mib": 700, "ts": "2026-01-01T01:02:00Z"},
+            {"kind": "budget_clear", "existed": True, "ts": "2026-01-01T01:05:00Z"},
+            {"kind": "budget_declare", "label": "smoke-x-35b-v030", "kv_mib": 8192, "ts": "2026-01-02T02:30:00Z"},
+            {"kind": "budget_renew", "label": "smoke-x-35b-v030", "ttl_s": 900, "ts": "2026-01-02T02:59:00Z"},
+            {"kind": "budget_clear", "existed": True, "ts": "2026-01-02T03:10:00Z"})), encoding="utf-8")
+        ev5 = dataclasses.replace(ev, cell="x-35b-v030", certificate={**(ev.certificate or {}), "measured_utc": _M_UTC})
+        tl5 = event_timeline(repo, ev5)
+    finally:
+        for f in list(evd5.iterdir()):
+            f.unlink()
+        for n_, b_ in keep5.items():
+            (evd5 / n_).write_bytes(b_)
+    d5 = [r for r in tl5 if r["kind"] == "budget_declare"]
+    oth5 = [r for r in tl5 if r.get("label_scope") == LABEL_SCOPE_OTHER]
+    ck("★F5 겹치는 다른 라벨 창의 선언 · 트립 · clear 를 싣는다(떨구지 않는다) · 모든 행에 label_scope · 창 라벨 · 문장 표지",
+       [r["label"] for r in d5] == ["serve-x-v030", "serve-x-v030-r3", "smoke-x-35b-v030"]
+       and sum(1 for r in oth5 if r["kind"] == "watchdog_trip") == 2 and sum(1 for r in oth5 if r["kind"] == "budget_clear") == 2
+       and all(foreign_label_note(r["window_label"], "x-35b-v030") in r["detail"] for r in oth5)
+       and "라벨 다름: `serve-x-v030-r3` — 같은 노드 · 이 셀 라벨(`x-35b-v030`) 아님" in d5[1]["detail"])
+    ck("★F5 다른 라벨 창은 이 셀의 기동 창 번호 · 측정 창 밖(이 셀 창 = 1/1 · 이 측정의 기동) · 세션 행은 이 셀 행 그대로",
+       len(d5) == 3 and "기동 창 1/1" in d5[2]["detail"] and "이 창 안(이 측정의 기동)" in d5[2]["detail"] and "기동 창" not in d5[0]["detail"]
+       and all("label_scope" not in r for r in tl5 if r["kind"] in ("serve_start", "serve_stop")))
+    ck("★F5 음성대조: 이 셀 행과 시간이 겹치지 않는 다른 라벨 창(다른 모델)과 그 트립은 싣지 않는다",
+       "smoke-unrelated-model" not in json.dumps(tl5, ensure_ascii=False)
+       and not any(r["utc"] == "2026-01-01T01:02:00Z" for r in tl5))
     # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F14: 경계 이전 기동이라도 그 serve_start 세션 id 가 이 셀 포인터(testlog)가
     #   인용한 simlog 기동 로그에 문자 그대로 있으면 같은 셀 기동(관측 조인) · 없으면 종전 분류(앞선 캠페인).
     import shutil as _sh14
@@ -7780,6 +7902,15 @@ def selftest() -> list[str]:
                 "topology": "multi", "target_gpu": "<<FILL>>"}})
             ck("★캠페인 모드에서 타겟 선언을 읽지 못하면 roofline 으로 대체하지 않는다(target_gpu 키 부재 = 파생 불가)",
                "target_gpu" not in _arch_facts(repo, ev_nt))
+            # ★서브 자기 manifest(self_role: sub) — 최상위 gpu_model 이 그 노드의 사실(plan_26101104 · 첫 실서브 publish 회귀)
+            _mb = dict(ev.manifest or {})
+            _ms = dict(_mb, self_role="sub", nodes=[], gpus_per_node=8)
+            _as = _arch_facts(repo, dataclasses.replace(ev, node="sub", manifest=_ms))
+            ck("★서브 자기 manifest 의 sub 축 = 최상위 gpu_model(nodes[role=sub] 부재여도 파생)",
+               _as.get("gpu_model") == _mb.get("gpu_model") and _mb.get("gpu_model") is not None)
+            _mm = dict(_mb, nodes=[{"role": "main"}, {"role": "sub"}], gpus_per_node=8)
+            _am = _arch_facts(repo, dataclasses.replace(ev, node="sub", manifest=_mm))
+            ck("메인 manifest 의 sub 축은 여전히 nodes[role=sub] 항목에서만(최상위 = 메인 사실로 대체 ✗)", _am.get("gpu_model") is None)
             ptrp = repo / "campaigns/c1/evidence_pointers.json"
             ptr_text = ptrp.read_text(encoding="utf-8")
             ptr_doc = json.loads(ptr_text)
