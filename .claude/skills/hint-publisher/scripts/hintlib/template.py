@@ -527,7 +527,9 @@ def _f_context(c: _Ctx) -> str:
         if ident.get(key) in (None, ""):
             return (label, _MISSING_TEXT, _cell(isrc.get(key)) if isrc.get(key) else _MISSING_TEXT)
         src = _cell(isrc.get(key)) if isrc.get(key) else "출처 미기재"
-        if key == "quant" and str(isrc.get(key) or "").startswith("naming-axis"):
+        # 2026-10-10 · plan_26101017 · 셀 A F16: 측정이 quantization none 을 관측했으면(evidence.QUANT_NONE_OBSERVED_MARK) N/A 덧말 ✗
+        if key == "quant" and str(isrc.get(key) or "").startswith("naming-axis") \
+                and "측정 identity quantization = none(관측)" not in str(isrc.get(key)):
             # 2026-09-22 S2 round 2(F9): 인증서 quantization 이 N/A 인데 같은 표의 명명 축 q 가 nvfp4 라 1차 수신자가 모순으로 읽었다
             #   — 값이 어디서 왔는지(체크포인트 config 에서 파생한 명명 축)를 출처 칸이 말한다.
             src += " — 인증서 quantization 이 N/A 라 명명 축 q(체크포인트 config 파생)를 옮겼다"
@@ -1812,8 +1814,12 @@ def _f_event_timeline(c: _Ctx) -> str:
                           "이 표는 구분하지 않는다 — evidence.event_timeline 이 둘 다 빈 목록으로 준다)._"] + _ledger_span_lines(c.facts))
     bnd = c.facts.get("event_campaign_boundary")
     n_prior = sum(1 for r in rows if r.get("campaign_scope") == "prior-campaign")
-    split = (f" · 이번 캠페인 {len(rows) - n_prior}행 · 같은 셀 이름 · 앞선 캠페인 {n_prior}행(내용 칸에 표기)"
-             if isinstance(bnd, dict) and bnd.get("utc") and n_prior else "")
+    # 2026-10-10 · plan_26101017 · 셀 A F14: 경계 이전이나 세션 id 가 이 셀 기록에 관측된 행(evidence same-cell-pre-boundary)은 따로 센다
+    n_same = sum(1 for r in rows if r.get("campaign_scope") == "same-cell-pre-boundary")
+    split = (f" · 이번 캠페인 {len(rows) - n_prior - n_same}행"
+             + (f" · 캠페인 선언 전 · 같은 셀 기동 {n_same}행(이 셀의 시도로 센다)" if n_same else "")
+             + (f" · 같은 셀 이름 · 앞선 캠페인 {n_prior}행" if n_prior else "") + "(내용 칸에 표기)"
+             if isinstance(bnd, dict) and bnd.get("utc") and (n_prior or n_same) else "")
     out = ([f"**블랙박스 이벤트 {len(rows)}행**(원장에서 이 셀 label·config 에 맞는 행만 · 시각순 · 기계 발췌{split})"]
            + _boundary_line(bnd) + _ledger_span_lines(c.facts) + [""])
     out += _table(("#", "UTC", "노드", "kind", "label", "내용", "출처"),
@@ -4449,6 +4455,19 @@ def selftest() -> list[str]:
                                                                                                     "source": "재생 모드"}), tpls)))
         ck("★이번 캠페인 시도가 0 이면 그렇게 적는다(앞선 캠페인 시도를 이 셀 시도로 올리지 않는다)",
            "이번 캠페인(경계 2026-01-01T00:30:00Z 이후)의 기동 시도 미관측" in "\n".join(_attempts_table(scoped[:3], bnd_)))
+        # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F14: 같은 셀 기동(same-cell-pre-boundary)은 이 셀 시도로 번호 · 앞선 표 ✗
+        sc14 = [{**r, "campaign_scope": ("same-cell-pre-boundary" if r["utc"] < bnd_["utc"] else "this-campaign")} for r in cross]
+        tb14 = "\n".join(_attempts_table(sc14, bnd_))
+        ev14 = _f_event_timeline(_Ctx(repo, dict(facts_json, event_timeline=sc14, event_campaign_boundary=bnd_), tpls))
+        ck("★F14 same-cell-pre-boundary 시도 = 이 셀 시도(번호 1·2) · '앞선 캠페인' 표 ✗ · 머리 개수에 '캠페인 선언 전 · 같은 셀 기동'",
+           "| 1 | main |" in tb14 and "| 2 | main |" in tb14 and "앞선" not in tb14
+           and "캠페인 선언 전 · 같은 셀 기동" in ev14 and "앞선 캠페인 " not in ev14.split("\n")[0])
+        # 셀 A F16: 측정 quantization none 관측 표지가 있으면 'N/A 라 옮겼다' 덧말 ✗(종전 naming-axis(q) 는 덧말 유지 — 위 0.2 검사)
+        id16 = dict(facts_json.get("identity") or {})
+        id16["source"] = {**(id16.get("source") or {}), "quant": "naming-axis(q) — 측정 identity quantization = none(관측)(x) — …"}
+        c16 = _f_context(_Ctx(repo, dict(facts_json, identity=id16), tpls))
+        ck("★F16 측정 none 관측 표지 → 양자화 행에 '인증서 quantization 이 N/A' 덧말 ✗", "측정 identity quantization = none(관측)" in c16
+           and "인증서 quantization 이 N/A" not in c16)
         ck("1.1 결과 출처 범례(쓰인 값만)", "**결과 출처 범례**" in t01x and "`reconstructed(docker-history+gate)` —" in t01x
            and "`image-probe(script-sha+marker)`" not in t01x)
         ck("0.5 파생 요약: 지위별 개수", "`inherited` 2 · `negative-control` 1" in fact_blocks(t00)["knob_status"])

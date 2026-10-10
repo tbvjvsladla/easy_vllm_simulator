@@ -686,6 +686,30 @@ def _dockerfile_args(repo: Path, topology: str, dockerfile: str | None) -> tuple
 HISTORY_TRACK_MARK = "docker history build-arg 관측"
 
 
+# 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 B F2: compose 의 `build.dockerfile` 은 변수(`${BUILD_DOCKERFILE:-X}`)일 수도
+#   **리터럴**(`dockerfile: Dockerfile.source-build`)일 수도 있다. 리터럴이면 `docker compose … build` 는 늘 그 파일을 짓는다 — 옛 판은
+#   기본값 꼴만 찾아 리터럴을 '선택자 부재' 로 적고, wheel 셀에도 compose build 를 '동등 경로' 로 냈다. 판정은 여기 한 벌(artifacts 공용).
+_COMPOSE_BUILD_BLOCK = re.compile(r"(?m)^([ \t]*)build:[ \t]*(?:#.*)?\n((?:\1[ \t]+\S.*\n?)+)")
+
+
+def compose_build_dockerfile(compose_path) -> tuple[str | None, str | None]:
+    """compose 첫 `build:` 블록의 `dockerfile:` → ("literal", 파일) · ("selector", 기본값 | None) · (None, None)(블록·키 없음 · 부재).
+    주석은 값이 아니다(줄 끝 `# …` 를 벗긴다)."""
+    try:
+        text = Path(compose_path).read_text(encoding="utf-8")
+    except (OSError, TypeError):
+        return None, None
+    m = _COMPOSE_BUILD_BLOCK.search(text)
+    dm = re.search(r"(?m)^\s*dockerfile:\s*([^#\n]*)", m.group(2)) if m else None
+    raw = dm.group(1).strip().strip("'\"") if dm else ""
+    if not raw:
+        return None, None
+    if "$" in raw:
+        dm2 = re.fullmatch(r"\$\{BUILD_DOCKERFILE:?-([^}]*)\}", raw)
+        return "selector", (dm2.group(1) or None) if dm2 else None
+    return "literal", raw
+
+
 def _history_track_dockerfile(raw_args: dict) -> tuple[str | None, str]:
     """이미지 history build-arg(필터 전 원문)의 트랙 정체 인자로 쓰인 Dockerfile 판정(2026-10-10 · plan_26101017 · M2 결함 B).
     `VLLM_REF` 만 → Dockerfile.source-build · `VLLM_VERSION` 만 → Dockerfile(wheel) · 둘 다 · 둘 다 없음 = 판정 불가(None).
@@ -737,15 +761,22 @@ def _build_identity(repo: Path, *, topology: str, env: dict, env_rel: str | None
         #   upstream slave_forward.compose_default 가 소유한다(스모크의 옛 하드 폴백 K10 을 대체한 그 함수).
         compose = repo / "output" / topology / "docker-compose.yaml"
         dockerfile = _slave_forward(repo).compose_default(compose, "BUILD_DOCKERFILE") if compose.is_file() else None
+        # F2(2026-10-10 · plan_26101017 · 셀 B F2): 기본값 꼴이 없으면 compose 리터럴 `build.dockerfile:` 을 읽어 **적는다** — 선택자로
+        #   채택하지는 않는다(현재 compose 의 선언이지 이 이미지를 지은 증거가 아니다 · 트랙 판정 규칙은 그대로).
+        lit_kind, lit = compose_build_dockerfile(compose) if not dockerfile else (None, None)
+        lit_txt = (f"output/{topology}/docker-compose.yaml 리터럴 build.dockerfile: {lit}(선택자 변수 없음 — compose build 는 늘 {lit} 를 "
+                   "짓는다 · 이 이미지를 지은 증거 아님)") if lit_kind == "literal" else None
         src["dockerfile"] = (f"output/{topology}/docker-compose.yaml 기본값 ${{BUILD_DOCKERFILE:-{dockerfile}}}"
                              "(셀 env 선택자 없음 · 현재 compose 기준)" if dockerfile
+                             else f"셀 env 선택자 없음 · {lit_txt}" if lit_txt
                              else "선택자 없음(셀 env·compose 기본값 모두 부재)")
         # 결함 B(2026-10-10): 원장(artifacts 순위) · 셀 env 다음 = 이미지 history build-arg 관측. compose 기본값은 **현재** compose 의
-        #   선언이지 이 이미지를 지은 증거가 아니다 — 관측과 모순되면 관측이 이긴다(근거 기재). compose 리터럴 `dockerfile:` 은 읽지 않는다.
+        #   선언이지 이 이미지를 지은 증거가 아니다 — 관측과 모순되면 관측이 이긴다(근거 기재). compose 리터럴은 위에서 적기만 한다.
         obs_df, obs_note = _history_track_dockerfile((facts or {}).get("history_build_args") or {})
         if obs_df and obs_df != dockerfile:
             src["dockerfile"] = obs_note + (f" — {src['dockerfile']} 은 이 이미지 관측과 모순 · 관측이 이긴다" if dockerfile else
-                                            f" — {src['dockerfile']}")
+                                            f" — {src['dockerfile']}" + (f" · ⚠ compose 리터럴 {lit} ≠ 관측 {obs_df}(이 이미지는 "
+                                                                        "compose build 로 지어지지 않았다)" if lit_txt and lit != obs_df else ""))
             dockerfile = obs_df
         elif not dockerfile:
             src["dockerfile"] += f" · {obs_note}" + ("" if facts is not None else " · 이미지 탐침 결과 없음(docker 미가용 · 이미지 부재)")
@@ -859,7 +890,34 @@ def _attested_host(att: dict | None, key: str, timing_note: str | None = None) -
     return val, where, by_node
 
 
-def _host_facts(ev: CellEvidence) -> None:
+# 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 B F1: single 셀은 attestation 이 없어 관측 층이 비었고, 선언(manifest 580.173.02)
+#   만 옮겨 '관측 ≠ 선언' 이 미관측이었다 — 측정 엔진 로그의 기동 배너가 컨테이너가 본 호스트 커널 드라이버를 적는다
+#   (`Using CUDA 13.1 driver version 590.48.01 with kernel driver version 580.178.04.`). 규칙: 이 측정의 엔진 로그(_measured_engine_logs —
+#   스윕 · lite 레그 조인 한 벌)의 그 줄 값이 **하나로 일치**할 때만 관측 층(같은 run 의 attestation 관측이 없을 때) · 둘 이상이면 싣지 않는다.
+_KERNEL_DRIVER = re.compile(r"with kernel driver version (\d+(?:\.\d+)+)")
+
+
+def _engine_log_driver(repo: Path, ev: CellEvidence) -> tuple[str | None, str | None]:
+    """(값, 출처 `파일:줄` …) | (None, None) — 위 규칙."""
+    try:
+        logs = _measured_engine_logs(repo, ev)[0]
+    except core.HintError:
+        return None, None
+    vals: dict[str, str] = {}
+    for lg in logs:
+        for i, line in enumerate(_log_lines(lg), 1):
+            m = _KERNEL_DRIVER.search(_ANSI.sub("", line))
+            if m:
+                vals.setdefault(m.group(1), f"{_rel(repo, lg)}:{i}")
+                break
+    if len(vals) != 1:
+        return None, None
+    (v, where), = vals.items()
+    return v, (f"측정 엔진 로그 기동 배너 'kernel driver version'({where} · 컨테이너가 보고한 호스트 커널 드라이버 · 이 측정의 엔진 로그 "
+               f"{len(logs)}개 중 그 줄이 있는 로그 모두 같은 값)")
+
+
+def _host_facts(ev: CellEvidence, repo=None) -> None:
     """build_identity 에 측정 호스트 사실 `driver`·`os` 를 **출처와 함께** 싣는다(2026-09-22 · plan_26092119 S2 round 2 · F4).
     1차 재생의 FACT 는 인증서·스윕 meta 가 `driver_version` 을 들고 있었는데도 드라이버를 "미관측" 이라 적었다.
 
@@ -890,6 +948,12 @@ def _host_facts(ev: CellEvidence) -> None:
     layers: list[tuple[str | None, str, bool]] = []          # (값, 출처, 관측인가)
     if obs_v and not other_run:
         layers.append((obs_v, obs_src, True))
+    elif repo is not None:          # F1(2026-10-10): 같은 run 의 attestation 관측이 없으면 측정 엔진 로그 배너
+        lv, lsrc = _engine_log_driver(_repo(repo), ev)
+        if lv:
+            layers.append((lv, lsrc, True))
+            if ev.node in ("main", "sub"):       # 노드 축이 하나일 때만 그 노드의 관측(cluster 는 head 컨테이너 배너뿐 — 노드별 ✗)
+                by_node, obs_src = {ev.node: lv}, lsrc
     for doc, where in ((meta, f"sweep_index.meta.driver_version({(ev.sweep or {}).get('dir')} · 측정 시 조립"),
                        (cert, f"인증서 driver_version({Path(ev.certificate_path or '').name} · 스윕 meta 의 옮김")):
         v = _norm_value(doc.get("driver_version")) if isinstance(doc, dict) else None
@@ -1578,6 +1642,20 @@ def measurement(ev: CellEvidence) -> dict:
             out["accept_len"] = str(cert["lite_accept_len"])
             per["accept_len"] = (f"{cname} lite_accept_len(" + str(cert.get("lite_accept_len_src") or "출처 칸 없음")
                                  + ") — lite 관측(판정 입력 아님 · lite-only 셀은 verdict_rule 에 투입되지 않았다)")
+    if "accept_len" not in out and out["verdict"] != "OBSERVATION-ONLY":
+        # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F17: verdict.json 은 measured_accept_len(null)과 루브릭 spec 축
+        #   (rubric.spec_axis.accept_len · accept_len_source · missing)을 든다 — '칸이 없다' 가 아니라 '측정값 null · 루브릭이 쓴 값과 그 출처'
+        #   를 적는다. 값은 None 그대로(1.0 은 spec 미선언 시 루브릭의 선언값 — 측정 아님 · 옮기지 않는다).
+        sw_ = ev.sweep or {}
+        vj = sw_.get("verdict") if isinstance(sw_.get("verdict"), dict) else None
+        ax = ((vj or {}).get("rubric") or {}).get("spec_axis") if isinstance((vj or {}).get("rubric"), dict) else None
+        if vj is not None and "measured_accept_len" in vj and vj.get("measured_accept_len") is None and isinstance(ax, dict):
+            out["accept_len"] = None
+            per["accept_len"] = (f"{sw_.get('dir')}/verdict.json measured_accept_len = null(측정값 없음) · rubric.spec_axis: "
+                                 f"declared={ax.get('declared')} · accept_len={ax.get('accept_len')} · "
+                                 f"accept_len_source={ax.get('accept_len_source')} · missing={str(ax.get('missing')).lower()}"
+                                 + (" — spec 미선언이라 루브릭이 1.0 을 쓴다(선언값 · 측정 아님 · 결손 아님)"
+                                    if ax.get("accept_len_source") == "declared-absent" and ax.get("missing") is False else ""))
     for k in ("decode_tps_conc1", "floor_tps", "ratio_M_over_primary", "rubric_authority", "accept_len"):
         if k not in out:
             out[k] = None
@@ -2160,10 +2238,82 @@ def _campaign_boundary(ev: CellEvidence, win: dict | None) -> dict:
 def event_campaign_boundary(repo, ev: CellEvidence) -> dict:
     """이 셀 타임라인의 캠페인 경계(공유 계약 `facts['event_campaign_boundary']`) — {utc, observed, campaign_id, source}."""
     repo = _repo(repo)
-    return _campaign_boundary(ev, _ledger_timeline(repo, ev)[2])
+    bnd = _campaign_boundary(ev, _ledger_timeline(repo, ev)[2])
+    return _note_same_cell(bnd, _same_cell_pre_sessions(repo, ev, bnd.get("utc")))
 
 
-def _scope_rows(rows: list[dict], bnd: dict) -> list[dict]:
+def _note_same_cell(bnd: dict, same: list[dict]) -> dict:
+    """경계 출처에 같은 셀 기동 예외를 적는다(F14 · 2026-10-10 — '이전 행 = 앞선 캠페인' 이 그 행들까지 덮어 말하지 않게)."""
+    if not same:
+        return bnd
+    return {**bnd, "same_cell_sessions": same,
+            "source": f"{bnd['source']} · 단 이전 기동 중 {len(same)}건은 {SAME_CELL_PRE_NOTE}(세션 id 가 이 셀 기록에 관측: "
+                      + " · ".join(f"{s['session']} = {s['source']}" for s in same) + ")"}
+
+
+# ── 경계 이전이지만 **같은 셀의 기동**(2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F14) ─────────────────────
+# D: 캠페인이 측정 **뒤**(08:04:57Z)에 선언돼 경계 = 측정 서빙의 선언 창 시작(05:07:56Z)이 됐고, 그 앞의 이 E2E 1차 기동(04:55:14Z)이
+#   '같은 셀 이름 · 앞선 캠페인' 으로 분류됐다 — 원장 serve_start 세션 id `serve-granite42-30b-v030-20261010T045514Z` 가 이 셀 testlog 가
+#   인용한 simlog 의 기동 로그(a_serve.log L15 · L22)에 그대로 있었다(관측 조인 — 추론 ✗). 규칙(모두 관측 · 하나라도 불성립이면 종전 분류):
+#   ① 경계 이전 원장 serve_start 의 session_id 가 이 셀 세션 꼴(_session_is_cell)
+#   ② 그 id 의 **문자 그대로**가 이 셀 포인터(testlog · devlog · cell_id = 이 셀)가 인용한 `docs/simlog/<dir>/` 바로 아래 *.log 에 있다
+#   ③ 행 귀속 구간 = [그 serve_start ts, 그 뒤 첫 이 셀 budget_declare(> ts) 또는 다음 같은-셀 세션 시작 또는 경계) — 그 구간의 행만
+#      `campaign_scope: same-cell-pre-boundary`(이 셀의 시도로 센다 · template 은 prior-campaign 만 따로 싣는다).
+CAMPAIGN_SCOPE_SAME_CELL_PRE = "same-cell-pre-boundary"
+SAME_CELL_PRE_NOTE = "캠페인 선언 전 · 같은 셀 기동"
+_SIMLOG_DIR_REF = re.compile(r"docs/simlog/([^\s`'\"()<>|/]+)/")
+
+
+def _cell_simlog_logs(repo: Path, ev: CellEvidence) -> list[Path]:
+    """이 셀 포인터(testlog · devlog · cell_id = 이 셀)가 본문에서 인용한 `docs/simlog/<dir>/` 바로 아래 *.log(심링크 ✗)."""
+    dirs: set[str] = set()
+    for p in ev.pointers or []:
+        rel = p.get("path") if isinstance(p, dict) else None
+        if p.get("kind") not in ("testlog", "devlog") or p.get("cell_id") != ev.cell or not isinstance(rel, str) \
+                or os.path.isabs(rel) or ".." in Path(rel).parts or not (repo / rel).is_file():
+            continue
+        try:
+            dirs.update(_SIMLOG_DIR_REF.findall((repo / rel).read_text(encoding="utf-8", errors="replace")))
+        except OSError:
+            continue
+    out: list[Path] = []
+    for d in sorted(dirs):
+        base = repo / "docs" / "simlog" / d
+        if base.is_dir() and not base.is_symlink():
+            out += [f for f in sorted(base.glob("*.log")) if f.is_file() and not f.is_symlink()]
+    return out
+
+
+def _same_cell_pre_sessions(repo: Path, ev: CellEvidence, b: str | None) -> list[dict]:
+    """[{session, start, end, source}] — 위 규칙(①②③). 경계 미관측 · 인용 simlog 없음 → []."""
+    if not b:
+        return []
+    starts: list[tuple[str, str]] = []
+    declares: list[str] = []
+    for node in _event_node_dirs(repo, ev):
+        for f in sorted((repo / REL_EVENTS_ROOT / node / "events").glob("*.jsonl")):
+            for ts, _ln, d in _event_rows(f)[0]:
+                if ts >= b:
+                    continue
+                if d.get("kind") == "serve_start" and _session_is_cell(d.get("session_id"), ev.cell):
+                    starts.append((ts, d["session_id"]))
+                elif d.get("kind") == "budget_declare" and _label_is_cell(d.get("label"), ev.cell):
+                    declares.append(ts)
+    if not starts:
+        return []
+    logs = [(lg, _log_lines(lg)) for lg in _cell_simlog_logs(repo, ev)]
+    starts = sorted(set(starts))
+    out = []
+    for i, (ts, sid) in enumerate(starts):
+        hit = next((f"{_rel(repo, lg)}:{n}" for lg, lines in logs for n, x in enumerate(lines, 1) if sid in x), None)
+        if hit is None:
+            continue
+        nxt = [x for x in declares if x > ts] + [s for s, _ in starts[i + 1:] if s > ts] + [b]
+        out.append({"session": sid, "start": ts, "end": min(nxt), "source": hit})
+    return out
+
+
+def _scope_rows(rows: list[dict], bnd: dict, same_cell: list[dict] | None = None) -> list[dict]:
     b = bnd.get("utc")
     if not b:
         return rows
@@ -2172,6 +2322,12 @@ def _scope_rows(rows: list[dict], bnd: dict) -> list[dict]:
         u = r.get("utc")
         if not isinstance(u, str):
             out.append(r)
+            continue
+        sc = next((s for s in same_cell or () if s["start"] <= u < s["end"]), None) if u < b else None
+        if sc is not None:
+            out.append({**r, "campaign_scope": CAMPAIGN_SCOPE_SAME_CELL_PRE,
+                        "detail": f"{r.get('detail') or ''} · {SAME_CELL_PRE_NOTE}(캠페인 경계 {b} 이전이나 세션 {sc['session']} 이 이 셀 "
+                                  f"기록 {sc['source']} 에 관측 — 이 셀의 시도로 센다)"})
             continue
         if u < b:
             out.append({**r, "campaign_scope": CAMPAIGN_SCOPE_PRIOR,
@@ -2187,7 +2343,9 @@ def _timeline_parts(repo: Path, ev: CellEvidence) -> tuple[list[dict], list[tupl
     ctx: dict = {}
     rows, files, win = _ledger_timeline(repo, ev, ctx)
     mrows, mfiles = _measurement_rows(repo, ev, ctx)
-    out = _scope_rows(sorted(rows + mrows + _startup_markers(repo, ev, win), key=_timeline_key), _campaign_boundary(ev, win))
+    bnd = _campaign_boundary(ev, win)
+    out = _scope_rows(sorted(rows + mrows + _startup_markers(repo, ev, win), key=_timeline_key), bnd,
+                      _same_cell_pre_sessions(repo, ev, bnd.get("utc")))
     cited = {f: "events_ledger" for f in files}
     for f, k in mfiles:
         cited.setdefault(f, k)
@@ -3837,7 +3995,7 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
     missing += am
     # 호스트 사실은 attestation 바인딩 **뒤에** 채운다 — 노드별 관측(parity)이 선언 옮김(스윕 meta·인증서)을 이긴다
     #   (plan_26092908 §4.5 · V3). 옛 판본은 attestation 을 묶기 전에 불러 관측 원천이 구조적으로 없었다.
-    _host_facts(ev)
+    _host_facts(ev, repo)
     _local_image_digest(repo, ev, runner)
     if fork and not _SHA40.match(ref):
         led_sha = str(_ledger_vllm(ev.attestation).get("git_sha") or "").strip().lower()
@@ -4494,9 +4652,35 @@ def identity(ev: CellEvidence) -> dict:
                 tok = None
         if tok:
             out["quant"] = tok
-            out["source"]["quant"] = (f"naming-axis(q) — 측정 identity quantization 미관측({src6}) · q 축 = {q.get('source')} · "
+            obs = _measured_quant_none(repo, ev)
+            # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F16: 측정 원천이 quantization `none` 을 measured 출처와 함께
+            #   적었으면(비양자화 관측) '미관측' 이 아니다 — _norm_value 가 'none' 을 읽지 못함으로 접은 것은 강식별 대조용이고 출처 칸은
+            #   기록된 것을 말한다(값 · 강식별 키는 그대로 — 표시 출처만).
+            meas = (f"{QUANT_NONE_OBSERVED_MARK}({obs}) — 비양자화 관측이라 이름 q 축 토큰으로 옮겼다" if obs
+                    else f"측정 identity quantization 미관측({src6})")
+            out["source"]["quant"] = (f"naming-axis(q) — {meas} · q 축 = {q.get('source')} · "
                                       f"vocab quant[{tok}]←{q['raw']!r}")
     return out
+
+
+QUANT_NONE_OBSERVED_MARK = "측정 identity quantization = none(관측)"     # template._f_context 가 같은 문자열로 N/A 덧말을 건너뛴다
+
+
+def _measured_quant_none(repo: Path, ev: CellEvidence) -> str | None:
+    """측정 원천(_measured_identity 와 같은 우선순위: 인증서 > 스윕 meta > 리포트 측정 환경 표)이 quantization = `none` 을 `measured…`
+    출처와 함께 적었으면 그 출처 문자열 · 아니면 None(N/A · 출처 없음 · 다른 값 = 판정 ✗)."""
+    def hit(doc, where: str) -> str | None:
+        v, vs = (doc or {}).get("quantization"), (doc or {}).get("quantization_source")
+        if isinstance(v, str) and v.strip().lower() == "none" and isinstance(vs, str) and vs.strip().startswith("measured"):
+            return f"{where}.quantization = none · quantization_source = {vs.strip()}"
+        return None
+    if ev.certificate:
+        return hit(ev.certificate, f"인증서({Path(ev.certificate_path or '').name})")
+    meta = ((ev.sweep or {}).get("index") or {}).get("meta") or {}
+    if meta:
+        return hit(meta, f"sweep_index.meta({(ev.sweep or {}).get('dir')})")
+    snap = _lite_snapshot(repo, ev.bench_report_path)
+    return hit(snap, f"bench_report 측정 환경 표({Path(ev.bench_report_path or '').name})") if snap else None
 
 
 def topology_label(identity) -> str:
@@ -6084,6 +6268,13 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
        and "미검증" in _hf_revision(gd / "rl-moved", "L")[1])
     ck("identity.quant — 측정 N/A 면 이름 q 축(출처 naming-axis(q))", ident.get("quant") == "nvfp4"
        and str(ident["source"]["quant"]).startswith("naming-axis(q)"))
+    # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F16: 측정 원천이 quantization none + measured 출처면 '미관측' ✗
+    i16 = identity(dataclasses.replace(ev, certificate={**(ev.certificate or {}), "quantization": "none",
+                                                        "quantization_source": "measured(engine log)"}))
+    i16n = identity(dataclasses.replace(ev, certificate={**(ev.certificate or {}), "quantization": "none"}))
+    ck("★F16 측정 quantization none(measured 출처) = 관측 표지 · '미관측' ✗ · 값(이름 q 축)은 그대로 · 출처 없는 none 은 종전(미관측)",
+       i16["quant"] == "nvfp4" and QUANT_NONE_OBSERVED_MARK in i16["source"]["quant"] and "미관측(" not in i16["source"]["quant"]
+       and "measured(engine log)" in i16["source"]["quant"] and "측정 identity quantization 미관측" in i16n["source"]["quant"])
     iq = identity(dataclasses.replace(ev, certificate={**(ev.certificate or {}), "quantization": "fp8"}))
     ck("★인증서가 quantization 을 들면 그 측정값(이름 축 대체 ✗)", iq["quant"] == "fp8"
        and not str(iq["source"]["quant"]).startswith("naming-axis"))
@@ -6167,6 +6358,40 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
     ck("★재생 모드(캠페인 purge) = 경계 미관측 표지 · 행에 scope 없음(현 규칙: 라벨 전부) · 행 수 같음",
        bnr["utc"] is None and bnr["observed"] is False and "경계 미관측" in bnr["source"]
        and not any("campaign_scope" in r for r in event_timeline(repo, rp)) and d0u < d1u)
+    # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F14: 경계 이전 기동이라도 그 serve_start 세션 id 가 이 셀 포인터(testlog)가
+    #   인용한 simlog 기동 로그에 문자 그대로 있으면 같은 셀 기동(관측 조인) · 없으면 종전 분류(앞선 캠페인).
+    import shutil as _sh14
+    (repo / "docs/simlog/fx_f14").mkdir(parents=True, exist_ok=True)
+    (repo / "docs/simlog/fx_f14_other").mkdir(parents=True, exist_ok=True)
+    (repo / "docs/testlog").mkdir(parents=True, exist_ok=True)
+    tl14 = repo / "docs/testlog/testlog_26010200_fx_f14.md"
+    tl14.write_text("- 원시: `docs/simlog/fx_f14/`(a_serve.log)\n", encoding="utf-8")
+    ptr14 = [{"kind": "testlog", "path": _rel(repo, tl14), "cell_id": "c1-a", "node_id": "main"}]
+    try:
+        (repo / "docs/simlog/fx_f14_other/x_serve.log").write_text(
+            "[single-up] READY session=serve-c1-a-20260102T020000Z\n", encoding="utf-8")
+        ev14n = dataclasses.replace(evb, pointers=ptr14)
+        s14n = {r["kind"]: r.get("campaign_scope") for r in event_timeline(repo, ev14n) if r["utc"] == "2026-01-02T02:00:00Z"}
+        (repo / "docs/simlog/fx_f14/a_serve.log").write_text(
+            "[single-up] 세션 시작\n[single-up] READY session=serve-c1-a-20260102T020000Z\n", encoding="utf-8")
+        tl14y = event_timeline(repo, ev14n)
+        s14 = next((r for r in tl14y if r["kind"] == "serve_start" and r["utc"] == "2026-01-02T02:00:00Z"), {})
+        d14 = [r for r in tl14y if r["kind"] == "budget_declare"]
+        b14 = event_campaign_boundary(repo, ev14n)
+        s14x = {r["kind"]: r.get("campaign_scope") for r in event_timeline(repo, dataclasses.replace(evb, pointers=[]))
+                if r["utc"] == "2026-01-02T02:00:00Z"}
+    finally:
+        _sh14.rmtree(repo / "docs/simlog/fx_f14", ignore_errors=True)
+        _sh14.rmtree(repo / "docs/simlog/fx_f14_other", ignore_errors=True)
+        tl14.unlink()
+    ck("★F14 경계 이전 serve_start 세션 id 가 이 셀 testlog 인용 simlog 로그에 관측 → same-cell-pre-boundary(이 셀 시도) · 출처 file:line",
+       s14.get("campaign_scope") == CAMPAIGN_SCOPE_SAME_CELL_PRE and SAME_CELL_PRE_NOTE in s14.get("detail", "")
+       and "docs/simlog/fx_f14/a_serve.log:2" in s14.get("detail", "") and PRIOR_CAMPAIGN_NOTE not in s14.get("detail", "")
+       and SAME_CELL_PRE_NOTE in b14["source"] and b14.get("same_cell_sessions"))
+    ck("★F14 귀속 구간 밖(그 앞의 01:00 선언 창)은 여전히 앞선 캠페인 · 측정 창은 this-campaign",
+       d14[0]["campaign_scope"] == CAMPAIGN_SCOPE_PRIOR and d14[1]["campaign_scope"] == CAMPAIGN_SCOPE_THIS)
+    ck("★F14 음성대조: 인용되지 않은 simlog 의 같은 세션 id · 포인터 없음 → 앞선 캠페인(추측 ✗)",
+       s14n.get("serve_start") == CAMPAIGN_SCOPE_PRIOR and s14x.get("serve_start") == CAMPAIGN_SCOPE_PRIOR)
     srv = next((r for r in tl if r["kind"] == "server_starting"), {})
     ck("기동 표지 — API 서버 기동 = 측정 창 선언 후 28m00s · 출처 줄 = `\\n` 기준(★`\\r` 진행줄이 줄을 밀지 않는다)",
        "후 28m00s" in srv.get("detail", "") and srv.get("source", "").endswith("lite_engine_c1-a.log:5"))
@@ -6823,6 +7048,16 @@ def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> No
        and "verdict.json" in mr["sources"]["verdict"] and mr.get("measured_utc") == _M_UTC
        and "sweep_index.generated_utc" in mr["sources"]["measured_utc"])
     ck("★REFUTE 사유는 싣되 운영자 절대경로 줄은 싣지 않는다(배포 평면)", mr.get("verdict_reasons") == [refute["reasons"][0]])
+    # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F17: measured_accept_len null + rubric.spec_axis 가 있으면 '칸이 없다' ✗
+    off = {**refute, "measured_accept_len": None, "measured_spec_on": False,
+           "rubric": {**refute["rubric"], "spec_axis": {"declared": "off", "accept_len": 1.0, "accept_len_source": "declared-absent",
+                                                        "missing": False}}}
+    m17 = measurement(dataclasses.replace(e_ref, sweep={**sw, "verdict": off}))
+    m17n = measurement(dataclasses.replace(e_ref, sweep={**sw, "verdict": {k: v for k, v in off.items() if k != "measured_accept_len"}}))
+    ck("★F17 measured_accept_len null + spec_axis → 값 None(1.0 은 선언값 · 옮기지 않음) · 출처 = 측정 null · declared-absent · 결손 아님",
+       m17.get("accept_len") is None and "measured_accept_len = null" in m17["sources"]["accept_len"]
+       and "accept_len_source=declared-absent" in m17["sources"]["accept_len"] and "결손 아님" in m17["sources"]["accept_len"]
+       and "칸이 없다" not in m17["sources"]["accept_len"] and "칸이 없다" in m17n["sources"]["accept_len"])
     ck("REFUTE = 인증서 비발행 판정(결손 아님)", (_certificate_not_due(repo, e_ref) or "").startswith("REFUTE"))
     pass_rub = lambda a: {"verdict": "PASS", "measured_decode_tps": 12.3, "rubric": {"authority": a, "floor": 8.5,
                                                                                        "ratio_M_over_primary": 1.23}}
@@ -6893,6 +7128,42 @@ def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> No
     ho = host({**att, "config": "other-cfg"}, {})
     ck("★F10 다른 config attestation · 선언 없음 — 값은 옮기되 출처가 '다른 run' 범위를 말한다",
        ho["driver"] == "580.178.04" and "다른 run(other-cfg)" in ho["source"]["driver"] and "driver_by_node" not in ho)
+    # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 B F1: attestation 이 없으면 측정 엔진 로그 기동 배너 'kernel driver
+    #   version' 이 관측 층(선언 옮김을 이긴다 · conflict 둘 다) · 로그끼리 값이 갈리면 싣지 않는다 · repo 없이 부르면 종전(선언만)
+    lg1 = _measured_engine_logs(repo, ev)[0]
+    if lg1:
+        lb1 = [p.read_bytes() for p in lg1]
+        banner = b"  Using CUDA 13.1 driver version 590.48.01 with kernel driver version 580.178.04.\n"
+
+        def host_r(e_):
+            e2 = dataclasses.replace(e_, attestation=None, sweep={**sw, "index": {**(sw.get("index") or {}), "meta": {
+                **meta, "driver_version": "580.173.02"}}}, build_identity={**ev.build_identity, "source": dict(ev.build_identity["source"])})
+            _host_facts(e2, repo)
+            return e2.build_identity
+        try:
+            lg1[0].write_bytes(banner + lb1[0])
+            hf1 = host_r(dataclasses.replace(ev, node="main"))
+            hf1c = host_r(dataclasses.replace(ev, node="cluster"))
+            e0 = dataclasses.replace(ev, attestation=None, sweep={**sw, "index": {**(sw.get("index") or {}), "meta": {
+                **meta, "driver_version": "580.173.02"}}}, build_identity={**ev.build_identity, "source": dict(ev.build_identity["source"])})
+            _host_facts(e0)
+            if len(lg1) > 1:
+                lg1[1].write_bytes(banner.replace(b"580.178.04", b"580.999.01") + lb1[1])
+                hf1x = host_r(dataclasses.replace(ev, node="main"))
+            else:
+                hf1x = {"driver": "580.173.02"}
+        finally:
+            for p, b_ in zip(lg1, lb1):
+                p.write_bytes(b_)
+        ck("★F1 attestation 부재 → 측정 엔진 로그 배너 kernel driver = 관측(선언 옮김을 이긴다) · driver_conflict 둘 다 · 출처 file:line",
+           hf1["driver"] == "580.178.04" and "kernel driver version" in hf1["source"]["driver"]
+           and f"{_rel(repo, lg1[0])}:1" in hf1["source"]["driver"]
+           and (hf1.get("driver_conflict") or {}).get("declared") == "580.173.02" and hf1.get("driver_by_node") == {"main": "580.178.04"})
+        ck("★F1 cluster 축 = 노드별 관측 행 ✗(head 배너뿐) · repo 없이 부르면 종전(선언 옮김) · 로그끼리 갈리면 관측 ✗",
+           hf1c["driver"] == "580.178.04" and "driver_by_node" not in hf1c and e0.build_identity["driver"] == "580.173.02"
+           and hf1x["driver"] == "580.173.02")
+    else:
+        ck("F1 픽스처 — 측정 엔진 로그가 있어야 한다", False)
     # ── U9 quant_composition ──
     ident = identity(ev)
     qc = ident.get("quant_composition") or []
@@ -7488,6 +7759,21 @@ def selftest() -> list[str]:
             ck("★결함 B compose 기본값(Dockerfile)이 이미지 관측(VLLM_REF)과 모순 = 관측이 이긴다(근거 기재)",
                ev_cx.build_identity.get("dockerfile") == "Dockerfile.source-build"
                and "모순 · 관측이 이긴다" in ev_cx.build_identity["source"]["dockerfile"])
+            # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 B F2: compose 리터럴 build.dockerfile 은 '선택자 부재' 가 아니다 —
+            #   적되 채택하지 않는다(관측이 이긴다 · 리터럴 ≠ 관측이면 compose build 로 지어지지 않았다고 적는다)
+            comp.write_text(comp_text + "    build:\n      dockerfile: Dockerfile   # 트랙별 주석\n", encoding="utf-8")
+            ev_lit = from_campaign(repo, "c1", "c1-a", docker=dk)
+            s_lit = ev_lit.build_identity["source"]["dockerfile"]
+            ck("★F2 compose 리터럴 Dockerfile(주석 제외) · history 관측 VLLM_REF → 값 = 관측 · 출처에 리터럴 + '≠ 관측(compose build 로 "
+               "지어지지 않았다)' · '모두 부재' ✗",
+               compose_build_dockerfile(comp) == ("literal", "Dockerfile")
+               and ev_lit.build_identity.get("dockerfile") == "Dockerfile.source-build"
+               and "리터럴 build.dockerfile: Dockerfile(" in s_lit and "compose build 로 지어지지 않았다" in s_lit and "모두 부재" not in s_lit)
+            ck("F2 compose_build_dockerfile: 기본값 꼴 = selector · 블록 없음 = (None, None)",
+               compose_build_dockerfile(Path(td) / "nope.yaml") == (None, None)
+               and (comp.write_text(comp_text + "    build:\n      dockerfile: ${BUILD_DOCKERFILE:-Dockerfile.x}\n",
+                                    encoding="utf-8") or True)
+               and compose_build_dockerfile(comp) == ("selector", "Dockerfile.x"))
             comp.write_text(comp_text, encoding="utf-8")
             envp.write_text(env_text, encoding="utf-8")
             ident = identity(ev)
