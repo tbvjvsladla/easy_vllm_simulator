@@ -3018,6 +3018,31 @@ def _tail_windows(repo: Path, ev: CellEvidence, logs: list[Path], copies) -> dic
     return windows
 
 
+def _head_windows(repo: Path, ev: CellEvidence, logs: list[Path]) -> dict[str, str]:
+    """{머리 캡처 로그 상대경로: `head-<N>(<lite_raw> engine_log_head_lines)`} — lite_bench.sh 머리 캡처(`lite_engine_head_<셀>.log` ·
+    `head -n $ELOG_HEAD_N`)가 상한에 닿은(줄 수 ≥ N) 것만. 그 창 **뒤**의 줄은 관측 대상 밖이다(꼬리 창과 반대쪽).
+    2026-10-10(plan_26101017 · M2 factcheck P15): 옛 판은 머리 캡처 행에 창 표지가 없어, 렌더가 꼬리 창(tail-800) 하나만 '이 표의 출처
+    로그 1개' 로 세고 머리 캡처에서 온 행까지 꼬리 창 주의 아래 두었다. N 은 같은 디렉터리 lite_raw `engine_log_head_lines`(그 raw 의
+    `engine_log_head` 가 이 파일일 때만) — 없으면 표지 ✗(상한을 지어내지 않는다)."""
+    out: dict[str, str] = {}
+    for lp in logs:
+        if not lp.name.startswith("lite_engine_head_"):
+            continue
+        rp = lp.parent / f"lite_raw_{ev.cell}.json"
+        raw, _b = _read_json_soft(rp) if rp.is_file() else (None, None)
+        n = raw.get("engine_log_head_lines") if isinstance(raw, dict) else None
+        if not (isinstance(n, int) and not isinstance(n, bool) and n > 0
+                and Path(str(raw.get("engine_log_head") or "")).name == lp.name):
+            continue
+        try:
+            n_lines = lp.read_bytes().count(b"\n")
+        except OSError:
+            continue
+        if n_lines >= n:
+            out[_rel(repo, lp)] = f"head-{n}({_rel(repo, rp)} engine_log_head_lines)"
+    return out
+
+
 def measurement_env_observed(repo, ev: CellEvidence) -> list[dict]:
     """이 측정의 엔진 로그가 되읊은 env · NCCL 런타임 관측(공유 계약 `facts['measurement_env_observed']`).
     반환 [{key, value, node(main|sub|None), source('<로그>:L<줄>' — 공유 계약 표기), kind(env-echo|param-echo|runtime), seen_in_logs(그 값이 나온 캡처
@@ -3027,7 +3052,9 @@ def measurement_env_observed(repo, ev: CellEvidence) -> list[dict]:
     ★ 이 줄들은 **측정 당시 프로세스가 본 값**이다(재생성 env 형상 대신 사실로 쓴다). NCCL 이 되읊지 않는 키는 여기 없다 — 없음 ≠ 미설정.
     log_window?(2026-09-22 적대 검토): 출처 로그가 측정 도구의 `tail -N` 상한에 닿은(줄 수 ≥ N) 꼬리 캡처면 `tail-<N>(<도구>@<rev12>
     L<줄>)` — 그 창 **앞**의 줄은 관측 대상 밖이다. 태그2 실측: 측정 로그 6개가 전부 800줄(run_bench.sh·lite_bench.sh 의
-    `tail -800`)이라 한 노드만 보인 키(예: NCCL_NET_PLUGIN = sub 만)는 "다른 노드가 되읊지 않았다" 가 아니라 창 밖일 수 있다."""
+    `tail -800`)이라 한 노드만 보인 키(예: NCCL_NET_PLUGIN = sub 만)는 "다른 노드가 되읊지 않았다" 가 아니라 창 밖일 수 있다.
+    log_head_window?(2026-10-10 · plan_26101017 · M2 factcheck P15): 출처 로그가 lite 머리 캡처(`head -n N` 상한에 닿음)면
+    `head-<N>(<lite_raw> engine_log_head_lines)` — 그 창 **뒤**의 줄이 관측 대상 밖이다(_head_windows). 꼬리 창(log_window)과 섞지 않는다."""
     from . import pii
     repo = _repo(repo)
     logs, _why, copies = _measured_engine_logs_ex(repo, ev)
@@ -3035,6 +3062,7 @@ def measurement_env_observed(repo, ev: CellEvidence) -> list[dict]:
         return []
     table = pii.substitution_table(repo, ev.manifest if isinstance(ev.manifest, dict) else None)
     windows = _tail_windows(repo, ev, logs, copies)
+    heads = _head_windows(repo, ev, logs)
     rows: dict[tuple, dict] = {}
     seen: dict[tuple, set] = {}
     order: list[tuple] = []
@@ -3079,6 +3107,8 @@ def measurement_env_observed(repo, ev: CellEvidence) -> list[dict]:
             row = {"key": key, "value": val, "node": node, "source": f"{rel}:L{i}", "kind": kind, "seen_in_logs": 1}
             if rel in windows:
                 row["log_window"] = windows[rel]
+            if rel in heads:
+                row["log_head_window"] = heads[rel]
             if dedup:
                 # Ray 가 같은 줄을 다른 프로세스에서 N 번 더 받아 한 줄로 접었다 — 그 사본들의 노드는 로그에 없다(관측 대상 밖).
                 row["ray_repeated"] = dedup
@@ -6635,6 +6665,20 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
     bh = _engine_banner(g, evg)
     ck("★F1 머리 캡처가 있으면 배너를 그대로 관측한다(창 표기 ✗)", bh["value"] == "0.9.0rc2.dev9+ghead"
        and bh["basis"] == "this-measurement" and "lite_engine_head_c1-a.log:1" in bh["source"])
+    # ★P15(2026-10-10 · plan_26101017 · M2 factcheck P15): 머리 캡처(head -n N 상한 도달) 행 = log_head_window · 꼬리 창(log_window)과 섞지 않는다
+    (sdir / "lite_engine_head_c1-a.log").write_text("x\n" + nccl.replace("GID_INDEX", "HEADKEY"), encoding="utf-8")   # 2줄 = 머리 상한 2
+    core.write_json(sdir / "lite_raw_c1-a.json", {"config_name": "c1-a", "measured_utc": _M_UTC, "engine_log_head_lines": 2,
+                                                  "engine_log_head": "/abs/x/lite_engine_head_c1-a.log"})
+    wh = {r["key"]: r for r in measurement_env_observed(g, evg)}
+    ck("★P15 머리 캡처 행 = log_head_window head-N(lite_raw engine_log_head_lines) · 꼬리 창 표지 없음 · 꼬리 행은 log_window 만",
+       wh.get("NCCL_IB_HEADKEY", {}).get("log_head_window")
+       == "head-2(output/multi/benchlog/sweep_c1-a/lite_raw_c1-a.json engine_log_head_lines)"
+       and "log_window" not in wh["NCCL_IB_HEADKEY"] and "log_window" in wh.get("NCCL_IB_GID_INDEX", {})
+       and "log_head_window" not in wh["NCCL_IB_GID_INDEX"])
+    core.write_json(sdir / "lite_raw_c1-a.json", {"config_name": "c1-a", "measured_utc": _M_UTC, "engine_log_head_lines": 600,
+                                                  "engine_log_head": "/abs/x/lite_engine_head_c1-a.log"})
+    ck("P15 음성대조: 머리 캡처가 상한에 닿지 않으면(줄 수 < N · 전체 출력일 수 있다) log_head_window 없음",
+       "log_head_window" not in {r["key"]: r for r in measurement_env_observed(g, evg)}.get("NCCL_IB_HEADKEY", {"log_head_window": 1}))
     for f in sorted((g / "output").rglob("*"), key=lambda x: -len(x.parts)):
         f.unlink() if f.is_file() else f.rmdir()
     (g / "output").rmdir()
