@@ -1861,6 +1861,35 @@ def _event_rows(path: Path) -> tuple[list[tuple[str, int, dict]], int]:
     return rows, bad
 
 
+# 월 원장(`YYYY-MM.jsonl`)은 **한 스트림의 월 단위 조각**이다(2026-10-11 · plan_26101104 M1 사실검증 F1). 파일마다 따로 창을 열면
+#   월말에 연 선언 창(실측: 2026-09.jsonl 마지막 행 `smoke-q38fn030-nv4-res-262k` budget_declare 09-30T23:58:21Z)이 그 파일 안에서
+#   닫히지 않아 "열린 채 원장이 끝난다" 로 읽히고(end None → 그 뒤 모든 측정을 덮는다), 다음 달 파일의 renew 16회 · clear(10-01T00:58:02Z)는
+#   창 밖 라벨 행으로 떨어졌다 — 그래서 10-10 측정을 10-01 기동 창이 "이 측정의 기동" 으로 주장하고 renew 0회로 적혔다. 월 원장은 이어
+#   붙여 한 스트림으로 창을 판정하고, 행 출처(`파일:줄`)는 각 행의 실제 파일로 남긴다. 그 밖의 스트림(watchdog · thermal)은 파일 = 스트림.
+_MONTH_LEDGER = re.compile(r"\d{4}-\d{2}\.jsonl")
+
+
+def _node_streams(repo: Path, node: str) -> list[tuple[str, list[tuple[str, int, dict]], list[str], dict[str, int]]]:
+    """노드 원장 → [(스트림 키, 행들(ts 순), 행별 출처 파일(저장소 상대), 파일별 파싱 불가 줄 수)]. 월 원장은 한 스트림으로 잇는다(위 주석)."""
+    month: list[tuple[str, int, tuple[str, int, dict]]] = []
+    month_bad: dict[str, int] = {}
+    out = []
+    files = sorted((repo / REL_EVENTS_ROOT / node / "events").glob("*.jsonl"))
+    for fi, f in enumerate(files):
+        rel = _rel(repo, f)
+        rows, bad = _event_rows(f)
+        if _MONTH_LEDGER.fullmatch(f.name):
+            month += [(rel, fi, r) for r in rows]
+            month_bad[rel] = bad
+        else:
+            out.append((rel, rows, [rel] * len(rows), {rel: bad}))
+    if month_bad:
+        month.sort(key=lambda x: (x[2][0], x[1], x[2][1]))           # ts → 파일 순 → 줄 순
+        key = "+".join(sorted(month_bad))
+        out.insert(0, (key, [r for _, _, r in month], [rel for rel, _, _ in month], month_bad))
+    return out
+
+
 def _event_windows(rows: list[tuple[str, int, dict]]) -> list[dict]:
     """스트림 하나의 선언 창 — 여는 행(선언·arm) ~ 닫는 행(clear·none·expired · 포함) 또는 다음 여는 행(교체 · 미포함).
     창 안의 행 = 같은 라벨 행 + 라벨 없는 _EVENT_WINDOWED_KINDS 행."""
@@ -1901,13 +1930,10 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
     used: set[str] = set()
     measured_win = None
     for node in _event_node_dirs(repo, ev):
-        streams = []
-        for f in sorted((repo / REL_EVENTS_ROOT / node / "events").glob("*.jsonl")):
-            rows, bad = _event_rows(f)
-            streams.append((_rel(repo, f), rows, bad))
+        streams = _node_streams(repo, node)
         if ctx is not None:
             ctx.setdefault("nodes", []).append(node)
-            for rel, rows, _bad in streams:
+            for _key, rows, srcs, _bad in streams:
                 if rows:
                     # 노드 원장의 관측 범위(스트림들의 첫 행 ~ 마지막 행 · 2026-09-22 S2 round 3 적대 검토): 원장이 끊긴 뒤의 시각은
                     #   "선언 없음" 이 아니라 **미관측** 이다(실측: sub 2026-09.jsonl 은 09-11T11:10:38Z 에서 끝난다).
@@ -1916,16 +1942,17 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                 for w in _event_windows(rows):
                     # stream_last: 열린 창(end_ts None)은 그 스트림의 마지막 행까지만 열려 있음이 관측된다 — 그 뒤는 닫힘 미관측이다
                     #   (실측: sub 스트림이 `smoke-nv4-f8-1m-res` 창을 연 채 끝난다 — 옛 판본은 그 뒤 모든 시각을 이 창이 덮는다고 읽었다).
-                    ctx.setdefault("windows", []).append({"node": node, "rel": rel, "label": w["label"], "start_ts": w["start_ts"],
+                    ctx.setdefault("windows", []).append({"node": node, "rel": srcs[w["rows"][0]], "label": w["label"],
+                                                          "start_ts": w["start_ts"],
                                                           "end_ts": w["end_ts"], "line": rows[w["rows"][0]][1],
                                                           "stream_last": rows[-1][0]})
-                for ts, ln, d in rows:
+                for (ts, ln, d), rel in zip(rows, srcs):
                     if d.get("kind") in _EVENT_OPEN_KINDS + _EVENT_CLOSE_KINDS + ("budget_renew",):
                         ctx.setdefault("budget_rows", []).append({"node": node, "utc": ts, "kind": d.get("kind"),
                                                                   "label": d.get("label") or None, "rel": rel, "line": ln})
         taken: dict[tuple[str, int], dict | None] = {}
         declare_wins: list[tuple[str, dict]] = []
-        for rel, rows, _bad in streams:
+        for rel, rows, srcs, _bad in streams:
             in_win: set[int] = set()
             for w in _event_windows(rows):
                 if not _label_is_cell(w["label"], cell):
@@ -1934,6 +1961,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                     in_win.add(idx)
                     taken[(rel, idx)] = w
                 if w["open_kind"] == "budget_declare":
+                    w["stream_last"] = rows[-1][0]
                     declare_wins.append((rel, w))
             for idx, (_ts, _ln, d) in enumerate(rows):
                 if idx in in_win:
@@ -1942,7 +1970,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                         d.get("kind") in ("serve_start", "serve_stop") and _session_is_cell(d.get("session_id"), cell)):
                     taken[(rel, idx)] = None
         # 창을 열지 않는 스트림(thermal 등)의 라벨 없는 행 — 같은 노드의 선언 창 **시간 구간**에 귀속한다.
-        for rel, rows, _bad in streams:
+        for rel, rows, _srcs, _bad in streams:
             if any(d.get("kind") in _EVENT_OPEN_KINDS for _, _, d in rows):
                 continue
             for idx, (ts, _ln, d) in enumerate(rows):
@@ -1953,18 +1981,20 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                     taken[(rel, idx)] = w
         declare_wins.sort(key=lambda x: (x[1]["start_ts"], x[0]))
         order = {id(w): i for i, (_, w) in enumerate(declare_wins, 1)}
-        for _rel_w, w in declare_wins:
-            if measured and measured_win is None and w["start_ts"] <= measured and (w["end_ts"] is None or measured <= w["end_ts"]):
-                measured_win = {"start_ts": w["start_ts"], "end_ts": w["end_ts"], "node": node}
+        # 측정 창 = 측정 시각을 **품은** 창(첫·마지막 창 ✗ · 2026-10-11 F1). 닫힘 미관측 창은 그 스트림의 마지막 행까지만 품는다 —
+        #   그 뒤의 측정은 이 창 안이 아니라 관측 범위 밖이다(열린 창이 뒤의 모든 측정을 주장하던 결함).
+        hold = [w for _rel_w, w in declare_wins if measured and _win_holds(w, measured)]
+        if measured_win is None and hold:
+            w = hold[-1]                                   # 품는 창이 여럿이면(스트림 간 겹침) 가장 늦게 연 창 — 그 시각의 선언 슬롯 주인
+            measured_win = {"start_ts": w["start_ts"], "end_ts": w["end_ts"], "node": node}
         node_start = len(out)
-        for rel, rows, bad in streams:
-            mine = sorted(idx for (r, idx) in taken if r == rel)
-            if not mine:
-                continue
-            used.add(rel)
+        for skey, rows, srcs, bads in streams:
+            mine = sorted(idx for (r, idx) in taken if r == skey)
             for idx in mine:
                 ts, ln, d = rows[idx]
-                w = taken[(rel, idx)]
+                rel = srcs[idx]
+                used.add(rel)
+                w = taken[(skey, idx)]
                 k = str(d.get("kind"))
                 fields = _event_fields(d)
                 # `label` 은 **그 행의 라벨**이다(2026-09-22 · S2 round 2 리뷰). 라벨 없는 clear·사살·보류를 창의 라벨로 채우면 추론(창 귀속)이
@@ -1974,8 +2004,11 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                     renews = sum(1 for j in w["rows"] if rows[j][2].get("kind") == "budget_renew")
                     if measured is None:
                         rel_m = "측정 시각 미관측"
-                    elif w["start_ts"] <= measured and (w["end_ts"] is None or measured <= w["end_ts"]):
+                    elif measured_win is not None and measured_win["node"] == node and w["start_ts"] == measured_win["start_ts"]:
                         rel_m = f"measured_utc {measured} 가 이 창 안(이 측정의 기동)"
+                    elif w["end_ts"] is None and w["start_ts"] <= measured:
+                        rel_m = (f"measured_utc {measured} 는 이 창의 관측 범위 밖(창이 열린 채 스트림이 {w['stream_last']} 에서 끝난다 — "
+                                 "이 측정의 기동으로 귀속하지 않는다)")
                     else:
                         # 전·후를 적는다(2026-09-22 round 2 리뷰) — 같은 셀 id 가 뒤 캠페인에서 다시 뜬 창(예: 09-10 측정 셀의 09-17 재기동
                         #   사살)이 이 측정의 여정처럼 읽히지 않게.
@@ -1993,12 +2026,19 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                 else:
                     detail = f"{k} · {fields}" + (f" · session={d.get('session_id')}" if d.get("session_id") else "")
                 out.append({"utc": ts, "node": node, "kind": k, "label": label, "detail": detail, "source": f"{rel}:{ln}"})
-            if bad:
-                out.append({"utc": None, "node": node, "kind": "ledger_unparsable_lines", "label": None,
-                            "detail": f"JSON 파싱 불가 {bad}줄 — 건너뜀(부재가 아니라 판독 불가 · 그 줄의 사건은 이 표에 없다)",
-                            "source": rel})
+            for brel, bad in sorted(bads.items()):
+                if bad and brel in used:            # 행을 낸 파일의 판독 불가만(종전과 같다 — 무관한 월 파일 ✗)
+                    out.append({"utc": None, "node": node, "kind": "ledger_unparsable_lines", "label": None,
+                                "detail": f"JSON 파싱 불가 {bad}줄 — 건너뜀(부재가 아니라 판독 불가 · 그 줄의 사건은 이 표에 없다)",
+                                "source": brel})
         out[node_start:] = _merge_stream_copies(out[node_start:])
     return out, sorted(used), measured_win
+
+
+def _win_holds(w: dict, t: str) -> bool:
+    """창이 시각 t 를 품는가 — 선언 ≤ t ≤ 닫힘(닫힘 미관측이면 그 스트림의 마지막 행까지만 관측된다)."""
+    end = w["end_ts"] if w["end_ts"] is not None else w.get("stream_last")
+    return w["start_ts"] <= t and (end is None or t <= end)
 
 
 def _merge_stream_copies(rows: list[dict]) -> list[dict]:
@@ -6383,6 +6423,40 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
     ck("★재생 모드(캠페인 purge) = 경계 미관측 표지 · 행에 scope 없음(현 규칙: 라벨 전부) · 행 수 같음",
        bnr["utc"] is None and bnr["observed"] is False and "경계 미관측" in bnr["source"]
        and not any("campaign_scope" in r for r in event_timeline(repo, rp)) and d0u < d1u)
+    # 2026-10-11 · plan_26101104 M1 사실검증 F1 — 월 원장 경계를 넘는 앞선 기동 창(월말 선언 · 다음 달 renew·clear)이 열린 채로 읽혀
+    #   뒤의 측정을 "이 측정의 기동" 으로 주장하던 회귀 모양. 월 원장은 한 스트림으로 이어 창을 닫고, 측정 창 = 측정 시각을 품은 창.
+    ledger_p = repo / "docs/logs/main/events/2026-01.jsonl"
+    ledger_b = ledger_p.read_bytes()
+    prev_m = repo / "docs/logs/main/events/2025-12.jsonl"
+    try:
+        prev_m.write_text(json.dumps({"kind": "budget_declare", "label": "smoke-c1-a", "floor_mib": 100,
+                                      "ts": "2025-12-31T23:58:00Z"}) + "\n", encoding="utf-8")
+        ledger_p.write_bytes("".join(json.dumps(x) + "\n" for x in (
+            {"kind": "budget_renew", "label": "smoke-c1-a", "ttl_s": 900, "ts": "2026-01-01T00:10:00Z"},
+            {"kind": "budget_renew", "label": "smoke-c1-a", "ttl_s": 900, "ts": "2026-01-01T00:20:00Z"},
+            {"kind": "budget_clear", "existed": True, "ts": "2026-01-01T00:30:00Z"})).encode() + ledger_b)
+        tlm = event_timeline(repo, ev)
+        bm = event_campaign_boundary(repo, evb)
+    finally:
+        prev_m.unlink()
+        ledger_p.write_bytes(ledger_b)
+    dm = [r for r in tlm if r["kind"] == "budget_declare"]
+    rn = [r for r in tlm if r["kind"] == "budget_renew" and r["utc"] < "2026-01-01T01:00:00Z"]
+    srv_m = next((r for r in tlm if r["kind"] == "server_starting"), {})
+    ck("★F1 월 경계를 넘는 앞선 창 = 다음 달 renew 2회 · clear 로 닫힘 · '측정 전'(열린 채 원장이 끝난다 ✗ · 이 측정의 기동 ✗)",
+       len(dm) == 3 and dm[0]["source"] == "docs/logs/main/events/2025-12.jsonl:1" and "기동 창 1/3" in dm[0]["detail"]
+       and "budget_renew 2회" in dm[0]["detail"] and "닫힘 budget_clear 2026-01-01T00:30:00Z" in dm[0]["detail"]
+       and "측정 전)" in dm[0]["detail"] and "닫힘 미관측" not in dm[0]["detail"])
+    ck("★F1 측정을 품은 창만 '이 측정의 기동'(한 창 · 3/3) · 앞선 창의 renew 출처 = 실제 파일:줄 · 상대시각 기준 = 그 창",
+       [i for i, r in enumerate(dm) if "이 창 안" in r["detail"]] == [2] and "기동 창 3/3" in dm[2]["detail"]
+       and [r["source"] for r in rn] == ["docs/logs/main/events/2026-01.jsonl:1", "docs/logs/main/events/2026-01.jsonl:2"]
+       and all("창 시작 2025-12-31T23:58:00Z 후" in r["detail"] for r in rn) and "후 28m00s" in srv_m.get("detail", ""))
+    ck("★F1 캠페인 경계 = 측정을 품은 창 시작(앞선 회차 창 ✗)", bm["utc"] == d1u)
+    ck("★F1 닫힘 미관측 창은 스트림 마지막 행까지만 품는다(그 뒤 측정 ✗ · 그 안 ✓)",
+       not _win_holds({"start_ts": "2026-01-01T00:00:00Z", "end_ts": None, "stream_last": "2026-01-01T01:00:00Z"},
+                      "2026-01-02T00:00:00Z")
+       and _win_holds({"start_ts": "2026-01-01T00:00:00Z", "end_ts": None, "stream_last": "2026-01-01T01:00:00Z"},
+                      "2026-01-01T00:30:00Z"))
     # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F14: 경계 이전 기동이라도 그 serve_start 세션 id 가 이 셀 포인터(testlog)가
     #   인용한 simlog 기동 로그에 문자 그대로 있으면 같은 셀 기동(관측 조인) · 없으면 종전 분류(앞선 캠페인).
     import shutil as _sh14
@@ -6787,7 +6861,9 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
     ck("★다른 노드 스트림이 열린 채 끝난 창(sub smoke-c1-b · 마지막 행 02:30)은 그 뒤 시각을 덮지 않는다(main 관측 · 창 없음 = 선언 없음)",
        late.get("label") == "measurement (no budget event recorded)" and "smoke-c1-b" not in late.get("detail", "")
        and "이 시각을 관측하지 않은 원장: sub" in late["detail"])
-    dang = ev_dir / "2025-12.jsonl"             # 같은 노드의 다른 스트림이 창을 연 채 끝난다(01:31) — 01:35 의 창 상태는 미관측
+    # 같은 노드의 다른 스트림이 창을 연 채 끝난다(01:31) — 01:35 의 창 상태는 미관측. 2026-10-11(F1): 월 원장 이름(`YYYY-MM.jsonl`)은
+    #   한 스트림으로 이어지므로 '다른 스트림' 픽스처는 월 이름이 아닌 파일이어야 한다(옛 이름 2025-12.jsonl 은 월 스트림에 합류한다).
+    dang = ev_dir / "zz-dangling.jsonl"
     dang.write_text(json.dumps({"kind": "budget_declare", "label": "smoke-zz-dangling", "ts": "2026-01-02T01:31:00Z"}) + "\n",
                     encoding="utf-8")
     g2 = {r["utc"]: r for r in event_timeline(repo, ev_c) if r["kind"] == "measurement"}.get("2026-01-02T01:35:00Z", {})

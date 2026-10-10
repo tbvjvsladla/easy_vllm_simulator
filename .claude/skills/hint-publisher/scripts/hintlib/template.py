@@ -698,6 +698,17 @@ def _required_patches_line(f: dict) -> str:
     """00 §0.4 "이 모델에 필요한 패치"(2026-09-29 plan_26092908 §4.3 · V8) — 01 §1.1 관련성의 기계 요약. 추론만 있는 것은 unknown ·
     inactive-inferred 로 남긴다(확정 표기 ✗)."""
     recs = _patch_records(f)
+    asym = _dict(_dict(f, "applied_set"), "node_asymmetry")
+    if asym:
+        # 2026-10-11 · plan_26101104 M1 사실검증 F2: cluster 셀은 노드별 원장이 다를 수 있다 — 대표(main) 원장 하나의 "실린 패치 없음" 이
+        #   cluster 전체의 '필요 판정' 처럼 읽히지 않게, 대표를 밝히고 노드별 원장 관측을 그대로 붙인다(필요 판정 아님 · 합집합 ✗).
+        from . import artifacts as _art
+        per = [(ph, t) for ph in ("pre", "post") if (t := _art.node_asymmetry_phase_text(asym, ph))]
+        rep_ = _cell(asym.get("representative"))
+        head = (f"**이 모델에 필요한 패치**: 대표({rep_}) 측정 이미지 원장 기준 실린 빌드 패치 없음" if not recs
+                else f"**이 모델에 필요한 패치**(대표 {rep_} 원장 기준 실린 파일 {len(recs)}개 — 01 §1.1 관련성)")
+        return (head + " · **노드 비대칭** — " + " · ".join(f"`{ph}` {t.split(' — ', 1)[1]}" for ph, t in per)
+                + "(원장 관측 — 필요 판정이 아니다 · 01 §1.1 노드별 원장).")
     if not recs:
         return "**이 모델에 필요한 패치**: 실린 빌드 패치 없음(또는 파일 기록 미관측 — 01 §1.1)."
     by: dict[str, list[str]] = {}
@@ -1191,6 +1202,19 @@ def _f_applied_set(c: _Ctx) -> str:
         out += _patch_evidence_table(patches)
     else:
         out.append("_빌드 패치 없음 — 이 이미지에 빌드 패치 슬롯 입력이 없다._")
+    asym = _dict(a, "node_asymmetry")
+    if asym and isinstance(asym.get("nodes"), dict):
+        # 2026-10-11 F2: cluster 노드별 원장(attestation nodes.*.build_ledger)을 각각 싣는다 — 합집합 ✗ · 한 노드 선택 ✗
+        out += ["", f"**노드별 원장**(cluster · 대표 `{_cell(asym.get('representative'))}` — {_cell(asym.get('note'))})", ""]
+        nrows = []
+        for n, nd in sorted(asym["nodes"].items()):
+            pts = [x for x in (nd.get("patches") or []) if isinstance(x, dict)] if isinstance(nd, dict) else []
+            for x in pts:
+                nrows.append((f"`{_cell(n)}`", _cell(x.get("phase")), f"`{_cell(x.get('file'))}`", _cell(x.get("result")),
+                              f"`{_cell(nd.get('source'))}`"))
+            if not pts:
+                nrows.append((f"`{_cell(n)}`", "—", "—", "원장 행 없음", f"`{_cell((nd or {}).get('source'))}`"))
+        out += _table(("노드", "단계", "파일", "결과", "출처"), nrows)
     probes = [x for x in (a.get("probes") or []) if isinstance(x, dict)]
     if probes:
         # 순위별 탐침 결과(artifacts `applied_set.probes`) — 조용한 강등 ✗: 원장이 왜 관측되지 않았는지(부재 · 이미지 없음 · 관측
@@ -4938,6 +4962,31 @@ def selftest() -> list[str]:
         rs_ = _f_resolved(_Ctx(repo, qf, tpls))
         ck("0.4 양자화 구성 표(선언 fp8 + routed expert fp4) · 필요한 패치 요약(required 목록) · 드라이버 관측 ≠ 선언 행",
            "| routed experts | `fp4` |" in rs_ and "required `60-fixture-patch.sh`" in rs_ and "⚠ 드라이버 관측 ≠ 선언" in rs_)
+        # 2026-10-11 · plan_26101104 M1 사실검증 F2 — cluster 노드별 원장 비대칭: 00 §0.4 · 01 §1.1 이 노드마다 각각 말한다
+        af = json.loads(core.dumps(base_facts))
+        for _sn in ("build_patch_pre", "build_patch_post"):
+            if isinstance(af["slots"].get(_sn), dict):
+                af["slots"][_sn]["file_records"] = []
+        af["applied_set"] = {"status": "observed", "source": "attestation:output/multi/benchlog/attestation_x.json#main",
+                             "patches": [{"phase": "inline", "file": "strip-hoist", "result": "skipped", "result_source": "build-ledger"}],
+                             "node_asymmetry": {"representative": "main", "note": "노드별 원장이 다르다(픽스처)", "nodes": {
+                                 "main": {"source": "attestation:x#main", "patches": [
+                                     {"phase": "inline", "file": "strip-hoist", "result": "skipped"}]},
+                                 "sub": {"source": "attestation:x#sub", "patches": [
+                                     {"phase": "pre", "file": "50-port.sh", "result": "skipped"},
+                                     {"phase": "post", "file": "10-deepgemm.sh", "result": "applied"}]}}}}
+        rq = _required_patches_line(af)
+        aq = _f_applied_set(_Ctx(repo, af, tpls))
+        ck("★F2 00 §0.4: 대표(main) 원장 기준임을 밝히고 노드별 원장(sub applied/skipped)을 붙인다 · '필요 판정 아님'",
+           "대표(main) 측정 이미지 원장 기준 실린 빌드 패치 없음" in rq and "**노드 비대칭**" in rq
+           and "sub 원장: applied 10-deepgemm.sh" in rq and "sub 원장: skipped 50-port.sh" in rq and "필요 판정이 아니다" in rq)
+        ck("★F2 01 §1.1 적용 집합: 노드별 원장 표(노드마다 행 · 출처 #노드)",
+           "**노드별 원장**" in aq and "| `sub` | post | `10-deepgemm.sh` | applied | `attestation:x#sub` |" in aq
+           and "| `main` | inline | `strip-hoist` | skipped |" in aq)
+        af["applied_set"].pop("node_asymmetry")
+        ck("★F2 음성대조: 비대칭 표지가 없으면 종전 문장 · 노드별 표 없음",
+           _required_patches_line(af).startswith("**이 모델에 필요한 패치**: 실린 빌드 패치 없음")
+           and "**노드별 원장**" not in _f_applied_set(_Ctx(repo, af, tpls)))
         # 재현: 슬롯 → 빌드 컨텍스트 매핑 · env 형상 파생 키 · README 요약
         xf = json.loads(core.dumps(base_facts))
         xf["build_context_map"] = [{"slot_path": "artifacts/build_patch_pre/60-fixture-patch.sh",
