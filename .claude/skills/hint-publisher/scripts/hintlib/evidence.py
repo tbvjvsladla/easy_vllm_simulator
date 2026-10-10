@@ -682,6 +682,23 @@ def _dockerfile_args(repo: Path, topology: str, dockerfile: str | None) -> tuple
         f"output/{topology}/{dockerfile} 의 ^ARG(render_dockerfile.ledger_build_args)"
 
 
+# 쓰인 Dockerfile 을 이미지 history build-arg 관측으로 판정했을 때 출처 문자열의 표지(artifacts._build_selection 이 같은 표지로 읽는다).
+HISTORY_TRACK_MARK = "docker history build-arg 관측"
+
+
+def _history_track_dockerfile(raw_args: dict) -> tuple[str | None, str]:
+    """이미지 history build-arg(필터 전 원문)의 트랙 정체 인자로 쓰인 Dockerfile 판정(2026-10-10 · plan_26101017 · M2 결함 B).
+    `VLLM_REF` 만 → Dockerfile.source-build · `VLLM_VERSION` 만 → Dockerfile(wheel) · 둘 다 · 둘 다 없음 = 판정 불가(None).
+    두 트랙 Dockerfile 이 각자 자기 인자만 든다(실측: 0.18.0-wheel = VLLM_VERSION · 0.29.0rc6-source = VLLM_REF). 태그 문자열은 보지 않는다."""
+    ref, ver = "VLLM_REF" in raw_args, "VLLM_VERSION" in raw_args
+    if ref and not ver:
+        return "Dockerfile.source-build", f"{HISTORY_TRACK_MARK}(VLLM_REF={raw_args['VLLM_REF']} · VLLM_VERSION 없음 → 소스빌드 Dockerfile)"
+    if ver and not ref:
+        return "Dockerfile", f"{HISTORY_TRACK_MARK}(VLLM_VERSION={raw_args['VLLM_VERSION']} · VLLM_REF 없음 → wheel Dockerfile)"
+    return None, ("history 에 VLLM_REF · VLLM_VERSION 이 둘 다 있다 — 트랙 판정 불가" if ref else
+                  "history 에 VLLM_REF · VLLM_VERSION 모두 없음(또는 history 미관측) — 트랙 판정 불가")
+
+
 def _build_identity(repo: Path, *, topology: str, env: dict, env_rel: str | None, measured: dict,
                     manifest: dict | None, runner: Callable | None) -> tuple[dict, list[str]]:
     """빌드 정체(PAYLOAD.build 모양 + 관측 원문). 관측 > 선언: history build-arg 가 셀 env 를 이긴다(상충은 기록)."""
@@ -723,6 +740,15 @@ def _build_identity(repo: Path, *, topology: str, env: dict, env_rel: str | None
         src["dockerfile"] = (f"output/{topology}/docker-compose.yaml 기본값 ${{BUILD_DOCKERFILE:-{dockerfile}}}"
                              "(셀 env 선택자 없음 · 현재 compose 기준)" if dockerfile
                              else "선택자 없음(셀 env·compose 기본값 모두 부재)")
+        # 결함 B(2026-10-10): 원장(artifacts 순위) · 셀 env 다음 = 이미지 history build-arg 관측. compose 기본값은 **현재** compose 의
+        #   선언이지 이 이미지를 지은 증거가 아니다 — 관측과 모순되면 관측이 이긴다(근거 기재). compose 리터럴 `dockerfile:` 은 읽지 않는다.
+        obs_df, obs_note = _history_track_dockerfile((facts or {}).get("history_build_args") or {})
+        if obs_df and obs_df != dockerfile:
+            src["dockerfile"] = obs_note + (f" — {src['dockerfile']} 은 이 이미지 관측과 모순 · 관측이 이긴다" if dockerfile else
+                                            f" — {src['dockerfile']}")
+            dockerfile = obs_df
+        elif not dockerfile:
+            src["dockerfile"] += f" · {obs_note}" + ("" if facts is not None else " · 이미지 탐침 결과 없음(docker 미가용 · 이미지 부재)")
     else:
         src["dockerfile"] = "docker 평면 신호 없음(IMAGE_TAG·선택자·측정 이미지 부재)"
     raw_args = (facts or {}).get("history_build_args") or {}
@@ -739,8 +765,9 @@ def _build_identity(repo: Path, *, topology: str, env: dict, env_rel: str | None
         #   native 의 관측이 아니다: 평면 판정의 단일 소유자는 artifacts.plane_of 이고, 그것은 "신호 없음 = native" 를
         #   추측하지 않는다(2026-09-22 적대 검토 — 옛 판본은 여기서 native 로 접어 두 모듈이 다른 말을 했다).
         track = None
-    src["track"] = (f"선택자 {dockerfile}" if dockerfile else
-                    "선택자 미관측 — 트랙 미정" if docker_plane else
+    src["track"] = ((f"선택자 {dockerfile}" + (f"({HISTORY_TRACK_MARK})" if HISTORY_TRACK_MARK in src.get("dockerfile", "") else ""))
+                    if dockerfile else
+                    f"선택자 미관측 — 트랙 미정({src['dockerfile']})" if docker_plane else
                     "docker 평면 신호 없음 — 트랙 미정(native 여부는 artifacts.plane_of 가 관측 신호로 판정)")
     conflicts: dict[str, list] = {}
     for key in ("VLLM_REF", "VLLM_REPO", "VLLM_VERSION"):
@@ -4330,6 +4357,23 @@ def qualification(ev: CellEvidence) -> dict:
                 return {"health_200": True, "inference_observed": True,
                         "sources": [_rel(repo, ph), _rel(repo, bench)], "method": "post_health+bench"}
             tried.append(f"{_rel(repo, bench)} completed<1 또는 부재")
+            # 2026-10-10(plan_26101017 · M2 결함 A): full-bench 구현체가 GuideLLM 이면 레벨 원시는 guidellm_<셀>.json(benchmarks.json)이다.
+            #   완료 수는 소유 파서 parse_guidellm.build 의 `completed`(= request_totals.successful)로 읽는다(복제 ✗ · 같은 규칙).
+            gl = ph.parent / f"guidellm_{ev.cell}.json"
+            gdoc = _read_json_opt(gl, "guidellm json") if gl.is_file() and core.level_raw_is_measured_tool(gl, ev.cell) else None
+            if isinstance(gdoc, dict):
+                pg = core.load_owner_module(repo, core.REL_PARSE_GUIDELLM, "_hint_parse_guidellm", add_dir_to_path=False)
+                try:
+                    done = _as_int(pg.build(gdoc).get("completed")) or 0
+                except ValueError as e:
+                    done, why = 0, str(e)
+                else:
+                    why = f"successful={done}"
+                if done >= 1:
+                    return {"health_200": True, "inference_observed": True,
+                            "sources": [_rel(repo, ph), _rel(repo, gl)],
+                            "method": "post_health+guidellm(parse_guidellm completed = request_totals.successful)"}
+                tried.append(f"{_rel(repo, gl)} 성공 요청<1({why})")
     elif sw:
         tried.append(f"스윕이 {sw.get('binding')} 로만 묶였다 — post_health 원시가 이 측정의 것이 아니다")
     if ev.report_kind == "lite":
@@ -5735,7 +5779,7 @@ def publisher_inputs(repo, ev: CellEvidence, *, draft_dir) -> Path:
 # ── 자체검사 ─────────────────────────────────────────────────────────────────────────────────────────────────
 _OWNER_LINKS = (core.REL_COMPLETION_GATE, core.REL_EVIDENCE_PUBLISHER, core.REL_CAMPAIGN_VALIDATOR,
                 core.REL_RENDER_BENCH_SECTION, REL_MANIFEST_CONTRACT, REL_CHECK_SMOKE_MODEL, core.REL_SLAVE_FORWARD,
-                core.REL_RENDER_DOCKERFILE)
+                core.REL_RENDER_DOCKERFILE, core.REL_PARSE_GUIDELLM)
 _M_UTC = "2026-01-02T03:04:05Z"
 _SHA_A = "a" * 40
 _SHA_H = "4" * 40            # 픽스처 체크포인트 checkout 커밋
@@ -7278,6 +7322,23 @@ def selftest() -> list[str]:
             ck("모든 dict 필드에 출처", all(k in ev.sources for k in ("sweep", "manifest", "attestation", "resolve", "node")))
             q = qualification(ev)
             ck("자격 = post_health + bench(관측)", q.get("method") == "post_health+bench" and len(q["sources"]) == 2)
+            # ★결함 A(2026-10-10 · plan_26101017 · M2): GuideLLM 레벨 원시(guidellm_<셀>.json)의 성공 요청 ≥1 도 추론 관측이다
+            lv = repo / ev.sweep["dir"] / "level_01"
+            bj_a = (lv / "bench_c1-a.json").read_bytes()
+            (lv / "bench_c1-a.json").unlink()
+            try:
+                gdoc = {"benchmarks": [{"metrics": {"request_totals": {"successful": 3, "errored": 0, "incomplete": 0, "total": 3}}}]}
+                core.write_json(lv / "guidellm_c1-a.json", gdoc)
+                qg = qualification(ev)
+                core.write_json(lv / "guidellm_c1-a.json", {"benchmarks": [{"metrics": {"request_totals": {"successful": 0,
+                                                                                                        "errored": 3}}}]})
+                qg0 = _code(qualification, ev)
+            finally:
+                (lv / "guidellm_c1-a.json").unlink(missing_ok=True)
+                (lv / "bench_c1-a.json").write_bytes(bj_a)
+            ck("★결함 A 자격 = post_health + guidellm(successful ≥1 · parse_guidellm 규칙)",
+               qg.get("method", "").startswith("post_health+guidellm") and qg["sources"][1].endswith("level_01/guidellm_c1-a.json"))
+            ck("결함 A 음성대조: GuideLLM 성공 요청 0 = 자격 차단(HINT_QUALIFICATION_UNOBSERVED)", qg0 == "HINT_QUALIFICATION_UNOBSERVED")
             facts = naming_facts(repo, ev)
             dn = naming.derive_name(facts, naming.load_vocab(repo))
             # 2026-09-29(plan_26092908 §4.1): v7 결정론부 = q·len·kv 만(ple·spec·graph 는 Agent 꼬리 — naming.derive_name).
@@ -7396,15 +7457,37 @@ def selftest() -> list[str]:
             fx["docker"]["history"][_DIGEST] = hist0
             envp.write_text(env_text, encoding="utf-8")
             envp.write_text(env_text.replace("BUILD_DOCKERFILE=Dockerfile.source-build\n", ""), encoding="utf-8")
+            # 결함 B(2026-10-10 · plan_26101017 · M2): 선택자(원장 · 셀 env · compose 기본값) 부재 → 이미지 history build-arg 관측으로 트랙
+            ev_hist = from_campaign(repo, "c1", "c1-a", docker=dk)
+            ck("★결함 B 선택자 부재 + history VLLM_REF 만 = Dockerfile.source-build(출처 = history 관측 표지 · 태그 휴리스틱 ✗)",
+               ev_hist.build_identity.get("dockerfile") == "Dockerfile.source-build"
+               and ev_hist.build_identity.get("track") == "source-build"
+               and HISTORY_TRACK_MARK in ev_hist.build_identity["source"]["dockerfile"]
+               and HISTORY_TRACK_MARK in ev_hist.build_identity["source"]["track"])
+            fx["docker"]["history"][_DIGEST] = "RUN |2 VLLM_VERSION=0.8.0 CUDA_VERSION=130 /bin/sh -c pip install\n"
+            ev_hw = from_campaign(repo, "c1", "c1-a", docker=dk)
+            ck("★결함 B history VLLM_VERSION 만 = Dockerfile(wheel)",
+               ev_hw.build_identity.get("dockerfile") == "Dockerfile" and ev_hw.build_identity.get("track") == "wheel")
+            fx["docker"]["history"][_DIGEST] = "RUN |1 CUDA_VERSION=130 /bin/sh -c true\n"
             ev_nosel = from_campaign(repo, "c1", "c1-a", docker=dk)
-            ck("★선택자 미관측이면 트랙을 추측하지 않는다(이름 파생 불가)", ev_nosel.build_identity.get("track") is None and
+            ck("★선택자 미관측 + history 에 트랙 인자 없음이면 트랙을 추측하지 않는다(이름 파생 불가)", ev_nosel.build_identity.get("track") is None and
                _code(lambda: naming.derive_name(naming_facts(repo, ev_nosel), naming.load_vocab(repo))) == "HINT_AXIS_UNDERIVABLE")
+            fx["docker"]["history"][_DIGEST] = hist0 + "RUN |1 VLLM_VERSION=0.8.0 /bin/sh -c true\n"
+            ck("결함 B history 에 VLLM_REF · VLLM_VERSION 둘 다 = 판정 불가 유지",
+               from_campaign(repo, "c1", "c1-a", docker=dk).build_identity.get("track") is None)
+            fx["docker"]["history"][_DIGEST] = hist0
             comp = repo / "output/multi/docker-compose.yaml"
             comp_text = comp.read_text(encoding="utf-8")
             comp.write_text(comp_text + "    build:\n      dockerfile: ${BUILD_DOCKERFILE:-Dockerfile.source-build}\n", encoding="utf-8")
             ev_def = from_campaign(repo, "c1", "c1-a", docker=dk)
-            ck("셀 env 선택자 부재 → compose 기본값(slave_forward.compose_default)",
-               ev_def.build_identity.get("track") == "source-build" and "기본값" in ev_def.build_identity["source"]["dockerfile"])
+            ck("셀 env 선택자 부재 → compose 기본값(slave_forward.compose_default) · history 관측과 일치하면 기본값 출처 유지",
+               ev_def.build_identity.get("track") == "source-build" and "기본값" in ev_def.build_identity["source"]["dockerfile"]
+               and HISTORY_TRACK_MARK not in ev_def.build_identity["source"]["dockerfile"])
+            comp.write_text(comp_text + "    build:\n      dockerfile: ${BUILD_DOCKERFILE:-Dockerfile}\n", encoding="utf-8")
+            ev_cx = from_campaign(repo, "c1", "c1-a", docker=dk)
+            ck("★결함 B compose 기본값(Dockerfile)이 이미지 관측(VLLM_REF)과 모순 = 관측이 이긴다(근거 기재)",
+               ev_cx.build_identity.get("dockerfile") == "Dockerfile.source-build"
+               and "모순 · 관측이 이긴다" in ev_cx.build_identity["source"]["dockerfile"])
             comp.write_text(comp_text, encoding="utf-8")
             envp.write_text(env_text, encoding="utf-8")
             ident = identity(ev)

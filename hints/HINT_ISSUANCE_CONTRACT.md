@@ -38,7 +38,7 @@
 | 순위 | 관측 | 조인(이름만으로 묶지 않는다) |
 |---|---|---|
 | ① | `output/<t>/benchlog/serve_proof_<cell>.json` — 멀티 스모크(`multinode_serve_smoke.sh`)가 serve 시점에 적는 health 200 + 추론 판정 | 셀 이름 · 이미지 |
-| ② | 스윕 `level_*/post_health_<cell>.json`(health 200 ∧ running ∧ ¬OOM) ∧ 같은 레벨 `bench_<cell>.json` completed ≥ 1 | 스윕 `generated_utc` = 인증서 `measured_utc`(인증서가 없으면 리포트 생성일) |
+| ② | 스윕 `level_*/post_health_<cell>.json`(health 200 ∧ running ∧ ¬OOM) ∧ 같은 레벨 `bench_<cell>.json` completed ≥ 1 또는 `guidellm_<cell>.json`(GuideLLM benchmarks.json) 성공 요청(`request_totals.successful` · parse_guidellm 규칙) ≥ 1 | 스윕 `generated_utc` = 인증서 `measured_utc`(인증서가 없으면 리포트 생성일) |
 | ③ | lite 셀: `lite_raw_<cell>.json`(config_name = 셀 · measured_utc = 리포트 생성일)이 가리키는 lite warm completed ≥ 1 | 리포트 생성일 |
 
 어느 것도 없으면 **차단** `HINT_QUALIFICATION_UNOBSERVED`. 같은 셀 id 의 다른 회차 관측 · 선언 JSON 은 자격이 아니다.
@@ -155,7 +155,7 @@ v4 는 "필수는 **여정 정보 하나**, 나머지 부재는 기재" 로 절�
 
 | 부재로 막는 자리 | 왜 기재로 대신할 수 없나 |
 |---|---|
-| §2 의 **관측**(serve_proof · post_health+bench · lite raw/warm) | 계약의 유일한 위협(서빙 실패를 성공으로 위장)이 바로 이 부재다 |
+| §2 의 **관측**(serve_proof · post_health+bench/guidellm · lite raw/warm) | 계약의 유일한 위협(서빙 실패를 성공으로 위장)이 바로 이 부재다 |
 | **A 층**(트리플렛 · 쓰인 Dockerfile · compose) | 재현이 원리적으로 불가능하다 — "모르는 것" 이 아니라 "지도가 아닌 것" 이다 |
 | **여정**(02 의 `kind: wall` ≥ 1 · 계보 문서 ≥ 1 · 필수 챕터·필드) | 없으면 태그가 아무 값도 나르지 않는다 |
 | **서사 증거**(셀의 plan · devlog · testlog 포인터) | 발행기(`evidence_publisher`)와 게이트가 이 셋을 필수 증거로 요구한다 — "문서 완료 후" 의 기계 판정 |

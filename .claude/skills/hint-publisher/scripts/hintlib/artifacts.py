@@ -1223,14 +1223,23 @@ def _build_selection(c: _Ctx, ledger: dict | None) -> dict:
         core.fail("HINT_BUILD_SELECTOR_MISMATCH",
                   f"이미지 원장 dockerfile={sel_ledger!r} 와 셀 env BUILD_DOCKERFILE={sel_env!r} 가 다르다.",
                   "셀 env 가 가리키는 레시피로 이미지를 다시 짓거나 셀 env 를 원장에 맞춘다(태그는 가변 포인터).")
+    # 결함 B(2026-10-10 · plan_26101017 · M2): 원장 · 셀 env 다음 = 이미지 history build-arg 관측(evidence._build_identity 가 판정 ·
+    #   출처 표지 HISTORY_TRACK_MARK). compose 기본값은 현재 compose 의 선언이라 관측보다 아래다(모순이면 evidence 가 관측을 택했다).
+    #   compose 리터럴 `dockerfile:` 은 그 compose 로 지은 이미지라는 증거가 없어 읽지 않는다. 태그 문자열 휴리스틱 ✗(계약).
+    from . import evidence as _evidence
+    bi = _get(c.ev, "build_identity") or {}
+    bi_src = str(((bi.get("source") or {}) if isinstance(bi, dict) else {}).get("dockerfile") or "")
+    sel_hist = str(bi.get("dockerfile") or "") if _evidence.HISTORY_TRACK_MARK in bi_src else ""
     for val, src in ((sel_ledger, "build-ledger.dockerfile"), (sel_env, "cell-env:BUILD_DOCKERFILE"),
-                     (compose_df or "", "compose-default:BUILD_DOCKERFILE")):
+                     (sel_hist, f"image-history:{bi_src}"), (compose_df or "", "compose-default:BUILD_DOCKERFILE")):
         if val:
             dockerfile, df_source = val, src
             break
     else:
-        core.fail("HINT_BUILD_SELECTOR_UNDERIVABLE", "쓰인 Dockerfile 을 파생하지 못했다(원장·셀 env·compose 기본값 모두 없음).",
-                  "셀 env 에 BUILD_DOCKERFILE 을 적거나 compose 의 `dockerfile: ${BUILD_DOCKERFILE:-…}` 기본값을 확인한다.")
+        core.fail("HINT_BUILD_SELECTOR_UNDERIVABLE", "쓰인 Dockerfile 을 파생하지 못했다(원장·셀 env·이미지 history build-arg 관측·compose "
+                  f"기본값 모두 없음 · 관측 기록: {bi_src or '미관측'}).",
+                  "셀 env 에 BUILD_DOCKERFILE 을 적거나 compose 의 `dockerfile: ${BUILD_DOCKERFILE:-…}` 기본값을 확인한다 · 이미지 탐침"
+                  "(docker history)이 가능한 곳에서 다시 실행한다.")
     if "/" in dockerfile or dockerfile.startswith("."):
         core.fail("HINT_BUILD_SELECTOR_INVALID", f"Dockerfile 선택자는 빌드 컨텍스트 안 파일 이름이어야 한다: {dockerfile!r}")
     image, image_source = _image_tag(c)
@@ -4445,6 +4454,19 @@ def selftest() -> list[str]:
         apw = applied_set(repo, ev_w, runner=docker_old)
         ck("★wheel 트랙 패치 미실행(excluded_by_recipe)", apw["patches"] == []
            and sum(x["why"].startswith("excluded_by_recipe") for x in apw["excluded"]) == 5)
+        # ★결함 B(2026-10-10 · plan_26101017 · M2): 원장 · 셀 env 선택자 없음 → evidence 의 이미지 history build-arg 관측이 compose 기본값보다
+        #   먼저(compose 기본값 = 현재 compose 선언 · 그 이미지를 지은 증거 아님)
+        from . import evidence as _ev_mod
+        (out / "envs/.env.nosel").write_text("IMAGE_TAG=easy-vllm:fx-wheel\n", encoding="utf-8")
+        ev_ns = dict(ev, triplet=dict(ev_w["triplet"], env="output/multi/envs/.env.nosel"))
+        hsrc = f"{_ev_mod.HISTORY_TRACK_MARK}(VLLM_VERSION=0.8.0 · VLLM_REF 없음 → wheel Dockerfile)"
+        sel_h = _build_selection(_ctx(repo, dict(ev_ns, build_identity=dict(ev["build_identity"], dockerfile="Dockerfile",
+                                                                            source={"dockerfile": hsrc})), runner=docker_old), None)
+        sel_c = _build_selection(_ctx(repo, ev_ns, runner=docker_old), None)
+        ck("★결함 B 선택자 순위: 원장 · 셀 env 없음 → 이미지 history 관측(wheel)이 compose 기본값(source-build)을 이긴다 · 출처 표시",
+           sel_h["dockerfile"] == "Dockerfile" and sel_h["track"] == "wheel" and sel_h["dockerfile_source"] == f"image-history:{hsrc}")
+        ck("결함 B 음성대조: history 관측 표지가 없으면 종전대로 compose 기본값",
+           sel_c["dockerfile"] == "Dockerfile.source-build" and sel_c["dockerfile_source"] == "compose-default:BUILD_DOCKERFILE")
         # ★쓰인 Dockerfile 부재 = 차단(빈 텍스트로 계속하면 모든 패치가 거짓 excluded_by_recipe 사유로 빠진다)
         (out / "envs/.env.nodf").write_text("IMAGE_TAG=easy-vllm:fx-x\nBUILD_DOCKERFILE=Dockerfile.absent\n", encoding="utf-8")
         raises("★쓰인 Dockerfile 부재", "HINT_DOCKERFILE_ABSENT", lambda: applied_set(
