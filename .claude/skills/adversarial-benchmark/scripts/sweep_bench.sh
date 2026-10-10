@@ -10,17 +10,28 @@
 # 비용 규율(편지 B.5): 이 스윕은 재탐색 루프 내부가 아니라 **full 런 종결 시 1회**만 호출한다.
 #
 # 사용: sweep_bench.sh <config_name> [--topology single|multi] [--serve-plane docker|native] [--host-endpoint URL] [--engine-log PATH(native 필수)]
-#        [--levels 1,2,4,8,16] [--backend openai-chat|openai]
+#        [--levels CSV] [--backend openai-chat|openai] [--bench-budget-mib N]
 #        [--input-len N] [--output-len N] [--num-prompts N] [--warmups N] [--vllm-version X] [--dry-run]
+#        [--preset NAME|PATH] [--knob-reason KNOB=CODE]... [--approved-by TEXT] [--pin KNOB=VALUE... --pinned-by TEXT]
 #        [--repeats N [--repeats-source TEXT]] [--campaign-id ID] [--reassemble-only]
 #        [--cross-node-tolerance-s N --cross-node-tolerance-source TEXT]   (multi 원격 노드 사살 대조 · 선언으로만)
+#
+# ★ 측정 형상은 프리셋이 정한다(2026-10-10 · plan_26101011 · interview_20261010_015151). full-bench(현재 구현체 GuideLLM)
+#   의 knob 기본값·선택지·등급은 `config/<바인딩 폴더>/<preset>.yaml`(기본 default_preset) 하나에 있고, 이 스크립트에는
+#   측정 형상의 리터럴 기본값이 없다. 해소·검증·기록의 소유자는 `bench_preset.py resolve` 이며 **어떤 부하도 걸기 전에**
+#   부른다: 사람 핀(--pin K=V --pinned-by) > 사람 핀(campaign.yaml budgets.bench_pins · budgets.repeats) > Agent 선택
+#   (스윕 플래그 + --knob-reason 근거 코드 · confirm 은 --approved-by 사전 승인) > 프리셋 default. 선택지 밖·escalate 를
+#   Agent 가 고름·승인 없는 confirm·핀 충돌·서빙 상한(max-num-seqs·max-model-len) 위반은 exit 2(새 차단점 ✗ · 기동 거부).
+#   결과는 sweep_index.json 최상위 `bench_knobs` 에 실린다. 적응 클램프는 이 체계와 분리된 실패 안전 장치다.
 #
 # ★ 반복 축(2026-09-14 · plan_26091407 §4.4 · 사용자 결정 Q3) — full 의 정의는 `lite ∪ GuideLLM × 반복 ≥3` 이다.
 #   · 반복 대상은 **레벨 측정 레그**(`--tool` 이 고른 도구 · full 에서는 GuideLLM)다. lite 선행 레그는 반복하지
 #     않는다 — cold TTFT 는 warmup 0 첫 요청이라 두 번째부터는 cold 가 아니고, lite 는 inform-only 스냅샷이다.
 #     레벨 run 들의 spec 축 승계원은 그 **한 번의** lite warm JSON 을 함께 쓴다(`_spec_axis_args`).
 #   · 반복 수 = `--repeats N` > 활성 캠페인(`--campaign-id` 가 있으면 그 캠페인) `campaign.yaml budgets.repeats` >
-#     full 정의값 3. 해소·값역·하한의 소유는 `repeat_axis.py` 이며 출처는 `repetition.requested_source` 에 남는다.
+#     프리셋 기본값. 해소·값역·하한의 소유는 `repeat_axis.py` 이며(프리셋 등급 검사는 bench_preset) 출처는
+#     `repetition.requested_source` 에 남는다. 귀속 없는 `--repeats N`(비기본)은 Agent 선택이라 escalate 로 거부된다 —
+#     선언을 옮기는 호출자는 `--repeats-source` 로 귀속을 밝힌다(broad_search 가 그렇게 한다).
 #     **N<3 명시는 exit 2** 다(full 정의 위반 — lite 만 원하면 lite_bench.sh). 선언을 읽지 못해도 exit 2 다.
 #     `--reassemble-only` 에 반복 인자를 주면 exit 2 다(재조립은 측정 시점 index 의 요청 반복을 승계한다).
 #   · 레벨마다 run 1..N 을 같은 serve 에 연속으로 잰다(`repeat_kind=warm-rerun` · cold-restart 는 선언 슬롯만).
@@ -53,7 +64,10 @@
 set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
-TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; NATIVE_ELOG=""; LEVELS="1,2,4,8,16"; ILEN=1024; OLEN=256; NPROMPTS=16; WARMUPS=2; VLLM_VER=""; DRYRUN=0; REASSEMBLE=0
+TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; NATIVE_ELOG=""; VLLM_VER=""; DRYRUN=0; REASSEMBLE=0
+# 측정 형상은 빈 값으로 출발한다 — 기본값의 자리는 프리셋 하나다(위 헤더 ★ · bench_preset.py 가 채운다).
+LEVELS=""; ILEN=""; OLEN=""; NPROMPTS=""; WARMUPS=""
+PRESET=""; PINNED_BY=""; APPROVED_BY=""; PIN_ARGS=(); KNOB_REASON_ARGS=()
 # ★ 2026-09-01 신설 — run_bench.sh 의 --backend 를 레벨마다 그대로 전달한다.
 #   전달하지 않으면 스윕 전 레벨이 openai-chat 로 돌아, harmony 계열(gpt-oss)에서 `--ignore-eos` 가
 #   무력해져 **모든 레벨의 TPOT 이 동시에 왜곡**된다(run_bench.sh 의 BACKEND 주석 참조).
@@ -78,6 +92,11 @@ while [ $# -gt 0 ]; do case "$1" in
   --cross-node-tolerance-s) XNODE_TOL="$2"; shift 2;;
   --cross-node-tolerance-source) XNODE_TOL_SRC="$2"; shift 2;;
   --repeats) REPEATS_ARG="$2"; shift 2;;
+  --preset) PRESET="$2"; shift 2;;
+  --pin) PIN_ARGS+=(--pin "$2"); shift 2;;
+  --pinned-by) PINNED_BY="$2"; shift 2;;
+  --knob-reason) KNOB_REASON_ARGS+=(--knob-reason "$2"); shift 2;;
+  --approved-by) APPROVED_BY="$2"; shift 2;;
   --repeats-source) REPEATS_SOURCE_ARG="$2"; shift 2;;
   --campaign-id) CAMPAIGN_ID="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
@@ -142,23 +161,27 @@ esac
 
 # 측정 엔드포인트 미선언을 **여기서** 친다 — 뒤로 미루면 lite 레그를 다 돌고 나서야 드러나고,
 # 그때는 이미 잘못된 포맷으로 잰 판정점이 손에 있다(2026-09-07 · 유예 결함 ①).
+#   ★ 2026-10-10(plan_26101011): 값이 비면 여기서 멈추지 않는다 — 사람 핀(--pin backend= · campaign.yaml bench_pins)
+#     이 채울 수 있으므로 판정은 프리셋 해소 뒤(아래 `_backend_required`)다. 기본값이 생긴 것은 아니다(프리셋 default null).
+_backend_required() {
+  echo "[sweep_bench] ERROR --backend 는 필수다(기본값 없음 · 2026-09-07)." >&2
+  echo "  요청 포맷은 TPOT 을 바꾸는 1급 측정 축이고, 스윕은 그 포맷으로 **전 레벨**을 잰다." >&2
+  echo "  harmony 계열(gpt-oss)은 --backend openai (완결 엔드포인트) + --knob-reason backend=harmony_completion." >&2
+  exit 2
+}
 case "$BACKEND" in
-  openai|openai-chat) ;;
-  "") echo "[sweep_bench] ERROR --backend 는 필수다(기본값 없음 · 2026-09-07)." >&2
-      echo "  요청 포맷은 TPOT 을 바꾸는 1급 측정 축이고, 스윕은 그 포맷으로 **전 레벨**을 잰다." >&2
-      echo "  harmony 계열(gpt-oss)은 --backend openai (완결 엔드포인트)." >&2
-      exit 2 ;;
+  openai|openai-chat|"") ;;
   *) echo "[sweep_bench] 알 수 없는 --backend: $BACKEND (openai|openai-chat)" >&2; exit 2 ;;
 esac
 
 case "$TOOL" in
   vllm) ;;
   guidellm)
-    # 예산 미선언을 여기서 친다 — 뒤로 미루면 lite 레그와 레벨 1 을 다 돌고 나서야 드러난다.
+    # 예산 미선언은 프리셋 해소 직후(부하 전) `_budget_required` 가 친다 — 사람 핀이 채울 수 있다(plan_26101011).
     case "$BENCH_BUDGET_MIB" in
-      ''|*[!0-9]*) echo "[sweep_bench] ERROR --tool guidellm 에는 --bench-budget-mib <양의 정수> 가 필수다(기본값 없음 · §4.8)" >&2; exit 2;;
+      ''|[0-9]*) ;;
+      *) echo "[sweep_bench] ERROR --bench-budget-mib 는 양의 정수다: '$BENCH_BUDGET_MIB'" >&2; exit 2;;
     esac
-    [ "$BENCH_BUDGET_MIB" -gt 0 ] || { echo "[sweep_bench] ERROR --bench-budget-mib 는 양수여야 한다" >&2; exit 2; }
     ;;
   *) echo "[sweep_bench] 알 수 없는 --tool: $TOOL (vllm|guidellm)" >&2; exit 2;;
 esac
@@ -166,18 +189,7 @@ esac
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(git -C "$SDIR" rev-parse --show-toplevel 2>/dev/null || pwd)"
 
-# 반복 수 해소 — **어떤 부하도 걸기 전에** 친다(뒤로 미루면 lite 레그를 다 돌고 나서야 선언 오류가 드러난다).
-#   재조립은 측정하지 않으므로 해소하지 않는다 — 측정 시점의 요청 반복을 기존 index 에서 승계한다(아래 PY).
 REPEATS=""; REPEATS_SOURCE=""; REPEAT_KIND=""
-if [ "$REASSEMBLE" != "1" ]; then
-  _RA=(resolve)
-  if [ -n "$REPEATS_ARG" ]; then _RA+=(--repeats "$REPEATS_ARG"); fi
-  if [ -n "$REPEATS_SOURCE_ARG" ]; then _RA+=(--repeats-source "$REPEATS_SOURCE_ARG"); fi
-  if [ -n "$CAMPAIGN_ID" ]; then _RA+=(--campaign-id "$CAMPAIGN_ID"); fi
-  _RR="$(python3 "$SDIR/repeat_axis.py" "${_RA[@]}")" || {
-    echo "[sweep_bench] ERROR 반복 수를 해소하지 못했다(위 사유) — 측정하지 않는다(full 정의: 반복 ≥3)" >&2; exit 2; }
-  IFS=$'\x1f' read -r REPEATS REPEATS_SOURCE REPEAT_KIND <<< "$_RR"
-fi
 if [ -z "$TOPO" ]; then
   # ★ 2026-09-14(⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고 브랜치로 추론하지 않는다"): 종전 관용구는
   #   브랜치 이름에서 토폴로지를 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 —
@@ -187,6 +199,55 @@ if [ -z "$TOPO" ]; then
     echo "[sweep_bench] ERROR 토폴로지를 정하지 못했다(위 사유) — --topology single|multi 로 명시하라(브랜치 이름으로 고르지 않는다)" >&2
     exit 2
   fi
+fi
+
+CFGYAML="$REPO/output/$TOPO/configs/${CONFIG}.yaml"
+EF="$REPO/output/$TOPO/envs/.env.${CONFIG}"
+MANIFEST="$REPO/output/$TOPO/manifest.yaml"
+SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
+
+# ── 측정 형상 해소(프리셋 · 2026-10-10 plan_26101011) — **어떤 부하도 걸기 전에** 친다 ─────────────────────────
+#   재조립은 측정하지 않으므로 해소하지 않는다 — 측정 시점의 `bench_knobs`·요청 반복을 기존 index 에서 승계한다(아래 PY).
+#   반복 수 해소는 bench_preset 이 repeat_axis 를 불러 하고(argv > 캠페인 > 프리셋 기본값), 등급·선택지 검사를 덧건다.
+KNOB_RECORD=""
+if [ "$REASSEMBLE" != "1" ]; then
+  # dry-run 은 디스크에 산출 디렉터리를 만들지 않는다(종전 계약) — 기록은 임시 파일로만 낸다.
+  if [ "$DRYRUN" = "1" ]; then KNOB_RECORD="$(mktemp)"; else mkdir -p "$SWEEPDIR"; KNOB_RECORD="$SWEEPDIR/.bench_knobs.pending.json"; fi
+  _BP=(resolve --tool "$TOOL" --serving-yaml "$CFGYAML" --record-out "$KNOB_RECORD")
+  [ "$DRYRUN" = "1" ] && _BP+=(--dry-run)
+  [ -n "$PRESET" ] && _BP+=(--preset "$PRESET")
+  [ -n "$LEVELS" ] && _BP+=(--levels "$LEVELS")
+  [ -n "$ILEN" ] && _BP+=(--input-len "$ILEN")
+  [ -n "$OLEN" ] && _BP+=(--output-len "$OLEN")
+  [ -n "$NPROMPTS" ] && _BP+=(--num-prompts "$NPROMPTS")
+  [ -n "$WARMUPS" ] && _BP+=(--warmups "$WARMUPS")
+  [ -n "$BACKEND" ] && _BP+=(--backend "$BACKEND")
+  [ -n "$BENCH_BUDGET_MIB" ] && _BP+=(--bench-budget-mib "$BENCH_BUDGET_MIB")
+  [ -n "$REPEATS_ARG" ] && _BP+=(--repeats "$REPEATS_ARG")
+  [ -n "$REPEATS_SOURCE_ARG" ] && _BP+=(--repeats-source "$REPEATS_SOURCE_ARG")
+  [ -n "$CAMPAIGN_ID" ] && _BP+=(--campaign-id "$CAMPAIGN_ID")
+  [ -n "$PINNED_BY" ] && _BP+=(--pinned-by "$PINNED_BY")
+  [ -n "$APPROVED_BY" ] && _BP+=(--approved-by "$APPROVED_BY")
+  [ "${#PIN_ARGS[@]}" -gt 0 ] && _BP+=("${PIN_ARGS[@]}")
+  [ "${#KNOB_REASON_ARGS[@]}" -gt 0 ] && _BP+=("${KNOB_REASON_ARGS[@]}")
+  _BPO="$(python3 "$SDIR/bench_preset.py" "${_BP[@]}")" || {
+    echo "[sweep_bench] ERROR 측정 형상 프리셋 해소 실패(위 사유) — 측정하지 않는다(knob 계약 · plan_26101011)" >&2; exit 2; }
+  PRESET_PATH=""
+  while IFS=$'\x1f' read -r _k _v; do
+    case "$_k" in
+      LEVELS) LEVELS="$_v";; ILEN) ILEN="$_v";; OLEN) OLEN="$_v";; NPROMPTS) NPROMPTS="$_v";; WARMUPS) WARMUPS="$_v";;
+      REPEATS) REPEATS="$_v";; REPEATS_SOURCE) REPEATS_SOURCE="$_v";; REPEAT_KIND) REPEAT_KIND="$_v";;
+      BACKEND) BACKEND="$_v";; BENCH_BUDGET_MIB) BENCH_BUDGET_MIB="$_v";; PRESET_PATH) PRESET_PATH="$_v";;
+    esac
+  done <<< "$_BPO"
+  [ -n "$BACKEND" ] || _backend_required
+  if [ "$TOOL" = "guidellm" ]; then
+    case "$BENCH_BUDGET_MIB" in
+      ''|*[!0-9]*) echo "[sweep_bench] ERROR --tool guidellm 에는 --bench-budget-mib <양의 정수> 가 필수다(기본값 없음 · §4.8)" >&2; exit 2;;
+    esac
+    [ "$BENCH_BUDGET_MIB" -gt 0 ] || { echo "[sweep_bench] ERROR --bench-budget-mib 는 양수여야 한다" >&2; exit 2; }
+  fi
+  echo "[sweep_bench] 측정 형상 = 프리셋 ${PRESET:-default_preset} ($PRESET_PATH) · 기록 → sweep_index.bench_knobs"
 fi
 
 # 레벨 파싱: 정렬·중복제거 + 판정점(1) 강제 포함(verdict 재사용 보장).
@@ -200,10 +261,6 @@ done
 # 오름차순 정렬(적응 클램프 = 낮은 레벨부터, 실패 시 상위 중단)
 IFS=$'\n' SORTED=($(printf '%s\n' "${SORTED[@]}" | sort -n)); unset IFS
 
-CFGYAML="$REPO/output/$TOPO/configs/${CONFIG}.yaml"
-EF="$REPO/output/$TOPO/envs/.env.${CONFIG}"
-MANIFEST="$REPO/output/$TOPO/manifest.yaml"
-SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
 
 echo "[sweep_bench] config=$CONFIG topo=$TOPO levels=[${SORTED[*]}] in=$ILEN out=$OLEN n=$NPROMPTS warmup=$WARMUPS tool=$TOOL${BENCH_BUDGET_MIB:+ bench_budget=${BENCH_BUDGET_MIB}MiB}"
 echo "[sweep_bench] sweepdir=$SWEEPDIR (판정점=동시성1 재사용)"
@@ -213,6 +270,13 @@ if [ "$DRYRUN" = "1" ]; then
   for L in "${SORTED[@]}"; do
     echo "  level $L × run 1..$REPEATS → run_bench.sh $CONFIG --topology $TOPO --serve-plane $SERVE_PLANE${HOST_ENDPOINT:+ --host-endpoint $HOST_ENDPOINT} --concurrency $L --tool $TOOL${BENCH_BUDGET_MIB:+ --bench-budget-mib $BENCH_BUDGET_MIB} --out-dir $SWEEPDIR/level_$(printf '%02d' "$L")[/run_KK]"
   done
+  python3 -c 'import json,sys
+d=json.load(open(sys.argv[1]))
+print("[sweep_bench] DRY-RUN knob 해소(프리셋 %s · 상한 %s):" % (d.get("preset"), (d.get("serving_cap") or {}).get("source")))
+for k,v in d["knobs"].items():
+    print("  %-16s = %-18s source=%-8s grade=%s reason=%s%s" % (k, v.get("value"), v.get("source"), v.get("grade"), v.get("reason"),
+          (" · 제외 %s" % [f["value"] for f in v["filtered_out"]]) if v.get("filtered_out") else ""))' "$KNOB_RECORD" || true
+  rm -f "$KNOB_RECORD"
   echo "[sweep_bench] DRY-RUN 종료(실제 벤치·assemble 생략)"
   exit 0
 fi
@@ -491,7 +555,7 @@ fi   # ── /REASSEMBLE 분기 끝(위 측정·캡처 전량은 재조립 모�
 
 # ── sweep_index.json 조립 + meta 추출(결정론 · stdlib · fail-soft N/A) ──────────
 CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$CFGYAML" EF="$EF" MANIFEST="$MANIFEST" \
-SWEEPDIR="$SWEEPDIR" VLLM_VER="$VLLM_VER" COMPLETED="${COMPLETED[*]:-}" ILEN="$ILEN" \
+SWEEPDIR="$SWEEPDIR" VLLM_VER="$VLLM_VER" COMPLETED="${COMPLETED[*]:-}" ILEN="$ILEN" KNOB_RECORD="$KNOB_RECORD" \
  REPEATS="$REPEATS" REPEATS_SOURCE="$REPEATS_SOURCE" REPEAT_KIND="$REPEAT_KIND" CLAMP_LEVEL="${CLAMP_LEVEL:-}" \
  IMAGE_TAG_ACTUAL="$IMAGE_TAG_ACTUAL" IMAGE_DIGEST_ACTUAL="$IMAGE_DIGEST_ACTUAL" REASSEMBLE="$REASSEMBLE" \
  LITE_RAW="$LITE_RAW" SDIR="$SDIR" SERVE_PLANE="$SERVE_PLANE" python3 - <<'PY'
@@ -1065,6 +1129,15 @@ else:
 repetition = _ra.summarize(levels, requested=_rep_n, requested_source=_rep_src, kind=_rep_kind,
                            clamp_run=_clamp_run)
 
+if reassemble:
+    _bench_knobs = prior.get("bench_knobs") or {"absent": "측정 시점 index 에 bench_knobs 없음(프리셋 신설 전 측정 · plan_26101011)"}
+else:
+    try:
+        with open(os.environ["KNOB_RECORD"], encoding="utf-8") as f:
+            _bench_knobs = json.load(f)
+    except (OSError, ValueError, KeyError) as e:
+        raise SystemExit("[sweep_bench] bench_knobs 기록을 읽지 못했다(%s) — 해소 기록 없는 index 를 내지 않는다" % e)
+
 index = {
     "config": cfg, "topology": topo,
     # 재조립은 측정시각을 승계한다 — 측정이 안 바뀌었는데 시각이 바뀌면 인증서 `measured_utc` 와
@@ -1080,7 +1153,11 @@ index = {
     "levels": levels,
     "repetition": repetition,
     "truncated": trunc,
-    "input_len": int(os.environ.get("ILEN", "0") or 0),
+    # 재조립은 측정 시점의 형상을 승계한다(해소하지 않았으므로 ILEN 이 비어 있다 — 0 이나 기본값을 지어내지 않는다).
+    "input_len": (prior.get("input_len") if reassemble else int(os.environ["ILEN"])),
+    # 측정 형상 knob 해소 기록(2026-10-10 · plan_26101011) — 프리셋 이름 · knob 별 값/출처/등급/근거 코드 · 상한 필터 제외분.
+    #   재조립은 측정 시점 기록을 승계한다(부재면 그 사실을 이름으로 남긴다 — 프리셋 신설 전 측정).
+    "bench_knobs": _bench_knobs,
 }
 outp = os.path.join(sweepdir, "sweep_index.json")
 with open(outp, "w", encoding="utf-8") as f:
@@ -1088,6 +1165,8 @@ with open(outp, "w", encoding="utf-8") as f:
 print("[sweep_bench] sweep_index.json → %s (완료 레벨 %s · 절삭 %d건)"
       % (outp, [l["level"] for l in levels], len(trunc)))
 PY
+
+[ -n "$KNOB_RECORD" ] && rm -f "$KNOB_RECORD"   # 기록은 sweep_index.bench_knobs 로 옮겨졌다(두 번째 자리를 남기지 않는다)
 
 # ── bench_mode 판정 기록(2026-09-14 · plan_26091407 §4.4 · 리뷰 정정) ─────────────────────────────────
 #   판정 소유자는 classify_cell.py 다 — 여기서는 **부르기만** 한다(규칙 복제 ✗). 정규 경로(sweep_bench →

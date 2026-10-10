@@ -84,12 +84,17 @@ COPIES = (
     f"{AB}/scripts/sweep_stop.py", f"{AB}/scripts/broad_search.sh", f"{AB}/scripts/judge_bench.sh",
     f"{AB}/scripts/roofline.py", f"{AB}/scripts/verdict_rule.py", f"{AB}/scripts/publish_benchmark_record.py",
     f"{AB}/fixtures/guidellm_benchmarks_sample.json",
+    # 측정 형상 프리셋(plan_26101011) — 배포되는 바인딩·기본 프리셋·해소기를 그대로 쓴다(픽스처가 실물보다 좁지 않게).
+    f"{AB}/scripts/bench_preset.py", f"{AB}/config/bench_bindings.yaml", f"{AB}/config/guide-llm/default_preset.yaml",
     f"{TN}/campaign_init.py", f"{TN}/campaign_template_validator.py",
     # 대조 대상 노드 판정의 소유자 — multi 참여 노드(node_role_contract) · 이 노드가 누구인가(node_identity.sh --resolve).
     f"{TN}/node_role_contract.py", f"{TN}/node_blackbox/node_identity.sh",
     "campaigns/_template/campaign.schema.json",
 )
 SHIM_SENTINEL = "SELFTEST_SWEEP_REPEATS_SHIM"
+# 측정 형상 knob 계약(plan_26101011): 스윕 플래그는 Agent 선택이라 근거 코드가 붙는다(없으면 sweep_bench 가 부하 전 거부).
+KR = ("--knob-reason", "backend=harmony_completion", "--knob-reason", "bench_budget_mib=host_budget")
+KR_LV = ("--knob-reason", "levels=serving_concurrency")
 CAMP = "camp-fx"
 
 RUN_BENCH_SHIM = r'''#!/usr/bin/env bash
@@ -241,8 +246,8 @@ class Sandbox:
     def sweep(self, cfg, *extra, plan=None, levels="1,2"):
         self.config(cfg)
         return self.run(["bash", str(self.sdir / "sweep_bench.sh"), cfg, "--topology", "single",
-                         "--tool", "guidellm", "--bench-budget-mib", "1024", "--backend", "openai",
-                         "--levels", levels, "--num-prompts", "4", *extra], plan=plan)
+                         "--tool", "guidellm", "--bench-budget-mib", "4096", "--backend", "openai", *KR,
+                         "--levels", levels, *KR_LV, *extra], plan=plan)
 
     def py(self, script, *args):
         return self.run([sys.executable, str(self.sdir / script), *args])
@@ -419,7 +424,7 @@ def main() -> int:
            cp.returncode == 2 and "--reassemble-only" in cp.stderr, (cp.returncode, cp.stderr[-300:]))
 
         # ── N7 재스윕이 옛 run 을 섞지 않는다 ───────────────────────────────────────────────
-        cp1 = sb.sweep("cfg-s", "--repeats", "4", levels="1")
+        cp1 = sb.sweep("cfg-s", "--repeats", "4", "--repeats-source", "fixture declaration", levels="1")
         had4 = (sb.sweep_dir("cfg-s") / "level_01/run_04/measured.json").is_file()
         cp2 = sb.sweep("cfg-s", levels="1")
         ms = sb.load(sb.sweep_dir("cfg-s") / "level_01/measured.json") or {}
@@ -428,6 +433,26 @@ def main() -> int:
            and not (sb.sweep_dir("cfg-s") / "level_01/run_04").exists()
            and len(ms.get("runs") or []) == 3 and ms.get("repeats_requested") == 3,
            (cp1.returncode, had4, cp2.returncode, [r.get("run") for r in ms.get("runs") or []]))
+
+        # ── P★ 측정 형상 프리셋 배선(plan_26101011) — 해소 기록이 index 에 실리고, 계약 위반은 부하 전에 멈춘다 ──
+        idx_s = sb.load(sb.sweep_dir("cfg-s") / "sweep_index.json") or {}
+        bk = idx_s.get("bench_knobs") or {}
+        kn = bk.get("knobs") or {}
+        ck("P1★ sweep_index.bench_knobs = 프리셋 이름 · levels Agent 선택+근거 코드 · 반복 수 캠페인 선언 · 기본값 출처 preset",
+           bk.get("preset") == "default_preset" and (kn.get("levels") or {}).get("source") == "agent"
+           and (kn.get("levels") or {}).get("reason") == "serving_concurrency"
+           and (kn.get("repeats") or {}).get("source") == "campaign"
+           and (kn.get("input_len") or {}).get("source") == "preset" and idx_s.get("input_len") == 1024
+           and not (sb.sweep_dir("cfg-s") / ".bench_knobs.pending.json").exists(),
+           (bk.get("preset"), {k: (v.get("source"), v.get("reason")) for k, v in kn.items()}))
+        sb.reset_calls()
+        cp = sb.sweep("cfg-p", "--input-len", "32768", "--knob-reason", "input_len=serving_context", levels="1")
+        ck("P2★ escalate 값(input_len 32768)을 Agent 가 고름 → 부하 전 exit 2 · lite·레벨 shim 미호출",
+           cp.returncode == 2 and not sb.calls() and "escalate" in cp.stderr, (cp.returncode, sb.calls(), cp.stderr[-300:]))
+        sb.reset_calls()
+        cp = sb.sweep("cfg-p", "--input-len", "2048", levels="1")
+        ck("P3★ 근거 코드 없는 Agent 선택(input_len 2048) → 부하 전 exit 2",
+           cp.returncode == 2 and not sb.calls() and "근거 코드" in cp.stderr, (cp.returncode, sb.calls(), cp.stderr[-300:]))
 
         # ── R1 재조립은 기존 index levels[] 만 복원한다 ─────────────────────────────────────
         cp1 = sb.sweep("cfg-r")
@@ -614,8 +639,8 @@ def main() -> int:
         def cell(key, cfg, plan_, *extra):
             sb.config(cfg)
             return sb.run(["bash", bs, "cell", "--state", str(state), "--cell-key", key, "--config", cfg,
-                           "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
-                           "--backend", "openai", "--levels", "1", "--num-prompts", "4", "--now-utc", now,
+                           "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "4096",
+                           "--backend", "openai", *KR, "--levels", "1", *KR_LV, "--now-utc", now,
                            "--topology", "single", "--confirm-risk", *extra], plan=plan_)
 
         def record(key, path=None):
@@ -626,15 +651,15 @@ def main() -> int:
         sb.reset_calls()
         sb.config("cfg-ba")
         cp6a = sb.run(["bash", bs, "cell", "--state", str(state), "--cell-key", "cell-a", "--config", "cfg-ba",
-                       "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
-                       "--backend", "openai", "--levels", "1", "--now-utc", now, "--topology", "single", "--confirm-risk",
+                       "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "4096",
+                       "--backend", "openai", *KR, "--levels", "1", *KR_LV, "--now-utc", now, "--topology", "single", "--confirm-risk",
                        "--cross-node-tolerance-s", "5"])
         cp6b = sb.run(["bash", bs, "cell", "--state", str(state), "--cell-key", "cell-a", "--config", "cfg-ba",
-                       "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
+                       "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "4096",
                        "--now-utc", now, "--topology", "single", "--serve-failed", "fixture",
                        "--serve-started-utc", now, "--cross-node-tolerance-source", "only-source"])
         cp6c = sb.run(["bash", bs, "cell", "--state", str(state), "--cell-key", "cell-a", "--config", "cfg-ba",
-                       "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
+                       "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "4096",
                        "--now-utc", now, "--topology", "single", "--serve-failed", "fixture",
                        "--serve-started-utc", now, "--cross-node-tolerance-s", "x", "--cross-node-tolerance-source", "s"])
         ck("B6★ 허용오차 짝 불일치(측정 · --serve-failed)·비정수 → 셀 진입 전 exit 2 · 부하 도구 미호출 · 셀 기록 0",
@@ -687,8 +712,8 @@ def main() -> int:
         sb.reset_calls()
         sb.config("cfg-ba")
         cp = sb.run(["bash", bs, "cell", "--state", str(b8), "--cell-key", "cell-a", "--config", "cfg-ba",
-                     "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
-                     "--backend", "openai", "--levels", "1", "--num-prompts", "4", "--now-utc", now,
+                     "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "4096",
+                     "--backend", "openai", *KR, "--levels", "1", *KR_LV, "--now-utc", now,
                      "--topology", "single", "--confirm-risk"], plan={"lite": {"verdict": "server_failed", "rc": 7}})
         rec = record("cell-a", b8)
         ck("B8★ lite ② 셀 → measurement_void · 사유 lite_server_failed(lite_raw 출처) · lite_verdict 기록 · GuideLLM 레벨 0",
@@ -711,8 +736,8 @@ def main() -> int:
         legacy.write_text(json.dumps(doc), encoding="utf-8")
         sb.reset_calls()
         cp = sb.run(["bash", bs, "cell", "--state", str(legacy), "--cell-key", "cell-a", "--config", "cfg-ba",
-                     "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
-                     "--backend", "openai", "--levels", "1", "--now-utc", now, "--topology", "single",
+                     "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "4096",
+                     "--backend", "openai", *KR, "--levels", "1", *KR_LV, "--now-utc", now, "--topology", "single",
                      "--confirm-risk"])
         ck("B4★ declared_budget.repeats 없는 상태 파일 → 셀 진입 exit 2 · 부하 도구 미호출",
            cp.returncode == 2 and sb.calls() == [] and "declared_budget.repeats 미선언" in cp.stderr,
@@ -737,7 +762,7 @@ def main() -> int:
         _write(sb.root / "docs/logs/main/events/2026-09.jsonl",
                json.dumps({"ts": "2026-09-01T00:00:30Z", "kind": "watchdog_kill_ack", "source": "fixture", "mode": "armed"}) + "\n")
         cp = sb.run(["bash", bs, "cell", "--state", str(state), "--cell-key", "cell-sf", "--config", "cfg-sf",
-                     "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
+                     "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "4096",
                      "--now-utc", now, "--topology", "single", "--serve-failed", "materialize-fixture",
                      "--serve-started-utc", "2026-09-01T00:00:00Z"])
         rec = record("cell-sf")
@@ -753,7 +778,7 @@ def main() -> int:
                '  - role: sub\n    host: 192.0.2.11\n')
         sb.config("cfg-m", topo="multi")
         cp = sb.run(["bash", str(sb.sdir / "sweep_bench.sh"), "cfg-m", "--topology", "multi", "--tool", "guidellm",
-                     "--bench-budget-mib", "1024", "--backend", "openai", "--levels", "1,2", "--num-prompts", "4"],
+                     "--bench-budget-mib", "4096", "--backend", "openai", *KR, "--levels", "1,2", *KR_LV],
                     plan={"fail": {"2:1": "rc"}})
         dm = sb.sweep_dir("cfg-m", topo="multi")
         idx_m = sb.load(dm / "sweep_index.json") or {}
@@ -815,7 +840,7 @@ def main() -> int:
 
         def sf_multi(key, *extra):
             return sb.run(["bash", bs, "cell", "--state", str(state_m), "--cell-key", key, "--config", "cfg-mf",
-                           "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "1024",
+                           "--axis-citation", "fixture", "--next-intent", "fixture", "--bench-budget-mib", "4096",
                            "--now-utc", now, "--topology", "multi", "--serve-failed", "materialize-fixture",
                            "--serve-started-utc", "2026-09-01T00:00:10Z", *extra])
         cp = sf_multi("cell-m1", "--cross-node-tolerance-s", "15", "--cross-node-tolerance-source", "fixture-clock")
@@ -834,7 +859,7 @@ def main() -> int:
     if failures:
         print("[selftest_sweep_repeats] FAIL %d건: %s" % (len(failures), failures), file=sys.stderr)
         return 1
-    print("[selftest_sweep_repeats] PASS — N1~N8 · R1 · G(lite 게이트 5) · F1~F8 · V1 · A1~A4 · B1~B8 · M1~M2 · R★(실패주입·음성대조 포함)")
+    print("[selftest_sweep_repeats] PASS — N1~N8 · P1~P3 · R1 · G(lite 게이트 5) · F1~F8 · V1 · A1~A4 · B1~B8 · M1~M2 · R★(실패주입·음성대조 포함)")
     return 0
 
 

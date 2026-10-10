@@ -10,7 +10,8 @@
 #   · FULL_REPEATS_MIN(=3) — full 정의의 반복 하한. `campaigns/_template/campaign.schema.json` 의
 #     `budgets.repeats.minimum` 과 **같은 개념**이며 정적 파일끼리는 한쪽이 다른 쪽을 생성할 수 없으므로
 #     자체검사가 둘을 **교차검증**한다(workflow.md §결정론 규율 — 단일 소유 불가 시 교차검증이 차선).
-#   · 반복 수 해소(resolve): argv `--repeats` > 활성 캠페인 `campaign.yaml budgets.repeats` > full 정의값.
+#   · 반복 수 해소(resolve): argv `--repeats` > 활성 캠페인 `campaign.yaml budgets.repeats` > 프리셋 기본값
+#     (2026-10-10 · plan_26101011 — 최하단 기본값의 자리는 `config/<도구>/<preset>.yaml` 하나 · `bench_preset.py` 가 넘긴다).
 #     활성 캠페인 해소는 `terraforming_node/scripts/campaign_init.py` 가 소유하므로 **import 해서** 쓴다.
 #     출처는 값 옆에 스스로 밝힌다(`repeats_source`).
 #   · run 집계(aggregate-level): 레벨의 대표 run(= 첫 완주 run) `measured.json` 에 `runs[]` ·
@@ -43,7 +44,7 @@
 #   사살은 레벨·run 순번과 무관하게 강등 사유다(사용자 결정 — kill 이벤트는 기계 이벤트 트리거다). 사인 대조는
 #   분류기(`classify_cell.py`)가 하고, 여기서는 창과 반복 조건만 계산한다.
 #
-# 사용: repeat_axis.py resolve [--repeats N [--repeats-source TEXT]] [--campaign-id ID]
+# 사용: repeat_axis.py resolve [--repeats N [--repeats-source TEXT]] [--campaign-id ID] [--preset-default N --preset-source NAME]
 #       repeat_axis.py record-run --run-dir D --level L --run K --started-utc T --ended-utc T
 #                                 --run-bench-rc N --parse-rc N
 #       repeat_axis.py aggregate-level --level-dir D --requested N --requested-source TEXT [--kind K]
@@ -139,28 +140,20 @@ def parse_repeats(raw, where: str) -> int:
     return value
 
 
-def resolve_repeats(argv_value=None, *, argv_source=None, campaign_id=None,
-                    repo_root: Path = REPO_ROOT) -> "tuple[int, str]":
-    """(반복 수, 출처). 우선순위 argv > 활성 캠페인 선언 > full 정의값.
+def load_campaign_budgets(campaign_id=None, *, repo_root: Path = REPO_ROOT) -> "tuple[str | None, dict | None, str]":
+    """활성(또는 지정) 캠페인 선언의 budgets 를 읽는다 → (캠페인 id | None, budgets | None, 부재 사유).
 
-    · 선언을 **읽지 못한** 것(파손·모양 불량)은 미선언으로 접지 않는다 — RepeatAxisError.
-    · 해소자(campaign_init) 부재는 fail-loud 대체다: 반복 수는 게이트가 아니라 측정 구성이고 정의값 3 은
-      정의를 충족하므로 측정을 막지 않되, 출처에 그 사실을 적는다(부재를 파생이라 적지 않는다).
+    반복 수와 벤치 knob 핀(`bench_preset.py` 의 `budgets.bench_pins`)이 **같은 선언**을 같은 규율로 읽게 하는
+    한 자리다(2026-10-10 · plan_26101011 — 두 판독기를 두면 '읽지 못함' 의 처분이 갈라진다).
+    · 선언을 **읽지 못한** 것(파손·모양 불량·인스턴스 부재)은 미선언으로 접지 않는다 — RepeatAxisError.
+    · 해소자 부재 · 활성 캠페인 없음은 budgets=None 과 사유 문자열로 돌려준다(호출자가 출처에 이름으로 남긴다).
     """
-    if argv_value is not None and str(argv_value).strip() != "":
-        n = parse_repeats(argv_value, "--repeats")
-        src = "declared(argv --repeats%s)" % ((" · %s" % argv_source) if argv_source else "")
-        return n, src
-    if argv_source:
-        raise RepeatAxisError("--repeats-source 는 --repeats 와 함께만 쓴다(값 없는 출처는 거짓 표시다)")
     mod = _campaign_init_module(repo_root)
     if mod is None:
-        return FULL_REPEATS_MIN, ("defaulted(full 정의 최소 %d · 캠페인 해소자 부재: %s — 선언을 읽지 못했다)"
-                                  % (FULL_REPEATS_MIN, CAMPAIGN_INIT_REL))
+        return None, None, "캠페인 해소자 부재: %s — 선언을 읽지 못했다" % CAMPAIGN_INIT_REL
     camp = campaign_id or mod.active_campaign_id()
     if camp == mod.BOOTSTRAP:
-        return FULL_REPEATS_MIN, ("defaulted(full 정의 최소 %d · 활성 캠페인 없음(%s))"
-                                  % (FULL_REPEATS_MIN, mod.BOOTSTRAP))
+        return None, None, "활성 캠페인 없음(%s)" % mod.BOOTSTRAP
     if camp in getattr(mod, "RESERVED_IDS", ()):
         raise RepeatAxisError("--campaign-id %r 는 예약 id 다 — 선언이 아니다" % camp)
     base = mod.derive_path("root", camp_id=camp)
@@ -174,9 +167,40 @@ def resolve_repeats(argv_value=None, *, argv_source=None, campaign_id=None,
     budgets = doc.get("budgets", {})
     if not isinstance(budgets, dict):
         raise RepeatAxisError("campaigns/%s/campaign.yaml budgets 가 객체가 아니다" % camp)
+    return camp, budgets, ""
+
+
+def resolve_repeats(argv_value=None, *, argv_source=None, campaign_id=None,
+                    repo_root: Path = REPO_ROOT, preset_default=None,
+                    preset_source=None) -> "tuple[int, str]":
+    """(반복 수, 출처). 우선순위 argv > 활성 캠페인 선언 > **프리셋 기본값**.
+
+    · 2026-10-10(plan_26101011): 최하단 기본값의 자리는 프리셋 하나다(`config/<도구>/<preset>.yaml` knobs.repeats.default
+      · 해소 `bench_preset.py`). 이 함수는 그 값을 **받기만** 한다 — 받지 못하면 코드 안 숫자로 메우지 않고 거부한다.
+      하한 FULL_REPEATS_MIN 은 기본값이 아니라 full 정의(판정)라 여기 남는다.
+    · 선언을 **읽지 못한** 것(파손·모양 불량)은 미선언으로 접지 않는다 — RepeatAxisError.
+    · 해소자(campaign_init) 부재는 fail-loud 대체다: 반복 수는 게이트가 아니라 측정 구성이고 프리셋 기본값은
+      정의를 충족하므로 측정을 막지 않되, 출처에 그 사실을 적는다(부재를 파생이라 적지 않는다).
+    """
+    if argv_value is not None and str(argv_value).strip() != "":
+        n = parse_repeats(argv_value, "--repeats")
+        src = "declared(argv --repeats%s)" % ((" · %s" % argv_source) if argv_source else "")
+        return n, src
+    if argv_source:
+        raise RepeatAxisError("--repeats-source 는 --repeats 와 함께만 쓴다(값 없는 출처는 거짓 표시다)")
+
+    def _defaulted(why: str) -> "tuple[int, str]":
+        if preset_default is None or not preset_source:
+            raise RepeatAxisError("반복 수 선언이 없고(%s) 프리셋 기본값도 받지 못했다 — 기본값의 자리는 프리셋 "
+                                  "하나다(bench_preset.py 가 넘긴다 · 코드 안 숫자로 메우지 않는다)" % why)
+        n = parse_repeats(preset_default, "preset %s knobs.repeats.default" % preset_source)
+        return n, "defaulted(preset %s 기본 %d · %s)" % (preset_source, n, why)
+
+    camp, budgets, why = load_campaign_budgets(campaign_id, repo_root=repo_root)
+    if budgets is None:
+        return _defaulted(why)
     if "repeats" not in budgets:
-        return FULL_REPEATS_MIN, ("defaulted(full 정의 최소 %d · campaigns/%s/campaign.yaml budgets.repeats 미선언)"
-                                  % (FULL_REPEATS_MIN, camp))
+        return _defaulted("campaigns/%s/campaign.yaml budgets.repeats 미선언" % camp)
     n = parse_repeats(budgets["repeats"], "campaigns/%s/campaign.yaml budgets.repeats" % camp)
     return n, "declared(campaigns/%s/campaign.yaml budgets.repeats)" % camp
 
@@ -448,20 +472,23 @@ def _self_test() -> int:
         camps = root / "campaigns"
         (camps / "camp-a").mkdir(parents=True)
 
+        # 최하단 기본값은 프리셋이 넘긴다(plan_26101011) — 자체검사도 그 경로로 묻는다.
+        _PD = {"preset_default": 3, "preset_source": "default_preset"}
+
         def decl(budgets):
             doc = {"id": "camp-a"}
             if budgets is not None:
                 doc["budgets"] = budgets
             (camps / "camp-a" / "campaign.yaml").write_text(json.dumps(doc), encoding="utf-8")
 
-        n, src = resolve_repeats(repo_root=root)
-        check("R1 ACTIVE 부재 → 3 · defaulted(_bootstrap)", n == 3 and "_bootstrap" in src and src.startswith("defaulted("), src)
+        n, src = resolve_repeats(repo_root=root, **_PD)
+        check("R1 ACTIVE 부재 → 프리셋 3 · defaulted(preset · _bootstrap)", n == 3 and "_bootstrap" in src and src.startswith("defaulted(preset default_preset"), src)
         (camps / "ACTIVE").write_text("camp-a\n", encoding="utf-8")
         decl({"smoke_budget_overhead_mib": 1})
-        n, src = resolve_repeats(repo_root=root)
+        n, src = resolve_repeats(repo_root=root, **_PD)
         check("R2 선언 budgets.repeats 없음 → 3 · defaulted(미선언)", n == 3 and "미선언" in src, src)
         decl({"repeats": 5})
-        n, src = resolve_repeats(repo_root=root)
+        n, src = resolve_repeats(repo_root=root, **_PD)
         check("R3 선언 5 → 5 · declared(campaign.yaml)", n == 5 and src == "declared(campaigns/camp-a/campaign.yaml budgets.repeats)", src)
         n, src = resolve_repeats("4", argv_source="sweep state", repo_root=root)
         check("R4 argv 가 선언을 이긴다 · 출처에 argv", n == 4 and src.startswith("declared(argv --repeats · sweep state"), src)
@@ -488,9 +515,19 @@ def _self_test() -> int:
         except RepeatAxisError:
             check("R8 ★값 없는 --repeats-source 거부", True)
         (root / CAMPAIGN_INIT_REL).unlink()
-        n, src = resolve_repeats(repo_root=root)
-        check("R9 해소자 부재 → 3 · 출처에 부재를 이름으로 남긴다(fail-loud 대체)",
-              n == 3 and "해소자 부재" in src, src)
+        n, src = resolve_repeats(repo_root=root, **_PD)
+        check("R9 해소자 부재 → 프리셋 3 · 출처에 부재를 이름으로 남긴다(fail-loud 대체)",
+              n == 3 and "해소자 부재" in src and "preset default_preset" in src, src)
+        try:
+            resolve_repeats(repo_root=root)
+            check("R10 ★선언 없음 ∧ 프리셋 기본값 미전달 → 거부(코드 안 숫자로 메우지 않는다)", False)
+        except RepeatAxisError:
+            check("R10 ★선언 없음 ∧ 프리셋 기본값 미전달 → 거부(코드 안 숫자로 메우지 않는다)", True)
+        try:
+            resolve_repeats(repo_root=root, preset_default=2, preset_source="bad")
+            check("R11 ★프리셋 기본값 2(full 정의 미만) → 거부", False)
+        except RepeatAxisError:
+            check("R11 ★프리셋 기본값 2(full 정의 미만) → 거부", True)
 
         # G — 집계와 요약.
         ldir = root / "sweep" / "level_01"
@@ -600,7 +637,7 @@ def _self_test() -> int:
     if failures:
         sys.stderr.write("[repeat_axis --self-test] FAIL %d 건: %s\n" % (len(failures), failures))
         return 1
-    print("[repeat_axis --self-test] OK — A1(schema 교차검증) · B1~B3 · P1~P2 · R1~R9 · G1~G9 · H1~H11 전부 통과")
+    print("[repeat_axis --self-test] OK — A1(schema 교차검증) · B1~B3 · P1~P2 · R1~R11 · G1~G9 · H1~H11 전부 통과")
     return 0
 
 
@@ -610,6 +647,8 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd")
     r = sub.add_parser("resolve", help="반복 수 해소 → 'N<US>출처<US>종류' 한 줄")
     r.add_argument("--repeats"); r.add_argument("--repeats-source"); r.add_argument("--campaign-id")
+    r.add_argument("--preset-default", help="프리셋 knobs.repeats.default(bench_preset.py 가 넘긴다)")
+    r.add_argument("--preset-source", help="프리셋 이름(출처 표시)")
     rr = sub.add_parser("record-run", help="run 경계 사실 기록")
     rr.add_argument("--run-dir", required=True); rr.add_argument("--level", type=int, required=True)
     rr.add_argument("--run", type=int, required=True)
@@ -623,7 +662,8 @@ def main(argv=None) -> int:
         return _self_test()
     try:
         if a.cmd == "resolve":
-            n, src = resolve_repeats(a.repeats, argv_source=a.repeats_source, campaign_id=a.campaign_id)
+            n, src = resolve_repeats(a.repeats, argv_source=a.repeats_source, campaign_id=a.campaign_id,
+                                     preset_default=a.preset_default, preset_source=a.preset_source)
             print("\x1f".join((str(n), src.replace("\x1f", " "), REPEAT_KIND_WARM)))
             return 0
         if a.cmd == "record-run":

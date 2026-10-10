@@ -1,5 +1,8 @@
-# adversarial-benchmark 입력 스키마 (예시) — config.yaml 을 이 형식으로 채워 사용한다.
+# adversarial-benchmark 입력 스키마 (예시 · 사람 참고용) — 어떤 스크립트도 이 파일을 읽지 않는다.
 # 이 스킬은 *돌고 있는* vLLM serve 를 적대적으로 검증한다(기동 안 함 — recipe-explorer/compose 가 기동).
+# ★ full-bench(현재 구현체 GuideLLM)의 측정 형상(동시성 레벨·input/output 길이·요청 수·워밍업·반복·backend·벤치 예산)은
+#   이 파일이 아니라 `config/guide-llm/default_preset.yaml` 이 유일한 기본값 층이다(2026-10-10 · plan_26101011 —
+#   여기 있던 bench 측정 형상 키는 두 번째 자리라 지웠다). 바인딩은 `config/bench_bindings.yaml`.
 
 serving:
   config_name: deepseek-v4-flash      # 검증 대상 트리플렛 키(.env.<config>/configs/<config>.yaml 와 동일)
@@ -27,11 +30,7 @@ spec_supported: true                  # 모델이 speculative(MTP) 지원 — of
 #   NEEDS_RUBRIC + SPEC_ACCEPT_LEN_MISSING 을 낸다 — 파일에 값을 적어 메우지 않는다. 값을 알고 있으면
 #   judge_bench.sh --accept-len L 로 명시하라(출처 declared 로 기록된다).
 
-# === 벤치 파라미터 (vllm bench serve) ===
+# === 벤치 파라미터 — lite(vllm bench serve) 전용 ===
+#   full-bench 측정 형상은 config/guide-llm/default_preset.yaml(위 ★). lite 는 이번 프리셋 범위 밖이라 여기 남는다.
 bench:
-  concurrency: 1                      # 단일스트림 디코드(=루프라인 비교). throughput 용 near-max 는 별도 run.
-  input_len: 1024
-  output_len: 256
-  num_prompts: 16
-  warmups: 2                          # 콜드 JIT(예 flashinfer SM120 첫요청) 폐기
   lite_burst_n: 3                     # (선택·lite 모드) 경량 벤치 warm burst N(기본 3·warmup 1 제외·cold TTFT 별도). lite_bench.sh --burst-n 로도 override. plan_26071115 D26
