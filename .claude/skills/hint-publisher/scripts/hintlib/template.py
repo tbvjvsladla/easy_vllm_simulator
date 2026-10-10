@@ -1705,6 +1705,8 @@ _ATTEMPT_ALERT = frozenset({"watchdog_trip", "watchdog_kill_ack", "thermal_trip"
 #   **측정 기록**의 사실이다(node=None · 노드 축은 detail). 옛 묶음은 선언 행이 없는 이 행으로 노드 '미관측' 의 가짜 시도를 열어
 #   태그2 재생의 01 §1.4 · 02 §2.2 시도 표가 "3 시도" 를 말했다(원장 선언은 2건) — 이벤트 표에만 싣고 시도 묶음에서는 뺀다.
 _ATTEMPT_NOT_EVENT = frozenset({"measurement"})
+# evidence.LABEL_SCOPE_OTHER 와 짝(라벨이 다른 같은 노드 선언 창의 행 · 2026-10-11 셀 C F5) — import 부수효과 0 규약이라 값만 둔다.
+_LABEL_SCOPE_OTHER = "other-label-same-node"
 
 
 def _timeline_rows(f: dict) -> list[dict]:
@@ -1731,7 +1733,9 @@ def _attempts(rows: list[dict]) -> list[dict]:
         if a is None:
             # campaign_scope = 시도를 연 행의 것(evidence 가 캠페인 경계로 단 값 · 판정 ✗ — 옮기기만)
             a = {"node": r.get("node"), "label": r.get("label"), "declare": r.get("utc") if opens else None,
-                 "renew": [], "alerts": {}, "end": None, "end_utc": None, "other": 0, "scope": r.get("campaign_scope")}
+                 "renew": [], "alerts": {}, "end": None, "end_utc": None, "other": 0, "scope": r.get("campaign_scope"),
+                 # 2026-10-11 F5: 라벨이 다른 같은 노드 창(evidence label_scope)으로 연 시도 — label 칸에 표지(이 셀 선언으로 읽히지 않게)
+                 "other_label": r.get("label_scope") == _LABEL_SCOPE_OTHER}
             out.append(a)
             cur[key] = last = a
             if opens:
@@ -1747,9 +1751,15 @@ def _attempts(rows: list[dict]) -> list[dict]:
     return out
 
 
+def _attempt_label(a: dict) -> str:
+    if not a["label"]:
+        return "—"
+    return f"`{_cell(a['label'])}`" + ("(라벨 다름 — 같은 노드 · 이 셀 라벨 아님)" if a.get("other_label") else "")
+
+
 def _attempts_rows(att: list[dict], prefix: str = "") -> list[str]:
     return _table(("시도", "노드", "label", "선언(UTC)", "갱신(renew)", "사살 · 트립 · 거부", "닫힘", "그 밖 행"),
-                  [(f"{prefix}{i}", _cell(a["node"]), f"`{_cell(a['label'])}`" if a["label"] else "—", _cell(a["declare"], "—(선언 행 없음)"),
+                  [(f"{prefix}{i}", _cell(a["node"]), _attempt_label(a), _cell(a["declare"], "—(선언 행 없음)"),
                     (f"{len(a['renew'])}회 · 첫 {_cell(a['renew'][0])}" if a["renew"] else "없음"),
                     (" · ".join(f"`{k}` {n}" for k, n in sorted(a["alerts"].items())) if a["alerts"] else "없음"),
                     (f"`{a['end']}` {_cell(a['end_utc'])}" if a["end"] else "—(닫힘 행 없음)"), str(a["other"]))
@@ -1837,7 +1847,11 @@ def _f_event_timeline(c: _Ctx) -> str:
              + (f" · 캠페인 선언 전 · 같은 셀 기동 {n_same}행(이 셀의 시도로 센다)" if n_same else "")
              + (f" · 같은 셀 이름 · 앞선 캠페인 {n_prior}행" if n_prior else "") + "(내용 칸에 표기)"
              if isinstance(bnd, dict) and bnd.get("utc") and (n_prior or n_same) else "")
-    out = ([f"**블랙박스 이벤트 {len(rows)}행**(원장에서 이 셀 label·config 에 맞는 행만 · 시각순 · 기계 발췌{split})"]
+    n_other = sum(1 for r in rows if r.get("label_scope") == _LABEL_SCOPE_OTHER)
+    other = (f" · 라벨 다름(같은 노드 · 창 밖 이 셀 행과 시간이 겹치는 다른 라벨 선언 창) {n_other}행 — 이 셀의 선언으로 세지 않는다"
+             if n_other else "")
+    out = ([f"**블랙박스 이벤트 {len(rows)}행**(원장에서 이 셀 label·config 에 맞는 행"
+            + ("과 그와 시간이 겹치는 같은 노드의 다른 라벨 창" if n_other else "만") + f" · 시각순 · 기계 발췌{split}{other})"]
            + _boundary_line(bnd) + _ledger_span_lines(c.facts) + [""])
     out += _table(("#", "UTC", "노드", "kind", "label", "내용", "출처"),
                   [(str(i), _cell(r.get("utc")), _cell(r.get("node")), f"`{_cell(r.get('kind'))}`",
@@ -4451,6 +4465,21 @@ def selftest() -> list[str]:
            and "measurement (" not in "\n".join(_attempts_table(meas)))
         ck("★측정 기록 행만 있으면 시도 표 = 미관측(가짜 시도 ✗)",
            "기동 시도 미관측" in "\n".join(_attempts_table(meas[:1])))
+        # 2026-10-11 · plan_26101104 셀 C 사실검증 F5: 라벨이 다른 같은 노드 창(evidence label_scope)으로 연 시도는 선언 · 트립을 세고
+        #   label 칸에 표지 — 이 셀 세션 행만 남아 "선언 행 없음 · 사살 없음" 이 나오던 모양의 음성대조
+        f5 = [{"utc": "2026-01-01T00:00:00Z", "node": "sub", "kind": "budget_declare", "label": "serve-x-v030",
+               "label_scope": _LABEL_SCOPE_OTHER, "campaign_scope": "prior-campaign"},
+              {"utc": "2026-01-01T00:01:00Z", "node": "sub", "kind": "serve_start", "label": None, "campaign_scope": "prior-campaign"},
+              {"utc": "2026-01-01T00:10:00Z", "node": "sub", "kind": "watchdog_trip", "label": None,
+               "label_scope": _LABEL_SCOPE_OTHER, "campaign_scope": "prior-campaign"},
+              {"utc": "2026-01-02T02:30:00Z", "node": "sub", "kind": "budget_declare", "label": "smoke-x-35b-v030",
+               "campaign_scope": "this-campaign"}]
+        t5 = "\n".join(_attempts_table(f5, {"utc": "2026-01-02T00:00:00Z"}))
+        e5 = _f_event_timeline(_Ctx(repo, dict(facts_json, event_timeline=f5, event_campaign_boundary={"utc": "2026-01-02T00:00:00Z"}), tpls))
+        ck("★F5 라벨 다른 창으로 연 앞선 시도 = 선언 · 트립 셈 · label 칸 '라벨 다름' 표지('선언 행 없음' · '사살 없음' ✗) · 머리 개수",
+           "| 앞선-1 | sub | `serve-x-v030`(라벨 다름 — 같은 노드 · 이 셀 라벨 아님) | 2026-01-01T00:00:00Z | 없음 | `watchdog_trip` 1 |" in t5
+           and "선언 행 없음" not in t5 and "| 1 | sub | `smoke-x-35b-v030` |" in t5 and "라벨 다름" not in t5.split("앞선-1")[0]
+           and "라벨 다름(같은 노드 · 창 밖 이 셀 행과 시간이 겹치는 다른 라벨 선언 창) 2행" in e5)
         # 2026-09-29 FACT 교정: 캠페인 경계(evidence.event_campaign_boundary)가 관측되면 앞선 캠페인 시도는 따로(삭제 ✗ · 세지 않는다)
         bnd_ = {"utc": "2026-01-01T00:30:00Z", "observed": True, "campaign_id": "camp-x", "source": "declared_utc …"}
         scoped = [{**r, "campaign_scope": "prior-campaign" if r["utc"] < bnd_["utc"] else "this-campaign"} for r in cross]
