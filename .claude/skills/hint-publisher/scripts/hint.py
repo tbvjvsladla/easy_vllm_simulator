@@ -718,7 +718,7 @@ def _require_binding_artifact(man: dict, repo: Path, *, before_commit: bool) -> 
         core.fail("HINT_CERTIFICATE_BINDING_ABSENT",
                   "footer bench_ref 로 묶을 계측 산출물(인증서 · bench_report)이 없다(binding_artifact_path = None)"
                   + (" — 커밋하지 않았다." if before_commit else "."),
-                  "인증서가 발행되는 판정(explicit ∧ PASS)이면 인증서를, 그 밖(REFUTE · explore PASS · waiver · map_only)이면 bench_report 를 "
+                  "인증서가 발행되는 판정(explicit ∧ PASS)이면 인증서를, 그 밖(non-PASS · 비발행 권한 PASS · OBSERVATION-ONLY · map_only)이면 bench_report 를 "
                   "발행 기록에 바인딩한다(evidence_publisher).")
     kind = tag.bench_kind_of(ref)
     if kind is None:
@@ -841,7 +841,7 @@ def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_r
         "lineage_reading_list": lineage.reading_list(lin), "value_status_candidates": art.get("value_status_candidates"),
         "reproduce_steps": _with_bench_command(art.get("reproduce_steps"), evidence.bench_command(repo, ev)),
         "sub_recipe": art.get("sub_recipe"), "bench_section_md": bench_md,
-        "task_class": task_class, "perf_waiver": bench.get("perf_waiver") or None, "campaign": camp, "approval": None,
+        "task_class": task_class, "campaign": camp, "approval": None,
         "prior_approval": prior_approval, "publication": pub, "event_timeline": event_timeline, "event_ledger_spans": event_ledger_spans,
         "event_campaign_boundary": event_campaign_boundary, "bench_definition": bench_definition, "factcheck": None,
         "measurement_env_observed": col["env_observed"], "tool_snapshots": col["tool_snaps"], "attestation_scope": col["att_scope"],

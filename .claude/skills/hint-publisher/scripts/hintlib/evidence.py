@@ -431,21 +431,22 @@ def authorize(repo, manifest_path, action: str) -> dict:
 def no_cert_binding_source(manifest, repo=None) -> str | None:
     """인증서가 없을 때 **무엇이 bench_report 바인딩을 여는가**의 단일 판정자(옛 hint_tag._no_cert_binding_source 그대로).
 
-      · `perf_waiver`   — 성능 REFUTE 를 **사람이 서명**해 통과시킨 경로(positive key).
       · `hint_map_only` — 지도 발행 통로(계약 v5 §3 C행 · 2026-09-14 · plan_26091407 §4.5). lite 만 잰 셀은 인증서가
                           **구조적으로** 없다. 종전에는 이 판정자가 map_only 를 몰라서 승격 게이트는 열렸는데 봉인이
                           HINT_CERTIFICATE_EVIDENCE_MISSING 으로 죽었다(audit_26091323 §1 A1 · work-manifest 13건 전부).
                           클래스 선언만으로 여는 이유: 그 클래스로 승격 게이트를 통과했다는 것이 여정 증거와 서빙 성립을
                           이미 뜻한다(completion_gate HINT_MAP_ONLY_PROMOTION) — 여기서 다시 묻지 않는다(평면 분리).
-      · `explore`       — 루브릭 권한 explore. 성능 판정이 게이트가 아니라 **서술**이므로 REFUTE 여도 승격이 열린다.
-                          explore 는 waiver 를 요구하지 **않는다** — 요구하면 completion_gate U1 자동개방이 여기서 다시
-                          죽는다(2026-08-24 실측한 그 죽은 코드의 hint 평면 쌍둥이).
-      · `weak`          — 2026-09-29(plan_26092908 §4.8 · V11④ · completion_gate `certificate_waived`): weak 도 explore 처럼
-                          **비발행 권한**이다(judge_bench 는 explicit ∧ PASS 만 인증서를 낸다). 판정 원천에서 파생된 권한
-                          (`certificate_requirement_authority` — rubric_source=verdict_json)이 weak 이고 rubric 계약을 통과하며
-                          판정이 PASS·REFUTE 이면 bench_report 가 판정 근거다. 옛 판본은 explore 만 알아서 weak PASS 가 인증서를
-                          요구받았다(게이트는 이제 면제하는데 봉인 쪽 결정자가 막는 이음매).
-    순서가 판정이다: waiver 가 map_only 보다 먼저. 넷 다 아니면 None(=차단 — explicit REFUTE·권한 미상은 waiver 가 필요하다).
+      · `observation_only` — 2026-10-11(plan_26101104 Step 1 · 계약 v8 §3.2): 기준(c·E)도 expected 도 없어 판정기가 루브릭을
+                          세우지 못한 full 셀(verdict=`OBSERVATION-ONLY` ↔ 판정기 NEEDS_RUBRIC). 판정을 주장하지 않으므로
+                          인증서는 구조적으로 없고 bench_report 가 유일한 계측 근거다. 출처 표시(rubric_source)가 있고 루브릭 수치가
+                          비어 있을 때만(게이트 BENCHMARK_OBSERVATION_ONLY_PROMOTION 과 같은 술어).
+      · `<권한>`         — 판정 원천에서 파생된 권한(`certificate_requirement_authority` — rubric_source=verdict_json)이 있고 rubric
+                          계약(floor>0 ∧ ratio ∧ primary_source)을 통과한 셀. 2026-10-11 발행 게이트 통일로 **non-PASS(REFUTE·FAIL)는
+                          권한 무관**하게 bench_report 가 판정 근거다(판정은 표시만 — 종전엔 explore·weak 만 열리고 explicit REFUTE 는
+                          사람 서명이 필요했는데 그 필드는 writer 가 없어 실제로 열린 적이 없다 · M1 실례). PASS 는 인증서가 발행되지
+                          않는 권한(weak·explore · completion_gate `certificate_waived`)일 때만 — explicit PASS 는 인증서가 판정 근거다.
+                          반환값은 그 권한 이름이다(무엇을 근거로 열렸는지 산출물이 밝힌다).
+    셋 다 아니면 None(=차단 — explicit PASS 의 인증서 부재 · 권한 미상 · 공허 floor).
     ★ 단일 결정자(2026-08-01: finalize 는 리포트로 묶었는데 verify 는 인증서와 대조해 FAIL · 2026-08-24 · 2026-09-14).
     explore 계약은 completion_gate `manifest_rubric_contract` 를 그대로 재사용한다(포인터 원칙 — 손으로 다시 적지 않는다).
     repo=None 이면 이 hintlib 가 든 체크아웃의 게이트를 쓴다.
@@ -454,26 +455,31 @@ def no_cert_binding_source(manifest, repo=None) -> str | None:
         return None
     benchmark = manifest.get("benchmark")
     benchmark = benchmark if isinstance(benchmark, dict) else {}
-    if benchmark.get("perf_waiver"):
-        return "perf_waiver"
     if manifest.get("task_class") == "hint_map_only":
         return "hint_map_only"
     gate = cgate(repo if repo is not None else core.HINTLIB_DIR.parents[4])
+    verdict = benchmark.get("verdict")
+    if verdict == gate.OBSERVATION_ONLY_VERDICT:
+        sourced = benchmark.get("rubric_source") in gate.MANIFEST_RUBRIC_SOURCES
+        claimed = any(benchmark.get(k) not in (None, "") for k in ("floor_tps", "ratio_M_over_primary", "primary_source"))
+        return "observation_only" if (sourced and not claimed) else None
     rubric = gate.manifest_rubric_contract(benchmark)
     if not (rubric.get("declared") and rubric.get("ok")):
         return None
     # 권한은 **판정 원천에서 파생됐다고 표시된** 것만(게이트 한 벌 · 원시 manifest 값으로 면제를 열지 않는다).
     authority = gate.certificate_requirement_authority(benchmark)
-    if authority == "explore":
-        return "explore"
-    if authority in gate.CERTIFICATE_NON_ISSUING_AUTHORITIES and benchmark.get("verdict") in ("PASS", "REFUTE"):
+    if authority is None:
+        return None
+    if verdict in gate.ANNOTATED_NON_PASS_VERDICTS:
+        return authority
+    if verdict == "PASS" and authority in gate.CERTIFICATE_NON_ISSUING_AUTHORITIES:
         return authority
     return None
 
 
 def binding_artifact_path(manifest, repo=None) -> str | None:
     """footer `certificate_ref` 가 가리킬 **계측 산출물 경로**의 단일 소유자(옛 hint_tag._binding_artifact_path).
-    통상 인증서 · 인증서가 구조적으로 없을 세 경로(waiver·explore·map_only)면 bench_report · 그 밖 None.
+    통상 인증서 · 인증서가 구조적으로 없는 경로(non-PASS 판정 표시 · 비발행 권한 PASS · OBSERVATION-ONLY · map_only)면 bench_report · 그 밖 None.
     인증서가 있으면 map_only 여도 인증서가 이긴다."""
     ev = manifest.get("evidence") if isinstance(manifest, dict) else None
     ev = ev if isinstance(ev, dict) else {}
@@ -1400,6 +1406,10 @@ def measurement_config(repo, ev: CellEvidence) -> dict:
 
 # 판정의 기계 표면(2026-09-29 · plan_26092908 §4.4 · V1). 판정 값의 어휘 — verdict_rule 의 둘 + lite-only 셀의 표지.
 MEASUREMENT_VERDICTS = ("PASS", "REFUTE", "OBSERVATION-ONLY")
+# 판정기 NEEDS_RUBRIC ↔ 측정 표면 OBSERVATION-ONLY(2026-10-11 · plan_26101104 Step 1 · 정본 대응은 completion_gate
+#   OBSERVATION_ONLY_VERDICT/OBSERVATION_ONLY_JUDGE_VERDICT — 여기 둘은 그 리터럴의 tripwire 이며 자체검사가 교차검증한다).
+OBSERVATION_ONLY_VERDICT = "OBSERVATION-ONLY"
+_JUDGE_NO_BASELINE_VERDICT = "NEEDS_RUBRIC"
 # 판정 원천 → PAYLOAD.measurement 키. verdict.json(verdict_rule 출력)의 경로(점 표기) · 리포트 `## 판정` 표의 항목 이름 ·
 #   발행 기록 `benchmark` 의 키. 인증서 키 이름(_CERT_MEASUREMENT_KEYS)에 맞춘다 — 인증서가 있는 셀과 없는 셀이 같은 키를 말한다.
 _JUDGED_KEYS = (
@@ -1522,6 +1532,10 @@ def _judged(repo: Path, ev: CellEvidence) -> tuple[dict, dict, list[str]]:
                 vals[key], srcs[key] = v, f"{where} {rk}"
     if "verdict" in vals:
         vals["verdict"] = vals["verdict"].upper()
+        if vals["verdict"] == _JUDGE_NO_BASELINE_VERDICT:
+            # 기준 부재 full 셀 — 판정을 주장하지 않는다(측정 표면 = OBSERVATION-ONLY · 원천 표기는 출처 칸에 남긴다)
+            vals["verdict"] = OBSERVATION_ONLY_VERDICT
+            srcs["verdict"] = f"{srcs.get('verdict')} ({_JUDGE_NO_BASELINE_VERDICT} → {OBSERVATION_ONLY_VERDICT} · 기준 c·E·expected 부재)"
     return vals, srcs, reasons
 
 
@@ -1538,8 +1552,11 @@ def _certificate_not_due(repo: Path, ev: CellEvidence) -> str | None:
     rec_bm = (((ev.publication or {}).get("record") or {}).get("benchmark") or {})
     if asrc.startswith("발행 기록") and rec_bm.get("rubric_source") != "verdict_json":
         authority = None                  # 출처 표시 없는 권한으로 면제를 열지 않는다(게이트 certificate_requirement_authority 와 같은 결)
-    if verdict == "REFUTE":
-        return f"REFUTE — 인증서는 PASS 전용이다(판정 {js.get('verdict')} · 결손 아님 · 판정 근거 = bench_report)"
+    if verdict in ("REFUTE", "FAIL"):
+        return f"{verdict} — 인증서는 PASS 전용이다(판정 {js.get('verdict')} · 결손 아님 · 판정 근거 = bench_report)"
+    if verdict == OBSERVATION_ONLY_VERDICT:
+        return (f"OBSERVATION-ONLY — 기준(c·E·expected)이 없어 판정을 주장하지 않는다(판정 {js.get('verdict')} · 결손 아님 · "
+                "계측 근거 = bench_report)")
     if verdict == "PASS" and authority in cgate(repo).CERTIFICATE_NON_ISSUING_AUTHORITIES:
         return (f"PASS ∧ 비발행 권한 {authority}({asrc}) — judge_bench 는 explicit ∧ PASS 만 인증서를 낸다(결손 아님 · "
                 "판정 근거 = bench_report)")
@@ -1623,7 +1640,9 @@ def measurement(ev: CellEvidence) -> dict:
     elif out["verdict"] not in MEASUREMENT_VERDICTS:
         core.fail("HINT_MEASUREMENT_VERDICT_UNKNOWN", f"판정 원천의 verdict {out['verdict']!r} 가 {MEASUREMENT_VERDICTS} 밖이다({per.get('verdict')}).",
                   "verdict_rule 어휘가 바뀌었으면 evidence.MEASUREMENT_VERDICTS 를 개정한다(tripwire — 모르는 판정을 통과로 접지 않는다).")
-    if "accept_len" not in out and out["verdict"] == "OBSERVATION-ONLY":
+    # lite-only 관측과 기준 부재 full 관측(2026-10-11 · NEEDS_RUBRIC)은 같은 판정 표면을 쓰지만 측정 평면이 다르다 — 갈라 적는다.
+    lite_obs = out["verdict"] == OBSERVATION_ONLY_VERDICT and (out.get("benchmark_mode") == "lite" or ev.report_kind == "lite")
+    if "accept_len" not in out and lite_obs:
         # FACT_FIX2 G9: lite-only 셀도 수용 길이의 **측정 기록**은 있다 — lite 레그 JSON 의 spec_decode_acceptance_length(warm 우선 · 원문 값).
         #   판정 입력(verdict_rule 의 accept_len)이 아니라는 사실을 출처에 적는다.
         lw = lite_window(repo, ev)
@@ -1642,7 +1661,7 @@ def measurement(ev: CellEvidence) -> dict:
             out["accept_len"] = str(cert["lite_accept_len"])
             per["accept_len"] = (f"{cname} lite_accept_len(" + str(cert.get("lite_accept_len_src") or "출처 칸 없음")
                                  + ") — lite 관측(판정 입력 아님 · lite-only 셀은 verdict_rule 에 투입되지 않았다)")
-    if "accept_len" not in out and out["verdict"] != "OBSERVATION-ONLY":
+    if "accept_len" not in out and not lite_obs:
         # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F17: verdict.json 은 measured_accept_len(null)과 루브릭 spec 축
         #   (rubric.spec_axis.accept_len · accept_len_source · missing)을 든다 — '칸이 없다' 가 아니라 '측정값 null · 루브릭이 쓴 값과 그 출처'
         #   를 적는다. 값은 None 그대로(1.0 은 spec 미선언 시 루브릭의 선언값 — 측정 아님 · 옮기지 않는다).
@@ -1659,7 +1678,9 @@ def measurement(ev: CellEvidence) -> dict:
     for k in ("decode_tps_conc1", "floor_tps", "ratio_M_over_primary", "rubric_authority", "accept_len"):
         if k not in out:
             out[k] = None
-            per[k] = ("lite-only 셀 — 동시성 1 스윕·루브릭이 없다(lite 수치는 `lite`)" if out["verdict"] == "OBSERVATION-ONLY"
+            per[k] = ("lite-only 셀 — 동시성 1 스윕·루브릭이 없다(lite 수치는 `lite`)" if lite_obs
+                      else "기준 부재 full 셀 — 루브릭이 서지 않았다(관측 전용 · 판정 원천 NEEDS_RUBRIC)"
+                      if out["verdict"] == OBSERVATION_ONLY_VERDICT and k in ("floor_tps", "ratio_M_over_primary")
                       else "미관측(판정 원천에 이 칸이 없다)")
     sw = ev.sweep or {}
     levels = []
@@ -5729,7 +5750,11 @@ def drive_publisher(repo, ev: CellEvidence, *, topic, generated_utc, draft_dir) 
     else:
         v = ((ev.sweep or {}).get("verdict") or {}).get("verdict") if (ev.sweep or {}).get("binding") == "output" else None
         verdict = v or (None if cert_is_lite(ev.certificate) else (ev.certificate or {}).get("verdict"))
-        if verdict not in ("PASS", "FAIL", "REFUTE"):
+        # 2026-10-11(plan_26101104 Step 1): 판정기의 NEEDS_RUBRIC(기준 c·E·expected 부재)은 work-manifest 의 OBSERVATION-ONLY 다
+        #   (대응 한 곳 = completion_gate 상수). 사다리 공백이 아닌 NEEDS_RUBRIC(물리 초과 · spec 결손)은 publish-benchmark 가 거부한다.
+        if verdict == _JUDGE_NO_BASELINE_VERDICT:
+            verdict = OBSERVATION_ONLY_VERDICT
+        if verdict not in ("PASS", "FAIL", "REFUTE", OBSERVATION_ONLY_VERDICT):
             core.fail("HINT_VERDICT_UNOBSERVED", f"셀 {ev.cell!r} 의 벤치 판정을 관측하지 못했다(verdict.json·인증서): {verdict!r}")
         task, mode = "full_benchmark", "full"
     sweep_dir = (ev.sweep or {}).get("dir")
@@ -7059,6 +7084,20 @@ def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> No
        and "accept_len_source=declared-absent" in m17["sources"]["accept_len"] and "결손 아님" in m17["sources"]["accept_len"]
        and "칸이 없다" not in m17["sources"]["accept_len"] and "칸이 없다" in m17n["sources"]["accept_len"])
     ck("REFUTE = 인증서 비발행 판정(결손 아님)", (_certificate_not_due(repo, e_ref) or "").startswith("REFUTE"))
+    # ── 기준 부재 full 셀(2026-10-11 · plan_26101104 Step 1): 판정기 NEEDS_RUBRIC → 측정 표면 OBSERVATION-ONLY ──
+    obs = {"verdict": "NEEDS_RUBRIC", "failure_axis": "establish", "reason_code": None, "measured_decode_tps": 7.7,
+           "rubric": {"authority": "weak", "primary": None, "source": None, "floor": None, "ratio_M_over_primary": None}}
+    e_obs = dataclasses.replace(e_ref, sweep={**sw, "verdict": obs})
+    mo = measurement(e_obs)
+    ck("★기준 부재 full 셀 — measurement.verdict = OBSERVATION-ONLY(원천 NEEDS_RUBRIC 은 출처 칸) · 실측은 싣고 루브릭 칸은 '루브릭이 서지 않았다'",
+       mo.get("verdict") == OBSERVATION_ONLY_VERDICT and "NEEDS_RUBRIC" in mo["sources"]["verdict"]
+       and mo.get("decode_tps_conc1") == "7.7" and mo.get("floor_tps") is None and mo.get("benchmark_mode") == "full"
+       and "루브릭이 서지 않았다" in mo["sources"]["floor_tps"] and "lite-only" not in mo["sources"]["floor_tps"])
+    ck("OBSERVATION-ONLY = 인증서 비발행(결손 아님)",
+       (_certificate_not_due(repo, e_obs) or "").startswith("OBSERVATION-ONLY"))
+    ck("측정 표면 리터럴 ↔ 게이트 대응 상수 교차검증(두 자리 tripwire)",
+       (OBSERVATION_ONLY_VERDICT, _JUDGE_NO_BASELINE_VERDICT)
+       == (cgate(repo).OBSERVATION_ONLY_VERDICT, cgate(repo).OBSERVATION_ONLY_JUDGE_VERDICT))
     pass_rub = lambda a: {"verdict": "PASS", "measured_decode_tps": 12.3, "rubric": {"authority": a, "floor": 8.5,
                                                                                        "ratio_M_over_primary": 1.23}}
     e_ex = dataclasses.replace(e_ref, sweep={**sw, "verdict": pass_rub("explicit")})
@@ -7241,6 +7280,10 @@ def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> No
     ck("★explicit PASS 는 인증서가 필요하다(bench_report 로 열지 않는다)",
        no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**base, "rubric_authority": "explicit",
                                                                             "verdict": "PASS"}}, repo) is None)
+    ck("explicit·weak REFUTE 는 bench_report 로 묶인다(발행 게이트 통일 · 권한 무관 · M1 모양)",
+       all(no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**base, "rubric_authority": a,
+                                                                                "verdict": "REFUTE"}}, repo) == a
+           for a in ("explicit", "weak")))
     ck("★출처 표시 없는 weak 는 열지 않는다(rubric_source 부재)",
        no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**{k: v for k, v in base.items() if k != "rubric_source"},
                                                                             "rubric_authority": "weak", "verdict": "PASS"}}, repo) is None)
@@ -7821,15 +7864,22 @@ def selftest() -> list[str]:
                 ck(f"★{what} 인증서 = 파싱 거부", _code(parse_certificate, repo, _rel(repo, bad_cert)) == "HINT_CERTIFICATE_UNPARSEABLE")
             bad_cert.unlink()
             # ── no_cert_binding_source (단일 결정자) ──
-            ck("waiver 가 map_only 보다 먼저", no_cert_binding_source({"task_class": "hint_map_only",
-                                                                   "benchmark": {"perf_waiver": {"a": 1}}}, repo) == "perf_waiver")
             ck("map_only 는 클래스로 연다", no_cert_binding_source({"task_class": "hint_map_only", "benchmark": {}}, repo) == "hint_map_only")
-            ck("explore 는 계약 통과로 연다", no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {
+            ck("explore REFUTE 는 계약 통과로 연다", no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {
                 "rubric_authority": "explore", "rubric_source": "verdict_json", "floor_tps": 1.0, "ratio_M_over_primary": 0.9,
-                "primary_source": "x"}}, repo) == "explore")
-            ck("★공허 floor 의 explore 는 닫힌다", no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {
-                "rubric_authority": "explore", "rubric_source": "verdict_json", "floor_tps": 0, "ratio_M_over_primary": 0.9,
-                "primary_source": "x"}}, repo) is None)
+                "primary_source": "x", "verdict": "REFUTE"}}, repo) == "explore")
+            ck("★공허 floor 의 REFUTE 는 닫힌다(권한 무관)", all(no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {
+                "rubric_authority": a, "rubric_source": "verdict_json", "floor_tps": 0, "ratio_M_over_primary": 0.9,
+                "primary_source": "x", "verdict": "REFUTE"}}, repo) is None for a in ("explore", "weak", "explicit")))
+            obs = {"rubric_authority": "weak", "rubric_source": "verdict_json", "floor_tps": None,
+                   "ratio_M_over_primary": None, "primary_source": None, "verdict": "OBSERVATION-ONLY"}
+            ck("OBSERVATION-ONLY full 셀은 bench_report 로 연다(기준 부재 · 판정 주장 ✗)",
+               no_cert_binding_source({"task_class": "full_benchmark", "benchmark": obs}, repo) == "observation_only"
+               and binding_artifact_path({"task_class": "full_benchmark", "benchmark": obs,
+                                          "evidence": {"bench_report": {"path": "r"}}}, repo) == "r")
+            ck("★문턱이 실리거나 출처 표시가 없는 OBSERVATION-ONLY 는 닫힌다",
+               no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**obs, "floor_tps": 1.0}}, repo) is None
+               and no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**obs, "rubric_source": None}}, repo) is None)
             ck("인증서가 map_only 여도 이긴다", binding_artifact_path({"task_class": "hint_map_only", "benchmark": {},
                 "evidence": {"certificate": {"path": "c"}, "bench_report": {"path": "r"}}}, repo) == "c")
             # ── publication_records = lineage 규칙(tripwire) ──

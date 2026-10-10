@@ -114,6 +114,7 @@
           ]
         },
         "verdict": {
+          "description": "성능 판정 — 발행 게이트가 아니라 **표시**다(계약 v8 §3.2 · plan_26101104). 승격은 서빙 성립 ∧ 유효 측정이 연다(권한 무관). 'OBSERVATION-ONLY' = 기준(c·E)도 expected 도 없어 판정기가 루브릭을 세우지 못한 full 셀(verdict_rule NEEDS_RUBRIC · 사다리 공백) — 판정을 주장하지 않으므로 루브릭 수치는 null 이고 rubric_source 출처 표시와 bench_report 판정 표(NEEDS_RUBRIC) 교차검증이 근거다. 인증서는 PASS 전용(불변).",
           "type": [
             "string",
             "null"
@@ -122,11 +123,12 @@
             "PASS",
             "REFUTE",
             "FAIL",
+            "OBSERVATION-ONLY",
             null
           ]
         },
         "rubric_authority": {
-          "description": "루브릭 정본 권한(weak|explicit|explore) — 판정기(adversarial-benchmark/scripts/verdict_rule.py) 산출물에서 파생해 evidence_publisher publish-benchmark 가 기록한다. **인증서와 달리 REFUTE 에서도 살아있는 carrier** 다: 인증서는 PASS 때만 발행되므로 REFUTE 런의 explore 권한은 이 필드로만 승격 판정기에 도달한다(plan_26082405 — 종전엔 통로가 끊겨 explore 자동개방이 죽은 코드였다). 부재(null)는 결함이 아니라 '이 채널 미사용'이며, 선언했는데 계약(floor>0 ∧ ratio 유한 ∧ primary_source 실재 ∧ rubric_source 표시)을 못 지키면 승격을 열지 않는다.",
+          "description": "루브릭 정본 권한(weak|explicit|explore) — 판정기(adversarial-benchmark/scripts/verdict_rule.py) 산출물에서 파생해 evidence_publisher publish-benchmark 가 기록한다. **인증서와 달리 REFUTE 에서도 살아있는 carrier** 다: 인증서는 PASS 때만 발행되므로 non-PASS 런의 루브릭 계약은 이 필드로만 승격 판정기에 도달한다(plan_26082405 · 발행 게이트 통일 plan_26101104). 부재(null)는 결함이 아니라 '이 채널 미사용'이며, 선언했는데 계약(floor>0 ∧ ratio 유한 ∧ primary_source 실재 ∧ rubric_source 표시)을 못 지키면 승격을 열지 않는다.",
           "type": [
             "string",
             "null"
@@ -160,7 +162,7 @@
           ]
         },
         "rubric_source": {
-          "description": "위 네 값의 **출처 표시**(헌법 §결정론 규율). 'verdict_json' = 판정기 산출물 JSON 에서 결정론적으로 파생됨. 출처가 없으면 손저작 값과 산출물 파생분을 구분할 수 없어 '측정 > 공식'·'합성 금지'가 집행 불가가 되므로, 승격 판정기는 이 표시가 없는 값으로는 explore 경로를 열지 않는다.",
+          "description": "위 네 값의 **출처 표시**(헌법 §결정론 규율). 'verdict_json' = 판정기 산출물 JSON 에서 결정론적으로 파생됨. 출처가 없으면 손저작 값과 산출물 파생분을 구분할 수 없어 '측정 > 공식'·'합성 금지'가 집행 불가가 되므로, 승격 판정기는 이 표시가 없는 값으로는 non-PASS 승격(유효 측정)·OBSERVATION-ONLY 를 열지 않는다.",
           "type": [
             "string",
             "null"
@@ -169,35 +171,6 @@
             "verdict_json",
             null
           ]
-        },
-        "perf_waiver": {
-          "type": "object",
-          "additionalProperties": false,
-          "description": "사람이 loop-until-done(성능 재탐색 루프)을 명시 지시로 중단시켰다는 선언. 이것이 있을 때만 verdict!=PASS 로도 승격이 열린다. 에이전트가 스스로 만들 수 없는 positive key 이며, 네 필드가 모두 비어있지 않아야 유효하다(fail-closed). waiver 가 있으면 배포 산출물(hint 태그 zip 의 00-hint.md 본문)에 warning_flag 텍스트와 PERF-WARNING 마커가 **강제**된다 — 없으면 hint-publisher `hintlib.template` 린트가 차단한다(HINT_PERF_WARNING_MISSING · 2026-09-22 옛 hint_tag 에서 이관).",
-          "required": [
-            "authorized_by",
-            "authorized_at_utc",
-            "instruction",
-            "warning_flag"
-          ],
-          "properties": {
-            "authorized_by": {
-              "type": "string",
-              "minLength": 1
-            },
-            "authorized_at_utc": {
-              "type": "string",
-              "minLength": 1
-            },
-            "instruction": {
-              "type": "string",
-              "minLength": 1
-            },
-            "warning_flag": {
-              "type": "string",
-              "minLength": 1
-            }
-          }
         },
         "measured_utc": {
           "description": "이 발행이 바인딩한 **측정 하나**의 식별자 — 인증서 파일의 measured_utc 에서 파생(손으로 적지 않는다). 강한 6키(identity)와 합쳐 측정 키가 된다(plan_26090410 §3.2). 게이트는 인증서 본문의 값과 대조해 갈라지면 CERTIFICATE_RUN_DRIFT. 인증서 없는 발행(REFUTE)은 null.",

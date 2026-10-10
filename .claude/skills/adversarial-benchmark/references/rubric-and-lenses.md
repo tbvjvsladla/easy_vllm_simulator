@@ -62,8 +62,8 @@ decode-tps 축과 **직교**한 별도 루브릭 축. recipe-explorer 가 산정
 - **`explore` 에서는 게이트가 아니라 서술이다**(2026-08-22 · SKILL.md §2.1 U1 후속): 값은 그대로 기록하되
   `verdict` 를 뒤집지 않는다. 편차 초과는 `refuted_claims` 가 아니라 `diagnosis_hint` 에 **벽 지도 데이터**로
   적힌다. 어느 쪽인지는 출력의 `balance.gates_verdict`(`true`=게이트 / `false`=서술)가 밝힌다.
-  이유: 뒤집으면 인증서 미발행 → `completion_gate` 의 explore 승격 경로가 닫혀 `perf_waiver` 를 강요하게
-  되어, "explore 의 승격 자격 = 서빙 성립" 계약이 이 축으로 우회된다.
+  이유: 뒤집으면 explore 가 해제한 loop-until-done(성능 게이트)이 이 축으로 되살아난다(서술 계약 우회). 발행 자격은
+  2026-10-11 통일(`plan_26101104`) 이후 판정과 무관하다(서빙 성립 ∧ 유효 측정).
 - **입력**: `multinode_serve_smoke.sh` 양노드 measured VRAM → `verdict_rule.py --node-vram-gib <n1,n2,...> --balance-tol 0.10`.
   결정론 유지(LLM 다수결 ✗).
 - **기본 비활성**: `--node-vram-gib` 미지정 시 balance 축은 판정에 관여하지 않음(기존 decode-tps 전용 판정 완전 보존).
