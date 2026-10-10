@@ -224,9 +224,19 @@ def delivery_plane(topology, sub_mode):
 # 자율 판단(트리플렛 자작·벤치 루브릭)을 할 수 있게 되고, 그것은 head 종속 제어평면과 충돌한다.
 # 반대로 싱글 sub(A2A 에이전트)는 빌드→서빙→벤치를 자율 완주해야 하므로 3종이 **필요**하다.
 # 이 판정을 렌더러가 손으로 들고 있으면 두 답이 갈리므로, sub_mode 와 같은 자리에서 파생한다.
+#
+# 2026-10-11(plan_26101104 Step 3 · 사용자 결정): 싱글 sub 는 런타임 3종 **+ `hint-publisher`** 를 받는다.
+#   서브에서만 잰 셀은 메인이 그 관측 원시를 볼 수 없어(`HINT_QUALIFICATION_UNOBSERVED` · 계약 D-e) 발행이
+#   구조적으로 불가했다 — 관측한 자리에서 발행하는 것이 유일한 정합이다. 경계는 셋이다:
+#   ① 태그 push 는 워크스페이스 git 밖 **별도 hint 클론**에서만(워크스페이스 git 은 local-only 그대로 ·
+#   policy SUB_GIT_LOCAL_ONLY) ② 승인은 메인 선언의 `hint_targets[].approval` 을 파생 선언이 운반한다
+#   (`campaign_init --emit-slice`) ③ 카탈로그(`hints/index.json`·`HINTS.md`)는 메인 단독이다.
+#   멀티 Ray 워커는 바뀌지 않는다(0종) — 전략을 세우지 않는 노드는 발행할 셀도 소유하지 않는다.
+HINT_PUBLISHER_SKILL = "hint-publisher"
 TOOL_PLANE_BY_SUB_MODE = {
-    # 싱글 A2A 에이전트: 빌드 트랙 해소 → 서빙전략 → 성능 검증까지 자기 손으로 한다.
-    "a2a-agent": ("vllm-recipe-explorer", "adversarial-benchmark", "upstream-version-watch"),
+    # 싱글 A2A 에이전트: 빌드 트랙 해소 → 서빙전략 → 성능 검증 → 자기 셀의 hint 발행까지 자기 손으로 한다.
+    "a2a-agent": ("vllm-recipe-explorer", "adversarial-benchmark", "upstream-version-watch",
+                  HINT_PUBLISHER_SKILL),
     # 멀티 Ray 워커: 0종. 정본(Dockerfile·compose·serve_runner)을 재현하는 것이 전부다.
     "ray-worker": (),
 }
@@ -242,6 +252,19 @@ def tool_plane(topology, sub_mode):
             field="nodes[sub].sub_mode")
     return {"value": list(TOOL_PLANE_BY_SUB_MODE[sub_mode]),
             "source": "sub-mode:%s" % sub_mode}
+
+
+def sub_self_publishes(topology, sub_mode=None):
+    """그 토폴로지의 서브가 hint 를 **자체 발행**하는가. → {"value": bool, "source": ...}
+
+    별도 판정 규칙을 두지 않는다 — `tool_plane` 에 `hint-publisher` 가 있는가를 그대로 읽는다(파생).
+    소비자: `campaign_init.emit_slice`(파생 선언이 그 노드 몫 hint_targets 를 싣는가) · 렌더러(엔진 배달).
+    `sub_mode` 를 생략하면 토폴로지의 1:1 사상(`SUB_MODE_BY_TOPOLOGY`)으로 해소한다."""
+    assert_topology(topology)
+    mode = sub_mode if sub_mode is not None else SUB_MODE_BY_TOPOLOGY[topology]
+    plane = tool_plane(topology, mode)
+    return {"value": HINT_PUBLISHER_SKILL in plane["value"],
+            "source": "derived:tool_plane(%s,%s)" % (topology, mode)}
 
 
 # --------------------------------------------------------------------------------------
@@ -504,12 +527,22 @@ def _self_test():
     # 결함의 형태: 렌더러가 토폴로지 무관 닫힌 리스트로 스킬을 배달했다. 판정을 여기로 옮겼으니
     # **양방향**을 고정한다 — 한쪽만 보면 "전부 안 주기" 나 "전부 주기" 가 통과한다.
     r = tool_plane("single", "a2a-agent")
-    chk("single(a2a-agent) → 런타임 스킬 3종",
-        set(r["value"]) == {"vllm-recipe-explorer", "adversarial-benchmark", "upstream-version-watch"}
+    chk("single(a2a-agent) → 런타임 스킬 3종 + hint-publisher(2026-10-11 · plan_26101104)",
+        set(r["value"]) == {"vllm-recipe-explorer", "adversarial-benchmark", "upstream-version-watch",
+                            "hint-publisher"}
         and r["source"] == "sub-mode:a2a-agent", r)
     r = tool_plane("multi", "ray-worker")
-    chk("multi(ray-worker) → 0종(정본 재현이 전부다)",
+    chk("multi(ray-worker) → 0종(정본 재현이 전부다 · hint-publisher 도 없다)",
         r["value"] == [] and r["source"] == "sub-mode:ray-worker", r)
+    # 자체 발행 판정은 tool_plane 의 파생이다 — 양방향을 고정한다(한쪽만 보면 "전부 발행"·"아무도 발행 안 함" 이 통과).
+    r = sub_self_publishes("single")
+    chk("single 서브 → 자체 발행(파생 출처 tool_plane)",
+        r["value"] is True and r["source"] == "derived:tool_plane(single,a2a-agent)", r)
+    r = sub_self_publishes("multi")
+    chk("multi 서브 → 자체 발행 ✗(Ray 워커는 셀을 소유하지 않는다)",
+        r["value"] is False and r["source"] == "derived:tool_plane(multi,ray-worker)", r)
+    chk("자체 발행 판정도 어휘 밖 토폴로지 → fail-closed",
+        violation_code(sub_self_publishes, "dual") == "TOPOLOGY_UNKNOWN")
     chk("어휘 밖 sub_mode → fail-closed",
         violation_code(tool_plane, "single", "worker") == "SUB_MODE_UNKNOWN")
     r = evaluate_manifest({"topology": "multi", "nodes": [{"role": "main"}, {"role": "sub"}]})

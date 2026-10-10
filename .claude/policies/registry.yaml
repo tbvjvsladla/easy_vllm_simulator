@@ -496,7 +496,7 @@
     {
       "policy_id": "HINT_TAG_ACTIVATION_GATE",
       "owner": "hint-publisher",
-      "statement": "Validated serving knowledge is published one cell at a time as hint tags that point at a payload commit whose parent is the hint-branch guide commit (the tag's zip is the reproduction kit), authored main-only with fail-closed PII scanning (including the synthetic commit/tagger identity) and a fixed map-not-answer revalidation banner, pushed as exactly one tag refspec so local rollback anchors never leak, and activated only by a recorded per-cell human Y/N.",
+      "statement": "Validated serving knowledge is published one cell at a time as hint tags that point at a payload commit whose parent is the hint-branch guide commit (the tag's zip is the reproduction kit), authored on main -- or, for its own approved cells only, by a single-node sub (a2a-agent) from a separate hint clone outside its workspace git with the approval carried by its derived campaign slice, while the catalog stays main-only -- with fail-closed PII scanning (including the synthetic commit/tagger identity) and a fixed map-not-answer revalidation banner, pushed as exactly one tag refspec so local rollback anchors never leak, and activated only by a recorded per-cell human Y/N.",
       "scope": [
         "multi-node",
         "single-node"
@@ -517,7 +517,7 @@
         },
         {
           "clause_id": "HINT_TAG_ACTIVATION_GATE.C4",
-          "statement": "Publication is main-only -- a building-block propagation axis, the same plane as references.md, independent of sub egress state: the hint engine (hint.py, hintlib) never executes a remote shell or calls the sub delivery/relay tooling, the main-to-sub delivery never carries the engine or the hints/ tree, the sub's runtime-skill plane never includes hint-publisher, and a sub's derived campaign slice carries no hint_targets (a sub instance holding one is refused) -- sub nodes never author or publish hints."
+          "statement": "Publication is main-only with one exception, the single-node sub (sub_mode a2a-agent) for its own cells (2026-10-11, plan_26101104): the hint engine (hint.py, hintlib) never executes a remote shell or calls the sub delivery/relay tooling; the main-to-sub delivery carries the engine and the hints/ contract+vocabulary only to a sub whose contract-derived runtime-skill plane includes hint-publisher (a2a-agent: the three runtime skills + hint-publisher; ray-worker: none) and never carries the catalog (hints/index.json, HINTS.md) or any role marker (hints/.central_authority, hints/.push_authority); a derived campaign slice carries exactly that node's hint_targets with their approvals when the node self-publishes and none otherwise (other nodes' entries, main's included, are cut), and a sub instance holding another node's entry or belonging to a non-self-publishing topology is refused; the sub pushes from a separate hint clone outside its workspace git, holds only the push-role marker, skips the catalog and reports by document -- catalog derivation stays main-only and multi-node subs never author or publish hints."
         },
         {
           "clause_id": "HINT_TAG_ACTIVATION_GATE.C5",
@@ -1249,7 +1249,7 @@
     {
       "policy_id": "SUB_GIT_LOCAL_ONLY",
       "owner": "upstream-version-watch",
-      "statement": "A sub node's git workspace never has a remote -- it exists only for local branch selection and history.",
+      "statement": "A sub node's git workspace never has a remote -- it exists only for local branch selection and history. The policy governs the sub's workspace repository only: a separate hint clone outside the workspace, used by a single-node sub solely to publish one approved hint tag (HINT_TAG_ACTIVATION_GATE.C4), is a different repository and is not covered -- it never becomes a remote of, or a recovery path into, the workspace git.",
       "scope": [
         "multi-node"
       ],

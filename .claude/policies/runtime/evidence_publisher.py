@@ -1435,12 +1435,25 @@ def _rubric_from_verdict_json(repo_root: Path, verdict_json_src: str, cli_verdic
                           f"--verdict-json-src {verdict_json_src!r} must contain a JSON object, "
                           f"got {type(doc).__name__}"), 2)
     doc_verdict = doc.get("verdict")
-    if doc_verdict != cli_verdict:
+    rub = doc.get("rubric")
+    rub = rub if isinstance(rub, dict) else {}
+    if cli_verdict == gate.OBSERVATION_ONLY_VERDICT:
+        # ★ 관측 전용(2026-10-11 · plan_26101104 Step 1): work-manifest 의 `OBSERVATION-ONLY` 는 판정기 산출물의
+        #   `NEEDS_RUBRIC` 에 대응한다 — 단 **사다리 공백**(기준 c·E·expected 모두 없음)일 때만이다. 같은 NEEDS_RUBRIC
+        #   이라도 낙찰된 문턱이 있는데 물리 초과인 셀(rubric.primary 실재)이나 spec accept_len 결손(reason_code)은
+        #   루브릭/측정의 결함이지 "기준 없음"이 아니다 — 그것을 관측 전용으로 접으면 고쳐야 할 결함이 발행으로 샌다.
+        no_baseline = (doc_verdict == gate.OBSERVATION_ONLY_JUDGE_VERDICT
+                       and rub.get("primary") is None and doc.get("reason_code") is None)
+        if not no_baseline:
+            _emit(_bare_error(f"{error_prefix}_VERDICT_MISMATCH",
+                              f"--verdict='OBSERVATION-ONLY' 는 판정기 산출물이 사다리 공백의 "
+                              f"{gate.OBSERVATION_ONLY_JUDGE_VERDICT!r}(rubric.primary=null ∧ reason_code=null)일 때만 "
+                              f"대응한다 — verdict JSON 은 verdict={doc_verdict!r} rubric.primary={rub.get('primary')!r} "
+                              f"reason_code={doc.get('reason_code')!r} 를 말한다"), 2)
+    elif doc_verdict != cli_verdict:
         _emit(_bare_error(f"{error_prefix}_VERDICT_MISMATCH",
                           f"verdict JSON says verdict={doc_verdict!r} but --verdict={cli_verdict!r} "
                           f"-- refusing to record rubric facts from a contradictory artifact"), 2)
-    rub = doc.get("rubric")
-    rub = rub if isinstance(rub, dict) else {}
     raw_authority = rub.get("authority")
     authority = raw_authority.strip() if isinstance(raw_authority, str) else None
     if authority and authority not in gate.RUBRIC_AUTHORITIES:
@@ -1497,6 +1510,11 @@ def cmd_publish_benchmark(args: argparse.Namespace) -> None:
     report_src_rel = _require_canonical_bench_src(repo_root, args.bench_report_src, "bench_report", report_error_prefix)
     _report_bytes, _report_sha = _resolve_src(repo_root, report_src_rel, report_error_prefix)
     rubric_record = {field: None for field in RUBRIC_RECORD_FIELDS}
+    if args.verdict == gate.OBSERVATION_ONLY_VERDICT and not args.verdict_json_src:
+        # 관측 전용은 "기준이 없었다"는 판정기의 사실이 근거다 — 산출물 없이 선언만으로는 열지 않는다.
+        _emit(_bare_error("PUBLISH_BENCHMARK_OBSERVATION_ONLY_REQUIRES_VERDICT_JSON",
+                          "--verdict OBSERVATION-ONLY requires --verdict-json-src (verdict_rule.py 산출물의 "
+                          "NEEDS_RUBRIC · 사다리 공백이 근거다 — 선언만으로 판정을 회피할 수 없다)"), 2)
     if args.verdict_json_src:
         rubric_record = _rubric_from_verdict_json(
             repo_root, args.verdict_json_src, args.verdict, "PUBLISH_BENCHMARK_VERDICT_JSON")
@@ -2230,7 +2248,8 @@ def _build_parser() -> _PublisherArgumentParser:
     p_bench = sub.add_parser("publish-benchmark", help="publish bench_report (always) and certificate (PASS-only, from a supplied artifact)")
     p_bench.add_argument("--repo-root")
     p_bench.add_argument("--topic", required=True)
-    p_bench.add_argument("--verdict", required=True, choices=["PASS", "FAIL", "REFUTE"])
+    # 값역은 work-manifest 스키마 enum 에서 파생한다(손 목록 ✗ — OBSERVATION-ONLY 추가 때 갈라질 자리였다).
+    p_bench.add_argument("--verdict", required=True, choices=bench_verdict_choices)
     p_bench.add_argument("--generated-utc", required=True)
     p_bench.add_argument("--bench-report-src", required=True)
     p_bench.add_argument("--certificate-src")
@@ -2446,6 +2465,40 @@ def _self_test() -> None:
         code, out = publish("REFUTE", cert=None, utc="2026-01-01T02:30:00Z")
         if not (code == 0 and out and out.get("ok")):
             raise RuntimeError(f"REFUTE re-publish after the waiver probes failed: {out!r}")
+        # ── OBSERVATION-ONLY ↔ 판정기 NEEDS_RUBRIC(사다리 공백) 대응 (2026-10-11 · plan_26101104 Step 1) ──────
+        def publish_observation(doc, with_json=True, utc="2026-01-01T02:35:00Z"):
+            vj = repo_root / "docs/_evidence/inputs/verdict_observation.json"
+            vj.write_text(json.dumps(doc), encoding="utf-8")
+            argv = ["publish-benchmark", "--repo-root", str(repo_root), "--topic", "bench",
+                    "--verdict", "OBSERVATION-ONLY", "--generated-utc", utc, "--bench-report-src", rep_rel]
+            if with_json:
+                argv += ["--verdict-json-src", str(vj.relative_to(repo_root))]
+            return invoke(argv)
+        no_baseline = {"verdict": "NEEDS_RUBRIC", "failure_axis": "establish", "reason_code": None,
+                       "rubric": {"authority": "weak", "primary": None, "source": None, "floor": None,
+                                  "ratio_M_over_primary": None}}
+        code, out = publish_observation(no_baseline)
+        rec = json.loads((repo_root / "docs/_evidence/bench.json").read_text(encoding="utf-8"))
+        if not (code == 0 and out and out.get("ok") and rec["benchmark"]["verdict"] == "OBSERVATION-ONLY"
+                and rec["benchmark"]["floor_tps"] is None and rec["benchmark"]["rubric_source"] == "verdict_json"
+                and "certificate" not in rec["required_evidence"] and _validate_record_shape(rec) is None):
+            raise RuntimeError(f"OBSERVATION-ONLY ↔ NEEDS_RUBRIC(no baseline) publish failed: {out!r} {rec.get('benchmark')!r}")
+        # ★음성대조: 문턱이 낙찰된 NEEDS_RUBRIC(물리 초과) · spec 결손 · REFUTE 산출물 · 산출물 없음은 관측 전용이 아니다
+        for label, doc, with_json, want in (
+                ("physical-exceeds", dict(no_baseline, rubric=dict(no_baseline["rubric"], primary=59.0,
+                                                                  source="E(external_reference)")), True,
+                 "PUBLISH_BENCHMARK_VERDICT_JSON_VERDICT_MISMATCH"),
+                ("spec-missing", dict(no_baseline, reason_code="SPEC_ACCEPT_LEN_MISSING"), True,
+                 "PUBLISH_BENCHMARK_VERDICT_JSON_VERDICT_MISMATCH"),
+                ("refute-json", dict(no_baseline, verdict="REFUTE"), True,
+                 "PUBLISH_BENCHMARK_VERDICT_JSON_VERDICT_MISMATCH"),
+                ("no-json", no_baseline, False, "PUBLISH_BENCHMARK_OBSERVATION_ONLY_REQUIRES_VERDICT_JSON")):
+            code, out = publish_observation(doc, with_json=with_json)
+            if not (code == 2 and want in (out or {}).get("reason_codes", [])):
+                raise RuntimeError(f"OBSERVATION-ONLY must be rejected ({label}): {out!r}")
+        code, out = publish("REFUTE", cert=None, utc="2026-01-01T02:40:00Z")
+        if not (code == 0 and out and out.get("ok")):
+            raise RuntimeError(f"REFUTE re-publish after the observation probes failed: {out!r}")
         # ── set-narrative 바인딩(plan_26090410 P5) — 규약 문서는 복사하지 않고 묶는다 ──────────────
         plan_src = "docs/plan/plan_26010109_selftest_source.md"
         (repo_root / plan_src).write_text("# plan\n실제 저작 본문.\n", encoding="utf-8")

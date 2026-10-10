@@ -67,7 +67,7 @@
     "모양: {\"node_id\": \"<선언된 노드>\", \"cells\": [\"<그 노드에 배정된 셀>\", …], \"approval\": {\"approved_by\": \"<사람 발화의 전사>\", \"approved_utc\": \"YYYY-MM-DDTHH:MM:SSZ\", \"source\": \"declaration-popup|publish-popup\"}}. 항목 하나 = 승인 사건 하나이고, 한 셀의 승인은 하나다.",
     "기입 경로: campaign_init.py --hint-approve --node N --cells a,b --approved-by \"<전사>\" --utc <UTC> [--source declaration-popup|publish-popup] [--campaign-id ID] — node·cells·approved-by·utc 넷 중 하나라도 없으면 승인이 아니다(--revise 와 같은 규율). 같은 승인을 다시 적으면 멱등이고, 다른 승인으로 이미 승인된 셀은 옛 승인을 지킨다(귀속을 조용히 바꾸지 않는다).",
     "cells 는 **명시 열거**다 — 옛 '비우면 그 노드의 전 셀' 해석은 폐기했다(사전승인으로 쓰면 빈 목록이 백지 승인이 된다). arch 는 적지 않는다 — 태그 이름은 발행 도구가 전량 파생한다(D8 · 손으로 적은 arch 는 검증기가 거부한다).",
-    "approved_by 는 봉인 시 발행 페이로드로 복사된다 — 사람 이름·연락처 대신 역할로 적는다(예: 사용자(발화 전사) — \"…\"). 파생 선언(--emit-slice)에는 실리지 않는다(발행은 메인 소관)."
+    "approved_by 는 봉인 시 발행 페이로드로 복사된다 — 사람 이름·연락처 대신 역할로 적는다(예: 사용자(발화 전사) — \"…\"). 파생 선언(--emit-slice <노드>)에는 그 노드 몫만 실린다 — single 서브(자체 발행)만 받고 메인·다른 노드 몫은 잘린다(2026-10-11)."
   ],
   "hint_targets": [],
 

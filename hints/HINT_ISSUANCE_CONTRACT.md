@@ -1,4 +1,4 @@
-# hint 태그 발행 계약 (v7 · 2026-09-29 — 결정론 3축 + 근거 붙은 꼬리 · native 구조 통일 · 판정 표면 · 안내 커밋 부모)
+# hint 태그 발행 계약 (v8 · 2026-10-11 — 발행 게이트 통일 · REFUTE 는 표시만 · OBSERVATION-ONLY ← v7 · 2026-09-29 — 결정론 3축 + 근거 붙은 꼬리 · native 구조 통일 · 판정 표면 · 안내 커밋 부모)
 
 > 정본. 집행자는 단일 진입 `.claude/skills/hint-publisher/scripts/hint.py` 와 그 패키지 `scripts/hintlib/`
 > (naming · evidence · lineage · artifacts · template · pii · branch · tag · catalog)다. 이 문서는 **규칙과 그 이유**를 적는다 —
@@ -50,7 +50,7 @@
 | **A** | **그 실행 평면의 재현 입력** — 트리플렛 3 · 쓰인 빌드 레시피 · 기동 방법 | **항상 필수**(선언으로 면제 불가) | `hintlib/artifacts.py` |
 | **B** | 승격 tier — `full_benchmark` · `hint_map_only`(지도 발행 통로 · plan·devlog·testlog 필수) | 게이트 판정 | `completion_gate` `BASE_REQUIRED_EVIDENCE` |
 | **C** | 승격 기록(work-manifest · promotion_target) | **도구가 쓴다 — 손 JSON 0**(identity · runtime · pii · promotion_target) | `evidence.drive_publisher` · `evidence_publisher set-promotion-target` |
-| **측정** | 성능 수치 | **관측 게재만** — `baseline`·권고 승격 금지 · lite 는 결손 기재 · `verdict=FAIL` 은 §3.2 perf_waiver | `completion_gate` + 00 `OBSERVATION-ONLY`/`PERF-WARNING` 린트 |
+| **측정** | 성능 수치 | **관측 게재만** — `baseline`·권고 승격 금지 · lite 는 결손 기재 · 판정(PASS/REFUTE/FAIL/OBSERVATION-ONLY)은 **표시만**(§3.2 v8) | `completion_gate` + 00 `OBSERVATION-ONLY`/`REFUTE` 배너 · 린트 |
 
 **A 층 = 평면별 재현 입력 · "쓰인 것만"**(v6 · plan §4.5 · 원인 3 · F2·F3). 경로 규약상 거기 있던 파일이 아니라 **이 셀의 빌드·서빙이
 실제로 쓴 것**만 싣는다. 평면(`identity.plane ∈ {docker, native}`)은 serve proof producer 가 명시한 신호로 정한다(신호 부재 = 추측 ✗ ·
@@ -108,7 +108,8 @@ v5 의 C행("B 가 열리므로 도달 가능하다")은 처음에 **승격 게�
   <run_failed|blackbox_kill>`)다. 재분류는 **대조**다 — 바인딩된 리포트의 측정 구성 표가 같은 강등 사유를 말할 때만 열린다.
   캠페인 셀이면 이 구동은 `hint.py publish` 가 한다(§6).
 - **footer 바인딩 판정자는 하나**(`evidence.binding_artifact_path` · 2026-08-01/08-24/09-14 · 단일 결정자): 인증서가 있으면 인증서가
-  이긴다. 없으면 perf_waiver → hint_map_only → explore 순서로 bench_report 를 연다. 셋 다 아니면 묶을 것이 없어 **커밋 전에** 멈춘다
+  이긴다. 없으면 `hint_map_only` · `OBSERVATION-ONLY`(기준 부재 full 셀) · 유효 rubric 의 non-PASS(권한 무관 · v8) · 비발행 권한 PASS 가 bench_report 를
+  연다. 넷 다 아니면 묶을 것이 없어 **커밋 전에** 멈춘다
   (`HINT_CERTIFICATE_BINDING_ABSENT`). 묶은 것의 **종류**는 footer v2 `bench_kind`(certificate | bench_report · 파일 이름에서 파생 · §7.3)가
   말한다 — v1 의 `certificate_ref` 가 REFUTE · lite 셀의 리포트를 인증서라 부르던 거짓을 새 태그에 새기지 않는다.
 - **인증서 요구 = 인증서가 발행되는 판정에서만**(2026-09-29 · plan_26092908 §4.8 V11④ · 소유 `completion_gate`): `full_benchmark` 의
@@ -125,7 +126,8 @@ v5 의 C행("B 가 열리므로 도달 가능하다")은 처음에 **승격 게�
 - **레시피 세그먼트**는 더 이상 `--lockset` 으로 대조하지 않는다 — 전 축을 셀 증거에서 도구가 파생한다(§4). lockset 출처 표시는
   01 §1.3 값의 지위 후보의 근거로 읽힌다.
 - **OBSERVATION-ONLY**: `hint_map_only` 면 00-hint 본문(주석 밖)에 마커가 있어야 한다 — 기계가 00 사실 블록에 렌더하고 린터가
-  배포되는 본문에서 확인한다(`HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING`). 선언만 받고 본문을 보지 않으면 그 선언은 배포물에 도달하지
+  배포되는 본문에서 확인한다(`HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING`). v8 부터 기준 부재 full 셀(판정 `OBSERVATION-ONLY` · §3.2)도
+  같은 마커를 00 머리에 싣는다(`HINT_OBSERVATION_ONLY_MARKER_MISSING`). 선언만 받고 본문을 보지 않으면 그 선언은 배포물에 도달하지
   않는다(2026-08-01 선례).
 - **D-f(2026-09-22)**: `PAYLOAD.measurement` = **측정 수치**(인증서 성능 칸 + 스윕 레벨) · `PAYLOAD.measurement_config` =
   `evidence.DISTRIBUTED_MEASUREMENT_KEYS`(bench_mode · bench_mode_kind · downgrade_reason · bench_tool · bench_tool_version · repeats ·
@@ -139,6 +141,7 @@ v6 는 측정 칸을 **인증서에서만** 옮겼다 — 인증서는 explicit 
 - `PAYLOAD.measurement` 는 **인증서 유무와 무관하게** 판정 원천(스윕 `verdict.json` > bench_report `## 판정` 표 > 발행 기록 `benchmark`)에서
   채운다: `verdict ∈ {PASS, REFUTE, OBSERVATION-ONLY}` · `decode_tps_conc1` · `floor_tps` · `ratio_M_over_primary` · `rubric_authority` ·
   `benchmark_mode` · `accept_len` + 키별 출처 `sources{키: 출처}`. 판정이 한 번도 내려지지 않은 lite-only 셀 = `OBSERVATION-ONLY`.
+  기준 부재 full 셀(판정기 `NEEDS_RUBRIC` · 사다리 공백 · v8)도 `OBSERVATION-ONLY` 이고 원천 표기는 `sources.verdict` 에 남는다.
 - 인증서가 있으면 인증서 칸이 이기고, 같은 측정의 판정 원천이 다른 값을 말하면 **죽는다**(`HINT_MEASUREMENT_VERDICT_MISMATCH` — 두 기록이
   다른 측정을 말한다 · 고르지 않는다). 어휘 밖 판정 = `HINT_MEASUREMENT_VERDICT_UNKNOWN`.
 - 표면 네 자리: ① `PAYLOAD.measurement.verdict` ② 00 `FACT:grade` 의 판정 행(필수 · 출처는 행 안의 출처 칸) ③ 00 머리 배너 — REFUTE 는
@@ -172,8 +175,8 @@ v4 는 "필수는 **여정 정보 하나**, 나머지 부재는 기재" 로 절�
 - **부재는 차단이 아니라 기재다**(인증서 · lite · 슬레이브 attestation · env 형상 · 빌드 원장 · 캠페인 인스턴스 purge 등 —
   `MISSING_CODES`). 적어야 수신자가 *무엇을 모른 채 소비하는지* 안다.
 - **인증서 부재는 발행기의 책임이 아니다.** 인증서는 full · explicit ∧ PASS 일 때만 나오며 그 발행은 `adversarial-benchmark` 가 소유한다.
-  "캠페인을 종료했다" 와 "hint 를 발행해야 한다" 는 독립 사건이다(사용자 결정). 인증서가 없는 셀은 perf_waiver · `hint_map_only` ·
-  explore 경로로 bench_report 를 묶고 `HINT_MISSING_CERTIFICATE` 를 기재한다.
+  "캠페인을 종료했다" 와 "hint 를 발행해야 한다" 는 독립 사건이다(사용자 결정). 인증서가 없는 셀은 `hint_map_only` · `OBSERVATION-ONLY` ·
+  유효 rubric 의 non-PASS · 비발행 권한 PASS 경로로 bench_report 를 묶는다(§3.0.1) — 인증서가 발행되지 않는 판정은 결손이 아니다.
 - **적히지 않은 부재는 차단이다** — 면제되는 것은 "없다" 가 아니라 "**없다고 적혀 있다**" 이다. 예: 서빙 노브 후보가 0개인데
   트리플렛 부재가 기재되지 않았으면 `HINT_VALUE_STATUS_CANDIDATES_ABSENT`.
 - ⚠ **`pii_terms.txt` 부재는 더는 "선언된 결손" 이 아니다**(K11 · 2026-09-21) — 옛 계약은 기재 후 통과라 적었는데 트리 발행기는
@@ -186,21 +189,32 @@ full 벤치는 lite 의 **상위집합**이어야 한다. 교집합이면 lite �
 깨진다. 구조적 보장: `sweep_bench.sh` 가 `lite_bench.sh` 를 **실제로 실행해서 포함**한다(병렬 목록 유지 ✗). 집행:
 `scripts/conformance_full_superset_lite.py`(adversarial-benchmark 소유 · 여기서는 인용만).
 
-### 3.2 성능 REFUTE — loop-until-done 과 사람의 중단권 (v2.1)
+### 3.2 성능 REFUTE — 표시만 · loop-until-done 분리 · OBSERVATION-ONLY (v8 · 2026-10-11 · plan_26101104 Step 1)
 
-통상 성능 REFUTE 는 여기서 끝이 아니다 — 서빙전략을 재수립하고 벤치마커의 측정 평면을 넓혀 가며(마지막 평면은 사람이 수동 수집한
-정보까지) **loop-until-done** 으로 반복한다. 그 루프를 중간에 멈출 수 있는 것은 **사람의 지시뿐이다.** 사람이 그 지시를 내린 경우,
-hint 는 발행하되 **경고 플래그를 배포물에 박는다**: *서빙 성공은 했으나 성능이 기대 이하다. 이 자료를 서빙전략 수립에 쓸 때는
-적대적 검증이 필요하다.*
+**발행 게이트 = 서빙 성립 ∧ lite·full 유효 측정** — 루브릭 권한(weak · explicit · explore)과 무관하다(사용자 결정 · 인터뷰
+`interview_20261010_191736`). 성능 판정(PASS · REFUTE · FAIL)은 **표시만** 된다 — 기계 표면(§3.0.2: `PAYLOAD.measurement.verdict` ·
+00 판정 행 · 00 머리 REFUTE 배너 · 카탈로그 판정 열)이 판정을 말하고, 수치는 관측이지 baseline · 권고가 아니다.
 
-| 층 | 규칙 (fail-closed · 에이전트가 스스로 열 수 없다) |
+| 층 | 규칙 |
 |---|---|
-| work-manifest | `benchmark.perf_waiver` = `authorized_by` · `authorized_at_utc` · `instruction` · `warning_flag` **4필드 전부** 비어 있지 않아야 유효 |
-| `completion_gate.py` | waiver 유효 시에만 `verdict != PASS` 로도 승격 허용(`BENCHMARK_VERDICT_WAIVED`). 하나라도 비면 `BENCHMARK_PERF_WAIVER_MALFORMED` |
-| 템플릿 린터 | waiver 가 있으면 **00-hint 본문**에 `PERF-WARNING` 마커와 `warning_flag` 원문이 둘 다 있어야 한다(`HINT_PERF_WARNING_MISSING`). 경고 없는 waiver 는 단순 게이트 우회다 |
-| 인증서 | **여전히 explicit PASS 때만 발행**한다. waiver 는 승격만 열 뿐 *"성능이 검증됐다"* 는 주장을 만들지 못한다 — footer 는 bench_report 를 묶는다(`bench_kind: bench_report`) |
+| 유효 측정(불변 · fail-closed) | rubric 계약 = `floor_tps` 유한 양수 ∧ `ratio_M_over_primary` 유한 ∧ `primary_source` 실재 ∧ `rubric_source` 출처 표시(판정기 산출물 파생). floor ≤ 0 = 공허 PASS — 어떤 판정·권한으로도 승격 ✗ |
+| 서빙 성립(불변) | runtime tier(health · OOM 없음 · `functional_smoke_passed` · identity 6키). 판정과 무관하게 먼저 막는다 |
+| `completion_gate.py` | non-PASS(REFUTE · FAIL) ∧ 유효 측정 ∧ 서빙 성립 → 승격(`BENCHMARK_VERDICT_ANNOTATED`) · 미충족 = `BENCHMARK_MEASUREMENT_INVALID` · 판정 부재 = `BENCHMARK_VERDICT_ABSENT` |
+| loop-until-done | `adversarial-benchmark` 의 **성능 게이트**로 남는다(REFUTE → 재탐색 · explore 는 해제). 발행을 막지 않는다 — 발행 시점은 셀마다 완료 즉시이고 루프의 각 시도는 별개 셀이다 |
+| 인증서 | **여전히 explicit ∧ PASS 때만 발행**한다(`judge_bench` · `publish_benchmark_record` 무변경). 승격은 *"성능이 검증됐다"* 는 주장을 만들지 못한다 — 인증서 없는 셀의 footer 는 bench_report 를 묶는다(`bench_kind: bench_report`) |
 
-**설계 의도**: 이 예외는 에이전트가 추론으로 열 수 없는 **positive key** 다. 얻는 것(지도 배포)과 치르는 것(경고)이 같은 트랜잭션 안에 있다.
+**OBSERVATION-ONLY — 기준 부재 full 셀**: 사용자 목표(c)도 외부 레퍼런스(E)도 없고 expected 도 산출할 수 없어 `verdict_rule.py` 가
+`NEEDS_RUBRIC`(사다리 공백 · `rubric.primary = null ∧ reason_code = null`)을 낸 셀(마이너 · 파인튜닝 · Unknown 아키텍처)은 work-manifest
+`benchmark.verdict = OBSERVATION-ONLY` 로 **관측 발행**한다 · 루프 없음.
+
+| 층 | 규칙 |
+|---|---|
+| `evidence_publisher publish-benchmark` | `--verdict OBSERVATION-ONLY` 는 `--verdict-json-src` 필수 · 산출물이 사다리 공백의 `NEEDS_RUBRIC` 일 때만 받는다. 물리 초과(문턱은 낙찰됐다) · spec accept_len 결손(`SPEC_ACCEPT_LEN_MISSING`)은 관측 전용이 아니다 — 거부(`PUBLISH_BENCHMARK_VERDICT_JSON_VERDICT_MISMATCH`) |
+| `completion_gate.py` | 서빙 성립 ∧ bench_report 판정 표 = `NEEDS_RUBRIC`(교차검증 · 불일치 = `BENCHMARK_OBSERVATION_ONLY_UNCORROBORATED`) ∧ 루브릭 수치 null ∧ 출처 표시 → 승격(`BENCHMARK_OBSERVATION_ONLY_PROMOTION`) · 위반 = `BENCHMARK_OBSERVATION_ONLY_INVALID` |
+| 표시 | `PAYLOAD.measurement.verdict = OBSERVATION-ONLY` · 00 머리 `OBSERVATION-ONLY` 배너(판정 주장 ✗ · 인증서 없음 · 루프 없음) · 부재 = `HINT_OBSERVATION_ONLY_MARKER_MISSING` |
+
+**폐기(v8)**: v2.1 의 사람 서명 성능 면제 필드(4필드 positive key)와 그 경고 마커 · 린트 · 바인딩 원천은 **폐기**됐다 — writer 가 없어 실제로
+열린 적이 없었고(M1 Qwen3.8FN 37.63 < floor 45.65 · 과거 재현 밴드 안), 발행 게이트가 성능 판정에 묶인 것이 뿌리였다. 과거 태그는 불변이다(§9).
 
 ### 3.3 native 구조 통일 · 파일 단위 검증 표시 · 관련성 (v7 · 2026-09-29 · plan_26092908 §4.2 · §4.3 · U1 · U1+ · U2)
 
@@ -335,7 +349,7 @@ code 로만 한다(봉인·push 거부는 `tag.problem_codes`).
 | brief 수치가 사실 블록에 없음 · 사실 블록에 절 자리표시(`§3.x`) · 결과 출처 어휘 밖 · 봉인 뒤 저작 자기점검 잔존(§8.6) | **차단** | `HINT_BRIEF_NUMBER_UNGROUNDED` · `HINT_FACT_PLACEHOLDER` · `HINT_RESULT_SOURCE_UNKNOWN` · `HINT_SELFCHECK_RESIDUE` |
 | 사실 블록을 손댐 · 벤치 절 숫자를 손댐 · 저작 중 템플릿 지시를 고침 | **차단** | `HINT_FACT_DRIFT` · `HINT_BENCH_SECTION_DRIFT` · `HINT_PROMPT_TAMPERED` |
 | 값의 지위 커버리지 · 필요조건의 근거(§8.4) | **차단** | `HINT_VALUE_STATUS_GAP` · `HINT_VALUE_STATUS_VALUE_MISMATCH` · `HINT_VALUE_STATUS_CANDIDATES_ABSENT` · `HINT_VALUE_STATUS_REQUIREMENT_UNGROUNDED` |
-| 00 배너 3줄 부재 · `OBSERVATION-ONLY` · `PERF-WARNING` 부재 | **차단** | `HINT_BANNER_ABSENT` · `HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING` · `HINT_PERF_WARNING_MISSING` |
+| 00 배너 3줄 부재 · `OBSERVATION-ONLY` 부재(map_only · 기준 부재 full 셀) | **차단** | `HINT_BANNER_ABSENT` · `HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING` · `HINT_OBSERVATION_ONLY_MARKER_MISSING` |
 | **PII** — 페이로드 트리 · 파일 이름 · 커밋 메시지 · annotation(배포 4종 + 리터럴) · `pii_terms.txt` 부재 | **차단** | `HINT_PAYLOAD_PII` · `HINT_PAYLOAD_PATH_PII` · `HINT_COMMIT_MESSAGE_PII` · `HINT_TAG_PII` · `HINT_PII_TERMS_ABSENT` |
 | 커밋 author/committer · tagger 가 **합성 신원이 아님**(동일성 판정 · §7.4) | **차단** | `HINT_COMMIT_IDENTITY_NOT_SYNTHETIC` · `HINT_TAGGER_NOT_SYNTHETIC` |
 | env 형상화 뒤 잔존한 4종 패턴(2차 백스톱 · 덧칠 ✗) | **차단** | `HINT_ENV_SHAPE_PII` |
@@ -452,7 +466,8 @@ hint.py refacts --draft <draft>   같은 generated_utc 로 FACT 블록 · PAYLOA
 - 캠페인 셀에 `--approved-by` 를 주면 거부한다(`HINT_APPROVAL_SOURCE_CONFLICT` — 원천은 하나다). 전사는 한 줄이며 자리표시(`<<…>>`)는
   승인이 아니다(`HINT_APPROVAL_INVALID`). `approved_by` 는 **페이로드로 복사된다** — 이름·연락처가 아니라 역할과 발화 요지를 적는다.
 - 사전승인이 캠페인을 셀마다 멈추지 않게 한다(2026-09-08 "진행을 막는 자리는 셋뿐" — 선언 확인 팝업이 셀별 발행 Y/N 을 겸한다).
-  무인 자동 태깅 ✗ 는 그대로다: 사람이 **명시 셀 목록**을 승인한 것이다. 서브용 파생 선언(`--emit-slice`)은 `hint_targets` 를 비운다(§6.6).
+  무인 자동 태깅 ✗ 는 그대로다: 사람이 **명시 셀 목록**을 승인한 것이다. 서브용 파생 선언(`--emit-slice <노드>`)은 **그 노드 몫** `hint_targets` 만 승인째 싣는다 — single 서브(자체 발행)만 받고, 메인·다른
+  노드 몫과 멀티 Ray 워커 서브 몫은 잘린다(§6.6 · 2026-10-11).
 - 승인된 Y/N 뒤의 **태그 push 는 에이전트 상시승인**(2026-08-24)이다. 브랜치 push 는 발행에 속하지 않는다(§6.2 · §6.5 형식 전환만).
 
 ### 6.2 push — 정확한 태그 1개 (O2 · 2026-08-20 · 2026-09-04 C-3)
@@ -491,9 +506,12 @@ verify 는 로컬 태그 **전수**를 원격 파생 index 와 대조해 이 체
 
 - 진실원천은 `git ls-remote` 다(plan_26090107 D1.1). 손저작 색인 경로(`index`·`reindex`)는 폐쇄됐다 — 그것이 감사 ④⑤(격리 세탁 ·
   오염 brief 가 18행을 삼킴)의 기전이었다. 원격 조회 실패 = 캐시로 대체하지 않고 **중단**한다(낡은 카탈로그는 부재와 구분되지 않는다).
-- `hints/index.json`(schema 4)과 `HINTS.md` 는 **전량 생성물**이다 — 머리말 산문까지 파생한다(손산문 ✗ · 옛 손산문은 사라진 태그 · 없는
-  열 · 존재하지 않는 3세그먼트 사용법을 들고 낡았다). 열: 태그 · 문법(v7 · v6 · 옛 세대) · vLLM · 모델 · arch · **판정**(v7 · 태그 커밋의
-  `PAYLOAD.measurement.verdict` · 없으면 `—` · v6 도 읽을 수 있으면 표시 · 재판정 ✗) · bench_mode · 결손 · brief. 원격이 광고한
+- `hints/index.json`(schema 5)은 **전량 생성물**(기계 평면)이다. `HINTS.md` 는 **사람 서사 + 마커 구간 파생 목록**이다(2026-10-11 ·
+  plan_26101104 Step 2) — 파생기는 `<!-- HINTS:BEGIN derived …-->` 줄과 `<!-- HINTS:END -->` 줄 사이만 교체하고 마커 밖 바이트는
+  건드리지 않는다(마커 부재·중복·역순·매립 = 쓰기 전 중단 `HINT_CATALOG_MARKER_*`). 시점에 따라 낡는 사실은 구간 안에만 둔다.
+  구간 = 한 줄 머리(태그 수 · 원격 이름 · 주입 KST) + 모델별 묶음 표(묶음 안 = 태그 오브젝트 tagger 시각 `tagged_utc` 내림차순 →
+  이름순 · 묶음 = 최신 시각 내림차순 → 제목순). 열: 태그 · arch · vLLM · **판정**(태그 커밋의 `PAYLOAD.measurement.verdict` · index 값
+  `—` 는 목록에 `미기재(구판)` · 재판정 ✗) · bench_mode · 결손. 문법 세대·brief 는 index 에 남는다. 원격이 광고한
   태그 오브젝트 SHA 를 직접 읽는다(K5 — 이름만 남기면 같은 이름의 다른 로컬 오브젝트 brief 가 붙는다).
 - 원격에 있는데 로컬 태그 오브젝트가 없으면 brief 를 지어낼 수 없다(합성 금지). 기본 모드는 중단 + 종료코드 4 + 조회한 그 원격의 fetch
   안내(자동 fetch ✗ · 2026-09-14). **`--record-missing`**(X15 · D-i)은 그 태그를 `object: absent-local` 행(brief `—` · 결손 `미수령`)으로,
@@ -542,12 +560,24 @@ verify 에서 막혔고, 브랜치를 push 하면 원격 첫 화면이 마지막
 - 매 발행 트리를 allowlist 로 **새로 짓는다** — N 번째 archive 에 이전 태그의 파일이 딸려 오지 않는다(이력은 커밋·태그로 남는다).
   브랜치 tip 의 README 를 페이로드에 심던 옛 동작은 폐지됐다(K8 · 페이로드 README 는 형식 버전으로 생성한다).
 
-### 6.6 main-only (정책 C4)
+### 6.6 main-only · single 서브 예외 (정책 C4 · 2026-10-11 개정 · plan_26101104)
 
-발행은 **메인 단독**이다 — references.md 와 같은 빌딩블럭 전파 평면이며 서브 egress 상태와 무관하다. 발행 엔진(`hint.py` · `hintlib`)은
-원격 셸을 실행하지 않고 서브 배달·릴레이 도구를 부르지 않는다. 메인→서브 배달은 엔진도 `hints/` 트리도 나르지 않고, 서브의 런타임 스킬
-평면에 hint-publisher 가 없으며, 서브용 파생 캠페인 선언은 `hint_targets` 를 싣지 않는다. 서브 산출물은 문서기반 회수 뒤 메인이 재저작한다
-(`.claude/rules/docs.md` 상향 회수 규약 · 코드·설정 직접 회수 금지).
+발행은 **메인 단독**이 기본이고, **single 서브(sub_mode `a2a-agent`)의 자기 셀**만 예외다 — 서브에서만 잰 셀은 메인이 관측 원시를 볼 수
+없어(D-e) 관측한 그 노드가 발행하는 것이 유일한 정합이다. 경계:
+
+- **엔진** — 발행 엔진(`hint.py` · `hintlib`)은 원격 셸을 실행하지 않고 서브 배달·릴레이 도구를 부르지 않는다(불변). 메인→서브 배달은
+  single 서브에만 엔진과 `hints/` 의 계약·어휘(`HINT_ISSUANCE_CONTRACT.md` · `vocab.json`)를 나른다 — 색인(`hints/index.json`) ·
+  카탈로그(`HINTS.md`) · 역할 마커는 어느 서브에도 가지 않는다(`render_sub_env.HINT_NEVER_DELIVER`). 런타임 스킬 평면 = 런타임 3종 +
+  hint-publisher(single) · 0종(멀티 Ray 워커) — 정본 `node_role_contract.TOOL_PLANE_BY_SUB_MODE`.
+- **승인** — 사람이 메인 선언에 적는다(`campaign_init.py --hint-approve --node <서브>`). 파생 선언(`--emit-slice <서브>`)이 그 노드 몫만
+  운반하고, 서브 인스턴스는 남의 몫·자기 승인을 들 수 없다(검증기 · writer 거부). 셀별 Y/N 규칙(§6.1)은 그대로다.
+- **push** — 서브 워크스페이스 git 은 local-only 그대로다(policy SUB_GIT_LOCAL_ONLY). 태그는 그 밖의 **별도 hint 클론**(경로 선언 =
+  서브 `envs/.env` 의 `HINT_CLONE_DIR`)에서 정확한 태그 1개로 push 한다(§6.2). 토큰은 사람이 그 노드에 둔다(배달 ✗).
+- **역할** — 태그 push 역할 선언(`hints/.push_authority`)과 카탈로그 권위 선언(`hints/.central_authority`)은 다르다. 서브는 push 역할만
+  가지며 카탈로그 단계를 건너뛰고 testlog(승인 출처 · 태그 · 원격 태그 SHA · 엔진 리비전)로 보고한다. 메인이 문서기반으로 회수해
+  승인 출처를 대조한 뒤 카탈로그를 파생한다(카탈로그는 메인 단독). 장착 절차 = terraforming_node `references/install/sub_agent_env.md` §2.5.1.
+- 멀티 서브 산출물과 장착 안 된 서브의 산출물은 종전대로 문서기반 회수 뒤 메인이 재저작한다(`.claude/rules/docs.md` 상향 회수 규약 ·
+  코드·설정 직접 회수 금지).
 
 ### 6.7 발행 전 독립 사실 검증 (2026-09-22 · plan_26092119 S2 round 2 F11)
 
@@ -885,9 +915,10 @@ artifacts 헤더에만 기록된 필요조건을 inherited 로 강등했다. 00 
 - **꼬리의 자유도**(plan_26092908 R1): 같은 셀을 PC · Agent 마다 다른 꼬리로 부를 수 있다(검색 분산). 결정론부 매칭이 1차이고 꼬리는 근거 대조로
   거짓만 막는다 — 표기 흔들림은 수용한다(U5 의 대가).
 - **브랜치 형식 전환**은 사람 승인 명령(`branch-transition`)이다 — 원격 안내가 v7 이 아닌 동안 모든 발행이 `HINT_BRANCH_FORMAT_MISMATCH` 로 선다.
-- **D-e 서브 단독 셀**: 서브에서만 잰 셀은 메인이 그 관측 원시(serve_proof · post_health · lite raw)를 볼 수 없어 `HINT_QUALIFICATION_UNOBSERVED`
-  로 막힌다. 서브 관측을 문서기반 회수로 받는 설계가 열린 항목이다(예약 결손 코드 `HINT_MISSING_SUB_TRIPLET` 의 발행자도 그 설계가 정한다).
-  서브의 `hint_inputs` 사이드카는 발행기가 읽지 않는다. E2E 는 cluster 셀을 쓴다.
+- **D-e 서브 단독 셀**(2026-10-11 경로 개정 · §6.6): 서브에서만 잰 셀은 메인이 그 관측 원시(serve_proof · post_health · lite raw)를 볼 수 없어
+  메인에서 발행하면 `HINT_QUALIFICATION_UNOBSERVED` 로 막힌다 — 그래서 **single 서브가 자기 노드에서** 발행한다(관측 원시가 그 자리에 있다 ·
+  승인은 파생 선언 운반 · push 는 별도 hint 클론 · 카탈로그는 메인). 멀티 Ray 워커 셀은 cluster 셀로 메인이 관측·발행한다. 서브의
+  `hint_inputs` 사이드카는 발행기가 읽지 않는다(예약 결손 코드 `HINT_MISSING_SUB_TRIPLET` 은 발행자 없이 예약으로 남는다).
 - **4마디 릴리스 × PII**: D-g 가 4마디 릴리스 이름을 허용했지만, 두 번째 마디가 `10` 인 4마디 릴리스는 사설 IPv4 패턴의 3옥텟 접두 매치에
   걸린다 — 그 이름은 커밋 · 봉인에서 반드시 거부되므로 `publish` 가 저작 전에 `HINT_TAG_NAME_PII` 로 먼저 막는다. 스캐너 체계 변경(버전
   토큰 면제 등)은 사람 결정이다(P3).
@@ -911,7 +942,7 @@ artifacts 헤더에만 기록된 필요조건을 inherited 로 강등했다. 00 
 |---|---|---|
 | v1 | ~2026-07 | 암묵 규약. 게이트가 형식은 막고 "서빙되었다는 주장이 사실인가" 는 검사하지 않았다 — 2026-07-31 신규 태그 1개가 레거시 23개의 형식 미비로 영구 차단되며 드러났다(이 계약의 명문화 이유 · D10 의 원 선례) |
 | v2 | 2026-07-31 | 명문 · 차단 사유를 형식 → 증거 부재·위조로(§2) · 소급 금지 |
-| v2.1 | 2026-08-01 | 성능 REFUTE 의 사람 중단권 · perf_waiver(§3.2) |
+| v2.1 | 2026-08-01 | 성능 REFUTE 의 사람 중단권 · 사람 서명 성능 면제 필드(§3.2 · v8 에서 폐기) |
 | v3 | 2026-09-01 | 분류기 4등급 → 2등급 · tagger 기본값 = 합성 신원 · PII 대상이 페이로드 트리 전량 · 태그 → hint 브랜치 페이로드 커밋 · 레거시 v1 62건 회수(§9) |
 | v4 | 2026-09-06 | 필수는 여정 하나 · 부재는 기재 · 한 태그 = 한 노드 형상(arch 노드 축) · 벤치 절 결정론 파싱 |
 | v5 | 2026-09-07 | 층별 정합(A 항상 필수 · B `hint_map_only` · C manifest) · 결손 가시성 3곳 · 태그 앵커 검사 집행 · 노드축↔인증서 대조 · ACTIVE 비참조 · 2026-09-14 lite 셀 통로 |
@@ -919,6 +950,7 @@ artifacts 헤더에만 기록된 필요조건을 inherited 로 강등했다. 00 
 | v6.2 | 2026-09-22 | plan_26092119 S2 round 3(2차 채점의 처방): **이미지 탐침 = publish 기본**(시작하지 않는 컨테이너 create · cp · rm · `--docker-read-only` 가 끈다 · `--docker-probe` = no-op 옛 이름 · 정책 자체검사 docker 계약 동행 · §6) · `excerpt --numbered` · 측정 도구 스냅샷 발췌 출처(§8.3) · 새 사실 블록 · 3.5 acceptance length = 출력 · PROMPT 개정 · 현재지위 = 원래 주장의 지위 · PAYLOAD 새 키(§7.2 · §8.6) · 같은 날 적대 리뷰 정정(스냅샷 = origin 바이트 동일할 때만 출처 ·
   01 §1.5 노드 접기는 Ray 가 접은 줄에서 다른 쪽 부재를 단언하지 않는다 · 탐침 규칙 단일 소유 = artifacts 실행기) — 형식 문자열(`hint-payload/v6`)과 이름 문법은 그대로다 |
 | **v7** | **2026-09-29** | plan_26092908(v6 4태그 적대 검증 · 블라인드 수신자 3 · 세션 채굴 2 · 구조 감사 1 → 사용자 결정 U1~U9): 이름 = 결정론 `q·len·kv` + Agent 꼬리(`tail.json` · 형식 · 뜻 · 근거 대조 · v6 뒤 3축 모양 거부) + 원격·로컬 중복 시 `-t<YYMMDDHHMM>`(§4) · native 구조 통일과 파일 단위 verification · generated_by · relevance(세 자리 일치 · §3.3) · 판정 기계 표면(`measurement.verdict` · 판정 행 · 배너 · 카탈로그 판정 열 · §3.0.2) · footer v2(`bench_ref` · `bench_kind` · §7.3) · 인증서 요구 = explicit ∧ PASS 만(§3.0.1 · completion_gate) · 관측 > 선언(driver_conflict · §7.2) · 사실 검증이 FACT 도(`target` · `refacts` · §6.7) · 페이로드 커밋 부모 = 안내 커밋 · 형식 마커 · `branch-transition`(§6.5) · 봉인 뒤 verify 출처 변경 = INFO(§6.3) · LINEAGE 요약/전체 분리(§8.1) · 거부된 publish 의 시각 채택 · `--node` 자동 · 카탈로그 자동 커밋(§6) · 새 결손 코드 3종 · V15 잔재 정리(§10 D-d · 평면 코드명 통일 `HINT_PLANE_UNDERIVABLE`) — 형식 `hint-payload/v7` · PAYLOAD schema 3 |
+| **v8** | **2026-10-11** | plan_26101104 Step 1(인터뷰 `interview_20261010_191736` · Seed `seed_1fea372f89b3`): 발행 게이트 = 서빙 성립 ∧ 유효 측정(권한 무관 · `BENCHMARK_VERDICT_ANNOTATED`) · REFUTE·FAIL 은 표시만 · loop-until-done 은 성능 게이트로 분리 · 기준 부재 full 셀 = `OBSERVATION-ONLY`(판정기 NEEDS_RUBRIC 사다리 공백 · `BENCHMARK_OBSERVATION_ONLY_PROMOTION` · 배너 · 루프 없음) · 성능 면제 필드 폐기(스키마 · 게이트 · 린트 · 바인딩 원천) · hint_map_only 의 FAIL 차단 제거 · 인증서 = explicit ∧ PASS 불변 · 과거 태그 불변(§3.2) |
 | **v6** | **2026-09-22** | plan_26092119: 셀 1개 = 태그 1개 · 단일 진입 `hint.py`(옛 CLI 5종 · families · 스캐폴드 템플릿 제거 · shim ✗) · 이름 전량 도구 파생(5세그먼트 · 어휘표 · 전 축 필수) · 발행 자격 = 관측 · 승인 = 셀별 사전 기록(O6) · A 층 = 평면별 재현 입력 "쓰인 것만" · 지도가 zip 안(00-hint) · 계보 서사 PROMPT 템플릿 · 발췌 허용 + 무결성 · 값의 지위 · 커밋 신원도 합성 · push = 태그 1개(브랜치 ✗) · 게이트 = 이번 발행분만 |
 
 v5 의 옛 절 번호 인용(`계약 v5 §3` C행 · `§3.-1` 앵커 검사 · `§3.-2` 노드축 대조)은 각각 v6 의 §3(C행 = §3 표의 C 층 · 통로는 §3.0.1) ·

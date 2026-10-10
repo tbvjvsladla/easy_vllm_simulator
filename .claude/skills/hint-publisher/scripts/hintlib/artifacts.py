@@ -1973,15 +1973,28 @@ def _applied(c: _Ctx, *, probe: bool = True) -> tuple[dict, dict, dict | None, d
     if ledger is not None:
         rows = [_ledger_script_identity(c, _post_label(r)) for r in _ledger_rows(ledger)]
         in_ledger = {(r["phase"], r["file"]) for r in rows}
+        asym = _node_asymmetry(c, ledger_source, per_node)
+        # 대표 원장 밖이어도 **다른 노드 원장**에 있는 파일은 "빌드 뒤 추가" 가 아니다 — 그 노드가 실제로 돌렸다(2026-10-11 F2).
+        others: dict[tuple[str, str], list[str]] = {}
+        for n, nd in sorted(((asym or {}).get("nodes") or {}).items()):
+            if n == (asym or {}).get("representative"):
+                continue
+            for r in nd["patches"]:
+                others.setdefault((r["phase"], r["file"]), []).append(f"{n} 원장 {r['result']}")
         for ph in sorted(in_recipe):
             for p in listing[ph]:
                 if (ph, p.name) not in in_ledger:
-                    excluded.append({"phase": ph, "file": p.name,
-                                     "why": "not-in-ledger(원장에 없음 — 빌드 뒤 추가된 파일로 본다 · 싣지 않음)"})
+                    seen = others.get((ph, p.name))
+                    why = (f"not-in-ledger(대표 {asym['representative']} 원장에 없음 · {' · '.join(seen)} — 노드 비대칭 · "
+                           "대표 원장 밖이라 싣지 않음)" if seen
+                           else "not-in-ledger(원장에 없음 — 빌드 뒤 추가된 파일로 본다 · 싣지 않음)")
+                    excluded.append({"phase": ph, "file": p.name, "why": why})
         applied = {"status": "observed", "source": ledger_source, "patches": rows, "probes": probes}
         if len(per_node) > 1:
             applied["per_node_patchsets"] = {n: sorted(f"{r['phase']}/{r['file']}={r['result']}"
                                                        for r in _ledger_rows(doc)) for n, doc in sorted(per_node.items())}
+        if asym is not None:
+            applied["node_asymmetry"] = asym
     else:
         args, args_src = _history_build_args(c, df_text)
         image, _ = _image_ref(c)
@@ -2041,6 +2054,44 @@ def _applied(c: _Ctx, *, probe: bool = True) -> tuple[dict, dict, dict | None, d
     applied["excluded"] = sorted(excluded, key=lambda x: (x["phase"], x["file"]))
     c.memo[("applied", probe)] = (applied, sel, ledger, per_node)
     return applied, sel, ledger, per_node
+
+
+# cluster 셀의 노드별 원장 비대칭(2026-10-11 · plan_26101104 M1 사실검증 F2). TP=2 측정은 main·sub 가 함께 서빙했는데 슬롯·적용 집합·
+#   00 §0.4 가 대표(main) 원장 하나로만 파생돼, sub 에 구워진 post 10/20/30/40(applied)·pre 50/55(skipped)가 FACT 표면에서 사라졌다.
+#   처방: 노드별 적용 집합을 **각각** 싣고 비대칭을 명시한다 — 합집합으로 접지 않고(어느 노드가 무엇을 돌렸는지가 사라진다) 한 노드를
+#   조용히 고르지 않는다(대표는 실을 파일의 기준일 뿐이며 그 사실을 note 가 말한다). 원장이 같으면 None(표지 없음).
+NODE_ASYMMETRY_NOTE = ("노드별 빌드 원장의 적용 집합이 다르다 — 이 측정은 cluster(노드 전부)가 서빙했다. 대표 원장 하나로 cluster 의 "
+                       "적용 집합을 말하지 않는다(합집합 ✗ · 한 노드 선택 ✗). 실린 패치 파일 · 슬롯 판정의 기준은 대표 원장이다")
+
+
+def _node_asymmetry(c: _Ctx, ledger_source: str | None, per_node: dict[str, dict]) -> dict | None:
+    """{representative, nodes{role: {source, patches[{phase,file,result}]}}, note} | None — 위 주석. cluster 셀 · 원장 둘 이상 · 집합이
+    다를 때만. 행 = 원장 그대로(phase·file·result) — 판정 ✗."""
+    if c.node != "cluster" or len(per_node) < 2 or not (ledger_source or "").startswith("attestation:"):
+        return None
+    base, _, rep_role = ledger_source.rpartition("#")
+    nodes = {n: {"source": f"{base}#{n}",
+                 "patches": [{"phase": r["phase"], "file": r["file"], "result": r["result"]} for r in _ledger_rows(doc)]}
+             for n, doc in sorted(per_node.items())}
+    sets = {frozenset((r["phase"], r["file"], r["result"]) for r in nd["patches"]) for nd in nodes.values()}
+    if len(sets) < 2:
+        return None
+    return {"representative": rep_role, "nodes": nodes, "note": NODE_ASYMMETRY_NOTE}
+
+
+def node_asymmetry_phase_text(asym: dict | None, ph: str) -> str | None:
+    """노드 비대칭의 단계별 한 줄(슬롯 사유 · 00 §0.4 공용 — 문장 한 벌). `<노드> 원장: applied a · b / skipped c`(그 단계 행 없으면 '행 없음')."""
+    if not isinstance(asym, dict) or not isinstance(asym.get("nodes"), dict):
+        return None
+    parts = []
+    for n, nd in sorted(asym["nodes"].items()):
+        by: dict[str, list[str]] = {}
+        for r in nd.get("patches") or []:
+            if r.get("phase") == ph:
+                by.setdefault(str(r.get("result")), []).append(str(r.get("file")))
+        body = " · ".join(f"{k} {', '.join(v)}" for k, v in sorted(by.items())) or "이 단계 행 없음"
+        parts.append(f"{n}{'(대표)' if n == asym.get('representative') else ''} 원장: {body}")
+    return f"노드 비대칭(cluster) — {' / '.join(parts)}"
 
 
 def applied_set(repo: Path, ev: Any, *, runner: DockerRunner | None = None, forward_module: Any | None = None) -> dict:
@@ -3154,6 +3205,10 @@ def _slot_machine_reasons(c: "_Ctx", slots: dict, applied: dict | None, sel: dic
                        + (" · 실린 것 = skip 아닌 패치" if row.get("files") else ""))
             elif not row.get("files"):
                 why = f"적용 판정 없음 — {ev.get('note') or ev.get('ref') or '원천 미관측'}"
+            asym_txt = node_asymmetry_phase_text((applied or {}).get("node_asymmetry"), ph)
+            if asym_txt:
+                # 대표 원장의 사유 뒤에 노드별 원장을 붙인다(2026-10-11 F2 — 대표 하나의 "적용 판정 없음" 이 cluster 전체로 읽히지 않게)
+                why = f"{why or '대표 원장 기준'} · {asym_txt} — 실림·판정은 대표 원장 기준"
         elif name == "build_recipe":
             if sel and sel.get("dockerfile"):
                 why = f"쓰인 Dockerfile 선택자 {sel['dockerfile']}({sel.get('dockerfile_source')}) + 그것이 COPY 하는 파일"
@@ -4559,6 +4614,39 @@ def selftest() -> list[str]:
            and host_like not in json.dumps(sr2))
         ck("① attestation 원장 우선 · main 노드 선택", apa["status"] == "observed" and apa["source"].endswith("#main")
            and "per_node_patchsets" in apa)
+        # 2026-10-11 · plan_26101104 M1 사실검증 F2 — cluster 노드별 원장 비대칭: 대표(main) 원장 하나로 cluster 를 말하지 않는다
+        asa = apa.get("node_asymmetry") or {}
+        ck("★F2 cluster 원장 비대칭 = node_asymmetry(대표 main · 노드별 행 그대로 · note) · 합집합 ✗",
+           asa.get("representative") == "main" and len(asa["nodes"]["main"]["patches"]) == 4
+           and asa["nodes"]["sub"]["patches"] == [] and asa["nodes"]["sub"]["source"].endswith("#sub")
+           and asa.get("note") == NODE_ASYMMETRY_NOTE and len(apa["patches"]) == 4)
+        main_l = {"schema_version": 1, "dockerfile": "Dockerfile.source-build", "track": "source-build", "patches": [],
+                  "inline_patches": [{"name": "strip-hoist", "result": "skipped", "reason": "accepts hoist"}]}
+        ev_r = dict(ev, attestation={"schema_version": 2, "nodes": {"main": {"build_ledger": main_l}, "sub": {"build_ledger": ledger}}})
+        apr = applied_set(repo, ev_r, runner=_fake_docker({}))
+        asr = apr.get("node_asymmetry") or {}
+        ex10 = next((x["why"] for x in apr["excluded"] if x["file"] == "10-shared.sh"), "")
+        ck("★F2 회귀 모양(메인 빈 슬롯 · 서브 post applied/pre skipped): 서브 원장 행이 사라지지 않는다 · 대표 밖 파일 사유 = 노드 비대칭"
+           "(빌드 뒤 추가 ✗)", apr["source"].endswith("#main")
+           and {("post", "10-shared.sh", "applied"), ("pre", "50-port.sh", "skipped")}
+           <= {(r["phase"], r["file"], r["result"]) for r in asr["nodes"]["sub"]["patches"]}
+           and "대표 main 원장에 없음 · sub 원장 applied" in ex10 and "빌드 뒤 추가" not in ex10)
+        ptxt = node_asymmetry_phase_text(asr, "post") or ""
+        ck("★F2 단계별 노드 비대칭 문장 = 노드마다 각각(대표 표지 · 행 없음 명시)",
+           "main(대표) 원장: 이 단계 행 없음" in ptxt and "sub 원장: applied 10-shared.sh" in ptxt
+           and "skipped 50-port.sh" in (node_asymmetry_phase_text(asr, "pre") or ""))
+        sl_r = {"build_patch_post": {"files": [], "evidence": {"kind": "build-ledger", "note": "원장 관측"}}}
+        cr = _ctx(repo, ev_r, runner=_fake_docker({}))
+        _slot_machine_reasons(cr, sl_r, apr, None, "docker", cr)
+        ck("★F2 슬롯 사유 = 대표 원장 사유 + 노드별 원장(실림·판정 기준 = 대표)",
+           sl_r["build_patch_post"]["machine_reason"].startswith("적용 판정 없음 — 원장 관측 · 노드 비대칭(cluster)")
+           and "sub 원장: applied 10-shared.sh" in sl_r["build_patch_post"]["machine_reason"])
+        ev_eq = dict(ev, attestation={"schema_version": 2, "nodes": {"main": {"build_ledger": ledger}, "sub": {"build_ledger": ledger}}})
+        ck("★F2 음성대조: 원장이 같으면 · cluster 가 아니면 비대칭 표지 없음",
+           "node_asymmetry" not in applied_set(repo, ev_eq, runner=_fake_docker({}))
+           and "node_asymmetry" not in applied_set(repo, dict(ev_r, node="main"), runner=_fake_docker({}))
+           and "빌드 뒤 추가" in next((x["why"] for x in applied_set(repo, dict(ev_r, node="main"), runner=_fake_docker({}))["excluded"]
+                                     if x["file"] == "10-shared.sh"), ""))
         # ★역할 이름 밖 키(노드 id·호스트 이름)는 원장 키로 받지 않는다 — 개수만 남는다(신원 유출 통로 차단)
         ev_att3 = dict(ev, attestation={"schema_version": 2, "_source": "output/multi/benchlog/attestation_fx-build.json "
                                                                            "(이미지 compose 라벨 vllm_fx-build_project)",

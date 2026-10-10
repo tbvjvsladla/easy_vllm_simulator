@@ -66,7 +66,7 @@ description: >-
 
 > **왜 필요했나**(본 세션 실증): 이 스킬은 **약한 권한**만 갖고 있었다 — E(외부 레퍼런스)가 무조건
 > 정본이라, 사용자가 HITL 로 목표를 명시해도 E 가 이겼다. R0~R3 사다리에서 **E=41 t/s 가 REFUTE**
-> 를 내는데 **사용자 목표 30 t/s 는 PASS** 인 상태가 되어, 진행하려면 매번 `perf_waiver` 서명이
+> 를 내는데 **사용자 목표 30 t/s 는 PASS** 인 상태가 되어, 진행하려면 매번 사람 서명(성능 면제 · 2026-10-11 폐기)이
 > 필요했다. 루브릭 정의는 **이 스킬이 소유**하므로 권한 전환도 여기서 정의한다.
 
 | 상태 | 루브릭 **정본** | 발동 조건 | `verdict_rule.py` |
@@ -75,7 +75,15 @@ description: >-
 | **명시적 권한**(트리거) | **c**(사용자 목표) | ⓐ 사용자가 HITL 로 *"목표 X tok/s"* 명시 **or** ⓑ *"외부 커뮤니티 자료 검색→tok/s 확인→서빙전략 수립"* 지시 | `--authority explicit --target-tps X` → c > E > expected. `--target-tps` 부재 = **fail-closed(exit 2)** |
 | **탐색 권한**(트리거 · 2026-08-22 신설) | **E**(외부 레퍼런스) — 단 **문턱으로 쓰지 않는다** | 사용자가 HITL 로 *"목표 0 / NULL / None / 광범위 탐색"* 지시 | `--authority explore` → **E > expected**(`c` 칸 **부재**). `--target-tps` 는 **금지(exit 2)** |
 
-- **트리거 발동 시 c 달성 = PASS** 이며 **`perf_waiver` 서명이 불요**하다(본 세션 B1 마찰의 제거점).
+- **트리거 발동 시 c 달성 = PASS** 이며 사람 서명이 불요하다(본 세션 B1 마찰의 제거점).
+- ★ **판정(PASS/REFUTE)은 성능 게이트이지 발행 게이트가 아니다**(2026-10-11 사용자 결정 · `plan_26101104` Step 1 · 계약 v8 §3.2).
+  어느 권한이든 hint 발행(승격) 자격은 **서빙 성립 ∧ lite·full 유효 측정**이고, 판정은 태그 배너·카탈로그 판정 열로 **표시만**
+  된다. PASS/REFUTE 가 모는 것은 이 스킬의 **loop-until-done**(재탐색)뿐이다. 인증서는 여전히 **explicit ∧ PASS** 때만 발행된다.
+  사람 서명 성능 면제 필드는 **폐기**됐다(writer 가 없어 실제로 열린 적이 없다 · M1 실례).
+- ★ **기준 부재 = `OBSERVATION-ONLY`** — c 도 E 도 없고 expected 도 산출 불가해 `verdict_rule.py` 가 `NEEDS_RUBRIC`(사다리 공백)을
+  내는 셀(마이너·파인튜닝·Unknown 아키텍처)은 발행 기록에서 `--verdict OBSERVATION-ONLY --verdict-json-src <verdict.json>` 으로
+  **관측 발행**한다(판정 주장 ✗ · 인증서 ✗ · 루프 없음). 같은 `NEEDS_RUBRIC` 이라도 물리 초과(문턱은 있다)·spec accept_len 결손은
+  관측 전용이 아니다 — 발행기가 거부한다(루브릭·측정을 고친다).
 
 ### 2.1 `explore` 계약 — 게이트 미설정 상태 (`plan_26082219` D2·U1)
 
@@ -98,8 +106,8 @@ description: >-
 
   | | `weak`·`explicit` | **`explore`** |
   |---|---|---|
-  | 승격 게이트 | 성능 판정 `verdict == PASS`(미달 시 `perf_waiver`) | **서빙 성립(기능)** = 모델이 실제로 떠서 curl 통신으로 응답을 낸다 **∧ 유효 측정**(`floor > 0` ∧ `ratio ≠ null`) |
-  | `PASS`/`REFUTE` 의 지위 | **게이트** | **서술** — 벽 지도 데이터(어디서 얼마나 못 미쳤나) |
+  | 승격 게이트(= hint 발행 자격 · 2026-10-11 통일) | **서빙 성립(기능) ∧ 유효 측정**(`floor > 0` ∧ `ratio ≠ null` ∧ `primary_source` ∧ 출처 표시) — 판정 무관 | **동일** — 서빙 성립(기능) = 모델이 실제로 떠서 curl 통신으로 응답을 낸다 **∧ 유효 측정** |
+  | `PASS`/`REFUTE` 의 지위 | **성능 게이트** — loop-until-done(재탐색)을 몬다 · 발행은 막지 않는다(표시만) | **서술** — 벽 지도 데이터(어디서 얼마나 못 미쳤나) · loop-until-done 해제 |
 
   - "서빙 성립"의 기계 증거는 `runtime.health_ok ∧ containers[].oom_killed=false ∧
     runtime.functional_smoke_passed` 이며, 이는 `completion_gate.py` 의 **runtime tier 가 이미 강제**한다
@@ -108,7 +116,7 @@ description: >-
     불가다. explore 가 무는 것은 *문턱의 높이*이지 *측정의 유효성*이 아니다.
   - 인증서 이음매(2026-09-29 해소 · plan_26092908 §4.8 · 옛 "잔여 경계" 2026-08-22 의 후계): 인증서는
     **explicit ∧ PASS 때만 발행**된다(PASS-only 규칙은 그대로다 · `judge_bench.sh`). explore 로 끝난 항목은
-    PASS 든 REFUTE 든 인증서를 갖지 못하고, 그 승격은 `perf_waiver` 가 아니라 **manifest rubric carrier**
+    PASS 든 REFUTE 든 인증서를 갖지 못하고, 그 승격은 **manifest rubric carrier**
     (발행기가 `verdict.json` 에서 옮긴 `rubric_authority`·`floor_tps`·`ratio`·`primary_source` · 출처 표시
     `rubric_source`) 경로로 열린다 — `completion_gate` 가 bench_report 판정 표의 `verdict`·`루브릭 권한` 행을
     그 carrier 와 교차검증하고(`CERTIFICATE_WAIVED_NON_ISSUING_AUTHORITY` · 불일치 = `CERTIFICATE_WAIVER_UNCORROBORATED`),
@@ -120,8 +128,9 @@ description: >-
   남기면 U1 계약이 옆문으로 뚫린다. 값은 종전대로 전부 기록하되(`balance.pass` · `balance_dev` ·
   `node_vram_gib`) **`verdict` 를 `REFUTE` 로 뒤집지 않는다**.
   - 우회의 실체: 밸런스가 `verdict` 를 뒤집으면 → 인증서가 **PASS 때만 발행**되는 규칙에 걸려 미발행 →
-    인증서가 없으면 `completion_gate.py` 의 explore 승격 경로(`cert_rubric_authority=='explore'`)가
-    닫힌다 → 결국 **`perf_waiver`(사람 서명)를 강요**한다. 즉 "서빙 성립이면 승격"이 성립하지 않는다.
+    인증서가 없으면 당시 `completion_gate.py` 의 explore 승격 경로(`cert_rubric_authority=='explore'`)가
+    닫혀 사람 서명을 강요했다(역사 · 2026-10-11 발행 게이트 통일 뒤로는 발행이 막히지 않는다). 지금도 뒤집지 않는
+    이유는 explore 의 **서술 계약**이다 — 뒤집으면 해제한 loop-until-done 이 이 축으로 되살아난다.
   - **`weak`·`explicit` 은 종전 그대로 게이트다** — `balance_dev > --balance-tol` → `REFUTE` +
     `failure_axis="balance"` + recipe-explorer loop-back. 이 완화는 **explore 에만** 적용된다.
   - 출력이 스스로 밝힌다(헌법 §결정론 규율 — 출처 표시): `balance.gates_verdict` 가 `true`(게이트) /

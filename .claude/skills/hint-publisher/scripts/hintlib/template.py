@@ -108,7 +108,6 @@ render_scaffold 가 소비하는 facts 키 (evidence·artifacts·lineage 가 조
                                       per_node_values · preconditions · parity_attestation
     bench_section_md            str|None  render_bench_section 이 렌더한 절(바인딩된 리포트 또는 스윕 색인에서)
     task_class                  str   full_benchmark|hint_map_only (없으면 publication.task_class)
-    perf_waiver                 dict|None  manifest.benchmark.perf_waiver — warning_flag 원문을 배포 본문에 싣는다
     campaign                    dict  id · cell · node · mode · (id_source — 재생 전용 대체의 출처 · 2026-09-29 F4)
     approval                    dict  approved_by · approved_utc · source
     prior_approval              dict  재생 전용: 원 발행의 승인(봉인 페이로드 기록) + replay_source — approval 이 없을 때만 메타에 표지와 함께
@@ -136,10 +135,10 @@ render_scaffold 가 소비하는 facts 키 (evidence·artifacts·lineage 가 조
       compose 주석 · 인증서 파싱)은 오기 0 이었다(F7). 발췌 무결성이 재저작 오기를 구조적으로 막는 핵심 게이트다.
     - **벤치 표의 렌더 소유자는 하나**(`render_bench_section.py` · "복제하면 발행기와 검증기가 갈라져 `--verify` 가 무의미"
       — 옛 hint_collect `_bench_section_module`). 옛 `--verify` 를 실행하는 게이트가 없었다(K6) → 이 린터가 in-process 로 부른다.
-    - **PERF-WARNING**(2026-08-01 사용자 결정 "루프-언틸-던을 사람 지시로 깨되 hint 에 warning flag 를 기록한다"): waiver 가
-      있으면 배포 본문(00)에 마커 + `warning_flag` 원문. 경고 없는 waiver 는 단순 게이트 우회다.
-      **OBSERVATION-ONLY**(계약 v5 · 인터뷰 Q5 · 2026-09-14 map_only 통로): 선언만 받고 본문을 보지 않으면 그 선언은
-      배포물에 도달하지 않는다(2026-08-01 선례) — 그래서 **배포되는 00 본문**에서 확인한다.
+    - (2026-10-11 폐기 · plan_26101104 Step 1 · 계약 v8 §3.2) 사람 서명 성능 면제의 경고 마커 — 발행 게이트가 서빙 성립 ∧ 유효
+      측정으로 통일되어 판정은 **표시만** 된다(REFUTE 배너 · 판정 행). 면제 필드 자체가 폐기됐다.
+      **OBSERVATION-ONLY**(계약 v5 · 인터뷰 Q5 · 2026-09-14 map_only 통로 · 2026-10-11 기준 부재 full 셀로 확장): 선언만 받고 본문을
+      보지 않으면 그 선언은 배포물에 도달하지 않는다(2026-08-01 선례) — 그래서 **배포되는 00 본문**에서 확인한다.
     - **침묵은 '없음' 과 구분되지 않는다**(옛 `render_missing_block`) — 결손 0 도 명시한다.
     - **값은 관측이 정본**(F4: 사람이 적은 "NGC 26.05" 는 서빙 이미지 실측 26.07 과 달랐다) — 0.4 사실 블록은 출처 열을 달고
       기계가 채우며, 저작자가 고치면 재생성 diff 로 걸린다.
@@ -193,7 +192,6 @@ BANNER_EXTRA = (
 BANNER_LINES = REVALIDATION_BANNERS + BANNER_EXTRA
 
 MAP_ONLY_MARKER = "OBSERVATION-ONLY"
-PERF_WARNING_MARKER = "PERF-WARNING"
 # 판정 표면(2026-09-29 · plan_26092908 §4.4 · V1·V2): REFUTE 는 기계가 읽는 자리(PAYLOAD.measurement.verdict · FACT:grade 판정 행)와
 #   00 머리 배너(OBSERVATION-ONLY 배너와 같은 자리 · _marker_lines) 둘 다에 있어야 한다 — v6 의 D1·N1 은 REFUTE 가 산문에만 있었다.
 REFUTE_MARKER = "REFUTE"
@@ -422,11 +420,6 @@ def _task_class(facts: dict) -> str | None:
     return facts.get("task_class") or _dict(facts, "publication").get("task_class")
 
 
-def _perf_waiver(facts: dict) -> dict | None:
-    w = facts.get("perf_waiver")
-    return w if isinstance(w, dict) and w else None
-
-
 def _value_text(v) -> str:
     """value-status 대조용 값 문자열 — 표와 블록이 같은 함수를 쓴다(두 판정기가 갈리지 않게)."""
     if v is None or v == "":
@@ -503,12 +496,12 @@ def _marker_lines(f: dict) -> list[str]:
     if _task_class(f) == "hint_map_only":
         out += ["", f"> **{MAP_ONLY_MARKER}** — 이 태그의 성능 수치는 **관측 게재**다(인증서 없음). baseline·권고로 읽지 마라 — "
                     "baseline 을 주장하려면 full_benchmark 인증서가 필요하다."]
-    w = _perf_waiver(f)
-    if w:
-        flag = str(w.get("warning_flag") or "").strip()
-        out += ["", f"> **{PERF_WARNING_MARKER}** — 성능 판정이 기대 이하인데 사람이 waiver 로 발행을 승인했다"
-                    "(waiver 의 대가가 이 경고다). 경고 원문:"]
-        out += [f"> {ln}" for ln in (flag.splitlines() or ["(warning_flag 미기재)"])]
+    elif m.get("verdict") == MAP_ONLY_MARKER:
+        # 2026-10-11(plan_26101104 Step 1 · 계약 v8 §3.2): 기준(c·E)도 expected 도 없는 full 셀 — 판정기가 루브릭을 세우지 못했다.
+        #   판정을 주장하지 않는다는 사실을 REFUTE 배너와 같은 자리에 기계가 싣는다(PASS 주장으로 읽히지 않게).
+        out += ["", f"> **{MAP_ONLY_MARKER}** — 이 셀은 **기준(사용자 목표 c · 외부 레퍼런스 E · expected)이 없어** 성능 판정을 주장하지 "
+                    f"않는다(인증서 없음 · 루프 없음). 수치는 관측이지 baseline · 권고가 아니다 — 판정 출처 "
+                    f"{_cell(_dict(m, 'sources').get('verdict'), '출처 미기재')}."]
     return out
 
 
@@ -705,6 +698,17 @@ def _required_patches_line(f: dict) -> str:
     """00 §0.4 "이 모델에 필요한 패치"(2026-09-29 plan_26092908 §4.3 · V8) — 01 §1.1 관련성의 기계 요약. 추론만 있는 것은 unknown ·
     inactive-inferred 로 남긴다(확정 표기 ✗)."""
     recs = _patch_records(f)
+    asym = _dict(_dict(f, "applied_set"), "node_asymmetry")
+    if asym:
+        # 2026-10-11 · plan_26101104 M1 사실검증 F2: cluster 셀은 노드별 원장이 다를 수 있다 — 대표(main) 원장 하나의 "실린 패치 없음" 이
+        #   cluster 전체의 '필요 판정' 처럼 읽히지 않게, 대표를 밝히고 노드별 원장 관측을 그대로 붙인다(필요 판정 아님 · 합집합 ✗).
+        from . import artifacts as _art
+        per = [(ph, t) for ph in ("pre", "post") if (t := _art.node_asymmetry_phase_text(asym, ph))]
+        rep_ = _cell(asym.get("representative"))
+        head = (f"**이 모델에 필요한 패치**: 대표({rep_}) 측정 이미지 원장 기준 실린 빌드 패치 없음" if not recs
+                else f"**이 모델에 필요한 패치**(대표 {rep_} 원장 기준 실린 파일 {len(recs)}개 — 01 §1.1 관련성)")
+        return (head + " · **노드 비대칭** — " + " · ".join(f"`{ph}` {t.split(' — ', 1)[1]}" for ph, t in per)
+                + "(원장 관측 — 필요 판정이 아니다 · 01 §1.1 노드별 원장).")
     if not recs:
         return "**이 모델에 필요한 패치**: 실린 빌드 패치 없음(또는 파일 기록 미관측 — 01 §1.1)."
     by: dict[str, list[str]] = {}
@@ -1198,6 +1202,19 @@ def _f_applied_set(c: _Ctx) -> str:
         out += _patch_evidence_table(patches)
     else:
         out.append("_빌드 패치 없음 — 이 이미지에 빌드 패치 슬롯 입력이 없다._")
+    asym = _dict(a, "node_asymmetry")
+    if asym and isinstance(asym.get("nodes"), dict):
+        # 2026-10-11 F2: cluster 노드별 원장(attestation nodes.*.build_ledger)을 각각 싣는다 — 합집합 ✗ · 한 노드 선택 ✗
+        out += ["", f"**노드별 원장**(cluster · 대표 `{_cell(asym.get('representative'))}` — {_cell(asym.get('note'))})", ""]
+        nrows = []
+        for n, nd in sorted(asym["nodes"].items()):
+            pts = [x for x in (nd.get("patches") or []) if isinstance(x, dict)] if isinstance(nd, dict) else []
+            for x in pts:
+                nrows.append((f"`{_cell(n)}`", _cell(x.get("phase")), f"`{_cell(x.get('file'))}`", _cell(x.get("result")),
+                              f"`{_cell(nd.get('source'))}`"))
+            if not pts:
+                nrows.append((f"`{_cell(n)}`", "—", "—", "원장 행 없음", f"`{_cell((nd or {}).get('source'))}`"))
+        out += _table(("노드", "단계", "파일", "결과", "출처"), nrows)
     probes = [x for x in (a.get("probes") or []) if isinstance(x, dict)]
     if probes:
         # 순위별 탐침 결과(artifacts `applied_set.probes`) — 조용한 강등 ✗: 원장이 왜 관측되지 않았는지(부재 · 이미지 없음 · 관측
@@ -3055,7 +3072,7 @@ def lint(repo: Path, payload_dir: Path, *, lineage: dict, subst_table=None, mani
         substitute   치환 함수 주입(발췌·서명 대조의 양쪽에 적용 · 멱등). 둘 다 없으면 무결성 검사를 못 하므로 오류다
         resolve_stem (lineage, stem) → 저장소 상대 경로 | None — 기본 `lineage.resolve_stem`(유일 해소만 · 모호 = 밖)
         source_text  저장소 상대 경로 → 본문 | None — 기본 = 저장소 파일 읽기
-        manifest     work-manifest(task_class · benchmark.perf_waiver) — 없으면 facts 의 값을 쓴다
+        manifest     work-manifest(task_class · benchmark.verdict) — 없으면 facts 의 값을 쓴다
         bench_report 03 부하 곡선을 렌더한 원천(bench_report md 또는 sweep_index json) — render_bench_section 로 재렌더 diff 0
         facts        render_scaffold 가 쓴 facts(없으면 기본 스냅샷 자리에서 읽는다 · 부재 = HINT_FACT_SNAPSHOT_ABSENT)
         sealed       True = 봉인 뒤 검사(PROMPT 잔존 = 오류)
@@ -3456,22 +3473,14 @@ def lint(repo: Path, payload_dir: Path, *, lineage: dict, subst_table=None, mani
     if "hint_map_only" in (tc_m, tc_f) and MAP_ONLY_MARKER not in text00:
         add("HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING", "00-hint.md", 1,
             f"task_class=hint_map_only 인데 00 본문에 `{MAP_ONLY_MARKER}` 가 없다(관측 게재 — baseline·권고 ✗)")
+    # 2026-10-11(plan_26101104 Step 1): 기준 부재 full 셀(manifest benchmark.verdict 또는 facts measurement.verdict = OBSERVATION-ONLY)도
+    #   00 본문에 마커가 있어야 한다 — 판정을 주장하지 않는다는 사실이 배포물에 도달해야 PASS 주장으로 오독되지 않는다.
     bench_m = _dict(manifest, "benchmark") if isinstance(manifest, dict) else {}
-    waiver_m = bench_m.get("perf_waiver") if isinstance(bench_m.get("perf_waiver"), dict) and bench_m.get("perf_waiver") \
-        else None
-    waiver_f = _perf_waiver(facts) if facts is not None else None
-    if facts is not None and isinstance(manifest, dict) and (
-            bool(waiver_m) != bool(waiver_f)
-            or (waiver_m and waiver_f and str(waiver_m.get("warning_flag") or "").strip()
-                != str(waiver_f.get("warning_flag") or "").strip())):
-        add("HINT_PERF_WAIVER_CONFLICT", "00-hint.md", 1,
-            "manifest.benchmark.perf_waiver 와 facts.perf_waiver 가 다르다 — PERF-WARNING 은 facts 에서 기계 렌더된다")
-    waiver = waiver_m or waiver_f
-    if waiver:
-        flag = str(waiver.get("warning_flag") or "").strip()
-        if PERF_WARNING_MARKER not in text00 or (flag and any(ln.strip() not in text00 for ln in flag.splitlines())):
-            add("HINT_PERF_WARNING_MISSING", "00-hint.md", 1,
-                f"perf_waiver 가 있는데 00 본문에 `{PERF_WARNING_MARKER}` + warning_flag 원문이 없다(경고 없는 waiver 는 우회다)")
+    meas_f = _dict(facts, "measurement") if facts is not None else {}
+    if ("hint_map_only" not in (tc_m, tc_f) and MAP_ONLY_MARKER in (bench_m.get("verdict"), meas_f.get("verdict"))
+            and MAP_ONLY_MARKER not in text00):
+        add("HINT_OBSERVATION_ONLY_MARKER_MISSING", "00-hint.md", 1,
+            f"판정 = {MAP_ONLY_MARKER}(기준 c·E·expected 부재 full 셀)인데 00 본문에 `{MAP_ONLY_MARKER}` 가 없다(판정 주장 ✗ — 관측)")
     if "00-hint" in docs:
         d00 = docs["00-hint"]
         visible = "\n".join(line for i, line in enumerate(d00.lines) if not d00.masked[i])
@@ -3962,7 +3971,7 @@ def selftest() -> list[str]:
                            "image_identity_args": ["IMAGE_TAG"], "per_node_values": {"MASTER_HOST_IP": "<node:main>"},
                            "preconditions": ["가중치가 같은 경로에 실재"], "parity_attestation": {"observed": "unobservable"}},
             "bench_section_md": bench_md,
-            "task_class": "full_benchmark", "perf_waiver": None,
+            "task_class": "full_benchmark",
             "campaign": {"id": "camp-fixture", "cell": "fixture-cell", "node": "cluster", "mode": "campaign"},
             "approval": {"approved_by": "사용자(발화 전사) — 픽스처", "approved_utc": "2026-09-21T10:21:01Z", "source": "campaign:hint_targets"},
             "publication": {"topic": "camp_fixture", "manifest_ref": "docs/_evidence/camp_fixture.work-manifest.json",
@@ -4136,8 +4145,8 @@ def selftest() -> list[str]:
         ck("★value-status 커버리지 결손", "HINT_VALUE_STATUS_GAP" in lint_v(variant("g", edit("01-artifacts.md", v1, ""))))
         ck("★value-status 값 불일치", "HINT_VALUE_STATUS_VALUE_MISMATCH" in lint_v(
             variant("gv", edit("01-artifacts.md", "값: 262144", "값: 262000"))))
-        ck("★PERF-WARNING 부재(waiver)", "HINT_PERF_WARNING_MISSING" in lint_v(
-            payload, manifest={"task_class": "full_benchmark", "benchmark": {"perf_waiver": {"warning_flag": "기대 이하 — 재측정"}}}))
+        ck("★OBSERVATION-ONLY 마커 부재(기준 부재 full 셀 — manifest 만 선언)", "HINT_OBSERVATION_ONLY_MARKER_MISSING" in lint_v(
+            payload, manifest={"task_class": "full_benchmark", "benchmark": {"verdict": "OBSERVATION-ONLY"}}))
         ck("★배너 삭제", "HINT_BANNER_ABSENT" in lint_v(variant("b", edit("00-hint.md", "> " + REVALIDATION_BANNERS[1] + "\n", ""))))
         ck("★배너를 주석 안으로", "HINT_BANNER_ABSENT" in lint_v(variant("bc", edit(
             "00-hint.md", "> " + REVALIDATION_BANNERS[1], "<!-- " + REVALIDATION_BANNERS[1] + " -->"))))
@@ -4506,8 +4515,6 @@ def selftest() -> list[str]:
         ck("★미등록 결손 코드", "HINT_MISSING_CODE_UNREGISTERED" in lint_v(payload, facts=dict(facts_json, missing=["HINT_NOT_A_CODE"])))
         ck("★task_class facts 누락(manifest 만 선언)", "HINT_TASK_CLASS_CONFLICT" in lint_v(
             payload, facts=dict(facts_json, task_class=None, publication={"topic": "camp_fixture"})))
-        ck("★perf_waiver facts 누락(manifest 만 선언)", "HINT_PERF_WAIVER_CONFLICT" in lint_v(
-            payload, manifest={"task_class": "full_benchmark", "benchmark": {"perf_waiver": {"warning_flag": "기대 이하"}}}))
         ck("★brief 문단 안의 주석 경계(봉인 뒤 tag 가 거부하기 전에 lint 가 막는다)", "HINT_BRIEF_SHAPE" in lint_v(variant(
             "bcm", edit("00-hint.md", "복사하지 마라.", "복사하지 마라. <!-- 메모 -->"))))
         bl = variant("bcl", edit("00-hint.md", "t/s.\n가장 비싼 벽은", "t/s.\n<!-- 메모 -->\n가장 비싼 벽은"))
@@ -4857,7 +4864,7 @@ def selftest() -> list[str]:
            "HINT_PROMPT_RESIDUE" in codes(lint(repo, one, sealed=True, facts=facts_json, **kw)))
         ck("봉인 뒤에도 CLI --verify PASS", cli_verify(sealed_dir, repo / rep_p) == 0)
 
-        # map_only · single 토폴로지(1.5 조건 불성립) · waiver 양성
+        # map_only · single 토폴로지(1.5 조건 불성립) · 기준 부재 full 셀(OBSERVATION-ONLY) 양성
         mo = json.loads(core.dumps(base_facts))
         mo.update(task_class="hint_map_only", sub_recipe=None,
                   identity={**base_facts["identity"], "topology": "single", "tp": 1},
@@ -4876,13 +4883,22 @@ def selftest() -> list[str]:
         t = (dst / "00-hint.md").read_text(encoding="utf-8")
         (dst / "00-hint.md").write_text(t + f"\n<!-- {MAP_ONLY_MARKER} -->\n", encoding="utf-8")
         ck("★주석 속 OBSERVATION-ONLY 는 마커가 아니다", "HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING" in codes(lint(repo, dst, facts=json.loads(core.dumps(mo)), **mkw)))
-        wv = json.loads(core.dumps(base_facts))
-        wv["perf_waiver"] = {"warning_flag": "기대 이하 — 재측정 필요", "reason": "픽스처"}
-        pw = scaffold("waiver", wv)
-        fill(pw, wv)
-        refresh(pw)
-        wkw = dict(kw, manifest={"task_class": "full_benchmark", "benchmark": {"perf_waiver": wv["perf_waiver"]}})
-        ck(f"waiver: PERF-WARNING + warning_flag 원문 실림: {lint(repo, pw, **wkw)[:3]}", lint(repo, pw, **wkw) == [])
+        ob = json.loads(core.dumps(base_facts))
+        ob["measurement"] = {**(ob.get("measurement") or {}), "verdict": MAP_ONLY_MARKER,
+                             "sources": {"verdict": "sweep verdict.json(fixture) (NEEDS_RUBRIC → OBSERVATION-ONLY · 기준 c·E·expected 부재)"}}
+        po = scaffold("observation", ob)
+        fill(po, ob)
+        refresh(po)
+        okw = dict(kw, manifest={"task_class": "full_benchmark", "benchmark": {"verdict": MAP_ONLY_MARKER}})
+        t_o = (po / "00-hint.md").read_text(encoding="utf-8")
+        ck(f"기준 부재 full 셀: 00 머리 OBSERVATION-ONLY 배너(판정 주장 ✗) · lint 통과: {lint(repo, po, **okw)[:3]}",
+           f"> **{MAP_ONLY_MARKER}** — 이 셀은 **기준(" in t_o and f"> **{REFUTE_MARKER}**" not in t_o
+           and lint(repo, po, **okw) == [])
+        dst = root / "v" / "ob-strip" / "payload"
+        shutil.copytree(po, dst)
+        (dst / "00-hint.md").write_text(t_o.replace(MAP_ONLY_MARKER, "OBSERVATION"), encoding="utf-8")
+        ck("★OBSERVATION-ONLY 부재(기준 부재 full 셀)", "HINT_OBSERVATION_ONLY_MARKER_MISSING"
+           in codes(lint(repo, dst, facts=json.loads(core.dumps(ob)), **okw)))
         ck("★기존 저작물 덮지 않음", raises(lambda: render_scaffold(repo, base_facts, payload), "HINT_SCAFFOLD_EXISTS"))
         bad_t = dict(base_facts, tag="not-a-hint")
         ck("★facts.tag 모양", raises(lambda: render_scaffold(repo, bad_t, root / "bt" / "payload"), "HINT_FACTS_SHAPE"))
@@ -4946,6 +4962,31 @@ def selftest() -> list[str]:
         rs_ = _f_resolved(_Ctx(repo, qf, tpls))
         ck("0.4 양자화 구성 표(선언 fp8 + routed expert fp4) · 필요한 패치 요약(required 목록) · 드라이버 관측 ≠ 선언 행",
            "| routed experts | `fp4` |" in rs_ and "required `60-fixture-patch.sh`" in rs_ and "⚠ 드라이버 관측 ≠ 선언" in rs_)
+        # 2026-10-11 · plan_26101104 M1 사실검증 F2 — cluster 노드별 원장 비대칭: 00 §0.4 · 01 §1.1 이 노드마다 각각 말한다
+        af = json.loads(core.dumps(base_facts))
+        for _sn in ("build_patch_pre", "build_patch_post"):
+            if isinstance(af["slots"].get(_sn), dict):
+                af["slots"][_sn]["file_records"] = []
+        af["applied_set"] = {"status": "observed", "source": "attestation:output/multi/benchlog/attestation_x.json#main",
+                             "patches": [{"phase": "inline", "file": "strip-hoist", "result": "skipped", "result_source": "build-ledger"}],
+                             "node_asymmetry": {"representative": "main", "note": "노드별 원장이 다르다(픽스처)", "nodes": {
+                                 "main": {"source": "attestation:x#main", "patches": [
+                                     {"phase": "inline", "file": "strip-hoist", "result": "skipped"}]},
+                                 "sub": {"source": "attestation:x#sub", "patches": [
+                                     {"phase": "pre", "file": "50-port.sh", "result": "skipped"},
+                                     {"phase": "post", "file": "10-deepgemm.sh", "result": "applied"}]}}}}
+        rq = _required_patches_line(af)
+        aq = _f_applied_set(_Ctx(repo, af, tpls))
+        ck("★F2 00 §0.4: 대표(main) 원장 기준임을 밝히고 노드별 원장(sub applied/skipped)을 붙인다 · '필요 판정 아님'",
+           "대표(main) 측정 이미지 원장 기준 실린 빌드 패치 없음" in rq and "**노드 비대칭**" in rq
+           and "sub 원장: applied 10-deepgemm.sh" in rq and "sub 원장: skipped 50-port.sh" in rq and "필요 판정이 아니다" in rq)
+        ck("★F2 01 §1.1 적용 집합: 노드별 원장 표(노드마다 행 · 출처 #노드)",
+           "**노드별 원장**" in aq and "| `sub` | post | `10-deepgemm.sh` | applied | `attestation:x#sub` |" in aq
+           and "| `main` | inline | `strip-hoist` | skipped |" in aq)
+        af["applied_set"].pop("node_asymmetry")
+        ck("★F2 음성대조: 비대칭 표지가 없으면 종전 문장 · 노드별 표 없음",
+           _required_patches_line(af).startswith("**이 모델에 필요한 패치**: 실린 빌드 패치 없음")
+           and "**노드별 원장**" not in _f_applied_set(_Ctx(repo, af, tpls)))
         # 재현: 슬롯 → 빌드 컨텍스트 매핑 · env 형상 파생 키 · README 요약
         xf = json.loads(core.dumps(base_facts))
         xf["build_context_map"] = [{"slot_path": "artifacts/build_patch_pre/60-fixture-patch.sh",

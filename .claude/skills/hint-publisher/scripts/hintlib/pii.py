@@ -140,7 +140,7 @@ def load_pii_terms(repo: Path) -> list[str] | None:
     파일이 있는데 읽을 수 없으면 부재가 아니라 결함이다(HINT_PII_TERMS_UNREADABLE) — 깨진 파일을 "없음" 으로 읽으면
     리터럴 검사가 조용히 꺼진다.
     """
-    p = Path(repo) / core.REL_PII_TERMS
+    p = core.aux_root(repo) / core.REL_PII_TERMS     # 별도 hint 클론 모드면 워크스페이스(core.set_aux_root)
     if not p.exists():
         return None
     if not p.is_file():

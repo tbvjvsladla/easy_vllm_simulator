@@ -1282,6 +1282,12 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/check_sub_hint_equip.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
       "callee": "terraforming_node/scripts/campaign_init.py",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"

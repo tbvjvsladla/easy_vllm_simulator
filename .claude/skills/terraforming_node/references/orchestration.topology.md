@@ -44,6 +44,6 @@
 |---|---|
 | 빌드킷 배달 평면 | **dormant** — 서브가 자율 저작한다 |
 | 에이전트 환경 오버레이 | **active** — 이것이 확장기능의 내용이다 |
-| 서브 런타임 스킬 | **on**(tool_plane 3종) — 정본은 `node_role_contract` 파생값 |
+| 서브 런타임 스킬 | **on**(tool_plane 3종 + hint-publisher · 2026-10-11 plan_26101104 — single 서브 자체 발행) — 정본은 `node_role_contract` 파생값 |
 | 서브의 자율 빌드 판단 | ✔ — 독려한다 |
 | 서브 → 메인 상향 | 문서기반 회수만(공통층) |

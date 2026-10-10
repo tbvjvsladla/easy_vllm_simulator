@@ -80,7 +80,7 @@ REASON_SPEC_ACCEPT_LEN_MISSING = "SPEC_ACCEPT_LEN_MISSING"
 
 AUTHORITY_NOTE = {
     "weak": "weak(기본): 외부 레퍼런스(E)가 정본",
-    "explicit": "explicit: 사용자 HITL 목표(c)가 정본 — 달성 시 perf_waiver 불요",
+    "explicit": "explicit: 사용자 HITL 목표(c)가 정본 — 판정은 성능 게이트(loop-until-done)이고 발행은 막지 않는다",
     "explore": ("explore: 목표 미설정(광범위 탐색) — 문턱을 세우지 않는다(성능·밸런스 축 **모두 서술**). "
                 "loop-until-done 해제. "
                 "승격 자격은 성능 판정이 아니라 **서빙 성립(기능) + 유효 측정**이다(SKILL.md §2)."),
@@ -540,9 +540,9 @@ def build_verdict(measured, roofline, opts):
     # ★ explore 에서 이 축은 **게이트가 아니라 서술**이다(SKILL.md §2.1 · plan_26082219 U1).
     #   explore 의 승격 자격은 *서빙 성립(기능) ∧ 유효 측정* 이고, 성능도 밸런스도 문턱이 아니라
     #   **벽 지도 데이터**다. 그러므로 값은 종전대로 전부 기록하되 verdict 는 뒤집지 않는다.
-    #   ⚠ 뒤집으면 이 축이 U1 계약을 **우회해 게이트로 되살아난다**: REFUTE → 인증서 PASS-only 규칙에
-    #   걸려 미발행(publish_benchmark_record) → 인증서가 없으면 completion_gate 의 explore 승격 경로
-    #   (cert_rubric_authority=='explore')가 닫혀 perf_waiver(사람 서명)를 강요하게 된다.
+    #   ⚠ 뒤집으면 이 축이 U1 계약을 **우회해 게이트로 되살아난다**: explore 가 해제한 loop-until-done(성능 게이트)이
+    #   밸런스 REFUTE 로 다시 걸린다(역사: 당시엔 인증서 미발행 → 사람 서명 강요까지 이어졌다 · 2026-10-11 발행 게이트
+    #   통일 뒤로 발행은 판정과 무관하다).
     #   weak/explicit 은 **종전 거동 그대로**(REFUTE + failure_axis="balance") — 기존 판정 불변.
     node_vals = opts.get("node_vram")
     if node_vals:
@@ -710,8 +710,8 @@ def _self_test():
 
     # --- T16 ★: explore 에서 밸런스 축은 **서술**이다(U1) — 기록은 남되 verdict 를 안 뒤집는다 ---
     #   T13 과 **동일 입력**(60.1,66.8)이며 authority 만 다르다: weak=REFUTE(게이트) vs explore=PASS(서술).
-    #   이 대조가 무너지면 밸런스 축이 U1 계약을 우회해 게이트로 되살아난 것이다(인증서 미발행 →
-    #   completion_gate 의 explore 승격 경로 차단 → perf_waiver 강요).
+    #   이 대조가 무너지면 밸런스 축이 U1 계약을 우회해 게이트로 되살아난 것이다(explore 가 해제한
+    #   loop-until-done 이 밸런스 REFUTE 로 다시 걸린다).
     v, e = run("T16", authority="explore", node_vram_gib="60.1,66.8", balance_tol=0.10)
     check("T16", not e and v and v["verdict"] == "PASS" and v["failure_axis"] != "balance"
           and v["balance"]["pass"] is False and v["balance"]["gates_verdict"] is False

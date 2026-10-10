@@ -191,11 +191,14 @@ def _gate(repo: Path, manifest, cmd: str) -> dict:
 # 안내가 막다른 길로 읽히면 사람도 에이전트도 우회를 택한다(workflow.md D5 · plan_26082017 W7 · 2026-08-20 실증: 맨 `git tag -a` +
 # `git push` 로 돌아갔다) — 처방(권위 선언 또는 --no-push 로 봉인까지 → 상류 전달)을 함께 적는다.
 def _require_central(repo: Path, action: str) -> None:
-    if (repo / core.REL_CENTRAL_FLAG).is_file():
+    # 2026-10-11(plan_26101104): push 는 **push 역할 선언**(`hints/.push_authority`) 또는 카탈로그 권위 선언으로 열린다 — single
+    #   서브는 push 역할만 갖고 카탈로그는 메인 단독이다(역할 분리). 카탈로그 파생(catalog.derive)은 여전히 central 만 연다.
+    if (repo / core.REL_CENTRAL_FLAG).is_file() or (repo / core.REL_PUSH_FLAG).is_file():
         return
     core.fail("HINT_PUSH_CENTRAL_AUTHORITY_ABSENT",
               f"'{action}' 는 **자기 원격의 색인·배포 권위**를 가진 체크아웃에서만 실행된다 — `{core.REL_CENTRAL_FLAG}` 부재"
               "(D8 권한 비대칭 · plan_26082009 · 2026-08-20).",
+              f"▸ single 서브(자체 발행 장착)는 push 역할만 선언한다: `{core.REL_PUSH_FLAG}`(terraforming_node 설치 절차). "
               "▸ 이 체크아웃이 자기 원격(origin)의 hint 카탈로그를 소유한다면 권위를 선언하라: "
               f"printf '%s\\n' '이 체크아웃이 자기 원격의 hint 색인·배포 권위다.' > {core.REL_CENTRAL_FLAG} "
               "(비추적 — 각 저장소가 스스로 선언한다 · 선언은 그 원격의 index.json·HINTS.md 정합을 떠안는 책임이다). "
@@ -718,7 +721,7 @@ def _require_binding_artifact(man: dict, repo: Path, *, before_commit: bool) -> 
         core.fail("HINT_CERTIFICATE_BINDING_ABSENT",
                   "footer bench_ref 로 묶을 계측 산출물(인증서 · bench_report)이 없다(binding_artifact_path = None)"
                   + (" — 커밋하지 않았다." if before_commit else "."),
-                  "인증서가 발행되는 판정(explicit ∧ PASS)이면 인증서를, 그 밖(REFUTE · explore PASS · waiver · map_only)이면 bench_report 를 "
+                  "인증서가 발행되는 판정(explicit ∧ PASS)이면 인증서를, 그 밖(non-PASS · 비발행 권한 PASS · OBSERVATION-ONLY · map_only)이면 bench_report 를 "
                   "발행 기록에 바인딩한다(evidence_publisher).")
     kind = tag.bench_kind_of(ref)
     if kind is None:
@@ -743,8 +746,9 @@ def _lint(repo: Path, payload: Path, draft: Path, st: dict, *, sealed: bool) -> 
                          bench_report=st.get("bench_source"), facts=facts, sealed=sealed, draft_dir=draft)
 
 
-def _lint_fn(draft: Path | None, st: dict | None):
-    """tag.verify_local 의 서사 린터 주입구: 봉인된 **git 오브젝트** 트리를 임시 디렉터리에 풀어(branch.export_tree) sealed 린트."""
+def _lint_fn(draft: Path | None, st: dict | None, workspace: Path | None = None):
+    """tag.verify_local 의 서사 린터 주입구: 봉인된 **git 오브젝트** 트리를 임시 디렉터리에 풀어(branch.export_tree) sealed 린트.
+    workspace(plan_26101104 · 별도 hint 클론): 오브젝트는 넘겨받은 repo(클론)에서 풀고, 출처 대조 린트는 워크스페이스에서 한다."""
     def fn(*, repo, anchor, tag):  # noqa: A002 — tag.verify_local 의 키워드 계약
         if draft is None or st is None:
             return [{"code": "HINT_LINT_DRAFT_ABSENT",
@@ -753,7 +757,7 @@ def _lint_fn(draft: Path | None, st: dict | None):
         with tempfile.TemporaryDirectory(prefix="hint-verify-") as td:
             dst = Path(td) / "payload"
             branch.export_tree(Path(repo), anchor, dst)
-            return _lint(Path(repo), dst, draft, st, sealed=True)
+            return _lint(Path(workspace) if workspace is not None else Path(repo), dst, draft, st, sealed=True)
     return fn
 
 
@@ -841,7 +845,7 @@ def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_r
         "lineage_reading_list": lineage.reading_list(lin), "value_status_candidates": art.get("value_status_candidates"),
         "reproduce_steps": _with_bench_command(art.get("reproduce_steps"), evidence.bench_command(repo, ev)),
         "sub_recipe": art.get("sub_recipe"), "bench_section_md": bench_md,
-        "task_class": task_class, "perf_waiver": bench.get("perf_waiver") or None, "campaign": camp, "approval": None,
+        "task_class": task_class, "campaign": camp, "approval": None,
         "prior_approval": prior_approval, "publication": pub, "event_timeline": event_timeline, "event_ledger_spans": event_ledger_spans,
         "event_campaign_boundary": event_campaign_boundary, "bench_definition": bench_definition, "factcheck": None,
         "measurement_env_observed": col["env_observed"], "tool_snapshots": col["tool_snaps"], "attestation_scope": col["att_scope"],
@@ -1093,7 +1097,8 @@ def _tail_issues(draft: Path) -> list[dict]:
     return [{"code": c, "file": rel, "line": 1, "message": m} for c, m in naming.validate_tail(tail, src)]
 
 
-def _confirm_name(repo: Path, draft: Path, st: dict, payload: Path, *, remote: str, tolerate_remote: bool) -> dict:
+def _confirm_name(repo: Path, draft: Path, st: dict, payload: Path, *, remote: str, tolerate_remote: bool,
+                  git_repo: Path | None = None) -> dict:
     """꼬리 확정 → 최종 이름 → (중복이면) timestamp → 페이로드 파일 전체의 이름 갱신 → st["tag"]. 재실행 멱등(같은 입력 = 같은 이름 ·
     바뀐 것이 없으면 쓰기 0). 커밋 **전** 구간이다 — 이름이 페이로드 파일(PAYLOAD · PROVENANCE · README · FACT 블록) 안에 있으므로 봉인 뒤
     개명은 없다(plan_26092908 §4.1). 반환 = 확정 기록(st["name"])."""
@@ -1107,17 +1112,18 @@ def _confirm_name(repo: Path, draft: Path, st: dict, payload: Path, *, remote: s
                   "근거는 이 셀의 서빙 설정(inputs/tail_sources.json 에 있는 파일 · 키)에서 값 그대로 옮긴다 · `hint.py lint` 로 미리 본다.")
     base = st.get("base_tag") or st["tag"]
     name = naming.compose_name(base, tail)
-    hit, note = _name_hit(repo, name, remote=remote, remote_check=True, tolerate=tolerate_remote)
+    g = Path(git_repo) if git_repo is not None else repo      # 태그 이름공간 = 태그가 만들어질 저장소(별도 hint 클론이면 그 클론)
+    hit, note = _name_hit(g, name, remote=remote, remote_check=True, tolerate=tolerate_remote)
     ts = None
     if hit is not None:
         # 원격 · 로컬에 이미 있다 = 같은 셀의 새 판 → 이 발행의 generated_utc(publish 시각 · 결정론)를 KST 로 붙인다(§4.1 U7)
         ts = naming.timestamp_token(st["generated_utc"])
         name = naming.with_timestamp(name, st["generated_utc"])
-        hit2, note = _name_hit(repo, name, remote=remote, remote_check=True, tolerate=tolerate_remote)
+        hit2, note = _name_hit(g, name, remote=remote, remote_check=True, tolerate=tolerate_remote)
         if hit2 is not None:
             core.fail("HINT_NAME_COLLISION", f"timestamp 를 붙인 이름도 이미 있다({hit2}): {name} — 같은 분에 같은 셀 2건.",
                       "publish 를 새 --generated-utc 로 다시 실행한다(새 판 · 옛 태그는 교정하지 않는다 · P1).")
-    tag.check_ref_format(repo, name)
+    tag.check_ref_format(g, name)
     _require_name_pii_clean(repo, name)
     base_doc = core.read_json(draft / "inputs" / NAMING_BASE_NAME, code="HINT_NAMING_BASE_UNREADABLE")
     naming_doc = naming.apply_tail(base_doc, tail, ts)
@@ -1216,12 +1222,38 @@ def _commit_catalog(repo: Path, tagname: str) -> dict:
 
 # ── continue ───────────────────────────────────────────────────────────────────────────────────
 def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, approved_utc=None, remote="origin",
-              no_push=False, factcheck_waiver=None, guide_commit=None, rt: Runtime | None = None) -> dict:
+              no_push=False, factcheck_waiver=None, guide_commit=None, rt: Runtime | None = None,
+              hint_clone: Path | None = None) -> dict:
+    """hint_clone(plan_26101104 · single 서브 자체 발행): 워크스페이스 git 은 원격이 없다(SUB_GIT_LOCAL_ONLY). 그때 페이로드 커밋 ·
+    봉인 · 로컬 검증 · push · 원격 대조 · 이름공간 조회는 **별도 hint 클론**(원격 = 프로젝트 원격 · 브랜치 hint)에서 하고, 증거 ·
+    게이트 · 출처 린트 · PII 리터럴 · 토큰은 워크스페이스에서 읽는다. 생략하면 종전 그대로(repo 하나)."""
+    if hint_clone is None:
+        return _continue(repo, draft=draft, generated_utc=generated_utc, approved_by=approved_by, approved_utc=approved_utc,
+                         remote=remote, no_push=no_push, factcheck_waiver=factcheck_waiver, guide_commit=guide_commit, rt=rt,
+                         git_repo=None)
+    g = Path(hint_clone).resolve()
+    if core.git(g, "rev-parse", "--is-inside-work-tree", check=False).returncode != 0:
+        core.fail("HINT_CLONE_NOT_A_REPO", f"--hint-clone {g} 이 git 저장소가 아니다.",
+                  "terraforming_node 서브 설치 절차(hint 발행 장착)가 만든 hint 클론 경로를 준다.")
+    if g == Path(repo).resolve():
+        core.fail("HINT_CLONE_IS_WORKSPACE", "--hint-clone 이 워크스페이스 자신이다 — 별도 저장소여야 한다(SUB_GIT_LOCAL_ONLY).")
+    prev = core.set_aux_root(Path(repo).resolve())
+    try:
+        return _continue(repo, draft=draft, generated_utc=generated_utc, approved_by=approved_by, approved_utc=approved_utc,
+                         remote=remote, no_push=no_push, factcheck_waiver=factcheck_waiver, guide_commit=guide_commit, rt=rt,
+                         git_repo=g)
+    finally:
+        core.set_aux_root(prev)
+
+
+def _continue(repo: Path, *, draft: Path, generated_utc, approved_by, approved_utc, remote, no_push, factcheck_waiver,
+              guide_commit, rt: Runtime | None, git_repo: Path | None) -> dict:
     """승인 → 이름 확정(꼬리 · timestamp) → 안내 커밋 → 사실 갱신 → 린트 → 사실 검증 → 봉인 PROMPT → 봉인 출처 스냅샷 → 게이트 → 커밋
     (부모 = 안내) → 승격 목표 → 봉인 → 로컬 검증 → (push → 원격 SHA → 카탈로그 파생 · 커밋 → publish 위상). 각 단계는 state.json 에
     남고 재실행은 끝난 단계를 확인만 한다(SPEC §4.2 · plan_26092908 §4.8)."""
     rt = rt or Runtime()
     repo, draft = Path(repo).resolve(), Path(draft).resolve()
+    g = git_repo if git_repo is not None else repo     # git 오브젝트 · 태그 · 원격 연산 저장소
     utc_arg = core.require_utc(generated_utc)
     st = _load_state(draft)
     payload = draft / "payload"
@@ -1239,7 +1271,7 @@ def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, appro
     commit_step = _step(st, "commit")
     if commit_step is not None:
         # 재실행: 커밋 뒤 draft 가 그대로인가를 **먼저** 본다(부수효과 0) — 바뀐 draft 에서 brief·게이트로 가면 엉뚱한 사유로 멈춘다.
-        _require_draft_equals_anchor(repo, payload, commit_step["anchor"])
+        _require_draft_equals_anchor(g, payload, commit_step["anchor"])
     utc = st.get("commit_utc") or utc_arg
     if st.get("commit_utc") and st["commit_utc"] != utc_arg:
         _log(f"커밋 시각은 첫 커밋 때 적은 {st['commit_utc']} 를 다시 쓴다(재개 · 같은 메시지·시각이어야 중복 커밋이 없다).")
@@ -1267,9 +1299,9 @@ def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, appro
         # 이름 확정(부수효과 = draft 안뿐 · 커밋 전): 꼬리 근거 대조 → 최종 이름 → 로컬 · 원격 중복이면 timestamp(publish 시각 · 결정론)
         #   → 그래도 중복이면 차단. 원격 조회 실패는 --no-push 에서만 견딘다(push 할 원격을 못 보는데 봉인까지 가면 그 뒤에야 안다).
         #   이 단계가 옛 "커밋 전 이름 충돌 재확인(X13)" 을 대신한다 — 충돌은 이제 차단이 아니라 새 판(timestamp)이다(§4.1 U7).
-        _confirm_name(repo, draft, st, payload, remote=remote, tolerate_remote=bool(no_push))
+        _confirm_name(repo, draft, st, payload, remote=remote, tolerate_remote=bool(no_push), git_repo=g)
         # 안내 커밋(부모) — 커밋 전에 state 에 적는다(재개 = 같은 부모)
-        _resolve_guide(repo, st, draft, remote=remote, pinned=guide_commit, no_push=bool(no_push))
+        _resolve_guide(g, st, draft, remote=remote, pinned=guide_commit, no_push=bool(no_push))
         template.seal_prompts(payload)
         issues = _lint(repo, payload, draft, st, sealed=True)
         if issues:
@@ -1293,7 +1325,7 @@ def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, appro
         _save_state(draft, st)                     # 시각을 **커밋 전에** 적는다 — 커밋 직후 끊겨도 재실행이 같은 커밋으로 재개한다
         message = branch.commit_message(payload, generated_utc=utc)
         # 부모 = 안내 커밋(plan_26092908 §4.7) · 로컬 `refs/heads/hint` 는 움직이지 않는다(페이로드 커밋은 태그만 가리킨다)
-        anchor = branch.commit_payload(repo, payload, message=message, generated_utc=utc, guide=st["guide"]["sha"])
+        anchor = branch.commit_payload(g, payload, message=message, generated_utc=utc, guide=st["guide"]["sha"])
         _mark(draft, st, "commit", anchor=anchor, utc=utc, guide=st["guide"]["sha"])
     # ⑥ 승격 목표(X6 · 발행 기록 → finalize 방출) → 게이트 재확인
     if _step(st, "target") is None:
@@ -1317,13 +1349,13 @@ def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, appro
               "manifest_ref": st["manifest"], "bench_ref": bench_ref, "bench_kind": bench_kind}
     message = tag.annotation(brief, fields)
     try:
-        obj = tag.seal(repo, tagname, anchor, message, generated_utc=utc, remote=None if no_push else remote)
+        obj = tag.seal(g, tagname, anchor, message, generated_utc=utc, remote=None if no_push else remote)
     except tag.HintProblemsError as e:
         _mark(draft, st, "seal", ok=False, codes=tag.problem_codes(e.problems))
         raise
-    lint_fn = _lint_fn(draft, st)
+    lint_fn = _lint_fn(draft, st, workspace=repo)
     infos: list = []
-    vprobs = tag.verify_local(repo, tagname, lint_fn=lint_fn, infos=infos)
+    vprobs = tag.verify_local(g, tagname, lint_fn=lint_fn, infos=infos)
     for line in infos:
         _log(line)
     if vprobs:
@@ -1346,12 +1378,12 @@ def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, appro
     _gate(repo, manifest, "push")
     pinfos: list = []
     try:
-        pres = tag.push_tag(repo, remote, tagname, lint_fn=lint_fn, infos=pinfos)
+        pres = tag.push_tag(g, remote, tagname, lint_fn=lint_fn, infos=pinfos)
     except tag.HintProblemsError as e:
         _mark(draft, st, "push", ok=False, remote=remote, codes=tag.problem_codes(e.problems))
         raise
-    local_obj = tag.read_tag(repo, tagname)["object_sha"]
-    remote_obj = tag.remote_tag_object(repo, remote, tagname)
+    local_obj = tag.read_tag(g, tagname)["object_sha"]
+    remote_obj = tag.remote_tag_object(g, remote, tagname)
     if remote_obj != local_obj:
         core.fail("HINT_REMOTE_SHA_MISMATCH", f"원격 {remote} 의 태그 오브젝트 {str(remote_obj)[:12]} ≠ 로컬 {local_obj[:12]}")
     # 시각(주입만): 커밋·봉인은 첫 커밋 시각(재개 정합)이지만 push 가 **일어난** 시각은 그 push 를 한 호출의 주입 시각이다 —
@@ -1363,9 +1395,16 @@ def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, appro
     _mark(draft, st, "push", ok=True, remote=remote, status=pres.get("status"), refspec=pres.get("refspec"),
           remote_object=remote_obj, utc=push_utc, infos=pinfos)
     # ⑨ 카탈로그(원격 발행 태그에서 파생 · 부재는 행으로 · D-i) → 카탈로그 파생물 두 경로만 커밋(§4.8) ⑩ 캠페인 publish 위상
-    catalog.derive(repo, remote, core.kst_iso(utc_arg), record_missing=True)
-    cc = _commit_catalog(repo, tagname)
-    _mark(draft, st, "catalog", ok=True, remote=remote, generated_kst=core.kst_iso(utc_arg), commit=cc)
+    if (repo / core.REL_CENTRAL_FLAG).is_file():
+        catalog.derive(repo, remote, core.kst_iso(utc_arg), record_missing=True)
+        cc = _commit_catalog(repo, tagname)
+        _mark(draft, st, "catalog", ok=True, remote=remote, generated_kst=core.kst_iso(utc_arg), commit=cc)
+    else:
+        # push 역할만 있는 체크아웃(single 서브 · plan_26101104): 카탈로그는 메인 권위가 다음 파생 때 반영한다(역할 분리 · 침묵 ✗ — 기록·로그).
+        cc = {"status": "skipped-push-role-only"}
+        _log(f"카탈로그 단계 건너뜀 — `{core.REL_CENTRAL_FLAG}` 없음(push 역할만). 카탈로그는 메인이 다음 파생 때 원격 태그에서 반영한다 · "
+             "발행 사실(태그 · 원격 SHA · 승인 출처 · 엔진 리비전)은 서브 testlog 로 보고한다.")
+        _mark(draft, st, "catalog", ok=True, skipped="push-role-only", remote=remote, commit=cc)
     if st.get("mode") == "campaign":
         sel = st.get("selectors") or {}
         evidence.phase_set_publish(repo, sel.get("campaign"), sel.get("cell"), sel.get("node"), tagname, remote_obj,
@@ -1382,7 +1421,7 @@ def cmd_continue(a) -> int:
     draft = _find_draft(repo, draft=a.draft, campaign=a.campaign, cell=a.cell, node=a.node)
     res = continue_(repo, draft=draft, generated_utc=a.generated_utc, approved_by=a.approved_by,
                     approved_utc=a.approved_utc, remote=a.remote, no_push=a.no_push, factcheck_waiver=a.factcheck_waiver,
-                    guide_commit=a.guide_commit)
+                    guide_commit=a.guide_commit, hint_clone=a.hint_clone)
     print(f"{_OUT} continue — {res['tag']}")
     print(f"  페이로드 커밋 {res['anchor']}(부모 = 안내 커밋 {str(res.get('guide'))[:12]}) · 태그 오브젝트 {res['tag_object']}")
     for line in res.get("infos") or []:
@@ -1390,8 +1429,11 @@ def cmd_continue(a) -> int:
     if res["pushed"]:
         print(f"  push {res['remote']} ({res['push_status']}) · 원격 오브젝트 = 로컬 {res['remote_object']}")
         cc = res.get("catalog_commit") or {}
-        print(f"  카탈로그 파생 완료(record-missing) · 카탈로그 커밋 {cc.get('status')}"
-              + (f" {str(cc.get('commit'))[:12]}" if cc.get("commit") else "") + " · 캠페인 publish 위상 기록(캠페인 셀이면)")
+        if cc.get("status") == "skipped-push-role-only":
+            print("  카탈로그 단계 건너뜀(push 역할만 — 메인이 다음 파생 때 반영) · 캠페인 publish 위상 기록(캠페인 셀이면)")
+        else:
+            print(f"  카탈로그 파생 완료(record-missing) · 카탈로그 커밋 {cc.get('status')}"
+                  + (f" {str(cc.get('commit'))[:12]}" if cc.get("commit") else "") + " · 캠페인 publish 위상 기록(캠페인 셀이면)")
     else:
         print("  push 생략(--no-push) — 봉인·로컬 검증까지 끝났다")
     return 0
@@ -1784,6 +1826,9 @@ def _build_parser() -> argparse.ArgumentParser:
     c.add_argument("--remote", default="origin", help="push·원격 SHA 대조·카탈로그 파생 원격")
     c.add_argument("--no-push", action="store_true", help="봉인·로컬 검증까지만")
     c.add_argument("--factcheck-waiver", help="발행 전 독립 사실 검증을 사람이 면제했다: 그 발화 전사(한 줄 · state·00 메타에 남는다)")
+    c.add_argument("--hint-clone", metavar="PATH", default=None,
+                   help="별도 hint 클론(plan_26101104 · single 서브 자체 발행): 페이로드 커밋·봉인·push·원격 대조를 이 저장소에서 한다 "
+                        "(워크스페이스 git 은 원격이 없다 · SUB_GIT_LOCAL_ONLY). 증거·게이트·PII 리터럴·토큰은 워크스페이스에서 읽는다")
     c.add_argument("--guide-commit", metavar="SHA",
                    help="오프라인 재생 전용(--no-push 와만): 원격 조회 없이 이 로컬 안내 커밋(v7 형식 마커)을 페이로드 커밋의 부모로 쓴다")
     c.set_defaults(fn=cmd_continue)
@@ -2795,6 +2840,22 @@ def _selftest_e2e(ck) -> None:
                and _fx_git(repo, "ls-remote", str(bare)).stdout == remote_d8 and _load_state(draft) == st_d8)
             ck(f"★권위 마커 없음 = 단독 push --apply 도 차단({why_cli[:60]})", ok_cli)
 
+            # ── ★별도 hint 클론(plan_26101104): 저장소 아님 · 워크스페이스 자신 = 부수효과 전 거부 · 보조 루트는 호출 뒤 되돌린다 ──
+            notrepo = Path(td) / "not-a-repo"
+            notrepo.mkdir(exist_ok=True)
+            ok1, w1 = _raises(lambda: continue_(repo, draft=draft, generated_utc=_FX_CONTINUE_UTC, rt=rt, hint_clone=notrepo),
+                              "HINT_CLONE_NOT_A_REPO")
+            ok2, w2 = _raises(lambda: continue_(repo, draft=draft, generated_utc=_FX_CONTINUE_UTC, rt=rt, hint_clone=repo),
+                              "HINT_CLONE_IS_WORKSPACE")
+            ck(f"★--hint-clone 저장소 아님/워크스페이스 자신 = 거부({w1[:50]} | {w2[:50]})", ok1 and ok2 and core.aux_root(notrepo) == notrepo)
+            prev_aux = core.set_aux_root(repo)
+            try:
+                aux_terms = pii.load_pii_terms(notrepo)       # 클론 쪽엔 리터럴 파일이 없다 — 워크스페이스 것을 읽어야 한다
+            finally:
+                core.set_aux_root(prev_aux)
+            ck("보조 루트 설정 시 PII 리터럴은 워크스페이스에서 읽는다 · 해제 뒤엔 넘겨받은 repo", aux_terms == pii.load_pii_terms(repo)
+               and aux_terms is not None and pii.load_pii_terms(notrepo) is None)
+
             # ── ★https 원격 + 토큰 없음 = push 에서 차단(봉인·검증까지는 끝난다) ──
             ok, why = _raises(lambda: continue_(repo, draft=draft, generated_utc=_FX_CONTINUE_UTC, remote="gh", rt=rt),
                               "HINT_PUSH_CREDENTIAL_ABSENT")
@@ -2820,6 +2881,40 @@ def _selftest_e2e(ck) -> None:
                               "HINT_DRAFT_CHANGED_AFTER_COMMIT")
             ck(f"★커밋 뒤 draft 변경 = HINT_DRAFT_CHANGED_AFTER_COMMIT · ref 불변({why[:80]})", ok and _refs(repo) == refs_c)
             nar.write_text(nar_text, encoding="utf-8")
+
+            # ── ★push 역할만(plan_26101104 · single 서브): central 없이 `.push_authority` 로 push 는 열리고 카탈로그는 건너뛴다 ──
+            push_p = repo / core.REL_PUSH_FLAG
+            central_p.unlink()
+            push_p.write_text("픽스처 — 이 체크아웃은 태그 push 역할만 갖는다.\n", encoding="utf-8")
+            idx_before = (repo / core.REL_INDEX).read_bytes() if (repo / core.REL_INDEX).is_file() else None
+            try:
+                pres_role = quiet(continue_, repo, draft=draft, generated_utc="2026-01-02T08:30:00Z", rt=rt)
+                role_err = None
+            except core.HintError as e:
+                pres_role, role_err = None, f"{e.code}: {e.message[:300]}"
+            finally:
+                push_p.unlink()
+                central_p.write_text(central_text, encoding="utf-8")
+            ck(f"★push 역할만 = push 성공 · 카탈로그 건너뜀(skipped-push-role-only) · 색인 불변({role_err})",
+               pres_role is not None and pres_role["pushed"] is True
+               and (pres_role.get("catalog_commit") or {}).get("status") == "skipped-push-role-only"
+               and ((repo / core.REL_INDEX).read_bytes() if (repo / core.REL_INDEX).is_file() else None) == idx_before
+               and (_step(_load_state(draft), "catalog") or {}).get("skipped") == "push-role-only")
+            ok_role = True
+            try:
+                _require_central(td, "x")
+                ok_role = False
+            except core.HintError:
+                pass
+            (td / "hints").mkdir(exist_ok=True)
+            (td / core.REL_PUSH_FLAG).write_text("x\n", encoding="utf-8")
+            try:
+                _require_central(td, "x")
+            except core.HintError:
+                ok_role = False
+            finally:
+                (td / core.REL_PUSH_FLAG).unlink()
+            ck("push 역할 마커 하나로 push 게이트가 열린다(마커 둘 다 없으면 닫힌다)", ok_role)
 
             # ── continue 재실행(origin) — 커밋 재개 · 봉인 재개 · push · 카탈로그 · 위상 ──
             try:

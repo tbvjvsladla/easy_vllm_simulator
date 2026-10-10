@@ -88,7 +88,7 @@ Phase 2 수렴(`none`) + 최종 serve-up 성공 후, **최종 서빙유지 판�
   - **외부검색 평면**: 획득모드와 무관하게 허용(서빙전략 외부 교차검증과 동일 평면). 검색 실패 시 **음성정직 + curl 기본 안내 폴백**.
     **egress-restricted 서브 = 메인 릴레이**.
   - **무답/"아몰랑"**: 외부검색 생략 — **OpenAI-호환 엔드포인트 curl 예시만**.
-- **⑤ hint 태그 발동 신호 (셀 closer · 그 셀의 서빙·측정·문서 완료 후 · main-only)**: ①~④ 마무리가 끝나고 **그 셀의**
+- **⑤ hint 태그 발동 신호 (셀 closer · 그 셀의 서빙·측정·문서 완료 후 · 메인 + single 서브 자기 셀)**: ①~④ 마무리가 끝나고 **그 셀의**
   서빙·측정(lite 이상)·문서(testlog·devlog 발행) 가 끝난 뒤, 이 셀의 파생 이름이 **새 태그**이면 hint 태그 발행을 **제안(Y/N)**
   한다. 캠페인 완주를 기다리지 않는다(셀 1개 = 태그 1개 · 2026-09-08 "발행을 캠페인 완주와 분리" · plan_26092119 D9).
   이름은 사람도 recipe 도 짓지 않는다 — 발행기가 전량 파생하고, 미리보기는 읽기 전용
@@ -103,4 +103,5 @@ Phase 2 수렴(`none`) + 최종 serve-up 성공 후, **최종 서빙유지 판�
   (없으면 `HINT_NARRATIVE_EVIDENCE_ABSENT`).
   push 는 `refs/tags/hint/<그 태그>` 하나뿐이며 hint 브랜치는 밀지 않는다(무인 자동 태깅 ✗). 캠페인 밖 입력 형태
   (`--publication <topic> --replay`)와 절차 정본은 hint-publisher SKILL.md 다.
-  egress-restricted 서브 = 발행 ✗(main-only) · 증상만 상향.
+  멀티 서브(Ray 워커) = 발행 ✗ · single 서브 = 승인된 자기 셀만 별도 hint 클론에서 발행(terraforming_node §2.5.1 장착 ·
+  카탈로그는 메인) · 장착이 안 된(egress·토큰 부재) 서브 = 발행 ✗ · 증상만 상향.

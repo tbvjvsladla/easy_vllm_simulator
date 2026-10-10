@@ -262,8 +262,10 @@ def _test_completion_gate() -> None:
 # bench report 는 판정기 산출대로 "루브릭 권한 = explore" 를 적고 있었으므로 출처는 존재했고,
 # 끊긴 것은 **통로**였다(침묵 누락). 아래 케이스들이 그 통로를 실제 subprocess 로 매번 다시 건다 --
 # 단위 자체검사는 "분기가 도달 가능한가"를 못 잡기 때문에 끝단(verify)에서 확인한다.
-# ★ 음성 대조: 수정 전 게이트에 C2 를 넣으면 `BENCHMARK_VERDICT_NOT_PASS` 로 막힌다(2026-08-24 확인).
+# ★ 음성 대조: 수정 전 게이트에 C2 를 넣으면 non-PASS 차단 코드로 막혔다(2026-08-24 확인).
 #   그러므로 C2 의 PASS 는 "가드를 껐다"가 아니라 "끊긴 통로가 이어졌다"의 증거다.
+# ★ 2026-10-11(plan_26101104 Step 1 · 계약 v8 §3.2): 발행 게이트 통일 — non-PASS 승격은 권한 무관
+#   **서빙 성립 ∧ 유효 측정**이다. 같은 carrier 가 weak·explicit REFUTE 에도 쓰이므로 이 회귀가 통일 게이트의 끝단이다.
 # =============================================================================================
 
 _PROMO_IDENTITY = {"model": "selftest-model", "gpu": "GB10", "vllm": "0.0.0.dev0",
@@ -315,7 +317,7 @@ _PROMO_RUBRIC = {"rubric_authority": "explore", "floor_tps": 22.1,
 
 
 # bench_report 는 **PASS/REFUTE 무관하게 항상 발행되는** 문서라, 인증서가 구조적으로 없는 경로
-# (perf_waiver · explore · hint_map_only — map_only 는 경량 리포트 또는 강등 셀의 리포트 · 2026-09-14)에서 lite 정량지표의
+# (non-PASS 통일 게이트 · OBSERVATION-ONLY · hint_map_only — map_only 는 경량 리포트 또는 강등 셀의 리포트 · 2026-09-14)에서 lite 정량지표의
 # 유일한 근거가 된다(옛 hint_tag `_require_serving_evidence` B 브랜치 → 2026-09-22 `hintlib.evidence` 결손 술어). 그래서 공용 픽스처의 리포트도 **실제로 lite 절과 실측 열을 갖는다** -- 빈 리포트를 쓰면
 # 그 브랜치가 늘 실패해 "통과했다"를 증명할 수 없다.
 _LITE_BENCH_REPORT = """# bench_report selftest
@@ -393,14 +395,16 @@ def _write_promotion_manifest(root: Path, verdict: str, benchmark_extra: dict | 
 
 
 def _promotion_probe(root: Path, verdict: str, benchmark_extra: dict | None,
-                     certificate: str | None = None, smoke_passed: bool = True) -> dict:
+                     certificate: str | None = None, smoke_passed: bool = True,
+                     bench_report_text: str = _LITE_BENCH_REPORT) -> dict:
     """full_benchmark work-manifest 를 실제로 짓고 `completion_gate.py verify` 를 돌려 판정을 얻는다.
 
     in-process 호출이 아니라 subprocess 인 이유: verify 는 `_emit` 에서 프로세스를 끝내는 CLI 계약이며,
     운영에서 승격을 여는 것도 그 subprocess 다(authorize --mode promotion 이 자기 verify 를 spawn).
     같은 경로를 그대로 밟아야 "배선이 실제로 도는가"를 검사한 것이 된다.
     """
-    manifest_path = _write_promotion_manifest(root, verdict, benchmark_extra, certificate, smoke_passed)
+    manifest_path = _write_promotion_manifest(root, verdict, benchmark_extra, certificate, smoke_passed,
+                                              bench_report_text=bench_report_text)
     proc = subprocess.run(
         [sys.executable, str(RUNTIME_DIR / "completion_gate.py"), "verify",
          "--manifest", str(manifest_path), "--repo-root", str(root)],
@@ -491,35 +495,69 @@ def _test_promotion_rubric_carrier() -> None:
     _require(_promoted(out) and (out.get("rubric") or {}).get("authority_source") == "certificate",
              f"PASS+explore lost its certificate carrier: {out.get('reason_codes')}")
 
-    # C2 ★ REFUTE + explore(manifest carrier) -- perf_waiver 없이 열려야 한다(이 결함의 본체).
+    # C2 ★ REFUTE + explore(manifest carrier) -- 사람 서명 없이 열려야 한다(이 결함의 본체).
     out = probe(verdict="REFUTE", benchmark_extra=dict(_PROMO_RUBRIC))
     _require(_promoted(out)
-             and "BENCHMARK_EXPLORE_AUTHORITY_PROMOTION" in (out.get("reason_codes") or [])
+             and "BENCHMARK_VERDICT_ANNOTATED" in (out.get("reason_codes") or [])
              and (out.get("rubric") or {}).get("authority_source") == "manifest_benchmark",
              f"explore-REFUTE auto-open is dead again (manifest carrier not consulted): {out.get('reason_codes')}")
 
-    # C3 REFUTE + weak -- 통상 REFUTE 는 여전히 사람 서명 없이는 못 연다(조건 완화 ✗).
-    out = probe(verdict="REFUTE", benchmark_extra=dict(_PROMO_RUBRIC, rubric_authority="weak"))
-    _require(out.get("eligible_for_promotion") is False
-             and "BENCHMARK_VERDICT_NOT_PASS" in (out.get("reason_codes") or []),
-             f"weak-authority REFUTE was promoted without a human waiver: {out.get('reason_codes')}")
+    # C3 ★ REFUTE + weak·explicit(M1 실례 모양) -- 통일 게이트: 서빙 성립 ∧ 유효 측정이면 권한 무관 승격(표시만).
+    #     인증서는 여전히 미발행이다(certificate=None · 승격이 인증서를 합성하지 않는다).
+    for authority in ("weak", "explicit"):
+        out = probe(verdict="REFUTE", benchmark_extra=dict(_PROMO_RUBRIC, rubric_authority=authority))
+        _require(_promoted(out) and "BENCHMARK_VERDICT_ANNOTATED" in (out.get("reason_codes") or [])
+                 and out.get("certificate") is None
+                 and (out.get("rubric") or {}).get("authority") == authority,
+                 f"{authority}-authority REFUTE with smoke + valid rubric was not promoted: {out.get('reason_codes')}")
+    # C3a FAIL 도 판정이지 차단 사유가 아니다(같은 계약).
+    out = probe(verdict="FAIL", benchmark_extra=dict(_PROMO_RUBRIC, rubric_authority="weak"))
+    _require(_promoted(out) and "BENCHMARK_VERDICT_ANNOTATED" in (out.get("reason_codes") or []),
+             f"FAIL with smoke + valid rubric was not promoted: {out.get('reason_codes')}")
 
-    # C3b rubric 미선언(legacy manifest) -- 차단은 유지하되 **잡음 reason 을 만들지 않는다**
+    # C3b rubric 미선언(legacy manifest) -- 유효 측정이 서지 않으므로 차단하되 **잡음 reason 을 만들지 않는다**
     #     (부재와 결측의 구분: 채널 미사용은 결함이 아니다).
     out = probe(verdict="REFUTE", benchmark_extra=None)
     _require(out.get("eligible_for_promotion") is False
+             and "BENCHMARK_MEASUREMENT_INVALID" in (out.get("reason_codes") or [])
              and out.get("rubric") is None
              and not [c for c in (out.get("reason_codes") or []) if c.startswith("MANIFEST_RUBRIC")],
              f"legacy manifest without a rubric channel was mis-handled: {out.get('reason_codes')}")
 
-    # C4 REFUTE + perf_waiver -- 사람 positive-key 경로는 그대로 살아 있다.
-    out = probe(verdict="REFUTE", benchmark_extra={"perf_waiver": {
-        "authorized_by": "selftest-operator", "authorized_at_utc": "2026-08-24T00:00:00Z",
-        "instruction": "loop-until-done 중단", "warning_flag": "PERF-WARNING: floor 미달"}})
-    _require(_promoted(out) and "BENCHMARK_VERDICT_WAIVED" in (out.get("reason_codes") or []),
-             f"human perf_waiver path regressed: {out.get('reason_codes')}")
+    # C4a ★ OBSERVATION-ONLY(기준 c·E·expected 부재 — 판정기 NEEDS_RUBRIC) + 서빙 성립 + bench_report(판정 표
+    #     NEEDS_RUBRIC) → 관측 발행. 루브릭 수치는 null 이 정상이며 그 결손을 MANIFEST_RUBRIC_* 로 표면화하지 않는다.
+    obs_rubric = {"rubric_authority": "weak", "floor_tps": None, "ratio_M_over_primary": None,
+                  "primary_source": None, "rubric_source": "verdict_json"}
+    obs_report = _bench_report_with_verdict_table("NEEDS_RUBRIC", "weak")
+    out = probe(verdict="OBSERVATION-ONLY", benchmark_extra=dict(obs_rubric), bench_report_text=obs_report)
+    _require(_promoted(out) and "BENCHMARK_OBSERVATION_ONLY_PROMOTION" in (out.get("reason_codes") or [])
+             and out.get("certificate") is None
+             and not [c for c in (out.get("reason_codes") or []) if c.startswith("MANIFEST_RUBRIC")],
+             f"OBSERVATION-ONLY cell with smoke + bench_report was not promoted: {out.get('reason_codes')}")
+    # C4b ★음성대조 OBSERVATION-ONLY 의 옆문 3종 — 서빙 미성립 · 판정 표가 REFUTE(둔갑) · 문턱이 실린 관측 전용 · 출처 표시 없음
+    out = probe(verdict="OBSERVATION-ONLY", benchmark_extra=dict(obs_rubric), bench_report_text=obs_report,
+                smoke_passed=False)
+    _require(out.get("eligible_for_promotion") is False,
+             f"OBSERVATION-ONLY bypassed the functional-smoke requirement: {out.get('reason_codes')}")
+    out = probe(verdict="OBSERVATION-ONLY", benchmark_extra=dict(obs_rubric),
+                bench_report_text=_bench_report_with_verdict_table("REFUTE", "weak"))
+    _require(out.get("eligible_for_promotion") is False
+             and "BENCHMARK_OBSERVATION_ONLY_UNCORROBORATED" in (out.get("reason_codes") or []),
+             f"a REFUTE bench_report was accepted as OBSERVATION-ONLY: {out.get('reason_codes')}")
+    for label, extra in (("rubric-claimed", dict(_PROMO_RUBRIC, rubric_authority="weak")),
+                         ("unsourced", dict(obs_rubric, rubric_source=None))):
+        out = probe(verdict="OBSERVATION-ONLY", benchmark_extra=extra, bench_report_text=obs_report)
+        _require(out.get("eligible_for_promotion") is False
+                 and "BENCHMARK_OBSERVATION_ONLY_INVALID" in (out.get("reason_codes") or []),
+                 f"OBSERVATION-ONLY opened despite {label}: {out.get('reason_codes')}")
 
-    # C5~C8 계약 위반 4종 -- explore 를 선언해도 **계약을 못 지키면 열리지 않는다**.
+    # C4c ★ explicit PASS 는 여전히 인증서를 요구한다(인증서 = explicit ∧ PASS 전용 · 불변).
+    out = probe(verdict="PASS", benchmark_extra=dict(_PROMO_RUBRIC, rubric_authority="explicit"))
+    _require(out.get("eligible_for_promotion") is False
+             and "EVIDENCE_MISSING:certificate" in (out.get("reason_codes") or []),
+             f"explicit PASS without a certificate was promoted: {out.get('reason_codes')}")
+
+    # C5~C8 계약 위반 4종 -- 어떤 권한을 선언해도 **계약을 못 지키면 열리지 않는다**(유효 측정 = 통일 게이트의 반쪽).
     #   floor<=0 은 특히 공허 PASS 배제 불변이며 어떤 authority 로도 뚫리지 않아야 한다.
     for field, value, expected_code in (
             ("floor_tps", 0, "MANIFEST_RUBRIC_FLOOR_INVALID"),
@@ -539,8 +577,8 @@ def _test_promotion_rubric_carrier() -> None:
              and (out.get("rubric") or {}).get("authority") == "weak",
              f"carrier disagreement was silently resolved in the manifest's favor: {out.get('reason_codes')}")
 
-    # C10 explore 라도 **서빙 성립**은 면제되지 않는다 -- U1 의 자격은 기능 ∧ 유효 측정이다.
-    out = probe(verdict="REFUTE", benchmark_extra=dict(_PROMO_RUBRIC), smoke_passed=False)
+    # C10 어떤 권한이라도 **서빙 성립**은 면제되지 않는다 -- 통일 게이트의 자격은 기능 ∧ 유효 측정이다.
+    out = probe(verdict="REFUTE", benchmark_extra=dict(_PROMO_RUBRIC, rubric_authority="weak"), smoke_passed=False)
     _require(out.get("eligible_for_promotion") is False
              and "RUNTIME_FUNCTIONAL_SMOKE_NOT_PASSED" in (out.get("reason_codes") or []),
              f"explore authority bypassed the functional-smoke requirement: {out.get('reason_codes')}")
@@ -569,7 +607,8 @@ def _test_certificate_waiver_by_authority() -> None:
     # U1 요구 증거 행렬 — 인증서는 PASS ∧ (explicit ∨ 권한 모름)에서만.
     for verdict, authority, expect_cert in (
             ("PASS", "explicit", True), ("PASS", None, True), ("PASS", "explore", False), ("PASS", "weak", False),
-            ("REFUTE", "explicit", False), ("REFUTE", "explore", False), ("FAIL", None, False)):
+            ("REFUTE", "explicit", False), ("REFUTE", "explore", False), ("FAIL", None, False),
+            ("OBSERVATION-ONLY", "weak", False), ("OBSERVATION-ONLY", None, False)):
         got = "certificate" in gate.required_evidence_for("full_benchmark", {}, verdict, authority)
         _require(got is expect_cert,
                  f"required_evidence_for(full_benchmark, {verdict}, {authority}) certificate={got} (expected {expect_cert})")
@@ -586,6 +625,9 @@ def _test_certificate_waiver_by_authority() -> None:
     table, state = gate.bench_report_verdict_table(_bench_report_with_verdict_table("PASS", "explore"))
     _require(state == "parsed" and table == {"verdict": "PASS", "rubric_authority": "explore"},
              f"verdict table parse drift: {state} {table!r}")
+    table, state = gate.bench_report_verdict_table(_bench_report_with_verdict_table("NEEDS_RUBRIC", "weak"))
+    _require(state == "parsed" and table == {"verdict": "NEEDS_RUBRIC", "rubric_authority": "weak"},
+             f"NEEDS_RUBRIC verdict table (OBSERVATION-ONLY 의 교차검증 근거) parse drift: {state} {table!r}")
     _require(gate.bench_report_verdict_table(_LITE_BENCH_REPORT)[0] is None, "absent verdict section parsed as a table")
     _require(gate.bench_report_verdict_table(
         "| verdict | **PASS** |\n| 루브릭 권한 | explore |\n")[0] is None,
@@ -640,7 +682,7 @@ def _test_certificate_waiver_by_authority() -> None:
              f"explore PASS + bench_report did not satisfy the gate: {codes(out)}")
     # W3 ★양성: REFUTE(explore) + bench_report → 승격(D1 경로 · 인증서 요구 없음 불변).
     out = verify("REFUTE", dict(_PROMO_RUBRIC), _bench_report_with_verdict_table("REFUTE", "explore"))
-    _require(promoted(out) and "BENCHMARK_EXPLORE_AUTHORITY_PROMOTION" in codes(out),
+    _require(promoted(out) and "BENCHMARK_VERDICT_ANNOTATED" in codes(out),
              f"explore REFUTE + bench_report regressed: {codes(out)}")
     # W4 weak PASS + bench_report(일치) → 승격(weak 도 비발행 권한 · manifest 계약 통과).
     out = verify("PASS", dict(_PROMO_RUBRIC, rubric_authority="weak"), _bench_report_with_verdict_table("PASS", "weak"))
@@ -673,8 +715,8 @@ def _test_certificate_waiver_by_authority() -> None:
 # hint 발행 — 신 CLI(`hint.py`) 전 경로 격리 E2E (2026-09-22 재작성 · plan_26092119 S4 · AC5·AC6·AC9)
 # ---------------------------------------------------------------------------------------------
 # (HIST · plan_26082405 §개정 R2) 옛 머리말 요지: 위 승격 게이트와 **같은 계열의 결함**이 hint_tag.py 에도 박혀
-# 있었다 — "인증서가 없다 → perf_waiver 여야 한다"는 이분법. explore 런은 인증서도(PASS 아님) waiver 도(사람 서명
-# 없음) 없으므로 `_require_serving_evidence` 에서 차단되고, 설령 통과해도 footer 바인딩이 죽었다. 승격 게이트만 고치면
+# 있었다 — "인증서가 없다 → 사람 서명 면제여야 한다"는 이분법(그 필드는 2026-10-11 계약 v8 에서 폐기). explore 런은 인증서도(PASS 아님)
+# 사람 서명도 없으므로 `_require_serving_evidence` 에서 차단되고, 설령 통과해도 footer 바인딩이 죽었다. 승격 게이트만 고치면
 # **다음 문에서 다시 막히는** 상태였다. 처방은 세 번째 case 추가 + 판정의 단일 소유(`no_cert_binding_source`)였다.
 # 단위 자체검사는 "분기가 도달 가능한가"를 못 잡는다(2026-08-22 실증: 새로 넣은 분기가 선행 게이트와 상호배타여서
 # 도달 불가였고, 끝단 음성대조가 커밋 직전에 잡았다) — 그래서 끝단을 실제 CLI 로 돌린다.
@@ -988,9 +1030,10 @@ def _hint_tag_body(repo: Path, tag: str) -> str:
 def _test_hint_binding_source() -> None:
     """H0 단위 — 인증서 부재 바인딩 원천의 **단일 판정자**(`hintlib.evidence.no_cert_binding_source`·`binding_artifact_path`).
 
-    우선순위: certificate > (perf_waiver ∨ hint_map_only ∨ explore) → bench_report > 차단(None). 2026-08-01·08-24·09-14 에
-    두 결정점이 갈라져 봉인과 검증이 다른 산출물을 봤던 이력 때문에 판정자는 하나다(옛 hint_tag 에서 evidence 로 이관).
-    E2E 단계(아래 CLI 시험)는 explore·인증서·lite 통로가 실제로 끝단까지 도달하는지를 친다."""
+    우선순위: certificate > (hint_map_only ∨ OBSERVATION-ONLY ∨ 유효 rubric 의 non-PASS ∨ 비발행 권한 PASS) → bench_report > 차단(None).
+    2026-08-01·08-24·09-14 에 두 결정점이 갈라져 봉인과 검증이 다른 산출물을 봤던 이력 때문에 판정자는 하나다(옛 hint_tag 에서
+    evidence 로 이관). 2026-10-11(plan_26101104 Step 1): non-PASS 는 권한 무관(발행 게이트 통일) · 사람 서명 면제 원천은 폐기.
+    E2E 단계(아래 CLI 시험)는 explore·weak REFUTE·인증서·lite 통로가 실제로 끝단까지 도달하는지를 친다."""
     ev = _import_hint_cli().evidence
     bench_report_rel = "../benchmark/bench_report_selftest.md"
     cert_rel = "../benchmark/benchmark_selftest.yaml"
@@ -1001,34 +1044,45 @@ def _test_hint_binding_source() -> None:
             evidence["certificate"] = {"path": cert_rel}
         return {"task_class": task_class, "benchmark": benchmark, "evidence": evidence}
 
-    explore_manifest = manifest_shape(dict(_PROMO_RUBRIC))
-    waiver_manifest = manifest_shape({"perf_waiver": {"authorized_by": "selftest-operator"}})
+    explore_manifest = manifest_shape(dict(_PROMO_RUBRIC, verdict="REFUTE"))
+    # M1 모양(full_benchmark · weak · REFUTE · bench_report 바인딩 · 인증서 없음) — 권한 무관 bench_report 가 판정 근거다.
+    weak_refute_manifest = manifest_shape(dict(_PROMO_RUBRIC, rubric_authority="weak", verdict="REFUTE"))
+    explicit_refute_manifest = manifest_shape(dict(_PROMO_RUBRIC, rubric_authority="explicit", verdict="REFUTE"))
+    observation_manifest = manifest_shape({"verdict": "OBSERVATION-ONLY", "rubric_authority": "weak", "floor_tps": None,
+                                           "ratio_M_over_primary": None, "primary_source": None,
+                                           "rubric_source": "verdict_json"})
+    explicit_pass_manifest = manifest_shape(dict(_PROMO_RUBRIC, rubric_authority="explicit", verdict="PASS"))
     bare_manifest = manifest_shape({"verdict": "REFUTE"})
-    cert_manifest = manifest_shape(dict(_PROMO_RUBRIC), with_cert=True)
+    cert_manifest = manifest_shape(dict(_PROMO_RUBRIC, verdict="REFUTE"), with_cert=True)
     map_only_manifest = manifest_shape({"mode": "lite", "verdict": None}, task_class="hint_map_only")
     map_only_cert_manifest = manifest_shape({"mode": "lite", "verdict": None}, with_cert=True, task_class="hint_map_only")
     _require(ev.no_cert_binding_source(explore_manifest) == "explore",
              "explore rubric authority did not open the no-certificate binding source")
-    _require(ev.no_cert_binding_source(waiver_manifest) == "perf_waiver",
-             "perf_waiver stopped opening the no-certificate binding source")
+    _require(ev.no_cert_binding_source(weak_refute_manifest) == "weak"
+             and ev.no_cert_binding_source(explicit_refute_manifest) == "explicit",
+             "a weak/explicit REFUTE with a valid rubric did not open the bench_report binding (unified gate)")
+    _require(ev.no_cert_binding_source(observation_manifest) == "observation_only",
+             "an OBSERVATION-ONLY full cell did not open the bench_report binding")
+    _require(ev.no_cert_binding_source(explicit_pass_manifest) is None,
+             "explicit PASS opened a no-certificate binding (certificate = explicit ∧ PASS only)")
     _require(ev.no_cert_binding_source(map_only_manifest) == "hint_map_only",
              "hint_map_only (lite-only cell) did not open the no-certificate binding source")
     _require(ev.no_cert_binding_source(bare_manifest) is None,
-             "a manifest with neither waiver nor explore nor map_only opened a binding source")
+             "a manifest with no valid rubric / observation / map_only opened a binding source")
     for field, value in (("floor_tps", 0), ("rubric_source", None), ("primary_source", "N/A")):
-        broken = manifest_shape(dict(_PROMO_RUBRIC, **{field: value}))
+        broken = manifest_shape(dict(_PROMO_RUBRIC, rubric_authority="weak", verdict="REFUTE", **{field: value}))
         _require(ev.no_cert_binding_source(broken) is None,
-                 f"explore contract violation {field}={value!r} still opened the binding source")
+                 f"rubric contract violation {field}={value!r} still opened the binding source")
     _require(ev.binding_artifact_path(cert_manifest) == cert_rel,
-             "certificate lost priority over the manifest-declared explore fallback")
+             "certificate lost priority over the manifest-declared rubric fallback")
     _require(ev.binding_artifact_path(map_only_cert_manifest) == cert_rel,
              "a bound certificate lost priority over the hint_map_only fallback")
-    for label, man in (("explore", explore_manifest), ("perf_waiver", waiver_manifest),
-                       ("hint_map_only", map_only_manifest)):
+    for label, man in (("explore", explore_manifest), ("weak-REFUTE", weak_refute_manifest),
+                       ("OBSERVATION-ONLY", observation_manifest), ("hint_map_only", map_only_manifest)):
         _require(ev.binding_artifact_path(man) == bench_report_rel,
                  f"{label} path did not bind the bench_report artifact")
     _require(ev.binding_artifact_path(bare_manifest) is None,
-             "a manifest with no certificate/waiver/explore/map_only still produced a binding artifact")
+             "a manifest with no certificate/rubric/observation/map_only still produced a binding artifact")
 
 
 def _test_hint_cli_publication() -> None:
@@ -1038,7 +1092,7 @@ def _test_hint_cli_publication() -> None:
     로컬 hint 브랜치 불이동 · footer v2(bench_ref · bench_kind) · 카탈로그 판정 열 · 카탈로그 자동 커밋(두 경로만).
     ★ 음성대조(전부 부수효과 0 을 함께 단언): 승인 부재(HINT_APPROVAL_ABSENT · C6 의 정적 순서 검사를 행동으로 보완) ·
     미저작(HINT_LINT_FAILED · 커밋 전) · 소스 트리 앵커 태그(HINT_ANCHOR_PARENT_NOT_GUIDE · verify FAIL · push 거부 ·
-    2026-09-07 native 3종) · PERF-WARNING 없는 waiver 본문(HINT_PERF_WARNING_MISSING) · 관측 없는 셀(HINT_QUALIFICATION_UNOBSERVED ·
+    2026-09-07 native 3종) · 관측 없는 셀(HINT_QUALIFICATION_UNOBSERVED ·
     옛 H4 "근거 검사는 면제되지 않는다"의 후계) · 측정 뒤 바뀐 트리플렛(HINT_TRIPLET_DRIFT · 옛 레시피-lockset 대조의 후계)."""
     hint = _import_hint_cli()
     with tempfile.TemporaryDirectory(prefix="hint-cli-e2e.") as tds:
@@ -1229,9 +1283,7 @@ def _test_hint_cli_publication() -> None:
                      f"a source-anchored tag was pushed (or refused for an unrelated reason): rc={proc.returncode} "
                      f"{proc.stderr[-600:]!r}")
 
-            # ── ★waiver 가 있는데 본문에 PERF-WARNING 이 없다 = 린트 차단(옛 hint_tag._require_perf_warning 의 이관) ──
-            #   린트는 draft 의 work-manifest(state.manifest)를 읽는다 — 그 manifest 에 사람 waiver 가 **있다고** 두고 CLI lint 를
-            #   다시 돈다(쌍: 원 manifest 로는 0건). 본문은 facts 에서 기계 렌더되므로 manifest 만 바뀐 상태는 경고 없는 waiver 다.
+            # ── 봉인된 draft 는 자기 manifest 에 대해 린트 0 이다(CLI lint --json · 부수효과 0) ──
             def lint_codes_now() -> set:
                 out = _hint_cli(f, "lint", "--draft", str(draft), "--json")
                 try:
@@ -1240,13 +1292,6 @@ def _test_hint_cli_publication() -> None:
                     raise RuntimeSelftestFailure(f"hint.py lint --json produced no JSON: {out.stderr[-500:]!r}")
 
             _require(lint_codes_now() == set(), "sealed draft no longer lints clean against its own manifest")
-            man0 = _hint_edit_json(man_p, lambda d: d.setdefault("benchmark", {}).update(perf_waiver={
-                "authorized_by": "selftest-operator", "authorized_at_utc": "2026-09-07T00:00:00Z",
-                "instruction": "loop-until-done 중단", "warning_flag": "PERF-WARNING: selftest fixture"}))
-            codes = lint_codes_now()
-            man_p.write_bytes(man0)
-            _require(hint.template.PERF_WARNING_MARKER == "PERF-WARNING" and "HINT_PERF_WARNING_MISSING" in codes,
-                     f"a perf_waiver without the PERF-WARNING body marker was accepted: {sorted(codes)}")
 
             # ── ★관측 없는 셀 = publish 가 첫 쓰기 전에 막는다(발행 자격 = 관측 · X8) ──
             ph = repo / f"output/multi/benchlog/sweep_{_HINT_FX_CELL}/level_01/post_health_{_HINT_FX_CELL}.json"
@@ -1276,33 +1321,33 @@ def _test_hint_cli_publication() -> None:
                      f"read-only `name` disagrees with the published base name: {proc.stdout[:200]!r}")
 
 
-def _hint_fx_refute(repo: Path, authority: str) -> None:
+def _hint_fx_refute(repo: Path, authority: str, floor: float = 8.5) -> None:
     """REFUTE 런 모양 — 인증서는 PASS 때만 발행되므로 셀 포인터에 없다 · 판정기 산출(verdict.json)은 REFUTE + 루브릭 권한."""
     sweep = repo / f"output/multi/benchlog/sweep_{_HINT_FX_CELL}"
     (sweep / "verdict.json").write_text(json.dumps({"verdict": "REFUTE", "rubric": {
-        "authority": authority, "floor": 8.5, "ratio_M_over_primary": 0.9,
+        "authority": authority, "floor": floor, "ratio_M_over_primary": 0.9,
         "source": "expected_achievable(roofline×MBU)"}}), encoding="utf-8")
     _hint_edit_json(repo / f"campaigns/{_HINT_FX_CAMPAIGN}/evidence_pointers.json",
                     lambda d: d.update(pointers=[p for p in d["pointers"] if p.get("kind") != "certificate"]))
 
 
 def _test_hint_cli_refute_paths() -> None:
-    """H1 · H5 — 인증서가 구조적으로 없는 REFUTE 런이 신 CLI 에서 어디로 가는가.
+    """H1 · H5 — 인증서가 구조적으로 없는 REFUTE 런이 신 CLI 에서 어디로 가는가(2026-10-11 발행 게이트 통일 · plan_26101104 Step 1).
 
-    H1 ★ explore(사람 HITL 탐색 · waiver 없음)는 publish→continue→push 까지 **완주**하고 footer 는 bench_report 에 묶인다
-       (2026-08-24 죽은 코드의 hint 평면 쌍둥이 — 승격 게이트만 열고 봉인에서 다시 죽던 형태가 돌아오지 않았는가).
-    H5 ★ weak 권한 REFUTE(waiver ✗ · explore ✗)는 publish 의 게이트 사전 확인에서 멈춘다 — 게이트 JSON 이 stdout 그대로,
-       태그·브랜치·draft 상태 부수효과 0(가드를 끈 것이 아니라 통로를 이었다는 증거는 H1 과 이 H5 의 짝이다).
+    H1 ★ explore · weak(M1 모양) REFUTE 는 publish→continue→push 까지 **완주**하고 footer 는 bench_report 에 묶이며, 판정은
+       기계 표면(PAYLOAD.measurement.verdict)과 00 머리 REFUTE 배너로 **표시만** 된다 — 권한 무관(사람 서명 면제 필드는 폐기).
+    H5 ★ 공허 floor(floor=0) REFUTE 는 publish 의 게이트 사전 확인에서 멈춘다 — 게이트 JSON 이 stdout 그대로, 태그·브랜치·draft
+       상태 부수효과 0(통일 게이트의 반쪽 = 유효 측정이 가드로 남았다는 증거는 H1 과 이 H5 의 짝이다).
     `--node` 를 **주지 않는다**(2026-09-29 · plan_26092908 §4.8 V11③ · AC7): 인증서가 없는 런도 셀 측정 TP(2) > 노드당 GPU(1) 로
     evidence 가 노드 축을 `cluster` 로 파생한다. 종전(2026-09-22)에는 측정 노드를 실어 줄 문서가 없어 배정(main)으로 해소됐고
     cluster 로 등록된 리포트 포인터가 걸러져 스윕이 조인되지 않았다 — 그래서 사람이 `--node cluster` 를 명시했다(멀티 셀 3/3)."""
     hint = _import_hint_cli()
-    with tempfile.TemporaryDirectory(prefix="hint-cli-refute-weak.") as tds:
+    with tempfile.TemporaryDirectory(prefix="hint-cli-refute-vacuous.") as tds:
         td = Path(tds).resolve()
         with _hint_isolated_env(td):
             f = _hint_cli_fixture(td, hint, legacy=False)
             repo = f["repo"]
-            _hint_fx_refute(repo, "weak")
+            _hint_fx_refute(repo, "weak", floor=0)
             refs0 = _hint_refs(repo)
             proc = _hint_cli(f, "publish", "--campaign", _HINT_FX_CAMPAIGN, "--cell", _HINT_FX_CELL,
                              "--generated-utc", _HINT_FX_PUBLISH_UTC)
@@ -1313,36 +1358,46 @@ def _test_hint_cli_refute_paths() -> None:
             _require(proc.returncode != 0 and gate.get("allowed") is False
                      and "PROMOTION_GATE_NOT_ELIGIBLE" in (gate.get("reason_codes") or [])
                      and gate.get("action") == "hint_finalize",
-                     f"a weak-authority REFUTE run without a waiver passed the publish gate pre-check: "
+                     f"a vacuous-floor REFUTE run passed the publish gate pre-check: "
                      f"rc={proc.returncode} stdout={proc.stdout[-600:]!r} stderr={proc.stderr[-400:]!r}")
             _require(_hint_refs(repo) == refs0 and not list((repo / "hints/.drafts").glob("*/state.json")),
                      "a gate denial at publish left a tag/branch or a scaffolded draft behind")
 
-    with tempfile.TemporaryDirectory(prefix="hint-cli-refute-explore.") as tds:
+    for authority in ("weak", "explore"):
+        _hint_refute_publishes(hint, authority)
+
+
+def _hint_refute_publishes(hint, authority: str) -> None:
+    """REFUTE(권한 `authority`) 셀이 인증서 없이 끝단(push · 원격 SHA)까지 가고 판정이 표시되는가."""
+    with tempfile.TemporaryDirectory(prefix=f"hint-cli-refute-{authority}.") as tds:
         td = Path(tds).resolve()
         with _hint_isolated_env(td):
             f = _hint_cli_fixture(td, hint, legacy=False)
             repo = f["repo"]
-            _hint_fx_refute(repo, "explore")
+            _hint_fx_refute(repo, authority)
             draft, st = _hint_publish_and_author(f, "--cell", _HINT_FX_CELL)
             man = json.loads((repo / st["manifest"]).read_text(encoding="utf-8"))
             _require((man.get("benchmark") or {}).get("verdict") == "REFUTE"
-                     and (man.get("benchmark") or {}).get("rubric_authority") == "explore"
+                     and (man.get("benchmark") or {}).get("rubric_authority") == authority
                      and not ((man.get("evidence") or {}).get("certificate") or {}).get("path"),
-                     f"fixture did not produce an explore REFUTE manifest without a certificate: {man.get('benchmark')!r} "
+                     f"fixture did not produce a {authority} REFUTE manifest without a certificate: {man.get('benchmark')!r} "
                      f"{(man.get('evidence') or {}).get('certificate')!r}")
-            _hint_cli_ok(f, "continue(explore)", "continue", "--draft", str(draft),
+            _hint_cli_ok(f, f"continue({authority})", "continue", "--draft", str(draft),
                          "--generated-utc", _HINT_FX_CONTINUE_UTC, "--remote", "origin")
             body = _hint_tag_body(repo, st["tag"])
             _require("bench_ref: ../benchmark/bench_report_" in body and "bench_kind: bench_report" in body,
-                     f"explore footer v2 did not bind the bench_report (bench_kind=bench_report): {body[-500:]!r}")
+                     f"{authority} footer v2 did not bind the bench_report (bench_kind=bench_report): {body[-500:]!r}")
             # 판정의 기계 표면(plan_26092908 §4.4 · V1): 인증서가 없어도 PAYLOAD.measurement.verdict = REFUTE
             payload = json.loads(_hint_git(repo, "show", f"refs/tags/{st['tag']}^{{commit}}:PAYLOAD.json"))
             _require((payload.get("measurement") or {}).get("verdict") == "REFUTE",
                      f"a REFUTE cell did not carry its verdict on the machine surface: {payload.get('measurement')!r}")
+            # 판정은 표시만(계약 v8 §3.2): 00 머리 REFUTE 배너가 배포 본문에 있다
+            hint00 = _hint_git(repo, "show", f"refs/tags/{st['tag']}^{{commit}}:00-hint.md")
+            _require("> **REFUTE** —" in hint00,
+                     f"a {authority} REFUTE tag did not carry the REFUTE banner in 00-hint.md")
             _require(_hint_remote_ref(f["bare"], f"refs/tags/{st['tag']}")
                      == _hint_git(repo, "rev-parse", f"refs/tags/{st['tag']}"),
-                     "explore-authority tag did not reach the remote with the sealed object")
+                     f"{authority}-authority REFUTE tag did not reach the remote with the sealed object")
 
 
 def _render_lite_report(raw_json: Path) -> str:
@@ -1440,7 +1495,7 @@ def _test_hint_map_only_promotion() -> None:
     full_benchmark ∧ mode=full ∧ verdict=PASS ∧ 증거 5종일 때만 나왔기 때문이다. 그래서 사람이
     vault 사본을 만들어 우회했다(D3 위반의 형태). 이 시험은 **문이 실제로 열리는지**와
     **열린 문으로 성능 주장이 새어 나가지 않는지**를 함께 본다.
-    본문 마커(⑥ OBSERVATION-ONLY · PERF-WARNING)는 게이트가 아니라 발행기 린트(`hintlib.template` · 00-hint.md)의 소관이라
+    본문 마커(⑥ OBSERVATION-ONLY)는 게이트가 아니라 발행기 린트(`hintlib.template` · 00-hint.md)의 소관이라
     2026-09-22 부터 아래 CLI 시험(`_test_hint_map_only_publication` · `_test_hint_cli_publication`)이 친다(평면 분리).
     """
     def _verify(root: Path, manifest: Path) -> dict:
@@ -1497,25 +1552,15 @@ def _test_hint_map_only_promotion() -> None:
                  and (out.get("certificate") or {}).get("grade") == "full",
                  f"a legacy certificate without benchmark_mode was not read as full: {out}")
 
-        # ② ★음성대조 verdict=FAIL 은 사람 positive key 없이는 못 연다(§3.2 perf_waiver).
+        # ② verdict=FAIL 도 lite 통과 인증서가 있으면 지도 발행이 열린다 — 판정은 표시만(2026-10-11 계약 v8 §3.2 · 사람 서명
+        #    면제 필드 폐기). 관측 게재 마커는 hintlib.template 린트가 00 본문에서 집행한다.
         m = _write_promotion_manifest(root, "FAIL", dict(_PROMO_RUBRIC), certificate=_PROMO_LITE_CERTIFICATE,
                                       task_class="hint_map_only",
                                       drop_evidence=("simlog", "bench_report"))
         out = _verify(root, m)
-        _require(out.get("eligible_for_promotion") is not True
-                 and "HINT_MAP_FAIL_REQUIRES_WAIVER" in (out.get("reason_codes") or []),
-                 f"a FAIL verdict reached promotion through hint_map_only without a waiver: {out}")
-
-        # ③ waiver 4필드가 있으면 열린다 — 대가는 본문 PERF-WARNING 이고 그것은 hintlib.template 린트가 집행한다.
-        m = _write_promotion_manifest(
-            root, "FAIL", dict(_PROMO_RUBRIC, perf_waiver={
-                "authorized_by": "selftest-operator", "authorized_at_utc": "2026-09-07T00:00:00Z",
-                "instruction": "loop-until-done 중단", "warning_flag": "PERF-WARNING: selftest"}),
-            certificate=_PROMO_LITE_CERTIFICATE,
-            task_class="hint_map_only", drop_evidence=("simlog", "bench_report"))
-        out = _verify(root, m)
-        _require(out.get("eligible_for_promotion") is True,
-                 f"hint_map_only with a complete perf_waiver was still blocked: {out}")
+        _require(out.get("eligible_for_promotion") is True
+                 and "HINT_MAP_ONLY_PROMOTION" in (out.get("reason_codes") or []),
+                 f"a FAIL verdict with a lite-pass certificate was blocked on hint_map_only (verdict must be display-only): {out}")
 
         # ④ ★음성대조 여정을 담는 셋(plan·devlog·testlog)은 면제되지 않는다.
         m = _write_promotion_manifest(root, "PASS", dict(_PROMO_RUBRIC),

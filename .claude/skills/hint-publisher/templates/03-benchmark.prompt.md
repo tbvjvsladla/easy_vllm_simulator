@@ -51,11 +51,11 @@
 
 <!-- PROMPT
 질문: 이 수치를 다른 수치(이전 측정 · 자매 셀 · 외부 레퍼런스 · 다른 vLLM 버전의 hint)와 나란히 놓아도 되며, 이 측정은 어떤 판정 등급인가?
-읽을 것: 3.1~3.3 · 위 현행 full 정의 사실 블록 · 이 셀과 비교 대상의 **인증서 yaml**(강한 일치 키 블록 · `# --- 소프트 지문` 블록) · 같은 셀의 이전 벤치 리포트 · 자매 셀(같은 모델의 다른 형상) 리포트 · 외부 레퍼런스를 모은 testlog/report · 판정(verdict)의 산정 입력을 적은 문서 · 00 의 등급 블록(task_class · waiver · OBSERVATION-ONLY)
+읽을 것: 3.1~3.3 · 위 현행 full 정의 사실 블록 · 이 셀과 비교 대상의 **인증서 yaml**(강한 일치 키 블록 · `# --- 소프트 지문` 블록) · 같은 셀의 이전 벤치 리포트 · 자매 셀(같은 모델의 다른 형상) 리포트 · 외부 레퍼런스를 모은 testlog/report · 판정(verdict)의 산정 입력을 적은 문서 · 00 의 등급 블록(task_class · 판정 · OBSERVATION-ONLY)
 기재: 비교 대상마다 한 줄 `- <대상> · <값> · <조건 차이> · <비교 가능 | 비교 불가> — <이유와 출처>`. 끝에 판정 등급 2~3줄.
   같은 셀의 이전 측정이 있으면 그 측정의 **레벨 전부**(동시성 1 만이 아니라 원천에 있는 모든 레벨)를 이 측정의 같은 레벨 옆에 나란히 둔 작은 표로 싣는다(`| 동시성 | 이 측정 | 이전 측정 | 비 |` · 값은 두 원천의 글자 그대로 · 비는 '이 측정 ÷ 이전' — 한 레벨만 떼어 비교하지 않는다).
   반드시 다룰 것 — 같은 셀의 이전 측정(값 · 조건 · 차이의 원인) · 자매 셀(같은 모델의 다른 형상 — 어느 쪽이 어느 구간에서 우세한가와 그 조건) · 외부 레퍼런스(HW 수 · 형상 · 측정 조건이 같은가) · 판정(expected · floor · ratio)의 산정 입력 중 손으로 승계된 값(예: acceptance length) · 위 사실 블록의 현행 full 정의로 보면 이 측정의 등급(블록의 충족 여부를 그대로 · 돌려 말하지 않는다).
-  판정 등급 — 판정 권위(인증서 · explore · waiver · 관측 게재)와 그 근거 · waiver 면 그 대가(PERF-WARNING) · 관측 게재면 baseline 이 아니라는 것(OBSERVATION-ONLY) · 현행 full 정의 충족 여부 · 재측정이 필요한 조건.
+  판정 등급 — 판정 권위(인증서 · 루브릭 권한 · 관측 게재)와 그 근거 · 판정은 발행 게이트가 아니라 표시라는 것(REFUTE 면 배너 · 수치는 관측) · 관측 게재·기준 부재면 baseline 이 아니라는 것(OBSERVATION-ONLY) · 현행 full 정의 충족 여부 · 재측정이 필요한 조건.
   자체 재현 밴드(예: ±3%)를 넘는 차이는 "같은 범위 재현" 이라고 부르지 않는다 — 차이를 수치로 적고 원인이 설명됐는지 밝힌다.
   비교 가능 판정의 기준(인증서 자신의 규칙 — 인증서 yaml 머리 주석과 블록 그대로) — **강한 일치 키**(인증서 `model` · `gpu_model` · `vllm_version` · `quantization` · `topology` · `tensor_parallel_size`) 중 하나라도 다르면 그 비교에서 이 수치는 **무효**다 · **소프트 지문**(인증서 `# --- 소프트 지문` 블록의 키 전부 — driver_version · cuda_version · image_tag · image_digest · max_model_len · max_num_seqs · kv_cache_memory_bytes · kv_cache_dtype · gpu_memory_utilization · moe_backend · enforce_eager · attention_backend · ple_mode · ngc_base_tag · bench_tool 등, 머리 주석 요약 driver/cuda/image/max-len/kv-bytes/gmu/moe)가 다르면 **stale** — "비교 가능(형상 비교 · stale)" 로 적고 다른 키를 **전부** 나열한다(하나만 다르다고 적으려면 블록 전체를 대조했어야 한다) · 부하 조건(입력/출력 길이 · 동시성 · 레벨당 요청 수 · spec decode 켜짐/꺼짐과 방식 · 측정 도구)이 다르면 **비교 불가**다. 입출력 길이가 원문에 없으면 같은 레벨의 (총 tok/s ÷ 출력 tok/s)가 두 측정에서 같은지로 요청당 토큰 구성이 같은지 확인하고, 다르면 비교 불가로 적는다.
   **acceptance length 는 비교 조건이 아니라 측정 결과(출력)다**(계약 §8.6) — spec 이 둘 다 켜져 있으면 잰 acceptance length 가 달라도 비교 불가가 아니다. 대신 두 측정의 acceptance length 비(이 측정 ÷ 이전)를 decode 처리량 비 옆에 **비로** 나란히 적고, 처리량 차이가 그 비로 설명되는지(설명된다 · 안 된다 · 판정 불가)를 적는다. acceptance length 가 한쪽에만 있으면 '미기재' 로 적는다(1.0 으로 채우지 않는다).

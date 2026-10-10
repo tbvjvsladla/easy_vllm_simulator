@@ -431,21 +431,22 @@ def authorize(repo, manifest_path, action: str) -> dict:
 def no_cert_binding_source(manifest, repo=None) -> str | None:
     """인증서가 없을 때 **무엇이 bench_report 바인딩을 여는가**의 단일 판정자(옛 hint_tag._no_cert_binding_source 그대로).
 
-      · `perf_waiver`   — 성능 REFUTE 를 **사람이 서명**해 통과시킨 경로(positive key).
       · `hint_map_only` — 지도 발행 통로(계약 v5 §3 C행 · 2026-09-14 · plan_26091407 §4.5). lite 만 잰 셀은 인증서가
                           **구조적으로** 없다. 종전에는 이 판정자가 map_only 를 몰라서 승격 게이트는 열렸는데 봉인이
                           HINT_CERTIFICATE_EVIDENCE_MISSING 으로 죽었다(audit_26091323 §1 A1 · work-manifest 13건 전부).
                           클래스 선언만으로 여는 이유: 그 클래스로 승격 게이트를 통과했다는 것이 여정 증거와 서빙 성립을
                           이미 뜻한다(completion_gate HINT_MAP_ONLY_PROMOTION) — 여기서 다시 묻지 않는다(평면 분리).
-      · `explore`       — 루브릭 권한 explore. 성능 판정이 게이트가 아니라 **서술**이므로 REFUTE 여도 승격이 열린다.
-                          explore 는 waiver 를 요구하지 **않는다** — 요구하면 completion_gate U1 자동개방이 여기서 다시
-                          죽는다(2026-08-24 실측한 그 죽은 코드의 hint 평면 쌍둥이).
-      · `weak`          — 2026-09-29(plan_26092908 §4.8 · V11④ · completion_gate `certificate_waived`): weak 도 explore 처럼
-                          **비발행 권한**이다(judge_bench 는 explicit ∧ PASS 만 인증서를 낸다). 판정 원천에서 파생된 권한
-                          (`certificate_requirement_authority` — rubric_source=verdict_json)이 weak 이고 rubric 계약을 통과하며
-                          판정이 PASS·REFUTE 이면 bench_report 가 판정 근거다. 옛 판본은 explore 만 알아서 weak PASS 가 인증서를
-                          요구받았다(게이트는 이제 면제하는데 봉인 쪽 결정자가 막는 이음매).
-    순서가 판정이다: waiver 가 map_only 보다 먼저. 넷 다 아니면 None(=차단 — explicit REFUTE·권한 미상은 waiver 가 필요하다).
+      · `observation_only` — 2026-10-11(plan_26101104 Step 1 · 계약 v8 §3.2): 기준(c·E)도 expected 도 없어 판정기가 루브릭을
+                          세우지 못한 full 셀(verdict=`OBSERVATION-ONLY` ↔ 판정기 NEEDS_RUBRIC). 판정을 주장하지 않으므로
+                          인증서는 구조적으로 없고 bench_report 가 유일한 계측 근거다. 출처 표시(rubric_source)가 있고 루브릭 수치가
+                          비어 있을 때만(게이트 BENCHMARK_OBSERVATION_ONLY_PROMOTION 과 같은 술어).
+      · `<권한>`         — 판정 원천에서 파생된 권한(`certificate_requirement_authority` — rubric_source=verdict_json)이 있고 rubric
+                          계약(floor>0 ∧ ratio ∧ primary_source)을 통과한 셀. 2026-10-11 발행 게이트 통일로 **non-PASS(REFUTE·FAIL)는
+                          권한 무관**하게 bench_report 가 판정 근거다(판정은 표시만 — 종전엔 explore·weak 만 열리고 explicit REFUTE 는
+                          사람 서명이 필요했는데 그 필드는 writer 가 없어 실제로 열린 적이 없다 · M1 실례). PASS 는 인증서가 발행되지
+                          않는 권한(weak·explore · completion_gate `certificate_waived`)일 때만 — explicit PASS 는 인증서가 판정 근거다.
+                          반환값은 그 권한 이름이다(무엇을 근거로 열렸는지 산출물이 밝힌다).
+    셋 다 아니면 None(=차단 — explicit PASS 의 인증서 부재 · 권한 미상 · 공허 floor).
     ★ 단일 결정자(2026-08-01: finalize 는 리포트로 묶었는데 verify 는 인증서와 대조해 FAIL · 2026-08-24 · 2026-09-14).
     explore 계약은 completion_gate `manifest_rubric_contract` 를 그대로 재사용한다(포인터 원칙 — 손으로 다시 적지 않는다).
     repo=None 이면 이 hintlib 가 든 체크아웃의 게이트를 쓴다.
@@ -454,26 +455,31 @@ def no_cert_binding_source(manifest, repo=None) -> str | None:
         return None
     benchmark = manifest.get("benchmark")
     benchmark = benchmark if isinstance(benchmark, dict) else {}
-    if benchmark.get("perf_waiver"):
-        return "perf_waiver"
     if manifest.get("task_class") == "hint_map_only":
         return "hint_map_only"
     gate = cgate(repo if repo is not None else core.HINTLIB_DIR.parents[4])
+    verdict = benchmark.get("verdict")
+    if verdict == gate.OBSERVATION_ONLY_VERDICT:
+        sourced = benchmark.get("rubric_source") in gate.MANIFEST_RUBRIC_SOURCES
+        claimed = any(benchmark.get(k) not in (None, "") for k in ("floor_tps", "ratio_M_over_primary", "primary_source"))
+        return "observation_only" if (sourced and not claimed) else None
     rubric = gate.manifest_rubric_contract(benchmark)
     if not (rubric.get("declared") and rubric.get("ok")):
         return None
     # 권한은 **판정 원천에서 파생됐다고 표시된** 것만(게이트 한 벌 · 원시 manifest 값으로 면제를 열지 않는다).
     authority = gate.certificate_requirement_authority(benchmark)
-    if authority == "explore":
-        return "explore"
-    if authority in gate.CERTIFICATE_NON_ISSUING_AUTHORITIES and benchmark.get("verdict") in ("PASS", "REFUTE"):
+    if authority is None:
+        return None
+    if verdict in gate.ANNOTATED_NON_PASS_VERDICTS:
+        return authority
+    if verdict == "PASS" and authority in gate.CERTIFICATE_NON_ISSUING_AUTHORITIES:
         return authority
     return None
 
 
 def binding_artifact_path(manifest, repo=None) -> str | None:
     """footer `certificate_ref` 가 가리킬 **계측 산출물 경로**의 단일 소유자(옛 hint_tag._binding_artifact_path).
-    통상 인증서 · 인증서가 구조적으로 없을 세 경로(waiver·explore·map_only)면 bench_report · 그 밖 None.
+    통상 인증서 · 인증서가 구조적으로 없는 경로(non-PASS 판정 표시 · 비발행 권한 PASS · OBSERVATION-ONLY · map_only)면 bench_report · 그 밖 None.
     인증서가 있으면 map_only 여도 인증서가 이긴다."""
     ev = manifest.get("evidence") if isinstance(manifest, dict) else None
     ev = ev if isinstance(ev, dict) else {}
@@ -1400,6 +1406,10 @@ def measurement_config(repo, ev: CellEvidence) -> dict:
 
 # 판정의 기계 표면(2026-09-29 · plan_26092908 §4.4 · V1). 판정 값의 어휘 — verdict_rule 의 둘 + lite-only 셀의 표지.
 MEASUREMENT_VERDICTS = ("PASS", "REFUTE", "OBSERVATION-ONLY")
+# 판정기 NEEDS_RUBRIC ↔ 측정 표면 OBSERVATION-ONLY(2026-10-11 · plan_26101104 Step 1 · 정본 대응은 completion_gate
+#   OBSERVATION_ONLY_VERDICT/OBSERVATION_ONLY_JUDGE_VERDICT — 여기 둘은 그 리터럴의 tripwire 이며 자체검사가 교차검증한다).
+OBSERVATION_ONLY_VERDICT = "OBSERVATION-ONLY"
+_JUDGE_NO_BASELINE_VERDICT = "NEEDS_RUBRIC"
 # 판정 원천 → PAYLOAD.measurement 키. verdict.json(verdict_rule 출력)의 경로(점 표기) · 리포트 `## 판정` 표의 항목 이름 ·
 #   발행 기록 `benchmark` 의 키. 인증서 키 이름(_CERT_MEASUREMENT_KEYS)에 맞춘다 — 인증서가 있는 셀과 없는 셀이 같은 키를 말한다.
 _JUDGED_KEYS = (
@@ -1522,6 +1532,10 @@ def _judged(repo: Path, ev: CellEvidence) -> tuple[dict, dict, list[str]]:
                 vals[key], srcs[key] = v, f"{where} {rk}"
     if "verdict" in vals:
         vals["verdict"] = vals["verdict"].upper()
+        if vals["verdict"] == _JUDGE_NO_BASELINE_VERDICT:
+            # 기준 부재 full 셀 — 판정을 주장하지 않는다(측정 표면 = OBSERVATION-ONLY · 원천 표기는 출처 칸에 남긴다)
+            vals["verdict"] = OBSERVATION_ONLY_VERDICT
+            srcs["verdict"] = f"{srcs.get('verdict')} ({_JUDGE_NO_BASELINE_VERDICT} → {OBSERVATION_ONLY_VERDICT} · 기준 c·E·expected 부재)"
     return vals, srcs, reasons
 
 
@@ -1538,8 +1552,11 @@ def _certificate_not_due(repo: Path, ev: CellEvidence) -> str | None:
     rec_bm = (((ev.publication or {}).get("record") or {}).get("benchmark") or {})
     if asrc.startswith("발행 기록") and rec_bm.get("rubric_source") != "verdict_json":
         authority = None                  # 출처 표시 없는 권한으로 면제를 열지 않는다(게이트 certificate_requirement_authority 와 같은 결)
-    if verdict == "REFUTE":
-        return f"REFUTE — 인증서는 PASS 전용이다(판정 {js.get('verdict')} · 결손 아님 · 판정 근거 = bench_report)"
+    if verdict in ("REFUTE", "FAIL"):
+        return f"{verdict} — 인증서는 PASS 전용이다(판정 {js.get('verdict')} · 결손 아님 · 판정 근거 = bench_report)"
+    if verdict == OBSERVATION_ONLY_VERDICT:
+        return (f"OBSERVATION-ONLY — 기준(c·E·expected)이 없어 판정을 주장하지 않는다(판정 {js.get('verdict')} · 결손 아님 · "
+                "계측 근거 = bench_report)")
     if verdict == "PASS" and authority in cgate(repo).CERTIFICATE_NON_ISSUING_AUTHORITIES:
         return (f"PASS ∧ 비발행 권한 {authority}({asrc}) — judge_bench 는 explicit ∧ PASS 만 인증서를 낸다(결손 아님 · "
                 "판정 근거 = bench_report)")
@@ -1623,7 +1640,9 @@ def measurement(ev: CellEvidence) -> dict:
     elif out["verdict"] not in MEASUREMENT_VERDICTS:
         core.fail("HINT_MEASUREMENT_VERDICT_UNKNOWN", f"판정 원천의 verdict {out['verdict']!r} 가 {MEASUREMENT_VERDICTS} 밖이다({per.get('verdict')}).",
                   "verdict_rule 어휘가 바뀌었으면 evidence.MEASUREMENT_VERDICTS 를 개정한다(tripwire — 모르는 판정을 통과로 접지 않는다).")
-    if "accept_len" not in out and out["verdict"] == "OBSERVATION-ONLY":
+    # lite-only 관측과 기준 부재 full 관측(2026-10-11 · NEEDS_RUBRIC)은 같은 판정 표면을 쓰지만 측정 평면이 다르다 — 갈라 적는다.
+    lite_obs = out["verdict"] == OBSERVATION_ONLY_VERDICT and (out.get("benchmark_mode") == "lite" or ev.report_kind == "lite")
+    if "accept_len" not in out and lite_obs:
         # FACT_FIX2 G9: lite-only 셀도 수용 길이의 **측정 기록**은 있다 — lite 레그 JSON 의 spec_decode_acceptance_length(warm 우선 · 원문 값).
         #   판정 입력(verdict_rule 의 accept_len)이 아니라는 사실을 출처에 적는다.
         lw = lite_window(repo, ev)
@@ -1642,7 +1661,7 @@ def measurement(ev: CellEvidence) -> dict:
             out["accept_len"] = str(cert["lite_accept_len"])
             per["accept_len"] = (f"{cname} lite_accept_len(" + str(cert.get("lite_accept_len_src") or "출처 칸 없음")
                                  + ") — lite 관측(판정 입력 아님 · lite-only 셀은 verdict_rule 에 투입되지 않았다)")
-    if "accept_len" not in out and out["verdict"] != "OBSERVATION-ONLY":
+    if "accept_len" not in out and not lite_obs:
         # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F17: verdict.json 은 measured_accept_len(null)과 루브릭 spec 축
         #   (rubric.spec_axis.accept_len · accept_len_source · missing)을 든다 — '칸이 없다' 가 아니라 '측정값 null · 루브릭이 쓴 값과 그 출처'
         #   를 적는다. 값은 None 그대로(1.0 은 spec 미선언 시 루브릭의 선언값 — 측정 아님 · 옮기지 않는다).
@@ -1659,7 +1678,9 @@ def measurement(ev: CellEvidence) -> dict:
     for k in ("decode_tps_conc1", "floor_tps", "ratio_M_over_primary", "rubric_authority", "accept_len"):
         if k not in out:
             out[k] = None
-            per[k] = ("lite-only 셀 — 동시성 1 스윕·루브릭이 없다(lite 수치는 `lite`)" if out["verdict"] == "OBSERVATION-ONLY"
+            per[k] = ("lite-only 셀 — 동시성 1 스윕·루브릭이 없다(lite 수치는 `lite`)" if lite_obs
+                      else "기준 부재 full 셀 — 루브릭이 서지 않았다(관측 전용 · 판정 원천 NEEDS_RUBRIC)"
+                      if out["verdict"] == OBSERVATION_ONLY_VERDICT and k in ("floor_tps", "ratio_M_over_primary")
                       else "미관측(판정 원천에 이 칸이 없다)")
     sw = ev.sweep or {}
     levels = []
@@ -1840,6 +1861,35 @@ def _event_rows(path: Path) -> tuple[list[tuple[str, int, dict]], int]:
     return rows, bad
 
 
+# 월 원장(`YYYY-MM.jsonl`)은 **한 스트림의 월 단위 조각**이다(2026-10-11 · plan_26101104 M1 사실검증 F1). 파일마다 따로 창을 열면
+#   월말에 연 선언 창(실측: 2026-09.jsonl 마지막 행 `smoke-q38fn030-nv4-res-262k` budget_declare 09-30T23:58:21Z)이 그 파일 안에서
+#   닫히지 않아 "열린 채 원장이 끝난다" 로 읽히고(end None → 그 뒤 모든 측정을 덮는다), 다음 달 파일의 renew 16회 · clear(10-01T00:58:02Z)는
+#   창 밖 라벨 행으로 떨어졌다 — 그래서 10-10 측정을 10-01 기동 창이 "이 측정의 기동" 으로 주장하고 renew 0회로 적혔다. 월 원장은 이어
+#   붙여 한 스트림으로 창을 판정하고, 행 출처(`파일:줄`)는 각 행의 실제 파일로 남긴다. 그 밖의 스트림(watchdog · thermal)은 파일 = 스트림.
+_MONTH_LEDGER = re.compile(r"\d{4}-\d{2}\.jsonl")
+
+
+def _node_streams(repo: Path, node: str) -> list[tuple[str, list[tuple[str, int, dict]], list[str], dict[str, int]]]:
+    """노드 원장 → [(스트림 키, 행들(ts 순), 행별 출처 파일(저장소 상대), 파일별 파싱 불가 줄 수)]. 월 원장은 한 스트림으로 잇는다(위 주석)."""
+    month: list[tuple[str, int, tuple[str, int, dict]]] = []
+    month_bad: dict[str, int] = {}
+    out = []
+    files = sorted((repo / REL_EVENTS_ROOT / node / "events").glob("*.jsonl"))
+    for fi, f in enumerate(files):
+        rel = _rel(repo, f)
+        rows, bad = _event_rows(f)
+        if _MONTH_LEDGER.fullmatch(f.name):
+            month += [(rel, fi, r) for r in rows]
+            month_bad[rel] = bad
+        else:
+            out.append((rel, rows, [rel] * len(rows), {rel: bad}))
+    if month_bad:
+        month.sort(key=lambda x: (x[2][0], x[1], x[2][1]))           # ts → 파일 순 → 줄 순
+        key = "+".join(sorted(month_bad))
+        out.insert(0, (key, [r for _, _, r in month], [rel for rel, _, _ in month], month_bad))
+    return out
+
+
 def _event_windows(rows: list[tuple[str, int, dict]]) -> list[dict]:
     """스트림 하나의 선언 창 — 여는 행(선언·arm) ~ 닫는 행(clear·none·expired · 포함) 또는 다음 여는 행(교체 · 미포함).
     창 안의 행 = 같은 라벨 행 + 라벨 없는 _EVENT_WINDOWED_KINDS 행."""
@@ -1880,13 +1930,10 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
     used: set[str] = set()
     measured_win = None
     for node in _event_node_dirs(repo, ev):
-        streams = []
-        for f in sorted((repo / REL_EVENTS_ROOT / node / "events").glob("*.jsonl")):
-            rows, bad = _event_rows(f)
-            streams.append((_rel(repo, f), rows, bad))
+        streams = _node_streams(repo, node)
         if ctx is not None:
             ctx.setdefault("nodes", []).append(node)
-            for rel, rows, _bad in streams:
+            for _key, rows, srcs, _bad in streams:
                 if rows:
                     # 노드 원장의 관측 범위(스트림들의 첫 행 ~ 마지막 행 · 2026-09-22 S2 round 3 적대 검토): 원장이 끊긴 뒤의 시각은
                     #   "선언 없음" 이 아니라 **미관측** 이다(실측: sub 2026-09.jsonl 은 09-11T11:10:38Z 에서 끝난다).
@@ -1895,16 +1942,17 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                 for w in _event_windows(rows):
                     # stream_last: 열린 창(end_ts None)은 그 스트림의 마지막 행까지만 열려 있음이 관측된다 — 그 뒤는 닫힘 미관측이다
                     #   (실측: sub 스트림이 `smoke-nv4-f8-1m-res` 창을 연 채 끝난다 — 옛 판본은 그 뒤 모든 시각을 이 창이 덮는다고 읽었다).
-                    ctx.setdefault("windows", []).append({"node": node, "rel": rel, "label": w["label"], "start_ts": w["start_ts"],
+                    ctx.setdefault("windows", []).append({"node": node, "rel": srcs[w["rows"][0]], "label": w["label"],
+                                                          "start_ts": w["start_ts"],
                                                           "end_ts": w["end_ts"], "line": rows[w["rows"][0]][1],
                                                           "stream_last": rows[-1][0]})
-                for ts, ln, d in rows:
+                for (ts, ln, d), rel in zip(rows, srcs):
                     if d.get("kind") in _EVENT_OPEN_KINDS + _EVENT_CLOSE_KINDS + ("budget_renew",):
                         ctx.setdefault("budget_rows", []).append({"node": node, "utc": ts, "kind": d.get("kind"),
                                                                   "label": d.get("label") or None, "rel": rel, "line": ln})
         taken: dict[tuple[str, int], dict | None] = {}
         declare_wins: list[tuple[str, dict]] = []
-        for rel, rows, _bad in streams:
+        for rel, rows, srcs, _bad in streams:
             in_win: set[int] = set()
             for w in _event_windows(rows):
                 if not _label_is_cell(w["label"], cell):
@@ -1913,6 +1961,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                     in_win.add(idx)
                     taken[(rel, idx)] = w
                 if w["open_kind"] == "budget_declare":
+                    w["stream_last"] = rows[-1][0]
                     declare_wins.append((rel, w))
             for idx, (_ts, _ln, d) in enumerate(rows):
                 if idx in in_win:
@@ -1921,7 +1970,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                         d.get("kind") in ("serve_start", "serve_stop") and _session_is_cell(d.get("session_id"), cell)):
                     taken[(rel, idx)] = None
         # 창을 열지 않는 스트림(thermal 등)의 라벨 없는 행 — 같은 노드의 선언 창 **시간 구간**에 귀속한다.
-        for rel, rows, _bad in streams:
+        for rel, rows, _srcs, _bad in streams:
             if any(d.get("kind") in _EVENT_OPEN_KINDS for _, _, d in rows):
                 continue
             for idx, (ts, _ln, d) in enumerate(rows):
@@ -1932,18 +1981,20 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                     taken[(rel, idx)] = w
         declare_wins.sort(key=lambda x: (x[1]["start_ts"], x[0]))
         order = {id(w): i for i, (_, w) in enumerate(declare_wins, 1)}
-        for _rel_w, w in declare_wins:
-            if measured and measured_win is None and w["start_ts"] <= measured and (w["end_ts"] is None or measured <= w["end_ts"]):
-                measured_win = {"start_ts": w["start_ts"], "end_ts": w["end_ts"], "node": node}
+        # 측정 창 = 측정 시각을 **품은** 창(첫·마지막 창 ✗ · 2026-10-11 F1). 닫힘 미관측 창은 그 스트림의 마지막 행까지만 품는다 —
+        #   그 뒤의 측정은 이 창 안이 아니라 관측 범위 밖이다(열린 창이 뒤의 모든 측정을 주장하던 결함).
+        hold = [w for _rel_w, w in declare_wins if measured and _win_holds(w, measured)]
+        if measured_win is None and hold:
+            w = hold[-1]                                   # 품는 창이 여럿이면(스트림 간 겹침) 가장 늦게 연 창 — 그 시각의 선언 슬롯 주인
+            measured_win = {"start_ts": w["start_ts"], "end_ts": w["end_ts"], "node": node}
         node_start = len(out)
-        for rel, rows, bad in streams:
-            mine = sorted(idx for (r, idx) in taken if r == rel)
-            if not mine:
-                continue
-            used.add(rel)
+        for skey, rows, srcs, bads in streams:
+            mine = sorted(idx for (r, idx) in taken if r == skey)
             for idx in mine:
                 ts, ln, d = rows[idx]
-                w = taken[(rel, idx)]
+                rel = srcs[idx]
+                used.add(rel)
+                w = taken[(skey, idx)]
                 k = str(d.get("kind"))
                 fields = _event_fields(d)
                 # `label` 은 **그 행의 라벨**이다(2026-09-22 · S2 round 2 리뷰). 라벨 없는 clear·사살·보류를 창의 라벨로 채우면 추론(창 귀속)이
@@ -1953,8 +2004,11 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                     renews = sum(1 for j in w["rows"] if rows[j][2].get("kind") == "budget_renew")
                     if measured is None:
                         rel_m = "측정 시각 미관측"
-                    elif w["start_ts"] <= measured and (w["end_ts"] is None or measured <= w["end_ts"]):
+                    elif measured_win is not None and measured_win["node"] == node and w["start_ts"] == measured_win["start_ts"]:
                         rel_m = f"measured_utc {measured} 가 이 창 안(이 측정의 기동)"
+                    elif w["end_ts"] is None and w["start_ts"] <= measured:
+                        rel_m = (f"measured_utc {measured} 는 이 창의 관측 범위 밖(창이 열린 채 스트림이 {w['stream_last']} 에서 끝난다 — "
+                                 "이 측정의 기동으로 귀속하지 않는다)")
                     else:
                         # 전·후를 적는다(2026-09-22 round 2 리뷰) — 같은 셀 id 가 뒤 캠페인에서 다시 뜬 창(예: 09-10 측정 셀의 09-17 재기동
                         #   사살)이 이 측정의 여정처럼 읽히지 않게.
@@ -1972,12 +2026,19 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                 else:
                     detail = f"{k} · {fields}" + (f" · session={d.get('session_id')}" if d.get("session_id") else "")
                 out.append({"utc": ts, "node": node, "kind": k, "label": label, "detail": detail, "source": f"{rel}:{ln}"})
-            if bad:
-                out.append({"utc": None, "node": node, "kind": "ledger_unparsable_lines", "label": None,
-                            "detail": f"JSON 파싱 불가 {bad}줄 — 건너뜀(부재가 아니라 판독 불가 · 그 줄의 사건은 이 표에 없다)",
-                            "source": rel})
+            for brel, bad in sorted(bads.items()):
+                if bad and brel in used:            # 행을 낸 파일의 판독 불가만(종전과 같다 — 무관한 월 파일 ✗)
+                    out.append({"utc": None, "node": node, "kind": "ledger_unparsable_lines", "label": None,
+                                "detail": f"JSON 파싱 불가 {bad}줄 — 건너뜀(부재가 아니라 판독 불가 · 그 줄의 사건은 이 표에 없다)",
+                                "source": brel})
         out[node_start:] = _merge_stream_copies(out[node_start:])
     return out, sorted(used), measured_win
+
+
+def _win_holds(w: dict, t: str) -> bool:
+    """창이 시각 t 를 품는가 — 선언 ≤ t ≤ 닫힘(닫힘 미관측이면 그 스트림의 마지막 행까지만 관측된다)."""
+    end = w["end_ts"] if w["end_ts"] is not None else w.get("stream_last")
+    return w["start_ts"] <= t and (end is None or t <= end)
 
 
 def _merge_stream_copies(rows: list[dict]) -> list[dict]:
@@ -5729,7 +5790,11 @@ def drive_publisher(repo, ev: CellEvidence, *, topic, generated_utc, draft_dir) 
     else:
         v = ((ev.sweep or {}).get("verdict") or {}).get("verdict") if (ev.sweep or {}).get("binding") == "output" else None
         verdict = v or (None if cert_is_lite(ev.certificate) else (ev.certificate or {}).get("verdict"))
-        if verdict not in ("PASS", "FAIL", "REFUTE"):
+        # 2026-10-11(plan_26101104 Step 1): 판정기의 NEEDS_RUBRIC(기준 c·E·expected 부재)은 work-manifest 의 OBSERVATION-ONLY 다
+        #   (대응 한 곳 = completion_gate 상수). 사다리 공백이 아닌 NEEDS_RUBRIC(물리 초과 · spec 결손)은 publish-benchmark 가 거부한다.
+        if verdict == _JUDGE_NO_BASELINE_VERDICT:
+            verdict = OBSERVATION_ONLY_VERDICT
+        if verdict not in ("PASS", "FAIL", "REFUTE", OBSERVATION_ONLY_VERDICT):
             core.fail("HINT_VERDICT_UNOBSERVED", f"셀 {ev.cell!r} 의 벤치 판정을 관측하지 못했다(verdict.json·인증서): {verdict!r}")
         task, mode = "full_benchmark", "full"
     sweep_dir = (ev.sweep or {}).get("dir")
@@ -6358,6 +6423,40 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
     ck("★재생 모드(캠페인 purge) = 경계 미관측 표지 · 행에 scope 없음(현 규칙: 라벨 전부) · 행 수 같음",
        bnr["utc"] is None and bnr["observed"] is False and "경계 미관측" in bnr["source"]
        and not any("campaign_scope" in r for r in event_timeline(repo, rp)) and d0u < d1u)
+    # 2026-10-11 · plan_26101104 M1 사실검증 F1 — 월 원장 경계를 넘는 앞선 기동 창(월말 선언 · 다음 달 renew·clear)이 열린 채로 읽혀
+    #   뒤의 측정을 "이 측정의 기동" 으로 주장하던 회귀 모양. 월 원장은 한 스트림으로 이어 창을 닫고, 측정 창 = 측정 시각을 품은 창.
+    ledger_p = repo / "docs/logs/main/events/2026-01.jsonl"
+    ledger_b = ledger_p.read_bytes()
+    prev_m = repo / "docs/logs/main/events/2025-12.jsonl"
+    try:
+        prev_m.write_text(json.dumps({"kind": "budget_declare", "label": "smoke-c1-a", "floor_mib": 100,
+                                      "ts": "2025-12-31T23:58:00Z"}) + "\n", encoding="utf-8")
+        ledger_p.write_bytes("".join(json.dumps(x) + "\n" for x in (
+            {"kind": "budget_renew", "label": "smoke-c1-a", "ttl_s": 900, "ts": "2026-01-01T00:10:00Z"},
+            {"kind": "budget_renew", "label": "smoke-c1-a", "ttl_s": 900, "ts": "2026-01-01T00:20:00Z"},
+            {"kind": "budget_clear", "existed": True, "ts": "2026-01-01T00:30:00Z"})).encode() + ledger_b)
+        tlm = event_timeline(repo, ev)
+        bm = event_campaign_boundary(repo, evb)
+    finally:
+        prev_m.unlink()
+        ledger_p.write_bytes(ledger_b)
+    dm = [r for r in tlm if r["kind"] == "budget_declare"]
+    rn = [r for r in tlm if r["kind"] == "budget_renew" and r["utc"] < "2026-01-01T01:00:00Z"]
+    srv_m = next((r for r in tlm if r["kind"] == "server_starting"), {})
+    ck("★F1 월 경계를 넘는 앞선 창 = 다음 달 renew 2회 · clear 로 닫힘 · '측정 전'(열린 채 원장이 끝난다 ✗ · 이 측정의 기동 ✗)",
+       len(dm) == 3 and dm[0]["source"] == "docs/logs/main/events/2025-12.jsonl:1" and "기동 창 1/3" in dm[0]["detail"]
+       and "budget_renew 2회" in dm[0]["detail"] and "닫힘 budget_clear 2026-01-01T00:30:00Z" in dm[0]["detail"]
+       and "측정 전)" in dm[0]["detail"] and "닫힘 미관측" not in dm[0]["detail"])
+    ck("★F1 측정을 품은 창만 '이 측정의 기동'(한 창 · 3/3) · 앞선 창의 renew 출처 = 실제 파일:줄 · 상대시각 기준 = 그 창",
+       [i for i, r in enumerate(dm) if "이 창 안" in r["detail"]] == [2] and "기동 창 3/3" in dm[2]["detail"]
+       and [r["source"] for r in rn] == ["docs/logs/main/events/2026-01.jsonl:1", "docs/logs/main/events/2026-01.jsonl:2"]
+       and all("창 시작 2025-12-31T23:58:00Z 후" in r["detail"] for r in rn) and "후 28m00s" in srv_m.get("detail", ""))
+    ck("★F1 캠페인 경계 = 측정을 품은 창 시작(앞선 회차 창 ✗)", bm["utc"] == d1u)
+    ck("★F1 닫힘 미관측 창은 스트림 마지막 행까지만 품는다(그 뒤 측정 ✗ · 그 안 ✓)",
+       not _win_holds({"start_ts": "2026-01-01T00:00:00Z", "end_ts": None, "stream_last": "2026-01-01T01:00:00Z"},
+                      "2026-01-02T00:00:00Z")
+       and _win_holds({"start_ts": "2026-01-01T00:00:00Z", "end_ts": None, "stream_last": "2026-01-01T01:00:00Z"},
+                      "2026-01-01T00:30:00Z"))
     # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F14: 경계 이전 기동이라도 그 serve_start 세션 id 가 이 셀 포인터(testlog)가
     #   인용한 simlog 기동 로그에 문자 그대로 있으면 같은 셀 기동(관측 조인) · 없으면 종전 분류(앞선 캠페인).
     import shutil as _sh14
@@ -6762,7 +6861,9 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
     ck("★다른 노드 스트림이 열린 채 끝난 창(sub smoke-c1-b · 마지막 행 02:30)은 그 뒤 시각을 덮지 않는다(main 관측 · 창 없음 = 선언 없음)",
        late.get("label") == "measurement (no budget event recorded)" and "smoke-c1-b" not in late.get("detail", "")
        and "이 시각을 관측하지 않은 원장: sub" in late["detail"])
-    dang = ev_dir / "2025-12.jsonl"             # 같은 노드의 다른 스트림이 창을 연 채 끝난다(01:31) — 01:35 의 창 상태는 미관측
+    # 같은 노드의 다른 스트림이 창을 연 채 끝난다(01:31) — 01:35 의 창 상태는 미관측. 2026-10-11(F1): 월 원장 이름(`YYYY-MM.jsonl`)은
+    #   한 스트림으로 이어지므로 '다른 스트림' 픽스처는 월 이름이 아닌 파일이어야 한다(옛 이름 2025-12.jsonl 은 월 스트림에 합류한다).
+    dang = ev_dir / "zz-dangling.jsonl"
     dang.write_text(json.dumps({"kind": "budget_declare", "label": "smoke-zz-dangling", "ts": "2026-01-02T01:31:00Z"}) + "\n",
                     encoding="utf-8")
     g2 = {r["utc"]: r for r in event_timeline(repo, ev_c) if r["kind"] == "measurement"}.get("2026-01-02T01:35:00Z", {})
@@ -7059,6 +7160,20 @@ def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> No
        and "accept_len_source=declared-absent" in m17["sources"]["accept_len"] and "결손 아님" in m17["sources"]["accept_len"]
        and "칸이 없다" not in m17["sources"]["accept_len"] and "칸이 없다" in m17n["sources"]["accept_len"])
     ck("REFUTE = 인증서 비발행 판정(결손 아님)", (_certificate_not_due(repo, e_ref) or "").startswith("REFUTE"))
+    # ── 기준 부재 full 셀(2026-10-11 · plan_26101104 Step 1): 판정기 NEEDS_RUBRIC → 측정 표면 OBSERVATION-ONLY ──
+    obs = {"verdict": "NEEDS_RUBRIC", "failure_axis": "establish", "reason_code": None, "measured_decode_tps": 7.7,
+           "rubric": {"authority": "weak", "primary": None, "source": None, "floor": None, "ratio_M_over_primary": None}}
+    e_obs = dataclasses.replace(e_ref, sweep={**sw, "verdict": obs})
+    mo = measurement(e_obs)
+    ck("★기준 부재 full 셀 — measurement.verdict = OBSERVATION-ONLY(원천 NEEDS_RUBRIC 은 출처 칸) · 실측은 싣고 루브릭 칸은 '루브릭이 서지 않았다'",
+       mo.get("verdict") == OBSERVATION_ONLY_VERDICT and "NEEDS_RUBRIC" in mo["sources"]["verdict"]
+       and mo.get("decode_tps_conc1") == "7.7" and mo.get("floor_tps") is None and mo.get("benchmark_mode") == "full"
+       and "루브릭이 서지 않았다" in mo["sources"]["floor_tps"] and "lite-only" not in mo["sources"]["floor_tps"])
+    ck("OBSERVATION-ONLY = 인증서 비발행(결손 아님)",
+       (_certificate_not_due(repo, e_obs) or "").startswith("OBSERVATION-ONLY"))
+    ck("측정 표면 리터럴 ↔ 게이트 대응 상수 교차검증(두 자리 tripwire)",
+       (OBSERVATION_ONLY_VERDICT, _JUDGE_NO_BASELINE_VERDICT)
+       == (cgate(repo).OBSERVATION_ONLY_VERDICT, cgate(repo).OBSERVATION_ONLY_JUDGE_VERDICT))
     pass_rub = lambda a: {"verdict": "PASS", "measured_decode_tps": 12.3, "rubric": {"authority": a, "floor": 8.5,
                                                                                        "ratio_M_over_primary": 1.23}}
     e_ex = dataclasses.replace(e_ref, sweep={**sw, "verdict": pass_rub("explicit")})
@@ -7241,6 +7356,10 @@ def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> No
     ck("★explicit PASS 는 인증서가 필요하다(bench_report 로 열지 않는다)",
        no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**base, "rubric_authority": "explicit",
                                                                             "verdict": "PASS"}}, repo) is None)
+    ck("explicit·weak REFUTE 는 bench_report 로 묶인다(발행 게이트 통일 · 권한 무관 · M1 모양)",
+       all(no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**base, "rubric_authority": a,
+                                                                                "verdict": "REFUTE"}}, repo) == a
+           for a in ("explicit", "weak")))
     ck("★출처 표시 없는 weak 는 열지 않는다(rubric_source 부재)",
        no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**{k: v for k, v in base.items() if k != "rubric_source"},
                                                                             "rubric_authority": "weak", "verdict": "PASS"}}, repo) is None)
@@ -7821,15 +7940,22 @@ def selftest() -> list[str]:
                 ck(f"★{what} 인증서 = 파싱 거부", _code(parse_certificate, repo, _rel(repo, bad_cert)) == "HINT_CERTIFICATE_UNPARSEABLE")
             bad_cert.unlink()
             # ── no_cert_binding_source (단일 결정자) ──
-            ck("waiver 가 map_only 보다 먼저", no_cert_binding_source({"task_class": "hint_map_only",
-                                                                   "benchmark": {"perf_waiver": {"a": 1}}}, repo) == "perf_waiver")
             ck("map_only 는 클래스로 연다", no_cert_binding_source({"task_class": "hint_map_only", "benchmark": {}}, repo) == "hint_map_only")
-            ck("explore 는 계약 통과로 연다", no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {
+            ck("explore REFUTE 는 계약 통과로 연다", no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {
                 "rubric_authority": "explore", "rubric_source": "verdict_json", "floor_tps": 1.0, "ratio_M_over_primary": 0.9,
-                "primary_source": "x"}}, repo) == "explore")
-            ck("★공허 floor 의 explore 는 닫힌다", no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {
-                "rubric_authority": "explore", "rubric_source": "verdict_json", "floor_tps": 0, "ratio_M_over_primary": 0.9,
-                "primary_source": "x"}}, repo) is None)
+                "primary_source": "x", "verdict": "REFUTE"}}, repo) == "explore")
+            ck("★공허 floor 의 REFUTE 는 닫힌다(권한 무관)", all(no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {
+                "rubric_authority": a, "rubric_source": "verdict_json", "floor_tps": 0, "ratio_M_over_primary": 0.9,
+                "primary_source": "x", "verdict": "REFUTE"}}, repo) is None for a in ("explore", "weak", "explicit")))
+            obs = {"rubric_authority": "weak", "rubric_source": "verdict_json", "floor_tps": None,
+                   "ratio_M_over_primary": None, "primary_source": None, "verdict": "OBSERVATION-ONLY"}
+            ck("OBSERVATION-ONLY full 셀은 bench_report 로 연다(기준 부재 · 판정 주장 ✗)",
+               no_cert_binding_source({"task_class": "full_benchmark", "benchmark": obs}, repo) == "observation_only"
+               and binding_artifact_path({"task_class": "full_benchmark", "benchmark": obs,
+                                          "evidence": {"bench_report": {"path": "r"}}}, repo) == "r")
+            ck("★문턱이 실리거나 출처 표시가 없는 OBSERVATION-ONLY 는 닫힌다",
+               no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**obs, "floor_tps": 1.0}}, repo) is None
+               and no_cert_binding_source({"task_class": "full_benchmark", "benchmark": {**obs, "rubric_source": None}}, repo) is None)
             ck("인증서가 map_only 여도 이긴다", binding_artifact_path({"task_class": "hint_map_only", "benchmark": {},
                 "evidence": {"certificate": {"path": "c"}, "bench_report": {"path": "r"}}}, repo) == "c")
             # ── publication_records = lineage 규칙(tripwire) ──

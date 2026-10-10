@@ -62,6 +62,11 @@ HINT_TARGET_RETIRED_KEYS = {"arch": "태그 이름은 발행 도구가 전량 �
 # 주입 시각 모양. 발행 페이로드가 이 값을 그대로 옮기고 발행기는 같은 모양만 받는다 — 모양이 다른 승인은
 #   봉인 직전에야 터진다. 저장소 관행(블랙박스 ISO_RE 등)과 같은 국소 상수다.
 APPROVAL_UTC_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+# 서브 인스턴스가 **자기 몫** 승인을 들 수 있는 토폴로지(2026-10-11 · plan_26101104 Step 3 · single 서브 자체 발행).
+#   정본은 `node_role_contract.sub_self_publishes`(tool_plane 에 hint 발행 스킬이 있는가)다. 이 검증기는 서브에도
+#   배달되는데 계약기는 서브에 가지 않으므로 **파생할 수 없다** — 그래서 손사본을 두고 메인 쪽 자체검사
+#   (`campaign_init --self-test`)가 계약기와 교차검증한다(단일 소유 불가 시 차선 · workflow.md §결정론 규율).
+SELF_PUBLISH_TOPOLOGIES = ("single",)
 
 
 class CampaignContractFailure(Exception):
@@ -250,9 +255,22 @@ def hint_target_reasons(doc: dict) -> list[str]:
     if not isinstance(targets, list):
         return problems + ["hint_targets 가 목록이 아니다"]
     if targets and doc.get("self_role") == "sub":
-        # 발행은 메인 소관이다 — 파생 선언은 hint_targets 를 비워 보내고(emit_slice), 서브는 발행기를 켜지
-        # 않는다(orchestration.topology.md). 서브 인스턴스의 승인 기록은 읽는 쪽이 없는 거짓 약속이다.
-        problems.append("self_role=sub 인스턴스에 hint_targets 가 있다 — 발행 승인은 메인 선언에만 적는다")
+        # 2026-10-11(plan_26101104 Step 3): single 서브는 자기 셀을 스스로 발행한다. 승인은 여전히 **메인 선언**에서
+        #   사람이 적고(`--hint-approve --node <sub>`), 파생 선언(emit_slice)이 그 노드 몫만 운반한다. 그래서 서브
+        #   인스턴스가 들 수 있는 것은 ① 자기 노드 몫 ② 자체 발행 토폴로지의 노드뿐이다 — 다른 노드(메인 포함) 몫이나
+        #   Ray 워커 서브의 승인은 읽는 쪽이 없는 거짓 약속이거나 남의 승인을 옮겨 쓴 것이다.
+        own = [n for n in (doc.get("nodes") or []) if isinstance(n, dict)]
+        own_ids = {n.get("node_id") for n in own}
+        if len(own) != 1 or own[0].get("role") != "sub":
+            problems.append("self_role=sub 인스턴스에 hint_targets 가 있는데 nodes[] 가 자기(role sub) 노드 하나가 아니다 — "
+                            "파생 선언(emit_slice)은 그 서브 노드 하나만 싣는다")
+        elif own[0].get("topology") not in SELF_PUBLISH_TOPOLOGIES:
+            problems.append(f"self_role=sub 인스턴스에 hint_targets 가 있다 — topology {own[0].get('topology')!r} 의 "
+                            f"서브는 자체 발행하지 않는다(자체 발행 = {list(SELF_PUBLISH_TOPOLOGIES)} · 승인은 메인 선언에만)")
+        for i, target in enumerate(targets):
+            if isinstance(target, dict) and target.get("node_id") not in own_ids:
+                problems.append(f"self_role=sub 인스턴스의 hint_targets[{i}] 는 다른 노드({target.get('node_id')!r}) 몫이다 "
+                                f"— 파생 선언은 그 노드 몫만 운반한다")
     node_ids = {n.get("node_id") for n in (doc.get("nodes") or []) if isinstance(n, dict)}
     approved_at: dict = {}
     for i, target in enumerate(targets):
@@ -1184,8 +1202,17 @@ def _selftest() -> int:
         ck("★목록 밖 approval.source 차단",
            any("source" in p for p in write(dict(good, hint_targets=[_ht(source="chat")])))
            and "목록 밖" in (hint_approval_reason(dict(_appr, source="chat")) or ""))
-        ck("★self_role=sub 인스턴스의 승인 기록 차단(발행은 메인 소관 · 파생 선언은 비워 보낸다)",
+        # 2026-10-11(plan_26101104 Step 3): single 서브는 자기 몫 승인을 파생 선언으로 받아 든다 — 양·음성을 함께 본다.
+        ck("★self_role=sub 인스턴스가 자기(서브) 노드가 아닌 몫의 승인을 들면 차단",
            any("self_role=sub" in p for p in write(dict(good, self_role="sub"))))
+        _sub_good = dict(good, self_role="sub",
+                         nodes=[{"node_id": "sub", "role": "sub", "topology": "single", "hw": "gb10"}],
+                         assignments={"sub": [{"cell": "cell-a"}]}, hint_targets=[_ht(node="sub")])
+        ck("★single 서브 인스턴스의 자기 몫 승인은 통과(파생 선언 운반 · 읽는 눈이 돌려준다)",
+           not write(_sub_good) and hint_approval_for(_sub_good, "cell-a", "sub") is not None)
+        ck("★multi 서브 인스턴스의 자기 몫 승인은 차단(Ray 워커는 자체 발행 ✗)",
+           any("자체 발행하지 않는다" in p for p in write(dict(
+               _sub_good, nodes=[{"node_id": "sub", "role": "sub", "topology": "multi", "hw": "gb10", "rank": 1}]))))
         ck("★음성대조: 완결 승인은 사유가 없다 · 기본 출처는 출처 목록 안이다",
            hint_approval_reason(_appr) is None and HINT_APPROVAL_DEFAULT_SOURCE in HINT_APPROVAL_SOURCES
            and not hint_target_reasons(good))

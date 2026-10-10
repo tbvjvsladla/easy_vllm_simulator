@@ -40,7 +40,10 @@ REL_VOCAB = "hints/vocab.json"
 REL_INDEX = "hints/index.json"
 REL_HINTS_MD = "HINTS.md"
 REL_CONTRACT = "hints/HINT_ISSUANCE_CONTRACT.md"
-REL_CENTRAL_FLAG = "hints/.central_authority"
+REL_CENTRAL_FLAG = "hints/.central_authority"   # 카탈로그(HINTS.md · index.json) 권위 — 메인 단독(plan_26101104)
+# 태그 push 역할 선언(plan_26101104 · single 서브 자체 발행). 카탈로그 권위와 **분리**한다 — push 는 둘 중 하나로 열리고
+# 카탈로그 파생은 central 만 연다. 둘 다 비추적 역할 선언이며 배달 평면을 타지 않는다(각 체크아웃이 스스로 선언).
+REL_PUSH_FLAG = "hints/.push_authority"
 REL_DRAFTS = "hints/.drafts"
 REL_PII_TERMS = ".claude/pii_terms.txt"
 REL_EVIDENCE_DIR = "docs/_evidence"
@@ -122,6 +125,26 @@ def resolve_repo(explicit: str | os.PathLike | None = None, *, require_git: bool
         return _DIST_ROOT_GUESS
     fail("HINT_REPO_NOT_GIT", "git 체크아웃(또는 hints/index.json 을 가진 배포 루트)을 찾지 못했다.",
          "match 이외 명령은 git 저장소 안에서 실행하거나 --repo 로 지정한다.")
+
+
+# ── 작업공간 보조 루트(plan_26101104 · 별도 hint 클론) ─────────────────────────────────────────────────────────────
+# single 서브는 워크스페이스 git(원격 없음 · SUB_GIT_LOCAL_ONLY) 밖의 **별도 hint 클론**에서 페이로드 커밋·봉인·push 를 한다.
+# 그때 git 오브젝트 연산의 repo 는 클론이지만, 비추적 운영자 평면(`.claude/pii_terms.txt` · `envs/.env` 토큰)은 워크스페이스에
+# 있다. 이 둘을 읽는 자리(pii.load_pii_terms · tag.read_push_token)만 이 루트를 본다 — 설정은 hint.py continue 가 클론 모드에서만
+# 하고 끝나면 되돌린다(호출 범위 한정 · 기본 = 넘겨받은 repo 그대로).
+_AUX_ROOT: Path | None = None
+
+
+def set_aux_root(root: Path | None) -> Path | None:
+    """보조 루트 설정 → 이전 값(호출부가 finally 에서 되돌린다)."""
+    global _AUX_ROOT
+    prev, _AUX_ROOT = _AUX_ROOT, (Path(root).resolve() if root is not None else None)
+    return prev
+
+
+def aux_root(repo: Path) -> Path:
+    """운영자 비추적 평면을 읽을 루트 — 설정돼 있으면 그것, 아니면 repo."""
+    return _AUX_ROOT if _AUX_ROOT is not None else Path(repo)
 
 
 def git(repo: Path, *args: str, check: bool = True, input_text: str | None = None,

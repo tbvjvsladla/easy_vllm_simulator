@@ -1625,10 +1625,16 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C3():
 
 
 def predicate_HINT_TAG_ACTIVATION_GATE_C4():
-    """C4: publication is main-only, the same plane as references.md, independent of sub egress
-    state -- the hint engine never invokes SSH or the sub delivery/relay tooling, the main->sub
-    delivery never carries the engine or the hints/ tree, the sub's runtime-skill plane never
-    includes hint-publisher, and a sub's derived campaign slice carries no hint_targets."""
+    """C4 (2026-10-11 revision, plan_26101104): publication is main-only with one exception -- the single-node sub
+    (sub_mode a2a-agent) for its own cells. Proven on the real producers:
+    (1) the hint engine never invokes SSH or the sub delivery/relay tooling (unchanged);
+    (2) the runtime-skill plane derived from the identity contract carries hint-publisher for a2a-agent and never for
+        ray-worker, and `sub_self_publishes` is that same derivation;
+    (3) the real renderer stages the engine + hints/ contract and vocabulary for single only, never for multi, and never
+        stages the catalog or a role marker for either; sync_to_sub carries no catalog/marker path of its own;
+    (4) a derived campaign slice carries exactly that node's hint_targets (approval included) for a self-publishing sub,
+        cuts main's and other nodes' entries, carries nothing for a ray-worker sub, and a sub instance holding another
+        node's entry or belonging to a non-self-publishing topology is refused."""
     engine = [REPO_ROOT / _HINT_CLI_REL, *sorted((REPO_ROOT / _HINT_SCRIPTS_REL / "hintlib").glob("*.py"))]
     _require(engine[0].is_file(), f'{_HINT_CLI_REL} is absent -- the engine to inspect is incomplete')
     _require(len(engine) > 1, 'hintlib/*.py is absent -- the engine to inspect is incomplete')
@@ -1668,43 +1674,74 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C4():
             _require(not any(tok in literal for tok in sub_tooling),
                      f'{rel} must never reference sub delivery/A2A tooling ({literal[:80]!r})')
 
-    # main->sub delivery never carries the engine or the hints/ tree (a bare "hint" is not banned:
-    # sync_to_sub.sh legitimately mentions "hint 페이로드" in a comment).
-    delivery_tokens = ("hint-publisher", "hintlib", "hint.py", "hint_tag", "hints/", "HINTS.md")
-    sync_src = _sync_to_sub_src()
-    _require(not [t for t in delivery_tokens if t in sync_src], 'sync_to_sub.sh must never deliver the hint engine or hints/ tree')
-    render_sub_env_src = _read(".claude/skills/terraforming_node/scripts/render_sub_env.py")
-    _require(not [t for t in (*delivery_tokens, '"hints"') if t in render_sub_env_src],
-             'render_sub_env.py must never stage the hint engine/tree for sub delivery')
-
-    # The sub's runtime-skill plane (derived from the manifest identity contract) never includes the publisher.
+    # (2) tool plane -- derived from the identity contract, both directions.
     nrc = _import(".claude/skills/terraforming_node/scripts", "node_role_contract")
-    for topology in nrc.TOPOLOGIES:
-        for mode in nrc.SUB_MODES:
-            plane = nrc.tool_plane(topology, mode)["value"]
-            _require("hint-publisher" not in plane, f'a {mode} sub must never receive hint-publisher: {plane}')
+    _require("hint-publisher" in nrc.tool_plane("single", "a2a-agent")["value"],
+             'the single-node (a2a-agent) sub must receive hint-publisher')
+    _require("hint-publisher" not in nrc.tool_plane("multi", "ray-worker")["value"],
+             'a multi-node (ray-worker) sub must never receive hint-publisher')
+    _require(nrc.sub_self_publishes("single")["value"] is True and nrc.sub_self_publishes("multi")["value"] is False,
+             'sub_self_publishes must be the tool-plane derivation (single yes, multi no)')
 
-    # A sub's derived campaign slice carries no publication approval, and a sub instance holding one is refused.
+    # (3) the real renderer: engine + contract/vocab for single only; catalog and role markers never.
+    never = tuple(render_sub_env.HINT_NEVER_DELIVER)
+    for must in ("hints/index.json", "HINTS.md", "hints/.central_authority", "hints/.push_authority"):
+        _require(must in never, f'render_sub_env.HINT_NEVER_DELIVER must list {must!r}')
+    _require({"hints/HINT_ISSUANCE_CONTRACT.md", "hints/vocab.json"} <= set(render_sub_env.HINT_ENGINE_DEPENDENCIES),
+             'the engine dependencies must carry the hints/ contract and vocabulary')
+    with tempfile.TemporaryDirectory(prefix="hint-c4-render-") as td:
+        mpath = Path(td) / "manifest.yaml"
+        mpath.write_text(render_sub_env.FIXTURE_MANIFEST, encoding="utf-8")
+        for topology, want in (("single", True), ("multi", False)):
+            data = render_sub_env.parse_manifest(str(mpath))
+            data["topology"] = topology
+            ph, missing = render_sub_env.build_placeholders(data)
+            _require(not missing, f'fixture placeholders incomplete for {topology}: {missing}')
+            out = Path(td) / f"out_{topology}"
+            render_sub_env.render_tree(ph, str(out), copy_runtime_block=True)
+            got_engine = (out / _HINT_CLI_REL).is_file()
+            got_vocab = (out / "hints/vocab.json").is_file()
+            _require(got_engine == want and got_vocab == want,
+                     f'{topology}: engine staged={got_engine} vocab staged={got_vocab}, expected {want}')
+            leaked = [r for r in never if (out / r).exists()]
+            _require(not leaked, f'{topology}: catalog/role-marker paths must never be staged: {leaked}')
+    sync_src = _sync_to_sub_src()
+    _require(not [t for t in ("HINTS.md", "hints/index.json", ".central_authority", ".push_authority") if t in sync_src],
+             'sync_to_sub.sh must never carry the catalog or a role marker of its own -- delivery is the render staging')
+
+    # (4) the derived slice carries exactly that node's approval for a self-publishing sub, and nothing else.
     ci = _campaign_script("campaign_init")
     cv = _campaign_script("campaign_template_validator")
     approval = {"approved_by": "fixture transcription", "approved_utc": _HINT_FIXTURE_UTC, "source": "declaration-popup"}
-    decl = {"schema_version": 1, "id": "camp-fx", "plan_ref": "docs/plan/p.md", "declared_utc": _HINT_FIXTURE_UTC,
-            "nodes": [{"node_id": "main", "role": "main", "topology": "multi", "hw": "gb10"},
-                      {"node_id": "sub", "role": "sub", "topology": "multi", "hw": "gb10"}],
-            "assignments": {"main": [{"cell": "cell-a"}], "sub": [{"cell": "cell-s"}]},
-            "hint_targets": [{"node_id": "sub", "cells": ["cell-s"], "approval": approval}]}
+
+    def decl_for(topology):
+        return {"schema_version": 1, "id": "camp-fx", "plan_ref": "docs/plan/p.md", "declared_utc": _HINT_FIXTURE_UTC,
+                "nodes": [{"node_id": "main", "role": "main", "topology": topology, "hw": "gb10"},
+                          {"node_id": "sub", "role": "sub", "topology": topology, "hw": "gb10"}],
+                "assignments": {"main": [{"cell": "cell-a"}], "sub": [{"cell": "cell-s"}]},
+                "hint_targets": [{"node_id": "main", "cells": ["cell-a"], "approval": approval},
+                                 {"node_id": "sub", "cells": ["cell-s"], "approval": approval}]}
+
+    sliced = {}
     with tempfile.TemporaryDirectory(prefix="hint-c4-") as td:
-        camp = Path(td) / "camp-fx"
-        camp.mkdir()
-        (camp / "campaign.yaml").write_text(json.dumps(decl, ensure_ascii=False), encoding="utf-8")
-        sliced = ci.emit_slice(camp, "sub", utc=_HINT_FIXTURE_UTC)
-    _require(sliced.get("self_role") == "sub" and sliced.get("hint_targets") == [],
-             f'the sub slice must carry no hint_targets (publication is main-only): {sliced.get("hint_targets")!r}')
-    smuggled = dict(sliced, hint_targets=decl["hint_targets"])
-    _require(any("self_role=sub" in r for r in cv.hint_target_reasons(smuggled)),
-             'a sub instance holding hint_targets must be refused')
-    _require(cv.hint_approval_for(smuggled, "cell-s", node="sub") is None,
-             'no approval may be read from a sub instance -- a sub can never be cleared to publish')
+        for topology in ("single", "multi"):
+            camp = Path(td) / topology / "camp-fx"
+            camp.mkdir(parents=True)
+            (camp / "campaign.yaml").write_text(json.dumps(decl_for(topology), ensure_ascii=False), encoding="utf-8")
+            sliced[topology] = ci.emit_slice(camp, "sub", utc=_HINT_FIXTURE_UTC)
+    single, multi = sliced["single"], sliced["multi"]
+    _require(single.get("self_role") == "sub"
+             and single.get("hint_targets") == [{"node_id": "sub", "cells": ["cell-s"], "approval": approval}],
+             f'the single sub slice must carry exactly its own approved entry: {single.get("hint_targets")!r}')
+    _require(cv.hint_target_reasons(single) == [] and cv.hint_approval_for(single, "cell-s", node="sub") is not None,
+             'the single sub instance must accept and read its own carried approval')
+    smuggled = dict(single, hint_targets=single["hint_targets"] + [decl_for("single")["hint_targets"][0]])
+    _require(cv.hint_target_reasons(smuggled) and cv.hint_approval_for(smuggled, "cell-s", node="sub") is None,
+             "a sub instance holding another node's (main's) entry must be refused and yield no approval")
+    _require(multi.get("hint_targets") == [], f'a ray-worker sub slice must carry no hint_targets: {multi.get("hint_targets")!r}')
+    smuggled_m = dict(multi, hint_targets=single["hint_targets"])
+    _require(cv.hint_target_reasons(smuggled_m) and cv.hint_approval_for(smuggled_m, "cell-s", node="sub") is None,
+             'a multi-node sub instance holding an approval must be refused -- a ray-worker never self-publishes')
 
 
 def predicate_HINT_TAG_ACTIVATION_GATE_C5():

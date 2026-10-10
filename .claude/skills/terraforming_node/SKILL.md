@@ -89,7 +89,7 @@ when_to_use: >-
 → `references/install/onboarding.md` — ### 1.1 5-전제조건 인터뷰 · ### 1.2 사용자 승인 게이트 · ### 1.3 스캔 · ### 1.4 성능 게이트 · ### 1.5 토폴로지 게이트 + 3자-일치 단언 · ### 1.6 manifest 기입 · ### 1.7 서브 work_dir 프로비저닝 게이트
 
 ## 2. 서브 에이전트 환경 구축 (A2A-개념)
-→ `references/install/sub_agent_env.md` — ### 2.1 스킬 분류학 · ### 2.2 구축 아티팩트 · ### 2.3 렌더-온-메인 → 전달(인가 체인) · ### 2.4 A2A-개념 협업 계약 · ### 2.5 완료 게이트 — model-less 카나리 라운드트립. **카나리 미통과 = done ✗.**
+→ `references/install/sub_agent_env.md` — ### 2.1 스킬 분류학 · ### 2.2 구축 아티팩트 · ### 2.3 렌더-온-메인 → 전달(인가 체인) · ### 2.4 A2A-개념 협업 계약 · ### 2.5 완료 게이트 — model-less 카나리 라운드트립 · ### 2.5.1 hint 발행 장착(single 서브 한정 · 클론·역할 선언·토큰 존재 확인 · 2026-10-11). **카나리 미통과 = done ✗.**
 
 ### 블랙박스 — `references/blackbox/`
 
@@ -159,7 +159,8 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/campaign_init.py` | 캠페인 체인 | ✓ | 캠페인 상태의 **유일한 writer**. 사람 승인 인자 필수 동사만 적는다: `--revise` · `--reentry-decide` · `--hint-approve`. 나머지는 `--help` |
 | `scripts/campaign_template_validator.py` | 캠페인 체인 | ✓ | 선언·인스턴스 술어(P1~P3) |
 | `scripts/manifest_contract.py` | §0.5 · §1S · §2.7.10 | ✓ | Flag·`issued_by: main` readiness 리더 |
-| `scripts/node_role_contract.py` | §2.7.0 · §2.7.6 | — | 토폴로지 축 계약(sub_mode·rank·배달 평면)의 단일 소유자 |
+| `scripts/node_role_contract.py` | §2.7.0 · §2.7.6 | — | 토폴로지 축 계약(sub_mode·rank·배달 평면·tool_plane·서브 자체 발행)의 단일 소유자 |
+| `scripts/check_sub_hint_equip.py` | §2.5.1 | ✓(single) | single 서브 hint 발행 장착 판정·장착(`--clone`·`--write-push-authority`) · JSON 보고 · 비밀 미출력 · 사람 요청 템플릿 `templates/requests/sub_hint_push_equip.md` |
 | `scripts/scan_node.py` | §1.3–§1.5 · §2.7.10 | — | 스캔·게이트·3자일치·emit(서브 manifest 포함) |
 | `scripts/render_sub_env.py` | §2.3 | — | 서브 환경·Card·서브 manifest 렌더 |
 | `scripts/staleness_gate.py` | spine 1 · §0.5 | — | 조건부 preflight 트리거 |

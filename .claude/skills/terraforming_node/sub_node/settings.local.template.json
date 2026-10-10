@@ -22,6 +22,7 @@
       "MODE:a2a-agent Edit({{ WORKSPACE_PATH }}/output/**/requirements.txt)",
       "MODE:a2a-agent Edit({{ WORKSPACE_PATH }}/output/**/build_patches/**)",
       "MODE:a2a-agent Edit({{ WORKSPACE_PATH }}/output/**/build_patches_src/**)",
+      "MODE:a2a-agent Edit({{ WORKSPACE_PATH }}/hints/.drafts/**)",
       "MODE:a2a-agent WebSearch",
       "MODE:a2a-agent WebFetch",
       "Bash(docker compose:*)",

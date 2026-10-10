@@ -945,6 +945,18 @@ def certificate_run_key(cert_fields: dict):
 # 칸)에 기대지 않고 이 두 수치만으로 배제된다 -- source 는 표면화만 한다.
 RUBRIC_AUTHORITIES = ("weak", "explicit", "explore")
 
+# ---- 발행 게이트 통일의 verdict 값역 (2026-10-11 · plan_26101104 Step 1 · 계약 v8 §3.2) ----------------------
+# non-PASS 판정은 발행을 막지 않고 **표시만** 된다 — 승격은 유효 측정 ∧ 서빙 성립이 연다(권한 무관).
+# `OBSERVATION-ONLY` 는 기준(c·E)도 expected 도 없어 판정기가 루브릭을 세우지 못한 full 셀(verdict_rule
+# `NEEDS_RUBRIC` · 사다리 공백)의 work-manifest 표현이다 — 판정을 주장하지 않으므로 루브릭 수치가 비어 있는 것이 정상이다.
+# 판정기 산출물과 bench_report 판정 표는 그 셀을 `NEEDS_RUBRIC` 으로 적는다(두 표현의 대응은 이 상수 한 곳).
+OBSERVATION_ONLY_VERDICT = "OBSERVATION-ONLY"
+OBSERVATION_ONLY_JUDGE_VERDICT = "NEEDS_RUBRIC"
+ANNOTATED_NON_PASS_VERDICTS = ("REFUTE", "FAIL")
+# OBSERVATION-ONLY 셀에서 결손이 정상인 manifest rubric 수치 문제 — 표면화하지 않는다(거짓 경보 ✗).
+_OBSERVATION_ONLY_EXPECTED_RUBRIC_GAPS = ("MANIFEST_RUBRIC_FLOOR_INVALID", "MANIFEST_RUBRIC_RATIO_MISSING",
+                                          "MANIFEST_RUBRIC_SOURCE_MISSING")
+
 # ---- manifest-carried rubric contract (plan_26082405) ----------------------------------------
 # 인증서는 **PASS 때만** 발행된다(publish_benchmark_record.py — 그 규칙은 유지한다). 그래서 REFUTE
 # 런에는 인증서가 없고, 인증서에서만 읽던 rubric_authority 는 REFUTE 에서 영원히 None 이었다 —
@@ -965,7 +977,7 @@ def _manifest_rubric_contract(benchmark) -> dict:
     반환 dict:
       declared -- 이 채널을 **쓰겠다고 선언**했는가(`rubric_authority` 가 실재하는가).
                   False 는 결함이 아니라 '미사용'이다(부재와 결측의 구분) — 호출부는 조용히
-                  fallback 을 포기하고 종전 경로(perf_waiver)로 간다. legacy manifest 가 스키마
+                  fallback 을 포기한다(non-PASS 는 그때 BENCHMARK_MEASUREMENT_INVALID). legacy manifest 가 스키마
                   성장만으로 붉어지지 않는다.
       ok       -- 선언분이 계약 전부를 통과했는가. explore 자동개방의 전제.
       problems -- (reason_code, message) 목록. 선언해 놓고 못 지킨 것은 **표면화**한다
@@ -2372,6 +2384,27 @@ def cmd_verify(args: argparse.Namespace) -> None:
                            f"인증서를 발행하지 않는다(자동 발행 = explicit ∧ PASS). 요구 증거는 bench_report 이며 그 판정 표가 "
                            f"같은 verdict·권한을 말한다(교차검증 일치 · state={table_state})")
 
+        # ---- OBSERVATION-ONLY 의 교차검증 (2026-10-11 · plan_26101104 Step 1) ----
+        # 관측 전용은 manifest 가 말한 한 단어로 열리지 않는다 — 같은 측정의 bench_report 판정 표(벤치 스킬의 결정론
+        # 렌더)가 판정기가 루브릭을 세우지 못했다(`NEEDS_RUBRIC`)고 적어야 한다. 위 인증서 면제 교차검증과 같은 규율:
+        # 표가 없거나 다른 판정을 말하면 증거 불완전(fail-closed) — REFUTE 셀이 OBSERVATION-ONLY 로 둔갑하지 못한다.
+        if task_class == "full_benchmark" and verdict == OBSERVATION_ONLY_VERDICT:
+            report_r = resolved.get("bench_report")
+            obs_table, obs_state = (None, "absent(bench_report 미해소)")
+            if report_r and report_r["status"] == "ok":
+                try:
+                    obs_text = (report_r.get("content_bytes") or b"").decode("utf-8")
+                except UnicodeDecodeError:
+                    obs_text = None
+                obs_table, obs_state = bench_report_verdict_table(obs_text)
+            if not (isinstance(obs_table, dict)
+                    and obs_table.get("verdict") in (OBSERVATION_ONLY_JUDGE_VERDICT, OBSERVATION_ONLY_VERDICT)):
+                all_present = False
+                add_reason("BENCHMARK_OBSERVATION_ONLY_UNCORROBORATED",
+                           f"benchmark.verdict='OBSERVATION-ONLY' 인데 bench_report 판정 표가 루브릭 부재"
+                           f"({OBSERVATION_ONLY_JUDGE_VERDICT!r})를 말하지 않는다(state={obs_state}, table={obs_table!r}) "
+                           f"— 관측 전용의 근거가 서지 않는다")
+
         or_group_key = None
         if task_class == "capacity_rejection":
             devlog_exists = bool(resolved.get("devlog") and resolved["devlog"]["status"] == "ok")
@@ -2450,6 +2483,8 @@ def cmd_verify(args: argparse.Namespace) -> None:
                         f"정본으로 판정한다. 두 carrier 가 갈라진 것은 발행 체인의 결함이므로 확인하라.")
             else:
                 for code, message in manifest_rubric["problems"]:
+                    if verdict == OBSERVATION_ONLY_VERDICT and code in _OBSERVATION_ONLY_EXPECTED_RUBRIC_GAPS:
+                        continue  # 관측 전용 셀은 문턱이 없는 것이 정의다 — 결손을 결함으로 표면화하지 않는다
                     add_reason(code, message)
                 rubric_authority = manifest_rubric["authority"]
                 rubric_ok = manifest_rubric["ok"]
@@ -2479,9 +2514,10 @@ def cmd_verify(args: argparse.Namespace) -> None:
                 # 아니다. 그래서 셋을 확인한다:
                 #   ⓐ 서빙이 실제로 성립했는가(runtime tier 가 이미 강제했다 — 여기서 재확인).
                 #   ⓑ §5 를 baseline 으로 승격하려는 시도가 없는가(관측 게재만 허용).
-                #   ⓒ verdict=FAIL 자료를 실으려면 사람 positive key(perf_waiver 4필드)가 있는가.
-                # 이 분기가 묻는 것은 **하나**다: verdict=FAIL 자료를 §5 에 실으려면 사람 키가 있는가.
-                # 나머지 둘은 여기서 묻지 않는다 — 도달 불가 분기를 가드처럼 두면 안 된다.
+                #   ⓒ (2026-10-11 폐기) verdict=FAIL 자료에 사람 키를 요구하던 문 — 발행 게이트 통일(plan_26101104
+                #     Step 1)로 판정은 **표시만** 한다. 성능 면제 필드는 계약 v8 에서 폐기됐다.
+                # 이 분기가 묻는 것은 **하나**다: lite 통과(lite 등급 인증서)가 있는가.
+                # 나머지는 여기서 묻지 않는다 — 도달 불가 분기를 가드처럼 두면 안 된다.
                 #   · 서빙 성립: runtime tier 가 evidence-complete 이전에 이미 막는다. 여기까지 온
                 #     manifest 는 정의상 functional_smoke_passed 다(중복 검사는 죽은 코드가 된다).
                 #   · baseline 승격: work-manifest 스키마가 `additionalProperties: false` 라 그런
@@ -2490,11 +2526,6 @@ def cmd_verify(args: argparse.Namespace) -> None:
                 #     `OBSERVATION-ONLY` 마커로 한다(HINT_MAP_ONLY_OBSERVATION_MARKER_MISSING · 2026-09-22 옛
                 #     hint_tag `_require_map_only_observation` 에서 이관 — 본문이 태그 zip 안으로 옮겨졌다 · D4)
                 #     (평면이 다른 것을 여기서 흉내 내면 두 자리가 갈라진다).
-                waiver = benchmark.get("perf_waiver") if isinstance(benchmark, dict) else None
-                _wf = ("authorized_by", "authorized_at_utc", "instruction", "warning_flag")
-                waiver_ok = (isinstance(waiver, dict)
-                             and all(isinstance(waiver.get(k), str) and waiver.get(k).strip()
-                                     for k in _wf))
                 # ★ 2026-09-29(plan_26092923 · lite ⊂ full): hint 발행 자격은 **lite 통과**가 연다. 그 근거는 lite 등급
                 #   인증서(benchmark_mode: lite · lite_verdict: pass) 하나다 — lite 불통과(측정 경로 불성립·서버 응답
                 #   실패)나 판정 부재는 인증서가 없으므로 여기서 닫힌다. required_evidence 는 늘리지 않는다: 기존
@@ -2508,10 +2539,6 @@ def cmd_verify(args: argparse.Namespace) -> None:
                                "lite_verdict: pass)가 연다 — evidence.certificate 가 없거나 lite 등급이 아니다. "
                                "lite_bench.sh --publish-report(β) 또는 강등 셀 판정(γ)이 발행하고 "
                                "evidence_publisher.py publish-lite-report --certificate-src 로 바인딩한다.")
-                elif verdict == "FAIL" and not waiver_ok:
-                    add_reason("HINT_MAP_FAIL_REQUIRES_WAIVER",
-                               f"benchmark.verdict={verdict!r} 자료를 §5 에 실으려면 §3.2 perf_waiver "
-                               "4필드(사람 positive key)와 본문 PERF-WARNING 마커가 필요하다.")
                 else:
                     eligible = True
                     add_reason("HINT_MAP_ONLY_PROMOTION",
@@ -2526,62 +2553,73 @@ def cmd_verify(args: argparse.Namespace) -> None:
             elif mode != "full":
                 add_reason("BENCHMARK_MODE_NOT_FULL", f"benchmark.mode={mode!r} (must be 'full' for promotion)")
             elif verdict != "PASS":
-                # ---- explore authority: 성능 판정은 게이트가 아니라 **서술**이다 (plan_26082219 U1) ----
-                # 사용자가 HITL 로 *"목표 0/광범위 탐색"* 을 지시한 런에서는 PASS/REFUTE 가 "벽 지도
-                # 데이터"이지 통과 조건이 아니다. 그 모드의 승격 자격은 **서빙 성립(기능)** -- 모델이
-                # 실제로 떠서 통신에 응답한다 -- **∧ 유효 측정**(floor>0 ∧ ratio 실재)이다.
-                # 서빙 성립은 위 runtime tier 가 이미 강제한다(health_ok ∧ oom_killed 없음 ∧
-                # functional_smoke_passed ∧ runtime.identity 6키 일치): 그 관문을 통과하지 못하면
-                # 여기까지 오지 못한다. 아래 재확인은 **U1 계약을 코드에 명시**하기 위한 것이며,
-                # 조건을 완화하지 않는다(runtime tier 가 바뀌어도 이 경로는 스스로 닫힌다).
-                # ★ 공허 PASS 배제는 불변이다 -- floor<=0 이면 rubric_ok=False 라 여기서도 못 연다
-                #   (인증서 carrier·manifest carrier 둘 다 같은 계약을 통과해야 True 가 된다).
-                # ★ carrier 는 인증서가 아니라 **resolve 된 rubric** 이다 — 인증서는 PASS 전용
-                #   산출물이라 REFUTE 에서는 구조적으로 부재하고, 인증서에서만 읽으면 이 경로가
-                #   REFUTE 에서 영원히 발화하지 못한다(plan_26082405 · 죽은 코드였던 원인).
+                # ---- 발행 게이트 통일 (2026-10-11 · plan_26101104 Step 1 · 계약 v8 §3.2) ----
+                # 승격(= hint 발행 자격)은 **서빙 성립 ∧ 유효 측정**이다 — 루브릭 권한(weak·explicit·explore)과
+                # 무관하다. 성능 판정(PASS/REFUTE/FAIL)은 adversarial-benchmark 의 성능 게이트로 남아
+                # loop-until-done 을 몰지만 발행을 막지 않는다 — 판정은 태그 배너·카탈로그 판정 열로 **표시만** 된다.
+                # 종전에는 explore 만 이 길로 열렸고 weak·explicit REFUTE 의 탈출구는 사람 서명 면제 필드였는데,
+                # 그 필드는 writer 가 없어 실제로 열린 적이 없다(M1 Qwen3.8FN 37.63 < floor 45.65 가 실례).
+                # ★ 무엇이 불변인가:
+                #   · 서빙 성립: runtime tier 가 이미 강제한다(health_ok ∧ oom_killed 없음 ∧ functional_smoke_passed ∧
+                #     runtime.identity 6키 일치). 아래 재확인은 계약을 코드에 명시하기 위한 것이며 조건을 완화하지 않는다.
+                #   · 공허 PASS 배제: floor<=0 이면 rubric_ok=False 라 여기서도 못 연다 — 유효 측정 = floor 유한 양수 ∧
+                #     ratio 유한 ∧ primary_source 실재 ∧ rubric_source 출처 표시(인증서 carrier 와 글자 그대로 같은 계약).
+                #   · 인증서: 여전히 explicit ∧ PASS 때만 발행된다(judge_bench·publish_benchmark_record 무변경).
+                #     이 길은 "성능이 검증됐다"는 주장을 만들지 못한다.
+                # ★ carrier 는 인증서가 아니라 **resolve 된 rubric** 이다 — 인증서는 PASS 전용이라 non-PASS 에서는
+                #   구조적으로 부재한다(plan_26082405).
                 functional_smoke_ok = bool(runtime) and runtime.get("functional_smoke_passed") is True
-                if rubric_authority == "explore" and rubric_ok and functional_smoke_ok:
+                if verdict == OBSERVATION_ONLY_VERDICT:
+                    # 기준(c·E)도 expected 도 없는 셀 — 판정기가 루브릭을 세우지 못했다(NEEDS_RUBRIC · 사다리 공백).
+                    # 판정을 주장하지 않으므로 루브릭 수치는 null 이 정상이고, 대신 셋을 요구한다:
+                    #   ⓐ 서빙 성립(functional_smoke) ⓑ 출처 표시(rubric_source = 판정기 산출물 파생) — 손저작
+                    #   OBSERVATION-ONLY 가 판정 회피 통로가 되지 않게 ⓒ 루브릭 수치가 **비어 있다** — 문턱이 실려
+                    #   있는데 관측 전용이라 말하면 모순이다. bench_report 는 full_benchmark 의 기본 요구 증거라 여기
+                    #   오기 전에 이미 바인딩됐고, 그 판정 표가 NEEDS_RUBRIC 을 말하는지는 evidence tier 가 교차검증했다.
+                    obs_problems = []
+                    if not functional_smoke_ok:
+                        obs_problems.append("runtime.functional_smoke_passed 가 true 가 아니다")
+                    if (benchmark.get("rubric_source") or "") not in MANIFEST_RUBRIC_SOURCES:
+                        obs_problems.append(f"benchmark.rubric_source={benchmark.get('rubric_source')!r} — 판정기 산출물 "
+                                            f"파생 표시({list(MANIFEST_RUBRIC_SOURCES)})가 없다")
+                    claimed = {k: benchmark.get(k) for k in ("floor_tps", "ratio_M_over_primary", "primary_source")
+                               if benchmark.get(k) not in (None, "")}
+                    if claimed:
+                        obs_problems.append(f"루브릭 수치가 실려 있다({claimed!r}) — 관측 전용 셀은 문턱을 주장하지 않는다")
+                    if obs_problems:
+                        add_reason("BENCHMARK_OBSERVATION_ONLY_INVALID",
+                                   "benchmark.verdict='OBSERVATION-ONLY' 승격 불가 — " + " · ".join(obs_problems))
+                    else:
+                        eligible = True
+                        add_reason(
+                            "BENCHMARK_OBSERVATION_ONLY_PROMOTION",
+                            f"benchmark.verdict='OBSERVATION-ONLY'(기준 c·E·expected 부재 — 판정기 NEEDS_RUBRIC) → "
+                            f"서빙 성립 + bench_report 바인딩으로 **관측 발행**. 판정을 주장하지 않는다(인증서 ✗ · "
+                            f"OBSERVATION-ONLY 배너 · 루프 없음).")
+                elif verdict in ANNOTATED_NON_PASS_VERDICTS and rubric_ok and functional_smoke_ok:
                     eligible = True
                     add_reason(
-                        "BENCHMARK_EXPLORE_AUTHORITY_PROMOTION",
-                        f"benchmark.verdict={verdict!r} + rubric_authority='explore' "
-                        f"(사용자 HITL 탐색 트리거 · carrier={rubric_authority_source!r}) → 승격 게이트는 "
-                        f"성능 판정이 아니라 **서빙 성립(functional_smoke_passed) + 유효 측정**"
-                        f"(floor_tps={rubric_floor!r}, ratio={rubric_ratio!r})이다. "
-                        f"PASS/REFUTE 는 벽 지도 데이터로 기록될 뿐 차단하지 않는다.")
-                # ---- human-authorized perf waiver (loop-until-done break) ----
-                # 통상 REFUTE 는 서빙전략 재수립 + 벤치마커의 측정평면 확장(마지막 평면은 사람이
-                # 수동 수집한 정보까지 투입)을 loop-until-done 으로 반복해야 한다. 그 루프는
-                # **사람의 지시로만** 중단할 수 있다(2026-08-01 사용자 결정).
-                # 그래서 이 예외는 에이전트가 추론으로 열 수 없는 **positive key** 다 —
-                # 네 필드가 전부 비어있지 않아야 하고, 하나라도 없으면 종전대로 차단한다.
-                # 대가: waiver 가 있으면 배포 산출물에 경고 플래그가 **강제**된다(hint-publisher
-                #       `hintlib.template` 린트가 00-hint.md 본문의 PERF-WARNING + warning_flag 원문으로 집행 ·
-                #       HINT_PERF_WARNING_MISSING · 2026-09-22 옛 hint_tag 에서 이관).
-                # 주의: 이 waiver 는 승격만 연다. 인증서는 여전히 PASS 때만 발행된다
-                #       (publish_benchmark_record 무변경) — "성능이 검증됐다"는 주장은 못 만든다.
-                waiver = benchmark.get("perf_waiver") if isinstance(benchmark, dict) else None
-                fields = ("authorized_by", "authorized_at_utc", "instruction", "warning_flag")
-                waiver_ok = (
-                    isinstance(waiver, dict)
-                    and all(isinstance(waiver.get(k), str) and waiver.get(k).strip() for k in fields)
-                )
-                if eligible:
-                    pass  # explore authority already opened promotion above -- no waiver needed
-                elif waiver_ok:
-                    eligible = True
-                    add_reason(
-                        "BENCHMARK_VERDICT_WAIVED",
-                        f"benchmark.verdict={verdict!r} + 사람 승인 perf_waiver"
-                        f"(by {waiver['authorized_by']!r} at {waiver['authorized_at_utc']!r}) "
-                        f"→ 승격 허용. 배포물에 경고 플래그 강제. 인증서는 여전히 미발행.")
-                elif waiver is not None:
-                    add_reason(
-                        "BENCHMARK_PERF_WAIVER_MALFORMED",
-                        "perf_waiver 가 있으나 authorized_by/authorized_at_utc/instruction/"
-                        "warning_flag 중 비어있는 항목이 있다 — fail-closed 로 차단한다.")
+                        "BENCHMARK_VERDICT_ANNOTATED",
+                        f"benchmark.verdict={verdict!r} · rubric_authority={rubric_authority!r} "
+                        f"(carrier={rubric_authority_source!r}) → 발행 게이트는 성능 판정이 아니라 **서빙 성립"
+                        f"(functional_smoke_passed) + 유효 측정**(floor_tps={rubric_floor!r}, ratio={rubric_ratio!r})이다. "
+                        f"판정은 표시만 된다(태그 배너·카탈로그 판정 열) — loop-until-done 은 성능 게이트로 남는다. "
+                        f"인증서는 미발행.")
+                elif verdict in ANNOTATED_NON_PASS_VERDICTS:
+                    unmet = []
+                    if not functional_smoke_ok:
+                        unmet.append("runtime.functional_smoke_passed 가 true 가 아니다")
+                    if not rubric_ok:
+                        unmet.append(f"rubric 계약 미충족(carrier={rubric_authority_source!r}, floor_tps={rubric_floor!r}, "
+                                     f"ratio={rubric_ratio!r}, primary_source={rubric_primary_source!r}) — floor 유한 양수 ∧ "
+                                     f"ratio 유한 ∧ primary_source ∧ rubric_source 출처 표시가 필요하다")
+                    add_reason("BENCHMARK_MEASUREMENT_INVALID",
+                               f"benchmark.verdict={verdict!r} — 판정은 발행을 막지 않지만 **유효 측정 ∧ 서빙 성립**이 서지 "
+                               f"않는다: " + " · ".join(unmet))
                 else:
-                    add_reason("BENCHMARK_VERDICT_NOT_PASS", f"benchmark.verdict={verdict!r} (must be 'PASS' for promotion)")
+                    add_reason("BENCHMARK_VERDICT_ABSENT",
+                               f"benchmark.verdict={verdict!r} — 판정이 없는 full 셀은 무엇을 쟀는지 말하지 않는다 "
+                               f"(PASS·REFUTE·FAIL·OBSERVATION-ONLY 중 하나가 필요하다)")
             elif certificate_is_waived and not certificate_present and not rubric_ok:
                 # 인증서가 면제된 PASS(비발행 권한 · plan_26092908 §4.8)는 인증서가 걸던 수치 계약(floor>0 ∧ ratio ∧
                 # primary_source)을 manifest rubric carrier 에서 그대로 요구한다 — 면제가 공허 PASS 의 옆문이 되지 않게.

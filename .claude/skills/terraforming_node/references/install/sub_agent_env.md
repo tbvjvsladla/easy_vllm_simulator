@@ -11,6 +11,7 @@
 - 2.3 렌더-온-메인 → 전달 (결정론 + HITL)
 - 2.4 A2A-개념 협업 계약 (서버 없음)
 - 2.5 완료 게이트 — model-less 카나리 라운드트립 (R1 정합)
+- 2.5.1 hint 발행 장착 — single 서브 한정 (신설 2026-10-11 · `plan_26101104` Step 3)
 - 2.7.10 Agent_Card v2 (A2A 1.0.1) · 서브 manifest (신설 2026-09-05 · `plan_26090516` §7.2–7.3 · H1)
 - 서브 템플릿 (옛 §4 에서 이관)
 
@@ -34,7 +35,7 @@
   - 정본 = `render_sub_env.RUNTIME_BLOCK_EXCLUDES` (닫힌 목록 · 자체검사가 새 스크립트의 미분류를 fail-loud).
 - **ray-worker 서브는 런타임 스킬 0종**이다 — 정본(Dockerfile·compose·serve_runner)을 재현하는 워커이지
   전략을 세우는 주체가 아니다. 판정 정본 = `node_role_contract.tool_plane`.
-- **런타임블럭**(서브 복제 ✓): a2a-agent 서브 = `vllm-recipe-explorer`·`adversarial-benchmark`·`upstream-version-watch` 3종 · ray-worker 서브 = 0종(정본 `node_role_contract.TOOL_PLANE_BY_SUB_MODE`). 서브가 **동일 결정론 엔진**을 자기 모델에 자율 실행 → 자율=실행 주체, 방법=결정론(헌법 "확률론 추론 금지" 보존).
+- **런타임블럭**(서브 복제 ✓): a2a-agent 서브 = 런타임 3종(`vllm-recipe-explorer`·`adversarial-benchmark`·`upstream-version-watch`) **+ `hint-publisher`**(2026-10-11 · 자기 셀 hint 자체 발행 · §2.5.1) · ray-worker 서브 = 0종(정본 `node_role_contract.TOOL_PLANE_BY_SUB_MODE`). 서브가 **동일 결정론 엔진**을 자기 모델에 자율 실행 → 자율=실행 주체, 방법=결정론(헌법 "확률론 추론 금지" 보존).
 
 ### 2.2 구축 아티팩트 (서브 워크스페이스 레이아웃 · 행 수는 아래 표가 정본)
 | 경로(서브 루트) | 내용 | 전달타입 |
@@ -43,6 +44,7 @@
 | `Agent_Card.json` | A2A 능력카드(skills[]·노드정체성) | 렌더(gitignored) |
 | `.claude/settings.local.json` | **스코프드** 권한(블랭킷 ✗) | 렌더(gitignored) |
 | `.claude/skills/vllm-recipe-explorer/` | 런타임블럭(git-tracked만) | 복제 |
+| `.claude/skills/hint-publisher/` · `hints/{HINT_ISSUANCE_CONTRACT.md,vocab.json}` · 엔진 의존(`completion_gate.py`·`evidence_publisher.py`·스키마 3·`wiki-desk/scripts/doc_naming.py`) · `check_sub_hint_equip.py` | single 서브 hint 엔진(정본 `render_sub_env.HINT_ENGINE_DEPENDENCIES` · 색인·카탈로그·역할 마커는 `HINT_NEVER_DELIVER` 로 영구 미배달) | 복제(a2a-agent 만) |
 | `.claude/rules/comms.md` | 통신 정적계약 | 복제 |
 | `.claude/rules/docs.md` | 문서발행 규약(D12 — 서브 동일 규약 발행 → 상향 문서기반 회수) | 복제(메인 `.claude/rules/docs.md`) |
 | `.claude/schemas/task-report.schema.json` | 자기검증 스키마 | 복제 |
@@ -102,6 +104,53 @@ turn 예산은 **선언**이다 — 등급표가 사라졌으므로 부르는 �
 이로써 "구성된 환경이 프로토콜대로 작동함"을 전체로서 증명(권한행·skill YAML·페르소나 비준수 포착 — 체크섬이 못 잡는 것). 실패 시 max-turns→Model-C. **카나리 미통과 시 done 선언 금지.**
 
 - 카나리 통과 → **호스트 안전체계 세션 최종 Y/N**(§2.6, 양노드) 수행 후 온보딩 완료.
+
+### 2.5.1 hint 발행 장착 — single 서브 한정 (신설 2026-10-11 · `plan_26101104` Step 3)
+
+single 서브(sub_mode `a2a-agent`)는 **자기가 잰 셀을 스스로 hint 태그로 발행**한다 — 서브에서만 잰 셀은 메인이 관측 원시를
+볼 수 없어 발행이 구조적으로 불가했다(계약 D-e · `HINT_QUALIFICATION_UNOBSERVED`). 멀티 서브(Ray 워커)에는 해당이 없다.
+이 장착은 terraforming_node 가 소유한다(새 스킬 ✗). **실행자**: ①②④ = 서브 에이전트(A2A 지시) · ③ = 사람 · 판정 수용 = 메인.
+
+| 자리 | 선언(단일) | 무엇 |
+|---|---|---|
+| 엔진 | `node_role_contract.TOOL_PLANE_BY_SUB_MODE["a2a-agent"]` → `render_sub_env` | `hint-publisher` + 엔진 의존. 정상 배달(§2.3)로 간다 — 별도 절차 없음 |
+| hint 클론 경로 | 서브 워크스페이스 `envs/.env` 의 `HINT_CLONE_DIR=<절대경로>` | **워크스페이스 밖**. `envs/.env` 는 서브 저작·비추적·비배달 평면이라 그 노드의 경로를 그 노드가 든다 |
+| push 역할 선언 | 서브 워크스페이스 `hints/.push_authority`(비추적) | hint.py 가 도는 체크아웃의 역할 선언. 카탈로그 권위 `hints/.central_authority` 는 메인 단독 — 서브에 두면 위반 |
+| push 토큰 | 서브 워크스페이스 `envs/.env` 의 `GITHUB_TOKEN`(또는 환경변수) | 메인이 `envs/.env` 에서 읽는 것과 **같은 규칙**(`hintlib.tag.read_push_token`). **사람이 둔다** — 비밀은 배달 평면 ✗ |
+| PII 리터럴 | 서브 워크스페이스 `.claude/pii_terms.txt`(비추적) | 그 노드의 리터럴. hint 4종 스캔이 부재를 fail-closed 로 막는다. `.claude/**` 는 서브 에이전트가 쓸 수 없어 **사람이 둔다** |
+
+절차(메인이 A2A Task 로 지시 · 서브가 수행 · 결과는 서브 testlog 로 회수 — ssh 직접 관측 ✗):
+
+1. **클론** — 메인이 Task Message 에 프로젝트 원격 URL(자격증명 없는 https 형 · 토큰 방식과 짝)을 싣는다. 서브는 `envs/.env` 에
+   `HINT_CLONE_DIR=<워크스페이스 밖 절대경로>` 한 줄을 두고
+   `python3 .claude/skills/terraforming_node/scripts/check_sub_hint_equip.py --clone --remote-url <URL>` —
+   `git clone --single-branch --branch hint --depth 1 --no-tags` 로 별도 저장소를 만든다(워크스페이스 git 에 원격을 붙이지 않는다 ·
+   policy:SUB_GIT_LOCAL_ONLY 는 워크스페이스 git 을 다스린다). 멱등이며, 경로가 비어 있지 않은 다른 것이면 지우지 않고 멈춘다.
+2. **push 역할 선언** — `check_sub_hint_equip.py --write-push-authority [--utc <UTC>]`. 그 경로가 서브 `.gitignore` 에 덮이지
+   않으면 쓰지 않는다(추적되면 `[sync]` 커밋으로 남고 복사된다).
+3. **토큰·PII 리터럴 = 사람** — 판정에 `token: absent` 또는 `pii_terms: absent` 가 나오면 서브는 **보고만** 하고 그 단계를 멈춘다.
+   메인은 회수한 testlog 를 읽고 템플릿 `templates/requests/sub_hint_push_equip.md` 를 복제해
+   `docs/request/request_<YYMMDDHH>[_MM_SS]_서브_hint_push_자격_배치.md` 로 발행한다(이름 = `wiki-desk/scripts/doc_naming.py` ·
+   전제·명령·성공판정·실패분기·회수물·소요를 갖춘 수행지시서 · 서브에는 `docs/request/` 가 없다 — 메인 몫). 사람이 둔 뒤 에이전트는
+   **존재만** 다시 확인한다 — 값을 읽어 비교하거나 출력하지 않는다.
+4. **판정·보고** — `check_sub_hint_equip.py`(인자 없음)의 JSON(`checks.{hint_clone,push_authority,central_authority,token,pii_terms,
+   workspace_git_local_only}` · `ready` · `next_actions[]` · `provenance: measured`)을 서브 testlog 에 그대로 싣고 task-report 로 경로를
+   전달한다. exit 0 = ready · 3 = 미장착(판정 정상) · 2 = 선언 결함 · 4 = 장착 실패. 역할·원격 위반(`present_violation`·`violation`)은
+   서브가 스스로 고치지 않는다 — 메인 HITL.
+5. **발행(장착 뒤 · 승인된 자기 셀만)** — 서브는 파생 선언(`--from-slice`)에 실린 `hint_targets` 의 셀만
+   `hint.py publish → 저작 → 독립 사실 검증(저작자 ≠ 검증자 · 서브 안의 별도 Agent) → continue --hint-clone "$HINT_CLONE_DIR"` 로 낸다.
+   카탈로그 단계는 건너뛰고(push 역할만), 서브 testlog 에 승인 출처(메인 캠페인 id · approved_by · approved_utc · 슬라이스 발급 시각) ·
+   태그 · 원격 SHA · 엔진 리비전(배달 커밋)을 적는다. 메인은 회수해 자기 선언의 `hint_targets[].approval` 과 대조한 뒤 `catalog derive`.
+
+발행 자체(장착 이후)의 계약:
+
+- **승인** — 메인 선언 확인 팝업의 셀별 Y/N 을 메인이 `campaign_init.py --hint-approve --node <서브 노드> --cells …` 로 **메인 선언**에
+  적는다. `--emit-slice <서브 노드>` 가 그 노드 몫 `hint_targets`(승인 포함)만 운반하고 메인·다른 노드 몫은 자른다(판정 =
+  `node_role_contract.sub_self_publishes` 파생). 서브는 자기 인스턴스에 승인을 쓰지 못한다(writer 거부 · 검증기가 남의 몫을 거부).
+- **push** — 태그 1개를 별도 hint 클론으로만(`hint.py` · exact refspec). 카탈로그 단계는 서브에서 건너뛴다(카탈로그 = 메인 단독).
+- **보고** — 서브 testlog 에 승인 출처 · 태그 · 원격 태그 SHA · 엔진 리비전. 메인이 `fetch_sub_docs.sh` 로 회수 → 승인 출처 대조 →
+  `hint.py catalog derive`. 엔진 버전 어긋남은 차단하지 않고 기재한다.
+- 자체검사: `check_sub_hint_equip.py --self-test`(verify_distribution) · `render_sub_env.py --self-test` (4b)·(4d) · `campaign_init.py --selftest`(운반 양·음성).
 
 
 ### 2.7.10 Agent_Card v2 (A2A 1.0.1) · 서브 manifest (신설 2026-09-05 · `plan_26090516` §7.2–7.3 · H1)
