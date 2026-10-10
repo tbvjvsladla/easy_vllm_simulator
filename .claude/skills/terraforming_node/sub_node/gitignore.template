@@ -18,6 +18,13 @@ __pycache__/
 # 폐지된 옛 원장 경로의 방어심층(새 원장은 campaigns/* 아래라 위 규칙이 덮는다).
 tasks/*
 !tasks/.gitkeep
+# ── hint 자체 발행 평면(single 서브 · 2026-10-11 plan_26101104 Step 3) ──
+# 역할 선언·draft·그 노드의 PII 리터럴은 그 노드의 것이다 — 추적되면 [sync] 커밋에 실리고 다른 자리로 복사된다.
+# 태그 push 는 워크스페이스 git 이 아니라 그 밖의 별도 hint 클론에서 한다(이 저장소에는 원격이 영구히 없다).
+hints/.push_authority
+hints/.central_authority
+hints/.drafts/
+.claude/pii_terms.txt
 # ── tiktoken 에어갭 자산(gpt-oss o200k — 서브가 사전적재/자체복구. 호스트 자산·배포물 아님, 메인 .gitignore 정합) ──
 tiktoken_cache/
 

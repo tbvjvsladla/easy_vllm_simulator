@@ -383,7 +383,7 @@
     "hint_inputs": {
       "type": "object",
       "additionalProperties": false,
-      "description": "publish 위상의 산출 — 메인이 회수하는 **문서 평면 참조 사이드카**다. 서브는 태그를 발행하지 않는다(발행 주체는 메인 단독). 여기 담기는 것은 포인터와 노드 출처뿐이며 측정값을 **다시 적지 않는다** — 숫자는 인증서·리포트가 이미 들고 있고, 두 번째 자리에 적으면 갈라진다. ⚠ 2026-09-22(plan_26092119): 메인 hint 발행기(`hint.py publish`)는 이 사이드카를 **읽지 않는다** — 발행 자격은 선언이 아니라 관측(serve proof · post_health · lite_warm)이고, 서브에서만 측정한 셀은 메인이 그 관측을 볼 수 없어 `HINT_QUALIFICATION_UNOBSERVED` 로 막힌다. 서브 단독 셀의 발행 경로는 열린 설계 항목이다(클러스터 셀은 메인이 관측한다).",
+      "description": "publish 위상의 산출 — 메인이 회수하는 **문서 평면 참조 사이드카**다. 멀티 서브(Ray 워커)는 태그를 발행하지 않는다 · single 서브(a2a-agent)는 2026-10-11(plan_26101104)부터 승인된 자기 셀을 워크스페이스 밖 별도 hint 클론에서 스스로 발행하고 testlog 로 보고한다(카탈로그는 메인 단독). 여기 담기는 것은 포인터와 노드 출처뿐이며 측정값을 **다시 적지 않는다** — 숫자는 인증서·리포트가 이미 들고 있고, 두 번째 자리에 적으면 갈라진다. ⚠ 2026-09-22(plan_26092119): 메인 hint 발행기(`hint.py publish`)는 이 사이드카를 **읽지 않는다** — 발행 자격은 선언이 아니라 관측(serve proof · post_health · lite_warm)이고, 서브에서만 측정한 셀은 메인이 그 관측을 볼 수 없어 `HINT_QUALIFICATION_UNOBSERVED` 로 막힌다. 서브 단독 셀은 그래서 관측한 그 노드(single 서브)가 발행한다(클러스터 셀은 메인이 관측한다).",
       "required": [
         "measured_node",
         "evidence"

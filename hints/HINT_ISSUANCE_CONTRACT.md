@@ -466,7 +466,8 @@ hint.py refacts --draft <draft>   같은 generated_utc 로 FACT 블록 · PAYLOA
 - 캠페인 셀에 `--approved-by` 를 주면 거부한다(`HINT_APPROVAL_SOURCE_CONFLICT` — 원천은 하나다). 전사는 한 줄이며 자리표시(`<<…>>`)는
   승인이 아니다(`HINT_APPROVAL_INVALID`). `approved_by` 는 **페이로드로 복사된다** — 이름·연락처가 아니라 역할과 발화 요지를 적는다.
 - 사전승인이 캠페인을 셀마다 멈추지 않게 한다(2026-09-08 "진행을 막는 자리는 셋뿐" — 선언 확인 팝업이 셀별 발행 Y/N 을 겸한다).
-  무인 자동 태깅 ✗ 는 그대로다: 사람이 **명시 셀 목록**을 승인한 것이다. 서브용 파생 선언(`--emit-slice`)은 `hint_targets` 를 비운다(§6.6).
+  무인 자동 태깅 ✗ 는 그대로다: 사람이 **명시 셀 목록**을 승인한 것이다. 서브용 파생 선언(`--emit-slice <노드>`)은 **그 노드 몫** `hint_targets` 만 승인째 싣는다 — single 서브(자체 발행)만 받고, 메인·다른
+  노드 몫과 멀티 Ray 워커 서브 몫은 잘린다(§6.6 · 2026-10-11).
 - 승인된 Y/N 뒤의 **태그 push 는 에이전트 상시승인**(2026-08-24)이다. 브랜치 push 는 발행에 속하지 않는다(§6.2 · §6.5 형식 전환만).
 
 ### 6.2 push — 정확한 태그 1개 (O2 · 2026-08-20 · 2026-09-04 C-3)
@@ -559,12 +560,24 @@ verify 에서 막혔고, 브랜치를 push 하면 원격 첫 화면이 마지막
 - 매 발행 트리를 allowlist 로 **새로 짓는다** — N 번째 archive 에 이전 태그의 파일이 딸려 오지 않는다(이력은 커밋·태그로 남는다).
   브랜치 tip 의 README 를 페이로드에 심던 옛 동작은 폐지됐다(K8 · 페이로드 README 는 형식 버전으로 생성한다).
 
-### 6.6 main-only (정책 C4)
+### 6.6 main-only · single 서브 예외 (정책 C4 · 2026-10-11 개정 · plan_26101104)
 
-발행은 **메인 단독**이다 — references.md 와 같은 빌딩블럭 전파 평면이며 서브 egress 상태와 무관하다. 발행 엔진(`hint.py` · `hintlib`)은
-원격 셸을 실행하지 않고 서브 배달·릴레이 도구를 부르지 않는다. 메인→서브 배달은 엔진도 `hints/` 트리도 나르지 않고, 서브의 런타임 스킬
-평면에 hint-publisher 가 없으며, 서브용 파생 캠페인 선언은 `hint_targets` 를 싣지 않는다. 서브 산출물은 문서기반 회수 뒤 메인이 재저작한다
-(`.claude/rules/docs.md` 상향 회수 규약 · 코드·설정 직접 회수 금지).
+발행은 **메인 단독**이 기본이고, **single 서브(sub_mode `a2a-agent`)의 자기 셀**만 예외다 — 서브에서만 잰 셀은 메인이 관측 원시를 볼 수
+없어(D-e) 관측한 그 노드가 발행하는 것이 유일한 정합이다. 경계:
+
+- **엔진** — 발행 엔진(`hint.py` · `hintlib`)은 원격 셸을 실행하지 않고 서브 배달·릴레이 도구를 부르지 않는다(불변). 메인→서브 배달은
+  single 서브에만 엔진과 `hints/` 의 계약·어휘(`HINT_ISSUANCE_CONTRACT.md` · `vocab.json`)를 나른다 — 색인(`hints/index.json`) ·
+  카탈로그(`HINTS.md`) · 역할 마커는 어느 서브에도 가지 않는다(`render_sub_env.HINT_NEVER_DELIVER`). 런타임 스킬 평면 = 런타임 3종 +
+  hint-publisher(single) · 0종(멀티 Ray 워커) — 정본 `node_role_contract.TOOL_PLANE_BY_SUB_MODE`.
+- **승인** — 사람이 메인 선언에 적는다(`campaign_init.py --hint-approve --node <서브>`). 파생 선언(`--emit-slice <서브>`)이 그 노드 몫만
+  운반하고, 서브 인스턴스는 남의 몫·자기 승인을 들 수 없다(검증기 · writer 거부). 셀별 Y/N 규칙(§6.1)은 그대로다.
+- **push** — 서브 워크스페이스 git 은 local-only 그대로다(policy SUB_GIT_LOCAL_ONLY). 태그는 그 밖의 **별도 hint 클론**(경로 선언 =
+  서브 `envs/.env` 의 `HINT_CLONE_DIR`)에서 정확한 태그 1개로 push 한다(§6.2). 토큰은 사람이 그 노드에 둔다(배달 ✗).
+- **역할** — 태그 push 역할 선언(`hints/.push_authority`)과 카탈로그 권위 선언(`hints/.central_authority`)은 다르다. 서브는 push 역할만
+  가지며 카탈로그 단계를 건너뛰고 testlog(승인 출처 · 태그 · 원격 태그 SHA · 엔진 리비전)로 보고한다. 메인이 문서기반으로 회수해
+  승인 출처를 대조한 뒤 카탈로그를 파생한다(카탈로그는 메인 단독). 장착 절차 = terraforming_node `references/install/sub_agent_env.md` §2.5.1.
+- 멀티 서브 산출물과 장착 안 된 서브의 산출물은 종전대로 문서기반 회수 뒤 메인이 재저작한다(`.claude/rules/docs.md` 상향 회수 규약 ·
+  코드·설정 직접 회수 금지).
 
 ### 6.7 발행 전 독립 사실 검증 (2026-09-22 · plan_26092119 S2 round 2 F11)
 
@@ -902,9 +915,10 @@ artifacts 헤더에만 기록된 필요조건을 inherited 로 강등했다. 00 
 - **꼬리의 자유도**(plan_26092908 R1): 같은 셀을 PC · Agent 마다 다른 꼬리로 부를 수 있다(검색 분산). 결정론부 매칭이 1차이고 꼬리는 근거 대조로
   거짓만 막는다 — 표기 흔들림은 수용한다(U5 의 대가).
 - **브랜치 형식 전환**은 사람 승인 명령(`branch-transition`)이다 — 원격 안내가 v7 이 아닌 동안 모든 발행이 `HINT_BRANCH_FORMAT_MISMATCH` 로 선다.
-- **D-e 서브 단독 셀**: 서브에서만 잰 셀은 메인이 그 관측 원시(serve_proof · post_health · lite raw)를 볼 수 없어 `HINT_QUALIFICATION_UNOBSERVED`
-  로 막힌다. 서브 관측을 문서기반 회수로 받는 설계가 열린 항목이다(예약 결손 코드 `HINT_MISSING_SUB_TRIPLET` 의 발행자도 그 설계가 정한다).
-  서브의 `hint_inputs` 사이드카는 발행기가 읽지 않는다. E2E 는 cluster 셀을 쓴다.
+- **D-e 서브 단독 셀**(2026-10-11 경로 개정 · §6.6): 서브에서만 잰 셀은 메인이 그 관측 원시(serve_proof · post_health · lite raw)를 볼 수 없어
+  메인에서 발행하면 `HINT_QUALIFICATION_UNOBSERVED` 로 막힌다 — 그래서 **single 서브가 자기 노드에서** 발행한다(관측 원시가 그 자리에 있다 ·
+  승인은 파생 선언 운반 · push 는 별도 hint 클론 · 카탈로그는 메인). 멀티 Ray 워커 셀은 cluster 셀로 메인이 관측·발행한다. 서브의
+  `hint_inputs` 사이드카는 발행기가 읽지 않는다(예약 결손 코드 `HINT_MISSING_SUB_TRIPLET` 은 발행자 없이 예약으로 남는다).
 - **4마디 릴리스 × PII**: D-g 가 4마디 릴리스 이름을 허용했지만, 두 번째 마디가 `10` 인 4마디 릴리스는 사설 IPv4 패턴의 3옥텟 접두 매치에
   걸린다 — 그 이름은 커밋 · 봉인에서 반드시 거부되므로 `publish` 가 저작 전에 `HINT_TAG_NAME_PII` 로 먼저 막는다. 스캐너 체계 변경(버전
   토큰 면제 등)은 사람 결정이다(P3).

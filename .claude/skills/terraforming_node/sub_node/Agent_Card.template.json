@@ -84,7 +84,7 @@
     {
       "id": "publish",
       "name": "Publish — 완수 결과의 문서 평면 발행",
-      "description": "config→build→serve→bench 완수 뒤 결과를 docs/ 문서 평면에 발행하고(sweep map · benchmark 인증서/리포트 · devlog/testlog · hint 입력 사이드카 docs/benchmark/hint_inputs_<measured_utc>/), task-report 로 경로를 전달한다. 런타임 Phase 동안 output/** 은 노드 밖으로 이동하지 않는다 — 발행 Phase 의 문서만 메인이 fetch_sub_docs 로 회수한다(헌법 §서브 회수 = 문서기반).",
+      "description": "config→build→serve→bench 완수 뒤 결과를 docs/ 문서 평면에 발행하고(sweep map · benchmark 인증서/리포트 · devlog/testlog · hint 입력 사이드카 docs/benchmark/hint_inputs_<measured_utc>/), task-report 로 경로를 전달한다. single 서브(a2a-agent)는 메인 선언이 승인해 파생 선언으로 운반된 셀에 한해 hint 태그 1개를 워크스페이스 밖 별도 hint 클론에서 스스로 발행한다(카탈로그는 메인 단독 · 2026-10-11 plan_26101104). 런타임 Phase 동안 output/** 은 노드 밖으로 이동하지 않는다 — 발행 Phase 의 문서만 메인이 fetch_sub_docs 로 회수한다(헌법 §서브 회수 = 문서기반).",
       "tags": ["publish", "docs", "sweep-map", "certificate", "hint-inputs"],
       "inputModes": ["application/json"],
       "outputModes": ["application/json"]

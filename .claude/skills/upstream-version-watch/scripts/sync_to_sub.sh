@@ -1225,7 +1225,7 @@ prepare_transactional_source() {
     #   연결하지 못했고, 로그를 FAIL/STOP 으로 좁혀 보는 습관이 그 한 줄을 잘라냈다.
     #   인덱스 권위 자체는 계약이므로 **차단하지 않는다** — 다만 무엇이 갈렸는지는 반드시 보인다.
     local _drift
-    _drift="$(git -C "$CANONICAL_SRC" diff --name-only -- .claude CLAUDE.md .gitignore campaigns output/multi output/single 2>/dev/null)"
+    _drift="$(git -C "$CANONICAL_SRC" diff --name-only -- .claude CLAUDE.md .gitignore campaigns hints output/multi output/single 2>/dev/null)"
     if [ -n "$_drift" ]; then
         # 아래 영문 한 줄은 `verify_distribution` 의 `sub_transactional_source_uses_git_index` 가
         #   앵커로 쓴다 — 트랜잭션 소스가 인덱스 권위임을 코드가 스스로 말하는 자리다. 지우지 마라
@@ -1239,7 +1239,11 @@ prepare_transactional_source() {
     #   소스에 **아예 도착하지 않고**, 그 위에서 도는 render 는 소스 부재를 조용히 건너뛴다 —
     #   실측으로 서브 오버레이에 `campaigns/_template/**` 가 통째로 빠졌다. 새 추적 루트를
     #   만들면 이 경로 목록도 함께 갱신해야 한다(ALLOWLIST·MIRROR_DIRS 와 같은 계열의 표면).
-    git -C "$CANONICAL_SRC" ls-files -z -- .claude CLAUDE.md .gitignore campaigns output/multi output/single \
+    # ★ `hints` 는 2026-10-11 추가(plan_26101104 Step 3 · single 서브 hint 자체 발행). 엔진의 계약·어휘가 이 루트에
+    #   산다. **트랜잭션 소스에 들어오는 것 ≠ 서브로 가는 것**이다 — 서브로 가는 것은 render_sub_env 가 스테이징에
+    #   복사하는 것뿐이고(HINT_ENGINE_DEPENDENCIES · tool_plane 이 hint-publisher 를 지목할 때만), 색인·카탈로그·
+    #   역할 마커는 렌더가 단언으로 막는다(HINT_NEVER_DELIVER). 비추적인 역할 마커는 인덱스 권위라 애초에 여기 없다.
+    git -C "$CANONICAL_SRC" ls-files -z -- .claude CLAUDE.md .gitignore campaigns hints output/multi output/single \
         | git -C "$CANONICAL_SRC" checkout-index -z --stdin --prefix="$TRANSACTIONAL_SRC/"
     # ★ plan_26091607 (H2·H3): filesystem-exception 루프의 침묵 스킵(`|| continue`)을 fail-loud 로 뒤집고,
     #   cross-worktree 해소(`resolve_render_input`)를 도입한다. required 항목은 어느 워크트리에도
@@ -1559,7 +1563,7 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
     #   2026-09-10 실측 위양성 3건: `skills/*/config.yaml` ×2 · `lockset.json`. 셋 다 추적
     #   스켈레톤(`config.example.yaml`)의 **로컬 인스턴스**이고 메인에도 같은 자리에 비추적으로 있다.
     #   위 닫힌 목록(campaigns/·docs/·빌드킷)은 유지한다 — 이 필터는 그것을 대체하지 않고 보탠다.
-    extra="$(printf '%s\n' "$extra" | grep -v '^$' | drop_node_local_paths || true)"
+    extra="$(printf '%s\n' "$extra" | grep -v '^$' | drop_node_local_paths "$st" || true)"
     n="$(printf '%s' "$extra" | grep -c '' || true)"
     if [ "${n:-0}" -eq 0 ]; then
         # 성공 줄에 디렉터리 목록을 다 뿌리면 화면이 목록으로 덮여 정작 다른 판정이 안 보인다.
@@ -1607,6 +1611,20 @@ RUNTIME_BLOCK_OWNED_ROOTS=(.claude/skills .claude/policies .claude/hooks .claude
 #   2026-09-29 실측: 서브에 추적물로 잔존하는데 노드-로컬 필터가 걸러 잔재 리포트·은퇴 모두 못 봤다.
 #   늘리려면: 그 경로를 서브의 어떤 스크립트도 쓰지 않는다는 것을 먼저 확인하라.
 NEVER_NODE_LOCAL_PATHS=(.claude/pii_terms.txt)
+# ★ 2026-10-11(plan_26101104 Step 3) 예외 — 정본 스테이징이 hint 엔진(`.claude/skills/hint-publisher`)을 싣는 토폴로지
+#   (= single 서브 자체 발행)에서는 그 노드의 PII 리터럴 목록을 **사람이 그 노드에 둔다**(hint 4종 스캔이 그 파일
+#   부재를 fail-closed 로 막는다 · 비밀·PII 는 배달 평면 ✗). 그 토폴로지에서만 위 목록에서 뺀다 — 판정은 손목록이
+#   아니라 **정본이 지금 엔진을 주는가**(스테이징 실재)에서 파생한다. 엔진을 받지 않는 토폴로지(multi)에서는 그대로
+#   잔재다.
+never_node_local_for() {   # $1=staging dir(선택) → stdout=이 토폴로지에서 노드-로컬로 걷어내지 않을 경로
+    local _p
+    for _p in "${NEVER_NODE_LOCAL_PATHS[@]}"; do
+        if [ "$_p" = ".claude/pii_terms.txt" ] && [ -n "${1:-}" ] && [ -d "$1/.claude/skills/hint-publisher" ]; then
+            continue
+        fi
+        printf '%s\n' "$_p"
+    done
+}
 # 잔재 판정에서 **노드-로컬 상태**를 걷어낸다(2026-09-10 신설 · 첫 실행이 위양성을 냈다).
 #
 # 판정은 파생이다 — 손목록을 두지 않는다:
@@ -1617,7 +1635,7 @@ NEVER_NODE_LOCAL_PATHS=(.claude/pii_terms.txt)
 # 이 구분이 없으면 "정본 밖 0건" 이 **정의상 달성 불가**가 된다 — 서브가 계약대로 일할수록
 # 리포트가 커지고, 사람은 그 리포트를 안 보게 되며, 그러면 진짜 잔재도 못 본다
 # (report_overlay_convergence 가 같은 근거로 이미 편 논리 · docs.md §PII 판정 대상 축소 선례).
-drop_node_local_paths() {   # stdin=경로 목록 → stdout=노드-로컬을 걷어낸 목록
+drop_node_local_paths() {   # stdin=경로 목록 · $1(선택)=정본 스테이징 → stdout=노드-로컬을 걷어낸 목록
     local all local_only rc=0
     all="$(cat)"
     [ -n "$all" ] || return 0
@@ -1635,9 +1653,10 @@ drop_node_local_paths() {   # stdin=경로 목록 → stdout=노드-로컬을 �
     fi
     # 서브가 저작하지 않는 메인 사적 경로는 노드-로컬로 걷어내지 않는다(위 NEVER_NODE_LOCAL_PATHS).
     local _nl
-    for _nl in "${NEVER_NODE_LOCAL_PATHS[@]}"; do
+    while IFS= read -r _nl; do
+        [ -n "$_nl" ] || continue
         local_only="$(printf '%s\n' "$local_only" | grep -vxF -- "$_nl" || true)"
-    done
+    done < <(never_node_local_for "${1:-}")
     [ -n "$local_only" ] || { printf '%s\n' "$all"; return 0; }
     LC_ALL=C comm -23 <(printf '%s\n' "$all" | LC_ALL=C sort) <(printf '%s\n' "$local_only") || true
 }
@@ -1651,7 +1670,7 @@ report_runtime_block_residue() {   # $1=topology → 항상 0(정보 리포트 �
         sub_list="$(sub_run "find '$root' -type f -not -path '*/__pycache__/*' -not -name '*.pyc' 2>/dev/null | sed 's|^\./||' | LC_ALL=C sort" || true)"
         [ -n "$sub_list" ] || continue
         extra="$(LC_ALL=C comm -13 <(printf '%s\n' "$canon" | grep -v '^$') <(printf '%s\n' "$sub_list") || true)"
-        extra="$(printf '%s\n' "$extra" | grep -v '^$' | drop_node_local_paths || true)"
+        extra="$(printf '%s\n' "$extra" | grep -v '^$' | drop_node_local_paths "$st" || true)"
         n="$(printf '%s' "$extra" | grep -c '' || true)"
         [ "${n:-0}" -gt 0 ] || continue
         total=$((total + n))
@@ -1712,7 +1731,7 @@ _derive_runtime_block_residue() {   # $1=topology $2=staging → stdout=경로 �
         sub_list="$(sub_run "git -c core.quotePath=false ls-tree -r --name-only '$t' -- '$root' 2>/dev/null | LC_ALL=C sort" < /dev/null || true)"
         [ -n "$sub_list" ] || continue
         extra="$(LC_ALL=C comm -13 <(printf '%s\n' "$canon" | grep -v '^$') <(printf '%s\n' "$sub_list") || true)"
-        extra="$(printf '%s\n' "$extra" | grep -v '^$' | drop_node_local_paths || true)"
+        extra="$(printf '%s\n' "$extra" | grep -v '^$' | drop_node_local_paths "$st" || true)"
         [ -n "$extra" ] && all="${all}${extra}"$'\n'
     done
     printf '%s' "$all" | grep -v '^$' || true

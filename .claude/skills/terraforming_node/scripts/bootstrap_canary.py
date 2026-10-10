@@ -15,8 +15,10 @@
     조립은 결정론이고, 실행은 HITL 승인 뒤에만 부른다.
 
 정체성 분기(헌법 불변식 A):
-    카나리 Task 문구는 sub_mode 에 따라 다르다 — ray-worker 에게 "네 런타임 스킬 3종" 을 물으면
+    카나리 Task 문구는 sub_mode 에 따라 다르다 — ray-worker 에게 "네 런타임 스킬" 을 물으면
     거짓 자백을 유도하게 된다(그 모드는 스킬을 받지 않는다). sub_mode 는 node_role_contract 가 정한다.
+    a2a-agent 에게 확인시킬 스킬 목록도 손으로 적지 않는다 — `TOOL_PLANE_BY_SUB_MODE` 에서 파생한다
+    (2026-10-11 · plan_26101104: 런타임 3종 + hint-publisher 로 늘었을 때 문구가 따라가야 한다).
 """
 from __future__ import annotations
 
@@ -49,10 +51,14 @@ TASK_COMMON = (
     "⑤ 리포트를 .claude/schemas/task-report.schema.json 에 대조해 self_verification.schema_valid 에 담아라. "
     "phase=inspect · status=completed 로 끝내라. "
 )
+sys.path.insert(0, HERE)
+import node_role_contract as _nrc  # noqa: E402  (형제 스크립트 — 스킬 목록의 정본)
+
 TASK_BY_MODE = {
     "a2a-agent": (
         "너는 A2A 원격 에이전트다(Ray 워커가 아니다). rank 는 없어야 하고, "
-        "런타임 스킬 3종(vllm-recipe-explorer · adversarial-benchmark · upstream-version-watch)이 "
+        "런타임 스킬 %d종(%s)이 " % (len(_nrc.TOOL_PLANE_BY_SUB_MODE["a2a-agent"]),
+                                    " · ".join(_nrc.TOOL_PLANE_BY_SUB_MODE["a2a-agent"])) +
         "실제로 존재하는지 경로로 확인해 보고하라. "
         "추가로 이 정도 과업에 필요하다고 보는 턴 수(budget_recommendation)와 needs_hitl 을 notes 에 담아라."
     ),

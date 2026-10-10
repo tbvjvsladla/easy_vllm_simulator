@@ -166,7 +166,9 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
   [--source declaration-popup|publish-popup] [--campaign-id ID]`. node·cells·approved-by·utc 넷 중 하나라도
   없으면 승인이 아니다(`--revise` 와 같은 규율). 같은 승인을 다시 적으면 멱등이고, 다른 승인으로 이미 승인된
   셀은 **옛 승인을 지킨다**(귀속을 조용히 바꾸지 않는다). `_bootstrap` 이면 no-op 이고, 서브 인스턴스
-  (`self_role=sub`)에는 적지 않는다 — 발행은 메인 소관이며 파생 선언(`--emit-slice`)은 이 칸을 비워 보낸다.
+  (`self_role=sub`)에는 적지 않는다 — 승인을 적는 자리는 메인 선언 하나다. single 서브 셀이면 메인에서 `--node <그 서브>`
+  로 적고, 파생 선언(`--emit-slice <그 서브>`)이 그 노드 몫 항목만 승인째 운반한다(메인·다른 노드 몫은 잘린다 ·
+  멀티 Ray 워커 서브는 운반 ✗ · 판정 = `node_role_contract.sub_self_publishes` · 2026-10-11 plan_26101104).
 - **판정의 단일 소유자**: `campaign_template_validator.py` 의 `hint_target_reasons`(검증) · `hint_approval_for`
   (읽기)다. 셀은 배정의 부분집합(배정의 노드가 승인의 노드) · 세 승인 필드 모두 비-빈 · `<<FILL>>` 금지 · 시각은
   주입 모양. writer 는 쓰기 전에 같은 판정을 부르므로 검증기가 거부할 선언을 만들지 않는다.

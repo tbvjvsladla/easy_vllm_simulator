@@ -110,6 +110,7 @@
 3. **build** — `docker compose --profile serve build`(또는 Task 가 지정한 profile). 일치해야 하는 것은 **ABI 3종(torch·CUDA·vLLM)** 이며 image digest 는 아니다.
 4. **serve** — `docker compose --env-file envs/.env.<config> --profile serve up -d` → health 200 → functional smoke → push-attestation. ✅ = 실제 응답(린트 통과 ≠ 서빙됨).
 5. **benchmark** — 서빙 성공 시 `adversarial-benchmark` 런타임블럭으로 계측. **열 한계에 닿으면 lite 로 강등하고 그 사실을 리포트에 남긴다**(조용한 강등 금지).
+6. **publish (hint 자체 발행 · 2026-10-11)** — 네 셀이 서빙·lite·full 유효 측정까지 끝났고 **네 캠페인 선언의 `hint_targets[].approval` 에 그 셀이 있을 때만** `hint-publisher` 런타임블럭으로 태그 1개를 발행한다. 승인은 메인 선언에서 사람이 적은 것을 파생 선언이 운반한 것이다 — **스스로 승인을 쓰지 마라**(승인 없으면 발행하지 않고 보고만). 저작자 ≠ 사실 검증자(검증은 별도 Agent). push 는 `envs/.env` 의 `HINT_CLONE_DIR` 이 가리키는 **별도 hint 클론**으로만 하고 카탈로그(`hints/index.json`·`HINTS.md`)는 만들지 않는다(메인 단독). 끝나면 testlog 에 승인 출처·태그·원격 태그 SHA·엔진 리비전을 남겨 보고한다. 장착 상태는 `python3 .claude/skills/terraforming_node/scripts/check_sub_hint_equip.py` 로 확인한다(토큰 값은 출력하지 않는다 · 없으면 사람에게 요청하도록 보고만).
 <!-- /MODE:a2a-agent -->
 - **자기교정**: 메인 feedback("여기가 틀렸다, 이렇게 고쳐") → **네가 직접 고쳐** 다음 턴에 재-attest. 메인이 네 파일을 고쳐주지 않는다.
 
@@ -126,7 +127,10 @@
 - **빌딩블럭 비편집**: `.claude/`·`CLAUDE.md`·`Agent_Card.json` 은 메인 소유. 네 **런타임블럭**(실행 대상 · 편집 아님)은 `{{ TOOL_PLANE_JSON }}` 이며, 이 목록은 `tool_plane({{ TOPOLOGY }}, {{ SUB_MODE }})` 이 정한다(출처 `{{ TOOL_PLANE_SOURCE }}`). **빈 목록이면 이 노드에는 런타임블럭이 없다.** 런타임블럭 밖에 의도적으로 싣는 **지원 배달분** `{{ SUPPORT_DELIVERY_JSON }}` 도 온다 — 캠페인 phase·런타임 스크립트가 부르는 도구와 참조이며, 스킬로 실행할 대상도 잔재도 아니다. **이 두 목록 밖**에 `.claude/skills/` 아래 보이는 것만 옛 배달의 잔재이고 실행 대상이 아니다(메인 전용 오케스트레이션을 서브에서 돌리면 배달 방향이 뒤집힌다).
 - **모델 다운로드 금지**: NAS(`{{ NAS_MOUNT }}`, read-only) 부재 → 중단·보고. 절대 받지 않는다.
 - **로컬 git 허용 · 원격 금지**: 작업공간은 로컬 레포 — `git add/commit/checkout/switch/branch/status/diff/log/stash` **허용**(브랜치전환·`[improve]` 자기개선 추적·clean-tree 핸드셰이크용). 단 **`git push`·`git pull`·`git fetch`·`git remote` 금지**(origin 영구 없음). **외부 저장소 `git clone` 허용**(코드·레시피·패치 참조 · 작업공간 git 에 원격을 붙이지 않는다 · 빌드·서빙 입력으로 쓰면 커밋 SHA 로 고정해 보고) — 단 **가중치 저장소 clone(`huggingface.co`·`hf.co`)·`git lfs` 금지**(모델 획득은 사람 게이트 · policy:SUB_GIT_LOCAL_ONLY C4). `[sync]` 커밋은 **메인 스크립트가 저작**(네가 아님) — 너는 `[improve]` 만 저작.
-- **백업 금지 · git 이 단일 권위**: 고치기 전에 `.bak`/`.orig` 사본을 두거나 `backup` 브랜치·폴더를 만들지 마라 — 되돌리기는 `git diff` · `git checkout -- <path>` 다. 추적물의 해시를 다른 파일에 다시 적지도 마라(같은 사실이 두 자리에 갈라진다). **너의 refs = `single`·`multi` 브랜치 + 메인이 배달한 것**뿐이며 그 밖의 브랜치·태그를 새로 만들지 않는다. **집행은 메인이다** — 배달 표면에 `.claude/policies/` 가 없어(registry·술어·런타임 게이트는 네게 오지 않는다) 이 규약을 기계로 검사하는 주체는 메인이고, 너는 지키고 리포트로 보고한다.
+- **백업 금지 · git 이 단일 권위**: 고치기 전에 `.bak`/`.orig` 사본을 두거나 `backup` 브랜치·폴더를 만들지 마라 — 되돌리기는 `git diff` · `git checkout -- <path>` 다. 추적물의 해시를 다른 파일에 다시 적지도 마라(같은 사실이 두 자리에 갈라진다). **너의 refs = `single`·`multi` 브랜치 + 메인이 배달한 것**뿐이며 그 밖의 브랜치·태그를 새로 만들지 않는다. **집행은 메인이다** — 배달 표면에 `.claude/policies/` 의 registry·술어가 없어(hint 발행 의존으로 오는 `completion_gate.py`·`evidence_publisher.py` 는 발행 게이트를 돌릴 뿐 이 규약을 검사하지 않는다) 이 규약을 기계로 검사하는 주체는 메인이고, 너는 지키고 리포트로 보고한다.
+<!-- MODE:a2a-agent -->
+- **hint 태그는 워크스페이스 밖에서만**: hint 태그를 만들고 push 하는 저장소는 이 작업공간 git 이 아니라 `HINT_CLONE_DIR` 의 **별도 hint 클론**이다 — 이 작업공간에는 여전히 원격도 태그도 만들지 않는다(policy:SUB_GIT_LOCAL_ONLY 는 작업공간 git 을 다스린다). 그 push 는 `hint.py` 가 정확한 태그 1개로만 하며, 너는 `git push` 를 손으로 치지 않는다. 역할 선언 `hints/.push_authority` 는 네가 둘 수 있지만 `hints/.central_authority`(카탈로그 권위)는 두지 마라.
+<!-- /MODE:a2a-agent -->
 <!-- MODE:ray-worker -->
 - **멀티노드 서빙 설정 보존**: NCCL/RDMA env·/dev/infiniband·serve_runner Ray 로직 안 깬다.
 <!-- /MODE:ray-worker -->
@@ -165,7 +169,7 @@
 - 런타임블럭: **없다**. 이 모드에서 너는 정본을 재현하는 워커이지 전략을 세우는 주체가 아니다.
 <!-- /MODE:ray-worker -->
 <!-- MODE:a2a-agent -->
-- 런타임블럭(실행 대상 — 편집 아님): `.claude/skills/vllm-recipe-explorer/` · `.claude/skills/adversarial-benchmark/` · `.claude/skills/upstream-version-watch/`.
+- 런타임블럭(실행 대상 — 편집 아님): `.claude/skills/vllm-recipe-explorer/` · `.claude/skills/adversarial-benchmark/` · `.claude/skills/upstream-version-watch/` · `.claude/skills/hint-publisher/`(자기 셀 hint 발행 — 위 역할 6).
 <!-- /MODE:a2a-agent -->
 <!-- MODE:ray-worker -->
 - 빌드: `docker compose --profile slave build` · 서빙: `docker compose --env-file envs/.env.<config> --profile slave up` · 상태: `ray status`, `nvidia-smi`.

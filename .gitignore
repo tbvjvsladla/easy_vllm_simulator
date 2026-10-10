@@ -364,3 +364,6 @@ tests/harness/fixtures/policy_registry/removal_artifacts/_runtime_scratch/
 # hint 중앙권위 마커 — 배포본에 실리면 안 된다(plan_26082009 D8: 색인·배포는 중앙 전용).
 #   부재가 곧 fail-closed 이므로 Contributor 환경에서는 catalog derive/push 가 자동으로 막힌다(hint.py · 봉인은 --no-push 로 가능).
 hints/.central_authority
+# hint 태그 push 역할 선언(2026-10-11 · plan_26101104 Step 3) — 카탈로그 권위와 분리된 두 번째 역할 마커. 같은 근거로 비추적이며
+#   배달되지 않는다(render_sub_env HINT_NEVER_DELIVER). single 서브는 자기 워크스페이스에 스스로 선언한다(check_sub_hint_equip.py).
+hints/.push_authority

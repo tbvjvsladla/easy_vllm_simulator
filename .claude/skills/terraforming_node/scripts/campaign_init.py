@@ -1385,8 +1385,11 @@ def writer_hint_approve(base: Path, *, node: str | None, cells: list, approved_b
     if not isinstance(doc, dict):
         raise WriterRefusal("campaign.yaml 이 없거나 파손 — 승인을 적을 선언이 없다")
     if doc.get("self_role") == "sub":
-        raise WriterRefusal("self_role=sub 인스턴스다 — 발행 승인은 메인 선언에만 적는다(발행은 메인 소관 · "
-                            "파생 선언은 hint_targets 를 비워 보낸다)")
+        # 2026-10-11(plan_26101104 Step 3): single 서브가 자기 셀을 발행해도 **승인을 적는 자리는 메인 선언 하나**다 —
+        #   메인에서 `--hint-approve --node <sub 노드>` 로 적으면 `--emit-slice <sub 노드>` 가 그 몫을 운반한다.
+        #   서브가 자기 인스턴스에 승인을 쓰면 사람 발화의 전사가 메인 선언 밖에서 생긴다(자기 승인).
+        raise WriterRefusal("self_role=sub 인스턴스다 — 발행 승인은 메인 선언에만 적는다. 서브 셀이면 메인에서 "
+                            "`--hint-approve --node <그 서브 노드>` 로 적고, 파생 선언(--emit-slice)이 그 노드 몫을 운반한다")
     if node not in [n.get("node_id") for n in (doc.get("nodes") or []) if isinstance(n, dict)]:
         raise WriterRefusal(f"nodes[] 에 {node!r} 가 없다 — 선언되지 않은 노드의 셀은 승인할 수 없다")
     assigned = v.assigned_cells(doc, node)
@@ -1598,11 +1601,35 @@ def resume_brief(camp_id: str | None = None) -> str:
 SLICE_AUTHOR = "main-derived"
 
 
+def _sub_self_publishes(topology) -> bool:
+    """서브 자체 발행 판정 — 소유자는 `node_role_contract.sub_self_publishes`(파생). 계약기는 **메인에만** 있으므로
+    (서브에는 배달되지 않는다) 여기서 지연 적재한다 — emit_slice 는 메인 오케스트레이션이라 그 자리에 계약기가 있다.
+    topology 를 모르면 추측하지 않는다(WriterRefusal)."""
+    import importlib.util
+    mod_path = Path(__file__).resolve().parent / "node_role_contract.py"
+    if not mod_path.is_file():
+        raise WriterRefusal(f"계약기를 찾지 못했다: {_rel(mod_path)} — 파생 선언은 메인에서만 자른다")
+    spec = importlib.util.spec_from_file_location("_campaign_node_role_contract", mod_path)
+    if spec is None or spec.loader is None:
+        raise WriterRefusal("계약기 적재 실패")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    if topology not in mod.TOPOLOGIES:
+        raise WriterRefusal(f"노드 topology {topology!r} 를 모른다 — 그 노드 몫 hint 승인을 운반할지 판정할 수 없다"
+                            f"(어휘 {list(mod.TOPOLOGIES)} · 추측 ✗)")
+    return bool(mod.sub_self_publishes(topology)["value"])
+
+
 def emit_slice(base: Path, node: str, *, utc: str) -> dict:
     """`assignments[node]` 만 남긴 파생 선언. 파생 결정은 **메인 오케스트레이션**이다(D12).
 
     공유하는 것: id·plan_ref·matrix·budgets·control_variables·revisions(echo)·topology_sections.
-    자르는 것: nodes(그 노드 하나) · assignments(그 노드 몫) · hint_targets(발행은 메인 소관).
+    자르는 것: nodes(그 노드 하나) · assignments(그 노드 몫) · hint_targets(그 노드 몫만 · 아래).
+
+    hint_targets(2026-10-11 · plan_26101104 Step 3): 그 노드가 **자체 발행하는 서브**(`node_role_contract.sub_self_publishes`
+    — tool_plane 에 hint-publisher 가 있는가 · 지금은 single)면 메인 선언의 `hint_targets` 중 **그 노드 몫 항목을 승인째**
+    싣는다. 다른 노드(메인 포함) 몫은 자른다. 자체 발행하지 않는 노드(멀티 Ray 워커)·메인 노드는 빈 목록이다. 판정은
+    파생이다 — 계약기가 바뀌면 운반도 따라간다. 노드의 topology 를 모르는데 그 노드 몫 승인이 있으면 추측하지 않고 거부한다.
     """
     decl = read_declaration(base)
     if not decl:
@@ -1616,6 +1643,15 @@ def emit_slice(base: Path, node: str, *, utc: str) -> dict:
         raise WriterRefusal(f"assignments[{node!r}] 가 비었다 — 보낼 배정이 없는 지시서는 지시서가 아니다")
     mains = [n.get("node_id") for n in (decl.get("nodes") or [])
              if isinstance(n, dict) and n.get("role") == "main"]
+    own_targets = [t for t in (decl.get("hint_targets") or []) if isinstance(t, dict) and t.get("node_id") == node]
+    carried: list = []
+    if own_targets and nodes[0].get("role") == "sub":
+        why = v.hint_target_reasons(decl)
+        if why:
+            raise WriterRefusal("메인 선언의 hint_targets 에 결함이 있다 — 결함 있는 승인을 운반하지 않는다:\n"
+                                + "\n".join(f"  - {b}" for b in why))
+        if _sub_self_publishes(nodes[0].get("topology")):
+            carried = [json.loads(json.dumps(t, ensure_ascii=False)) for t in own_targets]   # 승인째 깊은 복사
     out = {
         "schema_version": 1,
         "id": decl.get("id"),
@@ -1627,7 +1663,7 @@ def emit_slice(base: Path, node: str, *, utc: str) -> dict:
         "budgets": decl.get("budgets"),
         "control_variables": decl.get("control_variables"),
         "revisions": decl.get("revisions") or [],
-        "hint_targets": [],
+        "hint_targets": carried,
         "topology_sections": decl.get("topology_sections") or {},
         "self_role": nodes[0].get("role"),
         "authored_by": SLICE_AUTHOR,
@@ -2497,7 +2533,7 @@ def _selftest() -> int:
         ck("★파생 선언은 통제변인·예산·개정을 그대로 echo 한다(서브가 재저작 ✗)",
            _sl["control_variables"] == _y2["control_variables"]
            and _sl["revisions"] == _y2["revisions"])
-        ck("★hint_targets 는 파생에 실리지 않는다(발행은 메인 소관)", _sl["hint_targets"] == [])
+        ck("★승인이 없으면 파생 선언의 hint_targets 도 빈 목록이다(운반할 것이 없다)", _sl["hint_targets"] == [])
         ck("★음성대조 선언에 없는 노드는 자를 수 없다",
            _boom(lambda: emit_slice(camp, "ghost", utc="t")))
         _y3 = dict(_y2, assignments={"main": [{"cell": "c1"}]})
@@ -3075,8 +3111,67 @@ def _selftest() -> int:
            _rc != 0 and "이미 결함" in _e and "arch" in _e and _hbytes("hx") == _bx0)
 
         _slh = emit_slice(_ha, "sub", utc="2026-09-21T12:00:00Z")
-        ck("★메인 선언에 승인이 있어도 파생 선언의 hint_targets 는 비어 있다(공허한 빈 목록이 아니라 실제로 잘린다)",
+        ck("★메인 몫 승인만 있으면 서브 파생 선언의 hint_targets 는 비어 있다(남의 몫은 실제로 잘린다)",
            len(_read_json(_ha / "campaign.yaml")["hint_targets"]) == 2 and _slh["hint_targets"] == [])
+
+        # ── 서브 몫 승인 운반 (2026-10-11 · plan_26101104 Step 3 · single 서브 자체 발행) ───────────────
+        #    양성: 메인 선언에 `--hint-approve --node sub` → `--emit-slice sub` 가 그 노드 몫만 승인째 싣고, 서브
+        #    인스턴스 검증기·읽는 쪽(hint_approval_for)이 그것을 받아들인다. 음성: 메인 몫·다른 노드 몫은 잘리고,
+        #    multi(Ray 워커) 서브는 운반하지 않으며, topology 를 모르면 거부하고, 밀반입된 남의 몫은 서브 검증기가 거부한다.
+        _hp = CAMPAIGNS / "hp"
+        _hp.mkdir(parents=True, exist_ok=True)
+        _hp_doc = {"schema_version": 1, "id": "hp", "plan_ref": "docs/plan/p.md",
+                   "nodes": [{"node_id": "main", "role": "main", "topology": "single"},
+                             {"node_id": "sub", "role": "sub", "topology": "single"}],
+                   "assignments": {"main": [{"cell": "m1"}], "sub": [{"cell": "s1"}, {"cell": "s2"}]},
+                   "hint_targets": []}
+        _write_json(_hp / "campaign.yaml", _hp_doc)
+        _rc_m, _, _ = _cli("--hint-approve", "--campaign-id", "hp", "--node", "main", "--cells", "m1",
+                           "--approved-by", _sayA, "--utc", _U1)
+        _rc_s, _o_s, _e_s = _cli("--hint-approve", "--campaign-id", "hp", "--node", "sub", "--cells", "s1",
+                                 "--approved-by", _sayB, "--utc", _U2)
+        _hpd = _read_json(_hp / "campaign.yaml")
+        ck("★서브 노드 셀도 메인 선언에 승인이 적힌다(--hint-approve --node sub)",
+           _rc_m == 0 and _rc_s == 0 and [t["node_id"] for t in _hpd["hint_targets"]] == ["main", "sub"])
+        _sls = emit_slice(_hp, "sub", utc="2026-10-11T00:00:00Z")
+        ck("★single 서브 파생 선언은 그 노드 몫 hint_targets 를 승인째 싣는다(메인 몫은 잘린다)",
+           _sls["hint_targets"] == [{"node_id": "sub", "cells": ["s1"],
+                                     "approval": {"approved_by": _sayB, "approved_utc": _U2,
+                                                  "source": validator().HINT_APPROVAL_DEFAULT_SOURCE}}])
+        ck("★운반은 깊은 복사다(파생 선언을 고쳐도 메인 선언은 그대로)",
+           _sls["hint_targets"][0] is not _hpd["hint_targets"][1])
+        _vv = validator()
+        ck("★서브 인스턴스 검증기가 자기 몫 승인을 받아들인다(결함 0)", _vv.hint_target_reasons(_sls) == [])
+        _ap = _vv.hint_approval_for(_sls, "s1", node="sub")
+        ck("★서브의 읽는 쪽(hint_approval_for)이 그 셀의 승인을 돌려준다 · 승인 안 된 셀은 None",
+           _ap is not None and _ap["approval"]["approved_by"] == _sayB
+           and _vv.hint_approval_for(_sls, "s2", node="sub") is None)
+        _smug = dict(_sls, hint_targets=_sls["hint_targets"] + [_hpd["hint_targets"][0]])
+        ck("★음성대조 서브 인스턴스에 밀반입된 메인 몫 승인 → 거부 · 어떤 승인도 읽지 않는다(fail-closed)",
+           any("다른 노드" in r for r in _vv.hint_target_reasons(_smug))
+           and _vv.hint_approval_for(_smug, "s1", node="sub") is None)
+        ck("★메인 노드로 자른 파생 선언은 hint_targets 를 싣지 않는다(파생 선언은 서브용 지시서)",
+           emit_slice(_hp, "main", utc="t")["hint_targets"] == [])
+        _hpm = dict(_hpd, nodes=[{"node_id": "main", "role": "main", "topology": "multi"},
+                                 {"node_id": "sub", "role": "sub", "topology": "multi", "rank": 1}])
+        _write_json(_hp / "campaign.yaml", _hpm)
+        _slm = emit_slice(_hp, "sub", utc="t")
+        ck("★음성대조 multi(Ray 워커) 서브는 승인이 있어도 운반하지 않는다(자체 발행 ✗)", _slm["hint_targets"] == [])
+        ck("★음성대조 multi 서브 인스턴스에 밀반입된 자기 몫 승인 → 거부",
+           any("자체 발행하지 않는다" in r
+               for r in _vv.hint_target_reasons(dict(_slm, hint_targets=_sls["hint_targets"]))))
+        _write_json(_hp / "campaign.yaml", dict(_hpd, nodes=[{"node_id": "main", "role": "main", "topology": "single"},
+                                                             {"node_id": "sub", "role": "sub"}]))
+        ck("★음성대조 그 노드의 topology 를 모르는데 그 노드 몫 승인이 있으면 추측하지 않고 거부",
+           _boom(lambda: emit_slice(_hp, "sub", utc="t")))
+        # 교차검증: 서브에도 가는 검증기의 손사본 ↔ 메인 계약기의 파생(단일 소유 불가 시 차선)
+        import importlib.util as _ilu
+        _nrc_spec = _ilu.spec_from_file_location("_ci_nrc", Path(__file__).resolve().parent / "node_role_contract.py")
+        _nrc = _ilu.module_from_spec(_nrc_spec)
+        _nrc_spec.loader.exec_module(_nrc)
+        ck("★검증기 SELF_PUBLISH_TOPOLOGIES = 계약기 sub_self_publishes 파생(교차검증)",
+           set(_vv.SELF_PUBLISH_TOPOLOGIES)
+           == {t for t in _nrc.TOPOLOGIES if _nrc.sub_self_publishes(t)["value"]})
 
     CAMPAIGNS, ACTIVE_POINTER, REPO_ROOT = saved
     print("[campaign_init] " + ("PASS" if ok else "FAIL"))

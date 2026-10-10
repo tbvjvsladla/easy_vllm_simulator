@@ -14,6 +14,8 @@ gitignored 스테이징 트리 `output/<topology>/sub_provision/` 로 렌더한�
   .claude/schemas/task-report.schema.json← task-report.schema.json    (복제·정적계약)
   .claude/schemas/library-exchange.schema.json ← library-exchange.schema.json (복제·정적계약, §2.7.8 그라운딩 교환)
   .claude/skills/{vllm-recipe-explorer,adversarial-benchmark}/ ← 런타임블럭(git-tracked만 복제 — config.yaml/feedback/lockset 제외)
+  .claude/skills/hint-publisher/ + hints/{HINT_ISSUANCE_CONTRACT.md,vocab.json} + 엔진 의존 ← single 서브 hint 자체발행
+      (tool_plane 이 hint-publisher 를 지목할 때만 · 색인·카탈로그·역할 마커는 **절대** 안 간다 — HINT_NEVER_DELIVER)
   .claude/skills/wiki-desk/reference/references.md ← recipe의 on-demand 정적 reference dependency
   .gitignore                             ← gitignore.template         (복제·서브 로컬git 추적규칙, D12)
   docs/{plan,devlog,testlog,simlog,benchmark}/example.md ← terraforming owner templates (복제·발행 스켈레톤, D12)
@@ -63,7 +65,50 @@ RUNTIME_BLOCK_PATHS = {
     "vllm-recipe-explorer": os.path.join(REPO, ".claude", "skills", "vllm-recipe-explorer"),
     "adversarial-benchmark": os.path.join(REPO, ".claude", "skills", "adversarial-benchmark"),
     "upstream-version-watch": os.path.join(REPO, ".claude", "skills", "upstream-version-watch"),
+    # 2026-10-11(plan_26101104 Step 3): single 서브 hint 자체 발행. 지목 여부는 tool_plane 이 정한다.
+    "hint-publisher": os.path.join(REPO, ".claude", "skills", "hint-publisher"),
 }
+
+# hint 엔진(`hint.py`·`hintlib`)이 **런타임에 읽거나 적재하는** 파일 중 런타임블럭 밖에 있는 것(닫힌 목록 · tripwire).
+#
+# 왜 필요한가: 스킬을 주고 그 스킬의 의존을 안 주면 그 스킬은 없는 것이다 — 2026-09-07 캠페인 도구 ·
+#   2026-09-29 계약 리더와 같은 결함 모양이다. 엔진은 `core.REL_*` 로 저장소 상대 경로를 들고 있고,
+#   completion_gate·evidence_publisher 는 자기 스키마와 이름 SSOT(`wiki-desk/scripts/doc_naming.py`)를 적재한다.
+#   판정은 손으로만 하지 않는다 — 자체검사 (4d) 가 `hintlib/core.py`·`evidence.py` 의 `REL_*` 상수와 두 정책 런타임의
+#   `_load_schema(...)` 리터럴을 **파생**해 이 목록 ∪ 배달되는 런타임블럭이 그것을 덮는지 대조한다(미분류 = fail-loud).
+#   `.claude/pii_terms.txt` 는 여기 없다 — 그 노드의 PII 리터럴은 **사람이 그 노드에 둔다**(비밀·PII 는 배달 평면 ✗ ·
+#   `references/install/sub_agent_env.md` §2.5.1 hint 발행 장착).
+HINT_ENGINE_DEPENDENCIES = (
+    "hints/HINT_ISSUANCE_CONTRACT.md",                  # 발행 계약(저작 Agent 가 읽는다)
+    "hints/vocab.json",                                 # 이름 어휘(REL_VOCAB · 이름 파생의 정본)
+    ".claude/policies/runtime/completion_gate.py",      # REL_COMPLETION_GATE(인가·완료 게이트)
+    ".claude/policies/runtime/evidence_publisher.py",   # REL_EVIDENCE_PUBLISHER(증거 레코드 writer)
+    ".claude/schemas/work-manifest.schema.json",        # completion_gate._load_schema
+    ".claude/schemas/completion-manifest.schema.json",  # 동상
+    ".claude/schemas/side-effect-authorization.schema.json",  # 동상
+    ".claude/skills/wiki-desk/scripts/doc_naming.py",   # REL_DOC_NAMING_WIKI(명명 SSOT · evidence_publisher 도 적재)
+)
+# 서브로 **절대** 가지 않는 hint 평면 경로(닫힌 목록). 색인·카탈로그는 메인 단독 파생물이고(정책 C4 의 남은 몫),
+#   역할 마커는 각 체크아웃이 스스로 하는 선언이라 배달되면 선언이 아니라 복사가 된다(`.gitignore` 와 같은 근거).
+HINT_NEVER_DELIVER = (
+    "hints/index.json",
+    "HINTS.md",
+    "hints/.central_authority",
+    "hints/.push_authority",
+    "hints/.drafts",
+)
+# 엔진이 읽지만 **판정해서 보내지 않는** 경로(닫힌 목록 · 부재를 엔진이 견딘다는 것을 확인한 것만).
+#   `.claude/rules/docs.md` — 2026-09-29 서브 배달에서 걷어냈다(메인 몫 문장이 서브에서 모순으로 읽혔다 · plan_26092917_59_03 S3).
+#   엔진은 거기서 full 정의 원문만 읽고, 부재면 `bench_definition.current_full_definition = None`(모름 ≠ 미충족)으로 견딘다.
+#   되살릴 근거는 서브 발행에서 그 칸이 실제로 막힐 때뿐이다(같은 되돌림 규칙 — 한 줄씩).
+HINT_ENGINE_TOLERATED_ABSENT = (
+    ".claude/rules/docs.md",
+)
+# single 서브 hint 발행 장착을 **그 노드에서** 판정하는 도구. 서브가 돌려 결과(JSON · 비밀 미출력)를 testlog 로 보고한다
+#   — 메인은 서브를 스캔하지 않는다(헌법 노드 제어 ①). 엔진이 가는 서브에만 간다.
+SUB_HINT_EQUIP_TOOLS = (
+    "check_sub_hint_equip.py",
+)
 
 # 서브에 배달할 때 **제외**하는 경로(스킬 안의 메인 전용 오케스트레이션).
 #
@@ -355,7 +400,23 @@ def support_delivery(tool_plane) -> list:
     out = [f".claude/skills/terraforming_node/scripts/{t}" for t in CAMPAIGN_TOOLS + SUB_CONTRACT_READERS]
     if "vllm-recipe-explorer" in tool_plane:
         out.append(RECIPE_REFERENCE_REL)
+    if "hint-publisher" in tool_plane:
+        # 엔진 의존 + 장착 판정 도구(2026-10-11 · plan_26101104 Step 3). render_tree 의 (3.5) 와 같은 규칙.
+        out.extend(f".claude/skills/terraforming_node/scripts/{t}" for t in SUB_HINT_EQUIP_TOOLS)
+        out.extend(HINT_ENGINE_DEPENDENCIES)
     return out
+
+
+def _tracked_or_die(rel: str, tracked_list: list | None) -> None:
+    """배달 의존은 **추적물만** 간다(런타임블럭과 같은 계약). 목록을 얻지 못하면 추측하지 않는다(fail-loud)."""
+    if tracked_list is not None:
+        if rel not in tracked_list:
+            raise SystemExit(f"[render] FAIL: hint 엔진 의존이 추적물이 아니다(주입 목록에 없음): {rel}")
+        return
+    out = subprocess.run(["git", "-C", REPO, "ls-files", "--error-unmatch", "--", rel],
+                         capture_output=True, text=True, timeout=20)
+    if out.returncode != 0:
+        raise SystemExit(f"[render] FAIL: hint 엔진 의존이 추적물이 아니다(git ls-files rc={out.returncode}): {rel}")
 
 
 def _contract_placeholders(data: dict) -> dict:
@@ -562,6 +623,32 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
             ex = RUNTIME_BLOCK_EXCLUDES.get(name)
             produced.append(f".claude/skills/{name}/ ({n} tracked files"
                             + (f" · 메인전용 {len(ex)}건 제외)" if ex else ")"))
+        # 3.5) hint 엔진 의존 + 장착 판정 도구 — 엔진이 가는 서브에만(2026-10-11 · plan_26101104 Step 3).
+        #   색인·카탈로그·역할 마커(HINT_NEVER_DELIVER)는 여기서 만들지 않는다 — 아래 단언이 그것을 확인한다.
+        if "hint-publisher" in names:
+            for rel in HINT_ENGINE_DEPENDENCIES:
+                src = os.path.join(REPO, rel)
+                if not os.path.isfile(src):
+                    raise SystemExit(f"[render] FAIL: hint 엔진 의존이 없다 — {rel}\n"
+                                     "   스킬을 주고 그 의존을 안 주면 그 스킬은 없는 것이다(2026-09-29 계약 리더 선례).\n"
+                                     "   트랜잭션 소스에서 도는 중이면 sync_to_sub 의 checkout-index 경로 목록에 `hints` 가 있는지 본다.")
+                _tracked_or_die(rel, tracked_list)
+                dst = os.path.join(out_dir, rel)
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                shutil.copy2(src, dst)
+                produced.append(rel)
+            for tool in SUB_HINT_EQUIP_TOOLS:
+                src = os.path.join(HERE, tool)
+                if not os.path.isfile(src):
+                    raise SystemExit(f"[render] FAIL: hint 장착 판정 도구가 없다 — {src}")
+                dst = os.path.join(claude, "skills", "terraforming_node", "scripts", tool)
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                shutil.copy2(src, dst)
+                produced.append(f".claude/skills/terraforming_node/scripts/{tool}")
+        leaked = [rel for rel in HINT_NEVER_DELIVER if os.path.exists(os.path.join(out_dir, rel))]
+        if leaked:
+            raise SystemExit(f"[render] FAIL: 서브로 가면 안 되는 hint 평면 경로가 스테이징에 있다: {leaked}\n"
+                             "   색인·카탈로그는 메인 단독 파생물이고 역할 마커는 각 체크아웃의 자기 선언이다.")
         if not names:
             # 음성정직: "0종" 은 결손이 아니라 판정 결과다. 그 사실이 산출 매니페스트에 남아야
             # 나중에 "왜 스킬이 없지?" 가 조용한 결손과 구분된다.
@@ -1023,7 +1110,8 @@ def _self_test() -> int:
     #   (Ray 워커)에게도 서빙전략·벤치 스킬이 갔다. 판정을 계약(node_role_contract.tool_plane)으로
     #   옮겼으므로, 여기서는 **양방향**을 본다 — 한쪽만 보면 "전부 안 주기"가 통과한다.
     for _topo, _want, _label in (("single", {"vllm-recipe-explorer", "adversarial-benchmark",
-                                             "upstream-version-watch"}, "a2a-agent=3종"),
+                                             "upstream-version-watch", "hint-publisher"},
+                                  "a2a-agent=3종+hint-publisher"),
                                  ("multi", set(), "ray-worker=0종")):
         _d = parse_manifest(mpath); _d["topology"] = _topo
         _ph, _ = build_placeholders(_d)
@@ -1041,7 +1129,8 @@ def _self_test() -> int:
         #   ① 있어야 할 2개가 있다 ② 그 밖의 terraforming 스크립트가 새지 않았다.
         _tn = os.path.join(_out, ".claude", "skills", "terraforming_node", "scripts")
         _tn_files = sorted(os.listdir(_tn)) if os.path.isdir(_tn) else []
-        _tn_want = sorted(CAMPAIGN_TOOLS + SUB_CONTRACT_READERS)
+        _tn_want = sorted(CAMPAIGN_TOOLS + SUB_CONTRACT_READERS
+                          + (SUB_HINT_EQUIP_TOOLS if "hint-publisher" in _want else ()))
         _tn_ok = _tn_files == _tn_want
         # 해소 자산은 싱글 서브에 가지 않는다 — 가면 서브가 스스로 해소할 이유가 없어진다(F4).
         _res = os.path.exists(os.path.join(
@@ -1051,13 +1140,54 @@ def _self_test() -> int:
         _sup = set(support_delivery(sorted(_want)))
         _real = {os.path.relpath(os.path.join(dp, f), _out) for dp, _, fs in os.walk(_out) for f in fs
                  if os.path.relpath(os.path.join(dp, f), _out).startswith((".claude/skills/terraforming_node/",
-                                                                          ".claude/skills/wiki-desk/"))}
+                                                                          ".claude/skills/wiki-desk/",
+                                                                          ".claude/policies/", "hints/"))
+                 or os.path.relpath(os.path.join(dp, f), _out) in HINT_ENGINE_DEPENDENCIES}
         _sup_ok = _sup == _real
+        # 색인·카탈로그·역할 마커는 어느 토폴로지에도 가지 않는다(엔진이 가는 single 에서도).
+        _never = [r for r in HINT_NEVER_DELIVER if os.path.exists(os.path.join(_out, r))]
         _c = ((_got - {"wiki-desk", "terraforming_node"}) == _want and _ref_ok and _tn_ok
-              and not _res and _sup_ok)
+              and not _res and _sup_ok and not _never)
         print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} "
-              f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res} 지원배달목록일치={_sup_ok}")
+              f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res} 지원배달목록일치={_sup_ok} "
+              f"금지경로누수={_never or '없음'}")
         ok &= _c
+
+    # (4d) hint 엔진 의존 폐포 tripwire (2026-10-11 · plan_26101104 Step 3).
+    #   결함의 형태(선례 둘): 스킬은 배달됐는데 그 스킬이 부르는 파일이 안 가서 서브에서 구조적으로 불가였다.
+    #   손목록(HINT_ENGINE_DEPENDENCIES)을 **파생**과 대조한다 — 엔진의 `REL_* = "<경로>"` 상수와 두 정책 런타임의
+    #   `_load_schema("<이름>")` 리터럴. 덮는 쪽 = single 서브에 실제로 배달되는 런타임블럭(제외표 반영) ∪ 의존 목록 ∪
+    #   캠페인 도구·계약 리더. 새 REL 이 생기면 배달할지·안 할지(HINT_NEVER_DELIVER 또는 아래 노드-로컬) 분류를 강제한다.
+    _hp = os.path.join(REPO, ".claude", "skills", "hint-publisher", "scripts", "hintlib")
+    _rel_re = re.compile(r'^REL_[A-Z0-9_]+\s*=\s*"([^"]+)"', re.M)
+    _derived = set()
+    for _fn in ("core.py", "evidence.py"):
+        with open(os.path.join(_hp, _fn), encoding="utf-8") as _fh:
+            _derived |= {m.group(1) for m in _rel_re.finditer(_fh.read())}
+    for _fn in ("completion_gate.py", "evidence_publisher.py"):
+        with open(os.path.join(REPO, ".claude", "policies", "runtime", _fn), encoding="utf-8") as _fh:
+            _derived |= {".claude/schemas/" + m for m in re.findall(r'_load_schema\("([^"]+)"\)', _fh.read())}
+    # 노드-로컬(배달 ✗ · 그 노드가 스스로 갖는다): PII 리터럴(사람이 둔다) · 증거·draft 평면(그 노드의 산출물).
+    _node_local = {".claude/pii_terms.txt", "docs/_evidence", "docs/logs"}
+    _single_rb = {rel for name in _contract.tool_plane("single", "a2a-agent")["value"] for rel in
+                  [os.path.relpath(RUNTIME_BLOCK_PATHS[name], REPO)]}
+    _ex = {f"{os.path.relpath(RUNTIME_BLOCK_PATHS[n], REPO)}/{x}"
+           for n, xs in RUNTIME_BLOCK_EXCLUDES.items() for x in xs}
+    _tn_rel = {f".claude/skills/terraforming_node/scripts/{t}"
+               for t in CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_HINT_EQUIP_TOOLS}
+
+    def _covered(rel):
+        if rel in HINT_ENGINE_DEPENDENCIES or rel in _tn_rel or rel in _node_local:
+            return True
+        if rel in HINT_NEVER_DELIVER or rel in HINT_ENGINE_TOLERATED_ABSENT:
+            return True                      # 판정한 미배달(색인·카탈로그·마커·draft · 부재를 견디는 참조)
+        return any(rel == rb or rel.startswith(rb + "/") for rb in _single_rb) and rel not in _ex
+    _unclassified_dep = sorted(r for r in _derived if not _covered(r))
+    _dep_exist = [r for r in HINT_ENGINE_DEPENDENCIES if not os.path.isfile(os.path.join(REPO, r))]
+    _c4d = bool(_derived) and not _unclassified_dep and not _dep_exist
+    print(f"  [{'PASS' if _c4d else 'FAIL'}] hint 엔진 의존 폐포: 파생 {len(_derived)}경로 · "
+          f"미분류={_unclassified_dep or '없음'} · 의존목록 부재={_dep_exist or '없음'}")
+    ok &= _c4d
 
     # (4b-2) upstream 스킬의 **경로 단위 분할** — 서브는 해소·렌더 능력만 받고 노드 간
     #   오케스트레이션(sync_to_sub·sync_branches·fetch_sub_docs·multinode_*)은 받지 않는다.

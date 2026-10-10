@@ -465,8 +465,8 @@ def verify() -> dict:
             {"name": "sub_transactional_source_uses_git_index",
              "ok": ("checkout-index -z --stdin" in sub_text
                     and "filesystem bytes are excluded in favor of index authority" in sub_text
-                    and "ls-files -z -- .claude CLAUDE.md .gitignore campaigns output/multi output/single"
-                    in sub_text  # campaigns = 2026-09-06 신설 루트(커밋 4043ff4)
+                    and "ls-files -z -- .claude CLAUDE.md .gitignore campaigns hints output/multi output/single"
+                    in sub_text  # campaigns = 2026-09-06 신설 루트(커밋 4043ff4) · hints = 2026-10-11(plan_26101104 Step 3)
                     and 'render_input="manifest.yaml"' in sub_text
                     and 'render_input="sub_manifest.yaml"' in sub_text
                     and 'a2a_signing/main_ed25519.pem' not in sub_text
@@ -760,6 +760,11 @@ def verify() -> dict:
              ".claude/skills/terraforming_node/scripts/relay.py", "--self-test"], {0}),
         _run("terraform_bootstrap_canary_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/bootstrap_canary.py", "--self-test"], {0}),
+        # single 서브 hint 발행 장착 판정·장착(plan_26101104 Step 3 · 2026-10-11). 호출자 없는 자체검사는 L1(산문)이다.
+        #   무엇을 지키나: 클론은 워크스페이스 밖(SUB_GIT_LOCAL_ONLY) · 역할 마커는 git-ignore 될 때만 쓴다 · 토큰은 존재만
+        #   보고 값은 출력하지 않는다 · 카탈로그 권위 선언·워크스페이스 원격은 위반 · 토큰 판독 규칙 = hintlib.tag(교차검증).
+        _run("terraform_check_sub_hint_equip_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/check_sub_hint_equip.py", "--self-test"], {0}),
         _run("terraform_agent_guard_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/node_blackbox/agent_guard.py", "--self-test"], {0}),
         _run("terraform_node_identity_selftest", ["bash",
