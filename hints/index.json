@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗).",
-  "count": 54,
-  "generated_kst": "2026-10-10T17:10:16",
+  "count": 56,
+  "generated_kst": "2026-10-10T19:03:16",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -300,6 +300,28 @@
       "vllm": "0.19.0"
     },
     {
+      "anchor": "cedb5aa76ac2c9e188a5bb06c8f302c7d297bedb",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26101016_gpt-oss-120b_GB10_0.19.1.md))",
+      "brief": "OpenAI gpt-oss-120b(MXFP4 · harmony)를 GB10 GPU 1개 × 노드 1대에서 stock vLLM 0.19.1 wheel 이미지로 서빙했다 — 컨텍스트 131072 · KV fp8 · PLE 없음 · spec off · cudagraph, 동시성 1 decode 33.40 t/s(GuideLLM 0.7.3 · 반복 3 · 완결 엔드포인트 · weak PASS · floor 28.5). 가장 비싼 벽은 harmony 가 chat 엔드포인트에서 ignore-eos 를 무력화해 디코드를 왜곡한 측정 경로(W1 · `--backend openai` 로 해소)와 KV 절대클램프 없는 진입이 예산 선언을 건너뛰어 워치독에 사살된 것(W2 · 클램프 승계)이며, 이번 회차는 벤치 예산 게이트의 교집합 공(W5)을 프리셋 선택지 추가로 넘었다. 가장 오해하기 쉬운 값은 판정 기준 E 33.53 t/s 로, 이 셀이 잰 값이 아니라 조건 미상의 외부 수치를 2026-09-01 판정에서 손으로 승계한 것이다(03 §3.5) — KV 클램프 30 GiB 도 키의 존재만 필요조건이고 값은 승계값이다(V4).",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_BUILD_LEDGER",
+        "HINT_MISSING_RESOLVE"
+      ],
+      "model": "gpt-oss-120b",
+      "object": "a51c800d25dfdc442fcef7c9c9dcc4d603197f72",
+      "published": true,
+      "recipe": "qmxfp4-len131072-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.19.1/gpt-oss-120b/gb10-1g1n-main-native/qmxfp4-len131072-kvfp8",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gptoss120b-0191-c0/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.19.1"
+    },
+    {
       "anchor": "5879b301ce74872f517b7b451799b7bcdc1c4f41",
       "arch": "gb10-main-sim-kv24g",
       "bench_mode": "미기재",
@@ -390,19 +412,19 @@
     {
       "anchor": "d72741f45b17ae9f40eb1b48ebe949be2e2cd734",
       "arch": "h10080gb-main-native",
-      "bench_mode": "미수령",
-      "bench_mode_source": "absent-local(로컬 태그 오브젝트 부재 — 조회한 원격에서 fetch 전 · 합성 ✗)",
-      "brief": "—",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26092112_qwen3-4b_H10080GBHBM3_0.27.1.md))",
+      "brief": "Qwen3-4B 를 **컨테이너 없이** 네이티브 venv 에서 stock vLLM 0.27.1 + KV 압축 플러그인으로 서빙한",
       "grammar": "legacy-5seg-node",
-      "missing": null,
+      "missing": [],
       "model": "qwen3-4b",
-      "object": "absent-local",
+      "object": "3d23efcdc44a5a04ca2d6565726e79f8168f1404",
       "published": true,
       "recipe": "len32768-kvauto-pleresident",
       "source": "remote-derived",
       "tag": "hint/0.27.1/qwen3-4b/h10080gb-main-native/len32768-kvauto-pleresident",
-      "verdict": "미수령",
-      "verdict_source": "absent-local(로컬 태그 오브젝트 부재 · 합성 ✗)",
+      "verdict": "—",
+      "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.27.1"
     },
     {
@@ -1107,6 +1129,25 @@
       "tag": "hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8-spec3-densegemv-moeprep-t2610101710",
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_i5-a-kern/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.30.0"
+    },
+    {
+      "anchor": "2de140f29d46b6ddff27fd1280bb4d50c02e3c74",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "ibm-granite/granite-4.1-30b-base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26101016_granite-4.2-30b_GB10_0.30.0.md))",
+      "brief": "IBM Granite-4.2-30B(bf16 dense)를 GB10 1노드(메인 · TP=1)에서 vLLM v0.30.0 source-build 이미지로 서빙했고, 컨텍스트 131072 · KV auto · spec off · CUDA graph 형상의 full-bench(GuideLLM · 반복 3) 판정점은 동시성 1 decode 3.93 t/s 다(weak PASS · floor 1.39). 가장 비싼 벽은 KV 절대클램프 산정이다 — 16GiB(W1)와 16 토큰 모자란 32GiB(W2)가 기동 거부됐고 33.0 GiB 에서 섰으며, 측정에서는 통합메모리 예산 게이트가 큰 벤치 몫을 막아 더 작은 프리셋 선택지로 다시 골랐다(W3). 가장 오해하기 쉬운 값은 gpu-memory-utilization 0.80(V2) — 조정된 적 없는 승계값이고 KV 클램프가 있으면 엔진이 KV 산정에 쓰지 않는다; floor 1.39 도 외부 실측이 아닌 루프라인 바닥이다(Q2).",
+      "grammar": "v7",
+      "missing": [],
+      "model": "granite-4.2-30b",
+      "object": "b459dedb1699376dc548481c448f909c82fda41a",
+      "published": true,
+      "recipe": "qbf16-len131072-kvauto-kv33g",
+      "source": "remote-derived",
+      "tag": "hint/0.30.0/granite-4.2-30b/gb10-1g1n-main-native/qbf16-len131072-kvauto-kv33g",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_granite42-30b-v030/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.30.0"
     }
   ],
