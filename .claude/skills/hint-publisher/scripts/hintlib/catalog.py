@@ -31,11 +31,13 @@ fail-closed
     옛 문법(`legacy-5seg-node`·`legacy-5seg`) 행은 **그대로 나열**한다. 문법 열은 판정이 아니라 읽는 법 안내다.
     원격에 올라간 태그는 교정·리콜하지 않으며 개정판은 새 이름의 신규 발행으로만 나온다.
 
-HINTS.md 는 **전량 생성물**이다 (plan §4.10 · 코드맵 §11)
-    옛 1-96행 손산문은 사라진 태그 인용·"20+종"·없는 rtx5090 행·존재하지 않는 3세그먼트 태그 사용법을 들고 낡았다.
-    이제 머리말 산문까지 이 모듈이 index 에서 만든다. 마커 쌍(`HINTS_MARKER`)은 기계 표 구역 경계로 계속 찍고,
-    덮어쓰기 전에 기존 파일이 마커를 **정확히 2개** 가졌는지 본다(감사 ⑬ 침묵 파괴 방지 — 카탈로그가 아닌 파일을
-    조용히 지우지 않는다).
+HINTS.md 는 **사람 서사 + 마커 구간 파생 목록**이다 (2026-10-11 · plan_26101104 Step 2 · 사용자 결정)
+    옛 계약(plan_26092119 §4.10)은 머리말 산문까지 통째로 생성했다 — 낡은 손산문을 없앴지만, 대신 "무엇인가 · 고르는 법 ·
+    받아 읽기" 같은 시점과 무관한 안내까지 코드 문자열이 되어 사람이 고칠 자리가 사라졌다. 이제 파생기는
+    `HINTS_BEGIN`(접두어 `HINTS_BEGIN_PREFIX`) 줄과 `HINTS_END` 줄 **사이만** 교체한다. 그 밖의 바이트는 사람 저작이고
+    파생기가 한 바이트도 바꾸지 않는다. 시점에 따라 낡는 사실(개수·분포·예시 태그)은 구간 안에만 둔다.
+    마커 부재·중복·역순·줄 중간 매립 = 쓰기 전 중단(HINT_CATALOG_MARKER_*) — 서사를 조용히 지우지 않는다(감사 ⑬ 계승).
+    구간 안: 한 줄 머리(태그 수 · 원격 이름 · 주입 KST) + 모델별 묶음 표. 정렬 키는 `order_entries` 가 단일 소유한다.
 
 파일 경로 단독 적재 가능 (코드맵 H5)
     `closing_sequence.sh` 는 이 **파일**을 `spec_from_file_location` 으로 적재해 `EXIT_LOCAL_TAG_OBJECT_MISSING` 을 읽고
@@ -61,13 +63,20 @@ EXIT_LOCAL_TAG_OBJECT_MISSING = 4
 #   각 저장소가 자기 원격에 대해 스스로 선언한다. 발행(봉인)은 분산, 색인·배포는 중앙집중이다.
 #   값은 core.REL_CENTRAL_FLAG 와 같아야 한다(정적 파일 두 곳 → 자체검사 교차검증이 차선 · workflow.md 판정표).
 CENTRAL_FLAG = "hints/.central_authority"
-HINTS_MARKER = "<!-- hint-index:rows -->"
+# HINTS.md 의 **파생 구간** 경계(2026-10-11 · plan_26101104 Step 2 · 사용자 결정). HINTS.md 는 이제 사람이 쓰는 서사 +
+#   이 마커 쌍 사이의 파생 목록이다 — 파생기는 BEGIN 줄 바로 다음부터 END 줄 바로 앞까지만 바꾸고 그 밖의 바이트는 한 바이트도
+#   건드리지 않는다. BEGIN 줄은 접두어로 찾는다(꼬리 설명문은 사람이 고쳐도 된다 · 줄 자체는 보존). END 줄은 정확히 일치.
+#   마커 부재·중복·역순·줄 중간 매립 = fail-closed(HINT_CATALOG_MARKER_*) — 서사를 조용히 지우거나 엉뚱한 자리에 쓰지 않는다.
+HINTS_BEGIN_PREFIX = "<!-- HINTS:BEGIN derived"
+HINTS_BEGIN = ("<!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · "
+               "구간 밖은 사람이 쓰는 서사다) -->")
+HINTS_END = "<!-- HINTS:END -->"
 # 열은 한 곳에서만 정의한다 — 2026-09-07 실측: 렌더러가 두 벌(hint_tag.HINTS_COLUMNS · hint_catalog)이었고 헤더 5열에
-#   10셀 행이 써져 HINTS.md 가 깨졌다. `문법` 열은 plan §4.7(구·신 문법 공존)의 신설.
-#   `판정` 열(2026-09-29 · plan_26092908 §4.4 V1·V2): REFUTE 와 "인증서 없는 PASS" 가 같은 결손 코드로만 보였다.
-CATALOG_COLUMNS = ("태그", "문법", "vLLM", "모델", "arch", "판정", "bench_mode", "결손", "brief")
-INDEX_SCHEMA = 4            # 3 → 4: verdict·verdict_source 행 키(v7 · plan_26092908 §4.4) · base_model 은 v6·v7
-#                             (2 → 3: grammar · base_model(v6) · object=absent-local|not-annotated 행(X15))
+#   10셀 행이 써져 HINTS.md 가 깨졌다. 2026-10-11(plan_26101104 Step 2): 9열 → 6열. 모델은 묶음 제목이 말하고, 문법 세대·brief 는
+#   기계 평면(index.json)에 남는다(사람 목록의 가독성 우선 · 열 뜻은 HINTS.md 사람 서사가 설명한다).
+CATALOG_COLUMNS = ("태그", "arch", "vLLM", "판정", "bench_mode", "결손")
+INDEX_SCHEMA = 5            # 4 → 5: tagged_utc 행 키(사람 목록의 최신순 정렬 키 · plan_26101104 Step 2)
+#                             (3 → 4: verdict·verdict_source · 2 → 3: grammar · base_model(v6) · object=absent-local|not-annotated)
 OBJECT_ABSENT_LOCAL = "absent-local"
 OBJECT_NOT_ANNOTATED = "not-annotated"   # record_missing 모드의 annotated 아닌 원격 태그(본문 없음 · 2026-09-22)
 BRIEF_UNRECEIVED = "—"      # 본문을 읽을 수 없는 행(로컬 오브젝트 부재 · annotation 없음)의 brief(합성 ✗ · X15)
@@ -87,31 +96,13 @@ BENCH_MODE_UNRECEIVED = "미수령"
 
 # ── 판정 파생 컬럼 (2026-09-29 · plan_26092908 §4.4) ────────────────────────────────────────────────
 # 출처 = 페이로드 `PAYLOAD.measurement.verdict`(evidence.measurement 가 판정 원천에서 채운다 — 인증서 유무 무관). 닫힌 어휘 밖
-#   값은 접지 않고 원문에 `(어휘 밖)` 을 붙여 보인다. 칸이 없으면 `—`(v6 REFUTE 태그 D1·N1 은 measurement 에 verdict 가 없다 —
-#   재판정 ✗ · P1), 오브젝트를 못 받았으면 `미수령`.
+#   값은 접지 않고 원문에 `(어휘 밖)` 을 붙여 보인다. 칸이 없으면 index 값 `—`(v6 REFUTE 태그 D1·N1 은 measurement 에 verdict 가
+#   없다 — 재판정 ✗ · P1), 오브젝트를 못 받았으면 `미수령`. 사람 목록(HINTS.md)은 index 의 `—` 를 `미기재(구판)` 으로 보인다
+#   (2026-10-11 사용자 결정 — `—` 는 "판정 없음"인지 "결손 0"인지 읽는 사람이 가를 수 없었다 · index 값은 바꾸지 않는다).
 VERDICTS = ("PASS", "REFUTE", "OBSERVATION-ONLY")
 VERDICT_ABSENT = "—"
-
-# 열 설명(HINTS.md 머리말 생성용) — (뜻, 출처). 자체검사가 CATALOG_COLUMNS 와 키 집합 일치를 확인한다.
-COLUMN_DOCS = {
-    "태그": ("원격에 발행된 태그 이름 그대로(recipe 세그먼트 포함)", "원격 `git ls-remote`"),
-    "문법": ("이름 문법 세대 — 판정이 아니라 **읽는 법** 안내", "`hintlib.naming.parse_tag`·`grammar_of`"),
-    "vLLM": ("이름의 vLLM 세그먼트(v6·v7 = 빌드 입력: 릴리스 태그 또는 `<직전 릴리스>-g<sha12>`)", "태그 이름"),
-    "모델": ("모델 슬러그(체크포인트 basename 소문자)", "태그 이름"),
-    "arch": ("하드웨어·노드 형상", "태그 이름"),
-    "판정": (f"`PASS` · `REFUTE` · `OBSERVATION-ONLY`(lite 전용 관측) · `{VERDICT_ABSENT}` = 페이로드에 판정 칸 없음(v6 이전·"
-             f"판정 기록 전 태그 — 재판정 ✗) · `{BENCH_MODE_UNRECEIVED}` = 로컬 오브젝트 부재",
-             "페이로드 `PAYLOAD.json` 의 `measurement.verdict`"),
-    "bench_mode": (f"`full` · `lite(선언)` · `lite(강등·<사유>)` · `lite` · `{BENCH_MODE_UNDETERMINED}` · "
-                   f"`{BENCH_MODE_ABSENT}`(측정 구성 기재 전 페이로드) · `{BENCH_MODE_UNRECEIVED}`(로컬 오브젝트 부재)",
-                   "페이로드 `PAYLOAD.json` 의 `measurement_config`"),
-    "결손": (f"페이로드가 **스스로 선언한** 결손 사유코드 · `—` = 선언 0 · `{BENCH_MODE_UNRECEIVED}` = 로컬 오브젝트 "
-             f"부재로 읽지 못함 · `{MISSING_UNDECLARED}` = 태그는 있으나 결손을 선언하지 않음(`PAYLOAD.json` 을 읽지 못했거나 "
-             "`missing[]` 목록이 없는 옛 형식 — 선언 0 과 다르다)",
-             "페이로드 `PAYLOAD.json` 의 `missing[]`"),
-    "brief": (f"v6·v7 = annotation 첫 문단 · 옛 문법 = annotation 의 첫 서술 줄 · `{BRIEF_UNRECEIVED}` = 본문 없음"
-              f"(로컬 오브젝트 미수령 또는 annotation 없는 태그 · 합성 ✗)", "태그 오브젝트(annotation)"),
-}
+VERDICT_LEGACY_CELL = "미기재(구판)"
+MODEL_UNKNOWN_GROUP = "(모델 미상)"      # 이름에서 모델 세그먼트를 읽지 못한 행(unknown 문법)의 묶음 제목(추측 채움 ✗)
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent.parent   # __file__ 기반 계산 = import 부수효과 아님
 _KST_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$")
@@ -229,6 +220,25 @@ def verdict_cell(doc: dict | None) -> tuple[str, str]:
     origin = per_key.get("verdict") or m.get("source") or "출처 미표시"
     src = f"payload(PAYLOAD.measurement.verdict · {origin})"
     return (v if v in VERDICTS else f"{v}(어휘 밖)"), src
+
+
+_TAGGER_RE = re.compile(r"^tagger .* (\d+) [+-]\d{4}$")
+
+
+def tagger_utc(header: str) -> str | None:
+    """`git cat-file tag` 헤더의 `tagger <이름> <메일> <epoch> <tz>` 줄 → `YYYY-MM-DDTHH:MM:SSZ`(UTC). 없거나 못 읽으면 None.
+
+    이름·메일은 버린다(배포 파일에 실리지 않는다 · PII). epoch 만 UTC 로 접으므로 tz 표기가 달라도 같은 순간이면 같은 값이다."""
+    import datetime as _dt
+    for line in (header or "").splitlines():
+        m = _TAGGER_RE.match(line)
+        if m:
+            try:
+                t = _dt.datetime.fromtimestamp(int(m.group(1)), tz=_dt.timezone.utc)
+            except (OverflowError, OSError, ValueError):
+                return None
+            return t.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return None
 
 
 def query_slug(s: str | None) -> str:
@@ -407,7 +417,8 @@ def derive_entries(repo: Path, remote_tags: dict[str, dict], *, remote: str | No
                         "missing": None, "bench_mode": BENCH_MODE_UNRECEIVED,
                         "bench_mode_source": "absent-local(로컬 태그 오브젝트 부재 — 조회한 원격에서 fetch 전 · 합성 ✗)",
                         "verdict": BENCH_MODE_UNRECEIVED,
-                        "verdict_source": "absent-local(로컬 태그 오브젝트 부재 · 합성 ✗)"})
+                        "verdict_source": "absent-local(로컬 태그 오브젝트 부재 · 합성 ✗)",
+                        "tagged_utc": None})
             entries.append(row)
             continue
         obj = rec["object"]
@@ -420,14 +431,15 @@ def derive_entries(repo: Path, remote_tags: dict[str, dict], *, remote: str | No
         if otype == "tag":
             # 바이트로 읽고 UTF-8 로 푼다 — 본문(한국어)의 해석이 실행 로캘에 따라 달라지지 않게(결정론).
             raw = core.git_bytes(repo, "cat-file", "tag", obj).decode("utf-8", "replace")
-            body = raw.split("\n\n", 1)[1] if "\n\n" in raw else ""
+            head, _, body = raw.partition("\n\n")
+            tagged = tagger_utc(head)
             anchor = rec.get("peeled") or core.git_out(repo, "rev-parse", f"{obj}^{{}}")
             # v6·v7 brief = annotation 첫 문단 · 옛 문법 = 모양 규칙(⑤) — 문법으로 분기(코드맵 O-cat2 · v7 도 같은 annotation 형식).
             brief = annotation_brief(body) if pn["grammar"] in pay_g else extract_brief(body)
             obj_cell = obj
         else:                                   # record_missing 모드의 not-annotated 행(본문 없음 · 합성 ✗)
             not_annotated.append(name)
-            anchor, brief, obj_cell = obj, BRIEF_UNRECEIVED, OBJECT_NOT_ANNOTATED
+            anchor, brief, obj_cell, tagged = obj, BRIEF_UNRECEIVED, OBJECT_NOT_ANNOTATED, None
         doc = payload_doc(repo, obj)
         bm, bm_src = bench_mode_cell(doc)
         vd, vd_src = verdict_cell(doc)
@@ -445,6 +457,9 @@ def derive_entries(repo: Path, remote_tags: dict[str, dict], *, remote: str | No
             "bench_mode_source": bm_src,
             "verdict": vd,
             "verdict_source": vd_src,
+            # 사람 목록의 최신순 키(schema 5) = 태그 오브젝트의 tagger 시각(UTC). 태그 오브젝트는 불변이므로 같은 원격 상태 →
+            #   같은 값(결정론). tagger 줄이 없거나(not-annotated 등) 못 읽으면 None — 벽시계·커밋 시각으로 대신 채우지 않는다.
+            "tagged_utc": tagged,
         })
         if pn["grammar"] in pay_g:
             # base_model = PAYLOAD.identity.base_model(v6 만 · X14). families.json(수동 판정 19/19 · 5세그먼트에서 0)을
@@ -465,7 +480,8 @@ def build_index(entries: list[dict], *, remote: str, generated_kst: str) -> dict
                   "직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·"
                   "bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). "
                   f"`object: {OBJECT_ABSENT_LOCAL}` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · "
-                  f"`object: {OBJECT_NOT_ANNOTATED}` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗)."),
+                  f"`object: {OBJECT_NOT_ANNOTATED}` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). "
+                  "`tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키."),
         "schema": INDEX_SCHEMA,
         "source": "remote-derived",
         "remote": _remote_label(remote),
@@ -475,198 +491,129 @@ def build_index(entries: list[dict], *, remote: str, generated_kst: str) -> dict
     }
 
 
+def _missing_cell(e: dict) -> str:
+    miss = e.get("missing")
+    if miss is None:
+        # 모름은 두 갈래다 — 오브젝트를 못 받은 것(미수령)과 받았지만 결손 선언이 없는 것. 선언 0(`—`)으로 접지 않는다.
+        return BENCH_MODE_UNRECEIVED if e.get("object") == OBJECT_ABSENT_LOCAL else MISSING_UNDECLARED
+    return md_cell(" · ".join(miss)) if miss else "—"
+
+
+def _verdict_display(e: dict) -> str:
+    """사람 목록의 판정 칸. index 의 `—`(페이로드에 판정 칸 없음) → `미기재(구판)` · 그 밖(PASS·REFUTE·OBSERVATION-ONLY·
+    미수령·어휘 밖 표시)은 그대로. 값이 아예 없는 행(schema 2 이전 형식)도 판정 칸 없음과 같은 뜻이다."""
+    v = e.get("verdict")
+    return VERDICT_LEGACY_CELL if v in (None, "", VERDICT_ABSENT) else md_cell(v)
+
+
 def render_rows(entries: list[dict]) -> str:
-    """카탈로그 표(헤더 + 구분 + 행). `결손` 열(2026-09-07): "무엇을 모른 채 발행됐는가" 가 카탈로그에서 보여야 비교할 수
-    있다. `bench_mode` 열(2026-09-14): 등급은 이름이 아니라 이 파생 컬럼이 말한다. `문법` 열(2026-09-21 · plan §4.7)."""
+    """표 하나(헤더 + 구분 + 행 · 주어진 순서 그대로). `결손` 열(2026-09-07): "무엇을 모른 채 발행됐는가" 가 보여야 비교할 수
+    있다. `bench_mode` 열(2026-09-14): 등급은 이름이 아니라 이 파생 컬럼이 말한다. 2026-10-11: 6열(`CATALOG_COLUMNS`)."""
     rows = ["| " + " | ".join(CATALOG_COLUMNS) + " |", "|" + "|".join("---" for _ in CATALOG_COLUMNS) + "|"]
     for e in entries:
-        miss = e.get("missing")
-        if miss is None:
-            # 모름은 두 갈래다 — 오브젝트를 못 받은 것(미수령)과 받았지만 결손 선언이 없는 것. 선언 0(`—`)으로 접지 않는다.
-            miss_cell = BENCH_MODE_UNRECEIVED if e.get("object") == OBJECT_ABSENT_LOCAL else MISSING_UNDECLARED
-        elif not miss:
-            miss_cell = "—"
-        else:
-            miss_cell = md_cell(" · ".join(miss))
         rows.append("| " + " | ".join((
-            f"`{md_cell(e.get('tag'))}`", md_cell(e.get("grammar") or "?"), md_cell(e.get("vllm")),
-            md_cell(e.get("model")), md_cell(e.get("arch")), md_cell(e.get("verdict") or VERDICT_ABSENT),
-            md_cell(e.get("bench_mode") or BENCH_MODE_ABSENT),
-            miss_cell, md_cell(e.get("brief")))) + " |")
+            f"`{md_cell(e.get('tag'))}`", md_cell(e.get("arch")), md_cell(e.get("vllm")), _verdict_display(e),
+            md_cell(e.get("bench_mode") or BENCH_MODE_ABSENT), _missing_cell(e))) + " |")
     return "\n".join(rows)
 
 
-def _grammar_order() -> tuple[str, ...]:
-    n = _naming()
-    return (n.GRAMMAR_V7, n.GRAMMAR_V6, n.GRAMMAR_LEGACY_ARCH_NODE, n.GRAMMAR_LEGACY_ARCH)
+def _group_key(e: dict) -> str:
+    m = e.get("model")
+    return m if isinstance(m, str) and m else MODEL_UNKNOWN_GROUP
 
 
-def render_hints_md(index: dict) -> str:
-    """HINTS.md **전량**(머리말 산문 포함)을 index 에서 생성한다(plan §4.10 · 손산문 ✗).
+def order_entries(entries: list[dict]) -> list[tuple[str, list[dict]]]:
+    """사람 목록의 정렬 **단일 소유**(결정론 · 같은 index → 같은 순서). 반환 = [(모델 묶음 제목, 행들)].
 
-    산문의 사실 부분(개수·세대별 건수·예시 태그·arch 분포·열 설명)은 전부 index 와 이 모듈의 상수에서 온다 — 낡을 수 있는
-    손 서술을 두지 않는다(옛 머리말: 사라진 태그 인용 · "20+종" · 카탈로그에 0건인 발행처 행 · 존재하지 않는 3세그먼트 태그
-    사용법 · 존재하지 않는 열 설명). 운영자 경로·호스트는 적지 않는다(추적 배포 파일 · 4종 PII).
+    - 묶음 = 이름의 모델 세그먼트(`model`) · 없으면 `MODEL_UNKNOWN_GROUP`.
+    - 묶음 안 = `tagged_utc`(태그 오브젝트 tagger 시각 · UTC ISO — 사전순 = 시간순) **내림차순** → 같으면 태그 이름 오름차순.
+      `tagged_utc` 가 없는 행(미수령·not-annotated)은 묶음 맨 뒤(이름순).
+    - 묶음 순서 = 묶음 안 최신 `tagged_utc` 내림차순 → 같으면 묶음 제목 오름차순. 시각이 하나도 없는 묶음은 맨 뒤(제목순).
+    정렬은 안정 정렬 2단(이름 오름차순 → 시각 내림차순 · reverse 도 안정)이라 동률의 순서가 실행마다 갈리지 않는다.
     """
-    core, naming = _core(), _naming()
+    groups: dict[str, list[dict]] = {}
+    for e in entries:
+        groups.setdefault(_group_key(e), []).append(e)
+    ordered: list[tuple[str, list[dict]]] = []
+    for g, rows in groups.items():
+        rows = sorted(rows, key=lambda r: str(r.get("tag") or ""))
+        rows = sorted(rows, key=lambda r: r.get("tagged_utc") or "", reverse=True)
+        ordered.append((g, rows))
+    ordered.sort(key=lambda gr: gr[0])
+    ordered.sort(key=lambda gr: max((r.get("tagged_utc") or "") for r in gr[1]), reverse=True)
+    return ordered
+
+
+def render_derived_block(index: dict) -> str:
+    """HINTS.md 파생 구간의 **내용**(마커 줄 제외 · 줄 끝마다 개행). 한 줄 머리 + 모델별 묶음 표.
+
+    머리의 생성 시각은 주입값(`generated_kst`)이다 — 같은 원격 상태 + 같은 입력 → 바이트 동일. 운영자 경로·호스트는 적지 않는다
+    (원격은 이름만 · `_remote_label`). 시점에 따라 낡는 사실은 이 구간 안에만 둔다(구간 밖 서사는 사람이 쓴다)."""
     entries = list(index.get("hints") or [])
-    g_v7, g_v6, g_node, g_flat = _grammar_order()
-    by_g: dict[str, list[dict]] = {}
-    for e in entries:
-        by_g.setdefault(e.get("grammar") or "?", []).append(e)
-    absent = [e for e in entries if e.get("object") == OBJECT_ABSENT_LOCAL]
-    unannotated = [e for e in entries if e.get("object") == OBJECT_NOT_ANNOTATED]
-    cli = core.REL_HINT_CLI
-
-    def example(g: str) -> str:
-        rows = by_g.get(g) or []
-        return f"`{md_cell(rows[0]['tag'])}`" if rows else "— (이 카탈로그에 없음)"
-
-    counts = " · ".join(f"`{g}` {len(by_g.get(g, []))}" for g in (g_v7, g_v6, g_node, g_flat))
-    others = sorted(g for g in by_g if g not in (g_v7, g_v6, g_node, g_flat))
-    if others:
-        counts += " · " + " · ".join(f"`{g}` {len(by_g[g])}" for g in others)
-    arch_count: dict[tuple[str, str], int] = {}
-    for e in entries:
-        k = (e.get("arch") or "?", e.get("grammar") or "?")
-        arch_count[k] = arch_count.get(k, 0) + 1
-    arch_rows = "\n".join(f"| `{md_cell(a)}` | `{md_cell(g)}` | {n} |"
-                          for (a, g), n in sorted(arch_count.items(), key=lambda kv: (-kv[1], kv[0])))
-    extra_doc = {naming.GRAMMAR_LEGACY_4SEG: ("`hint/<vllm>/<model>/<arch>` 네 세그먼트(recipe 없음)", "—"),
-                 naming.GRAMMAR_UNKNOWN: ("어느 세대 모양에도 맞지 않는 이름(다른 발행처 등 · 세그먼트를 추측해 채우지 "
-                                          "않는다)", "—")}
-    extra_grammar_rows = [f"| `{g}` | {extra_doc[g][0]} | {extra_doc[g][1]} | {example(g)} |"
-                          for g in (naming.GRAMMAR_LEGACY_4SEG, naming.GRAMMAR_UNKNOWN) if by_g.get(g)]
-    col_rows = "\n".join(f"| {c} | {COLUMN_DOCS[c][0]} | {COLUMN_DOCS[c][1]} |" for c in CATALOG_COLUMNS)
-    absent_line = ((f" · 로컬 오브젝트 부재(미수령) {len(absent)}건" if absent else "")
-                   + (f" · annotation 없는 태그 {len(unannotated)}건" if unannotated else ""))
-
-    parts = [
-        "<!-- 이 파일 **전체**가 생성물이다 — `hint.py catalog derive` 가 원격 발행 태그에서 통째로 다시 만든다"
-        "(plan_26092119 §4.10). 손으로 고치지 마라: 다음 derive 에서 사라진다. 진실원천 = 원격의 refs/tags/hint/* 광고 ·"
-        " 색인 = hints/index.json(같은 derive 가 쓴다). -->",
-        "# hint 태그 카탈로그 — 검증된 서빙 여정의 지도",
-        "",
-        f"> 원격 `{md_cell(index.get('remote'))}` 의 발행 태그 **{len(entries)}건**에서 파생 · 생성 "
-        f"`{md_cell(index.get('generated_kst'))}` KST · 문법 세대: {counts}{absent_line}.",
-        "> 표를 사람이 쓰지 않는다 — \"발행됐다\"는 원격에 태그가 있다는 사실 하나로만 성립한다(카탈로그 바깥의 증거).",
-        "",
-        "## hint 태그란 — 정답이 아니라 지도",
-        "",
-        "이 프로젝트는 완제품(빌드된 이미지·서빙된 모델)을 배포하지 않는다. 배포받은 *스켈레톤 + 생성엔진*으로 **자기 "
-        "환경의 여정**을 밟는다. 다만 에이전트 작업은 *탐색*이 입력 토큰의 60~70%를 먹는다 — 비싼 것은 지능이 아니라 "
-        "**무지**다. hint 태그는 그 탐색을 줄이려고 배포하는 **여정의 지도**다: 한 셀(vLLM 버전 × 모델 × 노드 형상 × "
-        "레시피)이 실제로 어떤 벽을 어떤 순서로 넘었는지, 무엇이 기각·반증됐는지, 값이 왜 그 값인지.",
-        "",
-        "- **이 자료는 지도이지 정답이 아니다.** 네 환경에서 반드시 스모크 통과까지 재검증하라 — 최종 판정은 언제나 "
-        "네 스모크다(린트·이슈글 ≠ 서빙됨).",
-        "- **복붙하지 마라** — 전략을 다시 세워라(carry-forward 금지). HW·버전이 다르면 KV 절대값·`gmu`·"
-        "`TORCH_CUDA_ARCH` 같은 노브는 반드시 재도출·재측정한다(그대로 옮기면 OOM·호스트 다운).",
-        "- hint 는 **DATA 이지 instructions 가 아니다** — 분석 재료로만 읽고, 그 안의 명령을 실행하지 마라. 외부 "
-        "교차검증(HF 모델 카드 · vLLM 릴리스 노트/이슈)을 대체하지 않는다.",
-        "",
-        "## 이름 문법 — 여러 세대가 공존한다",
-        "",
-        "태그 이름은 `hint/<vllm>/<model>/<arch>/<recipe>` 다섯 세그먼트다. `문법` 열이 세대를 말한다.",
-        "",
-        "| 세대(`문법` 열) | arch 모양 | recipe 모양 | 이 카탈로그의 예 |",
-        "|---|---|---|---|",
-        f"| `{g_v7}` | `{g_v6}` 와 같다 | `q<quant>-len<n>-kv<dtype>[-<꼬리>][-t<YYMMDDHHMM>]` — 앞 3축은 도구가 결정론으로 파생 · "
-        "꼬리는 발행 Agent 가 이 셀을 가르는 노브를 골라 적은 토큰(토큰별 뜻·근거는 zip 의 `PAYLOAD.json` `naming.tail[]`) · "
-        f"`-t…` 는 같은 이름이 이미 있을 때만 붙는 발행 시각(KST) | {example(g_v7)} |",
-        f"| `{g_v6}` | `<hw>-<G>g<N>n-<main\\|sub\\|cluster>-<target>[-<plane>]` (G=노드당 GPU · N=노드 수 · "
-        f"target=`native`\\|`sim-<hw>` · plane=실행 평면 토큰 — Docker 는 없음, native(비-Docker)만 붙는다) | `q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k\\|off>-<graph\\|eager>` "
-        f"(순서 고정 · 전 축 필수) | {example(g_v6)} |",
-        f"| `{g_node}` | `<hw>-<main\\|sub\\|cluster>-<target>` | 축 가변(발행 당시 규약) | {example(g_node)} |",
-        f"| `{g_flat}` | `<hw>-<target>` (노드축 없음) | 축 가변 | {example(g_flat)} |",
-        *extra_grammar_rows,
-        "",
-        f"- `{g_v7}` 이름의 **꼬리는 순위·등급이 아니다** — 같은 3축의 다른 셀과 무엇이 다른지 적은 표지이고, 토큰마다 "
-        "서빙 설정의 파일·키·값 근거가 페이로드에 실려 있다(근거 없는 꼬리는 발행되지 않는다). 판정은 `판정` 열이 말한다.",
-        f"- `{g_v6}` 이름은 **도구가 셀 증거에서 전량 파생**한다(발행자 입력 ✗). vLLM 세그먼트는 **빌드 입력**이다 — "
-        "릴리스 태그로 빌드했으면 그 버전, 커밋에 핀했으면 `<직전 릴리스>-g<sha12>`. 엔진 자기보고 버전은 `00-hint.md` "
-        "사실 블록에 따로 적힌다. 셀 1개 = 태그 1개.",
-        "- 옛 세대의 hw 토큰 `x2` 는 두 뜻으로 쓰였다 — 한 노드의 GPU 2장(예: `rtxpro6000x2`)과 노드 2대(예: `gb10x2`). "
-        f"`{g_v6}` 는 `<G>g<N>n` 으로 둘을 가른다.",
-        "- **옛 세대 행은 그대로 나열한다.** 원격에 올라간 태그는 교정·리콜하지 않는다 — 개정판은 새 이름의 **신규 "
-        "발행**으로만 나온다. `문법` 열은 판정이 아니라 읽는 법 안내다.",
-        "",
-        "## 태그 받아 읽기",
-        "",
-        "```bash",
-        "# 1) 무엇이 있나 — 원격 조회만(아무것도 받지 않는다)",
-        "git ls-remote <원격> 'refs/tags/hint/*'",
-        "# 2) 고른 태그 하나만 받는다",
-        "git fetch <원격> 'refs/tags/<태그>:refs/tags/<태그>'",
-        "# 3) 태그 = zip(재현 키트) — seed/ 아래에 푼다",
-        "mkdir -p seed/hints/<이름>",
-        "git archive --format=zip -o seed/hints/<이름>.zip <태그>",
-        "unzip -q seed/hints/<이름>.zip -d seed/hints/<이름>",
-        "```",
-        "",
-        "GitHub 원격이라면 그 태그의 \"Source code (zip)\" 로 git 없이 같은 트리를 받는다(최상위에 `<저장소>-<태그>` 폴더가 "
-        "한 겹 더 붙는다 — 그 안에서 `00-hint.md` 부터 읽는다).",
-        "",
-        f"- **`{g_v7}`·`{g_v6}` 태그** — zip 안에 전부 있다. 읽는 순서: `00-hint.md`(지도 · **가장 먼저**) → `01-artifacts.md`"
-        "(적용 판정·값의 지위·재현 절차) → `02-narrative.md`(계보 서사 · 벽 순서만 필요하면 `hint-event` 코드블록 중 "
-        "`kind: wall` 만 grep) → `03-benchmark.md`(측정 · like-with-like 한정자) → `PAYLOAD.json`·`LINEAGE.json`·"
-        "`PROVENANCE.json`(기계 사실) → `artifacts/`(**실제로 쓰인 것만**). annotation 에는 brief·포인터·증거 footer 뿐이다.",
-        "- **옛 세대 태그** — 지도(본문)는 annotation 안에 있다: `git tag -l --format='%(contents)' <태그>` "
-        "(`git show <태그>` 는 커밋 diff 까지 딸려 온다). 옛 태그 중에는 페이로드 커밋이 아닌 커밋을 가리키는 것이 있을 "
-        "수 있으니 archive 전에 `git ls-tree --name-only <태그>` 로 최상위를 확인한다.",
-        "- **왜 `seed/` 냐면** — (a) 추적 트리(스켈레톤 + 생성엔진)가 그대로 남는다(HEAD 에 남의 정답 파일이 박히지 "
-        "않는다 — 여정의 순수성), (b) `seed/` 는 이 프로젝트에서 에이전트가 부트스트랩·참조 자료로 읽는 비추적 자리라 "
-        "자연스럽게 그라운딩된다. 코드에이전트에게는 이렇게 건넨다: *\"`seed/hints/<이름>/00-hint.md` 부터 읽고 "
-        "`vllm-recipe-explorer` 인터뷰의 warm-start 근거로 넣어, 평소대로 plan → 레시피 수렴 → 스모크 게이트를 밟아 "
-        "전략을 **다시 세워라**.\"*",
-        "",
-        "## 가까운 태그 찾기 — `match`",
-        "",
-        "```bash",
-        f"python3 {cli} match --vllm <V> --model <M> [--arch <A>] [--include-other] [--json]",
-        "```",
-        "",
-        "- git 없이 `hints/index.json` 만 읽는다(배포 아카이브에서도 동작).",
-        "- 모델 비교는 **정규화 슬러그 동치**(대소문자·구두점 무시 — `gemma-4-E2B-it` = `gemma-4-e2b-it` · `Org/Name` "
-        f"으로 물어도 된다) + **base_model 관계**(`{g_v7}`·`{g_v6}` 태그만 · 페이로드 `PAYLOAD.identity.base_model` 에서 파생)다 — "
-        "같은 기반 모델의 양자화 변종·원본을 함께 찾는다.",
-        "- 관계없는 모델은 기본으로 숨긴다(`--include-other` 로 본다). vLLM·arch 가 다르면 무엇을 다시 확인해야 하는지 "
-        "행마다 안내한다.",
-        "- **관계 판정은 도구가 하지 않는다.** 어떤 태그가 패턴이고 어떤 것이 안티패턴인지는 한 태그만 봐서는 알 수 "
-        "없다 — 발행 시점엔 그게 최선이었지만, 버전이 오르고 더 나은 전략이 나오면 옛 태그는 회고적으로 안티패턴이 된다. "
-        "발행자는 미래를 모르니 그 관계를 적어줄 수 없다 — **시간축은 수집한 당신만 볼 수 있다.** 같은 모델의 태그를 "
-        "전부 받아 버전 순으로 비교하게 하라.",
-        "",
-        "## 열 설명",
-        "",
-        "| 열 | 뜻 | 출처 |",
-        "|---|---|---|",
-        col_rows,
-        "",
-        "## arch 분포 (파생)",
-        "",
-        "| arch | 문법 | 태그 수 |",
-        "|---|---|---|",
-        arch_rows if arch_rows else "| — | — | 0 |",
-        "",
-        "## 카탈로그",
-        "",
-        HINTS_MARKER,
-        render_rows(entries),
-        HINTS_MARKER,
-        "",
-    ]
-    return "\n".join(parts)
+    groups = order_entries(entries)
+    absent = sum(1 for e in entries if e.get("object") == OBJECT_ABSENT_LOCAL)
+    unannotated = sum(1 for e in entries if e.get("object") == OBJECT_NOT_ANNOTATED)
+    extra = ((f" · 로컬 오브젝트 부재(미수령) {absent}건" if absent else "")
+             + (f" · annotation 없는 태그 {unannotated}건" if unannotated else ""))
+    lines = [f"> 원격 `{md_cell(index.get('remote'))}` 의 발행 태그 **{len(entries)}건** · 모델 {len(groups)}종에서 파생 · 생성 "
+             f"`{md_cell(index.get('generated_kst'))}` KST{extra}.", ""]
+    for g, rows in groups:
+        lines += [f"### `{md_cell(g)}` ({len(rows)})", "", render_rows(rows), ""]
+    return "\n".join(lines) + "\n"
 
 
-def check_existing_hints_md(text: str) -> None:
-    """덮어쓰기 전 가드(감사 ⑬ 침묵 파괴 방지 · 옛 `splice_hints_md` 의 마커 검사 계승). 기존 HINTS.md 가 마커를
-    **정확히 2개** 가지지 않으면 카탈로그 생성물이 아니거나 손상된 것이다 — 그 파일을 조용히 지우지 않고 중단한다."""
-    n = text.count(HINTS_MARKER)
-    if n != 2:
-        _fail("HINT_CATALOG_MARKER_BROKEN",
-              f"HINTS.md 의 마커 `{HINTS_MARKER}` 가 정확히 2개가 아니다(발견 {n}개) — 기존 내용을 지우지 않고 중단한다.",
-              "HINTS.md 가 카탈로그 생성물인지 확인한다. 생성물이면 마커 쌍을 되살리거나 파일을 지우고 다시 파생한다.")
+# HINTS.md 가 아예 없을 때만 쓰는 골격(격리 픽스처 · 새 저장소). 추적 저장소에는 HINTS.md 가 있으므로 실제로는 닿지 않는다.
+#   서사를 지어내지 않는다 — 비어 있음을 말하는 한 줄과 마커 쌍뿐이고, 쓴 사실을 NOTE 로 소리낸다(fail-loud 폴백 · workflow.md 판정표).
+HINTS_SCAFFOLD_HEAD = ("<!-- 이 파일에서 생성물은 아래 마커 구간뿐이다 — `hint.py catalog derive` 가 그 구간만 다시 쓴다. "
+                       "구간 밖은 사람이 쓰는 서사다. -->\n# hint 태그 카탈로그\n\n"
+                       "> 사람 서사가 아직 없다 — 파생기가 마커 쌍만 둔 골격이다.\n\n")
+
+
+def locate_derived_block(text: str) -> tuple[int, int]:
+    """HINTS.md 의 파생 구간 **내용** 범위 `(시작, 끝)`(문자 오프셋) = BEGIN 줄 개행 직후 ~ END 줄 첫 글자.
+
+    fail-closed(쓰기 전 · 감사 ⑬ 계승 — 사람 서사를 조용히 지우거나 엉뚱한 자리에 쓰지 않는다):
+      - 마커 문자열이 **줄 단독**이 아닌 자리(서사 한가운데 매립)에 있다 → HINT_CATALOG_MARKER_MALFORMED
+      - BEGIN·END 중 하나라도 0개 → HINT_CATALOG_MARKER_ABSENT
+      - 어느 하나라도 2개 이상 → HINT_CATALOG_MARKER_DUPLICATE
+      - END 가 BEGIN 앞 → HINT_CATALOG_MARKER_MISORDERED
+    """
+    remedy = (f"HINTS.md 에 줄 단독의 마커 쌍을 정확히 하나 둔다 — 여는 줄은 `{HINTS_BEGIN_PREFIX}` 로 시작하고(권장 전문 "
+              f"`{HINTS_BEGIN}`) 닫는 줄은 `{HINTS_END}` 다. 여는 줄이 먼저다. 옛 전량 생성 형식(`<!-- hint-index:rows -->` "
+              "마커 · 2026-10-11 이전)이면 사람 서사를 저작하고 그 아래에 이 마커 쌍을 둔다. 파생기는 그 사이만 바꾼다.")
+    begins: list[int] = []
+    ends: list[int] = []
+    pos = 0
+    for line in text.splitlines(keepends=True):
+        bare = line.rstrip("\r\n")
+        if bare.startswith(HINTS_BEGIN_PREFIX):
+            begins.append(pos + len(line))
+        elif bare == HINTS_END:
+            ends.append(pos)
+        pos += len(line)
+    raw_b, raw_e = text.count("HINTS:BEGIN"), text.count("HINTS:END")
+    if raw_b != len(begins) or raw_e != len(ends):
+        _fail("HINT_CATALOG_MARKER_MALFORMED",
+              f"HINTS.md 의 마커 문자열이 줄 단독이 아닌 자리에 있다(BEGIN 문자열 {raw_b} · 줄 단독 {len(begins)} · "
+              f"END 문자열 {raw_e} · 줄 단독 {len(ends)}) — 기존 내용을 지우지 않고 중단한다.", remedy)
+    if not begins or not ends:
+        _fail("HINT_CATALOG_MARKER_ABSENT",
+              f"HINTS.md 에 파생 구간 마커가 없다(BEGIN {len(begins)} · END {len(ends)}) — 쓸 자리가 없으므로 기존 내용을 "
+              "지우지 않고 중단한다.", remedy)
+    if len(begins) > 1 or len(ends) > 1:
+        _fail("HINT_CATALOG_MARKER_DUPLICATE",
+              f"HINTS.md 의 파생 구간 마커가 중복이다(BEGIN {len(begins)} · END {len(ends)}) — 어느 구간이 생성물인지 "
+              "가를 수 없어 중단한다.", remedy)
+    if ends[0] < begins[0]:
+        _fail("HINT_CATALOG_MARKER_MISORDERED",
+              "HINTS.md 의 END 마커가 BEGIN 마커보다 앞에 있다 — 구간을 정할 수 없어 중단한다.", remedy)
+    return begins[0], ends[0]
+
+
+def splice_hints_md(text: str, block: str) -> str:
+    """구간 내용만 `block` 으로 바꾼 새 텍스트. 구간 밖(BEGIN 줄 포함 앞 · END 줄 포함 뒤)은 바이트 그대로다."""
+    start, end = locate_derived_block(text)
+    return text[:start] + block + text[end:]
 
 
 def _write(path: Path, text: str) -> None:
@@ -678,10 +625,11 @@ def _write(path: Path, text: str) -> None:
 
 def derive(repo, remote: str, generated_kst: str, *, dry_run: bool = False, record_missing: bool = False,
            allow_empty: bool = False) -> int:
-    """원격 발행 태그 → `hints/index.json`(schema 3) + `HINTS.md`(전량). 반환 0. 실패는 HintError.
+    """원격 발행 태그 → `hints/index.json`(전량 · schema `INDEX_SCHEMA`) + `HINTS.md`(**마커 구간만**). 반환 0. 실패는 HintError.
 
     순서가 곧 계약이다: 시각 형식 → **중앙 권위 플래그**(없으면 네트워크도 건드리지 않는다) → 원격 조회 → 이름 파싱 →
-    로컬 오브젝트 확인(부재 = rc 4 · record_missing 이면 행 기재) → 생성 → 기존 HINTS.md 마커 가드 → 쓰기.
+    로컬 오브젝트 확인(부재 = rc 4 · record_missing 이면 행 기재) → 생성 → 기존 HINTS.md 마커 가드(부재·중복·역순·매립 =
+    중단) → 쓰기. HINTS.md 가 아예 없으면 골격(`HINTS_SCAFFOLD_HEAD` + 마커 쌍)을 만들고 NOTE 로 알린다.
     쓰기는 모든 판정이 끝난 뒤에만 일어난다 — 실패 경로에서 index.json·HINTS.md 는 한 바이트도 바뀌지 않는다.
     """
     core = _core()
@@ -704,23 +652,26 @@ def derive(repo, remote: str, generated_kst: str, *, dry_run: bool = False, reco
     entries, notes = derive_entries(repo, remote_tags, remote=remote, record_missing=record_missing)
     index = build_index(entries, remote=remote, generated_kst=generated_kst)
     index_text = core.dumps(index)
-    md_text = render_hints_md(index)
     idx_p, md_p = repo / core.REL_INDEX, repo / core.REL_HINTS_MD
+    scaffolded = not md_p.exists()
+    base = (HINTS_SCAFFOLD_HEAD + HINTS_BEGIN + "\n" + HINTS_END + "\n") if scaffolded else md_p.read_text(encoding="utf-8")
+    # 마커 가드는 쓰기 전에(dry-run 도) — 실패하면 index.json·HINTS.md 둘 다 한 바이트도 바뀌지 않는다.
+    md_text = splice_hints_md(base, render_derived_block(index))
 
     if dry_run:
         # dry-run 도 실제 실행이 멈출 자리에서 멈춘다(쓰기만 뺀다) — "DRY-RUN 초록 → 실제 실행 중단" 은 예측이 거짓인 것이다.
-        if md_p.exists():
-            check_existing_hints_md(md_p.read_text(encoding="utf-8"))
         rows = render_rows(entries)
         print(f"{_OUT} DRY-RUN — 원격 {len(remote_tags)}건 · 파생 {len(entries)}항목 · 쓰기 0")
         print(rows[:400] + ("…" if len(rows) > 400 else ""))
     else:
-        if md_p.exists():
-            check_existing_hints_md(md_p.read_text(encoding="utf-8"))
         _write(idx_p, index_text)
         _write(md_p, md_text)
         print(f"{_OUT} 파생 완료 — 원격 {len(remote_tags)}건 → {core.REL_INDEX} {len(entries)}항목 · "
-              f"{core.REL_HINTS_MD} {len(entries)}행")
+              f"{core.REL_HINTS_MD} 마커 구간 {len(entries)}행(구간 밖 바이트 불변)")
+    if scaffolded:
+        print(f"{_OUT} NOTE: {core.REL_HINTS_MD} 가 없어 골격(머리 주석 + 마커 쌍)을 "
+              f"{'만들 것이다(dry-run · 쓰기 0)' if dry_run else '만들었다'} — 마커 밖 사람 서사는 비어 있다. 저작해 채운다.",
+              file=sys.stderr)
     if notes["absent_local"]:
         print(f"{_OUT} NOTE: 로컬 태그 오브젝트 부재 {len(notes['absent_local'])}건을 `object: {OBJECT_ABSENT_LOCAL}` "
               f"행으로 실었다(brief '{BRIEF_UNRECEIVED}' · 결손 '{BENCH_MODE_UNRECEIVED}' · 합성 ✗). 채우려면 "
@@ -928,12 +879,52 @@ def selftest() -> list[str]:
     ck("★파이프 이스케이프", md_cell("a | b") == "a \\| b")
     ck("★미닫힘 주석 무해화", "<!--" not in md_cell("깨진 <!-- 주석"))
     ck("줄바꿈 평탄화", "\n" not in md_cell("a\nb"))
-    e, _ = err_of(lambda: check_existing_hints_md(f"머리\n{HINTS_MARKER}\n표\n{HINTS_MARKER}\n"))
-    ck("마커 2개 = 통과", e is None)
-    e, _ = err_of(lambda: check_existing_hints_md(f"머리\n{HINTS_MARKER}\n꼬리\n"))
-    ck("★음성대조 마커 1개면 거부", e is not None and e.code == "HINT_CATALOG_MARKER_BROKEN")
-    e, _ = err_of(lambda: check_existing_hints_md("머리만\n"))
-    ck("★음성대조 마커 0개면 거부", e is not None and e.code == "HINT_CATALOG_MARKER_BROKEN")
+    # 마커 구간 교체(2026-10-11 · plan_26101104 Step 2) — 구간 밖 바이트 불변 · 부재·중복·역순·매립 = fail-closed
+    head_txt = "<!-- 사람 머리 -->\r\n# 서사\n\n본문 — 고르는 법 · 받아 읽기\n"
+    tail_txt = "\n## 꼬리 서사\n끝(개행 없음)"
+    begin_custom = HINTS_BEGIN_PREFIX + " — 사람이 고친 꼬리 설명 -->\n"
+    doc_txt = head_txt + begin_custom + "| 옛 행 |\n" + HINTS_END + "\n" + tail_txt
+    spliced = splice_hints_md(doc_txt, "새 구간\n")
+    ck("★마커 구간만 교체 · 구간 밖(BEGIN 줄 꼬리 설명 · CRLF · 끝 개행 없음 포함) 바이트 불변",
+       spliced == head_txt + begin_custom + "새 구간\n" + HINTS_END + "\n" + tail_txt)
+    ck("교체는 멱등(같은 구간 → 같은 바이트)", splice_hints_md(spliced, "새 구간\n") == spliced)
+    ck("빈 구간(BEGIN 바로 뒤 END)도 교체된다",
+       splice_hints_md(f"{HINTS_BEGIN}\n{HINTS_END}\n", "x\n") == f"{HINTS_BEGIN}\nx\n{HINTS_END}\n")
+    for bad_doc, code in (("머리만\n", "HINT_CATALOG_MARKER_ABSENT"),
+                          (f"머리\n{HINTS_BEGIN}\n꼬리\n", "HINT_CATALOG_MARKER_ABSENT"),
+                          (f"머리\n{HINTS_END}\n꼬리\n", "HINT_CATALOG_MARKER_ABSENT"),
+                          ("머리\n<!-- hint-index:rows -->\n| 옛 |\n<!-- hint-index:rows -->\n", "HINT_CATALOG_MARKER_ABSENT"),
+                          (f"{HINTS_BEGIN}\na\n{HINTS_END}\n{HINTS_BEGIN}\nb\n{HINTS_END}\n", "HINT_CATALOG_MARKER_DUPLICATE"),
+                          (f"{HINTS_BEGIN}\na\n{HINTS_END}\n{HINTS_END}\n", "HINT_CATALOG_MARKER_DUPLICATE"),
+                          (f"{HINTS_END}\na\n{HINTS_BEGIN}\n", "HINT_CATALOG_MARKER_MISORDERED"),
+                          (f"서사 중간 {HINTS_BEGIN}\na\n{HINTS_END}\n", "HINT_CATALOG_MARKER_MALFORMED"),
+                          (f"{HINTS_BEGIN}\na {HINTS_END}\n", "HINT_CATALOG_MARKER_MALFORMED")):
+        e, _ = err_of(lambda: splice_hints_md(bad_doc, "x\n"))
+        ck(f"★음성대조 마커 이상 → {code}(쓰기 전 중단 · 처방 동반)",
+           e is not None and e.code == code and HINTS_END in (e.remedy or ""))
+    # 정렬 단일 소유(order_entries) — 묶음 안 tagged_utc 내림차순 · 동시각 이름순 · 시각 없음 맨 뒤 · 묶음 = 최신순 → 제목순
+    ents_o = [{"tag": "hint/1/m-a/x/r2", "model": "m-a", "tagged_utc": "2026-09-01T00:00:00Z"},
+              {"tag": "hint/1/m-a/x/r1", "model": "m-a", "tagged_utc": "2026-09-01T00:00:00Z"},
+              {"tag": "hint/1/m-a/x/r0", "model": "m-a", "tagged_utc": None},
+              {"tag": "hint/1/m-a/x/r9", "model": "m-a", "tagged_utc": "2026-10-01T00:00:00Z"},
+              {"tag": "hint/1/m-b/x/r", "model": "m-b", "tagged_utc": "2026-10-05T00:00:00Z"},
+              {"tag": "hint/1/m-c/x/r", "model": "m-c", "tagged_utc": "2026-10-05T00:00:00Z"},
+              {"tag": "hint/z", "model": None, "tagged_utc": None},
+              {"tag": "hint/1/m-d/x/r", "model": "m-d", "tagged_utc": None}]
+    order = [(g, [r["tag"] for r in rs]) for g, rs in order_entries(ents_o)]
+    ck(f"★결정론 정렬: 묶음 = 최신 시각 내림차순→제목순 · 묶음 안 = 시각 내림차순→이름순 · 시각 없음 맨 뒤({order})",
+       order == [("m-b", ["hint/1/m-b/x/r"]), ("m-c", ["hint/1/m-c/x/r"]),
+                 ("m-a", ["hint/1/m-a/x/r9", "hint/1/m-a/x/r1", "hint/1/m-a/x/r2", "hint/1/m-a/x/r0"]),
+                 (MODEL_UNKNOWN_GROUP, ["hint/z"]), ("m-d", ["hint/1/m-d/x/r"])])
+    ck("정렬은 입력 순서에 무관(뒤집어 넣어도 같다)",
+       [(g, [r["tag"] for r in rs]) for g, rs in order_entries(list(reversed(ents_o)))] == order)
+    ck("★판정 칸 없는 구판 행 = 미기재(구판) · 미수령·REFUTE 는 그대로",
+       _verdict_display({"verdict": VERDICT_ABSENT}) == VERDICT_LEGACY_CELL == "미기재(구판)"
+       and _verdict_display({}) == VERDICT_LEGACY_CELL and _verdict_display({"verdict": "미수령"}) == "미수령"
+       and _verdict_display({"verdict": "REFUTE"}) == "REFUTE")
+    ck("tagger 줄 → UTC(tz 무관 · 이름·메일 버림) · 없으면 None",
+       tagger_utc("object a\ntype commit\ntag t\ntagger 누구 <> 1760140800 +0900") == "2025-10-11T00:00:00Z"
+       and tagger_utc("object a\ntype commit\n") is None)
     for doc, want in (({"measurement_config": {"bench_mode": "lite", "bench_mode_kind": "declared-lite",
                                                "downgrade_reason": None, "source": "bench_report(x.md)"}}, "lite(선언)"),
                       ({"measurement_config": {"bench_mode": "lite", "bench_mode_kind": "downgraded-lite",
@@ -953,9 +944,8 @@ def selftest() -> list[str]:
     ck("판정 출처: 키별 출처(sources.verdict)가 있으면 그것", "sweep verdict.json" in
        verdict_cell({"measurement": {"verdict": "REFUTE", "sources": {"verdict": "sweep verdict.json"}}})[1])
     ck("★판정 어휘 밖 값은 접지 않고 표시한다", verdict_cell({"measurement": {"verdict": "MAYBE"}})[0] == "MAYBE(어휘 밖)")
-    ck("판정 열이 있다(plan_26092908 §4.4) · arch 뒤", CATALOG_COLUMNS[CATALOG_COLUMNS.index("arch") + 1] == "판정")
-    ck("열 설명이 열 전부를 덮는다(생성 머리말의 열 표 = CATALOG_COLUMNS)", set(COLUMN_DOCS) == set(CATALOG_COLUMNS))
-    ck("문법 열이 있다(plan §4.7 구·신 공존)", "문법" in CATALOG_COLUMNS)
+    ck("사람 목록 6열(plan_26101104 Step 2 — 태그·arch·vLLM·판정·bench_mode·결손)",
+       CATALOG_COLUMNS == ("태그", "arch", "vLLM", "판정", "bench_mode", "결손"))
     ck("중앙 권위 경로 교차검증(core.REL_CENTRAL_FLAG)", CENTRAL_FLAG == core.REL_CENTRAL_FLAG)
     ck("정규화 슬러그 동치(2026-08-20 gemma 철자 갈림)", query_slug("gemma-4-E2B-it") == query_slug("gemma-4-e2b-it"))
     ck("검색 키는 Org/Name 의 basename 을 본다", query_slug("Qwen/Qwen3.8-Flash-Next") == query_slug("qwen3.8-flash-next"))
@@ -1046,7 +1036,9 @@ def selftest() -> list[str]:
         g(repo, "commit", "--allow-empty", "-q", "-m", "base")
         (repo / "hints").mkdir()
         (repo / CENTRAL_FLAG).write_text("selftest — 이 체크아웃이 자기 원격의 hint 색인 권위다.\n", encoding="utf-8")
-        (repo / core.REL_HINTS_MD).write_text(f"# 옛 손산문\n\n{HINTS_MARKER}\n| 옛 |\n{HINTS_MARKER}\n", encoding="utf-8")
+        md_head = "<!-- 머리 주석 -->\n# 사람 서사\n\n고르는 법 — 손으로 쓴 문단\n\n"
+        md_tail = "\n## 꼬리 서사\n손으로 쓴 꼬리\n"
+        (repo / core.REL_HINTS_MD).write_text(f"{md_head}{HINTS_BEGIN}\n| 옛 |\n{HINTS_END}\n{md_tail}", encoding="utf-8")
         v6_commit = payload_commit(repo, {
             "schema_version": 2, "format": "hint-payload/v6", "tag": v6_tag,
             "identity": {"model": "qwen3.8-flash-next-nvfp4", "base_model": "Qwen/Qwen3.8-Flash-Next",
@@ -1083,16 +1075,18 @@ def selftest() -> list[str]:
             md = md_b1.decode("utf-8")
             by = {h["tag"]: h for h in idx["hints"]}
             h6, hl, h7 = by.get(v6_tag, {}), by.get(legacy_tag, {}), by.get(v7_tag, {})
-            ck("index schema 4 · 출처 remote-derived · 개수", idx.get("schema") == INDEX_SCHEMA == 4
+            ck("index schema 5 · 출처 remote-derived · 개수", idx.get("schema") == INDEX_SCHEMA == 5
                and idx.get("source") == "remote-derived" and idx.get("count") == 3 and idx.get("remote") == "fx")
             keys = {"tag", "grammar", "vllm", "model", "arch", "recipe", "brief", "anchor", "object", "missing", "bench_mode",
-                    "bench_mode_source", "verdict", "verdict_source", "base_model", "published", "source"}
+                    "bench_mode_source", "verdict", "verdict_source", "base_model", "published", "source", "tagged_utc"}
             ck("index 항목 키 = SPEC 목록(v6·v7 · verdict 추가 외 호환)", set(h6) == keys and set(h7) == keys)
             ck("문법 열: v7 태그 = v7 · base_model · brief = 첫 문단", h7.get("grammar") == naming.GRAMMAR_V7
                and h7.get("base_model") == "deepseek-ai/DeepSeek-V4-Flash"
                and h7.get("brief") == "DS4F 1M 컨텍스트 spec7 셀 — 루브릭 바닥 미달(REFUTE).")
             ck("★판정 열: v7 REFUTE 가 기계 표면에 보인다(출처 = 키별 출처)", h7.get("verdict") == "REFUTE"
                and "sweep verdict.json" in h7.get("verdict_source", ""))
+            ck("tagged_utc = 태그 오브젝트 tagger 시각(UTC · 픽스처 고정 시각)", h6.get("tagged_utc") == "2026-09-21T00:00:00Z"
+               and hl.get("tagged_utc") == "2026-09-21T00:00:00Z")
             ck("판정 열: 판정 칸 없는 v6 페이로드 = '—'(재판정 ✗ · P1)", h6.get("verdict") == VERDICT_ABSENT
                and hl.get("verdict") == VERDICT_ABSENT)
             ck("문법 열: v6 태그 = v6", h6.get("grammar") == naming.GRAMMAR_V6)
@@ -1112,19 +1106,27 @@ def selftest() -> list[str]:
             ck("★과거 태그(measurement_config 없음) bench_mode = 미기재(full·lite 로 접지 않는다)",
                hl.get("bench_mode") == BENCH_MODE_ABSENT and hl.get("bench_mode_source", "").startswith("absent("))
             ck("발행 사실 = 원격 존재", h6.get("published") is True and h6.get("source") == "remote-derived")
-            rows = md.split(HINTS_MARKER)[1].strip().splitlines() if md.count(HINTS_MARKER) == 2 else []
-            ck("HINTS.md 마커 쌍 · 표 = 헤더+구분+3행", md.count(HINTS_MARKER) == 2 and len(rows) == 5)
-            ck("HINTS.md 표에 판정 열 · v7 행의 REFUTE", any(v7_tag in rw and "| REFUTE |" in rw for rw in rows)
-               and "| 판정 |" in rows[0])
-            ck("카탈로그 행은 헤더와 같은 열 수(문법 열 포함)",
-               rows and all(rw.replace("\\|", "").count("|") == len(CATALOG_COLUMNS) + 1 for rw in rows))
-            ck("HINTS.md 는 손산문을 남기지 않는다(전량 생성)", "옛 손산문" not in md and "| 옛 |" not in md)
-            ck("머리말: 지도이지 정답이 아니다 · 두 문법 세대 · 옛 행 리콜 ✗ · zip·00-hint · 옛 태그 annotation · match",
-               all(s in md for s in ("지도이지 정답이 아니다", f"`{naming.GRAMMAR_V6}`", f"`{naming.GRAMMAR_V7}`",
-                                     "-t<YYMMDDHHMM>", "naming.tail[]",
-                                     f"`{naming.GRAMMAR_LEGACY_ARCH_NODE}`", "교정·리콜하지 않는다", "git archive",
-                                     "`00-hint.md`", "%(contents)", " match --vllm", "base_model")))
-            ck("머리말 예시·분포는 index 에서 파생(실재 태그만 인용)", f"`{v6_tag}`" in md and "`gb10x2-cluster-native`" in md)
+            ck("★마커 밖 사람 서사(머리·꼬리) 바이트 불변 · 구간 안 옛 행은 사라진다",
+               md.startswith(md_head + HINTS_BEGIN + "\n") and md.endswith(HINTS_END + "\n" + md_tail)
+               and "| 옛 |" not in md)
+            blk = md[len(md_head + HINTS_BEGIN + "\n"):len(md) - len(HINTS_END + "\n" + md_tail)]
+            ck("구간 = render_derived_block(index) 그대로", blk == render_derived_block(idx))
+            ck("구간 머리 한 줄: 태그 수 · 원격 이름 · 주입 KST",
+               blk.splitlines()[0].startswith("> 원격 `fx` 의 발행 태그 **3건**") and f"`{kst}` KST" in blk.splitlines()[0])
+            heads = [ln for ln in blk.splitlines() if ln.startswith("### ")]
+            ck(f"모델별 묶음 · 동시각이면 제목순({heads})", heads == ["### `deepseek-v4-flash-0731` (1)",
+                                                               "### `gpt-oss-120b` (1)",
+                                                               "### `qwen3.8-flash-next-nvfp4` (1)"])
+            rows = [ln for ln in blk.splitlines() if ln.startswith("| `hint/")]
+            hdrs = [ln for ln in blk.splitlines() if ln.startswith("| 태그 |")]
+            ck("묶음마다 헤더 1 · 행 3 · 헤더 = 6열", len(rows) == 3 and len(hdrs) == 3
+               and hdrs[0] == "| " + " | ".join(CATALOG_COLUMNS) + " |")
+            ck("HINTS.md 표에 v7 행의 REFUTE", any(v7_tag in rw and "| REFUTE |" in rw for rw in rows))
+            ck("★판정 칸 없는 v6·구판 행 = 미기재(구판)(index 값 '—' 는 그대로)",
+               any(v6_tag in rw and f"| {VERDICT_LEGACY_CELL} |" in rw for rw in rows)
+               and any(legacy_tag in rw and f"| {VERDICT_LEGACY_CELL} |" in rw for rw in rows))
+            ck("카탈로그 행은 헤더와 같은 열 수",
+               rows and all(rw.replace("\\|", "").count("|") == len(CATALOG_COLUMNS) + 1 for rw in rows + hdrs))
             ck("★격리 경로가 배포 파일에 새지 않는다", str(root) not in md and str(root) not in idx_b1.decode("utf-8"))
 
             # ★K5: 같은 이름의 로컬 태그가 원격과 다른 오브젝트 → 원격 오브젝트에서 파생(로컬 brief 를 붙이지 않는다)
@@ -1230,12 +1232,18 @@ def selftest() -> list[str]:
             md_p.write_text("# 카탈로그가 아닌 파일\n", encoding="utf-8")
             idx_b = idx_p.read_bytes()
             e, _ = err_of(lambda: derive(repo, "fx", kst, record_missing=True))
-            ck("★기존 HINTS.md 마커 손상 → 중단 · index.json 도 쓰지 않는다",
-               e is not None and e.code == "HINT_CATALOG_MARKER_BROKEN" and idx_p.read_bytes() == idx_b
+            ck("★기존 HINTS.md 마커 부재 → 중단 · index.json 도 쓰지 않는다",
+               e is not None and e.code == "HINT_CATALOG_MARKER_ABSENT" and idx_p.read_bytes() == idx_b
                and md_p.read_text(encoding="utf-8") == "# 카탈로그가 아닌 파일\n")
             e, _ = err_of(lambda: derive(repo, "fx", kst, dry_run=True, record_missing=True))
-            ck("★dry-run 도 마커 손상에서 멈춘다(실제 실행의 중단을 초록으로 예측하지 않는다)",
-               e is not None and e.code == "HINT_CATALOG_MARKER_BROKEN")
+            ck("★dry-run 도 마커 부재에서 멈춘다(실제 실행의 중단을 초록으로 예측하지 않는다)",
+               e is not None and e.code == "HINT_CATALOG_MARKER_ABSENT")
+            dup = f"# 서사\n{HINTS_BEGIN}\na\n{HINTS_END}\n{HINTS_BEGIN}\nb\n{HINTS_END}\n"
+            md_p.write_text(dup, encoding="utf-8")
+            e, _ = err_of(lambda: derive(repo, "fx", kst, record_missing=True))
+            ck("★derive: 마커 중복 → 중단 · 두 파일 모두 쓰지 않는다", e is not None
+               and e.code == "HINT_CATALOG_MARKER_DUPLICATE" and idx_p.read_bytes() == idx_b
+               and md_p.read_text(encoding="utf-8") == dup)
             e, _ = err_of(lambda: derive(repo, "--upload-pack=touch x", kst))
             ck("★'-' 로 시작하는 원격 인자는 git 옵션이 되기 전에 거부", e is not None
                and e.code == "HINT_CATALOG_REMOTE_INVALID" and not (repo / "x").exists())
@@ -1332,4 +1340,10 @@ def selftest() -> list[str]:
         md_p.unlink()      # 위에서 일부러 망가뜨린 HINTS.md(마커 가드 시험)를 치운다 — 새 파일 생성 경로
         e, out = err_of(lambda: derive(repo, str(lw), kst, dry_run=True, record_missing=True))
         ck("record-missing 의 not-annotated NOTE 가 소리낸다", e is None and "annotated 가 아닌 원격 태그 1건" in out)
+        ck("HINTS.md 부재 + dry-run = 골격 NOTE · 쓰기 0", e is None and "골격" in out and not md_p.exists())
+        e, out = err_of(lambda: derive(repo, str(lw), kst, record_missing=True))
+        md_new = md_p.read_text(encoding="utf-8") if md_p.exists() else ""
+        ck("HINTS.md 부재 → 골격(머리 주석 + 마커 쌍) 생성 + NOTE(서사를 지어내지 않는다)", e is None and "골격" in out
+           and md_new.startswith(HINTS_SCAFFOLD_HEAD + HINTS_BEGIN + "\n") and md_new.endswith(HINTS_END + "\n")
+           and "| 미기재(구판) |" not in md_new.split(HINTS_BEGIN)[0])
     return bad

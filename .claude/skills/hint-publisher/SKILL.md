@@ -239,7 +239,7 @@ footer 도 페이로드 형식도 없고, 카탈로그는 원격 태그에서 �
   발행은 안내 커밋을 **읽기만** 하고 브랜치를 밀지도 로컬 `hint` 를 움직이지도 않는다. 브랜치가 움직이는 것은 페이로드 **형식 전환** 때
   `hint.py branch-transition`(사람 승인 전사 · exact refspec · non-force)뿐이다. ssh · 로컬 원격은 토큰 불요, https 는
   `GITHUB_TOKEN`(환경 또는 `envs/.env`)(계약 §6.2 · §6.5).
-- **카탈로그는 손으로 쓰지 않는다** — 진실원천은 `git ls-remote`. 조회 실패 = 캐시로 대체하지 않고 중단. `HINTS.md` 는 머리말까지 생성물.
+- **카탈로그는 손으로 쓰지 않는다** — 진실원천은 `git ls-remote`. 조회 실패 = 캐시로 대체하지 않고 중단. `HINTS.md` 는 마커 구간만 생성물이고 구간 밖은 사람 서사(파생기가 건드리지 않는다).
 - **손 JSON 0** — identity · runtime · pii · promotion_target 은 도구가 쓴다. `state.json` 도 손으로 고치지 않는다. 예외는 하나 —
   `inputs/factcheck.json` 은 **검증 Agent** 가 쓰는 보고다(저작자가 대신 쓰지 않는다 · 도구는 모양과 열린 항목만 판정한다).
 - **사실 검증 면제는 사람 결정만** — `--factcheck-waiver` 에는 사람 발화 전사만 넣는다(승인 전사와 같은 규율). 면제는 배포 본문에 남는다.
