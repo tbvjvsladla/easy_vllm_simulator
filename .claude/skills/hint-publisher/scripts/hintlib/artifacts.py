@@ -2900,6 +2900,70 @@ def _bench_commands(c: _Ctx) -> tuple[str, str]:
                                                          else "reconstructed(bench json)")
 
 
+# 같은 serve 세션 안의 **최종 스윕 전 요청**(2026-10-11 · plan_26101104 셀 D 사실검증 F5). 첫 스윕이 끊기고(서브 하네스 백그라운드 10분
+#   제한) 같은 서빙 위에서 재실행되면 스윕 디렉터리는 재실행분으로 덮이고, bench 소요 · serve 상한이 재실행 스윕만으로 'exact' 처럼 나왔다.
+#   관측: lite_bench.sh 가 같은 컨테이너 로그의 머리(`lite_engine_head_<셀>.log`)와 꼬리(`lite_engine_<셀>.log`)를 남긴다 — 그 안의
+#   `POST /v1/(chat/)completions` 접근 줄은 시각이 없으므로 **다음 시각 줄**(vLLM `INFO MM-DD HH:MM:SS`)을 그 요청의 상한 시각으로 삼는다
+#   (컨테이너 시계 = 호스트 커널 시계 · UTC 로 읽는 가정). 상한이 최종 스윕 첫 측정 시각보다 앞인 요청이 스모크 계약의 추론 1회
+#   (single/multi 스모크 '추론 1회')를 넘으면 앞선 요청이 있었다고 **표시**한다 — 끊긴 스윕이라 단정하지 않고 값도 바꾸지 않는다.
+_POST_REQ = re.compile(r'"POST /v1/(?:chat/)?completions HTTP/[0-9.]+"')
+SMOKE_INFERENCE_REQUESTS = 1          # 스모크 성공 판정의 '추론 1회'(serve 단계 success 문구와 같은 계약)
+
+
+def _pre_sweep_requests(c: _Ctx, measure_start: str | None) -> dict | None:
+    """{count, first_ub, last_ub, sources[]} | None — 위 주석. 머리·꼬리 캡처가 겹친 같은 줄(같은 텍스트 · 같은 상한)은 한 번만 센다."""
+    sweep = _get(c.ev, "sweep") or {}
+    sdir = sweep.get("dir") if isinstance(sweep, dict) else None
+    if not measure_start or not isinstance(sdir, str) or not (c.repo / sdir).is_dir():
+        return None
+    import datetime as _dt
+    from . import evidence as _evidence
+    try:
+        y0 = core.parse_utc(measure_start)
+    except core.HintError:
+        return None
+    seen: set[tuple[str, str]] = set()
+    srcs: list[str] = []
+    for name in (f"lite_engine_head_{c.cell}.log", f"lite_engine_{c.cell}.log"):
+        f = c.repo / sdir / name
+        if not f.is_file():
+            continue
+        pending: list[str] = []
+        hit = False
+        for line in f.read_bytes().decode("utf-8", "replace").split("\n"):
+            clean = _evidence._ANSI.sub("", line)
+            if _POST_REQ.search(clean):
+                pending.append(clean.strip())
+                continue
+            tm = _evidence._ENGINE_TS.search(clean)
+            if not tm or not pending:
+                continue
+            mo, d, h, mi, se = (int(x) for x in tm.groups())
+            try:
+                ub = _dt.datetime(y0.year - (1 if (mo, d) > (y0.month, y0.day) else 0), mo, d, h, mi, se).strftime("%Y-%m-%dT%H:%M:%SZ")
+            except ValueError:
+                pending = []
+                continue
+            if ub < measure_start:
+                for p_ in pending:
+                    seen.add((p_, ub))
+                hit = True
+            pending = []
+        if hit:
+            srcs.append(f.relative_to(c.repo).as_posix())
+    if len(seen) <= SMOKE_INFERENCE_REQUESTS:
+        return None
+    ubs = sorted(u for _, u in seen)
+    return {"count": len(seen), "first_ub": ubs[0], "last_ub": ubs[-1], "sources": srcs}
+
+
+def pre_sweep_note(pre: dict) -> str:
+    """bench · serve 소요 칸의 표지(문장 한 벌)."""
+    return (f"최종(재실행) 스윕 기준 — 같은 serve 세션 안 최종 스윕 첫 측정 전 completions 요청 {pre['count']}건 관측"
+            f"(상한 시각 {pre['first_ub']}~{pre['last_ub']} · 스모크 추론 {SMOKE_INFERENCE_REQUESTS}회 초과 = 앞선 벤치 실행(끊긴 스윕 등)이 "
+            f"있었을 수 있다 · 출처 {' · '.join(pre['sources'])} 의 POST 접근 줄 × 다음 vLLM 시각 줄(컨테이너 시계 UTC 가정))")
+
+
 def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = None) -> list[dict]:
     repo, cell, topo = c.repo, c.cell, c.topo
     steps: list[dict] = []
@@ -3027,6 +3091,16 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
         bsrc = f"시작만 관측 — {measure_src}" if measure_start else "미관측"
     step("bench", bench_cmd, "리포트 발행(+PASS 면 인증서)",
          measure_start, sweep_end, bench_bound if measure_start and sweep_end else "none", bsrc, bench_src)
+    pre = _pre_sweep_requests(c, measure_start)
+    if pre:
+        # 값은 바꾸지 않는다(관측된 것은 최종 스윕의 구간) — 그 값이 셀의 bench 소요 전부로 읽히지 않게 소요 · 출처 칸에 표지(F5)
+        note = pre_sweep_note(pre)
+        for st in steps:
+            if st["step"] in ("bench", "serve") and st["observed"].get("seconds") is not None:
+                head = "최종 스윕 기준 · " if st["step"] == "bench" else "끝 = 최종 스윕 첫 측정 · "
+                st["duration"] = f"{st['duration']}({head}그 전 요청 {pre['count']}건 — 소요 출처 칸)"
+                st["source"] = f"{st['source']} · ⚠ {note}"
+                st["observed"]["pre_final_sweep_requests"] = pre
     return steps
 
 
@@ -4810,6 +4884,39 @@ def selftest() -> list[str]:
            rs14["serve"]["observed"]["end_utc"] == "2026-01-01T18:59:41Z" and "첫 측정 시각(" in rs14["serve"]["source"])
         ck("P14 음성대조: 다른 셀의 lite_raw 는 쓰지 않는다(시작 = JSON date · clock-mixed)",
            rs14o["bench"]["observed"]["start_utc"] == "2026-01-01T19:00:00Z" and rs14o["bench"]["observed"]["bound"] == CLOCK_MIXED)
+        # 2026-10-11 · plan_26101104 셀 D 사실검증 F5: 같은 serve 세션 안 최종 스윕 첫 측정 전 요청(끊긴 앞선 스윕)이 엔진 로그 머리·꼬리에
+        #   보이면 bench · serve 소요에 '최종(재실행) 스윕 기준' 표지 — 값은 그대로 · 스모크 추론 1회만이면 표지 없음.
+        sd5 = repo / "output/multi/benchlog/sweep_c1-mmp"
+        hd5, tl5 = sd5 / f"lite_engine_head_{cell}.log", sd5 / f"lite_engine_{cell}.log"
+
+        def post5(port: int) -> str:
+            return f'(APIServer pid=1) INFO:     127.0.0.1:{port} - "POST /v1/chat/completions HTTP/1.1" 200 OK'
+
+        def stamp5(hms: str) -> str:
+            return f"(APIServer pid=1) INFO 01-01 {hms} [loggers.py:259] Engine 000: Avg prompt throughput: 1.0 tokens/s"
+        try:
+            (sd5 / f"lite_raw_{cell}.json").write_text(json.dumps({"config_name": cell, "measured_utc": "2026-01-01T18:59:41Z"}),
+                                                     encoding="utf-8")
+            hd5.write_text("\n".join(["INFO 01-01 18:30:00 [api_server.py] Starting vLLM server on http://0.0.0.0:8000", post5(40001),
+                                      stamp5("18:31:00"), post5(40002), post5(40003), post5(40004), stamp5("18:40:10")]) + "\n",
+                           encoding="utf-8")
+            tl5.write_text("\n".join([post5(40004), stamp5("18:40:10"), post5(40009), stamp5("18:59:50")]) + "\n", encoding="utf-8")
+            rs5 = {x["step"]: x for x in reproduce_steps(repo, ev, runner=docker_old)}
+            hd5.write_text("\n".join([post5(40001), stamp5("18:31:00")]) + "\n", encoding="utf-8")
+            tl5.write_text("\n".join([post5(40009), stamp5("18:59:50")]) + "\n", encoding="utf-8")
+            rs5n = {x["step"]: x for x in reproduce_steps(repo, ev, runner=docker_old)}
+        finally:
+            for f_ in (hd5, tl5, sd5 / f"lite_raw_{cell}.json"):
+                if f_.exists():
+                    f_.unlink()
+        pr5 = rs5["bench"]["observed"].get("pre_final_sweep_requests") or {}
+        ck("★F5 최종 스윕 첫 측정 전 요청 4건(스모크 1 + 앞선 3 · 머리·꼬리 겹친 줄 1번 · 첫 측정 뒤 요청 ✗) → bench·serve 소요 표지 · 값 불변",
+           pr5.get("count") == 4 and pr5.get("first_ub") == "2026-01-01T18:31:00Z" and pr5.get("last_ub") == "2026-01-01T18:40:10Z"
+           and rs5["bench"]["observed"]["seconds"] == 1819 and "(최종 스윕 기준 · 그 전 요청 4건 — 소요 출처 칸)" in rs5["bench"]["duration"]
+           and "최종(재실행) 스윕 기준 — 같은 serve 세션 안 최종 스윕 첫 측정 전 completions 요청 4건 관측" in rs5["bench"]["source"]
+           and "(끝 = 최종 스윕 첫 측정 · 그 전 요청 4건 — 소요 출처 칸)" in rs5["serve"]["duration"])
+        ck("★F5 음성대조: 첫 측정 전 요청이 스모크 추론 1회뿐이면 표지 없음",
+           "pre_final_sweep_requests" not in rs5n["bench"]["observed"] and "최종(재실행)" not in rs5n["bench"]["source"])
         # 캠페인 phase — phases/<X> 의 X 는 **노드 id** 다(축 이름 아님 · 2026-09-22 감사). cluster = 선언 노드 전부의 같은 셀
         # 기록에서 가장 이른 시작 ~ 가장 늦은 끝 · 다른 셀 기록은 쓰지 않는다 · main/sub 축은 evidence 가 해소한 ev.phases 만.
         for nid, st, en, cid_cell in (("gx-a", "2026-01-01T10:00:00Z", "2026-01-01T11:00:00Z", cell),

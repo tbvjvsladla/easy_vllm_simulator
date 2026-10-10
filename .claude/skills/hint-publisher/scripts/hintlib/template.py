@@ -1786,11 +1786,22 @@ def _attempts_table(rows: list[dict], bnd: dict | None = None) -> list[str]:
         return _attempts_rows(att)
     prior = [a for a in att if a.get("scope") == "prior-campaign"]
     this = [a for a in att if a.get("scope") != "prior-campaign"]
+    # 2026-10-11 · plan_26101104 셀 D 사실검증 F6: 부표에는 라벨이 다른 같은 노드 창으로 연 시도(셀 C F5 · label_scope)도 든다 — 옛 머리
+    #   "라벨이 같아 원장에서 함께 묶였을 뿐" 은 그 행에 거짓이었다. 같은 라벨 · 라벨 다름을 따로 세어 두 경우 모두 참인 문장으로.
+    n_other = sum(1 for a in prior if a.get("other_label"))
+    n_same = len(prior) - n_other
     out = (_attempts_rows(this) if this else
-           [f"_이번 캠페인(경계 {_cell(bnd.get('utc'))} 이후)의 기동 시도 미관측 — 아래는 같은 셀 이름의 앞선 캠페인 행뿐이다._"])
-    if prior:
+           [f"_이번 캠페인(경계 {_cell(bnd.get('utc'))} 이후)의 기동 시도 미관측 — 아래는 "
+            + ("같은 셀 이름의 앞선 캠페인 행뿐이다._" if not n_other else "경계 이전 행뿐이다._")])
+    if prior and not n_other:
         out += ["", f"**같은 셀 이름 · 앞선 캠페인의 기동 {len(prior)}회**(캠페인 경계 {_cell(bnd.get('utc'))} 이전 — 라벨이 같아 원장에서 "
                     "함께 묶였을 뿐 이 셀의 시도로 세지 않는다 · 행 전문 = 01 §1.4)", ""]
+    elif prior:
+        parts = ([f"이 셀 라벨로 묶인 {n_same}회"] if n_same else []) + [
+            f"라벨 다름(같은 노드 · 창 밖 이 셀 행과 시간이 겹치는 다른 라벨 선언 창) {n_other}회"]
+        out += ["", f"**캠페인 경계 이전 기동 {len(prior)}회**(캠페인 경계 {_cell(bnd.get('utc'))} 이전 — {' · '.join(parts)} · "
+                    "어느 쪽도 이 셀의 시도로 세지 않는다 · 행 전문 = 01 §1.4)", ""]
+    if prior:
         out += _attempts_rows(prior, "앞선-")
     return out
 
@@ -4478,8 +4489,18 @@ def selftest() -> list[str]:
         e5 = _f_event_timeline(_Ctx(repo, dict(facts_json, event_timeline=f5, event_campaign_boundary={"utc": "2026-01-02T00:00:00Z"}), tpls))
         ck("★F5 라벨 다른 창으로 연 앞선 시도 = 선언 · 트립 셈 · label 칸 '라벨 다름' 표지('선언 행 없음' · '사살 없음' ✗) · 머리 개수",
            "| 앞선-1 | sub | `serve-x-v030`(라벨 다름 — 같은 노드 · 이 셀 라벨 아님) | 2026-01-01T00:00:00Z | 없음 | `watchdog_trip` 1 |" in t5
-           and "선언 행 없음" not in t5 and "| 1 | sub | `smoke-x-35b-v030` |" in t5 and "라벨 다름" not in t5.split("앞선-1")[0]
+           and "선언 행 없음" not in t5 and "| 1 | sub | `smoke-x-35b-v030` |" in t5 and "(라벨 다름" not in t5.split("앞선-1")[0]
            and "라벨 다름(같은 노드 · 창 밖 이 셀 행과 시간이 겹치는 다른 라벨 선언 창) 2행" in e5)
+        # 2026-10-11 · plan_26101104 셀 D 사실검증 F6: 부표 머리 — 라벨 다름 시도가 섞이면 "라벨이 같아 묶였다" ✗ · 같은 라벨 · 라벨 다름 각각 센다
+        f6 = [{"utc": "2025-12-31T23:00:00Z", "node": "sub", "kind": "budget_declare", "label": "smoke-x-35b-v030",
+               "campaign_scope": "prior-campaign"}] + f5
+        t6 = "\n".join(_attempts_table(f6, {"utc": "2026-01-02T00:00:00Z"}))
+        ck("★F6 부표에 라벨 다름 시도가 있으면 머리 = 경계 이전 기동 N회(이 셀 라벨 1회 · 라벨 다름 1회) · '라벨이 같아' ✗",
+           "**캠페인 경계 이전 기동 2회**(캠페인 경계 2026-01-02T00:00:00Z 이전 — 이 셀 라벨로 묶인 1회 · 라벨 다름(같은 노드 · 창 밖 이 셀 행과 "
+           "시간이 겹치는 다른 라벨 선언 창) 1회 · 어느 쪽도 이 셀의 시도로 세지 않는다" in t6 and "라벨이 같아" not in t6
+           and "라벨이 같아" not in t5 and "| 앞선-2 | sub | `serve-x-v030`(라벨 다름" in t6)
+        ck("★F6 음성대조: 같은 라벨 시도뿐이면 종전 머리('같은 셀 이름 · 앞선 캠페인 · 라벨이 같아')",
+           "같은 셀 이름 · 앞선 캠페인의 기동 1회" in "\n".join(_attempts_table(f6[:1] + f5[3:], {"utc": "2026-01-02T00:00:00Z"})))
         # 2026-09-29 FACT 교정: 캠페인 경계(evidence.event_campaign_boundary)가 관측되면 앞선 캠페인 시도는 따로(삭제 ✗ · 세지 않는다)
         bnd_ = {"utc": "2026-01-01T00:30:00Z", "observed": True, "campaign_id": "camp-x", "source": "declared_utc …"}
         scoped = [{**r, "campaign_scope": "prior-campaign" if r["utc"] < bnd_["utc"] else "this-campaign"} for r in cross]
