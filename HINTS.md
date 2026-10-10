@@ -1,7 +1,7 @@
 <!-- 이 파일 **전체**가 생성물이다 — `hint.py catalog derive` 가 원격 발행 태그에서 통째로 다시 만든다(plan_26092119 §4.10). 손으로 고치지 마라: 다음 derive 에서 사라진다. 진실원천 = 원격의 refs/tags/hint/* 광고 · 색인 = hints/index.json(같은 derive 가 쓴다). -->
 # hint 태그 카탈로그 — 검증된 서빙 여정의 지도
 
-> 원격 `origin` 의 발행 태그 **55건**에서 파생 · 생성 `2026-10-10T17:57:46` KST · 문법 세대: `v7` 4 · `v6` 4 · `legacy-5seg-node` 45 · `legacy-5seg` 2 · 로컬 오브젝트 부재(미수령) 1건.
+> 원격 `origin` 의 발행 태그 **56건**에서 파생 · 생성 `2026-10-10T18:07:43` KST · 문법 세대: `v7` 5 · `v6` 4 · `legacy-5seg-node` 45 · `legacy-5seg` 2 · 로컬 오브젝트 부재(미수령) 1건.
 > 표를 사람이 쓰지 않는다 — "발행됐다"는 원격에 태그가 있다는 사실 하나로만 성립한다(카탈로그 바깥의 증거).
 
 ## hint 태그란 — 정답이 아니라 지도
@@ -18,7 +18,7 @@
 
 | 세대(`문법` 열) | arch 모양 | recipe 모양 | 이 카탈로그의 예 |
 |---|---|---|---|
-| `v7` | `v6` 와 같다 | `q<quant>-len<n>-kv<dtype>[-<꼬리>][-t<YYMMDDHHMM>]` — 앞 3축은 도구가 결정론으로 파생 · 꼬리는 발행 Agent 가 이 셀을 가르는 노브를 골라 적은 토큰(토큰별 뜻·근거는 zip 의 `PAYLOAD.json` `naming.tail[]`) · `-t…` 는 같은 이름이 이미 있을 때만 붙는 발행 시각(KST) | `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-spec7-graph-autotool` |
+| `v7` | `v6` 와 같다 | `q<quant>-len<n>-kv<dtype>[-<꼬리>][-t<YYMMDDHHMM>]` — 앞 3축은 도구가 결정론으로 파생 · 꼬리는 발행 Agent 가 이 셀을 가르는 노브를 골라 적은 토큰(토큰별 뜻·근거는 zip 의 `PAYLOAD.json` `naming.tail[]`) · `-t…` 는 같은 이름이 이미 있을 때만 붙는 발행 시각(KST) | `hint/0.19.1/gpt-oss-120b/gb10-1g1n-main-native/qmxfp4-len131072-kvfp8` |
 | `v6` | `<hw>-<G>g<N>n-<main\|sub\|cluster>-<target>[-<plane>]` (G=노드당 GPU · N=노드 수 · target=`native`\|`sim-<hw>` · plane=실행 평면 토큰 — Docker 는 없음, native(비-Docker)만 붙는다) | `q<quant>-len<n>-kv<dtype>-ple<mode>-spec<k\|off>-<graph\|eager>` (순서 고정 · 전 축 필수) | `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-plenone-spec7-graph` |
 | `legacy-5seg-node` | `<hw>-<main\|sub\|cluster>-<target>` | 축 가변(발행 당시 규약) | `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len1048576-kvauto-pleoffload` |
 | `legacy-5seg` | `<hw>-<target>` (노드축 없음) | 축 가변 | `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` |
@@ -81,9 +81,9 @@ python3 .claude/skills/hint-publisher/scripts/hint.py match --vllm <V> --model <
 | `rtxpro6000-main-native` | `legacy-5seg-node` | 4 |
 | `gb10-1g2n-cluster-native` | `v6` | 3 |
 | `gb10-1g2n-cluster-native` | `v7` | 3 |
+| `gb10-1g1n-main-native` | `v7` | 2 |
 | `gb10-main-sim-kv24g` | `legacy-5seg-node` | 2 |
 | `gb10-sub-sim-kv24g` | `legacy-5seg-node` | 2 |
-| `gb10-1g1n-main-native` | `v7` | 1 |
 | `gb10-1g2n-cluster-native-bare` | `v6` | 1 |
 | `gb10-main-native` | `legacy-5seg-node` | 1 |
 | `gb10-sim-h100` | `legacy-5seg` | 1 |
@@ -111,6 +111,7 @@ python3 .claude/skills/hint-publisher/scripts/hint.py match --vllm <V> --model <
 | `hint/0.18.0/gpt-oss-20b/gb10-sub-native/qmxfp4-len131072-kvfp8` | legacy-5seg-node | 0.18.0 | gpt-oss-20b | gb10-sub-native | — | 미기재 | HINT_MISSING_SWEEP_LEVELS | 서브 노드 자율 캠페인 · GB10 네이티브 예산 · KV 61,442 MiB(메인 50,133 대비 +23%) · 완결 엔드포인트 측정(오류 0/18) · 2회 차단(예산 거절 · 워치독 트립) 뒤 수렴 |
 | `hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8` | legacy-5seg-node | 0.19.0 | gpt-oss-120b | gb10x2-cluster-native | — | 미기재 | HINT_MISSING_SLAVE_ATTESTATION | GB10 x2 클러스터 · 네이티브 예산(H100 이식 클램프 제거 · KV 2.27배) · overhead 는 KV 의 함수라는 실증 · SoC 열 hard ceiling 이 연속 포화부하 4분에서 실제 벽 |
 | `hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8` | legacy-5seg | 0.19.0 | gpt-oss-120b | gb10x2-sim-h100 | — | 미기재 | 미선언 | gpt-oss-120b 를 vLLM 0.19.0 stock wheel 로 GB10 2노드 TP=2 분산 서빙한 재현 키트. 0.19.1 은 이 토폴로지로 뜨지 않으며 회귀 구간은 (0.19.0, 0.19.1] 이다. 커널 축(FlashInfer 어텐션·triton MoE·mxfp4 스위치)은 sm_121a 에서 열리지 않는다. |
+| `hint/0.19.1/gpt-oss-120b/gb10-1g1n-main-native/qmxfp4-len131072-kvfp8` | v7 | 0.19.1 | gpt-oss-120b | gb10-1g1n-main-native | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE | OpenAI gpt-oss-120b(MXFP4 · harmony)를 GB10 GPU 1개 × 노드 1대에서 stock vLLM 0.19.1 wheel 이미지로 서빙했다 — 컨텍스트 131072 · KV fp8 · PLE 없음 · spec off · cudagraph, 동시성 1 decode 33.40 t/s(GuideLLM 0.7.3 · 반복 3 · 완결 엔드포인트 · weak PASS · floor 28.5). 가장 비싼 벽은 harmony 가 chat 엔드포인트에서 ignore-eos 를 무력화해 디코드를 왜곡한 측정 경로(W1 · `--backend openai` 로 해소)와 KV 절대클램프 없는 진입이 예산 선언을 건너뛰어 워치독에 사살된 것(W2 · 클램프 승계)이며, 이번 회차는 벤치 예산 게이트의 교집합 공(W5)을 프리셋 선택지 추가로 넘었다. 가장 오해하기 쉬운 값은 판정 기준 E 33.53 t/s 로, 이 셀이 잰 값이 아니라 조건 미상의 외부 수치를 2026-09-01 판정에서 손으로 승계한 것이다(03 §3.5) — KV 클램프 30 GiB 도 키의 존재만 필요조건이고 값은 승계값이다(V4). |
 | `hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvauto` | legacy-5seg-node | 0.26.0 | qwen3-4b | gb10-main-sim-kv24g | — | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE | Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 A 무양자화(BF16 KV). |
 | `hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvfp8` | legacy-5seg-node | 0.26.0 | qwen3-4b | gb10-main-sim-kv24g | — | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE | Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 B FP8. |
 | `hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant3bitnc` | legacy-5seg-node | 0.26.0 | qwen3-4b | gb10-sub-sim-kv24g | — | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE | Qwen3-4B · vLLM 0.26.0 소스빌드 · KV 캐시 예산 24GB 모의 · 실험군 D TurboQuant 3bit. |

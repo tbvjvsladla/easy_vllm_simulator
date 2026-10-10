@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗).",
-  "count": 55,
-  "generated_kst": "2026-10-10T17:57:46",
+  "count": 56,
+  "generated_kst": "2026-10-10T18:07:43",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -298,6 +298,28 @@
       "verdict": "—",
       "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.19.0"
+    },
+    {
+      "anchor": "cedb5aa76ac2c9e188a5bb06c8f302c7d297bedb",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26101016_gpt-oss-120b_GB10_0.19.1.md))",
+      "brief": "OpenAI gpt-oss-120b(MXFP4 · harmony)를 GB10 GPU 1개 × 노드 1대에서 stock vLLM 0.19.1 wheel 이미지로 서빙했다 — 컨텍스트 131072 · KV fp8 · PLE 없음 · spec off · cudagraph, 동시성 1 decode 33.40 t/s(GuideLLM 0.7.3 · 반복 3 · 완결 엔드포인트 · weak PASS · floor 28.5). 가장 비싼 벽은 harmony 가 chat 엔드포인트에서 ignore-eos 를 무력화해 디코드를 왜곡한 측정 경로(W1 · `--backend openai` 로 해소)와 KV 절대클램프 없는 진입이 예산 선언을 건너뛰어 워치독에 사살된 것(W2 · 클램프 승계)이며, 이번 회차는 벤치 예산 게이트의 교집합 공(W5)을 프리셋 선택지 추가로 넘었다. 가장 오해하기 쉬운 값은 판정 기준 E 33.53 t/s 로, 이 셀이 잰 값이 아니라 조건 미상의 외부 수치를 2026-09-01 판정에서 손으로 승계한 것이다(03 §3.5) — KV 클램프 30 GiB 도 키의 존재만 필요조건이고 값은 승계값이다(V4).",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_BUILD_LEDGER",
+        "HINT_MISSING_RESOLVE"
+      ],
+      "model": "gpt-oss-120b",
+      "object": "a51c800d25dfdc442fcef7c9c9dcc4d603197f72",
+      "published": true,
+      "recipe": "qmxfp4-len131072-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.19.1/gpt-oss-120b/gb10-1g1n-main-native/qmxfp4-len131072-kvfp8",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gptoss120b-0191-c0/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.19.1"
     },
     {
       "anchor": "5879b301ce74872f517b7b451799b7bcdc1c4f41",
