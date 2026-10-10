@@ -1,0 +1,68 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26101015",
+      "depth": 0,
+      "excerpts": 6,
+      "path": "docs/testlog/testlog_26101015_knob프리셋_E2E_셀D_qwen3-4b.md",
+      "role": "testlog",
+      "stem": "testlog_26101015_knob프리셋_E2E_셀D_qwen3-4b"
+    },
+    {
+      "date": "26101015",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101015_qwen3-4b_GB10_0.26.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101015_qwen3-4b_GB10_0.26.0"
+    },
+    {
+      "date": "26101104",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101104_hint발행체제_개편_서브자체발행.md",
+      "role": "plan",
+      "stem": "plan_26101104_hint발행체제_개편_서브자체발행"
+    },
+    {
+      "date": "26101108",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101108_c-tq4nc_셀D_서빙_측정_knob해소.md",
+      "role": "devlog",
+      "stem": "devlog_26101108_c-tq4nc_셀D_서빙_측정_knob해소"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [
+      {
+        "excerpts": 7,
+        "path": "output/single/benchlog/sweep_c-tq4nc/lite_engine_c-tq4nc.log"
+      }
+    ],
+    "count": 94
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26101108",
+  "schema_version": 2,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26101015_qwen3-4b_GB10_0.26.0.md",
+      "sha256": "14a472ac59b4fe305e3946f9443018443486a514a62b31db62dab68b94909a94"
+    },
+    {
+      "path": "docs/devlog/devlog_26101108_c-tq4nc_셀D_서빙_측정_knob해소.md",
+      "sha256": "6b1adc2724bb6dc4a08315b18e212d23c88687ed9accf7050ced6dbe10ad7b6c"
+    },
+    {
+      "path": "docs/testlog/testlog_26101015_knob프리셋_E2E_셀D_qwen3-4b.md",
+      "sha256": "578a44638617594af32b9083193c4106d2f306a182758a9027afdd5db3ecc5f5"
+    },
+    {
+      "path": "output/single/benchlog/sweep_c-tq4nc/lite_engine_c-tq4nc.log",
+      "sha256": "f76c6db579c44e8329a1619d8a284f176cfa8d96624d4fd6c71ce3a34bd0b75e"
+    }
+  ]
+}
