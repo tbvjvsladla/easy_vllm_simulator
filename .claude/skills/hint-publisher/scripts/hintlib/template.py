@@ -1505,21 +1505,45 @@ def _f_measurement_env(c: _Ctx) -> str:
     if any(_ray_folded(r) for r in rows):
         out += ["", f"- Ray 접힘: 출처 줄 끝의 `{_RAY_FOLD_TEXT}` — Ray 가 다른 프로세스의 같은 줄 N개를 한 줄로 접었다. 노드 칸은 "
                     "**첫 줄**의 노드이고, 접힌 사본이 어느 노드의 것인지는 로그에 없다(관측 대상 밖)."]
-    wins = _log_windows(rows)
+    # 2026-10-10(plan_26101017 · M2 factcheck P15): 표가 머리 캡처(log_head_window) 행과 꼬리 창(log_window) 행으로 섞이면 창마다 그
+    #   창이 적용되는 행만 적는다 — 옛 판은 꼬리 창 하나를 '이 표의 출처 로그 1개' 로 세어 머리 캡처 행까지 꼬리 창 주의 아래 두었다.
+    wins, heads = _log_windows(rows), _log_windows(rows, "log_head_window")
     if wins:
-        out += ["", "- 로그 창: " + " · ".join(f"`{_cell(w)}`(이 표의 출처 로그 {len(fs)}개)" for w, fs in sorted(wins.items()))
+        out += ["", "- 로그 창(꼬리): " + " · ".join(f"`{_cell(w)}`(꼬리 창 출처 로그 {len(fs)}개 · 이 표 {_row_span(rows, 'log_window', w)})"
+                                                for w, fs in sorted(wins.items()))
                 + " — 이 캡처는 엔진 출력의 **마지막 N줄**이다(측정 도구의 `tail -N` 상한에 닿았다 · 생산자 evidence `log_window`). "
-                  "창 밖에서 echo 한 줄은 이 표에 없다 — 표에 없는 키 · 한 노드에만 있는 키는 창 밖이었을 수 있다."]
+                + ("창 앞에서 echo 한 줄은 그 로그에 없다 — 이 주의는 꼬리 창 출처 행에만 걸린다(머리 캡처 행은 아래)."
+                   if heads else "창 밖에서 echo 한 줄은 이 표에 없다 — 표에 없는 키 · 한 노드에만 있는 키는 창 밖이었을 수 있다.")]
+    if heads:
+        out += ["", "- 로그 창(머리): " + " · ".join(f"`{_cell(w)}`(머리 캡처 출처 로그 {len(fs)}개 · 이 표 "
+                                                f"{_row_span(rows, 'log_head_window', w)})" for w, fs in sorted(heads.items()))
+                + " — 이 캡처는 엔진 출력의 **처음 N줄**이다(lite_bench.sh 머리 캡처 `head -n N` 상한에 닿았다 · 생산자 evidence "
+                  "`log_head_window`). 꼬리 창의 주의는 이 행에 걸리지 않는다 · 머리 N줄 뒤에서 echo 한 줄은 그 로그에 없다."
+                + (" 머리 캡처와 꼬리 창 사이(엔진 출력의 가운데)는 어느 캡처에도 없다 — 표에 없는 키 · 한 노드에만 있는 키는 그 사이였을 수 "
+                   "있다." if wins else "")]
     return "\n".join(out)
 
 
-def _log_windows(rows: list[dict]) -> dict[str, set[str]]:
+def _row_span(rows: list[dict], field: str, win: str) -> str:
+    """창 `win` 이 붙은 행의 표 번호(1부터 · 연속 구간은 `#a–b`) — 창 설명이 어느 행에 걸리는지 적는다(P15 · 2026-10-10)."""
+    idx = [i for i, r in enumerate(rows, 1) if str(r.get(field) or "").strip() == win]
+    spans: list[list[int]] = []
+    for i in idx:
+        if spans and i == spans[-1][1] + 1:
+            spans[-1][1] = i
+        else:
+            spans.append([i, i])
+    return "행 " + ", ".join(f"#{a}" if a == b else f"#{a}–{b}" for a, b in spans) if spans else "행 없음"
+
+
+def _log_windows(rows: list[dict], field: str = "log_window") -> dict[str, set[str]]:
     """evidence `log_window`(출처 로그가 측정 도구의 `tail -N` 상한에 닿은 꼬리 캡처) → {창: {출처 로그}}. 2026-09-22 · plan_26092119
     S2 round 3 통합: 생산자는 이 칸을 냈는데 렌더가 읽지 않아, 태그2(측정 로그 전부 tail-800)의 01 §1.5 가 한쪽만 남은 키를
-    '<노드> 만 관측' 으로 실었다 — 캡처 창 밖이었을 수 있는 줄의 부재를 단언한 셈이었다(evidence 소유자 지적)."""
+    '<노드> 만 관측' 으로 실었다 — 캡처 창 밖이었을 수 있는 줄의 부재를 단언한 셈이었다(evidence 소유자 지적).
+    field="log_head_window"(2026-10-10 · P15): 머리 캡처 창(`head -n N` 상한 도달)을 같은 꼴로 모은다 — 꼬리 창과 섞지 않는다."""
     out: dict[str, set[str]] = {}
     for r in rows:
-        w = r.get("log_window")
+        w = r.get(field)
         if isinstance(w, str) and w.strip():
             out.setdefault(w.strip(), set()).add(re.sub(r":L?\d+$", "", str(r.get("source") or "")))
     return out
@@ -1548,11 +1572,13 @@ def _f_measurement_env_nodes(c: _Ctx) -> str:
         return "_노드별 env 관측 없음 — 01 §1.4 측정 env 관측 표가 비었다._"
     by: dict[str, dict[str, list[str]]] = {}
     folded: dict[str, int] = {}
-    windowed: set[str] = set()
+    windowed: dict[str, set[str]] = {}      # 키 → {꼬리 · 머리}(P15 · 2026-10-10: 머리 캡처 창도 다른 쪽 부재를 단언하지 않는다)
     for r in rows:
         key = str(r.get("key"))
         if _log_windows([r]):
-            windowed.add(key)
+            windowed.setdefault(key, set()).add("꼬리")
+        if _log_windows([r], "log_head_window"):
+            windowed.setdefault(key, set()).add("머리")
         vals = by.setdefault(key, {}).setdefault(str(r.get("node") or "미특정"), [])
         v = _env_value(r.get("value"))
         if v not in vals:
@@ -1579,7 +1605,7 @@ def _f_measurement_env_nodes(c: _Ctx) -> str:
                 verdict = f"{one} 관측 · 노드 미특정 줄 있음 — {other} 여부 미관측"
             elif key in windowed:
                 # 꼬리 캡처(01 §1.4 로그 창)의 한쪽 관측은 다른 쪽 줄이 창 밖이었을 수 있다 — 부재를 단언하지 않는다(2026-09-22 통합)
-                verdict = f"{one} 만 캡처 창에 남음 — {other} 여부 미관측(꼬리 캡처)"
+                verdict = f"{one} 만 캡처 창에 남음 — {other} 여부 미관측({'·'.join(sorted(windowed[key], reverse=True))} 캡처)"
             else:
                 verdict = f"{one} 만 관측"
         else:
@@ -1587,7 +1613,7 @@ def _f_measurement_env_nodes(c: _Ctx) -> str:
         diff.append((f"`{key}`", " · ".join(nodes.get("main", [])) or "—", " · ".join(nodes.get("sub", [])) or "—",
                      " · ".join(nodes.get("미특정", [])) or "—", verdict))
     out = ["**노드별 측정 env**(01 §1.4 표를 키 × 노드로 접은 것 · `만 관측` = 다른 쪽 줄이 캡처 로그에 없다 · Ray 가 같은 줄을 접은 "
-           f"키(`{_RAY_FOLD_TEXT}`)와 꼬리 캡처 로그(01 §1.4 로그 창)에서 한쪽만 남은 키는 다른 쪽 부재를 단언하지 않는다)", ""]
+           f"키(`{_RAY_FOLD_TEXT}`)와 머리·꼬리 캡처 로그(01 §1.4 로그 창)에서 한쪽만 남은 키는 다른 쪽 부재를 단언하지 않는다)", ""]
     out.append(f"- 양 노드 같은 값 {len(same)}개: " + (" · ".join(f"`{k}`" for k in same) if same else "없음"))
     if diff:
         out += [""] + _table(("키", "main", "sub", "노드 미특정", "판정"), diff)
@@ -4639,10 +4665,32 @@ def selftest() -> list[str]:
             {"key": "NCCL_CROSS_NIC", "value": "1", "node": "main", "source": f"{log_p}:L1"}])
         me_w, mn_w = _f_measurement_env(_Ctx(repo, r3w, tpls)), _f_measurement_env_nodes(_Ctx(repo, r3w, tpls))
         ck("R3 측정 env: 로그 창(log_window)을 싣는다 · 창이 없으면 주도 없다",
-           "- 로그 창: `tail-800(lite_bench.sh@0df14da468f9 L125)`(이 표의 출처 로그 1개)" in me_w and "로그 창" not in me3)
+           "- 로그 창(꼬리): `tail-800(lite_bench.sh@0df14da468f9 L125)`(꼬리 창 출처 로그 1개 · 이 표 행 #1)" in me_w
+           and "창 밖에서 echo 한 줄은 이 표에 없다" in me_w and "로그 창" not in me3)
         ck("★R3 노드별 env: 꼬리 캡처 로그의 한쪽 관측 = '캡처 창에 남음 — 다른 쪽 미관측'(부재 단언 ✗) · 창 없는 로그는 '만 관측' 유지",
            "| `NCCL_NET_PLUGIN` | — | `spcx` | — | sub 만 캡처 창에 남음 — main 여부 미관측(꼬리 캡처) |" in mn_w
            and "| `NCCL_CROSS_NIC` | `1` | — | — | main 만 관측 |" in mn_w)
+        # ★P15(2026-10-10 · plan_26101017 · M2 factcheck P15): 머리 캡처(log_head_window) 행 + 꼬리 창(log_window) 행이 섞인 표 —
+        #   창 설명은 창마다 그 창이 걸리는 행만 적고, 꼬리 창의 '창 밖 echo 는 이 표에 없다' 주의를 머리 캡처 행에 걸지 않는다.
+        head_p = "output/multi/benchlog/sweep_x/lite_engine_head_x.log"
+        r3h = dict(r3r, measurement_env_observed=[
+            {"key": "NCCL_IB_HCA", "value": "=a", "node": "main", "source": f"{head_p}:L19",
+             "log_head_window": "head-600(output/multi/benchlog/sweep_x/lite_raw_x.json engine_log_head_lines)"},
+            {"key": "NCCL_CROSS_NIC", "value": "1", "node": "main", "source": f"{head_p}:L20",
+             "log_head_window": "head-600(output/multi/benchlog/sweep_x/lite_raw_x.json engine_log_head_lines)"},
+            {"key": "NCCL_NET_PLUGIN", "value": "spcx", "node": "sub", "source": f"{log_p}:L2",
+             "log_window": "tail-800(lite_bench.sh@0df14da468f9 L125)"}])
+        me_h, mn_h = _f_measurement_env(_Ctx(repo, r3h, tpls)), _f_measurement_env_nodes(_Ctx(repo, r3h, tpls))
+        ck("★P15 측정 env: 꼬리 창 = 그 창 행만(#3) · 머리 캡처 창 따로(#1–2 · head-600) · 꼬리 '이 표에 없다' 주의 ✗ · 가운데 공백 명시",
+           "`tail-800(lite_bench.sh@0df14da468f9 L125)`(꼬리 창 출처 로그 1개 · 이 표 행 #3)" in me_h
+           and "- 로그 창(머리): `head-600(output/multi/benchlog/sweep_x/lite_raw_x.json engine_log_head_lines)`"
+               "(머리 캡처 출처 로그 1개 · 이 표 행 #1–2)" in me_h
+           and "꼬리 창의 주의는 이 행에 걸리지 않는다" in me_h and "창 밖에서 echo 한 줄은 이 표에 없다" not in me_h
+           and "이 표의 출처 로그" not in me_h and "머리 캡처와 꼬리 창 사이" in me_h)
+        ck("★P15 노드별 env: 머리 캡처 행의 한쪽 관측도 '캡처 창에 남음(머리 캡처)'(부재 단언 ✗) · 머리말 = 머리·꼬리 캡처",
+           "| `NCCL_IB_HCA` | `=a` | — | — | main 만 캡처 창에 남음 — sub 여부 미관측(머리 캡처) |" in mn_h
+           and "| `NCCL_NET_PLUGIN` | — | `spcx` | — | sub 만 캡처 창에 남음 — main 여부 미관측(꼬리 캡처) |" in mn_h
+           and "머리·꼬리 캡처 로그(01 §1.4 로그 창)" in mn_h)
         ck("★R3 측정 env · 도구 스냅샷 없음 = 미관측을 말한다(침묵 ✗)",
            "env 관측 없음" in _f_measurement_env(_Ctx(repo, facts_json, tpls))
            and "스냅샷 없음" in _f_tool_snapshots(_Ctx(repo, facts_json, tpls)))

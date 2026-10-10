@@ -166,6 +166,12 @@ POST_MEASUREMENT_REGENERATED = "post-measurement-regenerated"
 ENV_OBSERVED_POINTER = "01 §1.4 '측정 실행의 env 관측' 표 · PAYLOAD.json measurement_env_observed"
 # 재현 절차 build 행의 관측 구간 한계(bound) — docker history 층 CreatedAt 첫 층 → 끝 층(2026-09-22 · S2 round 3 공유 계약).
 LAYER_WINDOW = "layer-window"
+# 재현 절차 bench 행의 관측 구간 한계(bound) — 두 끝의 시계가 다르다(2026-10-10 · plan_26101017 · M2 factcheck P14): 한 끝이 측정 JSON
+#   `date`(컨테이너 시계 = UTC 가정) · 다른 끝이 호스트 UTC(lite_raw measured_utc · sweep_index generated_utc · 파일 mtime). 'exact' 는 두 끝이
+#   같은 시계(호스트 UTC)일 때만 붙인다 — 시계가 섞이면 차는 근사다(상한도 하한도 아님).
+CLOCK_MIXED = "clock-mixed"
+# 첫 측정 시각의 출처가 호스트 시계일 때 출처 문자열에 들어가는 표지(lite_bench.sh `MEASURED_UTC=$(date -u …)` · cold 레그 직전).
+HOST_START_MARK = "호스트 date -u"
 # 런타임 패치 무장 러너(닫힌 tripwire · render_dockerfile.RUNNER_SCRIPTS 의 원소여야 한다 — 자체검사가 교차대조).
 #   `/app/configs/${CONFIG_FILE}_patch.py` 가 없으면 no-op 이라, 무장하지 않은 셀에 실으면 "적용된 것만" 약속이 깨진다(F3).
 RUNTIME_PATCH_ARMER = "arm_patch.sh"
@@ -312,7 +318,7 @@ def _fmt_duration(secs: int | None, bound: str) -> str:
     mm, ss = divmod(abs(secs), 60)
     # 한 시간 이상은 시간을 뗀다(2026-09-22 S2 round 3: 층 창이 하루를 넘으면 "1592분" 이 되어 읽히지 않았다).
     txt = f"{mm // 60}시간 {mm % 60}분 {ss}초" if mm >= 60 else f"{mm}분 {ss}초"
-    return {"exact": txt, "upper": f"≤ {txt}(상한)",
+    return {"exact": txt, "upper": f"≤ {txt}(상한)", CLOCK_MIXED: f"≈ {txt}(두 끝 시계 다름 — 컨테이너 date · 호스트 UTC · 근사)",
             # 이미지 층 CreatedAt 첫 층 → 끝 층(2026-09-22 S2 round 3): 캐시 재사용 층은 **이전 빌드의 시각**을 가진다 — 창이지 소요가 아니다.
             LAYER_WINDOW: f"층 창 {txt}(docker history 첫 층 → 끝 층 CreatedAt · 캐시 재사용 층 포함 — 빌드 소요 아님)"}.get(bound, txt)
 
@@ -2590,7 +2596,11 @@ def _events_for(repo: Path, label: str) -> list[dict]:
 
 
 def _first_measure_utc(repo: Path, ev: Any) -> tuple[str | None, str | None]:
-    """스윕 디렉터리의 측정 JSON `date`(vllm bench · 컨테이너 시계 = UTC 로 읽는다) 중 가장 이른 것."""
+    """스윕 디렉터리의 측정 JSON `date`(vllm bench · 컨테이너 시계 = UTC 로 읽는다) 중 가장 이른 것.
+    ★2026-10-10(plan_26101017 · M2 factcheck P14): 스윕 디렉터리에 같은 셀의 `lite_raw_<셀>.json` measured_utc 가 있으면 그것이 첫 측정
+      시각이다 — lite_bench.sh 가 cold 레그 **직전** 호스트 `date -u` 로 찍는다. 옛 판은 lite_cold JSON `date`(레그 결과 저장 시각 ·
+      컨테이너 시계)를 시작으로 잡아 19 s 늦은 시작 · 'exact' 를 냈다. measured_utc 가 가장 이른 JSON date 보다 뒤면(시계 가정 불성립 또는
+      lite 가 첫 레그가 아님) 쓰지 않는다(종전 규칙). 출처에 HOST_START_MARK 를 실어 소비자가 시계를 가른다."""
     sweep = _get(ev, "sweep") or {}
     sdir = sweep.get("dir") if isinstance(sweep, dict) else None
     if not isinstance(sdir, str) or not (repo / sdir).is_dir():
@@ -2606,6 +2616,13 @@ def _first_measure_utc(repo: Path, ev: Any) -> tuple[str | None, str | None]:
             utc = "{}-{}-{}T{}:{}:{}Z".format(*m.groups())
             if best is None or utc < best[0]:
                 best = (utc, f.relative_to(repo).as_posix())
+    if isinstance(cell, str):
+        rp = repo / sdir / f"lite_raw_{cell}.json"
+        raw = _json_file(rp) if rp.is_file() else None
+        mu = _utc_z(raw.get("measured_utc")) if isinstance(raw, dict) and raw.get("config_name") == cell else None
+        if mu and (best is None or mu <= best[0]):
+            return mu, (f"{rp.relative_to(repo).as_posix()} measured_utc({HOST_START_MARK} · lite_bench.sh 가 cold 레그 직전에 찍는 "
+                        "측정 시작)")
     return best if best else (None, None)
 
 
@@ -2831,9 +2848,11 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
     # 종료 generated_utc 보다 뒤) 그 시각으로 소요를 계산하지 않는다(합성 ✗ · 미관측으로 적는다).
     if measure_start and isinstance(sweep_end, str) and measure_start > sweep_end:
         measure_start, measure_src = None, f"{measure_src}(date 를 UTC 로 읽으면 generated_utc 뒤 — 시계 가정 불성립 · 버림)"
-    if measure_src and measure_start:
+    host_start = bool(measure_src and HOST_START_MARK in measure_src)
+    if measure_src and measure_start and not host_start:
         measure_src = f"{measure_src} · date=컨테이너 시계(UTC 가정)"
-    bench_bound = "exact"
+    # P14(2026-10-10): 끝(sweep_index generated_utc)은 호스트 UTC — 시작도 호스트 시계일 때만 exact · 컨테이너 date 시작이면 시계가 섞인다
+    bench_bound = "exact" if host_start else CLOCK_MIXED
     lite_end, lite_src, lite_start = None, None, False
     if not sweep_end:
         # FACT_FIX2 G7: lite-only 셀 — 리포트 생성일(= lite_raw measured_utc)은 측정 **시작**이다 · 끝 = 레그 JSON date(evidence.lite_window)
@@ -2842,10 +2861,14 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
             measure_start, measure_src, lite_start = lw["start_utc"], lw["start_source"], True
             if lw.get("end_utc"):
                 sweep_end, lite_end, lite_src = lw["end_utc"], lw["end_utc"], lw["end_source"]
+                # P14: 시작 = 호스트 date -u · 끝이 레그 JSON date(컨테이너 시계)면 시계가 섞인다 · lite_raw mtime(호스트 파일시스템)이면 exact
+                bench_bound = CLOCK_MIXED if "컨테이너 시계" in str(lw["end_source"] or "") else "exact"
         else:
             ls_, lsrc_ = _lite_measured_utc(repo, c.ev)
             if ls_:
                 measure_start, measure_src, lite_start = ls_, lsrc_, True
+    elif host_start:
+        lite_start = True       # P14: 첫 측정 시각 = lite_raw measured_utc(호스트 date -u) — serve 상한의 끝 문구도 '시각' 으로 적는다
     if plane == "docker":
         if topo == "multi":
             # 2026-09-22 S2 round 3 적대 리뷰: 렌더러가 측정 뒤 바뀌었으면(git 관측) 명령 앞에 그 사실 · 측정 전 개정을 주석으로 단다.
@@ -2918,7 +2941,9 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
         bsrc = f"시작 = {measure_src} → 끝 = {lite_src}"
     elif measure_start and sweep_end:
         bsrc = (f"{measure_src} → sweep_index.generated_utc(측정 JSON date 는 호스트 로컬 시계 — UTC 가정 불성립으로 쓰지 않는다)"
-                if bench_bound == "upper" else f"{measure_src} date → sweep_index.generated_utc")
+                if bench_bound == "upper" else
+                f"{measure_src} → sweep_index.generated_utc(호스트 UTC · 두 끝 같은 시계)" if host_start else
+                f"{measure_src} date → sweep_index.generated_utc(호스트 UTC — 시작과 시계 다름 · 근사)")
     else:
         bsrc = f"시작만 관측 — {measure_src}" if measure_start else "미관측"
     step("bench", bench_cmd, "리포트 발행(+PASS 면 인증서)",
@@ -4592,6 +4617,26 @@ def selftest() -> list[str]:
             repo, dict(ev, sweep=dict(ev["sweep"], generated_utc="2026-01-01T18:00:00Z")), runner=docker_old)}
         ck("★date 시계 가정 불성립 → serve·bench 미관측", rs_clock["serve"]["observed"]["seconds"] is None
            and rs_clock["bench"]["observed"]["seconds"] is None)
+        # ★P14(2026-10-10 · plan_26101017 · M2 factcheck P14): 첫 측정 시작 = lite_raw measured_utc(호스트 date -u · cold 레그 직전) — lite_cold
+        #   JSON date(결과 저장 · 컨테이너 시계)가 아니다. 'exact' 는 두 끝이 같은 시계(호스트 UTC)일 때만 · 컨테이너 date 시작이면 clock-mixed.
+        ck("★P14 lite_raw 없으면 시작 = 첫 JSON date(컨테이너 시계) · 끝 generated_utc(호스트) → bound clock-mixed(exact ✗) · ≈ 근사 표기",
+           steps["bench"]["observed"]["bound"] == CLOCK_MIXED and steps["bench"]["duration"].startswith("≈ "))
+        p14 = repo / "output/multi/benchlog/sweep_c1-mmp" / f"lite_raw_{cell}.json"
+        p14.write_text(json.dumps({"config_name": cell, "measured_utc": "2026-01-01T18:59:41Z"}), encoding="utf-8")
+        try:
+            rs14 = {x["step"]: x for x in reproduce_steps(repo, ev, runner=docker_old)}
+            p14.write_text(json.dumps({"config_name": "other-cell", "measured_utc": "2026-01-01T18:59:41Z"}), encoding="utf-8")
+            rs14o = {x["step"]: x for x in reproduce_steps(repo, ev, runner=docker_old)}
+        finally:
+            p14.unlink()
+        ck("★P14 lite_raw measured_utc 가 있으면 bench 시작 = 그것(lite_cold date 19:00:00 ✗) · 두 끝 호스트 시계 → exact · 출처 표시",
+           rs14["bench"]["observed"]["start_utc"] == "2026-01-01T18:59:41Z" and rs14["bench"]["observed"]["seconds"] == 1819
+           and rs14["bench"]["observed"]["bound"] == "exact" and f"lite_raw_{cell}.json measured_utc" in rs14["bench"]["source"]
+           and HOST_START_MARK in rs14["bench"]["source"] and "컨테이너 시계" not in rs14["bench"]["source"])
+        ck("★P14 serve 상한의 끝 = lite_raw measured_utc(첫 측정 시각)",
+           rs14["serve"]["observed"]["end_utc"] == "2026-01-01T18:59:41Z" and "첫 측정 시각(" in rs14["serve"]["source"])
+        ck("P14 음성대조: 다른 셀의 lite_raw 는 쓰지 않는다(시작 = JSON date · clock-mixed)",
+           rs14o["bench"]["observed"]["start_utc"] == "2026-01-01T19:00:00Z" and rs14o["bench"]["observed"]["bound"] == CLOCK_MIXED)
         # 캠페인 phase — phases/<X> 의 X 는 **노드 id** 다(축 이름 아님 · 2026-09-22 감사). cluster = 선언 노드 전부의 같은 셀
         # 기록에서 가장 이른 시작 ~ 가장 늦은 끝 · 다른 셀 기록은 쓰지 않는다 · main/sub 축은 evidence 가 해소한 ev.phases 만.
         for nid, st, en, cid_cell in (("gx-a", "2026-01-01T10:00:00Z", "2026-01-01T11:00:00Z", cell),
