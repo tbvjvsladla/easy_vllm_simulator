@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 56,
-  "generated_kst": "2026-10-11T05:00:00",
+  "count": 57,
+  "generated_kst": "2026-10-11T06:16:48",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1204,6 +1204,26 @@
       "tagged_utc": "2026-10-10T08:57:46Z",
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_granite42-30b-v030/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.30.0"
+    },
+    {
+      "anchor": "68cb58bbc1243fb52952a911f7a8d12658dd5859",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "Qwen/Qwen3.8-Flash-Next",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26101013_qwen3.8-flash-next-nvfp4_GB10_0.30.0.md))",
+      "brief": "Qwen3.8-Flash-Next-NVFP4(ModelOpt mixed)를 GB10 2노드(노드당 GPU 1 · Ray TP=2)에서 vLLM v0.30.0 소스빌드로 서빙했다 — 컨텍스트 262144 · KV auto · PLE resident · MTP k=3 · eager · 동시성 1 decode 37.63 t/s(GuideLLM full · 판정 weak REFUTE · floor 45.65 미달). 가장 비싼 벽은 PLE resident 의 로드 피크 사살(W6 · W7)로, KV 회수(V6) · 배치 억제(V10 · V11) · gpu-memory-utilization 천장 하향(V3)을 함께 적용해 넘었고(KV 계단만 더 내리는 것은 무의미했다), 0.30.0 에서는 빌드의 libdw-dev(W9)와 PLE offload 새 기본값 차단(W10)이 더해졌다. 가장 오해하기 쉬운 것은 판정 기준 E — 외부 2노드 게시값을 손으로 승계한 것이고 KV fp8 구성이라 이 셀(KV auto)과 축이 다르다(M6 · Q1) · REFUTE 는 재검증 신호이지 서빙 실패가 아니며 KV 클램프(V6)는 필요량이 아니라 생존 계단값이다.",
+      "grammar": "v7",
+      "missing": [],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "66a315009271a9d13b77899dc25d8d7c7c390257",
+      "published": true,
+      "recipe": "qnvfp4-len262144-kvauto-pleresident",
+      "source": "remote-derived",
+      "tag": "hint/0.30.0/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-pleresident",
+      "tagged_utc": "2026-10-10T21:16:48Z",
+      "verdict": "REFUTE",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_q38fn030-nv4-res-262k/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.30.0"
     }
   ],
