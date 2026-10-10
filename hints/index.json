@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 57,
-  "generated_kst": "2026-10-11T06:17:47",
+  "count": 59,
+  "generated_kst": "2026-10-11T08:29:35",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -336,6 +336,29 @@
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gptoss120b-0191-c0/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.19.1"
+    },
+    {
+      "anchor": "9a2f5f0b78f1677a03912a3dfe0a67e79e07423b",
+      "arch": "gb10-1g1n-sub-native",
+      "base_model": "Qwen/Qwen3-4B-Base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26101015_qwen3-4b_GB10_0.26.0.md))",
+      "brief": "Qwen3-4B(bf16)를 GB10 ×1 · TP=1 단일 노드에서 vLLM 소스빌드(빌드 입력 v0.26.0) 위에 컨텍스트 32768 · KV dtype turboquant_4bit_nc · 절대 KV 클램프로 서빙했고, full 벤치 동시성 1 decode 22.44 t/s 가 측정됐다(판정 PASS 는 weak 권한의 표시). 이 계보에서 서빙을 막은 벽은 없고 넘은 것은 측정 운영 쪽이다 — 지시문의 backend 값 오기(W3)와 하네스 10분 제한에 의한 스윕 중단(W4); 엔진은 TurboQuant 와 FlashAttention 3 이상의 비호환을 스스로 FA2 로 내렸다(W2). 가장 오해하기 쉬운 값은 24GB 시뮬로 정한 KV 클램프·gmu 로 GB10 에서 최적화된 적 없는 승계값이고(V2~V4), 쉘의 attention backend 핀은 엔진이 알 수 없는 변수라 경고했으며(W1), 판정점 runs 3회 동일 22.44 의 원인은 미확정이다(Q1).",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_BUILD_LEDGER",
+        "HINT_MISSING_RESOLVE"
+      ],
+      "model": "qwen3-4b",
+      "object": "5d7864b4b61e79d53d24b895a1c408783eca3b8e",
+      "published": true,
+      "recipe": "qbf16-len32768-kvturboquant4bitnc-kv11g",
+      "source": "remote-derived",
+      "tag": "hint/0.26.0/qwen3-4b/gb10-1g1n-sub-native/qbf16-len32768-kvturboquant4bitnc-kv11g",
+      "tagged_utc": "2026-10-10T23:06:14Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_c-tq4nc/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.26.0"
     },
     {
       "anchor": "5879b301ce74872f517b7b451799b7bcdc1c4f41",
@@ -1204,6 +1227,30 @@
       "tagged_utc": "2026-10-10T08:57:46Z",
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_granite42-30b-v030/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.30.0"
+    },
+    {
+      "anchor": "0d2e78c0d1eaa8be88c85c77bf4c01fb7e4ca77d",
+      "arch": "gb10-1g1n-sub-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26101014_ornith-1.5-35b-a3b_GB10_0.30.0.md))",
+      "brief": "Ornith 35B-A3B 모델(bf16, 하이브리드 MoE)을 GB10 ×1 · TP=1 단일 노드에서 vLLM 소스빌드(빌드 입력 v0.30.0) 위에 컨텍스트 262144 · KV dtype auto · MoE 백엔드 triton 으로 서빙했고, full 벤치 동시성 1 decode 30.82 t/s 가 측정됐다(판정 PASS 는 weak 권한의 표시). 가장 비싼 벽은 기본 MoE 백엔드(FlashInfer CUTLASS)가 컴파일 직후 호스트 메모리를 급락시켜 호스트 워치독이 컨테이너를 사살한 것이고, MoE 백엔드를 triton 으로 고정해 넘었다(W2, V11) — 기전은 미확정(Q1). 가장 오해하기 쉬운 값은 limit-mm-per-prompt 위 yaml 주석의 '사살 회피' 설명으로, 멀티모달을 끄고도 죽어 기각된 옛 판단이며 이 값의 지위는 승계값이다(M1, V5).",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_APPLIED_SET",
+        "HINT_MISSING_BUILD_LEDGER",
+        "HINT_MISSING_RESOLVE"
+      ],
+      "model": "ornith-1.5-35b-a3b",
+      "object": "57652a27ffdf3c7029e4be2b957f9373f0133014",
+      "published": true,
+      "recipe": "qbf16-len262144-kvauto-moetriton-kv8g",
+      "source": "remote-derived",
+      "tag": "hint/0.30.0/ornith-1.5-35b-a3b/gb10-1g1n-sub-native/qbf16-len262144-kvauto-moetriton-kv8g",
+      "tagged_utc": "2026-10-10T22:50:00Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_ornith15-35b-v030/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.30.0"
     },
     {
