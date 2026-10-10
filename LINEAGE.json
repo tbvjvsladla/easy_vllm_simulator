@@ -1,0 +1,364 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26071619",
+      "depth": 3,
+      "excerpts": 0,
+      "path": "docs/report/perf_26071619_RTX_PRO_6000_벤치마크_탐색.html",
+      "role": "report",
+      "stem": "perf_26071619_RTX_PRO_6000_벤치마크_탐색"
+    },
+    {
+      "date": "26090112",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26090112_59_49_메인_단일노드_gptoss120b_FullE2E.md",
+      "role": "plan",
+      "stem": "plan_26090112_59_49_메인_단일노드_gptoss120b_FullE2E"
+    },
+    {
+      "date": "26090117",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/testlog/testlog_26090117_gptoss120b_단일노드_FullE2E_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26090117_gptoss120b_단일노드_FullE2E_판정"
+    },
+    {
+      "date": "26090117",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26090117_gptoss120b_gb10_0191_single.md",
+      "role": "devlog",
+      "stem": "devlog_26090117_gptoss120b_gb10_0191_single"
+    },
+    {
+      "date": "26090117",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26090117_gpt-oss-120b_GB10_0.19.1.md",
+      "role": "bench_report",
+      "stem": "bench_report_26090117_gpt-oss-120b_GB10_0.19.1"
+    },
+    {
+      "date": "26090117",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26090117_15_05_gptoss120b_gb10_0191_single.md",
+      "role": "testlog",
+      "stem": "testlog_26090117_15_05_gptoss120b_gb10_0191_single"
+    },
+    {
+      "date": "26090117",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26090117_15_53_gptoss120b_단일노드_E2E_서사.md",
+      "role": "devlog",
+      "stem": "devlog_26090117_15_53_gptoss120b_단일노드_E2E_서사"
+    },
+    {
+      "date": "26090117",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26090117_17_21_gptoss120b_gb10_0191_single_v2.md",
+      "role": "plan",
+      "stem": "plan_26090117_17_21_gptoss120b_gb10_0191_single_v2"
+    },
+    {
+      "date": "26090117",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26090117_17_21_gptoss120b_gb10_0191_single_v2.md",
+      "role": "testlog",
+      "stem": "testlog_26090117_17_21_gptoss120b_gb10_0191_single_v2"
+    },
+    {
+      "date": "26090117",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26090117_17_21_gptoss120b_gb10_0191_single_v2.md",
+      "role": "devlog",
+      "stem": "devlog_26090117_17_21_gptoss120b_gb10_0191_single_v2"
+    },
+    {
+      "date": "26090121",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/report/audit_26090121_해시_버전매칭_무결성_과잉_전수감사.md",
+      "role": "report",
+      "stem": "audit_26090121_해시_버전매칭_무결성_과잉_전수감사"
+    },
+    {
+      "date": "26090222",
+      "depth": 4,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26090222_해시무결성_중복층_걷어내기_GIT_SINGLE_AUTHORITY.md",
+      "role": "plan",
+      "stem": "plan_26090222_해시무결성_중복층_걷어내기_GIT_SINGLE_AUTHORITY"
+    },
+    {
+      "date": "26090317",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26090317_테라포밍노드_멀티노드설치_노드오케스트레이터_E2E.md",
+      "role": "plan",
+      "stem": "plan_26090317_테라포밍노드_멀티노드설치_노드오케스트레이터_E2E"
+    },
+    {
+      "date": "26090321",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26090321_P4_메인서빙_서브자율_병렬.md",
+      "role": "testlog",
+      "stem": "testlog_26090321_P4_메인서빙_서브자율_병렬"
+    },
+    {
+      "date": "26090407",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26090407_P5_멀티캠페인_TP2.md",
+      "role": "testlog",
+      "stem": "testlog_26090407_P5_멀티캠페인_TP2"
+    },
+    {
+      "date": "26090408",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26090408_P4P5_캠페인_서사.md",
+      "role": "devlog",
+      "stem": "devlog_26090408_P4P5_캠페인_서사"
+    },
+    {
+      "date": "26090410",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26090410_증거바인딩_사본층제거_폴더키해소.md",
+      "role": "plan",
+      "stem": "plan_26090410_증거바인딩_사본층제거_폴더키해소"
+    },
+    {
+      "date": "26090411",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26090411_P6_종결_게이트판정.md",
+      "role": "testlog",
+      "stem": "testlog_26090411_P6_종결_게이트판정"
+    },
+    {
+      "date": "26090415",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26090415_벤치마커_GuideLLM전환_광의탐색_설계.md",
+      "role": "plan",
+      "stem": "plan_26090415_벤치마커_GuideLLM전환_광의탐색_설계"
+    },
+    {
+      "date": "26090419",
+      "depth": 0,
+      "excerpts": 3,
+      "path": "docs/plan/plan_26090419_광의탐색_캠페인안_gptoss120b_0191.md",
+      "role": "plan",
+      "stem": "plan_26090419_광의탐색_캠페인안_gptoss120b_0191"
+    },
+    {
+      "date": "26090504",
+      "depth": 3,
+      "excerpts": 0,
+      "path": "docs/benchmark/sweep_map_26090504_gptoss120b_0191_single_완주.md",
+      "role": "sweep_map",
+      "stem": "sweep_map_26090504_gptoss120b_0191_single_완주"
+    },
+    {
+      "date": "26090513",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/report/audit_26090513_광의탐색_캠페인_라이브_결함_전수감사.md",
+      "role": "report",
+      "stem": "audit_26090513_광의탐색_캠페인_라이브_결함_전수감사"
+    },
+    {
+      "date": "26090515",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26090515_하네스_안티패턴_스캐너_인벤토리.md",
+      "role": "testlog",
+      "stem": "testlog_26090515_하네스_안티패턴_스캐너_인벤토리"
+    },
+    {
+      "date": "26090515",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/report/audit_26090515_하네스_안티패턴_전수감사_3원칙_절단선.md",
+      "role": "report",
+      "stem": "audit_26090515_하네스_안티패턴_전수감사_3원칙_절단선"
+    },
+    {
+      "date": "26090520",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26090520_캠페인재개_광의탐색_2브랜치.md",
+      "role": "plan",
+      "stem": "plan_26090520_캠페인재개_광의탐색_2브랜치"
+    },
+    {
+      "date": "26090602",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26090602_캠페인재개_2브랜치_광의탐색_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26090602_캠페인재개_2브랜치_광의탐색_판정"
+    },
+    {
+      "date": "26090602",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26090602_캠페인재개_2브랜치_서사.md",
+      "role": "devlog",
+      "stem": "devlog_26090602_캠페인재개_2브랜치_서사"
+    },
+    {
+      "date": "26090707",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26090707_camp7_gptoss120b_gb10_0190_native_tp2.md",
+      "role": "plan",
+      "stem": "plan_26090707_camp7_gptoss120b_gb10_0190_native_tp2"
+    },
+    {
+      "date": "26090707",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26090707_camp7_gptoss120b_gb10_0190_native_tp2.md",
+      "role": "devlog",
+      "stem": "devlog_26090707_camp7_gptoss120b_gb10_0190_native_tp2"
+    },
+    {
+      "date": "26090707",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26090707_56_26_camp7_gptoss120b_gb10_0190_native_tp2.md",
+      "role": "testlog",
+      "stem": "testlog_26090707_56_26_camp7_gptoss120b_gb10_0190_native_tp2"
+    },
+    {
+      "date": "26101011",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101011_벤치_knob_프리셋_자산화.md",
+      "role": "plan",
+      "stem": "plan_26101011_벤치_knob_프리셋_자산화"
+    },
+    {
+      "date": "26101016",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101016_벤치_knob_프리셋_E2E_6셀_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101016_벤치_knob_프리셋_E2E_6셀_판정"
+    },
+    {
+      "date": "26101016",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101016_gpt-oss-120b_GB10_0.19.1.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101016_gpt-oss-120b_GB10_0.19.1"
+    },
+    {
+      "date": "26101017",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101017_knob_E2E_hint발행.md",
+      "role": "plan",
+      "stem": "plan_26101017_knob_E2E_hint발행"
+    },
+    {
+      "date": "26101017",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26101017_08_29_knob프리셋_E2E_셀B_gptoss120b_0191_c0_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101017_08_29_knob프리셋_E2E_셀B_gptoss120b_0191_c0_판정"
+    },
+    {
+      "date": "26101017",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101017_08_29_knob프리셋_E2E_셀B_gptoss120b_0191_c0.md",
+      "role": "devlog",
+      "stem": "devlog_26101017_08_29_knob프리셋_E2E_셀B_gptoss120b_0191_c0"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [
+      {
+        "excerpts": 1,
+        "path": "docs/simlog/26101012_벤치_knob_프리셋_E2E/b_serve.log"
+      },
+      {
+        "excerpts": 1,
+        "path": "docs/simlog/26101012_벤치_knob_프리셋_E2E/b_sweep_try1_budget_block.log"
+      }
+    ],
+    "count": 170
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26101018",
+  "schema_version": 2,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26101016_gpt-oss-120b_GB10_0.19.1.md",
+      "sha256": "8e753b1456a6ddaeaf361842dc69d302e0fb577a5f5465b0d80297aabcb94292"
+    },
+    {
+      "path": "docs/benchmark/sweep_map_26090504_gptoss120b_0191_single_완주.md",
+      "sha256": "8ee63c4597fd41c9d19eef17a138937029e2abc4349a80cedd8bbccf8b9c31b0"
+    },
+    {
+      "path": "docs/devlog/devlog_26090117_15_53_gptoss120b_단일노드_E2E_서사.md",
+      "sha256": "99bb124d8414885c3101777c9cb86ef479ab15f8a72c2d45d0bf96edb6d3b55f"
+    },
+    {
+      "path": "docs/logs/main/events/2026-10.jsonl",
+      "sha256": "ddbaf60a77017a1de0def9beb5d47b5e985519dcf61342fe1178da134b289c33"
+    },
+    {
+      "path": "docs/plan/plan_26090112_59_49_메인_단일노드_gptoss120b_FullE2E.md",
+      "sha256": "298b7e364d9d4742944f1d61a19c1141e7abcbc4ebc5b714a5f000a1168c7bf0"
+    },
+    {
+      "path": "docs/plan/plan_26090419_광의탐색_캠페인안_gptoss120b_0191.md",
+      "sha256": "bb1583b2e2f105e8cd8b93e6c1b1f76cdc0205cd69f110969ffa9e3b3029acbf"
+    },
+    {
+      "path": "docs/report/audit_26090513_광의탐색_캠페인_라이브_결함_전수감사.md",
+      "sha256": "03641905c5686d1df43e8d455be970e4dd5e313cf6a1b89caa8b92354ae006a6"
+    },
+    {
+      "path": "docs/simlog/26101012_벤치_knob_프리셋_E2E/b_serve.log",
+      "sha256": "052175a39c01497b5f87183d36905ffb80f548d1149ad6392aca86ec22a4ecc7"
+    },
+    {
+      "path": "docs/simlog/26101012_벤치_knob_프리셋_E2E/b_sweep.log",
+      "sha256": "f28d039bc92116f56fee7d650238d526f1a80daf5aacdcf8dcf755688b478925"
+    },
+    {
+      "path": "docs/simlog/26101012_벤치_knob_프리셋_E2E/b_sweep_try1_budget_block.log",
+      "sha256": "c58f29e31c5c4e08ca68f91bba7c8a0901e4ca2d9d72483d9cf1f44cc77abf23"
+    },
+    {
+      "path": "docs/testlog/testlog_26090117_gptoss120b_단일노드_FullE2E_판정.md",
+      "sha256": "3393f30613f4c56c44447e6a5282348052073c66009340fc91ad3b8e57ba476d"
+    },
+    {
+      "path": "docs/testlog/testlog_26101017_08_29_knob프리셋_E2E_셀B_gptoss120b_0191_c0_판정.md",
+      "sha256": "b28cd04769a8d5078861342d778dfc3e0aca7d5b9893050565acaf6b9ebbf4ac"
+    },
+    {
+      "path": "output/single/benchlog/sweep_gptoss120b-0191-c0/lite_engine_gptoss120b-0191-c0.log",
+      "sha256": "9a1aee1a5fb14f6a40701f1651e5386fb0970803c066235034889a20b436352b"
+    }
+  ]
+}
