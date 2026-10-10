@@ -1,7 +1,7 @@
 <!-- 이 파일 **전체**가 생성물이다 — `hint.py catalog derive` 가 원격 발행 태그에서 통째로 다시 만든다(plan_26092119 §4.10). 손으로 고치지 마라: 다음 derive 에서 사라진다. 진실원천 = 원격의 refs/tags/hint/* 광고 · 색인 = hints/index.json(같은 derive 가 쓴다). -->
 # hint 태그 카탈로그 — 검증된 서빙 여정의 지도
 
-> 원격 `origin` 의 발행 태그 **53건**에서 파생 · 생성 `2026-10-06T10:00:31` KST · 문법 세대: `v7` 2 · `v6` 4 · `legacy-5seg-node` 45 · `legacy-5seg` 2 · 로컬 오브젝트 부재(미수령) 1건.
+> 원격 `origin` 의 발행 태그 **54건**에서 파생 · 생성 `2026-10-10T17:10:16` KST · 문법 세대: `v7` 3 · `v6` 4 · `legacy-5seg-node` 45 · `legacy-5seg` 2 · 로컬 오브젝트 부재(미수령) 1건.
 > 표를 사람이 쓰지 않는다 — "발행됐다"는 원격에 태그가 있다는 사실 하나로만 성립한다(카탈로그 바깥의 증거).
 
 ## hint 태그란 — 정답이 아니라 지도
@@ -80,7 +80,7 @@ python3 .claude/skills/hint-publisher/scripts/hint.py match --vllm <V> --model <
 | `rtxpro6000x2-main-native` | `legacy-5seg-node` | 14 |
 | `rtxpro6000-main-native` | `legacy-5seg-node` | 4 |
 | `gb10-1g2n-cluster-native` | `v6` | 3 |
-| `gb10-1g2n-cluster-native` | `v7` | 2 |
+| `gb10-1g2n-cluster-native` | `v7` | 3 |
 | `gb10-main-sim-kv24g` | `legacy-5seg-node` | 2 |
 | `gb10-sub-sim-kv24g` | `legacy-5seg-node` | 2 |
 | `gb10-1g2n-cluster-native-bare` | `v6` | 1 |
@@ -148,4 +148,5 @@ python3 .claude/skills/hint-publisher/scripts/hint.py match --vllm <V> --model <
 | `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-plemmap-spec3-eager` | v6 | 0.29.0rc6 | qwen3.8-flash-next-nvfp4 | gb10-1g2n-cluster-native | — | full | HINT_MISSING_CERTIFICATE | `nvidia/Qwen3.8-Flash-Next-NVFP4` 를 GB10 1GPU × 2노드(Ray TP=2)에서 vLLM `v0.29.0rc6` 소스빌드로 서빙했다 — NVFP4 · max-model-len 262144 · KV auto · PLE NVMe mmap · MTP k=3 · eager, 판정점 동시성 1 decode 20.98 t/s(MTP on · GuideLLM full 반복 3). 가장 비싼 벽은 stock 이 NVFP4 mixed 체크포인트를 싣지 못한 것(W1 → 빌드 패치 60)과 통합메모리에서 PLE 테이블을 거둘 경로가 없던 것(W6 → 62 mmap + 노드 로컬 NVMe 스테이징)이다. 성능은 탐색 합격선 대비 REFUTE 이고(기능은 PASS · 인증서 없음) 이전 인증 측정과의 큰 격차는 원인 미분석(Q1) — 이 수치를 기준선으로 쓰지 말 것 · KV 20GiB 클램프(V6)는 필요량을 크게 넘긴 음성대조값이다. |
 | `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8-plemmap-spec3-eager` | v6 | 0.29.0rc6 | qwen3.8-flash-next-nvfp4 | gb10-1g2n-cluster-native | — | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_CERTIFICATE · HINT_MISSING_SWEEP_LEVELS | `nvidia/Qwen3.8-Flash-Next-NVFP4` 를 GB10 1GPU × 2노드(Ray TP=2)에서 vLLM `v0.29.0rc6` 소스빌드로 서빙했다 — NVFP4 · max-model-len 262144 · KV fp8_e4m3 · PLE NVMe mmap · MTP k=3 · eager, lite 관측 warm decode 18.77 t/s(동시성 1 · MTP on · 반복 1 · OBSERVATION-ONLY · 판정 없음). 가장 비싼 벽은 stock 이 NVFP4 mixed 체크포인트를 싣지 못한 것(W1 → 빌드 패치 60), fp8 KV 를 QSA 가 거부한 것(W8 → 64), 통합메모리에서 PLE 테이블을 거둘 경로가 없던 것(W6 → 62 mmap + 노드 로컬 NVMe)이다. 오해 위험: KV 20GiB 클램프(V6)는 필요량을 크게 넘는 승계 손레버이고, 리포트의 cold TTFT 는 연속 두 번째 실행의 값이라 cold 가 아니다(Q2) — 이 lite 수치를 기준선이나 full · 인증 수치와 나란히 쓰지 말 것. |
 | `hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8-spec3-densegemv-moeprep` | v7 | 0.30.0 | deepseek-v4.1-flash-exl3-2.0bpw-sfxnz | gb10-1g2n-cluster-native | OBSERVATION-ONLY | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_CELL_CONFIG · HINT_MISSING_SWEEP_LEVELS | DeepSeek-V4.1-Flash EXL3 2.0bpw(sfxnz 팩 A)를 GB10 GPU 1개 × 노드 2개 · Ray TP=2 · vLLM v0.30.0 소스빌드(SM12X_PORT=1 이식 이미지) · max-model-len 1048576 · fp8 KV · PLE 없음 · DSpark spec k=3 · cudagraph 로 서빙해 lite warm 동시성 1 gen 44.74 t/s(lite 스냅샷 · 반복 1 · OBSERVATION-ONLY)를 쟀다. 가장 비싼 벽은 CUDA graph 전부 logits NaN(W4 — 원인은 KV null 블록 오염 · PRE 89 로 해소)과 참조 런타임의 두 배가 넘던 스텝 비용(W6~W9 — 저자 커널 레버를 핀 커밋 그대로 빌드 슬롯 POST 73 · 74 · PRE 90 · 91 · 92 로 이식)이다. 가장 오해하기 쉬운 값은 `kv-cache-memory-bytes`(V9 — 필요량 역산이 아닌 손레버 승계값이고 이 값이 있으면 gmu 는 KV 를 정하지 않는다)이며, Engram prestage(88)는 graph NaN 의 처방이 아니다(M1 반증). |
+| `hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8-spec3-densegemv-moeprep-t2610101710` | v7 | 0.30.0 | deepseek-v4.1-flash-exl3-2.0bpw-sfxnz | gb10-1g2n-cluster-native | PASS | full | HINT_MISSING_SWEEP_LEVELS | DeepSeek-V4.1-Flash EXL3 2.0bpw(sfxnz 팩 A)를 GB10 GPU 1개 × 노드 2개 · Ray TP=2 · vLLM v0.30.0 소스빌드(SM12X_PORT=1 이식 이미지) · max-model-len 1048576 · fp8 KV · PLE 없음 · DSpark spec k=3 · cudagraph 로 서빙하고 프리셋 full-bench(GuideLLM · 동시성 1 · 반복 3)로 판정점 decode 35.87 t/s(첫 run · weak PASS)를 쟀다. 가장 비싼 벽은 CUDA graph 전부 logits NaN(W4 — 원인은 KV null 블록 오염 · PRE 89 로 해소)과 참조 런타임의 두 배가 넘던 스텝 비용(W6~W9 — 저자 커널 레버를 핀 커밋 그대로 빌드 슬롯 POST 73 · 74 · PRE 90 · 91 · 92 로 이식)이며, c=2 Full 은 열 가드에 두 번 끊겨(W10) 이번 측정도 레벨 1 만 쟀다. 가장 오해하기 쉬운 값은 `kv-cache-memory-bytes`(V9 — 필요량 역산이 아닌 손레버 승계값 · 이 값이 있으면 gmu 는 KV 를 정하지 않는다)와 weak PASS 의 루프라인 바닥(M4 — 측정이 R_fp 상한의 약 14배 · 기대 달성치의 약 20배라 판정 정보가 없다)이다. |
 <!-- hint-index:rows -->
