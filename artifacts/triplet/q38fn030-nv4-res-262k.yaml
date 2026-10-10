@@ -1,0 +1,19 @@
+# 셀 q38fn030-nv4-res-262k — camp-26100107-v030-multi-q38fn (plan_26100107 M4)
+# 선언 축: vLLM 0.30.0 stock(패치 60 없이 상류 NVFP4 mixed 로딩 · #54882·#55513) · variant=NVFP4 · kv=auto(bf16) · ctx=262144 · PLE=resident
+# 참조(승계 아님 · carry-forward ✗): camp-26091216 nv4-bf-262k-res-kv8g-gmu80 (0.29.0rc6 · 46.70 t/s conc1) — 0.30.0 에서 스모크가 재확정한다
+# ⚠ 0.30.0 새 기본값: VLLM_PLE_CPU_OFFLOAD=1(PLE→pinned host+UVA) — resident 재현을 위해 engram-config 로 명시 off
+model: /app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4
+host: 0.0.0.0
+port: 8080
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+gpu-memory-utilization: 0.80
+max-model-len: 262144
+kv-cache-dtype: auto
+kv-cache-memory-bytes: 8589934592
+enforce-eager: true
+async-scheduling: false
+speculative-config: '{"method":"mtp","num_speculative_tokens":3}'
+max-num-seqs: 8
+max-num-batched-tokens: 2048
+engram-config: '{"cpu_offload": false}'

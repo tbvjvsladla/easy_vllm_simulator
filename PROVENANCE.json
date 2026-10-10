@@ -1,0 +1,29 @@
+{
+  "assembly_branch": "multi-node",
+  "generated_utc": "2026-10-10T20:23:08Z",
+  "payload_files": [
+    "00-hint.md",
+    "01-artifacts.md",
+    "02-narrative.md",
+    "03-benchmark.md",
+    "LINEAGE.json",
+    "PAYLOAD.json",
+    "PROVENANCE.json",
+    "README.md",
+    "artifacts/build_recipe/Dockerfile.source-build",
+    "artifacts/build_recipe/requirements.txt",
+    "artifacts/compose/.env.cluster.template",
+    "artifacts/compose/.env.interconnect.template",
+    "artifacts/compose/.env.template",
+    "artifacts/compose/docker-compose.yaml",
+    "artifacts/compose/serve_runner.sh",
+    "artifacts/compose/sub_recipe.json",
+    "artifacts/triplet/.env.q38fn030-nv4-res-262k",
+    "artifacts/triplet/q38fn030-nv4-res-262k.sh",
+    "artifacts/triplet/q38fn030-nv4-res-262k.yaml"
+  ],
+  "schema_version": 2,
+  "source_anchor": "baadcaff5313a4905a7d89828b83ba8abd1e7fc4",
+  "source_anchor_is_head": false,
+  "tag": "hint/0.30.0/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-pleresident"
+}
