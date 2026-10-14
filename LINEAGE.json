@@ -1,0 +1,71 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26101219",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26101219_vllm_0_31_0_KV양자화_최대동시성_벤치_계획.md",
+      "role": "plan",
+      "stem": "plan_26101219_vllm_0_31_0_KV양자화_최대동시성_벤치_계획"
+    },
+    {
+      "date": "26101317",
+      "depth": 0,
+      "excerpts": 3,
+      "path": "docs/testlog/testlog_26101317_qwen3-4b_KV양자화_동시성_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101317_qwen3-4b_KV양자화_동시성_판정"
+    },
+    {
+      "date": "26101413",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101413_kvq_concurrency_캠페인_종결.md",
+      "role": "devlog",
+      "stem": "devlog_26101413_kvq_concurrency_캠페인_종결"
+    },
+    {
+      "date": "26101413",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/report/perf_26101413_KV양자화_최대동시성_벤치_결과.md",
+      "role": "report",
+      "stem": "perf_26101413_KV양자화_최대동시성_벤치_결과"
+    },
+    {
+      "date": "26101413",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101413_qwen3-4b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101413_qwen3-4b_RTXPRO6000BlackwellWorkstationEdition_0.31.0"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [],
+    "count": 6
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26101414",
+  "schema_version": 2,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26101413_qwen3-4b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.md",
+      "sha256": "7419ae9783c871ffdecfd54396f59d6b4f3ef5f908894cf64476e6cdca086676"
+    },
+    {
+      "path": "docs/devlog/devlog_26101413_kvq_concurrency_캠페인_종결.md",
+      "sha256": "e9625eb2c5fa5af88b77102643c0e06d6cdb7f1652f0111674c5d3418e02a45d"
+    },
+    {
+      "path": "docs/plan/plan_26101219_vllm_0_31_0_KV양자화_최대동시성_벤치_계획.md",
+      "sha256": "3b7744a39ce82fb620e201a5964e761bea3c7976c86faac19061445f62823fbb"
+    },
+    {
+      "path": "docs/testlog/testlog_26101317_qwen3-4b_KV양자화_동시성_판정.md",
+      "sha256": "0476c96608cb88af06d2cc6b3f75f302ac9aab39ddf3dc8af1dd77d4b56dfa16"
+    }
+  ]
+}

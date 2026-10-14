@@ -1,0 +1,25 @@
+{
+  "assembly_branch": "single-node",
+  "generated_utc": "2026-10-14T05:01:28Z",
+  "payload_files": [
+    "00-hint.md",
+    "01-artifacts.md",
+    "02-narrative.md",
+    "03-benchmark.md",
+    "LINEAGE.json",
+    "PAYLOAD.json",
+    "PROVENANCE.json",
+    "README.md",
+    "artifacts/build_recipe/Dockerfile.source-build",
+    "artifacts/build_recipe/requirements.txt",
+    "artifacts/compose/.env.template",
+    "artifacts/compose/docker-compose.yaml",
+    "artifacts/triplet/.env.qwen3-4b-kv-bf16",
+    "artifacts/triplet/qwen3-4b-kv-bf16.sh",
+    "artifacts/triplet/qwen3-4b-kv-bf16.yaml"
+  ],
+  "schema_version": 2,
+  "source_anchor": "ca7bfb99a39745e114198fddf091d487b6f5deaf",
+  "source_anchor_is_head": true,
+  "tag": "hint/0.31.0/qwen3-4b/rtxpro6000ws-1g1n-main-native/qbf16-len40960-kvauto"
+}

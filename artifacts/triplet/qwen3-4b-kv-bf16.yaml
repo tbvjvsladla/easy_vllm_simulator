@@ -1,0 +1,12 @@
+# Qwen/Qwen3-4B 서빙 설정 (vllm-recipe-explorer 생성)
+# 레시피: quant=none max_model_len=40960 gpu_mem_util=0.9
+# 출처(explorer 각인): max-num-seqs ← batch_source=hand-lever · gpu-memory-utilization ← gmu_source=target_gmu
+model: /app/models/Qwen/Qwen3-4B
+host: 0.0.0.0
+port: 8000
+# gpu-memory-utilization = startup free-memory 게이트(기동 전 free ≥ ceil(total×gmu) · 통합메모리 ≤0.90) + 총량 cap 은 관측된 작용(한 셀 관측 · 유효맥락 kv-clamp.md §1 · vLLM 소스에서 기전 미확정); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어
+gpu-memory-utilization: 0.9
+max-model-len: 40960
+max-num-seqs: 512
+kv-cache-memory-bytes: 81668803133
+no-enable-prefix-caching: true
