@@ -1,0 +1,685 @@
+{
+  "agent_requests": [],
+  "applied_set": {
+    "excluded": [
+      {
+        "file": ".gitkeep",
+        "phase": "post",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      },
+      {
+        "file": ".gitkeep",
+        "phase": "pre",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      }
+    ],
+    "patches": [
+      {
+        "file": "strip-hoist",
+        "ledger_result_source": "status-file",
+        "phase": "inline",
+        "reason": "register_opaque_type accepts hoist / opaque_object 부재",
+        "result": "skipped",
+        "result_source": "build-ledger"
+      }
+    ],
+    "probes": [
+      {
+        "ref": "output/single/benchlog/attestation_muse-glimmer-30b.json(부재)",
+        "result": "absent",
+        "tier": "attestation"
+      },
+      {
+        "image": "easy-vllm:0.31.0-cu133-x86_64-source",
+        "image_source": "cell-env:IMAGE_TAG(측정 digest 미기재 — 태그로 관측 · 태그는 가변 포인터)",
+        "method": "docker create+cp(시작 ✗)",
+        "result": "observed",
+        "tier": "local-image"
+      }
+    ],
+    "source": "docker-image(main-local):easy-vllm:0.31.0-cu133-x86_64-source:/opt/easy-vllm/build_ledger.json",
+    "status": "observed"
+  },
+  "approval": {
+    "approved_by": "사용자: 'hint 태그 발행 진행해줘' (캠페인 측정 종결 후 3셀 발행 승인)",
+    "approved_utc": "2026-10-14T04:52:35Z",
+    "source": "campaign:hint_targets"
+  },
+  "attestation_scope": null,
+  "bench_definition": {
+    "bench_tool": "vllm-bench-serve",
+    "bench_tool_source": "bench_report(bench_report_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.md)",
+    "current_full_definition": "full 계측(lite 게이트 → `GuideLLM × 반복 ≥3` · lite ⊂ full)",
+    "meets_current_full": false,
+    "reasons": [
+      "측정 구성 bench_mode=lite — full 측정이 아니다",
+      "판정점 반복 1 < 현행 정의 3",
+      "측정 도구 vllm-bench-serve — 현행 정의의 full 레그(GuideLLM)가 아니다"
+    ],
+    "repeats_requested": 1,
+    "repeats_source": "측정 구성 표 repeats_completed(완주 · bench_report(bench_report_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.md))",
+    "required_legs": [
+      "lite",
+      "GuideLLM"
+    ],
+    "required_repeats": 3,
+    "source": ".claude/rules/docs.md",
+    "source_line": 42,
+    "this_repeats": 1,
+    "verdict_level": null
+  },
+  "build": {
+    "cpu_arch": "amd64",
+    "cuda": "13.3.1.008",
+    "dockerfile": "Dockerfile.source-build",
+    "driver": "580.178.04",
+    "driver_by_node": null,
+    "driver_conflict": null,
+    "image_digest": "sha256:b02c97cbacb1d1a3ed922dd8139ab728d7847f51de64694dbb6a9192b85a93ac",
+    "image_tag": "easy-vllm:0.31.0-cu133-x86_64-source",
+    "ngc": "26.07",
+    "os": null,
+    "source": {
+      "cpu_arch": "docker image inspect Architecture",
+      "cuda": "docker image inspect Config.Env CUDA_VERSION",
+      "dockerfile": "build-ledger.dockerfile",
+      "driver": "output/single/manifest.yaml(manifest_contract 로더) driver_version(스캔 시점 선언 — 측정 시각 값 미보장)",
+      "image_digest": "docker image inspect easy-vllm:0.31.0-cu133-x86_64-source .Id · .Created 2026-10-12T12:34:26Z(현 로컬 이미지 관측 · 태그는 가변 포인터) · Created < 측정 2026-10-14T05:25:07Z → 측정 전 빌드 — 같은 빌드로 판정 가능(그 사이 재태깅은 관측 밖)",
+      "image_tag": "셀 env(output/single/envs/.env.muse-glimmer-30b) IMAGE_TAG",
+      "ngc": "docker image inspect Config.Env NVIDIA_PYTORCH_VERSION",
+      "os": "미관측(attestation·인증서·스윕 meta·manifest 에 ['os', 'os_release', 'os_name', 'os_version', 'kernel', 'kernel_release'] 키 없음 — 지어내지 않는다)",
+      "torch": "docker image inspect Config.Env PYTORCH_VERSION",
+      "track": "artifacts 선택자(build-ledger.dockerfile)",
+      "vllm_ref": "docker history build-arg VLLM_REF",
+      "vllm_repo": "docker history build-arg VLLM_REPO"
+    },
+    "torch": "2.13.0a0+9186a08",
+    "track": "source-build",
+    "vllm_ref": "v0.31.0",
+    "vllm_repo": "https://github.com/vllm-project/vllm.git",
+    "vllm_sha": null
+  },
+  "build_context_map": [
+    {
+      "basis": "compose env_file envs/.env.${CONFIG_FILE}(셀 env)",
+      "context_path": "envs/.env.muse-kv-bf16",
+      "slot_path": "artifacts/triplet/.env.muse-kv-bf16"
+    },
+    {
+      "basis": "빌드 컨텍스트 입력 아님(Dockerfile COPY · compose 참조 밖)",
+      "context_path": null,
+      "slot_path": "artifacts/triplet/muse-kv-bf16.sh"
+    },
+    {
+      "basis": "빌드 컨텍스트 입력 아님(Dockerfile COPY · compose 참조 밖)",
+      "context_path": null,
+      "slot_path": "artifacts/triplet/muse-kv-bf16.yaml"
+    },
+    {
+      "basis": "compose build.dockerfile Dockerfile.source-build(리터럴) · build.context .",
+      "context_path": "Dockerfile.source-build",
+      "slot_path": "artifacts/build_recipe/Dockerfile.source-build"
+    },
+    {
+      "basis": "Dockerfile.source-build COPY requirements.txt",
+      "context_path": "requirements.txt",
+      "slot_path": "artifacts/build_recipe/requirements.txt"
+    },
+    {
+      "basis": "compose 변수치환 프로젝트 .env(${…} 참조)",
+      "context_path": ".env",
+      "slot_path": "artifacts/compose/.env.template"
+    },
+    {
+      "basis": "compose 파일(빌드 컨텍스트 루트)",
+      "context_path": "docker-compose.yaml",
+      "slot_path": "artifacts/compose/docker-compose.yaml"
+    }
+  ],
+  "campaign": {
+    "cell": "muse-glimmer-30b",
+    "id": "camp-26101210-kvq-concurrency",
+    "mode": "campaign",
+    "node": "main"
+  },
+  "evidence_pointers": [
+    {
+      "cell_id": "muse-glimmer-30b",
+      "kind": "bench_report",
+      "node_id": "main",
+      "path": "docs/benchmark/bench_report_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.md"
+    },
+    {
+      "cell_id": "muse-glimmer-30b",
+      "kind": "certificate",
+      "node_id": "main",
+      "path": "docs/benchmark/benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml"
+    },
+    {
+      "cell_id": "muse-glimmer-30b",
+      "kind": "devlog",
+      "node_id": "main",
+      "path": "docs/devlog/devlog_26101414_muse_glimmer_30b_측정_서사.md"
+    },
+    {
+      "cell_id": "muse-glimmer-30b",
+      "kind": "testlog",
+      "node_id": "main",
+      "path": "docs/testlog/testlog_26101413_muse-glimmer-30b_KV양자화_동시성_판정.md"
+    }
+  ],
+  "factcheck": {
+    "author": "발행 Agent(본 세션 저작자)",
+    "checked_utc": "2026-10-14T06:10:00Z",
+    "checker": "독립 검증 Agent(fact-checker)",
+    "claims_checked": 58,
+    "fixed": 11,
+    "items": 11,
+    "open": [],
+    "reason_code": null,
+    "source": "inputs/factcheck.json",
+    "status": "passed"
+  },
+  "format": "hint-payload/v7",
+  "generated_utc": "2026-10-14T05:27:41Z",
+  "identity": {
+    "base_model": null,
+    "base_slug": "muse-glimmer-30b",
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "hf_repo": null,
+    "hf_revision": null,
+    "model": "muse-glimmer-30b",
+    "quant": "bf16",
+    "quant_composition": [
+      {
+        "dtype": "bfloat16",
+        "scope": "기본 dtype(비양자화 가중치·계산)",
+        "source": "/app/models/meta-models/Muse-Glimmer-30B → <manifest.nas_model_path>/meta-models/Muse-Glimmer-30B/config.json dtype"
+      }
+    ],
+    "source": {
+      "base_model": "README 머리 YAML 에 base_model 없음(/app/models/meta-models/Muse-Glimmer-30B → <manifest.nas_model_path>/meta-models/Muse-Glimmer-30B)",
+      "base_slug": "model(muse-glimmer-30b) − vocab quant_suffixes(naming.base_slug)",
+      "gpu": "인증서(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml)",
+      "hf_repo": "체크포인트 .git/config 부재(/app/models/meta-models/Muse-Glimmer-30B → <manifest.nas_model_path>/meta-models/Muse-Glimmer-30B) — HF repo 미관측",
+      "hf_revision": "체크포인트 .git/HEAD 부재(/app/models/meta-models/Muse-Glimmer-30B → <manifest.nas_model_path>/meta-models/Muse-Glimmer-30B) — revision 미관측",
+      "model": "인증서(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml)",
+      "quant": "naming-axis(q) — 측정 identity quantization = none(관측)(인증서(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml).quantization = none · quantization_source = measured(engine log)) — 비양자화 관측이라 이름 q 축 토큰으로 옮겼다 · q 축 = /app/models/meta-models/Muse-Glimmer-30B → <manifest.nas_model_path>/meta-models/Muse-Glimmer-30B/config.json quantization_config·hf_quant_config.json 부재 관측 → 비양자화 · vocab quant[bf16]←'none'",
+      "quant_composition": "/app/models/meta-models/Muse-Glimmer-30B → <manifest.nas_model_path>/meta-models/Muse-Glimmer-30B/config.json(+hf_quant_config.json) 관측 칸(evidence._quant_composition 닫힌 목록)",
+      "topology": "인증서(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml)",
+      "tp": "인증서(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml)",
+      "vllm": "인증서(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml)"
+    },
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "measurement": {
+    "accept_len": null,
+    "bench_tool": "vllm-bench-serve",
+    "benchmark_mode": "lite",
+    "decode_tps_conc1": null,
+    "floor_tps": null,
+    "lite_accept_len": "N/A",
+    "lite_cold_ttft_ms": "105.3",
+    "lite_gen_src": "median_tpot",
+    "lite_gen_tps_warm": "28.44",
+    "lite_included": "true",
+    "lite_kv_gib": "29.17",
+    "measured_utc": "2026-10-14T05:25:07Z",
+    "ratio_M_over_primary": null,
+    "rubric_authority": null,
+    "source": "certificate(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml)",
+    "sources": {
+      "accept_len": "lite-only 셀 — 동시성 1 스윕·루브릭이 없다(lite 수치는 `lite`)",
+      "bench_tool": "certificate(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml) bench_tool",
+      "benchmark_mode": "certificate(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml) benchmark_mode",
+      "decode_tps_conc1": "lite-only 셀 — 동시성 1 스윕·루브릭이 없다(lite 수치는 `lite`)",
+      "floor_tps": "lite-only 셀 — 동시성 1 스윕·루브릭이 없다(lite 수치는 `lite`)",
+      "lite_accept_len": "certificate(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml) lite_accept_len",
+      "lite_cold_ttft_ms": "certificate(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml) lite_cold_ttft_ms",
+      "lite_gen_src": "certificate(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml) lite_gen_src",
+      "lite_gen_tps_warm": "certificate(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml) lite_gen_tps_warm",
+      "lite_included": "certificate(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml) lite_included",
+      "lite_kv_gib": "certificate(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml) lite_kv_gib",
+      "measured_utc": "certificate(benchmark_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.yaml) measured_utc",
+      "ratio_M_over_primary": "lite-only 셀 — 동시성 1 스윕·루브릭이 없다(lite 수치는 `lite`)",
+      "rubric_authority": "lite-only 셀 — 동시성 1 스윕·루브릭이 없다(lite 수치는 `lite`)",
+      "verdict": "lite-only 셀 — verdict_rule 에 투입되지 않았다(경량 리포트 `inform-only` · 판정 원천 없음 · benchmark_mode=lite · report_kind=lite)"
+    },
+    "verdict": "OBSERVATION-ONLY"
+  },
+  "measurement_config": {
+    "bench_mode": "lite",
+    "bench_mode_kind": "declared-lite",
+    "bench_tool": "vllm-bench-serve",
+    "bench_tool_version": null,
+    "downgrade_reason": null,
+    "repeats": 1,
+    "repeats_completed": 1,
+    "source": "bench_report(bench_report_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.md)"
+  },
+  "measurement_env_observed": [],
+  "missing": [
+    "BENCH_MODE_LITE",
+    "HINT_MISSING_RESOLVE",
+    "HINT_MISSING_SWEEP_LEVELS"
+  ],
+  "missing_reasons": {},
+  "naming": {
+    "axes": {
+      "gpus_per_node": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(인증서 measured_node) · 인증서 gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "1"
+      },
+      "hw": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(인증서 measured_node) · 인증서 gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · vocab hw[rtxpro6000ws]←'NVIDIA RTX PRO 6000 Blackwell Workstation Edition'",
+        "value": "rtxpro6000ws"
+      },
+      "kv": {
+        "source": "서빙 yaml kv-cache-dtype 부재 관측(output/single/configs/muse-glimmer-30b.yaml) → 엔진 기본값 auto · vocab kv[auto]←'auto'",
+        "value": "auto"
+      },
+      "len": {
+        "source": "서빙 yaml max-model-len(output/single/configs/muse-glimmer-30b.yaml)",
+        "value": "131072"
+      },
+      "nodes": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(인증서 measured_node) · 인증서 gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "1"
+      },
+      "plane": {
+        "source": "artifacts.plane_of → cell-env(IMAGE_TAG|BUILD_DOCKERFILE) · vocab plane[docker]→''",
+        "token": "",
+        "value": "docker"
+      },
+      "q": {
+        "source": "/app/models/meta-models/Muse-Glimmer-30B → <manifest.nas_model_path>/meta-models/Muse-Glimmer-30B/config.json quantization_config·hf_quant_config.json 부재 관측 → 비양자화 · vocab quant[bf16]←'none'",
+        "value": "bf16"
+      },
+      "role": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(인증서 measured_node) · 인증서 gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "main"
+      },
+      "target": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(인증서 measured_node) · 인증서 gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · target_gpu 'NVIDIA RTX PRO 6000 Blackwell Workstation Edition' = 호스트 hw → native",
+        "value": "native"
+      }
+    },
+    "grammar": "v7",
+    "segments": {
+      "arch": {
+        "source": "derived(hw·gpus_per_node·nodes·role·target·plane)",
+        "value": "rtxpro6000ws-1g1n-main-native"
+      },
+      "model": {
+        "source": "서빙 yaml model(output/single/configs/muse-glimmer-30b.yaml) · model_path basename(Muse-Glimmer-30B) 소문자 = 인증서 model 키 규칙",
+        "value": "muse-glimmer-30b"
+      },
+      "recipe": {
+        "source": "derived(q·len·kv)",
+        "value": "qbf16-len131072-kvauto"
+      },
+      "vllm": {
+        "source": "track=선택자 Dockerfile.source-build(docker history build-arg 관측) · ref=docker history build-arg VLLM_REF · version=VLLM_VERSION 미관측 · repo=docker history build-arg VLLM_REPO · sha=미관측 · VLLM_REF=v0.31.0(업스트림 릴리스 태그 · v 제거)",
+        "value": "0.31.0"
+      }
+    },
+    "tail": [],
+    "timestamp": null,
+    "vllm_build_input": {
+      "kind": "release",
+      "prev_release": null,
+      "ref": "v0.31.0",
+      "sha": null
+    },
+    "vllm_observed": {
+      "certificate_vllm_version": "0.31.0",
+      "certificate_vllm_version_producer": "unverified",
+      "certificate_vllm_version_source": "미검증 — sweep_bench.sh@2661d614cf52 이미지 태그 규칙 결과 None ≠ 인증서 '0.31.0' · 배너 접두도 아니다 (더 높은 우선순위의 덮어쓰기(`--vllm-version` 인자 → VLLM_VER · EASY_VLLM_VERSION env · L646)는 측정 기록에 남지 않아 배제할 수 없다 — 덮어쓰기였을 수 있다)",
+      "engine_self_report": "0.31.1.dev0+gdb9527a46.d20261012",
+      "engine_self_report_basis": "this-measurement",
+      "engine_self_report_source": "output/single/benchlog/lite_publish/muse-glimmer-30b_20261014T052507Z/lite_engine_head_muse-glimmer-30b.log:38(이 측정의 엔진 로그 기동 배너)",
+      "source": "칸별 출처는 *_source — engine_self_report=this-measurement · certificate_vllm_version=unverified · wheel_meta=미관측",
+      "wheel_meta": null,
+      "wheel_meta_source": "미관측 — attestation vllm_dist_version · native pip freeze 모두 없다(sweep_index.meta.vllm_build=None 는 sweep_bench 가 엔진 로그에서 `v<x.y.z…>` 정규식으로 잡는 값이다 → engine_self_report 의 원천)"
+    }
+  },
+  "native_source": null,
+  "plane": "docker",
+  "prior_approval": null,
+  "publication": {
+    "manifest_ref": "docs/_evidence/camp_26101210_kvq_concurrency__main__muse_glimmer_30b.work-manifest.json",
+    "task_class": "hint_map_only",
+    "topic": "camp_26101210_kvq_concurrency__main__muse_glimmer_30b"
+  },
+  "qualification": {
+    "health_200": true,
+    "inference_observed": true,
+    "method": "lite_raw+lite_warm(measured_utc = 리포트 생성일 · lite_bench health 200 선검사 전제)",
+    "sources": [
+      "output/single/benchlog/lite_publish/muse-glimmer-30b_20261014T052507Z/lite_raw_muse-glimmer-30b.json",
+      "output/single/benchlog/lite_publish/muse-glimmer-30b_20261014T052507Z/lite_warm_muse-glimmer-30b.json"
+    ]
+  },
+  "schema_version": 3,
+  "slots": {
+    "build_patch_post": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "원장 관측",
+        "ref": "docker-image(main-local):easy-vllm:0.31.0-cu133-x86_64-source:/opt/easy-vllm/build_ledger.json"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "post",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        }
+      ],
+      "file_records": [],
+      "files": [],
+      "machine_reason": "적용 판정 없음 — 원장 관측",
+      "rationale": null
+    },
+    "build_patch_pre": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "원장 관측",
+        "ref": "docker-image(main-local):easy-vllm:0.31.0-cu133-x86_64-source:/opt/easy-vllm/build_ledger.json"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "pre",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        }
+      ],
+      "file_records": [],
+      "files": [],
+      "machine_reason": "적용 판정 없음 — 원장 관측",
+      "rationale": null
+    },
+    "build_recipe": {
+      "applicable": true,
+      "confidence": "3-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "requirements.txt: Dockerfile.source-build 이 COPY → /etc/pip/constraint.txt(제약 천장 · wheel 설치 입력 아님)",
+        "recipe_vs_image": [
+          {
+            "history_match": {
+              "matched": 17,
+              "total": 17
+            },
+            "image_created_utc": "2026-10-12T12:34:26Z",
+            "last_commit_utc": "2026-10-14T04:45:50Z",
+            "note": "작업트리 경고(이미지 빌드 뒤 바뀐 레시피일 수 있다 — 마지막 커밋이 이미지 Created 뒤)는 실린 파일에 해당하지 않는다 — 실린 바이트 = worktree · worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치)",
+            "path": "output/single/Dockerfile.source-build",
+            "selection_method": "worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치)",
+            "shipped": "worktree",
+            "tracked": true,
+            "worktree_equals_head": true
+          },
+          {
+            "image_created_utc": "2026-10-12T12:34:26Z",
+            "last_commit_utc": "2026-10-14T04:45:50Z",
+            "note": "작업트리 경고(이미지 빌드 뒤 바뀐 레시피일 수 있다 — 마지막 커밋이 이미지 Created 뒤)는 실린 파일에 해당하지 않는다 — 실린 바이트 = worktree · worktree(빌드 원장 sha256 일치 — 쓰인 바이트 관측 확인 = 예)",
+            "path": "output/single/requirements.txt",
+            "selection_method": "worktree(빌드 원장 sha256 일치 — 쓰인 바이트 관측 확인 = 예)",
+            "shipped": "worktree",
+            "tracked": true,
+            "worktree_equals_head": true
+          }
+        ],
+        "ref": "build-ledger.dockerfile",
+        "selected_revision": {
+          "candidates": [
+            {
+              "matched": 17,
+              "revision": "worktree",
+              "total": 17
+            },
+            {
+              "matched": 15,
+              "revision": "1575bf4f8d05587d186bbc5932b4f870d01157f5",
+              "total": 19
+            }
+          ],
+          "commit": null,
+          "history_match": {
+            "matched": 17,
+            "total": 17
+          },
+          "method": "worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치)",
+          "path": "output/single/Dockerfile.source-build"
+        },
+        "selected_revisions": [
+          {
+            "commit": null,
+            "history_match": {
+              "matched": 17,
+              "total": 17
+            },
+            "method": "worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치)",
+            "path": "output/single/Dockerfile.source-build",
+            "shipped": "worktree",
+            "verified": true
+          },
+          {
+            "commit": null,
+            "history_match": null,
+            "method": "worktree(빌드 원장 sha256 일치 — 쓰인 바이트 관측 확인 = 예)",
+            "path": "output/single/requirements.txt",
+            "shipped": "worktree",
+            "verified": true
+          }
+        ]
+      },
+      "file_records": [
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_recipe/Dockerfile.source-build",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "db015a0ecc31b2b1e9306324aa73dd47fd60f1918d197844d061ff55a564144f",
+          "verification": "verified",
+          "verification_basis": "쓰인 레시피(build-ledger.dockerfile) — 개정 선택 slots.build_recipe.evidence.selected_revisions"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_recipe/requirements.txt",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "211c8f3040076c4fd06e738ad5e4c4df43dadc784c88ae620eaa692fdf33add2",
+          "verification": "verified",
+          "verification_basis": "쓰인 레시피(build-ledger.dockerfile) — 개정 선택 slots.build_recipe.evidence.selected_revisions"
+        }
+      ],
+      "files": [
+        "artifacts/build_recipe/Dockerfile.source-build",
+        "artifacts/build_recipe/requirements.txt"
+      ],
+      "machine_reason": "쓰인 Dockerfile 선택자 Dockerfile.source-build(build-ledger.dockerfile) + 그것이 COPY 하는 파일",
+      "rationale": "이 캠페인 전 모델 공통의 소스빌드 레시피다 — Muse 고유 추가는 없다. v0.31.0의 `tools/use_existing_torch.py` 이동을 버전적응 스탠자가 감지한다(4B 셀의 W1과 동일). Muse도 이 이미지 하나로 전 dtype 기동을 시도했다(이미지 하나가 모든 모델을 서빙한다 — 헌법)."
+    },
+    "compose": {
+      "applicable": true,
+      "confidence": "2-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-10-14T05:25:07Z",
+        "note": "서빙 러너 [] · env 형상 실림 1/1",
+        "post_measurement_regenerated": [],
+        "ref": "output/single/docker-compose.yaml",
+        "selected_revision": {
+          "basis": "mtime≤measured",
+          "commit": "ca7bfb99a39745e114198fddf091d487b6f5deaf",
+          "commits_after_measurement": [],
+          "cross_check": [
+            "측정 뒤 커밋 0",
+            "작업트리 = HEAD"
+          ],
+          "history_match": null,
+          "measured_utc": "2026-10-14T05:25:07Z",
+          "method": "worktree(mtime 2026-10-12T10:49:21Z ≤ 측정 2026-10-14T05:25:07Z(certificate.measured_utc) · 바이트 = 측정 전 마지막 커밋 ca7bfb99a397)",
+          "mtime_utc": "2026-10-12T10:49:21Z",
+          "path": "output/single/docker-compose.yaml",
+          "shipped": "worktree",
+          "verified": true
+        },
+        "selected_revisions": [
+          {
+            "basis": "mtime≤measured",
+            "commit": "ca7bfb99a39745e114198fddf091d487b6f5deaf",
+            "commits_after_measurement": [],
+            "cross_check": [
+              "측정 뒤 커밋 0",
+              "작업트리 = HEAD"
+            ],
+            "history_match": null,
+            "measured_utc": "2026-10-14T05:25:07Z",
+            "method": "worktree(mtime 2026-10-12T10:49:21Z ≤ 측정 2026-10-14T05:25:07Z(certificate.measured_utc) · 바이트 = 측정 전 마지막 커밋 ca7bfb99a397)",
+            "mtime_utc": "2026-10-12T10:49:21Z",
+            "path": "output/single/docker-compose.yaml",
+            "shipped": "worktree",
+            "verified": true
+          }
+        ]
+      },
+      "excluded": [
+        {
+          "file": "arm_patch.sh",
+          "why": "not-armed(output/single/configs/muse-glimmer-30b_patch.py 없음 — arm_patch.sh 는 no-op)"
+        }
+      ],
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/.env.template",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "dd8674efdecf466e134064fb9a5ef971d9f31c35c4ac60837d8bd1d54843fddb",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/docker-compose.yaml",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "6e6759d643c8eba91bbf1eb804fb8abcd91a2e64890e6f41cfdf579459563fdc",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        }
+      ],
+      "files": [
+        "artifacts/compose/.env.template",
+        "artifacts/compose/docker-compose.yaml"
+      ],
+      "machine_reason": "single 서빙 경로(compose · 러너 · env 형상) — 측정 당시 개정(selected_revisions)",
+      "rationale": "NAS 모델 루트 `/app/models` ro 마운트 + JIT 캐시 영속 마운트(`./cache/vllm` · `./cache/flashinfer`). 이 캐시 마운트는 4B/32B 셀의 JIT 재기동을 살린 기전과 같다(devlog_26101413 §경과·결정 기록 2 — 쿨러 보강 + JIT 캐시로 fp8 부활). 단일 샤드 모델이라 로드 자체는 스트리밍된다."
+    },
+    "fork_pin": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "VARIANT 줄 부재 = stock",
+        "ref": ".claude/policies/arch_variant_ledger.json"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "셀 env 에 VARIANT 줄 없음 = stock(workflow.md §변종 좌표의 거처)",
+      "rationale": null
+    },
+    "runtime_patch": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "arming 실증 로그 미배선(plan Q1)",
+        "ref": "output/single/configs/muse-glimmer-30b_patch.py"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "output/single/configs/muse-glimmer-30b_patch.py 없음 — arm_patch.sh 는 no-op(런타임 패치 불해당)",
+      "rationale": null
+    },
+    "triplet": {
+      "applicable": true,
+      "confidence": "2-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-10-14T05:25:07Z",
+        "note": "측정 대조 없음",
+        "observed": null,
+        "post_measurement_regenerated": [],
+        "ref": "output/single/configs/muse-kv-bf16.yaml"
+      },
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/.env.muse-kv-bf16",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "81c987382100e63531055dec98e83d158a313536d083e93df59289a7f0e14cd5",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정 대조 없음"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/muse-kv-bf16.sh",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "01431f7e69c98a3eb1ef7fe28fa4c547858be32254a67208d78b4fd31bdca2c7",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정 대조 없음"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/muse-kv-bf16.yaml",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "372d671bed08e911232bc27081c8baaf0e6b56250ab27b0713c97f6c197a91a4",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정 대조 없음"
+        }
+      ],
+      "files": [
+        "artifacts/triplet/.env.muse-kv-bf16",
+        "artifacts/triplet/muse-kv-bf16.sh",
+        "artifacts/triplet/muse-kv-bf16.yaml"
+      ],
+      "machine_reason": "셀 id muse-glimmer-30b = 트리플렛 이름(configs/muse-glimmer-30b.yaml · .sh · envs/.env.muse-glimmer-30b)",
+      "rationale": "Muse의 서빙 입력: 모델 경로 · max-model-len 131072 · max-num-seqs 512 · KV 절대 클램프 · `language-model-only: true` · prefix cache OFF · serve_env(MAX_JOBS=1). `language-model-only`가 이 셀 고유의 필요조건 노브다(V5). KV 클램프는 bf16 무클��프 부팅 실측(29.17 GiB)으로 고정(V4)."
+    }
+  },
+  "tag": "hint/0.31.0/muse-glimmer-30b/rtxpro6000ws-1g1n-main-native/qbf16-len131072-kvauto",
+  "tool_snapshots": [
+    {
+      "driver_note": null,
+      "git_rev": "803064d23d516fc72600077cf65e9f6c2a8775d5",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-06T06:17:10Z",
+      "head_at_measurement": "ca7bfb99a39745e114198fddf091d487b6f5deaf",
+      "name": "lite_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "ca7bfb99a397..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
+      "rev_method": "reflog HEAD@{1791953150}(2026-10-14T04:45:50Z) = 측정 시각 2026-10-14T05:25:07Z 직전 체크아웃",
+      "role": "lite",
+      "snapshot_rel": "inputs/sources/lite_bench.sh@803064d23d51",
+      "why": "경량 리포트 셀(lite_bench.sh 가 리포트를 발행한다)",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    }
+  ]
+}

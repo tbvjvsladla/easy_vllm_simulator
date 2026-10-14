@@ -1,0 +1,71 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26101219",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26101219_vllm_0_31_0_KV양자화_최대동시성_벤치_계획.md",
+      "role": "plan",
+      "stem": "plan_26101219_vllm_0_31_0_KV양자화_최대동시성_벤치_계획"
+    },
+    {
+      "date": "26101413",
+      "depth": 0,
+      "excerpts": 3,
+      "path": "docs/testlog/testlog_26101413_muse-glimmer-30b_KV양자화_동시성_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101413_muse-glimmer-30b_KV양자화_동시성_판정"
+    },
+    {
+      "date": "26101413",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/report/perf_26101413_KV양자화_최대동시성_벤치_결과.md",
+      "role": "report",
+      "stem": "perf_26101413_KV양자화_최대동시성_벤치_결과"
+    },
+    {
+      "date": "26101414",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101414_muse_glimmer_30b_측정_서사.md",
+      "role": "devlog",
+      "stem": "devlog_26101414_muse_glimmer_30b_측정_서사"
+    },
+    {
+      "date": "26101414",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [],
+    "count": 13
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26101414",
+  "schema_version": 2,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26101414_muse-glimmer-30b_RTXPRO6000BlackwellWorkstationEdition_0.31.0.md",
+      "sha256": "319d4d34af41e84133e6bae3010a8550025b43df0e40b2b43ec8d6e045149a20"
+    },
+    {
+      "path": "docs/devlog/devlog_26101414_muse_glimmer_30b_측정_서사.md",
+      "sha256": "1f1b258fbf2f26ee8078a181734747bb9f70e859ae6a520730f517d319de9817"
+    },
+    {
+      "path": "docs/plan/plan_26101219_vllm_0_31_0_KV양자화_최대동시성_벤치_계획.md",
+      "sha256": "3b7744a39ce82fb620e201a5964e761bea3c7976c86faac19061445f62823fbb"
+    },
+    {
+      "path": "docs/testlog/testlog_26101413_muse-glimmer-30b_KV양자화_동시성_판정.md",
+      "sha256": "2b2e2041f1c1797112948d83cf3a217547262e9f074659aeff38640b8c7de529"
+    }
+  ]
+}
