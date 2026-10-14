@@ -157,6 +157,9 @@ VALIDATED_SOURCE_BUILD_KEYS = {
                               #   heterogeneity 가드 신설 → hybrid-attention 모델 즉사) ② source-build 트랙은 pip constraint
                               #   파일을 requirements.txt(extras 제거)로 채워야 함(이 템플릿에 신규 배선 — 이전엔 비워서 무의미했음).
                               #   testlog_26081111 참조.
+    ("26.07-py3", "0.31.0"),  # 2026-10-14 승급(single-node): 양 노드 소스빌드 + TP=1 4모델(Granite-4.2-8B·MiniCPM5-2B·
+                              #   Ornith-1.5-9B·LFM2.5-2.6B) 스모크·툴콜·lite PASS · 전제 = tools/use_existing_torch.py 자기적응(#58572)
+                              #   · libdw-dev · transformers<5.15.0. testlog_26101412 · 사용자 HITL ④ 승인.
 }
 
 # ── 출구① 상속(inherit) 원장 — plan_26082112 §5.2 · P4 ────────────────────────
