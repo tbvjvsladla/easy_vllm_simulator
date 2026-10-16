@@ -1,0 +1,55 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26101620",
+      "depth": 1,
+      "excerpts": 4,
+      "path": "docs/testlog/testlog_26101620_p10_cnn_fullbench.md",
+      "role": "testlog",
+      "stem": "testlog_26101620_p10_cnn_fullbench"
+    },
+    {
+      "date": "26101620",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101620_ornith15_9b_v031_CNN_hint셀.md",
+      "role": "devlog",
+      "stem": "devlog_26101620_ornith15_9b_v031_CNN_hint셀"
+    },
+    {
+      "date": "26101620",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/benchmark/bench_report_26101620_ornith-1.5-9b_GB10_0.31.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101620_ornith-1.5-9b_GB10_0.31.0"
+    },
+    {
+      "date": "26101620",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101620_49_00_ornith15_9b_v031_CNN_hint셀.md",
+      "role": "testlog",
+      "stem": "testlog_26101620_49_00_ornith15_9b_v031_CNN_hint셀"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [],
+    "count": 104
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26101620",
+  "schema_version": 2,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26101620_ornith-1.5-9b_GB10_0.31.0.md",
+      "sha256": "5c0c9197d0eeb41d3ab95946415f4413adf3b14d2222ac11fd682a5e55f21d37"
+    },
+    {
+      "path": "docs/testlog/testlog_26101620_p10_cnn_fullbench.md",
+      "sha256": "eca044082f5a24480e84b629792a692f317a8bdf5ed2b6312bf4eddd439e9d24"
+    }
+  ]
+}
