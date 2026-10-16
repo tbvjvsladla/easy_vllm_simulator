@@ -1,0 +1,160 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26101410",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/plan/plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite.md",
+      "role": "plan",
+      "stem": "plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite"
+    },
+    {
+      "date": "26101614",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101614_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "role": "plan",
+      "stem": "plan_26101614_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리"
+    },
+    {
+      "date": "26101616",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101616_데이터셋knob_서브배달_서브E2E_hint발행.md",
+      "role": "plan",
+      "stem": "plan_26101616_데이터셋knob_서브배달_서브E2E_hint발행"
+    },
+    {
+      "date": "26101616",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101616_minicpm5-2b_GB10_0.31.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101616_minicpm5-2b_GB10_0.31.0"
+    },
+    {
+      "date": "26101616",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101616_54_23_minicpm5-2b_GB10_0.31.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101616_54_23_minicpm5-2b_GB10_0.31.0"
+    },
+    {
+      "date": "26101619",
+      "depth": 1,
+      "excerpts": 1,
+      "path": "docs/devlog/devlog_26101619_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "role": "devlog",
+      "stem": "devlog_26101619_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리"
+    },
+    {
+      "date": "26101619",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101619_minicpm5-2b_GB10_0.31.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101619_minicpm5-2b_GB10_0.31.0"
+    },
+    {
+      "date": "26101619",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101619_54_16_CNN_fullbench_셀_minicpm5_2b_v031_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101619_54_16_CNN_fullbench_셀_minicpm5_2b_v031_판정"
+    },
+    {
+      "date": "26101620",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/devlog/devlog_26101620_CNN_fullbench_셀_minicpm5_2b_v031.md",
+      "role": "devlog",
+      "stem": "devlog_26101620_CNN_fullbench_셀_minicpm5_2b_v031"
+    },
+    {
+      "date": "26101621",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101621_lite셀_minicpm5_2b_v031.md",
+      "role": "devlog",
+      "stem": "devlog_26101621_lite셀_minicpm5_2b_v031"
+    },
+    {
+      "date": "26101621",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101621_minicpm5-2b_GB10_0.31.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101621_minicpm5-2b_GB10_0.31.0"
+    },
+    {
+      "date": "26101621",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26101621_36_59_lite셀_minicpm5_2b_v031_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101621_36_59_lite셀_minicpm5_2b_v031_판정"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [
+      {
+        "excerpts": 1,
+        "path": "output/single/benchlog/lite_publish/minicpm5-2b-v031_20261016T123814Z/lite_engine_head_minicpm5-2b-v031.log"
+      }
+    ],
+    "count": 85
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26101621",
+  "schema_version": 2,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26101619_minicpm5-2b_GB10_0.31.0.md",
+      "sha256": "4f1745d23f640610350f995837235e6c7c02d536c6640eca6ae9fe3cb68e8774"
+    },
+    {
+      "path": "docs/benchmark/bench_report_26101621_minicpm5-2b_GB10_0.31.0.md",
+      "sha256": "66b1f7cb0d161d4782c20de8bce75e1876fc2a25cee5a36c75c0f34fdfc8f101"
+    },
+    {
+      "path": "docs/devlog/devlog_26101619_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "sha256": "8f0e2c143cfccb72e7e507bad6874251081e9ae624e1b1df6f3612a56079aeb4"
+    },
+    {
+      "path": "docs/devlog/devlog_26101620_CNN_fullbench_셀_minicpm5_2b_v031.md",
+      "sha256": "bf476fdf6d5f1922276db8f582bb65734c5cabf89d7e2a9e9355cc6f7a7506c9"
+    },
+    {
+      "path": "docs/devlog/devlog_26101621_lite셀_minicpm5_2b_v031.md",
+      "sha256": "7b4dfa84dc300f49efbf889c6b04d6489267e8667790d4f498af0f01c93c0199"
+    },
+    {
+      "path": "docs/plan/plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite.md",
+      "sha256": "9641c12818b9524dcc12fc78f6faa7a7c94599e4ed9f16bb5a52cae7173a88ee"
+    },
+    {
+      "path": "docs/plan/plan_26101614_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "sha256": "95a5bb81b2168a0686a2fba23d9f67cfd51c1b9c9b1cb0ad97c48ce19f13cb79"
+    },
+    {
+      "path": "docs/testlog/testlog_26101621_36_59_lite셀_minicpm5_2b_v031_판정.md",
+      "sha256": "44937964c14204c7c70b778af58ea600a1790a17c9298c5b3087bd51095a4d89"
+    },
+    {
+      "path": "output/single/benchlog/lite_minicpm5-2b-v031_26101616/lite_raw_minicpm5-2b-v031.json",
+      "sha256": "2852cfb2447aecaf1eb3a37b02385a77f4c61aa84796eb94e2ef916944e284cd"
+    },
+    {
+      "path": "output/single/benchlog/lite_publish/minicpm5-2b-v031_20261016T123814Z/lite_engine_head_minicpm5-2b-v031.log",
+      "sha256": "c78f535a7a37c6e1710d82c994e00dd5442464a502007505eabc12593d5be311"
+    },
+    {
+      "path": "output/single/benchlog/lite_publish/minicpm5-2b-v031_20261016T123814Z/lite_raw_minicpm5-2b-v031.json",
+      "sha256": "409ad7bd82429c9841ccd455913ed8d55b661b7ac238c2584c9201d1400e700a"
+    }
+  ]
+}
