@@ -1,0 +1,116 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26101410",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/plan/plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite.md",
+      "role": "plan",
+      "stem": "plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite"
+    },
+    {
+      "date": "26101614",
+      "depth": 1,
+      "excerpts": 2,
+      "path": "docs/plan/plan_26101614_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "role": "plan",
+      "stem": "plan_26101614_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리"
+    },
+    {
+      "date": "26101616",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101616_데이터셋knob_서브배달_서브E2E_hint발행.md",
+      "role": "plan",
+      "stem": "plan_26101616_데이터셋knob_서브배달_서브E2E_hint발행"
+    },
+    {
+      "date": "26101616",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101616_granite-4.2-8b_GB10_0.31.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101616_granite-4.2-8b_GB10_0.31.0"
+    },
+    {
+      "date": "26101619",
+      "depth": 0,
+      "excerpts": 3,
+      "path": "docs/testlog/testlog_26101619_CNN_fullbench_셀_granite42_8b_v031_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101619_CNN_fullbench_셀_granite42_8b_v031_판정"
+    },
+    {
+      "date": "26101619",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101619_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "role": "devlog",
+      "stem": "devlog_26101619_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리"
+    },
+    {
+      "date": "26101619",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101619_54_16_CNN_fullbench_셀_minicpm5_2b_v031_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101619_54_16_CNN_fullbench_셀_minicpm5_2b_v031_판정"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [
+      {
+        "excerpts": 4,
+        "path": "output/single/benchlog/sweep_granite42-8b-v031/level_01/guidellm_granite42-8b-v031.json"
+      },
+      {
+        "excerpts": 1,
+        "path": "output/single/benchlog/sweep_granite42-8b-v031/lite_engine_head_granite42-8b-v031.log"
+      }
+    ],
+    "count": 120
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26101620",
+  "schema_version": 2,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26101616_granite-4.2-8b_GB10_0.31.0.md",
+      "sha256": "3d64aa69f8725eda2bcd588ebede5154270f2e50d71d03884d9b10ab0b3360b8"
+    },
+    {
+      "path": "docs/devlog/devlog_26101619_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "sha256": "8f0e2c143cfccb72e7e507bad6874251081e9ae624e1b1df6f3612a56079aeb4"
+    },
+    {
+      "path": "docs/plan/plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite.md",
+      "sha256": "9641c12818b9524dcc12fc78f6faa7a7c94599e4ed9f16bb5a52cae7173a88ee"
+    },
+    {
+      "path": "docs/plan/plan_26101614_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "sha256": "95a5bb81b2168a0686a2fba23d9f67cfd51c1b9c9b1cb0ad97c48ce19f13cb79"
+    },
+    {
+      "path": "docs/testlog/testlog_26101619_CNN_fullbench_셀_granite42_8b_v031_판정.md",
+      "sha256": "ddcf1a01f07063bf231bc36eefd70f6b9c7f9e23e5a252a54210776126f0a549"
+    },
+    {
+      "path": "output/single/benchlog/sweep_granite42-8b-v031/level_01/engine_granite42-8b-v031.log",
+      "sha256": "2074d52061e87df9ac2908de5c65aa91287e2cedc230bfb7280be1eb44133d04"
+    },
+    {
+      "path": "output/single/benchlog/sweep_granite42-8b-v031/level_01/guidellm_granite42-8b-v031.json",
+      "sha256": "74d7e4bc927257bc6fd66e47dd8ee38068c5f72a638aa0e510adc44f484093c6"
+    },
+    {
+      "path": "output/single/benchlog/sweep_granite42-8b-v031/lite_engine_head_granite42-8b-v031.log",
+      "sha256": "532e143e4b5b03cb2a4bd457fc070fa3ac4b2ad5cb3200142c5edb865fcada49"
+    },
+    {
+      "path": "output/single/benchlog/sweep_granite42-8b-v031/sweep_index.json",
+      "sha256": "ad8058bcd80615e7d79142927f9206fd7d60883de180c964bcd936d9a6dee52a"
+    }
+  ]
+}
