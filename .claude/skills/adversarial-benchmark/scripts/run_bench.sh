@@ -38,7 +38,7 @@ TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; CONC=1; OUTDIR=
 ILEN=""; OLEN=""; NPROMPTS=""; WARMUPS=""
 # 데이터셋 축(2026-10-16 · plan_26101614): bench_preset resolve 가 낸 해소값(JSON)을 그대로 받는다 — 플래그를
 #   knob 마다 늘리면 누락 자리가 knob 수만큼 생긴다. 캐시 폴더 = 스윕 단위(전처리 1회) · 런 번호 = 겹치지 않는 행 선택.
-DATASET_SPEC=""; DATASET_CACHE=""; DATASET_RUN_INDEX=""
+DATASET_SPEC=""; DATASET_CACHE=""; DATASET_RUN_INDEX=""; DATASET_SWEEP_SALT=""
 while [ $# -gt 0 ]; do case "$1" in
   --tool) TOOL="$2"; shift 2;;
   --tool-version) TOOL_VERSION="$2"; shift 2;;
@@ -57,6 +57,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --dataset-spec) DATASET_SPEC="$2"; shift 2;;
   --dataset-cache) DATASET_CACHE="$2"; shift 2;;
   --dataset-run-index) DATASET_RUN_INDEX="$2"; shift 2;;
+  --dataset-sweep-salt) DATASET_SWEEP_SALT="$2"; shift 2;;   # 스윕 시작 UTC — 행 시작 오프셋(plan_26101622 F2 후속)
   *) echo "[run_bench] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
 
@@ -414,7 +415,7 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
       --image "$IMAGE" --budget-mib "$BENCH_BUDGET_MIB" --input-len "$ILEN" --output-len "$OLEN" \
       || { echo "[run_bench] 데이터셋 전처리 실패 — 측정하지 않는다(합성으로 대체 ✗)" >&2; return 4; }
     python3 "$SDIR/dataset_prep.py" slice --spec "$DATASET_SPEC" --cache "$DATASET_CACHE" \
-      --run-index "$DATASET_RUN_INDEX" --count "$TOTAL_REQ" --input-len "$ILEN" --output-len "$OLEN" \
+      --run-index "$DATASET_RUN_INDEX" --sweep-salt "$DATASET_SWEEP_SALT" --count "$TOTAL_REQ" --input-len "$ILEN" --output-len "$OLEN" \
       --out "$ABS_OUTDIR/dataset_rows.jsonl" --sidecar "$OUTDIR/dataset_${CONFIG}.json" \
       --tokenizer-label "$MODEL_PATH" || return 4   # 컨테이너 경로(/app/models/…) — 호스트 운영자 경로는 배포물 PII 다
     DATA_ARG="$(python3 -c "import sys; sys.path.insert(0,sys.argv[1]); import dataset_prep as d

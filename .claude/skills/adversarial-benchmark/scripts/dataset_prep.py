@@ -163,8 +163,17 @@ def cmd_slice(a) -> int:
     if not pool:
         _die(3, "input_len=%s 목표 길이 행이 없다" % a.input_len)
     start = idx * n
+    # 스윕 오프셋(2026-10-17 · plan_26101622 F2 후속): 행 선택이 스윕마다 같으면(첫 런 = 늘 행 0..n-1) 같은 config 를 prefix cache 가
+    #   비기 전에 다시 잴 때 같은 프롬프트가 적중한다(실측: granite 재측정 level 1 run 1 적중률 0.9856 · TTFT 95 vs 263 ms). 시작점을
+    #   스윕 salt(sweep_bench 의 스윕 시작 UTC)에서 결정론으로 정한다 — 같은 salt 면 같은 행(재현) · 스윕 안 런끼리는 여전히 겹치지 않는다.
+    #   salt 부재 = 오프셋 0(종전 거동 그대로).
+    base = (int(hashlib.sha256(a.sweep_salt.encode("utf-8")).hexdigest()[:16], 16) % len(pool)) if a.sweep_salt else 0
     if start + n <= len(pool):
-        chosen, dup, how = pool[start:start + n], False, "contiguous(rows %d..%d · 다른 런과 겹치지 않음)" % (start, start + n - 1)
+        ids = [(base + start + j) % len(pool) for j in range(n)]
+        chosen, dup = [pool[i] for i in ids], False
+        how = ("contiguous(rows %d..%d · 다른 런과 겹치지 않음)" % (start, start + n - 1) if not base else
+               "contiguous(offset %d + rows %d..%d mod %d · 스윕 salt %s · 다른 런과 겹치지 않음)"
+               % (base, start, start + n - 1, len(pool), a.sweep_salt))
     else:
         rng = random.Random("%s:%d" % (spec["seed"], idx))
         chosen = [pool[rng.randrange(len(pool))] for _ in range(n)]
@@ -174,7 +183,7 @@ def cmd_slice(a) -> int:
                                      "source_sha256", "column_map", "preprocess_strategy", "seed")}
     side.update({"input_len": int(a.input_len), "output_len": int(a.output_len), "run_index": idx, "rows_used": n,
                  "rows_available": len(pool), "rows_prepared": meta.get("rows"), "selection": how,
-                 "prompt_tokens_count_target": target,
+                 "prompt_tokens_count_target": target, "sweep_salt": a.sweep_salt or None, "sweep_offset": base,
                  "duplicate_sampling": dup, "tokenizer": a.tokenizer_label,
                  "tokenizer_digest": meta["key"]["tokenizer_digest"],
                  "provenance": "measured(run_bench 가 이 런에 넘긴 행 · dataset_prep slice)"})
@@ -217,10 +226,30 @@ def _self_test() -> int:
        == {"text_column": "article", "prompt_tokens_count_column": PROMPT_COUNT_COL,
            "output_tokens_count_column": OUTPUT_COUNT_COL}
        and json.loads(data_arg("json_file", "/out/x.jsonl"))["load_kwargs"] == {"split": "train"})
+    # T5~T7 스윕 오프셋(2026-10-17 · plan_26101622 F2 후속)
+    import tempfile, argparse as _ap, contextlib, io
+    with tempfile.TemporaryDirectory() as td:
+        tdp = Path(td)
+        (tdp / "spec.json").write_text(json.dumps({"dataset_kind": "parquet_file", "seed": 42}), encoding="utf-8")
+        (tdp / PREP_META).write_text(json.dumps({"rows": 100, "key": {"tokenizer_digest": "x"}}), encoding="utf-8")
+        (tdp / PREP_NAME).write_text("".join(json.dumps({PROMPT_COUNT_COL: 1024, "id": i}) + "\n" for i in range(100)),
+                                     encoding="utf-8")
+
+        def sl(idx, salt):
+            ns = _ap.Namespace(spec=str(tdp / "spec.json"), cache=td, run_index=idx, count=10, input_len=1024,
+                               output_len=256, out=str(tdp / "o.jsonl"), sidecar=str(tdp / "s.json"),
+                               tokenizer_label="t", sweep_salt=salt)
+            with contextlib.redirect_stdout(io.StringIO()):
+                cmd_slice(ns)
+            return [json.loads(x)["id"] for x in (tdp / "o.jsonl").read_text(encoding="utf-8").splitlines()]
+        ck("T5 salt 부재 = 종전 거동(런 0 = 행 0..9)", sl(0, "") == list(range(10)))
+        a0, a1 = sl(0, "2026-10-17T00:00:00Z"), sl(1, "2026-10-17T00:00:00Z")
+        ck("T6 같은 salt 의 런끼리 겹치지 않고 재현된다", not set(a0) & set(a1) and a0 == sl(0, "2026-10-17T00:00:00Z"))
+        ck("T7 다른 salt(다른 스윕)는 다른 행에서 시작한다(prefix cache 재적중 회피)", a0 != sl(0, "2026-10-17T01:00:00Z"))
     if fails:
         sys.stderr.write("[dataset_prep] self-test FAIL %s\n" % fails)
         return 1
-    print("[dataset_prep] self-test PASS — T1~T4")
+    print("[dataset_prep] self-test PASS — T1~T7")
     return 0
 
 
@@ -243,6 +272,7 @@ def main(argv=None) -> int:
     for k in ("--spec", "--cache", "--run-index", "--count", "--input-len", "--output-len", "--out", "--sidecar",
               "--tokenizer-label"):
         s.add_argument(k, required=True)
+    s.add_argument("--sweep-salt", default="", help="스윕 시작 UTC(sweep_bench) — 행 시작 오프셋의 결정론 입력 · 부재 = 오프셋 0")
     y = sub.add_parser("synthetic-sidecar")
     for k in ("--input-len", "--output-len", "--sidecar"):
         y.add_argument(k, required=True)

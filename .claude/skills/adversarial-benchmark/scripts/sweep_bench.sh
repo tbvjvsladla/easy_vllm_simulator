@@ -258,6 +258,7 @@ if [ "$REASSEMBLE" != "1" ]; then
   echo "[sweep_bench] 데이터셋 = $DATASET_KIND (프리셋 해소값 · 판정 불변 · 출처는 런별 사이드카 → meta)"
 fi
 DATASET_RUN_INDEX=0
+DATASET_SWEEP_SALT="$(date -u +%FT%TZ)"   # 스윕마다 다른 행 시작점(prefix cache 재적중 회피 · sidecar 에 기록 · plan_26101622 F2 후속)
 
 # 레벨 파싱: 정렬·중복제거 + 판정점(1) 강제 포함(verdict 재사용 보장).
 IFS=',' read -r -a _lv <<< "$LEVELS"
@@ -456,7 +457,7 @@ for L in "${SORTED[@]}"; do
     [ -n "$HOST_ENDPOINT" ] && RB_ARGS+=(--host-endpoint "$HOST_ENDPOINT")
     [ -n "$CLIENT_VLLM" ] && RB_ARGS+=(--client-vllm "$CLIENT_VLLM")
     [ -n "$BENCH_BUDGET_MIB" ] && RB_ARGS+=(--bench-budget-mib "$BENCH_BUDGET_MIB")
-    RB_ARGS+=(--dataset-spec "$DATASET_SPEC" --dataset-cache "$DATASET_CACHE" --dataset-run-index "$DATASET_RUN_INDEX")
+    RB_ARGS+=(--dataset-spec "$DATASET_SPEC" --dataset-cache "$DATASET_CACHE" --dataset-run-index "$DATASET_RUN_INDEX" --dataset-sweep-salt "$DATASET_SWEEP_SALT")
     DATASET_RUN_INDEX=$((DATASET_RUN_INDEX + 1))
     RB_RC=0; PARSE_RC=0; RUN_OK=0; _PERR=""
     bash "$SDIR/run_bench.sh" "${RB_ARGS[@]}" || RB_RC=$?
